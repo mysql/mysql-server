@@ -13,15 +13,15 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
+#ifndef QUERY_OPTIONS_INCLUDED
+#define QUERY_OPTIONS_INCLUDED
+
 /**
   @file
 
   @details
   This file is used in the server, and the mysqlbinlog client.
 */
-
-#ifndef SQL_PRIV_INCLUDED
-#define SQL_PRIV_INCLUDED
 
 
 /*
@@ -114,4 +114,4 @@
 
 #define SELECT_MAX_STATEMENT_TIME       (1ULL << 37) // SELECT, user
 
-#endif /* SQL_PRIV_INCLUDED */
+#endif  /* QUERY_OPTIONS_INCLUDED */

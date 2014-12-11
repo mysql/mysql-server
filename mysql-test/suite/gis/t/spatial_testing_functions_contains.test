@@ -11,14 +11,7 @@
 #                                                                             #
 ###############################################################################
 
-
---source include/force_myisam_default.inc
---source include/not_embedded.inc
 --source include/have_geometry.inc
-
-#Confirming the storage engine
---echo #Confirming the storage engine
-SHOW VARIABLES LIKE '%engine%';
 
 ############################################################################################
 # Creating the spatial objects                                                             #
@@ -31,9 +24,7 @@ USE test;
 DROP TABLE IF EXISTS gis_geometrycollection;
 --enable_warnings
 
-
 CREATE TABLE gis_geometrycollection  (fid INTEGER NOT NULL PRIMARY KEY, g GEOMETRYCOLLECTION);
-
 
 ############################################################################################
 # Inserting the values specific to the spatial objects                                     #
@@ -120,89 +111,88 @@ SET @star_elem_horizontal_val_3= '((85 0,60 15,90 15,82 10,85 0))';
 SET @star_of_elems_3='MULTIPOLYGON(((65 0,75 25,85 0,75 5,65 0)),((85 0,60 15,90 15,82 10,85 0)))';
 SET @star_collection_elems_3='GEOMETRYCOLLECTION(MULTIPOLYGON(((65 0,75 25,85 0,75 5,65 0)),((85 0,60 15,90 15,82 10,85 0))),POLYGON((65 0,67 10,60 15,70 15,75 25,80 15,90 15,82 10,85 0,75 5,65 0)),LINESTRING(75 25,75 10),MULTIPOINT(65 0,85 0),POINT(75 25))';
 
-
 --echo #INSERT base star
 --disable_warnings
 INSERT INTO gis_geometrycollection VALUES
- (100,GeomFromText(@star)),
- (101,GeomFromText(@star_elem_vertical)),
- (102,GeomFromText(@star_elem_horizontal)),
- (103,GeomFromText(@star_of_elems)),
- (104,GeomFromText(@star_top)),
- (105,GeomFromText(@star_center)),
- (106,GeomFromText(@star_bottom_left)),
- (107,GeomFromText(@star_bottom_right)),
- (108,GeomFromText(@star_bottom_points)),
- (109,GeomFromText(@star_all_points)),
- (110,GeomFromText(@star_line_horizontal)),
- (111,GeomFromText(@star_line_vertical)),
- (112,GeomFromText(@star_top_to_center)),
- (113,GeomFromText(@star_lines_near_horizontal)),
- (114,GeomFromText(@star_lines_near_vertical)),
- (115,GeomFromText(@star_collection_elems));
+ (100,GEOMFROMTEXT(@star)),
+ (101,GEOMFROMTEXT(@star_elem_vertical)),
+ (102,GEOMFROMTEXT(@star_elem_horizontal)),
+ (103,GEOMFROMTEXT(@star_of_elems)),
+ (104,GEOMFROMTEXT(@star_top)),
+ (105,GEOMFROMTEXT(@star_center)),
+ (106,GEOMFROMTEXT(@star_bottom_left)),
+ (107,GEOMFROMTEXT(@star_bottom_right)),
+ (108,GEOMFROMTEXT(@star_bottom_points)),
+ (109,GEOMFROMTEXT(@star_all_points)),
+ (110,GEOMFROMTEXT(@star_line_horizontal)),
+ (111,GEOMFROMTEXT(@star_line_vertical)),
+ (112,GEOMFROMTEXT(@star_top_to_center)),
+ (113,GEOMFROMTEXT(@star_lines_near_horizontal)),
+ (114,GEOMFROMTEXT(@star_lines_near_vertical)),
+ (115,GEOMFROMTEXT(@star_collection_elems));
 --enable_warnings
 
 --echo #INSERT identical (to base) star
 --disable_warnings
 INSERT INTO gis_geometrycollection VALUES
- (200,GeomFromText(@star_1)),
- (201,GeomFromText(@star_elem_vertical_1)),
- (202,GeomFromText(@star_elem_horizontal_1)),
- (203,GeomFromText(@star_of_elems_1)),
- (204,GeomFromText(@star_top_1)),
- (205,GeomFromText(@star_center_1)),
- (206,GeomFromText(@star_bottom_left_1)),
- (207,GeomFromText(@star_bottom_right_1)),
- (208,GeomFromText(@star_bottom_points_1)),
- (209,GeomFromText(@star_all_points_1)),
- (210,GeomFromText(@star_line_horizontal_1)),
- (211,GeomFromText(@star_line_vertical_1)),
- (212,GeomFromText(@star_top_to_center_1)),
- (213,GeomFromText(@star_lines_near_horizontal_1)),
- (214,GeomFromText(@star_lines_near_vertical_1)),
- (215,GeomFromText(@star_collection_elems_1));
+ (200,GEOMFROMTEXT(@star_1)),
+ (201,GEOMFROMTEXT(@star_elem_vertical_1)),
+ (202,GEOMFROMTEXT(@star_elem_horizontal_1)),
+ (203,GEOMFROMTEXT(@star_of_elems_1)),
+ (204,GEOMFROMTEXT(@star_top_1)),
+ (205,GEOMFROMTEXT(@star_center_1)),
+ (206,GEOMFROMTEXT(@star_bottom_left_1)),
+ (207,GEOMFROMTEXT(@star_bottom_right_1)),
+ (208,GEOMFROMTEXT(@star_bottom_points_1)),
+ (209,GEOMFROMTEXT(@star_all_points_1)),
+ (210,GEOMFROMTEXT(@star_line_horizontal_1)),
+ (211,GEOMFROMTEXT(@star_line_vertical_1)),
+ (212,GEOMFROMTEXT(@star_top_to_center_1)),
+ (213,GEOMFROMTEXT(@star_lines_near_horizontal_1)),
+ (214,GEOMFROMTEXT(@star_lines_near_vertical_1)),
+ (215,GEOMFROMTEXT(@star_collection_elems_1));
 --enable_warnings
 
 --echo #INSERT overlapping star
 --disable_warnings
 INSERT INTO gis_geometrycollection VALUES
- (300,GeomFromText(@star_2)),
- (301,GeomFromText(@star_elem_vertical_2)),
- (302,GeomFromText(@star_elem_horizontal_2)),
- (303,GeomFromText(@star_of_elems_2)),
- (304,GeomFromText(@star_top_2)),
- (305,GeomFromText(@star_center_2)),
- (306,GeomFromText(@star_bottom_left_2)),
- (307,GeomFromText(@star_bottom_right_2)),
- (308,GeomFromText(@star_bottom_points_2)),
- (309,GeomFromText(@star_all_points_2)),
- (310,GeomFromText(@star_line_horizontal_2)),
- (311,GeomFromText(@star_line_vertical_2)),
- (312,GeomFromText(@star_top_to_center_2)),
- (313,GeomFromText(@star_lines_near_horizontal_2)),
- (314,GeomFromText(@star_lines_near_vertical_2)),
- (315,GeomFromText(@star_collection_elems_2));
+ (300,GEOMFROMTEXT(@star_2)),
+ (301,GEOMFROMTEXT(@star_elem_vertical_2)),
+ (302,GEOMFROMTEXT(@star_elem_horizontal_2)),
+ (303,GEOMFROMTEXT(@star_of_elems_2)),
+ (304,GEOMFROMTEXT(@star_top_2)),
+ (305,GEOMFROMTEXT(@star_center_2)),
+ (306,GEOMFROMTEXT(@star_bottom_left_2)),
+ (307,GEOMFROMTEXT(@star_bottom_right_2)),
+ (308,GEOMFROMTEXT(@star_bottom_points_2)),
+ (309,GEOMFROMTEXT(@star_all_points_2)),
+ (310,GEOMFROMTEXT(@star_line_horizontal_2)),
+ (311,GEOMFROMTEXT(@star_line_vertical_2)),
+ (312,GEOMFROMTEXT(@star_top_to_center_2)),
+ (313,GEOMFROMTEXT(@star_lines_near_horizontal_2)),
+ (314,GEOMFROMTEXT(@star_lines_near_vertical_2)),
+ (315,GEOMFROMTEXT(@star_collection_elems_2));
 --enable_warnings
 
 --echo #INSERT seperate star
 --disable_warnings
 INSERT INTO gis_geometrycollection VALUES
- (400,GeomFromText(@star_3)),
- (401,GeomFromText(@star_elem_vertical_3)),
- (402,GeomFromText(@star_elem_horizontal_3)),
- (403,GeomFromText(@star_of_elems_3)),
- (404,GeomFromText(@star_top_3)),
- (405,GeomFromText(@star_center_3)),
- (406,GeomFromText(@star_bottom_left_3)),
- (407,GeomFromText(@star_bottom_right_3)),
- (408,GeomFromText(@star_bottom_points_3)),
- (409,GeomFromText(@star_all_points_3)),
- (410,GeomFromText(@star_line_horizontal_3)),
- (411,GeomFromText(@star_line_vertical_3)),
- (412,GeomFromText(@star_top_to_center_3)),
- (413,GeomFromText(@star_lines_near_horizontal_3)),
- (414,GeomFromText(@star_lines_near_vertical_3)),
- (415,GeomFromText(@star_collection_elems_3));
+ (400,GEOMFROMTEXT(@star_3)),
+ (401,GEOMFROMTEXT(@star_elem_vertical_3)),
+ (402,GEOMFROMTEXT(@star_elem_horizontal_3)),
+ (403,GEOMFROMTEXT(@star_of_elems_3)),
+ (404,GEOMFROMTEXT(@star_top_3)),
+ (405,GEOMFROMTEXT(@star_center_3)),
+ (406,GEOMFROMTEXT(@star_bottom_left_3)),
+ (407,GEOMFROMTEXT(@star_bottom_right_3)),
+ (408,GEOMFROMTEXT(@star_bottom_points_3)),
+ (409,GEOMFROMTEXT(@star_all_points_3)),
+ (410,GEOMFROMTEXT(@star_line_horizontal_3)),
+ (411,GEOMFROMTEXT(@star_line_vertical_3)),
+ (412,GEOMFROMTEXT(@star_top_to_center_3)),
+ (413,GEOMFROMTEXT(@star_lines_near_horizontal_3)),
+ (414,GEOMFROMTEXT(@star_lines_near_vertical_3)),
+ (415,GEOMFROMTEXT(@star_collection_elems_3));
 --enable_warnings
 
 --disable_warnings
@@ -211,7 +201,6 @@ DROP TABLE IF EXISTS gis_geometrycollection_2;
 CREATE TABLE gis_geometrycollection_2 SELECT fid as fid2,g as g2 FROM gis_geometrycollection;
 
 --echo #Checking the integrity of the above create/insert statements 
-
 --echo #64 rows. 
 SELECT count(astext(g) != 'NULL') FROM gis_geometrycollection;
 --echo #64 rows. 
@@ -222,887 +211,1744 @@ SELECT count(astext(g2) != 'NULL') FROM gis_geometrycollection_2;
 ############################################################################################
 
 --echo #=======================================================================================
---echo # MBRContains(g1,g2)
+--echo # MBRCONTAINS(g1,g2)
 --echo #=======================================================================================
 
 --echo #-------------------------------------------------------------------------------------------
 --echo # point,point
-SELECT MBRContains(GeomFromText(@star_center),GeomFromText(@star_center));
-SELECT MBRContains(GeomFromText(@star_top),GeomFromText(@star_center));
-SELECT MBRContains(g,GeomFromText(@star_center)) FROM gis_geometrycollection WHERE fid=105;
---echo #point,multipoint
-SELECT MBRContains(GeomFromText(@star_bottom_left),GeomFromText(@star_bottom_points));
-SELECT MBRContains(g,GeomFromText(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=106;
---echo #point,linestring
-SELECT MBRContains(GeomFromText(@star_top),GeomFromText(@star_top_to_center));
-SELECT MBRContains(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=104;
---echo #point,multilinestring
-SELECT MBRContains(GeomFromText(@star_top),GeomFromText(@star_lines_near_vertical));
-SELECT MBRContains(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=104;
---echo #point,polygon
-SELECT MBRContains(GeomFromText(@star_top),GeomFromText(@star));
-SELECT MBRContains(g,GeomFromText(@star)) FROM gis_geometrycollection WHERE fid=104;
---echo #point,multipolygon
-SELECT MBRContains(GeomFromText(@star_top),GeomFromText(@star_of_elems));
-SELECT MBRContains(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=104;
---echo #point,geometrycollection
-SELECT MBRContains(GeomFromText(@star_top),GeomFromText(@star_collection_elems));
-SELECT MBRContains(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=104;
-SELECT MBRContains(GeomFromText(@star_top),GeomFromText(@star_collection_multilinestr));
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_center),GEOMFROMTEXT(@star_center));
+
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_top),GEOMFROMTEXT(@star_center));
+
+SELECT MBRCONTAINS(g,GEOMFROMTEXT(@star_center)) FROM gis_geometrycollection WHERE fid=105;
+
+SELECT MBRCONTAINS(GEOMFROMTEXT('POINT(0 0)'),GEOMFROMTEXT('POINT(0 0)'));
+
+SELECT MBRCONTAINS(GEOMFROMTEXT('POINT(0 0)'),GEOMFROMTEXT('POINT(10 0)'));
+
 --echo #-------------------------------------------------------------------------------------------
---echo #multipoint,point
-SELECT MBRContains(GeomFromText(@star_all_points),GeomFromText(@star_top));
-SELECT MBRContains(GeomFromText(@star_bottom_points),GeomFromText(@star_center));
-SELECT MBRContains(g,GeomFromText(@star_bottom_left)) FROM gis_geometrycollection WHERE fid=108;
---echo #multipoint,multipoint
-SELECT MBRContains(GeomFromText(@star_all_points),GeomFromText(@star_bottom_points));
-SELECT MBRContains(GeomFromText(@star_bottom_points),GeomFromText(@star_all_points));
-SELECT MBRContains(g,GeomFromText(@star_all_points)) FROM gis_geometrycollection WHERE fid=108;
---echo #multipoint,linestring
-SELECT MBRContains(GeomFromText(@star_all_points),GeomFromText(@star_top_to_center));
-SELECT MBRContains(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=109;
---echo #multipoint,multilinestring
-SELECT MBRContains(GeomFromText(@star_all_points),GeomFromText(@star_lines_near_vertical));
-SELECT MBRContains(GeomFromText(@star_all_points),GeomFromText(@star_lines_near_horizontal));
-SELECT MBRContains(g,GeomFromText(@star_lines_near_horizontal)) FROM gis_geometrycollection WHERE fid=109;
---echo #multipoint,polygon
-SELECT MBRContains(GeomFromText(@star_all_points),GeomFromText(@star_elem_vertical));
-SELECT MBRContains(GeomFromText(@star_all_points),GeomFromText(@star_elem_horizontal));
-SELECT MBRContains(g,GeomFromText(@star_elem_horizontal)) FROM gis_geometrycollection WHERE fid=109;
---echo #multipoint,multipolygon
-SELECT MBRContains(GeomFromText('MULTIPOINT(0 0,0 30,30 25)'),GeomFromText(@star_of_elems));
-SELECT MBRContains(GeomFromText(@star_all_points),GeomFromText(@star_of_elems));
-SELECT MBRContains(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=109;
---echo #multipoint,geometrycollection
-SELECT MBRContains(GeomFromText('MULTIPOINT(0 0,0 30,30 25)'),GeomFromText(@star_collection_elems));
-SELECT MBRContains(GeomFromText(@star_all_points),GeomFromText(@star_collection_elems));
-SELECT MBRContains(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=109;
-SELECT MBRContains(GeomFromText(@star_all_points),GeomFromText(@star_collection_multilinestr));
+--echo # point,multipoint
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_bottom_left),GEOMFROMTEXT(@star_bottom_points));
+
+SELECT MBRCONTAINS(g,GEOMFROMTEXT(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=106;
+
+SELECT MBRCONTAINS(GEOMFROMTEXT('POINT(0 0)'),GEOMFROMTEXT('MULTIPOINT(0 0)'));
+
+SELECT MBRCONTAINS(GEOMFROMTEXT('POINT(0 0)'),GEOMFROMTEXT('MULTIPOINT(0 0,10 0)'));
+
+SELECT MBRCONTAINS(GEOMFROMTEXT('POINT(5 0)'),GEOMFROMTEXT('MULTIPOINT(0 0,5 0,10 0)'));
+
 --echo #-------------------------------------------------------------------------------------------
---echo #linestring,point
-SELECT MBRContains(GeomFromText(@star_top_to_center),GeomFromText(@star_center));
-SELECT MBRContains(GeomFromText(@star_top_to_center),GeomFromText(@star_bottom_left));
-SELECT MBRContains(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
+--echo # point,linestring
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_top),GEOMFROMTEXT(@star_top_to_center));
+
+SELECT MBRCONTAINS(g,GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=104;
+
+SELECT MBRCONTAINS(GEOMFROMTEXT('POINT(0 0)'),GEOMFROMTEXT('LINESTRING(0 0)'));
+
+SELECT MBRCONTAINS(GEOMFROMTEXT('POINT(5 0)'),GEOMFROMTEXT('LINESTRING(0 0,10 0)'));
+
+SELECT MBRCONTAINS(GEOMFROMTEXT('POINT(20 0)'),GEOMFROMTEXT('LINESTRING(0 0,10 0,20 0)'));
+
+SELECT MBRCONTAINS(GEOMFROMTEXT('POINT(20 0)'),GEOMFROMTEXT('LINESTRING(0 0,10 0)'));
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # point,multilinestring
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_top),GEOMFROMTEXT(@star_lines_near_vertical));
+
+SELECT MBRCONTAINS(g,GEOMFROMTEXT(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=104;
+
+SELECT MBRCONTAINS(GEOMFROMTEXT('POINT(0 0)'),GEOMFROMTEXT('MULTILINESTRING((0 0))'));
+
+SELECT MBRCONTAINS(GEOMFROMTEXT('POINT(10 0)'),GEOMFROMTEXT('MULTILINESTRING((0 0,5 0),(5 0,10 0))'));
+
+SELECT MBRCONTAINS(GEOMFROMTEXT('POINT(5 0)'),GEOMFROMTEXT('MULTILINESTRING((0 0,5 0,10 0))'));
+
+SELECT MBRCONTAINS(GEOMFROMTEXT('POINT(20 0)'),GEOMFROMTEXT('MULTILINESTRING((0 0,5 0),(5 0,10 0))'));
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # point,polygon
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_top),GEOMFROMTEXT(@star));
+
+SELECT MBRCONTAINS(g,GEOMFROMTEXT(@star)) FROM gis_geometrycollection WHERE fid=104;
+
+SELECT MBRCONTAINS(GEOMFROMTEXT('POINT(0 0)'),GEOMFROMTEXT('POLYGON((0 0,10 0,10 10,0 10,0 0))'));
+
+SELECT MBRCONTAINS(GEOMFROMTEXT('POINT(5 0)'),GEOMFROMTEXT('POLYGON((0 0,10 0,10 10,0 10,0 0))'));
+
+SELECT MBRCONTAINS(GEOMFROMTEXT('POINT(5 5)'),GEOMFROMTEXT('POLYGON((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4))'));
+
+SELECT MBRCONTAINS(GEOMFROMTEXT('POINT(20 20)'),GEOMFROMTEXT('POLYGON((0 0,10 0,10 10,0 10,0 0))'));
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # point,multipolygon
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_top),GEOMFROMTEXT(@star_of_elems));
+
+SELECT MBRCONTAINS(g,GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollection WHERE fid=104;
+
+SELECT MBRCONTAINS(GEOMFROMTEXT('POINT(0 0)'),GEOMFROMTEXT('MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0)))'));
+
+SELECT MBRCONTAINS(GEOMFROMTEXT('POINT(20 20)'),GEOMFROMTEXT('MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0)),((10 10,10 20,20 20,20 10,10 10)))'));
+
+SELECT MBRCONTAINS(GEOMFROMTEXT('POINT(5 5)'),GEOMFROMTEXT('MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)))'));
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # point,geometrycollection
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_top),GEOMFROMTEXT(@star_collection_elems));
+
+SELECT MBRCONTAINS(g,GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=104;
+
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_top),GEOMFROMTEXT(@star_collection_multilinestr));
+
+SELECT MBRCONTAINS(GEOMFROMTEXT('POINT(5 5)'),GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'));
+
+SELECT MBRCONTAINS(GEOMFROMTEXT('POINT(5 5)'),GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(5 5))'));
+
+SELECT MBRCONTAINS(GEOMFROMTEXT('POINT(5 5)'),GEOMFROMTEXT('GEOMETRYCOLLECTION(MULTIPOINT(0 0,5 5,10 10),GEOMETRYCOLLECTION())'));
+
+SELECT MBRCONTAINS(GEOMFROMTEXT('POINT(0 0)'),GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,10 0,10 10,0 10,0 0))))'));
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # multipoint,point
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_all_points),GEOMFROMTEXT(@star_top));
+
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_bottom_points),GEOMFROMTEXT(@star_center));
+
+SELECT MBRCONTAINS(g,GEOMFROMTEXT(@star_bottom_left)) FROM gis_geometrycollection WHERE fid=108;
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # multipoint,multipoint
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_all_points),GEOMFROMTEXT(@star_bottom_points));
+
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_bottom_points),GEOMFROMTEXT(@star_all_points));
+
+SELECT MBRCONTAINS(g,GEOMFROMTEXT(@star_all_points)) FROM gis_geometrycollection WHERE fid=108;
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # multipoint,linestring
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_all_points),GEOMFROMTEXT(@star_top_to_center));
+
+SELECT MBRCONTAINS(g,GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=109;
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # multipoint,multilinestring
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_all_points),GEOMFROMTEXT(@star_lines_near_vertical));
+
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_all_points),GEOMFROMTEXT(@star_lines_near_horizontal));
+
+SELECT MBRCONTAINS(g,GEOMFROMTEXT(@star_lines_near_horizontal)) FROM gis_geometrycollection WHERE fid=109;
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # multipoint,polygon
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_all_points),GEOMFROMTEXT(@star_elem_vertical));
+
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_all_points),GEOMFROMTEXT(@star_elem_horizontal));
+
+SELECT MBRCONTAINS(g,GEOMFROMTEXT(@star_elem_horizontal)) FROM gis_geometrycollection WHERE fid=109;
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # multipoint,multipolygon
+SELECT MBRCONTAINS(GEOMFROMTEXT('MULTIPOINT(0 0,0 30,30 25)'),GEOMFROMTEXT(@star_of_elems));
+
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_all_points),GEOMFROMTEXT(@star_of_elems));
+
+SELECT MBRCONTAINS(g,GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollection WHERE fid=109;
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # multipoint,geometrycollection
+SELECT MBRCONTAINS(GEOMFROMTEXT('MULTIPOINT(0 0,0 30,30 25)'),GEOMFROMTEXT(@star_collection_elems));
+
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_all_points),GEOMFROMTEXT(@star_collection_elems));
+
+SELECT MBRCONTAINS(g,GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=109;
+
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_all_points),GEOMFROMTEXT(@star_collection_multilinestr));
+
+SELECT MBRCONTAINS(GEOMFROMTEXT('MULTIPOINT(5 5,10 10)'),GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'));
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # linestring,point
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_top_to_center),GEOMFROMTEXT(@star_center));
+
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_top_to_center),GEOMFROMTEXT(@star_bottom_left));
+
+SELECT MBRCONTAINS(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
        WHERE fid=110 and fid2=105;
-SELECT MBRContains(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
+
+SELECT MBRCONTAINS(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
        WHERE fid=110 and fid2=105;
---echo #linestring,multipoint
-SELECT MBRContains(GeomFromText(@star_line_vertical),GeomFromText('MULTIPOINT(15 10,15 25)'));
-SELECT MBRContains(GeomFromText(@star_line_vertical),GeomFromText(@star_all_points));
-SELECT MBRContains(g,GeomFromText('MULTIPOINT(15 10,15 25)')) FROM gis_geometrycollection WHERE fid=111;
---echo #linestring,linestring
-SELECT MBRContains(GeomFromText(@star_line_vertical),GeomFromText(@star_top_to_center));
-SELECT MBRContains(GeomFromText(@star_top_to_center),GeomFromText(@star_line_vertical));
-SELECT MBRContains(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=111;
---echo #linestring,multilinestring
-SELECT MBRContains(GeomFromText(@star_line_horizontal),GeomFromText(@star_lines_near_horizontal));
-SELECT MBRContains(GeomFromText(@star_line_horizontal),GeomFromText(@star_lines_near_vertical));
-SELECT MBRContains(g,GeomFromText(@star_lines_near_horizontal)) FROM gis_geometrycollection WHERE fid=110;
---echo #linestring,polygon
-SELECT MBRContains(GeomFromText(@star_line_horizontal),GeomFromText('POLYGON((11 15,19 15,19 10))'));
-SELECT MBRContains(GeomFromText(@star_line_horizontal),GeomFromText(@star_elem_horizontal));
-SELECT MBRContains(g,GeomFromText('POLYGON((11 15,19 15,11 15))')) FROM gis_geometrycollection WHERE fid=110;
---echo #linestring,multipolygon
-SELECT MBRContains(GeomFromText(@star_line_horizontal),GeomFromText('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))'));
-SELECT MBRContains(GeomFromText(@star_line_horizontal),GeomFromText(@star_of_elems));
-SELECT MBRContains(g,GeomFromText('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))')) FROM gis_geometrycollection WHERE fid=110;
---echo #linestring,geometrycollection
-SELECT MBRContains(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_elems_3));
-SELECT MBRContains(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_elems));
-SELECT MBRContains(g,GeomFromText(@star_collection_elems_3)) FROM gis_geometrycollection WHERE fid=110;
-SELECT MBRContains(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_multilinestr));
+
 --echo #-------------------------------------------------------------------------------------------
---echo #multilinestring,point
-SELECT MBRContains(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_top));
-SELECT MBRContains(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_center));
-SELECT MBRContains(g,GeomFromText(@star_top)) FROM gis_geometrycollection WHERE fid=114;
---echo #multilinestring,multipoint
-SELECT MBRContains(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_bottom_points));
-SELECT MBRContains(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_all_points));
-SELECT MBRContains(g,GeomFromText(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=114;
-SELECT MBRContains(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
+--echo # linestring,multipoint
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_line_vertical),GEOMFROMTEXT('MULTIPOINT(15 10,15 25)'));
+
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_line_vertical),GEOMFROMTEXT(@star_all_points));
+
+SELECT MBRCONTAINS(g,GEOMFROMTEXT('MULTIPOINT(15 10,15 25)')) FROM gis_geometrycollection WHERE fid=111;
+
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_line_vertical),GEOMFROMTEXT('MULTIPOINT(15 10,15 25)'));
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # linestring,linestring
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_line_vertical),GEOMFROMTEXT(@star_top_to_center));
+
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_top_to_center),GEOMFROMTEXT(@star_line_vertical));
+
+SELECT MBRCONTAINS(g,GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=111;
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # linestring,multilinestring
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT(@star_lines_near_horizontal));
+
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT(@star_lines_near_vertical));
+
+SELECT MBRCONTAINS(g,GEOMFROMTEXT(@star_lines_near_horizontal)) FROM gis_geometrycollection WHERE fid=110;
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # linestring,polygon
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT('POLYGON((11 15,19 15,19 10))'));
+
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT(@star_elem_horizontal));
+
+SELECT MBRCONTAINS(g,GEOMFROMTEXT('POLYGON((11 15,19 15,11 15))')) FROM gis_geometrycollection WHERE fid=110;
+
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT('POLYGON((11 15,19 15,19 10))'));
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # linestring,multipolygon
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))'));
+
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT(@star_of_elems));
+
+SELECT MBRCONTAINS(g,GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))')) FROM gis_geometrycollection WHERE fid=110;
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # linestring,geometrycollection
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT(@star_collection_elems_3));
+
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT(@star_collection_elems));
+
+SELECT MBRCONTAINS(g,GEOMFROMTEXT(@star_collection_elems_3)) FROM gis_geometrycollection WHERE fid=110;
+
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT(@star_collection_multilinestr));
+
+SELECT MBRCONTAINS(GEOMFROMTEXT('LINESTRING(0 0,10 10)'),GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'));
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # multilinestring,point
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_top));
+
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_center));
+
+SELECT MBRCONTAINS(g,GEOMFROMTEXT(@star_top)) FROM gis_geometrycollection WHERE fid=114;
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # multilinestring,multipoint
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_bottom_points));
+
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_all_points));
+
+SELECT MBRCONTAINS(g,GEOMFROMTEXT(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=114;
+
+SELECT MBRCONTAINS(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
        WHERE fid=114 and fid2=108;
---echo #multilinestring,linestring
-SELECT MBRContains(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_vertical));
-SELECT MBRContains(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_horizontal));
-SELECT MBRContains(g,GeomFromText(@star_line_vertical)) FROM gis_geometrycollection WHERE fid=114;
---echo #multilinestring,multilinestring
-SELECT MBRContains(GeomFromText(@star_lines_near_vertical),GeomFromText('MULTILINESTRING((0 5,15 25,0 15))'));
-SELECT MBRContains(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_lines_near_horizontal));
-SELECT MBRContains(g,GeomFromText('MULTILINESTRING((0 5,15 25,0 15))')) FROM gis_geometrycollection WHERE fid=114;
---echo #multilinestring,multilinestring
-SELECT MBRContains(g,GeomFromText(@star_line_vertical)) FROM gis_geometrycollection WHERE fid=114;
---echo #multilinestring,polygon
-SELECT MBRContains(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_vertical));
-SELECT MBRContains(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_horizontal));
-SELECT MBRContains(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=114;
---echo #multilinestring,multipolygon
-SELECT MBRContains(GeomFromText('MULTILINESTRING((0 25,25 0,25 30))'),GeomFromText(@star_elem_vertical));
-SELECT MBRContains(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_of_elems));
-SELECT MBRContains(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=114;
---echo #multilinestring,geometrycollection
-SELECT MBRContains(GeomFromText('MULTILINESTRING((0 25,25 0,25 30))'),GeomFromText(@star_collection_elems));
-SELECT MBRContains(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_collection_elems));
-SELECT MBRContains(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=114;
-SELECT MBRContains(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_collection_multilinestr));
+
 --echo #-------------------------------------------------------------------------------------------
---echo #polygon,point
-SELECT MBRContains(GeomFromText(@star),GeomFromText(@star_center));
-SELECT MBRContains(GeomFromText(@star_elem_vertical),GeomFromText('POINT(0 0)'));
-SELECT MBRContains(g,GeomFromText(@star_center)) FROM gis_geometrycollection WHERE fid=100;
---echo #polygon,multipoint
-SELECT MBRContains(GeomFromText(@star),GeomFromText(@star_all_points));
-SELECT MBRContains(GeomFromText(@star_elem_vertical),GeomFromText('MULTIPOINT(0 0,30 25)'));
-SELECT MBRContains(g,GeomFromText(@star_all_points)) FROM gis_geometrycollection WHERE fid=100;
---echo #polygon,linestring
-SELECT MBRContains(GeomFromText(@star),GeomFromText(@star_line_vertical));
-SELECT MBRContains(GeomFromText(@star_elem_vertical),GeomFromText(@star_line_horizontal));
-SELECT MBRContains(g,GeomFromText(@star_line_vertical)) FROM gis_geometrycollection WHERE fid=100;
-SELECT MBRContains(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
+--echo # multilinestring,linestring
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_line_vertical));
+
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_line_horizontal));
+
+SELECT MBRCONTAINS(g,GEOMFROMTEXT(@star_line_vertical)) FROM gis_geometrycollection WHERE fid=114;
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # multilinestring,multilinestring
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT('MULTILINESTRING((0 5,15 25,0 15))'));
+
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_lines_near_horizontal));
+
+SELECT MBRCONTAINS(g,GEOMFROMTEXT('MULTILINESTRING((0 5,15 25,0 15))')) FROM gis_geometrycollection WHERE fid=114;
+
+SELECT MBRCONTAINS(g,GEOMFROMTEXT(@star_line_vertical)) FROM gis_geometrycollection WHERE fid=114;
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # multilinestring,polygon
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_elem_vertical));
+
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_elem_horizontal));
+
+SELECT MBRCONTAINS(g,GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=114;
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # multilinestring,multipolygon
+SELECT MBRCONTAINS(GEOMFROMTEXT('MULTILINESTRING((0 25,25 0,25 30))'),GEOMFROMTEXT(@star_elem_vertical));
+
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_of_elems));
+
+SELECT MBRCONTAINS(g,GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollection WHERE fid=114;
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # multilinestring,geometrycollection
+SELECT MBRCONTAINS(GEOMFROMTEXT('MULTILINESTRING((0 25,25 0,25 30))'),GEOMFROMTEXT(@star_collection_elems));
+
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_collection_elems));
+
+SELECT MBRCONTAINS(g,GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=114;
+
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_collection_multilinestr));
+
+SELECT MBRCONTAINS(GEOMFROMTEXT('MULTILINESTRING((0 0,10 10))'),GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'));
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # polygon,point
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star),GEOMFROMTEXT(@star_center));
+
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_elem_vertical),GEOMFROMTEXT('POINT(0 0)'));
+
+SELECT MBRCONTAINS(g,GEOMFROMTEXT(@star_center)) FROM gis_geometrycollection WHERE fid=100;
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # polygon,multipoint
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star),GEOMFROMTEXT(@star_all_points));
+
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_elem_vertical),GEOMFROMTEXT('MULTIPOINT(0 0,30 25)'));
+
+SELECT MBRCONTAINS(g,GEOMFROMTEXT(@star_all_points)) FROM gis_geometrycollection WHERE fid=100;
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # polygon,linestring
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star),GEOMFROMTEXT(@star_line_vertical));
+
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_elem_vertical),GEOMFROMTEXT(@star_line_horizontal));
+
+SELECT MBRCONTAINS(g,GEOMFROMTEXT(@star_line_vertical)) FROM gis_geometrycollection WHERE fid=100;
+
+SELECT MBRCONTAINS(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
        WHERE fid=100 and fid2=111;
---echo #polygon,multilinestring
-SELECT MBRContains(GeomFromText(@star),GeomFromText(@star_lines_near_vertical));
-SELECT MBRContains(GeomFromText(@star_elem_vertical),GeomFromText(@star_lines_near_horizontal));
-SELECT MBRContains(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=100;
---echo #polygon,polygon
-SELECT MBRContains(GeomFromText(@star),GeomFromText(@star_elem_vertical));
-SELECT MBRContains(GeomFromText(@star_elem_vertical),GeomFromText(@star));
-SELECT MBRContains(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=100;
---echo #polygon,multipolygon
-SELECT MBRContains(GeomFromText(@star),GeomFromText(@star_of_elems));
-SELECT MBRContains(GeomFromText(@star_elem_vertical),GeomFromText(@star_of_elems));
-SELECT MBRContains(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=100;
---echo #polygon,geometrycollection
-SELECT MBRContains(GeomFromText(@star),GeomFromText(@star_collection_elems));
-SELECT MBRContains(GeomFromText(@star_elem_vertical),GeomFromText(@star_collection_elems));
-SELECT MBRContains(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=100;
-SELECT MBRContains(GeomFromText(@star),GeomFromText(@star_collection_multilinestr));
+
 --echo #-------------------------------------------------------------------------------------------
---echo #multipolygon,point
-SELECT MBRContains(GeomFromText(@star_of_elems),GeomFromText(@star_top));
-SELECT MBRContains(GeomFromText(@star_of_elems),GeomFromText('POINT(30 30)'));
-SELECT MBRContains(g,GeomFromText(@star_top)) FROM gis_geometrycollection WHERE fid=103;
---echo #multipolygon,multipoint
-SELECT MBRContains(GeomFromText(@star_of_elems),GeomFromText(@star_bottom_points));
-SELECT MBRContains(GeomFromText(@star_of_elems),GeomFromText('MULTIPOINT(30 30,0 35)'));
-SELECT MBRContains(g,GeomFromText(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=103;
---echo #multipolygon,linestring
-SELECT MBRContains(GeomFromText(@star_of_elems),GeomFromText(@star_top_to_center));
-SELECT MBRContains(GeomFromText(@star_of_elems),GeomFromText('LINESTRING(30 30,0 35)'));
-SELECT MBRContains(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=103;
---echo #multipolygon,multilinestring
-SELECT MBRContains(GeomFromText(@star_of_elems),GeomFromText(@star_lines_near_vertical));
-SELECT MBRContains(GeomFromText(@star_of_elems),GeomFromText('MULTILINESTRING((0 30,30 30,0 35))'));
-SELECT MBRContains(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=103;
---echo #multipolygon,polygon
-SELECT MBRContains(GeomFromText(@star_of_elems),GeomFromText(@star_elem_vertical));
-SELECT MBRContains(GeomFromText(@star_of_elems),GeomFromText(@star));
-SELECT MBRContains(GeomFromText(@star_of_elems),GeomFromText('POLYGON((0 0,15 25,35 0,0 0))'));
-SELECT MBRContains(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=103;
---echo #multipolygon,multipolygon
-SELECT MBRContains(GeomFromText(@star_of_elems),GeomFromText(@star_of_elems));
-SELECT MBRContains(GeomFromText(@star_of_elems),GeomFromText('MULTIPOLYGON(((0 0,15 25,35 0,0 0),(5 0,15 25,25 0,15 5,5 0)))'));
-SELECT MBRContains(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=103;
-SELECT MBRContains(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
+--echo # polygon,multilinestring
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star),GEOMFROMTEXT(@star_lines_near_vertical));
+
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_elem_vertical),GEOMFROMTEXT(@star_lines_near_horizontal));
+
+SELECT MBRCONTAINS(g,GEOMFROMTEXT(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=100;
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # polygon,polygon
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star),GEOMFROMTEXT(@star_elem_vertical));
+
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_elem_vertical),GEOMFROMTEXT(@star));
+
+SELECT MBRCONTAINS(g,GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=100;
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # polygon,multipolygon
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star),GEOMFROMTEXT(@star_of_elems));
+
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_elem_vertical),GEOMFROMTEXT(@star_of_elems));
+
+SELECT MBRCONTAINS(g,GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollection WHERE fid=100;
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # polygon,geometrycollection
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star),GEOMFROMTEXT(@star_collection_elems));
+
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_elem_vertical),GEOMFROMTEXT(@star_collection_elems));
+
+SELECT MBRCONTAINS(g,GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=100;
+
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star),GEOMFROMTEXT(@star_collection_multilinestr));
+
+SELECT MBRCONTAINS(GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))'),GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'));
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # multipolygon,point
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT(@star_top));
+
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT('POINT(30 30)'));
+
+SELECT MBRCONTAINS(g,GEOMFROMTEXT(@star_top)) FROM gis_geometrycollection WHERE fid=103;
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # multipolygon,multipoint
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT(@star_bottom_points));
+
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT('MULTIPOINT(30 30,0 35)'));
+
+SELECT MBRCONTAINS(g,GEOMFROMTEXT(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=103;
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # multipolygon,linestring
+
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT(@star_top_to_center));
+
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT('LINESTRING(30 30,0 35)'));
+
+SELECT MBRCONTAINS(g,GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=103;
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # multipolygon,multilinestring
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT(@star_lines_near_vertical));
+
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT('MULTILINESTRING((0 30,30 30,0 35))'));
+
+SELECT MBRCONTAINS(g,GEOMFROMTEXT(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=103;
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # multipolygon,polygon
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT(@star_elem_vertical));
+
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT(@star));
+
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT('POLYGON((0 0,15 25,35 0,0 0))'));
+
+SELECT MBRCONTAINS(g,GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=103;
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # multipolygon,multipolygon
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT(@star_of_elems));
+
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT('MULTIPOLYGON(((0 0,15 25,35 0,0 0),(5 0,15 25,25 0,15 5,5 0)))'));
+
+SELECT MBRCONTAINS(g,GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollection WHERE fid=103;
+
+SELECT MBRCONTAINS(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
        WHERE fid=103 and fid2=103;
-SELECT MBRContains(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
+
+SELECT MBRCONTAINS(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
        WHERE fid=103 and fid2=103;
---echo #multipolygon,geometrycollection
-SELECT MBRContains(GeomFromText(@star_of_elems),GeomFromText(@star_collection_elems));
-SELECT MBRContains(GeomFromText(@star_of_elems),GeomFromText(@star_collection_elems_3));
-SELECT MBRContains(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=103;
-SELECT MBRContains(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # multipolygon,geometrycollection
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT(@star_collection_elems));
+
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT(@star_collection_elems_3));
+
+SELECT MBRCONTAINS(g,GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=103;
+
+SELECT MBRCONTAINS(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
        WHERE fid=103 and fid2=215;
-SELECT MBRContains(GeomFromText(@star_of_elems),GeomFromText(@star_collection_multilinestr));
+
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT(@star_collection_multilinestr));
+
+SELECT MBRCONTAINS(GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'),GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'));
+
 --echo #-------------------------------------------------------------------------------------------
---echo #geometrycollection,point
-SELECT MBRContains(GeomFromText(@star_collection_elems),GeomFromText(@star_top));
-SELECT MBRContains(GeomFromText(@star_collection_elems),GeomFromText('POINT(30 30)'));
-SELECT MBRContains(g,GeomFromText(@star_top)) FROM gis_geometrycollection WHERE fid=115;
---echo #geometrycollection,multipoint
-SELECT MBRContains(GeomFromText(@star_collection_elems),GeomFromText(@star_bottom_points));
-SELECT MBRContains(GeomFromText(@star_collection_elems),GeomFromText('MULTIPOINT(30 30,0 35)'));
-SELECT MBRContains(g,GeomFromText(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=115;
---echo #geometrycollection,linestring
-SELECT MBRContains(GeomFromText(@star_collection_elems),GeomFromText(@star_top_to_center));
-SELECT MBRContains(GeomFromText(@star_collection_elems),GeomFromText('LINESTRING(30 30,0 35)'));
-SELECT MBRContains(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=115;
---echo #geometrycollection,multilinestring
-SELECT MBRContains(GeomFromText(@star_collection_elems),GeomFromText(@star_lines_near_vertical));
-SELECT MBRContains(GeomFromText(@star_collection_elems),GeomFromText('MULTILINESTRING((0 30,30 30,0 35))'));
-SELECT MBRContains(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=115;
---echo #geometrycollection,polygon
-SELECT MBRContains(GeomFromText(@star_collection_elems),GeomFromText(@star_elem_vertical));
-SELECT MBRContains(GeomFromText(@star_collection_elems),GeomFromText(@star));
-SELECT MBRContains(GeomFromText(@star_collection_elems),GeomFromText('POLYGON((0 0,15 25,35 0,0 0))'));
-SELECT MBRContains(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=115;
---echo #geometrycollection,multipolygon
-SELECT MBRContains(GeomFromText(@star_collection_elems),GeomFromText(@star_of_elems));
-SELECT MBRContains(GeomFromText(@star_collection_elems),GeomFromText('MULTIPOLYGON(((0 0,15 25,35 0,0 0),(5 0,15 25,25 0,15 5,5 0)))'));
-SELECT MBRContains(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=115;
-SELECT MBRContains(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
+--echo # geometrycollection,point
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star_top));
+
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT('POINT(30 30)'));
+
+SELECT MBRCONTAINS(g,GEOMFROMTEXT(@star_top)) FROM gis_geometrycollection WHERE fid=115;
+
+Select MBRCONTAINS(GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(),POLYGON((0 0,0 10,10 10,10 0,0 0)))'),GEOMFROMTEXT('POINT(100 100)'));
+
+Select MBRCONTAINS(GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0)),GEOMETRYCOLLECTION())'),GEOMFROMTEXT('POINT(100 100)'));
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # geometrycollection,multipoint
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star_bottom_points));
+
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT('MULTIPOINT(30 30,0 35)'));
+
+SELECT MBRCONTAINS(g,GEOMFROMTEXT(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=115;
+
+SELECT MBRCONTAINS(GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(0 0,10 10,20 20),GEOMETRYCOLLECTION())'),ST_GEOMFROMTEXT('MULTIPOINT(5 0,10 0)'));
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # geometrycollection,linestring
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star_top_to_center));
+
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT('LINESTRING(30 30,0 35)'));
+
+SELECT MBRCONTAINS(g,GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=115;
+
+SELECT MBRCONTAINS(GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(0 0,10 10,20 20),GEOMETRYCOLLECTION())'),ST_GEOMFROMTEXT('LINESTRING(5 0,10 0)'));
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # geometrycollection,multilinestring
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star_lines_near_vertical));
+
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT('MULTILINESTRING((0 30,30 30,0 35))'));
+
+SELECT MBRCONTAINS(g,GEOMFROMTEXT(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=115;
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # geometrycollection,polygon
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star_elem_vertical));
+
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star));
+
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT('POLYGON((0 0,15 25,35 0,0 0))'));
+
+SELECT MBRCONTAINS(g,GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=115;
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # geometrycollection,multipolygon
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star_of_elems));
+
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT('MULTIPOLYGON(((0 0,15 25,35 0,0 0),(5 0,15 25,25 0,15 5,5 0)))'));
+
+SELECT MBRCONTAINS(g,GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=115;
+
+SELECT MBRCONTAINS(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
        WHERE fid=115 and fid2=103;
---echo #geometrycollection,geometrycollection
-SELECT MBRContains(GeomFromText(@star_collection_elems),GeomFromText(@star_collection_elems));
-SELECT MBRContains(GeomFromText(@star_collection_elems),GeomFromText(@star_collection_elems_3));
-SELECT MBRContains(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=115;
-SELECT MBRContains(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # geometrycollection,geometrycollection
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star_collection_elems));
+
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star_collection_elems_3));
+
+SELECT MBRCONTAINS(g,GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=115;
+
+SELECT MBRCONTAINS(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
        WHERE fid=115 and fid2=215;
 
 --echo #=======================================================================================
---echo # ST_Contains(g1,g2)
+--echo # ST_CONTAINS(g1,g2)
 --echo #========================================================================================
 
 --echo #-------------------------------------------------------------------------------------------
---echo #point,point
-SELECT ST_Contains(GeomFromText(@star_center),GeomFromText(@star_center));
-SELECT ST_Contains(GeomFromText(@star_top),GeomFromText(@star_center));
-SELECT ST_Contains(g,GeomFromText(@star_center)) FROM gis_geometrycollection WHERE fid=105;
---echo #point,multipoint
-SELECT ST_Contains(GeomFromText(@star_bottom_left),GeomFromText(@star_bottom_points));
-SELECT ST_Contains(g,GeomFromText(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=106;
---echo #point,linestring
-SELECT ST_Contains(GeomFromText(@star_top),GeomFromText(@star_top_to_center));
-SELECT ST_Contains(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=104;
---echo #point,multilinestring
-SELECT ST_Contains(GeomFromText(@star_top),GeomFromText(@star_lines_near_vertical));
-SELECT ST_Contains(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=104;
---echo #point,polygon
-SELECT ST_Contains(GeomFromText(@star_top),GeomFromText(@star));
-SELECT ST_Contains(g,GeomFromText(@star)) FROM gis_geometrycollection WHERE fid=104;
---echo #point,multipolygon
-SELECT ST_Contains(GeomFromText(@star_top),GeomFromText(@star_of_elems));
-SELECT ST_Contains(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=104;
---echo #point,geometrycollection
-SELECT ST_Contains(GeomFromText(@star_top),GeomFromText(@star_collection_elems));
-SELECT ST_Contains(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=104;
-SELECT ST_Contains(GeomFromText(@star_top),GeomFromText(@star_collection_multilinest));
+--echo # point,point
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_center),GEOMFROMTEXT(@star_center));
+
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_top),GEOMFROMTEXT(@star_center));
+
+SELECT ST_CONTAINS(g,GEOMFROMTEXT(@star_center)) FROM gis_geometrycollection WHERE fid=105;
+
+SELECT ST_CONTAINS(GEOMFROMTEXT('POINT(0 0)'),GEOMFROMTEXT('POINT(0 0)'));
+
+SELECT ST_CONTAINS(GEOMFROMTEXT('POINT(0 0)'),GEOMFROMTEXT('POINT(10 0)'));
+
 --echo #-------------------------------------------------------------------------------------------
---echo #multipoint,point
-SELECT ST_Contains(GeomFromText(@star_all_points),GeomFromText(@star_top));
-SELECT ST_Contains(GeomFromText(@star_bottom_points),GeomFromText(@star_center));
-SELECT ST_Contains(g,GeomFromText(@star_bottom_left)) FROM gis_geometrycollection WHERE fid=108;
---echo #multipoint,multipoint
-SELECT ST_Contains(GeomFromText(@star_all_points),GeomFromText(@star_bottom_points));
-SELECT ST_Contains(GeomFromText(@star_bottom_points),GeomFromText(@star_all_points));
-SELECT ST_Contains(g,GeomFromText(@star_all_points)) FROM gis_geometrycollection WHERE fid=108;
---echo #multipoint,linestring
-SELECT ST_Contains(GeomFromText(@star_all_points),GeomFromText(@star_top_to_center));
-SELECT ST_Contains(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=109;
---echo #multipoint,multilinestring
-SELECT ST_Contains(GeomFromText(@star_all_points),GeomFromText(@star_lines_near_vertical));
-SELECT ST_Contains(GeomFromText(@star_all_points),GeomFromText(@star_lines_near_horizontal));
-SELECT ST_Contains(g,GeomFromText(@star_lines_near_horizontal)) FROM gis_geometrycollection WHERE fid=109;
---echo #multipoint,polygon
-SELECT ST_Contains(GeomFromText(@star_all_points),GeomFromText(@star_elem_vertical));
-SELECT ST_Contains(GeomFromText(@star_all_points),GeomFromText(@star_elem_horizontal));
-SELECT ST_Contains(g,GeomFromText(@star_elem_horizontal)) FROM gis_geometrycollection WHERE fid=109;
---echo #multipoint,multipolygon
-SELECT ST_Contains(GeomFromText('MULTIPOINT(0 0,0 30,30 25)'),GeomFromText(@star_of_elems));
-SELECT ST_Contains(GeomFromText(@star_all_points),GeomFromText(@star_of_elems));
-SELECT ST_Contains(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=109;
---echo #multipoint,gemetrycollection
-SELECT ST_Contains(GeomFromText('MULTIPOINT(0 0,0 30,30 25)'),GeomFromText(@star_collection_elems));
-SELECT ST_Contains(GeomFromText(@star_all_points),GeomFromText(@star_collection_elems));
-SELECT ST_Contains(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=109;
-SELECT ST_Contains(GeomFromText(@star_all_points),GeomFromText(@star_collection_multilinestr));
+--echo # point,multipoint
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_bottom_left),GEOMFROMTEXT(@star_bottom_points));
+
+SELECT ST_CONTAINS(g,GEOMFROMTEXT(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=106;
+
+SELECT ST_CONTAINS(GEOMFROMTEXT('POINT(0 0)'),GEOMFROMTEXT('MULTIPOINT(0 0)'));
+
+SELECT ST_CONTAINS(GEOMFROMTEXT('POINT(0 0)'),GEOMFROMTEXT('MULTIPOINT(0 0,10 0)'));
+
+SELECT ST_CONTAINS(GEOMFROMTEXT('POINT(5 0)'),GEOMFROMTEXT('MULTIPOINT(0 0,5 0,10 0)'));
+
 --echo #-------------------------------------------------------------------------------------------
---echo #linestring,point
-SELECT ST_Contains(GeomFromText(@star_top_to_center),GeomFromText(@star_center));
---error ER_GIS_INVALID_DATA
-SELECT ST_Contains(GeomFromText('LINESTRING(15 25,15 10'),GeomFromText('POINT(15 10)'));
-SELECT ST_Contains(GeomFromText(@star_top_to_center),GeomFromText(@star_bottom_left));
-SELECT ST_Contains(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
+--echo # point,linestring
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_top),GEOMFROMTEXT(@star_top_to_center));
+
+SELECT ST_CONTAINS(g,GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=104;
+
+SELECT ST_CONTAINS(GEOMFROMTEXT('POINT(0 0)'),GEOMFROMTEXT('LINESTRING(0 0)'));
+
+SELECT ST_CONTAINS(GEOMFROMTEXT('POINT(5 0)'),GEOMFROMTEXT('LINESTRING(0 0,10 0)'));
+
+SELECT ST_CONTAINS(GEOMFROMTEXT('POINT(20 0)'),GEOMFROMTEXT('LINESTRING(0 0,10 0,20 0)'));
+
+SELECT ST_CONTAINS(GEOMFROMTEXT('POINT(20 0)'),GEOMFROMTEXT('LINESTRING(0 0,10 0)'));
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # point,multilinestring
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_top),GEOMFROMTEXT(@star_lines_near_vertical));
+
+SELECT ST_CONTAINS(g,GEOMFROMTEXT(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=104;
+
+SELECT ST_CONTAINS(GEOMFROMTEXT('POINT(0 0)'),GEOMFROMTEXT('MULTILINESTRING((0 0))'));
+
+SELECT ST_CONTAINS(GEOMFROMTEXT('POINT(10 0)'),GEOMFROMTEXT('MULTILINESTRING((0 0,5 0),(5 0,10 0))'));
+
+SELECT ST_CONTAINS(GEOMFROMTEXT('POINT(5 0)'),GEOMFROMTEXT('MULTILINESTRING((0 0,5 0,10 0))'));
+
+SELECT ST_CONTAINS(GEOMFROMTEXT('POINT(20 0)'),GEOMFROMTEXT('MULTILINESTRING((0 0,5 0),(5 0,10 0))'));
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # point,polygon
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_top),GEOMFROMTEXT(@star));
+
+SELECT ST_CONTAINS(g,GEOMFROMTEXT(@star)) FROM gis_geometrycollection WHERE fid=104;
+
+SELECT ST_CONTAINS(GEOMFROMTEXT('POINT(0 0)'),GEOMFROMTEXT('POLYGON((0 0,10 0,10 10,0 10,0 0))'));
+
+SELECT ST_CONTAINS(GEOMFROMTEXT('POINT(5 0)'),GEOMFROMTEXT('POLYGON((0 0,10 0,10 10,0 10,0 0))'));
+
+SELECT ST_CONTAINS(GEOMFROMTEXT('POINT(5 5)'),GEOMFROMTEXT('POLYGON((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4))'));
+
+SELECT ST_CONTAINS(GEOMFROMTEXT('POINT(20 20)'),GEOMFROMTEXT('POLYGON((0 0,10 0,10 10,0 10,0 0))'));
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # point,multipolygon
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_top),GEOMFROMTEXT(@star_of_elems));
+
+SELECT ST_CONTAINS(g,GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollection WHERE fid=104;
+
+SELECT ST_CONTAINS(GEOMFROMTEXT('POINT(0 0)'),GEOMFROMTEXT('MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0)))'));
+
+SELECT ST_CONTAINS(GEOMFROMTEXT('POINT(20 20)'),GEOMFROMTEXT('MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0)),((10 10,10 20,20 20,20 10,10 10)))'));
+
+SELECT ST_CONTAINS(GEOMFROMTEXT('POINT(5 5)'),GEOMFROMTEXT('MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)))'));
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # point,geometrycollection
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_top),GEOMFROMTEXT(@star_collection_elems));
+
+SELECT ST_CONTAINS(g,GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=104;
+
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_top),GEOMFROMTEXT(@star_collection_multilinest));
+
+SELECT ST_CONTAINS(GEOMFROMTEXT('POINT(5 5)'),GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'));
+
+SELECT ST_CONTAINS(GEOMFROMTEXT('POINT(5 5)'),GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(5 5))'));
+
+SELECT ST_CONTAINS(GEOMFROMTEXT('POINT(5 5)'),GEOMFROMTEXT('GEOMETRYCOLLECTION(MULTIPOINT(0 0,5 5,10 10),GEOMETRYCOLLECTION())'));
+
+SELECT ST_CONTAINS(GEOMFROMTEXT('POINT(0 0)'),GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,10 0,10 10,0 10,0 0))))'));
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # multipoint,point
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_all_points),GEOMFROMTEXT(@star_top));
+
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_bottom_points),GEOMFROMTEXT(@star_center));
+
+SELECT ST_CONTAINS(g,GEOMFROMTEXT(@star_bottom_left)) FROM gis_geometrycollection WHERE fid=108;
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # multipoint,multipoint
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_all_points),GEOMFROMTEXT(@star_bottom_points));
+
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_bottom_points),GEOMFROMTEXT(@star_all_points));
+
+SELECT ST_CONTAINS(g,GEOMFROMTEXT(@star_all_points)) FROM gis_geometrycollection WHERE fid=108;
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # multipoint,linestring
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_all_points),GEOMFROMTEXT(@star_top_to_center));
+
+SELECT ST_CONTAINS(g,GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=109;
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # multipoint,multilinestring
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_all_points),GEOMFROMTEXT(@star_lines_near_vertical));
+
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_all_points),GEOMFROMTEXT(@star_lines_near_horizontal));
+
+SELECT ST_CONTAINS(g,GEOMFROMTEXT(@star_lines_near_horizontal)) FROM gis_geometrycollection WHERE fid=109;
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # multipoint,polygon
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_all_points),GEOMFROMTEXT(@star_elem_vertical));
+
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_all_points),GEOMFROMTEXT(@star_elem_horizontal));
+
+SELECT ST_CONTAINS(g,GEOMFROMTEXT(@star_elem_horizontal)) FROM gis_geometrycollection WHERE fid=109;
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # multipoint,multipolygon
+SELECT ST_CONTAINS(GEOMFROMTEXT('MULTIPOINT(0 0,0 30,30 25)'),GEOMFROMTEXT(@star_of_elems));
+
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_all_points),GEOMFROMTEXT(@star_of_elems));
+
+SELECT ST_CONTAINS(g,GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollection WHERE fid=109;
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # multipoint,gemetrycollection
+SELECT ST_CONTAINS(GEOMFROMTEXT('MULTIPOINT(0 0,0 30,30 25)'),GEOMFROMTEXT(@star_collection_elems));
+
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_all_points),GEOMFROMTEXT(@star_collection_elems));
+
+SELECT ST_CONTAINS(g,GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=109;
+
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_all_points),GEOMFROMTEXT(@star_collection_multilinestr));
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # linestring,point
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_top_to_center),GEOMFROMTEXT(@star_center));
+
+SELECT ST_CONTAINS(GEOMFROMTEXT('LINESTRING(15 25,15 10)'),GEOMFROMTEXT('POINT(15 10)'));
+
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_top_to_center),GEOMFROMTEXT(@star_bottom_left));
+
+SELECT ST_CONTAINS(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
        WHERE fid=110 and fid2=105;
---echo #linestring,multipoint
-SELECT ST_Contains(GeomFromText(@star_line_vertical),GeomFromText('MULTIPOINT(15 10,15 25)'));
-SELECT ST_Contains(GeomFromText(@star_line_vertical),GeomFromText(@star_all_points));
-SELECT ST_Contains(g,GeomFromText('MULTIPOINT(15 10,15 25)')) FROM gis_geometrycollection WHERE fid=111;
---echo #linestring,linestring
-SELECT ST_Contains(GeomFromText(@star_line_vertical),GeomFromText(@star_top_to_center));
-SELECT ST_Contains(GeomFromText(@star_top_to_center),GeomFromText(@star_line_vertical));
-SELECT ST_Contains(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=111;
---echo #linestring,multilinestring
-SELECT ST_Contains(GeomFromText(@star_line_horizontal),GeomFromText(@star_lines_near_horizontal));
-SELECT ST_Contains(GeomFromText(@star_line_horizontal),GeomFromText(@star_lines_near_vertical));
-SELECT ST_Contains(g,GeomFromText(@star_lines_near_horizontal)) FROM gis_geometrycollection WHERE fid=110;
---echo #linestring,polygon
-SELECT ST_Contains(GeomFromText(@star_line_horizontal),GeomFromText('POLYGON((11 15,19 15,19 10))'));
-SELECT ST_Contains(GeomFromText(@star_line_horizontal),GeomFromText(@star_elem_horizontal));
-SELECT ST_Contains(g,GeomFromText('POLYGON((11 15,19 15,11 15))')) FROM gis_geometrycollection WHERE fid=110;
---echo #linestring,multipolygon
-SELECT ST_Contains(GeomFromText(@star_line_horizontal),GeomFromText('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))'));
-SELECT ST_Contains(GeomFromText(@star_line_horizontal),GeomFromText(@star_of_elems));
-SELECT ST_Contains(g,GeomFromText('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))')) FROM gis_geometrycollection WHERE fid=110;
---echo #linestring,geometrycollection
-SELECT ST_Contains(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_elems_3));
-SELECT ST_Contains(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_elems));
-SELECT ST_Contains(g,GeomFromText(@star_collection_elems_3)) FROM gis_geometrycollection WHERE fid=110;
-SELECT ST_Contains(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_multilinestr));
+
 --echo #-------------------------------------------------------------------------------------------
---echo #multilinestring,point
-SELECT ST_Contains(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_top));
-SELECT ST_Contains(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_center));
-SELECT ST_Contains(g,GeomFromText(@star_top)) FROM gis_geometrycollection WHERE fid=114;
---echo #multilinestring,multipoint
-SELECT ST_Contains(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_bottom_points));
-SELECT ST_Contains(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_all_points));
-SELECT ST_Contains(g,GeomFromText(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=114;
-SELECT ST_Contains(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
+--echo # linestring,multipoint
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_line_vertical),GEOMFROMTEXT('MULTIPOINT(15 10,15 25)'));
+
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_line_vertical),GEOMFROMTEXT(@star_all_points));
+
+SELECT ST_CONTAINS(g,GEOMFROMTEXT('MULTIPOINT(15 10,15 25)')) FROM gis_geometrycollection WHERE fid=111;
+
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_line_vertical),GEOMFROMTEXT('MULTIPOINT(15 10,15 25)'));
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # linestring,linestring
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_line_vertical),GEOMFROMTEXT(@star_top_to_center));
+
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_top_to_center),GEOMFROMTEXT(@star_line_vertical));
+
+SELECT ST_CONTAINS(g,GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=111;
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # linestring,multilinestring
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT(@star_lines_near_horizontal));
+
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT(@star_lines_near_vertical));
+
+SELECT ST_CONTAINS(g,GEOMFROMTEXT(@star_lines_near_horizontal)) FROM gis_geometrycollection WHERE fid=110;
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # linestring,polygon
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT('POLYGON((11 15,19 15,19 10))'));
+
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT(@star_elem_horizontal));
+
+SELECT ST_CONTAINS(g,GEOMFROMTEXT('POLYGON((11 15,19 15,11 15))')) FROM gis_geometrycollection WHERE fid=110;
+
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT('POLYGON((11 15,19 15,19 10))'));
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # linestring,multipolygon
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))'));
+
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT(@star_of_elems));
+
+SELECT ST_CONTAINS(g,GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))')) FROM gis_geometrycollection WHERE fid=110;
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # linestring,geometrycollection
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT(@star_collection_elems_3));
+
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT(@star_collection_elems));
+
+SELECT ST_CONTAINS(g,GEOMFROMTEXT(@star_collection_elems_3)) FROM gis_geometrycollection WHERE fid=110;
+
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT(@star_collection_multilinestr));
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # multilinestring,point
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_top));
+
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_center));
+
+SELECT ST_CONTAINS(g,GEOMFROMTEXT(@star_top)) FROM gis_geometrycollection WHERE fid=114;
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # multilinestring,multipoint
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_bottom_points));
+
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_all_points));
+
+SELECT ST_CONTAINS(g,GEOMFROMTEXT(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=114;
+
+SELECT ST_CONTAINS(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
        WHERE fid=114 and fid2=108;
---echo #multilinestring,linestring
-SELECT ST_Contains(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_vertical));
-SELECT ST_Contains(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_horizontal));
-SELECT ST_Contains(g,GeomFromText(@star_line_vertical)) FROM gis_geometrycollection WHERE fid=114;
---echo #multilinestring,multilinestring
-SELECT ST_Contains(GeomFromText(@star_lines_near_vertical),GeomFromText('MULTILINESTRING((0 5,15 25,0 15))'));
-SELECT ST_Contains(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_lines_near_horizontal));
-SELECT ST_Contains(g,GeomFromText('MULTILINESTRING((0 5,15 25,0 15))')) FROM gis_geometrycollection WHERE fid=114;
---echo #multilinestring,multilinestring
-SELECT ST_Contains(g,GeomFromText(@star_line_vertical)) FROM gis_geometrycollection WHERE fid=114;
---echo #multilinestring,polygon
-SELECT ST_Contains(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_vertical));
-SELECT ST_Contains(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_horizontal));
-SELECT ST_Contains(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=114;
---echo #multilinestring,multipolygon
-SELECT ST_Contains(GeomFromText('MULTILINESTRING((0 25,25 0,25 30))'),GeomFromText(@star_elem_vertical));
-SELECT ST_Contains(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_of_elems));
-SELECT ST_Contains(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=114;
---echo #multilinestring,geometrycollection
-SELECT ST_Contains(GeomFromText('MULTILINESTRING((0 25,25 0,25 30))'),GeomFromText(@star_collection_elems));
-SELECT ST_Contains(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_collection_elems));
-SELECT ST_Contains(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=114;
-SELECT ST_Contains(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_collection_multilinestr));
+
 --echo #-------------------------------------------------------------------------------------------
---echo #polygon,point
-SELECT ST_Contains(GeomFromText(@star),GeomFromText(@star_center));
-SELECT ST_Contains(GeomFromText(@star_elem_vertical),GeomFromText('POINT(0 0)'));
-SELECT ST_Contains(g,GeomFromText(@star_center)) FROM gis_geometrycollection WHERE fid=100;
---echo #polygon,multipoint
-SELECT ST_Contains(GeomFromText(@star),GeomFromText(@star_all_points));
-SELECT ST_Contains(GeomFromText(@star_elem_vertical),GeomFromText('MULTIPOINT(0 0,30 25)'));
-SELECT ST_Contains(g,GeomFromText(@star_all_points)) FROM gis_geometrycollection WHERE fid=100;
---echo #polygon,linestring
-SELECT ST_Contains(GeomFromText(@star),GeomFromText(@star_line_vertical));
-SELECT ST_Contains(GeomFromText(@star_elem_vertical),GeomFromText(@star_line_horizontal));
-SELECT ST_Contains(g,GeomFromText(@star_line_vertical)) FROM gis_geometrycollection WHERE fid=100;
-SELECT ST_Contains(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
+--echo # multilinestring,linestring
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_line_vertical));
+
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_line_horizontal));
+
+SELECT ST_CONTAINS(g,GEOMFROMTEXT(@star_line_vertical)) FROM gis_geometrycollection WHERE fid=114;
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # multilinestring,multilinestring
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT('MULTILINESTRING((0 5,15 25,0 15))'));
+
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_lines_near_horizontal));
+
+SELECT ST_CONTAINS(g,GEOMFROMTEXT(@star_line_vertical)) FROM gis_geometrycollection WHERE fid=114;
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # multilinestring,polygon
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_elem_vertical));
+
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_elem_horizontal));
+
+SELECT ST_CONTAINS(g,GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=114;
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # multilinestring,multipolygon
+SELECT ST_CONTAINS(GEOMFROMTEXT('MULTILINESTRING((0 25,25 0,25 30))'),GEOMFROMTEXT(@star_elem_vertical));
+
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_of_elems));
+
+SELECT ST_CONTAINS(g,GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollection WHERE fid=114;
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # multilinestring,geometrycollection
+SELECT ST_CONTAINS(GEOMFROMTEXT('MULTILINESTRING((0 25,25 0,25 30))'),GEOMFROMTEXT(@star_collection_elems));
+
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_collection_elems));
+
+SELECT ST_CONTAINS(g,GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=114;
+
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_collection_multilinestr));
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # polygon,point
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star),GEOMFROMTEXT(@star_center));
+
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_elem_vertical),GEOMFROMTEXT('POINT(0 0)'));
+
+SELECT ST_CONTAINS(g,GEOMFROMTEXT(@star_center)) FROM gis_geometrycollection WHERE fid=100;
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # polygon,multipoint
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star),GEOMFROMTEXT(@star_all_points));
+
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_elem_vertical),GEOMFROMTEXT('MULTIPOINT(0 0,30 25)'));
+
+SELECT ST_CONTAINS(g,GEOMFROMTEXT(@star_all_points)) FROM gis_geometrycollection WHERE fid=100;
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # polygon,linestring
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star),GEOMFROMTEXT(@star_line_vertical));
+
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_elem_vertical),GEOMFROMTEXT(@star_line_horizontal));
+
+SELECT ST_CONTAINS(g,GEOMFROMTEXT(@star_line_vertical)) FROM gis_geometrycollection WHERE fid=100;
+
+SELECT ST_CONTAINS(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
        WHERE fid=100 and fid2=111;
---echo #polygon,multilinestring
-SELECT ST_Contains(GeomFromText(@star),GeomFromText(@star_lines_near_vertical));
-SELECT ST_Contains(GeomFromText(@star_elem_vertical),GeomFromText(@star_lines_near_horizontal));
-SELECT ST_Contains(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=100;
---echo #polygon,polygon
-SELECT ST_Contains(GeomFromText(@star),GeomFromText(@star_elem_vertical));
-SELECT ST_Contains(GeomFromText(@star_elem_vertical),GeomFromText(@star));
-SELECT ST_Contains(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=100;
---echo #polygon,multipolygon
-SELECT ST_Contains(GeomFromText(@star),GeomFromText(@star_of_elems));
-SELECT ST_Contains(GeomFromText(@star_elem_vertical),GeomFromText(@star_of_elems));
-SELECT ST_Contains(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=100;
---echo #polygon,geometrycollection
-SELECT ST_Contains(GeomFromText(@star),GeomFromText(@star_collection_elems));
-SELECT ST_Contains(GeomFromText(@star_elem_vertical),GeomFromText(@star_collection_elems));
-SELECT ST_Contains(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=100;
-SELECT ST_Contains(GeomFromText(@star),GeomFromText(@star_collection_multilinestr));
+
 --echo #-------------------------------------------------------------------------------------------
---echo #multipolygon,point
-SELECT ST_Contains(GeomFromText(@star_of_elems),GeomFromText(@star_top));
-SELECT ST_Contains(GeomFromText(@star_of_elems),GeomFromText('POINT(30 30)'));
-SELECT ST_Contains(g,GeomFromText(@star_top)) FROM gis_geometrycollection WHERE fid=103;
---echo #multipolygon,multipoint
-SELECT ST_Contains(GeomFromText(@star_of_elems),GeomFromText(@star_bottom_points));
-SELECT ST_Contains(GeomFromText(@star_of_elems),GeomFromText('MULTIPOINT(30 30,0 35)'));
-SELECT ST_Contains(g,GeomFromText(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=103;
---echo #multipolygon,linestring
-SELECT ST_Contains(GeomFromText(@star_of_elems),GeomFromText(@star_top_to_center));
-SELECT ST_Contains(GeomFromText(@star_of_elems),GeomFromText('LINESTRING(30 30,0 35)'));
-SELECT ST_Contains(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=103;
---echo #multipolygon,multilinestring
-SELECT ST_Contains(GeomFromText(@star_of_elems),GeomFromText(@star_lines_near_vertical));
-SELECT ST_Contains(GeomFromText(@star_of_elems),GeomFromText('MULTILINESTRING((0 30,30 30,0 35))'));
-SELECT ST_Contains(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=103;
---echo #multipolygon,polygon
-SELECT ST_Contains(GeomFromText(@star_of_elems),GeomFromText(@star_elem_vertical));
-SELECT ST_Contains(GeomFromText(@star_of_elems),GeomFromText(@star));
-SELECT ST_Contains(GeomFromText(@star_of_elems),GeomFromText('POLYGON((0 0,15 25,35 0,0 0))'));
-SELECT ST_Contains(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=103;
---echo #multipolygon,multipolygon
-SELECT ST_Contains(GeomFromText(@star_of_elems),GeomFromText(@star_of_elems));
-SELECT ST_Contains(GeomFromText(@star_of_elems),GeomFromText('MULTIPOLYGON(((0 0,15 25,35 0,0 0),(5 0,15 25,25 0,15 5,5 0)))'));
-SELECT ST_Contains(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=103;
-SELECT ST_Contains(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
+--echo # polygon,multilinestring
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star),GEOMFROMTEXT(@star_lines_near_vertical));
+
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_elem_vertical),GEOMFROMTEXT(@star_lines_near_horizontal));
+
+SELECT ST_CONTAINS(g,GEOMFROMTEXT(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=100;
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # polygon,polygon
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star),GEOMFROMTEXT(@star_elem_vertical));
+
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_elem_vertical),GEOMFROMTEXT(@star));
+
+SELECT ST_CONTAINS(g,GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=100;
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # polygon,multipolygon
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star),GEOMFROMTEXT(@star_of_elems));
+
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_elem_vertical),GEOMFROMTEXT(@star_of_elems));
+
+SELECT ST_CONTAINS(g,GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollection WHERE fid=100;
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # polygon,geometrycollection
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star),GEOMFROMTEXT(@star_collection_elems));
+
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_elem_vertical),GEOMFROMTEXT(@star_collection_elems));
+
+SELECT ST_CONTAINS(g,GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=100;
+
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star),GEOMFROMTEXT(@star_collection_multilinestr));
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # multipolygon,point
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT(@star_top));
+
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT('POINT(30 30)'));
+
+SELECT ST_CONTAINS(g,GEOMFROMTEXT(@star_top)) FROM gis_geometrycollection WHERE fid=103;
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # multipolygon,multipoint
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT(@star_bottom_points));
+
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT('MULTIPOINT(30 30,0 35)'));
+
+SELECT ST_CONTAINS(g,GEOMFROMTEXT(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=103;
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # multipolygon,linestring
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT(@star_top_to_center));
+
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT('LINESTRING(30 30,0 35)'));
+
+SELECT ST_CONTAINS(g,GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=103;
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # multipolygon,multilinestring
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT(@star_lines_near_vertical));
+
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT('MULTILINESTRING((0 30,30 30,0 35))'));
+
+SELECT ST_CONTAINS(g,GEOMFROMTEXT(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=103;
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # multipolygon,polygon
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT(@star_elem_vertical));
+
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT(@star));
+
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT('POLYGON((0 0,15 25,35 0,0 0))'));
+
+SELECT ST_CONTAINS(g,GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=103;
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # multipolygon,multipolygon
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT(@star_of_elems));
+
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT('MULTIPOLYGON(((0 0,15 25,35 0,0 0),(5 0,15 25,25 0,15 5,5 0)))'));
+
+SELECT ST_CONTAINS(g,GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollection WHERE fid=103;
+
+SELECT ST_CONTAINS(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
        WHERE fid=103 and fid2=103;
---echo #multipolygon,geometrycollection
-SELECT ST_Contains(GeomFromText(@star_collection_elems),GeomFromText(@star_of_elems));
-SELECT ST_Contains(GeomFromText(@star_collection_elems),GeomFromText('MULTIPOLYGON(((0 0,15 25,35 0,0 0),(5 0,15 25,25 0,15 5,5 0)))'));
-SELECT ST_Contains(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=103;
-SELECT ST_Contains(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
-       WHERE fid=115 and fid2=103;
-SELECT ST_Contains(GeomFromText(@star_collection_elems),GeomFromText(@star_collection_multilinestr));
+
 --echo #-------------------------------------------------------------------------------------------
---echo #geometrycollection,point
-SELECT ST_Contains(GeomFromText(@star_collection_elems),GeomFromText(@star_top));
-SELECT ST_Contains(GeomFromText(@star_collection_elems),GeomFromText('POINT(30 30)'));
-SELECT ST_Contains(g,GeomFromText(@star_top)) FROM gis_geometrycollection WHERE fid=115;
---echo #geometrycollection,multipoint
-SELECT ST_Contains(GeomFromText(@star_collection_elems),GeomFromText(@star_bottom_points));
-SELECT ST_Contains(GeomFromText(@star_collection_elems),GeomFromText('MULTIPOINT(30 30,0 35)'));
-SELECT ST_Contains(g,GeomFromText(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=115;
---echo #geometrycollection,linestring
-SELECT ST_Contains(GeomFromText(@star_collection_elems),GeomFromText(@star_top_to_center));
-SELECT ST_Contains(GeomFromText(@star_collection_elems),GeomFromText('LINESTRING(30 30,0 35)'));
-SELECT ST_Contains(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=115;
---echo #geometrycollection,multilinestring
-SELECT ST_Contains(GeomFromText(@star_collection_elems),GeomFromText(@star_lines_near_vertical));
-SELECT ST_Contains(GeomFromText(@star_collection_elems),GeomFromText('MULTILINESTRING((0 30,30 30,0 35))'));
-SELECT ST_Contains(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=115;
---echo #geometrycollection,polygon
-SELECT ST_Contains(GeomFromText(@star_collection_elems),GeomFromText(@star_elem_vertical));
-SELECT ST_Contains(GeomFromText(@star_collection_elems),GeomFromText(@star));
-SELECT ST_Contains(GeomFromText(@star_collection_elems),GeomFromText('POLYGON((0 0,15 25,35 0,0 0))'));
-SELECT ST_Contains(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=115;
---echo #geometrycollection,multipolygon
-SELECT ST_Contains(GeomFromText(@star_collection_elems),GeomFromText(@star_of_elems));
-SELECT ST_Contains(GeomFromText(@star_collection_elems),GeomFromText('MULTIPOLYGON(((0 0,15 25,35 0,0 0),(5 0,15 25,25 0,15 5,5 0)))'));
-SELECT ST_Contains(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=115;
-SELECT ST_Contains(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
+--echo # multipolygon,geometrycollection
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star_of_elems));
+
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT('MULTIPOLYGON(((0 0,15 25,35 0,0 0),(5 0,15 25,25 0,15 5,5 0)))'));
+
+SELECT ST_CONTAINS(g,GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=103;
+
+SELECT ST_CONTAINS(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
        WHERE fid=115 and fid2=103;
---echo #geometrycollection,geometrycollection
-SELECT ST_Contains(GeomFromText(@star_collection_elems),GeomFromText(@star_collection_elems));
-SELECT ST_Contains(GeomFromText(@star_collection_elems),GeomFromText(@star_collection_elems_3));
-SELECT ST_Contains(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=115;
-SELECT ST_Contains(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
+
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star_collection_multilinestr));
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # geometrycollection,point
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star_top));
+
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT('POINT(30 30)'));
+
+SELECT ST_CONTAINS(g,GEOMFROMTEXT(@star_top)) FROM gis_geometrycollection WHERE fid=115;
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # geometrycollection,multipoint
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star_bottom_points));
+
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT('MULTIPOINT(30 30,0 35)'));
+
+SELECT ST_CONTAINS(g,GEOMFROMTEXT(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=115;
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # geometrycollection,linestring
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star_top_to_center));
+
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT('LINESTRING(30 30,0 35)'));
+
+SELECT ST_CONTAINS(g,GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=115;
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # geometrycollection,multilinestring
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star_lines_near_vertical));
+
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT('MULTILINESTRING((0 30,30 30,0 35))'));
+
+SELECT ST_CONTAINS(g,GEOMFROMTEXT(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=115;
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # geometrycollection,polygon
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star_elem_vertical));
+
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star));
+
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT('POLYGON((0 0,15 25,35 0,0 0))'));
+
+SELECT ST_CONTAINS(g,GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=115;
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # geometrycollection,multipolygon
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star_of_elems));
+
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT('MULTIPOLYGON(((0 0,15 25,35 0,0 0),(5 0,15 25,25 0,15 5,5 0)))'));
+
+SELECT ST_CONTAINS(g,GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=115;
+
+SELECT ST_CONTAINS(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
+       WHERE fid=115 and fid2=103;
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # geometrycollection,geometrycollection
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star_collection_elems));
+
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star_collection_elems_3));
+
+SELECT ST_CONTAINS(g,GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=115;
+
+SELECT ST_CONTAINS(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
        WHERE fid=115 and fid2=215;
 
 --echo #========================================================================================
---echo # Contains(g1,g2)
+--echo # CONTAINS(g1,g2)
 --echo #========================================================================================
 
 --echo #-------------------------------------------------------------------------------------------
---echo #point,point
-SELECT Contains(GeomFromText(@star_center),GeomFromText(@star_center));
-SELECT Contains(GeomFromText(@star_top),GeomFromText(@star_center));
-SELECT Contains(g,GeomFromText(@star_center)) FROM gis_geometrycollection WHERE fid=105;
---echo #point,multipoint
-SELECT Contains(GeomFromText(@star_bottom_left),GeomFromText(@star_bottom_points));
-SELECT Contains(g,GeomFromText(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=106;
---echo #point,linestring
-SELECT Contains(GeomFromText(@star_top),GeomFromText(@star_top_to_center));
-SELECT Contains(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=104;
---echo #point,multilinestring
-SELECT Contains(GeomFromText(@star_top),GeomFromText(@star_lines_near_vertical));
-SELECT Contains(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=104;
---echo #point,polygon
-SELECT Contains(GeomFromText(@star_top),GeomFromText(@star));
-SELECT Contains(g,GeomFromText(@star)) FROM gis_geometrycollection WHERE fid=104;
---echo #point,multipolygon
-SELECT Contains(GeomFromText(@star_top),GeomFromText(@star_of_elems));
-SELECT Contains(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=104;
---echo #point,geometrycollection
-SELECT Contains(GeomFromText(@star_top),GeomFromText(@star_collection_elems));
-SELECT Contains(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=104;
-SELECT Contains(GeomFromText(@star_top),GeomFromText(@star_collection_multilinestr));
+--echo # point,point
+SELECT CONTAINS(GEOMFROMTEXT(@star_center),GEOMFROMTEXT(@star_center));
+
+SELECT CONTAINS(GEOMFROMTEXT(@star_top),GEOMFROMTEXT(@star_center));
+
+SELECT CONTAINS(g,GEOMFROMTEXT(@star_center)) FROM gis_geometrycollection WHERE fid=105;
+
+SELECT CONTAINS(GEOMFROMTEXT('POINT(0 0)'),GEOMFROMTEXT('POINT(0 0)'));
+
+SELECT CONTAINS(GEOMFROMTEXT('POINT(0 0)'),GEOMFROMTEXT('POINT(10 0)'));
+
 --echo #-------------------------------------------------------------------------------------------
---echo #multipoint,point
-SELECT Contains(GeomFromText(@star_all_points),GeomFromText(@star_top));
-SELECT Contains(GeomFromText(@star_bottom_points),GeomFromText(@star_center));
-SELECT Contains(g,GeomFromText(@star_bottom_left)) FROM gis_geometrycollection WHERE fid=108;
---echo #multipoint,multipoint
-SELECT Contains(GeomFromText(@star_all_points),GeomFromText(@star_bottom_points));
-SELECT Contains(GeomFromText(@star_bottom_points),GeomFromText(@star_all_points));
-SELECT Contains(g,GeomFromText(@star_all_points)) FROM gis_geometrycollection WHERE fid=108;
---echo #multipoint,linestring
-SELECT Contains(GeomFromText(@star_all_points),GeomFromText(@star_top_to_center));
-SELECT Contains(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=109;
---echo #multipoint,multilinestring
-SELECT Contains(GeomFromText(@star_all_points),GeomFromText(@star_lines_near_vertical));
-SELECT Contains(GeomFromText(@star_all_points),GeomFromText(@star_lines_near_horizontal));
-SELECT Contains(g,GeomFromText(@star_lines_near_horizontal)) FROM gis_geometrycollection WHERE fid=109;
---echo #multipoint,polygon
-SELECT Contains(GeomFromText(@star_all_points),GeomFromText(@star_elem_vertical));
-SELECT Contains(GeomFromText(@star_all_points),GeomFromText(@star_elem_horizontal));
-SELECT Contains(g,GeomFromText(@star_elem_horizontal)) FROM gis_geometrycollection WHERE fid=109;
---echo #multipoint,multipolygon
-SELECT Contains(GeomFromText('MULTIPOINT(0 0,0 30,30 25)'),GeomFromText(@star_of_elems));
-SELECT Contains(GeomFromText(@star_all_points),GeomFromText(@star_of_elems));
-SELECT Contains(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=109;
---echo #multipoint,geometrycollection
-SELECT Contains(GeomFromText('MULTIPOINT(0 0,0 30,30 25)'),GeomFromText(@star_collection_elems));
-SELECT Contains(GeomFromText(@star_all_points),GeomFromText(@star_collection_elems));
-SELECT Contains(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=109;
-SELECT Contains(GeomFromText(@star_all_points),GeomFromText(@star_collection_multilinestr));
+--echo # point,multipoint
+SELECT CONTAINS(GEOMFROMTEXT(@star_bottom_left),GEOMFROMTEXT(@star_bottom_points));
+
+SELECT CONTAINS(g,GEOMFROMTEXT(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=106;
+
+SELECT CONTAINS(GEOMFROMTEXT('POINT(0 0)'),GEOMFROMTEXT('MULTIPOINT(0 0)'));
+
+SELECT CONTAINS(GEOMFROMTEXT('POINT(0 0)'),GEOMFROMTEXT('MULTIPOINT(0 0,10 0)'));
+
+SELECT CONTAINS(GEOMFROMTEXT('POINT(5 0)'),GEOMFROMTEXT('MULTIPOINT(0 0,5 0,10 0)'));
+
 --echo #-------------------------------------------------------------------------------------------
---echo #linestring,point
-SELECT Contains(GeomFromText(@star_top_to_center),GeomFromText(@star_center));
---error ER_GIS_INVALID_DATA
-SELECT Contains(GeomFromText('LINESTRING(15 25,15 10'),GeomFromText('POINT(15 10)'));
-SELECT Contains(GeomFromText(@star_top_to_center),GeomFromText(@star_bottom_left));
-SELECT Contains(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
+--echo # point,linestring
+SELECT CONTAINS(GEOMFROMTEXT(@star_top),GEOMFROMTEXT(@star_top_to_center));
+
+SELECT CONTAINS(g,GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=104;
+
+SELECT CONTAINS(GEOMFROMTEXT('POINT(0 0)'),GEOMFROMTEXT('LINESTRING(0 0)'));
+
+SELECT CONTAINS(GEOMFROMTEXT('POINT(5 0)'),GEOMFROMTEXT('LINESTRING(0 0,10 0)'));
+
+SELECT CONTAINS(GEOMFROMTEXT('POINT(20 0)'),GEOMFROMTEXT('LINESTRING(0 0,10 0,20 0)'));
+
+SELECT CONTAINS(GEOMFROMTEXT('POINT(20 0)'),GEOMFROMTEXT('LINESTRING(0 0,10 0)'));
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # point,multilinestring
+SELECT CONTAINS(GEOMFROMTEXT(@star_top),GEOMFROMTEXT(@star_lines_near_vertical));
+
+SELECT CONTAINS(g,GEOMFROMTEXT(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=104;
+
+SELECT CONTAINS(GEOMFROMTEXT('POINT(0 0)'),GEOMFROMTEXT('MULTILINESTRING((0 0))'));
+
+SELECT CONTAINS(GEOMFROMTEXT('POINT(10 0)'),GEOMFROMTEXT('MULTILINESTRING((0 0,5 0),(5 0,10 0))'));
+
+SELECT CONTAINS(GEOMFROMTEXT('POINT(5 0)'),GEOMFROMTEXT('MULTILINESTRING((0 0,5 0,10 0))'));
+
+SELECT CONTAINS(GEOMFROMTEXT('POINT(20 0)'),GEOMFROMTEXT('MULTILINESTRING((0 0,5 0),(5 0,10 0))'));
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # point,polygon
+SELECT CONTAINS(GEOMFROMTEXT(@star_top),GEOMFROMTEXT(@star));
+
+SELECT CONTAINS(g,GEOMFROMTEXT(@star)) FROM gis_geometrycollection WHERE fid=104;
+
+SELECT CONTAINS(GEOMFROMTEXT('POINT(0 0)'),GEOMFROMTEXT('POLYGON((0 0,10 0,10 10,0 10,0 0))'));
+
+SELECT CONTAINS(GEOMFROMTEXT('POINT(5 0)'),GEOMFROMTEXT('POLYGON((0 0,10 0,10 10,0 10,0 0))'));
+
+SELECT CONTAINS(GEOMFROMTEXT('POINT(5 5)'),GEOMFROMTEXT('POLYGON((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4))'));
+
+SELECT CONTAINS(GEOMFROMTEXT('POINT(20 20)'),GEOMFROMTEXT('POLYGON((0 0,10 0,10 10,0 10,0 0))'));
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # point,multipolygon
+SELECT CONTAINS(GEOMFROMTEXT(@star_top),GEOMFROMTEXT(@star_of_elems));
+
+SELECT CONTAINS(g,GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollection WHERE fid=104;
+
+SELECT CONTAINS(GEOMFROMTEXT('POINT(0 0)'),GEOMFROMTEXT('MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0)))'));
+
+SELECT CONTAINS(GEOMFROMTEXT('POINT(20 20)'),GEOMFROMTEXT('MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0)),((10 10,10 20,20 20,20 10,10 10)))'));
+
+SELECT CONTAINS(GEOMFROMTEXT('POINT(5 5)'),GEOMFROMTEXT('MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)))'));
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # point,geometrycollection
+SELECT CONTAINS(GEOMFROMTEXT(@star_top),GEOMFROMTEXT(@star_collection_elems));
+
+SELECT CONTAINS(g,GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=104;
+
+SELECT CONTAINS(GEOMFROMTEXT(@star_top),GEOMFROMTEXT(@star_collection_multilinestr));
+
+SELECT CONTAINS(GEOMFROMTEXT('POINT(5 5)'),GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'));
+
+SELECT CONTAINS(GEOMFROMTEXT('POINT(5 5)'),GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(5 5))'));
+
+SELECT CONTAINS(GEOMFROMTEXT('POINT(5 5)'),GEOMFROMTEXT('GEOMETRYCOLLECTION(MULTIPOINT(0 0,5 5,10 10),GEOMETRYCOLLECTION())'));
+
+SELECT CONTAINS(GEOMFROMTEXT('POINT(0 0)'),GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,10 0,10 10,0 10,0 0))))'));
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # multipoint,point
+SELECT CONTAINS(GEOMFROMTEXT(@star_all_points),GEOMFROMTEXT(@star_top));
+
+SELECT CONTAINS(GEOMFROMTEXT(@star_bottom_points),GEOMFROMTEXT(@star_center));
+
+SELECT CONTAINS(g,GEOMFROMTEXT(@star_bottom_left)) FROM gis_geometrycollection WHERE fid=108;
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # multipoint,multipoint
+SELECT CONTAINS(GEOMFROMTEXT(@star_all_points),GEOMFROMTEXT(@star_bottom_points));
+
+SELECT CONTAINS(GEOMFROMTEXT(@star_bottom_points),GEOMFROMTEXT(@star_all_points));
+
+SELECT CONTAINS(g,GEOMFROMTEXT(@star_all_points)) FROM gis_geometrycollection WHERE fid=108;
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # multipoint,linestring
+SELECT CONTAINS(GEOMFROMTEXT(@star_all_points),GEOMFROMTEXT(@star_top_to_center));
+
+SELECT CONTAINS(g,GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=109;
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # multipoint,multilinestring
+SELECT CONTAINS(GEOMFROMTEXT(@star_all_points),GEOMFROMTEXT(@star_lines_near_vertical));
+
+SELECT CONTAINS(GEOMFROMTEXT(@star_all_points),GEOMFROMTEXT(@star_lines_near_horizontal));
+
+SELECT CONTAINS(g,GEOMFROMTEXT(@star_lines_near_horizontal)) FROM gis_geometrycollection WHERE fid=109;
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # multipoint,polygon
+SELECT CONTAINS(GEOMFROMTEXT(@star_all_points),GEOMFROMTEXT(@star_elem_vertical));
+
+SELECT CONTAINS(GEOMFROMTEXT(@star_all_points),GEOMFROMTEXT(@star_elem_horizontal));
+
+SELECT CONTAINS(g,GEOMFROMTEXT(@star_elem_horizontal)) FROM gis_geometrycollection WHERE fid=109;
+
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # multipoint,multipolygon
+SELECT CONTAINS(GEOMFROMTEXT('MULTIPOINT(0 0,0 30,30 25)'),GEOMFROMTEXT(@star_of_elems));
+
+SELECT CONTAINS(GEOMFROMTEXT(@star_all_points),GEOMFROMTEXT(@star_of_elems));
+
+SELECT CONTAINS(g,GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollection WHERE fid=109;
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # multipoint,geometrycollection
+SELECT CONTAINS(GEOMFROMTEXT('MULTIPOINT(0 0,0 30,30 25)'),GEOMFROMTEXT(@star_collection_elems));
+
+SELECT CONTAINS(GEOMFROMTEXT(@star_all_points),GEOMFROMTEXT(@star_collection_elems));
+
+SELECT CONTAINS(g,GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=109;
+
+SELECT CONTAINS(GEOMFROMTEXT(@star_all_points),GEOMFROMTEXT(@star_collection_multilinestr));
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # linestring,point
+SELECT CONTAINS(GEOMFROMTEXT(@star_top_to_center),GEOMFROMTEXT(@star_center));
+
+SELECT CONTAINS(GEOMFROMTEXT('LINESTRING(15 25,15 10)'),GEOMFROMTEXT('POINT(15 10)'));
+
+SELECT CONTAINS(GEOMFROMTEXT(@star_top_to_center),GEOMFROMTEXT(@star_bottom_left));
+
+SELECT CONTAINS(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
        WHERE fid=110 and fid2=105;
---echo #linestring,multipoint
-SELECT Contains(GeomFromText(@star_line_vertical),GeomFromText('MULTIPOINT(15 10,15 25)'));
-SELECT Contains(GeomFromText(@star_line_vertical),GeomFromText(@star_all_points));
-SELECT Contains(g,GeomFromText('MULTIPOINT(15 10,15 25)')) FROM gis_geometrycollection WHERE fid=111;
---echo #linestring,linestring
-SELECT Contains(GeomFromText(@star_line_vertical),GeomFromText(@star_top_to_center));
-SELECT Contains(GeomFromText(@star_top_to_center),GeomFromText(@star_line_vertical));
-SELECT Contains(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=111;
---echo #linestring,multilinestring
-SELECT Contains(GeomFromText(@star_line_horizontal),GeomFromText(@star_lines_near_horizontal));
-SELECT Contains(GeomFromText(@star_line_horizontal),GeomFromText(@star_lines_near_vertical));
-SELECT Contains(g,GeomFromText(@star_lines_near_horizontal)) FROM gis_geometrycollection WHERE fid=110;
---echo #linestring,polygon
-SELECT Contains(GeomFromText(@star_line_horizontal),GeomFromText('POLYGON((11 15,19 15,19 10))'));
-SELECT Contains(GeomFromText(@star_line_horizontal),GeomFromText(@star_elem_horizontal));
-SELECT Contains(g,GeomFromText('POLYGON((11 15,19 15,11 15))')) FROM gis_geometrycollection WHERE fid=110;
---echo #linestring,multipolygon
-SELECT Contains(GeomFromText(@star_line_horizontal),GeomFromText('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))'));
-SELECT Contains(GeomFromText(@star_line_horizontal),GeomFromText(@star_of_elems));
-SELECT Contains(g,GeomFromText('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))')) FROM gis_geometrycollection WHERE fid=110;
---echo #linestring,geometrycollection
-SELECT Contains(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_elems_3));
-SELECT Contains(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_elems));
-SELECT Contains(g,GeomFromText(@star_collection_elems_3)) FROM gis_geometrycollection WHERE fid=110;
-SELECT Contains(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_multilinestr));
+
 --echo #-------------------------------------------------------------------------------------------
---echo #multilinestring,point
-SELECT Contains(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_top));
-SELECT Contains(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_center));
-SELECT Contains(g,GeomFromText(@star_top)) FROM gis_geometrycollection WHERE fid=114;
---echo #multilinestring,multipoint
-SELECT Contains(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_bottom_points));
-SELECT Contains(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_all_points));
-SELECT Contains(g,GeomFromText(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=114;
-SELECT Contains(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
+--echo # linestring,multipoint
+SELECT CONTAINS(GEOMFROMTEXT(@star_line_vertical),GEOMFROMTEXT('MULTIPOINT(15 10,15 25)'));
+
+SELECT CONTAINS(GEOMFROMTEXT(@star_line_vertical),GEOMFROMTEXT(@star_all_points));
+
+SELECT CONTAINS(g,GEOMFROMTEXT('MULTIPOINT(15 10,15 25)')) FROM gis_geometrycollection WHERE fid=111;
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # linestring,linestring
+SELECT CONTAINS(GEOMFROMTEXT(@star_line_vertical),GEOMFROMTEXT(@star_top_to_center));
+
+SELECT CONTAINS(GEOMFROMTEXT(@star_top_to_center),GEOMFROMTEXT(@star_line_vertical));
+
+SELECT CONTAINS(g,GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=111;
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # linestring,multilinestring
+SELECT CONTAINS(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT(@star_lines_near_horizontal));
+
+SELECT CONTAINS(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT(@star_lines_near_vertical));
+
+SELECT CONTAINS(g,GEOMFROMTEXT(@star_lines_near_horizontal)) FROM gis_geometrycollection WHERE fid=110;
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # linestring,polygon
+SELECT CONTAINS(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT('POLYGON((11 15,19 15,19 10))'));
+
+SELECT CONTAINS(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT(@star_elem_horizontal));
+
+SELECT CONTAINS(g,GEOMFROMTEXT('POLYGON((11 15,19 15,11 15))')) FROM gis_geometrycollection WHERE fid=110;
+
+SELECT CONTAINS(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT('POLYGON((11 15,19 15,19 10))'));
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # linestring,multipolygon
+SELECT CONTAINS(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))'));
+
+SELECT CONTAINS(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT(@star_of_elems));
+
+SELECT CONTAINS(g,GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))')) FROM gis_geometrycollection WHERE fid=110;
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # linestring,geometrycollection
+SELECT CONTAINS(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT(@star_collection_elems_3));
+
+SELECT CONTAINS(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT(@star_collection_elems));
+
+SELECT CONTAINS(g,GEOMFROMTEXT(@star_collection_elems_3)) FROM gis_geometrycollection WHERE fid=110;
+
+SELECT CONTAINS(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT(@star_collection_multilinestr));
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # multilinestring,point
+SELECT CONTAINS(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_top));
+
+SELECT CONTAINS(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_center));
+
+SELECT CONTAINS(g,GEOMFROMTEXT(@star_top)) FROM gis_geometrycollection WHERE fid=114;
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # multilinestring,multipoint
+SELECT CONTAINS(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_bottom_points));
+
+SELECT CONTAINS(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_all_points));
+
+SELECT CONTAINS(g,GEOMFROMTEXT(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=114;
+
+SELECT CONTAINS(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
        WHERE fid=114 and fid2=108;
---echo #multilinestring,linestring
-SELECT Contains(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_vertical));
-SELECT Contains(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_horizontal));
-SELECT Contains(g,GeomFromText(@star_line_vertical)) FROM gis_geometrycollection WHERE fid=114;
---echo #multilinestring,multilinestring
-SELECT Contains(GeomFromText(@star_lines_near_vertical),GeomFromText('MULTILINESTRING((0 5,15 25,0 15))'));
-SELECT Contains(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_lines_near_horizontal));
-SELECT Contains(g,GeomFromText('MULTILINESTRING((0 5,15 25,0 15))')) FROM gis_geometrycollection WHERE fid=114;
---echo #multilinestring,multilinestring
-SELECT Contains(g,GeomFromText(@star_line_vertical)) FROM gis_geometrycollection WHERE fid=114;
---echo #multilinestring,polygon
-SELECT Contains(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_vertical));
-SELECT Contains(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_horizontal));
-SELECT Contains(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=114;
---echo #multilinestring,multipolygon
-SELECT Contains(GeomFromText('MULTILINESTRING((0 25,25 0,25 30))'),GeomFromText(@star_elem_vertical));
-SELECT Contains(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_of_elems));
-SELECT Contains(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=114;
---echo #multilinestring,geometrycollection
-SELECT Contains(GeomFromText('MULTILINESTRING((0 25,25 0,25 30))'),GeomFromText(@star_collection_elems));
-SELECT Contains(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_collection_elems));
-SELECT Contains(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=114;
-SELECT Contains(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_collection_multilinestr));
+
 --echo #-------------------------------------------------------------------------------------------
---echo #polygon,point
-SELECT Contains(GeomFromText(@star),GeomFromText(@star_center));
-SELECT Contains(GeomFromText(@star_elem_vertical),GeomFromText('POINT(0 0)'));
-SELECT Contains(g,GeomFromText(@star_center)) FROM gis_geometrycollection WHERE fid=100;
---echo #polygon,multipoint
-SELECT Contains(GeomFromText(@star),GeomFromText(@star_all_points));
-SELECT Contains(GeomFromText(@star_elem_vertical),GeomFromText('MULTIPOINT(0 0,30 25)'));
-SELECT Contains(g,GeomFromText(@star_all_points)) FROM gis_geometrycollection WHERE fid=100;
-SELECT Contains(GeomFromText(@star),GeomFromText(@star_all_points));
---echo #polygon,linestring
-SELECT Contains(GeomFromText(@star),GeomFromText(@star_line_vertical));
-SELECT Contains(GeomFromText(@star_elem_vertical),GeomFromText(@star_line_horizontal));
-SELECT Contains(g,GeomFromText(@star_line_vertical)) FROM gis_geometrycollection WHERE fid=100;
-SELECT Contains(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
+--echo # multilinestring,linestring
+SELECT CONTAINS(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_line_vertical));
+
+SELECT CONTAINS(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_line_horizontal));
+
+SELECT CONTAINS(g,GEOMFROMTEXT(@star_line_vertical)) FROM gis_geometrycollection WHERE fid=114;
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # multilinestring,multilinestring
+SELECT CONTAINS(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT('MULTILINESTRING((0 5,15 25,0 15))'));
+
+SELECT CONTAINS(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_lines_near_horizontal));
+
+SELECT CONTAINS(g,GEOMFROMTEXT('MULTILINESTRING((0 5,15 25,0 15))')) FROM gis_geometrycollection WHERE fid=114;
+
+SELECT CONTAINS(g,GEOMFROMTEXT(@star_line_vertical)) FROM gis_geometrycollection WHERE fid=114;
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # multilinestring,polygon
+SELECT CONTAINS(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_elem_vertical));
+
+SELECT CONTAINS(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_elem_horizontal));
+
+SELECT CONTAINS(g,GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=114;
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # multilinestring,multipolygon
+SELECT CONTAINS(GEOMFROMTEXT('MULTILINESTRING((0 25,25 0,25 30))'),GEOMFROMTEXT(@star_elem_vertical));
+
+SELECT CONTAINS(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_of_elems));
+
+SELECT CONTAINS(g,GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollection WHERE fid=114;
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # multilinestring,geometrycollection
+SELECT CONTAINS(GEOMFROMTEXT('MULTILINESTRING((0 25,25 0,25 30))'),GEOMFROMTEXT(@star_collection_elems));
+
+SELECT CONTAINS(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_collection_elems));
+
+SELECT CONTAINS(g,GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=114;
+
+SELECT CONTAINS(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_collection_multilinestr));
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # polygon,point
+SELECT CONTAINS(GEOMFROMTEXT(@star),GEOMFROMTEXT(@star_center));
+
+SELECT CONTAINS(GEOMFROMTEXT(@star_elem_vertical),GEOMFROMTEXT('POINT(0 0)'));
+
+SELECT CONTAINS(g,GEOMFROMTEXT(@star_center)) FROM gis_geometrycollection WHERE fid=100;
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # polygon,multipoint
+SELECT CONTAINS(GEOMFROMTEXT(@star),GEOMFROMTEXT(@star_all_points));
+
+SELECT CONTAINS(GEOMFROMTEXT(@star_elem_vertical),GEOMFROMTEXT('MULTIPOINT(0 0,30 25)'));
+
+SELECT CONTAINS(g,GEOMFROMTEXT(@star_all_points)) FROM gis_geometrycollection WHERE fid=100;
+
+SELECT CONTAINS(GEOMFROMTEXT(@star),GEOMFROMTEXT(@star_all_points));
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # polygon,linestring
+SELECT CONTAINS(GEOMFROMTEXT(@star),GEOMFROMTEXT(@star_line_vertical));
+
+SELECT CONTAINS(GEOMFROMTEXT(@star_elem_vertical),GEOMFROMTEXT(@star_line_horizontal));
+
+SELECT CONTAINS(g,GEOMFROMTEXT(@star_line_vertical)) FROM gis_geometrycollection WHERE fid=100;
+
+SELECT CONTAINS(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
        WHERE fid=100 and fid2=111;
---echo #polygon,multilinestring
-SELECT Contains(GeomFromText(@star),GeomFromText(@star_lines_near_vertical));
-SELECT Contains(GeomFromText(@star_elem_vertical),GeomFromText(@star_lines_near_horizontal));
-SELECT Contains(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=100;
---echo #polygon,polygon
-SELECT Contains(GeomFromText(@star),GeomFromText(@star_elem_vertical));
-SELECT Contains(GeomFromText(@star_elem_vertical),GeomFromText(@star));
-SELECT Contains(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=100;
---echo #polygon,multipolygon
-SELECT Contains(GeomFromText(@star),GeomFromText(@star_of_elems));
-SELECT Contains(GeomFromText(@star_elem_vertical),GeomFromText(@star_of_elems));
-SELECT Contains(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=100;
---echo #polygon,geometrycollection
-SELECT Contains(GeomFromText(@star),GeomFromText(@star_collection_elems));
-SELECT Contains(GeomFromText(@star_elem_vertical),GeomFromText(@star_collection_elems));
-SELECT Contains(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=100;
-SELECT Contains(GeomFromText(@star),GeomFromText(@star_collection_multilinestr));
+
 --echo #-------------------------------------------------------------------------------------------
---echo #multipolygon,point
-SELECT Contains(GeomFromText(@star_of_elems),GeomFromText(@star_top));
-SELECT Contains(GeomFromText(@star_of_elems),GeomFromText('POINT(30 30)'));
-SELECT Contains(g,GeomFromText(@star_top)) FROM gis_geometrycollection WHERE fid=103;
---echo #multipolygon,multipoint
-SELECT Contains(GeomFromText(@star_of_elems),GeomFromText(@star_bottom_points));
-SELECT Contains(GeomFromText(@star_of_elems),GeomFromText('MULTIPOINT(30 30,0 35)'));
-SELECT Contains(g,GeomFromText(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=103;
---echo #multipolygon,linestring
-SELECT Contains(GeomFromText(@star_of_elems),GeomFromText(@star_top_to_center));
-SELECT Contains(GeomFromText(@star_of_elems),GeomFromText('LINESTRING(30 30,0 35)'));
-SELECT Contains(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=103;
---echo #multipolygon,multilinestring
-SELECT Contains(GeomFromText(@star_of_elems),GeomFromText(@star_lines_near_vertical));
-SELECT Contains(GeomFromText(@star_of_elems),GeomFromText('MULTILINESTRING((0 30,30 30,0 35))'));
-SELECT Contains(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=103;
---echo #multipolygon,polygon
-SELECT Contains(GeomFromText(@star_of_elems),GeomFromText(@star_elem_vertical));
-SELECT Contains(GeomFromText(@star_of_elems),GeomFromText(@star));
-SELECT Contains(GeomFromText(@star_of_elems),GeomFromText('POLYGON((0 0,15 25,35 0,0 0))'));
-SELECT Contains(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=103;
---echo #multipolygon,multipolygon
-SELECT Contains(GeomFromText(@star_of_elems),GeomFromText(@star_of_elems));
-SELECT Contains(GeomFromText(@star_of_elems),GeomFromText('MULTIPOLYGON(((0 0,15 25,35 0,0 0),(5 0,15 25,25 0,15 5,5 0)))'));
-SELECT Contains(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=103;
-SELECT Contains(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
+--echo # polygon,multilinestring
+SELECT CONTAINS(GEOMFROMTEXT(@star),GEOMFROMTEXT(@star_lines_near_vertical));
+
+SELECT CONTAINS(GEOMFROMTEXT(@star_elem_vertical),GEOMFROMTEXT(@star_lines_near_horizontal));
+
+SELECT CONTAINS(g,GEOMFROMTEXT(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=100;
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # polygon,polygon
+SELECT CONTAINS(GEOMFROMTEXT(@star),GEOMFROMTEXT(@star_elem_vertical));
+
+SELECT CONTAINS(GEOMFROMTEXT(@star_elem_vertical),GEOMFROMTEXT(@star));
+
+SELECT CONTAINS(g,GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=100;
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # polygon,multipolygon
+SELECT CONTAINS(GEOMFROMTEXT(@star),GEOMFROMTEXT(@star_of_elems));
+
+SELECT CONTAINS(GEOMFROMTEXT(@star_elem_vertical),GEOMFROMTEXT(@star_of_elems));
+
+SELECT CONTAINS(g,GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollection WHERE fid=100;
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # polygon,geometrycollection
+SELECT CONTAINS(GEOMFROMTEXT(@star),GEOMFROMTEXT(@star_collection_elems));
+
+SELECT CONTAINS(GEOMFROMTEXT(@star_elem_vertical),GEOMFROMTEXT(@star_collection_elems));
+
+SELECT CONTAINS(g,GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=100;
+
+SELECT CONTAINS(GEOMFROMTEXT(@star),GEOMFROMTEXT(@star_collection_multilinestr));
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # multipolygon,point
+SELECT CONTAINS(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT(@star_top));
+
+SELECT CONTAINS(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT('POINT(30 30)'));
+
+SELECT CONTAINS(g,GEOMFROMTEXT(@star_top)) FROM gis_geometrycollection WHERE fid=103;
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # multipolygon,multipoint
+SELECT CONTAINS(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT(@star_bottom_points));
+
+SELECT CONTAINS(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT('MULTIPOINT(30 30,0 35)'));
+
+SELECT CONTAINS(g,GEOMFROMTEXT(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=103;
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # multipolygon,linestring
+SELECT CONTAINS(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT(@star_top_to_center));
+
+SELECT CONTAINS(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT('LINESTRING(30 30,0 35)'));
+
+SELECT CONTAINS(g,GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=103;
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # multipolygon,multilinestring
+SELECT CONTAINS(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT(@star_lines_near_vertical));
+
+SELECT CONTAINS(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT('MULTILINESTRING((0 30,30 30,0 35))'));
+
+SELECT CONTAINS(g,GEOMFROMTEXT(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=103;
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # multipolygon,polygon
+SELECT CONTAINS(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT(@star_elem_vertical));
+
+SELECT CONTAINS(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT(@star));
+
+SELECT CONTAINS(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT('POLYGON((0 0,15 25,35 0,0 0))'));
+
+SELECT CONTAINS(g,GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=103;
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # multipolygon,multipolygon
+SELECT CONTAINS(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT(@star_of_elems));
+
+SELECT CONTAINS(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT('MULTIPOLYGON(((0 0,15 25,35 0,0 0),(5 0,15 25,25 0,15 5,5 0)))'));
+
+SELECT CONTAINS(g,GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollection WHERE fid=103;
+
+SELECT CONTAINS(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
        WHERE fid=103 and fid2=103;
---echo #multipolygon,geometrycollection
-SELECT Contains(GeomFromText(@star_of_elems),GeomFromText(@star_collection_elems));
-SELECT Contains(GeomFromText(@star_of_elems),GeomFromText(@star_collection_elems_3));
-SELECT Contains(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=103;
-SELECT Contains(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # multipolygon,geometrycollection
+SELECT CONTAINS(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT(@star_collection_elems));
+
+SELECT CONTAINS(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT(@star_collection_elems_3));
+
+SELECT CONTAINS(g,GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=103;
+
+SELECT CONTAINS(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
        WHERE fid=103 and fid2=215;
-SELECT Contains(GeomFromText(@star_of_elems),GeomFromText(@star_collection_multilinestr));
+
+SELECT CONTAINS(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT(@star_collection_multilinestr));
+
 --echo #-------------------------------------------------------------------------------------------
---echo #geometrycollection,point
-SELECT Contains(GeomFromText(@star_collection_elems),GeomFromText(@star_top));
-SELECT Contains(GeomFromText(@star_collection_elems),GeomFromText('POINT(30 30)'));
-SELECT Contains(g,GeomFromText(@star_top)) FROM gis_geometrycollection WHERE fid=115;
---echo #geometrycollection,multipoint
-SELECT Contains(GeomFromText(@star_collection_elems),GeomFromText(@star_bottom_points));
-SELECT Contains(GeomFromText(@star_collection_elems),GeomFromText('MULTIPOINT(30 30,0 35)'));
-SELECT Contains(g,GeomFromText(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=115;
---echo #geometrycollection,linestring
-SELECT Contains(GeomFromText(@star_collection_elems),GeomFromText(@star_top_to_center));
-SELECT Contains(GeomFromText(@star_collection_elems),GeomFromText('LINESTRING(30 30,0 35)'));
-SELECT Contains(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=115;
---echo #geometrycollection,multilinestring
-SELECT Contains(GeomFromText(@star_collection_elems),GeomFromText(@star_lines_near_vertical));
-SELECT Contains(GeomFromText(@star_collection_elems),GeomFromText('MULTILINESTRING((0 30,30 30,0 35))'));
-SELECT Contains(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=115;
---echo #geometrycollection,polygon
-SELECT Contains(GeomFromText(@star_collection_elems),GeomFromText(@star_elem_vertical));
-SELECT Contains(GeomFromText(@star_collection_elems),GeomFromText(@star));
-SELECT Contains(GeomFromText(@star_collection_elems),GeomFromText('POLYGON((0 0,15 25,35 0,0 0))'));
-SELECT Contains(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=115;
---echo #geometrycollection,multipolygon
-SELECT Contains(GeomFromText(@star_collection_elems),GeomFromText(@star_of_elems));
-SELECT Contains(GeomFromText(@star_collection_elems),GeomFromText('MULTIPOLYGON(((0 0,15 25,35 0,0 0),(5 0,15 25,25 0,15 5,5 0)))'));
-SELECT Contains(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=115;
-SELECT Contains(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
+--echo # geometrycollection,point
+SELECT CONTAINS(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star_top));
+
+SELECT CONTAINS(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT('POINT(30 30)'));
+
+SELECT CONTAINS(g,GEOMFROMTEXT(@star_top)) FROM gis_geometrycollection WHERE fid=115;
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # geometrycollection,multipoint
+SELECT CONTAINS(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star_bottom_points));
+
+SELECT CONTAINS(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT('MULTIPOINT(30 30,0 35)'));
+
+SELECT CONTAINS(g,GEOMFROMTEXT(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=115;
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # geometrycollection,linestring
+SELECT CONTAINS(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star_top_to_center));
+
+SELECT CONTAINS(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT('LINESTRING(30 30,0 35)'));
+
+SELECT CONTAINS(g,GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=115;
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # geometrycollection,multilinestring
+SELECT CONTAINS(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star_lines_near_vertical));
+
+SELECT CONTAINS(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT('MULTILINESTRING((0 30,30 30,0 35))'));
+
+SELECT CONTAINS(g,GEOMFROMTEXT(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=115;
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # geometrycollection,polygon
+SELECT CONTAINS(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star_elem_vertical));
+
+SELECT CONTAINS(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star));
+
+SELECT CONTAINS(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT('POLYGON((0 0,15 25,35 0,0 0))'));
+
+SELECT CONTAINS(g,GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=115;
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # geometrycollection,multipolygon
+SELECT CONTAINS(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star_of_elems));
+
+SELECT CONTAINS(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT('MULTIPOLYGON(((0 0,15 25,35 0,0 0),(5 0,15 25,25 0,15 5,5 0)))'));
+
+SELECT CONTAINS(g,GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=115;
+
+SELECT CONTAINS(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
        WHERE fid=115 and fid2=103;
---echo #geometrycollection,geometrycollection
-SELECT Contains(GeomFromText(@star_collection_elems),GeomFromText(@star_collection_elems));
-SELECT Contains(GeomFromText(@star_collection_elems),GeomFromText(@star_collection_elems_3));
-SELECT Contains(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=115;
-SELECT Contains(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
+
+--echo #-------------------------------------------------------------------------------------------
+--echo # geometrycollection,geometrycollection
+SELECT CONTAINS(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star_collection_elems));
+
+SELECT CONTAINS(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star_collection_elems_3));
+
+SELECT CONTAINS(g,GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=115;
+
+SELECT CONTAINS(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
        WHERE fid=115 and fid2=215;
 
 --echo #=======================================================================================
---echo # Testing Contains() with 2 geometries of same SRID 
+--echo # Testing CONTAINS() with 2 geometries of same SRID 
 --echo #=======================================================================================
 
 --echo #-------------------------------------------------------------------------------------------
---echo #MBRContains(g1,g2)
-SELECT MBRContains(GeomFromText(@star_top,0),GeomFromText(@star_center,0));
-SELECT MBRContains(GeomFromText(@star_top,100),GeomFromText(@star_center,100));
-SELECT MBRContains(GeomFromText(@star_top,20000),GeomFromText(@star_center,20000));
-SELECT MBRContains(GeomFromText(@star_top,123456),GeomFromText(@star_center,123456));
-SELECT MBRContains(GeomFromText(@star_top,1048575),GeomFromText(@star_center,1048575));
-SELECT MBRContains(GeomFromText(@star_top,4294967295),GeomFromText(@star_center,4294967295));
-SELECT MBRContains(GeomFromText(@star_top,-1),GeomFromText(@star_center,-1));
-SELECT MBRContains(GeomFromText(@star_top,-1024),GeomFromText(@star_center,-1024));
-SELECT MBRContains(GeomFromText(@star_top,4294967295000),GeomFromText(@star_center,4294967295000));
+--echo # MBRCONTAINS(g1,g2)
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_top,0),GEOMFROMTEXT(@star_center,0));
+
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_top,100),GEOMFROMTEXT(@star_center,100));
+
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_top,20000),GEOMFROMTEXT(@star_center,20000));
+
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_top,123456),GEOMFROMTEXT(@star_center,123456));
+
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_top,1048575),GEOMFROMTEXT(@star_center,1048575));
+
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_top,4294967295),GEOMFROMTEXT(@star_center,4294967295));
+
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_top,-1),GEOMFROMTEXT(@star_center,-1));
+
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_top,-1024),GEOMFROMTEXT(@star_center,-1024));
+
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_top,4294967295000),GEOMFROMTEXT(@star_center,4294967295000));
+
 --echo #-------------------------------------------------------------------------------------------
---echo #ST_Contains(g1,g2)
-SELECT ST_Contains(GeomFromText(@star_top,0),GeomFromText(@star_center,0));
-SELECT ST_Contains(GeomFromText(@star_top,100),GeomFromText(@star_center,100));
-SELECT ST_Contains(GeomFromText(@star_top,20000),GeomFromText(@star_center,20000));
-SELECT ST_Contains(GeomFromText(@star_top,123456),GeomFromText(@star_center,123456));
-SELECT ST_Contains(GeomFromText(@star_top,1048575),GeomFromText(@star_center,1048575));
-SELECT ST_Contains(GeomFromText(@star_top,4294967295),GeomFromText(@star_center,4294967295));
-SELECT ST_Contains(GeomFromText(@star_top,-1),GeomFromText(@star_center,-1));
-SELECT ST_Contains(GeomFromText(@star_top,-1024),GeomFromText(@star_center,-1024));
-SELECT ST_Contains(GeomFromText(@star_top,4294967295000),GeomFromText(@star_center,4294967295000));
+--echo # ST_CONTAINS(g1,g2)
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_top,0),GEOMFROMTEXT(@star_center,0));
+
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_top,100),GEOMFROMTEXT(@star_center,100));
+
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_top,20000),GEOMFROMTEXT(@star_center,20000));
+
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_top,123456),GEOMFROMTEXT(@star_center,123456));
+
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_top,1048575),GEOMFROMTEXT(@star_center,1048575));
+
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_top,4294967295),GEOMFROMTEXT(@star_center,4294967295));
+
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_top,-1),GEOMFROMTEXT(@star_center,-1));
+
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_top,-1024),GEOMFROMTEXT(@star_center,-1024));
+
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_top,4294967295000),GEOMFROMTEXT(@star_center,4294967295000));
+
 --echo #-------------------------------------------------------------------------------------------
---echo #Contains(g1,g2)
-SELECT Contains(GeomFromText(@star_top,0),GeomFromText(@star_center,0));
-SELECT Contains(GeomFromText(@star_top,100),GeomFromText(@star_center,100));
-SELECT Contains(GeomFromText(@star_top,20000),GeomFromText(@star_center,20000));
-SELECT Contains(GeomFromText(@star_top,123456),GeomFromText(@star_center,123456));
-SELECT Contains(GeomFromText(@star_top,1048575),GeomFromText(@star_center,1048575));
-SELECT Contains(GeomFromText(@star_top,4294967295),GeomFromText(@star_center,4294967295));
-SELECT Contains(GeomFromText(@star_top,-1),GeomFromText(@star_center,-1));
-SELECT Contains(GeomFromText(@star_top,-1024),GeomFromText(@star_center,-1024));
-SELECT Contains(GeomFromText(@star_top,4294967295000),GeomFromText(@star_center,4294967295000));
+--echo # CONTAINS(g1,g2)
+SELECT CONTAINS(GEOMFROMTEXT(@star_top,0),GEOMFROMTEXT(@star_center,0));
+
+SELECT CONTAINS(GEOMFROMTEXT(@star_top,100),GEOMFROMTEXT(@star_center,100));
+
+SELECT CONTAINS(GEOMFROMTEXT(@star_top,20000),GEOMFROMTEXT(@star_center,20000));
+
+SELECT CONTAINS(GEOMFROMTEXT(@star_top,123456),GEOMFROMTEXT(@star_center,123456));
+
+SELECT CONTAINS(GEOMFROMTEXT(@star_top,1048575),GEOMFROMTEXT(@star_center,1048575));
+
+SELECT CONTAINS(GEOMFROMTEXT(@star_top,4294967295),GEOMFROMTEXT(@star_center,4294967295));
+
+SELECT CONTAINS(GEOMFROMTEXT(@star_top,-1),GEOMFROMTEXT(@star_center,-1));
+
+SELECT CONTAINS(GEOMFROMTEXT(@star_top,-1024),GEOMFROMTEXT(@star_center,-1024));
+
+SELECT CONTAINS(GEOMFROMTEXT(@star_top,4294967295000),GEOMFROMTEXT(@star_center,4294967295000));
 
 --echo #=======================================================================================
 --echo # Invalid function calls
 --echo #=======================================================================================
-SELECT Contains(GeomFromText(@star_top),GeomFromText(@star_center,4326));
-SELECT Contains(GeomFromText(@star_top,1048576),GeomFromText(@star_center,4326));
-SELECT Contains(GeomFromText(@star_top,1048576),GeomFromText(@star_center,1048576));
-SELECT Contains(GeomFromText(@star_top,1048575),GeomFromText(@star_center,1048575));
-SELECT Contains(GeomFromText(@star_top,0),GeomFromText(@star_center,0));
-SELECT Contains(GeomFromText(@star_top,-1),GeomFromText(@star_center,-1));
-SELECT Contains(NULL,GeomFromText(@star_top));
-SELECT Contains(GeomFromText(@star_of_elems),NULL);
-SELECT Contains(g,NULL) FROM gis_geometrycollection,gis_geometrycollection_2
-       WHERE fid=103 and fid2=103;
-SELECT Contains(NULL,NULL);
-SELECT Contains(fid,NULL) FROM gis_geometrycollection,gis_geometrycollection_2
-       WHERE fid=103 and fid2=103;
---error ER_GIS_INVALID_DATA
-SELECT Contains(fid,GeomFromText(@star_top)) FROM gis_geometrycollection,gis_geometrycollection_2
-       WHERE fid=103 and fid2=103;
---error ER_GIS_INVALID_DATA
-SELECT Contains(GeomFromText(@star_of_elems),fid) FROM gis_geometrycollection,gis_geometrycollection_2
-       WHERE fid=103 and fid2=103;
---error ER_GIS_INVALID_DATA
-SELECT Contains(GeomFromText('POINT(a 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
---error ER_GIS_INVALID_DATA
-SELECT Contains(GeomFromText('POINT(! 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
---error ER_PARSE_ERROR
-SELECT Contains(GeomFromText('POINT('!' 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
---error ER_GIS_INVALID_DATA
-SELECT Contains(GeomFromText('POINT(12,34 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
---error ER_GIS_INVALID_DATA
-SELECT Contains(GeomFromText('LINESTRING(a 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
---error ER_GIS_INVALID_DATA
-SELECT Contains(GeomFromText('LINESTRING(0 0,! 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
---error ER_PARSE_ERROR
-SELECT Contains(GeomFromText('LINESTRING('!' 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
---error ER_GIS_INVALID_DATA
-SELECT Contains(GeomFromText('LINESTRING(12,34 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
---error ER_GIS_INVALID_DATA
-SELECT Contains(GeomFromText('POLYGON((a 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
---error ER_GIS_INVALID_DATA
-SELECT Contains(GeomFromText('POLYGON((0 0,! 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
---error ER_PARSE_ERROR
-SELECT Contains(GeomFromText('POLYGON(('!' 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
---error ER_GIS_INVALID_DATA
-SELECT Contains(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
---error ER_GIS_INVALID_DATA
-SELECT Contains(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
---error ER_PARSE_ERROR
-SELECT Contains(,);
---error ER_PARSE_ERROR
-SELECT Contains(GeomFromText(@star_of_elems),);
---error ER_PARSE_ERROR
-SELECT Contains(,GeomFromText(@star_top));
+
+--echo #---------------------------------------------------------------------------------------
+--echo # CONTAINS()
+--error ER_GIS_DIFFERENT_SRIDS
+SELECT CONTAINS(GEOMFROMTEXT(@star_top),GEOMFROMTEXT(@star_center,4326));
 
 --error ER_GIS_DIFFERENT_SRIDS
-SELECT ST_Contains(GeomFromText(@star_top),GeomFromText(@star_center,4326));
+SELECT CONTAINS(GEOMFROMTEXT(@star_top,1048576),GEOMFROMTEXT(@star_center,4326));
+
+SELECT CONTAINS(NULL,GEOMFROMTEXT(@star_top));
+
+SELECT CONTAINS(GEOMFROMTEXT(@star_of_elems),NULL);
+
+SELECT CONTAINS(g,NULL) FROM gis_geometrycollection,gis_geometrycollection_2
+       WHERE fid=103 and fid2=103;
+
+SELECT CONTAINS(NULL,NULL);
+
+SELECT CONTAINS(fid,NULL) FROM gis_geometrycollection,gis_geometrycollection_2
+       WHERE fid=103 and fid2=103;
+
+--error ER_GIS_INVALID_DATA
+SELECT CONTAINS(fid,GEOMFROMTEXT(@star_top)) FROM gis_geometrycollection,gis_geometrycollection_2
+       WHERE fid=103 and fid2=103;
+
+--error ER_GIS_INVALID_DATA
+SELECT CONTAINS(GEOMFROMTEXT(@star_of_elems),fid) FROM gis_geometrycollection,gis_geometrycollection_2
+       WHERE fid=103 and fid2=103;
+
+--error ER_GIS_INVALID_DATA
+SELECT CONTAINS(GEOMFROMTEXT('POINT(a 0)'),GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
+
+--error ER_GIS_INVALID_DATA
+SELECT CONTAINS(GEOMFROMTEXT('POINT(! 0)'),GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
+
+--error ER_PARSE_ERROR
+SELECT CONTAINS(GEOMFROMTEXT('POINT('!' 0)'),GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
+
+--error ER_GIS_INVALID_DATA
+SELECT CONTAINS(GEOMFROMTEXT('POINT(12,34 0)'),GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
+
+--error ER_GIS_INVALID_DATA
+SELECT CONTAINS(GEOMFROMTEXT('LINESTRING(a 0,10 10)'),GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
+
+--error ER_GIS_INVALID_DATA
+SELECT CONTAINS(GEOMFROMTEXT('LINESTRING(0 0,! 10)'),GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
+
+--error ER_PARSE_ERROR
+SELECT CONTAINS(GEOMFROMTEXT('LINESTRING('!' 0,10 10)'),GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
+
+--error ER_GIS_INVALID_DATA
+SELECT CONTAINS(GEOMFROMTEXT('LINESTRING(12,34 0,10 10)'),GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
+
+--error ER_GIS_INVALID_DATA
+SELECT CONTAINS(GEOMFROMTEXT('POLYGON((a 0,10 10,10 0,0 0))'),GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
+
+--error ER_GIS_INVALID_DATA
+SELECT CONTAINS(GEOMFROMTEXT('POLYGON((0 0,! 10,10 0,0 0))'),GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
+
+--error ER_PARSE_ERROR
+SELECT CONTAINS(GEOMFROMTEXT('POLYGON(('!' 0,10 10,10 0,0 0))'),GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
+
+--error ER_GIS_INVALID_DATA
+SELECT CONTAINS(GEOMFROMTEXT('POLYGON((12,34 0,10 10,10 0,0 0))'),GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
+
+--error ER_GIS_INVALID_DATA
+SELECT CONTAINS(GEOMFROMTEXT('POLYGON((12,34 0,10 10,10 0,0 0)'),GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
+
+--error ER_PARSE_ERROR
+SELECT CONTAINS(,);
+
+--error ER_PARSE_ERROR
+SELECT CONTAINS(GEOMFROMTEXT(@star_of_elems),);
+
+--error ER_PARSE_ERROR
+SELECT CONTAINS(,GEOMFROMTEXT(@star_top));
+
+--echo #---------------------------------------------------------------------------------------
+--echo # ST_CONTAINS()
 --error ER_GIS_DIFFERENT_SRIDS
-SELECT ST_Contains(GeomFromText(@star_top,1048576),GeomFromText(@star_center,4326));
-SELECT ST_Contains(GeomFromText(@star_top,1048576),GeomFromText(@star_center,1048576));
-SELECT ST_Contains(GeomFromText(@star_top,0),GeomFromText(@star_center,0));
-SELECT ST_Contains(GeomFromText(@star_top,-1),GeomFromText(@star_center,-1));
-SELECT ST_Contains(NULL,GeomFromText(@star_top));
-SELECT ST_Contains(GeomFromText(@star_of_elems),NULL);
-SELECT ST_Contains(g,NULL) FROM gis_geometrycollection,gis_geometrycollection_2
-       WHERE fid=103 and fid2=103;
-SELECT ST_Contains(NULL,NULL);
-SELECT ST_Contains(fid,NULL) FROM gis_geometrycollection,gis_geometrycollection_2
-       WHERE fid=103 and fid2=103;
---error ER_GIS_INVALID_DATA
-SELECT ST_Contains(fid,GeomFromText(@star_top)) FROM gis_geometrycollection,gis_geometrycollection_2
-       WHERE fid=103 and fid2=103;
---error ER_GIS_INVALID_DATA
-SELECT ST_Contains(GeomFromText(@star_of_elems),fid) FROM gis_geometrycollection,gis_geometrycollection_2
-       WHERE fid=103 and fid2=103;
---error ER_GIS_INVALID_DATA
-SELECT ST_Contains(GeomFromText('POINT(a 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
---error ER_GIS_INVALID_DATA
-SELECT ST_Contains(GeomFromText('POINT(! 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
---error ER_PARSE_ERROR
-SELECT ST_Contains(GeomFromText('POINT('!' 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
---error ER_GIS_INVALID_DATA
-SELECT ST_Contains(GeomFromText('POINT(12,34 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
---error ER_GIS_INVALID_DATA
-SELECT ST_Contains(GeomFromText('LINESTRING(a 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
---error ER_GIS_INVALID_DATA
-SELECT ST_Contains(GeomFromText('LINESTRING(0 0,! 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
---error ER_PARSE_ERROR
-SELECT ST_Contains(GeomFromText('LINESTRING('!' 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
---error ER_GIS_INVALID_DATA
-SELECT ST_Contains(GeomFromText('LINESTRING(12,34 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
---error ER_GIS_INVALID_DATA
-SELECT ST_Contains(GeomFromText('POLYGON((a 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
---error ER_GIS_INVALID_DATA
-SELECT ST_Contains(GeomFromText('POLYGON((0 0,! 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
---error ER_PARSE_ERROR
-SELECT ST_Contains(GeomFromText('POLYGON(('!' 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
---error ER_GIS_INVALID_DATA
-SELECT ST_Contains(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
---error ER_GIS_INVALID_DATA
-SELECT ST_Contains(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
---error ER_PARSE_ERROR
-SELECT ST_Contains(,);
---error ER_PARSE_ERROR
-SELECT ST_Contains(GeomFromText(@star_of_elems),);
---error ER_PARSE_ERROR
-SELECT ST_Contains(,GeomFromText(@star_top));
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_top),GEOMFROMTEXT(@star_center,4326));
 
-SELECT MBRContains(GeomFromText(@star_top),GeomFromText(@star_center,4326));
-SELECT MBRContains(GeomFromText(@star_top,1048576),GeomFromText(@star_center,4326));
-SELECT MBRContains(GeomFromText(@star_top,1048576),GeomFromText(@star_center,1048576));
-SELECT MBRContains(GeomFromText(@star_top,0),GeomFromText(@star_center,0));
-SELECT MBRContains(GeomFromText(@star_top,-1),GeomFromText(@star_center,-1));
-SELECT MBRContains(NULL,GeomFromText(@star_top));
-SELECT MBRContains(GeomFromText(@star_of_elems),NULL);
-SELECT MBRContains(g,NULL) FROM gis_geometrycollection,gis_geometrycollection_2
-       WHERE fid=103 and fid2=103;
-SELECT MBRContains(NULL,NULL);
-SELECT MBRContains(fid,NULL) FROM gis_geometrycollection,gis_geometrycollection_2
-       WHERE fid=103 and fid2=103;
---error ER_GIS_INVALID_DATA
-SELECT MBRContains(fid,GeomFromText(@star_top)) FROM gis_geometrycollection,gis_geometrycollection_2
-       WHERE fid=103 and fid2=103;
---error ER_GIS_INVALID_DATA
-SELECT MBRContains(GeomFromText(@star_of_elems),fid) FROM gis_geometrycollection,gis_geometrycollection_2
-       WHERE fid=103 and fid2=103;
---error ER_GIS_INVALID_DATA
-SELECT MBRContains(GeomFromText('POINT(a 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
---error ER_GIS_INVALID_DATA
-SELECT MBRContains(GeomFromText('POINT(! 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
---error ER_PARSE_ERROR
-SELECT MBRContains(GeomFromText('POINT('!' 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
---error ER_GIS_INVALID_DATA
-SELECT MBRContains(GeomFromText('POINT(12,34 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
---error ER_GIS_INVALID_DATA
-SELECT MBRContains(GeomFromText('LINESTRING(a 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
---error ER_GIS_INVALID_DATA
-SELECT MBRContains(GeomFromText('LINESTRING(0 0,! 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
---error ER_PARSE_ERROR
-SELECT MBRContains(GeomFromText('LINESTRING('!' 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
---error ER_GIS_INVALID_DATA
-SELECT MBRContains(GeomFromText('LINESTRING(12,34 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
---error ER_GIS_INVALID_DATA
-SELECT MBRContains(GeomFromText('POLYGON((a 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
---error ER_GIS_INVALID_DATA
-SELECT MBRContains(GeomFromText('POLYGON((0 0,! 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
---error ER_PARSE_ERROR
-SELECT MBRContains(GeomFromText('POLYGON(('!' 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
---error ER_GIS_INVALID_DATA
-SELECT MBRContains(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
---error ER_GIS_INVALID_DATA
-SELECT MBRContains(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
---error ER_PARSE_ERROR
-SELECT MBRContains(,);
---error ER_PARSE_ERROR
-SELECT MBRContains(GeomFromText(@star_of_elems),);
---error ER_PARSE_ERROR
-SELECT MBRContains(,GeomFromText(@star_top));
+--error ER_GIS_DIFFERENT_SRIDS
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_top,1048576),GEOMFROMTEXT(@star_center,4326));
 
---echo #clean up
+SELECT ST_CONTAINS(NULL,GEOMFROMTEXT(@star_top));
+
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_of_elems),NULL);
+
+SELECT ST_CONTAINS(g,NULL) FROM gis_geometrycollection,gis_geometrycollection_2
+       WHERE fid=103 and fid2=103;
+
+SELECT ST_CONTAINS(NULL,NULL);
+
+SELECT ST_CONTAINS(fid,NULL) FROM gis_geometrycollection,gis_geometrycollection_2
+       WHERE fid=103 and fid2=103;
+
+--error ER_GIS_INVALID_DATA
+SELECT ST_CONTAINS(fid,GEOMFROMTEXT(@star_top)) FROM gis_geometrycollection,gis_geometrycollection_2
+       WHERE fid=103 and fid2=103;
+
+--error ER_GIS_INVALID_DATA
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_of_elems),fid) FROM gis_geometrycollection,gis_geometrycollection_2
+       WHERE fid=103 and fid2=103;
+
+--error ER_GIS_INVALID_DATA
+SELECT ST_CONTAINS(GEOMFROMTEXT('POINT(a 0)'),GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
+
+--error ER_GIS_INVALID_DATA
+SELECT ST_CONTAINS(GEOMFROMTEXT('POINT(! 0)'),GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
+
+--error ER_PARSE_ERROR
+SELECT ST_CONTAINS(GEOMFROMTEXT('POINT('!' 0)'),GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
+
+--error ER_GIS_INVALID_DATA
+SELECT ST_CONTAINS(GEOMFROMTEXT('POINT(12,34 0)'),GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
+
+--error ER_GIS_INVALID_DATA
+SELECT ST_CONTAINS(GEOMFROMTEXT('LINESTRING(a 0,10 10)'),GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
+
+--error ER_GIS_INVALID_DATA
+SELECT ST_CONTAINS(GEOMFROMTEXT('LINESTRING(0 0,! 10)'),GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
+
+--error ER_PARSE_ERROR
+SELECT ST_CONTAINS(GEOMFROMTEXT('LINESTRING('!' 0,10 10)'),GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
+
+--error ER_GIS_INVALID_DATA
+SELECT ST_CONTAINS(GEOMFROMTEXT('LINESTRING(12,34 0,10 10)'),GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
+
+--error ER_GIS_INVALID_DATA
+SELECT ST_CONTAINS(GEOMFROMTEXT('POLYGON((a 0,10 10,10 0,0 0))'),GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
+
+--error ER_GIS_INVALID_DATA
+SELECT ST_CONTAINS(GEOMFROMTEXT('POLYGON((0 0,! 10,10 0,0 0))'),GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
+
+--error ER_PARSE_ERROR
+SELECT ST_CONTAINS(GEOMFROMTEXT('POLYGON(('!' 0,10 10,10 0,0 0))'),GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
+
+--error ER_GIS_INVALID_DATA
+SELECT ST_CONTAINS(GEOMFROMTEXT('POLYGON((12,34 0,10 10,10 0,0 0))'),GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
+
+--error ER_GIS_INVALID_DATA
+SELECT ST_CONTAINS(GEOMFROMTEXT('POLYGON((12,34 0,10 10,10 0,0 0)'),GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
+
+--error ER_PARSE_ERROR
+SELECT ST_CONTAINS(,);
+
+--error ER_PARSE_ERROR
+SELECT ST_CONTAINS(GEOMFROMTEXT(@star_of_elems),);
+
+--error ER_PARSE_ERROR
+SELECT ST_CONTAINS(,GEOMFROMTEXT(@star_top));
+
+--echo #---------------------------------------------------------------------------------------
+--echo # MBRCONTAINS()
+--error ER_GIS_DIFFERENT_SRIDS
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_top),GEOMFROMTEXT(@star_center,4326));
+
+--error ER_GIS_DIFFERENT_SRIDS
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_top,1048576),GEOMFROMTEXT(@star_center,4326));
+
+SELECT MBRCONTAINS(NULL,GEOMFROMTEXT(@star_top));
+
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_of_elems),NULL);
+
+SELECT MBRCONTAINS(g,NULL) FROM gis_geometrycollection,gis_geometrycollection_2
+       WHERE fid=103 and fid2=103;
+
+SELECT MBRCONTAINS(NULL,NULL);
+
+SELECT MBRCONTAINS(fid,NULL) FROM gis_geometrycollection,gis_geometrycollection_2
+       WHERE fid=103 and fid2=103;
+
+--error ER_GIS_INVALID_DATA
+SELECT MBRCONTAINS(fid,GEOMFROMTEXT(@star_top)) FROM gis_geometrycollection,gis_geometrycollection_2
+       WHERE fid=103 and fid2=103;
+
+--error ER_GIS_INVALID_DATA
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_of_elems),fid) FROM gis_geometrycollection,gis_geometrycollection_2
+       WHERE fid=103 and fid2=103;
+
+--error ER_GIS_INVALID_DATA
+SELECT MBRCONTAINS(GEOMFROMTEXT('POINT(a 0)'),GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
+
+--error ER_GIS_INVALID_DATA
+SELECT MBRCONTAINS(GEOMFROMTEXT('POINT(! 0)'),GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
+
+--error ER_PARSE_ERROR
+SELECT MBRCONTAINS(GEOMFROMTEXT('POINT('!' 0)'),GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
+
+--error ER_GIS_INVALID_DATA
+SELECT MBRCONTAINS(GEOMFROMTEXT('POINT(12,34 0)'),GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
+
+--error ER_GIS_INVALID_DATA
+SELECT MBRCONTAINS(GEOMFROMTEXT('LINESTRING(a 0,10 10)'),GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
+
+--error ER_GIS_INVALID_DATA
+SELECT MBRCONTAINS(GEOMFROMTEXT('LINESTRING(0 0,! 10)'),GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
+
+--error ER_PARSE_ERROR
+SELECT MBRCONTAINS(GEOMFROMTEXT('LINESTRING('!' 0,10 10)'),GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
+
+--error ER_GIS_INVALID_DATA
+SELECT MBRCONTAINS(GEOMFROMTEXT('LINESTRING(12,34 0,10 10)'),GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
+
+--error ER_GIS_INVALID_DATA
+SELECT MBRCONTAINS(GEOMFROMTEXT('POLYGON((a 0,10 10,10 0,0 0))'),GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
+
+--error ER_GIS_INVALID_DATA
+SELECT MBRCONTAINS(GEOMFROMTEXT('POLYGON((0 0,! 10,10 0,0 0))'),GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
+
+--error ER_PARSE_ERROR
+SELECT MBRCONTAINS(GEOMFROMTEXT('POLYGON(('!' 0,10 10,10 0,0 0))'),GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
+
+--error ER_GIS_INVALID_DATA
+SELECT MBRCONTAINS(GEOMFROMTEXT('POLYGON((12,34 0,10 10,10 0,0 0))'),GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
+
+--error ER_GIS_INVALID_DATA
+SELECT MBRCONTAINS(GEOMFROMTEXT('POLYGON((12,34 0,10 10,10 0,0 0)'),GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
+
+--error ER_PARSE_ERROR
+SELECT MBRCONTAINS(,);
+
+--error ER_PARSE_ERROR
+SELECT MBRCONTAINS(GEOMFROMTEXT(@star_of_elems),);
+
+--error ER_PARSE_ERROR
+SELECT MBRCONTAINS(,GEOMFROMTEXT(@star_top));
+
+--echo # clean up
 --disable_warnings
 DROP TABLE IF EXISTS gis_geometrycollection;
 DROP TABLE IF EXISTS gis_geometrycollection_2;
 --enable_warnings
-
-

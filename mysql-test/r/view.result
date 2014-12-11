@@ -2013,6 +2013,8 @@ f1
 drop view v1;
 drop table t1;
 CREATE VIEW v1 AS SELECT ENCRYPT("dhgdhgd");
+Warnings:
+Warning	1287	'ENCRYPT' is deprecated and will be removed in a future release. Please use AES_ENCRYPT instead
 SELECT * FROM v1;
 drop view v1;
 CREATE VIEW v1 AS SELECT SUBSTRING_INDEX("dkjhgd:kjhdjh", ":", 1);

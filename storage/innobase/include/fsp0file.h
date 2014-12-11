@@ -445,7 +445,7 @@ private:
 	byte*			m_first_page;
 
 protected:
-	/** Last OS error recieved so it can be reported if needed. */
+	/** Last OS error received so it can be reported if needed. */
 	ulint			m_last_os_error;
 };
 

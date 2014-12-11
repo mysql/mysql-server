@@ -1619,7 +1619,7 @@ bool Deferred_log_events::execute(Relay_log_info *rli)
 void Deferred_log_events::rewind()
 {
   /*
-    Reset preceeding Query log event events which execution was
+    Reset preceding Query log event events which execution was
     deferred because of slave side filtering.
   */
   delete_container_pointers(m_array);

@@ -1818,7 +1818,7 @@ static Sys_var_enum Sys_log_timestamps(
        "This affects only log files, not log tables, as the timestamp columns "
        "of the latter can be converted at will.",
        GLOBAL_VAR(opt_log_timestamps),
-       CMD_LINE(REQUIRED_ARG, OPT_BINLOG_FORMAT),
+       CMD_LINE(REQUIRED_ARG),
        timestamp_type_names, DEFAULT(0),
        NO_MUTEX_GUARD, NOT_IN_BINLOG);
 

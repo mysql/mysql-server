@@ -22,6 +22,146 @@
 #include <set>
 #include <utility>
 
+// Our ifdef trickery for my_isfinite does not work with gcc/sparc unless we:
+#ifdef HAVE_IEEEFP_H
+#include <ieeefp.h>
+#endif
+
+
+/***************************** MBR *******************************/
+
+
+/*
+  Returns 0/1 if this MBR doesn't/does touch mbr. Returns -1 if the MBRs
+  contain invalid data. This convention is true for all MBR relation test
+  functions.
+*/
+int MBR::touches(const MBR *mbr) const
+{
+  const MBR *mbr2= mbr;
+  const MBR *mbr1= this;
+  int ret= 0;
+  int dim1= dimension();
+  int dim2= mbr->dimension();
+
+  DBUG_ASSERT(dim1 >= 0 && dim1 <= 2 && dim2 >= 0 && dim2 <= 2);
+  if (dim1 == 0 && dim2 == 0)
+    return 0;
+  if (dim1 == 0 && dim2 == 1)
+    return ((mbr1->xmin == mbr2->xmin && mbr1->ymin == mbr2->ymin) ||
+            (mbr1->xmin == mbr2->xmax && mbr1->ymin == mbr2->ymax));
+  if (dim1 == 1 && dim2 == 0)
+    return mbr->touches(this);
+
+  DBUG_ASSERT(dim1 + dim2 >= 2);
+  ret=
+    ((mbr2->xmin == mbr1->xmax || mbr2->xmax == mbr1->xmin) &&
+     (mbr1->ymin <= mbr2->ymax && mbr1->ymax >= mbr2->ymin)) ||
+    ((mbr2->ymin == mbr1->ymax || mbr2->ymax == mbr1->ymin) &&
+     (mbr1->xmin <= mbr2->xmax && mbr1->xmax >= mbr2->xmin));
+
+  if (ret && dim1 == 1 && dim2 == 1)
+  {
+    // The two line segments may overlap, rather than touch.
+    int overlaps= ((mbr1->ymin == mbr1->ymax && mbr1->ymin == mbr2->ymax &&
+                    mbr2->ymin == mbr2->ymax &&
+                    mbr1->xmin < mbr2->xmax && mbr1->xmax > mbr2->xmin) ||
+                   (mbr1->xmin == mbr1->xmax && mbr2->xmin == mbr2->xmax &&
+                    mbr1->xmin == mbr2->xmin &&
+                    mbr1->ymin < mbr2->ymax && mbr1->ymax > mbr2->ymin));
+    if (overlaps)
+      ret= 0;
+  }
+
+  return ret;
+}
+
+
+int MBR::within(const MBR *mbr) const
+{
+  int dim1= dimension();
+  int dim2= mbr->dimension();
+
+  DBUG_ASSERT(dim1 >= 0 && dim1 <= 2 && dim2 >= 0 && dim2 <= 2);
+
+  /*
+    Either/both of the two operands can degrade to a point or a
+    horizontal/vertical line segment, and we have to treat such cases
+    separately.
+   */
+  switch (dim1)
+  {
+  case 0:
+    DBUG_ASSERT(xmin == xmax && ymin == ymax);
+    switch (dim2)
+    {
+    case 0:
+      DBUG_ASSERT(mbr->xmin == mbr->xmax && mbr->ymin == mbr->ymax);
+      return equals(mbr);
+      break;
+    case 1:
+      DBUG_ASSERT((mbr->xmin == mbr->xmax && mbr->ymin != mbr->ymax) ||
+                  (mbr->ymin == mbr->ymax && mbr->xmin != mbr->xmax));
+      return ((xmin > mbr->xmin && xmin < mbr->xmax && ymin == mbr->ymin) ||
+              (ymin > mbr->ymin && ymin < mbr->ymax && xmin == mbr->xmin));
+      break;
+    case 2:
+      DBUG_ASSERT(mbr->xmin != mbr->xmax && mbr->ymin != mbr->ymax);
+      return (xmin > mbr->xmin && xmax < mbr->xmax &&
+              ymin > mbr->ymin && ymax < mbr->ymax);
+      break;
+    }
+    break;
+  case 1:
+    DBUG_ASSERT((xmin == xmax && ymin != ymax) ||
+                (ymin == ymax && xmin != xmax));
+    switch (dim2)
+    {
+    case 0:
+      DBUG_ASSERT(mbr->xmin == mbr->xmax && mbr->ymin == mbr->ymax);
+      return 0;
+      break;
+    case 1:
+      DBUG_ASSERT((mbr->xmin == mbr->xmax && mbr->ymin != mbr->ymax) ||
+                  (mbr->ymin == mbr->ymax && mbr->xmin != mbr->xmax));
+      return ((xmin == xmax && mbr->xmin == mbr->xmax && mbr->xmin == xmin &&
+               mbr->ymin <= ymin && mbr->ymax >= ymax) ||
+              (ymin == ymax && mbr->ymin == mbr->ymax && mbr->ymin == ymin &&
+               mbr->xmin <= xmin && mbr->xmax >= xmax));
+      break;
+    case 2:
+      DBUG_ASSERT(mbr->xmin != mbr->xmax && mbr->ymin != mbr->ymax);
+      return ((xmin == xmax && xmin > mbr->xmin && xmax < mbr->xmax &&
+               ymin >= mbr->ymin && ymax <= mbr->ymax) ||
+              (ymin == ymax && ymin > mbr->ymin && ymax < mbr->ymax &&
+               xmin >= mbr->xmin && xmax <= mbr->xmax));
+      break;
+    }
+    break;
+  case 2:
+    DBUG_ASSERT(xmin != xmax && ymin != ymax);
+    switch (dim2)
+    {
+    case 0:
+    case 1:
+      return 0;
+      break;
+    case 2:
+      DBUG_ASSERT(mbr->xmin != mbr->xmax && mbr->ymin != mbr->ymax);
+      return ((mbr->xmin <= xmin) && (mbr->ymin <= ymin) &&
+              (mbr->xmax >= xmax) && (mbr->ymax >= ymax));
+      break;
+
+    }
+    break;
+  }
+
+  // Never reached.
+  DBUG_ASSERT(false);
+  return 0;
+}
+
+
 /*
   exponential notation :
   1   sign
@@ -744,8 +884,12 @@ bool Geometry::get_mbr_for_points(MBR *mbr, wkb_parser *wkb,
   while (n_points--)
   {
     wkb->skip_unsafe(offset);
-    mbr->add_xy(wkb->data(), wkb->data() + SIZEOF_STORED_DOUBLE);
-    wkb->skip_unsafe(POINT_DATA_SIZE);
+
+    point_xy p;
+    wkb->scan_xy_unsafe(&p);
+    if (!my_isfinite(p.x) || !my_isfinite(p.y))
+      return true;
+    mbr->add_xy(p);
   }
   return false;
 }
@@ -1169,6 +1313,8 @@ bool Gis_point::get_data_as_wkt(String *txt, wkb_parser *wkb) const
     p.x= 0;
   if (p.y == -0)
     p.y= 0;
+  if (!my_isfinite(p.x) || !my_isfinite(p.y))
+    return true;
   txt->qs_append(p.x);
   txt->qs_append(' ');
   txt->qs_append(p.y);
@@ -1180,6 +1326,8 @@ bool Gis_point::get_mbr(MBR *mbr, wkb_parser *wkb) const
 {
   point_xy p;
   if (wkb->scan_xy(&p))
+    return true;
+  if (!my_isfinite(p.x) || !my_isfinite(p.y))
     return true;
   mbr->add_xy(p);
   return false;
@@ -1269,7 +1417,7 @@ bool Gis_line_string::init_from_wkt(Gis_read_stream *trs, String *wkb)
   // Not closed, append 1st pt to wkb.
   if (memcmp(lastpt, firstpt, POINT_DATA_SIZE))
   {
-    wkb->reserve(POINT_DATA_SIZE, 32);
+    wkb->reserve(POINT_DATA_SIZE, 512);
     firstpt= wkb->ptr() + np_pos + 4;
     wkb->q_append(firstpt, POINT_DATA_SIZE);
     n_points++;
@@ -1344,6 +1492,8 @@ bool Gis_line_string::get_data_as_wkt(String *txt, wkb_parser *wkb) const
       p.x= 0;
     if (p.y == -0)
       p.y= 0;
+    if (!my_isfinite(p.x) || !my_isfinite(p.y))
+      return true;
     txt->qs_append(p.x);
     txt->qs_append(' ');
     txt->qs_append(p.y);
@@ -3452,7 +3602,7 @@ bool Gis_geometry_collection::get_mbr(MBR *mbr, wkb_parser *wkb) const
     {
       /*
         An empty collection should be simply skipped, it may contain a tree
-        of empty collections which is still empty. 
+        of empty collections which is still empty.
       */
       if (geom != NULL && geom->get_type() == wkb_geometrycollection)
         continue;

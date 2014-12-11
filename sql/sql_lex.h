@@ -33,7 +33,7 @@
 #include "prealloced_array.h"
 #include "sql_data_change.h"
 #include "set_var.h"
-#include "sql_priv.h"                 // OPTION_NO_CONST_TABLES
+#include "query_options.h"            // OPTION_NO_CONST_TABLES
 
 /* YACC and LEX Definitions */
 
