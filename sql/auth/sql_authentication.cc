@@ -2593,7 +2593,7 @@ int init_sha256_password_handler(MYSQL_PLUGIN plugin_ref)
 void static inline auth_save_scramble(MYSQL_PLUGIN_VIO *vio, const char *scramble)
 {
   MPVIO_EXT *mpvio= (MPVIO_EXT *) vio;
-  my_stpncpy(mpvio->scramble, scramble, SCRAMBLE_LENGTH+1);
+  strncpy(mpvio->scramble, scramble, SCRAMBLE_LENGTH+1);
 }
 
 

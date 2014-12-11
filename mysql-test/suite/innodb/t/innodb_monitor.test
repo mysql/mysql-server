@@ -3,6 +3,8 @@
 # and counter accuracy.
 
 --source include/have_innodb.inc
+# embedded server doesn't support restarting
+--source include/not_embedded.inc
 
 set global innodb_monitor_disable = All;
 
@@ -379,6 +381,39 @@ set global innodb_monitor_reset_all = all;
 select 1 from `information_schema`.`INNODB_METRICS`
 where case (1) when (1) then (AVG_COUNT_RESET) else (1) end;
 
+--echo #
+--echo # BUG#20080942 - ADAPTIVE_HASH_SEARCHES_BTREE NOT UPDATED
+--echo #
+
+# To make sure everything is purged
+SET GLOBAL innodb_fast_shutdown=0;
+--source include/restart_mysqld.inc
+
+SET GLOBAL innodb_stats_persistent = OFF;
+SET GLOBAL innodb_stats_auto_recalc = OFF;
+CREATE TABLE t1(a INT PRIMARY KEY, b BLOB) STATS_PERSISTENT=0;
+
+let $start=`SELECT COUNT FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE NAME LIKE
+'adaptive_hash_searches_btree' ORDER BY NAME`;
+
+INSERT INTO t1 VALUES(1, 'abc');
+INSERT INTO t1 VALUES(2, 'def');
+INSERT INTO t1 VALUES(3, 'ghi');
+SELECT * FROM t1;
+
+let $end=`SELECT COUNT FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE NAME LIKE
+'adaptive_hash_searches_btree' ORDER BY NAME`;
+
+let $diff=`SELECT $end-$start`;
+
+if ($diff != 3) {
+	echo "Unexpected count: $diff";
+}
+
+DROP TABLE t1;
+
+SET GLOBAL innodb_stats_persistent = default;
+SET GLOBAL innodb_stats_auto_recalc = default;
 -- disable_warnings
 set global innodb_monitor_enable = default;
 set global innodb_monitor_disable = default;

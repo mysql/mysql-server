@@ -936,7 +936,8 @@ static monitor_info_t	innodb_counter_info[] =
 
 	{"adaptive_hash_searches_btree", "adaptive_hash_index",
 	 "Number of searches using B-tree on an index search",
-	 MONITOR_NONE,
+	 static_cast<monitor_type_t>(
+	 MONITOR_EXISTING | MONITOR_DEFAULT_ON),
 	 MONITOR_DEFAULT_START, MONITOR_OVLD_ADAPTIVE_HASH_SEARCH_BTREE},
 
 	{"adaptive_hash_pages_added", "adaptive_hash_index",

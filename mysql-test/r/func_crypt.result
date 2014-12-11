@@ -2,6 +2,8 @@ drop table if exists t1;
 select length(encrypt('foo', 'ff')) <> 0;
 length(encrypt('foo', 'ff')) <> 0
 1
+Warnings:
+Warning	1287	'ENCRYPT' is deprecated and will be removed in a future release. Please use AES_ENCRYPT instead
 create table t1 (name varchar(50), pw varchar(64));
 insert into t1 values ('tom', password('my_pass'));
 set @pass='my_pass';
@@ -26,9 +28,13 @@ length(password('1'))
 select length(encrypt('test'));
 length(encrypt('test'))
 13
+Warnings:
+Warning	1287	'ENCRYPT' is deprecated and will be removed in a future release. Please use AES_ENCRYPT instead
 select encrypt('test','aa');
 encrypt('test','aa')
 aaqPiZY5xR5l.
+Warnings:
+Warning	1287	'ENCRYPT' is deprecated and will be removed in a future release. Please use AES_ENCRYPT instead
 select password(NULL);
 password(NULL)
 
@@ -51,6 +57,8 @@ Note	1003	/* select#1 */ select password('idkfa ') AS `password('idkfa ')`
 select encrypt('1234','_.');
 encrypt('1234','_.')
 #
+Warnings:
+#	1287	'ENCRYPT' is deprecated and will be removed in a future release. Please use AES_ENCRYPT instead
 #
 # Bug #44767: invalid memory reads in password()
 #             functions
