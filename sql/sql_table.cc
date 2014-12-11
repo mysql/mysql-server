@@ -5338,9 +5338,11 @@ compare_tables(THD *thd,
         Create_field *new_field;
         uint fieldnr;
         
-        for (fieldnr= 0, new_field= new_field_it++;
-             fieldnr != key_part->fieldnr;
-             fieldnr++, new_field= new_field_it++);
+        new_field= new_field_it++;
+        for (fieldnr= 0; fieldnr != key_part->fieldnr; fieldnr++)
+        {
+          new_field= new_field_it++;
+        }
         is_not_null=
           (is_not_null && (new_field->flags & NOT_NULL_FLAG));
       }
@@ -5498,9 +5500,11 @@ compare_tables(THD *thd,
           Create_field *new_field;
           uint fieldnr;
 
-          for (fieldnr= 0, new_field= new_field_it++;
-               fieldnr != key_part->fieldnr;
-               fieldnr++, new_field= new_field_it++);
+          new_field= new_field_it++;
+          for (fieldnr= 0; fieldnr != key_part->fieldnr; fieldnr++)
+          {
+            new_field= new_field_it++;
+          }
           is_not_null=
             (is_not_null && (new_field->flags & NOT_NULL_FLAG));
         }
@@ -5938,10 +5942,7 @@ int create_temporary_table(THD *thd,
 {
   int error;
   char index_file[FN_REFLEN], data_file[FN_REFLEN];
-  handlerton *old_db_type, *new_db_type;
   DBUG_ENTER("create_temporary_table");
-  old_db_type= table->s->db_type();
-  new_db_type= create_info->db_type;
   /*
     Handling of symlinked tables:
     If no rename:
@@ -6801,11 +6802,12 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
 #else
   ha_rows copied,deleted;
 #endif
-  handlerton *old_db_type, *new_db_type, *save_old_db_type;
 #ifndef MCP_WL3749
+  handlerton *old_db_type, *new_db_type;
   bool need_copy_table= TRUE;
   alter_info->change_level= ALTER_TABLE_METADATA_ONLY;
 #else
+  handlerton *old_db_type, *new_db_type, *save_old_db_type;
   enum_alter_table_change_level need_copy_table= ALTER_TABLE_METADATA_ONLY;
 #endif
 #ifdef WITH_PARTITION_STORAGE_ENGINE
@@ -8132,7 +8134,9 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
 
   error=0;
   table_list->table= table= 0;                  /* Safety */
+#ifdef MCP_WL3749
   save_old_db_type= old_db_type;
+#endif
 
   /*
     This leads to the storage engine (SE) not being notified for renames in
