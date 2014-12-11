@@ -1731,7 +1731,7 @@ int ha_tokudb::initialize_share(const char* name, int mode) {
 
     // initialize cardinality info from the status dictionary
     share->n_rec_per_key = tokudb::compute_total_key_parts(table_share);
-    share->rec_per_key = (uint64_t *) tokudb_my_realloc(share->rec_per_key, share->n_rec_per_key * sizeof (uint64_t), MYF(MY_FAE));
+    share->rec_per_key = (uint64_t *) tokudb_my_realloc(share->rec_per_key, share->n_rec_per_key * sizeof (uint64_t), MYF(MY_FAE + MY_ALLOW_ZERO_PTR));
     error = tokudb::get_card_from_status(share->status_block, txn, share->n_rec_per_key, share->rec_per_key);
     if (error) {
         for (uint i = 0; i < share->n_rec_per_key; i++)
