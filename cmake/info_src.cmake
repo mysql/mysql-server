@@ -1,4 +1,4 @@
-# Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -16,11 +16,11 @@
 
 # The sole purpose of this cmake control file is to create the "INFO_SRC" file.
 
-# As long as and "bzr pull" (or "bzr commit") is followed by a "cmake",
+# As long as and "git pull" (or "git commit") is followed by a "cmake",
 # the call in top level "CMakeLists.txt" is sufficient.
 # This file is to provide a separate target for the "make" phase,
-# to ensure the BZR revision-id is correct even after a sequence
-#   cmake ; make ; bzr pull ; make
+# to ensure the git commit hash is correct even after a sequence
+#   cmake ; make ; git pull ; make
 
 
 # Get the macros which handle the "INFO_*" files.

@@ -728,8 +728,8 @@ void *create_embedded_thd(int client_flag)
 
   thd->reset_db(NULL_CSTR);
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-  thd->security_ctx->db_access= DB_ACLS;
-  thd->security_ctx->master_access= ~NO_ACCESS;
+  thd->security_context()->set_db_access(DB_ACLS);
+  thd->security_context()->set_master_access(~NO_ACCESS);
 #endif
   thd->cur_data= 0;
   thd->first_data= 0;
@@ -778,15 +778,14 @@ int check_embedded_connection(MYSQL *mysql, const char *db)
 
   thd_init_client_charset(thd, mysql->charset->number);
   thd->update_charset();
-  Security_context *sctx= thd->security_ctx;
-  sctx->set_host(my_localhost);
-  sctx->host_or_ip= sctx->get_host()->ptr();
-  strmake(sctx->priv_host, (char*) my_localhost,  MAX_HOSTNAME-1);
-  strmake(sctx->priv_user, mysql->user,  USERNAME_LENGTH-1);
-  sctx->user= my_strdup(PSI_NOT_INSTRUMENTED,
-                        mysql->user, MYF(0));
-  sctx->proxy_user[0]= 0;
-  sctx->master_access= GLOBAL_ACLS;       // Full rights
+  Security_context *sctx= thd->security_context();
+  sctx->set_host_ptr(my_localhost, strlen(my_localhost));
+  sctx->set_host_or_ip_ptr(sctx->host().str, sctx->host().length);
+  sctx->assign_priv_user(mysql->user, strlen(mysql->user));
+  sctx->assign_user(mysql->user, strlen(mysql->user));
+  sctx->assign_proxy_user("", 0);
+  sctx->assign_priv_host(my_localhost, strlen(my_localhost));
+  sctx->set_master_access(GLOBAL_ACLS);       // Full rights
   emb_transfer_connect_attrs(mysql);
   /* Change database if necessary */
   if (!(result= (db && db[0] && mysql_change_db(thd, db_lex_cstr, false))))
@@ -806,7 +805,7 @@ int check_embedded_connection(MYSQL *mysql, const char *db)
   char *buf, *end;
   NET *net= &mysql->net;
   THD *thd= (THD*)mysql->thd;
-  Security_context *sctx= thd->security_ctx;
+  Security_context *sctx= thd->security_context();
   size_t connect_attrs_len=
     (mysql->server_capabilities & CLIENT_CONNECT_ATTRS &&
      mysql->options.extension) ?
@@ -858,7 +857,7 @@ int check_embedded_connection(MYSQL *mysql, const char *db)
 
   if (acl_authenticate(thd, 0, end - buf))
   {
-    x_free(thd->security_ctx->user);
+    x_free(thd->security_context()->user().str);
     goto err;
   }
   my_afree(buf);

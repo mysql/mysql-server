@@ -1086,10 +1086,10 @@ public:
   {
     if (closing_thd->vio_ok())
     {
+      LEX_CSTRING main_sctx_user= closing_thd->m_main_security_ctx.user();
       sql_print_warning(ER_DEFAULT(ER_FORCING_CLOSE),my_progname,
                         closing_thd->thread_id(),
-                        (closing_thd->main_security_ctx.user ?
-                         closing_thd->main_security_ctx.user : ""));
+                        (main_sctx_user.length ? main_sctx_user.str : ""));
       close_connection(closing_thd);
     }
   }
@@ -5628,7 +5628,7 @@ struct my_option my_long_options[]=
    "Optional semicolon-separated list of plugins to load, where each plugin is "
    "identified as name=library, where name is the plugin name and library "
    "is the plugin library in plugin_dir. This option adds to the list "
-   "speficied by --plugin-load in an incremental way. "
+   "specified by --plugin-load in an incremental way. "
    "Multiple --plugin-load-add are supported.",
    0, 0, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},

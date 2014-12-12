@@ -1175,6 +1175,7 @@ dict_check_sys_tables(
 	     rec = dict_getnext_system(&pcur, &mtr)) {
 		const byte*	field;
 		ulint		len;
+		id_name_t	space_name;
 		table_name_t	table_name;
 		table_id_t	table_id;
 		ulint		space_id;
@@ -1228,8 +1229,9 @@ dict_check_sys_tables(
 		the space name must be the table_name, and the filepath can be
 		discovered in the default location.*/
 		char*	shared_space_name = dict_get_space_name(space_id);
-		char*	space_name = (shared_space_name != NULL)
-			? shared_space_name : table_name.m_name;
+		space_name = shared_space_name == NULL
+			? table_name.m_name
+			: shared_space_name;
 
 		/* Now that we have the proper name for this tablespace,
 		whether it is a shared tablespace or a single table
@@ -1249,23 +1251,20 @@ dict_check_sys_tables(
 			filepath = dict_get_first_path(space_id);
 		}
 
-		/* Check that the .ibd file exists. We set the 2nd param
-		(fix_dict = true) here because we already have an x-lock
-		on dict_operation_lock and dict_sys->mutex. Besides, this
-		is at startup and we are now single threaded. If the
-		filepath is not known, it will need to be discovered. */
+		/* Check that the .ibd file exists. */
+		ulint	fsp_flags = dict_tf_to_fsp_flags(flags);
 		dberr_t	err = fil_ibd_open(
 			validate,
 			!srv_read_only_mode,
 			FIL_TYPE_TABLESPACE,
 			space_id,
-			dict_tf_to_fsp_flags(flags),
+			fsp_flags,
 			space_name,
 			filepath);
 
 		if (err != DB_SUCCESS) {
-			ib::warn() << "Ignoring tablespace `" << space_name
-				<< "` because it could not be opened.";
+			ib::warn() << "Ignoring tablespace " << space_name
+				<< " because it could not be opened.";
 		}
 
 		max_space_id = ut_max(max_space_id, space_id);
@@ -2369,9 +2368,11 @@ dict_load_tablespace(
 	}
 
 	/* If the tablespace name is known from the dictionary, use it. */
+	id_name_t	space_name;
 	char*	shared_space_name = dict_get_space_name(table->space);
-	char*	space_name = (shared_space_name != NULL)
-		? shared_space_name : table->name.m_name;
+	space_name = shared_space_name == NULL
+		? table->name.m_name
+		: shared_space_name;
 
 	/* The tablespace may already be open. */
 	if (fil_space_for_table_exists_in_mem(
