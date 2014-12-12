@@ -575,7 +575,7 @@ CONFIGURE_FILE(
 INCLUDE(${CMAKE_BINARY_DIR}/info_macros.cmake)
 # Source: This can be done during the cmake phase, all information is
 # available, but should be repeated on each "make" just in case someone
-# does "cmake ; make ; bzr pull ; make".
+# does "cmake ; make ; git pull ; make".
 CREATE_INFO_SRC(${CMAKE_BINARY_DIR}/Docs)
 ADD_CUSTOM_TARGET(INFO_SRC ALL
   COMMAND ${CMAKE_COMMAND} -P ${CMAKE_SOURCE_DIR}/cmake/info_src.cmake

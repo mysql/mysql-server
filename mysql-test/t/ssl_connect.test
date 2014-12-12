@@ -1,5 +1,5 @@
 -- source include/have_ssl_communication.inc
-
+-- source include/big_test.inc
 # Repeat connect/disconnect
 
 let $i=100;
