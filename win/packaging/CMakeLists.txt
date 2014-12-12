@@ -17,7 +17,7 @@ IF(NOT WIN32)
   RETURN()
 ENDIF()
 
-SET(MANUFACTURER "Monty Program AB")
+SET(MANUFACTURER "MariaDB Corporation Ab")
 FIND_PATH(WIX_DIR heat.exe
    $ENV{WIX_DIR}/bin
    $ENV{ProgramFiles}/wix/bin

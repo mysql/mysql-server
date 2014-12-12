@@ -512,8 +512,8 @@ then
   echo "The latest information about MariaDB is available at http://mariadb.org/."
   echo "You can find additional information about the MySQL part at:"
   echo "http://dev.mysql.com"
-  echo "Support MariaDB development by buying support/new features from"
-  echo "SkySQL Ab. You can contact us about this at sales@skysql.com".
+  echo "Support MariaDB development by buying support/new features from MariaDB"
+  echo "Corporation Ab. You can contact us about this at sales@mariadb.com."
   echo "Alternatively consider joining our community based development effort:"
   echo "http://mariadb.com/kb/en/contributing-to-the-mariadb-project/"
   echo
