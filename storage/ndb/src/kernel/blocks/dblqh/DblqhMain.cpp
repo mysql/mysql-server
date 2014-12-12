@@ -5348,8 +5348,13 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
     }
     useStat.m_keyReqAttrWords += regTcPtr->totReclenAi;
     useStat.m_keyReqKeyWords += TitcKeyLen;
-    if (LqhKeyReq::getInterpretedFlag(Treqinfo))
+    if (unlikely(LqhKeyReq::getInterpretedFlag(Treqinfo) && isLongReq))
     {
+      /* 
+        Complete attrinfo may not have been received yet for short-signal 
+        lookups. We ignore these, since they only happen during online 
+        upgrade.
+      */
       ndbassert(regTcPtr->attrInfoIVal != RNIL);
       SegmentedSectionPtr attrInfo;
       getSection(attrInfo, regTcPtr->attrInfoIVal);
@@ -11325,19 +11330,23 @@ void Dblqh::execSCAN_FRAGREQ(Signal* signal)
        * these sections, usually via releaseOprec()
        */
       handle.clear();
+
+      /* 
+         Update per fragment statistics. 'attrInfoPtr' is not defined for 
+         short-signal scans, so we ignore these, since they only happen 
+         during online upgrades.
+       */
+      if (!ScanFragReq::getLcpScanFlag(reqinfo))
+      {
+        jam();
+        Fragrecord::UsageStat& useStat =
+          c_fragment_pool.getPtr(tcConnectptr.p->fragmentptr)->m_useStat;
+        useStat.m_scanFragReqCount++;
+        useStat.m_scanBoundWords+= keyLen;
+        useStat.m_scanProgramWords+= getProgramWordCount(attrInfoPtr);
+      }
     }
 
-    /* Update fragment counter */
-    if (!ScanFragReq::getLcpScanFlag(reqinfo))
-    {
-      jam();
-      Fragrecord::UsageStat& useStat =
-        c_fragment_pool.getPtr(tcConnectptr.p->fragmentptr)->m_useStat;
-      useStat.m_scanFragReqCount++;
-      useStat.m_scanBoundWords+= keyLen;
-      useStat.m_scanProgramWords+= getProgramWordCount(attrInfoPtr);
-    }
-    
     if (ScanFragReq::getCorrFactorFlag(reqinfo))
     {
       /**
