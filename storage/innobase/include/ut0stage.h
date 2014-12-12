@@ -195,7 +195,7 @@ private:
 		FLUSH = 4,
 		LOG = 5,
 		END = 6,
-	} 			m_cur_phase;
+	}			m_cur_phase;
 };
 
 /** Destructor. */
