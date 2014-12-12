@@ -1456,12 +1456,16 @@ public:
   const NdbEventOperation*
     getGCIEventOperations(Uint32* iter, Uint32* event_types);
   
+  /** Get the highest epoch that have entered into the event queue.
+   * This value can be higher than the epoch returned by the last
+   * pollEvents() call, if new epochs have been received and queued later.
+   */
+  Uint64 getHighestQueuedEpoch();
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   int flushIncompleteEvents(Uint64 gci);
   NdbEventOperation *getEventOperation(NdbEventOperation* eventOp= 0);
   Uint64 getLatestGCI();
-  Uint64 getHighestQueuedEpoch();
   void forceGCP();
   void setReportThreshEventGCISlip(unsigned thresh);
   void setReportThreshEventFreeMem(unsigned thresh);
