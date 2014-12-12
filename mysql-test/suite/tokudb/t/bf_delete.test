@@ -1,5 +1,4 @@
-# Verify that index scans for delete statements use bulk fetch and are
-# at least twice as fast
+# Verify that index scans for delete statements use bulk fetch are faster than when not using bulk fetch
 
 source include/have_tokudb.inc;
 source include/big_test.inc;
@@ -62,8 +61,8 @@ while ($i < $maxq) {
 }
 let $time_elapsed_bf_off = `select unix_timestamp() - $s`;
 
-# verify that a delete scan with bulk fetch ON is at least 2 times faster than with bulk fetch OFF
-let $verdict = `select $time_elapsed_bf_on > 0 && $time_elapsed_bf_off >= 2 * $time_elapsed_bf_on`;
+# verify that a delete scan with bulk fetch ON is greater than with bulk fetch OFF
+let $verdict = `select $time_elapsed_bf_on > 0 && $time_elapsed_bf_off > $time_elapsed_bf_on`;
 echo $verdict;
 if ($debug) { echo range $verdict $time_elapsed_bf_on $time_elapsed_bf_off; }
 if (!$verdict) { echo range $time_elapsed_bf_on $time_elapsed_bf_off; }
