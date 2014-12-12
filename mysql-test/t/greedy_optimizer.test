@@ -2,8 +2,7 @@
 #be ported to run with InnoDB,
 #but needs to be kept for tests that would need MyISAM in future.
 --source include/force_myisam_default.inc
---source include/no_valgrind_without_big.inc
-
+-- source include/big_test.inc
 #
 # A simple test of the greedy query optimization algorithm and the switches that
 # control the optimizationprocess.
