@@ -6131,6 +6131,7 @@ injectApplyStatusWriteRow(injector::transaction& trans,
 extern ulong opt_ndb_report_thresh_binlog_epoch_slip;
 extern ulong opt_ndb_report_thresh_binlog_mem_usage;
 extern ulong opt_ndb_eventbuffer_max_alloc;
+extern uint opt_ndb_eventbuffer_free_percent;
 
 Ndb_binlog_thread::Ndb_binlog_thread()
   : Ndb_component("Binlog")
@@ -6265,6 +6266,15 @@ restart_cluster_failure:
   }
   log_info("Created injector Ndb object, reference: 0x%x, name: '%s'",
                       i_ndb->getReference(), i_ndb->getNdbObjectName());
+
+  /* Set free percent event buffer needed to resume buffering */
+  if (i_ndb->set_eventbuffer_free_percent(opt_ndb_eventbuffer_free_percent))
+  {
+    log_error("Setting ventbuffer free percent failed");
+    pthread_mutex_unlock(&injector_mutex);
+    pthread_cond_signal(&injector_cond);
+    goto err;
+  }
 
   log_verbose(10, "Exposing global references");
   /*
