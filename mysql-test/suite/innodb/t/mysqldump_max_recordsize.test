@@ -14,7 +14,9 @@
 # *********************************************************
 --source include/not_valgrind.inc
 --source include/not_embedded.inc
-# can not run parallel > 1
+
+# can not run parallel > 1, as this testcase likely to fail sporadically due to
+# bootstrap and different datadir locations than MTR defaults
 #--source include/not_parallel.inc
 
 let $MYSQLD_BASEDIR= `select @@basedir`;
@@ -40,7 +42,7 @@ call mtr.add_suppression("ERROR 1118 \\(42000\\) at line 106: Row size too large
 --source include/wait_until_disconnected.inc
 
 # Set the bootstrap parameter page size 32k for datadir1
-let NEW_CMD = $MYSQLD_BASEDIR/bin/mysqld --no-defaults --bootstrap --lc-messages-dir=$MYSQLD_BASEDIR/share --innodb_page_size=32K --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1 --skip-grant-tables</dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1;
+let NEW_CMD = $MYSQLD --no-defaults --bootstrap --lc_messages_dir=$MYSQL_SHAREDIR --innodb_page_size=32K --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1 --skip-grant-tables</dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1;
 
 --echo # Run the bootstrap command with page size 32k
 --exec $NEW_CMD
@@ -167,7 +169,7 @@ DROP DATABASE test;
 --mkdir $MYSQL_TMP_DIR/datadir1/data
 
 # Set the bootstrap parameter page size 16k for datadir1
-let NEW_CMD = $MYSQLD_BASEDIR/bin/mysqld --no-defaults --bootstrap --lc-messages-dir=$MYSQLD_BASEDIR/share --innodb_page_size=16K  --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1 --skip-grant-tables</dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1;
+let NEW_CMD = $MYSQLD --no-defaults --bootstrap --lc_messages_dir=$MYSQL_SHAREDIR --innodb_page_size=16K  --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1 --skip-grant-tables</dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1;
 
 --echo # Run the bootstrap command with page size 16k
 --exec $NEW_CMD
@@ -230,7 +232,7 @@ DROP DATABASE test;
 --mkdir $MYSQL_TMP_DIR/datadir1/data
 
 # Set the bootstrap parameter page size 64k for datadir1
-let NEW_CMD = $MYSQLD_BASEDIR/bin/mysqld --no-defaults --bootstrap --lc-messages-dir=$MYSQLD_BASEDIR/share --innodb_page_size=64K --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1 --skip-grant-tables</dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1;
+let NEW_CMD = $MYSQLD --no-defaults --bootstrap --lc_messages_dir=$MYSQL_SHAREDIR --innodb_page_size=64K --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1 --skip-grant-tables</dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1;
 
 --echo # Run the bootstrap command with page size 64k
 --exec $NEW_CMD
