@@ -57,8 +57,8 @@ static int check_event_type(int type, Relay_log_info *rli)
 
   switch (type)
   {
-  case START_EVENT_V3:
-  case FORMAT_DESCRIPTION_EVENT:
+  case binary_log::START_EVENT_V3:
+  case binary_log::FORMAT_DESCRIPTION_EVENT:
     /*
       We need a preliminary FD event in order to parse the FD event,
       if we don't already have one.
@@ -69,17 +69,17 @@ static int check_event_type(int type, Relay_log_info *rli)
     /* It is always allowed to execute FD events. */
     return 0;
 
-  case ROWS_QUERY_LOG_EVENT:
-  case TABLE_MAP_EVENT:
-  case WRITE_ROWS_EVENT:
-  case UPDATE_ROWS_EVENT:
-  case DELETE_ROWS_EVENT:
-  case WRITE_ROWS_EVENT_V1:
-  case UPDATE_ROWS_EVENT_V1:
-  case DELETE_ROWS_EVENT_V1:
-  case PRE_GA_WRITE_ROWS_EVENT:
-  case PRE_GA_UPDATE_ROWS_EVENT:
-  case PRE_GA_DELETE_ROWS_EVENT:
+  case binary_log::ROWS_QUERY_LOG_EVENT:
+  case binary_log::TABLE_MAP_EVENT:
+  case binary_log::WRITE_ROWS_EVENT:
+  case binary_log::UPDATE_ROWS_EVENT:
+  case binary_log::DELETE_ROWS_EVENT:
+  case binary_log::WRITE_ROWS_EVENT_V1:
+  case binary_log::UPDATE_ROWS_EVENT_V1:
+  case binary_log::DELETE_ROWS_EVENT_V1:
+  case binary_log::PRE_GA_WRITE_ROWS_EVENT:
+  case binary_log::PRE_GA_UPDATE_ROWS_EVENT:
+  case binary_log::PRE_GA_DELETE_ROWS_EVENT:
     /*
       Row events are only allowed if a Format_description_event has
       already been seen.
@@ -267,7 +267,7 @@ void mysql_client_binlog_statement(THD* thd)
       bytes_decoded -= event_len;
       bufptr += event_len;
 
-      DBUG_PRINT("info",("ev->get_type_code()=%d", ev->get_type_code()));
+      DBUG_PRINT("info",("ev->common_header()=%d", ev->get_type_code()));
       ev->thd= thd;
       /*
         We go directly to the application phase, since we don't need
@@ -288,8 +288,8 @@ void mysql_client_binlog_statement(THD* thd)
         ROWS_QUERY_LOG_EVENT if present in rli is deleted at the end
         of the event.
       */
-      if (ev->get_type_code() != FORMAT_DESCRIPTION_EVENT &&
-          ev->get_type_code() != ROWS_QUERY_LOG_EVENT)
+      if (ev->get_type_code() != binary_log::FORMAT_DESCRIPTION_EVENT &&
+          ev->get_type_code() != binary_log::ROWS_QUERY_LOG_EVENT)
       {
         delete ev;
         ev= NULL;

@@ -5718,7 +5718,7 @@ void Item_func_gtid_subtract::fix_length_and_dec()
   */
   fix_char_length_ulonglong(args[0]->max_length +
                             max<ulonglong>(args[1]->max_length - 
-                                           Uuid::TEXT_LENGTH, 0) * 5 / 2);
+                                           binary_log::Uuid::TEXT_LENGTH, 0) * 5 / 2);
 }
 
 

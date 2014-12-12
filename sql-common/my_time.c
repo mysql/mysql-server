@@ -19,6 +19,7 @@
 #include <myisampack.h>
 /* Windows version of localtime_r() is declared in my_ptrhead.h */
 #include <my_pthread.h>
+#include "binary_log_types.h"
 
 ulonglong log_10_int[20]=
 {
@@ -1623,19 +1624,6 @@ void TIME_from_longlong_time_packed(MYSQL_TIME *ltime, longlong tmp)
   ltime->time_type= MYSQL_TIMESTAMP_TIME;
 }
 
-
-/**
-  Calculate binary size of packed numeric time representation.
-  
-  @param   dec   Precision.
-*/
-uint my_time_binary_length(uint dec)
-{
-  DBUG_ASSERT(dec <= DATETIME_MAX_DECIMALS);
-  return 3 + (dec + 1) / 2;
-}
-
-
 /*
   On disk we convert from signed representation to unsigned
   representation using TIMEF_OFS, so all values become binary comparable.
@@ -1859,17 +1847,6 @@ void TIME_from_longlong_date_packed(MYSQL_TIME *ltime, longlong tmp)
 }
 
 
-/**
-  Calculate binary size of packed datetime representation.
-  @param dec  Precision.
-*/
-uint my_datetime_binary_length(uint dec)
-{
-  DBUG_ASSERT(dec <= DATETIME_MAX_DECIMALS);
-  return 5 + (dec + 1) / 2;
-}
-
-
 /*
   On disk we store as unsigned number with DATETIMEF_INT_OFS offset,
   for HA_KETYPE_BINARY compatibilty purposes.
@@ -1948,18 +1925,6 @@ void my_datetime_packed_to_binary(longlong nr, uchar *ptr, uint dec)
 
 
 /*** TIMESTAMP low-level memory and disk representation routines ***/
-
-/**
-  Calculate on-disk size of a timestamp value.
-
-  @param  dec  Precision.
-*/
-uint my_timestamp_binary_length(uint dec)
-{
-  DBUG_ASSERT(dec <= DATETIME_MAX_DECIMALS);
-  return 4 + (dec + 1) / 2;
-}
-
 
 /**
   Convert binary timestamp representation to in-memory representation.

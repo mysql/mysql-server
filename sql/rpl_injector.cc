@@ -309,7 +309,9 @@ void injector::new_trans(THD *thd, injector::transaction *ptr)
    DBUG_VOID_RETURN;
 }
 
-int injector::record_incident(THD *thd, Incident incident, LEX_STRING const message)
+int injector::record_incident(THD *thd,
+                              binary_log::Incident_event::enum_incident incident,
+                              LEX_STRING const message)
 {
   Incident_log_event ev(thd, incident, message);
   return mysql_bin_log.write_incident(&ev, true/*need_lock_log=true*/,
