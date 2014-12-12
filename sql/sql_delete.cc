@@ -467,6 +467,7 @@ bool mysql_delete(THD *thd, ha_rows limit)
 
     if ((table->file->ha_table_flags() & HA_READ_BEFORE_WRITE_REMOVAL) &&
         !using_limit &&
+        !(table->triggers && table->triggers->has_delete_triggers()) &&
         qep_tab.quick() && qep_tab.quick()->index != MAX_KEY)
       read_removal= table->check_read_removal(qep_tab.quick()->index);
 

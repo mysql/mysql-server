@@ -2414,7 +2414,7 @@ public:
   bool is_valid() const { return query != 0; }
 
   /*
-    Returns number of bytes additionaly written to post header by derived
+    Returns number of bytes additionally written to post header by derived
     events (so far it is only Execute_load_query event).
   */
   virtual ulong get_post_header_size_for_derived() { return 0; }

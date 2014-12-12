@@ -3409,7 +3409,7 @@ all_done:
 
 		if (!success) {
 			ib::error() << "Unable to read temporary file"
-				" for index " << index->name + 1;
+				" for index " << index->name;
 			goto corruption;
 		}
 

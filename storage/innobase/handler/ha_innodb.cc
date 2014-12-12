@@ -2649,7 +2649,7 @@ innobase_invalidate_query_cache(
 				      TRUE);
 }
 
-/** Quote an index or column name.
+/** Quote a standard SQL identifier like tablespace, index or column name.
 @param[in]	file	output stream
 @param[in]	trx	InnoDB transaction, or NULL
 @param[in]	id	identifier to quote */
@@ -2679,19 +2679,22 @@ innobase_quote_identifier(
 	}
 }
 
-/*****************************************************************//**
-Convert an SQL identifier to the MySQL system_charset_info (UTF-8)
-and quote it if needed.
+/** Convert a table name to the MySQL system_charset_info (UTF-8)
+and quote it.
+@param[out]	buf	buffer for converted identifier
+@param[in]	buflen	length of buf, in bytes
+@param[in]	id	identifier to convert
+@param[in]	idlen	length of id, in bytes
+@param[in]	thd	MySQL connection thread, or NULL
 @return pointer to the end of buf */
 static
 char*
 innobase_convert_identifier(
-/*========================*/
-	char*		buf,	/*!< out: buffer for converted identifier */
-	ulint		buflen,	/*!< in: length of buf, in bytes */
-	const char*	id,	/*!< in: identifier to convert */
-	ulint		idlen,	/*!< in: length of id, in bytes */
-	THD*		thd)	/*!< in: MySQL connection thread, or NULL */
+	char*		buf,
+	ulint		buflen,
+	const char*	id,
+	ulint		idlen,
+	THD*		thd)
 {
 	const char*	s	= id;
 
@@ -7872,7 +7875,8 @@ ha_innobase::change_active_index(
 					HA_ERR_INDEX_CORRUPT,
 					"InnoDB: Index %s for table %s is"
 					" marked as corrupted",
-					m_prebuilt->index->name, table_name);
+					m_prebuilt->index->name(),
+					table_name);
 				DBUG_RETURN(HA_ERR_INDEX_CORRUPT);
 			}
 		} else {
@@ -10397,6 +10401,25 @@ ha_innobase::discard_or_import_tablespace(
 	/* Commit the transaction in order to release the table lock. */
 	trx_commit_for_mysql(m_prebuilt->trx);
 
+	if (err == DB_SUCCESS && !discard
+	    && dict_stats_is_persistent_enabled(dict_table)) {
+		dberr_t		ret;
+
+		/* Adjust the persistent statistics. */
+		ret = dict_stats_update(dict_table,
+					DICT_STATS_RECALC_PERSISTENT);
+
+		if (ret != DB_SUCCESS) {
+			push_warning_printf(
+				ha_thd(),
+				Sql_condition::SL_WARNING,
+				ER_ALTER_INFO,
+				"Error updating stats for table '%s'"
+				" after table rebuild: %s",
+				dict_table->name.m_name, ut_strerr(ret));
+		}
+	}
+
 	DBUG_RETURN(convert_error_code_to_mysql(err, dict_table->flags, NULL));
 }
 
@@ -11296,7 +11319,7 @@ innobase_get_mysql_key_number_for_index(
 		in the "index translation table". */
 		if (index->is_committed()) {
 			sql_print_error("Cannot find index %s in InnoDB index"
-					" translation table.", index->name);
+					" translation table.", index->name());
 		}
 	}
 
@@ -11327,7 +11350,7 @@ innobase_get_mysql_key_number_for_index(
 					" but not its MySQL index number."
 					" It could be an InnoDB internal"
 					" index.",
-					index->name);
+					index->name());
 			}
 			return(-1);
 		}
@@ -11731,7 +11754,7 @@ ha_innobase::info_low(
 						" %lu columns. Have you mixed"
 						" up .frm files from different"
 						" installations? %s",
-						index->name,
+						index->name(),
 						ib_table->name.m_name,
 						(unsigned long)
 						index->n_uniq, j + 1,
@@ -12018,7 +12041,7 @@ ha_innobase::check(
 				    HA_ERR_INDEX_CORRUPT,
 				    "InnoDB: Index %s is marked as"
 				    " corrupted",
-				    index->name);
+				    index->name());
 
 		/* Now that the table is already marked as corrupted,
 		there is no need to check any index of this table */
@@ -12073,7 +12096,7 @@ ha_innobase::check(
 					ER_NOT_KEYFILE,
 					"InnoDB: The B-tree of"
 					" index %s is corrupted.",
-					index->name);
+					index->name());
 				continue;
 			}
 		}
@@ -12094,7 +12117,7 @@ ha_innobase::check(
 					HA_ERR_INDEX_CORRUPT,
 					"InnoDB: Index %s is marked as"
 					" corrupted",
-					index->name);
+					index->name());
 				is_ok = false;
 			} else {
 				push_warning_printf(
@@ -12103,7 +12126,7 @@ ha_innobase::check(
 					HA_ERR_TABLE_DEF_CHANGED,
 					"InnoDB: Insufficient history for"
 					" index %s",
-					index->name);
+					index->name());
 			}
 			continue;
 		}
@@ -12143,7 +12166,7 @@ ha_innobase::check(
 				ER_NOT_KEYFILE,
 				"InnoDB: The B-tree of"
 				" index %s is corrupted.",
-				index->name);
+				index->name());
 			is_ok = false;
 			dict_set_corrupted(
 				index, m_prebuilt->trx, "CHECK TABLE-check index");
@@ -12161,7 +12184,7 @@ ha_innobase::check(
 				ER_NOT_KEYFILE,
 				"InnoDB: Index '%-.200s' contains %lu"
 				" entries, should be %lu.",
-				index->name,
+				index->name(),
 				(ulong) n_rows,
 				(ulong) n_rows_in_table);
 			is_ok = false;
@@ -12366,12 +12389,14 @@ get_foreign_key_info(
 		thd, f_key_info.update_method, ptr,
 		static_cast<unsigned int>(len), 1);
 
-	if (foreign->referenced_index && foreign->referenced_index->name) {
-		referenced_key_name = thd_make_lex_string(thd,
-					f_key_info.referenced_key_name,
-					foreign->referenced_index->name,
-					 (uint) strlen(foreign->referenced_index->name),
-					1);
+	if (foreign->referenced_index
+	    && foreign->referenced_index->name != NULL) {
+		referenced_key_name = thd_make_lex_string(
+			thd,
+			f_key_info.referenced_key_name,
+			foreign->referenced_index->name,
+			(uint) strlen(foreign->referenced_index->name),
+			1);
 	} else {
 		referenced_key_name = NULL;
 	}
@@ -13760,7 +13785,8 @@ ha_innobase::get_foreign_dup_key(
 	child_table_name[len] = '\0';
 
 	/* copy index name */
-	ut_snprintf(child_key_name, child_key_name_len, "%s", err_index->name);
+	ut_snprintf(child_key_name, child_key_name_len, "%s",
+		    err_index->name());
 
 	return(true);
 }

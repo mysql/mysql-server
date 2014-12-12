@@ -759,7 +759,7 @@ The following options may be given as the first argument:
  Optional semicolon-separated list of plugins to load,
  where each plugin is identified as name=library, where
  name is the plugin name and library is the plugin library
- in plugin_dir. This option adds to the list speficied by
+ in plugin_dir. This option adds to the list specified by
  --plugin-load in an incremental way. Multiple
  --plugin-load-add are supported.
  -P, --port=#        Port number to use for connection or 0 to default to,

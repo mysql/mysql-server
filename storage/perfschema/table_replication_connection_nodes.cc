@@ -22,7 +22,7 @@
 #define HAVE_REPLICATION
 
 #include "my_global.h"
-#include "sql_priv.h"
+#include "query_options.h"
 #include "table_replication_connection_nodes.h"
 #include "pfs_instr_class.h"
 #include "pfs_instr.h"

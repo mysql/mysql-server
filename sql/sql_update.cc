@@ -790,6 +790,7 @@ bool mysql_update(THD *thd,
 
     if ((table->file->ha_table_flags() & HA_READ_BEFORE_WRITE_REMOVAL) &&
         !thd->lex->is_ignore() && !using_limit &&
+        !(table->triggers && table->triggers->has_update_triggers()) &&
         qep_tab.quick() && qep_tab.quick()->index != MAX_KEY &&
         check_constant_expressions(values))
       read_removal= table->check_read_removal(qep_tab.quick()->index);

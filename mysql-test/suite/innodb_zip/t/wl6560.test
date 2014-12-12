@@ -5,7 +5,7 @@
 --source include/have_innodb.inc
 # Embedded server does not restart of server
 --source include/not_embedded.inc
---source include/no_valgrind_without_big.inc
+-- source include/big_test.inc
 
 --disable_query_log
 call mtr.add_suppression("Tablespace innodb_temporary ran out of space. Please add another file or use 'autoextend' for the last file in setting innodb_temp_data_file_path.");

@@ -269,7 +269,7 @@ void make_scrambled_password(char *to, const char *password)
 
 /*
     Produce an obscure octet sequence from password and random
-    string, recieved from the server. This sequence corresponds to the
+    string, received from the server. This sequence corresponds to the
     password, but password can not be easily restored from it. The sequence
     is then sent to the server for validation. Trailing zero is not stored
     in the buf as it is not needed.
@@ -303,7 +303,7 @@ scramble(char *to, const char *message, const char *password)
 
 /*
     Check that scrambled message corresponds to the password; the function
-    is used by server to check that recieved reply is authentic.
+    is used by server to check that received reply is authentic.
     This function does not check lengths of given strings: message must be
     null-terminated, reply and hash_stage2 must be at least SHA1_HASH_SIZE
     long (if not, something fishy is going on).
