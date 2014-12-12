@@ -89,6 +89,7 @@ PATENT RIGHTS GRANT:
 #ident "Copyright (c) 2014 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
+#include <iostream>
 #include "test.h"
 #include "locktree.h"
 #include "lock_request.h"
@@ -149,7 +150,7 @@ static void run_locker(locktree *lt, TXNID txnid, const DBT *key) {
 
         toku_pthread_yield();
         if ((i % 10) == 0)
-            printf("%lu %d\n", toku_pthread_self(), i);
+            std::cout << toku_pthread_self() << " " << i << std::endl;
     }
 }
 
