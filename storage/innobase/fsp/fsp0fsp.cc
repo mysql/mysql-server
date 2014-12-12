@@ -1068,7 +1068,7 @@ fsp_try_extend_data_file(
 
 		size_increase = srv_sys_space.get_increment();
 
-	} else if (space->purpose == FIL_TYPE_TEMPORARY) {
+	} else if (space->id == srv_tmp_space.space_id()) {
 
 		size_increase = srv_tmp_space.get_increment();
 

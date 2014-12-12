@@ -66,6 +66,7 @@ SET(SQL_SHARED_SOURCES
   auth/sql_user_table.cc
   auth/sql_user.cc
   auth/password.c
+  auth/sql_security_ctx.cc
   bootstrap.cc
   conn_handler/connection_handler_manager.cc 
   datadict.cc
@@ -507,7 +508,7 @@ IF(WIN32 OR HAVE_DLOPEN AND NOT DISABLE_SHARED)
 ENDIF()
 
 FOREACH(tool glibtoolize libtoolize aclocal autoconf autoheader automake gtar 
- tar bzr)
+ tar git)
  STRING(TOUPPER ${tool}  TOOL)
  FIND_PROGRAM(${TOOL}_EXECUTABLE ${tool} DOC "path to the executable")
  MARK_AS_ADVANCED(${TOOL}_EXECUTABLE)
@@ -525,8 +526,7 @@ ADD_CUSTOM_TARGET(dist
 
 ADD_CUSTOM_TARGET(distclean
   COMMAND ${CMAKE_COMMAND} -E echo  WARNING: distclean target is not functional
-  COMMAND ${CMAKE_COMMAND} -E echo  Use 'bzr clean-tree' with --unknown and/or
-    --ignored parameter instead
+  COMMAND ${CMAKE_COMMAND} -E echo  Use 'git clean -fdx' instead
   VERBATIM
   )
 

@@ -5636,8 +5636,8 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
                             VIEW_ANY_ACL)))
     {
       my_error(ER_COLUMNACCESS_DENIED_ERROR, MYF(0),
-               "ANY", thd->security_ctx->priv_user,
-               thd->security_ctx->host_or_ip, field_name, tab);
+               "ANY", thd->security_context()->priv_user().str,
+               thd->security_context()->host_or_ip().str, field_name, tab);
       goto error;
     }
   }
@@ -8499,7 +8499,7 @@ bool Item_trigger_field::fix_fields(THD *thd, Item **items)
                              triggers->get_subject_table()->s->db.str,
                              triggers->get_subject_table()->s->table_name.str,
                              field_name,
-                             strlen(field_name), thd->security_ctx))
+                             strlen(field_name), thd->security_context()))
         return TRUE;
     }
 #endif // NO_EMBEDDED_ACCESS_CHECKS

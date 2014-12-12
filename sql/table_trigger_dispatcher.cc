@@ -219,10 +219,11 @@ bool Table_trigger_dispatcher::create_trigger(
   */
 
   if (lex->definer &&
-      (strcmp(lex->definer->user.str, thd->security_ctx->priv_user) ||
+      (strcmp(lex->definer->user.str,
+              thd->security_context()->priv_user().str) ||
        my_strcasecmp(system_charset_info,
                      lex->definer->host.str,
-                     thd->security_ctx->priv_host)))
+                     thd->security_context()->priv_host().str)))
   {
     if (check_global_access(thd, SUPER_ACL))
     {

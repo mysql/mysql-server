@@ -1,7 +1,5 @@
-#Want to skip this test from daily Valgrind execution
---source include/no_valgrind_without_big.inc
 # Tests for setting innodb-page-size=16k; default value
-
+-- source include/big_test.inc
 --source include/have_innodb.inc
 --source include/have_innodb_16k.inc
 SET default_storage_engine=InnoDB;

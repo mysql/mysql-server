@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -1958,14 +1958,14 @@ innodb_arithmetic(
 		return(ENGINE_NOT_STORED);
 	}
 
-	innodb_api_arithmetic(innodb_eng, conn_data, key, nkey, delta,
-			      increment, cas, exptime, create, initial,
-			      result);
+	err_ret = innodb_api_arithmetic(innodb_eng, conn_data, key, nkey,
+					delta, increment, cas, exptime,
+					create, initial, result);
 
 	innodb_api_cursor_reset(innodb_eng, conn_data, CONN_OP_WRITE,
 				true);
 
-	return(ENGINE_SUCCESS);
+	return(err_ret);
 }
 
 /*******************************************************************//**
