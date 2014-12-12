@@ -72,8 +72,8 @@ while ($i < $maxq) {
 }
 let $time_elapsed_off = `select unix_timestamp() - $s`;
 
-# check that bulk fetch on is at least 2 times faster than bulk fetch off
-let $verdict = `select $time_elapsed_on > 0 && $time_elapsed_off >= 2 * $time_elapsed_on`;
+# check that bulk fetch on is greater than bulk fetch off
+let $verdict = `select $time_elapsed_on > 0 && $time_elapsed_off > $time_elapsed_on`;
 echo $verdict;
 if ($debug) { echo index $verdict $time_elapsed_off $time_elapsed_on; }
 if (!$verdict) { echo index $time_elapsed_off $time_elapsed_on; }
@@ -100,8 +100,8 @@ while ($i < $maxq) {
 }
 let $time_elapsed_off = `select unix_timestamp() - $s`;
 
-# check that bulk fetch on is at least 2 times faster than bulk fetch off
-let $verdict = `select $time_elapsed_on > 0 && $time_elapsed_off >= 2 * $time_elapsed_on`;
+# check that bulk fetch on is greater than bulk fetch off
+let $verdict = `select $time_elapsed_on > 0 && $time_elapsed_off > $time_elapsed_on`;
 echo $verdict;
 if ($debug) { echo range $verdict $time_elapsed_off $time_elapsed_on; }
 if (!$verdict) { echo range $time_elapsed_off $time_elapsed_on; }

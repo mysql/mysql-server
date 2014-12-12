@@ -65,8 +65,8 @@ while ($i < $maxq) {
 
 let $time_elapsed_off = `select unix_timestamp() - $s`;
 
-# Check that the time with bulk fetch off is at least twice that whith bulk fetch on
-let $verdict = `select $time_elapsed_on > 0 && $time_elapsed_off >= 2 * $time_elapsed_on`;
+# Check that the time with bulk fetch off is greater that with bulk fetch on
+let $verdict = `select $time_elapsed_on > 0 && $time_elapsed_off > $time_elapsed_on`;
 echo $verdict;
 if ($debug) { echo index $verdict $time_elapsed_on $time_elapsed_off; }
 if (!$verdict) { echo index $time_elapsed_on $time_elapsed_off; }
@@ -94,8 +94,8 @@ while ($i < $maxq) {
 
 let $time_elapsed_off = `select unix_timestamp() - $s`;
 
-# Check that the time with bulk fetch off is at least twice that whith bulk fetch on
-let $verdict = `select $time_elapsed_on > 0 && $time_elapsed_off >= 2 * $time_elapsed_on`;
+# Check that the time with bulk fetch off is greater than with bulk fetch on
+let $verdict = `select $time_elapsed_on > 0 && $time_elapsed_off > $time_elapsed_on`;
 echo $verdict;
 if ($debug) { echo range $verdict $time_elapsed_on $time_elapsed_off; }
 if (!$verdict) { echo range $time_elapsed_on $time_elapsed_off; }

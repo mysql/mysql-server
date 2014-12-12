@@ -65,8 +65,8 @@ let $time_bf_off = `select unix_timestamp() - $s`;
 
 if ($debug) { echo index scans took $time_bf_off.; }
 
-# check that the scan time with bulk fetch off is at least 1.5 times as long as with bulk fetch on
-let $verdict = `select $time_bf_on > 0 && $time_bf_off >= 1.5 * $time_bf_on`;
+# check that the scan time with bulk fetch off is greater than with bulk fetch on
+let $verdict = `select $time_bf_on > 0 && $time_bf_off > $time_bf_on`;
 echo $verdict;
 if ($debug) { echo index $verdict $time_bf_on $time_bf_off; }
 if (!$verdict) { echo index $time_bf_on $time_bf_off; }
@@ -93,8 +93,8 @@ let $time_bf_off = `select unix_timestamp() - $s`;
 
 if ($debug) { echo range scans took $time_bf_off.; }
 
-# check that the scan time with bulk fetch off is at least 1.5 times as long as with bulk fetch on
-let $verdict = `select $time_bf_on > 0 && $time_bf_off >= 1.5 * $time_bf_on`;
+# check that the scan time with bulk fetch off is greater than with bulk fetch on
+let $verdict = `select $time_bf_on > 0 && $time_bf_off > $time_bf_on`;
 echo $verdict;
 if ($debug) { echo range $verdict $time_bf_on $time_bf_off; }
 if (!$verdict) { echo range $time_bf_on $time_bf_off; }
