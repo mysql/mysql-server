@@ -3,8 +3,6 @@
 # and counter accuracy.
 
 --source include/have_innodb.inc
-# embedded server doesn't support restarting
---source include/not_embedded.inc
 
 set global innodb_monitor_disable = All;
 
