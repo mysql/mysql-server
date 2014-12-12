@@ -128,6 +128,9 @@ int gcs_trans_before_commit(Trans_param *param)
   DBUG_ENTER("gcs_trans_before_commit");
   int error= 0;
 
+  DBUG_EXECUTE_IF("gcs_force_error_on_before_commit_listener",
+                  DBUG_RETURN(1););
+
   if (!is_gcs_rpl_running())
     DBUG_RETURN(0);
 

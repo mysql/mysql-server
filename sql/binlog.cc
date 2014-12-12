@@ -7189,7 +7189,11 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all)
                   max<my_off_t>(max_binlog_cache_size,
                                 max_binlog_stmt_cache_size),
                   thd->get_write_set())))
+    {
+      ha_rollback_low(thd, all);
+      my_error(ER_ERROR_DURING_COMMIT, MYF(0), 1);
       DBUG_RETURN(RESULT_ABORTED);
+    }
     thd->clear_hash_pke_list();
 
     /*
