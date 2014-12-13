@@ -3536,7 +3536,7 @@ dict_foreign_error_report(
 	putc('\n', file);
 	if (fk->foreign_index) {
 		fprintf(file, "The index in the foreign key in table is"
-			" %s\n%s\n", fk->foreign_index->name,
+			" %s\n%s\n", fk->foreign_index->name(),
 			FOREIGN_KEY_CONSTRAINTS_MSG);
 	}
 	mutex_exit(&dict_foreign_err_mutex);
@@ -5688,8 +5688,8 @@ fail:
 
 	mtr_commit(&mtr);
 	mem_heap_empty(heap);
-	ib::error() << status << " corruption of `" << index->name
-		<< "` in table " << index->table->name << " in " << ctx;
+	ib::error() << status << " corruption of " << index->name
+		<< " in table " << index->table->name << " in " << ctx;
 	mem_heap_free(heap);
 
 func_exit:

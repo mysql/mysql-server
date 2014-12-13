@@ -2047,12 +2047,12 @@ static my_bool execute(MYSQL_STMT *stmt, char *packet, ulong length)
                                     (uchar*) packet, length, 1, stmt) ||
                (*mysql->methods->read_query_result)(mysql));
 
+  if (mysql->server_status & SERVER_STATUS_CURSOR_EXISTS)
+     mysql->server_status&= ~SERVER_STATUS_CURSOR_EXISTS;
+
   if (!res && (stmt->flags & CURSOR_TYPE_READ_ONLY) &&
       (mysql->server_capabilities & CLIENT_DEPRECATE_EOF))
   {
-    if (mysql->server_status & SERVER_STATUS_CURSOR_EXISTS)
-      mysql->server_status&= ~SERVER_STATUS_CURSOR_EXISTS;
-
     /*
       if server responds with a cursor then COM_STMT_EXECUTE response format
       will be <Metadata><OK>. Hence read the OK packet to get the server status

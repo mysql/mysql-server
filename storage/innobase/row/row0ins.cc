@@ -825,14 +825,14 @@ row_ins_foreign_report_err(
 	putc('\n', ef);
 	fputs(errstr, ef);
 	fprintf(ef, " in parent table, in index %s",
-		foreign->referenced_index->name);
+		foreign->referenced_index->name());
 	if (entry) {
 		fputs(" tuple:\n", ef);
 		dtuple_print(ef, entry);
 	}
 	fputs("\nBut in child table ", ef);
 	ut_print_name(ef, trx, foreign->foreign_table_name);
-	fprintf(ef, ", in index %s", foreign->foreign_index->name);
+	fprintf(ef, ", in index %s", foreign->foreign_index->name());
 	if (rec) {
 		fputs(", there is a record:\n", ef);
 		rec_print(ef, rec, foreign->foreign_index);
@@ -876,7 +876,7 @@ row_ins_foreign_report_add_err(
 	dict_print_info_on_foreign_key_in_create_format(ef, trx, foreign,
 							TRUE);
 	fprintf(ef, "\nTrying to add in child table, in index %s",
-		foreign->foreign_index->name);
+		foreign->foreign_index->name());
 	if (entry) {
 		fputs(" tuple:\n", ef);
 		/* TODO: DB_TRX_ID and DB_ROLL_PTR may be uninitialized.
@@ -887,7 +887,7 @@ row_ins_foreign_report_add_err(
 	ut_print_name(ef, trx, foreign->referenced_table_name);
 	fprintf(ef, ", in index %s,\n"
 		"the closest match we can find is record:\n",
-		foreign->referenced_index->name);
+		foreign->referenced_index->name());
 	if (rec && page_rec_is_supremum(rec)) {
 		/* If the cursor ended on a supremum record, it is better
 		to report the previous record in the error message, so that
@@ -1488,7 +1488,7 @@ run_again:
 			dict_print_info_on_foreign_key_in_create_format(
 				ef, trx, foreign, TRUE);
 			fprintf(ef, "\nTrying to add to index %s tuple:\n",
-				foreign->foreign_index->name);
+				foreign->foreign_index->name());
 			dtuple_print(ef, entry);
 			fputs("\nBut the parent table ", ef);
 			ut_print_name(ef, trx,

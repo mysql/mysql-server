@@ -56,9 +56,36 @@ Created 1/8/1996 Heikki Tuuri
 table name as unuique as possible. */
 static ib_uint32_t	dict_temp_file_num;
 
-/** Display a table name */
+/** Display an identifier.
+@param[in,out]	s	output stream
+@param[in]	id_name	SQL identifier (other than table name)
+@return the output stream */
 std::ostream&
-operator<<(std::ostream& s, const table_name_t& table_name)
+operator<<(
+	std::ostream&		s,
+	const id_name_t&	id_name)
+{
+	const char	q	= '`';
+	const char*	c	= id_name;
+	s << q;
+	for (; *c != 0; c++) {
+		if (*c == q) {
+			s << *c;
+		}
+		s << *c;
+	}
+	s << q;
+	return(s);
+}
+
+/** Display a table name.
+@param[in,out]	s		output stream
+@param[in]	table_name	table name
+@return the output stream */
+std::ostream&
+operator<<(
+	std::ostream&		s,
+	const table_name_t&	table_name)
 {
 	return(s << ut_get_name(NULL, table_name.m_name));
 }
