@@ -20,12 +20,30 @@
 #include "my_time.h"
 #include "mysql_time.h"                         /* timestamp_type */
 #include "sql_error.h"                          /* Sql_condition */
-#include "structs.h"                            /* INTERVAL */
 #include "mysqld.h"                             /* current_thd */
 
-typedef enum enum_mysql_timestamp_type timestamp_type;
-typedef struct st_date_time_format DATE_TIME_FORMAT;
-typedef struct st_known_date_time_format KNOWN_DATE_TIME_FORMAT;
+struct Date_time_format
+{
+  uchar positions[8];
+  char  time_separator;			/* Separator between hour and minute */
+  uint flag;				/* For future */
+  LEX_STRING format;
+};
+
+struct Interval
+{
+  ulong year, month, day, hour;
+  ulonglong minute, second, second_part;
+  bool neg;
+};
+
+struct Known_date_time_format
+{
+  const char *format_name;
+  const char *date_format;
+  const char *datetime_format;
+  const char *time_format;
+};
 
 /* Flags for calc_week() function.  */
 #define WEEK_MONDAY_FIRST    1
@@ -81,21 +99,21 @@ inline void make_truncated_value_warning(ErrConvString val,
   make_truncated_value_warning(current_thd, Sql_condition::SL_WARNING,
                                val, time_type, NullS);
 }
-extern DATE_TIME_FORMAT *date_time_format_copy(THD *thd,
-					       DATE_TIME_FORMAT *format);
-const char *get_date_time_format_str(KNOWN_DATE_TIME_FORMAT *format,
+extern Date_time_format *date_time_format_copy(THD *thd,
+					       Date_time_format *format);
+const char *get_date_time_format_str(Known_date_time_format *format,
 				     timestamp_type type);
-void make_date(const DATE_TIME_FORMAT *format, const MYSQL_TIME *l_time,
+void make_date(const Date_time_format *format, const MYSQL_TIME *l_time,
                String *str);
-void make_time(const DATE_TIME_FORMAT *format, const MYSQL_TIME *l_time,
+void make_time(const Date_time_format *format, const MYSQL_TIME *l_time,
                String *str, uint dec);
-void make_datetime(const DATE_TIME_FORMAT *format, const MYSQL_TIME *l_time,
+void make_datetime(const Date_time_format *format, const MYSQL_TIME *l_time,
                    String *str, uint dec);
 bool my_TIME_to_str(const MYSQL_TIME *ltime, String *str, uint dec);
 
 /* MYSQL_TIME operations */
 bool date_add_interval(MYSQL_TIME *ltime, interval_type int_type,
-                       INTERVAL interval);
+                       Interval interval);
 bool calc_time_diff(const MYSQL_TIME *l_time1, const MYSQL_TIME *l_time2,
                     int l_sign, longlong *seconds_out, long *microseconds_out);
 int my_time_compare(MYSQL_TIME *a, MYSQL_TIME *b);
@@ -135,12 +153,12 @@ bool datetime_add_nanoseconds_with_round(MYSQL_TIME *ltime,
                                          uint nanoseconds, int *warnings);
 
 bool parse_date_time_format(timestamp_type format_type,
-                            DATE_TIME_FORMAT *date_time_format);
+                            Date_time_format *date_time_format);
 
-extern DATE_TIME_FORMAT global_date_format;
-extern DATE_TIME_FORMAT global_datetime_format;
-extern DATE_TIME_FORMAT global_time_format;
-extern KNOWN_DATE_TIME_FORMAT known_date_time_formats[];
+extern Date_time_format global_date_format;
+extern Date_time_format global_datetime_format;
+extern Date_time_format global_time_format;
+extern Known_date_time_format known_date_time_formats[];
 extern LEX_STRING interval_type_to_name[];
 
 /* Date/time rounding and truncation functions */
