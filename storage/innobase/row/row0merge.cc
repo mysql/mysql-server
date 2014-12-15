@@ -4050,6 +4050,21 @@ row_merge_build_indexes(
 		merge_files[i].fd = -1;
 	}
 
+	/* Check if we need a checkpoint at the end of this function:
+	1. fulltext index: YES, bulk load without online log apply.
+	2. spatial index: NO, no bulk load, redo logging enabled.
+	3. online add index: NO, bulk load with log apply, flush dirty
+	pages right before row_log_apply().
+	4. table rebuild with spatial index: YES, bulk load for all
+	except spatial indexes; redo logging enabled for spatial indexes
+	5. table rebuild without spatial index: YES, bulk load with
+	online log apply out of this function(row_log_table_apply).
+
+	We should flush dirty pages before online log apply, because
+	bulk load disables redo logging, and online log apply enables
+	redo logging(we can do further optimization here). */
+	bool	need_end_checkpoint = (old_table != new_table);
+
 	for (i = 0; i < n_indexes; i++) {
 		if (indexes[i]->type & DICT_FTS) {
 			ibool	opt_doc_id_size = FALSE;
@@ -4073,9 +4088,13 @@ row_merge_build_indexes(
 				trx, dup, new_table, opt_doc_id_size,
 				&psort_info, &merge_info);
 
-			/* "We need to ensure that we free the resources
+			/* We need to ensure that we free the resources
 			allocated */
 			fts_psort_initiated = true;
+
+			need_end_checkpoint = true;
+		} else if (!online && !dict_index_is_spatial(indexes[i])) {
+			need_end_checkpoint = true;
 		}
 	}
 
@@ -4207,6 +4226,8 @@ wait_again:
 			ut_ad(sort_idx->online_status
 			      == ONLINE_INDEX_COMPLETE);
 		} else {
+			log_make_checkpoint_at(LSN_MAX, TRUE);
+
 			DEBUG_SYNC_C("row_log_apply_before");
 			error = row_log_apply(trx, sort_idx, table);
 			DEBUG_SYNC_C("row_log_apply_after");
@@ -4290,7 +4311,7 @@ func_exit:
 
 	DBUG_EXECUTE_IF("ib_index_crash_after_bulk_load", DBUG_SUICIDE(););
 
-	if (error == DB_SUCCESS) {
+	if (error == DB_SUCCESS && need_end_checkpoint) {
 		log_make_checkpoint_at(LSN_MAX, TRUE);
 	}
 

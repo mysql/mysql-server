@@ -402,7 +402,7 @@ create_log_files(
 	/* Disable the doublewrite buffer for log files, not required */
 
 	fil_space_t*	log_space = fil_space_create(
-		logfilename + dirnamelen, SRV_LOG_SPACE_FIRST_ID,
+		"innodb_redo_log", SRV_LOG_SPACE_FIRST_ID,
 		fsp_flags_set_page_size(0, univ_page_size),
 		FIL_TYPE_LOG);
 	ut_a(fil_validate());
