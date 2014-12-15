@@ -183,6 +183,9 @@ public:
                       const LEX_CSTRING &proxied_host,
                       const LEX_CSTRING &proxied_user);
 
+  static int store_with_grant(TABLE * table,
+                              bool with_grant);
+
   static int store_data_record(TABLE *table,
                                const LEX_CSTRING &host,
                                const LEX_CSTRING &user,
