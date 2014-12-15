@@ -2493,3 +2493,17 @@ SELECT i2 FROM t1 AS t1a STRAIGHT_JOIN ( t2 INNER JOIN t1 AS t1b ON (t1b.c1 = c2
 WHERE t1a.c1 = c2 GROUP BY i2;
 i2
 DROP TABLE t1,t2;
+#
+# MDEV-6855
+# MIN(*) with subqueries with IS NOT NULL in WHERE clause crashed.
+#
+CREATE TABLE t1 (i INT, c VARCHAR(3), KEY(c,i)) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (7,'foo'),(0,'bar');
+CREATE TABLE t2 (j INT) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (0),(8),(1),(8),(9);
+SELECT MAX(i), c FROM t1 
+WHERE c != 'qux' AND ( SELECT SUM(j) FROM t1, t2 ) IS NOT NULL GROUP BY c;
+MAX(i)	c
+0	bar
+7	foo
+drop table t1,t2;

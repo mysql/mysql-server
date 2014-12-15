@@ -12539,12 +12539,13 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree, double read_time)
 
   SYNOPSIS
     check_group_min_max_predicates()
-    cond        [in]  the expression tree being analyzed
-    min_max_arg [in]  the field referenced by the MIN/MAX function(s)
-    image_type  [in]
-    has_min_max_arg [out] true if the subtree being analyzed references min_max_arg
-    has_other_arg   [out] true if the subtree being analyzed references a column
-                          other min_max_arg
+    cond            [in]  the expression tree being analyzed
+    min_max_arg     [in]  the field referenced by the MIN/MAX function(s)
+    image_type      [in]
+    has_min_max_arg [out] true if the subtree being analyzed references
+                          min_max_arg
+    has_other_arg   [out] true if the subtree being analyzed references a
+                          column other min_max_arg
 
   DESCRIPTION
     The function walks recursively over the cond tree representing a WHERE
@@ -12588,7 +12589,7 @@ check_group_min_max_predicates(Item *cond, Item_field *min_max_arg_item,
         (2) the subtree passes the test, but it is an OR and it references both
             the min/max argument and other columns.
       */
-      if (!check_group_min_max_predicates(and_or_arg, min_max_arg_item,      //1
+      if (!check_group_min_max_predicates(and_or_arg, min_max_arg_item,     //1
                                           image_type,
                                           &has_min_max, &has_other) ||
           (func_type == Item_func::COND_OR_FUNC && has_min_max && has_other))//2
@@ -12604,7 +12605,7 @@ check_group_min_max_predicates(Item *cond, Item_field *min_max_arg_item,
     a subquery in the WHERE clause.
   */
 
-  if (cond_type == Item::SUBSELECT_ITEM)
+  if (unlikely(cond_type == Item::SUBSELECT_ITEM))
   {
     Item_subselect *subs_cond= (Item_subselect*) cond;
     if (subs_cond->is_correlated)
@@ -12621,7 +12622,14 @@ check_group_min_max_predicates(Item *cond, Item_field *min_max_arg_item,
     }
     DBUG_RETURN(TRUE);
   }
-
+  /*
+    Subquery with IS [NOT] NULL
+    TODO: Look into the cache_item and optimize it like we do for
+    subselect's above
+   */
+  if (unlikely(cond_type == Item::CACHE_ITEM))
+    DBUG_RETURN(cond->const_item());
+  
   /*
     Condition of the form 'field' is equivalent to 'field <> 0' and thus
     satisfies the SA3 condition.
@@ -12638,7 +12646,9 @@ check_group_min_max_predicates(Item *cond, Item_field *min_max_arg_item,
 
   /* We presume that at this point there are no other Items than functions. */
   DBUG_ASSERT(cond_type == Item::FUNC_ITEM);
-
+  if (unlikely(cond_type != Item::FUNC_ITEM))   /* Safety */
+    DBUG_RETURN(FALSE);
+  
   /* Test if cond references only group-by or non-group fields. */
   Item_func *pred= (Item_func*) cond;
   Item_func::Functype pred_type= pred->functype();

@@ -4038,7 +4038,7 @@ private:
 /**
   @todo
   Implement the is_null() method for this class. Currently calling is_null()
-  on any Item_cache object resolves to Item::is_null(), which reutns FALSE
+  on any Item_cache object resolves to Item::is_null(), which returns FALSE
   for any value.
 */
 
