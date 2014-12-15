@@ -1485,10 +1485,6 @@ fil_space_get_flags(
 
 	ut_ad(fil_system);
 
-	if (!id) {
-		return(0);
-	}
-
 	mutex_enter(&fil_system->mutex);
 
 	space = fil_space_get_space(id);
@@ -1598,12 +1594,6 @@ fil_space_get_page_size(
 	}
 
 	*found = true;
-
-	if (id == 0) {
-		/* fil_space_get_flags() always returns flags=0 for space=0 */
-		ut_ad(flags == 0);
-		return(univ_page_size);
-	}
 
 	return(page_size_t(flags));
 }

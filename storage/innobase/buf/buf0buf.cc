@@ -5298,49 +5298,49 @@ buf_page_monitor(
 		}
 		break;
 
-        case FIL_PAGE_UNDO_LOG:
+	case FIL_PAGE_UNDO_LOG:
 		counter = MONITOR_RW_COUNTER(io_type, MONITOR_UNDO_LOG_PAGE);
 		break;
 
-        case FIL_PAGE_INODE:
+	case FIL_PAGE_INODE:
 		counter = MONITOR_RW_COUNTER(io_type, MONITOR_INODE_PAGE);
 		break;
 
-        case FIL_PAGE_IBUF_FREE_LIST:
+	case FIL_PAGE_IBUF_FREE_LIST:
 		counter = MONITOR_RW_COUNTER(io_type,
 					     MONITOR_IBUF_FREELIST_PAGE);
 		break;
 
-        case FIL_PAGE_IBUF_BITMAP:
+	case FIL_PAGE_IBUF_BITMAP:
 		counter = MONITOR_RW_COUNTER(io_type,
 					     MONITOR_IBUF_BITMAP_PAGE);
 		break;
 
-        case FIL_PAGE_TYPE_SYS:
+	case FIL_PAGE_TYPE_SYS:
 		counter = MONITOR_RW_COUNTER(io_type, MONITOR_SYSTEM_PAGE);
 		break;
 
-        case FIL_PAGE_TYPE_TRX_SYS:
+	case FIL_PAGE_TYPE_TRX_SYS:
 		counter = MONITOR_RW_COUNTER(io_type, MONITOR_TRX_SYSTEM_PAGE);
 		break;
 
-        case FIL_PAGE_TYPE_FSP_HDR:
+	case FIL_PAGE_TYPE_FSP_HDR:
 		counter = MONITOR_RW_COUNTER(io_type, MONITOR_FSP_HDR_PAGE);
 		break;
 
-        case FIL_PAGE_TYPE_XDES:
+	case FIL_PAGE_TYPE_XDES:
 		counter = MONITOR_RW_COUNTER(io_type, MONITOR_XDES_PAGE);
 		break;
 
-        case FIL_PAGE_TYPE_BLOB:
+	case FIL_PAGE_TYPE_BLOB:
 		counter = MONITOR_RW_COUNTER(io_type, MONITOR_BLOB_PAGE);
 		break;
 
-        case FIL_PAGE_TYPE_ZBLOB:
+	case FIL_PAGE_TYPE_ZBLOB:
 		counter = MONITOR_RW_COUNTER(io_type, MONITOR_ZBLOB_PAGE);
 		break;
 
-        case FIL_PAGE_TYPE_ZBLOB2:
+	case FIL_PAGE_TYPE_ZBLOB2:
 		counter = MONITOR_RW_COUNTER(io_type, MONITOR_ZBLOB2_PAGE);
 		break;
 

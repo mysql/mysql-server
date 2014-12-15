@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -63,7 +63,7 @@ int mi_rnext(MI_INFO *info, uchar *buf, int inx)
       Normally SQL layer would never request "search next" if
       "search first" failed. But HANDLER may do anything.
 
-      As mi_rnext() without preceeding mi_rkey()/mi_rfirst()
+      As mi_rnext() without preceding mi_rkey()/mi_rfirst()
       equals to mi_rfirst(), we must restore original state
       as if failing mi_rfirst() was not called.
     */
