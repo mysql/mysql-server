@@ -446,6 +446,7 @@ Dbtup::scanReply(Signal* signal, ScanOpPtr scanPtr)
      */
     Uint32 blockNo = refToMain(scan.m_userRef);
     EXECUTE_DIRECT(blockNo, GSN_NEXT_SCANCONF, signal, signalLength);
+    jamEntry();
     return;
   }
   if (scan.m_state == ScanOp::Last ||
@@ -458,6 +459,7 @@ Dbtup::scanReply(Signal* signal, ScanOpPtr scanPtr)
     unsigned signalLength = 3;
     Uint32 blockNo = refToMain(scan.m_userRef);
     EXECUTE_DIRECT(blockNo, GSN_NEXT_SCANCONF, signal, signalLength);
+    jamEntry();
     return;
   }
   ndbrequire(false);

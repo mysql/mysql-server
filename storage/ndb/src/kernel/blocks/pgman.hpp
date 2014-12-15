@@ -502,7 +502,7 @@ private:
   void lirs_reference(Ptr<Page_entry> ptr);
 
   void do_stats_loop(Signal*);
-  void do_busy_loop(Signal*, bool direct = false);
+  void do_busy_loop(Signal*, bool direct, EmulatedJamBuffer *jamBuf);
   void do_cleanup_loop(Signal*);
   void do_lcp_loop(Signal*);
 

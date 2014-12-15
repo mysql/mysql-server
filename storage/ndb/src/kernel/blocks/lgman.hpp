@@ -261,12 +261,16 @@ private:
 
   /**
    * Alloc/free space in log
-   *   Alloction will be removed at either/or
+   *   Allocation will be removed at either/or
    *   1) Logfile_client::add_entry
    *   2) free_log_space
    */
-  int alloc_log_space(Uint32 logfile_ref, Uint32 words);
-  int free_log_space(Uint32 logfile_ref, Uint32 words);
+  int alloc_log_space(Uint32 logfile_ref,
+                      Uint32 words,
+                      EmulatedJamBuffer *jamBuf);
+  int free_log_space(Uint32 logfile_ref,
+                      Uint32 words,
+                      EmulatedJamBuffer *jamBuf);
   
   Undofile_pool m_file_pool;
   Logfile_group_pool m_logfile_group_pool;
@@ -287,10 +291,13 @@ private:
   bool alloc_logbuffer_memory(Ptr<Logfile_group>, Uint32 pages);
   void init_logbuffer_pointers(Ptr<Logfile_group>);
   void free_logbuffer_memory(Ptr<Logfile_group>);
-  Uint32 compute_free_file_pages(Ptr<Logfile_group>);
-  Uint32* get_log_buffer(Ptr<Logfile_group>, Uint32 sz);
+  Uint32 compute_free_file_pages(Ptr<Logfile_group>,
+                                 EmulatedJamBuffer *jamBuf);
+  Uint32* get_log_buffer(Ptr<Logfile_group>,
+                         Uint32 sz,
+                         EmulatedJamBuffer *jamBuf);
   void process_log_buffer_waiters(Signal* signal, Ptr<Logfile_group>);
-  Uint32 next_page(Logfile_group* ptrP, Uint32 i);
+  Uint32 next_page(Logfile_group* ptrP, Uint32 i, EmulatedJamBuffer *jamBuf);
 
   void force_log_sync(Signal*, Ptr<Logfile_group>, Uint32 lsnhi, Uint32 lnslo);
   void process_log_sync_waiters(Signal* signal, Ptr<Logfile_group>);
@@ -321,9 +328,14 @@ private:
   void create_file_abort(Signal* signal, Ptr<Logfile_group>, Ptr<Undofile>);
 
 #ifdef VM_TRACE
-  void validate_logfile_group(Ptr<Logfile_group> ptr, const char * = 0);
+  void validate_logfile_group(Ptr<Logfile_group> ptr,
+                              const char*,
+                              EmulatedJamBuffer *jamBuf);
 #else
-  void validate_logfile_group(Ptr<Logfile_group> ptr, const char * = 0) {}
+  void validate_logfile_group(Ptr<Logfile_group> ptr,
+                              const char * = 0,
+                              EmulatedJamBuffer *jamBuf = 0)
+  {}
 #endif
 
   void drop_filegroup_drop_files(Signal*, Ptr<Logfile_group>, 
@@ -361,7 +373,10 @@ public:
    *          0, request in queued
    *         >0, done
    */
-  int sync_lsn(Signal*, Uint64, Request*, Uint32 flags);
+  int sync_lsn(Signal*,
+               Uint64,
+               Request*,
+               Uint32 flags);
 
   /**
    * Undolog entries
@@ -372,11 +387,8 @@ public:
     Uint32 len;
   };
 
-  Uint64 add_entry(const void*, Uint32 len);
-  Uint64 add_entry(const Change*, Uint32 cnt);
-
-  Uint64 add_entry(Local_key, void * base, Change*);
-  Uint64 add_entry(Local_key, Uint32 off, Uint32 change);
+  Uint64 add_entry(const Change*,
+                   Uint32 cnt);
 
   /**
    * Check for space in log buffer
@@ -387,16 +399,24 @@ public:
    */
   int get_log_buffer(Signal*, Uint32 sz, SimulatedBlock::CallbackPtr*);
 
-  int alloc_log_space(Uint32 words) {
-    return m_lgman->alloc_log_space(m_logfile_group_id, words);
+  int alloc_log_space(Uint32 words,
+                      EmulatedJamBuffer *jamBuf)
+  {
+    return m_lgman->alloc_log_space(m_logfile_group_id,
+                                    words,
+                                    jamBuf);
   }
 
-  int free_log_space(Uint32 words) {
-    return m_lgman->free_log_space(m_logfile_group_id, words);
+  int free_log_space(Uint32 words,
+                     EmulatedJamBuffer *jamBuf)
+  {
+    return m_lgman->free_log_space(m_logfile_group_id, words, jamBuf);
   }
 
-  void exec_lcp_frag_ord(Signal* signal) {
-    m_lgman->exec_lcp_frag_ord(signal, m_client_block);
+  void exec_lcp_frag_ord(Signal* signal)
+  {
+    m_lgman->exec_lcp_frag_ord(signal,
+                               m_client_block);
   }
   
 private:

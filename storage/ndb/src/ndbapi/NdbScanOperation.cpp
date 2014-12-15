@@ -1986,6 +1986,7 @@ NdbScanOperation::nextResultNdbRecord(const char * & out_row,
   case 2:
     return retVal;
   case -1:
+    ndbout << "1:4008 on connection " << theNdbCon->ptr2int() << endl;
     setErrorCode(4008); // Timeout
     break;
   case -2:
@@ -3805,6 +3806,7 @@ NdbIndexScanOperation::ordered_send_scan_wait_for_all(bool forceSend)
       if (ret_code == 0 && seq == impl->getNodeSequence(nodeId))
         continue;
       if(ret_code == -1){
+        ndbout << "2:4008 on connection " << theNdbCon->ptr2int() << endl;
         setErrorCode(4008);
       } else {
         setErrorCode(4028);
@@ -3906,6 +3908,7 @@ NdbScanOperation::close_impl(bool forceSend, PollGuard *poll_guard)
     case 0:
       break;
     case -1:
+      ndbout << "3:4008 on connection " << theNdbCon->ptr2int() << endl;
       setErrorCode(4008);
     case -2:
       m_api_receivers_count = 0;
@@ -3975,6 +3978,7 @@ NdbScanOperation::close_impl(bool forceSend, PollGuard *poll_guard)
     case 0:
       break;
     case -1:
+      ndbout << "4:4008 on connection " << theNdbCon->ptr2int() << endl;
       setErrorCode(4008);
     case -2:
       m_api_receivers_count = 0;

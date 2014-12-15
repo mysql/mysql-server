@@ -1361,6 +1361,7 @@ void Dbtc::execTCSEIZEREQ(Signal* signal)
 	    }
             if (errCode)
             {
+              ndbout << "error: " << errCode << " on " << tapiPointer << endl;
               signal->theData[0] = tapiPointer;
               signal->theData[1] = errCode;
               sendSignal(tapiBlockref, GSN_TCSEIZEREF, signal, 2, JBB);
@@ -1389,6 +1390,7 @@ void Dbtc::execTCSEIZEREQ(Signal* signal)
     return;
   }
 
+  ndbout << "4006 on " << tapiPointer << endl;
   signal->theData[0] = tapiPointer;
   signal->theData[1] = terrorCode;
   sendSignal(tapiBlockref, GSN_TCSEIZEREF, signal, 2, JBB);

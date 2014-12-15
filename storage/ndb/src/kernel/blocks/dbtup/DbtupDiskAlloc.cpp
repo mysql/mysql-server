@@ -549,7 +549,8 @@ Dbtup::disk_page_prealloc(Signal* signal,
       Uint32 logfile_group_id = fragPtr.p->m_logfile_group_id;
 
       err = c_lgman->alloc_log_space(logfile_group_id,
-				     sizeof(Disk_undo::AllocExtent)>>2);
+				     sizeof(Disk_undo::AllocExtent)>>2,
+                                     jamBuffer());
       jamEntry();
       if(unlikely(err))
       {
@@ -564,7 +565,8 @@ Dbtup::disk_page_prealloc(Signal* signal,
 	err= 2;
 #if NOT_YET_UNDO_ALLOC_EXTENT
 	c_lgman->free_log_space(logfile_group_id, 
-				sizeof(Disk_undo::AllocExtent)>>2);
+				sizeof(Disk_undo::AllocExtent)>>2,
+                                jamBuffer());
 #endif
 	c_page_request_pool.release(req);
 	ndbout_c("no free extent info");
@@ -576,7 +578,8 @@ Dbtup::disk_page_prealloc(Signal* signal,
 	jamEntry();
 #if NOT_YET_UNDO_ALLOC_EXTENT
 	c_lgman->free_log_space(logfile_group_id, 
-				sizeof(Disk_undo::AllocExtent)>>2);
+				sizeof(Disk_undo::AllocExtent)>>2,
+                                jamBuffer());
 #endif
 	c_extent_pool.release(ext);
 	c_page_request_pool.release(req);
@@ -1764,7 +1767,8 @@ Dbtup::disk_restart_undo_callback(Signal* signal,
 //  key.m_file_no = pagePtr.p->m_file_no;
   
   Uint64 lsn = 0;
-  lsn += pagePtr.p->m_page_header.m_page_lsn_hi; lsn <<= 32;
+  lsn += pagePtr.p->m_page_header.m_page_lsn_hi;
+  lsn <<= 32;
   lsn += pagePtr.p->m_page_header.m_page_lsn_lo;
 
   undo->m_page_ptr = pagePtr;
