@@ -1193,7 +1193,7 @@ bool sp_create_routine(THD *thd, sp_head *sp)
 	  goto done;
 	}
       }
-      if (!(thd->security_ctx->master_access & SUPER_ACL))
+      if (!(thd->security_context()->check_access(SUPER_ACL)))
       {
         my_error(ER_BINLOG_CREATE_ROUTINE_NEED_SUPER,MYF(0));
 	goto done;

@@ -667,8 +667,8 @@ insert into t2 values ("1", "1", "sup", "0"), ("2", "1", "sup", "1"),
 
 create table t3 (
   id int(11) not null default '0',
-  preceeding_id int(11) not null default '0',
-  primary key  (id,preceeding_id)
+  preceding_id int(11) not null default '0',
+  primary key  (id,preceding_id)
 );
 
 create table t4 (
@@ -682,7 +682,7 @@ insert into t4 values("nicke", "imp");
 prepare stmt from
 'select distinct t1.partner_id
 from t1 left join t3 on t1.id = t3.id
-     left join t1 pp on pp.id = t3.preceeding_id
+     left join t1 pp on pp.id = t3.preceding_id
 where
   exists (
     select *

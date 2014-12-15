@@ -2379,7 +2379,7 @@ find_order_in_list(THD *thd, Ref_ptr_array ref_pointer_array, TABLE_LIST *tables
     Item *view_ref= NULL;
     /*
       If we have found field not by its alias in select list but by its
-      original field name, we should additionaly check if we have conflict
+      original field name, we should additionally check if we have conflict
       for this name (in case if we would perform lookup in all tables).
     */
     if (resolution == RESOLVED_BEHIND_ALIAS && !order_item->fixed &&

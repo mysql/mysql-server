@@ -8112,7 +8112,7 @@ Item_func_sp::execute_impl(THD *thd)
   bool err_status= TRUE;
   Sub_statement_state statement_state;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-  Security_context *save_security_ctx= thd->security_ctx;
+  Security_context *save_security_ctx= thd->security_context();
 #endif
   enum enum_sp_data_access access=
     (m_sp->m_chistics->daccess == SP_DEFAULT_ACCESS) ?
@@ -8124,7 +8124,7 @@ Item_func_sp::execute_impl(THD *thd)
   if (context->security_ctx)
   {
     /* Set view definer security context */
-    thd->security_ctx= context->security_ctx;
+    thd->set_security_context(context->security_ctx);
   }
 #endif
   if (sp_check_access(thd))
@@ -8154,7 +8154,7 @@ Item_func_sp::execute_impl(THD *thd)
 
 error:
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-  thd->security_ctx= save_security_ctx;
+  thd->set_security_context(save_security_ctx);
 #endif
 
   DBUG_RETURN(err_status);
@@ -8254,7 +8254,7 @@ Item_func_sp::fix_fields(THD *thd, Item **ref)
 {
   bool res;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-  Security_context *save_security_ctx= thd->security_ctx;
+  Security_context *save_security_ctx= thd->security_context();
 #endif
 
   DBUG_ENTER("Item_func_sp::fix_fields");
@@ -8271,7 +8271,7 @@ Item_func_sp::fix_fields(THD *thd, Item **ref)
     if (context->security_ctx)
     {
       /* Set view definer security context */
-      thd->security_ctx= context->security_ctx;
+      thd->set_security_context(context->security_ctx);
     }
 
     /*
@@ -8279,7 +8279,7 @@ Item_func_sp::fix_fields(THD *thd, Item **ref)
      */
     res= check_routine_access(thd, EXECUTE_ACL, m_name->m_db.str,
                               m_name->m_name.str, 0, FALSE);
-    thd->security_ctx= save_security_ctx;
+    thd->set_security_context(save_security_ctx);
 
     if (res)
     {

@@ -4648,7 +4648,7 @@ lock_rec_print(
 		"index %s of table ",
 		(ulong) space, (ulong) page_no,
 		(ulong) lock_rec_get_n_bits(lock),
-		lock->index->name);
+		lock->index->name());
 	ut_print_name(file, lock->trx, lock->index->table_name);
 	fprintf(file, " trx id " TRX_ID_FMT, trx_get_id_for_print(lock->trx));
 

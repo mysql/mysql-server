@@ -1250,7 +1250,7 @@ opt_print_query_plan(
 		fprintf(stderr,
 			"Index %s of table %s"
 			"; exact m. %lu, match %lu, end conds %lu\n",
-			plan->index->name, plan->index->table_name,
+			plan->index->name(), plan->index->table_name,
 			(unsigned long) plan->n_exact_match,
 			(unsigned long) n_fields,
 			(unsigned long) UT_LIST_GET_LEN(plan->end_conds));
