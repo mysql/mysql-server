@@ -17,7 +17,7 @@
 
 # can not run parallel > 1, as this testcase likely to fail sporadically due to
 # bootstrap and different datadir locations than MTR defaults
-#--source include/not_parallel.inc
+--source include/not_parallel.inc
 
 let $MYSQLD_BASEDIR= `select @@basedir`;
 
