@@ -420,7 +420,7 @@ dict_stats_table_clone_create(
 
 	t->heap = heap;
 
-	t->name.m_name = (char*) mem_heap_strdup(heap, table->name.m_name);
+	t->name.m_name = mem_heap_strdup(heap, table->name.m_name);
 
 	t->corrupted = table->corrupted;
 
@@ -448,7 +448,7 @@ dict_stats_table_clone_create(
 		UNIV_MEM_ASSERT_RW_ABORT(&index->id, sizeof(index->id));
 		idx->id = index->id;
 
-		idx->name = (char*) mem_heap_strdup(heap, index->name);
+		idx->name = mem_heap_strdup(heap, index->name);
 
 		idx->table_name = t->name.m_name;
 
@@ -467,7 +467,7 @@ dict_stats_table_clone_create(
 			heap, idx->n_uniq * sizeof(idx->fields[0]));
 
 		for (ulint i = 0; i < idx->n_uniq; i++) {
-			idx->fields[i].name = (char*) mem_heap_strdup(
+			idx->fields[i].name = mem_heap_strdup(
 				heap, index->fields[i].name);
 		}
 
@@ -1875,7 +1875,7 @@ dict_stats_analyze_index(
 	ulint		size;
 	DBUG_ENTER("dict_stats_analyze_index");
 
-	DBUG_PRINT("info", ("index: %s, online status: %d", index->name,
+	DBUG_PRINT("info", ("index: %s, online status: %d", index->name(),
 			    dict_index_get_online_status(index)));
 
 	/* Disable update statistic for Rtree */
@@ -1883,7 +1883,7 @@ dict_stats_analyze_index(
 		DBUG_VOID_RETURN;
 	}
 
-	DEBUG_PRINTF("  %s(index=%s)\n", __func__, index->name);
+	DEBUG_PRINTF("  %s(index=%s)\n", __func__, index->name());
 
 	dict_stats_empty_index(index);
 
@@ -2281,7 +2281,6 @@ dict_stats_save_index_stat(
 	pinfo = pars_info_create();
 	pars_info_add_str_literal(pinfo, "database_name", db_utf8);
 	pars_info_add_str_literal(pinfo, "table_name", table_utf8);
-	UNIV_MEM_ASSERT_RW_ABORT(index->name, strlen(index->name));
 	pars_info_add_str_literal(pinfo, "index_name", index->name);
 	UNIV_MEM_ASSERT_RW_ABORT(&last_update, 4);
 	pars_info_add_int4_literal(pinfo, "last_update", last_update);
@@ -2474,7 +2473,7 @@ dict_stats_save(
 			/* craft a string that contains the column names */
 			ut_snprintf(stat_description,
 				    sizeof(stat_description),
-				    "%s", index->fields[0].name);
+				    "%s", index->fields[0].name());
 			for (j = 1; j <= i; j++) {
 				size_t	len;
 
@@ -2482,7 +2481,7 @@ dict_stats_save(
 
 				ut_snprintf(stat_description + len,
 					    sizeof(stat_description) - len,
-					    ",%s", index->fields[j].name);
+					    ",%s", index->fields[j].name());
 			}
 
 			ret = dict_stats_save_index_stat(
@@ -2806,7 +2805,7 @@ dict_stats_fetch_index_stats_step(
 				<< INDEX_STATS_NAME_PRINT << " WHERE"
 				" database_name = '" << db_utf8
 				<< "' AND table_name = '" << table_utf8
-				<< "' AND index_name = '" << index->name
+				<< "' AND index_name = '" << index->name()
 				<< "' AND stat_name = '";
 			out.write(stat_name, stat_name_len);
 			out << "'; because stat_name is malformed";
@@ -2834,7 +2833,7 @@ dict_stats_fetch_index_stats_step(
 				<< INDEX_STATS_NAME_PRINT << " WHERE"
 				" database_name = '" << db_utf8
 				<< "' AND table_name = '" << table_utf8
-				<< "' AND index_name = '" << index->name
+				<< "' AND index_name = '" << index->name()
 				<< "' AND stat_name = '";
 			out.write(stat_name, stat_name_len);
 			out << "'; because stat_name is out of range, the index"

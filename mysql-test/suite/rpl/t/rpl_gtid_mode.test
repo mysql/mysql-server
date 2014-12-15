@@ -47,7 +47,7 @@
 # ==== References ====
 #
 # Added in WL#3584 - Global Transaction Identifiers
---source include/no_valgrind_without_big.inc
+-- source include/big_test.inc
 --source include/not_windows.inc
 --source include/not_gtid_enabled.inc
 --disable_warnings

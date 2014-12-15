@@ -3658,14 +3658,16 @@ bool Query_log_event::write(IO_CACHE* file)
     }
     else
     {
-      Security_context *ctx= thd->security_ctx;
+      Security_context *ctx= thd->security_context();
+      LEX_CSTRING priv_user= ctx->priv_user();
+      LEX_CSTRING priv_host= ctx->priv_host();
 
-      invoker_user.length= strlen(ctx->priv_user);
-      invoker_user.str= ctx->priv_user;
-      if (ctx->priv_host[0] != '\0')
+      invoker_user.length= priv_user.length;
+      invoker_user.str= (char *) priv_user.str;
+      if (priv_host.str[0] != '\0')
       {
-        invoker_host.str= ctx->priv_host;
-        invoker_host.length= strlen(ctx->priv_host);
+        invoker_host.str= (char *) priv_host.str;
+        invoker_host.length= priv_host.length;
       }
     }
 
@@ -4471,7 +4473,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
     if ((error= rows_event_stmt_cleanup(const_cast<Relay_log_info*>(rli), thd)))
     {
       const_cast<Relay_log_info*>(rli)->report(ERROR_LEVEL, error,
-                  "Error in cleaning up after an event preceeding the commit; "
+                  "Error in cleaning up after an event preceding the commit; "
                   "the group log file/position: %s %s",
                   const_cast<Relay_log_info*>(rli)->get_group_master_log_name(),
                   llstr(const_cast<Relay_log_info*>(rli)->get_group_master_log_pos(),

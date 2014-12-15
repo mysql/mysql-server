@@ -43,9 +43,9 @@ static void handle_bootstrap_impl(THD *thd)
   DBUG_ENTER("handle_bootstrap");
 
   thd->thread_stack= (char*) &thd;
-  thd->security_ctx->user= (char*) my_strdup(key_memory_Security_context,
-                                             "boot", MYF(MY_WME));
-  thd->security_ctx->priv_user[0]= thd->security_ctx->priv_host[0]= 0;
+  thd->security_context()->assign_user(STRING_WITH_LEN("boot"));
+  thd->security_context()->assign_priv_user("", 0);
+  thd->security_context()->assign_priv_host("", 0);
   /*
     Make the "client" handle multiple results. This is necessary
     to enable stored procedures with SELECTs and Dynamic SQL
@@ -198,7 +198,7 @@ int bootstrap(MYSQL_FILE *file)
   thd->bootstrap= 1;
   my_net_init(&thd->net,(st_vio*) 0);
   thd->max_client_packet_length= thd->net.max_packet;
-  thd->security_ctx->master_access= ~(ulong)0;
+  thd->security_context()->set_master_access(~(ulong)0);
 
   thd->set_new_thread_id();
 

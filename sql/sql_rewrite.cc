@@ -40,7 +40,7 @@
 
 
 /**
-  Append a key/value pair to a string, with an optional preceeding comma.
+  Append a key/value pair to a string, with an optional preceding comma.
   For numeric values.
 
   @param           str                  The string to append to
@@ -72,7 +72,7 @@ bool append_int(String *str, bool comma, const char *txt, size_t len,
 
 /**
   Append a key/value pair to a string if the value is non-NULL,
-  with an optional preceeding comma.
+  with an optional preceding comma.
 
   @param           str                  The string to append to
   @param           comma                Prepend a comma?

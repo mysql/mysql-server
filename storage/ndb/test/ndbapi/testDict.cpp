@@ -1372,7 +1372,7 @@ int runStoreFrm(NDBT_Context* ctx, NDBT_Step* step){
     
     // Verfiy the frm data
     if (memcmp(pData, pData2, resultLen) != 0){
-      g_err << "Wrong data recieved" << endl;
+      g_err << "Wrong data received" << endl;
       for (size_t i = 0; i < dataLen; i++){
 	unsigned char c = ((unsigned char*)pData2)[i];
 	g_err << hex << c << ", ";

@@ -207,6 +207,7 @@ bool
 log_checkpoint(
 	bool	sync,
 	bool	write_always);
+
 /** Make a checkpoint at or after a specified LSN.
 @param[in]	lsn		the log sequence number, or LSN_MAX
 for the latest LSN
@@ -214,8 +215,9 @@ for the latest LSN
 has been generated since the latest checkpoint */
 void
 log_make_checkpoint_at(
-	lsn_t	lsn,
-	bool	write_always);
+	lsn_t			lsn,
+	bool			write_always);
+
 /****************************************************************//**
 Makes a checkpoint at the latest lsn and writes it to first page of each
 data file in the database, so that we know that the file spaces contain

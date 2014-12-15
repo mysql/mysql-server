@@ -111,3 +111,7 @@ show tables;
 # cleanup
 drop table t1, t2, t3, t4, t5, t6;
 --source include/rpl_end.inc
+# In this test, the master is also a slave (1->2->1). This configuration
+# may cause failure in an immediate test which expects only 1->2 configuration
+#  Use force_restart to avoid that situation.
+--source include/force_restart.inc

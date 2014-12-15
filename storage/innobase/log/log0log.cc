@@ -1334,18 +1334,18 @@ log_flush_margin(void)
 	}
 }
 
-/****************************************************************//**
-Advances the smallest lsn for which there are unflushed dirty blocks in the
-buffer pool. NOTE: this function may only be called if the calling thread owns
-no synchronization objects!
+/** Advances the smallest lsn for which there are unflushed dirty blocks in the
+buffer pool.
+NOTE: this function may only be called if the calling thread owns no
+synchronization objects!
+@param[in]	new_oldest	try to advance oldest_modified_lsn at least to
+this lsn
 @return false if there was a flush batch of the same type running,
 which means that we could not start this flush batch */
 static
 bool
 log_preflush_pool_modified_pages(
-/*=============================*/
-	lsn_t	new_oldest)	/*!< in: try to advance oldest_modified_lsn
-				at least to this lsn */
+	lsn_t			new_oldest)
 {
 	bool	success;
 	ulint	n_pages;
@@ -1787,8 +1787,8 @@ for the latest LSN
 has been generated since the latest checkpoint */
 void
 log_make_checkpoint_at(
-	lsn_t	lsn,
-	bool	write_always)
+	lsn_t			lsn,
+	bool			write_always)
 {
 	/* Preflush pages synchronously */
 
