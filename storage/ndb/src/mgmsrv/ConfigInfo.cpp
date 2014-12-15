@@ -5177,8 +5177,10 @@ check_2n_number_less_32(Uint32 num)
     case 4:
     case 6:
     case 8:
+    case 10:
     case 12:
     case 16:
+    case 20:
     case 24:
     case 32:
       return true;
@@ -5217,13 +5219,13 @@ checkThreadConfig(InitConfigFileParser::Context & ctx, const char * unused)
 
   if (!check_2n_number_less_32(lqhThreads))
   {
-    ctx.reportError("NumLqhThreads must be 0,1,2,4,6,8,12,16,24 or 32");
+    ctx.reportError("NumLqhThreads must be 0,1,2,4,6,8,10,12,16,20,24 or 32");
     return false;
   }
   if (!check_2n_number_less_32(ndbLogParts) ||
       ndbLogParts < 4)
   {
-    ctx.reportError("NoOfLogParts must be 4,6,8,12,16,24 or 32");
+    ctx.reportError("NoOfLogParts must be 4,6,8,10,12,16,20,24 or 32");
     return false;
   }
   if (ctx.m_currentSection->get("ThreadConfig", &thrconfig))
