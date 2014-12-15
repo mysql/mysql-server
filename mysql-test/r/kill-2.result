@@ -1,0 +1,10 @@
+#
+# MDEV-6896 kill user command cause MariaDB crash!
+#
+create user foo@'127.0.0.1';
+select user from information_schema.processlist;
+user
+foo
+root
+kill user foo@'127.0.0.1';
+drop user foo@'127.0.0.1';
