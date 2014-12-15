@@ -2080,7 +2080,7 @@ Qmgr::cmAddPrepare(Signal* signal, NodeRecPtr nodePtr, const NodeRec * self){
     jam();
     
 #if 1
-    warningEvent("Recieved request to incorperate node %u, "
+    warningEvent("Received request to incorporate node %u, "
 		 "while error handling has not yet completed",
 		 nodePtr.i);
     
@@ -4282,6 +4282,33 @@ void Qmgr::execPREP_FAILREQ(Signal* signal)
     jam();
     c_start.reset();
   }
+  if (c_start.m_gsn == GSN_CM_NODEINFOCONF)
+  {
+    Uint32 nodeId;
+    jam();
+    /**
+     * This is a very unusual event we are looking for, but still required
+     * to be handled. The starting node has connected to the president and
+     * managed to start the node inclusion protocol. We received an indication
+     * of this from the president. The starting node now however fails before
+     * it connected to us, so we need to clear the indication of that we
+     * received CM_ADD(Prepare) from president since this belonged to an
+     * already cancelled node restart.
+     */
+    for (nodeId = 1; nodeId < MAX_NDB_NODES; nodeId++)
+    {
+      if (c_start.m_nodes.isWaitingFor(nodeId) &&
+          NdbNodeBitmask::get(prepFail->theNodes, nodeId))
+      {
+        jamLine(nodeId);
+        /* Found such a condition as described above, clear state */
+        c_start.m_gsn = RNIL;
+        c_start.m_nodes.clearWaitingFor();
+        break;
+      }
+    }
+  }
+      
   
   if (check_multi_node_shutdown(signal))
   {
