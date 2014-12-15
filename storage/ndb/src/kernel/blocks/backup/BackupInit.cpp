@@ -154,6 +154,7 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
   Uint32 ref = req->senderRef;
   Uint32 senderData = req->senderData;
   ndbrequire(req->noOfParameters == 0);
+  jamEntry();
 
   const ndb_mgm_configuration_iterator * p = 
     m_ctx.m_config.getOwnConfigIterator();
@@ -192,6 +193,7 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
 
   calculate_real_disk_write_speed_parameters();
 
+  jam();
   m_backup_report_frequency = 0;
   ndb_mgm_get_int_parameter(p, CFG_DB_BACKUP_REPORT_FREQUENCY, 
 			    &m_backup_report_frequency);
@@ -210,7 +212,9 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
   c_tablePool.setSize(noBackups * noTables + 1);
   c_triggerPool.setSize(noBackups * 3 * noTables);
   c_fragmentPool.setSize(noBackups * noFrags + 1);
-  
+ 
+  jam();
+
   Uint32 szDataBuf = (2 * 1024 * 1024);
   Uint32 szLogBuf = (2 * 1024 * 1024);
   Uint32 szWrite = 32768, maxWriteSize = (256 * 1024);
@@ -258,16 +262,23 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
     (c_defaults.m_lcp_buffer_size + sizeof(Page32) - 1) / sizeof(Page32);
 
   // We need to allocate an additional of 2 pages. 1 page because of a bug in
-  // ArrayPool and another one for DICTTAINFO.
+  // ArrayPool and another one for DICTTABINFO.
   c_pagePool.setSize(noPages + NO_OF_PAGES_META_FILE + 2, true); 
-  
+
+  jam();
+
   { // Init all tables
     SLList<Table> tables(c_tablePool);
     TablePtr ptr;
     while (tables.seizeFirst(ptr)){
       new (ptr.p) Table(c_fragmentPool);
     }
-    while (tables.releaseFirst());
+    jam();
+    while (tables.releaseFirst())
+    {
+      ;
+    }
+    jam();
   }
 
   {
@@ -276,7 +287,12 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
     while (ops.seizeFirst(ptr)){
       new (ptr.p) BackupFile(* this, c_pagePool);
     }
-    while (ops.releaseFirst());
+    jam();
+    while (ops.releaseFirst())
+    {
+      ;
+    }
+    jam();
   }
   
   {
@@ -286,7 +302,12 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
       new (ptr.p) BackupRecord(* this, c_tablePool, 
 			       c_backupFilePool, c_triggerPool);
     }
-    while (recs.releaseFirst());
+    jam();
+    while (recs.releaseFirst())
+    {
+      ;
+    }
+    jam();
   }
 
   // Initialize BAT for interface to file system
