@@ -249,7 +249,8 @@ void Dbtup::do_tup_abortreq(Signal* signal, Uint32 flags)
       jam();
       D("Logfile_client - do_tup_abortreq");
       Logfile_client lgman(this, c_lgman, regFragPtr.p->m_logfile_group_id);
-      lgman.free_log_space(regOperPtr.p->m_undo_buffer_space);
+      lgman.free_log_space(regOperPtr.p->m_undo_buffer_space,
+                           jamBuffer());
     }
   }
 
@@ -438,7 +439,8 @@ void Dbtup::tupkeyErrorLab(KeyReqStruct* req_struct)
     jam();
     D("Logfile_client - tupkeyErrorLab");
     Logfile_client lgman(this, c_lgman, fragPtr.p->m_logfile_group_id);
-    lgman.free_log_space(regOperPtr->m_undo_buffer_space);
+    lgman.free_log_space(regOperPtr->m_undo_buffer_space,
+                         jamBuffer());
   }
 
   Uint32 *ptr = 0;

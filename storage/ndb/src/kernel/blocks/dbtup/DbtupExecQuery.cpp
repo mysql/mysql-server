@@ -1352,7 +1352,7 @@ int Dbtup::handleUpdateReq(Signal* signal,
       
       D("Logfile_client - handleUpdateReq");
       Logfile_client lgman(this, c_lgman, regFragPtr->m_logfile_group_id);
-      terrorCode= lgman.alloc_log_space(sz);
+      terrorCode= lgman.alloc_log_space(sz, jamBuffer());
       if(unlikely(terrorCode))
       {
         jam();
@@ -1916,7 +1916,7 @@ int Dbtup::handleInsertReq(Signal* signal,
 
     D("Logfile_client - handleInsertReq");
     Logfile_client lgman(this, c_lgman, regFragPtr->m_logfile_group_id);
-    res= lgman.alloc_log_space(regOperPtr.p->m_undo_buffer_space);
+    res= lgman.alloc_log_space(regOperPtr.p->m_undo_buffer_space, jamBuffer());
     if(unlikely(res))
     {
       jam();
@@ -2306,7 +2306,7 @@ int Dbtup::handleDeleteReq(Signal* signal,
     
     D("Logfile_client - handleDeleteReq");
     Logfile_client lgman(this, c_lgman, regFragPtr->m_logfile_group_id);
-    terrorCode= lgman.alloc_log_space(sz);
+    terrorCode= lgman.alloc_log_space(sz, jamBuffer());
     if(unlikely(terrorCode))
     {
       jam();
@@ -4528,7 +4528,7 @@ Dbtup::nr_delete(Signal* signal, Uint32 senderData,
     
     D("Logfile_client - nr_delete");
     Logfile_client lgman(this, c_lgman, fragPtr.p->m_logfile_group_id);
-    int res = lgman.alloc_log_space(sz);
+    int res = lgman.alloc_log_space(sz, jamBuffer());
     ndbrequire(res == 0);
     
     /**

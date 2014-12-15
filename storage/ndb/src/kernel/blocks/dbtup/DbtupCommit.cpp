@@ -813,7 +813,8 @@ void Dbtup::execTUP_COMMITREQ(Signal* signal)
         
         D("Logfile_client - execTUP_COMMITREQ");
         Logfile_client lgman(this, c_lgman, regFragPtr.p->m_logfile_group_id);
-        lgman.free_log_space(regOperPtr.p->m_undo_buffer_space);
+        lgman.free_log_space(regOperPtr.p->m_undo_buffer_space,
+                             jamBuffer());
 	goto skip_disk;
       }
     } 
