@@ -371,6 +371,19 @@ ACL_PROXY_USER::store_pk(TABLE *table,
 }
 
 int
+ACL_PROXY_USER::store_with_grant(TABLE * table,
+                                 bool with_grant)
+{
+  DBUG_ENTER("ACL_PROXY_USER::store_with_grant");
+  DBUG_PRINT("info", ("with_grant=%s", with_grant ? "TRUE" : "FALSE"));
+  if (table->field[MYSQL_PROXIES_PRIV_WITH_GRANT]->store(with_grant ? 1 : 0,
+                                                         TRUE))
+    DBUG_RETURN(TRUE);
+
+  DBUG_RETURN(FALSE);
+}
+
+int
 ACL_PROXY_USER::store_data_record(TABLE *table,
                                   const LEX_CSTRING &host,
                                   const LEX_CSTRING &user,
@@ -382,9 +395,7 @@ ACL_PROXY_USER::store_data_record(TABLE *table,
   DBUG_ENTER("ACL_PROXY_USER::store_pk");
   if (store_pk(table,  host, user, proxied_host, proxied_user))
     DBUG_RETURN(TRUE);
-  DBUG_PRINT("info", ("with_grant=%s", with_grant ? "TRUE" : "FALSE"));
-  if (table->field[MYSQL_PROXIES_PRIV_WITH_GRANT]->store(with_grant ? 1 : 0, 
-                                                         TRUE))
+  if (store_with_grant(table, with_grant))
     DBUG_RETURN(TRUE);
   if (table->field[MYSQL_PROXIES_PRIV_GRANTOR]->store(grantor, 
                                                       strlen(grantor),
