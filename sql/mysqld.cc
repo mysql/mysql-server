@@ -535,7 +535,7 @@ char logname_path[FN_REFLEN];
 char slow_logname_path[FN_REFLEN];
 char secure_file_real_path[FN_REFLEN];
 
-DATE_TIME_FORMAT global_date_format, global_datetime_format, global_time_format;
+Date_time_format global_date_format, global_datetime_format, global_time_format;
 Time_zone *default_tz;
 
 char *mysql_data_home= const_cast<char*>(".");
@@ -2384,7 +2384,7 @@ check_enough_stack_size(int recurse_level)
 */
 
 static bool init_global_datetime_format(timestamp_type format_type,
-                                        DATE_TIME_FORMAT *format)
+                                        Date_time_format *format)
 {
   /*
     Get command line option
