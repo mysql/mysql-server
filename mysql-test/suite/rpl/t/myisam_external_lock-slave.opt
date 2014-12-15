@@ -1,0 +1,2 @@
+--log-slave-updates=0
+--skip_external_locking=0

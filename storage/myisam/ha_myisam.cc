@@ -1068,6 +1068,7 @@ int ha_myisam::repair(THD *thd, HA_CHECK &param, bool do_optimize)
   char fixed_name[FN_REFLEN];
   MYISAM_SHARE* share = file->s;
   ha_rows rows= file->state->records;
+  my_bool locking= 0;
   DBUG_ENTER("ha_myisam::repair");
 
   param.db_name=    table->s->db.str;
@@ -1081,12 +1082,18 @@ int ha_myisam::repair(THD *thd, HA_CHECK &param, bool do_optimize)
   // Release latches since this can take a long time
   ha_release_temporary_latches(thd);
 
-  // Don't lock tables if we have used LOCK TABLE
-  if (! thd->locked_tables_mode &&
-      mi_lock_database(file, table->s->tmp_table ? F_EXTRA_LCK : F_WRLCK))
+  /*
+    Don't lock tables if we have used LOCK TABLE or if we come from
+    enable_index()
+  */
+  if (!thd->locked_tables_mode && ! (param.testflag & T_NO_LOCKS))
   {
-    mi_check_print_error(&param,ER(ER_CANT_LOCK),my_errno);
-    DBUG_RETURN(HA_ADMIN_FAILED);
+    locking= 1;
+    if (mi_lock_database(file, table->s->tmp_table ? F_EXTRA_LCK : F_WRLCK))
+    {
+      mi_check_print_error(&param,ER(ER_CANT_LOCK),my_errno);
+      DBUG_RETURN(HA_ADMIN_FAILED);
+    }
   }
 
   if (!do_optimize ||
@@ -1205,7 +1212,7 @@ int ha_myisam::repair(THD *thd, HA_CHECK &param, bool do_optimize)
     update_state_info(&param, file, 0);
   }
   thd_proc_info(thd, old_proc_info);
-  if (! thd->locked_tables_mode)
+  if (locking)
     mi_lock_database(file,F_UNLCK);
   DBUG_RETURN(error ? HA_ADMIN_FAILED :
 	      !optimize_done ? HA_ADMIN_ALREADY_DONE : HA_ADMIN_OK);
@@ -1437,6 +1444,13 @@ int ha_myisam::enable_indexes(uint mode)
     param.op_name= "recreating_index";
     param.testflag= (T_SILENT | T_REP_BY_SORT | T_QUICK |
                      T_CREATE_MISSING_KEYS);
+    /*
+      Don't lock and unlock table if it's locked.
+      Normally table should be locked.  This test is mostly for safety.
+    */
+    if (likely(file->lock_type != F_UNLCK))
+      param.testflag|= T_NO_LOCKS;
+    
     param.myf_rw&= ~MY_WAIT_IF_FULL;
     param.sort_buffer_length=  THDVAR(thd, sort_buffer_size);
     param.stats_method= (enum_handler_stats_method)THDVAR(thd, stats_method);
@@ -1515,7 +1529,7 @@ int ha_myisam::indexes_are_disabled(void)
 void ha_myisam::start_bulk_insert(ha_rows rows)
 {
   DBUG_ENTER("ha_myisam::start_bulk_insert");
-  THD *thd= current_thd;
+  THD *thd= table->in_use;
   ulong size= min(thd->variables.read_buff_size,
                   (ulong) (table->s->avg_row_length*rows));
   DBUG_PRINT("info",("start_bulk_insert: rows %lu size %lu",
@@ -1589,7 +1603,7 @@ int ha_myisam::end_bulk_insert()
      */
    
       if (((err= enable_indexes(HA_KEY_SWITCH_NONUNIQ_SAVE)) != 0) && 
-                                                  current_thd->killed)
+          table->in_use->killed)
       {
         delete_all_rows();
         /* not crashed, despite being killed during repair */
