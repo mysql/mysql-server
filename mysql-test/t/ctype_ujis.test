@@ -1,6 +1,6 @@
 
 -- source include/have_ujis.inc
---source include/no_valgrind_without_big.inc
+-- source include/big_test.inc
 
 #
 # Tests with the ujis character set

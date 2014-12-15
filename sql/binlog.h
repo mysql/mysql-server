@@ -792,7 +792,7 @@ public:
   int remove_logs_from_index(LOG_INFO* linfo, bool need_update_threads);
   int rotate(bool force_rotate, bool* check_purge);
   void purge();
-  int rotate_and_purge(bool force_rotate);
+  int rotate_and_purge(THD* thd, bool force_rotate);
   /**
      Flush binlog cache and synchronize to disk.
 

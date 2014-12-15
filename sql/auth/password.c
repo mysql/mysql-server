@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -37,7 +37,7 @@
 
   The new authentication is performed in following manner:
 
-  SERVER:  public_seed=create_random_string()
+  SERVER:  public_seed=generate_user_salt()
            send(public_seed)
 
   CLIENT:  recv(public_seed)
@@ -109,38 +109,6 @@ static inline uint8 char_val(uint8 X)
   return (uint) (X >= '0' && X <= '9' ? X - '0' :
                  X >= 'A' && X <= 'Z' ? X - 'A' + 10 : X - 'a' + 10);
 }
-
-/*
-     **************** MySQL 4.1.1 authentication routines *************
-*/
-
-/**
-  Generate string of printable pseudo random characters of requested length.
-  
-  @param to[out]    Buffer for generation; must be at least length+1 bytes
-                    long; result string is always null-terminated
-  @param length[in] How many random characters to put in buffer
-  @param rand_st    Structure used for number generation
-    
-  @note This function is restricted for use with
-    native_password_authenticate() because of security reasons.
-      
-  DON'T RELY ON THIS FUNCTION FOR A UNIFORMLY DISTRIBUTION OF BITS!
-  
-*/
-
-void create_random_string(char *to, uint length, struct rand_struct *rand_st)
-{
-  char *end= to + length;
-  /*
-    Warning: my_rnd() is a fast prng, but it doesn't necessarily have a uniform
-    distribution.
-  */
-  for (; to < end; to++)
-    *to= (char) (my_rnd(rand_st) * 94 + 33);
-  *to= '\0';
-}
-
 
 /* Character to use as version identifier for version 4.1 */
 
@@ -301,7 +269,7 @@ void make_scrambled_password(char *to, const char *password)
 
 /*
     Produce an obscure octet sequence from password and random
-    string, recieved from the server. This sequence corresponds to the
+    string, received from the server. This sequence corresponds to the
     password, but password can not be easily restored from it. The sequence
     is then sent to the server for validation. Trailing zero is not stored
     in the buf as it is not needed.
@@ -335,7 +303,7 @@ scramble(char *to, const char *message, const char *password)
 
 /*
     Check that scrambled message corresponds to the password; the function
-    is used by server to check that recieved reply is authentic.
+    is used by server to check that received reply is authentic.
     This function does not check lengths of given strings: message must be
     null-terminated, reply and hash_stage2 must be at least SHA1_HASH_SIZE
     long (if not, something fishy is going on).

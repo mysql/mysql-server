@@ -35,7 +35,7 @@
 #include <my_time.h>
 #include <sslopt-vars.h>
 /* That one is necessary for defines of OPTION_NO_FOREIGN_KEY_CHECKS etc */
-#include "sql_priv.h"
+#include "query_options.h"
 #include <signal.h>
 #include <my_dir.h>
 

@@ -1,9 +1,3 @@
-#Confirming the storage engine
-SHOW VARIABLES LIKE '%engine%';
-Variable_name	Value
-default_storage_engine	MyISAM
-default_tmp_storage_engine	MyISAM
-internal_tmp_disk_storage_engine	MYISAM
 #Creating the spatial Geometry object
 USE test;
 DROP TABLE IF EXISTS gis_point_with_spatial_index;

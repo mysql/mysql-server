@@ -138,7 +138,7 @@ THD *System_table_access::create_thd()
   thd= new THD;
   thd->thread_stack= (char*) &thd;
   thd->store_globals();
-  thd->security_ctx->skip_grants();
+  thd->security_context()->skip_grants();
 
   return(thd);
 }
