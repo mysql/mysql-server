@@ -341,13 +341,18 @@ ENGINE=NDB;
 --error ER_TOO_LONG_IDENT
 ALTER TABLE db1.t1
 RENAME abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123.t3;
+#replace win slashes since not using default database
+--replace_regex /[\\]/\// 
+#remove any absolute path in warning string
 let $MYSQLD_DATADIR= `select @@datadir`;
-# to remove absolute path in error
 --replace_result $MYSQLD_DATADIR ./ master-data/ '' 
 SHOW WARNINGS;
 --error ER_TOO_LONG_IDENT
 ALTER TABLE db1.t1
 RENAME db1.abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123;
+#replace win slashes since not using default database
+--replace_regex /[\\]/\// 
+#remove any absolute path in warning string
 --replace_result $MYSQLD_DATADIR ./ master-data/ '' 
 SHOW WARNINGS;
 DROP DATABASE db1;
