@@ -48,6 +48,14 @@ public:
   
   NdbNodeBitmask participatingDIH;
   NdbNodeBitmask participatingLQH;
+
+  enum PauseStart
+  {
+    NormalLcpStart = 0,
+    PauseLcpStartFirst = 1,
+    PauseLcpStartSecond = 2
+  };
+
   /**
    * pauseStart = 0 normal start
    * pauseStart = 1 starting node into already running LCP,
@@ -57,7 +65,7 @@ public:
    * pauseStart = 1 requires no response since pauseStart = 2 will arrive
    *                immediately after it.
    */
-  Uint32 pauseStart;
+  PauseStart pauseStart;
 };
 
 class StartLcpConf {
@@ -361,8 +369,8 @@ public:
   {
     NoAction = 0,
     Pause = 1,
-    UnPauseIncludeInLcp = 2,
-    UnPauseNotIncludeInLcp = 3
+    UnPauseIncludedInLcp = 2,
+    UnPauseNotIncludedInLcp = 3
   };
   Uint32 senderRef;
   Uint32 pauseAction;

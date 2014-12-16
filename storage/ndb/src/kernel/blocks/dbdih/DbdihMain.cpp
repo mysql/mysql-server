@@ -2786,18 +2786,20 @@ void Dbdih::startInfoReply(Signal* signal, Uint32 nodeId)
 /* Initialisation routine, called once at startup of the node */
 void Dbdih::init_lcp_pausing_module(void)
 {
-  c_pause_lcp_reference = 0;
+  /* Master state variables */
+  c_pause_lcp_master_state = PAUSE_LCP_IDLE;
   c_lcp_runs_with_pause_support = false;
-  c_lcp_paused = false;
-  c_dequeue_lcp_rep_ongoing = false;
-  c_pause_lcp_requested = false;
-  c_queued_lcp_complete_rep = false;
-  c_pauseAction = PauseLcpReq::NoAction;
   c_old_node_waiting_for_lcp_end = false;
+
+  /* Pause participant state variables */
+  c_dequeue_lcp_rep_ongoing = false;
+  c_queued_lcp_complete_rep = false;
   c_lcp_id_paused = RNIL;
   c_pause_lcp_start_node = RNIL;
-  c_lcp_id_while_copy_meta_data = RNIL;
   c_last_id_lcp_complete_rep = RNIL;
+
+  /* Starting node state variable */
+  c_lcp_id_while_copy_meta_data = RNIL;
 }
 
 void Dbdih::check_pause_state_lcp_idle(void)
@@ -2813,26 +2815,12 @@ void Dbdih::check_pause_state_lcp_idle(void)
 /* Support function only called within ndbassert */
 bool Dbdih::check_pause_state_sanity(void)
 {
-  if (c_lcp_paused)
+  if (is_lcp_paused())
   {
-    ndbrequire(c_pause_lcp_reference != 0 &&
-               !c_dequeue_lcp_rep_ongoing &&
-               c_pause_lcp_start_node != RNIL);
+    ndbrequire(!c_dequeue_lcp_rep_ongoing);
   }
-  else if (!c_pause_lcp_requested)
-  {
-    ndbrequire(c_pause_lcp_reference == 0 &&
-               c_pause_lcp_start_node == RNIL);
-  }
-  else
-  {
-    ndbrequire(c_pause_lcp_start_node != RNIL);
-  }
-  ndbrequire(c_pauseAction == PauseLcpReq::NoAction ||
-             c_lcp_paused ||
-             c_pause_lcp_requested);
   ndbrequire(c_lcp_id_paused == RNIL ||
-             c_lcp_paused ||
+             is_lcp_paused() ||
              c_dequeue_lcp_rep_ongoing);
   ndbrequire(!c_old_node_waiting_for_lcp_end ||
              c_lcp_runs_with_pause_support);
@@ -2987,33 +2975,40 @@ void Dbdih::sendPAUSE_LCP_REQ(Signal *signal, bool pause)
   if (pause)
   {
     jam();
-    ndbrequire(!c_pause_lcp_requested);
-    c_pause_lcp_requested = true;
-    c_pause_lcp_start_node = c_nodeStartMaster.startNode;
-    c_pauseAction = PauseLcpReq::Pause;
+    ndbrequire(c_pause_lcp_master_state == PAUSE_LCP_IDLE);
+    c_pause_lcp_master_state = PAUSE_LCP_REQUESTED;
     req->pauseAction = PauseLcpReq::Pause;
-    c_lcpState.m_pause_participants = c_lcpState.m_participatingLQH;
+    c_pause_participants = c_lcpState.m_participatingLQH;
     infoEvent("PAUSE LCP for starting node %u", c_nodeStartMaster.startNode);
   }
   else
   {
-    jam();
-    ndbrequire(c_pause_lcp_requested);
-    if (!check_if_lcp_idle())
+    /**
+     * We are unpausing the LCP again after completing the copy of the meta
+     * data, slightly different dependent on whether the starting node was
+     * included into the LCP or not.
+     */
+    if (c_pause_lcp_master_state == PAUSE_COMPLETE_LCP_INCLUSION)
     {
       jam();
-      c_pauseAction = PauseLcpReq::UnPauseIncludeInLcp;
-      req->pauseAction = PauseLcpReq::UnPauseIncludeInLcp;
-      infoEvent("UNPAUSE LCP for starting node %u, include in LCP",
+      ndbrequire(!check_if_lcp_idle());
+      c_pause_lcp_master_state = PAUSE_IN_LCP_UNPAUSE;
+      req->pauseAction = PauseLcpReq::UnPauseIncludedInLcp;
+      infoEvent("UNPAUSE LCP for starting node %u, included in LCP",
+                c_nodeStartMaster.startNode);
+    }
+    else if (c_pause_lcp_master_state == PAUSE_NOT_IN_LCP_COPY_META_DATA)
+    {
+      jam();
+      ndbrequire(check_if_lcp_idle());
+      c_pause_lcp_master_state = PAUSE_NOT_IN_LCP_UNPAUSE;
+      req->pauseAction = PauseLcpReq::UnPauseNotIncludedInLcp;
+      infoEvent("UNPAUSE LCP for starting node %u, not included in LCP",
                 c_nodeStartMaster.startNode);
     }
     else
     {
-      jam();
-      c_pauseAction = PauseLcpReq::UnPauseNotIncludeInLcp;
-      req->pauseAction = PauseLcpReq::UnPauseNotIncludeInLcp;
-      infoEvent("UNPAUSE LCP for starting node %u, not include in LCP",
-                c_nodeStartMaster.startNode);
+      ndbrequire(false);
     }
   }
   /**
@@ -3045,16 +3040,23 @@ void Dbdih::sendPAUSE_LCP_REQ(Signal *signal, bool pause)
 
   req->senderRef = reference();
   req->startNodeId = c_nodeStartMaster.startNode;
-  if (c_pauseAction == PauseLcpReq::UnPauseIncludeInLcp)
+  if (req->pauseAction == PauseLcpReq::UnPauseIncludedInLcp)
   {
     jam();
     c_lcpState.m_LCP_COMPLETE_REP_Counter_DIH.setWaitingFor(
       c_nodeStartMaster.startNode);
   }
-  c_PAUSE_LCP_REQ_Counter.setWaitingFor(c_lcpState.m_pause_participants);
-  NodeReceiverGroup rg(DBDIH, c_lcpState.m_pause_participants);
+  c_PAUSE_LCP_REQ_Counter.setWaitingFor(c_pause_participants);
+  NodeReceiverGroup rg(DBDIH, c_pause_participants);
+  rg.m_nodes.clear(getOwnNodeId());
   sendSignal(rg, GSN_PAUSE_LCP_REQ, signal,
              PauseLcpReq::SignalLength, JBB);
+  /**
+   * We execute the signal to ourself immediately, the reason is to
+   * avoid having to add a specific state variable to detect when the
+   * starting node have failed between now and receiving this signal.
+   */
+  execPAUSE_LCP_REQ(signal);
   ndbassert(check_pause_state_sanity());
 }
 
@@ -3067,17 +3069,16 @@ void Dbdih::execPAUSE_LCP_CONF(Signal *signal)
 
   ndbrequire(isMaster());
   
-  if (c_pause_lcp_start_node != startNode)
+  if (!is_pause_for_this_node(startNode))
   {
     /* Ignore, node died in the process */
     jam();
     return;
   }
   ndbassert(check_pause_state_sanity());
-  ndbrequire(c_pause_lcp_requested);
   receiveLoopMacro(PAUSE_LCP_REQ, nodeId);
 
-  if (c_pauseAction == PauseLcpReq::Pause)
+  if (c_pause_lcp_master_state == PAUSE_LCP_REQUESTED)
   {
     jam();
     /**
@@ -3102,9 +3103,8 @@ void Dbdih::execPAUSE_LCP_CONF(Signal *signal)
      * new LCP can start until we are done with the copying and release the
      * fragment info mutex.
      */
-    c_pauseAction = PauseLcpReq::NoAction;
     ndbassert(check_pause_state_sanity());
-    start_copy_meta_data(signal);
+    check_for_pause_action(signal, StartLcpReq::PauseLcpStartFirst);
     return;
   }
   /**
@@ -3120,9 +3120,22 @@ void Dbdih::execPAUSE_LCP_CONF(Signal *signal)
    * stop pause and receiving the last PAUSE_LCP_CONF.
    */
   jam();
-  ndbrequire(c_pauseAction == PauseLcpReq::UnPauseIncludeInLcp ||
-             c_pauseAction == PauseLcpReq::UnPauseNotIncludeInLcp);
-  end_pause(signal, c_pauseAction);
+  ndbrequire(c_pause_lcp_master_state == PAUSE_NOT_IN_LCP_UNPAUSE ||
+             c_pause_lcp_master_state == PAUSE_IN_LCP_UNPAUSE);
+  if (c_pause_lcp_master_state == PAUSE_NOT_IN_LCP_UNPAUSE)
+  {
+    jam();
+    end_pause(signal, PauseLcpReq::UnPauseNotIncludedInLcp);
+  }
+  else if (c_pause_lcp_master_state == PAUSE_IN_LCP_UNPAUSE)
+  {
+    jam();
+    end_pause(signal, PauseLcpReq::UnPauseIncludedInLcp);
+  }
+  else
+  {
+    ndbrequire(false);
+  }
   dihCopyCompletedLab(signal);
 }
 
@@ -3182,16 +3195,7 @@ void Dbdih::pause_lcp(Signal *signal,
    * after we already received NODE_FAILREP we need to ensure that we
    * don't proceed since this will cause havoc.
    */
-  if (isMaster())
-  {
-    if (c_pause_lcp_start_node != startNode)
-    {
-      jam();
-      /* Ignore, node already died */
-      return;
-    }
-  }
-  else
+  if (!isMaster())
   {
     /**
      * We should come here after getting permit to start node, but before
@@ -3210,14 +3214,14 @@ void Dbdih::pause_lcp(Signal *signal,
     }
     /**
      * Verify that the master isn't starting PAUSE protocol for old nodes
-     * that doesn't the PAUSE LCP protocol. We make it an assert mostly
-     * to find bugs early on, a proper handling would probably be to
-     * shoot down the master node.
+     * that doesn't support the PAUSE LCP protocol. We make it an assert mostly
+     * to find bugs early on, a proper handling would probably be to shoot
+     * down the master node.
      */
     ndbassert(getNodeInfo(startNode).m_version >= NDBD_SUPPORT_PAUSE_LCP);
   }
 
-  c_pause_lcp_reference = sender_ref;
+  ndbrequire(sender_ref == cmasterdihref);
   if (c_dequeue_lcp_rep_ongoing)
   {
     jam();
@@ -3226,7 +3230,6 @@ void Dbdih::pause_lcp(Signal *signal,
      */
     c_dequeue_lcp_rep_ongoing = false;
   }
-  c_lcp_paused = true;
   c_pause_lcp_start_node = startNode;
 
   /**
@@ -3247,46 +3250,61 @@ void Dbdih::pause_lcp(Signal *signal,
   ndbassert(check_pause_state_sanity());
 }
 
-void Dbdih::check_for_pause_action(Signal *signal)
+void Dbdih::check_for_pause_action(Signal *signal,
+                                   StartLcpReq::PauseStart pauseStart)
 {
-  if (c_lcp_paused)
+  ndbrequire(is_lcp_paused());
+  if (!check_if_lcp_idle())
   {
-    if (!check_if_lcp_idle())
+    jam();
+    /**
+     * A next step when we have paused the LCP execution is to get the
+     * starting node active in the LCP handling. This means we need to send
+     * START_LCP_REQ to the node. We won't track the reply here since a
+     * missing reply is due to a crashed node and then the node failure
+     * handling will ensure that the LCP is restarted and that the pause of
+     * the LCP is unpaused.
+     * (A test case for this is needed).
+     *
+     * At this point in time we have stalled all activity in the LCP.
+     * This means that the bit maps on participating LQHs and DIHs is
+     * stable, it also means that the bit maps for which LQHs and DIHs
+     * that have completed is also stable (we have stopped LCP_COMPLETE_REP
+     * to pass through in all nodes). There might be LQHs and DIHs that
+     * have already completed and we need this information to also be
+     * transferred to the starting node for it to be able to complete
+     * the LCP processing properly.
+     *
+     * This means we actually have to send two signals with all four
+     * bitmaps. After these signals have been sent over we will
+     * be ready to copy the meta data and after that to unpause and
+     * complete this LCP with the starting node as a new participant.
+     *
+     * It is vital to send this information before we copy the meta
+     * data since the m_participatingLQH bitmap is needed to set
+     * the lcpOngoing flag on the replicas set correctly.
+     */
+    StartLcpReq* req = (StartLcpReq*)signal->getDataPtrSend();
+    BlockReference ref = calcDihBlockRef(c_nodeStartMaster.startNode);
+    req->senderRef = reference();
+    req->lcpId = SYSFILE->latestLCP_ID;
+    req->pauseStart = pauseStart;
+    if (pauseStart == StartLcpReq::PauseLcpStartFirst)
     {
       jam();
-      /**
-       * A final step when we have paused the LCP execution is to get the
-       * starting node active in the LCP handling. This means we need to send
-       * START_LCP_REQ to the node. We won't track the reply here since a
-       * missing reply is due to a crashed node and then the node failure
-       * handling will ensure that the LCP is restarted and that the pause of
-       * the LCP is unpaused.
-       * (A test case for this is needed).
-       *
-       * At this point in time we have stalled all activity in the LCP.
-       * This means that the bit maps on participating LQHs and DIHs is
-       * stable, it also means that the bit maps for which LQHs and DIHs
-       * that have completed is also stable (we have stopped LCP_COMPLETE_REP
-       * to pass through in all nodes). There might be LQHs and DIHs that
-       * have already completed and we need this information to also be
-       * transferred to the starting node for it to be able to complete
-       * the LCP processing properly.
-       *
-       * This means we actually have to send two signals with all four
-       * bitmaps. After these signals have been sent over we will
-       * be ready to unpause and complete this LCP with the starting node
-       * as a new participant.
-       */
-      StartLcpReq* req = (StartLcpReq*)signal->getDataPtrSend();
-      BlockReference ref = calcDihBlockRef(c_nodeStartMaster.startNode);
-      req->senderRef = reference();
-      req->lcpId = SYSFILE->latestLCP_ID;
+      ndbrequire(c_pause_lcp_master_state == PAUSE_LCP_REQUESTED);
+      c_pause_lcp_master_state = PAUSE_START_LCP_INCLUSION;
       req->participatingLQH = c_lcpState.m_participatingLQH;
       req->participatingDIH = c_lcpState.m_participatingDIH;
-      req->pauseStart = 1;
       sendSignal(ref, GSN_START_LCP_REQ, signal,
                  StartLcpReq::SignalLength, JBB);
+    }
+    else
+    {
       bool found = false;
+      ndbrequire(pauseStart == StartLcpReq::PauseLcpStartSecond);
+      ndbrequire(c_pause_lcp_master_state == PAUSE_IN_LCP_COPY_META_DATA);
+      c_pause_lcp_master_state = PAUSE_COMPLETE_LCP_INCLUSION;
       req->participatingLQH.clear();
       for (Uint32 nodeId = 1; nodeId < MAX_NDB_NODES; nodeId++)
       {
@@ -3302,39 +3320,48 @@ void Dbdih::check_for_pause_action(Signal *signal)
        * LCP_FRAG_REP yet received.
        */
       ndbrequire(found);
-      req->pauseStart = 2;
       sendSignal(ref, GSN_START_LCP_REQ, signal,
                  StartLcpReq::SignalLength, JBB);
       return;
+    }
+  }
+  else
+  {
+    if (pauseStart == StartLcpReq::PauseLcpStartFirst)
+    {
+      jam();
+      /**
+       * The LCP completed while we paused, no need to prepare the starting
+       * node for inclusion into the LCP protocol since we will continue
+       * with the node restart immediately after completing the copy of the
+       * meta data and the unpause action.
+       */
+      ndbrequire(c_pause_lcp_master_state == PAUSE_LCP_REQUESTED);
+      c_pause_lcp_master_state = PAUSE_NOT_IN_LCP_COPY_META_DATA;
+      start_copy_meta_data(signal);
     }
     else
     {
       jam();
       /**
-       * The LCP completed while we paused, this could happen as a consequence
-       * of signals arriving from other DIHs that was sent before the pause
-       * arrived in the node. So when we receive PAUSE_LCP_CONF we know if
-       * this is the case, but we won't take any action to start a new LCP
-       * until we have unpaused.
+       * The LCP completed while we paused and we have now copied the meta
+       * data over. We are ready to unpause and need not include the new
+       * node into the LCP protocol this time.
        */
+      ndbrequire(pauseStart == StartLcpReq::PauseLcpStartSecond);
+      ndbrequire(c_pause_lcp_master_state == PAUSE_NOT_IN_LCP_COPY_META_DATA);
       sendPAUSE_LCP_REQ(signal, false);
-      return;
     }
+    return;
   }
-  jam();
-  /**
-   * We didn't start up any PAUSE LCP protocol, so we can proceed immediately
-   * to the next step in the start process.
-   */
-  dihCopyCompletedLab(signal);
-  return;
 }
+
 void Dbdih::unpause_lcp(Signal *signal,
                         Uint32 startNode,
                         BlockReference sender_ref,
                         PauseLcpReq::PauseAction pauseAction)
 {
-  if (c_pause_lcp_start_node != startNode)
+  if (!is_pause_for_this_node(startNode))
   {
     jam();
     /* Ignore, node already died */
@@ -3350,7 +3377,7 @@ void Dbdih::unpause_lcp(Signal *signal,
   PauseLcpConf *conf = (PauseLcpConf*)signal->getDataPtrSend();
   conf->senderRef = reference();
   conf->startNodeId = startNode;
-  sendSignal(c_pause_lcp_reference, GSN_PAUSE_LCP_CONF, signal,
+  sendSignal(cmasterdihref, GSN_PAUSE_LCP_CONF, signal,
              PauseLcpConf::SignalLength, JBB);
 
   if (isMaster())
@@ -3368,7 +3395,7 @@ void Dbdih::unpause_lcp(Signal *signal,
 void Dbdih::end_pause(Signal *signal,
                       PauseLcpReq::PauseAction pauseAction)
 {
-  if (pauseAction == PauseLcpReq::UnPauseIncludeInLcp)
+  if (pauseAction == PauseLcpReq::UnPauseIncludedInLcp)
   {
     jam();
     c_lcpState.m_participatingDIH.set(c_pause_lcp_start_node);
@@ -3378,14 +3405,15 @@ void Dbdih::end_pause(Signal *signal,
 
 void Dbdih::stop_pause(Signal *signal)
 {
-  c_lcpState.m_pause_participants.clear();
-  c_pause_lcp_requested = false;
+  if (isMaster())
+  {
+    jam();
+    c_pause_participants.clear();
+    c_pause_lcp_master_state = PAUSE_LCP_IDLE;
+  }
   c_pause_lcp_start_node = RNIL;
-  c_pauseAction = PauseLcpReq::NoAction;
   ndbrequire(!c_dequeue_lcp_rep_ongoing);
-  c_lcp_paused = false;
   c_dequeue_lcp_rep_ongoing = true;
-  c_pause_lcp_reference = 0;
   ndbassert(check_pause_state_sanity());
   dequeue_lcp_rep(signal);
 }
@@ -3538,7 +3566,7 @@ void Dbdih::execFLUSH_LCP_REP_CONF(Signal *signal)
   Uint32 nodeId = refToNode(conf->senderRef);
   Uint32 startNode = conf->startNodeId;
 
-  if (c_pause_lcp_start_node != startNode)
+  if (!is_pause_for_this_node(startNode))
   {
     /* Ignore, node died in the process */
     jam();
@@ -3548,12 +3576,11 @@ void Dbdih::execFLUSH_LCP_REP_CONF(Signal *signal)
   receiveLoopMacro(FLUSH_LCP_REP_REQ, nodeId);
   {
     jam();
-    ndbrequire(c_pause_lcp_reference == cmasterdihref);
    /* Normal path, master is still alive */
     PauseLcpConf *conf = (PauseLcpConf*)signal->getDataPtrSend();
     conf->senderRef = reference();
     conf->startNodeId = startNode;
-    sendSignal(c_pause_lcp_reference, GSN_PAUSE_LCP_CONF, signal,
+    sendSignal(cmasterdihref, GSN_PAUSE_LCP_CONF, signal,
                PauseLcpConf::SignalLength, JBB);
   }
   ndbassert(check_pause_state_sanity());
@@ -3745,37 +3772,39 @@ void Dbdih::lcpBlockedLab(Signal* signal, Uint32 nodeId, Uint32 retVal)
   ndbrequire(retVal == 0); // Mutex error
   ndbrequire(getNodeStatus(c_nodeStartMaster.startNode)==NodeRecord::STARTING);
 
-  if (c_lcp_runs_with_pause_support &&
-      getNodeInfo(c_nodeStartMaster.startNode).m_version >=
-      NDBD_SUPPORT_PAUSE_LCP)
-  {
-    /**
-     * All nodes running the LCP supports the PAUSE LCP protocol. Also the new
-     * node support it.
-     * This means we don't have to wait for the LCP to complete, we can pause
-     * the LCP while we are copying the meta data.
-     */
-    jam();
-    sendPAUSE_LCP_REQ(signal, true);
-    return;
-  }
   if (c_lcp_runs_with_pause_support)
   {
-    jam();
-    /**
-     * We can only come here trying to start an old version with a master of
-     * a new version. In this case we cannot use the PAUSE LCP protocol since
-     * the new node can only handle copying of meta data outside the LCP
-     * protocol.
-     *
-     * We come here holding the Fragment Info mutex. We will keep this mutex
-     * and this means that a new LCP cannot start. We also set an indicator
-     * to ensure that the LCP finish will know that we're waiting to copy
-     * the data.
-     */
-    ndbrequire(!c_old_node_waiting_for_lcp_end);
-    c_old_node_waiting_for_lcp_end = true;
-    return;
+    if (getNodeInfo(c_nodeStartMaster.startNode).m_version >=
+        NDBD_SUPPORT_PAUSE_LCP)
+    {
+      /**
+       * All nodes running the LCP supports the PAUSE LCP protocol. Also the
+       * new node support it.
+       * This means we don't have to wait for the LCP to complete, we can
+       * pause the LCP while we are copying the meta data.
+       */
+      jam();
+      sendPAUSE_LCP_REQ(signal, true);
+      return;
+    }
+    else
+    {
+      jam();
+      /**
+       * We can only come here trying to start an old version with a master of
+       * a new version. In this case we cannot use the PAUSE LCP protocol since
+       * the new node can only handle copying of meta data outside the LCP
+       * protocol.
+       *
+       * We come here holding the Fragment Info mutex. We will keep this mutex
+       * and this means that a new LCP cannot start. We also set an indicator
+       * to ensure that the LCP finish will know that we're waiting to copy
+       * the data.
+       */
+      ndbrequire(!c_old_node_waiting_for_lcp_end);
+      c_old_node_waiting_for_lcp_end = true;
+      return;
+    }
   }
   /**
    * Either we don't support the PAUSE protocol or some other node doesn't. We 
@@ -9050,7 +9079,7 @@ void Dbdih::execNODE_FAILREP(Signal* signal)
   }//if
 #endif
 
-  if (c_lcp_paused)
+  if (is_lcp_paused())
   {
     /**
      * Stop any LCP pausing, a node has crashed, this implies that also the
@@ -15406,14 +15435,13 @@ void Dbdih::execSTART_LCP_REQ(Signal* signal)
   if (getNodeInfo(refToNode(req->senderRef)).m_version >=
       NDBD_SUPPORT_PAUSE_LCP)
   {
-    if (req->pauseStart == 1)
+    if (req->pauseStart == StartLcpReq::PauseLcpStartFirst)
     {
       /**
        * The message was sent as part of start of LCPs when PAUSE LCP was used.
-       * We have already performed initialisation of the LCP data while copying
-       * the table. Since we are not at this moment part of the pause LCP
-       * handling we will add ourselves to the bitmap of the DIH participants
-       * in the LCP.
+       * We have paused the LCP protocol and we are preparing to copy the
+       * meta data. Before copying the metadata we need access to the
+       * m_participatingLQH bitmap of nodes participating in the LCP.
        */
       jam();
       ndbrequire(cmasterdihref == req->senderRef);
@@ -15422,19 +15450,39 @@ void Dbdih::execSTART_LCP_REQ(Signal* signal)
       c_lcpState.m_participatingLQH = req->participatingLQH;
       c_lcpState.m_masterLcpDihRef = cmasterdihref;
       c_lcpState.setLcpStatus(LCP_STATUS_ACTIVE, __LINE__);
+
+      {
+        char buf[100];
+        g_eventLogger->info("c_lcpState.m_participatingLQH bitmap= %s",
+            c_lcpState.m_participatingLQH.getText(buf));
+        g_eventLogger->info("c_lcpState.m_participatingDIH bitmap= %s",
+            c_lcpState.m_participatingDIH.getText(buf));
+      }
+
       ndbrequire(!req->participatingDIH.get(getOwnNodeId()));
       c_lcpState.m_participatingDIH.set(getOwnNodeId());
+
+      StartLcpConf * conf = (StartLcpConf*)signal->getDataPtrSend();
+      conf->senderRef = reference();
+      sendSignal(c_lcpState.m_masterLcpDihRef, GSN_START_LCP_CONF, signal,
+                 StartLcpConf::SignalLength, JBB);
       return;
     }
-    if (req->pauseStart == 2)
+    if (req->pauseStart == StartLcpReq::PauseLcpStartSecond)
     {
       /**
        * We get the set of already completed LQHs from the master node.
        * No need to know anything about completed DIHs since only the
        * master keeps this information.
+       *
+       * This signal arrives after copying the meta data. Since we are
+       * included into the LCP we verify that there is at least one
+       * fragment replica that still hasn't arrived being ready with
+       * the LCP execution.
        */
       jam();
       ndbrequire(c_lcpState.lcpStatus == LCP_STATUS_ACTIVE);
+      ndbrequire(cmasterdihref == req->senderRef);
       ndbrequire(c_lcpState.m_masterLcpDihRef == cmasterdihref);
       c_lcpState.m_LCP_COMPLETE_REP_Counter_LQH = req->participatingLQH;
       c_lcpState.m_LCP_COMPLETE_REP_Counter_DIH.clearWaitingFor();
@@ -15448,12 +15496,14 @@ void Dbdih::execSTART_LCP_REQ(Signal* signal)
           c_lcpState.m_LCP_COMPLETE_REP_Counter_LQH.getText());
 
       ndbrequire(!checkLcpAllTablesDoneInLqh(__LINE__));
+
       StartLcpConf * conf = (StartLcpConf*)signal->getDataPtrSend();
       conf->senderRef = reference();
       sendSignal(c_lcpState.m_masterLcpDihRef, GSN_START_LCP_CONF, signal,
                  StartLcpConf::SignalLength, JBB);
       return;
     }
+    ndbrequire(req->pauseStart == StartLcpReq::NormalLcpStart);
   }
   /**
    * Init m_local_lcp_state
@@ -17101,7 +17151,23 @@ void Dbdih::copyNodeLab(Signal* signal, Uint32 tableId)
     }//if
   }//while
   jam();
-  check_for_pause_action(signal);
+  if (is_lcp_paused())
+  {
+    jam();
+    /**
+     * Copying is done, we now need to tell the starting node about the
+     * already completed LQHs and to ensure that the starting node
+     * verifies that the copy was correct.
+     */
+    check_for_pause_action(signal, StartLcpReq::PauseLcpStartSecond);
+    return;
+  }
+  else
+  {
+    jam();
+    dihCopyCompletedLab(signal);
+    return;
+  }
 }//Dbdih::copyNodeLab()
 
 void Dbdih::tableCopyNodeLab(Signal* signal, TabRecordPtr tabPtr) 
@@ -17778,7 +17844,7 @@ Dbdih::startLcpMutex_locked(Signal* signal, Uint32 senderData, Uint32 retVal){
   req->lcpId = SYSFILE->latestLCP_ID;
   req->participatingLQH = c_lcpState.m_participatingLQH;
   req->participatingDIH = c_lcpState.m_participatingDIH;
-  req->pauseStart = 0; /* Normal LCP start */
+  req->pauseStart = StartLcpReq::NormalLcpStart; /* Normal LCP start */
   sendLoopMacro(START_LCP_REQ, sendSTART_LCP_REQ, RNIL);
 }
 
@@ -17807,23 +17873,38 @@ Dbdih::execSTART_LCP_CONF(Signal* signal)
   
   Uint32 nodeId = refToNode(conf->senderRef);
 
-  if (c_lcp_paused)
+  if (is_lcp_paused())
   {
-    jam();
-    /**
-     * We have completed including the starting node into the LCP
-     * and we have completed copying the meta data. We can now
-     * start the unpause actions and proceed with the LCP again.
-     * As soon as this is done we can also proceed with the next
-     * step in the node restart process.
-     * 
-     * We come here as part of starting up a new starting node, so
-     * we don't come here as part of a normal LCP start. So the
-     * bitmap for outstanding signals we should not use since we
-     * haven't set it up in this case.
-     */
-    sendPAUSE_LCP_REQ(signal, false);
-    return;
+    ndbrequire(isMaster());
+    if (c_pause_lcp_master_state == PAUSE_START_LCP_INCLUSION)
+    {
+      jam();
+      /**
+       * We have completed including the starting node into the LCP.
+       * We now need to copy the meta data.
+       * 
+       * We come here as part of starting up a new starting node, so
+       * we don't come here as part of a normal LCP start. So the
+       * bitmap for outstanding signals we should not use since we
+       * haven't set it up in this case.
+       */
+      c_pause_lcp_master_state = PAUSE_IN_LCP_COPY_META_DATA;
+      start_copy_meta_data(signal);
+      return;
+    }
+    else
+    {
+      jam();
+      ndbrequire(c_pause_lcp_master_state == PAUSE_COMPLETE_LCP_INCLUSION);
+      /**
+       * We have completed copying the meta data and now we have also
+       * completed the inclusion of the new node into the LCP protocol.
+       * We are now ready to continue to the next stage of the node
+       * restart handling for the starting node.
+       */
+      sendPAUSE_LCP_REQ(signal, false);
+      return;
+    }
   }
   receiveLoopMacro(START_LCP_REQ, nodeId);
 
@@ -18110,7 +18191,7 @@ void Dbdih::execLCP_FRAG_REP(Signal* signal)
      */
     lcpReport->nodeId = getOwnNodeId();
 
-    if (c_lcp_paused || c_dequeue_lcp_rep_ongoing)
+    if (is_lcp_paused() || c_dequeue_lcp_rep_ongoing)
     {
       jam();
       /**
@@ -18821,8 +18902,7 @@ void Dbdih::execLCP_COMPLETE_REP(Signal* signal)
     ndbrequire(c_last_id_lcp_complete_rep != rep->lcpId ||
                c_last_id_lcp_complete_rep == RNIL);
     c_last_id_lcp_complete_rep = rep->lcpId;
-    if (c_last_id_lcp_complete_rep == rep->lcpId)
-    if (c_lcp_paused || c_dequeue_lcp_rep_ongoing)
+    if (is_lcp_paused() || c_dequeue_lcp_rep_ongoing)
     {
       jam();
       /**
@@ -21806,8 +21886,20 @@ void Dbdih::updateLcpInfo(TabRecord *regTabPtr,
     jam();
     Uint32 lastLcpNo = prevLcpNo(regReplicaPtr->nextLcp);
     if (c_lcp_id_while_copy_meta_data != RNIL &&
-        regReplicaPtr->lcpId[lastLcpNo] < c_lcp_id_while_copy_meta_data)
+        regReplicaPtr->lcpId[lastLcpNo] < c_lcp_id_while_copy_meta_data &&
+        c_lcpState.m_participatingLQH.get(regReplicaPtr->procNode))
     {
+      /**
+       * If the copy table indicating that the table is participating in
+       * an LCP, if the fragment replica hasn't performed this LCP yet,
+       * and the replica node is participating in the LCP at hand now.
+       *
+       * This code executes in the starting node after the LCP being
+       * paused and we are included into the LCP protocol immediately
+       * after copying the meta data. We received the bitmap of
+       * participating LCP nodes just before the copying of meta
+       * data started.
+       */
       jam();
       regReplicaPtr->lcpOngoingFlag = true;
       regFragPtr->noLcpReplicas++;
@@ -23496,17 +23588,17 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
   }
   if (arg == DumpStateOrd::DihDisplayPauseState)
   {
-    infoEvent("Pause LCP ref: %x, c_lcp_paused %u,"
+    infoEvent("Pause LCP ref: %x, is_lcp_paused %u,"
               " c_dequeue_lcp_rep_ongoing %u",
-              c_pause_lcp_reference,
-              c_lcp_paused,
+              cmasterdihref,
+              is_lcp_paused(),
               c_dequeue_lcp_rep_ongoing);
-    infoEvent("c_pause_lcp_requested: %u, c_old_node_waiting_for_lcp_end: %u",
-              c_pause_lcp_requested,
+    infoEvent("c_pause_lcp_master_state: %u,"
+              " c_old_node_waiting_for_lcp_end: %u",
+              Uint32(c_pause_lcp_master_state),
               c_old_node_waiting_for_lcp_end);
-    infoEvent("c_pauseAction: %u, c_queued_lcp_complete_rep: %u,"
+    infoEvent("c_queued_lcp_complete_rep: %u,"
               " c_lcp_id_paused: %u",
-              Uint32(c_pauseAction),
               c_queued_lcp_complete_rep,
               c_lcp_id_paused);
     infoEvent("c_last_id_lcp_complete_rep: %u"
@@ -23525,8 +23617,8 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
       char buf[100];
       infoEvent("c_lcpState.m_participatingLQH: %s",
                 c_lcpState.m_participatingLQH.getText(buf));
-      infoEvent("c_lcpState.m_pause_participants: %s",
-                c_lcpState.m_pause_participants.getText(buf));
+      infoEvent("c_pause_participants: %s",
+                c_pause_participants.getText(buf));
     }
   }
 

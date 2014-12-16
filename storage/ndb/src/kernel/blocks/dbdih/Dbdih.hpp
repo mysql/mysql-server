@@ -999,7 +999,8 @@ private:
                    Uint32 startNode,
                    BlockReference sender_ref,
                    PauseLcpReq::PauseAction pauseAction);
-  void check_for_pause_action(Signal *signal);
+  void check_for_pause_action(Signal *signal,
+                              StartLcpReq::PauseStart pauseStart);
   void end_pause(Signal *signal, PauseLcpReq::PauseAction pauseAction);
   void stop_pause(Signal *signal);
   void handle_node_failure_in_pause(Signal *signal);
@@ -1015,32 +1016,106 @@ private:
   void check_pause_state_lcp_idle(void);
 
   /**
-   * Keep track of who sent the current pause lcp request. If this isn't the
-   * same as the master node, then the sender of the current pause has failed.
-   */
-  BlockReference c_pause_lcp_reference;
-
-  /**
    * This is only true when an LCP is running and it is running with
    * support for PAUSE LCP (all DIH nodes support it). Actually this
    * is set when we have passed the START_LCP_REQ step. After this
    * step we release the fragment info mutex if we can use the pause
    * lcp protocol with all nodes.
    */
-  bool c_lcp_runs_with_pause_support;
+  bool c_lcp_runs_with_pause_support; /* Master state */
+  bool c_old_node_waiting_for_lcp_end; /* Master state */
 
   /**
-   * When c_lcp_paused is true then c_dequeue_lcp_rep_ongoing is false.
-   * When c_lcp_paused is false then c_dequeue_lcp_rep_ongoing is true
+   * This is the state in the master that keeps track of where the master is 
+   * in the PAUSE LCP process. We can follow two different tracks in the
+   * state traversal.
+   *
+   * 1) When the starting node is included into the LCP as part of PAUSE LCP
+   *    handling. This is the expected outcome after pausing. The LCP didn't
+   *    complete while we were pausing. We need to be included into the LCP
+   *    here to ensure that the LCP state in the starting node is kept up to
+   *    date during the rest of the LCP.
+   *
+   * PAUSE_LCP_IDLE -> PAUSE_LCP_REQUESTED
+   * PAUSE_LCP_REQUESTED -> PAUSE_START_LCP_INCLUSION
+   * PAUSE_START_LCP_INCLUSION -> PAUSE_IN_LCP_COPY_META_DATA
+   * PAUSE_IN_LCP_COPY_META_DATA -> PAUSE_COMPLETE_LCP_INCLUSION
+   * PAUSE_COMPLETE_LCP_INCLUSION -> PAUSE_IN_LCP_UNPAUSE
+   * PAUSE_IN_LCP_UNPAUSE -> PAUSE_LCP_IDLE
+   *
+   * 2) When the starting node isn't included into the LCP as part of PAUSE
+   *    LCP handling. While we were pausing the LCP completed. Thus no need
+   *    to include the new node into the LCP since no more updates of the
+   *    LCP state will happen after the pause.
+   *
+   * PAUSE_LCP_IDLE -> PAUSE_LCP_REQUESTED
+   * PAUSE_LCP_REQUESTED -> PAUSE_NOT_IN_LCP_COPY_META_DATA
+   * PAUSE_NOT_IN_LCP_COPY_META_DATA -> PAUSE_NOT_IN_LCP_UNPAUSE
+   * PAUSE_NOT_IN_LCP_UNPAUSE -> PAUSE_LCP_IDLE
+   */
+  enum PauseLCPState
+  {
+    PAUSE_LCP_IDLE = 0,
+    PAUSE_LCP_REQUESTED = 1,
+    /* States to handle inclusion in LCP. */
+    PAUSE_START_LCP_INCLUSION = 2,
+    PAUSE_IN_LCP_COPY_META_DATA = 3,
+    PAUSE_COMPLETE_LCP_INCLUSION = 4,
+    PAUSE_IN_LCP_UNPAUSE = 5,
+    /* States to handle not included in LCP */
+    PAUSE_NOT_IN_LCP_COPY_META_DATA = 6,
+    PAUSE_NOT_IN_LCP_UNPAUSE = 7
+  };
+  PauseLCPState c_pause_lcp_master_state;
+
+  /**
+   * Bitmask of nodes that we're expecting a PAUSE_LCP_CONF response from.
+   * This bitmask is cleared if the starting node dies (or for that matter
+   * if any node dies since this will cause the starting node to also fail).
+   * The PAUSE_LCP_REQ_Counter is only used in the master node.
+   */
+  SignalCounter c_PAUSE_LCP_REQ_Counter; /* Master state */
+
+  /**
+   * We need to keep track of the LQH nodes that participated in the PAUSE
+   * LCP request to ensure that we unpause the same set of nodes in the
+   * unpause request. If the LCP completes between as part of the pause
+   * request phase, then the m_participatingLQH bitmap will be cleared and
+   * we need this bitmap also to unpause the participants even if the
+   * LCP has completed to ensure that the pause state is reset. This variable
+   * is used to make sure that we retain this bitmap independent of what
+   * happens with the LCP.
+   */
+  NdbNodeBitmask c_pause_participants;
+
+  /**
+   * This variable states which is the node starting up that requires a
+   * pause of the LCP to copy the meta data during an ongoing LCP.
+   * If the node fails this variable is set to RNIL to indicate we no
+   * longer need to worry about signals handling this pause.
+   *
+   * This is also the state variable that says that pause lcp is ongoing
+   * in this participant.
+   */
+  Uint32 c_pause_lcp_start_node;
+
+  bool is_pause_for_this_node(Uint32 node)
+  {
+    return (node == c_pause_lcp_start_node);
+  }
+
+  /**
+   * When is_lcp_paused is true then c_dequeue_lcp_rep_ongoing is false.
+   * When is_lcp_paused is false then c_dequeue_lcp_rep_ongoing is true
    * until we have dequeued all queued requests. Requests will be
    * queued as long as either of them are true to ensure that we keep
    * the order of signals.
    */
-  bool c_lcp_paused;
+  bool is_lcp_paused()
+  {
+    return (c_pause_lcp_start_node != RNIL);
+  }
   bool c_dequeue_lcp_rep_ongoing;
-
-  bool c_pause_lcp_requested;
-  bool c_old_node_waiting_for_lcp_end;
 
   /**
    * Last LCP id we heard LCP_COMPLETE_REP from local LQH. We record this
@@ -1048,13 +1123,6 @@ private:
    * LQH.
    */
   Uint32 c_last_id_lcp_complete_rep;
-  /**
-   * While we have outstanding PAUSE_LCP_REQ signals, c_pauseAction
-   * tells us whether the outstanding action is pause or unpause.
-   * In all other occasions it is set to NoAction.
-   */
-  PauseLcpReq::PauseAction c_pauseAction;
-
   bool c_queued_lcp_complete_rep;
 
   /**
@@ -1067,25 +1135,13 @@ private:
    * We set the LCP Id when receiving COPY_TABREQ to be used in the
    * updateLcpInfo routine.
    */
-  Uint32 c_lcp_id_while_copy_meta_data;
+  Uint32 c_lcp_id_while_copy_meta_data; /* State in starting node */
 
   /**
-   * This variable states which is the node starting up that requires a
-   * pause of the LCP to copy the meta data during an ongoing LCP.
-   * If the node fails this variable is set to RNIL to indicate we no
-   * longer need to worry about signals handling this pause.
+   * A bitmap for outstanding FLUSH_LCP_REP_REQ messages to know
+   * when all nodes have sent their reply. This bitmap is used in all nodes
+   * that receive the PAUSE_LCP_REQ request.
    */
-  Uint32 c_pause_lcp_start_node;
-
-  /**
-   * Bitmask of nodes that we're expecting a PAUSE_LCP_CONF response from.
-   * This bitmask is cleared if the starting node dies (or for that matter
-   * if any node dies since this will cause the starting node to also fail).
-   * The PAUSE_LCP_REQ_Counter is only used in the master node.
-   * Similarly a bitmask for outstanding FLUSH_LCP_REP_REQ messages to know
-   * when all nodes have sent their reply.
-   */
-  SignalCounter c_PAUSE_LCP_REQ_Counter;
   SignalCounter c_FLUSH_LCP_REP_REQ_Counter;
   /* LCP Pausing module end   */
 
@@ -2116,7 +2172,6 @@ private:
     SignalCounter m_LAST_LCP_FRAG_ORD;
     NdbNodeBitmask m_participatingLQH;
     NdbNodeBitmask m_participatingDIH;
-    NdbNodeBitmask m_pause_participants;
     
     Uint32 m_masterLcpDihRef;
     bool   m_MASTER_LCPREQ_Received;
