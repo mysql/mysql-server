@@ -112,12 +112,6 @@ SET(NDBCLUSTER_SOURCES
 # Include directories used when building ha_ndbcluster
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/include)
 
-IF(NOT MYSQL_CLUSTER_VERSION)
- # The function 'make_db_list' is not available in non
- # MySQL Cluster version yet, compile ndbcluster without it
- ADD_DEFINITIONS(-DNDB_WITHOUT_MAKE_DB_LIST)
-ENDIF()
-
 # NDB is DEFAULT plugin in MySQL Cluster
 SET(is_default_plugin "")
 OPTION(WITH_NDB_DEFAULT_PLUGIN_DETECT
