@@ -2909,7 +2909,7 @@ TransporterFacade::reset_send_buffer(NodeId node, bool should_be_empty)
     }
   }
 
-  if (likely(!m_send_buffers[node].is_locked_send()))
+  if (likely(m_send_buffers[node].try_lock_send()))
   {
     TFBuffer *b = &m_send_buffers[node].m_out_buffer;
     if (b->m_head != 0)
@@ -2919,6 +2919,7 @@ TransporterFacade::reset_send_buffer(NodeId node, bool should_be_empty)
       b->clear();
     }
     m_send_buffers[node].m_reset = false;
+    m_send_buffers[node].unlock_send();
   }
   else
   {
