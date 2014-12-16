@@ -2918,31 +2918,39 @@ class Ndb_schema_event_handler {
     DBUG_PRINT("info", ("Looking for files in directory %s", dbname));
     List<LEX_STRING> files;
     char path[FN_REFLEN + 1];
-    THD* thd= current_thd;
-    ulong col_access= thd->col_access;
 
     /*
-      Allow injector thread to read all tables.
-      This is needed to be able to find all tables
-      when calling find_files.
+      The schema distribution participant has full permissions
+      to drop or create any database. When determining if a database
+      should be dropped on participating mysqld it will thus need
+      full permissions also when listing the tables in the database.
+      Such permission is controlled by the "magic" THD::col_access variable
+      and need to be set high enough so that find_files() returns all
+      files in the database(without checking any grants).
+
+      Without full permission no tables would  be returned for databases
+      which have special access rights(like performance_schema and
+      information_schema). Those would thus appear empty and a faulty
+      decision to drop them would be taken.
+
+      Fix by setting the "magic" THD::col_access member in order to skip
+      the access control check in find_files().
     */
-    thd->col_access&= TABLE_ACLS;
+    const ulong saved_col_access= m_thd->col_access;
+    assert(sizeof(saved_col_access) == sizeof(m_thd->col_access));
+    m_thd->col_access|= TABLE_ACLS;
 
     build_table_filename(path, sizeof(path) - 1, dbname, "", "", 0);
     if (find_files(m_thd, &files, dbname, path, NullS, 0) != FIND_FILES_OK)
     {
       m_thd->clear_error();
       DBUG_PRINT("info", ("Failed to find files"));
-      /*
-	Reset column access rights to default
-      */
-      thd->col_access= col_access;
+      // Restore column access rights
+      m_thd->col_access= saved_col_access;
       DBUG_RETURN(true);
     }
-    /*
-      Reset column access rights to default
-    */
-    thd->col_access= col_access;
+    // Restore column access rights
+    m_thd->col_access= saved_col_access;
     DBUG_PRINT("info",("found: %d files", files.elements));
 
     LEX_STRING *tabname;
