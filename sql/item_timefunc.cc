@@ -1488,10 +1488,9 @@ String *Item_temporal_func::val_str(String *str)
 bool Item_func_from_days::get_date(MYSQL_TIME *ltime, ulonglong fuzzy_date)
 {
   longlong value=args[0]->val_int();
-  if (args[0]->null_value)
-    return (null_value= 1);
-  if ((fuzzy_date & TIME_NO_ZERO_DATE) && value == 0)
-    return (null_value= 1);
+  if ((null_value= (args[0]->null_value ||
+                    ((fuzzy_date & TIME_NO_ZERO_DATE) && value == 0))))
+    return true;
   bzero(ltime, sizeof(MYSQL_TIME));
   if (get_date_from_daynr((long) value, &ltime->year, &ltime->month,
                           &ltime->day))
