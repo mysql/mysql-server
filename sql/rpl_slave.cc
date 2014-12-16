@@ -1388,8 +1388,6 @@ int terminate_slave_threads(Master_info* mi, int thread_mask,
       }
       DBUG_RETURN(error);
     }
-    delete mi->rli->current_mts_submode;
-    mi->rli->current_mts_submode= 0;
     mysql_mutex_lock(log_lock);
 
     DBUG_PRINT("info",("Flushing relay-log info file."));
@@ -6546,6 +6544,9 @@ end:
   rli->deinit_workers();
   rli->workers_array_initialized= false;
   rli->slave_parallel_workers= 0;
+  delete rli->current_mts_submode;
+  rli->current_mts_submode= 0;
+
   *mts_inited= false;
 }
 
@@ -6598,20 +6599,10 @@ pthread_handler_t handle_slave_sql(void *arg)
   thd_set_psi(rli->info_thd, psi);
   #endif
 
- /*
-  Create Mts Submode.
-  It is possible that we may not have deleted the last MTS submode in case
-  terminate_slave_threads() returned with ER_STOP_SLAVE_SQL_THREAD_TIMEOUT
-  while stopping the slave in the previous slave session.
- */
- if (rli->current_mts_submode)
-   delete rli->current_mts_submode;
-
- if (mts_parallel_option != MTS_PARALLEL_TYPE_DB_NAME)
-   rli->current_mts_submode= new Mts_submode_logical_clock();
- else
-   rli->current_mts_submode= new Mts_submode_database();
-
+  if (mts_parallel_option != MTS_PARALLEL_TYPE_DB_NAME)
+    rli->current_mts_submode= new Mts_submode_logical_clock();
+  else
+    rli->current_mts_submode= new Mts_submode_database();
 
   if (opt_slave_preserve_commit_order && rli->opt_slave_parallel_workers > 0 &&
       opt_bin_log && opt_log_slave_updates)
