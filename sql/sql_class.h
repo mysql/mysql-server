@@ -53,6 +53,7 @@
 
 #include "transaction_info.h"
 #include <memory>
+#include "rpl_context.h"
 
 #include "auth/sql_security_ctx.h"   // Security_context
 
@@ -115,6 +116,13 @@ enum enum_binlog_row_image {
   /** All columns in both before and after image. */
   BINLOG_ROW_IMAGE_FULL= 2
 };
+
+enum enum_session_track_gtids {
+  OFF= 0,
+  OWN_GTID= 1,
+  ALL_GTIDS= 2
+};
+
 enum enum_binlog_format {
   BINLOG_FORMAT_MIXED= 0, ///< statement if safe, otherwise row - autodetected
   BINLOG_FORMAT_STMT=  1, ///< statement-based
@@ -564,6 +572,7 @@ typedef struct system_variables
 
   Gtid_specification gtid_next;
   Gtid_set_or_null gtid_next_list;
+  ulong session_track_gtids;
 
   ulong max_statement_time;
 
@@ -3319,6 +3328,14 @@ public:
     are owned by this thread.
   */
   Gtid_set owned_gtid_set;
+
+  /*
+   Replication related context.
+
+   @todo: move more parts of replication related fields in THD to inside this
+          class.
+  */
+  Rpl_thd_context rpl_thd_ctx;
 
   void clear_owned_gtids()
   {

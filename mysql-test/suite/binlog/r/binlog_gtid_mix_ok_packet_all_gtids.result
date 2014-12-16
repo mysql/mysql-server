@@ -1,0 +1,46 @@
+# ALL_GTIDS at startup: this must return GTID:1
+CREATE TABLE t1 (c1 INT) Engine=InnoDB;
+-- Tracker : SESSION_TRACK_GTIDS
+-- 00000000-1111-0000-1111-000000000000:1
+
+# ALL_GTIDS at startup: this must return GTID:1-2
+DROP TABLE t1;
+-- Tracker : SESSION_TRACK_GTIDS
+-- 00000000-1111-0000-1111-000000000000:1-2
+
+## ALL_GTIDS -> ALL_GTIDS : this must return GTID:1-2 ##
+SET SESSION session_track_gtids='ALL_GTIDS';
+SET SESSION session_track_gtids='ALL_GTIDS';
+-- Tracker : SESSION_TRACK_GTIDS
+-- 00000000-1111-0000-1111-000000000000:1-2
+
+## ALL_GTIDS -> OWN_GTID: this must return GTID:1-2 ##
+SET SESSION session_track_gtids='ALL_GTIDS';
+SET SESSION session_track_gtids='OWN_GTID';
+-- Tracker : SESSION_TRACK_GTIDS
+-- 00000000-1111-0000-1111-000000000000:1-2
+
+## ALL_GTIDS -> OFF : this must return GTID:1-2 ##
+SET SESSION session_track_gtids='ALL_GTIDS';
+SET SESSION session_track_gtids='OFF';
+-- Tracker : SESSION_TRACK_GTIDS
+-- 00000000-1111-0000-1111-000000000000:1-2
+
+## OWN_GTID -> ALL_GTIDS : this must return '' ##
+SET SESSION session_track_gtids='OWN_GTID';
+SET SESSION session_track_gtids='ALL_GTIDS';
+## OWN_GTID -> OWN_GTID: this must return '' ##
+SET SESSION session_track_gtids='OWN_GTID';
+SET SESSION session_track_gtids='OWN_GTID';
+## OWN_GTID -> OFF : this must return '' ##
+SET SESSION session_track_gtids='OWN_GTID';
+SET SESSION session_track_gtids='OFF';
+## OFF -> ALL_GTIDS : this must return '' ##
+SET SESSION session_track_gtids='OFF';
+SET SESSION session_track_gtids='ALL_GTIDS';
+## OFF -> OWN_GTID: this must return '' ##
+SET SESSION session_track_gtids='OFF';
+SET SESSION session_track_gtids='OWN_GTID';
+## OFF -> OFF : this must return '' ##
+SET SESSION session_track_gtids='OFF';
+SET SESSION session_track_gtids='OFF';
