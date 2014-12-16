@@ -6,6 +6,8 @@ DROP TABLE IF EXISTS `νένένέ`;
 DROP TABLE IF EXISTS `νήνήνή`;
 SET NAMES ujis;
 SET character_set_database = ucs2;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
 SET collation_connection = ucs2_general_ci;
 CREATE TABLE `±±±`(`···` char(5)) DEFAULT CHARSET = ucs2 engine=INNODB;
 CREATE TABLE `²²²`(`ΉΉΉ` char(5)) DEFAULT CHARSET = ucs2 engine=INNODB;

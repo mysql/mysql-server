@@ -2822,6 +2822,7 @@ DECLARE_THREAD(buf_flush_page_cleaner_coordinator)(
 		n_flushed = n_flushed_lru + n_flushed_list;
 
 		buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
+		buf_flush_wait_LRU_batch_end();
 
 	} while (!success || n_flushed > 0);
 

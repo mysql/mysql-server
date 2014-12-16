@@ -18,6 +18,8 @@ DROP TABLE IF EXISTS `£Ô£¹a`;
 DROP TABLE IF EXISTS `£Ô£¹b`;
 SET NAMES ujis;
 SET character_set_database = ujis;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
 CREATE TABLE `£Ô£±a` (`£Ã£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ujis engine = innodb;
 CREATE TABLE `£Ô£±b` (`£Ã£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ujis engine = innodb;
 CREATE TABLE `£Ô£²a` (`£Ã£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ujis engine = innodb;

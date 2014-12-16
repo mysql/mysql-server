@@ -23,6 +23,8 @@ show tables in `#mysql50#mysqltest-1`;
 Tables_in_#mysql50#mysqltest-1
 #mysql50#t-1
 t1
+WARNING: --fix-db-names is deprecated and will be removed in a future version
+WARNING: --fix-table-names is deprecated and will be removed in a future version
 show create database `mysqltest1`;
 Database	Create Database
 mysqltest1	CREATE DATABASE `mysqltest1` /*!40100 DEFAULT CHARACTER SET latin1 */
@@ -80,6 +82,8 @@ show databases like '%a-b-c%';
 Database (%a-b-c%)
 #mysql50#a-b-c
 ALTER DATABASE `#mysql50#a-b-c` UPGRADE DATA DIRECTORY NAME;
+Warnings:
+Warning	1681	'UPGRADE DATA DIRECTORY NAME' is deprecated and will be removed in a future release.
 show databases like '%a-b-c%';
 Database (%a-b-c%)
 a-b-c
@@ -102,6 +106,8 @@ show databases like '%a-b-c%';
 Database (%a-b-c%)
 #mysql50#a-b-c
 ALTER DATABASE `#mysql50#a-b-c` UPGRADE DATA DIRECTORY NAME;
+Warnings:
+Warning	1681	'UPGRADE DATA DIRECTORY NAME' is deprecated and will be removed in a future release.
 show databases like '%a-b-c%';
 Database (%a-b-c%)
 a-b-c

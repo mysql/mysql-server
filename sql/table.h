@@ -941,6 +941,30 @@ public:
 };
 
 
+/**
+  Flags for TABLE::status (maximum 8 bits). Do NOT add new ones.
+  @todo: GARBAGE and NOT_FOUND could be unified. UPDATED and DELETED could be
+  changed to "bool current_row_has_already_been_modified" in the
+  multi_update/delete objects (one such bool per to-be-modified table).
+  @todo aim at removing the status. There should be more local ways.
+*/
+#define STATUS_GARBAGE          1
+/**
+   Means we were searching for a row and didn't find it. This is used by
+   storage engines (@see handler::index_read_map()) and the Server layer.
+*/
+#define STATUS_NOT_FOUND        2
+/// Reserved for use by multi-table update. Means the row has been updated.
+#define STATUS_UPDATED          16
+/**
+   Means that table->null_row is set. This is an artificial NULL-filled row
+   (one example: in outer join, if no match has been found in inner table).
+*/
+#define STATUS_NULL_ROW         32
+/// Reserved for use by multi-table delete. Means the row has been deleted.
+#define STATUS_DELETED          64
+
+
 /* Information for one open table */
 enum index_hint_type
 {
@@ -1196,7 +1220,19 @@ private:
 public:
   uint max_keys; /* Size of allocated key_info array. */
 
-  REGINFO reginfo;			/* field connections */
+  struct /* field connections */
+  {
+    class JOIN_TAB *join_tab;
+    class QEP_TAB *qep_tab;
+    enum thr_lock_type lock_type;		/* How table is used */
+    bool not_exists_optimize;
+    /*
+      TRUE <=> range optimizer found that there is no rows satisfying
+      table conditions.
+    */
+    bool impossible_range;
+  } reginfo;
+
   /**
      @todo This member should not be declared in-line. That makes it
      impossible for any function that does memory allocation to take a const

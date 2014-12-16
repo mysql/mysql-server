@@ -9,6 +9,8 @@ drop table if exists `‚s‚W`;
 drop table if exists `‚s‚X`;
 SET NAMES sjis;
 SET character_set_database = sjis;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
 CREATE TABLE `‚s‚Pa` (`‚b‚P` char(1) PRIMARY KEY) DEFAULT CHARSET = sjis engine = innodb;
 CREATE TABLE `‚s‚Pb` (`‚b‚P` char(1) PRIMARY KEY) DEFAULT CHARSET = sjis engine = innodb;
 CREATE TABLE `‚s‚Qa` (`‚b‚P` char(1) PRIMARY KEY) DEFAULT CHARSET = sjis engine = innodb;
