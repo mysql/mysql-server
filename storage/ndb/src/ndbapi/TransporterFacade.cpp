@@ -593,7 +593,7 @@ void TransporterFacade::threadMainSend(void)
     do
     {
       all_empty = true;
-      for (Uint32 node = 0; node<MAX_NODES; node++)
+      for (Uint32 node = 1; node<MAX_NODES; node++)
       {
         struct TFSendBuffer * b = m_send_buffers + node;
         if (!b->m_node_active)
