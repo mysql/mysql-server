@@ -255,7 +255,7 @@ int
 Event_parse_data::init_interval(THD *thd)
 {
   String value;
-  INTERVAL interval_tmp;
+  Interval interval_tmp;
 
   DBUG_ENTER("Event_parse_data::init_interval");
   if (!item_expression)

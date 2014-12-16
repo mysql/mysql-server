@@ -522,13 +522,21 @@ flush logs;
 create table t1 (a varchar(64) character set utf8);
 load data infile '../../std_data/loaddata6.dat' into table t1;
 set character_set_database=koi8r;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
 load data infile '../../std_data/loaddata6.dat' into table t1;
 set character_set_database=latin1;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
 load data infile '../../std_data/loaddata6.dat' into table t1;
 load data infile '../../std_data/loaddata6.dat' into table t1;
 set character_set_database=koi8r;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
 load data infile '../../std_data/loaddata6.dat' into table t1;
 set character_set_database=latin1;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
 load data infile '../../std_data/loaddata6.dat' into table t1;
 load data infile '../../std_data/loaddata6.dat' into table t1 character set koi8r;
 select hex(a) from t1;

@@ -350,10 +350,8 @@ COUNT(*)	AsText(p1)
 1024	POINT(5 10)
 SELECT COUNT(*), AsText(p1) FROM gis_point WHERE Within(p1, @poly1) GROUP BY p1;
 COUNT(*)	AsText(p1)
-1024	POINT(2 4)
 1024	POINT(3 6)
 1024	POINT(4 8)
-1024	POINT(5 10)
 SELECT COUNT(*), AsText(p2) FROM gis_point WHERE ST_Contains(@poly2, p2) GROUP BY p2;
 COUNT(*)	AsText(p2)
 1024	POINT(-2 -6)
@@ -422,16 +420,12 @@ COUNT(*)	AsText(p1)	AsText(p2)
 SELECT COUNT(*), AsText(p1) FROM gis_point WHERE TOUCHES(@poly3, p1) AND Within(p2, @poly4) GROUP BY p1;
 COUNT(*)	AsText(p1)
 1024	POINT(20.5 41)
-14	POINT(20.5 43.9832)
 1024	POINT(32.1234 64.2468)
 SELECT COUNT(*), AsText(p2) FROM gis_point WHERE Within(p2, @poly2) GROUP BY p2;
 COUNT(*)	AsText(p2)
-1024	POINT(0 0)
-14	POINT(0 0)
 1024	POINT(-2 -6)
 1024	POINT(-3 -9)
 1024	POINT(-4 -12)
-1024	POINT(-5 -15)
 1024	POINT(-1 -3)
 1024	POINT(-1 -1)
 DROP TABLE p;
@@ -524,10 +518,8 @@ COUNT(*)	AsText(p1)
 1024	POINT(5 10)
 SELECT COUNT(*), AsText(p1) FROM gis_point WHERE Within(p1, @poly1) GROUP BY p1;
 COUNT(*)	AsText(p1)
-1024	POINT(2 4)
 1024	POINT(3 6)
 1024	POINT(4 8)
-1024	POINT(5 10)
 SELECT COUNT(*), AsText(p2) FROM gis_point WHERE ST_Contains(@poly2, p2) GROUP BY p2;
 COUNT(*)	AsText(p2)
 1024	POINT(-2 -6)

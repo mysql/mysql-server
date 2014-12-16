@@ -1061,7 +1061,7 @@ Geometry::wkbType Item_func_geomfromgeojson::get_wkbtype(const char *typestring)
 
 
 /**
-  Takes a GeoJSON CRS object as input and parses it into a SRID. 
+  Takes a GeoJSON CRS object as input and parses it into a SRID.
 
   If user has supplied a SRID, the parsing will be ignored.
 
@@ -1110,7 +1110,7 @@ parse_crs_object(const rapidjson::Value *crs_object)
   {
     return true;
   }
-  
+
   // Check that this CRS is a named CRS, and not a linked CRS.
   if (native_strcasecmp(type_member->value.GetString(),
                         NAMED_CRS) != 0)
@@ -1717,8 +1717,8 @@ public:
   }
 
   /*
-    Group polygons and multipolygons into a geometry collection. 
-  */ 
+    Group polygons and multipolygons into a geometry collection.
+  */
   Geometry_grouper(Gis_geometry_collection *out, String *gcbuf)
     :m_group(NULL), m_collection(out), m_gcbuf(gcbuf)
   {
@@ -2052,7 +2052,7 @@ bool Item_func_convex_hull::bg_convex_hull(const Geometry *geom,
       {
         /*
           A point's convex hull is the point itself, directly use the point's
-          WKB buffer, set its header info correctly. 
+          WKB buffer, set its header info correctly.
         */
         DBUG_ASSERT(geom->get_ownmem() == false &&
                     geom->has_geom_header_space());
@@ -2340,7 +2340,7 @@ String *Item_func_pointfromgeohash::val_str(String *str)
 
   if (str->mem_realloc(GEOM_HEADER_SIZE + POINT_DATA_SIZE))
     return make_empty_result();
-  
+
   if (geohash->length() == 0)
   {
     my_error(ER_WRONG_VALUE_FOR_TYPE, MYF(0), "geohash", geohash->c_ptr(),
@@ -2567,6 +2567,10 @@ const char *Item_func_spatial_mbr_rel::func_name() const
       return "mbrcrosses";
     case SP_OVERLAPS_FUNC:
       return "mbroverlaps";
+    case SP_COVERS_FUNC:
+      return "mbrcovers";
+    case SP_COVEREDBY_FUNC:
+      return "mbrcoveredby";
     default:
       DBUG_ASSERT(0);  // Should never happened
       return "mbrsp_unknown";
@@ -2595,29 +2599,61 @@ longlong Item_func_spatial_mbr_rel::val_int()
   if ((null_value= (g1->get_mbr(&mbr1) || g2->get_mbr(&mbr2))))
     return 0;
 
+  // The two geometry operands must be in the same coordinate system.
+  if (g1->get_srid() != g2->get_srid())
+  {
+    my_error(ER_GIS_DIFFERENT_SRIDS, MYF(0), func_name(),
+             g1->get_srid(), g2->get_srid());
+    null_value= true;
+    return 0;
+  }
+
+  int ret= 0;
+
   switch (spatial_rel) {
     case SP_CONTAINS_FUNC:
-      return mbr1.contains(&mbr2);
+      ret= mbr1.contains(&mbr2);
+      break;
     case SP_WITHIN_FUNC:
-      return mbr1.within(&mbr2);
+      ret= mbr1.within(&mbr2);
+      break;
     case SP_EQUALS_FUNC:
-      return mbr1.equals(&mbr2);
+      ret= mbr1.equals(&mbr2);
+      break;
     case SP_DISJOINT_FUNC:
-      return mbr1.disjoint(&mbr2);
+      ret= mbr1.disjoint(&mbr2);
+      break;
     case SP_INTERSECTS_FUNC:
-      return mbr1.intersects(&mbr2);
+      ret= mbr1.intersects(&mbr2);
+      break;
     case SP_TOUCHES_FUNC:
-      return mbr1.touches(&mbr2);
+      ret= mbr1.touches(&mbr2);
+      break;
     case SP_OVERLAPS_FUNC:
-      return mbr1.overlaps(&mbr2);
+      ret= mbr1.overlaps(&mbr2);
+      break;
     case SP_CROSSES_FUNC:
-      return 0;
+      DBUG_ASSERT(false);
+      ret= 0;
+      null_value= true;
+      break;
+    case SP_COVERS_FUNC:
+      ret= mbr1.covers(&mbr2);
+      break;
+    case SP_COVEREDBY_FUNC:
+      ret= mbr1.covered_by(&mbr2);
+      break;
     default:
       break;
   }
 
-  null_value=1;
-  return 0;
+  if (ret == -1)
+  {
+    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+    return error_int();
+  }
+
+  return ret;
 }
 
 
@@ -8957,7 +8993,7 @@ double Item_func_distance::val_real()
     }
 
     /*
-      If at least one of the collections is empty, we have NULL result. 
+      If at least one of the collections is empty, we have NULL result.
     */
     if (!initialized)
     {

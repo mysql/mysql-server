@@ -4,7 +4,7 @@
 --source include/have_innodb.inc
 
 --source include/not_embedded.inc
---source include/no_valgrind_without_big.inc
+-- source include/big_test.inc
 
 --disable_query_log
 # This warning occurs due to small buffer pool size(i.e. 8MB). It doesn't occur

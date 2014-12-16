@@ -73,7 +73,7 @@ When one supplies long data for a placeholder:
 
   - Server gets the long data in pieces with command type
     'COM_STMT_SEND_LONG_DATA'.
-  - The packet recieved will have the format as:
+  - The packet received will have the format as:
     [COM_STMT_SEND_LONG_DATA:1][STMT_ID:4][parameter_number:2][data]
   - data from the packet is appended to the long data value buffer for this
     placeholder.

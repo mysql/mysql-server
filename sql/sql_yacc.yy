@@ -7319,6 +7319,8 @@ alter:
         | ALTER DATABASE ident UPGRADE_SYM DATA_SYM DIRECTORY_SYM NAME_SYM
           {
             LEX *lex= Lex;
+            push_deprecated_warn_no_replacement(YYTHD,
+              "UPGRADE DATA DIRECTORY NAME");
             if (lex->sphead)
             {
               my_error(ER_SP_NO_DROP_SP, MYF(0), "DATABASE");
@@ -13394,7 +13396,7 @@ opt_var_ident_type:
         | SESSION_SYM '.' { $$=OPT_SESSION; }
         ;
 
-// Option values with preceeding option_type.
+// Option values with preceding option_type.
 option_value_following_option_type:
           internal_variable_name equal set_expr_or_default
           {
@@ -13402,7 +13404,7 @@ option_value_following_option_type:
           }
         ;
 
-// Option values without preceeding option_type.
+// Option values without preceding option_type.
 option_value_no_option_type:
           internal_variable_name        /*$1*/
           equal                         /*$2*/

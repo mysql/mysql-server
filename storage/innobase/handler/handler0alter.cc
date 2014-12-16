@@ -3837,7 +3837,7 @@ rename_index_in_cache(
 
 	if (old_name_len >= new_name_len) {
 		/* reuse the old buffer for the name if it is large enough */
-		memcpy(const_cast<char*>(index->name), new_name,
+		memcpy(const_cast<char*>(index->name()), new_name,
 		       new_name_len + 1);
 	} else {
 		/* Free the old chunk of memory if it is at the topmost
@@ -5679,8 +5679,7 @@ commit_try_rebuild(
 			    == ONLINE_INDEX_COMPLETE);
 		DBUG_ASSERT(index->is_committed());
 		if (dict_index_is_corrupted(index)) {
-			my_error(ER_INDEX_CORRUPT, MYF(0),
-				 index->name);
+			my_error(ER_INDEX_CORRUPT, MYF(0), index->name());
 			DBUG_RETURN(true);
 		}
 	}
@@ -5888,7 +5887,7 @@ commit_try_norebuild(
 			with a detailed reason once
 			WL#6379 has been implemented. */
 			my_error(ER_DUP_UNKNOWN_IN_INDEX,
-				 MYF(0), index->name);
+				 MYF(0), index->name());
 			DBUG_RETURN(true);
 		}
 	}

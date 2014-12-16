@@ -1,5 +1,7 @@
 SET NAMES utf8mb4;
 SET CHARACTER_SET_DATABASE = utf8mb4;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
 CREATE DATABASE `中文`;
 CREATE DATABASE `数据库`;
 SELECT schema_name, HEX(schema_name) FROM information_schema.schemata WHERE schema_name <> 'mtr';
