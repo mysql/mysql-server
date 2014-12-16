@@ -868,6 +868,44 @@ void read_ok_ex(MYSQL *mysql, ulong length)
 	  mysql->db= db;
 
           break;
+        case SESSION_TRACK_GTIDS:
+          if (!my_multi_malloc(key_memory_MYSQL_state_change_info,
+                               MYF(0),
+                               &element, sizeof(LIST),
+                               &data, sizeof(LEX_STRING),
+                               NullS))
+          {
+            set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
+            return;
+          }
+
+          /* Move past the total length of the changed entity. */
+          (void) net_field_length(&pos);
+
+          /* read (and ignore for now) the GTIDS encoding specification code */
+          (void) net_field_length(&pos);
+
+          /*
+             For now we ignore the encoding specification, since only one
+             is supported. In the future the decoding of what comes next
+             depends on the specification code.
+          */
+
+          /* read the length of the encoded string. */
+          len= (size_t) net_field_length(&pos);
+	  if(!(data->str= (char *)my_malloc(PSI_NOT_INSTRUMENTED, len, MYF(MY_WME))))
+          {
+            set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
+            return;
+          }
+
+          memcpy(data->str, (char *) pos, len);
+          data->length= len;
+          pos += len;
+
+          element->data= data;
+	  ADD_INFO(info, element, SESSION_TRACK_GTIDS);
+          break;
         case SESSION_TRACK_STATE_CHANGE:
           if (!my_multi_malloc(key_memory_MYSQL_state_change_info,
                                MYF(0),
