@@ -326,7 +326,7 @@ SET (BINLOG_SOURCE rpl_gtid_misc.cc
 ADD_LIBRARY(binlog ${BINLOG_SOURCE})
 TARGET_LINK_LIBRARIES(binlog binlogevents_static)
 
-SET (RPL_SOURCE rpl_handler.cc rpl_tblmap.cc)
+SET (RPL_SOURCE rpl_handler.cc rpl_tblmap.cc rpl_context.cc)
 ADD_DEPENDENCIES(binlog GenError)
 ADD_LIBRARY(rpl ${RPL_SOURCE})
 SET (MASTER_SOURCE rpl_master.cc rpl_binlog_sender.cc)
