@@ -633,24 +633,10 @@ bool start_slave_cmd(THD *thd)
       goto err;
     }
 
-    if (sql_slave_skip_counter > 0 && msr_map.get_num_instances() > 1)
-    {
-      my_error(ER_SLAVE_CHANNEL_SQL_SKIP_COUNTER, MYF(0));
-      goto err;
-    }
-
     res= start_slave(thd);
-
   }
   else
   {
-
-    if (sql_slave_skip_counter > 0 && is_any_slave_channel_running(SLAVE_SQL))
-    {
-      my_error(ER_SLAVE_CHANNEL_SQL_SKIP_COUNTER, MYF(0));
-      goto err;
-    }
-
     mi= msr_map.get_mi(lex->mi.channel);
 
     if (mi)
@@ -9054,7 +9040,23 @@ int start_slave(THD* thd , Master_info* mi,  bool net_report, bool for_one_chann
         if (thd->lex->slave_connection.plugin_dir)
           mi->set_plugin_dir(thd->lex->slave_connection.plugin_dir);
       }
- 
+
+      /*
+        Evaluate the sql_slave_skip_counter.
+        We cannot start any slave thread when sql_slave_skip_counter > 0 if:
+        - We are about to start more than one SQL thread;
+        or
+        - We are about to start a single SQL thread, but there is already
+          an SQL thread started.
+      */
+      if (sql_slave_skip_counter > 0 && !(thd->lex->slave_thd_opt & SLAVE_IO) &&
+          ((!thd->lex->mi.for_channel && msr_map.get_num_instances() > 1) ||
+           (thd->lex->mi.for_channel &&
+            is_any_slave_channel_running(SLAVE_SQL, mi))))
+      {
+        slave_errno= ER_SLAVE_CHANNEL_SQL_SKIP_COUNTER;
+      }
+
       /*
         If we will start SQL thread we will care about UNTIL options If
         not and they are specified we will ignore them and warn user
@@ -10522,12 +10524,15 @@ bool inline is_slave_configured()
   @note: The caller shall possess LOCK_msr_map before calling this function.
 
   @param[in]        thread_mask       type of slave thread- IO/SQL or any
+  @param[in]        already_locked_mi the mi that has its run_lock already
+                                      taken.
 
   @return
     @retval          true               atleast one channel threads are running.
     @retval          false              none of the the channels are running.
 */
-bool is_any_slave_channel_running(int thread_mask)
+bool is_any_slave_channel_running(int thread_mask,
+                                  Master_info* already_locked_mi)
 {
   DBUG_ENTER("is_any_slave_channel_running");
   Master_info *mi= 0;
@@ -10543,18 +10548,40 @@ bool is_any_slave_channel_running(int thread_mask)
     {
       if ((thread_mask & SLAVE_IO) != 0)
       {
-        mysql_mutex_lock(&mi->run_lock);
+        /*
+          start_slave() might call this function after already locking the
+          rli->run_lock for a slave channel that is going to be started.
+          In this case, we just assert that the lock is taken.
+        */
+        if (mi != already_locked_mi)
+          mysql_mutex_lock(&mi->run_lock);
+        else
+        {
+          mysql_mutex_assert_owner(&mi->run_lock);
+        }
         is_running= mi->slave_running;
-        mysql_mutex_unlock(&mi->run_lock);
+        if (mi != already_locked_mi)
+          mysql_mutex_unlock(&mi->run_lock);
         if (is_running)
           DBUG_RETURN(true);
       }
 
       if ((thread_mask & SLAVE_SQL) != 0)
       {
-        mysql_mutex_lock(&mi->rli->run_lock);
+        /*
+          start_slave() might call this function after already locking the
+          rli->run_lock for a slave channel that is going to be started.
+          In this case, we just assert that the lock is taken.
+        */
+        if (mi != already_locked_mi)
+          mysql_mutex_lock(&mi->rli->run_lock);
+        else
+        {
+          mysql_mutex_assert_owner(&mi->rli->run_lock);
+        }
         is_running= mi->rli->slave_running;
-        mysql_mutex_unlock(&mi->rli->run_lock);
+        if (mi != already_locked_mi)
+          mysql_mutex_unlock(&mi->rli->run_lock);
         if (is_running)
           DBUG_RETURN(true);
       }

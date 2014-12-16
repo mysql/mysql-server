@@ -1229,7 +1229,7 @@ public:
     {
       /*
         Not in trigger assigning value to new row,
-        and option_type preceeding local variable is illegal.
+        and option_type preceding local variable is illegal.
       */
       error(pc, pos);
       return true;

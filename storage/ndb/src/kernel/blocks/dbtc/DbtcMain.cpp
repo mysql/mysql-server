@@ -14012,7 +14012,7 @@ void Dbtc::releaseAbortResources(Signal* signal)
 
   // MASV let state be CS_ABORTING until all 
   // signals in the "air" have been received. Reset to CS_CONNECTED
-  // will be done when a TCKEYREQ with start flag is recieved
+  // will be done when a TCKEYREQ with start flag is received
   // or releaseApiCon is called
   // apiConnectptr.p->apiConnectstate = CS_CONNECTED;
   apiConnectptr.p->apiConnectstate = CS_ABORTING;

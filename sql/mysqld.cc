@@ -535,7 +535,7 @@ char logname_path[FN_REFLEN];
 char slow_logname_path[FN_REFLEN];
 char secure_file_real_path[FN_REFLEN];
 
-DATE_TIME_FORMAT global_date_format, global_datetime_format, global_time_format;
+Date_time_format global_date_format, global_datetime_format, global_time_format;
 Time_zone *default_tz;
 
 char *mysql_data_home= const_cast<char*>(".");
@@ -2384,7 +2384,7 @@ check_enough_stack_size(int recurse_level)
 */
 
 static bool init_global_datetime_format(timestamp_type format_type,
-                                        DATE_TIME_FORMAT *format)
+                                        Date_time_format *format)
 {
   /*
     Get command line option
@@ -5626,7 +5626,7 @@ struct my_option my_long_options[]=
    "Optional semicolon-separated list of plugins to load, where each plugin is "
    "identified as name=library, where name is the plugin name and library "
    "is the plugin library in plugin_dir. This option adds to the list "
-   "speficied by --plugin-load in an incremental way. "
+   "specified by --plugin-load in an incremental way. "
    "Multiple --plugin-load-add are supported.",
    0, 0, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},

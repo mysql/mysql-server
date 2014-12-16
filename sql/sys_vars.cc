@@ -1207,12 +1207,21 @@ static bool check_charset_db(sys_var *self, THD *thd, set_var *var)
     var->save_result.ptr= thd->db_charset;
   return false;
 }
+static bool update_deprecated(sys_var *self, THD *thd, enum_var_type type)
+{
+  push_warning_printf(thd, Sql_condition::SL_WARNING,
+                      ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,
+                      ER_THD(thd, ER_WARN_DEPRECATED_SYSVAR_UPDATE),
+                      self->name.str);
+  return false;
+}
 static Sys_var_struct Sys_character_set_database(
        "character_set_database",
        " The character set used by the default database",
        SESSION_VAR(collation_database), NO_CMD_LINE,
        offsetof(CHARSET_INFO, csname), DEFAULT(&default_charset_info),
-       NO_MUTEX_GUARD, IN_BINLOG, ON_CHECK(check_charset_db));
+       NO_MUTEX_GUARD, IN_BINLOG, ON_CHECK(check_charset_db),
+       ON_UPDATE(update_deprecated));
 
 static bool check_cs_client(sys_var *self, THD *thd, set_var *var)
 {
@@ -1322,7 +1331,8 @@ static Sys_var_struct Sys_collation_database(
        "character set",
        SESSION_VAR(collation_database), NO_CMD_LINE,
        offsetof(CHARSET_INFO, name), DEFAULT(&default_charset_info),
-       NO_MUTEX_GUARD, IN_BINLOG, ON_CHECK(check_collation_db));
+       NO_MUTEX_GUARD, IN_BINLOG, ON_CHECK(check_collation_db),
+       ON_UPDATE(update_deprecated));
 
 static Sys_var_struct Sys_collation_server(
        "collation_server", "The server default collation",
@@ -1818,7 +1828,7 @@ static Sys_var_enum Sys_log_timestamps(
        "This affects only log files, not log tables, as the timestamp columns "
        "of the latter can be converted at will.",
        GLOBAL_VAR(opt_log_timestamps),
-       CMD_LINE(REQUIRED_ARG, OPT_BINLOG_FORMAT),
+       CMD_LINE(REQUIRED_ARG),
        timestamp_type_names, DEFAULT(0),
        NO_MUTEX_GUARD, NOT_IN_BINLOG);
 

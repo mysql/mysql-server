@@ -2017,7 +2017,7 @@ check_password_lifetime(THD *thd, const ACL_USER *acl_user)
       acl_user->password_lifetime))
   {
     MYSQL_TIME cur_time, password_change_by;
-    INTERVAL interval;
+    Interval interval;
 
     thd->set_time();
     thd->variables.time_zone->gmt_sec_to_TIME(&cur_time,

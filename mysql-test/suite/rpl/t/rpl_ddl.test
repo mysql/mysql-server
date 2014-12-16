@@ -13,10 +13,10 @@
 #         sequences start.
 #
 #      2. Never use a test object, which was direct or indirect affected by a
-#         preceeding test sequence again.
+#         preceding test sequence again.
 #         Except table d1.t1 where ONLY DML is allowed.
 #
-#         If one preceeding test sequence hits a (sometimes not good visible,
+#         If one preceding test sequence hits a (sometimes not good visible,
 #         because the sql error code of the statement might be 0) bug
 #         and these rules are ignored, a following test sequence might earn ugly
 #         effects like failing 'sync_slave_with_master', crashes of the slave or
