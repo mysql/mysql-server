@@ -4023,9 +4023,8 @@ any_extern:
 		rec = page_cur_get_rec(page_cursor);
 	}
 
-	/* We limit max record size to 16k for 64k page size. */
+	/* We limit max record size to 16k even for 64k page size. */
 	if (new_rec_size >= REC_MAX_DATA_SIZE) {
-		ut_ad(srv_page_size == UNIV_PAGE_SIZE_MAX);
 		err = DB_OVERFLOW;
 
 		goto func_exit;
