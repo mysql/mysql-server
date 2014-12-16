@@ -399,7 +399,6 @@ private:
      * 'send' locking implements the m_out_buffer locking
      *  as described above.
      */
-    bool is_locked_send();
     bool try_lock_send();
     void unlock_send();
   } m_send_buffers[MAX_NODES];
@@ -424,14 +423,6 @@ void
 TransporterFacade::unlock_poll_mutex()
 {
   NdbMutex_Unlock(thePollMutex);
-}
-
-inline
-bool
-TransporterFacade::TFSendBuffer::is_locked_send()
-{
-  assert(NdbMutex_Trylock(&m_mutex) != 0); //Lock should be held
-  return m_sending;
 }
 
 inline
