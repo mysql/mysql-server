@@ -39,6 +39,8 @@ extern const char my_zero_datetime6[]; /* "0000-00-00 00:00:00.000000" */
 */
 typedef long my_time_t;
 
+typedef enum enum_mysql_timestamp_type timestamp_type;
+
 #define MY_TIME_T_MAX LONG_MAX
 #define MY_TIME_T_MIN LONG_MIN
 

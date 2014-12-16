@@ -98,14 +98,14 @@ public:
 	}
 
 	/** Insert spatial index rows cached in vector into spatial index
-	@param[in,out]	trx		transaction
+	@param[in]	trx_id		transaction id
 	@param[in,out]	row_heap	memory heap
 	@param[in]	pcur		cluster index scanning cursor
 	@param[in,out]	scan_mtr	mini-transaction for pcur
 	@param[out]	mtr_committed	whether scan_mtr got committed
 	@return DB_SUCCESS if successful, else error number */
 	dberr_t insert(
-		trx_t*			trx,
+		trx_id_t		trx_id,
 		mem_heap_t*		row_heap,
 		btr_pcur_t*		pcur,
 		mtr_t*			scan_mtr,
@@ -222,7 +222,7 @@ public:
 					page_update_max_trx_id(
 						btr_cur_get_block(&ins_cur),
 						btr_cur_get_page_zip(&ins_cur),
-						trx->id, &mtr);
+						trx_id, &mtr);
 				}
 			}
 
@@ -1387,19 +1387,19 @@ row_mtuple_cmp(
 }
 
 /** Insert cached spatial index rows.
-@param[in]	trx		transaction
+@param[in]	trx_id		transaction id
 @param[in]	sp_tuples	cached spatial rows
 @param[in]	num_spatial	number of spatial indexes
-@param[in]	row_heap	heap for insert
-@param[in]	sp_heap		heap for tuples
-@param[in]	pcur		cluster index cursor
-@param[in]	mtr		mini transaction
+@param[in,out]	row_heap	heap for insert
+@param[in,out]	sp_heap		heap for tuples
+@param[in,out]	pcur		cluster index cursor
+@param[in,out]	mtr		mini transaction
 @param[in,out]	mtr_committed	whether scan_mtr got committed
 @return DB_SUCCESS or error number */
 static
 dberr_t
 row_merge_spatial_rows(
-	trx_t*			trx,
+	trx_id_t		trx_id,
 	index_tuple_info_t**	sp_tuples,
 	ulint			num_spatial,
 	mem_heap_t*		row_heap,
@@ -1410,12 +1410,15 @@ row_merge_spatial_rows(
 {
 	dberr_t			err = DB_SUCCESS;
 
-	ut_ad(sp_tuples != NULL);
+	if (sp_tuples == NULL) {
+		return(DB_SUCCESS);
+	}
+
 	ut_ad(sp_heap != NULL);
 
 	for (ulint j = 0; j < num_spatial; j++) {
 		err = sp_tuples[j]->insert(
-			trx, row_heap,
+			trx_id, row_heap,
 			pcur, mtr, mtr_committed);
 
 		if (err != DB_SUCCESS) {
@@ -1565,7 +1568,7 @@ row_merge_read_clustered_index(
 	if (num_spatial > 0) {
 		ulint	count = 0;
 
-		sp_heap = mem_heap_create(100);
+		sp_heap = mem_heap_create(512);
 
 		sp_tuples = static_cast<index_tuple_info_t**>(
 			ut_malloc_nokey(num_spatial
@@ -1675,21 +1678,19 @@ row_merge_read_clustered_index(
 				dbug_run_purge = true;);
 
 			/* Insert the cached spatial index rows. */
-			if (sp_tuples != NULL) {
-				bool	mtr_committed = false;
+			bool	mtr_committed = false;
 
-				err = row_merge_spatial_rows(
-					trx, sp_tuples, num_spatial,
-					row_heap, sp_heap, &pcur,
-					&mtr, &mtr_committed);
+			err = row_merge_spatial_rows(
+				trx->id, sp_tuples, num_spatial,
+				row_heap, sp_heap, &pcur,
+				&mtr, &mtr_committed);
 
-				if (err != DB_SUCCESS) {
-					goto func_exit;
-				}
+			if (err != DB_SUCCESS) {
+				goto func_exit;
+			}
 
-				if (mtr_committed) {
-					goto scan_next;
-				}
+			if (mtr_committed) {
+				goto scan_next;
 			}
 
 			if (dbug_run_purge
@@ -2050,17 +2051,15 @@ write_buffers:
 						index page could be updated, then
 						the data in cached rows become
 						invalid. */
-						if (sp_tuples != NULL) {
-							err = row_merge_spatial_rows(
-								trx, sp_tuples,
-								num_spatial,
-								row_heap, sp_heap,
-								&pcur, &mtr,
-								&mtr_committed);
+						err = row_merge_spatial_rows(
+							trx->id, sp_tuples,
+							num_spatial,
+							row_heap, sp_heap,
+							&pcur, &mtr,
+							&mtr_committed);
 
-							if (err != DB_SUCCESS) {
-								goto func_exit;
-							}
+						if (err != DB_SUCCESS) {
+							goto func_exit;
 						}
 
 						/* We are not at the end of

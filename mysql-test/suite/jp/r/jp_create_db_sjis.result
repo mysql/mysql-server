@@ -1,5 +1,7 @@
 SET NAMES sjis;
 SET character_set_database = sjis;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
 drop database if exists `ﾆﾎﾝｺﾞ`;
 drop database if exists `日本語`;
 drop database if exists `ソ十表`;
