@@ -593,40 +593,33 @@ void TransporterFacade::threadMainSend(void)
     do
     {
       all_empty = true;
-      for (Uint32 i = 0; i<MAX_NODES; i++)
+      for (Uint32 node = 0; node<MAX_NODES; node++)
       {
-        struct TFSendBuffer * b = m_send_buffers + i;
+        struct TFSendBuffer * b = m_send_buffers + node;
         if (!b->m_node_active)
           continue;
         NdbMutex_Lock(&b->m_mutex);
-        if (b->m_sending)
+        if (!b->try_lock_send())
         {
           /**
-           * sender does stuff when clearing m_sending
+           * Did not get lock, held by other sender.
+           * Sender does stuff when unlock_send()
            */
         }
-        else if (b->m_buffer.m_bytes_in_buffer > 0 ||
-                 b->m_out_buffer.m_bytes_in_buffer > 0)
-        {
-          /**
-           * Copy all data from m_buffer to m_out_buffer
-           */
-          TFBuffer copy = b->m_buffer;
-          memset(&b->m_buffer, 0, sizeof(b->m_buffer));
-          b->m_sending = true;
-          NdbMutex_Unlock(&b->m_mutex);
-          if (copy.m_bytes_in_buffer > 0)
-          {
-            link_buffer(&b->m_out_buffer, &copy);
-          }
-          theTransporterRegistry->performSend(i);
-          NdbMutex_Lock(&b->m_mutex);
-          b->m_sending = false;
+        else
+	{
           if (b->m_buffer.m_bytes_in_buffer > 0 ||
               b->m_out_buffer.m_bytes_in_buffer > 0)
           {
-            all_empty = false;
+            do_send_buffer(node,b);
+
+            if (b->m_buffer.m_bytes_in_buffer > 0 ||
+                b->m_out_buffer.m_bytes_in_buffer > 0)
+            {
+              all_empty = false;
+            }
           }
+          b->unlock_send();
         }
         NdbMutex_Unlock(&b->m_mutex);
       }
@@ -2032,7 +2025,7 @@ TransporterFacade::ownId() const
 }
 
 bool
-TransporterFacade::isConnected(NodeId aNodeId){
+TransporterFacade::isConnected(NodeId aNodeId) const {
   return theTransporterRegistry->is_connected(aNodeId);
 }
 
@@ -2718,8 +2711,8 @@ SignalSectionIterator::getNextWords(Uint32& sz)
 void
 TransporterFacade::flush_send_buffer(Uint32 node, const TFBuffer * sb)
 {
-  Guard g(&m_send_buffers[node].m_mutex);
   assert(node < NDB_ARRAY_SIZE(m_send_buffers));
+  Guard g(&m_send_buffers[node].m_mutex);
   link_buffer(&m_send_buffers[node].m_buffer, sb);
 }
 
@@ -2732,32 +2725,24 @@ TransporterFacade::flush_and_send_buffer(Uint32 node, const TFBuffer * sb)
   NdbMutex_Lock(&b->m_mutex);
   link_buffer(&b->m_buffer, sb);
 
-  if (b->m_sending == true)
+  if (!b->try_lock_send())
   {
     /**
+     * Did not get lock, held by other sender.
      * Sender will check if here is data, and wake send-thread
      * if needed
      */
   }
   else
   {
-    b->m_sending = true;
+    do_send_buffer(node,b);
 
-    /**
-     * Copy all data from m_buffer to m_out_buffer
-     */
-    TFBuffer copy = b->m_buffer;
-    memset(&b->m_buffer, 0, sizeof(b->m_buffer));
-    NdbMutex_Unlock(&b->m_mutex);
-    link_buffer(&b->m_out_buffer, &copy);
-    theTransporterRegistry->performSend(node);
-    NdbMutex_Lock(&b->m_mutex);
-    b->m_sending = false;
     if (b->m_buffer.m_bytes_in_buffer > 0 ||
         b->m_out_buffer.m_bytes_in_buffer > 0)
     {
       wake = true;
     }
+    b->unlock_send();
   }
   NdbMutex_Unlock(&b->m_mutex);
 
@@ -2767,6 +2752,59 @@ TransporterFacade::flush_and_send_buffer(Uint32 node, const TFBuffer * sb)
   }
 }
 
+/**
+ * Precondition: Called with 'm_mutex' lock held
+ *               and m_sending flag set.
+ *
+ * Do actual send of data from m_out_buffer.
+ * Any pending data in 'm_buffer' is appended to 
+ * 'm_out_buffer' before sending.
+ *
+ * Will take care of any defered buffer reset
+ * before return.
+ */
+void
+TransporterFacade::do_send_buffer(Uint32 node, struct TFSendBuffer *b)
+{
+  assert(!b->try_lock_send()); //Sending already locked
+
+  /**
+   * Copy all data from m_buffer to m_out_buffer
+   */
+  TFBuffer copy = b->m_buffer;
+  b->m_buffer.clear();
+  NdbMutex_Unlock(&b->m_mutex);
+
+  if (copy.m_bytes_in_buffer > 0)
+  {
+    link_buffer(&b->m_out_buffer, &copy);
+  }
+  theTransporterRegistry->performSend(node);
+
+  NdbMutex_Lock(&b->m_mutex);
+  /**
+   * There might be a pending reset prev. skipped
+   * as it would have interfered with ongoing send.
+   */
+  if (unlikely(b->m_reset))
+  {
+    if (b->m_out_buffer.m_head != NULL)
+    {
+      m_send_buffer.release(b->m_out_buffer.m_head, b->m_out_buffer.m_tail);
+      b->m_out_buffer.clear();
+    }
+    b->m_reset = false;
+  }
+}
+
+/**
+ * Precondition: ::get_bytes_to_send_iovec() & ::bytes_sent()
+ *
+ * Required to be called with m_send_buffers[node].m_sending==true
+ * and *without* a lock on m_send_buffers[node].m_mutex.
+ * 'm_sending==true' is a signal to other threads to back of
+ * from the 'm_send_buffers' for this node.
+ */
 Uint32
 TransporterFacade::get_bytes_to_send_iovec(NodeId node, struct iovec *dst,
                                            Uint32 max)
@@ -2849,38 +2887,44 @@ TransporterFacade::has_data_to_send(NodeId node)
   return false;
 }
 
+/**
+ * Precondition: No locks held, do the protection myself.
+ *
+ * Reset all buffered data to specified node. If there
+ * are active senders (m_sending==true') to this node,
+ * the reset of m_out_buffer is made 'pending'. It will
+ * then be reset by the sender when it completes.
+ */
 void
 TransporterFacade::reset_send_buffer(NodeId node, bool should_be_empty)
 {
-  // Make sure that buffer is already empty if the "should_be_empty"
-  // flag is set. This is done to quickly catch any stray signals
-  // written to the send buffer while not being connected
-  TFBuffer *b0 = &m_send_buffers[node].m_buffer;
-  TFBuffer *b1 = &m_send_buffers[node].m_out_buffer;
-  bool has_data_to_send =
-    (b0->m_head != NULL && b0->m_head->m_bytes) ||
-    (b1->m_head != NULL && b1->m_head->m_bytes);
-
-  if (should_be_empty && !has_data_to_send)
-     return;
-  assert(!should_be_empty);
-
+  Guard g(&m_send_buffers[node].m_mutex);
   {
     TFBuffer *b = &m_send_buffers[node].m_buffer;
     if (b->m_head != 0)
     {
+      assert(!should_be_empty);
       m_send_buffer.release(b->m_head, b->m_tail);
+      b->clear();
     }
-    memset(b, 0, sizeof(* b));
   }
 
+  if (likely(!m_send_buffers[node].is_locked_send()))
   {
     TFBuffer *b = &m_send_buffers[node].m_out_buffer;
     if (b->m_head != 0)
     {
+      assert(!should_be_empty);
       m_send_buffer.release(b->m_head, b->m_tail);
+      b->clear();
     }
-    memset(b, 0, sizeof(* b));
+    m_send_buffers[node].m_reset = false;
+  }
+  else
+  {
+    // Await for current do_send_buffer() to complete
+    // before 'm_out_buffers' can be released.
+    m_send_buffers[node].m_reset = true;
   }
 }
 

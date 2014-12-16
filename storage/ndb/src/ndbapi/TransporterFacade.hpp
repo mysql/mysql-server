@@ -267,7 +267,7 @@ private:
   Uint32 m_num_active_clients;
   volatile bool m_check_connections;
 
-  bool isConnected(NodeId aNodeId);
+  bool isConnected(NodeId aNodeId) const;
 
   TransporterRegistry* theTransporterRegistry;
   SocketServer m_socket_server;
@@ -362,10 +362,27 @@ private:
     TFSendBuffer()
     {
       m_sending = false;
+      m_reset = false;
       m_node_active = false;
     }
+
+    /**
+     * Protection of struct members:
+     * - boolean flags and 'm_buffer' is protected directly
+     *   by holding mutex lock.
+     * - m_out_buffer is protected by a combination of mutex and
+     *   'm_sending==true'. Update of m_out_buffer requires either:
+     *  -- Holding the mutex lock *and* having m_sending==false, or
+     *  -- Being the sender which set 'm_sending==true' (no lock).
+     *   'm_sending' itself is protected by m_mutex.
+     *
+     * Thus, appending buffers to m_buffer are allowed without
+     * being blocked by another thread sending from m_out_buffers.
+     */
     NdbMutex m_mutex;
-    bool m_sending;
+
+    bool m_sending;     // Send is ongoing, keep away from 'm_out_buffer'
+    bool m_reset;       // Reset pending, await 'm_sending' to complete
     bool m_node_active;
 
     /**
@@ -377,7 +394,17 @@ private:
      * This is data that is being sent
      */
     TFBuffer m_out_buffer;
+
+    /**
+     * 'send' locking implements the m_out_buffer locking
+     *  as described above.
+     */
+    bool is_locked_send();
+    bool try_lock_send();
+    void unlock_send();
   } m_send_buffers[MAX_NODES];
+
+  void do_send_buffer(Uint32 node, TFSendBuffer *b);
 
   void wakeup_send_thread(void);
   NdbMutex * m_send_thread_mutex;
@@ -398,6 +425,37 @@ TransporterFacade::unlock_poll_mutex()
 {
   NdbMutex_Unlock(thePollMutex);
 }
+
+inline
+bool
+TransporterFacade::TFSendBuffer::is_locked_send()
+{
+  assert(NdbMutex_Trylock(&m_mutex) != 0); //Lock should be held
+  return m_sending;
+}
+
+inline
+bool
+TransporterFacade::TFSendBuffer::try_lock_send()
+{
+  assert(NdbMutex_Trylock(&m_mutex) != 0); //Lock should be held
+  if (!m_sending)
+  {
+    m_sending = true;
+    return true;
+  }
+  return false;
+}
+
+inline
+void
+TransporterFacade::TFSendBuffer::unlock_send()
+{
+  assert(NdbMutex_Trylock(&m_mutex) != 0); //Lock should be held
+  assert(m_sending);
+  m_sending = false;
+}
+
 
 #include "ClusterMgr.hpp"
 #include "ndb_cluster_connection_impl.hpp"
