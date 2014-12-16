@@ -46,7 +46,6 @@ enum THD_NDB_TRANS_OPTIONS
   TNTO_INJECTED_APPLY_STATUS= 1 << 0
   ,TNTO_NO_LOGGING=           1 << 1
   ,TNTO_TRANSACTIONS_OFF=     1 << 2
-  ,TNTO_NO_REMOVE_STRAY_FILES=  1 << 3
 };
 
 class Thd_ndb 
