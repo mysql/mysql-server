@@ -134,7 +134,7 @@ statements_digest	fb04d665f1fdef0a6df1c06a84896f88	SELECT ? FROM `t1` 	1
 statements_digest	fb0e8e406d80b1519edad8210ef1d13f	SELECT ?, ... FROM t1 	2
 statements_digest	d5de6fe73e9ed2527e68e09ba113eb1c	SELECT ? FROM t2 	1
 statements_digest	44b894d9377cedf7dbde657d5fe54edc	SELECT ?, ... FROM t2 	2
-statements_digest	6710dd378c2a52446a5deb86b80c9f6f	INSERT INTO t1 VALUES (?) 	1
+statements_digest	6710dd378c2a52446a5deb86b80c9f6f	INSERT INTO t1 VALUES (?) 	2
 statements_digest	4159165c8ae6d10d806548719e8ff500	INSERT INTO t2 VALUES (?) 	1
 statements_digest	5a72323b955675b0bc21fce2e7eed1cd	INSERT INTO t3 VALUES (...) 	4
 statements_digest	69c5c0d84f60e87bf85f0ed50f584120	INSERT INTO t4 VALUES (...) 	1
@@ -142,7 +142,6 @@ statements_digest	cc859114b136eeee948fc5e48f644da3	INSERT INTO t5 VALUES (...) 	
 statements_digest	7241727a9d72bf3c45c5f06c1a1af11f	INSERT INTO t1 VALUES (?) /* , ... */ 	2
 statements_digest	2a8cb993ddadf0458f3a612cbf7a926e	INSERT INTO t3 VALUES (...) /* , ... */ 	1
 statements_digest	df447cf0d5519aecbf39525ae26ab667	INSERT INTO t5 VALUES (...) /* , ... */ 	1
-statements_digest	c3016c49a3731225633cda65aa4a7413	INSERT INTO t1 VALUES ( NULL ) 	1
 statements_digest	b344cca7615fbacb3d2e3b673234a5ef	INSERT INTO t6 VALUES (...) 	5
 statements_digest	68eac68f1671670ca2e2a551d1fe51c1	SELECT ? + ? 	3
 statements_digest	ed0f18e9ad39bba6ff1d44b6a248dba7	SELECT ? 	1

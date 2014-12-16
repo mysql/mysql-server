@@ -13168,7 +13168,8 @@ ndbcluster_cache_retrieval_allowed(THD *thd,
 
 my_bool
 ha_ndbcluster::register_query_cache_table(THD *thd,
-                                          char *full_name, uint full_name_len,
+                                          char *full_name,
+                                          size_t full_name_len,
                                           qc_engine_callback *engine_callback,
                                           ulonglong *engine_data)
 {
@@ -15482,7 +15483,7 @@ Ndb_util_thread::do_run()
   thd->version=refresh_version;
 #endif
   thd->client_capabilities = 0;
-  thd->security_ctx->skip_grants();
+  thd->security_context()->skip_grants();
   my_net_init(&thd->net, 0);
 
   CHARSET_INFO *charset_connection;
@@ -16788,8 +16789,7 @@ ha_ndbcluster::prepare_inplace_alter_table(TABLE *altered_table,
          push_warning_printf(thd, Sql_condition::SL_WARNING,
                              ER_ILLEGAL_HA_CREATE_OPTION,
                              "Converted FIXED field to DYNAMIC "
-                             "to enable on-line ADD COLUMN",
-                             field->field_name);
+                             "to enable on-line ADD COLUMN");
        }
        new_tab->addColumn(col);
      }

@@ -60,7 +60,9 @@ struct ib_rbt_t;
 /** Type flags of an index: OR'ing of the flags is allowed to define a
 combination of types */
 /* @{ */
-#define DICT_CLUSTERED	1	/*!< clustered index */
+#define DICT_CLUSTERED	1	/*!< clustered index; for other than
+				auto-generated clustered indexes,
+				also DICT_UNIQUE will be set */
 #define DICT_UNIQUE	2	/*!< unique index */
 #define	DICT_IBUF	8	/*!< insert buffer tree */
 #define	DICT_CORRUPT	16	/*!< bit to store the corrupted flag
@@ -414,6 +416,56 @@ dict_mem_create_temporary_tablename(
 void
 dict_mem_init(void);
 
+/** SQL identifier name wrapper for pretty-printing */
+class id_name_t
+{
+public:
+	/** Default constructor */
+	id_name_t()
+		: m_name()
+	{}
+	/** Constructor
+	@param[in]	name	identifier to assign */
+	explicit id_name_t(
+		const char*	name)
+		: m_name(name)
+	{}
+
+	/** Assignment operator
+	@param[in]	name	identifier to assign */
+	id_name_t& operator=(
+		const char*	name)
+	{
+		m_name = name;
+		return(*this);
+	}
+
+	/** Implicit type conversion
+	@return the name */
+	operator const char*() const
+	{
+		return(m_name);
+	}
+
+	/** Explicit type conversion
+	@return the name */
+	const char* operator()() const
+	{
+		return(m_name);
+	}
+
+private:
+	/** The name in internal representation */
+	const char*	m_name;
+};
+
+/** Table name wrapper for pretty-printing */
+struct table_name_t
+{
+	/** The name in internal representation */
+	char*	m_name;
+};
+
 /** Data structure for a column in a table */
 struct dict_col_t{
 	/*----------------------*/
@@ -493,7 +545,7 @@ be REC_VERSION_56_MAX_INDEX_COL_LEN (3072) bytes */
 /** Data structure for a field in an index */
 struct dict_field_t{
 	dict_col_t*	col;		/*!< pointer to the table column */
-	const char*	name;		/*!< name of the column */
+	id_name_t	name;		/*!< name of the column */
 	unsigned	prefix_len:12;	/*!< 0 or the length of the column
 					prefix in bytes in a MySQL index of
 					type, e.g., INDEX (textcol(25));
@@ -661,7 +713,7 @@ initialized to 0, NULL or FALSE in dict_mem_index_create(). */
 struct dict_index_t{
 	index_id_t	id;	/*!< id of the index */
 	mem_heap_t*	heap;	/*!< memory heap */
-	const char*	name;	/*!< index name */
+	id_name_t	name;	/*!< index name */
 	const char*	table_name;/*!< table name */
 	dict_table_t*	table;	/*!< back pointer to table */
 #ifndef UNIV_HOTBACKUP
@@ -702,9 +754,6 @@ struct dict_index_t{
 				entry uniquely */
 	unsigned	n_def:10;/*!< number of fields defined so far */
 	unsigned	n_fields:10;/*!< number of fields in the index */
-	unsigned	auto_gen_clust_index:1;
-				/*!< true if index is auto-generated clustered
-				index. */
 	unsigned	n_nullable:10;/*!< number of nullable fields */
 	unsigned	cached:1;/*!< TRUE if the index object is in the
 				dictionary cache */
@@ -1035,16 +1084,23 @@ a foreign key constraint is enforced, therefore RESTRICT just means no flag */
 #define DICT_FOREIGN_ON_UPDATE_NO_ACTION 32	/*!< ON UPDATE NO ACTION */
 /* @} */
 
-/** Table name wrapper for pretty-printing */
-struct table_name_t
-{
-	/** The name in internal representation */
-	char*	m_name;
-};
-
-/** Display a table name */
+/** Display an identifier.
+@param[in,out]	s	output stream
+@param[in]	id_name	SQL identifier (other than table name)
+@return the output stream */
 std::ostream&
-operator<<(std::ostream& s, const table_name_t& table_name);
+operator<<(
+	std::ostream&		s,
+	const id_name_t&	id_name);
+
+/** Display a table name.
+@param[in,out]	s		output stream
+@param[in]	table_name	table name
+@return the output stream */
+std::ostream&
+operator<<(
+	std::ostream&		s,
+	const table_name_t&	table_name);
 
 /** List of locks that different transactions have acquired on a table. This
 list has a list node that is embedded in a nested union/structure. We have to

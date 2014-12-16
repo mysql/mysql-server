@@ -869,10 +869,10 @@ DELETE FROM t1 where a <=> ln(0);
 ERROR 2201E: Invalid argument for logarithm
 DELETE IGNORE FROM t1 where a <=> ln(0);
 Warnings:
-Warning	1905	Invalid argument for logarithm
+Warning	1906	Invalid argument for logarithm
 SHOW WARNINGS;
 Level	Code	Message
-Warning	1905	Invalid argument for logarithm
+Warning	1906	Invalid argument for logarithm
 #
 # STRICT MODE and IGNORE test case for MULTI DELETE
 # An error ER_INVALID_ARGUMENT_FOR_LOGARITHM is expected here.
@@ -882,10 +882,10 @@ ERROR 2201E: Invalid argument for logarithm
 # Warnings are expected here and works fine.
 DELETE IGNORE t1, t2 FROM t1 INNER JOIN t2 WHERE t1.a <=> ln(0) AND t2.b <=> ln(0);
 Warnings:
-Warning	1905	Invalid argument for logarithm
+Warning	1906	Invalid argument for logarithm
 SHOW WARNINGS;
 Level	Code	Message
-Warning	1905	Invalid argument for logarithm
+Warning	1906	Invalid argument for logarithm
 # Clean-up
 DROP TABLE t1,t2;
 # Restore the orginal sql_mode

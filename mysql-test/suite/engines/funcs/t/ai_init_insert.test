@@ -1,4 +1,8 @@
 --disable_warnings
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
+--enable_warnings
+
+--disable_warnings
 DROP TABLE IF EXISTS t1;
 --enable_warnings
 create table t1 (c1 VARCHAR(10) NOT NULL COMMENT 'Abcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcd', c2 INTEGER COMMENT 'aBcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcd',c3 INTEGER COMMENT '012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789', c4 INTEGER, c5 INTEGER, c6 INTEGER, c7 INTEGER, c8 VARCHAR(100), c9 CHAR(50), c10 DATETIME, c11 DATETIME, c12 DATETIME,c13 DATETIME, INDEX i1 (c1), INDEX i2(c2) 
@@ -15,7 +19,6 @@ SELECT column_comment,char_length(column_comment) FROM information_schema.column
 
 --sorted_result
 SELECT comment FROM information_schema.statistics WHERE table_name='t1';
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 
@@ -30,7 +33,6 @@ SELECT column_comment,char_length(column_comment) FROM information_schema.column
 
 --sorted_result
 SELECT comment FROM information_schema.statistics WHERE table_name='t1';
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 
@@ -45,7 +47,6 @@ SELECT column_comment,char_length(column_comment) FROM information_schema.column
 
 --sorted_result
 SELECT comment FROM information_schema.statistics WHERE table_name='t1';
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 
@@ -63,7 +64,6 @@ SELECT column_comment,char_length(column_comment) FROM information_schema.column
 
 --sorted_result
 SELECT comment FROM information_schema.statistics WHERE table_name='t1';
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 
@@ -77,22 +77,6 @@ SELECT column_comment,char_length(column_comment) FROM information_schema.column
 
 --sorted_result
 SELECT comment FROM information_schema.statistics WHERE table_name='t1';
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
---replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
-SHOW CREATE TABLE t1;
-
-
---sorted_result
-SELECT table_comment,char_length(table_comment) FROM information_schema.tables WHERE table_name='t1';
-
-
---sorted_result
-SELECT column_comment,char_length(column_comment) FROM information_schema.columns WHERE table_name='t1';
-
-
---sorted_result
-SELECT comment FROM information_schema.statistics WHERE table_name='t1';
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 
@@ -107,7 +91,20 @@ SELECT column_comment,char_length(column_comment) FROM information_schema.column
 
 --sorted_result
 SELECT comment FROM information_schema.statistics WHERE table_name='t1';
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
+--replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
+SHOW CREATE TABLE t1;
+
+
+--sorted_result
+SELECT table_comment,char_length(table_comment) FROM information_schema.tables WHERE table_name='t1';
+
+
+--sorted_result
+SELECT column_comment,char_length(column_comment) FROM information_schema.columns WHERE table_name='t1';
+
+
+--sorted_result
+SELECT comment FROM information_schema.statistics WHERE table_name='t1';
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 
@@ -121,7 +118,6 @@ SELECT column_comment,char_length(column_comment) FROM information_schema.column
 
 --sorted_result
 SELECT comment FROM information_schema.statistics WHERE table_name='t1';
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 
@@ -141,7 +137,6 @@ SELECT column_comment,char_length(column_comment) FROM information_schema.column
 
 --sorted_result
 SELECT comment FROM information_schema.statistics WHERE table_name='t1';
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 
@@ -158,7 +153,6 @@ SELECT column_comment,char_length(column_comment) FROM information_schema.column
 
 --sorted_result
 SELECT comment FROM information_schema.statistics WHERE table_name='t1';
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 DROP TABLE t1;

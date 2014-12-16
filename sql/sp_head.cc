@@ -15,7 +15,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "my_global.h"         // NO_EMBEDDED_ACCESS_CHECKS
-#include "sql_priv.h"
 #include "sql_cache.h"         // query_cache_*
 #include "probes_mysql.h"
 #include "sql_show.h"          // append_identifier
@@ -23,6 +22,7 @@
 #include "sql_table.h"         // prepare_create_field
 #include "auth_common.h"       // *_ACL
 #include "log_event.h"         // append_query_string, Query_log_event
+#include "binlog.h"
 
 #include "sp_head.h"
 #include "sp_instr.h"
@@ -1012,7 +1012,8 @@ bool sp_head::execute_trigger(THD *thd,
     get_privilege_desc(priv_desc, sizeof(priv_desc), TRIGGER_ACL);
 
     my_error(ER_TABLEACCESS_DENIED_ERROR, MYF(0), priv_desc,
-             thd->security_ctx->priv_user, thd->security_ctx->host_or_ip,
+             thd->security_context()->priv_user().str,
+             thd->security_context()->host_or_ip().str,
              table_name.str);
 
     m_security_ctx.restore_security_context(thd, save_ctx);
@@ -2163,8 +2164,8 @@ bool sp_head::check_show_access(THD *thd, bool *full_access)
   *full_access=
     ((!check_table_access(thd, SELECT_ACL, &tables, false, 1, true) &&
       (tables.grant.privilege & SELECT_ACL) != 0) ||
-     (!strcmp(m_definer_user.str, thd->security_ctx->priv_user) &&
-      !strcmp(m_definer_host.str, thd->security_ctx->priv_host)));
+     (!strcmp(m_definer_user.str, thd->security_context()->priv_user().str) &&
+      !strcmp(m_definer_host.str, thd->security_context()->priv_host().str)));
 
   return *full_access ?
          false :

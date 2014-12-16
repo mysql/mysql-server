@@ -207,7 +207,7 @@ start transaction;
 set @g1 = GeomFromText('Polygon((800 800, 800 1000, 1000 1000, 1000 800, 800 800))');
 select count(*) from t1 where within(t1.c2, @g1);
 count(*)
-201
+199
 CALL insert_t1(1001, 2000);
 set session transaction isolation level serializable;
 set session innodb_lock_wait_timeout = 1;

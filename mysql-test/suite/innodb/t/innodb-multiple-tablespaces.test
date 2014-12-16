@@ -165,7 +165,8 @@ INSERT INTO nolink VALUES (1, 'no link file');
 --exec echo $MYSQL_TMP_DIR/new_dir/test/wny.ibd > $MYSQLD_DATADIR/test/wny.isl
 
 --echo # YNW; Move the file to default, wrong one to new_dir, delete it form alt_dir
---move_file $MYSQL_TMP_DIR/alt_dir/test/ynw.ibd $MYSQLD_DATADIR/test/ynw.ibd
+--copy_file $MYSQL_TMP_DIR/alt_dir/test/ynw.ibd $MYSQLD_DATADIR/test/ynw.ibd
+--remove_file $MYSQL_TMP_DIR/alt_dir/test/ynw.ibd
 --copy_file $MYSQL_TMP_DIR/alt_dir/test/yyy.ibd $MYSQL_TMP_DIR/new_dir/test/ynw.ibd
 --exec echo $MYSQL_TMP_DIR/new_dir/test/ynw.ibd > $MYSQLD_DATADIR/test/ynw.isl
 
@@ -173,7 +174,8 @@ INSERT INTO nolink VALUES (1, 'no link file');
 --copy_file $MYSQL_TMP_DIR/alt_dir/test/yyy.ibd $MYSQLD_DATADIR/test/wyn.ibd
 
 --echo # YWN; Move the file to default, wrong one to alt_dir
---move_file $MYSQL_TMP_DIR/alt_dir/test/ywn.ibd $MYSQLD_DATADIR/test/ywn.ibd
+--copy_file $MYSQL_TMP_DIR/alt_dir/test/ywn.ibd $MYSQLD_DATADIR/test/ywn.ibd
+-- remove_file $MYSQL_TMP_DIR/alt_dir/test/ywn.ibd
 --copy_file $MYSQL_TMP_DIR/alt_dir/test/yyy.ibd $MYSQL_TMP_DIR/alt_dir/test/ywn.ibd
 
 --echo # NNN; Delete the tablespace and ISL
@@ -210,13 +212,13 @@ INSERT INTO nolink VALUES (1, 'no link file');
 SELECT path FROM information_schema.innodb_sys_datafiles
        WHERE path LIKE '%test%' ORDER BY space;
 
---error ER_NO_SUCH_TABLE
+--error ER_TABLESPACE_MISSING
 SELECT * FROM yyy;
---error ER_NO_SUCH_TABLE
+--error ER_TABLESPACE_MISSING
 SELECT * FROM nyy;
---error ER_NO_SUCH_TABLE
+--error ER_TABLESPACE_MISSING
 SELECT * FROM yny;
---error ER_NO_SUCH_TABLE
+--error ER_TABLESPACE_MISSING
 SELECT * FROM yyn;
 SELECT * FROM nyw;
 SELECT * FROM nwy;
@@ -224,19 +226,19 @@ SELECT * FROM wny;
 SELECT * FROM ynw;
 SELECT * FROM wyn;
 SELECT * FROM ywn;
---error ER_NO_SUCH_TABLE
+--error ER_TABLESPACE_MISSING
 SELECT * FROM nnn;
---error ER_NO_SUCH_TABLE
+--error ER_TABLESPACE_MISSING
 SELECT * FROM www;
 SELECT * FROM nolink;
 
---error ER_NO_SUCH_TABLE
+--error ER_TABLESPACE_MISSING
 SHOW CREATE TABLE yyy;
---error ER_NO_SUCH_TABLE
+--error ER_TABLESPACE_MISSING
 SHOW CREATE TABLE nyy;
---error ER_NO_SUCH_TABLE
+--error ER_TABLESPACE_MISSING
 SHOW CREATE TABLE yny;
---error ER_NO_SUCH_TABLE
+--error ER_TABLESPACE_MISSING
 SHOW CREATE TABLE yyn;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE nyw;
@@ -248,9 +250,9 @@ SHOW CREATE TABLE ynw;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE wyn;
 SHOW CREATE TABLE ywn;
---error ER_NO_SUCH_TABLE
+--error ER_TABLESPACE_MISSING
 SHOW CREATE TABLE nnn;
---error ER_NO_SUCH_TABLE
+--error ER_TABLESPACE_MISSING
 SHOW CREATE TABLE www;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE nolink;
@@ -400,11 +402,13 @@ SELECT * FROM yy;
 --copy_file $MYSQL_TMP_DIR/alt_dir/test/nolink.ibd.bak $MYSQLD_DATADIR/test/wy.ibd
 
 --echo # YW; Tablespace is found in the default directory but the wrong file in alt_dir.
---move_file $MYSQL_TMP_DIR/alt_dir/test/yw.ibd $MYSQLD_DATADIR/test/yw.ibd
+--copy_file $MYSQL_TMP_DIR/alt_dir/test/yw.ibd $MYSQLD_DATADIR/test/yw.ibd
+--remove_file  $MYSQL_TMP_DIR/alt_dir/test/yw.ibd
 --copy_file $MYSQL_TMP_DIR/alt_dir/test/nolink.ibd.bak $MYSQL_TMP_DIR/alt_dir/test/yw.ibd
 
 --echo # YN; Tablespace found the default directory but not in alt_dir.
---move_file $MYSQL_TMP_DIR/alt_dir/test/yn.ibd $MYSQLD_DATADIR/test/yn.ibd
+--copy_file $MYSQL_TMP_DIR/alt_dir/test/yn.ibd $MYSQLD_DATADIR/test/yn.ibd
+--remove_file $MYSQL_TMP_DIR/alt_dir/test/yn.ibd
 
 --echo # YY; Found in both default directory and alt-dir.
 --copy_file $MYSQL_TMP_DIR/alt_dir/test/yy.ibd $MYSQLD_DATADIR/test/yy.ibd
@@ -428,8 +432,12 @@ let SEARCH_PATTERN= InnoDB: Tablespace \d+ was not found at .*alt_dir.test.yw.ib
 --source include/search_pattern_in_file.inc
 
 --echo # restoring yn.ibd, yw.ibd
---move_file $MYSQLD_DATADIR/test/yn.ibd $MYSQL_TMP_DIR/alt_dir/test/yn.ibd
---move_file $MYSQLD_DATADIR/test/yw.ibd $MYSQL_TMP_DIR/alt_dir/test/yw.ibd
+--copy_file $MYSQLD_DATADIR/test/yn.ibd $MYSQL_TMP_DIR/alt_dir/test/yn.ibd
+--remove_file $MYSQLD_DATADIR/test/yn.ibd
+--remove_file  $MYSQL_TMP_DIR/alt_dir/test/yw.ibd
+--copy_file $MYSQLD_DATADIR/test/yw.ibd $MYSQL_TMP_DIR/alt_dir/test/yw.ibd
+--remove_file  $MYSQLD_DATADIR/test/yw.ibd
+
 
 --source include/start_mysqld.inc
 

@@ -402,7 +402,7 @@ create_log_files(
 	/* Disable the doublewrite buffer for log files, not required */
 
 	fil_space_t*	log_space = fil_space_create(
-		logfilename + dirnamelen, SRV_LOG_SPACE_FIRST_ID,
+		"innodb_redo_log", SRV_LOG_SPACE_FIRST_ID,
 		fsp_flags_set_page_size(0, univ_page_size),
 		FIL_TYPE_LOG);
 	ut_a(fil_validate());
@@ -1556,7 +1556,7 @@ innobase_start_or_create_for_mysql(void)
 		} else {
 
 			srv_monitor_file_name = NULL;
-			srv_monitor_file = os_file_create_tmpfile(NULL);
+			srv_monitor_file = os_file_create_tmpfile();
 
 			if (!srv_monitor_file) {
 				return(srv_init_abort(DB_ERROR));
@@ -1565,7 +1565,7 @@ innobase_start_or_create_for_mysql(void)
 
 		mutex_create("srv_dict_tmpfile", &srv_dict_tmpfile_mutex);
 
-		srv_dict_tmpfile = os_file_create_tmpfile(NULL);
+		srv_dict_tmpfile = os_file_create_tmpfile();
 
 		if (!srv_dict_tmpfile) {
 			return(srv_init_abort(DB_ERROR));
@@ -1573,7 +1573,7 @@ innobase_start_or_create_for_mysql(void)
 
 		mutex_create("srv_misc_tmpfile", &srv_misc_tmpfile_mutex);
 
-		srv_misc_tmpfile = os_file_create_tmpfile(NULL);
+		srv_misc_tmpfile = os_file_create_tmpfile();
 
 		if (!srv_misc_tmpfile) {
 			return(srv_init_abort(DB_ERROR));
@@ -1981,8 +1981,6 @@ files_checked:
 			return(srv_init_abort(err));
 		}
 
-		srv_startup_is_before_trx_rollback_phase = false;
-
 		buf_flush_sync_all_buf_pools();
 
 		flushed_lsn = log_get_lsn();
@@ -2218,8 +2216,6 @@ files_checked:
 				logfile0);
 		}
 
-		srv_startup_is_before_trx_rollback_phase = false;
-
 		recv_recovery_rollback_active();
 
 		/* It is possible that file_format tag has never
@@ -2288,6 +2284,8 @@ files_checked:
 		ut_a(srv_read_only_mode);
 		srv_undo_logs = ULONG_UNDEFINED;
 	}
+
+	srv_startup_is_before_trx_rollback_phase = false;
 
 	if (!srv_read_only_mode) {
 		/* Create the thread which watches the timeouts

@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003-2007 MySQL AB, 2009, 2010 Sun Microsystems, Inc.
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -65,7 +64,7 @@ class NdbEventOperationImpl;
  * - Event code does not check table schema version. Make sure to drop events
  * after table is dropped. Will be fixed in later
  * versions.
- * - If a node failure has occured not all events will be recieved
+ * - If a node failure has occured not all events will be received
  * anymore. Drop NdbEventOperation and Create again after nodes are up
  * again. Will be fixed in later versions.
  *

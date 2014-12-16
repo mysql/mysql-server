@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2008, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,7 +14,6 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "sql_priv.h"
 #include "sp_head.h"
 #include "event_parse_data.h"
 #include "sql_time.h"                           // TIME_to_timestamp
@@ -256,7 +255,7 @@ int
 Event_parse_data::init_interval(THD *thd)
 {
   String value;
-  INTERVAL interval_tmp;
+  Interval interval_tmp;
 
   DBUG_ENTER("Event_parse_data::init_interval");
   if (!item_expression)

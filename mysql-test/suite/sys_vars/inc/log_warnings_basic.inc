@@ -96,10 +96,14 @@ SELECT @@global.log_warnings;
 #   Check if the value in GLOBAL Table matches value in variable   #
 ####################################################################
 
-SELECT @@global.log_warnings = VARIABLE_VALUE 
+--disable_warnings
+SELECT VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
-WHERE VARIABLE_NAME='log_warnings';
+WHERE VARIABLE_NAME='log_warnings'
+into @tmp;
+--enable_warnings
 
+SELECT @@global.log_warnings = @tmp;
 
 --echo '#------------------FN_DYNVARS_067_06-----------------------#'
 ####################################################################

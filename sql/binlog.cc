@@ -3488,13 +3488,13 @@ bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *all_gtids, Gtid_set *lost_gtids,
         case NO_GTIDS:
         {
           /*
-            If the simplified_binlog_gtid_recovery is enabled, and the
+            If the binlog_gtid_simple_recovery is enabled, and the
             last binary log does not contain any GTID event, do not
             read any more binary logs, GLOBAL.GTID_EXECUTED and
             GLOBAL.GTID_PURGED should be empty in the case. Otherwise,
             initialize GTID_EXECUTED as usual.
           */
-          if (simplified_binlog_gtid_recovery && !is_relay_log)
+          if (binlog_gtid_simple_recovery && !is_relay_log)
           {
             DBUG_ASSERT(all_gtids->is_empty() && lost_gtids->is_empty());
             goto end;
@@ -3531,12 +3531,12 @@ bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *all_gtids, Gtid_set *lost_gtids,
         case NO_GTIDS:
         {
           /*
-            If the simplified_binlog_gtid_recovery is enabled, and the
+            If the binlog_gtid_simple_recovery is enabled, and the
             first binary log does not contain any GTID event, do not
             read any more binary logs, GLOBAL.GTID_PURGED should be
             empty in the case.
           */
-          if (simplified_binlog_gtid_recovery && !is_relay_log)
+          if (binlog_gtid_simple_recovery && !is_relay_log)
           {
             DBUG_ASSERT(lost_gtids->is_empty());
             goto end;
@@ -3738,7 +3738,8 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
       logged_gtids_binlog.remove_gtid_set(gtids_only_in_table);
     }
     Previous_gtids_log_event prev_gtids_ev(previous_logged_gtids);
-
+    if (is_relay_log)
+      prev_gtids_ev.set_relay_log_event();
     if (need_sid_lock)
       global_sid_lock->unlock();
     prev_gtids_ev.checksum_alg= s.checksum_alg;
@@ -5992,11 +5993,18 @@ void MYSQL_BIN_LOG::purge()
   @retval
     nonzero - error in rotating routine.
 */
-int MYSQL_BIN_LOG::rotate_and_purge(bool force_rotate)
+int MYSQL_BIN_LOG::rotate_and_purge(THD* thd, bool force_rotate)
 {
   int error= 0;
   DBUG_ENTER("MYSQL_BIN_LOG::rotate_and_purge");
   bool check_purge= false;
+
+  /*
+    Wait for handlerton to insert any pending information into the binlog.
+    For e.g. ha_ndbcluster which updates the binlog asynchronously this is
+    needed so that the user see its own commands in the binlog.
+  */
+  ha_binlog_wait(thd);
 
   DBUG_ASSERT(!is_relay_log);
   mysql_mutex_lock(&LOCK_log);

@@ -825,14 +825,14 @@ row_ins_foreign_report_err(
 	putc('\n', ef);
 	fputs(errstr, ef);
 	fprintf(ef, " in parent table, in index %s",
-		foreign->referenced_index->name);
+		foreign->referenced_index->name());
 	if (entry) {
 		fputs(" tuple:\n", ef);
 		dtuple_print(ef, entry);
 	}
 	fputs("\nBut in child table ", ef);
 	ut_print_name(ef, trx, foreign->foreign_table_name);
-	fprintf(ef, ", in index %s", foreign->foreign_index->name);
+	fprintf(ef, ", in index %s", foreign->foreign_index->name());
 	if (rec) {
 		fputs(", there is a record:\n", ef);
 		rec_print(ef, rec, foreign->foreign_index);
@@ -876,7 +876,7 @@ row_ins_foreign_report_add_err(
 	dict_print_info_on_foreign_key_in_create_format(ef, trx, foreign,
 							TRUE);
 	fprintf(ef, "\nTrying to add in child table, in index %s",
-		foreign->foreign_index->name);
+		foreign->foreign_index->name());
 	if (entry) {
 		fputs(" tuple:\n", ef);
 		/* TODO: DB_TRX_ID and DB_ROLL_PTR may be uninitialized.
@@ -887,7 +887,7 @@ row_ins_foreign_report_add_err(
 	ut_print_name(ef, trx, foreign->referenced_table_name);
 	fprintf(ef, ", in index %s,\n"
 		"the closest match we can find is record:\n",
-		foreign->referenced_index->name);
+		foreign->referenced_index->name());
 	if (rec && page_rec_is_supremum(rec)) {
 		/* If the cursor ended on a supremum record, it is better
 		to report the previous record in the error message, so that
@@ -1488,7 +1488,7 @@ run_again:
 			dict_print_info_on_foreign_key_in_create_format(
 				ef, trx, foreign, TRUE);
 			fprintf(ef, "\nTrying to add to index %s tuple:\n",
-				foreign->foreign_index->name);
+				foreign->foreign_index->name());
 			dtuple_print(ef, entry);
 			fputs("\nBut the parent table ", ef);
 			ut_print_name(ef, trx,
@@ -2327,17 +2327,17 @@ row_ins_clust_index_entry_low(
 	mtr_start(&mtr);
 	mtr.set_named_space(index->space);
 
-	/* Disable REDO logging as lifetime of temp-tables is limited to
-	server or connection lifetime and so REDO information is not needed
-	on restart for recovery.
-	Disable locking as temp-tables are not shared across connection. */
 	if (dict_table_is_temporary(index->table)) {
-		flags |= BTR_NO_LOCKING_FLAG;
-		mtr.set_log_mode(MTR_LOG_NO_REDO);
+		/* Disable REDO logging as the lifetime of temp-tables is
+		limited to server or connection lifetime and so REDO
+		information is not needed on restart for recovery.
+		Disable locking as temp-tables are local to a connection. */
 
-		if (dict_table_is_intrinsic(index->table)) {
-			flags |= BTR_NO_UNDO_LOG_FLAG;
-		}
+		ut_ad(flags & BTR_NO_LOCKING_FLAG);
+		ut_ad(!dict_table_is_intrinsic(index->table)
+		      || (flags & BTR_NO_UNDO_LOG_FLAG));
+
+		mtr.set_log_mode(MTR_LOG_NO_REDO);
 	}
 
 	if (mode == BTR_MODIFY_LEAF && dict_index_is_online_ddl(index)) {
@@ -2353,8 +2353,7 @@ row_ins_clust_index_entry_low(
 	cursor->thr = thr;
 
 	ut_ad(!dict_table_is_intrinsic(index->table)
-	      || (dict_table_is_intrinsic(index->table)
-		  && cursor->page_cur.block->made_dirty_with_no_latch));
+	      || cursor->page_cur.block->made_dirty_with_no_latch);
 
 #ifdef UNIV_DEBUG
 	{
@@ -2512,7 +2511,6 @@ func_exit:
 auto-generated clustered index based on cached position from
 last successful insert. To be used when data is sorted.
 
-@param[in]	flags	undo logging and locking flags
 @param[in]	mode	BTR_MODIFY_LEAF or BTR_MODIFY_TREE.
 			depending on whether we wish optimistic or
 			pessimistic descent down the index tree
@@ -2524,17 +2522,15 @@ last successful insert. To be used when data is sorted.
 static
 dberr_t
 row_ins_sorted_clust_index_entry(
-	ulint		flags,
 	ulint		mode,
 	dict_index_t*	index,
-	ulint		n_uniq,
 	dtuple_t*	entry,
 	ulint		n_ext,
 	que_thr_t*	thr)
 {
 	dberr_t		err;
 	mtr_t*		mtr;
-	bool		commit_mtr	= false;
+	const bool	commit_mtr	= mode == BTR_MODIFY_TREE;
 
 	mem_heap_t*	offsets_heap	= NULL;
 	ulint           offsets_[REC_OFFS_NORMAL_SIZE];
@@ -2544,9 +2540,9 @@ row_ins_sorted_clust_index_entry(
 	DBUG_ENTER("row_ins_sorted_clust_index_entry");
 
 	ut_ad(index->last_ins_cur != NULL);
-	ut_ad(dict_index_is_clust(index)
-	      && dict_table_is_intrinsic(index->table)
-	      && dict_index_is_auto_gen_clust(index));
+	ut_ad(dict_index_is_clust(index));
+	ut_ad(dict_table_is_intrinsic(index->table));
+	ut_ad(dict_index_is_auto_gen_clust(index));
 
 	btr_cur_t	cursor;
 	cursor.thr = thr;
@@ -2562,8 +2558,7 @@ row_ins_sorted_clust_index_entry(
 		index->last_ins_cur->release();
 
 		mtr_start(mtr);
-
-		commit_mtr = (mode == BTR_MODIFY_TREE) ? true : false;
+		mtr_set_log_mode(mtr, MTR_LOG_NO_REDO);
 
 		btr_cur_search_to_nth_level_with_no_latch(
 			index, 0, entry, PAGE_CUR_LE, &cursor,
@@ -2580,12 +2575,7 @@ row_ins_sorted_clust_index_entry(
 		cursor.page_cur.block = index->last_ins_cur->block;
 	}
 
-	/* Disable REDO logging as lifetime of temp-tables is limited to
-	server or connection lifetime and so REDO information is not needed
-	on restart for recovery.
-	Disable locking as temp-tables are not shared across connection. */
-	dict_disable_redo_if_temporary(index->table, mtr);
-	flags |= BTR_NO_LOCKING_FLAG | BTR_NO_UNDO_LOG_FLAG;
+	const ulint	flags = BTR_NO_LOCKING_FLAG | BTR_NO_UNDO_LOG_FLAG;
 
 	for (;;) {
 		rec_t*		insert_rec;
@@ -2756,17 +2746,17 @@ row_ins_sec_index_entry_low(
 	mtr_start(&mtr);
 	mtr.set_named_space(index->space);
 
-	/* Disable REDO logging as lifetime of temp-tables is limited to
-	server or connection lifetime and so REDO information is not needed
-	on restart for recovery.
-	Disable locking as temp-tables are not shared across connection. */
 	if (dict_table_is_temporary(index->table)) {
-		flags |= BTR_NO_LOCKING_FLAG;
-		mtr.set_log_mode(MTR_LOG_NO_REDO);
+		/* Disable REDO logging as the lifetime of temp-tables is
+		limited to server or connection lifetime and so REDO
+		information is not needed on restart for recovery.
+		Disable locking as temp-tables are local to a connection. */
 
-		if (dict_table_is_intrinsic(index->table)) {
-			flags |= BTR_NO_UNDO_LOG_FLAG;
-		}
+		ut_ad(flags & BTR_NO_LOCKING_FLAG);
+		ut_ad(!dict_table_is_intrinsic(index->table)
+		      || (flags & BTR_NO_UNDO_LOG_FLAG));
+
+		mtr.set_log_mode(MTR_LOG_NO_REDO);
 	} else if (!dict_index_is_spatial(index)) {
 		/* Enable insert buffering if not temp-table */
 		search_mode |= BTR_INSERT;
@@ -2932,8 +2922,8 @@ row_ins_sec_index_entry_low(
 		}
 	}
 
-	if (dict_index_is_unique(index)
-	    && !dict_table_is_intrinsic(index->table)
+	if (!(flags & BTR_NO_LOCKING_FLAG)
+	    && dict_index_is_unique(index)
 	    && thr_get_trx(thr)->duplicates
 	    && thr_get_trx(thr)->isolation_level >= TRX_ISO_REPEATABLE_READ) {
 
@@ -3144,17 +3134,24 @@ row_ins_clust_index_entry(
 	n_uniq = dict_index_is_unique(index) ? index->n_uniq : 0;
 
 	/* Try first optimistic descent to the B-tree */
+	ulint	flags;
+
 	if (!dict_table_is_intrinsic(index->table)) {
 		log_free_check();
+		flags = dict_table_is_temporary(index->table)
+			? BTR_NO_LOCKING_FLAG
+			: 0;
+	} else {
+		flags = BTR_NO_LOCKING_FLAG | BTR_NO_UNDO_LOG_FLAG;
 	}
 
 	if (dict_table_is_intrinsic(index->table)
 	    && dict_index_is_auto_gen_clust(index)) {
 		err = row_ins_sorted_clust_index_entry(
-			0, BTR_MODIFY_LEAF, index, n_uniq, entry, n_ext, thr);
+			BTR_MODIFY_LEAF, index, entry, n_ext, thr);
 	} else {
 		err = row_ins_clust_index_entry_low(
-			0, BTR_MODIFY_LEAF, index, n_uniq, entry,
+			flags, BTR_MODIFY_LEAF, index, n_uniq, entry,
 			n_ext, thr, dup_chk_only);
 	}
 
@@ -3177,10 +3174,10 @@ row_ins_clust_index_entry(
 	if (dict_table_is_intrinsic(index->table)
 	    && dict_index_is_auto_gen_clust(index)) {
 		err = row_ins_sorted_clust_index_entry(
-			0, BTR_MODIFY_TREE, index, n_uniq, entry, n_ext, thr);
+			BTR_MODIFY_TREE, index, entry, n_ext, thr);
 	} else {
 		err = row_ins_clust_index_entry_low(
-			0, BTR_MODIFY_TREE, index, n_uniq, entry,
+			flags, BTR_MODIFY_TREE, index, n_uniq, entry,
 			n_ext, thr, dup_chk_only);
 	}
 
@@ -3228,13 +3225,20 @@ row_ins_sec_index_entry(
 
 	/* Try first optimistic descent to the B-tree */
 
+	ulint	flags;
+
 	if (!dict_table_is_intrinsic(index->table)) {
 		log_free_check();
+		flags = dict_table_is_temporary(index->table)
+			? BTR_NO_LOCKING_FLAG
+			: 0;
+	} else {
+		flags = BTR_NO_LOCKING_FLAG | BTR_NO_UNDO_LOG_FLAG;
 	}
 
 	err = row_ins_sec_index_entry_low(
-		0, BTR_MODIFY_LEAF, index, offsets_heap, heap, entry, 0, thr,
-		dup_chk_only);
+		flags, BTR_MODIFY_LEAF, index, offsets_heap, heap, entry,
+		0, thr, dup_chk_only);
 	if (err == DB_FAIL) {
 		mem_heap_empty(heap);
 
@@ -3247,7 +3251,7 @@ row_ins_sec_index_entry(
 		}
 
 		err = row_ins_sec_index_entry_low(
-			0, BTR_MODIFY_TREE, index,
+			flags, BTR_MODIFY_TREE, index,
 			offsets_heap, heap, entry, 0, thr,
 			dup_chk_only);
 	}
@@ -3595,6 +3599,18 @@ row_ins(
 			default:
 				DBUG_RETURN(err);
 			}
+		}
+
+		if (node->duplicate && dict_table_is_temporary(node->table)) {
+			ut_ad(thr_get_trx(thr)->error_state
+			      == DB_DUPLICATE_KEY);
+			/* For TEMPORARY TABLE, we won't lock anything,
+			so we can simply break here instead of requiring
+			GAP locks for other unique secondary indexes,
+			pretending we have consumed all indexes. */
+			node->index = NULL;
+			node->entry = NULL;
+			break;
 		}
 
 		node->index = dict_table_get_next_index(node->index);

@@ -50,7 +50,7 @@ if ($dir_bin =~ m|/usr/|) {
     }
   }
 } else {
-  # tar.gz package, Windows, or developer work (in BZR)
+  # tar.gz package, Windows, or developer work (in git)
   $dir_docs = $dir_bin;
   $dir_docs =~ s|/lib||;
   if(-d "$dir_docs/docs") {
@@ -64,7 +64,7 @@ $found_revision = "No line 'revision-id: .....'";
 open(I_SRC,"<","$dir_docs/INFO_SRC") or print "Cannot open 'INFO_SRC' in '$dir_docs' (starting from bindir '$dir_bin')\n";
 while(defined ($line = <I_SRC>)) {
   if ($line =~ m|^MySQL source \d\.\d\.\d+|) {$found_version = "Found MySQL version number";}
-  if ($line =~ m|^git log -1: commit \w{40}$|) {$found_revision = "Found GIT revision id";}
+  if ($line =~ m|^commit: \w{40}$|) {$found_revision = "Found GIT revision id";}
 }
 close I_SRC;
 print "INFO_SRC: $found_version / $found_revision\n";

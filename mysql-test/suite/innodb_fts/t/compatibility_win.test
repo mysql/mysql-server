@@ -2,6 +2,7 @@
 --source include/not_embedded.inc
 --source include/have_innodb.inc
 --source include/have_debug.inc
+--source include/big_test.inc
 
 --echo # Bug #18285007	COPY OF TABLES WITH INNODB FTS
 --echo #	FROM WINDOWS TO LINUX CAUSES CRASH
@@ -74,7 +75,7 @@ DROP TABLE t1;
 
 call mtr.add_suppression("\\[Warning\\] InnoDB: Parent table of FTS auxiliary table .* not found.");
 call mtr.add_suppression("\\[Warning\\] InnoDB: Setting aux table .* to hex format failed.");
-call mtr.add_suppression("\\[ERROR] InnoDB: Index .* of table .*..* is corrupted");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Index .* of table .* is corrupted");
 
 SET GLOBAL DEBUG='+d,innodb_test_wrong_fts_aux_table_name';
 SET GLOBAL DEBUG='+d,innodb_test_wrong_non_windows_fts_aux_table_name';
@@ -84,32 +85,19 @@ INSERT INTO t1 VALUES('TEXT1', 'TEXT2', 'TEXT5');
 SELECT * FROM t1 WHERE MATCH(a, b) AGAINST ('TEST2');
 SELECT * FROM t1 WHERE MATCH(c) AGAINST ('TEXT5');
 
-SET GLOBAL DEBUG='-d,innodb_test_wrong_fts_sys_table_name';
-
-# Write file to make mysql-test-run.pl wait for the server to stop
--- exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-# Request shutdown
--- send_shutdown
-# Call script that will poll the server waiting for it to disapear
--- source include/wait_until_disconnected.inc
-
-# Write file to make mysql-test-run.pl start up the server again, ensure
-# that no background threads are started, so that we can check that it
-# shuts down properly.
-# Set the flag to force the aux table fail and restart the server
-
---exec echo "restart:--debug=d,aux_table_flag_fail" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
---source include/wait_until_connected_again.inc
+let $restart_parameters = restart: --debug=d,aux_table_flag_fail;
+--source include/restart_mysqld.inc
 
 --error ER_TABLE_HAS_NO_FT
 SELECT * FROM t1 WHERE MATCH(a, b) AGAINST ('TEST2');
 --error ER_TABLE_HAS_NO_FT
 SELECT * FROM t1 WHERE MATCH(c) AGAINST ('TEXT5');
 
+CHECK TABLE t1;
+--error ER_CHECK_NO_SUCH_TABLE
 ALTER TABLE t1 ADD FULLTEXT(b);
 
---echo # Restart the server
+let $restart_parameters = restart;
 -- source include/restart_mysqld.inc
 
 --error ER_TABLE_HAS_NO_FT
@@ -141,30 +129,11 @@ INSERT INTO t1 VALUES('TEXT1', 'TEXT2', 'TEXT5');
 SELECT * FROM t1 WHERE MATCH(a, b) AGAINST ('TEST2');
 SELECT * FROM t1 WHERE MATCH(c) AGAINST ('TEXT5');
 
-SET GLOBAL DEBUG='-d,innodb_test_wrong_fts_sys_table_name';
-
-# Write file to make mysql-test-run.pl wait for the server to stop
--- exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-# Request shutdown
--- send_shutdown
-# Call script that will poll the server waiting for it to disapear
--- source include/wait_until_disconnected.inc
-
-# Write file to make mysql-test-run.pl start up the server again, ensure
-# that no background threads are started, so that we can check that it
-# shuts down properly.
-# Set the flag to force the parent table fail and restart the server
-
--- disable_query_log
---error 1
+--source include/shutdown_mysqld.inc
+--error 3
 --exec $MYSQLD_CMD --debug="d,parent_table_flag_fail"
--- enable_query_log
 
-# Restart the server
---enable_reconnect
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---source include/wait_until_connected_again.inc
---disable_reconnect
+--source include/start_mysqld.inc
 
 SELECT * FROM t1 WHERE MATCH(a, b) AGAINST ('TEST2');
 SELECT * FROM t1 WHERE MATCH(c) AGAINST ('TEXT5');
@@ -212,24 +181,8 @@ INSERT INTO t1 VALUES('TEXT1', 'TEXT2', 'TEXT5');
 SELECT * FROM t1 WHERE MATCH(a, b) AGAINST ('TEST2');
 SELECT * FROM t1 WHERE MATCH(c) AGAINST ('TEXT5');
 
-SET SESSION debug='-d,innodb_test_wrong_fts_sys_table_name';
-
-# Write file to make mysql-test-run.pl wait for the server to stop
--- exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-# Request shutdown
--- send_shutdown
-#Call script that will poll the server waiting for it to disapear
--- source include/wait_until_disconnected.inc
-
---echo # Restart server.
-
-# Write file to make mysql-test-run.pl start up the server again, ensure
-# that no background threads are started, so that we can check that it
-# shuts down properly.
-# Set the flag to force the rename fail and restart the server
---exec echo "restart:--debug=d,rename_aux_table_fail" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
---source include/wait_until_connected_again.inc
+let $restart_parameters = restart: --debug=d,rename_aux_table_fail;
+--source include/restart_mysqld.inc
 
 # Will fail to alter table
 --error ER_INNODB_FT_AUX_NOT_HEX_ID
@@ -238,8 +191,8 @@ ALTER TABLE t1 ADD FULLTEXT(b);
 --error ER_TABLE_HAS_NO_FT
 SELECT * FROM t1 WHERE MATCH(a, b) AGAINST ('TEST2');
 
---echo # Restart server.
--- source include/restart_mysqld.inc
+let $restart_parameters = restart;
+--source include/restart_mysqld.inc
 
 --error ER_TABLE_HAS_NO_FT
 SELECT * FROM t1 WHERE MATCH(a, b) AGAINST ('TEST2');

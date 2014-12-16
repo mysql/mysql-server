@@ -18,7 +18,6 @@
 /* create and drop of databases */
 
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
-#include "sql_priv.h"
 #include "sql_db.h"
 #include "sql_cache.h"                   // query_cache_*
 #include "lock.h"                        // lock_schema_name
@@ -1346,7 +1345,7 @@ static void mysql_change_db_impl(THD *thd,
   /* 2. Update security context. */
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-  thd->security_ctx->db_access= new_db_access;
+  thd->security_context()->set_db_access(new_db_access);
 #endif
 
   /* 3. Update db-charset environment variables. */
@@ -1483,8 +1482,8 @@ bool mysql_change_db(THD *thd, const LEX_CSTRING &new_db_name,
   LEX_STRING new_db_file_name;
   LEX_CSTRING new_db_file_name_cstr;
 
-  Security_context *sctx= thd->security_ctx;
-  ulong db_access= sctx->db_access;
+  Security_context *sctx= thd->security_context();
+  ulong db_access= sctx->db_access();
   const CHARSET_INFO *db_default_cl;
 
   DBUG_ENTER("mysql_change_db");
@@ -1562,27 +1561,26 @@ bool mysql_change_db(THD *thd, const LEX_CSTRING &new_db_name,
   DBUG_PRINT("info",("Use database: %s", new_db_file_name.str));
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-  db_access=
-    test_all_bits(sctx->master_access, DB_ACLS) ?
+  db_access= sctx->check_access(DB_ACLS) ?
     DB_ACLS :
-    acl_get(sctx->get_host()->ptr(),
-            sctx->get_ip()->ptr(),
-            sctx->priv_user,
+    acl_get(sctx->host().str,
+            sctx->ip().str,
+            sctx->priv_user().str,
             new_db_file_name.str,
-            FALSE) | sctx->master_access;
+            false) | sctx->master_access();
 
   if (!force_switch &&
       !(db_access & DB_ACLS) &&
       check_grant_db(thd, new_db_file_name.str))
   {
     my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
-             sctx->priv_user,
-             sctx->priv_host,
+             sctx->priv_user().str,
+             sctx->priv_host().str,
              new_db_file_name.str);
     query_logger.general_log_print(thd, COM_INIT_DB,
                                    ER(ER_DBACCESS_DENIED_ERROR),
-                                   sctx->priv_user,
-                                   sctx->priv_host,
+                                   sctx->priv_user().str,
+                                   sctx->priv_host().str,
                                    new_db_file_name.str);
     my_free(new_db_file_name.str);
     DBUG_RETURN(TRUE);

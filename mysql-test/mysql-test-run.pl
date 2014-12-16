@@ -2506,6 +2506,11 @@ sub environment_setup {
   $ENV{'MYSQL_BUG25714'}=  native_path($exe_bug25714);
 
   # ----------------------------------------------------
+  # Get the bin dir
+  # ----------------------------------------------------
+  $ENV{'MYSQL_BIN_PATH'}=  native_path($bindir);
+
+  # ----------------------------------------------------
   # mysql_fix_privilege_tables.sql
   # ----------------------------------------------------
   my $file_mysql_fix_privilege_tables=
@@ -2927,7 +2932,7 @@ sub check_ndbcluster_support ($) {
       if ($opt_include_ndbcluster)
       {
 	mtr_error("Could not detect ndbcluster support ".
-		  "requested with --include-ndbcluster");
+                  "requested with --[ndb|include-ndbcluster]");
       }
 
       # Silently skip, mysqld was compiled without ndbcluster
@@ -2943,15 +2948,12 @@ sub check_ndbcluster_support ($) {
     }
 
 
-    # Not a MySQL Cluster tree, enable ndbcluster
-    # if --include-ndbcluster was used
-    if ($opt_include_ndbcluster)
+    if (!$opt_include_ndbcluster)
     {
-      # enable ndbcluster
-    }
-    else
-    {
-      mtr_report(" - skipping ndbcluster(disabled by default)");
+      # Add only the test suite for ndbcluster integration check
+      mtr_report(" - enabling ndbcluster(for integration checks)");
+      $ndbcluster_enabled= 1;
+      $DEFAULT_SUITES.=",ndbcluster";
       return;
     }
   }
@@ -2959,7 +2961,7 @@ sub check_ndbcluster_support ($) {
   mtr_report(" - enabling ndbcluster");
   $ndbcluster_enabled= 1;
   # Add MySQL Cluster test suites
-  $DEFAULT_SUITES.=",ndb,ndb_binlog,rpl_ndb,ndb_rpl,ndb_memcache";
+  $DEFAULT_SUITES.=",ndb,ndb_binlog,rpl_ndb,ndb_rpl,ndb_memcache,ndbcluster";
   return;
 }
 
@@ -6945,7 +6947,7 @@ Misc options
   start-dirty           Only start the servers (without initialization) for
                         the first specified test case
   user-args             In combination with start* and no test name, drops
-                        arguments to mysqld except those speficied with
+                        arguments to mysqld except those specified with
                         --mysqld (if any)
   wait-all              If --start or --start-dirty option is used, wait for all
                         servers to exit before finishing the process

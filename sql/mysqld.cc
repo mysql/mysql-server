@@ -37,7 +37,6 @@
 #include <crtdbg.h>
 #endif
 
-#include "sql_priv.h"
 #include "sql_parse.h"    // test_if_data_home_dir
 #include "sql_cache.h"    // query_cache, query_cache_*
 #include "sql_locale.h"   // MY_LOCALES, my_locales, my_locale_by_name
@@ -318,16 +317,6 @@ ulong slow_start_timeout;
 #endif
 
 my_bool opt_bootstrap= 0;
-
-/**
-   @brief 'grant_option' is used to indicate if privileges needs
-   to be checked, in which case the lock, LOCK_grant, is used
-   to protect access to the grant table.
-   @note This flag is dropped in 5.1
-   @see grant_init()
- */
-bool volatile grant_option;
-
 my_bool opt_skip_slave_start = 0; ///< If set, slave is not autostarted
 my_bool opt_reckless_slave = 0;
 my_bool opt_enable_named_pipe= 0;
@@ -368,7 +357,10 @@ my_bool opt_super_large_pages= 0;
 my_bool opt_myisam_use_mmap= 0;
 my_bool offline_mode= 0;
 uint   opt_large_page_size= 0;
-volatile uint default_password_lifetime= 0;
+uint default_password_lifetime= 0;
+
+mysql_mutex_t LOCK_default_password_lifetime;
+
 #if defined(ENABLED_DEBUG_SYNC)
 MYSQL_PLUGIN_IMPORT uint    opt_debug_sync_timeout= 0;
 #endif /* defined(ENABLED_DEBUG_SYNC) */
@@ -389,11 +381,11 @@ my_bool opt_master_verify_checksum= 0;
 my_bool opt_slave_sql_verify_checksum= 1;
 const char *binlog_format_names[]= {"MIXED", "STATEMENT", "ROW", NullS};
 my_bool enforce_gtid_consistency;
-my_bool simplified_binlog_gtid_recovery;
+my_bool binlog_gtid_simple_recovery;
 ulong binlog_error_action;
 const char *binlog_error_action_list[]= {"IGNORE_ERROR", "ABORT_SERVER", NullS};
 ulong gtid_mode;
-uint executed_gtids_compression_period= 0;
+uint gtid_executed_compression_period= 0;
 const char *gtid_mode_names[]=
 {"OFF", "UPGRADE_STEP_1", "UPGRADE_STEP_2", "ON", NullS};
 TYPELIB gtid_mode_typelib=
@@ -543,7 +535,7 @@ char logname_path[FN_REFLEN];
 char slow_logname_path[FN_REFLEN];
 char secure_file_real_path[FN_REFLEN];
 
-DATE_TIME_FORMAT global_date_format, global_datetime_format, global_time_format;
+Date_time_format global_date_format, global_datetime_format, global_time_format;
 Time_zone *default_tz;
 
 char *mysql_data_home= const_cast<char*>(".");
@@ -1094,10 +1086,10 @@ public:
   {
     if (closing_thd->vio_ok())
     {
+      LEX_CSTRING main_sctx_user= closing_thd->m_main_security_ctx.user();
       sql_print_warning(ER_DEFAULT(ER_FORCING_CLOSE),my_progname,
                         closing_thd->thread_id(),
-                        (closing_thd->main_security_ctx.user ?
-                         closing_thd->main_security_ctx.user : ""));
+                        (main_sctx_user.length ? main_sctx_user.str : ""));
       close_connection(closing_thd);
     }
   }
@@ -1503,6 +1495,7 @@ static void clean_up_mutexes()
   mysql_mutex_destroy(&LOCK_slave_net_timeout);
   mysql_mutex_destroy(&LOCK_error_messages);
   mysql_mutex_destroy(&LOCK_offline_mode);
+  mysql_mutex_destroy(&LOCK_default_password_lifetime);
   mysql_cond_destroy(&COND_manager);
 #ifdef _WIN32
   mysql_cond_destroy(&COND_handler_count);
@@ -2391,7 +2384,7 @@ check_enough_stack_size(int recurse_level)
 */
 
 static bool init_global_datetime_format(timestamp_type format_type,
-                                        DATE_TIME_FORMAT *format)
+                                        Date_time_format *format)
 {
   /*
     Get command line option
@@ -3204,6 +3197,8 @@ static int init_thread_environment()
                    &LOCK_log_throttle_qni, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_offline_mode,
                    &LOCK_offline_mode, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_LOCK_default_password_lifetime,
+                   &LOCK_default_password_lifetime, MY_MUTEX_INIT_FAST);
 #ifdef HAVE_OPENSSL
   mysql_mutex_init(key_LOCK_des_key_file,
                    &LOCK_des_key_file, MY_MUTEX_INIT_FAST);
@@ -5631,7 +5626,7 @@ struct my_option my_long_options[]=
    "Optional semicolon-separated list of plugins to load, where each plugin is "
    "identified as name=library, where name is the plugin name and library "
    "is the plugin library in plugin_dir. This option adds to the list "
-   "speficied by --plugin-load in an incremental way. "
+   "specified by --plugin-load in an incremental way. "
    "Multiple --plugin-load-add are supported.",
    0, 0, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -6629,7 +6624,6 @@ static int mysql_init_variables(void)
   opt_endinfo= using_udf_functions= 0;
   opt_using_transactions= 0;
   abort_loop= false;
-  grant_option= 0;
   aborted_threads= 0;
   delayed_insert_threads= delayed_insert_writes= delayed_rows_in_use= 0;
   delayed_insert_errors= 0;
@@ -7864,6 +7858,7 @@ PSI_mutex_key key_mts_gaq_LOCK;
 PSI_mutex_key key_thd_timer_mutex;
 #endif
 PSI_mutex_key key_LOCK_offline_mode;
+PSI_mutex_key key_LOCK_default_password_lifetime;
 
 #ifdef HAVE_REPLICATION
 PSI_mutex_key key_commit_order_manager_mutex;
@@ -7954,6 +7949,7 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_mutex_slave_worker_hash, "Relay_log_info::slave_worker_hash_lock", 0},
 #endif
   { &key_LOCK_offline_mode, "LOCK_offline_mode", PSI_FLAG_GLOBAL},
+  { &key_LOCK_default_password_lifetime, "LOCK_default_password_lifetime", PSI_FLAG_GLOBAL}
 };
 
 PSI_rwlock_key key_rwlock_LOCK_grant, key_rwlock_LOCK_logger,
@@ -8461,7 +8457,6 @@ PSI_memory_key key_memory_Security_context;
 PSI_memory_key key_memory_shared_memory_name;
 PSI_memory_key key_memory_bison_stack;
 PSI_memory_key key_memory_THD_handler_tables_hash;
-PSI_memory_key key_memory_mysql_manager;
 PSI_memory_key key_memory_hash_index_key_buffer;
 PSI_memory_key key_memory_dboptions_hash;
 PSI_memory_key key_memory_user_conn;
@@ -8607,7 +8602,6 @@ static PSI_memory_info all_server_memory[]=
   { &key_memory_shared_memory_name, "Shared_memory_name", 0},
   { &key_memory_bison_stack, "bison_stack", 0},
   { &key_memory_THD_handler_tables_hash, "THD::handler_tables_hash", 0},
-  { &key_memory_mysql_manager, "mysql_manager", 0},
   { &key_memory_hash_index_key_buffer, "hash_index_key_buffer", 0},
   { &key_memory_dboptions_hash, "dboptions_hash", 0},
   { &key_memory_user_conn, "user_conn", 0},

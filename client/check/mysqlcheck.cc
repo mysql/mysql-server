@@ -296,9 +296,11 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case OPT_FIX_DB_NAMES:
     what_to_do= DO_UPGRADE;
     opt_databases= 1;
+    CLIENT_WARN_DEPRECATED_NO_REPLACEMENT("--fix-db-names");
     break;
   case OPT_FIX_TABLE_NAMES:
     what_to_do= DO_UPGRADE;
+    CLIENT_WARN_DEPRECATED_NO_REPLACEMENT("--fix-table-names");
     break;
   case 'p':
     if (argument == disabled_my_option)

@@ -19,7 +19,6 @@
   Multi-table deletes were introduced by Monty and Sinisa
 */
 
-#include "sql_priv.h"
 #include "sql_delete.h"
 #include "sql_cache.h"                          // query_cache_*
 #include "sql_base.h"                           // open_temprary_table
@@ -37,6 +36,7 @@
 #include "table_trigger_dispatcher.h"           // Table_trigger_dispatcher
 #include "debug_sync.h"                         // DEBUG_SYNC
 #include "uniques.h"
+#include "binlog.h"
 
 /**
   Implement DELETE SQL word.
@@ -464,6 +464,7 @@ bool mysql_delete(THD *thd, ha_rows limit)
 
     if ((table->file->ha_table_flags() & HA_READ_BEFORE_WRITE_REMOVAL) &&
         !using_limit &&
+        !(table->triggers && table->triggers->has_delete_triggers()) &&
         qep_tab.quick() && qep_tab.quick()->index != MAX_KEY)
       read_removal= table->check_read_removal(qep_tab.quick()->index);
 

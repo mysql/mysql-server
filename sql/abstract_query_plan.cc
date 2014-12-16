@@ -15,7 +15,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "sql_priv.h"
 #include "sql_select.h"
 #include "sql_optimizer.h"
 #include "abstract_query_plan.h"
@@ -336,7 +335,7 @@ namespace AQP
       {
         /*
           It means that the decision on which access method to use
-          will be taken late (as rows from the preceeding operation arrive).
+          will be taken late (as rows from the preceding operation arrive).
           This operation is therefor not pushable.
         */
         DBUG_PRINT("info",

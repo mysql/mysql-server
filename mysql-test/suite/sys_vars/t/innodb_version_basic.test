@@ -15,8 +15,10 @@ select @@global.innodb_version;
 select @@session.innodb_version;
 --echo show global variables like 'innodb_version' disabled so to not change with every version;
 --echo show session variables like 'innodb_version' disabled so to not change with every version;
+--disable_warnings
 select VARIABLE_VALUE=@@global.innodb_version from information_schema.global_variables where variable_name='innodb_version';
 select VARIABLE_VALUE=@@global.innodb_version from information_schema.session_variables where variable_name='innodb_version';
+--enable_warnings
 
 #
 # show that it's read-only

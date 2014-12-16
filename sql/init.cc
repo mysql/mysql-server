@@ -21,7 +21,6 @@
   Init and dummy functions for interface with unireg
 */
 
-#include "sql_priv.h"
 #include "init.h"
 #include "my_sys.h"
 #include "mysqld.h"                             // abort_loop, ...

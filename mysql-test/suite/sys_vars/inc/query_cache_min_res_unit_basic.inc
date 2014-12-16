@@ -122,6 +122,7 @@ SELECT @@query_cache_min_res_unit;
 # Check if the value in GLOBAL & SESSION Tables matches values in variable   #
 ##############################################################################
 
+--disable_warnings
 SELECT @@global.query_cache_min_res_unit = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
 WHERE VARIABLE_NAME='query_cache_min_res_unit';
@@ -129,6 +130,7 @@ WHERE VARIABLE_NAME='query_cache_min_res_unit';
 SELECT @@query_cache_min_res_unit = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
 WHERE VARIABLE_NAME='query_cache_min_res_unit';
+--enable_warnings
 
 
 --echo '#---------------------FN_DYNVARS_132_07----------------------#'

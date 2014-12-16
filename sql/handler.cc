@@ -20,7 +20,6 @@
 */
 
 #include "binlog.h"
-#include "sql_priv.h"
 #include "rpl_handler.h"
 #include "sql_cache.h"                   // query_cache, query_cache_*
 #include "key.h"     // key_copy, key_unpack, key_cmp_if_same, key_cmp
@@ -662,6 +661,7 @@ int ha_init_errors(void)
   SETMSG(HA_FTS_INVALID_DOCID,          "Invalid InnoDB FTS Doc ID");
   SETMSG(HA_ERR_TABLE_IN_FK_CHECK,	ER_DEFAULT(ER_TABLE_IN_FK_CHECK));
   SETMSG(HA_ERR_TABLESPACE_EXISTS,      "Tablespace already exists");
+  SETMSG(HA_ERR_TABLESPACE_MISSING,     ER_DEFAULT(ER_TABLESPACE_MISSING));
   SETMSG(HA_ERR_FTS_EXCEED_RESULT_CACHE_LIMIT,  "FTS query exceeds result cache limit");
   SETMSG(HA_ERR_TEMP_FILE_WRITE_FAILURE,	ER_DEFAULT(ER_TEMP_FILE_WRITE_FAILURE));
   SETMSG(HA_ERR_INNODB_FORCED_RECOVERY,	ER_DEFAULT(ER_INNODB_FORCED_RECOVERY));
@@ -1604,7 +1604,7 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock)
 
     if (rw_trans &&
         opt_readonly &&
-        !(thd->security_ctx->master_access & SUPER_ACL) &&
+        !(thd->security_context()->check_access(SUPER_ACL)) &&
         !thd->slave_thread)
     {
       my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--read-only");
@@ -3807,6 +3807,14 @@ void handler::print_error(int error, myf errflag)
   case HA_ERR_QUERY_INTERRUPTED:
     textno= ER_QUERY_INTERRUPTED;
     break;
+  case HA_ERR_TABLESPACE_MISSING:
+  {
+    char errbuf[MYSYS_STRERROR_SIZE];
+    my_snprintf(errbuf, MYSYS_STRERROR_SIZE, "`%s`.`%s`", table_share->db.str,
+                table_share->table_name.str);
+    my_error(ER_TABLESPACE_MISSING, errflag, errbuf, error);
+    DBUG_VOID_RETURN;
+  }
   default:
     {
       /* The error was "unknown" to this function.

@@ -17,7 +17,6 @@
 /* Some general useful functions */
 
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
-#include "sql_priv.h"
 #include "table.h"
 #include "key.h"                                // find_ref_key
 #include "sql_table.h"                          // build_table_filename,
@@ -40,6 +39,9 @@
 #include "table_cache.h"         // table_cache_manager
 #include "sql_view.h"
 #include "debug_sync.h"
+#include "log.h"
+#include "binlog.h"
+
 
 /* INFORMATION_SCHEMA name */
 LEX_STRING INFORMATION_SCHEMA_NAME= {C_STRING_WITH_LEN("information_schema")};
@@ -2390,6 +2392,14 @@ partititon_err:
 
       switch (ha_err)
       {
+	case HA_ERR_TABLESPACE_MISSING:
+          /*
+            In case of Innodb table space header may be corrupted or
+	    ibd file might be missing
+          */
+          error= 1;
+          DBUG_ASSERT(my_errno == HA_ERR_TABLESPACE_MISSING);
+          break;
         case HA_ERR_NO_SUCH_TABLE:
 	  /*
             The table did not exists in storage engine, use same error message
@@ -2437,7 +2447,9 @@ partititon_err:
     outparam->no_replicate= FALSE;
   }
 
-  thd->status_var.opened_tables++;
+  /* Increment the opened_tables counter, only when open flags set. */
+  if (db_stat)
+    thd->status_var.opened_tables++;
 
   DBUG_RETURN (0);
 
@@ -2702,10 +2714,16 @@ void open_table_error(TABLE_SHARE *share, int error, int db_errno, int errarg)
   switch (error) {
   case 7:
   case 1:
-    if (db_errno == ENOENT)
+    switch (db_errno) {
+    case ENOENT:
       my_error(ER_NO_SUCH_TABLE, MYF(0), share->db.str, share->table_name.str);
-    else
-    {
+      break;
+    case HA_ERR_TABLESPACE_MISSING:
+      my_snprintf(errbuf, MYSYS_STRERROR_SIZE, "`%s`.`%s`", share->db.str,
+                  share->table_name.str);
+      my_error(ER_TABLESPACE_MISSING, MYF(0), errbuf);
+      break;
+    default:
       strxmov(buff, share->normalized_path.str, reg_ext, NullS);
       my_error((db_errno == EMFILE) ? ER_CANT_OPEN_FILE : ER_FILE_NOT_FOUND,
                errortype, buff,
@@ -2716,7 +2734,7 @@ void open_table_error(TABLE_SHARE *share, int error, int db_errno, int errarg)
   {
     handler *file= 0;
     const char *datext= "";
-    
+
     if (share->db_type() != NULL)
     {
       if ((file= get_new_handler(share, current_thd->mem_root,
@@ -4577,7 +4595,7 @@ bool TABLE_LIST::prepare_view_securety_context(THD *thd)
       }
       else
       {
-        if (thd->security_ctx->master_access & SUPER_ACL)
+        if (thd->security_context()->check_access(SUPER_ACL))
         {
           my_error(ER_NO_SUCH_USER, MYF(0), definer.user.str, definer.host.str);
 
@@ -4586,12 +4604,12 @@ bool TABLE_LIST::prepare_view_securety_context(THD *thd)
         {
           if (thd->password == 2)
             my_error(ER_ACCESS_DENIED_NO_PASSWORD_ERROR, MYF(0),
-                     thd->security_ctx->priv_user,
-                     thd->security_ctx->priv_host);
+                     thd->security_context()->priv_user().str,
+                     thd->security_context()->priv_host().str);
           else
             my_error(ER_ACCESS_DENIED_ERROR, MYF(0),
-                     thd->security_ctx->priv_user,
-                     thd->security_ctx->priv_host,
+                     thd->security_context()->priv_user().str,
+                     thd->security_context()->priv_host().str,
                      (thd->password ?  ER(ER_YES) : ER(ER_NO)));
         }
         DBUG_RETURN(TRUE);
@@ -4635,7 +4653,7 @@ Security_context *TABLE_LIST::find_view_security_context(THD *thd)
   else
   {
     DBUG_PRINT("info", ("Current global context will be used"));
-    sctx= thd->security_ctx;
+    sctx= thd->security_context();
   }
   DBUG_RETURN(sctx);
 }
@@ -4660,12 +4678,12 @@ bool TABLE_LIST::prepare_security(THD *thd)
   TABLE_LIST *tbl;
   DBUG_ENTER("TABLE_LIST::prepare_security");
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-  Security_context *save_security_ctx= thd->security_ctx;
+  Security_context *save_security_ctx= thd->security_context();
 
   DBUG_ASSERT(!prelocking_placeholder);
   if (prepare_view_securety_context(thd))
     DBUG_RETURN(TRUE);
-  thd->security_ctx= find_view_security_context(thd);
+  thd->set_security_context(find_view_security_context(thd));
   opt_trace_disable_if_no_security_context_access(thd);
   while ((tbl= tb++))
   {
@@ -4686,7 +4704,7 @@ bool TABLE_LIST::prepare_security(THD *thd)
     if (tbl->table)
       tbl->table->grant= grant;
   }
-  thd->security_ctx= save_security_ctx;
+  thd->set_security_context(save_security_ctx);
 #else
   while ((tbl= tb++))
     tbl->grant.privilege= ~NO_ACCESS;

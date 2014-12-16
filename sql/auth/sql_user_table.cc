@@ -316,8 +316,8 @@ void acl_notify_htons(THD* thd, const char* query, size_t query_length)
 
 void get_grantor(THD *thd, char *grantor)
 {
-  const char *user= thd->security_ctx->user;
-  const char *host= thd->security_ctx->host_or_ip;
+  const char *user= thd->security_context()->user().str;
+  const char *host= thd->security_context()->host_or_ip().str;
 
 #if defined(HAVE_REPLICATION)
   if (thd->slave_thread && thd->has_invoker())
@@ -1108,6 +1108,7 @@ int replace_proxies_priv_table(THD *thd, TABLE *table, const LEX_USER *user,
   {
     DBUG_PRINT("info", ("Row found"));
     old_row_exists= 1;
+    ACL_PROXY_USER::store_with_grant(table, with_grant_arg);
     store_record(table, record[1]);
   }
 

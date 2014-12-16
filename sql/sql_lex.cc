@@ -18,7 +18,6 @@
 /* A lexical scanner on a temporary buffer with a yacc interface */
 
 #define MYSQL_LEX 1
-#include "sql_priv.h"
 #include "sql_class.h"                          // sql_lex.h: SQLCOM_END
 #include "sql_lex.h"
 #include "sql_parse.h"                          // add_to_list
@@ -403,6 +402,14 @@ void Lex_input_stream::add_digest_token(uint token, LEX_YYSTYPE yylval)
   if (m_digest != NULL)
   {
     m_digest= digest_add_token(m_digest, token, yylval);
+  }
+}
+
+void Lex_input_stream::reduce_digest_token(uint token_left, uint token_right)
+{
+  if (m_digest != NULL)
+  {
+    m_digest= digest_reduce_token(m_digest, token_left, token_right);
   }
 }
 

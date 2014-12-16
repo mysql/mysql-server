@@ -46,7 +46,6 @@
 /* Some general useful functions */
 
 #define MYSQL_LEX 1
-#include "sql_priv.h"
 #include "sql_partition.h"
 #include "key.h"                            // key_restore
 #include "sql_parse.h"                      // parse_sql
@@ -67,6 +66,7 @@
 #include "opt_range.h"                  // store_key_image_to_rec
 #include "sql_analyse.h"                // append_escaped
 #include "sql_alter.h"                  // Alter_table_ctx
+#include "log.h"
 
 #include <algorithm>
 using std::max;
@@ -4629,6 +4629,36 @@ error:
 
 
 /**
+  Set part_state for all partitions to given state.
+
+  @param tab_part_info  partition_info holding all partitions.
+  @param part_state     Which state to set for the named partitions.
+*/
+
+void set_all_part_state(partition_info *tab_part_info,
+                        enum partition_state part_state)
+{
+  uint part_count= 0;
+  List_iterator<partition_element> part_it(tab_part_info->partitions);
+
+  do
+  {
+    partition_element *part_elem= part_it++;
+    part_elem->part_state= part_state;
+    if (tab_part_info->is_sub_partitioned())
+    {
+      List_iterator<partition_element> sub_it(part_elem->subpartitions);
+      partition_element *sub_elem;
+      while ((sub_elem= sub_it++))
+      {
+        sub_elem->part_state= part_state;
+      }
+    }
+  } while (++part_count < tab_part_info->num_parts);
+}
+
+
+/**
   Sets which partitions to be used in the command.
 
   @param alter_info     Alter_info pointer holding partition names and flags.
@@ -4694,20 +4724,7 @@ bool set_part_state(Alter_info *alter_info,
       !(alter_info->flags & Alter_info::ALTER_ALL_PARTITION))
   {
     /* Not all given partitions found, revert and return failure */
-    part_it.rewind();
-    part_count= 0;
-    do
-    {
-      partition_element *part_elem= part_it++;
-      if (tab_part_info->is_sub_partitioned())
-      {
-        List_iterator<partition_element> sub_it(part_elem->subpartitions);
-        partition_element *sub_elem;
-        while ((sub_elem= sub_it++))
-	  sub_elem->part_state= PART_NORMAL;
-      }
-      part_elem->part_state= PART_NORMAL;
-    } while (++part_count < tab_part_info->num_parts);
+    set_all_part_state(tab_part_info, PART_NORMAL);
     return true;
   }
   return false;

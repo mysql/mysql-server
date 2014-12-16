@@ -162,7 +162,7 @@ public:
     if (thd != NULL)
     {
       init_net_server_extension(thd);
-      thd->security_ctx->set_host(my_localhost);
+      thd->security_context()->set_host_ptr(my_localhost, strlen(my_localhost));
     }
     return thd;
   }

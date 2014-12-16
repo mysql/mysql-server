@@ -372,7 +372,6 @@
 
 
 #define MYSQL_SERVER 1
-#include "sql_priv.h"
 #include "sql_servers.h"         // FOREIGN_SERVER, get_server_by_name
 #include "sql_class.h"           // SSV
 #include "sql_analyse.h"         // append_escaped

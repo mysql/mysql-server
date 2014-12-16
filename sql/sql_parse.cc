@@ -15,7 +15,6 @@
 
 #define MYSQL_LEX 1
 #include "my_global.h"
-#include "sql_priv.h"
 #include "sql_parse.h"        // sql_kill, *_precheck, *_prepare
 #include "lock.h"             // try_transactional_lock,
                               // check_transactional_lock,
@@ -865,8 +864,7 @@ static my_bool deny_updates_if_read_only_option(THD *thd,
   LEX *lex= thd->lex;
 
   const my_bool user_is_super=
-    ((ulong)(thd->security_ctx->master_access & SUPER_ACL) ==
-     (ulong)SUPER_ACL);
+    (thd->security_context()->check_access(SUPER_ACL));
 
   if (user_is_super)
     DBUG_RETURN(FALSE);
@@ -1045,8 +1043,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
   /* DTRACE instrumentation, begin */
   MYSQL_COMMAND_START(thd->thread_id(), command,
-                      &thd->security_ctx->priv_user[0],
-                      (char *) thd->security_ctx->host_or_ip);
+                      (char *) thd->security_context()->priv_user().str,
+                      (char *) thd->security_context()->host_or_ip().str);
 
   /* Performance Schema Interface instrumentation, begin */
   thd->m_statement_psi= MYSQL_REFINE_STATEMENT(thd->m_statement_psi,
@@ -1069,7 +1067,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
      TODO: remove this when we have full 64 bit my_time_t support
     */
-    thd->security_ctx->master_access|= SHUTDOWN_ACL;
+    ulong master_access= thd->security_context()->master_access();
+    thd->security_context()->set_master_access(master_access | SHUTDOWN_ACL);
     command= COM_SHUTDOWN;
   }
   thd->set_query_id(next_query_id());
@@ -1095,7 +1094,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
        and that's available through other means.
     COM_QUIT should work even for expired statements.
   */
-  if (unlikely(thd->security_ctx->password_expired &&
+  if (unlikely(thd->security_context()->password_expired() &&
                command != COM_QUERY &&
                command != COM_STMT_CLOSE &&
                command != COM_STMT_SEND_LONG_DATA &&
@@ -1151,20 +1150,19 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     USER_CONN *save_user_connect=
       const_cast<USER_CONN*>(thd->get_user_connect());
     LEX_CSTRING save_db= thd->db();
-    Security_context save_security_ctx= *thd->security_ctx;
+    Security_context save_security_ctx(*(thd->security_context()));
 
     auth_rc= acl_authenticate(thd, packet_length);
     MYSQL_AUDIT_NOTIFY_CONNECTION_CHANGE_USER(thd);
     if (auth_rc)
     {
-      my_free(thd->security_ctx->user);
-      *thd->security_ctx= save_security_ctx;
+      *thd->security_context()= save_security_ctx;
       thd->set_user_connect(save_user_connect);
       thd->reset_db(save_db);
 
       my_error(ER_ACCESS_DENIED_CHANGE_USER_ERROR, MYF(0),
-               thd->security_ctx->user,
-               thd->security_ctx->host_or_ip,
+               thd->security_context()->user().str,
+               thd->security_context()->host_or_ip().str,
                (thd->password ? ER(ER_YES) : ER(ER_NO)));
       thd->killed= THD::KILL_CONNECTION;
       error=true;
@@ -1180,8 +1178,6 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       my_free(const_cast<char*>(save_db.str));
       save_db= NULL_CSTR;
       mysql_mutex_unlock(&thd->LOCK_thd_data);
-      my_free(save_security_ctx.user);
-
     }
     break;
   }
@@ -1225,8 +1221,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       break;					// fatal error is set
     MYSQL_QUERY_START(const_cast<char*>(thd->query().str), thd->thread_id(),
                       (char *) (thd->db().str ? thd->db().str : ""),
-                      &thd->security_ctx->priv_user[0],
-                      (char *) thd->security_ctx->host_or_ip);
+                      (char *) thd->security_context()->priv_user().str,
+                      (char *) thd->security_context()->host_or_ip().str);
     const char *packet_end= thd->query().str + thd->query().length;
 
     if (opt_general_log_raw)
@@ -1303,8 +1299,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       MYSQL_QUERY_START(const_cast<char*>(beginning_of_next_stmt),
                         thd->thread_id(),
                         (char *) (thd->db().str ? thd->db().str : ""),
-                        &thd->security_ctx->priv_user[0],
-                        (char *) thd->security_ctx->host_or_ip);
+                        (char *) thd->security_context()->priv_user().str,
+                        (char *) thd->security_context()->host_or_ip().str);
 
 /* PSI begin */
       thd->m_digest= & thd->m_digest_state;
@@ -1598,13 +1594,14 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     break;
   case COM_PROCESS_INFO:
     thd->status_var.com_stat[SQLCOM_SHOW_PROCESSLIST]++;
-    if (!thd->security_ctx->priv_user[0] &&
+    if (!thd->security_context()->priv_user().str[0] &&
         check_global_access(thd, PROCESS_ACL))
       break;
     query_logger.general_log_print(thd, command, NullS);
-    mysqld_list_processes(thd,
-			  thd->security_ctx->master_access & PROCESS_ACL ? 
-			  NullS : thd->security_ctx->priv_user, 0);
+    mysqld_list_processes(
+      thd,
+      thd->security_context()->check_access(PROCESS_ACL) ?
+      NullS : thd->security_context()->priv_user().str, 0);
     break;
   case COM_PROCESS_KILL:
   {
@@ -1943,9 +1940,10 @@ bool sp_process_definer(THD *thd)
       to create a stored routine under another user one must have
       SUPER privilege).
     */
-    if ((strcmp(lex->definer->user.str, thd->security_ctx->priv_user) ||
+    if ((strcmp(lex->definer->user.str,
+                thd->security_context()->priv_user().str) ||
          my_strcasecmp(system_charset_info, lex->definer->host.str,
-                       thd->security_ctx->priv_host)) &&
+                       thd->security_context()->priv_host().str)) &&
         check_global_access(thd, SUPER_ACL))
     {
       my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "SUPER");
@@ -3072,8 +3070,9 @@ end_with_restore_list:
         {
           DBUG_PRINT("debug", ("check_table_access failed"));
           my_error(ER_TABLEACCESS_DENIED_ERROR, MYF(0),
-                  "SHOW", thd->security_ctx->priv_user,
-                  thd->security_ctx->host_or_ip, first_table->alias);
+                   "SHOW", thd->security_context()->priv_user().str,
+                   thd->security_context()->host_or_ip().str,
+                   first_table->alias);
           goto error;
         }
         DBUG_PRINT("debug", ("check_table_access succeeded"));
@@ -3102,8 +3101,9 @@ end_with_restore_list:
             (first_table->grant.privilege & SHOW_CREATE_TABLE_ACLS) == 0)
         {
           my_error(ER_TABLEACCESS_DENIED_ERROR, MYF(0),
-                  "SHOW", thd->security_ctx->priv_user,
-                  thd->security_ctx->host_or_ip, first_table->alias);
+                   "SHOW", thd->security_context()->priv_user().str,
+                   thd->security_context()->host_or_ip().str,
+                   first_table->alias);
           goto error;
         }
       }
@@ -3227,7 +3227,7 @@ end_with_restore_list:
       if (res)
         break;
       if (opt_readonly &&
-	  !(thd->security_ctx->master_access & SUPER_ACL) &&
+	  !(thd->security_context()->check_access(SUPER_ACL)) &&
 	  some_non_temp_table_to_be_updated(thd, all_tables))
       {
 	my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--read-only");
@@ -3548,14 +3548,15 @@ end_with_restore_list:
   }
   break;
   case SQLCOM_SHOW_PROCESSLIST:
-    if (!thd->security_ctx->priv_user[0] &&
+    if (!thd->security_context()->priv_user().str[0] &&
         check_global_access(thd,PROCESS_ACL))
       break;
-    mysqld_list_processes(thd,
-			  (thd->security_ctx->master_access & PROCESS_ACL ?
-                           NullS :
-                           thd->security_ctx->priv_user),
-                          lex->verbose);
+    mysqld_list_processes(
+      thd,
+      (thd->security_context()->check_access(PROCESS_ACL) ?
+         NullS :
+        thd->security_context()->priv_user().str),
+      lex->verbose);
     break;
   case SQLCOM_SHOW_PRIVILEGES:
     res= mysqld_show_privileges(thd);
@@ -3984,7 +3985,7 @@ end_with_restore_list:
     /* Replicate current user as grantor */
     thd->binlog_invoker();
 
-    if (thd->security_ctx->user)              // If not replication
+    if (thd->security_context()->user().str)            // If not replication
     {
       LEX_USER *user, *tmp_user;
       bool first_user= TRUE;
@@ -4181,7 +4182,8 @@ end_with_restore_list:
     LEX_USER *grant_user= get_current_user(thd, lex->grant_user);
     if (!grant_user)
       goto error;
-    if (!strcmp(thd->security_ctx->priv_user, grant_user->user.str) ||
+    if (!strcmp(thd->security_context()->priv_user().str,
+                grant_user->user.str) ||
         !check_access(thd, SELECT_ACL, "mysql", NULL, NULL, 1, 0))
     {
       res = mysql_show_grants(thd, grant_user);
@@ -4369,7 +4371,7 @@ end_with_restore_list:
       if (restore_backup_context)
       {
         DBUG_ASSERT(thd->slave_thread == 1);
-        thd->security_ctx->restore_security_context(thd, backup);
+        thd->security_context()->restore_security_context(thd, backup);
       }
 #endif
       my_ok(thd);
@@ -5153,7 +5155,7 @@ void THD::reset_for_next_command()
     thd->get_transaction()->reset_unsafe_rollback_flags(
         Transaction_ctx::SESSION);
   }
-  DBUG_ASSERT(thd->security_ctx== &thd->main_security_ctx);
+  DBUG_ASSERT(thd->security_context()== &thd->m_main_security_ctx);
   thd->thread_specific_used= FALSE;
 
   if (opt_bin_log)
@@ -5369,13 +5371,14 @@ void mysql_parse(THD *thd, Parser_state *parser_state)
             thd->server_status|= SERVER_MORE_RESULTS_EXISTS;
           }
           lex->set_trg_event_type_for_tables();
-          MYSQL_QUERY_EXEC_START(const_cast<char*>(thd->query().str),
-                                 thd->thread_id(),
-                                 (char *) (thd->db().str ? thd->db().str : ""),
-                                 &thd->security_ctx->priv_user[0],
-                                 (char *) thd->security_ctx->host_or_ip,
-                                 0);
-          if (unlikely(thd->security_ctx->password_expired &&
+          MYSQL_QUERY_EXEC_START(
+            const_cast<char*>(thd->query().str),
+            thd->thread_id(),
+            (char *) (thd->db().str ? thd->db().str : ""),
+            (char *) thd->security_context()->priv_user().str,
+            (char *) thd->security_context()->host_or_ip().str,
+            0);
+          if (unlikely(thd->security_context()->password_expired() &&
                        !lex->is_set_password_sql &&
                        lex->sql_command != SQLCOM_SET_OPTION))
           {
@@ -5561,7 +5564,7 @@ bool add_field_to_list(THD *thd, LEX_STRING *field_name, enum_field_types type,
   {
     Key *key;
     lex->col_list.push_back(new Key_part_spec(*field_name, 0));
-    key= new Key(Key::PRIMARY, null_lex_str,
+    key= new Key(KEYTYPE_PRIMARY, null_lex_str,
                       &default_key_create_info,
                       0, lex->col_list);
     lex->alter_info.key_list.push_back(key);
@@ -5571,7 +5574,7 @@ bool add_field_to_list(THD *thd, LEX_STRING *field_name, enum_field_types type,
   {
     Key *key;
     lex->col_list.push_back(new Key_part_spec(*field_name, 0));
-    key= new Key(Key::UNIQUE, null_lex_str,
+    key= new Key(KEYTYPE_UNIQUE, null_lex_str,
                  &default_key_create_info, 0,
                  lex->col_list);
     lex->alter_info.key_list.push_back(key);
@@ -5762,8 +5765,8 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
         lex->sql_command != SQLCOM_CHECKSUM)
     {
       my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
-               thd->security_ctx->priv_user,
-               thd->security_ctx->priv_host,
+               thd->security_context()->priv_user().str,
+               thd->security_context()->priv_host().str,
                INFORMATION_SCHEMA_NAME.str);
       DBUG_RETURN(0);
     }
@@ -6285,11 +6288,11 @@ uint kill_one_thread(THD *thd, my_thread_id id, bool only_kill_query)
       If we're SUPER, we can KILL anything, including system-threads.
       No further checks.
 
-      KILLer: thd->security_ctx->user could in theory be NULL while
+      KILLer: thd->m_security_ctx->user could in theory be NULL while
       we're still in "unauthenticated" state. This is a theoretical
       case (the code suggests this could happen, so we play it safe).
 
-      KILLee: tmp->security_ctx->user will be NULL for system threads.
+      KILLee: tmp->m_security_ctx->user will be NULL for system threads.
       We need to check so Jane Random User doesn't crash the server
       when trying to kill a) system threads or b) unauthenticated users'
       threads (Bug#43748).
@@ -6298,8 +6301,8 @@ uint kill_one_thread(THD *thd, my_thread_id id, bool only_kill_query)
       slayage if both are string-equal.
     */
 
-    if ((thd->security_ctx->master_access & SUPER_ACL) ||
-        thd->security_ctx->user_matches(tmp->security_ctx))
+    if ((thd->security_context()->check_access(SUPER_ACL)) ||
+        thd->security_context()->user_matches(tmp->security_context()))
     {
       /* process the kill only if thread is not already undergoing any kill
          connection.
@@ -6358,7 +6361,7 @@ public:
   Kill_non_super_conn(THD *thd) :
 	    m_client_thd(thd)
   {
-    DBUG_ASSERT(m_client_thd->security_ctx->master_access & SUPER_ACL);
+    DBUG_ASSERT(m_client_thd->security_context()->check_access(SUPER_ACL));
   }
 
   virtual void operator()(THD *thd_to_kill)
@@ -6366,7 +6369,7 @@ public:
     mysql_mutex_lock(&thd_to_kill->LOCK_thd_data);
 
     /* Kill only if non super thread and non slave thread */
-    if (!(thd_to_kill->security_ctx->master_access & SUPER_ACL)
+    if (!(thd_to_kill->security_context()->check_access(SUPER_ACL))
 	&& thd_to_kill->killed != THD::KILL_CONNECTION
 	&& !thd_to_kill->slave_thread)
       thd_to_kill->awake(THD::KILL_CONNECTION);
@@ -6654,12 +6657,12 @@ Item *negate_expression(Parse_context *pc, Item *expr)
  
 void get_default_definer(THD *thd, LEX_USER *definer)
 {
-  const Security_context *sctx= thd->security_ctx;
+  const Security_context *sctx= thd->security_context();
 
-  definer->user.str= (char *) sctx->priv_user;
+  definer->user.str= (char *) sctx->priv_user().str;
   definer->user.length= strlen(definer->user.str);
 
-  definer->host.str= (char *) sctx->priv_host;
+  definer->host.str= (char *) sctx->priv_host().str;
   definer->host.length= strlen(definer->host.str);
 
   definer->password= NULL_CSTR;

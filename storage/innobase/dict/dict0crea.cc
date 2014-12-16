@@ -1150,9 +1150,7 @@ tab_create_graph_create(
 /*====================*/
 	dict_table_t*	table,	/*!< in: table to create, built as a memory data
 				structure */
-	mem_heap_t*	heap,	/*!< in: heap where created */
-	bool		commit)	/*!< in: true if the commit node should be
-				added to the query graph */
+	mem_heap_t*	heap)	/*!< in: heap where created */
 {
 	tab_node_t*	node;
 
@@ -1174,13 +1172,6 @@ tab_create_graph_create(
 					heap);
 	node->col_def->common.parent = node;
 
-	if (commit) {
-		node->commit_node = trx_commit_node_create(heap);
-		node->commit_node->common.parent = node;
-	} else {
-		node->commit_node = 0;
-	}
-
 	return(node);
 }
 
@@ -1192,9 +1183,7 @@ ind_create_graph_create(
 /*====================*/
 	dict_index_t*	index,	/*!< in: index to create, built as a memory data
 				structure */
-	mem_heap_t*	heap,	/*!< in: heap where created */
-	bool		commit)	/*!< in: true if the commit node should be
-				added to the query graph */
+	mem_heap_t*	heap)	/*!< in: heap where created */
 {
 	ind_node_t*	node;
 
@@ -1216,13 +1205,6 @@ ind_create_graph_create(
 	node->field_def = ins_node_create(INS_DIRECT,
 					  dict_sys->sys_fields, heap);
 	node->field_def->common.parent = node;
-
-	if (commit) {
-		node->commit_node = trx_commit_node_create(heap);
-		node->commit_node->common.parent = node;
-	} else {
-		node->commit_node = 0;
-	}
 
 	return(node);
 }
@@ -1283,25 +1265,12 @@ dict_create_table_step(
 
 			return(thr);
 		} else {
-			node->state = TABLE_COMMIT_WORK;
+			node->state = TABLE_ADD_TO_CACHE;
 		}
 	}
 
-	if (node->state == TABLE_COMMIT_WORK) {
-
-		/* Table was correctly defined: do NOT commit the transaction
-		(CREATE TABLE does NOT do an implicit commit of the current
-		transaction) */
-
-		node->state = TABLE_ADD_TO_CACHE;
-
-		/* thr->run_node = node->commit_node;
-
-		return(thr); */
-		DBUG_EXECUTE_IF("ib_ddl_crash_during_create", DBUG_SUICIDE(););
-	}
-
 	if (node->state == TABLE_ADD_TO_CACHE) {
+		DBUG_EXECUTE_IF("ib_ddl_crash_during_create", DBUG_SUICIDE(););
 
 		dict_table_add_to_cache(node->table, TRUE, node->heap);
 
@@ -1455,20 +1424,6 @@ dict_create_index_step(
 		dict_index_add_to_cache(). */
 		ut_ad(node->index->trx_id == trx->id);
 		ut_ad(node->index->table->def_trx_id == trx->id);
-		node->state = INDEX_COMMIT_WORK;
-	}
-
-	if (node->state == INDEX_COMMIT_WORK) {
-
-		/* Index was correctly defined: do NOT commit the transaction
-		(CREATE INDEX does NOT currently do an implicit commit of
-		the current transaction) */
-
-		node->state = INDEX_CREATE_INDEX_TREE;
-
-		/* thr->run_node = node->commit_node;
-
-		return(thr); */
 	}
 
 function_exit:

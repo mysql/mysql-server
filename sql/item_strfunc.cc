@@ -31,8 +31,6 @@
 #include "sha2.h"
 #include "my_global.h"                          // HAVE_*
 
-
-#include "sql_priv.h"
 /*
   It is necessary to include set_var.h instead of item.h because there
   are dependencies on include order for set_var.h and item.h. This
@@ -52,6 +50,7 @@
 #include "my_aes.h"
 #include <zlib.h>
 #include "my_rnd.h"
+#include "strfunc.h"
 C_MODE_START
 #include "../mysys/my_static.h"			// For soundex_map
 C_MODE_END
@@ -1685,7 +1684,7 @@ String *Item_func_des_decrypt::val_str(String *str)
   {
     uint key_number=(uint) (*res)[0] & 127;
     // Check if automatic key and that we have privilege to uncompress using it
-    if (!(current_thd->security_ctx->master_access & SUPER_ACL) ||
+    if (!(current_thd->security_context()->check_access(SUPER_ACL)) ||
         key_number > 9)
       goto error;
 
@@ -3020,8 +3019,8 @@ bool Item_func_user::itemize(Parse_context *pc, Item **res)
 bool Item_func_user::fix_fields(THD *thd, Item **ref)
 {
   return (Item_func_sysconst::fix_fields(thd, ref) ||
-          init(thd->main_security_ctx.user,
-               thd->main_security_ctx.host_or_ip));
+          init(thd->m_main_security_ctx.user().str,
+               thd->m_main_security_ctx.host_or_ip().str));
 }
 
 
@@ -3045,11 +3044,11 @@ bool Item_func_current_user::fix_fields(THD *thd, Item **ref)
   Security_context *ctx=
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
                          (context->security_ctx
-                          ? context->security_ctx : thd->security_ctx);
+                          ? context->security_ctx : thd->security_context());
 #else
-                         thd->security_ctx;
+                         thd->security_context();
 #endif /*NO_EMBEDDED_ACCESS_CHECKS*/
-  return init(ctx->priv_user, ctx->priv_host);
+  return init(ctx->priv_user().str, ctx->priv_host().str);
 }
 
 
@@ -5058,7 +5057,7 @@ String *Item_load_file::val_str(String *str)
 
   if (!(file_name= args[0]->val_str(str))
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-      || !(current_thd->security_ctx->master_access & FILE_ACL)
+      || !(current_thd->security_context()->check_access(FILE_ACL))
 #endif
       )
     goto err;

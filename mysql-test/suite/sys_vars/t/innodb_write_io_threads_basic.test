@@ -13,8 +13,10 @@ select @@global.innodb_write_io_threads;
 select @@session.innodb_write_io_threads;
 show global variables like 'innodb_write_io_threads';
 show session variables like 'innodb_write_io_threads';
+--disable_warnings
 select * from information_schema.global_variables where variable_name='innodb_write_io_threads';
 select * from information_schema.session_variables where variable_name='innodb_write_io_threads';
+--enable_warnings
 
 #
 # show that it's read-only

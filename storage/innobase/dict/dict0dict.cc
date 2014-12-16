@@ -977,7 +977,7 @@ dict_init(void)
 	rw_lock_create(dict_operation_lock_key,
 		       &dict_operation_lock, SYNC_DICT_OPERATION);
 
-	dict_foreign_err_file = os_file_create_tmpfile(NULL);
+	dict_foreign_err_file = os_file_create_tmpfile();
 	ut_a(dict_foreign_err_file);
 
 	mutex_create("dict_foreign_err", &dict_foreign_err_mutex);
@@ -2509,7 +2509,6 @@ dict_index_add_to_cache(
 	new_index->allow_duplicates = index->allow_duplicates;
 	new_index->nulls_equal = index->nulls_equal;
 	new_index->disable_ahi = index->disable_ahi;
-	new_index->auto_gen_clust_index = index->auto_gen_clust_index;
 
 	if (dict_index_too_big_for_tree(table, new_index, strict)) {
 
@@ -2518,10 +2517,10 @@ too_big:
 			dict_mem_index_free(new_index);
 			dict_mem_index_free(index);
 			return(DB_TOO_BIG_RECORD);
-		} else {
-
+		} else if (current_thd != NULL) {
+			/* Avoid the warning to be printed
+			during recovery. */
 			ib_warn_row_too_big(table);
-
 		}
 	}
 
@@ -3537,7 +3536,7 @@ dict_foreign_error_report(
 	putc('\n', file);
 	if (fk->foreign_index) {
 		fprintf(file, "The index in the foreign key in table is"
-			" %s\n%s\n", fk->foreign_index->name,
+			" %s\n%s\n", fk->foreign_index->name(),
 			FOREIGN_KEY_CONSTRAINTS_MSG);
 	}
 	mutex_exit(&dict_foreign_err_mutex);
@@ -5690,8 +5689,8 @@ fail:
 
 	mtr_commit(&mtr);
 	mem_heap_empty(heap);
-	ib::error() << status << " corruption of `" << index->name
-		<< "` in table " << index->table->name << " in " << ctx;
+	ib::error() << status << " corruption of " << index->name
+		<< " in table " << index->table->name << " in " << ctx;
 	mem_heap_free(heap);
 
 func_exit:

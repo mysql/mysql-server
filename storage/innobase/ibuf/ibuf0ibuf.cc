@@ -3778,9 +3778,9 @@ check_watch:
 	buf_pool_watch_set(space, page_no). */
 
 	{
-		buf_page_t*	bpage;
 		buf_pool_t*	buf_pool = buf_pool_get(page_id);
-		bpage = buf_page_hash_get(buf_pool, page_id);
+		buf_page_t*	bpage
+			= buf_page_get_also_watch(buf_pool, page_id);
 
 		if (bpage != NULL) {
 			/* A buffer pool watch has been set or the

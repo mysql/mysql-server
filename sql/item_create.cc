@@ -21,7 +21,6 @@
   Functions to create an item. Used by sql_yac.yy
 */
 
-#include "sql_priv.h"
 /*
   It is necessary to include set_var.h instead of item.h because there
   are dependencies on include order for set_var.h and item.h. This
@@ -32,6 +31,7 @@
 #include "sp_head.h"
 #include "sp.h"
 #include "item_inetfunc.h"
+#include "item_geofunc.h"
 #include "sql_time.h"
 #include "parse_tree_helpers.h"
 
@@ -609,6 +609,32 @@ protected:
 };
 
 
+class Create_func_mbr_covered_by : public Create_func_arg2
+{
+public:
+  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
+
+  static Create_func_mbr_covered_by s_singleton;
+
+protected:
+  Create_func_mbr_covered_by() {}
+  virtual ~Create_func_mbr_covered_by() {}
+};
+
+
+class Create_func_mbr_covers : public Create_func_arg2
+{
+public:
+  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
+
+  static Create_func_mbr_covers s_singleton;
+
+protected:
+  Create_func_mbr_covers() {}
+  virtual ~Create_func_mbr_covers() {}
+};
+
+
 class Create_func_mbr_contains : public Create_func_arg2
 {
 public:
@@ -974,6 +1000,19 @@ public:
 protected:
   Create_func_mbr_equals() {}
   virtual ~Create_func_mbr_equals() {}
+};
+
+
+class Create_func_mbr_equals_deprecate : public Create_func_arg2
+{
+public:
+  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
+
+  static Create_func_mbr_equals_deprecate s_singleton;
+
+protected:
+  Create_func_mbr_equals_deprecate() {}
+  virtual ~Create_func_mbr_equals_deprecate() {}
 };
 
 
@@ -2555,6 +2594,19 @@ protected:
 };
 
 
+class Create_func_mbr_touches : public Create_func_arg2
+{
+public:
+  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
+
+  static Create_func_mbr_touches s_singleton;
+
+protected:
+  Create_func_mbr_touches() {}
+  virtual ~Create_func_mbr_touches() {}
+};
+
+
 class Create_func_upper : public Create_func_arg1
 {
 public:
@@ -3260,6 +3312,26 @@ Create_func_connection_id::create(THD *thd)
 }
 
 
+Create_func_mbr_covered_by Create_func_mbr_covered_by::s_singleton;
+
+Item*
+Create_func_mbr_covered_by::create(THD *thd, Item *arg1, Item *arg2)
+{
+  return new (thd->mem_root)
+    Item_func_spatial_mbr_rel(POS(), arg1, arg2, Item_func::SP_COVEREDBY_FUNC);
+}
+
+
+Create_func_mbr_covers Create_func_mbr_covers::s_singleton;
+
+Item*
+Create_func_mbr_covers::create(THD *thd, Item *arg1, Item *arg2)
+{
+  return new (thd->mem_root)
+    Item_func_spatial_mbr_rel(POS(), arg1, arg2, Item_func::SP_COVERS_FUNC);
+}
+
+
 Create_func_mbr_contains Create_func_mbr_contains::s_singleton;
 
 Item*
@@ -3444,6 +3516,9 @@ Create_func_des_decrypt::create_native(THD *thd, LEX_STRING name,
   }
   }
 
+  if (!thd->is_error())
+    push_deprecated_warn(thd, "DES_DECRYPT", "AES_DECRYPT");
+
   return func;
 }
 
@@ -3480,6 +3555,9 @@ Create_func_des_encrypt::create_native(THD *thd, LEX_STRING name,
     break;
   }
   }
+
+  if (!thd->is_error())
+    push_deprecated_warn(thd, "DES_ENCRYPT", "AES_ENCRYPT");
 
   return func;
 }
@@ -3586,6 +3664,9 @@ Create_func_encrypt::create_native(THD *thd, LEX_STRING name,
   }
   }
 
+  if (!thd->is_error())
+    push_deprecated_warn(thd, "ENCRYPT", "AES_ENCRYPT");
+
   return func;
 }
 
@@ -3614,6 +3695,17 @@ Create_func_mbr_equals Create_func_mbr_equals::s_singleton;
 Item*
 Create_func_mbr_equals::create(THD *thd, Item *arg1, Item *arg2)
 {
+  return new (thd->mem_root) Item_func_spatial_mbr_rel(POS(), arg1, arg2,
+                               Item_func::SP_EQUALS_FUNC);
+}
+
+
+Create_func_mbr_equals_deprecate Create_func_mbr_equals_deprecate::s_singleton;
+
+Item*
+Create_func_mbr_equals_deprecate::create(THD *thd, Item *arg1, Item *arg2)
+{
+  push_deprecated_warn(thd, "MBREQUAL", "MBREQUALS");
   return new (thd->mem_root) Item_func_spatial_mbr_rel(POS(), arg1, arg2,
                                Item_func::SP_EQUALS_FUNC);
 }
@@ -5223,6 +5315,17 @@ Create_func_to_seconds::create(THD *thd, Item *arg1)
 }
 
 
+Create_func_mbr_touches Create_func_mbr_touches::s_singleton;
+
+Item*
+Create_func_mbr_touches::create(THD *thd, Item *arg1, Item *arg2)
+{
+  return new (thd->mem_root)
+    Item_func_spatial_mbr_rel(POS(), arg1, arg2,
+                              Item_func::SP_TOUCHES_FUNC);
+}
+
+
 Create_func_touches Create_func_touches::s_singleton;
 
 Item*
@@ -5607,11 +5710,14 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("MAKE_SET") }, BUILDER(Create_func_make_set)},
   { { C_STRING_WITH_LEN("MASTER_POS_WAIT") }, BUILDER(Create_func_master_pos_wait)},
   { { C_STRING_WITH_LEN("MBRCONTAINS") }, GEOM_BUILDER(Create_func_mbr_contains)},
+  { { C_STRING_WITH_LEN("MBRCOVEREDBY") }, GEOM_BUILDER(Create_func_mbr_covered_by)},
+  { { C_STRING_WITH_LEN("MBRCOVERS") }, GEOM_BUILDER(Create_func_mbr_covers)},
   { { C_STRING_WITH_LEN("MBRDISJOINT") }, GEOM_BUILDER(Create_func_mbr_disjoint)},
-  { { C_STRING_WITH_LEN("MBREQUAL") }, GEOM_BUILDER(Create_func_mbr_equals)},
+  { { C_STRING_WITH_LEN("MBREQUAL") }, GEOM_BUILDER(Create_func_mbr_equals_deprecate)},
+  { { C_STRING_WITH_LEN("MBREQUALS") }, GEOM_BUILDER(Create_func_mbr_equals)},
   { { C_STRING_WITH_LEN("MBRINTERSECTS") }, GEOM_BUILDER(Create_func_mbr_intersects)},
   { { C_STRING_WITH_LEN("MBROVERLAPS") }, GEOM_BUILDER(Create_func_mbr_overlaps)},
-  { { C_STRING_WITH_LEN("MBRTOUCHES") }, GEOM_BUILDER(Create_func_touches)},
+  { { C_STRING_WITH_LEN("MBRTOUCHES") }, GEOM_BUILDER(Create_func_mbr_touches)},
   { { C_STRING_WITH_LEN("MBRWITHIN") }, GEOM_BUILDER(Create_func_mbr_within)},
   { { C_STRING_WITH_LEN("MD5") }, BUILDER(Create_func_md5)},
   { { C_STRING_WITH_LEN("MLINEFROMTEXT") }, GEOM_BUILDER(Create_func_geometry_from_text)},
@@ -5691,7 +5797,7 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("ST_DISTANCE") }, GEOM_BUILDER(Create_func_distance)},
   { { C_STRING_WITH_LEN("ST_ENDPOINT") }, GEOM_BUILDER(Create_func_endpoint)},
   { { C_STRING_WITH_LEN("ST_ENVELOPE") }, GEOM_BUILDER(Create_func_envelope)},
-  { { C_STRING_WITH_LEN("ST_EQUALS") }, GEOM_BUILDER(Create_func_mbr_equals)},
+  { { C_STRING_WITH_LEN("ST_EQUALS") }, GEOM_BUILDER(Create_func_equals)},
   { { C_STRING_WITH_LEN("ST_EXTERIORRING") }, GEOM_BUILDER(Create_func_exteriorring)},
   { { C_STRING_WITH_LEN("ST_GEOHASH") }, GEOM_BUILDER(Create_func_geohash)},
   { { C_STRING_WITH_LEN("ST_GEOMCOLLFROMTEXT") }, GEOM_BUILDER(Create_func_geometry_from_text)},
@@ -5708,7 +5814,6 @@ static Native_func_registry func_array[] =
 #ifndef DBUG_OFF
   { { C_STRING_WITH_LEN("ST_GIS_DEBUG") }, GEOM_BUILDER(Create_func_gis_debug)},
 #endif
-  { { C_STRING_WITH_LEN("ST_EQUALS") }, GEOM_BUILDER(Create_func_equals)},
   { { C_STRING_WITH_LEN("ST_INTERIORRINGN") }, GEOM_BUILDER(Create_func_interiorringn)},
   { { C_STRING_WITH_LEN("ST_INTERSECTS") }, GEOM_BUILDER(Create_func_intersects)},
   { { C_STRING_WITH_LEN("ST_INTERSECTION") }, GEOM_BUILDER(Create_func_intersection)},
@@ -5912,7 +6017,7 @@ create_func_cast(THD *thd, const POS &pos, Item *a, const Cast_type *type)
                (int) dec, "CAST", DATETIME_MAX_DECIMALS);
       return 0;
     }
-    res= (cast_type == ITEM_CAST_TIME) ? 
+    res= (cast_type == ITEM_CAST_TIME) ?
          (Item*) new (thd->mem_root) Item_time_typecast(pos, a, dec) :
          (Item*) new (thd->mem_root) Item_datetime_typecast(pos, a, dec);
     break;

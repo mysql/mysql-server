@@ -82,6 +82,19 @@ The following options may be given as the first argument:
  be enqueued (as set using
  --binlog-group-commit-sync-delay), the commit procedure
  resumes.
+ --binlog-gtid-simple-recovery 
+ If this option is enabled, the server does not scan more
+ than one binary log for every iteration when initializing
+ GTID sets on server restart. Enabling this option is very
+ useful when restarting a server which has already
+ generated lots of binary logs without GTID events. Note:
+ If this option is enabled, GLOBAL.GTID_EXECUTED and
+ GLOBAL.GTID_PURGED cannot be initialized correctly if
+ binary log(s) with GTID events were generated before
+ binary log(s) without GTID events, for example if
+ gtid_mode is disabled when the server has already
+ generated binary log(s) with GTID events and not purged
+ them.
  --binlog-ignore-db=name 
  Tells the master that updates to the given database
  should not be logged to the binary log.
@@ -213,12 +226,6 @@ The following options may be given as the first argument:
  Enable the event scheduler. Possible values are ON, OFF,
  and DISABLED (keep the event scheduler completely
  deactivated, it cannot be activated run-time)
- --executed-gtids-compression-period[=#] 
- When binlog is disabled, a background thread wakes up to
- compress the gtid_executed table every
- executed_gtids_compression_period transactions, as a
- special case, if variable is 0, the thread never wakes up
- to compress the gtid_executed table.
  -T, --exit-info[=#] Used for debugging. Use at your own risk.
  --expire-logs-days=# 
  If non-zero, binary logs will be purged after
@@ -258,6 +265,12 @@ The following options may be given as the first argument:
  --group-concat-max-len=# 
  The maximum length of the result of function 
  GROUP_CONCAT()
+ --gtid-executed-compression-period[=#] 
+ When binlog is disabled, a background thread wakes up to
+ compress the gtid_executed table every
+ gtid_executed_compression_period transactions, as a
+ special case, if variable is 0, the thread never wakes up
+ to compress the gtid_executed table.
  --gtid-mode=name    Whether Global Transaction Identifiers (GTIDs) are
  enabled. Can be ON or OFF.
  -?, --help          Display this help and exit.
@@ -738,7 +751,7 @@ The following options may be given as the first argument:
  Optional semicolon-separated list of plugins to load,
  where each plugin is identified as name=library, where
  name is the plugin name and library is the plugin library
- in plugin_dir. This option adds to the list speficied by
+ in plugin_dir. This option adds to the list specified by
  --plugin-load in an incremental way. Multiple
  --plugin-load-add are supported.
  -P, --port=#        Port number to use for connection or 0 to default to,
@@ -904,19 +917,6 @@ The following options may be given as the first argument:
  --show-slave-auth-info 
  Show user and password in SHOW SLAVE HOSTS on this
  master.
- --simplified-binlog-gtid-recovery 
- If this option is enabled, the server does not scan more
- than one binary log for every iteration when initializing
- GTID sets on server restart. Enabling this option is very
- useful when restarting a server which has already
- generated lots of binary logs without GTID events. Note:
- If this option is enabled, GLOBAL.GTID_EXECUTED and
- GLOBAL.GTID_PURGED cannot be initialized correctly if
- binary log(s) with GTID events were generated before
- binary log(s) without GTID events, for example if
- gtid_mode is disabled when the server has already
- generated binary log(s) with GTID events and not purged
- them. 
  --skip-grant-tables Start without grant tables. This gives all users FULL
  ACCESS to all tables.
  --skip-host-cache   Don't cache host names.
@@ -1119,6 +1119,7 @@ binlog-error-action IGNORE_ERROR
 binlog-format STATEMENT
 binlog-group-commit-sync-delay 0
 binlog-group-commit-sync-no-delay-count 0
+binlog-gtid-simple-recovery FALSE
 binlog-max-flush-queue-time 0
 binlog-order-commits TRUE
 binlog-row-event-max-size 8192
@@ -1156,7 +1157,6 @@ end-markers-in-json FALSE
 enforce-gtid-consistency FALSE
 eq-range-index-dive-limit 200
 event-scheduler OFF
-executed-gtids-compression-period 1000
 expire-logs-days 0
 explicit-defaults-for-timestamp FALSE
 external-locking FALSE
@@ -1170,6 +1170,7 @@ ft-stopword-file (No default value)
 gdb FALSE
 general-log FALSE
 group-concat-max-len 1024
+gtid-executed-compression-period 1000
 gtid-mode OFF
 help TRUE
 host-cache-size 279
@@ -1367,7 +1368,6 @@ session-track-system-variables time_zone,autocommit,character_set_client,charact
 shared-memory FALSE
 shared-memory-base-name MYSQL
 show-slave-auth-info FALSE
-simplified-binlog-gtid-recovery FALSE
 skip-grant-tables TRUE
 skip-name-resolve FALSE
 skip-networking FALSE

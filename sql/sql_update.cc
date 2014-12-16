@@ -20,7 +20,6 @@
 */
 
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
-#include "sql_priv.h"
 #include "sql_update.h"
 #include "sql_cache.h"                          // query_cache_*
 #include "sql_base.h"                       // close_tables_for_reopen
@@ -45,6 +44,7 @@
 #include "sql_tmp_table.h"                      // tmp tables
 #include "sql_optimizer.h"                      // remove_eq_conds
 #include "sql_resolver.h"                       // setup_order
+#include "binlog.h"
 
 /**
    True if the table's input and output record buffers are comparable using
@@ -790,6 +790,7 @@ bool mysql_update(THD *thd,
 
     if ((table->file->ha_table_flags() & HA_READ_BEFORE_WRITE_REMOVAL) &&
         !thd->lex->is_ignore() && !using_limit &&
+        !(table->triggers && table->triggers->has_update_triggers()) &&
         qep_tab.quick() && qep_tab.quick()->index != MAX_KEY &&
         check_constant_expressions(values))
       read_removal= table->check_read_removal(qep_tab.quick()->index);

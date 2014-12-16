@@ -167,13 +167,13 @@ void
 row_merge_drop_temp_indexes(void);
 /*=============================*/
 
-/** Create temporary merge files in the given paramater path, and if
-UNIV_PFS_IO defined, register the file descriptor with Performance Schema.
-@param[in]	path	location for creating temporary merge files
+/*********************************************************************//**
+Creates temporary merge files, and if UNIV_PFS_IO defined, register
+the file descriptor with Performance Schema.
 @return File descriptor */
 int
-row_merge_file_create_low(
-	const char*	path)
+row_merge_file_create_low(void)
+/*===========================*/
 	__attribute__((warn_unused_result));
 /*********************************************************************//**
 Destroy a merge file. And de-register the file from Performance Schema
@@ -263,40 +263,46 @@ row_merge_drop_table(
 	trx_t*		trx,		/*!< in: transaction */
 	dict_table_t*	table)		/*!< in: table instance to drop */
 	__attribute__((nonnull));
-/*********************************************************************//**
-Build indexes on a table by reading a clustered index,
-creating a temporary file containing index entries, merge sorting
-these index entries and inserting sorted index entries to indexes.
+
+/** Build indexes on a table by reading a clustered index, creating a temporary
+file containing index entries, merge sorting these index entries and inserting
+sorted index entries to indexes.
+@param[in]	trx		transaction
+@param[in]	old_table	table where rows are read from
+@param[in]	new_table	table where indexes are created; identical to
+old_table unless creating a PRIMARY KEY
+@param[in]	online		true if creating indexes online
+@param[in]	indexes		indexes to be created
+@param[in]	key_numbers	MySQL key numbers
+@param[in]	n_indexes	size of indexes[]
+@param[in,out]	table		MySQL table, for reporting erroneous key value
+if applicable
+@param[in]	add_cols	default values of added columns, or NULL
+@param[in]	col_map		mapping of old column numbers to new ones, or
+NULL if old_table == new_table
+@param[in]	add_autoinc	number of added AUTO_INCREMENT columns, or
+ULINT_UNDEFINED if none is added
+@param[in,out]	sequence	autoinc sequence
+@param[in]	skip_pk_sort	whether the new PRIMARY KEY will follow
+existing order
 @return DB_SUCCESS or error code */
 dberr_t
 row_merge_build_indexes(
-/*====================*/
-	trx_t*		trx,		/*!< in: transaction */
-	dict_table_t*	old_table,	/*!< in: table where rows are
-					read from */
-	dict_table_t*	new_table,	/*!< in: table where indexes are
-					created; identical to old_table
-					unless creating a PRIMARY KEY */
-	bool		online,		/*!< in: true if creating indexes
-					online */
-	dict_index_t**	indexes,	/*!< in: indexes to be created */
-	const ulint*	key_numbers,	/*!< in: MySQL key numbers */
-	ulint		n_indexes,	/*!< in: size of indexes[] */
-	struct TABLE*	table,		/*!< in/out: MySQL table, for
-					reporting erroneous key value
-					if applicable */
-	const dtuple_t*	add_cols,	/*!< in: default values of
-					added columns, or NULL */
-	const ulint*	col_map,	/*!< in: mapping of old column
-					numbers to new ones, or NULL
-					if old_table == new_table */
-	ulint		add_autoinc,	/*!< in: number of added
-					AUTO_INCREMENT column, or
-					ULINT_UNDEFINED if none is added */
-	ib_sequence_t&	sequence,	/*!< in/out: autoinc sequence */
-	bool		skip_pk_sort)	/*!< in: whether the new PRIMARY KEY
-					will follow existing order */
-	__attribute__((nonnull(1,2,3,5,6,8), warn_unused_result));
+	trx_t*			trx,
+	dict_table_t*		old_table,
+	dict_table_t*		new_table,
+	bool			online,
+	dict_index_t**		indexes,
+	const ulint*		key_numbers,
+	ulint			n_indexes,
+	struct TABLE*		table,
+	const dtuple_t*		add_cols,
+	const ulint*		col_map,
+	ulint			add_autoinc,
+	ib_sequence_t&		sequence,
+	bool			skip_pk_sort)
+__attribute__((warn_unused_result));
+
 /********************************************************************//**
 Write a buffer to a block. */
 void
@@ -333,30 +339,30 @@ row_merge_buf_empty(
 /*================*/
 	row_merge_buf_t*	buf)	/*!< in,own: sort buffer */
 	__attribute__((warn_unused_result, nonnull));
-
-/** Create a merge file in the given location.
-@param[out]	merge_file	merge file structure
-@param[in]	path		location for creating temporary file
+/*********************************************************************//**
+Create a merge file.
 @return file descriptor, or -1 on failure */
 int
 row_merge_file_create(
-	merge_file_t*	merge_file,
-	const char*	path)
+/*==================*/
+	merge_file_t*	merge_file)	/*!< out: merge file structure */
 	__attribute__((nonnull));
-/*********************************************************************//**
-Merge disk files.
+
+/** Merge disk files.
+@param[in]	trx	transaction
+@param[in]	dup	descriptor of index being created
+@param[in,out]	file	file containing index entries
+@param[in,out]	block	3 buffers
+@param[in,out]	tmpfd	temporary file handle
 @return DB_SUCCESS or error code */
 dberr_t
 row_merge_sort(
-/*===========*/
-	trx_t*			trx,	/*!< in: transaction */
-	const row_merge_dup_t*	dup,	/*!< in: descriptor of
-					index being created */
-	merge_file_t*		file,	/*!< in/out: file containing
-					index entries */
-	row_merge_block_t*	block,	/*!< in/out: 3 buffers */
-	int*			tmpfd)	/*!< in/out: temporary file handle */
-	__attribute__((nonnull));
+	trx_t*			trx,
+	const row_merge_dup_t*	dup,
+	merge_file_t*		file,
+	row_merge_block_t*	block,
+	int*			tmpfd);
+
 /*********************************************************************//**
 Allocate a sort buffer.
 @return own: sort buffer */

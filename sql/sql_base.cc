@@ -17,7 +17,6 @@
 
 #include "sql_base.h"                           // setup_table_map
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
-#include "sql_priv.h"
 #include "debug_sync.h"
 #include "lock.h"        // mysql_lock_remove,
                          // mysql_unlock_tables,
@@ -53,6 +52,8 @@
 #include "sql_hset.h"   // Hash_set
 #include "sql_tmp_table.h" // free_tmp_table
 #include "table_cache.h" // Table_cache_manager, Table_cache
+#include "log.h"
+#include "binlog.h"
 
 
 bool
@@ -8961,8 +8962,8 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
                VIEW_ANY_ACL)))
         {
           my_error(ER_TABLEACCESS_DENIED_ERROR, MYF(0), "ANY",
-                   thd->security_ctx->priv_user,
-                   thd->security_ctx->host_or_ip,
+                   thd->security_context()->priv_user().str,
+                   thd->security_context()->host_or_ip().str,
                    field_table_name);
           DBUG_RETURN(TRUE);
         }
@@ -9171,20 +9172,23 @@ bool check_record(THD *thd, Field **ptr)
 
 /**
   Check if SQL-statement is INSERT/INSERT SELECT/REPLACE/REPLACE SELECT
-  and there is a trigger ON INSERT
+  and trigger event is ON INSERT. When this condition is true that means
+  that the statement basically can invoke BEFORE INSERT trigger if it
+  was created before.
 
   @param event         event type for triggers to be invoked
 
   @return Test result
     @retval true    SQL-statement is
                     INSERT/INSERT SELECT/REPLACE/REPLACE SELECT
-                    and there is a trigger ON INSERT
+                    and trigger event is ON INSERT
     @retval false   Either SQL-statement is not
                     INSERT/INSERT SELECT/REPLACE/REPLACE SELECT
-                    or there isn't a trigger ON INSERT
+                    or trigger event is not ON INSERT
 */
-inline bool command_invokes_insert_triggers(enum enum_trigger_event_type event,
-                                            enum_sql_command sql_command)
+static inline bool command_can_invoke_insert_triggers(
+  enum enum_trigger_event_type event,
+  enum_sql_command sql_command)
 {
   /*
     If it's 'INSERT INTO ... ON DUPLICATE KEY UPDATE ...' statement
@@ -9267,7 +9271,8 @@ fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
 
     table->triggers->enable_fields_temporary_nullability(thd);
 
-    if (command_invokes_insert_triggers(event, thd->lex->sql_command))
+    if (table->triggers->has_triggers(event, TRG_ACTION_BEFORE) &&
+        command_can_invoke_insert_triggers(event, thd->lex->sql_command))
     {
       DBUG_ASSERT(num_fields);
 
@@ -9394,7 +9399,7 @@ err:
     INSERT/INSERT SELECT/CREATE SELECT. It means that the only trigger's type
     that can be invoked when this function is called is a BEFORE INSERT
     trigger so we don't need to make branching based on the result of execution
-    function command_invokes_insert_triggers().
+    function command_can_invoke_insert_triggers().
 
   RETURN
     FALSE   OK
@@ -9411,7 +9416,7 @@ fill_record_n_invoke_before_triggers(THD *thd, Field **ptr,
 
   if (table->triggers)
   {
-    DBUG_ASSERT(command_invokes_insert_triggers(event, thd->lex->sql_command));
+    DBUG_ASSERT(command_can_invoke_insert_triggers(event, thd->lex->sql_command));
     DBUG_ASSERT(num_fields);
 
     table->triggers->enable_fields_temporary_nullability(thd);

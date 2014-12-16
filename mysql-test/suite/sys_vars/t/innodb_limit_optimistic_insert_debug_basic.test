@@ -12,20 +12,26 @@ select @@global.innodb_limit_optimistic_insert_debug;
 select @@session.innodb_limit_optimistic_insert_debug;
 show global variables like 'innodb_limit_optimistic_insert_debug';
 show session variables like 'innodb_limit_optimistic_insert_debug';
+--disable_warnings
 select * from information_schema.global_variables where variable_name='innodb_limit_optimistic_insert_debug';
 select * from information_schema.session_variables where variable_name='innodb_limit_optimistic_insert_debug';
+--enable_warnings
 
 #
 # show that it's writable
 #
 set global innodb_limit_optimistic_insert_debug=1;
 select @@global.innodb_limit_optimistic_insert_debug;
+--disable_warnings
 select * from information_schema.global_variables where variable_name='innodb_limit_optimistic_insert_debug';
 select * from information_schema.session_variables where variable_name='innodb_limit_optimistic_insert_debug';
+--enable_warnings
 set @@global.innodb_limit_optimistic_insert_debug=0;
 select @@global.innodb_limit_optimistic_insert_debug;
+--disable_warnings
 select * from information_schema.global_variables where variable_name='innodb_limit_optimistic_insert_debug';
 select * from information_schema.session_variables where variable_name='innodb_limit_optimistic_insert_debug';
+--enable_warnings
 --error ER_GLOBAL_VARIABLE
 set session innodb_limit_optimistic_insert_debug='some';
 --error ER_GLOBAL_VARIABLE

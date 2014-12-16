@@ -13,7 +13,6 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "sql_priv.h"
 #include "sql_cursor.h"
 #include "probes_mysql.h"
 #include "sql_parse.h"                        // mysql_execute_command
@@ -110,8 +109,8 @@ bool mysql_open_cursor(THD *thd, select_result *result,
   MYSQL_QUERY_EXEC_START(const_cast<char*>(thd->query().str),
                          thd->thread_id(),
                          (char *) (thd->db().str ? thd->db().str : ""),
-                         &thd->security_ctx->priv_user[0],
-                         (char *) thd->security_ctx->host_or_ip,
+                         (char *) thd->security_context()->priv_user().str,
+                         (char *) thd->security_context()->host_or_ip().str,
                          2);
   parent_digest= thd->m_digest;
   parent_locker= thd->m_statement_psi;

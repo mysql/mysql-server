@@ -19,13 +19,6 @@
 
 /* Function items used by mysql */
 
-#ifdef HAVE_IEEEFP_H
-extern "C"				/* Bug in BSDI include file */
-{
-#include <ieeefp.h>
-}
-#endif
-
 extern void reject_geometry_args(uint arg_count, Item **args,
                                  Item_result_field *me);
 
@@ -57,7 +50,8 @@ public:
 		  INTERVAL_FUNC, ISNOTNULLTEST_FUNC,
 		  SP_EQUALS_FUNC, SP_DISJOINT_FUNC,SP_INTERSECTS_FUNC,
 		  SP_TOUCHES_FUNC,SP_CROSSES_FUNC,SP_WITHIN_FUNC,
-		  SP_CONTAINS_FUNC,SP_OVERLAPS_FUNC,
+		  SP_CONTAINS_FUNC,SP_COVEREDBY_FUNC,SP_COVERS_FUNC,
+                  SP_OVERLAPS_FUNC,
 		  SP_STARTPOINT,SP_ENDPOINT,SP_EXTERIORRING,
 		  SP_POINTN,SP_GEOMETRYN,SP_INTERIORRINGN,
                   NOT_FUNC, NOT_ALL_FUNC,

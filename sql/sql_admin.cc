@@ -29,6 +29,7 @@
 #include "sql_parse.h"                       // check_table_access
 #include "sql_admin.h"
 #include "table_trigger_dispatcher.h"        // Table_trigger_dispatcher
+#include "log.h"
 
 static int send_check_errmsg(THD *thd, TABLE_LIST* table,
 			     const char* operator_name, const char* errmsg)

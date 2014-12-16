@@ -3664,6 +3664,7 @@ recv_recovery_rollback_active(void)
 		/* Rollback the uncommitted transactions which have no user
 		session */
 
+		trx_rollback_or_clean_is_active = true;
 		os_thread_create(trx_rollback_or_clean_all_recovered, 0, 0);
 	}
 }

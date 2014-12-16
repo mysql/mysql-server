@@ -16,7 +16,6 @@
 
 
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
-#include "sql_priv.h"
 #include <mysql.h>
 #include <m_ctype.h>
 #include "my_dir.h"
@@ -285,7 +284,7 @@ String *Item::val_string_from_datetime(String *str)
   if (get_date(&ltime, TIME_FUZZY_DATE) ||
       (null_value= str->alloc(MAX_DATE_STRING_REP_LENGTH)))
     return (String *) 0;
-  make_datetime((DATE_TIME_FORMAT *) 0, &ltime, str, decimals);
+  make_datetime((Date_time_format *) 0, &ltime, str, decimals);
   return str;
 }
 
@@ -297,7 +296,7 @@ String *Item::val_string_from_date(String *str)
   if (get_date(&ltime, TIME_FUZZY_DATE) ||
       (null_value= str->alloc(MAX_DATE_STRING_REP_LENGTH)))
     return (String *) 0;
-  make_date((DATE_TIME_FORMAT *) 0, &ltime, str);
+  make_date((Date_time_format *) 0, &ltime, str);
   return str;
 }
 
@@ -308,7 +307,7 @@ String *Item::val_string_from_time(String *str)
   MYSQL_TIME ltime;
   if (get_time(&ltime) || (null_value= str->alloc(MAX_DATE_STRING_REP_LENGTH)))
     return (String *) 0;
-  make_time((DATE_TIME_FORMAT *) 0, &ltime, str, decimals);
+  make_time((Date_time_format *) 0, &ltime, str, decimals);
   return str;
 }
 
@@ -4103,6 +4102,9 @@ bool Item_param::convert_str_value(THD *thd)
   bool rc= FALSE;
   if (state == STRING_VALUE || state == LONG_DATA_VALUE)
   {
+    if (value.cs_info.final_character_set_of_str_value == NULL ||
+        value.cs_info.character_set_of_placeholder == NULL)
+      return true;
     /*
       Check is so simple because all charsets were set up properly
       in setup_one_conversion_function, where typecode of
@@ -5634,8 +5636,8 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
                             VIEW_ANY_ACL)))
     {
       my_error(ER_COLUMNACCESS_DENIED_ERROR, MYF(0),
-               "ANY", thd->security_ctx->priv_user,
-               thd->security_ctx->host_or_ip, field_name, tab);
+               "ANY", thd->security_context()->priv_user().str,
+               thd->security_context()->host_or_ip().str, field_name, tab);
       goto error;
     }
   }
@@ -8497,7 +8499,7 @@ bool Item_trigger_field::fix_fields(THD *thd, Item **items)
                              triggers->get_subject_table()->s->db.str,
                              triggers->get_subject_table()->s->table_name.str,
                              field_name,
-                             strlen(field_name), thd->security_ctx))
+                             strlen(field_name), thd->security_context()))
         return TRUE;
     }
 #endif // NO_EMBEDDED_ACCESS_CHECKS

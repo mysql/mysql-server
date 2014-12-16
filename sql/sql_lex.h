@@ -31,6 +31,9 @@
 #include "trigger_def.h"              // enum_trigger_action_time_type
 #include "xa.h"                       // XID, xa_option_words
 #include "prealloced_array.h"
+#include "sql_data_change.h"
+#include "set_var.h"
+#include "query_options.h"            // OPTION_NO_CONST_TABLES
 
 /* YACC and LEX Definitions */
 
@@ -97,6 +100,31 @@ extern uint binlog_unsafe_map[256];
 */
 void binlog_unsafe_map_init();
 #endif
+
+enum enum_yes_no_unknown
+{
+  TVL_YES, TVL_NO, TVL_UNKNOWN
+};
+
+enum keytype {
+  KEYTYPE_PRIMARY,
+  KEYTYPE_UNIQUE,
+  KEYTYPE_MULTIPLE,
+  KEYTYPE_FULLTEXT,
+  KEYTYPE_SPATIAL,
+  KEYTYPE_FOREIGN
+};
+
+enum enum_ha_read_modes { RFIRST, RNEXT, RPREV, RLAST, RKEY, RNEXT_SAME };
+
+enum enum_filetype { FILETYPE_CSV, FILETYPE_XML };
+
+enum fk_match_opt { FK_MATCH_UNDEF, FK_MATCH_FULL,
+                    FK_MATCH_PARTIAL, FK_MATCH_SIMPLE};
+
+enum fk_option { FK_OPTION_UNDEF, FK_OPTION_RESTRICT, FK_OPTION_CASCADE,
+                 FK_OPTION_SET_NULL, FK_OPTION_NO_ACTION, FK_OPTION_DEFAULT};
+
 
 /**
   used by the parser to store internal variable name
@@ -499,7 +527,6 @@ public:
       UNCACHEABLE_DEPENDENT
       UNCACHEABLE_RAND
       UNCACHEABLE_SIDEEFFECT
-      UNCACHEABLE_PREPARE
   */
   uint8 uncacheable;
 
@@ -781,7 +808,6 @@ public:
       UNCACHEABLE_DEPENDENT
       UNCACHEABLE_RAND
       UNCACHEABLE_SIDEEFFECT
-      UNCACHEABLE_PREPARE
   */
   uint8 uncacheable;
   enum sub_select_type linkage;
@@ -1249,7 +1275,6 @@ inline bool st_select_lex_unit::is_union () const
 #include "item_func.h"            /* Cast_target used in sql_yacc.h */
 #include "sql_signal.h"
 #include "sql_get_diagnostics.h"  /* Types used in sql_yacc.h */
-//#include "sql_yacc.h"
 
 
 struct Cast_type
@@ -1378,7 +1403,7 @@ union YYSTYPE {
   LEX_USER *lex_user;
   struct sys_var_with_base variable;
   enum enum_var_type var_type;
-  Key::Keytype key_type;
+  keytype key_type;
   enum ha_key_alg key_alg;
   handlerton *db_type;
   enum row_type row_type;
@@ -1412,7 +1437,7 @@ union YYSTYPE {
   struct p_elem_val *p_elem_value;
   enum index_hint_type index_hint;
   enum enum_filetype filetype;
-  enum Foreign_key::fk_option m_fk_option;
+  enum fk_option m_fk_option;
   enum enum_yes_no_unknown m_yes_no_unk;
   enum_condition_item_name da_condition_item_name;
   Diagnostics_information::Which_area diag_area;
@@ -2580,6 +2605,9 @@ public:
   LEX_YYSTYPE lookahead_yylval;
 
   void add_digest_token(uint token, LEX_YYSTYPE yylval);
+
+  void reduce_digest_token(uint token_left, uint token_right);
+
   const CHARSET_INFO *query_charset;
 
 private:
@@ -2852,9 +2880,9 @@ public:
   uint profile_options;
   uint uint_geom_type;
   uint grant, grant_tot_col, which_columns;
-  enum Foreign_key::fk_match_opt fk_match_option;
-  enum Foreign_key::fk_option fk_update_opt;
-  enum Foreign_key::fk_option fk_delete_opt;
+  enum fk_match_opt fk_match_option;
+  enum fk_option fk_update_opt;
+  enum fk_option fk_delete_opt;
   uint slave_thd_opt, start_transaction_opt;
   int select_number;                     ///< Number of query block (by EXPLAIN)
   uint8 describe;
@@ -3334,6 +3362,9 @@ private:
 
 extern sql_digest_state *
 digest_add_token(sql_digest_state *state, uint token, LEX_YYSTYPE yylval);
+
+extern sql_digest_state *
+digest_reduce_token(sql_digest_state *state, uint token_left, uint token_right);
 
 struct st_lex_local: public LEX
 {

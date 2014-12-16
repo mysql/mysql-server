@@ -760,7 +760,6 @@ create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
     if (type == Item::SUM_FUNC_ITEM && !group && !save_sum_fields)
     {						/* Can't calc group yet */
       Item_sum *sum_item= (Item_sum *) item;
-      sum_item->result_field=0;
       for (i=0 ; i < sum_item->get_arg_count() ; i++)
       {
         Item *arg= sum_item->get_arg(i);
@@ -1398,8 +1397,6 @@ update_hidden:
 err:
   thd->mem_root= mem_root_save;
   free_tmp_table(thd,table);                    /* purecov: inspected */
-  if (temp_pool_slot != MY_BIT_NONE)
-    bitmap_lock_clear_bit(&temp_pool, temp_pool_slot);
   DBUG_RETURN(NULL);				/* purecov: inspected */
 }
 
@@ -1779,8 +1776,6 @@ err:
   thd->mem_root= mem_root_save;
   table->file->ha_index_or_rnd_end();
   free_tmp_table(thd,table);                    /* purecov: inspected */
-  if (temp_pool_slot != MY_BIT_NONE)
-    bitmap_lock_clear_bit(&temp_pool, temp_pool_slot);
   DBUG_RETURN(NULL);				/* purecov: inspected */
 }
 
@@ -2055,6 +2050,17 @@ bool create_myisam_tmp_table(TABLE *table, KEY *keyinfo,
                        )))
   {
     table->file->print_error(error,MYF(0));	/* purecov: inspected */
+    /*
+      Table name which was allocated from temp-pool is already occupied
+      in SE. Probably we hit a bug in server or some problem with system
+      configuration. Prevent problem from re-occurring by marking temp-pool
+      slot for this name as permanently busy, to do this we only need to set
+      TABLE::temp_pool_slot to MY_BIT_NONE in order to avoid freeing it
+      in free_tmp_table().
+    */
+    if (error == EEXIST)
+      table->temp_pool_slot= MY_BIT_NONE;
+
     table->db_stat=0;
     goto err;
   }
@@ -2110,6 +2116,22 @@ bool create_innodb_tmp_table(TABLE *table, KEY *keyinfo)
   if ((error= table->file->create(share->table_name.str, table, &create_info)))
   {
     table->file->print_error(error,MYF(0));    /* purecov: inspected */
+    /*
+      Table name which was allocated from temp-pool is already occupied
+      in SE. Probably we hit a bug in server or some problem with system
+      configuration. Prevent problem from re-occurring by marking temp-pool
+      slot for this name as permanently busy, to do this we only need to set
+      TABLE::temp_pool_slot to MY_BIT_NONE in order to avoid freeing it
+      in free_tmp_table().
+
+      Note that currently InnoDB never reports an error in this case but
+      instead aborts on failed assertion. So the below if-statement is here
+      mostly to make code future-proof and consistent with MyISAM case.
+   */
+
+   if (error == HA_ERR_FOUND_DUPP_KEY || error == HA_ERR_TABLESPACE_EXISTS ||
+       error == HA_ERR_TABLE_EXIST)
+     table->temp_pool_slot= MY_BIT_NONE;
     table->db_stat= 0;
     DBUG_RETURN(true);
   }
@@ -2199,8 +2221,12 @@ bool instantiate_tmp_table(TABLE *table, KEY *keyinfo,
     // Make empty record so random data is not written to disk
     empty_record(table);
   }
+
   if (open_tmp_table(table))
+  {
+    table->file->ha_delete_table(table->s->table_name.str);
     return TRUE;
+  }
 
   if (unlikely(trace->is_started()))
   {

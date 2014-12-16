@@ -20,6 +20,7 @@
 
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "sql_const.h"
+#include "sql_lex.h"
 #include <mysql/plugin_audit.h>
 #include "rpl_tblmap.h"
 #include "mdl.h"
@@ -51,6 +52,9 @@
 #include "session_tracker.h"
 
 #include "transaction_info.h"
+#include <memory>
+
+#include "auth/sql_security_ctx.h"   // Security_context
 
 /**
   The meat of thd_proc_info(THD*, char*), a macro that packs the last
@@ -91,8 +95,6 @@ typedef struct st_log_info LOG_INFO;
 
 struct st_thd_timer;
 
-enum enum_ha_read_modes { RFIRST, RNEXT, RPREV, RLAST, RKEY, RNEXT_SAME };
-
 enum enum_delay_key_write { DELAY_KEY_WRITE_NONE, DELAY_KEY_WRITE_ON,
 			    DELAY_KEY_WRITE_ALL };
 enum enum_rbr_exec_mode { RBR_EXEC_MODE_STRICT,
@@ -122,7 +124,6 @@ enum enum_binlog_format {
 
 enum enum_mark_columns
 { MARK_COLUMNS_NONE, MARK_COLUMNS_READ, MARK_COLUMNS_WRITE};
-enum enum_filetype { FILETYPE_CSV, FILETYPE_XML };
 
 /* Bits for different SQL modes modes (including ANSI mode) */
 #define MODE_REAL_AS_FLOAT              1
@@ -164,6 +165,18 @@ enum enum_filetype { FILETYPE_CSV, FILETYPE_XML };
 #define MODE_HIGH_NOT_PRECEDENCE        (MODE_NO_AUTO_CREATE_USER*2)
 #define MODE_NO_ENGINE_SUBSTITUTION     (MODE_HIGH_NOT_PRECEDENCE*2)
 #define MODE_PAD_CHAR_TO_FULL_LENGTH    (1ULL << 31)
+
+/*
+  Replication uses 8 bytes to store SQL_MODE in the binary log. The day you
+  use strictly more than 64 bits by adding one more define above, you should
+  contact the replication team because the replication code should then be
+  updated (to store more bytes on disk).
+
+  NOTE: When adding new SQL_MODE types, make sure to also add them to
+  the scripts used for creating the MySQL system tables
+  in scripts/mysql_system_tables.sql and scripts/mysql_system_tables_fix.sql
+
+*/
 
 extern char internal_table_name[2];
 extern char empty_c_string[1];
@@ -250,20 +263,19 @@ public:
 
 class Key :public Sql_alloc {
 public:
-  enum Keytype { PRIMARY, UNIQUE, MULTIPLE, FULLTEXT, SPATIAL, FOREIGN_KEY};
-  enum Keytype type;
+  keytype type;
   KEY_CREATE_INFO key_create_info;
   List<Key_part_spec> columns;
   LEX_STRING name;
   bool generated;
 
-  Key(enum Keytype type_par, const LEX_STRING &name_arg,
+  Key(keytype type_par, const LEX_STRING &name_arg,
       KEY_CREATE_INFO *key_info_arg,
       bool generated_arg, List<Key_part_spec> &cols)
     :type(type_par), key_create_info(*key_info_arg), columns(cols),
     name(name_arg), generated(generated_arg)
   {}
-  Key(enum Keytype type_par, const char *name_arg, size_t name_len_arg,
+  Key(keytype type_par, const char *name_arg, size_t name_len_arg,
       KEY_CREATE_INFO *key_info_arg, bool generated_arg,
       List<Key_part_spec> &cols)
     :type(type_par), key_create_info(*key_info_arg), columns(cols),
@@ -288,10 +300,6 @@ class Table_ident;
 
 class Foreign_key: public Key {
 public:
-  enum fk_match_opt { FK_MATCH_UNDEF, FK_MATCH_FULL,
-		      FK_MATCH_PARTIAL, FK_MATCH_SIMPLE};
-  enum fk_option { FK_OPTION_UNDEF, FK_OPTION_RESTRICT, FK_OPTION_CASCADE,
-		   FK_OPTION_SET_NULL, FK_OPTION_NO_ACTION, FK_OPTION_DEFAULT};
 
   LEX_CSTRING ref_db;
   LEX_CSTRING ref_table;
@@ -301,7 +309,7 @@ public:
 	      const LEX_CSTRING &ref_db_arg, const LEX_CSTRING &ref_table_arg,
               List<Key_part_spec> &ref_cols,
 	      uint delete_opt_arg, uint update_opt_arg, uint match_opt_arg)
-    :Key(FOREIGN_KEY, name_arg, &default_key_create_info, 0, cols),
+    :Key(KEYTYPE_FOREIGN, name_arg, &default_key_create_info, 0, cols),
     ref_db(ref_db_arg), ref_table(ref_table_arg), ref_columns(ref_cols),
     delete_opt(delete_opt_arg), update_opt(update_opt_arg),
     match_opt(match_opt_arg)
@@ -406,8 +414,6 @@ struct Query_cache_tls
 
   Query_cache_tls() :first_query_block(NULL) {}
 };
-
-#include "sql_lex.h"				/* Must be here */
 
 class select_result;
 class Time_zone;
@@ -823,71 +829,6 @@ private:
   HASH st_hash;
   HASH names_hash;
   Prepared_statement *m_last_found_statement;
-};
-
-/**
-  @class Security_context
-  @brief A set of THD members describing the current authenticated user.
-*/
-
-class Security_context {
-private:
-
-String host;
-String ip;
-String external_user;
-public:
-  Security_context() {}                       /* Remove gcc warning */
-  /*
-    host - host of the client
-    user - user of the client, set to NULL until the user has been read from
-    the connection
-    priv_user - The user privilege we are using. May be "" for anonymous user.
-    ip - client IP
-  */
-  char   *user;
-  char   priv_user[USERNAME_LENGTH];
-  char   proxy_user[USERNAME_LENGTH + MAX_HOSTNAME + 5];
-  /* The host privilege we are using */
-  char   priv_host[MAX_HOSTNAME];
-  /* points to host if host is available, otherwise points to ip */
-  const char *host_or_ip;
-  ulong master_access;                 /* Global privileges from mysql.user */
-  ulong db_access;                     /* Privileges for current db */
-  /*
-    This flag is set according to connecting user's context and not the
-    effective user.
-  */
-  bool password_expired;               /* password expiration flag */
-
-  void init();
-  void destroy();
-  void skip_grants();
-  inline char *priv_host_name()
-  {
-    return (*priv_host ? priv_host : (char *)"%");
-  }
-
-  bool set_user(char *user_arg);
-  String *get_host();
-  String *get_ip();
-  String *get_external_user();
-  void set_host(const char *p);
-  void set_ip(const char *p);
-  void set_external_user(const char *p);
-  void set_host(const char *str, size_t len);
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-  bool
-  change_security_context(THD *thd,
-                          const LEX_CSTRING &definer_user,
-                          const LEX_CSTRING &definer_host,
-                          LEX_STRING *db,
-                          Security_context **backup);
-
-  void
-  restore_security_context(THD *thd, Security_context *backup);
-#endif
-  bool user_matches(Security_context *);
 };
 
 
@@ -1642,8 +1583,11 @@ public:
     @see handle_slave_sql
   */
 
-  Security_context main_security_ctx;
-  Security_context *security_ctx;
+  Security_context m_main_security_ctx;
+  Security_context *m_security_ctx;
+
+  Security_context* security_context() const { return m_security_ctx; }
+  void set_security_context(Security_context *sctx) { m_security_ctx= sctx; }
 
   /*
     Points to info-string that we show in SHOW PROCESSLIST

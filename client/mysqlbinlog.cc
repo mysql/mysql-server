@@ -35,7 +35,7 @@
 #include <my_time.h>
 #include <sslopt-vars.h>
 /* That one is necessary for defines of OPTION_NO_FOREIGN_KEY_CHECKS etc */
-#include "sql_priv.h"
+#include "query_options.h"
 #include <signal.h>
 #include <my_dir.h>
 
@@ -3028,6 +3028,7 @@ int main(int argc, char** argv)
     exit(1);
   }
 
+  umask(((~my_umask) & 0666));
   /* Check for argument conflicts and do any post-processing */
   if (args_post_process() == ERROR_STOP)
     exit(1);

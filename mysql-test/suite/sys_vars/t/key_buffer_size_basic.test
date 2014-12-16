@@ -109,6 +109,7 @@ SET @@session.key_buffer_size = 0;
 # Check if the value in GLOBAL & SESSION Tables matches values in variable   #
 ##############################################################################
 
+--disable_warnings
 SELECT @@global.key_buffer_size = VARIABLE_VALUE
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
 WHERE VARIABLE_NAME='key_buffer_size';
@@ -116,6 +117,7 @@ WHERE VARIABLE_NAME='key_buffer_size';
 SELECT @@key_buffer_size = VARIABLE_VALUE
 FROM INFORMATION_SCHEMA.SESSION_VARIABLES
 WHERE VARIABLE_NAME='key_buffer_size';
+--enable_warnings
 
 --echo '#---------------------FN_DYNVARS_055_07----------------------#'
 ###################################################################

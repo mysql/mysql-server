@@ -35,6 +35,8 @@
 #include <ft_global.h>
 #include <keycache.h>
 
+#include "mysql/psi/psi.h"     /* PSI_table_locker_state */
+
 class Alter_info;
 typedef struct xid_t XID;
 
@@ -955,7 +957,7 @@ typedef struct st_ha_create_information
     For ALTER TABLE defaults to ROW_TYPE_NOT_USED (means "keep the current").
 
     Can be changed either explicitly by the parser.
-    If nothing speficied inherits the value of the original table (if present).
+    If nothing specified inherits the value of the original table (if present).
   */
   enum row_type row_type;
   uint null_bits;                       /* NULL bits at start of record */
@@ -2038,8 +2040,6 @@ public:
   PSI_table *m_psi;
 
 private:
-#ifdef HAVE_PSI_TABLE_INTERFACE
-
   /** Internal state of the batch instrumentation. */
   enum batch_mode_t
   {
@@ -2050,7 +2050,6 @@ private:
     /** Batch mode used, after first table io. */
     PSI_BATCH_MODE_STARTED
   };
-
   /**
     Batch mode state.
     @sa start_psi_batch_mode.
@@ -2075,7 +2074,6 @@ private:
     @sa end_psi_batch_mode.
   */
   PSI_table_locker_state m_psi_locker_state;
-#endif
 
 public:
   virtual void unbind_psi();
@@ -2124,11 +2122,9 @@ public:
     next_insert_id(0), insert_id_for_cur_row(0),
     auto_inc_intervals_count(0),
     m_psi(NULL),
-#ifdef HAVE_PSI_TABLE_INTERFACE
     m_psi_batch_mode(PSI_BATCH_MODE_NONE),
     m_psi_numrows(0),
     m_psi_locker(NULL),
-#endif
     m_lock_type(F_UNLCK), ha_share(NULL)
     {
       DBUG_PRINT("info",
@@ -2138,10 +2134,8 @@ public:
   virtual ~handler(void)
   {
     DBUG_ASSERT(m_psi == NULL);
-#ifdef HAVE_PSI_TABLE_INTERFACE
     DBUG_ASSERT(m_psi_batch_mode == PSI_BATCH_MODE_NONE);
     DBUG_ASSERT(m_psi_locker == NULL);
-#endif
     DBUG_ASSERT(m_lock_type == F_UNLCK);
     DBUG_ASSERT(inited == NONE);
   }

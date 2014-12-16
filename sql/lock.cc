@@ -73,7 +73,6 @@
   we are forced to use mysql_lock_merge.
 */
 
-#include "sql_priv.h"
 #include "debug_sync.h"
 #include "lock.h"
 #include "sql_base.h"                       // close_tables_for_reopen
@@ -124,7 +123,7 @@ lock_tables_check(THD *thd, TABLE **tables, size_t count, uint flags)
 
   DBUG_ENTER("lock_tables_check");
 
-  is_superuser= thd->security_ctx->master_access & SUPER_ACL;
+  is_superuser= thd->security_context()->check_access(SUPER_ACL);
   log_table_write_query=
      is_log_table_write_query(thd->lex->sql_command);
 

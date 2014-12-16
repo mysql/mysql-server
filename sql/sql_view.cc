@@ -15,7 +15,6 @@
 
 #define MYSQL_LEX 1
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
-#include "sql_priv.h"
 #include "sql_view.h"
 #include "sql_base.h"    // find_table_in_global_list, lock_table_names
 #include "sql_parse.h"                          // sql_parse
@@ -32,6 +31,7 @@
 #include "sp_cache.h"
 #include "datadict.h"   // dd_frm_type()
 #include "opt_trace.h"  // opt_trace_disable_etc
+#include "binlog.h"
 
 #define MD5_BUFF_LENGTH 33
 
@@ -332,8 +332,8 @@ bool create_view_precheck(THD *thd, TABLE_LIST *tables, TABLE_LIST *view,
       if (check_some_access(thd, VIEW_ANY_ACL, tbl))
       {
         my_error(ER_TABLEACCESS_DENIED_ERROR, MYF(0),
-                 "ANY", thd->security_ctx->priv_user,
-                 thd->security_ctx->priv_host, tbl->table_name);
+                 "ANY", thd->security_context()->priv_user().str,
+                 thd->security_context()->priv_host().str, tbl->table_name);
         goto err;
       }
       /*
@@ -530,12 +530,13 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
       - current user has SUPER_ACL
   */
   if (lex->definer &&
-      (strcmp(lex->definer->user.str, thd->security_ctx->priv_user) != 0 ||
+      (strcmp(lex->definer->user.str,
+              thd->security_context()->priv_user().str) != 0 ||
        my_strcasecmp(system_charset_info,
                      lex->definer->host.str,
-                     thd->security_ctx->priv_host) != 0))
+                     thd->security_context()->priv_host().str) != 0))
   {
-    if (!(thd->security_ctx->master_access & SUPER_ACL))
+    if (!(thd->security_context()->check_access(SUPER_ACL)))
     {
       my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "SUPER");
       res= TRUE;
@@ -699,8 +700,9 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
     if (!final_priv && report_item)
     {
       my_error(ER_COLUMNACCESS_DENIED_ERROR, MYF(0),
-               "create view", thd->security_ctx->priv_user,
-               thd->security_ctx->priv_host, report_item->item_name.ptr(),
+               "create view", thd->security_context()->priv_user().str,
+               thd->security_context()->priv_host().str,
+               report_item->item_name.ptr(),
                view->table_name);
       res= TRUE;
       goto err;

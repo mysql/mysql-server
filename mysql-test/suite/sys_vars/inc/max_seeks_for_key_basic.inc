@@ -136,20 +136,22 @@ SELECT @@session.max_seeks_for_key;
 #   Check if the value in GLOBAL Table matches value in variable   #
 ####################################################################
 
-
+--disable_warnings
 SELECT @@global.max_seeks_for_key = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
 WHERE VARIABLE_NAME='max_seeks_for_key';
+--enable_warnings
 
 --echo '#------------------FN_DYNVARS_083_07-----------------------#'
 ####################################################################
 #  Check if the value in SESSION Table matches value in variable   #
 ####################################################################
 
+--disable_warnings
 SELECT @@session.max_seeks_for_key = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
 WHERE VARIABLE_NAME='max_seeks_for_key';
-
+--enable_warnings
 
 --echo '#------------------FN_DYNVARS_083_08-----------------------#'
 ####################################################################

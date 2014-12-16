@@ -812,10 +812,10 @@ btr_cur_search_to_nth_level(
 
 	ut_ad(!s_latch_by_caller
 	      || srv_read_only_mode
-	      || mtr_memo_contains(mtr, dict_index_get_lock(index),
-				   BTR_LATCH_MODE_WITHOUT_FLAGS(latch_mode)
-				   == BTR_SEARCH_TREE
-				   ? MTR_MEMO_SX_LOCK : MTR_MEMO_S_LOCK));
+	      || mtr_memo_contains_flagged(mtr,
+					   dict_index_get_lock(index),
+					   MTR_MEMO_S_LOCK
+					   | MTR_MEMO_SX_LOCK));
 
 	/* These flags are mutually exclusive, they are lumped together
 	with the latch mode for historical reasons. It's possible for
@@ -2155,10 +2155,10 @@ btr_cur_open_at_index_side_func(
 		break;
 	default:
 		ut_ad(!s_latch_by_caller
-		      || mtr_memo_contains(mtr, dict_index_get_lock(index),
-					   latch_mode == BTR_SEARCH_TREE
-					   ? MTR_MEMO_SX_LOCK
-					   : MTR_MEMO_S_LOCK));
+		      || mtr_memo_contains_flagged(mtr,
+						 dict_index_get_lock(index),
+						 MTR_MEMO_SX_LOCK
+						 | MTR_MEMO_S_LOCK));
 		if (!srv_read_only_mode) {
 			if (!s_latch_by_caller) {
 				/* BTR_SEARCH_TREE is intended to be used with
@@ -3153,7 +3153,7 @@ fail_err:
 
 	DBUG_PRINT("ib_cur", ("insert %s (" IB_ID_FMT ") by " TRX_ID_FMT
 			      ": %s",
-			      index->name, index->id,
+			      index->name(), index->id,
 			      thr != NULL
 			      ? trx_get_id_for_print(thr_get_trx(thr))
 			      : 0,
@@ -3781,7 +3781,7 @@ btr_cur_update_in_place(
 
 	DBUG_PRINT("ib_cur", ("update-in-place %s (" IB_ID_FMT
 			      ") by " TRX_ID_FMT ": %s",
-			      index->name, index->id, trx_id,
+			      index->name(), index->id, trx_id,
 			      rec_printer(rec, offsets).str().c_str()));
 
 	block = btr_cur_get_block(cursor);
@@ -3984,7 +3984,7 @@ any_extern:
 
 	DBUG_PRINT("ib_cur", ("update %s (" IB_ID_FMT ") by " TRX_ID_FMT
 			      ": %s",
-			      index->name, index->id, trx_id,
+			      index->name(), index->id, trx_id,
 			      rec_printer(rec, *offsets).str().c_str()));
 
 	page_cursor = btr_cur_get_page_cur(cursor);
@@ -4916,7 +4916,7 @@ btr_cur_del_mark_set_sec_rec(
 			      unsigned(val),
 			      block->page.id.space(), block->page.id.page_no(),
 			      unsigned(page_rec_get_heap_no(rec)),
-			      cursor->index->name, cursor->index->id,
+			      cursor->index->name(), cursor->index->id,
 			      trx_get_id_for_print(thr_get_trx(thr))));
 
 	/* We do not need to reserve btr_search_latch, as the

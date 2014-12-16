@@ -91,7 +91,7 @@ innobase_invalidate_query_cache(
 	ulint		full_name_len);	/*!< in: full name length where
 					also the null chars count */
 
-/** Quote an index or column name.
+/** Quote a standard SQL identifier like tablespace, index or column name.
 @param[in]	file	output stream
 @param[in]	trx	InnoDB transaction, or NULL
 @param[in]	id	identifier to quote */
@@ -310,14 +310,6 @@ thd_set_lock_wait_time(
 @return the optimize_point_storage */
 bool
 thd_optimize_point_storage(
-	THD*	thd);
-
-/** Get status of innodb_tmpdir.
-@param[in]	thd	thread handle, or NULL to query
-			the global innodb_tmpdir.
-@return value or NULL if innodb_tmpdir is set to default value "" */
-const char*
-thd_innodb_tmpdir(
 	THD*	thd);
 
 /**********************************************************************//**

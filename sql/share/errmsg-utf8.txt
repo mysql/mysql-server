@@ -6810,7 +6810,7 @@ ER_IO_WRITE_ERROR
   eng "IO Write error: (%lu, %s) %s"
 
 ER_TABLESPACE_MISSING
-  eng "Tablespace '%-.192s' is missing"
+  eng "Tablespace is missing for table %s."
 
 ER_TABLESPACE_EXISTS
   eng "Tablespace '%-.192s' exists."
@@ -7060,6 +7060,9 @@ ER_PLUGIN_CANNOT_BE_UNINSTALLED
 
 ER_GTID_UNSAFE_BINLOG_SPLITTABLE_STATEMENT_AND_GTID_GROUP
   eng "Cannot execute statement because it needs to be written to the binary log as multiple statements, and this is not allowed when @@SESSION.GTID_NEXT == 'UUID:NUMBER'."
+
+ER_SLAVE_HAS_MORE_GTIDS_THAN_MASTER
+  eng "Slave has more GTIDs than the master has, using the master's SERVER_UUID. This may indicate that the end of the binary log was truncated or that the last binary log file was lost, e.g., after a power or disk failure when sync_binlog != 1. The master may or may not have rolled back transactions that were already replicated to the slave. Suggest to replicate any transactions that master has rolled back from slave to master, and/or commit empty transactions on master to account for transactions that have been committed on master but are not included in GTID_EXECUTED."
 #
 #  End of 5.6 error messages.
 #
@@ -7334,6 +7337,10 @@ ER_WRONG_FIELD_WITH_GROUP_V2
 # When using this error message, use the ER_MIX_OF_GROUP_FUNC_AND_FIELDS error code.
 ER_MIX_OF_GROUP_FUNC_AND_FIELDS_V2
   eng "In aggregated query without GROUP BY, expression #%u of %s contains nonaggregated column '%-.192s'; this is incompatible with sql_mode=only_full_group_by"
+
+# When using this error message, use the ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT error code.
+ER_WARN_DEPRECATED_SYSVAR_UPDATE
+  eng "Updating '%s' is deprecated. It will be made read-only in a future release."
 
 #
 #  End of 5.7 error messages.

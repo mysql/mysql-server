@@ -1,23 +1,23 @@
 # -*- cperl -*-
-# # Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
-# # 
-# # This program is free software; you can redistribute it and/or modify
-# # it under the terms of the GNU General Public License as published by
-# # the Free Software Foundation; version 2 of the License.
-# #
-# # This program is distributed in the hope that it will be useful,
-# # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# # GNU General Public License for more details.
-# #
-# # You should have received a copy of the GNU General Public License
-# # along with this program; if not, write to the Free Software
-# # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+# Copyright (c) 2005, 2013, 2014, Oracle and/or its affiliates. All rights reserved.
+# 
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
 #
-# # This is a library file used by the Perl version of mysql-test-run,
-# # and is part of the translation of the Bourne shell script with the
-# # same name.
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
 #
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+#
+# This is a library file used by the Perl version of mysql-test-run,
+# and is part of the translation of the Bourne shell script with the
+# same name.
+
 package mtr_cases_from_list;
 use strict;
 use mtr_report;
@@ -36,6 +36,9 @@ sub collect_test_cases_from_list ($$$$) {
   my $opt_do_test_list= shift;
   my $opt_ctest= shift;
   my $ret= 0;
+  if ($opt_do_test_list ne "") {
+      $opt_do_test_list=~ s/^\~\//$ENV{HOME}\//;
+  }
   open(FILE, "<", $opt_do_test_list) or $ret= 1;
   if ($ret) {
     mtr_report("Cannot open \"$opt_do_test_list\".");

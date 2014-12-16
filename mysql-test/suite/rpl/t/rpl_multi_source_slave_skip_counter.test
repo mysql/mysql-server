@@ -2,6 +2,53 @@
 #
 # Test the behaviour when sql_slave_skip_counter is set
 #
+# BUG#19634753: WL1697: IF SQL_SLAVE_SKIP_COUNTER > 0, IO_THREAD(S) ARE
+#               NOT ABLE TO START
+#
+# The behavior for MySQL 5.7 should be:
+#
+# You cannot set sql_slave_skip_counter if at least one SQL thread is running
+# or else you will get ER_SLAVE_SQL_THREAD_MUST_STOP.
+#
+# If channels == 1, reproduce the same behavior of MySQL 5.6:
+#
+# COMMAND                | N |  I  |  S  |  B  | Ia | Sa | Ba
+# -----------------------+---+-----+-----+-----+----+----+----
+# START SLAVE            | S | N/A | N/A | N/A | S  | S  | W
+# START SLAVE IO_THREAD  | S | N/A | N/A | N/A | W  | S  | W
+# START SLAVE SQL_THREAD | S | N/A | N/A | N/A | S  | W  | W
+#
+# If channels > 1:
+#
+# COMMAND                | N |  I  |  S   |  B   | Ia | Sa  | Ba
+# -----------------------+---+-----+------+------+----+-----+-----
+# START SLAVE            | E |  E  | E(1) | E(1) | E  | (2) | (2)
+# START SLAVE IO_THREAD  | S |  S  |  S   |  S   | W  | (2) | (2)
+# START SLAVE SQL_THREAD | E |  E  | E(1) | E(1) | E  | (2) | (2)
+#
+# State:
+#
+# N - No threads active
+# I - Some IO Threads active only
+# Ia - IO threads for all channels are active
+# S - Some SQL threads active only
+# Sa - SQL threads for all channels active
+# B - Both types of threads are started on a few channels.
+# Ba - Both types of threads are started everywhere.
+#
+# Outcome:
+#
+# E - means error (ER_SLAVE_CHANNEL_SQL_SKIP_COUNTER)
+# S - means success
+# W - warning (threads are already started)
+#
+# Notes:
+#
+# (1) We can assert that only one SQL thread is running. It is not possible to
+#     have more than one SQL thread started if sql_slave_skip_counter > 0.
+# (2) This is an impossible situation. It is not possible to have more than one
+#     SQL thread started if sql_slave_skip_counter > 0.
+# (3) No new slave threads should be started on any error situation.
 
 --source include/have_binlog_format_mixed.inc
 --source include/not_gtid_enabled.inc
@@ -16,6 +63,7 @@
 # On slave
 --let $rpl_connection_name= server_2
 --source include/rpl_connection.inc
+call mtr.add_suppression("Slave: Could not start slave for channel");
 
 --echo #  when sql_slave_skip_counter is set, check proper error messages are
 --echo #  are generated. We test for START SLAVE and START SLAVE FOR CHANNEL
@@ -42,8 +90,27 @@ START SLAVE;
 # check that no channel SQL threads are running.
 #
 --let $assert_text= check that no channel SQL threads are running.
---let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_execute_status_by_coordinator WHERE Service_State="ON"] = 0;
+--let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_applier_status_by_coordinator WHERE Service_State="ON"] = 0;
 --source include/assert.inc
+
+# stop IO THREAD for all channels
+STOP SLAVE IO_THREAD;
+--let $rpl_source_file= include/wait_for_slave_io_to_stop.inc
+--source include/rpl_for_each_connection.inc
+
+--echo #
+--echo # START SLAVE IO_THREAD should not fail.
+--echo #
+START SLAVE IO_THREAD;
+--let $rpl_source_file= include/wait_for_slave_io_to_start.inc
+--source include/rpl_for_each_connection.inc
+--let $assert_text= All two IO threads are running after START SLAVE IO_THREAD
+--let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_connection_status WHERE Service_State="ON"] = 2;
+--source include/assert.inc
+
+# stop IO THREAD for all channels for the next part of the test
+--let $rpl_source_file= include/stop_slave_io.inc
+--source include/rpl_for_each_connection.inc
 
 --echo #
 --echo #  Test that START SLAVE FOR CHANNEL fails when any slave sql is running
@@ -53,6 +120,31 @@ START SLAVE;
 
 --error ER_SLAVE_CHANNEL_SQL_SKIP_COUNTER
 START SLAVE FOR CHANNEL "channel_3";
+
+# stop the only IO THREAD running (for channel 1)
+--let $rpl_channel_name= channel_1
+--source include/stop_slave_io.inc
+
+--let $assert_text= No IO threads should be running at this point
+--let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_connection_status WHERE Service_State="ON"] = 0;
+--source include/assert.inc
+
+--echo #
+--echo # START SLAVE with only one SQL_THREAD running should not start IO_THREADS.
+--echo #
+--error ER_SLAVE_CHANNEL_SQL_SKIP_COUNTER
+START SLAVE;
+--let $assert_text= No IO threads should be running after START SLAVE with only one SQL_THREAD running
+--let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_connection_status WHERE Service_State="ON"] = 0;
+--source include/assert.inc
+
+--echo #
+--echo # START SLAVE IO_THREAD FOR CHANNEL should not fail.
+--echo #
+--source include/start_slave_io.inc
+--let $assert_text= Just one IO thread is running after START SLAVE IO_THREAD FOR CHANNEL
+--let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_connection_status WHERE Service_State="ON"] = 1;
+--source include/assert.inc
 
 # Reset sql_slave_skip_counter to 0
 --let $rpl_channel_name= channel_1

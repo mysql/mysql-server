@@ -447,7 +447,7 @@ lock_sys_create(
 	lock_sys->prdt_page_hash = hash_create(n_cells);
 
 	if (!srv_read_only_mode) {
-		lock_latest_err_file = os_file_create_tmpfile(NULL);
+		lock_latest_err_file = os_file_create_tmpfile();
 		ut_a(lock_latest_err_file);
 	}
 }
@@ -2041,8 +2041,8 @@ lock_rec_add_to_queue(
 #ifdef UNIV_DEBUG
 	ut_ad(lock_mutex_own());
 	ut_ad(caller_owns_trx_mutex == trx_mutex_own(trx));
-	ut_ad(dict_index_is_clust(index) || !dict_index_is_online_ddl(index));
-
+	ut_ad(dict_index_is_clust(index)
+	      || dict_index_get_online_status(index) != ONLINE_INDEX_CREATION);
 	switch (type_mode & LOCK_MODE_MASK) {
 	case LOCK_X:
 	case LOCK_S:
@@ -4648,7 +4648,7 @@ lock_rec_print(
 		"index %s of table ",
 		(ulong) space, (ulong) page_no,
 		(ulong) lock_rec_get_n_bits(lock),
-		lock->index->name);
+		lock->index->name());
 	ut_print_name(file, lock->trx, lock->index->table_name);
 	fprintf(file, " trx id " TRX_ID_FMT, trx_get_id_for_print(lock->trx));
 

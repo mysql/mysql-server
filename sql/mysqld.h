@@ -188,7 +188,7 @@ extern const char *log_output_str;
 extern const char *log_backup_output_str;
 extern char *mysql_home_ptr, *pidfile_name_ptr;
 extern char *default_auth_plugin;
-extern volatile uint default_password_lifetime;
+extern uint default_password_lifetime;
 extern char *my_bind_addr_str;
 extern char glob_hostname[FN_REFLEN], mysql_home[FN_REFLEN];
 extern char pidfile_name[FN_REFLEN], system_time_zone[30], *opt_init_file;
@@ -241,8 +241,8 @@ extern const char *binlog_checksum_type_names[];
 extern my_bool opt_master_verify_checksum;
 extern my_bool opt_slave_sql_verify_checksum;
 extern my_bool enforce_gtid_consistency;
-extern uint executed_gtids_compression_period;
-extern my_bool simplified_binlog_gtid_recovery;
+extern uint gtid_executed_compression_period;
+extern my_bool binlog_gtid_simple_recovery;
 extern ulong binlog_error_action;
 enum enum_binlog_error_action
 {
@@ -275,6 +275,7 @@ extern time_t server_start_time, flush_status_time;
 extern char *opt_mysql_tmpdir, mysql_charsets_dir[];
 extern size_t mysql_unpacked_real_data_home_len;
 extern MYSQL_PLUGIN_IMPORT MY_TMPDIR mysql_tmpdir_list;
+extern const char *show_comp_option_name[];
 extern const char *first_keyword, *binary_keyword;
 extern MYSQL_PLUGIN_IMPORT const char  *my_localhost;
 extern MYSQL_PLUGIN_IMPORT const char **errmesg;			/* Error messages */
@@ -423,6 +424,7 @@ extern PSI_mutex_key key_mts_gaq_LOCK;
 extern PSI_mutex_key key_thd_timer_mutex;
 #endif
 extern PSI_mutex_key key_LOCK_offline_mode;
+extern PSI_mutex_key key_LOCK_default_password_lifetime;
 
 #ifdef HAVE_REPLICATION
 extern PSI_mutex_key key_commit_order_manager_mutex;
@@ -593,7 +595,6 @@ extern PSI_memory_key key_memory_hash_index_key_buffer;
 extern PSI_memory_key key_memory_THD_handler_tables_hash;
 extern PSI_memory_key key_memory_JOIN_CACHE;
 extern PSI_memory_key key_memory_READ_INFO;
-extern PSI_memory_key key_memory_mysql_manager;
 extern PSI_memory_key key_memory_partition_syntax_buffer;
 extern PSI_memory_key key_memory_global_system_variables;
 extern PSI_memory_key key_memory_THD_variables;
@@ -800,7 +801,7 @@ extern mysql_mutex_t
        LOCK_global_system_variables, LOCK_user_conn, LOCK_log_throttle_qni,
        LOCK_prepared_stmt_count, LOCK_error_messages,
        LOCK_sql_slave_skip_counter, LOCK_slave_net_timeout,
-       LOCK_offline_mode;
+       LOCK_offline_mode, LOCK_default_password_lifetime;
 #ifdef HAVE_OPENSSL
 extern mysql_mutex_t LOCK_des_key_file;
 #endif

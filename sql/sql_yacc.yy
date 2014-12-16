@@ -33,7 +33,6 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #define YYMAXDEPTH 3200                        /* Because of 64K stack */
 #define Lex (YYTHD->lex)
 #define Select Lex->current_select()
-#include "sql_priv.h"
 #include "sql_parse.h"                        /* comp_*_creator */
 #include "sql_table.h"                        /* primary_key_name */
 #include "sql_partition.h"  /* mem_alloc_error, partition_info, HASH_PARTITION */
@@ -42,6 +41,8 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #include "sql_class.h"      /* Key_part_spec, enum_filetype */
 #include "rpl_slave.h"
 #include "rpl_msr.h"       /* multisource replication */
+#include "rpl_filter.h"
+#include "log_event.h"
 #include "lex_symbol.h"
 #include "item_create.h"
 #include "sp_head.h"
@@ -67,6 +68,7 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #include "rpl_slave.h"                       // Sql_cmd_change_repl_filter
 #include "parse_location.h"
 #include "parse_tree_helpers.h"
+#include "lex_token.h"
 
 /* this is to get the bison compilation windows warnings out */
 #ifdef _MSC_VER
@@ -381,7 +383,7 @@ static bool add_create_index_prepare (LEX *lex, Table_ident *table)
   return FALSE;
 }
 
-static bool add_create_index (LEX *lex, Key::Keytype type,
+static bool add_create_index (LEX *lex, keytype type,
                               const LEX_STRING &name,
                               KEY_CREATE_INFO *info= NULL, bool generated= 0)
 {
@@ -412,7 +414,7 @@ static bool add_create_index (LEX *lex, Key::Keytype type,
 bool match_authorized_user(Security_context *ctx, LEX_USER *user)
 {
   if(user->user.str && my_strcasecmp(system_charset_info,
-                                     ctx->priv_user,
+                                     ctx->priv_user().str,
                                      user->user.str) == 0)
   {
     /*
@@ -422,7 +424,7 @@ bool match_authorized_user(Security_context *ctx, LEX_USER *user)
     */
     if (user->host.str && my_strcasecmp(system_charset_info,
                                         user->host.str,
-                                        ctx->priv_host) == 0)
+                                        ctx->priv_host().str) == 0)
     {
       /* specified user exactly match the authorized user */
       return true;
@@ -6203,7 +6205,7 @@ key_def:
             if (key == NULL)
               MYSQL_YYABORT;
             lex->alter_info.key_list.push_back(key);
-            if (add_create_index (lex, Key::MULTIPLE, $1.str ? $1 : $4,
+            if (add_create_index (lex, KEYTYPE_MULTIPLE, $1.str ? $1 : $4,
                                   &default_key_create_info, 1))
               MYSQL_YYABORT;
             /* Only used for ALTER TABLE. Ignored otherwise. */
@@ -7036,32 +7038,32 @@ ref_list:
 
 opt_match_clause:
           /* empty */
-          { Lex->fk_match_option= Foreign_key::FK_MATCH_UNDEF; }
+          { Lex->fk_match_option= FK_MATCH_UNDEF; }
         | MATCH FULL
-          { Lex->fk_match_option= Foreign_key::FK_MATCH_FULL; }
+          { Lex->fk_match_option= FK_MATCH_FULL; }
         | MATCH PARTIAL
-          { Lex->fk_match_option= Foreign_key::FK_MATCH_PARTIAL; }
+          { Lex->fk_match_option= FK_MATCH_PARTIAL; }
         | MATCH SIMPLE_SYM
-          { Lex->fk_match_option= Foreign_key::FK_MATCH_SIMPLE; }
+          { Lex->fk_match_option= FK_MATCH_SIMPLE; }
         ;
 
 opt_on_update_delete:
           /* empty */
           {
             LEX *lex= Lex;
-            lex->fk_update_opt= Foreign_key::FK_OPTION_UNDEF;
-            lex->fk_delete_opt= Foreign_key::FK_OPTION_UNDEF;
+            lex->fk_update_opt= FK_OPTION_UNDEF;
+            lex->fk_delete_opt= FK_OPTION_UNDEF;
           }
         | ON UPDATE_SYM delete_option
           {
             LEX *lex= Lex;
             lex->fk_update_opt= $3;
-            lex->fk_delete_opt= Foreign_key::FK_OPTION_UNDEF;
+            lex->fk_delete_opt= FK_OPTION_UNDEF;
           }
         | ON DELETE_SYM delete_option
           {
             LEX *lex= Lex;
-            lex->fk_update_opt= Foreign_key::FK_OPTION_UNDEF;
+            lex->fk_update_opt= FK_OPTION_UNDEF;
             lex->fk_delete_opt= $3;
           }
         | ON UPDATE_SYM delete_option
@@ -7081,20 +7083,20 @@ opt_on_update_delete:
         ;
 
 delete_option:
-          RESTRICT      { $$= Foreign_key::FK_OPTION_RESTRICT; }
-        | CASCADE       { $$= Foreign_key::FK_OPTION_CASCADE; }
-        | SET NULL_SYM  { $$= Foreign_key::FK_OPTION_SET_NULL; }
-        | NO_SYM ACTION { $$= Foreign_key::FK_OPTION_NO_ACTION; }
-        | SET DEFAULT   { $$= Foreign_key::FK_OPTION_DEFAULT;  }
+          RESTRICT      { $$= FK_OPTION_RESTRICT; }
+        | CASCADE       { $$= FK_OPTION_CASCADE; }
+        | SET NULL_SYM  { $$= FK_OPTION_SET_NULL; }
+        | NO_SYM ACTION { $$= FK_OPTION_NO_ACTION; }
+        | SET DEFAULT   { $$= FK_OPTION_DEFAULT;  }
         ;
 
 normal_key_type:
-          key_or_index { $$= Key::MULTIPLE; }
+          key_or_index { $$= KEYTYPE_MULTIPLE; }
         ;
 
 constraint_key_type:
-          PRIMARY_SYM KEY_SYM { $$= Key::PRIMARY; }
-        | UNIQUE_SYM opt_key_or_index { $$= Key::UNIQUE; }
+          PRIMARY_SYM KEY_SYM { $$= KEYTYPE_PRIMARY; }
+        | UNIQUE_SYM opt_key_or_index { $$= KEYTYPE_UNIQUE; }
         ;
 
 key_or_index:
@@ -7114,18 +7116,18 @@ keys_or_index:
         ;
 
 opt_unique:
-          /* empty */  { $$= Key::MULTIPLE; }
-        | UNIQUE_SYM   { $$= Key::UNIQUE; }
+          /* empty */  { $$= KEYTYPE_MULTIPLE; }
+        | UNIQUE_SYM   { $$= KEYTYPE_UNIQUE; }
         ;
 
 fulltext:
-          FULLTEXT_SYM { $$= Key::FULLTEXT;}
+          FULLTEXT_SYM { $$= KEYTYPE_FULLTEXT;}
         ;
 
 spatial:
           SPATIAL_SYM
           {
-            $$= Key::SPATIAL;
+            $$= KEYTYPE_SPATIAL;
           }
         ;
 
@@ -7317,6 +7319,8 @@ alter:
         | ALTER DATABASE ident UPGRADE_SYM DATA_SYM DIRECTORY_SYM NAME_SYM
           {
             LEX *lex= Lex;
+            push_deprecated_warn_no_replacement(YYTHD,
+              "UPGRADE DATA DIRECTORY NAME");
             if (lex->sphead)
             {
               my_error(ER_SP_NO_DROP_SP, MYF(0), "DATABASE");
@@ -12467,9 +12471,16 @@ literal:
         | temporal_literal
         | NULL_SYM
           {
+            Lex_input_stream *lip= YYLIP;
+            /*
+              For the digest computation, in this context only,
+              NULL is considered a literal, hence reduced to '?'
+              REDUCE:
+                TOK_GENERIC_VALUE := NULL_SYM
+            */
+            lip->reduce_digest_token(TOK_GENERIC_VALUE, NULL_SYM);
             $$= NEW_PTN Item_null(@$);
-
-            YYLIP->next_state= MY_LEX_OPERATOR_OR_IDENT;
+            lip->next_state= MY_LEX_OPERATOR_OR_IDENT;
           }
         | FALSE_SYM
           {
@@ -13385,7 +13396,7 @@ opt_var_ident_type:
         | SESSION_SYM '.' { $$=OPT_SESSION; }
         ;
 
-// Option values with preceeding option_type.
+// Option values with preceding option_type.
 option_value_following_option_type:
           internal_variable_name equal set_expr_or_default
           {
@@ -13393,7 +13404,7 @@ option_value_following_option_type:
           }
         ;
 
-// Option values without preceeding option_type.
+// Option values without preceding option_type.
 option_value_no_option_type:
           internal_variable_name        /*$1*/
           equal                         /*$2*/

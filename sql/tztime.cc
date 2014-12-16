@@ -19,16 +19,10 @@
    (We will refer to this code as to elsie-code further.)
 */
 
-/*
-  We should not include sql_priv.h in mysql_tzinfo_to_sql utility since
-  it creates unsolved link dependencies on some platforms.
-*/
-
 #include <my_global.h>
 #include <algorithm>
 
 #if !defined(TZINFO2SQL)
-#include "sql_priv.h"
 #include "tztime.h"
 #include "sql_time.h"                           // localtime_to_TIME
 #include "sql_base.h"                           // open_trans_system_tables_for_read,
@@ -2019,7 +2013,7 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
 
   /*
     At last we are doing the same thing for records in
-    mysql.time_zone_transition table. Here we additionaly need records
+    mysql.time_zone_transition table. Here we additionally need records
     in ascending order by index scan also satisfies us.
   */
   table= tz_tables->table; 

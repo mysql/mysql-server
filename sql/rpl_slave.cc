@@ -25,7 +25,6 @@
 */
 
 #ifdef HAVE_REPLICATION
-#include "sql_priv.h"
 #include "my_global.h"
 #include "rpl_slave.h"
 #include "sql_parse.h"                         // execute_init_command
@@ -634,24 +633,10 @@ bool start_slave_cmd(THD *thd)
       goto err;
     }
 
-    if (sql_slave_skip_counter > 0 && msr_map.get_num_instances() > 1)
-    {
-      my_error(ER_SLAVE_CHANNEL_SQL_SKIP_COUNTER, MYF(0));
-      goto err;
-    }
-
     res= start_slave(thd);
-
   }
   else
   {
-
-    if (sql_slave_skip_counter > 0 && is_any_slave_channel_running(SLAVE_SQL))
-    {
-      my_error(ER_SLAVE_CHANNEL_SQL_SKIP_COUNTER, MYF(0));
-      goto err;
-    }
-
     mi= msr_map.get_mi(lex->mi.channel);
 
     if (mi)
@@ -3794,7 +3779,7 @@ static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
   thd->system_thread= (thd_type == SLAVE_THD_WORKER) ? 
     SYSTEM_THREAD_SLAVE_WORKER : (thd_type == SLAVE_THD_SQL) ?
     SYSTEM_THREAD_SLAVE_SQL : SYSTEM_THREAD_SLAVE_IO;
-  thd->security_ctx->skip_grants();
+  thd->security_context()->skip_grants();
   my_net_init(&thd->net, 0);
   thd->slave_thread = 1;
   thd->enable_slow_log= opt_log_slow_slave_statements;
@@ -4750,12 +4735,13 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
       that are not replayed, so we keep falling behind).
 
       If it is an artificial event, or a relay log event (IO thread generated
-      event) or ev->when is set to 0, or a FD from master, we don't update the
-      last_master_timestamp.
+      event) or ev->when is set to 0, or a FD from master, or a heartbeat
+      event with server_id '0' then  we don't update the last_master_timestamp.
     */
     if (!(rli->is_parallel_exec() ||
           ev->is_artificial_event() || ev->is_relay_log_event() ||
-          (ev->when.tv_sec == 0) || ev->get_type_code() == FORMAT_DESCRIPTION_EVENT))
+          ev->when.tv_sec == 0 || ev->get_type_code() == FORMAT_DESCRIPTION_EVENT ||
+          ev->server_id == 0))
     {
       rli->last_master_timestamp= ev->when.tv_sec + (time_t) ev->exec_time;
       DBUG_ASSERT(rli->last_master_timestamp >= 0);
@@ -4842,6 +4828,15 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
     {
       DBUG_ASSERT(*ptr_ev == ev); // event remains to belong to Coordinator
 
+      DBUG_EXECUTE_IF("dbug.calculate_sbm_after_previous_gtid_log_event",
+                    {
+                      if (ev->get_type_code() == PREVIOUS_GTIDS_LOG_EVENT)
+                      {
+                        const char act[]= "now signal signal.reached wait_for signal.done_sbm_calculation";
+                        DBUG_ASSERT(opt_debug_sync_timeout > 0);
+                        DBUG_ASSERT(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
+                      }
+                    };);
       /*
         Format_description_log_event should not be deleted because it will be
         used to read info about the relay log's format; it will be deleted when
@@ -5172,6 +5167,11 @@ connected:
                       DBUG_ASSERT(opt_debug_sync_timeout > 0);
                       DBUG_ASSERT(!debug_sync_set_action(thd, 
                                                          STRING_WITH_LEN(act)));
+                    };);
+    DBUG_EXECUTE_IF("dbug.calculate_sbm_after_previous_gtid_log_event",
+                    {
+                      /* Fake that thread started 3 mints ago */
+                      thd->start_time.tv_sec-=180;
                     };);
   mysql_mutex_lock(&mi->run_lock);
   mi->slave_running= MYSQL_SLAVE_RUN_CONNECT;
@@ -7713,11 +7713,6 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
 
   case PREVIOUS_GTIDS_LOG_EVENT:
   {
-    if (gtid_mode == 0)
-    {
-      error= ER_FOUND_GTID_EVENT_WHEN_GTID_MODE_IS_OFF;
-      goto err;
-    }
     /*
       This event does not have any meaning for the slave and
       was just sent to show the slave the master is making
@@ -7764,6 +7759,23 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
     inc_pos= event_len;
   break;
   }
+
+  /*
+    Simulate an unknown ignorable log event by rewriting the write_rows log
+    event and previous_gtids log event before writing them in relay log.
+  */
+  DBUG_EXECUTE_IF("simulate_unknown_ignorable_log_event",
+    if (event_type == WRITE_ROWS_EVENT ||
+        event_type == PREVIOUS_GTIDS_LOG_EVENT)
+    {
+      char *event_buf= const_cast<char*>(buf);
+      /* Overwrite the log event type with an unknown type. */
+      event_buf[EVENT_TYPE_OFFSET]= ENUM_END_EVENT + 1;
+      /* Set LOG_EVENT_IGNORABLE_F for the log event. */
+      int2store(event_buf + FLAGS_OFFSET,
+                uint2korr(event_buf + FLAGS_OFFSET) | LOG_EVENT_IGNORABLE_F);
+    }
+  );
 
   /*
      If this event is originating from this server, don't queue it.
@@ -9028,7 +9040,23 @@ int start_slave(THD* thd , Master_info* mi,  bool net_report, bool for_one_chann
         if (thd->lex->slave_connection.plugin_dir)
           mi->set_plugin_dir(thd->lex->slave_connection.plugin_dir);
       }
- 
+
+      /*
+        Evaluate the sql_slave_skip_counter.
+        We cannot start any slave thread when sql_slave_skip_counter > 0 if:
+        - We are about to start more than one SQL thread;
+        or
+        - We are about to start a single SQL thread, but there is already
+          an SQL thread started.
+      */
+      if (sql_slave_skip_counter > 0 && !(thd->lex->slave_thd_opt & SLAVE_IO) &&
+          ((!thd->lex->mi.for_channel && msr_map.get_num_instances() > 1) ||
+           (thd->lex->mi.for_channel &&
+            is_any_slave_channel_running(SLAVE_SQL, mi))))
+      {
+        slave_errno= ER_SLAVE_CHANNEL_SQL_SKIP_COUNTER;
+      }
+
       /*
         If we will start SQL thread we will care about UNTIL options If
         not and they are specified we will ignore them and warn user
@@ -9344,7 +9372,8 @@ int reset_slave(THD *thd)
   if (thd->lex->reset_slave_info.all)
   {
     /* First do reset_slave for default channel */
-    if (reset_slave(thd, msr_map.get_mi(msr_map.get_default_channel())))
+    mi= msr_map.get_mi(msr_map.get_default_channel());
+    if (mi && reset_slave(thd, mi))
       DBUG_RETURN(1);
     /* Do while iteration for rest of the channels */
     while (it!= msr_map.end())
@@ -10495,12 +10524,15 @@ bool inline is_slave_configured()
   @note: The caller shall possess LOCK_msr_map before calling this function.
 
   @param[in]        thread_mask       type of slave thread- IO/SQL or any
+  @param[in]        already_locked_mi the mi that has its run_lock already
+                                      taken.
 
   @return
     @retval          true               atleast one channel threads are running.
     @retval          false              none of the the channels are running.
 */
-bool is_any_slave_channel_running(int thread_mask)
+bool is_any_slave_channel_running(int thread_mask,
+                                  Master_info* already_locked_mi)
 {
   DBUG_ENTER("is_any_slave_channel_running");
   Master_info *mi= 0;
@@ -10516,18 +10548,40 @@ bool is_any_slave_channel_running(int thread_mask)
     {
       if ((thread_mask & SLAVE_IO) != 0)
       {
-        mysql_mutex_lock(&mi->run_lock);
+        /*
+          start_slave() might call this function after already locking the
+          rli->run_lock for a slave channel that is going to be started.
+          In this case, we just assert that the lock is taken.
+        */
+        if (mi != already_locked_mi)
+          mysql_mutex_lock(&mi->run_lock);
+        else
+        {
+          mysql_mutex_assert_owner(&mi->run_lock);
+        }
         is_running= mi->slave_running;
-        mysql_mutex_unlock(&mi->run_lock);
+        if (mi != already_locked_mi)
+          mysql_mutex_unlock(&mi->run_lock);
         if (is_running)
           DBUG_RETURN(true);
       }
 
       if ((thread_mask & SLAVE_SQL) != 0)
       {
-        mysql_mutex_lock(&mi->rli->run_lock);
+        /*
+          start_slave() might call this function after already locking the
+          rli->run_lock for a slave channel that is going to be started.
+          In this case, we just assert that the lock is taken.
+        */
+        if (mi != already_locked_mi)
+          mysql_mutex_lock(&mi->rli->run_lock);
+        else
+        {
+          mysql_mutex_assert_owner(&mi->rli->run_lock);
+        }
         is_running= mi->rli->slave_running;
-        mysql_mutex_unlock(&mi->rli->run_lock);
+        if (mi != already_locked_mi)
+          mysql_mutex_unlock(&mi->rli->run_lock);
         if (is_running)
           DBUG_RETURN(true);
       }

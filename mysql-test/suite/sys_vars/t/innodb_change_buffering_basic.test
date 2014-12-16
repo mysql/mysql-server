@@ -18,20 +18,26 @@ select @@global.innodb_change_buffering;
 select @@session.innodb_change_buffering;
 show global variables like 'innodb_change_buffering';
 show session variables like 'innodb_change_buffering';
+--disable_warnings
 select * from information_schema.global_variables where variable_name='innodb_change_buffering';
 select * from information_schema.session_variables where variable_name='innodb_change_buffering';
+--enable_warnings
 
 #
 # show that it's writable
 #
 set global innodb_change_buffering='none';
 select @@global.innodb_change_buffering;
+--disable_warnings
 select * from information_schema.global_variables where variable_name='innodb_change_buffering';
 select * from information_schema.session_variables where variable_name='innodb_change_buffering';
+--enable_warnings
 set @@global.innodb_change_buffering='inserts';
 select @@global.innodb_change_buffering;
+--disable_warnings
 select * from information_schema.global_variables where variable_name='innodb_change_buffering';
 select * from information_schema.session_variables where variable_name='innodb_change_buffering';
+--enable_warnings
 --error ER_GLOBAL_VARIABLE
 set session innodb_change_buffering='some';
 --error ER_GLOBAL_VARIABLE

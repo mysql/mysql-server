@@ -49,7 +49,7 @@ include/stop_slave.inc
 [ on slave ]
 CHANGE MASTER TO master_host='127.0.0.1', master_log_file='master-bin.000001';
 Warnings:
-Warning	1908	CHANGE MASTER TO with a MASTER_LOG_FILE clause but no MASTER_LOG_POS clause may not be safe. The old position value may not be valid for the new binary log file.
+Warning	1909	CHANGE MASTER TO with a MASTER_LOG_FILE clause but no MASTER_LOG_POS clause may not be safe. The old position value may not be valid for the new binary log file.
 START SLAVE IO_THREAD;
 # Instead of EE_FILENOTFOUND, ER_MASTER_FATAL_ERROR_READING_BINLOG
 # and the specific information are sent to slave.
@@ -60,7 +60,7 @@ Last_IO_Error = 'Got fatal error 1236 from master when reading data from binary 
 [ on slave ]
 CHANGE MASTER TO master_host='127.0.0.1', master_log_file='master-bin.000002';
 Warnings:
-Warning	1908	CHANGE MASTER TO with a MASTER_LOG_FILE clause but no MASTER_LOG_POS clause may not be safe. The old position value may not be valid for the new binary log file.
+Warning	1909	CHANGE MASTER TO with a MASTER_LOG_FILE clause but no MASTER_LOG_POS clause may not be safe. The old position value may not be valid for the new binary log file.
 include/start_slave.inc
 [ on master ]
 CREATE TABLE t1(c1 INT);

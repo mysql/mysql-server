@@ -2662,7 +2662,9 @@ truncate_t::create_indexes(
 	     it != end;
 	     ++it) {
 
-		btr_create_t    btr_redo_create_info(&it->m_fields[0]);
+		btr_create_t    btr_redo_create_info(
+			fsp_flags_is_compressed(flags)
+			? &it->m_fields[0] : NULL);
 
 		btr_redo_create_info.format_flags = format_flags;
 

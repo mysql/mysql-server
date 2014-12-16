@@ -1340,26 +1340,24 @@ buf_flush_try_neighbors(
 	return(count);
 }
 
-/********************************************************************//**
-Check if the block is modified and ready for flushing. If the the block
-is ready to flush then flush the page and try o flush its neighbors.
-
+/** Check if the block is modified and ready for flushing.
+If the the block is ready to flush then flush the page and try o flush
+its neighbors.
+@param[in]	bpage		buffer control block,
+must be buf_page_in_file(bpage)
+@param[in]	flush_type	BUF_FLUSH_LRU or BUF_FLUSH_LIST
+@param[in]	n_to_flush	number of pages to flush
+@param[in,out]	count		number of pages flushed
 @return TRUE if buf_pool mutex was released during this function.
 This does not guarantee that some pages were written as well.
 Number of pages written are incremented to the count. */
 static
 bool
 buf_flush_page_and_try_neighbors(
-/*=============================*/
-	buf_page_t*	bpage,		/*!< in: buffer control block,
-					must be
-					buf_page_in_file(bpage) */
-	buf_flush_t	flush_type,	/*!< in: BUF_FLUSH_LRU
-					or BUF_FLUSH_LIST */
-	ulint		n_to_flush,	/*!< in: number of pages to
-					flush */
-	ulint*		count)		/*!< in/out: number of pages
-					flushed */
+	buf_page_t*		bpage,
+	buf_flush_t		flush_type,
+	ulint			n_to_flush,
+	ulint*			count)
 {
 #ifdef UNIV_DEBUG
 	buf_pool_t*	buf_pool = buf_pool_from_bpage(bpage);
@@ -1590,26 +1588,22 @@ buf_do_LRU_batch(
 	return(count);
 }
 
-/*******************************************************************//**
-This utility flushes dirty blocks from the end of the flush_list.
-the calling thread is not allowed to own any latches on pages!
+/** This utility flushes dirty blocks from the end of the flush_list.
+The calling thread is not allowed to own any latches on pages!
+@param[in]	buf_pool	buffer pool instance
+@param[in]	min_n		wished minimum mumber of blocks flushed (it is
+not guaranteed that the actual number is that big, though)
+@param[in]	lsn_limit	all blocks whose oldest_modification is smaller
+than this should be flushed (if their number does not exceed min_n)
 @return number of blocks for which the write request was queued;
 ULINT_UNDEFINED if there was a flush of the same type already
 running */
 static
 ulint
 buf_do_flush_list_batch(
-/*====================*/
-	buf_pool_t*	buf_pool,	/*!< in: buffer pool instance */
-	ulint		min_n,		/*!< in: wished minimum mumber
-					of blocks flushed (it is not
-					guaranteed that the actual
-					number is that big, though) */
-	lsn_t		lsn_limit)	/*!< all blocks whose
-					oldest_modification is smaller
-					than this should be flushed (if
-					their number does not exceed
-					min_n) */
+	buf_pool_t*		buf_pool,
+	ulint			min_n,
+	lsn_t			lsn_limit)
 {
 	ulint		count = 0;
 	ulint		scanned = 0;
@@ -1678,33 +1672,29 @@ buf_do_flush_list_batch(
 	return(count);
 }
 
-/*******************************************************************//**
-This utility flushes dirty blocks from the end of the LRU list or flush_list.
+/** This utility flushes dirty blocks from the end of the LRU list or
+flush_list.
 NOTE 1: in the case of an LRU flush the calling thread may own latches to
 pages: to avoid deadlocks, this function must be written so that it cannot
 end up waiting for these latches! NOTE 2: in the case of a flush list flush,
 the calling thread is not allowed to own any latches on pages!
+@param[in]	buf_pool	buffer pool instance
+@param[in]	flush_type	BUF_FLUSH_LRU or BUF_FLUSH_LIST; if
+BUF_FLUSH_LIST, then the caller must not own any latches on pages
+@param[in]	min_n		wished minimum mumber of blocks flushed (it is
+not guaranteed that the actual number is that big, though)
+@param[in]	lsn_limit	in the case of BUF_FLUSH_LIST all blocks whose
+oldest_modification is smaller than this should be flushed (if their number
+does not exceed min_n), otherwise ignored
 @return number of blocks for which the write request was queued */
 static
 ulint
 buf_flush_batch(
-/*============*/
-	buf_pool_t*	buf_pool,	/*!< in: buffer pool instance */
-	buf_flush_t	flush_type,	/*!< in: BUF_FLUSH_LRU or
-					BUF_FLUSH_LIST; if BUF_FLUSH_LIST,
-					then the caller must not own any
-					latches on pages */
-	ulint		min_n,		/*!< in: wished minimum mumber of blocks
-					flushed (it is not guaranteed that the
-					actual number is that big, though) */
-	lsn_t		lsn_limit)	/*!< in: in the case of BUF_FLUSH_LIST
-					all blocks whose oldest_modification is
-					smaller than this should be flushed
-					(if their number does not exceed
-					min_n), otherwise ignored */
+	buf_pool_t*		buf_pool,
+	buf_flush_t		flush_type,
+	ulint			min_n,
+	lsn_t			lsn_limit)
 {
-	ulint		count	= 0;
-
 	ut_ad(flush_type == BUF_FLUSH_LRU || flush_type == BUF_FLUSH_LIST);
 
 	{
@@ -1715,6 +1705,8 @@ buf_flush_batch(
 	}
 
 	buf_pool_mutex_enter(buf_pool);
+
+	ulint	count = 0;
 
 	/* Note: The buffer pool mutex is released and reacquired within
 	the flush functions. */
@@ -1867,17 +1859,15 @@ passed back to caller. Ignored if NULL
 @retval false	if another batch of same type was already running. */
 bool
 buf_flush_do_batch(
-	buf_pool_t*	buf_pool,
-	buf_flush_t	type,
-	ulint		min_n,
-	lsn_t		lsn_limit,
-	ulint*		n_processed)
+	buf_pool_t*		buf_pool,
+	buf_flush_t		type,
+	ulint			min_n,
+	lsn_t			lsn_limit,
+	ulint*			n_processed)
 {
-	ulint		page_count;
-
 	ut_ad(type == BUF_FLUSH_LRU || type == BUF_FLUSH_LIST);
 
-	if (n_processed) {
+	if (n_processed != NULL) {
 		*n_processed = 0;
 	}
 
@@ -1885,39 +1875,35 @@ buf_flush_do_batch(
 		return(false);
 	}
 
-	page_count = buf_flush_batch(buf_pool, type, min_n, lsn_limit);
+	ulint	page_count = buf_flush_batch(buf_pool, type, min_n, lsn_limit);
 
 	buf_flush_end(buf_pool, type);
 
-	if (n_processed) {
+	if (n_processed != NULL) {
 		*n_processed = page_count;
 	}
 
 	return(true);
 }
 
-/*******************************************************************//**
-This utility flushes dirty blocks from the end of the flush list of
-all buffer pool instances.
+/** This utility flushes dirty blocks from the end of the flush list of all
+buffer pool instances.
 NOTE: The calling thread is not allowed to own any latches on pages!
+@param[in]	min_n		wished minimum mumber of blocks flushed (it is
+not guaranteed that the actual number is that big, though)
+@param[in]	lsn_limit	in the case BUF_FLUSH_LIST all blocks whose
+oldest_modification is smaller than this should be flushed (if their number
+does not exceed min_n), otherwise ignored
+@param[out]	n_processed	the number of pages which were processed is
+passed back to caller. Ignored if NULL.
 @return true if a batch was queued successfully for each buffer pool
 instance. false if another batch of same type was already running in
 at least one of the buffer pool instance */
 bool
 buf_flush_lists(
-/*============*/
-	ulint		min_n,		/*!< in: wished minimum mumber of blocks
-					flushed (it is not guaranteed that the
-					actual number is that big, though) */
-	lsn_t		lsn_limit,	/*!< in the case BUF_FLUSH_LIST all
-					blocks whose oldest_modification is
-					smaller than this should be flushed
-					(if their number does not exceed
-					min_n), otherwise ignored */
-	ulint*		n_processed)	/*!< out: the number of pages
-					which were processed is passed
-					back to caller. Ignored if NULL */
-
+	ulint			min_n,
+	lsn_t			lsn_limit,
+	ulint*			n_processed)
 {
 	ulint		i;
 	ulint		n_flushed = 0;
@@ -2836,6 +2822,7 @@ DECLARE_THREAD(buf_flush_page_cleaner_coordinator)(
 		n_flushed = n_flushed_lru + n_flushed_list;
 
 		buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
+		buf_flush_wait_LRU_batch_end();
 
 	} while (!success || n_flushed > 0);
 

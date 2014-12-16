@@ -16,7 +16,6 @@
 
 /* Functions to handle date and time */
 
-#include "sql_priv.h"
 #include "sql_time.h"
 #include "tztime.h"                             // struct Time_zone
 #include "sql_class.h"  // THD, MODE_STRICT_ALL_TABLES, MODE_STRICT_TRANS_TABLES
@@ -355,7 +354,7 @@ bool datetime_add_nanoseconds_with_round(MYSQL_TIME *ltime,
     return false;
 
   ltime->second_part%= 1000000;
-  INTERVAL interval;
+  Interval interval;
   memset(&interval, 0, sizeof(interval));
   interval.second= 1;
   /* date_add_interval cannot handle bad dates */
@@ -831,7 +830,7 @@ void calc_time_from_sec(MYSQL_TIME *to, longlong seconds, long microseconds)
 */
 
 bool parse_date_time_format(timestamp_type format_type,
-			    DATE_TIME_FORMAT *date_time_format)
+			    Date_time_format *date_time_format)
 {
   const char *format= date_time_format->format.str;
   size_t format_length= date_time_format->format.length;
@@ -1046,7 +1045,7 @@ bool parse_date_time_format(timestamp_type format_type,
 
 
 /*
-  Create a copy of a DATE_TIME_FORMAT object
+  Create a copy of a Date_time_format object
 
   SYNOPSIS
     date_and_time_format_copy()
@@ -1061,15 +1060,15 @@ bool parse_date_time_format(timestamp_type format_type,
     new object
 */
 
-DATE_TIME_FORMAT *date_time_format_copy(THD *thd, DATE_TIME_FORMAT *format)
+Date_time_format *date_time_format_copy(THD *thd, Date_time_format *format)
 {
-  DATE_TIME_FORMAT *new_format;
+  Date_time_format *new_format;
   size_t length= sizeof(*format) + format->format.length + 1;
 
   if (thd)
-    new_format= (DATE_TIME_FORMAT *) thd->alloc(length);
+    new_format= (Date_time_format *) thd->alloc(length);
   else
-    new_format=  (DATE_TIME_FORMAT *) my_malloc(key_memory_DATE_TIME_FORMAT,
+    new_format=  (Date_time_format *) my_malloc(key_memory_DATE_TIME_FORMAT,
                                                 length, MYF(MY_WME));
   if (new_format)
   {
@@ -1088,7 +1087,7 @@ DATE_TIME_FORMAT *date_time_format_copy(THD *thd, DATE_TIME_FORMAT *format)
 }
 
 
-KNOWN_DATE_TIME_FORMAT known_date_time_formats[6]=
+Known_date_time_format known_date_time_formats[6]=
 {
   {"USA", "%m.%d.%Y", "%Y-%m-%d %H.%i.%s", "%h:%i:%s %p" },
   {"JIS", "%Y-%m-%d", "%Y-%m-%d %H:%i:%s", "%H:%i:%s" },
@@ -1104,7 +1103,7 @@ KNOWN_DATE_TIME_FORMAT known_date_time_formats[6]=
    If name is unknown, result is NULL
 */
 
-const char *get_date_time_format_str(KNOWN_DATE_TIME_FORMAT *format,
+const char *get_date_time_format_str(Known_date_time_format *format,
 				     timestamp_type type)
 {
   switch (type) {
@@ -1124,7 +1123,7 @@ const char *get_date_time_format_str(KNOWN_DATE_TIME_FORMAT *format,
   Functions to create default time/date/datetime strings
  
   NOTE:
-    For the moment the DATE_TIME_FORMAT argument is ignored becasue
+    For the moment the Date_time_format argument is ignored becasue
     MySQL doesn't support comparing of date/time/datetime strings that
     are not in arbutary order as dates are compared as strings in some
     context)
@@ -1142,7 +1141,7 @@ const char *get_date_time_format_str(KNOWN_DATE_TIME_FORMAT *format,
   @param[out] str      String to convert to
   @param      dec      Number of fractional digits.
 */
-void make_time(const DATE_TIME_FORMAT *format __attribute__((unused)),
+void make_time(const Date_time_format *format __attribute__((unused)),
                const MYSQL_TIME *l_time, String *str, uint dec)
 {
   uint length= (uint) my_time_to_str(l_time, (char*) str->ptr(), dec);
@@ -1157,7 +1156,7 @@ void make_time(const DATE_TIME_FORMAT *format __attribute__((unused)),
   @param      l_time   DATE value
   @param[out] str      String to convert to
 */
-void make_date(const DATE_TIME_FORMAT *format __attribute__((unused)),
+void make_date(const Date_time_format *format __attribute__((unused)),
                const MYSQL_TIME *l_time, String *str)
 {
   uint length= (uint) my_date_to_str(l_time, (char*) str->ptr());
@@ -1173,7 +1172,7 @@ void make_date(const DATE_TIME_FORMAT *format __attribute__((unused)),
   @param[out] str      String to convert to
   @param      dec      Number of fractional digits.
 */
-void make_datetime(const DATE_TIME_FORMAT *format __attribute__((unused)),
+void make_datetime(const Date_time_format *format __attribute__((unused)),
                    const MYSQL_TIME *l_time, String *str, uint dec)
 {
   uint length= (uint) my_datetime_to_str(l_time, (char*) str->ptr(), dec);
@@ -1241,7 +1240,8 @@ void make_truncated_value_warning(THD *thd,
 /* Daynumber from year 0 to 9999-12-31 */
 #define MAX_DAY_NUMBER 3652424L
 
-bool date_add_interval(MYSQL_TIME *ltime, interval_type int_type, INTERVAL interval)
+bool date_add_interval(MYSQL_TIME *ltime, interval_type int_type,
+                       Interval interval)
 {
   long period, sign;
 

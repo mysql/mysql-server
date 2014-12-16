@@ -23,6 +23,7 @@
 #include "sql_error.h"                          /* Sql_condition */
 #include "mysql_version.h"                      /* FRM_VER */
 #include "mysqld_error.h"
+#include "my_time.h"                            /* my_time_binary_length */
 
 /*
 
@@ -150,6 +151,12 @@ enum type_conversion_status
   TYPE_ERR_OOM
 };
 
+/*
+  Some defines for exit codes for ::is_equal class functions.
+*/
+#define IS_EQUAL_NO 0
+#define IS_EQUAL_YES 1
+#define IS_EQUAL_PACK_LENGTH 2
 
 #define STORAGE_TYPE_MASK 7
 #define COLUMN_FORMAT_MASK 7

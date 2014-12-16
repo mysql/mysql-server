@@ -44,6 +44,7 @@
 #include "sql_authentication.h"
 #include "tztime.h"
 #include "sql_time.h"
+#include <mutex_lock.h>
 
 /****************************************************************************
    AUTHENTICATION CODE
@@ -618,7 +619,7 @@ static bool send_server_handshake_packet(MPVIO_EXT *mpvio,
         native_password_plugin will have to send it in a separate packet,
         adding one more round trip.
       */
-      create_random_string(mpvio->scramble, SCRAMBLE_LENGTH, mpvio->rand);
+      generate_user_salt(mpvio->scramble, SCRAMBLE_LENGTH + 1);
       data= mpvio->scramble;
     }
     data_len= SCRAMBLE_LENGTH;
@@ -1943,13 +1944,14 @@ static void
 server_mpvio_initialize(THD *thd, MPVIO_EXT *mpvio,
                         Thd_charset_adapter *charset_adapter)
 {
+  LEX_CSTRING sctx_host_or_ip= thd->security_context()->host_or_ip();
+
   memset(mpvio, 0, sizeof(MPVIO_EXT));
   mpvio->read_packet= server_mpvio_read_packet;
   mpvio->write_packet= server_mpvio_write_packet;
   mpvio->info= server_mpvio_info;
-  mpvio->auth_info.host_or_ip= thd->security_ctx->host_or_ip;
-  mpvio->auth_info.host_or_ip_length= 
-    (unsigned int) strlen(thd->security_ctx->host_or_ip);
+  mpvio->auth_info.host_or_ip= sctx_host_or_ip.str;
+  mpvio->auth_info.host_or_ip_length= sctx_host_or_ip.length;
   mpvio->auth_info.user_name= NULL;
   mpvio->auth_info.user_name_length= 0;
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
@@ -1967,8 +1969,8 @@ server_mpvio_initialize(THD *thd, MPVIO_EXT *mpvio,
   mpvio->thread_id= thd->thread_id();
   mpvio->server_status= &thd->server_status;
   mpvio->net= &thd->net;
-  mpvio->ip= (char *) thd->security_ctx->get_ip()->ptr();
-  mpvio->host= (char *) thd->security_ctx->get_host()->ptr();
+  mpvio->ip= (char *) thd->security_context()->ip().str;
+  mpvio->host= (char *) thd->security_context()->host().str;
   mpvio->charset_adapter= charset_adapter;
 }
 
@@ -1981,7 +1983,14 @@ server_mpvio_update_thd(THD *thd, MPVIO_EXT *mpvio)
   thd->max_client_packet_length= mpvio->max_client_packet_length;
   if (mpvio->client_capabilities & CLIENT_INTERACTIVE)
     thd->variables.net_wait_timeout= thd->variables.net_interactive_timeout;
-  thd->security_ctx->user= mpvio->auth_info.user_name;
+  thd->security_context()->assign_user(
+    mpvio->auth_info.user_name,
+    (mpvio->auth_info.user_name ? strlen(mpvio->auth_info.user_name) : 0));
+  if (mpvio->auth_info.user_name)
+    my_free(mpvio->auth_info.user_name);
+  LEX_CSTRING sctx_user= thd->security_context()->user();
+  mpvio->auth_info.user_name= (char *) sctx_user.str;
+  mpvio->auth_info.user_name_length= sctx_user.length;
   if (thd->client_capabilities & CLIENT_IGNORE_SPACE)
     thd->variables.sql_mode|= MODE_IGNORE_SPACE;
 }
@@ -2008,7 +2017,7 @@ check_password_lifetime(THD *thd, const ACL_USER *acl_user)
       acl_user->password_lifetime))
   {
     MYSQL_TIME cur_time, password_change_by;
-    INTERVAL interval;
+    Interval interval;
 
     thd->set_time();
     thd->variables.time_zone->gmt_sec_to_TIME(&cur_time,
@@ -2019,7 +2028,10 @@ check_password_lifetime(THD *thd, const ACL_USER *acl_user)
     if (!acl_user->use_default_password_lifetime)
       interval.day= acl_user->password_lifetime;
     else
+    {
+      Mutex_lock lock(&LOCK_default_password_lifetime);
       interval.day= default_password_lifetime;
+    }
     if (interval.day)
     {
       if (!date_add_interval(&password_change_by, INTERVAL_DAY, interval))
@@ -2129,7 +2141,7 @@ acl_authenticate(THD *thd, size_t com_change_user_pkt_len)
 
   server_mpvio_update_thd(thd, &mpvio);
 
-  Security_context *sctx= thd->security_ctx;
+  Security_context *sctx= thd->security_context();
   const ACL_USER *acl_user= mpvio.acl_user;
 
   thd->password= mpvio.auth_info.password_used;  // remember for error messages 
@@ -2189,7 +2201,7 @@ acl_authenticate(THD *thd, size_t com_change_user_pkt_len)
     DBUG_RETURN (1);
   }
 
-  sctx->proxy_user[0]= 0;
+  sctx->assign_proxy_user("", 0);
 
   if (initialized) // if not --skip-grant-tables
   {
@@ -2199,13 +2211,13 @@ acl_authenticate(THD *thd, size_t com_change_user_pkt_len)
     const char *auth_user = acl_user->user ? acl_user->user : "";
     ACL_PROXY_USER *proxy_user;
     /* check if the user is allowed to proxy as another user */
-    proxy_user= acl_find_proxy_user(auth_user, sctx->get_host()->ptr(),
-                                    sctx->get_ip()->ptr(),
+    proxy_user= acl_find_proxy_user(auth_user, sctx->host().str, sctx->ip().str,
                                     mpvio.auth_info.authenticated_as,
                                     &is_proxy_user);
     if (is_proxy_user)
     {
       ACL_USER *acl_proxy_user;
+      char proxy_user_buf[USERNAME_LENGTH + MAX_HOSTNAME + 5];
 
       /* we need to find the proxy user, but there was none */
       if (!proxy_user)
@@ -2218,9 +2230,10 @@ acl_authenticate(THD *thd, size_t com_change_user_pkt_len)
         DBUG_RETURN(1);
       }
 
-      my_snprintf(sctx->proxy_user, sizeof(sctx->proxy_user) - 1,
+      my_snprintf(proxy_user_buf, sizeof(proxy_user_buf) - 1,
                   "'%s'@'%s'", auth_user,
                   acl_user->host.get_host() ? acl_user->host.get_host() : "");
+      sctx->assign_proxy_user(proxy_user_buf, strlen(proxy_user_buf));
 
       /* we're proxying : find the proxy user definition */
       mysql_mutex_lock(&acl_cache->lock);
@@ -2244,18 +2257,14 @@ acl_authenticate(THD *thd, size_t com_change_user_pkt_len)
     }
 #endif /* NO_EMBEDDED_ACCESS_CHECKS */
 
-    sctx->master_access= acl_user->access;
-    if (acl_user->user)
-      strmake(sctx->priv_user, acl_user->user, USERNAME_LENGTH - 1);
-    else
-      *sctx->priv_user= 0;
+    sctx->set_master_access(acl_user->access);
+    sctx->assign_priv_user(acl_user->user, acl_user->user ?
+                                           strlen(acl_user->user) : 0);
+    sctx->assign_priv_host(acl_user->host.get_host(),
+                           acl_user->host.get_host() ?
+                           strlen(acl_user->host.get_host()) : 0);
 
-    if (acl_user->host.get_host())
-      strmake(sctx->priv_host, acl_user->host.get_host(), MAX_HOSTNAME - 1);
-    else
-      *sctx->priv_host= 0;
-
-    if (!(sctx->master_access & SUPER_ACL) && !thd->is_error())
+    if (!(sctx->check_access(SUPER_ACL)) && !thd->is_error())
     {
       mysql_mutex_lock(&LOCK_offline_mode);
       bool tmp_offline_mode= MY_TEST(offline_mode);
@@ -2314,8 +2323,10 @@ acl_authenticate(THD *thd, size_t com_change_user_pkt_len)
          acl_user->user_resource.user_conn ||
          global_system_variables.max_user_connections) &&
         get_or_create_user_conn(thd,
-          (opt_old_style_user_limits ? sctx->user : sctx->priv_user),
-          (opt_old_style_user_limits ? sctx->host_or_ip : sctx->priv_host),
+          (opt_old_style_user_limits ? sctx->user().str :
+                                       sctx->priv_user().str),
+          (opt_old_style_user_limits ? sctx->host_or_ip().str :
+                                       sctx->priv_host().str),
           &acl_user->user_resource))
       DBUG_RETURN(1); // The error is set by get_or_create_user_conn()
 
@@ -2325,7 +2336,8 @@ acl_authenticate(THD *thd, size_t com_change_user_pkt_len)
       This allows proxy user to execute queries even if proxied user password
       expires.
     */
-    sctx->password_expired= mpvio.acl_user->password_expired || password_time_expired;
+    sctx->set_password_expired(mpvio.acl_user->password_expired ||
+                               password_time_expired);
 #endif /* NO_EMBEDDED_ACCESS_CHECKS */
   }
   else
@@ -2345,12 +2357,12 @@ acl_authenticate(THD *thd, size_t com_change_user_pkt_len)
               "Login user: '%s' Priv_user: '%s'  Using password: %s "
               "Access: %lu  db: '%s'",
               thd->client_capabilities, thd->max_client_packet_length,
-              sctx->host_or_ip, sctx->user, sctx->priv_user,
+              sctx->host_or_ip().str, sctx->user().str, sctx->priv_user().str,
               thd->password ? "yes": "no",
-              sctx->master_access, mpvio.db.str));
+              sctx->master_access(), mpvio.db.str));
 
   if (command == COM_CONNECT &&
-      !(thd->main_security_ctx.master_access & SUPER_ACL))
+      !(thd->m_main_security_ctx.check_access(SUPER_ACL)))
   {
 #ifndef EMBEDDED_LIBRARY
     if (!Connection_handler_manager::get_instance()->valid_connection_count())
@@ -2367,7 +2379,7 @@ acl_authenticate(THD *thd, size_t com_change_user_pkt_len)
     set to 0 here because we don't have an active database yet (and we
     may not have an active database to set.
   */
-  sctx->db_access=0;
+  sctx->set_db_access(0);
 
   /* Change a database if necessary */
   if (mpvio.db.length)
@@ -2384,8 +2396,8 @@ acl_authenticate(THD *thd, size_t com_change_user_pkt_len)
   }
 
   if (mpvio.auth_info.external_user[0])
-    sctx->set_external_user(my_strdup(key_memory_MPVIO_EXT_auth_info,
-                                      mpvio.auth_info.external_user, MYF(0)));
+    sctx->assign_external_user(mpvio.auth_info.external_user,
+                               strlen(mpvio.auth_info.external_user));
 
 
   if (res == CR_OK_HANDSHAKE_COMPLETE)
@@ -2394,9 +2406,11 @@ acl_authenticate(THD *thd, size_t com_change_user_pkt_len)
     my_ok(thd);
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
+  LEX_CSTRING main_sctx_user= thd->m_main_security_ctx.user();
+  LEX_CSTRING main_sctx_host_or_ip= thd->m_main_security_ctx.host_or_ip();
   PSI_THREAD_CALL(set_thread_account)
-    (thd->main_security_ctx.user, strlen(thd->main_security_ctx.user),
-    thd->main_security_ctx.host_or_ip, strlen(thd->main_security_ctx.host_or_ip));
+    (main_sctx_user.str, main_sctx_user.length,
+     main_sctx_host_or_ip.str, main_sctx_host_or_ip.length);
 #endif /* HAVE_PSI_THREAD_INTERFACE */
 
   /* Ready to handle queries */
@@ -2422,7 +2436,7 @@ static int native_password_authenticate(MYSQL_PLUGIN_VIO *vio,
 
   /* generate the scramble, or reuse the old one */
   if (mpvio->scramble[SCRAMBLE_LENGTH])
-    create_random_string(mpvio->scramble, SCRAMBLE_LENGTH, mpvio->rand);
+    generate_user_salt(mpvio->scramble, SCRAMBLE_LENGTH + 1);
 
   /* send it to the client */
   if (mpvio->write_packet(mpvio, (uchar*) mpvio->scramble, SCRAMBLE_LENGTH + 1))
@@ -2563,6 +2577,25 @@ int init_sha256_password_handler(MYSQL_PLUGIN plugin_ref)
   return 0;
 }
 
+/**
+
+ @param vio Virtual input-, output interface
+ @param scramble - Scramble to be saved
+
+ Save the scramble in mpvio for future re-use.
+ It is useful when we need to pass the scramble to another plugin.
+ Especially in case when old 5.1 client with no CLIENT_PLUGIN_AUTH capability
+ tries to connect to server with default-authentication-plugin set to
+ sha256_password
+
+*/
+
+void static inline auth_save_scramble(MYSQL_PLUGIN_VIO *vio, const char *scramble)
+{
+  MPVIO_EXT *mpvio= (MPVIO_EXT *) vio;
+  strncpy(mpvio->scramble, scramble, SCRAMBLE_LENGTH+1);
+}
+
 
 /** 
  
@@ -2608,9 +2641,14 @@ http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Proto
     This plugin must do the same to stay consistent with historical behavior
     if it is set to operate as a default plugin.
   */
-  scramble[SCRAMBLE_LENGTH] = '\0';
   if (vio->write_packet(vio, (unsigned char *) scramble, SCRAMBLE_LENGTH + 1))
     DBUG_RETURN(CR_ERROR);
+
+  /*
+    Save the scramble so it could be used by native plugin in case
+    the authentication on the server side needs to be restarted
+  */
+  auth_save_scramble(vio, scramble);
 
   /*
     After the call to read_packet() the user name will appear in

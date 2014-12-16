@@ -50,6 +50,7 @@ Created 12/9/1995 Heikki Tuuri
 #include "srv0start.h"
 #include "trx0sys.h"
 #include "trx0trx.h"
+#include "trx0roll.h"
 #include "srv0mon.h"
 #include "sync0sync.h"
 
@@ -1333,18 +1334,18 @@ log_flush_margin(void)
 	}
 }
 
-/****************************************************************//**
-Advances the smallest lsn for which there are unflushed dirty blocks in the
-buffer pool. NOTE: this function may only be called if the calling thread owns
-no synchronization objects!
+/** Advances the smallest lsn for which there are unflushed dirty blocks in the
+buffer pool.
+NOTE: this function may only be called if the calling thread owns no
+synchronization objects!
+@param[in]	new_oldest	try to advance oldest_modified_lsn at least to
+this lsn
 @return false if there was a flush batch of the same type running,
 which means that we could not start this flush batch */
 static
 bool
 log_preflush_pool_modified_pages(
-/*=============================*/
-	lsn_t	new_oldest)	/*!< in: try to advance oldest_modified_lsn
-				at least to this lsn */
+	lsn_t			new_oldest)
 {
 	bool	success;
 	ulint	n_pages;
@@ -1786,8 +1787,8 @@ for the latest LSN
 has been generated since the latest checkpoint */
 void
 log_make_checkpoint_at(
-	lsn_t	lsn,
-	bool	write_always)
+	lsn_t			lsn,
+	bool			write_always)
 {
 	/* Preflush pages synchronously */
 
@@ -1979,6 +1980,12 @@ logs_empty_and_mark_files_at_shutdown(void)
 	const char*		thread_name;
 
 	ib::info() << "Starting shutdown...";
+
+	while (srv_fast_shutdown == 0 && trx_rollback_or_clean_is_active) {
+		/* we should wait until rollback after recovery end
+		for slow shutdown */
+		os_thread_sleep(100000);
+	}
 
 	/* Wait until the master thread and all other operations are idle: our
 	algorithm only works if the server is idle at shutdown */

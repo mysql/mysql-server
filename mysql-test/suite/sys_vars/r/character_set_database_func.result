@@ -4,6 +4,8 @@ SET @session_character_set_database = @@session.character_set_database;
 SET @session_character_set_server = @@session.character_set_server;
 SET @global_character_set_server = @@global.character_set_server;
 SET @@global.character_set_database = utf8;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
 'connect (con1,localhost,root,,,,)'
 'connection con1'
 SELECT @@global.character_set_database;
@@ -21,6 +23,8 @@ SELECT @@session.character_set_database;
 @@session.character_set_database
 latin1
 SET @@session.character_set_database = latin5;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
 SELECT @@session.character_set_database;
 @@session.character_set_database
 latin5
@@ -58,6 +62,8 @@ USE test;
 CREATE TABLE t1 (a CHAR(4) CHARACTER SET utf8) ENGINE=MyISAM CHARACTER SET utf8;
 'Verify with latin';
 SET @@session.character_set_database = latin1;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
 LOAD DATA INFILE 'MYSQLTEST_VARDIR/std_data/charset_utf8.txt' INTO TABLE t1;
 SELECT count(*) FROM t1 WHERE CHAR_LENGTH(a)>1;
 count(*)
@@ -65,6 +71,8 @@ count(*)
 TRUNCATE TABLE t1;
 'Verify with utf8';
 SET @@session.character_set_database = utf8;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
 LOAD DATA INFILE 'MYSQLTEST_VARDIR/std_data/charset_utf8.txt' INTO TABLE t1;
 SELECT count(*) FROM t1 WHERE CHAR_LENGTH(a)>1;
 count(*)
@@ -78,6 +86,10 @@ SELECT @@character_set_database;
 @@character_set_database
 latin5
 SET @@global.character_set_database = @global_character_set_database;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
 SET @@session.character_set_database = @session_character_set_database;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
 SET @@session.character_set_server = @session_character_set_server;
 SET @@global.character_set_server = @global_character_set_server;
