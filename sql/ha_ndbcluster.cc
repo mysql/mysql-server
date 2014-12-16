@@ -12475,8 +12475,7 @@ ndbcluster_find_files(handlerton *hton, THD *thd,
     {
       DBUG_PRINT("info", ("NDB says %s does not exists", file_name->str));
       it.remove();
-      if (thd == injector_thd &&
-	  thd_ndb->options & TNTO_NO_REMOVE_STRAY_FILES)
+      if (thd == injector_thd)
       {
 	/*
 	  Don't delete anything when called from
