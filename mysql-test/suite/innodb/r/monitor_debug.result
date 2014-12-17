@@ -2,6 +2,7 @@
 # BUG#20080942 - ADAPTIVE_HASH_SEARCHES_BTREE NOT UPDATED
 #
 SET GLOBAL innodb_fast_shutdown=0;
+# restart
 SET GLOBAL innodb_stats_persistent = OFF;
 SET GLOBAL innodb_stats_auto_recalc = OFF;
 SET GLOBAL innodb_purge_stop_now = ON;
