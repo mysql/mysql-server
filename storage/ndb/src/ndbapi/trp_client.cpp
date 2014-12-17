@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -158,7 +158,7 @@ trp_client::do_forceSend(int val)
       TFBuffer* b = m_send_buffers + n;
       TFBufferGuard g0(* b);
       m_facade->flush_and_send_buffer(n, b);
-      bzero(b, sizeof(* b));
+      b->clear();
     }
     m_send_nodes_cnt = 0;
     m_send_nodes_mask.clear();
@@ -271,7 +271,7 @@ trp_client::flush_send_buffers()
     TFBuffer* b = m_send_buffers + node;
     TFBufferGuard g0(* b);
     m_facade->flush_send_buffer(node, b);
-    bzero(b, sizeof(* b));
+    b->clear();
   }
 
   m_send_nodes_cnt = 0;
