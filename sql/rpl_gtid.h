@@ -741,6 +741,8 @@ struct Gtid_interval
 
 
 /**
+  TODO: Move this structure to libbinlogevents/include/control_events.h
+        when we start using C++11.
   Holds information about a GTID: the sidno and the gno.
 
   This is a POD. It has to be a POD because it is part of
