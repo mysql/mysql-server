@@ -1754,7 +1754,7 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
 
           table->file->adjust_next_insert_id_after_explicit_value(table->next_number_field->val_int());
         }
-        else
+        else if (prev_insert_id_for_cur_row)
         {
           table->file->restore_auto_increment(prev_insert_id_for_cur_row);
         }
