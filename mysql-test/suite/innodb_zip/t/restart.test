@@ -8,6 +8,7 @@
 --source include/not_valgrind.inc
 
 --source include/have_innodb.inc
+--source include/have_innodb_zip.inc
 --source include/have_partition.inc
 --source include/not_embedded.inc
 SET default_storage_engine=InnoDB;
