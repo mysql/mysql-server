@@ -9,6 +9,8 @@ drop table if exists `£Τ£Έ`;
 drop table if exists `£Τ£Ή`;
 SET NAMES ujis;
 SET character_set_database = ujis;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
 CREATE TABLE `£Τ£±` (`£Γ£±` ENUM('±','²','³'), INDEX(`£Γ£±`)) DEFAULT CHARSET = ujis engine = innodb;
 CREATE TABLE `£Τ£²` (`£Γ£±` ENUM('¤Ά','¤¤','¤¦'), INDEX(`£Γ£±`)) DEFAULT CHARSET = ujis engine = innodb;
 CREATE TABLE `£Τ£³` (`£Γ£±` ENUM('νά','νέ','νή'), INDEX(`£Γ£±`)) DEFAULT CHARSET = ujis engine = innodb;

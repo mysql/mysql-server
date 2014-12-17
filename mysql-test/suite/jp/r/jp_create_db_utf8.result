@@ -3,6 +3,8 @@ drop database if exists `日本語`;
 drop database if exists `龔龖龗`;
 SET NAMES utf8;
 SET character_set_database = utf8;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
 CREATE DATABASE `ﾆﾎﾝｺﾞ`;
 CREATE DATABASE `日本語`;
 CREATE DATABASE `龔龖龗`;

@@ -2676,7 +2676,7 @@ show_proxy_grants(THD *thd, LEX_USER *user, char *buff, size_t buffsize)
 {
   Protocol *protocol= thd->protocol;
   int error= 0;
-
+  Read_lock rlk_guard(&proxy_users_rwlock);
   for (ACL_PROXY_USER *proxy= acl_proxy_users->begin();
        proxy != acl_proxy_users->end(); ++proxy)
   {
@@ -3718,17 +3718,20 @@ acl_check_proxy_grant_access(THD *thd, const char *host, const char *user,
   }
 
   /* check for matching WITH PROXY rights */
-  for (ACL_PROXY_USER *proxy= acl_proxy_users->begin();
-       proxy != acl_proxy_users->end(); ++proxy)
   {
-    if (proxy->matches(thd->security_context()->host().str,
-                       thd->security_context()->user().str,
-                       thd->security_context()->ip().str,
-                       user) &&
-        proxy->get_with_grant())
+    Read_lock rlk_guard(&proxy_users_rwlock);
+    for (ACL_PROXY_USER *proxy= acl_proxy_users->begin();
+         proxy != acl_proxy_users->end(); ++proxy)
     {
-      DBUG_PRINT("info", ("found"));
-      DBUG_RETURN(FALSE);
+      if (proxy->matches(thd->security_context()->host().str,
+                         thd->security_context()->user().str,
+                         thd->security_context()->ip().str,
+                         user) &&
+          proxy->get_with_grant())
+      {
+        DBUG_PRINT("info", ("found"));
+        DBUG_RETURN(FALSE);
+      }
     }
   }
 

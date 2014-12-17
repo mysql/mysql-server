@@ -705,12 +705,6 @@ enum_return_status Gtid_set::add_gtid_set(const Gtid_set *other)
   }
   else
   {
-    /*
-      This code is not being used but we will keep it as it may be
-      useful to optimize gtids by avoiding sharing mappings from
-      sid to sidno. For instance, the IO Thread and the SQL Thread
-      may have different mappings in the future.
-    */
     Sid_map *other_sid_map= other->sid_map;
     for (rpl_sidno other_sidno= 1; other_sidno <= max_other_sidno;
          other_sidno++)

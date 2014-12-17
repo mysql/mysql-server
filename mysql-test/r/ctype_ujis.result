@@ -2351,6 +2351,8 @@ DROP TABLE IF EXISTS t1, t2;
 DROP PROCEDURE IF EXISTS sp1;
 set names ujis;
 set character_set_database = ujis;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
 set character_set_server = ujis;
 CREATE TABLE t1(c1 char(2)) default charset = ujis;
 CREATE TABLE t2(c2 char(2)) default charset = ujis;
@@ -2386,6 +2388,8 @@ Warning	1292	Truncated incorrect INTEGER value: 'a'
 Warning	1292	Truncated incorrect INTEGER value: 'a'
 set names default;
 set character_set_database=default;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
 set character_set_server=default;
 End of 5.1 tests
 #

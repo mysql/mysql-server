@@ -3768,9 +3768,13 @@ SET DEBUG_SYNC= 'now WAIT_FOR locked';
 ALTER DATABASE `#mysql50#a-b-c` UPGRADE DATA DIRECTORY NAME;
 # Connection con3
 ALTER DATABASE `#mysql50#a-b-c-d` UPGRADE DATA DIRECTORY NAME;
+Warnings:
+Warning	1681	'UPGRADE DATA DIRECTORY NAME' is deprecated and will be removed in a future release.
 SET DEBUG_SYNC= 'now SIGNAL blocked';
 # Connection default
 # Reaping: ALTER DATABASE '#mysql50#a-b-c' UPGRADE DATA DIRECTORY NAME
+Warnings:
+Warning	1681	'UPGRADE DATA DIRECTORY NAME' is deprecated and will be removed in a future release.
 # Connection con2
 # Reaping: ALTER DATABASE '#mysql50#a-b-c' UPGRADE DATA DIRECTORY NAME
 ERROR 42000: Unknown database '#mysql50#a-b-c'
