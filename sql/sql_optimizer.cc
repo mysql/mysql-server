@@ -41,7 +41,6 @@
 #include "opt_costmodel.h"
 #include "sql_join_buffer.h"     // JOIN_CACHE
 #include "opt_explain.h"         // join_type_str
-#include "abstract_query_plan.h"
 
 #include <algorithm>
 using std::max;
@@ -615,27 +614,6 @@ JOIN::optimize()
     DBUG_RETURN(1);
 
   // At this stage, we have fully set QEP_TABs; JOIN_TABs are unaccessible.
-
-  if (!plan_is_const())
-  {
-    /**
-     * Push joins to handler(s) whenever possible.
-     * The handlers will inspect the QEP through the
-     * AQP (Abstract Query Plan), and extract from it
-     * whatewer it might implement of pushed execution.
-     * It is the responsibility if the handler to store any
-     * information it need for later execution of pushed queries.
-     *
-     * Currently pushed joins are only implemented by NDB.
-     * It only make sense to try pushing if > 1 non-const tables.
-     */
-    if (!plan_is_single_table() && !plan_is_const())
-    {
-      const AQP::Join_plan plan(this);
-      if (ha_make_pushed_joins(thd, &plan))
-        DBUG_RETURN(1);
-    }
-  }
 
   // Update last_query_cost to reflect actual need of filesort.
   if (sort_cost > 0.0 && !explain_flags.any(ESP_USING_FILESORT))
