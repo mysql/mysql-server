@@ -20,6 +20,7 @@
 #include "auth_common.h"            // SUPER_ACL
 #include <pfs_transaction_provider.h>
 #include <mysql/psi/mysql_transaction.h>
+#include "rpl_context.h"
 
 /**
   Check if we have a condition where the transaction state must
@@ -179,6 +180,10 @@ bool trans_commit(THD *thd)
     ~(SERVER_STATUS_IN_TRANS | SERVER_STATUS_IN_TRANS_READONLY);
   DBUG_PRINT("info", ("clearing SERVER_STATUS_IN_TRANS"));
   res= ha_commit_trans(thd, TRUE);
+  if (res == FALSE)
+    if (thd->rpl_thd_ctx.session_gtids_ctx().
+        notify_after_transaction_commit(thd))
+      sql_print_warning("Failed to collect GTID to send in the response packet!");
   /*
     When gtid mode is enabled, a transaction may cause binlog
     rotation, which inserts a record into the gtid system table
@@ -241,6 +246,10 @@ bool trans_commit_implicit(THD *thd)
   else if (tc_log)
     tc_log->commit(thd, true);
 
+  if (res == FALSE)
+    if (thd->rpl_thd_ctx.session_gtids_ctx().
+        notify_after_transaction_commit(thd))
+      sql_print_warning("Failed to collect GTID to send in the response packet!");
   thd->variables.option_bits&= ~OPTION_BEGIN;
   thd->get_transaction()->reset_unsafe_rollback_flags(Transaction_ctx::SESSION);
 
@@ -381,7 +390,10 @@ bool trans_commit_stmt(THD *thd)
   }
   else if (tc_log)
     tc_log->commit(thd, false);
-
+  if (res == FALSE && !thd->in_active_multi_stmt_transaction())
+    if (thd->rpl_thd_ctx.session_gtids_ctx().
+        notify_after_transaction_commit(thd))
+      sql_print_warning("Failed to collect GTID to send in the response packet!");
   /* In autocommit=1 mode the transaction should be marked as complete in P_S */
   DBUG_ASSERT(thd->in_active_multi_stmt_transaction() ||
               thd->m_transaction_psi == NULL);

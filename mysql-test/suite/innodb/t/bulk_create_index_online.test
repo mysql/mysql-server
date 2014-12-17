@@ -29,3 +29,7 @@ disconnect con1;
 SELECT * FROM t1;
 
 DROP TABLE t1;
+
+# Clean up temporary files left by crash.
+let MYSQLD_DATADIR= `SELECT @@datadir`;
+--remove_files_wildcard $MYSQLD_DATADIR/test #sql*.frm

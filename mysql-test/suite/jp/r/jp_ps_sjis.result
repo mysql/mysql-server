@@ -4,6 +4,8 @@ DROP TABLE IF EXISTS t3;
 DROP TABLE IF EXISTS t4;
 SET NAMES sjis;
 SET character_set_database = sjis;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1(c1 char(3)) DEFAULT CHARSET = sjis ENGINE = InnoDB;
 CREATE TABLE t2(c1 char(3)) DEFAULT CHARSET = sjis ENGINE = InnoDB;
 CREATE TABLE t3(

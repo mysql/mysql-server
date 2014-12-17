@@ -23,6 +23,7 @@
 #include "sql_array.h"
 #include "table_trigger_field_support.h"  // Table_trigger_field_support
 #include "parse_tree_node_base.h"
+#include "my_time.h"                      // timestamp_type
 
 #include <algorithm>                    // std::max
 

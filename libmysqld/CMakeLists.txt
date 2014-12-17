@@ -87,12 +87,18 @@ SET(SQL_EMBEDDED_SOURCES
   ../sql/rpl_gtid_mutex_cond_array.cc
   ../sql/rpl_gtid_persist.cc
   ../sql/rpl_table_access.cc
+  ../sql/rpl_context.cc
   ${IMPORTED_SOURCES}
 )
 
 INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
 ADD_COMPILE_FLAGS(
   ../sql/item_geofunc.cc
+  ../sql/auth/sql_authorization.cc
+  ../sql/auth/sql_authentication.cc
+  ../sql/auth/sql_user_table.cc
+  ../sql/auth/sql_user.cc
+  ../sql/auth/sql_auth_cache.cc
   COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
 )
 
