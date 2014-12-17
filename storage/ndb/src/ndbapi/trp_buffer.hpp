@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -109,12 +109,13 @@ struct TFSentinel
 
 struct TFBuffer
 {
-  TFBuffer() { m_bytes_in_buffer = 0; m_head = m_tail = 0;}
+  TFBuffer() : m_head(NULL), m_tail(NULL), m_bytes_in_buffer(0) {}
   struct TFPage * m_head;
   struct TFPage * m_tail;
   Uint32 m_bytes_in_buffer;
 
   void validate() const;
+  void clear() { m_bytes_in_buffer = 0; m_head = m_tail = NULL;}
 };
 
 struct TFBufferGuard
