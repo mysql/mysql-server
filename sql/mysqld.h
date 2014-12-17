@@ -147,7 +147,7 @@ extern my_bool opt_slave_preserve_commit_order;
 extern uint slave_rows_last_search_algorithm_used;
 #endif
 extern ulong mts_parallel_option;
-extern my_bool opt_enable_named_pipe, opt_sync_frm, opt_allow_suspicious_udfs;
+extern my_bool opt_enable_named_pipe, opt_allow_suspicious_udfs;
 extern my_bool opt_secure_auth;
 extern char* opt_secure_file_priv;
 extern char* opt_secure_backup_file_priv;

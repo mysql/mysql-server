@@ -1120,8 +1120,6 @@ The following options may be given as the first argument:
  Enable symbolic link support.
  --sync-binlog=#     Synchronously flush binary log to disk after every #th
  write to the file. Use 0 to disable synchronous flushing
- --sync-frm          Sync .frm files to disk on creation
- (Defaults to on; use --skip-sync-frm to disable.)
  --sync-master-info=# 
  Synchronously flush master info to disk after every #th
  event. Use 0 to disable synchronous flushing
@@ -1498,7 +1496,6 @@ sql-mode ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SU
 stored-program-cache 256
 symbolic-links FALSE
 sync-binlog 1
-sync-frm TRUE
 sync-master-info 10000
 sync-relay-log 10000
 sync-relay-log-info 10000

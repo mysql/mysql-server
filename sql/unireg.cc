@@ -27,7 +27,7 @@
 #include "unireg.h"
 
 #include "derror.h"                           // ER_THD
-#include "mysqld.h"                           // opt_sync_frm key_file_frm
+#include "mysqld.h"                           // key_file_frm
 #include "partition_info.h"                   // partition_info
 #include "psi_memory_key.h"
 #include "sql_class.h"                        // THD, Internal_error_handler
@@ -440,7 +440,7 @@ bool mysql_create_frm(THD *thd, const char *file_name,
   my_free(screen_buff);
   my_free(keybuff);
 
-  if (opt_sync_frm && !(create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
+  if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
       (mysql_file_sync(file, MYF(MY_WME)) ||
        my_sync_dir_by_file(file_name, MYF(MY_WME))))
       goto err2;
