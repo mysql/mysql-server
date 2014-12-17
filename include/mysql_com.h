@@ -507,12 +507,13 @@ enum enum_session_state_type
 {
   SESSION_TRACK_SYSTEM_VARIABLES,                       /* Session system variables */
   SESSION_TRACK_SCHEMA,                          /* Current schema */
-  SESSION_TRACK_STATE_CHANGE                  /* track session state changes */
+  SESSION_TRACK_STATE_CHANGE,                  /* track session state changes */
+  SESSION_TRACK_GTIDS
 };
 
 #define SESSION_TRACK_BEGIN SESSION_TRACK_SYSTEM_VARIABLES
 
-#define SESSION_TRACK_END SESSION_TRACK_STATE_CHANGE
+#define SESSION_TRACK_END SESSION_TRACK_GTIDS
 
 #define IS_SESSION_STATE_TYPE(T) \
   (((int)(T) >= SESSION_TRACK_BEGIN) && ((T) <= SESSION_TRACK_END))
