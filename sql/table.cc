@@ -3768,11 +3768,6 @@ void TABLE::init(THD *thd, TABLE_LIST *tl)
   SYNPOSIS
     TABLE::fill_item_list()
       item_list          a pointer to an empty list used to store items
-      limit              maximum number of fields to add
-  @pre 'limit' is MAX_FIELDS or the number of columns in the table except
-  that the temporary table includes 'hash_field' which is at the end of
-  column lists and should be skipped because 'hash_field' is a pesudo
-  column.
 
   DESCRIPTION
     Create Item_field object for each column in the table and
@@ -3784,14 +3779,14 @@ void TABLE::init(THD *thd, TABLE_LIST *tl)
     1                    out of memory
 */
 
-bool TABLE::fill_item_list(List<Item> *item_list, uint limit) const
+bool TABLE::fill_item_list(List<Item> *item_list) const
 {
   /*
     All Item_field's created using a direct pointer to a field
     are fixed in Item_field constructor.
   */
   uint i= 0;
-  for (Field **ptr= field; *ptr && i < limit; ptr++, i++)
+  for (Field **ptr= visible_field_ptr(); *ptr; ptr++, i++)
   {
     Item_field *item= new Item_field(*ptr);
     if (!item || item_list->push_back(item))
@@ -3805,24 +3800,19 @@ bool TABLE::fill_item_list(List<Item> *item_list, uint limit) const
   Fields of this table.
 
   SYNPOSIS
-    TABLE::fill_item_list()
+    TABLE::reset_item_list()
       item_list          a non-empty list with Item_fields
-      limit              maximum number of fields to set 
-  @pre 'limit' is MAX_FIELDS or the number of columns in the table except
-  that the temporary table includes 'hash_field' which is at the end of
-  column lists and should be skipped because 'hash_field' is a pesudo
-  column.
 
   DESCRIPTION
     This is a counterpart of fill_item_list used to redirect
     Item_fields to the fields of a newly created table.
 */
 
-void TABLE::reset_item_list(List<Item> *item_list, uint limit) const
+void TABLE::reset_item_list(List<Item> *item_list) const
 {
   List_iterator_fast<Item> it(*item_list);
   uint i= 0;
-  for (Field **ptr= field; *ptr && i < limit; ptr++, i++)
+  for (Field **ptr= visible_field_ptr(); *ptr; ptr++, i++)
   {
     Item_field *item_field= (Item_field*) it++;
     DBUG_ASSERT(item_field != 0);
