@@ -429,7 +429,7 @@ inline
 bool
 TransporterFacade::TFSendBuffer::try_lock_send()
 {
-  assert(NdbMutex_Trylock(&m_mutex) != 0); //Lock should be held
+  //assert(NdbMutex_Trylock(&m_mutex) != 0); //Lock should be held
   if (!m_sending)
   {
     m_sending = true;
@@ -442,7 +442,7 @@ inline
 void
 TransporterFacade::TFSendBuffer::unlock_send()
 {
-  assert(NdbMutex_Trylock(&m_mutex) != 0); //Lock should be held
+  //assert(NdbMutex_Trylock(&m_mutex) != 0); //Lock should be held
   assert(m_sending);
   m_sending = false;
 }
