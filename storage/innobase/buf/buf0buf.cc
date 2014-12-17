@@ -5547,7 +5547,10 @@ corrupt:
 		if (uncompressed
 		    && !recv_no_ibuf_operations
 		    && !Tablespace::is_undo_tablespace(bpage->id.space())
-		    && !srv_is_tablespace_truncated(bpage->id.space())) {
+		    && bpage->id.space() != srv_tmp_space.space_id()
+		    && !srv_is_tablespace_truncated(bpage->id.space())
+		    && fil_page_get_type(frame) == FIL_PAGE_INDEX
+		    && page_is_leaf(frame)) {
 
 			ibuf_merge_or_delete_for_page(
 				(buf_block_t*) bpage, bpage->id,

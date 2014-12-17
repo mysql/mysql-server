@@ -2211,9 +2211,13 @@ acl_authenticate(THD *thd, size_t com_change_user_pkt_len)
     const char *auth_user = acl_user->user ? acl_user->user : "";
     ACL_PROXY_USER *proxy_user;
     /* check if the user is allowed to proxy as another user */
-    proxy_user= acl_find_proxy_user(auth_user, sctx->host().str, sctx->ip().str,
-                                    mpvio.auth_info.authenticated_as,
-                                    &is_proxy_user);
+    {
+      Read_lock rlk_guard(&proxy_users_rwlock);
+      proxy_user = acl_find_proxy_user(auth_user, sctx->host().str,
+                                       sctx->ip().str,
+                                       mpvio.auth_info.authenticated_as,
+                                       &is_proxy_user);
+    }
     if (is_proxy_user)
     {
       ACL_USER *acl_proxy_user;

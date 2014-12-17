@@ -62,7 +62,6 @@ enum_return_status Sid_map::clear()
 }
 #endif
 
-
 rpl_sidno Sid_map::add_sid(const rpl_sid &sid)
 {
   DBUG_ENTER("Sid_map::add_sid(const rpl_sid *)");
