@@ -4295,7 +4295,7 @@ wait_again:
 			ut_ad(sort_idx->online_status
 			      == ONLINE_INDEX_COMPLETE);
 		} else {
-			log_make_checkpoint_at(LSN_MAX, TRUE);
+			log_make_checkpoint_at(LSN_MAX, TRUE, stage);
 
 			DEBUG_SYNC_C("row_log_apply_before");
 			error = row_log_apply(trx, sort_idx, table);
