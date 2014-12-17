@@ -4115,6 +4115,7 @@ static int fill_schema_table_from_frm(THD *thd, TABLE_LIST *tables,
       table_list.view= (LEX*) share->is_view;
       res= schema_table->process_table(thd, &table_list, table,
                                        res, db_name, table_name);
+      closefrm(&tbl, 0);
       free_root(&tbl.mem_root, MYF(0));
       my_free((void *) tbl.alias);
     }
