@@ -46,8 +46,8 @@ let $test_debug= 0;
 # - default:  16k
 let $minimal_page_size=  4096;
 let $default_page_size= 16384;
-let $maximal_page_size= 16384;
-let $legal_page_size_list= $minimal_page_size,8192,$maximal_page_size;
+let $maximal_page_size= 65536;
+let $legal_page_size_list= $minimal_page_size,8192,16384,32768,$maximal_page_size;
 let $start_page_size=
 `SELECT variable_value FROM INFORMATION_SCHEMA.GLOBAL_STATUS
 WHERE LOWER(variable_name) = 'innodb_page_size'`;
