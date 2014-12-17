@@ -48,13 +48,15 @@ Recovery_module(Applier_module_interface *applier,
                 Gcs_communication_interface *comm_if,
                 Gcs_control_interface *ctrl_if,
                 Cluster_member_info *local_info,
-                Cluster_member_info_manager_interface *cluster_info_if)
+                Cluster_member_info_manager_interface *cluster_info_if,
+                ulong gcs_components_stop_timeout)
   : gcs_control_interface(ctrl_if),gcs_communication_interface(comm_if),
     local_node_information(local_info), applier_module(applier),
     cluster_info(cluster_info_if), donor_connection_retry_count(0),
     recovery_running(false), donor_transfer_finished(false),
     connected_to_donor(false), needs_donor_relay_log_reset(false),
-    donor_connection_interface(), stop_wait_timeout(LONG_TIMEOUT),
+    donor_connection_interface(),
+    stop_wait_timeout(gcs_components_stop_timeout),
     max_connection_attempts_to_donors(-1)
 {
   selected_donor_uuid.clear();

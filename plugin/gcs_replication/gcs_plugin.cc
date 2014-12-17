@@ -904,7 +904,8 @@ int initialize_recovery_module()
 
   recovery_module = new Recovery_module(applier_module, comm_if,
                                         ctrl_if, local_member_info,
-                                        cluster_member_mgr);
+                                        cluster_member_mgr,
+                                        gcs_components_stop_timeout);
 
   recovery_module
               ->set_recovery_donor_connection_user(gcs_recovery_user_pointer);
@@ -1148,7 +1149,10 @@ static void update_component_timeout(MYSQL_THD thd, SYS_VAR *var, void *ptr,
   {
     applier_module->set_stop_wait_timeout(gcs_components_stop_timeout);
   }
-  recovery_module->set_stop_wait_timeout(gcs_components_stop_timeout);
+  if (recovery_module != NULL)
+  {
+    recovery_module->set_stop_wait_timeout(gcs_components_stop_timeout);
+  }
 
   DBUG_VOID_RETURN;
 }

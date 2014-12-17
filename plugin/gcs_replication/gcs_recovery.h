@@ -42,12 +42,15 @@ public:
             reference to the local node information
   @param cluster_info_if
             reference to the Global cluster view manager
+  @param gcs_component_stop_timeout
+            timeout value for the recovery module during shutdown.
  */
   Recovery_module(Applier_module_interface *applier,
                   Gcs_communication_interface *comm_if,
                   Gcs_control_interface *ctrl_if,
                   Cluster_member_info *local_info,
-                  Cluster_member_info_manager_interface* cluster_info_if);
+                  Cluster_member_info_manager_interface* cluster_info_if,
+                  ulong gcs_components_stop_timeout);
 
   ~Recovery_module();
 

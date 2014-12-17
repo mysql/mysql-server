@@ -1,0 +1,35 @@
+#
+# SERVER CRASHED ON SETTING GCS_REPLICATION_PLUGIN_COMPONENTS_STOP_TIMEOUT
+#
+# This test checks that the value of the gcs_replication_plugin_components_stop_timeout
+# is settable even without group replication running.
+#
+
+--source include/have_gcs_replication_plugin.inc
+--let $gcs_group_name= 2d249320-2e06-11e3-aa6e-0800200c9a66
+--let $rpl_skip_gcs_replication_start= 1
+--source include/master-slave.inc
+
+--let $debug_save_timeout= `SELECT @@GLOBAL.gcs_replication_plugin_components_stop_timeout`
+
+--eval SET GLOBAL gcs_replication_plugin_group_name= "$gcs_group_name"
+
+# Set the timeout to the value without starting group replication. This should work without failure.
+
+SET GLOBAL gcs_replication_plugin_components_stop_timeout= 31536;
+--let $assert_text= The value for gcs_replication_plugin_components_stop_timeout should be 31536
+--let $assert_cond= "[SELECT @@GLOBAL.gcs_replication_plugin_components_stop_timeout]" = 31536
+--source include/assert.inc
+
+
+# Set the timeout to the value but after starting group replication. This should work without failure.
+
+--source include/start_gcs_replication.inc
+
+SET GLOBAL gcs_replication_plugin_components_stop_timeout= 3153;
+--let $assert_text= The value for gcs_replication_plugin_components_stop_timeout should be 3153
+--let $assert_cond= "[SELECT @@GLOBAL.gcs_replication_plugin_components_stop_timeout]" = 3153
+--source include/assert.inc
+
+--eval SET GLOBAL gcs_replication_plugin_components_stop_timeout= $debug_save_timeout
+--source include/rpl_end.inc
