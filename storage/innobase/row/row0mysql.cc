@@ -5420,7 +5420,7 @@ loop:
 	{
 		const char* doing = check_keys? "CHECK TABLE" : "COUNT(*)";
 		ib::warn() << doing << " on index " << index->name << " of"
-			" table " << index->table_name << " returned " << ret;
+			" table " << index->table->name << " returned " << ret;
 		/* fall through (this error is ignored by CHECK TABLE) */
 	}
 	case DB_END_OF_INDEX:
