@@ -514,7 +514,6 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
     }
     else if (share->options & HA_OPTION_PACK_RECORD)
       share->data_file_type = DYNAMIC_RECORD;
-    my_afree(disk_cache);
     mi_setup_functions(share);
     share->is_log_table= FALSE;
     thr_lock_init(&share->lock);
@@ -690,7 +689,6 @@ err:
       (void) my_lock(kfile, F_UNLCK, 0L, F_TO_EOF, MYF(MY_SEEK_NOT_DONE));
     /* fall through */
   case 2:
-    my_afree(disk_cache);
     /* fall through */
   case 1:
     (void) mysql_file_close(kfile, MYF(0));
