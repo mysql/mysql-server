@@ -22,12 +22,15 @@
 
 var spi            = require("../impl/SPI"),
     TableMapping   = require("./TableMapping").TableMapping,
+    Projection     = require("./Projection").Projection,
     unified_debug  = require("./unified_debug"),
     udebug         = unified_debug.getLogger("mynode.js"),
     userContext    = require("./UserContext.js");
 
 /** make TableMapping public */
 exports.TableMapping = TableMapping;
+/** make Projection public */
+exports.Projection = Projection;
 
 /** connections is a hash of connectionKey to Connection */
 var connections = {};

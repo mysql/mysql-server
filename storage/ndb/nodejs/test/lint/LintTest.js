@@ -18,8 +18,6 @@
  02110-1301  USA
  */
 
-/*global fs,util,harness,path,adapter_dir,suites_dir,spi_doc_dir */
-
 "use strict";
 
 var skipTests = false;
@@ -195,7 +193,7 @@ checkFile(suites_dir, "lint", "LintTest.js");
 checkFile(suites_dir, "", "driver.js");
 checkFile(suites_dir, "lib", "harness.js");
 checkDirectory(suites_dir, "spi");
-checkDirectory(suites_dir, "integraltypes");
+checkDirectory(suites_dir, "numerictypes");
 checkDirectory(suites_dir, "stringtypes");
 checkDirectory(suites_dir, "autoincrement");
 // checkDirectory(suites_dir, "multidb");  
@@ -225,13 +223,10 @@ ignore("LintTest.js",14,"Expected a conditional expression and instead saw an as
 ignore("TableMapping.js",3,"The body of a for in should be wrapped in an if statement to filter unwanted properties from the prototype.");
 ignore("stats.js",13,"Expected '{' and instead saw 'r'.");
 ignore("MySQLDictionary.js",7,"Missing 'break' after 'case'.");
+
 ignore("UserContext.js", 33, "Unexpected \'\\.\'.");
-ignore("UserContext.js", 5, "Unexpected \'else\' after \'return\'.");
-ignore("UserContext.js", 5, "Unexpected \'else\' after \'return\'.");
 ignore("UserContext.js", 7, "Confusing use of \'!\'.");
-ignore("UserContext.js", 7, "Unexpected \'else\' after \'return\'.");
-ignore("UserContext.js", 7, "Unexpected \'else\' after \'return\'.");
-ignore("UserContext.js", 7, "Unexpected \'else\' after \'return\'.");
+
 ignore("NdbTransactionHandler.js", 32, "Expected \'{\' and instead saw \'scans\'.");
 ignore("NdbScanFilter.js", 34, "Expected \'{\' and instead saw \'return\'.");
 
@@ -245,7 +240,7 @@ ignore("SmokeTest.js", 10, "Expected \'{\' and instead saw \'test\'.");
 ignore("CharsetTest.js", 27, "Missing \'new\'.");
 ignore("CharsetTest.js", 26, "Missing \'new\'.", 14);
 
-//integraltypes
+//numerictypes
 ignore("QueryKeywordTest.js", 95, "Expected \'String\' and instead saw \'\'\'\'.");
 ignore("lib.js", 95, "Expected \'String\' and instead saw \'\'\'\'.");
 

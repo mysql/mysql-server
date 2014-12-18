@@ -19,8 +19,8 @@
  */
 
 #include "adapter_global.h"
-
 #include "ColumnHandler.h"
+#include "BlobHandler.h"
 
 using namespace v8;
 
@@ -40,7 +40,8 @@ Keys keys;
 ColumnHandler::ColumnHandler() :
   column(0), offset(0), 
   converterClass(), converterReader(), converterWriter(),
-  hasConverterReader(false), hasConverterWriter(false) 
+  hasConverterReader(false), hasConverterWriter(false),
+  isLob(false), isText(false)
 {
 }
 
@@ -59,6 +60,16 @@ void ColumnHandler::init(const NdbDictionary::Column *_column,
   encoder = getEncoderForColumn(column);
   offset = _offset;
   Local<Object> t;
+
+  switch(column->getType()) {
+    case NDB_TYPE_TEXT: 
+      isText = true;   // fall through to also set isLob
+    case NDB_TYPE_BLOB:
+      isLob = true;
+      break;
+    default:
+      break;
+  }
 
   if(typeConverter->IsObject()) {
     converterClass = Persistent<Object>::New(typeConverter->ToObject());
@@ -82,9 +93,20 @@ void ColumnHandler::init(const NdbDictionary::Column *_column,
 }
 
 
-Handle<Value> ColumnHandler::read(char * buffer) const {
+Handle<Value> ColumnHandler::read(char * rowBuffer, Handle<Object> blobBuffer) const {
   HandleScope scope;
-  Handle<Value> val = encoder->read(column, buffer, offset);
+  Handle<Value> val;
+
+  if(isText) {
+    DEBUG_PRINT("text read");
+    val = getTextFromBuffer(column, blobBuffer);
+  } else if(isLob) {
+    DEBUG_PRINT("blob read");
+    val = Handle<Value>(blobBuffer);
+  } else {
+    val = encoder->read(column, rowBuffer, offset);
+  }
+
   if(hasConverterReader) {
     TryCatch tc;
     Handle<Value> arguments[1];
@@ -112,5 +134,21 @@ Handle<Value> ColumnHandler::write(Handle<Value> val, char *buffer) const {
   
   writeStatus = encoder->write(column, val, buffer, offset);
   return scope.Close(writeStatus);
+}
+
+
+BlobWriteHandler * ColumnHandler::createBlobWriteHandle(Handle<Value> val, 
+                                                        int fieldNo) const {
+  DEBUG_MARKER(UDEB_DETAIL);
+  HandleScope scope;
+  BlobWriteHandler * b = 0;
+  Handle<Object> obj = val->ToObject();
+  if(isLob) {
+    if(isText && val->IsString()) {
+      obj = getBufferForText(column, val->ToString());
+    }
+    b = new BlobWriteHandler(column->getColumnNo(), fieldNo, obj);
+  }
+  return b;
 }
 

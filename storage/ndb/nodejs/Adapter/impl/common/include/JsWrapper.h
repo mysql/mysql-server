@@ -22,6 +22,7 @@
 #define NODEJS_ADAPTER_INCLUDE_JSWRAPPER_H
 
 #include <node.h>
+#include "adapter_global.h"
 #include "unified_debug.h"
 
 using v8::Persistent;
@@ -37,16 +38,15 @@ using v8::String;
 
 /*****************************************************************
  Code to confirm that C++ types wrapped as JavaScript values
- are unwrapped back to the original type.
- This can be disabled.
+ are unwrapped back to the original type. This can be disabled.
+ ENABLE_WRAPPER_TYPE_CHECKS is defined in adapter_global.h
  ******************************************************************/
-#define ENABLE_WRAPPER_TYPE_CHECKS 0
 
 #if ENABLE_WRAPPER_TYPE_CHECKS
 #include <typeinfo>
 inline void check_class_id(const char *a, const char *b) {
   if(a != b) {
-    fprintf(stderr, " !!! Expected %s but unwrapped %s !!!\n", a, b);
+    fprintf(stderr, " !!! Expected %s but unwrapped %s !!!\n", b, a);
     assert(a == b);
   }
 }
@@ -95,17 +95,17 @@ public:
 
 /*****************************************************************
  Create a weak handle for a wrapped object.
- Use it to delete the wrapped object 
- when the GC wants to reclaim the handle.
- We do not use this on any "const PTR" type.  For example,
- the "const NdbDictionary::Column *" you get from the dictionary
- is not a wrapped object you would want to delete, and because
- the NDBAPI declares it as const the compiler won't let you do it.
+ Use it to delete the wrapped object when the GC wants to reclaim the handle.
+ For safety, the compiler will not let you use this on any "const PTR" type;
+ (if you hold a const pointer to something, you probably don't own its
+ memory allocation).
+ If the underlying pointer has already been freed and zeroed, just dispose
+ of the JavaScript reference.
 ******************************************************************/
 template<typename PTR> 
 void onGcReclaim(Persistent<Value> notifier, void * param) {
   PTR ptr = static_cast<PTR>(param);
-  delete ptr;
+  if(ptr) delete ptr;
   notifier.Dispose();
 }
 
@@ -127,23 +127,25 @@ void freeFromGC(PTR ptr, Handle<Object> obj) {
 template <typename PTR>
 void wrapPointerInObject(PTR ptr,
                          Envelope & env,
-                         Local<Object> obj) {
+                         Handle<Object> obj) {
   DEBUG_PRINT("Constructor wrapping %s: %p", env.classname, ptr);
   DEBUG_ASSERT(obj->InternalFieldCount() == 2);
   SET_CLASS_ID(env, PTR);
-  obj->SetInternalField(0, v8::External::Wrap((void *) & env));
-  obj->SetInternalField(1, v8::External::Wrap((void *) ptr));
+  obj->SetPointerInInternalField(0, (void *) & env);
+  obj->SetPointerInInternalField(1, (void *) ptr);
+  // obj->SetInternalField(0, v8::External::Wrap((void *) & env));
+  // obj->SetInternalField(1, v8::External::Wrap((void *) ptr));
 }
 
 /* Specializations for non-pointers reduce gcc warnings.
    Only specialize over primitive types. */
-template <> inline void wrapPointerInObject(int, Envelope &, Local<Object>) {
+template <> inline void wrapPointerInObject(int, Envelope &, Handle<Object>) {
   assert(0);
 }
-template <> inline void wrapPointerInObject(unsigned long long int, Envelope &, Local<Object>) {
+template <> inline void wrapPointerInObject(unsigned long long int, Envelope &, Handle<Object>) {
   assert(0);
 }
-template <> inline void wrapPointerInObject(unsigned int, Envelope &, Local<Object>) {
+template <> inline void wrapPointerInObject(unsigned int, Envelope &, Handle<Object>) {
   assert(0);
 }
 
@@ -155,7 +157,7 @@ TODO: Find a way to prevent wrapping a pointer as one
       type and unwrapping it as another.
 ******************************************************************/
 template <typename PTR> 
-PTR unwrapPointer(Local<Object> obj) {
+PTR unwrapPointer(Handle<Object> obj) {
   PTR ptr;
   DEBUG_ASSERT(obj->InternalFieldCount() == 2);
   ptr = static_cast<PTR>(obj->GetPointerFromInternalField(1));

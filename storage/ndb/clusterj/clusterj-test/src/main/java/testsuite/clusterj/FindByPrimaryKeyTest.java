@@ -67,5 +67,20 @@ public class FindByPrimaryKeyTest extends AbstractClusterJModelTest {
         }
         tx.commit();
         failOnError();
+        
+        // try to find a non-existing row with autocommit on
+        Employee e1 = session.find(Employee.class, NUMBER_TO_INSERT + 100);
+        if (e1 != null) {
+            error("Autocommit found non-existing row " + e1.getId());
+        }
+        
+        // try to find a non-existing row with autocommit off
+        tx = session.currentTransaction();
+        tx.begin();
+        Employee e2 = session.find(Employee.class, NUMBER_TO_INSERT + 100);
+        tx.commit();
+        if (e2 != null) {
+            error("Non-autocommit found non-existing row " + e2.getId());
+        }
     }
 }

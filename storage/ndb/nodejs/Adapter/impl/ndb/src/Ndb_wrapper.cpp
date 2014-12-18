@@ -29,7 +29,6 @@
 
 using namespace v8;
 
-Handle<Value> startTransaction(const Arguments &);
 Handle<Value> getAutoIncValue(const Arguments &);
 Handle<Value> closeNdb(const Arguments &);
 Handle<Value> getStatistics(const Arguments &);
@@ -38,7 +37,6 @@ Handle<Value> getConnectionStatistics(const Arguments &);
 class NdbEnvelopeClass : public Envelope {
 public:
   NdbEnvelopeClass() : Envelope("Ndb") {
-    DEFINE_JS_FUNCTION(Envelope::stencil, "startTransaction", startTransaction);
     DEFINE_JS_FUNCTION(Envelope::stencil, "getNdbError", getNdbError<Ndb>);
     DEFINE_JS_FUNCTION(Envelope::stencil, "close", closeNdb);
     DEFINE_JS_FUNCTION(Envelope::stencil, "getStatistics", getStatistics);
@@ -77,22 +75,6 @@ Handle<Value> create_ndb(const Arguments &args) {
   MCALL * mcallptr = new MCALL(& async_create_ndb, args);
   mcallptr->wrapReturnValueAs(& NdbEnvelope);
   mcallptr->runAsync();
-  return Undefined();
-}
-
-
-Handle<Value> startTransaction(const Arguments &args) {  
-  REQUIRE_ARGS_LENGTH(4);  
-  typedef NativeMethodCall_3_<NdbTransaction *, Ndb, 
-                              const NdbDictionary::Table *, 
-                              const char *, uint32_t> MCALL;
-
-  MCALL * mcallptr = new MCALL(& Ndb::startTransaction, args);
-  DEBUG_PRINT("startTransaction %p", mcallptr->native_obj);
-  mcallptr->wrapReturnValueAs(getNdbTransactionEnvelope());
-  mcallptr->errorHandler = getNdbErrorIfNull<NdbTransaction *, Ndb>;
-  mcallptr->runAsync();
-  
   return Undefined();
 }
 

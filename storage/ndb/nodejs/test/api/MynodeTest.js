@@ -18,6 +18,8 @@
  02110-1301  USA
  */
 
+"use strict";
+
 var doc_parser  = require(path.join(suites_dir, "lib", "doc_parser"));
 
 var t1 = new harness.ConcurrentTest("PublicFunctions");
@@ -27,6 +29,6 @@ t1.run = function() {
   var tester = new doc_parser.ClassTester(mynode, "Mynode");
   tester.test(functionList, t1);
   return true;
-}
+};
 
 module.exports.tests = [t1];

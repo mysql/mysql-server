@@ -30,6 +30,10 @@
 function MySQLTime() {
 }
 
+/* In general we would declare all properties in the constructor. 
+   Here, though, we put them in the prototype, so that only explicitly
+   set ones reach the code in NdbTypeEncoders.cpp
+*/
 MySQLTime.prototype = {
   sign     : +1,
   year     : 0,
@@ -39,7 +43,8 @@ MySQLTime.prototype = {
   minute   : 0,
   second   : 0,
   microsec : 0,
-  fsp      : 0   /* Fraction seconds precision, 0 - 6 */
+  fsp      : 0,    /* Fraction seconds precision, 0 - 6 */
+  valid    : true  /* If false, TypeEncoder will reject value */
 };
 
 MySQLTime.prototype.initializeFromTimeString = function(jsValue) {
@@ -70,6 +75,9 @@ MySQLTime.prototype.initializeFromTimeString = function(jsValue) {
     }
     else if(c === ':') {
       colons++;
+    } else if((cc > 64 && cc < 91) || (cc > 96 && cc < 123)) {
+      /* MySQL truncates a time string where it sees a letter */
+      pos = jsValue.length;
     }
     pos++;
   }

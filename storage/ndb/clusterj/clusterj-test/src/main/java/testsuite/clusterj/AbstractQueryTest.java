@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -161,6 +161,7 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
         public Query<?> query;
         public Set<Integer> expectedSet = new HashSet<Integer>();
         public List<Integer> expectedList = new ArrayList<Integer>();
+        public List<IdBase> resultList;
         public String expectedIndex;
         private Predicate equalOrIn;
         private Predicate extraIn;
@@ -288,7 +289,7 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
             }
             Set<Integer> actualSet = new HashSet<Integer>();
             List<Integer> actualList = new ArrayList<Integer>();
-            List<IdBase> resultList = (List<IdBase>) query.getResultList();
+            resultList = (List<IdBase>) query.getResultList();
             for (IdBase result: resultList) {
                 printResultInstance(result);
                 actualSet.add(result.getId());

@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights
+ Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -69,7 +69,7 @@ queryDomainTypeFunctions.execute = execute;
  * @return
  */
 var QueryField = function(queryDomainType, field) {
-  udebug.log_detail('QueryField<ctor>', field.fieldName);
+  if(udebug.is_detail()) if(udebug.is_debug()) udebug.log('QueryField<ctor>', field.fieldName);
 //  this.class = 'QueryField'; // useful for debugging
 //  this.fieldName = field.fieldName; // useful for debugging
   this.queryDomainType = queryDomainType;
@@ -152,7 +152,7 @@ var QueryDomainType = function(session, dbTableHandler, domainObject) {
       // field name is not a keyword
       queryDomainType[fieldName] = queryField;
     } else {
-      udebug.log_detail('QueryDomainType<ctor> field', fieldName, 'is a keyword.');
+      if(udebug.is_detail()) if(udebug.is_debug()) udebug.log('QueryDomainType<ctor> field', fieldName, 'is a keyword.');
       // field name is a keyword
       // allow e.g. qdt.where.id
       if (fieldName !== 'field') {
@@ -186,7 +186,7 @@ QueryDomainType.prototype.not = function(queryPredicate) {
  * @return
  */
 QueryParameter = function(queryDomainType, name) {
-  udebug.log_detail('QueryParameter<ctor>', name);
+  if(udebug.is_detail()) if(udebug.is_debug()) udebug.log('QueryParameter<ctor>', name);
   this.queryDomainType = queryDomainType;
   this.name = name;
 };
@@ -560,7 +560,7 @@ QueryAnd = function(left, right) {
   this.operator = ' AND ';
   this.operationCode = 1;
   this.predicates = [left, right];
-  udebug.log_detail('QueryAnd<ctor>', this);
+  if(udebug.is_detail()) if(udebug.is_debug()) udebug.log('QueryAnd<ctor>', this);
 };
 
 QueryAnd.prototype = new AbstractQueryNaryPredicate();
@@ -582,7 +582,7 @@ QueryOr = function(left, right) {
   this.operator = ' OR ';
   this.operationCode = 2;
   this.predicates = [left, right];
-  udebug.log_detail('QueryOr<ctor>', this);
+  if(udebug.is_detail()) if(udebug.is_debug()) udebug.log('QueryOr<ctor>', this);
 };
 
 QueryOr.prototype = new AbstractQueryNaryPredicate();
@@ -604,7 +604,7 @@ QueryNot = function(left) {
   this.operator = ' NOT ';
   this.operationCode = 3;
   this.predicates = [left];
-  udebug.log_detail('QueryNot<ctor>', this, 'parameter', left);
+  if(udebug.is_detail()) if(udebug.is_debug()) udebug.log('QueryNot<ctor>', this, 'parameter', left);
 };
 
 QueryNot.prototype = new AbstractQueryUnaryPredicate();
@@ -626,7 +626,7 @@ var CandidateIndex = function(dbTableHandler, indexNumber) {
   }
   this.isOrdered = this.dbIndexHandler.dbIndex.isOrdered;
   this.isUnique = this.dbIndexHandler.dbIndex.isUnique;
-  udebug.log_detail('CandidateIndex<ctor> for index', this.dbIndexHandler.dbIndex.name,
+  if(udebug.is_detail()) if(udebug.is_debug()) udebug.log('CandidateIndex<ctor> for index', this.dbIndexHandler.dbIndex.name,
       'isUnique', this.isUnique, 'isOrdered', this.isOrdered);
   this.indexColumns = this.dbIndexHandler.dbIndex.columnNumbers;
   var mask = new BitMask(dbTableHandler.dbTable.columns.length);
@@ -675,7 +675,7 @@ CandidateIndex.prototype.getKeys = function(predicate, parameterValues) {
   this.indexColumns.forEach(function(columnNumber) {
     result.push(parameterValues[getParameterNameForColumn(predicate, columnNumber)]);
   });
-  udebug.log_detail('CandidateIndex.getKeys parameters:', parameterValues,
+  if(udebug.is_detail()) if(udebug.is_debug()) udebug.log('CandidateIndex.getKeys parameters:', parameterValues,
                     'key:', result);
   return result;
 };
@@ -698,7 +698,7 @@ CandidateIndex.prototype.score = function(predicate) {
     i++;
   } while(point && i < this.indexColumns.length);
     
-  udebug.log_detail('score', this.dbIndexHandler.dbIndex.name, 'is', score);
+  if(udebug.is_detail()) if(udebug.is_debug()) udebug.log('score', this.dbIndexHandler.dbIndex.name, 'is', score);
   return score;
 };
 
@@ -717,7 +717,7 @@ CandidateIndex.prototype.score = function(predicate) {
  * 
  */
 var QueryHandler = function(dbTableHandler, predicate) {
-  udebug.log_detail('QueryHandler<ctor>', util.inspect(predicate));
+  if(udebug.is_detail()) if(udebug.is_debug()) udebug.log('QueryHandler<ctor>', util.inspect(predicate));
   this.dbTableHandler = dbTableHandler;
   this.predicate = predicate;
   var indexes = dbTableHandler.dbTable.indexes;
@@ -740,7 +740,6 @@ var QueryHandler = function(dbTableHandler, predicate) {
   var i, index;
   for (i = 1; i < indexes.length; ++i) {
     index = indexes[i];
-    udebug.log_detail('QueryHandler<ctor> for index', JSON.stringify(index));
     if (index.isUnique) {
       // create a candidate index for unique index
       uniqueCandidateIndex = new CandidateIndex(dbTableHandler, i);
