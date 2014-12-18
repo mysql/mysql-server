@@ -38,7 +38,7 @@ call mtr.add_suppression("ERROR 1118 \\(42000\\) at line 106: Row size too large
 # Stop the MTR default datadir, as it was started with default 16k page size
 --echo # Stop DB server which was created by MTR default
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 30
+--shutdown_server 
 --source include/wait_until_disconnected.inc
 
 # Set the bootstrap parameter page size 32k for datadir1
@@ -159,7 +159,7 @@ DROP DATABASE test;
 # Stop the server which was started with page size 32K
 --echo # Stop DB server which was created by MTR default
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 30
+--shutdown_server 
 --source include/wait_until_disconnected.inc
 
 # Remove residue files and data folder of page size 32K
@@ -222,7 +222,7 @@ DROP DATABASE test;
 # Stop the server which was started with page size 16K
 --echo # Stop DB server which was created by MTR default
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 30
+--shutdown_server 
 --source include/wait_until_disconnected.inc
 
 # Remove residue files and data folder of page size 16K
