@@ -6,7 +6,7 @@
 
 # Check the default value
 SET @orig = @@global.innodb_page_size;
---replace_result 16384 {valid_page_size} 8192 {valid_page_size} 4096 {valid_page_size}
+--replace_result 65536 {valid_page_size} 32768 {valid_page_size} 16384 {valid_page_size} 8192 {valid_page_size} 4096 {valid_page_size}
 SELECT @orig;
 
 # Confirm that we can not change the value

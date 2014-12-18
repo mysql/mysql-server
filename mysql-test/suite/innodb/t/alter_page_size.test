@@ -1,5 +1,6 @@
 
 --source include/have_innodb.inc
+--source include/have_innodb_zip.inc
 
 --echo #
 --echo # Bug #19077964 ASSERT PAGE_SIZE.EQUALS_TO SPACE_PAGE_SIZE
