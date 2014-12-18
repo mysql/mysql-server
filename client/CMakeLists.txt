@@ -20,6 +20,7 @@ INCLUDE_DIRECTORIES(
   ${ZLIB_INCLUDE_DIR}
   ${SSL_INCLUDE_DIRS}
   ${CMAKE_SOURCE_DIR}/libmysql
+  ${CMAKE_SOURCE_DIR}/libbinlogevents/include
   ${CMAKE_SOURCE_DIR}/regex
   ${CMAKE_SOURCE_DIR}/strings
   ${EDITLINE_INCLUDE_DIR}
@@ -77,7 +78,7 @@ ADD_COMPILE_FLAGS(
   mysqlbinlog.cc
   COMPILE_FLAGS "-I${CMAKE_SOURCE_DIR}/sql" "-DHAVE_REPLICATION"
 )
-TARGET_LINK_LIBRARIES(mysqlbinlog mysqlclient)
+TARGET_LINK_LIBRARIES(mysqlbinlog mysqlclient binlogevents_static)
 
 MYSQL_ADD_EXECUTABLE(mysqladmin mysqladmin.cc)
 TARGET_LINK_LIBRARIES(mysqladmin mysqlclient)

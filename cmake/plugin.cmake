@@ -59,6 +59,7 @@ MACRO(MYSQL_ADD_PLUGIN)
   # Add common include directories
   INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include 
                     ${CMAKE_SOURCE_DIR}/sql
+                    ${CMAKE_SOURCE_DIR}/libbinlogevents/include
                     ${CMAKE_SOURCE_DIR}/sql/auth
                     ${CMAKE_SOURCE_DIR}/regex
                     ${SSL_INCLUDE_DIRS}

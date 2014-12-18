@@ -44,8 +44,6 @@ typedef enum enum_mysql_timestamp_type timestamp_type;
 #define MY_TIME_T_MAX LONG_MAX
 #define MY_TIME_T_MIN LONG_MIN
 
-#define DATETIME_MAX_DECIMALS 6
-
 /* Time handling defaults */
 #define TIMESTAMP_MAX_YEAR 2038
 #define TIMESTAMP_MIN_YEAR (1900 + YY_PART_YEAR - 1)
@@ -146,15 +144,12 @@ void TIME_set_hhmmss(MYSQL_TIME *ltime, uint hhmmss);
 
 void my_datetime_packed_to_binary(longlong nr, uchar *ptr, uint dec);
 longlong my_datetime_packed_from_binary(const uchar *ptr, uint dec);
-uint my_datetime_binary_length(uint dec);
 
 void my_time_packed_to_binary(longlong nr, uchar *ptr, uint dec);
 longlong my_time_packed_from_binary(const uchar *ptr, uint dec);
-uint my_time_binary_length(uint dec);
 
 void my_timestamp_to_binary(const struct timeval *tm, uchar *ptr, uint dec);
 void my_timestamp_from_binary(struct timeval *tm, const uchar *ptr, uint dec);
-uint my_timestamp_binary_length(uint dec);
 
 my_bool str_to_time(const char *str, size_t length, MYSQL_TIME *l_time,
                     MYSQL_TIME_STATUS *status);
