@@ -1,0 +1,49 @@
+drop table if exists t1,t2,t3;
+drop view if exists v2,v3;
+CREATE TABLE t1 (pk INT PRIMARY KEY) ENGINE=MyISAM;
+CREATE TABLE t2 (
+f1 DATE,
+f2 VARCHAR(1024),
+f3 VARCHAR(10),
+f4 DATE,
+f5 VARCHAR(10),
+f6 VARCHAR(10),
+f7 VARCHAR(10),
+f8 DATETIME,
+f9 INT,
+f10 VARCHAR(1024),
+f11 VARCHAR(1024),
+f12 INT,
+f13 VARCHAR(1024)
+) ENGINE=MyISAM;
+CREATE OR REPLACE VIEW v2 AS SELECT * FROM t2;
+CREATE TABLE t3 (
+f1 VARCHAR(1024),
+f2 VARCHAR(1024),
+f3 DATETIME,
+f4 VARCHAR(10),
+f5 INT,
+f6 VARCHAR(10),
+f7 VARCHAR(1024),
+f8 VARCHAR(10),
+f9 INT,
+f10 DATE,
+f11 INT,
+f12 VARCHAR(1024),
+f13 VARCHAR(10),
+f14 DATE,
+f15 DATETIME
+) ENGINE=MyISAM;
+CREATE OR REPLACE ALGORITHM=TEMPTABLE VIEW v3 AS SELECT * FROM t3;
+INSERT INTO t3 VALUES  
+('FOO','foo','2000-08-04 00:00:00','one',1,'1','FOO','foo',1,'2004-05-09',1,'one','one','2001-12-07','2001-10-17 08:25:04'),  
+('BAR','bar','2001-01-01 04:52:37','two',2,'2','BAR','bar',2,'2008-01-01',2,'two','two','2006-06-19','2002-01-01 08:22:49');
+CREATE TABLE t4 (f1 VARCHAR(10), f2 INT) ENGINE=MyISAM;
+SELECT * FROM t1;
+pk
+SELECT non_existing FROM v2;
+ERROR 42S22: Unknown column 'non_existing' in 'field list'
+SELECT * FROM t1, v3, t4 WHERE v3.f1 = t4.f1 AND t4.f2 = 6 AND t1.pk = v3.f5;
+pk	f1	f2	f3	f4	f5	f6	f7	f8	f9	f10	f11	f12	f13	f14	f15	f1	f2
+drop table t1,t2,t3,t4;
+drop view v2,v3;

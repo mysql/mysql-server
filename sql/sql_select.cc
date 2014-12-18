@@ -9286,7 +9286,7 @@ bool generate_derived_keys_for_table(KEYUSE *keyuse, uint count, uint keys)
       else
       {
         /* Mark keyuses for this key to be excluded */
-        for (KEYUSE *curr=save_first_keyuse; curr < first_keyuse; curr++)
+        for (KEYUSE *curr=save_first_keyuse; curr < keyuse; curr++)
 	{
           curr->key= MAX_KEY;
         }
