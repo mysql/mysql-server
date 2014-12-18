@@ -7,6 +7,7 @@
 # with row_format=compact
 
 --source include/have_innodb.inc
+--source include/have_innodb_zip.inc
 --source include/have_debug.inc
 
 # Non-Compressed/Compact/Single-Tablespace

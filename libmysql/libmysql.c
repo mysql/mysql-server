@@ -768,6 +768,7 @@ mysql_list_tables(MYSQL *mysql, const char *wild)
 MYSQL_FIELD *cli_list_fields(MYSQL *mysql)
 {
   MYSQL_DATA *query;
+  MYSQL_FIELD *result;
 
   MYSQL_TRACE_STAGE(mysql, WAIT_FOR_FIELD_DEF);
   query= cli_read_rows(mysql,(MYSQL_FIELD*) 0, 
@@ -778,8 +779,10 @@ MYSQL_FIELD *cli_list_fields(MYSQL *mysql)
     return NULL;
 
   mysql->field_count= (uint) query->rows;
-  return unpack_fields(mysql, query->data,&mysql->field_alloc,
-		       mysql->field_count, 1, mysql->server_capabilities);
+  result= unpack_fields(mysql, query->data,&mysql->field_alloc,
+                        mysql->field_count, 1, mysql->server_capabilities);
+  free_rows(query);
+  return result;
 }
 
 

@@ -1,4 +1,5 @@
 -- source include/have_innodb.inc
+-- source include/have_innodb_zip.inc
 
 let $file_format=`select @@innodb_file_format`;
 let $file_per_table=`select @@innodb_file_per_table`;
