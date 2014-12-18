@@ -1,1 +1,2 @@
 --no-console --log-error=$MYSQLTEST_VARDIR/tmp/my_restart.err
+--innodb_buffer_pool_size=24M

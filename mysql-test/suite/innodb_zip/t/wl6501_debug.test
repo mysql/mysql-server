@@ -9,6 +9,7 @@
 # (Check for innodb_wl6501_crash_x.test)
 
 --source include/have_innodb.inc
+--source include/have_innodb_zip.inc
 --source include/have_debug.inc
 
 # Valgrind would complain about memory leaks when we crash on purpose.

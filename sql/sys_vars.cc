@@ -939,7 +939,7 @@ static bool on_session_track_gtids_update(sys_var *self, THD *thd,
 }
 
 static const char *session_track_gtids_names[]=
-  { "OFF", "OWN_GTID", "ALL_GTIDS" };
+  { "OFF", "OWN_GTID", "ALL_GTIDS", NullS };
 static Sys_var_enum Sys_session_track_gtids(
        "session_track_gtids",
        "Controls the amount of global transaction ids to be "
@@ -3416,7 +3416,8 @@ static Sys_var_enum Sys_updatable_views_with_limit(
 static Sys_var_mybool Sys_sync_frm(
        "sync_frm", "Sync .frm files to disk on creation",
        GLOBAL_VAR(opt_sync_frm), CMD_LINE(OPT_ARG),
-       DEFAULT(TRUE));
+       DEFAULT(TRUE), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+       ON_CHECK(0), ON_UPDATE(0), DEPRECATED(""));
 
 static char *system_time_zone_ptr;
 static Sys_var_charptr Sys_system_time_zone(

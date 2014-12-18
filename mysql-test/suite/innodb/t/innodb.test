@@ -17,6 +17,7 @@
 #######################################################################
 
 -- source include/have_innodb.inc
+-- source include/have_innodb_max_16k.inc
 
 let $MYSQLD_DATADIR= `select @@datadir`;
 # Save the original values of some variables in order to be able to
@@ -1390,7 +1391,7 @@ drop table t1;
 
 # Test for testable InnoDB status variables. This test
 # uses previous ones(pages_created, rows_deleted, ...).
---replace_result 511 {checked_valid} 512 {checked_valid} 1023 {checked_valid} 1024 {checked_valid} 2048 {checked_valid}
+--replace_result 1535 {checked_valid} 1536 {checked_valid} 3071 {checked_valid} 3072 {checked_valid} 6144 {checked_valid}
 SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_buffer_pool_pages_total';
 --replace_result 4096 {checked_valid} 8192 {checked_valid} 16384 {checked_valid}
 SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_page_size';
