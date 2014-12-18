@@ -1409,6 +1409,8 @@ my_bool cli_read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt)
     /* skip parameters data: we don't support it yet */
     if (!(cli_read_metadata(mysql, param_count, 7)))
       DBUG_RETURN(1);
+    /* free memory allocated by cli_read_metadata() for parameters data */
+    free_root(&mysql->field_alloc, MYF(0));
   }
 
   if (field_count != 0)
