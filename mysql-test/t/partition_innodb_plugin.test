@@ -1,5 +1,6 @@
 --source include/have_partition.inc
 --source include/have_innodb.inc
+--source include/have_innodb_zip.inc
 
 let $MYSQLD_DATADIR= `SELECT @@datadir`;
 

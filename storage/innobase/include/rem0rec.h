@@ -1090,7 +1090,7 @@ are given in one byte (resp. two byte) format. */
 
 /* The data size of record must be smaller than this because we reserve
 two upmost bits in a two byte offset for special purposes */
-#define REC_MAX_DATA_SIZE	(16 * 1024)
+#define REC_MAX_DATA_SIZE	16384
 
 #ifndef UNIV_NONINL
 #include "rem0rec.ic"

@@ -10,6 +10,7 @@
 # the size of the table when compression level=9
 #*******************************************************************
 --source include/have_innodb.inc
+--source include/have_innodb_zip.inc
 
 USE test;
 DROP TABLE IF EXISTS tab5;

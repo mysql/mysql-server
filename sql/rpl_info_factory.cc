@@ -391,8 +391,6 @@ Slave_worker *Rpl_info_factory::create_worker(uint rli_option, uint worker_id,
 
   DBUG_ENTER("Rpl_info_factory::create_worker");
 
-  bool to_decide_repo= msr_map.get_num_instances() <= 1;
-
   /*
     Define the name of the worker and its repository.
   */
@@ -418,31 +416,30 @@ Slave_worker *Rpl_info_factory::create_worker(uint rli_option, uint worker_id,
   if(init_repositories(worker_table_data, worker_file_data, rli_option,
                        worker_id + 1, &handler_src, &handler_dest, &msg))
     goto err;
-
-  if (to_decide_repo)
-  {
-    if (decide_repository(worker, rli_option, &handler_src, &handler_dest, &msg))
-      goto err;
-
-    if (worker->rli_init_info(is_gaps_collecting_phase))
-    {
-      msg= "Failed to initialize the worker info structure";
-      goto err;
-    }
-
-    if (rli->info_thd && rli->info_thd->is_error())
-    {
-      msg= "Failed to initialize worker info table";
-      goto err;
-    }
-  }
-  else
-  {
-    delete handler_src;
-    worker->set_rpl_info_handler(handler_dest);
+  /*
+    Preparing the being set up handler with search keys early.
+    The file repo type handler can't be manupulated this way and it does
+    not have to.
+  */
+  if (handler_dest->get_rpl_info_type() == INFO_REPOSITORY_TABLE)
     worker->set_info_search_keys(handler_dest);
+
+  DBUG_ASSERT(msr_map.get_num_instances() <= 1 ||
+              (rli_option == 1 && handler_dest->get_rpl_info_type() == 1));
+  if (decide_repository(worker, rli_option, &handler_src, &handler_dest, &msg))
+    goto err;
+
+  if (worker->rli_init_info(is_gaps_collecting_phase))
+  {
+    msg= "Failed to initialize the worker info structure";
+    goto err;
   }
 
+  if (rli->info_thd && rli->info_thd->is_error())
+  {
+    msg= "Failed to initialize worker info table";
+    goto err;
+  }
   DBUG_RETURN(worker);
 
 err:
@@ -568,7 +565,7 @@ bool Rpl_info_factory::decide_repository(Rpl_info *info, uint option,
               (*handler_src) != (*handler_dest));
 
   return_check_src= check_src_repository(info, option, handler_src);
-  return_check_dst= (*handler_dest)->do_check_info(info->get_internal_id()); // approx via scan, not field_values!
+  return_check_dst= (*handler_dest)->do_check_info(info->get_internal_id()); // approx via scan, not field_values! Todo: reconsider any need for that at least in the Worker case
 
   if (return_check_src == ERROR_CHECKING_REPOSITORY ||
       return_check_dst == ERROR_CHECKING_REPOSITORY)
