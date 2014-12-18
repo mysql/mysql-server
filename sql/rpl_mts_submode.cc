@@ -531,14 +531,14 @@ Mts_submode_logical_clock::schedule_next_event(Relay_log_info* rli,
   */
   switch (ev->get_type_code())
   {
-  case QUERY_EVENT:
+  case binary_log::QUERY_EVENT:
     ptr_group->sequence_number= sequence_number=
       static_cast<Query_log_event*>(ev)->sequence_number;
     ptr_group->last_committed= last_committed=
       static_cast<Query_log_event*>(ev)->last_committed;
     break;
 
-  case GTID_LOG_EVENT:
+  case binary_log::GTID_LOG_EVENT:
     // TODO: control continuity
     ptr_group->sequence_number= sequence_number=
       static_cast<Gtid_log_event*>(ev)->sequence_number;
@@ -861,14 +861,14 @@ Mts_submode_logical_clock::get_least_occupied_worker(Relay_log_info *rli,
   if (rli->last_assigned_worker)
   {
     worker= rli->last_assigned_worker;
-    DBUG_ASSERT(ev->get_type_code() != USER_VAR_EVENT || worker->id == 0 ||
+    DBUG_ASSERT(ev->get_type_code() != binary_log::USER_VAR_EVENT || worker->id == 0 ||
                 rli->curr_group_seen_begin || rli->curr_group_seen_gtid);
   }
   else
   {
     worker= get_free_worker(rli);
 
-    DBUG_ASSERT(ev->get_type_code() != USER_VAR_EVENT ||
+    DBUG_ASSERT(ev->get_type_code() != binary_log::USER_VAR_EVENT ||
                 rli->curr_group_seen_begin || rli->curr_group_seen_gtid);
 
     if (worker == NULL)
@@ -909,7 +909,7 @@ Mts_submode_logical_clock::get_least_occupied_worker(Relay_log_info *rli,
   // stopped.
   DBUG_ASSERT(worker != NULL || thd->killed);
   /* The master my have send  db partition info. make sure we never use them*/
-  if (ev->get_type_code() == QUERY_EVENT)
+  if (ev->get_type_code() == binary_log::QUERY_EVENT)
     static_cast<Query_log_event*>(ev)->mts_accessed_dbs= 0;
 
   DBUG_RETURN(worker);

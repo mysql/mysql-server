@@ -61,6 +61,7 @@
 #include <algorithm>
 using std::max;
 using std::min;
+using binary_log::checksum_crc32;
 
 #define ER_THD_OR_DEFAULT(thd,X) ((thd) ? ER_THD(thd, X) : ER_DEFAULT(X))
 
@@ -9473,7 +9474,7 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
               if (!(t->s->db_create_options & HA_OPTION_PACK_RECORD))
                 t->record[0][0] |= 1;
 
-	      row_crc= my_checksum(row_crc, t->record[0], t->s->null_bytes);
+	      row_crc= checksum_crc32(row_crc, t->record[0], t->s->null_bytes);
             }
 
 	    for (uint i= 0; i < t->s->fields; i++ )
@@ -9493,12 +9494,12 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
                 {
                   String tmp;
                   f->val_str(&tmp);
-                  row_crc= my_checksum(row_crc, (uchar*) tmp.ptr(),
+                  row_crc= checksum_crc32(row_crc, (uchar*) tmp.ptr(),
                            tmp.length());
                   break;
                 }
                 default:
-                  row_crc= my_checksum(row_crc, f->ptr, f->pack_length());
+                  row_crc= checksum_crc32(row_crc, f->ptr, f->pack_length());
                   break;
 	      }
 	    }
