@@ -6963,7 +6963,8 @@ restart_cluster_failure:
         { C_STRING_WITH_LEN("mysqld startup")    },
         { C_STRING_WITH_LEN("cluster disconnect")}
       };
-    int ret = inj->record_incident(thd, INCIDENT_LOST_EVENTS,
+    int ret = inj->record_incident(thd,
+                                   binary_log::Incident_event::INCIDENT_LOST_EVENTS,
                                    msg[incident_id]);
     assert(ret == 0); NDB_IGNORE_VALUE(ret);
     do_incident = false; // Don't report incident again, unless we get started
@@ -7368,7 +7369,9 @@ restart_cluster_failure:
                        ("Detected missing data in GCI %llu, "
                         "inserting GAP event", gci));
             LEX_STRING const msg= { C_STRING_WITH_LEN(errmsg) };
-            inj->record_incident(thd, INCIDENT_LOST_EVENTS, msg);
+            inj->record_incident(thd,
+                                 binary_log::Incident_event::INCIDENT_LOST_EVENTS,
+                                 msg);
           }
           while ((gci_op= i_ndb->getGCIEventOperations(&iter, &event_types))
                  != NULL)
@@ -7618,7 +7621,9 @@ restart_cluster_failure:
                    ("Detected missing data in GCI %llu, "
                     "inserting GAP event", gci));
         LEX_STRING const msg= { C_STRING_WITH_LEN(errmsg) };
-        inj->record_incident(thd, INCIDENT_LOST_EVENTS, msg);
+        inj->record_incident(thd,
+                             binary_log::Incident_event::INCIDENT_LOST_EVENTS,
+                             msg);
       }
     }
 
