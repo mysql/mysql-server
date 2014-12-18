@@ -31,11 +31,15 @@ var Sqlstates = {
   "22000" : "Data error",
   "22001" : "String too long",
   "22003" : "Numeric value out of range",
-  "22008" : "Invalid datetime",
+  "22007" : "Invalid datetime",
   
   // Constraint violations
   // 23000 includes both duplicate primary key and duplicate unique key
   "23000" : "Integrity Constraint Violation",
+
+  // 0Fxxx "Locator Exception" SQLStates relate to BLOB values
+  // (which must represented in JavaScript as Node Buffers)
+  "0F001" : "Invalid BLOB value",
 
   // misc. errors
   "25000" : "Invalid Transaction State",  

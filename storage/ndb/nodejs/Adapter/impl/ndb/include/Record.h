@@ -38,12 +38,17 @@ private:
          size_of_nullmap;
   NdbRecord * ndb_record;
   NdbDictionary::RecordSpecification * const specs;
+  union {
+    unsigned char array[4];
+    Uint32 value;
+  } pkColumnMask, allColumnMask;
+  bool isPrimaryKey;
 
   void build_null_bitmap();
   void pad_offset_for_alignment();
 
 public:
-  Record(NdbDictionary::Dictionary *, int);
+  Record(NdbDictionary::Dictionary *, int, bool isPK=false);
   ~Record();
   void addColumn(const NdbDictionary::Column *);
   bool completeTableRecord(const NdbDictionary::Table *);
@@ -51,6 +56,8 @@ public:
   
   const NdbRecord * getNdbRecord() const;
   Uint32 getNoOfColumns() const;
+  Uint32 getPkColumnMask() const;
+  Uint32 getAllColumnMask() const;
   size_t getColumnOffset(int idx) const;
   const NdbDictionary::Column * getColumn(int idx) const;
   size_t getBufferSize() const;
@@ -58,6 +65,7 @@ public:
   void setNull(int idx, char *data) const;
   void setNotNull(int idx, char *data) const;
   Uint32 isNull(int idx, char * data) const;
+  bool isPK() const;
 };
 
 
@@ -102,5 +110,18 @@ inline Uint32 Record::isNull(int idx, char * data) const {
   }
   else return 0;
 }
+
+inline bool Record::isPK() const {
+  return isPrimaryKey;
+}
+
+inline Uint32 Record::getPkColumnMask() const {
+  return pkColumnMask.value;
+}
+
+inline Uint32 Record::getAllColumnMask() const {
+  return allColumnMask.value;
+}
+
 
 #endif

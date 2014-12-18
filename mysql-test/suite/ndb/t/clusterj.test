@@ -42,6 +42,7 @@ DROP TABLE cassandra_string;
 DROP TABLE charsetbig5;
 DROP TABLE charsetlatin1;
 DROP TABLE charsetsjis;
+DROP TABLE charsetswedishutf8;
 DROP TABLE charsetutf8;
 DROP TABLE conversation_summary;
 DROP TABLE datetimetypes;

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -543,12 +543,14 @@ public class NdbRecordSmartValueHandlerImpl implements SmartValueHandler {
     public void setLobBytes(int fieldNumber, byte[] value) {
         int columnId = fieldNumberToColumnNumberMap[fieldNumber];
         NdbRecordBlobImpl blob = operation.getBlobHandle(columnId);
+        operation.columnSet(columnId);
         blob.setData(value);
     }
 
     public void setLobString(int fieldNumber, String value) {
         int columnId = fieldNumberToColumnNumberMap[fieldNumber];
         NdbRecordBlobImpl blob = operation.getBlobHandle(columnId);
+        operation.columnSet(columnId);
         blob.setData(value);
     }
 

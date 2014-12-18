@@ -543,7 +543,7 @@ class ClusterTransactionImpl implements ClusterTransaction {
     private void handlePendingPostExecuteCallbacks() {
         // if any pending postExecuteCallbacks, flush via executeNoCommit
         if (!postExecuteCallbacks.isEmpty()) {
-            executeNoCommit();
+            executeNoCommit(false, true);
         }
     }
 

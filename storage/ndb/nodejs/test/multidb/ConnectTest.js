@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2013, Oracle and/or its affiliates. All rights
+ Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -133,6 +133,7 @@ t1.run = function() {
     if (err) {
       testCase.appendErrorMessage('t1 error on openSession with mysqljs_multidb_test1.tbl1');
     } else {
+      testCase.session = session;
       verifyTableMetadataCached(testCase, session.sessionFactory, 'mysqljs_multidb_test1.tbl1');
     }
     testCase.failOnError();
@@ -159,6 +160,7 @@ t3.run = function() {
     if (err) {
       testCase.appendErrorMessage('t3 error on openSession with mysqljs_multidb_test3.tbl3');
     } else {
+      testCase.session = session;
       verifyConstructorMetadataCached(testCase, session.sessionFactory, 'mysqljs_multidb_test3.tbl3', tbl3);
     }
     testCase.failOnError();
@@ -185,6 +187,7 @@ t5.run = function() {
     if (err) {
       testCase.appendErrorMessage('t5 error on openSession with tbl5 ' + err);
     } else {
+      testCase.session = session;
       verifyTableMetadataCached(testCase, session.sessionFactory, 'mysqljs_multidb_test5.tbl5');
     }
     testCase.failOnError();
@@ -211,6 +214,7 @@ t7.run = function() {
     if (err) {
       testCase.appendErrorMessage('t7 error on openSession with tbl7 ' + err);
     } else {
+      testCase.session = session;
       verifyConstructorMetadataCached(testCase, session.sessionFactory, 'mysqljs_multidb_test7.tbl7', tbl7);
     }
     testCase.failOnError();

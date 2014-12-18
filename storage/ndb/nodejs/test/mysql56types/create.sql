@@ -19,5 +19,13 @@ create table if not exists mysql56times (
   f timestamp(6) null
 );
 
+create table if not exists mysql56stringsWithText (
+  id int not null PRIMARY KEY,
+  str_var_utf16le VARCHAR(20) character set utf16le,
+  str_var_utf8mb4 VARCHAR(20) character set utf8mb4,
+  utf16le_text TEXT character set utf16le
+);
+
 delete from mysql56strings;
 delete from mysql56times;
+delete from mysql56stringsWithText;

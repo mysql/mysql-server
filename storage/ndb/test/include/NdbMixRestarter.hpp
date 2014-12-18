@@ -25,11 +25,10 @@
 #include "NdbRestarter.hpp"
 #include "NDBT_Test.hpp"
 
-#define NMR_SR                       "SR"
-#define NMR_SR_THREADS               "SR_ThreadCount"
-#define NMR_SR_THREADS_STOPPED       "SR_ThreadsStoppedCount"
-#define NMR_SR_VALIDATE_THREADS      "SR_ValidateThreadCount"
-#define NMR_SR_VALIDATE_THREADS_DONE "SR_ValidateThreadsDoneCount"
+#define NMR_SR                         "SR"
+#define NMR_SR_THREADS_ACTIVE          "SR_ThreadsActiveCount"
+#define NMR_SR_VALIDATE_THREADS        "SR_ValidateThreadCount"
+#define NMR_SR_VALIDATE_THREADS_ACTIVE "SR_ValidateThreadsActiveCount"
 
 class NdbMixRestarter : public NdbRestarter 
 {

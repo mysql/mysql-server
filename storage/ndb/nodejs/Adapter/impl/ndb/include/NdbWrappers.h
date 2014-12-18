@@ -24,17 +24,17 @@
 #include "Record.h"
 #include "JsWrapper.h"
 
-class PendingOperationSet;
+class DBOperationSet;
 
 Handle<Value> Record_Wrapper(const Record *);
 Handle<Value> Ndb_Wrapper(Ndb *);
 Handle<Value> NdbError_Wrapper(const NdbError &);
 Handle<Value> NdbScanOperation_Wrapper(NdbScanOperation *);
-Handle<Value> PendingOperationSet_Wrapper(PendingOperationSet *);
+Handle<Value> DBOperationSet_Wrapper(DBOperationSet *);
+Handle<Value> DBOperationSet_Recycle(Handle<Object>, DBOperationSet *);
 
 /* Not actual wrapper functions, but functions that provide an envelope */
 
-Envelope * getNdbTransactionEnvelope(void);
 Envelope * getNdbInterpretedCodeEnvelope(void);
 Envelope * getConstNdbInterpretedCodeEnvelope(void);
 Envelope * getNdbDictTableEnvelope(void);

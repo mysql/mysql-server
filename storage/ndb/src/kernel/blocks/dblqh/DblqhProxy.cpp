@@ -1488,8 +1488,25 @@ DblqhProxy::sendLQH_TRANSCONF(Signal* signal, Uint32 ssId)
 {
   Ss_LQH_TRANSREQ& ss = ssFind<Ss_LQH_TRANSREQ>(ssId);
 
-  if (ss.m_conf.operationStatus != LqhTransConf::LastTransConf) {
+  if (ss.m_conf.operationStatus == LqhTransConf::LastTransConf) 
+  {
     jam();
+
+    /**
+     * Maintain running max instance id, based on max seen 
+     * in this pass, which is only sent in LastTransConf 
+     * LQH_TRANSREQ from each instance.
+     */
+    if (ss.m_conf.maxInstanceId > ss.m_maxInstanceId)
+    {
+      ndbrequire(ss.m_conf.maxInstanceId < NDBMT_MAX_BLOCK_INSTANCES);
+      ss.m_maxInstanceId = ss.m_conf.maxInstanceId;
+    }
+  }
+  else
+  {
+    jam();
+    /* Forward conf to the requesting TC, and wait for more */
     LqhTransConf* conf = (LqhTransConf*)signal->getDataPtrSend();
     *conf = ss.m_conf;
     conf->tcRef = ss.m_req.senderData;
@@ -1500,10 +1517,6 @@ DblqhProxy::sendLQH_TRANSCONF(Signal* signal, Uint32 ssId)
     skipConf(ss);
   }
 
-  if (ss.m_conf.maxInstanceId > ss.m_maxInstanceId)
-  {
-    ss.m_maxInstanceId = ss.m_conf.maxInstanceId;
-  }
   if (!lastReply(ss))
     return;
 

@@ -29,6 +29,17 @@ TableMapping(tableName_or_tableMapping);
 
  
 /**
+ * Projection()
+ * IMMEDIATE
+ * CONSTRUCTOR
+ *
+ * The Projection constructor is visible as a top-level function.
+ * Refer to the Projection documentation for details.
+ */
+Projection(constructor);
+
+ 
+/**
  * connect()
  * ASYNC
  * 

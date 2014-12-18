@@ -115,7 +115,7 @@ Idle.prototype.rollback = function(session, user_arguments) {
 };
 
 Idle.prototype.isActive = function() {
-  udebug.log_detail('Idle isActive');
+  if(udebug.is_detail()) if(udebug.is_debug()) udebug.log('Idle isActive');
   return false;
 };
 
@@ -150,7 +150,7 @@ Active.prototype.rollback = function(session, user_arguments) {
 };
 
 Active.prototype.isActive = function() {
-  udebug.log_detail('Active isActive');
+  if(udebug.is_detail()) if(udebug.is_debug()) udebug.log('Active isActive');
   return true;
 };
 
@@ -186,7 +186,7 @@ RollbackOnly.prototype.rollback = function(session, user_arguments) {
 };
 
 RollbackOnly.prototype.isActive = function() {
-  udebug.log_detail('RollbackOnly isActive');
+  if(udebug.is_detail()) if(udebug.is_debug()) udebug.log('RollbackOnly isActive');
   return true;
 };
 
@@ -225,7 +225,7 @@ Transaction.prototype.rollback = function() {
 };
 
 Transaction.prototype.isActive = function() {
-  udebug.log_detail('Transaction.isActive');
+  if(udebug.is_detail()) if(udebug.is_debug()) udebug.log('Transaction.isActive');
   return this.state.isActive();
 };
 

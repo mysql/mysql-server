@@ -101,7 +101,10 @@ FastScheduler::doJob()
   register Uint32 tHighPrio= globalData.highestAvailablePrio;
   do{
     while ((tHighPrio < LEVEL_IDLE) && (loopCount < TloopMax)) {
-      // signal->garbage_register(); 
+#ifdef VM_TRACE
+      /* Find reading / propagation of junk */
+      signal->garbage_register();
+#endif 
       // To ensure we find bugs quickly
       register Uint32 gsnbnr = theJobBuffers[tHighPrio].retrieve(signal);
       // also strip any instance bits since this is non-MT code

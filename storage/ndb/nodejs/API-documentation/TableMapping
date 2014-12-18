@@ -6,6 +6,8 @@
  * A *default* TableMapping is one where each column in a table is mapped
  * to a field of the same name. 
  *
+ * Errors that are detected during construction of a TableMapping, including
+ * field mapping functions, are reported via the error field. 
  */
 TableMapping = {
   table                  :  "" ,  /** Table name @type String */
@@ -18,11 +20,12 @@ TableMapping = {
                                       @property mapAllColumns @type Boolean 
                                       @default true 
                                   */
-  fields                 : null   /** Holds an array of FieldMapping objects.
+  fields                 : null,  /** Holds an array of FieldMapping objects.
                                       Can also be called "field",
                                       and can also hold a single FieldMapping. 
-                                      @property fields @type Array 
-                                   */
+                                      @property fields @type Array */
+  error                  : ''     /** Reports errors during construction */ 
+ 
 };
 
 

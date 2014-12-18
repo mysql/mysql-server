@@ -138,7 +138,17 @@ sub fix_socket {
   my ($self, $config, $group_name, $group)= @_;
   # Put socket file in tmpdir
   my $dir= $self->{ARGS}->{tmpdir};
-  return "$dir/$group_name.sock";
+  my $socket = "$dir/$group_name.sock";
+ 
+  # Make sure the socket path does not become longer then the path
+  # which mtr uses to test if a new tmpdir should be created
+  if (length($socket) > length("$dir/mysql_testsocket.sock"))
+  {
+    # Too long socket path, generate shorter based on port
+    my $port = $group->value('port');
+    $socket = "$dir/mysqld-$port.sock"; 
+  }
+  return $socket;
 }
 
 sub fix_tmpdir {

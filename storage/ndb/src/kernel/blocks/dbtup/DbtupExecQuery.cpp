@@ -4355,12 +4355,13 @@ Dbtup::nr_update_gci(Uint32 fragPtrI, const Local_key* key, Uint32 gci)
     Local_key tmp = *key;
     PagePtr pagePtr;
 
-    Uint32 err;
-    pagePtr.i = allocFragPage(&err, tablePtr.p, fragPtr.p, tmp.m_page_no);
+    pagePtr.i = getRealpidCheck(fragPtr.p, tmp.m_page_no);
     if (unlikely(pagePtr.i == RNIL))
     {
-      return -(int)err;
+      jam();
+      return 0;
     }
+
     c_page_pool.getPtr(pagePtr);
     
     Tuple_header* ptr = (Tuple_header*)
@@ -4386,12 +4387,15 @@ Dbtup::nr_read_pk(Uint32 fragPtrI,
 
   Local_key tmp = *key;
   
-  Uint32 err;
   PagePtr pagePtr;
-  pagePtr.i = allocFragPage(&err, tablePtr.p, fragPtr.p, tmp.m_page_no);
+  pagePtr.i = getRealpidCheck(fragPtr.p, tmp.m_page_no);
   if (unlikely(pagePtr.i == RNIL))
-    return -(int)err;
-  
+  {
+    jam();
+    dst[0] = 0;
+    return 0;
+  }
+
   c_page_pool.getPtr(pagePtr);
   KeyReqStruct req_struct(this);
   Uint32* ptr= ((Fix_page*)pagePtr.p)->get_ptr(key->m_page_idx, 0);
