@@ -9570,7 +9570,6 @@ Field_bit::unpack(uchar *to, const uchar *from, uint param_data,
     value[new_len - len]= value[new_len - len] & ((1U << from_bit_len) - 1);
   bitmap_set_bit(table->write_set,field_index);
   store(value, new_len, system_charset_info);
-  my_afree(value);
   DBUG_RETURN(from + len);
 }
 

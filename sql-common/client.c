@@ -3256,7 +3256,6 @@ static int send_change_user_packet(MCPVIO_EXT *mpvio,
                       (uchar*)buff, (ulong)(end-buff), 1);
 
 error:
-  my_afree(buff);
   return res;
 }
 
@@ -3608,11 +3607,9 @@ static int send_client_reply_packet(MCPVIO_EXT *mpvio,
     goto error;
   }
   MYSQL_TRACE(PACKET_SENT, mysql, (end-buff));
-  my_afree(buff);
   return 0;
-  
+
 error:
-  my_afree(buff);
   return 1;
 }
 

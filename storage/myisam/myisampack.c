@@ -303,7 +303,7 @@ static void print_version(void)
 static void usage(void)
 {
   print_version();
-  puts("Copyright 2002-2008 MySQL AB, 2008 Sun Microsystems, Inc.");
+  puts("Copyright 2002-2014 Oracle and/or its affiliates.");
   puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,");
   puts("and you are welcome to modify and redistribute it under the GPL license\n");
 
@@ -1179,7 +1179,6 @@ static int get_statistic(PACK_MRG_INFO *mrg,HUFF_COUNTS *huff_counts)
 
   mrg->records=record_count;
   mrg->max_blob_length=max_blob_length;
-  my_afree((uchar*) record);
   DBUG_RETURN(error != HA_ERR_END_OF_FILE);
 }
 
@@ -2202,7 +2201,6 @@ static my_off_t write_huff_tree(HUFF_TREE *huff_tree, uint trees)
     {				/* This should be impossible */
       (void) fprintf(stderr, "Tree offset got too big: %d, aborted\n",
                    huff_tree->max_offset);
-      my_afree((uchar*) packed_tree);
       return 0;
     }
 
@@ -2374,7 +2372,6 @@ static my_off_t write_huff_tree(HUFF_TREE *huff_tree, uint trees)
   DBUG_PRINT("info", (" "));
   if (verbose >= 2)
     printf("\n");
-  my_afree((uchar*) packed_tree);
   if (errors)
   {
     (void) fprintf(stderr, "Error: Generated decode trees are corrupt. Stop.\n");
@@ -2815,7 +2812,6 @@ static int compress_isam_file(PACK_MRG_INFO *mrg, HUFF_COUNTS *huff_counts)
   if (verbose >= 2)
     printf("wrote %s records.\n", llstr((longlong) record_count, llbuf));
 
-  my_afree((uchar*) record);
   mrg->ref_length=max_pack_length;
   mrg->min_pack_length=max_record_length ? min_record_length : 0;
   mrg->max_pack_length=max_record_length;

@@ -658,7 +658,6 @@ static bool send_server_handshake_packet(MPVIO_EXT *mpvio,
 
   int res= my_net_write(mpvio->net, (uchar*) buff, (size_t) (end - buff + 1)) ||
            net_flush(mpvio->net);
-  my_afree(buff);
   DBUG_RETURN (res);
 }
 

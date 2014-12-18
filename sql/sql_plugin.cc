@@ -1034,8 +1034,6 @@ static void reap_plugins(void)
     plugin_del(plugin);
 
   mysql_mutex_unlock(&LOCK_plugin_delete);
-
-  my_afree(reap);
 }
 
 static void intern_plugin_unlock(LEX *lex, plugin_ref plugin)
@@ -1475,7 +1473,6 @@ int plugin_init(int *argc, char **argv, int flags)
   }
 
   mysql_mutex_unlock(&LOCK_plugin);
-  my_afree(reap);
   if (reaped_mandatory_plugin)
     goto err;
 
@@ -1835,8 +1832,6 @@ void plugin_shutdown(void)
     initialized= 0;
     mysql_mutex_destroy(&LOCK_plugin);
     mysql_mutex_destroy(&LOCK_plugin_delete);
-
-    my_afree(plugins);
   }
 
   /* Dispose of the memory */
@@ -1854,7 +1849,6 @@ void plugin_shutdown(void)
       dl[i]= plugin_dl_array->at(i);
     for (i= 0; i < plugin_dl_array->size(); i++)
       free_plugin_mem(dl[i]);
-    my_afree(dl);
     delete plugin_dl_array;
     plugin_dl_array= NULL;
   }
@@ -2223,10 +2217,8 @@ bool plugin_foreach_with_mask(THD *thd, plugin_foreach_func *func,
         goto err;
   }
 
-  my_afree(plugins);
   DBUG_RETURN(FALSE);
 err:
-  my_afree(plugins);
   DBUG_RETURN(TRUE);
 }
 
@@ -2633,7 +2625,6 @@ static st_bookmark *find_bookmark(const char *plugin, const char *name,
   result= (st_bookmark*) my_hash_search(&bookmark_hash,
                                         (const uchar*) varname, length - 1);
 
-  my_afree(varname);
   return result;
 }
 
@@ -2755,7 +2746,6 @@ static st_bookmark *register_var(const char *plugin, const char *name,
       DBUG_ASSERT(0);
     }
   }
-  my_afree(varname);
   return result;
 }
 
