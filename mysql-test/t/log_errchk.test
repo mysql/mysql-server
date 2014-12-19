@@ -32,7 +32,7 @@ call mtr.add_suppression("Could not use");
 --echo #         and slow query log file.
 # Restart server with fifo file as general log file.
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 60
+--shutdown_server 
 --source include/wait_until_disconnected.inc
 --enable_reconnect
 # Write file to make mysql-test-run.pl start up the server again
