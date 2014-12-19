@@ -241,11 +241,6 @@ INSERT INTO global_suppressions VALUES
  ("Changed limits: table_open_cache: *"),
  ("Could not increase number of max_open_files to more than *"),
 
- /*
-   Warning message introduced by wl#7706
- */
- ("CA certificate .* is self signed"),
-
  ("THE_LAST_SUPPRESSION")||
 
 

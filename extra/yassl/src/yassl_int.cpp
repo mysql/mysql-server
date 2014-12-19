@@ -1894,7 +1894,7 @@ extern "C" char *yassl_mysql_strdup(const char *from, int)
 
 extern "C"
 {
-int
+static int
 default_password_callback(char * buffer, int size_arg, int rwflag,
                           void * /* unused: callback_data */)
 {
