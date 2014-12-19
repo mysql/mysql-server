@@ -1079,6 +1079,9 @@ inline LEX_STRING *hton_name(const handlerton *hton)
 #define HTON_NO_PARTITION            (1 << 8) //You can not partition these tables
 #define HTON_EXTENDED_KEYS           (1 << 9) //supports extended keys
 
+// MySQL compatibility. Unused.
+#define HTON_SUPPORTS_FOREIGN_KEYS   (1 << 0) //Foreign key constraint supported.
+
 class Ha_trx_info;
 
 struct THD_TRANS

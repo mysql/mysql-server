@@ -28,10 +28,12 @@ ENDIF()
 
 # We use the LOCATION target property (CMP0026)
 # and get_target_property() for non-existent targets (CMP0045)
+# and INSTALL_NAME_DIR (CMP0042)
 IF(CMAKE_VERSION VERSION_EQUAL "3.0.0" OR
    CMAKE_VERSION VERSION_GREATER "3.0.0")
  CMAKE_POLICY(SET CMP0026 OLD)
  CMAKE_POLICY(SET CMP0045 OLD)
+ CMAKE_POLICY(SET CMP0042 OLD)
 ENDIF()
 
 MESSAGE(STATUS "Running cmake version ${CMAKE_VERSION}")
@@ -108,35 +110,14 @@ FOREACH(_base
 ENDFOREACH()
 
 
-
 # Following autotools tradition, add preprocessor definitions
 # specified in environment variable CPPFLAGS
 IF(DEFINED ENV{CPPFLAGS})
   ADD_DEFINITIONS($ENV{CPPFLAGS})
 ENDIF()
 
-#
-# Control aspects of the development environment which are
-# specific to MySQL maintainers and developers.
-#
-INCLUDE(maintainer)
-
 SET(MYSQL_MAINTAINER_MODE "AUTO" CACHE STRING "MySQL maintainer-specific development environment. Options are: ON OFF AUTO.")
 MARK_AS_ADVANCED(MYSQL_MAINTAINER_MODE)
-
-# Whether the maintainer mode compiler options should be enabled.
-IF(CMAKE_C_COMPILER_ID MATCHES "GNU")
-  SET_MYSQL_MAINTAINER_GNU_C_OPTIONS()
-ENDIF()
-IF(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
-  SET_MYSQL_MAINTAINER_GNU_CXX_OPTIONS()
-ENDIF()
-IF(CMAKE_C_COMPILER_ID MATCHES "Intel")
-  SET_MYSQL_MAINTAINER_INTEL_C_OPTIONS()
-ENDIF()
-IF(CMAKE_CXX_COMPILER_ID MATCHES "Intel")
-  SET_MYSQL_MAINTAINER_INTEL_CXX_OPTIONS()
-ENDIF()
 
 # Packaging
 IF (NOT CPACK_GENERATOR)
@@ -183,7 +164,7 @@ OPTION (WITH_UNIT_TESTS "Compile MySQL with unit tests" ON)
 MARK_AS_ADVANCED(CYBOZU BACKUP_TEST WITHOUT_SERVER DISABLE_SHARED)
 
 OPTION(NOT_FOR_DISTRIBUTION "Allow linking with GPLv2-incompatible system libraries. Only set it you never plan to distribute the resulting binaries" OFF)
- 
+
 include(CheckCSourceCompiles)
 include(CheckCXXSourceCompiles)
 # We need some extra FAIL_REGEX patterns
@@ -374,13 +355,7 @@ CHECK_JEMALLOC()
 # not run with the warning options as to not perturb fragile checks
 # (i.e. do not make warnings into errors).
 #
-IF(MYSQL_MAINTAINER_MODE MATCHES "ON")
-  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${MY_MAINTAINER_C_WARNINGS}")
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${MY_MAINTAINER_CXX_WARNINGS}")
-ELSEIF(MYSQL_MAINTAINER_MODE MATCHES "AUTO")
-  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} ${MY_MAINTAINER_C_WARNINGS}")
-  SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} ${MY_MAINTAINER_CXX_WARNINGS}")
-ENDIF()
+INCLUDE(maintainer)
 
 IF(WITH_UNIT_TESTS)
  ENABLE_TESTING()
@@ -494,4 +469,3 @@ IF(NON_DISTRIBUTABLE_WARNING)
   MESSAGE(WARNING "
 You have linked MariaDB with GPLv3 libraries!  You may not distribute the resulting binary. If you do, you will put yourself into a legal problem with Free Software Foundation.")
 ENDIF()
-

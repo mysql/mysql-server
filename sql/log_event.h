@@ -2366,14 +2366,14 @@ public:
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
 #endif
 
-  Start_log_event_v3(const char* buf,
+  Start_log_event_v3(const char* buf, uint event_len,
                      const Format_description_log_event* description_event);
   ~Start_log_event_v3() {}
   Log_event_type get_type_code() { return START_EVENT_V3;}
 #ifdef MYSQL_SERVER
   bool write(IO_CACHE* file);
 #endif
-  bool is_valid() const { return 1; }
+  bool is_valid() const { return server_version[0] != 0; }
   int get_data_size()
   {
     return START_V3_HEADER_LEN; //no variable-sized part

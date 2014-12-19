@@ -53,15 +53,6 @@ IF(NOT SYSTEM_TYPE)
 ENDIF()
 
 
-# Always enable -Wall for gnu C/C++
-IF(CMAKE_COMPILER_IS_GNUCXX)
-  SET(CMAKE_CXX_FLAGS "-Wall ${CMAKE_CXX_FLAGS} -Wno-unused-parameter")
-ENDIF()
-IF(CMAKE_COMPILER_IS_GNUCC)
-  SET(CMAKE_C_FLAGS "-Wall ${CMAKE_C_FLAGS}")
-ENDIF()
-
-
 IF(CMAKE_COMPILER_IS_GNUCXX)
   # MySQL "canonical" GCC flags. At least -fno-rtti flag affects
   # ABI and cannot be simply removed. 

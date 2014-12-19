@@ -1,7 +1,7 @@
 #ifndef ITEM_FUNC_INCLUDED
 #define ITEM_FUNC_INCLUDED
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates.
-   Copyright (c) 2009, 2014, SkySQL Ab.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates.
+   Copyright (c) 2009, 2014, MariaDB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -279,7 +279,8 @@ public:
   inline longlong check_integer_overflow(longlong value, bool val_unsigned)
   {
     if ((unsigned_flag && !val_unsigned && value < 0) ||
-        (!unsigned_flag && val_unsigned && (ulonglong) value > LONGLONG_MAX))
+        (!unsigned_flag && val_unsigned &&
+         (ulonglong) value > (ulonglong) LONGLONG_MAX))
       return raise_integer_overflow();
     return value;
   }

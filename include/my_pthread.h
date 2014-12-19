@@ -1,5 +1,5 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates.
-   Copyright (c) 2009, 2013, Monty Program Ab.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates.
+   Copyright (c) 2009, 2014, MariaDB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -104,8 +104,18 @@ int pthread_attr_init(pthread_attr_t *connect_att);
 int pthread_attr_setstacksize(pthread_attr_t *connect_att,DWORD stack);
 int pthread_attr_destroy(pthread_attr_t *connect_att);
 int my_pthread_once(my_pthread_once_t *once_control,void (*init_routine)(void));
-struct tm *localtime_r(const time_t *timep,struct tm *tmp);
-struct tm *gmtime_r(const time_t *timep,struct tm *tmp);
+
+static inline struct tm *localtime_r(const time_t *timep, struct tm *tmp)
+{
+  localtime_s(tmp, timep);
+  return tmp;
+}
+
+static inline struct tm *gmtime_r(const time_t *clock, struct tm *res)
+{
+  gmtime_s(res, clock);
+  return res;
+}
 
 void pthread_exit(void *a);
 int pthread_join(pthread_t thread, void **value_ptr);
