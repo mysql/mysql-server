@@ -48,6 +48,7 @@
 
 #include <welcome_copyright_notice.h> // ORACLE_WELCOME_COPYRIGHT_NOTICE
 
+#include <string>
 #include <algorithm>
 #include <functional>
 #include "prealloced_array.h"
