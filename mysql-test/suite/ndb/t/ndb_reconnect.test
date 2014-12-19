@@ -147,3 +147,7 @@ delimiter ;//
 
 # cleanup
 drop table t1, t2;
+
+# Check that NDB tables can't be created in the information_schema database
+--error ER_DBACCESS_DENIED_ERROR
+create table information_schema.t1(a int, b varchar(10), c date) engine=ndb;
