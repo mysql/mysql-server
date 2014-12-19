@@ -1139,7 +1139,7 @@ recalculated
 */
 #define DICT_TABLE_CHANGED_TOO_MUCH(t) \
 	((ib_int64_t) (t)->stat_modified_counter > (srv_stats_modified_counter ? \
-	ut_min(srv_stats_modified_counter, (16 + (t)->stat_n_rows / 16)) : \
+	(ib_int64_t) ut_min(srv_stats_modified_counter, (16 + (t)->stat_n_rows / 16)) : \
 		16 + (t)->stat_n_rows / 16))
 
 /*********************************************************************//**

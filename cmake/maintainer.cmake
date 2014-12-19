@@ -36,8 +36,8 @@ ENDIF()
 
 # Turn on Werror (warning => error) when using maintainer mode.
 IF(MYSQL_MAINTAINER_MODE MATCHES "ON")
-  SET(MY_C_WARNING_FLAGS "${MY_C_WARNING_FLAGS} -Werror")
-  SET(MY_CXX_WARNING_FLAGS "${MY_CXX_WARNING_FLAGS} -Werror")
+  SET(MY_C_WARNING_FLAGS "${MY_C_WARNING_FLAGS} -DFORCE_INIT_OF_VARS -Werror")
+  SET(MY_CXX_WARNING_FLAGS "${MY_CXX_WARNING_FLAGS} -DFORCE_INIT_OF_VARS -Werror")
 ENDIF()
 
 # Set warning flags for GCC/Clang

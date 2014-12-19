@@ -729,33 +729,36 @@ my_context_continue(struct my_context *c)
 
 #ifdef MY_CONTEXT_DISABLE
 int
-my_context_continue(struct my_context *c)
+my_context_continue(struct my_context *c __attribute__((unused)))
 {
   return -1;
 }
 
 
 int
-my_context_spawn(struct my_context *c, void (*f)(void *), void *d)
+my_context_spawn(struct my_context *c __attribute__((unused)),
+                 void (*f)(void *) __attribute__((unused)),
+                 void *d __attribute__((unused)))
 {
   return -1;
 }
 
 
 int
-my_context_yield(struct my_context *c)
+my_context_yield(struct my_context *c __attribute__((unused)))
 {
   return -1;
 }
 
 int
-my_context_init(struct my_context *c, size_t stack_size)
+my_context_init(struct my_context *c __attribute__((unused)),
+                size_t stack_size __attribute__((unused)))
 {
   return -1;                                  /* Out of memory */
 }
 
 void
-my_context_destroy(struct my_context *c)
+my_context_destroy(struct my_context *c __attribute__((unused)))
 {
 }
 
