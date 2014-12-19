@@ -5883,7 +5883,7 @@ void do_connect(struct st_command *command)
 {
   int con_port= opt_port;
   char *con_options;
-  char *ssl_cipher= 0;
+  char *ssl_cipher __attribute__((unused))= 0;
   my_bool con_ssl= 0, con_compress= 0;
   my_bool con_pipe= 0;
   my_bool con_shm __attribute__ ((unused))= 0;
