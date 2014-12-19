@@ -135,13 +135,19 @@ Gcs_corosync_state_exchange::~Gcs_corosync_state_exchange()
 void
 Gcs_corosync_state_exchange::init()
 {
-  last_view_id= 0;
+  last_view_id= NULL;
 }
 
 void
 Gcs_corosync_state_exchange::reset()
 {
   max_view_id= 0;
+
+  if(last_view_id != NULL)
+  {
+    delete last_view_id;
+    last_view_id= NULL;
+  }
 
   set<Gcs_member_identifier*>::iterator member_it;
 
@@ -172,7 +178,16 @@ Gcs_corosync_state_exchange::reset()
     ms_joined.clear();
   }
 
-  member_states.clear();
+  map<Gcs_member_identifier, Member_state*>::iterator state_it;
+  if(member_states.size() > 0)
+  {
+    for (state_it= member_states.begin(); state_it != member_states.end();
+         state_it++)
+    {
+      delete (*state_it).second;
+    }
+    member_states.clear();
+  }
 }
 
 bool
@@ -196,8 +211,10 @@ Gcs_corosync_state_exchange::state_exchange(const cpg_address *total,
 
   if(current_view != NULL) //I am a joiner and i am not the only one.
   {
-    last_view_id= static_cast<Gcs_corosync_view_identifier*>
-                                                  (current_view->get_view_id());
+    //Make a copy of the current view identifier
+    Gcs_corosync_view_identifier coro_view_id=
+                   *(Gcs_corosync_view_identifier*)current_view->get_view_id();
+    last_view_id= new Gcs_corosync_view_identifier(coro_view_id);
   }
   else if(current_view == NULL && total_entries == 1)
   {

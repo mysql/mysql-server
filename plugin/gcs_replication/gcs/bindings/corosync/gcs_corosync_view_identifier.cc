@@ -20,12 +20,14 @@
 Gcs_corosync_view_identifier::
 Gcs_corosync_view_identifier(unsigned long int fixed_part,
                              int monotonic_part)
+                     : representation(NULL)
 {
   init(fixed_part, monotonic_part);
 }
 
 Gcs_corosync_view_identifier::
 Gcs_corosync_view_identifier(Gcs_corosync_view_identifier &other)
+                     : representation(NULL)
 {
   init(other.get_fixed_part(), other.get_monotonic_part());
 }
@@ -40,24 +42,28 @@ init(unsigned long int fixed_part, int monotonic_part)
 
   builder << fixed_part << ":" << monotonic_part;
 
-  representation.append(builder.str());
+  if(representation != NULL)
+    delete representation;
+
+  representation= new std::string(builder.str());
 }
 
 void Gcs_corosync_view_identifier::increment_by_one()
 {
   this->monotonic_part+=1;
-  this->representation.clear();
   init(fixed_part, monotonic_part);
 }
 
 Gcs_corosync_view_identifier::
 ~Gcs_corosync_view_identifier()
 {
+  if(representation != NULL)
+    delete representation;
 }
 
 char*
 Gcs_corosync_view_identifier::get_representation()
 {
-  return const_cast<char*>(representation.c_str());
+  return const_cast<char*>(representation->c_str());
 }
 

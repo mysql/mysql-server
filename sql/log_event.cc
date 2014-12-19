@@ -14468,12 +14468,14 @@ void Transaction_context_log_event::add_read_set(const char *hash)
 **************************************************************************/
 
 #ifndef MYSQL_CLIENT
-View_change_log_event::View_change_log_event(char* view_id)
-  : Log_event(Log_event::EVENT_NO_CACHE, Log_event::EVENT_IMMEDIATE_LOGGING)
+View_change_log_event::View_change_log_event(char* raw_view_id)
+  : Log_event(Log_event::EVENT_NO_CACHE, Log_event::EVENT_IMMEDIATE_LOGGING),
+    view_id(), seq_number(0)
 {
   DBUG_ENTER("View_change_log_event::View_change_log_event(ulonglong)");
-  this->view_id.clear();
-  this->view_id.append(view_id);
+
+  memcpy(view_id, raw_view_id, strlen(raw_view_id));
+
   DBUG_VOID_RETURN;
 }
 #endif
@@ -14481,18 +14483,14 @@ View_change_log_event::View_change_log_event(char* view_id)
 View_change_log_event::View_change_log_event(const char *buffer,
                                              uint event_len,
                                              const Format_description_log_event *descr_event)
-  : Log_event(buffer, descr_event)
+  : Log_event(buffer, descr_event), view_id(), seq_number(0)
 {
   DBUG_ENTER("View_change_log_event::View_change_log_event(const char *,"
              " uint, const Format_description_log_event*)");
 
   const char* data_header = buffer + descr_event->common_header_len;
 
-  char raw_view_id[ENCODED_VIEW_ID_MAX_LEN];
-  memcpy(raw_view_id, data_header, ENCODED_VIEW_ID_MAX_LEN);
-  view_id.clear();
-
-  view_id.append(raw_view_id);
+  memcpy(view_id, data_header, ENCODED_VIEW_ID_MAX_LEN);
 
   seq_number= uint8korr(data_header + ENCODED_SEQ_NUMBER_OFFSET);
   uint cert_db_len= uint4korr(data_header + ENCODED_CERT_DB_SIZE_OFFSET);
@@ -14506,7 +14504,7 @@ View_change_log_event::View_change_log_event(const char *buffer,
 
 err:
   // Make is_valid() return false.
-  view_id= -1;
+  view_id[0]= '\0';
   DBUG_VOID_RETURN;
 }
 
@@ -14544,7 +14542,7 @@ View_change_log_event::get_map_data_size(std::map<std::string, rpl_gno> *map)
 size_t View_change_log_event::to_string(char *buf, ulong len) const
 {
   DBUG_ENTER("View_change_log_event::to_string");
-  DBUG_RETURN(my_snprintf(buf, len, "view_id=%s", view_id.c_str()));
+  DBUG_RETURN(my_snprintf(buf, len, "view_id=%s", view_id));
 }
 
 #ifndef MYSQL_CLIENT
@@ -14596,7 +14594,7 @@ bool View_change_log_event::write_data_header(IO_CACHE* file){
   DBUG_ENTER("View_change_log_event::write_data_header");
   char buf[POST_HEADER_LENGTH];
 
-  memcpy(buf, view_id.c_str(), ENCODED_VIEW_ID_MAX_LEN);
+  memcpy(buf, view_id, ENCODED_VIEW_ID_MAX_LEN);
   int8store(buf + ENCODED_SEQ_NUMBER_OFFSET, seq_number);
   int4store(buf + ENCODED_CERT_DB_SIZE_OFFSET, cert_db.size());
   DBUG_RETURN(wrapper_my_b_safe_write(file,

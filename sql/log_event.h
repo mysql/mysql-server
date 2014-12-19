@@ -5522,11 +5522,8 @@ public:
 */
 class View_change_log_event: public Log_event
 {
-private:
-  std::string view_id;
-  rpl_gno seq_number;
-  std::map<std::string, rpl_gno> cert_db;
 
+private:
   // 40 bytes length.
   static const int ENCODED_VIEW_ID_OFFSET= 0;
   // 8 bytes length.
@@ -5539,6 +5536,10 @@ private:
   static const int ENCODED_CERT_DB_KEY_SIZE_LEN= 2;
   static const int ENCODED_CERT_DB_VALUE_LEN= 8;
 
+private:
+  char view_id[ENCODED_VIEW_ID_MAX_LEN];
+  rpl_gno seq_number;
+  std::map<std::string, rpl_gno> cert_db;
 
 #ifndef MYSQL_CLIENT
   bool write_data_header(IO_CACHE* file);
@@ -5570,7 +5571,7 @@ public:
 
   bool is_valid() const
   {
-    return !view_id.empty();
+    return strlen(view_id) != 0;
   }
 
   size_t get_data_size();
@@ -5593,7 +5594,7 @@ public:
   /**
     Returns the view id.
   */
-  std::string& get_view_id() { return view_id; }
+  char* get_view_id() { return view_id; }
 
   /**
     Sets the certification database

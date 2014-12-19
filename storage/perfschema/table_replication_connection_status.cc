@@ -272,6 +272,7 @@ void table_replication_connection_status::make_row(Master_info *mi,
 
   //default values
   m_row.group_name_is_null= true;
+  m_row.source_uuid_is_null= true;
   m_row.thread_id= 0;
 
   //Load GCS stats
@@ -334,9 +335,10 @@ void table_replication_connection_status::make_row(Master_info *mi,
 
     //Source uuid
     if (mi->master_uuid[0] != 0)
+    {
       memcpy(m_row.source_uuid, mi->master_uuid, UUID_LENGTH+1);
-    else
-      m_row.source_uuid[0]= 0;
+      m_row.source_uuid_is_null= false;
+    }
 
     if (mi->slave_running == MYSQL_SLAVE_RUN_CONNECT)
     {
@@ -440,6 +442,7 @@ void table_replication_connection_status::make_row(Master_info *mi,
 
     m_row.min_message_length= gcs_info->min_message_length;
 
+    m_row.view_id_lenght= 0;
     if(gcs_info->view_id != NULL)
     {
       m_row.view_id_lenght= strlen(gcs_info->view_id);
@@ -475,7 +478,8 @@ int table_replication_connection_status::read_row_values(TABLE *table,
       switch(f->field_index)
       {
       case 0: /** channel_name*/
-        set_field_char_utf8(f, m_row.channel_name,m_row.channel_name_length);
+        if(m_row.channel_name_length > 0)
+          set_field_char_utf8(f, m_row.channel_name,m_row.channel_name_length);
         break;
       case 1: /** group_name */
         if (!m_row.group_name_is_null)
@@ -484,7 +488,7 @@ int table_replication_connection_status::read_row_values(TABLE *table,
           f->set_null();
         break;
       case 2: /** source_uuid */
-        if (m_row.source_uuid[0] != 0)
+        if (!m_row.source_uuid_is_null)
           set_field_char_utf8(f, m_row.source_uuid, UUID_LENGTH);
         else
           f->set_null();
@@ -579,7 +583,7 @@ int table_replication_connection_status::read_row_values(TABLE *table,
           f->set_null();
         break;
       case 18: /*view_id*/
-        if (m_row.is_gcs_plugin_loaded)
+        if (m_row.is_gcs_plugin_loaded && m_row.view_id_lenght > 0)
           set_field_varchar_utf8(f, m_row.view_id,
                                  m_row.view_id_lenght);
         else

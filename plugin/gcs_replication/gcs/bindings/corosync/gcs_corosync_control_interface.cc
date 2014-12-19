@@ -268,7 +268,7 @@ Gcs_corosync_control::process_possible_control_message(Gcs_message *msg)
   {
     //Decode the member state and hand it out to State Exchange
     Member_state* ms = new Member_state(msg->get_payload(),
-                    msg->get_payload_length());
+                                        msg->get_payload_length());
 
     bool can_install_view= state_exchange
                                    ->process_member_state(ms,

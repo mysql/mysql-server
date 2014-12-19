@@ -52,7 +52,7 @@ private:
   unsigned long int fixed_part;
   int monotonic_part;
 
-  std::string representation;
+  std::string* representation;
 } ;
 
 #endif	/* GCS_COROSYNC_VIEW_IDENTIFIER_INCLUDED */
