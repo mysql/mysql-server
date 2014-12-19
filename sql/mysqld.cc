@@ -3330,6 +3330,120 @@ static void openssl_lock(int mode, openssl_lock_t *lock, const char *file,
 }
 #endif /* HAVE_OPENSSL */
 
+#ifndef EMBEDDED_LIBRARY
+ssl_artifacts_status auto_detect_ssl()
+{
+  MY_STAT cert_stat, cert_key, ca_stat;
+  ssl_artifacts_status ret_status= SSL_ARTIFACTS_VIA_OPTIONS;
+
+  if ((!opt_ssl_cert || !opt_ssl_cert[0]) &&
+      (!opt_ssl_key || !opt_ssl_key[0]) &&
+      (!opt_ssl_ca || !opt_ssl_ca[0]) &&
+      (!opt_ssl_capath || !opt_ssl_capath[0]) &&
+      (!opt_ssl_crl || !opt_ssl_crl[0]) &&
+      (!opt_ssl_crlpath || !opt_ssl_crlpath[0]) &&
+      (!opt_ssl_cipher || !opt_ssl_cipher[0]))
+  {
+    if (my_stat(DEFAULT_SSL_SERVER_CERT, &cert_stat, MYF(0)) &&
+        my_stat(DEFAULT_SSL_SERVER_KEY, &cert_key, MYF(0)) &&
+        my_stat(DEFAULT_SSL_CA_CERT, &ca_stat, MYF(0)))
+    {
+      opt_ssl_ca= (char *)DEFAULT_SSL_CA_CERT;
+      opt_ssl_cert= (char *)DEFAULT_SSL_SERVER_CERT;
+      opt_ssl_key= (char *)DEFAULT_SSL_SERVER_KEY;
+
+      ret_status= SSL_ARTIFACTS_AUTO_DETECTED;
+    }
+    else
+    {
+      ret_status= SSL_ARTIFACTS_NOT_FOUND;
+    }
+  }
+  return ret_status;
+}
+
+int warn_one(const char *file_name)
+{
+  FILE *fp;
+
+  if (!(fp= my_fopen(file_name, O_RDONLY | O_BINARY, MYF(MY_WME))))
+  {
+    sql_print_error("Error opening CA certificate file");
+    return 1;
+  }
+
+  X509 *ca_cert= PEM_read_X509(fp, 0, 0, 0);
+
+  if (!ca_cert)
+  {
+    /* We are not interested in anything other than X509 certificates */
+    my_fclose(fp, MYF(MY_WME));
+    return 0;
+  }
+
+  if (!strcmp(X509_NAME_oneline(X509_get_issuer_name(ca_cert), 0, 0),
+              X509_NAME_oneline(X509_get_subject_name(ca_cert), 0, 0)))
+  {
+    sql_print_warning("CA certificate %s is self signed.", file_name);
+  }
+
+  X509_free(ca_cert);
+  my_fclose(fp, MYF(MY_WME));
+  return 0;
+
+}
+
+int warn_self_signed_ca()
+{
+  int ret_val= 0;
+  if (opt_ssl_ca && opt_ssl_ca[0])
+  {
+    if (warn_one(opt_ssl_ca))
+      return 1;
+  }
+#ifndef HAVE_YASSL
+  if (opt_ssl_capath && opt_ssl_capath[0])
+  {
+    /* We have ssl-capath. So search all files in the dir */
+    MY_DIR *ca_dir;
+    uint file_count;
+    DYNAMIC_STRING file_path;
+    char dir_separator[FN_REFLEN];
+    size_t dir_path_length;
+
+    init_dynamic_string(&file_path, opt_ssl_capath, FN_REFLEN, FN_REFLEN);
+    dir_separator[0]= FN_LIBCHAR;
+    dir_separator[1]= 0;
+    dynstr_append(&file_path, dir_separator);
+    dir_path_length= file_path.length;
+
+    if (!(ca_dir= my_dir(opt_ssl_capath,MY_WANT_STAT|MY_DONT_SORT|MY_WME)))
+    {
+      sql_print_error("Error accessing directory pointed by --ssl-capath");
+      return 1;
+    }
+
+    for (file_count = 0; file_count < ca_dir->number_off_files; file_count++)
+    {
+      if (!MY_S_ISDIR(ca_dir->dir_entry[file_count].mystat->st_mode))
+      {
+        file_path.length= dir_path_length;
+        dynstr_append(&file_path, ca_dir->dir_entry[file_count].name);
+        if ((ret_val= warn_one(file_path.str)))
+          break;
+      }
+    }
+    my_dirend(ca_dir);
+    dynstr_free(&file_path);
+
+    ca_dir= 0;
+    memset(&file_path, 0, sizeof(file_path));
+  }
+#endif /* HAVE_YASSL */
+  return ret_val;
+}
+
+#endif /* EMBEDDED_LIBRARY */
 
 static int init_ssl()
 {
@@ -3339,14 +3453,21 @@ static int init_ssl()
 #endif
   ssl_start();
 #ifndef EMBEDDED_LIBRARY
+
   if (opt_use_ssl)
   {
-    enum enum_ssl_init_error error= SSL_INITERR_NOERROR;
-
+    ssl_artifacts_status auto_detection_status= auto_detect_ssl();
+    if (auto_detection_status == SSL_ARTIFACTS_AUTO_DETECTED)
+      sql_print_information("Found %s, %s and %s in data directory."
+                            "Trying to enable SSL support using them.",
+                            DEFAULT_SSL_CA_CERT, DEFAULT_SSL_SERVER_CERT,
+                            DEFAULT_SSL_SERVER_KEY);
 #ifndef HAVE_YASSL
-    if (do_auto_cert_generation() == false)
+    if (do_auto_cert_generation(auto_detection_status) == false)
       return 1;
 #endif
+
+    enum enum_ssl_init_error error= SSL_INITERR_NOERROR;
 
     /* having ssl_acceptor_fd != 0 signals the use of SSL */
     ssl_acceptor_fd= new_VioSSLAcceptorFd(opt_ssl_key, opt_ssl_cert,
@@ -3361,6 +3482,12 @@ static int init_ssl()
       sql_print_warning("SSL error: %s", sslGetErrString(error));
       opt_use_ssl = 0;
       have_ssl= SHOW_OPTION_DISABLED;
+    }
+    else
+    {
+      /* Check if CA certificate is self signed */
+      if (warn_self_signed_ca())
+        return 1;
     }
   }
   else

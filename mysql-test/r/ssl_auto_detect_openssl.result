@@ -1,0 +1,8 @@
+# Global Setup
+call mtr.add_suppression("Failed to setup SSL");
+call mtr.add_suppression("SSL error: SSL_CTX_set_default_verify_paths failed");
+# Case 1 : Check that all certificates in --ssl-capath are processed.
+# Restart completed.
+# Search for : CA certificate *ca.pem is self signed.
+# Search for : CA certificate *ca2.pem is self signed.
+# Global Cleanup
