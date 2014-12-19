@@ -404,6 +404,6 @@ void close_acl_tables(THD *thd);
 
 #if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
 extern my_bool opt_auto_generate_certs;
-bool do_auto_cert_generation();
+bool do_auto_cert_generation(ssl_artifacts_status auto_detection_status);
 #endif /* HAVE_OPENSSL && !HAVE_YASSL */
 #endif /* AUTH_COMMON_INCLUDED */
