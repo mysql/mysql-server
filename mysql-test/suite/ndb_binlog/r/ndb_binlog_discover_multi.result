@@ -8,7 +8,7 @@ create table t1 (a int unsigned auto_increment not null primary key)
 engine=ndbcluster;
 alter table t1 algorithm=inplace, add column b varchar(16);
 Warnings:
-Warning	1478	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
+Warning	1478	Converted FIXED field 'b' to DYNAMIC to enable on-line ADD COLUMN
 show tables;
 Tables_in_test
 t1
