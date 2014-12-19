@@ -95,7 +95,7 @@ TARGET_LINK_LIBRARIES(mysql_secure_installation mysqlclient)
 
 IF(UNIX)
   MYSQL_ADD_EXECUTABLE(mysql_install_db
-    mysql_install_db.cc auth_utils.cc path.cc logger.cc)
+    mysql_install_db.cc auth_utils.cc path.cc)
   TARGET_LINK_LIBRARIES(mysql_install_db mysqlclient)
   ADD_COMPILE_FLAGS(
     auth_utils.cc mysql_install_db.cc
@@ -103,10 +103,6 @@ IF(UNIX)
     )
   ADD_DEPENDENCIES(mysql_install_db GenBootstrapPriv)
 ENDIF(UNIX)
-
-MYSQL_ADD_EXECUTABLE(mysql_ssl_rsa_setup mysql_ssl_rsa_setup.cc path.cc logger.cc)
-TARGET_LINK_LIBRARIES(mysql_ssl_rsa_setup mysys mysys_ssl)
-SET_TARGET_PROPERTIES(mysql_ssl_rsa_setup PROPERTIES LINKER_LANGUAGE CXX)
 
 # "WIN32" also covers 64 bit. "echo" is used in some files below "mysql-test/".
 IF(WIN32)

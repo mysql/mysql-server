@@ -18,13 +18,6 @@
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
-#include "my_sys.h"
-#include "my_global.h"
-#include "my_dir.h"
-
-#ifndef _WIN32
-#include <pwd.h>
-#endif
 
 Path::Path() {}
 
@@ -41,12 +34,20 @@ Path::Path(const Path &p)
 
 bool Path::getcwd()
 {
-  char path[FN_REFLEN];
-  if (my_getwd(path, FN_REFLEN-1, MYF(MY_WME)))
+  char path[MAX_PATH_LENGTH];
+  if (::getcwd(path, MAX_PATH_LENGTH) == 0)
      return false;
   m_path.clear();
   m_path.append(path);
   trim();
+  return true;
+}
+
+bool Path::validate_filename()
+{
+  size_t idx= m_filename.find(PATH_SEPARATOR);
+  if (idx != std::string::npos)
+    return false;
   return true;
 }
 
@@ -57,7 +58,7 @@ void Path::trim()
   std::string::iterator it= m_path.end();
   --it;
 
-  while((*it) == FN_LIBCHAR && m_path.length() > 1)
+  while((*it) == PATH_SEPARATOR_C && m_path.length() > 1)
   {
     m_path.erase(it--);
   }
@@ -65,7 +66,7 @@ void Path::trim()
 
 void Path::parent_directory(Path *out)
 {
-  size_t idx= m_path.rfind(FN_DIRSEP);
+  size_t idx= m_path.rfind(PATH_SEPARATOR);
   if (idx == std::string::npos)
   {
     out->path("");
@@ -76,7 +77,7 @@ void Path::parent_directory(Path *out)
 
 Path &Path::up()
 {
-  size_t idx= m_path.rfind(FN_DIRSEP);
+  size_t idx= m_path.rfind(PATH_SEPARATOR);
   if (idx == std::string::npos)
   {
     m_path.clear();
@@ -88,8 +89,8 @@ Path &Path::up()
 
 Path &Path::append(const std::string &path)
 {
-  if (m_path.length() > 1 && path[0] != FN_LIBCHAR)
-    m_path.append(FN_DIRSEP);
+  if (m_path.length() > 1 && path[0] != PATH_SEPARATOR_C)
+    m_path.append(PATH_SEPARATOR);
   m_path.append(path);
   trim();
   return *this;
@@ -126,7 +127,7 @@ void Path::filename(const Path &p)
 
 bool Path::qpath(const std::string &qp)
 {
-  size_t idx= qp.rfind(FN_DIRSEP);
+  size_t idx= qp.rfind(PATH_SEPARATOR);
   if (idx == std::string::npos)
   {
     m_filename= qp;
@@ -143,28 +144,6 @@ bool Path::qpath(const std::string &qp)
     return false;
 }
 
-bool Path::normalize_path()
-{
-  if (!m_path.length())
-    return false;
-
-  char real_path[FN_REFLEN];
-  size_t real_path_len;
-
-  real_path_len= cleanup_dirname(real_path,m_path.c_str());
-  if (real_path_len > FN_REFLEN)
-    return false;
-
-  if (my_realpath(real_path, real_path, MYF(0)))
-    return false;
-
-  m_path.clear();
-  m_path.append(real_path);
-  trim();
-
-  return true;
-}
-
 bool Path::is_qualified_path()
 {
   return m_filename.length() > 0;
@@ -174,20 +153,20 @@ bool Path::exists()
 {
   if (!is_qualified_path())
   {
-    MY_DIR *dir= my_dir(m_path.c_str(), MY_WANT_STAT|MY_DONT_SORT);
+    DIR *dir= opendir(m_path.c_str());
     if (dir == 0)
       return false;
-    my_dirend(dir);
+    closedir(dir);
     return true;
   }
   else
   {
     MY_STAT s;
     std::string qpath(m_path);
-    qpath.append(FN_DIRSEP).append(m_filename);
-    if (my_stat(qpath.c_str(), &s, MYF(0)) == NULL)
+    qpath.append(PATH_SEPARATOR).append(m_filename);
+    if (stat(qpath.c_str(), &s) != 0)
       return false;
-    if (!MY_S_ISREG(s.st_mode))
+    if (!S_ISREG(s.st_mode))
       return false;
     return true;
   }
@@ -198,7 +177,7 @@ const std::string Path::to_str()
   std::string qpath(m_path);
   if (m_filename.length() != 0)
   {
-    qpath.append(FN_DIRSEP);
+    qpath.append(PATH_SEPARATOR);
     qpath.append(m_filename);
   }
   return qpath;
@@ -208,20 +187,29 @@ bool Path::empty()
 {
   if (!exists())
     return true;
-  MY_DIR *dir;
+  DIR *dir;
+  struct dirent *ent;
   bool ret= false;
-  if (!(dir= my_dir(m_path.c_str(), MY_WANT_STAT|MY_DONT_SORT)))
+  if ((dir= opendir(m_path.c_str())) == NULL)
     ret= false;
   else
   {
-    if (dir->number_off_files == 2)
+    int c= 0;
+    ent= readdir(dir);
+    while (ent != NULL && c < 4)
+    {
+      //std::cout << "[DEBUG] c= " << c << " "
+      //     << ent->d_name << std::endl;
+      ent= readdir(dir);
+      ++c;
+    }
+    if (c == 2) // Don't count . and ..
      ret= true;
   }
-  my_dirend(dir);
+  closedir(dir);
   return ret;
 }
 
-#ifndef _WIN32
 void Path::get_homedir()
 {
   struct passwd *pwd;
@@ -233,14 +221,13 @@ void Path::get_homedir()
   else
     path("");
 }
-#endif
 
 std::ostream &operator<<(std::ostream &op, const Path &p)
 {
   std::string qpath(p.m_path);
   if (p.m_filename.length() != 0)
   {
-    qpath.append(FN_DIRSEP);
+    qpath.append(PATH_SEPARATOR);
     qpath.append(p.m_filename);
   }
   return op << qpath;

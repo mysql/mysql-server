@@ -89,7 +89,7 @@ my_bool my_chmod(const char *filename, ulong PermFlags, myf my_flags)
 
   file_perm= get_file_perm(PermFlags);
 #ifdef _WIN32
-  ret_val= _chmod(filename, file_perm);
+  ret_val= _chmod(filename, file_perm); 
 #else
   ret_val= chmod(filename, file_perm);
 #endif
