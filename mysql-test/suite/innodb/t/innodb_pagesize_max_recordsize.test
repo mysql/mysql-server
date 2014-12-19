@@ -39,7 +39,7 @@ let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/datadir1/data;
 # Stop the MTR default datadir, as it was started with default 16k page size
 --echo # Stop DB server which was created by MTR default
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 30
+--shutdown_server 
 --source include/wait_until_disconnected.inc
 
 # Set the bootstrap parameter page size 32k for datadir1
@@ -173,7 +173,7 @@ ENGINE = innodb ROW_FORMAT=COMPRESSED;
 
 --echo # Stop DB server with page size 32k
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 30
+--shutdown_server 
 --source include/wait_until_disconnected.inc
 
 # Check Server startup failure when page sizes are mismatch
@@ -199,7 +199,7 @@ SELECT @@innodb_page_size;
 
 --echo # Stop DB server which was created by page size 32k
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 30
+--shutdown_server 
 --source include/wait_until_disconnected.inc
 
 # Remove residue files and data folder of page size 32K

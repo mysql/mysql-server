@@ -19,7 +19,7 @@ let SEARCH_FILE= $server_log;
 # Stop the server and cleanup all .pem files.
 let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 --exec echo "wait" > $restart_file
---shutdown_server 10
+--shutdown_server 
 --source include/wait_until_disconnected.inc
 --remove_file $server_log
 --error 0, 1
@@ -69,7 +69,7 @@ set @@global.sha256_password_auto_generate_rsa_keys='OFF';
 
 let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 --exec echo "wait" > $restart_file
---shutdown_server 10
+--shutdown_server 
 --source include/wait_until_disconnected.inc
 --remove_file $server_log
 --exec echo "restart: --auto_generate_certs=0 --sha256_password_auto_generate_rsa_keys=0" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
@@ -127,7 +127,7 @@ disconnect test_root_2;
 --echo # 3.1 : Restarting mysqld with : --auto-generate-certs=1
 
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 10
+--shutdown_server 
 --source include/wait_until_disconnected.inc
 --remove_file $server_log
 --exec echo "restart:--auto_generate_certs --skip-sha256_password_auto_generate_rsa_keys" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
@@ -169,7 +169,7 @@ let SEARCH_PATTERN= Auto generated SSL certificates are placed in data directory
 --echo # 4.1 : Restarting mysqld with :
 --echo #       --sha256_password_auto_generate_rsa_keys=1
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 10
+--shutdown_server 
 --source include/wait_until_disconnected.inc
 --remove_file $server_log
 --exec echo "restart:--skip-auto_generate_certs --sha256_password_auto_generate_rsa_keys" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
