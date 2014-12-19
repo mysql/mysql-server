@@ -6544,8 +6544,6 @@ end:
   rli->deinit_workers();
   rli->workers_array_initialized= false;
   rli->slave_parallel_workers= 0;
-  delete rli->current_mts_submode;
-  rli->current_mts_submode= 0;
 
   *mts_inited= false;
 }
@@ -6914,6 +6912,8 @@ llstr(rli->get_group_master_log_pos(), llbuff));
                    (abort_loop || thd->killed || rli->abort_slave)));
 
   slave_stop_workers(rli, &mts_inited); // stopping worker pool
+  delete rli->current_mts_submode;
+  rli->current_mts_submode= 0;
   if (rli->recovery_groups_inited)
   {
     bitmap_free(&rli->recovery_groups);
