@@ -79,4 +79,5 @@ z
 31
 32
 drop table corrupt_bit_test_ā;
+DROP DATABASE pad;
 SET GLOBAL innodb_change_buffering_debug = 0;
