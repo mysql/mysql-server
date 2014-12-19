@@ -164,11 +164,6 @@ enum find_files_result {
 #define IS_FILES_STATUS              36
 #define IS_FILES_EXTRA               37
 
-#ifndef MCP_WL1735
-int make_db_list(THD *thd, List<LEX_STRING> *files,
-                 LOOKUP_FIELD_VALUES *lookup_field_vals,
-                 bool *with_i_schema);
-#endif
 find_files_result find_files(THD *thd, List<LEX_STRING> *files, const char *db,
                              const char *path, const char *wild, bool dir);
 
