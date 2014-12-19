@@ -16784,7 +16784,7 @@ ha_ndbcluster::prepare_inplace_alter_table(TABLE *altered_table,
        {
          push_warning_printf(thd, Sql_condition::SL_WARNING,
                              ER_ILLEGAL_HA_CREATE_OPTION,
-                             "Converted FIXED field to DYNAMIC "
+                             "Converted FIXED field '%s' to DYNAMIC "
                              "to enable on-line ADD COLUMN",
                              field->field_name);
        }
