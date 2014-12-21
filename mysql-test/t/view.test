@@ -5335,6 +5335,16 @@ DROP FUNCTION f1;
 DROP VIEW v1;
 DROP TABLE t1, t2;
 
+
+create view v1 as select 1;
+
+--let $MYSQLD_DATADIR= `select @@datadir`
+--let SEARCH_FILE= $MYSQLD_DATADIR/test/v1.frm
+--let SEARCH_PATTERN=mariadb-version
+--source include/search_pattern_in_file.inc
+
+drop view v1;
+
 --echo # -----------------------------------------------------------------
 --echo # -- End of 5.5 tests.
 --echo # -----------------------------------------------------------------

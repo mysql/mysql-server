@@ -5396,6 +5396,8 @@ SELECT `f1`(1);
 DROP FUNCTION f1;
 DROP VIEW v1;
 DROP TABLE t1, t2;
+create view v1 as select 1;
+drop view v1;
 # -----------------------------------------------------------------
 # -- End of 5.5 tests.
 # -----------------------------------------------------------------
