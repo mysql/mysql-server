@@ -2544,7 +2544,7 @@ private:
                   Uint32 fragId,
                   Uint32 nodeId,
                   Uint32 hashHi);
-  void finishScanrec(Signal* signal);
+  bool finishScanrec(Signal* signal, ScanRecordPtr &restart);
   void releaseScanrec(Signal* signal);
   void seizeScanrec(Signal* signal);
   Uint32 sendKeyinfo20(Signal* signal, ScanRecord *, TcConnectionrec *);

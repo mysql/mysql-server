@@ -12496,12 +12496,25 @@ void Dblqh::tupScanCloseConfLab(Signal* signal)
     jam();
     sendScanFragConf(signal, ZSCAN_FRAG_CLOSED);
   }//if
-  finishScanrec(signal);
-  releaseScanrec(signal);
-  tcConnectptr.p->tcScanRec = RNIL;
-  deleteTransidHash(signal);
-  releaseOprec(signal);
-  releaseTcrec(signal, tcConnectptr);
+  {
+    ScanRecordPtr restart;
+    bool restart_flag = finishScanrec(signal, restart);
+    releaseScanrec(signal);
+    tcConnectptr.p->tcScanRec = RNIL;
+    deleteTransidHash(signal);
+    releaseOprec(signal);
+    releaseTcrec(signal, tcConnectptr);
+    if (restart_flag)
+    {
+      jam();
+      tcConnectptr.i = restart.p->scanTcrec;
+      ptrCheckGuard(tcConnectptr, ctcConnectrecFileSize, tcConnectionrec);
+      scanptr = restart;
+      continueAfterReceivingAllAiLab(signal);
+      return;
+    }
+    return;
+  }
 }//Dblqh::tupScanCloseConfLab()
 
 /* ========================================================================= 
@@ -12781,19 +12794,19 @@ void Dblqh::initScanTc(const ScanFragReq* req,
  * 
  *       REMOVE SCAN RECORD FROM PER FRAGMENT LIST.
  * ========================================================================= */
-void Dblqh::finishScanrec(Signal* signal)
+bool Dblqh::finishScanrec(Signal* signal, ScanRecordPtr &restart_scan)
 {
   ScanRecord * const scanPtr = scanptr.p;
   release_acc_ptr_list(scanPtr);
 
   Uint32 tupScan = scanPtr->tupScan;
-  LocalDLCFifoList<ScanRecord> queue(c_scanRecordPool,
-                                     tupScan == 0 ? 
-                                     fragptr.p->m_queuedScans :
-                                     fragptr.p->m_queuedTupScans);
   
   if (scanPtr->scanState == ScanRecord::IN_QUEUE)
   {
+    LocalDLCFifoList<ScanRecord> queue(c_scanRecordPool,
+                                       tupScan == 0 ? 
+                                       fragptr.p->m_queuedScans :
+                                       fragptr.p->m_queuedTupScans);
     jam();
     if (scanPtr->m_reserved == 0)
     {
@@ -12806,11 +12819,11 @@ void Dblqh::finishScanrec(Signal* signal)
       queue.remove(scanptr);
       m_reserved_scans.addFirst(scanptr);
     }
-
-    return;
+    return false;
   }
 
-  if(scanPtr->scanKeyinfoFlag){
+  if (scanPtr->scanKeyinfoFlag)
+  {
     jam();
     ScanRecordPtr tmp;
 #ifdef TRACE_SCAN_TAKEOVER
@@ -12856,36 +12869,38 @@ void Dblqh::finishScanrec(Signal* signal)
   ndbrequire(!tFragPtr.p->m_scanNumberMask.get(scanNumber));
   ScanRecordPtr restart;
 
-  /**
-   * Start of queued scans
-   */
-  if(scanNumber == NR_ScanNo || !queue.first(restart)){
-    jam();
-    tFragPtr.p->m_scanNumberMask.set(scanNumber);
-    return;
+  {
+    LocalDLCFifoList<ScanRecord> queue(c_scanRecordPool,
+                                       tupScan == 0 ? 
+                                       fragptr.p->m_queuedScans :
+                                       fragptr.p->m_queuedTupScans);
+    /**
+     * Start of queued scans
+     */
+    if (scanNumber == NR_ScanNo || !queue.first(restart))
+    {
+      jam();
+      tFragPtr.p->m_scanNumberMask.set(scanNumber);
+      return false;
+    }
+
+    if(ERROR_INSERTED(5034))
+    {
+      jam();
+      tFragPtr.p->m_scanNumberMask.set(scanNumber);
+      return false;
+    }
+    ndbrequire(restart.p->scanState == ScanRecord::IN_QUEUE);
+    queue.remove(restart);
   }
 
-  if(ERROR_INSERTED(5034)){
-    jam();
-    tFragPtr.p->m_scanNumberMask.set(scanNumber);
-    return;
-  }
-
-  ndbrequire(restart.p->scanState == ScanRecord::IN_QUEUE);
-
-  ScanRecordPtr tmpScan = scanptr;
-  TcConnectionrecPtr tmpTc = tcConnectptr;
-  
-  tcConnectptr.i = restart.p->scanTcrec;
-  ptrCheckGuard(tcConnectptr, ctcConnectrecFileSize, tcConnectionrec);
   restart.p->scanNumber = scanNumber;
-
-  queue.remove(restart);
   {
     LocalDLCList<ScanRecord> scans(c_scanRecordPool, fragptr.p->m_activeScans);
     scans.addFirst(restart);
   }
-  if(restart.p->scanKeyinfoFlag){
+  if(restart.p->scanKeyinfoFlag)
+  {
     jam();
 #if defined VM_TRACE || defined ERROR_INSERT
     ScanRecordPtr tmp;
@@ -12903,16 +12918,17 @@ void Dblqh::finishScanrec(Signal* signal)
   restart.p->scanState = ScanRecord::SCAN_FREE;
   if(tcConnectptr.p->transactionState == TcConnectionrec::SCAN_STATE_USED)
   {
-    scanptr = restart;
-    continueAfterReceivingAllAiLab(signal);  
+    jam();
+    restart_scan = restart;
+    return true;
   }
   else
   {
-    ndbrequire(tcConnectptr.p->transactionState == TcConnectionrec::WAIT_SCAN_AI);
+    jam();
+    ndbrequire(tcConnectptr.p->transactionState ==
+               TcConnectionrec::WAIT_SCAN_AI);
+    return false;
   }
-  
-  scanptr = tmpScan;
-  tcConnectptr = tmpTc;
 }//Dblqh::finishScanrec()
 
 /* ========================================================================= 
@@ -14154,11 +14170,24 @@ void Dblqh::tupCopyCloseConfLab(Signal* signal)
     }//if
   }//if
   releaseActiveCopy(signal);
-  tcConnectptr.p->tcScanRec = RNIL;
-  finishScanrec(signal);
-  releaseOprec(signal);
-  releaseTcrec(signal, tcConnectptr);
-  releaseScanrec(signal);
+  {
+    ScanRecordPtr restart;
+    bool restart_flag = finishScanrec(signal, restart);
+    releaseScanrec(signal);
+    tcConnectptr.p->tcScanRec = RNIL;
+    releaseOprec(signal);
+    releaseTcrec(signal, tcConnectptr);
+    if (restart_flag)
+    {
+      jam();
+      tcConnectptr.i = restart.p->scanTcrec;
+      ptrCheckGuard(tcConnectptr, ctcConnectrecFileSize, tcConnectionrec);
+      scanptr = restart;
+      continueAfterReceivingAllAiLab(signal);
+      return;
+    }
+    return;
+  }
 }//Dblqh::tupCopyCloseConfLab()
 
 /*---------------------------------------------------------------------------*/
