@@ -4687,6 +4687,25 @@ void Item_func_weight_string::fix_length_and_dec()
   maybe_null= 1;
 }
 
+bool Item_func_weight_string::eq(const Item *item, bool binary_cmp) const
+{
+  if (this == item)
+    return 1;
+  if (item->type() != FUNC_ITEM ||
+      functype() != ((Item_func*)item)->functype() ||
+      func_name() != ((Item_func*)item)->func_name())
+    return 0;
+
+  Item_func_weight_string *wstr= (Item_func_weight_string*)item;
+  if (nweights != wstr->nweights ||
+      flags != wstr->flags)
+    return 0;
+
+  if (!args[0]->eq(wstr->args[0], binary_cmp))
+      return 0;
+  return 1;
+}
+
 
 /* Return a weight_string according to collation */
 String *Item_func_weight_string::val_str(String *str)
