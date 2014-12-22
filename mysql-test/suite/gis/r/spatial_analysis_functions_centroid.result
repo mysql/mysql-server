@@ -150,21 +150,18 @@ POINT(1.6666666666666667 3.3333333333333335)
 SELECT AsText(Centroid(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0))')));
 AsText(Centroid(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0))')))
 POINT(5 5)
-SELECT AsText(Centroid(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0,-10 0,-10 -10,0 -10))')));
-AsText(Centroid(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0,-10 0,-10 -10,0 -10))')))
-NULL
 SELECT AsText(Centroid(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4))')));
 AsText(Centroid(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4))')))
 POINT(5 5)
 SELECT AsText(Centroid(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0))')));
 AsText(Centroid(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0))')))
-NULL
+POINT(0 0)
 SELECT AsText(Centroid(GeomFromText('POLYGON((4 4,4 6,6 6,6 4,4 4),(0 0,0 10,10 10,10 0,0 0))')));
 AsText(Centroid(GeomFromText('POLYGON((4 4,4 6,6 6,6 4,4 4),(0 0,0 10,10 10,10 0,0 0))')))
 POINT(5 5)
 SELECT AsText(Centroid(GeomFromText('POLYGON((4 4,4 6,6 6,6 4,4 4),(8 8,8 10,10 10,10 8,8 8))')));
 AsText(Centroid(GeomFromText('POLYGON((4 4,4 6,6 6,6 4,4 4),(8 8,8 10,10 10,10 8,8 8))')))
-NULL
+POINT(4 8)
 #------------------------------------------------------------------------------------
 # multipolygon
 #------------------------------------------------------------------------------------
@@ -176,7 +173,7 @@ AsText(Centroid(GeomFromText('MULTIPOLYGON(((0 0,0 5,5 5)))')))
 POINT(1.6666666666666667 3.3333333333333335)
 SELECT AsText(Centroid(GeomFromText('MULTIPOLYGON(((0 10,10 0,0 0)),((0 0,10 10,10 0)))')));
 AsText(Centroid(GeomFromText('MULTIPOLYGON(((0 10,10 0,0 0)),((0 0,10 10,10 0)))')))
-POINT(5 3.3333333333333335)
+POINT(5 3.333333333333333)
 SELECT AsText(Centroid(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10)),((10 10,10 15,15 15,10 10)))')));
 AsText(Centroid(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10)),((10 10,10 15,15 15,10 10)))')))
 POINT(5 8)
@@ -188,13 +185,13 @@ AsText(Centroid(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6
 POINT(5 5)
 SELECT AsText(Centroid(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0)))')));
 AsText(Centroid(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0)))')))
-NULL
+POINT(0 0)
 SELECT AsText(Centroid(GeomFromText('MULTIPOLYGON(((4 4,4 6,6 6,6 4,4 4),(0 0,0 10,10 10,10 0,0 0)))')));
 AsText(Centroid(GeomFromText('MULTIPOLYGON(((4 4,4 6,6 6,6 4,4 4),(0 0,0 10,10 10,10 0,0 0)))')))
 POINT(5 5)
 SELECT AsText(Centroid(GeomFromText('MULTIPOLYGON(((4 4,4 6,6 6,6 4,4 4),(8 8,8 10,10 10,10 8,8 8)))')));
 AsText(Centroid(GeomFromText('MULTIPOLYGON(((4 4,4 6,6 6,6 4,4 4),(8 8,8 10,10 10,10 8,8 8)))')))
-NULL
+POINT(4 8)
 SELECT AsText(Centroid(GeomFromText('MULTIPOLYGON(((10 10,10 0,5 10,10 10)),((0 10,0 20,5 10,0 10)))')));
 AsText(Centroid(GeomFromText('MULTIPOLYGON(((10 10,10 0,5 10,10 10)),((0 10,0 20,5 10,0 10)))')))
 POINT(5 10)
@@ -386,19 +383,19 @@ AsText(ST_Centroid(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0))')))
 POINT(5 5)
 SELECT AsText(ST_Centroid(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0,-10 0,-10 -10,0 -10))')));
 AsText(ST_Centroid(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0,-10 0,-10 -10,0 -10))')))
-NULL
+POINT(0 5)
 SELECT AsText(ST_Centroid(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4))')));
 AsText(ST_Centroid(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4))')))
 POINT(5 5)
 SELECT AsText(ST_Centroid(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0))')));
 AsText(ST_Centroid(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0))')))
-NULL
+POINT(0 0)
 SELECT AsText(ST_Centroid(GeomFromText('POLYGON((4 4,4 6,6 6,6 4,4 4),(0 0,0 10,10 10,10 0,0 0))')));
 AsText(ST_Centroid(GeomFromText('POLYGON((4 4,4 6,6 6,6 4,4 4),(0 0,0 10,10 10,10 0,0 0))')))
 POINT(5 5)
 SELECT AsText(ST_Centroid(GeomFromText('POLYGON((4 4,4 6,6 6,6 4,4 4),(8 8,8 10,10 10,10 8,8 8))')));
 AsText(ST_Centroid(GeomFromText('POLYGON((4 4,4 6,6 6,6 4,4 4),(8 8,8 10,10 10,10 8,8 8))')))
-NULL
+POINT(4 8)
 SELECT AsText(ST_Centroid(g)) FROM gis_geometrycollection WHERE fid=100;
 AsText(ST_Centroid(g))
 POINT(14.768115942028986 10.797101449275363)
@@ -413,7 +410,7 @@ AsText(ST_Centroid(GeomFromText('MULTIPOLYGON(((0 0,0 5,5 5)))')))
 POINT(1.6666666666666667 3.3333333333333335)
 SELECT AsText(ST_Centroid(GeomFromText('MULTIPOLYGON(((0 10,10 0,0 0)),((0 0,10 10,10 0)))')));
 AsText(ST_Centroid(GeomFromText('MULTIPOLYGON(((0 10,10 0,0 0)),((0 0,10 10,10 0)))')))
-POINT(5 3.3333333333333335)
+POINT(5 3.333333333333333)
 SELECT AsText(ST_Centroid(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10)),((10 10,10 15,15 15,10 10)))')));
 AsText(ST_Centroid(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10)),((10 10,10 15,15 15,10 10)))')))
 POINT(5 8)
@@ -425,13 +422,13 @@ AsText(ST_Centroid(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0),(4 4,4 6,6 
 POINT(5 5)
 SELECT AsText(ST_Centroid(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0)))')));
 AsText(ST_Centroid(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0)))')))
-NULL
+POINT(0 0)
 SELECT AsText(ST_Centroid(GeomFromText('MULTIPOLYGON(((4 4,4 6,6 6,6 4,4 4),(0 0,0 10,10 10,10 0,0 0)))')));
 AsText(ST_Centroid(GeomFromText('MULTIPOLYGON(((4 4,4 6,6 6,6 4,4 4),(0 0,0 10,10 10,10 0,0 0)))')))
 POINT(5 5)
 SELECT AsText(ST_Centroid(GeomFromText('MULTIPOLYGON(((4 4,4 6,6 6,6 4,4 4),(8 8,8 10,10 10,10 8,8 8)))')));
 AsText(ST_Centroid(GeomFromText('MULTIPOLYGON(((4 4,4 6,6 6,6 4,4 4),(8 8,8 10,10 10,10 8,8 8)))')))
-NULL
+POINT(4 8)
 SELECT AsText(ST_Centroid(GeomFromText('MULTIPOLYGON(((10 10,10 0,5 10,10 10)),((0 10,0 20,5 10,0 10)))')));
 AsText(ST_Centroid(GeomFromText('MULTIPOLYGON(((10 10,10 0,5 10,10 10)),((0 10,0 20,5 10,0 10)))')))
 POINT(5 10)

@@ -38,7 +38,7 @@ CREATE TABLE mysqltest.transtable (id int unsigned NOT NULL PRIMARY KEY, val int
 # because the cached insert_undo can be reused at "CREATE TABLE" statement later.
 #
 START TRANSACTION;
-let $c = 1024;
+let $c = 4096;
 while ($c)
 {
   eval INSERT INTO mysqltest.transtable (id) VALUES ($c);

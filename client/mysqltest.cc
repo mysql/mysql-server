@@ -48,6 +48,7 @@
 
 #include <welcome_copyright_notice.h> // ORACLE_WELCOME_COPYRIGHT_NOTICE
 
+#include <string>
 #include <algorithm>
 #include <functional>
 #include "prealloced_array.h"
@@ -4849,7 +4850,7 @@ void do_set_charset(struct st_command *command)
 */
 
 int query_get_string(MYSQL* mysql, const char* query,
-                     int column, DYNAMIC_STRING* ds)
+                     int column, std::string* ds)
 {
   MYSQL_RES *res= NULL;
   MYSQL_ROW row;
@@ -4867,7 +4868,7 @@ int query_get_string(MYSQL* mysql, const char* query,
     ds= 0;
     return 1;
   }
-  init_dynamic_string(ds, (row[column] ? row[column] : "NULL"), ~0, 32);
+  ds->assign(row[column] ? row[column] : "NULL");
   mysql_free_result(res);
   return 0;
 }
@@ -5015,7 +5016,7 @@ void do_shutdown_server(struct st_command *command)
 {
   long timeout=60;
   int pid, error= 0;
-  DYNAMIC_STRING ds_file_name;
+  std::string ds_file_name;
   MYSQL* mysql = &cur_con->mysql;
   static DYNAMIC_STRING ds_timeout;
   const struct command_arg shutdown_args[] = {
@@ -5046,9 +5047,8 @@ void do_shutdown_server(struct st_command *command)
     int fd;
     char buff[32];
 
-    if ((fd= my_open(ds_file_name.str, O_RDONLY, MYF(0))) < 0)
-      die("Failed to open file '%s'", ds_file_name.str);
-    dynstr_free(&ds_file_name);
+    if ((fd= my_open(ds_file_name.c_str(), O_RDONLY, MYF(0))) < 0)
+      die("Failed to open file '%s'", ds_file_name.c_str());
 
     if (my_read(fd, (uchar*)&buff,
                 sizeof(buff), MYF(0)) <= 0){
@@ -5067,9 +5067,8 @@ void do_shutdown_server(struct st_command *command)
   {
     /* Check if we should generate a minidump on timeout. */
     if (query_get_string(mysql, "SHOW VARIABLES LIKE 'core_file'", 1,
-                         &ds_file_name) || strcmp("ON", ds_file_name.str))
+                         &ds_file_name) || strcmp("ON", ds_file_name.c_str()))
     {
-      dynstr_free(&ds_file_name);
     }
     else
     {
@@ -5104,8 +5103,7 @@ void do_shutdown_server(struct st_command *command)
     /*
       Abort to make it easier to find the hang/problem.
     */
-    abort_process(pid, ds_file_name.str);
-    dynstr_free(&ds_file_name);
+    abort_process(pid, ds_file_name.c_str());
   }
   else /* timeout == 0 */
   {

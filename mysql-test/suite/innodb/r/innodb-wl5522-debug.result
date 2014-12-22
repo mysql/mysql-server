@@ -801,7 +801,7 @@ t1	CREATE TABLE `t1` (
 DROP TABLE test_wl5522.t1;
 CREATE TABLE test_wl5522.t1 (c1 INT, c2 VARCHAR(1024), c3 BLOB) ENGINE = Innodb;
 INSERT IGNORE INTO test_wl5522.t1 VALUES
-(100, REPEAT('Karanbir', 899), REPEAT('Ajeeth', 1200));
+(100, REPEAT('Karanbir', 899), REPEAT('Ajeeth', 4800));
 Warnings:
 Warning	1265	Data truncated for column 'c2' at row 1
 INSERT INTO test_wl5522.t1 SELECT * FROM test_wl5522.t1;

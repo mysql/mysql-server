@@ -23,6 +23,7 @@
 #include "sql_error.h"                          /* Sql_condition */
 #include "mysql_version.h"                      /* FRM_VER */
 #include "mysqld_error.h"
+#include "binary_log_funcs.h"
 #include "my_time.h"                            /* my_time_binary_length */
 
 /*
