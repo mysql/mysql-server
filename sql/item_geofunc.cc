@@ -2018,6 +2018,9 @@ bool Item_func_convex_hull::bg_convex_hull(const Geometry *geom,
       {
         boost::geometry::convex_hull(mpts, line_hull);
         line_hull.set_srid(geom->get_srid());
+        // The linestring consists of 4 or more points, but only the
+        // first two contain real data, so we need to trim it down.
+        line_hull.resize(2);
         null_value= post_fix_result(&bg_resbuf_mgr, line_hull, res_hull);
       }
       else if (geotype == Geometry::wkb_geometrycollection)

@@ -2,6 +2,7 @@
 # WL6045:Improve Innochecksum
 #************************************************************
 --source include/have_innodb.inc
+--source include/have_innodb_zip.inc
 --source include/no_valgrind_without_big.inc
 # Embedded server does not support crashing.
 --source include/not_embedded.inc

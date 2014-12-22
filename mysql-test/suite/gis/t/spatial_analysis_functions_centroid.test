@@ -158,7 +158,8 @@ SELECT AsText(Centroid(GeomFromText('POLYGON((0 0,0 5,5 5))')));
 
 SELECT AsText(Centroid(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0))')));
 
-SELECT AsText(Centroid(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0,-10 0,-10 -10,0 -10))')));
+#This query is non-deterministic (bug#20242884).
+#SELECT AsText(Centroid(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0,-10 0,-10 -10,0 -10))')));
 
 SELECT AsText(Centroid(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4))')));
 

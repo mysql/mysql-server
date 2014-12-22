@@ -242,7 +242,7 @@ disconnect conn_root;
 
 --echo # Reset mtr state 
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 10
+--shutdown_server 
 --source include/wait_until_disconnected.inc
 --perl
 use File::Path 'rmtree';

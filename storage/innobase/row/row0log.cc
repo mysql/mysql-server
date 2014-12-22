@@ -2584,7 +2584,7 @@ next_block:
 			  > index->online_log->tail.blocks)) {
 unexpected_eof:
 		ib::error() << "Unexpected end of temporary file for table "
-			<< index->table_name;
+			<< index->table->name;
 corruption:
 		error = DB_CORRUPTION;
 		goto func_exit;
@@ -2645,7 +2645,7 @@ all_done:
 
 		if (!success) {
 			ib::error() << "Unable to read temporary file"
-				" for table " << index->table_name;
+				" for table " << index->table->name;
 			goto corruption;
 		}
 
