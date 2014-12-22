@@ -987,6 +987,14 @@ static int check_if_server_properly_configured()
     DBUG_RETURN(1);
   }
 
+  if(startup_pre_reqs.transaction_write_set_extraction !=
+     HASH_ALGORITHM_MURMUR32)
+  {
+    log_message(MY_ERROR_LEVEL, "Transaction_write_set_extraction should be"
+                " MURMUR32 for Group Replication");
+    DBUG_RETURN(1);
+  }
+
   DBUG_RETURN(0);
 }
 

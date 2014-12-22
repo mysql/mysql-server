@@ -307,6 +307,8 @@ get_server_startup_prerequirements(Trans_context_info& requirements)
   requirements.binlog_format= global_system_variables.binlog_format;
   requirements.binlog_checksum_options= binlog_checksum_options;
   requirements.gtid_mode= gtid_mode;
+  requirements.transaction_write_set_extraction=
+    global_system_variables.transaction_write_set_extraction;
 }
 
 bool get_server_encoded_gtid_executed(uchar **encoded_gtid_executed,

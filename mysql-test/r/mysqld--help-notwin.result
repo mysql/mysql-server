@@ -1085,6 +1085,9 @@ The following options may be given as the first argument:
  --transaction-read-only 
  Default transaction access mode. True if transactions are
  read-only.
+ --transaction-write-set-extraction[=name] 
+ This option is used to let the server know when toextract
+ the write set which will be used for various purposes. 
  --updatable-views-with-limit=name 
  YES = Don't issue an error message (warning only) if a
  VIEW without presence of a key of the underlying table is
@@ -1413,6 +1416,7 @@ transaction-alloc-block-size 8192
 transaction-isolation REPEATABLE-READ
 transaction-prealloc-size 4096
 transaction-read-only FALSE
+transaction-write-set-extraction OFF
 updatable-views-with-limit YES
 validate-user-plugins TRUE
 verbose TRUE

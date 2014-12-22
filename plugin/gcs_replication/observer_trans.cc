@@ -14,6 +14,7 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include <mysql/service_rpl_transaction_ctx.h>
+#include <mysql/service_rpl_transaction_write_set.h>
 #include "gcs_plugin.h"
 #include "observer_trans.h"
 #include "gcs_plugin_utils.h"
@@ -23,24 +24,39 @@
 #include "gcs_replication.h"
 
 /*
+  Buffer to read the write_set value as a string. It will not exceed length
+  of 22, since the length of uint32 is less than than 22 characters.
+*/
+#define BUFFER_READ_PKE 22
+
+/*
   Internal auxiliary functions signatures.
 */
 static bool reinit_cache(IO_CACHE *cache,
                          enum cache_type type,
                          my_off_t position);
 
+void cleanup_transaction_write_set(Transaction_write_set *transaction_write_set)
+{
+  DBUG_ENTER("cleanup_write_set");
+  if (transaction_write_set != NULL)
+  {
+    my_free (transaction_write_set->write_set);
+    my_free (transaction_write_set);
+  }
+  DBUG_VOID_RETURN;
+}
+
 int add_write_set(Transaction_context_log_event *tcle,
-                   std::list<uint32> *set)
+                  Transaction_write_set *set)
 {
   DBUG_ENTER("enter_write_set");
-  for (std::list<uint32>::iterator it= set->begin();
-       it!=set->end();
-       ++it)
+  int iterator= set->write_set_size;
+  for (int i = 0; i < iterator; i++)
   {
-    char buff[22];
-    const char *pke_field_value= my_safe_itoa(10, *it, &buff[sizeof(buff)-1]);
-    // TODO: This will be later moved to transaction memroot to be persisted
-    //       as long as the transaction persists.
+    char buff[BUFFER_READ_PKE];
+    const char *pke_field_value= my_safe_itoa(10, (longlong)set->write_set[i],
+                                              &buff[sizeof(buff)-1]);
     char *write_set_value=my_strdup(PSI_NOT_INSTRUMENTED, pke_field_value,
                                     MYF(MY_WME));
     if (write_set_value)
@@ -97,6 +113,14 @@ int gcs_trans_before_dml(Trans_param *param, int& out)
     DBUG_RETURN(0);
   }
 
+  if ((out+= (param->trans_ctx_info.transaction_write_set_extraction !=
+              HASH_ALGORITHM_MURMUR32)))
+  {
+    log_message(MY_ERROR_LEVEL, "transaction_write_set_extraction should be"
+                " MURMUR32 for Group Replication");
+
+    DBUG_RETURN(0);
+  }
   /*
     Cycle through all involved tables to assess if they all
     comply with the runtime GCS requirements. For now:
@@ -209,17 +233,25 @@ int gcs_trans_before_commit(Trans_param *param)
                                           param->thread_id,
                                           snapshot_timestamp);
 
-
   // TODO: For now DDL won't have write-set, it will be added by
   // WL#6823 and WL#6824.
   if (is_dml)
   {
-    if (add_write_set(tcle, param->write_set))
+    Transaction_write_set* write_set= get_transaction_write_set(param->thread_id);
+    if (write_set == NULL)
     {
+      log_message(MY_ERROR_LEVEL, "Failed to get the write_set");
+      error= 1;
+      goto err;
+    }
+    if (add_write_set(tcle, write_set))
+    {
+      cleanup_transaction_write_set(write_set);
       log_message(MY_ERROR_LEVEL, "Failed to add values to tcle write_set");
       error= 1;
       goto err;
     }
+    cleanup_transaction_write_set(write_set);
     DBUG_ASSERT(tcle->get_write_set()->size() > 0);
   }
 
@@ -264,6 +296,8 @@ int gcs_trans_before_commit(Trans_param *param)
     error= 1;
     goto err;
   }
+
+  DEBUG_SYNC_C("gcs_before_message_broadcast");
 
   //Broadcast the Transaction Message
   if (send_transaction_message(&transaction_msg))

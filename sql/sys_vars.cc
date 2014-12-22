@@ -1688,6 +1688,55 @@ static Sys_var_mybool Sys_log_bin(
        "log_bin", "Whether the binary log is enabled",
        READ_ONLY GLOBAL_VAR(opt_bin_log), NO_CMD_LINE, DEFAULT(FALSE));
 
+static bool transaction_write_set_check(sys_var *self, THD *thd, set_var *var)
+{
+  if (var->type == OPT_GLOBAL &&
+      global_system_variables.binlog_format != BINLOG_FORMAT_ROW)
+  {
+    my_error(ER_PREVENTS_VARIABLE_WITHOUT_RBR, MYF(0), var->var->name.str);
+    return true;
+  }
+
+  if (var->type == OPT_SESSION &&
+      thd->variables.binlog_format != BINLOG_FORMAT_ROW)
+  {
+    my_error(ER_PREVENTS_VARIABLE_WITHOUT_RBR, MYF(0), var->var->name.str);
+    return true;
+  }
+  /*
+    if in a stored function/trigger, it's too late to change
+  */
+  if (thd->in_sub_stmt)
+  {
+    my_error(ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION, MYF(0),
+             var->var->name.str);
+    return true;
+  }
+  /*
+    Make the session variable 'transaction_write_set_extraction' read-only inside a transaction.
+  */
+  if (thd->in_active_multi_stmt_transaction())
+  {
+    my_error(ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION, MYF(0),
+             var->var->name.str);
+    return true;
+  }
+  return false;
+}
+
+static const char *transaction_write_set_hashing_algorithms[]=
+       {"OFF", "MURMUR32", 0};
+
+static Sys_var_enum Sys_extract_write_set(
+       "transaction_write_set_extraction",
+       "This option is used to let the server know when to"
+       "extract the write set which will be used for various purposes. ",
+       SESSION_VAR(transaction_write_set_extraction), CMD_LINE(OPT_ARG),
+       transaction_write_set_hashing_algorithms,
+       DEFAULT(HASH_ALGORITHM_OFF), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+       ON_CHECK(transaction_write_set_check),
+       ON_UPDATE(NULL));
+
 static Sys_var_ulong Sys_rpl_stop_slave_timeout(
        "rpl_stop_slave_timeout",
        "Timeout in seconds to wait for slave to stop before returning a "

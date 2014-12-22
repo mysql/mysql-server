@@ -6,6 +6,8 @@
 # It will test the dynamic variables:
 # - binlog_checksum. It will be set to CRC32 in order to fail.
 # - binlog_format. It will be set to STATEMENT in order to fail.
+# - transaction_write_set_extraction. It will be set to HASH_ALGORITHM_OFF in
+# order to fail.
 #
 # Since the failure will happen when "START GCS_REPLICATION" is
 # issued, the test procedures are the following:
@@ -44,6 +46,15 @@ START GCS_REPLICATION;
 
 --eval SET GLOBAL binlog_format= $binlog_format_backup
 
+--let $transaction_write_set_extraction_backup= `SELECT @@GLOBAL.transaction_write_set_extraction`
+
+SET GLOBAL transaction_write_set_extraction=OFF;
+
+--error ER_GCS_REPLICATION_CONFIGURATION
+START GCS_REPLICATION;
+
+--eval SET GLOBAL transaction_write_set_extraction= $transaction_write_set_extraction_backup
+
 call mtr.add_suppression("Binlog checksum should be OFF for Group Replication");
 call mtr.add_suppression("Binlog format should be ROW for Group Replication");
-
+call mtr.add_suppression("Transaction_write_set_extraction should be MURMUR32 for Group Replication");

@@ -75,6 +75,10 @@ SET SESSION binlog_format= STATEMENT;
 INSERT INTO tn VALUES ('a');
 ERROR HY000: The table does not comply with the requirements by an external plugin.
 SET SESSION binlog_format= ROW;
+SET SESSION transaction_write_set_extraction=OFF;
+INSERT INTO tn VALUES ('a');
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+SET SESSION transaction_write_set_extraction= MURMUR32;
 #
 # Now, lets repeat all the tests with group replication stopped.
 # They all must succeed or fail with other errors that not the
@@ -100,3 +104,4 @@ call mtr.add_suppression("Table.*does not have any PRIMARY KEY. This is not comp
 call mtr.add_suppression("Binlog checksum should be OFF for Group Replication");
 call mtr.add_suppression("Binlog format should be ROW for Group Replication");
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
+call mtr.add_suppression("transaction_write_set_extraction should be MURMUR32 for Group Replication");

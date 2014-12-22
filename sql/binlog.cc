@@ -7187,15 +7187,12 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all)
                   thd_get_cache_mngr(thd)->get_binlog_cache_log(true),
                   thd_get_cache_mngr(thd)->get_binlog_cache_log(false),
                   max<my_off_t>(max_binlog_cache_size,
-                                max_binlog_stmt_cache_size),
-                  thd->get_write_set())))
+                                max_binlog_stmt_cache_size))))
     {
       ha_rollback_low(thd, all);
       my_error(ER_ERROR_DURING_COMMIT, MYF(0), 1);
       DBUG_RETURN(RESULT_ABORTED);
     }
-    thd->clear_hash_pke_list();
-
     /*
       Check whether the transaction should commit or abort given the
       plugin feedback.

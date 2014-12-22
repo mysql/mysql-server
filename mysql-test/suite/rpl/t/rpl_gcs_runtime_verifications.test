@@ -126,6 +126,17 @@ INSERT INTO tn VALUES ('a');
 
 --eval SET SESSION binlog_format= $binlog_format_backup
 
+#Test the value of transaction_write_set_extraction.
+
+--let $transaction_write_set_extraction_backup= `SELECT @@GLOBAL.transaction_write_set_extraction`
+
+SET SESSION transaction_write_set_extraction=OFF;
+
+--error ER_BEFORE_DML_VALIDATION_ERROR
+INSERT INTO tn VALUES ('a');
+
+--eval SET SESSION transaction_write_set_extraction= $transaction_write_set_extraction_backup
+
 --echo #
 --echo # Now, lets repeat all the tests with group replication stopped.
 --echo # They all must succeed or fail with other errors that not the
@@ -174,5 +185,4 @@ call mtr.add_suppression("Table.*does not have any PRIMARY KEY. This is not comp
 call mtr.add_suppression("Binlog checksum should be OFF for Group Replication");
 call mtr.add_suppression("Binlog format should be ROW for Group Replication");
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
-
-
+call mtr.add_suppression("transaction_write_set_extraction should be MURMUR32 for Group Replication");

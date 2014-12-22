@@ -614,6 +614,8 @@ extern PSI_memory_key key_memory_Quick_ranges;
 extern PSI_memory_key key_memory_File_query_log_name;
 extern PSI_memory_key key_memory_Table_trigger_dispatcher;
 extern PSI_memory_key key_memory_show_slave_status_io_gtid_set;
+extern PSI_memory_key key_memory_write_set_extraction;
+extern PSI_memory_key key_memory_transaction_write_set;
 #ifdef HAVE_MY_TIMER
 extern PSI_memory_key key_memory_thd_timer;
 #endif

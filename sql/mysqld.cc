@@ -8478,6 +8478,8 @@ PSI_memory_key key_memory_Quick_ranges;
 PSI_memory_key key_memory_File_query_log_name;
 PSI_memory_key key_memory_Table_trigger_dispatcher;
 PSI_memory_key key_memory_show_slave_status_io_gtid_set;
+PSI_memory_key key_memory_write_set_extraction;
+PSI_memory_key key_memory_transaction_write_set;
 #ifdef HAVE_MY_TIMER
 PSI_memory_key key_memory_thd_timer;
 #endif
@@ -8627,7 +8629,9 @@ static PSI_memory_info all_server_memory[]=
 #endif
   { &key_memory_THD_Session_tracker, "THD::Session_tracker", 0},
   { &key_memory_THD_Session_sysvar_resource_manager, "THD::Session_sysvar_resource_manager", 0},
-  { &key_memory_show_slave_status_io_gtid_set, "show_slave_status_io_gtid_set", 0}
+  { &key_memory_show_slave_status_io_gtid_set, "show_slave_status_io_gtid_set", 0},
+  { &key_memory_write_set_extraction, "write_set_extraction", 0},
+  { &key_memory_transaction_write_set, "transaction_write_set", 0}
 };
 
 /* TODO: find a good header */

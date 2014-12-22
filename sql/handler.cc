@@ -50,7 +50,7 @@
 #include <my_murmur3.h>
 #include <my_stacktrace.h>
 #include <my_dbug.h>
-#include "gcs_replication.h"
+#include "rpl_write_set_handler.h"
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
 #include "ha_partition.h"
@@ -283,65 +283,6 @@ const char *ha_legacy_type_name(legacy_db_type legacy_type)
   }
 }
 #endif
-
-template <class type> uint32 calc_hash(type T)
-{
-  return (murmur3_32((const uchar*)T, strlen(T), 0));
-}
-
-void add_pke_to_list(TABLE *table, THD *thd)
-{
-  std::string pke;
-  std::string temp_pk;
-  char buff[1024];
-  String str(buff, sizeof(buff), &my_charset_bin);
-
-  temp_pk.append(table->s->db.str);
-  temp_pk.append(".");
-  temp_pk.append(table->s->table_name.str);
-  const char* temp_pke= NULL;
-  temp_pke= (char *)temp_pk.c_str();
-
-  pke.append(temp_pke);
-
-  /*
-    the next for loop extracts the primary key field valus of the row
-    images and prepares the string to be hashed. The way we are
-    preparing the pke field values are :
-
-    length1<field_value1>length2<field_value2>..
-    to have less collision.
-  */
-  if(table->key_info && (table->s->primary_key < MAX_KEY))
-  {
-    for (uint i= 0; i < table->key_info->user_defined_key_parts; i++)
-    {
-      // read the primary key field values in str.
-      int index= table->key_info->key_part[i].fieldnr;
-      table->field[index-1]->val_str(&str);
-
-      char* pk_value= (char*) my_malloc(PSI_NOT_INSTRUMENTED,
-                                        str.length()+1, MYF(0));
-      // buffer to be used for my_safe_itoa.
-      char *buf= (char*) my_malloc(PSI_NOT_INSTRUMENTED, str.length(),
-                                   MYF(MY_WME));
-
-      strmake(pk_value, str.c_ptr_safe(), str.length());
-      const char *lenStr = my_safe_itoa(10, (str.length()), &buf[str.length()-1]);
-      pke.append(lenStr);
-      pke.append(pk_value);
-      my_free(buf);
-      my_free(pk_value);
-    }
-
-    const char* pk=NULL;
-    pk= (char *)pke.c_str();
-    DBUG_PRINT("info", ("The hashed value is %s for %u", pk,
-                        thd->thread_id()));
-    uint32 temp_1= calc_hash<const char *>(pk);
-    thd->add_write_set(temp_1);
-  }
-}
 
 /**
   Database name that hold most of mysqld system tables.
@@ -1821,7 +1762,6 @@ int ha_rollback_low(THD *thd, bool all)
     all ? Transaction_ctx::SESSION : Transaction_ctx::STMT;
   Ha_trx_info *ha_info= trn_ctx->ha_trx_info(trx_scope), *ha_info_next;
 
-  thd->clear_hash_pke_list();
   (void) RUN_HOOK(transaction, before_rollback, (thd, all));
 
   if (ha_info)
@@ -7282,8 +7222,9 @@ int binlog_log_row(TABLE* table,
 
   if (check_table_binlog_row_based(thd, table))
   {
-    if(is_running_gcs_rpl())
+    if (thd->variables.transaction_write_set_extraction != HASH_ALGORITHM_OFF)
     {
+      bitmap_set_all(table->read_set);
       if (before_record && after_record)
       {
         size_t length= table->s->reclength;
@@ -7292,30 +7233,24 @@ int binlog_log_row(TABLE* table,
                                              MYF(MY_WME));
         if (!temp_image)
         {
-          sql_print_error("No space left on disk");
+          sql_print_error("Out of memory on transaction write set extraction");
           return 1;
         }
-        add_pke_to_list(table, thd);
+        add_pke(table, thd);
 
-        /*
-          TODO: Allocations in this sections are short- and long- term
-                optimizable.
-                The short term - keep it in the the trans memroot.
-                The long term  - the engine could be asked to return
-                                 `rid' value of the updated record. So
-                                 we would not have to mess around BI
-        */
         memcpy(temp_image, table->record[0],(size_t) table->s->reclength);
         memcpy(table->record[0],table->record[1],(size_t) table->s->reclength);
 
-        add_pke_to_list(table, thd);
+        add_pke(table, thd);
 
         memcpy(table->record[0], temp_image, (size_t) table->s->reclength);
 
         my_free(temp_image);
       }
       else
-        add_pke_to_list(table, thd);
+      {
+        add_pke(table, thd);
+      }
     }
     DBUG_DUMP("read_set 10", (uchar*) table->read_set->bitmap,
               (table->s->fields + 7) / 8);

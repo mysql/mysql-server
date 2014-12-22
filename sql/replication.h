@@ -64,6 +64,8 @@ typedef struct Trans_context_info {
   ulong gtid_mode;               //enum values in enum_gtid_mode
   ulong binlog_checksum_options; //enum values in enum enum_binlog_checksum_alg
   ulong binlog_format;           //enum values in enum enum_binlog_format
+  // enum values in enum_transaction_write_set_hashing_algorithm
+  ulong transaction_write_set_extraction;
 } Trans_context_info;
 
 /**
@@ -93,12 +95,6 @@ typedef struct Trans_param {
 
   IO_CACHE *stmt_cache_log;
   ulonglong cache_log_max_size;
-
-  /*
-    This is the list containing the write_set of the transaction
-    that is tranferrred for the certification purpose.
-  */
-  std::list<uint32> *write_set;
 
   /*
    This is the list of tables that are involved in this transaction and its

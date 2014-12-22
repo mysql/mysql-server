@@ -147,6 +147,18 @@ extern struct rpl_transaction_ctx_service_st {
   int (*set_transaction_ctx)(Transaction_termination_ctx transaction_termination_ctx);
 } *rpl_transaction_ctx_service;
 int set_transaction_ctx(Transaction_termination_ctx transaction_termination_ctx);
+#include <mysql/service_rpl_transaction_write_set.h>
+struct st_trans_write_set
+{
+  unsigned int m_flags;
+  unsigned long write_set_size;
+  unsigned long* write_set;
+};
+typedef struct st_trans_write_set Transaction_write_set;
+extern struct transaction_write_set_service_st {
+  Transaction_write_set* (*get_transaction_write_set)(unsigned long m_thread_id);
+} *transaction_write_set_service;
+Transaction_write_set* get_transaction_write_set(unsigned long m_thread_id);
 struct st_mysql_xid {
   long formatID;
   long gtrid_length;

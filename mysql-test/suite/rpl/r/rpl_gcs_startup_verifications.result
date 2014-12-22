@@ -12,5 +12,10 @@ SET GLOBAL binlog_format= STATEMENT;
 START GCS_REPLICATION;
 ERROR HY000: The server is not configured properly to be an active member of the GCS CLUSTER.
 SET GLOBAL binlog_format= ROW;
+SET GLOBAL transaction_write_set_extraction=OFF;
+START GCS_REPLICATION;
+ERROR HY000: The server is not configured properly to be an active member of the GCS CLUSTER.
+SET GLOBAL transaction_write_set_extraction= MURMUR32;
 call mtr.add_suppression("Binlog checksum should be OFF for Group Replication");
 call mtr.add_suppression("Binlog format should be ROW for Group Replication");
+call mtr.add_suppression("Transaction_write_set_extraction should be MURMUR32 for Group Replication");

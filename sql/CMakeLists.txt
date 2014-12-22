@@ -126,6 +126,7 @@ SET(SQL_SHARED_SOURCES
   protocol.cc
   records.cc
   rpl_handler.cc
+  rpl_write_set_handler.cc
   session_tracker.cc
   set_var.cc 
   sp.cc
@@ -204,6 +205,7 @@ SET(SQL_SHARED_SOURCES
   transaction.cc
   transaction_info.cc
   rpl_transaction_ctx.cc
+  rpl_transaction_write_set_ctx.cc
   trigger.cc
   trigger_creation_ctx.cc
   trigger_loader.cc

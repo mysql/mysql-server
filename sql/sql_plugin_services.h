@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -76,6 +76,10 @@ static struct rpl_transaction_ctx_service_st rpl_transaction_ctx_handler= {
   set_transaction_ctx,
 };
 
+static struct transaction_write_set_service_st transaction_write_set_handler= {
+  get_transaction_write_set,
+};
+
 static struct st_service_ref list_of_services[]=
 {
   { "my_snprintf_service", VERSION_my_snprintf, &my_snprintf_handler },
@@ -88,6 +92,8 @@ static struct st_service_ref list_of_services[]=
     VERSION_mysql_string, &mysql_string_handler },
   { "mysql_malloc_service", VERSION_mysql_malloc, &mysql_malloc_handler },
   { "rpl_transaction_ctx_service",
-    VERSION_rpl_transaction_ctx_service, &rpl_transaction_ctx_handler }
+    VERSION_rpl_transaction_ctx_service, &rpl_transaction_ctx_handler },
+  { "transaction_write_set_service",
+    VERSION_transaction_write_set_service, &transaction_write_set_handler }
 };
 
