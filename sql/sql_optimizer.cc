@@ -9335,13 +9335,8 @@ static bool duplicate_order(const ORDER *first_order,
       const Item *it1= order->item[0]->real_item();
       const Item *it2= possible_dup->item[0]->real_item();
 
-      if (it1->type() == Item::FIELD_ITEM &&
-          it2->type() == Item::FIELD_ITEM &&
-          (static_cast<const Item_field*>(it1)->field ==
-           static_cast<const Item_field*>(it2)->field))
-      {
+      if (it1->eq(it2, 0))
         return true;
-      }
     }
   }
   return false;

@@ -1316,6 +1316,7 @@ public:
   virtual bool itemize(Parse_context *pc, Item **res);
 
   const char *func_name() const { return "weight_string"; }
+  bool eq(const Item *item, bool binary_cmp) const;
   String *val_str(String *);
   void fix_length_and_dec();
 };
