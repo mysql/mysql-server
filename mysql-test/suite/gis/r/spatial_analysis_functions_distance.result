@@ -222,7 +222,7 @@ Distance(GeomFromText('POINT(0 0)'),GeomFromText('MULTILINESTRING((10 10,1 0))')
 1
 SELECT Distance(GeomFromText('POINT(0 0)'),GeomFromText('MULTILINESTRING((10 10,10 0),(0.0000 -0.0000))'));
 Distance(GeomFromText('POINT(0 0)'),GeomFromText('MULTILINESTRING((10 10,10 0),(0.0000 -0.0000))'))
-0
+10
 SELECT Distance(GeomFromText('POINT(1e77 0)'),GeomFromText('MULTILINESTRING((0 0,0 1e154),(0 1e154,1e154 0))'));
 Distance(GeomFromText('POINT(1e77 0)'),GeomFromText('MULTILINESTRING((0 0,0 1e154),(0 1e154,1e154 0))'))
 1e77
@@ -743,7 +743,7 @@ Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4,4 4))'),Ge
 0
 SELECT Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0),(14 14,14 16,16 16,16 14,14 14))'),GeomFromText('POINT(15 15)'));
 Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0),(14 14,14 16,16 16,16 14,14 14))'),GeomFromText('POINT(15 15)'))
-1
+7.0710678118654755
 SELECT Distance(g,GeomFromText(@star_center)) FROM gis_geometrycollection WHERE fid=100;
 Distance(g,GeomFromText(@star_center))
 0
@@ -769,7 +769,7 @@ Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4,4 4))'),Ge
 0
 SELECT Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0),(14 14,14 16,16 16,16 14,14 14))'),GeomFromText('MULTIPOINT(15 15)'));
 Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0),(14 14,14 16,16 16,16 14,14 14))'),GeomFromText('MULTIPOINT(15 15)'))
-1
+7.0710678118654755
 SELECT Distance(g,GeomFromText(@star_all_points)) FROM gis_geometrycollection WHERE fid=100;
 Distance(g,GeomFromText(@star_all_points))
 0
@@ -1344,7 +1344,7 @@ ST_Distance(GeomFromText('POINT(0 0)'),GeomFromText('MULTILINESTRING((10 10,1 0)
 1
 SELECT ST_Distance(GeomFromText('POINT(0 0)'),GeomFromText('MULTILINESTRING((10 10,10 0),(0.0000 -0.0000))'));
 ST_Distance(GeomFromText('POINT(0 0)'),GeomFromText('MULTILINESTRING((10 10,10 0),(0.0000 -0.0000))'))
-0
+10
 SELECT ST_Distance(GeomFromText('POINT(1e77 0)'),GeomFromText('MULTILINESTRING((0 0,0 1e154),(0 1e154,1e154 0))'));
 ST_Distance(GeomFromText('POINT(1e77 0)'),GeomFromText('MULTILINESTRING((0 0,0 1e154),(0 1e154,1e154 0))'))
 1e77
@@ -1865,7 +1865,7 @@ ST_Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4,4 4))')
 0
 SELECT ST_Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0),(14 14,14 16,16 16,16 14,14 14))'),GeomFromText('POINT(15 15)'));
 ST_Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0),(14 14,14 16,16 16,16 14,14 14))'),GeomFromText('POINT(15 15)'))
-1
+7.0710678118654755
 SELECT ST_Distance(g,GeomFromText(@star_center)) FROM gis_geometrycollection WHERE fid=100;
 ST_Distance(g,GeomFromText(@star_center))
 0
@@ -1891,7 +1891,7 @@ ST_Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4,4 4))')
 0
 SELECT ST_Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0),(14 14,14 16,16 16,16 14,14 14))'),GeomFromText('MULTIPOINT(15 15)'));
 ST_Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0),(14 14,14 16,16 16,16 14,14 14))'),GeomFromText('MULTIPOINT(15 15)'))
-1
+7.0710678118654755
 SELECT ST_Distance(g,GeomFromText(@star_all_points)) FROM gis_geometrycollection WHERE fid=100;
 ST_Distance(g,GeomFromText(@star_all_points))
 0
