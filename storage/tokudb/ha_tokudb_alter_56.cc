@@ -765,7 +765,9 @@ bool ha_tokudb::commit_inplace_alter_table(TABLE *altered_table, Alter_inplace_i
 #else
             THD::killed_state saved_killed_state = thd->killed;
             thd->killed = THD::NOT_KILLED;
-            for (volatile uint i = 0; wait_while_table_is_used(thd, table, HA_EXTRA_NOT_USED); i++) {
+            // MySQL does not handle HA_EXTRA_NOT_USED so we use HA_EXTRA_PREPARE_FOR_RENAME since it is passed through 
+            // the partition storage engine and is treated as a NOP by tokudb
+            for (volatile uint i = 0; wait_while_table_is_used(thd, table, HA_EXTRA_PREPARE_FOR_RENAME); i++) {
                 if (thd->killed != THD::NOT_KILLED)
                     thd->killed = THD::NOT_KILLED;
                 sleep(1);
