@@ -320,7 +320,7 @@ void
 ut_stage_alter_t::begin_phase_sort(
 	double	sort_multi_factor)
 {
-	if (sort_multi_factor <= 1) {
+	if (sort_multi_factor <= 1.0) {
 		m_sort_multi_factor = 1;
 	} else {
 		m_sort_multi_factor = static_cast<ulint>(
