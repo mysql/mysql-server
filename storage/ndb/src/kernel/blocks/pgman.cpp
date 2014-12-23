@@ -164,7 +164,18 @@ Pgman::execREAD_CONFIG_REQ(Signal* signal)
     }
 
     m_param.m_max_pages = page_cnt;
+
+    // how many page entries per buffer pages
+    Uint32 entries = 0;
+    ndb_mgm_get_int_parameter(p, CFG_DB_DISK_PAGE_BUFFER_ENTRIES, &entries);
+    ndbout << "pgman: page buffer entries = " << entries << endl;
+    if (entries > 0) // should be
+    {
+      // param name refers to unbound entries ending up on stack
+      m_param.m_lirs_stack_mult = entries;
+    }
     m_page_entry_pool.setSize(m_param.m_lirs_stack_mult * page_cnt);
+
     m_param.m_max_hot_pages = (page_cnt * 9) / 10;
     ndbrequire(m_param.m_max_hot_pages >= 1);
   }
