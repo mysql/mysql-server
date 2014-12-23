@@ -668,7 +668,7 @@ Event_timed::load_from_row(THD *thd, TABLE *table)
 static
 my_time_t
 add_interval(MYSQL_TIME *ltime, const Time_zone *time_zone,
-             interval_type scale, INTERVAL interval)
+             interval_type scale, Interval interval)
 {
   if (date_add_interval(ltime, scale, interval))
     return 0;
@@ -769,7 +769,7 @@ bool get_next_time(const Time_zone *time_zone, my_time_t *next,
     time_zone->gmt_sec_to_TIME(&local_now, time_now);
   }
 
-  INTERVAL interval;
+  Interval interval;
   memset(&interval, 0, sizeof(interval));
   my_time_t next_time= 0;
 

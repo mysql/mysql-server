@@ -1636,14 +1636,17 @@ convert_error_code_to_mysql(
 
 	case DB_TOO_BIG_RECORD: {
 		/* If prefix is true then a 768-byte prefix is stored
-		locally for BLOB fields. Refer to dict_table_get_format() */
+		locally for BLOB fields. Refer to dict_table_get_format().
+		We limit max record size to 16k for 64k page size. */
 		bool prefix = (dict_tf_get_format(flags) == UNIV_FORMAT_A);
 		my_printf_error(ER_TOO_BIG_ROWSIZE,
 			"Row size too large (> %lu). Changing some columns"
 			" to TEXT or BLOB %smay help. In current row"
 			" format, BLOB prefix of %d bytes is stored inline.",
 			MYF(0),
-			page_get_free_space_of_empty(flags &
+			srv_page_size == UNIV_PAGE_SIZE_MAX
+			? REC_MAX_DATA_SIZE - 1
+			: page_get_free_space_of_empty(flags &
 				DICT_TF_COMPACT) / 2,
 			prefix
 			? "or using ROW_FORMAT=DYNAMIC or"
@@ -9441,6 +9444,21 @@ create_table_info_t::create_options_are_invalid()
 		ret = "INDEX DIRECTORY";
 	}
 
+	/* Don't support compressed table when page size > 16k. */
+	if ((has_key_block_size || row_format == ROW_TYPE_COMPRESSED)
+	    && UNIV_PAGE_SIZE > UNIV_PAGE_SIZE_DEF) {
+		push_warning(m_thd, Sql_condition::SL_WARNING,
+			     ER_ILLEGAL_HA_CREATE_OPTION,
+			     "InnoDB: Cannot create a COMPRESSED table"
+			     " when innodb_page_size > 16k.");
+
+		if (has_key_block_size) {
+			ret = "KEY_BLOCK_SIZE";
+		} else {
+			ret = "ROW_TYPE";
+		}
+	}
+
 	return(ret);
 }
 
@@ -9757,6 +9775,17 @@ index_bad:
 		break;
 	}
 
+	/* Don't support compressed table when page size > 16k. */
+	if (zip_allowed && zip_ssize && UNIV_PAGE_SIZE > UNIV_PAGE_SIZE_DEF) {
+		push_warning(m_thd, Sql_condition::SL_WARNING,
+			     ER_ILLEGAL_HA_CREATE_OPTION,
+			     "InnoDB: Cannot create a COMPRESSED table"
+			     " when innodb_page_size > 16k."
+			     " Assuming ROW_FORMAT=COMPACT.");
+		zip_allowed = FALSE;
+	}
+
+	/* Set the table flags */
 	if (!zip_allowed) {
 		zip_ssize = 0;
 	}
@@ -14154,8 +14183,8 @@ ha_innobase::check_if_incompatible_data(
 	}
 
 	/* Check that auto_increment value was not changed */
-	if ((info->used_fields & HA_CREATE_USED_AUTO) &&
-		info->auto_increment_value != 0) {
+	if ((info->used_fields & HA_CREATE_USED_AUTO)
+	    && info->auto_increment_value != 0) {
 
 		return(COMPATIBLE_DATA_NO);
 	}
@@ -16610,7 +16639,7 @@ static MYSQL_SYSVAR_ULONG(page_size, srv_page_size,
 static MYSQL_SYSVAR_LONG(log_buffer_size, innobase_log_buffer_size,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "The size of the buffer which InnoDB uses to write log to the log files on disk.",
-  NULL, NULL, 8*1024*1024L, 256*1024L, LONG_MAX, 1024);
+  NULL, NULL, 16*1024*1024L, 256*1024L, LONG_MAX, 1024);
 
 static MYSQL_SYSVAR_LONGLONG(log_file_size, innobase_log_file_size,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,

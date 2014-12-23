@@ -2340,9 +2340,12 @@ dict_index_too_big_for_tree(
 		rec_max_size = 2;
 	} else {
 		/* The maximum allowed record size is half a B-tree
-		page.  No additional sparse page directory entry will
-		be generated for the first few user records. */
-		page_rec_max = page_get_free_space_of_empty(comp) / 2;
+		page(16k for 64k page size).  No additional sparse
+		page directory entry will be generated for the first
+		few user records. */
+		page_rec_max = srv_page_size == UNIV_PAGE_SIZE_MAX
+			? REC_MAX_DATA_SIZE - 1
+			: page_get_free_space_of_empty(comp) / 2;
 		page_ptr_max = page_rec_max;
 		/* Each record has a header. */
 		rec_max_size = comp
@@ -2517,10 +2520,10 @@ too_big:
 			dict_mem_index_free(new_index);
 			dict_mem_index_free(index);
 			return(DB_TOO_BIG_RECORD);
-		} else {
-
+		} else if (current_thd != NULL) {
+			/* Avoid the warning to be printed
+			during recovery. */
 			ib_warn_row_too_big(table);
-
 		}
 	}
 

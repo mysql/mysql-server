@@ -904,6 +904,10 @@ The following options may be given as the first argument:
  --server-id=#       Uniquely identifies the server instance in the community
  of replication partners
  --server-id-bits=#  Set number of significant bits in server-id
+ --session-track-gtids=name 
+ Controls the amount of global transaction ids to be
+ included in the response packet sent by the
+ server.(Default: OFF).
  --session-track-schema 
  Track changes to the 'default schema'.
  (Defaults to on; use --skip-session-track-schema to disable.)
@@ -1365,6 +1369,7 @@ secure-auth TRUE
 secure-file-priv (No default value)
 server-id 0
 server-id-bits 32
+session-track-gtids OFF
 session-track-schema TRUE
 session-track-state-change FALSE
 session-track-system-variables time_zone,autocommit,character_set_client,character_set_results,character_set_connection

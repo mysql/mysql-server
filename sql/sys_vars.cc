@@ -794,7 +794,6 @@ static bool check_top_level_stmt_and_super(sys_var *self, THD *thd, set_var *var
 }
 #endif
 
-#if defined(HAVE_GTID_NEXT_LIST) || defined(HAVE_REPLICATION)
 static bool check_outside_transaction(sys_var *self, THD *thd, set_var *var)
 {
   if (thd->in_active_multi_stmt_transaction())
@@ -804,6 +803,7 @@ static bool check_outside_transaction(sys_var *self, THD *thd, set_var *var)
   }
   return false;
 }
+#if defined(HAVE_GTID_NEXT_LIST) || defined(HAVE_REPLICATION)
 static bool check_outside_sp(sys_var *self, THD *thd, set_var *var)
 {
   if (thd->lex->sphead)
@@ -930,6 +930,25 @@ static Sys_var_enum Sys_binlog_row_image(
        binlog_row_image_names, DEFAULT(BINLOG_ROW_IMAGE_FULL),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(NULL),
        ON_UPDATE(NULL));
+
+static bool on_session_track_gtids_update(sys_var *self, THD *thd,
+                                          enum_var_type type)
+{
+  thd->session_tracker.get_tracker(SESSION_GTIDS_TRACKER)->update(thd);
+  return false;
+}
+
+static const char *session_track_gtids_names[]=
+  { "OFF", "OWN_GTID", "ALL_GTIDS", NullS };
+static Sys_var_enum Sys_session_track_gtids(
+       "session_track_gtids",
+       "Controls the amount of global transaction ids to be "
+       "included in the response packet sent by the server."
+       "(Default: OFF).",
+       SESSION_VAR(session_track_gtids), CMD_LINE(REQUIRED_ARG),
+       session_track_gtids_names, DEFAULT(OFF),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_outside_transaction),
+       ON_UPDATE(on_session_track_gtids_update));
 
 static bool binlog_direct_check(sys_var *self, THD *thd, set_var *var)
 {
@@ -1207,12 +1226,21 @@ static bool check_charset_db(sys_var *self, THD *thd, set_var *var)
     var->save_result.ptr= thd->db_charset;
   return false;
 }
+static bool update_deprecated(sys_var *self, THD *thd, enum_var_type type)
+{
+  push_warning_printf(thd, Sql_condition::SL_WARNING,
+                      ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,
+                      ER_THD(thd, ER_WARN_DEPRECATED_SYSVAR_UPDATE),
+                      self->name.str);
+  return false;
+}
 static Sys_var_struct Sys_character_set_database(
        "character_set_database",
        " The character set used by the default database",
        SESSION_VAR(collation_database), NO_CMD_LINE,
        offsetof(CHARSET_INFO, csname), DEFAULT(&default_charset_info),
-       NO_MUTEX_GUARD, IN_BINLOG, ON_CHECK(check_charset_db));
+       NO_MUTEX_GUARD, IN_BINLOG, ON_CHECK(check_charset_db),
+       ON_UPDATE(update_deprecated));
 
 static bool check_cs_client(sys_var *self, THD *thd, set_var *var)
 {
@@ -1322,7 +1350,8 @@ static Sys_var_struct Sys_collation_database(
        "character set",
        SESSION_VAR(collation_database), NO_CMD_LINE,
        offsetof(CHARSET_INFO, name), DEFAULT(&default_charset_info),
-       NO_MUTEX_GUARD, IN_BINLOG, ON_CHECK(check_collation_db));
+       NO_MUTEX_GUARD, IN_BINLOG, ON_CHECK(check_collation_db),
+       ON_UPDATE(update_deprecated));
 
 static Sys_var_struct Sys_collation_server(
        "collation_server", "The server default collation",
@@ -3435,7 +3464,8 @@ static Sys_var_enum Sys_updatable_views_with_limit(
 static Sys_var_mybool Sys_sync_frm(
        "sync_frm", "Sync .frm files to disk on creation",
        GLOBAL_VAR(opt_sync_frm), CMD_LINE(OPT_ARG),
-       DEFAULT(TRUE));
+       DEFAULT(TRUE), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+       ON_CHECK(0), ON_UPDATE(0), DEPRECATED(""));
 
 static char *system_time_zone_ptr;
 static Sys_var_charptr Sys_system_time_zone(

@@ -1672,6 +1672,7 @@ done:
   if (thd->killed)
     thd->send_kill_message();
   thd->protocol->end_statement();
+  thd->rpl_thd_ctx.session_gtids_ctx().notify_after_response_packet(thd);
   query_cache.end_of_result(thd);
 
   if (!thd->is_error() && !thd->killed_errno())

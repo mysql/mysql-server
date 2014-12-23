@@ -7322,6 +7322,8 @@ alter:
         | ALTER DATABASE ident UPGRADE_SYM DATA_SYM DIRECTORY_SYM NAME_SYM
           {
             LEX *lex= Lex;
+            push_deprecated_warn_no_replacement(YYTHD,
+              "UPGRADE DATA DIRECTORY NAME");
             if (lex->sphead)
             {
               my_error(ER_SP_NO_DROP_SP, MYF(0), "DATABASE");

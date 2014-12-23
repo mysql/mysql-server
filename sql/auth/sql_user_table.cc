@@ -1071,6 +1071,9 @@ int replace_proxies_priv_table(THD *thd, TABLE *table, const LEX_USER *user,
   }
 
   table->use_all_columns();
+
+  Write_lock proxy_users_wlk(&proxy_users_rwlock);
+
   ACL_PROXY_USER::store_pk (table, user->host, user->user,
                             proxied_user->host, proxied_user->user);
 
@@ -1108,6 +1111,7 @@ int replace_proxies_priv_table(THD *thd, TABLE *table, const LEX_USER *user,
   {
     DBUG_PRINT("info", ("Row found"));
     old_row_exists= 1;
+    ACL_PROXY_USER::store_with_grant(table, with_grant_arg);
     store_record(table, record[1]);
   }
 

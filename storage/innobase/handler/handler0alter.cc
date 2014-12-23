@@ -267,8 +267,11 @@ my_error_innodb(
 		my_error(ER_NOT_KEYFILE, MYF(0), table);
 		break;
 	case DB_TOO_BIG_RECORD:
+		/* We limit max record size to 16k for 64k page size. */
 		my_error(ER_TOO_BIG_ROWSIZE, MYF(0),
-			 page_get_free_space_of_empty(
+			 srv_page_size == UNIV_PAGE_SIZE_MAX
+			 ? REC_MAX_DATA_SIZE - 1
+			 : page_get_free_space_of_empty(
 				 flags & DICT_TF_COMPACT) / 2);
 		break;
 	case DB_INVALID_NULL:

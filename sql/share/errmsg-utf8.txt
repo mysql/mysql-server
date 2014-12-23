@@ -7338,6 +7338,10 @@ ER_WRONG_FIELD_WITH_GROUP_V2
 ER_MIX_OF_GROUP_FUNC_AND_FIELDS_V2
   eng "In aggregated query without GROUP BY, expression #%u of %s contains nonaggregated column '%-.192s'; this is incompatible with sql_mode=only_full_group_by"
 
+# When using this error message, use the ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT error code.
+ER_WARN_DEPRECATED_SYSVAR_UPDATE
+  eng "Updating '%s' is deprecated. It will be made read-only in a future release."
+
 ER_GCS_REPLICATION_CONFIGURATION
   eng "The server is not configured properly to be an active member of the GCS CLUSTER."
 

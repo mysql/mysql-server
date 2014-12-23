@@ -16,13 +16,8 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-
-
-/* The old structures from unireg */
-
 #include "sql_plugin.h"                         /* plugin_ref */
 #include "sql_const.h"                          /* MAX_REFLENGTH */
-#include "my_time.h"                   /* enum_mysql_timestamp_type */
 #include "thr_lock.h"                  /* thr_lock_type */
 #include "my_base.h"                   /* ha_rows, ha_key_alg */
 
@@ -30,36 +25,6 @@ struct TABLE;
 class Field;
 
 class THD;
-
-typedef struct st_date_time_format {
-  uchar positions[8];
-  char  time_separator;			/* Separator between hour and minute */
-  uint flag;				/* For future */
-  LEX_STRING format;
-} DATE_TIME_FORMAT;
-
-
-typedef struct st_keyfile_info {	/* used with ha_info() */
-  uchar ref[MAX_REFLENGTH];		/* Pointer to current row */
-  uchar dupp_ref[MAX_REFLENGTH];	/* Pointer to dupp row */
-  uint ref_length;			/* Length of ref (1-8) */
-  uint block_size;			/* index block size */
-  File filenr;				/* (uniq) filenr for table */
-  ha_rows records;			/* Records i datafilen */
-  ha_rows deleted;			/* Deleted records */
-  ulonglong data_file_length;		/* Length off data file */
-  ulonglong max_data_file_length;	/* Length off data file */
-  ulonglong index_file_length;
-  ulonglong max_index_file_length;
-  ulonglong delete_length;		/* Free bytes */
-  ulonglong auto_increment_value;
-  int errkey,sortkey;			/* Last errorkey and sorted by */
-  time_t create_time;			/* When table was created */
-  time_t check_time;
-  time_t update_time;
-  ulong mean_rec_length;		/* physical reclength */
-} KEYFILE_INFO;
-
 
 class KEY_PART_INFO {	/* Info about a key part */
 public:
@@ -263,49 +228,6 @@ public:
 } KEY;
 
 
-class JOIN_TAB;
-class QEP_TAB;
-
-typedef struct st_reginfo {		/* Extra info about reg */
-  class JOIN_TAB *join_tab;
-  class QEP_TAB *qep_tab;
-  enum thr_lock_type lock_type;		/* How database is used */
-  bool not_exists_optimize;
-  /*
-    TRUE <=> range optimizer found that there is no rows satisfying
-    table conditions.
-  */
-  bool impossible_range;
-} REGINFO;
-
-
-/*
-  Originally MySQL used MYSQL_TIME structure inside server only, but since
-  4.1 it's exported to user in the new client API. Define aliases for
-  new names to keep existing code simple.
-*/
-
-typedef enum enum_mysql_timestamp_type timestamp_type;
-
-
-typedef struct {
-  ulong year,month,day,hour;
-  ulonglong minute,second,second_part;
-  bool neg;
-} INTERVAL;
-
-
-typedef struct st_known_date_time_format {
-  const char *format_name;
-  const char *date_format;
-  const char *datetime_format;
-  const char *time_format;
-} KNOWN_DATE_TIME_FORMAT;
-
-extern const char *show_comp_option_name[];
-
-typedef int *(*update_var)(THD *, struct st_mysql_show_var *);
-
 /*
   This structure holds the specifications relating to
   ALTER user ... PASSWORD EXPIRE ...
@@ -388,40 +310,6 @@ typedef struct  user_conn {
   USER_RESOURCES user_resources;
 } USER_CONN;
 
-	/* Bits in form->update */
-#define REG_MAKE_DUPP		1	/* Make a copy of record when read */
-#define REG_NEW_RECORD		2	/* Write a new record if not found */
-#define REG_UPDATE		4	/* Uppdate record */
-#define REG_DELETE		8	/* Delete found record */
-#define REG_PROG		16	/* User is updating database */
-#define REG_CLEAR_AFTER_WRITE	32
-#define REG_MAY_BE_UPDATED	64
-#define REG_AUTO_UPDATE		64	/* Used in D-forms for scroll-tables */
-#define REG_OVERWRITE		128
-#define REG_SKIP_DUP		256
-
-/**
-  Flags for TABLE::status (maximum 8 bits). Do NOT add new ones.
-  @todo: GARBAGE and NOT_FOUND could be unified. UPDATED and DELETED could be
-  changed to "bool current_row_has_already_been_modified" in the
-  multi_update/delete objects (one such bool per to-be-modified table).
-  @todo aim at removing the status. There should be more local ways.
-*/
-#define STATUS_GARBAGE          1
-/**
-   Means we were searching for a row and didn't find it. This is used by
-   storage engines (@see handler::index_read_map()) and the Server layer.
-*/
-#define STATUS_NOT_FOUND        2
-/// Reserved for use by multi-table update. Means the row has been updated.
-#define STATUS_UPDATED          16
-/**
-   Means that table->null_row is set. This is an artificial NULL-filled row
-   (one example: in outer join, if no match has been found in inner table).
-*/
-#define STATUS_NULL_ROW         32
-/// Reserved for use by multi-table delete. Means the row has been deleted.
-#define STATUS_DELETED          64
 
 /*
   Such interval is "discrete": it is the set of

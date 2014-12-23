@@ -556,7 +556,7 @@ DROP USER 'Tanjotuser2'@'127.0.0.1';
 
 let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 --exec echo "wait" > $restart_file
---shutdown_server 10
+--shutdown_server 
 --source include/wait_until_disconnected.inc
 -- exec echo "restart:--default-authentication-plugin=mysql_native_password  " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 -- enable_reconnect
@@ -629,7 +629,7 @@ DROP USER 'Tanjotuser3'@'localhost';
 
 let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 --exec echo "wait" > $restart_file
---shutdown_server 10
+--shutdown_server 
 --source include/wait_until_disconnected.inc
 -- exec echo "restart:--default-authentication-plugin=sha256_password  " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 -- enable_reconnect
