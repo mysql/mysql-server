@@ -2367,15 +2367,15 @@ btr_cur_pess_upd_restore_supremum(
 Check if the total length of the modified blob for the row is within 10%
 of the total redo log size.  This constraint on the blob length is to
 avoid overwriting the redo logs beyond the last checkpoint lsn.
-@return	DB_SUCCESS or DB_TOO_BIG_RECORD. */
+@return	DB_SUCCESS or DB_TOO_BIG_FOR_REDO. */
 static
 dberr_t
 btr_check_blob_limit(const big_rec_t*	big_rec_vec)
 {
 	const	ib_uint64_t redo_size = srv_n_log_files * srv_log_file_size
 		* UNIV_PAGE_SIZE;
-	const	ulint redo_10p = redo_size / 10;
-	ulint	total_blob_len = 0;
+	const	ib_uint64_t redo_10p = redo_size / 10;
+	ib_uint64_t	total_blob_len = 0;
 	dberr_t	err = DB_SUCCESS;
 
 	/* Calculate the total number of bytes for blob data */
@@ -2385,11 +2385,11 @@ btr_check_blob_limit(const big_rec_t*	big_rec_vec)
 
 	if (total_blob_len > redo_10p) {
 		ib_logf(IB_LOG_LEVEL_ERROR, "The total blob data"
-			" length (" ULINTPF ") is greater than"
+			" length (" UINT64PF ") is greater than"
 			" 10%% of the total redo log size (" UINT64PF
 			"). Please increase total redo log size.",
 			total_blob_len, redo_size);
-		err = DB_TOO_BIG_RECORD;
+		err = DB_TOO_BIG_FOR_REDO;
 	}
 
 	return(err);
@@ -4406,7 +4406,7 @@ Stores the fields in big_rec_vec to the tablespace and puts pointers to
 them in rec.  The extern flags in rec will have to be set beforehand.
 The fields are stored on pages allocated from leaf node
 file segment of the index tree.
-@return	DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
+@return	DB_SUCCESS or DB_OUT_OF_FILE_SPACE or DB_TOO_BIG_FOR_REDO */
 UNIV_INTERN
 dberr_t
 btr_store_big_rec_extern_fields(
