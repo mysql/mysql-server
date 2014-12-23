@@ -122,7 +122,7 @@ public:
 	many pages processed. */
 	void
 	begin_phase_sort(
-		ulint	sort_multi_factor);
+		double	sort_multi_factor);
 
 	/** Flag the beginning of the insert phase. */
 	void
@@ -318,9 +318,14 @@ many pages processed. */
 inline
 void
 ut_stage_alter_t::begin_phase_sort(
-	ulint	sort_multi_factor)
+	double	sort_multi_factor)
 {
-	m_sort_multi_factor = std::max(1UL, sort_multi_factor);
+	if (sort_multi_factor <= 1) {
+		m_sort_multi_factor = 1;
+	} else {
+		m_sort_multi_factor = static_cast<ulint>(
+			round(m_sort_multi_factor));
+	}
 
 	change_phase(&srv_stage_alter_table_sort);
 }
@@ -485,7 +490,7 @@ public:
 
 	void
 	begin_phase_sort(
-		ulint	sort_multi_factor)
+		double	sort_multi_factor)
 	{
 	}
 
