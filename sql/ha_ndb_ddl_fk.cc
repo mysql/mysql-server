@@ -1559,39 +1559,6 @@ ha_ndbcluster::can_switch_engines()
 {
   DBUG_ENTER("ha_ndbcluster::can_switch_engines");
 
-  if (m_table == 0)
-  {
-    DBUG_RETURN(0);
-  }
-
-  THD* thd= table->in_use;
-  if (thd == 0)
-  {
-    thd= current_thd;
-  }
-
-  if (thd == 0)
-  {
-    DBUG_RETURN(0);
-  }
-
-  // first shot
-
-  LEX *lex= thd->lex;
-  DBUG_ASSERT(lex != 0);
-  if (lex->sql_command != SQLCOM_ALTER_TABLE)
-    DBUG_RETURN(1);
-
-  Alter_info &alter_info= lex->alter_info;
-  uint alter_flags= alter_info.flags;
-
-  if (!(alter_flags & Alter_info::ALTER_OPTIONS))
-    DBUG_RETURN(1);
-
-  HA_CREATE_INFO &create_info= lex->create_info;
-  if (create_info.db_type->db_type == DB_TYPE_NDBCLUSTER)
-    DBUG_RETURN(1);
-
   if (is_child_or_parent_of_fk())
     DBUG_RETURN(0);
 

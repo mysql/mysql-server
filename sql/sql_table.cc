@@ -8247,8 +8247,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   if (check_engine(thd, alter_ctx.new_db, alter_ctx.new_name, create_info))
     DBUG_RETURN(true);
 
-  if ((create_info->db_type != table->s->db_type() ||
-       alter_info->flags & Alter_info::ALTER_PARTITION) &&
+  if (create_info->db_type != table->s->db_type() &&
       !table->file->can_switch_engines())
   {
     my_error(ER_ROW_IS_REFERENCED, MYF(0));
@@ -8324,6 +8323,22 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
                               &alter_ctx, &partition_changed,
                               &fast_alter_partition))
     {
+      DBUG_RETURN(true);
+    }
+    if (partition_changed &&
+        !(table->file->ht->partition_flags &&
+          (table->file->ht->partition_flags() & HA_CAN_PARTITION)) &&
+        !table->file->can_switch_engines())
+    {
+      /*
+        Partitioning was changed (added/changed/removed) and the current
+        handler does not support partitioning and FK relationship exists
+        for the table.
+
+        Since the current handler does not support native partitioning, it will
+        be altered to use ha_partition which does not support foreign keys.
+      */
+      my_error(ER_FOREIGN_KEY_ON_PARTITIONED, MYF(0));
       DBUG_RETURN(true);
     }
   }

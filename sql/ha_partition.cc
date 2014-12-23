@@ -7850,7 +7850,10 @@ bool ha_partition::can_switch_engines()
   do
   {
     if (!(*file)->can_switch_engines())
+    {
+      DBUG_ASSERT(0);          // A ha_partition table should never have FKs!!!
       DBUG_RETURN(FALSE);
+    }
   } while (*(++file));
   DBUG_RETURN(TRUE);
 }
