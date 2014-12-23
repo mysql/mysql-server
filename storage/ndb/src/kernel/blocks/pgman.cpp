@@ -486,6 +486,9 @@ Pgman::seize_page_entry(Ptr<Page_entry>& ptr, Uint32 file_no, Uint32 page_no)
     D("seize_page_entry");
     D(ptr);
 
+    if (m_stats.m_entries_high < m_page_entry_pool.getUsed())
+      m_stats.m_entries_high = m_page_entry_pool.getUsed();
+
     return true;
   }
   return false;
@@ -2799,6 +2802,31 @@ Pgman::execDUMP_STATE_ORD(Signal* signal)
   if (signal->theData[0] == 11009)
   {
     SET_ERROR_INSERT_VALUE(11009);
+  }
+
+  if (signal->theData[0] == 11100)
+  {
+    int pages = m_param.m_max_pages;
+    int size = m_page_entry_pool.getSize();
+    int used = m_page_entry_pool.getUsed();
+    int usedpct = size ? ((100 * used) / size) : 0;
+    int high = m_stats.m_entries_high;
+    int highpct = size ? ((100 * high) / size) : 0;
+    ndbout << "pgman(" << instance() << ")";
+    ndbout << " pages: " << pages << " entries: " << size;
+    ndbout << " used: " << used << " (" << usedpct << "%)";
+    ndbout << " high: " << high << " (" << highpct << "%)";
+    ndbout << endl;
+  }
+
+  if (signal->theData[0] == 11101)
+  {
+    int used = m_page_entry_pool.getUsed();
+    int high = m_stats.m_entries_high;
+    ndbout << "pgman(" << instance() << ")";
+    ndbout << " reset entries high: " << high;
+    ndbout << " to used: " << used << endl;
+    m_stats.m_entries_high = used;
   }
 }
 
