@@ -9933,19 +9933,6 @@ bool open_trans_system_tables_for_read(THD *thd, TABLE_LIST *table_list)
       DBUG_RETURN(true);
     }
 
-    // Ensure the t are of the system category (TABLE_CATEGORY_SYSTEM).
-
-    if (t->table->s->table_category != TABLE_CATEGORY_SYSTEM)
-    {
-      // Crash in the debug build ...
-      DBUG_ASSERT(!"Table category is not system");
-
-      // ... or report an error in the release build.
-      my_error(ER_UNKNOWN_ERROR, MYF(0));
-      thd->end_attachable_transaction();
-      DBUG_RETURN(true);
-    }
-
     // The table should be in a transaction SE. This is not strict requirement
     // however. It will be make more strict in the future.
 

@@ -437,8 +437,8 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_DROP_FUNCTION]=     CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_ALTER_PROCEDURE]=   CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_ALTER_FUNCTION]=    CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
-  sql_command_flags[SQLCOM_INSTALL_PLUGIN]=    CF_CHANGES_DATA;
-  sql_command_flags[SQLCOM_UNINSTALL_PLUGIN]=  CF_CHANGES_DATA;
+  sql_command_flags[SQLCOM_INSTALL_PLUGIN]=    CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_UNINSTALL_PLUGIN]=  CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
 
   /* Does not change the contents of the Diagnostics Area. */
   sql_command_flags[SQLCOM_GET_DIAGNOSTICS]= CF_DIAGNOSTIC_STMT;
@@ -3332,7 +3332,7 @@ end_with_restore_list:
 
     MYSQL_INSERT_START(const_cast<char*>(thd->query().str));
     res= mysql_insert(thd, all_tables, lex->field_list, lex->many_values,
-		      lex->update_list, lex->value_list,
+                      lex->update_list, lex->value_list,
                       lex->duplicates);
     MYSQL_INSERT_DONE(res, (ulong) thd->get_row_count_func());
 
@@ -4721,15 +4721,6 @@ end_with_restore_list:
     if (!(res= mysql_alter_tablespace(thd, lex->alter_tablespace_info)))
       my_ok(thd);
     break;
-  case SQLCOM_INSTALL_PLUGIN:
-    if (! (res= mysql_install_plugin(thd, &thd->lex->comment,
-                                     &thd->lex->ident)))
-      my_ok(thd);
-    break;
-  case SQLCOM_UNINSTALL_PLUGIN:
-    if (! (res= mysql_uninstall_plugin(thd, &thd->lex->comment)))
-      my_ok(thd);
-    break;
   case SQLCOM_BINLOG_BASE64_EVENT:
   {
 #ifndef EMBEDDED_LIBRARY
@@ -4769,6 +4760,8 @@ end_with_restore_list:
   case SQLCOM_XA_COMMIT:
   case SQLCOM_XA_ROLLBACK:
   case SQLCOM_XA_RECOVER:
+  case SQLCOM_INSTALL_PLUGIN:
+  case SQLCOM_UNINSTALL_PLUGIN:
     DBUG_ASSERT(lex->m_sql_cmd != NULL);
     res= lex->m_sql_cmd->execute(thd);
     break;

@@ -15065,8 +15065,7 @@ install:
           {
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_INSTALL_PLUGIN;
-            lex->comment= $3;
-            lex->ident= $5;
+            lex->m_sql_cmd= new Sql_cmd_install_plugin($3, $5);
           }
         ;
 
@@ -15075,7 +15074,7 @@ uninstall:
           {
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_UNINSTALL_PLUGIN;
-            lex->comment= $3;
+            lex->m_sql_cmd= new Sql_cmd_uninstall_plugin($3);
           }
         ;
 
