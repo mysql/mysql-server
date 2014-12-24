@@ -12102,6 +12102,10 @@ ib_warn_row_too_big(const dict_table_t*	table)
 
 	THD*	thd = current_thd;
 
+	if (thd == NULL) {
+		return;
+	}
+
 	push_warning_printf(
 		thd, MYSQL_ERROR::WARN_LEVEL_WARN, HA_ERR_TO_BIG_ROW,
 		"Row size too large (> %lu). Changing some columns to TEXT"
