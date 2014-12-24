@@ -69,14 +69,18 @@ mysql.innodb_table_stats
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
 mysql.ndb_binlog_index                             OK
-mysql.plugin                                       OK
+mysql.plugin
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
 mysql.proc                                         OK
 mysql.procs_priv                                   OK
 mysql.proxies_priv                                 OK
 mysql.server_cost
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
-mysql.servers                                      OK
+mysql.servers
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
 mysql.slave_master_info
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
@@ -169,14 +173,18 @@ mysql.innodb_table_stats
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
 mysql.ndb_binlog_index                             Table is already up to date
-mysql.plugin                                       Table is already up to date
+mysql.plugin
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
 mysql.proc                                         Table is already up to date
 mysql.procs_priv                                   Table is already up to date
 mysql.proxies_priv                                 Table is already up to date
 mysql.server_cost
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
-mysql.servers                                      Table is already up to date
+mysql.servers
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
 mysql.slave_master_info
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
