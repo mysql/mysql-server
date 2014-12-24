@@ -40,6 +40,10 @@ CREATE TABLE time_zone_transition_type as SELECT * FROM mysql.time_zone_transiti
 --exec $MYSQL_TZINFO_TO_SQL $MYSQLTEST_VARDIR/std_data/Europe >$MYSQLTEST_VARDIR/tmp/loadzonefile.sql
 --source $MYSQLTEST_VARDIR/tmp/loadzonefile.sql
 
+# Load timezone info file with garbage content
+--error 1
+--exec $MYSQL_TZINFO_TO_SQL $MYSQLTEST_VARDIR/std_data/Factory test_junk_content
+
 # Cleanup
 DROP DATABASE test_zone;
 --remove_file $MYSQLTEST_VARDIR/tmp/loadzonefile.sql
