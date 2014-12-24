@@ -2219,12 +2219,6 @@ innobase_trx_allocate(
 
 	innobase_trx_init(thd, trx);
 
-#ifdef UNIV_DEBUG
-	if (thd_trx_is_dd_trx(thd)) {
-		trx->is_dd_trx = true;
-	}
-#endif /* UNIV_DEBUG */
-
 	DBUG_RETURN(trx);
 }
 
@@ -13035,6 +13029,11 @@ ha_innobase::external_lock(
 
 		TrxInInnoDB::begin_stmt(trx);
 
+#ifdef UNIV_DEBUG
+		if (thd_trx_is_dd_trx(thd)) {
+			trx->is_dd_trx = true;
+		}
+#endif /* UNIV_DEBUG */
 		DBUG_RETURN(0);
 	} else {
 
