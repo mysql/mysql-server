@@ -5797,9 +5797,9 @@ ER_PARTITION_MGMT_ON_NONPARTITIONED
         ger "Partitionsverwaltung einer nicht partitionierten Tabelle ist nicht möglich"
         swe "Partitioneringskommando på en opartitionerad tabell är inte möjligt"
 ER_FOREIGN_KEY_ON_PARTITIONED
-        eng "Foreign key clause is not yet supported in conjunction with partitioning"
+        eng "Foreign keys are not yet supported in conjunction with partitioning"
         ger "Fremdschlüssel-Beschränkungen sind im Zusammenhang mit Partitionierung nicht zulässig"
-        swe "Foreign key klausul är inte ännu implementerad i kombination med partitionering"
+        swe "Foreign keys är inte ännu implementerad i kombination med partitionering"
 ER_DROP_PARTITION_NON_EXISTENT
         eng "Error in list of partitions to %-.64s"
         ger "Fehler in der Partitionsliste bei %-.64s"

@@ -328,7 +328,7 @@ Warning	1831	Duplicate index 'i2' defined on the table 'test.t1'. This is deprec
 drop table t1;
 CREATE TABLE t1 (a INT, FOREIGN KEY (a) REFERENCES t0 (a))
 PARTITION BY HASH (a);
-ERROR HY000: Foreign key clause is not yet supported in conjunction with partitioning
+ERROR HY000: Foreign keys are not yet supported in conjunction with partitioning
 CREATE TABLE t1 (
 pk INT NOT NULL AUTO_INCREMENT,
 PRIMARY KEY (pk)

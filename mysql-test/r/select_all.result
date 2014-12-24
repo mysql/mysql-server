@@ -4791,7 +4791,7 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` order by `test`.`t1`.`a`,`test`.`t1`.`b` limit 5
 SELECT * FROM t1 ORDER BY a, b LIMIT 5;
 a	b	c
-		1
+		0
 		2
 		1
 		0
