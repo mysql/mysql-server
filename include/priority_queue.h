@@ -116,25 +116,29 @@ private:
   void heapify(size_type i, size_type last)
   {
     DBUG_ASSERT(i < size());
-    size_type l = left(i);
-    size_type r = right(i);
     size_type largest = i;
 
-    if (l < last && Base::operator()(m_container[i], m_container[l]))
+    do
     {
-      largest = l;
-    }
+      i = largest;
+      size_type l = left(i);
+      size_type r = right(i);
 
-    if (r < last && Base::operator()(m_container[largest], m_container[r]))
-    {
-      largest = r;
-    }
+      if (l < last && Base::operator()(m_container[i], m_container[l]))
+      {
+        largest = l;
+      }
 
-    if (largest != i)
-    {
-      std::swap(m_container[i], m_container[largest]);
-      heapify(largest, last);
-    }
+      if (r < last && Base::operator()(m_container[largest], m_container[r]))
+      {
+        largest = r;
+      }
+
+      if (largest != i)
+      {
+        std::swap(m_container[i], m_container[largest]);
+      }
+    } while (largest != i);
   }
 
   void heapify(size_type i)
