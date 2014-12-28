@@ -5981,6 +5981,7 @@ int ha_tokudb::extra(enum ha_extra_function operation) {
         using_ignore_no_key = false;
         break;
     case HA_EXTRA_NOT_USED:
+    case HA_EXTRA_PREPARE_FOR_RENAME:
         break; // must do nothing and return 0
     default:
         break;
