@@ -20,7 +20,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef os0stacktrace_h
 #define os0stacktrace_h
 
-#ifdef __linux__
+#if defined (__linux__) && HAVE_BACKTRACE && HAVE_BACKTRACE_SYMBOLS
 #if HAVE_EXECINFO_H
 #include <execinfo.h>
 #endif
@@ -40,5 +40,5 @@ os_stacktrace_print(
 	siginfo_t* info,     /*!< in: signal information */
 	void*      ucontext);/*!< in: signal context */
 
-#endif /*  __linux__ */
+#endif /* defined (__linux__) && HAVE_BACKTRACE && HAVE_BACKTRACE_SYMBOLS */
 #endif /* os0stacktrace.h */

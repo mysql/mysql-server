@@ -1274,7 +1274,7 @@ innobase_start_or_create_for_mysql(void)
 	stacktrace feature. */
 
 	if (srv_use_stacktrace) {
-#ifdef __linux__
+#if defined (__linux__) && HAVE_BACKTRACE && HAVE_BACKTRACE_SYMBOLS
 		 struct sigaction sigact;
 
 		 sigact.sa_sigaction = os_stacktrace_print;
@@ -1287,7 +1287,7 @@ innobase_start_or_create_for_mysql(void)
 			 srv_use_stacktrace = FALSE;
 
 		 }
-#endif /* __linux__ */
+#endif /* defined (__linux__) && HAVE_BACKTRACE && HAVE_BACKTRACE_SYMBOLS */
 	}
 
 
