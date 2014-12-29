@@ -31,12 +31,47 @@ source include/show_binlog_events.inc;
 
 FLUSH STATUS;
 
+--echo
+--echo # 'DROP TABLE IF EXISTS <deleted tables>' is binlogged
+--echo # when 'DROP DATABASE' fails and at least one table is deleted
+--echo # from the database.
+RESET MASTER;
+CREATE DATABASE testing_1;
+USE testing_1;
+CREATE TABLE t1(c1 INT);
+CREATE TABLE t2(c1 INT);
+
+let $prefix= `SELECT UUID()`;
+--echo # Create a file in the database directory
+--replace_result $prefix FAKE_FILE
+eval SELECT 'hello' INTO OUTFILE 'fake_file.$prefix';
+
+--echo
+--echo # 'DROP DATABASE' will fail if there is any other file in the the
+--echo # database directory
+
+# Use '/' instead of '\' in the error message. On windows platform, dir is
+# formed with '\'.
+--replace_regex /\\testing_1\\*/\/testing_1\//
+--error 1010
+DROP DATABASE testing_1;
+let $wait_binlog_event= DROP TABLE IF EXIST;
+source include/wait_for_binlog_event.inc;
+let $MYSQLD_DATADIR= `SELECT @@datadir`;
+
+--echo
+--echo # Remove the fake file.
+--remove_file $MYSQLD_DATADIR/testing_1/fake_file.$prefix
+--echo # Now we can drop the database.
+DROP DATABASE testing_1;
+
 
 --echo #
 --echo # Bug#11765416 58381: FAILED DROP DATABASE CAN BREAK STATEMENT
 --echo #              BASED REPLICATION
 --echo #
 
+USE test;
 --disable_warnings
 DROP DATABASE IF EXISTS db1;
 DROP TABLE IF EXISTS t3;
