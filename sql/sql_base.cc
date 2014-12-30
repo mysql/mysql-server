@@ -5307,10 +5307,6 @@ bool open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags,
   bool has_prelocking_list;
   DBUG_ENTER("open_tables");
 
-  /* Accessing data in XA_IDLE or XA_PREPARED is not allowed. */
-  if (*start &&
-      thd->get_transaction()->xid_state()->check_xa_idle_or_prepared(true))
-    DBUG_RETURN(true);
 
 restart:
   /*
@@ -5509,6 +5505,11 @@ restart:
       }
     }
   }
+
+  /* Accessing data in XA_IDLE or XA_PREPARED is not allowed. */
+  if (*start &&
+      thd->get_transaction()->xid_state()->check_xa_idle_or_prepared(true))
+    DBUG_RETURN(true);
 
 #ifdef HAVE_MY_TIMER
   /*
