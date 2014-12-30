@@ -685,7 +685,7 @@ word32 CertDecoder::GetSignature()
     }
 
     sigLength_ = GetLength(source_);
-    if (sigLength_ == 0 || source_.IsLeft(sigLength_) == false) {
+    if (sigLength_ <= 1 || source_.IsLeft(sigLength_) == false) {
         source_.SetError(CONTENT_E);
         return 0;
     }
@@ -1016,11 +1016,17 @@ bool CertDecoder::ConfirmSignature(Source& pub)
         RSA_PublicKey pubKey(pub);
         RSAES_Encryptor enc(pubKey);
 
+        if (pubKey.FixedCiphertextLength() != sigLength_) {
+            source_.SetError(SIG_LEN_E);
+            return false;
+        }
+
         return enc.SSL_Verify(build.get_buffer(), build.size(), signature_);
     }
     else  { // DSA
         // extract r and s from sequence
         byte seqDecoded[DSA_SIG_SZ];
+        memset(seqDecoded, 0, sizeof(seqDecoded));
         DecodeDSA_Signature(seqDecoded, signature_, sigLength_);
 
         DSA_PublicKey pubKey(pub);
