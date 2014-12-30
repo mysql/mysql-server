@@ -12,6 +12,16 @@ before calling SSL_new();
 
 *** end Note ***
 
+yaSSL Release notes, version 2.3.7 (12/10/2014)
+    This release of yaSSL fixes the potential to process duplicate handshake
+    messages by explicitly marking/checking received handshake messages.
+
+yaSSL Release notes, version 2.3.6 (11/25/2014)
+
+    This release of yaSSL fixes some valgrind warnings/errors including
+    uninitialized reads and off by one index errors induced from fuzzing
+    the handshake.  These were reported by Oracle. 
+
 yaSSL Release notes, version 2.3.5 (9/29/2014)
 
     This release of yaSSL fixes an RSA Padding check vulnerability reported by
