@@ -778,7 +778,10 @@ struct dict_index_t{
 # define DICT_INDEX_MAGIC_N	76789786
 #endif
 	dict_field_t*	fields;	/*!< array of field descriptions */
-	st_mysql_ftparser*	parser;/*!< fulltext plugin parser */
+	st_mysql_ftparser*
+			parser;	/*!< fulltext parser plugin */
+	bool		is_ngram;
+				/*!< true if it's ngram parser */
 #ifndef UNIV_HOTBACKUP
 	UT_LIST_NODE_T(dict_index_t)
 			indexes;/*!< list of indexes of the table */

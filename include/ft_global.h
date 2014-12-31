@@ -58,6 +58,8 @@ struct _ft_vft_ext
 
 #define FTS_DOC_ID_COL_NAME "FTS_DOC_ID"
 
+#define FTS_NGRAM_PARSER_NAME "ngram"
+
 #ifndef FT_CORE
 struct st_ft_info
 {
