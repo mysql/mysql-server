@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2015, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, Percona Inc.
 Copyright (c) 2012, Facebook Inc.
@@ -17346,6 +17346,7 @@ ib_senderrf(
 		str = static_cast<char*>(malloc(size));
 	}
 	if (str == NULL) {
+		va_end(args);
 		return;	/* Watch for Out-Of-Memory */
 	}
 	str[size - 1] = 0x0;
@@ -17354,12 +17355,14 @@ ib_senderrf(
 	int	ret;
 	ret = vasprintf(&str, format, args);
 	if (ret < 0) {
+		va_end(args);
 		return;	/* Watch for Out-Of-Memory */
 	}
 #else
 	/* Use a fixed length string. */
 	str = static_cast<char*>(malloc(BUFSIZ));
 	if (str == NULL) {
+		va_end(args);
 		return;	/* Watch for Out-Of-Memory */
 	}
 	my_vsnprintf(str, BUFSIZ, format, args);
@@ -17433,6 +17436,7 @@ ib_errf(
 		str = static_cast<char*>(malloc(size));
 	}
 	if (str == NULL) {
+		va_end(args);
 		return;	/* Watch for Out-Of-Memory */
 	}
 	str[size - 1] = 0x0;
@@ -17441,12 +17445,14 @@ ib_errf(
 	int	ret;
 	ret = vasprintf(&str, format, args);
 	if (ret < 0) {
+		va_end(args);
 		return;	/* Watch for Out-Of-Memory */
 	}
 #else
 	/* Use a fixed length string. */
 	str = static_cast<char*>(malloc(BUFSIZ));
 	if (str == NULL) {
+		va_end(args);
 		return;	/* Watch for Out-Of-Memory */
 	}
 	my_vsnprintf(str, BUFSIZ, format, args);
