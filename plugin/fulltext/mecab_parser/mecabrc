@@ -1,0 +1,8 @@
+; Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+;
+; Configuration file of MeCab
+;
+; We have three ipadics in /path/to/mysql/lib/mecab/dic:
+; ipadic_euc-jp, ipadic_sjis, and ipadic_utf8.
+; you can choose any of them or use your own one.
+dicdir =  /path/to/mysql/lib/mecab/lib/mecab/dic/ipadic_euc-jp
