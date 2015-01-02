@@ -1,4 +1,4 @@
--- Copyright (c) 2007, 2014, Oracle and/or its affiliates. All rights reserved.
+-- Copyright (c) 2007, 2015, Oracle and/or its affiliates. All rights reserved.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License as published by
@@ -837,7 +837,8 @@ DROP PREPARE stmt;
 SET @cmd="CREATE TABLE performance_schema.setup_actors("
   "HOST CHAR(60) collate utf8_bin default '%' not null,"
   "USER CHAR(16) collate utf8_bin default '%' not null,"
-  "ROLE CHAR(16) collate utf8_bin default '%' not null"
+  "ROLE CHAR(16) collate utf8_bin default '%' not null,"
+  "ENABLED ENUM ('YES', 'NO') not null default 'YES'"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');

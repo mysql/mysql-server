@@ -27,3 +27,5 @@ ALTER TABLE performance_schema.setup_actors ADD INDEX test_index(HOST);
 -- error ER_DBACCESS_DENIED_ERROR
 CREATE UNIQUE INDEX test_index ON performance_schema.setup_actors(HOST);
 
+-- error ER_DBACCESS_DENIED_ERROR
+ALTER TABLE performance_schema.setup_actors ADD KEY ENA(ENABLED);
