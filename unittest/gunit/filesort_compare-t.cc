@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -89,9 +89,9 @@ class FileSortCompareTest : public ::testing::Test
 {
 protected:
   // Do each sort algorithm this many times. Increase value for benchmarking!
-  static const int num_iterations= 1;
+  static const int num_iterations= 10000;
   // Number of records.
-  static const int num_records= 100 * 1000;
+  static const int num_records= 100 * 1;
   // Number of keys in each record.
   static const int keys_per_record= 4;
   // Size of each record.
