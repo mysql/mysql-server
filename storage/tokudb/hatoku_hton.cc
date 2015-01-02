@@ -415,10 +415,10 @@ static int tokudb_init_func(void *p) {
     tokudb_hton->commit = tokudb_commit;
     tokudb_hton->rollback = tokudb_rollback;
 #if TOKU_INCLUDE_XA
-    tokudb_hton->prepare=tokudb_xa_prepare;
-    tokudb_hton->recover=tokudb_xa_recover;
-    tokudb_hton->commit_by_xid=tokudb_commit_by_xid;
-    tokudb_hton->rollback_by_xid=tokudb_rollback_by_xid;
+    tokudb_hton->prepare = tokudb_xa_prepare;
+    tokudb_hton->recover = tokudb_xa_recover;
+    tokudb_hton->commit_by_xid = tokudb_commit_by_xid;
+    tokudb_hton->rollback_by_xid = tokudb_rollback_by_xid;
 #endif
 
     tokudb_hton->panic = tokudb_end;
@@ -776,25 +776,29 @@ static void tokudb_cleanup_handlers(tokudb_trx_data *trx, DB_TXN *txn) {
 extern "C" enum durability_properties thd_get_durability_property(const MYSQL_THD thd);
 #endif
 
-// Determine if an fsync is used when a transaction is committed.  The MySQL durability property 
-// has precedence over the tokudb commit sync setting as it has a better idea of what is going on.
-static bool tokudb_fsync_on_commit(THD *thd) {
+// Determine if an fsync is used when a transaction is committed.  
+static bool tokudb_fsync_on_commit(THD *thd, tokudb_trx_data *trx, DB_TXN *txn) {
 #if MYSQL_VERSION_ID >= 50600
+    // Check the client durability property which is set during 2PC
     if (thd_get_durability_property(thd) == HA_IGNORE_DURABILITY)
         return false;
-    else
 #endif
-        return THDVAR(thd, commit_sync) != 0;
+#if defined(MARIADB_BASE_VERSION)
+    // Check is the txn is prepared and the binlog is open
+    if (txn->is_prepared(txn) && mysql_bin_log.is_open())
+        return false;
+#endif
+    return THDVAR(thd, commit_sync) != 0;
 }
 
 static int tokudb_commit(handlerton * hton, THD * thd, bool all) {
     TOKUDB_DBUG_ENTER("");
     DBUG_PRINT("trans", ("ending transaction %s", all ? "all" : "stmt"));
-    uint32_t syncflag = tokudb_fsync_on_commit(thd) ? 0 : DB_TXN_NOSYNC;
     tokudb_trx_data *trx = (tokudb_trx_data *) thd_get_ha_data(thd, hton);
     DB_TXN **txn = all ? &trx->all : &trx->stmt;
     DB_TXN *this_txn = *txn;
     if (this_txn) {
+        uint32_t syncflag = tokudb_fsync_on_commit(thd, trx, this_txn) ? 0 : DB_TXN_NOSYNC;
         if (tokudb_debug & TOKUDB_DEBUG_TXN) {
             TOKUDB_TRACE("commit trx %u txn %p syncflag %u", all, this_txn, syncflag);
         }
@@ -850,7 +854,7 @@ static int tokudb_xa_prepare(handlerton* hton, THD* thd, bool all) {
     TOKUDB_DBUG_ENTER("");
     int r = 0;
 
-    /* if support_xa is disable, just return */
+    // if tokudb_support_xa is disable, just return
     if (!THDVAR(thd, support_xa)) {
         TOKUDB_DBUG_RETURN(r);
     }
