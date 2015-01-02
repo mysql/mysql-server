@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -156,7 +156,8 @@ static void set_setup_actor_key(PFS_setup_actor_key *key,
   key->m_key_length= ptr - &key->m_hash_key[0];
 }
 
-int insert_setup_actor(const String *user, const String *host, const String *role)
+int insert_setup_actor(const String *user, const String *host, const String *role,
+                       bool enabled)
 {
   static PFS_ALIGNED PFS_cacheline_uint32 monotonic;
 
@@ -194,13 +195,14 @@ int insert_setup_actor(const String *user, const String *host, const String *rol
       pfs->m_hostname_length= host->length();
       pfs->m_rolename= pfs->m_hostname + pfs->m_hostname_length + 1;
       pfs->m_rolename_length= role->length();
+      pfs->m_enabled= enabled;
 
       int res;
       pfs->m_lock.dirty_to_allocated(& dirty_state);
       res= lf_hash_insert(&setup_actor_hash, pins, &pfs);
       if (likely(res == 0))
       {
-        update_setup_actors_derived_flags(thread);
+        update_setup_actors_derived_flags();
         return 0;
       }
 
@@ -243,7 +245,7 @@ int delete_setup_actor(const String *user, const String *host, const String *rol
 
   lf_hash_search_unpin(pins);
 
-  update_setup_actors_derived_flags(thread);
+  update_setup_actors_derived_flags();
 
   return 0;
 }
@@ -271,7 +273,7 @@ int reset_setup_actor()
     }
   }
 
-  update_setup_actors_derived_flags(thread);
+  update_setup_actors_derived_flags();
 
   return 0;
 }
@@ -328,8 +330,9 @@ void lookup_setup_actor(PFS_thread *thread,
 
     if (entry && (entry != MY_ERRPTR))
     {
+      PFS_setup_actor *pfs= *entry;
       lf_hash_search_unpin(pins);
-      *enabled= true;
+      *enabled= pfs->m_enabled;
       return;
     }
 
@@ -339,9 +342,14 @@ void lookup_setup_actor(PFS_thread *thread,
   return;
 }
 
-void update_setup_actors_derived_flags(PFS_thread *thread)
+int update_setup_actors_derived_flags()
 {
+  PFS_thread *thread= PFS_thread::get_current_thread();
+  if (unlikely(thread == NULL))
+    return HA_ERR_OUT_OF_MEM;
+
   update_accounts_derived_flags(thread);
+  return 0;
 }
 
 /** @} */

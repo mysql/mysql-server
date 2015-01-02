@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -45,6 +45,8 @@ struct row_setup_actors
   char m_rolename[16];
   /** Length in bytes of @c m_rolename. */
   uint m_rolename_length;
+  /** Column ENABLED. */
+  bool *m_enabled_ptr;
 };
 
 /** Table PERFORMANCE_SCHEMA.SETUP_ACTORS. */
