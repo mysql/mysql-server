@@ -241,3 +241,21 @@ let $s = select sum(c) from t1 group by b;
 eval $s;
 eval explain $s;
 
+--echo #
+--echo # Bug#20241655: WL411:FAILING ASSERTION ASSERTION 
+--echo # 
+CREATE TABLE BB (
+  col_time_key time NOT NULL,
+  col_time_nokey time GENERATED ALWAYS AS (ADDTIME(col_datetime_key, col_time_key)) VIRTUAL,
+  col_datetime_key datetime NOT NULL);
+INSERT INTO BB VALUES('23:28:02', default, '2005-03-15 22:48:25');
+
+CREATE TABLE CC (
+  col_time_key time NOT NULL,
+  col_time_nokey time GENERATED ALWAYS AS (ADDTIME(col_datetime_key, col_time_key)) VIRTUAL,
+  col_datetime_key datetime NOT NULL
+);
+INSERT INTO CC VALUES('16:22:51', default, '1900-01-01 00:00:00');
+
+SELECT 1 AS g1 FROM BB AS gp1 LEFT JOIN BB AS gp2 USING ( col_time_nokey);
+DROP TABLE BB, CC;
