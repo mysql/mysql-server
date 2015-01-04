@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -7986,6 +7986,7 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
   Field_iterator_table_ref it_1, it_2;
   Natural_join_column *nj_col_1, *nj_col_2;
   bool first_outer_loop= TRUE;
+  List<Field> fields;
   /*
     Leaf table references to which new natural join columns are added
     if the leaves are != NULL.
@@ -8089,6 +8090,8 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
       Field *field_2= nj_col_2->field();
       Item_ident *item_ident_1, *item_ident_2;
       Item_func_eq *eq_cond;
+      fields.push_back(field_1);
+      fields.push_back(field_2);
 
       if (!item_1 || !item_2)
         DBUG_RETURN(true);                      // Out of memory.
@@ -8163,6 +8166,30 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
 
       if (using_fields != NULL)
         ++(*found_using_fields);
+    }
+  }
+
+  // Mark base fields virtual generated columns depend if needed
+  List_iterator_fast<Field> it(fields);
+  Field *field;
+  while((field= it++))
+  {
+    //Stored GCs are treated as the base columns for select
+    if (field->gcol_info && !field->stored_in_db)
+    {
+      Item *gcol_item= field->gcol_info->expr_item;
+      DBUG_ASSERT(gcol_item);
+      gcol_item->walk(&Item::register_field_in_read_map, Item::WALK_PREFIX,
+                      (uchar *) 0);
+      /*
+        As non-persistent generated columns are calculated on the fly, they
+        needs to be stored (written, even for read-only statements) to the
+        field in order to be used, so set the generated field for write here if
+        1) this procedure is called for a read-only operation (SELECT), and
+        2) the generated column is not phycically stored in the table
+        */
+      if (thd->mark_used_columns != MARK_COLUMNS_WRITE)
+        bitmap_set_bit(field->table->write_set, field->field_index);
     }
   }
   if (leaf_1)
