@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -25,6 +25,7 @@ Created 2014/11/17 Shaohua Wang
 
 #include "ha_prototypes.h"
 #include "ft_global.h"
+#include "m_ctype.h"
 
 /* Macros and structs below are from ftdefs.h in MyISAM */
 /** Check a char is true word */
