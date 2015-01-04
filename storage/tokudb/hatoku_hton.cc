@@ -1614,12 +1614,12 @@ static ST_FIELD_INFO tokudb_fractal_tree_info_field_info[] = {
 
 static int tokudb_report_fractal_tree_info_for_db(const DBT *dname, const DBT *iname, TABLE *table, THD *thd) {
     int error;
-    DB *db;
     uint64_t bt_num_blocks_allocated;
     uint64_t bt_num_blocks_in_use;
     uint64_t bt_size_allocated;
     uint64_t bt_size_in_use;
 
+    DB *db = NULL;
     error = db_create(&db, db_env, 0);
     if (error) {
         goto exit;
@@ -1631,12 +1631,6 @@ static int tokudb_report_fractal_tree_info_for_db(const DBT *dname, const DBT *i
     error = db->get_fractal_tree_info64(db,
                                         &bt_num_blocks_allocated, &bt_num_blocks_in_use,
                                         &bt_size_allocated, &bt_size_in_use);
-    {
-        int close_error = db->close(db, 0);
-        if (!error) {
-            error = close_error;
-        }
-    }
     if (error) {
         goto exit;
     }
@@ -1668,6 +1662,11 @@ static int tokudb_report_fractal_tree_info_for_db(const DBT *dname, const DBT *i
     error = schema_table_store_record(thd, table);
 
 exit:
+    if (db) {
+        int close_error = db->close(db, 0);
+        if (error == 0)
+            error = close_error;
+    }
     return error;
 }
 
