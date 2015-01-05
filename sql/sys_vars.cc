@@ -4811,7 +4811,7 @@ static Sys_var_ulong Sys_sp_cache_size(
        "The soft upper limit for number of cached stored routines for "
        "one connection.",
        GLOBAL_VAR(stored_program_cache_size), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(256, 512 * 1024), DEFAULT(256), BLOCK_SIZE(1));
+       VALID_RANGE(16, 512 * 1024), DEFAULT(256), BLOCK_SIZE(1));
 
 static bool check_pseudo_slave_mode(sys_var *self, THD *thd, set_var *var)
 {

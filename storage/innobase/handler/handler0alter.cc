@@ -1690,6 +1690,7 @@ innobase_create_index_def(
 		mem_heap_alloc(heap, n_fields * sizeof *index->fields));
 
 	index->parser = NULL;
+	index->is_ngram = false;
 	index->key_number = key_number;
 	index->n_fields = n_fields;
 	index->name = mem_heap_strdup(heap, key->name);
@@ -1722,6 +1723,13 @@ innobase_create_index_def(
 					index->parser =
 						static_cast<st_mysql_ftparser*>(
 						plugin_decl(parser)->info);
+
+					index->is_ngram = strncmp(
+						plugin_name(parser)->str,
+						FTS_NGRAM_PARSER_NAME,
+						plugin_name(parser)->length)
+						 == 0;
+
 					break;
 				}
 			}

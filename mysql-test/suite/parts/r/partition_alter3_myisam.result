@@ -61,7 +61,7 @@ t1.MYI
 t1.frm
 EXPLAIN PARTITIONS SELECT COUNT(*) FROM t1 WHERE f_date = '1000-02-10';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	20	5.00	Using where
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	20	10.00	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where (`test`.`t1`.`f_date` = '1000-02-10')
@@ -89,7 +89,7 @@ t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) FROM t1 WHERE f_date = '1000-02-10';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	20	5.00	Using where
+1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	20	10.00	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where (`test`.`t1`.`f_date` = '1000-02-10')
@@ -112,7 +112,7 @@ t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) FROM t1 WHERE f_date = '1000-02-10';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	20	5.00	Using where
+1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	20	10.00	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where (`test`.`t1`.`f_date` = '1000-02-10')
@@ -133,7 +133,7 @@ t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) FROM t1 WHERE f_date = '1000-02-10';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	20	5.00	Using where
+1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	20	10.00	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where (`test`.`t1`.`f_date` = '1000-02-10')
@@ -476,7 +476,7 @@ t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) FROM t1 WHERE f_date = '1000-02-10';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	20	5.00	Using where
+1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	20	10.00	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where (`test`.`t1`.`f_date` = '1000-02-10')
@@ -499,7 +499,7 @@ t1.MYI
 t1.frm
 EXPLAIN PARTITIONS SELECT COUNT(*) FROM t1 WHERE f_date = '1000-02-10';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	20	5.00	Using where
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	20	10.00	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where (`test`.`t1`.`f_date` = '1000-02-10')
@@ -538,7 +538,7 @@ t1.MYI
 t1.frm
 EXPLAIN PARTITIONS SELECT COUNT(*) <> 1 FROM t1 WHERE f_int1 = 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	20	5.00	Using where
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	20	10.00	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select (count(0) <> 1) AS `COUNT(*) <> 1` from `test`.`t1` where (`test`.`t1`.`f_int1` = 3)
@@ -567,7 +567,7 @@ t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) <> 1 FROM t1 WHERE f_int1 = 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	20	5.00	Using where
+1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	20	10.00	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select (count(0) <> 1) AS `COUNT(*) <> 1` from `test`.`t1` where (`test`.`t1`.`f_int1` = 3)
@@ -932,7 +932,7 @@ t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) <> 1 FROM t1 WHERE f_int1 = 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	20	5.00	Using where
+1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	20	10.00	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select (count(0) <> 1) AS `COUNT(*) <> 1` from `test`.`t1` where (`test`.`t1`.`f_int1` = 3)
@@ -958,7 +958,7 @@ t1.MYI
 t1.frm
 EXPLAIN PARTITIONS SELECT COUNT(*) <> 1 FROM t1 WHERE f_int1 = 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	20	5.00	Using where
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	20	10.00	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select (count(0) <> 1) AS `COUNT(*) <> 1` from `test`.`t1` where (`test`.`t1`.`f_int1` = 3)

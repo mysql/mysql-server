@@ -128,7 +128,7 @@ Event_worker_thread::print_warnings(THD *thd, Event_job_data *et)
 bool
 post_init_event_thread(THD *thd)
 {
-  if (my_thread_init() || init_thr_lock() || thd->store_globals())
+  if (my_thread_init() || thd->store_globals())
   {
     return TRUE;
   }

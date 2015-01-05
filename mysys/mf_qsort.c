@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -200,6 +200,5 @@ void my_qsort(void *base_ptr, size_t count, size_t size, qsort_cmp cmp)
       high = high_ptr;
     }
   } while (stack_ptr > stack);
-  my_afree(pivot);
   return;
 }

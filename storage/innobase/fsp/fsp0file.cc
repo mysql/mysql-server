@@ -275,10 +275,12 @@ Datafile::read_first_page(bool read_only_mode)
 		(ut_align(m_first_page_buf, UNIV_PAGE_SIZE));
 
 	if (!os_file_read(m_handle, m_first_page, 0, UNIV_PAGE_SIZE)) {
-			ib::error() << "Cannot read first page of '"
-				<< m_filepath << "'";
-			return(DB_IO_ERROR);
-		}
+
+		ib::error()
+			<< "Cannot read first page of '" << m_filepath << "'";
+
+		return(DB_IO_ERROR);
+	}
 
 	if (m_order == 0) {
 		m_flags = fsp_header_get_flags(m_first_page);
