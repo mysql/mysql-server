@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -2818,6 +2818,11 @@ row_ins_sec_index_entry_low(
 				&cursor, 0, __FILE__, __LINE__, &mtr);
 			mode = BTR_MODIFY_TREE;
 		}
+
+		DBUG_EXECUTE_IF(
+			"rtree_test_check_count", {
+			goto func_exit;});
+
 	} else {
 		if (dict_table_is_intrinsic(index->table)) {
 			btr_cur_search_to_nth_level_with_no_latch(
