@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,30 +14,23 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include "item.h"
 
-#include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
-#include <mysql.h>
-#include <m_ctype.h>
-#include "my_dir.h"
-#include "sp_rcontext.h"
-#include "sp_head.h"                  // sp_prepare_func_item
-#include "sp.h"                       // sp_map_item_type
-#include "sql_select.h"
-#include "sql_show.h"                           // append_identifier
-#include "sql_view.h"                           // VIEW_ANY_SQL
-#include "sql_time.h"                  // str_to_datetime_with_warn,
-                                       // make_truncated_value_warning
-#include "auth_common.h"               // SELECT_ACL, UPDATE_ACL, INSERT_ACL
-                                       // get_column_grant,
-                                       // check_grant_column
-#include "sql_base.h"                  // enum_resolution_type,
-                                       // REPORT_EXCEPT_NOT_FOUND,
-                                       // find_item_in_list,
-                                       // RESOLVED_AGAINST_ALIAS, ...
-#include "log_event.h"                 // append_query_string
-#include "sql_test.h"                  // print_where
-#include "sql_optimizer.h"             // JOIN
-#include "aggregate_check.h"
+#include "aggregate_check.h" // Distinct_check
+#include "auth_common.h"     // get_column_grant
+#include "item_cmpfunc.h"    // COND_EQUAL
+#include "item_create.h"     // create_temporal_literal
+#include "item_func.h"       // item_func_sleep_init
+#include "item_strfunc.h"    // Item_func_conv_charset
+#include "item_sum.h"        // Item_sum
+#include "log_event.h"       // append_query_string
+#include "sp.h"              // sp_map_item_type
+#include "sp_rcontext.h"     // sp_rcontext
+#include "sql_base.h"        // view_ref_found
+#include "sql_class.h"       // THD
+#include "sql_show.h"        // append_identifier
+#include "sql_time.h"        // Date_time_format
+#include "sql_view.h"        // VIEW_ANY_ACL
 
 using std::min;
 using std::max;

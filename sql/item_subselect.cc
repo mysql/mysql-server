@@ -21,24 +21,21 @@
 
 */
 
-/*
-  It is necessary to include set_var.h instead of item.h because there
-  are dependencies on include order for set_var.h and item.h. This
-  will be resolved later.
-*/
-#include "sql_class.h"                          // set_var.h: THD
-#include "set_var.h"
-#include "sql_select.h"
-#include "opt_trace.h"
-#include "sql_parse.h"                          // check_stack_overrun
-#include "sql_derived.h"                        // mysql_derived_create, ...
-#include "debug_sync.h"
-#include "sql_test.h"
-#include "sql_join_buffer.h"                    // JOIN_CACHE
-#include "sql_optimizer.h"                      // JOIN
-#include "opt_explain_format.h"
-#include "parse_tree_nodes.h"
-#include "sql_union.h"                          // select_union
+#include "item_subselect.h"
+
+#include "debug_sync.h"          // DEBUG_SYNC
+#include "item_sum.h"            // Item_sum_max
+#include "opt_trace.h"           // OPT_TRACE_TRANSFORM
+#include "parse_tree_nodes.h"    // PT_subselect
+#include "sql_class.h"           // THD
+#include "sql_derived.h"         // mysql_derived_create
+#include "sql_join_buffer.h"     // JOIN_CACHE
+#include "sql_lex.h"             // st_select_lex
+#include "sql_optimizer.h"       // JOIN
+#include "sql_parse.h"           // check_stack_overrun
+#include "sql_test.h"            // print_where
+#include "sql_union.h"           // select_union
+
 
 Item_subselect::Item_subselect():
   Item_result_field(), value_assigned(0), traced_before(false),

@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@
 #include "opt_costmodel.h"
 #include "debug_sync.h"
 #include "filesort.h"   // filesort_free_buffers
+#include "item_sum.h"   // Item_sum
 
 #include <algorithm>
 using std::max;

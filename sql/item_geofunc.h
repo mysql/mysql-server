@@ -18,12 +18,14 @@
 
 
 /* This file defines all spatial functions */
+#include "inplace_vector.h"
+#include "item_cmpfunc.h"      // Item_bool_func2
+#include "prealloced_array.h"
+#include "spatial.h"           // gis_wkb_raw_free
+#include "item_strfunc.h"      // Item_str_func
 
-#include "gcalc_slicescan.h"
 #include <vector>
 #include <set>
-#include "inplace_vector.h"
-#include "prealloced_array.h"
 #include <rapidjson/document.h>
 
 /**

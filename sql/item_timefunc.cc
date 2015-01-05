@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,28 +25,13 @@
     Move month and days to language files
 */
 
-/*
-  It is necessary to include set_var.h instead of item.h because there
-  are dependencies on include order for set_var.h and item.h. This
-  will be resolved later.
-*/
-#include "sql_class.h"                          // set_var.h: THD
-#include "set_var.h"
-#include "sql_locale.h"          // MY_LOCALE my_locale_en_US
-#include "strfunc.h"             // check_word
-#include "sql_time.h"            // make_truncated_value_warning,
-                                 // make_time, get_date_from_daynr,
-                                 // calc_weekday, calc_week,
-                                 // convert_month_to_period,
-                                 // convert_period_to_month,
-                                 // TIME_to_timestamp, make_date,
-                                 // calc_time_diff,
-                                 // calc_time_from_sec,
-                                 // known_date_time_format,
-                                 // get_date_time_format_str
-#include "tztime.h"              // struct Time_zone
-#include "sql_class.h"           // THD
-#include <m_ctype.h>
+#include "item_timefunc.h"
+
+#include "sql_class.h"       // THD
+#include "sql_time.h"        // make_truncated_value_warning
+#include "strfunc.h"         // check_word
+#include "tztime.h"          // Time_zone
+
 #include <time.h>
 
 using std::min;

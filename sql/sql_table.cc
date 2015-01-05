@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -57,6 +57,7 @@
 #include <mysql/psi/mysql_table.h>
 #include "log.h"
 #include "binlog.h"
+#include "item_timefunc.h"             // Item_func_now_local
 
 #include <algorithm>
 using std::max;

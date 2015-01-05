@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,28 +29,21 @@
 
 /* May include caustic 3rd-party defs. Use early, so it can override nothing. */
 #include "sha2.h"
-#include "my_global.h"                          // HAVE_*
 
-/*
-  It is necessary to include set_var.h instead of item.h because there
-  are dependencies on include order for set_var.h and item.h. This
-  will be resolved later.
-*/
-#include "sql_class.h"                          // set_var.h: THD
-#include "set_var.h"
-#include "mysqld.h"                             // LOCK_uuid_generator
-#include "auth_common.h"                        // SUPER_ACL
-#include "des_key_file.h"       // st_des_keyschedule, st_des_keyblock
-#include "password.h"           // my_make_scrambled_password
-#include "crypt_genhash_impl.h"
-#include <m_ctype.h>
-#include <base64.h>
-#include "my_md5.h"
-#include "sha1.h"
-#include "my_aes.h"
-#include <zlib.h>
-#include "my_rnd.h"
-#include "strfunc.h"
+#include "item_strfunc.h"
+
+#include "base64.h"                  // base64_encode_max_arg_length
+#include "my_aes.h"                  // MY_AES_IV_SIZE
+#include "my_md5.h"                  // MD5_HASH_SIZE
+#include "my_rnd.h"                  // my_rand_buffer
+#include "sha1.h"                    // SHA1_HASH_SIZE
+#include "auth_common.h"             // check_password_policy
+#include "des_key_file.h"            // st_des_keyblock
+#include "item_geofunc.h"            // Item_func_geomfromgeojson
+#include "password.h"                // my_make_scrambled_password
+#include "sql_class.h"               // THD
+#include "strfunc.h"                 // hexchar_to_int
+
 C_MODE_START
 #include "../mysys/my_static.h"			// For soundex_map
 C_MODE_END

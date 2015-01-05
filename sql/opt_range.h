@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,24 +19,18 @@
 #ifndef _opt_range_h
 #define _opt_range_h
 
-#include "thr_malloc.h"                         /* sql_memdup */
-#include "records.h"                            /* READ_RECORD */
-
-/*
-  It is necessary to include set_var.h instead of item.h because there
-  are dependencies on include order for set_var.h and item.h. This
-  will be resolved later.
-*/
-#include "sql_class.h"                          // set_var.h: THD
-#include "set_var.h"                            /* Item */
-#include "prealloced_array.h"
-#include "priority_queue.h"
+#include "my_global.h"
+#include "field.h"            // Field
+#include "prealloced_array.h" // Prealloced_array
+#include "priority_queue.h"   // Priority_queue
+#include "records.h"          // READ_RECORD
 
 #include <algorithm>
 
 class JOIN;
 class Item_sum;
 class Opt_trace_context;
+class Unique;
 
 typedef struct st_key_part {
   uint16           key,part;

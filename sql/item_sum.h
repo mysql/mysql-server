@@ -1,7 +1,7 @@
 #ifndef ITEM_SUM_INCLUDED
 #define ITEM_SUM_INCLUDED
 
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,8 +19,10 @@
 
 /* classes for sum functions */
 
-#include <my_tree.h>
-#include "sql_udf.h"                            /* udf_handler */
+#include "my_tree.h"        // TREE
+#include "item.h"           // Item_result_field
+#include "sql_alloc.h"      // Sql_alloc
+#include "sql_udf.h"        // udf_handler
 
 class Item_sum;
 class Aggregator_distinct;
