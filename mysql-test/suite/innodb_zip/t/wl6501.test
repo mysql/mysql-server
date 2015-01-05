@@ -3,6 +3,7 @@
 #
 
 --source include/have_innodb.inc
+--source include/have_innodb_zip.inc
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
 

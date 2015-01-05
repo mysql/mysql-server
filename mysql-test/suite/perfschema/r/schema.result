@@ -1073,7 +1073,8 @@ Table	Create Table
 setup_actors	CREATE TABLE `setup_actors` (
   `HOST` char(60) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL DEFAULT '%',
   `USER` char(16) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL DEFAULT '%',
-  `ROLE` char(16) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL DEFAULT '%'
+  `ROLE` char(16) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL DEFAULT '%',
+  `ENABLED` enum('YES','NO') NOT NULL DEFAULT 'YES'
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
 show create table setup_consumers;
 Table	Create Table

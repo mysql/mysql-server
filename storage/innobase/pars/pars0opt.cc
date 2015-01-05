@@ -1122,7 +1122,8 @@ opt_clust_access(
 		    || dict_index_get_nth_field(clust_index, i)
 		    ->prefix_len != 0)) {
 			ib::error() << "Error in pars0opt.cc: table "
-				<< index->table_name << " has prefix_len != 0";
+				<< index->table->name
+				<< " has prefix_len != 0";
 		}
 
 		*(plan->clust_map + i) = pos;
@@ -1250,7 +1251,7 @@ opt_print_query_plan(
 		fprintf(stderr,
 			"Index %s of table %s"
 			"; exact m. %lu, match %lu, end conds %lu\n",
-			plan->index->name, plan->index->table_name,
+			plan->index->name(), plan->index->table_name,
 			(unsigned long) plan->n_exact_match,
 			(unsigned long) n_fields,
 			(unsigned long) UT_LIST_GET_LEN(plan->end_conds));

@@ -4319,50 +4319,50 @@ Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 explain partitions select * from t2 where a > 600 and b = 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	p3,p4	ALL	NULL	NULL	NULL	NULL	400	0.17	Using where
+1	SIMPLE	t2	p3,p4	ALL	NULL	NULL	NULL	NULL	400	3.33	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` where ((`test`.`t2`.`b` = 1) and (`test`.`t2`.`a` > 600))
 explain partitions insert into t3 select * from t2 where a > 600 and b = 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	INSERT	t3	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
-1	SIMPLE	t2	p3,p4	ALL	NULL	NULL	NULL	NULL	400	0.17	Using where
+1	SIMPLE	t2	p3,p4	ALL	NULL	NULL	NULL	NULL	400	3.33	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 explain partitions select * from t2 where a > 600 and b = 4;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	p3,p4	ALL	NULL	NULL	NULL	NULL	400	0.17	Using where
+1	SIMPLE	t2	p3,p4	ALL	NULL	NULL	NULL	NULL	400	3.33	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` where ((`test`.`t2`.`b` = 4) and (`test`.`t2`.`a` > 600))
 explain partitions insert into t3 select * from t2 where a > 600 and b = 4;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	INSERT	t3	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
-1	SIMPLE	t2	p3,p4	ALL	NULL	NULL	NULL	NULL	400	0.17	Using where
+1	SIMPLE	t2	p3,p4	ALL	NULL	NULL	NULL	NULL	400	3.33	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 explain partitions select * from t2 where a > 600 and b = 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	p3,p4	ALL	NULL	NULL	NULL	NULL	400	0.17	Using where
+1	SIMPLE	t2	p3,p4	ALL	NULL	NULL	NULL	NULL	400	3.33	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` where ((`test`.`t2`.`b` = 5) and (`test`.`t2`.`a` > 600))
 explain partitions insert into t3 select * from t2 where a > 600 and b = 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	INSERT	t3	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
-1	SIMPLE	t2	p3,p4	ALL	NULL	NULL	NULL	NULL	400	0.17	Using where
+1	SIMPLE	t2	p3,p4	ALL	NULL	NULL	NULL	NULL	400	3.33	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 explain partitions select * from t2 where b = 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	p0,p1,p2,p3,p4	ALL	NULL	NULL	NULL	NULL	1010	0.50	Using where
+1	SIMPLE	t2	p0,p1,p2,p3,p4	ALL	NULL	NULL	NULL	NULL	1010	10.00	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` where (`test`.`t2`.`b` = 5)
 explain partitions insert into t3 select * from t2 where b = 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	INSERT	t3	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
-1	SIMPLE	t2	p0,p1,p2,p3,p4	ALL	NULL	NULL	NULL	NULL	1010	0.50	Using where
+1	SIMPLE	t2	p0,p1,p2,p3,p4	ALL	NULL	NULL	NULL	NULL	1010	10.00	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 DROP TABLE t3;
@@ -4455,25 +4455,25 @@ Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2`
 explain partitions select * from t2 where a = 101;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	p0	ALL	NULL	NULL	NULL	NULL	110	0.91	Using where
+1	SIMPLE	t2	p0	ALL	NULL	NULL	NULL	NULL	110	10.00	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` where (`test`.`t2`.`a` = 101)
 explain partitions select * from t2 where a = 550;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	p2	ALL	NULL	NULL	NULL	NULL	200	0.50	Using where
+1	SIMPLE	t2	p2	ALL	NULL	NULL	NULL	NULL	200	10.00	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` where (`test`.`t2`.`a` = 550)
 explain partitions select * from t2 where a = 833;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	p4	ALL	NULL	NULL	NULL	NULL	200	0.50	Using where
+1	SIMPLE	t2	p4	ALL	NULL	NULL	NULL	NULL	200	10.00	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` where (`test`.`t2`.`a` = 833)
 explain partitions select * from t2 where (a = 100 OR a = 900);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	p0,p4	ALL	NULL	NULL	NULL	NULL	310	1.00	Using where
+1	SIMPLE	t2	p0,p4	ALL	NULL	NULL	NULL	NULL	310	19.00	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` where ((`test`.`t2`.`a` = 100) or (`test`.`t2`.`a` = 900))

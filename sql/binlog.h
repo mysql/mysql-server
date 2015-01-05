@@ -543,7 +543,7 @@ public:
     (A)    - checksum algorithm descriptor value
     FD.(A) - the value of (A) in FD
   */
-  uint8 relay_log_checksum_alg;
+  binary_log::enum_binlog_checksum_alg relay_log_checksum_alg;
 
   MYSQL_BIN_LOG(uint *sync_period,
                 enum cache_type io_cache_type_arg);
@@ -792,7 +792,7 @@ public:
   int remove_logs_from_index(LOG_INFO* linfo, bool need_update_threads);
   int rotate(bool force_rotate, bool* check_purge);
   void purge();
-  int rotate_and_purge(bool force_rotate);
+  int rotate_and_purge(THD* thd, bool force_rotate);
   /**
      Flush binlog cache and synchronize to disk.
 

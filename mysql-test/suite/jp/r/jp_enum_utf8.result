@@ -9,6 +9,8 @@ drop table if exists `Ｔ８`;
 drop table if exists `Ｔ９`;
 SET NAMES utf8;
 SET character_set_database = utf8;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
 CREATE TABLE `Ｔ１` (`Ｃ１` ENUM('ｱ','ｲ','ｳ'), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8 engine = innodb;
 CREATE TABLE `Ｔ２` (`Ｃ１` ENUM('あ','い','う'), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8 engine = innodb;
 CREATE TABLE `Ｔ３` (`Ｃ１` ENUM('龔','龖','龗'), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8 engine = innodb;

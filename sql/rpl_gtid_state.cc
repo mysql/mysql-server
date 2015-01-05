@@ -23,6 +23,7 @@
 #include "rpl_gtid_persist.h"
 #include "log.h"
 #include "binlog.h"
+#include "rpl_context.h"
 
 
 int Gtid_state::clear(THD *thd)
@@ -222,10 +223,12 @@ void Gtid_state::update_gtids_impl(THD *thd, bool is_commit)
       git.next();
       g= git.get();
       if (is_commit)
-      {
         executed_gtids._add_gtid(g);
-      }
     }
+
+    if (is_commit && !thd->owned_gtid_set.is_empty())
+      thd->rpl_thd_ctx.session_gtids_ctx().
+        notify_after_gtid_executed_update(thd);
 #else
     DBUG_ASSERT(0);
 #endif
@@ -238,6 +241,8 @@ void Gtid_state::update_gtids_impl(THD *thd, bool is_commit)
     if (is_commit)
     {
       executed_gtids._add_gtid(thd->owned_gtid);
+      thd->rpl_thd_ctx.session_gtids_ctx().
+        notify_after_gtid_executed_update(thd);
     }
   }
 
@@ -481,7 +486,7 @@ int Gtid_state::init()
   global_sid_lock->assert_some_lock();
 
   rpl_sid server_sid;
-  if (server_sid.parse(server_uuid) != RETURN_STATUS_OK)
+  if (server_sid.parse(server_uuid) != 0)
     DBUG_RETURN(1);
   rpl_sidno sidno= sid_map->add_sid(server_sid);
   if (sidno <= 0)

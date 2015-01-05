@@ -68,6 +68,7 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #include "rpl_slave.h"                       // Sql_cmd_change_repl_filter
 #include "parse_location.h"
 #include "parse_tree_helpers.h"
+#include "lex_token.h"
 
 /* this is to get the bison compilation windows warnings out */
 #ifdef _MSC_VER
@@ -413,7 +414,7 @@ static bool add_create_index (LEX *lex, keytype type,
 bool match_authorized_user(Security_context *ctx, LEX_USER *user)
 {
   if(user->user.str && my_strcasecmp(system_charset_info,
-                                     ctx->priv_user,
+                                     ctx->priv_user().str,
                                      user->user.str) == 0)
   {
     /*
@@ -423,7 +424,7 @@ bool match_authorized_user(Security_context *ctx, LEX_USER *user)
     */
     if (user->host.str && my_strcasecmp(system_charset_info,
                                         user->host.str,
-                                        ctx->priv_host) == 0)
+                                        ctx->priv_host().str) == 0)
     {
       /* specified user exactly match the authorized user */
       return true;
@@ -7415,6 +7416,8 @@ alter:
         | ALTER DATABASE ident UPGRADE_SYM DATA_SYM DIRECTORY_SYM NAME_SYM
           {
             LEX *lex= Lex;
+            push_deprecated_warn_no_replacement(YYTHD,
+              "UPGRADE DATA DIRECTORY NAME");
             if (lex->sphead)
             {
               my_error(ER_SP_NO_DROP_SP, MYF(0), "DATABASE");
@@ -12583,9 +12586,16 @@ literal:
         | temporal_literal
         | NULL_SYM
           {
+            Lex_input_stream *lip= YYLIP;
+            /*
+              For the digest computation, in this context only,
+              NULL is considered a literal, hence reduced to '?'
+              REDUCE:
+                TOK_GENERIC_VALUE := NULL_SYM
+            */
+            lip->reduce_digest_token(TOK_GENERIC_VALUE, NULL_SYM);
             $$= NEW_PTN Item_null(@$);
-
-            YYLIP->next_state= MY_LEX_OPERATOR_OR_IDENT;
+            lip->next_state= MY_LEX_OPERATOR_OR_IDENT;
           }
         | FALSE_SYM
           {
@@ -13502,7 +13512,7 @@ opt_var_ident_type:
         | SESSION_SYM '.' { $$=OPT_SESSION; }
         ;
 
-// Option values with preceeding option_type.
+// Option values with preceding option_type.
 option_value_following_option_type:
           internal_variable_name equal set_expr_or_default
           {
@@ -13510,7 +13520,7 @@ option_value_following_option_type:
           }
         ;
 
-// Option values without preceeding option_type.
+// Option values without preceding option_type.
 option_value_no_option_type:
           internal_variable_name        /*$1*/
           equal                         /*$2*/
@@ -15172,8 +15182,7 @@ install:
           {
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_INSTALL_PLUGIN;
-            lex->comment= $3;
-            lex->ident= $5;
+            lex->m_sql_cmd= new Sql_cmd_install_plugin($3, $5);
           }
         ;
 
@@ -15182,7 +15191,7 @@ uninstall:
           {
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_UNINSTALL_PLUGIN;
-            lex->comment= $3;
+            lex->m_sql_cmd= new Sql_cmd_uninstall_plugin($3);
           }
         ;
 

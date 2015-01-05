@@ -19,12 +19,14 @@
 
 #ifndef _mysql_com_h
 #define _mysql_com_h
-
+#include "binary_log_types.h"
 #define HOSTNAME_LENGTH 60
 #define SYSTEM_CHARSET_MBMAXLEN 3
 #define NAME_CHAR_LEN	64              /* Field/table name length */
 #define USERNAME_CHAR_LENGTH 16
+#ifndef NAME_LEN
 #define NAME_LEN                (NAME_CHAR_LEN*SYSTEM_CHARSET_MBMAXLEN)
+#endif
 #define USERNAME_LENGTH         (USERNAME_CHAR_LENGTH*SYSTEM_CHARSET_MBMAXLEN)
 
 #define MYSQL_AUTODETECT_CHARSET_NAME "auto"
@@ -95,7 +97,7 @@ enum enum_server_command
 #define GENERATED_COLUMN_EXPRESSION_MAXLEN 65535 - FRM_GCOL_HEADER_SIZE
 /*
   Length of random string sent by server on handshake; this is also length of
-  obfuscated password, recieved from client
+  obfuscated password, received from client
 */
 #define SCRAMBLE_LENGTH 20
 #define AUTH_PLUGIN_DATA_PART_1_LENGTH 8
@@ -394,32 +396,6 @@ typedef struct st_net {
 
 
 #define packet_error (~(unsigned long) 0)
-
-enum enum_field_types { MYSQL_TYPE_DECIMAL, MYSQL_TYPE_TINY,
-			MYSQL_TYPE_SHORT,  MYSQL_TYPE_LONG,
-			MYSQL_TYPE_FLOAT,  MYSQL_TYPE_DOUBLE,
-			MYSQL_TYPE_NULL,   MYSQL_TYPE_TIMESTAMP,
-			MYSQL_TYPE_LONGLONG,MYSQL_TYPE_INT24,
-			MYSQL_TYPE_DATE,   MYSQL_TYPE_TIME,
-			MYSQL_TYPE_DATETIME, MYSQL_TYPE_YEAR,
-			MYSQL_TYPE_NEWDATE, MYSQL_TYPE_VARCHAR,
-			MYSQL_TYPE_BIT,
-			MYSQL_TYPE_TIMESTAMP2,
-			MYSQL_TYPE_DATETIME2,
-			MYSQL_TYPE_TIME2,
-                        MYSQL_TYPE_NEWDECIMAL=246,
-			MYSQL_TYPE_ENUM=247,
-			MYSQL_TYPE_SET=248,
-			MYSQL_TYPE_TINY_BLOB=249,
-			MYSQL_TYPE_MEDIUM_BLOB=250,
-			MYSQL_TYPE_LONG_BLOB=251,
-			MYSQL_TYPE_BLOB=252,
-			MYSQL_TYPE_VAR_STRING=253,
-			MYSQL_TYPE_STRING=254,
-			MYSQL_TYPE_GEOMETRY=255
-
-};
-
 /* For backward compatibility */
 #define CLIENT_MULTI_QUERIES    CLIENT_MULTI_STATEMENTS    
 #define FIELD_TYPE_DECIMAL     MYSQL_TYPE_DECIMAL
@@ -512,12 +488,13 @@ enum enum_session_state_type
 {
   SESSION_TRACK_SYSTEM_VARIABLES,                       /* Session system variables */
   SESSION_TRACK_SCHEMA,                          /* Current schema */
-  SESSION_TRACK_STATE_CHANGE                  /* track session state changes */
+  SESSION_TRACK_STATE_CHANGE,                  /* track session state changes */
+  SESSION_TRACK_GTIDS
 };
 
 #define SESSION_TRACK_BEGIN SESSION_TRACK_SYSTEM_VARIABLES
 
-#define SESSION_TRACK_END SESSION_TRACK_STATE_CHANGE
+#define SESSION_TRACK_END SESSION_TRACK_GTIDS
 
 #define IS_SESSION_STATE_TYPE(T) \
   (((int)(T) >= SESSION_TRACK_BEGIN) && ((T) <= SESSION_TRACK_END))

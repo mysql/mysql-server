@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -158,7 +158,7 @@ Opt_trace_start::Opt_trace_start(THD *thd, TABLE_LIST *tbl,
         (4) Usage of the trace in a system thread would be
         impractical. Additionally:
         - threads of the Events Scheduler have an unusual security context
-        (thd->main_security_ctx.priv_user==NULL, see comment in
+        (thd->m_main_security_ctx.priv_user==NULL, see comment in
         Security_context::change_security_context()), so we can do no security
         checks on them, so cannot safely enable tracing.
         - statement-based replication of
@@ -281,7 +281,7 @@ void opt_trace_disable_if_no_security_context_access(THD *thd)
       traces, thus it is still correct to skip the security check.
 
       (2) Threads of the Events Scheduler have an unusual security context
-      (thd->main_security_ctx.priv_user==NULL, see comment in
+      (thd->m_main_security_ctx.priv_user==NULL, see comment in
       Security_context::change_security_context()).
     */
     DBUG_VOID_RETURN;
@@ -323,17 +323,16 @@ void opt_trace_disable_if_no_security_context_access(THD *thd)
     DBUG_VOID_RETURN;
   }
   /*
-    Note that thd->main_security_ctx.master_access is probably invariant
+    Note that thd->m_main_security_ctx.master_access is probably invariant
     accross the life of THD: GRANT/REVOKE don't affect global privileges of an
     existing connection, per the manual.
   */
-  if (!(test_all_bits(thd->main_security_ctx.master_access,
-                      (GLOBAL_ACLS & ~GRANT_ACL))) &&
-      (0 != strcmp(thd->main_security_ctx.priv_user,
-                   thd->security_ctx->priv_user) ||
+  if (!(thd->m_main_security_ctx.check_access(GLOBAL_ACLS & ~GRANT_ACL)) &&
+      (0 != strcmp(thd->m_main_security_ctx.priv_user().str,
+                   thd->security_context()->priv_user().str) ||
        0 != my_strcasecmp(system_charset_info,
-                          thd->main_security_ctx.priv_host,
-                          thd->security_ctx->priv_host)))
+                          thd->m_main_security_ctx.priv_host().str,
+                          thd->security_context()->priv_host().str)))
     trace->missing_privilege();
   DBUG_VOID_RETURN;
 #endif
@@ -355,12 +354,12 @@ void opt_trace_disable_if_no_stored_proc_func_access(THD *thd, sp_head *sp)
     DBUG_VOID_RETURN;
   }
   bool full_access;
-  Security_context * const backup_thd_sctx= thd->security_ctx;
+  Security_context * const backup_thd_sctx= thd->security_context();
   DBUG_PRINT("opt", ("routine: '%s'", sp->m_name.str));
-  thd->security_ctx= &thd->main_security_ctx;
+  thd->set_security_context(&thd->m_main_security_ctx);
   const bool rc= sp->check_show_access(thd, &full_access) ||
     !full_access;
-  thd->security_ctx= backup_thd_sctx;
+  thd->set_security_context(backup_thd_sctx);
   if (rc)
     trace->missing_privilege();
   DBUG_VOID_RETURN;
@@ -385,15 +384,16 @@ void opt_trace_disable_if_no_view_access(THD *thd, TABLE_LIST *view,
   }
   DBUG_PRINT("opt", ("view: '%s'", view->table_name));
   Security_context * const backup_table_sctx= view->security_ctx;
-  Security_context * const backup_thd_sctx= thd->security_ctx;
+  Security_context * const backup_thd_sctx= thd->security_context();
   const GRANT_INFO backup_grant_info= view->grant;
 
   view->security_ctx= NULL;                   // no SUID context for view
-  thd->security_ctx= &thd->main_security_ctx; // no SUID context for THD
+  // no SUID context for THD
+  thd->set_security_context(&thd->m_main_security_ctx);
   const int rc= check_table_access(thd, SHOW_VIEW_ACL, view, false, 1, true);
 
   view->security_ctx= backup_table_sctx;
-  thd->security_ctx= backup_thd_sctx;
+  thd->set_security_context(backup_thd_sctx);
   view->grant= backup_grant_info;
 
   if (rc)
@@ -444,8 +444,8 @@ void opt_trace_disable_if_no_tables_access(THD *thd, TABLE_LIST *tbl)
     trace->disable_I_S_for_this_and_children();
     DBUG_VOID_RETURN;
   }
-  Security_context * const backup_thd_sctx= thd->security_ctx;
-  thd->security_ctx= &thd->main_security_ctx;
+  Security_context * const backup_thd_sctx= thd->security_context();
+  thd->set_security_context(&thd->m_main_security_ctx);
   const TABLE_LIST * const first_not_own_table=
     thd->lex->first_not_own_table();
   for (TABLE_LIST *t= tbl;
@@ -491,7 +491,7 @@ void opt_trace_disable_if_no_tables_access(THD *thd, TABLE_LIST *tbl)
       }
     }
   }
-  thd->security_ctx= backup_thd_sctx;
+  thd->set_security_context(backup_thd_sctx);
   DBUG_VOID_RETURN;
 #endif
 }
@@ -521,13 +521,12 @@ int fill_optimizer_trace_info(THD *thd, TABLE_LIST *tables, Item *cond)
     without optimizer trace, a highly privileged user must always inspect the
     body of such object before invoking it.
   */
-  if (!test_all_bits(thd->security_ctx->master_access,
-                     (GLOBAL_ACLS & ~GRANT_ACL)) &&
-      (0 != strcmp(thd->main_security_ctx.priv_user,
-                   thd->security_ctx->priv_user) ||
+  if (!(thd->security_context()->check_access(GLOBAL_ACLS & ~GRANT_ACL)) &&
+      (0 != strcmp(thd->m_main_security_ctx.priv_user().str,
+                   thd->security_context()->priv_user().str) ||
        0 != my_strcasecmp(system_charset_info,
-                          thd->main_security_ctx.priv_host,
-                          thd->security_ctx->priv_host)))
+                          thd->m_main_security_ctx.priv_host().str,
+                          thd->security_context()->priv_host().str)))
     return 0;
   /*
     The list must not change during the iterator's life time. This is ok as

@@ -266,7 +266,6 @@ NdbQuery* ndb_pushed_join::make_query_instance(
     {
       extendedParams[i].~NdbQueryParamValue();
     }
-    my_afree(extendedParams);
   }
   DBUG_RETURN(query);
 }
@@ -1494,7 +1493,7 @@ ndb_pushed_builder_ctx::build_key(const AQP::Table_access* table,
         if (m_join_scope.contain(referred_table_no))
         {
           // Locate the parent operation for this 'join_items[]'.
-          // May refer any of the preceeding parent tables
+          // May refer any of the preceding parent tables
           const NdbQueryOperationDef* const parent_op= m_tables[referred_table_no].m_op;
           DBUG_ASSERT(parent_op != NULL);
 

@@ -10,6 +10,8 @@ drop table if exists `ÇsÇX`;
 drop table if exists t1;
 SET NAMES sjis;
 SET character_set_database = sjis;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
 CREATE TABLE `ÇsÇP` (`ÇbÇP` ENUM('±','≤','≥'), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = innodb;
 CREATE TABLE `ÇsÇQ` (`ÇbÇP` ENUM('Ç†','Ç¢','Ç§'), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = innodb;
 CREATE TABLE `ÇsÇR` (`ÇbÇP` ENUM('É\','è\','ï\'), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = innodb;

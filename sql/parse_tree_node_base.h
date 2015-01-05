@@ -26,6 +26,14 @@
 class THD;
 class st_select_lex;
 
+// uncachable cause
+#define UNCACHEABLE_DEPENDENT   1
+#define UNCACHEABLE_RAND        2
+#define UNCACHEABLE_SIDEEFFECT	4
+/* For uncorrelated SELECT in an UNION with some correlated SELECTs */
+#define UNCACHEABLE_UNITED      8
+#define UNCACHEABLE_CHECKOPTION 16
+
 /**
   Names for different query parse tree parts
 */

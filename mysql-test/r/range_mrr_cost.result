@@ -1011,12 +1011,12 @@ INSERT INTO  t1 VALUES
 CREATE VIEW v1 as SELECT a,b FROM t1 WHERE b=3;
 EXPLAIN SELECT a,b FROM t1 WHERE a < 2 and b=3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	PRIMARY	PRIMARY	4	NULL	4	8.33	Using where; Using index
+1	SIMPLE	t1	NULL	range	PRIMARY	PRIMARY	4	NULL	4	10.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`b` = 3) and (`test`.`t1`.`a` < 2))
 EXPLAIN SELECT a,b FROM v1 WHERE a < 2 and b=3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	PRIMARY	PRIMARY	4	NULL	4	8.33	Using where; Using index
+1	SIMPLE	t1	NULL	range	PRIMARY	PRIMARY	4	NULL	4	10.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`b` = 3) and (`test`.`t1`.`a` < 2))
 EXPLAIN SELECT a,b FROM t1 WHERE a < 2;
@@ -1026,7 +1026,7 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`a` < 2)
 EXPLAIN SELECT a,b FROM v1 WHERE a < 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	PRIMARY	PRIMARY	4	NULL	4	8.33	Using where; Using index
+1	SIMPLE	t1	NULL	range	PRIMARY	PRIMARY	4	NULL	4	10.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`b` = 3) and (`test`.`t1`.`a` < 2))
 SELECT a,b FROM t1 WHERE a < 2 and b=3;
@@ -1453,7 +1453,7 @@ SELECT * FROM t2 WHERE
 OR
 1 <= a AND b = 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	range	a	a	10	NULL	50	1.49	Using where; Using index
+1	SIMPLE	t2	NULL	range	a	a	10	NULL	50	27.10	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` where (((`test`.`t2`.`b` = 1) and (5 <= `test`.`t2`.`a`) and (`test`.`t2`.`a` < 10)) or ((`test`.`t2`.`b` = 3) and (15 <= `test`.`t2`.`a`) and (`test`.`t2`.`a` < 20)) or ((`test`.`t2`.`b` = 1) and (1 <= `test`.`t2`.`a`)))
 SELECT * FROM t2 WHERE
@@ -1499,7 +1499,7 @@ SELECT * FROM t2 WHERE
 OR
 1 <= a AND b = 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	range	a	a	10	NULL	50	1.49	Using where; Using index
+1	SIMPLE	t2	NULL	range	a	a	10	NULL	50	27.10	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` where (((`test`.`t2`.`b` = 2) and (5 <= `test`.`t2`.`a`) and (`test`.`t2`.`a` < 10)) or ((`test`.`t2`.`b` = 3) and (15 <= `test`.`t2`.`a`) and (`test`.`t2`.`a` < 20)) or ((`test`.`t2`.`b` = 1) and (1 <= `test`.`t2`.`a`)))
 SELECT * FROM t3 WHERE
@@ -2759,7 +2759,7 @@ Handler_read_rnd	0
 Handler_read_rnd_next	0
 EXPLAIN SELECT a, b, c FROM t2 WHERE (a, b, c) IN ((0, 0, 0), (1, 1, 1));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	range	x	x	10	NULL	2	2.50	Using where
+1	SIMPLE	t2	NULL	range	x	x	10	NULL	2	20.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c` from `test`.`t2` where ((`test`.`t2`.`a`,`test`.`t2`.`b`,`test`.`t2`.`c`) in (<cache>((0,0,0)),<cache>((1,1,1))))
 FLUSH STATUS;
@@ -2835,7 +2835,7 @@ Handler_read_rnd	0
 Handler_read_rnd_next	0
 EXPLAIN SELECT a, b FROM t2 WHERE (a, b, c) IN ((1, 1, 1)) OR a = 0 AND b = 0 AND c = 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	range	x	x	10	NULL	2	2.50	Using where
+1	SIMPLE	t2	NULL	range	x	x	10	NULL	2	19.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` where (((`test`.`t2`.`c` = 1) and (`test`.`t2`.`b` = 1) and (`test`.`t2`.`a` = 1)) or ((`test`.`t2`.`c` = 0) and (`test`.`t2`.`b` = 0) and (`test`.`t2`.`a` = 0)))
 FLUSH STATUS;
@@ -2944,7 +2944,7 @@ SELECT t4.*, t1.a, t1.b
 FROM t4 JOIN t1 USING(a, b)
 WHERE (t4.a, t4.b) IN ((1, 1), (0, 0));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	640	0.01	Using where
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	640	2.00	Using where
 1	SIMPLE	t1	NULL	ref	x	x	10	test.t4.a,test.t4.b	410	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t4` join `test`.`t1` where ((`test`.`t1`.`b` = `test`.`t4`.`b`) and (`test`.`t1`.`a` = `test`.`t4`.`a`) and ((`test`.`t4`.`a`,`test`.`t4`.`b`) in (<cache>((1,1)),<cache>((0,0)))))
@@ -2955,7 +2955,7 @@ FROM t4 JOIN t1
 WHERE (t1.a, t1.b) IN ((t4.a, t4.b), (0, 0));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	640	100.00	NULL
-1	SIMPLE	t1	NULL	index	x	x	10	NULL	4098	0.00	Using where; Using index; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	index	x	x	10	NULL	4098	2.00	Using where; Using index; Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t4` join `test`.`t1` where ((`test`.`t1`.`a`,`test`.`t1`.`b`) in ((`test`.`t4`.`a`,`test`.`t4`.`b`),<cache>((0,0))))
 EXPLAIN
@@ -2964,7 +2964,7 @@ FROM t4 JOIN t1
 WHERE (t1.a, t1.b) IN ((t4.a, t4.b), (1, 1));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	640	100.00	NULL
-1	SIMPLE	t1	NULL	index	x	x	10	NULL	4098	0.00	Using where; Using index; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	index	x	x	10	NULL	4098	2.00	Using where; Using index; Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t4` join `test`.`t1` where ((`test`.`t1`.`a`,`test`.`t1`.`b`) in ((`test`.`t4`.`a`,`test`.`t4`.`b`),<cache>((1,1))))
 #
@@ -2974,23 +2974,23 @@ CREATE FUNCTION f1() RETURNS INT NOT DETERMINISTIC RETURN 1;
 # The statement immediately below should not use range access.
 EXPLAIN SELECT a, b FROM t1 WHERE (a, b, c) IN ((0, 0, 0), (f1(), 1, 1));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	x	NULL	NULL	NULL	4098	0.00	Using where
+1	SIMPLE	t1	NULL	ALL	x	NULL	NULL	NULL	4098	0.20	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`a`,`test`.`t1`.`b`,`test`.`t1`.`c`) in (<cache>((0,0,0)),(`f1`(),1,1)))
 EXPLAIN SELECT a, b FROM t1 WHERE (a, b, c) IN ((0, 0, 0), (1, f1(), 1));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	x	x	10	NULL	2	2.50	Using where
+1	SIMPLE	t1	NULL	range	x	x	10	NULL	2	20.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`a`,`test`.`t1`.`b`,`test`.`t1`.`c`) in (<cache>((0,0,0)),(1,`f1`(),1)))
 EXPLAIN SELECT a, b FROM t1 WHERE (a, b, c) IN ((0, 0, 0), (1, 1, f1()));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	x	x	10	NULL	2	2.50	Using where
+1	SIMPLE	t1	NULL	range	x	x	10	NULL	2	20.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`a`,`test`.`t1`.`b`,`test`.`t1`.`c`) in (<cache>((0,0,0)),(1,1,`f1`())))
 # The statement immediately below should not use range access.
 EXPLAIN SELECT a, b FROM t1 WHERE (a, b) IN ((f1(), 1));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	NULL	x	10	NULL	4098	0.00	Using where; Using index
+1	SIMPLE	t1	NULL	index	NULL	x	10	NULL	4098	1.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`b` = 1) and (`test`.`t1`.`a` = `f1`()))
 DROP FUNCTION f1;
@@ -3086,13 +3086,13 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`b` = 0) and (`test`.`t1`.`a` = 0))
 EXPLAIN SELECT a, b FROM t1 WHERE (a, c) IN ((0, 0));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	x	x	5	const	1	5.00	Using where
+1	SIMPLE	t1	NULL	ref	x	x	5	const	1	10.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`c` = 0) and (`test`.`t1`.`a` = 0))
 # ref scan on x(a).
 EXPLAIN SELECT * FROM t1 WHERE (a, c) IN ((0, 0), (1, 1));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	x	x	5	NULL	2	2.50	Using where
+1	SIMPLE	t1	NULL	range	x	x	5	NULL	2	20.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where ((`test`.`t1`.`a`,`test`.`t1`.`c`) in (<cache>((0,0)),<cache>((1,1))))
 DROP TABLE t1, t2, t3, t4, t5, t6, t7;

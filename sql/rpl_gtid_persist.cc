@@ -44,7 +44,7 @@ static void init_thd(THD **p_thd)
   THD *thd= *p_thd;
   thd->thread_stack= reinterpret_cast<char *>(p_thd);
   thd->set_command(COM_DAEMON);
-  thd->security_ctx->skip_grants();
+  thd->security_context()->skip_grants();
   thd->system_thread= SYSTEM_THREAD_COMPRESS_GTID_TABLE;
   thd->store_globals();
   thd->set_time();
@@ -147,7 +147,7 @@ int Gtid_table_persistor::fill_fields(Field **fields, const char *sid,
 
   /* Store SID */
   fields[0]->set_notnull();
-  if (fields[0]->store(sid, rpl_sid::TEXT_LENGTH, &my_charset_bin))
+  if (fields[0]->store(sid, binary_log::Uuid::TEXT_LENGTH, &my_charset_bin))
   {
     my_error(ER_RPL_INFO_DATA_TOO_LONG, MYF(0), fields[0]->field_name);
     goto err;
@@ -220,7 +220,7 @@ int Gtid_table_persistor::update_row(TABLE *table, const char *sid,
 
   /* Store SID */
   fields[0]->set_notnull();
-  if (fields[0]->store(sid, rpl_sid::TEXT_LENGTH, &my_charset_bin))
+  if (fields[0]->store(sid, binary_log::Uuid::TEXT_LENGTH, &my_charset_bin))
   {
     my_error(ER_RPL_INFO_DATA_TOO_LONG, MYF(0), fields[0]->field_name);
     DBUG_RETURN(-1);
@@ -293,7 +293,7 @@ int Gtid_table_persistor::save(THD *thd, Gtid *gtid)
   int error= 0;
   TABLE *table= NULL;
   Gtid_table_access_context table_access_ctx;
-  char buf[rpl_sid::TEXT_LENGTH + 1];
+  char buf[binary_log::Uuid::TEXT_LENGTH + 1];
 
   /* Get source id */
   global_sid_lock->rdlock();
@@ -383,7 +383,7 @@ int Gtid_table_persistor::save(TABLE *table, Gtid_set *gtid_set)
   for (iter= gtid_intervals.begin(); iter != gtid_intervals.end(); iter++)
   {
     /* Get source id. */
-    char buf[rpl_sid::TEXT_LENGTH + 1];
+    char buf[binary_log::Uuid::TEXT_LENGTH + 1];
     rpl_sid sid= gtid_set->get_sid_map()->sidno_to_sid(iter->sidno);
     sid.to_string(buf);
 

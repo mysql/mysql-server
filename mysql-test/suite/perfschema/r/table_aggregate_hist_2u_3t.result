@@ -2,9 +2,9 @@ delete from performance_schema.setup_actors
 where user in ('user2', 'user4');
 select * from performance_schema.setup_actors
 order by USER, HOST, ROLE;
-HOST	USER	ROLE
-localhost	user1	%
-localhost	user3	%
+HOST	USER	ROLE	ENABLED
+localhost	user1	%	YES
+localhost	user3	%	YES
 select * from performance_schema.setup_objects
 order by object_type, object_schema, object_name;
 OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	ENABLED	TIMED

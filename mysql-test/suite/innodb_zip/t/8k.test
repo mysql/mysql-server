@@ -23,7 +23,7 @@ SELECT variable_value FROM information_schema.global_status
        WHERE LOWER(variable_name) = 'innodb_page_size';
 
 --echo # Test 2) The number of buffer pool pages is dependent upon the page size.
---replace_result 1023 {1023_or_1024} 1024 {1023_or_1024}
+--replace_result 3071 {checked_valid} 3072 {checked_valid}
 SELECT variable_value FROM information_schema.global_status
        WHERE LOWER(variable_name) = 'innodb_buffer_pool_pages_total';
 

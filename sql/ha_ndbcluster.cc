@@ -15483,7 +15483,7 @@ Ndb_util_thread::do_run()
   thd->version=refresh_version;
 #endif
   thd->client_capabilities = 0;
-  thd->security_ctx->skip_grants();
+  thd->security_context()->skip_grants();
   my_net_init(&thd->net, 0);
 
   CHARSET_INFO *charset_connection;

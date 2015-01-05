@@ -79,6 +79,6 @@ count(*)
 set @g1 = GeomFromText('Polygon((2 2,2 800,800 800,800 2,2 2))');
 select count(*) from t1 where Within(t1.c2, @g1);
 count(*)
-65536
+57344
 # restart
 drop table t1;

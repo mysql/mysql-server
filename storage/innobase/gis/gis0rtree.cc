@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -123,6 +123,8 @@ rtr_page_split_initialize_nodes(
 
 /**********************************************************************//**
 Builds a Rtree node pointer out of a physical record and a page number.
+Note: For Rtree, we just keep the mbr and page no field in non-leaf level
+page. It's different with Btree, Btree still keeps PK fields so far.
 @return	own: node pointer */
 dtuple_t*
 rtr_index_build_node_ptr(
@@ -142,16 +144,13 @@ rtr_index_build_node_ptr(
 	dfield_t*	field;
 	byte*		buf;
 	ulint		n_unique;
+	ulint		info_bits;
 
-	n_unique = dict_index_get_n_unique_in_tree(index);
+	ut_ad(dict_index_is_spatial(index));
+
+	n_unique = DICT_INDEX_SPATIAL_NODEPTR_SIZE;
 
 	tuple = dtuple_create(heap, n_unique + 1);
-
-	/* When searching in the tree for the node pointer, we must not do
-	comparison on the last field, the page number field, as on upper
-	levels in the tree there may be identical node pointers with a
-	different page number; therefore, we set the n_fields_cmp to one
-	less: */
 
 	dtuple_set_n_fields_cmp(tuple, n_unique);
 
@@ -167,10 +166,9 @@ rtr_index_build_node_ptr(
 
 	dtype_set(dfield_get_type(field), DATA_SYS_CHILD, DATA_NOT_NULL, 4);
 
-	/* Copy the prefix */
-	rec_copy_prefix_to_dtuple(tuple, rec, index, n_unique, heap);
-	dtuple_set_info_bits(tuple, dtuple_get_info_bits(tuple)
-				    | REC_STATUS_NODE_PTR);
+	/* Set info bits. */
+	info_bits = rec_get_info_bits(rec, dict_table_is_comp(index->table));
+	dtuple_set_info_bits(tuple, info_bits | REC_STATUS_NODE_PTR);
 
 	/* Set mbr as index entry data */
 	field = dtuple_get_nth_field(tuple, 0);

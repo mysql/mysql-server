@@ -123,7 +123,7 @@ lock_tables_check(THD *thd, TABLE **tables, size_t count, uint flags)
 
   DBUG_ENTER("lock_tables_check");
 
-  is_superuser= thd->security_ctx->master_access & SUPER_ACL;
+  is_superuser= thd->security_context()->check_access(SUPER_ACL);
   log_table_write_query=
      is_log_table_write_query(thd->lex->sql_command);
 
@@ -310,7 +310,8 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **tables, size_t count, uint flags
   rc= thr_lock_errno_to_mysql[(int) thr_multi_lock(sql_lock->locks +
                                                    sql_lock->lock_count,
                                                    sql_lock->lock_count,
-                                                   &thd->lock_info, timeout)];
+                                                   &thd->lock_info, timeout,
+                                                   thd->mysys_var)];
   if (rc)
   {
     if (sql_lock->table_count)

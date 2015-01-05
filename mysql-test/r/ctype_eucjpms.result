@@ -4,6 +4,8 @@ drop table if exists t3;
 drop table if exists t4;
 set names eucjpms;
 set character_set_database = eucjpms;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1(c1 CHAR(1)) DEFAULT CHARACTER SET = eucjpms;
 INSERT INTO t1 VALUES
 (0x5C),(0x7E),(0xA1B1),(0xA1BD),(0xA1C0),(0xA1C1),(0xA1C2),(0xA1DD),(0xA1F1),(0xA1F2),(0xA1EF),(0xA2CC),(0x8FA2B7),(0x8FA2C3);

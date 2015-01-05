@@ -256,6 +256,77 @@ void States::SetError(YasslError ye)
 }
 
 
+// mark message recvd, check for duplicates, return 0 on success
+int States::SetMessageRecvd(HandShakeType hst)
+{
+    switch (hst) {
+        case hello_request:
+            break;  // could send more than one
+
+        case client_hello:
+            if (recvdMessages_.gotClientHello_)
+                return -1;
+            recvdMessages_.gotClientHello_ = 1;
+            break;
+
+        case server_hello:
+            if (recvdMessages_.gotServerHello_)
+                return -1;
+            recvdMessages_.gotServerHello_ = 1;
+            break;
+
+        case certificate:
+            if (recvdMessages_.gotCert_)
+                return -1;
+            recvdMessages_.gotCert_ = 1;
+            break;
+
+        case server_key_exchange:
+            if (recvdMessages_.gotServerKeyExchange_)
+                return -1;
+            recvdMessages_.gotServerKeyExchange_ = 1;
+            break;
+
+        case certificate_request:
+            if (recvdMessages_.gotCertRequest_)
+                return -1;
+            recvdMessages_.gotCertRequest_ = 1;
+            break;
+
+        case server_hello_done:
+            if (recvdMessages_.gotServerHelloDone_)
+                return -1;
+            recvdMessages_.gotServerHelloDone_ = 1;
+            break;
+
+        case certificate_verify:
+            if (recvdMessages_.gotCertVerify_)
+                return -1;
+            recvdMessages_.gotCertVerify_ = 1;
+            break;
+
+        case client_key_exchange:
+            if (recvdMessages_.gotClientKeyExchange_)
+                return -1;
+            recvdMessages_.gotClientKeyExchange_ = 1;
+            break;
+
+        case finished:
+            if (recvdMessages_.gotFinished_)
+                return -1;
+            recvdMessages_.gotFinished_ = 1;
+            break;
+
+
+        default:
+            return -1;
+
+    }
+
+    return 0;
+}
+
+
 sslFactory::sslFactory() :           
         messageFactory_(InitMessageFactory),
         handShakeFactory_(InitHandShakeFactory),
@@ -1248,6 +1319,11 @@ void SSL::verifyState(const HandShakeHeader& hsHeader)
 
     if (states_.getHandShake() == handShakeNotReady) {
         SetError(handshake_layer);
+        return;
+    }
+
+    if (states_.SetMessageRecvd(hsHeader.get_handshakeType()) != 0) {
+        order_error();
         return;
     }
 
