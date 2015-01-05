@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -24,6 +24,7 @@ Created April 08, 2011 Vasil Dimov
 *******************************************************/
 
 #include "my_global.h"
+#include "my_pthread.h"
 
 #include "mysql/psi/mysql_stage.h"
 #include "mysql/psi/psi.h"
