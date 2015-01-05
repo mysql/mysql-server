@@ -527,7 +527,7 @@ replace_record(THD *thd, TABLE *table,
 
   int error;
   int keynum;
-  auto_afree_ptr<char> key(NULL);
+  char *key= NULL;
 
 #ifndef DBUG_OFF
   DBUG_DUMP("record[0]", table->record[0], table->s->reclength);
@@ -596,19 +596,19 @@ replace_record(THD *thd, TABLE *table,
         DBUG_RETURN(my_errno);
       }
 
-      if (key.get() == NULL)
+      if (key == NULL)
       {
-        key.assign(static_cast<char*>(my_alloca(table->s->max_unique_length)));
-        if (key.get() == NULL)
+        key= static_cast<char*>(my_alloca(table->s->max_unique_length));
+        if (key == NULL)
           DBUG_RETURN(ENOMEM);
       }
 
       if ((uint)keynum < MAX_KEY)
       {
-        key_copy((uchar*)key.get(), table->record[0], table->key_info + keynum,
+        key_copy((uchar*)key, table->record[0], table->key_info + keynum,
                  0);
         error= table->file->ha_index_read_idx_map(table->record[1], keynum,
-                                                  (const uchar*)key.get(),
+                                                  (const uchar*)key,
                                                   HA_WHOLE_KEY,
                                                   HA_READ_KEY_EXACT);
       }
@@ -2021,7 +2021,7 @@ Old_rows_log_event::write_row(const Relay_log_info *const rli,
   TABLE *table= m_table;  // pointer to event's table
   int error;
   int keynum;
-  auto_afree_ptr<char> key(NULL);
+  char *key= NULL;
 
   /* fill table->record[0] with default values */
 
@@ -2110,10 +2110,10 @@ Old_rows_log_event::write_row(const Relay_log_info *const rli,
         DBUG_RETURN(my_errno);
       }
 
-      if (key.get() == NULL)
+      if (key == NULL)
       {
-        key.assign(static_cast<char*>(my_alloca(table->s->max_unique_length)));
-        if (key.get() == NULL)
+        key= static_cast<char*>(my_alloca(table->s->max_unique_length));
+        if (key == NULL)
         {
           DBUG_PRINT("info",("Can't allocate key buffer"));
           DBUG_RETURN(ENOMEM);
@@ -2122,10 +2122,10 @@ Old_rows_log_event::write_row(const Relay_log_info *const rli,
 
       if ((uint)keynum < MAX_KEY)
       {
-        key_copy((uchar*)key.get(), table->record[0], table->key_info + keynum,
+        key_copy((uchar*)key, table->record[0], table->key_info + keynum,
                  0);
         error= table->file->ha_index_read_idx_map(table->record[1], keynum,
-                                                  (const uchar*)key.get(),
+                                                  (const uchar*)key,
                                                   HA_WHOLE_KEY,
                                                   HA_READ_KEY_EXACT);
       }

@@ -1583,10 +1583,10 @@ SELECT d FROM t3 AS t1, t2 AS t2
 WHERE t2.b=14 AND t2.a=t1.a AND 5.1<t2.c AND t1.b='DE'
 ORDER BY t2.c LIMIT 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	a	a	39	NULL	991	0.50	Using where; Using index; Using temporary; Using filesort
-1	SIMPLE	t2	NULL	ref	a,b,c	a	40	test.t1.a,const	11	79.85	Using where
+1	SIMPLE	t2	NULL	range	a,b,c	c	5	NULL	420	26.43	Using where
+1	SIMPLE	t1	NULL	ref	a	a	39	test.t2.a,const	10	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`d` AS `d` from `test`.`t3` `t1` join `test`.`t2` where ((`test`.`t1`.`b` = 'DE') and (`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t2`.`b` = 14) and (5.1 < `test`.`t2`.`c`)) order by `test`.`t2`.`c` limit 1
+Note	1003	/* select#1 */ select `test`.`t2`.`d` AS `d` from `test`.`t3` `t1` join `test`.`t2` where ((`test`.`t1`.`b` = 'DE') and (`test`.`t1`.`a` = `test`.`t2`.`a`) and (`test`.`t2`.`b` = 14) and (5.1 < `test`.`t2`.`c`)) order by `test`.`t2`.`c` limit 1
 SELECT d FROM t3 AS t1, t2 AS t2 
 WHERE t2.b=14 AND t2.a=t1.a AND 5.1<t2.c AND t1.b='DE'
 ORDER BY t2.c LIMIT 1;

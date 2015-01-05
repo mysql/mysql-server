@@ -347,7 +347,6 @@ ADD_DEPENDENCIES(slave GenError)
 SET(SQL_GUNIT_LIB_SOURCE 
   filesort_utils.cc 
   mdl.cc 
-  opt_costmodel.cc
   sql_list.cc 
   ../sql-common/sql_string.cc
   thr_malloc.cc

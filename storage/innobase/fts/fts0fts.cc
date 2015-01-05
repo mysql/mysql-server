@@ -588,7 +588,7 @@ fts_index_cache_init(
 	index_cache->doc_stats = ib_vector_create(
 		allocator, sizeof(fts_doc_stats_t), 4);
 
-	for (i = 0; fts_index_selector[i].value; ++i) {
+	for (i = 0; i < FTS_NUM_AUX_INDEX; ++i) {
 		ut_a(index_cache->ins_graph[i] == NULL);
 		ut_a(index_cache->sel_graph[i] == NULL);
 	}
@@ -1021,7 +1021,7 @@ fts_cache_index_cache_create(
 
 	index_cache->charset = fts_index_get_charset(index);
 
-	n_bytes = sizeof(que_t*) * sizeof(fts_index_selector);
+	n_bytes = sizeof(que_t*) * FTS_NUM_AUX_INDEX;
 
 	index_cache->ins_graph = static_cast<que_t**>(
 		mem_heap_zalloc(static_cast<mem_heap_t*>(
@@ -1097,7 +1097,7 @@ fts_cache_clear(
 
 		index_cache->words = NULL;
 
-		for (j = 0; fts_index_selector[j].value; ++j) {
+		for (j = 0; j < FTS_NUM_AUX_INDEX; ++j) {
 
 			if (index_cache->ins_graph[j] != NULL) {
 
@@ -1242,9 +1242,10 @@ fts_tokenizer_word_get(
 #endif
 
 	/* If it is a stopword, do not index it */
-	if (cache->stopword_info.cached_stopword != NULL
-	    && rbt_search(cache->stopword_info.cached_stopword,
-		       &parent, text) == 0) {
+	if (!fts_check_token(text,
+		    cache->stopword_info.cached_stopword,
+		    index_cache->index->is_ngram,
+		    index_cache->charset)) {
 
 		return(NULL);
 	}
@@ -1591,7 +1592,7 @@ fts_rename_aux_tables(
 
 		FTS_INIT_INDEX_TABLE(&fts_table, NULL, FTS_INDEX_TABLE, index);
 
-		for (ulint j = 0; fts_index_selector[j].value; ++j) {
+		for (ulint j = 0; j < FTS_NUM_AUX_INDEX; ++j) {
 			dberr_t	err;
 			char	old_table_name[MAX_FULL_NAME_LEN];
 
@@ -1667,7 +1668,7 @@ fts_drop_index_split_tables(
 
 	FTS_INIT_INDEX_TABLE(&fts_table, NULL, FTS_INDEX_TABLE, index);
 
-	for (i = 0; fts_index_selector[i].value; ++i) {
+	for (i = 0; i < FTS_NUM_AUX_INDEX; ++i) {
 		dberr_t	err;
 		char	table_name[MAX_FULL_NAME_LEN];
 
@@ -2020,7 +2021,7 @@ fts_create_index_tables_low(
 	que_graph_free(graph);
 #endif /* FTS_DOC_STATS_DEBUG */
 
-	for (i = 0; fts_index_selector[i].value && error == DB_SUCCESS; ++i) {
+	for (i = 0; i < FTS_NUM_AUX_INDEX && error == DB_SUCCESS; ++i) {
 		dict_table_t*	new_table;
 
 		info = pars_info_create();
@@ -3257,6 +3258,7 @@ fts_query_expansion_fetch_doc(
 		}
 
 		doc.charset = doc_charset;
+		doc.is_ngram = result_doc->is_ngram;
 
 		if (dfield_is_ext(dfield)) {
 			/* We ignore columns that are stored externally, this
@@ -3362,6 +3364,7 @@ fts_fetch_doc_from_rec(
 
 		doc->found = TRUE;
 		doc->charset = get_doc->index_cache->charset;
+		doc->is_ngram = index->is_ngram;
 
 		/* Null Field */
 		if (doc->text.f_len == UNIV_SQL_NULL) {
@@ -4478,21 +4481,128 @@ fts_sync_table(
 	return(err);
 }
 
-/********************************************************************
-Add the token and its start position to the token's list of positions. */
+/** Check fts token
+1. for ngram token, check whether the token contains any words in stopwords
+2. for non-ngram token, check if it's stopword or less than fts_min_token_size
+or greater than fts_max_token_size.
+@param[in]	token		token string
+@param[in]	stopwords	stopwords rb tree
+@param[in]	is_ngram	is ngram parser
+@param[in]	cs		token charset
+@retval	true	if it is not stopword and length in range
+@retval	false	if it is stopword or lenght not in range */
+bool
+fts_check_token(
+	const fts_string_t*		token,
+	const ib_rbt_t*			stopwords,
+	bool				is_ngram,
+	const CHARSET_INFO*		cs)
+{
+	ut_ad(cs != NULL || stopwords == NULL);
+
+	if (!is_ngram) {
+		ib_rbt_bound_t  parent;
+
+		if (token->f_n_char < fts_min_token_size
+		    || token->f_n_char > fts_max_token_size
+		    || (stopwords != NULL
+			&& rbt_search(stopwords, &parent, token) == 0)) {
+			return(false);
+		} else {
+			return(true);
+		}
+	}
+
+	/* Check token for ngram. */
+	DBUG_EXECUTE_IF(
+		"fts_instrument_ignore_ngram_check",
+		return(true);
+	);
+
+	/* We ignore fts_min_token_size when ngram */
+	ut_ad(token->f_n_char > 0
+	      && token->f_n_char <= fts_max_token_size);
+
+	if (stopwords == NULL) {
+		return(true);
+	}
+
+	/*Ngram checks whether the token contains any words in stopwords.
+	We can't simply use CONTAIN to search in stopwords, because it's
+	built on COMPARE. So we need to tokenize the token into words
+	from unigram to f_n_char, and check them separately. */
+	for (ulint ngram_token_size = 1; ngram_token_size <= token->f_n_char;
+	     ngram_token_size ++) {
+		const char*	start;
+		const char*	next;
+		const char*	end;
+		ulint		char_len;
+		ulint		n_chars;
+
+		start = reinterpret_cast<char*>(token->f_str);
+		next = start;
+		end = start + token->f_len;
+		n_chars = 0;
+
+		while (next < end) {
+			char_len = my_mbcharlen_ptr(cs, next, end);
+
+			if (next + char_len > end || char_len == 0) {
+				break;
+			} else {
+				/* Skip SPACE */
+				if (char_len == 1 && *next == ' ') {
+					start = next + 1;
+					next = start;
+					n_chars = 0;
+
+					continue;
+				}
+
+				next += char_len;
+				n_chars++;
+			}
+
+			if (n_chars == ngram_token_size) {
+				fts_string_t	ngram_token;
+				ngram_token.f_str =
+					reinterpret_cast<byte*>(
+					const_cast<char*>(start));
+				ngram_token.f_len = next - start;
+				ngram_token.f_n_char = ngram_token_size;
+
+				ib_rbt_bound_t  parent;
+				if (rbt_search(stopwords, &parent,
+					       &ngram_token) == 0) {
+					return(false);
+				}
+
+				/* Move a char forward */
+				start += my_mbcharlen_ptr(cs, start, end);
+				n_chars = ngram_token_size - 1;
+			}
+		}
+	}
+
+	return(true);
+}
+
+/** Add the token and its start position to the token's list of positions.
+@param[in/out]	result_doc	result doc rb tree
+@param[in]	str		token string
+@param[in]	position	token position */
 static
 void
 fts_add_token(
-/*==========*/
-	fts_doc_t*	result_doc,	/* in/out: save result here */
-	fts_string_t	str,		/* in: token string */
-	ulint		position)	/* in: token position */
+	fts_doc_t*	result_doc,
+	fts_string_t	str,
+	ulint		position)
 {
 	/* Ignore string whose character number is less than
 	"fts_min_token_size" or more than "fts_max_token_size" */
 
-	if (str.f_n_char >= fts_min_token_size
-	    && str.f_n_char <= fts_max_token_size) {
+	if (fts_check_token(&str, NULL, result_doc->is_ngram,
+			    result_doc->charset)) {
 
 		mem_heap_t*	heap;
 		fts_string_t	t_str;
@@ -4528,9 +4638,6 @@ fts_add_token(
 
 			new_token.positions = ib_vector_create(
 				result_doc->self_heap, sizeof(ulint), 32);
-
-			ut_a(new_token.text.f_n_char >= fts_min_token_size);
-			ut_a(new_token.text.f_n_char <= fts_max_token_size);
 
 			parent.last = rbt_add_node(
 				result_doc->tokens, &parent, &new_token);
@@ -6029,7 +6136,7 @@ fts_is_aux_table_name(
 		len = end - ptr;
 
 		/* Search the FT index specific array. */
-		for (i = 0; fts_index_selector[i].value; ++i) {
+		for (i = 0; i < FTS_NUM_AUX_INDEX; ++i) {
 
 			if (strncmp(ptr, fts_get_suffix(i), len) == 0) {
 				return(true);
@@ -7525,6 +7632,7 @@ fts_init_recover_doc(
 		}
 
 		doc.charset = get_doc->index_cache->charset;
+		doc.is_ngram = get_doc->index_cache->index->is_ngram;
 
 		if (dfield_is_ext(dfield)) {
 			dict_table_t*	table = cache->sync->table;
@@ -7659,3 +7767,4 @@ func_exit:
 
 	return(TRUE);
 }
+

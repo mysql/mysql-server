@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2015, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, Percona Inc.
 Copyright (c) 2012, Facebook Inc.
@@ -2204,12 +2204,6 @@ innobase_trx_allocate(
 
 	innobase_trx_init(thd, trx);
 
-#ifdef UNIV_DEBUG
-	if (thd_trx_is_dd_trx(thd)) {
-		trx->is_dd_trx = true;
-	}
-#endif /* UNIV_DEBUG */
-
 	DBUG_RETURN(trx);
 }
 
@@ -2904,8 +2898,8 @@ innobase_init_abort()
 This function checks if the given db.tablename is a system table
 supported by Innodb and is used as an initializer for the data member
 is_supported_system_table of InnoDB storage engine handlerton.
-Currently we support only help and time_zone system tables in InnoDB.
-Please don't add any SE-specific system tables here.
+Currently we support only plugin, servers,  help- and time_zone- related
+system tables in InnoDB. Please don't add any SE-specific system tables here.
 
 @param db				database name to check.
 @param table_name			table name to check.
@@ -2921,6 +2915,8 @@ static bool innobase_is_supported_system_table(const char *db,
 							"help_category",
 							"help_relation",
 							"help_keyword",
+							"plugin",
+							"servers",
 							"time_zone",
 							"time_zone_leap_second",
 							"time_zone_name",
@@ -5267,6 +5263,11 @@ table_opened:
 			index->parser =
 				static_cast<st_mysql_ftparser *>(
 					plugin_decl(parser)->info);
+
+			index->is_ngram = strncmp(
+				plugin_name(parser)->str,
+				FTS_NGRAM_PARSER_NAME,
+				plugin_name(parser)->length) == 0;
 
 			DBUG_EXECUTE_IF("fts_instrument_use_default_parser",
 				index->parser = &fts_default_parser;);
@@ -13044,6 +13045,11 @@ ha_innobase::external_lock(
 
 		TrxInInnoDB::begin_stmt(trx);
 
+#ifdef UNIV_DEBUG
+		if (thd_trx_is_dd_trx(thd)) {
+			trx->is_dd_trx = true;
+		}
+#endif /* UNIV_DEBUG */
 		DBUG_RETURN(0);
 	} else {
 
@@ -17350,6 +17356,7 @@ ib_senderrf(
 		str = static_cast<char*>(malloc(size));
 	}
 	if (str == NULL) {
+		va_end(args);
 		return;	/* Watch for Out-Of-Memory */
 	}
 	str[size - 1] = 0x0;
@@ -17358,12 +17365,14 @@ ib_senderrf(
 	int	ret;
 	ret = vasprintf(&str, format, args);
 	if (ret < 0) {
+		va_end(args);
 		return;	/* Watch for Out-Of-Memory */
 	}
 #else
 	/* Use a fixed length string. */
 	str = static_cast<char*>(malloc(BUFSIZ));
 	if (str == NULL) {
+		va_end(args);
 		return;	/* Watch for Out-Of-Memory */
 	}
 	my_vsnprintf(str, BUFSIZ, format, args);
@@ -17437,6 +17446,7 @@ ib_errf(
 		str = static_cast<char*>(malloc(size));
 	}
 	if (str == NULL) {
+		va_end(args);
 		return;	/* Watch for Out-Of-Memory */
 	}
 	str[size - 1] = 0x0;
@@ -17445,12 +17455,14 @@ ib_errf(
 	int	ret;
 	ret = vasprintf(&str, format, args);
 	if (ret < 0) {
+		va_end(args);
 		return;	/* Watch for Out-Of-Memory */
 	}
 #else
 	/* Use a fixed length string. */
 	str = static_cast<char*>(malloc(BUFSIZ));
 	if (str == NULL) {
+		va_end(args);
 		return;	/* Watch for Out-Of-Memory */
 	}
 	my_vsnprintf(str, BUFSIZ, format, args);

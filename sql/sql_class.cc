@@ -1268,7 +1268,12 @@ THD::THD(bool enable_plugins)
 
   tablespace_op=FALSE;
   substitute_null_with_insert_id = FALSE;
-  thr_lock_info_init(&lock_info); /* safety: will be reset after start */
+
+  /*
+    Make sure thr_lock_info_init() is called for threads which do not get
+    assigned a proper thread_id value but keep using reserved_thread_id.
+  */
+  thr_lock_info_init(&lock_info, m_thread_id);
 
   m_internal_handler= NULL;
   m_binlog_invoker= FALSE;
@@ -1676,6 +1681,7 @@ void THD::set_new_thread_id()
 {
   m_thread_id= Global_THD_manager::get_instance()->get_new_thread_id();
   variables.pseudo_thread_id= m_thread_id;
+  thr_lock_info_init(&lock_info, m_thread_id);
 }
 
 
@@ -2217,11 +2223,6 @@ bool THD::store_globals()
   mysys_var->id= m_thread_id;
   real_id= pthread_self();                      // For debugging
 
-  /*
-    We have to call thr_lock_info_init() again here as THD may have been
-    created in another thread
-  */
-  thr_lock_info_init(&lock_info);
   return 0;
 }
 

@@ -5346,7 +5346,7 @@ int Format_description_log_event::do_apply_event(Relay_log_info const *rli)
     original place when it comes to us; we'll know this by checking
     log_pos ("artificial" events have log_pos == 0).
   */
-  if (!is_artificial_event() && created &&
+  if (!thd->rli_fake && !is_artificial_event() && created &&
       thd->get_transaction()->is_active(Transaction_ctx::SESSION))
   {
     /* This is not an error (XA is safe), just an information */
@@ -11897,7 +11897,7 @@ Write_rows_log_event::write_row(const Relay_log_info *const rli,
   TABLE *table= m_table;  // pointer to event's table
   int error;
   int keynum= 0;
-  auto_afree_ptr<char> key(NULL);
+  char* key= NULL;
 
   prepare_record(table, &m_cols,
                  table->file->ht->db_type != DB_TYPE_NDBCLUSTER);
@@ -12023,10 +12023,10 @@ Write_rows_log_event::write_row(const Relay_log_info *const rli,
         goto error;
       }
 
-      if (key.get() == NULL)
+      if (key == NULL)
       {
-        key.assign(static_cast<char*>(my_alloca(table->s->max_unique_length)));
-        if (key.get() == NULL)
+        key= static_cast<char*>(my_alloca(table->s->max_unique_length));
+        if (key == NULL)
         {
           DBUG_PRINT("info",("Can't allocate key buffer"));
           error= ENOMEM;
@@ -12036,10 +12036,10 @@ Write_rows_log_event::write_row(const Relay_log_info *const rli,
 
       if ((uint)keynum < MAX_KEY)
       {
-        key_copy((uchar*)key.get(), table->record[0], table->key_info + keynum,
+        key_copy((uchar*)key, table->record[0], table->key_info + keynum,
                  0);
         error= table->file->ha_index_read_idx_map(table->record[1], keynum,
-                                                  (const uchar*)key.get(),
+                                                  (const uchar*)key,
                                                   HA_WHOLE_KEY,
                                                   HA_READ_KEY_EXACT);
       }

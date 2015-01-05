@@ -55,7 +55,6 @@
 #include "log.h"
 #include "binlog.h"
 
-
 bool
 No_such_table_error_handler::handle_condition(THD *,
                                               uint sql_errno,
@@ -2926,6 +2925,19 @@ bool open_table(THD *thd, TABLE_LIST *table_list, Open_table_context *ot_ctx)
   if (check_stack_overrun(thd, STACK_MIN_SIZE_FOR_OPEN, (uchar *)&alias))
     DBUG_RETURN(TRUE);
 
+  DBUG_EXECUTE_IF("kill_query_on_open_table_from_tz_find",
+                  {
+                    /*
+                      When on calling my_tz_find the following
+                      tables are opened in specified order: time_zone_name,
+                      time_zone, time_zone_transition_type,
+                      time_zone_transition. Emulate killing a query
+                      on opening the second table in the list.
+                    */
+                    if (!strcmp("time_zone",  table_list->table_name))
+                      thd->killed= THD::KILL_QUERY;
+                  });
+
   if (!(flags & MYSQL_OPEN_IGNORE_KILLED) && thd->killed)
     DBUG_RETURN(TRUE);
 
@@ -5295,10 +5307,6 @@ bool open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags,
   bool has_prelocking_list;
   DBUG_ENTER("open_tables");
 
-  /* Accessing data in XA_IDLE or XA_PREPARED is not allowed. */
-  if (*start &&
-      thd->get_transaction()->xid_state()->check_xa_idle_or_prepared(true))
-    DBUG_RETURN(true);
 
 restart:
   /*
@@ -5497,6 +5505,11 @@ restart:
       }
     }
   }
+
+  /* Accessing data in XA_IDLE or XA_PREPARED is not allowed. */
+  if (*start &&
+      thd->get_transaction()->xid_state()->check_xa_idle_or_prepared(true))
+    DBUG_RETURN(true);
 
 #ifdef HAVE_MY_TIMER
   /*
@@ -9926,19 +9939,6 @@ bool open_trans_system_tables_for_read(THD *thd, TABLE_LIST *table_list)
     {
       // Crash in the debug build ...
       DBUG_ASSERT(!"HA_ATTACHABLE_TRX_COMPATIBLE is not set");
-
-      // ... or report an error in the release build.
-      my_error(ER_UNKNOWN_ERROR, MYF(0));
-      thd->end_attachable_transaction();
-      DBUG_RETURN(true);
-    }
-
-    // Ensure the t are of the system category (TABLE_CATEGORY_SYSTEM).
-
-    if (t->table->s->table_category != TABLE_CATEGORY_SYSTEM)
-    {
-      // Crash in the debug build ...
-      DBUG_ASSERT(!"Table category is not system");
 
       // ... or report an error in the release build.
       my_error(ER_UNKNOWN_ERROR, MYF(0));

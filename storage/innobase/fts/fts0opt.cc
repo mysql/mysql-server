@@ -826,18 +826,13 @@ fts_index_fetch_words(
 	}
 
 	for (selected = fts_select_index(
-		optim->fts_index_table.charset, word->f_str, word->f_len);
-	     fts_index_selector[selected].value;
+		     optim->fts_index_table.charset, word->f_str, word->f_len);
+	     selected < FTS_NUM_AUX_INDEX;
 	     selected++) {
 
 		char	table_name[MAX_FULL_NAME_LEN];
 
 		optim->fts_index_table.suffix = fts_get_suffix(selected);
-
-		/* We've search all indexes. */
-		if (optim->fts_index_table.suffix == NULL) {
-			return(DB_TABLE_NOT_FOUND);
-		}
 
 		info = pars_info_create();
 
@@ -1868,42 +1863,6 @@ fts_optimize_words(
 }
 
 /**********************************************************************//**
-Select the FTS index to search.
-@return TRUE if last index */
-static
-ibool
-fts_optimize_set_next_word(
-/*=======================*/
-	CHARSET_INFO*	charset,	/*!< in: charset */
-	fts_string_t*	word)		/*!< in: current last word */
-{
-	ulint		selected;
-	ibool		last = FALSE;
-
-	selected = fts_select_next_index(charset, word->f_str, word->f_len);
-
-	/* If this was the last index then reset to start. */
-	if (fts_index_selector[selected].value == 0) {
-		/* Reset the last optimized word to '' if no
-		more words could be read from the FTS index. */
-		word->f_len = 0;
-		*word->f_str = 0;
-
-		last = TRUE;
-	} else {
-		ulint	value = fts_index_selector[selected].value;
-
-		ut_a(value <= 0xff);
-
-		/* Set to the first character of the next slot. */
-		word->f_len = 1;
-		*word->f_str = (byte) value;
-	}
-
-	return(last);
-}
-
-/**********************************************************************//**
 Optimize is complete. Set the completion time, and reset the optimize
 start string for this FTS index to "".
 @return DB_SUCCESS if all OK */
@@ -1979,21 +1938,14 @@ fts_optimize_index_read_words(
 			optim, word, fts_num_word_optimize);
 
 		if (error == DB_SUCCESS) {
-
-			/* If the search returned an empty set
-			try the next index in the horizontal split. */
-			if (optim->zip->n_words > 0) {
-				break;
-			} else {
-
-				fts_optimize_set_next_word(
-					optim->fts_index_table.charset,
-					word);
-
-				if (word->f_len == 0) {
-					break;
-				}
+			/* Reset the last optimized word to '' if no
+			more words could be read from the FTS index. */
+			if (optim->zip->n_words == 0) {
+				word->f_len = 0;
+				*word->f_str = 0;
 			}
+
+			break;
 		}
 	}
 
