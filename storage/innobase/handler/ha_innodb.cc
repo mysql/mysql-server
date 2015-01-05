@@ -12119,6 +12119,7 @@ ha_innobase::check(
 			os_atomic_increment_ulint(
 				&srv_fatal_semaphore_wait_threshold,
 				SRV_SEMAPHORE_WAIT_EXTENSION);
+
 			bool valid = btr_validate_index(
 					index, m_prebuilt->trx, false);
 
@@ -12216,10 +12217,7 @@ ha_innobase::check(
 		if (index == dict_table_get_first_index(m_prebuilt->table)) {
 			n_rows_in_table = n_rows;
 		} else if (!(index->type & DICT_FTS)
-			   && (n_rows != n_rows_in_table)
-			/* GIS_FIXME: Will address the transient count
-			mistmatch for R-Tree in WL #7740 */
-			   && !dict_index_is_spatial(index)) {
+			   && (n_rows != n_rows_in_table)) {
 			push_warning_printf(
 				thd, Sql_condition::SL_WARNING,
 				ER_NOT_KEYFILE,

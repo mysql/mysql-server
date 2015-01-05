@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2015, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -1730,9 +1730,16 @@ btr_root_raise_and_insert(
 
 	/* Build the node pointer (= node key and page address) for the
 	child */
+	if (dict_index_is_spatial(index)) {
+		rtr_mbr_t		new_mbr;
 
-	node_ptr = dict_index_build_node_ptr(
-		index, rec, new_page_no, *heap, level);
+		rtr_page_cal_mbr(index, new_block, &new_mbr, *heap);
+		node_ptr = rtr_index_build_node_ptr(
+			index, &new_mbr, rec, new_page_no, *heap, level);
+	} else {
+		node_ptr = dict_index_build_node_ptr(
+			index, rec, new_page_no, *heap, level);
+	}
 	/* The node pointer must be marked as the predefined minimum record,
 	as there is no lower alphabetical limit to records in the leftmost
 	node of a level: */
