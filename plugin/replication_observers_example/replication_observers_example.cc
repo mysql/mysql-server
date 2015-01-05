@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -254,7 +254,7 @@ Trans_observer trans_observer = {
 */
 static int binlog_relay_thread_start_call= 0;
 static int binlog_relay_thread_stop_call= 0;
-static int binlog_relay_consumer_thread_stop_call= 0;
+static int binlog_relay_applier_stop_call= 0;
 static int binlog_relay_before_request_transmit_call= 0;
 static int binlog_relay_after_read_event_call= 0;
 static int binlog_relay_after_queue_event_call= 0;
@@ -276,11 +276,11 @@ static void dump_binlog_relay_calls()
                           "\nreplication_observers_example_plugin:binlog_relay_thread_stop");
   }
 
-  if (binlog_relay_consumer_thread_stop_call)
+  if (binlog_relay_applier_stop_call)
   {
     my_plugin_log_message(&plugin_info_ptr,
                           MY_INFORMATION_LEVEL,
-                          "\nreplication_observers_example_plugin:binlog_relay_consumer_thread_stop");
+                          "\nreplication_observers_example_plugin:binlog_relay_applier_stop");
   }
 
   if (binlog_relay_before_request_transmit_call)
@@ -326,10 +326,10 @@ int binlog_relay_thread_stop(Binlog_relay_IO_param *param)
   return 0;
 }
 
-int binlog_relay_consumer_thread_stop(Binlog_relay_IO_param *param,
-                                      bool aborted)
+int binlog_relay_applier_stop(Binlog_relay_IO_param *param,
+                              bool aborted)
 {
-  binlog_relay_consumer_thread_stop_call++;
+  binlog_relay_applier_stop_call++;
 
   return 0;
 }
@@ -373,7 +373,7 @@ Binlog_relay_IO_observer relay_io_observer = {
 
   binlog_relay_thread_start,
   binlog_relay_thread_stop,
-  binlog_relay_consumer_thread_stop,
+  binlog_relay_applier_stop,
   binlog_relay_before_request_transmit,
   binlog_relay_after_read_event,
   binlog_relay_after_queue_event,

@@ -53,9 +53,9 @@ replication_observers_example_plugin:binlog_relay_after_queue_event'
 
 Occurrences of the replication_observers_example_plugin:binlog_relay_after_queue_event in the input file : 1
 Matching lines are:
-replication_observers_example_plugin:binlog_relay_consumer_thread_stop'
+replication_observers_example_plugin:binlog_relay_applier_stop'
 
-Occurrences of the replication_observers_example_plugin:binlog_relay_consumer_thread_stop in the input file : 1
+Occurrences of the replication_observers_example_plugin:binlog_relay_applier_stop in the input file : 1
 Matching lines are:
 replication_observers_example_plugin:binlog_relay_thread_stop'
 

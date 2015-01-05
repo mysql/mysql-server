@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -6932,7 +6932,7 @@ llstr(rli->get_group_master_log_pos(), llbuff));
 
  err:
 
-  (void) RUN_HOOK(binlog_relay_io, consumer_thread_stop,
+  (void) RUN_HOOK(binlog_relay_io, applier_stop,
                   (thd, rli->mi,
                    (abort_loop || thd->killed || rli->abort_slave)));
 

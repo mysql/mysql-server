@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -797,9 +797,9 @@ int Binlog_relay_IO_delegate::thread_stop(THD *thd, Master_info *mi)
   return ret;
 }
 
-int Binlog_relay_IO_delegate::consumer_thread_stop(THD *thd,
-                                                   Master_info *mi,
-                                                   bool aborted)
+int Binlog_relay_IO_delegate::applier_stop(THD *thd,
+                                           Master_info *mi,
+                                           bool aborted)
 {
   Binlog_relay_IO_param param;
   init_param(&param, mi);
@@ -807,7 +807,7 @@ int Binlog_relay_IO_delegate::consumer_thread_stop(THD *thd,
   param.thread_id= thd->thread_id();
 
   int ret= 0;
-  FOREACH_OBSERVER(ret, consumer_thread_stop, thd, (&param, aborted));
+  FOREACH_OBSERVER(ret, applier_stop, thd, (&param, aborted));
   return ret;
 }
 
