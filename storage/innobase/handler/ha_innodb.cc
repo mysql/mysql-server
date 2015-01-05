@@ -2202,6 +2202,11 @@ check_trx_exists(
 
 	if (trx == NULL) {
 		trx = innobase_trx_allocate(thd);
+
+		/* User trx can be forced to rollback,
+		so we unset the disable flag. */
+		ut_ad(trx->in_innodb & TRX_FORCE_ROLLBACK_DISABLE);
+		trx->in_innodb &= TRX_FORCE_ROLLBACK_MASK;
 	} else {
 		ut_a(trx->magic_n == TRX_MAGIC_N);
 
