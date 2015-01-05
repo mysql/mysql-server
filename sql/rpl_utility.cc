@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
 #include "rpl_rli.h"
 #include "log_event.h"
 #include "binary_log_types.h"
+#include "template_utils.h"              // delete_container_pointers
 
 #include <algorithm>
 

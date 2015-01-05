@@ -20,7 +20,11 @@
   @brief
   This file defines all spatial functions
 */
-#include "my_config.h"
+#include "item_geofunc.h"
+
+#include "gstream.h"      // Gis_read_stream
+#include "sql_class.h"    // THD
+#include "gis_bg_traits.h"
 
 #include "parse_tree_helpers.h"
 #include <rapidjson/document.h>

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,6 +27,7 @@
 #include "sql_class.h"                          // THD
 #include "sql_time.h"
 #include <m_ctype.h>
+#include "item_timefunc.h"               // Item_func_now_local
 
 static void do_field_eq(Copy_field *copy)
 {

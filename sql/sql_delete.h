@@ -20,6 +20,7 @@
 #include "sql_class.h" // select_result_interceptor
 
 class THD;
+class Unique;
 struct TABLE_LIST;
 
 bool mysql_prepare_delete(THD *thd, const TABLE_LIST *delete_table_ref);

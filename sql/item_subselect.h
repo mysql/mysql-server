@@ -18,6 +18,8 @@
 
 /* subselect Item */
 
+#include "item.h"   // Item_result_field
+
 class st_select_lex;
 class st_select_lex_unit;
 class JOIN;
@@ -29,6 +31,8 @@ class Item_bool_func2;
 class Cached_item;
 class Comp_creator;
 class PT_subselect;
+class Item_in_optimizer;
+class Item_func_not_all;
 
 typedef class st_select_lex SELECT_LEX;
 
