@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -5259,7 +5259,7 @@ dict_index_build_node_ptr(
 			n_unique--;
 		}
 	} else {
-		n_unique = dict_index_get_n_unique_in_tree(index);
+		n_unique = dict_index_get_n_unique_in_tree_nonleaf(index);
 	}
 
 	tuple = dtuple_create(heap, n_unique + 1);

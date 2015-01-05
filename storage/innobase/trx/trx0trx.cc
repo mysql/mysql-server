@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -284,7 +284,7 @@ struct TrxFactory {
 			ut_free(trx->lock.rec_pool[0]);
 		}
 
-		if (!trx->lock.rec_pool.empty()) {
+		if (!trx->lock.table_pool.empty()) {
 
 			/* See lock_trx_alloc_locks() why we only free
 			the first element. */
