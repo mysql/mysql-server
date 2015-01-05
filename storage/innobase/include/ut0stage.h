@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -307,7 +307,8 @@ ut_stage_alter_t::end_phase_read_pk()
 		m_n_recs_per_page = 1;
 	} else {
 		m_n_recs_per_page = std::max(
-			1UL, m_n_pk_recs / m_n_pk_pages);
+			static_cast<unsigned long>(m_n_pk_recs / m_n_pk_pages),
+			1UL);
 	}
 }
 

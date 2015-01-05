@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -2459,7 +2459,9 @@ row_log_progress_inc_per_block()
 	univ_page_size, usually 16KiB). One block here is srv_sort_buf_size
 	(usually 1MiB). */
 	const ulint	pages_per_block = std::max(
-		1UL, srv_sort_buf_size / univ_page_size.physical());
+		static_cast<unsigned long>(
+			srv_sort_buf_size / univ_page_size.physical()),
+		1UL);
 
 	/* Multiply by an artificial factor of 6 to even the pace with
 	the rest of the ALTER TABLE phases, they process page_size amount
