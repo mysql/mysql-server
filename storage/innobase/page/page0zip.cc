@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2015, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -659,10 +659,10 @@ page_zip_dir_encode(
 		ut_a(offs < UNIV_PAGE_SIZE - PAGE_DIR);
 		ut_a(offs >= PAGE_ZIP_START);
 #if PAGE_ZIP_DIR_SLOT_MASK & (PAGE_ZIP_DIR_SLOT_MASK + 1)
-# error "PAGE_ZIP_DIR_SLOT_MASK is not 1 less than a power of 2"
+# error PAGE_ZIP_DIR_SLOT_MASK is not 1 less than a power of 2
 #endif
-#if PAGE_ZIP_DIR_SLOT_MASK < UNIV_PAGE_SIZE_MAX - 1
-# error "PAGE_ZIP_DIR_SLOT_MASK < UNIV_PAGE_SIZE_MAX - 1"
+#if PAGE_ZIP_DIR_SLOT_MASK < UNIV_ZIP_SIZE_MAX - 1
+# error PAGE_ZIP_DIR_SLOT_MASK < UNIV_ZIP_SIZE_MAX - 1
 #endif
 		if (UNIV_UNLIKELY(rec_get_n_owned_new(rec))) {
 			offs |= PAGE_ZIP_DIR_SLOT_OWNED;
@@ -1285,7 +1285,7 @@ page_zip_compress(
 		if (page_is_leaf(page)) {
 			n_fields = dict_index_get_n_fields(index);
 		} else {
-			n_fields = dict_index_get_n_unique_in_tree(index);
+			n_fields = dict_index_get_n_unique_in_tree_nonleaf(index);
 		}
 		ind_id = index->id;
 	}
@@ -1601,7 +1601,7 @@ page_zip_fields_free(
 {
 	if (index) {
 		dict_table_t*	table = index->table;
-		mutex_free(&index->zip_pad.mutex);
+		dict_index_zip_pad_mutex_destroy(index);
 		mem_heap_free(index->heap);
 
 		dict_mem_table_free(table);
@@ -1617,9 +1617,10 @@ page_zip_fields_decode(
 /*===================*/
 	const byte*	buf,	/*!< in: index information */
 	const byte*	end,	/*!< in: end of buf */
-	ulint*		trx_id_col)/*!< in: NULL for non-leaf pages;
+	ulint*		trx_id_col,/*!< in: NULL for non-leaf pages;
 				for leaf pages, pointer to where to store
 				the position of the trx_id column */
+	bool		is_spatial)/*< in: is spatial index or not */
 {
 	const byte*	b;
 	ulint		n;
@@ -1720,6 +1721,10 @@ page_zip_fields_decode(
 	}
 
 	ut_ad(b == end);
+
+	if (is_spatial) {
+		index->type |= DICT_SPATIAL;
+	}
 
 	return(index);
 }
@@ -3094,7 +3099,8 @@ zlib_error:
 
 	index = page_zip_fields_decode(
 		page + PAGE_ZIP_START, d_stream.next_out,
-		page_is_leaf(page) ? &trx_id_col : NULL);
+		page_is_leaf(page) ? &trx_id_col : NULL,
+		fil_page_get_type(page) == FIL_PAGE_RTREE);
 
 	if (UNIV_UNLIKELY(!index)) {
 
@@ -4185,7 +4191,7 @@ page_zip_clear_rec(
 		there is an array of node_ptr immediately before the
 		dense page directory, at the very end of the page. */
 		storage	= page_zip_dir_start(page_zip);
-		ut_ad(dict_index_get_n_unique_in_tree(index) ==
+		ut_ad(dict_index_get_n_unique_in_tree_nonleaf(index) ==
 		      rec_offs_n_fields(offsets) - 1);
 		field	= rec_get_nth_field(rec, offsets,
 					    rec_offs_n_fields(offsets) - 1,

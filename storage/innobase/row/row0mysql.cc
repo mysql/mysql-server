@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -5417,7 +5417,7 @@ loop:
 	{
 		const char* doing = check_keys? "CHECK TABLE" : "COUNT(*)";
 		ib::warn() << doing << " on index " << index->name << " of"
-			" table " << index->table_name << " returned " << ret;
+			" table " << index->table->name << " returned " << ret;
 		/* fall through (this error is ignored by CHECK TABLE) */
 	}
 	case DB_END_OF_INDEX:

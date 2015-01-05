@@ -2,6 +2,31 @@ typedef char my_bool;
 typedef int my_socket;
 #include "mysql_version.h"
 #include "mysql_com.h"
+#include "binary_log_types.h"
+typedef enum enum_field_types {
+  MYSQL_TYPE_DECIMAL, MYSQL_TYPE_TINY,
+  MYSQL_TYPE_SHORT, MYSQL_TYPE_LONG,
+  MYSQL_TYPE_FLOAT, MYSQL_TYPE_DOUBLE,
+  MYSQL_TYPE_NULL, MYSQL_TYPE_TIMESTAMP,
+  MYSQL_TYPE_LONGLONG,MYSQL_TYPE_INT24,
+  MYSQL_TYPE_DATE, MYSQL_TYPE_TIME,
+  MYSQL_TYPE_DATETIME, MYSQL_TYPE_YEAR,
+  MYSQL_TYPE_NEWDATE, MYSQL_TYPE_VARCHAR,
+  MYSQL_TYPE_BIT,
+  MYSQL_TYPE_TIMESTAMP2,
+  MYSQL_TYPE_DATETIME2,
+  MYSQL_TYPE_TIME2,
+  MYSQL_TYPE_NEWDECIMAL=246,
+  MYSQL_TYPE_ENUM=247,
+  MYSQL_TYPE_SET=248,
+  MYSQL_TYPE_TINY_BLOB=249,
+  MYSQL_TYPE_MEDIUM_BLOB=250,
+  MYSQL_TYPE_LONG_BLOB=251,
+  MYSQL_TYPE_BLOB=252,
+  MYSQL_TYPE_VAR_STRING=253,
+  MYSQL_TYPE_STRING=254,
+  MYSQL_TYPE_GEOMETRY=255
+} enum_field_types;
 enum enum_server_command
 {
   COM_SLEEP, COM_QUIT, COM_INIT_DB, COM_QUERY, COM_FIELD_LIST,
@@ -41,29 +66,6 @@ typedef struct st_net {
   char sqlstate[5 +1];
   void *extension;
 } NET;
-enum enum_field_types { MYSQL_TYPE_DECIMAL, MYSQL_TYPE_TINY,
-   MYSQL_TYPE_SHORT, MYSQL_TYPE_LONG,
-   MYSQL_TYPE_FLOAT, MYSQL_TYPE_DOUBLE,
-   MYSQL_TYPE_NULL, MYSQL_TYPE_TIMESTAMP,
-   MYSQL_TYPE_LONGLONG,MYSQL_TYPE_INT24,
-   MYSQL_TYPE_DATE, MYSQL_TYPE_TIME,
-   MYSQL_TYPE_DATETIME, MYSQL_TYPE_YEAR,
-   MYSQL_TYPE_NEWDATE, MYSQL_TYPE_VARCHAR,
-   MYSQL_TYPE_BIT,
-   MYSQL_TYPE_TIMESTAMP2,
-   MYSQL_TYPE_DATETIME2,
-   MYSQL_TYPE_TIME2,
-                        MYSQL_TYPE_NEWDECIMAL=246,
-   MYSQL_TYPE_ENUM=247,
-   MYSQL_TYPE_SET=248,
-   MYSQL_TYPE_TINY_BLOB=249,
-   MYSQL_TYPE_MEDIUM_BLOB=250,
-   MYSQL_TYPE_LONG_BLOB=251,
-   MYSQL_TYPE_BLOB=252,
-   MYSQL_TYPE_VAR_STRING=253,
-   MYSQL_TYPE_STRING=254,
-   MYSQL_TYPE_GEOMETRY=255
-};
 enum mysql_enum_shutdown_level {
   SHUTDOWN_DEFAULT = 0,
   SHUTDOWN_WAIT_CONNECTIONS= (unsigned char)(1 << 0),
@@ -90,7 +92,8 @@ enum enum_session_state_type
 {
   SESSION_TRACK_SYSTEM_VARIABLES,
   SESSION_TRACK_SCHEMA,
-  SESSION_TRACK_STATE_CHANGE
+  SESSION_TRACK_STATE_CHANGE,
+  SESSION_TRACK_GTIDS
 };
 my_bool my_net_init(NET *net, Vio* vio);
 void my_net_local_init(NET *net);
@@ -489,13 +492,13 @@ MYSQL_RES * mysql_use_result(MYSQL *mysql);
 void mysql_get_character_set_info(MYSQL *mysql,
                            MY_CHARSET_INFO *charset);
 int mysql_session_track_get_first(MYSQL *mysql,
-                                  enum enum_session_state_type type,
-                                  const char **data,
-                                  size_t *length);
+                                          enum enum_session_state_type type,
+                                          const char **data,
+                                          size_t *length);
 int mysql_session_track_get_next(MYSQL *mysql,
-                                 enum enum_session_state_type type,
-                                 const char **data,
-                                 size_t *length);
+                                         enum enum_session_state_type type,
+                                         const char **data,
+                                         size_t *length);
 void
 mysql_set_local_infile_handler(MYSQL *mysql,
                                int (*local_infile_init)(void **, const char *,

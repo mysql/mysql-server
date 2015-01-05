@@ -127,6 +127,19 @@ srv_conc_enter_innodb_with_atomics(
 	for (;;) {
 		ulint	sleep_in_us;
 
+		if (srv_thread_concurrency == 0) {
+
+			if (notified_mysql) {
+
+				(void) os_atomic_decrement_lint(
+					&srv_conc.n_waiting, 1);
+
+				thd_wait_end(trx->mysql_thd);
+			}
+
+			return;
+		}
+
 		if (srv_conc.n_active < (lint) srv_thread_concurrency) {
 			ulint	n_active;
 
@@ -184,6 +197,7 @@ srv_conc_enter_innodb_with_atomics(
 			notified_mysql = TRUE;
 		}
 
+		DEBUG_SYNC_C("user_thread_waiting");
 		trx->op_info = "sleeping before entering InnoDB";
 
 		sleep_in_us = srv_thread_sleep_delay;

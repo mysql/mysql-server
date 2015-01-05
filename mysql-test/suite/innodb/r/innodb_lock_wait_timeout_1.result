@@ -122,7 +122,7 @@ key	PRIMARY
 key_len	4
 ref	t2.a
 rows	1
-filtered	5.00
+filtered	10.00
 Extra	Using where
 id	2
 select_type	DERIVED
@@ -328,7 +328,7 @@ key	PRIMARY
 key_len	4
 ref	t2.a
 rows	1
-filtered	6.25
+filtered	10.00
 Extra	Using where
 id	2
 select_type	DERIVED

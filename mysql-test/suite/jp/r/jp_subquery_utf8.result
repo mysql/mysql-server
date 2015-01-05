@@ -9,6 +9,8 @@ drop table if exists `Ｔ８`;
 drop table if exists `Ｔ９`;
 SET NAMES utf8;
 SET character_set_database = utf8;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
 CREATE TABLE `Ｔ１a` (`Ｃ１` char(1) PRIMARY KEY) DEFAULT CHARSET = utf8 engine = innodb;
 CREATE TABLE `Ｔ１b` (`Ｃ１` char(1) PRIMARY KEY) DEFAULT CHARSET = utf8 engine = innodb;
 CREATE TABLE `Ｔ２a` (`Ｃ１` char(1) PRIMARY KEY) DEFAULT CHARSET = utf8 engine = innodb;

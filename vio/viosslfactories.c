@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -202,6 +202,7 @@ new_VioSSLFd(const char *key_file, const char *cert_file,
 {
   DH *dh;
   struct st_VioSSLFd *ssl_fd;
+  long ssl_ctx_options= SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3;
   DBUG_ENTER("new_VioSSLFd");
   DBUG_PRINT("enter",
              ("key_file: '%s'  cert_file: '%s'  ca_file: '%s'  ca_path: '%s'  "
@@ -231,6 +232,8 @@ new_VioSSLFd(const char *key_file, const char *cert_file,
     my_free(ssl_fd);
     DBUG_RETURN(0);
   }
+
+  SSL_CTX_set_options(ssl_fd->ssl_context, ssl_ctx_options);
 
   /*
     Set the ciphers that can be used

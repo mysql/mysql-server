@@ -9,6 +9,8 @@ drop table if exists `£Ô£¸`;
 drop table if exists `£Ô£¹`;
 SET NAMES ujis;
 SET character_set_database = ucs2;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
 CREATE TABLE `£Ô£±` (`£Ã£±` char(20)) DEFAULT CHARSET = ucs2 engine = innodb;
 CREATE TABLE `£Ô£²` (`£Ã£±` char(20)) DEFAULT CHARSET = ucs2 engine = innodb;
 CREATE TABLE `£Ô£³` (`£Ã£±` char(20)) DEFAULT CHARSET = ucs2 engine = innodb;

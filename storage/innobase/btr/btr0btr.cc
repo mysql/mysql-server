@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2015, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -229,13 +229,13 @@ btr_height_get(
 					   | MTR_MEMO_SX_LOCK)
 	      || dict_table_is_intrinsic(index->table));
 
-        /* S latches the page */
-        root_block = btr_root_block_get(index, RW_S_LATCH, mtr);
+	/* S latches the page */
+	root_block = btr_root_block_get(index, RW_S_LATCH, mtr);
 
-        height = btr_page_get_level(buf_block_get_frame(root_block), mtr);
+	height = btr_page_get_level(buf_block_get_frame(root_block), mtr);
 
-        /* Release the S latch on the root page. */
-        mtr->memo_release(root_block, MTR_MEMO_PAGE_S_FIX);
+	/* Release the S latch on the root page. */
+	mtr->memo_release(root_block, MTR_MEMO_PAGE_S_FIX);
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_d(sync_check_unlock(&root_block->lock));
@@ -613,7 +613,7 @@ btr_page_free_low(
 		seg_header = root + PAGE_HEADER + PAGE_BTR_SEG_TOP;
 	}
 
-#ifdef UNIV_DEBUG
+#ifdef UNIV_GIS_DEBUG
 	if (dict_index_is_spatial(index)) {
 		fprintf(stderr, "GIS_DIAG: Freed  %ld\n",
 			(long) block->page.id.page_no());
@@ -1730,9 +1730,16 @@ btr_root_raise_and_insert(
 
 	/* Build the node pointer (= node key and page address) for the
 	child */
+	if (dict_index_is_spatial(index)) {
+		rtr_mbr_t		new_mbr;
 
-	node_ptr = dict_index_build_node_ptr(
-		index, rec, new_page_no, *heap, level);
+		rtr_page_cal_mbr(index, new_block, &new_mbr, *heap);
+		node_ptr = rtr_index_build_node_ptr(
+			index, &new_mbr, rec, new_page_no, *heap, level);
+	} else {
+		node_ptr = dict_index_build_node_ptr(
+			index, rec, new_page_no, *heap, level);
+	}
 	/* The node pointer must be marked as the predefined minimum record,
 	as there is no lower alphabetical limit to records in the leftmost
 	node of a level: */
@@ -3406,11 +3413,11 @@ retry:
 
 #ifdef UNIV_BTR_DEBUG
 	if (is_left) {
-                ut_a(btr_page_get_next(merge_page, mtr)
-                     == block->page.id.page_no());
+		ut_a(btr_page_get_next(merge_page, mtr)
+		     == block->page.id.page_no());
 	} else {
-               ut_a(btr_page_get_prev(merge_page, mtr)
-                     == block->page.id.page_no());
+		ut_a(btr_page_get_prev(merge_page, mtr)
+		     == block->page.id.page_no());
 	}
 #endif /* UNIV_BTR_DEBUG */
 

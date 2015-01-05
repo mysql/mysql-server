@@ -768,6 +768,7 @@ mysql_list_tables(MYSQL *mysql, const char *wild)
 MYSQL_FIELD *cli_list_fields(MYSQL *mysql)
 {
   MYSQL_DATA *query;
+  MYSQL_FIELD *result;
 
   MYSQL_TRACE_STAGE(mysql, WAIT_FOR_FIELD_DEF);
   query= cli_read_rows(mysql,(MYSQL_FIELD*) 0, 
@@ -778,8 +779,10 @@ MYSQL_FIELD *cli_list_fields(MYSQL *mysql)
     return NULL;
 
   mysql->field_count= (uint) query->rows;
-  return unpack_fields(mysql, query->data,&mysql->field_alloc,
-		       mysql->field_count, 1, mysql->server_capabilities);
+  result= unpack_fields(mysql, query->data,&mysql->field_alloc,
+                        mysql->field_count, 1, mysql->server_capabilities);
+  free_rows(query);
+  return result;
 }
 
 
@@ -1406,6 +1409,8 @@ my_bool cli_read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt)
     /* skip parameters data: we don't support it yet */
     if (!(cli_read_metadata(mysql, param_count, 7)))
       DBUG_RETURN(1);
+    /* free memory allocated by cli_read_metadata() for parameters data */
+    free_root(&mysql->field_alloc, MYF(0));
   }
 
   if (field_count != 0)

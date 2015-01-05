@@ -1,0 +1,22 @@
+###############################################################################
+# Bug#19928622: ASSERTION `! IS_SET()' FAILED. | ABORT IN
+# DIAGNOSTICS_AREA::SET_OK_STATUS
+#
+# Test:
+# =====
+# Begin an XA transaction and execte a DML statement so that XA state becomes
+# XA_ACTIVE. Execute the BINLOG command it should not cause any assert.
+# Execution should be successful.
+###############################################################################
+--source include/have_log_bin.inc
+
+CREATE TABLE t1(f1 int);
+XA START'','';
+INSERT INTO t1 VALUES(10);
+BINLOG '
+SOgWTg8BAAAAbgAAAHIAAAAAAAQANS42LjMtbTUtZGVidWctbG9nAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAABI6BZOEzgNAAgAEgAEBAQEEgAAVgAEGggAAAAICAgCAAAAAAVAYI8=';
+XA END'';
+XA PREPARE'';
+XA COMMIT'';
+DROP TABLE t1;

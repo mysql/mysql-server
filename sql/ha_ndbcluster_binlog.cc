@@ -281,7 +281,7 @@ ndb_binlog_close_shadow_table(NDB_SHARE *share)
 /*
   Open a shadow table for the table given in share.
   - The shadow table is (mainly) used when an event is
-    recieved from the data nodes which need to be written
+    received from the data nodes which need to be written
     to the binlog injector.
 */
 
@@ -591,7 +591,7 @@ ndb_create_thd(char * stackptr)
 #endif
   thd->client_capabilities= 0;
   thd->lex->start_transaction_opt= 0;
-  thd->security_ctx->skip_grants();
+  thd->security_context()->skip_grants();
 
   CHARSET_INFO *charset_connection= get_charset_by_csname("utf8",
                                                           MY_CS_PRIMARY,
@@ -6832,7 +6832,7 @@ Ndb_binlog_thread::do_run()
   thd->version= refresh_version;
 #endif
   thd->client_capabilities= 0;
-  thd->security_ctx->skip_grants();
+  thd->security_context()->skip_grants();
   // Create thd->net vithout vio
   my_net_init(&thd->net, 0);
 
@@ -6963,7 +6963,8 @@ restart_cluster_failure:
         { C_STRING_WITH_LEN("mysqld startup")    },
         { C_STRING_WITH_LEN("cluster disconnect")}
       };
-    int ret = inj->record_incident(thd, INCIDENT_LOST_EVENTS,
+    int ret = inj->record_incident(thd,
+                                   binary_log::Incident_event::INCIDENT_LOST_EVENTS,
                                    msg[incident_id]);
     assert(ret == 0); NDB_IGNORE_VALUE(ret);
     do_incident = false; // Don't report incident again, unless we get started
@@ -7368,7 +7369,9 @@ restart_cluster_failure:
                        ("Detected missing data in GCI %llu, "
                         "inserting GAP event", gci));
             LEX_STRING const msg= { C_STRING_WITH_LEN(errmsg) };
-            inj->record_incident(thd, INCIDENT_LOST_EVENTS, msg);
+            inj->record_incident(thd,
+                                 binary_log::Incident_event::INCIDENT_LOST_EVENTS,
+                                 msg);
           }
           while ((gci_op= i_ndb->getGCIEventOperations(&iter, &event_types))
                  != NULL)
@@ -7618,7 +7621,9 @@ restart_cluster_failure:
                    ("Detected missing data in GCI %llu, "
                     "inserting GAP event", gci));
         LEX_STRING const msg= { C_STRING_WITH_LEN(errmsg) };
-        inj->record_incident(thd, INCIDENT_LOST_EVENTS, msg);
+        inj->record_incident(thd,
+                             binary_log::Incident_event::INCIDENT_LOST_EVENTS,
+                             msg);
       }
     }
 

@@ -1008,7 +1008,7 @@ row_import::~row_import() UNIV_NOTHROW
 		ulint		n_fields = m_indexes[i].m_n_fields;
 
 		for (ulint j = 0; j < n_fields; ++j) {
-			UT_DELETE_ARRAY(const_cast<char*>(fields[j].name));
+			UT_DELETE_ARRAY(const_cast<char*>(fields[j].name()));
 		}
 
 		UT_DELETE_ARRAY(fields);
@@ -1109,7 +1109,7 @@ row_import::find_field(
 	for (ulint i = 0; i < cfg_index->m_n_fields; ++i, ++field) {
 		const char*	field_name;
 
-		field_name = reinterpret_cast<const char*>(field->name);
+		field_name = field->name();
 
 		if (strcmp(field_name, name) == 0) {
 			return(field);
@@ -1135,9 +1135,9 @@ row_import::match_index_columns(
 
 	if (cfg_index == 0) {
 		ib_errf(thd, IB_LOG_LEVEL_ERROR,
-			 ER_TABLE_SCHEMA_MISMATCH,
-			 "Index %s not found in tablespace meta-data file.",
-			 index->name);
+			ER_TABLE_SCHEMA_MISMATCH,
+			"Index %s not found in tablespace meta-data file.",
+			index->name());
 
 		return(DB_ERROR);
 	}
@@ -1154,36 +1154,36 @@ row_import::match_index_columns(
 
 		if (cfg_field == 0) {
 			ib_errf(thd, IB_LOG_LEVEL_ERROR,
-				 ER_TABLE_SCHEMA_MISMATCH,
-				 "Index %s field %s not found in tablespace"
-				 " meta-data file.",
-				 index->name, field->name);
+				ER_TABLE_SCHEMA_MISMATCH,
+				"Index %s field %s not found in tablespace"
+				" meta-data file.",
+				index->name(), field->name());
 
 			err = DB_ERROR;
 		} else {
 
 			if (cfg_field->prefix_len != field->prefix_len) {
 				ib_errf(thd, IB_LOG_LEVEL_ERROR,
-					 ER_TABLE_SCHEMA_MISMATCH,
-					 "Index %s field %s prefix len %lu"
-					 " doesn't match meta-data file value"
-					 " %lu",
-					 index->name, field->name,
-					 (ulong) field->prefix_len,
-					 (ulong) cfg_field->prefix_len);
+					ER_TABLE_SCHEMA_MISMATCH,
+					"Index %s field %s prefix len %lu"
+					" doesn't match meta-data file value"
+					" %lu",
+					index->name(), field->name(),
+					(ulong) field->prefix_len,
+					(ulong) cfg_field->prefix_len);
 
 				err = DB_ERROR;
 			}
 
 			if (cfg_field->fixed_len != field->fixed_len) {
 				ib_errf(thd, IB_LOG_LEVEL_ERROR,
-					 ER_TABLE_SCHEMA_MISMATCH,
-					 "Index %s field %s fixed len %lu"
-					 " doesn't match meta-data file value"
-					 " %lu",
-					 index->name, field->name,
-					 (ulong) field->fixed_len,
-					 (ulong) cfg_field->fixed_len);
+					ER_TABLE_SCHEMA_MISMATCH,
+					"Index %s field %s fixed len %lu"
+					" doesn't match meta-data file value"
+					" %lu",
+					index->name(), field->name(),
+					(ulong) field->fixed_len,
+					(ulong) cfg_field->fixed_len);
 
 				err = DB_ERROR;
 			}
@@ -1641,7 +1641,7 @@ PageConverter::adjust_cluster_index_blob_column(
 			ER_INNODB_INDEX_CORRUPT,
 			"Externally stored column(%lu) has a reference"
 			" length of %lu in the cluster index %s",
-			(ulong) i, (ulong) len, m_cluster_index->name);
+			(ulong) i, (ulong) len, m_cluster_index->name());
 
 		return(DB_CORRUPTION);
 	}
@@ -2284,7 +2284,7 @@ row_import_adjust_root_pages_of_secondary_indexes(
 				ER_INNODB_INDEX_CORRUPT,
 				"Index %s not found or corrupt,"
 				" you should recreate this index.",
-				index->name);
+				index->name());
 
 			/* Do not bail out, so that the data
 			can be recovered. */
@@ -2321,7 +2321,7 @@ row_import_adjust_root_pages_of_secondary_indexes(
 				ER_INNODB_INDEX_CORRUPT,
 				"Index %s contains %lu entries,"
 				" should be %lu, you should recreate"
-				" this index.", index->name,
+				" this index.", index->name(),
 				(ulong) purge.get_n_rows(),
 				(ulong) n_rows_in_table);
 
@@ -2418,7 +2418,7 @@ row_import_set_sys_max_row_id(
 			IB_LOG_LEVEL_WARN,
 			ER_INNODB_INDEX_CORRUPT,
 			"Index `%s` corruption detected, invalid DB_ROW_ID"
-			" in index.", index->name);
+			" in index.", index->name());
 
 		return(err);
 
@@ -3271,7 +3271,7 @@ row_import_update_index_root(
 				ER_INTERNAL_ERROR,
 				"While updating the <space, root page"
 				" number> of index %s - %s",
-				index->name, ut_strerr(err));
+				index->name(), ut_strerr(err));
 
 			break;
 		}

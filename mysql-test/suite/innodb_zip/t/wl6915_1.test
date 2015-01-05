@@ -1,4 +1,5 @@
 --source include/have_innodb.inc
+--source include/have_innodb_zip.inc
 --source include/have_no_undo_tablespaces.inc
 --source include/big_test.inc
 

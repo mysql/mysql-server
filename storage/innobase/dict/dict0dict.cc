@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -648,6 +648,35 @@ dict_table_get_col_name(
 }
 
 #ifndef UNIV_HOTBACKUP
+/** Allocate and init the autoinc latch of a given table.
+This function must not be called concurrently on the same table object.
+@param[in,out]	table_void	table whose autoinc latch to create */
+static
+void
+dict_table_autoinc_alloc(
+	void*	table_void)
+{
+	dict_table_t*	table = static_cast<dict_table_t*>(table_void);
+	table->autoinc_mutex = UT_NEW_NOKEY(ib_mutex_t());
+	ut_a(table->autoinc_mutex != NULL);
+	mutex_create("autoinc", table->autoinc_mutex);
+}
+
+/** Allocate and init the zip_pad_mutex of a given index.
+This function must not be called concurrently on the same index object.
+@param[in,out]	index_void	index whose zip_pad_mutex to create */
+static
+void
+dict_index_zip_pad_alloc(
+	void*	index_void)
+{
+	dict_index_t*	index = static_cast<dict_index_t*>(index_void);
+	index->zip_pad.mutex = UT_NEW_NOKEY(SysMutex());
+	ut_a(index->zip_pad.mutex != NULL);
+	mutex_create("zip_pad_mutex", index->zip_pad.mutex);
+}
+
+
 /********************************************************************//**
 Acquire the autoinc lock. */
 void
@@ -655,8 +684,26 @@ dict_table_autoinc_lock(
 /*====================*/
 	dict_table_t*	table)	/*!< in/out: table */
 {
-	mutex_enter(&table->autoinc_mutex);
+	os_once::do_or_wait_for_done(
+		&table->autoinc_mutex_created,
+		dict_table_autoinc_alloc, table);
+
+	mutex_enter(table->autoinc_mutex);
 }
+
+/** Acquire the zip_pad_mutex latch.
+@param[in,out]	index	the index whose zip_pad_mutex to acquire.*/
+void
+dict_index_zip_pad_lock(
+	dict_index_t*	index)
+{
+	os_once::do_or_wait_for_done(
+		&index->zip_pad.mutex_created,
+		dict_index_zip_pad_alloc, index);
+
+	mutex_enter(index->zip_pad.mutex);
+}
+
 
 /********************************************************************//**
 Unconditionally set the autoinc counter. */
@@ -666,7 +713,7 @@ dict_table_autoinc_initialize(
 	dict_table_t*	table,	/*!< in/out: table */
 	ib_uint64_t	value)	/*!< in: next value to assign to a row */
 {
-	ut_ad(mutex_own(&table->autoinc_mutex));
+	ut_ad(dict_table_autoinc_own(table));
 
 	table->autoinc = value;
 }
@@ -705,7 +752,7 @@ dict_table_autoinc_read(
 /*====================*/
 	const dict_table_t*	table)	/*!< in: table */
 {
-	ut_ad(mutex_own(&table->autoinc_mutex));
+	ut_ad(dict_table_autoinc_own(table));
 
 	return(table->autoinc);
 }
@@ -720,7 +767,7 @@ dict_table_autoinc_update_if_greater(
 	dict_table_t*	table,	/*!< in/out: table */
 	ib_uint64_t	value)	/*!< in: value which was assigned to a row */
 {
-	ut_ad(mutex_own(&table->autoinc_mutex));
+	ut_ad(dict_table_autoinc_own(table));
 
 	if (value > table->autoinc) {
 
@@ -735,7 +782,7 @@ dict_table_autoinc_unlock(
 /*======================*/
 	dict_table_t*	table)	/*!< in/out: table */
 {
-	mutex_exit(&table->autoinc_mutex);
+	mutex_exit(table->autoinc_mutex);
 }
 #endif /* !UNIV_HOTBACKUP */
 
@@ -2340,9 +2387,12 @@ dict_index_too_big_for_tree(
 		rec_max_size = 2;
 	} else {
 		/* The maximum allowed record size is half a B-tree
-		page.  No additional sparse page directory entry will
-		be generated for the first few user records. */
-		page_rec_max = page_get_free_space_of_empty(comp) / 2;
+		page(16k for 64k page size).  No additional sparse
+		page directory entry will be generated for the first
+		few user records. */
+		page_rec_max = srv_page_size == UNIV_PAGE_SIZE_MAX
+			? REC_MAX_DATA_SIZE - 1
+			: page_get_free_space_of_empty(comp) / 2;
 		page_ptr_max = page_rec_max;
 		/* Each record has a header. */
 		rec_max_size = comp
@@ -2517,10 +2567,10 @@ too_big:
 			dict_mem_index_free(new_index);
 			dict_mem_index_free(index);
 			return(DB_TOO_BIG_RECORD);
-		} else {
-
+		} else if (current_thd != NULL) {
+			/* Avoid the warning to be printed
+			during recovery. */
 			ib_warn_row_too_big(table);
-
 		}
 	}
 
@@ -3536,7 +3586,7 @@ dict_foreign_error_report(
 	putc('\n', file);
 	if (fk->foreign_index) {
 		fprintf(file, "The index in the foreign key in table is"
-			" %s\n%s\n", fk->foreign_index->name,
+			" %s\n%s\n", fk->foreign_index->name(),
 			FOREIGN_KEY_CONSTRAINTS_MSG);
 	}
 	mutex_exit(&dict_foreign_err_mutex);
@@ -5209,7 +5259,7 @@ dict_index_build_node_ptr(
 			n_unique--;
 		}
 	} else {
-		n_unique = dict_index_get_n_unique_in_tree(index);
+		n_unique = dict_index_get_n_unique_in_tree_nonleaf(index);
 	}
 
 	tuple = dtuple_create(heap, n_unique + 1);
@@ -5688,8 +5738,8 @@ fail:
 
 	mtr_commit(&mtr);
 	mem_heap_empty(heap);
-	ib::error() << status << " corruption of `" << index->name
-		<< "` in table " << index->table->name << " in " << ctx;
+	ib::error() << status << " corruption of " << index->name
+		<< " in table " << index->table->name << " in " << ctx;
 	mem_heap_free(heap);
 
 func_exit:
@@ -6520,10 +6570,10 @@ dict_index_zip_success(
 		return;
 	}
 
-	mutex_enter(&index->zip_pad.mutex);
+	dict_index_zip_pad_lock(index);
 	++index->zip_pad.success;
 	dict_index_zip_pad_update(&index->zip_pad, zip_threshold);
-	mutex_exit(&index->zip_pad.mutex);
+	dict_index_zip_pad_unlock(index);
 }
 
 /*********************************************************************//**
@@ -6542,10 +6592,10 @@ dict_index_zip_failure(
 		return;
 	}
 
-	mutex_enter(&index->zip_pad.mutex);
+	dict_index_zip_pad_lock(index);
 	++index->zip_pad.failure;
 	dict_index_zip_pad_update(&index->zip_pad, zip_threshold);
-	mutex_exit(&index->zip_pad.mutex);
+	dict_index_zip_pad_unlock(index);
 }
 
 

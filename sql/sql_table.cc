@@ -61,6 +61,7 @@
 #include <algorithm>
 using std::max;
 using std::min;
+using binary_log::checksum_crc32;
 
 #define ER_THD_OR_DEFAULT(thd,X) ((thd) ? ER_THD(thd, X) : ER_DEFAULT(X))
 
@@ -8355,8 +8356,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   if (check_engine(thd, alter_ctx.new_db, alter_ctx.new_name, create_info))
     DBUG_RETURN(true);
 
-  if ((create_info->db_type != table->s->db_type() ||
-       alter_info->flags & Alter_info::ALTER_PARTITION) &&
+  if (create_info->db_type != table->s->db_type() &&
       !table->file->can_switch_engines())
   {
     my_error(ER_ROW_IS_REFERENCED, MYF(0));
@@ -8432,6 +8432,22 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
                               &alter_ctx, &partition_changed,
                               &fast_alter_partition))
     {
+      DBUG_RETURN(true);
+    }
+    if (partition_changed &&
+        !(table->file->ht->partition_flags &&
+          (table->file->ht->partition_flags() & HA_CAN_PARTITION)) &&
+        !table->file->can_switch_engines())
+    {
+      /*
+        Partitioning was changed (added/changed/removed) and the current
+        handler does not support partitioning and FK relationship exists
+        for the table.
+
+        Since the current handler does not support native partitioning, it will
+        be altered to use ha_partition which does not support foreign keys.
+      */
+      my_error(ER_FOREIGN_KEY_ON_PARTITIONED, MYF(0));
       DBUG_RETURN(true);
     }
   }
@@ -9588,7 +9604,7 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
               if (!(t->s->db_create_options & HA_OPTION_PACK_RECORD))
                 t->record[0][0] |= 1;
 
-	      row_crc= my_checksum(row_crc, t->record[0], t->s->null_bytes);
+	      row_crc= checksum_crc32(row_crc, t->record[0], t->s->null_bytes);
             }
 
 	    for (uint i= 0; i < t->s->fields; i++ )
@@ -9608,12 +9624,12 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
                 {
                   String tmp;
                   f->val_str(&tmp);
-                  row_crc= my_checksum(row_crc, (uchar*) tmp.ptr(),
+                  row_crc= checksum_crc32(row_crc, (uchar*) tmp.ptr(),
                            tmp.length());
                   break;
                 }
                 default:
-                  row_crc= my_checksum(row_crc, f->ptr, f->pack_length());
+                  row_crc= checksum_crc32(row_crc, f->ptr, f->pack_length());
                   break;
 	      }
 	    }

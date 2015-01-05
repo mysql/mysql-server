@@ -323,8 +323,7 @@ ut_print_buf(
 /* Forward declaration of transaction handle */
 struct trx_t;
 
-/**********************************************************************//**
-Get a fixed-length string, quoted as an SQL identifier.
+/** Get a fixed-length string, quoted as an SQL identifier.
 If the string contains a slash '/', the string will be
 output as two identifiers separated by a period (.),
 as in SQL database_name.identifier.
@@ -349,20 +348,20 @@ ut_print_name(
 	const trx_t*	trx,	/*!< in: transaction */
 	const char*	name);	/*!< in: table name to print */
 
-/**********************************************************************//**
-Formats a table name, quoted as an SQL identifier. If the name
-contains a slash '/', the result will contain two identifiers separated by
-a period (.), as in SQL database_name.identifier.
+/** Format a table name, quoted as an SQL identifier.
+If the name contains a slash '/', the result will contain two
+identifiers separated by a period (.), as in SQL
+database_name.table_name.
+@see table_name_t
+@param[in]	name		table or index name
+@param[out]	formatted	formatted result, will be NUL-terminated
+@param[in]	formatted_size	size of the buffer in bytes
 @return pointer to 'formatted' */
 char*
 ut_format_name(
-/*===========*/
-	const char*	name,		/*!< in: table or index name, must be
-					'\0'-terminated */
-	char*		formatted,	/*!< out: formatted result, will be
-					'\0'-terminated */
-	ulint		formatted_size);/*!< out: no more than this number of
-					bytes will be written to 'formatted' */
+	const char*	name,
+	char*		formatted,
+	ulint		formatted_size);
 
 /**********************************************************************//**
 Catenate files. */

@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -67,6 +67,8 @@ struct PFS_ALIGNED PFS_setup_actor
   const char *m_rolename;
   /** Length of @c m_rolename. */
   uint m_rolename_length;
+  /** ENABLED flag. */
+  bool m_enabled;
 };
 
 int init_setup_actor(const PFS_global_param *param);
@@ -74,8 +76,10 @@ void cleanup_setup_actor(void);
 int init_setup_actor_hash(void);
 void cleanup_setup_actor_hash(void);
 
-int insert_setup_actor(const String *user, const String *host, const String *role);
-int delete_setup_actor(const String *user, const String *host, const String *role);
+int insert_setup_actor(const String *user, const String *host,
+                       const String *role, bool enabled);
+int delete_setup_actor(const String *user, const String *host,
+                       const String *role);
 int reset_setup_actor(void);
 long setup_actor_count(void);
 
@@ -85,7 +89,7 @@ void lookup_setup_actor(PFS_thread *thread,
                         bool *enabled);
 
 /** Update derived flags for all setup_actors. */
-void update_setup_actors_derived_flags(PFS_thread *thread);
+int update_setup_actors_derived_flags();
 
 /* For iterators and show status. */
 

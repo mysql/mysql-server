@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2015, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -2365,7 +2365,7 @@ page_validate(
 	ulint*			offsets		= NULL;
 	ulint*			old_offsets	= NULL;
 
-#ifdef UNIV_DEBUG
+#ifdef UNIV_GIS_DEBUG
 	if (dict_index_is_spatial(index)) {
 		fprintf(stderr, "Page no: %lu\n", page_get_page_no(page));
 	}
@@ -2461,7 +2461,13 @@ page_validate(
 			int	ret = cmp_rec_rec(
 				rec, old_rec, offsets, old_offsets, index);
 
-			if (ret <= 0) {
+			/* For spatial index, on nonleaf leavel, we
+			allow recs to be equal. */
+			bool rtr_equal_nodeptrs =
+				(ret == 0 && dict_index_is_spatial(index)
+				&& !page_is_leaf(page));
+
+			if (ret <= 0 && !rtr_equal_nodeptrs) {
 
 				ib::error() << "Records in wrong order on"
 					" space " << page_get_space_id(page)

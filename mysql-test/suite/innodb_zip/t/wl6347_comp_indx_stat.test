@@ -12,7 +12,7 @@
 -- source include/have_innodb.inc
 -- source include/not_embedded.inc
 -- source include/have_innodb_16k.inc
--- source include/no_valgrind_without_big.inc
+-- source include/big_test.inc
 
 -- vertical_results
 

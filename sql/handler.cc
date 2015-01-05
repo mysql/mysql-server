@@ -1604,7 +1604,7 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock)
 
     if (rw_trans &&
         opt_readonly &&
-        !(thd->security_ctx->master_access & SUPER_ACL) &&
+        !(thd->security_context()->check_access(SUPER_ACL)) &&
         !thd->slave_thread)
     {
       my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--read-only");
@@ -7357,6 +7357,10 @@ int handler::ha_write_row(uchar *buf)
   MYSQL_INSERT_ROW_START(table_share->db.str, table_share->table_name.str);
   mark_trx_read_write();
 
+  DBUG_EXECUTE_IF("handler_crashed_table_on_usage",
+                  my_error(HA_ERR_CRASHED, MYF(ME_ERRORLOG), table_share->table_name.str);
+                  DBUG_RETURN(my_errno= HA_ERR_CRASHED););
+
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_WRITE_ROW, MAX_KEY, error,
     { error= write_row(buf); })
 
@@ -7389,6 +7393,10 @@ int handler::ha_update_row(const uchar *old_data, uchar *new_data)
   MYSQL_UPDATE_ROW_START(table_share->db.str, table_share->table_name.str);
   mark_trx_read_write();
 
+  DBUG_EXECUTE_IF("handler_crashed_table_on_usage",
+                  my_error(HA_ERR_CRASHED, MYF(ME_ERRORLOG), table_share->table_name.str);
+                  return(my_errno= HA_ERR_CRASHED););
+
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_UPDATE_ROW, active_index, error,
     { error= update_row(old_data, new_data);})
 
@@ -7413,6 +7421,10 @@ int handler::ha_delete_row(const uchar *buf)
               buf == table->record[1]);
   DBUG_EXECUTE_IF("inject_error_ha_delete_row",
                   return HA_ERR_INTERNAL_ERROR; );
+
+  DBUG_EXECUTE_IF("handler_crashed_table_on_usage",
+                  my_error(HA_ERR_CRASHED, MYF(ME_ERRORLOG), table_share->table_name.str);
+                  return(my_errno= HA_ERR_CRASHED););
 
   MYSQL_DELETE_ROW_START(table_share->db.str, table_share->table_name.str);
   mark_trx_read_write();

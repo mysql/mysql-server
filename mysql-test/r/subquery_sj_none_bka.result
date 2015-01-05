@@ -73,7 +73,7 @@ a
 explain extended select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	NULL	index	NULL	a	5	NULL	4	100.00	Using where; Using index
-2	DEPENDENT SUBQUERY	t1	NULL	index_subquery	a	a	5	func	1001	99.50	Using where; Using index
+2	DEPENDENT SUBQUERY	t1	NULL	index_subquery	a	a	5	func	1001	90.00	Using where; Using index
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on a where ((`test`.`t1`.`b` <> 30) and (<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`)))))
@@ -102,7 +102,7 @@ a
 explain extended select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	NULL	index	NULL	a	5	NULL	4	100.00	Using where; Using index
-2	DEPENDENT SUBQUERY	t1	NULL	index_subquery	a	a	5	func	1001	99.50	Using where; Using index
+2	DEPENDENT SUBQUERY	t1	NULL	index_subquery	a	a	5	func	1001	90.00	Using where; Using index
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on a where ((`test`.`t1`.`b` <> 30) and (<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`)))))
@@ -3391,8 +3391,8 @@ update t22 set c = '2005-12-08 15:58:27' where a = 255;
 explain select t21.* from t21,t22 where t21.a = t22.a and 
 t22.a in (select t12.a from t11, t12 where t11.a in(255,256) and t11.a = t12.a and t11.c is null) and t22.c is null order by t21.a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t22	NULL	ALL	NULL	NULL	NULL	NULL	26	3.85	Using where; Using temporary; Using filesort
-1	PRIMARY	t21	NULL	ALL	NULL	NULL	NULL	NULL	26	3.85	Using where; Using join buffer (Block Nested Loop)
+1	PRIMARY	t22	NULL	ALL	NULL	NULL	NULL	NULL	26	10.00	Using where; Using temporary; Using filesort
+1	PRIMARY	t21	NULL	ALL	NULL	NULL	NULL	NULL	26	10.00	Using where; Using join buffer (Block Nested Loop)
 2	DEPENDENT SUBQUERY	t11	NULL	ALL	NULL	NULL	NULL	NULL	8	3.12	Using where
 2	DEPENDENT SUBQUERY	t12	NULL	ALL	NULL	NULL	NULL	NULL	8	1.56	Using where; Using join buffer (Block Nested Loop)
 Warnings:
@@ -3486,7 +3486,7 @@ insert into t0 values(2);
 explain select * from t1 where 2 in (select a from t0);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	20	100.00	NULL
-2	SUBQUERY	t0	NULL	ALL	NULL	NULL	NULL	NULL	11	9.09	Using where
+2	SUBQUERY	t0	NULL	ALL	NULL	NULL	NULL	NULL	11	10.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where 1
 select * from t1 where 2 in (select a from t0);
@@ -3514,7 +3514,7 @@ a
 explain select * from (select a from t0) x where a in (select a from t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	11	100.00	Using where
-3	DEPENDENT SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	20	5.00	Using where
+3	DEPENDENT SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	20	10.00	Using where
 2	DERIVED	t0	NULL	ALL	NULL	NULL	NULL	NULL	11	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `x`.`a` AS `a` from (/* select#2 */ select `test`.`t0`.`a` AS `a` from `test`.`t0`) `x` where <in_optimizer>(`x`.`a`,<exists>(/* select#3 */ select 1 from `test`.`t1` where (<cache>(`x`.`a`) = `test`.`t1`.`a`)))
@@ -3555,13 +3555,13 @@ EXPLAIN
               "table_name": "t1",
               "access_type": "ALL",
               "rows_examined_per_scan": 20,
-              "rows_produced_per_join": 1,
-              "filtered": 5,
+              "rows_produced_per_join": 2,
+              "filtered": 10,
               "cost_info": {
                 "read_cost": "2.03",
-                "eval_cost": "0.20",
+                "eval_cost": "0.40",
                 "prefix_cost": "6.03",
-                "data_read_per_join": "8"
+                "data_read_per_join": "16"
               },
               "used_columns": [
                 "a"
@@ -3718,7 +3718,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	a	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	NULL
 1	PRIMARY	b	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using join buffer (Block Nested Loop)
 1	PRIMARY	c	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using where; Using join buffer (Block Nested Loop)
-2	DEPENDENT SUBQUERY	d	NULL	ALL	NULL	NULL	NULL	NULL	12	8.33	Using where
+2	DEPENDENT SUBQUERY	d	NULL	ALL	NULL	NULL	NULL	NULL	12	10.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t0` `a` join `test`.`t0` `b` join `test`.`t0` `c` where <in_optimizer>(`test`.`c`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t1` `d` where (<cache>(`test`.`c`.`a`) = `test`.`d`.`a`)))
 flush status;
@@ -3969,7 +3969,7 @@ insert into t2 select A.a + 10*B.a, A.a + 10*B.a from t0 A, t0 B;
 explain select * from t1 where (a,b) in (select a,b from t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using where
-2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	100	0.05	Using where
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	100	1.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`a`,`test`.`t1`.`b`),<exists>(/* select#2 */ select 1,1 from `test`.`t2` where ((<cache>(`test`.`t1`.`a`) = `test`.`t2`.`a`) and (<cache>(`test`.`t1`.`b`) = `test`.`t2`.`b`))))
 drop table t0, t1, t2;
@@ -4035,7 +4035,7 @@ a, mid(filler1, 1,10), length(filler1)=length(filler2) as z
 from t1 ot where a in (select a from t2 it);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	ot	NULL	ALL	NULL	NULL	NULL	NULL	32	100.00	Using where
-2	DEPENDENT SUBQUERY	it	NULL	ALL	NULL	NULL	NULL	NULL	22	4.55	Using where
+2	DEPENDENT SUBQUERY	it	NULL	ALL	NULL	NULL	NULL	NULL	22	10.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`ot`.`a` AS `a`,substr(`test`.`ot`.`filler1`,1,10) AS `mid(filler1, 1,10)`,(length(`test`.`ot`.`filler1`) = length(`test`.`ot`.`filler2`)) AS `z` from `test`.`t1` `ot` where <in_optimizer>(`test`.`ot`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t2` `it` where (<cache>(`test`.`ot`.`a`) = `test`.`it`.`a`)))
 select 
@@ -4069,7 +4069,7 @@ a, mid(filler1, 1,10), length(filler1)=length(filler2)
 from t2 ot where a in (select a from t1 it);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	ot	NULL	ALL	NULL	NULL	NULL	NULL	22	100.00	Using where
-2	DEPENDENT SUBQUERY	it	NULL	ALL	NULL	NULL	NULL	NULL	32	3.12	Using where
+2	DEPENDENT SUBQUERY	it	NULL	ALL	NULL	NULL	NULL	NULL	32	10.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`ot`.`a` AS `a`,substr(`test`.`ot`.`filler1`,1,10) AS `mid(filler1, 1,10)`,(length(`test`.`ot`.`filler1`) = length(`test`.`ot`.`filler2`)) AS `length(filler1)=length(filler2)` from `test`.`t2` `ot` where <in_optimizer>(`test`.`ot`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t1` `it` where (<cache>(`test`.`ot`.`a`) = `test`.`it`.`a`)))
 select 
@@ -4105,7 +4105,7 @@ a, mid(filler1, 1,10), length(filler1)=length(filler2) as z
 from t1 ot where a in (select a from t2 it);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	ot	NULL	ALL	NULL	NULL	NULL	NULL	52	100.00	Using where
-2	DEPENDENT SUBQUERY	it	NULL	ALL	NULL	NULL	NULL	NULL	22	4.55	Using where
+2	DEPENDENT SUBQUERY	it	NULL	ALL	NULL	NULL	NULL	NULL	22	10.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`ot`.`a` AS `a`,substr(`test`.`ot`.`filler1`,1,10) AS `mid(filler1, 1,10)`,(length(`test`.`ot`.`filler1`) = length(`test`.`ot`.`filler2`)) AS `z` from `test`.`t1` `ot` where <in_optimizer>(`test`.`ot`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t2` `it` where (<cache>(`test`.`ot`.`a`) = `test`.`it`.`a`)))
 select 
@@ -4139,7 +4139,7 @@ a, mid(filler1, 1,10), length(filler1)=length(filler2)
 from t2 ot where a in (select a from t1 it);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	ot	NULL	ALL	NULL	NULL	NULL	NULL	22	100.00	Using where
-2	DEPENDENT SUBQUERY	it	NULL	ALL	NULL	NULL	NULL	NULL	52	1.92	Using where
+2	DEPENDENT SUBQUERY	it	NULL	ALL	NULL	NULL	NULL	NULL	52	10.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`ot`.`a` AS `a`,substr(`test`.`ot`.`filler1`,1,10) AS `mid(filler1, 1,10)`,(length(`test`.`ot`.`filler1`) = length(`test`.`ot`.`filler2`)) AS `length(filler1)=length(filler2)` from `test`.`t2` `ot` where <in_optimizer>(`test`.`ot`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t1` `it` where (<cache>(`test`.`ot`.`a`) = `test`.`it`.`a`)))
 select 
@@ -6304,7 +6304,7 @@ FROM it1 LEFT JOIN it2 ON it2.datetime_key);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	ot1	NULL	ALL	NULL	NULL	NULL	NULL	20	100.00	Using where
 2	DEPENDENT SUBQUERY	it1	NULL	index	NULL	int_key	4	NULL	2	100.00	Using index
-2	DEPENDENT SUBQUERY	it2	NULL	ref	int_key	int_key	4	func	2	95.00	Using where
+2	DEPENDENT SUBQUERY	it2	NULL	ref	int_key	int_key	4	func	2	90.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`ot1`.`int_key` AS `int_key` from `test`.`ot1` where <in_optimizer>(`test`.`ot1`.`int_nokey`,<exists>(/* select#2 */ select 1 from `test`.`it1` join `test`.`it2` where ((<cache>(`test`.`ot1`.`int_nokey`) = `test`.`it2`.`int_key`) and `test`.`it2`.`datetime_key`)))
 DROP TABLE ot1, it1, it2;
@@ -6425,7 +6425,7 @@ WHERE PNUM IN
 (SELECT PNUM  FROM proj));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	staff	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
-2	DEPENDENT SUBQUERY	works	NULL	ALL	NULL	NULL	NULL	NULL	12	8.33	Using where
+2	DEPENDENT SUBQUERY	works	NULL	ALL	NULL	NULL	NULL	NULL	12	10.00	Using where
 3	DEPENDENT SUBQUERY	proj	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`staff`.`EMPNUM` AS `EMPNUM`,`test`.`staff`.`EMPNAME` AS `EMPNAME` from `test`.`staff` where <in_optimizer>(`test`.`staff`.`EMPNUM`,<exists>(/* select#2 */ select 1 from `test`.`works` where (<in_optimizer>(`test`.`works`.`PNUM`,<exists>(/* select#3 */ select 1 from `test`.`proj` where (<cache>(`test`.`works`.`PNUM`) = `test`.`proj`.`PNUM`))) and (<cache>(`test`.`staff`.`EMPNUM`) = `test`.`works`.`EMPNUM`))))
@@ -6735,7 +6735,7 @@ FROM t2
 WHERE PTYPE = 'Design'));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
-2	DEPENDENT SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	12	8.33	Using where
+2	DEPENDENT SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	12	10.00	Using where
 3	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	2.78	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`EMPNAME` AS `EMPNAME` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`EMPNUM`,<exists>(/* select#2 */ select 1 from `test`.`t3` where (<in_optimizer>(`test`.`t3`.`PNUM`,<exists>(/* select#3 */ select 1 from `test`.`t2` where ((`test`.`t2`.`PTYPE` = 'Design') and (<cache>(`test`.`t3`.`PNUM`) = `test`.`t2`.`PNUM`)))) and (<cache>(`test`.`t1`.`EMPNUM`) = `test`.`t3`.`EMPNUM`))))
@@ -6751,14 +6751,14 @@ WHERE EMPNUM IN
 EXECUTE stmt;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
-2	DEPENDENT SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	12	8.33	Using where
+2	DEPENDENT SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	12	10.00	Using where
 3	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	2.78	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`EMPNAME` AS `EMPNAME` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`EMPNUM`,<exists>(/* select#2 */ select `test`.`t3`.`EMPNUM` from `test`.`t3` where (<in_optimizer>(`test`.`t3`.`PNUM`,<exists>(/* select#3 */ select `test`.`t2`.`PNUM` from `test`.`t2` where ((`test`.`t2`.`PTYPE` = 'Design') and (<cache>(`test`.`t3`.`PNUM`) = `test`.`t2`.`PNUM`)))) and (<cache>(`test`.`t1`.`EMPNUM`) = `test`.`t3`.`EMPNUM`))))
 EXECUTE stmt;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
-2	DEPENDENT SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	12	8.33	Using where
+2	DEPENDENT SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	12	10.00	Using where
 3	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	2.78	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`EMPNAME` AS `EMPNAME` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`EMPNUM`,<exists>(/* select#2 */ select `test`.`t3`.`EMPNUM` from `test`.`t3` where (<in_optimizer>(`test`.`t3`.`PNUM`,<exists>(/* select#3 */ select `test`.`t2`.`PNUM` from `test`.`t2` where ((`test`.`t2`.`PTYPE` = 'Design') and (<cache>(`test`.`t3`.`PNUM`) = `test`.`t2`.`PNUM`)))) and (<cache>(`test`.`t1`.`EMPNUM`) = `test`.`t3`.`EMPNUM`))))
@@ -6776,7 +6776,7 @@ FROM t2
 WHERE PTYPE = 'Design'));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
-2	DEPENDENT SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	12	8.33	Using where
+2	DEPENDENT SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	12	10.00	Using where
 3	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	2.78	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`EMPNAME` AS `EMPNAME` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`EMPNUM`,<exists>(/* select#2 */ select 1 from `test`.`t3` where (<in_optimizer>(`test`.`t3`.`PNUM`,<exists>(/* select#3 */ select 1 from `test`.`t2` where ((`test`.`t2`.`PTYPE` = 'Design') and (<cache>(`test`.`t3`.`PNUM`) = `test`.`t2`.`PNUM`)))) and (<cache>(`test`.`t1`.`EMPNUM`) = `test`.`t3`.`EMPNUM`))))
@@ -6792,14 +6792,14 @@ WHERE EMPNUM IN
 EXECUTE stmt;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
-2	DEPENDENT SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	12	8.33	Using where
+2	DEPENDENT SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	12	10.00	Using where
 3	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	2.78	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`EMPNAME` AS `EMPNAME` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`EMPNUM`,<exists>(/* select#2 */ select `test`.`t3`.`EMPNUM` from `test`.`t3` where (<in_optimizer>(`test`.`t3`.`PNUM`,<exists>(/* select#3 */ select `test`.`t2`.`PNUM` from `test`.`t2` where ((`test`.`t2`.`PTYPE` = 'Design') and (<cache>(`test`.`t3`.`PNUM`) = `test`.`t2`.`PNUM`)))) and (<cache>(`test`.`t1`.`EMPNUM`) = `test`.`t3`.`EMPNUM`))))
 EXECUTE stmt;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
-2	DEPENDENT SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	12	8.33	Using where
+2	DEPENDENT SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	12	10.00	Using where
 3	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	2.78	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`EMPNAME` AS `EMPNAME` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`EMPNUM`,<exists>(/* select#2 */ select `test`.`t3`.`EMPNUM` from `test`.`t3` where (<in_optimizer>(`test`.`t3`.`PNUM`,<exists>(/* select#3 */ select `test`.`t2`.`PNUM` from `test`.`t2` where ((`test`.`t2`.`PTYPE` = 'Design') and (<cache>(`test`.`t3`.`PNUM`) = `test`.`t2`.`PNUM`)))) and (<cache>(`test`.`t1`.`EMPNUM`) = `test`.`t3`.`EMPNUM`))))
@@ -6816,7 +6816,7 @@ FROM t2
 WHERE PTYPE = 'Design'));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
-2	DEPENDENT SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	12	8.33	Using where
+2	DEPENDENT SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	12	10.00	Using where
 3	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	2.78	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`EMPNAME` AS `EMPNAME` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`EMPNUM`,<exists>(/* select#2 */ select 1 from `test`.`t3` where (<in_optimizer>(`test`.`t3`.`PNUM`,<exists>(/* select#3 */ select 1 from `test`.`t2` where ((`test`.`t2`.`PTYPE` = 'Design') and (<cache>(`test`.`t3`.`PNUM`) = `test`.`t2`.`PNUM`)))) and (<cache>(`test`.`t1`.`EMPNUM`) = `test`.`t3`.`EMPNUM`))))
@@ -6832,14 +6832,14 @@ WHERE EMPNUM IN
 EXECUTE stmt;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
-2	DEPENDENT SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	12	8.33	Using where
+2	DEPENDENT SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	12	10.00	Using where
 3	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	2.78	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`EMPNAME` AS `EMPNAME` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`EMPNUM`,<exists>(/* select#2 */ select `test`.`t3`.`EMPNUM` from `test`.`t3` where (<in_optimizer>(`test`.`t3`.`PNUM`,<exists>(/* select#3 */ select `test`.`t2`.`PNUM` from `test`.`t2` where ((`test`.`t2`.`PTYPE` = 'Design') and (<cache>(`test`.`t3`.`PNUM`) = `test`.`t2`.`PNUM`)))) and (<cache>(`test`.`t1`.`EMPNUM`) = `test`.`t3`.`EMPNUM`))))
 EXECUTE stmt;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
-2	DEPENDENT SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	12	8.33	Using where
+2	DEPENDENT SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	12	10.00	Using where
 3	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	2.78	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`EMPNAME` AS `EMPNAME` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`EMPNUM`,<exists>(/* select#2 */ select `test`.`t3`.`EMPNUM` from `test`.`t3` where (<in_optimizer>(`test`.`t3`.`PNUM`,<exists>(/* select#3 */ select `test`.`t2`.`PNUM` from `test`.`t2` where ((`test`.`t2`.`PTYPE` = 'Design') and (<cache>(`test`.`t3`.`PNUM`) = `test`.`t2`.`PNUM`)))) and (<cache>(`test`.`t1`.`EMPNUM`) = `test`.`t3`.`EMPNUM`))))
@@ -7088,7 +7088,7 @@ t2.Population > 100000);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	16	100.00	Using where
 3	DEPENDENT SUBQUERY	t3	NULL	unique_subquery	PRIMARY,Percentage	PRIMARY	33	func,const	1	95.45	Using where
-2	DEPENDENT SUBQUERY	t1	NULL	range	Population,Country	Population	4	NULL	1	5.00	Using where
+2	DEPENDENT SUBQUERY	t1	NULL	range	Population,Country	Population	4	NULL	1	10.00	Using where
 Warnings:
 Note	1276	Field or reference 'test.t2.Population' of SELECT #3 was resolved in SELECT #1
 Note	1003	/* select#1 */ select `test`.`t2`.`Name` AS `Name` from `test`.`t2` where (<in_optimizer>(`test`.`t2`.`Code`,<exists>(/* select#2 */ select 1 from `test`.`t1` where ((`test`.`t1`.`Population` > 5000000) and (<cache>(`test`.`t2`.`Code`) = `test`.`t1`.`Country`)))) and <in_optimizer>(`test`.`t2`.`Code`,<exists>(<primary_index_lookup>(<cache>(`test`.`t2`.`Code`) in t3 on PRIMARY where ((`test`.`t3`.`Language` = 'English') and (`test`.`t3`.`Percentage` > 10) and (`test`.`t2`.`Population` > 100000) and (<cache>(`test`.`t2`.`Code`) = `test`.`t3`.`Country`))))))
@@ -7189,12 +7189,12 @@ EXPLAIN
               "key_length": "4",
               "rows_examined_per_scan": 1,
               "rows_produced_per_join": 0,
-              "filtered": 5,
+              "filtered": 10,
               "cost_info": {
                 "read_cost": "2.21",
-                "eval_cost": "0.01",
+                "eval_cost": "0.02",
                 "prefix_cost": "2.41",
-                "data_read_per_join": "2"
+                "data_read_per_join": "4"
               },
               "used_columns": [
                 "Country",
@@ -7697,7 +7697,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	11	100.00	Using where
 1	PRIMARY	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.fid	1	100.00	NULL
 2	DEPENDENT SUBQUERY	t4	NULL	eq_ref	PRIMARY	PRIMARY	4	func	1	100.00	Using index
-2	DEPENDENT SUBQUERY	t3	NULL	ref	uid	uid	5	const	4	9.09	Using where
+2	DEPENDENT SUBQUERY	t3	NULL	ref	uid	uid	5	const	4	10.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`name` AS `name` from `test`.`t2` join `test`.`t1` where ((`test`.`t2`.`uid` = `test`.`t1`.`fid`) and <in_optimizer>(`test`.`t1`.`uid`,<exists>(/* select#2 */ select 1 from `test`.`t4` join `test`.`t3` where ((`test`.`t3`.`fid` = `test`.`t4`.`uid`) and (`test`.`t3`.`uid` = 1) and (<cache>(`test`.`t1`.`uid`) = `test`.`t4`.`uid`)))))
 select name from t2, t1 
@@ -7993,7 +7993,7 @@ FROM t2
 WHERE varchar_nokey < 'n' XOR pk);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	18	100.00	Using where
-2	DEPENDENT SUBQUERY	t2	NULL	index_subquery	varchar_key	varchar_key	3	func	2	4.30	Using where
+2	DEPENDENT SUBQUERY	t2	NULL	index_subquery	varchar_key	varchar_key	3	func	2	6.33	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`varchar_nokey` AS `varchar_nokey` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`varchar_nokey`,`test`.`t1`.`varchar_nokey`),<exists>(<index_lookup>(<cache>(`test`.`t1`.`varchar_nokey`) in t2 on varchar_key where (((`test`.`t2`.`varchar_nokey` < 'n') xor `test`.`t2`.`pk`) and (<cache>(`test`.`t1`.`varchar_nokey`) = `test`.`t2`.`varchar_key`) and (<cache>(`test`.`t1`.`varchar_nokey`) = `test`.`t2`.`varchar_nokey`)))))
 DROP TABLE t1, t2;
@@ -8427,8 +8427,8 @@ ON (child1.col_varchar_key > child2.col_varchar_nokey)));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	grandparent1	NULL	ALL	NULL	NULL	NULL	NULL	15	100.00	Using where
 1	PRIMARY	grandparent2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
-2	DEPENDENT SUBQUERY	parent1	NULL	ALL	NULL	NULL	NULL	NULL	15	6.67	Using where
-3	DEPENDENT SUBQUERY	child1	NULL	ALL	NULL	NULL	NULL	NULL	15	6.67	Using where
+2	DEPENDENT SUBQUERY	parent1	NULL	ALL	NULL	NULL	NULL	NULL	15	10.00	Using where
+3	DEPENDENT SUBQUERY	child1	NULL	ALL	NULL	NULL	NULL	NULL	15	10.00	Using where
 3	DEPENDENT SUBQUERY	child2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`grandparent1`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`t1` `grandparent1` left join `test`.`t2` `grandparent2` on((`test`.`grandparent2`.`col_varchar_nokey` = `test`.`grandparent1`.`col_varchar_nokey`)) where <in_optimizer>(`test`.`grandparent1`.`col_varchar_key`,<exists>(/* select#2 */ select 1 from `test`.`t1` `parent1` where (<in_optimizer>(`test`.`parent1`.`col_varchar_key`,<exists>(/* select#3 */ select 1 from `test`.`t1` `child1` left join `test`.`t2` `child2` on((`test`.`child1`.`col_varchar_key` > `test`.`child2`.`col_varchar_nokey`)) where (<cache>(`test`.`parent1`.`col_varchar_key`) = `test`.`child1`.`col_varchar_nokey`))) and (<cache>(`test`.`grandparent1`.`col_varchar_key`) = `test`.`parent1`.`col_varchar_nokey`))))
@@ -8566,8 +8566,8 @@ AND grandparent1.col_varchar_key IS NOT NULL
 );
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
-2	DEPENDENT SUBQUERY	grandparent1	NULL	ALL	col_varchar_key	NULL	NULL	NULL	20	4.75	Using where
-3	DEPENDENT SUBQUERY	parent1	NULL	ALL	NULL	NULL	NULL	NULL	20	5.00	Using where
+2	DEPENDENT SUBQUERY	grandparent1	NULL	ALL	col_varchar_key	NULL	NULL	NULL	20	9.00	Using where
+3	DEPENDENT SUBQUERY	parent1	NULL	ALL	NULL	NULL	NULL	NULL	20	10.00	Using where
 3	DEPENDENT SUBQUERY	parent2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.parent1.pk	1	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`g1` AS `g1` from `test`.`t1` where (not(<in_optimizer>(`test`.`t1`.`g1`,<exists>(/* select#2 */ select 1 from `test`.`t2` `grandparent1` where (<in_optimizer>(`test`.`grandparent1`.`col_varchar_key`,<exists>(/* select#3 */ select 1 from `test`.`t2` `parent1` left join `test`.`t3` `parent2` on((`test`.`parent2`.`pk` = `test`.`parent1`.`pk`)) where (<cache>(`test`.`grandparent1`.`col_varchar_key`) = `test`.`parent1`.`col_varchar_nokey`))) and (`test`.`grandparent1`.`col_varchar_key` is not null) and (<cache>(`test`.`t1`.`g1`) = `test`.`grandparent1`.`col_varchar_nokey`))))))
@@ -8854,7 +8854,7 @@ WHERE alias1.pk = 58 OR alias1.col_varchar_key = 'o'
 );
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
-2	DEPENDENT SUBQUERY	alias1	NULL	index_merge	PRIMARY,col_int_key,col_varchar_key	col_varchar_key,PRIMARY	4,4	NULL	2	8.33	Using sort_union(col_varchar_key,PRIMARY); Using where
+2	DEPENDENT SUBQUERY	alias1	NULL	index_merge	PRIMARY,col_int_key,col_varchar_key	col_varchar_key,PRIMARY	4,4	NULL	2	10.00	Using sort_union(col_varchar_key,PRIMARY); Using where
 2	DEPENDENT SUBQUERY	alias2	NULL	ALL	col_int_key	NULL	NULL	NULL	12	26.53	Range checked for each record (index map: 0x2)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`field1` AS `field1` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`field1`,<exists>(/* select#2 */ select 1 from `test`.`t1` `alias1` join `test`.`t1` `alias2` where (((`test`.`alias1`.`pk` = 58) or (`test`.`alias1`.`col_varchar_key` = 'o')) and (<cache>(`test`.`t2`.`field1`) = `test`.`alias1`.`col_varchar_nokey`) and ((`test`.`alias2`.`col_int_key` = `test`.`alias1`.`pk`) or (`test`.`alias2`.`col_int_key` = `test`.`alias1`.`col_int_key`)))))
@@ -8960,7 +8960,7 @@ AND grandparent1.col_int_key <> 3
 );
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	DEPENDENT SUBQUERY	grandparent1	NULL	ALL	col_int_key	NULL	NULL	NULL	11	9.09	Using where
+2	DEPENDENT SUBQUERY	grandparent1	NULL	ALL	col_int_key	NULL	NULL	NULL	11	10.00	Using where
 3	DEPENDENT SUBQUERY	parent1	NULL	ref	col_int_key	col_int_key	4	func	2	100.00	Using where
 3	DEPENDENT SUBQUERY	parent2	NULL	index	col_int_key	col_int_key	4	NULL	1	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
 Warnings:
@@ -9000,12 +9000,12 @@ EXPLAIN
             ],
             "rows_examined_per_scan": 11,
             "rows_produced_per_join": 1,
-            "filtered": 9.0909,
+            "filtered": 10,
             "cost_info": {
               "read_cost": "2.03",
-              "eval_cost": "0.20",
+              "eval_cost": "0.22",
               "prefix_cost": "4.23",
-              "data_read_per_join": "16"
+              "data_read_per_join": "17"
             },
             "used_columns": [
               "col_int_nokey",
@@ -9440,7 +9440,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	ot1	NULL	index	NULL	col_varchar_key	7	NULL	20	100.00	Using index
 1	PRIMARY	ot2	NULL	ALL	NULL	NULL	NULL	NULL	20	100.00	Using where; Using join buffer (Block Nested Loop)
 2	DEPENDENT SUBQUERY	it1	NULL	ref	PRIMARY,col_varchar_key	col_varchar_key	3	func	1	100.00	Using index
-2	DEPENDENT SUBQUERY	it2	NULL	ref	col_int_key	col_int_key	4	test.it1.pk	1	5.00	Using where
+2	DEPENDENT SUBQUERY	it2	NULL	ref	col_int_key	col_int_key	4	test.it1.pk	1	10.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`ot1`.`col_int_key` AS `field1` from `test`.`t2` `ot1` join `test`.`t2` `ot2` where <in_optimizer>((`test`.`ot1`.`col_varchar_key`,`test`.`ot2`.`col_varchar_nokey`),<exists>(/* select#2 */ select 1,1 from `test`.`t2` `it1` join `test`.`t1` `it2` where ((`test`.`it2`.`col_int_key` = `test`.`it1`.`pk`) and (<cache>(`test`.`ot1`.`col_varchar_key`) = `test`.`it2`.`col_varchar_nokey`) and (<cache>(`test`.`ot2`.`col_varchar_nokey`) = `test`.`it1`.`col_varchar_key`))))
 SELECT ot1.col_int_key AS field1
@@ -9684,7 +9684,7 @@ FROM t2 AS child1 JOIN t1 AS child2 USING (int_key)
 );
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	outr	NULL	ALL	NULL	NULL	NULL	NULL	20	100.00	Using where
-2	DEPENDENT SUBQUERY	middle	NULL	ALL	NULL	NULL	NULL	NULL	20	0.25	Using where
+2	DEPENDENT SUBQUERY	middle	NULL	ALL	NULL	NULL	NULL	NULL	20	1.00	Using where
 3	DEPENDENT SUBQUERY	child1	NULL	system	int_key,vc_key	NULL	NULL	NULL	1	100.00	NULL
 3	DEPENDENT SUBQUERY	child2	NULL	ref	int_key	int_key	5	const	3	100.00	Using where; Using index
 Warnings:
@@ -10152,8 +10152,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	DEPENDENT SUBQUERY	subquery2_t3	NULL	index	PRIMARY,col_varchar_key	col_varchar_key	4	NULL	20	100.00	Using where; Using index
 3	DEPENDENT SUBQUERY	subquery2_t2	NULL	eq_ref	PRIMARY,col_varchar_key	PRIMARY	4	test.subquery2_t3.pk	1	7.14	Using where
 3	DEPENDENT SUBQUERY	subquery2_t1	NULL	ref	col_int_key	col_int_key	5	func	2	100.00	Using index
-4	DEPENDENT SUBQUERY	subquery1_t2	NULL	ALL	PRIMARY	NULL	NULL	NULL	20	5.00	Using where
-4	DEPENDENT SUBQUERY	subquery1_t3	NULL	ref	col_varchar_key	col_varchar_key	4	test.subquery1_t2.col_varchar_nokey	1	5.00	Using where
+4	DEPENDENT SUBQUERY	subquery1_t2	NULL	ALL	PRIMARY	NULL	NULL	NULL	20	10.00	Using where
+4	DEPENDENT SUBQUERY	subquery1_t3	NULL	ref	col_varchar_key	col_varchar_key	4	test.subquery1_t2.col_varchar_nokey	1	10.00	Using where
 4	DEPENDENT SUBQUERY	subquery1_t1	NULL	index	PRIMARY	col_int_key	5	NULL	20	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	/* select#1 */ select `table2`.`col_varchar_nokey` AS `field1` from `test`.`t2` `table1` join `test`.`t1` `table2` straight_join `test`.`t2` `table3` where ((`table3`.`col_int_key` = `table2`.`pk`) and <in_optimizer>(`table2`.`pk`,<exists>(/* select#3 */ select 1 from `test`.`t3` `subquery2_t2` join `test`.`t1` `subquery2_t3` join `test`.`t2` `subquery2_t1` where ((`subquery2_t2`.`col_varchar_key` = `subquery2_t3`.`col_varchar_key`) and (`subquery2_t2`.`pk` = `subquery2_t3`.`pk`) and (<cache>(`table3`.`col_int_key`) = `subquery2_t1`.`col_int_key`)))) and <in_optimizer>(`table3`.`col_int_nokey`,<exists>(/* select#4 */ select 1 from `test`.`t1` `subquery1_t2` join `test`.`t1` `subquery1_t3` join `test`.`t2` `subquery1_t1` where ((`subquery1_t3`.`col_int_key` = `subquery1_t2`.`pk`) and (`subquery1_t3`.`col_varchar_key` = `subquery1_t2`.`col_varchar_nokey`) and (`subquery1_t1`.`pk` > 1) and (<cache>(`table3`.`col_int_nokey`) = `subquery1_t2`.`col_int_nokey`)))))
@@ -10596,8 +10596,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 7	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 8	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 NULL	UNION RESULT	<union7,8>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
-3	DEPENDENT SUBQUERY	sq2_alias1	NULL	ALL	NULL	NULL	NULL	NULL	15	6.67	Using where
-3	DEPENDENT SUBQUERY	sq2_alias2	NULL	ref	col_int_key	col_int_key	5	test.sq2_alias1.pk	2	6.67	Using where
+3	DEPENDENT SUBQUERY	sq2_alias1	NULL	ALL	NULL	NULL	NULL	NULL	15	10.00	Using where
+3	DEPENDENT SUBQUERY	sq2_alias2	NULL	ref	col_int_key	col_int_key	5	test.sq2_alias1.pk	2	10.00	Using where
 2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
 Note	1003	/* select#1 */ select sum(`alias1`.`col_varchar_nokey`) AS `field2` from `test`.`t2` `alias2` join (/* select#2 */ select NULL AS `pk`,NULL AS `col_varchar_key`,NULL AS `col_varchar_nokey` from `test`.`t1` join `test`.`t3` where multiple equal(NULL, `t3`.`pk`)) `alias1` where ((`alias1`.`col_varchar_key` = `test`.`alias2`.`col_varchar_key`) and <in_optimizer>((`alias1`.`col_varchar_key`,`alias1`.`col_varchar_nokey`),<exists>(<index_lookup>(<cache>(`alias1`.`col_varchar_key`) in view_inline_2 on <auto_key0> where ((<cache>(`alias1`.`col_varchar_key`) = `view_inline_2`.`p`) and (<cache>(`alias1`.`col_varchar_nokey`) = `view_inline_2`.`My_exp_p`))))) and <in_optimizer>((`test`.`alias2`.`col_varchar_nokey`,`test`.`alias2`.`col_varchar_key`),<exists>(/* select#3 */ select 1,1 from `test`.`t3` `sq2_alias1` join `test`.`t3` `sq2_alias2` where ((`test`.`sq2_alias2`.`col_int_key` = `sq2_alias1`.`pk`) and (<cache>(`test`.`alias2`.`col_varchar_nokey`) = `test`.`sq2_alias2`.`col_varchar_key`) and (<cache>(`test`.`alias2`.`col_varchar_key`) = `sq2_alias1`.`col_varchar_key`)))))
@@ -10669,8 +10669,8 @@ ON it2.col_time_nokey = it1.col_time_key
 ;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
-2	DEPENDENT SUBQUERY	it1	NULL	eq_ref	PRIMARY,col_time_key	PRIMARY	4	func	1	5.00	Using where
-2	DEPENDENT SUBQUERY	it2	NULL	ALL	NULL	NULL	NULL	NULL	20	5.00	Using where; Using join buffer (Block Nested Loop)
+2	DEPENDENT SUBQUERY	it1	NULL	eq_ref	PRIMARY,col_time_key	PRIMARY	4	func	1	10.00	Using where
+2	DEPENDENT SUBQUERY	it2	NULL	ALL	NULL	NULL	NULL	NULL	20	10.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`ot1`.`col_int_key` AS `x` from `test`.`t1` `ot2` join `test`.`t1` `ot1` where (<in_optimizer>((`test`.`ot1`.`col_int_nokey`,`test`.`ot1`.`pk`),<exists>(/* select#2 */ select 1,1 from `test`.`t2` `it2` join `test`.`t2` `it1` where ((`test`.`it2`.`col_time_nokey` = `test`.`it1`.`col_time_key`) and (<cache>(`test`.`ot1`.`col_int_nokey`) = `test`.`it1`.`pk`) and (<cache>(`test`.`ot1`.`pk`) = `test`.`it1`.`col_int_nokey`)))) and isnull(`test`.`ot1`.`pk`) and (`test`.`ot2`.`col_varchar_nokey` > `test`.`ot1`.`col_varchar_key`))
 SELECT ot1.col_int_key AS x
@@ -11234,12 +11234,12 @@ EXPLAIN
                   ],
                   "rows_examined_per_scan": 2,
                   "rows_produced_per_join": 0,
-                  "filtered": 5,
+                  "filtered": 10,
                   "cost_info": {
                     "read_cost": "2.00",
-                    "eval_cost": "0.02",
+                    "eval_cost": "0.05",
                     "prefix_cost": "2.48",
-                    "data_read_per_join": "1"
+                    "data_read_per_join": "3"
                   },
                   "used_columns": [
                     "col_int_nokey",
@@ -11444,7 +11444,7 @@ EXPLAIN
               "query_block": {
                 "select_id": 2,
                 "cost_info": {
-                  "query_cost": "9.56"
+                  "query_cost": "10.90"
                 },
                 "nested_loop": [
                   {
@@ -11453,12 +11453,12 @@ EXPLAIN
                       "access_type": "ALL",
                       "rows_examined_per_scan": 20,
                       "rows_produced_per_join": 0,
-                      "filtered": 1.6665,
+                      "filtered": 3.333,
                       "cost_info": {
                         "read_cost": "4.78",
-                        "eval_cost": "0.07",
+                        "eval_cost": "0.13",
                         "prefix_cost": "6.12",
-                        "data_read_per_join": "7"
+                        "data_read_per_join": "15"
                       },
                       "used_columns": [
                         "col_int_key",
@@ -11472,14 +11472,14 @@ EXPLAIN
                       "table_name": "sq2_alias1",
                       "access_type": "ALL",
                       "rows_examined_per_scan": 20,
-                      "rows_produced_per_join": 0,
-                      "filtered": 5,
+                      "rows_produced_per_join": 1,
+                      "filtered": 10,
                       "using_join_buffer": "Block Nested Loop",
                       "cost_info": {
                         "read_cost": "2.12",
-                        "eval_cost": "0.07",
-                        "prefix_cost": "9.56",
-                        "data_read_per_join": "7"
+                        "eval_cost": "0.27",
+                        "prefix_cost": "10.90",
+                        "data_read_per_join": "31"
                       },
                       "used_columns": [
                         "col_varchar_nokey"

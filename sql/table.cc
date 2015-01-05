@@ -5003,7 +5003,7 @@ bool TABLE_LIST::prepare_view_securety_context(THD *thd)
       }
       else
       {
-        if (thd->security_ctx->master_access & SUPER_ACL)
+        if (thd->security_context()->check_access(SUPER_ACL))
         {
           my_error(ER_NO_SUCH_USER, MYF(0), definer.user.str, definer.host.str);
 
@@ -5012,12 +5012,12 @@ bool TABLE_LIST::prepare_view_securety_context(THD *thd)
         {
           if (thd->password == 2)
             my_error(ER_ACCESS_DENIED_NO_PASSWORD_ERROR, MYF(0),
-                     thd->security_ctx->priv_user,
-                     thd->security_ctx->priv_host);
+                     thd->security_context()->priv_user().str,
+                     thd->security_context()->priv_host().str);
           else
             my_error(ER_ACCESS_DENIED_ERROR, MYF(0),
-                     thd->security_ctx->priv_user,
-                     thd->security_ctx->priv_host,
+                     thd->security_context()->priv_user().str,
+                     thd->security_context()->priv_host().str,
                      (thd->password ?  ER(ER_YES) : ER(ER_NO)));
         }
         DBUG_RETURN(TRUE);
@@ -5061,7 +5061,7 @@ Security_context *TABLE_LIST::find_view_security_context(THD *thd)
   else
   {
     DBUG_PRINT("info", ("Current global context will be used"));
-    sctx= thd->security_ctx;
+    sctx= thd->security_context();
   }
   DBUG_RETURN(sctx);
 }
@@ -5086,12 +5086,12 @@ bool TABLE_LIST::prepare_security(THD *thd)
   TABLE_LIST *tbl;
   DBUG_ENTER("TABLE_LIST::prepare_security");
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-  Security_context *save_security_ctx= thd->security_ctx;
+  Security_context *save_security_ctx= thd->security_context();
 
   DBUG_ASSERT(!prelocking_placeholder);
   if (prepare_view_securety_context(thd))
     DBUG_RETURN(TRUE);
-  thd->security_ctx= find_view_security_context(thd);
+  thd->set_security_context(find_view_security_context(thd));
   opt_trace_disable_if_no_security_context_access(thd);
   while ((tbl= tb++))
   {
@@ -5112,7 +5112,7 @@ bool TABLE_LIST::prepare_security(THD *thd)
     if (tbl->table)
       tbl->table->grant= grant;
   }
-  thd->security_ctx= save_security_ctx;
+  thd->set_security_context(save_security_ctx);
 #else
   while ((tbl= tb++))
     tbl->grant.privilege= ~NO_ACCESS;

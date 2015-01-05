@@ -416,6 +416,56 @@ dict_mem_create_temporary_tablename(
 void
 dict_mem_init(void);
 
+/** SQL identifier name wrapper for pretty-printing */
+class id_name_t
+{
+public:
+	/** Default constructor */
+	id_name_t()
+		: m_name()
+	{}
+	/** Constructor
+	@param[in]	name	identifier to assign */
+	explicit id_name_t(
+		const char*	name)
+		: m_name(name)
+	{}
+
+	/** Assignment operator
+	@param[in]	name	identifier to assign */
+	id_name_t& operator=(
+		const char*	name)
+	{
+		m_name = name;
+		return(*this);
+	}
+
+	/** Implicit type conversion
+	@return the name */
+	operator const char*() const
+	{
+		return(m_name);
+	}
+
+	/** Explicit type conversion
+	@return the name */
+	const char* operator()() const
+	{
+		return(m_name);
+	}
+
+private:
+	/** The name in internal representation */
+	const char*	m_name;
+};
+
+/** Table name wrapper for pretty-printing */
+struct table_name_t
+{
+	/** The name in internal representation */
+	char*	m_name;
+};
+
 /** Data structure for a column in a table */
 struct dict_col_t{
 	/*----------------------*/
@@ -495,7 +545,7 @@ be REC_VERSION_56_MAX_INDEX_COL_LEN (3072) bytes */
 /** Data structure for a field in an index */
 struct dict_field_t{
 	dict_col_t*	col;		/*!< pointer to the table column */
-	const char*	name;		/*!< name of the column */
+	id_name_t	name;		/*!< name of the column */
 	unsigned	prefix_len:12;	/*!< 0 or the length of the column
 					prefix in bytes in a MySQL index of
 					type, e.g., INDEX (textcol(25));
@@ -551,7 +601,7 @@ extern ulong	zip_pad_max;
 an uncompressed page should be left as padding to avoid compression
 failures. This estimate is based on a self-adapting heuristic. */
 struct zip_pad_info_t {
-	SysMutex	mutex;	/*!< mutex protecting the info */
+	SysMutex*	mutex;	/*!< mutex protecting the info */
 	ulint		pad;	/*!< number of bytes used as pad */
 	ulint		success;/*!< successful compression ops during
 				current round */
@@ -559,6 +609,9 @@ struct zip_pad_info_t {
 				current round */
 	ulint		n_rounds;/*!< number of currently successful
 				rounds */
+	volatile os_once::state_t
+			mutex_created;
+				/*!< Creation state of mutex member */
 };
 
 /** If key is fixed length key then cache the record offsets on first
@@ -663,7 +716,7 @@ initialized to 0, NULL or FALSE in dict_mem_index_create(). */
 struct dict_index_t{
 	index_id_t	id;	/*!< id of the index */
 	mem_heap_t*	heap;	/*!< memory heap */
-	const char*	name;	/*!< index name */
+	id_name_t	name;	/*!< index name */
 	const char*	table_name;/*!< table name */
 	dict_table_t*	table;	/*!< back pointer to table */
 #ifndef UNIV_HOTBACKUP
@@ -728,7 +781,10 @@ struct dict_index_t{
 # define DICT_INDEX_MAGIC_N	76789786
 #endif
 	dict_field_t*	fields;	/*!< array of field descriptions */
-	st_mysql_ftparser*	parser;/*!< fulltext plugin parser */
+	st_mysql_ftparser*
+			parser;	/*!< fulltext parser plugin */
+	bool		is_ngram;
+				/*!< true if it's ngram parser */
 #ifndef UNIV_HOTBACKUP
 	UT_LIST_NODE_T(dict_index_t)
 			indexes;/*!< list of indexes of the table */
@@ -1034,16 +1090,23 @@ a foreign key constraint is enforced, therefore RESTRICT just means no flag */
 #define DICT_FOREIGN_ON_UPDATE_NO_ACTION 32	/*!< ON UPDATE NO ACTION */
 /* @} */
 
-/** Table name wrapper for pretty-printing */
-struct table_name_t
-{
-	/** The name in internal representation */
-	char*	m_name;
-};
-
-/** Display a table name */
+/** Display an identifier.
+@param[in,out]	s	output stream
+@param[in]	id_name	SQL identifier (other than table name)
+@return the output stream */
 std::ostream&
-operator<<(std::ostream& s, const table_name_t& table_name);
+operator<<(
+	std::ostream&		s,
+	const id_name_t&	id_name);
+
+/** Display a table name.
+@param[in,out]	s		output stream
+@param[in]	table_name	table name
+@return the output stream */
+std::ostream&
+operator<<(
+	std::ostream&		s,
+	const table_name_t&	table_name);
 
 /** List of locks that different transactions have acquired on a table. This
 list has a list node that is embedded in a nested union/structure. We have to
@@ -1336,8 +1399,11 @@ struct dict_table_t {
 	from a select. */
 	lock_t*					autoinc_lock;
 
+	/** Creation state of autoinc_mutex member */
+	volatile os_once::state_t		autoinc_mutex_created;
+
 	/** Mutex protecting the autoincrement counter. */
-	ib_mutex_t				autoinc_mutex;
+	ib_mutex_t*				autoinc_mutex;
 
 	/** Autoinc counter value to give to the next inserted row. */
 	ib_uint64_t				autoinc;
@@ -1427,6 +1493,87 @@ struct dict_foreign_add_to_referenced_table {
 		}
 	}
 };
+
+/** Destroy the autoinc latch of the given table.
+This function is only called from either single threaded environment
+or from a thread that has not shared the table object with other threads.
+@param[in,out]	table	table whose stats latch to destroy */
+inline
+void
+dict_table_autoinc_destroy(
+	dict_table_t*	table)
+{
+	if (table->autoinc_mutex_created == os_once::DONE
+	    && table->autoinc_mutex != NULL) {
+		mutex_free(table->autoinc_mutex);
+		UT_DELETE(table->autoinc_mutex);
+	}
+}
+
+/** Request for lazy creation of the autoinc latch of a given table.
+This function is only called from either single threaded environment
+or from a thread that has not shared the table object with other threads.
+@param[in,out]	table	table whose autoinc latch is to be created. */
+inline
+void
+dict_table_autoinc_create_lazy(
+	dict_table_t*	table)
+{
+	table->autoinc_mutex = NULL;
+	table->autoinc_mutex_created = os_once::NEVER_DONE;
+}
+
+/** Request a lazy creation of dict_index_t::zip_pad::mutex.
+This function is only called from either single threaded environment
+or from a thread that has not shared the table object with other threads.
+@param[in,out]	index	index whose zip_pad mutex is to be created */
+inline
+void
+dict_index_zip_pad_mutex_create_lazy(
+	dict_index_t*	index)
+{
+	index->zip_pad.mutex = NULL;
+	index->zip_pad.mutex_created = os_once::NEVER_DONE;
+}
+
+/** Destroy the zip_pad_mutex of the given index.
+This function is only called from either single threaded environment
+or from a thread that has not shared the table object with other threads.
+@param[in,out]	table	table whose stats latch to destroy */
+inline
+void
+dict_index_zip_pad_mutex_destroy(
+	dict_index_t*	index)
+{
+	if (index->zip_pad.mutex_created == os_once::DONE
+	    && index->zip_pad.mutex != NULL) {
+		mutex_free(index->zip_pad.mutex);
+		UT_DELETE(index->zip_pad.mutex);
+	}
+}
+
+/** Release the zip_pad_mutex of a given index.
+@param[in,out]	index	index whose zip_pad_mutex is to be released */
+inline
+void
+dict_index_zip_pad_unlock(
+	dict_index_t*	index)
+{
+	mutex_exit(index->zip_pad.mutex);
+}
+
+#ifdef UNIV_DEBUG
+/** Check if the current thread owns the autoinc_mutex of a given table.
+@param[in]	table	the autoinc_mutex belongs to this table
+@return true, if the current thread owns the autoinc_mutex, false otherwise.*/
+inline
+bool
+dict_table_autoinc_own(
+	const dict_table_t*	table)
+{
+	return(mutex_own(table->autoinc_mutex));
+}
+#endif /* UNIV_DEBUG */
 
 #ifndef UNIV_NONINL
 #include "dict0mem.ic"

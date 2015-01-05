@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2015, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -243,12 +243,15 @@ row_sel_sec_rec_is_for_clust_rec(
 			}
 		}
 
-		if (dict_index_is_spatial(sec_index)) {
+		/* For spatial index, the first field is MBR, we check
+		if the MBR is equal or not. */
+		if (dict_index_is_spatial(sec_index) && i == 0) {
 			rtr_mbr_t	tmp_mbr;
 			rtr_mbr_t	sec_mbr;
 			byte*		dptr =
 				const_cast<byte*>(clust_field);
 
+			ut_ad(clust_len != UNIV_SQL_NULL);
 			rtree_mbr_from_wkb(dptr + GEO_DATA_HEADER_SIZE,
 					   static_cast<uint>(clust_len
 					   - GEO_DATA_HEADER_SIZE),
@@ -257,7 +260,7 @@ row_sel_sec_rec_is_for_clust_rec(
 						&tmp_mbr));
 			rtr_read_mbr(sec_field, &sec_mbr);
 
-			if (!MBR_CONTAIN_CMP(&sec_mbr, &tmp_mbr)) {
+			if (!MBR_EQUAL_CMP(&sec_mbr, &tmp_mbr)) {
 				is_equal = FALSE;
 				goto func_exit;
 			}
@@ -3370,6 +3373,10 @@ row_sel_get_clust_rec_for_mysql(
 
 			ut_ad(low_match < dtuple_get_n_fields_cmp(tuple));
 			mem_heap_free(heap);
+			clust_rec = NULL;
+
+			err = DB_SUCCESS;
+			goto func_exit;
 #endif /* UNIV_DEBUG */
 		} else if (!rec_get_deleted_flag(rec,
 					  dict_table_is_comp(sec_index->table))
@@ -3470,9 +3477,12 @@ row_sel_get_clust_rec_for_mysql(
 		visit through secondary index records that would not really
 		exist in our snapshot. */
 
+		/* And for spatial index, since the rec is from shadow buffer,
+		so we need to check if it's exactly match the clust_rec. */
 		if (clust_rec
 		    && (old_vers
 			|| trx->isolation_level <= TRX_ISO_READ_UNCOMMITTED
+			|| dict_index_is_spatial(sec_index)
 			|| rec_get_deleted_flag(rec, dict_table_is_comp(
 							sec_index->table)))
 		    && !row_sel_sec_rec_is_for_clust_rec(
@@ -5811,96 +5821,104 @@ row_count_rtree_recs(
 					seen in the consistent read */
 {
 	dict_index_t*	index		= prebuilt->index;
-	dberr_t		err		= DB_SUCCESS;
+	dberr_t		ret		= DB_SUCCESS;
 	mtr_t		mtr;
-	btr_pcur_t*	pcur		= prebuilt->pcur;
-	const rec_t*	rec;
-	ibool		comp		= dict_table_is_comp(index->table);
-	bool		move;
-	buf_block_t*    block;
+	mem_heap_t*	heap;
+	dtuple_t*	entry;
+	dtuple_t*	search_entry	= prebuilt->search_tuple;
+	ulint		entry_len;
+	ulint		i;
+	byte*		buf;
 
 	ut_a(dict_index_is_spatial(index));
 
 	*n_rows = 0;
 
-	mtr_start(&mtr);
+	heap = mem_heap_create(256);
 
-	/*-------------------------------------------------------------*/
-	/* Since the record on page is sorted in binary order, there is no
-	direct relation between index record on page, and their position in
-	a tree level. So it will need to search backwards to find the first
-	page */
-	rw_lock_sx_lock(dict_index_get_lock(index));
+	/* Build a search tuple. */
+	entry_len = dict_index_get_n_fields(index);
+	entry = dtuple_create(heap, entry_len);
 
-	/* PHASE 0: Open index cursor position */
-	btr_pcur_open_at_index_side(
-		true, index, BTR_SEARCH_LEAF,
-		pcur, false, 0, &mtr);
+	for (i = 0; i < entry_len; i++) {
+		const dict_field_t*	ind_field
+			= dict_index_get_nth_field(index, i);
+		const dict_col_t*	col
+			= ind_field->col;
+		dfield_t*		dfield
+			= dtuple_get_nth_field(entry, i);
 
-	while (btr_page_get_prev(btr_pcur_get_page(pcur), &mtr) != FIL_NULL) {
-		page_t*		page = btr_pcur_get_page(pcur);
-		ulint		prev_page_no = btr_page_get_prev(page, &mtr);
-		ulint		space = 0;
+		if (i == 0) {
+			double*	mbr;
+			double	tmp_mbr[SPDIMS * 2];
 
-		const page_size_t& page_size = dict_table_page_size(
-						index->table);
+			dfield->type.mtype = DATA_GEOMETRY;
+			dfield->type.prtype |= DATA_GIS_MBR;
 
-		space = btr_pcur_get_block(pcur)->page.id.space();
-		page_id_t	prev_page_id(space, prev_page_no);
+			/* Allocate memory for mbr field */
+			mbr = static_cast<double*>
+				(mem_heap_alloc(heap, DATA_MBR_LEN));
 
-		mtr_commit(&mtr);
+			/* Set mbr field data. */
+			dfield_set_data(dfield, mbr, DATA_MBR_LEN);
 
-	        mtr_start(&mtr);
+			for (uint j = 0; j < SPDIMS; j++) {
+				tmp_mbr[j * 2] = DBL_MAX;
+				tmp_mbr[j * 2 + 1] = -DBL_MAX;
+			}
+			dfield_write_mbr(dfield, tmp_mbr);
+			continue;
+		}
 
-		block = btr_block_get(prev_page_id, page_size,
-                                      BTR_SEARCH_LEAF, index, &mtr);
+		dfield->type.mtype = col->mtype;
+		dfield->type.prtype = col->prtype;
 
-		page_cur_set_before_first(block, btr_pcur_get_page_cur(pcur));
 	}
 
-	rw_lock_sx_unlock(dict_index_get_lock(index));
+	prebuilt->search_tuple = entry;
 
-	/*-------------------------------------------------------------*/
-	/* PHASE 1: Look for record in a loop */
-rec_loop:
+	ulint bufsize = ut_max(UNIV_PAGE_SIZE, prebuilt->mysql_row_len);
+	buf = static_cast<byte*>(ut_malloc_nokey(bufsize));
 
-	rec = btr_pcur_get_rec(pcur);
-	ut_ad(!!page_rec_is_comp(rec) == comp);
+	ulint cnt = 1000;
 
-	if (page_rec_is_infimum(rec)) {
-		goto next_rec;
+	ret = row_search_for_mysql(buf, PAGE_CUR_WITHIN, prebuilt, 0, 0);
+loop:
+	/* Check thd->killed every 1,000 scanned rows */
+	if (--cnt == 0) {
+		if (trx_is_interrupted(prebuilt->trx)) {
+			ret = DB_INTERRUPTED;
+			goto func_exit;
+		}
+		cnt = 1000;
 	}
 
-	if (page_rec_is_supremum(rec)) {
-		goto next_rec;
-	}
+	switch (ret) {
+	case DB_SUCCESS:
+		break;
+	case DB_DEADLOCK:
+	case DB_LOCK_TABLE_FULL:
+	case DB_LOCK_WAIT_TIMEOUT:
+	case DB_INTERRUPTED:
+		goto func_exit;
+	default:
+		/* fall through (this error is ignored by CHECK TABLE) */
+	case DB_END_OF_INDEX:
+		ret = DB_SUCCESS;
+func_exit:
+		prebuilt->search_tuple = search_entry;
+		ut_free(buf);
+		mem_heap_free(heap);
 
-	ut_ad(fil_page_index_page_check(btr_pcur_get_page(pcur)));
-	ut_ad(btr_page_get_index_id(btr_pcur_get_page(pcur)) == index->id);
-
-	if (rec_get_deleted_flag(rec, comp)) {
-		/* The record is delete-marked: we can skip it */
-		goto next_rec;
+		return(ret);
 	}
 
 	*n_rows = *n_rows + 1;
 
-next_rec:
-	/*-------------------------------------------------------------*/
-	/* PHASE 2: Move the cursor to the next index record */
+	ret = row_search_for_mysql(
+		buf, PAGE_CUR_WITHIN, prebuilt, 0, ROW_SEL_NEXT);
 
-	move = btr_pcur_move_to_next(pcur, &mtr);
-	if (!move) {
-		goto normal_return;
-	}
-
-	goto rec_loop;
-
-normal_return:
-
-	mtr_commit(&mtr);
-
-	return(err);
+	goto loop;
 }
 
 /*******************************************************************//**

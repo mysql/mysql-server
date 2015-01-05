@@ -1145,7 +1145,7 @@ void JOIN::test_skip_sort()
       }
     }
   }
-  else if (order &&                      // ORDER BY wo/ preceeding GROUP BY
+  else if (order &&                      // ORDER BY wo/ preceding GROUP BY
            (simple_order || skip_sort_order)) // which is possibly skippable
   {
     if (test_if_skip_sort_order(tab, order, m_select_limit, false,
