@@ -2,6 +2,7 @@
 # MDEV-4578 information_schema.processlist reports incorrect value for Time (2147483647)
 #
 
+source include/have_debug.inc;
 source include/have_debug_sync.inc;
 
 let $tid= `SELECT CONNECTION_ID()`;
@@ -21,6 +22,7 @@ SET DEBUG_SYNC = 'now SIGNAL fill_schema_proceed';
 connection con1;
 --replace_result $tid TID
 reap;
+set debug_sync='reset';
 connection default;
 
 #
@@ -28,15 +30,13 @@ connection default;
 #
 
 connection con1;
-# Trigger a signal once the thread has gone from "Query" to "Sleep" command
-# state. Note we need to execute this twice: Once at the end of SET DEBUG_SYNC,
-# and once for the intended time, at the end of SELECT SLEEP().
-SET DEBUG_SYNC = 'dispatch_command_end SIGNAL query_done EXECUTE 2';
-connection default;
-# Wait for and clear the first signal set during SET DEBUG_SYNC.
-SET DEBUG_SYNC= 'now WAIT_FOR query_done';
-SET DEBUG_SYNC= 'now SIGNAL nosignal';
-connection con1;
+# This DBUG insertion triggers a DEBUG_SYNC signal "query_done" once
+# the below SELECT SLEEP(5) has gone from "Query" to "Sleep" command
+# state. (We cannot just set the DEBUG_SYNC directly here, because
+# then it can trigger at the end of the SET DEBUG_SYNC statement (or
+# at the end of the Prepare step of the SELECT, if --ps-protocol),
+# thus occuring too early).
+SET debug_dbug="+d,sleep_inject_query_done_debug_sync";
 select sleep(5); #run a query that will take some time
 connection default;
 

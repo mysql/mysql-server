@@ -2495,6 +2495,7 @@ sub environment_setup {
   # ----------------------------------------------------
   my $exe_replace= mtr_exe_exists(vs_config_dirs('extra', 'replace'),
                                  "$basedir/extra/replace",
+                                 "$bindir/extra$opt_vs_config/replace",
                                  "$path_client_bindir/replace");
   $ENV{'REPLACE'}= native_path($exe_replace);
 
