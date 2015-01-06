@@ -305,6 +305,9 @@ ut_stage_alter_t::end_phase_read_pk()
 	reestimate();
 
 	if (m_n_pk_pages == 0) {
+		/* The number of pages in the PK could be 0 if the tree is
+		empty. In this case we set m_n_recs_per_page to 1 to avoid
+		division by zero later. */
 		m_n_recs_per_page = 1;
 	} else {
 		m_n_recs_per_page = std::max(
