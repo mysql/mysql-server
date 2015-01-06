@@ -339,7 +339,7 @@ Trans_delegate::prepare_table_info(THD* thd,
     table_info.table_name= open_tables->s->table_name.str;
 
     uint primary_keys= 0;
-    if(open_tables->key_info != NULL)
+    if(open_tables->key_info != NULL && (open_tables->s->primary_key < MAX_KEY))
     {
       primary_keys= open_tables->s->primary_key;
 
