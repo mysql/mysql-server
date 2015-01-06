@@ -4684,13 +4684,11 @@ static bool check_locale(sys_var *self, THD *thd, set_var *var)
 
   var->save_result.ptr= locale;
 
-  if (!locale->errmsgs->errmsgs)
+  if (!locale->errmsgs->is_loaded())
   {
     mysql_mutex_lock(&LOCK_error_messages);
-    if (!locale->errmsgs->errmsgs &&
-        read_texts(ERRMSG_FILE, locale->errmsgs->language,
-                   locale->errmsgs->errmsgs,
-                   ER_ERROR_LAST - ER_ERROR_FIRST + 1))
+    if (!locale->errmsgs->is_loaded() &&
+        locale->errmsgs->read_texts())
     {
       push_warning_printf(thd, Sql_condition::SL_WARNING, ER_UNKNOWN_ERROR,
                           "Can't process error message file for locale '%s'",

@@ -48,6 +48,7 @@ void setup_server_for_unit_tests()
   mysql_mutex_init(key_LOCK_error_log, &LOCK_error_log, MY_MUTEX_INIT_FAST);
   system_charset_info= &my_charset_utf8_general_ci;
   sys_var_init();
+  strcpy(lc_messages_dir, ERRMSG_DIR);
   init_common_variables();
   my_init_signals();
   randominit(&sql_rand, 0, 0);
