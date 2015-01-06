@@ -723,6 +723,9 @@ trx_resurrect_table_locks(
 				continue;
 			}
 
+			if (trx->state == TRX_STATE_PREPARED) {
+				trx->mod_tables.insert(table);
+			}
 			lock_table_ix_resurrect(table, trx);
 
 			DBUG_PRINT("ib_trx",

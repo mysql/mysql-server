@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -101,6 +101,8 @@ SET(SQL_EMBEDDED_SOURCES
 INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
 ADD_COMPILE_FLAGS(
   ../sql/item_geofunc.cc
+  ../sql/item_geofunc_relchecks.cc
+  ../sql/item_geofunc_setops.cc
   ../sql/auth/sql_authorization.cc
   ../sql/auth/sql_authentication.cc
   ../sql/auth/sql_user_table.cc
@@ -114,6 +116,8 @@ MY_CHECK_CXX_COMPILER_FLAG("-Wno-unused-local-typedefs" HAVE_NO_UNUSED_TYPEDEFS)
 IF(HAVE_NO_UNUSED_TYPEDEFS)
   ADD_COMPILE_FLAGS(
     ../sql/item_geofunc.cc
+    ../sql/item_geofunc_relchecks.cc
+    ../sql/item_geofunc_setops.cc
     COMPILE_FLAGS "-Wno-unused-local-typedefs"
   )
 ENDIF()
