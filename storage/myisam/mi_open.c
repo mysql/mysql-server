@@ -514,7 +514,6 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
     }
     else if (share->options & HA_OPTION_PACK_RECORD)
       share->data_file_type = DYNAMIC_RECORD;
-    my_afree(disk_cache);
     mi_setup_functions(share);
     share->is_log_table= FALSE;
     thr_lock_init(&share->lock);
@@ -524,12 +523,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
       mysql_rwlock_init(mi_key_rwlock_MYISAM_SHARE_key_root_lock,
                         &share->key_root_lock[i]);
     mysql_rwlock_init(mi_key_rwlock_MYISAM_SHARE_mmap_lock, &share->mmap_lock);
-    if (!thr_lock_inited)
-    {
-      /* Probably a single threaded program; Don't use concurrent inserts */
-      myisam_concurrent_insert=0;
-    }
-    else if (myisam_concurrent_insert)
+    if (myisam_concurrent_insert)
     {
       share->concurrent_insert=
 	((share->options & (HA_OPTION_READ_ONLY_DATA | HA_OPTION_TMP_TABLE |
@@ -690,7 +684,6 @@ err:
       (void) my_lock(kfile, F_UNLCK, 0L, F_TO_EOF, MYF(MY_SEEK_NOT_DONE));
     /* fall through */
   case 2:
-    my_afree(disk_cache);
     /* fall through */
   case 1:
     (void) mysql_file_close(kfile, MYF(0));

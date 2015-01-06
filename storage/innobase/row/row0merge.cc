@@ -3971,6 +3971,7 @@ row_merge_create_index(
 		ut_a(index);
 
 		index->parser = index_def->parser;
+		index->is_ngram = index_def->is_ngram;
 
 		/* Note the id of the transaction that created this
 		index, we use it to restrict readers from accessing

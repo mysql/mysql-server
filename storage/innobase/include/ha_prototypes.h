@@ -157,9 +157,9 @@ storage
 @return DATA_BINARY, DATA_VARCHAR, ... */
 ulint
 get_innobase_type_from_mysql_type(
-	ulint*		unsigned_flag,
-	const void*	field,
-	bool		optimize_point_storage);
+	ulint*			unsigned_flag,
+	const void*		field,
+	bool			optimize_point_storage);
 
 /******************************************************************//**
 Get the variable length bounds of the given character set. */

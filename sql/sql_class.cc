@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1268,7 +1268,12 @@ THD::THD(bool enable_plugins)
 
   tablespace_op=FALSE;
   substitute_null_with_insert_id = FALSE;
-  thr_lock_info_init(&lock_info); /* safety: will be reset after start */
+
+  /*
+    Make sure thr_lock_info_init() is called for threads which do not get
+    assigned a proper thread_id value but keep using reserved_thread_id.
+  */
+  thr_lock_info_init(&lock_info, m_thread_id);
 
   m_internal_handler= NULL;
   m_binlog_invoker= FALSE;
@@ -1676,6 +1681,7 @@ void THD::set_new_thread_id()
 {
   m_thread_id= Global_THD_manager::get_instance()->get_new_thread_id();
   variables.pseudo_thread_id= m_thread_id;
+  thr_lock_info_init(&lock_info, m_thread_id);
 }
 
 
@@ -2217,11 +2223,6 @@ bool THD::store_globals()
   mysys_var->id= m_thread_id;
   real_id= pthread_self();                      // For debugging
 
-  /*
-    We have to call thr_lock_info_init() again here as THD may have been
-    created in another thread
-  */
-  thr_lock_info_init(&lock_info);
   return 0;
 }
 
@@ -3405,199 +3406,6 @@ err:
 select_subselect::select_subselect(Item_subselect *item_arg)
 {
   item= item_arg;
-}
-
-
-bool select_singlerow_subselect::send_data(List<Item> &items)
-{
-  DBUG_ENTER("select_singlerow_subselect::send_data");
-  Item_singlerow_subselect *it= (Item_singlerow_subselect *)item;
-  if (it->assigned())
-  {
-    my_message(ER_SUBQUERY_NO_1_ROW, ER(ER_SUBQUERY_NO_1_ROW), MYF(0));
-    DBUG_RETURN(true);
-  }
-  if (unit->offset_limit_cnt)
-  {				          // Using limit offset,count
-    unit->offset_limit_cnt--;
-    DBUG_RETURN(false);
-  }
-  List_iterator_fast<Item> li(items);
-  Item *val_item;
-  for (uint i= 0; (val_item= li++); i++)
-    it->store(i, val_item);
-  if (thd->is_error())
-    DBUG_RETURN(true);
-
-  it->assigned(true);
-  DBUG_RETURN(false);
-}
-
-
-void select_max_min_finder_subselect::cleanup()
-{
-  DBUG_ENTER("select_max_min_finder_subselect::cleanup");
-  cache= 0;
-  DBUG_VOID_RETURN;
-}
-
-
-bool select_max_min_finder_subselect::send_data(List<Item> &items)
-{
-  DBUG_ENTER("select_max_min_finder_subselect::send_data");
-  Item_maxmin_subselect *it= (Item_maxmin_subselect *)item;
-  List_iterator_fast<Item> li(items);
-  Item *val_item= li++;
-  it->register_value();
-  if (it->assigned())
-  {
-    cache->store(val_item);
-    if ((this->*op)())
-      it->store(0, cache);
-  }
-  else
-  {
-    if (!cache)
-    {
-      cache= Item_cache::get_cache(val_item);
-      switch (val_item->result_type())
-      {
-      case REAL_RESULT:
-	op= &select_max_min_finder_subselect::cmp_real;
-	break;
-      case INT_RESULT:
-	op= &select_max_min_finder_subselect::cmp_int;
-	break;
-      case STRING_RESULT:
-	op= &select_max_min_finder_subselect::cmp_str;
-	break;
-      case DECIMAL_RESULT:
-        op= &select_max_min_finder_subselect::cmp_decimal;
-        break;
-      case ROW_RESULT:
-        // This case should never be choosen
-	DBUG_ASSERT(0);
-	op= 0;
-      }
-    }
-    cache->store(val_item);
-    it->store(0, cache);
-  }
-  it->assigned(true);
-  DBUG_RETURN(0);
-}
-
-/**
-  Compare two floating point numbers for MAX or MIN.
-
-  Compare two numbers and decide if the number should be cached as the
-  maximum/minimum number seen this far. If fmax==true, this is a
-  comparison for MAX, otherwise it is a comparison for MIN.
-
-  val1 is the new numer to compare against the current
-  maximum/minimum. val2 is the current maximum/minimum.
-
-  ignore_nulls is used to control behavior when comparing with a NULL
-  value. If ignore_nulls==false, the behavior is to store the first
-  NULL value discovered (i.e, return true, that it is larger than the
-  current maximum) and never replace it. If ignore_nulls==true, NULL
-  values are not stored. ANY subqueries use ignore_nulls==true, ALL
-  subqueries use ignore_nulls==false.
-
-  @retval true if the new number should be the new maximum/minimum.
-  @retval false if the maximum/minimum should stay unchanged.
- */
-bool select_max_min_finder_subselect::cmp_real()
-{
-  Item *maxmin= ((Item_singlerow_subselect *)item)->element_index(0);
-  double val1= cache->val_real(), val2= maxmin->val_real();
-  /*
-    If we're ignoring NULLs and the current maximum/minimum is NULL
-    (must have been placed there as the first value iterated over) and
-    the new value is not NULL, return true so that a new, non-NULL
-    maximum/minimum is set. Otherwise, return false to keep the
-    current non-NULL maximum/minimum.
-
-    If we're not ignoring NULLs and the current maximum/minimum is not
-    NULL, return true to store NULL. Otherwise, return false to keep
-    the NULL we've already got.
-  */
-  if (cache->null_value || maxmin->null_value)
-    return (ignore_nulls) ? !(cache->null_value) : !(maxmin->null_value);
-  return (fmax) ? (val1 > val2) : (val1 < val2);
-}
-
-/**
-  Compare two integer numbers for MAX or MIN.
-
-  @see select_max_min_finder_subselect::cmp_real()
-*/
-bool select_max_min_finder_subselect::cmp_int()
-{
-  Item *maxmin= ((Item_singlerow_subselect *)item)->element_index(0);
-  longlong val1= cache->val_int(), val2= maxmin->val_int();
-  if (cache->null_value || maxmin->null_value)
-    return (ignore_nulls) ? !(cache->null_value) : !(maxmin->null_value);
-  return (fmax) ? (val1 > val2) : (val1 < val2);
-}
-
-/**
-  Compare two decimal numbers for MAX or MIN.
-
-  @see select_max_min_finder_subselect::cmp_real()
-*/
-bool select_max_min_finder_subselect::cmp_decimal()
-{
-  Item *maxmin= ((Item_singlerow_subselect *)item)->element_index(0);
-  my_decimal cval, *cvalue= cache->val_decimal(&cval);
-  my_decimal mval, *mvalue= maxmin->val_decimal(&mval);
-  if (cache->null_value || maxmin->null_value)
-    return (ignore_nulls) ? !(cache->null_value) : !(maxmin->null_value);
-  return (fmax) 
-    ? (my_decimal_cmp(cvalue,mvalue) > 0)
-    : (my_decimal_cmp(cvalue,mvalue) < 0);
-}
-
-/**
-  Compare two strings for MAX or MIN.
-
-  @see select_max_min_finder_subselect::cmp_real()
-*/
-bool select_max_min_finder_subselect::cmp_str()
-{
-  String *val1, *val2, buf1, buf2;
-  Item *maxmin= ((Item_singlerow_subselect *)item)->element_index(0);
-  /*
-    as far as both operand is Item_cache buf1 & buf2 will not be used,
-    but added for safety
-  */
-  val1= cache->val_str(&buf1);
-  val2= maxmin->val_str(&buf1);
-  if (cache->null_value || maxmin->null_value)
-    return (ignore_nulls) ? !(cache->null_value) : !(maxmin->null_value);
-  return (fmax) 
-    ? (sortcmp(val1, val2, cache->collation.collation) > 0)
-    : (sortcmp(val1, val2, cache->collation.collation) < 0);
-}
-
-bool select_exists_subselect::send_data(List<Item> &items)
-{
-  DBUG_ENTER("select_exists_subselect::send_data");
-  Item_exists_subselect *it= (Item_exists_subselect *)item;
-  if (unit->offset_limit_cnt)
-  {				          // Using limit offset,count
-    unit->offset_limit_cnt--;
-    DBUG_RETURN(0);
-  }
-  /*
-    A subquery may be evaluated 1) by executing the JOIN 2) by optimized
-    functions (index_subquery, subquery materialization).
-    It's only in (1) that we get here when we find a row. In (2) "value" is
-    set elsewhere.
-  */
-  it->value= 1;
-  it->assigned(true);
-  DBUG_RETURN(0);
 }
 
 

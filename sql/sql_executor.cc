@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,22 +24,19 @@
   @{
 */
 
-#include "sql_select.h"
 #include "sql_executor.h"
-#include "sql_optimizer.h"
-#include "sql_join_buffer.h"
-#include "opt_trace.h"
-#include "sql_test.h"
-#include "sql_base.h"
-#include "key.h"
-#include "sql_derived.h"
-#include "sql_show.h"
-#include "filesort.h"
-#include "sql_tmp_table.h"
-#include "records.h"          // rr_sequential
-#include "opt_explain_format.h" // Explain_format_flags
-#include "debug_sync.h"
-#include "log.h"
+
+#include "debug_sync.h"       // DEBUG_SYNC
+#include "item_sum.h"         // Item_sum
+#include "key.h"              // key_cmp
+#include "log.h"              // sql_print_error
+#include "opt_trace.h"        // Opt_trace_object
+#include "sql_base.h"         // fill_record
+#include "sql_derived.h"      // mysql_derived_materialize
+#include "sql_join_buffer.h"  // st_cache_field
+#include "sql_optimizer.h"    // JOIN
+#include "sql_show.h"         // get_schema_tables_result
+#include "sql_tmp_table.h"    // create_tmp_table
 
 #include <algorithm>
 using std::max;

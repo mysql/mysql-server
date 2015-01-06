@@ -1418,17 +1418,23 @@ ST_CONTAINS(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT('POINT(30 30)'))
 SELECT ST_CONTAINS(g,GEOMFROMTEXT(@star_top)) FROM gis_geometrycollection WHERE fid=115;
 ST_CONTAINS(g,GEOMFROMTEXT(@star_top))
 0
+SELECT ST_CONTAINS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(0 0,2 2),POINT(4 4))'),ST_GEOMFROMTEXT('POINT(4 4)'));
+ST_CONTAINS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(0 0,2 2),POINT(4 4))'),ST_GEOMFROMTEXT('POINT(4 4)'))
+1
+SELECT ST_CONTAINS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0)),POINT(4 4))'),ST_GEOMFROMTEXT('POINT(5 5)'));
+ST_CONTAINS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0)),POINT(4 4))'),ST_GEOMFROMTEXT('POINT(5 5)'))
+1
 #-------------------------------------------------------------------------------------------
 # geometrycollection,multipoint
 SELECT ST_CONTAINS(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star_bottom_points));
 ST_CONTAINS(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star_bottom_points))
-0
+1
 SELECT ST_CONTAINS(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT('MULTIPOINT(30 30,0 35)'));
 ST_CONTAINS(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT('MULTIPOINT(30 30,0 35)'))
 0
 SELECT ST_CONTAINS(g,GEOMFROMTEXT(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=115;
 ST_CONTAINS(g,GEOMFROMTEXT(@star_bottom_points))
-0
+1
 #-------------------------------------------------------------------------------------------
 # geometrycollection,linestring
 SELECT ST_CONTAINS(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star_top_to_center));

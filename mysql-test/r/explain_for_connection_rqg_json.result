@@ -87,7 +87,7 @@ Diff: EXPLAIN NORMAL vs OTHER
 -                "attached_condition": "<if>(is_not_null_compl(sq3_alias2..sq3_alias3), (`test`.`sq3_alias1`.`col_int_key` > (/* select#5 */ select count(distinct `test`.`c_sq1_alias1`.`col_int_nokey`) AS `c_sq1_field1` from `test`.`d` `c_sq1_alias1` where (`test`.`c_sq1_alias1`.`col_int_nokey` <> `test`.`c_sq1_alias1`.`pk`))), true)",
                  "attached_subqueries": [
 @@ -202,2 +202,3 @@
-                         "filtered": 99,
+                         "filtered": 90,
 +                        "using_where": true,
                          "cost_info": {
 @@ -211,4 +212,3 @@
@@ -197,7 +197,7 @@ Diff: EXPLAIN NORMAL vs OTHER
 -              "attached_condition": "<not>((`test`.`alias2`.`pk` >= (/* select#2 */ select min(`test`.`sq1_alias2`.`pk`) from `test`.`c` `sq1_alias1` join `test`.`cc` `sq1_alias2` where (`test`.`sq1_alias1`.`col_varchar_nokey` <> (/* select#3 */ select count(`test`.`c_sq1_alias1`.`col_varchar_key`) AS `c_sq1_field1` from `test`.`cc` `c_sq1_alias2` join `test`.`b` `c_sq1_alias3` join `test`.`cc` `c_sq1_alias1` where ((`test`.`c_sq1_alias2`.`col_varchar_key` = `test`.`c_sq1_alias3`.`col_varchar_nokey`) and (`test`.`c_sq1_alias2`.`pk` = `test`.`c_sq1_alias3`.`pk`) and (`test`.`c_sq1_alias1`.`col_varchar_key` < 'm')))))))",
                "attached_subqueries": [
 @@ -53,2 +53,3 @@
-                           "filtered": 95,
+                           "filtered": 90,
 +                          "using_where": true,
                            "cost_info": {
 @@ -62,3 +63,2 @@
@@ -278,7 +278,7 @@ SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
 @@ -5,3 +5,3 @@
      "cost_info": {
--      "query_cost": "19.00"
+-      "query_cost": "20.50"
 +      "query_cost": "47.50"
      },
 @@ -18,2 +18,3 @@
@@ -300,7 +300,7 @@ Diff: EXPLAIN NORMAL vs OTHER
 +                        ]
                        }
 @@ -117,2 +117,3 @@
-                   "filtered": 5,
+                   "filtered": 10,
 +                  "using_where": true,
                    "cost_info": {
 @@ -135,4 +136,3 @@
@@ -321,18 +321,18 @@ Diff: EXPLAIN NORMAL vs OTHER
                            }
 @@ -223,4 +223,5 @@
              "rows_examined_per_scan": 20,
--            "rows_produced_per_join": 1,
--            "filtered": 5,
+-            "rows_produced_per_join": 3,
+-            "filtered": 10,
 +            "rows_produced_per_join": 30,
 +            "filtered": 100,
 +            "using_where": true,
              "using_join_buffer": "Block Nested Loop",
 @@ -228,5 +229,5 @@
                "read_cost": "1.00",
--              "eval_cost": "0.30",
+-              "eval_cost": "0.60",
 +              "eval_cost": "6.00",
                "prefix_cost": "17.50",
--              "data_read_per_join": "72"
+-              "data_read_per_join": "144"
 +              "data_read_per_join": "1K"
              },
 @@ -238,3 +239,2 @@
@@ -428,7 +428,7 @@ STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
 @@ -24,2 +24,3 @@
-             "filtered": 5,
+             "filtered": 10,
 +            "using_where": true,
              "cost_info": {
 @@ -35,4 +36,3 @@
@@ -451,7 +451,7 @@ Diff: EXPLAIN NORMAL vs OTHER
 +            ],
 +            "key_length": "5",
 +            "rows_examined_per_scan": 8,
-             "rows_produced_per_join": 6,
+             "rows_produced_per_join": 13,
 @@ -50,2 +55,3 @@
              "range_checked_for_each_record": "index map: 0x2",
 +            "using_index": true,
@@ -566,7 +566,7 @@ Diff: EXPLAIN NORMAL vs OTHER
 +                                  ]
                                  }
 @@ -140,2 +140,3 @@
-                           "filtered": 5,
+                           "filtered": 10,
 +                          "using_where": true,
                            "using_join_buffer": "Block Nested Loop",
 @@ -150,4 +151,3 @@
@@ -620,7 +620,7 @@ STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
 @@ -102,2 +102,3 @@
-                         "filtered": 33.997,
+                         "filtered": 39.997,
 +                        "using_where": true,
                          "cost_info": {
 @@ -112,4 +113,3 @@
@@ -654,7 +654,7 @@ Diff: EXPLAIN NORMAL vs OTHER
 +                      ]
                      }
 @@ -106,2 +106,3 @@
-                       "filtered": 5,
+                       "filtered": 10,
 +                      "using_where": true,
                        "cost_info": {
 @@ -115,4 +116,3 @@
@@ -714,7 +714,7 @@ Diff: EXPLAIN NORMAL vs OTHER
 +                        ]
                        }
 @@ -166,2 +166,3 @@
-                         "filtered": 31.663,
+                         "filtered": 29.997,
 +                        "using_where": true,
                          "cost_info": {
 @@ -175,4 +176,3 @@
@@ -1040,32 +1040,12 @@ QUERY: SELECT    alias1.col_varchar_key AS field1 FROM ( ( SELECT   sq1_alias1.*
 STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
-@@ -35,4 +35,5 @@
-             "rows_examined_per_scan": 133,
--            "rows_produced_per_join": 1,
--            "filtered": 0.0376,
-+            "rows_produced_per_join": 20,
-+            "filtered": 0.7519,
-+            "using_where": true,
-             "using_join_buffer": "Block Nested Loop",
-@@ -40,5 +41,5 @@
-               "read_cost": "43.08",
--              "eval_cost": "0.20",
-+              "eval_cost": "4.00",
-               "prefix_cost": "52.08",
--              "data_read_per_join": "48"
-+              "data_read_per_join": "960"
-             },
-@@ -57,3 +58,2 @@
-             ],
--            "attached_condition": "((`alias1`.`col_varchar_key` = `test`.`alias2`.`col_varchar_nokey`) and (`alias1`.`col_int_key` = 108))",
-             "materialized_from_subquery": {
-@@ -89,3 +89,3 @@
+@@ -79,3 +79,3 @@
                        "table_name": "cc",
 -                      "access_type": "ALL",
 +                      "access_type": "range",
                        "possible_keys": [
-@@ -93,3 +93,8 @@
+@@ -83,3 +83,8 @@
                        ],
 -                      "rows_examined_per_scan": 20,
 +                      "key": "PRIMARY",
@@ -1075,12 +1055,34 @@ Diff: EXPLAIN NORMAL vs OTHER
 +                      "key_length": "4",
 +                      "rows_examined_per_scan": 1,
                        "rows_produced_per_join": 133,
+@@ -118,4 +123,5 @@
+             "rows_examined_per_scan": 20,
+-            "rows_produced_per_join": 22,
+-            "filtered": 10,
++            "rows_produced_per_join": 220,
++            "filtered": 100,
++            "using_where": true,
+             "using_join_buffer": "Block Nested Loop",
+@@ -123,5 +129,5 @@
+               "read_cost": "1.00",
+-              "eval_cost": "4.40",
++              "eval_cost": "44.00",
+               "prefix_cost": "58.43",
+-              "data_read_per_join": "1K"
++              "data_read_per_join": "10K"
+             },
+@@ -130,4 +136,3 @@
+               "col_varchar_nokey"
+-            ],
+-            "attached_condition": "(`test`.`alias2`.`col_varchar_nokey` = `alias1`.`col_varchar_key`)"
++            ]
+           }
 QUERY: SELECT    table2.pk AS field1 FROM ( ( SELECT   subquery1_t1.* FROM ( cc AS subquery1_t1 INNER JOIN c AS subquery1_t2 ON (subquery1_t2.col_varchar_key = subquery1_t1.col_varchar_key  ) ) WHERE (  NOT EXISTS (SELECT   child_subquery1_t2.col_varchar_nokey AS child_subquery1_field1 FROM ( cc AS child_subquery1_t1 INNER JOIN c AS child_subquery1_t2 ON (child_subquery1_t2.pk = child_subquery1_t1.pk ) ) WHERE child_subquery1_t2.col_int_nokey <> subquery1_t1.pk ) OR subquery1_t2.col_varchar_key >= 'c' ) ) AS table1 INNER JOIN cc AS table2 ON (table2.col_int_nokey = table1.col_int_key  ) ) WHERE (  table2.col_varchar_key > (SELECT 'r' FROM dummy ) ) AND table1.col_int_key = 104 ORDER BY table1.col_time_key ASC /*+JavaDB:Postgres: NULLS FIRST */ , field1 /*+JavaDB:Postgres: NULLS FIRST */ LIMIT 1
 STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
 @@ -26,2 +26,3 @@
-             "filtered": 5,
+             "filtered": 10,
 +            "using_where": true,
              "cost_info": {
 @@ -37,3 +38,2 @@
@@ -1096,7 +1098,7 @@ Diff: EXPLAIN NORMAL vs OTHER
 -                      "attached_condition": "(((not(exists(/* select#3 */ select `test`.`child_subquery1_t2`.`col_varchar_nokey` AS `child_subquery1_field1` from `test`.`cc` `child_subquery1_t1` join `test`.`c` `child_subquery1_t2` where ((`test`.`child_subquery1_t1`.`pk` = `test`.`child_subquery1_t2`.`pk`) and (`test`.`child_subquery1_t2`.`col_int_nokey` <> `test`.`subquery1_t1`.`pk`))))) or (`test`.`subquery1_t1`.`col_varchar_key` >= 'c')) and (`test`.`subquery1_t1`.`col_varchar_key` is not null))",
                        "attached_subqueries": [
 @@ -162,2 +162,3 @@
-                                   "filtered": 95,
+                                   "filtered": 90,
 +                                  "using_where": true,
                                    "cost_info": {
 @@ -172,4 +173,3 @@
@@ -1198,7 +1200,7 @@ Diff: EXPLAIN NORMAL vs OTHER
 -          "attached_condition": "<if>(found_match(alias2), <nop>(<in_optimizer>(`alias1`.`col_varchar_nokey`,<exists>(/* select#3 */ select 1 from `test`.`cc` `sq2_alias1` where ((`test`.`sq2_alias1`.`col_varchar_nokey` <> `test`.`alias2`.`col_varchar_key`) and (`test`.`sq2_alias1`.`col_varchar_nokey` <> `test`.`alias2`.`col_varchar_nokey`) and <if>(outer_field_is_not_null, ((<cache>(`alias1`.`col_varchar_nokey`) >= `test`.`sq2_alias1`.`col_varchar_key`) or isnull(`test`.`sq2_alias1`.`col_varchar_key`)), true)) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`sq2_alias1`.`col_varchar_key`), true)))), true)",
            "attached_subqueries": [
 @@ -149,2 +149,3 @@
-                   "filtered": 90.25,
+                   "filtered": 81,
 +                  "using_where": true,
                    "cost_info": {
 @@ -158,4 +159,3 @@
@@ -1254,7 +1256,7 @@ STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
 @@ -18,2 +18,3 @@
-             "filtered": 49.506,
+             "filtered": 59.999,
 +            "using_where": true,
              "cost_info": {
 @@ -37,3 +38,2 @@
@@ -1290,7 +1292,7 @@ Diff: EXPLAIN NORMAL vs OTHER
 +                                  ]
                                  }
 @@ -213,2 +213,3 @@
-                                   "filtered": 5,
+                                   "filtered": 10,
 +                                  "using_where": true,
                                    "cost_info": {
 @@ -222,4 +223,3 @@

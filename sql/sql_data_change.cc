@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,7 +23,9 @@
 */
 
 #include "sql_data_change.h"
-#include "sql_class.h"
+
+#include "sql_class.h"  // THD
+#include "table.h"      // TABLE
 
 /**
    Allocates and initializes a MY_BITMAP bitmap, containing one bit per column

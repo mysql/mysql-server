@@ -1158,7 +1158,7 @@ SELECT ST_GEOHASH((CAST(10 AS BINARY)),(CAST(20 AS BINARY)),1);
 ERROR HY000: Incorrect type for argument longitude in function st_geohash.
 SELECT ST_GEOHASH(ST_INTERSECTION(GeomFromText('POINT(180 90)'),GeomFromText('POINT(1 1)')),20);
 ERROR HY000: Incorrect type for argument point in function st_geohash.
-SELECT ST_GEOHASH(ST_UNION(GeomFromText('POINT(180 90)'),GeomFromText('GEOMETRYCOLLECTION()')),20);
+SELECT ST_GEOHASH(ST_UNION(GeomFromText('POINT(180 90)'),GeomFromText('POINT(-180 -90)')),20);
 ERROR HY000: Incorrect type for argument point in function st_geohash.
 SELECT ST_GEOHASH(ST_DIFFERENCE(GeomFromText('POINT(180 90)'),GeomFromText('MULTIPOINT(0 0,180 90)')),20);
 ERROR HY000: Incorrect type for argument point in function st_geohash.

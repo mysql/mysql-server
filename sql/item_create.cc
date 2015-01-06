@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,19 +21,19 @@
   Functions to create an item. Used by sql_yac.yy
 */
 
-/*
-  It is necessary to include set_var.h instead of item.h because there
-  are dependencies on include order for set_var.h and item.h. This
-  will be resolved later.
-*/
-#include "sql_class.h"                          // set_var.h: THD
-#include "set_var.h"
-#include "sp_head.h"
-#include "sp.h"
-#include "item_inetfunc.h"
-#include "item_geofunc.h"
-#include "sql_time.h"
-#include "parse_tree_helpers.h"
+#include "item_create.h"
+
+#include "item_cmpfunc.h"        // Item_func_any_value
+#include "item_func.h"           // Item_func_udf_str
+#include "item_geofunc.h"        // Item_func_area
+#include "item_inetfunc.h"       // Item_func_inet_ntoa
+#include "item_strfunc.h"        // Item_func_aes_encrypt
+#include "item_sum.h"            // Item_sum_udf_str
+#include "item_timefunc.h"       // Item_func_add_time
+#include "item_xmlfunc.h"        // Item_func_xml_extractvalue
+#include "parse_tree_helpers.h"  // PT_item_list
+#include "sql_class.h"           // THD
+#include "sql_time.h"            // str_to_datetime
 
 /*
 =============================================================================

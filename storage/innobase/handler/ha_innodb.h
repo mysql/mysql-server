@@ -370,6 +370,9 @@ private:
 	doesn't give any clue that it is called at the end of a statement. */
 	int end_stmt();
 
+	/** Write Row Interface optimized for Intrinsic table. */
+	int intrinsic_table_write_row(uchar* record);
+
 public:
 	/** @name Multi Range Read interface @{ */
 
@@ -784,3 +787,4 @@ void
 innobase_copy_frm_flags_from_table_share(
 	dict_table_t*		innodb_table,	/*!< in/out: InnoDB table */
 	const TABLE_SHARE*	table_share);	/*!< in: table share */
+

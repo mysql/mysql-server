@@ -1192,6 +1192,50 @@ WHERE
 ORDER BY field1,field2 DESC;
 
 DROP TABLE t1,t2;
+
+--echo #
+--echo # BUG#19191377: WL#6737: NOT NULL COLUMN IS BEING PROJECTED
+--echo #              AS NULLABLE IN TEMPORARY TABLES.
+--echo #
+CREATE TABLE t1(f1 INT NOT NULL);
+INSERT INTO t1 VALUES (16777214), (0);
+SELECT COUNT(*) FROM t1 LEFT JOIN t1 t2 ON 1 WHERE t2.f1 > 1 GROUP BY t2.f1;
+DROP TABLE t1;
+
+--echo #
+--echo # BUG#20059644: WL#6737: CRASH AT OPERATOR<< IN DICT/DICT0MEM.CC 
+--echo #
+CREATE TABLE C (
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  col_varchar_key varchar(1) NOT NULL,
+  col_varchar_nokey varchar(1) NOT NULL,
+  PRIMARY KEY (pk),
+  KEY col_varchar_key (col_varchar_key)
+);
+INSERT INTO C VALUES (7,'y','y');
+
+CREATE TABLE CC (
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  col_varchar_key varchar(1) NOT NULL,
+  col_varchar_nokey varchar(1) NOT NULL,
+  PRIMARY KEY (pk),
+  KEY col_varchar_key (col_varchar_key)
+);
+INSERT INTO CC VALUES (13,'y','y');
+
+SELECT
+DISTINCT CONCAT( table2 . col_varchar_key , table1 . col_varchar_key )
+AS field1
+FROM
+( CC AS table1 RIGHT OUTER JOIN C AS table2 ON (table2 . col_varchar_key =
+table1 . col_varchar_nokey  ) )
+WHERE
+(
+table1 . pk = 13
+)
+ORDER BY field1 , field1;
+
+DROP TABLE C,CC;
 #============================end && cleanup======================= 
 set @@global.internal_tmp_disk_storage_engine= @old_internal_tmp_disk_storage_engine;
 set big_tables= @old_big_tables;

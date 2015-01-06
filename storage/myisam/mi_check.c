@@ -872,10 +872,8 @@ static int chk_index(MI_CHECK *param, MI_INFO *info, MI_KEYDEF *keyinfo,
                 llstr(page,llbuff), used_length, (keypos - buff));
     goto err;
   }
-  my_afree((uchar*) temp_buff);
   DBUG_RETURN(0);
  err:
-  my_afree((uchar*) temp_buff);
   DBUG_RETURN(1);
 } /* chk_index */
 
@@ -2109,10 +2107,8 @@ static int sort_one_index(MI_CHECK *param, MI_INFO *info, MI_KEYDEF *keyinfo,
     mi_check_print_error(param,"Can't write indexblock, error: %d",my_errno);
     goto err;
   }
-  my_afree((uchar*) buff);
   DBUG_RETURN(0);
 err:
-  my_afree((uchar*) buff);
   DBUG_RETURN(1);
 } /* sort_one_index */
 
@@ -4220,22 +4216,16 @@ int recreate_table(MI_CHECK *param, MI_INFO **org_info, char *filename)
   if (!(keysegs=(HA_KEYSEG*) my_alloca(sizeof(HA_KEYSEG)*
 				       (key_parts+share.base.keys))))
   {
-    my_afree((uchar*) keyinfo);
     DBUG_RETURN(1);
   }
   if (!(recdef=(MI_COLUMNDEF*)
 	my_alloca(sizeof(MI_COLUMNDEF)*(share.base.fields+1))))
   {
-    my_afree((uchar*) keyinfo);
-    my_afree((uchar*) keysegs);
     DBUG_RETURN(1);
   }
   if (!(uniquedef=(MI_UNIQUEDEF*)
 	my_alloca(sizeof(MI_UNIQUEDEF)*(share.state.header.uniques+1))))
   {
-    my_afree((uchar*) recdef);
-    my_afree((uchar*) keyinfo);
-    my_afree((uchar*) keysegs);
     DBUG_RETURN(1);
   }
 
@@ -4353,10 +4343,6 @@ int recreate_table(MI_CHECK *param, MI_INFO **org_info, char *filename)
     goto end;
   error=0;
 end:
-  my_afree((uchar*) uniquedef);
-  my_afree((uchar*) keyinfo);
-  my_afree((uchar*) recdef);
-  my_afree((uchar*) keysegs);
   DBUG_RETURN(error);
 }
 

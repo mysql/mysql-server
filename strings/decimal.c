@@ -1488,7 +1488,6 @@ int bin2decimal(const uchar *from, decimal_t *to, int precision, int scale)
       goto err;
     buf++;
   }
-  my_afree(d_copy);
 
   /*
     No digits? We have read the number zero, of unspecified precision.
@@ -1499,7 +1498,6 @@ int bin2decimal(const uchar *from, decimal_t *to, int precision, int scale)
   return error;
 
 err:
-  my_afree(d_copy);
   decimal_make_zero(to);
   return(E_DEC_BAD_NUM);
 }
@@ -2490,7 +2488,6 @@ static int do_div_mod(const decimal_t *from1, const decimal_t *from2,
         *buf0++=*start1++;
   }
 done:
-  my_afree(tmp1);
   tmp1= remove_leading_zeroes(to, &to->intg);
   if(to->buf != tmp1)
     memmove(to->buf, tmp1,

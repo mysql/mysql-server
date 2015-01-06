@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -32,6 +32,7 @@
 #include "discover.h"       // readfrm
 #include "auth_common.h"    // wild_case_compare
 #include "transaction.h"
+#include "item_cmpfunc.h"   // Item_func_like
 #include "sql_test.h"       // print_where
 #include "key.h"            // key_restore
 #include "rpl_constants.h"  // Transid in Binlog

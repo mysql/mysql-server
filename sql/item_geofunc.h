@@ -1,7 +1,7 @@
 #ifndef ITEM_GEOFUNC_INCLUDED
 #define ITEM_GEOFUNC_INCLUDED
 
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,13 +18,14 @@
 
 
 /* This file defines all spatial functions */
-
-#include "gcalc_slicescan.h"
-#include <vector>
-#include <list>
-#include <set>
 #include "inplace_vector.h"
+#include "item_cmpfunc.h"      // Item_bool_func2
 #include "prealloced_array.h"
+#include "spatial.h"           // gis_wkb_raw_free
+#include "item_strfunc.h"      // Item_str_func
+
+#include <vector>
+#include <set>
 #include <rapidjson/document.h>
 
 /**
@@ -110,17 +111,40 @@ class Item_func_spatial_operation;
  */
 class BG_geometry_collection
 {
+  bool comp_no_overlapped;
+  Geometry::srid_t m_srid;
   size_t m_num_isolated;
-  std::list<Geometry*> m_geos;
+  std::vector<Geometry*> m_geos;
   Inplace_vector<Geometry_buffer> m_geobufs;
   Inplace_vector<String> m_geosdata;
 public:
-  typedef std::list<Geometry *> Geometry_list;
+  typedef std::vector<Geometry *> Geometry_list;
 
   BG_geometry_collection()
-    :m_num_isolated(0), m_geobufs(key_memory_Geometry_objects_data),
+    :comp_no_overlapped(false), m_srid(0), m_num_isolated(0),
+    m_geobufs(key_memory_Geometry_objects_data),
     m_geosdata(key_memory_Geometry_objects_data)
   {}
+
+  bool is_comp_no_overlapped() const
+  {
+    return comp_no_overlapped;
+  }
+
+  void set_comp_no_overlapped(bool b)
+  {
+    comp_no_overlapped= b;
+  }
+
+  Geometry::srid_t get_srid() const
+  {
+    return m_srid;
+  }
+
+  void set_srid(Geometry::srid_t srid)
+  {
+    m_srid= srid;
+  }
 
   bool fill(const Geometry *geo)
   {
@@ -149,8 +173,7 @@ public:
 
   Gis_geometry_collection *as_geometry_collection(String *geodata) const;
   template<typename Coord_type, typename Coordsys>
-  void merge_components(Item_func_spatial_operation *ifso,
-                        bool *pdone, my_bool *pnull_value);
+  void merge_components(bool *pdone, my_bool *pnull_value);
 private:
   template<typename Coord_type, typename Coordsys>
   bool merge_one_run(Item_func_spatial_operation *ifso,
@@ -680,10 +703,11 @@ protected:
   template<typename Coord_type, typename Coordsys>
   Geometry *combine_sub_results(Geometry *g1, Geometry *g2, String *result);
 
-  Geometry *empty_result(String *str, uint32 srid);
   template<typename Coord_type, typename Coordsys>
   Geometry *geometry_collection_set_operation(Geometry *g1, Geometry *g2,
                                               String *result, bool *);
+
+  Geometry *empty_result(String *str, uint32 srid);
 
   Gcalc_function::op_type spatial_op;
   Gcalc_heap collector;
@@ -709,16 +733,20 @@ protected:
   Geometry *symdifference_operation(Geometry *g1, Geometry *g2,
                                     String *result, bool *opdone);
   template<typename Coord_type, typename Coordsys>
-  Geometry *geocol_symdifference(Geometry *g1, Geometry *g2,
+  Geometry *geocol_symdifference(const BG_geometry_collection &bggc1,
+                                 const BG_geometry_collection &bggc2,
                                  String *result, bool *opdone);
   template<typename Coord_type, typename Coordsys>
-  Geometry *geocol_difference(Geometry *g1, Geometry *g2,
+  Geometry *geocol_difference(const BG_geometry_collection &bggc1,
+                              const BG_geometry_collection &bggc2,
                               String *result, bool *opdone);
   template<typename Coord_type, typename Coordsys>
-  Geometry *geocol_intersection(Geometry *g1, Geometry *g2,
+  Geometry *geocol_intersection(const BG_geometry_collection &bggc1,
+                                const BG_geometry_collection &bggc2,
                                 String *result, bool *opdone);
   template<typename Coord_type, typename Coordsys>
-  Geometry *geocol_union(Geometry *g1, Geometry *g2,
+  Geometry *geocol_union(const BG_geometry_collection &bggc1,
+                         const BG_geometry_collection &bggc2,
                          String *result, bool *opdone);
 public:
   Item_func_spatial_operation(const POS &pos, Item *a, Item *b,

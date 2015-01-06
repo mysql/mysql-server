@@ -20,6 +20,7 @@
 #include <mysql/plugin.h>
 #include <m_ctype.h>
 
+
 static long number_of_calls= 0; /* for SHOW STATUS, see below */
 
 /*
@@ -147,9 +148,9 @@ static int simple_parser_deinit(MYSQL_FTPARSER_PARAM *param
 static void add_word(MYSQL_FTPARSER_PARAM *param, char *word, size_t len)
 {
   MYSQL_FTPARSER_BOOLEAN_INFO bool_info=
-    { FT_TOKEN_WORD, 0, 0, 0, 0, (int)(word - param->doc), ' ', 0 };
+    { FT_TOKEN_WORD, 0, 0, 0, 0, (word - param->doc), ' ', 0 };
 
-  param->mysql_add_word(param, word, (int)len, &bool_info);
+  param->mysql_add_word(param, word, len, &bool_info);
 }
 
 /*
@@ -164,6 +165,10 @@ static void add_word(MYSQL_FTPARSER_PARAM *param, char *word, size_t len)
     a document or a search query. The call mode is set in
     param->mode.  This function simply splits the text into words
     and passes every word to the MySQL full-text indexing engine.
+
+  RETURN VALUE
+    0                    success
+    1                    failure (cannot happen)
 */
 
 static int simple_parser_parse(MYSQL_FTPARSER_PARAM *param)

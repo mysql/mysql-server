@@ -3811,9 +3811,9 @@ static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
   DBUG_EXECUTE_IF("simulate_sql_slave_error_on_init",
                   simulate_error|= (1 << SLAVE_THD_SQL););
 #if !defined(DBUG_OFF)
-  if (init_thr_lock() || thd->store_globals() || simulate_error & (1<< thd_type))
+  if (thd->store_globals() || simulate_error & (1<< thd_type))
 #else
-  if (init_thr_lock() || thd->store_globals())
+  if (thd->store_globals())
 #endif
   {
     DBUG_RETURN(-1);

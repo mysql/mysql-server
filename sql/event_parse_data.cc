@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,6 +17,7 @@
 #include "sp_head.h"
 #include "event_parse_data.h"
 #include "sql_time.h"                           // TIME_to_timestamp
+#include "item_timefunc.h"                      // get_interval_value
 
 /*
   Returns a new instance
