@@ -526,7 +526,7 @@ enum_return_status Gtid_set::add_gtid_text(const char *text, bool *anonymous)
         DBUG_PRINT("info", ("expected UUID; found garbage '%.80s' at char %d in '%s'", s, (int)(s - text), text));
         goto parse_error;
       }
-      s += rpl_sid::TEXT_LENGTH;
+      s += binary_log::Uuid::TEXT_LENGTH;
       rpl_sidno sidno= sid_map->add_sid(sid);
       if (sidno <= 0)
       {
@@ -622,7 +622,7 @@ bool Gtid_set::is_valid(const char *text)
     // Parse SID.
     if (!rpl_sid::is_valid(s))
       DBUG_RETURN(false);
-    s += rpl_sid::TEXT_LENGTH;
+    s += binary_log::Uuid::TEXT_LENGTH;
     SKIP_WHITESPACE();
 
     // Iterate over intervals.
@@ -705,12 +705,6 @@ enum_return_status Gtid_set::add_gtid_set(const Gtid_set *other)
   }
   else
   {
-    /*
-      This code is not being used but we will keep it as it may be
-      useful to optimize gtids by avoiding sharing mappings from
-      sid to sidno. For instance, the IO Thread and the SQL Thread
-      may have different mappings in the future.
-    */
     Sid_map *other_sid_map= other->sid_map;
     for (rpl_sidno other_sidno= 1; other_sidno <= max_other_sidno;
          other_sidno++)
@@ -970,7 +964,7 @@ int Gtid_set::get_string_length(const Gtid_set::String_format *sf) const
       if (n_sids > 0)
         cached_string_length+=
           total_interval_length +
-          n_sids * (rpl_sid::TEXT_LENGTH + sf->sid_gno_separator_length) +
+          n_sids * (binary_log::Uuid::TEXT_LENGTH + sf->sid_gno_separator_length) +
           (n_sids - 1) * sf->gno_sid_separator_length +
           (n_intervals - n_sids) * sf->gno_gno_separator_length +
           n_long_intervals * sf->gno_start_end_separator_length;
@@ -1384,7 +1378,7 @@ void Gtid_set::encode(uchar *buf) const
       n_sids++;
       // store SID
       sid_map->sidno_to_sid(sidno).copy_to(buf);
-      buf+= rpl_sid::BYTE_LENGTH;
+      buf+= binary_log::Uuid::BYTE_LENGTH;
       // make place for number of intervals
       uint64 n_intervals= 0;
       uchar *n_intervals_p= buf;

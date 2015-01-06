@@ -136,12 +136,12 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`fld3` AS `fld3` from `test`.`t2` where (`test`.`t2`.`fld3` = 'honeysuckle')
 explain select fld3 from t2 ignore index (fld3) where fld3 = 'honeysuckle';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1199	0.50	Using where
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1199	10.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`fld3` AS `fld3` from `test`.`t2` IGNORE INDEX (`fld3`) where (`test`.`t2`.`fld3` = 'honeysuckle')
 explain select fld3 from t2 use index (fld1) where fld3 = 'honeysuckle';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1199	0.50	Using where
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1199	10.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`fld3` AS `fld3` from `test`.`t2` USE INDEX (`fld1`) where (`test`.`t2`.`fld3` = 'honeysuckle')
 explain select fld3 from t2 use index (fld3) where fld3 = 'honeysuckle';
@@ -593,16 +593,16 @@ boasted	1
 SET BIG_TABLES=0;
 select distinct fld3,repeat("a",length(fld3)),count(*) from t2 group by companynr,fld3 limit 100,10;
 fld3	repeat("a",length(fld3))	count(*)
+chancellor	aaaaaaaaaa	1
+Chippewa	aaaaaaaa	1
+circumference	aaaaaaaaaaaaa	1
 circus	aaaaaa	1
 cited	aaaaa	1
-Colombo	aaaaaaa	1
 congresswoman	aaaaaaaaaaaaa	1
 contrition	aaaaaaaaaa	1
 corny	aaaaa	1
 cultivation	aaaaaaaaaaa	1
 definiteness	aaaaaaaaaaaa	1
-demultiplex	aaaaaaaaaaa	1
-disappointing	aaaaaaaaaaaaa	1
 select distinct companynr,rtrim(space(512+companynr)) from t3 order by 1,2;
 companynr	rtrim(space(512+companynr))
 37	
@@ -616,7 +616,7 @@ select distinct fld3 from t2,t3 where t2.companynr = 34 and t2.fld1=t3.t2nr orde
 fld3
 explain select t3.t2nr,fld3 from t2,t3 where t2.companynr = 34 and t2.fld1=t3.t2nr order by t3.t2nr,fld3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	fld1	NULL	NULL	NULL	1199	0.50	Using where; Using temporary; Using filesort
+1	SIMPLE	t2	NULL	ALL	fld1	NULL	NULL	NULL	1199	10.00	Using where; Using temporary; Using filesort
 1	SIMPLE	t3	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t2.fld1	1	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t3`.`t2nr` AS `t2nr`,`test`.`t2`.`fld3` AS `fld3` from `test`.`t2` join `test`.`t3` where ((`test`.`t2`.`companynr` = 34) and (`test`.`t2`.`fld1` = `test`.`t3`.`t2nr`)) order by `test`.`t3`.`t2nr`,`test`.`t2`.`fld3`
@@ -1386,13 +1386,13 @@ count(*)
 explain select t2.companynr,companyname from t2 left join t4 using (companynr) where t4.companynr is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1200	100.00	NULL
-1	SIMPLE	t4	NULL	ALL	PRIMARY	NULL	NULL	NULL	12	8.33	Using where; Not exists; Using join buffer (Block Nested Loop)
+1	SIMPLE	t4	NULL	ALL	PRIMARY	NULL	NULL	NULL	12	10.00	Using where; Not exists; Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`companynr` AS `companynr`,`test`.`t4`.`companyname` AS `companyname` from `test`.`t2` left join `test`.`t4` on((`test`.`t4`.`companynr` = `test`.`t2`.`companynr`)) where isnull(`test`.`t4`.`companynr`)
 explain select t2.companynr,companyname from t4 left join t2 using (companynr) where t2.companynr is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	12	100.00	NULL
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1200	0.50	Using where; Not exists; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1200	10.00	Using where; Not exists; Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`companynr` AS `companynr`,`test`.`t4`.`companyname` AS `companyname` from `test`.`t4` left join `test`.`t2` on((`test`.`t2`.`companynr` = `test`.`t4`.`companynr`)) where isnull(`test`.`t2`.`companynr`)
 select companynr,companyname from t2 left join t4 using (companynr) where companynr is null;
@@ -1450,7 +1450,7 @@ Note	1003	/* select#1 */ select `test`.`t4`.`companynr` AS `companynr`,`test`.`t
 explain select t2.companynr,companyname from t4 left join t2 using (companynr) where t2.companynr > 0 or t2.companynr is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	12	100.00	NULL
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1199	33.66	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1199	40.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`companynr` AS `companynr`,`test`.`t4`.`companyname` AS `companyname` from `test`.`t4` left join `test`.`t2` on((`test`.`t2`.`companynr` = `test`.`t4`.`companynr`)) where ((`test`.`t2`.`companynr` > 0) or isnull(`test`.`t2`.`companynr`))
 explain select t2.companynr,companyname from t4 left join t2 using (companynr) where t2.companynr > 0 or t2.companynr < 0 or t4.companynr > 0;
@@ -1490,7 +1490,7 @@ companynr	companynr
 explain select distinct t2.companynr,t4.companynr from t2,t4 where t2.companynr=t4.companynr+1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t4	NULL	index	NULL	PRIMARY	1	NULL	12	100.00	Using index; Using temporary
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1199	0.50	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1199	10.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	/* select#1 */ select distinct `test`.`t2`.`companynr` AS `companynr`,`test`.`t4`.`companynr` AS `companynr` from `test`.`t2` join `test`.`t4` where (`test`.`t2`.`companynr` = (`test`.`t4`.`companynr` + 1))
 select t2.fld1,t2.companynr,fld3,period from t3,t2 where t2.fld1 = 38208 and t2.fld1=t3.t2nr and period = 1008 or t2.fld1 = 38008 and t2.fld1 =t3.t2nr and period = 1008;
@@ -1566,7 +1566,7 @@ count(*)	min(fld4)	max(fld4)	sum(fld1)	avg(fld1)	std(fld1)	variance(fld1)
 70	absentee	vest	17788966	254128.0857	3272.5939722090234	10709871.306938833
 explain extended select count(*),min(fld4),max(fld4),sum(fld1),avg(fld1),std(fld1),variance(fld1) from t2 where companynr = 34 and fld4<>"";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1199	0.50	Using where
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1199	9.00	Using where
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select count(0) AS `count(*)`,min(`test`.`t2`.`fld4`) AS `min(fld4)`,max(`test`.`t2`.`fld4`) AS `max(fld4)`,sum(`test`.`t2`.`fld1`) AS `sum(fld1)`,avg(`test`.`t2`.`fld1`) AS `avg(fld1)`,std(`test`.`t2`.`fld1`) AS `std(fld1)`,variance(`test`.`t2`.`fld1`) AS `variance(fld1)` from `test`.`t2` where ((`test`.`t2`.`companynr` = 34) and (`test`.`t2`.`fld4` <> ''))
@@ -3579,7 +3579,7 @@ In next EXPLAIN, B.rows must be exactly 10:
 explain select * from t2 a, t2 b where a.a=5 and a.b=5 and a.c<5
 and b.a=5 and b.b=a.e and (b.b =1 or b.b = 3 or b.b=5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	a	NULL	range	PRIMARY	PRIMARY	12	NULL	4	1.49	Using index condition; Using where; Using MRR
+1	SIMPLE	a	NULL	range	PRIMARY	PRIMARY	12	NULL	4	27.10	Using index condition; Using where; Using MRR
 1	SIMPLE	b	NULL	ref	PRIMARY	PRIMARY	8	const,test.a.e	10	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`a`.`a` AS `a`,`test`.`a`.`b` AS `b`,`test`.`a`.`c` AS `c`,`test`.`a`.`e` AS `e`,`test`.`b`.`a` AS `a`,`test`.`b`.`b` AS `b`,`test`.`b`.`c` AS `c`,`test`.`b`.`e` AS `e` from `test`.`t2` `a` join `test`.`t2` `b` where ((`test`.`b`.`b` = `test`.`a`.`e`) and (`test`.`b`.`a` = 5) and (`test`.`a`.`b` = 5) and (`test`.`a`.`a` = 5) and (`test`.`a`.`c` < 5) and ((`test`.`a`.`e` = 1) or (`test`.`a`.`e` = 3) or (`test`.`a`.`e` = 5)))
@@ -4791,7 +4791,7 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` order by `test`.`t1`.`a`,`test`.`t1`.`b` limit 5
 SELECT * FROM t1 ORDER BY a, b LIMIT 5;
 a	b	c
-		1
+		0
 		2
 		1
 		0
@@ -5208,7 +5208,7 @@ INSERT INTO `cc` VALUES
 EXPLAIN SELECT `varchar_nokey` g1  FROM cc  WHERE `int_nokey` AND `int_key`  <= 4
 HAVING g1  ORDER  BY `varchar_key` LIMIT  6   ;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	cc	NULL	range	int_key	int_key	4	NULL	10	95.00	Using index condition; Using where; Using MRR; Using filesort
+1	SIMPLE	cc	NULL	range	int_key	int_key	4	NULL	10	90.00	Using index condition; Using where; Using MRR; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`cc`.`varchar_nokey` AS `g1` from `test`.`cc` where (`test`.`cc`.`int_nokey` and (`test`.`cc`.`int_key` <= 4)) having `g1` order by `test`.`cc`.`varchar_key` limit 6
 SELECT `varchar_nokey` g1  FROM cc  WHERE `int_nokey` AND `int_key`  <= 4

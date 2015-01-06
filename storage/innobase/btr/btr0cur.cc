@@ -287,21 +287,18 @@ btr_cur_latch_leaves(
 		left_page_no = btr_page_get_prev(page, mtr);
 
 		if (left_page_no != FIL_NULL) {
+
 			if (spatial) {
 				cursor->rtr_info->tree_savepoints[
 					RTR_MAX_LEVELS] = mtr_set_savepoint(mtr);
 			}
+
 			latch_leaves.savepoints[0] = mtr_set_savepoint(mtr);
 			get_block = btr_block_get(
 				page_id_t(page_id.space(), left_page_no),
 				page_size, RW_X_LATCH, cursor->index, mtr);
 			latch_leaves.blocks[0] = get_block;
-#ifdef UNIV_BTR_DEBUG
-			ut_a(page_is_comp(get_block->frame)
-			     == page_is_comp(page));
-			ut_a(btr_page_get_next(get_block->frame, mtr)
-			     == page_get_page_no(page));
-#endif /* UNIV_BTR_DEBUG */
+
 			if (spatial) {
 				cursor->rtr_info->tree_blocks[RTR_MAX_LEVELS]
 					= get_block;
@@ -317,7 +314,16 @@ btr_cur_latch_leaves(
 		get_block = btr_block_get(
 			page_id, page_size, RW_X_LATCH, cursor->index, mtr);
 		latch_leaves.blocks[1] = get_block;
+
 #ifdef UNIV_BTR_DEBUG
+		/* Sanity check only after both the blocks are latched. */
+		if (latch_leaves.blocks[0] != NULL) {
+			ut_a(page_is_comp(latch_leaves.blocks[0]->frame)
+				== page_is_comp(page));
+			ut_a(btr_page_get_next(
+				latch_leaves.blocks[0]->frame, mtr)
+				== page_get_page_no(page));
+		}
 		ut_a(page_is_comp(get_block->frame) == page_is_comp(page));
 #endif /* UNIV_BTR_DEBUG */
 
@@ -3153,7 +3159,7 @@ fail_err:
 
 	DBUG_PRINT("ib_cur", ("insert %s (" IB_ID_FMT ") by " TRX_ID_FMT
 			      ": %s",
-			      index->name, index->id,
+			      index->name(), index->id,
 			      thr != NULL
 			      ? trx_get_id_for_print(thr_get_trx(thr))
 			      : 0,
@@ -3781,7 +3787,7 @@ btr_cur_update_in_place(
 
 	DBUG_PRINT("ib_cur", ("update-in-place %s (" IB_ID_FMT
 			      ") by " TRX_ID_FMT ": %s",
-			      index->name, index->id, trx_id,
+			      index->name(), index->id, trx_id,
 			      rec_printer(rec, offsets).str().c_str()));
 
 	block = btr_cur_get_block(cursor);
@@ -3984,7 +3990,7 @@ any_extern:
 
 	DBUG_PRINT("ib_cur", ("update %s (" IB_ID_FMT ") by " TRX_ID_FMT
 			      ": %s",
-			      index->name, index->id, trx_id,
+			      index->name(), index->id, trx_id,
 			      rec_printer(rec, *offsets).str().c_str()));
 
 	page_cursor = btr_cur_get_page_cur(cursor);
@@ -4021,6 +4027,13 @@ any_extern:
 		}
 
 		rec = page_cur_get_rec(page_cursor);
+	}
+
+	/* We limit max record size to 16k even for 64k page size. */
+	if (new_rec_size >= REC_MAX_DATA_SIZE) {
+		err = DB_OVERFLOW;
+
+		goto func_exit;
 	}
 
 	if (UNIV_UNLIKELY(new_rec_size
@@ -4916,7 +4929,7 @@ btr_cur_del_mark_set_sec_rec(
 			      unsigned(val),
 			      block->page.id.space(), block->page.id.page_no(),
 			      unsigned(page_rec_get_heap_no(rec)),
-			      cursor->index->name, cursor->index->id,
+			      cursor->index->name(), cursor->index->id,
 			      trx_get_id_for_print(thr_get_trx(thr))));
 
 	/* We do not need to reserve btr_search_latch, as the

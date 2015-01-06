@@ -794,7 +794,6 @@ static bool check_top_level_stmt_and_super(sys_var *self, THD *thd, set_var *var
 }
 #endif
 
-#if defined(HAVE_GTID_NEXT_LIST) || defined(HAVE_REPLICATION)
 static bool check_outside_transaction(sys_var *self, THD *thd, set_var *var)
 {
   if (thd->in_active_multi_stmt_transaction())
@@ -804,6 +803,7 @@ static bool check_outside_transaction(sys_var *self, THD *thd, set_var *var)
   }
   return false;
 }
+#if defined(HAVE_GTID_NEXT_LIST) || defined(HAVE_REPLICATION)
 static bool check_outside_sp(sys_var *self, THD *thd, set_var *var)
 {
   if (thd->lex->sphead)
@@ -930,6 +930,25 @@ static Sys_var_enum Sys_binlog_row_image(
        binlog_row_image_names, DEFAULT(BINLOG_ROW_IMAGE_FULL),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(NULL),
        ON_UPDATE(NULL));
+
+static bool on_session_track_gtids_update(sys_var *self, THD *thd,
+                                          enum_var_type type)
+{
+  thd->session_tracker.get_tracker(SESSION_GTIDS_TRACKER)->update(thd);
+  return false;
+}
+
+static const char *session_track_gtids_names[]=
+  { "OFF", "OWN_GTID", "ALL_GTIDS", NullS };
+static Sys_var_enum Sys_session_track_gtids(
+       "session_track_gtids",
+       "Controls the amount of global transaction ids to be "
+       "included in the response packet sent by the server."
+       "(Default: OFF).",
+       SESSION_VAR(session_track_gtids), CMD_LINE(REQUIRED_ARG),
+       session_track_gtids_names, DEFAULT(OFF),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_outside_transaction),
+       ON_UPDATE(on_session_track_gtids_update));
 
 static bool binlog_direct_check(sys_var *self, THD *thd, set_var *var)
 {
@@ -1207,12 +1226,21 @@ static bool check_charset_db(sys_var *self, THD *thd, set_var *var)
     var->save_result.ptr= thd->db_charset;
   return false;
 }
+static bool update_deprecated(sys_var *self, THD *thd, enum_var_type type)
+{
+  push_warning_printf(thd, Sql_condition::SL_WARNING,
+                      ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,
+                      ER_THD(thd, ER_WARN_DEPRECATED_SYSVAR_UPDATE),
+                      self->name.str);
+  return false;
+}
 static Sys_var_struct Sys_character_set_database(
        "character_set_database",
        " The character set used by the default database",
        SESSION_VAR(collation_database), NO_CMD_LINE,
        offsetof(CHARSET_INFO, csname), DEFAULT(&default_charset_info),
-       NO_MUTEX_GUARD, IN_BINLOG, ON_CHECK(check_charset_db));
+       NO_MUTEX_GUARD, IN_BINLOG, ON_CHECK(check_charset_db),
+       ON_UPDATE(update_deprecated));
 
 static bool check_cs_client(sys_var *self, THD *thd, set_var *var)
 {
@@ -1322,7 +1350,8 @@ static Sys_var_struct Sys_collation_database(
        "character set",
        SESSION_VAR(collation_database), NO_CMD_LINE,
        offsetof(CHARSET_INFO, name), DEFAULT(&default_charset_info),
-       NO_MUTEX_GUARD, IN_BINLOG, ON_CHECK(check_collation_db));
+       NO_MUTEX_GUARD, IN_BINLOG, ON_CHECK(check_collation_db),
+       ON_UPDATE(update_deprecated));
 
 static Sys_var_struct Sys_collation_server(
        "collation_server", "The server default collation",
@@ -1818,7 +1847,7 @@ static Sys_var_enum Sys_log_timestamps(
        "This affects only log files, not log tables, as the timestamp columns "
        "of the latter can be converted at will.",
        GLOBAL_VAR(opt_log_timestamps),
-       CMD_LINE(REQUIRED_ARG, OPT_BINLOG_FORMAT),
+       CMD_LINE(REQUIRED_ARG),
        timestamp_type_names, DEFAULT(0),
        NO_MUTEX_GUARD, NOT_IN_BINLOG);
 
@@ -3078,7 +3107,7 @@ bool Sys_var_enum_binlog_checksum::global_update(THD *thd, set_var *var)
       mysql_bin_log.checksum_alg_reset= (uint8) var->save_result.ulonglong_value;
     mysql_bin_log.rotate(true, &check_purge);
     if (alg_changed)
-      mysql_bin_log.checksum_alg_reset= BINLOG_CHECKSUM_ALG_UNDEF; // done
+      mysql_bin_log.checksum_alg_reset= binary_log::BINLOG_CHECKSUM_ALG_UNDEF; // done
   }
   else
   {
@@ -3086,7 +3115,8 @@ bool Sys_var_enum_binlog_checksum::global_update(THD *thd, set_var *var)
       static_cast<ulong>(var->save_result.ulonglong_value);
   }
   DBUG_ASSERT((ulong) binlog_checksum_options == var->save_result.ulonglong_value);
-  DBUG_ASSERT(mysql_bin_log.checksum_alg_reset == BINLOG_CHECKSUM_ALG_UNDEF);
+  DBUG_ASSERT(mysql_bin_log.checksum_alg_reset ==
+              binary_log::BINLOG_CHECKSUM_ALG_UNDEF);
   mysql_mutex_unlock(mysql_bin_log.get_log_lock());
   
   if (check_purge)
@@ -3100,7 +3130,7 @@ static Sys_var_enum_binlog_checksum Binlog_checksum_enum(
        "log events in the binary log. Possible values are NONE and CRC32; "
        "default is CRC32.",
        GLOBAL_VAR(binlog_checksum_options), CMD_LINE(REQUIRED_ARG),
-       binlog_checksum_type_names, DEFAULT(BINLOG_CHECKSUM_ALG_CRC32),
+       binlog_checksum_type_names, DEFAULT(binary_log::BINLOG_CHECKSUM_ALG_CRC32),
        NO_MUTEX_GUARD, NOT_IN_BINLOG);
 
 static Sys_var_mybool Sys_master_verify_checksum(
@@ -3386,7 +3416,8 @@ static Sys_var_enum Sys_updatable_views_with_limit(
 static Sys_var_mybool Sys_sync_frm(
        "sync_frm", "Sync .frm files to disk on creation",
        GLOBAL_VAR(opt_sync_frm), CMD_LINE(OPT_ARG),
-       DEFAULT(TRUE));
+       DEFAULT(TRUE), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+       ON_CHECK(0), ON_UPDATE(0), DEPRECATED(""));
 
 static char *system_time_zone_ptr;
 static Sys_var_charptr Sys_system_time_zone(
@@ -3591,7 +3622,7 @@ static Sys_var_enum Sys_internal_tmp_disk_storage_engine(
        "internal_tmp_disk_storage_engine",
        "The default storage engine for on-disk internal tmp table",
        GLOBAL_VAR(internal_tmp_disk_storage_engine), CMD_LINE(OPT_ARG),
-       internal_tmp_disk_storage_engine_names, DEFAULT(TMP_TABLE_MYISAM));
+       internal_tmp_disk_storage_engine_names, DEFAULT(TMP_TABLE_INNODB));
 
 static Sys_var_plugin Sys_default_tmp_storage_engine(
        "default_tmp_storage_engine", "The default storage engine for new explict temporary tables",
@@ -4780,7 +4811,7 @@ static Sys_var_ulong Sys_sp_cache_size(
        "The soft upper limit for number of cached stored routines for "
        "one connection.",
        GLOBAL_VAR(stored_program_cache_size), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(256, 512 * 1024), DEFAULT(256), BLOCK_SIZE(1));
+       VALID_RANGE(16, 512 * 1024), DEFAULT(256), BLOCK_SIZE(1));
 
 static bool check_pseudo_slave_mode(sys_var *self, THD *thd, set_var *var)
 {

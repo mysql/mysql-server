@@ -2939,8 +2939,6 @@ bool ha_partition::setup_engine_array(MEM_ROOT *mem_root)
     }
   }
 
-  my_afree((gptr) engine_array);
-
   if (create_handlers(mem_root))
   {
     clear_handler_file();
@@ -2950,7 +2948,6 @@ bool ha_partition::setup_engine_array(MEM_ROOT *mem_root)
   DBUG_RETURN(false);
 
 err:
-  my_afree((gptr) engine_array);
   DBUG_RETURN(true);
 }
 
@@ -7850,7 +7847,10 @@ bool ha_partition::can_switch_engines()
   do
   {
     if (!(*file)->can_switch_engines())
+    {
+      DBUG_ASSERT(0);          // A ha_partition table should never have FKs!!!
       DBUG_RETURN(FALSE);
+    }
   } while (*(++file));
   DBUG_RETURN(TRUE);
 }

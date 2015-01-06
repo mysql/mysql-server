@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -329,6 +329,15 @@ protected:
     into its buffer without copying its WKB data.
    */
   const static int HAS_GEOM_HEADER_SPACE= 0x40;
+
+  /*
+    Whether the multi geometry has overlapped components, if false(the bit set)
+    this geometry will be skipped from merge-component operation.
+    Effective only for multipolygons, multilinestrings and geometry collections.
+    Such geometries returned by BG always has this bit set, i.e. their
+    components don't overlap.
+  */
+  const static int MULTIPOLYGON_NO_OVERLAPPED_COMPS= 0x80;
 public:
   // Check user's transmitted data against these limits.
   const static uint32 MAX_GEOM_WKB_LENGTH= 0x3fffffff;
@@ -735,6 +744,8 @@ public:
   }
 
   bool envelope(String *result) const;
+  bool envelope(MBR *mbr) const;
+
   static Class_info *ci_collection[wkb_last+1];
 
   bool is_polygon_ring() const
@@ -764,6 +775,22 @@ public:
       m_flags.props|= HAS_GEOM_HEADER_SPACE;
     else
       m_flags.props&= ~HAS_GEOM_HEADER_SPACE;
+  }
+
+  bool is_components_no_overlapped() const
+  {
+    return (m_flags.props & MULTIPOLYGON_NO_OVERLAPPED_COMPS);
+  }
+
+  void set_components_no_overlapped(bool b)
+  {
+    DBUG_ASSERT(get_type() == wkb_multilinestring ||
+                get_type() == wkb_multipolygon ||
+                get_type() == wkb_geometrycollection);
+    if (b)
+      m_flags.props|= MULTIPOLYGON_NO_OVERLAPPED_COMPS;
+    else
+      m_flags.props&= ~MULTIPOLYGON_NO_OVERLAPPED_COMPS;
   }
 
   void set_props(uint16 flag)
@@ -1491,7 +1518,7 @@ class Gis_wkb_vector_const_iterator
 protected:
   typedef Gis_wkb_vector_const_iterator<T> self;
   typedef Gis_wkb_vector<T> owner_t;
-  typedef int index_type;
+  typedef ptrdiff_t index_type;
 public:
   ////////////////////////////////////////////////////////////////////
   //
@@ -1770,7 +1797,7 @@ public:
   difference_type operator-(const self &itr) const
   {
     DBUG_ASSERT(m_owner == itr.m_owner);
-    return (difference_type) (m_curidx - itr.m_curidx);
+    return (m_curidx - itr.m_curidx);
   }
 
 
@@ -1789,7 +1816,8 @@ public:
   reference operator*() const
   {
     DBUG_ASSERT(this->m_owner != NULL && this->m_curidx >= 0 &&
-                static_cast<size_t>(this->m_curidx) <= this->m_owner->size());
+                this->m_curidx <
+                static_cast<index_type>(this->m_owner->size()));
     return (*m_owner)[m_curidx];
   }
 
@@ -1803,16 +1831,17 @@ public:
   pointer operator->() const
   {
     DBUG_ASSERT(this->m_owner != NULL && this->m_curidx >= 0 &&
-                static_cast<size_t>(this->m_curidx) <= this->m_owner->size());
+                this->m_curidx <
+                static_cast<index_type>(this->m_owner->size()));
     return &(*m_owner)[m_curidx];
   }
 
 
   /// @brief Iterator index operator.
   ///
-  /// If offset not in a valid range, the returned value will be invalid.
-  /// @param offset The valid index relative to this iterator.
-  /// @return Return the element which is at position *this + offset.
+  /// @param offset The offset of target element relative to this iterator.
+  /// @return Return the reference of the element which is at
+  /// position *this + offset.
   /// The returned value can only be used to read its referenced
   /// element.
   reference operator[](difference_type offset) const
@@ -1820,8 +1849,8 @@ public:
     self itr= *this;
     move_by(itr, offset, false);
 
-    DBUG_ASSERT(this->m_owner != NULL && this->m_curidx >= 0 &&
-                static_cast<size_t>(this->m_curidx) <= this->m_owner->size());
+    DBUG_ASSERT(itr.m_owner != NULL && itr.m_curidx >= 0 &&
+                itr.m_curidx < static_cast<index_type>(itr.m_owner->size()));
     return (*m_owner)[itr.m_curidx];
   }
   //@}
@@ -1842,7 +1871,7 @@ protected:
 
     if (newidx < 0)
       newidx= -1;
-    else if (newidx >= (index_type)(sz= m_owner->size()))
+    else if (newidx >= static_cast<index_type>((sz= m_owner->size())))
       newidx= sz;
 
     itr.m_curidx= newidx;
@@ -1873,7 +1902,7 @@ protected:
   typedef Gis_wkb_vector_const_iterator<T> base;
   typedef Gis_wkb_vector<T> owner_t;
 public:
-  typedef int index_type;
+  typedef ptrdiff_t index_type;
   typedef T value_type;
   typedef ptrdiff_t difference_type;
   typedef difference_type distance_type;
@@ -2079,7 +2108,8 @@ public:
   reference operator*() const
   {
     DBUG_ASSERT(this->m_owner != NULL && this->m_curidx >= 0 &&
-                static_cast<size_t>(this->m_curidx) <= this->m_owner->size());
+                this->m_curidx <
+                static_cast<index_type>(this->m_owner->size()));
     return (*this->m_owner)[this->m_curidx];
   }
 
@@ -2093,27 +2123,25 @@ public:
   pointer operator->() const
   {
     DBUG_ASSERT(this->m_owner != NULL && this->m_curidx >= 0 &&
-                static_cast<size_t>(this->m_curidx) <= this->m_owner->size());
+                this->m_curidx <
+                static_cast<index_type>(this->m_owner->size()));
     return &(*this->m_owner)[this->m_curidx];
   }
 
 
-  // We can't return reference here otherwise we are returning an
-  // reference to an local object.
   /// @brief Iterator index operator.
   ///
-  /// If offset not in a valid range, the returned value will be invalid.
-  /// @param offset The valid index relative to this iterator.
-  /// @return Return the element which is at position *this + offset,
+  /// @param offset The offset of target element relative to this iterator.
+  /// @return Return the element which is at position *this + offset.
   /// The returned value can be used to read or update its referenced
   /// element.
   reference operator[](difference_type offset) const
   {
     self itr= *this;
     this->move_by(itr, offset, false);
-    DBUG_ASSERT(this->m_owner != NULL && this->m_curidx >= 0 &&
-                static_cast<size_t>(this->m_curidx) <= this->m_owner->size());
-    return (*this->m_owner)[this->m_curidx];
+    DBUG_ASSERT(itr.m_owner != NULL && itr.m_curidx >= 0 &&
+                itr.m_curidx < static_cast<index_type>(this->m_owner->size()));
+    return (*this->m_owner)[itr.m_curidx];
   }
   //@} // funcs_val
   ////////////////////////////////////////////////////////////////////
@@ -2182,7 +2210,7 @@ class Gis_wkb_vector : public Geometry
 {
 private:
   typedef Gis_wkb_vector<T> self;
-  typedef int index_type;
+  typedef ptrdiff_t index_type;
   typedef Geometry base;
 public:
   typedef T value_type;

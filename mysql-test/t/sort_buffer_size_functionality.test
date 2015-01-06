@@ -47,7 +47,7 @@ SELECT @@SESSION.sort_buffer_size;
 
 let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 --exec echo "wait" > $restart_file
---shutdown_server 10
+--shutdown_server 
 --source include/wait_until_disconnected.inc
 -- exec echo "restart:--sort_buffer_size=9999999 " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 -- enable_reconnect

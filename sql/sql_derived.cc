@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,6 +28,7 @@
 #include "auth_common.h"                      // SELECT_ACL
 #include "sql_tmp_table.h"                    // Tmp tables
 #include "template_utils.h"                   // implicit_cast
+#include "sql_union.h"                        // select_union
 
 
 /**

@@ -73,7 +73,7 @@ a
 explain extended select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	NULL	index	NULL	a	5	NULL	4	100.00	Using where; Using index
-2	SUBQUERY	t1	NULL	index	a	a	10	NULL	10004	99.50	Using where; Using index
+2	SUBQUERY	t1	NULL	index	a	a	10	NULL	10004	90.00	Using where; Using index
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,`test`.`t2`.`a` in ( <materialize> (/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` where (`test`.`t1`.`b` <> 30) ), <primary_index_lookup>(`test`.`t2`.`a` in <temporary table> on <auto_key> where ((`test`.`t2`.`a` = `materialized-subquery`.`a`)))))
@@ -85,7 +85,7 @@ explain extended select * from t2 where t2.a in (select t1.a from t1,t3 where t1
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	NULL	index	NULL	a	5	NULL	4	100.00	Using where; Using index
 2	SUBQUERY	t3	NULL	index	a	a	5	NULL	3	100.00	Using index
-2	SUBQUERY	t1	NULL	index	a	a	10	NULL	10004	0.50	Using where; Using index; Using join buffer (Block Nested Loop)
+2	SUBQUERY	t1	NULL	index	a	a	10	NULL	10004	10.00	Using where; Using index; Using join buffer (Block Nested Loop)
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,`test`.`t2`.`a` in ( <materialize> (/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` join `test`.`t3` where (`test`.`t1`.`b` = `test`.`t3`.`a`) ), <primary_index_lookup>(`test`.`t2`.`a` in <temporary table> on <auto_key> where ((`test`.`t2`.`a` = `materialized-subquery`.`a`)))))
@@ -102,7 +102,7 @@ a
 explain extended select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	NULL	index	NULL	a	5	NULL	4	100.00	Using where; Using index
-2	SUBQUERY	t1	NULL	index	a	a	10	NULL	10005	99.50	Using where; Using index
+2	SUBQUERY	t1	NULL	index	a	a	10	NULL	10005	90.00	Using where; Using index
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,`test`.`t2`.`a` in ( <materialize> (/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` where (`test`.`t1`.`b` <> 30) ), <primary_index_lookup>(`test`.`t2`.`a` in <temporary table> on <auto_key> where ((`test`.`t2`.`a` = `materialized-subquery`.`a`)))))
@@ -3391,8 +3391,8 @@ update t22 set c = '2005-12-08 15:58:27' where a = 255;
 explain select t21.* from t21,t22 where t21.a = t22.a and 
 t22.a in (select t12.a from t11, t12 where t11.a in(255,256) and t11.a = t12.a and t11.c is null) and t22.c is null order by t21.a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t22	NULL	ALL	NULL	NULL	NULL	NULL	26	3.85	Using where; Using temporary; Using filesort
-1	PRIMARY	t21	NULL	ALL	NULL	NULL	NULL	NULL	26	3.85	Using where; Using join buffer (Block Nested Loop)
+1	PRIMARY	t22	NULL	ALL	NULL	NULL	NULL	NULL	26	10.00	Using where; Using temporary; Using filesort
+1	PRIMARY	t21	NULL	ALL	NULL	NULL	NULL	NULL	26	10.00	Using where; Using join buffer (Block Nested Loop)
 2	SUBQUERY	t11	NULL	ALL	NULL	NULL	NULL	NULL	8	3.12	Using where
 2	SUBQUERY	t12	NULL	ALL	NULL	NULL	NULL	NULL	8	12.50	Using where; Using join buffer (Block Nested Loop)
 Warnings:
@@ -3495,7 +3495,7 @@ insert into t0 values(2);
 explain select * from t1 where 2 in (select a from t0);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	20	100.00	NULL
-2	SUBQUERY	t0	NULL	ALL	NULL	NULL	NULL	NULL	11	9.09	Using where
+2	SUBQUERY	t0	NULL	ALL	NULL	NULL	NULL	NULL	11	10.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where 1
 select * from t1 where 2 in (select a from t0);
@@ -6289,7 +6289,7 @@ FROM it1 LEFT JOIN it2 ON it2.datetime_key);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	ot1	NULL	ALL	NULL	NULL	NULL	NULL	20	100.00	Using where
 2	SUBQUERY	it1	NULL	index	NULL	int_key	4	NULL	2	100.00	Using index
-2	SUBQUERY	it2	NULL	ALL	int_key	NULL	NULL	NULL	20	95.00	Using where; Using join buffer (Block Nested Loop)
+2	SUBQUERY	it2	NULL	ALL	int_key	NULL	NULL	NULL	20	90.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`ot1`.`int_key` AS `int_key` from `test`.`ot1` where <in_optimizer>(`test`.`ot1`.`int_nokey`,`test`.`ot1`.`int_nokey` in ( <materialize> (/* select#2 */ select `test`.`it2`.`int_key` from `test`.`it1` join `test`.`it2` where `test`.`it2`.`datetime_key` ), <primary_index_lookup>(`test`.`ot1`.`int_nokey` in <temporary table> on <auto_key> where ((`test`.`ot1`.`int_nokey` = `materialized-subquery`.`int_key`)))))
 DROP TABLE ot1, it1, it2;
@@ -7988,7 +7988,7 @@ FROM t2
 WHERE varchar_nokey < 'n' XOR pk);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	18	100.00	Using where
-2	SUBQUERY	t2	NULL	ALL	varchar_key	NULL	NULL	NULL	15	64.45	Using where
+2	SUBQUERY	t2	NULL	ALL	varchar_key	NULL	NULL	NULL	15	63.34	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`varchar_nokey` AS `varchar_nokey` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`varchar_nokey`,`test`.`t1`.`varchar_nokey`),(`test`.`t1`.`varchar_nokey`,`test`.`t1`.`varchar_nokey`) in ( <materialize> (/* select#2 */ select `test`.`t2`.`varchar_key`,`test`.`t2`.`varchar_nokey` from `test`.`t2` where ((`test`.`t2`.`varchar_nokey` < 'n') xor `test`.`t2`.`pk`) ), <primary_index_lookup>(`test`.`t1`.`varchar_nokey` in <temporary table> on <auto_key> where ((`test`.`t1`.`varchar_nokey` = `materialized-subquery`.`varchar_key`) and (`test`.`t1`.`varchar_nokey` = `materialized-subquery`.`varchar_nokey`)))))
 DROP TABLE t1, t2;
@@ -8561,7 +8561,7 @@ AND grandparent1.col_varchar_key IS NOT NULL
 );
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
-2	SUBQUERY	grandparent1	NULL	ALL	col_varchar_key	NULL	NULL	NULL	20	95.00	Using where
+2	SUBQUERY	grandparent1	NULL	ALL	col_varchar_key	NULL	NULL	NULL	20	90.00	Using where
 3	SUBQUERY	parent1	NULL	ALL	NULL	NULL	NULL	NULL	20	100.00	NULL
 3	SUBQUERY	parent2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.parent1.pk	1	100.00	Using index
 Warnings:
@@ -8955,7 +8955,7 @@ AND grandparent1.col_int_key <> 3
 );
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	DEPENDENT SUBQUERY	grandparent1	NULL	ALL	col_int_key	NULL	NULL	NULL	11	9.09	Using where
+2	DEPENDENT SUBQUERY	grandparent1	NULL	ALL	col_int_key	NULL	NULL	NULL	11	10.00	Using where
 3	SUBQUERY	parent1	NULL	ALL	col_int_key	NULL	NULL	NULL	11	100.00	NULL
 3	SUBQUERY	parent2	NULL	index	col_int_key	col_int_key	4	NULL	1	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
 Warnings:
@@ -8995,12 +8995,12 @@ EXPLAIN
             ],
             "rows_examined_per_scan": 11,
             "rows_produced_per_join": 1,
-            "filtered": 9.0909,
+            "filtered": 10,
             "cost_info": {
               "read_cost": "2.03",
-              "eval_cost": "0.20",
+              "eval_cost": "0.22",
               "prefix_cost": "4.23",
-              "data_read_per_join": "16"
+              "data_read_per_join": "17"
             },
             "used_columns": [
               "col_int_nokey",
@@ -10149,7 +10149,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	SUBQUERY	subquery2_t2	NULL	eq_ref	PRIMARY,col_varchar_key	PRIMARY	4	test.subquery2_t3.pk	1	7.14	Using where
 3	SUBQUERY	subquery2_t1	NULL	index	col_int_key	col_int_key	5	NULL	20	100.00	Using index; Using join buffer (Block Nested Loop)
 4	SUBQUERY	subquery1_t3	NULL	ALL	col_varchar_key	NULL	NULL	NULL	20	100.00	Using where
-4	SUBQUERY	subquery1_t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.subquery1_t3.col_int_key	1	5.00	Using where
+4	SUBQUERY	subquery1_t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.subquery1_t3.col_int_key	1	10.00	Using where
 4	SUBQUERY	subquery1_t1	NULL	index	PRIMARY	col_int_key	5	NULL	20	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	/* select#1 */ select `table2`.`col_varchar_nokey` AS `field1` from `test`.`t2` `table1` join `test`.`t1` `table2` straight_join `test`.`t2` `table3` where ((`table3`.`col_int_key` = `table2`.`pk`) and <in_optimizer>(`table2`.`pk`,`table2`.`pk` in ( <materialize> (/* select#3 */ select `subquery2_t1`.`col_int_key` AS `subquery2_field1` from `test`.`t3` `subquery2_t2` join `test`.`t1` `subquery2_t3` join `test`.`t2` `subquery2_t1` where ((`subquery2_t2`.`col_varchar_key` = `subquery2_t3`.`col_varchar_key`) and (`subquery2_t2`.`pk` = `subquery2_t3`.`pk`)) ), <primary_index_lookup>(`table2`.`pk` in <temporary table> on <auto_key> where ((`table2`.`pk` = `materialized-subquery`.`subquery2_field1`))))) and <in_optimizer>(`table3`.`col_int_nokey`,`table3`.`col_int_nokey` in ( <materialize> (/* select#4 */ select `subquery1_t2`.`col_int_nokey` AS `subquery1_field1` from `test`.`t1` `subquery1_t2` join `test`.`t1` `subquery1_t3` join `test`.`t2` `subquery1_t1` where ((`subquery1_t2`.`pk` = `subquery1_t3`.`col_int_key`) and (`subquery1_t2`.`col_varchar_nokey` = `subquery1_t3`.`col_varchar_key`) and (`subquery1_t1`.`pk` > 1)) ), <primary_index_lookup>(`table3`.`col_int_nokey` in <temporary table> on <auto_key> where ((`table3`.`col_int_nokey` = `materialized-subquery`.`subquery1_field1`))))))

@@ -107,7 +107,8 @@ struct index_def_t {
 	ulint		n_fields;	/*!< number of fields in index */
 	index_field_t*	fields;		/*!< field definitions */
 	st_mysql_ftparser*
-			 parser;	/*!< fulltext plugin parser */
+			parser;		/*!< fulltext parser plugin */
+	bool		is_ngram;	/*!< true if it's ngram parser */
 };
 
 /** Structure for reporting duplicate records. */

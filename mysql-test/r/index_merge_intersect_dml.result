@@ -111,7 +111,7 @@ COUNT(*)
 EXPLAIN INSERT INTO t3 SELECT * FROM t1 WHERE d=6 AND a IS NOT NULL AND b=6;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	INSERT	t3	NULL	ALL	NULL	NULL	NULL	NULL	#	NULL	NULL
-1	SIMPLE	t1	NULL	index_merge	idx_a,idx_b,idx_d	idx_b,idx_d	4,4	NULL	#	99.50	Using intersect(idx_b,idx_d); Using where
+1	SIMPLE	t1	NULL	index_merge	idx_a,idx_b,idx_d	idx_b,idx_d	4,4	NULL	#	90.00	Using intersect(idx_b,idx_d); Using where
 SELECT COUNT(*) FROM t3;
 COUNT(*)
 17

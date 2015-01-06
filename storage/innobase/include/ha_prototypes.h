@@ -91,7 +91,7 @@ innobase_invalidate_query_cache(
 	ulint		full_name_len);	/*!< in: full name length where
 					also the null chars count */
 
-/** Quote an index or column name.
+/** Quote a standard SQL identifier like tablespace, index or column name.
 @param[in]	file	output stream
 @param[in]	trx	InnoDB transaction, or NULL
 @param[in]	id	identifier to quote */
@@ -157,9 +157,9 @@ storage
 @return DATA_BINARY, DATA_VARCHAR, ... */
 ulint
 get_innobase_type_from_mysql_type(
-	ulint*		unsigned_flag,
-	const void*	field,
-	bool		optimize_point_storage);
+	ulint*			unsigned_flag,
+	const void*		field,
+	bool			optimize_point_storage);
 
 /******************************************************************//**
 Get the variable length bounds of the given character set. */

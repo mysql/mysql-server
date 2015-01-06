@@ -1,0 +1,35 @@
+--echo #
+--echo # BUG#19316315 CRASH RECOVERY FAILS AFTER ONLINE ADD INDEX
+--echo #
+
+--source include/have_innodb.inc
+--source include/not_embedded.inc
+--source include/have_debug_sync.inc
+
+CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 INT) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES (1,1), (2,2), (3,3), (4,4), (5,5);
+
+connect (con1,localhost,root,,);
+
+SET DEBUG_SYNC = 'RESET';
+SET DEBUG_SYNC = 'row_log_apply_after SIGNAL apply_after WAIT_FOR insert_after';
+--send
+ALTER TABLE t1 ADD UNIQUE INDEX(c2);
+
+connection default;
+
+SET DEBUG_SYNC = 'now WAIT_FOR apply_after';
+INSERT INTO t1 VALUES(6, 6);
+
+disconnect con1;
+
+--source include/kill_and_restart_mysqld.inc
+
+SELECT * FROM t1;
+
+DROP TABLE t1;
+
+# Clean up temporary files left by crash.
+let MYSQLD_DATADIR= `SELECT @@datadir`;
+--remove_files_wildcard $MYSQLD_DATADIR/test #sql*.frm

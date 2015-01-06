@@ -130,7 +130,9 @@ mysql/help_relation
 mysql/help_topic
 mysql/innodb_index_stats
 mysql/innodb_table_stats
+mysql/plugin
 mysql/server_cost
+mysql/servers
 mysql/slave_master_info
 mysql/slave_relay_log_info
 mysql/slave_worker_info
@@ -335,7 +337,9 @@ mysql/help_relation
 mysql/help_topic
 mysql/innodb_index_stats
 mysql/innodb_table_stats
+mysql/plugin
 mysql/server_cost
+mysql/servers
 mysql/slave_master_info
 mysql/slave_relay_log_info
 mysql/slave_worker_info
@@ -374,7 +378,9 @@ mysql/help_relation
 mysql/help_topic
 mysql/innodb_index_stats
 mysql/innodb_table_stats
+mysql/plugin
 mysql/server_cost
+mysql/servers
 mysql/slave_master_info
 mysql/slave_relay_log_info
 mysql/slave_worker_info
@@ -424,7 +430,9 @@ mysql/help_relation
 mysql/help_topic
 mysql/innodb_index_stats
 mysql/innodb_table_stats
+mysql/plugin
 mysql/server_cost
+mysql/servers
 mysql/slave_master_info
 mysql/slave_relay_log_info
 mysql/slave_worker_info
@@ -474,7 +482,9 @@ mysql/help_relation
 mysql/help_topic
 mysql/innodb_index_stats
 mysql/innodb_table_stats
+mysql/plugin
 mysql/server_cost
+mysql/servers
 mysql/slave_master_info
 mysql/slave_relay_log_info
 mysql/slave_worker_info

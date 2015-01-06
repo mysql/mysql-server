@@ -1,4 +1,5 @@
 --source include/have_innodb.inc
+--source include/have_innodb_zip.inc
 --source include/big_test.inc
 
 ####################################################################

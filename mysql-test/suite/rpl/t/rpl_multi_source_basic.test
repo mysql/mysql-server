@@ -100,6 +100,31 @@ SHOW DATABASES;
 --source include/rpl_connection.inc
 
 CREATE DATABASE dbcommon;
+
+### Make sure that this is the first create database to reach
+### the slave.
+--let $rpl_channel_name= channel_1
+
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+
+--source include/start_slave.inc
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+--let $rpl_channel_name= channel_1
+--let $sync_slave_connection=server_2
+--source include/sync_slave_sql_with_master.inc
+
+--source include/stop_slave.inc
+
+--let $rpl_channel_name=
+
+#sync the slave with server_1
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
 CREATE TABLE dbcommon.t11(a int);
 
 --let $i= 10

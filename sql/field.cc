@@ -5156,7 +5156,7 @@ String *Field_temporal_with_date::val_str(String *val_buffer, String *val_ptr)
     val_buffer->set_ascii(my_zero_datetime6, field_length);
     return val_buffer;
   }
-  make_datetime((DATE_TIME_FORMAT *) 0, &ltime, val_buffer, dec);
+  make_datetime((Date_time_format *) 0, &ltime, val_buffer, dec);
   return val_buffer;
 }
 
@@ -5849,7 +5849,7 @@ String *Field_time_common::val_str(String *val_buffer,
     DBUG_ASSERT(0);
     set_zero_time(&ltime, MYSQL_TIMESTAMP_TIME);
   }
-  make_time((DATE_TIME_FORMAT *) 0, &ltime, val_buffer, dec);
+  make_time((Date_time_format *) 0, &ltime, val_buffer, dec);
   return val_buffer;
 }
 
@@ -9570,7 +9570,6 @@ Field_bit::unpack(uchar *to, const uchar *from, uint param_data,
     value[new_len - len]= value[new_len - len] & ((1U << from_bit_len) - 1);
   bitmap_set_bit(table->write_set,field_index);
   store(value, new_len, system_charset_info);
-  my_afree(value);
   DBUG_RETURN(from + len);
 }
 

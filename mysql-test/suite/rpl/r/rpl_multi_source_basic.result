@@ -86,6 +86,12 @@ include/rpl_stop_slaves.inc
 #                    are replicated to the slave
 [connection server_1]
 CREATE DATABASE dbcommon;
+[connection server_2]
+include/start_slave.inc
+[connection server_1]
+include/sync_slave_sql_with_master.inc
+include/stop_slave.inc
+[connection server_1]
 CREATE TABLE dbcommon.t11(a int);
 INSERT INTO dbcommon.t11 values (11*10);
 INSERT INTO dbcommon.t11 values (11*9);

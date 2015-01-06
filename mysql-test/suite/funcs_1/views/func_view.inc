@@ -292,7 +292,7 @@ INSERT INTO t1_values SET
 #               other interesting value
 #     numbers   -> 0
 #     strings, blobs, binaries -> not full length of used data type, "exotic"
-#                                 characters and preceeding and trailing spaces
+#                                 characters and preceding and trailing spaces
 #     FIXME enum, set ??
 INSERT INTO t1_values SET
        my_char_30 = ' ---äÖüß@µ*$-- ',

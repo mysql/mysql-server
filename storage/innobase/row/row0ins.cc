@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -825,14 +825,14 @@ row_ins_foreign_report_err(
 	putc('\n', ef);
 	fputs(errstr, ef);
 	fprintf(ef, " in parent table, in index %s",
-		foreign->referenced_index->name);
+		foreign->referenced_index->name());
 	if (entry) {
 		fputs(" tuple:\n", ef);
 		dtuple_print(ef, entry);
 	}
 	fputs("\nBut in child table ", ef);
 	ut_print_name(ef, trx, foreign->foreign_table_name);
-	fprintf(ef, ", in index %s", foreign->foreign_index->name);
+	fprintf(ef, ", in index %s", foreign->foreign_index->name());
 	if (rec) {
 		fputs(", there is a record:\n", ef);
 		rec_print(ef, rec, foreign->foreign_index);
@@ -876,7 +876,7 @@ row_ins_foreign_report_add_err(
 	dict_print_info_on_foreign_key_in_create_format(ef, trx, foreign,
 							TRUE);
 	fprintf(ef, "\nTrying to add in child table, in index %s",
-		foreign->foreign_index->name);
+		foreign->foreign_index->name());
 	if (entry) {
 		fputs(" tuple:\n", ef);
 		/* TODO: DB_TRX_ID and DB_ROLL_PTR may be uninitialized.
@@ -887,7 +887,7 @@ row_ins_foreign_report_add_err(
 	ut_print_name(ef, trx, foreign->referenced_table_name);
 	fprintf(ef, ", in index %s,\n"
 		"the closest match we can find is record:\n",
-		foreign->referenced_index->name);
+		foreign->referenced_index->name());
 	if (rec && page_rec_is_supremum(rec)) {
 		/* If the cursor ended on a supremum record, it is better
 		to report the previous record in the error message, so that
@@ -1488,7 +1488,7 @@ run_again:
 			dict_print_info_on_foreign_key_in_create_format(
 				ef, trx, foreign, TRUE);
 			fprintf(ef, "\nTrying to add to index %s tuple:\n",
-				foreign->foreign_index->name);
+				foreign->foreign_index->name());
 			dtuple_print(ef, entry);
 			fputs("\nBut the parent table ", ef);
 			ut_print_name(ef, trx,
@@ -2367,8 +2367,16 @@ row_ins_clust_index_entry_low(
 	}
 #endif
 
-	if (n_uniq && (cursor->up_match >= n_uniq
-		       || cursor->low_match >= n_uniq)) {
+	/* Allowing duplicates in clustered index is currently enabled
+	only for intrinsic table and caller understand the limited
+	operation that can be done in this case. */
+	ut_ad(!index->allow_duplicates
+	      || (index->allow_duplicates
+		  && dict_table_is_intrinsic(index->table)));
+
+	if (!index->allow_duplicates
+	    && n_uniq
+	    && (cursor->up_match >= n_uniq || cursor->low_match >= n_uniq)) {
 
 		if (flags
 		    == (BTR_CREATE_FLAG | BTR_NO_LOCKING_FLAG
@@ -2409,10 +2417,10 @@ err_exit:
 		goto func_exit;
 	}
 
-	/* Modifying existing entry is avoided for intrinsic table considering
-	the frequency and if something fails rollback is not possible given that
-	there is no UNDO log. */
-	if (row_ins_must_modify_rec(cursor)) {
+	/* Note: Allowing duplicates would qualify for modification of
+	an existing record as the new entry is exactly same as old entry.
+	Avoid this check if allow duplicates is enabled. */
+	if (!index->allow_duplicates && row_ins_must_modify_rec(cursor)) {
 		/* There is already an index entry with a long enough common
 		prefix, we must convert the insert into a modify of an
 		existing record */
@@ -2818,6 +2826,11 @@ row_ins_sec_index_entry_low(
 				&cursor, 0, __FILE__, __LINE__, &mtr);
 			mode = BTR_MODIFY_TREE;
 		}
+
+		DBUG_EXECUTE_IF(
+			"rtree_test_check_count", {
+			goto func_exit;});
+
 	} else {
 		if (dict_table_is_intrinsic(index->table)) {
 			btr_cur_search_to_nth_level_with_no_latch(

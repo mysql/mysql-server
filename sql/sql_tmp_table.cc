@@ -997,7 +997,6 @@ update_hidden:
       keyinfo->usable_key_parts= keyinfo->user_defined_key_parts=
         param->group_parts;
       keyinfo->actual_key_parts= keyinfo->user_defined_key_parts;
-      keyinfo->key_length= 0;
       keyinfo->rec_per_key= 0;
       keyinfo->algorithm= HA_KEY_ALG_UNDEF;
       keyinfo->set_rec_per_key_array(NULL, NULL);
@@ -1012,7 +1011,6 @@ update_hidden:
         /* In GROUP BY 'a' and 'a ' are equal for VARCHAR fields */
         key_part_info->key_part_flag|= HA_END_SPACE_ARE_EQUAL;
 
-        keyinfo->key_length+=  key_part_info->store_length;
         if (key_part_info->store_length > max_key_part_length)
         {
           using_unique_constraint= true;
@@ -1048,7 +1046,6 @@ update_hidden:
       table->key_info= share->key_info= keyinfo;
       keyinfo->key_part= key_part_info;
       keyinfo->actual_flags= keyinfo->flags= HA_NOSAME | HA_NULL_ARE_EQUAL;
-      keyinfo->key_length= 0;  // Will compute the sum of the parts below.
       // TODO rename to <distinct_key>
       keyinfo->name= (char*) "<auto_key>";
       keyinfo->algorithm= HA_KEY_ALG_UNDEF;
@@ -1059,7 +1056,6 @@ update_hidden:
            i++, reg_field++, key_part_info++)
       {
         key_part_info->init_from_field(*reg_field);
-        keyinfo->key_length+= key_part_info->store_length;
         if (key_part_info->store_length > max_key_part_length)
         {
           using_unique_constraint= true;
@@ -1298,6 +1294,8 @@ update_hidden:
   {
     ORDER *cur_group= group;
     key_part_info= keyinfo->key_part;
+    share->primary_key= 0;
+    keyinfo->key_length= 0;  // Will compute the sum of the parts below.
     /*
       Here, we have to make the group fields point to the right record
       position.
@@ -1308,6 +1306,7 @@ update_hidden:
       DBUG_ASSERT(field->table == table);
       bool maybe_null= (*cur_group->item)->maybe_null;
       key_part_info->init_from_field(key_part_info->field);
+      keyinfo->key_length+= key_part_info->store_length;
 
       cur_group->buff= (char*) group_buff;
       cur_group->field= field->new_key_field(thd->mem_root, table,
@@ -1337,6 +1336,8 @@ update_hidden:
   {
     null_pack_length-=hidden_null_pack_length;
     key_part_info= keyinfo->key_part;
+    share->primary_key= 0;
+    keyinfo->key_length= 0;  // Will compute the sum of the parts below.
     /*
       Here, we have to make the key fields point to the right record
       position.
@@ -1346,6 +1347,7 @@ update_hidden:
          i++, reg_field++, key_part_info++)
     {
       key_part_info->init_from_field(*reg_field);
+      keyinfo->key_length+= key_part_info->store_length;
     }
   }
 

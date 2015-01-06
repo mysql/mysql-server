@@ -16,6 +16,8 @@
 
 -- source include/have_innodb.inc
 
+-- source include/have_innodb_max_16k.inc
+
 if (`SELECT @@innodb_log_file_size = 2097152`) {
   --skip Test requires innodb_log_file_size!=2M.
 }

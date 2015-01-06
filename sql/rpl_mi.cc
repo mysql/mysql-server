@@ -119,7 +119,7 @@ Master_info::Master_info(
    port(MYSQL_PORT), connect_retry(DEFAULT_CONNECT_RETRY),
    clock_diff_with_master(0), heartbeat_period(0),
    received_heartbeats(0), last_heartbeat(0), master_id(0),
-   checksum_alg_before_fd(BINLOG_CHECKSUM_ALG_UNDEF),
+   checksum_alg_before_fd(binary_log::BINLOG_CHECKSUM_ALG_UNDEF),
    retry_count(master_retry_count), master_gtid_mode(0),
    mi_description_event(NULL),
    auto_position(false)
@@ -181,7 +181,7 @@ void Master_info::clear_in_memory_info(bool all)
     start_user_configured= false; ssl= 0; port= MYSQL_PORT;
     connect_retry= DEFAULT_CONNECT_RETRY; clock_diff_with_master= 0;
     heartbeat_period= 0; received_heartbeats= 0; last_heartbeat= 0;
-    master_id= 0; checksum_alg_before_fd= BINLOG_CHECKSUM_ALG_UNDEF;
+    master_id= 0; checksum_alg_before_fd= binary_log::BINLOG_CHECKSUM_ALG_UNDEF;
     retry_count= master_retry_count; master_gtid_mode= 0;
     auto_position= false; host[0]= 0; user[0]= 0;
     password[0]= 0; bind_addr[0]= 0; start_password[0]= 0; ssl_ca[0]= 0;

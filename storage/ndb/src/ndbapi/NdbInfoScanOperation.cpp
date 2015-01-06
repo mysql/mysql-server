@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -221,7 +221,7 @@ NdbInfoScanOperation::sendDBINFO_SCANREQ(void)
   assert((m_rows_received == 0 && m_rows_confirmed == (Uint32)~0) || // first
          m_rows_received == m_rows_confirmed);                       // subsequent
 
-  // No rows recieved in this batch yet
+  // No rows received in this batch yet
   m_rows_received = 0;
 
   // Number of rows returned by batch is not yet known
@@ -260,7 +260,7 @@ int NdbInfoScanOperation::receive(void)
       if (m_rows_received < m_rows_confirmed)
         DBUG_RETURN(1); // Row available
 
-      // All rows in this batch recieved
+      // All rows in this batch received
       assert(m_rows_received == m_rows_confirmed);
 
       if (m_cursor.size() == 0 && !find_next_node())
@@ -293,7 +293,7 @@ int NdbInfoScanOperation::receive(void)
       if (m_rows_received < m_rows_confirmed)
         continue;  // Continue waiting(for late TRANSID_AI signals)
 
-      // All rows in this batch recieved
+      // All rows in this batch received
       assert(m_rows_received == m_rows_confirmed);
 
       if (m_cursor.size() == 0 && !find_next_node())

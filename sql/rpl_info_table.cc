@@ -71,7 +71,7 @@ int Rpl_info_table::do_init_info()
 
 int Rpl_info_table::do_init_info(uint instance)
 {
-  return do_init_info(FIND_SCAN, instance);
+  return do_init_info(FIND_KEY, instance);
 }
 
 int Rpl_info_table::do_init_info(enum_find_method method, uint instance)
