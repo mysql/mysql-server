@@ -1898,6 +1898,9 @@ void Item_func_div::result_precision()
                             args[1]->decimals + prec_increment,
                             DECIMAL_MAX_PRECISION);
 
+  if (result_type() == DECIMAL_RESULT)
+    DBUG_ASSERT(precision > 0);
+
   /* Integer operations keep unsigned_flag if one of arguments is unsigned */
   if (result_type() == INT_RESULT)
     unsigned_flag= args[0]->unsigned_flag | args[1]->unsigned_flag;

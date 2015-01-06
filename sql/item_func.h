@@ -1878,6 +1878,7 @@ class Item_func_get_lock :public Item_int_func
   longlong val_int();
   const char *func_name() const { return "get_lock"; }
   void fix_length_and_dec() { max_length=1; maybe_null=1;}
+  virtual uint decimal_precision() const { return max_length; }
 };
 
 class Item_func_release_lock :public Item_int_func
@@ -1892,6 +1893,7 @@ public:
   longlong val_int();
   const char *func_name() const { return "release_lock"; }
   void fix_length_and_dec() { max_length=1; maybe_null=1;}
+  virtual uint decimal_precision() const { return max_length; }
 };
 
 class Item_func_release_all_locks :public Item_int_func
