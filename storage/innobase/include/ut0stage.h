@@ -76,6 +76,7 @@ public:
 	ut_stage_alter_t(
 		const dict_index_t*	pk)
 		:
+		m_progress(NULL),
 		m_pk(pk),
 		m_n_pk_recs(0),
 		m_n_pk_pages(0),
