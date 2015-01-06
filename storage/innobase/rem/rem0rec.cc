@@ -1557,7 +1557,7 @@ rec_copy_prefix_to_buf(
 		break;
 	case REC_STATUS_NODE_PTR:
 		/* it doesn't make sense to copy the child page number field */
-		ut_ad(n_fields <= dict_index_get_n_unique_in_tree(index));
+		ut_ad(n_fields <= dict_index_get_n_unique_in_tree_nonleaf(index));
 		break;
 	case REC_STATUS_INFIMUM:
 	case REC_STATUS_SUPREMUM:
