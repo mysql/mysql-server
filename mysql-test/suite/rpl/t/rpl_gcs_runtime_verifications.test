@@ -19,7 +19,7 @@
 
 --source include/have_gcs_replication_plugin.inc
 
---let $gcs_group_name= 36236980-4307-11e4-916c-0800200c9a66
+--let $gcs_group_name= 36236980-4307-11e4-916c-0800200c9a67
 --source include/start_gcs_replication.inc
 
 #Lets create several tables. They will all breach 1 or more rules
