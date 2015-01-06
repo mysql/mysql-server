@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -317,6 +317,14 @@ int gcs_trans_before_commit(Trans_param *param)
 err:
   delete tcle;
   close_cached_file(&cache);
+
+  if (error)
+  {
+    // Release and remove certification latch ticket.
+    certification_latch->releaseTicket(param->thread_id);
+    certification_latch->waitTicket(param->thread_id);
+  }
+
   DBUG_RETURN(error);
 }
 

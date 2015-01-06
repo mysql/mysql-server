@@ -1,0 +1,71 @@
+###########################################################
+# Validate that when a broadcast error happens the
+# certification ticket is properly released.
+############################################################
+--source include/have_gcs_replication_plugin.inc
+--let $gcs_group_name= 8a94f357-aab4-11df-86ab-c80aa9420002
+--source include/master-slave.inc
+
+
+--echo
+--echo ############################################################
+--echo #  1. Create the test table on all group members.
+--connection server1
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY,
+                 c2 VARCHAR(21800) CHARACTER SET UTF8
+                ) ENGINE=InnoDB;
+--source include/rpl_sync.inc
+
+
+--echo
+--echo ############################################################
+--echo #  2. Execute a big query on server 1 that will fail to be
+--echo #     broadcast by Corosync.
+--connection server1
+
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Plugin gcs_replication_plugin reported: 'Failed to broadcast GCS message'");
+call mtr.add_suppression("Run function 'before_commit' in plugin 'gcs_replication_plugin' failed");
+SET SESSION sql_log_bin= 1;
+
+BEGIN;
+
+--let $value= `SELECT REPEAT('a', 21800)`
+--let $counter= 50
+--disable_query_log
+while ($counter)
+{
+  --eval INSERT INTO t1 (c1, c2) VALUES ($counter, '$value')
+  --dec $counter
+}
+--enable_query_log
+
+--error ER_ERROR_DURING_COMMIT
+COMMIT;
+
+
+--echo
+--echo ############################################################
+--echo #  3. Check that table t1 is empty on server 1.
+--connection server1
+--let $assert_text= 'Table t1 is empty'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1, count, 1] = 0
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo #  4. Check that table t1 is empty on server 2.
+--connection server2
+--let $assert_text= 'Table t1 is empty'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1, count, 1] = 0
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo #  5. Clean data.
+--connection server1
+DROP TABLE t1;
+
+--source include/rpl_end.inc
