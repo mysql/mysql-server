@@ -20,6 +20,7 @@
 #include "sql_list.h" // List
 
 class Create_field;
+class Item;
 class Key;
 class String;
 struct TABLE_LIST;
