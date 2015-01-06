@@ -215,6 +215,23 @@ fts_write_node(
 	fts_node_t*	node)		/*!< in: node columns */
 	__attribute__((warn_unused_result));
 
+/** Check fts token
+1. for ngram token, check whether the token contains any words in stopwords
+2. for non-ngram token, check if it's stopword or less than fts_min_token_size
+or greater than fts_max_token_size.
+@param[in]	token		token string
+@param[in]	stopwords	stopwords rb tree
+@param[in]	is_ngram	is ngram parser
+@param[in]	cs		token charset
+@retval true	if it is not stopword and length in range
+@retval false	if it is stopword or length not in range */
+bool
+fts_check_token(
+	const fts_string_t*	token,
+	const ib_rbt_t*		stopwords,
+	bool			is_ngram,
+	const CHARSET_INFO*	cs);
+
 /*******************************************************************//**
 Tokenize a document. */
 void

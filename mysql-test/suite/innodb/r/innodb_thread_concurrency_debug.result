@@ -1,0 +1,25 @@
+#
+# Bug #19386426	SHUTDOWN HANGS: CLIENT THREAD IN A LOOP
+# AROUND SRV_CONC_ENTER_INNODB()
+#
+SET @old_innodb_thread_concurrency := @@innodb_thread_concurrency;
+SET @old_innodb_thread_sleep_delay := @@innodb_thread_sleep_delay;
+SET GLOBAL innodb_thread_concurrency = 1;
+create table t1(f1 int) engine=innodb;
+SET DEBUG_SYNC= 'ib_after_row_insert
+SIGNAL opened WAIT_FOR flushed';
+insert into t1 values(12);
+connection default;
+SET DEBUG_SYNC= 'now WAIT_FOR opened';
+SET DEBUG_SYNC= 'user_thread_waiting
+SIGNAL flushed WAIT_FOR opened1';
+insert into t1 values(13);
+set global innodb_thread_concurrency=0;
+SET DEBUG_SYNC= 'now SIGNAL opened1';
+select * from t1;
+f1
+12
+13
+drop table t1;
+SET GLOBAL innodb_thread_concurrency = @old_innodb_thread_concurrency;
+SET GLOBAL innodb_thread_sleep_delay = @old_innodb_thread_sleep_delay;

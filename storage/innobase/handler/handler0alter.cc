@@ -267,8 +267,11 @@ my_error_innodb(
 		my_error(ER_NOT_KEYFILE, MYF(0), table);
 		break;
 	case DB_TOO_BIG_RECORD:
+		/* We limit max record size to 16k for 64k page size. */
 		my_error(ER_TOO_BIG_ROWSIZE, MYF(0),
-			 page_get_free_space_of_empty(
+			 srv_page_size == UNIV_PAGE_SIZE_MAX
+			 ? REC_MAX_DATA_SIZE - 1
+			 : page_get_free_space_of_empty(
 				 flags & DICT_TF_COMPACT) / 2);
 		break;
 	case DB_INVALID_NULL:
@@ -1505,7 +1508,7 @@ name_ok:
 			so we just assume optimize_point_storage=true, which
 			wouldn't affect the result */
 			switch (get_innobase_type_from_mysql_type(
-					&is_unsigned, field, true)) {
+				&is_unsigned, field, true)) {
 			default:
 				break;
 			case DATA_INT:
@@ -1687,6 +1690,7 @@ innobase_create_index_def(
 		mem_heap_alloc(heap, n_fields * sizeof *index->fields));
 
 	index->parser = NULL;
+	index->is_ngram = false;
 	index->key_number = key_number;
 	index->n_fields = n_fields;
 	index->name = mem_heap_strdup(heap, key->name);
@@ -1719,6 +1723,13 @@ innobase_create_index_def(
 					index->parser =
 						static_cast<st_mysql_ftparser*>(
 						plugin_decl(parser)->info);
+
+					index->is_ngram = strncmp(
+						plugin_name(parser)->str,
+						FTS_NGRAM_PARSER_NAME,
+						plugin_name(parser)->length)
+						 == 0;
+
 					break;
 				}
 			}
@@ -3837,7 +3848,7 @@ rename_index_in_cache(
 
 	if (old_name_len >= new_name_len) {
 		/* reuse the old buffer for the name if it is large enough */
-		memcpy(const_cast<char*>(index->name), new_name,
+		memcpy(const_cast<char*>(index->name()), new_name,
 		       new_name_len + 1);
 	} else {
 		/* Free the old chunk of memory if it is at the topmost
@@ -5679,8 +5690,7 @@ commit_try_rebuild(
 			    == ONLINE_INDEX_COMPLETE);
 		DBUG_ASSERT(index->is_committed());
 		if (dict_index_is_corrupted(index)) {
-			my_error(ER_INDEX_CORRUPT, MYF(0),
-				 index->name);
+			my_error(ER_INDEX_CORRUPT, MYF(0), index->name());
 			DBUG_RETURN(true);
 		}
 	}
@@ -5888,7 +5898,7 @@ commit_try_norebuild(
 			with a detailed reason once
 			WL#6379 has been implemented. */
 			my_error(ER_DUP_UNKNOWN_IN_INDEX,
-				 MYF(0), index->name);
+				 MYF(0), index->name());
 			DBUG_RETURN(true);
 		}
 	}

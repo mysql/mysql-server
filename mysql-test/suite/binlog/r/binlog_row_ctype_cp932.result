@@ -97,6 +97,8 @@ SET character_set_client= @safe_character_set_client;
 SET character_set_results= @safe_character_set_results;
 set names cp932;
 set character_set_database = cp932;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1(c1 CHAR(1)) DEFAULT CHARACTER SET = cp932;
 INSERT INTO t1 VALUES
 (0x05),(0x7E),(0x815C),(0x815F),(0x8160),(0x8161),(0x817C),(0x8191),(0x8192),(0x81CA);

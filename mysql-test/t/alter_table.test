@@ -1578,7 +1578,7 @@ ALTER TABLE func ENGINE=csv;
 --error ER_UNSUPPORTED_ENGINE
 ALTER TABLE event ENGINE=merge;
 --error ER_UNSUPPORTED_ENGINE
-ALTER TABLE servers ENGINE=innodb;
+ALTER TABLE servers ENGINE=merge;
 --error ER_UNSUPPORTED_ENGINE
 ALTER TABLE procs_priv ENGINE=memory;
 --error ER_UNSUPPORTED_ENGINE
@@ -1600,7 +1600,7 @@ CREATE TABLE func (dummy int) ENGINE=csv;
 --error ER_UNSUPPORTED_ENGINE
 CREATE TABLE event (dummy int) ENGINE=merge;
 --error ER_UNSUPPORTED_ENGINE
-CREATE TABLE servers (dummy int) ENGINE=innodb;
+CREATE TABLE servers (dummy int) ENGINE=merge;
 --error ER_UNSUPPORTED_ENGINE
 CREATE TABLE procs_priv (dummy int) ENGINE=memory;
 --error ER_UNSUPPORTED_ENGINE

@@ -56,9 +56,36 @@ Created 1/8/1996 Heikki Tuuri
 table name as unuique as possible. */
 static ib_uint32_t	dict_temp_file_num;
 
-/** Display a table name */
+/** Display an identifier.
+@param[in,out]	s	output stream
+@param[in]	id_name	SQL identifier (other than table name)
+@return the output stream */
 std::ostream&
-operator<<(std::ostream& s, const table_name_t& table_name)
+operator<<(
+	std::ostream&		s,
+	const id_name_t&	id_name)
+{
+	const char	q	= '`';
+	const char*	c	= id_name;
+	s << q;
+	for (; *c != 0; c++) {
+		if (*c == q) {
+			s << *c;
+		}
+		s << *c;
+	}
+	s << q;
+	return(s);
+}
+
+/** Display a table name.
+@param[in,out]	s		output stream
+@param[in]	table_name	table name
+@return the output stream */
+std::ostream&
+operator<<(
+	std::ostream&		s,
+	const table_name_t&	table_name)
 {
 	return(s << ut_get_name(NULL, table_name.m_name));
 }
@@ -116,10 +143,10 @@ dict_mem_table_create(
 	table->autoinc_lock = static_cast<ib_lock_t*>(
 		mem_heap_alloc(heap, lock_get_size()));
 
-	mutex_create("autoinc", &table->autoinc_mutex);
+	/* lazy creation of table autoinc latch */
+	dict_table_autoinc_create_lazy(table);
 
 	table->autoinc = 0;
-
 	table->sess_row_id = 0;
 	table->sess_trx_id = 0;
 
@@ -168,7 +195,7 @@ dict_mem_table_free(
 		}
 	}
 #ifndef UNIV_HOTBACKUP
-	mutex_free(&(table->autoinc_mutex));
+	dict_table_autoinc_destroy(table);
 #endif /* UNIV_HOTBACKUP */
 
 	dict_table_stats_latch_destroy(table);
@@ -485,7 +512,7 @@ dict_mem_index_create(
 	dict_mem_fill_index_struct(index, heap, table_name, index_name,
 				   space, type, n_fields);
 
-	mutex_create("zip_pad_mutex", &index->zip_pad.mutex);
+	dict_index_zip_pad_mutex_create_lazy(index);
 
 	if (type & DICT_SPATIAL) {
 		mutex_create("rtr_ssn_mutex", &index->rtr_ssn.mutex);
@@ -622,7 +649,7 @@ dict_mem_index_free(
 	ut_ad(index);
 	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
 
-	mutex_destroy(&index->zip_pad.mutex);
+	dict_index_zip_pad_mutex_destroy(index);
 
 	if (dict_index_is_spatial(index)) {
 		rtr_info_active::iterator	it;

@@ -5797,9 +5797,9 @@ ER_PARTITION_MGMT_ON_NONPARTITIONED
         ger "Partitionsverwaltung einer nicht partitionierten Tabelle ist nicht möglich"
         swe "Partitioneringskommando på en opartitionerad tabell är inte möjligt"
 ER_FOREIGN_KEY_ON_PARTITIONED
-        eng "Foreign key clause is not yet supported in conjunction with partitioning"
+        eng "Foreign keys are not yet supported in conjunction with partitioning"
         ger "Fremdschlüssel-Beschränkungen sind im Zusammenhang mit Partitionierung nicht zulässig"
-        swe "Foreign key klausul är inte ännu implementerad i kombination med partitionering"
+        swe "Foreign keys är inte ännu implementerad i kombination med partitionering"
 ER_DROP_PARTITION_NON_EXISTENT
         eng "Error in list of partitions to %-.64s"
         ger "Fehler in der Partitionsliste bei %-.64s"
@@ -7337,6 +7337,10 @@ ER_WRONG_FIELD_WITH_GROUP_V2
 # When using this error message, use the ER_MIX_OF_GROUP_FUNC_AND_FIELDS error code.
 ER_MIX_OF_GROUP_FUNC_AND_FIELDS_V2
   eng "In aggregated query without GROUP BY, expression #%u of %s contains nonaggregated column '%-.192s'; this is incompatible with sql_mode=only_full_group_by"
+
+# When using this error message, use the ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT error code.
+ER_WARN_DEPRECATED_SYSVAR_UPDATE
+  eng "Updating '%s' is deprecated. It will be made read-only in a future release."
 
 #
 #  End of 5.7 error messages.

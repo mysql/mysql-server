@@ -2,6 +2,7 @@
 # BUG#11747548:DETECT ORPHAN TEMP-POOL FILES, AND HANDLE GRACEFULLY.
 #
 #Set up.
+set global internal_tmp_disk_storage_engine = myisam;
 CREATE TABLE pid_table(pid_no INT);
 CREATE TABLE t1 (a BLOB);
 INSERT INTO t1 VALUES (1), (2);
@@ -17,3 +18,4 @@ a
 2
 #cleanup
 DROP TABLE t1, pid_table;
+set global internal_tmp_disk_storage_engine = INNODB;

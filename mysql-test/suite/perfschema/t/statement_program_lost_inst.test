@@ -20,7 +20,7 @@
 
 let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 --exec echo "wait" > $restart_file
---shutdown_server 10
+--shutdown_server 
 --source include/wait_until_disconnected.inc
 --exec echo "restart:--performance_schema_max_program_instances=7 --performance_schema_max_statement_stack=2 --thread_stack=655360">$restart_file
 --enable_reconnect

@@ -58,6 +58,8 @@ HASH column_priv_hash, proc_priv_hash, func_priv_hash;
 hash_filo *acl_cache;
 HASH acl_check_hosts;
 
+mysql_rwlock_t proxy_users_rwlock;
+
 bool initialized=0;
 bool allow_all_hosts=1;
 uint grant_version=0; /* Version of priv tables */
@@ -371,6 +373,19 @@ ACL_PROXY_USER::store_pk(TABLE *table,
 }
 
 int
+ACL_PROXY_USER::store_with_grant(TABLE * table,
+                                 bool with_grant)
+{
+  DBUG_ENTER("ACL_PROXY_USER::store_with_grant");
+  DBUG_PRINT("info", ("with_grant=%s", with_grant ? "TRUE" : "FALSE"));
+  if (table->field[MYSQL_PROXIES_PRIV_WITH_GRANT]->store(with_grant ? 1 : 0,
+                                                         TRUE))
+    DBUG_RETURN(TRUE);
+
+  DBUG_RETURN(FALSE);
+}
+
+int
 ACL_PROXY_USER::store_data_record(TABLE *table,
                                   const LEX_CSTRING &host,
                                   const LEX_CSTRING &user,
@@ -382,9 +397,7 @@ ACL_PROXY_USER::store_data_record(TABLE *table,
   DBUG_ENTER("ACL_PROXY_USER::store_pk");
   if (store_pk(table,  host, user, proxied_host, proxied_user))
     DBUG_RETURN(TRUE);
-  DBUG_PRINT("info", ("with_grant=%s", with_grant ? "TRUE" : "FALSE"));
-  if (table->field[MYSQL_PROXIES_PRIV_WITH_GRANT]->store(with_grant ? 1 : 0, 
-                                                         TRUE))
+  if (store_with_grant(table, with_grant))
     DBUG_RETURN(TRUE);
   if (table->field[MYSQL_PROXIES_PRIV_GRANTOR]->store(grantor, 
                                                       strlen(grantor),
@@ -1282,6 +1295,7 @@ my_bool acl_init(bool dont_read_acl_tables)
                            (my_hash_free_key) free,
                            &my_charset_utf8_bin);
 
+  mysql_rwlock_init(key_rwlock_proxy_users, &proxy_users_rwlock);
   /*
     cache built-in native authentication plugins,
     to avoid hash searches and a global mutex lock on every connect
@@ -1780,7 +1794,6 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
                     "please run mysql_upgrade to create it");
   }
   acl_proxy_users->shrink_to_fit();
-
   validate_user_plugin_records();
   init_check_host();
 
@@ -1875,8 +1888,14 @@ my_bool acl_reload(THD *thd)
     DBUG_RETURN(true);
   }
 
+  Write_lock proxy_users_wlk(&proxy_users_rwlock, DEFER);
+
   if ((old_initialized=initialized))
+  {
+    /* If you need these two locks, always acquire them in this order:*/
     mysql_mutex_lock(&acl_cache->lock);
+    proxy_users_wlk.lock();
+  }
 
   Prealloced_array<ACL_USER, ACL_PREALLOC_SIZE> *old_acl_users= acl_users;
   Prealloced_array<ACL_DB, ACL_PREALLOC_SIZE> *old_acl_dbs= acl_dbs;
@@ -1915,7 +1934,10 @@ my_bool acl_reload(THD *thd)
     delete old_acl_proxy_users;
   }
   if (old_initialized)
+  {
     mysql_mutex_unlock(&acl_cache->lock);
+    proxy_users_wlk.unlock();
+  }
 
   close_acl_tables(thd);
   DBUG_RETURN(return_val);
@@ -1925,7 +1947,6 @@ my_bool acl_reload(THD *thd)
 void acl_insert_proxy_user(ACL_PROXY_USER *new_value)
 {
   DBUG_ENTER("acl_insert_proxy_user");
-  mysql_mutex_assert_owner(&acl_cache->lock);
   acl_proxy_users->push_back(*new_value);
   std::sort(acl_proxy_users->begin(), acl_proxy_users->end(), ACL_compare());
   DBUG_VOID_RETURN;
@@ -2511,8 +2532,6 @@ void acl_insert_user(const char *user, const char *host,
 
 void acl_update_proxy_user(ACL_PROXY_USER *new_value, bool is_revoke)
 {
-  mysql_mutex_assert_owner(&acl_cache->lock);
-
   DBUG_ENTER("acl_update_proxy_user");
   for (ACL_PROXY_USER *acl_user= acl_proxy_users->begin();
        acl_user != acl_proxy_users->end(); ++acl_user)

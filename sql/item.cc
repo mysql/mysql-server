@@ -284,7 +284,7 @@ String *Item::val_string_from_datetime(String *str)
   if (get_date(&ltime, TIME_FUZZY_DATE) ||
       (null_value= str->alloc(MAX_DATE_STRING_REP_LENGTH)))
     return (String *) 0;
-  make_datetime((DATE_TIME_FORMAT *) 0, &ltime, str, decimals);
+  make_datetime((Date_time_format *) 0, &ltime, str, decimals);
   return str;
 }
 
@@ -296,7 +296,7 @@ String *Item::val_string_from_date(String *str)
   if (get_date(&ltime, TIME_FUZZY_DATE) ||
       (null_value= str->alloc(MAX_DATE_STRING_REP_LENGTH)))
     return (String *) 0;
-  make_date((DATE_TIME_FORMAT *) 0, &ltime, str);
+  make_date((Date_time_format *) 0, &ltime, str);
   return str;
 }
 
@@ -307,7 +307,7 @@ String *Item::val_string_from_time(String *str)
   MYSQL_TIME ltime;
   if (get_time(&ltime) || (null_value= str->alloc(MAX_DATE_STRING_REP_LENGTH)))
     return (String *) 0;
-  make_time((DATE_TIME_FORMAT *) 0, &ltime, str, decimals);
+  make_time((Date_time_format *) 0, &ltime, str, decimals);
   return str;
 }
 

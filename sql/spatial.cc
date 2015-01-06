@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -761,6 +761,17 @@ int Geometry::create_from_opresult(Geometry_buffer *g_buf,
 }
 
 
+bool Geometry::envelope(MBR *mbr) const
+{
+  wkb_parser wkb(get_cptr(), get_cptr() + get_nbytes());
+
+  if (get_mbr(mbr, &wkb))
+    return true;
+
+  return false;
+}
+
+
 bool Geometry::envelope(String *result) const
 {
   MBR mbr;
@@ -1358,10 +1369,10 @@ const Geometry::Class_info *Gis_point::get_class_info() const
 uint32 Gis_line_string::get_data_size() const
 {
   if (is_length_verified())
-    return get_nbytes();
+    return static_cast<uint32>(get_nbytes());
 
   uint32 n_points;
-  size_t len;
+  uint32 len;
   wkb_parser wkb(get_cptr(), get_cptr() + get_nbytes());
   if (wkb.scan_n_points_and_check_data(&n_points))
     return GET_SIZE_ERROR;
@@ -2041,7 +2052,7 @@ void Gis_polygon::make_rings()
 uint32 Gis_polygon::get_data_size() const
 {
   uint32 n_linear_rings;
-  size_t len;
+  uint32 len;
   wkb_parser wkb(get_cptr(), get_cptr() + get_nbytes());
 
   if (is_length_verified())
@@ -2561,7 +2572,7 @@ void own_rings(Geometry *geo0)
 uint32 Gis_multi_point::get_data_size() const
 {
   uint32 n_points;
-  size_t len;
+  uint32 len;
   wkb_parser wkb(get_cptr(), get_cptr() + get_nbytes());
 
   if (is_length_verified())
@@ -2723,7 +2734,7 @@ const Geometry::Class_info *Gis_multi_point::get_class_info() const
 uint32 Gis_multi_line_string::get_data_size() const
 {
   uint32 n_line_strings;
-  size_t len;
+  uint32 len;
   wkb_parser wkb(get_cptr(), get_cptr() + get_nbytes());
 
   if (is_length_verified())
@@ -2976,7 +2987,7 @@ const Geometry::Class_info *Gis_multi_line_string::get_class_info() const
 uint32 Gis_multi_polygon::get_data_size() const
 {
   uint32 n_polygons;
-  size_t len;
+  uint32 len;
   wkb_parser wkb(get_cptr(), get_cptr() + get_nbytes());
 
   if (is_length_verified())
@@ -3013,7 +3024,7 @@ uint32 Gis_multi_polygon::get_data_size() const
 bool Gis_multi_polygon::init_from_wkt(Gis_read_stream *trs, String *wkb)
 {
   uint32 n_polygons= 0;
-  int np_pos= wkb->length();
+  uint32 np_pos= wkb->length();
   Gis_polygon p(false);
 
   if (wkb->reserve(4, 512))
@@ -3437,7 +3448,7 @@ Gis_geometry_collection::Gis_geometry_collection(Geometry *geo, String *gcbuf)
 uint32 Gis_geometry_collection::get_data_size() const
 {
   uint32 n_objects= 0;
-  size_t len;
+  uint32 len;
   wkb_parser wkb(get_cptr(), get_cptr() + get_nbytes());
   Geometry_buffer buffer;
   Geometry *geom;

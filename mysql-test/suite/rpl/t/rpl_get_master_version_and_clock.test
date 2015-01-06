@@ -1,3 +1,6 @@
+# The test is currently experimental and crashes a lot, don't run it in Valgrind:
+source include/not_valgrind.inc;
+
 #
 # BUG#45214 
 # This test verifies if the slave I/O tread tries to reconnect to

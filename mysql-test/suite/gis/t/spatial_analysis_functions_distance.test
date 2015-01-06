@@ -2,10 +2,10 @@
 #                                                                                #
 # This test is aimed to focus on Spatial Analysis Functions.                     #
 #                                                                                #
-# Distance/ST_Distance() functions take 2 geometries as inpout parameters and    #
+# ST_Distance functions take 2 geometries as inpout parameters and               #
 # returns minimum distance between them.                                         #
 #                                                                                #
-# Creation Date: 2013-06-09                                                      #
+# Creation Date: 2014-06-09                                                      #
 # Author : Pavan Naik                                                            #
 #                                                                                #
 ##################################################################################
@@ -18,10 +18,6 @@
 
 --echo #Creating the spatial Geometry object
 USE test;
-
---disable_warnings
-DROP TABLE IF EXISTS gis_geometrycollection;
---enable_warnings
 
 CREATE TABLE gis_geometrycollection (fid INTEGER NOT NULL PRIMARY KEY, g GEOMETRYCOLLECTION);
 
@@ -113,90 +109,87 @@ SET @star_collection_elems_3='GEOMETRYCOLLECTION(MULTIPOLYGON(((65 0,75 25,85 0,
 --echo #INSERT base star
 --disable_warnings
 INSERT INTO gis_geometrycollection VALUES
- (100,GeomFromText(@star)),
- (101,GeomFromText(@star_elem_vertical)),
- (102,GeomFromText(@star_elem_horizontal)),
- (103,GeomFromText(@star_of_elems)),
- (104,GeomFromText(@star_top)),
- (105,GeomFromText(@star_center)),
- (106,GeomFromText(@star_bottom_left)),
- (107,GeomFromText(@star_bottom_right)),
- (108,GeomFromText(@star_bottom_points)),
- (109,GeomFromText(@star_all_points)),
- (110,GeomFromText(@star_line_horizontal)),
- (111,GeomFromText(@star_line_vertical)),
- (112,GeomFromText(@star_top_to_center)),
- (113,GeomFromText(@star_lines_near_horizontal)),
- (114,GeomFromText(@star_lines_near_vertical)),
- (115,GeomFromText(@star_collection_elems));
+ (100,ST_GEOMFROMTEXT(@star)),
+ (101,ST_GEOMFROMTEXT(@star_elem_vertical)),
+ (102,ST_GEOMFROMTEXT(@star_elem_horizontal)),
+ (103,ST_GEOMFROMTEXT(@star_of_elems)),
+ (104,ST_GEOMFROMTEXT(@star_top)),
+ (105,ST_GEOMFROMTEXT(@star_center)),
+ (106,ST_GEOMFROMTEXT(@star_bottom_left)),
+ (107,ST_GEOMFROMTEXT(@star_bottom_right)),
+ (108,ST_GEOMFROMTEXT(@star_bottom_points)),
+ (109,ST_GEOMFROMTEXT(@star_all_points)),
+ (110,ST_GEOMFROMTEXT(@star_line_horizontal)),
+ (111,ST_GEOMFROMTEXT(@star_line_vertical)),
+ (112,ST_GEOMFROMTEXT(@star_top_to_center)),
+ (113,ST_GEOMFROMTEXT(@star_lines_near_horizontal)),
+ (114,ST_GEOMFROMTEXT(@star_lines_near_vertical)),
+ (115,ST_GEOMFROMTEXT(@star_collection_elems));
 --enable_warnings
 
 --echo #INSERT identical (to base) star
 --disable_warnings
 INSERT INTO gis_geometrycollection VALUES
- (200,GeomFromText(@star_1)),
- (201,GeomFromText(@star_elem_vertical_1)),
- (202,GeomFromText(@star_elem_horizontal_1)),
- (203,GeomFromText(@star_of_elems_1)),
- (204,GeomFromText(@star_top_1)),
- (205,GeomFromText(@star_center_1)),
- (206,GeomFromText(@star_bottom_left_1)),
- (207,GeomFromText(@star_bottom_right_1)),
- (208,GeomFromText(@star_bottom_points_1)),
- (209,GeomFromText(@star_all_points_1)),
- (210,GeomFromText(@star_line_horizontal_1)),
- (211,GeomFromText(@star_line_vertical_1)),
- (212,GeomFromText(@star_top_to_center_1)),
- (213,GeomFromText(@star_lines_near_horizontal_1)),
- (214,GeomFromText(@star_lines_near_vertical_1)),
- (215,GeomFromText(@star_collection_elems_1));
+ (200,ST_GEOMFROMTEXT(@star_1)),
+ (201,ST_GEOMFROMTEXT(@star_elem_vertical_1)),
+ (202,ST_GEOMFROMTEXT(@star_elem_horizontal_1)),
+ (203,ST_GEOMFROMTEXT(@star_of_elems_1)),
+ (204,ST_GEOMFROMTEXT(@star_top_1)),
+ (205,ST_GEOMFROMTEXT(@star_center_1)),
+ (206,ST_GEOMFROMTEXT(@star_bottom_left_1)),
+ (207,ST_GEOMFROMTEXT(@star_bottom_right_1)),
+ (208,ST_GEOMFROMTEXT(@star_bottom_points_1)),
+ (209,ST_GEOMFROMTEXT(@star_all_points_1)),
+ (210,ST_GEOMFROMTEXT(@star_line_horizontal_1)),
+ (211,ST_GEOMFROMTEXT(@star_line_vertical_1)),
+ (212,ST_GEOMFROMTEXT(@star_top_to_center_1)),
+ (213,ST_GEOMFROMTEXT(@star_lines_near_horizontal_1)),
+ (214,ST_GEOMFROMTEXT(@star_lines_near_vertical_1)),
+ (215,ST_GEOMFROMTEXT(@star_collection_elems_1));
 --enable_warnings
 
 --echo #INSERT overlapping star
 --disable_warnings
 INSERT INTO gis_geometrycollection VALUES
- (300,GeomFromText(@star_2)),
- (301,GeomFromText(@star_elem_vertical_2)),
- (302,GeomFromText(@star_elem_horizontal_2)),
- (303,GeomFromText(@star_of_elems_2)),
- (304,GeomFromText(@star_top_2)),
- (305,GeomFromText(@star_center_2)),
- (306,GeomFromText(@star_bottom_left_2)),
- (307,GeomFromText(@star_bottom_right_2)),
- (308,GeomFromText(@star_bottom_points_2)),
- (309,GeomFromText(@star_all_points_2)),
- (310,GeomFromText(@star_line_horizontal_2)),
- (311,GeomFromText(@star_line_vertical_2)),
- (312,GeomFromText(@star_top_to_center_2)),
- (313,GeomFromText(@star_lines_near_horizontal_2)),
- (314,GeomFromText(@star_lines_near_vertical_2)),
- (315,GeomFromText(@star_collection_elems_2));
+ (300,ST_GEOMFROMTEXT(@star_2)),
+ (301,ST_GEOMFROMTEXT(@star_elem_vertical_2)),
+ (302,ST_GEOMFROMTEXT(@star_elem_horizontal_2)),
+ (303,ST_GEOMFROMTEXT(@star_of_elems_2)),
+ (304,ST_GEOMFROMTEXT(@star_top_2)),
+ (305,ST_GEOMFROMTEXT(@star_center_2)),
+ (306,ST_GEOMFROMTEXT(@star_bottom_left_2)),
+ (307,ST_GEOMFROMTEXT(@star_bottom_right_2)),
+ (308,ST_GEOMFROMTEXT(@star_bottom_points_2)),
+ (309,ST_GEOMFROMTEXT(@star_all_points_2)),
+ (310,ST_GEOMFROMTEXT(@star_line_horizontal_2)),
+ (311,ST_GEOMFROMTEXT(@star_line_vertical_2)),
+ (312,ST_GEOMFROMTEXT(@star_top_to_center_2)),
+ (313,ST_GEOMFROMTEXT(@star_lines_near_horizontal_2)),
+ (314,ST_GEOMFROMTEXT(@star_lines_near_vertical_2)),
+ (315,ST_GEOMFROMTEXT(@star_collection_elems_2));
 --enable_warnings
 
 --echo #INSERT seperate star
 --disable_warnings
 INSERT INTO gis_geometrycollection VALUES
- (400,GeomFromText(@star_3)),
- (401,GeomFromText(@star_elem_vertical_3)),
- (402,GeomFromText(@star_elem_horizontal_3)),
- (403,GeomFromText(@star_of_elems_3)),
- (404,GeomFromText(@star_top_3)),
- (405,GeomFromText(@star_center_3)),
- (406,GeomFromText(@star_bottom_left_3)),
- (407,GeomFromText(@star_bottom_right_3)),
- (408,GeomFromText(@star_bottom_points_3)),
- (409,GeomFromText(@star_all_points_3)),
- (410,GeomFromText(@star_line_horizontal_3)),
- (411,GeomFromText(@star_line_vertical_3)),
- (412,GeomFromText(@star_top_to_center_3)),
- (413,GeomFromText(@star_lines_near_horizontal_3)),
- (414,GeomFromText(@star_lines_near_vertical_3)),
- (415,GeomFromText(@star_collection_elems_3));
+ (400,ST_GEOMFROMTEXT(@star_3)),
+ (401,ST_GEOMFROMTEXT(@star_elem_vertical_3)),
+ (402,ST_GEOMFROMTEXT(@star_elem_horizontal_3)),
+ (403,ST_GEOMFROMTEXT(@star_of_elems_3)),
+ (404,ST_GEOMFROMTEXT(@star_top_3)),
+ (405,ST_GEOMFROMTEXT(@star_center_3)),
+ (406,ST_GEOMFROMTEXT(@star_bottom_left_3)),
+ (407,ST_GEOMFROMTEXT(@star_bottom_right_3)),
+ (408,ST_GEOMFROMTEXT(@star_bottom_points_3)),
+ (409,ST_GEOMFROMTEXT(@star_all_points_3)),
+ (410,ST_GEOMFROMTEXT(@star_line_horizontal_3)),
+ (411,ST_GEOMFROMTEXT(@star_line_vertical_3)),
+ (412,ST_GEOMFROMTEXT(@star_top_to_center_3)),
+ (413,ST_GEOMFROMTEXT(@star_lines_near_horizontal_3)),
+ (414,ST_GEOMFROMTEXT(@star_lines_near_vertical_3)),
+ (415,ST_GEOMFROMTEXT(@star_collection_elems_3));
 --enable_warnings
 
---disable_warnings
-DROP TABLE IF EXISTS gis_geometrycollection_2;
---enable_warnings
 CREATE TABLE gis_geometrycollection_2 SELECT fid as fid2,g as g2 FROM gis_geometrycollection;
 
 --echo #Checking the integrity of the above create/insert statements 
@@ -206,1841 +199,1074 @@ SELECT count(astext(g) != 'NULL') FROM gis_geometrycollection;
 --echo #64 rows. 
 SELECT count(astext(g2) != 'NULL') FROM gis_geometrycollection_2;
 
-############################################################################################
-# Checking the spatial analysis functions                                                  #
-############################################################################################
-
 --echo #=======================================================================================
---echo # Distance(g1,g2)
+--echo # ST_DISTANCE(g1,g2)
 --echo #=======================================================================================
 
 --echo #-------------------------------------------------------------------------------------------
 --echo # point,point
-SELECT Distance(GeomFromText(@star_center),GeomFromText(@star_center));
+--echo #-------------------------------------------------------------------------------------------
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_center),ST_GEOMFROMTEXT(@star_center));
 
-SELECT Distance(GeomFromText(@star_top),GeomFromText(@star_center));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_center));
 
-SELECT Distance(GeomFromText('POINT(0 0)'),GeomFromText('POINT(-0 0.00)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('POINT(-0 0.00)'));
 
-SELECT Distance(GeomFromText('POINT(0 0)'),GeomFromText('POINT(1e154 0)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('POINT(1e154 0)'));
 
-SELECT Distance(GeomFromText('POINT(0 0)'),GeomFromText('POINT(-1e154 0)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('POINT(-1e154 0)'));
 
-SELECT Distance(g,GeomFromText(@star_center)) FROM gis_geometrycollection WHERE fid=105;
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_center)) FROM gis_geometrycollection WHERE fid=105;
 
 --echo #-------------------------------------------------------------------------------------------
 --echo # point,multipoint
-SELECT Distance(GeomFromText(@star_bottom_left),GeomFromText(@star_bottom_points));
+--echo #-------------------------------------------------------------------------------------------
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_bottom_left),ST_GEOMFROMTEXT(@star_bottom_points));
 
-SELECT Distance(GeomFromText('POINT(0 0)'),GeomFromText('MULTIPOINT(10 10)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('MULTIPOINT(10 10)'));
 
-SELECT Distance(GeomFromText('POINT(1e154 0)'),GeomFromText('MULTIPOINT(1e154 10)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POINT(1e154 0)'),ST_GEOMFROMTEXT('MULTIPOINT(1e154 10)'));
 
-SELECT Distance(GeomFromText('POINT(0 0)'),GeomFromText('MULTIPOINT(-0 0.000,-0.000 0)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('MULTIPOINT(-0 0.000,-0.000 0)'));
 
-SELECT Distance(g,GeomFromText(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=106;
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=106;
 
 --echo #-------------------------------------------------------------------------------------------
 --echo # point,linestring
-SELECT Distance(GeomFromText(@star_top),GeomFromText(@star_top_to_center));
+--echo #-------------------------------------------------------------------------------------------
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_top_to_center));
 
-SELECT Distance(GeomFromText('POINT(0 0)'),GeomFromText('LINESTRING(10 10,10 0)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('LINESTRING(10 10,10 0)'));
 
-SELECT Distance(GeomFromText('POINT(0 0)'),GeomFromText('LINESTRING(10 10,10 0,0.0000 -0.0000)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('LINESTRING(10 10,10 0,0.0000 -0.0000)'));
 
-SELECT Distance(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=104;
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=104;
 
 --echo #-------------------------------------------------------------------------------------------
 --echo # point,multilinestring
-SELECT Distance(GeomFromText(@star_top),GeomFromText(@star_lines_near_vertical));
+--echo #-------------------------------------------------------------------------------------------
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_lines_near_vertical));
 
-SELECT Distance(GeomFromText('POINT(0 0)'),GeomFromText('MULTILINESTRING((10 10,1 0))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('MULTILINESTRING((10 10,1 0))'));
 
-SELECT Distance(GeomFromText('POINT(0 0)'),GeomFromText('MULTILINESTRING((10 10,10 0),(0.0000 -0.0000))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('MULTILINESTRING((10 10,10 0),(0.0000 -0.0000))'));
 
-SELECT Distance(GeomFromText('POINT(1e77 0)'),GeomFromText('MULTILINESTRING((0 0,0 1e154),(0 1e154,1e154 0))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POINT(1e77 0)'),ST_GEOMFROMTEXT('MULTILINESTRING((0 0,0 1e154),(0 1e154,1e154 0))'));
 
-SELECT Distance(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=104;
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=104;
 
 --echo #-------------------------------------------------------------------------------------------
 --echo # point,polygon
-SELECT Distance(GeomFromText(@star_top),GeomFromText(@star));
+--echo #-------------------------------------------------------------------------------------------
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star));
 
-SELECT Distance(GeomFromText('POINT(5 5)'),GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POINT(5 5)'),ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))'));
 
-SELECT Distance(GeomFromText('POINT(5 5)'),GeomFromText('POLYGON((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POINT(5 5)'),ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4))'));
 
-SELECT Distance(GeomFromText('POINT(20 20)'),GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POINT(20 20)'),ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))'));
 
-SELECT Distance(g,GeomFromText(@star)) FROM gis_geometrycollection WHERE fid=104;
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star)) FROM gis_geometrycollection WHERE fid=104;
 
 --echo #-------------------------------------------------------------------------------------------
 --echo # point,multipolygon
-SELECT Distance(GeomFromText(@star_top),GeomFromText(@star_of_elems));
+--echo #-------------------------------------------------------------------------------------------
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_of_elems));
 
-SELECT Distance(GeomFromText('POINT(1 1)'),GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0)))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POINT(1 1)'),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0)))'));
 
-SELECT Distance(GeomFromText('POINT(15 15)'),GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0)))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POINT(15 15)'),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0)))'));
 
-SELECT Distance(GeomFromText('POINT(4 4)'),GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4,4 4)))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POINT(4 4)'),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4,4 4)))'));
 
-SELECT Distance(GeomFromText('POINT(5 5)'),GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0)),((3 3,3 7,7 7,7 3),(4 4,4 6,6 6,6 4)))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POINT(5 5)'),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0)),'
+                                                                              '((3 3,3 7,7 7,7 3),(4 4,4 6,6 6,6 4)))'));
 
-SELECT Distance(GeomFromText('POINT(5 5)'),GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),((3 3,3 7,7 7,7 3,3 3),(4 4,4 6,6 6,6 4,4 4)))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POINT(5 5)'),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),'
+                                                                              '((3 3,3 7,7 7,7 3,3 3),(4 4,4 6,6 6,6 4,4 4)))'));
 
-SELECT Distance(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=104;
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollection WHERE fid=104;
 
 --echo #-------------------------------------------------------------------------------------------
 --echo # point,geometrycollection
-SELECT Distance(GeomFromText(@star_top),GeomFromText(@star_collection_elems));
+--echo #-------------------------------------------------------------------------------------------
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_collection_elems));
 
-SELECT Distance(GeomFromText('POINT(5 5)'),GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(5 5)))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POINT(5 5)'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(5 5)))'));
 
-SELECT Distance(GeomFromText('POINT(5 5)'),GeomFromText('GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3,4 4,5 5),POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POINT(5 5)'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION('
+                                                                     'LINESTRING(1 1,2 2,3 3,4 4,5 5),'
+                                                                     'POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)))'));
 
-SELECT Distance(GeomFromText('POINT(5 5)'),GeomFromText('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),POLYGON((3 3,3 7,7 7,7 3,3 3),(4 4,4 6,6 6,6 4,4 4)))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POINT(5 5)'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION('
+                                                                     'POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),'
+                                                                     'POLYGON((3 3,3 7,7 7,7 3,3 3),(4 4,4 6,6 6,6 4,4 4)))'));
 
-SELECT Distance(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=104;
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=104;
 
 --echo #-------------------------------------------------------------------------------------------
 --echo # multipoint,point
-SELECT Distance(GeomFromText(@star_all_points),GeomFromText(@star_top));
+--echo #-------------------------------------------------------------------------------------------
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_top));
 
-SELECT Distance(GeomFromText(@star_bottom_points),GeomFromText(@star_center));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_bottom_points),ST_GEOMFROMTEXT(@star_center));
 
-SELECT Distance(GeomFromText('MULTIPOINT(0 0,10 0)'),GeomFromText('POINT(5 0)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT(0 0,10 0)'),ST_GEOMFROMTEXT('POINT(5 0)'));
 
-SELECT Distance(GeomFromText('MULTIPOINT(0 0,10 0)'),GeomFromText('POINT(5 5)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT(0 0,10 0)'),ST_GEOMFROMTEXT('POINT(5 5)'));
 
-SELECT Distance(GeomFromText('MULTIPOINT(0 0,10 0)'),GeomFromText('POINT(10 5)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT(0 0,10 0)'),ST_GEOMFROMTEXT('POINT(10 5)'));
 
-SELECT Distance(GeomFromText('MULTIPOINT(1e154 0)'),GeomFromText('POINT(1e154 0)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT(1e154 0)'),ST_GEOMFROMTEXT('POINT(1e154 0)'));
 
-SELECT Distance(g,GeomFromText(@star_bottom_left)) FROM gis_geometrycollection WHERE fid=108;
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_bottom_left)) FROM gis_geometrycollection WHERE fid=108;
 
 --echo #-------------------------------------------------------------------------------------------
 --echo # multipoint,multipoint
-SELECT Distance(GeomFromText(@star_all_points),GeomFromText(@star_bottom_points));
+--echo #-------------------------------------------------------------------------------------------
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_bottom_points));
 
-SELECT Distance(GeomFromText(@star_bottom_points),GeomFromText(@star_all_points));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_bottom_points),ST_GEOMFROMTEXT(@star_all_points));
 
-SELECT Distance(GeomFromText('MULTIPOINT(0 0,5 0,10 0)'),GeomFromText('MULTIPOINT(10 0.0001)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT(0 0,5 0,10 0)'),ST_GEOMFROMTEXT('MULTIPOINT(10 0.0001)'));
 
-SELECT Distance(GeomFromText('MULTIPOINT(0 0,5 0,10 0)'),GeomFromText('MULTIPOINT(2.5 0.0001)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT(0 0,5 0,10 0)'),ST_GEOMFROMTEXT('MULTIPOINT(2.5 0.0001)'));
 
-SELECT Distance(GeomFromText('MULTIPOINT(0 0,5 0,10 0)'),GeomFromText('MULTIPOINT(0 -1e154)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT(0 0,5 0,10 0)'),ST_GEOMFROMTEXT('MULTIPOINT(0 -1e154)'));
 
-SELECT Distance(g,GeomFromText(@star_all_points)) FROM gis_geometrycollection WHERE fid=108;
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_all_points)) FROM gis_geometrycollection WHERE fid=108;
 
 --echo #-------------------------------------------------------------------------------------------
 --echo # multipoint,linestring
-SELECT Distance(GeomFromText(@star_all_points),GeomFromText(@star_top_to_center));
+--echo #-------------------------------------------------------------------------------------------
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_top_to_center));
 
-SELECT Distance(GeomFromText('MULTIPOINT(0 0,5 0)'),GeomFromText('LINESTRING(2 2,5 0,8 2)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT(0 0,5 0)'),ST_GEOMFROMTEXT('LINESTRING(2 2,5 0,8 2)'));
 
-SELECT Distance(GeomFromText('MULTIPOINT(0 0,5 0,10 0)'),GeomFromText('LINESTRING(2 2,8 2)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT(0 0,5 0,10 0)'),ST_GEOMFROMTEXT('LINESTRING(2 2,8 2)'));
 
-SELECT Distance(GeomFromText('MULTIPOINT(1 1,1 4,4 4,4 0.00009)'),GeomFromText('LINESTRING(0 0,0 5,5 5,5 0,0 0)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT(1 1,1 4,4 4,4 0.00009)'),ST_GEOMFROMTEXT('LINESTRING(0 0,0 5,5 5,5 0,0 0)'));
 
-SELECT Distance(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=109;
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=109;
 
 --echo #-------------------------------------------------------------------------------------------
 --echo # multipoint,multilinestring
-SELECT Distance(GeomFromText(@star_all_points),GeomFromText(@star_lines_near_vertical));
+--echo #-------------------------------------------------------------------------------------------
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_lines_near_vertical));
 
-SELECT Distance(GeomFromText(@star_all_points),GeomFromText(@star_lines_near_horizontal));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_lines_near_horizontal));
 
-SELECT Distance(GeomFromText('MULTIPOINT(0 0,5 0)'),GeomFromText('MULTILINESTRING((2 2,5 0),(1 1,10 10))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT(0 0,5 0)'),ST_GEOMFROMTEXT('MULTILINESTRING((2 2,5 0),(1 1,10 10))'));
 
-SELECT Distance(GeomFromText('MULTIPOINT(0 0,5 0)'),GeomFromText('MULTILINESTRING((2 2,2 10,10 10),(10 10,10 2,2 2))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT(0 0,5 0)'),ST_GEOMFROMTEXT('MULTILINESTRING((2 2,2 10,10 10),(10 10,10 2,2 2))'));
 
-SELECT Distance(GeomFromText('MULTIPOINT(4 4,6 6)'),GeomFromText('MULTILINESTRING((0 0,0 10,10 10,10 0,0 0))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT(4 4,6 6)'),ST_GEOMFROMTEXT('MULTILINESTRING((0 0,0 10,10 10,10 0,0 0))'));
 
-SELECT Distance(g,GeomFromText(@star_lines_near_horizontal)) FROM gis_geometrycollection WHERE fid=109;
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_lines_near_horizontal)) FROM gis_geometrycollection WHERE fid=109;
 
 --echo #-------------------------------------------------------------------------------------------
 --echo # multipoint,polygon
-SELECT Distance(GeomFromText(@star_all_points),GeomFromText(@star_elem_vertical));
+--echo #-------------------------------------------------------------------------------------------
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_elem_vertical));
 
-SELECT Distance(GeomFromText(@star_all_points),GeomFromText(@star_elem_horizontal));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_elem_horizontal));
 
-SELECT Distance(GeomFromText('MULTIPOINT(4 4,11 11)'),GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT(4 4,11 11)'),ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))'));
 
-SELECT Distance(GeomFromText('MULTIPOINT(0 -2,11 11)'),GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT(0 -2,11 11)'),ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))'));
 
-SELECT Distance(GeomFromText('MULTIPOINT(5.5 5.5)'),GeomFromText('POLYGON((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4,4 4))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT(5.5 5.5)'),ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4,4 4))'));
 
-SELECT Distance(GeomFromText('MULTIPOINT(4 4,6 6)'),GeomFromText('POLYGON((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4,4 4))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT(4 4,6 6)'),ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4,4 4))'));
 
-SELECT Distance(g,GeomFromText(@star_elem_horizontal)) FROM gis_geometrycollection WHERE fid=109;
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_elem_horizontal)) FROM gis_geometrycollection WHERE fid=109;
 
 --echo #-------------------------------------------------------------------------------------------
 --echo # multipoint,multipolygon
-SELECT Distance(GeomFromText(@star_all_points),GeomFromText(@star_of_elems));
+--echo #-------------------------------------------------------------------------------------------
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_of_elems));
 
-SELECT Distance(GeomFromText('MULTIPOINT(0 0,0 30,30 25)'),GeomFromText(@star_of_elems));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT(0 0,0 30,30 25)'),ST_GEOMFROMTEXT(@star_of_elems));
 
-SELECT Distance(GeomFromText('MULTIPOINT(0 0,0 5)'),GeomFromText('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT(0 0,0 5)'),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'));
 
-SELECT Distance(GeomFromText('MULTIPOINT(4.5 4.5,5.5 5.5)'),GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),((4 4,4 6,6 6,6 4,4 4)))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT(4.5 4.5,5.5 5.5)'),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),'
+                                                                                               '((4 4,4 6,6 6,6 4,4 4)))'));
 
-SELECT Distance(GeomFromText('MULTIPOINT(5 5,15 15.1)'),GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4)),((10 10,10 20,20 20,20 10),(14 14,14 16,16 16,16 14)))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT(5 5,15 15.1)'),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4)),'
+                                                                                           '((10 10,10 20,20 20,20 10),(14 14,14 16,16 16,16 14)))'));
 
-SELECT Distance(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=109;
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollection WHERE fid=109;
 
 --echo #-------------------------------------------------------------------------------------------
 --echo # multipoint,geometrycollection
-SELECT Distance(GeomFromText(@star_all_points),GeomFromText(@star_collection_elems));
+--echo #-------------------------------------------------------------------------------------------
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_collection_elems));
 
-SELECT Distance(GeomFromText(@star_all_points),GeomFromText(@star_collection_multilinestr));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_collection_multilinestr));
 
-SELECT Distance(GeomFromText('MULTIPOINT(0 0,0 30,30 25)'),GeomFromText(@star_collection_elems));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT(0 0,0 30,30 25)'),ST_GEOMFROMTEXT(@star_collection_elems));
 
-SELECT Distance(GeomFromText('MULTIPOINT(5 5,10 10)'),GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(5 5)))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT(5 5,10 10)'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(5 5)))'));
 
-SELECT Distance(GeomFromText('MULTIPOINT(5 5,20 20)'),GeomFromText('GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3,4 4,5 5),POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT(5 5,20 20)'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION('
+                                                                                'LINESTRING(1 1,2 2,3 3,4 4,5 5),'
+                                                                                'POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)))'));
 
-SELECT Distance(GeomFromText('MULTIPOINT(5 5,20 20)'),GeomFromText('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),POLYGON((3 3,3 7,7 7,7 3,3 3),(4 4,4 6,6 6,6 4,4 4)))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT(5 5,20 20)'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION('
+                                                                                'POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),'
+                                                                                'POLYGON((3 3,3 7,7 7,7 3,3 3),(4 4,4 6,6 6,6 4,4 4)))'));
 
-SELECT Distance(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=109;
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=109;
 
 --echo #-------------------------------------------------------------------------------------------
 --echo # linestring,point
-SELECT Distance(GeomFromText(@star_top_to_center),GeomFromText(@star_center));
+--echo #-------------------------------------------------------------------------------------------
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_top_to_center),ST_GEOMFROMTEXT(@star_center));
 
-SELECT Distance(GeomFromText(@star_top_to_center),GeomFromText(@star_bottom_left));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_top_to_center),ST_GEOMFROMTEXT(@star_bottom_left));
 
-SELECT Distance(GeomFromText('LINESTRING(0 0,10 0)'),GeomFromText('POINT(5 0)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('LINESTRING(0 0,10 0)'),ST_GEOMFROMTEXT('POINT(5 0)'));
 
-SELECT Distance(GeomFromText('LINESTRING(0 0,10 0)'),GeomFromText('POINT(10 0.00000001)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('LINESTRING(0 0,10 0)'),ST_GEOMFROMTEXT('POINT(10 0.00000001)'));
 
-SELECT Distance(GeomFromText('LINESTRING(0 0,10 0)'),GeomFromText('POINT(5 1000000)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('LINESTRING(0 0,10 0)'),ST_GEOMFROMTEXT('POINT(5 1000000)'));
 
-SELECT Distance(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=110 and fid2=105;
+SELECT ST_DISTANCE(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=110 and fid2=105;
 
 --echo #-------------------------------------------------------------------------------------------
 --echo # linestring,multipoint
-SELECT Distance(GeomFromText(@star_line_vertical),GeomFromText(@star_all_points));
+--echo #-------------------------------------------------------------------------------------------
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_line_vertical),ST_GEOMFROMTEXT(@star_all_points));
 
-SELECT Distance(GeomFromText(@star_line_vertical),GeomFromText('MULTIPOINT(15 10,15 25)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_line_vertical),ST_GEOMFROMTEXT('MULTIPOINT(15 10,15 25)'));
 
-SELECT Distance(GeomFromText('LINESTRING(0 0,10 0,10 10,0 10)'),GeomFromText('MULTIPOINT(5 0,10 5,5 10)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('LINESTRING(0 0,10 0,10 10,0 10)'),ST_GEOMFROMTEXT('MULTIPOINT(5 0,10 5,5 10)'));
 
-SELECT Distance(GeomFromText('LINESTRING(0 0,10 0,10 10,0 10)'),GeomFromText('MULTIPOINT(10.2 0,10 10.4)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('LINESTRING(0 0,10 0,10 10,0 10)'),ST_GEOMFROMTEXT('MULTIPOINT(10.2 0,10 10.4)'));
 
-SELECT Distance(GeomFromText('LINESTRING(0 0,10 0,10 10,0 10)'),GeomFromText('MULTIPOINT(4 4,5 5,7 7)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('LINESTRING(0 0,10 0,10 10,0 10)'),ST_GEOMFROMTEXT('MULTIPOINT(4 4,5 5,7 7)'));
 
-SELECT Distance(g,GeomFromText('MULTIPOINT(15 10,15 25)')) FROM gis_geometrycollection WHERE fid=111;
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT('MULTIPOINT(15 10,15 25)')) FROM gis_geometrycollection WHERE fid=111;
 
 --echo #-------------------------------------------------------------------------------------------
 --echo # linestring,linestring
-SELECT Distance(GeomFromText(@star_line_vertical),GeomFromText(@star_top_to_center));
+--echo #-------------------------------------------------------------------------------------------
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_line_vertical),ST_GEOMFROMTEXT(@star_top_to_center));
 
-SELECT Distance(GeomFromText(@star_top_to_center),GeomFromText(@star_line_vertical));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_top_to_center),ST_GEOMFROMTEXT(@star_line_vertical));
 
-SELECT Distance(GeomFromText('LINESTRING(0 0,10 10)'),GeomFromText('LINESTRING(0 10,10 0)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'),ST_GEOMFROMTEXT('LINESTRING(0 10,10 0)'));
 
-SELECT Distance(GeomFromText('LINESTRING(0 0,10 10)'),GeomFromText('LINESTRING(0 10,10 19)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'),ST_GEOMFROMTEXT('LINESTRING(0 10,10 19)'));
 
-SELECT Distance(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=111;
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=111;
 
 --echo #-------------------------------------------------------------------------------------------
 --echo # linestring,multilinestring
-SELECT Distance(GeomFromText(@star_line_horizontal),GeomFromText(@star_lines_near_horizontal));
+--echo #-------------------------------------------------------------------------------------------
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_lines_near_horizontal));
 
-SELECT Distance(GeomFromText(@star_line_horizontal),GeomFromText(@star_lines_near_vertical));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_lines_near_vertical));
 
-SELECT Distance(GeomFromText('LINESTRING(0 0,10 10)'),GeomFromText('MULTILINESTRING((0 10,5 5.5),(5 4.6,10 0))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'),ST_GEOMFROMTEXT('MULTILINESTRING((0 10,5 5.5),(5 4.6,10 0))'));
 
-SELECT Distance(GeomFromText('LINESTRING(0 0,10 10)'),GeomFromText('MULTILINESTRING((0 10,10 19),(10 0,10 10))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'),ST_GEOMFROMTEXT('MULTILINESTRING((0 10,10 19),(10 0,10 10))'));
 
-SELECT Distance(g,GeomFromText(@star_lines_near_horizontal)) FROM gis_geometrycollection WHERE fid=110;
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_lines_near_horizontal)) FROM gis_geometrycollection WHERE fid=110;
 
 --echo #-------------------------------------------------------------------------------------------
 --echo # linestring,polygon
-SELECT Distance(GeomFromText(@star_line_horizontal),GeomFromText(@star_elem_horizontal));
+--echo #-------------------------------------------------------------------------------------------
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_elem_horizontal));
 
-SELECT Distance(GeomFromText(@star_line_horizontal),GeomFromText('POLYGON((11 15,19 15,19 10))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('POLYGON((11 15,19 15,19 10))'));
 
-SELECT Distance(GeomFromText('LINESTRING(4 4,6 6)'),GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('LINESTRING(4 4,6 6)'),ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))'));
 
-SELECT Distance(GeomFromText('LINESTRING(4 4,6 6)'),GeomFromText('POLYGON((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4,4 4))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('LINESTRING(4 4,6 6)'),ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4,4 4))'));
 
-SELECT Distance(GeomFromText('LINESTRING(-11 -11,-11 11)'),GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('LINESTRING(-11 -11,-11 11)'),ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))'));
 
-SELECT Distance(GeomFromText('LINESTRING(4.5 4.5,5.5 5.4)'),GeomFromText('POLYGON((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4,4 4))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('LINESTRING(4.5 4.5,5.5 5.4)'),ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4,4 4))'));
 
 --echo #-------------------------------------------------------------------------------------------
 --echo # linestring,multipolygon
-SELECT Distance(GeomFromText(@star_line_horizontal),GeomFromText(@star_of_elems));
+--echo #-------------------------------------------------------------------------------------------
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_of_elems));
 
-SELECT Distance(GeomFromText(@star_line_horizontal),GeomFromText('MULTIPOLYGON(((11 15,19 15,19 10)),((25 0,0 15,25 10)))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,19 10)),((25 0,0 15,25 10)))'));
 
-SELECT Distance(GeomFromText('LINESTRING(0 0,20 20,30 30)'),GeomFromText('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('LINESTRING(0 0,20 20,30 30)'),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'));
 
-SELECT Distance(GeomFromText('LINESTRING(-1 5)'),GeomFromText('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('LINESTRING(-1 5)'),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'));
 
-SELECT Distance(GeomFromText('LINESTRING(4.5 4.5,5.5 5.5)'),GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),((4 4,4 6,6 6,6 4,4 4)))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('LINESTRING(4.5 4.5,5.5 5.5)'),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),'
+                                                                                               '((4 4,4 6,6 6,6 4,4 4)))'));
 
-SELECT Distance(GeomFromText('LINESTRING(5 5,15 15)'),GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4)),((10 10,10 20,20 20,20 10),(14 14,14 16,16 16,16 14)))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('LINESTRING(5 5,15 15)'),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4)),'
+                                                                                         '((10 10,10 20,20 20,20 10),(14 14,14 16,16 16,16 14)))'));
 
 --echo #-------------------------------------------------------------------------------------------
 --echo # linestring,geometrycollection
-SELECT Distance(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_elems_3));
+--echo #-------------------------------------------------------------------------------------------
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_collection_elems_3));
 
-SELECT Distance(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_elems));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_collection_elems));
 
-SELECT Distance(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_multilinestr));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_collection_multilinestr));
 
-SELECT Distance(GeomFromText('LINESTRING(0 0,10 10)'),GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(0 5)))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(0 5)))'));
 
-SELECT Distance(GeomFromText('LINESTRING(4.5 4.5,5.5 5.5)'),GeomFromText('GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3,4 4),POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('LINESTRING(4.5 4.5,5.5 5.5)'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION('
+                                                                                      'LINESTRING(1 1,2 2,3 3,4 4),'
+                                                                                      'POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)))'));
 
-SELECT Distance(GeomFromText('LINESTRING(5 5,15 15,25 24)'),GeomFromText('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),POLYGON((3 3,3 7,7 7,7 3,3 3),(4 4,4 6,6 6,6 4,4 4)))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('LINESTRING(5 5,15 15,25 24)'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION('
+                                                                                      'POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),'
+                                                                                      'POLYGON((3 3,3 7,7 7,7 3,3 3),(4 4,4 6,6 6,6 4,4 4)))'));
 
-SELECT Distance(g,GeomFromText(@star_collection_elems_3)) FROM gis_geometrycollection WHERE fid=110;
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_collection_elems_3)) FROM gis_geometrycollection WHERE fid=110;
 
 --echo #-------------------------------------------------------------------------------------------
 --echo # multilinestring,point
-SELECT Distance(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_top));
+--echo #-------------------------------------------------------------------------------------------
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_top));
 
-SELECT Distance(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_center));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_center));
 
-SELECT Distance(GeomFromText('MULTILINESTRING((0 0,10 0),(0 10,10 10))'),GeomFromText('POINT(5 0)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,10 0),(0 10,10 10))'),ST_GEOMFROMTEXT('POINT(5 0)'));
 
-SELECT Distance(GeomFromText('MULTILINESTRING((0 0,10 0),(0 10,10 10))'),GeomFromText('POINT(5 5)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,10 0),(0 10,10 10))'),ST_GEOMFROMTEXT('POINT(5 5)'));
 
-SELECT Distance(GeomFromText('MULTILINESTRING((0 0,10 0),(0 10,10 10))'),GeomFromText('POINT(5 1000000)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,10 0),(0 10,10 10))'),ST_GEOMFROMTEXT('POINT(5 1000000)'));
 
-SELECT Distance(g,GeomFromText(@star_top)) FROM gis_geometrycollection WHERE fid=114;
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_top)) FROM gis_geometrycollection WHERE fid=114;
 
 --echo #-------------------------------------------------------------------------------------------
 --echo # multilinestring,multipoint
-SELECT Distance(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_bottom_points));
+--echo #-------------------------------------------------------------------------------------------
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_bottom_points));
 
-SELECT Distance(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_all_points));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_all_points));
 
-SELECT Distance(GeomFromText('MULTILINESTRING((0 0,10 0),(10 10,0 10))'),GeomFromText('MULTIPOINT(5 0,10 5,5 10)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,10 0),(10 10,0 10))'),ST_GEOMFROMTEXT('MULTIPOINT(5 0,10 5,5 10)'));
 
-SELECT Distance(GeomFromText('MULTILINESTRING((0 0,10 0),(10 10,0 10))'),GeomFromText('MULTIPOINT(10.41 0,10 10.4)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,10 0),(10 10,0 10))'),ST_GEOMFROMTEXT('MULTIPOINT(10.41 0,10 10.4)'));
 
-SELECT Distance(GeomFromText('MULTILINESTRING((0 0,10 0),(10 10,0 10))'),GeomFromText('MULTIPOINT(4 4,5 5,6.5 6.5)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,10 0),(10 10,0 10))'),ST_GEOMFROMTEXT('MULTIPOINT(4 4,5 5,6.5 6.5)'));
 
-SELECT Distance(g,GeomFromText(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=114;
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=114;
 
-SELECT Distance(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=114 and fid2=108;
+SELECT ST_DISTANCE(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=114 and fid2=108;
 
 --echo #-------------------------------------------------------------------------------------------
 --echo # multilinestring,linestring
-SELECT Distance(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_vertical));
+--echo #-------------------------------------------------------------------------------------------
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_line_vertical));
 
-SELECT Distance(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_horizontal));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_line_horizontal));
 
-SELECT Distance(GeomFromText('MULTILINESTRING((0 0,10 0),(10 10,0 10))'),GeomFromText('LINESTRING(0 5,10 5)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,10 0),(10 10,0 10))'),ST_GEOMFROMTEXT('LINESTRING(0 5,10 5)'));
 
-SELECT Distance(GeomFromText('MULTILINESTRING((0 0,10 0),(10 10,0 10))'),GeomFromText('LINESTRING(0 10,10 19)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,10 0),(10 10,0 10))'),ST_GEOMFROMTEXT('LINESTRING(0 10,10 19)'));
 
-SELECT Distance(g,GeomFromText(@star_line_vertical)) FROM gis_geometrycollection WHERE fid=114;
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_line_vertical)) FROM gis_geometrycollection WHERE fid=114;
 
 --echo #-------------------------------------------------------------------------------------------
 --echo # multilinestring,multilinestring
-SELECT Distance(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_lines_near_horizontal));
+--echo #-------------------------------------------------------------------------------------------
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_lines_near_horizontal));
 
-SELECT Distance(GeomFromText(@star_lines_near_vertical),GeomFromText('MULTILINESTRING((0 5,15 25,0 15))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT('MULTILINESTRING((0 5,15 25,0 15))'));
 
-SELECT Distance(GeomFromText('MULTILINESTRING((0 0,10 0),(0 10,10 10))'),GeomFromText('MULTILINESTRING((0 5,14.5 5,14 15,0 15))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,10 0),(0 10,10 10))'),ST_GEOMFROMTEXT('MULTILINESTRING((0 5,14.5 5,14 15,0 15))'));
 
-SELECT Distance(GeomFromText('MULTILINESTRING((0 0,10 0),(0 10,10 10))'),GeomFromText('MULTILINESTRING((0 0,0 10,10 0,10 10))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,10 0),(0 10,10 10))'),ST_GEOMFROMTEXT('MULTILINESTRING((0 0,0 10,10 0,10 10))'));
 
-SELECT Distance(g,GeomFromText('MULTILINESTRING((0 5,15 25,0 15))')) FROM gis_geometrycollection WHERE fid=114;
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT('MULTILINESTRING((0 5,15 25,0 15))')) FROM gis_geometrycollection WHERE fid=114;
 
-SELECT Distance(g,GeomFromText(@star_line_vertical)) FROM gis_geometrycollection WHERE fid=114;
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_line_vertical)) FROM gis_geometrycollection WHERE fid=114;
 
 --echo #-------------------------------------------------------------------------------------------
 --echo # multilinestring,polygon
-SELECT Distance(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_vertical));
+--echo #-------------------------------------------------------------------------------------------
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_elem_vertical));
 
-SELECT Distance(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_horizontal));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_elem_horizontal));
 
-SELECT Distance(GeomFromText('MULTILINESTRING((4 4,6 6))'),GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTILINESTRING((4 4,6 6))'),ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))'));
 
-SELECT Distance(GeomFromText('MULTILINESTRING((4 4,6 6))'),GeomFromText('POLYGON((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4,4 4))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTILINESTRING((4 4,6 6))'),ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4,4 4))'));
 
-SELECT Distance(GeomFromText('MULTILINESTRING((-11 -11,-11 11))'),GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTILINESTRING((-11 -11,-11 11))'),ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))'));
 
-SELECT Distance(GeomFromText('MULTILINESTRING((4.5 4.5,5.5 5.4))'),GeomFromText('POLYGON((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4,4 4))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTILINESTRING((4.5 4.5,5.5 5.4))'),ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4,4 4))'));
 
-SELECT Distance(GeomFromText('MULTILINESTRING((14 14,14 16),(10 15,10 20,20 20))'),GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0),(14 14,14 16,16 16,16 14,14 14))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTILINESTRING((14 14,14 16),(10 15,10 20,20 20))'),ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0),'
+                                                                                                                 '(14 14,14 16,16 16,16 14,14 14))'));
 
-SELECT Distance(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=114;
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=114;
 
 --echo #-------------------------------------------------------------------------------------------
 --echo # multilinestring,multipolygon
-SELECT Distance(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_of_elems));
+--echo #-------------------------------------------------------------------------------------------
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_of_elems));
 
-SELECT Distance(GeomFromText('MULTILINESTRING((0 25,25 0,25 30))'),GeomFromText(@star_elem_vertical));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTILINESTRING((0 25,25 0,25 30))'),ST_GEOMFROMTEXT(@star_elem_vertical));
 
-SELECT Distance(GeomFromText('MULTILINESTRING((0 0,20 20,30 30))'),GeomFromText('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,20 20,30 30))'),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'));
 
-SELECT Distance(GeomFromText('MULTILINESTRING((10 10,20 20),(30 30))'),GeomFromText('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTILINESTRING((10 10,20 20),(30 30))'),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'));
 
-SELECT Distance(GeomFromText('MULTILINESTRING((4.5 4.5,5.5 5.5))'),GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),((4 4,4 6,6 6,6 4,4 4)))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTILINESTRING((4.5 4.5,5.5 5.5))'),
+                   ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),((4 4,4 6,6 6,6 4,4 4)))'));
 
-SELECT Distance(GeomFromText('MULTILINESTRING((4.5 4.5,5.5 5.5),(14.5 14.5,15.4 15.6))'),GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4)),((10 10,10 20,20 20,20 10),(14 14,14 16,16 16,16 14)))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTILINESTRING((4.5 4.5,5.5 5.5),(14.5 14.5,15.4 15.6))'),
+                   ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4)),((10 10,10 20,20 20,20 10),(14 14,14 16,16 16,16 14)))'));
 
-SELECT Distance(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=114;
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollection WHERE fid=114;
 
 --echo #-------------------------------------------------------------------------------------------
 --echo # multilinestring,geometrycollection
-SELECT Distance(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_collection_elems));
+--echo #-------------------------------------------------------------------------------------------
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_collection_elems));
 
-SELECT Distance(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_collection_multilinestr));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_collection_multilinestr));
 
-SELECT Distance(GeomFromText('MULTILINESTRING((0 25,25 0,25 30))'),GeomFromText(@star_collection_elems));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTILINESTRING((0 25,25 0,25 30))'),ST_GEOMFROMTEXT(@star_collection_elems));
 
-SELECT Distance(GeomFromText('MULTILINESTRING((0 0,10 10))'),GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(0 5)))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,10 10))'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(0 5)))'));
 
-SELECT Distance(GeomFromText('MULTILINESTRING((4.5 4.5,5.5 5.5))'),GeomFromText('GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3,4 4),POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTILINESTRING((4.5 4.5,5.5 5.5))'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION('
+                                                                                             'LINESTRING(1 1,2 2,3 3,4 4),'
+                                                                                             'POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)))'));
 
-SELECT Distance(GeomFromText('MULTILINESTRING((5 5,15 15,25 25))'),GeomFromText('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),POLYGON((3 3,3 7,7 7,7 3,3 3),(4 4,4 6,6 6,6 4,4 4)))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTILINESTRING((5 5,15 15,25 25))'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION('
+                                                                                             'POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),'
+                                                                                             'POLYGON((3 3,3 7,7 7,7 3,3 3),(4 4,4 6,6 6,6 4,4 4)))'));
 
-SELECT Distance(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=114;
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=114;
 
 --echo #-------------------------------------------------------------------------------------------
 --echo # polygon,point
-SELECT Distance(GeomFromText(@star),GeomFromText(@star_center));
-
-SELECT Distance(GeomFromText(@star_elem_vertical),GeomFromText('POINT(0 0)'));
-
-SELECT Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0))'),GeomFromText('POINT(5 0)'));
-
-SELECT Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0))'),GeomFromText('POINT(20 20)'));
-
-SELECT Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4,4 4))'),GeomFromText('POINT(5 5)'));
-
-SELECT Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4,4 4))'),GeomFromText('POINT(6 6)'));
-
-SELECT Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0),(14 14,14 16,16 16,16 14,14 14))'),GeomFromText('POINT(15 15)'));
-
-SELECT Distance(g,GeomFromText(@star_center)) FROM gis_geometrycollection WHERE fid=100;
 --echo #-------------------------------------------------------------------------------------------
---echo # polygon,multipoint
-SELECT Distance(GeomFromText(@star),GeomFromText(@star_all_points));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_center));
 
-SELECT Distance(GeomFromText(@star_elem_vertical),GeomFromText('MULTIPOINT(0 0,30 25)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT('POINT(0 0)'));
 
-SELECT Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0))'),GeomFromText('MULTIPOINT(5 0,20 20)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('POINT(5 0)'));
 
-SELECT Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0))'),GeomFromText('MULTIPOINT(20 20,-9 -9)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('POINT(20 20)'));
 
-SELECT Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4,4 4))'),GeomFromText('MULTIPOINT(4.5 4.5,5.5 5.5)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4,4 4))'),ST_GEOMFROMTEXT('POINT(5 5)'));
 
-SELECT Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4,4 4))'),GeomFromText('MULTIPOINT(4 4,6 6,8 8,15 15)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4,4 4))'),ST_GEOMFROMTEXT('POINT(6 6)'));
 
-SELECT Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0),(14 14,14 16,16 16,16 14,14 14))'),GeomFromText('MULTIPOINT(15 15)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0),(14 14,14 16,16 16,16 14,14 14))'),ST_GEOMFROMTEXT('POINT(15 15)'));
 
-SELECT Distance(g,GeomFromText(@star_all_points)) FROM gis_geometrycollection WHERE fid=100;
-
---echo #-------------------------------------------------------------------------------------------
---echo # polygon,linestring
-SELECT Distance(GeomFromText(@star),GeomFromText(@star_line_vertical));
-
-SELECT Distance(GeomFromText(@star_elem_vertical),GeomFromText(@star_line_horizontal));
-
-SELECT Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0))'),GeomFromText('LINESTRING(5 0,20 20,100 100)'));
-
-SELECT Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0))'),GeomFromText('LINESTRING(110 110,-100 50)'));
-
-SELECT Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4,4 4))'),GeomFromText('LINESTRING(4.3 4.3,5.5 5.5)'));
-
-SELECT Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4,4 4))'),GeomFromText('LINESTRING(4 4,6 6,8 8,15 15)'));
-
-SELECT Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0),(14 14,14 16,16 16,16 14,14 14))'),GeomFromText('LINESTRING(11 11,14 14,15 15,16 16,20 20)'));
-
-SELECT Distance(g,GeomFromText(@star_line_vertical)) FROM gis_geometrycollection WHERE fid=100;
-
-SELECT Distance(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=100 and fid2=111;
-
---echo #-------------------------------------------------------------------------------------------
---echo # polygon,multilinestring
-SELECT Distance(GeomFromText(@star),GeomFromText(@star_lines_near_vertical));
-
-SELECT Distance(GeomFromText(@star_elem_vertical),GeomFromText(@star_lines_near_horizontal));
-
-SELECT Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0))'),GeomFromText('MULTILINESTRING((5 0,20 20),(100 100))'));
-
-SELECT Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0))'),GeomFromText('MULTILINESTRING((110 110,-100 100),(-50 50))'));
-
-SELECT Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4,4 4))'),GeomFromText('MULTILINESTRING((4.3 4.3,5.5 5.5))'));
-
-SELECT Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4,4 4))'),GeomFromText('MULTILINESTRING((0 0,2 2,4 4,6 6),(8 8,10 10,15 15))'));
-
-SELECT Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0),(14 14,14 16,16 16,16 14,14 14))'),GeomFromText('MULTILINESTRING((11 11,14 14),(15 15,16 16,20 20))'));
-
-SELECT Distance(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=100;
-
---echo #-------------------------------------------------------------------------------------------
---echo # polygon,polygon
-SELECT Distance(GeomFromText(@star),GeomFromText(@star_elem_vertical));
-
-SELECT Distance(GeomFromText(@star_elem_vertical),GeomFromText(@star));
-
-SELECT Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0))'),GeomFromText('POLYGON((5 0,20 20,100 100))'));
-
-SELECT Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0))'),GeomFromText('POLYGON((110 110,-100 100,-50 50))'));
-
-SELECT Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4,4 4))'),GeomFromText('POLYGON((4.3 4.3,4.5 4.8,5 5.5))'));
-
-SELECT Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4,4 4))'),GeomFromText('POLYGON((4 4,6 6,8 8,10 15))'));
-
-SELECT Distance(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=100;
-
---echo #-------------------------------------------------------------------------------------------
---echo # polygon,multipolygon
-SELECT Distance(GeomFromText(@star),GeomFromText(@star_of_elems));
-
-SELECT Distance(GeomFromText(@star_elem_vertical),GeomFromText(@star_of_elems));
-
-SELECT Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0))'),GeomFromText('MULTIPOLYGON(((110 110,-100 100,-50 50)))'));
-
-SELECT Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0))'),GeomFromText('MULTIPOLYGON(((5 0,20 20,100 100)),((0 0,-10 -10,10 100)))'));
-
-SELECT Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4,4 4))'),GeomFromText('MULTIPOLYGON(((4.3 4.3,4.7 5,5 5.6)))'));
-
-SELECT Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4,4 4))'),GeomFromText('MULTIPOLYGON(((4 4,6 6,8 8,10 15)))'));
-
-SELECT Distance(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=100;
-
---echo #-------------------------------------------------------------------------------------------
---echo # polygon,geometrycollection
-SELECT Distance(GeomFromText(@star),GeomFromText(@star_collection_elems));
-
-SELECT Distance(GeomFromText(@star_elem_vertical),GeomFromText(@star_collection_elems));
-
-SELECT Distance(GeomFromText(@star),GeomFromText(@star_collection_multilinestr));
-
-SELECT Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0))'),GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 15)))'));
-
-SELECT Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0))'),GeomFromText('GEOMETRYCOLLECTION(POLYGON((20 20,20 30,30 30,30 20,20 20),(0 0,0 10,10 10,10 0,0 0)))'));
-
-SELECT Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4,4 4))'),GeomFromText('GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3,4 4),POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)))'));
-
-SELECT Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0),(14 14,14 16,16 16,16 14,14 14))'),GeomFromText('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),POLYGON((3 3,3 7,7 7,7 3,3 3),(4 4,4 6,6 6,6 4,4 4)))'));
-
-SELECT Distance(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=100;
-
---echo #-------------------------------------------------------------------------------------------
---echo # multipolygon,point
-SELECT Distance(GeomFromText(@star_of_elems),GeomFromText(@star_top));
-
-SELECT Distance(GeomFromText(@star_of_elems),GeomFromText('POINT(30 30)'));
-
-SELECT Distance(GeomFromText('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'),GeomFromText('POINT(0 8)'));
-
-SELECT Distance(GeomFromText('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'),GeomFromText('POINT(20 20)'));
-
-SELECT Distance(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),((4 4,4 6,6 6,6 4,4 4)))'),GeomFromText('POINT(5 5)'));
-
-SELECT Distance(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4)),((10 10,10 20,20 20,20 10),(14 14,14 16,16 16,16 14)))'),GeomFromText('POINT(15 15)'));
-
-SELECT Distance(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4)),((10 10,10 20,20 20,20 10),(14 14,14 16,16 16,16 14)))'),GeomFromText('POINT(16.1 16.1)'));
-
-SELECT Distance(g,GeomFromText(@star_top)) FROM gis_geometrycollection WHERE fid=103;
-
---echo #-------------------------------------------------------------------------------------------
---echo # multipolygon,multipoint
-SELECT Distance(GeomFromText(@star_of_elems),GeomFromText(@star_bottom_points));
-
-SELECT Distance(GeomFromText(@star_of_elems),GeomFromText('MULTIPOINT(30 30,0 35)'));
-
-SELECT Distance(GeomFromText('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'),GeomFromText('MULTIPOINT(0 8,100 100)'));
-
-SELECT Distance(GeomFromText('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'),GeomFromText('MULTIPOINT(50 50,-30 50)'));
-
-SELECT Distance(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),((4 4,4 6,6 6,6 4,4 4)))'),GeomFromText('MULTIPOINT(4.5 4.5,5.5 5.5)'));
-
-SELECT Distance(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4)),((10 10,10 20,20 20,20 10),(14 14,14 16,16 16,16 14)))'),GeomFromText('MULTIPOINT(15.9 15.9)'));
-
-SELECT Distance(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4)),((10 10,10 20,20 20,20 10),(14 14,14 16,16 16,16 14)))'),GeomFromText('MULTIPOINT(19 19,100 100)'));
-
-SELECT Distance(g,GeomFromText(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=103;
-
---echo #-------------------------------------------------------------------------------------------
---echo # multipolygon,linestring
-SELECT Distance(GeomFromText(@star_of_elems),GeomFromText(@star_top_to_center));
-
-SELECT Distance(GeomFromText(@star_of_elems),GeomFromText('LINESTRING(30 30,0 35)'));
-
-SELECT Distance(GeomFromText('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'),GeomFromText('LINESTRING(0 8,100 100)'));
-
-SELECT Distance(GeomFromText('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'),GeomFromText('LINESTRING(50 50,-30 50)'));
-
-SELECT Distance(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),((4 4,4 6,6 6,6 4,4 4)))'),GeomFromText('LINESTRING(4.5 4.5,5.5 5.5)'));
-
-SELECT Distance(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4)),((10 10,10 20,20 20,20 10),(14 14,14 16,16 16,16 14)))'),GeomFromText('LINESTRING(14.5 14.5,15.5 15.5)'));
-
-SELECT Distance(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4)),((10 10,10 20,20 20,20 10),(14 14,14 16,16 16,16 14)))'),GeomFromText('LINESTRING(19 19,100 100)'));
-
-SELECT Distance(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=103;
-
---echo #-------------------------------------------------------------------------------------------
---echo # multipolygon,multilinestring
-SELECT Distance(GeomFromText(@star_of_elems),GeomFromText(@star_lines_near_vertical));
-
-SELECT Distance(GeomFromText(@star_of_elems),GeomFromText('MULTILINESTRING((0 30,30 30,0 35))'));
-
-SELECT Distance(GeomFromText('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'),GeomFromText('MULTILINESTRING((0 8,10 10,20 20),(50 50,75 75,100 100))'));
-
-SELECT Distance(GeomFromText('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'),GeomFromText('MULTILINESTRING((50 50,100 50),(-50 50,-40 50))'));
-
-SELECT Distance(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),((4 4,4 6,6 6,6 4,4 4)))'),GeomFromText('MULTILINESTRING((4.5 4.5,5.5 5.5))'));
-
-SELECT Distance(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4)),((10 10,10 20,20 20,20 10),(14 14,14 16,16 16,16 14)))'),GeomFromText('MULTILINESTRING((14.5 14.5,15.5 15.5))'));
-
-SELECT Distance(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4)),((10 10,10 20,20 20,20 10),(14 14,14 16,16 16,16 14)))'),GeomFromText('MULTILINESTRING((-10 -10,50 50,100 100))'));
-
-SELECT Distance(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=103;
-
---echo #-------------------------------------------------------------------------------------------
---echo # multipolygon,multipolygon
-SELECT Distance(GeomFromText(@star_of_elems),GeomFromText(@star_of_elems));
-
-SELECT Distance(GeomFromText(@star_of_elems),GeomFromText('MULTIPOLYGON(((0 0,15 25,35 0,0 0),(5 0,15 25,25 0,15 5,5 0)))'));
-
-SELECT Distance(GeomFromText('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'),GeomFromText('MULTIPOLYGON(((10 10,10 -10,-10 -10,-10 10,10 10)))'));
-
-SELECT Distance(GeomFromText('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'),GeomFromText('MULTIPOLYGON(((20 20,20 30,30 30,30 20,20 20)))'));
-
-SELECT Distance(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),((4 4,4 6,6 6,6 4,4 4)))'),GeomFromText('MULTIPOLYGON(((4 4,4 6,6 6,6 4,4 4)))'));
-
-SELECT Distance(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4)),((10 10,10 20,20 20,20 10),(14 14,14 16,16 16,16 14)))'),GeomFromText('MULTIPOLYGON(((14.5 14.5,14.5 15.5,15.5 15.5)))'));
-
-SELECT Distance(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=103;
-
-SELECT Distance(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=103;
-
-SELECT Distance(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=103;
-
---echo #-------------------------------------------------------------------------------------------
---echo # multipolygon,geometrycollection
-SELECT Distance(GeomFromText(@star_of_elems),GeomFromText(@star_collection_elems));
-
-SELECT Distance(GeomFromText(@star_of_elems),GeomFromText(@star_collection_elems_3));
-
-SELECT Distance(GeomFromText(@star_of_elems),GeomFromText(@star_collection_multilinestr));
-
-SELECT Distance(GeomFromText('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'),GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(50 55)))'));
-
-SELECT Distance(GeomFromText('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'),GeomFromText('GEOMETRYCOLLECTION(POLYGON((20 20,20 30,30 30,30 20,20 20),(0 0,0 10,10 10,10 0,0 0)))'));
-
-SELECT Distance(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),((4 4,4 6,6 6,6 4,4 4)))'),GeomFromText('GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3,4 4),POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)))'));
-
-SELECT Distance(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4)),((10 10,10 20,20 20,20 10),(14 14,14 16,16 16,16 14)))'),GeomFromText('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),POLYGON((3 3,3 7,7 7,7 3,3 3),(4 4,4 6,6 6,6 4,4 4)))'));
-
-SELECT Distance(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=103;
-
-SELECT Distance(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=215;
-
---echo #-------------------------------------------------------------------------------------------
---echo # geometrycollection,point
-SELECT Distance(GeomFromText(@star_collection_elems),GeomFromText(@star_top));
-
-SELECT Distance(GeomFromText(@star_collection_elems),GeomFromText('POINT(30 30)'));
-
-SELECT Distance(GeomFromText(@star_collection_multilinestr),GeomFromText('POINT(30 30)'));
-
-SELECT Distance(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(50 50)))'),GeomFromText('POINT(0 0)'));
-
-Select Distance(GeomFromText('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0)))'),GeomFromText('POINT(100 100)'));
-
-Select Distance(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(),POLYGON((0 0,0 10,10 10,10 0,0 0)))'),GeomFromText('POINT(100 100)'));
-
-Select Distance(GeomFromText('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0)),GEOMETRYCOLLECTION())'),GeomFromText('POINT(100 100)'));
-
-SELECT Distance(GeomFromText('GEOMETRYCOLLECTION(POLYGON((20 20,20 30,30 30,30 20,20 20),(0 0,0 10,10 10,10 0,0 0)))'),GeomFromText('POINT(20 20)'));
-
-SELECT Distance(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3,4 4))),POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)))'),GeomFromText('POINT(5 5)'));
-
-SELECT Distance(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4))),GEOMETRYCOLLECTION(MULTIPOLYGON(((3 3,3 7,7 7,7 3,3 3),(4 4,4 6,6 6,6 4,4 4)))))'),GeomFromText('POINT(15 15)'));
-
-SELECT Distance(g,GeomFromText(@star_top)) FROM gis_geometrycollection WHERE fid=115;
-
---echo #-------------------------------------------------------------------------------------------
---echo # geometrycollection,multipoint
-SELECT Distance(GeomFromText(@star_collection_elems),GeomFromText(@star_bottom_points));
-
-SELECT Distance(GeomFromText(@star_collection_elems),GeomFromText('MULTIPOINT(30 30,0 35)'));
-
-SELECT Distance(GeomFromText(@star_collection_multilinestr),GeomFromText('MULTIPOINT(30 30,0 35)'));
-
-SELECT Distance(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(50 50)))'),GeomFromText('MULTIPOINT(0 0,100 100)'));
-
-SELECT Distance(GeomFromText('GEOMETRYCOLLECTION(LINESTRING(0 0,10 10,20 20),GEOMETRYCOLLECTION())'),ST_GeomFromText('MULTIPOINT(5 0,10 0)'));
-
-SELECT Distance(GeomFromText('GEOMETRYCOLLECTION(POLYGON((20 20,20 30,30 30,30 20,20 20),(0 0,0 10,10 10,10 0,0 0)))'),GeomFromText('MULTIPOINT(20 20,40 40,60 60)'));
-
-SELECT Distance(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3,4 4))),POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)))'),GeomFromText('MULTIPOINT(4.5 4.5,5.5 5.5)'));
-
-SELECT Distance(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4))),GEOMETRYCOLLECTION(MULTIPOLYGON(((3 3,3 7,7 7,7 3,3 3),(4 4,4 6,6 6,6 4,4 4)))))'),GeomFromText('MULTIPOINT(4 4,6 6,8 8)'));
-
-SELECT Distance(g,GeomFromText(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=115;
-
---echo #-------------------------------------------------------------------------------------------
---echo # geometrycollection,linestring
-SELECT Distance(GeomFromText(@star_collection_elems),GeomFromText(@star_top_to_center));
-
-SELECT Distance(GeomFromText(@star_collection_elems),GeomFromText('LINESTRING(30 30,0 35)'));
-
-SELECT Distance(GeomFromText(@star_collection_multilinestr),GeomFromText('LINESTRING(30 30,0 35)'));
-
-SELECT Distance(GeomFromText('GEOMETRYCOLLECTION(LINESTRING(0 0,10 10,20 20))'),ST_GeomFromText('LINESTRING(5 0,10 0)'));
-
-SELECT Distance(GeomFromText('GEOMETRYCOLLECTION(LINESTRING(0 0,10 10,20 20),GEOMETRYCOLLECTION())'),ST_GeomFromText('LINESTRING(5 0,10 0)'));
-
-SELECT Distance(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(50 50)))'),GeomFromText('LINESTRING(0 0,100 100)'));
-
-Select Distance(GeomFromText('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0)))'),GeomFromText('LINESTRING(0 0,10 10)'));
-
-Select Distance(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(),POLYGON((0 0,0 10,10 10,10 0,0 0)))'),GeomFromText('LINESTRING(0 0,10 10)'));
-
-Select Distance(GeomFromText('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0)),GEOMETRYCOLLECTION())'),GeomFromText('LINESTRING(0 0,10 10)'));
-
-SELECT Distance(GeomFromText('GEOMETRYCOLLECTION(POLYGON((20 20,20 30,30 30,30 20,20 20),(0 0,0 10,10 10,10 0,0 0)))'),GeomFromText('LINESTRING(20 20,40 40,60 60)'));
-
-SELECT Distance(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3,4 4))),POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)))'),GeomFromText('LINESTRING(4.5 4.5,5.5 5.5)'));
-
-SELECT Distance(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4))),GEOMETRYCOLLECTION(MULTIPOLYGON(((3 3,3 7,7 7,7 3,3 3),(4 4,4 6,6 6,6 4,4 4)))))'),GeomFromText('LINESTRING(4 4,6 6,8 8)'));
-
-SELECT Distance(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=115;
-
---echo #-------------------------------------------------------------------------------------------
---echo # geometrycollection,multilinestring
-SELECT Distance(GeomFromText(@star_collection_elems),GeomFromText(@star_lines_near_vertical));
-
-SELECT Distance(GeomFromText(@star_collection_elems),GeomFromText('MULTILINESTRING((0 30,30 30,0 35))'));
-
-SELECT Distance(GeomFromText(@star_collection_multilinestr),GeomFromText('MULTILINESTRING((0 30,30 30,0 35))'));
-
-SELECT Distance(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(50 50)))'),GeomFromText('MULTILINESTRING((0 0,100 100))'));
-
-SELECT Distance(GeomFromText('GEOMETRYCOLLECTION(POLYGON((20 20,20 30,30 30,30 20,20 20),(0 0,0 10,10 10,10 0,0 0)))'),GeomFromText('MULTILINESTRING((20 20,40 40),(60 60))'));
-
-SELECT Distance(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3,4 4))),POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)))'),GeomFromText('MULTILINESTRING((4.5 4.5,5.5 5.5))'));
-
-SELECT Distance(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4))),GEOMETRYCOLLECTION(MULTIPOLYGON(((3 3,3 7,7 7,7 3,3 3),(4 4,4 6,6 6,6 4,4 4)))))'),GeomFromText('MULTILINESTRING((4 4,6 6),(8 8,10 10))'));
-
-SELECT Distance(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=115;
-
---echo #-------------------------------------------------------------------------------------------
---echo # geometrycollection,polygon
-SELECT Distance(GeomFromText(@star_collection_elems),GeomFromText(@star_elem_vertical));
-
-SELECT Distance(GeomFromText(@star_collection_elems),GeomFromText(@star));
-
-SELECT Distance(GeomFromText(@star_collection_elems),GeomFromText('POLYGON((0 0,15 25,35 0,0 0))'));
-
-SELECT Distance(GeomFromText(@star_collection_multilinestr),GeomFromText('POLYGON((0 0,15 25,35 0,0 0))'));
-
-SELECT Distance(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(50 50)))'),GeomFromText('POLYGON((0 0,30 40,90 100))'));
-
-SELECT Distance(GeomFromText('GEOMETRYCOLLECTION(POLYGON((20 20,20 30,30 30,30 20,20 20),(0 0,0 10,10 10,10 0,0 0)))'),GeomFromText('POLYGON((20 20,40 40,50 60))'));
-
-SELECT Distance(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3,4 4))),POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)))'),GeomFromText('POLYGON((4.2 4.2,5 5,5.7 5.8))'));
-
-SELECT Distance(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4))),GEOMETRYCOLLECTION(MULTIPOLYGON(((3 3,3 7,7 7,7 3,3 3),(4 4,4 6,6 6,6 4,4 4)))))'),GeomFromText('POLYGON((4 4,6 6,8 8,10 20))'));
-
-SELECT Distance(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=115;
-
---echo #-------------------------------------------------------------------------------------------
---echo # geometrycollection,multipolygon
-SELECT Distance(GeomFromText(@star_collection_elems),GeomFromText(@star_of_elems));
-
-SELECT Distance(GeomFromText(@star_collection_elems),GeomFromText('MULTIPOLYGON(((0 0,15 25,35 0,0 0),(5 0,15 25,25 0,15 5,5 0)))'));
-
-SELECT Distance(GeomFromText(@star_collection_multilinestr),GeomFromText('MULTIPOLYGON(((0 0,15 25,35 0,0 0),(5 0,15 25,25 0,15 5,5 0)))'));
-
-SELECT Distance(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(50 50)))'),GeomFromText('MULTIPOLYGON(((0 0,30 40,90 100)))'));
-
-SELECT Distance(GeomFromText('GEOMETRYCOLLECTION(POLYGON((20 20,20 30,30 30,30 20,20 20),(0 0,0 10,10 10,10 0,0 0)))'),GeomFromText('MULTIPOLYGON(((20 20,40 40,50 60)))'));
-
-SELECT Distance(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3,4 4))),POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)))'),GeomFromText('MULTIPOLYGON(((4.2 4.2,5 5,5.7 5.8)))'));
-
-SELECT Distance(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4))),GEOMETRYCOLLECTION(MULTIPOLYGON(((3 3,3 7,7 7,7 3,3 3),(4 4,4 6,6 6,6 4,4 4)))))'),GeomFromText('MULTIPOLYGON(((4 4,6 6,8 8,10 20)))'));
-
-SELECT Distance(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=115;
-
-SELECT Distance(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=115 and fid2=103;
-
---echo #-------------------------------------------------------------------------------------------
---echo # geometrycollection,geometrycollection
-SELECT Distance(GeomFromText(@star_collection_elems),GeomFromText(@star_collection_elems));
-
-SELECT Distance(GeomFromText(@star_collection_elems),GeomFromText(@star_collection_elems_3));
-
-SELECT Distance(GeomFromText(@star_collection_multilinestr),GeomFromText(@star_collection_elems_3));
-
-SELECT Distance(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(50 50)))'),GeomFromText('GEOMETRYCOLLECTION(POINT(0 0),LINESTRING(0 0,50 0,100 0))'));
-
-SELECT Distance(GeomFromText('GEOMETRYCOLLECTION(POLYGON((20 20,20 30,30 30,30 20,20 20),(0 0,0 10,10 10,10 0,0 0)))'),GeomFromText('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0)))'));
-
-SELECT Distance(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3,4 4))),POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)))'),GeomFromText('GEOMETRYCOLLECTION(MULTIPOINT(4.5 4.5,5.5 5.5))'));
-
-SELECT Distance(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4))),GEOMETRYCOLLECTION(MULTIPOLYGON(((3 3,3 7,7 7,7 3,3 3),(4 4,4 6,6 6,6 4,4 4)))))'),GeomFromText('GEOMETRYCOLLECTION(MULTILINESTRING((40 40,50 50),(5 5)))'));
-
-SELECT Distance(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=115;
-
-SELECT Distance(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=115 and fid2=215;
-
---echo #=======================================================================================
---echo # ST_Distance(g1,g2)
---echo #=======================================================================================
-
---echo #-------------------------------------------------------------------------------------------
---echo # point,point
-SELECT ST_Distance(GeomFromText(@star_center),GeomFromText(@star_center));
-
-SELECT ST_Distance(GeomFromText(@star_top),GeomFromText(@star_center));
-
-SELECT ST_Distance(GeomFromText('POINT(0 0)'),GeomFromText('POINT(-0 0.00)'));
-
-SELECT ST_Distance(GeomFromText('POINT(0 0)'),GeomFromText('POINT(1e154 0)'));
-
-SELECT ST_Distance(GeomFromText('POINT(0 0)'),GeomFromText('POINT(-1e154 0)'));
-
-SELECT ST_Distance(g,GeomFromText(@star_center)) FROM gis_geometrycollection WHERE fid=105;
-
---echo #-------------------------------------------------------------------------------------------
---echo # point,multipoint
-SELECT ST_Distance(GeomFromText(@star_bottom_left),GeomFromText(@star_bottom_points));
-
-SELECT ST_Distance(GeomFromText('POINT(0 0)'),GeomFromText('MULTIPOINT(10 10)'));
-
-SELECT ST_Distance(GeomFromText('POINT(1e154 0)'),GeomFromText('MULTIPOINT(1e154 10)'));
-
-SELECT ST_Distance(GeomFromText('POINT(0 0)'),GeomFromText('MULTIPOINT(-0 0.000,-0.000 0)'));
-
-SELECT ST_Distance(g,GeomFromText(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=106;
-
---echo #-------------------------------------------------------------------------------------------
---echo # point,linestring
-SELECT ST_Distance(GeomFromText(@star_top),GeomFromText(@star_top_to_center));
-
-SELECT ST_Distance(GeomFromText('POINT(0 0)'),GeomFromText('LINESTRING(10 10,10 0)'));
-
-SELECT ST_Distance(GeomFromText('POINT(0 0)'),GeomFromText('LINESTRING(10 10,10 0,0.0000 -0.0000)'));
-
-SELECT ST_Distance(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=104;
-
---echo #-------------------------------------------------------------------------------------------
---echo # point,multilinestring
-SELECT ST_Distance(GeomFromText(@star_top),GeomFromText(@star_lines_near_vertical));
-
-SELECT ST_Distance(GeomFromText('POINT(0 0)'),GeomFromText('MULTILINESTRING((10 10,1 0))'));
-
-SELECT ST_Distance(GeomFromText('POINT(0 0)'),GeomFromText('MULTILINESTRING((10 10,10 0),(0.0000 -0.0000))'));
-
-SELECT ST_Distance(GeomFromText('POINT(1e77 0)'),GeomFromText('MULTILINESTRING((0 0,0 1e154),(0 1e154,1e154 0))'));
-
-SELECT ST_Distance(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=104;
-
---echo #-------------------------------------------------------------------------------------------
---echo # point,polygon
-SELECT ST_Distance(GeomFromText(@star_top),GeomFromText(@star));
-
-SELECT ST_Distance(GeomFromText('POINT(5 5)'),GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0))'));
-
-SELECT ST_Distance(GeomFromText('POINT(5 5)'),GeomFromText('POLYGON((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4))'));
-
-SELECT ST_Distance(GeomFromText('POINT(20 20)'),GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0))'));
-
-SELECT ST_Distance(g,GeomFromText(@star)) FROM gis_geometrycollection WHERE fid=104;
-
---echo #-------------------------------------------------------------------------------------------
---echo # point,multipolygon
-SELECT ST_Distance(GeomFromText(@star_top),GeomFromText(@star_of_elems));
-
-SELECT ST_Distance(GeomFromText('POINT(1 1)'),GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0)))'));
-
-SELECT ST_Distance(GeomFromText('POINT(15 15)'),GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0)))'));
-
-SELECT ST_Distance(GeomFromText('POINT(4 4)'),GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4,4 4)))'));
-
-SELECT ST_Distance(GeomFromText('POINT(5 5)'),GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0)),((3 3,3 7,7 7,7 3),(4 4,4 6,6 6,6 4)))'));
-
-SELECT ST_Distance(GeomFromText('POINT(5 5)'),GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),((3 3,3 7,7 7,7 3,3 3),(4 4,4 6,6 6,6 4,4 4)))'));
-
-SELECT ST_Distance(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=104;
-
---echo #-------------------------------------------------------------------------------------------
---echo # point,geometrycollection
-SELECT ST_Distance(GeomFromText(@star_top),GeomFromText(@star_collection_elems));
-
-SELECT ST_Distance(GeomFromText('POINT(5 5)'),GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(5 5)))'));
-
-SELECT ST_Distance(GeomFromText('POINT(5 5)'),GeomFromText('GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3,4 4,5 5),POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)))'));
-
-SELECT ST_Distance(GeomFromText('POINT(5 5)'),GeomFromText('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),POLYGON((3 3,3 7,7 7,7 3,3 3),(4 4,4 6,6 6,6 4,4 4)))'));
-
-SELECT ST_Distance(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=104;
-
---echo #-------------------------------------------------------------------------------------------
---echo # multipoint,point
-SELECT ST_Distance(GeomFromText(@star_all_points),GeomFromText(@star_top));
-
-SELECT ST_Distance(GeomFromText(@star_bottom_points),GeomFromText(@star_center));
-
-SELECT ST_Distance(GeomFromText('MULTIPOINT(0 0,10 0)'),GeomFromText('POINT(5 0)'));
-
-SELECT ST_Distance(GeomFromText('MULTIPOINT(0 0,10 0)'),GeomFromText('POINT(5 5)'));
-
-SELECT ST_Distance(GeomFromText('MULTIPOINT(0 0,10 0)'),GeomFromText('POINT(10 5)'));
-
-SELECT ST_Distance(GeomFromText('MULTIPOINT(1e154 0)'),GeomFromText('POINT(1e154 0)'));
-
-SELECT ST_Distance(g,GeomFromText(@star_bottom_left)) FROM gis_geometrycollection WHERE fid=108;
-
---echo #-------------------------------------------------------------------------------------------
---echo # multipoint,multipoint
-SELECT ST_Distance(GeomFromText(@star_all_points),GeomFromText(@star_bottom_points));
-
-SELECT ST_Distance(GeomFromText(@star_bottom_points),GeomFromText(@star_all_points));
-
-SELECT ST_Distance(GeomFromText('MULTIPOINT(0 0,5 0,10 0)'),GeomFromText('MULTIPOINT(10 0.0001)'));
-
-SELECT ST_Distance(GeomFromText('MULTIPOINT(0 0,5 0,10 0)'),GeomFromText('MULTIPOINT(2.5 0.0001)'));
-
-SELECT ST_Distance(GeomFromText('MULTIPOINT(0 0,5 0,10 0)'),GeomFromText('MULTIPOINT(0 -1e154)'));
-
-SELECT ST_Distance(g,GeomFromText(@star_all_points)) FROM gis_geometrycollection WHERE fid=108;
-
---echo #-------------------------------------------------------------------------------------------
---echo # multipoint,linestring
-SELECT ST_Distance(GeomFromText(@star_all_points),GeomFromText(@star_top_to_center));
-
-SELECT ST_Distance(GeomFromText('MULTIPOINT(0 0,5 0)'),GeomFromText('LINESTRING(2 2,5 0,8 2)'));
-
-SELECT ST_Distance(GeomFromText('MULTIPOINT(0 0,5 0,10 0)'),GeomFromText('LINESTRING(2 2,8 2)'));
-
-SELECT ST_Distance(GeomFromText('MULTIPOINT(1 1,1 4,4 4,4 0.00009)'),GeomFromText('LINESTRING(0 0,0 5,5 5,5 0,0 0)'));
-
-SELECT ST_Distance(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=109;
-
---echo #-------------------------------------------------------------------------------------------
---echo # multipoint,multilinestring
-SELECT ST_Distance(GeomFromText(@star_all_points),GeomFromText(@star_lines_near_vertical));
-
-SELECT ST_Distance(GeomFromText(@star_all_points),GeomFromText(@star_lines_near_horizontal));
-
-SELECT ST_Distance(GeomFromText('MULTIPOINT(0 0,5 0)'),GeomFromText('MULTILINESTRING((2 2,5 0),(1 1,10 10))'));
-
-SELECT ST_Distance(GeomFromText('MULTIPOINT(0 0,5 0)'),GeomFromText('MULTILINESTRING((2 2,2 10,10 10),(10 10,10 2,2 2))'));
-
-SELECT ST_Distance(GeomFromText('MULTIPOINT(4 4,6 6)'),GeomFromText('MULTILINESTRING((0 0,0 10,10 10,10 0,0 0))'));
-
-SELECT ST_Distance(g,GeomFromText(@star_lines_near_horizontal)) FROM gis_geometrycollection WHERE fid=109;
-
---echo #-------------------------------------------------------------------------------------------
---echo # multipoint,polygon
-SELECT ST_Distance(GeomFromText(@star_all_points),GeomFromText(@star_elem_vertical));
-
-SELECT ST_Distance(GeomFromText(@star_all_points),GeomFromText(@star_elem_horizontal));
-
-SELECT ST_Distance(GeomFromText('MULTIPOINT(4 4,11 11)'),GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0))'));
-
-SELECT ST_Distance(GeomFromText('MULTIPOINT(0 -2,11 11)'),GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0))'));
-
-SELECT ST_Distance(GeomFromText('MULTIPOINT(5.5 5.5)'),GeomFromText('POLYGON((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4,4 4))'));
-
-SELECT ST_Distance(GeomFromText('MULTIPOINT(4 4,6 6)'),GeomFromText('POLYGON((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4,4 4))'));
-
-SELECT ST_Distance(g,GeomFromText(@star_elem_horizontal)) FROM gis_geometrycollection WHERE fid=109;
-
---echo #-------------------------------------------------------------------------------------------
---echo # multipoint,multipolygon
-SELECT ST_Distance(GeomFromText(@star_all_points),GeomFromText(@star_of_elems));
-
-SELECT ST_Distance(GeomFromText('MULTIPOINT(0 0,0 30,30 25)'),GeomFromText(@star_of_elems));
-
-SELECT ST_Distance(GeomFromText('MULTIPOINT(0 0,0 5)'),GeomFromText('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'));
-
-SELECT ST_Distance(GeomFromText('MULTIPOINT(4.5 4.5,5.5 5.5)'),GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),((4 4,4 6,6 6,6 4,4 4)))'));
-
-SELECT ST_Distance(GeomFromText('MULTIPOINT(5 5,15 15.1)'),GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4)),((10 10,10 20,20 20,20 10),(14 14,14 16,16 16,16 14)))'));
-
-SELECT ST_Distance(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=109;
-
---echo #-------------------------------------------------------------------------------------------
---echo # multipoint,geometrycollection
-SELECT ST_Distance(GeomFromText(@star_all_points),GeomFromText(@star_collection_elems));
-
-SELECT ST_Distance(GeomFromText(@star_all_points),GeomFromText(@star_collection_multilinestr));
-
-SELECT ST_Distance(GeomFromText('MULTIPOINT(0 0,0 30,30 25)'),GeomFromText(@star_collection_elems));
-
-SELECT ST_Distance(GeomFromText('MULTIPOINT(5 5,10 10)'),GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(5 5)))'));
-
-SELECT ST_Distance(GeomFromText('MULTIPOINT(5 5,20 20)'),GeomFromText('GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3,4 4,5 5),POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)))'));
-
-SELECT ST_Distance(GeomFromText('MULTIPOINT(5 5,20 20)'),GeomFromText('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),POLYGON((3 3,3 7,7 7,7 3,3 3),(4 4,4 6,6 6,6 4,4 4)))'));
-
-SELECT ST_Distance(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=109;
-
---echo #-------------------------------------------------------------------------------------------
---echo # linestring,point
-SELECT ST_Distance(GeomFromText(@star_top_to_center),GeomFromText(@star_center));
-
-SELECT ST_Distance(GeomFromText(@star_top_to_center),GeomFromText(@star_bottom_left));
-
-SELECT ST_Distance(GeomFromText('LINESTRING(0 0,10 0)'),GeomFromText('POINT(5 0)'));
-
-SELECT ST_Distance(GeomFromText('LINESTRING(0 0,10 0)'),GeomFromText('POINT(10 0.00000001)'));
-
-SELECT ST_Distance(GeomFromText('LINESTRING(0 0,10 0)'),GeomFromText('POINT(5 1000000)'));
-
-SELECT ST_Distance(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=110 and fid2=105;
-
---echo #-------------------------------------------------------------------------------------------
---echo # linestring,multipoint
-SELECT ST_Distance(GeomFromText(@star_line_vertical),GeomFromText(@star_all_points));
-
-SELECT ST_Distance(GeomFromText(@star_line_vertical),GeomFromText('MULTIPOINT(15 10,15 25)'));
-
-SELECT ST_Distance(GeomFromText('LINESTRING(0 0,10 0,10 10,0 10)'),GeomFromText('MULTIPOINT(5 0,10 5,5 10)'));
-
-SELECT ST_Distance(GeomFromText('LINESTRING(0 0,10 0,10 10,0 10)'),GeomFromText('MULTIPOINT(10.2 0,10 10.4)'));
-
-SELECT ST_Distance(GeomFromText('LINESTRING(0 0,10 0,10 10,0 10)'),GeomFromText('MULTIPOINT(4 4,5 5,7 7)'));
-
-SELECT ST_Distance(g,GeomFromText('MULTIPOINT(15 10,15 25)')) FROM gis_geometrycollection WHERE fid=111;
-
---echo #-------------------------------------------------------------------------------------------
---echo # linestring,linestring
-SELECT ST_Distance(GeomFromText(@star_line_vertical),GeomFromText(@star_top_to_center));
-
-SELECT ST_Distance(GeomFromText(@star_top_to_center),GeomFromText(@star_line_vertical));
-
-SELECT ST_Distance(GeomFromText('LINESTRING(0 0,10 10)'),GeomFromText('LINESTRING(0 10,10 0)'));
-
-SELECT ST_Distance(GeomFromText('LINESTRING(0 0,10 10)'),GeomFromText('LINESTRING(0 10,10 19)'));
-
-SELECT ST_Distance(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=111;
-
---echo #-------------------------------------------------------------------------------------------
---echo # linestring,multilinestring
-SELECT ST_Distance(GeomFromText(@star_line_horizontal),GeomFromText(@star_lines_near_horizontal));
-
-SELECT ST_Distance(GeomFromText(@star_line_horizontal),GeomFromText(@star_lines_near_vertical));
-
-SELECT ST_Distance(GeomFromText('LINESTRING(0 0,10 10)'),GeomFromText('MULTILINESTRING((0 10,5 5.5),(5 4.6,10 0))'));
-
-SELECT ST_Distance(GeomFromText('LINESTRING(0 0,10 10)'),GeomFromText('MULTILINESTRING((0 10,10 19),(10 0,10 10))'));
-
-SELECT ST_Distance(g,GeomFromText(@star_lines_near_horizontal)) FROM gis_geometrycollection WHERE fid=110;
-
---echo #-------------------------------------------------------------------------------------------
---echo # linestring,polygon
-SELECT ST_Distance(GeomFromText(@star_line_horizontal),GeomFromText(@star_elem_horizontal));
-
-SELECT ST_Distance(GeomFromText(@star_line_horizontal),GeomFromText('POLYGON((11 15,19 15,19 10))'));
-
-SELECT ST_Distance(GeomFromText('LINESTRING(4 4,6 6)'),GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0))'));
-
-SELECT ST_Distance(GeomFromText('LINESTRING(4 4,6 6)'),GeomFromText('POLYGON((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4,4 4))'));
-
-SELECT ST_Distance(GeomFromText('LINESTRING(-11 -11,-11 11)'),GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0))'));
-
-SELECT ST_Distance(GeomFromText('LINESTRING(4.5 4.5,5.5 5.4)'),GeomFromText('POLYGON((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4,4 4))'));
-
---echo #-------------------------------------------------------------------------------------------
---echo # linestring,multipolygon
-SELECT ST_Distance(GeomFromText(@star_line_horizontal),GeomFromText(@star_of_elems));
-
-SELECT ST_Distance(GeomFromText(@star_line_horizontal),GeomFromText('MULTIPOLYGON(((11 15,19 15,19 10)),((25 0,0 15,25 10)))'));
-
-SELECT ST_Distance(GeomFromText('LINESTRING(0 0,20 20,30 30)'),GeomFromText('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'));
-
-SELECT ST_Distance(GeomFromText('LINESTRING(-1 5)'),GeomFromText('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'));
-
-SELECT ST_Distance(GeomFromText('LINESTRING(4.5 4.5,5.5 5.5)'),GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),((4 4,4 6,6 6,6 4,4 4)))'));
-
-SELECT ST_Distance(GeomFromText('LINESTRING(5 5,15 15)'),GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4)),((10 10,10 20,20 20,20 10),(14 14,14 16,16 16,16 14)))'));
-
---echo #-------------------------------------------------------------------------------------------
---echo # linestring,geometrycollection
-SELECT ST_Distance(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_elems_3));
-
-SELECT ST_Distance(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_elems));
-
-SELECT ST_Distance(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_multilinestr));
-
-SELECT ST_Distance(GeomFromText('LINESTRING(0 0,10 10)'),GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(0 5)))'));
-
-SELECT ST_Distance(GeomFromText('LINESTRING(4.5 4.5,5.5 5.5)'),GeomFromText('GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3,4 4),POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)))'));
-
-SELECT ST_Distance(GeomFromText('LINESTRING(5 5,15 15,25 24)'),GeomFromText('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),POLYGON((3 3,3 7,7 7,7 3,3 3),(4 4,4 6,6 6,6 4,4 4)))'));
-
-SELECT ST_Distance(g,GeomFromText(@star_collection_elems_3)) FROM gis_geometrycollection WHERE fid=110;
-
---echo #-------------------------------------------------------------------------------------------
---echo # multilinestring,point
-SELECT ST_Distance(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_top));
-
-SELECT ST_Distance(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_center));
-
-SELECT ST_Distance(GeomFromText('MULTILINESTRING((0 0,10 0),(0 10,10 10))'),GeomFromText('POINT(5 0)'));
-
-SELECT ST_Distance(GeomFromText('MULTILINESTRING((0 0,10 0),(0 10,10 10))'),GeomFromText('POINT(5 5)'));
-
-SELECT ST_Distance(GeomFromText('MULTILINESTRING((0 0,10 0),(0 10,10 10))'),GeomFromText('POINT(5 1000000)'));
-
-SELECT ST_Distance(g,GeomFromText(@star_top)) FROM gis_geometrycollection WHERE fid=114;
-
---echo #-------------------------------------------------------------------------------------------
---echo # multilinestring,multipoint
-SELECT ST_Distance(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_bottom_points));
-
-SELECT ST_Distance(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_all_points));
-
-SELECT ST_Distance(GeomFromText('MULTILINESTRING((0 0,10 0),(10 10,0 10))'),GeomFromText('MULTIPOINT(5 0,10 5,5 10)'));
-
-SELECT ST_Distance(GeomFromText('MULTILINESTRING((0 0,10 0),(10 10,0 10))'),GeomFromText('MULTIPOINT(10.41 0,10 10.4)'));
-
-SELECT ST_Distance(GeomFromText('MULTILINESTRING((0 0,10 0),(10 10,0 10))'),GeomFromText('MULTIPOINT(4 4,5 5,6.5 6.5)'));
-
-SELECT ST_Distance(g,GeomFromText(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=114;
-
-SELECT ST_Distance(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=114 and fid2=108;
-
---echo #-------------------------------------------------------------------------------------------
---echo # multilinestring,linestring
-SELECT ST_Distance(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_vertical));
-
-SELECT ST_Distance(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_horizontal));
-
-SELECT ST_Distance(GeomFromText('MULTILINESTRING((0 0,10 0),(10 10,0 10))'),GeomFromText('LINESTRING(0 5,10 5)'));
-
-SELECT ST_Distance(GeomFromText('MULTILINESTRING((0 0,10 0),(10 10,0 10))'),GeomFromText('LINESTRING(0 10,10 19)'));
-
-SELECT ST_Distance(g,GeomFromText(@star_line_vertical)) FROM gis_geometrycollection WHERE fid=114;
-
---echo #-------------------------------------------------------------------------------------------
---echo # multilinestring,multilinestring
-SELECT ST_Distance(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_lines_near_horizontal));
-
-SELECT ST_Distance(GeomFromText(@star_lines_near_vertical),GeomFromText('MULTILINESTRING((0 5,15 25,0 15))'));
-
-SELECT ST_Distance(GeomFromText('MULTILINESTRING((0 0,10 0),(0 10,10 10))'),GeomFromText('MULTILINESTRING((0 5,14.5 5,14 15,0 15))'));
-
-SELECT ST_Distance(GeomFromText('MULTILINESTRING((0 0,10 0),(0 10,10 10))'),GeomFromText('MULTILINESTRING((0 0,0 10,10 0,10 10))'));
-
-SELECT ST_Distance(g,GeomFromText('MULTILINESTRING((0 5,15 25,0 15))')) FROM gis_geometrycollection WHERE fid=114;
-
-SELECT ST_Distance(g,GeomFromText(@star_line_vertical)) FROM gis_geometrycollection WHERE fid=114;
-
---echo #-------------------------------------------------------------------------------------------
---echo # multilinestring,polygon
-SELECT ST_Distance(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_vertical));
-
-SELECT ST_Distance(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_horizontal));
-
-SELECT ST_Distance(GeomFromText('MULTILINESTRING((4 4,6 6))'),GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0))'));
-
-SELECT ST_Distance(GeomFromText('MULTILINESTRING((4 4,6 6))'),GeomFromText('POLYGON((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4,4 4))'));
-
-SELECT ST_Distance(GeomFromText('MULTILINESTRING((-11 -11,-11 11))'),GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0))'));
-
-SELECT ST_Distance(GeomFromText('MULTILINESTRING((4.5 4.5,5.5 5.4))'),GeomFromText('POLYGON((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4,4 4))'));
-
-SELECT ST_Distance(GeomFromText('MULTILINESTRING((14 14,14 16),(10 15,10 20,20 20))'),GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0),(14 14,14 16,16 16,16 14,14 14))'));
-
-SELECT ST_Distance(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=114;
-
---echo #-------------------------------------------------------------------------------------------
---echo # multilinestring,multipolygon
-SELECT ST_Distance(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_of_elems));
-
-SELECT ST_Distance(GeomFromText('MULTILINESTRING((0 25,25 0,25 30))'),GeomFromText(@star_elem_vertical));
-
-SELECT ST_Distance(GeomFromText('MULTILINESTRING((0 0,20 20,30 30))'),GeomFromText('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'));
-
-SELECT ST_Distance(GeomFromText('MULTILINESTRING((10 10,20 20),(30 30))'),GeomFromText('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'));
-
-SELECT ST_Distance(GeomFromText('MULTILINESTRING((4.5 4.5,5.5 5.5))'),GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),((4 4,4 6,6 6,6 4,4 4)))'));
-
-SELECT ST_Distance(GeomFromText('MULTILINESTRING((4.5 4.5,5.5 5.5),(14.5 14.5,15.4 15.6))'),GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4)),((10 10,10 20,20 20,20 10),(14 14,14 16,16 16,16 14)))'));
-
-SELECT ST_Distance(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=114;
-
---echo #-------------------------------------------------------------------------------------------
---echo # multilinestring,geometrycollection
-SELECT ST_Distance(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_collection_elems));
-
-SELECT ST_Distance(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_collection_multilinestr));
-
-SELECT ST_Distance(GeomFromText('MULTILINESTRING((0 25,25 0,25 30))'),GeomFromText(@star_collection_elems));
-
-SELECT ST_Distance(GeomFromText('MULTILINESTRING((0 0,10 10))'),GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(0 5)))'));
-
-SELECT ST_Distance(GeomFromText('MULTILINESTRING((4.5 4.5,5.5 5.5))'),GeomFromText('GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3,4 4),POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)))'));
-
-SELECT ST_Distance(GeomFromText('MULTILINESTRING((5 5,15 15,25 25))'),GeomFromText('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),POLYGON((3 3,3 7,7 7,7 3,3 3),(4 4,4 6,6 6,6 4,4 4)))'));
-
-SELECT ST_Distance(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=114;
-
---echo #-------------------------------------------------------------------------------------------
---echo # polygon,point
-SELECT ST_Distance(GeomFromText(@star),GeomFromText(@star_center));
-
-SELECT ST_Distance(GeomFromText(@star_elem_vertical),GeomFromText('POINT(0 0)'));
-
-SELECT ST_Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0))'),GeomFromText('POINT(5 0)'));
-
-SELECT ST_Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0))'),GeomFromText('POINT(20 20)'));
-
-SELECT ST_Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4,4 4))'),GeomFromText('POINT(5 5)'));
-
-SELECT ST_Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4,4 4))'),GeomFromText('POINT(6 6)'));
-
-SELECT ST_Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0),(14 14,14 16,16 16,16 14,14 14))'),GeomFromText('POINT(15 15)'));
-
-SELECT ST_Distance(g,GeomFromText(@star_center)) FROM gis_geometrycollection WHERE fid=100;
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_center)) FROM gis_geometrycollection WHERE fid=100;
 
 --echo #-------------------------------------------------------------------------------------------
 --echo # polygon,multipoint
-SELECT ST_Distance(GeomFromText(@star),GeomFromText(@star_all_points));
+--echo #-------------------------------------------------------------------------------------------
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_all_points));
 
-SELECT ST_Distance(GeomFromText(@star_elem_vertical),GeomFromText('MULTIPOINT(0 0,30 25)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT('MULTIPOINT(0 0,30 25)'));
 
-SELECT ST_Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0))'),GeomFromText('MULTIPOINT(5 0,20 20)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('MULTIPOINT(5 0,20 20)'));
 
-SELECT ST_Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0))'),GeomFromText('MULTIPOINT(20 20,-9 -9)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('MULTIPOINT(20 20,-9 -9)'));
 
-SELECT ST_Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4,4 4))'),GeomFromText('MULTIPOINT(4.5 4.5,5.5 5.5)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4,4 4))'),ST_GEOMFROMTEXT('MULTIPOINT(4.5 4.5,5.5 5.5)'));
 
-SELECT ST_Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4,4 4))'),GeomFromText('MULTIPOINT(4 4,6 6,8 8,15 15)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4,4 4))'),ST_GEOMFROMTEXT('MULTIPOINT(4 4,6 6,8 8,15 15)'));
 
-SELECT ST_Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0),(14 14,14 16,16 16,16 14,14 14))'),GeomFromText('MULTIPOINT(15 15)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0),(14 14,14 16,16 16,16 14,14 14))'),ST_GEOMFROMTEXT('MULTIPOINT(15 15)'));
 
-SELECT ST_Distance(g,GeomFromText(@star_all_points)) FROM gis_geometrycollection WHERE fid=100;
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_all_points)) FROM gis_geometrycollection WHERE fid=100;
 
 --echo #-------------------------------------------------------------------------------------------
 --echo # polygon,linestring
-SELECT ST_Distance(GeomFromText(@star),GeomFromText(@star_line_vertical));
+--echo #-------------------------------------------------------------------------------------------
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_line_vertical));
 
-SELECT ST_Distance(GeomFromText(@star_elem_vertical),GeomFromText(@star_line_horizontal));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT(@star_line_horizontal));
 
-SELECT ST_Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0))'),GeomFromText('LINESTRING(5 0,20 20,100 100)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('LINESTRING(5 0,20 20,100 100)'));
 
-SELECT ST_Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0))'),GeomFromText('LINESTRING(110 110,-100 50)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('LINESTRING(110 110,-100 50)'));
 
-SELECT ST_Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4,4 4))'),GeomFromText('LINESTRING(4.3 4.3,5.5 5.5)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4,4 4))'),ST_GEOMFROMTEXT('LINESTRING(4.3 4.3,5.5 5.5)'));
 
-SELECT ST_Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4,4 4))'),GeomFromText('LINESTRING(4 4,6 6,8 8,15 15)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4,4 4))'),ST_GEOMFROMTEXT('LINESTRING(4 4,6 6,8 8,15 15)'));
 
-SELECT ST_Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0),(14 14,14 16,16 16,16 14,14 14))'),GeomFromText('LINESTRING(11 11,14 14,15 15,16 16,20 20)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0),(14 14,14 16,16 16,16 14,14 14))'),
+                   ST_GEOMFROMTEXT('LINESTRING(11 11,14 14,15 15,16 16,20 20)'));
 
-SELECT ST_Distance(g,GeomFromText(@star_line_vertical)) FROM gis_geometrycollection WHERE fid=100;
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_line_vertical)) FROM gis_geometrycollection WHERE fid=100;
 
-SELECT ST_Distance(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=100 and fid2=111;
+SELECT ST_DISTANCE(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=100 and fid2=111;
 
 --echo #-------------------------------------------------------------------------------------------
 --echo # polygon,multilinestring
-SELECT ST_Distance(GeomFromText(@star),GeomFromText(@star_lines_near_vertical));
+--echo #-------------------------------------------------------------------------------------------
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_lines_near_vertical));
 
-SELECT ST_Distance(GeomFromText(@star_elem_vertical),GeomFromText(@star_lines_near_horizontal));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT(@star_lines_near_horizontal));
 
-SELECT ST_Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0))'),GeomFromText('MULTILINESTRING((5 0,20 20),(100 100))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('MULTILINESTRING((5 0,20 20),(100 100))'));
 
-SELECT ST_Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0))'),GeomFromText('MULTILINESTRING((110 110,-100 100),(-50 50))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('MULTILINESTRING((110 110,-100 100),(-50 50))'));
 
-SELECT ST_Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4,4 4))'),GeomFromText('MULTILINESTRING((4.3 4.3,5.5 5.5))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4,4 4))'),ST_GEOMFROMTEXT('MULTILINESTRING((4.3 4.3,5.5 5.5))'));
 
-SELECT ST_Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4,4 4))'),GeomFromText('MULTILINESTRING((0 0,2 2,4 4,6 6),(8 8,10 10,15 15))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4,4 4))'),
+                   ST_GEOMFROMTEXT('MULTILINESTRING((0 0,2 2,4 4,6 6),(8 8,10 10,15 15))'));
 
-SELECT ST_Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0),(14 14,14 16,16 16,16 14,14 14))'),GeomFromText('MULTILINESTRING((11 11,14 14),(15 15,16 16,20 20))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0),(14 14,14 16,16 16,16 14,14 14))'),
+                   ST_GEOMFROMTEXT('MULTILINESTRING((11 11,14 14),(15 15,16 16,20 20))'));
 
-SELECT ST_Distance(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=100;
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=100;
 
 --echo #-------------------------------------------------------------------------------------------
 --echo # polygon,polygon
-SELECT ST_Distance(GeomFromText(@star),GeomFromText(@star_elem_vertical));
+--echo #-------------------------------------------------------------------------------------------
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical));
 
-SELECT ST_Distance(GeomFromText(@star_elem_vertical),GeomFromText(@star));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT(@star));
 
-SELECT ST_Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0))'),GeomFromText('POLYGON((5 0,20 20,100 100))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('POLYGON((5 0,20 20,100 100))'));
 
-SELECT ST_Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0))'),GeomFromText('POLYGON((110 110,-100 100,-50 50))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('POLYGON((110 110,-100 100,-50 50))'));
 
-SELECT ST_Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4,4 4))'),GeomFromText('POLYGON((4.3 4.3,4.5 4.8,5 5.5))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4,4 4))'),ST_GEOMFROMTEXT('POLYGON((4.3 4.3,4.5 4.8,5 5.5))'));
 
-SELECT ST_Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4,4 4))'),GeomFromText('POLYGON((4 4,6 6,8 8,10 15))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4,4 4))'),ST_GEOMFROMTEXT('POLYGON((4 4,6 6,8 8,10 15))'));
 
-SELECT ST_Distance(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=100;
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=100;
 
 --echo #-------------------------------------------------------------------------------------------
 --echo # polygon,multipolygon
-SELECT ST_Distance(GeomFromText(@star),GeomFromText(@star_of_elems));
+--echo #-------------------------------------------------------------------------------------------
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_of_elems));
 
-SELECT ST_Distance(GeomFromText(@star_elem_vertical),GeomFromText(@star_of_elems));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT(@star_of_elems));
 
-SELECT ST_Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0))'),GeomFromText('MULTIPOLYGON(((110 110,-100 100,-50 50)))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('MULTIPOLYGON(((110 110,-100 100,-50 50)))'));
 
-SELECT ST_Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0))'),GeomFromText('MULTIPOLYGON(((5 0,20 20,100 100)),((0 0,-10 -10,10 100)))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('MULTIPOLYGON(((5 0,20 20,100 100)),((0 0,-10 -10,10 100)))'));
 
-SELECT ST_Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4,4 4))'),GeomFromText('MULTIPOLYGON(((4.3 4.3,4.7 5,5 5.6)))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4,4 4))'),ST_GEOMFROMTEXT('MULTIPOLYGON(((4.3 4.3,4.7 5,5 5.6)))'));
 
-SELECT ST_Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4,4 4))'),GeomFromText('MULTIPOLYGON(((4 4,6 6,8 8,10 15)))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4,4 4))'),ST_GEOMFROMTEXT('MULTIPOLYGON(((4 4,6 6,8 8,10 15)))'));
 
-SELECT ST_Distance(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=100;
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollection WHERE fid=100;
 
 --echo #-------------------------------------------------------------------------------------------
 --echo # polygon,geometrycollection
-SELECT ST_Distance(GeomFromText(@star),GeomFromText(@star_collection_elems));
+--echo #-------------------------------------------------------------------------------------------
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_collection_elems));
 
-SELECT ST_Distance(GeomFromText(@star_elem_vertical),GeomFromText(@star_collection_elems));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT(@star_collection_elems));
 
-SELECT ST_Distance(GeomFromText(@star),GeomFromText(@star_collection_multilinestr));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_collection_multilinestr));
 
-SELECT ST_Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0))'),GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 15)))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 15)))'));
 
-SELECT ST_Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0))'),GeomFromText('GEOMETRYCOLLECTION(POLYGON((20 20,20 30,30 30,30 20,20 20),(0 0,0 10,10 10,10 0,0 0)))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))'),
+                   ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((20 20,20 30,30 30,30 20,20 20),(0 0,0 10,10 10,10 0,0 0)))'));
 
-SELECT ST_Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4,4 4))'),GeomFromText('GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3,4 4),POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4,4 4))'),
+                   ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3,4 4),POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)))'));
 
-SELECT ST_Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0),(14 14,14 16,16 16,16 14,14 14))'),GeomFromText('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),POLYGON((3 3,3 7,7 7,7 3,3 3),(4 4,4 6,6 6,6 4,4 4)))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0),(14 14,14 16,16 16,16 14,14 14))'),
+                   ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),'
+                                                      'POLYGON((3 3,3 7,7 7,7 3,3 3),(4 4,4 6,6 6,6 4,4 4)))'));
 
-SELECT ST_Distance(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=100;
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=100;
 
 --echo #-------------------------------------------------------------------------------------------
 --echo # multipolygon,point
-SELECT ST_Distance(GeomFromText(@star_of_elems),GeomFromText(@star_top));
+--echo #-------------------------------------------------------------------------------------------
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_top));
 
-SELECT ST_Distance(GeomFromText(@star_of_elems),GeomFromText('POINT(30 30)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('POINT(30 30)'));
 
-SELECT ST_Distance(GeomFromText('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'),GeomFromText('POINT(0 8)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'),ST_GEOMFROMTEXT('POINT(0 8)'));
 
-SELECT ST_Distance(GeomFromText('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'),GeomFromText('POINT(20 20)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'),ST_GEOMFROMTEXT('POINT(20 20)'));
 
-SELECT ST_Distance(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),((4 4,4 6,6 6,6 4,4 4)))'),GeomFromText('POINT(5 5)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),((4 4,4 6,6 6,6 4,4 4)))'),
+                   ST_GEOMFROMTEXT('POINT(5 5)'));
 
-SELECT ST_Distance(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4)),((10 10,10 20,20 20,20 10),(14 14,14 16,16 16,16 14)))'),GeomFromText('POINT(15 15)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4)),((10 10,10 20,20 20,20 10),(14 14,14 16,16 16,16 14)))'),
+                   ST_GEOMFROMTEXT('POINT(15 15)'));
 
-SELECT ST_Distance(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4)),((10 10,10 20,20 20,20 10),(14 14,14 16,16 16,16 14)))'),GeomFromText('POINT(16.1 16.1)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4)),((10 10,10 20,20 20,20 10),(14 14,14 16,16 16,16 14)))'),
+                   ST_GEOMFROMTEXT('POINT(16.1 16.1)'));
 
-SELECT ST_Distance(g,GeomFromText(@star_top)) FROM gis_geometrycollection WHERE fid=103;
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_top)) FROM gis_geometrycollection WHERE fid=103;
 
 --echo #-------------------------------------------------------------------------------------------
 --echo # multipolygon,multipoint
-SELECT ST_Distance(GeomFromText(@star_of_elems),GeomFromText(@star_bottom_points));
+--echo #-------------------------------------------------------------------------------------------
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_bottom_points));
 
-SELECT ST_Distance(GeomFromText(@star_of_elems),GeomFromText('MULTIPOINT(30 30,0 35)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('MULTIPOINT(30 30,0 35)'));
 
-SELECT ST_Distance(GeomFromText('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'),GeomFromText('MULTIPOINT(0 8,100 100)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'),ST_GEOMFROMTEXT('MULTIPOINT(0 8,100 100)'));
 
-SELECT ST_Distance(GeomFromText('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'),GeomFromText('MULTIPOINT(50 50,-30 50)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'),ST_GEOMFROMTEXT('MULTIPOINT(50 50,-30 50)'));
 
-SELECT ST_Distance(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),((4 4,4 6,6 6,6 4,4 4)))'),GeomFromText('MULTIPOINT(4.5 4.5,5.5 5.5)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),((4 4,4 6,6 6,6 4,4 4)))'),
+                   ST_GEOMFROMTEXT('MULTIPOINT(4.5 4.5,5.5 5.5)'));
 
-SELECT ST_Distance(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4)),((10 10,10 20,20 20,20 10),(14 14,14 16,16 16,16 14)))'),GeomFromText('MULTIPOINT(15.9 15.9)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4)),((10 10,10 20,20 20,20 10),(14 14,14 16,16 16,16 14)))'),
+                   ST_GEOMFROMTEXT('MULTIPOINT(15.9 15.9)'));
 
-SELECT ST_Distance(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4)),((10 10,10 20,20 20,20 10),(14 14,14 16,16 16,16 14)))'),GeomFromText('MULTIPOINT(19 19,100 100)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4)),((10 10,10 20,20 20,20 10),(14 14,14 16,16 16,16 14)))'),
+                   ST_GEOMFROMTEXT('MULTIPOINT(19 19,100 100)'));
 
-SELECT ST_Distance(g,GeomFromText(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=103;
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=103;
 
 --echo #-------------------------------------------------------------------------------------------
 --echo # multipolygon,linestring
-SELECT ST_Distance(GeomFromText(@star_of_elems),GeomFromText(@star_top_to_center));
+--echo #-------------------------------------------------------------------------------------------
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_top_to_center));
 
-SELECT ST_Distance(GeomFromText(@star_of_elems),GeomFromText('LINESTRING(30 30,0 35)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('LINESTRING(30 30,0 35)'));
 
-SELECT ST_Distance(GeomFromText('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'),GeomFromText('LINESTRING(0 8,100 100)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'),ST_GEOMFROMTEXT('LINESTRING(0 8,100 100)'));
 
-SELECT ST_Distance(GeomFromText('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'),GeomFromText('LINESTRING(50 50,-30 50)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'),ST_GEOMFROMTEXT('LINESTRING(50 50,-30 50)'));
 
-SELECT ST_Distance(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),((4 4,4 6,6 6,6 4,4 4)))'),GeomFromText('LINESTRING(4.5 4.5,5.5 5.5)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),((4 4,4 6,6 6,6 4,4 4)))'),
+                   ST_GEOMFROMTEXT('LINESTRING(4.5 4.5,5.5 5.5)'));
 
-SELECT ST_Distance(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4)),((10 10,10 20,20 20,20 10),(14 14,14 16,16 16,16 14)))'),GeomFromText('LINESTRING(14.5 14.5,15.5 15.5)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4)),((10 10,10 20,20 20,20 10),(14 14,14 16,16 16,16 14)))'),
+                   ST_GEOMFROMTEXT('LINESTRING(14.5 14.5,15.5 15.5)'));
 
-SELECT ST_Distance(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4)),((10 10,10 20,20 20,20 10),(14 14,14 16,16 16,16 14)))'),GeomFromText('LINESTRING(19 19,100 100)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4)),((10 10,10 20,20 20,20 10),(14 14,14 16,16 16,16 14)))'),
+                   ST_GEOMFROMTEXT('LINESTRING(19 19,100 100)'));
 
-SELECT ST_Distance(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=103;
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=103;
 
 --echo #-------------------------------------------------------------------------------------------
 --echo # multipolygon,multilinestring
-SELECT ST_Distance(GeomFromText(@star_of_elems),GeomFromText(@star_lines_near_vertical));
+--echo #-------------------------------------------------------------------------------------------
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_lines_near_vertical));
 
-SELECT ST_Distance(GeomFromText(@star_of_elems),GeomFromText('MULTILINESTRING((0 30,30 30,0 35))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('MULTILINESTRING((0 30,30 30,0 35))'));
 
-SELECT ST_Distance(GeomFromText('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'),GeomFromText('MULTILINESTRING((0 8,10 10,20 20),(50 50,75 75,100 100))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'),
+                   ST_GEOMFROMTEXT('MULTILINESTRING((0 8,10 10,20 20),(50 50,75 75,100 100))'));
 
-SELECT ST_Distance(GeomFromText('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'),GeomFromText('MULTILINESTRING((50 50,100 50),(-50 50,-40 50))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'),
+                   ST_GEOMFROMTEXT('MULTILINESTRING((50 50,100 50),(-50 50,-40 50))'));
 
-SELECT ST_Distance(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),((4 4,4 6,6 6,6 4,4 4)))'),GeomFromText('MULTILINESTRING((4.5 4.5,5.5 5.5))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),((4 4,4 6,6 6,6 4,4 4)))'),
+                   ST_GEOMFROMTEXT('MULTILINESTRING((4.5 4.5,5.5 5.5))'));
 
-SELECT ST_Distance(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4)),((10 10,10 20,20 20,20 10),(14 14,14 16,16 16,16 14)))'),GeomFromText('MULTILINESTRING((14.5 14.5,15.5 15.5))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4)),((10 10,10 20,20 20,20 10),(14 14,14 16,16 16,16 14)))'),
+                   ST_GEOMFROMTEXT('MULTILINESTRING((14.5 14.5,15.5 15.5))'));
 
-SELECT ST_Distance(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4)),((10 10,10 20,20 20,20 10),(14 14,14 16,16 16,16 14)))'),GeomFromText('MULTILINESTRING((-10 -10,50 50,100 100))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4)),((10 10,10 20,20 20,20 10),(14 14,14 16,16 16,16 14)))'),
+                   ST_GEOMFROMTEXT('MULTILINESTRING((-10 -10,50 50,100 100))'));
 
-SELECT ST_Distance(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=103;
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=103;
 
 --echo #-------------------------------------------------------------------------------------------
 --echo # multipolygon,polygon
-SELECT ST_Distance(GeomFromText(@star_of_elems),GeomFromText(@star_elem_vertical));
+--echo #-------------------------------------------------------------------------------------------
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_elem_vertical));
 
-SELECT ST_Distance(GeomFromText(@star_of_elems),GeomFromText(@star));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star));
 
-SELECT ST_Distance(GeomFromText(@star_of_elems),GeomFromText('POLYGON((0 0,15 25,35 0,0 0))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('POLYGON((0 0,15 25,35 0,0 0))'));
 
-SELECT ST_Distance(GeomFromText('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'),GeomFromText('POLYGON((10 10,10 -10,-10 -10,-10 10,10 10))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'),ST_GEOMFROMTEXT('POLYGON((10 10,10 -10,-10 -10,-10 10,10 10))'));
 
-SELECT ST_Distance(GeomFromText('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'),GeomFromText('POLYGON((20 20,20 30,30 30,30 20,20 20))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'),ST_GEOMFROMTEXT('POLYGON((20 20,20 30,30 30,30 20,20 20))'));
 
-SELECT ST_Distance(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),((4 4,4 6,6 6,6 4,4 4)))'),GeomFromText('POLYGON((4 4,4 6,6 6,6 4,4 4))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),((4 4,4 6,6 6,6 4,4 4)))'),
+                   ST_GEOMFROMTEXT('POLYGON((4 4,4 6,6 6,6 4,4 4))'));
 
-SELECT ST_Distance(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4)),((10 10,10 20,20 20,20 10),(14 14,14 16,16 16,16 14)))'),GeomFromText('POLYGON((14.5 14.5,14.5 15.5,15.5 15.5))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4)),((10 10,10 20,20 20,20 10),(14 14,14 16,16 16,16 14)))'),
+                   ST_GEOMFROMTEXT('POLYGON((14.5 14.5,14.5 15.5,15.5 15.5))'));
 
-SELECT ST_Distance(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=103;
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=103;
 
 --echo #-------------------------------------------------------------------------------------------
 --echo # multipolygon,multipolygon
-SELECT ST_Distance(GeomFromText(@star_of_elems),GeomFromText(@star_of_elems));
+--echo #-------------------------------------------------------------------------------------------
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_of_elems));
 
-SELECT ST_Distance(GeomFromText(@star_of_elems),GeomFromText('MULTIPOLYGON(((0 0,15 25,35 0,0 0),(5 0,15 25,25 0,15 5,5 0)))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,15 25,35 0,0 0),(5 0,15 25,25 0,15 5,5 0)))'));
 
-SELECT ST_Distance(GeomFromText('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'),GeomFromText('MULTIPOLYGON(((10 10,10 -10,-10 -10,-10 10,10 10)))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'),
+                   ST_GEOMFROMTEXT('MULTIPOLYGON(((10 10,10 -10,-10 -10,-10 10,10 10)))'));
 
-SELECT ST_Distance(GeomFromText('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'),GeomFromText('MULTIPOLYGON(((20 20,20 30,30 30,30 20,20 20)))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'),
+                   ST_GEOMFROMTEXT('MULTIPOLYGON(((20 20,20 30,30 30,30 20,20 20)))'));
 
-SELECT ST_Distance(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),((4 4,4 6,6 6,6 4,4 4)))'),GeomFromText('MULTIPOLYGON(((4 4,4 6,6 6,6 4,4 4)))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),((4 4,4 6,6 6,6 4,4 4)))'),
+                   ST_GEOMFROMTEXT('MULTIPOLYGON(((4 4,4 6,6 6,6 4,4 4)))'));
 
-SELECT ST_Distance(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4)),((10 10,10 20,20 20,20 10),(14 14,14 16,16 16,16 14)))'),GeomFromText('MULTIPOLYGON(((14.5 14.5,14.5 15.5,15.5 15.5)))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4)),((10 10,10 20,20 20,20 10),(14 14,14 16,16 16,16 14)))'),
+                   ST_GEOMFROMTEXT('MULTIPOLYGON(((14.5 14.5,14.5 15.5,15.5 15.5)))'));
 
-SELECT ST_Distance(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=103;
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollection WHERE fid=103;
 
-SELECT ST_Distance(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=103;
+SELECT ST_DISTANCE(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=103;
 
-SELECT ST_Distance(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=103;
+SELECT ST_DISTANCE(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=103;
 
 --echo #-------------------------------------------------------------------------------------------
 --echo # multipolygon,geometrycollection
-SELECT ST_Distance(GeomFromText(@star_of_elems),GeomFromText(@star_collection_elems));
+--echo #-------------------------------------------------------------------------------------------
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_collection_elems));
 
-SELECT ST_Distance(GeomFromText(@star_of_elems),GeomFromText(@star_collection_elems_3));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_collection_elems_3));
 
-SELECT ST_Distance(GeomFromText(@star_of_elems),GeomFromText(@star_collection_multilinestr));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_collection_multilinestr));
 
-SELECT ST_Distance(GeomFromText('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'),GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(50 55)))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'),
+                   ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(50 55)))'));
 
-SELECT ST_Distance(GeomFromText('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'),GeomFromText('GEOMETRYCOLLECTION(POLYGON((20 20,20 30,30 30,30 20,20 20),(0 0,0 10,10 10,10 0,0 0)))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'),
+                   ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((20 20,20 30,30 30,30 20,20 20),(0 0,0 10,10 10,10 0,0 0)))'));
 
-SELECT ST_Distance(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),((4 4,4 6,6 6,6 4,4 4)))'),GeomFromText('GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3,4 4),POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),((4 4,4 6,6 6,6 4,4 4)))'),
+                   ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3,4 4),POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)))'));
 
-SELECT ST_Distance(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4)),((10 10,10 20,20 20,20 10),(14 14,14 16,16 16,16 14)))'),GeomFromText('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),POLYGON((3 3,3 7,7 7,7 3,3 3),(4 4,4 6,6 6,6 4,4 4)))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4)),((10 10,10 20,20 20,20 10),(14 14,14 16,16 16,16 14)))'),
+                   ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),'
+                                                      'POLYGON((3 3,3 7,7 7,7 3,3 3),(4 4,4 6,6 6,6 4,4 4)))'));
 
-SELECT ST_Distance(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=103;
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=103;
 
-SELECT ST_Distance(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=215;
+SELECT ST_DISTANCE(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=215;
 
 --echo #-------------------------------------------------------------------------------------------
 --echo # geometrycollection,point
-SELECT ST_Distance(GeomFromText(@star_collection_elems),GeomFromText(@star_top));
+--echo #-------------------------------------------------------------------------------------------
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_top));
 
-SELECT ST_Distance(GeomFromText(@star_collection_elems),GeomFromText('POINT(30 30)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('POINT(30 30)'));
 
-SELECT ST_Distance(GeomFromText(@star_collection_multilinestr),GeomFromText('POINT(30 30)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_collection_multilinestr),ST_GEOMFROMTEXT('POINT(30 30)'));
 
-SELECT ST_Distance(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(50 50)))'),GeomFromText('POINT(0 0)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(50 50)))'),ST_GEOMFROMTEXT('POINT(0 0)'));
 
-Select ST_Distance(GeomFromText('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0)))'),GeomFromText('POINT(100 100)'));
+Select ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0)))'),ST_GEOMFROMTEXT('POINT(100 100)'));
 
-Select ST_Distance(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(),POLYGON((0 0,0 10,10 10,10 0,0 0)))'),GeomFromText('POINT(100 100)'));
+Select ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(),POLYGON((0 0,0 10,10 10,10 0,0 0)))'),ST_GEOMFROMTEXT('POINT(100 100)'));
 
-Select ST_Distance(GeomFromText('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0)),GEOMETRYCOLLECTION())'),GeomFromText('POINT(100 100)'));
+Select ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0)),GEOMETRYCOLLECTION())'),ST_GEOMFROMTEXT('POINT(100 100)'));
 
-SELECT ST_Distance(GeomFromText('GEOMETRYCOLLECTION(POLYGON((20 20,20 30,30 30,30 20,20 20),(0 0,0 10,10 10,10 0,0 0)))'),GeomFromText('POINT(20 20)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((20 20,20 30,30 30,30 20,20 20),(0 0,0 10,10 10,10 0,0 0)))'),
+                   ST_GEOMFROMTEXT('POINT(20 20)'));
 
-SELECT ST_Distance(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3,4 4))),POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)))'),GeomFromText('POINT(5 5)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3,4 4))),'
+                                                      'POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)))'),
+                   ST_GEOMFROMTEXT('POINT(5 5)'));
 
-SELECT ST_Distance(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4))),GEOMETRYCOLLECTION(MULTIPOLYGON(((3 3,3 7,7 7,7 3,3 3),(4 4,4 6,6 6,6 4,4 4)))))'),GeomFromText('POINT(15 15)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4))),'
+                                                      'GEOMETRYCOLLECTION(MULTIPOLYGON(((3 3,3 7,7 7,7 3,3 3),(4 4,4 6,6 6,6 4,4 4)))))'),
+                   ST_GEOMFROMTEXT('POINT(15 15)'));
 
-SELECT ST_Distance(g,GeomFromText(@star_top)) FROM gis_geometrycollection WHERE fid=115;
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_top)) FROM gis_geometrycollection WHERE fid=115;
 
 --echo #-------------------------------------------------------------------------------------------
 --echo # geometrycollection,multipoint
-SELECT ST_Distance(GeomFromText(@star_collection_elems),GeomFromText(@star_bottom_points));
+--echo #-------------------------------------------------------------------------------------------
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_bottom_points));
 
-SELECT ST_Distance(GeomFromText(@star_collection_elems),GeomFromText('MULTIPOINT(30 30,0 35)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('MULTIPOINT(30 30,0 35)'));
 
-SELECT ST_Distance(GeomFromText(@star_collection_multilinestr),GeomFromText('MULTIPOINT(30 30,0 35)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_collection_multilinestr),ST_GEOMFROMTEXT('MULTIPOINT(30 30,0 35)'));
 
-SELECT ST_Distance(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(50 50)))'),GeomFromText('MULTIPOINT(0 0,100 100)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(50 50)))'),ST_GEOMFROMTEXT('MULTIPOINT(0 0,100 100)'));
 
-SELECT ST_Distance(GeomFromText('GEOMETRYCOLLECTION(LINESTRING(0 0,10 10,20 20),GEOMETRYCOLLECTION())'),ST_GeomFromText('MULTIPOINT(5 0,10 0)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(0 0,10 10,20 20),GEOMETRYCOLLECTION())'),ST_GEOMFROMTEXT('MULTIPOINT(5 0,10 0)'));
 
-SELECT ST_Distance(GeomFromText('GEOMETRYCOLLECTION(POLYGON((20 20,20 30,30 30,30 20,20 20),(0 0,0 10,10 10,10 0,0 0)))'),GeomFromText('MULTIPOINT(20 20,40 40,60 60)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((20 20,20 30,30 30,30 20,20 20),(0 0,0 10,10 10,10 0,0 0)))'),
+                   ST_GEOMFROMTEXT('MULTIPOINT(20 20,40 40,60 60)'));
 
-SELECT ST_Distance(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3,4 4))),POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)))'),GeomFromText('MULTIPOINT(4.5 4.5,5.5 5.5)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3,4 4))),'
+                                                      'POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)))'),
+                   ST_GEOMFROMTEXT('MULTIPOINT(4.5 4.5,5.5 5.5)'));
 
-SELECT ST_Distance(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4))),GEOMETRYCOLLECTION(MULTIPOLYGON(((3 3,3 7,7 7,7 3,3 3),(4 4,4 6,6 6,6 4,4 4)))))'),GeomFromText('MULTIPOINT(4 4,6 6,8 8)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4))),'
+                                                      'GEOMETRYCOLLECTION(MULTIPOLYGON(((3 3,3 7,7 7,7 3,3 3),(4 4,4 6,6 6,6 4,4 4)))))'),
+                   ST_GEOMFROMTEXT('MULTIPOINT(4 4,6 6,8 8)'));
 
-SELECT ST_Distance(g,GeomFromText(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=115;
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=115;
 
 --echo #-------------------------------------------------------------------------------------------
 --echo # geometrycollection,linestring
-SELECT ST_Distance(GeomFromText(@star_collection_elems),GeomFromText(@star_top_to_center));
+--echo #-------------------------------------------------------------------------------------------
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_top_to_center));
 
-SELECT ST_Distance(GeomFromText(@star_collection_elems),GeomFromText('LINESTRING(30 30,0 35)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('LINESTRING(30 30,0 35)'));
 
-SELECT ST_Distance(GeomFromText(@star_collection_multilinestr),GeomFromText('LINESTRING(30 30,0 35)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_collection_multilinestr),ST_GEOMFROMTEXT('LINESTRING(30 30,0 35)'));
 
-SELECT ST_Distance(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(50 50)))'),GeomFromText('LINESTRING(0 0,100 100)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(50 50)))'),ST_GEOMFROMTEXT('LINESTRING(0 0,100 100)'));
 
-Select ST_Distance(GeomFromText('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0)))'),GeomFromText('LINESTRING(0 0,10 10)'));
+Select ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0)))'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
 
-Select ST_Distance(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(),POLYGON((0 0,0 10,10 10,10 0,0 0)))'),GeomFromText('LINESTRING(0 0,10 10)'));
+Select ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(),POLYGON((0 0,0 10,10 10,10 0,0 0)))'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
 
-Select ST_Distance(GeomFromText('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0)),GEOMETRYCOLLECTION())'),GeomFromText('LINESTRING(0 0,10 10)'));
+Select ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0)),GEOMETRYCOLLECTION())'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
 
-SELECT ST_Distance(GeomFromText('GEOMETRYCOLLECTION(POLYGON((20 20,20 30,30 30,30 20,20 20),(0 0,0 10,10 10,10 0,0 0)))'),GeomFromText('LINESTRING(20 20,40 40,60 60)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((20 20,20 30,30 30,30 20,20 20),(0 0,0 10,10 10,10 0,0 0)))'),
+                   ST_GEOMFROMTEXT('LINESTRING(20 20,40 40,60 60)'));
 
-SELECT ST_Distance(GeomFromText('GEOMETRYCOLLECTION(LINESTRING(0 0,10 10,20 20))'),ST_GeomFromText('LINESTRING(5 0,10 0)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(0 0,10 10,20 20))'),ST_GEOMFROMTEXT('LINESTRING(5 0,10 0)'));
 
-SELECT ST_Distance(GeomFromText('GEOMETRYCOLLECTION(LINESTRING(0 0,10 10,20 20),GEOMETRYCOLLECTION())'),ST_GeomFromText('LINESTRING(5 0,10 0)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(0 0,10 10,20 20),GEOMETRYCOLLECTION())'),ST_GEOMFROMTEXT('LINESTRING(5 0,10 0)'));
 
-SELECT ST_Distance(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3,4 4))),POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)))'),GeomFromText('LINESTRING(4.5 4.5,5.5 5.5)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3,4 4))),'
+                                                      'POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)))'),
+                   ST_GEOMFROMTEXT('LINESTRING(4.5 4.5,5.5 5.5)'));
 
-SELECT ST_Distance(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4))),GEOMETRYCOLLECTION(MULTIPOLYGON(((3 3,3 7,7 7,7 3,3 3),(4 4,4 6,6 6,6 4,4 4)))))'),GeomFromText('LINESTRING(4 4,6 6,8 8)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4))),'
+                                                      'GEOMETRYCOLLECTION(MULTIPOLYGON(((3 3,3 7,7 7,7 3,3 3),(4 4,4 6,6 6,6 4,4 4)))))'),
+                   ST_GEOMFROMTEXT('LINESTRING(4 4,6 6,8 8)'));
 
-SELECT ST_Distance(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=115;
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=115;
 
 --echo #-------------------------------------------------------------------------------------------
 --echo # geometrycollection,multilinestring
-SELECT ST_Distance(GeomFromText(@star_collection_elems),GeomFromText(@star_lines_near_vertical));
+--echo #-------------------------------------------------------------------------------------------
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_lines_near_vertical));
 
-SELECT ST_Distance(GeomFromText(@star_collection_elems),GeomFromText('MULTILINESTRING((0 30,30 30,0 35))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('MULTILINESTRING((0 30,30 30,0 35))'));
 
-SELECT ST_Distance(GeomFromText(@star_collection_multilinestr),GeomFromText('MULTILINESTRING((0 30,30 30,0 35))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_collection_multilinestr),ST_GEOMFROMTEXT('MULTILINESTRING((0 30,30 30,0 35))'));
 
-SELECT ST_Distance(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(50 50)))'),GeomFromText('MULTILINESTRING((0 0,100 100))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(50 50)))'),ST_GEOMFROMTEXT('MULTILINESTRING((0 0,100 100))'));
 
-SELECT ST_Distance(GeomFromText('GEOMETRYCOLLECTION(POLYGON((20 20,20 30,30 30,30 20,20 20),(0 0,0 10,10 10,10 0,0 0)))'),GeomFromText('MULTILINESTRING((20 20,40 40),(60 60))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((20 20,20 30,30 30,30 20,20 20),(0 0,0 10,10 10,10 0,0 0)))'),
+                   ST_GEOMFROMTEXT('MULTILINESTRING((20 20,40 40),(60 60))'));
 
-SELECT ST_Distance(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3,4 4))),POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)))'),GeomFromText('MULTILINESTRING((4.5 4.5,5.5 5.5))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3,4 4))),'
+                                                      'POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)))'),
+                   ST_GEOMFROMTEXT('MULTILINESTRING((4.5 4.5,5.5 5.5))'));
 
-SELECT ST_Distance(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4))),GEOMETRYCOLLECTION(MULTIPOLYGON(((3 3,3 7,7 7,7 3,3 3),(4 4,4 6,6 6,6 4,4 4)))))'),GeomFromText('MULTILINESTRING((4 4,6 6),(8 8,10 10))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4))),'
+                                                      'GEOMETRYCOLLECTION(MULTIPOLYGON(((3 3,3 7,7 7,7 3,3 3),(4 4,4 6,6 6,6 4,4 4)))))'),
+                   ST_GEOMFROMTEXT('MULTILINESTRING((4 4,6 6),(8 8,10 10))'));
 
-SELECT ST_Distance(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=115;
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=115;
 
 --echo #-------------------------------------------------------------------------------------------
 --echo # geometrycollection,polygon
-SELECT ST_Distance(GeomFromText(@star_collection_elems),GeomFromText(@star_elem_vertical));
+--echo #-------------------------------------------------------------------------------------------
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_elem_vertical));
 
-SELECT ST_Distance(GeomFromText(@star_collection_elems),GeomFromText(@star));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star));
 
-SELECT ST_Distance(GeomFromText(@star_collection_elems),GeomFromText('POLYGON((0 0,15 25,35 0,0 0))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('POLYGON((0 0,15 25,35 0,0 0))'));
 
-SELECT ST_Distance(GeomFromText(@star_collection_multilinestr),GeomFromText('POLYGON((0 0,15 25,35 0,0 0))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_collection_multilinestr),ST_GEOMFROMTEXT('POLYGON((0 0,15 25,35 0,0 0))'));
 
-SELECT ST_Distance(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(50 50)))'),GeomFromText('POLYGON((0 0,30 40,90 100))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(50 50)))'),ST_GEOMFROMTEXT('POLYGON((0 0,30 40,90 100))'));
 
-SELECT ST_Distance(GeomFromText('GEOMETRYCOLLECTION(POLYGON((20 20,20 30,30 30,30 20,20 20),(0 0,0 10,10 10,10 0,0 0)))'),GeomFromText('POLYGON((20 20,40 40,50 60))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((20 20,20 30,30 30,30 20,20 20),(0 0,0 10,10 10,10 0,0 0)))'),
+                   ST_GEOMFROMTEXT('POLYGON((20 20,40 40,50 60))'));
 
-SELECT ST_Distance(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3,4 4))),POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)))'),GeomFromText('POLYGON((4.2 4.2,5 5,5.7 5.8))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3,4 4))),'
+                                                      'POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)))'),
+                   ST_GEOMFROMTEXT('POLYGON((4.2 4.2,5 5,5.7 5.8))'));
 
-SELECT ST_Distance(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4))),GEOMETRYCOLLECTION(MULTIPOLYGON(((3 3,3 7,7 7,7 3,3 3),(4 4,4 6,6 6,6 4,4 4)))))'),GeomFromText('POLYGON((4 4,6 6,8 8,10 20))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4))),'
+                                                      'GEOMETRYCOLLECTION(MULTIPOLYGON(((3 3,3 7,7 7,7 3,3 3),(4 4,4 6,6 6,6 4,4 4)))))'),
+                   ST_GEOMFROMTEXT('POLYGON((4 4,6 6,8 8,10 20))'));
 
-SELECT ST_Distance(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=115;
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=115;
 
 --echo #-------------------------------------------------------------------------------------------
 --echo # geometrycollection,multipolygon
-SELECT ST_Distance(GeomFromText(@star_collection_elems),GeomFromText(@star_of_elems));
+--echo #-------------------------------------------------------------------------------------------
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_of_elems));
 
-SELECT ST_Distance(GeomFromText(@star_collection_elems),GeomFromText('MULTIPOLYGON(((0 0,15 25,35 0,0 0),(5 0,15 25,25 0,15 5,5 0)))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,15 25,35 0,0 0),(5 0,15 25,25 0,15 5,5 0)))'));
 
-SELECT ST_Distance(GeomFromText(@star_collection_multilinestr),GeomFromText('MULTIPOLYGON(((0 0,15 25,35 0,0 0),(5 0,15 25,25 0,15 5,5 0)))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_collection_multilinestr),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,15 25,35 0,0 0),(5 0,15 25,25 0,15 5,5 0)))'));
 
-SELECT ST_Distance(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(50 50)))'),GeomFromText('MULTIPOLYGON(((0 0,30 40,90 100)))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(50 50)))'),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,30 40,90 100)))'));
 
-SELECT ST_Distance(GeomFromText('GEOMETRYCOLLECTION(POLYGON((20 20,20 30,30 30,30 20,20 20),(0 0,0 10,10 10,10 0,0 0)))'),GeomFromText('MULTIPOLYGON(((20 20,40 40,50 60)))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((20 20,20 30,30 30,30 20,20 20),(0 0,0 10,10 10,10 0,0 0)))'),
+                   ST_GEOMFROMTEXT('MULTIPOLYGON(((20 20,40 40,50 60)))'));
 
-SELECT ST_Distance(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3,4 4))),POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)))'),GeomFromText('MULTIPOLYGON(((4.2 4.2,5 5,5.7 5.8)))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3,4 4))),'
+                                                      'POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)))'),
+                   ST_GEOMFROMTEXT('MULTIPOLYGON(((4.2 4.2,5 5,5.7 5.8)))'));
 
-SELECT ST_Distance(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4))),GEOMETRYCOLLECTION(MULTIPOLYGON(((3 3,3 7,7 7,7 3,3 3),(4 4,4 6,6 6,6 4,4 4)))))'),GeomFromText('MULTIPOLYGON(((4 4,6 6,8 8,10 20)))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4))),'
+                                                      'GEOMETRYCOLLECTION(MULTIPOLYGON(((3 3,3 7,7 7,7 3,3 3),(4 4,4 6,6 6,6 4,4 4)))))'),
+                   ST_GEOMFROMTEXT('MULTIPOLYGON(((4 4,6 6,8 8,10 20)))'));
 
-SELECT ST_Distance(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=115;
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=115;
 
-SELECT ST_Distance(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=115 and fid2=103;
+SELECT ST_DISTANCE(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=115 and fid2=103;
 
 --echo #-------------------------------------------------------------------------------------------
 --echo # geometrycollection,geometrycollection
-SELECT ST_Distance(GeomFromText(@star_collection_elems),GeomFromText(@star_collection_elems));
+--echo #-------------------------------------------------------------------------------------------
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_collection_elems));
 
-SELECT ST_Distance(GeomFromText(@star_collection_elems),GeomFromText(@star_collection_elems_3));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_collection_elems_3));
 
-SELECT ST_Distance(GeomFromText(@star_collection_multilinestr),GeomFromText(@star_collection_elems_3));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_collection_multilinestr),ST_GEOMFROMTEXT(@star_collection_elems_3));
 
-SELECT ST_Distance(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(50 50)))'),GeomFromText('GEOMETRYCOLLECTION(POINT(0 0),LINESTRING(0 0,50 0,100 0))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(50 50)))'),
+                   ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0),LINESTRING(0 0,50 0,100 0))'));
 
-SELECT ST_Distance(GeomFromText('GEOMETRYCOLLECTION(POLYGON((20 20,20 30,30 30,30 20,20 20),(0 0,0 10,10 10,10 0,0 0)))'),GeomFromText('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0)))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((20 20,20 30,30 30,30 20,20 20),(0 0,0 10,10 10,10 0,0 0)))'),
+                   ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0)))'));
 
-SELECT ST_Distance(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3,4 4))),POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)))'),GeomFromText('GEOMETRYCOLLECTION(MULTIPOINT(4.5 4.5,5.5 5.5))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3,4 4))),'
+                                                      'POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)))'),
+                   ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(MULTIPOINT(4.5 4.5,5.5 5.5))'));
 
-SELECT ST_Distance(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4))),GEOMETRYCOLLECTION(MULTIPOLYGON(((3 3,3 7,7 7,7 3,3 3),(4 4,4 6,6 6,6 4,4 4)))))'),GeomFromText('GEOMETRYCOLLECTION(MULTILINESTRING((40 40,50 50),(5 5)))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4))),'
+                                                      'GEOMETRYCOLLECTION(MULTIPOLYGON(((3 3,3 7,7 7,7 3,3 3),(4 4,4 6,6 6,6 4,4 4)))))'),
+                   ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(MULTILINESTRING((40 40,50 50),(5 5)))'));
 
-SELECT ST_Distance(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=115;
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=115;
 
-SELECT ST_Distance(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=115 and fid2=215;
-
---echo #====================================================================================
---echo # Distance() with 2 geometries of same SRID
---echo #====================================================================================
-
-SELECT Distance(GeomFromText(@star_top,0),GeomFromText(@star_center,0));
-
-SELECT Distance(GeomFromText(@star_top,100),GeomFromText(@star_center,100));
-
-SELECT Distance(GeomFromText(@star_top,20000),GeomFromText(@star_center,20000));
-
-SELECT Distance(GeomFromText(@star_top,123456),GeomFromText(@star_center,123456));
-
-SELECT Distance(GeomFromText(@star_top,1048575),GeomFromText(@star_center,1048575));
-
-SELECT Distance(GeomFromText(@star_top,4294967295),GeomFromText(@star_center,4294967295));
-
-SELECT Distance(GeomFromText(@star_top,-1),GeomFromText(@star_center,-1));
-
-SELECT Distance(GeomFromText(@star_top,-1024),GeomFromText(@star_center,-1024));
-
-SELECT Distance(GeomFromText(@star_top,4294967295000),GeomFromText(@star_center,4294967295000));
+SELECT ST_DISTANCE(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=115 and fid2=215;
 
 --echo #====================================================================================
---echo # ST_Distance() with 2 geometries of same SRID
+--echo # ST_DISTANCE() with 2 geometries of same SRID
 --echo #====================================================================================
 
-SELECT ST_Distance(GeomFromText(@star_top,0),GeomFromText(@star_center,0));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_top,0),ST_GEOMFROMTEXT(@star_center,0));
 
-SELECT ST_Distance(GeomFromText(@star_top,100),GeomFromText(@star_center,100));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_top,100),ST_GEOMFROMTEXT(@star_center,100));
 
-SELECT ST_Distance(GeomFromText(@star_top,20000),GeomFromText(@star_center,20000));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_top,20000),ST_GEOMFROMTEXT(@star_center,20000));
 
-SELECT ST_Distance(GeomFromText(@star_top,123456),GeomFromText(@star_center,123456));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_top,123456),ST_GEOMFROMTEXT(@star_center,123456));
 
-SELECT ST_Distance(GeomFromText(@star_top,1048575),GeomFromText(@star_center,1048575));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_top,1048575),ST_GEOMFROMTEXT(@star_center,1048575));
 
-SELECT ST_Distance(GeomFromText(@star_top,4294967295),GeomFromText(@star_center,4294967295));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_top,4294967295),ST_GEOMFROMTEXT(@star_center,4294967295));
 
-SELECT ST_Distance(GeomFromText(@star_top,-1),GeomFromText(@star_center,-1));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_top,-1),ST_GEOMFROMTEXT(@star_center,-1));
 
-SELECT ST_Distance(GeomFromText(@star_top,-1024),GeomFromText(@star_center,-1024));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_top,-1024),ST_GEOMFROMTEXT(@star_center,-1024));
 
-SELECT ST_Distance(GeomFromText(@star_top,4294967295000),GeomFromText(@star_center,4294967295000));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_top,4294967295000),ST_GEOMFROMTEXT(@star_center,4294967295000));
 
 --echo #=======================================================================================
 --echo # Invalid function calls
 --echo #=======================================================================================
 
---echo #---------------------------------------------------------------------------------------
---echo # Distance()
 --error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
-SELECT Distance();
+SELECT ST_DISTANCE();
 
 --error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
-SELECT Distance(GeomFromText('POINT(10 10)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POINT(10 10)'));
 
-SELECT Distance(GeomFromText('POINT(10 10)'),NULL);
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POINT(10 10)'),NULL);
 
-SELECT Distance(NULL,GeomFromText('POINT(10 10)'));
-
---error ER_GIS_DIFFERENT_SRIDS
-SELECT Distance(GeomFromText(@star_top),GeomFromText(@star_center,4326));
+SELECT ST_DISTANCE(NULL,ST_GEOMFROMTEXT('POINT(10 10)'));
 
 --error ER_GIS_DIFFERENT_SRIDS
-SELECT Distance(GeomFromText(@star_top,1048576),GeomFromText(@star_center,4326));
-
-SELECT Distance(NULL,GeomFromText(@star_top));
-
-SELECT Distance(GeomFromText(@star_of_elems),NULL);
-
-SELECT Distance(NULL,NULL);
-
-SELECT Distance(g,NULL) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=103;
-
-SELECT Distance(fid,NULL) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=103;
-
---error ER_GIS_INVALID_DATA
-SELECT Distance(fid,GeomFromText(@star_top)) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=103;
-
---error ER_GIS_INVALID_DATA
-SELECT Distance(GeomFromText(@star_of_elems),fid) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=103;
-
---error ER_GIS_INVALID_DATA
-SELECT Distance(GeomFromText('POINT(a 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
-
---error ER_GIS_INVALID_DATA
-SELECT Distance(GeomFromText('POINT(! 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
-
---error ER_PARSE_ERROR
-SELECT Distance(GeomFromText('POINT('!' 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
-
---error ER_GIS_INVALID_DATA
-SELECT Distance(GeomFromText('POINT(12,34 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
-
---error ER_GIS_INVALID_DATA
-SELECT Distance(GeomFromText('LINESTRING(a 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
-
---error ER_GIS_INVALID_DATA
-SELECT Distance(GeomFromText('LINESTRING(0 0,! 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
-
---error ER_PARSE_ERROR
-SELECT Distance(GeomFromText('LINESTRING('!' 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
-
---error ER_GIS_INVALID_DATA
-SELECT Distance(GeomFromText('LINESTRING(12,34 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
-
---error ER_GIS_INVALID_DATA
-SELECT Distance(GeomFromText('POLYGON((a 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
-
---error ER_GIS_INVALID_DATA
-SELECT Distance(GeomFromText('POLYGON((0 0,! 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
-
---error ER_PARSE_ERROR
-SELECT Distance(GeomFromText('POLYGON(('!' 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
-
---error ER_GIS_INVALID_DATA
-SELECT Distance(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
-
---error ER_GIS_INVALID_DATA
-SELECT Distance(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
-
---error ER_GIS_INVALID_DATA
-SELECT Distance(g,GeomFromText('POLYGON((11 15,19 15,11 15))')) FROM gis_geometrycollection WHERE fid=110;
-
---error ER_GIS_INVALID_DATA
-SELECT Distance(g,GeomFromText('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))')) FROM gis_geometrycollection WHERE fid=110;
-
---error ER_GIS_INVALID_DATA
-SELECT Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0),(14 14,14 16,16 16,16 14,14 14))'),GeomFromText('POLYGON((11 11,14 14,15 15,16 16,20 20))'));
-
---error ER_GIS_INVALID_DATA
-SELECT Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0),(14 14,14 16,16 16,16 14,14 14))'),GeomFromText('MULTIPOLYGON(((11 11,14 14,15 15)),((16 16,20 20,30 30)))'));
-
-SELECT Distance(GeomFromText('GEOMETRYCOLLECTION()'),GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'));
-
-SELECT Distance(GeomFromText('POINT(10 10)'),GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'));
-
-SELECT Distance(GeomFromText('GEOMETRYCOLLECTION()'),GeomFromText('POINT(10 10)'));
-
---error ER_PARSE_ERROR
-SELECT Distance(,);
-
---error ER_PARSE_ERROR
-SELECT Distance(GeomFromText(@star_of_elems),);
-
---error ER_PARSE_ERROR
-SELECT Distance(,GeomFromText(@star_top));
-
---echo #---------------------------------------------------------------------------------------
---echo # ST_Distance()
---error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
-SELECT ST_Distance();
-
---error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
-SELECT ST_Distance(GeomFromText('POINT(10 10)'));
-
-SELECT ST_Distance(GeomFromText('POINT(10 10)'),NULL);
-
-SELECT ST_Distance(NULL,GeomFromText('POINT(10 10)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_center,4326));
 
 --error ER_GIS_DIFFERENT_SRIDS
-SELECT ST_Distance(GeomFromText(@star_top),GeomFromText(@star_center,4326));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_top,1048576),ST_GEOMFROMTEXT(@star_center,4326));
 
---error ER_GIS_DIFFERENT_SRIDS
-SELECT ST_Distance(GeomFromText(@star_top,1048576),GeomFromText(@star_center,4326));
+SELECT ST_DISTANCE(NULL,ST_GEOMFROMTEXT(@star_top));
 
-SELECT ST_Distance(NULL,GeomFromText(@star_top));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_of_elems),NULL);
 
-SELECT ST_Distance(GeomFromText(@star_of_elems),NULL);
+SELECT ST_DISTANCE(NULL,NULL);
 
-SELECT ST_Distance(NULL,NULL);
+SELECT ST_DISTANCE(g,NULL) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=103;
 
-SELECT ST_Distance(g,NULL) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=103;
-
-SELECT ST_Distance(fid,NULL) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=103;
+SELECT ST_DISTANCE(fid,NULL) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=103;
 
 --error ER_GIS_INVALID_DATA
-SELECT ST_Distance(fid,GeomFromText(@star_top)) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=103;
+SELECT ST_DISTANCE(fid,ST_GEOMFROMTEXT(@star_top)) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=103;
 
 --error ER_GIS_INVALID_DATA
-SELECT ST_Distance(GeomFromText(@star_of_elems),fid) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=103;
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_of_elems),fid) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=103;
 
 --error ER_GIS_INVALID_DATA
-SELECT ST_Distance(GeomFromText('POINT(a 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POINT(a 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
 
 --error ER_GIS_INVALID_DATA
-SELECT ST_Distance(GeomFromText('POINT(! 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POINT(! 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
 
 --error ER_PARSE_ERROR
-SELECT ST_Distance(GeomFromText('POINT('!' 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POINT('!' 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
 
 --error ER_GIS_INVALID_DATA
-SELECT ST_Distance(GeomFromText('POINT(12,34 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POINT(12,34 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
 
 --error ER_GIS_INVALID_DATA
-SELECT ST_Distance(GeomFromText('LINESTRING(a 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('LINESTRING(a 0,10 10)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
 
 --error ER_GIS_INVALID_DATA
-SELECT ST_Distance(GeomFromText('LINESTRING(0 0,! 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('LINESTRING(0 0,! 10)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
 
 --error ER_PARSE_ERROR
-SELECT ST_Distance(GeomFromText('LINESTRING('!' 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('LINESTRING('!' 0,10 10)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
 
 --error ER_GIS_INVALID_DATA
-SELECT ST_Distance(GeomFromText('LINESTRING(12,34 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('LINESTRING(12,34 0,10 10)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
 
 --error ER_GIS_INVALID_DATA
-SELECT ST_Distance(GeomFromText('POLYGON((a 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((a 0,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
 
 --error ER_GIS_INVALID_DATA
-SELECT ST_Distance(GeomFromText('POLYGON((0 0,! 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,! 10,10 0,0 0))'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
 
 --error ER_PARSE_ERROR
-SELECT ST_Distance(GeomFromText('POLYGON(('!' 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON(('!' 0,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
 
 --error ER_GIS_INVALID_DATA
-SELECT ST_Distance(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((12,34 0,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
 
 --error ER_GIS_INVALID_DATA
-SELECT ST_Distance(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((12,34 0,10 10,10 0,0 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
 
 --error ER_GIS_INVALID_DATA
-SELECT ST_Distance(g,GeomFromText('POLYGON((11 15,19 15,11 15))')) FROM gis_geometrycollection WHERE fid=110;
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT('POLYGON((11 15,19 15,11 15))')) FROM gis_geometrycollection WHERE fid=110;
 
 --error ER_GIS_INVALID_DATA
-SELECT ST_Distance(g,GeomFromText('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))')) FROM gis_geometrycollection WHERE fid=110;
+SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))')) FROM gis_geometrycollection WHERE fid=110;
 
 --error ER_GIS_INVALID_DATA
-SELECT ST_Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0),(14 14,14 16,16 16,16 14,14 14))'),GeomFromText('POLYGON((11 11,14 14,15 15,16 16,20 20))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0),(14 14,14 16,16 16,16 14,14 14))'),
+                   ST_GEOMFROMTEXT('POLYGON((11 11,14 14,15 15,16 16,20 20))'));
 
 --error ER_GIS_INVALID_DATA
-SELECT ST_Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0),(14 14,14 16,16 16,16 14,14 14))'),GeomFromText('MULTIPOLYGON(((11 11,14 14,15 15)),((16 16,20 20,30 30)))'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0),(14 14,14 16,16 16,16 14,14 14))'),
+                   ST_GEOMFROMTEXT('MULTIPOLYGON(((11 11,14 14,15 15)),((16 16,20 20,30 30)))'));
 
-SELECT ST_Distance(GeomFromText('GEOMETRYCOLLECTION()'),GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION()'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'));
 
-SELECT ST_Distance(GeomFromText('POINT(10 10)'),GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POINT(10 10)'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'));
 
-SELECT ST_Distance(GeomFromText('GEOMETRYCOLLECTION()'),GeomFromText('POINT(10 10)'));
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION()'),ST_GEOMFROMTEXT('POINT(10 10)'));
 
 --error ER_PARSE_ERROR
-SELECT ST_Distance(,);
+SELECT ST_DISTANCE(,);
 
 --error ER_PARSE_ERROR
-SELECT ST_Distance(GeomFromText(@star_of_elems),);
+SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_of_elems),);
 
 --error ER_PARSE_ERROR
-SELECT ST_Distance(,GeomFromText(@star_top));
+SELECT ST_DISTANCE(,ST_GEOMFROMTEXT(@star_top));
 
 --echo #clean up
---disable_warnings
-DROP TABLE IF EXISTS gis_geometrycollection;
-DROP TABLE IF EXISTS gis_geometrycollection_2;
---enable_warnings
+DROP TABLE gis_geometrycollection;
+DROP TABLE gis_geometrycollection_2;

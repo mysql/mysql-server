@@ -391,10 +391,10 @@ Equals(g1.g, g2.g) as e, Disjoint(g1.g, g2.g) as d, Touches(g1.g, g2.g) as t,
 Intersects(g1.g, g2.g) as i, Crosses(g1.g, g2.g) as r
 FROM gis_geometrycollection g1, gis_geometrycollection g2 ORDER BY first, second;
 first	second	w	c	o	e	d	t	i	r
-120	120	1	1	0	1	0	1	1	0
+120	120	1	1	0	1	0	0	1	0
 120	121	0	0	1	0	0	0	1	0
 121	120	0	0	1	0	0	0	1	0
-121	121	1	1	0	1	0	1	1	0
+121	121	1	1	0	1	0	0	1	0
 explain extended SELECT g1.fid as first, g2.fid as second,
 Within(g1.g, g2.g) as w, Contains(g1.g, g2.g) as c, Overlaps(g1.g, g2.g) as o,
 Equals(g1.g, g2.g) as e, Disjoint(g1.g, g2.g) as d, Touches(g1.g, g2.g) as t,
@@ -663,11 +663,11 @@ insert into t1 values ('85984',GeomFromText('MULTIPOLYGON(((-115.006363
 select object_id, geometrytype(geo), ISSIMPLE(GEO), ASTEXT(centroid(geo)) from
 t1 where object_id=85998;
 object_id	geometrytype(geo)	ISSIMPLE(GEO)	ASTEXT(centroid(geo))
-85998	MULTIPOLYGON	1	POINT(-115.29706046728724 36.23335610879761)
+85998	MULTIPOLYGON	1	POINT(-115.29706048618988 36.23335611474115)
 select object_id, geometrytype(geo), ISSIMPLE(GEO), ASTEXT(centroid(geo)) from
 t1 where object_id=85984;
 object_id	geometrytype(geo)	ISSIMPLE(GEO)	ASTEXT(centroid(geo))
-85984	MULTIPOLYGON	1	POINT(-114.86854472052883 36.347252182538156)
+85984	MULTIPOLYGON	1	POINT(-114.86854471507417 36.3472521808043)
 drop table t1;
 create table t1 (fl geometry not null);
 insert into t1 values (1);
@@ -1493,13 +1493,13 @@ FROM named_places, forests
 WHERE named_places.name = 'Ashton' 
 AND forests.name = 'Green Forest';
 AsText(ST_Difference(named_places.boundary, forests.boundary))
-MULTIPOLYGON(((84 42,84 48,62 48,56 34,84 42)))
+POLYGON((84 42,84 48,62 48,56 34,84 42))
 SELECT AsText(ST_Union(shore, boundary)) 
 FROM lakes, named_places 
 WHERE lakes.name = 'Blue Lake' 
 AND named_places.name = 'Goose Island';
 AsText(ST_Union(shore, boundary))
-MULTIPOLYGON(((52 18,48 6,73 9,66 23,52 18)))
+POLYGON((52 18,48 6,73 9,66 23,52 18))
 # Conformance Item T50 
 SELECT AsText(ST_SymDifference(shore, boundary)) 
 FROM lakes, named_places 

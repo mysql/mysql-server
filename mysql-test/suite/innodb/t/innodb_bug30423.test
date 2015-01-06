@@ -1,5 +1,4 @@
-#Want to skip this test from daily Valgrind execution
---source include/no_valgrind_without_big.inc
+-- source include/big_test.inc
 # Test for Bug #30423, InnoDBs treatment of NULL in index stats causes
 # bad "rows examined" estimates.
 # Implemented InnoDB system variable "innodb_stats_method" with

@@ -45,7 +45,7 @@ SELECT @@GLOBAL.query_cache_type;
 
 let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 --exec echo "wait" > $restart_file
---shutdown_server 10
+--shutdown_server 
 --source include/wait_until_disconnected.inc
 -- exec echo "restart:--query_cache_type=1  " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 -- enable_reconnect
@@ -197,7 +197,7 @@ select variable_value from information_schema.global_status where variable_name 
 
 let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 --exec echo "wait" > $restart_file
---shutdown_server 10
+--shutdown_server 
 --source include/wait_until_disconnected.inc
 -- exec echo "restart:--query_cache_type=1  " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 -- enable_reconnect

@@ -25,9 +25,12 @@
 #ifdef MYSQL_SERVER
 #include <mysqld.h>
 #endif
+#include <binlog_event.h>
+#include <control_events.h>
 #include "prealloced_array.h"
 #include <list>
 
+using binary_log::Uuid;
 /**
   Report an error from code that can be linked into either the server
   or mysqlbinlog.  There is no common error reporting mechanism, so we
@@ -84,10 +87,9 @@ class THD;
 
 
 /// Type of SIDNO (source ID number, first component of GTID)
-typedef int32 rpl_sidno;
+typedef int rpl_sidno;
 /// Type for GNO (group number, second component of GTID)
-typedef int64 rpl_gno;
-/// Type of binlog_pos (positions in binary log)
+typedef long long int rpl_gno;
 typedef int64 rpl_binlog_pos;
 
 
@@ -205,6 +207,18 @@ extern void check_return_status(enum_return_status status,
 /// Does a DBUG_PRINT and returns RETURN_STATUS_UNREPORTED_ERROR.
 #define RETURN_UNREPORTED_ERROR RETURN_STATUS(RETURN_STATUS_UNREPORTED_ERROR)
 
+/**
+  enum to map the result of Uuid::parse to the above Macros
+*/
+inline enum_return_status map_macro_enum(int status)
+{
+  DBUG_ENTER("map status error with the return value of uuid::parse_method");
+  if (status == 0)
+   RETURN_OK;
+  else
+   RETURN_UNREPORTED_ERROR;
+}
+
 
 /// The maximum value of GNO
 const rpl_gno MAX_GNO= LLONG_MAX;
@@ -231,79 +245,6 @@ rpl_gno parse_gno(const char **s);
   @return Length of the generated string.
 */
 int format_gno(char *s, rpl_gno gno);
-
-
-/**
-  Represents a UUID.
-
-  This is a POD.  It has to be a POD because it is a member of
-  Sid_map::Node which is stored in HASH.
-*/
-struct Uuid
-{
-  /**
-    Stores the UUID represented by a string on the form
-    XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX in this object.
-    @return RETURN_STATUS_OK or RETURN_STATUS_UNREPORTED_ERROR.
-  */
-  enum_return_status parse(const char *string);
-  /// Set to all zeros.
-  void clear() { memset(bytes, 0, BYTE_LENGTH); }
-  /// Copies the given 16-byte data to this UUID.
-  void copy_from(const uchar *data) { memcpy(bytes, data, BYTE_LENGTH); }
-  /// Copies the given UUID object to this UUID.
-  void copy_from(const Uuid &data) { copy_from(data.bytes); }
-  /// Copies the given UUID object to this UUID.
-  void copy_to(uchar *data) const { memcpy(data, bytes, BYTE_LENGTH); }
-  /// Returns true if this UUID is equal the given UUID.
-  bool equals(const Uuid &other) const
-  { return memcmp(bytes, other.bytes, BYTE_LENGTH) == 0; }
-  /**
-    Generates a 36+1 character long representation of this UUID object
-    in the given string buffer.
-
-    @retval 36 - the length of the resulting string.
-  */
-  size_t to_string(char *buf) const;
-  /// Convert the given binary buffer to a UUID
-  static size_t to_string(const uchar* bytes_arg, char *buf);
-#ifndef DBUG_OFF
-  /// Debugging only: Print this Uuid to stdout.
-  void print() const
-  {
-    char buf[TEXT_LENGTH + 1];
-    to_string(buf);
-    printf("%s\n", buf);
-  }
-#endif
-  /// Print this Uuid to the trace file if debug is enabled; no-op otherwise.
-  void dbug_print(const char *text= "") const
-  {
-#ifndef DBUG_OFF
-    char buf[TEXT_LENGTH + 1];
-    to_string(buf);
-    DBUG_PRINT("info", ("%s%s%s", text, *text ? ": " : "", buf));
-#endif
-  }
-  /**
-    Return true if parse() would return succeed, but don't actually
-    store the result anywhere.
-  */
-  static bool is_valid(const char *string);
-  /// The number of bytes in the textual representation of a Uuid.
-  static const size_t TEXT_LENGTH= 36;
-  /// The number of bytes in the data of a Uuid.
-  static const size_t BYTE_LENGTH= 16;
-  /// The number of bits in the data of a Uuid.
-  static const size_t BIT_LENGTH= 128;
-  /// The data for this Uuid.
-  uchar bytes[BYTE_LENGTH];
-private:
-  static const int NUMBER_OF_SECTIONS= 5;
-  static const int bytes_per_section[NUMBER_OF_SECTIONS];
-  static const int hex_to_byte[256];
-};
-
 
 typedef Uuid rpl_sid;
 
@@ -505,7 +446,7 @@ public:
     if (sid_lock != NULL)
       sid_lock->assert_some_lock();
     Node *node= (Node *)my_hash_search(&_sid_to_sidno, sid.bytes,
-                                       rpl_sid::BYTE_LENGTH);
+                                       binary_log::Uuid::BYTE_LENGTH);
     if (node == NULL)
       return 0;
     return node->sidno;
@@ -800,6 +741,8 @@ struct Gtid_interval
 
 
 /**
+  TODO: Move this structure to libbinlogevents/include/control_events.h
+        when we start using C++11.
   Holds information about a GTID: the sidno and the gno.
 
   This is a POD. It has to be a POD because it is part of
@@ -825,7 +768,7 @@ struct Gtid
     The maximal length of the textual representation of a SID, not
     including the terminating '\0'.
   */
-  static const int MAX_TEXT_LENGTH= Uuid::TEXT_LENGTH + 1 + MAX_GNO_TEXT_LENGTH;
+  static const int MAX_TEXT_LENGTH= binary_log::Uuid::TEXT_LENGTH + 1 + MAX_GNO_TEXT_LENGTH;
   /**
     Return true if parse() would succeed, but don't store the
     result anywhere.
@@ -1940,7 +1883,7 @@ public:
     {
       HASH *hash= get_hash(sidno);
       if (hash->records > 0)
-        ret+= rpl_sid::TEXT_LENGTH +
+        ret+= binary_log::Uuid::TEXT_LENGTH +
           hash->records * (1 + MAX_GNO_TEXT_LENGTH +
                            1 + MAX_THREAD_ID_TEXT_LENGTH);
     }
@@ -2561,12 +2504,17 @@ private:
 };
 
 
-/// Global state of GTIDs.
-extern Gtid_state *gtid_state;
-
-
 /**
-  Enumeration of group types.
+  Enumeration of group types formed inside a transactions.
+  The structure of a group is as follows:
+  @verbatim
+  Group {
+        SID (16 byte UUID):         The source identifier for the group
+        GNO (8 byte unsigned int):  The group number for the group
+        COMMIT_FLAG (boolean):      True if this is the last group of the
+                                    transaction
+        }
+  @endverbatim
 */
 enum enum_group_type
 {
@@ -2601,7 +2549,7 @@ enum enum_group_type
     This is the state of any transaction generated on a pre-GTID
     server, or on a server with GTID_MODE==OFF.
   */
-  ANONYMOUS_GROUP,
+ANONYMOUS_GROUP,
   /**
     Specifies that the GTID specification could not be parsed.  In
     generate_automatic_gno() it is also used to specify that the GTID
@@ -2623,12 +2571,13 @@ enum enum_group_type
     transactional updates, a single mixed statement would generate two
     different transactions.
 
-    Problematic case: If a transaction updates two transactional
-    tables on the master, but one of the tables is non-transactional
-    on the slave (uses a different engine on slave vs master), then
-    the transaction would be split into two transactions on the slave.
-    That would make it impossible to assign GTIDs correctly on the
-    slave, as GTIDs must be unique.
+    Problematic case: Consider a transaction, Tx1, that updates two
+    transactional tables on the master, t1 and t2. Then slave (s1) later
+    replays Tx1. However, t2 is a non-transactional table at s1. As such, s1
+    will report an error because it cannot split Tx1 into two different
+    transactions. Had no error been reported, then Tx1 would be split into Tx1
+    and Tx2, potentially causing severe harm in case some form of fail-over
+    procedure is later engaged by s1.
 
     To detect this case on the slave and generate an appropriate error
     message rather than causing an inconsistency in the GTID state, we
@@ -2641,7 +2590,7 @@ enum enum_group_type
     next transaction.
   */
   UNDEFINED_GROUP,
-  /**
+  /*
     GTID_NEXT is set to this state by the slave applier thread when it
     reads a Format_description_log_event that does not originate from
     this server.
@@ -2659,7 +2608,7 @@ enum enum_group_type
     until it sees the first transaction.  If the first transaction
     begins with a Gtid_log_event, we have the GTID there; if it begins
     with query_log_event, row events, etc, then this is an old binary
-    log.  So at the time the binary log begins, we just set
+log.  So at the time the binary log begins, we just set
     GTID_NEXT=NOT_YET_DETERMINED_GROUP.  If it remains
     NOT_YET_DETERMINED when the next transaction begins,
     gtid_pre_statement_checks will automatically turn it into an
@@ -2669,6 +2618,8 @@ enum enum_group_type
   */
   NOT_YET_DETERMINED_GROUP
 };
+/// Global state of GTIDs.
+extern Gtid_state *gtid_state;
 
 
 /**
@@ -2743,7 +2694,8 @@ struct Gtid_specification
   static bool is_valid(const char *text)
   { return Gtid_specification::get_type(text) != INVALID_GROUP; }
 #endif
-  static const int MAX_TEXT_LENGTH= Uuid::TEXT_LENGTH + 1 + MAX_GNO_TEXT_LENGTH;
+  static const int MAX_TEXT_LENGTH= binary_log::Uuid::TEXT_LENGTH + 1 +
+                                    MAX_GNO_TEXT_LENGTH;
   /**
     Writes this Gtid_specification to the given string buffer.
 
@@ -2905,7 +2857,7 @@ public:
     for (int i= 0; i < n_groups; i++)
     {
       Cached_group *group= get_unsafe_pointer(i);
-      char uuid[Uuid::TEXT_LENGTH + 1]= "[]";
+      char uuid[binary_log::Uuid::TEXT_LENGTH + 1]= "[]";
       if (group->spec.gtid.sidno)
         sm->sidno_to_sid(group->spec.gtid.sidno).to_string(uuid);
       s += sprintf(s, "  %s:%lld [offset %lld] %s\n",
@@ -2924,7 +2876,7 @@ public:
   */
   size_t get_max_string_length() const
   {
-    return (2 + Uuid::TEXT_LENGTH + 1 + MAX_GNO_TEXT_LENGTH + 4 + 2 +
+    return (2 + binary_log::Uuid::TEXT_LENGTH + 1 + MAX_GNO_TEXT_LENGTH + 4 + 2 +
             40 + 10 + 21 + 1 + 100/*margin*/) * get_n_groups() + 100/*margin*/;
   }
   /**

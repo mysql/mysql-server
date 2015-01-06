@@ -23,7 +23,7 @@ Warnings:
 Warning	1292	Truncated incorrect stored_program_cache value: '-1'
 SELECT @@global.stored_program_cache;
 @@global.stored_program_cache
-256
+16
 SET @@global.stored_program_cache =100000000000;
 Warnings:
 Warning	1292	Truncated incorrect stored_program_cache value: '100000000000'
@@ -35,7 +35,7 @@ Warnings:
 Warning	1292	Truncated incorrect stored_program_cache value: '0'
 SELECT @@global.stored_program_cache;
 @@global.stored_program_cache
-256
+16
 SET @@global.stored_program_cache = 10000.01;
 ERROR 42000: Incorrect argument type to variable 'stored_program_cache'
 SET @@global.stored_program_cache = ON;

@@ -115,8 +115,8 @@ explain select t1.*, t2.*, t3.*
 from t1 join t2 using (id1) join t3 using (id2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	NULL
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	100	1.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1000	0.50	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	100	10.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1000	10.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`id1` AS `id1`,`test`.`t1`.`a` AS `a`,`test`.`t2`.`id1` AS `id1`,`test`.`t2`.`id2` AS `id2`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`id2` AS `id2`,`test`.`t3`.`id3` AS `id3`,`test`.`t3`.`c` AS `c` from `test`.`t1` join `test`.`t2` join `test`.`t3` where ((`test`.`t2`.`id1` = `test`.`t1`.`id1`) and (`test`.`t3`.`id2` = `test`.`t2`.`id2`))
 call before_payload();
