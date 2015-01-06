@@ -1305,28 +1305,6 @@ thd_is_select(
 	return(thd_sql_command(thd) == SQLCOM_SELECT);
 }
 
-/** Returns true if the thread is executing CREATE TABLE statement.
-@param[in]	thd	the current thread context
-@retval true if thread is executing CREATE TABLE. */
-static
-inline
-bool
-thd_is_create_table(const THD*	thd)
-{
-	return(thd_sql_command(thd) == SQLCOM_CREATE_TABLE);
-}
-
-/** Returns true if the thread is executing CREATE INDEX statement.
-@param[in]	thd	the current thread context
-@retval true if thread is executing CREATE INDEX. */
-static
-inline
-bool
-thd_is_create_index(const THD*	thd)
-{
-	return(thd_sql_command(thd) == SQLCOM_CREATE_INDEX);
-}
-
 /******************************************************************//**
 Returns true if the thread supports XA,
 global value of innodb_supports_xa if thd is NULL.
