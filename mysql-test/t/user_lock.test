@@ -673,6 +673,17 @@ connection default;
 --disable_connect_log
 
 --echo #
+--echo # Bug#20031761 ASSERTION `SCALE >= 0 && PRECISION > 0 &&
+--echo #              SCALE <= PRECISION' FAILED
+--echo #
+
+SET @@session.div_precision_increment=0;
+select * from(SELECT MIN(GET_LOCK(0,0) / 1 ^ 0)) as a;
+select * from(SELECT MAX(RELEASE_LOCK(0) / 1 ^ 0)) as a;
+select * from(SELECT MAX(RELEASE_ALL_LOCKS() / 1 ^ 0)) as a;
+SET @@session.div_precision_increment=default;
+
+--echo #
 --echo # End of tests
 --echo #
 
