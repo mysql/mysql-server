@@ -28,6 +28,7 @@
 #include "sql_alloc.h"      // Sql_alloc
 
 struct TABLE;
+class Item;
 template <class T> class List;
 
 enum enum_duplicates { DUP_ERROR, DUP_REPLACE, DUP_UPDATE };

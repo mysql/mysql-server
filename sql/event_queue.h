@@ -1,6 +1,6 @@
 #ifndef _EVENT_QUEUE_H_
 #define _EVENT_QUEUE_H_
-/* Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,7 +26,7 @@
 */
 
 #include "my_global.h"                          // uint
-#include "sql_string.h"                         /* LEX_STRING */
+#include "mysql/mysql_lex_string.h"             // LEX_STRING
 #include "my_time.h"                    /* my_time_t, interval_type */
 #include "my_pthread.h"                         // mysql_mutex_t
 
