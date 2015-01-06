@@ -325,7 +325,7 @@ ut_stage_alter_t::begin_phase_sort(
 		m_sort_multi_factor = 1;
 	} else {
 		m_sort_multi_factor = static_cast<ulint>(
-			round(m_sort_multi_factor));
+			round(sort_multi_factor));
 	}
 
 	change_phase(&srv_stage_alter_table_sort);
