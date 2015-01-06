@@ -73,9 +73,6 @@ PSI_memory_key key_memory_Rows_query_log_event_rows_query;
 using std::min;
 using std::max;
 
-#define ER_SAFE(X) (((X) >= ER_ERROR_FIRST && (X) <= ER_ERROR_LAST) ? \
-                    ER(X) : "Invalid error code")
-
 #if defined(MYSQL_CLIENT)
 
 /*
@@ -4770,7 +4767,7 @@ compare_errors:
         !ignored_error_code(expected_error))
     {
       rli->report(ERROR_LEVEL, ER_INCONSISTENT_ERROR, ER(ER_INCONSISTENT_ERROR),
-                  ER_SAFE(expected_error), expected_error,
+                  ER_THD(thd, expected_error), expected_error,
                   (actual_error ?
                    thd->get_stmt_da()->message_text() :
                    "no error"),

@@ -72,7 +72,6 @@ typedef Bitmap<((MAX_INDEXES+7)/8*8)> key_map; /* Used for finding keys */
 
 #define SPECIAL_NO_NEW_FUNC	2		/* Skip new functions */
 #define SPECIAL_SKIP_SHOW_DB    4               /* Don't allow 'show db' */
-#define SPECIAL_ENGLISH        32		/* English error messages */
 #define SPECIAL_NO_RESOLVE     64		/* Don't use gethostname */
 #define SPECIAL_NO_HOST_CACHE	512		/* Don't cache hosts */
 #define SPECIAL_SHORT_LOG_FORMAT 1024
@@ -939,9 +938,6 @@ static inline THD *_current_thd(void)
 #endif
 #define current_thd _current_thd()
 
-#define ER_DEFAULT(X) my_default_lc_messages->errmsgs->errmsgs[(X) - ER_ERROR_FIRST]
-#define ER_THD(thd,X) ((thd)->variables.lc_messages->errmsgs->errmsgs[(X) - \
-                       ER_ERROR_FIRST])
 #define ER(X)         ER_THD(current_thd,X)
 
 #endif /* MYSQLD_INCLUDED */
