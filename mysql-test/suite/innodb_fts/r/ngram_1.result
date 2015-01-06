@@ -70,6 +70,7 @@ INSERT INTO articles_1 (seq,title_char,title_varchar,title_text) VALUES
 (3,'English arose in the Anglo-Saxon kingdoms','its from of England and what is now southeast Scotland','Following the extensive influence of Great Britain and the United Kingdom'),
 (5,'significant number of English words are constructed on the basis of roots from Latin', 'because Latin in some form was the lingua franca of the Christian Church','and of European intellectual life'),
 (7,'spread across states by  United Kingdom ~ England army','The Oxford English Dictionary liSts over 250,000 distinct words+','it became the dominant language in the United States, Canada, Australia and New Zealand');
+ANALYZE TABLE articles_1;
 SELECT * FROM articles_1 WHERE
 MATCH(title_char) AGAINST('En');
 seq	title_char	title_varchar	title_text
@@ -296,11 +297,11 @@ SELECT * FROM articles_1
 WHERE MATCH (title_char,title_text,title_varchar)
 AGAINST ('States' WITH QUERY EXPANSION);
 seq	title_char	title_varchar	title_text
-1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
-2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
-3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
-5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
+2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
+1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
+5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
+3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
 SET SESSION innodb_ft_enable_stopword=1;
 DROP TABLE articles_1;
 # Test Case 2: CJK charset and collation on row_type
@@ -308,6 +309,7 @@ INSERT INTO articles (c1,c2,c3,j1,j2,j3,k1,k2,e1) VALUES
 ('歡迎','你好','喂 ','日の長','言も言わずに','つやってみよう','제가 미국인입니다.','한국말을 공부합니다%','testing row row1 xy'),
 ('你好嗎?','我幾好，你呢','好耐冇見','左右','左右される','☆右折⇔左折','제 이름은 Charles입니다.','운동을 좋아해요*','row row1 value'),
 ('救命啊!','火啊! 你好','生日快樂 ','雨季','雨が降りそう つやってみよう','雨雲','저분은 영어를 잘 합니다','저는 서울에서 살고 있습니다.','recording test');
+ANALYZE TABLE articles;
 SELECT @@ngram_token_size;
 @@ngram_token_size
 2
@@ -505,12 +507,14 @@ seq	c1	c2	c3	j1	j2	j3	k1	k2	e1
 2	你好嗎?	我幾好，你呢	好耐冇見	左右	左右される	☆右折⇔左折	제 이름은 Charles입니다.	운동을 좋아해요*	row row1 value
 INSERT INTO articles (c1,c2,c3,j1,j2,j3,k1,k2,e1) VALUES
 ('歡迎','你好','喂 ','日の長','言も言わずに','つやてみよう','제가 미국인입니다.','한국말을 공부합니다%','testing row row1 xy');
+ANALYZE TABLE articles;
 SELECT * FROM articles WHERE
 MATCH(j1,j3) AGAINST("つや +(てみ)" IN BOOLEAN MODE);
 seq	c1	c2	c3	j1	j2	j3	k1	k2	e1
 1	歡迎	你好	喂	日の長	言も言わずに	つやってみよう	제가 미국인입니다.	한국말을 공부합니다%	testing row row1 xy
 4	歡迎	你好	喂	日の長	言も言わずに	つやてみよう	제가 미국인입니다.	한국말을 공부합니다%	testing row row1 xy
 DELETE FROM articles WHERE seq = 4;
+ANALYZE TABLE articles;
 SELECT * FROM articles WHERE MATCH(c1) AGAINST('+ ! ' IN BOOLEAN MODE);
 seq	c1	c2	c3	j1	j2	j3	k1	k2	e1
 SELECT * FROM articles WHERE
@@ -596,6 +600,7 @@ INSERT INTO 名字 (c1,c2,c3,さようなら,j2,j3,행운을빈다,k2,e1) VALUES
 ('歡迎','你好','喂 ','日の長','言も言わずに','つやってみよう','제가 미국인입니다.','한국말을 공부합니다%','testing row'),
 ('你好嗎?','我幾好，你呢','好耐冇見','左右','左右される','☆右折⇔左折','제 이름은 Charles입니다.','운동을 좋아해요*','row value'),
 ('救命啊!','火啊! 你好','生日快樂 ','雨季','雨が降りそう つやってみよう','雨雲','저분은 영어를 잘 합니다','저는 서울에서 살고 있습니다.','recording test');
+ANALYZE TABLE 名字;
 SELECT * FROM 名字;
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
 1	歡迎	你好	喂	日の長	言も言わずに	つやってみよう	제가 미국인입니다.	한국말을 공부합니다%	testing row
@@ -871,6 +876,7 @@ SELECT * FROM 名字 WHERE
 MATCH(행운을빈다) AGAINST('"분은 어를"@2' IN BOOLEAN MODE);
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
 COMMIT;
+ANALYZE TABLE 名字;
 SELECT * FROM 名字 WHERE
 MATCH(c1) AGAINST('啊! ');
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
@@ -995,6 +1001,7 @@ INSERT INTO 名字 (c1,c2,c3,さようなら,j2,j3,행운을빈다,k2,e1) VALUES
 ('救命啊!','火啊! 你好','生日快樂 ','雨季','雨が降りそう つやってみよう','雨雲','저분은 영어를 잘 합니다','저는 서울에서 살고 있습니다.','recording test');
 ROLLBACK;
 COMMIT;
+ANALYZE TABLE 名字;
 SELECT * FROM 名字 WHERE
 MATCH(c1) AGAINST('啊! ');
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
@@ -1112,6 +1119,7 @@ INSERT INTO 名字 (c1,c2,c3,さようなら,j2,j3,행운을빈다,k2,e1) VALUES
 ALTER TABLE 名字 ADD FULLTEXT INDEX con7 (j3) WITH PARSER ngram;
 ALTER TABLE 名字 ADD FULLTEXT INDEX con8 (행운을빈다) WITH PARSER ngram;
 COMMIT;
+ANALYZE TABLE 名字;
 SELECT * FROM 名字 WHERE
 MATCH(c1) AGAINST('啊! ');
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
@@ -1183,6 +1191,7 @@ INSERT INTO 名字 (c1,c2,c3,さようなら,j2,j3,행운을빈다,k2,e1) VALUES
 ('歡迎','你好','喂 ','日の長','言も言わずに','つやってみよう','제가 미국인입니다.','한국말을 공부합니다%','testing row'),
 ('你好嗎?','我幾好，你呢','好耐冇見','左右','左右される','☆右折⇔左折','제 이름은 Charles입니다.','운동을 좋아해요*','row value'),
 ('救命啊!','火啊! 你好','生日快樂 ','雨季','雨が降りそう つやってみよう','雨雲','저분은 영어를 잘 합니다','저는 서울에서 살고 있습니다.','recording test');
+ANALYZE TABLE 名字;
 SELECT * FROM 名字 WHERE
 MATCH(c1) AGAINST('啊! ');
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
@@ -1282,6 +1291,7 @@ INSERT INTO articles_1 (seq,title_char,title_varchar,title_text) VALUES
 (3,'English arose in the Anglo-Saxon kingdoms','its from of England and what is now southeast Scotland','Following the extensive influence of Great Britain and the United Kingdom'),
 (5,'significant number of English words are constructed on the basis of roots from Latin', 'because Latin in some form was the lingua franca of the Christian Church','and of European intellectual life'),
 (7,'spread across states by  United Kingdom ~ England army','The Oxford English Dictionary liSts over 250,000 distinct words+','it became the dominant language in the United States, Canada, Australia and New Zealand');
+ANALYZE TABLE articles_1;
 SELECT * FROM articles_1 WHERE
 MATCH(title_char) AGAINST('En');
 seq	title_char	title_varchar	title_text
@@ -1508,11 +1518,11 @@ SELECT * FROM articles_1
 WHERE MATCH (title_char,title_text,title_varchar)
 AGAINST ('States' WITH QUERY EXPANSION);
 seq	title_char	title_varchar	title_text
-1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
-2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
-3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
-5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
+2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
+1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
+5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
+3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
 SET SESSION innodb_ft_enable_stopword=1;
 DROP TABLE articles_1;
 # Test Case 2: CJK charset and collation on row_type
@@ -1520,6 +1530,7 @@ INSERT INTO articles (c1,c2,c3,j1,j2,j3,k1,k2,e1) VALUES
 ('歡迎','你好','喂 ','日の長','言も言わずに','つやってみよう','제가 미국인입니다.','한국말을 공부합니다%','testing row row1 xy'),
 ('你好嗎?','我幾好，你呢','好耐冇見','左右','左右される','☆右折⇔左折','제 이름은 Charles입니다.','운동을 좋아해요*','row row1 value'),
 ('救命啊!','火啊! 你好','生日快樂 ','雨季','雨が降りそう つやってみよう','雨雲','저분은 영어를 잘 합니다','저는 서울에서 살고 있습니다.','recording test');
+ANALYZE TABLE articles;
 SELECT @@ngram_token_size;
 @@ngram_token_size
 2
@@ -1717,12 +1728,14 @@ seq	c1	c2	c3	j1	j2	j3	k1	k2	e1
 2	你好嗎?	我幾好，你呢	好耐冇見	左右	左右される	☆右折⇔左折	제 이름은 Charles입니다.	운동을 좋아해요*	row row1 value
 INSERT INTO articles (c1,c2,c3,j1,j2,j3,k1,k2,e1) VALUES
 ('歡迎','你好','喂 ','日の長','言も言わずに','つやてみよう','제가 미국인입니다.','한국말을 공부합니다%','testing row row1 xy');
+ANALYZE TABLE articles;
 SELECT * FROM articles WHERE
 MATCH(j1,j3) AGAINST("つや +(てみ)" IN BOOLEAN MODE);
 seq	c1	c2	c3	j1	j2	j3	k1	k2	e1
 1	歡迎	你好	喂	日の長	言も言わずに	つやってみよう	제가 미국인입니다.	한국말을 공부합니다%	testing row row1 xy
 4	歡迎	你好	喂	日の長	言も言わずに	つやてみよう	제가 미국인입니다.	한국말을 공부합니다%	testing row row1 xy
 DELETE FROM articles WHERE seq = 4;
+ANALYZE TABLE articles;
 SELECT * FROM articles WHERE MATCH(c1) AGAINST('+ ! ' IN BOOLEAN MODE);
 seq	c1	c2	c3	j1	j2	j3	k1	k2	e1
 SELECT * FROM articles WHERE
@@ -1808,6 +1821,7 @@ INSERT INTO 名字 (c1,c2,c3,さようなら,j2,j3,행운을빈다,k2,e1) VALUES
 ('歡迎','你好','喂 ','日の長','言も言わずに','つやってみよう','제가 미국인입니다.','한국말을 공부합니다%','testing row'),
 ('你好嗎?','我幾好，你呢','好耐冇見','左右','左右される','☆右折⇔左折','제 이름은 Charles입니다.','운동을 좋아해요*','row value'),
 ('救命啊!','火啊! 你好','生日快樂 ','雨季','雨が降りそう つやってみよう','雨雲','저분은 영어를 잘 합니다','저는 서울에서 살고 있습니다.','recording test');
+ANALYZE TABLE 名字;
 SELECT * FROM 名字;
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
 1	歡迎	你好	喂	日の長	言も言わずに	つやってみよう	제가 미국인입니다.	한국말을 공부합니다%	testing row
@@ -2083,6 +2097,7 @@ SELECT * FROM 名字 WHERE
 MATCH(행운을빈다) AGAINST('"분은 어를"@2' IN BOOLEAN MODE);
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
 COMMIT;
+ANALYZE TABLE 名字;
 SELECT * FROM 名字 WHERE
 MATCH(c1) AGAINST('啊! ');
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
@@ -2207,6 +2222,7 @@ INSERT INTO 名字 (c1,c2,c3,さようなら,j2,j3,행운을빈다,k2,e1) VALUES
 ('救命啊!','火啊! 你好','生日快樂 ','雨季','雨が降りそう つやってみよう','雨雲','저분은 영어를 잘 합니다','저는 서울에서 살고 있습니다.','recording test');
 ROLLBACK;
 COMMIT;
+ANALYZE TABLE 名字;
 SELECT * FROM 名字 WHERE
 MATCH(c1) AGAINST('啊! ');
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
@@ -2324,6 +2340,7 @@ INSERT INTO 名字 (c1,c2,c3,さようなら,j2,j3,행운을빈다,k2,e1) VALUES
 ALTER TABLE 名字 ADD FULLTEXT INDEX con7 (j3) WITH PARSER ngram;
 ALTER TABLE 名字 ADD FULLTEXT INDEX con8 (행운을빈다) WITH PARSER ngram;
 COMMIT;
+ANALYZE TABLE 名字;
 SELECT * FROM 名字 WHERE
 MATCH(c1) AGAINST('啊! ');
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
@@ -2395,6 +2412,7 @@ INSERT INTO 名字 (c1,c2,c3,さようなら,j2,j3,행운을빈다,k2,e1) VALUES
 ('歡迎','你好','喂 ','日の長','言も言わずに','つやってみよう','제가 미국인입니다.','한국말을 공부합니다%','testing row'),
 ('你好嗎?','我幾好，你呢','好耐冇見','左右','左右される','☆右折⇔左折','제 이름은 Charles입니다.','운동을 좋아해요*','row value'),
 ('救命啊!','火啊! 你好','生日快樂 ','雨季','雨が降りそう つやってみよう','雨雲','저분은 영어를 잘 합니다','저는 서울에서 살고 있습니다.','recording test');
+ANALYZE TABLE 名字;
 SELECT * FROM 名字 WHERE
 MATCH(c1) AGAINST('啊! ');
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
@@ -2494,6 +2512,7 @@ INSERT INTO articles_1 (seq,title_char,title_varchar,title_text) VALUES
 (3,'English arose in the Anglo-Saxon kingdoms','its from of England and what is now southeast Scotland','Following the extensive influence of Great Britain and the United Kingdom'),
 (5,'significant number of English words are constructed on the basis of roots from Latin', 'because Latin in some form was the lingua franca of the Christian Church','and of European intellectual life'),
 (7,'spread across states by  United Kingdom ~ England army','The Oxford English Dictionary liSts over 250,000 distinct words+','it became the dominant language in the United States, Canada, Australia and New Zealand');
+ANALYZE TABLE articles_1;
 SELECT * FROM articles_1 WHERE
 MATCH(title_char) AGAINST('En');
 seq	title_char	title_varchar	title_text
@@ -2720,11 +2739,11 @@ SELECT * FROM articles_1
 WHERE MATCH (title_char,title_text,title_varchar)
 AGAINST ('States' WITH QUERY EXPANSION);
 seq	title_char	title_varchar	title_text
-1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
-2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
-3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
-5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
+2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
+1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
+5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
+3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
 SET SESSION innodb_ft_enable_stopword=1;
 DROP TABLE articles_1;
 # Test Case 2: CJK charset and collation on row_type
@@ -2732,6 +2751,7 @@ INSERT INTO articles (c1,c2,c3,j1,j2,j3,k1,k2,e1) VALUES
 ('歡迎','你好','喂 ','日の長','言も言わずに','つやってみよう','제가 미국인입니다.','한국말을 공부합니다%','testing row row1 xy'),
 ('你好嗎?','我幾好，你呢','好耐冇見','左右','左右される','☆右折⇔左折','제 이름은 Charles입니다.','운동을 좋아해요*','row row1 value'),
 ('救命啊!','火啊! 你好','生日快樂 ','雨季','雨が降りそう つやってみよう','雨雲','저분은 영어를 잘 합니다','저는 서울에서 살고 있습니다.','recording test');
+ANALYZE TABLE articles;
 SELECT @@ngram_token_size;
 @@ngram_token_size
 2
@@ -2929,12 +2949,14 @@ seq	c1	c2	c3	j1	j2	j3	k1	k2	e1
 2	你好嗎?	我幾好，你呢	好耐冇見	左右	左右される	☆右折⇔左折	제 이름은 Charles입니다.	운동을 좋아해요*	row row1 value
 INSERT INTO articles (c1,c2,c3,j1,j2,j3,k1,k2,e1) VALUES
 ('歡迎','你好','喂 ','日の長','言も言わずに','つやてみよう','제가 미국인입니다.','한국말을 공부합니다%','testing row row1 xy');
+ANALYZE TABLE articles;
 SELECT * FROM articles WHERE
 MATCH(j1,j3) AGAINST("つや +(てみ)" IN BOOLEAN MODE);
 seq	c1	c2	c3	j1	j2	j3	k1	k2	e1
 1	歡迎	你好	喂	日の長	言も言わずに	つやってみよう	제가 미국인입니다.	한국말을 공부합니다%	testing row row1 xy
 4	歡迎	你好	喂	日の長	言も言わずに	つやてみよう	제가 미국인입니다.	한국말을 공부합니다%	testing row row1 xy
 DELETE FROM articles WHERE seq = 4;
+ANALYZE TABLE articles;
 SELECT * FROM articles WHERE MATCH(c1) AGAINST('+ ! ' IN BOOLEAN MODE);
 seq	c1	c2	c3	j1	j2	j3	k1	k2	e1
 SELECT * FROM articles WHERE
@@ -3020,6 +3042,7 @@ INSERT INTO 名字 (c1,c2,c3,さようなら,j2,j3,행운을빈다,k2,e1) VALUES
 ('歡迎','你好','喂 ','日の長','言も言わずに','つやってみよう','제가 미국인입니다.','한국말을 공부합니다%','testing row'),
 ('你好嗎?','我幾好，你呢','好耐冇見','左右','左右される','☆右折⇔左折','제 이름은 Charles입니다.','운동을 좋아해요*','row value'),
 ('救命啊!','火啊! 你好','生日快樂 ','雨季','雨が降りそう つやってみよう','雨雲','저분은 영어를 잘 합니다','저는 서울에서 살고 있습니다.','recording test');
+ANALYZE TABLE 名字;
 SELECT * FROM 名字;
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
 1	歡迎	你好	喂	日の長	言も言わずに	つやってみよう	제가 미국인입니다.	한국말을 공부합니다%	testing row
@@ -3295,6 +3318,7 @@ SELECT * FROM 名字 WHERE
 MATCH(행운을빈다) AGAINST('"분은 어를"@2' IN BOOLEAN MODE);
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
 COMMIT;
+ANALYZE TABLE 名字;
 SELECT * FROM 名字 WHERE
 MATCH(c1) AGAINST('啊! ');
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
@@ -3419,6 +3443,7 @@ INSERT INTO 名字 (c1,c2,c3,さようなら,j2,j3,행운을빈다,k2,e1) VALUES
 ('救命啊!','火啊! 你好','生日快樂 ','雨季','雨が降りそう つやってみよう','雨雲','저분은 영어를 잘 합니다','저는 서울에서 살고 있습니다.','recording test');
 ROLLBACK;
 COMMIT;
+ANALYZE TABLE 名字;
 SELECT * FROM 名字 WHERE
 MATCH(c1) AGAINST('啊! ');
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
@@ -3536,6 +3561,7 @@ INSERT INTO 名字 (c1,c2,c3,さようなら,j2,j3,행운을빈다,k2,e1) VALUES
 ALTER TABLE 名字 ADD FULLTEXT INDEX con7 (j3) WITH PARSER ngram;
 ALTER TABLE 名字 ADD FULLTEXT INDEX con8 (행운을빈다) WITH PARSER ngram;
 COMMIT;
+ANALYZE TABLE 名字;
 SELECT * FROM 名字 WHERE
 MATCH(c1) AGAINST('啊! ');
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
@@ -3607,6 +3633,7 @@ INSERT INTO 名字 (c1,c2,c3,さようなら,j2,j3,행운을빈다,k2,e1) VALUES
 ('歡迎','你好','喂 ','日の長','言も言わずに','つやってみよう','제가 미국인입니다.','한국말을 공부합니다%','testing row'),
 ('你好嗎?','我幾好，你呢','好耐冇見','左右','左右される','☆右折⇔左折','제 이름은 Charles입니다.','운동을 좋아해요*','row value'),
 ('救命啊!','火啊! 你好','生日快樂 ','雨季','雨が降りそう つやってみよう','雨雲','저분은 영어를 잘 합니다','저는 서울에서 살고 있습니다.','recording test');
+ANALYZE TABLE 名字;
 SELECT * FROM 名字 WHERE
 MATCH(c1) AGAINST('啊! ');
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
@@ -3707,6 +3734,7 @@ INSERT INTO articles_1 (seq,title_char,title_varchar,title_text) VALUES
 (3,'English arose in the Anglo-Saxon kingdoms','its from of England and what is now southeast Scotland','Following the extensive influence of Great Britain and the United Kingdom'),
 (5,'significant number of English words are constructed on the basis of roots from Latin', 'because Latin in some form was the lingua franca of the Christian Church','and of European intellectual life'),
 (7,'spread across states by  United Kingdom ~ England army','The Oxford English Dictionary liSts over 250,000 distinct words+','it became the dominant language in the United States, Canada, Australia and New Zealand');
+ANALYZE TABLE articles_1;
 SELECT * FROM articles_1 WHERE
 MATCH(title_char) AGAINST('En');
 seq	title_char	title_varchar	title_text
@@ -3933,11 +3961,11 @@ SELECT * FROM articles_1
 WHERE MATCH (title_char,title_text,title_varchar)
 AGAINST ('States' WITH QUERY EXPANSION);
 seq	title_char	title_varchar	title_text
-1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
-2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
-3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
-5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
+2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
+1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
+5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
+3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
 SET SESSION innodb_ft_enable_stopword=1;
 DROP TABLE articles_1;
 # Test Case 2: CJK charset and collation on row_type
@@ -3945,6 +3973,7 @@ INSERT INTO articles (c1,c2,c3,j1,j2,j3,k1,k2,e1) VALUES
 ('歡迎','你好','喂 ','日の長','言も言わずに','つやってみよう','제가 미국인입니다.','한국말을 공부합니다%','testing row row1 xy'),
 ('你好嗎?','我幾好，你呢','好耐冇見','左右','左右される','☆右折⇔左折','제 이름은 Charles입니다.','운동을 좋아해요*','row row1 value'),
 ('救命啊!','火啊! 你好','生日快樂 ','雨季','雨が降りそう つやってみよう','雨雲','저분은 영어를 잘 합니다','저는 서울에서 살고 있습니다.','recording test');
+ANALYZE TABLE articles;
 SELECT @@ngram_token_size;
 @@ngram_token_size
 2
@@ -4142,12 +4171,14 @@ seq	c1	c2	c3	j1	j2	j3	k1	k2	e1
 2	你好嗎?	我幾好，你呢	好耐冇見	左右	左右される	☆右折⇔左折	제 이름은 Charles입니다.	운동을 좋아해요*	row row1 value
 INSERT INTO articles (c1,c2,c3,j1,j2,j3,k1,k2,e1) VALUES
 ('歡迎','你好','喂 ','日の長','言も言わずに','つやてみよう','제가 미국인입니다.','한국말을 공부합니다%','testing row row1 xy');
+ANALYZE TABLE articles;
 SELECT * FROM articles WHERE
 MATCH(j1,j3) AGAINST("つや +(てみ)" IN BOOLEAN MODE);
 seq	c1	c2	c3	j1	j2	j3	k1	k2	e1
 1	歡迎	你好	喂	日の長	言も言わずに	つやってみよう	제가 미국인입니다.	한국말을 공부합니다%	testing row row1 xy
 4	歡迎	你好	喂	日の長	言も言わずに	つやてみよう	제가 미국인입니다.	한국말을 공부합니다%	testing row row1 xy
 DELETE FROM articles WHERE seq = 4;
+ANALYZE TABLE articles;
 SELECT * FROM articles WHERE MATCH(c1) AGAINST('+ ! ' IN BOOLEAN MODE);
 seq	c1	c2	c3	j1	j2	j3	k1	k2	e1
 SELECT * FROM articles WHERE
@@ -4233,6 +4264,7 @@ INSERT INTO 名字 (c1,c2,c3,さようなら,j2,j3,행운을빈다,k2,e1) VALUES
 ('歡迎','你好','喂 ','日の長','言も言わずに','つやってみよう','제가 미국인입니다.','한국말을 공부합니다%','testing row'),
 ('你好嗎?','我幾好，你呢','好耐冇見','左右','左右される','☆右折⇔左折','제 이름은 Charles입니다.','운동을 좋아해요*','row value'),
 ('救命啊!','火啊! 你好','生日快樂 ','雨季','雨が降りそう つやってみよう','雨雲','저분은 영어를 잘 합니다','저는 서울에서 살고 있습니다.','recording test');
+ANALYZE TABLE 名字;
 SELECT * FROM 名字;
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
 1	歡迎	你好	喂	日の長	言も言わずに	つやってみよう	제가 미국인입니다.	한국말을 공부합니다%	testing row
@@ -4508,6 +4540,7 @@ SELECT * FROM 名字 WHERE
 MATCH(행운을빈다) AGAINST('"분은 어를"@2' IN BOOLEAN MODE);
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
 COMMIT;
+ANALYZE TABLE 名字;
 SELECT * FROM 名字 WHERE
 MATCH(c1) AGAINST('啊! ');
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
@@ -4632,6 +4665,7 @@ INSERT INTO 名字 (c1,c2,c3,さようなら,j2,j3,행운을빈다,k2,e1) VALUES
 ('救命啊!','火啊! 你好','生日快樂 ','雨季','雨が降りそう つやってみよう','雨雲','저분은 영어를 잘 합니다','저는 서울에서 살고 있습니다.','recording test');
 ROLLBACK;
 COMMIT;
+ANALYZE TABLE 名字;
 SELECT * FROM 名字 WHERE
 MATCH(c1) AGAINST('啊! ');
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
@@ -4749,6 +4783,7 @@ INSERT INTO 名字 (c1,c2,c3,さようなら,j2,j3,행운을빈다,k2,e1) VALUES
 ALTER TABLE 名字 ADD FULLTEXT INDEX con7 (j3) WITH PARSER ngram;
 ALTER TABLE 名字 ADD FULLTEXT INDEX con8 (행운을빈다) WITH PARSER ngram;
 COMMIT;
+ANALYZE TABLE 名字;
 SELECT * FROM 名字 WHERE
 MATCH(c1) AGAINST('啊! ');
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
@@ -4820,6 +4855,7 @@ INSERT INTO 名字 (c1,c2,c3,さようなら,j2,j3,행운을빈다,k2,e1) VALUES
 ('歡迎','你好','喂 ','日の長','言も言わずに','つやってみよう','제가 미국인입니다.','한국말을 공부합니다%','testing row'),
 ('你好嗎?','我幾好，你呢','好耐冇見','左右','左右される','☆右折⇔左折','제 이름은 Charles입니다.','운동을 좋아해요*','row value'),
 ('救命啊!','火啊! 你好','生日快樂 ','雨季','雨が降りそう つやってみよう','雨雲','저분은 영어를 잘 합니다','저는 서울에서 살고 있습니다.','recording test');
+ANALYZE TABLE 名字;
 SELECT * FROM 名字 WHERE
 MATCH(c1) AGAINST('啊! ');
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
@@ -4920,6 +4956,7 @@ INSERT INTO articles_1 (seq,title_char,title_varchar,title_text) VALUES
 (3,'English arose in the Anglo-Saxon kingdoms','its from of England and what is now southeast Scotland','Following the extensive influence of Great Britain and the United Kingdom'),
 (5,'significant number of English words are constructed on the basis of roots from Latin', 'because Latin in some form was the lingua franca of the Christian Church','and of European intellectual life'),
 (7,'spread across states by  United Kingdom ~ England army','The Oxford English Dictionary liSts over 250,000 distinct words+','it became the dominant language in the United States, Canada, Australia and New Zealand');
+ANALYZE TABLE articles_1;
 SELECT * FROM articles_1 WHERE
 MATCH(title_char) AGAINST('En');
 seq	title_char	title_varchar	title_text
@@ -5146,11 +5183,11 @@ SELECT * FROM articles_1
 WHERE MATCH (title_char,title_text,title_varchar)
 AGAINST ('States' WITH QUERY EXPANSION);
 seq	title_char	title_varchar	title_text
-1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
-2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
-3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
-5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
 7	spread across states by  United Kingdom ~ England army	The Oxford English Dictionary liSts over 250,000 distinct words+	it became the dominant language in the United States, Canada, Australia and New Zealand
+2	spoken as a first language by the majority populations of several states	including the United Kingdom i*	 and the United States, Canada, Australia, Ireland
+1	English is a West Germanic language	It was first spoken in early medieval England	most widely used language in the world
+5	significant number of English words are constructed on the basis of roots from Latin	because Latin in some form was the lingua franca of the Christian Church	and of European intellectual life
+3	English arose in the Anglo-Saxon kingdoms	its from of England and what is now southeast Scotland	Following the extensive influence of Great Britain and the United Kingdom
 SET SESSION innodb_ft_enable_stopword=1;
 DROP TABLE articles_1;
 # Test Case 2: CJK charset and collation on row_type
@@ -5158,6 +5195,7 @@ INSERT INTO articles (c1,c2,c3,j1,j2,j3,k1,k2,e1) VALUES
 ('歡迎','你好','喂 ','日の長','言も言わずに','つやってみよう','제가 미국인입니다.','한국말을 공부합니다%','testing row row1 xy'),
 ('你好嗎?','我幾好，你呢','好耐冇見','左右','左右される','☆右折⇔左折','제 이름은 Charles입니다.','운동을 좋아해요*','row row1 value'),
 ('救命啊!','火啊! 你好','生日快樂 ','雨季','雨が降りそう つやってみよう','雨雲','저분은 영어를 잘 합니다','저는 서울에서 살고 있습니다.','recording test');
+ANALYZE TABLE articles;
 SELECT @@ngram_token_size;
 @@ngram_token_size
 2
@@ -5355,12 +5393,14 @@ seq	c1	c2	c3	j1	j2	j3	k1	k2	e1
 2	你好嗎?	我幾好，你呢	好耐冇見	左右	左右される	☆右折⇔左折	제 이름은 Charles입니다.	운동을 좋아해요*	row row1 value
 INSERT INTO articles (c1,c2,c3,j1,j2,j3,k1,k2,e1) VALUES
 ('歡迎','你好','喂 ','日の長','言も言わずに','つやてみよう','제가 미국인입니다.','한국말을 공부합니다%','testing row row1 xy');
+ANALYZE TABLE articles;
 SELECT * FROM articles WHERE
 MATCH(j1,j3) AGAINST("つや +(てみ)" IN BOOLEAN MODE);
 seq	c1	c2	c3	j1	j2	j3	k1	k2	e1
 1	歡迎	你好	喂	日の長	言も言わずに	つやってみよう	제가 미국인입니다.	한국말을 공부합니다%	testing row row1 xy
 4	歡迎	你好	喂	日の長	言も言わずに	つやてみよう	제가 미국인입니다.	한국말을 공부합니다%	testing row row1 xy
 DELETE FROM articles WHERE seq = 4;
+ANALYZE TABLE articles;
 SELECT * FROM articles WHERE MATCH(c1) AGAINST('+ ! ' IN BOOLEAN MODE);
 seq	c1	c2	c3	j1	j2	j3	k1	k2	e1
 SELECT * FROM articles WHERE
@@ -5446,6 +5486,7 @@ INSERT INTO 名字 (c1,c2,c3,さようなら,j2,j3,행운을빈다,k2,e1) VALUES
 ('歡迎','你好','喂 ','日の長','言も言わずに','つやってみよう','제가 미국인입니다.','한국말을 공부합니다%','testing row'),
 ('你好嗎?','我幾好，你呢','好耐冇見','左右','左右される','☆右折⇔左折','제 이름은 Charles입니다.','운동을 좋아해요*','row value'),
 ('救命啊!','火啊! 你好','生日快樂 ','雨季','雨が降りそう つやってみよう','雨雲','저분은 영어를 잘 합니다','저는 서울에서 살고 있습니다.','recording test');
+ANALYZE TABLE 名字;
 SELECT * FROM 名字;
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
 1	歡迎	你好	喂	日の長	言も言わずに	つやってみよう	제가 미국인입니다.	한국말을 공부합니다%	testing row
@@ -5721,6 +5762,7 @@ SELECT * FROM 名字 WHERE
 MATCH(행운을빈다) AGAINST('"분은 어를"@2' IN BOOLEAN MODE);
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
 COMMIT;
+ANALYZE TABLE 名字;
 SELECT * FROM 名字 WHERE
 MATCH(c1) AGAINST('啊! ');
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
@@ -5845,6 +5887,7 @@ INSERT INTO 名字 (c1,c2,c3,さようなら,j2,j3,행운을빈다,k2,e1) VALUES
 ('救命啊!','火啊! 你好','生日快樂 ','雨季','雨が降りそう つやってみよう','雨雲','저분은 영어를 잘 합니다','저는 서울에서 살고 있습니다.','recording test');
 ROLLBACK;
 COMMIT;
+ANALYZE TABLE 名字;
 SELECT * FROM 名字 WHERE
 MATCH(c1) AGAINST('啊! ');
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
@@ -5962,6 +6005,7 @@ INSERT INTO 名字 (c1,c2,c3,さようなら,j2,j3,행운을빈다,k2,e1) VALUES
 ALTER TABLE 名字 ADD FULLTEXT INDEX con7 (j3) WITH PARSER ngram;
 ALTER TABLE 名字 ADD FULLTEXT INDEX con8 (행운을빈다) WITH PARSER ngram;
 COMMIT;
+ANALYZE TABLE 名字;
 SELECT * FROM 名字 WHERE
 MATCH(c1) AGAINST('啊! ');
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
@@ -6033,6 +6077,7 @@ INSERT INTO 名字 (c1,c2,c3,さようなら,j2,j3,행운을빈다,k2,e1) VALUES
 ('歡迎','你好','喂 ','日の長','言も言わずに','つやってみよう','제가 미국인입니다.','한국말을 공부합니다%','testing row'),
 ('你好嗎?','我幾好，你呢','好耐冇見','左右','左右される','☆右折⇔左折','제 이름은 Charles입니다.','운동을 좋아해요*','row value'),
 ('救命啊!','火啊! 你好','生日快樂 ','雨季','雨が降りそう つやってみよう','雨雲','저분은 영어를 잘 합니다','저는 서울에서 살고 있습니다.','recording test');
+ANALYZE TABLE 名字;
 SELECT * FROM 名字 WHERE
 MATCH(c1) AGAINST('啊! ');
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
