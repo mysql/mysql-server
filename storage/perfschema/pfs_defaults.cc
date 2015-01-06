@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -49,7 +49,7 @@ void install_default_setup(PSI_bootstrap *boot)
 
     String percent("%", 1, &my_charset_utf8_bin);
     /* Enable all users on all hosts by default */
-    insert_setup_actor(&percent, &percent, &percent);
+    insert_setup_actor(&percent, &percent, &percent, true);
 
     String mysql_db("mysql", 5, &my_charset_utf8_bin);
     String PS_db("performance_schema", 18, &my_charset_utf8_bin);

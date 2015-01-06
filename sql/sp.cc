@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,24 +15,22 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "sql_base.h"                           // close_thread_tables
-#include "sql_parse.h"                          // parse_sql
-#include "key.h"                                // key_copy
-#include "sql_show.h"             // append_definer, append_identifier
-#include "sql_db.h" // get_default_db_collation, mysql_opt_change_db,
-                    // mysql_change_db, check_db_dir_existence,
-                    // load_db_opt_by_name
-#include "sql_table.h"                          // write_bin_log
-#include "auth_common.h"                        // SUPER_ACL
-#include "sp_head.h"
-#include "sp_cache.h"
-#include "lock.h"                               // lock_object_name
 #include "sp.h"
-#include "mysql/psi/mysql_sp.h"
-#include "log.h"
-#include "binlog.h"
 
-#include <my_user.h>
+#include "my_user.h"      // parse_user
+#include "mysql/psi/mysql_sp.h"
+#include "binlog.h"       // mysql_bin_log
+#include "item_timefunc.h"// Item_func_now_local
+#include "key.h"          // key_copy
+#include "lock.h"         // lock_object_name
+#include "log.h"          // sql_print_warning
+#include "sp_cache.h"     // sp_cache_invalidate
+#include "sp_head.h"      // Stored_program_creation_ctx
+#include "sql_base.h"     // close_thread_tables
+#include "sql_db.h"       // get_default_db_collation
+#include "sql_parse.h"    // parse_sql
+#include "sql_show.h"     // append_identifier
+#include "sql_table.h"    // write_bin_log
 
 /* Used in error handling only */
 #define SP_TYPE_STRING(LP) \

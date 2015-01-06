@@ -1,13 +1,13 @@
 SET @start_global_value = @@global.internal_tmp_disk_storage_engine;
 SELECT @start_global_value;
 @start_global_value
-MYISAM
+INNODB
 '#--------------------FN_DYNVARS_005_01-------------------------#'
 SET @@global.internal_tmp_disk_storage_engine = INNODB;
 SET @@global.internal_tmp_disk_storage_engine = DEFAULT;
 SELECT @@global.internal_tmp_disk_storage_engine;
 @@global.internal_tmp_disk_storage_engine
-MYISAM
+INNODB
 '#--------------------FN_DYNVARS_005_02-------------------------#'
 SET @@global.internal_tmp_disk_storage_engine = MYISAM;
 SELECT @@global.internal_tmp_disk_storage_engine;
@@ -49,4 +49,4 @@ ERROR HY000: Variable 'internal_tmp_disk_storage_engine' is a GLOBAL variable
 SET @@global.internal_tmp_disk_storage_engine = @start_global_value;
 SELECT @@global.internal_tmp_disk_storage_engine;
 @@global.internal_tmp_disk_storage_engine
-MYISAM
+INNODB

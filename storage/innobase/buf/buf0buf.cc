@@ -4796,7 +4796,7 @@ buf_page_init(
 	buf_block_set_file_page(block, page_id);
 
 #ifdef UNIV_DEBUG_VALGRIND
-	if (page_id.space() == 0) {
+	if (is_system_tablespace(page_id.space())) {
 		/* Silence valid Valgrind warnings about uninitialized
 		data being written to data files.  There are some unused
 		bytes on some pages that InnoDB does not initialize. */

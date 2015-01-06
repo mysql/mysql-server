@@ -89,7 +89,6 @@ while CHAR for DATA_POINT */
 #define DATA_VAR_POINT	16	/* geometry datatype of variable length
 				POINT, used when we want to store POINT
 				as BLOB internally */
-
 #define DATA_MTYPE_MAX	63	/* dtype_store_for_order_and_null_size()
 				requires the values are <= 63 */
 

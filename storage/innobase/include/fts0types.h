@@ -267,7 +267,12 @@ struct fts_doc_t {
 					same lifespan, most notably
 					the vector of token positions */
 	CHARSET_INFO*	charset;	/*!< Document's charset info */
+
 	st_mysql_ftparser* parser;	/*!< fts plugin parser */
+
+	bool		is_ngram;	/*!< Whether it is a ngram parser */
+
+	ib_rbt_t*	stopwords;	/*!< Stopwords */
 };
 
 /** A token and its positions within a document. */
@@ -375,34 +380,17 @@ fts_get_suffix(
 /*===========*/
 	ulint		selected);		/*!< in: selected index */
 
-/********************************************************************
-Get the number of index selectors. */
-UNIV_INLINE
-ulint
-fts_get_n_selectors(void);
-/*=====================*/
-
-/******************************************************************//**
-Select the FTS auxiliary index for the given string.
+/** Select the FTS auxiliary index for the given character.
+@param[in]	cs	charset
+@param[in]	str	string
+@param[in]	len	string length in bytes
 @return the index to use for the string */
 UNIV_INLINE
 ulint
 fts_select_index(
-/*=============*/
-	const CHARSET_INFO*	cs,		/*!< Charset */
-	const byte*		str,		/*!< in: word string */
-	ulint			len);		/*!< in: string length */
-
-/********************************************************************
-Select the next FTS auxiliary index for the given character.
-@return the next index to use for character */
-UNIV_INLINE
-ulint
-fts_select_next_index(
-/*==================*/
-	const CHARSET_INFO*	cs,		/*!< Charset */
-	const byte*		str,		/*!< in: string */
-	ulint			len);		/*!< in: string length */
+	const CHARSET_INFO*	cs,
+	const byte*		str,
+	ulint			len);
 
 #ifndef UNIV_NONINL
 #include "fts0types.ic"

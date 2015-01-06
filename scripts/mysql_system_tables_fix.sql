@@ -771,14 +771,16 @@ ALTER TABLE help_topic MODIFY url TEXT NOT NULL;
 
 --
 -- Upgrade a table engine from MyISAM to InnoDB for the system tables
--- help_topic, help_category, help_relation, help_keyword, time_zone,
--- time_zone_leap_second, time_zone_name, time_zone_transition,
+-- help_topic, help_category, help_relation, help_keyword, plugin, servers,
+-- time_zone, time_zone_leap_second, time_zone_name, time_zone_transition,
 -- time_zone_transition_type.
 
 ALTER TABLE help_topic ENGINE=InnoDB STATS_PERSISTENT=0;
 ALTER TABLE help_category ENGINE=InnoDB STATS_PERSISTENT=0;
 ALTER TABLE help_relation ENGINE=InnoDB STATS_PERSISTENT=0;
 ALTER TABLE help_keyword ENGINE=InnoDB STATS_PERSISTENT=0;
+ALTER TABLE plugin ENGINE=InnoDB STATS_PERSISTENT=0;
+ALTER TABLE servers ENGINE=InnoDB STATS_PERSISTENT=0;
 ALTER TABLE time_zone ENGINE=InnoDB STATS_PERSISTENT=0;
 ALTER TABLE time_zone_leap_second ENGINE=InnoDB STATS_PERSISTENT=0;
 ALTER TABLE time_zone_name ENGINE=InnoDB STATS_PERSISTENT=0;

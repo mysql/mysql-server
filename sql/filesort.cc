@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -36,6 +36,7 @@
 #include "opt_costmodel.h"
 #include "priority_queue.h"
 #include "log.h"
+#include "item_sum.h"                   // Item_sum
 
 #include <algorithm>
 #include <utility>

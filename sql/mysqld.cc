@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -124,6 +124,8 @@
 #include "socket_connection.h"          // Mysqld_socket_listener
 #include "mysqld_thd_manager.h"         // Global_THD_manager
 #include "my_getopt.h"
+#include "item_cmpfunc.h"               // arg_cmp_func
+#include "item_strfunc.h"               // Item_func_uuid
 
 #ifdef _WIN32
 #include "named_pipe.h"
@@ -3649,7 +3651,6 @@ static int init_server_components()
 
   randominit(&sql_rand,(ulong) server_start_time,(ulong) server_start_time/2);
   setup_fpu();
-  init_thr_lock();
 #ifdef HAVE_REPLICATION
   init_slave_list();
 #endif

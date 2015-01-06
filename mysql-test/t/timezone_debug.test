@@ -1,0 +1,23 @@
+--source include/have_debug.inc
+
+--echo #
+--echo # Start of 5.7 tests
+--echo #
+
+--echo #
+--echo # BUG#19792203 - FAILING ASSERTION: TRX->IS_DD_TRX == FALSE
+--echo #                WHEN KILLING QUERY WITH CONVERT_TZ
+--echo #
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1);
+COMMIT;
+SET SESSION debug="+d,kill_query_on_open_table_from_tz_find";
+--error ER_QUERY_INTERRUPTED
+SELECT CONVERT_TZ(a, a, a) FROM t1;
+SET SESSION debug="-d,kill_query_on_open_table_from_tz_find";
+DROP TABLE t1;
+
+--echo #
+--echo # End of 5.7 tests
+--echo #
+

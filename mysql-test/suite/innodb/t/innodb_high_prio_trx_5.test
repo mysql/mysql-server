@@ -6,6 +6,7 @@
 # Outcome: T1 must commit, T3 must commit, T2 must commit
 #          after T3 (no data change).
 
+use test;
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY, c2 INT NOT NULL, c3 INT NOT NULL) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (0, 0, 0);
 
@@ -81,3 +82,4 @@ DROP TABLE t1;
 --disconnect con1
 --disconnect con2
 --disconnect con3
+

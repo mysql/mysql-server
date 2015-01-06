@@ -501,7 +501,7 @@ SELECT uniq, col1, col2 FROM t1 GROUP BY uniq	{
               "rows": 16,
               "examined_rows": 16,
               "number_of_tmp_files": 0,
-              "sort_buffer_size": 656,
+              "sort_buffer_size": 65536,
               "sort_mode": "<sort_key, rowid>"
             } /* filesort_summary */
           }
@@ -654,72 +654,72 @@ SELECT c1,GROUP_CONCAT(c2) cc FROM
 GROUP BY c1
 ORDER BY cc;
 c1	cc
-1	b,a
-2	b,a
-3	b,a
-4	b,a
-5	b,a
-6	b,a
-7	b,a
-8	b,a
-9	b,a
-10	b,a
-11	b,a
-12	b,a
-13	b,a
-14	b,a
-15	b,a
-16	b,a
-17	b,a
-18	b,a
-19	b,a
-20	b,a
-21	b,a
-22	b,a
-23	b,a
-24	b,a
-25	b,a
-26	b,a
-27	b,a
-28	b,a
-29	b,a
-30	b,a
-31	b,a
-32	b,a
-33	b,a
-34	b,a
-35	b,a
-36	b,a
-37	b,a
-38	b,a
-39	b,a
-40	b,a
-41	b,a
-42	b,a
-43	b,a
-44	b,a
-45	b,a
-46	b,a
-47	b,a
-48	b,a
-49	b,a
-50	b,a
-51	b,a
-52	b,a
-53	b,a
-54	b,a
-55	b,a
-56	b,a
-57	b,a
-58	b,a
-59	b,a
-60	b,a
-61	b,a
-62	b,a
-63	b,a
-64	b,a
-65	b,a
-66	b,a
+1	a,b
+2	a,b
+3	a,b
+4	a,b
+5	a,b
+6	a,b
+7	a,b
+8	a,b
+9	a,b
+10	a,b
+11	a,b
+12	a,b
+13	a,b
+14	a,b
+15	a,b
+16	a,b
+17	a,b
+18	a,b
+19	a,b
+20	a,b
+21	a,b
+22	a,b
+23	a,b
+24	a,b
+25	a,b
+26	a,b
+27	a,b
+28	a,b
+29	a,b
+30	a,b
+31	a,b
+32	a,b
+33	a,b
+34	a,b
+35	a,b
+36	a,b
+37	a,b
+38	a,b
+39	a,b
+40	a,b
+41	a,b
+42	a,b
+43	a,b
+44	a,b
+45	a,b
+46	a,b
+47	a,b
+48	a,b
+49	a,b
+50	a,b
+51	a,b
+52	a,b
+53	a,b
+54	a,b
+55	a,b
+56	a,b
+57	a,b
+58	a,b
+59	a,b
+60	a,b
+61	a,b
+62	a,b
+63	a,b
+64	a,b
+65	a,b
+66	a,b
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
 SELECT c1,GROUP_CONCAT(c2) cc FROM
@@ -1190,7 +1190,7 @@ ORDER BY cc	{
               "rows": 132,
               "examined_rows": 132,
               "number_of_tmp_files": 0,
-              "sort_buffer_size": 109488,
+              "sort_buffer_size": 262144,
               "sort_mode": "<sort_key, packed_additional_fields>"
             } /* filesort_summary */
           },
@@ -1237,7 +1237,7 @@ ORDER BY cc	{
               "rows": 66,
               "examined_rows": 66,
               "number_of_tmp_files": 0,
-              "sort_buffer_size": 77144,
+              "sort_buffer_size": 261872,
               "sort_mode": "<sort_key, rowid>"
             } /* filesort_summary */
           }

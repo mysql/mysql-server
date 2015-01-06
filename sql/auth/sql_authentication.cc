@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,6 +24,7 @@
 #include "hostname.h"                   /* Host_errors, inc_host_errors */
 #include "sql_db.h"                     /* mysql_change_db */
 #include "connection_handler_manager.h"
+#include "crypt_genhash_impl.h"         /* generate_user_salt */
 #include <mysql/plugin_validate_password.h> /* validate_password plugin */
 #include "sys_vars.h"
 #include <fstream>                      /* std::fstream */
@@ -658,7 +659,6 @@ static bool send_server_handshake_packet(MPVIO_EXT *mpvio,
 
   int res= my_net_write(mpvio->net, (uchar*) buff, (size_t) (end - buff + 1)) ||
            net_flush(mpvio->net);
-  my_afree(buff);
   DBUG_RETURN (res);
 }
 

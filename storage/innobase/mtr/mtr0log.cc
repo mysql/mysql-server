@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -454,6 +454,13 @@ mlog_open_and_write_index(
 			alloc = mtr_buf_t::MAX_DATA_SIZE;
 		}
 
+		/* For spatial index, on non-leaf page, we just keep
+		2 fields, MBR and page no. */
+		if (dict_index_is_spatial(index)
+		    && !page_is_leaf(page_align(rec))) {
+			n = DICT_INDEX_SPATIAL_NODEPTR_SIZE;
+		}
+
 		log_start = log_ptr = mlog_open(mtr, alloc);
 
 		if (!log_ptr) {
@@ -468,8 +475,14 @@ mlog_open_and_write_index(
 		mach_write_to_2(log_ptr, n);
 		log_ptr += 2;
 
-		mach_write_to_2(
-			log_ptr, dict_index_get_n_unique_in_tree(index));
+		if (page_is_leaf(page_align(rec))) {
+			mach_write_to_2(
+				log_ptr, dict_index_get_n_unique_in_tree(index));
+		} else {
+			mach_write_to_2(
+				log_ptr,
+				dict_index_get_n_unique_in_tree_nonleaf(index));
+		}
 
 		log_ptr += 2;
 

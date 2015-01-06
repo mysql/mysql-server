@@ -259,10 +259,10 @@ Table	Op	Msg_type	Msg_text
 test.articles	optimize	status	OK
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_TABLE;
 WORD	FIRST_DOC_ID	LAST_DOC_ID	DOC_COUNT	DOC_ID	POSITION
-爱恨交织	6	6	1	6	0
-充满可爱	5	5	1	5	0
 怜香惜爱	4	4	1	4	0
+充满可爱	5	5	1	5	0
 相亲相爱	3	3	1	3	0
+爱恨交织	6	6	1	6	0
 DROP TABLE articles;
 SET GLOBAL innodb_ft_aux_table=default;
 SET GLOBAL INNODB_OPTIMIZE_FULLTEXT_ONLY=default;

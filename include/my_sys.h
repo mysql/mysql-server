@@ -205,7 +205,6 @@ extern uint    my_large_page_size;
 #endif /* HAVE_LINUX_LARGE_PAGES */
 
 #define my_alloca(SZ) alloca((size_t) (SZ))
-#define my_afree(PTR) {}
 
 #include <errno.h>			/* errno is a define */
 
