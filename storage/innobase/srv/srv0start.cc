@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2014, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 1996, 2015, Oracle and/or its affiliates. All rights reserved.
 Copyright (c) 2008, Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -40,11 +40,11 @@ Created 2/16/1996 Heikki Tuuri
 
 #include "my_global.h"
 
+#include "ha_prototypes.h"
+
 #include "mysqld.h"
 #include "mysql/psi/mysql_stage.h"
 #include "mysql/psi/psi.h"
-
-#include "ha_prototypes.h"
 
 #include "row0ftsort.h"
 #include "ut0mem.h"
