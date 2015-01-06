@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -37,7 +37,7 @@
 #include <stdarg.h>
 #include <violite.h>
 #include "my_regex.h" /* Our own version of regex */
-#ifdef HAVE_SYS_WAIT_H
+#ifndef _WIN32
 #include <sys/wait.h>
 #endif
 #ifdef _WIN32
@@ -3244,7 +3244,17 @@ void do_exec(struct st_command *command)
   error= pclose(res_file);
   if (error > 0)
   {
+#ifdef _WIN32
     uint status= WEXITSTATUS(error);
+#else
+    uint status;
+    // Do the same as many shells here: show SIGKILL as 137
+    if (WIFEXITED(error))
+      status= WEXITSTATUS(error);
+    else if (WIFSIGNALED(error))
+      status= 0x80 + WTERMSIG(error);
+#endif
+
     int i;
 
     if (command->abort_on_error)
