@@ -73,8 +73,7 @@ SELECT update_time FROM information_schema.tables WHERE table_name = 't';
 
 XA COMMIT 'xatrx';
 
-# The result from this query may change once update_time becomes persistent
-# (WL#6917).
-SELECT update_time FROM information_schema.tables WHERE table_name = 't';
+SELECT COUNT(*) FROM information_schema.tables WHERE table_name = 't'
+AND update_time IS NOT NULL;
 
 DROP TABLE t;
