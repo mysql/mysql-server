@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,10 +21,10 @@
 #include <mysql/plugin.h>
 #define MYSQL_GCS_REPLICATION_INTERFACE_VERSION 0x0100
 
-enum enum_node_state {
-  NODE_STATE_ONLINE= 1,
-  NODE_STATE_OFFLINE,
-  NODE_STATE_RECOVERING
+enum enum_member_state {
+  MEMBER_STATE_ONLINE= 1,
+  MEMBER_STATE_OFFLINE,
+  MEMBER_STATE_RECOVERING
 };
 
 enum enum_applier_status {
@@ -33,43 +33,33 @@ enum enum_applier_status {
   APPLIER_STATE_ERROR
 };
 
-typedef struct st_rpl_gcs_nodes_info
+typedef struct st_rpl_gcs_group_members_info
 {
-  char* group_name;
-  const char* node_id;
-  const char* node_host;
-  uint node_port;
-  enum enum_node_state node_state;
-} RPL_GCS_NODES_INFO;
+  char* channel_name;
+  const char* member_id;
+  const char* member_address;
+  enum enum_member_state member_state;
+} RPL_GCS_GROUP_MEMBERS_INFO;
 
-typedef struct st_rpl_gcs_stats_info
+typedef struct st_rpl_gcs_connection_status_info
 {
   char* group_name;
   bool node_state;
-  char* view_id;
-  ulonglong total_messages_sent;
-  ulonglong total_bytes_sent;
-  ulonglong total_messages_received;
-  ulonglong total_bytes_received;
   time_t last_message_timestamp;
-  ulong min_message_length;
-  ulong max_message_length;
-  uint number_of_nodes;
-} RPL_GCS_STATS_INFO;
+} RPL_GCS_CONNECTION_STATUS_INFO;
 
-typedef struct st_rpl_gcs_node_stats_info
+typedef struct st_rpl_gcs_member_stats_info
 {
-  char* group_name;
-  const char* node_id;
+  char* channel_name;
+  char* view_id;
+  const char* member_id;
   ulonglong transaction_in_queue;
   ulonglong transaction_certified;
-  ulonglong positively_certified;
-  ulonglong negatively_certified;
-  ulonglong certification_db_size;
-  char* stable_set;
-  const char* last_certified_transaction;
-  enum enum_applier_status applier_state;
-} RPL_GCS_NODE_STATS_INFO;
+  ulonglong transaction_conflicts_detected;
+  ulonglong transactions_in_validation;
+  char* committed_transations;
+  const char* last_conflict_free_transaction;
+} RPL_GCS_GROUP_MEMBER_STATS_INFO;
 
 struct st_mysql_gcs_rpl
 {
@@ -78,22 +68,22 @@ struct st_mysql_gcs_rpl
   /*
     This function is used to fetch information for gcs kernel stats.
   */
-  bool (*get_gcs_stats_info)(RPL_GCS_STATS_INFO *info);
+  bool (*get_gcs_connection_status_info)(RPL_GCS_CONNECTION_STATUS_INFO *info);
 
   /*
-    This function is used to fetch information for gcs nodes.
+    This function is used to fetch information for gcs members.
   */
-  bool (*get_gcs_nodes_info)(uint index, RPL_GCS_NODES_INFO *info);
+  bool (*get_gcs_group_members_info)(uint index, RPL_GCS_GROUP_MEMBERS_INFO *info);
 
   /*
-    This function is used to fetch information for gcs node status.
+    This function is used to fetch information for gcs members statistics.
   */
-  bool (*get_gcs_nodes_stat_info)(RPL_GCS_NODE_STATS_INFO* info);
+  bool (*get_gcs_group_member_stats_info)(RPL_GCS_GROUP_MEMBER_STATS_INFO* info);
 
   /*
-    Get number of gcs nodes.
+    Get number of gcs members.
   */
-  uint (*get_gcs_nodes_number)();
+  uint (*get_gcs_members_number_info)();
 
   /*
     This function is to used to start the gcs replication based on the

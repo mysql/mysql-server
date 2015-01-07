@@ -189,7 +189,7 @@ if ($rpl_gcs)
   {
     --let $rpl_connection_name=server_$_rpl_server
     --source include/rpl_connection.inc
-    --let $node_state= `SELECT NODE_STATE FROM performance_schema.replication_connection_nodes`
+    --let $node_state= `SELECT MEMBER_STATE FROM performance_schema.replication_group_members`
     if ($node_state == "ONLINE")
     {
       --let $rpl_connection_name= $biggest_gtid_executed_server

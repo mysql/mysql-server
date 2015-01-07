@@ -48,8 +48,8 @@ INSERT INTO t1 VALUES (3);
 while ($server_count)
 {
   --connection server$server_count
-  --let $wait_condition= select number_of_nodes = 3 from performance_schema.replication_connection_status;
-  --source include/wait_condition.inc
+  --let $gcs_number_of_nodes= 3
+  --source include/rpl_gcs_wait_for_number_of_nodes.inc
 
   --dec $server_count
 }

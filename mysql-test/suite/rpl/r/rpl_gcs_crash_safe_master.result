@@ -25,8 +25,8 @@ include/rpl_sync.inc
 # is not replicated
 include/diff_tables.inc [server1:test.t1, server2:test.t1]
 include/start_gcs_replication.inc
-include/assert.inc [The value of node_state should be online]
-include/assert.inc [The value of node_state should be online]
+include/assert.inc [The value of member_state should be online]
+include/assert.inc [The value of member_state should be online]
 CREATE TABLE temp (i INT PRIMARY KEY) engine=INNODB;
 INSERT INTO temp VALUES (1);
 INSERT INTO temp VALUES (2);
@@ -46,11 +46,11 @@ ERROR HY000: Lost connection to MySQL server during query
 include/assert.inc [On server1, test the data will be recovered after the server1 restart.]
 include/rpl_sync.inc
 # On the second node, test that the replication is working fine, and
-# nothing get replicated
+# data gets replicated here.
 include/diff_tables.inc [server1:test.t1, server2:test.t1]
 include/start_gcs_replication.inc
-include/assert.inc [The value of node_state should be online]
-include/assert.inc [The value of node_state should be online]
+include/assert.inc [The value of member_state should be online]
+include/assert.inc [The value of member_state should be online]
 CREATE TABLE temp (i INT PRIMARY KEY) engine=INNODB;
 INSERT INTO temp VALUES (1);
 INSERT INTO temp VALUES (2);
@@ -95,8 +95,8 @@ include/assert.inc [On server1, test the data will be recovered after the server
 include/start_gcs_replication.inc
 include/diff_tables.inc [server1:test.t1, server2:test.t1]
 include/assert.inc [The table has 24 rows after the restart.]
-include/assert.inc [The value of node_state should be online]
-include/assert.inc [The value of node_state should be online]
+include/assert.inc [The value of member_state should be online]
+include/assert.inc [The value of member_state should be online]
 CREATE TABLE temp (i INT PRIMARY KEY) engine=INNODB;
 INSERT INTO temp VALUES (1);
 INSERT INTO temp VALUES (2);

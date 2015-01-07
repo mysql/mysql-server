@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,6 +28,7 @@
 #include <rpl_gtid.h>             // rpl_sidno
 #include "gcs_applier.h"
 #include "gcs_recovery.h"
+#include "gcs_ps_information.h"
 
 
 #include "gcs_interface.h"
@@ -99,9 +100,9 @@ int gcs_replication_deinit(void *p);
 int gcs_rpl_start();
 int gcs_rpl_stop();
 bool is_gcs_rpl_running();
-bool get_gcs_stats_info(RPL_GCS_STATS_INFO *info);
-bool get_gcs_nodes_info(uint index, RPL_GCS_NODES_INFO *info);
-bool get_gcs_node_stat_info(RPL_GCS_NODE_STATS_INFO *info);
-uint get_gcs_nodes_number();
+bool get_gcs_connection_status(RPL_GCS_CONNECTION_STATUS_INFO *info);
+bool get_gcs_group_members(uint index, RPL_GCS_GROUP_MEMBERS_INFO *info);
+bool get_gcs_group_member_stats(RPL_GCS_GROUP_MEMBER_STATS_INFO *info);
+uint get_gcs_members_number();
 
 #endif /* GCS_PLUGIN_INCLUDE */

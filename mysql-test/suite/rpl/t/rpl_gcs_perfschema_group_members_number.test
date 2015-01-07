@@ -80,8 +80,8 @@
 --let $gcs_number_of_nodes= 3
 --source include/rpl_gcs_wait_for_number_of_nodes.inc
 
---replace_column 2 NODE_ID 3 NODE_HOST 4 NODE_PORT
-SELECT * FROM performance_schema.replication_connection_nodes;
+--replace_column 2 MEMBER_ID 3 MEMBER_ADDRESS
+SELECT * FROM performance_schema.replication_group_members;
 
 
 --echo

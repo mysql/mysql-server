@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -88,13 +88,13 @@
 
 /* For replication related perfschema tables. */
 #include "table_replication_connection_configuration.h"
-#include "table_replication_connection_nodes.h"
+#include "table_replication_group_members.h"
 #include "table_replication_connection_status.h"
 #include "table_replication_applier_configuration.h"
 #include "table_replication_applier_status.h"
 #include "table_replication_applier_status_by_coordinator.h"
 #include "table_replication_applier_status_by_worker.h"
-#include "table_replication_node_status.h"
+#include "table_replication_group_member_stats.h"
 
 #include "table_prepared_stmt_instances.h"
 
@@ -200,13 +200,13 @@ static PFS_engine_table_share *all_shares[]=
   &table_metadata_locks::m_share,
 
   &table_replication_connection_configuration::m_share,
-  &table_replication_connection_nodes::m_share,
+  &table_replication_group_members::m_share,
   &table_replication_connection_status::m_share,
   &table_replication_applier_configuration::m_share,
   &table_replication_applier_status::m_share,
   &table_replication_applier_status_by_coordinator::m_share,
   &table_replication_applier_status_by_worker::m_share,
-  &table_replication_node_status::m_share,
+  &table_replication_group_member_stats::m_share,
 
   &table_prepared_stmt_instances::m_share,
 

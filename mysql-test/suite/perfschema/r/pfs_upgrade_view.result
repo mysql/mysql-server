@@ -71,8 +71,8 @@ mysql_upgrade: [ERROR] 1050: Table 'events_statements_summary_by_digest' already
 mysql_upgrade: [ERROR] 1050: Table 'events_statements_summary_by_program' already exists
 mysql_upgrade: [ERROR] 1050: Table 'prepared_statements_instances' already exists
 mysql_upgrade: [ERROR] 1050: Table 'replication_connection_configuration' already exists
-mysql_upgrade: [ERROR] 1050: Table 'replication_node_status' already exists
-mysql_upgrade: [ERROR] 1050: Table 'replication_connection_nodes' already exists
+mysql_upgrade: [ERROR] 1050: Table 'replication_group_member_stats' already exists
+mysql_upgrade: [ERROR] 1050: Table 'replication_group_members' already exists
 mysql_upgrade: [ERROR] 1050: Table 'replication_connection_status' already exists
 mysql_upgrade: [ERROR] 1050: Table 'replication_applier_configuration' already exists
 mysql_upgrade: [ERROR] 1050: Table 'replication_applier_status' already exists

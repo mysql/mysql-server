@@ -42,28 +42,19 @@ if (!$rpl_debug)
   --disable_query_log
 }
 
---let $wait_condition= SELECT number_of_nodes=$gcs_number_of_nodes FROM performance_schema.replication_connection_status WHERE group_name="$gcs_group_name" AND service_state="ON"
-if ($gcs_number_of_nodes == 0)
+--let $wait_condition= SELECT COUNT(*)=$gcs_number_of_nodes FROM performance_schema.replication_group_members
+if($gcs_number_of_nodes == 0)
 {
-  --let $wait_condition= SELECT COUNT(*)=$gcs_number_of_nodes FROM performance_schema.replication_connection_status WHERE group_name="$gcs_group_name" AND service_state="ON"
-}
---source include/wait_condition.inc
-if (!$success)
-{
-  --echo Current connection: $CURRENT_CONNECTION
-  --query_vertical SELECT * FROM performance_schema.replication_connection_status
-  --query_vertical SELECT * FROM performance_schema.replication_connection_nodes
-  --die Timeout in wait_condition.inc
+  --let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.replication_group_members WHERE member_state = "OFFLINE"
 }
 
---let $wait_condition= SELECT COUNT(*)=$gcs_number_of_nodes FROM performance_schema.replication_connection_nodes WHERE group_name="$gcs_group_name" AND node_state="ONLINE"
 --source include/wait_condition.inc
 if (!$success)
 {
   --echo Current connection: $CURRENT_CONNECTION
   --query_vertical SELECT * FROM performance_schema.replication_connection_status
-  --query_vertical SELECT * FROM performance_schema.replication_connection_nodes
-  --die Timeout in wait_condition.inc
+  --query_vertical SELECT * FROM performance_schema.replication_group_members
+  --die Timeout in wait_condition.inc due to lack of required members
 }
 
 --let $include_filename= rpl_gcs_wait_for_number_of_nodes.inc

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -473,7 +473,7 @@ int Certifier::handle_certifier_data(uchar *data, uint len)
 
   this->incoming->push(new Data_packet(data, len));
 
-  if (get_gcs_nodes_number() == this->incoming->size())
+  if (get_gcs_members_number() == this->incoming->size())
     DBUG_RETURN(stable_set_handle());
   DBUG_RETURN(0);
 }

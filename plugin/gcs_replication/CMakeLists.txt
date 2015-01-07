@@ -1,4 +1,4 @@
-# Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -35,6 +35,7 @@ IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
   INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/plugin/gcs_replication/gcs/interface)
   INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/plugin/gcs_replication/gcs/bindings/corosync)
   SET(GCS_SOURCES
+    gcs_ps_information.cc gcs_ps_information.h
     gcs_plugin.cc gcs_plugin.h
     gcs_member_info.cc gcs_member_info.h
     gcs_binding_factory.cc gcs_binding_factory.h

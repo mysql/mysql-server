@@ -16,7 +16,7 @@ while ($_cnt <= $gcs_error_connection_number)
   --connection server$_cnt
 
   --query_vertical select * from performance_schema.replication_connection_status
-  --query_vertical select * from performance_schema.replication_connection_nodes
+  --query_vertical select * from performance_schema.replication_group_members
 
   --inc $_cnt
 }

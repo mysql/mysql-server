@@ -93,14 +93,14 @@ COMMIT;
 --connection server1
 --source include/start_gcs_replication.inc
 
---let $node_state= query_get_value(SELECT Node_State from performance_schema.replication_connection_nodes, Node_State, 1)
---let $assert_text= The value of node_state should be online
+--let $node_state= query_get_value(SELECT Member_State from performance_schema.replication_group_members, Member_State, 1)
+--let $assert_text= The value of member_state should be online
 --let $assert_cond= "$node_state" = "ONLINE"
 --source include/assert.inc
 
 --connection server2
---let $node_state= query_get_value(SELECT Node_State from performance_schema.replication_connection_nodes, Node_State, 1)
---let $assert_text= The value of node_state should be online
+--let $node_state= query_get_value(SELECT Member_State from performance_schema.replication_group_members, Member_State, 1)
+--let $assert_text= The value of member_state should be online
 --let $assert_cond= "$node_state" = "ONLINE"
 --source include/assert.inc
 
@@ -169,14 +169,14 @@ COMMIT;
 --connection server1
 --source include/start_gcs_replication.inc
 
---let $node_state= query_get_value(SELECT Node_State from performance_schema.replication_connection_nodes, Node_State, 1)
---let $assert_text= The value of node_state should be online
+--let $node_state= query_get_value(SELECT Member_State from performance_schema.replication_group_members, Member_State, 1)
+--let $assert_text= The value of member_state should be online
 --let $assert_cond= "$node_state" = "ONLINE"
 --source include/assert.inc
 
 --connection server2
---let $node_state= query_get_value(SELECT Node_State from performance_schema.replication_connection_nodes, Node_State, 1)
---let $assert_text= The value of node_state should be online
+--let $node_state= query_get_value(SELECT Member_State from performance_schema.replication_group_members, Member_State, 1)
+--let $assert_text= The value of member_state should be online
 --let $assert_cond= "$node_state" = "ONLINE"
 --source include/assert.inc
 
@@ -250,14 +250,14 @@ COMMIT;
 --let $assert_text= The table has 24 rows after the restart.
 --source include/assert.inc
 
---let $node_state= query_get_value(SELECT Node_State from performance_schema.replication_connection_nodes, Node_State, 1)
---let $assert_text= The value of node_state should be online
+--let $node_state= query_get_value(SELECT Member_State from performance_schema.replication_group_members, Member_State, 1)
+--let $assert_text= The value of member_state should be online
 --let $assert_cond= "$node_state" = "ONLINE"
 --source include/assert.inc
 
 --connection server2
---let $node_state= query_get_value(SELECT Node_State from performance_schema.replication_connection_nodes, Node_State, 1)
---let $assert_text= The value of node_state should be online
+--let $node_state= query_get_value(SELECT Member_State from performance_schema.replication_group_members, Member_State, 1)
+--let $assert_text= The value of member_state should be online
 --let $assert_cond= "$node_state" = "ONLINE"
 --source include/assert.inc
 

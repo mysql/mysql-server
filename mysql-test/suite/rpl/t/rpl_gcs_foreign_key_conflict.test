@@ -84,18 +84,13 @@ SET DEBUG_SYNC='now SIGNAL waiting';
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 
---let $certified_transactions= query_get_value(SELECT Certified_transactions from performance_schema.replication_node_status, Certified_transactions, 1)
---let $assert_text= The value of Certified_transactions should be 5 after starting gcs
+--let $certified_transactions= query_get_value(SELECT Count_Transactions_Checked from performance_schema.replication_group_member_stats, Count_Transactions_Checked, 1)
+--let $assert_text= The value of Count_Transactions_Checked should be 5 after starting gcs
 --let $assert_cond= "$certified_transactions" = 5
 --source include/assert.inc
 
---let $positively_certified= query_get_value(SELECT Positively_certified from performance_schema.replication_node_status, Positively_certified, 1)
---let $assert_text= The value of Positively_certified should be 4 after starting gcs
---let $assert_cond= "$positively_certified" = 4
---source include/assert.inc
-
---let $negatively_certified= query_get_value(SELECT Negatively_certified from performance_schema.replication_node_status, Negatively_certified, 1)
---let $assert_text= The value of Negatively_certified should be 1 after starting gcs
+--let $negatively_certified= query_get_value(SELECT Count_Conflicts_Detected from performance_schema.replication_group_member_stats, Count_Conflicts_Detected, 1)
+--let $assert_text= The value of Count_Conflicts_Detected should be 1 after starting gcs
 --let $assert_cond= "$negatively_certified" = 1
 --source include/assert.inc
 
@@ -179,18 +174,13 @@ SET DEBUG_SYNC='now SIGNAL waiting';
 --let $assert_cond= "[SELECT COUNT(*) FROM t1]" = "2"
 --source include/assert.inc
 
---let $certified_transactions= query_get_value(SELECT Certified_transactions from performance_schema.replication_node_status, Certified_transactions, 1)
---let $assert_text= The value of Certified_transactions should be 8 after starting gcs
+--let $certified_transactions= query_get_value(SELECT Count_Transactions_Checked from performance_schema.replication_group_member_stats, Count_Transactions_Checked, 1)
+--let $assert_text= The value of Count_Transactions_Checked should be 8 after starting gcs
 --let $assert_cond= "$certified_transactions" = 8
 --source include/assert.inc
 
---let $positively_certified= query_get_value(SELECT Positively_certified from performance_schema.replication_node_status, Positively_certified, 1)
---let $assert_text= The value of Positively_certified should be 7 after starting gcs
---let $assert_cond= "$positively_certified" = 7
---source include/assert.inc
-
---let $negatively_certified= query_get_value(SELECT Negatively_certified from performance_schema.replication_node_status, Negatively_certified, 1)
---let $assert_text= The value of Negatively_certified should be 1 after starting gcs
+--let $negatively_certified= query_get_value(SELECT Count_Conflicts_Detected from performance_schema.replication_group_member_stats, Count_Conflicts_Detected, 1)
+--let $assert_text= The value of Count_Conflicts_Detected should be 1 after starting gcs
 --let $assert_cond= "$negatively_certified" = 1
 --source include/assert.inc
 

@@ -31,7 +31,7 @@ SET @@GLOBAL.DEBUG='d,recovery_thread_wait';
 --echo # Node should be offline before start
 
 --let $assert_text= On the new stopped node, the status is OFFLINE
---let $assert_cond= [select count(*) from performance_schema.replication_connection_nodes WHERE node_state="OFFLINE"] = 1;
+--let $assert_cond= [select count(*) from performance_schema.replication_group_members WHERE member_state="OFFLINE"] = 1;
 --source include/assert.inc
 
 --source include/start_gcs_replication.inc

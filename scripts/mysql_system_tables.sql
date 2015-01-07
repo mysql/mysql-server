@@ -1,4 +1,4 @@
--- Copyright (c) 2007, 2014, Oracle and/or its affiliates. All rights reserved.
+-- Copyright (c) 2007, 2015, Oracle and/or its affiliates. All rights reserved.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License as published by
@@ -2206,21 +2206,20 @@ DROP PREPARE stmt;
 
 
 --
--- TABLE replication_node_status
+-- TABLE replication_group_member_stats
 --
 
-SET @cmd="CREATE TABLE performance_schema.replication_node_status("
-    "GROUP_NAME varchar(36) not null,"
-    "NODE_ID char(60) collate utf8_bin not null,"
-    "TRANSACTIONS_IN_QUEUE BIGINT unsigned not null,"
-    "CERTIFIED_TRANSACTIONS BIGINT unsigned not null,"
-    "POSITIVELY_CERTIFIED BIGINT unsigned not null,"
-    "NEGATIVELY_CERTIFIED BIGINT unsigned not null,"
-    "CERTIFICATION_DB_SIZE BIGINT unsigned not null,"
-    "STABLE_SET TEXT not null,"
-    "LAST_CERTIFIED_TRANSACTION TEXT not null,"
-    "APPLIER_MODULE_STATUS ENUM('ON','OFF','ERROR') not null"
-    ") ENGINE=PERFORMANCE_SCHEMA;";
+ SET @cmd="CREATE TABLE performance_schema.replication_group_member_stats("
+     "CHANNEL_NAME varchar(256) not null,"
+     "VIEW_ID varchar(256) not null,"
+     "MEMBER_ID varchar(64) collate utf8_bin not null,"
+     "COUNT_TRANSACTIONS_IN_QUEUE BIGINT unsigned not null,"
+     "COUNT_TRANSACTIONS_CHECKED BIGINT unsigned not null,"
+     "COUNT_CONFLICTS_DETECTED BIGINT unsigned not null,"
+     "COUNT_TRANSACTIONS_VALIDATING BIGINT unsigned not null,"
+     "TRANSACTIONS_COMMITTED_ALL_MEMBERS TEXT not null,"
+     "LAST_CONFLICT_FREE_TRANSACTION TEXT not null"
+     ") ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
 PREPARE stmt FROM @str;
@@ -2229,21 +2228,20 @@ DROP PREPARE stmt;
 
 
 --
--- TABLE replication_connection_nodes
+-- TABLE replication_group_members
 --
 
-SET @cmd="CREATE TABLE performance_schema.replication_connection_nodes("
-    "GROUP_NAME varchar(36) not null,"
-    "NODE_ID char(60) collate utf8_bin not null,"
-    "NODE_HOST char(60) collate utf8_bin not null,"
-    "NODE_PORT integer not null,"
-    "NODE_STATE ENUM('ONLINE','OFFLINE','RECOVERING') not null"
-    ") ENGINE=PERFORMANCE_SCHEMA;";
+SET @cmd="CREATE TABLE performance_schema.replication_group_members("
+     "CHANNEL_NAME varchar(256) not null,"
+     "MEMBER_ID varchar(64) collate utf8_bin not null,"
+     "MEMBER_ADDRESS varchar(64) collate utf8_bin not null,"
+     "MEMBER_STATE ENUM('ONLINE','OFFLINE','RECOVERING') not null"
+     ") ENGINE=PERFORMANCE_SCHEMA;";
 
-SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
-PREPARE stmt FROM @str;
-EXECUTE stmt;
-DROP PREPARE stmt;
+ SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+ PREPARE stmt FROM @str;
+ EXECUTE stmt;
+ DROP PREPARE stmt;
 
 --
 -- TABLE replication_connection_status
@@ -2260,16 +2258,7 @@ SET @cmd="CREATE TABLE performance_schema.replication_connection_status("
   "RECEIVED_TRANSACTION_SET TEXT not null,"
   "LAST_ERROR_NUMBER INTEGER not null,"
   "LAST_ERROR_MESSAGE VARCHAR(1024) not null,"
-  "LAST_ERROR_TIMESTAMP TIMESTAMP(0) not null,"
-  "TOTAL_MESSAGES_RECEIVED bigint unsigned not null,"
-  "TOTAL_MESSAGES_SENT bigint unsigned not null,"
-  "TOTAL_BYTES_RECEIVED bigint unsigned not null,"
-  "TOTAL_BYTES_SENT bigint unsigned not null,"
-  "LAST_MESSAGE_TIMESTAMP timestamp(0) not null,"
-  "MAX_MESSAGE_LENGTH integer unsigned not null,"
-  "MIN_MESSAGE_LENGTH integer unsigned not null,"
-  "VIEW_ID varchar(40) not null,"
-  "NUMBER_OF_NODES integer not null"
+  "LAST_ERROR_TIMESTAMP TIMESTAMP(0) not null"
   ") ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');

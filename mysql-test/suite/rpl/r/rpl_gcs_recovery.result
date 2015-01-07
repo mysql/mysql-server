@@ -24,6 +24,9 @@ include/start_gcs_replication.inc
 server3
 include/start_gcs_replication.inc
 #After recovery all nodes must see 3 other nodes
+include/rpl_gcs_wait_for_number_of_nodes.inc
+include/rpl_gcs_wait_for_number_of_nodes.inc
+include/rpl_gcs_wait_for_number_of_nodes.inc
 #After recovery all nodes must have the data present in the donor.
 include/assert.inc [On all nodes, the table should exist and have 3 elements]
 include/assert.inc [On all nodes, the table should exist and have 3 elements]

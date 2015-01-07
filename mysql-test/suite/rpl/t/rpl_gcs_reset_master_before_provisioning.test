@@ -126,11 +126,11 @@ while ($server_count)
 
 if(`SELECT "$server_uuid" < "$gcs_group_name"`)
 {
---let $wait_condition= SELECT stable_set like "$server_uuid:1-2,%$gcs_group_name:1-2" from performance_schema.replication_node_status;
+--let $wait_condition= SELECT transactions_committed_all_members like "$server_uuid:1-2,%$gcs_group_name:1-2" from performance_schema.replication_group_member_stats;
 }
 if(`SELECT "$server_uuid" > "$gcs_group_name"`)
 {
---let $wait_condition= SELECT stable_set like "$gcs_group_name:1-2,%$server_uuid:1-2" from performance_schema.replication_node_status;
+--let $wait_condition= SELECT transactions_committed_all_members like "$gcs_group_name:1-2,%$server_uuid:1-2" from performance_schema.replication_group_member_stats;
 }
 --source include/wait_condition.inc
 --echo [ The value of stable_set should contain both provisioned and cluster GIIDs ]

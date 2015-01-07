@@ -1,5 +1,5 @@
 /*
-      Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
+      Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
 
       This program is free software; you can redistribute it and/or modify
       it under the terms of the GNU General Public License as published by
@@ -94,55 +94,10 @@ static const TABLE_FIELD_TYPE field_types[]=
     {C_STRING_WITH_LEN("timestamp")},
     {NULL, 0}
   },
-  {
-    {C_STRING_WITH_LEN("TOTAL_MESSAGES_RECEIVED")},
-    {C_STRING_WITH_LEN("bigint")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("TOTAL_MESSAGES_SENT")},
-    {C_STRING_WITH_LEN("bigint")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("TOTAL_BYTES_RECEIVED")},
-    {C_STRING_WITH_LEN("bigint")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("TOTAL_BYTES_SENT")},
-    {C_STRING_WITH_LEN("bigint")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("LAST_MESSAGE_TIMESTAMP")},
-    {C_STRING_WITH_LEN("timestamp")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("MAX_MESSAGE_LENGTH")},
-    {C_STRING_WITH_LEN("int")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("MIN_MESSAGE_LENGTH")},
-    {C_STRING_WITH_LEN("int")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("VIEW_ID")},
-    {C_STRING_WITH_LEN("varchar(40)")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("NUMBER_OF_NODES")},
-    {C_STRING_WITH_LEN("int")},
-    {NULL, 0}
-  }
 };
 
 TABLE_FIELD_DEF
-table_replication_connection_status::m_field_def= { 20, field_types };
+table_replication_connection_status::m_field_def= { 11, field_types };
 
 PFS_engine_table_share
 table_replication_connection_status::m_share=
@@ -277,15 +232,15 @@ void table_replication_connection_status::make_row(Master_info *mi,
 
   //Load GCS stats
   char* gcs_replication_group;
-  RPL_GCS_STATS_INFO* gcs_info;
+  RPL_GCS_CONNECTION_STATUS_INFO* gcs_info;
 
   m_row.is_gcs_plugin_loaded= is_gcs_plugin_loaded() && gcs_row;
 
   if (m_row.is_gcs_plugin_loaded)
   {
 
-    if(!(gcs_info= (RPL_GCS_STATS_INFO*)my_malloc(PSI_NOT_INSTRUMENTED,
-                                                  sizeof(RPL_GCS_STATS_INFO),
+    if(!(gcs_info= (RPL_GCS_CONNECTION_STATUS_INFO*)my_malloc(PSI_NOT_INSTRUMENTED,
+                                                  sizeof(RPL_GCS_CONNECTION_STATUS_INFO),
                                                   MYF(MY_WME))))
     {
        sql_print_error("Unable to allocate memory on"
@@ -293,10 +248,7 @@ void table_replication_connection_status::make_row(Master_info *mi,
        DBUG_VOID_RETURN;
     }
 
-    //Initialization procedures
-    gcs_info->view_id= NULL;
-
-    bool stats_not_available= get_gcs_stats(gcs_info);
+    bool stats_not_available= get_gcs_connection_status_info(gcs_info);
     if (stats_not_available)
     {
       m_row.is_gcs_plugin_loaded= false;
@@ -430,26 +382,8 @@ void table_replication_connection_status::make_row(Master_info *mi,
     else
       m_row.service_state= PS_RPL_CONNECT_SERVICE_STATE_NO;
 
-    m_row.total_messages_received= gcs_info->total_messages_received;
-    m_row.total_messages_sent= gcs_info->total_messages_sent;
-    m_row.total_bytes_received= gcs_info->total_bytes_received;
-    m_row.total_bytes_sent= gcs_info->total_bytes_sent;
-
     m_row.last_message_timestamp= (ulonglong)
       gcs_info->last_message_timestamp*1000000;
-
-    m_row.max_message_length= gcs_info->max_message_length;
-
-    m_row.min_message_length= gcs_info->min_message_length;
-
-    m_row.view_id_lenght= 0;
-    if(gcs_info->view_id != NULL)
-    {
-      m_row.view_id_lenght= strlen(gcs_info->view_id);
-      memcpy(m_row.view_id, gcs_info->view_id, m_row.view_id_lenght);
-    }
-
-    m_row.number_of_nodes= gcs_info->number_of_nodes;
 
     my_free(gcs_info);
   }

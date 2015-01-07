@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -66,33 +66,38 @@ int Gcs_replication_handler::gcs_rpl_stop()
   return 1;
 }
 
-bool Gcs_replication_handler::get_gcs_stats_info(RPL_GCS_STATS_INFO *info)
+bool
+Gcs_replication_handler::
+get_gcs_connection_status(RPL_GCS_CONNECTION_STATUS_INFO *info)
 {
   if (plugin_handle)
-    return plugin_handle->get_gcs_stats_info(info);
+    return plugin_handle->get_gcs_connection_status_info(info);
   return true;
 }
 
-bool Gcs_replication_handler::get_gcs_nodes_info(uint index, RPL_GCS_NODES_INFO *info)
+bool
+Gcs_replication_handler::
+get_gcs_group_members(uint index, RPL_GCS_GROUP_MEMBERS_INFO *info)
 {
   if (plugin_handle)
-    return plugin_handle->get_gcs_nodes_info(index, info);
+    return plugin_handle->get_gcs_group_members_info(index, info);
   return true;
 }
 
-bool Gcs_replication_handler::get_gcs_nodes_stat_info(RPL_GCS_NODE_STATS_INFO
-                                                      *info)
+bool
+Gcs_replication_handler::
+get_gcs_group_member_stats(RPL_GCS_GROUP_MEMBER_STATS_INFO *info)
 {
   if (plugin_handle)
-    return plugin_handle->get_gcs_nodes_stat_info(info);
+    return plugin_handle->get_gcs_group_member_stats_info(info);
   return true;
 }
 
 
-uint Gcs_replication_handler::get_gcs_nodes_number()
+uint Gcs_replication_handler::get_gcs_number_of_members()
 {
   if (plugin_handle)
-    return plugin_handle->get_gcs_nodes_number();
+    return plugin_handle->get_gcs_members_number_info();
   return 0;
 }
 
@@ -147,31 +152,31 @@ int stop_gcs_rpl()
   return 1;
 }
 
-bool get_gcs_stats(RPL_GCS_STATS_INFO *info)
+bool get_gcs_connection_status_info(RPL_GCS_CONNECTION_STATUS_INFO *info)
 {
   if (gcs_rpl_handler)
-    return gcs_rpl_handler->get_gcs_stats_info(info);
+    return gcs_rpl_handler->get_gcs_connection_status(info);
   return true;
 }
 
-bool get_gcs_nodes_stats(uint index, RPL_GCS_NODES_INFO *info)
+bool get_gcs_group_members_info(uint index, RPL_GCS_GROUP_MEMBERS_INFO *info)
 {
   if (gcs_rpl_handler)
-    return gcs_rpl_handler->get_gcs_nodes_info(index, info);
+    return gcs_rpl_handler->get_gcs_group_members(index, info);
   return true;
 }
 
-bool get_gcs_nodes_dbsm_stats(RPL_GCS_NODE_STATS_INFO* info)
+bool get_gcs_group_member_stats_info(RPL_GCS_GROUP_MEMBER_STATS_INFO* info)
 {
   if(gcs_rpl_handler)
-    return gcs_rpl_handler->get_gcs_nodes_stat_info(info);
+    return gcs_rpl_handler->get_gcs_group_member_stats(info);
   return true;
 }
 
-uint get_gcs_nodes_stats_number()
+uint get_gcs_members_number_info()
 {
   if (gcs_rpl_handler)
-    return gcs_rpl_handler->get_gcs_nodes_number();
+    return gcs_rpl_handler->get_gcs_number_of_members();
   return 0;
 }
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -108,13 +108,8 @@ static bool server_engine_initialized();
 
 char* get_last_certified_transaction(char* buf, rpl_gno last_seq_num);
 
-enum enum_node_state
-map_protocol_node_state_to_server_node_state
-                             (Cluster_member_info::Cluster_member_status
-                                                               protocol_status);
-
 enum enum_applier_status
-map_node_applier_state_to_server_applier_status(Member_applier_state
+map_node_applier_state_to_member_applier_status(Member_applier_state
                                                               applier_status);
 
 /*
@@ -142,322 +137,42 @@ int log_message(enum plugin_log_level level, const char *format, ...)
 struct st_mysql_gcs_rpl gcs_rpl_descriptor=
 {
   MYSQL_GCS_REPLICATION_INTERFACE_VERSION,
-  get_gcs_stats_info,
-  get_gcs_nodes_info,
-  get_gcs_node_stat_info,
-  get_gcs_nodes_number,
+  get_gcs_connection_status,
+  get_gcs_group_members,
+  get_gcs_group_member_stats,
+  get_gcs_members_number,
   gcs_rpl_start,
   gcs_rpl_stop,
   is_gcs_rpl_running
 };
 
-bool get_gcs_stats_info(RPL_GCS_STATS_INFO *info)
+bool get_gcs_connection_status(RPL_GCS_CONNECTION_STATUS_INFO *info)
 {
-  info->group_name= gcs_group_pointer;
-  info->node_state= is_gcs_rpl_running();
-
-  Gcs_view* view= NULL;
-  Gcs_statistics_interface* stats_if= NULL;
-
-  if(gcs_group_pointer != NULL)
-  {
-    string gcs_group_name(gcs_group_pointer);
-    Gcs_group_identifier group_id(gcs_group_name);
-
-    if(gcs_module != NULL)
-    {
-      Gcs_control_interface* ctrl_if= gcs_module->get_control_session(group_id);
-      stats_if= gcs_module->get_statistics(group_id);
-
-      if(ctrl_if != NULL)
-      {
-        view= ctrl_if->get_current_view();
-      }
-    }
-  }
-
-  if(view != NULL)
-  {
-    info->view_id= view->get_view_id()->get_representation();
-    info->number_of_nodes= view->get_members()->size();
-  }
-  else
-  {
-    info->view_id= 0;
-    info->number_of_nodes= 0;
-  }
-
-  if(stats_if != NULL)
-  {
-    info->total_messages_sent= stats_if->get_total_messages_sent();
-    info->total_bytes_sent= stats_if->get_total_bytes_sent();
-    info->total_messages_received= stats_if->get_total_messages_received();
-    info->total_bytes_received= stats_if->get_total_bytes_received();
-    info->last_message_timestamp= stats_if->get_last_message_timestamp();
-    info->min_message_length= stats_if->get_min_message_length();
-    info->max_message_length= stats_if->get_max_message_length();
-  }
-  else
-  {
-    info->total_messages_sent= 0;
-    info->total_bytes_sent= 0;
-    info->total_messages_received= 0;
-    info->total_bytes_received= 0;
-    info->last_message_timestamp= 0;
-    info->min_message_length= 0;
-    info->max_message_length= 0;
-  }
-
-  return false;
+  return get_gcs_connection_status(info, gcs_module, gcs_group_pointer,
+                                   is_gcs_rpl_running());
 }
 
-bool get_gcs_nodes_info(uint index, RPL_GCS_NODES_INFO *info)
+bool get_gcs_group_members(uint index, RPL_GCS_GROUP_MEMBERS_INFO *info)
 {
-  /*
-   This case means that the plugin has never been initialized...
-   and one would not be able to extract information
-   */
-  if(cluster_member_mgr == NULL)
-  {
-    string empty_string("");
+  char* channel_name= applier_relay_log_name;
 
-    info->group_name= gcs_group_pointer;
-    info->node_id= my_strndup(
-#ifdef HAVE_PSI_MEMORY_INTERFACE
-                             PSI_NOT_INSTRUMENTED,
-#endif
-                             empty_string.c_str(),
-                             empty_string.length(),
-                             MYF(0));
-
-    info->node_host= my_strndup(
-#ifdef HAVE_PSI_MEMORY_INTERFACE
-                             PSI_NOT_INSTRUMENTED,
-#endif
-                             empty_string.c_str(),
-                             empty_string.length(),
-                             MYF(0));
-
-    info->node_port= 0;
-    info->node_state= NODE_STATE_OFFLINE;
-
-    return false;
-  }
-
-  Gcs_control_interface* ctrl_if= NULL;
-  if(gcs_group_pointer != NULL)
-  {
-    info->group_name= gcs_group_pointer;
-
-    string gcs_group_name(gcs_group_pointer);
-    Gcs_group_identifier group_id(gcs_group_name);
-
-    ctrl_if= gcs_module->get_control_session(group_id);
-  }
-
-  uint number_of_nodes= 0;
-  if(ctrl_if != NULL)
-  {
-    Gcs_view* view= ctrl_if->get_current_view();
-    if(view != NULL)
-    {
-      number_of_nodes= view->get_members()->size();
-    }
-  }
-  else
-  {
-    number_of_nodes= 1;
-  }
-
-  if (index >= number_of_nodes) {
-    if (index != 0) {
-      // No nodes on view.
-      return true;
-    }
-  }
-
-  Cluster_member_info* node_info
-                 = cluster_member_mgr->get_cluster_member_info_by_index(index);
-
-  if(node_info == NULL) // The requested node is not managed...
-  {
-    return true;
-  }
-
-  // Get info from view.
-    info->node_id= my_strndup(
-#ifdef HAVE_PSI_MEMORY_INTERFACE
-                             PSI_NOT_INSTRUMENTED,
-#endif
-                             node_info->get_uuid()->c_str(),
-                             node_info->get_uuid()->length(),
-                             MYF(0));
-
-    info->node_host= my_strndup(
-#ifdef HAVE_PSI_MEMORY_INTERFACE
-                             PSI_NOT_INSTRUMENTED,
-#endif
-                             node_info->get_hostname()->c_str(),
-                             node_info->get_hostname()->length(),
-                             MYF(0));
-
-  info->node_port= node_info->get_port();
-  info->node_state=
-      map_protocol_node_state_to_server_node_state(
-          node_info->get_recovery_status());
-
-  delete node_info;
-
-  return false;
+  return get_gcs_group_members_info(index, info,cluster_member_mgr, gcs_module,
+                                    gcs_group_pointer, channel_name);
 }
 
-uint get_gcs_nodes_number()
+uint get_gcs_members_number()
 {
-  uint number_of_nodes= 0;
-
-  if(gcs_group_pointer != NULL)
-  {
-    /*
-      Even when node is disconnected from group there is the
-      local node.
-    */
-    string gcs_group_name(gcs_group_pointer);
-    Gcs_group_identifier group_id(gcs_group_name);
-
-    Gcs_control_interface* ctrl_if= NULL;
-    ctrl_if= gcs_module->get_control_session(group_id);
-
-    Gcs_view* view= NULL;
-    view= ctrl_if->get_current_view();
-
-    if(view != NULL && ctrl_if != NULL && ctrl_if->belongs_to_group())
-    {
-      number_of_nodes= view->get_members()->size();
-    }
-  }
-
-  return number_of_nodes == 0 ? 1 : number_of_nodes;
+  return cluster_member_mgr == NULL? 1 :
+                                    (uint)cluster_member_mgr
+                                                      ->get_number_of_members();
 }
 
-bool get_gcs_node_stat_info(RPL_GCS_NODE_STATS_INFO *info)
+bool get_gcs_group_member_stats(RPL_GCS_GROUP_MEMBER_STATS_INFO *info)
 {
-  //This means that the plugin never started
-  if(cluster_member_mgr == NULL)
-  {
-    string empty_string("");
-    info->node_id= empty_string.c_str();
-  }
-  else
-  {
-    char *hostname, *uuid;
-    uint port;
-    get_server_host_port_uuid(&hostname, &port, &uuid);
+  char* channel_name= applier_relay_log_name;
 
-    info->node_id= uuid;
-  }
-
-  info->group_name= gcs_group_pointer;
-
-  Certification_handler *cert= NULL;
-
-  //Check if the gcs replication has started and a valid certifier exists
-  if(applier_module != NULL &&
-     (cert = applier_module->get_certification_handler()) != NULL)
-  {
-    Certifier_interface *cert_module= cert->get_certifier();
-
-    info->positively_certified= cert_module->get_positive_certified();
-    info->negatively_certified= cert_module->get_negative_certified();
-    info->transaction_certified= info->positively_certified +
-                                 info->negatively_certified;
-    info->certification_db_size= cert_module->get_cert_db_size();
-    info->transaction_in_queue= applier_module->get_message_queue_size();
-
-    Gtid_set* stable_gtid_set= cert_module->get_group_stable_transactions_set();
-
-    if(stable_gtid_set)
-      info->stable_set= stable_gtid_set->to_string();
-    else
-      info->stable_set= NULL;
-
-    rpl_gno temp_seq_num= cert_module->get_last_sequence_number();
-    char* buf= NULL;
-    info->last_certified_transaction=
-        get_last_certified_transaction(buf, temp_seq_num);
-
-    info->applier_state=
-        map_node_applier_state_to_server_applier_status(
-            applier_module->get_applier_status());
-  }
-  else // gcs replication not running.
-  {
-    info->positively_certified= 0;
-    info->negatively_certified= 0;
-    info->transaction_certified= 0;
-    info->certification_db_size= 0;
-    info->stable_set= NULL;
-    info->transaction_in_queue= 0;
-    info->last_certified_transaction= NULL;
-    info->applier_state=
-        map_node_applier_state_to_server_applier_status(
-            (Member_applier_state)APPLIER_STATE_OFF);
-  }
-
-  return false;
-}
-
-enum enum_node_state
-map_protocol_node_state_to_server_node_state
-                   (Cluster_member_info::Cluster_member_status protocol_status)
-{
-  switch(protocol_status)
-  {
-    case 1:  // MEMBER_ONLINE
-      return NODE_STATE_ONLINE;
-    case 2:  // MEMBER_OFFLINE
-      return NODE_STATE_OFFLINE;
-    case 3:  // MEMBER_IN_RECOVERY
-      return NODE_STATE_RECOVERING;
-    default:
-      return NODE_STATE_OFFLINE;
-  }
-}
-
-enum enum_applier_status
-map_node_applier_state_to_server_applier_status(Member_applier_state
-                                                                applier_status)
-{
-  switch(applier_status)
-  {
-    case 1:  // APPLIER_STATE_ON
-      return APPLIER_STATE_RUNNING;
-    case 2:  // APPLIER_STATE_OFF
-      return APPLIER_STATE_STOP;
-    default: // APPLIER_ERROR
-      return APPLIER_STATE_ERROR;
-  }
-}
-
-char* get_last_certified_transaction(char* buf, rpl_gno last_seq_num)
-{
-  if(last_seq_num > 0)
-  {
-    char seq_num[MAX_GNO_TEXT_LENGTH+1];
-    char *last_cert_seq_num= my_safe_itoa(10, last_seq_num,
-                                          &seq_num[sizeof(seq_num)- 1]);
-
-    string group(gcs_group_pointer);
-    group.append(":");
-    group.append(last_cert_seq_num);
-    buf= (char*)my_malloc(
-#ifdef HAVE_PSI_MEMORY_INTERFACE
-                               PSI_NOT_INSTRUMENTED,
-#endif
-                               Gtid::MAX_TEXT_LENGTH+1, MYF(0));
-
-    memcpy(buf, group.c_str(), Gtid::MAX_TEXT_LENGTH+1);
-  }
-  return buf;
+  return get_gcs_group_member_stats(info, cluster_member_mgr, applier_module,
+                                gcs_module, gcs_group_pointer, channel_name);
 }
 
 int gcs_rpl_start()

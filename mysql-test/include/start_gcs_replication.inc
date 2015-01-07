@@ -38,13 +38,13 @@ if (!$rpl_debug)
 START GCS_REPLICATION;
 
 --let $_node_id= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
---let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.replication_connection_nodes WHERE group_name="$gcs_group_name" AND node_id="$_node_id" AND node_state="ONLINE"
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.replication_group_members group_member WHERE group_member.member_id="$_node_id" AND group_member.member_state="ONLINE"
 --source include/wait_condition.inc
 if (!$success)
 {
   --echo Current connection: $CURRENT_CONNECTION
   --query_vertical SELECT * FROM performance_schema.replication_connection_status
-  --query_vertical SELECT * FROM performance_schema.replication_connection_nodes
+  --query_vertical SELECT * FROM performance_schema.replication_group_members
   --die Timeout in wait_condition.inc
 }
 

@@ -215,7 +215,7 @@ if ( `select @@GLOBAL.slave_parallel_workers > 0`)
 --echo #  Test case 6): Do a sanity check that joins can be performed as replication tables
 --echo #                 contain multiple rows now.
 #Check the result file for the whole join.
---replace_column 3 # 4 # 22 #
+--replace_column 3 # 4 # 13 #
 --query_vertical(select * from replication_connection_status, replication_applier_status_by_coordinator where replication_connection_status.channel_name= replication_applier_status_by_coordinator.channel_name)
 
 --echo #

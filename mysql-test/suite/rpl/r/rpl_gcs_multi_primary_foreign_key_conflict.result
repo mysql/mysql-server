@@ -52,9 +52,8 @@ Got one of the listed errors
 # 7. Assert that number of certified transactions are the
 #    expected ones.
 [connection server1]
-include/assert.inc [The value of Certified_transactions should be 7 after starting gcs]
-include/assert.inc [The value of Positively_certified should be 6 after starting gcs]
-include/assert.inc [The value of Negatively_certified should be 1 after starting gcs]
+include/assert.inc [The value of Count_Transactions_Checked should be 7 after starting gcs]
+include/assert.inc [The value of Count_Conflicts_Detected should be 1 after starting gcs]
 
 ############################################################
 # Checking the positive case in which there is no conflict.
@@ -110,9 +109,8 @@ include/assert.inc [Table t1 will contain row after the above execution]
 include/assert.inc [Table t3 will contain 1 rows after the above execution]
 include/assert.inc [Table t2 will contain 2 rows after the above execution]
 include/assert.inc [Table t1 will contain 3 rows after the above execution]
-include/assert.inc [The value of Certified_transactions should be 12 after starting gcs]
-include/assert.inc [The value of Positively_certified should be 11 after starting gcs]
-include/assert.inc [The value of Negatively_certified should be 1 after starting gcs]
+include/assert.inc [The value of Count_Transactions_Checked should be 12 after starting gcs]
+include/assert.inc [The value of Count_Conflicts_Detected should be 1 after starting gcs]
 
 ############################################################
 # Clean up.

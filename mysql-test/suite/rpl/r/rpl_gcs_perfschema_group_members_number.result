@@ -30,11 +30,11 @@ include/start_gcs_replication.inc
 include/rpl_gcs_wait_for_number_of_nodes.inc
 include/rpl_gcs_wait_for_number_of_nodes.inc
 include/rpl_gcs_wait_for_number_of_nodes.inc
-SELECT * FROM performance_schema.replication_connection_nodes;
-GROUP_NAME	NODE_ID	NODE_HOST	NODE_PORT	NODE_STATE
-8a94f357-aab4-11df-86ab-c80aa9429500	NODE_ID	NODE_HOST	NODE_PORT	ONLINE
-8a94f357-aab4-11df-86ab-c80aa9429500	NODE_ID	NODE_HOST	NODE_PORT	ONLINE
-8a94f357-aab4-11df-86ab-c80aa9429500	NODE_ID	NODE_HOST	NODE_PORT	ONLINE
+SELECT * FROM performance_schema.replication_group_members;
+CHANNEL_NAME	MEMBER_ID	MEMBER_ADDRESS	MEMBER_STATE
+group_replication_applier	MEMBER_ID	MEMBER_ADDRESS	ONLINE
+group_replication_applier	MEMBER_ID	MEMBER_ADDRESS	ONLINE
+group_replication_applier	MEMBER_ID	MEMBER_ADDRESS	ONLINE
 
 ###########################################################
 # 5. Two nodes on group.

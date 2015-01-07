@@ -50,24 +50,20 @@ INSERT INTO t1 VALUES (3);
 --let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 = 3, count, 1] = 1
 --source include/assert.inc
 
---let $transaction_in_queue= query_get_value(SELECT Transactions_in_queue FROM performance_schema.replication_node_status, Transactions_in_queue, 1)
---let $assert_text= 'The value of Transactions_in_queue should be 0 on server 1'
+--let $transaction_in_queue= query_get_value(SELECT Count_Transactions_in_queue FROM performance_schema.replication_group_member_stats, Count_Transactions_in_queue, 1)
+--let $assert_text= 'The value of Count_Transactions_in_queue should be 0 on server 1'
 --let $assert_cond= $transaction_in_queue = 0
 --source include/assert.inc
---let $certified_transactions= query_get_value(SELECT Certified_transactions FROM performance_schema.replication_node_status, Certified_transactions, 1)
---let $assert_text= 'The value of Certified_transactions should be 4 on server 1'
+--let $certified_transactions= query_get_value(SELECT Count_transactions_checked FROM performance_schema.replication_group_member_stats, Count_transactions_checked, 1)
+--let $assert_text= 'The value of Count_transactions_checked should be 4 on server 1'
 --let $assert_cond= $certified_transactions = 4
 --source include/assert.inc
---let $positively_certified= query_get_value(SELECT Positively_certified FROM performance_schema.replication_node_status, Positively_certified, 1)
---let $assert_text= 'The value of Positively_certified should be 3 on server 1'
---let $assert_cond= $positively_certified = 3
---source include/assert.inc
---let $negatively_certified= query_get_value(SELECT Negatively_certified FROM performance_schema.replication_node_status, Negatively_certified, 1)
---let $assert_text= 'The value of Negatively_certified should be 1 on server 1'
+--let $negatively_certified= query_get_value(SELECT Count_conflicts_detected FROM performance_schema.replication_group_member_stats, Count_conflicts_detected, 1)
+--let $assert_text= 'The value of Count_conflicts_detected should be 1 on server 1'
 --let $assert_cond= $negatively_certified = 1
 --source include/assert.inc
---let $last_certified_transaction= query_get_value(SELECT Last_certified_transaction from performance_schema.replication_node_status, Last_certified_transaction, 1)
---let $assert_text= 'The value of Last_certified_transaction should be 8a94f357-aab4-11df-86ab-c80aa9429123:3 on server 1'
+--let $last_certified_transaction= query_get_value(SELECT Last_conflict_free_transaction from performance_schema.replication_group_member_stats, Last_conflict_free_transaction, 1)
+--let $assert_text= 'The value of Last_conflict_free_transaction should be 8a94f357-aab4-11df-86ab-c80aa9429123:3 on server 1'
 --let $assert_cond= "$last_certified_transaction" = "$gcs_group_name:3"
 --source include/assert.inc
 
@@ -79,24 +75,20 @@ INSERT INTO t1 VALUES (3);
 --let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 = 3, count, 1] = 1
 --source include/assert.inc
 
---let $transaction_in_queue= query_get_value(SELECT Transactions_in_queue FROM performance_schema.replication_node_status, Transactions_in_queue, 1)
---let $assert_text= 'The value of Transactions_in_queue should be 0 on server 2'
+--let $transaction_in_queue= query_get_value(SELECT Count_Transactions_in_queue FROM performance_schema.replication_group_member_stats, Count_Transactions_in_queue, 1)
+--let $assert_text= 'The value of Count_Transactions_in_queue should be 0 on server 2'
 --let $assert_cond= $transaction_in_queue = 0
 --source include/assert.inc
---let $certified_transactions= query_get_value(SELECT Certified_transactions FROM performance_schema.replication_node_status, Certified_transactions, 1)
---let $assert_text= 'The value of Certified_transactions should be 4 on server 2'
+--let $certified_transactions= query_get_value(SELECT Count_transactions_checked FROM performance_schema.replication_group_member_stats, Count_transactions_checked, 1)
+--let $assert_text= 'The value of Count_transactions_checked should be 4 on server 2'
 --let $assert_cond= $certified_transactions = 4
 --source include/assert.inc
---let $positively_certified= query_get_value(SELECT Positively_certified FROM performance_schema.replication_node_status, Positively_certified, 1)
---let $assert_text= 'The value of Positively_certified should be 3 on server 2'
---let $assert_cond= $positively_certified = 3
---source include/assert.inc
---let $negatively_certified= query_get_value(SELECT Negatively_certified FROM performance_schema.replication_node_status, Negatively_certified, 1)
---let $assert_text= 'The value of Negatively_certified should be 1 on server 2'
+--let $negatively_certified= query_get_value(SELECT Count_conflicts_detected FROM performance_schema.replication_group_member_stats, Count_conflicts_detected, 1)
+--let $assert_text= 'The value of Count_conflicts_detected should be 1 on server 2'
 --let $assert_cond= $negatively_certified = 1
 --source include/assert.inc
---let $last_certified_transaction= query_get_value(SELECT Last_certified_transaction from performance_schema.replication_node_status, Last_certified_transaction, 1)
---let $assert_text= 'The value of Last_certified_transaction should be 8a94f357-aab4-11df-86ab-c80aa9429123:3 on server 2'
+--let $last_certified_transaction= query_get_value(SELECT Last_conflict_free_transaction from performance_schema.replication_group_member_stats, Last_conflict_free_transaction, 1)
+--let $assert_text= 'The value of Last_conflict_free_transaction should be 8a94f357-aab4-11df-86ab-c80aa9429123:3 on server 2'
 --let $assert_cond= "$last_certified_transaction" = "$gcs_group_name:3"
 --source include/assert.inc
 

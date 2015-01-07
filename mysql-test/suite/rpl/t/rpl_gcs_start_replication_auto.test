@@ -25,7 +25,7 @@ START GCS_REPLICATION;
 
 --let $server_uuid= `SELECT @@GLOBAL.SERVER_UUID`
 
---let $wait_condition= SELECT count(*)=1 FROM performance_schema.replication_connection_nodes WHERE node_id= '$server_uuid' ;
+--let $wait_condition= SELECT count(*)=1 FROM performance_schema.replication_group_members WHERE member_id= '$server_uuid' ;
 --source include/wait_condition.inc
 
 if (!$success)

@@ -24,14 +24,9 @@
 --let $assert_cond= "$group_name" = "$gcs_group_name"
 --source include/assert.inc
 
---let $view_id= query_get_value(SELECT View_Id from performance_schema.replication_connection_status, View_Id, 1)
---let $assert_text= The value of view_id should be ZERO before GCS start
---let $assert_cond= "$View_Id" = 0
---source include/assert.inc
-
---let $num_nodes= query_get_value(SELECT Number_Of_Nodes from performance_schema.replication_connection_status, Number_Of_Nodes, 1)
---let $assert_text= The value of number_of_nodes should be ZERO before GCS start
---let $assert_cond= "$num_nodes" = 0
+--let $service_state= query_get_value(SELECT Service_state from performance_schema.replication_connection_status, Service_state, 1)
+--let $assert_text= The value of service state before GCS start should be OFF
+--let $assert_cond= "$service_state" = "OFF"
 --source include/assert.inc
 
 # Start GCS replication
@@ -42,42 +37,9 @@
 --let $assert_cond= "$group_name" = "$gcs_group_name"
 --source include/assert.inc
 
---let $messages_rcvd= query_get_value(SELECT Total_Messages_Received from performance_schema.replication_connection_status, Total_Messages_Received, 1)
---let $assert_text= The value of total_messages_received should be zero at GCS start
---let $assert_cond= "$messages_rcvd" = 0
---source include/assert.inc
-
---let $messages_sent= query_get_value(SELECT Total_Messages_Sent from performance_schema.replication_connection_status, Total_Messages_Sent, 1)
---let $assert_text= The value of total_messages_sent should be zero at GCS start
---let $assert_cond= "$messages_sent" = 0
---source include/assert.inc
-
---let $bytes_rcvd= query_get_value(SELECT Total_Bytes_Received from performance_schema.replication_connection_status, Total_Bytes_Received, 1)
---let $assert_text= The value of total_bytes_received should be zero at GCS start
---let $assert_cond= "$bytes_rcvd" = 0
---source include/assert.inc
-
---let $bytes_sent= query_get_value(SELECT Total_Bytes_Sent from performance_schema.replication_connection_status, Total_Bytes_Sent, 1)
---let $assert_text= The value of total_bytes_sent should be zero at GCS start
---let $assert_cond= "$byes_sent" = 0
---source include/assert.inc
-
---let $max_msg_length= query_get_value(SELECT Max_Message_Length from performance_schema.replication_connection_status, Max_Message_Length, 1)
---let $min_msg_length= query_get_value(SELECT Min_Message_Length from performance_schema.replication_connection_status, Min_Message_Length, 1)
-
---let $assert_text= The value of max_message_length should be min_msg_length at GCS start
---let $assert_cond= "$max_msg_length" = "$min_msg_length"
---source include/assert.inc
-
---let $raw_view_id= query_get_value(SELECT View_Id from performance_schema.replication_connection_status, View_Id, 1)
---let $view_id= `SELECT RIGHT('$raw_view_id', 1)`
---let $assert_text= The value of view_id should be a number followed by ONE at GCS start
---let $assert_cond= "$View_Id" = 1
---source include/assert.inc
-
---let $num_nodes= query_get_value(SELECT Number_Of_Nodes from performance_schema.replication_connection_status, Number_Of_Nodes, 1)
---let $assert_text= The value of number_of_nodes should be ONE at GCS start
---let $assert_cond= "$num_nodes" = 1
+--let $service_state= query_get_value(SELECT Service_state from performance_schema.replication_connection_status, Service_state, 1)
+--let $assert_text= The value of service state before GCS start should be ON
+--let $assert_cond= "$service_state" = "ON"
 --source include/assert.inc
 
 # Stop GCS replication
@@ -87,6 +49,11 @@
 
 --let $assert_text= The value of group name should be $gcs_group_name
 --let $assert_cond= "$group_name" = "$gcs_group_name"
+--source include/assert.inc
+
+--let $service_state= query_get_value(SELECT Service_state from performance_schema.replication_connection_status, Service_state, 1)
+--let $assert_text= The value of service state before GCS start should be OFF again
+--let $assert_cond= "$service_state" = "OFF"
 --source include/assert.inc
 
 # This restart tests that the plugin is still loaded on the server restart

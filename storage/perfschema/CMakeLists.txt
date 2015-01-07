@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -130,13 +130,13 @@ table_session_connect.h
 table_session_connect_attrs.h
 table_session_account_connect_attrs.h
 table_replication_connection_configuration.h
-table_replication_connection_nodes.h
+table_replication_group_members.h
 table_replication_connection_status.h
 table_replication_applier_configuration.h
 table_replication_applier_status.h
 table_replication_applier_status_by_coordinator.h
 table_replication_applier_status_by_worker.h
-table_replication_node_status.h
+table_replication_group_member_stats.h
 cursor_by_account.cc
 cursor_by_host.cc
 cursor_by_thread.cc
@@ -233,13 +233,13 @@ table_session_connect.cc
 table_session_connect_attrs.cc
 table_session_account_connect_attrs.cc
 table_replication_connection_configuration.cc
-table_replication_connection_nodes.cc
+table_replication_group_members.cc
 table_replication_connection_status.cc
 table_replication_applier_configuration.cc
 table_replication_applier_status.cc
 table_replication_applier_status_by_coordinator.cc
 table_replication_applier_status_by_worker.cc
-table_replication_node_status.cc
+table_replication_group_member_stats.cc
 )
 
 MYSQL_ADD_PLUGIN(perfschema ${PERFSCHEMA_SOURCES} STORAGE_ENGINE DEFAULT STATIC_ONLY NOT_FOR_EMBEDDED)

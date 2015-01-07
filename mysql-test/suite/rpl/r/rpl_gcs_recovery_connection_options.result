@@ -62,6 +62,7 @@ SET @@GLOBAL.DEBUG= @debug_save;
 SET DEBUG_SYNC= "now SIGNAL signal.recovery_continue";
 # The node should become offline as it can't connect
 include/rpl_gcs_wait_for_node_state.inc
+include/rpl_gcs_wait_for_number_of_nodes.inc
 #
 # Clean up
 #

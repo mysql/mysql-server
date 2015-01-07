@@ -36,7 +36,7 @@ INSERT INTO t1 VALUES (1);
 --echo # number is set from relay log certified transactions.
 --connection server2
 # Wait until server receives and certify the transactions.
---let $wait_condition= SELECT Positively_certified = 2 from performance_schema.replication_node_status
+--let $wait_condition= SELECT (Count_transactions_checked - Count_conflicts_detected) = 2 from performance_schema.replication_group_member_stats
 --source include/wait_condition.inc
 
 if (!$success)

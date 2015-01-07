@@ -53,14 +53,14 @@ if ($gcs_node_id != "")
   --let $_node_id= $gcs_node_id
 }
 
-let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.replication_connection_nodes
-  WHERE group_name="$gcs_group_name" AND node_id="$_node_id" AND
-  node_state="$gcs_node_state";
+let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.replication_group_members
+  WHERE member_id="$_node_id" AND
+  member_state="$gcs_node_state";
 --source include/wait_condition.inc
 if (!$success)
 {
   --query_vertical SELECT * FROM performance_schema.replication_connection_status
-  --query_vertical SELECT * FROM performance_schema.replication_connection_nodes
+  --query_vertical SELECT * FROM performance_schema.replication_group_members
   --die Timeout in wait_condition.inc
 }
 
