@@ -1552,3 +1552,10 @@ show global variables like 'log_slow_slave_statements';
 select * from information_schema.global_variables where variable_name like 'log_slow_slave_statements';
 set global log_slow_admin_statements = default;
 set global log_slow_slave_statements = default;
+
+--echo #
+--echo # Bug #19670915 GROUP_CONCAT_MAX_LEN=18446744073709547520 NOT ACCEPTED IN MY.CNF
+--echo #
+--echo # To test this bug, I have modified the variables-master.opt by adding
+--echo # variable 'group_concat_max_len' with max value. The server should
+--echo # be able to start with this max value.
