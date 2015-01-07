@@ -31,7 +31,6 @@
 #include "xa.h"                       // XID, xa_option_words
 #include "prealloced_array.h"
 #include "sql_data_change.h"
-#include "set_var.h"
 #include "query_options.h"            // OPTION_NO_CONST_TABLES
 #include "item_subselect.h"           // chooser_compare_func_creator
 

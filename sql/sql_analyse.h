@@ -20,7 +20,10 @@
 /* Analyse database */
 
 #include "procedure.h"                          /* Procedure */
+#include "sql_class.h"                          /* select_send */
 #include "my_tree.h"          // TREE
+
+class select_result;
 
 #define my_thd_charset	default_charset_info
 

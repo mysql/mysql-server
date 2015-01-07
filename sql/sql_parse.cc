@@ -93,7 +93,6 @@
 #include "sql_prepare.h"
 #include "debug_sync.h"
 #include "probes_mysql.h"
-#include "set_var.h"
 #include "opt_trace.h"
 #include "mysql/psi/mysql_statement.h"
 #include "opt_explain.h"

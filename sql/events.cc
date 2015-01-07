@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,7 +28,6 @@
 #include "event_queue.h"
 #include "event_scheduler.h"
 #include "sp_head.h" // for Stored_program_creation_ctx
-#include "set_var.h"
 #include "lock.h"   // lock_object_name
 #include "log.h"
 #include "mysql/psi/mysql_sp.h"

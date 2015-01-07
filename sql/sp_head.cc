@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,7 +14,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "my_global.h"         // NO_EMBEDDED_ACCESS_CHECKS
+#include "sp_head.h"
+
 #include "sql_cache.h"         // query_cache_*
 #include "probes_mysql.h"
 #include "sql_show.h"          // append_identifier
@@ -24,13 +25,11 @@
 #include "log_event.h"         // append_query_string, Query_log_event
 #include "binlog.h"
 
-#include "sp_head.h"
 #include "sp_instr.h"
 #include "sp.h"
 #include "sp_pcontext.h"
 #include "sp_rcontext.h"
 #include "sp_cache.h"
-#include "set_var.h"
 #include "sql_parse.h"         // cleanup_items
 #include "sql_base.h"          // close_thread_tables
 #include "transaction.h"       // trans_commit_stmt

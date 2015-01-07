@@ -31,7 +31,7 @@
 */
 
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
-#include "sql_class.h"                          // set_var.h: THD
+#include "sql_class.h"
 #include "rpl_gtid.h"
 #include "sys_vars.h"
 #include "mysql_com.h"
