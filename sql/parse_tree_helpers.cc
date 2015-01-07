@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,7 +17,6 @@
 #include "parse_tree_helpers.h"
 
 #include "sql_class.h"
-#include "set_var.h"
 #include "sp_head.h"
 #include "sp_instr.h"
 #include "auth/auth_common.h"
