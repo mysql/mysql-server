@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -154,7 +154,7 @@ static my_bool acquire_plugins(THD *thd, plugin_ref plugin, void *arg)
     one or more event classes already in use by the calling thread
     are an event class of which the audit plugin has interest.
   */
-  if (!check_audit_mask(data->class_mask, thd->audit_class_mask))
+  if (!check_audit_mask(data->class_mask, &thd->audit_class_mask[0]))
     return 0;
   
   /* lock the plugin and add it to the list */
@@ -180,10 +180,10 @@ void mysql_audit_acquire_plugins(THD *thd, uint event_class)
   DBUG_ENTER("mysql_audit_acquire_plugins");
   set_audit_mask(event_class_mask, event_class);
   if (thd && !check_audit_mask(mysql_global_audit_mask, event_class_mask) &&
-      check_audit_mask(thd->audit_class_mask, event_class_mask))
+      check_audit_mask(&thd->audit_class_mask[0], event_class_mask))
   {
     plugin_foreach(thd, acquire_plugins, MYSQL_AUDIT_PLUGIN, &event_class);
-    add_audit_mask(thd->audit_class_mask, event_class_mask);
+    add_audit_mask(&thd->audit_class_mask[0], event_class_mask);
   }
   DBUG_VOID_RETURN;
 }
@@ -245,7 +245,8 @@ void mysql_audit_release(THD *thd)
   
   /* Reset the state of thread values */
   thd->audit_class_plugins.clear();
-  memset(thd->audit_class_mask, 0, sizeof(thd->audit_class_mask));
+  thd->audit_class_mask.clear();
+  thd->audit_class_mask.resize(MYSQL_AUDIT_CLASS_MASK_SIZE);
 }
 
 
@@ -258,7 +259,8 @@ void mysql_audit_release(THD *thd)
 
 void mysql_audit_init_thd(THD *thd)
 {
-  memset(thd->audit_class_mask, 0, sizeof(thd->audit_class_mask));
+  thd->audit_class_mask.clear();
+  thd->audit_class_mask.resize(MYSQL_AUDIT_CLASS_MASK_SIZE);
 }
 
 

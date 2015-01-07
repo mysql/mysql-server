@@ -21,7 +21,6 @@
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "sql_const.h"
 #include "sql_lex.h"
-#include <mysql/plugin_audit.h>
 #include "rpl_tblmap.h"
 #include "mdl.h"
 #include "sql_locale.h"                         /* my_locale_st */
@@ -2659,7 +2658,7 @@ public:
     Array of bits indicating which audit classes have already been
     added to the list of audit plugins which are currently in use.
   */
-  unsigned long audit_class_mask[MYSQL_AUDIT_CLASS_MASK_SIZE];
+  Prealloced_array<unsigned long, 1> audit_class_mask;
 #endif
 
 #if defined(ENABLED_DEBUG_SYNC)

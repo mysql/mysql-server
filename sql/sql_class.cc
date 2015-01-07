@@ -1163,6 +1163,7 @@ THD::THD(bool enable_plugins)
 #ifndef EMBEDDED_LIBRARY
    // No need to instrument, highly unlikely to have that many plugins.
    audit_class_plugins(PSI_NOT_INSTRUMENTED),
+   audit_class_mask(PSI_NOT_INSTRUMENTED),
 #endif
 #if defined(ENABLED_DEBUG_SYNC)
    debug_sync_control(0),
