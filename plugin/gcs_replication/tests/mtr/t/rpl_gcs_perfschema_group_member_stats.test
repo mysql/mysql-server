@@ -118,9 +118,14 @@ INSERT INTO t1 VALUES (6);
 --connection server2
 --echo server2
 
---let $wait_condition= SELECT Count_Transactions_in_queue = 2 from performance_schema.replication_group_member_stats;
+--echo [ The value of Count_Transactions_in_queue must be 3 when the applier has not processed the transaction queue ]
+--let $wait_condition= SELECT Count_Transactions_in_queue = 3 from performance_schema.replication_group_member_stats;
 --source include/wait_condition.inc
---echo [ The value of Count_Transactions_in_queue should be 2 when the applier has not processed the transaction queue ]
+if (!$success)
+{
+  --query_vertical SELECT * FROM performance_schema.replication_group_member_stats
+  --die Timeout in wait_condition.inc
+}
 
 SET @@GLOBAL.DEBUG= @debug_save;
 SET DEBUG_SYNC= "now SIGNAL signal.recovery_continue";
@@ -163,11 +168,16 @@ SET DEBUG_SYNC= "now SIGNAL signal.recovery_continue";
 --source include/assert.inc
 
 #After a minute, the stable set should be updated
---sleep 60
+--sleep 65
 
+--echo [ The value of stable_set must be equal to the node GTID executed set ]
 --let $wait_condition= SELECT Transactions_committed_all_members = "8a84f397-aaa4-18df-89ab-c70aa9823561:1-6" from performance_schema.replication_group_member_stats;
 --source include/wait_condition.inc
---echo [ The value of stable_set should be equal to the node GTID executed set ]
+if (!$success)
+{
+  --query_vertical SELECT * FROM performance_schema.replication_group_member_stats
+  --die Timeout in wait_condition.inc
+}
 
 --connection server1
 DROP TABLE t1;

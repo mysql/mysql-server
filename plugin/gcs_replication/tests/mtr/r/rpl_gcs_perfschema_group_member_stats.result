@@ -40,8 +40,7 @@ INSERT INTO t1 VALUES (5);
 INSERT INTO t1 VALUES (6);
 # Check for the transaction in the applier queue and then unblock the recovery.
 server2
-Timeout in wait_condition.inc for SELECT Count_Transactions_in_queue = 2 from performance_schema.replication_group_member_stats;
-[ The value of Count_Transactions_in_queue should be 2 when the applier has not processed the transaction queue ]
+[ The value of Count_Transactions_in_queue must be 3 when the applier has not processed the transaction queue ]
 SET @@GLOBAL.DEBUG= @debug_save;
 SET DEBUG_SYNC= "now SIGNAL signal.recovery_continue";
 include/rpl_gcs_wait_for_node_state.inc
@@ -52,7 +51,7 @@ include/assert.inc [The value of Count_conflicts_detected should be 0 after star
 include/assert.inc [The value of Count_Transactions_validating should be 5 after starting gcs]
 include/assert.inc [The value of Transactions_committed_all_members should be empty currently for the gcs]
 include/assert.inc [The value of Last_Conflict_free_transaction should be the gtid of the last applied transaction.]
-[ The value of stable_set should be equal to the node GTID executed set ]
+[ The value of stable_set must be equal to the node GTID executed set ]
 DROP TABLE t1;
 ####################################
 The values being checked after stop

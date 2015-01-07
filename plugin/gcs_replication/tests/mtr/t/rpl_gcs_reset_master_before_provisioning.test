@@ -122,7 +122,7 @@ while ($server_count)
 }
 
 #Wait for the certification thread to kick in
---sleep 60
+--sleep 65
 
 if(`SELECT "$server_uuid" < "$gcs_group_name"`)
 {

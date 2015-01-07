@@ -182,6 +182,5 @@ INSERT INTO t1 VALUES (9);
 --echo #
 
 DROP TABLE t1;
---sleep 2
 
 --source include/rpl_end.inc
