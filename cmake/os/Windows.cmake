@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -64,6 +64,8 @@ IF(WITH_MSCRT_DEBUG)
   ADD_DEFINITIONS(-D_CRTDBG_MAP_ALLOC)
 ENDIF()
   
+OPTION(WIN_DEBUG_NO_INLINE "Disable inlining for debug builds on Windows" OFF)
+
 IF(MSVC)
   # Enable debug info also in Release build,
   # and create PDB to be able to analyze crashes.
@@ -86,6 +88,13 @@ IF(MSVC)
   #     information for use with the debugger. The symbolic debugging
   #     information includes the names and types of variables, as well as
   #     functions and line numbers. No .pdb file is produced by the compiler.
+  # - Enable explicit inline:
+  #     /Ob1
+  #     Expands explicitly inlined functions. By default /Ob0 is used,
+  #     meaning no inlining. But this impacts test execution time.
+  #     Allowing inline reduces test time using the debug server by
+  #     30% or so. If you do want to keep inlining off, set the
+  #     cmake flag WIN_DEBUG_NO_INLINE.
   FOREACH(lang C CXX)
     SET(CMAKE_${lang}_FLAGS_RELEASE "${CMAKE_${lang}_FLAGS_RELEASE} /Z7")
   ENDFOREACH()
@@ -96,6 +105,9 @@ IF(MSVC)
    CMAKE_CXX_FLAGS_DEBUG    CMAKE_CXX_FLAGS_DEBUG_INIT)
    STRING(REPLACE "/MD"  "/MT" "${flag}" "${${flag}}")
    STRING(REPLACE "/Zi"  "/Z7" "${flag}" "${${flag}}")
+   IF (NOT WIN_DEBUG_NO_INLINE)
+     STRING(REPLACE "/Ob0"  "/Ob1" "${flag}" "${${flag}}")
+   ENDIF()
    SET("${flag}" "${${flag}} /EHsc")
   ENDFOREACH()
   
