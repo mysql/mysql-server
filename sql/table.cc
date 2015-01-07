@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2168,6 +2168,60 @@ static void clear_field_flag(TABLE *table)
   DBUG_VOID_RETURN;
 }
 
+
+/**
+  @brief validate_generated_expr
+    Validate the generated expression to see whether there are invalid
+    Item objects.
+  @note
+    Needs to be done after fix_fields to allow checking references
+    to other generated columns.
+
+  @param field  Pointer of generated column
+
+  @return  TRUE  The generated expression has some invalid objects
+  @return  FALSE No illegal objects in the generated expression
+ */
+static bool validate_generated_expr(Field *field)
+{
+  bool error;
+  Item* expr= field->gcol_info->expr_item;
+  int fld_idx= field->field_index;
+  const char *field_name= field->field_name;
+  DBUG_ENTER("validate_generate_expr");
+  DBUG_ASSERT(expr);
+
+  /**
+    1) Subquery is not allowed
+    2) SP/UDF is not allowed
+    3) System variables and parameters are not allowed
+   */
+  if (expr->has_subquery() ||              // 1)
+      expr->has_stored_program() ||       // 2)
+      (expr->used_tables() &
+       (RAND_TABLE_BIT | PARAM_TABLE_BIT)))// 3)
+  {
+    my_error(ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED, MYF(0), field_name);
+    DBUG_RETURN(TRUE);
+  }
+  /* 
+    Walk through the Item tree checking if all items are valid
+    to be part of the generated column. 
+  */
+  error= expr->walk(&Item::check_gcol_func_processor, Item::WALK_POSTFIX,
+                         (uchar*)&fld_idx);
+  if (error)
+  {
+    if (fld_idx < 0)
+      my_error(ER_GENERATED_COLUMN_NON_PRIOR, MYF(0), field_name);
+    else
+      my_error(ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED, MYF(0), field_name);
+    DBUG_RETURN(TRUE);
+  }
+
+  DBUG_RETURN(FALSE);
+}
+
 /**
   @brief  fix_fields_gcol_func
     The function uses the feature in fix_fields where the flag
@@ -2190,7 +2244,6 @@ bool fix_fields_gcol_func(THD *thd, Field *field)
   bool result= TRUE;
   Item* func_expr= field->gcol_info->expr_item;
   TABLE *table= field->table;
-  const char *field_name= field->field_name;
   TABLE_LIST tables;
   TABLE_LIST *save_table_list, *save_first_table, *save_last_table;
   int error;
@@ -2200,7 +2253,6 @@ bool fix_fields_gcol_func(THD *thd, Field *field)
   char db_name_string[FN_REFLEN];
   bool save_use_only_table_context;
   enum_mark_columns save_mark_used_columns= thd->mark_used_columns;
-  int fld_idx= field->field_index;
   Item *dummy;
   DBUG_ASSERT(func_expr);
   DBUG_ENTER("fix_fields_gcol_func");
@@ -2257,19 +2309,11 @@ bool fix_fields_gcol_func(THD *thd, Field *field)
     goto end;
   }
   thd->where= save_where;
-  /* 
-    Walk through the Item tree checking if all items are valid
-    to be part of the generated column. Needs to be done after fix_fields to
-    allow checking references to other generated columns.
+  /*
+    Checking if all items are valid to be part of the generated column.
   */
-  error= func_expr->walk(&Item::check_gcol_func_processor, Item::WALK_POSTFIX,
-                         (uchar*)&fld_idx);
-  if (error)
+  if (validate_generated_expr(field))
   {
-    if (fld_idx < 0)
-      my_error(ER_GENERATED_COLUMN_NON_PRIOR, MYF(0), field_name);
-    else
-      my_error(ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED, MYF(0), field_name);
     clear_field_flag(table);
     goto end;
   }
