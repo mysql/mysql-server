@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2663,6 +2663,8 @@ int handler::ha_rnd_next(uchar *buf)
 
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, MAX_KEY, result,
     { result= rnd_next(buf); })
+  if (!result && table->vfield)
+    result= update_generated_read_fields(table);
   DBUG_RETURN(result);
 }
 
@@ -2689,6 +2691,8 @@ int handler::ha_rnd_pos(uchar *buf, uchar *pos)
 
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, MAX_KEY, result,
     { result= rnd_pos(buf, pos); })
+  if (!result && table->vfield)
+    result= update_generated_read_fields(table);
   DBUG_RETURN(result);
 }
 
@@ -2731,6 +2735,8 @@ int handler::ha_index_read_map(uchar *buf, const uchar *key,
 
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, active_index, result,
     { result= index_read_map(buf, key, keypart_map, find_flag); })
+  if (!result && table->vfield)
+    result= update_generated_read_fields(table);
   DBUG_RETURN(result);
 }
 
@@ -2746,6 +2752,8 @@ int handler::ha_index_read_last_map(uchar *buf, const uchar *key,
 
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, active_index, result,
     { result= index_read_last_map(buf, key, keypart_map); })
+  if (!result && table->vfield)
+    result= update_generated_read_fields(table);
   DBUG_RETURN(result);
 }
 
@@ -2768,6 +2776,8 @@ int handler::ha_index_read_idx_map(uchar *buf, uint index, const uchar *key,
 
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, index, result,
     { result= index_read_idx_map(buf, index, key, keypart_map, find_flag); })
+  if (!result && table->vfield)
+    result= update_generated_read_fields(table);
   return result;
 }
 
@@ -2794,6 +2804,8 @@ int handler::ha_index_next(uchar * buf)
 
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, active_index, result,
     { result= index_next(buf); })
+  if (!result && table->vfield)
+    result= update_generated_read_fields(table);
   DBUG_RETURN(result);
 }
 
@@ -2820,6 +2832,8 @@ int handler::ha_index_prev(uchar * buf)
 
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, active_index, result,
     { result= index_prev(buf); })
+  if (!result && table->vfield)
+    result= update_generated_read_fields(table);
   DBUG_RETURN(result);
 }
 
@@ -2846,6 +2860,8 @@ int handler::ha_index_first(uchar * buf)
 
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, active_index, result,
     { result= index_first(buf); })
+  if (!result && table->vfield)
+    result= update_generated_read_fields(table);
   DBUG_RETURN(result);
 }
 
@@ -2872,6 +2888,8 @@ int handler::ha_index_last(uchar * buf)
 
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, active_index, result,
     { result= index_last(buf); })
+  if (!result && table->vfield)
+    result= update_generated_read_fields(table);
   DBUG_RETURN(result);
 }
 
@@ -2900,6 +2918,8 @@ int handler::ha_index_next_same(uchar *buf, const uchar *key, uint keylen)
 
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, active_index, result,
     { result= index_next_same(buf, key, keylen); })
+  if (!result && table->vfield)
+    result= update_generated_read_fields(table);
   DBUG_RETURN(result);
 }
 
@@ -2945,6 +2965,8 @@ int handler::read_first_row(uchar * buf, uint primary_key)
         error= end_error;
     }
   }
+  if (!error && table->vfield)
+    error= update_generated_read_fields(table);
   DBUG_RETURN(error);
 }
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -791,9 +791,6 @@ retry:
       }
       goto ok;
     }
-    /* Generate values for generated fields */
-    if (table->vfield && update_generated_read_fields(table))
-      goto err;
     if (cond && !cond->val_int())
     {
       if (thd->is_error())

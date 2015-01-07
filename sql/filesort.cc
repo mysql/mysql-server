@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -856,8 +856,6 @@ static ha_rows find_all_keys(Sort_param *param, QEP_TAB *qep_tab,
     {
       if ((error= qep_tab->quick()->get_next()))
         break;
-      if (sort_form->vfield && update_generated_read_fields(sort_form))
-        goto cleanup;
       file->position(sort_form->record[0]);
       DBUG_EXECUTE_IF("debug_filesort", dbug_print_record(sort_form, TRUE););
     }
@@ -866,11 +864,6 @@ static ha_rows find_all_keys(Sort_param *param, QEP_TAB *qep_tab,
       DBUG_EXECUTE_IF("bug19656296", DBUG_SET("+d,ha_rnd_next_deadlock"););
       {
 	error= file->ha_rnd_next(sort_form->record[0]);
-        if (!error)
-        {
-         if (sort_form->vfield && update_generated_read_fields(sort_form))
-           goto cleanup;
-        }
 	if (!flag)
 	{
 	  my_store_ptr(ref_pos,ref_length,record); // Position to row
