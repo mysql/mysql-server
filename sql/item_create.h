@@ -18,8 +18,9 @@
 #ifndef ITEM_CREATE_H
 #define ITEM_CREATE_H
 
-#include "m_string.h"  // LEX_STRING
-#include "item_func.h" // Cast_target
+#include "my_global.h"
+#include "mysql/mysql_lex_string.h"     // LEX_STRING
+#include "item_func.h"                  // Cast_target
 
 class Item;
 class PT_item_list;
