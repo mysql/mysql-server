@@ -1,4 +1,4 @@
-# Copyright (c) 2014, 2015 Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -147,6 +147,8 @@ ENDIF()
 # There is a similar option in unittest/gunit.
 # But the boost tarball is much bigger, so we have a separate option.
 OPTION(DOWNLOAD_BOOST "Download boost from sourceforge." OFF)
+SET(DOWNLOAD_BOOST_TIMEOUT 600 CACHE STRING
+  "Timeout in seconds when downloading boost.")
 
 # If we could not find it, then maybe download it.
 IF(WITH_BOOST AND NOT LOCAL_BOOST_ZIP AND NOT LOCAL_BOOST_DIR)
@@ -158,7 +160,7 @@ IF(WITH_BOOST AND NOT LOCAL_BOOST_ZIP AND NOT LOCAL_BOOST_DIR)
   MESSAGE(STATUS "Downloading ${BOOST_TARBALL} to ${WITH_BOOST}")
   FILE(DOWNLOAD ${BOOST_DOWNLOAD_URL}
     ${WITH_BOOST}/${BOOST_TARBALL}
-    TIMEOUT 600
+    TIMEOUT ${DOWNLOAD_BOOST_TIMEOUT}
     STATUS ERR
     SHOW_PROGRESS
   )
@@ -169,6 +171,20 @@ IF(WITH_BOOST AND NOT LOCAL_BOOST_ZIP AND NOT LOCAL_BOOST_DIR)
     MESSAGE(STATUS "Download failed, error: ${ERR}")
     # A failed DOWNLOAD leaves an empty file, remove it
     FILE(REMOVE ${WITH_BOOST}/${BOOST_TARBALL})
+    # STATUS returns a list of length 2
+    LIST(GET ERR 0 NUMERIC_RETURN)
+    IF(NUMERIC_RETURN EQUAL 28)
+      MESSAGE(FATAL_ERROR
+        "You can try downloading ${BOOST_DOWNLOAD_URL} manually"
+        " using curl/wget or a similar tool,"
+        " or increase the value of DOWNLOAD_BOOST_TIMEOUT"
+        " (which is now ${DOWNLOAD_BOOST_TIMEOUT} seconds)"
+      )
+    ENDIF()
+    MESSAGE(FATAL_ERROR
+      "You can try downloading ${BOOST_DOWNLOAD_URL} manually"
+      " using curl/wget or a similar tool"
+      )
   ENDIF()
 ENDIF()
 
@@ -210,6 +226,8 @@ IF(NOT BOOST_INCLUDE_DIR)
   MESSAGE(STATUS
     "Looked for boost/version.hpp in ${LOCAL_BOOST_DIR} and ${WITH_BOOST}")
   COULD_NOT_FIND_BOOST()
+ELSE()
+  MESSAGE(STATUS "Found ${BOOST_INCLUDE_DIR}/boost/version.hpp ")
 ENDIF()
 
 # Verify version number. Version information looks like:
