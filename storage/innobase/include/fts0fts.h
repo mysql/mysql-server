@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -41,6 +41,7 @@ Created 2011/09/02 Sunny Bains
 #include "ut0wqueue.h"
 #include "que0types.h"
 #include "ft_global.h"
+#include "mysql/plugin_ftparser.h"
 
 /** "NULL" value of a document id. */
 #define FTS_NULL_DOC_ID			0
