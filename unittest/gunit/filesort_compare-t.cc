@@ -89,9 +89,9 @@ class FileSortCompareTest : public ::testing::Test
 {
 protected:
   // Do each sort algorithm this many times. Increase value for benchmarking!
-  static const int num_iterations= 10000;
+  static const int num_iterations= 1;
   // Number of records.
-  static const int num_records= 100 * 1;
+  static const int num_records= 100 * 100;
   // Number of keys in each record.
   static const int keys_per_record= 4;
   // Size of each record.
