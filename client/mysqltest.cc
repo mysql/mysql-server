@@ -3247,7 +3247,7 @@ void do_exec(struct st_command *command)
 #ifdef _WIN32
     uint status= WEXITSTATUS(error);
 #else
-    uint status;
+    uint status= 0;
     // Do the same as many shells here: show SIGKILL as 137
     if (WIFEXITED(error))
       status= WEXITSTATUS(error);
