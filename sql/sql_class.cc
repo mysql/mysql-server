@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -4056,6 +4056,8 @@ bool Slow_log_throttle::log(THD *thd, bool eligible)
 bool Error_log_throttle::log(THD *thd)
 {
   ulonglong end_utime_of_query= thd->current_utime();
+  DBUG_EXECUTE_IF("simulate_error_throttle_expiry",
+                  end_utime_of_query+=Log_throttle::LOG_THROTTLE_WINDOW_SIZE;);
 
   /*
     If the window has expired, we'll try to write a summary line.
