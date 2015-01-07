@@ -1,4 +1,4 @@
-# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -92,5 +92,22 @@ IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
     TARGET_LINK_LIBRARIES(gcs_corosync gcs_interface ${LIBCPG} ${LIBPTHREAD} )
     TARGET_LINK_LIBRARIES(gcs_replication gcs_interface gcs_corosync)
   endif(LIBCPG)
+
+
+  if(INSTALL_PLUGINTESTDIR AND INSTALL_MYSQLTESTDIR)
+    INSTALL(
+      FILES tests/mtr/my.cnf
+            tests/mtr/rpl_1slave_base.cnf
+      DESTINATION "${INSTALL_MYSQLTESTDIR}/suite/gcs_replication"
+      COMPONENT Test
+    )
+    INSTALL(
+      DIRECTORY tests/mtr/t tests/mtr/r
+      DESTINATION "${INSTALL_MYSQLTESTDIR}/suite/gcs_replication"
+      USE_SOURCE_PERMISSIONS
+      COMPONENT Test
+      PATTERN "collections" EXCLUDE
+    )
+  endif()
 
 endif(CMAKE_SYSTEM_NAME MATCHES "Linux")

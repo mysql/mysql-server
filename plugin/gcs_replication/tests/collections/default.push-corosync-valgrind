@@ -1,0 +1,9 @@
+#################
+# Valgind build #
+#################
+
+# Group Replication tests (on plugin)
+perl mysql-test-run.pl --force --timer --debug-server --parallel=auto --experimental=collections/default.experimental --comment=gcs_replication-valgrind --vardir=var-gcs_replication-valgrind --suite=gcs_replication --mysqld=--enforce-gtid-consistency --mysqld=--log-slave-updates --mysqld=--gtid-mode=on --mysqld=--binlog-format=row --mysqld=--binlog-checksum=NONE --mysqld=--transaction-write-set-extraction=MURMUR32 --mysqld=--plugin-load=gcs_replication_plugin.so --mysqld=--plugin-dir=lib/plugin/debug/ --big-test --testcase-timeout=60 --suite-timeout=360
+
+# Already existent tests on rpl suite that support Group Replication
+perl mysql-test-run.pl --force --timer --debug-server --parallel=auto --experimental=collections/default.experimental --comment=rpl_gcs-valgrind --vardir=var-rpl_gcs-valgrind --suite=rpl --mysqld=--enforce-gtid-consistency --mysqld=--log-slave-updates --mysqld=--gtid-mode=on --skip-test-list=collections/disabled-gtid-on.list --mysqld=--binlog-format=row --mysqld=--binlog-checksum=NONE --mysqld=--transaction-write-set-extraction=MURMUR32 --mysqld=--plugin-load=gcs_replication_plugin.so --mysqld=--plugin-dir=lib/plugin/debug/ --big-test --testcase-timeout=60 --suite-timeout=360
