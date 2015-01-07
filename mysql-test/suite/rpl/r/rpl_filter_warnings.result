@@ -5,11 +5,16 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection master]
 CREATE TABLE t2 (c1 INT) ENGINE=InnoDB;
 include/sync_slave_sql_with_master.inc
+[connection master]
 INSERT INTO test.t2 VALUES (100);
 INSERT INTO test.t2 VALUES (200);
 INSERT INTO test.t2 VALUES (300);
+include/sync_slave_sql_with_master.inc
+SET @@GLOBAL.DEBUG= '+d,simulate_error_throttle_expiry';
+[connection master]
 DROP TABLE t2;
 include/sync_slave_sql_with_master.inc
+SET @@GLOBAL.DEBUG= '$debug_saved';
 Matching lines are:
 DATE_TIME [Note] Slave SQL for channel '': Could not execute Query event. Detailed error: Slave SQL thread ignored the query because of replicate-*-table rules; Error log throttle is enabled. This error will not be displayed for next 60 secs. It will be suppressed, Error_code: 1237
 

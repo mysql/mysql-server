@@ -1754,6 +1754,8 @@ bool Slow_log_throttle::log(THD *thd, bool eligible)
 bool Error_log_throttle::log()
 {
   ulonglong end_utime_of_query= my_micro_time();
+  DBUG_EXECUTE_IF("simulate_error_throttle_expiry",
+                  end_utime_of_query+=Log_throttle::LOG_THROTTLE_WINDOW_SIZE;);
 
   /*
     If the window has expired, we'll try to write a summary line.
