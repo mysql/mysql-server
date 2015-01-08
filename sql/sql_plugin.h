@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,7 +21,7 @@
 
 #include <mysql/plugin.h>
 
-#include "m_string.h"                       /* LEX_STRING */
+#include "mysql/mysql_lex_string.h"         // LEX_STRING
 #include "my_alloc.h"                       /* MEM_ROOT */
 #include "my_getopt.h"                      /* my_option */
 

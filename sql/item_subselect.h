@@ -1,7 +1,7 @@
 #ifndef ITEM_SUBSELECT_INCLUDED
 #define ITEM_SUBSELECT_INCLUDED
 
-/* Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,7 +18,7 @@
 
 /* subselect Item */
 
-#include "sql_priv.h" // UNCACHEABLE_DEPENDENT
+#include "item.h"   // Item_result_field
 
 class st_select_lex;
 class st_select_lex_unit;
@@ -31,6 +31,8 @@ class Item_bool_func2;
 class Cached_item;
 class Comp_creator;
 class PT_subselect;
+class Item_in_optimizer;
+class Item_func_not_all;
 
 typedef class st_select_lex SELECT_LEX;
 
@@ -251,7 +253,6 @@ public:
 };
 
 /* used in static ALL/ANY optimization */
-class select_max_min_finder_subselect;
 class Item_maxmin_subselect :public Item_singlerow_subselect
 {
 protected:

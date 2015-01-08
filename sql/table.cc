@@ -41,6 +41,7 @@
 #include "debug_sync.h"
 #include "log.h"
 #include "binlog.h"
+#include "parse_file.h"          // sql_parse_prepare
 
 
 /* INFORMATION_SCHEMA name */

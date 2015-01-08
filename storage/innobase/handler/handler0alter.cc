@@ -1508,7 +1508,7 @@ name_ok:
 			so we just assume optimize_point_storage=true, which
 			wouldn't affect the result */
 			switch (get_innobase_type_from_mysql_type(
-					&is_unsigned, field, true)) {
+				&is_unsigned, field, true)) {
 			default:
 				break;
 			case DATA_INT:

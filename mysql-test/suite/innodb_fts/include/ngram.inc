@@ -56,6 +56,10 @@ INSERT INTO articles_1 (seq,title_char,title_varchar,title_text) VALUES
   (5,'significant number of English words are constructed on the basis of roots from Latin', 'because Latin in some form was the lingua franca of the Christian Church','and of European intellectual life'),
   (7,'spread across states by  United Kingdom ~ England army','The Oxford English Dictionary liSts over 250,000 distinct words+','it became the dominant language in the United States, Canada, Australia and New Zealand');
 
+-- disable_result_log
+ANALYZE TABLE articles_1;
+-- enable_result_log
+
 # bigram search
 SELECT * FROM articles_1 WHERE
 	MATCH(title_char) AGAINST('En');
@@ -174,6 +178,10 @@ INSERT INTO articles (c1,c2,c3,j1,j2,j3,k1,k2,e1) VALUES
    ('你好嗎?','我幾好，你呢','好耐冇見','左右','左右される','☆右折⇔左折','제 이름은 Charles입니다.','운동을 좋아해요*','row row1 value'),
    ('救命啊!','火啊! 你好','生日快樂 ','雨季','雨が降りそう つやってみよう','雨雲','저분은 영어를 잘 합니다','저는 서울에서 살고 있습니다.','recording test');
 
+-- disable_result_log
+ANALYZE TABLE articles;
+-- enable_result_log
+
 # check default value ngram_token_size
 SELECT @@ngram_token_size;
 
@@ -227,10 +235,18 @@ SELECT * FROM articles WHERE
 
 INSERT INTO articles (c1,c2,c3,j1,j2,j3,k1,k2,e1) VALUES
        ('歡迎','你好','喂 ','日の長','言も言わずに','つやてみよう','제가 미국인입니다.','한국말을 공부합니다%','testing row row1 xy');
+
+-- disable_result_log
+ANALYZE TABLE articles;
+-- enable_result_log
+
 SELECT * FROM articles WHERE
         MATCH(j1,j3) AGAINST("つや +(てみ)" IN BOOLEAN MODE);
 DELETE FROM articles WHERE seq = 4;
 
+-- disable_result_log
+ANALYZE TABLE articles;
+-- enable_result_log
 
 SELECT * FROM articles WHERE MATCH(c1) AGAINST('+ ! ' IN BOOLEAN MODE);
 
@@ -302,6 +318,11 @@ INSERT INTO 名字 (c1,c2,c3,さようなら,j2,j3,행운을빈다,k2,e1) VALUES
    ('歡迎','你好','喂 ','日の長','言も言わずに','つやってみよう','제가 미국인입니다.','한국말을 공부합니다%','testing row'),
    ('你好嗎?','我幾好，你呢','好耐冇見','左右','左右される','☆右折⇔左折','제 이름은 Charles입니다.','운동을 좋아해요*','row value'),
    ('救命啊!','火啊! 你好','生日快樂 ','雨季','雨が降りそう つやってみよう','雨雲','저분은 영어를 잘 합니다','저는 서울에서 살고 있습니다.','recording test');
+
+-- disable_result_log
+ANALYZE TABLE 名字;
+-- enable_result_log
+
 SELECT * FROM 名字;
 ALTER TABLE 名字 ADD FULLTEXT INDEX con4 (c3) WITH PARSER ngram;
 ALTER TABLE 名字 ADD FULLTEXT INDEX con5 (c2) WITH PARSER ngram;
@@ -388,6 +409,11 @@ SELECT * FROM 名字 WHERE
 SELECT * FROM 名字 WHERE
         MATCH(행운을빈다) AGAINST('"분은 어를"@2' IN BOOLEAN MODE);
 COMMIT;
+
+-- disable_result_log
+ANALYZE TABLE 名字;
+-- enable_result_log
+
 SELECT * FROM 名字 WHERE
         MATCH(c1) AGAINST('啊! ');
 SELECT * FROM 名字 WHERE
@@ -418,6 +444,7 @@ INSERT INTO 名字 (c1,c2,c3,さようなら,j2,j3,행운을빈다,k2,e1) VALUES
 SAVEPOINT B;
 INSERT INTO 名字 (c1,c2,c3,さようなら,j2,j3,행운을빈다,k2,e1) VALUES
    ('救命啊!','火啊! 你好','生日快樂 ','雨季','雨が降りそう つやってみよう','雨雲','저분은 영어를 잘 합니다','저는 서울에서 살고 있습니다.','recording test');
+
 SELECT * FROM 名字 WHERE
         MATCH(c1) AGAINST('啊! ');
 SELECT * FROM 名字 WHERE
@@ -440,6 +467,7 @@ SELECT * FROM 名字 WHERE
         MATCH(행운을빈다) AGAINST('"분은 어를"@2' IN BOOLEAN MODE);
 ROLLBACK TO B;
 COMMIT;
+
 SELECT * FROM 名字 WHERE
         MATCH(c1) AGAINST('啊! ');
 SELECT * FROM 名字 WHERE
@@ -473,6 +501,11 @@ INSERT INTO 名字 (c1,c2,c3,さようなら,j2,j3,행운을빈다,k2,e1) VALUES
    ('救命啊!','火啊! 你好','生日快樂 ','雨季','雨が降りそう つやってみよう','雨雲','저분은 영어를 잘 합니다','저는 서울에서 살고 있습니다.','recording test');
 ROLLBACK;
 COMMIT;
+
+-- disable_result_log
+ANALYZE TABLE 名字;
+-- enable_result_log
+
 SELECT * FROM 名字 WHERE
         MATCH(c1) AGAINST('啊! ');
 SELECT * FROM 名字 WHERE
@@ -522,6 +555,11 @@ INSERT INTO 名字 (c1,c2,c3,さようなら,j2,j3,행운을빈다,k2,e1) VALUES
 ALTER TABLE 名字 ADD FULLTEXT INDEX con7 (j3) WITH PARSER ngram;
 ALTER TABLE 名字 ADD FULLTEXT INDEX con8 (행운을빈다) WITH PARSER ngram;
 COMMIT;
+
+-- disable_result_log
+ANALYZE TABLE 名字;
+-- enable_result_log
+
 SELECT * FROM 名字 WHERE
         MATCH(c1) AGAINST('啊! ');
 SELECT * FROM 名字 WHERE
@@ -564,6 +602,10 @@ INSERT INTO 名字 (c1,c2,c3,さようなら,j2,j3,행운을빈다,k2,e1) VALUES
    ('歡迎','你好','喂 ','日の長','言も言わずに','つやってみよう','제가 미국인입니다.','한국말을 공부합니다%','testing row'),
    ('你好嗎?','我幾好，你呢','好耐冇見','左右','左右される','☆右折⇔左折','제 이름은 Charles입니다.','운동을 좋아해요*','row value'),
    ('救命啊!','火啊! 你好','生日快樂 ','雨季','雨が降りそう つやってみよう','雨雲','저분은 영어를 잘 합니다','저는 서울에서 살고 있습니다.','recording test');
+
+-- disable_result_log
+ANALYZE TABLE 名字;
+-- enable_result_log
 
 SELECT * FROM 名字 WHERE
         MATCH(c1) AGAINST('啊! ');

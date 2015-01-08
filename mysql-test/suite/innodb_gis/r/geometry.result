@@ -1081,15 +1081,15 @@ Equals(g1.g, g2.g) as e, Disjoint(g1.g, g2.g) as d, Touches(g1.g, g2.g) as t,
 Intersects(g1.g, g2.g) as i, Crosses(g1.g, g2.g) as r
 FROM gis_geometrycollection g1, gis_geometrycollection g2 ORDER BY first, second;
 first	second	w	c	o	e	d	t	i	r
-120	120	1	1	0	1	0	1	1	0
-120	121	0	0	0	0	0	1	1	0
+120	120	1	1	0	1	0	0	1	0
+120	121	0	0	0	0	0	0	1	0
 120	122	0	0	1	0	0	0	1	0
-121	120	0	0	0	0	0	1	1	0
-121	121	1	1	0	1	0	1	1	0
+121	120	0	0	0	0	0	0	1	0
+121	121	1	1	0	1	0	0	1	0
 121	122	0	0	0	0	1	0	0	0
 122	120	0	0	1	0	0	0	1	0
 122	121	0	0	0	0	1	0	0	0
-122	122	1	1	0	1	0	1	1	0
+122	122	1	1	0	1	0	0	1	0
 explain extended SELECT g1.fid as first, g2.fid as second,
 Within(g1.g, g2.g) as w, Contains(g1.g, g2.g) as c, Overlaps(g1.g, g2.g) as o,
 Equals(g1.g, g2.g) as e, Disjoint(g1.g, g2.g) as d, Touches(g1.g, g2.g) as t,

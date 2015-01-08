@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,36 +17,28 @@
 
 /* Insert of records */
 
-#include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "sql_insert.h"
-#include "sql_update.h"                         // compare_record
-#include "sql_base.h"                           // close_thread_tables
-#include "sql_cache.h"                          // query_cache_*
-#include "key.h"                                // key_copy
-#include "lock.h"                               // mysql_unlock_tables
-#include "sp_head.h"
-#include "sql_view.h"         // check_key_in_view, insert_view_fields
-#include "sql_table.h"        // mysql_create_table_no_lock
-#include "auth_common.h"      // *_ACL, check_grant_all_columns
-#include "sql_select.h"
-#include "sql_show.h"
-#include "rpl_slave.h"
-#include "sql_parse.h"                          // end_active_trans
-#include "rpl_mi.h"
-#include "transaction.h"
-#include "sql_audit.h"
-#include "debug_sync.h"
-#include "opt_explain.h"
-#include "sql_tmp_table.h"    // tmp tables
-#include "sql_optimizer.h"    // JOIN
-#include "table_trigger_dispatcher.h"  // Table_trigger_dispatcher
-#ifdef WITH_PARTITION_STORAGE_ENGINE
-#include "sql_partition.h"
-#include "partition_info.h"            // partition_info
-#endif /* WITH_PARTITION_STORAGE_ENGINE */
-#include "binlog.h"
 
-#include "debug_sync.h"
+#include "auth_common.h"              // check_grant_all_columns
+#include "debug_sync.h"               // DEBUG_SYNC
+#include "item.h"                     // Item
+#include "lock.h"                     // mysql_unlock_tables
+#include "opt_explain.h"              // Modification_plan
+#include "opt_explain_format.h"       // enum_mod_type
+#include "rpl_rli.h"                  // Relay_log_info
+#include "rpl_slave.h"                // rpl_master_has_bug
+#include "sql_base.h"                 // setup_fields
+#include "sql_select.h"               // free_underlaid_joins
+#include "sql_show.h"                 // store_create_info
+#include "sql_table.h"                // quick_rm_table
+#include "sql_tmp_table.h"            // create_tmp_field
+#include "sql_update.h"               // records_are_comparable
+#include "sql_view.h"                 // check_key_in_view
+#include "table_trigger_dispatcher.h" // Table_trigger_dispatcher
+#include "transaction.h"              // trans_commit_stmt
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+#include "partition_info.h"           // partition_info
+#endif
 
 static bool check_view_insertability(THD *thd, TABLE_LIST *view,
                                      const TABLE_LIST *insert_table_ref);

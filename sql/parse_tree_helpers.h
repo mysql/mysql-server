@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,9 +16,10 @@
 #ifndef PARSE_TREE_HELPERS_INCLUDED
 #define PARSE_TREE_HELPERS_INCLUDED
 
-#include "my_config.h"
-#include "item.h"
+#include "item.h"           // Item
+#include "set_var.h"        // enum_var_type
 
+typedef class st_select_lex SELECT_LEX;
 
 /**
   Base class for parse-time Item objects

@@ -537,10 +537,6 @@ static MYSQL_THDVAR_BOOL(strict_mode, PLUGIN_VAR_OPCMDARG,
   "Use strict mode when evaluating create options.",
   NULL, NULL, FALSE);
 
-static MYSQL_THDVAR_BOOL(create_intrinsic, PLUGIN_VAR_OPCMDARG,
-  "If set then \"CREATE TEMPORARY TABLE\" will create intrinsic tables.",
-  NULL, NULL, FALSE);
-
 static MYSQL_THDVAR_BOOL(ft_enable_stopword, PLUGIN_VAR_OPCMDARG,
   "Create FTS index with stopword.",
   NULL, NULL,
@@ -1309,28 +1305,6 @@ thd_is_select(
 	return(thd_sql_command(thd) == SQLCOM_SELECT);
 }
 
-/** Returns true if the thread is executing CREATE TABLE statement.
-@param[in]	thd	the current thread context
-@retval true if thread is executing CREATE TABLE. */
-static
-inline
-bool
-thd_is_create_table(const THD*	thd)
-{
-	return(thd_sql_command(thd) == SQLCOM_CREATE_TABLE);
-}
-
-/** Returns true if the thread is executing CREATE INDEX statement.
-@param[in]	thd	the current thread context
-@retval true if thread is executing CREATE INDEX. */
-static
-inline
-bool
-thd_is_create_index(const THD*	thd)
-{
-	return(thd_sql_command(thd) == SQLCOM_CREATE_INDEX);
-}
-
 /******************************************************************//**
 Returns true if the thread supports XA,
 global value of innodb_supports_xa if thd is NULL.
@@ -1369,17 +1343,6 @@ thd_set_lock_wait_time(
 	if (thd) {
 		thd_storage_lock_wait(thd, value);
 	}
-}
-
-/** Get status of create intrinsic.
-@param[in]	thd	thread handle, or NULL to query
-			the global innodb_create_intrinsic.
-@return true if create intrinsic is set. */
-bool
-thd_create_intrinsic(
-	THD*	thd)
-{
-	return(THDVAR(thd, create_intrinsic));
 }
 
 /** Obtain the private handler of InnoDB session specific data.
@@ -2239,6 +2202,11 @@ check_trx_exists(
 
 	if (trx == NULL) {
 		trx = innobase_trx_allocate(thd);
+
+		/* User trx can be forced to rollback,
+		so we unset the disable flag. */
+		ut_ad(trx->in_innodb & TRX_FORCE_ROLLBACK_DISABLE);
+		trx->in_innodb &= TRX_FORCE_ROLLBACK_MASK;
 	} else {
 		ut_a(trx->magic_n == TRX_MAGIC_N);
 
@@ -4595,7 +4563,7 @@ innobase_match_index_columns(
 		since we don't need to know how it was set when the original
 		table was created before. We would do a double check later. */
 		col_type = get_innobase_type_from_mysql_type(
-				&is_unsigned, key_part->field, true);
+			&is_unsigned, key_part->field, true);
 
 		/* Ignore InnoDB specific system columns. */
 		while (mtype == DATA_SYS) {
@@ -5579,9 +5547,9 @@ ENUM and SET, and unsigned integer types are 'unsigned types'
 @return DATA_BINARY, DATA_VARCHAR, ... */
 ulint
 get_innobase_type_from_mysql_type(
-	ulint*		unsigned_flag,
-	const void*	f,
-	bool		optimize_point_storage)
+	ulint*			unsigned_flag,
+	const void*		f,
+	bool			optimize_point_storage)
 {
 	const class Field* field = reinterpret_cast<const class Field*>(f);
 
@@ -6137,6 +6105,8 @@ build_template_field(
 	if (templ->mysql_type == DATA_MYSQL_TRUE_VARCHAR) {
 		templ->mysql_length_bytes = (ulint)
 			(((Field_varstring*) field)->length_bytes);
+	} else {
+		templ->mysql_length_bytes = 0;
 	}
 
 	templ->charset = dtype_get_charset_coll(col->prtype);
@@ -6465,7 +6435,8 @@ ha_innobase::innobase_lock_autoinc(void)
 	dberr_t		error = DB_SUCCESS;
 	long		lock_mode = innobase_autoinc_lock_mode;
 
-	ut_ad(!srv_read_only_mode || dict_table_is_intrinsic(m_prebuilt->table));
+	ut_ad(!srv_read_only_mode
+	      || dict_table_is_intrinsic(m_prebuilt->table));
 
 	if (dict_table_is_intrinsic(m_prebuilt->table)) {
 		/* Intrinsic table are not shared accorss connection
@@ -6544,6 +6515,30 @@ ha_innobase::innobase_set_max_autoinc(
 	return(error);
 }
 
+/** Write Row interface optimized for intrinisc table.
+@param[in]	record	a row in MySQL format.
+@return 0 on success or error code */
+int
+ha_innobase::intrinsic_table_write_row(uchar* record)
+{
+	dberr_t		err;
+
+	/* No auto-increment support for intrinsic table. */
+	ut_ad(!(table->next_number_field && record == table->record[0]));
+
+	if (m_prebuilt->mysql_template == NULL
+	    || m_prebuilt->template_type != ROW_MYSQL_WHOLE_ROW) {
+		/* Build the template used in converting quickly between
+		the two database formats */
+		build_template(true);
+	}
+
+	err = row_insert_for_mysql((byte*) record, m_prebuilt);
+
+	return(convert_error_code_to_mysql(
+		err, m_prebuilt->table->flags, m_user_thd));
+}
+
 /********************************************************************//**
 Stores a row in an InnoDB database, to the table specified in this
 handle.
@@ -6558,10 +6553,15 @@ ha_innobase::write_row(
 	ulint		sql_command;
 	int		error_result = 0;
 	bool		auto_inc_used = false;
-	trx_t*		trx = thd_to_trx(m_user_thd);
-	TrxInInnoDB	trx_in_innodb(trx);
 
 	DBUG_ENTER("ha_innobase::write_row");
+
+	if (dict_table_is_intrinsic(m_prebuilt->table)) {
+		DBUG_RETURN(intrinsic_table_write_row(record));
+	}
+
+	trx_t*		trx = thd_to_trx(m_user_thd);
+	TrxInInnoDB	trx_in_innodb(trx);
 
 	if (trx_in_innodb.is_aborted()) {
 
@@ -6569,7 +6569,7 @@ ha_innobase::write_row(
 	}
 
 	/* Step-1: Validation checks before we commence write_row operation. */
-	if (srv_read_only_mode && !dict_table_is_intrinsic(m_prebuilt->table)) {
+	if (srv_read_only_mode) {
 		ib_senderrf(ha_thd(), IB_LOG_LEVEL_WARN, ER_READ_ONLY_MODE);
 		DBUG_RETURN(HA_ERR_TABLE_READONLY);
 	} else if (m_prebuilt->trx != trx) {
@@ -9627,7 +9627,8 @@ create_table_info_t::innobase_table_flags()
 			}
 		} else if (key->flags & HA_SPATIAL) {
 			if (m_create_info->options & HA_LEX_CREATE_TMP_TABLE
-			    && THDVAR(m_thd, create_intrinsic)
+			    && m_create_info->options
+			       & HA_LEX_CREATE_INTERNAL_TMP_TABLE
 			    && !m_file_per_table) {
 				my_error(ER_TABLE_CANT_HANDLE_SPKEYS, MYF(0));
 				DBUG_RETURN(false);
@@ -9807,16 +9808,9 @@ index_bad:
 	if (m_create_info->options & HA_LEX_CREATE_TMP_TABLE) {
 		m_flags2 |= DICT_TF2_TEMPORARY;
 
-		const bool	use_intrinsic
-			= THDVAR(m_thd, create_intrinsic)
-			&& (thd_is_create_table(m_thd)
-			    || thd_is_create_index(m_thd));
-
-		/* Intrinsic tables reside only in the shared
-		temporary tablespace. */
-		if ((use_intrinsic
-		     || m_create_info->options
-			& HA_LEX_CREATE_INTERNAL_TMP_TABLE)
+		/* Intrinsic tables reside only in the shared temporary
+		tablespace. */
+		if ((m_create_info->options & HA_LEX_CREATE_INTERNAL_TMP_TABLE)
 		    && !m_file_per_table) {
 			m_flags2 |= DICT_TF2_INTRINSIC;
 		}
@@ -17063,7 +17057,6 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(replication_delay),
   MYSQL_SYSVAR(status_file),
   MYSQL_SYSVAR(strict_mode),
-  MYSQL_SYSVAR(create_intrinsic),
   MYSQL_SYSVAR(support_xa),
   MYSQL_SYSVAR(sort_buffer_size),
   MYSQL_SYSVAR(online_alter_log_max_size),

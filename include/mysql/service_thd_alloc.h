@@ -1,5 +1,5 @@
 #ifndef MYSQL_SERVICE_THD_ALLOC_INCLUDED
-/* Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -35,12 +35,7 @@
 extern "C" {
 #endif
 
-struct st_mysql_lex_string
-{
-  char *str;
-  size_t length;
-};
-typedef struct st_mysql_lex_string MYSQL_LEX_STRING;
+#include <mysql/mysql_lex_string.h>
 
 extern struct thd_alloc_service_st {
   void *(*thd_alloc_func)(MYSQL_THD, size_t);

@@ -1,7 +1,7 @@
 #ifndef SQL_SORT_INCLUDED
 #define SQL_SORT_INCLUDED
 
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,16 +16,17 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "m_string.h"                           /* memset */
 #include "my_global.h"                          /* uchar */
 #include "my_base.h"                            /* ha_rows */
 #include "sql_array.h"
 #include "mysql_com.h"
 #include "filesort_utils.h"
 #include "sql_alloc.h"
+#include <string.h>                             /* memset */
 #include <vector>
 
 class Field;
+class Item;
 struct TABLE;
 class Filesort;
 

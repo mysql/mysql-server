@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,7 +23,6 @@
 #include "m_ctype.h"
 #include "keycache.h"
 #include "my_compare.h"
-#include "mysql/plugin.h"
 #include "my_check_opt.h"
 #include "m_string.h"
 

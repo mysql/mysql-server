@@ -16,24 +16,17 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include "field.h"       // Derivation
+#include "parse_tree_node_base.h" // Parse_tree_node
+#include "sql_array.h"   // Bounds_checked_array
+#include "trigger_def.h" // enum_trigger_variable_type
+#include "table_trigger_field_support.h" // Table_trigger_field_support
 
-#include "sql_const.h"                 /* RAND_TABLE_BIT, MAX_FIELD_NAME */
-#include "thr_malloc.h"                         /* sql_calloc */
-#include "field.h"                              /* Derivation */
-#include "sql_array.h"
-#include "table_trigger_field_support.h"  // Table_trigger_field_support
-#include "parse_tree_node_base.h"
-#include "my_time.h"                      // timestamp_type
-
-#include <algorithm>                    // std::max
-
-class Protocol;
-struct TABLE_LIST;
-void item_init(void);			/* Init item functions */
-class Item_field;
 class user_var_entry;
 
 typedef Bounds_checked_array<Item*> Ref_ptr_array;
+
+void item_init(void);			/* Init item functions */
 
 /**
   Default condition filtering (selectivity) values used by
@@ -4242,22 +4235,6 @@ public:
   }
 };
 
-
-#ifdef MYSQL_SERVER
-#include "gstream.h"
-#include "spatial.h"
-#include "item_sum.h"
-#include "set_var.h"                            /* enum_var_type */
-#include "item_func.h"
-#include "item_row.h"
-#include "item_cmpfunc.h"
-#include "item_strfunc.h"
-#include "item_geofunc.h"
-#include "item_timefunc.h"
-#include "item_subselect.h"
-#include "item_xmlfunc.h"
-#include "item_create.h"
-#endif
 
 /**
   Base class to implement typed value caching Item classes

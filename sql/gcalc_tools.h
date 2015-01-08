@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,7 +18,7 @@
 #define GCALC_TOOLS_INCLUDED
 
 #include "gcalc_slicescan.h"
-
+#include "sql_string.h"                 // String
 
 /*
   The Gcalc_function class objects are used to check for a binary relation.

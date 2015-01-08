@@ -2680,10 +2680,9 @@ row_sel_convert_mysql_key_to_innobase(
 			data_field_len = data_offset + data_len;
 		}
 
-		if (UNIV_UNLIKELY
-		    (dtype_get_mysql_type(dfield_get_type(dfield))
+		if ((dtype_get_mysql_type(dfield_get_type(dfield))
 		     == DATA_MYSQL_TRUE_VARCHAR)
-		    && UNIV_LIKELY(type != DATA_INT)) {
+		    && (type != DATA_INT)) {
 			/* In a MySQL key value format, a true VARCHAR is
 			always preceded by 2 bytes of a length field.
 			dfield_get_type(dfield)->len returns the maximum
@@ -3626,7 +3625,7 @@ row_sel_copy_cached_field_for_mysql(
 	UNIV_MEM_ASSERT_W(buf, templ->mysql_col_len);
 
 	if (templ->mysql_type == DATA_MYSQL_TRUE_VARCHAR
-	    && templ->type != DATA_INT) {
+	    && (templ->type != DATA_INT)) {
 		/* Check for != DATA_INT to make sure we do
 		not treat MySQL ENUM or SET as a true VARCHAR!
 		Find the actual length of the true VARCHAR field. */
@@ -4136,13 +4135,13 @@ row_search_no_mvcc(
 			DB_RECORD_NOT_FOUND */
 			if (0 != cmp_dtuple_rec(search_tuple, rec, offsets)) {
 				err = DB_RECORD_NOT_FOUND;
-				continue;
+				break;
 			}
 		} else if (match_mode == ROW_SEL_EXACT_PREFIX) {
 			if (!cmp_dtuple_is_prefix_of_rec(
 				search_tuple, rec, offsets)) {
 				err = DB_RECORD_NOT_FOUND;
-				continue;
+				break;
 			}
 		}
 
@@ -4155,7 +4154,7 @@ row_search_no_mvcc(
 				&offsets, &heap, mtr);
 
 			if (err != DB_SUCCESS) {
-				continue;
+				break;
 			}
 
 			if (rec_get_deleted_flag(
@@ -4176,8 +4175,13 @@ row_search_no_mvcc(
 		{
 			trx_id_t	trx_id;
 
-			trx_id = row_get_rec_trx_id(
-				result_rec, clust_index, offsets);
+			ulint		len;
+			ulint		trx_id_off = rec_get_nth_field_offs(
+				offsets, clust_index->n_uniq, &len);
+
+			ut_ad(len == DATA_TRX_ID_LEN);
+
+			trx_id = trx_read_trx_id(result_rec + trx_id_off);
 
 			if (trx_id > index->trx_id) {
 				/* This row was recently added skip it from
@@ -4212,7 +4216,8 @@ row_search_no_mvcc(
 		} else if (!row_sel_store_mysql_rec(
 				buf, prebuilt, result_rec, TRUE,
 				clust_index, offsets)) {
-			continue;
+			err = DB_ERROR;
+			break;
 		}
 
 		/* Step-7: Store cursor position to fetch next record.

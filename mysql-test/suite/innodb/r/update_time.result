@@ -46,7 +46,8 @@ SELECT update_time FROM information_schema.tables WHERE table_name = 't';
 update_time
 NULL
 XA COMMIT 'xatrx';
-SELECT update_time FROM information_schema.tables WHERE table_name = 't';
-update_time
-NULL
+SELECT COUNT(*) FROM information_schema.tables WHERE table_name = 't'
+AND update_time IS NOT NULL;
+COUNT(*)
+1
 DROP TABLE t;
