@@ -175,7 +175,7 @@ public:
   bool operator()(const uchar *s1, const uchar *s2) const
   {
 #ifdef __sun
-    // Usually faster on SUN, see comment for native_compare()
+    // The native memcmp is faster on SUN.
     return memcmp(s1, s2, m_size) < 0;
 #else
     return my_mem_compare(s1, s2, m_size);
@@ -193,7 +193,7 @@ public:
   bool operator()(const uchar *s1, const uchar *s2) const
   {
 #ifdef __sun
-    // Usually faster on SUN, see comment for native_compare()
+    // The native memcmp is faster on SUN.
     return memcmp(s1, s2, m_size) < 0;
 #else
     return my_mem_compare_longkey(s1, s2, m_size);
