@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -558,9 +558,11 @@ btr_pcur_open_at_index_side(
 }
 
 /**********************************************************************//**
-Positions a cursor at a randomly chosen position within a B-tree. */
+Positions a cursor at a randomly chosen position within a B-tree.
+@return true if the index is available and we have put the cursor, false
+if the index is unavailable */
 UNIV_INLINE
-void
+bool
 btr_pcur_open_at_rnd_pos_func(
 /*==========================*/
 	dict_index_t*	index,		/*!< in: index */
@@ -577,13 +579,17 @@ btr_pcur_open_at_rnd_pos_func(
 
 	btr_pcur_init(cursor);
 
-	btr_cur_open_at_rnd_pos_func(index, latch_mode,
-				     btr_pcur_get_btr_cur(cursor),
-				     file, line, mtr);
+	bool	available;
+
+	available = btr_cur_open_at_rnd_pos_func(index, latch_mode,
+						 btr_pcur_get_btr_cur(cursor),
+						 file, line, mtr);
 	cursor->pos_state = BTR_PCUR_IS_POSITIONED;
 	cursor->old_stored = false;
 
 	cursor->trx_if_known = NULL;
+
+	return(available);
 }
 
 /**************************************************************//**
