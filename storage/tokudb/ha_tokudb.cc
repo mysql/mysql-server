@@ -5363,9 +5363,12 @@ int ha_tokudb::get_next(uchar* buf, int direction, DBT* key_to_compare, bool do_
     }
 
     if (!error) {
-        tokudb_trx_data* trx = (tokudb_trx_data *) thd_get_ha_data(ha_thd(), tokudb_hton);
+        THD *thd = ha_thd();
+        tokudb_trx_data* trx = (tokudb_trx_data *) thd_get_ha_data(thd, tokudb_hton);
         trx->stmt_progress.queried++;
-        track_progress(ha_thd());
+        track_progress(thd);
+        if (thd_killed(thd))
+            error = ER_ABORTING_CONNECTION;
     }
 cleanup:
     return error;
