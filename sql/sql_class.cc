@@ -700,7 +700,7 @@ int thd_store_globals(THD* thd)
 
   @retval      Reference to thread attribute for connection threads
 */
-pthread_attr_t *get_connection_attrib(void)
+my_thread_attr_t *get_connection_attrib(void)
 {
   return &connection_attrib;
 }
@@ -1569,7 +1569,7 @@ void thd_get_xid(const MYSQL_THD thd, MYSQL_XID *xid)
 #if defined(_WIN32)
 extern "C"   THD *_current_thd_noinline(void)
 {
-  return my_pthread_get_THR_THD();
+  return my_thread_get_THR_THD();
 }
 #endif
 /*
@@ -2203,8 +2203,8 @@ bool THD::store_globals()
   */
   DBUG_ASSERT(thread_stack);
 
-  if (my_pthread_set_THR_THD(this) ||
-      my_pthread_set_THR_MALLOC(&mem_root))
+  if (my_thread_set_THR_THD(this) ||
+      my_thread_set_THR_MALLOC(&mem_root))
     return 1;
   /*
     mysys_var is concurrently readable by a killer thread.
@@ -2222,7 +2222,7 @@ bool THD::store_globals()
     This allows us to move THD to different threads if needed.
   */
   mysys_var->id= m_thread_id;
-  real_id= pthread_self();                      // For debugging
+  real_id= my_thread_self();                      // For debugging
 
   return 0;
 }
@@ -2240,8 +2240,8 @@ bool THD::restore_globals()
   DBUG_ASSERT(thread_stack);
 
   /* Undocking the thread specific data. */
-  my_pthread_set_THR_THD(NULL);
-  my_pthread_set_THR_MALLOC(NULL);
+  my_thread_set_THR_THD(NULL);
+  my_thread_set_THR_MALLOC(NULL);
 
   return 0;
 }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -178,7 +178,7 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
     {
       delete tmp_thd;
       /* Remember that we don't have a THD */
-      my_pthread_set_THR_THD(NULL);
+      my_thread_set_THR_THD(NULL);
       thd= 0;
     }
   }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -15,7 +15,7 @@
 
 
 #include "my_global.h"
-#include "my_pthread.h"
+#include "my_thread.h"
 #include "pfs_con_slice.h"
 #include "pfs_stat.h"
 #include "pfs_global.h"

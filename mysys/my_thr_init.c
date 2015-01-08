@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,29 +22,28 @@
 #include <m_string.h>
 #include <signal.h>
 
-static thread_local_key_t THR_KEY_mysys;
 static my_bool THR_KEY_mysys_initialized= FALSE;
+static my_bool my_thread_global_init_done= FALSE;
+static uint    THR_thread_count= 0;
+static uint    my_thread_end_wait_time= 5;
+static my_thread_id thread_id= 0;
+static thread_local_key_t THR_KEY_mysys;
+
 mysql_mutex_t THR_LOCK_malloc, THR_LOCK_open,
               THR_LOCK_lock, THR_LOCK_myisam, THR_LOCK_heap,
               THR_LOCK_net, THR_LOCK_charset, THR_LOCK_threads,
               THR_LOCK_myisam_mmap;
-
 mysql_cond_t  THR_COND_threads;
-static uint   THR_thread_count= 0;
-static uint   my_thread_end_wait_time= 5;
+
 #ifdef PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP
 native_mutexattr_t my_fast_mutexattr;
 #endif
 #ifdef PTHREAD_ERRORCHECK_MUTEX_INITIALIZER_NP
 native_mutexattr_t my_errorcheck_mutexattr;
 #endif
-#ifdef _MSC_VER
+#ifdef _WIN32
 static void install_sigabrt_handler();
 #endif
-
-
-/** True if @c my_thread_global_init() has been called. */
-static my_bool my_thread_global_init_done= 0;
 
 
 /**
@@ -55,7 +54,8 @@ static my_bool my_thread_global_init_done= 0;
   This is safe, since this function() is called before creating new threads,
   so the mutexes are not in use.
 */
-void my_thread_global_reinit(void)
+
+void my_thread_global_reinit()
 {
   struct st_my_thread_var *tmp;
 
@@ -99,24 +99,27 @@ void my_thread_global_reinit(void)
   mysql_cond_init(key_my_thread_var_suspend, &tmp->suspend);
 }
 
-/*
+
+/**
   initialize thread environment
 
-  SYNOPSIS
-    my_thread_global_init()
-
-  RETURN
-    0  ok
-    1  error (Couldn't create THR_KEY_mysys)
+  @retval  FALSE  ok
+  @retval  TRUE   error (Couldn't create THR_KEY_mysys)
 */
 
-my_bool my_thread_global_init(void)
+my_bool my_thread_global_init()
 {
   int pth_ret;
 
   if (my_thread_global_init_done)
-    return 0;
-  my_thread_global_init_done= 1;
+    return FALSE;
+  my_thread_global_init_done= TRUE;
+
+#if defined(SAFE_MUTEX)
+  safe_mutex_global_init();		/* Must be called early */
+#elif defined(MY_PTHREAD_FASTMUTEX)
+  fastmutex_global_init();              /* Must be called early */
+#endif
 
 #ifdef PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP
   /*
@@ -148,18 +151,14 @@ my_bool my_thread_global_init(void)
     my_message_local(ERROR_LEVEL, "Can't initialize threads: error %d",
                      pth_ret);
     /* purecov: end */
-    return 1;
+    return TRUE;
   }
-
   THR_KEY_mysys_initialized= TRUE;
+
   mysql_mutex_init(key_THR_LOCK_malloc, &THR_LOCK_malloc, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_THR_LOCK_open, &THR_LOCK_open, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_THR_LOCK_charset, &THR_LOCK_charset, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_THR_LOCK_threads, &THR_LOCK_threads, MY_MUTEX_INIT_FAST);
-
-  if (my_thread_init())
-    return 1;
-
   mysql_mutex_init(key_THR_LOCK_lock, &THR_LOCK_lock, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_THR_LOCK_myisam, &THR_LOCK_myisam, MY_MUTEX_INIT_SLOW);
   mysql_mutex_init(key_THR_LOCK_myisam_mmap, &THR_LOCK_myisam_mmap, MY_MUTEX_INIT_FAST);
@@ -167,18 +166,14 @@ my_bool my_thread_global_init(void)
   mysql_mutex_init(key_THR_LOCK_net, &THR_LOCK_net, MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_THR_COND_threads, &THR_COND_threads);
 
-#ifdef _MSC_VER
-  install_sigabrt_handler();
-#endif
-
-  return 0;
+  return FALSE;
 }
 
 
-void my_thread_global_end(void)
+void my_thread_global_end()
 {
   struct timespec abstime;
-  my_bool all_threads_killed= 1;
+  my_bool all_threads_killed= TRUE;
 
   set_timespec(&abstime, my_thread_end_wait_time);
   mysql_mutex_lock(&THR_LOCK_threads);
@@ -200,7 +195,7 @@ void my_thread_global_end(void)
                          "%d threads didn't exit", THR_thread_count);
         /* purecov: end */
 #endif
-      all_threads_killed= 0;
+      all_threads_killed= FALSE;
       break;
     }
   }
@@ -229,29 +224,18 @@ void my_thread_global_end(void)
     mysql_cond_destroy(&THR_COND_threads);
   }
 
-  my_thread_global_init_done= 0;
+  my_thread_global_init_done= FALSE;
 }
 
-static my_thread_id thread_id= 0;
 
-/*
+/**
   Allocate thread specific memory for the thread, used by mysys and dbug
 
-  SYNOPSIS
-    my_thread_init()
+  @note This function may called multiple times for a thread, for example
+  if one uses my_init() followed by mysql_server_init().
 
-  NOTES
-    We can't use mutex_locks here if we are using windows as
-    we may have compiled the program with SAFE_MUTEX, in which
-    case the checking of mutex_locks will not work until
-    the pthread_self thread specific variable is initialized.
-
-   This function may called multiple times for a thread, for example
-   if one uses my_init() followed by mysql_server_init().
-
-  RETURN
-    FALSE  ok
-    TRUE   Fatal error; mysys/dbug functions can't be used
+  @retval FALSE  ok
+  @retval TRUE   Fatal error; mysys/dbug functions can't be used
 */
 
 my_bool my_thread_init()
@@ -264,7 +248,7 @@ my_bool my_thread_init()
   if (mysys_thread_var())
     return FALSE;
 
-#ifdef _MSC_VER
+#ifdef _WIN32
   install_sigabrt_handler();
 #endif
 
@@ -287,16 +271,12 @@ my_bool my_thread_init()
 }
 
 
-/*
+/**
   Deallocate memory used by the thread for book-keeping
 
-  SYNOPSIS
-    my_thread_end()
-
-  NOTE
-    This may be called multiple times for a thread.
-    This happens for example when one calls 'mysql_server_init()'
-    mysql_server_end() and then ends with a mysql_end().
+  @note This may be called multiple times for a thread.
+  This happens for example when one calls 'mysql_server_init()'
+  mysql_server_end() and then ends with a mysql_end().
 */
 
 void my_thread_end()
@@ -320,7 +300,7 @@ void my_thread_end()
     {
       DBUG_POP();
       free(tmp->dbug);
-      tmp->dbug=0;
+      tmp->dbug= NULL;
     }
 #endif
     mysql_cond_destroy(&tmp->suspend);
@@ -392,7 +372,7 @@ static void my_sigabrt_handler(int sig)
   __debugbreak();
 }
 
-static void install_sigabrt_handler(void)
+static void install_sigabrt_handler()
 {
   /*abort() should not override our exception filter*/
   _set_abort_behavior(0,_CALL_REPORTFAULT);

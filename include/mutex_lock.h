@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
 #define MUTEX_LOCK_INCLUDED
 
 #include <my_global.h>
-#include <my_pthread.h>
+#include <my_thread.h>
 
 /**
   A simple wrapper around a mutex:

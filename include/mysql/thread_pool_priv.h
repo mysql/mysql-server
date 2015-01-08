@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -182,6 +182,6 @@ ulong get_max_connections(void);
   the method get_connection_attrib provides a reference to these
   attributes.
 */
-pthread_attr_t *get_connection_attrib(void);
+my_thread_attr_t *get_connection_attrib(void);
 
 #endif // THREAD_POOL_PRIV_INCLUDED

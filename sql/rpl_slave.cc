@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1542,8 +1542,10 @@ terminate_slave_thread(THD *thd,
       EINVAL: invalid signal number (can't happen)
       ESRCH: thread already killed (can happen, should be ignored)
     */
+#ifndef _WIN32
     int err __attribute__((unused))= pthread_kill(thd->real_id, SIGUSR1);
     DBUG_ASSERT(err != EINVAL);
+#endif
     thd->awake(THD::NOT_KILLED);
     mysql_mutex_unlock(&thd->LOCK_thd_data);
 
@@ -1580,14 +1582,14 @@ int start_slave_thread(
 #ifdef HAVE_PSI_INTERFACE
                        PSI_thread_key thread_key,
 #endif
-                       pthread_handler h_func, mysql_mutex_t *start_lock,
+                       my_start_routine h_func, mysql_mutex_t *start_lock,
                        mysql_mutex_t *cond_lock,
                        mysql_cond_t *start_cond,
                        volatile uint *slave_running,
                        volatile ulong *slave_run_id,
                        Master_info* mi)
 {
-  pthread_t th;
+  my_thread_handle th;
   ulong start_id;
   int error;
   DBUG_ENTER("start_slave_thread");
@@ -5064,7 +5066,7 @@ static int try_to_reconnect(THD *thd, MYSQL *mysql, Master_info *mi,
 
   @return Always 0.
 */
-pthread_handler_t handle_slave_io(void *arg)
+extern "C" void *handle_slave_io(void *arg)
 {
   THD *thd= NULL; // needs to be first for thread_stack
   bool thd_added= false;
@@ -5510,7 +5512,7 @@ err:
   DBUG_LEAVE;                                   // Must match DBUG_ENTER()
   my_thread_end();
   ERR_remove_state(0);
-  pthread_exit(0);
+  my_thread_exit(0);
   return(0);                                    // Avoid compiler warnings
 }
 
@@ -5576,7 +5578,7 @@ int check_temp_dir(char* tmp_file, const char *channel_name)
 /*
   Worker thread for the parallel execution of the replication events.
 */
-pthread_handler_t handle_slave_worker(void *arg)
+extern "C" void *handle_slave_worker(void *arg)
 {
   THD *thd;                     /* needs to be first for thread_stack */
   bool thd_added= false;
@@ -5738,7 +5740,7 @@ err:
 
   my_thread_end();
   ERR_remove_state(0);
-  pthread_exit(0);
+  my_thread_exit(0);
   DBUG_RETURN(0); 
 }
 
@@ -6217,7 +6219,7 @@ end:
 int slave_start_single_worker(Relay_log_info *rli, ulong i)
 {
   int error= 0;
-  pthread_t th;
+  my_thread_handle th;
   Slave_worker *w= NULL;
 
   mysql_mutex_assert_owner(&rli->run_lock);
@@ -6557,7 +6559,7 @@ end:
 
   @return Always 0.
 */
-pthread_handler_t handle_slave_sql(void *arg)
+extern "C" void *handle_slave_sql(void *arg)
 {
   THD *thd;                     /* needs to be first for thread_stack */
   bool thd_added= false;
@@ -7004,7 +7006,7 @@ llstr(rli->get_group_master_log_pos(), llbuff));
   DBUG_LEAVE;                            // Must match DBUG_ENTER()
   my_thread_end();
   ERR_remove_state(0);
-  pthread_exit(0);
+  my_thread_exit(0);
   return 0;                             // Avoid compiler warnings
 }
 

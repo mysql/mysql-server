@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -33,15 +33,9 @@ namespace table_cache_unittest {
 
 using my_testing::Server_initializer;
 
-// Strings in asserts are slightly different on Windows
 #ifdef SAFE_MUTEX
-#ifdef _WIN32
 static const char *assert_string=
-  ".*Assertion.*count > 0.*GetCurrentThreadId.*";
-#else
-static const char *assert_string=
-  ".*Assertion.*count > 0.*pthread_equal.*";
-#endif
+  ".*Assertion.*count > 0.*my_thread_equal.*";
 #endif
 
 /**

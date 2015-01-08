@@ -437,8 +437,8 @@ typedef void (*close_table_v1_t)(struct TABLE_SHARE *server_share,
 typedef void (*create_file_v1_t)(PSI_file_key key, const char *name,
                                  File file);
 typedef int (*spawn_thread_v1_t)(PSI_thread_key key,
-                                 pthread_t *thread,
-                                 const pthread_attr_t *attr,
+                                 my_thread_handle *thread,
+                                 const my_thread_attr_t *attr,
                                  void *(*start_routine)(void*), void *arg);
 typedef struct PSI_thread* (*new_thread_v1_t)
   (PSI_thread_key key, const void *identity, ulonglong thread_id);

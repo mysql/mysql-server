@@ -17,7 +17,7 @@
 #define _my_sys_h
 
 #include "my_global.h"                  /* C_MODE_START, C_MODE_END */
-#include "my_pthread.h"
+#include "my_thread.h"
 #include "m_ctype.h"                    /* for CHARSET_INFO */
 
 #ifdef HAVE_ALLOCA_H
