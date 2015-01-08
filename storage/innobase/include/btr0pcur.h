@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -196,9 +196,11 @@ btr_pcur_open_on_user_rec_func(
 #define btr_pcur_open_on_user_rec(i,t,md,l,c,m)				\
 	btr_pcur_open_on_user_rec_func(i,t,md,l,c,__FILE__,__LINE__,m)
 /**********************************************************************//**
-Positions a cursor at a randomly chosen position within a B-tree. */
+Positions a cursor at a randomly chosen position within a B-tree.
+@return true if the index is available and we have put the cursor, false
+if the index is unavailable */
 UNIV_INLINE
-void
+bool
 btr_pcur_open_at_rnd_pos_func(
 /*==========================*/
 	dict_index_t*	index,		/*!< in: index */
