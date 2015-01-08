@@ -216,7 +216,7 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c` from `test`.`t3` where (`test`.`t3`.`c` between <cache>(-(2)) and <cache>(-(1)))
 # bug#20022189: WL411:DEBUG ASSERT AT FIELD_LONG::VAL_INT IN SQL/FIELD.CC
 CREATE TABLE t4 (
-`pk` int(11) NOT NULL AUTO_INCREMENT,
+`pk` int(11) NOT NULL ,
 `col_int_nokey` int(11) GENERATED ALWAYS AS (pk + col_int_key) STORED,
 `col_int_key` int(11) DEFAULT NULL,
 `col_date_nokey` date DEFAULT NULL,

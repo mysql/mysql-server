@@ -155,7 +155,7 @@ if (!$myisam_engine)
 }
 --echo # bug#20022189: WL411:DEBUG ASSERT AT FIELD_LONG::VAL_INT IN SQL/FIELD.CC
 CREATE TABLE t4 (
-  `pk` int(11) NOT NULL AUTO_INCREMENT,
+  `pk` int(11) NOT NULL ,
   `col_int_nokey` int(11) GENERATED ALWAYS AS (pk + col_int_key) STORED,
   `col_int_key` int(11) DEFAULT NULL,
   `col_date_nokey` date DEFAULT NULL,

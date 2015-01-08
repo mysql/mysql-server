@@ -7363,6 +7363,9 @@ ER_GENERATED_COLUMN_NON_PRIOR
 ER_DEPENDENT_BY_GENERATED_COLUMN
   eng "Column '%s' has a generated column dependency."
 
+ER_GENERATED_COLUMN_REF_AUTO_INC,
+  eng "Stored generated column '%s' cannot refer auto-increment column."
+
 #
 #  End of 5.7 error messages.
 #
