@@ -1152,6 +1152,7 @@ echo "====="                                                       >> $STATUS_HI
 %attr(755, root, root) %{_bindir}/ndb_move_data
 %attr(755, root, root) %{_bindir}/ndb_print_backup_file
 %attr(755, root, root) %{_bindir}/ndb_print_file
+%attr(755, root, root) %{_bindir}/ndb_print_frag_file 
 %attr(755, root, root) %{_bindir}/ndb_print_schema_file
 %attr(755, root, root) %{_bindir}/ndb_print_sys_file
 %attr(755, root, root) %{_bindir}/ndb_redo_log_reader
