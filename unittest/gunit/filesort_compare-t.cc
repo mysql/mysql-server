@@ -18,6 +18,7 @@
 #include <gtest/gtest.h>
 
 #include "filesort_utils.h"
+#include "test_utils.h"
 
 #include <algorithm>
 #include <memory>
@@ -370,7 +371,7 @@ TEST_F(FileSortCompareTest, MyQsort)
   {
     std::vector<uchar*> keys(sort_keys, sort_keys + num_records);
     my_qsort2((uchar*) &keys[0], num_records, sizeof(uchar*),
-              get_ptr_compare(record_size), &size);
+              my_testing::get_ptr_compare(record_size), &size);
   }
 }
 
