@@ -204,6 +204,11 @@ void table_replication_group_member_stats::make_row()
       memcpy(m_row.view_id, group_member_stats_info->view_id,
              m_row.view_id_length);
     }
+    else
+    {
+      m_row.view_id_length= 0;
+      m_row.view_id[0]= '\0';
+    }
 
     m_row.member_id_length= strlen(group_member_stats_info->member_id);
     memcpy(m_row.member_id, group_member_stats_info->member_id,
