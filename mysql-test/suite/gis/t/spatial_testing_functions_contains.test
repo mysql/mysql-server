@@ -1121,6 +1121,10 @@ SELECT ST_CONTAINS(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT('POINT(30 3
 
 SELECT ST_CONTAINS(g,GEOMFROMTEXT(@star_top)) FROM gis_geometrycollection WHERE fid=115;
 
+SELECT ST_CONTAINS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(0 0,2 2),POINT(4 4))'),ST_GEOMFROMTEXT('POINT(4 4)'));
+
+SELECT ST_CONTAINS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0)),POINT(4 4))'),ST_GEOMFROMTEXT('POINT(5 5)'));
+
 --echo #-------------------------------------------------------------------------------------------
 --echo # geometrycollection,multipoint
 SELECT ST_CONTAINS(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star_bottom_points));

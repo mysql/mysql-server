@@ -1,7 +1,7 @@
 #ifndef TABLE_INCLUDED
 #define TABLE_INCLUDED
 
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,25 +17,21 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
-#include "sql_plist.h"
-#include "sql_alloc.h"
-#include "mdl.h"
-#include "datadict.h"
 
 #ifndef MYSQL_CLIENT
 
-#include "hash.h"                               /* HASH */
-#include "handler.h"                /* row_type, ha_choice, handler */
-#include "mysql_com.h"              /* enum_field_types */
-#include "thr_lock.h"                  /* thr_lock_type */
-#include "filesort_utils.h"
-#include "parse_file.h"
-#include "sql_sort.h"
-#include "table_id.h"
-#include "opt_costmodel.h"
+#include "hash.h"          // HASH
+#include "datadict.h"      // frm_type_enum
+#include "handler.h"       // row_type
+#include "mdl.h"           // MDL_wait_for_subgraph
+#include "opt_costmodel.h" // Cost_model_table
+#include "sql_bitmap.h"    // Bitmap
+#include "sql_sort.h"      // Filesort_info
+#include "table_id.h"      // Table_id
 
 /* Structs that defines the TABLE */
-
+typedef struct st_key KEY;
+class File_parser;
 class Item;				/* Needed by ORDER */
 class Item_subselect;
 class Item_field;

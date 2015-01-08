@@ -38,7 +38,7 @@ insert into t2 values (4,_ucs2 0x05612020,_ucs2 0x05612020,'taken');
 update t1 set filler = 'boo' where a = 1;
 update t2 set filler ='email' where a = 4;
 select a,hex(b),hex(c),filler from t1 order by filler;
-select a,hex(b),hex(c),filler from t2 order by filler;
+select a,hex(b),hex(c),filler from t2 order by filler, hex(b) desc;
 drop table t1;
 drop table t2;
 
@@ -71,7 +71,7 @@ insert into t2 values (4,_ucs2 0x05612020,_ucs2 0x05612020,'taken');
 update t1 set filler = 'boo' where a = 1;
 update t2 set filler ='email' where a = 4;
 select a,hex(b),hex(c),filler from t1 order by filler;
-select a,hex(b),hex(c),filler from t2 order by filler;
+select a,hex(b),hex(c),filler from t2 order by filler, hex(b) desc;
 drop table t1;
 drop table t2;
 

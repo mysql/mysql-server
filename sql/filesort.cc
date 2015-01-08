@@ -36,6 +36,7 @@
 #include "opt_costmodel.h"
 #include "priority_queue.h"
 #include "log.h"
+#include "item_sum.h"                   // Item_sum
 
 #include <algorithm>
 #include <utility>

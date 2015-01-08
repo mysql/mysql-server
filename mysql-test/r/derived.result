@@ -1591,11 +1591,9 @@ select count(*) from t1 join (
 select t1.f1 from t1 join t1 as t2 join t1 as t3) tt on t1.f1 = tt.f1;
 count(*)
 1000
-Should be greater than 1000 as it also includes records dumped from
-heap to myisam.
 show status like 'Handler_write';
 Variable_name	Value
-Handler_write	1021
+Handler_write	21
 set @@max_heap_table_size= @save_heap_size;
 drop table t1;
 #

@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -37,10 +37,6 @@ enum enum_mysql_completiontype {
 extern "C" int test_if_data_home_dir(const char *dir);
 
 bool stmt_causes_implicit_commit(const THD *thd, uint mask);
-
-int mysql_multi_update_prepare(THD *thd);
-int mysql_multi_delete_prepare(THD *thd, uint *table_count);
-bool mysql_insert_select_prepare(THD *thd);
 
 #ifndef DBUG_OFF
 extern void turn_parser_debug_on();

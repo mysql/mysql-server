@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,9 +16,8 @@
 #ifndef _SP_H_
 #define _SP_H_
 
-#include "sql_string.h"                         // LEX_STRING
-#include "sp_head.h"                            // enum_sp_type
-
+#include "my_global.h"
+#include "sql_lex.h"       // enum_sp_type
 
 class Field;
 class Open_tables_backup;

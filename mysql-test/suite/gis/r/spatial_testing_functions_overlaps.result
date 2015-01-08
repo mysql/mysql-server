@@ -1167,31 +1167,31 @@ ST_OVERLAPS(GEOMFROMTEXT('POINT(20 20)'),GEOMFROMTEXT('MULTIPOLYGON(((0 0,10 0,1
 # point,geometrycollection
 SELECT ST_OVERLAPS(GEOMFROMTEXT(@star_top),GEOMFROMTEXT(@star_collection_elems));
 ST_OVERLAPS(GEOMFROMTEXT(@star_top),GEOMFROMTEXT(@star_collection_elems))
-1
+0
 SELECT ST_OVERLAPS(GEOMFROMTEXT('POINT(-0.01 0)'),GEOMFROMTEXT(@star_collection_elems));
 ST_OVERLAPS(GEOMFROMTEXT('POINT(-0.01 0)'),GEOMFROMTEXT(@star_collection_elems))
-1
+0
 SELECT ST_OVERLAPS(g,GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=104;
 ST_OVERLAPS(g,GEOMFROMTEXT(@star_collection_elems))
-1
+0
 SELECT ST_OVERLAPS(GEOMFROMTEXT(@star_top),GEOMFROMTEXT(@star_collection_multilinestr));
 ST_OVERLAPS(GEOMFROMTEXT(@star_top),GEOMFROMTEXT(@star_collection_multilinestr))
-1
+0
 SELECT ST_OVERLAPS(GEOMFROMTEXT('POINT(5 5)'),GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'));
 ST_OVERLAPS(GEOMFROMTEXT('POINT(5 5)'),GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'))
 NULL
 SELECT ST_OVERLAPS(GEOMFROMTEXT('POINT(5 5)'),GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(5 5))'));
 ST_OVERLAPS(GEOMFROMTEXT('POINT(5 5)'),GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(5 5))'))
-1
+0
 SELECT ST_OVERLAPS(GEOMFROMTEXT('POINT(5 5)'),GEOMFROMTEXT('GEOMETRYCOLLECTION(MULTIPOINT(0 0,5 5,10 10),GEOMETRYCOLLECTION())'));
 ST_OVERLAPS(GEOMFROMTEXT('POINT(5 5)'),GEOMFROMTEXT('GEOMETRYCOLLECTION(MULTIPOINT(0 0,5 5,10 10),GEOMETRYCOLLECTION())'))
-NULL
+0
 SELECT ST_OVERLAPS(GEOMFROMTEXT('POINT(0 0)'),GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,10 0,10 10,0 10,0 0))))'));
 ST_OVERLAPS(GEOMFROMTEXT('POINT(0 0)'),GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,10 0,10 10,0 10,0 0))))'))
-1
+0
 SELECT ST_OVERLAPS(GEOMFROMTEXT('POINT(20 20)'),GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,10 0,10 10,0 10,0 0))))'));
 ST_OVERLAPS(GEOMFROMTEXT('POINT(20 20)'),GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,10 0,10 10,0 10,0 0))))'))
-1
+0
 #-------------------------------------------------------------------------------------------
 # multipoint,point
 SELECT ST_OVERLAPS(GEOMFROMTEXT(@star_all_points),GEOMFROMTEXT(@star_top));
@@ -1289,22 +1289,22 @@ ST_OVERLAPS(g,GEOMFROMTEXT(@star_of_elems))
 # multipoint,geometrycollection
 SELECT ST_OVERLAPS(GEOMFROMTEXT('MULTIPOINT(0 0,0 30,30 25)'),GEOMFROMTEXT(@star_collection_elems));
 ST_OVERLAPS(GEOMFROMTEXT('MULTIPOINT(0 0,0 30,30 25)'),GEOMFROMTEXT(@star_collection_elems))
-1
+0
 SELECT ST_OVERLAPS(GEOMFROMTEXT(@star_all_points),GEOMFROMTEXT(@star_collection_elems));
 ST_OVERLAPS(GEOMFROMTEXT(@star_all_points),GEOMFROMTEXT(@star_collection_elems))
-1
+0
 SELECT ST_OVERLAPS(g,GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=109;
 ST_OVERLAPS(g,GEOMFROMTEXT(@star_collection_elems))
-1
+0
 SELECT ST_OVERLAPS(g,GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=209;
 ST_OVERLAPS(g,GEOMFROMTEXT(@star_collection_elems))
-1
+0
 SELECT ST_OVERLAPS(g,GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=309;
 ST_OVERLAPS(g,GEOMFROMTEXT(@star_collection_elems))
-1
+0
 SELECT ST_OVERLAPS(GEOMFROMTEXT(@star_all_points),GEOMFROMTEXT(@star_collection_multilinestr));
 ST_OVERLAPS(GEOMFROMTEXT(@star_all_points),GEOMFROMTEXT(@star_collection_multilinestr))
-1
+0
 #-------------------------------------------------------------------------------------------
 # linestring,point
 SELECT ST_OVERLAPS(GEOMFROMTEXT(@star_top_to_center),GEOMFROMTEXT(@star_center));
@@ -1400,22 +1400,22 @@ ST_OVERLAPS(g,GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)
 # linestring,geometrycollection
 SELECT ST_OVERLAPS(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT(@star_collection_elems));
 ST_OVERLAPS(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT(@star_collection_elems))
-1
+0
 SELECT ST_OVERLAPS(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT(@star_collection_elems));
 ST_OVERLAPS(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT(@star_collection_elems))
-1
+0
 SELECT ST_OVERLAPS(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT(@star_collection_elems_2));
 ST_OVERLAPS(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT(@star_collection_elems_2))
-1
+0
 SELECT ST_OVERLAPS(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT(@star_collection_elems_3));
 ST_OVERLAPS(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT(@star_collection_elems_3))
-1
+0
 SELECT ST_OVERLAPS(g,GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=110;
 ST_OVERLAPS(g,GEOMFROMTEXT(@star_collection_elems))
-1
+0
 SELECT ST_OVERLAPS(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT(@star_collection_multilinestr));
 ST_OVERLAPS(GEOMFROMTEXT(@star_line_horizontal),GEOMFROMTEXT(@star_collection_multilinestr))
-1
+0
 #-------------------------------------------------------------------------------------------
 # multilinestring,point
 SELECT ST_OVERLAPS(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_top));
@@ -1511,16 +1511,16 @@ ST_OVERLAPS(g,GEOMFROMTEXT(@star_of_elems))
 # multilinestring,geometrycollection
 SELECT ST_OVERLAPS(GEOMFROMTEXT('MULTILINESTRING((0 25,25 0,25 30))'),GEOMFROMTEXT(@star_collection_elems));
 ST_OVERLAPS(GEOMFROMTEXT('MULTILINESTRING((0 25,25 0,25 30))'),GEOMFROMTEXT(@star_collection_elems))
-1
+0
 SELECT ST_OVERLAPS(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_collection_elems));
 ST_OVERLAPS(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_collection_elems))
-1
+0
 SELECT ST_OVERLAPS(g,GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=114;
 ST_OVERLAPS(g,GEOMFROMTEXT(@star_collection_elems))
-1
+0
 SELECT ST_OVERLAPS(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_collection_multilinestr));
 ST_OVERLAPS(GEOMFROMTEXT(@star_lines_near_vertical),GEOMFROMTEXT(@star_collection_multilinestr))
-1
+0
 #-------------------------------------------------------------------------------------------
 # polygon,point
 SELECT ST_OVERLAPS(GEOMFROMTEXT(@star),GEOMFROMTEXT(@star_center));
@@ -1634,22 +1634,22 @@ ST_OVERLAPS(g,GEOMFROMTEXT(@star_of_elems))
 # polygon,geometrycollection
 SELECT ST_OVERLAPS(GEOMFROMTEXT(@star),GEOMFROMTEXT(@star_collection_elems));
 ST_OVERLAPS(GEOMFROMTEXT(@star),GEOMFROMTEXT(@star_collection_elems))
-1
+0
 SELECT ST_OVERLAPS(GEOMFROMTEXT(@star_elem_vertical),GEOMFROMTEXT(@star_collection_elems));
 ST_OVERLAPS(GEOMFROMTEXT(@star_elem_vertical),GEOMFROMTEXT(@star_collection_elems))
-1
+0
 SELECT ST_OVERLAPS(g,GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=100;
 ST_OVERLAPS(g,GEOMFROMTEXT(@star_collection_elems))
-1
+0
 SELECT ST_OVERLAPS(g,GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=300;
 ST_OVERLAPS(g,GEOMFROMTEXT(@star_collection_elems))
-1
+0
 SELECT ST_OVERLAPS(g,GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=400;
 ST_OVERLAPS(g,GEOMFROMTEXT(@star_collection_elems))
-1
+0
 SELECT ST_OVERLAPS(GEOMFROMTEXT(@star),GEOMFROMTEXT(@star_collection_multilinestr));
 ST_OVERLAPS(GEOMFROMTEXT(@star),GEOMFROMTEXT(@star_collection_multilinestr))
-1
+0
 #-------------------------------------------------------------------------------------------
 # multipolygon,point
 SELECT ST_OVERLAPS(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT(@star_top));
@@ -1751,51 +1751,51 @@ ST_OVERLAPS(g,g2)
 # multipolygon,geometrycollection
 SELECT ST_OVERLAPS(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT(@star_collection_elems));
 ST_OVERLAPS(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT(@star_collection_elems))
-1
+0
 SELECT ST_OVERLAPS(g,GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=103;
 ST_OVERLAPS(g,GEOMFROMTEXT(@star_collection_elems))
-1
+0
 SELECT ST_OVERLAPS(g,GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=303;
 ST_OVERLAPS(g,GEOMFROMTEXT(@star_collection_elems))
-1
+0
 SELECT ST_OVERLAPS(g,GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=403;
 ST_OVERLAPS(g,GEOMFROMTEXT(@star_collection_elems))
-1
+0
 SELECT ST_OVERLAPS(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
 WHERE fid=103 and fid2=115;
 ST_OVERLAPS(g,g2)
-1
+0
 SELECT ST_OVERLAPS(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT(@star_collection_multilinestr));
 ST_OVERLAPS(GEOMFROMTEXT(@star_of_elems),GEOMFROMTEXT(@star_collection_multilinestr))
-1
+0
 #-------------------------------------------------------------------------------------------
 # geometrycollection,point
 SELECT ST_OVERLAPS(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star_top));
 ST_OVERLAPS(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star_top))
-1
+0
 SELECT ST_OVERLAPS(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT('POINT(30 30)'));
 ST_OVERLAPS(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT('POINT(30 30)'))
-1
+0
 SELECT ST_OVERLAPS(g,GEOMFROMTEXT(@star_top)) FROM gis_geometrycollection WHERE fid=115;
 ST_OVERLAPS(g,GEOMFROMTEXT(@star_top))
-1
+0
 SELECT ST_OVERLAPS(g,GEOMFROMTEXT(@star_top)) FROM gis_geometrycollection WHERE fid=415;
 ST_OVERLAPS(g,GEOMFROMTEXT(@star_top))
-1
+0
 #-------------------------------------------------------------------------------------------
 # geometrycollection,multipoint
 SELECT ST_OVERLAPS(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star_bottom_points));
 ST_OVERLAPS(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star_bottom_points))
-1
+0
 SELECT ST_OVERLAPS(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT('MULTIPOINT(30 30,0 35)'));
 ST_OVERLAPS(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT('MULTIPOINT(30 30,0 35)'))
-1
+0
 SELECT ST_OVERLAPS(g,GEOMFROMTEXT(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=115;
 ST_OVERLAPS(g,GEOMFROMTEXT(@star_bottom_points))
-1
+0
 SELECT ST_OVERLAPS(g,GEOMFROMTEXT(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=415;
 ST_OVERLAPS(g,GEOMFROMTEXT(@star_bottom_points))
-1
+0
 #-------------------------------------------------------------------------------------------
 # geometrycollection,linestring
 SELECT ST_OVERLAPS(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star_top_to_center));
@@ -1803,27 +1803,27 @@ ST_OVERLAPS(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star_top_to_cente
 0
 SELECT ST_OVERLAPS(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT('LINESTRING(30 30,0 35)'));
 ST_OVERLAPS(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT('LINESTRING(30 30,0 35)'))
-1
+0
 SELECT ST_OVERLAPS(g,GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=115;
 ST_OVERLAPS(g,GEOMFROMTEXT(@star_top_to_center))
 0
 SELECT ST_OVERLAPS(g,GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=415;
 ST_OVERLAPS(g,GEOMFROMTEXT(@star_top_to_center))
-1
+0
 #-------------------------------------------------------------------------------------------
 # geometrycollection,multilinestring
 SELECT ST_OVERLAPS(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star_lines_near_vertical));
 ST_OVERLAPS(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star_lines_near_vertical))
-1
+0
 SELECT ST_OVERLAPS(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT('MULTILINESTRING((0 30,30 30,0 35))'));
 ST_OVERLAPS(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT('MULTILINESTRING((0 30,30 30,0 35))'))
-1
+0
 SELECT ST_OVERLAPS(g,GEOMFROMTEXT(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=115;
 ST_OVERLAPS(g,GEOMFROMTEXT(@star_lines_near_vertical))
-1
+0
 SELECT ST_OVERLAPS(g,GEOMFROMTEXT(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=415;
 ST_OVERLAPS(g,GEOMFROMTEXT(@star_lines_near_vertical))
-1
+0
 #-------------------------------------------------------------------------------------------
 # geometrycollection,polygon
 SELECT ST_OVERLAPS(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star_elem_vertical));
@@ -1831,19 +1831,19 @@ ST_OVERLAPS(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star_elem_vertica
 0
 SELECT ST_OVERLAPS(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star));
 ST_OVERLAPS(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star))
-1
+0
 SELECT ST_OVERLAPS(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT('POLYGON((0 0,15 25,35 0,0 0))'));
 ST_OVERLAPS(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT('POLYGON((0 0,15 25,35 0,0 0))'))
-1
+0
 SELECT ST_OVERLAPS(g,GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=115;
 ST_OVERLAPS(g,GEOMFROMTEXT(@star_elem_vertical))
 0
 SELECT ST_OVERLAPS(g,GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=315;
 ST_OVERLAPS(g,GEOMFROMTEXT(@star_elem_vertical))
-1
+0
 SELECT ST_OVERLAPS(g,GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=415;
 ST_OVERLAPS(g,GEOMFROMTEXT(@star_elem_vertical))
-1
+0
 #-------------------------------------------------------------------------------------------
 # geometrycollection,multipolygon
 SELECT ST_OVERLAPS(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star_of_elems));
@@ -1851,41 +1851,41 @@ ST_OVERLAPS(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star_of_elems))
 0
 SELECT ST_OVERLAPS(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT('MULTIPOLYGON(((0 0,15 25,35 0,0 0),(5 0,15 25,25 0,15 5,5 0)))'));
 ST_OVERLAPS(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT('MULTIPOLYGON(((0 0,15 25,35 0,0 0),(5 0,15 25,25 0,15 5,5 0)))'))
-1
+0
 SELECT ST_OVERLAPS(g,GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=115;
 ST_OVERLAPS(g,GEOMFROMTEXT(@star_collection_elems))
-1
+0
 SELECT ST_OVERLAPS(g,GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=315;
 ST_OVERLAPS(g,GEOMFROMTEXT(@star_collection_elems))
-1
+0
 SELECT ST_OVERLAPS(g,GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=415;
 ST_OVERLAPS(g,GEOMFROMTEXT(@star_collection_elems))
-1
+0
 SELECT ST_OVERLAPS(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
 WHERE fid=115 and fid2=115;
 ST_OVERLAPS(g,g2)
-1
+0
 #-------------------------------------------------------------------------------------------
 # geometrycollection,geometrycollection
 SELECT ST_OVERLAPS(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star_collection_elems));
 ST_OVERLAPS(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star_collection_elems))
-1
+0
 SELECT ST_OVERLAPS(g,GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=115;
 ST_OVERLAPS(g,GEOMFROMTEXT(@star_collection_elems))
-1
+0
 SELECT ST_OVERLAPS(g,GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=315;
 ST_OVERLAPS(g,GEOMFROMTEXT(@star_collection_elems))
-1
+0
 SELECT ST_OVERLAPS(g,GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=415;
 ST_OVERLAPS(g,GEOMFROMTEXT(@star_collection_elems))
-1
+0
 SELECT ST_OVERLAPS(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
 WHERE fid=115 and fid2=115;
 ST_OVERLAPS(g,g2)
-1
+0
 SELECT ST_OVERLAPS(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star_collection_multilinestr));
 ST_OVERLAPS(GEOMFROMTEXT(@star_collection_elems),GEOMFROMTEXT(@star_collection_multilinestr))
-1
+0
 #=======================================================================================
 # OVERLAPS(g1,g2)
 #=======================================================================================

@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
 #include "records.h"          // init_read_record, end_read_record
 #include "debug_sync.h"
 #include "sql_executor.h"                       // QEP_TAB
+#include "item_cmpfunc.h"           // Item_func_like
 
 struct st_find_field
 {

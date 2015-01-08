@@ -2367,8 +2367,16 @@ row_ins_clust_index_entry_low(
 	}
 #endif
 
-	if (n_uniq && (cursor->up_match >= n_uniq
-		       || cursor->low_match >= n_uniq)) {
+	/* Allowing duplicates in clustered index is currently enabled
+	only for intrinsic table and caller understand the limited
+	operation that can be done in this case. */
+	ut_ad(!index->allow_duplicates
+	      || (index->allow_duplicates
+		  && dict_table_is_intrinsic(index->table)));
+
+	if (!index->allow_duplicates
+	    && n_uniq
+	    && (cursor->up_match >= n_uniq || cursor->low_match >= n_uniq)) {
 
 		if (flags
 		    == (BTR_CREATE_FLAG | BTR_NO_LOCKING_FLAG
@@ -2409,10 +2417,10 @@ err_exit:
 		goto func_exit;
 	}
 
-	/* Modifying existing entry is avoided for intrinsic table considering
-	the frequency and if something fails rollback is not possible given that
-	there is no UNDO log. */
-	if (row_ins_must_modify_rec(cursor)) {
+	/* Note: Allowing duplicates would qualify for modification of
+	an existing record as the new entry is exactly same as old entry.
+	Avoid this check if allow duplicates is enabled. */
+	if (!index->allow_duplicates && row_ins_must_modify_rec(cursor)) {
 		/* There is already an index entry with a long enough common
 		prefix, we must convert the insert into a modify of an
 		existing record */

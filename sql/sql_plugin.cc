@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,31 +14,30 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "my_global.h"                       // REQUIRED by m_string.h
-#include "sql_class.h"                          // set_var.h: THD
-#include "sys_vars_shared.h"
-#include "sql_locale.h"
 #include "sql_plugin.h"
-#include "sql_parse.h"          // check_table_access
-#include "sql_base.h"                           // close_mysql_tables
-#include "key.h"                                // key_copy
-#include "sql_show.h"           // remove_status_vars, add_status_vars
-#include "strfunc.h"            // find_set
-#include "auth_common.h"        // *_ACL
-#include "records.h"          // init_read_record, end_read_record
-#include <my_pthread.h>
-#include <my_getopt.h>
-#include "sql_audit.h"
+
+#include "mysql_version.h"
 #include <mysql/plugin_auth.h>
-#include "lock.h"                               // MYSQL_LOCK_IGNORE_TIMEOUT
-#include "sql_tmp_table.h"
 #include <mysql/plugin_validate_password.h>
-#include "my_default.h"
-#include "debug_sync.h"
-#include "mutex_lock.h"
-#include "prealloced_array.h"
-#include "log.h"
-#include "transaction.h"
+#include "auth_common.h"       // check_table_access
+#include "debug_sync.h"        // DEBUG_SYNC
+#include "handler.h"           // ha_initalize_handlerton
+#include "item.h"              // Item
+#include "key.h"               // key_copy
+#include "log.h"               // sql_print_error
+#include "mutex_lock.h"        // Mutex_lock
+#include "my_default.h"        // free_defaults
+#include "records.h"           // READ_RECORD
+#include "sql_audit.h"         // mysql_audit_acquire_plugins
+#include "sql_base.h"          // close_mysql_tables
+#include "sql_class.h"         // THD
+#include "sql_parse.h"         // check_string_char_length
+#include "sql_show.h"          // add_status_vars
+#include "strfunc.h"           // find_type
+#include "sys_vars_shared.h"   // intern_find_sys_var
+#include "template_utils.h"    // pointer_cast
+#include "transaction.h"       // trans_rollback_stmt
+
 #include <algorithm>
 
 #ifdef HAVE_DLFCN_H

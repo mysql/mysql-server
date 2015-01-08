@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,8 +16,14 @@
 #ifndef SQL_ALTER_TABLE_H
 #define SQL_ALTER_TABLE_H
 
-class Key;
+#include "sql_cmd.h"  // Sql_cmd
+#include "sql_list.h" // List
 
+class Create_field;
+class Item;
+class Key;
+class String;
+struct TABLE_LIST;
 
 /**
   Class representing DROP COLUMN, DROP KEY and DROP FOREIGN KEY
