@@ -2841,6 +2841,8 @@ MySQL	MySQL
 Warnings:
 Warning	1287	'ENCODE' is deprecated and will be removed in a future release. Please use AES_ENCRYPT instead
 Warning	1287	'DECODE' is deprecated and will be removed in a future release. Please use AES_DECRYPT instead
+Warning	1287	'ENCODE' is deprecated and will be removed in a future release. Please use AES_ENCRYPT instead
+Warning	1287	'DECODE' is deprecated and will be removed in a future release. Please use AES_DECRYPT instead
 drop table t1;
 set sql_warnings = 0;
 # DEFAULT()

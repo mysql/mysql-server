@@ -1,7 +1,7 @@
 #ifndef ITEM_INCLUDED
 #define ITEM_INCLUDED
 
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -602,6 +602,9 @@ typedef enum monotonicity_info
    MONOTONIC_STRICT_INCREASING,/* F() is unary and (x < y) => (F(x) <  F(y)) */
    MONOTONIC_STRICT_INCREASING_NOT_NULL  /* But only for valid/real x and y */
 } enum_monotonicity_info;
+
+/* This enum is used to return invalid refer by GC */
+enum invalid_ref_by_gc {REF_INVALID_GC= -1, REF_INVALIDE_AUTO_INC= -2};
 
 /*************************************************************************/
 
@@ -2639,12 +2642,20 @@ public:
   bool check_gcol_func_processor(uchar *int_arg)
   {
     int *fld_idx= (int *)int_arg;
-    // Don't allow VC to refer itself or another VC that is defined after it.
+    // Don't allow GC to refer itself or another GC that is defined after it.
     if (field && field->gcol_info && field->field_index >= *fld_idx)
     {
-      *fld_idx= -1;
+      *fld_idx= REF_INVALID_GC;
       return true;
     }
+    // Auto-increment field can't be referenced by stored generated columns
+    if (field->flags & AUTO_INCREMENT_FLAG &&  
+          field->table->field[*fld_idx]->stored_in_db)
+    {
+      *fld_idx= REF_INVALIDE_AUTO_INC;
+      return true;
+    }
+
     return false;
   }
   void cleanup();

@@ -264,6 +264,8 @@ create table t1 (a int, b int generated always as(-b) virtual, c int generated a
 ERROR HY000: Generated column can refer only to generated columns defined prior it.
 create table t1 (a int, b int generated always as(-c) virtual, c int generated always as (b + 1) virtual);
 ERROR HY000: Generated column can refer only to generated columns defined prior it.
+CREATE TABLE t1 (pk INTEGER AUTO_INCREMENT, col_int_nokey INTEGER GENERATED ALWAYS AS (pk + col_int_key) STORED, col_int_key INTEGER, PRIMARY KEY (pk));
+ERROR HY000: Stored generated column 'col_int_nokey' cannot refer auto-increment column.
 DROP VIEW  IF EXISTS v1,v2;
 DROP TABLE IF EXISTS t1,t2,t3;
 DROP PROCEDURE IF EXISTS p1;

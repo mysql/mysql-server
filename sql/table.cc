@@ -2212,8 +2212,10 @@ static bool validate_generated_expr(Field *field)
                          (uchar*)&fld_idx);
   if (error)
   {
-    if (fld_idx < 0)
+    if (fld_idx == REF_INVALID_GC)
       my_error(ER_GENERATED_COLUMN_NON_PRIOR, MYF(0), field_name);
+    else if (fld_idx == REF_INVALIDE_AUTO_INC)
+      my_error(ER_GENERATED_COLUMN_REF_AUTO_INC, MYF(0), field_name);
     else
       my_error(ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED, MYF(0), field_name);
     DBUG_RETURN(TRUE);
