@@ -724,7 +724,7 @@ void *create_embedded_thd(int client_flag)
   thd->set_time();
   thd->init_for_queries();
   thd->client_capabilities= client_flag;
-  thd->real_id= pthread_self();
+  thd->real_id= my_thread_self();
 
   thd->reset_db(NULL_CSTR);
 #ifndef NO_EMBEDDED_ACCESS_CHECKS

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,7 +19,7 @@
 #define NDB_COMPONENT_H
 
 #include <my_global.h>
-#include <my_pthread.h>
+#include <my_thread.h>
 
 extern "C" void * Ndb_component_run_C(void *);
 
@@ -97,7 +97,7 @@ private:
   };
 
   ThreadState m_thread_state;
-  pthread_t m_thread;
+  my_thread_handle m_thread;
   native_mutex_t m_start_stop_mutex;
   native_cond_t m_start_stop_cond;
 

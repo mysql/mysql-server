@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -928,7 +928,7 @@ void query_cache_insert(const char *packet, ulong length,
   /*
     Current_thd can be NULL when a new connection is immediately ended
     due to "Too many connections". thd->store_globals() has not been
-    called at this time and hence my_pthread_setspecific_ptr(THR_THD,
+    called at this time and hence my_thread_setspecific_ptr(THR_THD,
     this) has not been called for this thread.
   */
 

@@ -1,7 +1,7 @@
 #ifndef THR_RWLOCK_INCLUDED
 #define THR_RWLOCK_INCLUDED
 
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -175,7 +175,7 @@ typedef struct st_rw_pr_lock_t {
   my_bool active_writer;
 #ifdef SAFE_MUTEX
   /** Thread holding wr-lock (for debug purposes only). */
-  pthread_t writer_thread;
+  my_thread_t writer_thread;
 #endif
 } rw_pr_lock_t;
 
@@ -190,7 +190,7 @@ rw_pr_lock_assert_write_owner(const rw_pr_lock_t *rwlock __attribute__((unused))
 {
 #ifdef SAFE_MUTEX
   DBUG_ASSERT(rwlock->active_writer &&
-              pthread_equal(pthread_self(), rwlock->writer_thread));
+              my_thread_equal(my_thread_self(), rwlock->writer_thread));
 #endif
 }
 
@@ -199,7 +199,7 @@ rw_pr_lock_assert_not_write_owner(const rw_pr_lock_t *rwlock __attribute__((unus
 {
 #ifdef SAFE_MUTEX
   DBUG_ASSERT(!rwlock->active_writer ||
-              !pthread_equal(pthread_self(), rwlock->writer_thread));
+              !my_thread_equal(my_thread_self(), rwlock->writer_thread));
 #endif
 }
 

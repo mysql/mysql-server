@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -19,7 +19,7 @@
 */
 
 #include "my_global.h"
-#include "my_pthread.h"
+#include "my_thread.h"
 #include "table_host_cache.h"
 #include "hostname.h"
 

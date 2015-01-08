@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,7 +19,7 @@
 #include <mysql_version.h>
 #include <mysql/plugin.h>
 #include <my_dir.h>
-#include "my_pthread.h"                         // pthread_handler_t
+#include "my_thread.h"
 #include "my_sys.h"                             // my_write, my_malloc
 #include "m_string.h"                           // strlen
 #include "sql_plugin.h"                         // st_plugin_int
@@ -47,11 +47,11 @@ static void init_deamon_example_psi_keys()
   
 struct mysql_heartbeat_context
 {
-  pthread_t heartbeat_thread;
+  my_thread_handle heartbeat_thread;
   File heartbeat_file;
 };
 
-pthread_handler_t mysql_heartbeat(void *p)
+void *mysql_heartbeat(void *p)
 {
   DBUG_ENTER("mysql_heartbeat");
   struct mysql_heartbeat_context *con= (struct mysql_heartbeat_context *)p;
@@ -102,7 +102,7 @@ static int daemon_example_plugin_init(void *p)
 #endif
 
   struct mysql_heartbeat_context *con;
-  pthread_attr_t attr;          /* Thread attributes */
+  my_thread_attr_t attr;          /* Thread attributes */
   char heartbeat_filename[FN_REFLEN];
   char buffer[HEART_STRING_BUFFER];
   time_t result= time(NULL);
@@ -133,14 +133,15 @@ static int daemon_example_plugin_init(void *p)
               tm_tmp.tm_sec);
   my_write(con->heartbeat_file, (uchar*) buffer, strlen(buffer), MYF(0));
 
-  pthread_attr_init(&attr);
-  pthread_attr_setdetachstate(&attr,
-                              PTHREAD_CREATE_JOINABLE);
+  my_thread_attr_init(&attr);
+#ifndef _WIN32
+  pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
+#endif
 
 
   /* now create the thread */
-  if (pthread_create(&con->heartbeat_thread, &attr, mysql_heartbeat,
-                     (void *)con) != 0)
+  if (my_thread_create(&con->heartbeat_thread, &attr, mysql_heartbeat,
+                       (void *)con) != 0)
   {
     fprintf(stderr,"Could not create heartbeat thread!\n");
     exit(0);
@@ -175,7 +176,7 @@ static int daemon_example_plugin_deinit(void *p)
   struct tm tm_tmp;
   void *dummy_retval;
 
-  pthread_cancel(con->heartbeat_thread);
+  my_thread_cancel(&con->heartbeat_thread);
 
   localtime_r(&result, &tm_tmp);
   my_snprintf(buffer, sizeof(buffer),
@@ -192,7 +193,7 @@ static int daemon_example_plugin_deinit(void *p)
     Need to wait for the hearbeat thread to terminate before closing
     the file it writes to and freeing the memory it uses
   */
-  pthread_join(con->heartbeat_thread, &dummy_retval);
+  my_thread_join(&con->heartbeat_thread, &dummy_retval);
 
   my_close(con->heartbeat_file, MYF(0));
 

@@ -1737,7 +1737,7 @@ public:
   uint16 peer_port;
   struct timeval start_time;
   struct timeval user_time;
-  // track down slow pthread_create
+  // track down slow my_thread_create
   ulonglong  thr_create_utime;
   ulonglong  start_utime, utime_after_lock;
 
@@ -2348,11 +2348,11 @@ public:
   /* Statement id is thread-wide. This counter is used to generate ids */
   ulong      statement_id_counter;
   ulong	     rand_saved_seed1, rand_saved_seed2;
-  pthread_t  real_id;                           /* For debugging */
+  my_thread_t  real_id;                           /* For debugging */
   /**
     This counter is 32 bit because of the client protocol.
 
-    @note It is not meant to be used for pthread_self(), see @real_id for this.
+    @note It is not meant to be used for my_thread_self(), see @real_id for this.
 
     @note Set to reserved_thread_id on initialization. This is a magic
     value that is only to be used for temporary THDs not present in

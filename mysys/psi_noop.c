@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -21,7 +21,7 @@
 #define HAVE_PSI_INTERFACE
 
 #include "my_global.h"
-#include "my_pthread.h"
+#include "my_thread.h"
 #include "my_sys.h"
 #include "mysql/psi/psi.h"
 
@@ -181,11 +181,11 @@ static void create_file_noop(PSI_file_key key NNN,
 }
 
 static int spawn_thread_noop(PSI_thread_key key NNN,
-                             pthread_t *thread NNN,
-                             const pthread_attr_t *attr NNN,
-                             void *(*start_routine)(void*) NNN, void *arg NNN)
+                             my_thread_handle *thread NNN,
+                             const my_thread_attr_t *attr NNN,
+                             my_start_routine start_routine, void *arg NNN)
 {
-  return pthread_create(thread, attr, start_routine, arg);
+  return my_thread_create(thread, attr, start_routine, arg);
 }
 
 static PSI_thread*
