@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,7 +16,8 @@
 #ifndef RPL_INFO_H
 #define RPL_INFO_H
 
-#include "sql_class.h"
+#include "my_global.h"
+#include "mysql_com.h"            // NAME_LEN
 #include "rpl_info_handler.h"
 #include "rpl_reporting.h"
 
