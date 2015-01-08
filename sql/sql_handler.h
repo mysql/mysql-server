@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,8 +16,9 @@
 #ifndef SQL_HANDLER_INCLUDED
 #define SQL_HANDLER_INCLUDED
 
-#include "sql_class.h"                 /* enum_ha_read_mode */
 #include "my_base.h"                   /* ha_rkey_function, ha_rows */
+#include "sql_cmd.h"                   // Sql_cmd
+#include "sql_lex.h"                   // enum_ha_read_modes
 #include "sql_list.h"                  /* List */
 
 class THD;
