@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights
    reserved.
 
    This program is free software; you can redistribute it and/or modify
@@ -640,8 +640,6 @@ typedef struct system_status_var
 */
 
 #define last_system_status_var questions
-
-void mark_transaction_to_rollback(THD *thd, bool all);
 
 
 /**
@@ -4063,6 +4061,8 @@ public:
   LEX_STRING get_invoker_host() { return invoker_host; }
   bool has_invoker() { return invoker_user.length > 0; }
 
+  void mark_transaction_to_rollback(bool all);
+
 #ifndef DBUG_OFF
 private:
   int gis_debug; // Storage for "SELECT ST_GIS_DEBUG(param);"
@@ -5298,7 +5298,6 @@ void add_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var);
 
 void add_diff_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var,
                         STATUS_VAR *dec_var);
-void mark_transaction_to_rollback(THD *thd, bool all);
 
 /* Inline functions */
 

@@ -7759,4 +7759,104 @@ MyISAM
 SET @@default_storage_engine = @default_storage_engine_saved;
 DROP PROCEDURE p1;
 DROP TABLE t1;
+
+#
+# BUG 16041903: CONTINUE HANDLER NOT INVOKED
+# IN A STORED FUNCTION AFTER A LOCK WAIT TIMEOUT
+#
+
+# Save and set lock wait timeout
+SET @lock_wait_timeout_saved= @@lock_wait_timeout;
+SET @innodb_lock_wait_timeout_saved= @@innodb_lock_wait_timeout;
+SET @@lock_wait_timeout= 1;
+SET @@innodb_lock_wait_timeout= 1;
+
+# Create a function with exit handler:
+CREATE FUNCTION f1() RETURNS VARCHAR(20)
+BEGIN
+DECLARE EXIT HANDLER FOR SQLSTATE '42S02' RETURN 'No such table';
+INSERT INTO no_such_table VALUES (1);
+END//
+
+# Create a function calling f1():
+CREATE FUNCTION f2() RETURNS VARCHAR(20)
+BEGIN
+RETURN f1();
+END//
+
+# Create a function provoking deadlock:
+CREATE FUNCTION f3() RETURNS VARCHAR(20)
+BEGIN
+UPDATE t1 SET i= 1 WHERE i= 1;
+RETURN 'Will never get here';
+END//
+
+# Create a function calling f3, to create
+# a deadlock indirectly:
+CREATE FUNCTION f4() RETURNS VARCHAR(20)
+BEGIN
+RETURN f3();
+END//
+
+# Open another connection, create and initialize a table
+# to be used for provoking deadlock, put a lock on the table:
+CREATE TABLE t1 (i INT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+SET AUTOCOMMIT= 0;
+UPDATE t1 SET i=1 WHERE i=1;
+
+# On the default connection, do an update to provoke a
+# deadlock, then call the function with handler. This case
+# fails without the patch (with error ER_NO_SUCH_TABLE):
+SET AUTOCOMMIT= 0;
+UPDATE t1 SET i=1 WHERE i=1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SELECT f1() AS 'f1():';
+f1():
+No such table
+
+# Provoke another deadlock, then call the function with
+# handler indirectly. This case fails without the patch
+# (with error ER_NO_SUCH_TABLE):
+UPDATE t1 SET i= 1 WHERE i= 1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SELECT f2() AS 'f2():';
+f2():
+No such table
+
+# Provoke yet another deadlock, but now from within a function,
+# then call the function with handler. This succeeds even
+# without the patch because is_fatal_sub_stmt_error is reset
+# in restore_sub_stmt after the failing function has been
+# executed. The test case is included anyway for better coverage:
+SELECT f3() AS 'f3():';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SELECT f1() AS 'f1():';
+f1():
+No such table
+# Provoke yet another deadlock, but now from within a function,
+# calling another function, then call the function with handler.
+# This succeeds even without the patch because
+# is_fatal_sub_stmt_error is reset in restore_sub_stmt after
+# the failing function has been executed. The test case is
+# included anyway for better coverage:
+SELECT f4() AS 'f4():';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SELECT f1() AS 'f1():';
+f1():
+No such table
+
+# Disconnect, drop functions and table:
+DROP FUNCTION f4;
+DROP FUNCTION f3;
+DROP FUNCTION f2;
+DROP FUNCTION f1;
+DROP TABLE t1;
+
+# Reset lock wait timeouts
+SET @@lock_wait_timeout= @lock_wait_timeout_saved;
+SET @@innodb_lock_wait_timeout= @innodb_lock_wait_timeout_saved;
+#
+# BUG 16041903: End of test case
+#
 # End of 5.6 tests
