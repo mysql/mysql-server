@@ -89,8 +89,7 @@ public:
                                 uint sql_errno,
                                 const char* sqlstate,
                                 Sql_condition::enum_severity_level *level,
-                                const char* msg,
-                                Sql_condition ** cond_hdl);
+                                const char* msg);
 
   int handle_called() const { return m_handle_called; }
 private:

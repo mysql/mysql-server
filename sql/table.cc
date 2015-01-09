@@ -42,6 +42,8 @@
 #include "log.h"
 #include "binlog.h"
 #include "parse_file.h"          // sql_parse_prepare
+#include "pfs_table_provider.h"
+#include "mysql/psi/mysql_table.h"
 
 
 /* INFORMATION_SCHEMA name */

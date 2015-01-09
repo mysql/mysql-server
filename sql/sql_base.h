@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,7 +17,6 @@
 #define SQL_BASE_INCLUDED
 
 #include "sql_class.h"                          /* enum_mark_columns */
-#include "mysqld.h"                             /* key_map */
 
 class Item_ident;
 struct Name_resolution_context;
@@ -654,26 +653,41 @@ public:
     : m_handled_errors(0), m_unhandled_errors(0)
   {}
 
-  bool handle_condition(THD *thd,
-                        uint sql_errno,
-                        const char* sqlstate,
-                        Sql_condition::enum_severity_level *level,
-                        const char* msg,
-                        Sql_condition ** cond_hdl);
+  virtual bool handle_condition(THD *thd,
+                                uint sql_errno,
+                                const char* sqlstate,
+                                Sql_condition::enum_severity_level *level,
+                                const char* msg)
+  {
+    if (sql_errno == ER_NO_SUCH_TABLE)
+    {
+      m_handled_errors++;
+      return true;
+    }
+
+    m_unhandled_errors++;
+    return false;
+  }
 
   /**
-    Returns TRUE if one or more ER_NO_SUCH_TABLE errors have been
-    trapped and no other errors have been seen. FALSE otherwise.
+    Returns true if one or more ER_NO_SUCH_TABLE errors have been
+    trapped and no other errors have been seen. false otherwise.
   */
-  bool safely_trapped_errors();
+  bool safely_trapped_errors() const
+  {
+    /*
+      If m_unhandled_errors != 0, something else, unanticipated, happened,
+      so the error is not trapped but returned to the caller.
+      Multiple ER_NO_SUCH_TABLE can be raised in case of views.
+    */
+    return ((m_handled_errors > 0) && (m_unhandled_errors == 0));
+  }
 
 private:
   int m_handled_errors;
   int m_unhandled_errors;
 };
 
-#include "pfs_table_provider.h"
-#include "mysql/psi/mysql_table.h"
 
 /**
   This internal handler implements downgrade from SL_ERROR to SL_WARNING
@@ -683,12 +697,11 @@ private:
 class Ignore_error_handler : public Internal_error_handler
 {
 public:
-  bool handle_condition(THD *thd,
-                        uint sql_errno,
-                        const char* sqlstate,
-                        Sql_condition::enum_severity_level *level,
-                        const char* msg,
-                        Sql_condition ** cond_hdl);
+  virtual bool handle_condition(THD *thd,
+                                uint sql_errno,
+                                const char* sqlstate,
+                                Sql_condition::enum_severity_level *level,
+                                const char* msg);
 };
 
 /**
@@ -700,7 +713,6 @@ public:
 class Strict_error_handler : public Internal_error_handler
 {
 public:
-
   enum enum_set_select_behavior
   {
     DISABLE_SET_SELECT_STRICT_ERROR_HANDLER,
@@ -715,12 +727,11 @@ public:
     : m_set_select_behavior(param)
   {}
 
-  bool handle_condition(THD *thd,
-                        uint sql_errno,
-                        const char* sqlstate,
-                        Sql_condition::enum_severity_level *level,
-                        const char* msg,
-                        Sql_condition ** cond_hdl);
+  virtual bool handle_condition(THD *thd,
+                                uint sql_errno,
+                                const char* sqlstate,
+                                Sql_condition::enum_severity_level *level,
+                                const char* msg);
 
 private:
   /*
