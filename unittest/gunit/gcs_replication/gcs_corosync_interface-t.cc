@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -160,6 +160,8 @@ namespace gcs_corosync_integratedtest
     ASSERT_FALSE(leave_error);
 
     sleep(2);
+
+    join_view= control_if->get_current_view();
 
     ASSERT_TRUE(join_view != NULL);
 
