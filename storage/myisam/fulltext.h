@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +19,7 @@
 
 #include "myisamdef.h"
 #include "ft_global.h"
+#include "mysql/plugin_ftparser.h"
 
 #define HA_FT_WTYPE  HA_KEYTYPE_FLOAT
 #define HA_FT_WLEN   4
