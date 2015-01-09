@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -149,7 +149,7 @@ void System_table_access::drop_thd(THD *thd)
   DBUG_ENTER("System_table_access::drop_thd");
 
   delete thd;
-  my_pthread_set_THR_THD(NULL);
+  my_thread_set_THR_THD(NULL);
 
   DBUG_VOID_RETURN;
 }

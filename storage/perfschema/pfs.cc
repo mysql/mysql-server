@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -21,7 +21,7 @@
 #include "thr_lock.h"
 #include "mysql/psi/psi.h"
 #include "mysql/psi/mysql_thread.h"
-#include "my_pthread.h"
+#include "my_thread.h"
 #include "sql_const.h"
 #include "pfs.h"
 #include "pfs_instr_class.h"
@@ -1302,7 +1302,7 @@ thread_local_key_t THR_PFS;
 bool THR_PFS_initialized= false;
 
 static inline PFS_thread*
-my_pthread_get_THR_PFS()
+my_thread_get_THR_PFS()
 {
   DBUG_ASSERT(THR_PFS_initialized);
   PFS_thread *thread= static_cast<PFS_thread*>(my_get_thread_local(THR_PFS));
@@ -1311,7 +1311,7 @@ my_pthread_get_THR_PFS()
 }
 
 static inline void
-my_pthread_set_THR_PFS(PFS_thread *pfs)
+my_thread_set_THR_PFS(PFS_thread *pfs)
 {
   DBUG_ASSERT(THR_PFS_initialized);
   my_set_thread_local(THR_PFS, pfs);
@@ -1836,7 +1836,7 @@ pfs_get_table_share_v1(my_bool temporary, TABLE_SHARE *share)
   if (temporary || share->is_view)
     return NULL;
   /* An instrumented thread is required, for LF_PINS. */
-  PFS_thread *pfs_thread= my_pthread_get_THR_PFS();
+  PFS_thread *pfs_thread= my_thread_get_THR_PFS();
   if (unlikely(pfs_thread == NULL))
     return NULL;
   PFS_table_share* pfs_share;
@@ -1870,7 +1870,7 @@ pfs_drop_table_share_v1(my_bool temporary,
   /* Ignore temporary tables. */
   if (temporary)
     return;
-  PFS_thread *pfs_thread= my_pthread_get_THR_PFS();
+  PFS_thread *pfs_thread= my_thread_get_THR_PFS();
   if (unlikely(pfs_thread == NULL))
     return;
   /* TODO: temporary tables */
@@ -1906,7 +1906,7 @@ pfs_open_table_v1(PSI_table_share *share, const void *identity)
   if (! flag_global_instrumentation)
     return NULL;
 
-  PFS_thread *thread= my_pthread_get_THR_PFS();
+  PFS_thread *thread= my_thread_get_THR_PFS();
   if (unlikely(thread == NULL))
     return NULL;
 
@@ -1959,7 +1959,7 @@ pfs_rebind_table_v1(PSI_table_share *share, const void *identity, PSI_table *tab
     }
 
     /* The table handle was already instrumented, reuse it for this thread. */
-    PFS_thread *thread= my_pthread_get_THR_PFS();
+    PFS_thread *thread= my_thread_get_THR_PFS();
     pfs->m_thread_owner= thread;
     if (thread != NULL)
       pfs->m_owner_event_id= thread->m_event_id;
@@ -1984,7 +1984,7 @@ pfs_rebind_table_v1(PSI_table_share *share, const void *identity, PSI_table *tab
   if (! flag_global_instrumentation)
     return NULL;
 
-  PFS_thread *thread= my_pthread_get_THR_PFS();
+  PFS_thread *thread= my_thread_get_THR_PFS();
   if (unlikely(thread == NULL))
     return NULL;
 
@@ -2047,7 +2047,7 @@ void pfs_create_file_v1(PSI_file_key key, const char *name, File file)
     return;
 
   /* A thread is needed for LF_PINS */
-  PFS_thread *pfs_thread= my_pthread_get_THR_PFS();
+  PFS_thread *pfs_thread= my_thread_get_THR_PFS();
   if (unlikely(pfs_thread == NULL))
     return;
 
@@ -2089,7 +2089,7 @@ struct PFS_spawn_thread_arg
   void *m_user_arg;
 };
 
-void* pfs_spawn_thread(void *arg)
+extern "C" void* pfs_spawn_thread(void *arg)
 {
   PFS_spawn_thread_arg *typed_arg= (PFS_spawn_thread_arg*) arg;
   void *user_arg;
@@ -2121,7 +2121,7 @@ void* pfs_spawn_thread(void *arg)
   {
     pfs= NULL;
   }
-  my_pthread_set_THR_PFS(pfs);
+  my_thread_set_THR_PFS(pfs);
 
   /*
     Secondly, free the memory allocated in spawn_thread_v1().
@@ -2144,7 +2144,7 @@ void* pfs_spawn_thread(void *arg)
   @sa PSI_v1::spawn_thread.
 */
 int pfs_spawn_thread_v1(PSI_thread_key key,
-                        pthread_t *thread, const pthread_attr_t *attr,
+                        my_thread_handle *thread, const my_thread_attr_t *attr,
                         void *(*start_routine)(void*), void *arg)
 {
   PFS_spawn_thread_arg *psi_arg;
@@ -2162,7 +2162,7 @@ int pfs_spawn_thread_v1(PSI_thread_key key,
   psi_arg->m_user_start_routine= start_routine;
   psi_arg->m_user_arg= arg;
 
-  parent= my_pthread_get_THR_PFS();
+  parent= my_thread_get_THR_PFS();
   if (parent != NULL)
   {
     /*
@@ -2185,7 +2185,7 @@ int pfs_spawn_thread_v1(PSI_thread_key key,
     psi_arg->m_hostname_length= 0;
   }
 
-  int result= pthread_create(thread, attr, pfs_spawn_thread, psi_arg);
+  int result= my_thread_create(thread, attr, pfs_spawn_thread, psi_arg);
   if (unlikely(result != 0))
     my_free(psi_arg);
   return result;
@@ -2240,7 +2240,7 @@ void pfs_set_thread_THD_v1(PSI_thread *thread, THD *thd)
 PSI_thread*
 pfs_get_thread_v1(void)
 {
-  PFS_thread *pfs= my_pthread_get_THR_PFS();
+  PFS_thread *pfs= my_thread_get_THR_PFS();
   return reinterpret_cast<PSI_thread*> (pfs);
 }
 
@@ -2251,7 +2251,7 @@ pfs_get_thread_v1(void)
 void pfs_set_thread_user_v1(const char *user, int user_len)
 {
   pfs_dirty_state dirty_state;
-  PFS_thread *pfs= my_pthread_get_THR_PFS();
+  PFS_thread *pfs= my_thread_get_THR_PFS();
 
   DBUG_ASSERT((user != NULL) || (user_len == 0));
   DBUG_ASSERT(user_len >= 0);
@@ -2306,7 +2306,7 @@ void pfs_set_thread_account_v1(const char *user, int user_len,
                                const char *host, int host_len)
 {
   pfs_dirty_state dirty_state;
-  PFS_thread *pfs= my_pthread_get_THR_PFS();
+  PFS_thread *pfs= my_thread_get_THR_PFS();
 
   DBUG_ASSERT((user != NULL) || (user_len == 0));
   DBUG_ASSERT(user_len >= 0);
@@ -2363,7 +2363,7 @@ void pfs_set_thread_account_v1(const char *user, int user_len,
 */
 void pfs_set_thread_db_v1(const char* db, int db_len)
 {
-  PFS_thread *pfs= my_pthread_get_THR_PFS();
+  PFS_thread *pfs= my_thread_get_THR_PFS();
 
   DBUG_ASSERT((db != NULL) || (db_len == 0));
   DBUG_ASSERT(db_len >= 0);
@@ -2386,7 +2386,7 @@ void pfs_set_thread_db_v1(const char* db, int db_len)
 */
 void pfs_set_thread_command_v1(int command)
 {
-  PFS_thread *pfs= my_pthread_get_THR_PFS();
+  PFS_thread *pfs= my_thread_get_THR_PFS();
 
   DBUG_ASSERT(command >= 0);
   DBUG_ASSERT(command <= (int) COM_END);
@@ -2403,7 +2403,7 @@ void pfs_set_thread_command_v1(int command)
 */
 void pfs_set_thread_start_time_v1(time_t start_time)
 {
-  PFS_thread *pfs= my_pthread_get_THR_PFS();
+  PFS_thread *pfs= my_thread_get_THR_PFS();
 
   if (likely(pfs != NULL))
   {
@@ -2427,7 +2427,7 @@ void pfs_set_thread_state_v1(const char* state)
 void pfs_set_thread_info_v1(const char* info, uint info_len)
 {
   pfs_dirty_state dirty_state;
-  PFS_thread *pfs= my_pthread_get_THR_PFS();
+  PFS_thread *pfs= my_thread_get_THR_PFS();
 
   DBUG_ASSERT((info != NULL) || (info_len == 0));
 
@@ -2459,7 +2459,7 @@ void pfs_set_thread_info_v1(const char* info, uint info_len)
 void pfs_set_thread_v1(PSI_thread* thread)
 {
   PFS_thread *pfs= reinterpret_cast<PFS_thread*> (thread);
-  my_pthread_set_THR_PFS(pfs);
+  my_thread_set_THR_PFS(pfs);
 }
 
 /**
@@ -2468,11 +2468,11 @@ void pfs_set_thread_v1(PSI_thread* thread)
 */
 void pfs_delete_current_thread_v1(void)
 {
-  PFS_thread *thread= my_pthread_get_THR_PFS();
+  PFS_thread *thread= my_thread_get_THR_PFS();
   if (thread != NULL)
   {
     aggregate_thread(thread, thread->m_account, thread->m_user, thread->m_host);
-    my_pthread_set_THR_PFS(NULL);
+    my_thread_set_THR_PFS(NULL);
     destroy_thread(thread);
   }
 }
@@ -2517,7 +2517,7 @@ pfs_start_mutex_wait_v1(PSI_mutex_locker_state *state,
 
   if (flag_thread_instrumentation)
   {
-    PFS_thread *pfs_thread= my_pthread_get_THR_PFS();
+    PFS_thread *pfs_thread= my_thread_get_THR_PFS();
     if (unlikely(pfs_thread == NULL))
       return NULL;
     if (! pfs_thread->m_enabled)
@@ -2635,7 +2635,7 @@ pfs_start_rwlock_wait_v1(PSI_rwlock_locker_state *state,
 
   if (flag_thread_instrumentation)
   {
-    PFS_thread *pfs_thread= my_pthread_get_THR_PFS();
+    PFS_thread *pfs_thread= my_thread_get_THR_PFS();
     if (unlikely(pfs_thread == NULL))
       return NULL;
     if (! pfs_thread->m_enabled)
@@ -2774,7 +2774,7 @@ pfs_start_cond_wait_v1(PSI_cond_locker_state *state,
 
   if (flag_thread_instrumentation)
   {
-    PFS_thread *pfs_thread= my_pthread_get_THR_PFS();
+    PFS_thread *pfs_thread= my_thread_get_THR_PFS();
     if (unlikely(pfs_thread == NULL))
       return NULL;
     if (! pfs_thread->m_enabled)
@@ -2912,7 +2912,7 @@ pfs_start_table_io_wait_v1(PSI_table_locker_state *state,
 
   PFS_thread *pfs_thread= pfs_table->m_thread_owner;
 
-  DBUG_ASSERT(pfs_thread == my_pthread_get_THR_PFS());
+  DBUG_ASSERT(pfs_thread == my_thread_get_THR_PFS());
 
   uint flags;
   ulonglong timer_start= 0;
@@ -3146,7 +3146,7 @@ pfs_get_thread_file_name_locker_v1(PSI_file_locker_state *state,
     return NULL;
 
   /* Needed for the LF_HASH */
-  PFS_thread *pfs_thread= my_pthread_get_THR_PFS();
+  PFS_thread *pfs_thread= my_thread_get_THR_PFS();
   if (unlikely(pfs_thread == NULL))
     return NULL;
 
@@ -3226,7 +3226,7 @@ pfs_get_thread_file_stream_locker_v1(PSI_file_locker_state *state,
 
   if (flag_thread_instrumentation)
   {
-    PFS_thread *pfs_thread= my_pthread_get_THR_PFS();
+    PFS_thread *pfs_thread= my_thread_get_THR_PFS();
     if (unlikely(pfs_thread == NULL))
       return NULL;
     if (! pfs_thread->m_enabled)
@@ -3332,7 +3332,7 @@ pfs_get_thread_file_descriptor_locker_v1(PSI_file_locker_state *state,
 
   if (flag_thread_instrumentation)
   {
-    PFS_thread *pfs_thread= my_pthread_get_THR_PFS();
+    PFS_thread *pfs_thread= my_thread_get_THR_PFS();
     if (unlikely(pfs_thread == NULL))
       return NULL;
     if (! pfs_thread->m_enabled)
@@ -3680,7 +3680,7 @@ pfs_start_idle_wait_v1(PSI_idle_locker_state* state, const char *src_file, uint 
 
   if (flag_thread_instrumentation)
   {
-    PFS_thread *pfs_thread= my_pthread_get_THR_PFS();
+    PFS_thread *pfs_thread= my_thread_get_THR_PFS();
     if (unlikely(pfs_thread == NULL))
       return NULL;
     if (!pfs_thread->m_enabled)
@@ -4595,7 +4595,7 @@ pfs_start_stage_v1(PSI_stage_key key, const char *src_file, int src_line)
 {
   ulonglong timer_value= 0;
 
-  PFS_thread *pfs_thread= my_pthread_get_THR_PFS();
+  PFS_thread *pfs_thread= my_thread_get_THR_PFS();
   if (unlikely(pfs_thread == NULL))
     return NULL;
 
@@ -4705,7 +4705,7 @@ pfs_start_stage_v1(PSI_stage_key key, const char *src_file, int src_line)
 PSI_stage_progress*
 pfs_get_current_stage_progress_v1()
 {
-  PFS_thread *pfs_thread= my_pthread_get_THR_PFS();
+  PFS_thread *pfs_thread= my_thread_get_THR_PFS();
   if (unlikely(pfs_thread == NULL))
     return NULL;
 
@@ -4716,7 +4716,7 @@ void pfs_end_stage_v1()
 {
   ulonglong timer_value= 0;
 
-  PFS_thread *pfs_thread= my_pthread_get_THR_PFS();
+  PFS_thread *pfs_thread= my_thread_get_THR_PFS();
   if (unlikely(pfs_thread == NULL))
     return;
 
@@ -4792,7 +4792,7 @@ pfs_get_thread_statement_locker_v1(PSI_statement_locker_state *state,
 
   if (flag_thread_instrumentation)
   {
-    PFS_thread *pfs_thread= my_pthread_get_THR_PFS();
+    PFS_thread *pfs_thread= my_thread_get_THR_PFS();
     if (unlikely(pfs_thread == NULL))
       return NULL;
     if (! pfs_thread->m_enabled)
@@ -5318,7 +5318,7 @@ void pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
   {
     if (flags & STATE_FLAG_DIGEST)
     {
-      PFS_thread *thread= my_pthread_get_THR_PFS();
+      PFS_thread *thread= my_thread_get_THR_PFS();
 
       /* An instrumented thread is required, for LF_PINS. */
       if (thread != NULL)
@@ -5589,7 +5589,7 @@ PSI_sp_share *pfs_get_sp_share_v1(uint sp_type,
                                   uint object_name_length)
 {
 
-  PFS_thread *pfs_thread= my_pthread_get_THR_PFS();
+  PFS_thread *pfs_thread= my_thread_get_THR_PFS();
   if (unlikely(pfs_thread == NULL))
     return NULL;
 
@@ -5624,7 +5624,7 @@ PSI_sp_locker* pfs_start_sp_v1(PSI_sp_locker_state *state,
 
   if (flag_thread_instrumentation)
   {
-    PFS_thread *pfs_thread= my_pthread_get_THR_PFS();
+    PFS_thread *pfs_thread= my_thread_get_THR_PFS();
     if (unlikely(pfs_thread == NULL))
       return NULL;
     if (! pfs_thread->m_enabled)
@@ -5684,7 +5684,7 @@ void pfs_drop_sp_v1(uint sp_type,
                     const char* object_name,
                     uint object_name_length)
 {
-  PFS_thread *pfs_thread= my_pthread_get_THR_PFS();
+  PFS_thread *pfs_thread= my_thread_get_THR_PFS();
   if (unlikely(pfs_thread == NULL))
     return;
 
@@ -5719,7 +5719,7 @@ pfs_get_thread_transaction_locker_v1(PSI_transaction_locker_state *state,
 
   if (flag_thread_instrumentation)
   {
-    PFS_thread *pfs_thread= my_pthread_get_THR_PFS();
+    PFS_thread *pfs_thread= my_thread_get_THR_PFS();
     if (unlikely(pfs_thread == NULL))
       return NULL;
     if (!pfs_thread->m_enabled)
@@ -6138,7 +6138,7 @@ void pfs_set_socket_thread_owner_v1(PSI_socket *socket)
 {
   PFS_socket *pfs_socket= reinterpret_cast<PFS_socket*>(socket);
   DBUG_ASSERT(pfs_socket != NULL);
-  pfs_socket->m_thread_owner= my_pthread_get_THR_PFS();
+  pfs_socket->m_thread_owner= my_thread_get_THR_PFS();
 }
 
 struct PSI_digest_locker*
@@ -6185,7 +6185,7 @@ pfs_create_prepared_stmt_v1(void *identity, uint stmt_id,
   PFS_events_statements *pfs_stmt= reinterpret_cast<PFS_events_statements*> (state->m_statement);
   PFS_program *pfs_program= reinterpret_cast<PFS_program *>(state->m_parent_sp_share);
 
-  PFS_thread *pfs_thread= my_pthread_get_THR_PFS();
+  PFS_thread *pfs_thread= my_thread_get_THR_PFS();
   if (unlikely(pfs_thread == NULL))
     return NULL;
 
@@ -6238,7 +6238,7 @@ void pfs_reprepare_prepared_stmt_v1(PSI_prepared_stmt* prepared_stmt)
 int pfs_set_thread_connect_attrs_v1(const char *buffer, uint length,
                                     const void *from_cs)
 {
-  PFS_thread *thd= my_pthread_get_THR_PFS();
+  PFS_thread *thd= my_thread_get_THR_PFS();
 
   DBUG_ASSERT(buffer != NULL);
 
@@ -6294,7 +6294,7 @@ static PSI_memory_key pfs_memory_alloc_v1(PSI_memory_key key, size_t size)
 
   if (flag_thread_instrumentation)
   {
-    PFS_thread *pfs_thread= my_pthread_get_THR_PFS();
+    PFS_thread *pfs_thread= my_thread_get_THR_PFS();
     if (unlikely(pfs_thread == NULL))
       return PSI_NOT_INSTRUMENTED;
     if (! pfs_thread->m_enabled)
@@ -6335,7 +6335,7 @@ static PSI_memory_key pfs_memory_realloc_v1(PSI_memory_key key, size_t old_size,
 
   if (flag_thread_instrumentation)
   {
-    PFS_thread *pfs_thread= my_pthread_get_THR_PFS();
+    PFS_thread *pfs_thread= my_thread_get_THR_PFS();
     if (likely(pfs_thread != NULL))
     {
       /* Aggregate to MEMORY_SUMMARY_BY_THREAD_BY_EVENT_NAME */
@@ -6398,7 +6398,7 @@ static void pfs_memory_free_v1(PSI_memory_key key, size_t size)
 
   if (flag_thread_instrumentation)
   {
-    PFS_thread *pfs_thread= my_pthread_get_THR_PFS();
+    PFS_thread *pfs_thread= my_thread_get_THR_PFS();
     if (likely(pfs_thread != NULL))
     {
       /*
@@ -6455,7 +6455,7 @@ pfs_create_metadata_lock_v1(
   if (! global_metadata_class.m_enabled)
     return NULL;
 
-  PFS_thread *pfs_thread= my_pthread_get_THR_PFS();
+  PFS_thread *pfs_thread= my_thread_get_THR_PFS();
   if (pfs_thread == NULL)
     return NULL;
 
@@ -6507,7 +6507,7 @@ pfs_start_metadata_wait_v1(PSI_metadata_locker_state *state,
 
   if (flag_thread_instrumentation)
   {
-    PFS_thread *pfs_thread= my_pthread_get_THR_PFS();
+    PFS_thread *pfs_thread= my_thread_get_THR_PFS();
     if (unlikely(pfs_thread == NULL))
       return NULL;
     if (! pfs_thread->m_enabled)

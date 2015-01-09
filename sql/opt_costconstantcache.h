@@ -2,7 +2,7 @@
 #define OPT_COSTCONSTANTCACHE_INCLUDED
 
 /*
-   Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,7 +18,7 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "my_global.h"
-#include "my_pthread.h"
+#include "my_thread.h"
 
 class Cost_model_constants;
 

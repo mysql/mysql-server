@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -156,7 +156,7 @@ static void handle_bootstrap_impl(THD *thd)
 */
 
 namespace {
-pthread_handler_t handle_bootstrap(void *arg)
+extern "C" void *handle_bootstrap(void *arg)
 {
   THD *thd=(THD*) arg;
 
@@ -204,20 +204,16 @@ int bootstrap(MYSQL_FILE *file)
 
   bootstrap_file=file;
 
-  pthread_attr_t thr_attr;
-  pthread_attr_init(&thr_attr);
+  my_thread_attr_t thr_attr;
+  my_thread_attr_init(&thr_attr);
+#ifndef _WIN32
   pthread_attr_setscope(&thr_attr, PTHREAD_SCOPE_SYSTEM);
   pthread_attr_setdetachstate(&thr_attr, PTHREAD_CREATE_JOINABLE);
-  int error;
-#ifdef _WIN32
-  HANDLE boot_handle= NULL;
-  pthread_t bootstrap_thread= 0;
-  error= pthread_create_get_handle(&bootstrap_thread, &thr_attr,
-                                   handle_bootstrap, thd, &boot_handle);
-#else
-  error= mysql_thread_create(key_thread_bootstrap,
-                             &thd->real_id, &thr_attr, handle_bootstrap, thd);
 #endif
+  my_thread_handle thread_handle;
+  // What about setting THD::real_id?
+  int error= mysql_thread_create(key_thread_bootstrap,
+                                 &thread_handle, &thr_attr, handle_bootstrap, thd);
   if (error)
   {
     sql_print_warning("Can't create thread to handle bootstrap (errno= %d)",
@@ -225,11 +221,7 @@ int bootstrap(MYSQL_FILE *file)
     DBUG_RETURN(-1);
   }
   /* Wait for thread to die */
-#ifdef _WIN32
-  pthread_join_with_handle(boot_handle);
-#else
-  pthread_join(thd->real_id, NULL);
-#endif
+  my_thread_join(&thread_handle, NULL);
   delete thd;
   DBUG_RETURN(bootstrap_error);
 }

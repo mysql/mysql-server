@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -310,7 +310,7 @@ static ha_rows find_all_keys(MI_SORT_PARAM *info, uint keys,
 
 /* Search after all keys and place them in a temp. file */
 
-pthread_handler_t thr_find_all_keys(void *arg)
+void *thr_find_all_keys(void *arg)
 {
   MI_SORT_PARAM *sort_param= (MI_SORT_PARAM*) arg;
   int error;

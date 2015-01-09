@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved. 
+/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved. 
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -175,7 +175,7 @@ public:
   bool operator()(const uchar *s1, const uchar *s2) const
   {
 #ifdef __sun
-    // Usually faster on SUN, see comment for native_compare()
+    // The native memcmp is faster on SUN.
     return memcmp(s1, s2, m_size) < 0;
 #else
     return my_mem_compare(s1, s2, m_size);
@@ -193,7 +193,7 @@ public:
   bool operator()(const uchar *s1, const uchar *s2) const
   {
 #ifdef __sun
-    // Usually faster on SUN, see comment for native_compare()
+    // The native memcmp is faster on SUN.
     return memcmp(s1, s2, m_size) < 0;
 #else
     return my_mem_compare_longkey(s1, s2, m_size);
@@ -245,10 +245,16 @@ void Filesort_buffer::sort_buffer(const Sort_param *param, uint count)
     than quicksort seems to be somewhere around 10 to 40 records.
     So we're a bit conservative, and stay with quicksort up to 100 records.
   */
-  if (count < 100)
+  if (count <= 100)
   {
-    size_t size= param->sort_length;
-    my_qsort2(m_sort_keys, count, sizeof(uchar*), get_ptr_compare(size), &size);
+    if (param->sort_length < 10)
+    {
+      std::sort(m_sort_keys, m_sort_keys + count,
+                Mem_compare(param->sort_length));
+      return;
+    }
+    std::sort(m_sort_keys, m_sort_keys + count,
+              Mem_compare_longkey(param->sort_length));
     return;
   }
   // Heuristics here: avoid function overhead call for short keys.

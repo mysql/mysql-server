@@ -21,7 +21,6 @@
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "sql_const.h"
 #include "sql_lex.h"
-#include <mysql/plugin_audit.h>
 #include "rpl_tblmap.h"
 #include "mdl.h"
 #include "sql_locale.h"                         /* my_locale_st */
@@ -1143,8 +1142,7 @@ public:
                                 uint sql_errno,
                                 const char* sqlstate,
                                 Sql_condition::enum_severity_level *level,
-                                const char* msg,
-                                Sql_condition ** cond_hdl) = 0;
+                                const char* msg) = 0;
 
 private:
   Internal_error_handler *m_prev_internal_handler;
@@ -1160,15 +1158,14 @@ private:
 class Dummy_error_handler : public Internal_error_handler
 {
 public:
-  bool handle_condition(THD *thd,
-                        uint sql_errno,
-                        const char* sqlstate,
-                        Sql_condition::enum_severity_level *level,
-                        const char* msg,
-                        Sql_condition ** cond_hdl)
+  virtual bool handle_condition(THD *thd,
+                                uint sql_errno,
+                                const char* sqlstate,
+                                Sql_condition::enum_severity_level *level,
+                                const char* msg)
   {
     /* Ignore error */
-    return TRUE;
+    return true;
   }
 };
 
@@ -1183,17 +1180,11 @@ public:
 class Drop_table_error_handler : public Internal_error_handler
 {
 public:
-  Drop_table_error_handler() {}
-
-public:
-  bool handle_condition(THD *thd,
-                        uint sql_errno,
-                        const char* sqlstate,
-                        Sql_condition::enum_severity_level *level,
-                        const char* msg,
-                        Sql_condition ** cond_hdl);
-
-private:
+  virtual bool handle_condition(THD *thd,
+                                uint sql_errno,
+                                const char* sqlstate,
+                                Sql_condition::enum_severity_level *level,
+                                const char* msg);
 };
 
 
@@ -1206,13 +1197,17 @@ private:
 class MDL_deadlock_and_lock_abort_error_handler: public Internal_error_handler
 {
 public:
-  virtual
-  bool handle_condition(THD *thd,
-                        uint sql_errno,
-                        const char *sqlstate,
-                        Sql_condition::enum_severity_level *level,
-                        const char* msg,
-                        Sql_condition **cond_hdl);
+  virtual bool handle_condition(THD *thd,
+                                uint sql_errno,
+                                const char *sqlstate,
+                                Sql_condition::enum_severity_level *level,
+                                const char* msg)
+  {
+    if (sql_errno == ER_LOCK_ABORTED || sql_errno == ER_LOCK_DEADLOCK)
+      m_need_reopen= true;
+
+    return m_need_reopen;
+  }
 
   bool need_reopen() const { return m_need_reopen; };
   void init() { m_need_reopen= false; };
@@ -1738,7 +1733,7 @@ public:
   uint16 peer_port;
   struct timeval start_time;
   struct timeval user_time;
-  // track down slow pthread_create
+  // track down slow my_thread_create
   ulonglong  thr_create_utime;
   ulonglong  start_utime, utime_after_lock;
 
@@ -2349,11 +2344,11 @@ public:
   /* Statement id is thread-wide. This counter is used to generate ids */
   ulong      statement_id_counter;
   ulong	     rand_saved_seed1, rand_saved_seed2;
-  pthread_t  real_id;                           /* For debugging */
+  my_thread_t  real_id;                           /* For debugging */
   /**
     This counter is 32 bit because of the client protocol.
 
-    @note It is not meant to be used for pthread_self(), see @real_id for this.
+    @note It is not meant to be used for my_thread_self(), see @real_id for this.
 
     @note Set to reserved_thread_id on initialization. This is a magic
     value that is only to be used for temporary THDs not present in
@@ -2659,7 +2654,7 @@ public:
     Array of bits indicating which audit classes have already been
     added to the list of audit plugins which are currently in use.
   */
-  unsigned long audit_class_mask[MYSQL_AUDIT_CLASS_MASK_SIZE];
+  Prealloced_array<unsigned long, 1> audit_class_mask;
 #endif
 
 #if defined(ENABLED_DEBUG_SYNC)
@@ -3016,7 +3011,7 @@ public:
     DBUG_ENTER("clear_error");
     if (get_stmt_da()->is_error())
       get_stmt_da()->reset_diagnostics_area();
-    is_slave_error= 0;
+    is_slave_error= false;
     DBUG_VOID_RETURN;
   }
 #ifndef EMBEDDED_LIBRARY
@@ -3473,14 +3468,12 @@ private:
     @param sqlstate the condition sqlstate
     @param level the condition level
     @param msg the condition message text
-    @param[out] cond_hdl the sql condition raised, if any
     @return true if the condition is handled
   */
   bool handle_condition(uint sql_errno,
                         const char* sqlstate,
                         Sql_condition::enum_severity_level *level,
-                        const char* msg,
-                        Sql_condition ** cond_hdl);
+                        const char* msg);
 
 public:
   /**

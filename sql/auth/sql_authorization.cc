@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3368,51 +3368,35 @@ class Silence_routine_definer_errors : public Internal_error_handler
 {
 public:
   Silence_routine_definer_errors()
-    : is_grave(FALSE)
-  {}
-
-  virtual ~Silence_routine_definer_errors()
+    : is_grave(false)
   {}
 
   virtual bool handle_condition(THD *thd,
                                 uint sql_errno,
                                 const char* sqlstate,
                                 Sql_condition::enum_severity_level *level,
-                                const char* msg,
-                                Sql_condition ** cond_hdl);
+                                const char* msg)
+  {
+    if (*level == Sql_condition::SL_ERROR)
+    {
+      if (sql_errno == ER_NONEXISTING_PROC_GRANT)
+      {
+        /* Convert the error into a warning. */
+        *level= Sql_condition::SL_WARNING;
+        return true;
+      }
+      else
+        is_grave= true;
+    }
 
-  bool has_errors() { return is_grave; }
+    return false;
+  }
+
+  bool has_errors() const { return is_grave; }
 
 private:
   bool is_grave;
 };
-
-bool
-Silence_routine_definer_errors::handle_condition(
-  THD *thd,
-  uint sql_errno,
-  const char*,
-  Sql_condition::enum_severity_level *level,
-  const char* msg,
-  Sql_condition ** cond_hdl)
-{
-  *cond_hdl= NULL;
-  if (*level == Sql_condition::SL_ERROR)
-  {
-    switch (sql_errno)
-    {
-      case ER_NONEXISTING_PROC_GRANT:
-        /* Convert the error into a warning. */
-        push_warning(thd, Sql_condition::SL_WARNING,
-                     sql_errno, msg);
-        return TRUE;
-      default:
-        is_grave= TRUE;
-    }
-  }
-
-  return FALSE;
-}
 
 
 /**

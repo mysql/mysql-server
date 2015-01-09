@@ -221,16 +221,12 @@ class Silence_log_table_errors : public Internal_error_handler
 public:
   Silence_log_table_errors() { m_message[0]= '\0'; }
 
-  virtual ~Silence_log_table_errors() {}
-
   virtual bool handle_condition(THD *thd,
                                 uint sql_errno,
                                 const char* sql_state,
                                 Sql_condition::enum_severity_level *level,
-                                const char* msg,
-                                Sql_condition ** cond_hdl)
+                                const char* msg)
   {
-    *cond_hdl= NULL;
     strmake(m_message, msg, sizeof(m_message)-1);
     return true;
   }

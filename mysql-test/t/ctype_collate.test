@@ -65,10 +65,10 @@ INSERT INTO t1 (latin1_f) VALUES (_latin1'z');
 
 # ORDER BY
 
-SELECT latin1_f FROM t1 ORDER BY latin1_f;
-SELECT latin1_f FROM t1 ORDER BY latin1_f COLLATE latin1_swedish_ci;
-SELECT latin1_f FROM t1 ORDER BY latin1_f COLLATE latin1_german2_ci;
-SELECT latin1_f FROM t1 ORDER BY latin1_f COLLATE latin1_general_ci;
+SELECT latin1_f FROM t1 ORDER BY latin1_f, hex(latin1_f);
+SELECT latin1_f FROM t1 ORDER BY latin1_f COLLATE latin1_swedish_ci, hex(latin1_f);
+SELECT latin1_f FROM t1 ORDER BY latin1_f COLLATE latin1_german2_ci, hex(latin1_f);
+SELECT latin1_f FROM t1 ORDER BY latin1_f COLLATE latin1_general_ci, hex(latin1_f);
 SELECT latin1_f FROM t1 ORDER BY latin1_f COLLATE latin1_bin;
 --error 1253
 SELECT latin1_f FROM t1 ORDER BY latin1_f COLLATE koi8r_general_ci;
@@ -76,9 +76,9 @@ SELECT latin1_f FROM t1 ORDER BY latin1_f COLLATE koi8r_general_ci;
 # SELECT latin1_f COLLATE koi8r FROM t1 ;
 
 # AS + ORDER BY
-SELECT latin1_f COLLATE latin1_swedish_ci AS latin1_f_as FROM t1 ORDER BY latin1_f_as;
-SELECT latin1_f COLLATE latin1_german2_ci AS latin1_f_as FROM t1 ORDER BY latin1_f_as;
-SELECT latin1_f COLLATE latin1_general_ci AS latin1_f_as FROM t1 ORDER BY latin1_f_as;
+SELECT latin1_f COLLATE latin1_swedish_ci AS latin1_f_as FROM t1 ORDER BY latin1_f_as, hex(latin1_f_as);
+SELECT latin1_f COLLATE latin1_german2_ci AS latin1_f_as FROM t1 ORDER BY latin1_f_as, hex(latin1_f_as);
+SELECT latin1_f COLLATE latin1_general_ci AS latin1_f_as FROM t1 ORDER BY latin1_f_as, hex(latin1_f_as);
 SELECT latin1_f COLLATE latin1_bin        AS latin1_f_as FROM t1 ORDER BY latin1_f_as;
 --error 1253
 SELECT latin1_f COLLATE koi8r_general_ci  AS latin1_f_as FROM t1 ORDER BY latin1_f_as;

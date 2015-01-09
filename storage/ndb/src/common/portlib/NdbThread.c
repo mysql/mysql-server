@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,7 +18,7 @@
 
 #include <ndb_global.h>
 #include <NdbThread.h>
-#include <my_pthread.h>
+#include <my_thread.h>
 #include <NdbMem.h>
 #include <NdbMutex.h>
 #include <NdbCondition.h>

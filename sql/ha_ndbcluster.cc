@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -13505,7 +13505,7 @@ NDB_SHARE::create(const char* key, size_t key_length,
                                       MYF(MY_WME | MY_ZEROFILL))))
     return NULL;
 
-  MEM_ROOT **root_ptr= my_pthread_get_THR_MALLOC();
+  MEM_ROOT **root_ptr= my_thread_get_THR_MALLOC();
   MEM_ROOT *old_root= *root_ptr;
 
   init_sql_alloc(PSI_INSTRUMENT_ME, &share->mem_root, 1024, 0);

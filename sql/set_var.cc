@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,9 +15,10 @@
 
 /* variable declarations are in sys_vars.cc now !!! */
 
-#include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
-#include "sql_class.h"                   // set_var.h: session_var_ptr
 #include "set_var.h"
+
+#include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
+#include "sql_class.h"
 #include "mysqld.h"                             // lc_messages_dir
 #include "sys_vars_shared.h"
 #include "transaction.h"
