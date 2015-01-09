@@ -4690,3 +4690,9 @@ Warning	1301	Result of repeat() was larger than max_allowed_packet (1048576) - t
 disconnect newconn;
 connection default;
 SET @@global.max_allowed_packet:= DEFAULT;
+#
+# Bug#20316028 RPAD + UTF16 ON X86 BUILD RUNNING ON WIN64 STACK
+#              EXPLOITABLE
+do rpad(_utf16"33",1073741826,_latin1"44");
+Warnings:
+Warning	1301	Result of rpad() was larger than max_allowed_packet (4194304) - truncated
