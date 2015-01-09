@@ -32,6 +32,7 @@
 
 #include "event_data_objects.h"
 #include "priority_queue.h"
+#include "malloc_allocator.h"
 
 #ifdef HAVE_PSI_INTERFACE
 extern PSI_mutex_key key_LOCK_event_queue;
@@ -162,7 +163,8 @@ private:
 
   /* The sorted queue with the Event_queue_element objects */
   Priority_queue<Event_queue_element*,
-                 std::vector<Event_queue_element*>,
+                 std::vector<Event_queue_element*,
+                             Malloc_allocator<PSI_memory_key> >,
                  Event_queue_less>
   queue;
 
