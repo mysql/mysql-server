@@ -148,8 +148,8 @@ grp	group_concat(c order by c)
 4	
 5	NULL
 set group_concat_max_len = 4;
-select grp,group_concat(c) from t1 group by grp;
-grp	group_concat(c)
+select grp,group_concat(c order by c) from t1 group by grp;
+grp	group_concat(c order by c)
 1	NULL
 2	b
 3	D,D,

@@ -19,7 +19,7 @@
 #include "myisam.h"			/* Structs & some defines */
 #include "myisampack.h"			/* packing of keys */
 #include <my_tree.h>
-#include <my_pthread.h>
+#include <my_thread.h>
 #include <thr_lock.h>
 #include <mysql/psi/mysql_file.h>
 #include <mysql/plugin_ftparser.h>
@@ -322,7 +322,7 @@ typedef struct st_buffpek {
 
 typedef struct st_mi_sort_param
 {
-  pthread_t  thr;
+  my_thread_handle thr;
   IO_CACHE read_cache, tempfile, tempfile_for_exceptions;
   DYNAMIC_ARRAY buffpek;
   MI_BIT_BUFF   bit_buff;               /* For parallel repair of packrec. */
@@ -777,7 +777,7 @@ void mi_check_print_info(MI_CHECK *param, const char *fmt,...);
 int flush_pending_blocks(MI_SORT_PARAM *param);
 int sort_ft_buf_flush(MI_SORT_PARAM *sort_param);
 int thr_write_keys(MI_SORT_PARAM *sort_param);
-pthread_handler_t thr_find_all_keys(void *arg);
+void *thr_find_all_keys(void *arg);
 int flush_blocks(MI_CHECK *param, KEY_CACHE *key_cache, File file);
 
 int sort_write_record(MI_SORT_PARAM *sort_param);

@@ -182,7 +182,7 @@ SET GLOBAL rpl_semi_sync_master_enabled= OFF;
 SET @save_debug = @@GLOBAL.debug;
 CALL mtr.add_suppression("Failed to start semi-sync ACK receiver thread.*");
 CALL mtr.add_suppression("Failed to register slave to semi-sync ACK receiver thread.*");
-CALL mtr.add_suppression("Failed to stop ack receiver thread on pthread_join.*");
+CALL mtr.add_suppression("Failed to stop ack receiver thread on my_thread_join.*");
 CALL mtr.add_suppression("Run function 'transmit_start' .* failed");
 
 SET GLOBAL rpl_semi_sync_master_trace_level = 255;

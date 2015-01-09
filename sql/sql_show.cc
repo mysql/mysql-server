@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -734,34 +734,34 @@ find_files(THD *thd, List<LEX_STRING> *files, const char *db,
      such as mentioned above. This error gets raised automatically, since we
      can't untangle its access checking from that of the view itself.
  */
-class Show_create_error_handler : public Internal_error_handler {
-  
+class Show_create_error_handler : public Internal_error_handler
+{
   TABLE_LIST *m_top_view;
   bool m_handling;
   Security_context *m_sctx;
 
   char m_view_access_denied_message[MYSQL_ERRMSG_SIZE];
-  char *m_view_access_denied_message_ptr;
+  const char *m_view_access_denied_message_ptr;
 
 public:
 
   /**
      Creates a new Show_create_error_handler for the particular security
-     context and view. 
+     context and view.
 
      @thd Thread context, used for security context information if needed.
      @top_view The view. We do not verify at this point that top_view is in
      fact a view since, alas, these things do not stay constant.
   */
-  explicit Show_create_error_handler(THD *thd, TABLE_LIST *top_view) : 
-    m_top_view(top_view), m_handling(FALSE),
-    m_view_access_denied_message_ptr(NULL) 
+  explicit Show_create_error_handler(THD *thd, TABLE_LIST *top_view) :
+    m_top_view(top_view), m_handling(false),
+    m_view_access_denied_message_ptr(NULL)
   {
-    
     m_sctx = MY_TEST(m_top_view->security_ctx) ?
       m_top_view->security_ctx : thd->security_context();
   }
 
+private:
   /**
      Lazy instantiation of 'view access denied' message. The purpose of the
      Show_create_error_handler is to hide details of underlying tables for
@@ -771,7 +771,7 @@ public:
      failed is not available at this point. The only way for us to check is by
      reconstructing the actual error message and see if it's the same.
   */
-  char* get_view_access_denied_message() 
+  const char* get_view_access_denied_message()
   {
     if (!m_view_access_denied_message_ptr)
     {
@@ -784,34 +784,37 @@ public:
     return m_view_access_denied_message_ptr;
   }
 
-  bool handle_condition(THD *thd, uint sql_errno, const char * /* sqlstate */,
-                        Sql_condition::enum_severity_level *level,
-                        const char *message, Sql_condition ** /* cond_hdl */)
+public:
+  virtual bool handle_condition(THD *thd,
+                                uint sql_errno,
+                                const char *sqlstate,
+                                Sql_condition::enum_severity_level *level,
+                                const char *msg)
   {
     /*
        The handler does not handle the errors raised by itself.
        At this point we know if top_view is really a view.
     */
     if (m_handling || !m_top_view->view)
-      return FALSE;
+      return false;
 
-    m_handling= TRUE;
+    m_handling= true;
 
     bool is_handled;
 
     switch (sql_errno)
     {
     case ER_TABLEACCESS_DENIED_ERROR:
-      if (!strcmp(get_view_access_denied_message(), message))
+      if (!strcmp(get_view_access_denied_message(), msg))
       {
         /* Access to top view is not granted, don't interfere. */
-        is_handled= FALSE;
+        is_handled= false;
         break;
       }
     case ER_COLUMNACCESS_DENIED_ERROR:
     // ER_VIEW_NO_EXPLAIN cannot happen here.
     case ER_PROCACCESS_DENIED_ERROR:
-      is_handled= TRUE;
+      is_handled= true;
       break;
 
     case ER_BAD_FIELD_ERROR:
@@ -820,28 +823,20 @@ public:
       */
     case ER_NO_SUCH_TABLE:
       /* Established behavior: warn if underlying tables are missing. */
-      push_warning_printf(thd, Sql_condition::SL_WARNING, 
-                          ER_VIEW_INVALID,
-                          ER(ER_VIEW_INVALID),
-                          m_top_view->get_db_name(),
-                          m_top_view->get_table_name());
-      is_handled= TRUE;
-      break;
-
     case ER_SP_DOES_NOT_EXIST:
       /* Established behavior: warn if underlying functions are missing. */
-      push_warning_printf(thd, Sql_condition::SL_WARNING, 
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
                           ER_VIEW_INVALID,
                           ER(ER_VIEW_INVALID),
                           m_top_view->get_db_name(),
                           m_top_view->get_table_name());
-      is_handled= TRUE;
+      is_handled= true;
       break;
     default:
-      is_handled= FALSE;
+      is_handled= false;
     }
 
-    m_handling= FALSE;
+    m_handling= false;
     return is_handled;
   }
 };
@@ -4168,12 +4163,11 @@ end:
 class Trigger_error_handler : public Internal_error_handler
 {
 public:
-  bool handle_condition(THD *thd,
-                        uint sql_errno,
-                        const char* sqlstate,
-                        Sql_condition::enum_severity_level *level,
-                        const char* msg,
-                        Sql_condition ** cond_hdl)
+  virtual bool handle_condition(THD *thd,
+                                uint sql_errno,
+                                const char* sqlstate,
+                                Sql_condition::enum_severity_level *level,
+                                const char* msg)
   {
     if (sql_errno == ER_PARSE_ERROR ||
         sql_errno == ER_TRG_NO_DEFINER ||

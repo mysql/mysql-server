@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2242,39 +2242,21 @@ const char *get_canonical_filename(handler *file, const char *path,
 }
 
 
-/**
-  An interceptor to hijack the text of the error message without
-  setting an error in the thread. We need the text to present it
-  in the form of a warning to the user.
-*/
-
-struct Ha_delete_table_error_handler: public Internal_error_handler
+class Ha_delete_table_error_handler: public Internal_error_handler
 {
 public:
   virtual bool handle_condition(THD *thd,
                                 uint sql_errno,
                                 const char* sqlstate,
                                 Sql_condition::enum_severity_level *level,
-                                const char* msg,
-                                Sql_condition ** cond_hdl);
-  char buff[MYSQL_ERRMSG_SIZE];
+                                const char* msg)
+  {
+    /* Downgrade errors to warnings. */
+    if (*level == Sql_condition::SL_ERROR)
+      *level= Sql_condition::SL_WARNING;
+    return false;
+  }
 };
-
-
-bool
-Ha_delete_table_error_handler::
-handle_condition(THD *,
-                 uint,
-                 const char*,
-                 Sql_condition::enum_severity_level*,
-                 const char* msg,
-                 Sql_condition ** cond_hdl)
-{
-  *cond_hdl= NULL;
-  /* Grab the error message */
-  strmake(buff, msg, sizeof(buff)-1);
-  return TRUE;
-}
 
 
 /** @brief
@@ -2322,17 +2304,14 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
 
     file->change_table_ptr(&dummy_table, &dummy_share);
 
-    thd->push_internal_handler(&ha_delete_table_error_handler);
-    file->print_error(error, 0);
-
-    thd->pop_internal_handler();
-
     /*
       XXX: should we convert *all* errors to warnings here?
       What if the error is fatal?
     */
-    push_warning(thd, Sql_condition::SL_WARNING, error,
-                ha_delete_table_error_handler.buff);
+    thd->push_internal_handler(&ha_delete_table_error_handler);
+    file->print_error(error, 0);
+
+    thd->pop_internal_handler();
   }
   delete file;
 

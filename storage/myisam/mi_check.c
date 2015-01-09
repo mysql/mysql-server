@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2633,7 +2633,7 @@ int mi_repair_parallel(MI_CHECK *param, MI_INFO *info,
   IO_CACHE_SHARE io_share;
   SORT_INFO sort_info;
   ulonglong key_map= 0;
-  pthread_attr_t thr_attr;
+  my_thread_attr_t thr_attr;
   ulong max_pack_reclength;
   int error;
   DBUG_ENTER("mi_repair_parallel");
@@ -2902,8 +2902,10 @@ int mi_repair_parallel(MI_CHECK *param, MI_INFO *info,
   else
     io_share.total_threads= 0; /* share not used */
 
-  (void) pthread_attr_init(&thr_attr);
+  (void) my_thread_attr_init(&thr_attr);
+#ifndef _WIN32
   (void) pthread_attr_setdetachstate(&thr_attr,PTHREAD_CREATE_DETACHED);
+#endif
 
   for (i=0 ; i < sort_info.total_keys ; i++)
   {
@@ -2938,7 +2940,7 @@ int mi_repair_parallel(MI_CHECK *param, MI_INFO *info,
     else
       sort_info.threads_running++;
   }
-  (void) pthread_attr_destroy(&thr_attr);
+  (void) my_thread_attr_destroy(&thr_attr);
 
   /* waiting for all threads to finish */
   while (sort_info.threads_running)

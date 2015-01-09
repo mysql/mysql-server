@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -40,7 +40,7 @@
 #include <sys/un.h>
 #endif
 #if !defined(_WIN32)
-#include <my_pthread.h>				/* because of signal()	*/
+#include <my_thread.h>				/* because of signal()	*/
 #endif
 #ifndef INADDR_NONE
 #define INADDR_NONE	-1
@@ -2052,18 +2052,20 @@ static my_bool execute(MYSQL_STMT *stmt, char *packet, ulong length)
                                     (uchar*) packet, length, 1, stmt) ||
                (*mysql->methods->read_query_result)(mysql));
 
-  if (mysql->server_status & SERVER_STATUS_CURSOR_EXISTS)
-     mysql->server_status&= ~SERVER_STATUS_CURSOR_EXISTS;
-
-  if (!res && (stmt->flags & CURSOR_TYPE_READ_ONLY) &&
-      (mysql->server_capabilities & CLIENT_DEPRECATE_EOF))
+  if ((mysql->server_capabilities & CLIENT_DEPRECATE_EOF))
   {
-    /*
-      if server responds with a cursor then COM_STMT_EXECUTE response format
-      will be <Metadata><OK>. Hence read the OK packet to get the server status
-    */
-    if (packet_error == cli_safe_read_with_ok(mysql, 1, NULL))
-      DBUG_RETURN(1);
+    if (mysql->server_status & SERVER_STATUS_CURSOR_EXISTS)
+      mysql->server_status&= ~SERVER_STATUS_CURSOR_EXISTS;
+
+    if (!res && (stmt->flags & CURSOR_TYPE_READ_ONLY))
+    {
+      /*
+        if server responds with a cursor then COM_STMT_EXECUTE response format
+        will be <Metadata><OK>. Hence read the OK packet to get the server status
+        */
+      if (packet_error == cli_safe_read_with_ok(mysql, 1, NULL))
+        DBUG_RETURN(1);
+    }
   }
 
   stmt->affected_rows= mysql->affected_rows;

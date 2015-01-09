@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1633,7 +1633,7 @@ fk_split_name(char dst[], const char * src, bool index)
 
 struct Ndb_mem_root_guard {
   Ndb_mem_root_guard(MEM_ROOT *new_root) {
-    root_ptr= my_pthread_get_THR_MALLOC();
+    root_ptr= my_thread_get_THR_MALLOC();
     DBUG_ASSERT(root_ptr != 0);
     old_root= *root_ptr;
     *root_ptr= new_root;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -481,8 +481,8 @@ void add_compiled_collation(CHARSET_INFO *cs)
 }
 
 
-static my_pthread_once_t charsets_initialized= MY_PTHREAD_ONCE_INIT;
-static my_pthread_once_t charsets_template= MY_PTHREAD_ONCE_INIT;
+static my_thread_once_t charsets_initialized= MY_THREAD_ONCE_INIT;
+static my_thread_once_t charsets_template= MY_THREAD_ONCE_INIT;
 
 static void init_available_charsets(void)
 {
@@ -534,7 +534,7 @@ uint get_collation_number(const char *name)
 {
   uint id;
   char alias[64];
-  my_pthread_once(&charsets_initialized, init_available_charsets);
+  my_thread_once(&charsets_initialized, init_available_charsets);
   if ((id= get_collation_number_internal(name)))
     return id;
   if ((name= get_collation_name_alias(name, alias, sizeof(alias))))
@@ -572,7 +572,7 @@ get_charset_name_alias(const char *name)
 uint get_charset_number(const char *charset_name, uint cs_flags)
 {
   uint id;
-  my_pthread_once(&charsets_initialized, init_available_charsets);
+  my_thread_once(&charsets_initialized, init_available_charsets);
   if ((id= get_charset_number_internal(charset_name, cs_flags)))
     return id;
   if ((charset_name= get_charset_name_alias(charset_name)))
@@ -583,7 +583,7 @@ uint get_charset_number(const char *charset_name, uint cs_flags)
 
 const char *get_charset_name(uint charset_number)
 {
-  my_pthread_once(&charsets_initialized, init_available_charsets);
+  my_thread_once(&charsets_initialized, init_available_charsets);
 
   if (charset_number < array_elements(all_charsets))
   {
@@ -654,7 +654,7 @@ CHARSET_INFO *get_charset(uint cs_number, myf flags)
   if (cs_number == default_charset_info->number)
     return default_charset_info;
 
-  my_pthread_once(&charsets_initialized, init_available_charsets);
+  my_thread_once(&charsets_initialized, init_available_charsets);
  
   if (cs_number >= array_elements(all_charsets)) 
     return NULL;
@@ -689,7 +689,7 @@ my_collation_get_by_name(MY_CHARSET_LOADER *loader,
 {
   uint cs_number;
   CHARSET_INFO *cs;
-  my_pthread_once(&charsets_initialized, init_available_charsets);
+  my_thread_once(&charsets_initialized, init_available_charsets);
 
   cs_number= get_collation_number(name);
   my_charset_loader_init_mysys(loader);
@@ -731,7 +731,7 @@ my_charset_get_by_name(MY_CHARSET_LOADER *loader,
   DBUG_ENTER("get_charset_by_csname");
   DBUG_PRINT("enter",("name: '%s'", cs_name));
 
-  my_pthread_once(&charsets_initialized, init_available_charsets);
+  my_thread_once(&charsets_initialized, init_available_charsets);
 
   cs_number= get_charset_number(cs_name, cs_flags);
   cs= cs_number ? get_internal_charset(loader, cs_number, flags) : NULL;

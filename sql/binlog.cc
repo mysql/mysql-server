@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -252,19 +252,19 @@ private:
 
   int setup_thread_globals(THD *thd) const {
     int error= 0;
-    THD *original_thd= my_pthread_get_THR_THD();
-    MEM_ROOT ** original_mem_root= my_pthread_get_THR_MALLOC();
-    if ((error= my_pthread_set_THR_THD(thd)))
+    THD *original_thd= my_thread_get_THR_THD();
+    MEM_ROOT ** original_mem_root= my_thread_get_THR_MALLOC();
+    if ((error= my_thread_set_THR_THD(thd)))
       goto exit0;
-    if ((error= my_pthread_set_THR_MALLOC(&thd->mem_root)))
+    if ((error= my_thread_set_THR_MALLOC(&thd->mem_root)))
       goto exit1;
     if ((error= set_mysys_thread_var(thd->mysys_var)))
       goto exit2;
     goto exit0;
 exit2:
-    error= my_pthread_set_THR_MALLOC(original_mem_root);
+    error= my_thread_set_THR_MALLOC(original_mem_root);
 exit1:
-    error= my_pthread_set_THR_THD(original_thd);
+    error= my_thread_set_THR_THD(original_thd);
 exit0:
     return error;
   }
