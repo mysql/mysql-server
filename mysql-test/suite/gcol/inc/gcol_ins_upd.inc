@@ -103,7 +103,6 @@ select a,b,c from t1;
 --echo # CREATE new_table ... LIKE old_table
 --echo # INSERT INTO new_table SELECT * from old_table
 create table t2 like t1;
---error ER_NON_DEFAULT_VALUE_FOR_GENERATED_COLUMN
 insert into t2 select * from t1;
 select * from t1;
 drop table t2;
@@ -113,7 +112,6 @@ drop table t2;
 insert into t1 values (1,default,default);
 select * from t1;
 create table t2 like t1;
---error ER_NON_DEFAULT_VALUE_FOR_GENERATED_COLUMN
 insert into t2 (a,b) select a,b from t1;
 select * from t2;
 drop table t2;

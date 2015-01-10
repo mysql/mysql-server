@@ -176,3 +176,11 @@ create table t1 (a int, b int generated always as(-b) virtual, c int generated a
 create table t1 (a int, b int generated always as(-c) virtual, c int generated always as (b + 1) virtual);
 --error ER_GENERATED_COLUMN_REF_AUTO_INC
 CREATE TABLE t1 (pk INTEGER AUTO_INCREMENT, col_int_nokey INTEGER GENERATED ALWAYS AS (pk + col_int_key) STORED, col_int_key INTEGER, PRIMARY KEY (pk));
+
+--echo # Bug#20339347: FAIL TO USE CREATE ....SELECT STATEMENT TO CREATE A NEW TABLE
+create table t1 (a int, b int generated always as(-a) virtual, c int generated always as (b + 1) stored);
+insert into t1(a) values(1),(2);
+create table tt as select * from t1;
+select * from t1;
+select * from tt;
+drop table t1,tt;
