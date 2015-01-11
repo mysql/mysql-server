@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -72,6 +72,32 @@ public class NdbRecordSmartValueHandlerImpl implements SmartValueHandler {
 
     /** My logger */
     static final Logger logger = LoggerFactoryService.getFactory().getInstance(InvocationHandlerImpl.class);
+
+    /** Finalize this object. This method is called by the garbage collector
+     * when the proxy that delegates to this object is no longer reachable.
+     */
+    protected void finalize() throws Throwable {
+        if (logger.isDetailEnabled()) logger.detail("NdbRecordSmartValueHandler.finalize");
+        try {
+            release();
+        } finally {
+            super.finalize();
+        }
+    }
+
+    /** Release any resources associated with this object.
+     * This method is called by the owner of this object.
+     */
+    public void release() {
+        if (logger.isDetailEnabled()) logger.detail("NdbRecordSmartValueHandler.release");
+        // NdbRecordOperationImpl holds references to key buffer and value buffer ByteBuffers
+        operation.release();
+        domainTypeHandler = null;
+        domainFieldHandlers = null;
+        fieldNumberToColumnNumberMap = null;
+        transientValues = null;
+        proxy = null;
+    }
 
     protected NdbRecordOperationImpl operation;
 
