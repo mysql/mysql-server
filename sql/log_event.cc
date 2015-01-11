@@ -4961,6 +4961,72 @@ Query_log_event::do_shall_skip(Relay_log_info *rli)
 
 #endif
 
+/**
+   Return the query string pointer (and its size) from a Query log event
+   using only the event buffer (we don't instantiate a Query_log_event
+   object for this).
+
+   @param buf               Pointer to the event buffer.
+   @param length            The size of the event buffer.
+   @param description_event The description event of the master which logged
+                            the event.
+   @param[out] query        The pointer to receive the query pointer.
+
+   @return                  The size of the query.
+*/
+size_t Query_log_event::get_query(const char *buf, size_t length,
+                                  const Format_description_log_event *fd_event,
+                                  char** query)
+{
+  Log_event_type event_type= (Log_event_type)buf[EVENT_TYPE_OFFSET];
+  DBUG_ASSERT(event_type == binary_log::QUERY_EVENT);
+
+  char db_len;                                  /* size of db name */
+  uint status_vars_len= 0;                      /* size of status_vars */
+  size_t qlen;                                  /* size of the query */
+  int checksum_size= 0;                         /* size of trailing checksum */
+  const char *end_of_query;
+
+  uint common_header_len= fd_event->common_header_len;
+  uint query_header_len= fd_event->post_header_len[binary_log::QUERY_EVENT-1];
+
+  /* Error if the event content is too small */
+  if (length < (common_header_len + query_header_len))
+    goto err;
+
+  /* Skip the header */
+  buf+= common_header_len;
+
+  /* Check if there are status variables in the event */
+  if ((query_header_len - QUERY_HEADER_MINIMAL_LEN) > 0)
+  {
+    status_vars_len= uint2korr(buf + Q_STATUS_VARS_LEN_OFFSET);
+  }
+
+  /* Check if the event has trailing checksum */
+  if (fd_event->common_footer->checksum_alg != binary_log::BINLOG_CHECKSUM_ALG_OFF)
+    checksum_size= 4;
+
+  db_len= (uint)buf[Q_DB_LEN_OFFSET];
+
+  /* Error if the event content is too small */
+  if (length < (common_header_len + query_header_len +
+                db_len + 1 + status_vars_len + checksum_size))
+    goto err;
+
+  *query= (char *)buf + query_header_len + db_len + 1 + status_vars_len;
+
+  /* Calculate the query length */
+  end_of_query= buf + (length - common_header_len) - /* we skipped the header */
+                checksum_size;
+  qlen= end_of_query - *query;
+  return qlen;
+
+err:
+  *query= NULL;
+  return 0;
+}
+
 
 /**************************************************************************
 	Start_log_event_v3 methods

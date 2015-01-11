@@ -1447,6 +1447,9 @@ public:        /* !!! Public in this patch to allow old usage */
       (!native_strncasecmp(query, STRING_WITH_LEN("ROLLBACK"))
        && native_strncasecmp(query, STRING_WITH_LEN("ROLLBACK TO ")));
   }
+  static size_t get_query(const char *buf, size_t length,
+                          const Format_description_log_event *fd_event,
+                          char** query);
 };
 
 

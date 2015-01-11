@@ -3905,39 +3905,7 @@ static int request_dump(THD *thd, MYSQL* mysql, Master_info* mi,
     global_sid_lock->wrlock();
     gtid_state->dbug_print();
 
-    /*
-      We are unsure whether I/O thread retrieved the last gtid transaction
-      completely or not (before it is going down because of a crash/normal
-      shutdown/normal stop slave io_thread). It is possible that I/O thread
-      would have retrieved and written only partial transaction events. So We
-      request Master to send the last gtid event once again. We do this by
-      removing the last I/O thread retrieved gtid event from
-      "Retrieved_gtid_set".  Possible cases: 1) I/O thread would have
-      retrieved full transaction already in the first time itself, but
-      retrieving them again will not cause problem because GTID number is
-      same, Hence SQL thread will not commit it again. 2) I/O thread would
-      have retrieved full transaction already and SQL thread would have
-      already executed it. In that case, We are not going remove last
-      retrieved gtid from "Retrieved_gtid_set" otherwise we will see gaps in
-      "Retrieved set". The same case is handled in the below code.  Please
-      note there will be paritial transactions written in relay log but they
-      will not cause any problem incase of transactional tables.  But incase
-      of non-transaction tables, partial trx will create inconsistency
-      between master and slave.  In that case, users need to check manually.
-    */
-
-    Gtid_set * retrieved_set= (const_cast<Gtid_set *>(mi->rli->get_gtid_set()));
-    Gtid *last_retrieved_gtid= mi->rli->get_last_retrieved_gtid();
-
-    /*
-      Remove last_retrieved_gtid only if it is not part of
-      executed_gtid_set
-    */
-    if (!last_retrieved_gtid->empty() &&
-        !gtid_state->get_executed_gtids()->contains_gtid(*last_retrieved_gtid))
-      retrieved_set->_remove_gtid(*last_retrieved_gtid);
-
-    if (gtid_executed.add_gtid_set(retrieved_set) != RETURN_STATUS_OK ||
+    if (gtid_executed.add_gtid_set(mi->rli->get_gtid_set()) != RETURN_STATUS_OK ||
         gtid_executed.add_gtid_set(gtid_state->get_executed_gtids()) !=
         RETURN_STATUS_OK)
     {
@@ -5172,6 +5140,22 @@ extern "C" void *handle_slave_io(void *arg)
 
 connected:
 
+  /*
+    When using auto positioning, the slave IO thread will always start reading
+    a transaction from the beginning of the transaction (transaction's first
+    event). So, we have to reset the transaction boundary parser after
+    (re)connecting.
+    If not using auto positioning, the Relay_log_info::rli_init_info() took
+    care of putting the mi->transaction_parser in the correct state when
+    initializing Received_gtid_set from relay log during slave server starts,
+    as the IO thread might had stopped in the middle of a transaction.
+  */
+  if (mi->is_auto_position())
+  {
+    mi->transaction_parser.reset();
+    mi->clear_last_gtid_queued();
+  }
+
     DBUG_EXECUTE_IF("dbug.before_get_running_status_yes",
                     {
                       const char act[]=
@@ -5438,6 +5422,9 @@ ignore_log_space_limit=%d",
       DBUG_EXECUTE_IF("stop_io_after_reading_write_rows_log_event",
         if (event_buf[EVENT_TYPE_OFFSET] == binary_log::WRITE_ROWS_EVENT)
           thd->killed= THD::KILLED_NO_VALUE;
+      );
+      DBUG_EXECUTE_IF("stop_io_after_queuing_event",
+        thd->killed= THD::KILLED_NO_VALUE;
       );
     }
   }
@@ -7441,6 +7428,19 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
               checksum_alg == binary_log::BINLOG_CHECKSUM_ALG_CRC32); 
 
   DBUG_ENTER("queue_event");
+
+  /*
+    Pause the IO thread execution and wait for 'continue_queuing_event'
+    signal to continue IO thread execution.
+  */
+  DBUG_EXECUTE_IF("pause_on_queuing_event",
+                  {
+                    const char act[]= "now SIGNAL reached_queuing_event "
+                                      "WAIT_FOR continue_queuing_event";
+                    DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                                                       STRING_WITH_LEN(act)));
+                  };);
+
   /*
     FD_queue checksum alg description does not apply in a case of
     FD itself. The one carries both parts of the checksum data.
@@ -7490,6 +7490,40 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
   }
 
   mysql_mutex_lock(&mi->data_lock);
+
+  /*
+    This transaction parser is used to ensure that the GTID of the transaction
+    (if it has one) will only be added to the Retrieved_Gtid_Set after the
+    last event of the transaction be queued.
+    It will also be used to avoid rotating the relay log in the middle of
+    a transaction when GTIDs are enabled.
+  */
+  if (gtid_mode >= GTID_MODE_UPGRADE_STEP_2 &&
+      mi->transaction_parser.feed_event(buf, event_len,
+                                        mi->get_mi_description_event(), true))
+  {
+    /*
+      The transaction parser detected a problem while changing state and threw
+      a warning message. We are taking care of avoiding transaction boundary
+      issues, but it can happen.
+
+      Transaction boundary errors might happen only because of bad master
+      positioning in 'CHANGE MASTER TO' (or bad manipulation of master.info)
+      when GTID auto positioning is off.
+
+      The IO thread will keep working and queuing events regardless of the
+      transaction parser error, but we will throw another warning message to
+      log the relay log file and position of the parser error to help
+      forensics.
+    */
+    sql_print_warning(
+      "An unexpected event sequence was detected by the IO thread while "
+      "queuing the event received from master '%s' binary log file, at "
+      "position %llu.", mi->get_master_log_name(), mi->get_master_log_pos());
+
+    DBUG_ASSERT(!mi->is_auto_position());
+  }
+
   if (mi->get_mi_description_event()->binlog_version < 4 &&
       event_type != binary_log::FORMAT_DESCRIPTION_EVENT /* a way to escape */)
   {
@@ -7879,12 +7913,14 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
       DBUG_PRINT("info", ("master_log_pos: %lu", (ulong) mi->get_master_log_pos()));
       rli->relay_log.harvest_bytes_written(&rli->log_space_total);
 
+      /*
+        If this event is GTID_LOG_EVENT we store its GTID to add to the
+        Retrieved_Gtid_Set later, when the last event of the transaction be
+        queued.
+      */
       if (event_type == binary_log::GTID_LOG_EVENT)
       {
-        global_sid_lock->rdlock();
-        rli->add_logged_gtid(gtid.sidno, gtid.gno);
-        rli->set_last_retrieved_gtid(gtid);
-        global_sid_lock->unlock();
+        mi->set_last_gtid_queued(gtid);
       }
     }
     else
