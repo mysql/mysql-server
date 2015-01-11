@@ -15,6 +15,7 @@
 # [--let $slave_timeout= X]
 # [--let $use_gtids= 1]
 # [--let $wait_for_executed_gtid_set= 1]
+# [--let $ignore_gtids_on_sync= 1]
 # --source include/sync_slave.inc
 #
 # Parameters:

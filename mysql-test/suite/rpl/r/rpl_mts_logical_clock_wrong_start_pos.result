@@ -5,6 +5,8 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection master]
 [connection slave]
 call mtr.add_suppression("Either event.*is from an old master");
+call mtr.add_suppression("An unexpected event sequence was detected by the IO thread");
+call mtr.add_suppression("QUERY.* is not expected in an event stream");
 include/stop_slave.inc
 SET @save_slave_parallel_type = @@GLOBAL.slave_parallel_type;
 SET @save_slave_parallel_workers = @@GLOBAL.slave_parallel_workers;

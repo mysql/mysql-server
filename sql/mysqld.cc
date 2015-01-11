@@ -4496,10 +4496,11 @@ int mysqld_main(int argc, char **argv)
 
       if (mysql_bin_log.init_gtid_sets(&logged_gtids_binlog,
                                        &purged_gtids_binlog,
-                                       NULL,
                                        opt_master_verify_checksum,
                                        true/*true=need lock*/,
-                                       true) ||
+                                       NULL/*trx_parser*/,
+                                       NULL/*gtid_partial_trx*/,
+                                       true/*is_server_starting*/) ||
           gtid_state->fetch_gtids(executed_gtids) == -1)
         unireg_abort(1);
 
