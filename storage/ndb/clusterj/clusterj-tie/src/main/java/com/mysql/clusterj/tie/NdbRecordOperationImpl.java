@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -201,6 +201,27 @@ public class NdbRecordOperationImpl implements Operation {
             }
         }
         resetMask();
+    }
+
+    /** Release any resources associated with this object.
+     * This method is called by the owner of this object.
+     */
+    public void release() {
+        if (logger.isDetailEnabled()) logger.detail("NdbRecordOperationImpl.release");
+        this.ndbRecordValues = null;
+        this.ndbRecordKeys = null;
+        this.valueBuffer = null;
+        this.keyBuffer = null;
+        this.bufferManager = null;
+        if (this.blobs != null) {
+            for (int i = 0; i < this.blobs.length; ++i) {
+                if (this.blobs[i] != null) {
+                  this.blobs[i].release();
+                  this.blobs[i] = null;
+                }
+            }
+            this.blobs = null;
+        }
     }
 
     public NdbOperationConst insert(ClusterTransactionImpl clusterTransactionImpl) {
