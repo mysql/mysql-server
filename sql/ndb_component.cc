@@ -55,7 +55,7 @@ Ndb_component_run_C(void * arg)
   return NULL;                              // Avoid compiler warnings
 }
 
-extern pthread_attr_t connection_attrib; // mysql global pthread attr
+extern my_thread_attr_t connection_attrib; // mysql global pthread attr
 
 int
 Ndb_component::start()
