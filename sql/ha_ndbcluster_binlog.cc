@@ -6839,7 +6839,7 @@ Ndb_binlog_thread::do_run()
   // Ndb binlog thread always use row format
   thd->set_current_stmt_binlog_format_row();
 
-  thd->real_id= pthread_self();
+  thd->real_id= my_thread_self();
   thd_manager->add_thd(thd);
   thd->lex->start_transaction_opt= 0;
 

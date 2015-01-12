@@ -45,7 +45,7 @@ class SafeMutex {
   const bool m_simple;
   native_mutex_t m_mutex;
   native_cond_t m_cond;
-  pthread_t m_owner;
+  my_thread_t m_owner;
   bool m_initdone;
   Uint32 m_level;
   Uint32 m_usage;       // max level used so far
