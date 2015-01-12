@@ -25,6 +25,7 @@
 #
 # Transaction hooks exist on binlog. As such, binlog must be enabled in
 # order for them to be called. They are:
+# - before_dml: Called before any dml instruction is issued.
 # - before_commit: Called before a transaction is committed.
 # - before_rollback: Called before a transaction is rollbacked.
 # - after_commit: Called after a transaction is committed.
@@ -88,6 +89,10 @@ DROP TABLE t1;
 --echo #
 --echo # Verify that all Trans Listening hooks were called
 --echo #
+
+--let GREP_FILE=$MYSQLTEST_VARDIR/log/mysqld.1.err
+--let GREP_PATTERN=replication_observers_example_plugin:trans_before_dml
+--source extra/rpl_tests/grep_pattern.inc
 
 --let GREP_FILE=$MYSQLTEST_VARDIR/log/mysqld.1.err
 --let GREP_PATTERN=replication_observers_example_plugin:trans_before_commit

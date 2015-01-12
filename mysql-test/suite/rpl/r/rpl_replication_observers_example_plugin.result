@@ -43,6 +43,10 @@ Occurrences of the replication_observers_example_plugin:after_server_shutdown in
 # Verify that all Trans Listening hooks were called
 #
 Matching lines are:
+replication_observers_example_plugin:trans_before_dml'
+
+Occurrences of the replication_observers_example_plugin:trans_before_dml in the input file : 1
+Matching lines are:
 replication_observers_example_plugin:trans_before_commit'
 
 Occurrences of the replication_observers_example_plugin:trans_before_commit in the input file : 1
