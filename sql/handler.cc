@@ -19,35 +19,34 @@
   Handler-calling-functions
 */
 
-#include "binlog.h"
-#include "rpl_handler.h"
-#include "sql_cache.h"                   // query_cache, query_cache_*
-#include "key.h"     // key_copy, key_unpack, key_cmp_if_same, key_cmp
-#include "sql_table.h"                   // build_table_filename
-#include "sql_parse.h"                          // check_stack_overrun
-#include "auth_common.h"        // SUPER_ACL
-#include "sql_base.h"           // free_io_cache
-#include "discover.h"           // writefrm
-#include "log_event.h"          // *_rows_log_event
-#include "rpl_filter.h"
-#include <myisampack.h>
-#include "transaction.h"
-#include <errno.h>
-#include "probes_mysql.h"
+#include "handler.h"
+
+#include "my_bit.h"                   // my_count_bits
+#include "myisam.h"                   // TT_FOR_UPGRADE
+#include "binlog.h"                   // mysql_bin_log
+#include "debug_sync.h"               // DEBUG_SYNC
+#include "discover.h"                 // writefrm
+#include "log.h"                      // sql_print_error
+#include "probes_mysql.h"             // MYSQL_HANDLER_WRLOCK_START
+#include "opt_costconstantcache.h"    // reload_optimizer_cost_constants
+#include "rpl_handler.h"              // RUN_HOOK
+#include "sql_base.h"                 // free_io_cache
+#include "sql_parse.h"                // check_stack_overrun
+#include "sql_table.h"                // build_table_filename
+#include "transaction.h"              // trans_commit_implicit
+#include "trigger_def.h"              // TRG_EXT
+
 #include <pfs_table_provider.h>
 #include <mysql/psi/mysql_table.h>
+
 #include <pfs_transaction_provider.h>
 #include <mysql/psi/mysql_transaction.h>
-#include "debug_sync.h"         // DEBUG_SYNC
-#include "sql_trigger.h"        // TRG_EXT, TRN_EXT
-#include "opt_costmodel.h"
-#include "opt_costconstantcache.h"           // reload_optimizer_cost_constants
-#include <my_bit.h>
-#include <list>
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
 #include "ha_partition.h"
 #endif
+
+#include <list>
 
 /**
   @def MYSQL_TABLE_IO_WAIT
