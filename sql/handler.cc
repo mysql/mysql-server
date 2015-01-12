@@ -5508,6 +5508,119 @@ double handler::index_only_read_time(uint keynr, double records)
 }
 
 
+double handler::table_in_memory_estimate() const
+{
+  DBUG_ASSERT(stats.table_in_mem_estimate == IN_MEMORY_ESTIMATE_UNKNOWN ||
+              (stats.table_in_mem_estimate >= 0.0 &&
+               stats.table_in_mem_estimate <= 1.0));
+
+  /*
+    If the storage engine has supplied information about how much of the
+    table that is currently in a memory buffer, then use this estimate.
+  */
+  if (stats.table_in_mem_estimate != IN_MEMORY_ESTIMATE_UNKNOWN)
+    return stats.table_in_mem_estimate;
+
+  /*
+    The storage engine has not provided any information about how much of
+    this index is in memory, use an heuristic to produce an estimate.
+  */
+  return estimate_in_memory_buffer(stats.data_file_length);
+}
+
+
+double handler::index_in_memory_estimate(uint keyno) const
+{
+  const KEY *key= &table->key_info[keyno];
+
+  /*
+    If the storage engine has supplied information about how much of the
+    index that is currently in a memory buffer, then use this estimate.
+  */
+  const double est= key->in_memory_estimate();
+  if (est != IN_MEMORY_ESTIMATE_UNKNOWN)
+    return est;
+
+  /*
+    The storage engine has not provided any information about how much of
+    this index is in memory, use an heuristic to produce an estimate.
+  */
+  ulonglong file_length;
+
+  /*
+    If the index is a clustered primary index, then use the data file
+    size as estimate for how large the index is.
+  */
+  if (keyno == table->s->primary_key && primary_key_is_clustered())
+    file_length= stats.data_file_length;
+  else
+    file_length= stats.index_file_length;
+
+  return estimate_in_memory_buffer(file_length);
+}
+
+
+double handler::estimate_in_memory_buffer(ulonglong table_index_size) const
+{
+  /*
+    The storage engine has not provided any information about how much of
+    the table/index is in memory. In this case we use a heuristic:
+
+    - if the size of the table/index is less than 20 percent (pick any
+      number) of the memory buffer, then the entire table/index is likely in
+      memory.
+    - if the size of the table/index is larger than the memory buffer, then
+      assume nothing of the table/index is in memory.
+    - if the size of the table/index is larger than 20 percent but less than
+      the memory buffer size, then use a linear function of the table/index
+      size that goes from 1.0 to 0.0.
+  */
+
+  /*
+    If the storage engine has information about the size of its
+    memory buffer, then use this. Otherwise, assume that at least 100 MB
+    of data can be chached in memory.
+  */
+  longlong memory_buf_size= get_memory_buffer_size();
+  if (memory_buf_size <= 0)
+    memory_buf_size= 100 * 1024 * 1024;    // 100 MB
+
+  /*
+    Upper limit for the relative size of a table to be considered
+    entirely available in a memory buffer. If the actual table size is
+    less than this we assume it is complete cached in a memory buffer.
+  */
+  const double table_index_in_memory_limit= 0.2;
+
+  /*
+    Estimate for how much of the total memory buffer this table/index
+    can occupy.
+  */
+  const double percent_of_mem= static_cast<double>(table_index_size) /
+    memory_buf_size;
+
+  double in_mem_est;
+
+  if (percent_of_mem < table_index_in_memory_limit) // Less than 20 percent
+    in_mem_est= 1.0;
+  else if (percent_of_mem > 1.0)                // Larger than buffer
+    in_mem_est= 0.0;
+  else
+  {
+    /*
+      The size of the table/index is larger than
+      "table_index_in_memory_limit" * "memory_buf_size" but less than
+      the total size of the memory buffer.
+    */
+    in_mem_est= 1.0 - (percent_of_mem - table_index_in_memory_limit) /
+      (1.0 - table_index_in_memory_limit);
+  }
+  DBUG_ASSERT(in_mem_est >= 0.0 && in_mem_est <= 1.0);
+
+  return in_mem_est;
+}
+
+
 Cost_estimate handler::table_scan_cost()
 {
   /*
@@ -5516,6 +5629,17 @@ Cost_estimate handler::table_scan_cost()
     optimization" to avoid creating the temporary object for the return value
     and use of the copy constructor.
   */
+
+#ifndef DBUG_OFF
+  /*
+    The cost model does not currently take into account whether table
+    data is in memory or on disk. To test and to get coverage for the
+    code for estimating data in memory, a call for getting this
+    estimate is included here when compiled in debug mode.
+  */
+  const double in_mem= table_in_memory_estimate();
+  DBUG_ASSERT(in_mem >= 0.0 && in_mem <= 1.0);
+#endif
 
   const double io_cost= scan_time() * table->cost_model()->io_block_read_cost();
   Cost_estimate cost;
@@ -5535,6 +5659,17 @@ Cost_estimate handler::index_scan_cost(uint index, double ranges, double rows)
 
   DBUG_ASSERT(ranges >= 0.0);
   DBUG_ASSERT(rows >= 0.0);
+
+#ifndef DBUG_OFF
+  /*
+    The cost model does not currently take into account whether index
+    data is in memory or on disk. To test and to get coverage for the
+    code for estimating data in memory, a call for getting this
+    estimate is included here when compiled in debug mode.
+  */
+  const double in_mem= index_in_memory_estimate(index);
+  DBUG_ASSERT(in_mem >= 0.0 && in_mem <= 1.0);
+#endif
 
   const double io_cost= index_only_read_time(index, rows) *
                         table->cost_model()->io_block_read_cost();

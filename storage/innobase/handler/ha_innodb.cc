@@ -4283,8 +4283,8 @@ Determines if the primary key is clustered index.
 @return true */
 
 bool
-ha_innobase::primary_key_is_clustered()
-/*===================================*/
+ha_innobase::primary_key_is_clustered() const
+/*=========================================*/
 {
 	return(true);
 }
