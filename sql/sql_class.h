@@ -18,21 +18,25 @@
 
 /* Classes in mysql */
 
-#include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
-#include "sql_const.h"
-#include "sql_lex.h"
-#include "rpl_tblmap.h"
-#include "mdl.h"
-#include "sql_locale.h"                         /* my_locale_st */
-#include "sql_profile.h"                   /* PROFILING */
-#include "protocol.h"             /* Protocol_text, Protocol_binary */
-#include "violite.h"              /* vio_is_connected */
-#include "thr_lock.h"             /* thr_lock_type, THR_LOCK_DATA,
-                                     THR_LOCK_INFO */
-#include "opt_trace_context.h"    /* Opt_trace_context */
-#include "rpl_gtid.h"
-#include "dur_prop.h"
-#include "prealloced_array.h"
+#include "my_global.h"
+
+#include "dur_prop.h"                     // durability_properties
+#include "mysql/mysql_lex_string.h"       // LEX_STRING
+#include "mysql_com.h"                    // Item_result
+#include "mysql_com_server.h"             // NET_SERVER
+#include "auth/sql_security_ctx.h"        // Security_context
+#include "handler.h"                      // KEY_CREATE_INFO
+#include "opt_trace_context.h"            // Opt_trace_context
+#include "protocol.h"                     // Protocol_text
+#include "rpl_context.h"                  // Rpl_thd_context
+#include "rpl_gtid.h"                     // Gtid_specification
+#include "session_tracker.h"              // Session_tracker
+#include "sql_alloc.h"                    // Sql_alloc
+#include "sql_lex.h"                      // keytype
+#include "sql_locale.h"                   // MY_LOCALE
+#include "sql_profile.h"                  // PROFILING
+#include "sys_vars_resource_mgr.h"        // Session_sysvar_resource_manager
+#include "transaction_info.h"             // Ha_trx_info
 
 #include <pfs_stage_provider.h>
 #include <mysql/psi/mysql_stage.h>
@@ -40,21 +44,15 @@
 #include <pfs_statement_provider.h>
 #include <mysql/psi/mysql_statement.h>
 
-#include <pfs_idle_provider.h>
-#include <mysql/psi/mysql_idle.h>
-
-#include <mysql_com_server.h>
-#include "opt_costmodel.h"                      // Cost_model_server
-#include "sql_data_change.h"
-
-#include "sys_vars_resource_mgr.h"
-#include "session_tracker.h"
-
-#include "transaction_info.h"
 #include <memory>
-#include "rpl_context.h"
 
-#include "auth/sql_security_ctx.h"   // Security_context
+class Reprepare_observer;
+class sp_cache;
+class Rows_log_event;
+struct st_thd_timer;
+typedef struct st_log_info LOG_INFO;
+typedef struct st_columndef MI_COLUMNDEF;
+typedef struct st_mysql_lex_string LEX_STRING;
 
 /**
   The meat of thd_proc_info(THD*, char*), a macro that packs the last
@@ -79,21 +77,6 @@ void set_thd_stage_info(void *thd,
                         
 #define THD_STAGE_INFO(thd, stage) \
   (thd)->enter_stage(& stage, NULL, __func__, __FILE__, __LINE__)
-
-class Reprepare_observer;
-class Relay_log_info;
-
-class Query_log_event;
-class Load_log_event;
-class sp_rcontext;
-class sp_cache;
-class Parser_state;
-class Rows_log_event;
-class Sroutine_hash_entry;
-class user_var_entry;
-typedef struct st_log_info LOG_INFO;
-
-struct st_thd_timer;
 
 enum enum_delay_key_write { DELAY_KEY_WRITE_NONE, DELAY_KEY_WRITE_ON,
 			    DELAY_KEY_WRITE_ALL };
@@ -4094,7 +4077,6 @@ public:
   bool send_data(List<Item> &items);
 };
 
-#include <myisam.h>
 
 typedef Mem_root_array<Item*, true> Func_ptr_array;
 
