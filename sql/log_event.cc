@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3034,17 +3034,30 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
       The following assert proves there's the only reason
       for such group.
     */
-    DBUG_ASSERT(!ends_group() ||
-                /*
-                  This is an empty group being processed due to gtids.
-                */
-                (rli->curr_group_seen_begin && rli->curr_group_seen_gtid &&
-                 ends_group()) ||
-                (rli->mts_end_group_sets_max_dbs &&
-                 ((rli->curr_group_da.size() == 3 && rli->curr_group_seen_gtid) ||
-                  (rli->curr_group_da.size() == 2 && !rli->curr_group_seen_gtid)) &&
-                 ((rli->curr_group_da.back().data->
-                   get_type_code() == binary_log::BEGIN_LOAD_QUERY_EVENT))));
+#ifndef DBUG_OFF
+    {
+      bool empty_group_with_gtids= rli->curr_group_seen_begin &&
+                                   rli->curr_group_seen_gtid &&
+                                   ends_group();
+
+      bool begin_load_query_event=
+        ((rli->curr_group_da.size() == 3 && rli->curr_group_seen_gtid) ||
+         (rli->curr_group_da.size() == 2 && !rli->curr_group_seen_gtid)) &&
+        (rli->curr_group_da.back().data->
+         get_type_code() == binary_log::BEGIN_LOAD_QUERY_EVENT);
+
+      bool delete_file_event=
+        ((rli->curr_group_da.size() == 4 && rli->curr_group_seen_gtid) ||
+         (rli->curr_group_da.size() == 3 && !rli->curr_group_seen_gtid)) &&
+        (rli->curr_group_da.back().data->
+         get_type_code() == binary_log::DELETE_FILE_EVENT);
+
+      DBUG_ASSERT(!ends_group() ||
+                  empty_group_with_gtids ||
+                  (rli->mts_end_group_sets_max_dbs &&
+                   (begin_load_query_event || delete_file_event)));
+    }
+#endif
 
     // partioning info is found which drops the flag
     rli->mts_end_group_sets_max_dbs= false;
@@ -3128,6 +3141,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
             get_type_code() == binary_log::USER_VAR_EVENT ||
             get_type_code() == binary_log::BEGIN_LOAD_QUERY_EVENT ||
             get_type_code() == binary_log::APPEND_BLOCK_EVENT ||
+            get_type_code() == binary_log::DELETE_FILE_EVENT ||
             is_ignorable_event()))
       {
         DBUG_ASSERT(!ret_worker);
@@ -3389,7 +3403,14 @@ int Log_event::apply_event(Relay_log_info *rli)
                 applying of LOAD-DATA.
               */
               (rli->curr_group_da.back().data->
-               get_type_code() == binary_log::BEGIN_LOAD_QUERY_EVENT));
+               get_type_code() == binary_log::BEGIN_LOAD_QUERY_EVENT) ||
+              /*
+                Delete_file can also be logged w/o db info and within
+                Begin/Commit. That's a pattern forcing sequential
+                applying of LOAD-DATA.
+              */
+              (rli->curr_group_da.back().data->
+               get_type_code() == binary_log::DELETE_FILE_EVENT));
 
   worker= NULL;
   rli->mts_group_status= Relay_log_info::MTS_IN_GROUP;
