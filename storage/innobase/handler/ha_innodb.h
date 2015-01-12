@@ -246,7 +246,7 @@ class ha_innobase: public handler
 		qc_engine_callback*	call_back,
 		ulonglong*		engine_data);
 
-	bool primary_key_is_clustered();
+	bool primary_key_is_clustered() const;
 
 	int cmp_ref(const uchar* ref1, const uchar* ref2);
 

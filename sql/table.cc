@@ -1196,6 +1196,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 
     keyinfo->key_part= key_part;
     keyinfo->set_rec_per_key_array(rec_per_key, rec_per_key_float);
+    keyinfo->set_in_memory_estimate(IN_MEMORY_ESTIMATE_UNKNOWN);
 
     for (j=keyinfo->user_defined_key_parts ; j-- ; key_part++)
     {
@@ -5657,6 +5658,7 @@ bool TABLE::add_tmp_key(Field_map *key_parts, char *key_name)
   cur_key->name= key_name;
   cur_key->actual_flags= cur_key->flags= HA_GENERATED_KEY;
   cur_key->set_rec_per_key_array(rec_per_key, rec_per_key_float);
+  cur_key->set_in_memory_estimate(IN_MEMORY_ESTIMATE_UNKNOWN);
   cur_key->table= this;
 
   /* Initialize rec_per_key and rec_per_key_float */
