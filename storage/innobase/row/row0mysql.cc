@@ -4786,6 +4786,7 @@ row_rename_table_for_mysql(
 	ibool		old_is_tmp, new_is_tmp;
 	pars_info_t*	info			= NULL;
 	int		retry;
+	bool		aux_fts_rename		= false;
 
 	ut_a(old_name != NULL);
 	ut_a(new_name != NULL);
@@ -5072,34 +5073,8 @@ row_rename_table_for_mysql(
 	if (dict_table_has_fts_index(table)
 	    && !dict_tables_have_same_db(old_name, new_name)) {
 		err = fts_rename_aux_tables(table, new_name, trx);
-
-		if (err != DB_SUCCESS && (table->space != 0)) {
-			char*	orig_name = table->name;
-			trx_t*	trx_bg = trx_allocate_for_background();
-
-			/* If the first fts_rename fails, the trx would
-			be rolled back and committed, we can't use it any more,
-			so we have to start a new background trx here. */
-			ut_a(trx_state_eq(trx, TRX_STATE_NOT_STARTED));
-			trx_bg->op_info = "Revert the failing rename "
-					  "for fts aux tables";
-			trx_bg->dict_operation_lock_mode = RW_X_LATCH;
-			trx_start_for_ddl(trx_bg, TRX_DICT_OP_TABLE);
-
-			/* If rename fails and table has its own tablespace,
-			we need to call fts_rename_aux_tables again to
-			revert the ibd file rename, which is not under the
-			control of trx. Also notice the parent table name
-			in cache is not changed yet. If the reverting fails,
-			the ibd data may be left in the new database, which
-			can be fixed only manually. */
-			table->name = const_cast<char*>(new_name);
-			fts_rename_aux_tables(table, old_name, trx_bg);
-			table->name = orig_name;
-
-			trx_bg->dict_operation_lock_mode = 0;
-			trx_commit_for_mysql(trx_bg);
-			trx_free_for_background(trx_bg);
+		if (err != DB_TABLE_NOT_FOUND) {
+			aux_fts_rename = true;
 		}
 	}
 
@@ -5200,6 +5175,37 @@ end:
 	}
 
 funct_exit:
+	if (aux_fts_rename && err != DB_SUCCESS
+	    && table != NULL && (table->space != 0)) {
+
+		char*	orig_name = table->name;
+		trx_t*	trx_bg = trx_allocate_for_background();
+
+		/* If the first fts_rename fails, the trx would
+		be rolled back and committed, we can't use it any more,
+		so we have to start a new background trx here. */
+		ut_a(trx_state_eq(trx, TRX_STATE_NOT_STARTED));
+		trx_bg->op_info = "Revert the failing rename "
+				  "for fts aux tables";
+		trx_bg->dict_operation_lock_mode = RW_X_LATCH;
+		trx_start_for_ddl(trx_bg, TRX_DICT_OP_TABLE);
+
+		/* If rename fails and table has its own tablespace,
+		we need to call fts_rename_aux_tables again to
+		revert the ibd file rename, which is not under the
+		control of trx. Also notice the parent table name
+		in cache is not changed yet. If the reverting fails,
+		the ibd data may be left in the new database, which
+		can be fixed only manually. */
+		table->name = const_cast<char*>(new_name);
+		fts_rename_aux_tables(table, old_name, trx_bg);
+		table->name = orig_name;
+
+		trx_bg->dict_operation_lock_mode = 0;
+		trx_commit_for_mysql(trx_bg);
+		trx_free_for_background(trx_bg);
+	}
+
 	if (table != NULL) {
 		dict_table_close(table, dict_locked, FALSE);
 	}
