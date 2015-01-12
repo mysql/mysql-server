@@ -20,16 +20,6 @@
 #include <rpl_info_factory.h>
 #include <rpl_slave.h>
 
-/* The retrieved certification database*/
-std::map<std::string, rpl_gno> retrieved_cert_db;
-/* The retrieved certification sequence number*/
-rpl_gno retrieved_seq_number;
-
-/* The lock for the recovery wait condition*/
-mysql_mutex_t *recovery_lock= NULL;
-/* The condition for the recovery wait */
-mysql_cond_t *recovery_condition= NULL;
-
 Gcs_replication_handler::Gcs_replication_handler() :
   plugin(NULL), plugin_handle(NULL)
 {
@@ -106,6 +96,13 @@ bool Gcs_replication_handler::is_gcs_rpl_running()
   if (plugin_handle)
     return plugin_handle->is_gcs_rpl_running();
   return false;
+}
+
+int Gcs_replication_handler::gcs_set_retrieved_cert_info(View_change_log_event* view_change_event)
+{
+  if (plugin_handle)
+    return plugin_handle->gcs_set_retrieved_cert_info(view_change_event);
+  return 1;
 }
 
 int Gcs_replication_handler::gcs_init()
@@ -186,6 +183,14 @@ bool is_running_gcs_rpl()
     return gcs_rpl_handler->is_gcs_rpl_running();
   return false;
 }
+
+int set_gcs_retrieved_cert_info(View_change_log_event* view_change_event)
+{
+  if (gcs_rpl_handler)
+    return gcs_rpl_handler->gcs_set_retrieved_cert_info(view_change_event);
+  return 1;
+}
+
 int cleanup_gcs_rpl()
 {
   if(!gcs_rpl_handler)
@@ -249,53 +254,6 @@ char *set_relay_log_info_name(char* name){
 }
 
 #endif
-
-void set_recovery_wait_structures(mysql_cond_t *rec_cond,
-                                  mysql_mutex_t *rec_lock)
-{
-  recovery_condition= rec_cond;
-  recovery_lock= rec_lock;
-}
-
-void set_retrieved_cert_info(View_change_log_event* view_change_event)
-{
-  if (recovery_lock != NULL)
-    mysql_mutex_lock(recovery_lock);
-
-  std::map<std::string, rpl_gno>* db= NULL;
-  db= view_change_event->get_certification_database();
-
-  //clear possible old values
-  retrieved_cert_db.clear();
-
-  std::map<std::string, rpl_gno>::iterator iter;
-
-  for (iter= db->begin(); iter!= db->end(); iter++) {
-    std::string key= iter->first;
-    retrieved_cert_db[key]=  iter->second;
-  }
-
-  retrieved_seq_number= view_change_event->get_seq_number();
-
-  if (recovery_lock != NULL && recovery_condition != NULL)
-  {
-    mysql_cond_broadcast(recovery_condition);
-    mysql_mutex_unlock(recovery_lock);
-  }
-}
-
-std::map<std::string, rpl_gno>* get_retrieved_cert_db(){
-  return &retrieved_cert_db;
-}
-
-rpl_gno get_retrieved_seq_number(){
-  return retrieved_seq_number;
-}
-
-void reset_retrieved_seq_number()
-{
-  retrieved_seq_number= -1;
-}
 
 void get_server_host_port_uuid(char **hostname, uint *port, char** uuid)
 {

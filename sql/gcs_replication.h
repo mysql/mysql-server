@@ -34,6 +34,7 @@ public:
   int gcs_rpl_start();
   int gcs_rpl_stop();
   bool is_gcs_rpl_running();
+  int gcs_set_retrieved_cert_info(View_change_log_event* view_change_event);
   /* functions accessing GCS cluster status and stats */
   bool get_gcs_connection_status(RPL_GCS_CONNECTION_STATUS_INFO *info);
   bool get_gcs_group_members(uint index, RPL_GCS_GROUP_MEMBERS_INFO *info);
@@ -51,6 +52,15 @@ int init_gcs_rpl();
 int start_gcs_rpl();
 int stop_gcs_rpl();
 bool is_running_gcs_rpl();
+/**
+  Function to set retrieved certification info from a GCS channel extracted
+  from a given View_change event
+
+  @note a copy of the certification info is made here.
+
+  @param view_change_event   the given view_change_event.
+*/
+int set_gcs_retrieved_cert_info(View_change_log_event* view_change_event);
 int cleanup_gcs_rpl();
 bool is_gcs_plugin_loaded();
 
@@ -130,50 +140,6 @@ char *set_relay_log_index_name(char* name);
   @return the previous variable name
 */
 char *set_relay_log_info_name(char* name);
-
-//Recovery related methods
-
-/**
-  This method sets the condition and associated mutex to allow to be awaken when
-  recovery info is set on this server interface.
-
-  @param recovery_cond   The condition to awake the recovery process
-  @param recovery_lock   The condition associated lock.
- */
-void set_recovery_wait_structures(mysql_cond_t *recovery_cond,
-                                  mysql_mutex_t *recovery_lock);
-
-/**
-  Method to set retrieved certification info from a non GCS channel extracted
-  from a given View_change event
-
-  @note a copy of the certification database is made here.
-
-  @param view_change_event   the given view_change_event.
-*/
-void set_retrieved_cert_info(View_change_log_event* view_change_event);
-
-
-/**
-  Returns the present certification database assuming one was set before.
-
-  @return a pointer to the retrieved certification database
-    @retval NULL     database not set
-    @retval !NULL    a valid database
-*/
-std::map<std::string, rpl_gno>* get_retrieved_cert_db();
-
-/**
-  Returns the present certification sequence number
-
-  @return a seq number
-*/
-rpl_gno get_retrieved_seq_number();
-
-/**
-  Resets the seq number to a value representing a invalid value.
- */
-void reset_retrieved_seq_number();
 
 /**
   Returns the server hostname, port and uuid.

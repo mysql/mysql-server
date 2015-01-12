@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -7184,6 +7184,7 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all)
     if (RUN_HOOK(transaction,
                  before_commit,
                  (thd, all,
+                  (thd->variables.gtid_next.type == GTID_GROUP) ? TRUE : FALSE,
                   thd_get_cache_mngr(thd)->get_binlog_cache_log(true),
                   thd_get_cache_mngr(thd)->get_binlog_cache_log(false),
                   max<my_off_t>(max_binlog_cache_size,

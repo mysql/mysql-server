@@ -239,7 +239,7 @@ bool get_gcs_group_member_stats(RPL_GCS_GROUP_MEMBER_STATS_INFO *info,
     info->transaction_conflicts_detected= cert_module->get_negative_certified();
     info->transaction_certified= cert_module->get_positive_certified() +
                                  info->transaction_conflicts_detected;
-    info->transactions_in_validation= cert_module->get_cert_db_size();
+    info->transactions_in_validation= cert_module->get_certification_info_size();
     info->transaction_in_queue= applier_module->get_message_queue_size();
 
     Gtid_set* stable_gtid_set= cert_module->get_group_stable_transactions_set();

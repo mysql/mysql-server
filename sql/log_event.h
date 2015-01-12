@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -5407,7 +5407,9 @@ class Transaction_context_log_event: public Log_event
 private:
   char *server_uuid;
   int64 thread_id;
-  int64 snapshot_timestamp;
+  int8 gtid_specified;
+  Sid_map *sid_map;
+  Gtid_set *snapshot_version;
   std::list<const char*> write_set;
   std::list<const char*> read_set;
 
@@ -5415,13 +5417,17 @@ private:
   static const int ENCODED_SERVER_UUID_LEN_OFFSET= 0;
   // 8 bytes length.
   static const int ENCODED_THREAD_ID_OFFSET= 1;
-  // 8 bytes length.
-  static const int ENCODED_SNAPSHOT_TIMESTAMP_OFFSET= 9;
+  // 1 byte length.
+  static const int ENCODED_GTID_SPECIFIED_OFFSET= 9;
+  // 2 bytes length
+  static const int ENCODED_SNAPSHOT_VERSION_OFFSET= 10;
   // 2 bytes length.
-  static const int ENCODED_WRITE_SET_ITEMS_OFFSET= 17;
+  static const int ENCODED_WRITE_SET_ITEMS_OFFSET= 12;
   // 2 bytes length.
-  static const int ENCODED_READ_SET_ITEMS_OFFSET= 19;
+  static const int ENCODED_READ_SET_ITEMS_OFFSET=  14;
+
   static const int ENCODED_READ_WRITE_SET_ITEM_LEN= 2;
+  static const int ENCODED_SNAPSHOT_VERSION_LEN= 2;
 
   size_t to_string(char *buf, ulong len) const;
 
@@ -5430,8 +5436,14 @@ private:
 
   bool write_data_body(IO_CACHE* file);
 
+  bool write_snapshot_version(IO_CACHE* file);
+
   bool write_data_set(IO_CACHE* file, std::list<const char*> *set);
 #endif
+
+  char *read_snapshot_version(char *pos, uint16 len);
+
+  uint16 get_snapshot_version_size();
 
   static char *read_data_set(char *pos, uint16 set_len, std::list<const char*> *set);
 
@@ -5440,12 +5452,12 @@ private:
   static void clear_set(std::list<const char*> *set);
 
 public:
-  static const int POST_HEADER_LENGTH= 21;
+  static const int POST_HEADER_LENGTH= 16;
 
 #ifndef MYSQL_CLIENT
   Transaction_context_log_event(const char *server_uuid_arg,
                                 my_thread_id thread_id_arg,
-                                rpl_gno snapshot_timestamp_arg);
+                                bool is_gtid_specified_arg);
 #endif
 
   Transaction_context_log_event(const char *buffer,
@@ -5504,7 +5516,7 @@ public:
   /**
     Return the transaction snapshot timestamp.
    */
-  rpl_gno get_snapshot_timestamp() { return snapshot_timestamp; }
+  Gtid_set *get_snapshot_version() { return snapshot_version; }
 
   /**
     Return the server uuid.
@@ -5515,6 +5527,11 @@ public:
     Return the id of the committing thread.
    */
   my_thread_id get_thread_id() { return thread_id; }
+
+  /**
+   Return true if transaction has GTID_NEXT specified, false otherwise.
+   */
+  bool is_gtid_specified() { return gtid_specified == 1; };
 };
 
 /**
@@ -5529,30 +5546,30 @@ private:
   // 8 bytes length.
   static const int ENCODED_SEQ_NUMBER_OFFSET= 40;
   // 4 bytes length.
-  static const int ENCODED_CERT_DB_SIZE_OFFSET= 48;
+  static const int ENCODED_CERT_INFO_SIZE_OFFSET= 48;
 
   //Field sizes on serialization
   static const int ENCODED_VIEW_ID_MAX_LEN= 40;
-  static const int ENCODED_CERT_DB_KEY_SIZE_LEN= 2;
-  static const int ENCODED_CERT_DB_VALUE_LEN= 8;
+  static const int ENCODED_CERT_INFO_KEY_SIZE_LEN= 2;
+  static const int ENCODED_CERT_INFO_VALUE_LEN= 2;
 
 private:
   char view_id[ENCODED_VIEW_ID_MAX_LEN];
   rpl_gno seq_number;
-  std::map<std::string, rpl_gno> cert_db;
+  std::map<std::string, std::string> certification_info;
 
 #ifndef MYSQL_CLIENT
   bool write_data_header(IO_CACHE* file);
 
   bool write_data_body(IO_CACHE* file);
 
-  bool write_data_map(IO_CACHE* file, std::map<std::string, rpl_gno> *map);
+  bool write_data_map(IO_CACHE* file, std::map<std::string, std::string> *map);
 #endif
 
   static char *read_data_map(char *pos, uint map_len,
-                             std::map<std::string, rpl_gno> *map);
+                             std::map<std::string, std::string> *map);
 
-  int get_map_data_size(std::map<std::string, rpl_gno> *map);
+  int get_size_data_map(std::map<std::string, std::string> *map);
 
 public:
 
@@ -5597,18 +5614,18 @@ public:
   char* get_view_id() { return view_id; }
 
   /**
-    Sets the certification database
+    Sets the certification info
 
     @param db the database
   */
-  void set_certification_db_snapshot(std::map<std::string, rpl_gno> *db);
+  void set_certification_info(std::map<std::string, std::string> *info);
 
   /**
-    Returns the certification database
+    Returns the certification info
   */
-  std::map<std::string, rpl_gno>* get_certification_database()
+  std::map<std::string, std::string>* get_certification_info()
   {
-    return &cert_db;
+    return &certification_info;
   }
 
   /**

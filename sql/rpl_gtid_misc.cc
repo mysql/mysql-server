@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -171,17 +171,6 @@ rpl_sidno get_sidno_from_global_sid_map(rpl_sid sid)
   global_sid_lock->unlock();
 
   DBUG_RETURN(sidno);
-}
-
-rpl_gno get_last_executed_gno_without_gaps(rpl_sidno sidno)
-{
-  DBUG_ENTER("get_last_executed_gno_without_gaps(rpl_sidno)");
-
-  global_sid_lock->rdlock();
-  rpl_gno gno= gtid_state->get_last_executed_gno_without_gaps(sidno);
-  global_sid_lock->unlock();
-
-  DBUG_RETURN(gno);
 }
 
 rpl_gno get_last_executed_gno(rpl_sidno sidno)

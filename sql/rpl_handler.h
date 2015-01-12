@@ -171,6 +171,7 @@ public:
 
   int before_dml(THD *thd, int& result);
   int before_commit(THD *thd, bool all,
+                    my_bool is_gtid_specified,
                     IO_CACHE *trx_cache_log,
                     IO_CACHE *stmt_cache_log,
                     ulonglong cache_log_max_size);

@@ -289,6 +289,7 @@ void delegates_destroy()
     plugin_unlock_list(0, &plugins[0], plugins.size());
 
 int Trans_delegate::before_commit(THD *thd, bool all,
+                                  my_bool is_gtid_specified,
                                   IO_CACHE *trx_cache_log,
                                   IO_CACHE *stmt_cache_log,
                                   ulonglong cache_log_max_size)
@@ -298,6 +299,7 @@ int Trans_delegate::before_commit(THD *thd, bool all,
   param.server_id= thd->server_id;
   param.server_uuid= server_uuid;
   param.thread_id= thd->thread_id();
+  param.is_gtid_specified= is_gtid_specified;
   param.trx_cache_log= trx_cache_log;
   param.stmt_cache_log= stmt_cache_log;
   param.cache_log_max_size= cache_log_max_size;

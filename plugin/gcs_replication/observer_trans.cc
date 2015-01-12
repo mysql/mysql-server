@@ -19,8 +19,6 @@
 #include "observer_trans.h"
 #include "gcs_plugin_utils.h"
 #include <log_event.h>
-#include <my_stacktrace.h>
-#include "sql_class.h"
 #include "gcs_replication.h"
 
 /*
@@ -169,7 +167,6 @@ int gcs_trans_before_commit(Trans_param *param)
 
   // GCS cache.
   Transaction_context_log_event *tcle= NULL;
-  rpl_gno snapshot_timestamp;
   IO_CACHE cache;
   // Todo optimize for memory (IO-cache's buf to start with, if not enough then trans mem-root)
   // to avoid New message create/delete and/or its implicit MessageBuffer.
@@ -195,7 +192,8 @@ int gcs_trans_before_commit(Trans_param *param)
   }
   else
   {
-    log_message(MY_ERROR_LEVEL, "We can only use one cache type at a time");
+    log_message(MY_ERROR_LEVEL, "We can only use one cache type at a "
+                                "time on session %u", param->thread_id);
     error= 1;
     goto err;
   }
@@ -206,16 +204,12 @@ int gcs_trans_before_commit(Trans_param *param)
                            param->thread_id, trx_cache_log_position,
                            stmt_cache_log_position));
 
-  // Get transaction snapshot timestamp.
-  snapshot_timestamp= get_last_executed_gno_without_gaps(gcs_cluster_sidno);
-  DBUG_PRINT("snapshot_timestamp", ("snapshot_timestamp: %llu",
-                                    snapshot_timestamp));
-
   // Open GCS cache.
   if (open_cached_file(&cache, mysql_tmpdir, "gcs_trans_before_commit_cache",
                        param->cache_log_max_size, MYF(MY_WME)))
   {
-    log_message(MY_ERROR_LEVEL, "Failed to create gcs commit cache");
+    log_message(MY_ERROR_LEVEL, "Failed to create gcs commit cache "
+                                "on session %u", param->thread_id);
     error= 1;
     goto err;
   }
@@ -223,7 +217,8 @@ int gcs_trans_before_commit(Trans_param *param)
   // Reinit binlog cache to read.
   if (reinit_cache(cache_log, READ_CACHE, 0))
   {
-    log_message(MY_ERROR_LEVEL, "Failed to reinit binlog cache log for read");
+    log_message(MY_ERROR_LEVEL, "Failed to reinit binlog cache log for read "
+                                "on session %u", param->thread_id);
     error= 1;
     goto err;
   }
@@ -231,28 +226,39 @@ int gcs_trans_before_commit(Trans_param *param)
   // Create transaction context.
   tcle= new Transaction_context_log_event(param->server_uuid,
                                           param->thread_id,
-                                          snapshot_timestamp);
+                                          param->is_gtid_specified);
 
-  // TODO: For now DDL won't have write-set, it will be added by
-  // WL#6823 and WL#6824.
   if (is_dml)
   {
     Transaction_write_set* write_set= get_transaction_write_set(param->thread_id);
-    if (write_set == NULL)
+    /*
+      When GTID is specified we may have empty transactions, that is,
+      a transaction may have not write set at all because it didn't
+      change any data, it will just persist that GTID as applied.
+    */
+    if ((write_set == NULL) && (!param->is_gtid_specified))
     {
-      log_message(MY_ERROR_LEVEL, "Failed to get the write_set");
+      log_message(MY_ERROR_LEVEL, "Failed to extract the set of items written "
+                                  "during the execution of the current "
+                                  "transaction on session %u", param->thread_id);
       error= 1;
       goto err;
     }
-    if (add_write_set(tcle, write_set))
+
+    if (write_set != NULL)
     {
+      if (add_write_set(tcle, write_set))
+      {
+        cleanup_transaction_write_set(write_set);
+        log_message(MY_ERROR_LEVEL, "Failed to gather the set of items written "
+                                    "during the execution of the current "
+                                    "transaction on session %u", param->thread_id);
+        error= 1;
+        goto err;
+      }
       cleanup_transaction_write_set(write_set);
-      log_message(MY_ERROR_LEVEL, "Failed to add values to tcle write_set");
-      error= 1;
-      goto err;
+      DBUG_ASSERT(param->is_gtid_specified || (tcle->get_write_set()->size() > 0));
     }
-    cleanup_transaction_write_set(write_set);
-    DBUG_ASSERT(tcle->get_write_set()->size() > 0);
   }
 
   // Write transaction context to GCS cache.
@@ -261,7 +267,9 @@ int gcs_trans_before_commit(Trans_param *param)
   // Reinit GCS cache to read.
   if (reinit_cache(&cache, READ_CACHE, 0))
   {
-    log_message(MY_ERROR_LEVEL, "Failed to reinit GCS cache log for read");
+    log_message(MY_ERROR_LEVEL, "Error while re-initializing an internal "
+                                "cache, for read operations, on session %u",
+                                param->thread_id);
     error= 1;
     goto err;
   }
@@ -269,7 +277,8 @@ int gcs_trans_before_commit(Trans_param *param)
   // Copy GCS cache to buffer.
   if (transaction_msg.append_cache(&cache))
   {
-    log_message(MY_ERROR_LEVEL, "Failed while writing GCS cache to buffer");
+    log_message(MY_ERROR_LEVEL, "Error while appending data to an internal "
+                                "cache on session %u", param->thread_id);
     error= 1;
     goto err;
   }
@@ -277,7 +286,8 @@ int gcs_trans_before_commit(Trans_param *param)
   // Copy binlog cache content to buffer.
   if (transaction_msg.append_cache(cache_log))
   {
-    log_message(MY_ERROR_LEVEL, "Failed while writing binlog cache to buffer");
+    log_message(MY_ERROR_LEVEL, "Error while writing binary log cache on "
+                                "session %u", param->thread_id);
     error= 1;
     goto err;
   }
@@ -285,14 +295,18 @@ int gcs_trans_before_commit(Trans_param *param)
   // Reinit binlog cache to write (revert what we did).
   if (reinit_cache(cache_log, WRITE_CACHE, cache_log_position))
   {
-    log_message(MY_ERROR_LEVEL, "Failed to reinit binlog cache log for write");
+    log_message(MY_ERROR_LEVEL, "Error while re-initializing an internal "
+                                "cache, for write operations, on session %u",
+                                param->thread_id);
     error= 1;
     goto err;
   }
 
   if (certification_latch->registerTicket(param->thread_id))
   {
-    log_message(MY_ERROR_LEVEL, "Failed to register for certification outcome");
+    log_message(MY_ERROR_LEVEL, "Unable to register for getting notifications "
+                                "regarding the outcome of the transaction on "
+                                "session %u", param->thread_id);
     error= 1;
     goto err;
   }
@@ -302,14 +316,17 @@ int gcs_trans_before_commit(Trans_param *param)
   //Broadcast the Transaction Message
   if (send_transaction_message(&transaction_msg))
   {
-    log_message(MY_ERROR_LEVEL, "Failed to broadcast GCS message");
+    log_message(MY_ERROR_LEVEL, "Error while broadcasting the transaction to "
+                                "the group on session %u", param->thread_id);
     error= 1;
     goto err;
   }
 
   if (certification_latch->waitTicket(param->thread_id))
   {
-    log_message(MY_ERROR_LEVEL, "Failed to wait for certification outcome");
+    log_message(MY_ERROR_LEVEL, "Error while waiting for conflict detection "
+                                "procedure to finish on session %u",
+                                param->thread_id);
     error= 1;
     goto err;
   }

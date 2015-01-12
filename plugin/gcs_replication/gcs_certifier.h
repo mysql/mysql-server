@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -32,8 +32,6 @@
 #include <list>
 #include <vector>
 
-using std::vector;
-
 /**
   This class is a core component of the database state machine
   replication protocol. It implements conflict detection based
@@ -44,19 +42,19 @@ using std::vector;
   are good to commit on all nodes in the group. This timestamp is a
   monotonically increasing counter, and is same across all nodes in the group.
 
-  This timestamp is further used to update the certification Database, which
-  maps the items in a transaction to the last optimistic Transaction Id
-  that modified the particular item.
-  The items here are extracted as part of the write-sets of a transaction.
+  This timestamp, which in our algorithm is the snapshot version, is further
+  used to update the certification info.
+  The snapshot version maps the items in a transaction to the GTID_EXECUTED
+  that this transaction saw when it was executed, that is, on which version
+  the transaction was executed.
 
-  For the incoming transaction, if the items in its writeset are modified
-  by any transaction which was optimistically certified to commit has a
-  sequence number greater than the timestamp seen by the incoming transaction
-  then it is not certified to commit. Otherwise, this transaction is marked
-  certified and is later written to the Relay log of the participating node.
-
+  If the incoming transaction snapshot version is a subset of a
+  previous certified transaction for the same write set, the current
+  transaction was executed on top of outdated data, so it will be
+  negatively certified. Otherwise, this transaction is marked
+  certified and goes into applier.
 */
-typedef std::map<std::string, rpl_gno> cert_db;
+typedef std::map<std::string, Gtid_set*> Certification_info;
 
 class Certifier_broadcast_thread
 {
@@ -160,8 +158,9 @@ public:
   virtual void handle_view_change()= 0;
   virtual int handle_certifier_data(uchar *data, uint len)= 0;
 
-  virtual void get_certification_info(cert_db *cert_db, rpl_gno *seq_number)= 0;
-  virtual void set_certification_info(std::map<std::string, rpl_gno> *cert_db,
+  virtual void get_certification_info(std::map<std::string, std::string> *cert_info,
+                                      rpl_gno *sequence_number)= 0;
+  virtual void set_certification_info(std::map<std::string, std::string> *cert_info,
                                       rpl_gno sequence_number)= 0;
 
   virtual void set_local_node_info(Cluster_member_info* local_info)= 0;
@@ -218,14 +217,17 @@ public:
     This member function SHALL certify the set of items against transactions
     that have already passed the certification test.
 
-    @param snapshot_timestamp The incoming transaction snapshot timestamp.
+    @param snapshot_version   The incoming transaction snapshot version.
     @param write_set          The incoming transaction write set.
-    @returns >0               sequence number (positively certified);
+    @returns >0               sequence number (positively certified). If
+                              generate_group_id is true and certification
+                              positive a 1 is returned;
               0               negatively certified;
              -1               error.
    */
-  rpl_gno certify(rpl_gno snapshot_timestamp,
-                  std::list<const char*> *write_set);
+  rpl_gno certify(const Gtid_set *snapshot_version,
+                  std::list<const char*> *write_set,
+                  bool generate_group_id);
 
   /**
     Returns the transactions in stable set, that is, the set of transactions
@@ -236,26 +238,27 @@ public:
   Gtid_set* get_group_stable_transactions_set();
 
   /**
-    Retrieves the current certification db and sequence number.
+    Retrieves the current certification info and sequence number.
 
      @note if concurrent access is introduce to these variables,
      locking is needed in this method
 
-     @param[out] cert_db     a pointer to retrieve the certification database
-     @param[out] seq_number  a pointer to retrieve the sequence number
+     @param[out] cert_info        a pointer to retrieve the certification info
+     @param[out] sequence_number  a pointer to retrieve the sequence number
   */
-  virtual void get_certification_info(cert_db *cert_db, rpl_gno *seq_number);
+  virtual void get_certification_info(std::map<std::string, std::string> *cert_info,
+                                      rpl_gno *sequence_number);
 
   /**
-    Sets the certification db and sequence number according to the given values.
+    Sets the certification info and sequence number according to the given values.
 
     @note if concurrent access is introduce to these variables,
     locking is needed in this method
 
-    @param cert_db
-    @param sequence_number
+    @param cert_info              certification info retrieved from recovery procedure
+    @param sequence_number        sequence number retrieved from recovery procedure
   */
-  virtual void set_certification_info(std::map<std::string, rpl_gno> *cert_db,
+  virtual void set_certification_info(std::map<std::string, std::string> *cert_info,
                                       rpl_gno sequence_number);
 
   /**
@@ -271,7 +274,7 @@ public:
   /**
     Get method to retrieve the certification db size.
     */
-  ulonglong get_cert_db_size();
+  ulonglong get_certification_info_size();
 
   /**
     Get method to retrieve the last sequence number of the node.
@@ -306,6 +309,8 @@ private:
     return initialized;
   }
 
+  void clear_certification_info();
+
   /**
     Next sequence number.
   */
@@ -314,14 +319,15 @@ private:
   /**
     Certification database.
   */
-  cert_db item_to_seqno_map;
+  Certification_info certification_info;
+  Sid_map *certification_info_sid_map;
 
   ulonglong positive_cert;
   ulonglong negative_cert;
 
-  mysql_mutex_t LOCK_certifier_map;
+  mysql_mutex_t LOCK_certification_info;
 #ifdef HAVE_PSI_INTERFACE
-  PSI_mutex_key key_LOCK_certifier_map;
+  PSI_mutex_key key_LOCK_certification_info;
 #endif
 
   /**
@@ -337,30 +343,30 @@ private:
   Certifier_broadcast_thread *broadcast_thread;
 
   /* Methods */
-  cert_db::iterator begin();
-  cert_db::iterator end();
+  Certification_info::iterator begin();
+  Certification_info::iterator end();
 
   /**
     Adds an item from transaction writeset to the certification DB.
-    @param[in]   item       item in the writeset to be added to the
-                            Certification DB.
-    @param[in]  seq_no      Sequence number of the incoming transaction
-                            which modified the above mentioned item.
+    @param[in]  item             item in the writeset to be added to the
+                                 Certification DB.
+    @param[in]  snapshot_version Snapshot version of the incoming transaction
+                                 which modified the above mentioned item.
     @return
     @retval     False       successfully added to the map.
                 True        otherwise.
   */
-  bool add_item(const char* item, rpl_gno seq_no);
+  bool add_item(const char* item, const Gtid_set *snapshot_version);
 
   /**
-    Find the seq_no object corresponding to an item. Return if
+    Find the snapshot_version corresponding to an item. Return if
     it exists, other wise return NULL;
 
-    @param[in]  item          item for the seq_no object.
-    @retval                   seq_no object if exists in the map.
+    @param[in]  item          item for the snapshot version.
+    @retval                   Gtid_set pointer if exists in the map.
                               Otherwise 0;
   */
-  rpl_gno get_seqno(const char* item);
+  Gtid_set *get_certified_write_set_snapshot_version(const char* item);
 
   /**
     This member function shall add transactions to the stable set
@@ -426,11 +432,11 @@ protected:
   /*
    Implementation of the template methods of Gcs_plugin_message
    */
-  void encode_message(vector<uchar>* buf);
+  void encode_message(std::vector<uchar>* buf);
   void decode_message(uchar* buf, size_t len);
 
 private:
-  vector<uchar> data;
+  std::vector<uchar> data;
 };
 
 #endif /* GCS_CERTIFIER */

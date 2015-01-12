@@ -24,7 +24,7 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY,
 --connection server1
 
 SET SESSION sql_log_bin= 0;
-call mtr.add_suppression("Plugin gcs_replication_plugin reported: 'Failed to broadcast GCS message'");
+call mtr.add_suppression("Plugin gcs_replication_plugin reported: 'Error while broadcasting the transaction to the group on session.*");
 call mtr.add_suppression("Run function 'before_commit' in plugin 'gcs_replication_plugin' failed");
 SET SESSION sql_log_bin= 1;
 

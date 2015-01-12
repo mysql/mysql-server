@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,6 +17,7 @@
 #include "gcs_recovery.h"
 #include "gcs_recovery_message.h"
 #include "gcs_member_info.h"
+#include "gcs_plugin.h"
 #include <rpl_pipeline_interfaces.h>
 #include <mysqld_thd_manager.h>  // Global_THD_manager
 #include <debug_sync.h>
@@ -89,9 +90,6 @@ Recovery_module(Applier_module_interface *applier,
   mysql_mutex_init(donor_selection_mutex_key,
                    &donor_selection_lock,
                    MY_MUTEX_INIT_FAST);
-
-  //Set the locks for waiting on the gcs_replication
-  set_recovery_wait_structures(&recovery_condition, &recovery_lock);
 }
 
 Recovery_module::~Recovery_module()
@@ -359,7 +357,6 @@ Recovery_module::recovery_thread_handle()
   int error= 0;
   donor_transfer_finished= false;
   bool donor_connection_established= false;
-  Handler_certifier_information_action *cert_action= NULL;
 
   set_recovery_thread_context();
 
@@ -381,8 +378,6 @@ Recovery_module::recovery_thread_handle()
     goto cleanup;
   }
 
-  reset_retrieved_seq_number();
-
   if (!recovery_aborted)
   {
     //if the connection to the donor failed, abort recovery
@@ -394,20 +389,12 @@ Recovery_module::recovery_thread_handle()
   }
 
   mysql_mutex_lock(&recovery_lock);
-  while (get_retrieved_seq_number() == -1 && !recovery_aborted)
+  while (!donor_transfer_finished && !recovery_aborted)
   {
     mysql_cond_wait(&recovery_condition, &recovery_lock);
   }
   mysql_mutex_unlock(&recovery_lock);
 
-  //Transmit the certification info into the pipeline
-  cert_action=
-    new Handler_certifier_information_action(get_retrieved_cert_db(),
-                                             get_retrieved_seq_number());
-  applier_module->handle_pipeline_action(cert_action);
-  delete cert_action;
-
-  donor_transfer_finished= true;
   connected_to_donor= false;
 
   /**
@@ -448,6 +435,26 @@ cleanup:
     gcs_control_interface->leave();
 
   clean_recovery_thread_context();
+
+  return 0;
+}
+
+int
+Recovery_module::set_retrieved_cert_info(void* info)
+{
+  mysql_mutex_lock(&recovery_lock);
+
+  View_change_log_event* view_change_event= static_cast<View_change_log_event*>(info);
+  // Transmit the certification info into the pipeline
+  Handler_certifier_information_action *cert_action=
+    new Handler_certifier_information_action(view_change_event->get_certification_info(),
+                                             view_change_event->get_seq_number());
+  applier_module->handle_pipeline_action(cert_action);
+  delete cert_action;
+
+  donor_transfer_finished= true;
+  mysql_cond_broadcast(&recovery_condition);
+  mysql_mutex_unlock(&recovery_lock);
 
   return 0;
 }

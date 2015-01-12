@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -27,6 +27,7 @@
 #endif
 #include "prealloced_array.h"
 #include <list>
+#include <string>
 
 /**
   Report an error from code that can be linked into either the server
@@ -1085,6 +1086,11 @@ public:
   enum_return_status ensure_sidno(rpl_sidno sidno);
   /// Returns true if this Gtid_set is a subset of the other Gtid_set.
   bool is_subset(const Gtid_set *super) const;
+  /// Returns true if this Gtid_set is a non equal subset of the other Gtid_set.
+  bool is_subset_not_equals(const Gtid_set *super) const
+  {
+    return (is_subset(super) && !equals(super));
+  }
 
   /**
     Returns true if this Gtid_set is a subset of the given gtid_set
@@ -1488,6 +1494,10 @@ public:
   */
   void encode(uchar *buf) const;
   /**
+    Encodes this Gtid_set as a binary string using std::string.
+  */
+  std::string encode() const;
+  /**
     Returns the length of this Gtid_set when encoded using the
     encode() function.
   */
@@ -1508,10 +1518,6 @@ private:
   /// The default number of intervals in an Interval_chunk.
   static const int CHUNK_GROW_SIZE= 8;
 
-/*
-  Functions sidno_equals() and equals() are only used by unitests
-*/
-#ifdef NON_DISABLED_UNITTEST_GTID
   /**
     Return true if the given sidno of this Gtid_set contains the same
     intervals as the given sidno of the other Gtid_set.
@@ -1525,7 +1531,6 @@ private:
                     const Gtid_set *other, rpl_sidno other_sidno) const;
   /// Returns true if this Gtid_set is equal to the other Gtid_set.
   bool equals(const Gtid_set *other) const;
-#endif
 
   /// Return the number of intervals for the given sidno.
   int get_n_intervals(rpl_sidno sidno) const
@@ -2258,16 +2263,6 @@ public:
     @retval other The GNO for the group.
   */
   rpl_gno get_automatic_gno(rpl_sidno sidno) const;
-  /**
-    Return the last executed GNO for a given SIDNO without gaps, e.g.
-    for the following set: UUID:1-10, UUID:12, UUID:15-20
-    10 will be returned.
-
-    @param sidno The group's SIDNO.
-
-    @retval The GNO or 0 if set is empty.
-  */
-  rpl_gno get_last_executed_gno_without_gaps(rpl_sidno sidno) const;
   /**
     Return the last executed GNO for a given SIDNO, e.g.
     for the following set: UUID:1-10, UUID:12, UUID:15-20
@@ -3119,12 +3114,6 @@ int gtid_acquire_ownership_multiple(THD *thd);
   Return sidno for a given sid, see Sid_map::add_sid() for details.
 */
 rpl_sidno get_sidno_from_global_sid_map(rpl_sid sid);
-
-/**
-  Return last gno without gaps for a given sidno, see
-  Gtid_state::get_last__executed_gno_without_gaps() for details.
-*/
-rpl_gno get_last_executed_gno_without_gaps(rpl_sidno sidno);
 
 /**
   Return last gno for a given sidno, see

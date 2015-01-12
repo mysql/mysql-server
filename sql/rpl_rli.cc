@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1500,7 +1500,7 @@ bool Relay_log_info::is_until_satisfied(THD *thd, Log_event *ev)
 
       if (until_view_id.compare(view_event->get_view_id()) == 0)
       {
-        set_retrieved_cert_info(view_event);
+        set_gcs_retrieved_cert_info(view_event);
         DBUG_RETURN(true);
       }
     }

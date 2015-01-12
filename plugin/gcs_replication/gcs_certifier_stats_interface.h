@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,7 +21,7 @@ class Certifier_stats
 public:
   virtual ulonglong get_positive_certified()= 0;
   virtual ulonglong get_negative_certified()= 0;
-  virtual ulonglong get_cert_db_size()= 0;
+  virtual ulonglong get_certification_info_size()= 0;
   virtual Gtid_set* get_group_stable_transactions_set()= 0;
   virtual rpl_gno get_last_sequence_number()= 0;
 };

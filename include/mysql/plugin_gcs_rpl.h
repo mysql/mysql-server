@@ -99,6 +99,13 @@ struct st_mysql_gcs_rpl
     This function is used to get the current gcs plugin running status.
   */
   bool (*is_gcs_rpl_running)();
+  /*
+   This function initializes conflict checking module with info received
+   from group.
+
+   @param info  View_change_log_event with conflict checking info.
+  */
+  int (*gcs_set_retrieved_cert_info)(void* info);
 };
 
 #endif

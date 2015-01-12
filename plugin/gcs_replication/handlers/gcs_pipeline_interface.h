@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -56,7 +56,7 @@ typedef enum enum_gcs_handler_actions {
   HANDLER_STOP_ACTION= 1,         // Action that signals the handlers to stop
   HANDLER_APPLIER_CONF_ACTION= 2, // Configuration for applier handlers
   HANDLER_CERT_CONF_ACTION= 3,    // Configuration for certification handlers
-  HANDLER_CERT_DB_ACTION= 4,      // Certification info for the certifier
+  HANDLER_CERT_INFO_ACTION= 4,    // Certification info for the certifier
   HANDLER_VIEW_CHANGE_ACTION= 5,  // Certification notification on view change
   HANDLER_GCS_INTERF_ACTION= 6,   // Action with GCS interfaces to be used.
   HANDLER_ACTION_NUMBER= 7        // The number of roles
@@ -265,17 +265,17 @@ public:
   /**
     Create an action to communicate certification info to a certifier
 
-    @param cert_db     A certification database
+    @param cert_info   A certification info
     @param seq_number  A sequence number associated to the database
   */
-  Handler_certifier_information_action(std::map<std::string,rpl_gno>* cert_db,
+  Handler_certifier_information_action(std::map<std::string, std::string>* cert_info,
                                        rpl_gno seq_number)
-   :PipelineAction(HANDLER_CERT_DB_ACTION),
-   certification_db(cert_db), sequence_number(seq_number)
+   :PipelineAction(HANDLER_CERT_INFO_ACTION),
+   certification_info(cert_info), sequence_number(seq_number)
   {}
 
-  std::map<std::string, rpl_gno>* get_certification_db() {
-    return certification_db;
+  std::map<std::string, std::string>* get_certification_info() {
+    return certification_info;
   }
 
   rpl_gno get_sequence_number() {
@@ -283,7 +283,7 @@ public:
   }
 
 private:
-  std::map<std::string,rpl_gno>* certification_db;
+  std::map<std::string, std::string>* certification_info;
   rpl_gno sequence_number;
 };
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -33,24 +33,49 @@ public:
 
   Certifier_interface *get_certifier();
 
-  void set_certification_info(std::map<std::string, rpl_gno>* cert_db,
+  void set_certification_info(std::map<std::string, std::string>* cert_info,
                              rpl_gno seq_number);
 
 private:
   Certifier* cert_module;
+
+  /**
+    Flag to indicate that transaction has GTID_NEXT specified or not.
+  */
+  bool gtid_specified;
 
   rpl_gno seq_number;
 
   rpl_sidno cluster_sidno;
 
   /**
+   Inform handler that transaction has GTID_NEXT specified.
+   */
+  void set_gtid_specified()
+  {
+    DBUG_ASSERT(seq_number == 0);
+
+    gtid_specified= true;
+  }
+
+  /**
+    Return True if transaction has GTID_NEXT specified, False otherwise.
+   */
+  bool is_gtid_specified()
+  {
+    return gtid_specified;
+  }
+
+  /**
     Sets the value of the transaction sequence number.
 
     @param[in]  seq_number  transaction sequence number.
   */
-  void set_seq_number(rpl_gno seq_number)
+  void set_gtid_generated_id(rpl_gno seq_number)
   {
     DBUG_ASSERT(seq_number > 0);
+    DBUG_ASSERT(gtid_specified == false);
+
     this->seq_number= seq_number;
   }
 
@@ -59,12 +84,23 @@ private:
 
     @return  transaction sequence number.
   */
-  rpl_gno get_and_reset_seq_number()
+  rpl_gno get_gtid_generated_id()
   {
     DBUG_ASSERT(seq_number > 0);
+    DBUG_ASSERT(gtid_specified == false);
+
     rpl_gno res= seq_number;
     seq_number= 0;
     return res;
+  }
+
+  /**
+    Reset GTID settings.
+   */
+  void reset_gtid_settings()
+  {
+    gtid_specified= false;
+    seq_number= 0;
   }
 
   /*
@@ -84,7 +120,7 @@ private:
     the certifier injecting them in a View change event to be sent to a possible
     joiner.
   */
-  int extract_certification_db(PipelineEvent *pevent, Continuation *cont);
+  int extract_certification_info(PipelineEvent *pevent, Continuation *cont);
 
 };
 

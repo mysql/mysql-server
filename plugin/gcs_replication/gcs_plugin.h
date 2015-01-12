@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -104,5 +104,14 @@ bool get_gcs_connection_status(RPL_GCS_CONNECTION_STATUS_INFO *info);
 bool get_gcs_group_members(uint index, RPL_GCS_GROUP_MEMBERS_INFO *info);
 bool get_gcs_group_member_stats(RPL_GCS_GROUP_MEMBER_STATS_INFO *info);
 uint get_gcs_members_number();
+/**
+  Method to set retrieved certification info from a non GCS channel extracted
+  from a given View_change event
+
+  @note a copy of the certification info is made here.
+
+  @param info   the given view_change_event.
+*/
+int gcs_set_retrieved_cert_info(void* info);
 
 #endif /* GCS_PLUGIN_INCLUDE */

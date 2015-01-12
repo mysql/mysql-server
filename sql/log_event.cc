@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -43,6 +43,7 @@
 #include "rpl_rli_pdb.h"
 #include "sql_show.h"    // append_identifier
 #include <mysql/psi/mysql_statement.h>
+#include "debug_sync.h"
 #define window_size Log_throttle::LOG_THROTTLE_WINDOW_SIZE
 Error_log_throttle
 slave_ignored_err_throttle(window_size,
@@ -54,10 +55,12 @@ slave_ignored_err_throttle(window_size,
 
 #include <base64.h>
 #include <my_bitmap.h>
+#include <map>
 #include "rpl_utility.h"
 /* This is necessary for the List manipuation */
 #include "sql_list.h"                           /* I_List */
 #include "hash.h"
+#include "rpl_gtid.h"
 
 PSI_memory_key key_memory_log_event;
 PSI_memory_key key_memory_Incident_log_event_message;
@@ -14236,13 +14239,31 @@ int Previous_gtids_log_event::do_update_pos(Relay_log_info *rli)
 #ifndef MYSQL_CLIENT
 Transaction_context_log_event::Transaction_context_log_event(const char *server_uuid_arg,
                                                              my_thread_id thread_id_arg,
-                                                             rpl_gno snapshot_timestamp_arg)
+                                                             bool is_gtid_specified_arg)
   : Log_event(Log_event::EVENT_TRANSACTIONAL_CACHE, Log_event::EVENT_NORMAL_LOGGING),
-    thread_id(thread_id_arg),
-    snapshot_timestamp(snapshot_timestamp_arg)
+    thread_id(thread_id_arg), gtid_specified(is_gtid_specified_arg)
 {
   DBUG_ENTER("Transaction_context_log_event::Transaction_context_log_event(THD *, const char *, ulonglong)");
-  server_uuid= my_strdup(key_memory_log_event, server_uuid_arg, MYF(MY_WME));
+  sid_map= new Sid_map(NULL);
+  snapshot_version= new Gtid_set(sid_map);
+  global_sid_lock->wrlock();
+  if (snapshot_version->add_gtid_set(gtid_state->get_executed_gtids()) != RETURN_STATUS_OK)
+    server_uuid= NULL;
+  else
+    server_uuid= my_strdup(key_memory_log_event, server_uuid_arg, MYF(MY_WME));
+  global_sid_lock->unlock();
+
+  // Debug sync point for SQL threads.
+  DBUG_EXECUTE_IF("debug.wait_after_set_snapshot_version_on_transaction_context_log_event",
+                  {
+                    const char act[]=
+                        "now wait_for "
+                        "signal.resume_after_set_snapshot_version_on_transaction_context_log_event";
+                    DBUG_ASSERT(opt_debug_sync_timeout > 0);
+                    DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                                                       STRING_WITH_LEN(act)));
+                  };);
+
   DBUG_VOID_RETURN;
 }
 #endif
@@ -14253,11 +14274,14 @@ Transaction_context_log_event::Transaction_context_log_event(const char *buffer,
   : Log_event(buffer, descr_event)
 {
   DBUG_ENTER("Transaction_context_log_event::Transaction_context_log_event(const char *, uint, const Format_description_log_event*)");
+  sid_map= new Sid_map(NULL);
+  snapshot_version= new Gtid_set(sid_map);
   const char* data_head = buffer + descr_event->common_header_len;
 
   uint8 server_uuid_len= (uint) data_head[ENCODED_SERVER_UUID_LEN_OFFSET];
   thread_id= uint8korr(data_head + ENCODED_THREAD_ID_OFFSET);
-  snapshot_timestamp= uint8korr(data_head + ENCODED_SNAPSHOT_TIMESTAMP_OFFSET);
+  gtid_specified= (int) data_head[ENCODED_GTID_SPECIFIED_OFFSET];
+  uint16 snapshot_version_len= uint2korr(data_head + ENCODED_SNAPSHOT_VERSION_OFFSET);
   uint16 write_set_len= uint2korr(data_head + ENCODED_WRITE_SET_ITEMS_OFFSET);
   uint16 read_set_len= uint2korr(data_head + ENCODED_READ_SET_ITEMS_OFFSET);
   char *pos = (char*) data_head + POST_HEADER_LENGTH;
@@ -14267,6 +14291,10 @@ Transaction_context_log_event::Transaction_context_log_event(const char *buffer,
   if (server_uuid == NULL)
     goto err;
   pos += server_uuid_len;
+
+  pos= read_snapshot_version(pos, snapshot_version_len);
+  if (pos == NULL)
+    goto err;
 
   pos= read_data_set(pos, write_set_len, &write_set);
   if (pos == NULL)
@@ -14288,6 +14316,8 @@ Transaction_context_log_event::~Transaction_context_log_event()
 {
   DBUG_ENTER("Transaction_context_log_event::~Transaction_context_log_event");
   my_free(server_uuid);
+  delete snapshot_version;
+  delete sid_map;
   clear_set(&write_set);
   clear_set(&read_set);
   DBUG_VOID_RETURN;
@@ -14308,8 +14338,8 @@ size_t Transaction_context_log_event::to_string(char *buf, ulong len) const
 {
   DBUG_ENTER("Transaction_context_log_event::to_string");
   DBUG_RETURN(my_snprintf(buf, len,
-                          "server_uuid=%s\tthread_id=%lu\tsnapshot_timestamp=%lld",
-                          server_uuid, thread_id, snapshot_timestamp));
+                          "server_uuid=%s\tthread_id=%lu",
+                          server_uuid, thread_id));
 }
 
 #ifndef MYSQL_CLIENT
@@ -14356,6 +14386,7 @@ size_t Transaction_context_log_event::get_data_size()
 
   int size= POST_HEADER_LENGTH;
   size += strlen(server_uuid);
+  size += get_snapshot_version_size();
   size += get_data_set_size(&write_set);
   size += get_data_set_size(&read_set);
 
@@ -14370,7 +14401,8 @@ bool Transaction_context_log_event::write_data_header(IO_CACHE* file)
 
   buf[ENCODED_SERVER_UUID_LEN_OFFSET] = (char) strlen(server_uuid);
   int8store(buf + ENCODED_THREAD_ID_OFFSET, thread_id);
-  int8store(buf + ENCODED_SNAPSHOT_TIMESTAMP_OFFSET, snapshot_timestamp);
+  buf[ENCODED_GTID_SPECIFIED_OFFSET] = gtid_specified;
+  int2store(buf + ENCODED_SNAPSHOT_VERSION_OFFSET, get_snapshot_version_size());
   int2store(buf + ENCODED_WRITE_SET_ITEMS_OFFSET, write_set.size());
   int2store(buf + ENCODED_READ_SET_ITEMS_OFFSET, read_set.size());
   DBUG_RETURN(wrapper_my_b_safe_write(file,
@@ -14385,11 +14417,28 @@ bool Transaction_context_log_event::write_data_body(IO_CACHE* file)
   if (wrapper_my_b_safe_write(file,
                               (const uchar*) server_uuid,
                               strlen(server_uuid)) ||
+      write_snapshot_version(file) ||
       write_data_set(file, &write_set) ||
       write_data_set(file, &read_set))
     DBUG_RETURN(true);
 
   DBUG_RETURN(false);
+}
+
+bool Transaction_context_log_event::write_snapshot_version(IO_CACHE* file)
+{
+  DBUG_ENTER("Transaction_context_log_event::write_snapshot_version");
+  bool result= false;
+
+  uint16 len= get_snapshot_version_size();
+  uchar *buffer= (uchar *) my_malloc(key_memory_log_event,
+                                     len, MYF(MY_WME));
+  snapshot_version->encode(buffer);
+  if (wrapper_my_b_safe_write(file, buffer, len))
+    result= true;
+
+  my_free(buffer);
+  DBUG_RETURN(result);
 }
 
 bool Transaction_context_log_event::write_data_set(IO_CACHE* file,
@@ -14415,6 +14464,26 @@ bool Transaction_context_log_event::write_data_set(IO_CACHE* file,
   DBUG_RETURN(false);
 }
 #endif
+
+char *Transaction_context_log_event::read_snapshot_version(char *pos,
+                                                           uint16 len)
+{
+  DBUG_ENTER("Transaction_context_log_event::read_snapshot_version");
+  char *result= NULL;
+  DBUG_ASSERT(snapshot_version->is_empty());
+
+  if (snapshot_version->add_gtid_encoding((const uchar*) pos, len) == RETURN_STATUS_OK)
+    result= pos+len;
+
+  DBUG_RETURN(result);
+}
+
+uint16 Transaction_context_log_event::get_snapshot_version_size()
+{
+  DBUG_ENTER("Transaction_context_log_event::get_snapshot_version_size");
+  uint16 result= snapshot_version->get_encoded_length();
+  DBUG_RETURN(result);
+}
 
 char *Transaction_context_log_event::read_data_set(char *pos,
                                                    uint16 set_len,
@@ -14493,10 +14562,10 @@ View_change_log_event::View_change_log_event(const char *buffer,
   memcpy(view_id, data_header, ENCODED_VIEW_ID_MAX_LEN);
 
   seq_number= uint8korr(data_header + ENCODED_SEQ_NUMBER_OFFSET);
-  uint cert_db_len= uint4korr(data_header + ENCODED_CERT_DB_SIZE_OFFSET);
+  uint cert_info_len= uint4korr(data_header + ENCODED_CERT_INFO_SIZE_OFFSET);
   char *pos = (char*) data_header + POST_HEADER_LENGTH;
 
-  pos= read_data_map(pos, cert_db_len, &cert_db);
+  pos= read_data_map(pos, cert_info_len, &certification_info);
   if (pos == NULL)
     goto err;
 
@@ -14511,6 +14580,7 @@ err:
 View_change_log_event::~View_change_log_event()
 {
   DBUG_ENTER("View_change_log_event::~View_change_log_event");
+  certification_info.clear();
   DBUG_VOID_RETURN;
 }
 
@@ -14519,22 +14589,22 @@ size_t View_change_log_event::get_data_size()
   DBUG_ENTER("View_change_log_event::get_data_size");
 
   int size= POST_HEADER_LENGTH;
-  size+= get_map_data_size(&cert_db);
+  size+= get_size_data_map(&certification_info);
 
   DBUG_RETURN(size);
 }
 
 int
-View_change_log_event::get_map_data_size(std::map<std::string, rpl_gno> *map)
+View_change_log_event::get_size_data_map(std::map<std::string, std::string> *map)
 {
-  DBUG_ENTER("View_change_log_event::get_map_data_size");
+  DBUG_ENTER("View_change_log_event::get_size_data_map");
   int size= 0;
 
-  std::map<std::string, rpl_gno>::iterator iter;
-  size+= (ENCODED_CERT_DB_KEY_SIZE_LEN +
-          ENCODED_CERT_DB_VALUE_LEN) * map->size();
+  std::map<std::string, std::string>::iterator iter;
+  size+= (ENCODED_CERT_INFO_KEY_SIZE_LEN +
+          ENCODED_CERT_INFO_VALUE_LEN) * map->size();
   for (iter= map->begin(); iter!= map->end(); iter++)
-    size+= iter->first.length();
+    size+= iter->first.length() + iter->second.length();
 
   DBUG_RETURN(size);
 }
@@ -14596,7 +14666,7 @@ bool View_change_log_event::write_data_header(IO_CACHE* file){
 
   memcpy(buf, view_id, ENCODED_VIEW_ID_MAX_LEN);
   int8store(buf + ENCODED_SEQ_NUMBER_OFFSET, seq_number);
-  int4store(buf + ENCODED_CERT_DB_SIZE_OFFSET, cert_db.size());
+  int4store(buf + ENCODED_CERT_INFO_SIZE_OFFSET, certification_info.size());
   DBUG_RETURN(wrapper_my_b_safe_write(file,
                                       (const uchar *) buf,
                                       POST_HEADER_LENGTH));
@@ -14605,33 +14675,40 @@ bool View_change_log_event::write_data_header(IO_CACHE* file){
 bool View_change_log_event::write_data_body(IO_CACHE* file){
   DBUG_ENTER("Transaction_context_log_event::write_data_body");
 
-  if (write_data_map(file, &cert_db))
+  if (write_data_map(file, &certification_info))
     DBUG_RETURN(true);
 
   DBUG_RETURN(false);
 }
 
 bool View_change_log_event::write_data_map(IO_CACHE* file,
-                                           std::map<std::string, rpl_gno> *map)
+                                           std::map<std::string, std::string> *map)
 {
   DBUG_ENTER("View_change_log_event::write_data_set");
+  bool result= false;
 
-  std::map<std::string, rpl_gno>::iterator iter;
-  int i= 0;
+  std::map<std::string, std::string>::iterator iter;
   for (iter= map->begin(); iter!= map->end(); iter++)
   {
+    uchar buf_key_len[ENCODED_CERT_INFO_KEY_SIZE_LEN];
+    uint16 key_len= iter->first.length();
+    int2store(buf_key_len, key_len);
 
-    char buf[ENCODED_CERT_DB_KEY_SIZE_LEN + ENCODED_CERT_DB_VALUE_LEN];
-    uint16 len= iter->first.length();
-    int2store(buf, len);
-    int8store(buf+ENCODED_CERT_DB_KEY_SIZE_LEN, iter->second);
+    const char *key= iter->first.c_str();
 
-    if (wrapper_my_b_safe_write(file, (const uchar*) buf,
-                                ENCODED_CERT_DB_KEY_SIZE_LEN +
-                                ENCODED_CERT_DB_VALUE_LEN) ||
-        wrapper_my_b_safe_write(file, (const uchar*) iter->first.c_str(), len))
-      DBUG_RETURN(true);
-    i++;
+    uchar buf_value_len[ENCODED_CERT_INFO_VALUE_LEN];
+    uint16 value_len= iter->second.length();
+    int2store(buf_value_len, value_len);
+
+    const char *value= iter->second.c_str();
+
+    if (wrapper_my_b_safe_write(file, buf_key_len,
+                                ENCODED_CERT_INFO_KEY_SIZE_LEN) ||
+        wrapper_my_b_safe_write(file, (const uchar*) key, key_len) ||
+        wrapper_my_b_safe_write(file, buf_value_len,
+                                ENCODED_CERT_INFO_VALUE_LEN) ||
+        wrapper_my_b_safe_write(file, (const uchar*) value, value_len))
+      DBUG_RETURN(result);
   }
 
   DBUG_RETURN(false);
@@ -14641,41 +14718,42 @@ bool View_change_log_event::write_data_map(IO_CACHE* file,
 
 char *View_change_log_event::read_data_map(char *pos,
                                            uint map_len,
-                                           std::map<std::string, rpl_gno> *map)
+                                           std::map<std::string, std::string> *map)
 {
   DBUG_ENTER("Transaction_context_log_event::read_data_set");
+  DBUG_ASSERT(map->empty());
 
   for (uint i=0; i < map_len; i++)
   {
+    uint16 key_len= uint2korr(pos);
+    pos+= ENCODED_CERT_INFO_KEY_SIZE_LEN;
 
-    uint16 len= uint2korr(pos);
-    pos+= ENCODED_CERT_DB_KEY_SIZE_LEN;
-    rpl_gno value= uint8korr(pos);
-    pos+= ENCODED_CERT_DB_VALUE_LEN;
-    char *hash= my_strndup(key_memory_log_event,
-                           pos, len, MYF(MY_WME));
-    if (hash == NULL)
-      DBUG_RETURN(NULL);
-    std::string key(hash);
-    pos+= len;
+    std::string key(pos, key_len);
+    pos+= key_len;
+
+    uint16 value_len= uint2korr(pos);
+    pos+= ENCODED_CERT_INFO_VALUE_LEN;
+
+    std::string value(pos, value_len);
+    pos+= value_len;
+
     (*map)[key]= value;
-    my_free(hash);
   }
   DBUG_RETURN(pos);
 }
 
 void
-View_change_log_event::set_certification_db_snapshot(std::map<std::string,rpl_gno> *db)
+View_change_log_event::set_certification_info(std::map<std::string, std::string> *info)
 {
   DBUG_ENTER("View_change_log_event::set_certification_database_snapshot");
+  certification_info.clear();
 
-  cert_db.clear();
-
-  std::map<std::string, rpl_gno>::iterator iter;
-
-  for (iter= db->begin(); iter!= db->end(); iter++) {
-    std::string key= iter->first;
-    cert_db[key]=  iter->second;
+  std::map<std::string, std::string>::iterator it;
+  for(it= info->begin(); it != info->end(); ++it)
+  {
+    std::string key= it->first;
+    std::string value= it->second;
+    certification_info[key]= value;
   }
 
   DBUG_VOID_RETURN;

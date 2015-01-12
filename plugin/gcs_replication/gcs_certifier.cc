@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -172,6 +172,7 @@ Certifier::Certifier()
   :gcs_communication(NULL), gcs_control(NULL), local_node(NULL),
    initialized(false), next_seqno(1), positive_cert(0), negative_cert(0)
 {
+  certification_info_sid_map= new Sid_map(NULL);
   incoming= new Synchronized_queue<Data_packet*>();
   stable_sid_map= new Sid_map(NULL);
   stable_gtid_set= new Gtid_set(stable_sid_map, NULL);
@@ -182,18 +183,21 @@ Certifier::Certifier()
 #ifdef HAVE_PSI_INTERFACE
   PSI_mutex_info certifier_mutexes[]=
   {
-    { &key_LOCK_certifier_map, "LOCK_certifier_map", 0}
+    { &key_LOCK_certification_info, "LOCK_certification_info", 0}
   };
   register_gcs_psi_keys(certifier_mutexes, 1, NULL, 0);
 #endif /* HAVE_PSI_INTERFACE */
 
-  mysql_mutex_init(key_LOCK_certifier_map, &LOCK_certifier_map,
+  mysql_mutex_init(key_LOCK_certification_info, &LOCK_certification_info,
                    MY_MUTEX_INIT_FAST);
 }
 
 
 Certifier::~Certifier()
 {
+  clear_certification_info();
+  delete certification_info_sid_map;
+
   delete stable_gtid_set;
   delete stable_sid_map;
   delete broadcast_thread;
@@ -201,7 +205,18 @@ Certifier::~Certifier()
   clear_incoming();
   delete incoming;
 
-  mysql_mutex_destroy(&LOCK_certifier_map);
+  mysql_mutex_destroy(&LOCK_certification_info);
+}
+
+
+void Certifier::clear_certification_info()
+{
+  for (Certification_info::iterator it= certification_info.begin();
+       it != certification_info.end();
+       ++it)
+    delete it->second;
+
+  certification_info.clear();
 }
 
 
@@ -261,8 +276,9 @@ int Certifier::terminate()
 }
 
 
-rpl_gno Certifier::certify(rpl_gno snapshot_timestamp,
-                           std::list<const char*> *write_set)
+rpl_gno Certifier::certify(const Gtid_set *snapshot_version,
+                           std::list<const char*> *write_set,
+                           bool generate_group_id)
 {
   DBUG_ENTER("Certifier::certify");
   rpl_gno result= 0;
@@ -270,10 +286,10 @@ rpl_gno Certifier::certify(rpl_gno snapshot_timestamp,
   if (!is_initialized())
     DBUG_RETURN(-1);
 
-  if( write_set == NULL)
+  if (write_set == NULL)
     DBUG_RETURN(-1);
 
-  mysql_mutex_lock(&LOCK_certifier_map);
+  mysql_mutex_lock(&LOCK_certification_info);
   DBUG_EXECUTE_IF("gcs_force_1_negative_certification", {
                   DBUG_SET("-d,gcs_force_1_negative_certification");
                   goto end;});
@@ -282,24 +298,39 @@ rpl_gno Certifier::certify(rpl_gno snapshot_timestamp,
        it != write_set->end();
        ++it)
   {
-    rpl_gno seq_no= get_seqno(*it);
-    DBUG_PRINT("info", ("sequence number in certifier: %llu", seq_no));
-    DBUG_PRINT("info", ("snapshot timestamp in certifier: %llu", snapshot_timestamp));
+    Gtid_set *certified_write_set_snapshot_version=
+        get_certified_write_set_snapshot_version(*it);
+
     /*
-      If certification DB contains a greater sequence number for the
-      transaction write-set, that is the transaction that is being
-      certified was executed on outdated data, this transaction will
-      be negatively certified.
+      If the incoming transaction snapshot version is a subset of a
+      previous certified transaction for the same write set, the current
+      transaction was executed on top of outdated data, so it will be
+      negatively certified. Otherwise, this transaction is marked
+      certified and goes into applier.
     */
-    if(seq_no > snapshot_timestamp)
+    if (certified_write_set_snapshot_version != NULL &&
+        snapshot_version->is_subset(certified_write_set_snapshot_version))
       goto end;
   }
+
   /*
-    If the sequence number of the transaction that is being certified
-    is the greatest then we increment certifier sequence number.
+    If the current transaction doesn't have a specified GTID, one
+    for group UUID will be generated.
+    This situation happens when transactions are executed with
+    GTID_NEXT equal to AUTOMATIC_GROUP (the default case).
   */
-  result= next_seqno;
-  next_seqno++;
+  if (generate_group_id)
+  {
+    result= next_seqno;
+    next_seqno++;
+    DBUG_PRINT("info", ("GCS Certifier: generated sequence number: %llu", result));
+  }
+  else
+  {
+    result= 1;
+    DBUG_PRINT("info", ("GCS Certifier: there was no sequence number generated "
+                        "since transaction already had a GTID specified"));
+  }
 
   /*
     Add the transaction's write set to certification DB and the
@@ -309,75 +340,87 @@ rpl_gno Certifier::certify(rpl_gno snapshot_timestamp,
       it != write_set->end();
       ++it)
   {
-    add_item(*it, (result));
+    add_item(*it, snapshot_version);
   }
 
 end:
   update_certified_transaction_count(result>0);
 
-  mysql_mutex_unlock(&LOCK_certifier_map);
+  mysql_mutex_unlock(&LOCK_certification_info);
+  DBUG_PRINT("info", ("GCS Certifier: certification result: %llu", result));
   DBUG_RETURN(result);
 }
 
 
-bool Certifier::add_item(const char* item, rpl_gno seq_no)
+bool Certifier::add_item(const char* item, const Gtid_set *snapshot_version)
 {
   DBUG_ENTER("Certifier::add_item");
-
-  cert_db::iterator it;
-  pair<cert_db::iterator, bool> ret;
+  bool error= true;
+  std::string key;
+  Gtid_set *value= NULL;
+  Certification_info::iterator it;
 
   if(!item)
-    DBUG_RETURN(true);
+    goto end;
 
-  /* convert item to string for persistence in map */
-  string item_str(item);
+  /* Convert key and value for persistence in map. */
+  key.assign(item);
+  value = new Gtid_set(certification_info_sid_map);
+  if (value->add_gtid_set(snapshot_version) != RETURN_STATUS_OK)
+    goto end;
 
-  it= item_to_seqno_map.find(item_str);
-  if(it == item_to_seqno_map.end())
+  it= certification_info.find(key);
+  if(it == certification_info.end())
   {
-    ret= item_to_seqno_map.insert(pair<string, rpl_gno >(item_str, seq_no));
-    DBUG_RETURN(!ret.second);
+    pair<Certification_info::iterator, bool> ret=
+        certification_info.insert(pair<std::string, Gtid_set*>(key, value));
+    error= !ret.second;
   }
   else
   {
-    it->second= seq_no;
-    DBUG_RETURN(false);
+    delete it->second;
+    it->second= value;
+    error= false;
   }
+
+end:
+  if (error)
+    delete value;
+  DBUG_RETURN(error);
 }
 
 
-rpl_gno Certifier::get_seqno(const char* item)
+Gtid_set *Certifier::get_certified_write_set_snapshot_version(const char* item)
 {
-  DBUG_ENTER("Certifier::get_seqno");
+  DBUG_ENTER("Certifier::get_certified_write_set_snapshot_version");
 
   if (!is_initialized())
-    DBUG_RETURN(0);
+    DBUG_RETURN(NULL);
 
   if (!item)
-    DBUG_RETURN(0);
+    DBUG_RETURN(NULL);
 
-  cert_db::iterator it;
+  Certification_info::iterator it;
   string item_str(item);
 
-  it= item_to_seqno_map.find(item_str);
+  it= certification_info.find(item_str);
 
-  if (it == item_to_seqno_map.end())
-    DBUG_RETURN(0);
+  if (it == certification_info.end())
+    DBUG_RETURN(NULL);
   else
     DBUG_RETURN(it->second);
 }
 
 
-cert_db::iterator Certifier::begin()
+Certification_info::iterator Certifier::begin()
 {
-  return item_to_seqno_map.begin();
+  return certification_info.begin();
 }
 
 
-cert_db::iterator Certifier::end()
+Certification_info::iterator Certifier::end()
 {
-  return item_to_seqno_map.end();
+  return certification_info.end();
 }
 
 
@@ -441,25 +484,28 @@ Certifier::set_local_node_info(Cluster_member_info* local_info)
 void Certifier::garbage_collect()
 {
   DBUG_ENTER("Certifier::garbage_collect");
-  mysql_mutex_lock(&LOCK_certifier_map);
+  mysql_mutex_lock(&LOCK_certification_info);
 
   /*
-    When a given transaction is applied on all nodes, we won't need
-    more it's certification sequence number to certify new transactions
-    that update the same row(s), since all nodes have the same data.
-    So we can iterate through certification DB and remove the already
-    applied on all nodes transactions data.
+    When a transaction "t" is applied to all nodes and for all
+    ongoing, i.e., not yet committed or aborted transactions,
+    "t" was already committed when they executed (thus "t"
+    precedes them), then "t" is stable and can be removed from
+    the certification info.
   */
-  cert_db::iterator it= item_to_seqno_map.begin();
-  while (it != item_to_seqno_map.end())
+  Certification_info::iterator it= certification_info.begin();
+  while (it != certification_info.end())
   {
-    if(stable_gtid_set->contains_gtid(gcs_cluster_sidno, it->second))
-      item_to_seqno_map.erase(it++);
+    if (it->second->is_subset_not_equals(stable_gtid_set))
+    {
+      delete it->second;
+      certification_info.erase(it++);
+    }
     else
       ++it;
   }
 
-  mysql_mutex_unlock(&LOCK_certifier_map);
+  mysql_mutex_unlock(&LOCK_certification_info);
   DBUG_VOID_RETURN;
 }
 
@@ -584,33 +630,45 @@ void Certifier::handle_view_change()
 }
 
 
-void Certifier::get_certification_info(cert_db *cert_db,
-                                       rpl_gno *seq_number)
+void Certifier::get_certification_info(std::map<std::string, std::string> *cert_info,
+                                       rpl_gno *sequence_number)
 {
   DBUG_ENTER("Certifier::get_certification_info");
-  mysql_mutex_lock(&LOCK_certifier_map);
+  mysql_mutex_lock(&LOCK_certification_info);
 
-  (*cert_db).insert(begin(), end());
-  *seq_number= next_seqno;
+  for(Certification_info::iterator it = certification_info.begin();
+      it != certification_info.end(); ++it)
+  {
+    std::string key= it->first;
+    std::string value= it->second->encode();
+    (*cert_info).insert(pair<std::string, std::string>(key, value));
+  }
+  *sequence_number= next_seqno;
 
-  mysql_mutex_unlock(&LOCK_certifier_map);
+  mysql_mutex_unlock(&LOCK_certification_info);
   DBUG_VOID_RETURN;
 }
 
 
-void Certifier::set_certification_info(std::map<std::string,
-                                       rpl_gno> *cert_db,
+void Certifier::set_certification_info(std::map<std::string, std::string> *cert_info,
                                        rpl_gno sequence_number)
 {
   DBUG_ENTER("Certifier::set_certification_info");
-  DBUG_ASSERT(cert_db != NULL);
-  mysql_mutex_lock(&LOCK_certifier_map);
+  DBUG_ASSERT(cert_info != NULL);
+  mysql_mutex_lock(&LOCK_certification_info);
 
-  item_to_seqno_map.clear();
-  item_to_seqno_map.insert(cert_db->begin(), cert_db->end());
+  clear_certification_info();
+  for(std::map<std::string, std::string>::iterator it = cert_info->begin();
+      it != cert_info->end(); ++it)
+  {
+    std::string key= it->first;
+    Gtid_set *value = new Gtid_set(certification_info_sid_map);
+    value->add_gtid_encoding((const uchar*) it->second.c_str(), it->second.length());
+    certification_info.insert(pair<std::string, Gtid_set*>(key, value));
+  }
   next_seqno= sequence_number;
 
-  mysql_mutex_unlock(&LOCK_certifier_map);
+  mysql_mutex_unlock(&LOCK_certification_info);
   DBUG_VOID_RETURN;
 }
 
@@ -632,9 +690,9 @@ ulonglong Certifier::get_negative_certified()
   return negative_cert;
 }
 
-ulonglong Certifier::get_cert_db_size()
+ulonglong Certifier::get_certification_info_size()
 {
-  return item_to_seqno_map.size();
+  return certification_info.size();
 }
 
 rpl_gno Certifier::get_last_sequence_number()

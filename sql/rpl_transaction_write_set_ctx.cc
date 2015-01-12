@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -55,20 +55,24 @@ Transaction_write_set* get_transaction_write_set(unsigned long m_thread_id)
 {
   DBUG_ENTER("get_transaction_write_set");
   THD *thd= NULL;
+  Transaction_write_set *result_set= NULL;
   Find_thd_with_id find_thd_with_id(m_thread_id);
 
   thd= Global_THD_manager::get_instance()->find_thd(&find_thd_with_id);
-  Transaction_write_set *result_set= (Transaction_write_set*)
-    my_malloc(PSI_NOT_INSTRUMENTED, sizeof(Transaction_write_set),
-              MYF(0));
   if (thd)
   {
     Rpl_transaction_write_set_ctx *transaction_write_set_ctx=
       thd->get_transaction()->get_transaction_write_set_ctx();
     int write_set_size= transaction_write_set_ctx->get_write_set()->size();
     if (write_set_size == 0)
+    {
+      mysql_mutex_unlock(&thd->LOCK_thd_data);
       DBUG_RETURN(NULL);
+    }
 
+    result_set= (Transaction_write_set*)my_malloc(PSI_NOT_INSTRUMENTED,
+                                                  sizeof(Transaction_write_set),
+                                                  MYF(0));
     result_set->write_set_size= write_set_size;
     result_set->write_set= (unsigned long*)my_malloc(key_memory_write_set_extraction,
                                                      write_set_size *

@@ -1,4 +1,4 @@
- /* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+ /* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -97,6 +97,18 @@ public:
     being suspended.
   */
   int recovery_thread_handle();
+
+  /**
+    Set retrieved certification info from a GCS channel extracted from
+    a given View_change event.
+
+    @param info  the given view_change_event
+
+    @return the operation status
+      @retval 0      OK
+      @retval !=0    Error
+  */
+  int set_retrieved_cert_info(void* info);
 
   /**
     Stops the recovery process, shutting down the recovery thread.

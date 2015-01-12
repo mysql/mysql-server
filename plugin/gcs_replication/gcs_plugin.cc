@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -120,6 +120,11 @@ bool is_gcs_rpl_running()
   return gcs_running;
 }
 
+int gcs_set_retrieved_cert_info(void* info)
+{
+  return recovery_module->set_retrieved_cert_info(info);
+}
+
 int log_message(enum plugin_log_level level, const char *format, ...)
 {
   va_list args;
@@ -143,7 +148,8 @@ struct st_mysql_gcs_rpl gcs_rpl_descriptor=
   get_gcs_members_number,
   gcs_rpl_start,
   gcs_rpl_stop,
-  is_gcs_rpl_running
+  is_gcs_rpl_running,
+  gcs_set_retrieved_cert_info,
 };
 
 bool get_gcs_connection_status(RPL_GCS_CONNECTION_STATUS_INFO *info)

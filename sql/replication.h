@@ -88,11 +88,14 @@ typedef struct Trans_param {
   my_off_t log_pos;
 
   /*
+    True if transaction has GTID_NEXT specified, False otherwise.
+  */
+  my_bool is_gtid_specified;
+
+  /*
     Set on before_commit hook.
   */
   IO_CACHE *trx_cache_log;
-  ulonglong trx_cache_log_max_size;
-
   IO_CACHE *stmt_cache_log;
   ulonglong cache_log_max_size;
 
