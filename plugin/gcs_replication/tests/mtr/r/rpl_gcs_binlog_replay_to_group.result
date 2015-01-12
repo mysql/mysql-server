@@ -25,6 +25,7 @@ include/rpl_gcs_wait_for_number_of_nodes.inc
 
 ############################################################
 #  3. Replay server 3 binary log into group (server 2).
+include/rpl_sync.inc
 
 ############################################################
 #  4. Validate data on server 3.
