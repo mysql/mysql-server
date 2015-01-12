@@ -39,7 +39,7 @@ Created 10/8/1995 Heikki Tuuri
 *******************************************************/
 
 #include "my_global.h"
-#include "my_pthread.h"
+#include "my_thread.h"
 
 #include "mysql/psi/mysql_stage.h"
 #include "mysql/psi/psi.h"
