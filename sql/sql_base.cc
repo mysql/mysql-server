@@ -9039,7 +9039,7 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
           Mark generated fields for write and others that the generated fields
           depend on for read.
         */
-        if (field->gcol_info)
+        if (field->gcol_info && !field->stored_in_db)
         {
           Item *gcol_item= field->gcol_info->expr_item;
           DBUG_ASSERT(gcol_item);
