@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -8667,32 +8667,36 @@ NdbDictInterface::parseHashMapInfo(NdbHashMapImpl &dst,
   SimplePropertiesLinearReader it(data, len);
 
   SimpleProperties::UnpackStatus status;
-  DictHashMapInfo::HashMap hm; hm.init();
-  status = SimpleProperties::unpack(it, &hm,
+  DictHashMapInfo::HashMap* hm = new DictHashMapInfo::HashMap();
+  hm->init();
+  status = SimpleProperties::unpack(it, hm,
                                     DictHashMapInfo::Mapping,
                                     DictHashMapInfo::MappingSize,
                                     true, true);
 
   if(status != SimpleProperties::Eof){
+    delete hm;
     return CreateFilegroupRef::InvalidFormat;
   }
 
-  dst.m_name.assign(hm.HashMapName);
-  dst.m_id= hm.HashMapObjectId;
-  dst.m_version = hm.HashMapVersion;
+  dst.m_name.assign(hm->HashMapName);
+  dst.m_id= hm->HashMapObjectId;
+  dst.m_version = hm->HashMapVersion;
 
   /**
    * pack is stupid...and requires bytes!
    * we store shorts...so divide by 2
    */
-  hm.HashMapBuckets /= sizeof(Uint16);
+  hm->HashMapBuckets /= sizeof(Uint16);
 
   dst.m_map.clear();
-  for (Uint32 i = 0; i<hm.HashMapBuckets; i++)
+  for (Uint32 i = 0; i<hm->HashMapBuckets; i++)
   {
-    dst.m_map.push_back(hm.HashMapValues[i]);
+    dst.m_map.push_back(hm->HashMapValues[i]);
   }
 
+  delete hm;
+  
   return 0;
 }
 
@@ -8701,33 +8705,38 @@ NdbDictInterface::create_hashmap(const NdbHashMapImpl& src,
                                  NdbDictObjectImpl* obj,
                                  Uint32 flags)
 {
-  DictHashMapInfo::HashMap hm; hm.init();
-  BaseString::snprintf(hm.HashMapName, sizeof(hm.HashMapName), 
-                       "%s", src.getName());
-  hm.HashMapBuckets = src.getMapLen();
-  for (Uint32 i = 0; i<hm.HashMapBuckets; i++)
   {
-    assert(NdbHashMapImpl::getImpl(src).m_map[i] <= NDB_PARTITION_MASK);
-    hm.HashMapValues[i] = NdbHashMapImpl::getImpl(src).m_map[i];
+    DictHashMapInfo::HashMap* hm = new DictHashMapInfo::HashMap(); 
+    hm->init();
+    BaseString::snprintf(hm->HashMapName, sizeof(hm->HashMapName), 
+                         "%s", src.getName());
+    hm->HashMapBuckets = src.getMapLen();
+    for (Uint32 i = 0; i<hm->HashMapBuckets; i++)
+    {
+      assert(NdbHashMapImpl::getImpl(src).m_map[i] <= NDB_PARTITION_MASK);
+      hm->HashMapValues[i] = NdbHashMapImpl::getImpl(src).m_map[i];
+    }
+    
+    /**
+     * pack is stupid...and requires bytes!
+     * we store shorts...so multiply by 2
+     */
+    hm->HashMapBuckets *= sizeof(Uint16);
+    SimpleProperties::UnpackStatus s;
+    UtilBufferWriter w(m_buffer);
+    s = SimpleProperties::pack(w,
+                               hm,
+                               DictHashMapInfo::Mapping,
+                               DictHashMapInfo::MappingSize, true);
+    
+    if(s != SimpleProperties::Eof)
+    {
+      abort();
+    }
+    
+    delete hm;
   }
-
-  /**
-   * pack is stupid...and requires bytes!
-   * we store shorts...so multiply by 2
-   */
-  hm.HashMapBuckets *= sizeof(Uint16);
-  SimpleProperties::UnpackStatus s;
-  UtilBufferWriter w(m_buffer);
-  s = SimpleProperties::pack(w,
-                             &hm,
-                             DictHashMapInfo::Mapping,
-                             DictHashMapInfo::MappingSize, true);
-
-  if(s != SimpleProperties::Eof)
-  {
-    abort();
-  }
-
+  
   NdbApiSignal tSignal(m_reference);
   tSignal.theReceiversBlockNumber = DBDICT;
   tSignal.theVerId_signalNumber = GSN_CREATE_HASH_MAP_REQ;
