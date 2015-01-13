@@ -6853,6 +6853,9 @@ foreign_fail:
 		}
 	}
 
+	innobase_parse_hint_from_comment(m_user_thd, m_prebuilt->table,
+					 altered_table->s);
+
 	/* TODO: Also perform DROP TABLE and DROP INDEX after
 	the MDL downgrade. */
 

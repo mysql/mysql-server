@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -723,6 +723,11 @@ struct dict_index_t{
 	unsigned	space:32;
 				/*!< space where the index tree is placed */
 	unsigned	page:32;/*!< index tree root page number */
+	unsigned	merge_threshold:6;
+				/*!< In the pessimistic delete, if the page
+				data size drops below this limit in percent,
+				merging it to a neighbor is tried */
+# define DICT_INDEX_MERGE_THRESHOLD_DEFAULT 50
 #endif /* !UNIV_HOTBACKUP */
 	unsigned	type:DICT_IT_BITS;
 				/*!< index type (DICT_CLUSTERED, DICT_UNIQUE,
