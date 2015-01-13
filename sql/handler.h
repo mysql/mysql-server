@@ -373,6 +373,9 @@ enum row_type { ROW_TYPE_NOT_USED=-1, ROW_TYPE_DEFAULT, ROW_TYPE_FIXED,
                 /** Unused. Reserved for future versions. */
                 ROW_TYPE_PAGE };
 
+/* not part of the enum, so that it shouldn't be in switch(row_type) */
+#define ROW_TYPE_MAX ((uint)ROW_TYPE_PAGE + 1)
+
 enum enum_binlog_func {
   BFN_RESET_LOGS=        1,
   BFN_RESET_SLAVE=       2,
@@ -1248,7 +1251,7 @@ class partition_info;
 struct st_partition_iter;
 #define NOT_A_PARTITION_ID ((uint32)-1)
 
-enum ha_choice { HA_CHOICE_UNDEF, HA_CHOICE_NO, HA_CHOICE_YES };
+enum ha_choice { HA_CHOICE_UNDEF, HA_CHOICE_NO, HA_CHOICE_YES, HA_CHOICE_MAX };
 
 typedef struct st_ha_create_information
 {

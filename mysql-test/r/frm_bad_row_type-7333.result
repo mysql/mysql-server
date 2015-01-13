@@ -1,0 +1,14 @@
+call mtr.add_suppression("bad_row_type.frm: invalid value 11 for the field row_format");
+select * from bad_row_type;
+category_id	category_name
+show create table bad_row_type;
+Table	Create Table
+bad_row_type	CREATE TABLE `bad_row_type` (
+  `category_id` int(11) NOT NULL AUTO_INCREMENT,
+  `category_name` varchar(255) DEFAULT NULL,
+  PRIMARY KEY (`category_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8
+show table status like 'bad_row_type';
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+bad_row_type	MyISAM	10	Dynamic	0	0	0	281474976710655	1024	0	1	x	x	NULL	utf8_general_ci	NULL		
+drop table bad_row_type;

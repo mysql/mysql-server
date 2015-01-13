@@ -890,6 +890,23 @@ static bool create_key_infos(uchar *strpos, uint keys, KEY *keyinfo,
   return 0;
 }
 
+/** ensures that the enum value (read from frm) is within limits
+
+    if not - issues a warning and resets the value to 0
+    (that is, 0 is assumed to be a default value)
+*/
+static uint enum_value_with_check(THD *thd, TABLE_SHARE *share,
+                                  const char *name, uint value, uint limit)
+{
+  if (value < limit)
+    return value;
+
+  sql_print_warning("%s.frm: invalid value %d for the field %s",
+                share->normalized_path.str, value, name);
+  return 0;
+}
+
+
 /*
   Read data from a binary .frm file from MySQL 3.23 - 5.0 into TABLE_SHARE
 */
@@ -983,9 +1000,12 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   if (!head[32])				// New frm file in 3.23
   {
     share->avg_row_length= uint4korr(head+34);
-    share->transactional= (ha_choice) (head[39] & 3);
-    share->page_checksum= (ha_choice) ((head[39] >> 2) & 3);
-    share->row_type= (row_type) head[40];
+    share->transactional= (ha_choice)
+      enum_value_with_check(thd, share, "transactional", (head[39] & 3), HA_CHOICE_MAX);
+    share->page_checksum= (ha_choice)
+      enum_value_with_check(thd, share, "page_checksum", (head[39] >> 2) & 3, HA_CHOICE_MAX);
+    share->row_type= (row_type)
+      enum_value_with_check(thd, share, "row_format", head[40], ROW_TYPE_MAX);
     share->table_charset= get_charset((((uint) head[41]) << 8) + 
                                         (uint) head[38],MYF(0));
     share->null_field_first= 1;
