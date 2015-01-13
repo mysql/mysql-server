@@ -259,3 +259,44 @@ INSERT INTO CC VALUES('16:22:51', default, '1900-01-01 00:00:00');
 
 SELECT 1 AS g1 FROM BB AS gp1 LEFT JOIN BB AS gp2 USING ( col_time_nokey);
 DROP TABLE BB, CC;
+
+--echo #
+--echo # Bug#20328786: WL411:VALGRIND WARNINGS OF CONDITIONAL
+--echo #               JUMP WHILE SELECTING FROM VIEW
+--echo # 
+CREATE TABLE A (
+  pk INTEGER AUTO_INCREMENT,
+  col_int_nokey INTEGER,
+  col_int_key INTEGER GENERATED ALWAYS AS (2 + 2 + col_int_nokey) STORED,
+  PRIMARY KEY (pk)
+);
+
+CREATE TABLE C (
+  pk INTEGER AUTO_INCREMENT,
+  col_int_nokey INTEGER,
+  col_int_key INTEGER GENERATED ALWAYS AS (2 + 2 + col_int_nokey) STORED,
+  col_varchar_nokey VARCHAR(1),
+  col_varchar_key VARCHAR(2) GENERATED ALWAYS AS
+  (CONCAT(col_varchar_nokey, col_varchar_nokey)) STORED,
+  PRIMARY KEY (pk),
+  KEY (col_int_key),
+  KEY (col_varchar_key, col_int_key)
+);
+
+INSERT INTO C (
+  col_int_nokey,
+  col_varchar_nokey
+) VALUES (4, 'v'),(62, 'v'),(7, 'c'),(1, NULL),(0, 'x'),(7, 'i'),(7, 'e'),(1, 'p'),(7, 's'),(1, 'j'),(5, 'z'),(2, 'c'),(0, 'a'),(1, 'q'),(8, 'y'),(1, NULL),(1, 'r'),(9, 'v'),(1, NULL),(5, 'r');
+
+CREATE OR REPLACE ALGORITHM=MERGE VIEW V1 AS SELECT alias1.
+col_varchar_key AS field1 , alias1.pk AS field2, alias2.
+col_int_nokey AS field3 FROM  C AS alias1  LEFT  JOIN A AS alias2 ON
+alias1.pk =  alias2.col_int_key  WHERE  alias1.pk > 8 AND alias1
+.pk < ( 9 + 2 ) AND  alias1.col_int_key <> 1 OR alias1.col_int_key
+> 0 AND alias1.col_int_key <= ( 3 + 2 )  ORDER BY field1, field2, field3
+LIMIT 100 OFFSET 6;
+
+SELECT * FROM V1;
+
+DROP VIEW V1;
+DROP TABLE A,C;
