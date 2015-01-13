@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2015, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 Copyright (c) 2012, Facebook Inc.
 
@@ -630,7 +630,7 @@ btr_cur_will_modify_tree(
 		failure. It is safe because we already have SX latch of the
 		index tree */
 		if (page_get_data_size(page)
-			< margin + BTR_CUR_PAGE_COMPRESS_LIMIT
+			< margin + BTR_CUR_PAGE_COMPRESS_LIMIT(index)
 		    || (mach_read_from_4(page + FIL_PAGE_NEXT)
 				== FIL_NULL
 			&& mach_read_from_4(page + FIL_PAGE_PREV)
@@ -4048,7 +4048,7 @@ any_extern:
 
 	if (UNIV_UNLIKELY(page_get_data_size(page)
 			  - old_rec_size + new_rec_size
-			  < BTR_CUR_PAGE_COMPRESS_LIMIT)) {
+			  < BTR_CUR_PAGE_COMPRESS_LIMIT(index))) {
 		/* We may need to update the IBUF_BITMAP_FREE
 		bits after a reorganize that was done in
 		btr_cur_update_alloc_zip(). */
