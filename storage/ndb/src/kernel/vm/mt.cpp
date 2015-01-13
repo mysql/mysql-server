@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1043,7 +1043,7 @@ struct thr_data
   SectionSegmentPool::Cache m_sectionPoolCache;
 
   Uint32 m_cpu;
-  pthread_t m_thr_id;
+  my_thread_t m_thr_id;
   NdbThread* m_thread;
 };
 
@@ -4029,7 +4029,7 @@ init_thread(thr_data *selfptr)
   selfptr->m_spintime = conf.do_get_spintime(selfptr->m_instance_list,
                                              selfptr->m_instance_count);
 
-  selfptr->m_thr_id = pthread_self();
+  selfptr->m_thr_id = my_thread_self();
 
   for (Uint32 i = 0; i < selfptr->m_instance_count; i++) 
   {
@@ -5529,7 +5529,7 @@ void mt_execSTOP_FOR_CRASH()
   /* ToDo: is this correct? */
   globalEmulatorData.theWatchDog->unregisterWatchedThread(selfptr->m_thr_no);
 
-  pthread_exit(NULL);
+  my_thread_exit(NULL);
 }
 
 void

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2009, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2009, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -3213,9 +3213,10 @@ dict_stats_update(
 			ib::info() << "Trying to use table " << table->name
 				<< " which has persistent statistics enabled,"
 				" but auto recalculation turned off and the"
-				" statistics do not exist in " TABLE_STATS_NAME
-				" and " INDEX_STATS_NAME ". Please either run"
-				" \"ANALYZE TABLE "
+				" statistics do not exist in "
+				TABLE_STATS_NAME_PRINT
+				" and " INDEX_STATS_NAME_PRINT
+				". Please either run \"ANALYZE TABLE "
 				<< table->name << ";\" manually or enable the"
 				" auto recalculation with \"ALTER TABLE "
 				<< table->name << " STATS_AUTO_RECALC=1;\"."
@@ -3230,8 +3231,8 @@ dict_stats_update(
 			ib::error() << "Error fetching persistent statistics"
 				" for table "
 				<< table->name
-				<< " from " TABLE_STATS_NAME " and "
-				INDEX_STATS_NAME ": " << ut_strerr(err)
+				<< " from " TABLE_STATS_NAME_PRINT " and "
+				INDEX_STATS_NAME_PRINT ": " << ut_strerr(err)
 				<< ". Using transient stats method instead.";
 
 			goto transient;

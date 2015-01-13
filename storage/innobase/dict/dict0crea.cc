@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -449,7 +449,8 @@ dict_create_sys_indexes_tuple(
 
 	table = dict_table_get_low(index->table_name);
 
-	entry = dtuple_create(heap, 7 + DATA_N_SYS_COLS);
+	entry = dtuple_create(
+		heap, DICT_NUM_COLS__SYS_INDEXES + DATA_N_SYS_COLS);
 
 	dict_table_copy_types(entry, sys_indexes);
 
@@ -523,6 +524,16 @@ dict_create_sys_indexes_tuple(
 
 	ptr = static_cast<byte*>(mem_heap_alloc(heap, 4));
 	mach_write_to_4(ptr, FIL_NULL);
+
+	dfield_set_data(dfield, ptr, 4);
+
+	/* 9: MERGE_THRESHOLD ----------------*/
+
+	dfield = dtuple_get_nth_field(
+		entry, DICT_COL__SYS_INDEXES__MERGE_THRESHOLD);
+
+	ptr = static_cast<byte*>(mem_heap_alloc(heap, 4));
+	mach_write_to_4(ptr, DICT_INDEX_MERGE_THRESHOLD_DEFAULT);
 
 	dfield_set_data(dfield, ptr, 4);
 

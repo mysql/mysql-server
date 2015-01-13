@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,7 +18,7 @@
 
 #include <ndb_global.h>
 #include <NdbThread.h>
-#include <my_pthread.h>
+#include <my_thread.h>
 #include <NdbMem.h>
 #include <NdbMutex.h>
 #include <NdbCondition.h>
@@ -63,7 +63,7 @@ static int f_high_prio_prio;
 struct NdbThread 
 { 
   volatile int inited;
-  pthread_t thread;
+  my_thread_t thread;
 #ifdef _WIN32
   /*
     Problem in mysys on certain MySQL versions where the thread id is
@@ -265,7 +265,8 @@ NdbThread_Create(NDB_THREAD_FUNC *p_thread_func,
 {
   struct NdbThread* tmpThread;
   int result;
-  pthread_attr_t thread_attr;
+  my_thread_attr_t thread_attr;
+  my_thread_handle thread_handle;
   NDB_THREAD_STACKSIZE thread_stack_size;
 
   DBUG_ENTER("NdbThread_Create");
@@ -289,7 +290,7 @@ NdbThread_Create(NDB_THREAD_FUNC *p_thread_func,
 
   my_stpnmov(tmpThread->thread_name,p_thread_name,sizeof(tmpThread->thread_name));
 
-  pthread_attr_init(&thread_attr);
+  my_thread_attr_init(&thread_attr);
 #ifdef PTHREAD_STACK_MIN
   if (thread_stack_size < PTHREAD_STACK_MIN)
     thread_stack_size = PTHREAD_STACK_MIN;
@@ -298,7 +299,7 @@ NdbThread_Create(NDB_THREAD_FUNC *p_thread_func,
 #ifndef _WIN32
   pthread_attr_setstacksize(&thread_attr, thread_stack_size);
 #else
-  pthread_attr_setstacksize(&thread_attr, (DWORD)thread_stack_size);
+  my_thread_attr_setstacksize(&thread_attr, (DWORD)thread_stack_size);
 #endif
 #ifdef USE_PTHREAD_EXTRAS
   /* Guard stack overflow with a 2k databuffer */
@@ -319,12 +320,13 @@ NdbThread_Create(NDB_THREAD_FUNC *p_thread_func,
 #endif
 
   NdbMutex_Lock(g_ndb_thread_mutex);
-  result = pthread_create(&tmpThread->thread,
-			  &thread_attr,
-  		          ndb_thread_wrapper,
-  		          tmpThread);
+  result = my_thread_create(&thread_handle,
+			    &thread_attr,
+  		            ndb_thread_wrapper,
+  		            tmpThread);
+  tmpThread->thread= thread_handle.thread;
 
-  pthread_attr_destroy(&thread_attr);
+  my_thread_attr_destroy(&thread_attr);
 
   if (result != 0)
   {
@@ -417,7 +419,7 @@ int NdbThread_WaitFor(struct NdbThread* p_wait_thread, void** status)
 void NdbThread_Exit(void *status)
 {
   my_thread_end();
-  pthread_exit(status);
+  my_thread_exit(status);
 }
 
 

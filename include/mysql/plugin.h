@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -452,7 +452,7 @@ struct st_mysql_plugin
 /*************************************************************************
   API for Full-text parser plugin. (MYSQL_FTPARSER_PLUGIN)
 */
-#include "plugin_ftparser.h"
+#define MYSQL_FTPARSER_INTERFACE_VERSION 0x0101
 
 /*************************************************************************
   API for Storage Engine plugin. (MYSQL_DAEMON_PLUGIN)

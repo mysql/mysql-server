@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,7 +24,7 @@
 #include "my_dbug.h"                            // DBUG_ASSERT
 #include "opt_costconstants.h"
 #include "opt_costconstantcache.h"
-#include "my_pthread.h"
+#include "my_thread.h"
 #include "template_utils.h"                     // pointer_cast
 #include "records.h"                            // READ_RECORD
 #include "sql_base.h"                           // open_and_lock_tables

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -6910,6 +6910,15 @@ static ST_FIELD_INFO	innodb_sysindex_fields_info[] =
 	 STRUCT_FLD(old_name,		""),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
+#define SYS_INDEX_MERGE_THRESHOLD 7
+	{STRUCT_FLD(field_name,		"MERGE_THRESHOLD"),
+	 STRUCT_FLD(field_length,	MY_INT32_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
 	END_OF_ST_FIELD_INFO
 };
 
@@ -6951,6 +6960,8 @@ i_s_dict_fill_sys_indexes(
 	}
 
 	OK(fields[SYS_INDEX_SPACE]->store(index->space));
+
+	OK(fields[SYS_INDEX_MERGE_THRESHOLD]->store(index->merge_threshold));
 
 	OK(schema_table_store_record(thd, table_to_fill));
 

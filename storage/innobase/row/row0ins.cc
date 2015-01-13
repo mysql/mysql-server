@@ -2362,8 +2362,7 @@ row_ins_clust_index_entry_low(
 			page_get_infimum_rec(page));
 
 		ut_ad(page_rec_is_supremum(first_rec)
-		      || rec_get_n_fields(first_rec, index)
-		      == dtuple_get_n_fields(entry));
+		      || rec_n_fields_is_sane(index, first_rec, entry));
 	}
 #endif
 
@@ -2859,8 +2858,7 @@ row_ins_sec_index_entry_low(
 			page_get_infimum_rec(page));
 
 		ut_ad(page_rec_is_supremum(first_rec)
-		      || rec_get_n_fields(first_rec, index)
-		      == dtuple_get_n_fields(entry));
+		      || rec_n_fields_is_sane(index, first_rec, entry));
 	}
 #endif
 

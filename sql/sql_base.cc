@@ -54,36 +54,8 @@
 #include "table_cache.h" // Table_cache_manager, Table_cache
 #include "log.h"
 #include "binlog.h"
-
-bool
-No_such_table_error_handler::handle_condition(THD *,
-                                              uint sql_errno,
-                                              const char*,
-                                              Sql_condition::enum_severity_level*,
-                                              const char*,
-                                              Sql_condition ** cond_hdl)
-{
-  *cond_hdl= NULL;
-  if (sql_errno == ER_NO_SUCH_TABLE)
-  {
-    m_handled_errors++;
-    return TRUE;
-  }
-
-  m_unhandled_errors++;
-  return FALSE;
-}
-
-
-bool No_such_table_error_handler::safely_trapped_errors()
-{
-  /*
-    If m_unhandled_errors != 0, something else, unanticipated, happened,
-    so the error is not trapped but returned to the caller.
-    Multiple ER_NO_SUCH_TABLE can be raised in case of views.
-  */
-  return ((m_handled_errors > 0) && (m_unhandled_errors == 0));
-}
+#include "pfs_table_provider.h"
+#include "mysql/psi/mysql_table.h"
 
 
 /**
@@ -98,8 +70,7 @@ bool Ignore_error_handler::handle_condition(THD *thd,
                                             uint sql_errno,
                                             const char *sqlstate,
                                             Sql_condition::enum_severity_level *level,
-                                            const char *msg,
-                                            Sql_condition **cond_hdl)
+                                            const char *msg)
 {
   /*
     If a statement is executed with IGNORE keyword then this handler
@@ -150,8 +121,7 @@ bool Strict_error_handler::handle_condition(THD *thd,
                                             uint sql_errno,
                                             const char *sqlstate,
                                             Sql_condition::enum_severity_level *level,
-                                            const char *msg,
-                                            Sql_condition **cond_hdl)
+                                            const char *msg)
 {
   /*
     STRICT error handler should not be effective if we have changed the
@@ -237,16 +207,25 @@ public:
     : m_handled_errors(false), m_unhandled_errors(false)
   {}
 
-  bool handle_condition(THD *thd,
-                        uint sql_errno,
-                        const char* sqlstate,
-                        Sql_condition::enum_severity_level *level,
-                        const char* msg,
-                        Sql_condition ** cond_hdl);
+  virtual bool handle_condition(THD *thd,
+                                uint sql_errno,
+                                const char* sqlstate,
+                                Sql_condition::enum_severity_level *level,
+                                const char* msg)
+  {
+    if (sql_errno == ER_NO_SUCH_TABLE || sql_errno == ER_WRONG_MRG_TABLE)
+    {
+      m_handled_errors= true;
+      return true;
+    }
+
+    m_unhandled_errors= true;
+    return false;
+  }
 
   /**
-    Returns TRUE if there were ER_NO_SUCH_/WRONG_MRG_TABLE and there
-    were no unhandled errors. FALSE otherwise.
+    Returns true if there were ER_NO_SUCH_/WRONG_MRG_TABLE and there
+    were no unhandled errors. false otherwise.
   */
   bool safely_trapped_errors()
   {
@@ -264,26 +243,6 @@ private:
   bool m_handled_errors;
   bool m_unhandled_errors;
 };
-
-
-bool
-Repair_mrg_table_error_handler::handle_condition(THD *,
-                                                 uint sql_errno,
-                                                 const char*,
-                                                 Sql_condition::enum_severity_level *level,
-                                                 const char*,
-                                                 Sql_condition ** cond_hdl)
-{
-  *cond_hdl= NULL;
-  if (sql_errno == ER_NO_SUCH_TABLE || sql_errno == ER_WRONG_MRG_TABLE)
-  {
-    m_handled_errors= true;
-    return TRUE;
-  }
-
-  m_unhandled_errors= true;
-  return FALSE;
-}
 
 
 /**
@@ -2613,14 +2572,29 @@ public:
     : m_ot_ctx(ot_ctx_arg), m_is_active(FALSE)
   {}
 
-  virtual ~MDL_deadlock_handler() {}
-
   virtual bool handle_condition(THD *thd,
                                 uint sql_errno,
                                 const char* sqlstate,
                                 Sql_condition::enum_severity_level *level,
-                                const char* msg,
-                                Sql_condition ** cond_hdl);
+                                const char* msg)
+  {
+    if (! m_is_active && sql_errno == ER_LOCK_DEADLOCK)
+    {
+      /* Disable the handler to avoid infinite recursion. */
+      m_is_active= true;
+      (void) m_ot_ctx->request_backoff_action(
+                        Open_table_context::OT_BACKOFF_AND_RETRY,
+                        NULL);
+      m_is_active= false;
+      /*
+        If the above back-off request failed, a new instance of
+        ER_LOCK_DEADLOCK error was emitted. Thus the current
+        instance of error condition can be treated as handled.
+      */
+      return true;
+    }
+    return false;
+  }
 
 private:
   /** Open table context to be used for back-off request. */
@@ -2632,33 +2606,6 @@ private:
   */
   bool m_is_active;
 };
-
-
-bool MDL_deadlock_handler::handle_condition(THD *,
-                                            uint sql_errno,
-                                            const char*,
-                                            Sql_condition::enum_severity_level*,
-                                            const char*,
-                                            Sql_condition ** cond_hdl)
-{
-  *cond_hdl= NULL;
-  if (! m_is_active && sql_errno == ER_LOCK_DEADLOCK)
-  {
-    /* Disable the handler to avoid infinite recursion. */
-    m_is_active= TRUE;
-    (void) m_ot_ctx->request_backoff_action(
-             Open_table_context::OT_BACKOFF_AND_RETRY,
-             NULL);
-    m_is_active= FALSE;
-    /*
-      If the above back-off request failed, a new instance of
-      ER_LOCK_DEADLOCK error was emitted. Thus the current
-      instance of error condition can be treated as handled.
-    */
-    return TRUE;
-  }
-  return FALSE;
-}
 
 
 /**

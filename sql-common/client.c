@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -68,7 +68,7 @@ my_bool	net_flush(NET *net);
 #include <violite.h>
 
 #if !defined(_WIN32)
-#include <my_pthread.h>				/* because of signal()	*/
+#include <my_thread.h>				/* because of signal()	*/
 #endif /* !defined(_WIN32) */
 
 #include <sys/stat.h>

@@ -4922,40 +4922,29 @@ public:
 
   bool got_timeout() const { return m_lock_wait_timeout; }
 
-  bool handle_condition(THD * /* thd */, uint sql_errno,
-                        const char * /* sqlstate */,
-                        Sql_condition::enum_severity_level * /* level */,
-                        const char *message,
-                        Sql_condition **cond_hdl);
+  virtual bool handle_condition(THD *thd,
+                                uint sql_errno,
+                                const char *sqlstate,
+                                Sql_condition::enum_severity_level *level,
+                                const char *msg)
+  {
+    if (sql_errno == ER_LOCK_WAIT_TIMEOUT)
+    {
+      m_lock_wait_timeout= true;
+      return true;
+    }
+    else if (sql_errno == ER_LOCK_DEADLOCK)
+    {
+      my_error(ER_USER_LOCK_DEADLOCK, MYF(0));
+      return true;
+    }
+
+    return false;
+  }
 
 private:
   bool m_lock_wait_timeout;
 };
-
-
-bool
-User_level_lock_wait_error_handler::
-handle_condition(THD * /* thd */, uint sql_errno,
-                 const char * /* sqlstate */,
-                 Sql_condition::enum_severity_level * /* level */,
-                 const char *message,
-                 Sql_condition **cond_hdl)
-{
-  *cond_hdl= NULL;
-
-  if (sql_errno == ER_LOCK_WAIT_TIMEOUT)
-  {
-    m_lock_wait_timeout= true;
-    return true;
-  }
-  else if (sql_errno == ER_LOCK_DEADLOCK)
-  {
-    my_error(ER_USER_LOCK_DEADLOCK, MYF(0));
-    return true;
-  }
-
-  return false;
-}
 
 
 class MDL_lock_get_owner_thread_id_visitor : public MDL_context_visitor

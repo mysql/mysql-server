@@ -9851,6 +9851,180 @@ table_is_noncompressed_temporary(
 	return(is_temp && !is_compressed);
 }
 
+/** Parse MERGE_THRESHOLD value from the string.
+@param[in]	thd	connection
+@param[in]	str	string which might include 'MERGE_THRESHOLD='
+@return	value parsed. 0 means not found or invalid value. */
+static
+ulint
+innobase_parse_merge_threshold(
+	THD*		thd,
+	const char*	str)
+{
+	static const char*	label = "MERGE_THRESHOLD=";
+	static const size_t	label_len = strlen(label);
+	const char*		pos = str;
+
+	pos = strstr(str, label);
+
+	if (pos == NULL) {
+		return(0);
+	}
+
+	pos += label_len;
+
+	lint	ret = atoi(pos);
+
+	if (ret > 0 && ret <= 50) {
+		return(static_cast<ulint>(ret));
+	}
+
+	push_warning_printf(
+		thd, Sql_condition::SL_WARNING,
+		ER_ILLEGAL_HA_CREATE_OPTION,
+		"InnoDB: Invalid value for MERGE_THRESHOLD in the CREATE TABLE"
+		" statement. The value is ignored.");
+
+	return(0);
+}
+
+/** Parse hint for table and its indexes, and update the information
+in dictionary.
+@param[in]	thd		connection
+@param[in,out]	table		target table
+@param[in]	table_share	table definition */
+void
+innobase_parse_hint_from_comment(
+	THD*			thd,
+	dict_table_t*		table,
+	const TABLE_SHARE*	table_share)
+{
+	ulint	merge_threshold_table;
+	ulint	merge_threshold_index[MAX_KEY];
+	bool	is_found[MAX_KEY];
+
+	if (table_share->comment.str != NULL) {
+		merge_threshold_table
+			= innobase_parse_merge_threshold(
+				thd, table_share->comment.str);
+	} else {
+		merge_threshold_table = DICT_INDEX_MERGE_THRESHOLD_DEFAULT;
+	}
+
+	if (merge_threshold_table == 0) {
+		merge_threshold_table = DICT_INDEX_MERGE_THRESHOLD_DEFAULT;
+	}
+
+	for (uint i = 0; i < table_share->keys; i++) {
+		KEY*	key_info = &table_share->key_info[i];
+
+		ut_ad(i < sizeof(merge_threshold_index)
+			  / sizeof(merge_threshold_index[0]));
+
+		if (key_info->flags & HA_USES_COMMENT
+		    && key_info->comment.str != NULL) {
+			merge_threshold_index[i]
+				= innobase_parse_merge_threshold(
+					thd, key_info->comment.str);
+		} else {
+			merge_threshold_index[i] = merge_threshold_table;
+		}
+
+		if (merge_threshold_index[i] == 0) {
+			merge_threshold_index[i] = merge_threshold_table;
+		}
+	}
+
+	/* update SYS_INDEX table */
+	if (!dict_table_is_temporary(table)) {
+		for (uint i = 0; i < table_share->keys; i++) {
+			is_found[i] = false;
+		}
+
+		for (dict_index_t* index = UT_LIST_GET_FIRST(table->indexes);
+		     index != NULL;
+		     index = UT_LIST_GET_NEXT(indexes, index)) {
+
+			if (index == UT_LIST_GET_FIRST(table->indexes)
+			    && innobase_strcasecmp(
+				index->name,
+				innobase_index_reserve_name) == 0) {
+
+				/* GEN_CLUST_INDEX should use
+				merge_threshold_table */
+				dict_index_set_merge_threshold(
+					index, merge_threshold_table);
+				continue;
+			}
+
+			for (uint i = 0; i < table_share->keys; i++) {
+				if (is_found[i]) {
+					continue;
+				}
+
+				KEY*	key_info = &table_share->key_info[i];
+
+				if (innobase_strcasecmp(
+					index->name, key_info->name) == 0) {
+
+					dict_index_set_merge_threshold(
+						index,
+						merge_threshold_index[i]);
+					is_found[i] = true;
+					break;
+				}
+			}
+		}
+	}
+
+	for (uint i = 0; i < table_share->keys; i++) {
+		is_found[i] = false;
+	}
+
+	/* update in memory */
+	for (dict_index_t* index = UT_LIST_GET_FIRST(table->indexes);
+	     index != NULL;
+	     index = UT_LIST_GET_NEXT(indexes, index)) {
+
+		if (index == UT_LIST_GET_FIRST(table->indexes)
+		    && innobase_strcasecmp(
+			index->name, innobase_index_reserve_name) == 0) {
+
+			/* GEN_CLUST_INDEX should use merge_threshold_table */
+
+			/* x-lock index is needed to exclude concurrent
+			pessimistic tree operations */
+			rw_lock_x_lock(dict_index_get_lock(index));
+			index->merge_threshold = merge_threshold_table;
+			rw_lock_x_unlock(dict_index_get_lock(index));
+
+			continue;
+		}
+
+		for (uint i = 0; i < table_share->keys; i++) {
+			if (is_found[i]) {
+				continue;
+			}
+
+			KEY*	key_info = &table_share->key_info[i];
+
+			if (innobase_strcasecmp(
+				index->name, key_info->name) == 0) {
+
+				/* x-lock index is needed to exclude concurrent
+				pessimistic tree operations */
+				rw_lock_x_lock(dict_index_get_lock(index));
+				index->merge_threshold
+					= merge_threshold_index[i];
+				rw_lock_x_unlock(dict_index_get_lock(index));
+				is_found[i] = true;
+
+				break;
+			}
+		}
+	}
+}
+
 /** Prepare to create a new table to an InnoDB database.
 @param[in]	name	Table name
 @return error number */
@@ -10190,6 +10364,8 @@ create_table_info_t::create_table_update_dict()
 	}
 
 	dict_table_close(innobase_table, FALSE, FALSE);
+
+	innobase_parse_hint_from_comment(m_thd, innobase_table, m_form->s);
 
 	DBUG_RETURN(0);
 }
@@ -15787,6 +15963,8 @@ static my_bool	innodb_purge_run_now = TRUE;
 static my_bool	innodb_purge_stop_now = TRUE;
 static my_bool	innodb_log_checkpoint_now = TRUE;
 static my_bool	innodb_buf_flush_list_now = TRUE;
+static uint	innodb_merge_threshold_set_all_debug
+	= DICT_INDEX_MERGE_THRESHOLD_DEFAULT;
 
 /****************************************************************//**
 Set the purge state to RUN. If purge is disabled then it
@@ -15883,6 +16061,26 @@ buf_flush_list_now_set(
 		buf_flush_lists(ULINT_MAX, LSN_MAX, NULL);
 		buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
 	}
+}
+
+/** Override current MERGE_THRESHOLD setting for all indexes at dictionary
+now.
+@param[in]	thd	thread handle
+@param[in]	var	pointer to system variable
+@param[out]	var_ptr	where the formal string goes
+@param[in]	save	immediate result from check function */
+static
+void
+innodb_merge_threshold_set_all_debug_update(
+	THD*				thd,
+	struct st_mysql_sys_var*	var,
+	void*				var_ptr,
+	const void*			save)
+{
+	innodb_merge_threshold_set_all_debug
+		= (*static_cast<const uint*>(save));
+	dict_set_merge_threshold_all_debug(
+		innodb_merge_threshold_set_all_debug);
 }
 #endif /* UNIV_DEBUG */
 
@@ -16205,6 +16403,14 @@ static MYSQL_SYSVAR_BOOL(buf_flush_list_now, innodb_buf_flush_list_now,
   PLUGIN_VAR_OPCMDARG,
   "Force dirty page flush now",
   NULL, buf_flush_list_now_set, FALSE);
+
+static MYSQL_SYSVAR_UINT(merge_threshold_set_all_debug,
+  innodb_merge_threshold_set_all_debug,
+  PLUGIN_VAR_RQCMDARG,
+  "Override current MERGE_THRESHOLD setting for all indexes at dictionary"
+  " cache by the specified value dynamically, at the time.",
+  NULL, innodb_merge_threshold_set_all_debug_update,
+  DICT_INDEX_MERGE_THRESHOLD_DEFAULT, 1, 50, 0);
 #endif /* UNIV_DEBUG */
 
 static MYSQL_SYSVAR_ULONG(purge_batch_size, srv_purge_batch_size,
@@ -17092,6 +17298,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(purge_stop_now),
   MYSQL_SYSVAR(log_checkpoint_now),
   MYSQL_SYSVAR(buf_flush_list_now),
+  MYSQL_SYSVAR(merge_threshold_set_all_debug),
 #endif /* UNIV_DEBUG */
 #if defined UNIV_DEBUG || defined UNIV_PERF_DEBUG
   MYSQL_SYSVAR(page_hash_locks),

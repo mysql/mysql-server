@@ -1780,8 +1780,7 @@ Select AsText(Centroid(PolygonFromText('POLYGON((1 1, 10 1, 1 0, 10 0, 1 -1, 10 
 
 Select AsText(Centroid(PolyFromText('POLYGON((1 1, 10 1, 1 0, 10 0, 1 -1, 10 -1, 1 1), (10 -1, 7 2, 7 -2, 4 2, 4 -2, 1 1,10 -1))')));
 
-#This query is non-deterministic (bug#20242884).
-#Select AsText(Centroid(PolyFromWKB(AsWKB(Polygon(LineString(Point(1, 1), Point(10, 1), Point(1, 0), Point(10, 0), Point(4, 2), Point(4, -2), Point(1, 1)))))));
+Select AsText(Centroid(PolyFromWKB(AsWKB(Polygon(LineString(Point(1, 1), Point(10, 1), Point(1, 0), Point(10, 0), Point(4, 2), Point(4, -2), Point(1, 1)))))));
 
 select AsText(Centroid(PolygonFromText('POLYGON((10 10,20 10,20 20,10 20))')));
 

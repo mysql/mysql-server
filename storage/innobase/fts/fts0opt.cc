@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -2643,7 +2643,7 @@ fts_optimize_find_slot(
 
 		slot = static_cast<fts_slot_t*>(ib_vector_get(tables, i));
 
-		if (slot->table->id == table->id) {
+		if (slot->table == table) {
 			return(slot);
 		}
 	}
@@ -2694,7 +2694,7 @@ fts_optimize_new_table(
 
 		if (slot->state == FTS_STATE_EMPTY) {
 			empty_slot = i;
-		} else if (slot->table->id == table->id) {
+		} else if (slot->table == table) {
 			/* Already exists in our optimize queue. */
 			return(FALSE);
 		}
@@ -2740,9 +2740,8 @@ fts_optimize_del_table(
 
 		slot = static_cast<fts_slot_t*>(ib_vector_get(tables, i));
 
-		/* FIXME: Should we assert on this ? */
 		if (slot->state != FTS_STATE_EMPTY
-		    && slot->table->id == table->id) {
+		    && slot->table == table) {
 
 			if (fts_enable_diag_print) {
 				ib::info() << "FTS Optimize Removing table "
@@ -2843,7 +2842,7 @@ fts_is_sync_needed(
 			ib_vector_get_const(tables, i));
 
 		if (slot->state != FTS_STATE_EMPTY && slot->table
-		    && slot->table->fts) {
+		    && slot->table->fts && slot->table->fts->cache) {
 			total_memory += slot->table->fts->cache->total_size;
 		}
 

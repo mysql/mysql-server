@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -44,18 +44,18 @@ Ndb_component::init()
   return res;
 }
 
-void *
+extern "C" void *
 Ndb_component_run_C(void * arg)
 {
   my_thread_init();
   Ndb_component * self = reinterpret_cast<Ndb_component*>(arg);
   self->run_impl();
   my_thread_end();
-  pthread_exit(0);
+  my_thread_exit(0);
   return NULL;                              // Avoid compiler warnings
 }
 
-extern pthread_attr_t connection_attrib; // mysql global pthread attr
+extern my_thread_attr_t connection_attrib; // mysql global pthread attr
 
 int
 Ndb_component::start()
@@ -63,8 +63,8 @@ Ndb_component::start()
   assert(m_thread_state == TS_INIT);
   native_mutex_lock(&m_start_stop_mutex);
   m_thread_state= TS_STARTING;
-  int res= pthread_create(&m_thread, &connection_attrib, Ndb_component_run_C,
-                          this);
+  int res= my_thread_create(&m_thread, &connection_attrib, Ndb_component_run_C,
+                            this);
 
   if (res == 0)
   {

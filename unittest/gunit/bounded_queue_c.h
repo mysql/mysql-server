@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved. 
+/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
 #include "my_base.h"
 #include "my_sys.h"
 #include "queues.h"
+#include "test_utils.h"
 
 /**
   A priority queue with a fixed, limited size.
@@ -156,7 +157,8 @@ int Bounded_QUEUE<Element_type, Key_type, Key_generator>
     return 1;
   if (compare == NULL)
     compare=
-      reinterpret_cast<compare_function>(get_ptr_compare(m_compare_length));
+      reinterpret_cast<compare_function>
+        (my_testing::get_ptr_compare(m_compare_length));
 
   DBUG_EXECUTE_IF("bounded_queue_init_fail",
                   DBUG_SET("+d,simulate_out_of_memory"););
