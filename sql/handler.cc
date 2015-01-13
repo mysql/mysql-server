@@ -86,9 +86,7 @@ static const LEX_STRING sys_table_aliases[]=
 };
 
 const char *ha_row_type[] = {
-  "", "FIXED", "DYNAMIC", "COMPRESSED", "REDUNDANT", "COMPACT",
-  "PAGE",
-  "?","?","?"
+  "", "FIXED", "DYNAMIC", "COMPRESSED", "REDUNDANT", "COMPACT", "PAGE"
 };
 
 const char *tx_isolation_names[] =
