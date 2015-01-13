@@ -422,6 +422,11 @@ static int toku_txn_discard(DB_TXN *txn, uint32_t flags) {
     return 0;
 }
 
+static bool toku_txn_is_prepared(DB_TXN *txn) {
+    TOKUTXN ttxn = db_txn_struct_i(txn)->tokutxn;
+    return toku_txn_get_state(ttxn) == TOKUTXN_PREPARING;
+}
+
 static inline void txn_func_init(DB_TXN *txn) {
 #define STXN(name) txn->name = locked_txn_ ## name
     STXN(abort);
@@ -438,6 +443,7 @@ static inline void txn_func_init(DB_TXN *txn) {
     SUTXN(discard);
 #undef SUTXN
     txn->id64 = toku_txn_id64;
+    txn->is_prepared = toku_txn_is_prepared;
 }
 
 //

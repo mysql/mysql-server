@@ -113,12 +113,19 @@ void lock_request::create(void) {
 
     m_complete_r = 0;
     m_state = state::UNINITIALIZED;
+    m_info = nullptr;
 
     toku_cond_init(&m_wait_cond, nullptr);
+
+    m_start_test_callback = nullptr;
+    m_retry_test_callback = nullptr;
 }
 
 // destroy a lock request.
 void lock_request::destroy(void) {
+    invariant(m_state != state::PENDING);
+    invariant(m_state != state::DESTROYED);
+    m_state = state::DESTROYED;
     toku_destroy_dbt(&m_left_key_copy);
     toku_destroy_dbt(&m_right_key_copy);
     toku_cond_destroy(&m_wait_cond);
@@ -135,7 +142,7 @@ void lock_request::set(locktree *lt, TXNID txnid, const DBT *left_key, const DBT
     toku_destroy_dbt(&m_right_key_copy);
     m_type = lock_type;
     m_state = state::INITIALIZED;
-    m_info = lt->get_lock_request_info();
+    m_info = lt ? lt->get_lock_request_info() : nullptr;
     m_big_txn = big_txn;
 }
 
@@ -223,15 +230,18 @@ int lock_request::start(void) {
         insert_into_lock_requests();
         if (deadlock_exists(conflicts)) {
             remove_from_lock_requests();
-            complete(DB_LOCK_DEADLOCK);
+            r = DB_LOCK_DEADLOCK;
         }
         toku_mutex_unlock(&m_info->mutex);
-    } else {
+        if (m_start_test_callback) m_start_test_callback(); // test callback
+    }
+
+    if (r != DB_LOCK_NOTGRANTED) {
         complete(r);
     }
 
     conflicts.destroy();
-    return m_state == state::COMPLETE ? m_complete_r : r;
+    return r;
 }
 
 // sleep on the lock request until it becomes resolved or the wait time has elapsed.
@@ -292,8 +302,8 @@ int lock_request::wait(uint64_t wait_time_ms, uint64_t killed_time_ms, int (*kil
 
 // complete this lock request with the given return value
 void lock_request::complete(int complete_r) {
-    m_state = state::COMPLETE;
     m_complete_r = complete_r;
+    m_state = state::COMPLETE;
 }
 
 const DBT *lock_request::get_left_key(void) const {
@@ -331,6 +341,7 @@ int lock_request::retry(void) {
     if (r == 0) {
         remove_from_lock_requests();
         complete(r);
+        if (m_retry_test_callback) m_retry_test_callback(); // test callback
         toku_cond_broadcast(&m_wait_cond);
     }
 
@@ -416,7 +427,8 @@ void lock_request::remove_from_lock_requests(void) {
     uint32_t idx;
     lock_request *request;
     int r = m_info->pending_lock_requests.find_zero<TXNID, find_by_txnid>(m_txnid, &request, &idx);
-    invariant_zero(r && request == this);
+    invariant_zero(r);
+    invariant(request == this);
     r = m_info->pending_lock_requests.delete_at(idx);
     invariant_zero(r);
 }
@@ -430,6 +442,14 @@ int lock_request::find_by_txnid(lock_request * const &request, const TXNID &txni
     } else {
         return 1;
     }
+}
+
+void lock_request::set_start_test_callback(void (*f)(void)) {
+    m_start_test_callback = f;
+}
+
+void lock_request::set_retry_test_callback(void (*f)(void)) {
+    m_retry_test_callback = f;
 }
 
 } /* namespace toku */

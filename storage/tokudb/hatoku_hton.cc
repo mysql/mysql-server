@@ -425,10 +425,10 @@ static int tokudb_init_func(void *p) {
     tokudb_hton->commit = tokudb_commit;
     tokudb_hton->rollback = tokudb_rollback;
 #if TOKU_INCLUDE_XA
-    tokudb_hton->prepare=tokudb_xa_prepare;
-    tokudb_hton->recover=tokudb_xa_recover;
-    tokudb_hton->commit_by_xid=tokudb_commit_by_xid;
-    tokudb_hton->rollback_by_xid=tokudb_rollback_by_xid;
+    tokudb_hton->prepare = tokudb_xa_prepare;
+    tokudb_hton->recover = tokudb_xa_recover;
+    tokudb_hton->commit_by_xid = tokudb_commit_by_xid;
+    tokudb_hton->rollback_by_xid = tokudb_rollback_by_xid;
 #endif
 
     tokudb_hton->table_options= tokudb_table_options;
@@ -785,16 +785,35 @@ static void tokudb_cleanup_handlers(tokudb_trx_data *trx, DB_TXN *txn) {
     }
 }
 
+#if MYSQL_VERSION_ID >= 50600
+extern "C" enum durability_properties thd_get_durability_property(const MYSQL_THD thd);
+#endif
+
+// Determine if an fsync is used when a transaction is committed.  
+static bool tokudb_fsync_on_commit(THD *thd, tokudb_trx_data *trx, DB_TXN *txn) {
+#if MYSQL_VERSION_ID >= 50600
+    // Check the client durability property which is set during 2PC
+    if (thd_get_durability_property(thd) == HA_IGNORE_DURABILITY)
+        return false;
+#endif
+#if defined(MARIADB_BASE_VERSION)
+    // Check is the txn is prepared and the binlog is open
+    if (txn->is_prepared(txn) && mysql_bin_log.is_open())
+        return false;
+#endif
+    return THDVAR(thd, commit_sync) != 0;
+}
+
 static int tokudb_commit(handlerton * hton, THD * thd, bool all) {
     TOKUDB_DBUG_ENTER("");
     DBUG_PRINT("trans", ("ending transaction %s", all ? "all" : "stmt"));
-    uint32_t syncflag = THDVAR(thd, commit_sync) ? 0 : DB_TXN_NOSYNC;
     tokudb_trx_data *trx = (tokudb_trx_data *) thd_get_ha_data(thd, hton);
     DB_TXN **txn = all ? &trx->all : &trx->stmt;
     DB_TXN *this_txn = *txn;
     if (this_txn) {
+        uint32_t syncflag = tokudb_fsync_on_commit(thd, trx, this_txn) ? 0 : DB_TXN_NOSYNC;
         if (tokudb_debug & TOKUDB_DEBUG_TXN) {
-            TOKUDB_TRACE("commit trx %u txn %p", all, this_txn);
+            TOKUDB_TRACE("commit trx %u txn %p syncflag %u", all, this_txn, syncflag);
         }
         // test hook to induce a crash on a debug build
         DBUG_EXECUTE_IF("tokudb_crash_commit_before", DBUG_SUICIDE(););
@@ -848,7 +867,7 @@ static int tokudb_xa_prepare(handlerton* hton, THD* thd, bool all) {
     TOKUDB_DBUG_ENTER("");
     int r = 0;
 
-    /* if support_xa is disable, just return */
+    // if tokudb_support_xa is disable, just return
     if (!THDVAR(thd, support_xa)) {
         TOKUDB_DBUG_RETURN(r);
     }
@@ -1608,12 +1627,12 @@ static ST_FIELD_INFO tokudb_fractal_tree_info_field_info[] = {
 
 static int tokudb_report_fractal_tree_info_for_db(const DBT *dname, const DBT *iname, TABLE *table, THD *thd) {
     int error;
-    DB *db;
     uint64_t bt_num_blocks_allocated;
     uint64_t bt_num_blocks_in_use;
     uint64_t bt_size_allocated;
     uint64_t bt_size_in_use;
 
+    DB *db = NULL;
     error = db_create(&db, db_env, 0);
     if (error) {
         goto exit;
@@ -1625,12 +1644,6 @@ static int tokudb_report_fractal_tree_info_for_db(const DBT *dname, const DBT *i
     error = db->get_fractal_tree_info64(db,
                                         &bt_num_blocks_allocated, &bt_num_blocks_in_use,
                                         &bt_size_allocated, &bt_size_in_use);
-    {
-        int close_error = db->close(db, 0);
-        if (!error) {
-            error = close_error;
-        }
-    }
     if (error) {
         goto exit;
     }
@@ -1662,6 +1675,11 @@ static int tokudb_report_fractal_tree_info_for_db(const DBT *dname, const DBT *i
     error = schema_table_store_record(thd, table);
 
 exit:
+    if (db) {
+        int close_error = db->close(db, 0);
+        if (error == 0)
+            error = close_error;
+    }
     return error;
 }
 

@@ -1,0 +1,13 @@
+# test for DB-762 and DB-767
+source include/have_tokudb.inc;
+source include/have_innodb.inc;
+disable_warnings;
+drop table if exists t1,t2;
+enable_warnings;
+create table t1 (x int) engine=innodb;
+lock table t1 read;
+create temporary table t2 (x int) engine=tokudb;
+insert into t2 values (1);
+unlock tables;
+drop table t1, t2;
+

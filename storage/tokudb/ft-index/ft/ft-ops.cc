@@ -377,6 +377,8 @@ status_init(void)
     STATUS_INIT(FT_PRO_RIGHTMOST_LEAF_SHORTCUT_FAIL_POS,   nullptr, PARCOUNT, "promotion: tried the rightmost leaf shorcut but failed (out-of-bounds)", TOKU_ENGINE_STATUS);
     STATUS_INIT(FT_PRO_RIGHTMOST_LEAF_SHORTCUT_FAIL_REACTIVE,nullptr, PARCOUNT, "promotion: tried the rightmost leaf shorcut but failed (child reactive)", TOKU_ENGINE_STATUS);
 
+    STATUS_INIT(FT_CURSOR_SKIP_DELETED_LEAF_ENTRY,         CURSOR_SKIP_DELETED_LEAF_ENTRY, PARCOUNT, "cursor skipped deleted leaf entries", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
+
     ft_status.initialized = true;
 }
 static void status_destroy(void) {
@@ -3378,13 +3380,13 @@ ok: ;
     if (le_val_is_del(le, ftcursor->is_snapshot_read, ftcursor->ttxn)) {
         // Provisionally deleted stuff is gone.
         // So we need to scan in the direction to see if we can find something.
-        // Every 100 deleted leaf entries check if the leaf's key is within the search bounds.
-        for (uint n_deleted = 1; ; n_deleted++) {
+        // Every 64 deleted leaf entries check if the leaf's key is within the search bounds.
+        for (uint64_t n_deleted = 1; ; n_deleted++) {
             switch (search->direction) {
             case FT_SEARCH_LEFT:
                 idx++;
-                if (idx >= bn->data_buffer.num_klpairs() ||
-                    ((n_deleted % 64) == 0 && !search_continue(search, key, keylen))) {
+                if (idx >= bn->data_buffer.num_klpairs() || ((n_deleted % 64) == 0 && !search_continue(search, key, keylen))) {
+                    STATUS_INC(FT_CURSOR_SKIP_DELETED_LEAF_ENTRY, n_deleted);
                     if (ftcursor->interrupt_cb && ftcursor->interrupt_cb(ftcursor->interrupt_cb_extra)) {
                         return TOKUDB_INTERRUPTED;
                     }
@@ -3393,6 +3395,7 @@ ok: ;
                 break;
             case FT_SEARCH_RIGHT:
                 if (idx == 0) {
+                    STATUS_INC(FT_CURSOR_SKIP_DELETED_LEAF_ENTRY, n_deleted);
                     if (ftcursor->interrupt_cb && ftcursor->interrupt_cb(ftcursor->interrupt_cb_extra)) {
                         return TOKUDB_INTERRUPTED;
                     }
@@ -3406,6 +3409,7 @@ ok: ;
             r = bn->data_buffer.fetch_klpair(idx, &le, &keylen, &key);
             assert_zero(r); // we just validated the index
             if (!le_val_is_del(le, ftcursor->is_snapshot_read, ftcursor->ttxn)) {
+                STATUS_INC(FT_CURSOR_SKIP_DELETED_LEAF_ENTRY, n_deleted);
                 goto got_a_good_value;
             }
         }

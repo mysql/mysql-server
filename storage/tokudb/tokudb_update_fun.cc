@@ -851,7 +851,7 @@ static int tokudb_expand_variable_offsets(
     DBT new_val; memset(&new_val, 0, sizeof new_val);
 
     if (old_val != NULL) {
-        assert(offset_start + number_of_offsets < old_val->size);
+        assert(offset_start + number_of_offsets <= old_val->size);
     
         // compute the new val from the old val
         uchar *old_val_ptr = (uchar *)old_val->data;
