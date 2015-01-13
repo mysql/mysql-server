@@ -24,7 +24,6 @@
     Abort logging when we get an error in reading or writing log files
 */
 
-#include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "log.h"
 #include "sql_base.h"                           // open_log_table
 #include "sql_parse.h"                          // command_name

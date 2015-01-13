@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -848,7 +848,8 @@ btr_cur_latch_leaves(
 
 /** In the pessimistic delete, if the page data size drops below this
 limit, merging it to a neighbor is tried */
-#define BTR_CUR_PAGE_COMPRESS_LIMIT	(UNIV_PAGE_SIZE / 2)
+#define BTR_CUR_PAGE_COMPRESS_LIMIT(index) \
+	((UNIV_PAGE_SIZE * (ulint)((index)->merge_threshold)) / 100)
 
 /** A slot in the path array. We store here info on a search path down the
 tree. Each slot contains data on a single level of the tree. */

@@ -1741,6 +1741,22 @@ dict_set_corrupted_by_space(
 /*========================*/
 	ulint		space_id);	/*!< in: space ID */
 
+/** Sets merge_threshold in the SYS_INDEXES
+@param[in,out]	index		index
+@param[in]	merge_threshold	value to set */
+void
+dict_index_set_merge_threshold(
+	dict_index_t*	index,
+	ulint		merge_threshold);
+
+#ifdef UNIV_DEBUG
+/** Sets merge_threshold for all indexes in dictionary cache for debug.
+@param[in]	merge_threshold_all	value to set for all indexes */
+void
+dict_set_merge_threshold_all_debug(
+	uint	merge_threshold_all);
+#endif /* UNIV_DEBUG */
+
 /** Validate the table flags.
 @param[in]	flags	Table flags
 @return true if valid. */

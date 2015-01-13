@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,13 +16,12 @@
 #ifndef SQL_LOAD_INCLUDED
 #define SQL_LOAD_INCLUDED
 
+#include "sql_data_change.h"                    /* enum_duplicates */
 #include "sql_list.h"                           /* List */
 
 class Item;
-
-#include "sql_class.h"                          /* enum_duplicates */
-
 class sql_exchange;
+struct TABLE_LIST;
 
 int mysql_load(THD *thd, sql_exchange *ex, TABLE_LIST *table_list,
 	        List<Item> &fields_vars, List<Item> &set_fields,

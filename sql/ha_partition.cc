@@ -60,6 +60,7 @@
 #include "sql_partition.h"
 #include "sql_show.h"                        // append_identifier
 #include "sql_admin.h"                       // SQL_ADMIN_MSG_TEXT_SIZE
+#include "myisam.h"                          // TT_FOR_UPGRADE
 
 #include "debug_sync.h"
 #ifndef DBUG_OFF

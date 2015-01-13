@@ -1,7 +1,7 @@
 #ifndef FIELD_INCLUDED
 #define FIELD_INCLUDED
 
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@
 #include "mysqld_error.h"
 #include "binary_log_funcs.h"
 #include "my_time.h"                            /* my_time_binary_length */
+#include "my_compare.h"                         /* portable_sizeof_char_ptr */
 
 /*
 

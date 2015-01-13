@@ -23,46 +23,32 @@
 **
 *****************************************************************************/
 
-#include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
-#include "binlog.h"
 #include "sql_class.h"
-#include "sql_cache.h"                          // query_cache_abort
-#include "sql_base.h"                           // close_thread_tables
-#include "sql_time.h"                         // date_time_format_copy
-#include "auth_common.h"                      // acl_getroot
-                                              // NO_ACCESS,
-                                              // acl_getroot_no_password
-#include "sql_base.h"                         // close_temporary_tables
-#include "sql_handler.h"                      // mysql_ha_cleanup
-#include "rpl_rli.h"
-#include "rpl_rli_pdb.h"
-#include "rpl_filter.h"
-#include "rpl_record.h"
-#include "rpl_slave.h"
-#include <my_bitmap.h>
-#include "log_event.h"
-#include "sql_audit.h"
-#include <m_ctype.h>
-#include <sys/stat.h>
-#include <mysys_err.h>
-#include <limits.h>
 
-#include "sp_rcontext.h"
-#include "sp_cache.h"
-#include "transaction.h"
-#include "debug_sync.h"
-#include "sql_parse.h"                          // is_update_query
-#include "sql_callback.h"
-#include "lock.h"
-#include "mysqld.h"
-#include "connection_handler_manager.h"   // Connection_handler_manager
-#include "mysqld_thd_manager.h"           // Global_THD_manager
-#include "sql_timer.h"                          // thd_timer_destroy
-#include "parse_tree_nodes.h"
-#include "sql_prepare.h"                  // Prepared_statement
+#include "mysys_err.h"                       // EE_DELETE
+#include "connection_handler_manager.h"      // Connection_handler_manager
+#include "debug_sync.h"                      // DEBUG_SYNC
+#include "lock.h"                            // mysql_lock_abort_for_thread
+#include "mysqld_thd_manager.h"              // Global_THD_manager
+#include "parse_tree_nodes.h"                // PT_select_var
+#include "rpl_rli.h"                         // Relay_log_info
+#include "rpl_rli_pdb.h"                     // Slave_worker
+#include "sp_cache.h"                        // sp_cache_clear
+#include "sp_rcontext.h"                     // sp_rcontext
+#include "sql_audit.h"                       // mysql_audit_release
+#include "sql_base.h"                        // close_temporary_tables
+#include "sql_callback.h"                    // MYSQL_CALLBACK
+#include "sql_handler.h"                     // mysql_ha_cleanup
+#include "sql_parse.h"                       // is_update_query
+#include "sql_prepare.h"                     // Prepared_statement
+#include "sql_time.h"                        // my_timeval_trunc
+#include "sql_timer.h"                       // thd_timer_destroy
+#include "transaction.h"                     // trans_rollback
 
-#include <mysql/psi/mysql_statement.h>
-#include "mysql/psi/mysql_ps.h"
+#include <pfs_idle_provider.h>
+#include <mysql/psi/mysql_idle.h>
+
+#include <mysql/psi/mysql_ps.h>
 
 using std::min;
 using std::max;
