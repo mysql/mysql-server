@@ -40,7 +40,7 @@ while ($counter)
 }
 --enable_query_log
 
---error ER_ERROR_DURING_COMMIT
+--error ER_RUN_HOOK_ERROR
 COMMIT;
 
 

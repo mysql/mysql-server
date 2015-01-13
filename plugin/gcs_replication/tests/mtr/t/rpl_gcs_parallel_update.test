@@ -37,10 +37,10 @@ while ($transactions > 0)
   --send_eval $query
 
   --connection server1
-  --error 0, ER_ERROR_DURING_COMMIT, ER_ERROR_DURING_ROLLBACK, ER_LOCK_DEADLOCK
+  --error 0, ER_TRANSACTION_ROLLBACK_DURING_COMMIT, ER_ERROR_DURING_COMMIT, ER_ERROR_DURING_ROLLBACK
   --reap
   --connection server2
-  --error 0, ER_ERROR_DURING_COMMIT, ER_ERROR_DURING_ROLLBACK, ER_LOCK_DEADLOCK
+  --error 0, ER_TRANSACTION_ROLLBACK_DURING_COMMIT, ER_ERROR_DURING_COMMIT, ER_ERROR_DURING_ROLLBACK
   --reap
 
   # Sync both servers to ensure that next transaction does not fail

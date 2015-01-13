@@ -24,9 +24,9 @@ SET SESSION sql_log_bin= 1;
 BEGIN;
 INSERT INTO t1 VALUES (2);
 COMMIT;
-ERROR HY000: Got error 1 during COMMIT
+ERROR HY000: Error on observer while running replication hook 'before_commit'.
 INSERT INTO t1 VALUES (3);
-ERROR HY000: Got error 1 during COMMIT
+ERROR HY000: Error on observer while running replication hook 'before_commit'.
 
 ############################################################
 # 4. Clean debug flag.

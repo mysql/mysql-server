@@ -37,10 +37,10 @@ SET SESSION sql_log_bin= 1;
 --connection server1
 BEGIN;
 INSERT INTO t1 VALUES (2);
---error ER_ERROR_DURING_COMMIT
+--error ER_RUN_HOOK_ERROR
 COMMIT;
 
---error ER_ERROR_DURING_COMMIT
+--error ER_RUN_HOOK_ERROR
 INSERT INTO t1 VALUES (3);
 
 --echo

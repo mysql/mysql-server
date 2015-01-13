@@ -35,7 +35,7 @@ SET @@GLOBAL.DEBUG= '+d,gcs_force_1_negative_certification';
 --echo ############################################################
 --echo # 3. First insert must be aborted.
 --connection server1
---error ER_ERROR_DURING_COMMIT
+--error ER_TRANSACTION_ROLLBACK_DURING_COMMIT
 INSERT INTO t1 VALUES (2);
 INSERT INTO t1 VALUES (3);
 

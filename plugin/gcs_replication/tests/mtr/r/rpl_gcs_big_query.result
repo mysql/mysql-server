@@ -20,7 +20,7 @@ call mtr.add_suppression("Run function 'before_commit' in plugin 'gcs_replicatio
 SET SESSION sql_log_bin= 1;
 BEGIN;
 COMMIT;
-ERROR HY000: Got error 1 during COMMIT
+ERROR HY000: Error on observer while running replication hook 'before_commit'.
 
 ############################################################
 #  3. Check that table t1 is empty on server 1.

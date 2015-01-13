@@ -7366,6 +7366,12 @@ ER_BEFORE_DML_VALIDATION_ERROR
 ER_PREVENTS_VARIABLE_WITHOUT_RBR
   eng "Cannot change the value of variable %s without binlog format as ROW."
 
+ER_RUN_HOOK_ERROR
+  eng "Error on observer while running replication hook '%s'."
+
+ER_TRANSACTION_ROLLBACK_DURING_COMMIT
+  eng "Plugin instructed the server to rollback the current transaction."
+
 #
 #  End of 5.7 error messages.
 #
