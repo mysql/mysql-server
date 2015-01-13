@@ -171,7 +171,9 @@ JOIN::optimize()
 
   count_field_types(select_lex, &tmp_table_param, all_fields, false, false);
 
-  DBUG_ASSERT(!implicit_grouping || tmp_table_param.sum_func_count);
+  DBUG_ASSERT(tmp_table_param.sum_func_count == 0 ||
+              group_list || implicit_grouping);
+
   if (select_lex->olap == ROLLUP_TYPE && optimize_rollup())
     DBUG_RETURN(true); /* purecov: inspected */
 
