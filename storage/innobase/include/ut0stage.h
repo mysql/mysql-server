@@ -267,6 +267,12 @@ ut_stage_alter_t::inc(
 		ut_error;
 	case READ_PK:
 		m_n_pk_pages++;
+		ut_ad(inc_val == 1);
+		/* Overall the read pk phase will read all the pages from the
+		PK and will do work, proportional to the number of added
+		indexes, thus when this is called once per read page we
+		increment with 1 + m_n_sort_indexes */
+		inc_val = 1 + m_n_sort_indexes;
 		break;
 	case SORT:
 		multi_factor = m_sort_multi_factor;
@@ -414,8 +420,9 @@ ut_stage_alter_t::reestimate()
 	ulonglong	estimate
 		= n_pk_pages
 		* (1 /* read PK */
-		   /* sort & insert per created index */
-		   + m_n_sort_indexes * 2)
+		   + m_n_sort_indexes /* row_merge_buf_sort() inside the
+				      read PK per created index */
+		   + m_n_sort_indexes * 2 /* sort & insert per created index */)
 		+ m_n_flush_pages
 		+ row_log_estimate_work(m_pk);
 
