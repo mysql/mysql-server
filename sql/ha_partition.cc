@@ -272,7 +272,8 @@ const uint32 ha_partition::NO_CURRENT_PART_ID= NOT_A_PARTITION_ID;
 
 ha_partition::ha_partition(handlerton *hton, TABLE_SHARE *share)
   :handler(hton, share),
-   m_queue(Key_rec_less(m_curr_key_info))
+   m_queue(Key_rec_less(m_curr_key_info),
+           Malloc_allocator<uchar*>(key_memory_partition_engine_array))
 {
   DBUG_ENTER("ha_partition::ha_partition(table)");
   init_handler_variables();
@@ -293,7 +294,8 @@ ha_partition::ha_partition(handlerton *hton, TABLE_SHARE *share)
 
 ha_partition::ha_partition(handlerton *hton, partition_info *part_info)
   :handler(hton, NULL),
-   m_queue(Key_rec_less(m_curr_key_info))
+   m_queue(Key_rec_less(m_curr_key_info),
+           Malloc_allocator<uchar*>(key_memory_partition_engine_array))
 {
   DBUG_ENTER("ha_partition::ha_partition(part_info)");
   DBUG_ASSERT(part_info);
@@ -321,7 +323,8 @@ ha_partition::ha_partition(handlerton *hton, TABLE_SHARE *share,
                            ha_partition *clone_arg,
                            MEM_ROOT *clone_mem_root_arg)
   :handler(hton, share),
-   m_queue(Key_rec_less(m_curr_key_info))
+   m_queue(Key_rec_less(m_curr_key_info),
+           Malloc_allocator<uchar*>(key_memory_partition_engine_array))
 {
   DBUG_ENTER("ha_partition::ha_partition(clone)");
   init_handler_variables();
@@ -6020,7 +6023,9 @@ int ha_partition::handle_unordered_scan_next_partition(uchar * buf)
 int ha_partition::handle_ordered_index_scan(uchar *buf)
 {
   uint i;
-  std::vector<uchar*> parts;
+  std::vector<uchar*,
+              Malloc_allocator<uchar*> >
+    parts((Malloc_allocator<uchar*>(key_memory_partition_engine_array)));
   bool found= FALSE;
   uchar *part_rec_buf_ptr= m_ordered_rec_buffer;
   int saved_error= HA_ERR_END_OF_FILE;

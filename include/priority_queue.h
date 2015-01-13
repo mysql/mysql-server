@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -49,7 +49,7 @@ namespace priority_queue_unittest { class PriorityQueueTest; };
   Iterators do not visit queue elements in priority order.
   Iterators should not be used to change the priority of elements.
 
-  The underlying container must be default constructible,
+  The underlying container must be
   constructible from an iterator range, should provide const and
   non-const random access iterators to access its elements, as well as
   the following operations:
@@ -88,6 +88,7 @@ public:
   typedef typename container_type::size_type size_type;
   typedef typename container_type::iterator iterator;
   typedef typename container_type::const_iterator const_iterator;
+  typedef typename container_type::allocator_type allocator_type;
 
   friend class priority_queue_unittest::PriorityQueueTest;
 private:
@@ -172,17 +173,19 @@ private:
 
 public:
   /// Constructs an empty priority queue.
-  Priority_queue(Less const &less = Less())
+  Priority_queue(Less const &less = Less(),
+                 const allocator_type& alloc = allocator_type())
     : Base(less),
-      m_container()
+      m_container(alloc)
   {}
 
   /// Constructs a heap of the objects between first and beyond.
   template <typename Input_iterator>
   Priority_queue(Input_iterator first, Input_iterator beyond,
-                 Less const &less = Less())
+                 Less const &less = Less(),
+                 const allocator_type& alloc = allocator_type())
     : Base(less),
-      m_container(first, beyond)
+      m_container(first, beyond, alloc)
   {
     build_heap();
   }

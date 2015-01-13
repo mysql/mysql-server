@@ -24,6 +24,7 @@
 #include "prealloced_array.h" // Prealloced_array
 #include "priority_queue.h"   // Priority_queue
 #include "records.h"          // READ_RECORD
+#include "malloc_allocator.h"
 
 #include <algorithm>
 
@@ -823,7 +824,8 @@ public:
   }
 
   Priority_queue<QUICK_SELECT_I*,
-                 std::vector<QUICK_SELECT_I*>,
+                 std::vector<QUICK_SELECT_I*,
+                             Malloc_allocator<QUICK_SELECT_I*> >,
                  Quick_ror_union_less>
     queue;    /* Priority queue for merge operation */
   MEM_ROOT alloc; /* Memory pool for this and merged quick selects data. */
