@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -26,6 +26,7 @@ Smart ALTER TABLE
 #include <debug_sync.h>
 #include <log.h>
 #include <sql_lex.h>
+#include <sql_class.h>
 #include <mysql/plugin.h>
 
 /* Include necessary InnoDB headers */
@@ -6882,6 +6883,9 @@ foreign_fail:
 					  crash_inject_count++);
 		}
 	}
+
+	innobase_parse_hint_from_comment(m_user_thd, m_prebuilt->table,
+					 altered_table->s);
 
 	/* TODO: Also perform DROP TABLE and DROP INDEX after
 	the MDL downgrade. */

@@ -5782,6 +5782,118 @@ dict_set_corrupted_index_cache_only(
 
 	index->type |= DICT_CORRUPT;
 }
+
+/** Sets merge_threshold in the SYS_INDEXES
+@param[in,out]	index		index
+@param[in]	merge_threshold	value to set */
+void
+dict_index_set_merge_threshold(
+	dict_index_t*	index,
+	ulint		merge_threshold)
+{
+	mem_heap_t*	heap;
+	mtr_t		mtr;
+	dict_index_t*	sys_index;
+	dtuple_t*	tuple;
+	dfield_t*	dfield;
+	byte*		buf;
+	btr_cur_t	cursor;
+
+	ut_ad(index != NULL);
+	ut_ad(!dict_table_is_comp(dict_sys->sys_tables));
+	ut_ad(!dict_table_is_comp(dict_sys->sys_indexes));
+
+	rw_lock_x_lock(&dict_operation_lock);
+	mutex_enter(&(dict_sys->mutex));
+
+	heap = mem_heap_create(sizeof(dtuple_t) + 2 * (sizeof(dfield_t)
+			       + sizeof(que_fork_t) + sizeof(upd_node_t)
+			       + sizeof(upd_t) + 12));
+
+	mtr_start(&mtr);
+
+	sys_index = UT_LIST_GET_FIRST(dict_sys->sys_indexes->indexes);
+
+	/* Find the index row in SYS_INDEXES */
+	tuple = dtuple_create(heap, 2);
+
+	dfield = dtuple_get_nth_field(tuple, 0);
+	buf = static_cast<byte*>(mem_heap_alloc(heap, 8));
+	mach_write_to_8(buf, index->table->id);
+	dfield_set_data(dfield, buf, 8);
+
+	dfield = dtuple_get_nth_field(tuple, 1);
+	buf = static_cast<byte*>(mem_heap_alloc(heap, 8));
+	mach_write_to_8(buf, index->id);
+	dfield_set_data(dfield, buf, 8);
+
+	dict_index_copy_types(tuple, sys_index, 2);
+
+	btr_cur_search_to_nth_level(sys_index, 0, tuple, PAGE_CUR_GE,
+				    BTR_MODIFY_LEAF,
+				    &cursor, 0, __FILE__, __LINE__, &mtr);
+
+	if (cursor.up_match == dtuple_get_n_fields(tuple)
+	    && rec_get_n_fields_old(btr_cur_get_rec(&cursor))
+	       == DICT_NUM_FIELDS__SYS_INDEXES) {
+		ulint	len;
+		byte*	field	= rec_get_nth_field_old(
+			btr_cur_get_rec(&cursor),
+			DICT_FLD__SYS_INDEXES__MERGE_THRESHOLD, &len);
+
+		ut_ad(len == 4);
+
+		if (len == 4) {
+			mlog_write_ulint(field, merge_threshold,
+					 MLOG_4BYTES, &mtr);
+		}
+	}
+
+	mtr_commit(&mtr);
+	mem_heap_free(heap);
+
+	mutex_exit(&(dict_sys->mutex));
+	rw_lock_x_unlock(&dict_operation_lock);
+}
+
+#ifdef UNIV_DEBUG
+/** Sets merge_threshold for all indexes in the list of tables
+@param[in]	list	pointer to the list of tables */
+inline
+void
+dict_set_merge_threshold_list_debug(
+	UT_LIST_BASE_NODE_T(dict_table_t)*	list,
+	uint					merge_threshold_all)
+{
+	for (dict_table_t* table = UT_LIST_GET_FIRST(*list);
+	     table != NULL;
+	     table = UT_LIST_GET_NEXT(table_LRU, table)) {
+		for (dict_index_t* index = UT_LIST_GET_FIRST(table->indexes);
+		     index != NULL;
+		     index = UT_LIST_GET_NEXT(indexes, index)) {
+			rw_lock_x_lock(dict_index_get_lock(index));
+			index->merge_threshold = merge_threshold_all;
+			rw_lock_x_unlock(dict_index_get_lock(index));
+		}
+	}
+}
+
+/** Sets merge_threshold for all indexes in dictionary cache for debug.
+@param[in]	merge_threshold_all	value to set for all indexes */
+void
+dict_set_merge_threshold_all_debug(
+	uint	merge_threshold_all)
+{
+	mutex_enter(&dict_sys->mutex);
+
+	dict_set_merge_threshold_list_debug(
+		&dict_sys->table_LRU, merge_threshold_all);
+	dict_set_merge_threshold_list_debug(
+		&dict_sys->table_non_LRU, merge_threshold_all);
+
+	mutex_exit(&dict_sys->mutex);
+}
+#endif /* UNIV_DEBUG */
 #endif /* !UNIV_HOTBACKUP */
 
 /**********************************************************************//**
