@@ -303,7 +303,7 @@ extern struct my_option my_long_early_options[];
 extern bool mysqld_server_started;
 extern "C" MYSQL_PLUGIN_IMPORT int orig_argc;
 extern "C" MYSQL_PLUGIN_IMPORT char **orig_argv;
-extern pthread_attr_t connection_attrib;
+extern my_thread_attr_t connection_attrib;
 extern my_bool old_mode;
 extern LEX_STRING opt_init_connect, opt_init_slave;
 extern char err_shared_dir[];
@@ -331,13 +331,13 @@ extern LEX_CSTRING sql_statement_names[(uint) SQLCOM_END + 1];
 extern thread_local_key_t THR_MALLOC;
 extern bool THR_MALLOC_initialized;
 
-static inline MEM_ROOT ** my_pthread_get_THR_MALLOC()
+static inline MEM_ROOT ** my_thread_get_THR_MALLOC()
 {
   DBUG_ASSERT(THR_MALLOC_initialized);
   return (MEM_ROOT**) my_get_thread_local(THR_MALLOC);
 }
 
-static inline int my_pthread_set_THR_MALLOC(MEM_ROOT ** hdl)
+static inline int my_thread_set_THR_MALLOC(MEM_ROOT ** hdl)
 {
   DBUG_ASSERT(THR_MALLOC_initialized);
   return my_set_thread_local(THR_MALLOC, hdl);
@@ -350,13 +350,13 @@ static inline int my_pthread_set_THR_MALLOC(MEM_ROOT ** hdl)
 extern MYSQL_PLUGIN_IMPORT thread_local_key_t THR_THD;
 extern bool THR_THD_initialized;
 
-static inline THD * my_pthread_get_THR_THD()
+static inline THD * my_thread_get_THR_THD()
 {
   DBUG_ASSERT(THR_THD_initialized);
   return (THD*)my_get_thread_local(THR_THD);
 }
 
-static inline int my_pthread_set_THR_THD(THD *thd)
+static inline int my_thread_set_THR_THD(THD *thd)
 {
   DBUG_ASSERT(THR_THD_initialized);
   return my_set_thread_local(THR_THD, thd);
@@ -756,7 +756,7 @@ void init_com_statement_info();
 #endif /* HAVE_PSI_STATEMENT_INTERFACE */
 
 #ifndef _WIN32
-extern pthread_t signal_thread;
+extern my_thread_t signal_thread;
 #endif
 
 #ifdef HAVE_OPENSSL
@@ -935,7 +935,7 @@ extern "C" THD *_current_thd_noinline();
 #else
 static inline THD *_current_thd(void)
 {
-  return my_pthread_get_THR_THD();
+  return my_thread_get_THR_THD();
 }
 #endif
 #define current_thd _current_thd()

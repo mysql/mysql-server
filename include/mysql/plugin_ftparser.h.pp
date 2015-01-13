@@ -179,7 +179,6 @@ struct st_mysql_plugin
   void * __reserved1;
   unsigned long flags;
 };
-#include "plugin_ftparser.h"
 struct st_mysql_daemon
 {
   int interface_version;

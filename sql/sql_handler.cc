@@ -587,6 +587,7 @@ retry:
   thd->set_open_tables(hash_tables->table);
 
   /* Re-use Sql_handler_lock_error instance which was initialized earlier. */
+  DBUG_ASSERT(!sql_handler_lock_error.need_reopen());
   thd->push_internal_handler(&sql_handler_lock_error);
 
   lock= mysql_lock_tables(thd, &thd->open_tables, 1, 0);

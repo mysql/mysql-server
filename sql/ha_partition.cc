@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -60,6 +60,7 @@
 #include "sql_partition.h"
 #include "sql_show.h"                        // append_identifier
 #include "sql_admin.h"                       // SQL_ADMIN_MSG_TEXT_SIZE
+#include "myisam.h"                          // TT_FOR_UPGRADE
 
 #include "debug_sync.h"
 #ifndef DBUG_OFF
@@ -1309,7 +1310,7 @@ static bool print_admin_msg(THD* thd, uint len,
   /*
      TODO: switch from protocol to push_warning here. The main reason we didn't
      it yet is parallel repair. Due to following trace:
-     mi_check_print_msg/push_warning/sql_alloc/my_pthread_getspecific_ptr.
+     mi_check_print_msg/push_warning/sql_alloc/my_thread_getspecific_ptr.
 
      Also we likely need to lock mutex here (in both cases with protocol and
      push_warning).

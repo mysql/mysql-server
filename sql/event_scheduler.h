@@ -1,6 +1,6 @@
 #ifndef _EVENT_SCHEDULER_H_
 #define _EVENT_SCHEDULER_H_
-/* Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -31,7 +31,7 @@
 */
 
 #include "my_global.h"   // uint
-#include "my_pthread.h"  // mysql_cond_t
+#include "my_thread.h"   // mysql_cond_t
 
 class Event_queue;
 class Event_job_data;
@@ -87,7 +87,7 @@ public:
 
   /*
     Need to be public because has to be called from the function
-    passed to pthread_create.
+    passed to my_thread_create.
   */
   bool
   run(THD *thd);

@@ -25,7 +25,6 @@
 */
 
 #include "sql_list.h"
-#include "sql_class.h"
 #include "my_base.h"
 #include "field.h"
 

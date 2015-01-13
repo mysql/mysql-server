@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,7 +18,7 @@
 #ifdef HAVE_REPLICATION
 #include "rpl_handler.h"
 #include "debug_sync.h"
-#include "my_pthread.h"
+#include "my_thread.h"
 #include "rpl_master.h"
 
 #ifndef DBUG_OFF

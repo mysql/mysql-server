@@ -63,6 +63,7 @@
 #include "sp_head.h" // SP_PSI_STATEMENT_INFO_COUNT 
 #include "my_aes.h" // my_aes_opmode_names
 #include "item_timefunc.h"                      // ISO_FORMAT
+#include "myisam.h"                             // myisam_concurrent_insert
 
 #include "log_event.h"
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE

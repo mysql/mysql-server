@@ -4245,18 +4245,18 @@ end:
 String *Item_func_rpad::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
-  size_t res_byte_length, res_char_length, pad_char_length, pad_byte_length;
   char *to;
-  const char *ptr_pad;
   /* must be longlong to avoid truncation */
   longlong count= args[1]->val_int();
-  size_t byte_count;
   String *res= args[0]->val_str(str);
   String *rpad= args[2]->val_str(&rpad_str);
 
   if (!res || args[1]->null_value || !rpad || 
       ((count < 0) && !args[1]->unsigned_flag))
-    goto err;
+  {
+    null_value= true;
+    return NULL;
+  }
   null_value=0;
   /* Assumes that the maximum length of a String is < INT_MAX32. */
   /* Set here so that rest of code sees out-of-bound value as such. */
@@ -4281,36 +4281,49 @@ String *Item_func_rpad::val_str(String *str)
     // This will chop off any trailing illegal characters from rpad.
     String *well_formed_pad= args[2]->check_well_formed_result(rpad, false);
     if (!well_formed_pad)
-      goto err;
+    {
+      null_value= true;
+      return NULL;
+    }
   }
 
-  res_char_length= res->numchars();
+  const size_t res_char_length= res->numchars();
 
   if (count <= static_cast<longlong>(res_char_length))
   {						// String to pad is big enough
     res->length(res->charpos((int) count));	// Shorten result if longer
     return (res);
   }
-  pad_char_length= rpad->numchars();
+  const size_t pad_char_length= rpad->numchars();
 
-  byte_count= count * collation.collation->mbmaxlen;
+  // Must be ulonglong to avoid overflow
+  const ulonglong byte_count= count * collation.collation->mbmaxlen;
   if (byte_count > current_thd->variables.max_allowed_packet)
   {
     push_warning_printf(current_thd, Sql_condition::SL_WARNING,
 			ER_WARN_ALLOWED_PACKET_OVERFLOWED,
 			ER(ER_WARN_ALLOWED_PACKET_OVERFLOWED),
 			func_name(), current_thd->variables.max_allowed_packet);
-    goto err;
+    null_value= true;
+    return NULL;
   }
   if (args[2]->null_value || !pad_char_length)
-    goto err;
-  res_byte_length= res->length();	/* Must be done before alloc_buffer */
-  if (!(res= alloc_buffer(res,str, &tmp_value, byte_count)))
-    goto err;
+  {
+    null_value= true;
+    return NULL;
+  }
+  /* Must be done before alloc_buffer */
+  const size_t res_byte_length= res->length();
+  if (!(res= alloc_buffer(res, str, &tmp_value,
+                          static_cast<size_t>(byte_count))))
+  {
+    null_value= true;
+    return NULL;
+  }
 
   to= (char*) res->ptr()+res_byte_length;
-  ptr_pad=rpad->ptr();
-  pad_byte_length= rpad->length();
+  const char *ptr_pad=rpad->ptr();
+  const size_t pad_byte_length= rpad->length();
   count-= res_char_length;
   for ( ; (uint32) count > pad_char_length; count-= pad_char_length)
   {
@@ -4319,16 +4332,12 @@ String *Item_func_rpad::val_str(String *str)
   }
   if (count)
   {
-    pad_byte_length= rpad->charpos((int) count);
-    memcpy(to,ptr_pad,(size_t) pad_byte_length);
-    to+= pad_byte_length;
+    const size_t pad_charpos= rpad->charpos((int) count);
+    memcpy(to, ptr_pad, pad_charpos);
+    to+= pad_charpos;
   }
   res->length((uint) (to- (char*) res->ptr()));
   return (res);
-
- err:
-  null_value=1;
-  return 0;
 }
 
 

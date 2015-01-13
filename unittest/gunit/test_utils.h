@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -37,6 +37,16 @@ int array_size(const T (&)[size])
 }
 
 namespace my_testing {
+
+inline int native_compare(size_t *length, unsigned char **a, unsigned char **b)
+{
+  return memcmp(*a, *b, *length);
+}
+
+inline qsort2_cmp get_ptr_compare(size_t size __attribute__((unused)))
+{
+  return (qsort2_cmp) native_compare;
+}
 
 void setup_server_for_unit_tests();
 void teardown_server_for_unit_tests();
@@ -79,8 +89,7 @@ public:
                                 uint sql_errno,
                                 const char* sqlstate,
                                 Sql_condition::enum_severity_level *level,
-                                const char* msg,
-                                Sql_condition ** cond_hdl);
+                                const char* msg);
 
   int handle_called() const { return m_handle_called; }
 private:

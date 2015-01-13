@@ -705,33 +705,22 @@ db_find_routine(THD *thd, enum_sp_type type, sp_name *name, sp_head **sphp)
   Silence DEPRECATED SYNTAX warnings when loading a stored procedure
   into the cache.
 */
-struct Silence_deprecated_warning : public Internal_error_handler
+class Silence_deprecated_warning : public Internal_error_handler
 {
 public:
   virtual bool handle_condition(THD *thd,
                                 uint sql_errno,
                                 const char* sqlstate,
                                 Sql_condition::enum_severity_level *level,
-                                const char* msg,
-                                Sql_condition ** cond_hdl);
+                                const char* msg)
+  {
+    if (sql_errno == ER_WARN_DEPRECATED_SYNTAX &&
+        (*level) == Sql_condition::SL_WARNING)
+      return true;
+
+    return false;
+  }
 };
-
-bool
-Silence_deprecated_warning::handle_condition(
-  THD *,
-  uint sql_errno,
-  const char*,
-  Sql_condition::enum_severity_level *level,
-  const char*,
-  Sql_condition ** cond_hdl)
-{
-  *cond_hdl= NULL;
-  if (sql_errno == ER_WARN_DEPRECATED_SYNTAX &&
-      (*level) == Sql_condition::SL_WARNING)
-    return TRUE;
-
-  return FALSE;
-}
 
 
 /**
@@ -813,30 +802,21 @@ public:
                                 uint sql_errno,
                                 const char* sqlstate,
                                 Sql_condition::enum_severity_level *level,
-                                const char* message,
-                                Sql_condition ** cond_hdl);
+                                const char* message)
+  {
+    if (sql_errno == ER_BAD_DB_ERROR)
+    {
+      m_error_caught= true;
+      return true;
+    }
+    return false;
+  }
 
   bool error_caught() const { return m_error_caught; }
 
 private:
   bool m_error_caught;
 };
-
-bool
-Bad_db_error_handler::handle_condition(THD *thd,
-                                       uint sql_errno,
-                                       const char* sqlstate,
-                                       Sql_condition::enum_severity_level *level,
-                                       const char* message,
-                                       Sql_condition ** cond_hdl)
-{
-  if (sql_errno == ER_BAD_DB_ERROR)
-  {
-    m_error_caught= true;
-    return true;
-  }
-  return false;
-}
 
 
 static int
@@ -1486,12 +1466,11 @@ err:
 class Lock_db_routines_error_handler : public Internal_error_handler
 {
 public:
-  bool handle_condition(THD *thd,
-                        uint sql_errno,
-                        const char* sqlstate,
-                        Sql_condition::enum_severity_level *level,
-                        const char* msg,
-                        Sql_condition ** cond_hdl)
+  virtual bool handle_condition(THD *thd,
+                                uint sql_errno,
+                                const char* sqlstate,
+                                Sql_condition::enum_severity_level *level,
+                                const char* msg)
   {
     if (sql_errno == ER_NO_SUCH_TABLE ||
         sql_errno == ER_CANNOT_LOAD_FROM_TABLE_V2 ||
