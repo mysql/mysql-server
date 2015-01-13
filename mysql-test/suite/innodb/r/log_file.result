@@ -75,11 +75,6 @@ bak_ibdata2
 bak_undo001
 bak_undo002
 bak_undo003
-ib_logfile0
-ib_logfile1
-ib_logfile2
-ibdata1
-ibdata2
 my.cnf
 my_restart.err
 undo001

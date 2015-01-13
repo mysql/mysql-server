@@ -108,11 +108,11 @@ Certification_handler::handle_event(PipelineEvent *pevent, Continuation *cont)
   Log_event_type ev_type= pevent->get_event_type();
   switch (ev_type)
   {
-    case TRANSACTION_CONTEXT_EVENT:
+    case binary_log::TRANSACTION_CONTEXT_EVENT:
       DBUG_RETURN(certify(pevent, cont));
-    case GTID_LOG_EVENT:
+    case binary_log::GTID_LOG_EVENT:
       DBUG_RETURN(inject_gtid(pevent, cont));
-    case VIEW_CHANGE_EVENT:
+    case binary_log::VIEW_CHANGE_EVENT:
       DBUG_RETURN(extract_certification_info(pevent, cont));
     default:
       next(pevent, cont);

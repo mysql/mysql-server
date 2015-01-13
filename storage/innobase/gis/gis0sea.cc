@@ -886,7 +886,7 @@ get_parent:
 
 				ib::info() << "InnoDB: Corruption of a"
 					" spatial index " << index->name
-					<< " of table " << index->table_name;
+					<< " of table " << index->table->name;
 				break;
 			}
 			r_cursor = rtr_get_parent_cursor(btr_cur, level, false);

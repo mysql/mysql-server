@@ -152,3 +152,112 @@ ALTER TABLE t1 DROP COLUMN col3;
 ALTER TABLE t2 DROP COLUMN col2;
 Got one of the listed errors
 drop table t2, t1;
+#
+# Test non-auto partitioning
+#
+CREATE TABLE t1
+(col1 int NOT NULL PRIMARY KEY,
+col2 int NOT NULL,
+col3 varchar(35) NOT NULL,
+UNIQUE KEY name0 (col2),
+UNIQUE KEY name1 (col3)
+)
+ENGINE = NDB;
+CREATE TABLE t2
+(col1 int NOT NULL UNIQUE,
+col2 int NOT NULL,
+col3 varchar(35),
+CONSTRAINT fk1 FOREIGN KEY (col3) REFERENCES t1 (col3)
+)
+ENGINE = NDB;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `col1` int(11) NOT NULL,
+  `col2` int(11) NOT NULL,
+  `col3` varchar(35) NOT NULL,
+  PRIMARY KEY (`col1`),
+  UNIQUE KEY `name0` (`col2`),
+  UNIQUE KEY `name1` (`col3`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `col1` int(11) NOT NULL,
+  `col2` int(11) NOT NULL,
+  `col3` varchar(35) DEFAULT NULL,
+  UNIQUE KEY `col1` (`col1`),
+  KEY `fk1` (`col3`),
+ CONSTRAINT `fk1` FOREIGN KEY(`col3`) REFERENCES `t1` (`col3`) ON DELETE NO ACTION ON UPDATE NO ACTION
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+ALTER TABLE t1 PARTITION BY KEY ();
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `col1` int(11) NOT NULL,
+  `col2` int(11) NOT NULL,
+  `col3` varchar(35) NOT NULL,
+  PRIMARY KEY (`col1`),
+  UNIQUE KEY `name0` (`col2`),
+  UNIQUE KEY `name1` (`col3`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY KEY () */
+ALTER TABLE t1 PARTITION BY KEY (col1);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `col1` int(11) NOT NULL,
+  `col2` int(11) NOT NULL,
+  `col3` varchar(35) NOT NULL,
+  PRIMARY KEY (`col1`),
+  UNIQUE KEY `name0` (`col2`),
+  UNIQUE KEY `name1` (`col3`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY KEY (col1) */
+ALTER TABLE t1 REMOVE PARTITIONING;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `col1` int(11) NOT NULL,
+  `col2` int(11) NOT NULL,
+  `col3` varchar(35) NOT NULL,
+  PRIMARY KEY (`col1`),
+  UNIQUE KEY `name0` (`col2`),
+  UNIQUE KEY `name1` (`col3`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+ALTER TABLE t2 PARTITION BY KEY ();
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `col1` int(11) NOT NULL,
+  `col2` int(11) NOT NULL,
+  `col3` varchar(35) DEFAULT NULL,
+  UNIQUE KEY `col1` (`col1`),
+  KEY `fk1` (`col3`),
+ CONSTRAINT `fk1` FOREIGN KEY(`col3`) REFERENCES `t1` (`col3`) ON DELETE NO ACTION ON UPDATE NO ACTION
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY KEY () */
+ALTER TABLE t2 PARTITION BY KEY (col1);
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `col1` int(11) NOT NULL,
+  `col2` int(11) NOT NULL,
+  `col3` varchar(35) DEFAULT NULL,
+  UNIQUE KEY `col1` (`col1`),
+  KEY `fk1` (`col3`),
+ CONSTRAINT `fk1` FOREIGN KEY(`col3`) REFERENCES `t1` (`col3`) ON DELETE NO ACTION ON UPDATE NO ACTION
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY KEY (col1) */
+ALTER TABLE t2 REMOVE PARTITIONING;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `col1` int(11) NOT NULL,
+  `col2` int(11) NOT NULL,
+  `col3` varchar(35) DEFAULT NULL,
+  UNIQUE KEY `col1` (`col1`),
+  KEY `fk1` (`col3`),
+ CONSTRAINT `fk1` FOREIGN KEY(`col3`) REFERENCES `t1` (`col3`) ON DELETE NO ACTION ON UPDATE NO ACTION
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+DROP TABLE t2, t1;

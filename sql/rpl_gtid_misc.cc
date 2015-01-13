@@ -33,12 +33,12 @@ enum_return_status Gtid::parse(Sid_map *sid_map, const char *text)
   SKIP_WHITESPACE();
 
   // parse sid
-  if (sid.parse(s) == RETURN_STATUS_OK)
+  if (sid.parse(s) == 0)
   {
     rpl_sidno sidno_var= sid_map->add_sid(sid);
     if (sidno_var <= 0)
       RETURN_REPORTED_ERROR;
-    s += Uuid::TEXT_LENGTH;
+    s += binary_log::Uuid::TEXT_LENGTH;
 
     SKIP_WHITESPACE();
 
@@ -112,7 +112,7 @@ bool Gtid::is_valid(const char *text)
                         (int)(s - text), text));
     DBUG_RETURN(false);
   }
-  s += Uuid::TEXT_LENGTH;
+  s += binary_log::Uuid::TEXT_LENGTH;
   SKIP_WHITESPACE();
   if (*s != ':')
   {

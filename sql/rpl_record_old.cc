@@ -169,7 +169,7 @@ unpack_row_old(Relay_log_info *rli,
                          (*field_ptr)->flags, mask,
                          (*field_ptr)->flags & mask));
 
-    if (event_type == WRITE_ROWS_EVENT &&
+    if (event_type == binary_log::WRITE_ROWS_EVENT &&
         ((*field_ptr)->flags & mask) == mask)
     {
       rli->report(ERROR_LEVEL, ER_NO_DEFAULT_FOR_FIELD,

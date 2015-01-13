@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -343,7 +343,7 @@ private:
       being my_default_record_cache_size the default size used for the cache
     */
     open_cached_file(&cache, mysql_tmpdir, "pipeline_cache",
-                     log_event->data_written, MYF(MY_WME));
+                     log_event->common_header->data_written, MYF(MY_WME));
     if ((error= log_event->write(&cache)))
     {
       sql_print_error("Unable to convert the event into a packet on the applier!"
@@ -352,7 +352,8 @@ private:
     }
 
     reinit_io_cache(&cache, READ_CACHE, 0, 0, 0);
-    if ((error= Log_event::read_log_event(&cache, &packet_data, 0, 0)))
+    if ((error= Log_event::read_log_event(&cache, &packet_data, 0,
+                                          binary_log::BINLOG_CHECKSUM_ALG_OFF)))
     {
       sql_print_error("Unable to convert the event into a packet on the applier!"
                       " Error: %d\n", error);

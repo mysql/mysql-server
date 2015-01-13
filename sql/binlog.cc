@@ -46,7 +46,7 @@ using std::max;
 using std::min;
 using std::string;
 using std::list;
-
+using binary_log::checksum_crc32;
 #define FLAGSTR(V,F) ((V)&(F)?#F" ":"")
 
 #define LOG_PREFIX	"ML"
@@ -943,7 +943,7 @@ int binlog_cache_data::write_event(THD *thd, Log_event *ev)
                       });
       DBUG_RETURN(1);
     }
-    if (ev->get_type_code() == XID_EVENT)
+    if (ev->get_type_code() == binary_log::XID_EVENT)
       flags.with_xid= true;
     if (ev->is_using_immediate_logging())
       flags.immediate= true;
@@ -2446,7 +2446,7 @@ bool show_binlog_events(THD *thd, MYSQL_BIN_LOG *binary_log)
                                    opt_master_verify_checksum);
     if (ev)
     {
-      if (ev->get_type_code() == FORMAT_DESCRIPTION_EVENT)
+      if (ev->get_type_code() == binary_log::FORMAT_DESCRIPTION_EVENT)
       {
         delete description_event;
         description_event= (Format_description_log_event*) ev;
@@ -2468,8 +2468,9 @@ bool show_binlog_events(THD *thd, MYSQL_BIN_LOG *binary_log)
                                          description_event,
                                          opt_master_verify_checksum)); )
     {
-      if (ev->get_type_code() == FORMAT_DESCRIPTION_EVENT)
-        description_event->checksum_alg= ev->checksum_alg;
+      if (ev->get_type_code() == binary_log::FORMAT_DESCRIPTION_EVENT)
+        description_event->common_footer->checksum_alg=
+                           ev->common_footer->checksum_alg;
 
       if (event_count >= limit_start &&
 	  ev->net_send(protocol, linfo.log_file_name, pos))
@@ -2574,8 +2575,8 @@ MYSQL_BIN_LOG::MYSQL_BIN_LOG(uint *sync_period,
    sync_period_ptr(sync_period), sync_counter(0),
    m_prep_xids(0),
    is_relay_log(0), signal_cnt(0),
-   checksum_alg_reset(BINLOG_CHECKSUM_ALG_UNDEF),
-   relay_log_checksum_alg(BINLOG_CHECKSUM_ALG_UNDEF),
+   checksum_alg_reset(binary_log::BINLOG_CHECKSUM_ALG_UNDEF),
+   relay_log_checksum_alg(binary_log::BINLOG_CHECKSUM_ALG_UNDEF),
    previous_gtid_set_relaylog(0)
 {
   /*
@@ -3135,15 +3136,15 @@ read_gtids_from_binlog(const char *filename, Gtid_set *all_gtids,
     DBUG_PRINT("info", ("Read event of type %s", ev->get_type_str()));
     switch (ev->get_type_code())
     {
-    case FORMAT_DESCRIPTION_EVENT:
+    case binary_log::FORMAT_DESCRIPTION_EVENT:
       if (fd_ev_p != &fd_ev)
         delete fd_ev_p;
       fd_ev_p= (Format_description_log_event *)ev;
       break;
-    case ROTATE_EVENT:
+    case binary_log::ROTATE_EVENT:
       // do nothing; just accept this event and go to next
       break;
-    case PREVIOUS_GTIDS_LOG_EVENT:
+    case binary_log::PREVIOUS_GTIDS_LOG_EVENT:
     {
       ret= GOT_PREVIOUS_GTIDS;
       // add events to sets
@@ -3161,7 +3162,7 @@ read_gtids_from_binlog(const char *filename, Gtid_set *all_gtids,
 #endif
       break;
     }
-    case GTID_LOG_EVENT:
+    case binary_log::GTID_LOG_EVENT:
     {
       DBUG_EXECUTE_IF("inject_fault_bug16502579", {
                       DBUG_PRINT("debug", ("GTID_LOG_EVENT found. Injected ret=NO_GTIDS."));
@@ -3238,7 +3239,7 @@ read_gtids_from_binlog(const char *filename, Gtid_set *all_gtids,
       }
       break;
     }
-    case ANONYMOUS_GTID_LOG_EVENT:
+    case binary_log::ANONYMOUS_GTID_LOG_EVENT:
     default:
       // if we found any other event type without finding a
       // previous_gtids_log_event, then the rest of this binlog
@@ -3660,6 +3661,10 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
   bool write_file_name_to_index_file=0;
 
   /* This must be before goto err. */
+#ifndef DBUG_OFF
+  binary_log_debug::debug_pretend_version_50034_in_binlog=
+    DBUG_EVALUATE_IF("pretend_version_50034_in_binlog", true, false);
+#endif
   Format_description_log_event s(BINLOG_VERSION);
 
   if (!my_b_filelength(&log_file))
@@ -3682,20 +3687,33 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
     as we won't be able to reset it later
   */
   if (io_cache_type == WRITE_CACHE)
-    s.flags |= LOG_EVENT_BINLOG_IN_USE_F;
-  s.checksum_alg= is_relay_log ?
+  {
+    s.common_header->flags|= LOG_EVENT_BINLOG_IN_USE_F;
+  }
+
+  if (is_relay_log)
+  {
     /* relay-log */
-    /* inherit master's A descriptor if one has been received */
-    (relay_log_checksum_alg=
-     (relay_log_checksum_alg != BINLOG_CHECKSUM_ALG_UNDEF) ?
-     relay_log_checksum_alg :
-     /* otherwise use slave's local preference of RL events verification */
-     (opt_slave_sql_verify_checksum == 0) ?
-     static_cast<uint8>(BINLOG_CHECKSUM_ALG_OFF) :
-     static_cast<uint8>(binlog_checksum_options)):
+    if (relay_log_checksum_alg == binary_log::BINLOG_CHECKSUM_ALG_UNDEF)
+    {
+      /* inherit master's A descriptor if one has been received */
+      if (opt_slave_sql_verify_checksum == 0)
+        /* otherwise use slave's local preference of RL events verification */
+        relay_log_checksum_alg=static_cast<enum_binlog_checksum_alg>
+                               (binary_log::BINLOG_CHECKSUM_ALG_OFF);
+      else
+        relay_log_checksum_alg= static_cast<enum_binlog_checksum_alg>
+                                (binlog_checksum_options);
+    }
+    s.common_footer->checksum_alg= relay_log_checksum_alg;
+  }
+  else
     /* binlog */
-    static_cast<uint8>(binlog_checksum_options);
-  DBUG_ASSERT(s.checksum_alg != BINLOG_CHECKSUM_ALG_UNDEF);
+    s.common_footer->checksum_alg= static_cast<enum_binlog_checksum_alg>
+                                     (binlog_checksum_options);
+
+  DBUG_ASSERT((s.common_footer)->checksum_alg !=
+               binary_log::BINLOG_CHECKSUM_ALG_UNDEF);
   if (!s.is_valid())
     goto err;
   s.dont_set_created= null_created_arg;
@@ -3704,7 +3722,7 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
     s.set_relay_log_event();
   if (s.write(&log_file))
     goto err;
-  bytes_written+= s.data_written;
+  bytes_written+= s.common_header->data_written;
   /*
     We need to revisit this code and improve it.
     See further comments in the mysqld.
@@ -3745,10 +3763,11 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
       prev_gtids_ev.set_relay_log_event();
     if (need_sid_lock)
       global_sid_lock->unlock();
-    prev_gtids_ev.checksum_alg= s.checksum_alg;
+    prev_gtids_ev.common_footer->checksum_alg=
+                                   (s.common_footer)->checksum_alg;
     if (prev_gtids_ev.write(&log_file))
       goto err;
-    bytes_written+= prev_gtids_ev.data_written;
+    bytes_written+= prev_gtids_ev.common_header->data_written;
   }
   if (extra_description_event &&
       extra_description_event->binlog_version>=4)
@@ -3779,7 +3798,7 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
 
     if (extra_description_event->write(&log_file))
       goto err;
-    bytes_written+= extra_description_event->data_written;
+    bytes_written+= extra_description_event->common_header->data_written;
   }
   if (flush_io_cache(&log_file) ||
       mysql_file_sync(log_file.file, MYF(MY_WME)))
@@ -5424,8 +5443,9 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log, Format_description_log_even
       value computed with an algorithm of the last relay-logged FD event.
     */
     if (is_relay_log)
-      r.checksum_alg= relay_log_checksum_alg;
-    DBUG_ASSERT(!is_relay_log || relay_log_checksum_alg != BINLOG_CHECKSUM_ALG_UNDEF);
+      (r.common_footer)->checksum_alg= relay_log_checksum_alg;
+    DBUG_ASSERT(!is_relay_log || relay_log_checksum_alg !=
+                binary_log::BINLOG_CHECKSUM_ALG_UNDEF);
     if(DBUG_EVALUATE_IF("fault_injection_new_file_rotate_event",
                         (error=1), FALSE) ||
        (error= r.write(&log_file)))
@@ -5438,7 +5458,7 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log, Format_description_log_even
                       errno, my_strerror(errbuf, sizeof(errbuf), errno));
       goto end;
     }
-    bytes_written += r.data_written;
+    bytes_written += r.common_header->data_written;
   }
   flush_io_cache(&log_file);
   DEBUG_SYNC(current_thd, "after_rotate_event_appended");
@@ -5457,7 +5477,7 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log, Format_description_log_even
   name=0;				// Don't free name
   close(LOG_CLOSE_TO_BE_OPENED | LOG_CLOSE_INDEX);
 
-  if (checksum_alg_reset != BINLOG_CHECKSUM_ALG_UNDEF)
+  if (checksum_alg_reset != binary_log::BINLOG_CHECKSUM_ALG_UNDEF)
   {
     DBUG_ASSERT(!is_relay_log);
     DBUG_ASSERT(binlog_checksum_options != checksum_alg_reset);
@@ -5611,7 +5631,7 @@ bool MYSQL_BIN_LOG::append_event(Log_event* ev, Master_info *mi)
   bool error = false;
   if (ev->write(&log_file) == 0)
   {
-    bytes_written+= ev->data_written;
+    bytes_written+= ev->common_header->data_written;
     error= after_append_to_relay_log(mi);
   }
   else
@@ -5843,7 +5863,7 @@ bool MYSQL_BIN_LOG::write_event(Log_event *event_info)
       {
         if (thd->stmt_depends_on_first_successful_insert_id_in_prev_stmt)
         {
-          Intvar_log_event e(thd,(uchar) LAST_INSERT_ID_EVENT,
+          Intvar_log_event e(thd,(uchar) binary_log::Intvar_event::LAST_INSERT_ID_EVENT,
                              thd->first_successful_insert_id_in_prev_stmt_for_binlog,
                              event_info->event_cache_type, event_info->event_logging_type);
           if (cache_data->write_event(thd, &e))
@@ -5854,7 +5874,7 @@ bool MYSQL_BIN_LOG::write_event(Log_event *event_info)
           DBUG_PRINT("info",("number of auto_inc intervals: %u",
                              thd->auto_inc_intervals_in_cur_stmt_for_binlog.
                              nb_elements()));
-          Intvar_log_event e(thd, (uchar) INSERT_ID_EVENT,
+          Intvar_log_event e(thd, (uchar) binary_log::Intvar_event::INSERT_ID_EVENT,
                              thd->auto_inc_intervals_in_cur_stmt_for_binlog.
                              minimum(), event_info->event_cache_type,
                              event_info->event_logging_type);
@@ -6079,7 +6099,7 @@ uint MYSQL_BIN_LOG::next_file_id()
   DBUG_ASSERT(length >= off + LOG_EVENT_HEADER_LEN); //at least common header in
   int2store(event_begin + FLAGS_OFFSET, flags);
   ret= length >= off + event_len ? 0 : off + event_len - length;
-  *crc= my_checksum(*crc, event_begin, event_len - ret); 
+  *crc= checksum_crc32(*crc, event_begin, event_len - ret);
   return ret;
 }
 
@@ -6102,7 +6122,8 @@ inline void write_commit_seq_no(IO_CACHE* cache, uchar* buff,
                        cache->commit_seq_offset));
   DBUG_PRINT("info", ("MTS:: Commit Timestamp:=%llu", last_committed));
   DBUG_DUMP("info", pc_ptr, (COMMIT_SEQ_LEN+1));
-  DBUG_ASSERT((*pc_ptr == Q_COMMIT_TS2 || *pc_ptr == G_COMMIT_TS2));
+  DBUG_ASSERT((*pc_ptr == binary_log::Query_event::Q_COMMIT_TS2 ||
+               *pc_ptr == G_COMMIT_TS2));
   pc_ptr++;
 
   // notice parent's seqno could be zero as expected from SEQ_UNINIT declaration
@@ -6165,13 +6186,14 @@ int MYSQL_BIN_LOG::do_write_cache(IO_CACHE *cache,
   uint pc_offset= LOG_EVENT_HEADER_LEN + cache->commit_seq_offset;
   uchar header[LOG_EVENT_HEADER_LEN];
   ha_checksum crc= 0, crc_0= 0; // assignments to keep compiler happy
-  my_bool do_checksum= (binlog_checksum_options != BINLOG_CHECKSUM_ALG_OFF);
+  my_bool do_checksum= (binlog_checksum_options !=
+                         binary_log::BINLOG_CHECKSUM_ALG_OFF);
   uchar buf[BINLOG_CHECKSUM_LEN];
   bool pc_fixed= false;
 
   // while there is just one alg the following must hold:
   DBUG_ASSERT(!do_checksum ||
-              binlog_checksum_options == BINLOG_CHECKSUM_ALG_CRC32);
+              binlog_checksum_options == binary_log::BINLOG_CHECKSUM_ALG_CRC32);
 
   /*
     The events in the buffer have incorrect end_log_pos data
@@ -6192,7 +6214,7 @@ int MYSQL_BIN_LOG::do_write_cache(IO_CACHE *cache,
                        (ulonglong) length, (ulonglong) group));
   hdr_offs= carry= 0;
   if (do_checksum)
-    crc= crc_0= my_checksum(0L, NULL, 0);
+    crc= crc_0= checksum_crc32(0L, NULL, 0);
 
   if (DBUG_EVALUATE_IF("fault_injection_crc_value", 1, 0))
     crc= crc - 1;
@@ -6242,9 +6264,9 @@ int MYSQL_BIN_LOG::do_write_cache(IO_CACHE *cache,
       if (do_checksum)
       {
         DBUG_ASSERT(crc == crc_0 && remains == 0);
-        crc= my_checksum(crc, header, carry);
+        crc= checksum_crc32(crc, header, carry);
         remains= uint4korr(header + EVENT_LEN_OFFSET) - carry -
-          BINLOG_CHECKSUM_LEN;
+                 BINLOG_CHECKSUM_LEN;
       }
       carry= 0;
     }
@@ -6266,7 +6288,7 @@ int MYSQL_BIN_LOG::do_write_cache(IO_CACHE *cache,
 
         DBUG_ASSERT(remains != 0 && crc != crc_0);
 
-        crc= my_checksum(crc, cache->read_pos, length); 
+        crc= checksum_crc32(crc, cache->read_pos, length);
         remains -= length;
         if (my_b_write(&log_file, cache->read_pos, length))
           DBUG_RETURN(ER_ERROR_ON_WRITE);
@@ -6295,7 +6317,7 @@ int MYSQL_BIN_LOG::do_write_cache(IO_CACHE *cache,
               from previous into the current buffer
             */
             DBUG_ASSERT(crc != crc_0);
-            crc= my_checksum(crc, cache->read_pos, hdr_offs);
+            crc= checksum_crc32(crc, cache->read_pos, hdr_offs);
             int4store(buf, crc);
             remains -= hdr_offs;
             DBUG_ASSERT(remains == 0);
@@ -6326,8 +6348,9 @@ int MYSQL_BIN_LOG::do_write_cache(IO_CACHE *cache,
                to start a new group anyway. Example of strayed USER VAR
                event includes  CREATE TABLE t1 SELECT @c;
               */
-            if (ev_type != USER_VAR_EVENT && ev_type != INTVAR_EVENT &&
-                ev_type != RAND_EVENT)
+            if (ev_type != binary_log::USER_VAR_EVENT &&
+                ev_type != binary_log::INTVAR_EVENT &&
+                ev_type != binary_log::RAND_EVENT)
             {
               uchar* pc_ptr= (uchar *)cache->read_pos + pc_offset;
               write_commit_seq_no(cache, pc_ptr, last_committed_arg,
@@ -6341,14 +6364,16 @@ int MYSQL_BIN_LOG::do_write_cache(IO_CACHE *cache,
 
           /* fix end_log_pos */
           val= uint4korr(log_pos) + group +
-            (end_log_pos_inc += (do_checksum ? BINLOG_CHECKSUM_LEN : 0));
+               (end_log_pos_inc += (do_checksum ?
+                                    BINLOG_CHECKSUM_LEN : 0));
           int4store(log_pos, val);
 
 	  /* fix CRC */
 	  if (do_checksum)
           {
             /* fix length */
-            int4store(ev + EVENT_LEN_OFFSET, event_len + BINLOG_CHECKSUM_LEN);
+            int4store(ev + EVENT_LEN_OFFSET, event_len +
+                      BINLOG_CHECKSUM_LEN);
             remains= fix_log_event_crc(cache->read_pos, hdr_offs, event_len,
                                        length, &crc);
             if (my_b_write(&log_file, ev,
@@ -6475,7 +6500,8 @@ bool MYSQL_BIN_LOG::write_incident(THD *thd, bool need_lock_log,
     DBUG_RETURN(0);
 
   LEX_STRING write_error_msg= {(char*) err_msg, strlen(err_msg)};
-  Incident incident= INCIDENT_LOST_EVENTS;
+  binary_log::Incident_event::enum_incident incident=
+                              binary_log::Incident_event::INCIDENT_LOST_EVENTS;
   Incident_log_event ev(thd, incident, write_error_msg);
 
   DBUG_RETURN(write_incident(&ev, need_lock_log, err_msg, do_flush_and_sync));
@@ -6699,14 +6725,19 @@ void MYSQL_BIN_LOG::close(uint exiting)
 #ifdef HAVE_REPLICATION
     if ((exiting & LOG_CLOSE_STOP_EVENT) != 0)
     {
+      /**
+        TODO(WL#7546): Change the implementation to Stop_event after write() is
+        moved into libbinlogevents
+      */
       Stop_log_event s;
       // the checksumming rule for relay-log case is similar to Rotate
-        s.checksum_alg= is_relay_log ?
-          relay_log_checksum_alg : static_cast<uint8>(binlog_checksum_options);
+        s.common_footer->checksum_alg= is_relay_log ? relay_log_checksum_alg :
+                                       static_cast<enum_binlog_checksum_alg>
+                                       (binlog_checksum_options);
       DBUG_ASSERT(!is_relay_log ||
-                  relay_log_checksum_alg != BINLOG_CHECKSUM_ALG_UNDEF);
+                  relay_log_checksum_alg != binary_log::BINLOG_CHECKSUM_ALG_UNDEF);
       s.write(&log_file);
-      bytes_written+= s.data_written;
+      bytes_written+= s.common_header->data_written;
       flush_io_cache(&log_file);
       update_binlog_end_pos();
     }
@@ -6896,8 +6927,8 @@ int MYSQL_BIN_LOG::open_binlog(const char *opt_name)
     */
     if ((ev= Log_event::read_log_event(&log, 0, &fdle,
                                        opt_master_verify_checksum)) &&
-        ev->get_type_code() == FORMAT_DESCRIPTION_EVENT &&
-        (ev->flags & LOG_EVENT_BINLOG_IN_USE_F ||
+        ev->get_type_code() == binary_log::FORMAT_DESCRIPTION_EVENT &&
+        (ev->common_header->flags & LOG_EVENT_BINLOG_IN_USE_F ||
          DBUG_EVALUATE_IF("eval_force_bin_log_recovery", true, false)))
     {
       sql_print_information("Recovering after a crash using %s", opt_name);
@@ -7969,17 +8000,17 @@ int MYSQL_BIN_LOG::recover(IO_CACHE *log, Format_description_log_event *fdle,
   while ((ev= Log_event::read_log_event(log, 0, fdle, TRUE))
          && ev->is_valid())
   {
-    if (ev->get_type_code() == QUERY_EVENT &&
+    if (ev->get_type_code() == binary_log::QUERY_EVENT &&
         !strcmp(((Query_log_event*)ev)->query, "BEGIN"))
       in_transaction= TRUE;
 
-    if (ev->get_type_code() == QUERY_EVENT &&
+    if (ev->get_type_code() == binary_log::QUERY_EVENT &&
         !strcmp(((Query_log_event*)ev)->query, "COMMIT"))
     {
       DBUG_ASSERT(in_transaction == TRUE);
       in_transaction= FALSE;
     }
-    else if (ev->get_type_code() == XID_EVENT)
+    else if (ev->get_type_code() == binary_log::XID_EVENT)
     {
       DBUG_ASSERT(in_transaction == TRUE);
       in_transaction= FALSE;

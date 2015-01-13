@@ -104,7 +104,7 @@ int gcs_trans_before_dml(Trans_param *param, int& out)
   }
 
   if( (out+= (param->trans_ctx_info.binlog_checksum_options !=
-                                                   BINLOG_CHECKSUM_ALG_OFF)) )
+                                                   binary_log::BINLOG_CHECKSUM_ALG_OFF)) )
   {
     log_message(MY_ERROR_LEVEL, "Binlog checksum should be OFF for Group Replication");
 

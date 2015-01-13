@@ -3156,7 +3156,7 @@ bool Sys_var_enum_binlog_checksum::global_update(THD *thd, set_var *var)
       mysql_bin_log.checksum_alg_reset= (uint8) var->save_result.ulonglong_value;
     mysql_bin_log.rotate(true, &check_purge);
     if (alg_changed)
-      mysql_bin_log.checksum_alg_reset= BINLOG_CHECKSUM_ALG_UNDEF; // done
+      mysql_bin_log.checksum_alg_reset= binary_log::BINLOG_CHECKSUM_ALG_UNDEF; // done
   }
   else
   {
@@ -3164,7 +3164,8 @@ bool Sys_var_enum_binlog_checksum::global_update(THD *thd, set_var *var)
       static_cast<ulong>(var->save_result.ulonglong_value);
   }
   DBUG_ASSERT((ulong) binlog_checksum_options == var->save_result.ulonglong_value);
-  DBUG_ASSERT(mysql_bin_log.checksum_alg_reset == BINLOG_CHECKSUM_ALG_UNDEF);
+  DBUG_ASSERT(mysql_bin_log.checksum_alg_reset ==
+              binary_log::BINLOG_CHECKSUM_ALG_UNDEF);
   mysql_mutex_unlock(mysql_bin_log.get_log_lock());
   
   if (check_purge)
@@ -3178,7 +3179,7 @@ static Sys_var_enum_binlog_checksum Binlog_checksum_enum(
        "log events in the binary log. Possible values are NONE and CRC32; "
        "default is CRC32.",
        GLOBAL_VAR(binlog_checksum_options), CMD_LINE(REQUIRED_ARG),
-       binlog_checksum_type_names, DEFAULT(BINLOG_CHECKSUM_ALG_CRC32),
+       binlog_checksum_type_names, DEFAULT(binary_log::BINLOG_CHECKSUM_ALG_CRC32),
        NO_MUTEX_GUARD, NOT_IN_BINLOG);
 
 static Sys_var_mybool Sys_master_verify_checksum(

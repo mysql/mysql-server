@@ -690,7 +690,7 @@ static int check_if_server_properly_configured()
     DBUG_RETURN(1);
   }
 
-  if(startup_pre_reqs.binlog_checksum_options != BINLOG_CHECKSUM_ALG_OFF)
+  if(startup_pre_reqs.binlog_checksum_options != binary_log::BINLOG_CHECKSUM_ALG_OFF)
   {
     log_message(MY_ERROR_LEVEL, "Binlog checksum should be OFF for Group Replication");
     DBUG_RETURN(1);

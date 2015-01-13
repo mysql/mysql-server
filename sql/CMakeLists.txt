@@ -17,6 +17,7 @@
 INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/include 
   ${CMAKE_SOURCE_DIR}/sql/conn_handler
+  ${CMAKE_SOURCE_DIR}/libbinlogevents/include
   ${CMAKE_SOURCE_DIR}/sql 
   ${CMAKE_SOURCE_DIR}/sql/auth
   ${CMAKE_SOURCE_DIR}/regex 
@@ -305,7 +306,7 @@ ADD_DEPENDENCIES(sql GenServerSource)
 ADD_DEPENDENCIES(sql GenDigestServerSource)
 DTRACE_INSTRUMENT(sql)
 TARGET_LINK_LIBRARIES(sql ${MYSQLD_STATIC_PLUGIN_LIBS} 
-  mysys mysys_ssl dbug strings vio regex   
+  mysys mysys_ssl dbug strings vio regex binlogevents_static
   ${LIBWRAP} ${LIBCRYPT} ${LIBDL}
   ${SSL_LIBRARIES})
 
@@ -318,7 +319,7 @@ IF(WIN32)
   TARGET_LINK_LIBRARIES(sql auth_win_client)
 ENDIF()
 
-SET (BINLOG_SOURCE uuid.cc rpl_gtid_misc.cc
+SET (BINLOG_SOURCE rpl_gtid_misc.cc
                    rpl_gtid_sid_map.cc rpl_gtid_set.cc rpl_gtid_specification.cc
                    rpl_gtid_state.cc rpl_gtid_owned.cc rpl_gtid_cache.cc
                    rpl_gtid_execution.cc
@@ -327,6 +328,8 @@ SET (BINLOG_SOURCE uuid.cc rpl_gtid_misc.cc
                    rpl_filter.cc rpl_record.cc rpl_record_old.cc
                    rpl_utility.cc rpl_injector.cc rpl_table_access.cc)
 ADD_LIBRARY(binlog ${BINLOG_SOURCE})
+TARGET_LINK_LIBRARIES(binlog binlogevents_static)
+
 SET (RPL_SOURCE rpl_handler.cc rpl_tblmap.cc rpl_context.cc)
 ADD_DEPENDENCIES(binlog GenError)
 ADD_LIBRARY(rpl ${RPL_SOURCE})
@@ -401,7 +404,7 @@ IF(NOT WITHOUT_DYNAMIC_PLUGINS)
     # incremental appears to crash from time to time,if used with /DEF option
     SET_TARGET_PROPERTIES(mysqld PROPERTIES LINK_FLAGS "${mysqld_link_flags} /DEF:mysqld.def /INCREMENTAL:NO")
 
-    FOREACH (CORELIB sql binlog slave mysys mysys_ssl dbug strings)
+    FOREACH (CORELIB sql binlog slave mysys mysys_ssl dbug strings binlogevents_static)
       GET_TARGET_PROPERTY(LOC ${CORELIB} LOCATION)
       FILE(TO_NATIVE_PATH ${LOC} LOC)
       SET (LIB_LOCATIONS ${LIB_LOCATIONS} ${LOC}) 
@@ -419,7 +422,7 @@ IF(NOT WITHOUT_DYNAMIC_PLUGINS)
 ENDIF()
 
 SET_TARGET_PROPERTIES(mysqld PROPERTIES ENABLE_EXPORTS TRUE) 
-TARGET_LINK_LIBRARIES(mysqld sql binlog rpl master slave sql mysys mysys_ssl)
+TARGET_LINK_LIBRARIES(mysqld sql binlog rpl master slave sql mysys mysys_ssl binlogevents_static)
 
 # Provide plugins with minimal set of libraries
 SET(INTERFACE_LIBS ${LIBRT})

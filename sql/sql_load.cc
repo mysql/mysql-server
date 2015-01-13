@@ -796,8 +796,9 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
     e(thd, load_data_query, end-load_data_query,
       static_cast<uint>(fname_start - load_data_query - 1),
       static_cast<uint>(fname_end - load_data_query),
-      (duplicates == DUP_REPLACE) ? LOAD_DUP_REPLACE :
-      (thd->lex->is_ignore() ? LOAD_DUP_IGNORE : LOAD_DUP_ERROR),
+      (duplicates == DUP_REPLACE) ? binary_log::LOAD_DUP_REPLACE :
+      (thd->lex->is_ignore() ? binary_log::LOAD_DUP_IGNORE :
+                               binary_log::LOAD_DUP_ERROR),
       transactional_table, FALSE, FALSE, errcode);
   return mysql_bin_log.write_event(&e);
 }

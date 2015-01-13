@@ -571,7 +571,7 @@ int Relay_log_info::init_relay_log_pos(const char* log,
         }
         break;
       }
-      else if (ev->get_type_code() == FORMAT_DESCRIPTION_EVENT)
+      else if (ev->get_type_code() == binary_log::FORMAT_DESCRIPTION_EVENT)
       {
         DBUG_PRINT("info",("found Format_description_log_event"));
         set_rli_description_event((Format_description_log_event *)ev);
@@ -600,7 +600,7 @@ int Relay_log_info::init_relay_log_pos(const char* log,
       {
         DBUG_PRINT("info",("found event of another type=%d",
                            ev->get_type_code()));
-        look_for_description_event= (ev->get_type_code() == ROTATE_EVENT);
+        look_for_description_event= (ev->get_type_code() == binary_log::ROTATE_EVENT);
         delete ev;
       }
     }
@@ -1330,8 +1330,10 @@ bool Relay_log_info::is_until_satisfied(THD *thd, Log_event *ev)
       if (ev && ev->server_id == (uint32) ::server_id && !replicate_same_server_id)
         DBUG_RETURN(false);
       log_name= group_master_log_name;
-      log_pos= (!ev || is_in_group() || !ev->log_pos) ?
-        group_master_log_pos : ev->log_pos - ev->data_written;
+      if (!ev || is_in_group() || !ev->common_header->log_pos)
+        log_pos= group_master_log_pos;
+      else
+        log_pos= ev->common_header->log_pos - ev->common_header->data_written;
     }
     else
     { /* until_condition == UNTIL_RELAY_POS */
@@ -1428,7 +1430,7 @@ bool Relay_log_info::is_until_satisfied(THD *thd, Log_event *ev)
       }
       global_sid_lock->unlock();
     }
-    if (ev != NULL && ev->get_type_code() == GTID_LOG_EVENT)
+    if (ev != NULL && ev->get_type_code() == binary_log::GTID_LOG_EVENT)
     {
       Gtid_log_event *gev= (Gtid_log_event *)ev;
       global_sid_lock->rdlock();
@@ -1494,7 +1496,7 @@ bool Relay_log_info::is_until_satisfied(THD *thd, Log_event *ev)
     break;
 
   case UNTIL_SQL_VIEW_ID:
-    if (ev != NULL && ev->get_type_code() == VIEW_CHANGE_EVENT)
+    if (ev != NULL && ev->get_type_code() == binary_log::VIEW_CHANGE_EVENT)
     {
       View_change_log_event *view_event= (View_change_log_event *)ev;
 
@@ -2601,8 +2603,8 @@ void Relay_log_info::adapt_to_master_version(Format_description_log_event *fdle)
   THD *thd=info_thd;
   ulong master_version, current_version;
   int changed= !fdle || ! rli_description_event ? 0 :
-    (master_version= fdle->get_version_product()) - 
-    (current_version= rli_description_event->get_version_product());
+    (master_version= fdle->get_product_version()) -
+    (current_version= rli_description_event->get_product_version());
 
   /* When the last version is not changed nothing to adapt for */
   if (!changed)
