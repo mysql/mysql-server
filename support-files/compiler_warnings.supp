@@ -1,4 +1,4 @@
-# Copyright (c) 2007, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2007, 2015, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -35,6 +35,9 @@ lgman.hpp : .*'struct Lgman::Buffer_idx' only defines private constructors and h
 SchemaFile.hpp : .*'struct SchemaFile::TableEntry' only defines private constructors and has no friends.*
 sql_yacc.cc : .*switch statement contains 'default' but no 'case' labels.*
 pwdbased.hpp : .*comparison of unsigned expression < 0 is always false.*
+yassl_int.hpp: .*type qualifiers ignored on function return type.*
+yassl_int.cpp: .*type qualifiers ignored on function return type.*
+sql_trigger.cc: .*'tbl_name.st_mysql_lex_string::str' may be used uninitialized in this function.*
 
 #
 # Things that can be ignored in InnoDB
