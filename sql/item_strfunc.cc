@@ -52,6 +52,9 @@ C_MODE_END
 #include <rapidjson/writer.h>
 #include <rapidjson/stringbuffer.h>
 
+#include "pfs_file_provider.h"
+#include "mysql/psi/mysql_file.h"
+
 using std::min;
 using std::max;
 

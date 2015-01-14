@@ -43,6 +43,10 @@
 #include "binlog.h"
 #include "parse_file.h"          // sql_parse_prepare
 #include "sql_plugin.h"          // plugin_unlock
+
+#include "pfs_file_provider.h"
+#include "mysql/psi/mysql_file.h"
+
 #include "pfs_table_provider.h"
 #include "mysql/psi/mysql_table.h"
 

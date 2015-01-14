@@ -30,46 +30,36 @@
   (for example in storage/myisam/ha_myisam.cc) !
 */
 
-#include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
-#include "sql_class.h"
-#include "rpl_gtid.h"
 #include "sys_vars.h"
-#include "mysql_com.h"
 
-#include "events.h"
-#include "rpl_slave.h"
-#include "rpl_mi.h"
-#include "rpl_rli.h"
-#include "rpl_slave.h"
-#include "rpl_msr.h"           /* Multisource replication */
-#include "rpl_info_factory.h"
-#include "transaction.h"
-#include "opt_trace.h"
-#include "mysqld.h"
-#include "lock.h"
-#include "sql_time.h"                       // known_date_time_formats
-#include "auth_common.h" // SUPER_ACL,
-                         // mysql_user_table_is_in_short_password_format
-                         // disconnect_on_expired_password
-#include "derror.h"  // read_texts
-#include "sql_base.h"                           // close_cached_tables
-#include "debug_sync.h"                         // DEBUG_SYNC
-#include "hostname.h"                           // host_cache_size
-#include "sql_show.h"                           // opt_ignore_db_dirs
-#include "table_cache.h"                        // Table_cache_manager
-#include "connection_handler_impl.h"            // Per_thread_connection_handler
-#include "connection_handler_manager.h"         // Connection_handler_manager
-#include "socket_connection.h"                  // MY_BIND_ALL_ADDRESSES
-#include "sp_head.h" // SP_PSI_STATEMENT_INFO_COUNT 
-#include "my_aes.h" // my_aes_opmode_names
-#include "item_timefunc.h"                      // ISO_FORMAT
-#include "myisam.h"                             // myisam_concurrent_insert
+#include "my_aes.h"                      // my_aes_opmode_names
+#include "myisam.h"                      // myisam_flush
+#include "auth_common.h"                 // validate_user_plugins
+#include "binlog.h"                      // mysql_bin_log
+#include "connection_handler_impl.h"     // Per_thread_connection_handler
+#include "connection_handler_manager.h"  // Connection_handler_manager
+#include "debug_sync.h"                  // DEBUG_SYNC
+#include "derror.h"                      // read_texts
+#include "events.h"                      // Events
+#include "hostname.h"                    // host_cache_resize
+#include "item_timefunc.h"               // ISO_FORMAT
+#include "log_event.h"                   // MAX_MAX_ALLOWED_PACKET
+#include "rpl_info_factory.h"            // Rpl_info_factory
+#include "rpl_info_handler.h"            // INFO_REPOSITORY_FILE
+#include "rpl_mi.h"                      // Master_info
+#include "rpl_msr.h"                     // msr_map
+#include "rpl_slave.h"                   // SLAVE_THD_TYPE
+#include "socket_connection.h"           // MY_BIND_ALL_ADDRESSES
+#include "sp_head.h"                     // SP_PSI_STATEMENT_INFO_COUNT
+#include "sql_show.h"                    // opt_ignore_db_dirs
+#include "sql_tmp_table.h"               // internal_tmp_disk_storage_engine
+#include "sql_time.h"                    // global_date_format
+#include "table_cache.h"                 // Table_cache_manager
+#include "transaction.h"                 // trans_commit_stmt
 
-#include "log_event.h"
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #include "../storage/perfschema/pfs_server.h"
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
-#include "sql_tmp_table.h"  // internal_tmp_disk_storage_engine
 
 TYPELIB bool_typelib={ array_elements(bool_values)-1, "", bool_values, 0 };
 

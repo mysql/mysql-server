@@ -48,6 +48,7 @@
 #ifndef EMBEDDED_LIBRARY
 #include "events.h"
 #include "event_data_objects.h"
+#include "event_parse_data.h"
 #endif
 #include <my_dir.h>
 #include "lock.h"                           // MYSQL_OPEN_IGNORE_FLUSH
@@ -62,6 +63,9 @@
 #include "template_utils.h"
 #include "log.h"
 #include "sql_plugin.h"                         // PLUGIN_IS_DELETED etc.
+
+#include "pfs_file_provider.h"
+#include "mysql/psi/mysql_file.h"
 
 #include <algorithm>
 #include <functional>

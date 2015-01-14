@@ -46,10 +46,13 @@
 #include "sql_timer.h"                       // thd_timer_destroy
 #include "transaction.h"                     // trans_rollback
 
-#include <pfs_idle_provider.h>
-#include <mysql/psi/mysql_idle.h>
+#include "pfs_file_provider.h"
+#include "mysql/psi/mysql_file.h"
 
-#include <mysql/psi/mysql_ps.h>
+#include "pfs_idle_provider.h"
+#include "mysql/psi/mysql_idle.h"
+
+#include "mysql/psi/mysql_ps.h"
 
 using std::min;
 using std::max;
