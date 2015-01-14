@@ -58,6 +58,7 @@
 #    [--let $slave_timeout= NUMBER]
 #    [--let $use_gtids= 1]
 #    [--let $rpl_gtid_utils= 1]
+#    [--let $rpl_set_gtid_next_anonymous_in_new_connection= 1]
 #    --source include/rpl_init.inc
 #
 #    Parameters:
@@ -128,6 +129,9 @@
 #      Create stored functions for GTID manipulation on every server (see
 #      gtid_utils.inc).
 #
+#    $rpl_set_gtid_next_anonymous_in_new_connection
+#       Executes SET GTID_NEXT = 'ANONYMOUS' in each new connection.
+#
 #
 # ==== Side effects ====
 #
@@ -146,7 +150,7 @@
 #   check that $rpl_server_count does not between rpl_init.inc and
 #   rpl_end.inc
 #
-# $rpl_server_count_length:
+# $rpl_server_count_length
 #   Set to LENGTH($rpl_server_count). So if $rpl_server_count < 10,
 #   then $rpl_server_count_length = 1; if 10 <= $rpl_server_count <
 #   100, then $rpl_server_count_length = 2, etc.
