@@ -1193,8 +1193,13 @@ let $rows = 1;
 --source include/have_ssl_crypto_functs.inc
 let $cols = a varchar(1024), b varchar(1024) generated always as (des_encrypt(des_decrypt(a,'adf'),'adf')) virtual;
 let $values1 = 'MySQL',default;
-let $rows = 1;
---source suite/gcol/inc/gcol_supported_sql_funcs.inc
+--disable_warnings
+eval create table t1 ($cols);
+show create table t1;
+--enable_warnings
+eval insert into t1 values ($values1);
+select * from t1;
+drop table t1;
 
 --echo # INET_ATON(), INET_NTOA()
 let $cols = a varchar(1024), b varchar(1024) generated always as (inet_ntoa(inet_aton(a))) virtual;
