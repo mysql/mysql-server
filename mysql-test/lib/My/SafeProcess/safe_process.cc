@@ -141,6 +141,7 @@ extern "C" void handle_signal(int sig)
   // Ignore further signals
   signal(SIGTERM, SIG_IGN);
   signal(SIGINT,  SIG_IGN);
+  signal(SIGHUP, SIG_IGN);
 
   // Continune execution, allow the child to be started and
   // finally terminated by monitor loop
@@ -164,6 +165,7 @@ int main(int argc, char* const argv[] )
   /* Install signal handlers */
   sigaction(SIGTERM, &sa,NULL);
   sigaction(SIGINT, &sa,NULL);
+  sigaction(SIGHUP, &sa, NULL);
   sigaction(SIGCHLD, &sa,NULL);
   sigaction(SIGABRT, &sa_abort,NULL);
 
@@ -231,6 +233,7 @@ int main(int argc, char* const argv[] )
     // Use default signal handlers in child
     signal(SIGTERM, SIG_DFL);
     signal(SIGINT,  SIG_DFL);
+    signal(SIGHUP, SIG_DFL);
     signal(SIGCHLD, SIG_DFL);
 
     // Make this process it's own process group to be able to kill

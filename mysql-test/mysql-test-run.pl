@@ -109,6 +109,7 @@ require "lib/mtr_gprof.pl";
 require "lib/mtr_misc.pl";
 
 $SIG{INT}= sub { mtr_error("Got ^C signal"); };
+$SIG{HUP}= sub { mtr_error("Hangup detected on controlling terminal"); };
 
 our $mysql_version_id;
 my $mysql_version_extra;
@@ -908,6 +909,7 @@ sub run_worker ($) {
   my ($server_port, $thread_num)= @_;
 
   $SIG{INT}= sub { exit(1); };
+  $SIG{HUP}= sub { exit(1); };
 
   # Connect to server
   my $server = new IO::Socket::INET
