@@ -8011,7 +8011,24 @@ static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
   }
 #endif
 
-  mysql_options(mysql, MYSQL_SET_CHARSET_NAME, default_charset_info->csname);
+  /*
+    If server's default charset is not supported (like utf16, utf32) as client
+    charset, then set client charset to 'latin1' (default client charset).
+  */
+  if (is_supported_parser_charset(default_charset_info))
+    mysql_options(mysql, MYSQL_SET_CHARSET_NAME, default_charset_info->csname);
+  else
+  {
+    sql_print_information("'%s' can not be used as client character set. "
+                          "'%s' will be used as default client character set "
+                          "while connecting to master.",
+                          default_charset_info->csname,
+                          default_client_charset_info->csname);
+    mysql_options(mysql, MYSQL_SET_CHARSET_NAME,
+                  default_client_charset_info->csname);
+  }
+
+
   /* This one is not strictly needed but we have it here for completeness */
   mysql_options(mysql, MYSQL_SET_CHARSET_DIR, (char *) charsets_dir);
 
