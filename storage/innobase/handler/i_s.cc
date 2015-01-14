@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -3312,8 +3312,6 @@ i_s_fts_index_cache_fill_one_index(
 	for (rbt_node = rbt_first(index_cache->words);
 	     rbt_node;
 	     rbt_node = rbt_next(index_cache->words, rbt_node)) {
-		doc_id_t	doc_id = 0;
-
 		fts_tokenizer_word_t* word;
 
 		word = rbt_value(fts_tokenizer_word_t, rbt_node);
@@ -3339,6 +3337,7 @@ i_s_fts_index_cache_fill_one_index(
 			fts_node_t*	node;
 			byte*		ptr;
 			ulint		decoded = 0;
+			doc_id_t	doc_id = 0;
 
 			node = static_cast<fts_node_t*> (ib_vector_get(
 				word->nodes, i));
