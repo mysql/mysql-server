@@ -1,6 +1,6 @@
 #ifndef SYS_VARS_H_INCLUDED
 #define SYS_VARS_H_INCLUDED
-/* Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,17 +23,19 @@
   of sys_var variables (sys_vars.cc).
 */
 
-#include "sys_vars_shared.h"
-#include <my_getopt.h>
-#include <my_bit.h>
-#include <my_dir.h>
-#include "keycaches.h"
-#include "strfunc.h"
-#include "sql_plugin.h"                         // SHOW_HA_ROWS etc.
-#include "tztime.h"     // my_tz_find, my_tz_SYSTEM, struct Time_zone
-#include "rpl_gtid.h"
-#include <ctype.h>
-#include "sql_class.h"
+#include "my_global.h"
+#include "keycaches.h"            // dflt_key_cache
+#include "my_bit.h"               // my_count_bits
+#include "my_getopt.h"            // get_opt_arg_type
+#include "mysql/plugin.h"         // enum_mysql_show_type
+#include "item.h"                 // Item
+#include "set_var.h"              // sys_var
+#include "sql_class.h"            // THD
+#include "sql_plugin.h"           // my_plugin_lock_by_name
+#include "strfunc.h"              // find_type
+#include "sys_vars_shared.h"      // throw_bounds_warning
+#include "tztime.h"               // Time_zone
+
 
 /*
   a set of mostly trivial (as in f(X)=X) defines below to make system variable
@@ -75,6 +77,8 @@
 #else
 #define GET_HA_ROWS GET_ULONG
 #endif
+
+extern sys_var_chain all_sys_vars;
 
 enum charset_enum {IN_SYSTEM_CHARSET, IN_FS_CHARSET};
 

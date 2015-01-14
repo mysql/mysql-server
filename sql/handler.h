@@ -26,6 +26,7 @@
 #include "thr_lock.h"        // thr_lock_type
 #include "mysqld.h"          // lower_case_table_names
 #include "sql_const.h"       // SHOW_COMP_OPTION
+#include "sql_list.h"        // SQL_I_List
 #include "sql_plugin_ref.h"  // plugin_ref
 #include "structs.h"         // Discrete_interval
 

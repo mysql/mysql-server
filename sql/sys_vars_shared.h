@@ -1,7 +1,7 @@
 #ifndef SYS_VARS_SHARED_INCLUDED
 #define SYS_VARS_SHARED_INCLUDED
 
-/* Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,15 +25,17 @@
   classes in the sys_var hierarchy (sql_plugin.cc)
 */
 
-#include "set_var.h"
+#include "my_global.h"
+#include "my_thread.h"
+
+class THD;
+class sys_var;
 
 extern bool throw_bounds_warning(THD *thd, const char *name,
                                  bool fixed, bool is_unsigned, longlong v);
 extern bool throw_bounds_warning(THD *thd, const char *name, bool fixed,
                                  double v);
 extern sys_var *intern_find_sys_var(const char *str, size_t length);
-
-extern sys_var_chain all_sys_vars;
 
 /** wrapper to hide a mutex and an rwlock under a common interface */
 class PolyLock

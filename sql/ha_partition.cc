@@ -61,11 +61,13 @@
 #include "sql_show.h"                        // append_identifier
 #include "sql_admin.h"                       // SQL_ADMIN_MSG_TEXT_SIZE
 #include "myisam.h"                          // TT_FOR_UPGRADE
-
 #include "debug_sync.h"
 #ifndef DBUG_OFF
 #include "sql_test.h"                        // print_where
 #endif
+
+#include "pfs_file_provider.h"
+#include "mysql/psi/mysql_file.h"
 
 using std::min;
 using std::max;

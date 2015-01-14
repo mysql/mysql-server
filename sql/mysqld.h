@@ -21,9 +21,6 @@
 #include "my_decimal.h"                         /* my_decimal */
 #include "mysql_com.h"                     /* SERVER_VERSION_LENGTH */
 #include "my_atomic.h"                     /* my_atomic_add64 */
-#include "pfs_file_provider.h"
-#include "mysql/psi/mysql_file.h"          /* MYSQL_FILE */
-#include "sql_list.h"                      /* I_List */
 #include "sql_cmd.h"                       /* SQLCOM_END */
 
 class THD;
@@ -33,7 +30,6 @@ template <uint default_width> class Bitmap;
 
 typedef struct st_mysql_const_lex_string LEX_CSTRING;
 typedef struct st_mysql_show_var SHOW_VAR;
-typedef struct st_mysql_socket MYSQL_SOCKET;
 
 /*
   This forward declaration is used from C files where the real

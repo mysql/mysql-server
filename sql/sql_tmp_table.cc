@@ -15,18 +15,24 @@
 
 /** @file Temporary tables implementation */
 
-#include "sql_select.h"
 #include "sql_tmp_table.h"
-#include "sql_executor.h"
-#include "sql_base.h"
-#include "opt_trace.h"
-#include "opt_costmodel.h"
-#include "debug_sync.h"
-#include "filesort.h"   // filesort_free_buffers
-#include "item_sum.h"   // Item_sum
-#include "sql_plugin.h" // plugin_unlock
+
+#include "myisam.h"               // MI_COLUMNDEF
+#include "debug_sync.h"           // DEBUG_SYNC
+#include "filesort.h"             // filesort_free_buffers
+#include "item_func.h"            // Item_func
+#include "item_sum.h"             // Item_sum
+#include "mem_root_array.h"       // Mem_root_array
+#include "opt_range.h"            // QUICK_SELECT_I
+#include "opt_trace.h"            // Opt_trace_object
+#include "opt_trace_context.h"    // Opt_trace_context
+#include "sql_base.h"             // free_io_cache
+#include "sql_class.h"            // THD
+#include "sql_executor.h"         // SJ_TMP_TABLE
+#include "sql_plugin.h"           // plugin_unlock
 
 #include <algorithm>
+
 using std::max;
 using std::min;
 

@@ -34,6 +34,10 @@
 #include <m_ctype.h>				// For is_number
 #include <my_stacktrace.h>
 #include "mysqld_thd_manager.h"                 // Global_THD_manager
+
+#include "pfs_file_provider.h"
+#include "mysql/psi/mysql_file.h"
+
 #include <pfs_transaction_provider.h>
 #include <mysql/psi/mysql_transaction.h>
 
