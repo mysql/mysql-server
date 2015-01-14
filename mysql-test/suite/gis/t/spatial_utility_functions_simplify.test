@@ -1,0 +1,10 @@
+SELECT ST_ASTEXT(ST_SIMPLIFY(ST_GEOMFROMTEXT('point(0 0)'), 1)) as result;
+SELECT ST_ASTEXT(ST_SIMPLIFY(ST_GEOMFROMTEXT('multipoint(0 0, 1 0, 0 1, 1 1, 0.5 0.5)'), 1)) as result;
+SELECT ST_ASTEXT(ST_SIMPLIFY(ST_GEOMFROMTEXT('linestring(0 0, 1 0, 0 1, 1 1, 0.5 1.5)'), 1)) as result;
+SELECT ST_ASTEXT(ST_SIMPLIFY(ST_GEOMFROMTEXT('multilinestring((0 0, 1 0, 0 1, 1 1, 0.5 1.5))'), 1)) as result;
+SELECT ST_ASTEXT(ST_SIMPLIFY(ST_GEOMFROMTEXT('polygon((0 0, 1 0, 0 1, 1 1, 0.5 1.5))'), 1)) as result;
+SELECT ST_ASTEXT(ST_SIMPLIFY(ST_GEOMFROMTEXT('multipolygon(((0 0, 1 0, 0 1, 1 1, 0.5 1.5)))'), 1)) as result;
+SELECT ST_ASTEXT(ST_SIMPLIFY(ST_GEOMFROMTEXT('geometrycollection(multipolygon(((0 0, 1 0, 0 1, 1 1, 0.5 1.5))),
+                                                                 polygon((0 0, 1 0, 0 1, 1 1, 0.5 1.5)),
+                                                                 multilinestring((0 0, 1 0, 0 1, 1 1, 0.5 1.5)),
+                                                                 linestring(0 0, 1 0, 0 1, 1 1, 0.5 1.5))'), 1)) as result;

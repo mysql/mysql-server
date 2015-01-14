@@ -1,0 +1,24 @@
+SELECT ST_ASTEXT(ST_SIMPLIFY(ST_GEOMFROMTEXT('point(0 0)'), 1)) as result;
+result
+POINT(0 0)
+SELECT ST_ASTEXT(ST_SIMPLIFY(ST_GEOMFROMTEXT('multipoint(0 0, 1 0, 0 1, 1 1, 0.5 0.5)'), 1)) as result;
+result
+MULTIPOINT(0 0,1 0,0 1,1 1,0.5 0.5)
+SELECT ST_ASTEXT(ST_SIMPLIFY(ST_GEOMFROMTEXT('linestring(0 0, 1 0, 0 1, 1 1, 0.5 1.5)'), 1)) as result;
+result
+LINESTRING(0 0,0.5 1.5)
+SELECT ST_ASTEXT(ST_SIMPLIFY(ST_GEOMFROMTEXT('multilinestring((0 0, 1 0, 0 1, 1 1, 0.5 1.5))'), 1)) as result;
+result
+MULTILINESTRING((0 0,0.5 1.5))
+SELECT ST_ASTEXT(ST_SIMPLIFY(ST_GEOMFROMTEXT('polygon((0 0, 1 0, 0 1, 1 1, 0.5 1.5))'), 1)) as result;
+result
+POLYGON((0 0,0.5 1.5,0 0))
+SELECT ST_ASTEXT(ST_SIMPLIFY(ST_GEOMFROMTEXT('multipolygon(((0 0, 1 0, 0 1, 1 1, 0.5 1.5)))'), 1)) as result;
+result
+MULTIPOLYGON(((0 0,0.5 1.5,0 0)))
+SELECT ST_ASTEXT(ST_SIMPLIFY(ST_GEOMFROMTEXT('geometrycollection(multipolygon(((0 0, 1 0, 0 1, 1 1, 0.5 1.5))),
+                                                                 polygon((0 0, 1 0, 0 1, 1 1, 0.5 1.5)),
+                                                                 multilinestring((0 0, 1 0, 0 1, 1 1, 0.5 1.5)),
+                                                                 linestring(0 0, 1 0, 0 1, 1 1, 0.5 1.5))'), 1)) as result;
+result
+GEOMETRYCOLLECTION(MULTIPOLYGON(((0 0,0.5 1.5,0 0))),POLYGON((0 0,0.5 1.5,0 0)),MULTILINESTRING((0 0,0.5 1.5)),LINESTRING(0 0,0.5 1.5))

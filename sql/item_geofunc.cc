@@ -26,104 +26,6 @@
 #include <rapidjson/document.h>
 #include "item_geofunc_internal.h"
 
-#define CATCH_ALL(funcname, expr) \
-  catch (const boost::geometry::centroid_exception &)\
-  {\
-    expr;\
-    my_error(ER_BOOST_GEOMETRY_CENTROID_EXCEPTION, MYF(0), (funcname));\
-  }\
-  catch (const boost::geometry::overlay_invalid_input_exception &)\
-  {\
-    expr;\
-    my_error(ER_BOOST_GEOMETRY_OVERLAY_INVALID_INPUT_EXCEPTION, MYF(0),\
-             (funcname));\
-  }\
-  catch (const boost::geometry::turn_info_exception &)\
-  {\
-    expr;\
-    my_error(ER_BOOST_GEOMETRY_TURN_INFO_EXCEPTION, MYF(0), (funcname));\
-  }\
-  catch (const boost::geometry::detail::self_get_turn_points::self_ip_exception &)\
-  {\
-    expr;\
-    my_error(ER_BOOST_GEOMETRY_SELF_INTERSECTION_POINT_EXCEPTION, MYF(0),\
-             (funcname));\
-  }\
-  catch (const boost::geometry::empty_input_exception &)\
-  {\
-    expr;\
-    my_error(ER_BOOST_GEOMETRY_EMPTY_INPUT_EXCEPTION, MYF(0), (funcname));\
-  }\
-  catch (const boost::geometry::exception &)\
-  {\
-    expr;\
-    my_error(ER_BOOST_GEOMETRY_UNKNOWN_EXCEPTION, MYF(0), (funcname));\
-  }\
-  catch (const std::bad_alloc &e)\
-  {\
-    expr;\
-    my_error(ER_STD_BAD_ALLOC_ERROR, MYF(0), e.what(), (funcname));\
-  }\
-  catch (const std::domain_error &e)\
-  {\
-    expr;\
-    my_error(ER_STD_DOMAIN_ERROR, MYF(0), e.what(), (funcname));\
-  }\
-  catch (const std::length_error &e)\
-  {\
-    expr;\
-    my_error(ER_STD_LENGTH_ERROR, MYF(0), e.what(), (funcname));\
-  }\
-  catch (const std::invalid_argument &e)\
-  {\
-    expr;\
-    my_error(ER_STD_INVALID_ARGUMENT, MYF(0), e.what(), (funcname));\
-  }\
-  catch (const std::out_of_range &e)\
-  {\
-    expr;\
-    my_error(ER_STD_OUT_OF_RANGE_ERROR, MYF(0), e.what(), (funcname));\
-  }\
-  catch (const std::overflow_error &e)\
-  {\
-    expr;\
-    my_error(ER_STD_OVERFLOW_ERROR, MYF(0), e.what(), (funcname));\
-  }\
-  catch (const std::range_error &e)\
-  {\
-    expr;\
-    my_error(ER_STD_RANGE_ERROR, MYF(0), e.what(), (funcname));\
-  }\
-  catch (const std::underflow_error &e)\
-  {\
-    expr;\
-    my_error(ER_STD_UNDERFLOW_ERROR, MYF(0), e.what(), (funcname));\
-  }\
-  catch (const std::logic_error &e)\
-  {\
-    expr;\
-    my_error(ER_STD_LOGIC_ERROR, MYF(0), e.what(), (funcname));\
-  }\
-  catch (const std::runtime_error &e)\
-  {\
-    expr;\
-    my_error(ER_STD_RUNTIME_ERROR, MYF(0), e.what(), (funcname));\
-  }\
-  catch (const std::exception &e)\
-  {\
-    expr;\
-    my_error(ER_STD_UNKNOWN_EXCEPTION, MYF(0), e.what(), (funcname));\
-  }\
-  catch (...)\
-  {\
-    expr;\
-    my_error(ER_GIS_UNKNOWN_EXCEPTION, MYF(0), (funcname));\
-  }
-
-
-namespace bg= boost::geometry;
-namespace bgm= boost::geometry::model;
-namespace bgcs= boost::geometry::cs;
 
 static int check_geometry_valid(Geometry *geom);
 
@@ -2241,6 +2143,157 @@ bool Item_func_convex_hull::bg_convex_hull(const Geometry *geom,
   CATCH_ALL("st_convexhull", null_value= true)
 
   return null_value;
+}
+
+
+String *Item_func_simplify::val_str(String *str)
+{
+  DBUG_ASSERT(fixed == 1);
+  String *swkb= args[0]->val_str(&arg_val);
+  double max_dist= args[1]->val_real();
+  Geometry_buffer buffer;
+  Geometry *geom= NULL;
+
+  // Release last call's result buffer.
+  bg_resbuf_mgr.free_result_buffer();
+
+  if ((null_value= (!swkb || args[0]->null_value || args[1]->null_value)))
+    return error_str();
+  if (!(geom= Geometry::construct(&buffer, swkb)))
+  {
+    my_error(ER_GIS_INVALID_DATA, MYF(0));
+    return error_str();
+  }
+
+  if (max_dist <= 0 || boost::math::isnan(max_dist))
+  {
+    my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
+    return error_str();
+  }
+
+  Geometry::wkbType gtype= geom->get_type();
+
+  try
+  {
+    if (gtype == Geometry::wkb_geometrycollection)
+    {
+      BG_geometry_collection bggc;
+      bggc.fill(geom);
+      Gis_geometry_collection gc(geom->get_srid(),
+                                 Geometry::wkb_invalid_type, NULL, str);
+      for (BG_geometry_collection::Geometry_list::iterator
+           i= bggc.get_geometries().begin();
+           i != bggc.get_geometries().end(); ++i)
+      {
+        String gbuf;
+        if ((null_value= simplify_basic<bgcs::cartesian>
+             (*i, max_dist, &gbuf, &gc, str)))
+          return error_str();
+      }
+    }
+    else
+    {
+      if ((null_value= simplify_basic<bgcs::cartesian>(geom, max_dist, str)))
+        return error_str();
+      else
+        bg_resbuf_mgr.set_result_buffer(const_cast<char *>(str->ptr()));
+    }
+  }
+  CATCH_ALL("ST_Simplify", null_value= true)
+
+  return str;
+}
+
+
+template <typename Coordsys>
+int Item_func_simplify::
+simplify_basic(Geometry *geom, double max_dist, String *str,
+               Gis_geometry_collection *gc, String *gcbuf)
+{
+  DBUG_ASSERT((gc == NULL && gcbuf == NULL) || (gc != NULL && gcbuf != NULL));
+  Geometry::wkbType geotype= geom->get_type();
+
+  switch (geotype)
+  {
+  case Geometry::wkb_point:
+    {
+      typename BG_models<double, Coordsys>::Point
+        geo(geom->get_data_ptr(), geom->get_data_size(),
+            geom->get_flags(), geom->get_srid()), out;
+      boost::geometry::simplify(geo, out, max_dist);
+      if ((null_value= post_fix_result(&bg_resbuf_mgr, out, str)))
+        return null_value;
+      if (gc && (null_value= gc->append_geometry(&out, gcbuf)))
+        return null_value;
+    }
+    break;
+  case Geometry::wkb_multipoint:
+    {
+      typename BG_models<double, Coordsys>::Multipoint
+        geo(geom->get_data_ptr(), geom->get_data_size(),
+            geom->get_flags(), geom->get_srid()), out;
+      boost::geometry::simplify(geo, out, max_dist);
+      if ((null_value= post_fix_result(&bg_resbuf_mgr, out, str)))
+        return null_value;
+      if (gc && (null_value= gc->append_geometry(&out, gcbuf)))
+        return null_value;
+    }
+    break;
+  case Geometry::wkb_linestring:
+    {
+      typename BG_models<double, Coordsys>::Linestring
+        geo(geom->get_data_ptr(), geom->get_data_size(),
+            geom->get_flags(), geom->get_srid()), out;
+      boost::geometry::simplify(geo, out, max_dist);
+      if ((null_value= post_fix_result(&bg_resbuf_mgr, out, str)))
+        return null_value;
+      if (gc && (null_value= gc->append_geometry(&out, gcbuf)))
+        return null_value;
+    }
+    break;
+  case Geometry::wkb_multilinestring:
+    {
+      typename BG_models<double, Coordsys>::Multilinestring
+        geo(geom->get_data_ptr(), geom->get_data_size(),
+            geom->get_flags(), geom->get_srid()), out;
+      boost::geometry::simplify(geo, out, max_dist);
+      if ((null_value= post_fix_result(&bg_resbuf_mgr, out, str)))
+        return null_value;
+      if (gc && (null_value= gc->append_geometry(&out, gcbuf)))
+        return null_value;
+    }
+    break;
+  case Geometry::wkb_polygon:
+    {
+      typename BG_models<double, Coordsys>::Polygon
+        geo(geom->get_data_ptr(), geom->get_data_size(),
+            geom->get_flags(), geom->get_srid()), out;
+      boost::geometry::simplify(geo, out, max_dist);
+      if ((null_value= post_fix_result(&bg_resbuf_mgr, out, str)))
+        return null_value;
+      if (gc && (null_value= gc->append_geometry(&out, gcbuf)))
+        return null_value;
+    }
+    break;
+  case Geometry::wkb_multipolygon:
+    {
+      typename BG_models<double, Coordsys>::Multipolygon
+        geo(geom->get_data_ptr(), geom->get_data_size(),
+            geom->get_flags(), geom->get_srid()), out;
+      boost::geometry::simplify(geo, out, max_dist);
+      if ((null_value= post_fix_result(&bg_resbuf_mgr, out, str)))
+        return null_value;
+      if (gc && (null_value= gc->append_geometry(&out, gcbuf)))
+        return null_value;
+    }
+    break;
+  case Geometry::wkb_geometrycollection:
+  default:
+    DBUG_ASSERT(false);
+    break;
+  }
+
+  return 0;
 }
 
 
