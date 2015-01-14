@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -91,7 +91,7 @@ bool is_server_engine_ready();
 
   @return the pthread for the connection attribute.
 */
-pthread_attr_t *get_connection_attrib();
+my_thread_attr_t *get_connection_attrib();
 
 /**
   Returns the defined variable for the MTS group checkpoint
