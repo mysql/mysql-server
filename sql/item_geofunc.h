@@ -429,6 +429,21 @@ public:
   String *val_str(String *);
 };
 
+class Item_func_simplify: public Item_geometry_func
+{
+  BG_result_buf_mgr bg_resbuf_mgr;
+  String arg_val;
+  template <typename Coordsys>
+  int simplify_basic(Geometry *geom, double max_dist, String *str,
+                     Gis_geometry_collection *gc= NULL,
+                     String *gcbuf= NULL);
+public:
+  Item_func_simplify(const POS &pos, Item *a, Item *b)
+    : Item_geometry_func(pos, a, b) {}
+  const char *func_name() const { return "st_simplify"; }
+  String *val_str(String *);
+};
+
 class Item_func_point: public Item_geometry_func
 {
 public:

@@ -184,6 +184,7 @@ public:
   typedef CoordinateSystemType Coordsys;
 };
 
+namespace bg= boost::geometry;
 namespace bgm= boost::geometry::model;
 namespace bgcs= boost::geometry::cs;
 namespace bgi= boost::geometry::index;

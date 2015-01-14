@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2462,6 +2462,19 @@ public:
 protected:
   Create_func_sqrt() {}
   virtual ~Create_func_sqrt() {}
+};
+
+
+class Create_func_simplify : public Create_func_arg2
+{
+public:
+  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
+
+  static Create_func_simplify s_singleton;
+
+protected:
+  Create_func_simplify() {}
+  virtual ~Create_func_simplify() {}
 };
 
 
@@ -5239,6 +5252,15 @@ Create_func_sign::create(THD *thd, Item *arg1)
 }
 
 
+Create_func_simplify Create_func_simplify::s_singleton;
+
+Item*
+Create_func_simplify::create(THD *thd, Item *arg1, Item *arg2)
+{
+  return new (thd->mem_root) Item_func_simplify(POS(), arg1, arg2);
+}
+
+
 Create_func_sin Create_func_sin::s_singleton;
 
 Item*
@@ -5930,6 +5952,7 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("ST_POLYFROMWKB") }, GEOM_BUILDER(Create_func_geometry_from_wkb)},
   { { C_STRING_WITH_LEN("ST_POLYGONFROMTEXT") }, GEOM_BUILDER(Create_func_geometry_from_text)},
   { { C_STRING_WITH_LEN("ST_POLYGONFROMWKB") }, GEOM_BUILDER(Create_func_geometry_from_wkb)},
+  { { C_STRING_WITH_LEN("ST_SIMPLIFY") }, GEOM_BUILDER(Create_func_simplify)},
   { { C_STRING_WITH_LEN("ST_SRID") }, GEOM_BUILDER(Create_func_srid)},
   { { C_STRING_WITH_LEN("ST_STARTPOINT") }, GEOM_BUILDER(Create_func_startpoint)},
   { { C_STRING_WITH_LEN("ST_SYMDIFFERENCE") }, GEOM_BUILDER(Create_func_symdifference)},
