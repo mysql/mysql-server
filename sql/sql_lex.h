@@ -56,6 +56,8 @@ class select_result_interceptor;
 class Item_func;
 typedef class st_select_lex SELECT_LEX;
 
+const size_t INITIAL_LEX_PLUGIN_LIST_SIZE = 16;
+
 #ifdef MYSQL_SERVER
 /*
   There are 8 different type of table access so there is no more than
@@ -3054,14 +3056,7 @@ public:
 
   LEX();
 
-  virtual ~LEX()
-  {
-    destroy_query_tables_list();
-    plugin_unlock_list(NULL, plugins.begin(), plugins.size());
-    unit= NULL;                     // Created in mem_root - no destructor
-    select_lex= NULL;
-    m_current_select= NULL;
-  }
+  virtual ~LEX();
 
   /// Reset query context to initial state
   void reset();

@@ -71,6 +71,7 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #include "lex_token.h"
 #include "item_cmpfunc.h"
 #include "item_geofunc.h"
+#include "sql_plugin.h"                      // plugin_is_ready
 
 /* this is to get the bison compilation windows warnings out */
 #ifdef _MSC_VER
@@ -6087,7 +6088,7 @@ storage_engines:
                 thd->lex->create_info.options & HA_LEX_CREATE_TMP_TABLE);
 
             if (plugin)
-              $$= plugin_data(plugin, handlerton*);
+              $$= plugin_data<handlerton*>(plugin);
             else
             {
               if (thd->variables.sql_mode & MODE_NO_ENGINE_SUBSTITUTION)
@@ -6113,7 +6114,7 @@ known_storage_engines:
               ha_resolve_by_name(thd, &$1,
                 lex->create_info.options & HA_LEX_CREATE_TMP_TABLE);
             if (plugin)
-              $$= plugin_data(plugin, handlerton*);
+              $$= plugin_data<handlerton*>(plugin);
             else
             {
               my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), $1.str);

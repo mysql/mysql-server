@@ -24,6 +24,7 @@
 #include "debug_sync.h"
 #include "filesort.h"   // filesort_free_buffers
 #include "item_sum.h"   // Item_sum
+#include "sql_plugin.h" // plugin_unlock
 
 #include <algorithm>
 using std::max;

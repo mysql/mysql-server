@@ -2721,13 +2721,13 @@ bool ha_partition::create_handlers(MEM_ROOT *mem_root)
   memset(m_file, 0, alloc_len);
   for (i= 0; i < m_tot_parts; i++)
   {
-    handlerton *hton= plugin_data(m_engine_array[i], handlerton*);
+    handlerton *hton= plugin_data<handlerton*>(m_engine_array[i]);
     if (!(m_file[i]= get_new_handler(table_share, mem_root, hton)))
       DBUG_RETURN(TRUE);
     DBUG_PRINT("info", ("engine_type: %u", hton->db_type));
   }
   /* For the moment we only support partition over the same table engine */
-  hton0= plugin_data(m_engine_array[0], handlerton*);
+  hton0= plugin_data<handlerton*>(m_engine_array[0]);
   if (hton0 == myisam_hton)
   {
     DBUG_PRINT("info", ("MyISAM"));

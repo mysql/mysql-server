@@ -61,6 +61,7 @@
 #include "prealloced_array.h"
 #include "template_utils.h"
 #include "log.h"
+#include "sql_plugin.h"                         // PLUGIN_IS_DELETED etc.
 
 #include <algorithm>
 #include <functional>
@@ -3389,7 +3390,7 @@ static my_bool add_schema_table(THD *thd, plugin_ref plugin,
   st_add_schema_table *data= (st_add_schema_table *)p_data;
   List<LEX_STRING> *file_list= data->files;
   const char *wild= data->wild;
-  ST_SCHEMA_TABLE *schema_table= plugin_data(plugin, ST_SCHEMA_TABLE *);
+  ST_SCHEMA_TABLE *schema_table= plugin_data<ST_SCHEMA_TABLE*>(plugin);
   DBUG_ENTER("add_schema_table");
 
   if (schema_table->hidden)
@@ -5068,7 +5069,7 @@ static my_bool iter_schema_engines(THD *thd, plugin_ref plugin,
                                    void *ptable)
 {
   TABLE *table= (TABLE *) ptable;
-  handlerton *hton= plugin_data(plugin, handlerton *);
+  handlerton *hton= plugin_data<handlerton*>(plugin);
   const char *wild= thd->lex->wild ? thd->lex->wild->ptr() : NullS;
   CHARSET_INFO *scs= system_charset_info;
   handlerton *default_type= ha_default_handlerton(thd);
@@ -6982,7 +6983,7 @@ static my_bool find_schema_table_in_plugin(THD *thd, plugin_ref plugin,
 {
   schema_table_ref *p_schema_table= (schema_table_ref *)p_table;
   const char* table_name= p_schema_table->table_name;
-  ST_SCHEMA_TABLE *schema_table= plugin_data(plugin, ST_SCHEMA_TABLE *);
+  ST_SCHEMA_TABLE *schema_table= plugin_data<ST_SCHEMA_TABLE*>(plugin);
   DBUG_ENTER("find_schema_table_in_plugin");
 
   if (!my_strcasecmp(system_charset_info,
@@ -7691,7 +7692,7 @@ static my_bool run_hton_fill_schema_table(THD *thd, plugin_ref plugin,
 {
   struct run_hton_fill_schema_table_args *args=
     (run_hton_fill_schema_table_args *) arg;
-  handlerton *hton= plugin_data(plugin, handlerton *);
+  handlerton *hton= plugin_data<handlerton*>(plugin);
   if (hton->fill_is_table && hton->state == SHOW_OPTION_YES)
       hton->fill_is_table(hton, thd, args->tables, args->cond,
             get_schema_table_idx(args->tables->schema_table));

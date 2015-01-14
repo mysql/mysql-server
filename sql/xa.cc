@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
 #include "transaction.h"        // trans_begin, trans_rollback
 #include "debug_sync.h"         // DEBUG_SYNC
 #include "log.h"                // tc_log
+#include "sql_plugin.h"         // plugin_foreach
 #include <pfs_transaction_provider.h>
 #include <mysql/psi/mysql_transaction.h>
 
@@ -37,7 +38,7 @@ static HASH transaction_cache;
 static my_bool xacommit_handlerton(THD *unused1, plugin_ref plugin,
                                    void *arg)
 {
-  handlerton *hton= plugin_data(plugin, handlerton *);
+  handlerton *hton= plugin_data<handlerton*>(plugin);
   if (hton->state == SHOW_OPTION_YES && hton->recover)
     hton->commit_by_xid(hton, (XID *)arg);
 
@@ -48,7 +49,7 @@ static my_bool xacommit_handlerton(THD *unused1, plugin_ref plugin,
 static my_bool xarollback_handlerton(THD *unused1, plugin_ref plugin,
                                      void *arg)
 {
-  handlerton *hton= plugin_data(plugin, handlerton *);
+  handlerton *hton= plugin_data<handlerton*>(plugin);
   if (hton->state == SHOW_OPTION_YES && hton->recover)
     hton->rollback_by_xid(hton, (XID *)arg);
 
@@ -77,7 +78,7 @@ struct xarecover_st
 static my_bool xarecover_handlerton(THD *unused, plugin_ref plugin,
                                     void *arg)
 {
-  handlerton *hton= plugin_data(plugin, handlerton *);
+  handlerton *hton= plugin_data<handlerton*>(plugin);
   struct xarecover_st *info= (struct xarecover_st *) arg;
   int got;
 

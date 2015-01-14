@@ -58,6 +58,7 @@
 #include "rpl_mts_submode.h"
 #include "mysqld_thd_manager.h"                 // Global_THD_manager
 #include "rpl_slave_commit_order_manager.h"
+#include "sql_plugin.h"                         // opt_plugin_dir_ptr
 
 #include <algorithm>
 #include "rpl_msr.h"         /* Multisource replication */

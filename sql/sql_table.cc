@@ -1157,7 +1157,7 @@ static int execute_ddl_log_action(THD *thd, DDL_LOG_ENTRY *ddl_log_entry)
       my_error(ER_ILLEGAL_HA, MYF(0), ddl_log_entry->handler_name);
       goto error;
     }
-    hton= plugin_data(plugin, handlerton*);
+    hton= plugin_data<handlerton*>(plugin);
     file= get_new_handler((TABLE_SHARE*)0, &mem_root, hton);
     if (!file)
     {

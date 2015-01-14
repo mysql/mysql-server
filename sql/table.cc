@@ -42,6 +42,7 @@
 #include "log.h"
 #include "binlog.h"
 #include "parse_file.h"          // sql_parse_prepare
+#include "sql_plugin.h"          // plugin_unlock
 #include "pfs_table_provider.h"
 #include "mysql/psi/mysql_table.h"
 
@@ -1305,8 +1306,8 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
       {
         if (legacy_db_type > DB_TYPE_UNKNOWN &&
             legacy_db_type < DB_TYPE_FIRST_DYNAMIC &&
-            legacy_db_type != ha_legacy_type(
-                plugin_data(tmp_plugin, handlerton *)))
+            legacy_db_type !=
+            ha_legacy_type(plugin_data<handlerton*>(tmp_plugin)))
         {
           /* bad file, legacy_db_type did not match the name */
           goto err;
