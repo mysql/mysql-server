@@ -1,0 +1,21 @@
+create table `t1`(`a` int) engine=innodb partition by key (`a`);
+create table `t2`(`b` int) engine=innodb;
+create table `t3`(`c` int) engine=innodb;
+insert t1 values (1);
+insert t2 values (2);
+insert t3 values (3);
+repair table `t1`,`t2`,`t3`;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	status	OK
+test.t2	repair	status	OK
+test.t3	repair	status	OK
+select * from t1;
+a
+1
+select * from t2;
+b
+2
+select * from t3;
+c
+3
+drop table t1, t2, t3;

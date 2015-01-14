@@ -7644,12 +7644,12 @@ err:
 
 
 /*
-  Recreates tables by calling mysql_alter_table().
+  Recreates one table by calling mysql_alter_table().
 
   SYNOPSIS
     mysql_recreate_table()
     thd			Thread handler
-    tables		Tables to recreate
+    table_list          Table to recreate
 
  RETURN
     Like mysql_alter_table().
@@ -7658,9 +7658,9 @@ bool mysql_recreate_table(THD *thd, TABLE_LIST *table_list)
 {
   HA_CREATE_INFO create_info;
   Alter_info alter_info;
+  TABLE_LIST *next_table= table_list->next_global;
 
   DBUG_ENTER("mysql_recreate_table");
-  DBUG_ASSERT(!table_list->next_global);
   /*
     table_list->table has been closed and freed. Do not reference
     uninitialized data. open_tables() could fail.
@@ -7672,15 +7672,19 @@ bool mysql_recreate_table(THD *thd, TABLE_LIST *table_list)
   table_list->lock_type= TL_READ_NO_INSERT;
   /* Same applies to MDL request. */
   table_list->mdl_request.set_type(MDL_SHARED_NO_WRITE);
+  /* hide following tables from open_tables() */
+  table_list->next_global= NULL;
 
   bzero((char*) &create_info, sizeof(create_info));
   create_info.row_type=ROW_TYPE_NOT_USED;
   create_info.default_table_charset=default_charset_info;
   /* Force alter table to recreate table */
   alter_info.flags= (ALTER_CHANGE_COLUMN | ALTER_RECREATE);
-  DBUG_RETURN(mysql_alter_table(thd, NullS, NullS, &create_info,
+  bool res= mysql_alter_table(thd, NullS, NullS, &create_info,
                                 table_list, &alter_info, 0,
-                                (ORDER *) 0, 0, 0));
+                                (ORDER *) 0, 0, 0);
+  table_list->next_global= next_table;
+  DBUG_RETURN(res);
 }
 
 

@@ -1,0 +1,18 @@
+#
+# MDEV-7404 REPAIR multiple tables crash in MDL_ticket::has_stronger_or_equal_type
+#
+
+--source include/have_partition.inc
+--source include/have_innodb.inc
+create table `t1`(`a` int) engine=innodb partition by key (`a`);
+create table `t2`(`b` int) engine=innodb;
+create table `t3`(`c` int) engine=innodb;
+insert t1 values (1);
+insert t2 values (2);
+insert t3 values (3);
+repair table `t1`,`t2`,`t3`;
+select * from t1;
+select * from t2;
+select * from t3;
+drop table t1, t2, t3;
+
