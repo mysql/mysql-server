@@ -51,7 +51,7 @@
 
 #include <my_global.h>
 #include <m_string.h>
-#include <my_pthread.h>
+#include <my_thread.h>
 
 static char *my_name;
 static int verbose;

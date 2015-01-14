@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -69,6 +69,8 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #include "parse_location.h"
 #include "parse_tree_helpers.h"
 #include "lex_token.h"
+#include "item_cmpfunc.h"
+#include "item_geofunc.h"
 
 /* this is to get the bison compilation windows warnings out */
 #ifdef _MSC_VER
@@ -15081,8 +15083,7 @@ install:
           {
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_INSTALL_PLUGIN;
-            lex->comment= $3;
-            lex->ident= $5;
+            lex->m_sql_cmd= new Sql_cmd_install_plugin($3, $5);
           }
         ;
 
@@ -15091,7 +15092,7 @@ uninstall:
           {
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_UNINSTALL_PLUGIN;
-            lex->comment= $3;
+            lex->m_sql_cmd= new Sql_cmd_uninstall_plugin($3);
           }
         ;
 

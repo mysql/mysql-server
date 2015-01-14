@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -39,6 +39,7 @@
 #include <errno.h>
 #include "sql_join_buffer.h"             // CACHE_FIELD
 #include "sql_base.h"
+#include "item_timefunc.h"               // Item_func_now_local
 
 using std::max;
 using std::min;
@@ -9570,7 +9571,6 @@ Field_bit::unpack(uchar *to, const uchar *from, uint param_data,
     value[new_len - len]= value[new_len - len] & ((1U << from_bit_len) - 1);
   bitmap_set_bit(table->write_set,field_index);
   store(value, new_len, system_charset_info);
-  my_afree(value);
   DBUG_RETURN(from + len);
 }
 

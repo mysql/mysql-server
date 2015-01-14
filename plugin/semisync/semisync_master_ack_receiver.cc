@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,12 +28,12 @@ extern PSI_thread_key key_ss_thread_Ack_receiver_thread;
 #endif
 
 /* Callback function of ack receive thread */
-pthread_handler_t ack_receive_handler(void *arg)
+extern "C" void *ack_receive_handler(void *arg)
 {
   my_thread_init();
   reinterpret_cast<Ack_receiver *>(arg)->run();
   my_thread_end();
-  pthread_exit(0);
+  my_thread_exit(0);
   return NULL;
 }
 
@@ -46,7 +46,6 @@ Ack_receiver::Ack_receiver()
   mysql_mutex_init(key_ss_mutex_Ack_receiver_mutex, &m_mutex,
                    MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_ss_cond_Ack_receiver_cond, &m_cond);
-  m_pid= 0;
 
   function_exit(kWho);
 }
@@ -70,14 +69,16 @@ bool Ack_receiver::start()
 
   if(m_status == ST_DOWN)
   {
-    pthread_attr_t attr;
+    my_thread_attr_t attr;
 
     m_status= ST_UP;
 
     if (DBUG_EVALUATE_IF("rpl_semisync_simulate_create_thread_failure", 1, 0) ||
-        pthread_attr_init(&attr) != 0 ||
+        my_thread_attr_init(&attr) != 0 ||
+#ifndef _WIN32
         pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE) != 0 ||
         pthread_attr_setscope(&attr, PTHREAD_SCOPE_SYSTEM) != 0 ||
+#endif
         mysql_thread_create(key_ss_thread_Ack_receiver_thread, &m_pid,
                             &attr, ack_receive_handler, this))
     {
@@ -87,7 +88,7 @@ bool Ack_receiver::start()
       m_status= ST_DOWN;
       return function_exit(kWho, true);
     }
-    (void) pthread_attr_destroy(&attr);
+    (void) my_thread_attr_destroy(&attr);
   }
   return function_exit(kWho, false);
 }
@@ -100,9 +101,6 @@ void Ack_receiver::stop()
 
   if (m_status == ST_UP)
   {
-#ifdef _WIN32
-    HANDLE handle= pthread_get_handle(m_pid);
-#endif
     mysql_mutex_lock(&m_mutex);
     m_status= ST_STOPPING;
     mysql_cond_broadcast(&m_cond);
@@ -115,15 +113,10 @@ void Ack_receiver::stop()
       When arriving here, the ack thread already exists. Join failure has no
       side effect aganst semisync. So we don't return an error.
     */
-#ifdef _WIN32
-    ret= pthread_join_with_handle(handle);
-#else
-    ret= pthread_join(m_pid, NULL);
-#endif
+    ret= my_thread_join(&m_pid, NULL);
     if (DBUG_EVALUATE_IF("rpl_semisync_simulate_thread_join_failure", -1, ret))
-      sql_print_error("Failed to stop ack receiver thread on pthread_join, "
+      sql_print_error("Failed to stop ack receiver thread on my_thread_join, "
                       "errno(%d)", errno);
-    m_pid= 0;
   }
   function_exit(kWho);
 }

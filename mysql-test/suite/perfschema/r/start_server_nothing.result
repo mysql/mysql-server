@@ -298,7 +298,7 @@ PROCESSLIST_ID	ATTR_NAME	ATTR_VALUE	ORDINAL_POSITION
 select * from performance_schema.session_connect_attrs;
 PROCESSLIST_ID	ATTR_NAME	ATTR_VALUE	ORDINAL_POSITION
 select * from performance_schema.setup_actors;
-HOST	USER	ROLE
+HOST	USER	ROLE	ENABLED
 select * from performance_schema.setup_objects;
 OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	ENABLED	TIMED
 select * from performance_schema.socket_instances;

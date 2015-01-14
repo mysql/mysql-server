@@ -1,0 +1,393 @@
+
+#
+#  InnoDB FULLTEXT SEARCH: CJK support - ngram parser
+#
+
+--source include/no_valgrind_without_big.inc
+--source include/have_innodb.inc
+--source include/not_embedded.inc
+--source include/have_simple_parser.inc
+
+SET NAMES utf8;
+-- echo # Test Case 1: Test Chinese with GB2312 Charset.
+CREATE TABLE articles (
+	id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+	title VARCHAR(200),
+	body TEXT
+	) ENGINE=InnoDB DEFAULT CHARACTER SET gb2312 COLLATE gb2312_chinese_ci;
+
+INSERT INTO articles (title, body) VALUES
+  ('数据库是数据的结构化集合','它可以是任何东西'),
+  ('从简单的购物清单到画展','或企业网络中的海量数据');
+
+ALTER TABLE articles ADD FULLTEXT INDEX (title, body) WITH PARSER ngram;
+
+INSERT INTO articles (title, body) VALUES
+  ('要想将数据添加到数据库','或访问、处理计算机数据库中保存的数据'),
+  ('需要使用数据库管理系统','计算机是处理大量数据的理想工具');
+
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('数据');
+
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('数*' IN BOOLEAN MODE);
+
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('+数据库 -计算机' IN BOOLEAN MODE);
+
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('+(数据库 处理) -计算机' IN BOOLEAN MODE);
+
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('数据库');
+
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('数据库' IN BOOLEAN MODE);
+
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('"数据库"' IN BOOLEAN MODE);
+
+DROP TABLE articles;
+
+-- echo # Test Case 2: Test Chinese with GBK Charset.
+CREATE TABLE articles (
+	id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+	title VARCHAR(200),
+	body TEXT
+	) ENGINE=InnoDB DEFAULT CHARACTER SET gbk COLLATE gbk_chinese_ci;
+
+INSERT INTO articles (title, body) VALUES
+  ('数据库是数据的结构化集合','它可以是任何东西'),
+  ('从简单的购物清单到画展','或企业网络中的海量数据');
+
+ALTER TABLE articles ADD FULLTEXT INDEX (title, body) WITH PARSER ngram;
+
+INSERT INTO articles (title, body) VALUES
+  ('要想将数据添加到数据库','或访问、处理计算机数据库中保存的数据'),
+  ('需要使用数据库管理系统','计算机是处理大量数据的理想工具');
+
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('数据');
+
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('数*' IN BOOLEAN MODE);
+
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('+数据库 -计算机' IN BOOLEAN MODE);
+
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('+(数据库 处理) -计算机' IN BOOLEAN MODE);
+
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('数据库');
+
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('数据库' IN BOOLEAN MODE);
+
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('"数据库"' IN BOOLEAN MODE);
+
+DROP TABLE articles;
+
+-- echo # Test Case 3: Test Chinese with UTF8 Charset.
+CREATE TABLE articles (
+	id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+	title VARCHAR(200),
+	body TEXT
+	) ENGINE=InnoDB DEFAULT CHARACTER SET utf8 COLLATE utf8_general_ci;
+
+INSERT INTO articles (title, body) VALUES
+  ('数据库是数据的结构化集合','它可以是任何东西'),
+  ('从简单的购物清单到画展','或企业网络中的海量数据');
+
+ALTER TABLE articles ADD FULLTEXT INDEX (title, body) WITH PARSER ngram;
+
+INSERT INTO articles (title, body) VALUES
+  ('要想将数据添加到数据库','或访问、处理计算机数据库中保存的数据'),
+  ('需要使用数据库管理系统','计算机是处理大量数据的理想工具');
+
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('数据');
+
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('数*' IN BOOLEAN MODE);
+
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('+数据库 -计算机' IN BOOLEAN MODE);
+
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('+(数据库 处理) -计算机' IN BOOLEAN MODE);
+
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('数据库');
+
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('数据库' IN BOOLEAN MODE);
+
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('"数据库"' IN BOOLEAN MODE);
+
+DROP TABLE articles;
+
+-- echo # Test Case 4: Test Chinese with gb18030 Charset.
+CREATE TABLE articles (
+        id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+        title VARCHAR(200),
+        body TEXT
+        ) ENGINE=InnoDB DEFAULT CHARSET=gb18030 COLLATE=gb18030_chinese_ci;
+
+
+INSERT INTO articles (title, body) VALUES
+  ('数据库是数据的结构化集合','它可以是任何东西'),
+  ('从简单的购物清单到画展','或企业网络中的海量数据');
+
+ALTER TABLE articles ADD FULLTEXT INDEX `idx1` (title, body) WITH PARSER ngram;
+
+INSERT INTO articles (title, body) VALUES
+  ('要想将数据添加到数据库','或访问、处理计算机数据库中保存的数据'),
+  ('需要使用数据库管理系统','计算机是处理大量数据的理想工具');
+
+SELECT * FROM articles WHERE
+        MATCH(title, body) AGAINST('数据');
+
+SELECT * FROM articles WHERE
+        MATCH(title, body) AGAINST('数*' IN BOOLEAN MODE);
+
+SELECT * FROM articles WHERE
+        MATCH(title, body) AGAINST('+数据库 -计算机' IN BOOLEAN MODE);
+
+SELECT * FROM articles WHERE
+        MATCH(title, body) AGAINST('+(数据库 处理) -计算机' IN BOOLEAN MODE);
+
+SELECT * FROM articles WHERE
+        MATCH(title, body) AGAINST('数据库');
+
+SELECT * FROM articles WHERE
+        MATCH(title, body) AGAINST('数据库' IN BOOLEAN MODE);
+
+SELECT * FROM articles WHERE
+        MATCH(title, body) AGAINST('"数据库"' IN BOOLEAN MODE);
+
+SELECT * FROM articles WHERE
+        MATCH(title, body) AGAINST('数据库' WITH QUERY EXPANSION);
+
+ALTER TABLE articles DROP INDEX `idx1`;
+SELECT * FROM articles;
+DROP TABLE articles;
+
+
+-- echo # Test Case 5: Test Japanese with UJIS Charset.
+CREATE TABLE articles (
+	id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+	title VARCHAR(200),
+	body TEXT
+	) ENGINE=InnoDB DEFAULT CHARACTER SET ujis COLLATE ujis_japanese_ci;
+
+INSERT INTO articles (title, body) VALUES
+  ('データベースは、構造化されたコレクションです','それは何もすることができます'),
+  ('シンプルな買い物リストから画像ギャラリーへ','または企業ネットワーク内のデータの膨大な量');
+
+ALTER TABLE articles ADD FULLTEXT INDEX (title, body) WITH PARSER ngram;
+
+INSERT INTO articles (title, body) VALUES
+  ('データベースにデータを追加するには','コンピュータのデータベースに格納されているアクセス、およびプロセスデータ'),
+  ('データベース管理システムを使用する必要が','コンピュータは、大量のデータを処理するための理想的なツールである');
+
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('データ');
+
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('デ*' IN BOOLEAN MODE);
+
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('+データベース -コンピュータ' IN BOOLEAN MODE);
+
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('+(データベース 処理) -コンピュータ' IN BOOLEAN MODE);
+
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('データベース');
+
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('データベース' IN BOOLEAN MODE);
+
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('"データベース"' IN BOOLEAN MODE);
+
+DROP TABLE articles;
+
+-- echo # Test Case 6: Test Korean with EUCKR Charset.
+CREATE TABLE articles (
+	id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+	title VARCHAR(200),
+	body TEXT
+	) ENGINE=InnoDB DEFAULT CHARACTER SET euckr COLLATE euckr_korean_ci;
+
+INSERT INTO articles (title, body) VALUES
+  ('데이터베이스의 구조 모음입니다','그것은 무엇이든 될 수 있습니다'),
+  ('간단한 쇼핑 목록에서 사진 갤러리','또는 기업 네트워크에서 데이터의 엄청난 양의');
+
+ALTER TABLE articles ADD FULLTEXT INDEX (title, body) WITH PARSER ngram;
+
+INSERT INTO articles (title, body) VALUES
+  ('데이터베이스에 데이터를 추가하려면','액세스, 프로세스 데이터를 컴퓨터 데이터베이스에 저장'),
+  ('데이터베이스 관리 시스템을 사용해야합니다','컴퓨터는 많은 양의 데이터를 처리하기위한 이상적인 도구입니다');
+
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('데이터');
+
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('데*' IN BOOLEAN MODE);
+
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('+데이터베이스 -컴퓨터' IN BOOLEAN MODE);
+
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('+(데이터베이스 처리) -컴퓨터' IN BOOLEAN MODE);
+
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('데이터베이스');
+
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('데이터베이스' IN BOOLEAN MODE);
+
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('"데이터베이스"' IN BOOLEAN MODE);
+
+DROP TABLE articles;
+
+-- echo # Test Case 7: Test different ngram token size.
+CREATE TABLE articles (
+	id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+	title VARCHAR(200),
+	body TEXT
+	) ENGINE=InnoDB DEFAULT CHARACTER SET gb2312 COLLATE gb2312_chinese_ci;
+
+INSERT INTO articles (title, body) VALUES
+  ('数据库是数据的结构化集合','它可以是任何东西'),
+  ('从简单的购物清单到画展','或企业网络中的海量数据'),
+  ('要想将数据添加到数据库','或访问、处理计算机数据库中保存的数据'),
+  ('需要使用数据库管理系统','计算机是处理大量数据的理想工具');
+
+# bigram
+CREATE FULLTEXT INDEX ft_index ON articles(title, body) WITH PARSER ngram;
+
+# unigram
+let $ngram_token_size=1;
+-- source suite/innodb_fts/include/ngram_token_size.inc
+
+# trigram
+let $ngram_token_size=3;
+-- source suite/innodb_fts/include/ngram_token_size.inc
+
+# ngram = 5
+let $ngram_token_size=5;
+-- source suite/innodb_fts/include/ngram_token_size.inc
+
+# ngram = 7
+let $ngram_token_size=7;
+-- source suite/innodb_fts/include/ngram_token_size.inc
+
+# Restore to bigram
+let $ngram_token_size=2;
+-- source suite/innodb_fts/include/ngram_token_size.inc
+
+DROP TABLE articles;
+
+-- echo # Test Case 8: Test Optimize Table.
+CREATE TABLE articles (
+	id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+	title VARCHAR(200),
+	body TEXT
+	) ENGINE=InnoDB DEFAULT CHARACTER SET gb2312 COLLATE gb2312_chinese_ci;
+
+INSERT INTO articles (title, body) VALUES
+  ('数据库是数据的结构化集合','它可以是任何东西'),
+  ('从简单的购物清单到画展','或企业网络中的海量数据');
+
+CREATE FULLTEXT INDEX ft_index ON articles(title, body) WITH PARSER ngram;
+
+SET GLOBAL innodb_ft_aux_table="test/articles";
+
+SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_TABLE;
+
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('数据');
+
+DELETE FROM articles WHERE id = 1;
+
+SET GLOBAL INNODB_OPTIMIZE_FULLTEXT_ONLY=1;
+OPTIMIZE TABLE articles;
+SET GLOBAL INNODB_OPTIMIZE_FULLTEXT_ONLY=default;
+
+SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_TABLE;
+
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('数据');
+
+SET GLOBAL innodb_ft_aux_table=default;
+
+DROP TABLE articles;
+
+-- echo # Test Case 9: Test Rename Index
+--replace_regex /\.dll/.so/
+eval INSTALL PLUGIN simple_parser SONAME '$SIMPLE_PARSER';
+
+CREATE TABLE articles (
+        id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+        title VARCHAR(200),
+        body TEXT
+        ) ENGINE=InnoDB DEFAULT CHARACTER SET gb2312 COLLATE gb2312_chinese_ci;
+
+INSERT INTO articles (title, body) VALUES ('数据的结合','数据库');
+
+CREATE FULLTEXT INDEX ft_1 ON articles(title) WITH PARSER ngram;
+
+SELECT * FROM articles WHERE MATCH(title) AGAINST('数据');
+
+ALTER TABLE articles RENAME INDEX ft_1 TO ft_2;
+
+INSERT INTO articles (title, body) VALUES ('数据的结合','数据库');
+
+SELECT * FROM articles WHERE MATCH(title) AGAINST('数据');
+
+ALTER TABLE articles RENAME INDEX ft_2 to ft_1,
+	ADD FULLTEXT INDEX ft_2(body) WITH PARSER simple_parser;
+
+INSERT INTO articles (title, body) VALUES ('数据的结合','数据库');
+
+SELECT * FROM articles WHERE MATCH(title) AGAINST('数据');
+
+SELECT * FROM articles WHERE MATCH(body) AGAINST('数据');
+SELECT * FROM articles WHERE MATCH(body) AGAINST('数据库');
+
+ALTER TABLE articles RENAME INDEX ft_2 to ft_1, RENAME INDEX ft_1 to ft_2;
+
+INSERT INTO articles (title, body) VALUES ('数据的结合','数据库');
+
+SELECT * FROM articles WHERE MATCH(title) AGAINST('数据');
+
+SELECT * FROM articles WHERE MATCH(body) AGAINST('数据');
+SELECT * FROM articles WHERE MATCH(body) AGAINST('数据库');
+
+DROP TABLE articles;
+
+UNINSTALL PLUGIN simple_parser;
+
+-- echo # Test Case 10: Test Fulltext with UCS2
+CREATE TABLE articles (
+        id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+        title VARCHAR(200),
+        body TEXT
+        ) ENGINE=InnoDB DEFAULT CHARACTER SET ucs2;
+
+INSERT INTO articles (title, body) VALUES ('数据的结合','数据库');
+
+# Fulltext with charset UCS2 is not allowed.
+-- error ER_BAD_FT_COLUMN
+CREATE FULLTEXT INDEX ft_idx ON articles(title) WITH PARSER ngram;
+
+-- error ER_BAD_FT_COLUMN
+CREATE FULLTEXT INDEX ft_idx ON articles(title);
+
+DROP TABLE articles;

@@ -73,7 +73,7 @@ DROP TABLE t1;
 #
 SET @old_innodb_thread_concurrency := @@innodb_thread_concurrency;
 SET @old_innodb_thread_sleep_delay := @@innodb_thread_sleep_delay;
-SET GLOBAL innodb_thread_concurrency = 1;
+SET GLOBAL innodb_thread_concurrency = 2;
 CREATE TABLE t1
 (user_num BIGINT,
 hours SMALLINT,

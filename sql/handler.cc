@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,42 +19,35 @@
   Handler-calling-functions
 */
 
-#include "binlog.h"
-#include "rpl_handler.h"
-#include "sql_cache.h"                   // query_cache, query_cache_*
-#include "key.h"     // key_copy, key_unpack, key_cmp_if_same, key_cmp
-#include "sql_table.h"                   // build_table_filename
-#include "sql_parse.h"                          // check_stack_overrun
-#include "auth_common.h"        // SUPER_ACL
-#include "sql_base.h"           // free_io_cache
-#include "discover.h"           // writefrm
-#include "log_event.h"          // *_rows_log_event
-#include "rpl_filter.h"
-#include <myisampack.h>
-#include "transaction.h"
-#include <errno.h>
-#include "probes_mysql.h"
+#include "handler.h"
+
+#include "my_bit.h"                   // my_count_bits
+#include "myisam.h"                   // TT_FOR_UPGRADE
+#include "binlog.h"                   // mysql_bin_log
+#include "debug_sync.h"               // DEBUG_SYNC
+#include "discover.h"                 // writefrm
+#include "log.h"                      // sql_print_error
+#include "probes_mysql.h"             // MYSQL_HANDLER_WRLOCK_START
+#include "opt_costconstantcache.h"    // reload_optimizer_cost_constants
+#include "rpl_handler.h"              // RUN_HOOK
+#include "sql_base.h"                 // free_io_cache
+#include "sql_parse.h"                // check_stack_overrun
+#include "sql_table.h"                // build_table_filename
+#include "transaction.h"              // trans_commit_implicit
+#include "trigger_def.h"              // TRG_EXT
+#include "rpl_write_set_handler.h"    // add_pke
+
 #include <pfs_table_provider.h>
 #include <mysql/psi/mysql_table.h>
+
 #include <pfs_transaction_provider.h>
 #include <mysql/psi/mysql_transaction.h>
-#include "debug_sync.h"         // DEBUG_SYNC
-#include "sql_trigger.h"        // TRG_EXT, TRN_EXT
-#include "opt_costmodel.h"
-#include "opt_costconstantcache.h"           // reload_optimizer_cost_constants
-#include <my_bit.h>
-#include <list>
-#include <map>
-#include <string>
-#include <functional>
-#include <my_murmur3.h>
-#include <my_stacktrace.h>
-#include <my_dbug.h>
-#include "rpl_write_set_handler.h"
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
 #include "ha_partition.h"
 #endif
+
+#include <list>
 
 /**
   @def MYSQL_TABLE_IO_WAIT
@@ -2249,39 +2242,21 @@ const char *get_canonical_filename(handler *file, const char *path,
 }
 
 
-/**
-  An interceptor to hijack the text of the error message without
-  setting an error in the thread. We need the text to present it
-  in the form of a warning to the user.
-*/
-
-struct Ha_delete_table_error_handler: public Internal_error_handler
+class Ha_delete_table_error_handler: public Internal_error_handler
 {
 public:
   virtual bool handle_condition(THD *thd,
                                 uint sql_errno,
                                 const char* sqlstate,
                                 Sql_condition::enum_severity_level *level,
-                                const char* msg,
-                                Sql_condition ** cond_hdl);
-  char buff[MYSQL_ERRMSG_SIZE];
+                                const char* msg)
+  {
+    /* Downgrade errors to warnings. */
+    if (*level == Sql_condition::SL_ERROR)
+      *level= Sql_condition::SL_WARNING;
+    return false;
+  }
 };
-
-
-bool
-Ha_delete_table_error_handler::
-handle_condition(THD *,
-                 uint,
-                 const char*,
-                 Sql_condition::enum_severity_level*,
-                 const char* msg,
-                 Sql_condition ** cond_hdl)
-{
-  *cond_hdl= NULL;
-  /* Grab the error message */
-  strmake(buff, msg, sizeof(buff)-1);
-  return TRUE;
-}
 
 
 /** @brief
@@ -2329,17 +2304,14 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
 
     file->change_table_ptr(&dummy_table, &dummy_share);
 
-    thd->push_internal_handler(&ha_delete_table_error_handler);
-    file->print_error(error, 0);
-
-    thd->pop_internal_handler();
-
     /*
       XXX: should we convert *all* errors to warnings here?
       What if the error is fatal?
     */
-    push_warning(thd, Sql_condition::SL_WARNING, error,
-                ha_delete_table_error_handler.buff);
+    thd->push_internal_handler(&ha_delete_table_error_handler);
+    file->print_error(error, 0);
+
+    thd->pop_internal_handler();
   }
   delete file;
 
@@ -7393,6 +7365,10 @@ int handler::ha_write_row(uchar *buf)
   MYSQL_INSERT_ROW_START(table_share->db.str, table_share->table_name.str);
   mark_trx_read_write();
 
+  DBUG_EXECUTE_IF("handler_crashed_table_on_usage",
+                  my_error(HA_ERR_CRASHED, MYF(ME_ERRORLOG), table_share->table_name.str);
+                  DBUG_RETURN(my_errno= HA_ERR_CRASHED););
+
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_WRITE_ROW, MAX_KEY, error,
     { error= write_row(buf); })
 
@@ -7425,6 +7401,10 @@ int handler::ha_update_row(const uchar *old_data, uchar *new_data)
   MYSQL_UPDATE_ROW_START(table_share->db.str, table_share->table_name.str);
   mark_trx_read_write();
 
+  DBUG_EXECUTE_IF("handler_crashed_table_on_usage",
+                  my_error(HA_ERR_CRASHED, MYF(ME_ERRORLOG), table_share->table_name.str);
+                  return(my_errno= HA_ERR_CRASHED););
+
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_UPDATE_ROW, active_index, error,
     { error= update_row(old_data, new_data);})
 
@@ -7449,6 +7429,10 @@ int handler::ha_delete_row(const uchar *buf)
               buf == table->record[1]);
   DBUG_EXECUTE_IF("inject_error_ha_delete_row",
                   return HA_ERR_INTERNAL_ERROR; );
+
+  DBUG_EXECUTE_IF("handler_crashed_table_on_usage",
+                  my_error(HA_ERR_CRASHED, MYF(ME_ERRORLOG), table_share->table_name.str);
+                  return(my_errno= HA_ERR_CRASHED););
 
   MYSQL_DELETE_ROW_START(table_share->db.str, table_share->table_name.str);
   mark_trx_read_write();

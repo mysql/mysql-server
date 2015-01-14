@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,23 +20,20 @@
 */
 
 #include "sql_delete.h"
-#include "sql_cache.h"                          // query_cache_*
-#include "sql_base.h"                           // open_temprary_table
-#include "sql_table.h"                         // build_table_filename
-#include "sql_view.h"             // check_key_in_view, mysql_frm_type
-#include "auth_common.h"                        // *_ACL
-#include "filesort.h"             // filesort
-#include "sql_select.h"
-#include "opt_trace.h"                          // Opt_trace_object
-#include "opt_explain.h"
-#include "records.h"                            // init_read_record,
-                                                // end_read_record
-#include "sql_optimizer.h"                      // remove_eq_conds
-#include "sql_resolver.h"                       // setup_order
-#include "table_trigger_dispatcher.h"           // Table_trigger_dispatcher
-#include "debug_sync.h"                         // DEBUG_SYNC
-#include "uniques.h"
-#include "binlog.h"
+
+#include "binlog.h"                   // mysql_bin_log
+#include "debug_sync.h"               // DEBUG_SYNC
+#include "opt_explain.h"              // Modification_plan
+#include "opt_trace.h"                // Opt_trace_object
+#include "records.h"                  // READ_RECORD
+#include "sql_base.h"                 // open_normal_and_derived_tables
+#include "sql_optimizer.h"            // optimize_cond
+#include "sql_resolver.h"             // setup_order
+#include "sql_select.h"               // free_underlaid_joins
+#include "sql_view.h"                 // check_key_in_view
+#include "table_trigger_dispatcher.h" // Table_trigger_dispatcher
+#include "uniques.h"                  // Unique
+
 
 /**
   Implement DELETE SQL word.

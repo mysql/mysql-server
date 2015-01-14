@@ -1,6 +1,5 @@
 #Creating the spatial Geometry object
 USE test;
-DROP TABLE IF EXISTS gis_geometrycollection;
 CREATE TABLE gis_geometrycollection (fid INTEGER NOT NULL PRIMARY KEY, g GEOMETRYCOLLECTION);
 SET @star_elem_vertical= 'POLYGON((5 0,15 25,25 0,15 5,5 0))';
 SET @star_elem_horizontal= 'POLYGON((25 0,0 15,30 15,22 10,25 0))';
@@ -23,918 +22,366 @@ SET @star_collection_elems='GEOMETRYCOLLECTION(MULTIPOLYGON(((5 0,15 25,25 0,15 
 SET @star_collection_multilinestr='GEOMETRYCOLLECTION(MULTIPOLYGON(((5 0,15 25,25 0,15 5,5 0)),((25 0,0 15,30 15,22 10,25 0))),POLYGON((5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5,5 0)),MULTILINESTRING((25 0,0 15,15 30,0 5)),LINESTRING(15 25,15 10),MULTIPOINT(5 0,25 0),POINT(15 25))';
 #INSERT base star
 INSERT INTO gis_geometrycollection VALUES
-(100,GeomFromText(@star)),
-(101,GeomFromText(@star_elem_vertical)),
-(102,GeomFromText(@star_elem_horizontal)),
-(103,GeomFromText(@star_of_elems)),
-(104,GeomFromText(@star_top)),
-(105,GeomFromText(@star_center)),
-(106,GeomFromText(@star_bottom_left)),
-(107,GeomFromText(@star_bottom_right)),
-(108,GeomFromText(@star_bottom_points)),
-(109,GeomFromText(@star_all_points)),
-(110,GeomFromText(@star_line_horizontal)),
-(111,GeomFromText(@star_line_vertical)),
-(112,GeomFromText(@star_top_to_center)),
-(113,GeomFromText(@star_lines_near_horizontal)),
-(114,GeomFromText(@star_lines_near_vertical)),
-(115,GeomFromText(@star_collection_elems)),
-(116,GeomFromText(@star_collection_multilinestr));
+(100,ST_GEOMFROMTEXT(@star)),
+(101,ST_GEOMFROMTEXT(@star_elem_vertical)),
+(102,ST_GEOMFROMTEXT(@star_elem_horizontal)),
+(103,ST_GEOMFROMTEXT(@star_of_elems)),
+(104,ST_GEOMFROMTEXT(@star_top)),
+(105,ST_GEOMFROMTEXT(@star_center)),
+(106,ST_GEOMFROMTEXT(@star_bottom_left)),
+(107,ST_GEOMFROMTEXT(@star_bottom_right)),
+(108,ST_GEOMFROMTEXT(@star_bottom_points)),
+(109,ST_GEOMFROMTEXT(@star_all_points)),
+(110,ST_GEOMFROMTEXT(@star_line_horizontal)),
+(111,ST_GEOMFROMTEXT(@star_line_vertical)),
+(112,ST_GEOMFROMTEXT(@star_top_to_center)),
+(113,ST_GEOMFROMTEXT(@star_lines_near_horizontal)),
+(114,ST_GEOMFROMTEXT(@star_lines_near_vertical)),
+(115,ST_GEOMFROMTEXT(@star_collection_elems)),
+(116,ST_GEOMFROMTEXT(@star_collection_multilinestr));
 #Checking the integrity of the above create/insert statements 
 #17 rows. 
-SELECT count(astext(g) != 'NULL') FROM gis_geometrycollection;
-count(astext(g) != 'NULL')
+SELECT count(ST_ASTEXT(g) != 'NULL') FROM gis_geometrycollection;
+count(ST_ASTEXT(g) != 'NULL')
 17
 #====================================================================================
-# Area(geometry)
+# ST_AREA(geometry)
 #====================================================================================
 #------------------------------------------------------------------------------------
 # point
 #------------------------------------------------------------------------------------
-SELECT Area(GeomFromText(@star_center));
-Area(GeomFromText(@star_center))
+SELECT ST_AREA(ST_GEOMFROMTEXT(@star_center));
+ST_AREA(ST_GEOMFROMTEXT(@star_center))
 0
-SELECT Area(GeomFromText(@star_top));
-Area(GeomFromText(@star_top))
+SELECT ST_AREA(ST_GEOMFROMTEXT(@star_top));
+ST_AREA(ST_GEOMFROMTEXT(@star_top))
 0
-SELECT Area(GeomFromText('POINT(2.34 -2.34)'));
-Area(GeomFromText('POINT(2.34 -2.34)'))
+SELECT ST_AREA(ST_GEOMFROMTEXT('POINT(2.34 -2.34)'));
+ST_AREA(ST_GEOMFROMTEXT('POINT(2.34 -2.34)'))
 0
-SELECT Area(GeomFromText('POINT(1e308 -1e308)'));
-Area(GeomFromText('POINT(1e308 -1e308)'))
+SELECT ST_AREA(ST_GEOMFROMTEXT('POINT(1e308 -1e308)'));
+ST_AREA(ST_GEOMFROMTEXT('POINT(1e308 -1e308)'))
 0
-SELECT Area(GeomFromText('POINT(-0.0000 0.000001)'));
-Area(GeomFromText('POINT(-0.0000 0.000001)'))
+SELECT ST_AREA(ST_GEOMFROMTEXT('POINT(-0.0000 0.000001)'));
+ST_AREA(ST_GEOMFROMTEXT('POINT(-0.0000 0.000001)'))
 0
-SELECT Area(g) FROM gis_geometrycollection WHERE fid=105;
-Area(g)
+SELECT ST_AREA(g) FROM gis_geometrycollection WHERE fid=105;
+ST_AREA(g)
 0
 #------------------------------------------------------------------------------------
 # multipoint
 #------------------------------------------------------------------------------------
-SELECT Area(GeomFromText(@star_all_points));
-Area(GeomFromText(@star_all_points))
+SELECT ST_AREA(ST_GEOMFROMTEXT(@star_all_points));
+ST_AREA(ST_GEOMFROMTEXT(@star_all_points))
 0
-SELECT Area(GeomFromText(@star_bottom_points));
-Area(GeomFromText(@star_bottom_points))
+SELECT ST_AREA(ST_GEOMFROMTEXT(@star_bottom_points));
+ST_AREA(ST_GEOMFROMTEXT(@star_bottom_points))
 0
-SELECT Area(GeomFromText('MULTIPOINT(0 0,0 0,0 0,0 0)'));
-Area(GeomFromText('MULTIPOINT(0 0,0 0,0 0,0 0)'))
+SELECT ST_AREA(ST_GEOMFROMTEXT('MULTIPOINT(0 0,0 0,0 0,0 0)'));
+ST_AREA(ST_GEOMFROMTEXT('MULTIPOINT(0 0,0 0,0 0,0 0)'))
 0
-SELECT Area(GeomFromText('MULTIPOINT(0 0,0 5,5 5,5 0,0 0)'));
-Area(GeomFromText('MULTIPOINT(0 0,0 5,5 5,5 0,0 0)'))
+SELECT ST_AREA(ST_GEOMFROMTEXT('MULTIPOINT(0 0,0 5,5 5,5 0,0 0)'));
+ST_AREA(ST_GEOMFROMTEXT('MULTIPOINT(0 0,0 5,5 5,5 0,0 0)'))
 0
-SELECT Area(GeomFromText('MULTIPOINT(1 -1,1e308 -1e308,0.0001 0.000)'));
-Area(GeomFromText('MULTIPOINT(1 -1,1e308 -1e308,0.0001 0.000)'))
+SELECT ST_AREA(ST_GEOMFROMTEXT('MULTIPOINT(1 -1,1e308 -1e308,0.0001 0.000)'));
+ST_AREA(ST_GEOMFROMTEXT('MULTIPOINT(1 -1,1e308 -1e308,0.0001 0.000)'))
 0
-SELECT Area(g) FROM gis_geometrycollection WHERE fid=108;
-Area(g)
+SELECT ST_AREA(g) FROM gis_geometrycollection WHERE fid=108;
+ST_AREA(g)
 0
 #------------------------------------------------------------------------------------
 # linestring
 #------------------------------------------------------------------------------------
-SELECT Area(GeomFromText(@star_top_to_center));
-Area(GeomFromText(@star_top_to_center))
+SELECT ST_AREA(ST_GEOMFROMTEXT(@star_top_to_center));
+ST_AREA(ST_GEOMFROMTEXT(@star_top_to_center))
 0
-SELECT Area(GeomFromText(@star_line_horizontal));
-Area(GeomFromText(@star_line_horizontal))
+SELECT ST_AREA(ST_GEOMFROMTEXT(@star_line_horizontal));
+ST_AREA(ST_GEOMFROMTEXT(@star_line_horizontal))
 0
-SELECT Area(GeomFromText('LINESTRING(0 0,-0.00 0,0.0 0)'));
-Area(GeomFromText('LINESTRING(0 0,-0.00 0,0.0 0)'))
+SELECT ST_AREA(ST_GEOMFROMTEXT('LINESTRING(0 0,-0.00 0,0.0 0)'));
+ST_AREA(ST_GEOMFROMTEXT('LINESTRING(0 0,-0.00 0,0.0 0)'))
 0
-SELECT Area(GeomFromText('LINESTRING(0 0,0 5,5 5,5 0,0 0)'));
-Area(GeomFromText('LINESTRING(0 0,0 5,5 5,5 0,0 0)'))
+SELECT ST_AREA(ST_GEOMFROMTEXT('LINESTRING(0 0,0 5,5 5,5 0,0 0)'));
+ST_AREA(ST_GEOMFROMTEXT('LINESTRING(0 0,0 5,5 5,5 0,0 0)'))
 0
-SELECT Area(GeomFromText('LINESTRING(1 -1,1e308 -1e308,0.0001 0.000)'));
-Area(GeomFromText('LINESTRING(1 -1,1e308 -1e308,0.0001 0.000)'))
+SELECT ST_AREA(ST_GEOMFROMTEXT('LINESTRING(1 -1,1e308 -1e308,0.0001 0.000)'));
+ST_AREA(ST_GEOMFROMTEXT('LINESTRING(1 -1,1e308 -1e308,0.0001 0.000)'))
 0
-SELECT Area(g) FROM gis_geometrycollection WHERE fid=110;
-Area(g)
+SELECT ST_AREA(g) FROM gis_geometrycollection WHERE fid=110;
+ST_AREA(g)
 0
 #------------------------------------------------------------------------------------
 # multilinestring
 #------------------------------------------------------------------------------------
-SELECT Area(GeomFromText(@star_lines_near_vertical));
-Area(GeomFromText(@star_lines_near_vertical))
+SELECT ST_AREA(ST_GEOMFROMTEXT(@star_lines_near_vertical));
+ST_AREA(ST_GEOMFROMTEXT(@star_lines_near_vertical))
 0
-SELECT Area(GeomFromText(@star_lines_near_horizontal));
-Area(GeomFromText(@star_lines_near_horizontal))
+SELECT ST_AREA(ST_GEOMFROMTEXT(@star_lines_near_horizontal));
+ST_AREA(ST_GEOMFROMTEXT(@star_lines_near_horizontal))
 0
-SELECT Area(GeomFromText('MULTILINESTRING((0 0,-0.00 0),(0.0 0))'));
-Area(GeomFromText('MULTILINESTRING((0 0,-0.00 0),(0.0 0))'))
+SELECT ST_AREA(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,-0.00 0),(0.0 0))'));
+ST_AREA(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,-0.00 0),(0.0 0))'))
 0
-SELECT Area(GeomFromText('MULTILINESTRING((0 0,0 5,5 5,5 0,0 0))'));
-Area(GeomFromText('MULTILINESTRING((0 0,0 5,5 5,5 0,0 0))'))
+SELECT ST_AREA(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,0 5,5 5,5 0,0 0))'));
+ST_AREA(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,0 5,5 5,5 0,0 0))'))
 0
-SELECT Area(GeomFromText('MULTILINESTRING((0 10,10 0),(10 0,0 0),(0 0,10 10))'));
-Area(GeomFromText('MULTILINESTRING((0 10,10 0),(10 0,0 0),(0 0,10 10))'))
+SELECT ST_AREA(ST_GEOMFROMTEXT('MULTILINESTRING((0 10,10 0),(10 0,0 0),(0 0,10 10))'));
+ST_AREA(ST_GEOMFROMTEXT('MULTILINESTRING((0 10,10 0),(10 0,0 0),(0 0,10 10))'))
 0
-SELECT Area(GeomFromText('MULTILINESTRING((1 -1,1e308 -1e308,0.0001 0.000),(2 2,4 -9.002))'));
-Area(GeomFromText('MULTILINESTRING((1 -1,1e308 -1e308,0.0001 0.000),(2 2,4 -9.002))'))
+SELECT ST_AREA(ST_GEOMFROMTEXT('MULTILINESTRING((1 -1,1e308 -1e308,0.0001 0.000),(2 2,4 -9.002))'));
+ST_AREA(ST_GEOMFROMTEXT('MULTILINESTRING((1 -1,1e308 -1e308,0.0001 0.000),(2 2,4 -9.002))'))
 0
-SELECT Area(g) FROM gis_geometrycollection WHERE fid=114;
-Area(g)
+SELECT ST_AREA(g) FROM gis_geometrycollection WHERE fid=114;
+ST_AREA(g)
 0
 #------------------------------------------------------------------------------------
 # polygon
 #------------------------------------------------------------------------------------
-SELECT Area(GeomFromText(@star));
-Area(GeomFromText(@star))
+SELECT ST_AREA(ST_GEOMFROMTEXT(@star));
+ST_AREA(ST_GEOMFROMTEXT(@star))
 287.5
-SELECT Area(GeomFromText(@star_elem_vertical));
-Area(GeomFromText(@star_elem_vertical))
+SELECT ST_AREA(ST_GEOMFROMTEXT(@star_elem_vertical));
+ST_AREA(ST_GEOMFROMTEXT(@star_elem_vertical))
 200
-SELECT Area(GeomFromText('POLYGON((0 0,0 5,5 5))'));
-Area(GeomFromText('POLYGON((0 0,0 5,5 5))'))
+SELECT ST_AREA(ST_GEOMFROMTEXT('POLYGON((0 0,0 5,5 5))'));
+ST_AREA(ST_GEOMFROMTEXT('POLYGON((0 0,0 5,5 5))'))
 12.5
-SELECT Area(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0))'));
-Area(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0))'))
+SELECT ST_AREA(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))'));
+ST_AREA(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))'))
 100
-SELECT Area(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0,-10 0,-10 -10,0 -10))'));
-Area(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0,-10 0,-10 -10,0 -10))'))
+SELECT ST_AREA(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0,-10 0,-10 -10,0 -10))'));
+ST_AREA(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0,-10 0,-10 -10,0 -10))'))
 0
-SELECT Area(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4))'));
-Area(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4))'))
+SELECT ST_AREA(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4))'));
+ST_AREA(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4))'))
 96
-SELECT Area(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0))'));
-Area(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0))'))
+SELECT ST_AREA(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0))'));
+ST_AREA(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0))'))
 0
-SELECT Area(GeomFromText('POLYGON((4 4,4 6,6 6,6 4,4 4),(0 0,0 10,10 10,10 0,0 0))'));
-Area(GeomFromText('POLYGON((4 4,4 6,6 6,6 4,4 4),(0 0,0 10,10 10,10 0,0 0))'))
+SELECT ST_AREA(ST_GEOMFROMTEXT('POLYGON((4 4,4 6,6 6,6 4,4 4),(0 0,0 10,10 10,10 0,0 0))'));
+ST_AREA(ST_GEOMFROMTEXT('POLYGON((4 4,4 6,6 6,6 4,4 4),(0 0,0 10,10 10,10 0,0 0))'))
 -96
-SELECT Area(GeomFromText('POLYGON((4 4,4 6,6 6,6 4,4 4),(8 8,8 10,10 10,10 8,8 8))'));
-Area(GeomFromText('POLYGON((4 4,4 6,6 6,6 4,4 4),(8 8,8 10,10 10,10 8,8 8))'))
+SELECT ST_AREA(ST_GEOMFROMTEXT('POLYGON((4 4,4 6,6 6,6 4,4 4),(8 8,8 10,10 10,10 8,8 8))'));
+ST_AREA(ST_GEOMFROMTEXT('POLYGON((4 4,4 6,6 6,6 4,4 4),(8 8,8 10,10 10,10 8,8 8))'))
 0
-SELECT Area(g) FROM gis_geometrycollection WHERE fid=100;
-Area(g)
+SELECT ST_AREA(g) FROM gis_geometrycollection WHERE fid=100;
+ST_AREA(g)
 287.5
 #------------------------------------------------------------------------------------
 # multipolygon
 #------------------------------------------------------------------------------------
-SELECT Area(GeomFromText(@star_of_elems));
-Area(GeomFromText(@star_of_elems))
+SELECT ST_AREA(ST_GEOMFROMTEXT(@star_of_elems));
+ST_AREA(ST_GEOMFROMTEXT(@star_of_elems))
 377.5
-SELECT Area(GeomFromText('MULTIPOLYGON(((0 0,0 5,5 5)))'));
-Area(GeomFromText('MULTIPOLYGON(((0 0,0 5,5 5)))'))
+SELECT ST_AREA(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 5,5 5)))'));
+ST_AREA(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 5,5 5)))'))
 12.5
-SELECT Area(GeomFromText('MULTIPOLYGON(((0 10,10 0,0 0)),((0 0,10 10,10 0)))'));
-Area(GeomFromText('MULTIPOLYGON(((0 10,10 0,0 0)),((0 0,10 10,10 0)))'))
+SELECT ST_AREA(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 10,10 0,0 0)),((0 0,10 10,10 0)))'));
+ST_AREA(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 10,10 0,0 0)),((0 0,10 10,10 0)))'))
 100
-SELECT Area(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10)),((10 10,10 15,15 15,10 10)))'));
-Area(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10)),((10 10,10 15,15 15,10 10)))'))
+SELECT ST_AREA(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10)),((10 10,10 15,15 15,10 10)))'));
+ST_AREA(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10)),((10 10,10 15,15 15,10 10)))'))
 62.5
-SELECT Area(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0)),((4 4,4 6,6 6,6 4)))'));
-Area(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0)),((4 4,4 6,6 6,6 4)))'))
+SELECT ST_AREA(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0)),((4 4,4 6,6 6,6 4)))'));
+ST_AREA(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0)),((4 4,4 6,6 6,6 4)))'))
 104
-SELECT Area(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4)))'));
-Area(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4)))'))
+SELECT ST_AREA(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4)))'));
+ST_AREA(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4)))'))
 96
-SELECT Area(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0)))'));
-Area(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0)))'))
+SELECT ST_AREA(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0)))'));
+ST_AREA(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0)))'))
 0
-SELECT Area(GeomFromText('MULTIPOLYGON(((4 4,4 6,6 6,6 4,4 4),(0 0,0 10,10 10,10 0,0 0)))'));
-Area(GeomFromText('MULTIPOLYGON(((4 4,4 6,6 6,6 4,4 4),(0 0,0 10,10 10,10 0,0 0)))'))
+SELECT ST_AREA(ST_GEOMFROMTEXT('MULTIPOLYGON(((4 4,4 6,6 6,6 4,4 4),(0 0,0 10,10 10,10 0,0 0)))'));
+ST_AREA(ST_GEOMFROMTEXT('MULTIPOLYGON(((4 4,4 6,6 6,6 4,4 4),(0 0,0 10,10 10,10 0,0 0)))'))
 -96
-SELECT Area(GeomFromText('MULTIPOLYGON(((4 4,4 6,6 6,6 4,4 4),(8 8,8 10,10 10,10 8,8 8)))'));
-Area(GeomFromText('MULTIPOLYGON(((4 4,4 6,6 6,6 4,4 4),(8 8,8 10,10 10,10 8,8 8)))'))
+SELECT ST_AREA(ST_GEOMFROMTEXT('MULTIPOLYGON(((4 4,4 6,6 6,6 4,4 4),(8 8,8 10,10 10,10 8,8 8)))'));
+ST_AREA(ST_GEOMFROMTEXT('MULTIPOLYGON(((4 4,4 6,6 6,6 4,4 4),(8 8,8 10,10 10,10 8,8 8)))'))
 0
-SELECT Area(GeomFromText('MULTIPOLYGON(((10 10,10 0,5 10,10 10)),((0 10,0 20,5 10,0 10)))'));
-Area(GeomFromText('MULTIPOLYGON(((10 10,10 0,5 10,10 10)),((0 10,0 20,5 10,0 10)))'))
+SELECT ST_AREA(ST_GEOMFROMTEXT('MULTIPOLYGON(((10 10,10 0,5 10,10 10)),((0 10,0 20,5 10,0 10)))'));
+ST_AREA(ST_GEOMFROMTEXT('MULTIPOLYGON(((10 10,10 0,5 10,10 10)),((0 10,0 20,5 10,0 10)))'))
 50
-SELECT Area(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0)),((0 0,0 10,10 10,10 0,0 0)))'));
-Area(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0)),((0 0,0 10,10 10,10 0,0 0)))'))
+SELECT ST_AREA(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0)),((0 0,0 10,10 10,10 0,0 0)))'));
+ST_AREA(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0)),((0 0,0 10,10 10,10 0,0 0)))'))
 100
-SELECT Area(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0)),((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6)))'));
-Area(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0)),((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6)))'))
+SELECT ST_AREA(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0)),((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6)))'));
+ST_AREA(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0)),((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6)))'))
 98
-SELECT Area(g) FROM gis_geometrycollection WHERE fid=103;
-Area(g)
+SELECT ST_AREA(g) FROM gis_geometrycollection WHERE fid=103;
+ST_AREA(g)
 377.5
 #------------------------------------------------------------------------------------
 # geometrycollection
 #------------------------------------------------------------------------------------
-SELECT Area(GeomFromText(@star_collection_elems));
-Area(GeomFromText(@star_collection_elems))
+SELECT ST_AREA(ST_GEOMFROMTEXT(@star_collection_elems));
+ST_AREA(ST_GEOMFROMTEXT(@star_collection_elems))
 665
-SELECT Area(GeomFromText(@star_collection_multilinestr));
-Area(GeomFromText(@star_collection_multilinestr))
+SELECT ST_AREA(ST_GEOMFROMTEXT(@star_collection_multilinestr));
+ST_AREA(ST_GEOMFROMTEXT(@star_collection_multilinestr))
 665
-SELECT Area(GeomFromText('GEOMETRYCOLLECTION()'));
-Area(GeomFromText('GEOMETRYCOLLECTION()'))
+SELECT ST_AREA(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION()'));
+ST_AREA(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION()'))
 0
-SELECT Area(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'));
-Area(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'))
+SELECT ST_AREA(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'));
+ST_AREA(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'))
 0
-SELECT Area(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION()))'));
-Area(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION()))'))
+SELECT ST_AREA(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION()))'));
+ST_AREA(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION()))'))
 0
-SELECT Area(GeomFromText('GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10))'));
-Area(GeomFromText('GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10))'))
+SELECT ST_AREA(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10))'));
+ST_AREA(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10))'))
 0
-SELECT Area(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10)))'));
-Area(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10)))'))
+SELECT ST_AREA(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10)))'));
+ST_AREA(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10)))'))
 0
-SELECT Area(GeomFromText('GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10)))'));
-Area(GeomFromText('GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10)))'))
+SELECT ST_AREA(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10)))'));
+ST_AREA(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10)))'))
 0
-SELECT Area(GeomFromText('GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10),LINESTRING(1 1,2 2,3 3),MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10)))'));
-Area(GeomFromText('GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10),LINESTRING(1 1,2 2,3 3),MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10)))'))
+SELECT ST_AREA(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(10 10),'
+                                                  'MULTIPOINT(0 0,10 10),'
+                                                  'LINESTRING(1 1,2 2,3 3),'
+                                                  'MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10)))'));
+ST_AREA(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(10 10),'
+                                                  'MULTIPOINT(0 0,10 10),'
+                                                  'LINESTRING(1 1,2 2,3 3),'
+                                            
 0
-SELECT Area(GeomFromText('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0)))'));
-Area(GeomFromText('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0)))'))
+SELECT ST_AREA(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0)))'));
+ST_AREA(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0)))'))
 100
-SELECT Area(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0)))))'));
-Area(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0)))))'))
+SELECT ST_AREA(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0)))))'));
+ST_AREA(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0)))))'))
 100
-SELECT Area(GeomFromText('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4)),MULTIPOLYGON(((0 0,0 10,10 10,10 0)),((10 10,10 15,15 15,15 10,10 10))))'));
-Area(GeomFromText('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4)),MULTIPOLYGON(((0 0,0 10,10 10,10 0)),((10 10,10 15,15 15,15 10,10 10))))'))
+SELECT ST_AREA(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4)),'
+                                                  'MULTIPOLYGON(((0 0,0 10,10 10,10 0)),((10 10,10 15,15 15,15 10,10 10))))'));
+ST_AREA(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4)),'
+                                                  'MULTIPOLYGON(((0 0,0 10,10 10,10 0)),((10 10,10 15,15 15,15 10,10 10))))'))
 221
-SELECT Area(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10)),GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10))))'));
-Area(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10)),GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10))))'))
+SELECT ST_AREA(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),'
+                                                                     'MULTIPOINT(0 0,10 10)),'
+                                                  'GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),'
+                                                                     'MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10))))'));
+ST_AREA(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),'
+                                                                     'MULTIPOINT(0 0,10 10)),'
+                                                  'GEOMETRYCOLLECTION(LINESTRING(1
 0
-SELECT Area(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10)),GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10))),GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4)),MULTIPOLYGON(((0 0,0 10,10 10,10 0)),((10 10,10 15,15 15,15 10,10 10)))))'));
-Area(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10)),GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10))),GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),
+SELECT ST_AREA(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),'
+                                                                     'MULTIPOINT(0 0,10 10)),'
+                                                  'GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),'
+                                                                     'MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10))),'
+                                                  'GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4)),'
+                                                                     'MULTIPOLYGON(((0 0,0 10,10 10,10 0)),((10 10,10 15,15 15,15 10,10 10)))))'));
+ST_AREA(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),'
+                                                                     'MULTIPOINT(0 0,10 10)),'
+                                                  'GEOMETRYCOLLECTION(LINESTRING(1
 221
-SELECT Area(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10)),GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10))),GEOMETRYCOLLECTION(GEOMETRYCOLLECTION()))'));
-Area(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10)),GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10))),GEOMETRYCOLLECTION(GEOMETRYCOLLECTION()))'))
+SELECT ST_AREA(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),'
+                                                                     'MULTIPOINT(0 0,10 10)),'
+                                                  'GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),'
+                                                                     'MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10))),'
+                                                  'GEOMETRYCOLLECTION(GEOMETRYCOLLECTION()))'));
+ST_AREA(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),'
+                                                                     'MULTIPOINT(0 0,10 10)),'
+                                                  'GEOMETRYCOLLECTION(LINESTRING(1
 0
-SELECT Area(g) FROM gis_geometrycollection WHERE fid=115;
-Area(g)
+SELECT ST_AREA(g) FROM gis_geometrycollection WHERE fid=115;
+ST_AREA(g)
 665
 #====================================================================================
-# ST_Area(geometry)
+# ST_AREA(geometry) with different SRID values
 #====================================================================================
-#------------------------------------------------------------------------------------
-# point
-#------------------------------------------------------------------------------------
-SELECT ST_Area(GeomFromText(@star_center));
-ST_Area(GeomFromText(@star_center))
+SELECT ST_AREA(ST_GEOMFROMTEXT(@star_center,-1024));
+ST_AREA(ST_GEOMFROMTEXT(@star_center,-1024))
 0
-SELECT ST_Area(GeomFromText(@star_top));
-ST_Area(GeomFromText(@star_top))
+SELECT ST_AREA(ST_GEOMFROMTEXT(@star_all_points,-1));
+ST_AREA(ST_GEOMFROMTEXT(@star_all_points,-1))
 0
-SELECT ST_Area(GeomFromText('POINT(2.34 -2.34)'));
-ST_Area(GeomFromText('POINT(2.34 -2.34)'))
+SELECT ST_AREA(ST_GEOMFROMTEXT(@star_top_to_center,0));
+ST_AREA(ST_GEOMFROMTEXT(@star_top_to_center,0))
 0
-SELECT ST_Area(GeomFromText('POINT(1e308 -1e308)'));
-ST_Area(GeomFromText('POINT(1e308 -1e308)'))
+SELECT ST_AREA(ST_GEOMFROMTEXT(@star_lines_near_vertical,1000));
+ST_AREA(ST_GEOMFROMTEXT(@star_lines_near_vertical,1000))
 0
-SELECT ST_Area(GeomFromText('POINT(-0.0000 0.000001)'));
-ST_Area(GeomFromText('POINT(-0.0000 0.000001)'))
-0
-SELECT ST_Area(g) FROM gis_geometrycollection WHERE fid=105;
-ST_Area(g)
-0
-#------------------------------------------------------------------------------------
-# multipoint
-#------------------------------------------------------------------------------------
-SELECT ST_Area(GeomFromText(@star_all_points));
-ST_Area(GeomFromText(@star_all_points))
-0
-SELECT ST_Area(GeomFromText(@star_bottom_points));
-ST_Area(GeomFromText(@star_bottom_points))
-0
-SELECT ST_Area(GeomFromText('MULTIPOINT(0 0,0 0,0 0,0 0)'));
-ST_Area(GeomFromText('MULTIPOINT(0 0,0 0,0 0,0 0)'))
-0
-SELECT ST_Area(GeomFromText('MULTIPOINT(0 0,0 5,5 5,5 0,0 0)'));
-ST_Area(GeomFromText('MULTIPOINT(0 0,0 5,5 5,5 0,0 0)'))
-0
-SELECT ST_Area(GeomFromText('MULTIPOINT(1 -1,1e308 -1e308,0.0001 0.000)'));
-ST_Area(GeomFromText('MULTIPOINT(1 -1,1e308 -1e308,0.0001 0.000)'))
-0
-SELECT ST_Area(g) FROM gis_geometrycollection WHERE fid=108;
-ST_Area(g)
-0
-#------------------------------------------------------------------------------------
-# linestring
-#------------------------------------------------------------------------------------
-SELECT ST_Area(GeomFromText(@star_top_to_center));
-ST_Area(GeomFromText(@star_top_to_center))
-0
-SELECT ST_Area(GeomFromText(@star_line_horizontal));
-ST_Area(GeomFromText(@star_line_horizontal))
-0
-SELECT ST_Area(GeomFromText('LINESTRING(0 0,-0.00 0,0.0 0)'));
-ST_Area(GeomFromText('LINESTRING(0 0,-0.00 0,0.0 0)'))
-0
-SELECT ST_Area(GeomFromText('LINESTRING(0 0,0 5,5 5,5 0,0 0)'));
-ST_Area(GeomFromText('LINESTRING(0 0,0 5,5 5,5 0,0 0)'))
-0
-SELECT ST_Area(GeomFromText('LINESTRING(1 -1,1e308 -1e308,0.0001 0.000)'));
-ST_Area(GeomFromText('LINESTRING(1 -1,1e308 -1e308,0.0001 0.000)'))
-0
-SELECT ST_Area(g) FROM gis_geometrycollection WHERE fid=110;
-ST_Area(g)
-0
-#------------------------------------------------------------------------------------
-# multilinestring
-#------------------------------------------------------------------------------------
-SELECT ST_Area(GeomFromText(@star_lines_near_vertical));
-ST_Area(GeomFromText(@star_lines_near_vertical))
-0
-SELECT ST_Area(GeomFromText(@star_lines_near_horizontal));
-ST_Area(GeomFromText(@star_lines_near_horizontal))
-0
-SELECT ST_Area(GeomFromText('MULTILINESTRING((0 0,-0.00 0),(0.0 0))'));
-ST_Area(GeomFromText('MULTILINESTRING((0 0,-0.00 0),(0.0 0))'))
-0
-SELECT ST_Area(GeomFromText('MULTILINESTRING((0 0,0 5,5 5,5 0,0 0))'));
-ST_Area(GeomFromText('MULTILINESTRING((0 0,0 5,5 5,5 0,0 0))'))
-0
-SELECT ST_Area(GeomFromText('MULTILINESTRING((0 10,10 0),(10 0,0 0),(0 0,10 10))'));
-ST_Area(GeomFromText('MULTILINESTRING((0 10,10 0),(10 0,0 0),(0 0,10 10))'))
-0
-SELECT ST_Area(GeomFromText('MULTILINESTRING((1 -1,1e308 -1e308,0.0001 0.000),(2 2,4 -9.002))'));
-ST_Area(GeomFromText('MULTILINESTRING((1 -1,1e308 -1e308,0.0001 0.000),(2 2,4 -9.002))'))
-0
-SELECT ST_Area(g) FROM gis_geometrycollection WHERE fid=114;
-ST_Area(g)
-0
-#------------------------------------------------------------------------------------
-# polygon
-#------------------------------------------------------------------------------------
-SELECT ST_Area(GeomFromText(@star));
-ST_Area(GeomFromText(@star))
+SELECT ST_AREA(ST_GEOMFROMTEXT(@star,123456789));
+ST_AREA(ST_GEOMFROMTEXT(@star,123456789))
 287.5
-SELECT ST_Area(GeomFromText(@star_elem_vertical));
-ST_Area(GeomFromText(@star_elem_vertical))
+SELECT ST_AREA(ST_GEOMFROMTEXT(@star_elem_vertical,4294967295));
+ST_AREA(ST_GEOMFROMTEXT(@star_elem_vertical,4294967295))
 200
-SELECT ST_Area(GeomFromText('POLYGON((0 0,0 5,5 5))'));
-ST_Area(GeomFromText('POLYGON((0 0,0 5,5 5))'))
-12.5
-SELECT ST_Area(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0))'));
-ST_Area(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0))'))
-100
-SELECT ST_Area(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0,-10 0,-10 -10,0 -10))'));
-ST_Area(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0,-10 0,-10 -10,0 -10))'))
-0
-SELECT ST_Area(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4))'));
-ST_Area(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4))'))
-96
-SELECT ST_Area(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0))'));
-ST_Area(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0))'))
-0
-SELECT ST_Area(GeomFromText('POLYGON((4 4,4 6,6 6,6 4,4 4),(0 0,0 10,10 10,10 0,0 0))'));
-ST_Area(GeomFromText('POLYGON((4 4,4 6,6 6,6 4,4 4),(0 0,0 10,10 10,10 0,0 0))'))
--96
-SELECT ST_Area(GeomFromText('POLYGON((4 4,4 6,6 6,6 4,4 4),(8 8,8 10,10 10,10 8,8 8))'));
-ST_Area(GeomFromText('POLYGON((4 4,4 6,6 6,6 4,4 4),(8 8,8 10,10 10,10 8,8 8))'))
-0
-SELECT ST_Area(g) FROM gis_geometrycollection WHERE fid=100;
-ST_Area(g)
-287.5
-#------------------------------------------------------------------------------------
-# multipolygon
-#------------------------------------------------------------------------------------
-SELECT ST_Area(GeomFromText(@star_of_elems));
-ST_Area(GeomFromText(@star_of_elems))
+SELECT ST_AREA(ST_GEOMFROMTEXT(@star_of_elems,4294967296));
+ST_AREA(ST_GEOMFROMTEXT(@star_of_elems,4294967296))
 377.5
-SELECT ST_Area(GeomFromText('MULTIPOLYGON(((0 0,0 5,5 5)))'));
-ST_Area(GeomFromText('MULTIPOLYGON(((0 0,0 5,5 5)))'))
-12.5
-SELECT ST_Area(GeomFromText('MULTIPOLYGON(((0 10,10 0,0 0)),((0 0,10 10,10 0)))'));
-ST_Area(GeomFromText('MULTIPOLYGON(((0 10,10 0,0 0)),((0 0,10 10,10 0)))'))
-100
-SELECT ST_Area(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10)),((10 10,10 15,15 15,10 10)))'));
-ST_Area(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10)),((10 10,10 15,15 15,10 10)))'))
-62.5
-SELECT ST_Area(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0)),((4 4,4 6,6 6,6 4)))'));
-ST_Area(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0)),((4 4,4 6,6 6,6 4)))'))
-104
-SELECT ST_Area(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4)))'));
-ST_Area(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4)))'))
-96
-SELECT ST_Area(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0)))'));
-ST_Area(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0)))'))
-0
-SELECT ST_Area(GeomFromText('MULTIPOLYGON(((4 4,4 6,6 6,6 4,4 4),(0 0,0 10,10 10,10 0,0 0)))'));
-ST_Area(GeomFromText('MULTIPOLYGON(((4 4,4 6,6 6,6 4,4 4),(0 0,0 10,10 10,10 0,0 0)))'))
--96
-SELECT ST_Area(GeomFromText('MULTIPOLYGON(((4 4,4 6,6 6,6 4,4 4),(8 8,8 10,10 10,10 8,8 8)))'));
-ST_Area(GeomFromText('MULTIPOLYGON(((4 4,4 6,6 6,6 4,4 4),(8 8,8 10,10 10,10 8,8 8)))'))
-0
-SELECT ST_Area(GeomFromText('MULTIPOLYGON(((10 10,10 0,5 10,10 10)),((0 10,0 20,5 10,0 10)))'));
-ST_Area(GeomFromText('MULTIPOLYGON(((10 10,10 0,5 10,10 10)),((0 10,0 20,5 10,0 10)))'))
-50
-SELECT ST_Area(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0)),((0 0,0 10,10 10,10 0,0 0)))'));
-ST_Area(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0)),((0 0,0 10,10 10,10 0,0 0)))'))
-100
-SELECT ST_Area(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0)),((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6)))'));
-ST_Area(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0)),((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6)))'))
-98
-SELECT ST_Area(g) FROM gis_geometrycollection WHERE fid=103;
-ST_Area(g)
-377.5
-#------------------------------------------------------------------------------------
-# geometrycollection
-#------------------------------------------------------------------------------------
-SELECT ST_Area(GeomFromText(@star_collection_elems));
-ST_Area(GeomFromText(@star_collection_elems))
+SELECT ST_AREA(ST_GEOMFROMTEXT(@star_collection_elems,4294967295000));
+ST_AREA(ST_GEOMFROMTEXT(@star_collection_elems,4294967295000))
 665
-SELECT ST_Area(GeomFromText(@star_collection_multilinestr));
-ST_Area(GeomFromText(@star_collection_multilinestr))
-665
-SELECT ST_Area(GeomFromText('GEOMETRYCOLLECTION()'));
-ST_Area(GeomFromText('GEOMETRYCOLLECTION()'))
-0
-SELECT ST_Area(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'));
-ST_Area(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'))
-0
-SELECT ST_Area(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION()))'));
-ST_Area(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION()))'))
-0
-SELECT ST_Area(GeomFromText('GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10))'));
-ST_Area(GeomFromText('GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10))'))
-0
-SELECT ST_Area(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10)))'));
-ST_Area(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10)))'))
-0
-SELECT ST_Area(GeomFromText('GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10)))'));
-ST_Area(GeomFromText('GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10)))'))
-0
-SELECT ST_Area(GeomFromText('GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10),LINESTRING(1 1,2 2,3 3),MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10)))'));
-ST_Area(GeomFromText('GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10),LINESTRING(1 1,2 2,3 3),MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10)))'))
-0
-SELECT ST_Area(GeomFromText('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0)))'));
-ST_Area(GeomFromText('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0)))'))
-100
-SELECT ST_Area(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0)))))'));
-ST_Area(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0)))))'))
-100
-SELECT ST_Area(GeomFromText('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4)),MULTIPOLYGON(((0 0,0 10,10 10,10 0)),((10 10,10 15,15 15,15 10,10 10))))'));
-ST_Area(GeomFromText('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4)),MULTIPOLYGON(((0 0,0 10,10 10,10 0)),((10 10,10 15,15 15,15 10,10 10))))'))
-221
-SELECT ST_Area(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10)),GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10))))'));
-ST_Area(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10)),GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10))))'))
-0
-SELECT ST_Area(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10)),GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10))),GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4)),MULTIPOLYGON(((0 0,0 10,10 10,10 0)),((10 10,10 15,15 15,15 10,10 10)))))'));
-ST_Area(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10)),GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10))),GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 
-221
-SELECT ST_Area(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10)),GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10))),GEOMETRYCOLLECTION(GEOMETRYCOLLECTION()))'));
-ST_Area(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10)),GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10))),GEOMETRYCOLLECTION(GEOMETRYCOLLECTION()))'))
-0
-SELECT ST_Area(g) FROM gis_geometrycollection WHERE fid=115;
-ST_Area(g)
-665
-#====================================================================================
-# Area(geometry), WKB data
-#====================================================================================
-#------------------------------------------------------------------------------------
-# point
-#------------------------------------------------------------------------------------
-SELECT Area(GeomFromWKB(0x010100000000000000000000000000000000000000));
-Area(GeomFromWKB(0x010100000000000000000000000000000000000000))
-0
-SELECT Area(GeomFromWKB(0x01010000005CA0B4B32784B1498F3ACA087E5E1B4A));
-Area(GeomFromWKB(0x01010000005CA0B4B32784B1498F3ACA087E5E1B4A))
-0
-SELECT Area(GeomFromWKB(0x0000000001BFF3AE147AE147AE0000000000000000));
-Area(GeomFromWKB(0x0000000001BFF3AE147AE147AE0000000000000000))
-0
-SELECT Area(GeomFromWKB(0x0000000001FFE1CCF385EBC8A00000000000000000));
-Area(GeomFromWKB(0x0000000001FFE1CCF385EBC8A00000000000000000))
-0
-#------------------------------------------------------------------------------------
-# multipoint
-#------------------------------------------------------------------------------------
-SELECT Area(GeomFromWKB(0x01040000000300000001010000000000000000000000000000000000000001010000001EA7E8482EFFF43F00000000000000000101000000000000000000F03F000000000000F03F));
-Area(GeomFromWKB(0x01040000000300000001010000000000000000000000000000000000000001010000001EA7E8482EFFF43F00000000000000000101000000000000000000F03F000000000000F03F))
-0
-SELECT Area(GeomFromWKB(0x010400000003000000010100000048E17A14AE47F5BF000000000000000001010000000000000000000000B0726891ED7CBFBF0101000000000000007E842E410000000000002240));
-Area(GeomFromWKB(0x010400000003000000010100000048E17A14AE47F5BF000000000000000001010000000000000000000000B0726891ED7CBFBF0101000000000000007E842E410000000000002240))
-0
-SELECT Area(GeomFromWKB(0x00000000040000000300000000010000000000000000000000000000000000000000014024000000000000402400000000000000000000013FF428F5C28F5C293FFFAE147AE147AE));
-Area(GeomFromWKB(0x00000000040000000300000000010000000000000000000000000000000000000000014024000000000000402400000000000000000000013FF428F5C28F5C293FFFAE147AE147AE))
-0
-SELECT Area(GeomFromWKB(0x0000000004000000030000000001000000000000000000000000000000000000000001C02400000000000040240000000000000000000001601DD55745CBB7EDE8D56785FBBDD55A));
-Area(GeomFromWKB(0x0000000004000000030000000001000000000000000000000000000000000000000001C02400000000000040240000000000000000000001601DD55745CBB7EDE8D56785FBBDD55A))
-0
-#------------------------------------------------------------------------------------
-# linestring
-#------------------------------------------------------------------------------------
-SELECT Area(GeomFromWKB(0x010200000002000000EB73B515FBCBF1BF2B8716D9CEF7F13FF7C77BD5CA84BF3FDD2406819543CBBF));
-Area(GeomFromWKB(0x010200000002000000EB73B515FBCBF1BF2B8716D9CEF7F13FF7C77BD5CA84BF3FDD2406819543CBBF))
-0
-SELECT Area(GeomFromWKB(0x010200000003000000EB73B515FBCBF1BF2B8716D9CEF7F13F1B695743B8179E47EA8CA039593E294621D7E6FAE031F445350332B7F4AD5445));
-Area(GeomFromWKB(0x010200000003000000EB73B515FBCBF1BF2B8716D9CEF7F13F1B695743B8179E47EA8CA039593E294621D7E6FAE031F445350332B7F4AD5445))
-0
-SELECT Area(GeomFromWKB(0x000000000200000003000000000000000000000000000000000000000000000000402400000000000040240000000000000000000000000000));
-Area(GeomFromWKB(0x000000000200000003000000000000000000000000000000000000000000000000402400000000000040240000000000000000000000000000))
-0
-SELECT Area(GeomFromWKB(0x00000000020000000300000000000000003FE3D70A3D70A3D73FCB4395810624DDC024000000000000BFE224DD2F1A9FBE0000000000000000));
-Area(GeomFromWKB(0x00000000020000000300000000000000003FE3D70A3D70A3D73FCB4395810624DDC024000000000000BFE224DD2F1A9FBE0000000000000000))
-0
-#------------------------------------------------------------------------------------
-# multilinestring
-#------------------------------------------------------------------------------------
-SELECT Area(GeomFromWKB(0x01050000000100000001020000000200000000000000000000000000000000002440000000000000F0BFD7A3703D0AD70140));
-Area(GeomFromWKB(0x01050000000100000001020000000200000000000000000000000000000000002440000000000000F0BFD7A3703D0AD70140))
-0
-SELECT Area(GeomFromWKB(0x01050000000200000001020000000200000000000000000000000000000000002440000000000000F0BFD7A3703D0AD70140010200000003000000000000000000000000000000000000000000000000001440000000000000144000000000000024400000000000002440));
-Area(GeomFromWKB(0x01050000000200000001020000000200000000000000000000000000000000002440000000000000F0BFD7A3703D0AD70140010200000003000000000000000000000000000000000000000000000000001440000000000000144000000000000024400000000000002440))
-0
-SELECT Area(GeomFromWKB(0x000000000500000002000000000200000003000000000000000000000000000000000000000000000000402400000000000040240000000000000000000000000000000000000200000003000000000000000000000000000000000000000000000000402400000000000040240000000000000000000000000000));
-Area(GeomFromWKB(0x00000000050000000200000000020000000300000000000000000000000000000000000000000000000040240000000000004024000000000000000000000000000000000000020000000300000000000000000000000000000000000000000000000040240000000000004024000000000000000000
-0
-SELECT Area(GeomFromWKB(0x0000000005000000020000000002000000035FB317E5EF3AB327E3A4B378469B67320000000000000000C0240000000000003FF05FD8ADAB9F560000000000000000000000000200000003000000000000000000000000000000000000000000000000BFF08B439581062540240000000000004341C37937E08000));
-Area(GeomFromWKB(0x0000000005000000020000000002000000035FB317E5EF3AB327E3A4B378469B67320000000000000000C0240000000000003FF05FD8ADAB9F560000000000000000000000000200000003000000000000000000000000000000000000000000000000BFF08B439581062540240000000000004341C3
-0
-#------------------------------------------------------------------------------------
-# polygon
-#------------------------------------------------------------------------------------
-SELECT Area(GeomFromWKB(0x0103000000010000000400000000000000000000000000000000000000000000000000244000000000000000000000000000002440000000000000244000000000000000000000000000000000));
-Area(GeomFromWKB(0x0103000000010000000400000000000000000000000000000000000000000000000000244000000000000000000000000000002440000000000000244000000000000000000000000000000000))
-50
-SELECT Area(GeomFromWKB(0x01030000000200000004000000000000000000000000000000000000000000000000002440000000000000000000000000000024400000000000002440000000000000000000000000000000000400000000000000000000400000000000000040000000000000004000000000000010400000000000001040000000000000104000000000000000400000000000000040));
-Area(GeomFromWKB(0x01030000000200000004000000000000000000000000000000000000000000000000002440000000000000000000000000000024400000000000002440000000000000000000000000000000000400000000000000000000400000000000000040000000000000004000000000000010400000000000
-48
-SELECT Area(GeomFromWKB(0x0000000003000000010000000400000000000000000000000000000000402400000000000000000000000000004024000000000000402400000000000000000000000000000000000000000000));
-Area(GeomFromWKB(0x0000000003000000010000000400000000000000000000000000000000402400000000000000000000000000004024000000000000402400000000000000000000000000000000000000000000))
-50
-SELECT Area(GeomFromWKB(0x00000000030000000200000004000000000000000000000000000000004024000000000000000000000000000040240000000000004024000000000000000000000000000000000000000000000000000440000000000000004000000000000000400000000000000040100000000000004010000000000000401000000000000040000000000000004000000000000000));
-Area(GeomFromWKB(0x00000000030000000200000004000000000000000000000000000000004024000000000000000000000000000040240000000000004024000000000000000000000000000000000000000000000000000440000000000000004000000000000000400000000000000040100000000000004010000000
-48
-#------------------------------------------------------------------------------------
-# multipolygon
-#------------------------------------------------------------------------------------
-SELECT Area(GeomFromWKB(0x0106000000010000000103000000010000000400000000000000000000000000000000000000000000000000244000000000000000000000000000002440000000000000244000000000000000000000000000000000));
-Area(GeomFromWKB(0x0106000000010000000103000000010000000400000000000000000000000000000000000000000000000000244000000000000000000000000000002440000000000000244000000000000000000000000000000000))
-50
-SELECT Area(GeomFromWKB(0x01060000000100000001030000000200000004000000000000000000000000000000000000000000000000002440000000000000000000000000000024400000000000002440000000000000000000000000000000000400000000000000000000400000000000000040000000000000004000000000000010400000000000001040000000000000104000000000000000400000000000000040));
-Area(GeomFromWKB(0x01060000000100000001030000000200000004000000000000000000000000000000000000000000000000002440000000000000000000000000000024400000000000002440000000000000000000000000000000000400000000000000000000400000000000000040000000000000004000000000
-48
-SELECT Area(GeomFromWKB(0x0000000006000000010000000003000000010000000400000000000000000000000000000000402400000000000000000000000000004024000000000000402400000000000000000000000000000000000000000000));
-Area(GeomFromWKB(0x0000000006000000010000000003000000010000000400000000000000000000000000000000402400000000000000000000000000004024000000000000402400000000000000000000000000000000000000000000))
-50
-SELECT Area(GeomFromWKB(0x00000000060000000100000000030000000200000004000000000000000000000000000000004024000000000000000000000000000040240000000000004024000000000000000000000000000000000000000000000000000440000000000000004000000000000000400000000000000040100000000000004010000000000000401000000000000040000000000000004000000000000000));
-Area(GeomFromWKB(0x00000000060000000100000000030000000200000004000000000000000000000000000000004024000000000000000000000000000040240000000000004024000000000000000000000000000000000000000000000000000440000000000000004000000000000000400000000000000040100000
-48
-#------------------------------------------------------------------------------------
-# geometrycollection
-#------------------------------------------------------------------------------------
-SELECT Area(GeomFromWKB(0x010700000002000000010100000000000000000024400000000000002440010200000002000000000000000000F03F000000000000F03F00000000000000400000000000000040));
-Area(GeomFromWKB(0x010700000002000000010100000000000000000024400000000000002440010200000002000000000000000000F03F000000000000F03F00000000000000400000000000000040))
-0
-SELECT Area(GeomFromWKB(0x0107000000010000000103000000010000000400000000000000000000000000000000000000000000000000000000000000000024400000000000002440000000000000244000000000000000000000000000000000));
-Area(GeomFromWKB(0x0107000000010000000103000000010000000400000000000000000000000000000000000000000000000000000000000000000024400000000000002440000000000000244000000000000000000000000000000000))
-50
-SELECT Area(GeomFromWKB(0x0000000007000000020000000001402400000000000040240000000000000000000002000000023FF00000000000003FF000000000000040000000000000004000000000000000));
-Area(GeomFromWKB(0x0000000007000000020000000001402400000000000040240000000000000000000002000000023FF00000000000003FF000000000000040000000000000004000000000000000))
-0
-SELECT Area(GeomFromWKB(0x0000000007000000010000000003000000010000000400000000000000000000000000000000000000000000000040240000000000004024000000000000402400000000000000000000000000000000000000000000));
-Area(GeomFromWKB(0x0000000007000000010000000003000000010000000400000000000000000000000000000000000000000000000040240000000000004024000000000000402400000000000000000000000000000000000000000000))
-50
-#====================================================================================
-# ST_Area(geometry), WKB data
-#====================================================================================
-#------------------------------------------------------------------------------------
-# point
-#------------------------------------------------------------------------------------
-SELECT ST_Area(GeomFromWKB(0x010100000000000000000000000000000000000000));
-ST_Area(GeomFromWKB(0x010100000000000000000000000000000000000000))
-0
-SELECT ST_Area(GeomFromWKB(0x01010000005CA0B4B32784B1498F3ACA087E5E1B4A));
-ST_Area(GeomFromWKB(0x01010000005CA0B4B32784B1498F3ACA087E5E1B4A))
-0
-SELECT ST_Area(GeomFromWKB(0x0000000001BFF3AE147AE147AE0000000000000000));
-ST_Area(GeomFromWKB(0x0000000001BFF3AE147AE147AE0000000000000000))
-0
-SELECT ST_Area(GeomFromWKB(0x0000000001FFE1CCF385EBC8A00000000000000000));
-ST_Area(GeomFromWKB(0x0000000001FFE1CCF385EBC8A00000000000000000))
-0
-#------------------------------------------------------------------------------------
-# multipoint
-#------------------------------------------------------------------------------------
-SELECT ST_Area(GeomFromWKB(0x01040000000300000001010000000000000000000000000000000000000001010000001EA7E8482EFFF43F00000000000000000101000000000000000000F03F000000000000F03F));
-ST_Area(GeomFromWKB(0x01040000000300000001010000000000000000000000000000000000000001010000001EA7E8482EFFF43F00000000000000000101000000000000000000F03F000000000000F03F))
-0
-SELECT ST_Area(GeomFromWKB(0x010400000003000000010100000048E17A14AE47F5BF000000000000000001010000000000000000000000B0726891ED7CBFBF0101000000000000007E842E410000000000002240));
-ST_Area(GeomFromWKB(0x010400000003000000010100000048E17A14AE47F5BF000000000000000001010000000000000000000000B0726891ED7CBFBF0101000000000000007E842E410000000000002240))
-0
-SELECT ST_Area(GeomFromWKB(0x00000000040000000300000000010000000000000000000000000000000000000000014024000000000000402400000000000000000000013FF428F5C28F5C293FFFAE147AE147AE));
-ST_Area(GeomFromWKB(0x00000000040000000300000000010000000000000000000000000000000000000000014024000000000000402400000000000000000000013FF428F5C28F5C293FFFAE147AE147AE))
-0
-SELECT ST_Area(GeomFromWKB(0x0000000004000000030000000001000000000000000000000000000000000000000001C02400000000000040240000000000000000000001601DD55745CBB7EDE8D56785FBBDD55A));
-ST_Area(GeomFromWKB(0x0000000004000000030000000001000000000000000000000000000000000000000001C02400000000000040240000000000000000000001601DD55745CBB7EDE8D56785FBBDD55A))
-0
-#------------------------------------------------------------------------------------
-# linestring
-#------------------------------------------------------------------------------------
-SELECT ST_Area(GeomFromWKB(0x010200000002000000EB73B515FBCBF1BF2B8716D9CEF7F13FF7C77BD5CA84BF3FDD2406819543CBBF));
-ST_Area(GeomFromWKB(0x010200000002000000EB73B515FBCBF1BF2B8716D9CEF7F13FF7C77BD5CA84BF3FDD2406819543CBBF))
-0
-SELECT ST_Area(GeomFromWKB(0x010200000003000000EB73B515FBCBF1BF2B8716D9CEF7F13F1B695743B8179E47EA8CA039593E294621D7E6FAE031F445350332B7F4AD5445));
-ST_Area(GeomFromWKB(0x010200000003000000EB73B515FBCBF1BF2B8716D9CEF7F13F1B695743B8179E47EA8CA039593E294621D7E6FAE031F445350332B7F4AD5445))
-0
-SELECT ST_Area(GeomFromWKB(0x000000000200000003000000000000000000000000000000000000000000000000402400000000000040240000000000000000000000000000));
-ST_Area(GeomFromWKB(0x000000000200000003000000000000000000000000000000000000000000000000402400000000000040240000000000000000000000000000))
-0
-SELECT ST_Area(GeomFromWKB(0x00000000020000000300000000000000003FE3D70A3D70A3D73FCB4395810624DDC024000000000000BFE224DD2F1A9FBE0000000000000000));
-ST_Area(GeomFromWKB(0x00000000020000000300000000000000003FE3D70A3D70A3D73FCB4395810624DDC024000000000000BFE224DD2F1A9FBE0000000000000000))
-0
-#------------------------------------------------------------------------------------
-# multilinestring
-#------------------------------------------------------------------------------------
-SELECT ST_Area(GeomFromWKB(0x01050000000100000001020000000200000000000000000000000000000000002440000000000000F0BFD7A3703D0AD70140));
-ST_Area(GeomFromWKB(0x01050000000100000001020000000200000000000000000000000000000000002440000000000000F0BFD7A3703D0AD70140))
-0
-SELECT ST_Area(GeomFromWKB(0x01050000000200000001020000000200000000000000000000000000000000002440000000000000F0BFD7A3703D0AD70140010200000003000000000000000000000000000000000000000000000000001440000000000000144000000000000024400000000000002440));
-ST_Area(GeomFromWKB(0x01050000000200000001020000000200000000000000000000000000000000002440000000000000F0BFD7A3703D0AD70140010200000003000000000000000000000000000000000000000000000000001440000000000000144000000000000024400000000000002440))
-0
-SELECT ST_Area(GeomFromWKB(0x000000000500000002000000000200000003000000000000000000000000000000000000000000000000402400000000000040240000000000000000000000000000000000000200000003000000000000000000000000000000000000000000000000402400000000000040240000000000000000000000000000));
-ST_Area(GeomFromWKB(0x00000000050000000200000000020000000300000000000000000000000000000000000000000000000040240000000000004024000000000000000000000000000000000000020000000300000000000000000000000000000000000000000000000040240000000000004024000000000000000
-0
-SELECT ST_Area(GeomFromWKB(0x0000000005000000020000000002000000035FB317E5EF3AB327E3A4B378469B67320000000000000000C0240000000000003FF05FD8ADAB9F560000000000000000000000000200000003000000000000000000000000000000000000000000000000BFF08B439581062540240000000000004341C37937E08000));
-ST_Area(GeomFromWKB(0x0000000005000000020000000002000000035FB317E5EF3AB327E3A4B378469B67320000000000000000C0240000000000003FF05FD8ADAB9F560000000000000000000000000200000003000000000000000000000000000000000000000000000000BFF08B43958106254024000000000000434
-0
-#------------------------------------------------------------------------------------
-# polygon
-#------------------------------------------------------------------------------------
-SELECT ST_Area(GeomFromWKB(0x0103000000010000000400000000000000000000000000000000000000000000000000244000000000000000000000000000002440000000000000244000000000000000000000000000000000));
-ST_Area(GeomFromWKB(0x0103000000010000000400000000000000000000000000000000000000000000000000244000000000000000000000000000002440000000000000244000000000000000000000000000000000))
-50
-SELECT ST_Area(GeomFromWKB(0x01030000000200000004000000000000000000000000000000000000000000000000002440000000000000000000000000000024400000000000002440000000000000000000000000000000000400000000000000000000400000000000000040000000000000004000000000000010400000000000001040000000000000104000000000000000400000000000000040));
-ST_Area(GeomFromWKB(0x01030000000200000004000000000000000000000000000000000000000000000000002440000000000000000000000000000024400000000000002440000000000000000000000000000000000400000000000000000000400000000000000040000000000000004000000000000010400000000
-48
-SELECT ST_Area(GeomFromWKB(0x0000000003000000010000000400000000000000000000000000000000402400000000000000000000000000004024000000000000402400000000000000000000000000000000000000000000));
-ST_Area(GeomFromWKB(0x0000000003000000010000000400000000000000000000000000000000402400000000000000000000000000004024000000000000402400000000000000000000000000000000000000000000))
-50
-SELECT ST_Area(GeomFromWKB(0x00000000030000000200000004000000000000000000000000000000004024000000000000000000000000000040240000000000004024000000000000000000000000000000000000000000000000000440000000000000004000000000000000400000000000000040100000000000004010000000000000401000000000000040000000000000004000000000000000));
-ST_Area(GeomFromWKB(0x00000000030000000200000004000000000000000000000000000000004024000000000000000000000000000040240000000000004024000000000000000000000000000000000000000000000000000440000000000000004000000000000000400000000000000040100000000000004010000
-48
-#------------------------------------------------------------------------------------
-# multipolygon
-#------------------------------------------------------------------------------------
-SELECT ST_Area(GeomFromWKB(0x0106000000010000000103000000010000000400000000000000000000000000000000000000000000000000244000000000000000000000000000002440000000000000244000000000000000000000000000000000));
-ST_Area(GeomFromWKB(0x0106000000010000000103000000010000000400000000000000000000000000000000000000000000000000244000000000000000000000000000002440000000000000244000000000000000000000000000000000))
-50
-SELECT ST_Area(GeomFromWKB(0x01060000000100000001030000000200000004000000000000000000000000000000000000000000000000002440000000000000000000000000000024400000000000002440000000000000000000000000000000000400000000000000000000400000000000000040000000000000004000000000000010400000000000001040000000000000104000000000000000400000000000000040));
-ST_Area(GeomFromWKB(0x01060000000100000001030000000200000004000000000000000000000000000000000000000000000000002440000000000000000000000000000024400000000000002440000000000000000000000000000000000400000000000000000000400000000000000040000000000000004000000
-48
-SELECT ST_Area(GeomFromWKB(0x0000000006000000010000000003000000010000000400000000000000000000000000000000402400000000000000000000000000004024000000000000402400000000000000000000000000000000000000000000));
-ST_Area(GeomFromWKB(0x0000000006000000010000000003000000010000000400000000000000000000000000000000402400000000000000000000000000004024000000000000402400000000000000000000000000000000000000000000))
-50
-SELECT ST_Area(GeomFromWKB(0x00000000060000000100000000030000000200000004000000000000000000000000000000004024000000000000000000000000000040240000000000004024000000000000000000000000000000000000000000000000000440000000000000004000000000000000400000000000000040100000000000004010000000000000401000000000000040000000000000004000000000000000));
-ST_Area(GeomFromWKB(0x00000000060000000100000000030000000200000004000000000000000000000000000000004024000000000000000000000000000040240000000000004024000000000000000000000000000000000000000000000000000440000000000000004000000000000000400000000000000040100
-48
-#------------------------------------------------------------------------------------
-# geometrycollection
-#------------------------------------------------------------------------------------
-SELECT ST_Area(GeomFromWKB(0x010700000002000000010100000000000000000024400000000000002440010200000002000000000000000000F03F000000000000F03F00000000000000400000000000000040));
-ST_Area(GeomFromWKB(0x010700000002000000010100000000000000000024400000000000002440010200000002000000000000000000F03F000000000000F03F00000000000000400000000000000040))
-0
-SELECT ST_Area(GeomFromWKB(0x0107000000010000000103000000010000000400000000000000000000000000000000000000000000000000000000000000000024400000000000002440000000000000244000000000000000000000000000000000));
-ST_Area(GeomFromWKB(0x0107000000010000000103000000010000000400000000000000000000000000000000000000000000000000000000000000000024400000000000002440000000000000244000000000000000000000000000000000))
-50
-SELECT ST_Area(GeomFromWKB(0x0000000007000000020000000001402400000000000040240000000000000000000002000000023FF00000000000003FF000000000000040000000000000004000000000000000));
-ST_Area(GeomFromWKB(0x0000000007000000020000000001402400000000000040240000000000000000000002000000023FF00000000000003FF000000000000040000000000000004000000000000000))
-0
-SELECT ST_Area(GeomFromWKB(0x0000000007000000010000000003000000010000000400000000000000000000000000000000000000000000000040240000000000004024000000000000402400000000000000000000000000000000000000000000));
-ST_Area(GeomFromWKB(0x0000000007000000010000000003000000010000000400000000000000000000000000000000000000000000000040240000000000004024000000000000402400000000000000000000000000000000000000000000))
-50
-#====================================================================================
-# Area(geometry) with different SRID values
-#====================================================================================
-SELECT Area(GeomFromText(@star_center,-1024));
-Area(GeomFromText(@star_center,-1024))
-0
-SELECT Area(GeomFromText(@star_all_points,-1));
-Area(GeomFromText(@star_all_points,-1))
-0
-SELECT Area(GeomFromText(@star_top_to_center,0));
-Area(GeomFromText(@star_top_to_center,0))
-0
-SELECT Area(GeomFromText(@star_lines_near_vertical,1000));
-Area(GeomFromText(@star_lines_near_vertical,1000))
-0
-SELECT Area(GeomFromText(@star,123456789));
-Area(GeomFromText(@star,123456789))
-287.5
-SELECT Area(GeomFromText(@star_elem_vertical,4294967295));
-Area(GeomFromText(@star_elem_vertical,4294967295))
-200
-SELECT Area(GeomFromText(@star_of_elems,4294967296));
-Area(GeomFromText(@star_of_elems,4294967296))
-377.5
-SELECT Area(GeomFromText(@star_collection_elems,4294967295000));
-Area(GeomFromText(@star_collection_elems,4294967295000))
-665
-#====================================================================================
-# ST_Area(geometry) with different SRID values
-#====================================================================================
-SELECT ST_Area(GeomFromText(@star_center,-1024));
-ST_Area(GeomFromText(@star_center,-1024))
-0
-SELECT ST_Area(GeomFromText(@star_all_points,-1));
-ST_Area(GeomFromText(@star_all_points,-1))
-0
-SELECT ST_Area(GeomFromText(@star_top_to_center,0));
-ST_Area(GeomFromText(@star_top_to_center,0))
-0
-SELECT ST_Area(GeomFromText(@star_lines_near_vertical,1000));
-ST_Area(GeomFromText(@star_lines_near_vertical,1000))
-0
-SELECT ST_Area(GeomFromText(@star,123456789));
-ST_Area(GeomFromText(@star,123456789))
-287.5
-SELECT ST_Area(GeomFromText(@star_elem_vertical,4294967295));
-ST_Area(GeomFromText(@star_elem_vertical,4294967295))
-200
-SELECT ST_Area(GeomFromText(@star_of_elems,4294967296));
-ST_Area(GeomFromText(@star_of_elems,4294967296))
-377.5
-SELECT ST_Area(GeomFromText(@star_collection_elems,4294967295000));
-ST_Area(GeomFromText(@star_collection_elems,4294967295000))
-665
-#====================================================================================
-# Area(geometry) with different SRID values, WKB data
-#====================================================================================
-SELECT Area(GeomFromWKB(0x010100000000000000000000000000000000000000,-1024));
-Area(GeomFromWKB(0x010100000000000000000000000000000000000000,-1024))
-0
-SELECT Area(GeomFromWKB(0x01010000005CA0B4B32784B1498F3ACA087E5E1B4A,-1));
-Area(GeomFromWKB(0x01010000005CA0B4B32784B1498F3ACA087E5E1B4A,-1))
-0
-SELECT Area(GeomFromWKB(0x0000000001BFF3AE147AE147AE0000000000000000,0));
-Area(GeomFromWKB(0x0000000001BFF3AE147AE147AE0000000000000000,0))
-0
-SELECT Area(GeomFromWKB(0x0000000001FFE1CCF385EBC8A00000000000000000,100000));
-Area(GeomFromWKB(0x0000000001FFE1CCF385EBC8A00000000000000000,100000))
-0
-SELECT Area(GeomFromWKB(0x010200000002000000EB73B515FBCBF1BF2B8716D9CEF7F13FF7C77BD5CA84BF3FDD2406819543CBBF,4294967295));
-Area(GeomFromWKB(0x010200000002000000EB73B515FBCBF1BF2B8716D9CEF7F13FF7C77BD5CA84BF3FDD2406819543CBBF,4294967295))
-0
-SELECT Area(GeomFromWKB(0x0107000000010000000103000000010000000400000000000000000000000000000000000000000000000000000000000000000024400000000000002440000000000000244000000000000000000000000000000000,4294967296));
-Area(GeomFromWKB(0x0107000000010000000103000000010000000400000000000000000000000000000000000000000000000000000000000000000024400000000000002440000000000000244000000000000000000000000000000000,4294967296))
-50
-SELECT Area(GeomFromWKB(0x0000000007000000010000000003000000010000000400000000000000000000000000000000000000000000000040240000000000004024000000000000402400000000000000000000000000000000000000000000,4294967295000));
-Area(GeomFromWKB(0x0000000007000000010000000003000000010000000400000000000000000000000000000000000000000000000040240000000000004024000000000000402400000000000000000000000000000000000000000000,4294967295000))
-50
-#====================================================================================
-# ST_Area(geometry) with different SRID values, WKB data
-#====================================================================================
-SELECT ST_Area(GeomFromWKB(0x010100000000000000000000000000000000000000,-1024));
-ST_Area(GeomFromWKB(0x010100000000000000000000000000000000000000,-1024))
-0
-SELECT ST_Area(GeomFromWKB(0x01010000005CA0B4B32784B1498F3ACA087E5E1B4A,-1));
-ST_Area(GeomFromWKB(0x01010000005CA0B4B32784B1498F3ACA087E5E1B4A,-1))
-0
-SELECT ST_Area(GeomFromWKB(0x0000000001BFF3AE147AE147AE0000000000000000,0));
-ST_Area(GeomFromWKB(0x0000000001BFF3AE147AE147AE0000000000000000,0))
-0
-SELECT ST_Area(GeomFromWKB(0x0000000001FFE1CCF385EBC8A00000000000000000,100000));
-ST_Area(GeomFromWKB(0x0000000001FFE1CCF385EBC8A00000000000000000,100000))
-0
-SELECT ST_Area(GeomFromWKB(0x010200000002000000EB73B515FBCBF1BF2B8716D9CEF7F13FF7C77BD5CA84BF3FDD2406819543CBBF,4294967295));
-ST_Area(GeomFromWKB(0x010200000002000000EB73B515FBCBF1BF2B8716D9CEF7F13FF7C77BD5CA84BF3FDD2406819543CBBF,4294967295))
-0
-SELECT ST_Area(GeomFromWKB(0x0107000000010000000103000000010000000400000000000000000000000000000000000000000000000000000000000000000024400000000000002440000000000000244000000000000000000000000000000000,4294967296));
-ST_Area(GeomFromWKB(0x0107000000010000000103000000010000000400000000000000000000000000000000000000000000000000000000000000000024400000000000002440000000000000244000000000000000000000000000000000,4294967296))
-50
-SELECT ST_Area(GeomFromWKB(0x0000000007000000010000000003000000010000000400000000000000000000000000000000000000000000000040240000000000004024000000000000402400000000000000000000000000000000000000000000,4294967295000));
-ST_Area(GeomFromWKB(0x0000000007000000010000000003000000010000000400000000000000000000000000000000000000000000000040240000000000004024000000000000402400000000000000000000000000000000000000000000,4294967295000))
-50
 #====================================================================================
 # Invalid function calls
 #====================================================================================
-#---------------------------------------------------------------------------------------
-# Area()
-SELECT Area();
-ERROR 42000: Incorrect parameter count in the call to native function 'Area'
-SELECT Area(NULL);
-Area(NULL)
+SELECT ST_AREA();
+ERROR 42000: Incorrect parameter count in the call to native function 'ST_AREA'
+SELECT ST_AREA(NULL);
+ST_AREA(NULL)
 NULL
-SELECT Area(GeomFromText('POINT()'));
+SELECT ST_AREA(ST_GEOMFROMTEXT('POINT()'));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT Area(GeomFromText('LINESTRING()'));
+SELECT ST_AREA(ST_GEOMFROMTEXT('LINESTRING()'));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT Area(GeomFromText('POLYGON(())'));
+SELECT ST_AREA(ST_GEOMFROMTEXT('POLYGON(())'));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT Area(GeomFromText('MULTIPOINT()'));
+SELECT ST_AREA(ST_GEOMFROMTEXT('MULTIPOINT()'));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT Area(GeomFromText('MULTILINESTRING(())'));
+SELECT ST_AREA(ST_GEOMFROMTEXT('MULTILINESTRING(())'));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT Area(GeomFromText('MULTIPOLYGON((()))'));
+SELECT ST_AREA(ST_GEOMFROMTEXT('MULTIPOLYGON((()))'));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT Area(GeomFromText('POINT(a 0)'));
+SELECT ST_AREA(ST_GEOMFROMTEXT('POINT(a 0)'));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT Area(GeomFromText('POINT(! 0)'));
+SELECT ST_AREA(ST_GEOMFROMTEXT('POINT(! 0)'));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT Area(GeomFromText('POINT('!' 0)'));
+SELECT ST_AREA(ST_GEOMFROMTEXT('POINT('!' 0)'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0)'))' at line 1
-SELECT Area(GeomFromText('POINT(12,34 0)'));
+SELECT ST_AREA(ST_GEOMFROMTEXT('POINT(12,34 0)'));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT Area(GeomFromText('LINESTRING(a 0,10 10)'));
+SELECT ST_AREA(ST_GEOMFROMTEXT('LINESTRING(a 0,10 10)'));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT Area(GeomFromText('LINESTRING(0 0,! 10)'));
+SELECT ST_AREA(ST_GEOMFROMTEXT('LINESTRING(0 0,! 10)'));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT Area(GeomFromText('LINESTRING('!' 0,10 10)'));
+SELECT ST_AREA(ST_GEOMFROMTEXT('LINESTRING('!' 0,10 10)'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10)'))' at line 1
-SELECT Area(GeomFromText('LINESTRING(12,34 0,10 10)'));
+SELECT ST_AREA(ST_GEOMFROMTEXT('LINESTRING(12,34 0,10 10)'));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT Area(GeomFromText('POLYGON((a 0,10 10,10 0,0 0))'));
+SELECT ST_AREA(ST_GEOMFROMTEXT('POLYGON((a 0,10 10,10 0,0 0))'));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT Area(GeomFromText('POLYGON((0 0,! 10,10 0,0 0))'));
+SELECT ST_AREA(ST_GEOMFROMTEXT('POLYGON((0 0,! 10,10 0,0 0))'));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT Area(GeomFromText('POLYGON(('!' 0,10 10,10 0,0 0))'));
+SELECT ST_AREA(ST_GEOMFROMTEXT('POLYGON(('!' 0,10 10,10 0,0 0))'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10,10 0,0 0))'))' at line 1
-SELECT Area(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0))'));
+SELECT ST_AREA(ST_GEOMFROMTEXT('POLYGON((12,34 0,10 10,10 0,0 0))'));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT Area(GeomFromText('POLYGON((0 0))'));
+SELECT ST_AREA(ST_GEOMFROMTEXT('POLYGON((0 0))'));
 ERROR 22023: Invalid GIS data provided to function st_area.
-SELECT Area(GeomFromText('POLYGON((0 0,5 5))'));
+SELECT ST_AREA(ST_GEOMFROMTEXT('POLYGON((0 0,5 5))'));
 ERROR 22023: Invalid GIS data provided to function st_area.
-SELECT Area(GeomFromText('POLYGON((0 0,5 5,10 10))'));
+SELECT ST_AREA(ST_GEOMFROMTEXT('POLYGON((0 0,5 5,10 10))'));
 ERROR 22023: Invalid GIS data provided to function st_area.
-SELECT Area(GeomFromText('POLYGON((0 0,0 5,10 10),(0 0))'));
+SELECT ST_AREA(ST_GEOMFROMTEXT('POLYGON((0 0,0 5,10 10),(0 0))'));
 ERROR 22023: Invalid GIS data provided to function st_area.
-SELECT Area(GeomFromText('MULTIPOLYGON(((0 0,5 5,10 10)),((10 10)))'));
+SELECT ST_AREA(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,5 5,10 10)),((10 10)))'));
 ERROR 22023: Invalid GIS data provided to function st_area.
-SELECT Area(GeomFromText('MULTIPOLYGON(((0 0,5 5,10 10)),((10 10))'));
+SELECT ST_AREA(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,5 5,10 10)),((10 10))'));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT Area(0x000000000200000000000000000000000000000000);
+SELECT ST_AREA(0x000000000200000000000000000000000000000000);
 ERROR HY000: Geometry byte string must be little endian.
-SELECT Area(0x010100000001000000010100000000000000000000);
+SELECT ST_AREA(0x010100000001000000010100000000000000000000);
 ERROR HY000: Geometry byte string must be little endian.
-SELECT Area(0x010100000002000000000000000000000000000000);
+SELECT ST_AREA(0x010100000002000000000000000000000000000000);
 ERROR HY000: Geometry byte string must be little endian.
-SELECT Area(0x000000000600000001000000000200000002000000);
+SELECT ST_AREA(0x000000000600000001000000000200000002000000);
 ERROR HY000: Geometry byte string must be little endian.
-SELECT Area(0x000000000200000001000000050000000000000000);
+SELECT ST_AREA(0x000000000200000001000000050000000000000000);
 ERROR HY000: Geometry byte string must be little endian.
-SELECT Area(0x010300000002000000010300000002000000050000);
+SELECT ST_AREA(0x010300000002000000010300000002000000050000);
 ERROR HY000: Geometry byte string must be little endian.
-SELECT Area(0x010400000002000000010100000000000000000000);
-ERROR HY000: Geometry byte string must be little endian.
-#---------------------------------------------------------------------------------------
-# ST_Area()
-SELECT ST_Area();
-ERROR 42000: Incorrect parameter count in the call to native function 'ST_Area'
-SELECT ST_Area(NULL);
-ST_Area(NULL)
-NULL
-SELECT ST_Area(GeomFromText('POINT()'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT ST_Area(GeomFromText('LINESTRING()'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT ST_Area(GeomFromText('POLYGON(())'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT ST_Area(GeomFromText('MULTIPOINT()'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT ST_Area(GeomFromText('MULTILINESTRING(())'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT ST_Area(GeomFromText('MULTIPOLYGON((()))'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT ST_Area(GeomFromText('POINT(a 0)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT ST_Area(GeomFromText('POINT(! 0)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT ST_Area(GeomFromText('POINT('!' 0)'));
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0)'))' at line 1
-SELECT ST_Area(GeomFromText('POINT(12,34 0)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT ST_Area(GeomFromText('LINESTRING(a 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT ST_Area(GeomFromText('LINESTRING(0 0,! 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT ST_Area(GeomFromText('LINESTRING('!' 0,10 10)'));
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10)'))' at line 1
-SELECT ST_Area(GeomFromText('LINESTRING(12,34 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT ST_Area(GeomFromText('POLYGON((a 0,10 10,10 0,0 0))'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT ST_Area(GeomFromText('POLYGON((0 0,! 10,10 0,0 0))'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT ST_Area(GeomFromText('POLYGON(('!' 0,10 10,10 0,0 0))'));
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10,10 0,0 0))'))' at line 1
-SELECT ST_Area(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0))'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT ST_Area(GeomFromText('POLYGON((0 0))'));
-ERROR 22023: Invalid GIS data provided to function st_area.
-SELECT ST_Area(GeomFromText('POLYGON((0 0,5 5))'));
-ERROR 22023: Invalid GIS data provided to function st_area.
-SELECT ST_Area(GeomFromText('POLYGON((0 0,5 5,10 10))'));
-ERROR 22023: Invalid GIS data provided to function st_area.
-SELECT ST_Area(GeomFromText('POLYGON((0 0,0 5,10 10),(0 0))'));
-ERROR 22023: Invalid GIS data provided to function st_area.
-SELECT ST_Area(GeomFromText('MULTIPOLYGON(((0 0,5 5,10 10)),((10 10)))'));
-ERROR 22023: Invalid GIS data provided to function st_area.
-SELECT ST_Area(GeomFromText('MULTIPOLYGON(((0 0,5 5,10 10)),((10 10))'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT ST_Area(0x000000000200000000000000000000000000000000);
-ERROR HY000: Geometry byte string must be little endian.
-SELECT ST_Area(0x010100000001000000010100000000000000000000);
-ERROR HY000: Geometry byte string must be little endian.
-SELECT ST_Area(0x010100000002000000000000000000000000000000);
-ERROR HY000: Geometry byte string must be little endian.
-SELECT ST_Area(0x000000000600000001000000000200000002000000);
-ERROR HY000: Geometry byte string must be little endian.
-SELECT ST_Area(0x000000000200000001000000050000000000000000);
-ERROR HY000: Geometry byte string must be little endian.
-SELECT ST_Area(0x010300000002000000010300000002000000050000);
-ERROR HY000: Geometry byte string must be little endian.
-SELECT ST_Area(0x010400000002000000010100000000000000000000);
+SELECT ST_AREA(0x010400000002000000010100000000000000000000);
 ERROR HY000: Geometry byte string must be little endian.
 #clean up
-DROP TABLE IF EXISTS gis_geometrycollection;
+DROP TABLE gis_geometrycollection;

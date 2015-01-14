@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -92,6 +92,8 @@ SET(SQL_SHARED_SOURCES
   item_create.cc
   item_func.cc
   item_geofunc.cc
+  item_geofunc_relchecks.cc
+  item_geofunc_setops.cc
   item_row.cc 
   item_strfunc.cc
   item_subselect.cc
@@ -261,6 +263,8 @@ ENDIF()
 INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
 ADD_COMPILE_FLAGS(
   item_geofunc.cc
+  item_geofunc_relchecks.cc
+  item_geofunc_setops.cc
   auth/sql_authorization.cc
   auth/sql_authentication.cc
   auth/sql_user_table.cc
@@ -274,6 +278,8 @@ MY_CHECK_CXX_COMPILER_FLAG("-Wno-unused-local-typedefs" HAVE_NO_UNUSED_TYPEDEFS)
 IF(HAVE_NO_UNUSED_TYPEDEFS)
   ADD_COMPILE_FLAGS(
     item_geofunc.cc
+    item_geofunc_relchecks.cc
+    item_geofunc_setops.cc
     COMPILE_FLAGS "-Wno-unused-local-typedefs"
   )
 ENDIF()
@@ -351,7 +357,6 @@ ADD_DEPENDENCIES(slave GenError)
 SET(SQL_GUNIT_LIB_SOURCE 
   filesort_utils.cc 
   mdl.cc 
-  opt_costmodel.cc
   sql_list.cc 
   ../sql-common/sql_string.cc
   thr_malloc.cc

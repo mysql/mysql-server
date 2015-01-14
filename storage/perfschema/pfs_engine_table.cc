@@ -19,7 +19,7 @@
 */
 
 #include "my_global.h"
-#include "my_pthread.h"
+#include "my_thread.h"
 #include "hostname.h" /* For Host_entry */
 #include "pfs_engine_table.h"
 

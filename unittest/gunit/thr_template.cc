@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,23 +15,23 @@
 
 
 volatile int32 bad;
-pthread_attr_t thr_attr;
+my_thread_attr_t thr_attr;
 mysql_mutex_t mutex;
 mysql_cond_t cond;
 uint running_threads;
 const int THREADS= 30;
 const int CYCLES= 3000;
 
-void test_concurrently(const char *test, pthread_handler handler, int n, int m)
+void test_concurrently(const char *test, my_start_routine handler, int n, int m)
 {
-  pthread_t t;
+  my_thread_handle t;
   ulonglong now= my_getsystime();
 
   bad= 0;
 
   for (running_threads= n ; n ; n--)
   {
-    if (pthread_create(&t, &thr_attr, handler, &m) != 0)
+    if (my_thread_create(&t, &thr_attr, handler, &m) != 0)
     {
       ADD_FAILURE() << "Could not create thread";
       abort();

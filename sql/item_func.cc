@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,37 +20,24 @@
   This file defines all numerical functions
 */
 
-#include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
+#include "item_func.h"
 
-#include "sql_class.h"
-#include "item.h"
-#include "rpl_slave.h"				// for wait_for_master_pos
-#include "rpl_msr.h"
-#include "sql_show.h"                           // append_identifier
-#include "strfunc.h"                            // find_type
-#include "sql_parse.h"                          // is_update_query
-#include "auth_common.h"                        // EXECUTE_ACL
-#include "mysqld.h"                             // LOCK_uuid_generator
-#include "rpl_mi.h"
-#include "sql_time.h"
-#include <m_ctype.h>
-#include <hash.h>
-#include <time.h>
-#include <ft_global.h>
-#include <my_bit.h>
-
-#include "sp_head.h"
-#include "sp_rcontext.h"
-#include "sp.h"
-#include "set_var.h"
-#include "debug_sync.h"
-#include <mysql/plugin.h>
-#include <mysql/service_thd_wait.h>
-#include "rpl_gtid.h"
-#include "parse_tree_helpers.h"
-#include "sql_optimizer.h"                      // JOIN
-#include "sql_base.h"
-#include "binlog.h"
+#include "my_bit.h"              // my_count_bits
+#include "binlog.h"              // mysql_bin_log
+#include "debug_sync.h"          // DEBUG_SYNC
+#include "item_cmpfunc.h"        // get_datetime_value
+#include "item_strfunc.h"        // Item_func_geohash
+#include "parse_tree_helpers.h"  // PT_item_list
+#include "rpl_mi.h"              // Master_info
+#include "rpl_msr.h"             // msr_map
+#include "sp.h"                  // sp_find_routine
+#include "sp_head.h"             // sp_name
+#include "sql_class.h"           // THD
+#include "sql_optimizer.h"       // JOIN
+#include "sql_parse.h"           // check_stack_overrun
+#include "sql_show.h"            // append_identifier
+#include "sql_time.h"            // TIME_from_longlong_packed
+#include "strfunc.h"             // find_type
 
 using std::min;
 using std::max;
@@ -1910,6 +1897,9 @@ void Item_func_div::result_precision()
   uint precision= min<uint>(args[0]->decimal_precision() +
                             args[1]->decimals + prec_increment,
                             DECIMAL_MAX_PRECISION);
+
+  if (result_type() == DECIMAL_RESULT)
+    DBUG_ASSERT(precision > 0);
 
   /* Integer operations keep unsigned_flag if one of arguments is unsigned */
   if (result_type() == INT_RESULT)
@@ -4932,40 +4922,29 @@ public:
 
   bool got_timeout() const { return m_lock_wait_timeout; }
 
-  bool handle_condition(THD * /* thd */, uint sql_errno,
-                        const char * /* sqlstate */,
-                        Sql_condition::enum_severity_level * /* level */,
-                        const char *message,
-                        Sql_condition **cond_hdl);
+  virtual bool handle_condition(THD *thd,
+                                uint sql_errno,
+                                const char *sqlstate,
+                                Sql_condition::enum_severity_level *level,
+                                const char *msg)
+  {
+    if (sql_errno == ER_LOCK_WAIT_TIMEOUT)
+    {
+      m_lock_wait_timeout= true;
+      return true;
+    }
+    else if (sql_errno == ER_LOCK_DEADLOCK)
+    {
+      my_error(ER_USER_LOCK_DEADLOCK, MYF(0));
+      return true;
+    }
+
+    return false;
+  }
 
 private:
   bool m_lock_wait_timeout;
 };
-
-
-bool
-User_level_lock_wait_error_handler::
-handle_condition(THD * /* thd */, uint sql_errno,
-                 const char * /* sqlstate */,
-                 Sql_condition::enum_severity_level * /* level */,
-                 const char *message,
-                 Sql_condition **cond_hdl)
-{
-  *cond_hdl= NULL;
-
-  if (sql_errno == ER_LOCK_WAIT_TIMEOUT)
-  {
-    m_lock_wait_timeout= true;
-    return true;
-  }
-  else if (sql_errno == ER_LOCK_DEADLOCK)
-  {
-    my_error(ER_USER_LOCK_DEADLOCK, MYF(0));
-    return true;
-  }
-
-  return false;
-}
 
 
 class MDL_lock_get_owner_thread_id_visitor : public MDL_context_visitor

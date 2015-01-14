@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,7 +21,7 @@
 
 #include <mysql/plugin.h>
 
-#include "m_string.h"                       /* LEX_STRING */
+#include "mysql/mysql_lex_string.h"         // LEX_STRING
 #include "my_alloc.h"                       /* MEM_ROOT */
 #include "my_getopt.h"                      /* my_option */
 
@@ -34,6 +34,7 @@ extern mysql_mutex_t LOCK_plugin_delete;
 
 #include <my_sys.h>
 #include "sql_list.h"
+#include "sql_cmd.h"
 
 #ifdef DBUG_OFF
 #define plugin_ref_to_int(A) A
@@ -99,6 +100,68 @@ struct st_plugin_int
 };
 
 
+/**
+   This class implements the INSTALL PLUGIN statement.
+*/
+
+class Sql_cmd_install_plugin : public Sql_cmd
+{
+public:
+  Sql_cmd_install_plugin(const LEX_STRING& comment,
+                         const LEX_STRING& ident)
+  : m_comment(comment), m_ident(ident)
+  { }
+
+  virtual enum_sql_command sql_command_code() const
+  { return SQLCOM_INSTALL_PLUGIN; }
+
+  /**
+    Install a new plugin by inserting a row into the
+    mysql.plugin table, creating a cache entry and
+    initializing plugin's internal data.
+
+    @param thd  Thread context
+
+    @returns false if success, true otherwise
+  */
+  virtual bool execute(THD *thd);
+
+private:
+  LEX_STRING m_comment;
+  LEX_STRING m_ident;
+};
+
+
+/**
+   This class implements the UNINSTALL PLUGIN statement.
+*/
+
+class Sql_cmd_uninstall_plugin : public Sql_cmd
+{
+public:
+  explicit Sql_cmd_uninstall_plugin(const LEX_STRING& comment)
+  : m_comment(comment)
+  { }
+
+  virtual enum_sql_command sql_command_code() const
+  { return SQLCOM_UNINSTALL_PLUGIN; }
+
+  /**
+    Uninstall a plugin by removing a row from the
+    mysql.plugin table, deleting a cache entry and
+    deinitializing plugin's internal data.
+
+    @param thd  Thread context
+
+    @returns false if success, true otherwise
+  */
+  virtual bool execute(THD *thd);
+
+private:
+  LEX_STRING m_comment;
+};
+
+
 /*
   See intern_plugin_lock() for the explanation for the
   conditionally defined plugin_ref type
@@ -144,9 +207,6 @@ extern plugin_ref plugin_lock_by_name(THD *thd, const LEX_CSTRING &name,
                                       int type);
 extern void plugin_unlock(THD *thd, plugin_ref plugin);
 extern void plugin_unlock_list(THD *thd, plugin_ref *list, size_t count);
-extern bool mysql_install_plugin(THD *thd, const LEX_STRING *name,
-                                 const LEX_STRING *dl);
-extern bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name);
 extern bool plugin_register_builtin(struct st_mysql_plugin *plugin);
 extern void plugin_thdvar_init(THD *thd, bool enable_plugins);
 extern void plugin_thdvar_cleanup(THD *thd, bool enable_plugins);

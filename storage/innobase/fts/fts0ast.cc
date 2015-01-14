@@ -159,7 +159,7 @@ fts_ast_create_node_term_for_parser(
 {
 	fts_ast_node_t*		node = NULL;
 
-	if (len > fts_max_token_size) {
+	if (len ==0 || len > fts_max_token_size) {
 		return(NULL);
 	}
 

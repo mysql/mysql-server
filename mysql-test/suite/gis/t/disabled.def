@@ -9,5 +9,4 @@
 #  Do not use any TAB characters for whitespace.
 #
 ##############################################################################
-polygon_multipolygon_attri_prop  :  BUG#20242884 2014-12-23 Erlend
-spatial_analysis_functions_centroid : BUG#20242884 2014-12-23 Erlend
+

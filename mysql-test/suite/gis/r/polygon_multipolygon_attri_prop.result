@@ -3,7 +3,7 @@ SHOW VARIABLES LIKE '%engine%';
 Variable_name	Value
 default_storage_engine	MyISAM
 default_tmp_storage_engine	MyISAM
-internal_tmp_disk_storage_engine	MYISAM
+internal_tmp_disk_storage_engine	INNODB
 #Creating the spatial Geometry object
 USE test;
 DROP TABLE IF EXISTS gis_polygon, gis_multi_polygon;
@@ -1872,7 +1872,10 @@ AsText(Centroid(PolygonFromText('POLYGON((1 1, 10 1, 1 0, 10 0, 1 -1, 10 -1, 7 2
 POINT(1 1)
 Select AsText(Centroid(PolyFromText('POLYGON((1 1, 10 1, 1 0, 10 0, 1 -1, 10 -1, 1 1), (10 -1, 7 2, 7 -2, 4 2, 4 -2, 1 1,10 -1))')));
 AsText(Centroid(PolyFromText('POLYGON((1 1, 10 1, 1 0, 10 0, 1 -1, 10 -1, 1 1), (10 -1, 7 2, 7 -2, 4 2, 4 -2, 1 1,10 -1))')))
-POINT(1 -1)
+POINT(1 1)
+Select AsText(Centroid(PolyFromWKB(AsWKB(Polygon(LineString(Point(1, 1), Point(10, 1), Point(1, 0), Point(10, 0), Point(4, 2), Point(4, -2), Point(1, 1)))))));
+AsText(Centroid(PolyFromWKB(AsWKB(Polygon(LineString(Point(1, 1), Point(10, 1), Point(1, 0), Point(10, 0), Point(4, 2), Point(4, -2), Point(1, 1)))))))
+POINT(1 1)
 select AsText(Centroid(PolygonFromText('POLYGON((10 10,20 10,20 20,10 20))')));
 AsText(Centroid(PolygonFromText('POLYGON((10 10,20 10,20 20,10 20))')))
 POINT(15 15)

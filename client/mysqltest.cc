@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -37,7 +37,7 @@
 #include <stdarg.h>
 #include <violite.h>
 #include "my_regex.h" /* Our own version of regex */
-#ifdef HAVE_SYS_WAIT_H
+#ifndef _WIN32
 #include <sys/wait.h>
 #endif
 #ifdef _WIN32
@@ -330,7 +330,7 @@ struct st_connection
   my_bool pending;
 
 #ifdef EMBEDDED_LIBRARY
-  pthread_t tid;
+  my_thread_handle tid;
   const char *cur_query;
   size_t cur_query_len;
   int command, result;
@@ -853,7 +853,7 @@ void revert_properties();
 #define EMB_END_CONNECTION 3
 
 /* attributes of the query thread */
-pthread_attr_t cn_thd_attrib;
+my_thread_attr_t cn_thd_attrib;
 
 
 /*
@@ -863,7 +863,7 @@ pthread_attr_t cn_thd_attrib;
   mysql_send_query and mysql_read_query_result() here.
 */
 
-pthread_handler_t connection_thread(void *arg)
+extern "C" void *connection_thread(void *arg)
 {
   struct st_connection *cn= (struct st_connection*)arg;
 
@@ -901,7 +901,7 @@ pthread_handler_t connection_thread(void *arg)
 end_thread:
   cn->query_done= 1;
   mysql_thread_end();
-  pthread_exit(0);
+  my_thread_exit(0);
   return 0;
 }
 
@@ -963,7 +963,7 @@ static void emb_close_connection(struct st_connection *cn)
     return;
   wait_query_thread_done(cn);
   signal_connection_thd(cn, EMB_END_CONNECTION);
-  pthread_join(cn->tid, NULL);
+  my_thread_join(&cn->tid, NULL);
   cn->has_thread= FALSE;
   native_mutex_destroy(&cn->query_mutex);
   native_cond_destroy(&cn->query_cond);
@@ -980,7 +980,7 @@ static void init_connection_thd(struct st_connection *cn)
       native_cond_init(&cn->query_cond) ||
       native_mutex_init(&cn->result_mutex, NULL) ||
       native_cond_init(&cn->result_cond) ||
-      pthread_create(&cn->tid, &cn_thd_attrib, connection_thread, (void*)cn))
+      my_thread_create(&cn->tid, &cn_thd_attrib, connection_thread, (void*)cn))
     die("Error in the thread library");
   cn->has_thread=TRUE;
 }
@@ -3244,7 +3244,17 @@ void do_exec(struct st_command *command)
   error= pclose(res_file);
   if (error > 0)
   {
+#ifdef _WIN32
     uint status= WEXITSTATUS(error);
+#else
+    uint status= 0;
+    // Do the same as many shells here: show SIGKILL as 137
+    if (WIFEXITED(error))
+      status= WEXITSTATUS(error);
+    else if (WIFSIGNALED(error))
+      status= 0x80 + WTERMSIG(error);
+#endif
+
     int i;
 
     if (command->abort_on_error)
@@ -8956,8 +8966,8 @@ int main(int argc, char **argv)
 
 #ifdef EMBEDDED_LIBRARY
   /* set appropriate stack for the 'query' threads */
-  (void) pthread_attr_init(&cn_thd_attrib);
-  pthread_attr_setstacksize(&cn_thd_attrib, DEFAULT_THREAD_STACK);
+  (void) my_thread_attr_init(&cn_thd_attrib);
+  my_thread_attr_setstacksize(&cn_thd_attrib, DEFAULT_THREAD_STACK);
 #endif /*EMBEDDED_LIBRARY*/
 
   /* Init file stack */

@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
 #define SQL_TABLE_INCLUDED
 
 #include "my_global.h"                          /* my_bool */
-#include "my_pthread.h"
+#include "my_thread.h"
 #include "m_ctype.h"                            /* CHARSET_INFO */
 #include "mysql_com.h"                          /* enum_field_types */
 

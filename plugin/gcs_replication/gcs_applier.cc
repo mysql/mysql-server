@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -143,7 +143,6 @@ Applier_module::set_applier_thread_context()
   applier_thd->set_new_thread_id();
   applier_thd->thread_stack= (char*) &applier_thd;
   applier_thd->store_globals();
-  init_thr_lock();
 
   my_net_init(&applier_thd->net, 0);
   applier_thd->slave_thread= true;

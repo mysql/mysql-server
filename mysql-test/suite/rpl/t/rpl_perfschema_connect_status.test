@@ -31,7 +31,8 @@
 #
 #  WL#3656: PERFORMANCE SCHEMA table for SHOW SLAVE STATUS
 #  WL#6841: PERFORMANCE SCHEMA to show GCS kernel stats
-
+#
+source include/not_valgrind.inc;
 source include/master-slave.inc;
 source include/have_ssl_communication.inc;
 source include/have_binlog_format_mixed.inc;

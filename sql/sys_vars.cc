@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -31,7 +31,7 @@
 */
 
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
-#include "sql_class.h"                          // set_var.h: THD
+#include "sql_class.h"
 #include "rpl_gtid.h"
 #include "sys_vars.h"
 #include "mysql_com.h"
@@ -62,6 +62,8 @@
 #include "socket_connection.h"                  // MY_BIND_ALL_ADDRESSES
 #include "sp_head.h" // SP_PSI_STATEMENT_INFO_COUNT 
 #include "my_aes.h" // my_aes_opmode_names
+#include "item_timefunc.h"                      // ISO_FORMAT
+#include "myisam.h"                             // myisam_concurrent_insert
 
 #include "log_event.h"
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
@@ -3671,7 +3673,7 @@ static Sys_var_enum Sys_internal_tmp_disk_storage_engine(
        "internal_tmp_disk_storage_engine",
        "The default storage engine for on-disk internal tmp table",
        GLOBAL_VAR(internal_tmp_disk_storage_engine), CMD_LINE(OPT_ARG),
-       internal_tmp_disk_storage_engine_names, DEFAULT(TMP_TABLE_MYISAM));
+       internal_tmp_disk_storage_engine_names, DEFAULT(TMP_TABLE_INNODB));
 
 static Sys_var_plugin Sys_default_tmp_storage_engine(
        "default_tmp_storage_engine", "The default storage engine for new explict temporary tables",
@@ -4860,7 +4862,7 @@ static Sys_var_ulong Sys_sp_cache_size(
        "The soft upper limit for number of cached stored routines for "
        "one connection.",
        GLOBAL_VAR(stored_program_cache_size), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(256, 512 * 1024), DEFAULT(256), BLOCK_SIZE(1));
+       VALID_RANGE(16, 512 * 1024), DEFAULT(256), BLOCK_SIZE(1));
 
 static bool check_pseudo_slave_mode(sys_var *self, THD *thd, set_var *var)
 {

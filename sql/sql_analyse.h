@@ -1,7 +1,7 @@
 #ifndef SQL_ANALYSE_INCLUDED
 #define SQL_ANALYSE_INCLUDED
 
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +20,10 @@
 /* Analyse database */
 
 #include "procedure.h"                          /* Procedure */
+#include "sql_class.h"                          /* select_send */
+#include "my_tree.h"          // TREE
+
+class select_result;
 
 #define my_thd_charset	default_charset_info
 

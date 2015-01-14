@@ -366,9 +366,7 @@ Trans_delegate::prepare_table_info(THD* thd,
     number_of_tables= table_info_holder.size();
 
     table_info_list= (Trans_table_info*)my_malloc(
-#ifdef HAVE_PSI_MEMORY_INTERFACE
                                PSI_NOT_INSTRUMENTED,
-#endif
                                number_of_tables * sizeof(Trans_table_info),
                                MYF(0));
 

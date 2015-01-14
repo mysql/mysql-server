@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -370,6 +370,9 @@ private:
 	doesn't give any clue that it is called at the end of a statement. */
 	int end_stmt();
 
+	/** Write Row Interface optimized for Intrinsic table. */
+	int intrinsic_table_write_row(uchar* record);
+
 public:
 	/** @name Multi Range Read interface @{ */
 
@@ -565,6 +568,17 @@ innobase_index_name_is_reserved(
 	ulint			num_of_keys)	/*!< in: Number of indexes to
 						be created. */
 	__attribute__((warn_unused_result));
+
+/** Parse hint for table and its indexes, and update the information
+in dictionary.
+@param[in]	thd		Connection thread
+@param[in,out]	table		Target table
+@param[in]	table_share	Table definition */
+void
+innobase_parse_hint_from_comment(
+	THD*			thd,
+	dict_table_t*		table,
+	const TABLE_SHARE*	table_share);
 
 /** Class for handling create table information. */
 class create_table_info_t
@@ -784,3 +798,4 @@ void
 innobase_copy_frm_flags_from_table_share(
 	dict_table_t*		innodb_table,	/*!< in/out: InnoDB table */
 	const TABLE_SHARE*	table_share);	/*!< in: table share */
+

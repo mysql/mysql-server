@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -41,6 +41,9 @@
 #include "debug_sync.h"
 #include "log.h"
 #include "binlog.h"
+#include "parse_file.h"          // sql_parse_prepare
+#include "pfs_table_provider.h"
+#include "mysql/psi/mysql_table.h"
 
 
 /* INFORMATION_SCHEMA name */
@@ -775,7 +778,7 @@ int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags)
 
   if (table_type == 1)
   {
-    root_ptr= my_pthread_get_THR_MALLOC();
+    root_ptr= my_thread_get_THR_MALLOC();
     old_root= *root_ptr;
     *root_ptr= &share->mem_root;
     error= open_binary_frm(thd, share, head, file);

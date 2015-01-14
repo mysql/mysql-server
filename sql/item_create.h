@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,6 +18,15 @@
 #ifndef ITEM_CREATE_H
 #define ITEM_CREATE_H
 
+#include "my_global.h"
+#include "mysql/mysql_lex_string.h"     // LEX_STRING
+#include "item_func.h"                  // Cast_target
+
+class Item;
+class PT_item_list;
+class THD;
+
+typedef struct charset_info_st CHARSET_INFO;
 typedef struct st_udf_func udf_func;
 struct Cast_type;
 

@@ -1403,6 +1403,10 @@ public:
 		rollback */
 	static bool is_aborted(const trx_t* trx)
 	{
+		if (trx->state == TRX_STATE_NOT_STARTED) {
+			return(false);
+		}
+
 		ut_ad(srv_read_only_mode || trx->in_depth > 0);
 		ut_ad(srv_read_only_mode || trx->in_innodb > 0);
 

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -26,6 +26,7 @@ Smart ALTER TABLE
 #include <debug_sync.h>
 #include <log.h>
 #include <sql_lex.h>
+#include <sql_class.h>
 #include <mysql/plugin.h>
 
 /* Include necessary InnoDB headers */
@@ -1508,7 +1509,7 @@ name_ok:
 			so we just assume optimize_point_storage=true, which
 			wouldn't affect the result */
 			switch (get_innobase_type_from_mysql_type(
-					&is_unsigned, field, true)) {
+				&is_unsigned, field, true)) {
 			default:
 				break;
 			case DATA_INT:
@@ -1690,6 +1691,7 @@ innobase_create_index_def(
 		mem_heap_alloc(heap, n_fields * sizeof *index->fields));
 
 	index->parser = NULL;
+	index->is_ngram = false;
 	index->key_number = key_number;
 	index->n_fields = n_fields;
 	index->name = mem_heap_strdup(heap, key->name);
@@ -1722,6 +1724,13 @@ innobase_create_index_def(
 					index->parser =
 						static_cast<st_mysql_ftparser*>(
 						plugin_decl(parser)->info);
+
+					index->is_ngram = strncmp(
+						plugin_name(parser)->str,
+						FTS_NGRAM_PARSER_NAME,
+						plugin_name(parser)->length)
+						 == 0;
+
 					break;
 				}
 			}
@@ -6843,6 +6852,9 @@ foreign_fail:
 					  crash_inject_count++);
 		}
 	}
+
+	innobase_parse_hint_from_comment(m_user_thd, m_prebuilt->table,
+					 altered_table->s);
 
 	/* TODO: Also perform DROP TABLE and DROP INDEX after
 	the MDL downgrade. */

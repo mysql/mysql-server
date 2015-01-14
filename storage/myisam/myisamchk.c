@@ -1592,10 +1592,6 @@ err:
     (void) my_close(new_file,MYF(MY_WME));
     (void) my_delete(param->temp_filename, MYF(MY_WME));
   }
-  if (temp_buff)
-  {
-    my_afree((uchar*) temp_buff);
-  }
   my_free(mi_get_rec_buff_ptr(info, sort_param.record));
   info->opt_flag&= ~(READ_CACHE_USED | WRITE_CACHE_USED);
   (void) end_io_cache(&info->rec_cache);
@@ -1687,12 +1683,8 @@ static int sort_record_index(MI_SORT_PARAM *sort_param,MI_INFO *info,
     mi_check_print_error(param,"%d when updating keyblock",my_errno);
     goto err;
   }
-  if (temp_buff)
-    my_afree((uchar*) temp_buff);
   DBUG_RETURN(0);
 err:
-  if (temp_buff)
-    my_afree((uchar*) temp_buff);
   DBUG_RETURN(1);
 } /* sort_record_index */
 

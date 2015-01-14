@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
 #define MYSQLD_INCLUDED
 
 #include "my_global.h" /* MYSQL_PLUGIN_IMPORT, FN_REFLEN, FN_EXTLEN */
-#include "sql_bitmap.h"                         /* Bitmap */
+#include "my_bitmap.h"                     /* MY_BITMAP */
 #include "my_decimal.h"                         /* my_decimal */
 #include "mysql_com.h"                     /* SERVER_VERSION_LENGTH */
 #include "my_atomic.h"                     /* my_atomic_add64 */
@@ -29,7 +29,7 @@
 class THD;
 struct handlerton;
 class Time_zone;
-
+template <uint default_width> class Bitmap;
 
 typedef struct st_mysql_const_lex_string LEX_CSTRING;
 typedef struct st_mysql_show_var SHOW_VAR;
@@ -303,7 +303,7 @@ extern struct my_option my_long_early_options[];
 extern bool mysqld_server_started;
 extern "C" MYSQL_PLUGIN_IMPORT int orig_argc;
 extern "C" MYSQL_PLUGIN_IMPORT char **orig_argv;
-extern pthread_attr_t connection_attrib;
+extern my_thread_attr_t connection_attrib;
 extern my_bool old_mode;
 extern LEX_STRING opt_init_connect, opt_init_slave;
 extern char err_shared_dir[];
@@ -331,13 +331,13 @@ extern LEX_CSTRING sql_statement_names[(uint) SQLCOM_END + 1];
 extern thread_local_key_t THR_MALLOC;
 extern bool THR_MALLOC_initialized;
 
-static inline MEM_ROOT ** my_pthread_get_THR_MALLOC()
+static inline MEM_ROOT ** my_thread_get_THR_MALLOC()
 {
   DBUG_ASSERT(THR_MALLOC_initialized);
   return (MEM_ROOT**) my_get_thread_local(THR_MALLOC);
 }
 
-static inline int my_pthread_set_THR_MALLOC(MEM_ROOT ** hdl)
+static inline int my_thread_set_THR_MALLOC(MEM_ROOT ** hdl)
 {
   DBUG_ASSERT(THR_MALLOC_initialized);
   return my_set_thread_local(THR_MALLOC, hdl);
@@ -350,13 +350,13 @@ static inline int my_pthread_set_THR_MALLOC(MEM_ROOT ** hdl)
 extern MYSQL_PLUGIN_IMPORT thread_local_key_t THR_THD;
 extern bool THR_THD_initialized;
 
-static inline THD * my_pthread_get_THR_THD()
+static inline THD * my_thread_get_THR_THD()
 {
   DBUG_ASSERT(THR_THD_initialized);
   return (THD*)my_get_thread_local(THR_THD);
 }
 
-static inline int my_pthread_set_THR_THD(THD *thd)
+static inline int my_thread_set_THR_THD(THD *thd)
 {
   DBUG_ASSERT(THR_THD_initialized);
   return my_set_thread_local(THR_THD, thd);
@@ -759,7 +759,7 @@ void init_com_statement_info();
 #endif /* HAVE_PSI_STATEMENT_INTERFACE */
 
 #ifndef _WIN32
-extern pthread_t signal_thread;
+extern my_thread_t signal_thread;
 #endif
 
 #ifdef HAVE_OPENSSL
@@ -938,7 +938,7 @@ extern "C" THD *_current_thd_noinline();
 #else
 static inline THD *_current_thd(void)
 {
-  return my_pthread_get_THR_THD();
+  return my_thread_get_THR_THD();
 }
 #endif
 #define current_thd _current_thd()

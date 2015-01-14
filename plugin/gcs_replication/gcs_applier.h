@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -430,7 +430,7 @@ private:
   void set_applier_thread_context();
 
   //applier thread variables
-  pthread_t applier_pthd;
+  my_thread_handle applier_pthd;
 #ifdef HAVE_PSI_INTERFACE
   PSI_thread_key key_thread_receiver;
 #endif

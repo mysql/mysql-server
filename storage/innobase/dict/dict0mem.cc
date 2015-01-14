@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -143,10 +143,10 @@ dict_mem_table_create(
 	table->autoinc_lock = static_cast<ib_lock_t*>(
 		mem_heap_alloc(heap, lock_get_size()));
 
-	mutex_create("autoinc", &table->autoinc_mutex);
+	/* lazy creation of table autoinc latch */
+	dict_table_autoinc_create_lazy(table);
 
 	table->autoinc = 0;
-
 	table->sess_row_id = 0;
 	table->sess_trx_id = 0;
 
@@ -187,15 +187,13 @@ dict_mem_table_free(
             || DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_HAS_DOC_ID)
             || DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_ADD_DOC_ID)) {
 		if (table->fts) {
-			if (table->cached) {
-				fts_optimize_remove_table(table);
-			}
+			fts_optimize_remove_table(table);
 
 			fts_free(table);
 		}
 	}
 #ifndef UNIV_HOTBACKUP
-	mutex_free(&(table->autoinc_mutex));
+	dict_table_autoinc_destroy(table);
 #endif /* UNIV_HOTBACKUP */
 
 	dict_table_stats_latch_destroy(table);
@@ -512,7 +510,7 @@ dict_mem_index_create(
 	dict_mem_fill_index_struct(index, heap, table_name, index_name,
 				   space, type, n_fields);
 
-	mutex_create("zip_pad_mutex", &index->zip_pad.mutex);
+	dict_index_zip_pad_mutex_create_lazy(index);
 
 	if (type & DICT_SPATIAL) {
 		mutex_create("rtr_ssn_mutex", &index->rtr_ssn.mutex);
@@ -649,7 +647,7 @@ dict_mem_index_free(
 	ut_ad(index);
 	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
 
-	mutex_destroy(&index->zip_pad.mutex);
+	dict_index_zip_pad_mutex_destroy(index);
 
 	if (dict_index_is_spatial(index)) {
 		rtr_info_active::iterator	it;

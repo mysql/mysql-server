@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,7 +21,7 @@
 extern "C" {
 #endif
 
-#include <my_pthread.h>
+#include <my_thread.h>
 #include <my_list.h>
 
 struct st_thr_lock;
@@ -80,7 +80,6 @@ enum enum_thr_lock_result { THR_LOCK_SUCCESS= 0, THR_LOCK_ABORTED= 1,
 
 
 extern ulong max_write_lock_count;
-extern my_bool thr_lock_inited;
 extern enum thr_lock_type thr_upgraded_concurrent_insert_lock;
 
 /*
@@ -90,7 +89,6 @@ extern enum thr_lock_type thr_upgraded_concurrent_insert_lock;
 
 typedef struct st_thr_lock_info
 {
-  pthread_t thread;
   my_thread_id thread_id;
 } THR_LOCK_INFO;
 
@@ -130,9 +128,9 @@ typedef struct st_thr_lock {
 
 extern LIST *thr_lock_thread_list;
 extern mysql_mutex_t THR_LOCK_lock;
+struct st_my_thread_var;
 
-my_bool init_thr_lock(void);		/* Must be called once/thread */
-void thr_lock_info_init(THR_LOCK_INFO *info);
+void thr_lock_info_init(THR_LOCK_INFO *info, my_thread_id thread_id);
 void thr_lock_init(THR_LOCK *lock);
 void thr_lock_delete(THR_LOCK *lock);
 void thr_lock_data_init(THR_LOCK *lock,THR_LOCK_DATA *data,
@@ -140,11 +138,13 @@ void thr_lock_data_init(THR_LOCK *lock,THR_LOCK_DATA *data,
 enum enum_thr_lock_result thr_lock(THR_LOCK_DATA *data,
                                    THR_LOCK_INFO *owner,
                                    enum thr_lock_type lock_type,
-                                   ulong lock_wait_timeout);
+                                   ulong lock_wait_timeout,
+                                   struct st_my_thread_var *thread_var);
 void thr_unlock(THR_LOCK_DATA *data);
 enum enum_thr_lock_result thr_multi_lock(THR_LOCK_DATA **data,
                                          uint count, THR_LOCK_INFO *owner,
-                                         ulong lock_wait_timeout);
+                                         ulong lock_wait_timeout,
+                                         struct st_my_thread_var *thread_var);
 void thr_multi_unlock(THR_LOCK_DATA **data,uint count);
 void
 thr_lock_merge_status(THR_LOCK_DATA **data, uint count);

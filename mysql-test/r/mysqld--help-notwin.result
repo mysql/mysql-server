@@ -1186,7 +1186,7 @@ init-connect
 init-file (No default value)
 init-slave 
 interactive-timeout 28800
-internal-tmp-disk-storage-engine MYISAM
+internal-tmp-disk-storage-engine INNODB
 join-buffer-size 262144
 keep-files-on-create FALSE
 key-buffer-size 8388608

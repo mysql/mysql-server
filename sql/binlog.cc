@@ -253,19 +253,19 @@ private:
 
   int setup_thread_globals(THD *thd) const {
     int error= 0;
-    THD *original_thd= my_pthread_get_THR_THD();
-    MEM_ROOT ** original_mem_root= my_pthread_get_THR_MALLOC();
-    if ((error= my_pthread_set_THR_THD(thd)))
+    THD *original_thd= my_thread_get_THR_THD();
+    MEM_ROOT ** original_mem_root= my_thread_get_THR_MALLOC();
+    if ((error= my_thread_set_THR_THD(thd)))
       goto exit0;
-    if ((error= my_pthread_set_THR_MALLOC(&thd->mem_root)))
+    if ((error= my_thread_set_THR_MALLOC(&thd->mem_root)))
       goto exit1;
     if ((error= set_mysys_thread_var(thd->mysys_var)))
       goto exit2;
     goto exit0;
 exit2:
-    error= my_pthread_set_THR_MALLOC(original_mem_root);
+    error= my_thread_set_THR_MALLOC(original_mem_root);
 exit1:
-    error= my_pthread_set_THR_THD(original_thd);
+    error= my_thread_set_THR_THD(original_thd);
 exit0:
     return error;
   }
@@ -5765,9 +5765,9 @@ MYSQL_BIN_LOG::flush_and_set_pending_rows_event(THD *thd,
 }
 
 int
-MYSQL_BIN_LOG::binlog_write_event_into_file(Log_event* event){
+MYSQL_BIN_LOG::write_event_into_log_file(Log_event* event){
 
-  DBUG_ENTER("MYSQL_BIN_LOG::binlog_write_event_into_file(Log_event *)");
+  DBUG_ENTER("MYSQL_BIN_LOG::write_event_into_log_file(Log_event *)");
 
   mysql_mutex_lock(&LOCK_log);
 
@@ -9588,16 +9588,6 @@ int THD::binlog_flush_pending_rows_event(bool stmt_end, bool is_transactional)
     error= mysql_bin_log.flush_and_set_pending_rows_event(this, 0,
                                                           is_transactional);
   }
-
-  DBUG_RETURN(error);
-}
-
-int THD::binlog_write_event(Log_event *event)
-{
-  DBUG_ENTER("THD::binlog_write_event");
-  DBUG_ASSERT(mysql_bin_log.is_open());
-
-  int error= mysql_bin_log.binlog_write_event_into_file(event);
 
   DBUG_RETURN(error);
 }

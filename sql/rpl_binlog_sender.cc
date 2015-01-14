@@ -18,7 +18,7 @@
 #ifdef HAVE_REPLICATION
 #include "rpl_handler.h"
 #include "debug_sync.h"
-#include "my_pthread.h"
+#include "my_thread.h"
 #include "rpl_master.h"
 
 #ifndef DBUG_OFF

@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,7 +16,7 @@
 #include "my_stacktrace.h"
 
 #ifndef _WIN32
-#include "my_pthread.h"
+#include "my_thread.h"
 #include "m_string.h"
 #include <signal.h>
 #ifdef HAVE_UNISTD_H
@@ -244,7 +244,7 @@ void my_print_stacktrace(uchar* stack_bottom, ulong thread_stack)
 void my_write_core(int sig)
 {
   signal(sig, SIG_DFL);
-  pthread_kill(pthread_self(), sig);
+  pthread_kill(my_thread_self(), sig);
 #if defined(P_MYID)
   /* On Solaris, the above kill is not enough */
   sigsend(P_PID,P_MYID,sig);

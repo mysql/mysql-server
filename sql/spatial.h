@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,10 +16,11 @@
 #ifndef SPATIAL_INCLUDED
 #define SPATIAL_INCLUDED
 
-#include "sql_string.h"                         /* String, LEX_STRING */
-#include <my_compiler.h>
+#include "my_global.h"
+#include "mysql/mysql_lex_string.h"     // LEX_STRING
 #include "gcalc_tools.h"
 #include "mysqld.h"
+#include "sql_string.h"                 // String
 
 #include <vector>
 #include <algorithm>
@@ -329,6 +330,15 @@ protected:
     into its buffer without copying its WKB data.
    */
   const static int HAS_GEOM_HEADER_SPACE= 0x40;
+
+  /*
+    Whether the multi geometry has overlapped components, if false(the bit set)
+    this geometry will be skipped from merge-component operation.
+    Effective only for multipolygons, multilinestrings and geometry collections.
+    Such geometries returned by BG always has this bit set, i.e. their
+    components don't overlap.
+  */
+  const static int MULTIPOLYGON_NO_OVERLAPPED_COMPS= 0x80;
 public:
   // Check user's transmitted data against these limits.
   const static uint32 MAX_GEOM_WKB_LENGTH= 0x3fffffff;
@@ -732,6 +742,8 @@ public:
   }
 
   bool envelope(String *result) const;
+  bool envelope(MBR *mbr) const;
+
   static Class_info *ci_collection[wkb_last+1];
 
   bool is_polygon_ring() const
@@ -761,6 +773,22 @@ public:
       m_flags.props|= HAS_GEOM_HEADER_SPACE;
     else
       m_flags.props&= ~HAS_GEOM_HEADER_SPACE;
+  }
+
+  bool is_components_no_overlapped() const
+  {
+    return (m_flags.props & MULTIPOLYGON_NO_OVERLAPPED_COMPS);
+  }
+
+  void set_components_no_overlapped(bool b)
+  {
+    DBUG_ASSERT(get_type() == wkb_multilinestring ||
+                get_type() == wkb_multipolygon ||
+                get_type() == wkb_geometrycollection);
+    if (b)
+      m_flags.props|= MULTIPOLYGON_NO_OVERLAPPED_COMPS;
+    else
+      m_flags.props&= ~MULTIPOLYGON_NO_OVERLAPPED_COMPS;
   }
 
   void set_props(uint16 flag)

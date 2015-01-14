@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,7 +14,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #ifdef HAVE_MY_TIMER
 #include "my_config.h"
-#include <my_pthread.h>
+#include <my_thread.h>
 #include <gtest/gtest.h>
 #include <string.h>
 #include "my_timer.h"
@@ -113,7 +113,7 @@ static void test_timer(void)
   test_timer_destroy(&test);
 }
 
-static void* test_timer_per_thread(void *arg)
+extern "C" void* test_timer_per_thread(void *arg)
 {
   int iter= *(int *) arg;
 
@@ -269,8 +269,10 @@ TEST(Mysys, TestTimerPerThread)
 {
   mysql_mutex_init(0, &mutex, 0);
   mysql_cond_init(0, &cond);
-  pthread_attr_init(&thr_attr);
+  my_thread_attr_init(&thr_attr);
+#ifndef _WIN32
   pthread_attr_setdetachstate(&thr_attr, PTHREAD_CREATE_DETACHED);
+#endif
 
   EXPECT_EQ(my_timer_initialize(),0);
 
@@ -279,7 +281,7 @@ TEST(Mysys, TestTimerPerThread)
   my_timer_deinitialize();
   mysql_mutex_destroy(&mutex);
   mysql_cond_destroy(&cond);
-  pthread_attr_destroy(&thr_attr);
+  my_thread_attr_destroy(&thr_attr);
 }
 
 /* Test timer reuse functionality */

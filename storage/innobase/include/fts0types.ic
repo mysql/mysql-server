@@ -106,16 +106,41 @@ innobase_strnxfrm(
         const uchar*		p2,	/*!< in: string */
         const ulint		len2);	/*!< in: string length */
 
-/******************************************************************//**
-Select the FTS auxiliary index for the given character.
-@return the index to use for the string */
+/** Check if fts index charset is cjk
+@param[in]	cs	charset
+@retval	true	if the charset is cjk
+@retval	false	if not. */
+UNIV_INLINE
+bool
+fts_is_charset_cjk(
+	const CHARSET_INFO*	cs)
+{
+	if (cs == &my_charset_gb2312_chinese_ci
+	    || cs == &my_charset_gbk_chinese_ci
+	    || cs == &my_charset_big5_chinese_ci
+	    || cs == &my_charset_gb18030_chinese_ci
+	    || cs == &my_charset_ujis_japanese_ci
+	    || cs == &my_charset_sjis_japanese_ci
+	    || cs == &my_charset_cp932_japanese_ci
+	    || cs == &my_charset_eucjpms_japanese_ci
+	    || cs == &my_charset_euckr_korean_ci) {
+		return(true);
+	} else {
+		return(false);
+	}
+}
+
+/** Select the FTS auxiliary index for the given character by range.
+@param[in]	cs	charset
+@param[in]	str	string
+@param[in]	len	string length
+@retval	the index to use for the string */
 UNIV_INLINE
 ulint
-fts_select_index(
-/*=============*/
-	const CHARSET_INFO*	cs,	/*!< in: Charset */
-	const byte*		str,	/*!< in: string */
-	ulint			len)	/*!< in: string length */
+fts_select_index_by_range(
+	const CHARSET_INFO*	cs,
+	const byte*		str,
+	ulint			len)
 {
 	ulint			selected = 0;
 	ulint			value = innobase_strnxfrm(cs, str, len);
@@ -139,37 +164,60 @@ fts_select_index(
 	return(selected - 1);
 }
 
-/******************************************************************//**
-Select the next FTS auxiliary index for the given character.
-@return the next index to use for character */
+/** Select the FTS auxiliary index for the given character by hash.
+@param[in]	cs	charset
+@param[in]	str	string
+@param[in]	len	string length
+@retval the index to use for the string */
 UNIV_INLINE
 ulint
-fts_select_next_index(
-/*==================*/
-	const CHARSET_INFO*	cs,	/*!< in: Charset */
-	const byte*		str,	/*!< in: string */
-	ulint			len)	/*!< in: string length */
+fts_select_index_by_hash(
+	const CHARSET_INFO*	cs,
+	const byte*		str,
+	ulint			len)
 {
-	ulint		selected = 0;
-	ulint		value = innobase_strnxfrm(cs, str, len);
+	int	char_len;
+	ulong	nr1 = 1;
+	ulong	nr2 = 4;
 
-	while (fts_index_selector[selected].value != 0) {
+	ut_ad(!(str == NULL && len > 0));
 
-		if (fts_index_selector[selected].value == value) {
-
-			return(selected + 1);
-
-		} else if (fts_index_selector[selected].value > value) {
-
-			return(selected);
-		}
-
-		++selected;
+	if (str == NULL || len == 0) {
+		return 0;
 	}
 
-	ut_ad(selected > 0);
+	/* Get the first char */
+	char_len = my_mbcharlen_ptr(cs, reinterpret_cast<const char*>(str),
+				    reinterpret_cast<const char*>(str + len));
+	ut_ad(static_cast<ulint>(char_len) <= len);
 
-	return((ulint) selected);
+	/* Get collation hash code */
+	cs->coll->hash_sort(cs, str, char_len, &nr1, &nr2);
+
+	return(nr1 % FTS_NUM_AUX_INDEX);
+}
+
+/** Select the FTS auxiliary index for the given character.
+@param[in]	cs	charset
+@param[in]	str	string
+@param[in]	len	string length in bytes
+@retval	the index to use for the string */
+UNIV_INLINE
+ulint
+fts_select_index(
+	const CHARSET_INFO*	cs,
+	const byte*		str,
+	ulint			len)
+{
+	ulint	selected;
+
+	if (fts_is_charset_cjk(cs)) {
+		selected = fts_select_index_by_hash(cs, str, len);
+	} else {
+		selected = fts_select_index_by_range(cs, str, len);
+	}
+
+	return(selected);
 }
 
 /******************************************************************//**
@@ -181,24 +229,6 @@ fts_get_suffix(
 	ulint		selected)	/*!< in: selected index */
 {
 	return(fts_index_selector[selected].suffix);
-}
-
-/******************************************************************//**
-Get the number of index selectors.
-@return The number of selectors */
-UNIV_INLINE
-ulint
-fts_get_n_selectors(void)
-/*=====================*/
-{
-	ulint	i = 0;
-
-	// FIXME: This is a hack
-	while (fts_index_selector[i].value != 0) {
-		++i;
-	}
-
-	return(i);
 }
 
 #endif /* INNOBASE_FTS0TYPES_IC */

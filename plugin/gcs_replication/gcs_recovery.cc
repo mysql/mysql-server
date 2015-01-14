@@ -467,7 +467,6 @@ Recovery_module::set_recovery_thread_context()
   recovery_thd->set_new_thread_id();
   recovery_thd->thread_stack= (char*) &recovery_thd;
   recovery_thd->store_globals();
-  init_thr_lock();
 
   Global_THD_manager::get_instance()->add_thd(recovery_thd);
 }

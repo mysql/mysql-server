@@ -292,8 +292,8 @@ private:
   */
   void notify_cluster_recovery_end();
 
- //recovery thread variables
-  pthread_t recovery_pthd;
+  //recovery thread variables
+  my_thread_handle recovery_pthd;
 #ifdef HAVE_PSI_INTERFACE
   PSI_thread_key key_thread_recovery;
 #endif
