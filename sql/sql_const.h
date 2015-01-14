@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -313,5 +313,7 @@
                                   OPTIMIZER_SWITCH_SUBQ_MAT_COST_BASED | \
                                   OPTIMIZER_SWITCH_USE_INDEX_EXTENSIONS | \
                                   OPTIMIZER_SWITCH_COND_FANOUT_FILTER)
+
+enum SHOW_COMP_OPTION { SHOW_OPTION_YES, SHOW_OPTION_NO, SHOW_OPTION_DISABLED};
 
 #endif /* SQL_CONST_INCLUDED */

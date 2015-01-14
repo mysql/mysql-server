@@ -40,6 +40,7 @@
 #include "sql_callback.h"                    // MYSQL_CALLBACK
 #include "sql_handler.h"                     // mysql_ha_cleanup
 #include "sql_parse.h"                       // is_update_query
+#include "sql_plugin.h"                      // plugin_unlock
 #include "sql_prepare.h"                     // Prepared_statement
 #include "sql_time.h"                        // my_timeval_trunc
 #include "sql_timer.h"                       // thd_timer_destroy

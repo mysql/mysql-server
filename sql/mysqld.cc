@@ -89,6 +89,7 @@
 #include "sql_callback.h"
 #include "opt_trace_context.h"
 #include "opt_costconstantcache.h"
+#include "sql_plugin.h"                         // plugin_shutdown
 
 #include "mysqld.h"
 #include "my_default.h"
@@ -3581,7 +3582,7 @@ initialize_storage_engine(char *se_name, const char *se_kind,
   plugin_ref plugin;
   handlerton *hton;
   if ((plugin= ha_resolve_by_name(0, &name, FALSE)))
-    hton= plugin_data(plugin, handlerton*);
+    hton= plugin_data<handlerton*>(plugin);
   else
   {
     sql_print_error("Unknown/unsupported storage engine: %s", se_name);

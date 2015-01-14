@@ -1,6 +1,6 @@
 #ifndef SET_VAR_INCLUDED
 #define SET_VAR_INCLUDED
-/* Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,8 +22,12 @@
 
 #include <my_getopt.h>
 #include "m_string.h"
-#include "sql_plugin.h"
+#include "sql_plugin_ref.h"
 #include "mysql_com.h"
+#include "mysql/plugin.h"                       /* enum_mysql_show_type */
+#include "sql_alloc.h"
+#include "sql_list.h"
+#include "sql_const.h"
 
 #include <vector>
 
@@ -37,6 +41,8 @@ class Time_zone;
 class THD;
 struct st_lex_user;
 typedef ulonglong sql_mode_t;
+typedef enum enum_mysql_show_type SHOW_TYPE;
+typedef struct st_mysql_show_var SHOW_VAR;
 
 extern TYPELIB bool_typelib;
 

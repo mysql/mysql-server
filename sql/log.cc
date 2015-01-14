@@ -32,6 +32,7 @@
 #include "auth_common.h"        // SUPER_ACL
 #include "sql_audit.h"
 #include "mysql/service_my_plugin_log.h"
+#include "sql_plugin_ref.h"
 
 #include <my_dir.h>
 #include <stdarg.h>

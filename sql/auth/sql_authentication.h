@@ -1,7 +1,7 @@
 #ifndef SQL_AUTHENTICATION_INCLUDED
 #define SQL_AUTHENTICATION_INCLUDED
 
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,7 +18,7 @@
 
 #include "my_global.h"                  // NO_EMBEDDED_ACCESS_CHECKS
 #include <mysql/plugin_auth.h>          // MYSQL_SERVER_AUTH_INFO
-#include "sql_plugin.h"                 // plugin_ref
+#include "sql_plugin_ref.h"             // plugin_ref
 
 /* Forward declarations */
 class THD;
