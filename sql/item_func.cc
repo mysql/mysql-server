@@ -23,6 +23,7 @@
 #include "item_func.h"
 
 #include "my_bit.h"              // my_count_bits
+#include "auth_common.h"         // check_password_strength
 #include "binlog.h"              // mysql_bin_log
 #include "debug_sync.h"          // DEBUG_SYNC
 #include "item_cmpfunc.h"        // get_datetime_value

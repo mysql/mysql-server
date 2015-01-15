@@ -51,6 +51,7 @@
 #include "rpl_slave.h"                   // SLAVE_THD_TYPE
 #include "socket_connection.h"           // MY_BIND_ALL_ADDRESSES
 #include "sp_head.h"                     // SP_PSI_STATEMENT_INFO_COUNT
+#include "sql_parse.h"                   // killall_non_super_threads
 #include "sql_show.h"                    // opt_ignore_db_dirs
 #include "sql_tmp_table.h"               // internal_tmp_disk_storage_engine
 #include "sql_time.h"                    // global_date_format
@@ -62,15 +63,6 @@
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
 
 TYPELIB bool_typelib={ array_elements(bool_values)-1, "", bool_values, 0 };
-
-/*
-  This forward declaration is needed because including sql_base.h
-  causes further includes.  [TODO] Eliminate this forward declaration
-  and include a file with the prototype instead.
-*/
-extern void close_thread_tables(THD *thd);
-
-extern void killall_non_super_threads(THD *thd);
 
 static bool update_buffer_size(THD *thd, KEY_CACHE *key_cache,
                                ptrdiff_t offset, ulonglong new_value)

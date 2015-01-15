@@ -27,6 +27,7 @@
 #ifdef HAVE_REPLICATION
 #include "my_global.h"
 #include "rpl_slave.h"
+#include "auth_common.h"                       // any_db
 #include "sql_parse.h"                         // execute_init_command
 #include "sql_table.h"                         // mysql_rm_table
 #include "rpl_mi.h"
