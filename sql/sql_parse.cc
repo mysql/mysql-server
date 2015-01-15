@@ -2296,6 +2296,8 @@ mysql_execute_command(THD *thd)
     thd->mdl_context.release_transactional_locks();
   }
 
+  DEBUG_SYNC(thd, "after_implicit_pre_commit");
+
   if (gtid_pre_statement_post_implicit_commit_checks(thd))
     DBUG_RETURN(-1);
 

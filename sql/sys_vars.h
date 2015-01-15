@@ -2303,10 +2303,14 @@ public:
   {
     DBUG_ENTER("Sys_var_gtid_owned::session_value_ptr");
     char *buf= NULL;
-    if (thd->owned_gtid.sidno == 0 ||
-        thd->owned_gtid.sidno == THD::OWNED_SIDNO_ANONYMOUS)
+    if (thd->owned_gtid.sidno == 0)
       DBUG_RETURN((uchar *)thd->mem_strdup(""));
-    if (thd->owned_gtid.sidno == THD::OWNED_SIDNO_GTID_SET)
+    else if (thd->owned_gtid.sidno == THD::OWNED_SIDNO_ANONYMOUS)
+    {
+      DBUG_ASSERT(gtid_state->get_anonymous_ownership_count() > 0);
+      DBUG_RETURN((uchar *)thd->mem_strdup("ANONYMOUS"));
+    }
+    else if (thd->owned_gtid.sidno == THD::OWNED_SIDNO_GTID_SET)
     {
 #ifdef HAVE_GTID_NEXT_LIST
       buf= (char *)thd->alloc(thd->owned_gtid_set.get_string_length() + 1);
@@ -2405,6 +2409,9 @@ public:
     enum_gtid_mode old_gtid_mode= get_gtid_mode(GTID_MODE_LOCK_SID);
     DBUG_ASSERT(new_gtid_mode <= GTID_MODE_ON);
 
+    DBUG_PRINT("info", ("old_gtid_mode=%d new_gtid_mode=%d",
+                        old_gtid_mode, new_gtid_mode));
+
     if (new_gtid_mode == old_gtid_mode)
       goto end;
 
@@ -2455,6 +2462,40 @@ public:
       my_error(ER_CANT_SET_GTID_MODE, MYF(0),
                get_gtid_mode_string(new_gtid_mode),
                "group replication requires @@GLOBAL.GTID_MODE=ON");
+      goto err;
+    }
+
+    // Compatible with ongoing transactions.
+    DBUG_PRINT("info", ("anonymous_ownership_count=%d owned_gtids->is_empty=%d",
+                        gtid_state->get_anonymous_ownership_count(),
+                        gtid_state->get_owned_gtids()->is_empty()));
+    gtid_state->get_owned_gtids()->dbug_print("global owned_gtids");
+    if (new_gtid_mode == GTID_MODE_ON &&
+        gtid_state->get_anonymous_ownership_count() > 0)
+    {
+      my_error(ER_CANT_SET_GTID_MODE, MYF(0), "ON",
+               "there are ongoing, anonymous transactions. Before "
+               "setting @@GLOBAL.GTID_MODE = ON, wait until "
+               "SHOW STATUS LIKE 'ANONYMOUS_TRANSACTION_COUNT' "
+               "shows zero on all servers. Then wait for all "
+               "existing, anonymous transactions to replicate to "
+               "all slaves, and then execute "
+               "SET @@GLOBAL.GTID_MODE = ON on all servers. "
+               "See the Manual for details");
+      goto err;
+    }
+
+    if (new_gtid_mode == GTID_MODE_OFF &&
+        !gtid_state->get_owned_gtids()->is_empty())
+    {
+      my_error(ER_CANT_SET_GTID_MODE, MYF(0), "OFF",
+               "there are ongoing transactions that have a GTID. "
+               "Before you set @@GLOBAL.GTID_MODE = OFF, wait "
+               "until SELECT @@GLOBAL.GTID_OWNED is empty on all "
+               "servers. Then wait for all GTID-transactions to "
+               "replicate to all servers, and then execute "
+               "SET @@GLOBAL.GTID_MODE = OFF on all servers. "
+               "See the Manual for details");
       goto err;
     }
 

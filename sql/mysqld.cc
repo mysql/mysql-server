@@ -6121,6 +6121,15 @@ static int show_slave_rows_last_search_algorithm_used(THD *thd, SHOW_VAR *var, c
 }
 #endif
 
+static int show_ongoing_anonymous_transaction_count(
+  THD *thd, SHOW_VAR *var, char *buf)
+{
+  var->type= SHOW_CHAR;
+  var->value= buf;
+  sprintf(buf, "%d", gtid_state->get_anonymous_ownership_count());
+  return 0;
+}
+
 #endif /* HAVE_REPLICATION */
 
 static int show_open_tables(THD *thd, SHOW_VAR *var, char *buff)
@@ -6521,6 +6530,9 @@ SHOW_VAR status_vars[]= {
 #ifndef EMBEDDED_LIBRARY
   {"Aborted_connects",         (char*) &show_aborted_connects,  SHOW_FUNC},
 #endif
+#ifdef HAVE_REPLICATION
+  {"Ongoing_anonymous_transaction_count",(char*) &show_ongoing_anonymous_transaction_count, SHOW_FUNC},
+#endif//HAVE_REPLICATION
   {"Binlog_cache_disk_use",    (char*) &binlog_cache_disk_use,  SHOW_LONG},
   {"Binlog_cache_use",         (char*) &binlog_cache_use,       SHOW_LONG},
   {"Binlog_stmt_cache_disk_use",(char*) &binlog_stmt_cache_disk_use,  SHOW_LONG},
