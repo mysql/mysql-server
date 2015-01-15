@@ -308,6 +308,7 @@ CHAR(1)),@fill_amount)) , (3, 3 * 3, 3 + 3, 3 / 3, DEFAULT, DEFAULT, DEFAULT,
 DEFAULT ,REPEAT(CAST(3 AS CHAR(1)),@fill_amount));
 
 UPDATE t1 SET col1 = 2;
-
+UPDATE t1 SET col7 = DEFAULT;
+UPDATE t1 SET col8 = DEFAULT;
 DROP TABLE t1;
 

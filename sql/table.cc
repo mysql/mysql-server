@@ -6291,6 +6291,10 @@ void TABLE::mark_generated_columns(bool is_update)
         // TODO: consider updating column maps for index
         bitmap_updated= TRUE;
       }
+
+      // If the GC is needed to update, add base column to read_set
+      if (bitmap_is_set(write_set, tmp_vfield->field_index))
+        bitmap_union(save_old_read_set, read_set);
     }
     read_set= save_old_read_set;
   }
