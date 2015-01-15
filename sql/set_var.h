@@ -20,14 +20,16 @@
   "public" interface to sys_var - server configuration variables.
 */
 
-#include <my_getopt.h>
-#include "m_string.h"
-#include "sql_plugin_ref.h"
-#include "mysql_com.h"
-#include "mysql/plugin.h"                       /* enum_mysql_show_type */
-#include "sql_alloc.h"
-#include "sql_list.h"
-#include "sql_const.h"
+#include "my_global.h"
+
+#include "m_string.h"       // LEX_CSTRING
+#include "my_getopt.h"      // get_opt_arg_type
+#include "mysql_com.h"      // Item_result
+#include "typelib.h"        // TYPELIB
+#include "mysql/plugin.h"   // enum_mysql_show_type
+#include "sql_alloc.h"      // Sql_alloc
+#include "sql_const.h"      // SHOW_COMP_OPTION
+#include "sql_plugin_ref.h" // plugin_ref
 
 #include <vector>
 
@@ -43,6 +45,7 @@ struct st_lex_user;
 typedef ulonglong sql_mode_t;
 typedef enum enum_mysql_show_type SHOW_TYPE;
 typedef struct st_mysql_show_var SHOW_VAR;
+template <class T> class List;
 
 extern TYPELIB bool_typelib;
 

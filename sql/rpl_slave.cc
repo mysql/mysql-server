@@ -60,6 +60,9 @@
 #include "rpl_slave_commit_order_manager.h"
 #include "sql_plugin.h"                         // opt_plugin_dir_ptr
 
+#include "pfs_file_provider.h"
+#include "mysql/psi/mysql_file.h"
+
 #include <algorithm>
 #include "rpl_msr.h"         /* Multisource replication */
 

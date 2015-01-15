@@ -2254,8 +2254,6 @@ public:
 };
 
 
-/* for fulltext search */
-#include <ft_global.h>
 class JOIN;
 
 class Item_func_match :public Item_real_func

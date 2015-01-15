@@ -59,6 +59,9 @@
 #include "binlog.h"
 #include "item_timefunc.h"             // Item_func_now_local
 
+#include "pfs_file_provider.h"
+#include "mysql/psi/mysql_file.h"
+
 #include <algorithm>
 using std::max;
 using std::min;

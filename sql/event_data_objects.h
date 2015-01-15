@@ -22,8 +22,13 @@
   @file event_data_objects.h
 */
 
-#include "event_parse_data.h"
-#include "thr_lock.h"                           /* thr_lock_type */
+#include "my_global.h"
+#include "m_string.h"                   // LEX_CSTRING
+#include "my_alloc.h"                   // MEM_ROOT
+#include "my_time.h"                    // my_time_t
+#include "mysql/mysql_lex_string.h"     // LEX_STRING
+
+#include "my_thread.h"
 
 class Field;
 class String;
@@ -31,6 +36,7 @@ class THD;
 class Time_zone;
 struct TABLE;
 typedef ulonglong sql_mode_t;
+typedef struct st_mysql_lex_string LEX_STRING;
 
 void init_scheduler_psi_keys(void);
 
