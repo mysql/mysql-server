@@ -55,6 +55,7 @@ bool set_gtid_next(THD *thd, const Gtid_specification &spec)
     }
     else
     {
+      DBUG_ASSERT(gtid_state->get_anonymous_ownership_count() > 0);
       strcpy(buf, "ANONYMOUS");
     }
     my_error(ER_CANT_SET_GTID_NEXT_WHEN_OWNING_GTID, MYF(0), buf);
@@ -396,7 +397,7 @@ bool gtid_reacquire_ownership_if_anonymous(THD *thd)
   {
     Gtid_specification spec;
     spec.set_anonymous();
-    DBUG_PRINT("info", ("converting NOT_YET_DETERMINED_GROUP to ANONYMOUS_GROUP"));
+    DBUG_PRINT("info", ("acquiring ANONYMOUS ownership"));
 
     global_sid_lock->rdlock();
     // set_gtid_next releases global_sid_lock

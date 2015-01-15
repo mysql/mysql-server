@@ -81,9 +81,9 @@ CREATE TABLE t1 (a INT);
 
 # These are parameters to include/execute_at_sync_point.inc,
 # which will remain the same each time the script is invoked.
---let $main_connection= default
+--let $statement_connection= default
+--let $auxiliary_connection= server_1
 --let $other_statement= SELECT show_gtid()
---let $other_connection= server_1
 --let $quiet= 1
 
 --let $n= 1
@@ -130,7 +130,7 @@ while ($n <= 4) {
   --source ../include/show_transaction_gtid.inc
   eval SET SESSION GTID_NEXT = '$gtid';
   --source ../include/show_transaction_gtid.inc
-  --let $main_statement= BEGIN
+  --let $statement= BEGIN
   --let $sync_point= after_set_transaction_psi_before_set_transaction_gtid
   --source include/execute_at_sync_point.inc
   --source ../include/show_transaction_gtid.inc
@@ -150,7 +150,7 @@ while ($n <= 4) {
   --source ../include/show_transaction_gtid.inc
   eval SET SESSION GTID_NEXT = '$gtid';
   --source ../include/show_transaction_gtid.inc
-  --let $main_statement= INSERT INTO t1 VALUES ($n)
+  --let $statement= INSERT INTO t1 VALUES ($n)
   --let $sync_point= begin_decide_logging_format
   --source include/execute_at_sync_point.inc
   --source ../include/show_transaction_gtid.inc
@@ -168,7 +168,7 @@ while ($n <= 4) {
   --source ../include/show_transaction_gtid.inc
   eval SET SESSION GTID_NEXT = '$gtid';
   --source ../include/show_transaction_gtid.inc
-  --let $main_statement= INSERT INTO t1 VALUES ($n)
+  --let $statement= INSERT INTO t1 VALUES ($n)
   --let $sync_point= begin_decide_logging_format
   --source include/execute_at_sync_point.inc
   --source ../include/show_transaction_gtid.inc
@@ -181,7 +181,7 @@ while ($n <= 4) {
   --source ../include/show_transaction_gtid.inc
   eval SET SESSION GTID_NEXT = '$gtid';
   --source ../include/show_transaction_gtid.inc
-  --let $main_statement= CREATE TABLE t_$n (a INT)
+  --let $statement= CREATE TABLE t_$n (a INT)
   --let $sync_point= begin_decide_logging_format
   --source include/execute_at_sync_point.inc
   --source ../include/show_transaction_gtid.inc
