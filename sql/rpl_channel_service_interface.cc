@@ -315,7 +315,7 @@ int channel_start(const char* channel,
         error= RPL_CHANNEL_SERVICE_RECEIVER_CONNECTION_ERROR;
         break;
       }
-      usleep(100);
+      my_sleep(100);
     }
   }
 
