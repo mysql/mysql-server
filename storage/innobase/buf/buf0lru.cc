@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -1276,6 +1276,8 @@ loop:
 		return(block);
 	}
 
+	MONITOR_INC( MONITOR_LRU_GET_FREE_LOOPS );
+
 	freed = false;
 	if (buf_pool->try_LRU_scan || n_iterations > 0) {
 		/* If no block was in the free list, search from the
@@ -1339,6 +1341,7 @@ loop:
 
 	if (n_iterations > 1) {
 
+		MONITOR_INC( MONITOR_LRU_GET_FREE_WAITS );
 		os_thread_sleep(10000);
 	}
 
