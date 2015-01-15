@@ -95,7 +95,7 @@ public:
 #define UNDEFINED_EVENT_MODIFIER  0
 
 /**
-  @class PipelineEvent
+  @class Pipeline_event
 
   A wrapper for log events/packets. This class allows for the marking of events
   and its transformation between the packet and log event formats as requested
@@ -105,7 +105,7 @@ public:
         This is a generic field allowing modifiers to vary with use context.
         If not specified, this field has a default value of 0.
 */
-class PipelineEvent
+class Pipeline_event
 {
 public:
 
@@ -118,7 +118,7 @@ public:
     @param[in]  fde_event        the format description event for conversions
     @param[in]  modifier         the event modifier
   */
-  PipelineEvent(Data_packet *base_packet,
+  Pipeline_event(Data_packet *base_packet,
                 Format_description_log_event *fde_event,
                 int modifier= UNDEFINED_EVENT_MODIFIER)
     :packet(base_packet), log_event(NULL), event_context(modifier),
@@ -134,14 +134,14 @@ public:
     @param[in]  fde_event        the format description event for conversions
     @param[in]  modifier         the event modifier
   */
- PipelineEvent(Log_event *base_event,
+ Pipeline_event(Log_event *base_event,
                Format_description_log_event *fde_event,
                int modifier= UNDEFINED_EVENT_MODIFIER)
     :packet(NULL), log_event(base_event), event_context(modifier),
     format_descriptor(fde_event)
   {}
 
-  ~PipelineEvent()
+  ~Pipeline_event()
   {
     if (packet != NULL)
     {
@@ -498,7 +498,7 @@ private:
 
 
 /**
-  @class PipelineAction
+  @class Pipeline_action
 
   A wrapper for pipeline actions.
   Pipeline actions, unlike normal events, do not transport data but execution
@@ -510,16 +510,16 @@ private:
         Actions are good for executing start and stop actions for example, but
         also for configuring handlers.
 */
-class PipelineAction
+class Pipeline_action
 {
 public:
 
-  PipelineAction(int action_type)
+  Pipeline_action(int action_type)
   {
     type= action_type;
   }
 
-  virtual ~PipelineAction() {};
+  virtual ~Pipeline_action() {};
 
   /**
     Returns this action type.
@@ -538,7 +538,7 @@ private:
 };
 
 /**
-  @class EventHandler
+  @class Event_handler
 
   Interface for the application of events, them being packets or log events.
   Instances of this class can be composed among them to form execution
@@ -548,12 +548,12 @@ private:
   used to identify them in a pipeline.
   Roles are defined by the user of this class according to his context.
 */
-class EventHandler
+class Event_handler
 {
 public:
-  EventHandler() :next_in_pipeline(NULL) {}
+  Event_handler() :next_in_pipeline(NULL) {}
 
-  virtual ~EventHandler(){}
+  virtual ~Event_handler(){}
 
   /**
     Initialization as defined in the handler implementation.
@@ -584,7 +584,7 @@ public:
     @param[in]      event           the pipeline event to be handled
     @param[in,out]  continuation    termination notification object.
   */
-  virtual int handle_event(PipelineEvent *event, Continuation *continuation)= 0;
+  virtual int handle_event(Pipeline_event *event, Continuation *continuation)= 0;
 
   /**
     Handling of an action as defined in the handler implementation.
@@ -599,7 +599,7 @@ public:
 
     @param[in]      action         the pipeline event to be handled
   */
-  virtual int handle_action(PipelineAction *action)= 0;
+  virtual int handle_action(Pipeline_action *action)= 0;
 
   //pipeline appending methods
 
@@ -608,7 +608,7 @@ public:
 
     @param[in]      next            the next handler in line
   */
-  void plug_next_handler(EventHandler *next_handler)
+  void plug_next_handler(Event_handler *next_handler)
   {
     next_in_pipeline= next_handler;
   }
@@ -618,9 +618,9 @@ public:
 
     @param[in]      last_handler    the last handler in line
   */
-  void append(EventHandler *last_handler)
+  void append(Event_handler *last_handler)
   {
-    EventHandler *pipeline_iter= this;
+    Event_handler *pipeline_iter= this;
     while (pipeline_iter->next_in_pipeline)
     {
       pipeline_iter= pipeline_iter->next_in_pipeline;
@@ -636,7 +636,7 @@ public:
     @param[in,out]  pipeline       the pipeline to append the handler
     @param[in]      event_handler  the event handler to append
   */
-  static void append_handler(EventHandler **pipeline, EventHandler *event_handler)
+  static void append_handler(Event_handler **pipeline, Event_handler *event_handler)
   {
     if (!(*pipeline))
       *pipeline= event_handler;
@@ -656,15 +656,15 @@ public:
     @param[in]      role           the role to retrieve
     @param[out]     event_handler  the retrieved event handler
   */
-  static void get_handler_by_role(EventHandler *pipeline, int role,
-                                  EventHandler **event_handler)
+  static void get_handler_by_role(Event_handler *pipeline, int role,
+                                  Event_handler **event_handler)
   {
     *event_handler= NULL;
 
     if (pipeline == NULL)
       return;
 
-    EventHandler *pipeline_iter= pipeline;
+    Event_handler *pipeline_iter= pipeline;
     while (pipeline_iter)
     {
       if (pipeline_iter->get_role() == role )
@@ -718,8 +718,8 @@ public:
     int error= 0;
     while (next_in_pipeline != NULL)
     {
-      EventHandler *pipeline_iter= this;
-      EventHandler *temp_handler= NULL;
+      Event_handler *pipeline_iter= this;
+      Event_handler *temp_handler= NULL;
       while (pipeline_iter->next_in_pipeline != NULL)
       {
         temp_handler= pipeline_iter;
@@ -743,7 +743,7 @@ protected:
     @param[in]      event           the pipeline event to be handled
     @param[in,out]  continuation    termination notification object.
   */
-  int next(PipelineEvent *event, Continuation *continuation)
+  int next(Pipeline_event *event, Continuation *continuation)
   {
     if (next_in_pipeline)
       next_in_pipeline->handle_event(event, continuation);
@@ -758,7 +758,7 @@ protected:
 
     @param[in]  action     the pipeline action to be handled
   */
-  int next(PipelineAction *action)
+  int next(Pipeline_action *action)
   {
     int error= 0;
 
@@ -770,7 +770,7 @@ protected:
 
 private:
   //The next handler in the pipeline
-  EventHandler *next_in_pipeline;
+  Event_handler *next_in_pipeline;
 };
 
 #endif

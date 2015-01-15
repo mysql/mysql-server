@@ -272,6 +272,7 @@ typedef struct st_lex_master_info
   ulonglong pos;
   ulong server_id, retry_count;
   char *gtid;
+  char* view_id;
   const char* channel;  // identifier similar to database name
   enum {UNTIL_SQL_BEFORE_GTIDS= 0, UNTIL_SQL_AFTER_GTIDS} gtid_until_condition;
   bool until_after_gaps;

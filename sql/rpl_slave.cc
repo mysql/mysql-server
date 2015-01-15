@@ -457,6 +457,10 @@ int init_slave()
         /* same as in start_slave() cache the global var values into rli's members */
         mi->rli->opt_slave_parallel_workers= opt_mts_slave_parallel_workers;
         mi->rli->checkpoint_group= opt_mts_checkpoint_group;
+        if (mts_parallel_option == MTS_PARALLEL_TYPE_DB_NAME)
+          mi->rli->channel_mts_submode = MTS_PARALLEL_TYPE_DB_NAME;
+        else
+          mi->rli->channel_mts_submode = MTS_PARALLEL_TYPE_LOGICAL_CLOCK;
         if (start_slave_threads(true/*need_lock_slave=true*/,
                                 false/*wait_for_start=false*/,
                                 mi,
@@ -525,7 +529,9 @@ int start_slave(THD *thd)
     DBUG_ASSERT(!strcmp(mi->get_channel(),
                         msr_map.get_default_channel()));
 
-    error= start_slave(thd, mi, 1, false);
+    error= start_slave(thd, &thd->lex->slave_connection,
+                       &thd->lex->mi, thd->lex->slave_thd_opt,
+                       mi, true, 1);
     if (error)
       goto err;
   }
@@ -539,7 +545,9 @@ int start_slave(THD *thd)
 
       if (channel_configured)
       {
-        error= start_slave(thd, mi, 1, false);
+        error= start_slave(thd, &thd->lex->slave_connection,
+                           &thd->lex->mi,
+                           thd->lex->slave_thd_opt, mi, true, 1);
         if (error)
         {
           sql_print_error("Slave: Could not start slave for channel '%s'."
@@ -665,9 +673,14 @@ bool start_slave_cmd(THD *thd)
     mi= msr_map.get_mi(lex->mi.channel);
 
     if (mi)
-      res= start_slave(thd, mi, 1 /*net report */);
+      res= start_slave(thd, &thd->lex->slave_connection,
+                       &thd->lex->mi, thd->lex->slave_thd_opt, mi, true, 1);
     else if (strcmp(msr_map.get_default_channel(), lex->mi.channel))
       my_error(ER_SLAVE_CHANNEL_DOES_NOT_EXIST, MYF(0), lex->mi.channel);
+
+    if (!res)
+      my_ok(thd);
+
   }
 err:
   mysql_mutex_unlock(&LOCK_msr_map);
@@ -6625,10 +6638,10 @@ extern "C" void *handle_slave_sql(void *arg)
   thd_set_psi(rli->info_thd, psi);
   #endif
 
-  if (mts_parallel_option != MTS_PARALLEL_TYPE_DB_NAME)
-    rli->current_mts_submode= new Mts_submode_logical_clock();
-  else
-    rli->current_mts_submode= new Mts_submode_database();
+ if (rli->channel_mts_submode != MTS_PARALLEL_TYPE_DB_NAME)
+   rli->current_mts_submode= new Mts_submode_logical_clock();
+ else
+   rli->current_mts_submode= new Mts_submode_database();
 
   if (opt_slave_preserve_commit_order && rli->opt_slave_parallel_workers > 0 &&
       opt_bin_log && opt_log_slave_updates)
@@ -9011,31 +9024,53 @@ bool rpl_master_erroneous_autoinc(THD *thd)
 uint sql_slave_skip_counter;
 
 /**
-  Execute a START SLAVE statement.
+   Executes a START SLAVE statement.
 
-  @param thd Pointer to THD object for the client thread executing the
-  statement.
+  @param thd                 Pointer to THD object for the client thread
+                             executing the statement.
 
-  @param mi Pointer to Master_info object for the slave's IO thread.
+   @param connection_param   Connection parameters for starting threads
 
-  @param net_report If true, saves the exit status into Diagnostics_area.
+   @param master_param       Master parameters used for starting threads
 
-  @retval 0 success
-  @retval 1 error
+   @param thread_mask_input  The thread mask that identifies which threads to
+                             start. If 0 is passed (start no thread) then this
+                             parameter is ignored and all stopped threads are
+                             started
+
+   @param mi                 Pointer to Master_info object for the slave's IO
+                             thread.
+
+   @param set_mts_settings   If true, the channel uses the server MTS
+                             configured settings when starting the applier
+                             thread.
+
+   @param net_report         If true, saves the exit status into the
+                             Diagnostics_area.
+
+   @return
+    @retval 0   success
+    @retval !=0 error
 */
-int start_slave(THD* thd , Master_info* mi,  bool net_report, bool for_one_channel)
+int start_slave(THD* thd,
+                LEX_SLAVE_CONNECTION* connection_param,
+                LEX_MASTER_INFO* master_param,
+                int thread_mask_input,
+                Master_info* mi,
+                bool set_mts_settings,
+                bool net_report)
 {
   int slave_errno= 0;
   int thread_mask;
   bool error_reported= false;
 
-  DBUG_ENTER("start_slave(THD, Master_info, bool, bool");
+  DBUG_ENTER("start_slave(THD, lex, lex, int ,Master_info, bool, bool");
 
   if (check_access(thd, SUPER_ACL, any_db, NULL, NULL, 0, 0))
     DBUG_RETURN(1);
 
-  if (thd->lex->slave_connection.user ||
-      thd->lex->slave_connection.password)
+  if (connection_param->user ||
+      connection_param->password)
   {
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
     if (thd->vio_ok() && !thd->net.vio->ssl_arg)
@@ -9059,13 +9094,15 @@ int start_slave(THD* thd , Master_info* mi,  bool net_report, bool for_one_chann
     don't wan't to touch the other thread), so set the bit to 0 for the
     other thread
   */
-  if (thd->lex->slave_thd_opt)
-    thread_mask&= thd->lex->slave_thd_opt;
+  if (thread_mask_input)
+  {
+    thread_mask&= thread_mask_input;
+  }
   if (thread_mask) //some threads are stopped, start them
   {
     if (global_init_info(mi, false, thread_mask))
       slave_errno=ER_MASTER_INFO;
-    else if (server_id_supplied && *mi->host)
+    else if (server_id_supplied && (*mi->host || !(thread_mask & SLAVE_IO)))
     {
       /*
         If we will start IO thread we need to take care of possible
@@ -9073,20 +9110,20 @@ int start_slave(THD* thd , Master_info* mi,  bool net_report, bool for_one_chann
       */
       if (thread_mask & SLAVE_IO)
       {
-        if (thd->lex->slave_connection.user)
+        if (connection_param->user)
         {
           mi->set_start_user_configured(true);
-          mi->set_user(thd->lex->slave_connection.user);
+          mi->set_user(connection_param->user);
         }
-        if (thd->lex->slave_connection.password)
+        if (connection_param->password)
         {
           mi->set_start_user_configured(true);
-          mi->set_password(thd->lex->slave_connection.password);
+          mi->set_password(connection_param->password);
         }
-        if (thd->lex->slave_connection.plugin_auth)
-          mi->set_plugin_auth(thd->lex->slave_connection.plugin_auth);
-        if (thd->lex->slave_connection.plugin_dir)
-          mi->set_plugin_dir(thd->lex->slave_connection.plugin_dir);
+        if (connection_param->plugin_auth)
+          mi->set_plugin_auth(connection_param->plugin_auth);
+        if (connection_param->plugin_dir)
+          mi->set_plugin_dir(connection_param->plugin_dir);
       }
 
       /*
@@ -9114,49 +9151,58 @@ int start_slave(THD* thd , Master_info* mi,  bool net_report, bool for_one_chann
       {
         /*
           To cache the MTS system var values and used them in the following
-          runtime. The system var:s can change meanwhile but having no other
+          runtime. The system vars can change meanwhile but having no other
           effects.
+          It also allows the per channel definition of this variables.
         */
-        mi->rli->opt_slave_parallel_workers= opt_mts_slave_parallel_workers;
+        if (set_mts_settings)
+        {
+          mi->rli->opt_slave_parallel_workers= opt_mts_slave_parallel_workers;
+          if (mts_parallel_option == MTS_PARALLEL_TYPE_DB_NAME)
+            mi->rli->channel_mts_submode = MTS_PARALLEL_TYPE_DB_NAME;
+          else
+            mi->rli->channel_mts_submode = MTS_PARALLEL_TYPE_LOGICAL_CLOCK;
+
 #ifndef DBUG_OFF
         if (!DBUG_EVALUATE_IF("check_slave_debug_group", 1, 0))
 #endif
           mi->rli->checkpoint_group= opt_mts_checkpoint_group;
+        }
 
         mysql_mutex_lock(&mi->rli->data_lock);
 
-        if (thd->lex->mi.pos)
+        if (master_param->pos)
         {
-          if (thd->lex->mi.relay_log_pos)
+          if (master_param->relay_log_pos)
             slave_errno= ER_BAD_SLAVE_UNTIL_COND;
           mi->rli->until_condition= Relay_log_info::UNTIL_MASTER_POS;
-          mi->rli->until_log_pos= thd->lex->mi.pos;
+          mi->rli->until_log_pos= master_param->pos;
           /*
              We don't check thd->lex->mi.log_file_name for NULL here
              since it is checked in sql_yacc.yy
           */
-          strmake(mi->rli->until_log_name, thd->lex->mi.log_file_name,
+          strmake(mi->rli->until_log_name, master_param->log_file_name,
                   sizeof(mi->rli->until_log_name)-1);
         }
-        else if (thd->lex->mi.relay_log_pos)
+        else if (master_param->relay_log_pos)
         {
-          if (thd->lex->mi.pos)
+          if (master_param->pos)
             slave_errno= ER_BAD_SLAVE_UNTIL_COND;
           mi->rli->until_condition= Relay_log_info::UNTIL_RELAY_POS;
-          mi->rli->until_log_pos= thd->lex->mi.relay_log_pos;
-          strmake(mi->rli->until_log_name, thd->lex->mi.relay_log_name,
+          mi->rli->until_log_pos= master_param->relay_log_pos;
+          strmake(mi->rli->until_log_name, master_param->relay_log_name,
                   sizeof(mi->rli->until_log_name)-1);
         }
-        else if (thd->lex->mi.gtid)
+        else if (master_param->gtid)
         {
           global_sid_lock->wrlock();
           mi->rli->clear_until_condition();
-          if (mi->rli->until_sql_gtids.add_gtid_text(thd->lex->mi.gtid)
+          if (mi->rli->until_sql_gtids.add_gtid_text(master_param->gtid)
               != RETURN_STATUS_OK)
             slave_errno= ER_BAD_SLAVE_UNTIL_COND;
           else {
             mi->rli->until_condition=
-              LEX_MASTER_INFO::UNTIL_SQL_BEFORE_GTIDS == thd->lex->mi.gtid_until_condition
+              LEX_MASTER_INFO::UNTIL_SQL_BEFORE_GTIDS == master_param->gtid_until_condition
               ? Relay_log_info::UNTIL_SQL_BEFORE_GTIDS
               : Relay_log_info::UNTIL_SQL_AFTER_GTIDS;
             if ((mi->rli->until_condition ==
@@ -9173,11 +9219,17 @@ int start_slave(THD* thd , Master_info* mi,  bool net_report, bool for_one_chann
           }
           global_sid_lock->unlock();
         }
-        else if (thd->lex->mi.until_after_gaps)
+        else if (master_param->until_after_gaps)
         {
             mi->rli->until_condition= Relay_log_info::UNTIL_SQL_AFTER_MTS_GAPS;
             mi->rli->opt_slave_parallel_workers=
               mi->rli->recovery_parallel_workers;
+        }
+        else if (master_param->view_id)
+        {
+          mi->rli->until_condition= Relay_log_info::UNTIL_SQL_VIEW_ID;
+          mi->rli->until_view_id.clear();
+          mi->rli->until_view_id.append(master_param->view_id);
         }
         else
           mi->rli->clear_until_condition();
@@ -9232,7 +9284,7 @@ int start_slave(THD* thd , Master_info* mi,  bool net_report, bool for_one_chann
             error_reported= true;
         }
       }
-      else if (thd->lex->mi.pos || thd->lex->mi.relay_log_pos || thd->lex->mi.gtid)
+      else if (master_param->pos || master_param->relay_log_pos || master_param->gtid)
         push_warning(thd, Sql_condition::SL_NOTE, ER_UNTIL_COND_IGNORED,
                      ER(ER_UNTIL_COND_IGNORED));
 
@@ -9274,10 +9326,8 @@ int start_slave(THD* thd , Master_info* mi,  bool net_report, bool for_one_chann
       else
         my_message(slave_errno, ER(slave_errno), MYF(0));
     }
-    DBUG_RETURN(1);
+    DBUG_RETURN(slave_errno);
   }
-  else if (net_report && for_one_channel)
-    my_ok(thd);
 
   DBUG_RETURN(0);
 }
@@ -9286,17 +9336,20 @@ int start_slave(THD* thd , Master_info* mi,  bool net_report, bool for_one_chann
 /**
   Execute a STOP SLAVE statement.
 
-  @param thd Pointer to THD object for the client thread executing the
-  statement.
+  @param thd              Pointer to THD object for the client thread executing
+                          the statement.
 
-  @param mi Pointer to Master_info object for the slave's IO thread.
+  @param mi               Pointer to Master_info object for the slave's IO
+                          thread.
 
-  @param net_report If true, saves the exit status into Diagnostics_area.
+  @param net_report       If true, saves the exit status into Diagnostics_area.
+
+  @param for_one_channel  If the method is being invoked only for one channel
 
   @retval 0 success
   @retval 1 error
 */
-int stop_slave(THD* thd, Master_info* mi, bool net_report, bool for_one_channel )
+int stop_slave(THD* thd, Master_info* mi, bool net_report, bool for_one_channel)
 {
   DBUG_ENTER("stop_slave(THD, Master_info, bool, bool");
 
@@ -9339,7 +9392,7 @@ int stop_slave(THD* thd, Master_info* mi, bool net_report, bool for_one_channel 
     push_warning_printf(thd, Sql_condition::SL_NOTE,
                         ER_SLAVE_CHANNEL_WAS_NOT_RUNNING,
                         ER(ER_SLAVE_CHANNEL_WAS_NOT_RUNNING),
-                         mi->get_channel());
+                        mi->get_channel());
   }
 
   /*
@@ -9376,17 +9429,16 @@ int stop_slave(THD* thd, Master_info* mi, bool net_report, bool for_one_channel 
   DBUG_RETURN(0);
 }
 
-
 /**
   Delete slave info objects (mi, rli and workers) corresponding to a channel.
 
   @param[in]       mi        master_info corresponding to a channel
 
   @return
-    @retval        false           OK.
-    @retval        true           not OK.
+    @retval   0                           OK.
+    @retval   ER_SLAVE_CHANNEL_DELETE     The channel is not present
 */
-bool delete_slave_info_object(Master_info *mi)
+int delete_slave_info_object(Master_info *mi)
 {
 
   if (msr_map.delete_mi(mi->get_channel()))
@@ -9395,9 +9447,9 @@ bool delete_slave_info_object(Master_info *mi)
                     mi->get_for_channel_str());
     my_error(ER_SLAVE_CHANNEL_DELETE, MYF(0), mi->get_channel());
 
-    return true;
+    return ER_SLAVE_CHANNEL_DELETE;
   }
-  return false;
+  return 0;
 }
 
 /**
@@ -9421,7 +9473,7 @@ int reset_slave(THD *thd)
   {
     /* First do reset_slave for default channel */
     mi= msr_map.get_mi(msr_map.get_default_channel());
-    if (mi && reset_slave(thd, mi))
+    if (mi && reset_slave(thd, mi, thd->lex->reset_slave_info.all))
       DBUG_RETURN(1);
     /* Do while iteration for rest of the channels */
     while (it!= msr_map.end())
@@ -9433,7 +9485,7 @@ int reset_slave(THD *thd)
       }
       mi= it->second;
       DBUG_ASSERT(mi);
-      if ((result= reset_slave(thd, mi)))
+      if ((result= reset_slave(thd, mi, thd->lex->reset_slave_info.all)))
         break;
       it= msr_map.begin();
     }
@@ -9444,7 +9496,7 @@ int reset_slave(THD *thd)
     {
       mi= it->second;
       DBUG_ASSERT(mi);
-      if ((result= reset_slave(thd, mi)))
+      if ((result= reset_slave(thd, mi, thd->lex->reset_slave_info.all)))
         break;
       it++;
     }
@@ -9459,15 +9511,17 @@ int reset_slave(THD *thd)
   Locks slave threads and unlocks the slave threads after executing
   reset slave.
 
-  @param thd Pointer to THD object of the client thread executing the
-  statement.
+  @param thd        Pointer to THD object of the client thread executing the
+                    statement.
 
-  @param mi Pointer to Master_info object for the slave.
+  @param mi         Pointer to Master_info object for the slave.
 
-  @retval 0 success
-  @retval 1 error
+  @param reset_all  Do a full reset or only clean master info structures
+
+  @retval 0   success
+  @retval !=0 error
 */
-int reset_slave(THD *thd, Master_info* mi)
+int reset_slave(THD *thd, Master_info* mi, bool reset_all)
 {
   int thread_mask= 0, error= 0;
   const char* errmsg= "Unknown error occured while reseting slave";
@@ -9480,7 +9534,7 @@ int reset_slave(THD *thd, Master_info* mi)
   if (thread_mask) // We refuse if any slave thread is running
   {
     my_error(ER_SLAVE_CHANNEL_MUST_STOP, MYF(0), mi->get_channel());
-    error=1;
+    error=ER_SLAVE_CHANNEL_MUST_STOP;
     unlock_slave_threads(mi);
     goto err;
   }
@@ -9503,17 +9557,18 @@ int reset_slave(THD *thd, Master_info* mi)
                                         no_init_after_delete)))
   {
     my_error(ER_RELAY_LOG_FAIL, MYF(0), errmsg);
+    error= ER_RELAY_LOG_FAIL;
     unlock_slave_threads(mi);
     goto err;
   }
 
   /* Clear master's log coordinates and associated information */
   DBUG_ASSERT(!mi->rli || !mi->rli->slave_running); // none writes in rli table
-  mi->clear_in_memory_info(thd->lex->reset_slave_info.all);
+  mi->clear_in_memory_info(reset_all);
 
   if (remove_info(mi))
   {
-    error= 1;
+    error= ER_UNKNOWN_ERROR;
     my_error(ER_UNKNOWN_ERROR, MYF(0));
     unlock_slave_threads(mi);
     goto err;
@@ -9527,7 +9582,7 @@ int reset_slave(THD *thd, Master_info* mi)
      delete the channel if reset_slave_info.all is set,
      except the default channel
   */
-  if (!error && thd->lex->reset_slave_info.all &&
+  if (!error && reset_all &&
       strcmp(mi->get_channel(), msr_map.get_default_channel()))
   {
     error= delete_slave_info_object(mi);
@@ -9574,7 +9629,7 @@ bool reset_slave_cmd(THD *thd)
     mi= msr_map.get_mi(lex->mi.channel);
 
     if (mi)
-      res= reset_slave(thd, mi);
+      res= reset_slave(thd, mi, thd->lex->reset_slave_info.all);
     else if (strcmp(msr_map.get_default_channel(), lex->mi.channel))
       my_error(ER_SLAVE_CHANNEL_DOES_NOT_EXIST, MYF(0), lex->mi.channel);
   }
@@ -9684,18 +9739,21 @@ static bool have_change_master_execute_option(const LEX_MASTER_INFO* lex_mi,
 
   @param lex_mi structure that holds all change master options given on the
                 change master command.
+                Coming from the an executing statement or set directly this
+                shall contain connection settings like hostname, user, password
+                and other settings like the number of connection retries.
 
   @param mi     Pointer to Master_info object belonging to the slave's IO
                 thread.
 
-  @retval false no error i.e., success.
-  @retval true  error.
+  @retval 0    no error i.e., success.
+  @retval !=0  error.
 */
 
-static bool change_receive_options(THD* thd, LEX_MASTER_INFO* lex_mi,
-                                   Master_info* mi, bool need_relay_log_purge)
+static int change_receive_options(THD* thd, LEX_MASTER_INFO* lex_mi,
+                                  Master_info* mi, bool need_relay_log_purge)
 {
-  bool ret= false; /* return value. Set if there is an error. */
+  int ret= 0; /* return value. Set if there is an error. */
 
   DBUG_ENTER("change_receive_options");
 
@@ -9734,7 +9792,7 @@ static bool change_receive_options(THD* thd, LEX_MASTER_INFO* lex_mi,
     */
     if (mi->clean_info())
     {
-      ret= true;
+      ret= 1;
       goto err;
     }
     mi->master_uuid[0]= 0;
@@ -9831,8 +9889,8 @@ static bool change_receive_options(THD* thd, LEX_MASTER_INFO* lex_mi,
     ulong s_id= lex_mi->repl_ignore_server_ids[i];
     if (s_id == ::server_id && replicate_same_server_id)
     {
+      ret= ER_SLAVE_IGNORE_SERVER_IDS;
       my_error(ER_SLAVE_IGNORE_SERVER_IDS, MYF(0), static_cast<int>(s_id));
-      ret= true;
       goto err;
     }
     else
@@ -9926,6 +9984,9 @@ err:
 
   @param lex_mi structure that holds all change master options given on the
                 change master command.
+                Coming from the an executing statement or set directly this
+                shall contain connection settings like hostname, user, password
+                and other settings like the number of connection retries.
 
   @param mi     Pointer to Master_info object belonging to the slave's IO
                 thread.
@@ -9966,17 +10027,29 @@ static void change_execute_options(LEX_MASTER_INFO* lex_mi, Master_info* mi)
   - Purges relay logs if no threads running and no relay log file/pos options.
   - Delete worker info in mysql.slave_worker_info table if applier not running.
 
-  @param thd Pointer to THD object for the client thread executing the
-             statement.
+  @param thd            Pointer to THD object for the client thread executing
+                        the statement.
 
-  @param mi Pointer to Master_info object belonging to the slave's IO
-            thread.
+  @param mi             Pointer to Master_info object belonging to the slave's
+                        IO thread.
 
-  @retval false success
-  @retval true error
+  @param lex_mi         Lex information with master connection data.
+                        Coming from the an executing statement or set directly
+                        this shall contain connection settings like hostname,
+                        user, password and other settings like the number of
+                        connection retries.
+
+  @param preserve_logs  If the decision of purging the logs should be always be
+                        false even if a relay log name is given to the method.
+
+  @retval 0   success
+  @retval !=0 error
 */
-bool change_master(THD* thd, Master_info* mi)
+int change_master(THD* thd, Master_info* mi, LEX_MASTER_INFO* lex_mi,
+                  bool preserve_logs)
 {
+  int error= 0;
+
   /* Do we have at least one receive related (IO thread) option? */
   bool have_receive_option= false;
   /* Do we have at least one execute related (SQL/coord/worker) option? */
@@ -9994,8 +10067,6 @@ bool change_master(THD* thd, Master_info* mi)
 
   DBUG_ENTER("change_master");
 
-  LEX_MASTER_INFO* lex_mi= &thd->lex->mi;
-
   /*
     When we change master, we first decide which thread is running and
     which is not. We dont want this assumption to break while we change master.
@@ -10009,7 +10080,7 @@ bool change_master(THD* thd, Master_info* mi)
 
   /*
     Get a bit mask for the slave threads that are running.
-    Since the third argguement is 0, thread_mask after the function
+    Since the third argument is 0, thread_mask after the function
     returns stands for running threads.
   */
   init_thread_mask(&thread_mask, mi, 0);
@@ -10023,6 +10094,7 @@ bool change_master(THD* thd, Master_info* mi)
   {
     if (lex_mi->auto_position != LEX_MASTER_INFO::LEX_MI_UNCHANGED)
     {
+      error= ER_SLAVE_CHANNEL_MUST_STOP;
       my_error(ER_SLAVE_CHANNEL_MUST_STOP, MYF(0), mi->get_channel());
       goto err;
     }
@@ -10055,6 +10127,7 @@ bool change_master(THD* thd, Master_info* mi)
         (lex_mi->auto_position != LEX_MASTER_INFO::LEX_MI_DISABLE &&
          mi->is_auto_position()))
     {
+      error= ER_BAD_SLAVE_AUTO_POSITION;
       my_message(ER_BAD_SLAVE_AUTO_POSITION,
                  ER(ER_BAD_SLAVE_AUTO_POSITION), MYF(0));
       goto err;
@@ -10064,6 +10137,7 @@ bool change_master(THD* thd, Master_info* mi)
   /* CHANGE MASTER TO MASTER_AUTO_POSITION = 1 requires GTID_MODE = ON */
   if (lex_mi->auto_position == LEX_MASTER_INFO::LEX_MI_ENABLE && gtid_mode != 3)
   {
+    error= ER_AUTO_POSITION_REQUIRES_GTID_MODE_ON;
     my_message(ER_AUTO_POSITION_REQUIRES_GTID_MODE_ON,
                ER(ER_AUTO_POSITION_REQUIRES_GTID_MODE_ON), MYF(0));
     goto err;
@@ -10076,9 +10150,15 @@ bool change_master(THD* thd, Master_info* mi)
   have_execute_option= have_change_master_execute_option(lex_mi,
                                                          &need_relay_log_purge);
 
+  if (preserve_logs && need_relay_log_purge)
+  {
+    need_relay_log_purge= false;
+  }
+
   /* With receiver thread running, we dont allow changing receive options. */
   if (have_receive_option && (thread_mask & SLAVE_IO))
   {
+    error= ER_SLAVE_CHANNEL_IO_THREAD_MUST_STOP;
     my_error(ER_SLAVE_CHANNEL_IO_THREAD_MUST_STOP, MYF(0), mi->get_channel());
     goto err;
   }
@@ -10086,6 +10166,7 @@ bool change_master(THD* thd, Master_info* mi)
   /* With an execute thread running, we don't allow changing execute options. */
   if (have_execute_option && (thread_mask & SLAVE_SQL))
   {
+    error= ER_SLAVE_CHANNEL_SQL_THREAD_MUST_STOP;
     my_error(ER_SLAVE_CHANNEL_SQL_THREAD_MUST_STOP, MYF(0), mi->get_channel());
     goto err;
   }
@@ -10099,6 +10180,7 @@ bool change_master(THD* thd, Master_info* mi)
   */
   if (lex_mi->host && !*lex_mi->host)
   {
+    error= ER_WRONG_ARGUMENTS;
     my_error(ER_WRONG_ARGUMENTS, MYF(0), "MASTER_HOST");
     goto err;
   }
@@ -10117,6 +10199,7 @@ bool change_master(THD* thd, Master_info* mi)
 
   if (global_init_info(mi, false, thread_mask_stopped_threads))
   {
+    error= ER_MASTER_INFO;
     my_message(ER_MASTER_INFO, ER(ER_MASTER_INFO), MYF(0));
     goto err;
   }
@@ -10131,6 +10214,7 @@ bool change_master(THD* thd, Master_info* mi)
       */
       DBUG_ASSERT(mi->rli->recovery_parallel_workers);
 
+      error= ER_MTS_CHANGE_MASTER_CANT_RUN_WITH_GAPS;
       my_message(ER_MTS_CHANGE_MASTER_CANT_RUN_WITH_GAPS,
                  ER(ER_MTS_CHANGE_MASTER_CANT_RUN_WITH_GAPS), MYF(0));
       goto err;
@@ -10177,8 +10261,12 @@ bool change_master(THD* thd, Master_info* mi)
       (lex_mi->auto_position == LEX_MASTER_INFO::LEX_MI_ENABLE));
 
   if (have_receive_option)
-    if (change_receive_options(thd, lex_mi, mi, need_relay_log_purge))
+  {
+    if ((error= change_receive_options(thd, lex_mi, mi, need_relay_log_purge)))
+    {
       goto err;
+    }
+  }
 
   if (have_execute_option)
     change_execute_options(lex_mi, mi);
@@ -10186,6 +10274,7 @@ bool change_master(THD* thd, Master_info* mi)
   /* If the receiver is stopped, flush master_info to disk. */
   if ((thread_mask & SLAVE_IO) == 0 && flush_master_info(mi, true))
   {
+    error= ER_RELAY_LOG_INIT;
     my_error(ER_RELAY_LOG_INIT, MYF(0), "Failed to flush master info file");
     goto err;
   }
@@ -10233,6 +10322,7 @@ bool change_master(THD* thd, Master_info* mi)
                                     0 /* not only reset, but also reinit */,
                                     &errmsg))
       {
+        error= ER_RELAY_LOG_FAIL;
         my_error(ER_RELAY_LOG_FAIL, MYF(0), errmsg);
         goto err;
       }
@@ -10258,6 +10348,7 @@ bool change_master(THD* thd, Master_info* mi)
                                       true/*we do need mi->rli->data_lock*/,
                                       &msg, 0))
       {
+        error= ER_RELAY_LOG_INIT;
         my_error(ER_RELAY_LOG_INIT, MYF(0), msg);
         goto err;
       }
@@ -10270,7 +10361,7 @@ bool change_master(THD* thd, Master_info* mi)
       so restore them to good values. If we left them to ''/0, that would work;
       but that would fail in the case of 2 successive CHANGE MASTER (without a
       START SLAVE in between): because first one would set the coords in mi to
-      the good values of those in rli, then set those in rli to ''/0, then
+      the good values of those in rli, then set those i>n rli to ''/0, then
       second CHANGE MASTER would set the coords in mi to those of rli, i.e. to
       ''/0: we have lost all copies of the original good coordinates.
       That's why we always save good coords in rli.
@@ -10314,60 +10405,50 @@ bool change_master(THD* thd, Master_info* mi)
     */
     if (mi->rli->flush_info(true))
     {
+      error= ER_RELAY_LOG_INIT;
       my_error(ER_RELAY_LOG_INIT, MYF(0), "Failed to flush relay info file.");
       goto err;
     }
 
   } /* end 'if (thread_mask & SLAVE_SQL == 0)' */
 
-  if (!mts_remove_worker_info)
-    my_ok(thd);
-  else
-    if (!Rpl_info_factory::reset_workers(mi->rli))
-      my_ok(thd);
-    else
+  if (mts_remove_worker_info)
+    if (Rpl_info_factory::reset_workers(mi->rli))
+    {
+      error= ER_MTS_RESET_WORKERS;
       my_error(ER_MTS_RESET_WORKERS, MYF(0));
-
-  /*
-    If we have reached here there was no error, so unlock and return
-    false indicating success.
-  */
-  unlock_slave_threads(mi);
-  DBUG_RETURN(false);
+      goto err;
+    }
 
 err:
-  /*
-    If we are here, there was an error, so unlock and return true
-    indicating a failure.
-  */
+
   unlock_slave_threads(mi);
-  DBUG_RETURN(true);
+  DBUG_RETURN(error);
 }
 
 
 /**
    This function is first called when the Master_info object
-   corresponding to a channel in a multisourced slave doesnot
+   corresponding to a channel in a multisourced slave does not
    exist. But before a new channel is created, certain
    conditions have to be met. The below function apriorily
    checks if all such conditions are met. If all the
    conditions are met then it creates a channel i.e
    mi<->rli
 
-   @param[in]      THD           a pointer to THD object of this
-                                 client.
-   @param[in,out]  mi            When new {mi,rli} are created,
-                                 the reference is stored in *mi
-   @param[in]      channel       The channel on which the change
-                                 master was introduced.
+   @param[in,out]  mi                When new {mi,rli} are created,
+                                     the reference is stored in *mi
+   @param[in]      channel           The channel on which the change
+                                     master was introduced.
+   @param[in]      channel_type      The channel type to be added.
 */
-bool add_new_channel(THD* thd, Master_info** mi, const char* channel)
+int add_new_channel(Master_info** mi, const char* channel,
+                    enum_channel_type channel_type)
 {
   DBUG_ENTER("add_new_channel");
 
-  bool ret= true;
+  int error= 0;
   enum_ident_name_check ident_check_status;
-
 
   /*
     Refuse to create a new channel if the repositories does not support this.
@@ -10380,6 +10461,7 @@ bool add_new_channel(THD* thd, Master_info** mi, const char* channel)
                     " repositories are of type FILE. Convert slave"
                     " repositories  to TABLE to replicate from multiple"
                     " sources.");
+    error= ER_SLAVE_NEW_CHANNEL_WRONG_REPOSITORY;
     my_error(ER_SLAVE_NEW_CHANNEL_WRONG_REPOSITORY, MYF(0));
     goto err;
   }
@@ -10390,6 +10472,7 @@ bool add_new_channel(THD* thd, Master_info** mi, const char* channel)
 
   if (!msr_map.is_valid_channel_count())
   {
+    error= ER_SLAVE_MAX_CHANNELS_EXCEEDED;
     my_error(ER_SLAVE_MAX_CHANNELS_EXCEEDED, MYF(0));
     goto err;
   }
@@ -10407,6 +10490,7 @@ bool add_new_channel(THD* thd, Master_info** mi, const char* channel)
 
   if (ident_check_status != IDENT_NAME_OK)
   {
+    error= ER_SLAVE_CHANNEL_NAME_INVALID_OR_TOO_LONG;
     my_error(ER_SLAVE_CHANNEL_NAME_INVALID_OR_TOO_LONG, MYF(0));
     goto err;
   }
@@ -10414,20 +10498,19 @@ bool add_new_channel(THD* thd, Master_info** mi, const char* channel)
   if (!((*mi)=Rpl_info_factory::create_slave_per_channel(
                                              opt_mi_repository_id,
                                              opt_rli_repository_id,
-                                             channel, false, &msr_map)))
+                                             channel, false, &msr_map,
+                                             channel_type)))
   {
+    error= ER_MASTER_INFO;
     my_message(ER_MASTER_INFO, ER(ER_MASTER_INFO), MYF(0));
     goto err;
   }
 
-  ret= false;
-
 err:
 
-  DBUG_RETURN(ret);
+  DBUG_RETURN(error);
 
 }
-
 
 /**
   Entry point for the CHANGE MASTER command. Function
@@ -10449,6 +10532,14 @@ bool change_master_cmd(THD *thd)
 
   mysql_mutex_lock(&LOCK_msr_map);
 
+  //If the chosen name is a group replication reserved name abort
+  if (msr_map.is_group_replication_channel_name(lex->mi.channel))
+  {
+    my_error(ER_SLAVE_CHANNEL_NAME_INVALID_OR_TOO_LONG, MYF(0));
+    res= true;
+    goto err;
+  }
+
   /*
     Error out if number of replication channels are > 1 if FOR CHANNEL
     clause is not provided in the CHANGE MASTER command.
@@ -10466,12 +10557,17 @@ bool change_master_cmd(THD *thd)
   /* create a new channel if doesn't exist */
   if (!mi  && strcmp(lex->mi.channel, msr_map.get_default_channel()))
   {
-    if (add_new_channel(thd, &mi, lex->mi.channel))
-        goto err;
-  }
+    if (add_new_channel(&mi, lex->mi.channel))
+      goto err;
+    }
 
   if (mi)
-    res= change_master(thd, mi);
+  {
+    if (!(res= change_master(thd, mi, &thd->lex->mi)))
+    {
+      my_ok(thd);
+    }
+  }
   else
   {
     /*
@@ -10499,9 +10595,9 @@ err:
  */
 static int check_slave_sql_config_conflict(THD *thd, const Relay_log_info *rli)
 {
-  if (opt_slave_preserve_commit_order && opt_mts_slave_parallel_workers > 0)
+  if (opt_slave_preserve_commit_order && rli->opt_slave_parallel_workers > 0)
   {
-    if (mts_parallel_option == MTS_PARALLEL_TYPE_DB_NAME)
+    if (rli->channel_mts_submode == MTS_PARALLEL_TYPE_DB_NAME)
     {
       my_error(ER_DONT_SUPPORT_SLAVE_PRESERVE_COMMIT_ORDER, MYF(0),
                "when slave_parallel_type is DATABASE");
@@ -10509,7 +10605,7 @@ static int check_slave_sql_config_conflict(THD *thd, const Relay_log_info *rli)
     }
 
     if ((!opt_bin_log || !opt_log_slave_updates) &&
-        mts_parallel_option == MTS_PARALLEL_TYPE_LOGICAL_CLOCK)
+        rli->channel_mts_submode == MTS_PARALLEL_TYPE_LOGICAL_CLOCK)
     {
       my_error(ER_DONT_SUPPORT_SLAVE_PRESERVE_COMMIT_ORDER, MYF(0),
                "unless the binlog and log_slave update options are "

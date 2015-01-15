@@ -48,7 +48,7 @@ Certification_handler::terminate()
 }
 
 int
-Certification_handler::handle_action(PipelineAction* action)
+Certification_handler::handle_action(Pipeline_action* action)
 {
   DBUG_ENTER("Certification_handler::handle_action");
 
@@ -101,7 +101,7 @@ Certification_handler::handle_action(PipelineAction* action)
 }
 
 int
-Certification_handler::handle_event(PipelineEvent *pevent, Continuation *cont)
+Certification_handler::handle_event(Pipeline_event *pevent, Continuation *cont)
 {
   DBUG_ENTER("Certification_handler::handle_event");
 
@@ -121,7 +121,7 @@ Certification_handler::handle_event(PipelineEvent *pevent, Continuation *cont)
 }
 
 int
-Certification_handler::certify(PipelineEvent *pevent, Continuation *cont)
+Certification_handler::certify(Pipeline_event *pevent, Continuation *cont)
 {
   DBUG_ENTER("Certification_handler::certify");
   reset_gtid_settings();
@@ -208,7 +208,7 @@ Certification_handler::certify(PipelineEvent *pevent, Continuation *cont)
 }
 
 int
-Certification_handler::inject_gtid(PipelineEvent *pevent, Continuation *cont)
+Certification_handler::inject_gtid(Pipeline_event *pevent, Continuation *cont)
 {
   DBUG_ENTER("Certification_handler::inject_gtid");
   Log_event *event= NULL;
@@ -235,7 +235,7 @@ Certification_handler::inject_gtid(PipelineEvent *pevent, Continuation *cont)
 }
 
 int
-Certification_handler::extract_certification_info(PipelineEvent *pevent,
+Certification_handler::extract_certification_info(Pipeline_event *pevent,
                                                   Continuation *cont)
 {
   DBUG_ENTER("Certification_handler::extract_certification_info");

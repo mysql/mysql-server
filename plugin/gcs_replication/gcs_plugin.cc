@@ -86,8 +86,6 @@ bool wait_on_engine_initialization= false;
 
 //The plugin applier
 Applier_module *applier_module= NULL;
-char applier_relay_log_name[] = "group_replication_applier";
-char applier_relay_log_info_name[]= "group_replication_applier_relay_log.info";
 //The plugin recovery module
 Recovery_module *recovery_module= NULL;
 
@@ -160,7 +158,7 @@ bool get_gcs_connection_status(RPL_GCS_CONNECTION_STATUS_INFO *info)
 
 bool get_gcs_group_members(uint index, RPL_GCS_GROUP_MEMBERS_INFO *info)
 {
-  char* channel_name= applier_relay_log_name;
+  char* channel_name= applier_module_channel_name;
 
   return get_gcs_group_members_info(index, info,cluster_member_mgr, gcs_module,
                                     gcs_group_pointer, channel_name);
@@ -175,7 +173,7 @@ uint get_gcs_members_number()
 
 bool get_gcs_group_member_stats(RPL_GCS_GROUP_MEMBER_STATS_INFO *info)
 {
-  char* channel_name= applier_relay_log_name;
+  char* channel_name= applier_module_channel_name;
 
   return get_gcs_group_member_stats(info, cluster_member_mgr, applier_module,
                                 gcs_module, gcs_group_pointer, channel_name);
@@ -333,8 +331,8 @@ int gcs_rpl_stop()
   {
     //Do not trow an error since recovery is not vital, but warn either way
     log_message(MY_WARNING_LEVEL,
-                "On shutdown there was a timeout on the recovery module "
-                "termination. Check the log for more details");
+                "On shutdown there was a timeout on the group replication "
+                "recovery module termination. Check the log for more details");
   }
 
   /*
@@ -344,8 +342,8 @@ int gcs_rpl_stop()
   int error= 0;
   if((error= terminate_applier_module()))
     log_message(MY_ERROR_LEVEL,
-                "On shutdown there was a timeout on the applier "
-                "module termination.");
+                "On shutdown there was a timeout on the group replication"
+                " applier termination.");
 
   /*
     Even if the applier did not terminate, let gcs_running be false
@@ -504,8 +502,9 @@ int configure_and_start_applier_module()
     if ((error= applier_module->is_running())) //it is still running?
     {
       log_message(MY_ERROR_LEVEL,
-                  "Cannot start the applier as a previous shutdown is still "
-                  "running: The thread will stop once its task is complete.");
+                  "Cannot start the group replication applier as a previous "
+                  "shutdown is still running: "
+                  "The thread will stop once its task is complete.");
       DBUG_RETURN(error);
     }
     else
@@ -524,8 +523,6 @@ int configure_and_start_applier_module()
   //For now, only defined pipelines are accepted.
   error=
     applier_module->setup_applier_module((Handler_pipeline_type)handler_pipeline_type,
-                                         applier_relay_log_name,
-                                         applier_relay_log_info_name,
                                          known_server_reset,
                                          gcs_components_stop_timeout,
                                          gcs_cluster_sidno);
@@ -540,7 +537,8 @@ int configure_and_start_applier_module()
 
   if ((error= applier_module->initialize_applier_thread()))
   {
-    log_message(MY_ERROR_LEVEL, "Unable to initialize the plugin applier module!");
+    log_message(MY_ERROR_LEVEL,
+                "Unable to initialize the group replication applier module.");
     //clean a possible existent pipeline
     applier_module->terminate_applier_pipeline();
     delete applier_module;
@@ -548,7 +546,7 @@ int configure_and_start_applier_module()
   }
   else
     log_message(MY_INFORMATION_LEVEL,
-                "Event applier module successfully initialized!");
+                "Group replication applier module successfully initialized!");
 
   DBUG_RETURN(error);
 }
@@ -633,9 +631,6 @@ int initialize_recovery_module()
   recovery_module
               ->set_recovery_donor_connection_password(&gcs_recovery_password[0]);
 
-  if(known_server_reset)
-    recovery_module->mark_recovery_needed_reset();
-
   return 0;
 }
 
@@ -711,8 +706,22 @@ static int check_if_server_properly_configured()
   if(startup_pre_reqs.transaction_write_set_extraction !=
      HASH_ALGORITHM_MURMUR32)
   {
-    log_message(MY_ERROR_LEVEL, "Transaction_write_set_extraction should be"
-                " MURMUR32 for Group Replication");
+    log_message(MY_ERROR_LEVEL,
+                "Extraction of a transaction write set requires MURMUR32 hash "
+                "configuration. Please, double check that the parameter "
+                "transaction-write-set-extraction is set accordingly.");
+    DBUG_RETURN(1);
+  }
+
+  if (startup_pre_reqs.mi_repository_type != 1) //INFO_REPOSITORY_TABLE
+  {
+    log_message(MY_ERROR_LEVEL, "Master info repository must be set to TABLE.");
+    DBUG_RETURN(1);
+  }
+
+  if (startup_pre_reqs.rli_repository_type != 1) //INFO_REPOSITORY_TABLE
+  {
+    log_message(MY_ERROR_LEVEL, "Relay log info repository must be set to TABLE");
     DBUG_RETURN(1);
   }
 

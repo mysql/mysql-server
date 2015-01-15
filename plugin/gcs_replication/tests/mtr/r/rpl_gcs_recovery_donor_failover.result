@@ -7,14 +7,14 @@ Note	####	Storing MySQL user name or password information in the master info rep
 # Setup a new 2 node cluster
 #
 SET SESSION sql_log_bin= 0;
-call mtr.add_suppression(".*Error when configuring the connection to the donor");
+call mtr.add_suppression(".*Error when configuring the group recovery connection *.*");
 SET SESSION sql_log_bin= 1;
 include/start_gcs_replication.inc
 include/rpl_gcs_wait_for_number_of_nodes.inc
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1);
 SET SESSION sql_log_bin= 0;
-call mtr.add_suppression(".*Error when configuring the connection to the donor");
+call mtr.add_suppression(".*Error when configuring the group recovery connection *.*");
 SET SESSION sql_log_bin= 1;
 include/start_gcs_replication.inc
 include/rpl_gcs_wait_for_number_of_nodes.inc
@@ -23,7 +23,7 @@ include/rpl_gcs_wait_for_number_of_nodes.inc
 #
 SET @debug_save= @@GLOBAL.DEBUG;
 SET SESSION sql_log_bin= 0;
-call mtr.add_suppression(".*Error when configuring the connection to the donor");
+call mtr.add_suppression(".*Error when configuring the group recovery connection *.*");
 SET SESSION sql_log_bin= 1;
 SET @@GLOBAL.DEBUG='d,recovery_thread_wait';
 SET GLOBAL gcs_replication_plugin_group_name= "55d07150-9a4d-11e3-a5e2-0800200c9a66";

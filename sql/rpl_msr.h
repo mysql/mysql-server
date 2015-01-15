@@ -1,4 +1,4 @@
-/* Copyright (c) 2014 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,13 +24,16 @@
 #include<map>
 #include<string>
 #include "rpl_mi.h"
+#include <rpl_channel_service_interface.h>
 
 /**
    Maps a channel name to it's Master_info.
 */
 
-
+//Maps a master info object to a channel name
 typedef std::map<std::string, Master_info*> mi_map;
+//Maps a channel type to a map of channels of that type.
+typedef std::map<int, mi_map> replication_channel_map;
 
 /**
   Class to store all the Master_info objects of a slave
@@ -56,9 +59,12 @@ typedef std::map<std::string, Master_info*> mi_map;
   Only a single global object for a server instance should be created.
 
   The two important data structures in this class are
-  i) c++ std map to store the Master_info pointers with channel name as a key.
+  i) C++ std map to store the Master_info pointers with channel name as a key.
+    These are the base channel maps.
     @TODO: convert to boost after it's introduction.
-  ii) An array of Master_info pointers to access from performance schema
+  ii) C++ std map to store the channel maps with a channel type as its key.
+      This map stores slave channel maps, group replication channels or others
+  iii) An array of Master_info pointers to access from performance schema
      tables. This array is specifically implemented in a way to make
       a) pfs indices simple i.e a simple integer counter
       b) To avoid recalibration of data structure if master info is deleted.
@@ -97,8 +103,8 @@ private:
  /* Maximum number of channels per slave */
   static const unsigned int MAX_CHANNELS= 256;
 
- /* A Map that maps, a channel name to a Master_info */
-  mi_map channel_to_mi;
+  /* A Map that maps, a channel name to a Master_info grouped by channel type */
+  replication_channel_map rep_channel_map;
 
   /* Number of master_infos at the moment*/
   uint current_mi_count;
@@ -108,6 +114,7 @@ private:
     and cannot be modified.
   */
   static const char* default_channel;
+  static const char* group_replication_channel_names[];
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 
@@ -130,21 +137,23 @@ public:
   }
 
   /**
-    Adds the Master_info object to both channel_to_mi and rpl_pfs_mi
+    Adds the Master_info object to both replication_channel_map and rpl_pfs_mi
 
-    @param[in]   channel_name channel name
-    @param[mi]   mi           pointer to master info corresponding
-                              to this channel
+    @param[in]  channel_name      channel name
+    @param[in]  mi                pointer to master info corresponding
+                                  to this channel
+    @param[in]  channel_type      The channel type. Default is a slave channel
 
     @return
       @retval      false       succesfully added
       @retval      true        couldn't add channel
   */
-  bool add_mi(const char* channel_name, Master_info* mi);
+  bool add_mi(const char* channel_name, Master_info* mi,
+              enum_channel_type channel_type= SLAVE_REPLICATION_CHANNEL);
 
   /**
     Find the master_info object corresponding to a channel explicitly
-    from channel_to_mi;
+    from replication_channel_map;
     Return if it exists, otherwise return 0
 
     @param[in]  channel       channel name for the master info object.
@@ -155,8 +164,8 @@ public:
   Master_info* get_mi(const char* channel_name);
 
   /**
-    Remove the entry corresponding to the channel, from the channel_to_mi
-    and sets index in the  multisource_mi to 0;
+    Remove the entry corresponding to the channel, from the
+    replication_channel_map and sets index in the  multisource_mi to 0;
     And also delete the {mi, rli} pair corresponding to this channel
 
     @param[in]    channel_name     Name of the channel for a Master_info object
@@ -175,11 +184,39 @@ public:
   }
 
   /**
-     Get the number of instances of Master_info in the map.
+    Get the number of instances of Master_info in the map.
+
+    @param all  If it should count all channels.
+                If false, only slave channels are counted.
+
+    @return The number of channels or 0 if empty.
   */
-  inline uint get_num_instances()
+  inline uint get_num_instances(bool all=false)
   {
-    return channel_to_mi.size();
+    DBUG_ENTER("Multisource_info::get_num_instances");
+
+    replication_channel_map::iterator map_it;
+
+    if (all)
+    {
+      int count = 0;
+
+      for (map_it= rep_channel_map.begin();
+           map_it != rep_channel_map.end(); map_it++)
+      {
+        count += map_it->second.size();
+      }
+      DBUG_RETURN(count);
+    }
+    else //Return only the slave channels
+    {
+      map_it= rep_channel_map.find(SLAVE_REPLICATION_CHANNEL);
+
+      if (map_it == rep_channel_map.end())
+        DBUG_RETURN(0);
+      else
+        DBUG_RETURN(map_it->second.size());
+    }
   }
 
   /**
@@ -202,6 +239,21 @@ public:
   }
 
   /**
+    Returns if a channel name is one of the reserved group replication names
+
+    @param channel the channel name to test
+
+    @return
+      @retval      true   the name is a reserved name
+      @retval      false  non reserved name
+  */
+  inline bool is_group_replication_channel_name(const char* channel)
+  {
+    return !strcmp(channel, group_replication_channel_names[0]) ||
+           !strcmp(channel, group_replication_channel_names[1]);
+  }
+
+  /**
      Forward iterators to initiate traversing of a map.
 
      @todo: Not to expose iterators. But instead to return
@@ -210,12 +262,29 @@ public:
   */
   mi_map::iterator begin()
   {
-    return channel_to_mi.begin();
+    replication_channel_map::iterator map_it;
+
+    map_it= rep_channel_map.find(SLAVE_REPLICATION_CHANNEL);
+
+    if (map_it != rep_channel_map.end())
+    {
+      return map_it->second.begin();
+    }
+
+    return end();
   }
 
   mi_map::iterator end()
   {
-    return channel_to_mi.end();
+    mi_map::iterator it;
+
+    replication_channel_map::iterator map_it;
+    map_it= rep_channel_map.find(SLAVE_REPLICATION_CHANNEL);
+
+    if (map_it != rep_channel_map.end())
+      return map_it->second.end();
+
+    return it;
   }
 
 private:

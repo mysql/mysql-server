@@ -31,7 +31,7 @@ Event_cataloger::terminate()
 }
 
 int
-Event_cataloger::handle_event(PipelineEvent *pevent, Continuation *cont)
+Event_cataloger::handle_event(Pipeline_event *pevent, Continuation *cont)
 {
   Log_event_type event_type= pevent->get_event_type();
 
@@ -65,7 +65,7 @@ Event_cataloger::handle_event(PipelineEvent *pevent, Continuation *cont)
   return 0;
 }
 
-int Event_cataloger::handle_action(PipelineAction *action){
+int Event_cataloger::handle_action(Pipeline_action *action){
   return(next(action));
 }
 

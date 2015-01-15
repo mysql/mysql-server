@@ -26,7 +26,7 @@
 
 #include <replication.h>
 #include <log_event.h>
-#include <rpl_pipeline_interfaces.h>
+#include <mysql/gcs_replication_priv.h> //pipeline interfaces
 #include <map>
 #include <string>
 #include <list>

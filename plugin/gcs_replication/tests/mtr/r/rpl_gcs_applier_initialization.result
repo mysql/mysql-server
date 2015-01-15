@@ -4,9 +4,9 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
 set session sql_log_bin=0;
-call mtr.add_suppression("An handler, marked as unique *.*");
-call mtr.add_suppression("Cannot start the applier as a *.*");
-call mtr.add_suppression("On shutdown there was a timeout on the applier *.*");
+call mtr.add_suppression("A group replication applier handler, marked *.*");
+call mtr.add_suppression("Cannot start the group replication applier as *.*");
+call mtr.add_suppression("On shutdown there was a timeout on the group replication applier *.*");
 set session sql_log_bin=1;
 SET GLOBAL gcs_replication_plugin_group_name= "2d249320-2e06-11e3-aa6e-0800200c9a66";
 SET @debug_save= @@GLOBAL.DEBUG;

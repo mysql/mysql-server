@@ -20,7 +20,7 @@
 #include "../gcs_member_info.h"
 #include "gcs_communication_interface.h"
 #include "gcs_control_interface.h"
-#include <rpl_pipeline_interfaces.h>
+#include <mysql/gcs_replication_priv.h> //pipeline interfaces
 
 /*
   @enum Event modifier
@@ -67,11 +67,11 @@ typedef enum enum_gcs_handler_actions {
 
   Action to signal the handler to start existing routines
 */
-class Handler_start_action : public PipelineAction
+class Handler_start_action : public Pipeline_action
 {
 public:
   Handler_start_action()
-    :PipelineAction(HANDLER_START_ACTION)
+    :Pipeline_action(HANDLER_START_ACTION)
   {}
 
   ~Handler_start_action() {}
@@ -82,11 +82,11 @@ public:
 
   Action to signal the handler to stop existing routines
 */
-class Handler_stop_action : public PipelineAction
+class Handler_stop_action : public Pipeline_action
 {
 public:
   Handler_stop_action()
-    :PipelineAction(HANDLER_STOP_ACTION)
+    :Pipeline_action(HANDLER_STOP_ACTION)
   {}
 
   ~Handler_stop_action() {}
@@ -97,31 +97,27 @@ public:
 
   Action to configure existing applier handlers
 */
-class Handler_applier_configuration_action : public PipelineAction
+class Handler_applier_configuration_action : public Pipeline_action
 {
 public:
   /**
    Configuration for applier handlers
 
-   @param relay_log_name            the applier's relay log name
-   @param relay_log_info_name       the applier's relay log index file name
+   @param applier_name              the applier's channel name
    @param reset_logs                if a reset was executed in the server
    @param plugin_shutdown_timeout   the plugin's timeout for component shutdown
    @param cluster_sidno             the cluster configured sidno
   */
-  Handler_applier_configuration_action(char *relay_log_name,
-                                       char *relay_log_info_name,
+  Handler_applier_configuration_action(char *applier_name,
                                        bool reset_logs,
                                        ulong plugin_shutdown_timeout,
                                        rpl_sidno cluster_sidno)
-    :PipelineAction(HANDLER_APPLIER_CONF_ACTION),
-    applier_relay_log_name(relay_log_name),
-    applier_relay_log_info_name(relay_log_info_name), reset_logs(reset_logs),
+    :Pipeline_action(HANDLER_APPLIER_CONF_ACTION),
+    applier_name(applier_name), reset_logs(reset_logs),
     applier_shutdown_timeout(plugin_shutdown_timeout),
     cluster_sidno(cluster_sidno), initialization_conf(true), last_queued_gno(0)
     {
-      DBUG_ASSERT(relay_log_name != NULL);
-      DBUG_ASSERT(relay_log_info_name != NULL);
+      DBUG_ASSERT(applier_name != NULL);
     }
 
   /**
@@ -130,9 +126,8 @@ public:
    @param plugin_shutdown_timeout   the plugin's timeout for component shutdown
   */
   Handler_applier_configuration_action(ulong plugin_shutdown_timeout)
-    :PipelineAction(HANDLER_APPLIER_CONF_ACTION), applier_relay_log_name(NULL),
-    applier_relay_log_info_name(NULL),reset_logs(false),
-    applier_shutdown_timeout(plugin_shutdown_timeout),
+    :Pipeline_action(HANDLER_APPLIER_CONF_ACTION), applier_name(NULL),
+    reset_logs(false), applier_shutdown_timeout(plugin_shutdown_timeout),
     cluster_sidno(0), initialization_conf(false), last_queued_gno(0)
   {
   }
@@ -140,21 +135,12 @@ public:
   ~Handler_applier_configuration_action() {}
 
   /**
-    @return the relay log info name
+    @return the applier's name
       @retval NULL    if not defined
       @retval !=NULL  if defined
    */
-  char* get_applier_relay_log_info_name() {
-    return applier_relay_log_info_name;
-  }
-
-  /**
-    @return the relay log name
-      @retval NULL    if not defined
-      @retval !=NULL  if defined
-   */
-  char* get_applier_relay_log_name() {
-    return applier_relay_log_name;
+  char* get_applier_name() {
+    return applier_name;
   }
 
   ulong get_applier_shutdown_timeout() {
@@ -199,10 +185,8 @@ public:
   }
 
 private:
-  /*The applier's relay log name*/
-  char *applier_relay_log_name;
-  /*The applier's relay log index file name */
-  char *applier_relay_log_info_name;
+  /*The applier's name, used for channel naming*/
+  char *applier_name;
   /*If a reset was executed in the server */
   bool reset_logs;
   /*The plugin's timeout for component shutdown set in the applier*/
@@ -226,7 +210,7 @@ private:
 
   Action to configure existing certification handlers
 */
-class Handler_certifier_configuration_action : public PipelineAction
+class Handler_certifier_configuration_action : public Pipeline_action
 {
 public:
   /**
@@ -236,7 +220,7 @@ public:
   */
   Handler_certifier_configuration_action(rpl_gno last_delivered_gno,
                                          rpl_sidno cluster_sidno)
-   :PipelineAction(HANDLER_CERT_CONF_ACTION),
+   :Pipeline_action(HANDLER_CERT_CONF_ACTION),
    last_delivered_gno(last_delivered_gno), cluster_sidno(cluster_sidno)
   {}
 
@@ -259,7 +243,7 @@ private:
   Action that carries a certification database and sequence number to be
   applied on certification handlers.
 */
-class Handler_certifier_information_action : public PipelineAction
+class Handler_certifier_information_action : public Pipeline_action
 {
 public:
   /**
@@ -270,7 +254,7 @@ public:
   */
   Handler_certifier_information_action(std::map<std::string, std::string>* cert_info,
                                        rpl_gno seq_number)
-   :PipelineAction(HANDLER_CERT_INFO_ACTION),
+   :Pipeline_action(HANDLER_CERT_INFO_ACTION),
    certification_info(cert_info), sequence_number(seq_number)
   {}
 
@@ -293,7 +277,7 @@ private:
 
   Action to signal any interested handler that a VC happened
 */
-class View_change_pipeline_action : public PipelineAction
+class View_change_pipeline_action : public Pipeline_action
 {
 public:
   /**
@@ -302,7 +286,7 @@ public:
     @param is_leaving informs if the node is leaving
   */
   View_change_pipeline_action(bool is_leaving)
-    :PipelineAction(HANDLER_VIEW_CHANGE_ACTION), leaving(is_leaving)
+    :Pipeline_action(HANDLER_VIEW_CHANGE_ACTION), leaving(is_leaving)
   {}
 
   bool is_leaving() {
@@ -319,7 +303,7 @@ private:
 
   Action that carries GCS interfaces to be used on handlers that need them.
 */
-class Handler_GCS_interfaces_action : public PipelineAction
+class Handler_GCS_interfaces_action : public Pipeline_action
 {
 public:
   /**
@@ -333,7 +317,7 @@ public:
   Handler_GCS_interfaces_action(Cluster_member_info *local_info,
                                 Gcs_communication_interface *comm_if,
                                 Gcs_control_interface *ctrl_if)
-   :PipelineAction(HANDLER_GCS_INTERF_ACTION),
+   :Pipeline_action(HANDLER_GCS_INTERF_ACTION),
    local_info(local_info), communication_interface(comm_if),
    control_interface(ctrl_if)
   {}

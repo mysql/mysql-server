@@ -11,9 +11,9 @@
 --source include/master-slave.inc
 
 set session sql_log_bin=0;
-call mtr.add_suppression("An handler, marked as unique *.*");
-call mtr.add_suppression("Cannot start the applier as a *.*");
-call mtr.add_suppression("On shutdown there was a timeout on the applier *.*");
+call mtr.add_suppression("A group replication applier handler, marked *.*");
+call mtr.add_suppression("Cannot start the group replication applier as *.*");
+call mtr.add_suppression("On shutdown there was a timeout on the group replication applier *.*");
 set session sql_log_bin=1;
 
 --let $debug_save_timeout= `SELECT @@GLOBAL.gcs_replication_plugin_components_stop_timeout`

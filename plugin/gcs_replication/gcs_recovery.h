@@ -1,4 +1,4 @@
- /* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,9 +20,8 @@
 #include "gcs_applier.h"
 #include "gcs_communication_interface.h"
 #include "gcs_control_interface.h"
-#include <rpl_pipeline_interfaces.h>
+#include <mysql/gcs_replication_priv.h> //pipeline interfaces
 #include <gcs_replication.h>
-#include <rpl_rli.h>
 #include <list>
 
 class Recovery_module
@@ -181,14 +180,6 @@ public:
    */
   bool is_own_event_channel(my_thread_id id);
 
-  /**
-    Marks the need for log reset when initializing the donor connection;
-  */
-  void mark_recovery_needed_reset()
-  {
-    needs_donor_relay_log_reset= true;
-  }
-
 private:
 
    /**
@@ -217,11 +208,14 @@ private:
   /**
     Initializes the structures for the donor connection threads.
 
+    @param purge_logs  if we are failing over to another a donor,
+                       we don't need to purge the recovery channel
+
     @return the operation status
       @retval 0      OK
       @retval !=0    Error
   */
-  int initialize_donor_connection();
+  int initialize_donor_connection(bool purge_logs);
 
   /**
     Initializes the connection parameters for the donor connection.
@@ -235,14 +229,11 @@ private:
   /**
     Starts the recovery slave threads to receive data from the donor.
 
-    @param failover  failover to another a donor,
-                     so only the IO thread needs a restart
-
     @return the operation status
       @retval 0      OK
       @retval !=0    Error
   */
-  int start_recovery_donor_threads(bool failover= false);
+  int start_recovery_donor_threads();
 
   /**
     Terminates the connection to the donor
@@ -333,8 +324,6 @@ private:
   bool donor_transfer_finished;
   /* Are we successfully connected to a donor*/
   bool connected_to_donor;
-  /* Does the donor relay logs needs reset on before connection*/
-  bool needs_donor_relay_log_reset;
 
   //Recovery connection related structures
   /** Interface class to interact with the donor connection threads*/

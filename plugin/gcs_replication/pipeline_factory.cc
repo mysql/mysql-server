@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,11 +17,11 @@
 #include "pipeline_factory.h"
 #include "handlers/event_cataloger.h"
 #include "handlers/certification_handler.h"
-#include "handlers/applier_sql_thread.h"
+#include "handlers/applier_handler.h"
 
 
 int get_pipeline(Handler_pipeline_type pipeline_type,
-                 EventHandler** pipeline)
+                 Event_handler** pipeline)
 {
   DBUG_ENTER("get_pipeline(pipeline_type, pipeline)");
 
@@ -53,12 +53,13 @@ int get_pipeline_configuration(Handler_pipeline_type pipeline_type,
       (*pipeline_conf)[2]= SQL_THREAD_APPLICATION_HANDLER;
       DBUG_RETURN(3);
     default:
-      log_message(MY_ERROR_LEVEL, "Unknown applier pipeline requested");
+      log_message(MY_ERROR_LEVEL, "Unknown group replication applier pipeline"
+                                  " requested");
   }
   DBUG_RETURN(0);
 }
 
-int configure_pipeline(EventHandler** pipeline, Handler_id handler_list[],
+int configure_pipeline(Event_handler** pipeline, Handler_id handler_list[],
                        int num_handlers)
 {
   DBUG_ENTER("configure_pipeline(pipeline, handler_list[], num_handlers)");
@@ -66,7 +67,7 @@ int configure_pipeline(EventHandler** pipeline, Handler_id handler_list[],
 
   for (int i= 0; i < num_handlers; ++i)
   {
-    EventHandler* handler= NULL;
+    Event_handler* handler= NULL;
 
     /*
       When a new handler is define the developer shall insert it here
@@ -80,11 +81,14 @@ int configure_pipeline(EventHandler** pipeline, Handler_id handler_list[],
         handler= new Certification_handler();
         break;
       case SQL_THREAD_APPLICATION_HANDLER:
-        handler= new Applier_sql_thread();
+        handler= new Applier_handler();
         break;
       default:
         error= 1;
-        log_message(MY_ERROR_LEVEL, "Unknown requested handler");
+        log_message(MY_ERROR_LEVEL,
+                    "Unable to bootstrap group replication event handling "
+                    "infrastructure. Unknown handler type: %d",
+                    handler_list[i]);
     }
 
     if (!handler)
@@ -92,8 +96,8 @@ int configure_pipeline(EventHandler** pipeline, Handler_id handler_list[],
       if (!error) //not an unknown handler but a initialization error
       {
         log_message(MY_ERROR_LEVEL,
-                    "One of the applier handlers is null due to an"
-                    " initialization error");
+                    "One of the group replication applier handlers is null due"
+                    " to an initialization error");
       }
       DBUG_RETURN(1);
     }
@@ -114,20 +118,21 @@ int configure_pipeline(EventHandler** pipeline, Handler_id handler_list[],
         if (handler_list[i] == handler_list[z])
         {
           log_message(MY_ERROR_LEVEL,
-                      "An handler, marked as unique, is already in use.");
+                      "A group replication applier handler, marked as unique,"
+                      " is already in use.");
           delete handler;
           DBUG_RETURN(1);
         }
 
         //check to see if no other handler has the same role
-        EventHandler *handler_with_same_role= NULL;
-        EventHandler::get_handler_by_role(*pipeline,handler->get_role(),
+        Event_handler *handler_with_same_role= NULL;
+        Event_handler::get_handler_by_role(*pipeline,handler->get_role(),
                                           &handler_with_same_role);
         if (handler_with_same_role != NULL)
         {
           log_message(MY_ERROR_LEVEL,
-                      "An handler role, that was marked as unique, "
-                      "is already in use.");
+                      "A group replication applier handler role, "
+                      "that was marked as unique, is already in use.");
           delete handler;
           DBUG_RETURN(1);
         }
@@ -137,12 +142,13 @@ int configure_pipeline(EventHandler** pipeline, Handler_id handler_list[],
 
     if ((error= handler->initialize()))
     {
-      log_message(MY_ERROR_LEVEL, "Error on handler initialization");
+      log_message(MY_ERROR_LEVEL, "Error on group replication applier "
+                                  "handler initialization");
       DBUG_RETURN(error);
     }
 
     //Add the handler to the pipeline
-    EventHandler::append_handler(pipeline,handler);
+    Event_handler::append_handler(pipeline,handler);
   }
   DBUG_RETURN(0);
 }

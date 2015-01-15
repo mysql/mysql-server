@@ -876,6 +876,29 @@ improper_arguments: %d  timed_out: %d",
   DBUG_RETURN( error ? error : event_count );
 }
 
+int Relay_log_info::wait_for_gtid_set(THD* thd, String* gtid,
+                                      longlong timeout)
+{
+  DBUG_ENTER("Relay_log_info::wait_for_gtid_set(thd, String, timeout)");
+
+  DBUG_PRINT("info", ("Waiting for %s timeout %lld", gtid->c_ptr_safe(),
+             timeout));
+
+  Gtid_set wait_gtid_set(global_sid_map);
+  global_sid_lock->rdlock();
+
+  if (wait_gtid_set.add_gtid_text(gtid->c_ptr_safe()) != RETURN_STATUS_OK)
+  {
+    global_sid_lock->unlock();
+    DBUG_PRINT("exit",("improper gtid argument"));
+    DBUG_RETURN(-2);
+
+  }
+  global_sid_lock->unlock();
+
+  DBUG_RETURN(wait_for_gtid_set(thd, &wait_gtid_set, timeout));
+}
+
 /*
   TODO: This is a duplicated code that needs to be simplified.
   This will be done while developing all possible sync options.
@@ -883,7 +906,7 @@ improper_arguments: %d  timed_out: %d",
 
   /Alfranio
 */
-int Relay_log_info::wait_for_gtid_set(THD* thd, String* gtid,
+int Relay_log_info::wait_for_gtid_set(THD* thd, const Gtid_set* wait_gtid_set,
                                       longlong timeout)
 {
   int event_count = 0;
@@ -891,13 +914,10 @@ int Relay_log_info::wait_for_gtid_set(THD* thd, String* gtid,
   int error=0;
   struct timespec abstime; // for timeout checking
   PSI_stage_info old_stage;
-  DBUG_ENTER("Relay_log_info::wait_for_gtid_set");
+  DBUG_ENTER("Relay_log_info::wait_for_gtid_set(thd, gtid_set, timeout)");
 
   if (!inited)
     DBUG_RETURN(-2);
-
-  DBUG_PRINT("info", ("Waiting for %s timeout %lld", gtid->c_ptr_safe(),
-             timeout));
 
   set_timespec(&abstime, timeout);
   mysql_mutex_lock(&data_lock);
@@ -918,14 +938,6 @@ int Relay_log_info::wait_for_gtid_set(THD* thd, String* gtid,
      slave_running briefly switches between 1/0/1.
   */
   init_abort_pos_wait= abort_pos_wait;
-  Gtid_set wait_gtid_set(global_sid_map);
-  global_sid_lock->rdlock();
-  if (wait_gtid_set.add_gtid_text(gtid->c_ptr_safe()) != RETURN_STATUS_OK)
-  { 
-    global_sid_lock->unlock();
-    goto err;
-  }
-  global_sid_lock->unlock();
 
   /* The "compare and wait" main loop */
   while (!thd->killed &&
@@ -944,8 +956,8 @@ int Relay_log_info::wait_for_gtid_set(THD* thd, String* gtid,
 
     DBUG_PRINT("info", ("Waiting for '%s'. is_subset: %d and "
                         "!is_intersection_nonempty: %d",
-      gtid->c_ptr_safe(), wait_gtid_set.is_subset(executed_gtids),
-      !owned_gtids->is_intersection_nonempty(&wait_gtid_set)));
+      wait_gtid_set->to_string(), wait_gtid_set->is_subset(executed_gtids),
+      !owned_gtids->is_intersection_nonempty(wait_gtid_set)));
     executed_gtids->dbug_print("gtid_executed:");
     owned_gtids->dbug_print("owned_gtids:");
 
@@ -953,8 +965,8 @@ int Relay_log_info::wait_for_gtid_set(THD* thd, String* gtid,
       Since commit is performed after log to binary log, we must also
       check if any GTID of wait_gtid_set is not yet committed.
     */
-    if (wait_gtid_set.is_subset(executed_gtids) &&
-        !owned_gtids->is_intersection_nonempty(&wait_gtid_set))
+    if (wait_gtid_set->is_subset(executed_gtids) &&
+        !owned_gtids->is_intersection_nonempty(wait_gtid_set))
     {
       global_sid_lock->unlock();
       break;
@@ -1005,7 +1017,6 @@ int Relay_log_info::wait_for_gtid_set(THD* thd, String* gtid,
     DBUG_PRINT("info",("Testing if killed or SQL thread not running"));
   }
 
-err:
   thd->EXIT_COND(&old_stage);
   DBUG_PRINT("exit",("killed: %d  abort: %d  slave_running: %d \
 improper_arguments: %d  timed_out: %d",

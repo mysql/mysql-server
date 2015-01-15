@@ -57,4 +57,4 @@ START GCS_REPLICATION;
 
 call mtr.add_suppression("Binlog checksum should be OFF for Group Replication");
 call mtr.add_suppression("Binlog format should be ROW for Group Replication");
-call mtr.add_suppression("Transaction_write_set_extraction should be MURMUR32 for Group Replication");
+call mtr.add_suppression("Extraction of a transaction write set requires*");

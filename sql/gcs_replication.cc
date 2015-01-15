@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,11 +14,12 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "my_global.h"
+#include <rpl_info_factory.h>
 #include <gcs_replication.h>
 #include <mysqld.h>
 #include <log.h>
-#include <rpl_info_factory.h>
 #include <rpl_slave.h>
+#include "rpl_channel_service_interface.h"
 
 Gcs_replication_handler::Gcs_replication_handler() :
   plugin(NULL), plugin_handle(NULL)
@@ -125,6 +126,8 @@ Gcs_replication_handler* gcs_rpl_handler= NULL;
 
 int init_gcs_rpl()
 {
+  intialize_channel_service_interface();
+
   if (gcs_rpl_handler != NULL)
     return 1;
 
@@ -263,6 +266,7 @@ void get_server_host_port_uuid(char **hostname, uint *port, char** uuid)
   return;
 }
 
+#ifdef HAVE_REPLICATION
 void
 get_server_startup_prerequirements(Trans_context_info& requirements)
 {
@@ -272,7 +276,10 @@ get_server_startup_prerequirements(Trans_context_info& requirements)
   requirements.gtid_mode= gtid_mode;
   requirements.transaction_write_set_extraction=
     global_system_variables.transaction_write_set_extraction;
+  requirements.mi_repository_type= opt_mi_repository_id;
+  requirements.rli_repository_type= opt_rli_repository_id;
 }
+#endif //HAVE_REPLICATION
 
 bool get_server_encoded_gtid_executed(uchar **encoded_gtid_executed,
                                       uint *length)

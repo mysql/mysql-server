@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1129,9 +1129,15 @@ bool Rpl_info_factory::create_slave_info_objects(uint mi_option,
     /* success case of case B) C) and D) above */
     for (idx= 0; idx < channel_list.size(); idx++)
     {
+      enum_channel_type channel_type= SLAVE_REPLICATION_CHANNEL;
+      if (pmsr_map->is_group_replication_channel_name(channel_list[idx]))
+      {
+        channel_type= GROUP_REPLICATION_CHANNEL;
+      }
+
       if (!(mi= create_slave_per_channel(mi_option, rli_option,
                                          (const char*)channel_list[idx],
-                                         false, pmsr_map)))
+                                         false, pmsr_map, channel_type)))
       {
         channel_init_error= true;
         goto err;
@@ -1197,25 +1203,28 @@ err:
    Both master_info and relay_log_info repositories should be of the type
    TABLE. We do a check for this here as well.
 
-   @param[in]    mi_option      master info repository
-   @param[in]    rli_option     relay log info repository
-   @param[in]    channel        the channel for which these objects
-                                should be created.
-   @param[in]    pmsr_map       a pointer to msr_map
-   @param[in]   to_decide_repo  For this channel, check if repositories
-                                are allowed to convert from one type
-                                to other.
+   @param[in]    mi_option        master info repository
+   @param[in]    rli_option       relay log info repository
+   @param[in]    channel          the channel for which these objects
+                                  should be created.
+   @param[in]    to_decide_repo   For this channel, check if repositories
+                                  are allowed to convert from one type to other.
+   @param[in]    pmsr_map         a pointer to msr_map
+   @param[in]    channel type     If the given channel is a slave channel.
+                                  Default is true.
 
    @return      Pointer         pointer to the created Master_info
    @return      NULL            when creation fails
 
 */
 
-Master_info* Rpl_info_factory::create_slave_per_channel(uint mi_option,
-                                                        uint rli_option,
-                                                        const char* channel,
-                                                        bool to_decide_repo,
-                                                        Multisource_info* pmsr_map)
+Master_info*
+Rpl_info_factory::create_slave_per_channel(uint mi_option,
+                                           uint rli_option,
+                                           const char* channel,
+                                           bool to_decide_repo,
+                                           Multisource_info* pmsr_map,
+                                           enum_channel_type channel_type)
 {
   DBUG_ENTER("Rpl_info_factory::create_slave_per_channel");
 
@@ -1238,7 +1247,7 @@ Master_info* Rpl_info_factory::create_slave_per_channel(uint mi_option,
   rli->set_master_info(mi);
 
   /* Add to multisource map*/
-  if (pmsr_map->add_mi(channel, mi))
+  if (pmsr_map->add_mi(channel, mi, channel_type))
   {
     delete mi;
     delete rli;

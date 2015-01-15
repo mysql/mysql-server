@@ -46,6 +46,7 @@ SET @debug_save= @@GLOBAL.DEBUG;
 set session sql_log_bin=0;
 call mtr.add_suppression("There was an error when connecting to the donor*");
 call mtr.add_suppression("Maximum number of retries when*");
+call mtr.add_suppression("Fatal error when recovering. The server has left the group.");
 set session sql_log_bin=1;
 SET GLOBAL gcs_replication_plugin_recovery_user= gcs_user;
 SET GLOBAL gcs_replication_plugin_recovery_password= gcs_bad_password;

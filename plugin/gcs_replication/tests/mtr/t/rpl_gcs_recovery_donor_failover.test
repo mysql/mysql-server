@@ -20,7 +20,7 @@
 
 --connection server1
 SET SESSION sql_log_bin= 0;
-call mtr.add_suppression(".*Error when configuring the connection to the donor");
+call mtr.add_suppression(".*Error when configuring the group recovery connection *.*");
 SET SESSION sql_log_bin= 1;
 
 --source include/start_gcs_replication.inc
@@ -37,7 +37,7 @@ INSERT INTO t1 VALUES (1);
 
 --connection server2
 SET SESSION sql_log_bin= 0;
-call mtr.add_suppression(".*Error when configuring the connection to the donor");
+call mtr.add_suppression(".*Error when configuring the group recovery connection *.*");
 SET SESSION sql_log_bin= 1;
 
 --source include/start_gcs_replication.inc
@@ -53,7 +53,7 @@ SET @debug_save= @@GLOBAL.DEBUG;
 
 --connection server3
 SET SESSION sql_log_bin= 0;
-call mtr.add_suppression(".*Error when configuring the connection to the donor");
+call mtr.add_suppression(".*Error when configuring the group recovery connection *.*");
 SET SESSION sql_log_bin= 1;
 
 SET @@GLOBAL.DEBUG='d,recovery_thread_wait';

@@ -18,14 +18,14 @@
 
 #include "../gcs_plugin_utils.h"
 #include "../gcs_certifier.h"
-#include <rpl_pipeline_interfaces.h>
+#include <mysql/gcs_replication_priv.h> //pipeline interfaces
 
-class Certification_handler : public EventHandler
+class Certification_handler : public Event_handler
 {
 public:
   Certification_handler();
-  int handle_event(PipelineEvent *ev,Continuation *cont);
-  int handle_action(PipelineAction *action);
+  int handle_event(Pipeline_event *ev,Continuation *cont);
+  int handle_action(Pipeline_action *action);
   int initialize();
   int terminate();
   bool is_unique();
@@ -108,20 +108,19 @@ private:
     and based on the output it updates the condition variable map and
     signals the thread waiting in the before_commit method.
   */
-  int certify(PipelineEvent *ev, Continuation *cont);
+  int certify(Pipeline_event *ev, Continuation *cont);
   /*
     This method creates a gtid_event for the remote transactions and
     adds it in the pipeline.
   */
-  int inject_gtid(PipelineEvent *ev, Continuation *cont);
+  int inject_gtid(Pipeline_event *ev, Continuation *cont);
 
   /*
     This method extracts the certification db and the sequence number from
     the certifier injecting them in a View change event to be sent to a possible
     joiner.
   */
-  int extract_certification_info(PipelineEvent *pevent, Continuation *cont);
-
+  int extract_certification_info(Pipeline_event *pevent, Continuation *cont);
 };
 
 #endif /* CERTIFICATION_HANDLER_INCLUDE */

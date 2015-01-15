@@ -54,7 +54,7 @@ typedef struct Trans_table_info {
   - Startup verifications, that are extracted when Group Replication starts,
     and typically from global vars.
   - Runtime verifications, that are extracted when a transaction is running. It
-    it tipically from session THD vars or from mutable global vars.
+    it typically from session THD vars or from mutable global vars.
 
   Please refer to the place where information is extracted for more details
   about it.
@@ -66,6 +66,8 @@ typedef struct Trans_context_info {
   ulong binlog_format;           //enum values in enum enum_binlog_format
   // enum values in enum_transaction_write_set_hashing_algorithm
   ulong transaction_write_set_extraction;
+  ulong mi_repository_type;     //enum values in enum_info_repository
+  ulong rli_repository_type;    //enum values in enum_info_repository
 } Trans_context_info;
 
 /**

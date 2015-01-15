@@ -207,6 +207,7 @@ SET(SQL_SHARED_SOURCES
   thr_malloc.cc 
   transaction.cc
   transaction_info.cc
+  rpl_channel_service_interface.cc
   rpl_transaction_ctx.cc
   rpl_transaction_write_set_ctx.cc
   trigger.cc

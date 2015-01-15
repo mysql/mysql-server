@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -78,7 +78,8 @@ Gcs_plugin_events_handler::handle_transactional_message(Gcs_message& message)
   }
   else
   {
-    log_message(MY_ERROR_LEVEL, "Message received without a proper applier");
+    log_message(MY_ERROR_LEVEL,
+                "Message received without a proper group replication applier");
   }
 }
 
@@ -87,7 +88,8 @@ Gcs_plugin_events_handler::handle_certifier_message(Gcs_message& message)
 {
   if (this->applier_module == NULL)
   {
-    log_message(MY_ERROR_LEVEL, "Message received without a proper applier");
+    log_message(MY_ERROR_LEVEL,
+                "Message received without a proper group replication applier");
     return;
   }
 
@@ -123,12 +125,12 @@ Gcs_plugin_events_handler::handle_recovery_message(Gcs_message& message)
   if(is_local)
   {
     log_message(MY_INFORMATION_LEVEL,
-                "[Recovery:] This node was declared online");
+                "This server was declared online within the replication group");
   }
   else
   {
     log_message(MY_INFORMATION_LEVEL,
-                "[Recovery:] Node %s was declared online",
+                "Server %s was declared online within the replication group",
                 node_uuid->c_str());
   }
 }
@@ -231,7 +233,8 @@ void Gcs_plugin_events_handler::handle_joining_nodes(Gcs_view *new_view,
                                                    ->get_representation());
 
       log_message(MY_INFORMATION_LEVEL,
-                  "[Recovery] Only one node alive. Declaring the node %s online.",
+                  "Only one server alive."
+                  "Declaring the server %s as online within the replication group",
                   local_node_info->get_uuid()->c_str());
       cluster_info_mgr->update_member_status
               (*local_node_info->get_uuid(),
@@ -240,7 +243,7 @@ void Gcs_plugin_events_handler::handle_joining_nodes(Gcs_view *new_view,
     else //start recovery
     {
       log_message(MY_INFORMATION_LEVEL,
-                  "[Recovery:] Starting recovery with view_id %s",
+                  "Starting group replication recovery with view_id %s",
                   new_view->get_view_id()->get_representation());
       /*
        During the view change, a suspension packet is sent to the applier module
@@ -275,7 +278,7 @@ void Gcs_plugin_events_handler::handle_joining_nodes(Gcs_view *new_view,
   else
   {
     log_message(MY_INFORMATION_LEVEL,
-                "[Recovery:] Marking view change with view_id %s",
+                "Marking group replication view change with view_id %s",
                 new_view->get_view_id()->get_representation());
     /**
      If not a joining member, all nodes should record on their own binlogs a

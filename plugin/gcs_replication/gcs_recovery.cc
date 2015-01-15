@@ -17,8 +17,7 @@
 #include "gcs_recovery.h"
 #include "gcs_recovery_message.h"
 #include "gcs_member_info.h"
-#include "gcs_plugin.h"
-#include <rpl_pipeline_interfaces.h>
+#include <mysql/gcs_replication_priv.h> //pipeline interfaces
 #include <mysqld_thd_manager.h>  // Global_THD_manager
 #include <debug_sync.h>
 
@@ -33,9 +32,7 @@ static char DEFAULT_PASSWORD[]= "";
 static uint RECOVERY_TRANSACTION_THRESHOLD= 0;
 
 /** The relay log name*/
-static char rec_relay_log_name[]= "group_replication_recovery";
-/** The relay log info file*/
-static char rec_relay_log_info_name[]= "group_replication_recovery_relay_log.info";
+static char recovery_channel_name[]= "group_replication_recovery";
 
 static void *launch_handler_thread(void* arg)
 {
@@ -55,8 +52,7 @@ Recovery_module(Applier_module_interface *applier,
     local_node_information(local_info), applier_module(applier),
     cluster_info(cluster_info_if), donor_connection_retry_count(0),
     recovery_running(false), donor_transfer_finished(false),
-    connected_to_donor(false), needs_donor_relay_log_reset(false),
-    donor_connection_interface(),
+    connected_to_donor(false), donor_connection_interface(recovery_channel_name),
     stop_wait_timeout(gcs_components_stop_timeout),
     max_connection_attempts_to_donors(-1)
 {
@@ -111,11 +107,12 @@ Recovery_module::start_recovery(const string& group_name,
   this->view_id.clear();
   this->view_id.append(rec_view_id);
 
-  if(check_recovery_thread_status())
+  if (check_recovery_thread_status())
   {
     log_message(MY_ERROR_LEVEL,
-                "[Recovery:] A previous recovery session is still running."
-                "Please stop the plugin and wait for it to stop.");
+                "A previous recovery session is still running. "
+                "Please stop the group replication plugin and"
+                " wait for it to stop.");
     DBUG_RETURN(1);
   }
 
@@ -123,8 +120,11 @@ Recovery_module::start_recovery(const string& group_name,
   recovery_aborted= false;
 
   //Set the retry count to be the max number of possible donors
-  if(max_connection_attempts_to_donors == -1)
+  if (max_connection_attempts_to_donors == -1)
   {
+    log_message(MY_INFORMATION_LEVEL,
+                "The number of group replication recovery connections attempts was not set. "
+                "Defaulting to the maximum number of possible donors.");
     max_connection_attempts_to_donors= cluster_info->get_number_of_members() -1;
   }
 
@@ -137,11 +137,11 @@ Recovery_module::start_recovery(const string& group_name,
   mysql_thread_register("gcs-recovery-module", threads, 1);
 #endif
 
-  if ((mysql_thread_create(key_thread_recovery,
+  if (mysql_thread_create(key_thread_recovery,
                            &recovery_pthd,
                            get_connection_attrib(),
                            launch_handler_thread,
-                           (void*)this)))
+                           (void*)this))
   {
     DBUG_RETURN(1);
   }
@@ -154,9 +154,6 @@ Recovery_module::start_recovery(const string& group_name,
 
   mysql_mutex_unlock(&run_lock);
 
-  log_message(MY_INFORMATION_LEVEL,
-              "[Recovery:] Recovery Thread Started...");
-
   DBUG_RETURN(0);
 }
 
@@ -164,8 +161,8 @@ int
 Recovery_module::check_recovery_thread_status()
 {
   //if some of the threads are running
-  if (donor_connection_interface.is_io_thread_running() ||
-      donor_connection_interface.is_sql_thread_running())
+  if (donor_connection_interface.is_receiver_thread_running() ||
+      donor_connection_interface.is_applier_thread_running())
   {
     return terminate_recovery_slave_threads();
   }
@@ -249,7 +246,7 @@ Recovery_module::update_recovery_process(bool did_nodes_left)
   if (recovery_running)
   {
     //If i left the Cluster... the cluster manager will only have me
-    if(cluster_info->get_number_of_members() == 1)
+    if (cluster_info->get_number_of_members() == 1)
     {
       stop_recovery();
     }
@@ -258,7 +255,7 @@ Recovery_module::update_recovery_process(bool did_nodes_left)
       /*
         Lock to avoid concurrency between this code that handles failover and
         the establish_donor_connection method. We either:
-        1) lock first and see that the method as not run yet, updating the list
+        1) lock first and see that the method did not run yet, updating the list
            of cluster members that will be used there.
         2) lock after the method executed, and if the selected donor is leaving
            we stop the connection thread and select a new one.
@@ -266,7 +263,7 @@ Recovery_module::update_recovery_process(bool did_nodes_left)
       mysql_mutex_lock(&donor_selection_lock);
 
       //if some node left, reset the counter as potential failed members left
-      if(did_nodes_left)
+      if (did_nodes_left)
       {
         donor_connection_retry_count= 0;
         rejected_donors.clear();
@@ -284,8 +281,8 @@ Recovery_module::update_recovery_process(bool did_nodes_left)
       if ((donor == NULL) && connected_to_donor)
       {
         /*
-         The donor transfer flag is not lock protected on the recovery thread so
-         we have the scenarios.
+         The donor_transfer_finished flag is not lock protected on the recovery
+         thread so we have the scenarios.
          1) The flag is true and we do nothing
          2) The flag is false and remains false so we restart the connection, and
          that new connection will deliver the rest of the data
@@ -293,24 +290,24 @@ Recovery_module::update_recovery_process(bool did_nodes_left)
          case we will probably create a new connection that won't be needed and
          will be terminated the instant the lock is freed.
         */
-        if(!donor_transfer_finished)
+        if (!donor_transfer_finished)
         {
           log_message(MY_INFORMATION_LEVEL,
-                      "[Recovery:] Killing the current recovery connection as the "
-                      "donor %s left.", selected_donor_uuid.c_str());
-          if(donor_failover())
+                      "Killing the current group replication recovery connection"
+                      " as the donor %s has unexpectedly disappeared.",
+                      selected_donor_uuid.c_str());
+          if (donor_failover())
           {
             /*
              We can't failover, nothing to do, better exit the group.
              There is yet a possibility that the donor transfer terminated in
              the meanwhile, rendering the error unimportant.
             */
-            if(!donor_transfer_finished)
+            if (!donor_transfer_finished)
             {
               log_message(MY_ERROR_LEVEL,
-                      "[Recovery:] Failover to another donor failed, rendering "
-                      "recovery impossible."
-                      "The node will now leave to cluster");
+                      "Failover to another donor failed, rendering group recovery"
+                      " impossible. The server will now leave the group");
               mysql_mutex_unlock(&donor_selection_lock);
               gcs_control_interface->leave();
               DBUG_RETURN(error);
@@ -318,8 +315,8 @@ Recovery_module::update_recovery_process(bool did_nodes_left)
             else
             {
               log_message(MY_WARNING_LEVEL,
-                          "[Recovery:] Failover to another donor failed, but "
-                          "recovery already received all the data.");
+                          "Failover to another donor failed, but group "
+                          "replication recovery already received all the data.");
             }
           }
         }
@@ -334,21 +331,16 @@ Recovery_module::update_recovery_process(bool did_nodes_left)
 
 int Recovery_module::donor_failover()
 {
-  if(donor_connection_interface.is_io_thread_running())
+  //Stop the threads before reconfiguring the connection
+  int error= 0;
+  if ((error= donor_connection_interface.stop_threads(true, true)))
   {
-    //Stop only the first one
-    int thread_mask= SLAVE_IO;
-    int error= 0;
-    if ((error= donor_connection_interface.stop_threads(false, thread_mask)))
-    {
-      log_message(MY_ERROR_LEVEL,
-                  "[Recovery:] Can't kill the current recovery process. "
-                  "Recovery will shutdown.");
-      return error;
-    }
-    return(establish_donor_connection(true));
+    log_message(MY_ERROR_LEVEL,
+                "Can't kill the current group replication recovery process. "
+                "Recovery will shutdown.");
+    return error;
   }
-  return 0;
+  return(establish_donor_connection(true));
 }
 
 int
@@ -356,7 +348,6 @@ Recovery_module::recovery_thread_handle()
 {
   int error= 0;
   donor_transfer_finished= false;
-  bool donor_connection_established= false;
 
   set_recovery_thread_context();
 
@@ -369,23 +360,23 @@ Recovery_module::recovery_thread_handle()
   rejected_donors.clear();
 
   //wait for the appliers suspension
-  if(!recovery_aborted &&
-     applier_module->wait_for_applier_complete_suspension(&recovery_aborted))
+  if (!recovery_aborted &&
+     (error= applier_module->wait_for_applier_complete_suspension(&recovery_aborted)))
   {
     log_message(MY_ERROR_LEVEL,
-                "[Recovery:] Can't evaluate the applier module execution status."
-                " Recovery will shutdown to avoid data corruption.");
+                "Can't evaluate the group replication applier execution status. "
+                "Group replication recovery will shutdown to avoid data "
+                "corruption.");
     goto cleanup;
   }
 
   if (!recovery_aborted)
   {
     //if the connection to the donor failed, abort recovery
-    if((error = establish_donor_connection()))
+    if ((error = establish_donor_connection()))
     {
       goto cleanup;
     }
-    donor_connection_established= true;
   }
 
   mysql_mutex_lock(&recovery_lock);
@@ -395,6 +386,7 @@ Recovery_module::recovery_thread_handle()
   }
   mysql_mutex_unlock(&recovery_lock);
 
+  terminate_recovery_slave_threads();
   connected_to_donor= false;
 
   /**
@@ -413,11 +405,6 @@ cleanup:
   if (!recovery_aborted && !error)
     notify_cluster_recovery_end();
 
-  if(donor_connection_established)
-  {
-    terminate_recovery_slave_threads();
-  }
-
   mysql_mutex_lock(&run_lock);
   recovery_running= false;
   mysql_cond_broadcast(&run_cond);
@@ -431,8 +418,13 @@ cleanup:
    otherwise it would deadlock with the method waiting for the last view, and
    last view waiting for this thread to die.
   */
-  if(error)
+  if (error)
+  {
     gcs_control_interface->leave();
+    log_message(MY_ERROR_LEVEL,
+                "Fatal error when recovering. "
+                "The server has left the group.");
+  }
 
   clean_recovery_thread_context();
 
@@ -469,6 +461,7 @@ Recovery_module::set_recovery_thread_context()
   recovery_thd->store_globals();
 
   Global_THD_manager::get_instance()->add_thd(recovery_thd);
+  recovery_thd->security_context()->skip_grants();
 }
 
 void
@@ -487,13 +480,13 @@ bool Recovery_module::select_donor()
 {
   bool no_available_donors= false;
   bool clean_run= rejected_donors.empty();
-  while(!no_available_donors)
+  while (!no_available_donors)
   {
     std::vector<Cluster_member_info*>* member_set=
                                               cluster_info->get_all_members();
     std::vector<Cluster_member_info*>::iterator it= member_set->begin();
     //select the first online node
-    while(it != member_set->end())
+    while (it != member_set->end())
     {
       Cluster_member_info* member = *it;
       //is online and it's not me and didn't error out before
@@ -521,7 +514,7 @@ bool Recovery_module::select_donor()
     delete member_set;
 
     //no donor was found
-    if(!clean_run)
+    if (!clean_run)
     {
       //There were donors that threw an error before, try again with those
       rejected_donors.clear();
@@ -532,7 +525,8 @@ bool Recovery_module::select_donor()
       //no more donor to try with, just report an error
       no_available_donors= true;
       log_message(MY_ERROR_LEVEL,
-                  "[Recovery:] No suitable donor found, recovery aborting.");
+                  "No suitable donor found, "
+                  "group replication recovery aborting.");
       break;
     }
   }
@@ -546,17 +540,17 @@ int Recovery_module::establish_donor_connection(bool failover)
 
   while (error != 0 && !recovery_aborted)
   {
-    if(!failover)
+    if (!failover)
       mysql_mutex_lock(&donor_selection_lock);
 
-    if((error= select_donor())) //select a donor
+    if ((error= select_donor())) //select a donor
     {
-      if(!failover)
+      if (!failover)
         mysql_mutex_unlock(&donor_selection_lock);
       return error; //no available donors, abort
     }
 
- #ifndef DBUG_OFF
+#ifndef DBUG_OFF
     DBUG_EXECUTE_IF("recovery_thread_wait",
                   {
                     const char act[]= "now wait_for signal.recovery_continue";
@@ -564,32 +558,30 @@ int Recovery_module::establish_donor_connection(bool failover)
                   });
 #endif // DBUG_OFF
 
-    if(!failover)
+    if (!error)
     {
-      if ((error= initialize_donor_connection()))
+      if ((error= initialize_donor_connection(!failover)))
       {
         log_message(MY_ERROR_LEVEL,
-             "[Recovery:] Error when configuring the connection to the donor.");
+                    "Error when configuring the group recovery"
+                    " connection to the donor.");
       }
-    }
-    else
-    {
-      error= initialize_connection_parameters();
     }
 
     if (!error && !recovery_aborted)
     {
-      error= start_recovery_donor_threads(failover);
+      error= start_recovery_donor_threads();
     }
 
     if (error)
     {
-      if(donor_connection_retry_count == max_connection_attempts_to_donors)
+      if (donor_connection_retry_count == max_connection_attempts_to_donors)
       {
         log_message(MY_ERROR_LEVEL,
-                    "[Recovery:] Maximum number of retries when trying to "
-                    "connect to a donor reached. Aborting recovery.");
-        if(!failover)
+                    "Maximum number of retries when trying to "
+                    "connect to a donor reached. "
+                    "Aborting group replication recovery.");
+        if (!failover)
           mysql_mutex_unlock(&donor_selection_lock);
         return error; // max number of retries reached, abort
       }
@@ -598,7 +590,7 @@ int Recovery_module::establish_donor_connection(bool failover)
         donor_connection_retry_count++;
         rejected_donors.push_back(selected_donor_uuid);
         log_message(MY_INFORMATION_LEVEL,
-                    "[Recovery:] Retrying connection with another donor. "
+                    "Retrying group recovery connection with another donor. "
                     "Attempt %d/%d",
                     donor_connection_retry_count,
                     max_connection_attempts_to_donors);
@@ -608,128 +600,90 @@ int Recovery_module::establish_donor_connection(bool failover)
     {
       connected_to_donor = true;
     }
-    if(!failover)
+    if (!failover)
       mysql_mutex_unlock(&donor_selection_lock);
   }
 
   return error;
 }
 
-int Recovery_module::initialize_donor_connection(){
+int Recovery_module::initialize_donor_connection(bool purge_logs){
 
   DBUG_ENTER("Recovery_module::initialize_donor_connection");
 
   int error= 0;
 
-  error= donor_connection_interface.initialize_repositories(rec_relay_log_name,
-                                                            rec_relay_log_info_name);
-  if(error)
-  {
-    if (error == REPLICATION_THREAD_REPOSITORY_CREATION_ERROR)
-    {
-      log_message(MY_ERROR_LEVEL,
-                  "[Recovery:] Failed to setup the donor connection metadata "
-                  "containers.");
+  Cluster_member_info* selected_donor=
+          cluster_info->get_cluster_member_info(selected_donor_uuid);
 
-    }
-    if (error == REPLICATION_THREAD_MI_INIT_ERROR)
-    {
-      log_message(MY_ERROR_LEVEL,
-                  "[Recovery:] Failed to setup the donor connection (mi)"
-                  " metadata container.");
-    }
-    if (error == REPLICATION_THREAD_RLI_INIT_ERROR)
-    {
-      log_message(MY_ERROR_LEVEL,
-                  "[Recovery:] Failed to setup the donor connection (relay log) "
-                  "metadata container.");
-    }
-    DBUG_RETURN(error);
+  if (selected_donor == NULL)
+  {
+    return(1);
   }
 
-  //If a server reset happened
-  if (needs_donor_relay_log_reset)
+  /*
+    When initializing a donor connection, if not on failover reset the channel.
+    One of two things happen:
+    1) The channel does not exists so nothing happens.
+    2) The channel exists, so a connection error occurred or there is a failed
+       recovery session that should be cleaned.
+  */
+  if (purge_logs)
   {
-    donor_connection_interface.purge_relay_logs(false);
+    donor_connection_interface.purge_logs();
   }
 
-  error= initialize_connection_parameters();
+  char* hostname= const_cast<char*>(selected_donor->get_hostname()->c_str());
+  uint port= selected_donor->get_port();
 
-  if(!error)
+  error= donor_connection_interface.initialize_channel(hostname, port,
+                                                       donor_connection_user,
+                                                       donor_connection_password,
+                                                       DEFAULT_THREAD_PRIORITY,
+                                                       true, 1, false);
+
+  if (!error)
   {
-    donor_connection_interface.initialize_view_id_until_condition(view_id.c_str());
+    log_message(MY_INFORMATION_LEVEL,
+                "Establishing connection to a group replication recovery donor"
+                " %s at %s port: %d.",
+                selected_donor->get_uuid()->c_str(),
+                hostname,
+                port);
   }
-
+  else
+  {
+    log_message(MY_ERROR_LEVEL,
+                "Error while creating the group replication recovery channel "
+                "with donor %s at %s port: %d.",
+                selected_donor->get_uuid()->c_str(),
+                hostname,
+                port);
+  }
   DBUG_RETURN(error);
 }
 
-bool Recovery_module::initialize_connection_parameters()
-{
-  Cluster_member_info* selected_donor=
-                    cluster_info->get_cluster_member_info(selected_donor_uuid);
-
-  if(selected_donor == NULL)
-  {
-    return true;
-  }
-
-  string hostname= *selected_donor->get_hostname();
-  uint port= selected_donor->get_port();
-
-  donor_connection_interface.initialize_connection_parameters(&hostname,
-          port, donor_connection_user, donor_connection_password, NULL, 1);
-
-  log_message(MY_INFORMATION_LEVEL,
-          "[Recovery:] Establishing connection to donor %s at %s@%s with pass %s"
-          " port: %d.",
-          selected_donor->get_uuid()->c_str(),
-          donor_connection_user,
-          hostname.c_str(),
-          donor_connection_password,
-          port);
-
-  return false;
-}
-
-
-int Recovery_module::start_recovery_donor_threads(bool failover)
+int Recovery_module::start_recovery_donor_threads()
 {
   DBUG_ENTER("Recovery_module::initialize_sql_thread");
 
-  int error= 0;
-  /*
-   On new connection both threads should be started
-   On failover connections, only the IO thread should be started.
-   On why we cannot use init_thread_mask for this:
-     During failover the running SQL thread, can process a View_change event
-     and stop.
-     In that scenario if we reached this code we could restart the SQL thread
-     making it apply events that are past the view change, events that are also
-     queued in the applier module's queue.
-  */
-  int thread_mask= (failover) ? SLAVE_IO : SLAVE_SQL | SLAVE_IO;
+  int error= donor_connection_interface.start_threads(true, true,
+                                                      &view_id, true);
 
-  error= donor_connection_interface.start_replication_threads(thread_mask,
-                                                              true);
   if (error)
   {
-    if (error == REPLICATION_THREAD_START_ERROR)
+
+    if (error == RPL_CHANNEL_SERVICE_RECEIVER_CONNECTION_ERROR)
     {
       log_message(MY_ERROR_LEVEL,
-                  "[Recovery:] Error on the recovery's IO/SQL thread "
-                  "initialization");
+                  "There was an error when connecting to the donor server. "
+                  "Check group replication recovery's connection credentials.");
     }
-    if (error == REPLICATION_THREAD_START_NO_INFO_ERROR)
+    else
     {
       log_message(MY_ERROR_LEVEL,
-                  "[Recovery:] No information available when starting the SQL "
-                  "thread due to an error on the relay log initialization");
-    }
-    if(error == REPLICATION_THREAD_START_IO_NOT_CONNECTED)
-    {
-      log_message(MY_ERROR_LEVEL,
-                  "[Recovery:] There was an error when connecting to the donor "
-                  "server. Check the node connection credentials.");
+                  "Error while starting the group replication recovery "
+                  "receiver/applier threads");
     }
   }
 
@@ -741,8 +695,8 @@ int Recovery_module::terminate_recovery_slave_threads()
   DBUG_ENTER("Recovery_module::terminate_slave_threads");
 
   log_message(MY_INFORMATION_LEVEL,
-              "[Recovery:] Terminating existing donor connection "
-              "and purging recovery logs.");
+              "Terminating existing group replication donor connection "
+              "and purging the corresponding logs.");
   /*
    Lock to avoid concurrent donor failover attempts when we are already
    terminating the threads.
@@ -751,16 +705,17 @@ int Recovery_module::terminate_recovery_slave_threads()
 
   int error= 0;
 
-  if((error= donor_connection_interface.stop_threads(false)))
+  //If the threads never started, the method just returns
+  if ((error= donor_connection_interface.stop_threads(true, true)))
   {
     log_message(MY_ERROR_LEVEL,
-            "[Recovery:] Error when stopping the recovery's slave thread");
+                "Error when stopping the group replication recovery's donor"
+                " connection");
   }
   else
   {
+    //If there is no repository in place nothing happens
     error = purge_recovery_slave_threads_repos();
-    //clean the threads anyway
-    donor_connection_interface.clean_thread_repositories();
   }
 
   mysql_mutex_unlock(&donor_selection_lock);
@@ -772,17 +727,10 @@ int Recovery_module::purge_recovery_slave_threads_repos()
   DBUG_ENTER("Recovery_module::purge_recovery_slave_threads_repos");
 
   int error= 0;
-  if ((error = donor_connection_interface.purge_relay_logs(true)))
+  if ((error = donor_connection_interface.purge_logs()))
   {
     log_message(MY_ERROR_LEVEL,
-                "[Recovery:] Error when purging the recovery's relay logs");
-    DBUG_RETURN(error);
-  }
-
-  if ((error = donor_connection_interface.purge_master_info()))
-  {
-    log_message(MY_ERROR_LEVEL,
-                "[Recovery:] Error when cleaning the master info repository");
+                "Error when purging the group replication recovery's relay logs");
     DBUG_RETURN(error);
   }
 
@@ -797,7 +745,7 @@ void Recovery_module::wait_for_applier_module_recovery()
   while (!recovery_aborted && applier_monitoring)
   {
     ulong queue_size = applier_module->get_message_queue_size();
-    if(queue_size <= RECOVERY_TRANSACTION_THRESHOLD)
+    if (queue_size <= RECOVERY_TRANSACTION_THRESHOLD)
     {
       applier_monitoring= false;
     }
@@ -827,10 +775,10 @@ void Recovery_module::notify_cluster_recovery_end()
 
   bool msg_error= gcs_communication_interface->send_message(msg);
 
-  if(msg_error)
+  if (msg_error)
   {
     log_message(MY_ERROR_LEVEL,
-                "[Recovery:]Error sending message from Recovery");
+                "Error while sending message for group replication recovery");
   }
 
   delete recovery_msg;
@@ -840,5 +788,5 @@ void Recovery_module::notify_cluster_recovery_end()
 bool Recovery_module::is_own_event_channel(my_thread_id id)
 {
   DBUG_ENTER("Recovery_module::is_own_event_channel");
-  DBUG_RETURN(donor_connection_interface.is_own_event_channel(id));
+  DBUG_RETURN(donor_connection_interface.is_own_event_applier(id));
 }

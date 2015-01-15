@@ -1,4 +1,4 @@
-/* Copyright (c) 2014 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,9 +16,13 @@
 #include "rpl_msr.h"
 
 const char* Multisource_info::default_channel= "";
+const char* Multisource_info::group_replication_channel_names[] = {
+  "group_replication_applier",
+  "group_replication_recovery"
+};
 
-
-bool Multisource_info::add_mi(const char* channel_name, Master_info* mi)
+bool Multisource_info::add_mi(const char* channel_name, Master_info* mi,
+                              enum_channel_type type)
 {
   DBUG_ENTER("Multisource_info::add_mi");
 
@@ -29,11 +33,25 @@ bool Multisource_info::add_mi(const char* channel_name, Master_info* mi)
   /* The check of mi exceeding MAX_CHANNELS shall be done in the caller */
   DBUG_ASSERT(current_mi_count < MAX_CHANNELS);
 
-  /* implicit type cast from const char* to string */
-  ret= channel_to_mi.insert(std::pair<std::string, Master_info* >(channel_name, mi));
+  replication_channel_map::iterator map_it;
+
+  map_it= rep_channel_map.find(type);
+
+  if (map_it == rep_channel_map.end())
+  {
+    std::pair<replication_channel_map::iterator, bool> map_ret =
+      rep_channel_map.insert(replication_channel_map::value_type(type, mi_map()));
+
+    if (!map_ret.second)
+      DBUG_RETURN(true);
+
+    map_it = rep_channel_map.find(type);
+  }
+
+  ret = map_it->second.insert(mi_map::value_type(channel_name, mi));
 
   /* If a map insert fails, ret.second is false */
-  if(!ret.second)
+  if (!ret.second)
     DBUG_RETURN(true);
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
@@ -45,21 +63,38 @@ bool Multisource_info::add_mi(const char* channel_name, Master_info* mi)
 
 }
 
-Master_info*  Multisource_info::get_mi(const char* channel_name)
+Master_info* Multisource_info::get_mi(const char* channel_name)
 {
   DBUG_ENTER("Multisource_info::get_mi");
-  mi_map::iterator it;
 
   DBUG_ASSERT(channel_name != 0);
 
-  it= channel_to_mi.find(channel_name);
+  mi_map::iterator it;
+  replication_channel_map::iterator map_it;
 
-  if (it == channel_to_mi.end())
-    DBUG_RETURN(0);
-  else
-    DBUG_RETURN(it->second);
+  map_it= rep_channel_map.find(SLAVE_REPLICATION_CHANNEL);
+  if (map_it != rep_channel_map.end())
+  {
+    it= map_it->second.find(channel_name);
+  }
+
+  if (map_it == rep_channel_map.end() || //If not a slave channel, maybe a group one
+      it == map_it->second.end())
+  {
+    map_it= rep_channel_map.find(GROUP_REPLICATION_CHANNEL);
+    if (map_it == rep_channel_map.end())
+    {
+      DBUG_RETURN(0);
+    }
+    it= map_it->second.find(channel_name);
+    if (it == map_it->second.end())
+    {
+      DBUG_RETURN(0);
+    }
+  }
+
+  DBUG_RETURN(it->second);
 }
-
 
 bool Multisource_info::delete_mi(const char* channel_name)
 {
@@ -70,10 +105,27 @@ bool Multisource_info::delete_mi(const char* channel_name)
 
   DBUG_ASSERT(channel_name != 0);
 
-  it= channel_to_mi.find(channel_name);
+  replication_channel_map::iterator map_it;
+  map_it= rep_channel_map.find(SLAVE_REPLICATION_CHANNEL);
 
-  if (it == channel_to_mi.end())
-    DBUG_RETURN(true);
+  if (map_it != rep_channel_map.end())
+  {
+    it= map_it->second.find(channel_name);
+  }
+  if (map_it == rep_channel_map.end() || //If not a slave channel, maybe a group one
+      it == map_it->second.end())
+  {
+    map_it= rep_channel_map.find(GROUP_REPLICATION_CHANNEL);
+    if (map_it == rep_channel_map.end())
+    {
+      DBUG_RETURN(true);
+    }
+    it= map_it->second.find(channel_name);
+    if (it == map_it->second.end())
+    {
+      DBUG_RETURN(true);
+    }
+  }
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
   int index= -1;
@@ -91,12 +143,12 @@ bool Multisource_info::delete_mi(const char* channel_name)
   mi= it->second;
   it->second= 0;
   /* erase from the map */
-  channel_to_mi.erase(it);
+  map_it->second.erase(it);
 
   /* delete the master info */
   if (mi)
   {
-    if(mi->rli)
+    if (mi->rli)
     {
       delete mi->rli;
     }

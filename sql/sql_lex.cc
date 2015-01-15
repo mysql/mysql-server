@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -4497,6 +4497,7 @@ void st_lex_master_info::initialize()
   server_id= retry_count= 0;
   gtid= NULL;
   gtid_until_condition= UNTIL_SQL_BEFORE_GTIDS;
+  view_id= NULL;
   until_after_gaps= false;
   ssl= ssl_verify_server_cert= heartbeat_opt= repl_ignore_server_ids_opt= 
     retry_count_opt= auto_position= LEX_MI_UNCHANGED;

@@ -19,18 +19,17 @@
 #include <vector>
 #include "gcs_plugin_utils.h"
 #include <my_global.h>
-#include <rpl_pipeline_interfaces.h>
+#include <mysql/gcs_replication_priv.h> //pipeline interfaces
 #include "pipeline_factory.h"
 #include "handlers/gcs_pipeline_interface.h"
-#include "handlers/applier_sql_thread.h"
+#include "handlers/applier_handler.h"
 #include "handlers/certification_handler.h"
 
 
 //Define the action packet type
 #define ACTION_PACKET_TYPE  2
 
-extern char applier_relay_log_name[];
-extern char applier_relay_log_info_name[];
+extern char applier_module_channel_name[];
 
 /* Types of action packets used in the context of the applier module */
 enum enum_packet_action
@@ -108,7 +107,7 @@ public:
   virtual void add_suspension_packet()= 0;
   virtual void add_view_change_packet(char* view_id)= 0;
   virtual int handle(uchar *data, uint len)= 0;
-  virtual int handle_pipeline_action(PipelineAction *action)= 0;
+  virtual int handle_pipeline_action(Pipeline_action *action)= 0;
 };
 
 class Applier_module: public Applier_module_interface
@@ -164,8 +163,6 @@ public:
     Configure the applier pipeline according to the given configuration
 
     @param[in] pipeline_type        the chosen pipeline
-    @param[in] relay_log_name       the applier relay log name
-    @param[in] relay_log_info_name  the applier relay log info name
     @param[in] reset_logs           if a reset happened in the server
     @param[in] stop_timeout         the timeout when waiting on shutdown
     @param[in] cluster_sidno        the cluster configured sidno
@@ -175,8 +172,6 @@ public:
       @retval !=0    Error
   */
   int setup_applier_module(Handler_pipeline_type pipeline_type,
-                           char *relay_log_name,
-                           char *relay_log_info_name,
                            bool reset_logs,
                            ulong stop_timeout,
                            rpl_sidno cluster_sidno);
@@ -217,7 +212,7 @@ public:
       @retval 0      OK
       @retval !=0    Error executing the action
   */
-  int handle_pipeline_action(PipelineAction *action)
+  int handle_pipeline_action(Pipeline_action *action)
   {
     return this->pipeline->handle_action(action);
   }
@@ -232,7 +227,7 @@ public:
        @retval 0      OK
        @retval !=0    Error on queue
    */
-  int inject_event_into_pipeline(PipelineEvent* pevent, Continuation* cont);
+  int inject_event_into_pipeline(Pipeline_event* pevent, Continuation* cont);
 
   /**
     Terminates the pipeline, shutting down the handlers and deleting them.
@@ -306,6 +301,14 @@ public:
   */
   virtual void awake_applier_module()
   {
+    DBUG_EXECUTE_IF("gcs_applier_do_not_start_sql_thread",
+                    {
+                      //Send a stop signal to all handlers.
+                      Pipeline_action *stop_action = new Handler_stop_action();
+                      applier_error= pipeline->handle_action(stop_action);
+                      delete stop_action;
+                    };);
+
     mysql_mutex_lock(&suspend_lock);
     suspended= false;
     mysql_mutex_unlock(&suspend_lock);
@@ -447,6 +450,8 @@ private:
   bool applier_running;
   /* Applier abort flag */
   bool applier_aborted;
+  /* Applier error during execution */
+  int applier_error;
 
   //condition and lock used to suspend/awake the applier module
   /* The lock for suspending/wait for the awake of  the applier module */
@@ -472,7 +477,7 @@ private:
   Synchronized_queue<Packet *> *incoming;
 
   /* The applier pipeline for event execution */
-  EventHandler *pipeline;
+  Event_handler *pipeline;
 
   /**
     The Format description event used for Pipeline Events

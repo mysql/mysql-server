@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,7 +16,7 @@
 #ifndef PIPELINE_FACTORY_INCLUDED
 #define PIPELINE_FACTORY_INCLUDED
 
-#include <rpl_pipeline_interfaces.h>
+#include <mysql/gcs_replication_priv.h> //pipeline interfaces
 
 /**
   @enum Handler_id
@@ -52,7 +52,7 @@ enum Handler_pipeline_type
     @retval !=0    Error returned on the execution
 */
 int get_pipeline(Handler_pipeline_type pipeline_type,
-                 EventHandler** pipeline);
+                 Event_handler** pipeline);
 
 /**
   This method returns the configured handlers for the received pipeline.
@@ -80,7 +80,7 @@ int get_pipeline_configuration(Handler_pipeline_type pipeline_type,
     @retval 0      OK
     @retval !=0    Error returned on the execution
 */
-int configure_pipeline(EventHandler** pipeline, Handler_id handler_list[],
+int configure_pipeline(Event_handler** pipeline, Handler_id handler_list[],
                        int num_handlers);
 
 #endif /* PIPELINE_FACTORY_INCLUDED */

@@ -25,6 +25,8 @@
 #define APPLIER_GTID_CHECK_TIMEOUT_ERROR -1
 #define APPLIER_RELAY_LOG_NOT_INITED -2
 
+char applier_module_channel_name[] = "group_replication_applier";
+
 static void *launch_handler_thread(void* arg)
 {
   Applier_module *handler= (Applier_module*) arg;
@@ -33,7 +35,7 @@ static void *launch_handler_thread(void* arg)
 }
 
 Applier_module::Applier_module()
-  :applier_running(false), applier_aborted(false), suspended(false),
+  :applier_running(false), applier_aborted(false), applier_error(0), suspended(false),
    waiting_for_applier_suspension(false), incoming(NULL), pipeline(NULL),
    fde_evt(BINLOG_VERSION), stop_wait_timeout(LONG_TIMEOUT)
 {
@@ -83,8 +85,6 @@ Applier_module::~Applier_module(){
 
 int
 Applier_module::setup_applier_module(Handler_pipeline_type pipeline_type,
-                                     char *relay_log_name,
-                                     char *relay_log_info_name,
                                      bool reset_logs,
                                      ulong stop_timeout,
                                      rpl_sidno cluster_sidno)
@@ -107,8 +107,7 @@ Applier_module::setup_applier_module(Handler_pipeline_type pipeline_type,
 
   //Configure the applier handler trough a configuration action
   Handler_applier_configuration_action *applier_conf_action=
-    new Handler_applier_configuration_action(relay_log_name,
-                                             relay_log_info_name,
+    new Handler_applier_configuration_action(applier_module_channel_name,
                                              reset_logs,
                                              stop_timeout,
                                              cluster_sidno);
@@ -159,7 +158,6 @@ Applier_module::set_applier_thread_context()
 void
 Applier_module::clean_applier_thread_context()
 {
-  net_end(&applier_thd->net);
   applier_thd->release_resources();
   THD_CHECK_SENTRY(applier_thd);
   Global_THD_manager::get_instance()->remove_thd(applier_thd);
@@ -171,7 +169,7 @@ Applier_module::clean_applier_thread_context()
 }
 
 int
-Applier_module::inject_event_into_pipeline(PipelineEvent* pevent,
+Applier_module::inject_event_into_pipeline(Pipeline_event* pevent,
                                            Continuation* cont)
 {
   int error= 0;
@@ -192,25 +190,43 @@ Applier_module::applier_thread_handle()
   set_applier_thread_context();
 
   Packet *packet= NULL;
-  int error= 0;
+  applier_error= 0;
+  Format_description_log_event* fde_evt= NULL;
+  Continuation* cont= NULL;
+  Pipeline_action *stop_action= NULL;
+
+  /*
+   Initialize the pipeline first avoiding the launch of the applier thread
+   in case of error
+  */
+  Pipeline_action *start_action = new Handler_start_action();
+  applier_error= pipeline->handle_action(start_action);
+  delete start_action;
 
   applier_running= true;
+  mysql_cond_broadcast(&run_cond);
+
+  if (applier_error)
+  {
+    goto end;
+  }
 
   //broadcast if the invoker thread is waiting.
   mysql_cond_broadcast(&run_cond);
 
-  Format_description_log_event* fde_evt=
+  fde_evt=
     new Format_description_log_event(BINLOG_VERSION);
-  Continuation* cont= new Continuation();
+  cont= new Continuation();
 
-  while (!error)
+  while (!applier_error)
   {
     if (is_applier_thread_aborted())
       break;
 
-    if ((error= this->incoming->pop(&packet))) // blocking
+    if ((applier_error= this->incoming->pop(&packet))) // blocking
     {
-      log_message(MY_ERROR_LEVEL, "Error when reading from applier's queue");
+      log_message(MY_ERROR_LEVEL, "Error when reading from group replication "
+                                  "applier's transaction queue");
       break;
     }
     if(packet->get_packet_type() == ACTION_PACKET_TYPE)
@@ -236,8 +252,8 @@ Applier_module::applier_thread_handle()
                        = new View_change_log_event
                                      ((char*)((Action_packet*)packet)->payload);
 
-        PipelineEvent* pevent= new PipelineEvent(view_change_event, fde_evt);
-        error= inject_event_into_pipeline(pevent,cont);
+        Pipeline_event* pevent= new Pipeline_event(view_change_event, fde_evt);
+        applier_error= inject_event_into_pipeline(pevent, cont);
         delete pevent;
         delete packet;
         continue;
@@ -253,15 +269,15 @@ Applier_module::applier_thread_handle()
       TODO: handle the applier error in a way that it causes the node to leave
       the view maybe?
     */
-    while ((payload != payload_end) && !error)
+    while ((payload != payload_end) && !applier_error)
     {
       uint event_len= uint4korr(((uchar*)payload) + EVENT_LEN_OFFSET);
 
-      Data_packet* new_packet= new Data_packet(payload,event_len);
+      Data_packet* new_packet= new Data_packet(payload, event_len);
       payload= payload + event_len;
 
-      PipelineEvent* pevent= new PipelineEvent(new_packet, fde_evt);
-      error= inject_event_into_pipeline(pevent,cont);
+      Pipeline_event* pevent= new Pipeline_event(new_packet, fde_evt);
+      applier_error= inject_event_into_pipeline(pevent, cont);
 
       delete pevent;
     }
@@ -271,7 +287,15 @@ Applier_module::applier_thread_handle()
   delete fde_evt;
   delete cont;
 
-  log_message(MY_INFORMATION_LEVEL, "The applier thread was killed");
+end:
+
+  //Even on error cases, send a stop signal to all handlers that could be active
+  stop_action = new Handler_stop_action();
+  applier_error= pipeline->handle_action(stop_action);
+  delete stop_action;
+
+  log_message(MY_INFORMATION_LEVEL, "The group replication applier thread"
+                                    " was killed");
 
   DBUG_EXECUTE_IF("applier_thd_timeout",
                   {
@@ -282,7 +306,7 @@ Applier_module::applier_thread_handle()
 
   clean_applier_thread_context();
 
-  DBUG_RETURN(error);
+  DBUG_RETURN(applier_error);
 }
 
 int
@@ -290,23 +314,8 @@ Applier_module::initialize_applier_thread()
 {
   DBUG_ENTER("Applier_module::initialize_applier_thd");
 
-  int error= 0;
-
   //avoid concurrency calls against stop invocations
   mysql_mutex_lock(&run_lock);
-
-  /*
-   Initialize the pipeline first avoiding the launch of the applier thread
-   in case of error
-  */
-  PipelineAction *start_action = new Handler_start_action();
-  error= pipeline->handle_action(start_action);
-  delete start_action;
-  if (error)
-  {
-    mysql_mutex_unlock(&run_lock);
-    DBUG_RETURN(error);
-  }
 
 #ifdef HAVE_PSI_INTERFACE
   PSI_thread_info threads[]= {
@@ -327,14 +336,14 @@ Applier_module::initialize_applier_thread()
     DBUG_RETURN(1);
   }
 
-  while (!applier_running)
+  while (!applier_running && !applier_error)
   {
     DBUG_PRINT("sleep",("Waiting for applier thread to start"));
     mysql_cond_wait(&run_cond, &run_lock);
   }
 
   mysql_mutex_unlock(&run_lock);
-  DBUG_RETURN(error);
+  DBUG_RETURN(applier_error);
 }
 
 int
@@ -346,8 +355,8 @@ Applier_module::terminate_applier_pipeline()
     if ((error= pipeline->terminate_pipeline()))
     {
       log_message(MY_WARNING_LEVEL,
-                  "The pipeline was not properly disposed. "
-                  "Check the error log for further info.");
+                  "The group replication applier pipeline was not properly"
+                  " disposed. Check the error log for further info.");
     }
     //delete anyway, as we can't do much on error cases
     delete pipeline;
@@ -478,35 +487,35 @@ Applier_module::interrupt_applier_suspension_wait()
 int
 Applier_module::wait_for_applier_event_execution(ulonglong timeout)
 {
-  EventHandler* event_applier= NULL;
-  EventHandler::get_handler_by_role(pipeline, APPLIER, &event_applier);
+  Event_handler* event_applier= NULL;
+  Event_handler::get_handler_by_role(pipeline, APPLIER, &event_applier);
 
   //Nothing to wait?
   if (event_applier == NULL)
-    return true;
+    return 0;
 
   //The only event applying handler by now
-  return ((Applier_sql_thread*)event_applier)->wait_for_gtid_execution(timeout);
+  return ((Applier_handler*)event_applier)->wait_for_gtid_execution(timeout);
 }
 
 bool
 Applier_module::is_own_event_channel(my_thread_id id){
 
-  EventHandler* event_applier= NULL;
-  EventHandler::get_handler_by_role(pipeline, APPLIER, &event_applier);
+  Event_handler* event_applier= NULL;
+  Event_handler::get_handler_by_role(pipeline, APPLIER, &event_applier);
 
   //No applier exists so return false
   if (event_applier == NULL)
     return false;
 
   //The only event applying handler by now
-  return ((Applier_sql_thread*)event_applier)->is_own_event_channel(id);
+  return ((Applier_handler*)event_applier)->is_own_event_applier(id);
 }
 
 Certification_handler* Applier_module::get_certification_handler(){
 
-  EventHandler* event_applier= NULL;
-  EventHandler::get_handler_by_role(pipeline, CERTIFIER, &event_applier);
+  Event_handler* event_applier= NULL;
+  Event_handler::get_handler_by_role(pipeline, CERTIFIER, &event_applier);
 
   //The only certification handler for now
   return (Certification_handler*) event_applier;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,16 +18,16 @@
 
 #include "../gcs_plugin_utils.h"
 #include "gcs_pipeline_interface.h"
-#include <rpl_pipeline_interfaces.h>
+#include <mysql/gcs_replication_priv.h> //pipeline interfaces
 #include "../gcs_replication_threads_api.h"
 
 
-class Applier_sql_thread : public EventHandler
+class Applier_handler : public Event_handler
 {
 public:
-  Applier_sql_thread();
-  int handle_event(PipelineEvent *ev,Continuation *cont);
-  int handle_action(PipelineAction *action);
+  Applier_handler();
+  int handle_event(Pipeline_event *ev,Continuation *cont);
+  int handle_action(Pipeline_action *action);
   int initialize();
   int terminate();
   bool is_unique();
@@ -36,8 +36,6 @@ public:
   /**
     Initializes the SQL thread when receiving a configuration package
 
-    @param relay_log_name            the applier's relay log name
-    @param relay_log_info_name       the applier's relay log index file name
     @param reset_logs                if a reset was executed in the server
     @param plugin_shutdown_timeout   the plugin's timeout for component shutdown
 
@@ -45,9 +43,7 @@ public:
       @retval 0      OK
       @retval !=0    Error
   */
-  int initialize_repositories(char *relay_log_name,
-                              char *relay_log_info_name,
-                              bool reset_logs,
+  int initialize_repositories(bool reset_logs,
                               ulong plugin_shutdown_timeout);
 
   /**
@@ -57,7 +53,16 @@ public:
       @retval 0      OK
       @retval !=0    Error
   */
-  int start_sql_thread();
+  int start_applier_thread();
+
+  /**
+    Stops the SQL thread when receiving a action package
+
+    @return the operation status
+      @retval 0      OK
+      @retval !=0    Error
+  */
+  int stop_applier_thread();
 
   /**
     Checks if all the queued transactions were executed.
@@ -72,11 +77,21 @@ public:
   */
   int wait_for_gtid_execution(longlong timeout);
 
-  bool is_own_event_channel(my_thread_id id);
+  /**
+     Checks if the given id matches any of the event applying threads for
+     the configured channel.
+
+     @param id  the thread id
+
+     @return if the id belongs to a thread
+       @retval true   the id matches a SQL or worker thread
+       @retval false  the id doesn't match any thread
+  */
+  bool is_own_event_applier(my_thread_id id);
 
 private:
 
-  Replication_thread_api sql_thread_interface;
+  Replication_thread_api channel_interface;
 
 };
 

@@ -57,8 +57,8 @@ IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
     handlers/certification_handler.cc
     handlers/event_cataloger.h
     handlers/event_cataloger.cc
-    handlers/applier_sql_thread.h
-    handlers/applier_sql_thread.cc
+    handlers/applier_handler.h
+    handlers/applier_handler.cc
   )
 
   ADD_LIBRARY(gcs_unit_test_resource STATIC  gcs_member_info.cc)
