@@ -28,7 +28,7 @@
 */
 
 #include "sql_base.h"                           // close_mysql_tables
-#include "sql_parse.h"                        // check_identifier_name
+#include "sql_parse.h"                        // check_string_char_length
 #include "sql_table.h"                        // write_bin_log
 #include "records.h"          // init_read_record, end_read_record
 #include "my_thread.h"

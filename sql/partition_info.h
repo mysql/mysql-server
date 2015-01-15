@@ -17,6 +17,8 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "partition_element.h"
+#include "mysqld.h"                           // key_map
+#include "sql_bitmap.h"                       // Bitmap
 #include "sql_data_change.h"                  // enum_duplicates
 #include "sql_partition.h"                    // LIST_PART_ENTRY
 
