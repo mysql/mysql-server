@@ -37,6 +37,9 @@
 #include <my_dir.h>
 #include <stdarg.h>
 
+#include "pfs_file_provider.h"
+#include "mysql/psi/mysql_file.h"
+
 #ifdef _WIN32
 #include "message.h"
 #else

@@ -104,8 +104,6 @@
 #define READ_RECORD_BUFFER	(uint) (IO_SIZE*8) /* Pointer_buffer_size */
 #define DISK_BUFFER_SIZE	(uint) (IO_SIZE*16) /* Size of diskbuffer */
 
-#define FRM_VER_TRUE_VARCHAR (FRM_VER+4) /* 10 */
-
 /***************************************************************************
   Configuration parameters
 ****************************************************************************/

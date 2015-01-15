@@ -22,6 +22,9 @@
 #include "sql_connect.h"         // close_connection
 #include "sql_parse.h"           // mysql_parse
 
+#include "pfs_file_provider.h"
+#include "mysql/psi/mysql_file.h"
+
 static MYSQL_FILE *bootstrap_file= NULL;
 static int bootstrap_error= 0;
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,6 +30,9 @@
 #include "mysqld_error.h"                     // ER_*
 #include "sql_const.h"                        // CREATE_MODE
 #include "sql_list.h"                         // List_iterator_fast
+
+#include "pfs_file_provider.h"
+#include "mysql/psi/mysql_file.h"
 
 /* from sql_db.cc */
 extern long mysql_rm_arc_files(THD *thd, MY_DIR *dirp, const char *org_path);

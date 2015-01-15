@@ -17,9 +17,8 @@
 #define BOOTSTRAP_H
 
 #include "my_global.h"
-#include "my_thread.h"
-#include "pfs_file_provider.h"
-#include "mysql/psi/mysql_file.h"  // MYSQL_FILE
+
+typedef struct st_mysql_file MYSQL_FILE;
 
 /**
   Execute all commands from a file. Used by the mysql_install_db script to

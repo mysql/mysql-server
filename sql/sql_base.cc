@@ -54,9 +54,12 @@
 #include "table_cache.h" // Table_cache_manager, Table_cache
 #include "log.h"
 #include "binlog.h"
+
 #include "pfs_table_provider.h"
 #include "mysql/psi/mysql_table.h"
 
+#include "pfs_file_provider.h"
+#include "mysql/psi/mysql_file.h"
 
 /**
   This handler is used for the statements which support IGNORE keyword.
