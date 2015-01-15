@@ -34,6 +34,7 @@
 #include "my_thread.h"
 #include "lock.h"                               // MYSQL_LOCK_IGNORE_TIMEOUT
 #include "log.h"
+#include "sql_plugin.h"                         // check_valid_path
 
 #ifdef HAVE_DLFCN_H
 #include <dlfcn.h>

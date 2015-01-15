@@ -1421,6 +1421,24 @@ blob_done:
 			dfield_set_data(dfield, data, len);
 		}
 
+		if (col->mtype == DATA_MYSQL && col->len != len) {
+			if (dict_table_is_comp(index->table)
+			    && !dict_table_is_comp(log->table)) {
+				ut_ad(col->len > len);
+				byte*	buf = (byte*) mem_heap_alloc(heap,
+								     col->len);
+				memcpy(buf, dfield->data, len);
+				memset(buf + len, 0x20, col->len - len);
+
+				dfield_set_data(dfield, buf, col->len);
+			} else {
+				/* field length mismatch */
+				ut_ad(0);
+				*error = DB_CORRUPTION;
+				return(NULL);
+			}
+		}
+
 		/* See if any columns were changed to NULL or NOT NULL. */
 		const dict_col_t*	new_col
 			= dict_table_get_nth_col(log->table, col_no);
