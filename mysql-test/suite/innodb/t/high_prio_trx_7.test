@@ -3,9 +3,9 @@
 --echo #  T2= ( Try to take table level lock )
 --echo # Outcome: T2 waits for t1 to acquire table lock
 
---disable_warnings
-DROP TABLE IF EXISTS t1,t2;
---enable_warnings
+--source include/have_innodb.inc
+--source include/have_debug.inc
+--source include/count_sessions.inc
 
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (0);
@@ -362,17 +362,18 @@ UPDATE t1 SET c1=13 WHERE c1=0;
 XA END 'xa_high_prio';
 XA PREPARE 'xa_high_prio';
 XA COMMIT 'xa_high_prio';
+--disconnect con1
 
 --connection con2
 --error ER_ERROR_DURING_COMMIT
 COMMIT;
+--disconnect con2
 
 --connection default
 SELECT * FROM t1;
 
 DROP TABLE t1;
 
---disconnect con1
---disconnect con2
 --disconnect con3
 
+--source include/wait_until_count_sessions.inc
