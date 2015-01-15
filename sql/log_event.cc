@@ -3218,7 +3218,20 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
 #endif
   }
 
-  if (ends_group() || !rli->curr_group_seen_begin)
+  if (ends_group() ||
+      (!rli->curr_group_seen_begin &&
+       (get_type_code() == binary_log::QUERY_EVENT ||
+        /*
+          When applying an old binary log without Gtid_log_event and
+          Anonymous_gtid_log_event, the logic of multi-threaded slave
+          still need to require that an event (for example, Query_log_event,
+          User_var_log_event, Intvar_log_event, and Rand_log_event) that
+          appeared outside of BEGIN...COMMIT was treated as a transaction
+          of its own. This was just a technicality in the code and did not
+          cause a problem, since the event and the following Query_log_event
+          would both be assigned to dedicated worker 0.
+        */
+        !rli->curr_group_seen_gtid)))
   {
     rli->mts_group_status= Relay_log_info::MTS_END_GROUP;
     if (rli->curr_group_isolated)
