@@ -12,6 +12,9 @@
 # T3 Rolls back T1
 # Lock -> {T3 granted, T2 waiting}
 
+--source include/have_innodb.inc
+--source include/count_sessions.inc
+
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY, c2 INT NOT NULL, c3 INT NOT NULL) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (0, 0, 0);
 
@@ -37,18 +40,21 @@ START TRANSACTION;
 --source include/start_transaction_high_prio.inc
 UPDATE t1 SET c2=3 WHERE c2=0;
 COMMIT;
+--disconnect con3
 
 --echo
 --echo # On connection 1
 --connection con1
 --error ER_ERROR_DURING_COMMIT
 COMMIT;
+--disconnect con1
 
 --echo
 --echo # On connection 2
 --connection con2
 --reap
 COMMIT;
+--disconnect con2
 
 --connection default
 --let $assert_text= 'There is no 3 in t1'
@@ -65,6 +71,4 @@ COMMIT;
 
 DROP TABLE t1;
 
---disconnect con1
---disconnect con2
---disconnect con3
+--source include/wait_until_count_sessions.inc
