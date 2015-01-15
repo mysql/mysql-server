@@ -39,7 +39,9 @@
 #include "sql_plugin.h"                         // st_plugin_int
 
 #include <mysql/service_my_plugin_log.h>
+#include <mysql/service_rpl_transaction_ctx.h>
 
+#include "rpl_gtid.h"
 #include "log_event.h"
 #include "replication.h"
 
@@ -211,9 +213,81 @@ int trans_before_dml(Trans_param *param, int& out_val)
   return 0;
 }
 
+typedef enum enum_before_commit_test_cases {
+  NEGATIVE_CERTIFICATION,
+  POSITIVE_CERTIFICATION_WITH_GTID,
+  POSITIVE_CERTIFICATION_WITHOUT_GTID
+} before_commit_test_cases;
+
+int before_commit_tests(Trans_param *param,
+                        before_commit_test_cases test_case)
+{
+  rpl_sid fake_sid;
+  rpl_sidno fake_sidno;
+  rpl_gno fake_gno;
+
+  Transaction_termination_ctx transaction_termination_ctx;
+  transaction_termination_ctx.m_thread_id= param->thread_id;
+
+  switch(test_case)
+  {
+  case NEGATIVE_CERTIFICATION:
+    transaction_termination_ctx.m_rollback_transaction= TRUE;
+    transaction_termination_ctx.m_generated_gtid= FALSE;
+    transaction_termination_ctx.m_sidno= -1;
+    transaction_termination_ctx.m_seqno= -1;
+    break;
+
+  case POSITIVE_CERTIFICATION_WITH_GTID:
+    fake_sid.parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+    fake_sidno= get_sidno_from_global_sid_map(fake_sid);
+    fake_gno= get_last_executed_gno(fake_sidno);
+    fake_gno++;
+
+    transaction_termination_ctx.m_rollback_transaction= FALSE;
+    transaction_termination_ctx.m_generated_gtid= TRUE;
+    transaction_termination_ctx.m_sidno= fake_sidno;
+    transaction_termination_ctx.m_seqno= fake_gno;
+    break;
+
+  case POSITIVE_CERTIFICATION_WITHOUT_GTID:
+    transaction_termination_ctx.m_rollback_transaction= FALSE;
+    transaction_termination_ctx.m_generated_gtid= FALSE;
+    transaction_termination_ctx.m_sidno= 0;
+    transaction_termination_ctx.m_seqno= 0;
+    break;
+
+  default:
+    break;
+  }
+
+  if (set_transaction_ctx(transaction_termination_ctx))
+  {
+    my_plugin_log_message(&plugin_info_ptr,
+                          MY_ERROR_LEVEL,
+                          "Unable to update certification result on server side, thread_id: %lu",
+                          param->thread_id);
+    return 1;
+  }
+
+  return 0;
+}
+
 int trans_before_commit(Trans_param *param)
 {
   trans_before_commit_call++;
+
+  DBUG_EXECUTE_IF("force_error_on_before_commit_listener",
+                  return 1;);
+
+  DBUG_EXECUTE_IF("force_negative_certification_outcome",
+                  return before_commit_tests(param, NEGATIVE_CERTIFICATION););
+
+  DBUG_EXECUTE_IF("force_positive_certification_outcome_without_gtid",
+                  return before_commit_tests(param, POSITIVE_CERTIFICATION_WITHOUT_GTID););
+
+  DBUG_EXECUTE_IF("force_positive_certification_outcome_with_gtid",
+                  return before_commit_tests(param, POSITIVE_CERTIFICATION_WITH_GTID););
 
   return 0;
 }
