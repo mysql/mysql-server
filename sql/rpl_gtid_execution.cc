@@ -75,10 +75,11 @@ bool set_gtid_next(THD *thd, const Gtid_specification &spec)
       my_error(ER_CANT_SET_GTID_NEXT_TO_ANONYMOUS_WHEN_GTID_MODE_IS_ON, MYF(0));
       goto err;
     }
-    // @todo WL#7083: increase atomic counter here
 
-    thd->owned_gtid.sidno= THD::OWNED_SIDNO_ANONYMOUS;
     thd->variables.gtid_next.set_anonymous();
+    thd->owned_gtid.sidno= THD::OWNED_SIDNO_ANONYMOUS;
+    thd->owned_gtid.gno= 0;
+    gtid_state->acquire_anonymous_ownership();
   }
   else
   {

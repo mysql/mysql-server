@@ -30,6 +30,7 @@
 #endif
 
 #include <list>
+#include "atomic_class.h"
 
 using binary_log::Uuid;
 /**
@@ -2373,6 +2374,50 @@ public:
     @param thd Thread for which owned groups are updated.
   */
   void update_on_rollback(THD *thd);
+
+  /**
+    Acquire anonymous ownership.
+
+    The caller must hold either sid_lock.rdlock or
+    sid_lock.wrlock. (The caller must have taken the lock and checked
+    that gtid_mode!=ON before calling this function, or else the
+    gtid_mode could have changed to ON by a concurrent SET GTID_MODE.)
+  */
+  void acquire_anonymous_ownership()
+  {
+    DBUG_ENTER("Gtid_state::acquire_anonymous_ownership");
+    sid_lock->assert_some_lock();
+    DBUG_ASSERT(get_gtid_mode(GTID_MODE_LOCK_SID) != GTID_MODE_ON);
+#ifndef DBUG_OFF
+    int32 old_value=
+#endif
+      anonymous_gtid_count.atomic_add(1);
+    DBUG_PRINT("info", ("anonymous_gtid_count increased to %d", old_value + 1));
+    DBUG_ASSERT(old_value >= 0);
+    DBUG_VOID_RETURN;
+  }
+
+  /// Release anonymous ownership.
+  void release_anonymous_ownership()
+  {
+    DBUG_ENTER("Gtid_state::release_anonymous_ownership");
+    sid_lock->assert_some_lock();
+    DBUG_ASSERT(get_gtid_mode(GTID_MODE_LOCK_SID) != GTID_MODE_ON);
+#ifndef DBUG_OFF
+    int32 old_value=
+#endif
+      anonymous_gtid_count.atomic_add(-1);
+    DBUG_PRINT("info", ("anonymous_gtid_count decreased to %d", old_value - 1));
+    DBUG_ASSERT(old_value >= 1);
+    DBUG_VOID_RETURN;
+  }
+
+  /// Return the number of clients that hold anonymous ownership.
+  int32 get_anonymous_ownership_count()
+  {
+    return anonymous_gtid_count.atomic_get();
+  }
+
 #endif // ifndef MYSQL_CLIENT
 private:
   /**
@@ -2705,6 +2750,9 @@ private:
   Owned_gtids owned_gtids;
   /// The SIDNO for this server.
   rpl_sidno server_sidno;
+
+  /// The number of anonymous transactions owned by any client.
+  Atomic_int32 anonymous_gtid_count;
 
   /// Used by unit tests that need to access private members.
 #ifdef FRIEND_OF_GTID_STATE
