@@ -55,7 +55,7 @@ function github_clone() {
 
 git_tag=
 mysql=mysql-5.5
-mysql_tree=mysql-5.5.35
+mysql_tree=mysql-5.5.41
 jemalloc=jemalloc
 jemalloc_tree=3.6.0
 tokudbengine=tokudb-engine
@@ -148,13 +148,15 @@ fi
 pushd $build_dir
 if [ $? != 0 ] ; then exit 1; fi
 extra_cmake_options="-DCMAKE_LINK_DEPENDS_NO_SHARED=ON"
+extra_cmake_options+=" -DBUILD_TESTING=OFF"
+extra_cmake_options+=" -DMYSQL_MAINTAINER_MODE=OFF"
 if (( $cmake_valgrind )) ; then
     extra_cmake_options+=" -DUSE_VALGRIND=ON"
 fi
 if (( $cmake_debug_paranoid )) ; then
     extra_cmake_options+=" -DTOKU_DEBUG_PARANOID=ON"
 fi
-CC=$cc CXX=$cxx cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=$install_dir -DBUILD_TESTING=OFF $extra_cmake_options ../$mysql_tree
+CC=$cc CXX=$cxx cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=$install_dir $extra_cmake_options ../$mysql_tree
 if [ $? != 0 ] ; then exit 1; fi
 make -j4 install
 if [ $? != 0 ] ; then exit 1; fi
