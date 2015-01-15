@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -355,6 +355,33 @@ bool gtid_reacquire_ownership_if_anonymous(THD *thd)
 }
 
 
+/**
+  Return true if the statement does not invoke any stored function,
+  and is one of the following:
+  - SET (except SET PASSWORD)
+  - SHOW
+  - SELECT
+  - DO
+  That means it is guaranteed not to cause any changes in the
+  database.
+*/
+static bool is_stmt_innocent(const THD *thd)
+{
+  LEX *lex= thd->lex;
+  enum_sql_command sql_command= lex->sql_command;
+  bool is_show=
+    (sql_command_flags[sql_command] & CF_STATUS_COMMAND) &&
+    (sql_command != SQLCOM_BINLOG_BASE64_EVENT);
+  bool is_set=
+    (sql_command == SQLCOM_SET_OPTION) && !lex->is_set_password_sql;
+  bool is_select= (sql_command == SQLCOM_SELECT);
+  bool is_do= (sql_command == SQLCOM_DO);
+  return
+    (is_set || is_select || is_do || is_show) &&
+    !lex->uses_stored_routines();
+}
+
+
 enum_gtid_statement_status gtid_pre_statement_checks(THD *thd)
 {
   DBUG_ENTER("gtid_pre_statement_checks");
@@ -376,22 +403,10 @@ enum_gtid_statement_status gtid_pre_statement_checks(THD *thd)
   }
 
   /*
-    Ensure that we hold anonymous ownership before executing any
-    statement, if gtid_next=anonymous or not_yet_determined.  But do
-    not acquire anonymous ownership if the statement is a SET that
-    does not invoke a stored function, since it could be a
-    SET GTID_NEXT=UUID:NUMBER.
-  */
-  enum_sql_command sql_command= thd->lex->sql_command;
-  if (sql_command != SQLCOM_SET_OPTION || thd->lex->is_set_password_sql ||
-      thd->lex->uses_stored_routines())
-    if (gtid_reacquire_ownership_if_anonymous(thd))
-      DBUG_RETURN(GTID_STATEMENT_CANCEL);
-
-  /*
     Always allow:
-    - BEGIN/COMMIT/ROLLBACK
-    - SET/SELECT statements that do not invoke stored procedures.
+    - BEGIN/COMMIT/ROLLBACK;
+    - innocent statements, i.e., SET/SHOW/DO/SELECT which don't invoke
+      stored functions.
 
     @todo: add flag to sql_command_flags to detect if statement
     controls transactions instead of listing the commands in the
@@ -399,11 +414,9 @@ enum_gtid_statement_status gtid_pre_statement_checks(THD *thd)
 
     @todo: figure out how to handle SQLCOM_XA_*
   */
+  const enum_sql_command sql_command= thd->lex->sql_command;
   if (sql_command == SQLCOM_COMMIT || sql_command == SQLCOM_BEGIN ||
-      sql_command == SQLCOM_ROLLBACK ||
-      ((sql_command == SQLCOM_SELECT ||
-        (sql_command == SQLCOM_SET_OPTION && !thd->lex->is_set_password_sql)) &&
-       !thd->lex->uses_stored_routines()))
+      sql_command == SQLCOM_ROLLBACK || is_stmt_innocent(thd))
     DBUG_RETURN(GTID_STATEMENT_EXECUTE);
 
   /*
@@ -485,6 +498,34 @@ enum_gtid_statement_status gtid_pre_statement_checks(THD *thd)
   }
   DBUG_ASSERT(0);/*NOTREACHED*/
   DBUG_RETURN(GTID_STATEMENT_CANCEL);
+}
+
+
+bool gtid_pre_statement_post_implicit_commit_checks(THD *thd)
+{
+  DBUG_ENTER("gtid_pre_statement_post_implicit_commit_checks");
+  /*
+    Ensure that we hold anonymous ownership before executing any
+    statement, if gtid_next=anonymous or not_yet_determined.  But do
+    not re-acquire anonymous ownership if the statement is 'innocent'.
+    Innocent commands are those that cannot get written to the binary
+    log and cannot commit any ongoing transaction, i.e., one of the
+    SET/SELECT/DO/SHOW statements, as long as it does not invoke a
+    stored function.
+
+    It is important that we don't try to reacquire ownership for
+    innocent commands: SET could be used to set GTID_NEXT to
+    UUID:NUMBER; if anonymous was acquired before this then it would
+    result in an error.  SHOW/SELECT/DO can be useful for testing
+    ownership logic, e.g., to read @@session.gtid_owned or to read
+    warnings using SHOW WARNINGS, and to test this properly it is
+    important to not affect the ownership status.
+  */
+  if (!is_stmt_innocent(thd))
+    if (gtid_reacquire_ownership_if_anonymous(thd))
+      // this can happen if gtid_mode is on
+      DBUG_RETURN(true);
+  DBUG_RETURN(false);
 }
 
 

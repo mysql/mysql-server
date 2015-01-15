@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -2841,6 +2841,27 @@ enum enum_gtid_statement_status
   implicit commits must execute.
 */
 enum_gtid_statement_status gtid_pre_statement_checks(THD *thd);
+
+/**
+  Perform GTID-related checks before executing a statement, but after
+  executing an implicit commit before the statement, if any:
+
+  If gtid_next=anonymous, but the thread does not hold anonymous
+  ownership, then acquire anonymous ownership. (Do this only if this
+  is not an 'innocent' statement, i.e., SET/SHOW/DO/SELECT that does
+  not invoke a stored function.)
+
+  It is important that this is done after the implicit commit, because
+  the implicit commit may release anonymous ownership.
+
+  @param thd THD object for the session
+
+  @retval false Success.
+
+  @retval true Error. Error can happen if GTID_MODE=ON.  The error has
+  been reported by (a function called by) this function.
+*/
+bool gtid_pre_statement_post_implicit_commit_checks(THD *thd);
 
 /**
   Check if the current statement terminates a transaction, and if so

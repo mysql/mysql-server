@@ -2407,6 +2407,7 @@ int slave_worker_exec_job_group(Slave_worker *worker, Relay_log_info *rli)
   struct slave_job_item item= {NULL, 0, 0};
   struct slave_job_item *job_item= &item;
   THD *thd= worker->info_thd;
+  bool seen_gtid= false;
   bool seen_begin= false;
   int error= 0;
   Log_event *ev= NULL;
@@ -2435,7 +2436,8 @@ int slave_worker_exec_job_group(Slave_worker *worker, Relay_log_info *rli)
     DBUG_ASSERT(ev != NULL);
     DBUG_PRINT("info", ("W_%lu <- job item: %p data: %p thd: %p",
                         worker->id, job_item, ev, thd));
-
+    if (is_gtid_event(ev))
+      seen_gtid= true;
     if (!seen_begin && ev->starts_group())
     {
       seen_begin= true; // The current group is started with B-event
@@ -2459,15 +2461,18 @@ int slave_worker_exec_job_group(Slave_worker *worker, Relay_log_info *rli)
       "commit" with logical clock scheduler. In that case worker id
       points to the only active "exclusive" Worker that processes such
       malformed group events one by one.
+      WL#7592 refines the original assert disjunction formula
+      with the final disjunct.
     */
     DBUG_ASSERT(seen_begin || is_gtid_event(ev) ||
                 ev->get_type_code() == binary_log::QUERY_EVENT ||
-                is_mts_db_partitioned(rli) || worker->id == 0);
+                is_mts_db_partitioned(rli) || worker->id == 0 || seen_gtid);
 
     if (ev->ends_group() ||
         (!seen_begin && !is_gtid_event(ev) &&
-        (ev->get_type_code() == binary_log::QUERY_EVENT ||
-        !is_mts_db_partitioned(rli))))
+         (ev->get_type_code() == binary_log::QUERY_EVENT ||
+          /* break through by LC only in GTID off */
+          (!seen_gtid && !is_mts_db_partitioned(rli)))))
       break;
 
     remove_item_from_jobs(job_item, worker, rli);
