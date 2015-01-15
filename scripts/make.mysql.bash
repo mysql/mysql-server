@@ -135,11 +135,6 @@ if [ ! -d tokudb-engine ] ; then
 
     # install the tokudb scripts
     cp -r tokudb-engine/scripts/* scripts/
-
-    # link hot backup into mysqld
-    if [ "$tokudb_backup" != "patch" ] ; then
-        sed -i -e's/${JEMALLOC_LIBRARY}/${HOT_BACKUP_LIBS} ${JEMALLOC_LIBRARY}/' sql/CMakeLists.txt
-    fi
 fi
 
 if [ ! -d storage/tokudb/ft-index ] ; then
