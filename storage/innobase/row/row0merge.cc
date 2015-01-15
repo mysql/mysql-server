@@ -638,16 +638,17 @@ row_merge_buf_add(
 				n_row_added = 1;
 				continue;
 			}
-		}
 
-		if (col->mtype == DATA_MYSQL && col->len != field->len) {
-			if (conv_heap != NULL) {
-				row_merge_buf_redundant_convert(
-					row_field, field, col->len,
-					dict_table_page_size(old_table),
-					conv_heap);
-			} else {
-				ut_ad(dict_table_is_comp(index->table));
+			if (col->mtype == DATA_MYSQL
+			    && col->len != field->len) {
+				if (conv_heap != NULL) {
+					row_merge_buf_redundant_convert(
+						row_field, field, col->len,
+						dict_table_page_size(old_table),
+						conv_heap);
+				} else {
+					ut_ad(dict_table_is_comp(index->table));
+				}
 			}
 		}
 
