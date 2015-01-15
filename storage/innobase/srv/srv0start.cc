@@ -1545,6 +1545,12 @@ innobase_start_or_create_for_mysql(void)
 
 	srv_buf_pool_size = buf_pool_size_align(srv_buf_pool_size);
 
+	if (srv_n_page_cleaners > srv_buf_pool_instances) {
+		/* limit of page_cleaner parallelizability
+		is number of buffer pool instances. */
+		srv_n_page_cleaners = srv_buf_pool_instances;
+	}
+
 	srv_boot();
 
 	ib::info() << (ut_crc32_sse2_enabled ? "Using" : "Not using")

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -739,6 +739,8 @@ mtr_t::Command::prepare_write()
 	}
 
 	log_mutex_enter();
+
+	log_margin_checkpoint_age(len);
 
 	if (fil_names_write_if_was_clean(space, m_impl->m_mtr)) {
 		/* This mini-transaction was the first one to modify
