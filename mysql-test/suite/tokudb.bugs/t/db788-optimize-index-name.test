@@ -1,0 +1,21 @@
+# test tokudb_optimize_index_name session variable
+set default_storage_engine='tokudb';
+source include/have_tokudb.inc;
+disable_warnings;
+drop table if exists t;
+enable_warnings;
+
+create table t (a int, b int, c int, primary key(a), key(b), key(c));
+# optimize primary key
+set tokudb_optimize_index_name='primary';
+optimize table t;
+
+# optimize key b
+set tokudb_optimize_index_name='b';
+optimize table t;
+
+# optimize key c
+set tokudb_optimize_index_name='c';
+optimize table t;
+
+drop table t;
