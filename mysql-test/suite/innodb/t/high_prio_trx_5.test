@@ -6,7 +6,10 @@
 # Outcome: T1 must commit, T3 must commit, T2 must commit
 #          after T3 (no data change).
 
-use test;
+--source include/have_innodb.inc
+--source include/have_debug_sync.inc
+--source include/count_sessions.inc
+
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY, c2 INT NOT NULL, c3 INT NOT NULL) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (0, 0, 0);
 
@@ -37,32 +40,30 @@ let $wait_timeout = 10;
 let $wait_condition= SELECT COUNT(*) = 1 FROM information_schema.processlist
 WHERE id = @con2_id AND INFO = 'update t1 set c1=2 where c1=0 and c2=0';
 --source include/wait_condition.inc
-let $con3_id=`SELECT CONNECTION_ID()`;
-SET DEBUG_SYNC='rec_lock_add_to_waitq WAIT_FOR waiting1';
+SET DEBUG_SYNC='rec_lock_add_to_waitq SIGNAL signal1 WAIT_FOR waiting1';
 --send UPDATE t1 SET c1=3 WHERE c1=0;
 
 --echo
 --echo # On connection 1
 --connection con1
---replace_result $con3_id <con3_id>
-eval SET @con3_id = $con3_id;
-let $wait_timeout = 10;
---let $wait_condition=SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'debug sync point: rec_lock_add_to_waitq'
---source include/wait_condition.inc
+SET DEBUG_SYNC='now WAIT_FOR signal1';
 SET DEBUG_SYNC='now SIGNAL waiting1';
 COMMIT;
+--disconnect con1
 
 --echo
 --echo # On connection 3
 --connection con3
 --reap
 COMMIT;
+--disconnect con3
 
 --echo
 --echo # On connection 2
 --connection con2
 --reap
 COMMIT;
+--disconnect con2
 
 --connection default
 --let $assert_text= 'There is a 3.0.0 in t1'
@@ -79,7 +80,4 @@ COMMIT;
 
 DROP TABLE t1;
 
---disconnect con1
---disconnect con2
---disconnect con3
-
+--source include/wait_until_count_sessions.inc

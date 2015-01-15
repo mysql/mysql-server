@@ -38,33 +38,15 @@ let $wl6737_auto_inc = auto_increment;
 #
 # Workload in read-only mode.
 #
---echo "Restarting in read only mode"
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 60
---source include/wait_until_disconnected.inc
---enable_reconnect
---exec echo "restart: --innodb-read-only --big-tables=1" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
-#
-#
+let $restart_parameters = restart: --innodb-read-only --big-tables=1;
+--source include/restart_mysqld.inc
+
 --source suite/innodb/include/query_workload_itt.inc
-#
-#
---echo "Restarting Server in normal mode."
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server
---source include/wait_until_disconnected.inc
---enable_reconnect
---exec echo "restart " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
 
 #-----------------------------------------------------------------------------
 #
 # remove test bed.
 #
+let $restart_parameters = restart;
+--source include/restart_mysqld.inc
 --source suite/innodb/include/drop_workload_itt.inc
-

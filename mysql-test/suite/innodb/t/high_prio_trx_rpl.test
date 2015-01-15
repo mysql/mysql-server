@@ -6,12 +6,9 @@
 # Outcome: T2 completes and T1 abort.T2 is replicated to slave.
 
 --source include/not_embedded.inc
--- source include/have_innodb.inc
--- source include/master-slave.inc
-
---disable_warnings
-DROP TABLE IF EXISTS t1,t2;
---enable_warnings
+--source include/have_innodb.inc
+--source include/master-slave.inc
+--source include/count_sessions.inc
 
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (0);
@@ -30,6 +27,7 @@ UPDATE t1 SET c1=1 WHERE c1=0;
 --source include/start_transaction_high_prio.inc
 UPDATE t1 SET c1=2 WHERE c1=0;
 COMMIT;
+--disconnect con1
 
 --echo
 --echo # On connection master
@@ -45,11 +43,10 @@ SELECT * FROM t1;
 --echo # Row with value 2 is expected on slave.
 SELECT * FROM t1;
 
---disconnect con1
-
 --echo
 --echo # On connection master
 -- connection master
 DROP TABLE t1;
+--source include/wait_until_count_sessions.inc
 --source include/sync_slave_sql_with_master.inc
 --source include/rpl_end.inc

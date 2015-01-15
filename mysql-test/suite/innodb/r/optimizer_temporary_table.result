@@ -2264,7 +2264,7 @@ or not outr.pk > 9)
 or outr.col_varchar_key is null;
 x
 102
-"Restarting in read only mode"
+# restart: --innodb-read-only --big-tables=1
 explain format = json select sql_buffer_result * from t1;
 EXPLAIN
 {
@@ -4115,6 +4115,6 @@ or not outr.pk > 9)
 or outr.col_varchar_key is null;
 x
 102
-"Restarting Server in normal mode."
+# restart
 drop function func1;
 drop table t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14;

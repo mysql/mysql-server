@@ -1,8 +1,11 @@
 # Scenario:
-#  T1=({R(B), W(B)})
+#  T1=({R(B)})
 #  T2=({R(B), W(B), C}, HIGH_PRIORITY).
 #
 # Outcome: T1 must abort, T2 must commit.
+
+--source include/have_innodb.inc
+--source include/count_sessions.inc
 
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (0);
@@ -14,7 +17,7 @@ INSERT INTO t1 VALUES (0);
 --echo # On connection 1
 --connection con1
 START TRANSACTION;
-UPDATE t1 SET c1=1 WHERE c1=0;
+SELECT * FROM t1 WHERE c1=0 FOR UPDATE;
 
 --echo
 --echo # On connection 2
@@ -22,12 +25,15 @@ UPDATE t1 SET c1=1 WHERE c1=0;
 --source include/start_transaction_high_prio.inc
 UPDATE t1 SET c1=2 WHERE c1=0;
 COMMIT;
+--disconnect con2
 
 --echo
 --echo # On connection 1
 --connection con1
---error ER_ERROR_DURING_COMMIT
-COMMIT;
+# Note: DEADLOCK implies a full ROLLBACK
+--error ER_LOCK_DEADLOCK
+UPDATE t1 SET c1=1 WHERE c1=0;
+--disconnect con1
 
 --connection default
 --let $assert_text= 'There is a 2 in t1'
@@ -44,5 +50,4 @@ COMMIT;
 
 DROP TABLE t1;
 
---disconnect con1
---disconnect con2
+--source include/wait_until_count_sessions.inc

@@ -1,4 +1,3 @@
-use test;
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY, c2 INT NOT NULL, c3 INT NOT NULL) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (0, 0, 0);
 
@@ -16,11 +15,11 @@ UPDATE t1 SET c1=2 WHERE c1=0 AND c2=0;
 include/start_transaction_high_prio.inc
 START TRANSACTION /* HIGH PRIORITY */;
 SET @con2_id = <con2_id>;
-SET DEBUG_SYNC='rec_lock_add_to_waitq WAIT_FOR waiting1';
+SET DEBUG_SYNC='rec_lock_add_to_waitq SIGNAL signal1 WAIT_FOR waiting1';
 UPDATE t1 SET c1=3 WHERE c1=0;;
 
 # On connection 1
-SET @con3_id = <con3_id>;
+SET DEBUG_SYNC='now WAIT_FOR signal1';
 SET DEBUG_SYNC='now SIGNAL waiting1';
 COMMIT;
 
