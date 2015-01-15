@@ -1912,7 +1912,8 @@ bool JOIN::setup_materialized_table(JOIN_TAB *tab, uint tableno,
 
   for (uint fieldno= 0; fieldno < field_count; fieldno++)
   {
-    if (!(sjm_opt->mat_fields[fieldno]= new Item_field(table->field[fieldno])))
+    if (!(sjm_opt->mat_fields[fieldno]=
+          new Item_field(table->visible_field_ptr()[fieldno])))
       DBUG_RETURN(true);
   }
 

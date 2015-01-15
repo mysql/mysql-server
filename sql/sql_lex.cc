@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -31,6 +31,7 @@
 #include "sql_select.h"                // JOIN
 #include "sql_optimizer.h"             // JOIN
 #include "parse_location.h"
+#include "sql_plugin.h"                // plugin_unlock_list
 #include <mysql/psi/mysql_statement.h>
 
 static int lex_one_token(YYSTYPE *yylval, THD *thd);
@@ -411,6 +412,16 @@ void Lex_input_stream::reduce_digest_token(uint token_left, uint token_right)
   {
     m_digest= digest_reduce_token(m_digest, token_left, token_right);
   }
+}
+
+
+LEX::~LEX()
+{
+  destroy_query_tables_list();
+  plugin_unlock_list(NULL, plugins.begin(), plugins.size());
+  unit= NULL;                     // Created in mem_root - no destructor
+  select_lex= NULL;
+  m_current_select= NULL;
 }
 
 /**

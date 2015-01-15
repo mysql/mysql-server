@@ -1814,7 +1814,9 @@ QUICK_ROR_INTERSECT_SELECT::~QUICK_ROR_INTERSECT_SELECT()
 
 QUICK_ROR_UNION_SELECT::QUICK_ROR_UNION_SELECT(THD *thd_param,
                                                TABLE *table)
-  : queue(Quick_ror_union_less(this)), thd(thd_param), scans_inited(FALSE)
+  : queue(Quick_ror_union_less(this),
+          Malloc_allocator<PSI_memory_key>(PSI_INSTRUMENT_ME)),
+    thd(thd_param), scans_inited(FALSE)
 {
   index= MAX_KEY;
   head= table;

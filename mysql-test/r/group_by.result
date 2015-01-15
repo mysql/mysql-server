@@ -3090,3 +3090,26 @@ DROP TABLE AA,B;
 DROP VIEW view_AA;
 SET @@sql_mode = @old_sql_mode;
 SET sql_mode = default;
+#
+# Bug#20262196 ASSERTION FAILED: !IMPLICIT_GROUPING || TMP_TABLE_PARAM.SUM_FUNC_COUNT
+#
+CREATE TABLE t1(a INT, b INT) ENGINE=INNODB;
+INSERT INTO t1 VALUES (1,2), (3,4);
+SELECT
+EXISTS
+(
+SELECT 1
+FROM (SELECT a FROM t1) t_inner
+GROUP BY t_inner.a
+ORDER BY MIN(t_outer.b)
+)
+FROM t1 t_outer;
+EXISTS
+(
+SELECT 1
+FROM (SELECT a FROM t1) t_inner
+GROUP BY t_inner.a
+ORDER BY MIN(t_outer.b)
+)
+1
+DROP TABLE t1;
