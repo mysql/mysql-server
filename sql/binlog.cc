@@ -740,8 +740,12 @@ public:
           thd->owned_gtid.sidno == THD::OWNED_SIDNO_ANONYMOUS)
       {
         thd->clear_owned_gtids();
+        global_sid_lock->rdlock();
+        gtid_state->release_anonymous_ownership();
+        global_sid_lock->unlock();
       }
     }
+    DEBUG_SYNC(thd, "after_flush_stm_cache_before_flush_trx_cache");
     if (int error= trx_cache.flush(thd, &trx_bytes, wrote_xid))
       return error;
     *bytes_written= stmt_bytes + trx_bytes;
@@ -1242,7 +1246,7 @@ int MYSQL_BIN_LOG::gtid_end_transaction(THD *thd)
   }
   else if (thd->owned_gtid.sidno == THD::OWNED_SIDNO_ANONYMOUS)
   {
-    thd->clear_owned_gtids();
+    gtid_state->update_on_commit(thd);
   }
   DBUG_RETURN(0);
 }

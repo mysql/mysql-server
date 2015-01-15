@@ -179,6 +179,49 @@ void Gtid_state::update_gtids_impl(THD *thd, bool is_commit)
 {
   DBUG_ENTER("Gtid_state::update_gtids_impl");
 
+  /*
+    This variable is true for anonymous transactions, when the
+    'transaction' has been split into multiple transactions in the
+    binlog, and the present transaction is not the last one.
+
+    This means two things:
+
+    - We should not release anonymous ownership in case
+      gtid_next=anonymous.  If we did, it would be possible for user
+      to set GTID_MODE=ON from a concurrent transaction, making it
+      impossible to commit the current transaction.
+
+    - We should not decrease the counters for GTID-violating
+      statements.  If we did, it would be possible for a concurrent
+      client to set ENFORCE_GTID_CONSISTENCY=ON despite there is an
+      ongoing transaction that violates GTID consistency.
+
+    The flag is set in two cases:
+
+     1. We are committing the statement cache when there are more
+        changes in the transaction cache.
+
+        This happens either because a single statement in the
+        beginning of a transaction updates both transactional and
+        non-transactional tables, or because we are committing a
+        non-transactional update in the middle of a transaction when
+        binlog_direct_non_transactional_updates=1.
+
+        In this case, the flag is set further down in this function.
+
+     2. The statement is one of the special statements that may
+        generate multiple transactions: CREATE...SELECT, DROP TABLE,
+        DROP DATABASE. See comment for THD::owned_gtid in
+        sql/sql_class.h.
+
+        In this case, the THD::is_commit_in_middle_of_statement flag
+        is set by the caller and the flag becomes true here.
+  */
+  bool more_transactions_with_same_gtid_next=
+    thd->is_commit_in_middle_of_statement;
+  DBUG_PRINT("info", ("thd->is_commit_in_middle_of_statement=%d",
+                      thd->is_commit_in_middle_of_statement));
+
   // Caller must take global_sid_lock.
   global_sid_lock->assert_some_lock();
 
@@ -244,41 +287,71 @@ void Gtid_state::update_gtids_impl(THD *thd, bool is_commit)
         gtids_only_in_table._add_gtid(thd->owned_gtid);
       }
     }
+
+    broadcast_owned_sidnos(thd);
+    unlock_owned_sidnos(thd);
+
+    thd->clear_owned_gtids();
+    if (thd->variables.gtid_next.type == GTID_GROUP)
+    {
+      DBUG_ASSERT(!more_transactions_with_same_gtid_next);
+      thd->variables.gtid_next.set_undefined();
+    }
+    else
+    {
+      /*
+        Can be UNDEFINED for statements where
+        gtid_pre_statement_checks skips the test for undefined,
+        e.g. ROLLBACK.
+      */
+      DBUG_ASSERT(thd->variables.gtid_next.type == AUTOMATIC_GROUP ||
+                  thd->variables.gtid_next.type == UNDEFINED_GROUP);
+    }
+  }
+  else if (thd->owned_gtid.sidno == THD::OWNED_SIDNO_ANONYMOUS)
+  {
+    DBUG_ASSERT(thd->variables.gtid_next.type == ANONYMOUS_GROUP ||
+                thd->variables.gtid_next.type == AUTOMATIC_GROUP);
+    /*
+      If there is more in the transaction cache, set
+      more_transactions_with_same_gtid_next to indicate this.
+
+      See comment for the declaration of
+      more_transactions_with_same_gtid_next.
+    */
+    if (opt_bin_log)
+    {
+      // Needed before is_binlog_cache_empty.
+      thd->binlog_setup_trx_data();
+      if (!thd->is_binlog_cache_empty(true))
+      {
+        more_transactions_with_same_gtid_next= true;
+        DBUG_PRINT("info", ("Transaction cache is non-empty: setting "
+                            "more_transaction_with_same_gtid_next="
+                            "true."));
+      }
+    }
+    if (!(more_transactions_with_same_gtid_next &&
+          thd->variables.gtid_next.type == ANONYMOUS_GROUP))
+    {
+      release_anonymous_ownership();
+      thd->clear_owned_gtids();
+    }
+  }
+  else
+  {
+    // Nothing is owned. Then it must be a rollback of an automatic
+    // transaction.
+    DBUG_ASSERT(!is_commit);
+    DBUG_ASSERT(thd->variables.gtid_next.type == AUTOMATIC_GROUP);
   }
 
-  /*
-    There may be commands that cause implicit commits, e.g.
-    SET AUTOCOMMIT=1 may cause the previous statements to commit
-    without executing a COMMIT command or be on auto-commit mode.
-  */
-  broadcast_owned_sidnos(thd);
-  unlock_owned_sidnos(thd);
-  if (thd->variables.gtid_next.type == GTID_GROUP)
-    thd->variables.gtid_next.set_undefined();
-  /*
-    This early return prevents releasing anonymous ownership when a
-    non-transactional statement is flushed to the binary log in the
-    middle of a transaction.  If we would release ownership in the
-    middle of a transaction when gtid_next.type==ANONYMOUS_GROUP, it
-    would be possible for a concurrent transaction to change GTID_MODE
-    to ON in the middle of a transaction, making it impossible to
-    commit.
-  */
-  if (opt_bin_log && thd->variables.gtid_next.type == ANONYMOUS_GROUP)
-  {
-    // Needed before is_binlog_cache_empty.
-    thd->binlog_setup_trx_data();
-    if (!thd->is_binlog_cache_empty(true))
-      DBUG_VOID_RETURN;
-  }
-  if (!(thd->variables.gtid_next.type == ANONYMOUS_GROUP &&
-        thd->is_commit_in_middle_of_statement))
-    thd->clear_owned_gtids();
   thd->owned_gtid.dbug_print(NULL,
                              "set owned_gtid (clear) in update_gtids_impl");
 
   DBUG_VOID_RETURN;
 }
+
 
 int Gtid_state::wait_for_gtid_set(THD* thd, String* gtid_set_text, longlong timeout)
 {
@@ -440,6 +513,7 @@ enum_return_status Gtid_state::generate_automatic_gtid(THD *thd,
     // using an anonymous transaction.
     thd->owned_gtid.sidno= THD::OWNED_SIDNO_ANONYMOUS;
     thd->owned_gtid.gno= 0;
+    acquire_anonymous_ownership();
     thd->owned_gtid.dbug_print(NULL,
                                "set owned_gtid (anonymous) in generate_automatic_gtid");
   }
