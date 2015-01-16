@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights
    reserved.
 
    This program is free software; you can redistribute it and/or modify
@@ -582,6 +582,11 @@ ulong expire_logs_days = 0;
   in the sp_cache for one connection.
 */
 ulong stored_program_cache_size= 0;
+/**
+  Compatibility option to prevent auto upgrade of old temporals
+  during certain ALTER TABLE operations.
+*/
+my_bool avoid_temporal_upgrade;
 
 const double log_10[] = {
   1e000, 1e001, 1e002, 1e003, 1e004, 1e005, 1e006, 1e007, 1e008, 1e009,
@@ -8751,6 +8756,12 @@ pfs_error:
     break;
   case OPT_TABLE_DEFINITION_CACHE:
     table_definition_cache_specified= true;
+    break;
+  case OPT_AVOID_TEMPORAL_UPGRADE:
+    WARN_DEPRECATED_NO_REPLACEMENT(NULL, "avoid_temporal_upgrade");
+    break;
+  case OPT_SHOW_OLD_TEMPORALS:
+    WARN_DEPRECATED_NO_REPLACEMENT(NULL, "show_old_temporals");
     break;
   }
   return 0;
