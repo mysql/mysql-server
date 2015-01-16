@@ -563,6 +563,25 @@ struct tag< Gis_multi_point_spherical>
 };
 
 template<>
+struct coordinate_type<Gis_multi_point_spherical>
+{
+  typedef double type;
+};
+
+template<>
+struct coordinate_system<Gis_multi_point_spherical>
+{
+  typedef boost::geometry::cs::spherical_equatorial<
+    boost::geometry::degree> type;
+};
+
+template<>
+struct dimension<Gis_multi_point_spherical>
+  : boost::mpl::int_<GEOM_DIM>
+{};
+
+
+template<>
 struct tag< Gis_multi_polygon>
 {
   typedef boost::geometry::multi_polygon_tag type;
