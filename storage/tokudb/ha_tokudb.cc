@@ -7258,7 +7258,7 @@ double ha_tokudb::index_only_read_time(uint keynr, double records) {
 //      HA_POS_ERROR - Something is wrong with the index tree
 //
 ha_rows ha_tokudb::records_in_range(uint keynr, key_range* start_key, key_range* end_key) {
-    TOKUDB_HANDLER_DBUG_ENTER("");
+    TOKUDB_HANDLER_DBUG_ENTER("%d %p %p", keynr, start_key, end_key);
     DBT *pleft_key, *pright_key;
     DBT left_key, right_key;
     ha_rows ret_val = HA_TOKUDB_RANGE_COUNT;
@@ -7314,6 +7314,9 @@ ha_rows ha_tokudb::records_in_range(uint keynr, key_range* start_key, key_range*
     ret_val = (ha_rows) (rows <= 1 ? 1 : rows);
 
 cleanup:
+    if (tokudb_debug & TOKUDB_DEBUG_RETURN) {
+        TOKUDB_HANDLER_TRACE("%" PRIu64 " %" PRIu64, (uint64_t) ret_val, rows);
+    }
     DBUG_RETURN(ret_val);
 }
 
