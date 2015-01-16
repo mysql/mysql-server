@@ -833,7 +833,7 @@ static inline bool key_is_clustering(const KEY *key) {
 #else
 
 static inline bool key_is_clustering(const KEY *key) {
-    return key->option_struct && key->option_struct->clustering;
+    return key->flags & HA_CLUSTERING;
 }
 #endif
 
