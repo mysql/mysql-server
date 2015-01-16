@@ -24,7 +24,7 @@ child	CREATE TABLE `child` (
   PRIMARY KEY (`a`),
   UNIQUE KEY `b` (`b`) USING HASH,
   KEY `c` (`c`),
- CONSTRAINT `fk1` FOREIGN KEY(`a`) REFERENCES `mydb0`.`parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `fk1` FOREIGN KEY (`a`) REFERENCES `mydb0`.`parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 alter offline table child add constraint fk2 foreign key (b)
 references mydb0.parent(a);
@@ -39,8 +39,8 @@ child	CREATE TABLE `child` (
   PRIMARY KEY (`a`),
   UNIQUE KEY `b` (`b`) USING HASH,
   KEY `c` (`c`),
- CONSTRAINT `fk1` FOREIGN KEY(`a`) REFERENCES `mydb0`.`parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
- CONSTRAINT `fk2` FOREIGN KEY(`b`) REFERENCES `mydb0`.`parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `fk1` FOREIGN KEY (`a`) REFERENCES `mydb0`.`parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+  CONSTRAINT `fk2` FOREIGN KEY (`b`) REFERENCES `mydb0`.`parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 alter online table child add constraint fk3 foreign key (c)
 references mydb0.parent(a);
@@ -55,9 +55,9 @@ child	CREATE TABLE `child` (
   PRIMARY KEY (`a`),
   UNIQUE KEY `b` (`b`) USING HASH,
   KEY `c` (`c`),
- CONSTRAINT `fk1` FOREIGN KEY(`a`) REFERENCES `mydb0`.`parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
- CONSTRAINT `fk2` FOREIGN KEY(`b`) REFERENCES `mydb0`.`parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
- CONSTRAINT `fk3` FOREIGN KEY(`c`) REFERENCES `mydb0`.`parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `fk1` FOREIGN KEY (`a`) REFERENCES `mydb0`.`parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+  CONSTRAINT `fk2` FOREIGN KEY (`b`) REFERENCES `mydb0`.`parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+  CONSTRAINT `fk3` FOREIGN KEY (`c`) REFERENCES `mydb0`.`parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 alter offline table child drop foreign key fk2;
 Warnings:
@@ -71,8 +71,8 @@ child	CREATE TABLE `child` (
   PRIMARY KEY (`a`),
   UNIQUE KEY `b` (`b`) USING HASH,
   KEY `c` (`c`),
- CONSTRAINT `fk1` FOREIGN KEY(`a`) REFERENCES `mydb0`.`parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
- CONSTRAINT `fk3` FOREIGN KEY(`c`) REFERENCES `mydb0`.`parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `fk1` FOREIGN KEY (`a`) REFERENCES `mydb0`.`parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+  CONSTRAINT `fk3` FOREIGN KEY (`c`) REFERENCES `mydb0`.`parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 alter online table child drop foreign key fk3;
 Warnings:
@@ -86,7 +86,7 @@ child	CREATE TABLE `child` (
   PRIMARY KEY (`a`),
   UNIQUE KEY `b` (`b`) USING HASH,
   KEY `c` (`c`),
- CONSTRAINT `fk1` FOREIGN KEY(`a`) REFERENCES `mydb0`.`parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `fk1` FOREIGN KEY (`a`) REFERENCES `mydb0`.`parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 alter offline table mydb0.parent rename mydb1.parent;
 Warnings:
@@ -100,7 +100,7 @@ child	CREATE TABLE `child` (
   PRIMARY KEY (`a`),
   UNIQUE KEY `b` (`b`) USING HASH,
   KEY `c` (`c`),
- CONSTRAINT `fk1` FOREIGN KEY(`a`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `fk1` FOREIGN KEY (`a`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 alter online table mydb1.parent rename mydb0.parent;
 Warnings:
@@ -114,7 +114,7 @@ child	CREATE TABLE `child` (
   PRIMARY KEY (`a`),
   UNIQUE KEY `b` (`b`) USING HASH,
   KEY `c` (`c`),
- CONSTRAINT `fk1` FOREIGN KEY(`a`) REFERENCES `mydb0`.`parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `fk1` FOREIGN KEY (`a`) REFERENCES `mydb0`.`parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 use test;
 alter offline table mydb1.child add constraint fk2 foreign key (b)
@@ -131,8 +131,8 @@ child	CREATE TABLE `child` (
   PRIMARY KEY (`a`),
   UNIQUE KEY `b` (`b`) USING HASH,
   KEY `c` (`c`),
- CONSTRAINT `fk1` FOREIGN KEY(`a`) REFERENCES `mydb0`.`parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
- CONSTRAINT `fk2` FOREIGN KEY(`b`) REFERENCES `mydb0`.`parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `fk1` FOREIGN KEY (`a`) REFERENCES `mydb0`.`parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+  CONSTRAINT `fk2` FOREIGN KEY (`b`) REFERENCES `mydb0`.`parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 use test;
 alter online table mydb1.child add constraint fk3 foreign key (c)
@@ -149,9 +149,9 @@ child	CREATE TABLE `child` (
   PRIMARY KEY (`a`),
   UNIQUE KEY `b` (`b`) USING HASH,
   KEY `c` (`c`),
- CONSTRAINT `fk1` FOREIGN KEY(`a`) REFERENCES `mydb0`.`parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
- CONSTRAINT `fk2` FOREIGN KEY(`b`) REFERENCES `mydb0`.`parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
- CONSTRAINT `fk3` FOREIGN KEY(`c`) REFERENCES `mydb0`.`parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `fk1` FOREIGN KEY (`a`) REFERENCES `mydb0`.`parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+  CONSTRAINT `fk2` FOREIGN KEY (`b`) REFERENCES `mydb0`.`parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+  CONSTRAINT `fk3` FOREIGN KEY (`c`) REFERENCES `mydb0`.`parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 use test;
 drop database mydb1;
