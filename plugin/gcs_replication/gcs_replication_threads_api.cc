@@ -185,6 +185,7 @@ bool Replication_thread_api::is_own_event_applier(my_thread_id id)
 {
   DBUG_ENTER("Replication_thread_api::is_own_event_channel");
 
+  bool result= false;
   long* thread_ids= NULL;
 
   //Fetch all applier thread ids for this channel
@@ -194,12 +195,12 @@ bool Replication_thread_api::is_own_event_applier(my_thread_id id)
   //If none are found return false
   if (number_appliers <= 0)
   {
-    DBUG_RETURN(false);
+    DBUG_RETURN(result);
   }
 
   if (number_appliers == 1)  //One applier, check its id
   {
-    DBUG_RETURN(*thread_ids == id);
+    result= (*thread_ids == id);
   }
   else //The channel has  more than one applier, check if the id is in the list
   {
@@ -208,11 +209,14 @@ bool Replication_thread_api::is_own_event_applier(my_thread_id id)
       long thread_id= thread_ids[i];
       if (thread_id == id)
       {
-        DBUG_RETURN(true);
+        result= true;
+        break;
       }
     }
   }
 
+  my_free(thread_ids);
+
   //The given id is not an id of the channel applier threads, return false
-  DBUG_RETURN(false);
+  DBUG_RETURN(result);
 }

@@ -432,15 +432,19 @@ int channel_get_appliers_thread_id(const char* channel, long** appliers_id)
 {
   DBUG_ENTER("channel_is_active(channel, thd_type");
 
+  int number_appliers= -1;
+
   Master_info *mi= msr_map.get_mi(channel);
 
   if (mi == NULL)
   {
-    DBUG_RETURN(-1);
+    DBUG_RETURN(number_appliers);
   }
 
   if (mi->rli != NULL)
   {
+    mysql_mutex_lock(&mi->rli->run_lock);
+
     int num_workers= mi->rli->slave_parallel_workers;
     if (num_workers > 1)
     {
@@ -448,25 +452,32 @@ int channel_get_appliers_thread_id(const char* channel, long** appliers_id)
                                       num_workers * sizeof(long),
                                       MYF(MY_WME));
 
-      for (int i = 0; i < num_workers; i++) {
-        long thread_id = mi->rli->workers.at(i)->info_thd->thread_id();
-        appliers_id[i]= &thread_id;
+      for (int i = 0; i < num_workers; i++)
+      {
+        mysql_mutex_lock(&mi->rli->workers.at(i)->info_thd_lock);
+        *appliers_id[i]= mi->rli->workers.at(i)->info_thd->thread_id();
+        mysql_mutex_unlock(&mi->rli->workers.at(i)->info_thd_lock);
       }
 
-      DBUG_RETURN(num_workers);
+      number_appliers= num_workers;
     }
     else
     {
       if (mi->rli->info_thd != NULL)
       {
-        long id= mi->rli->info_thd->thread_id();
-        *appliers_id= &id;
-        DBUG_RETURN(1);
+        *appliers_id= (long*) my_malloc(PSI_NOT_INSTRUMENTED,
+                                        sizeof(long),
+                                        MYF(MY_WME));
+        mysql_mutex_lock(&mi->rli->info_thd_lock);
+        **appliers_id= mi->rli->info_thd->thread_id();
+        mysql_mutex_unlock(&mi->rli->info_thd_lock);
+        number_appliers= 1;
       }
     }
+    mysql_mutex_unlock(&mi->rli->run_lock);
   }
 
-  DBUG_RETURN(-2);
+  DBUG_RETURN(number_appliers);
 }
 
 long long channel_get_last_delivered_gno(const char* channel, int sidno)

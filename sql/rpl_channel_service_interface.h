@@ -201,7 +201,7 @@ bool channel_is_active(const char* channel, enum_channel_thread_types type);
   @param[out] appliers_id  The array of id(s)
 
   @return the number of returned ids
-    @retval 0  the channel does no exists, or the applier is not present
+    @retval <=0  the channel does no exists, or the applier is not present
     @retval >0 the number of applier ids returned.
 */
 int channel_get_appliers_thread_id(const char* channel, long** appliers_id);
