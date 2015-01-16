@@ -63,3 +63,4 @@ sync_with_master;
 #------------------------------------------------------------------------------#
 # Cleanup
 --source suite/gcol/inc/gcol_cleanup.inc
+--source include/rpl_end.inc
