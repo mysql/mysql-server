@@ -1344,8 +1344,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
         part_column_list
         server_options_list server_option
         definer_opt no_definer definer get_diagnostics
-        parse_gcol_expr gcol_opt_attribute gcol_opt_attribute_list
-        gcol_attribute generated_always_opt stored_opt_attribute
 END_OF_INPUT
 
 %type <NONE> call sp_proc_stmts sp_proc_stmts1 sp_proc_stmt
@@ -6276,22 +6274,25 @@ field_spec:
 
 field_def:
           type opt_attribute {}
-        | type generated_always_opt  AS '(' generated_column_func ')' stored_opt_attribute gcol_opt_attribute
+        | type opt_generated_always AS '(' generated_column_func ')' opt_stored_attribute opt_gcol_attribute_list
           {
             $$= $1;
             Lex->gcol_info->set_field_type((enum enum_field_types) $$);
           }
         ;
-generated_always_opt:
-          /* empty */ {}
-        | GENERATED ALWAYS_SYM {}
-gcol_opt_attribute:
-          /* empty */ {}
-        | gcol_opt_attribute_list {}
+
+opt_generated_always:
+          /* empty */
+        | GENERATED ALWAYS_SYM
         ;
 
-gcol_opt_attribute_list:
-          gcol_opt_attribute_list gcol_attribute {}
+opt_gcol_attribute_list:
+          /* empty */
+        | gcol_attribute_list
+        ;
+
+gcol_attribute_list:
+          gcol_attribute_list gcol_attribute
         | gcol_attribute
         ;
 
@@ -6318,9 +6319,9 @@ gcol_attribute:
           }
         ;
 
-stored_opt_attribute:
-          /* empty */ {}
-        | VIRTUAL_SYM {}
+opt_stored_attribute:
+          /* empty */
+        | VIRTUAL_SYM
         | STORED_SYM
           {
             Lex->gcol_info->set_field_stored(TRUE);
