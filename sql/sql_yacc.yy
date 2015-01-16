@@ -458,10 +458,10 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %lex-param { class THD *YYTHD }
 %pure-parser                                    /* We have threads */
 /*
-  Currently there are 160 shift/reduce conflicts.
+  Currently there are 159 shift/reduce conflicts.
   We should not introduce new conflicts any more.
 */
-%expect 161
+%expect 159
 
 /*
    Comments for TOKENS.
@@ -1120,6 +1120,12 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  YEAR_MONTH_SYM
 %token  YEAR_SYM                      /* SQL-2003-R */
 %token  ZEROFILL
+
+/*
+  Resolve column attribute ambiguity -- force precedence of "UNIQUE KEY" against
+  simple "UNIQUE" and "KEY" attributes:
+*/
+%right UNIQUE_SYM KEY_SYM
 
 %left   JOIN_SYM INNER_SYM STRAIGHT_JOIN CROSS LEFT RIGHT
 /* A dummy token to force the priority of table_ref production in a join. */
