@@ -553,6 +553,12 @@ typedef struct system_variables
 
   Gtid_specification gtid_next;
   Gtid_set_or_null gtid_next_list;
+  /**
+    Compatibility option to mark the pre MySQL-5.6.4 temporals columns using
+    the old format using comments for SHOW CREATE TABLE and in I_S.COLUMNS
+    'COLUMN_TYPE' field.
+  */
+  my_bool show_old_temporals;
 } SV;
 
 

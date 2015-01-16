@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -282,6 +282,7 @@ extern "C" MYSQL_PLUGIN_IMPORT char **orig_argv;
 extern pthread_attr_t connection_attrib;
 extern MYSQL_FILE *bootstrap_file;
 extern my_bool old_mode;
+extern my_bool avoid_temporal_upgrade;
 extern LEX_STRING opt_init_connect, opt_init_slave;
 extern int bootstrap_error;
 extern char err_shared_dir[];
@@ -668,7 +669,9 @@ enum options_mysqld
   OPT_SECURE_AUTH,
   OPT_THREAD_CACHE_SIZE,
   OPT_HOST_CACHE_SIZE,
-  OPT_TABLE_DEFINITION_CACHE
+  OPT_TABLE_DEFINITION_CACHE,
+  OPT_AVOID_TEMPORAL_UPGRADE,
+  OPT_SHOW_OLD_TEMPORALS
 };
 
 

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -8167,8 +8167,21 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     alter_info->requested_algorithm= Alter_info::ALTER_TABLE_ALGORITHM_COPY;
   }
 
-  if (upgrade_old_temporal_types(thd, alter_info))
-    DBUG_RETURN(true);
+  /*
+    If 'avoid_temporal_upgrade' mode is not enabled, then the
+    pre MySQL 5.6.4 old temporal types if present is upgraded to the
+    current format.
+  */
+
+  mysql_mutex_lock(&LOCK_global_system_variables);
+  bool check_temporal_upgrade= !avoid_temporal_upgrade;
+  mysql_mutex_unlock(&LOCK_global_system_variables);
+
+  if (check_temporal_upgrade)
+  {
+    if (upgrade_old_temporal_types(thd, alter_info))
+      DBUG_RETURN(true);
+  }
 
   /*
     ALTER TABLE ... ENGINE to the same engine is a common way to
