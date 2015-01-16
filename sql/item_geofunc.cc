@@ -4678,9 +4678,7 @@ distance_point_geometry_spherical(const Geometry *g1, const Geometry *g2)
         bg2(g2->get_data_ptr(), g2->get_data_size(),
             g2->get_flags(), g2->get_srid());
 
-      BG_models<double, bgcssed>::Multipoint mpt1;
-      mpt1.push_back(bg1);
-      res= bg::distance(mpt1, bg2, dist_strategy);
+      res= bg::distance(bg1, bg2, dist_strategy);
     }
     break;
   default:
@@ -4705,7 +4703,12 @@ distance_multipoint_geometry_spherical(const Geometry *g1, const Geometry *g2)
   switch (g2->get_type())
   {
   case Geometry::wkb_point:
-    res= bg_distance_spherical(g2, g1);
+    {
+      BG_models<double, bgcssed>::Point
+        bg2(g2->get_data_ptr(), g2->get_data_size(),
+            g2->get_flags(), g2->get_srid());
+      res= bg::distance(bg1, bg2, dist_strategy);
+    }
     break;
   case Geometry::wkb_multipoint:
     {
