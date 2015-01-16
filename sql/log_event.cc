@@ -4978,8 +4978,8 @@ size_t Query_log_event::get_query(const char *buf, size_t length,
                                   const Format_description_log_event *fd_event,
                                   char** query)
 {
-  Log_event_type event_type= (Log_event_type)buf[EVENT_TYPE_OFFSET];
-  DBUG_ASSERT(event_type == binary_log::QUERY_EVENT);
+  DBUG_ASSERT((Log_event_type)buf[EVENT_TYPE_OFFSET] ==
+              binary_log::QUERY_EVENT);
 
   char db_len;                                  /* size of db name */
   uint status_vars_len= 0;                      /* size of status_vars */
