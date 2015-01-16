@@ -252,7 +252,7 @@ bool Transaction_boundary_parser::update_state(
 {
   DBUG_ENTER("Transaction_boundary_parser::update_state");
 
-  enum_event_parser_state new_parser_state;
+  enum_event_parser_state new_parser_state= EVENT_PARSER_NONE;
 
   bool error= false;
 
