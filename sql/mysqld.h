@@ -301,6 +301,7 @@ extern "C" MYSQL_PLUGIN_IMPORT int orig_argc;
 extern "C" MYSQL_PLUGIN_IMPORT char **orig_argv;
 extern my_thread_attr_t connection_attrib;
 extern my_bool old_mode;
+extern my_bool avoid_temporal_upgrade;
 extern LEX_STRING opt_init_connect, opt_init_slave;
 extern char err_shared_dir[];
 extern my_decimal decimal_zero;
@@ -877,7 +878,9 @@ enum options_mysqld
   OPT_TABLE_DEFINITION_CACHE,
   OPT_MDL_CACHE_SIZE,
   OPT_MDL_HASH_INSTANCES,
-  OPT_SKIP_INNODB
+  OPT_SKIP_INNODB,
+  OPT_AVOID_TEMPORAL_UPGRADE,
+  OPT_SHOW_OLD_TEMPORALS
 };
 
 
