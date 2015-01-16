@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -974,16 +974,6 @@ ib_table_truncate(
 /*==============*/
 	const char*	table_name,	/*!< in: table name */
 	ib_id_u64_t*	table_id);	/*!< out: new table id */
-
-/*****************************************************************//**
-Frees a possible InnoDB trx object associated with the current THD.
-@return DB_SUCCESS or error number */
-ib_err_t
-ib_close_thd(
-/*=========*/
-	void*		thd);		/*!< in: handle to the MySQL
-					thread of the user whose resources
-					should be free'd */
 
 /*****************************************************************//**
 Get generic configure status
