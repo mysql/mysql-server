@@ -19,10 +19,10 @@
 #
 #  See also WL#5096.
 #
---source include/not_gcs_plugin.inc
--- source include/master-slave.inc
+--source include/not_group_replication_plugin.inc
 -- source include/have_binlog_format_row.inc
 -- source include/no_valgrind_without_big.inc
+-- source include/master-slave.inc
 
 -- connection slave
 call mtr.add_suppression("Slave: Can\'t find record in \'t\' Error_code: 1032");

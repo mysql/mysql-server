@@ -23,14 +23,14 @@
 #    changes to NULL and service_state to "off".
 #  - Start server with gtid-mode=on and test the RECEIVED_TRANSACTION_SET field.
 #    Also, make sure the value in this field is preserved after STOP SLAVE.
-#  - Test GCS related fields. They should be set NULL when plugin is not
-#    installed on slave.
-#  - On master, when gcs plugin is not installed, table should return an empty
+#  - Test Group Replication related fields. They should be set NULL when plugin
+#    is not installed on slave.
+#  - When Group Replication plugin is not installed, table must return an empty
 #    set.
 #  ==== Related Worklog ====
 #
 #  WL#3656: PERFORMANCE SCHEMA table for SHOW SLAVE STATUS
-#  WL#6841: PERFORMANCE SCHEMA to show GCS kernel stats
+#  WL#6841: PERFORMANCE SCHEMA to show Group Replication kernel stats
 #
 source include/not_valgrind.inc;
 source include/master-slave.inc;

@@ -1,0 +1,167 @@
+# Test to check the query size limitation of the GCS binding in use.
+# Currently we are using Corosync 1.4.6 for the test. For version below 1.4.6
+# the test will fail due to different size of the maximum sized packet that is
+# sent.
+#
+# The limits specified in the test can be changed to tune the test for
+# diferent versions/bidings.
+
+--source include/have_group_replication_plugin.inc
+--source include/have_binlog_format_row.inc
+--source include/master-slave.inc
+
+#    The test is implemented as follows:
+#
+#    On Node 1 :
+#      create tables and insert some rows.
+#      create a procedure to update the rows in different conditions.
+#
+#    On Node 2 :
+#      check that the data is replicated correctly and no failure happened
+#      during the GCS message broadcast.
+
+#Known current biding size limitations
+--let $max_single_update_size = 250
+--let $max_single_insert_size= 249
+--let $max_number_1kb_updates_1_table = 451
+--let $max_number_1kb_updates_N_tables = 238
+
+--connection server1
+--let $file= $MYSQLTEST_VARDIR/tmp/temp_file.data
+
+#CASE I - 1 update of size almost 499 kb.
+
+CREATE TABLE t1 (a INT, t LONGTEXT, PRIMARY KEY(a));
+--source include/rpl_sync.inc
+
+--connection server1
+--eval INSERT INTO t1 VALUES(1, REPEAT('A', 1024*($max_single_insert_size)))
+DELIMITER |;
+CREATE PROCEDURE p(lim int)
+  BEGIN
+    UPDATE t1 SET t= REPEAT('X', 1024*lim) WHERE a=1;
+  END|
+DELIMITER ;|
+
+--connection server1
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval CALL p($max_single_update_size)
+--source include/rpl_sync.inc
+
+--let $diff_tables= server1:t1,server2:t1
+--source include/diff_tables.inc
+
+# Case II - N updates to a single table
+
+--connection server1
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval SELECT repeat('x',1024) INTO OUTFILE '$file'
+
+--let $tmp= $max_number_1kb_updates_1_table
+while($tmp > 2)
+{
+  --eval INSERT into t1 values($tmp, LOAD_FILE('file'))
+  --dec $tmp
+}
+--source include/rpl_sync.inc
+--connection server1
+
+DELIMITER |;
+CREATE PROCEDURE p1(lim int)
+  BEGIN
+        DECLARE x VARCHAR(10);
+        DECLARE v1 INT DEFAULT 2;
+        WHILE lim > v1 DO
+                SET @x = lim;
+                SET @s2 = CONCAT("UPDATE t1 SET a= a+1, t= REPEAT('A', 1024) WHERE a=", @x);
+                PREPARE stmt2 from @s2;
+                EXECUTE stmt2;
+                SET lim = lim - 1;
+        END WHILE;
+  END|
+DELIMITER ;|
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+SET AUTOCOMMIT= 0;
+BEGIN;
+--eval CALL p1($max_number_1kb_updates_1_table)
+COMMIT;
+--remove_file $file
+
+--connection server1
+--source include/rpl_sync.inc
+
+--let $diff_tables= server1:t1, server2:t1
+--source include/diff_tables.inc
+
+
+# Case III - 1 update to N tables
+
+--connection server1
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+
+DROP TABLE IF EXISTS t1;
+
+--let $updates= $max_number_1kb_updates_N_tables
+--let $count=1
+while($count <= $updates)
+{
+  --eval CREATE TABLE t$count (a INT, t LONGTEXT, PRIMARY KEY(a))
+  --eval INSERT INTO t$count VALUES($count, REPEAT('X', 1024))
+  --inc $count
+}
+
+--connection server1
+--source include/rpl_sync.inc
+
+--connection server1
+DELIMITER |;
+CREATE PROCEDURE p2(lim int)
+   BEGIN
+         DECLARE x VARCHAR(10);
+         DECLARE stmt2 VARCHAR(2000);
+         DECLARE v1 INT DEFAULT 2;
+         WHILE lim > v1 DO
+                 SET @x = lim;
+                 SET @s2 = CONCAT("UPDATE t", @x, " SET a=a+1, t=REPEAT('A',1024) WHERE a=", @x);
+                 PREPARE stmt2 from @s2;
+                 EXECUTE stmt2;
+                 SET lim= lim - 1;
+         END WHILE;
+   END|
+DELIMITER ;|
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+BEGIN;
+--eval CALL p2($max_number_1kb_updates_N_tables)
+COMMIT;
+
+--connection server1
+--source include/rpl_sync.inc
+
+--inc $max_number_1kb_updates_N_tables
+
+--let $i= 1
+while ($i < $max_number_1kb_updates_N_tables)
+{
+  --let $diff_tables= server1:t$i, server2:t$i
+  --source include/diff_tables.inc
+  --inc $i
+}
+
+# CLEAN UP
+--connection server1
+--let $i= 1
+while ($i < $max_number_1kb_updates_N_tables)
+{
+  --eval DROP TABLE t$i
+  --inc $i
+}
+DROP PROCEDURE p;
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+
+--source include/rpl_end.inc

@@ -7342,29 +7342,29 @@ ER_MIX_OF_GROUP_FUNC_AND_FIELDS_V2
 ER_WARN_DEPRECATED_SYSVAR_UPDATE
   eng "Updating '%s' is deprecated. It will be made read-only in a future release."
 
-ER_GCS_REPLICATION_CONFIGURATION
-  eng "The server is not configured properly to be an active member of the GCS CLUSTER."
+ER_GROUP_REPLICATION_CONFIGURATION
+  eng "The server is not configured properly to be an active member of the group. Please see more details on error log."
 
-ER_GCS_REPLICATION_RUNNING
-  eng "The START GCS_REPLICATION failed since the cluster is already running."
+ER_GROUP_REPLICATION_RUNNING
+  eng "The START GROUP_REPLICATION command failed since the group is already running."
 
-ER_GCS_REPLICATION_APPLIER_INIT_ERROR
-  eng "The START GCS_REPLICATION command failed as the applier module failed to start."
+ER_GROUP_REPLICATION_APPLIER_INIT_ERROR
+  eng "The START GROUP_REPLICATION command failed as the applier module failed to start."
 
-ER_GCS_STOP_APPLIER_THREAD_TIMEOUT
-  eng "The STOP GCS_REPLICATION command execution is incomplete: The applier thread got the stop signal while it was busy. The applier thread will stop once the current task is complete."
+ER_GROUP_REPLICATION_STOP_APPLIER_THREAD_TIMEOUT
+  eng "The STOP GROUP_REPLICATION command execution is incomplete: The applier thread got the stop signal while it was busy. The applier thread will stop once the current task is complete."
 
-ER_GCS_COMMUNICATION_LAYER_SESSION_ERROR
-  eng "The START GCS_REPLICATION command failed as there was an error when initializing the group communication layer."
+ER_GROUP_REPLICATION_COMMUNICATION_LAYER_SESSION_ERROR
+  eng "The START GROUP_REPLICATION command failed as there was an error when initializing the group communication layer."
 
-ER_GCS_COMMUNICATION_LAYER_JOIN_ERROR
-  eng "The START GCS_REPLICATION command failed as there was an error when joining the communication group"
+ER_GROUP_REPLICATION_COMMUNICATION_LAYER_JOIN_ERROR
+  eng "The START GROUP_REPLICATION command failed as there was an error when joining the communication group."
 
 ER_BEFORE_DML_VALIDATION_ERROR
   eng "The table does not comply with the requirements by an external plugin."
 
 ER_PREVENTS_VARIABLE_WITHOUT_RBR
-  eng "Cannot change the value of variable %s without binlog format as ROW."
+  eng "Cannot change the value of variable %s without binary log format as ROW."
 
 ER_RUN_HOOK_ERROR
   eng "Error on observer while running replication hook '%s'."

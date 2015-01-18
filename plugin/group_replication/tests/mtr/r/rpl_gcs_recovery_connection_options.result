@@ -1,0 +1,75 @@
+include/master-slave.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+#
+# Start the donor node
+#
+include/start_group_replication.inc
+include/rpl_group_replication_wait_for_number_of_members.inc
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+#
+# Install a rpl user for the donor connection
+#
+CREATE USER "gcs_user" IDENTIFIED BY "gcs_password";
+GRANT REPLICATION SLAVE ON *.* TO "gcs_user";
+FLUSH PRIVILEGES;
+#
+# Install the joiner node and try to set invalid values
+#
+set session sql_log_bin=0;
+call mtr.add_suppression("The given user name for recovery*");
+call mtr.add_suppression("The given password for recovery*");
+set session sql_log_bin=1;
+SET GLOBAL group_replication_recovery_user= "thisusernamehasmorethan48characterssoitisinvalid.";
+ERROR 42000: Variable 'group_replication_recovery_user' can't be set to the value of 'thisusernamehasmorethan48characterssoitisinvalid.'
+SET GLOBAL group_replication_recovery_password= "thispasswordhasmorethan32chara...";
+ERROR 42000: Variable 'group_replication_recovery_password' can't be set to the value of 'thispasswordhasmorethan32chara...'
+#
+# Set and check valid options
+#
+SET GLOBAL group_replication_recovery_user= gcs_user;
+SET GLOBAL group_replication_recovery_password= gcs_password;
+include/assert.inc [The value of the recovery user name should be gcs_user]
+include/assert.inc [The value of the recovery password should be empty]
+#
+# Start the joiner node with the given credentials and check if it is OK
+#
+include/start_group_replication.inc
+include/assert.inc [On the recovered node, the table should contain 1 elements]
+#
+# Create a new node and give it a bad password, watching it fail
+#
+SET @debug_save= @@GLOBAL.DEBUG;
+set session sql_log_bin=0;
+call mtr.add_suppression("There was an error when connecting to the donor*");
+call mtr.add_suppression("Maximum number of retries when*");
+call mtr.add_suppression("Fatal error when recovering. The server has left the group.");
+set session sql_log_bin=1;
+SET GLOBAL group_replication_recovery_user= gcs_user;
+SET GLOBAL group_replication_recovery_password= gcs_bad_password;
+# Set the retry count to try only twice. One time for each node.
+SET GLOBAL group_replication_recovery_retry_count= 2;;
+include/assert.inc [The value of the recovery retry count should be equal to 2]
+# Start recovery and wait to verify the node is in recovery
+SET @@GLOBAL.DEBUG='d,recovery_thread_wait';
+SET GLOBAL group_replication_group_name= "b5eb4110-a3a2-11e3-a5e2-0800200c9a66";
+START GROUP_REPLICATION;
+include/rpl_group_replication_wait_for_member_state.inc
+# Wake up recovery
+SET @@GLOBAL.DEBUG= @debug_save;
+SET DEBUG_SYNC= "now SIGNAL signal.recovery_continue";
+# The node should become offline as it can't connect
+include/rpl_group_replication_wait_for_member_state.inc
+include/rpl_group_replication_wait_for_number_of_members.inc
+#
+# Clean up
+#
+DROP USER "gcs_user";
+SET GLOBAL group_replication_recovery_user= root;
+SET GLOBAL group_replication_recovery_retry_count= 0;
+SET GLOBAL group_replication_recovery_user= root;
+DROP TABLE t1;
+include/rpl_end.inc

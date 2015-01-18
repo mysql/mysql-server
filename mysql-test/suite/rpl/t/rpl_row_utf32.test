@@ -1,7 +1,7 @@
---source include/not_gcs_plugin.inc
--- source include/master-slave.inc
+--source include/not_group_replication_plugin.inc
 -- source include/have_binlog_format_row.inc
 -- source include/have_utf32.inc
+-- source include/master-slave.inc
 
 # Max key length in InnoDB is 767, whereas, in MyISAM it is 1000     # WL#6921
 --let $key_length_innodb=767

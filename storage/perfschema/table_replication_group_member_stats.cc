@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -25,13 +25,8 @@
 #include "table_replication_group_member_stats.h"
 #include "pfs_instr_class.h"
 #include "pfs_instr.h"
-#include "rpl_slave.h"
-#include "rpl_info.h"
-#include "rpl_rli.h"
-#include "rpl_mi.h"
-#include "sql_parse.h"
-#include "gcs_replication.h"
 #include "log.h"
+#include "rpl_group_replication.h"
 
 THR_LOCK table_replication_group_member_stats::m_table_lock;
 
@@ -136,7 +131,7 @@ ha_rows table_replication_group_member_stats::get_row_count()
 {
   uint row_count= 0;
 
-  if (is_gcs_plugin_loaded())
+  if (is_group_replication_plugin_loaded())
     row_count= 1;
 
   return row_count;
@@ -144,7 +139,7 @@ ha_rows table_replication_group_member_stats::get_row_count()
 
 int table_replication_group_member_stats::rnd_next(void)
 {
-  if (!is_gcs_plugin_loaded())
+  if (!is_group_replication_plugin_loaded())
     return HA_ERR_END_OF_FILE;
 
   m_pos.set_at(&m_next_pos);
@@ -175,11 +170,11 @@ void table_replication_group_member_stats::make_row()
   DBUG_ENTER("table_replication_group_member_stats::make_row");
   m_row_exists= false;
 
-  RPL_GCS_GROUP_MEMBER_STATS_INFO* group_member_stats_info;
+  GROUP_REPLICATION_GROUP_MEMBER_STATS_INFO* group_member_stats_info;
   if(!(group_member_stats_info=
-       (RPL_GCS_GROUP_MEMBER_STATS_INFO*)
+       (GROUP_REPLICATION_GROUP_MEMBER_STATS_INFO*)
                            my_malloc(PSI_NOT_INSTRUMENTED,
-                                     sizeof(RPL_GCS_GROUP_MEMBER_STATS_INFO),
+                                     sizeof(GROUP_REPLICATION_GROUP_MEMBER_STATS_INFO),
                                      MYF(MY_WME))))
   {
     sql_print_error("Unable to allocate memory on"
@@ -188,7 +183,7 @@ void table_replication_group_member_stats::make_row()
   }
 
   bool dbsm_stats_not_available
-                            = get_gcs_group_member_stats_info
+                            = get_group_replication_group_member_stats_info
                                                       (group_member_stats_info);
   if(dbsm_stats_not_available)
     DBUG_PRINT("info", ("Member's DBSM stats not available!"));

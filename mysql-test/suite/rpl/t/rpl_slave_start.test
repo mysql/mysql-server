@@ -2,9 +2,9 @@
 --echo #
 --echo # START SLAVE released the lock and returned before it cleared the error,
 --echo # so there is a possibility that Slave_SQL_Error is not 0.
---source include/not_gcs_plugin.inc
-source include/master-slave.inc;
+--source include/not_group_replication_plugin.inc
 source include/have_debug_sync.inc;
+source include/master-slave.inc;
 
 --echo [on slave]
 connection slave;

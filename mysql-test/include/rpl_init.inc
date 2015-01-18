@@ -52,7 +52,7 @@
 #    [--let $rpl_debug= 1]
 #    [--let $slave_timeout= NUMBER]
 #    [--let $use_gtids= 1]
-#    [--let $rpl_gcs= 1]
+#    [--let $rpl_group_replication= 1]
 #    [--let $rpl_gtid_utils= 1]
 #    --source include/rpl_init.inc
 #
@@ -118,8 +118,8 @@
 #    $use_gtids
 #      Use option MASTER_AUTO_POSITION = 1 to CHANGE MASTER.
 #
-#    $rpl_gcs
-#      This checks for whether we have GCS_REPLICATION enabled or not. Based
+#    $rpl_group_replication
+#      This checks for whether we have Group Replication enabled or not. Based
 #      on the check this parameter we execute change master or not in this
 #      inc file.
 #
@@ -243,9 +243,9 @@ if (!$rpl_debug)
 --let $_rpl_server= $rpl_server_count
 --let $underscore= _
 
-if ($gcs_group_name == '')
+if ($group_replication_group_name == '')
 {
-  --let $gcs_group_name= `SELECT UUID()`
+  --let $group_replication_group_name= `SELECT UUID()`
 }
 
 while ($_rpl_server)
@@ -311,11 +311,11 @@ while ($_rpl_server)
     --let $server_10_datadir= `SELECT @@datadir`
   }
 
-  if($rpl_gcs)
+  if($rpl_group_replication)
   {
-    if(!$rpl_skip_gcs_replication_start)
+    if(!$rpl_skip_group_replication_start)
     {
-      --source include/start_gcs_replication.inc
+      --source include/start_group_replication.inc
     }
   }
   --dec $_rpl_server
@@ -374,7 +374,7 @@ if ($use_gtids == '')
 
 if (!$rpl_skip_start_slave)
 {
-  if(!$rpl_gcs)
+  if(!$rpl_group_replication)
   {
     --source include/rpl_start_slaves.inc
   }

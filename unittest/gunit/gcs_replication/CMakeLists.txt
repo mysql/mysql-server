@@ -1,4 +1,4 @@
-# Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -31,9 +31,9 @@ IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
 
   INCLUDE_DIRECTORIES(${GMOCK_INCLUDE_DIRS})
   INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include)
-  INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/plugin/gcs_replication/)
-  INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/plugin/gcs_replication/gcs/interface)
-  INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/plugin/gcs_replication/gcs/bindings/corosync)
+  INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/plugin/group_replication/)
+  INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/plugin/group_replication/gcs/interface)
+  INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/plugin/group_replication/gcs/bindings/corosync)
 
   # Add tests
   SET(TESTS

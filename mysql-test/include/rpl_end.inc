@@ -16,7 +16,7 @@
 #
 # [--let $rpl_only_running_threads= 1]
 # [--let $rpl_debug= 1]
-# [--let $rpl_gcs= 1]
+# [--let $rpl_group_replication= 1]
 # [--let $rpl_gtid_utils= 1]
 # --source include/rpl_end.inc
 #
@@ -41,8 +41,8 @@
 #   $rpl_debug
 #     See include/rpl_init.inc
 #
-#   $rpl_gcs
-#     This checks for whether we have GCS_REPLICATION enabled or not. Based
+#   $rpl_group_replication
+#     This checks for whether we have Group Replication enabled or not. Based
 #     on the check this parameter we execute change master or not in this
 #     inc file.
 #
@@ -108,7 +108,7 @@ if (!$rpl_skip_sync)
   --source include/rpl_sync.inc
 }
 
-if ($rpl_gcs)
+if ($rpl_group_replication)
 {
   --let $_rpl_server= $rpl_server_count
   while ($_rpl_server)
@@ -116,16 +116,16 @@ if ($rpl_gcs)
     --let $rpl_connection_name= server_$_rpl_server
     --source include/rpl_connection.inc
 
-    --let $_gcs_node_state= `SELECT SERVICE_STATE FROM performance_schema.replication_connection_status`
-    if ($_gcs_node_state != 'OFF')
+    --let $_group_replication_member_state= `SELECT SERVICE_STATE FROM performance_schema.replication_connection_status`
+    if ($_group_replication_member_state != 'OFF')
     {
-      --source include/stop_gcs_replication.inc
+      --source include/stop_group_replication.inc
     }
     --dec $_rpl_server
   }
 }
 
-if (!$rpl_gcs)
+if (!$rpl_group_replication)
 {
   --source include/rpl_stop_slaves.inc
 }
@@ -148,7 +148,7 @@ if ($rpl_multi_source)
 # rpl_change_topology executes CHANGE MASTER for each connection.
 # we restore the gtid state by sourcing rpl_change_topology below
 --let $use_gtids= 0
---let $rpl_gcs= 0
+--let $rpl_group_replication= 0
 
 --source include/rpl_change_topology.inc
 

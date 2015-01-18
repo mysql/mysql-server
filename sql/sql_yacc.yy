@@ -675,7 +675,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  FUNCTION_SYM                  /* SQL-2003-R */
 %token  GE
 %token  GENERAL
-%token  GCS_REPLICATION
+%token  GROUP_REPLICATION
 %token  GEOMETRYCOLLECTION
 %token  GEOMETRY_SYM
 %token  GET_FORMAT                    /* MYSQL-FUNC */
@@ -1340,7 +1340,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
         part_column_list
         server_options_list server_option
         definer_opt no_definer definer get_diagnostics
-        alter_user_list gcs_replication
+        alter_user_list group_replication
 END_OF_INPUT
 
 %type <NONE> call sp_proc_stmts sp_proc_stmts1 sp_proc_stmt
@@ -1608,7 +1608,7 @@ statement:
         | execute
         | flush
         | get_diagnostics
-        | gcs_replication
+        | group_replication
         | grant
         | handler
         | help
@@ -8111,16 +8111,16 @@ opt_to:
         | AS {}
         ;
 
-gcs_replication:
-                 START_SYM GCS_REPLICATION
+group_replication:
+                 START_SYM GROUP_REPLICATION
                  {
                    LEX *lex=Lex;
-                   lex->sql_command = SQLCOM_START_GCS_REPLICATION;
+                   lex->sql_command = SQLCOM_START_GROUP_REPLICATION;
                  }
-               | STOP_SYM GCS_REPLICATION
+               | STOP_SYM GROUP_REPLICATION
                  {
                    LEX *lex=Lex;
-                   lex->sql_command = SQLCOM_STOP_GCS_REPLICATION;
+                   lex->sql_command = SQLCOM_STOP_GROUP_REPLICATION;
                  }
                ;
 

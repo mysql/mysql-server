@@ -31,7 +31,7 @@ SET(HEADERS_ABI
   mysql/plugin_audit.h
   mysql/plugin_ftparser.h
   mysql/plugin_validate_password.h
-  mysql/plugin_gcs_rpl.h
+  mysql/plugin_group_replication.h
 )
 
 SET(HEADERS 

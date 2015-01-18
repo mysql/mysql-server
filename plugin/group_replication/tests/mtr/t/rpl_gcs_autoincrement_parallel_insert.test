@@ -1,0 +1,52 @@
+# Test to check for the behavior of the auto increment field of the tables
+# when inserting rows on them parallely on the different nodes of the Group.
+
+--source include/have_group_replication_plugin.inc
+--source include/master-slave.inc
+
+CREATE TABLE t1 (a INT AUTO_INCREMENT, PRIMARY KEY (a)) engine=innodb;
+--source include/rpl_sync.inc
+
+--connection server1
+INSERT INTO t1 VALUES(1);
+
+# Perform 49 insert to get parallely to better test the auto_increment
+# behavior.
+--let $temp=50
+while($temp > 1)
+{
+  --connection server1
+  --send INSERT INTO t1 VALUES(NULL)
+
+  --connection server2
+  --send INSERT INTO t1 VALUES(NULL)
+
+  --connection server1
+  --error 0, ER_DUP_ENTRY, ER_TRANSACTION_ROLLBACK_DURING_COMMIT, ER_ERROR_DURING_COMMIT, ER_ERROR_DURING_ROLLBACK
+  --reap
+
+  --connection server2
+  --error 0, ER_DUP_ENTRY, ER_TRANSACTION_ROLLBACK_DURING_COMMIT, ER_ERROR_DURING_COMMIT, ER_ERROR_DURING_ROLLBACK
+  --reap
+
+  --dec $temp
+}
+
+--connection server1
+--source include/rpl_sync.inc
+--let $diff_tables= server1:t1, server2:t1
+--source include/diff_tables.inc
+
+--let $temp=50
+while ($temp > 0)
+{
+  --let $assert_text= Table t1 must contain values from 1 to 50
+  --let $assert_cond= "[SELECT COUNT(a) FROM t1 WHERE a= $temp]" = "1"
+  --source include/assert.inc
+  --dec $temp
+}
+
+--connection server1
+DROP TABLE t1;
+
+--source include/rpl_end.inc

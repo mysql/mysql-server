@@ -19,7 +19,7 @@
 #include "mysql_version.h"
 #include <mysql/plugin_auth.h>
 #include <mysql/plugin_validate_password.h>
-#include <mysql/plugin_gcs_rpl.h>
+#include <mysql/plugin_group_replication.h>
 #include "auth_common.h"       // check_table_access
 #include "debug_sync.h"        // DEBUG_SYNC
 #include "handler.h"           // ha_initalize_handlerton
@@ -93,7 +93,7 @@ const LEX_STRING plugin_type_names[MYSQL_MAX_PLUGIN_TYPE_NUM]=
   { C_STRING_WITH_LEN("REPLICATION") },
   { C_STRING_WITH_LEN("AUTHENTICATION") },
   { C_STRING_WITH_LEN("VALIDATE PASSWORD") },
-  { C_STRING_WITH_LEN("GCS REPLICATION") }
+  { C_STRING_WITH_LEN("GROUP REPLICATION") }
 };
 
 extern int initialize_schema_table(st_plugin_int *plugin);
@@ -144,7 +144,7 @@ static int min_plugin_info_interface_version[MYSQL_MAX_PLUGIN_TYPE_NUM]=
   MYSQL_REPLICATION_INTERFACE_VERSION,
   MYSQL_AUTHENTICATION_INTERFACE_VERSION,
   MYSQL_VALIDATE_PASSWORD_INTERFACE_VERSION,
-  MYSQL_GCS_REPLICATION_INTERFACE_VERSION
+  MYSQL_GROUP_REPLICATION_INTERFACE_VERSION
 };
 static int cur_plugin_info_interface_version[MYSQL_MAX_PLUGIN_TYPE_NUM]=
 {
@@ -157,7 +157,7 @@ static int cur_plugin_info_interface_version[MYSQL_MAX_PLUGIN_TYPE_NUM]=
   MYSQL_REPLICATION_INTERFACE_VERSION,
   MYSQL_AUTHENTICATION_INTERFACE_VERSION,
   MYSQL_VALIDATE_PASSWORD_INTERFACE_VERSION,
-  MYSQL_GCS_REPLICATION_INTERFACE_VERSION
+  MYSQL_GROUP_REPLICATION_INTERFACE_VERSION
 };
 
 /* support for Services */
@@ -516,6 +516,8 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
     const char *errmsg;
     int error_number= dlopen_errno;
     DLERROR_GENERATE(errmsg, error_number);
+// BUH
+fprintf(stdout, "XXXYYY: errmsg: %s\n", errmsg);
 
     if (!strncmp(dlpath, errmsg, dlpathlen))
     { // if errmsg starts from dlpath, trim this prefix.

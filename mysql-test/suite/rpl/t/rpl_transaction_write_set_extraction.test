@@ -1,4 +1,4 @@
-# WL#6834 - GCS Replication: Extract PKE for certification purposes
+# WL#6834 - Group Replication: Extract PKE for certification purposes
 #
 # This worklog checks for the write set values being generated when group
 # replication is in use. The test checks for the values being generted when

@@ -1,0 +1,43 @@
+#
+# The intent of this test is to verify if the validations that were
+# created within the GCS plugin in the startup process
+# are fully functional.
+#
+# It will test binlog disabled failure.
+#
+# Since the failure will happen when "START GROUP_REPLICATION" is
+# issued, the test procedures are the following:
+# - Install plugin at startup
+# - Call START GROUP_REPLICATION and wait for it to fail
+#
+
+--source include/not_embedded.inc
+--source include/have_innodb.inc
+
+# The section below is present in "have_group_replication_plugin.inc."
+# But since this test is evaluating the absence of certain configurations, one
+# is not able to use that file since it enforces the existence of such
+# parameters in the server.
+
+if (`SELECT @@have_dynamic_loading != 'YES'`) {
+  --skip Requires dynamic loading
+}
+
+if (!`select count(*) from information_schema.plugins where PLUGIN_NAME like 'group_replication'`)
+{
+  --skip Need GCS_REPLICATION plugin
+}
+
+--let $assert_text= Binlog is disabled
+--let $assert_cond= [SELECT @@GLOBAL.log_bin] = 0
+--source include/assert.inc
+
+--echo #
+--echo # Test if binlog disabled will fail.
+--echo #
+
+--error ER_GROUP_REPLICATION_CONFIGURATION
+START GROUP_REPLICATION;
+
+call mtr.add_suppression("Binlog must be enabled for Group Replication");
+call mtr.add_suppression("You need to use --log-bin");

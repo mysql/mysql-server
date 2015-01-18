@@ -1,0 +1,12 @@
+SELECT @@group_replication_group_name;
+@@group_replication_group_name
+8a94f357-aab4-11df-86ab-c80aa9429564
+SELECT @@group_replication_start_on_boot;
+@@group_replication_start_on_boot
+1
+START GROUP_REPLICATION;
+ERROR HY000: The START GROUP_REPLICATION command failed since the group is already running.
+# restart
+START GROUP_REPLICATION;
+ERROR HY000: The START GROUP_REPLICATION command failed since the group is already running.
+STOP GROUP_REPLICATION;

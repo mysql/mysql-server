@@ -28,7 +28,7 @@
 # --let $rpl_topology= 1->2->3->1->4, 2->5, 6->7
 # [--let $rpl_multi_source= 1]
 # [--let $use_gtids= 1]
-# [--let $rpl_gcs= 1]
+# [--let $rpl_group_replication= 1]
 # [--let $rpl_skip_change_master= 1]
 # [--let $rpl_master_log_file= 1:master-bin.000001,3:master-bin.000003]
 # [--let $rpl_master_log_pos= 1:4711,3:107]
@@ -79,8 +79,8 @@
 #   $rpl_skip_change_master, $rpl_multi_source
 #     See include/rpl_init.inc
 #
-#   $rpl_gcs
-#     This checks for whether we have GCS_REPLICATION enabled or not. Based
+#   $rpl_group_replication
+#     This checks for whether we have Group Replication enabled or not. Based
 #     on the check this parameter we execute change master or not in this
 #     inc file.
 #

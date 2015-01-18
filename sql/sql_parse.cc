@@ -104,7 +104,7 @@
 #include "parse_location.h"
 #include "item_timefunc.h"       // Item_func_unix_timestamp
 
-#include "gcs_replication.h"
+#include "rpl_group_replication.h"
 #include <algorithm>
 using std::max;
 
@@ -482,8 +482,8 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_CHANGE_REPLICATION_FILTER]=    CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_SLAVE_START]=        CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_SLAVE_STOP]=         CF_AUTO_COMMIT_TRANS;
-  sql_command_flags[SQLCOM_START_GCS_REPLICATION]=      CF_AUTO_COMMIT_TRANS;
-  sql_command_flags[SQLCOM_STOP_GCS_REPLICATION]=       CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_START_GROUP_REPLICATION]= CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_STOP_GROUP_REPLICATION]=  CF_AUTO_COMMIT_TRANS;
 
   /*
     The following statements can deal with temporary tables,
@@ -2977,32 +2977,32 @@ end_with_restore_list:
     break;
   }
 #ifdef HAVE_REPLICATION
-  case SQLCOM_START_GCS_REPLICATION:
+  case SQLCOM_START_GROUP_REPLICATION:
   {
-    res= start_gcs_rpl();
+    res= group_replication_start();
 
     //To reduce server dependency, server errors are not used here
     switch (res)
     {
-      case 1: //GCS_CONFIGURATION_ERROR
-        my_message(ER_GCS_REPLICATION_CONFIGURATION,
-                   ER(ER_GCS_REPLICATION_CONFIGURATION), MYF(0));
+      case 1: //GROUP_REPLICATION_CONFIGURATION_ERROR
+        my_message(ER_GROUP_REPLICATION_CONFIGURATION,
+                   ER(ER_GROUP_REPLICATION_CONFIGURATION), MYF(0));
         goto error;
-      case 2: //GCS_ALREADY_RUNNING
-        my_message(ER_GCS_REPLICATION_RUNNING,
-                   ER(ER_GCS_REPLICATION_RUNNING), MYF(0));
+      case 2: //GROUP_REPLICATION_ALREADY_RUNNING
+        my_message(ER_GROUP_REPLICATION_RUNNING,
+                   ER(ER_GROUP_REPLICATION_RUNNING), MYF(0));
         goto error;
-      case 3: //GCS_REPLICATION_APPLIER_INIT_ERROR
-        my_message(ER_GCS_REPLICATION_APPLIER_INIT_ERROR,
-                   ER(ER_GCS_REPLICATION_APPLIER_INIT_ERROR), MYF(0));
+      case 3: //GROUP_REPLICATION_REPLICATION_APPLIER_INIT_ERROR
+        my_message(ER_GROUP_REPLICATION_APPLIER_INIT_ERROR,
+                   ER(ER_GROUP_REPLICATION_APPLIER_INIT_ERROR), MYF(0));
         goto error;
-      case 4: //GCS_COMMUNICATION_LAYER_JOIN_ERROR
-        my_message(ER_GCS_COMMUNICATION_LAYER_SESSION_ERROR,
-                   ER(ER_GCS_COMMUNICATION_LAYER_SESSION_ERROR), MYF(0));
+      case 4: //GROUP_REPLICATION_COMMUNICATION_LAYER_JOIN_ERROR
+        my_message(ER_GROUP_REPLICATION_COMMUNICATION_LAYER_SESSION_ERROR,
+                   ER(ER_GROUP_REPLICATION_COMMUNICATION_LAYER_SESSION_ERROR), MYF(0));
         goto error;
-      case 5: //GCS_COMMUNICATION_LAYER_SESSION_ERROR
-        my_message(ER_GCS_COMMUNICATION_LAYER_JOIN_ERROR,
-                   ER(ER_GCS_COMMUNICATION_LAYER_JOIN_ERROR), MYF(0));
+      case 5: //GROUP_REPLICATION_COMMUNICATION_LAYER_SESSION_ERROR
+        my_message(ER_GROUP_REPLICATION_COMMUNICATION_LAYER_JOIN_ERROR,
+                   ER(ER_GROUP_REPLICATION_COMMUNICATION_LAYER_JOIN_ERROR), MYF(0));
         goto error;
     }
     my_ok(thd);
@@ -3010,19 +3010,19 @@ end_with_restore_list:
     break;
   }
 
-  case SQLCOM_STOP_GCS_REPLICATION:
+  case SQLCOM_STOP_GROUP_REPLICATION:
   {
-    res= stop_gcs_rpl();
-    if (res == 1) //GCS_CONFIGURATION_ERROR
+    res= group_replication_stop();
+    if (res == 1) //GROUP_REPLICATION_CONFIGURATION_ERROR
     {
-      my_message(ER_GCS_REPLICATION_CONFIGURATION,
-                 ER(ER_GCS_REPLICATION_CONFIGURATION), MYF(0));
+      my_message(ER_GROUP_REPLICATION_CONFIGURATION,
+                 ER(ER_GROUP_REPLICATION_CONFIGURATION), MYF(0));
       goto error;
     }
-    if (res == 6) //GCS_APPLIER_THREAD_TIMEOUT
+    if (res == 6) //GROUP_REPLICATION_APPLIER_THREAD_TIMEOUT
     {
-      my_message(ER_GCS_STOP_APPLIER_THREAD_TIMEOUT,
-                 ER(ER_GCS_STOP_APPLIER_THREAD_TIMEOUT), MYF(0));
+      my_message(ER_GROUP_REPLICATION_STOP_APPLIER_THREAD_TIMEOUT,
+                 ER(ER_GROUP_REPLICATION_STOP_APPLIER_THREAD_TIMEOUT), MYF(0));
       goto error;
     }
     my_ok(thd);

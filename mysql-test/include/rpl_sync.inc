@@ -72,7 +72,7 @@ if ($rpl_debug)
   --echo \$rpl_sync_chain = '$rpl_sync_chain' \$rpl_only_running_threads= $rpl_only_running_threads
 }
 
-if (!$rpl_gcs)
+if (!$rpl_group_replication)
 {
   if (!$rpl_server_count_length)
   {
@@ -82,7 +82,7 @@ if (!$rpl_gcs)
 
 --let $_rpl_i= 1
 --let $_rpl_connect= 0
-if(!$rpl_gcs)
+if(!$rpl_group_replication)
 {
   while ($_rpl_i) {
     # $rpl_sync_chain consists of a sequence of sync chains. Each sync
@@ -158,7 +158,7 @@ if(!$rpl_gcs)
   }
 }
 
-if ($rpl_gcs)
+if ($rpl_group_replication)
 {
   --let $_rpl_old_con= $CURRENT_CONNECTION
   --let $_rpl_server= $rpl_server_count

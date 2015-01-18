@@ -34,10 +34,10 @@
 #  Bug#18358253: RPL.RPL_PERFSCHEMA_EXECUTE_STATUS_BY_WORKER HAS SPORADIC FAILURES ON PB2
 #
 
---source include/not_gcs_plugin.inc
+--source include/not_group_replication_plugin.inc
 source include/not_gtid_enabled.inc;
-source include/master-slave.inc;
 source include/have_binlog_format_mixed.inc;
+source include/master-slave.inc;
 
 call mtr.add_suppression("Error 'Table 'test.t' doesn't exist' on query.");
 call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state.");

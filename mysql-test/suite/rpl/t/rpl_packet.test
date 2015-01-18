@@ -9,14 +9,15 @@
 # BUG#55322: SHOW BINLOG EVENTS increases @@SESSION.MAX_ALLOWED_PACKET
 
 # max-out size db name 
---source include/not_gcs_plugin.inc
-source include/master-slave.inc;
+--source include/not_group_replication_plugin.inc
 source include/have_binlog_format_row.inc;
 
 # TODO: Fixing is handed over to Sergei.
 # The test runs slow in MTS mode because of state of MTS at time of the graceful stop.
 # In this case MTS can't stop immediately if there is a Worker that received a BEGIN but never COMMIT.
 -- source include/not_mts_slave_parallel_workers.inc
+
+source include/master-slave.inc;
 
 call mtr.add_suppression("Slave I/O for channel '': Got a packet bigger than 'slave_max_allowed_packet' bytes, Error_code: 1153");
 call mtr.add_suppression("Log entry on master is longer than slave_max_allowed_packet");

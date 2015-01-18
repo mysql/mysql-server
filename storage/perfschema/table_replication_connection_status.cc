@@ -30,8 +30,8 @@
 #include "rpl_rli.h"
 #include "rpl_mi.h"
 #include "sql_parse.h"
-#include "gcs_replication.h"
 #include "log.h"
+#include "rpl_group_replication.h"
 
 THR_LOCK table_replication_connection_status::m_table_lock;
 
@@ -139,7 +139,7 @@ ha_rows table_replication_connection_status::get_row_count()
 {
   uint row_count= msr_map.get_max_channels();
 
-  if (is_gcs_plugin_loaded())
+  if (is_group_replication_plugin_loaded())
     row_count+= 1;
 
   return row_count;
@@ -154,7 +154,7 @@ int table_replication_connection_status::rnd_next(void)
   int offset = 0;
 
   m_pos.set_at(&m_next_pos);
-  if (is_gcs_plugin_loaded())
+  if (is_group_replication_plugin_loaded())
   {
 
      if (m_pos.m_index == 0)
@@ -196,7 +196,7 @@ int table_replication_connection_status::rnd_pos(const void *pos)
 
   set_position(pos);
 
-  if (is_gcs_plugin_loaded() && m_pos.m_index == 0)
+  if (is_group_replication_plugin_loaded() && m_pos.m_index == 0)
   {
     make_row(NULL, true);
     return 0;
@@ -219,7 +219,7 @@ int table_replication_connection_status::rnd_pos(const void *pos)
 }
 
 void table_replication_connection_status::make_row(Master_info *mi,
-                                                   bool gcs_row)
+                                                   bool group_replication_row)
 {
   DBUG_ENTER("table_replication_connection_status::make_row");
 
@@ -230,50 +230,52 @@ void table_replication_connection_status::make_row(Master_info *mi,
   m_row.source_uuid_is_null= true;
   m_row.thread_id= 0;
 
-  //Load GCS stats
-  char* gcs_replication_group;
-  RPL_GCS_CONNECTION_STATUS_INFO* gcs_info;
+  //Load Group Replication stats
+  char* group_replication_group_name;
+  GROUP_REPLICATION_CONNECTION_STATUS_INFO* group_replication_info;
 
-  m_row.is_gcs_plugin_loaded= is_gcs_plugin_loaded() && gcs_row;
+  m_row.is_group_replication_plugin_loaded= is_group_replication_plugin_loaded() && group_replication_row;
 
-  if (m_row.is_gcs_plugin_loaded)
+  if (m_row.is_group_replication_plugin_loaded)
   {
 
-    if(!(gcs_info= (RPL_GCS_CONNECTION_STATUS_INFO*)my_malloc(PSI_NOT_INSTRUMENTED,
-                                                  sizeof(RPL_GCS_CONNECTION_STATUS_INFO),
-                                                  MYF(MY_WME))))
+    if(!(group_replication_info= (GROUP_REPLICATION_CONNECTION_STATUS_INFO*)
+                                     my_malloc(PSI_NOT_INSTRUMENTED,
+                                               sizeof(GROUP_REPLICATION_CONNECTION_STATUS_INFO),
+                                               MYF(MY_WME))))
     {
        sql_print_error("Unable to allocate memory on"
                        " table_replication_connection_status::make_row");
        DBUG_VOID_RETURN;
     }
 
-    bool stats_not_available= get_gcs_connection_status_info(gcs_info);
+    bool stats_not_available= get_group_replication_connection_status_info(group_replication_info);
     if (stats_not_available)
     {
-      m_row.is_gcs_plugin_loaded= false;
-      my_free(gcs_info);
+      m_row.is_group_replication_plugin_loaded= false;
+      my_free(group_replication_info);
       /*
-        Here, these stats about GCS would not be available only when plugin is
-        not available/not loaded at this point in time.
+        Here, these stats about Group Replication would not be
+        available only when plugin is not available/not loaded
+        at this point in time.
         Hence, modified the flag after the check.
       */
-      gcs_info= NULL;
-      DBUG_PRINT("info", ("GCS stats not available!"));
+      group_replication_info= NULL;
+      DBUG_PRINT("info", ("Group Replication stats not available!"));
     }
 
-    if(m_row.is_gcs_plugin_loaded)
+    if(m_row.is_group_replication_plugin_loaded)
     {
-      gcs_replication_group= gcs_info->group_name;
-      if (gcs_replication_group)
+      group_replication_group_name= group_replication_info->group_name;
+      if (group_replication_group_name)
       {
-        memcpy(m_row.group_name, gcs_replication_group, UUID_LENGTH+1);
+        memcpy(m_row.group_name, group_replication_group_name, UUID_LENGTH+1);
         m_row.group_name_is_null= false;
       }
     }
   }
 
-  if(!gcs_row) //if slave channel
+  if(!group_replication_row) //if slave channel
   {
     DBUG_ASSERT(mi != NULL);
     DBUG_ASSERT(mi->rli != NULL);
@@ -367,25 +369,25 @@ void table_replication_connection_status::make_row(Master_info *mi,
     mysql_mutex_unlock(&mi->data_lock);
 
   }
-  else if (m_row.is_gcs_plugin_loaded) //if gcs channel
+  else if (m_row.is_group_replication_plugin_loaded) //if group replication channel
   {
-    char gcs_channel[] = "group_replication_applier";
+    char group_replication_channel[] = "group_replication_applier";
     //Channel
-    m_row.channel_name_length= strlen(gcs_channel);
-    memcpy(m_row.channel_name, gcs_channel , m_row.channel_name_length);
+    m_row.channel_name_length= strlen(group_replication_channel);
+    memcpy(m_row.channel_name, group_replication_channel , m_row.channel_name_length);
 
-    if (m_row.is_gcs_plugin_loaded && !m_row.group_name_is_null)
-      memcpy(m_row.source_uuid, gcs_replication_group, UUID_LENGTH+1);
+    if (m_row.is_group_replication_plugin_loaded && !m_row.group_name_is_null)
+      memcpy(m_row.source_uuid, group_replication_group_name, UUID_LENGTH+1);
 
-    if (gcs_info->node_state)
+    if (group_replication_info->node_state)
       m_row.service_state= PS_RPL_CONNECT_SERVICE_STATE_YES;
     else
       m_row.service_state= PS_RPL_CONNECT_SERVICE_STATE_NO;
 
     m_row.last_message_timestamp= (ulonglong)
-      gcs_info->last_message_timestamp*1000000;
+      group_replication_info->last_message_timestamp*1000000;
 
-    my_free(gcs_info);
+    my_free(group_replication_info);
   }
 
   m_row_exists= true;
@@ -437,94 +439,94 @@ int table_replication_connection_status::read_row_values(TABLE *table,
         set_field_enum(f, m_row.service_state);
         break;
       case 5: /** number of heartbeat events received **/
-        if(!m_row.is_gcs_plugin_loaded)
+        if(!m_row.is_group_replication_plugin_loaded)
           set_field_ulonglong(f, m_row.count_received_heartbeats);
         else
           f->set_null();
         break;
       case 6: /** time of receipt of last heartbeat event **/
-        if(!m_row.is_gcs_plugin_loaded)
+        if(!m_row.is_group_replication_plugin_loaded)
           set_field_timestamp(f, m_row.last_heartbeat_timestamp);
         else
           f->set_null();
         break;
       case 7: /** received_transaction_set */
-        if(!m_row.is_gcs_plugin_loaded)
+        if(!m_row.is_group_replication_plugin_loaded)
           set_field_longtext_utf8(f, m_row.received_transaction_set,
                                   m_row.received_transaction_set_length);
         else
           f->set_null();
         break;
       case 8: /*last_error_number*/
-        if(!m_row.is_gcs_plugin_loaded)
+        if(!m_row.is_group_replication_plugin_loaded)
           set_field_ulong(f, m_row.last_error_number);
         else
           f->set_null();
         break;
       case 9: /*last_error_message*/
-        if(!m_row.is_gcs_plugin_loaded)
+        if(!m_row.is_group_replication_plugin_loaded)
           set_field_varchar_utf8(f, m_row.last_error_message,
                                  m_row.last_error_message_length);
         else
           f->set_null();
         break;
       case 10: /*last_error_timestamp*/
-        if(!m_row.is_gcs_plugin_loaded)
+        if(!m_row.is_group_replication_plugin_loaded)
           set_field_timestamp(f, m_row.last_error_timestamp);
         else
           f->set_null();
         break;
       case 11: /*total_messages_received */
-        if (m_row.is_gcs_plugin_loaded)
+        if (m_row.is_group_replication_plugin_loaded)
           set_field_ulonglong(f, m_row.total_messages_received);
         else
           f->set_null();
         break;
       case 12: /*total_messages_sent */
-        if (m_row.is_gcs_plugin_loaded)
+        if (m_row.is_group_replication_plugin_loaded)
           set_field_ulonglong(f, m_row.total_messages_sent);
         else
           f->set_null();
         break;
       case 13: /*total_bytes_received */
-        if (m_row.is_gcs_plugin_loaded)
+        if (m_row.is_group_replication_plugin_loaded)
           set_field_ulonglong(f, m_row.total_bytes_received);
         else
           f->set_null();
         break;
       case 14: /*total_bytes_sent */
-        if (m_row.is_gcs_plugin_loaded)
+        if (m_row.is_group_replication_plugin_loaded)
           set_field_ulonglong(f, m_row.total_bytes_sent);
         else
           f->set_null();
         break;
       case 15: /*last_message_timestamp*/
-        if (m_row.is_gcs_plugin_loaded)
+        if (m_row.is_group_replication_plugin_loaded)
            set_field_timestamp(f, m_row.last_message_timestamp);
         else
           f->set_null();
         break;
       case 16: /*max_message_length*/
-        if (m_row.is_gcs_plugin_loaded)
+        if (m_row.is_group_replication_plugin_loaded)
           set_field_ulong(f, m_row.max_message_length);
         else
           f->set_null();
         break;
       case 17: /*min_message_length*/
-        if (m_row.is_gcs_plugin_loaded)
+        if (m_row.is_group_replication_plugin_loaded)
           set_field_ulong(f, m_row.min_message_length);
         else
           f->set_null();
         break;
       case 18: /*view_id*/
-        if (m_row.is_gcs_plugin_loaded && m_row.view_id_lenght > 0)
+        if (m_row.is_group_replication_plugin_loaded && m_row.view_id_lenght > 0)
           set_field_varchar_utf8(f, m_row.view_id,
                                  m_row.view_id_lenght);
         else
           f->set_null();
         break;
       case 19: /*number_of_nodes*/
-        if (m_row.is_gcs_plugin_loaded)
+        if (m_row.is_group_replication_plugin_loaded)
           set_field_ulong(f, m_row.number_of_nodes);
         else
           f->set_null();

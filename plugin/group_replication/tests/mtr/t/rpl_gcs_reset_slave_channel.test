@@ -1,0 +1,109 @@
+
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/master-slave.inc
+
+--connection server1
+--echo server1
+
+--let $datadir_1= `SELECT @@GLOBAL.datadir`
+
+--let $relay_log_file=`SELECT CONCAT('$datadir_1','mgr-group_replication_applier.000001')`
+--error 1
+--file_exists $relay_log_file
+
+--let $relay_log_index= `SELECT CONCAT('$datadir_1', 'mgr-group_replication_applier.index')`
+--error 1
+--file_exists $relay_log_index
+
+--source include/start_group_replication.inc
+
+# Add some data for recovery
+
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+BEGIN;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+COMMIT;
+INSERT INTO t1 VALUES (3);
+
+--connection server2
+--echo server2
+--source include/start_group_replication.inc
+
+--connection server1
+
+# Group applier files should now be there
+
+--file_exists $relay_log_file
+--file_exists $relay_log_index
+
+--connection server2
+
+--let $datadir_2= `SELECT @@GLOBAL.datadir`
+
+--let $relay_log_file=`SELECT CONCAT('$datadir_2','mgr-group_replication_applier.000001')`
+--file_exists $relay_log_file
+
+--let $relay_log_index= `SELECT CONCAT('$datadir_2', 'mgr-group_replication_applier.index')`
+--file_exists $relay_log_index
+
+# Recovery files are no longer there
+
+--let $recovery_relay_log_file= `SELECT CONCAT('$datadir_2', 'mgr-group_replication_recovery.000001')`
+--error 1
+--file_exists $recovery_relay_log_file=
+
+--let $recovery_relay_log_index= `SELECT CONCAT('$datadir_2', 'mgr-group_replication_recovery.index')`
+--error 1
+--file_exists $recovery_relay_log_index
+
+--connection server1
+
+--source include/stop_group_replication.inc
+
+# Mysql group replication channels are not affect by global reset slave commands.
+
+RESET SLAVE ALL;
+
+--let $relay_log_file=`SELECT CONCAT('$datadir_1','mgr-group_replication_applier.000001')`
+--file_exists $relay_log_file
+
+--let $relay_log_index= `SELECT CONCAT('$datadir_1', 'mgr-group_replication_applier.index')`
+--file_exists $relay_log_index
+
+# After a direct reset command all files should disappear
+
+RESET SLAVE ALL FOR CHANNEL "group_replication_applier";
+
+--let $relay_log_file_mgr=`SELECT CONCAT('$datadir_1','mgr-group_replication_applier.000001')`
+--error 1
+--file_exists $relay_log_file_mgr
+
+--let $relay_log_index_mgr= `SELECT CONCAT('$datadir_1', 'mgr-group_replication_applier.index')`
+--error 1
+--file_exists $relay_log_index_mgr
+
+
+--connection server2
+--echo server2
+
+INSERT INTO t1 VALUES (4);
+
+--connection server1
+--echo server1
+--source include/start_group_replication.inc
+
+INSERT INTO t1 VALUES (5);
+
+--let $sync_slave_connection= server2
+--source include/rpl_sync.inc
+
+--let $assert_text= On the node, the table should contain 5 elements
+--let $assert_cond= [select count(*) from t1] = 5;
+--source include/assert.inc
+
+DROP TABLE t1;
+
+--source include/rpl_end.inc
+

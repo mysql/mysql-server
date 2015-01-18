@@ -1,6 +1,6 @@
 # BUG#46166: MYSQL_BIN_LOG::new_file_impl is not propagating error
 #            when generating new name.
 
---source include/not_gcs_plugin.inc
+--source include/not_group_replication_plugin.inc
 --source include/not_gtid_enabled.inc
 --source extra/rpl_tests/rpl_binlog_error.inc

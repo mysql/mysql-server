@@ -1,0 +1,21 @@
+#
+# Test if binlog_checksum with the wrong value will fail.
+#
+SET GLOBAL binlog_checksum= CRC32;
+START GROUP_REPLICATION;
+ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
+SET GLOBAL binlog_checksum= NONE;
+#
+# Test if binlog_format with the wrong value will fail.
+#
+SET GLOBAL binlog_format= STATEMENT;
+START GROUP_REPLICATION;
+ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
+SET GLOBAL binlog_format= ROW;
+SET GLOBAL transaction_write_set_extraction=OFF;
+START GROUP_REPLICATION;
+ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
+SET GLOBAL transaction_write_set_extraction= MURMUR32;
+call mtr.add_suppression("Binlog checksum should be OFF for Group Replication");
+call mtr.add_suppression("Binlog format should be ROW for Group Replication");
+call mtr.add_suppression("Extraction of a transaction write set requires*");

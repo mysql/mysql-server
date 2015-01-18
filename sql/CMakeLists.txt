@@ -81,7 +81,6 @@ SET(SQL_SHARED_SOURCES
   aggregate_check.cc
   gcalc_slicescan.cc
   gcalc_tools.cc
-  gcs_replication.cc
   gstream.cc
   handler.cc
   hostname.cc
@@ -128,7 +127,11 @@ SET(SQL_SHARED_SOURCES
   procedure.cc 
   protocol.cc
   records.cc
+  rpl_channel_service_interface.cc
+  rpl_group_replication.cc
   rpl_handler.cc
+  rpl_transaction_ctx.cc
+  rpl_transaction_write_set_ctx.cc
   rpl_write_set_handler.cc
   session_tracker.cc
   set_var.cc 
@@ -207,9 +210,6 @@ SET(SQL_SHARED_SOURCES
   thr_malloc.cc 
   transaction.cc
   transaction_info.cc
-  rpl_channel_service_interface.cc
-  rpl_transaction_ctx.cc
-  rpl_transaction_write_set_ctx.cc
   trigger.cc
   trigger_creation_ctx.cc
   trigger_loader.cc

@@ -33,7 +33,7 @@
 #include <mysql/plugin.h>
 #include <mysql/service_thd_wait.h>
 #include "strfunc.h"
-#include <gcs_replication.h>
+#include "rpl_group_replication.h"
 
 
 using std::min;
@@ -1513,7 +1513,7 @@ bool Relay_log_info::is_until_satisfied(THD *thd, Log_event *ev)
 
       if (until_view_id.compare(view_event->get_view_id()) == 0)
       {
-        set_gcs_retrieved_cert_info(view_event);
+        set_group_replication_retrieved_certification_info(view_event);
         DBUG_RETURN(true);
       }
     }

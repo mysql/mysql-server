@@ -9,12 +9,12 @@
 # GLOBAL.GTID_PURGED correctly when binlog is disabled.
 #
 
---source include/not_gcs_plugin.inc
+--source include/not_group_replication_plugin.inc
 
---source include/master-slave.inc
 --source include/have_gtid.inc
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
+--source include/master-slave.inc
 
 --let $master_uuid= `SELECT @@GLOBAL.SERVER_UUID`
 

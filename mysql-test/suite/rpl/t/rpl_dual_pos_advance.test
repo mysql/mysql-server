@@ -5,7 +5,7 @@
 # not stay too low on B(BUG#13023 due to events ignored because
 # of their server id).
 # It also will test BUG#13861.
---source include/not_gcs_plugin.inc
+--source include/not_group_replication_plugin.inc
 source include/have_innodb.inc;
 # Until option of START SLAVE is not yet supported by  MTS
 source include/not_mts_slave_parallel_workers.inc;

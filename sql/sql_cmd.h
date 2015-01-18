@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -57,7 +57,7 @@ enum enum_sql_command {
   SQLCOM_ROLLBACK, SQLCOM_ROLLBACK_TO_SAVEPOINT,
   SQLCOM_COMMIT, SQLCOM_SAVEPOINT, SQLCOM_RELEASE_SAVEPOINT,
   SQLCOM_SLAVE_START, SQLCOM_SLAVE_STOP,
-  SQLCOM_START_GCS_REPLICATION, SQLCOM_STOP_GCS_REPLICATION,
+  SQLCOM_START_GROUP_REPLICATION, SQLCOM_STOP_GROUP_REPLICATION,
   SQLCOM_BEGIN, SQLCOM_CHANGE_MASTER, SQLCOM_CHANGE_REPLICATION_FILTER,
   SQLCOM_RENAME_TABLE,  
   SQLCOM_RESET, SQLCOM_PURGE, SQLCOM_PURGE_BEFORE, SQLCOM_SHOW_BINLOGS,

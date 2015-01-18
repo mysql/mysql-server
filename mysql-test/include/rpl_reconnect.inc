@@ -57,7 +57,7 @@ if (!$_rpl_server_number)
   --source include/rpl_connection.inc
   --enable_reconnect
 
-  if ($rpl_gcs)
+  if ($rpl_group_replication)
   {
     --let $rpl_connection_name= server_1
     --source include/rpl_connection.inc
@@ -76,7 +76,7 @@ if (!$_rpl_server_number)
   --source include/rpl_connection.inc
   --enable_reconnect
 
-  if ($rpl_gcs)
+  if ($rpl_group_replication)
   {
     --let $rpl_connection_name= server_2
     --source include/rpl_connection.inc
@@ -121,7 +121,7 @@ if (!$_rpl_server_number)
   --source include/wait_until_connected_again.inc
   --disable_reconnect
 
-  if ($rpl_gcs)
+  if ($rpl_group_replication)
   {
     --let $rpl_connection_name= server_1
     --source include/rpl_connection.inc
@@ -143,7 +143,7 @@ if (!$_rpl_server_number)
   --source include/wait_until_connected_again.inc
   --disable_reconnect
 
-  if ($rpl_gcs)
+  if ($rpl_group_replication)
   {
     --let $rpl_connection_name= server_2
     --source include/rpl_connection.inc

@@ -1,0 +1,27 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+server1
+include/start_group_replication.inc
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+BEGIN;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+COMMIT;
+INSERT INTO t1 VALUES (3);
+server2
+include/start_group_replication.inc
+include/stop_group_replication.inc
+RESET SLAVE ALL;
+RESET SLAVE ALL FOR CHANNEL "group_replication_applier";
+server2
+INSERT INTO t1 VALUES (4);
+server1
+include/start_group_replication.inc
+INSERT INTO t1 VALUES (5);
+include/rpl_sync.inc
+include/assert.inc [On the node, the table should contain 5 elements]
+DROP TABLE t1;
+include/rpl_end.inc

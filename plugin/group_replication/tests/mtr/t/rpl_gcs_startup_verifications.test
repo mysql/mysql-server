@@ -1,0 +1,60 @@
+#
+# The intent of this test is to verify if the validations that were
+# created within the GCS plugin in the startup process
+# are fully functional.
+#
+# It will test the dynamic variables:
+# - binlog_checksum. It will be set to CRC32 in order to fail.
+# - binlog_format. It will be set to STATEMENT in order to fail.
+# - transaction_write_set_extraction. It will be set to HASH_ALGORITHM_OFF in
+# order to fail.
+#
+# Since the failure will happen when "START GROUP_REPLICATION" is
+# issued, the test procedures are the following:
+# - Install plugin
+# - Backup and change the variable value
+# - Call START GROUP_REPLICATION and wait for it to fail
+# - Restore the old value
+#
+
+--source include/have_group_replication_plugin.inc
+
+--connection server1
+
+--echo #
+--echo # Test if binlog_checksum with the wrong value will fail.
+--echo #
+
+--let $binlog_checksum_backup= `SELECT @@GLOBAL.binlog_checksum;`
+SET GLOBAL binlog_checksum= CRC32;
+
+--error ER_GROUP_REPLICATION_CONFIGURATION
+START GROUP_REPLICATION;
+
+--eval SET GLOBAL binlog_checksum= $binlog_checksum_backup
+
+--echo #
+--echo # Test if binlog_format with the wrong value will fail.
+--echo #
+
+--let $binlog_format_backup= `SELECT @@GLOBAL.binlog_format`
+
+SET GLOBAL binlog_format= STATEMENT;
+
+--error ER_GROUP_REPLICATION_CONFIGURATION
+START GROUP_REPLICATION;
+
+--eval SET GLOBAL binlog_format= $binlog_format_backup
+
+--let $transaction_write_set_extraction_backup= `SELECT @@GLOBAL.transaction_write_set_extraction`
+
+SET GLOBAL transaction_write_set_extraction=OFF;
+
+--error ER_GROUP_REPLICATION_CONFIGURATION
+START GROUP_REPLICATION;
+
+--eval SET GLOBAL transaction_write_set_extraction= $transaction_write_set_extraction_backup
+
+call mtr.add_suppression("Binlog checksum should be OFF for Group Replication");
+call mtr.add_suppression("Binlog format should be ROW for Group Replication");
+call mtr.add_suppression("Extraction of a transaction write set requires*");

@@ -1,9 +1,0 @@
-##############
-# Gcov build #
-##############
-
-# Group Replication tests (on plugin)
-perl mysql-test-run.pl --force --timer --debug-server --parallel=auto --experimental=collections/default.experimental --comment=gcs_replication-debug --vardir=var-gcs_replication_debug --suite=gcs_replication --mysqld=--enforce-gtid-consistency --mysqld=--log-slave-updates --mysqld=--gtid-mode=on --mysqld=--binlog-format=row --mysqld=--binlog-checksum=NONE --mysqld=--master-info-repository=TABLE --mysqld=--relay-log-info-repository=TABLE --mysqld=--transaction-write-set-extraction=MURMUR32 --mysqld=--plugin-load=gcs_replication_plugin.so --mysqld=--plugin-dir=plugin/gcs_replication/ --big-test --testcase-timeout=60 --suite-timeout=360
-
-# Already existent tests on rpl suite that support Group Replication
-perl mysql-test-run.pl --force --timer --debug-server --parallel=auto --experimental=collections/default.experimental --comment=rpl_gcs-debug --vardir=var-rpl_gcs_debug --suite=rpl --mysqld=--enforce-gtid-consistency --mysqld=--log-slave-updates --mysqld=--gtid-mode=on --skip-test-list=collections/disabled-gtid-on.list --skip-test-list=collections/disabled-default.list --mysqld=--binlog-format=row --mysqld=--binlog-checksum=NONE --mysqld=--master-info-repository=TABLE --mysqld=--relay-log-info-repository=TABLE --mysqld=--transaction-write-set-extraction=MURMUR32 --mysqld=--plugin-load=gcs_replication_plugin.so --mysqld=--plugin-dir=plugin/gcs_replication/ --big-test --testcase-timeout=60 --suite-timeout=360

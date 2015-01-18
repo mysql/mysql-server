@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -61,7 +61,7 @@ enum enum_rpl_connect_status_service_state {
 struct st_row_connect_status {
   char group_name[UUID_LENGTH];
   bool group_name_is_null;
-  bool is_gcs_plugin_loaded;
+  bool is_group_replication_plugin_loaded;
   char channel_name[CHANNEL_NAME_LENGTH];
   uint channel_name_length;
   char source_uuid[UUID_LENGTH];
@@ -105,7 +105,7 @@ struct st_row_connect_status {
 class table_replication_connection_status: public PFS_engine_table
 {
 private:
-  void make_row(Master_info *mi, bool gcs_row);
+  void make_row(Master_info *mi, bool group_replication_row);
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;

@@ -1,0 +1,51 @@
+#
+# The intent of this test is to verify if the validations that were
+# created within the GCS plugin in the startup process
+# are fully functional.
+#
+# It will test the static variables:
+# - Table repositories. It will be set to FILE in order to fail.
+#
+# Since the failure will happen when "START GROUP_REPLICATION" is
+# issued, the test procedures are the following:
+# - Install plugin
+# - Call START GROUP_REPLICATION and wait for it to fail
+#
+
+--source include/have_binlog_format_row.inc
+--source include/not_embedded.inc
+--source include/have_innodb.inc
+
+# The section below is present in "have_group_replication_plugin.inc."
+# But since this test is evaluating the absence of certain configurations, one
+# is not able to use that file since it enforces the existence of such
+# parameters in the server.
+
+if (`SELECT @@have_dynamic_loading != 'YES'`) {
+  --skip Requires dynamic loading
+}
+
+if (!`select count(*) from information_schema.plugins where PLUGIN_NAME like 'group_replication'`)
+{
+  --skip Needs Group Replication plugin
+}
+
+--let $rli_rep = `SELECT @@GLOBAL.relay_log_info_repository`
+--let $assert_text= Relay log repository info storage is set to file
+--let $assert_cond= "$rli_rep" = "FILE"
+--source include/assert.inc
+
+--let $mi_rep = `SELECT @@GLOBAL.master_info_repository`
+--let $assert_text= Master info repository info storage is set to file
+--let $assert_cond= "$mi_rep" = "FILE"
+--source include/assert.inc
+
+--echo #
+--echo # Test if repository storage mode with the wrong value will fail.
+--echo #
+
+--error ER_GROUP_REPLICATION_CONFIGURATION
+START GROUP_REPLICATION;
+
+call mtr.add_suppression("Master info repository must be set to TABLE.");
+

@@ -20,11 +20,11 @@
 # semisync as there are no active slaves connected to the server.
 ###############################################################################
 --source include/have_semisync_plugin.inc
---source include/not_gcs_plugin.inc
---source include/master-slave.inc
---source include/install_semisync.inc
+--source include/not_group_replication_plugin.inc
 # Test script is independent of binlog format.
 --source include/have_binlog_format_mixed.inc
+--source include/master-slave.inc
+--source include/install_semisync.inc
 
 call mtr.add_suppression("Read semi-sync reply network error");
 call mtr.add_suppression("SEMISYNC: Forced shutdown. Some updates might not be replicated.");

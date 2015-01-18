@@ -2,7 +2,7 @@
 # when --replicate-wild-ignore-table=mysql.%
 # In BUG#980, this test would _randomly_ fail.
 
---source include/not_gcs_plugin.inc
+--source include/not_group_replication_plugin.inc
 source include/master-slave.inc;
 
 # do not be influenced by other tests.

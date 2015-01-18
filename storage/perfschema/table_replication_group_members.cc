@@ -1,5 +1,5 @@
 /*
-      Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+      Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
 
       This program is free software; you can redistribute it and/or modify
       it under the terms of the GNU General Public License as published by
@@ -25,13 +25,8 @@
 #include "table_replication_group_members.h"
 #include "pfs_instr_class.h"
 #include "pfs_instr.h"
-#include "rpl_slave.h"
-#include "rpl_info.h"
-#include "rpl_rli.h"
-#include "rpl_mi.h"
-#include "sql_parse.h"
-#include "gcs_replication.h"
 #include "log.h"
+#include "rpl_group_replication.h"
 
 THR_LOCK table_replication_group_members::m_table_lock;
 
@@ -100,12 +95,12 @@ void table_replication_group_members::reset_position(void)
 
 ha_rows table_replication_group_members::get_row_count()
 {
-  return get_gcs_members_number_info();
+  return get_group_replication_members_number_info();
 }
 
 int table_replication_group_members::rnd_next(void)
 {
-  if (!is_gcs_plugin_loaded())
+  if (!is_group_replication_plugin_loaded())
     return HA_ERR_END_OF_FILE;
 
   for (m_pos.set_at(&m_next_pos);
@@ -122,7 +117,7 @@ int table_replication_group_members::rnd_next(void)
 
 int table_replication_group_members::rnd_pos(const void *pos)
 {
-  if (!is_gcs_plugin_loaded())
+  if (!is_group_replication_plugin_loaded())
     return HA_ERR_END_OF_FILE;
 
   set_position(pos);
@@ -137,9 +132,9 @@ void table_replication_group_members::make_row(uint index)
   DBUG_ENTER("table_replication_group_members::make_row");
   m_row_exists= false;
 
-  RPL_GCS_GROUP_MEMBERS_INFO* gcs_info;
-  if(!(gcs_info= (RPL_GCS_GROUP_MEMBERS_INFO*)my_malloc(PSI_NOT_INSTRUMENTED,
-                                                  sizeof(RPL_GCS_GROUP_MEMBERS_INFO),
+  GROUP_REPLICATION_GROUP_MEMBERS_INFO* group_replication_info;
+  if(!(group_replication_info= (GROUP_REPLICATION_GROUP_MEMBERS_INFO*)my_malloc(PSI_NOT_INSTRUMENTED,
+                                                  sizeof(GROUP_REPLICATION_GROUP_MEMBERS_INFO),
                                                   MYF(MY_WME))))
   {
     sql_print_error("Unable to allocate memory on"
@@ -147,36 +142,36 @@ void table_replication_group_members::make_row(uint index)
     DBUG_VOID_RETURN;
   }
 
-  gcs_info->member_address= NULL;
+  group_replication_info->member_address= NULL;
 
-  bool stats_not_available= get_gcs_group_members_info(index, gcs_info);
+  bool stats_not_available= get_group_replication_group_members_info(index, group_replication_info);
   if (stats_not_available)
-    DBUG_PRINT("info", ("GCS stats not available!"));
+    DBUG_PRINT("info", ("Group Replication stats not available!"));
   else
   {
-    m_row.channel_name_length= strlen(gcs_info->channel_name);
-    memcpy(m_row.channel_name, gcs_info->channel_name,
+    m_row.channel_name_length= strlen(group_replication_info->channel_name);
+    memcpy(m_row.channel_name, group_replication_info->channel_name,
            m_row.channel_name_length);
 
-    m_row.member_id_length= strlen(gcs_info->member_id);
-    memcpy(m_row.member_id, gcs_info->member_id, m_row.member_id_length);
+    m_row.member_id_length= strlen(group_replication_info->member_id);
+    memcpy(m_row.member_id, group_replication_info->member_id, m_row.member_id_length);
 
-    m_row.member_address_length= strlen(gcs_info->member_address);
-    memcpy(m_row.member_address, gcs_info->member_address,
+    m_row.member_address_length= strlen(group_replication_info->member_address);
+    memcpy(m_row.member_address, group_replication_info->member_address,
            m_row.member_address_length);
 
-    m_row.member_state= gcs_info->member_state;
+    m_row.member_state= group_replication_info->member_state;
 
     m_row_exists= true;
   }
 
-  if(gcs_info->member_address != NULL)
-    my_free((char*)gcs_info->member_address);
+  if(group_replication_info->member_address != NULL)
+    my_free((char*)group_replication_info->member_address);
 
-  if(gcs_info->member_id != NULL)
-    my_free((char*)gcs_info->member_id);
+  if(group_replication_info->member_id != NULL)
+    my_free((char*)group_replication_info->member_id);
 
-  my_free(gcs_info);
+  my_free(group_replication_info);
   DBUG_VOID_RETURN;
 }
 
