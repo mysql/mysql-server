@@ -914,8 +914,6 @@ set @@max_heap_table_size= 1;
 flush status;
 select count(*) from t1 join (
   select t1.f1 from t1 join t1 as t2 join t1 as t3) tt on t1.f1 = tt.f1;
---echo Should be greater than 1000 as it also includes records dumped from
---echo heap to myisam.
 show status like 'Handler_write';
 set @@max_heap_table_size= @save_heap_size;
 drop table t1;
@@ -1367,6 +1365,8 @@ CREATE TABLE t2 (
 )ENGINE=InnoDB;
 
 INSERT INTO t2 VALUES (1), (2);
+
+ANALYZE TABLE t1,t2;
 
 SET @save_optimizer_switch= @@optimizer_switch;
 SET @@SESSION.optimizer_switch="index_condition_pushdown=on";

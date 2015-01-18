@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -1419,6 +1419,24 @@ blob_done:
 			dfield_set_data(dfield, data, len);
 		}
 
+		if (col->mtype == DATA_MYSQL && col->len != len) {
+			if (dict_table_is_comp(index->table)
+			    && !dict_table_is_comp(log->table)) {
+				ut_ad(col->len > len);
+				byte*	buf = (byte*) mem_heap_alloc(heap,
+								     col->len);
+				memcpy(buf, dfield->data, len);
+				memset(buf + len, 0x20, col->len - len);
+
+				dfield_set_data(dfield, buf, col->len);
+			} else {
+				/* field length mismatch */
+				ut_ad(0);
+				*error = DB_CORRUPTION;
+				return(NULL);
+			}
+		}
+
 		/* See if any columns were changed to NULL or NOT NULL. */
 		const dict_col_t*	new_col
 			= dict_table_get_nth_col(log->table, col_no);
@@ -2524,7 +2542,7 @@ next_block:
 			  > index->online_log->tail.blocks)) {
 unexpected_eof:
 		ib::error() << "Unexpected end of temporary file for table "
-			<< index->table_name;
+			<< index->table->name;
 corruption:
 		error = DB_CORRUPTION;
 		goto func_exit;
@@ -2585,7 +2603,7 @@ all_done:
 
 		if (!success) {
 			ib::error() << "Unable to read temporary file"
-				" for table " << index->table_name;
+				" for table " << index->table->name;
 			goto corruption;
 		}
 

@@ -1,7 +1,7 @@
 #ifndef SESSION_TRACKER_INCLUDED
 #define SESSION_TRACKER_INCLUDED
 
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,19 +16,24 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include "m_string.h"
+
 /* forward declarations */
 class THD;
 class set_var;
+class String;
+typedef struct charset_info_st CHARSET_INFO;
 
 
 enum enum_session_tracker
 {
   SESSION_SYSVARS_TRACKER,                      /* Session system variables */
   CURRENT_SCHEMA_TRACKER,                        /* Current schema */
-  SESSION_STATE_CHANGE_TRACKER
+  SESSION_STATE_CHANGE_TRACKER,
+  SESSION_GTIDS_TRACKER                          /* Tracks GTIDs */
 };
 
-#define SESSION_TRACKER_END SESSION_STATE_CHANGE_TRACKER
+#define SESSION_TRACKER_END SESSION_GTIDS_TRACKER
 
 
 /**

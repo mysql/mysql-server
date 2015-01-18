@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
 #define _my_sys_h
 
 #include "my_global.h"                  /* C_MODE_START, C_MODE_END */
-#include "my_pthread.h"
+#include "my_thread.h"
 #include "m_ctype.h"                    /* for CHARSET_INFO */
 
 #ifdef HAVE_ALLOCA_H
@@ -205,7 +205,6 @@ extern uint    my_large_page_size;
 #endif /* HAVE_LINUX_LARGE_PAGES */
 
 #define my_alloca(SZ) alloca((size_t) (SZ))
-#define my_afree(PTR) {}
 
 #include <errno.h>			/* errno is a define */
 
@@ -675,7 +674,6 @@ extern void my_qsort(void *base_ptr, size_t total_elems, size_t size,
                      qsort_cmp cmp);
 extern void my_qsort2(void *base_ptr, size_t total_elems, size_t size,
                       qsort2_cmp cmp, const void *cmp_argument);
-extern qsort2_cmp get_ptr_compare(size_t);
 void my_store_ptr(uchar *buff, size_t pack_length, my_off_t pos);
 my_off_t my_get_ptr(uchar *ptr, size_t pack_length);
 extern int init_io_cache(IO_CACHE *info,File file,size_t cachesize,

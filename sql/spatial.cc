@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -755,6 +755,17 @@ int Geometry::create_from_opresult(Geometry_buffer *g_buf,
   res->q_append((char) wkb_ndr);
   res->q_append(geom_type);
   return obj->init_from_opresult(res, rr.result(), rr.length());
+}
+
+
+bool Geometry::envelope(MBR *mbr) const
+{
+  wkb_parser wkb(get_cptr(), get_cptr() + get_nbytes());
+
+  if (get_mbr(mbr, &wkb))
+    return true;
+
+  return false;
 }
 
 

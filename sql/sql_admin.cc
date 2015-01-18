@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -12,6 +12,8 @@
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+
+#include "sql_admin.h"
 
 #include "sql_class.h"                       // THD
 #include "keycaches.h"                       // get_key_cache
@@ -27,9 +29,12 @@
 #include "sp.h"                              // Sroutine_hash_entry
 #include "sp_rcontext.h"                     // sp_rcontext
 #include "sql_parse.h"                       // check_table_access
-#include "sql_admin.h"
 #include "table_trigger_dispatcher.h"        // Table_trigger_dispatcher
 #include "log.h"
+#include "myisam.h"                          // TT_USEFRM
+
+#include "pfs_file_provider.h"
+#include "mysql/psi/mysql_file.h"
 
 static int send_check_errmsg(THD *thd, TABLE_LIST* table,
 			     const char* operator_name, const char* errmsg)

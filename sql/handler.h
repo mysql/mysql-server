@@ -2,7 +2,7 @@
 #define HANDLER_INCLUDED
 
 /*
-   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -21,26 +21,30 @@
 
 /* Definitions for parameters to do with handler-routines */
 
-#include "my_pthread.h"
+#include "my_global.h"
+#include "ft_global.h"       // ft_hints
+#include "thr_lock.h"        // thr_lock_type
+#include "mysqld.h"          // lower_case_table_names
+#include "sql_const.h"       // SHOW_COMP_OPTION
+#include "sql_list.h"        // SQL_I_List
+#include "sql_plugin_ref.h"  // plugin_ref
+#include "structs.h"         // Discrete_interval
+
+#include "mysql/psi/psi.h"
+
 #include <algorithm>
-#include "sql_const.h"
-#include "mysqld.h"                             /* server_id */
-#include "sql_plugin.h"        /* plugin_ref, st_plugin_int, plugin */
-#include "thr_lock.h"          /* thr_lock_type, THR_LOCK_DATA */
-#include "sql_cache.h"
-#include "structs.h"                            /* SHOW_COMP_OPTION */
-
-#include <my_global.h>
-#include <my_compare.h>
-#include <ft_global.h>
-#include <keycache.h>
-
-#include "mysql/psi/psi.h"     /* PSI_table_locker_state */
 
 class Alter_info;
+class SE_cost_constants;     // see opt_costconstants.h
+class String;
+struct TABLE_LIST;
+typedef struct st_hash HASH;
+typedef struct st_key_cache KEY_CACHE;
 typedef struct xid_t XID;
+typedef my_bool (*qc_engine_callback)(THD *thd, char *table_key,
+                                      uint key_length,
+                                      ulonglong *engine_data);
 
-class SE_cost_constants;                        // see opt_costconstants.h
 
 // the following is for checking tables
 
@@ -3657,10 +3661,7 @@ static inline enum legacy_db_type ha_legacy_type(const handlerton *db_type)
   return (db_type == NULL) ? DB_TYPE_UNKNOWN : db_type->db_type;
 }
 
-static inline const char *ha_resolve_storage_engine_name(const handlerton *db_type)
-{
-  return db_type == NULL ? "UNKNOWN" : hton2plugin[db_type->slot]->name.str;
-}
+const char *ha_resolve_storage_engine_name(const handlerton *db_type);
 
 static inline bool ha_check_storage_engine_flag(const handlerton *db_type, uint32 flag)
 {

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2015, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, Percona Inc.
 Copyright (c) 2012, Facebook Inc.
@@ -450,7 +450,6 @@ ib_cb_t innodb_api_cb[] = {
 	(ib_cb_t) ib_col_get_name,
 	(ib_cb_t) ib_table_truncate,
 	(ib_cb_t) ib_cursor_open_index_using_name,
-	(ib_cb_t) ib_close_thd,
 	(ib_cb_t) ib_cfg_get_cfg,
 	(ib_cb_t) ib_cursor_set_memcached_sync,
 	(ib_cb_t) ib_cursor_set_cluster_access,
@@ -535,10 +534,6 @@ static MYSQL_THDVAR_BOOL(table_locks, PLUGIN_VAR_OPCMDARG,
 
 static MYSQL_THDVAR_BOOL(strict_mode, PLUGIN_VAR_OPCMDARG,
   "Use strict mode when evaluating create options.",
-  NULL, NULL, FALSE);
-
-static MYSQL_THDVAR_BOOL(create_intrinsic, PLUGIN_VAR_OPCMDARG,
-  "If set then \"CREATE TEMPORARY TABLE\" will create intrinsic tables.",
   NULL, NULL, FALSE);
 
 static MYSQL_THDVAR_BOOL(ft_enable_stopword, PLUGIN_VAR_OPCMDARG,
@@ -1309,28 +1304,6 @@ thd_is_select(
 	return(thd_sql_command(thd) == SQLCOM_SELECT);
 }
 
-/** Returns true if the thread is executing CREATE TABLE statement.
-@param[in]	thd	the current thread context
-@retval true if thread is executing CREATE TABLE. */
-static
-inline
-bool
-thd_is_create_table(const THD*	thd)
-{
-	return(thd_sql_command(thd) == SQLCOM_CREATE_TABLE);
-}
-
-/** Returns true if the thread is executing CREATE INDEX statement.
-@param[in]	thd	the current thread context
-@retval true if thread is executing CREATE INDEX. */
-static
-inline
-bool
-thd_is_create_index(const THD*	thd)
-{
-	return(thd_sql_command(thd) == SQLCOM_CREATE_INDEX);
-}
-
 /******************************************************************//**
 Returns true if the thread supports XA,
 global value of innodb_supports_xa if thd is NULL.
@@ -1369,17 +1342,6 @@ thd_set_lock_wait_time(
 	if (thd) {
 		thd_storage_lock_wait(thd, value);
 	}
-}
-
-/** Get status of create intrinsic.
-@param[in]	thd	thread handle, or NULL to query
-			the global innodb_create_intrinsic.
-@return true if create intrinsic is set. */
-bool
-thd_create_intrinsic(
-	THD*	thd)
-{
-	return(THDVAR(thd, create_intrinsic));
 }
 
 /** Obtain the private handler of InnoDB session specific data.
@@ -1636,14 +1598,17 @@ convert_error_code_to_mysql(
 
 	case DB_TOO_BIG_RECORD: {
 		/* If prefix is true then a 768-byte prefix is stored
-		locally for BLOB fields. Refer to dict_table_get_format() */
+		locally for BLOB fields. Refer to dict_table_get_format().
+		We limit max record size to 16k for 64k page size. */
 		bool prefix = (dict_tf_get_format(flags) == UNIV_FORMAT_A);
 		my_printf_error(ER_TOO_BIG_ROWSIZE,
 			"Row size too large (> %lu). Changing some columns"
 			" to TEXT or BLOB %smay help. In current row"
 			" format, BLOB prefix of %d bytes is stored inline.",
 			MYF(0),
-			page_get_free_space_of_empty(flags &
+			srv_page_size == UNIV_PAGE_SIZE_MAX
+			? REC_MAX_DATA_SIZE - 1
+			: page_get_free_space_of_empty(flags &
 				DICT_TF_COMPACT) / 2,
 			prefix
 			? "or using ROW_FORMAT=DYNAMIC or"
@@ -2216,12 +2181,6 @@ innobase_trx_allocate(
 
 	innobase_trx_init(thd, trx);
 
-#ifdef UNIV_DEBUG
-	if (thd_trx_is_dd_trx(thd)) {
-		trx->is_dd_trx = true;
-	}
-#endif /* UNIV_DEBUG */
-
 	DBUG_RETURN(trx);
 }
 
@@ -2242,6 +2201,11 @@ check_trx_exists(
 
 	if (trx == NULL) {
 		trx = innobase_trx_allocate(thd);
+
+		/* User trx can be forced to rollback,
+		so we unset the disable flag. */
+		ut_ad(trx->in_innodb & TRX_FORCE_ROLLBACK_DISABLE);
+		trx->in_innodb &= TRX_FORCE_ROLLBACK_MASK;
 	} else {
 		ut_a(trx->magic_n == TRX_MAGIC_N);
 
@@ -2916,8 +2880,8 @@ innobase_init_abort()
 This function checks if the given db.tablename is a system table
 supported by Innodb and is used as an initializer for the data member
 is_supported_system_table of InnoDB storage engine handlerton.
-Currently we support only help and time_zone system tables in InnoDB.
-Please don't add any SE-specific system tables here.
+Currently we support only plugin, servers,  help- and time_zone- related
+system tables in InnoDB. Please don't add any SE-specific system tables here.
 
 @param db				database name to check.
 @param table_name			table name to check.
@@ -2933,6 +2897,8 @@ static bool innobase_is_supported_system_table(const char *db,
 							"help_category",
 							"help_relation",
 							"help_keyword",
+							"plugin",
+							"servers",
 							"time_zone",
 							"time_zone_leap_second",
 							"time_zone_name",
@@ -4136,24 +4102,6 @@ innobase_kill_connection(
 	DBUG_VOID_RETURN;
 }
 
-/*****************************************************************//**
-Frees a possible InnoDB trx object associated with the current THD.
-@return 0 or error number */
-int
-innobase_close_thd(
-/*===============*/
-	THD*		thd)	/*!< in: handle to the MySQL thread of the user
-				whose resources should be free'd */
-{
-	trx_t*	trx = thd_to_trx(thd);
-
-	if (trx == NULL) {
-		return(0);
-	}
-
-	return(innobase_close_connection(innodb_hton_ptr, thd));
-}
-
 /*************************************************************************//**
 ** InnoDB database tables
 *****************************************************************************/
@@ -4595,7 +4543,7 @@ innobase_match_index_columns(
 		since we don't need to know how it was set when the original
 		table was created before. We would do a double check later. */
 		col_type = get_innobase_type_from_mysql_type(
-				&is_unsigned, key_part->field, true);
+			&is_unsigned, key_part->field, true);
 
 		/* Ignore InnoDB specific system columns. */
 		while (mtype == DATA_SYS) {
@@ -5280,6 +5228,11 @@ table_opened:
 				static_cast<st_mysql_ftparser *>(
 					plugin_decl(parser)->info);
 
+			index->is_ngram = strncmp(
+				plugin_name(parser)->str,
+				FTS_NGRAM_PARSER_NAME,
+				plugin_name(parser)->length) == 0;
+
 			DBUG_EXECUTE_IF("fts_instrument_use_default_parser",
 				index->parser = &fts_default_parser;);
 		}
@@ -5574,9 +5527,9 @@ ENUM and SET, and unsigned integer types are 'unsigned types'
 @return DATA_BINARY, DATA_VARCHAR, ... */
 ulint
 get_innobase_type_from_mysql_type(
-	ulint*		unsigned_flag,
-	const void*	f,
-	bool		optimize_point_storage)
+	ulint*			unsigned_flag,
+	const void*		f,
+	bool			optimize_point_storage)
 {
 	const class Field* field = reinterpret_cast<const class Field*>(f);
 
@@ -6132,6 +6085,8 @@ build_template_field(
 	if (templ->mysql_type == DATA_MYSQL_TRUE_VARCHAR) {
 		templ->mysql_length_bytes = (ulint)
 			(((Field_varstring*) field)->length_bytes);
+	} else {
+		templ->mysql_length_bytes = 0;
 	}
 
 	templ->charset = dtype_get_charset_coll(col->prtype);
@@ -6460,7 +6415,8 @@ ha_innobase::innobase_lock_autoinc(void)
 	dberr_t		error = DB_SUCCESS;
 	long		lock_mode = innobase_autoinc_lock_mode;
 
-	ut_ad(!srv_read_only_mode || dict_table_is_intrinsic(m_prebuilt->table));
+	ut_ad(!srv_read_only_mode
+	      || dict_table_is_intrinsic(m_prebuilt->table));
 
 	if (dict_table_is_intrinsic(m_prebuilt->table)) {
 		/* Intrinsic table are not shared accorss connection
@@ -6539,6 +6495,30 @@ ha_innobase::innobase_set_max_autoinc(
 	return(error);
 }
 
+/** Write Row interface optimized for intrinisc table.
+@param[in]	record	a row in MySQL format.
+@return 0 on success or error code */
+int
+ha_innobase::intrinsic_table_write_row(uchar* record)
+{
+	dberr_t		err;
+
+	/* No auto-increment support for intrinsic table. */
+	ut_ad(!(table->next_number_field && record == table->record[0]));
+
+	if (m_prebuilt->mysql_template == NULL
+	    || m_prebuilt->template_type != ROW_MYSQL_WHOLE_ROW) {
+		/* Build the template used in converting quickly between
+		the two database formats */
+		build_template(true);
+	}
+
+	err = row_insert_for_mysql((byte*) record, m_prebuilt);
+
+	return(convert_error_code_to_mysql(
+		err, m_prebuilt->table->flags, m_user_thd));
+}
+
 /********************************************************************//**
 Stores a row in an InnoDB database, to the table specified in this
 handle.
@@ -6553,10 +6533,15 @@ ha_innobase::write_row(
 	ulint		sql_command;
 	int		error_result = 0;
 	bool		auto_inc_used = false;
-	trx_t*		trx = thd_to_trx(m_user_thd);
-	TrxInInnoDB	trx_in_innodb(trx);
 
 	DBUG_ENTER("ha_innobase::write_row");
+
+	if (dict_table_is_intrinsic(m_prebuilt->table)) {
+		DBUG_RETURN(intrinsic_table_write_row(record));
+	}
+
+	trx_t*		trx = thd_to_trx(m_user_thd);
+	TrxInInnoDB	trx_in_innodb(trx);
 
 	if (trx_in_innodb.is_aborted()) {
 
@@ -6564,7 +6549,7 @@ ha_innobase::write_row(
 	}
 
 	/* Step-1: Validation checks before we commence write_row operation. */
-	if (srv_read_only_mode && !dict_table_is_intrinsic(m_prebuilt->table)) {
+	if (srv_read_only_mode) {
 		ib_senderrf(ha_thd(), IB_LOG_LEVEL_WARN, ER_READ_ONLY_MODE);
 		DBUG_RETURN(HA_ERR_TABLE_READONLY);
 	} else if (m_prebuilt->trx != trx) {
@@ -9441,6 +9426,21 @@ create_table_info_t::create_options_are_invalid()
 		ret = "INDEX DIRECTORY";
 	}
 
+	/* Don't support compressed table when page size > 16k. */
+	if ((has_key_block_size || row_format == ROW_TYPE_COMPRESSED)
+	    && UNIV_PAGE_SIZE > UNIV_PAGE_SIZE_DEF) {
+		push_warning(m_thd, Sql_condition::SL_WARNING,
+			     ER_ILLEGAL_HA_CREATE_OPTION,
+			     "InnoDB: Cannot create a COMPRESSED table"
+			     " when innodb_page_size > 16k.");
+
+		if (has_key_block_size) {
+			ret = "KEY_BLOCK_SIZE";
+		} else {
+			ret = "ROW_TYPE";
+		}
+	}
+
 	return(ret);
 }
 
@@ -9599,7 +9599,8 @@ create_table_info_t::innobase_table_flags()
 			}
 		} else if (key->flags & HA_SPATIAL) {
 			if (m_create_info->options & HA_LEX_CREATE_TMP_TABLE
-			    && THDVAR(m_thd, create_intrinsic)
+			    && m_create_info->options
+			       & HA_LEX_CREATE_INTERNAL_TMP_TABLE
 			    && !m_file_per_table) {
 				my_error(ER_TABLE_CANT_HANDLE_SPKEYS, MYF(0));
 				DBUG_RETURN(false);
@@ -9757,6 +9758,17 @@ index_bad:
 		break;
 	}
 
+	/* Don't support compressed table when page size > 16k. */
+	if (zip_allowed && zip_ssize && UNIV_PAGE_SIZE > UNIV_PAGE_SIZE_DEF) {
+		push_warning(m_thd, Sql_condition::SL_WARNING,
+			     ER_ILLEGAL_HA_CREATE_OPTION,
+			     "InnoDB: Cannot create a COMPRESSED table"
+			     " when innodb_page_size > 16k."
+			     " Assuming ROW_FORMAT=COMPACT.");
+		zip_allowed = FALSE;
+	}
+
+	/* Set the table flags */
 	if (!zip_allowed) {
 		zip_ssize = 0;
 	}
@@ -9768,16 +9780,9 @@ index_bad:
 	if (m_create_info->options & HA_LEX_CREATE_TMP_TABLE) {
 		m_flags2 |= DICT_TF2_TEMPORARY;
 
-		const bool	use_intrinsic
-			= THDVAR(m_thd, create_intrinsic)
-			&& (thd_is_create_table(m_thd)
-			    || thd_is_create_index(m_thd));
-
-		/* Intrinsic tables reside only in the shared
-		temporary tablespace. */
-		if ((use_intrinsic
-		     || m_create_info->options
-			& HA_LEX_CREATE_INTERNAL_TMP_TABLE)
+		/* Intrinsic tables reside only in the shared temporary
+		tablespace. */
+		if ((m_create_info->options & HA_LEX_CREATE_INTERNAL_TMP_TABLE)
 		    && !m_file_per_table) {
 			m_flags2 |= DICT_TF2_INTRINSIC;
 		}
@@ -9816,6 +9821,180 @@ table_is_noncompressed_temporary(
 	bool is_temp = create_info->options & HA_LEX_CREATE_TMP_TABLE;
 
 	return(is_temp && !is_compressed);
+}
+
+/** Parse MERGE_THRESHOLD value from the string.
+@param[in]	thd	connection
+@param[in]	str	string which might include 'MERGE_THRESHOLD='
+@return	value parsed. 0 means not found or invalid value. */
+static
+ulint
+innobase_parse_merge_threshold(
+	THD*		thd,
+	const char*	str)
+{
+	static const char*	label = "MERGE_THRESHOLD=";
+	static const size_t	label_len = strlen(label);
+	const char*		pos = str;
+
+	pos = strstr(str, label);
+
+	if (pos == NULL) {
+		return(0);
+	}
+
+	pos += label_len;
+
+	lint	ret = atoi(pos);
+
+	if (ret > 0 && ret <= 50) {
+		return(static_cast<ulint>(ret));
+	}
+
+	push_warning_printf(
+		thd, Sql_condition::SL_WARNING,
+		ER_ILLEGAL_HA_CREATE_OPTION,
+		"InnoDB: Invalid value for MERGE_THRESHOLD in the CREATE TABLE"
+		" statement. The value is ignored.");
+
+	return(0);
+}
+
+/** Parse hint for table and its indexes, and update the information
+in dictionary.
+@param[in]	thd		connection
+@param[in,out]	table		target table
+@param[in]	table_share	table definition */
+void
+innobase_parse_hint_from_comment(
+	THD*			thd,
+	dict_table_t*		table,
+	const TABLE_SHARE*	table_share)
+{
+	ulint	merge_threshold_table;
+	ulint	merge_threshold_index[MAX_KEY];
+	bool	is_found[MAX_KEY];
+
+	if (table_share->comment.str != NULL) {
+		merge_threshold_table
+			= innobase_parse_merge_threshold(
+				thd, table_share->comment.str);
+	} else {
+		merge_threshold_table = DICT_INDEX_MERGE_THRESHOLD_DEFAULT;
+	}
+
+	if (merge_threshold_table == 0) {
+		merge_threshold_table = DICT_INDEX_MERGE_THRESHOLD_DEFAULT;
+	}
+
+	for (uint i = 0; i < table_share->keys; i++) {
+		KEY*	key_info = &table_share->key_info[i];
+
+		ut_ad(i < sizeof(merge_threshold_index)
+			  / sizeof(merge_threshold_index[0]));
+
+		if (key_info->flags & HA_USES_COMMENT
+		    && key_info->comment.str != NULL) {
+			merge_threshold_index[i]
+				= innobase_parse_merge_threshold(
+					thd, key_info->comment.str);
+		} else {
+			merge_threshold_index[i] = merge_threshold_table;
+		}
+
+		if (merge_threshold_index[i] == 0) {
+			merge_threshold_index[i] = merge_threshold_table;
+		}
+	}
+
+	/* update SYS_INDEX table */
+	if (!dict_table_is_temporary(table)) {
+		for (uint i = 0; i < table_share->keys; i++) {
+			is_found[i] = false;
+		}
+
+		for (dict_index_t* index = UT_LIST_GET_FIRST(table->indexes);
+		     index != NULL;
+		     index = UT_LIST_GET_NEXT(indexes, index)) {
+
+			if (index == UT_LIST_GET_FIRST(table->indexes)
+			    && innobase_strcasecmp(
+				index->name,
+				innobase_index_reserve_name) == 0) {
+
+				/* GEN_CLUST_INDEX should use
+				merge_threshold_table */
+				dict_index_set_merge_threshold(
+					index, merge_threshold_table);
+				continue;
+			}
+
+			for (uint i = 0; i < table_share->keys; i++) {
+				if (is_found[i]) {
+					continue;
+				}
+
+				KEY*	key_info = &table_share->key_info[i];
+
+				if (innobase_strcasecmp(
+					index->name, key_info->name) == 0) {
+
+					dict_index_set_merge_threshold(
+						index,
+						merge_threshold_index[i]);
+					is_found[i] = true;
+					break;
+				}
+			}
+		}
+	}
+
+	for (uint i = 0; i < table_share->keys; i++) {
+		is_found[i] = false;
+	}
+
+	/* update in memory */
+	for (dict_index_t* index = UT_LIST_GET_FIRST(table->indexes);
+	     index != NULL;
+	     index = UT_LIST_GET_NEXT(indexes, index)) {
+
+		if (index == UT_LIST_GET_FIRST(table->indexes)
+		    && innobase_strcasecmp(
+			index->name, innobase_index_reserve_name) == 0) {
+
+			/* GEN_CLUST_INDEX should use merge_threshold_table */
+
+			/* x-lock index is needed to exclude concurrent
+			pessimistic tree operations */
+			rw_lock_x_lock(dict_index_get_lock(index));
+			index->merge_threshold = merge_threshold_table;
+			rw_lock_x_unlock(dict_index_get_lock(index));
+
+			continue;
+		}
+
+		for (uint i = 0; i < table_share->keys; i++) {
+			if (is_found[i]) {
+				continue;
+			}
+
+			KEY*	key_info = &table_share->key_info[i];
+
+			if (innobase_strcasecmp(
+				index->name, key_info->name) == 0) {
+
+				/* x-lock index is needed to exclude concurrent
+				pessimistic tree operations */
+				rw_lock_x_lock(dict_index_get_lock(index));
+				index->merge_threshold
+					= merge_threshold_index[i];
+				rw_lock_x_unlock(dict_index_get_lock(index));
+				is_found[i] = true;
+
+				break;
+			}
+		}
+	}
 }
 
 /** Prepare to create a new table to an InnoDB database.
@@ -10157,6 +10336,8 @@ create_table_info_t::create_table_update_dict()
 	}
 
 	dict_table_close(innobase_table, FALSE, FALSE);
+
+	innobase_parse_hint_from_comment(m_thd, innobase_table, m_form->s);
 
 	DBUG_RETURN(0);
 }
@@ -12078,6 +12259,7 @@ ha_innobase::check(
 			os_atomic_increment_ulint(
 				&srv_fatal_semaphore_wait_threshold,
 				SRV_SEMAPHORE_WAIT_EXTENSION);
+
 			bool valid = btr_validate_index(
 					index, m_prebuilt->trx, false);
 
@@ -12175,10 +12357,7 @@ ha_innobase::check(
 		if (index == dict_table_get_first_index(m_prebuilt->table)) {
 			n_rows_in_table = n_rows;
 		} else if (!(index->type & DICT_FTS)
-			   && (n_rows != n_rows_in_table)
-			/* GIS_FIXME: Will address the transient count
-			mistmatch for R-Tree in WL #7740 */
-			   && !dict_index_is_spatial(index)) {
+			   && (n_rows != n_rows_in_table)) {
 			push_warning_printf(
 				thd, Sql_condition::SL_WARNING,
 				ER_NOT_KEYFILE,
@@ -13004,6 +13183,11 @@ ha_innobase::external_lock(
 
 		TrxInInnoDB::begin_stmt(trx);
 
+#ifdef UNIV_DEBUG
+		if (thd_trx_is_dd_trx(thd)) {
+			trx->is_dd_trx = true;
+		}
+#endif /* UNIV_DEBUG */
 		DBUG_RETURN(0);
 	} else {
 
@@ -15751,6 +15935,8 @@ static my_bool	innodb_purge_run_now = TRUE;
 static my_bool	innodb_purge_stop_now = TRUE;
 static my_bool	innodb_log_checkpoint_now = TRUE;
 static my_bool	innodb_buf_flush_list_now = TRUE;
+static uint	innodb_merge_threshold_set_all_debug
+	= DICT_INDEX_MERGE_THRESHOLD_DEFAULT;
 
 /****************************************************************//**
 Set the purge state to RUN. If purge is disabled then it
@@ -15847,6 +16033,26 @@ buf_flush_list_now_set(
 		buf_flush_lists(ULINT_MAX, LSN_MAX, NULL);
 		buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
 	}
+}
+
+/** Override current MERGE_THRESHOLD setting for all indexes at dictionary
+now.
+@param[in]	thd	thread handle
+@param[in]	var	pointer to system variable
+@param[out]	var_ptr	where the formal string goes
+@param[in]	save	immediate result from check function */
+static
+void
+innodb_merge_threshold_set_all_debug_update(
+	THD*				thd,
+	struct st_mysql_sys_var*	var,
+	void*				var_ptr,
+	const void*			save)
+{
+	innodb_merge_threshold_set_all_debug
+		= (*static_cast<const uint*>(save));
+	dict_set_merge_threshold_all_debug(
+		innodb_merge_threshold_set_all_debug);
 }
 #endif /* UNIV_DEBUG */
 
@@ -16169,6 +16375,14 @@ static MYSQL_SYSVAR_BOOL(buf_flush_list_now, innodb_buf_flush_list_now,
   PLUGIN_VAR_OPCMDARG,
   "Force dirty page flush now",
   NULL, buf_flush_list_now_set, FALSE);
+
+static MYSQL_SYSVAR_UINT(merge_threshold_set_all_debug,
+  innodb_merge_threshold_set_all_debug,
+  PLUGIN_VAR_RQCMDARG,
+  "Override current MERGE_THRESHOLD setting for all indexes at dictionary"
+  " cache by the specified value dynamically, at the time.",
+  NULL, innodb_merge_threshold_set_all_debug_update,
+  DICT_INDEX_MERGE_THRESHOLD_DEFAULT, 1, 50, 0);
 #endif /* UNIV_DEBUG */
 
 static MYSQL_SYSVAR_ULONG(purge_batch_size, srv_purge_batch_size,
@@ -16610,7 +16824,7 @@ static MYSQL_SYSVAR_ULONG(page_size, srv_page_size,
 static MYSQL_SYSVAR_LONG(log_buffer_size, innobase_log_buffer_size,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "The size of the buffer which InnoDB uses to write log to the log files on disk.",
-  NULL, NULL, 8*1024*1024L, 256*1024L, LONG_MAX, 1024);
+  NULL, NULL, 16*1024*1024L, 256*1024L, LONG_MAX, 1024);
 
 static MYSQL_SYSVAR_LONGLONG(log_file_size, innobase_log_file_size,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
@@ -17021,7 +17235,6 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(replication_delay),
   MYSQL_SYSVAR(status_file),
   MYSQL_SYSVAR(strict_mode),
-  MYSQL_SYSVAR(create_intrinsic),
   MYSQL_SYSVAR(support_xa),
   MYSQL_SYSVAR(sort_buffer_size),
   MYSQL_SYSVAR(online_alter_log_max_size),
@@ -17057,6 +17270,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(purge_stop_now),
   MYSQL_SYSVAR(log_checkpoint_now),
   MYSQL_SYSVAR(buf_flush_list_now),
+  MYSQL_SYSVAR(merge_threshold_set_all_debug),
 #endif /* UNIV_DEBUG */
 #if defined UNIV_DEBUG || defined UNIV_PERF_DEBUG
   MYSQL_SYSVAR(page_hash_locks),
@@ -17311,6 +17525,7 @@ ib_senderrf(
 		str = static_cast<char*>(malloc(size));
 	}
 	if (str == NULL) {
+		va_end(args);
 		return;	/* Watch for Out-Of-Memory */
 	}
 	str[size - 1] = 0x0;
@@ -17319,12 +17534,14 @@ ib_senderrf(
 	int	ret;
 	ret = vasprintf(&str, format, args);
 	if (ret < 0) {
+		va_end(args);
 		return;	/* Watch for Out-Of-Memory */
 	}
 #else
 	/* Use a fixed length string. */
 	str = static_cast<char*>(malloc(BUFSIZ));
 	if (str == NULL) {
+		va_end(args);
 		return;	/* Watch for Out-Of-Memory */
 	}
 	my_vsnprintf(str, BUFSIZ, format, args);
@@ -17398,6 +17615,7 @@ ib_errf(
 		str = static_cast<char*>(malloc(size));
 	}
 	if (str == NULL) {
+		va_end(args);
 		return;	/* Watch for Out-Of-Memory */
 	}
 	str[size - 1] = 0x0;
@@ -17406,12 +17624,14 @@ ib_errf(
 	int	ret;
 	ret = vasprintf(&str, format, args);
 	if (ret < 0) {
+		va_end(args);
 		return;	/* Watch for Out-Of-Memory */
 	}
 #else
 	/* Use a fixed length string. */
 	str = static_cast<char*>(malloc(BUFSIZ));
 	if (str == NULL) {
+		va_end(args);
 		return;	/* Watch for Out-Of-Memory */
 	}
 	my_vsnprintf(str, BUFSIZ, format, args);

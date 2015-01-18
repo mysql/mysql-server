@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,6 +24,7 @@
 #include "hostname.h"                   /* Host_errors, inc_host_errors */
 #include "sql_db.h"                     /* mysql_change_db */
 #include "connection_handler_manager.h"
+#include "crypt_genhash_impl.h"         /* generate_user_salt */
 #include <mysql/plugin_validate_password.h> /* validate_password plugin */
 #include "sys_vars.h"
 #include <fstream>                      /* std::fstream */
@@ -658,7 +659,6 @@ static bool send_server_handshake_packet(MPVIO_EXT *mpvio,
 
   int res= my_net_write(mpvio->net, (uchar*) buff, (size_t) (end - buff + 1)) ||
            net_flush(mpvio->net);
-  my_afree(buff);
   DBUG_RETURN (res);
 }
 
@@ -2211,9 +2211,13 @@ acl_authenticate(THD *thd, size_t com_change_user_pkt_len)
     const char *auth_user = acl_user->user ? acl_user->user : "";
     ACL_PROXY_USER *proxy_user;
     /* check if the user is allowed to proxy as another user */
-    proxy_user= acl_find_proxy_user(auth_user, sctx->host().str, sctx->ip().str,
-                                    mpvio.auth_info.authenticated_as,
-                                    &is_proxy_user);
+    {
+      Read_lock rlk_guard(&proxy_users_rwlock);
+      proxy_user = acl_find_proxy_user(auth_user, sctx->host().str,
+                                       sctx->ip().str,
+                                       mpvio.auth_info.authenticated_as,
+                                       &is_proxy_user);
+    }
     if (is_proxy_user)
     {
       ACL_USER *acl_proxy_user;

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -40,7 +40,7 @@
                                        // make_unireg_sortorder
 #include "sql_handler.h"               // mysql_ha_rm_tables
 #include "discover.h"                  // readfrm
-#include "my_pthread.h"                // native_mutex_t
+#include "my_thread.h"                // native_mutex_t
 #include "log_event.h"                 // Query_log_event
 #include <hash.h>
 #include <myisam.h>
@@ -57,10 +57,15 @@
 #include <mysql/psi/mysql_table.h>
 #include "log.h"
 #include "binlog.h"
+#include "item_timefunc.h"             // Item_func_now_local
+
+#include "pfs_file_provider.h"
+#include "mysql/psi/mysql_file.h"
 
 #include <algorithm>
 using std::max;
 using std::min;
+using binary_log::checksum_crc32;
 
 #define ER_THD_OR_DEFAULT(thd,X) ((thd) ? ER_THD(thd, X) : ER_DEFAULT(X))
 
@@ -1155,7 +1160,7 @@ static int execute_ddl_log_action(THD *thd, DDL_LOG_ENTRY *ddl_log_entry)
       my_error(ER_ILLEGAL_HA, MYF(0), ddl_log_entry->handler_name);
       goto error;
     }
-    hton= plugin_data(plugin, handlerton*);
+    hton= plugin_data<handlerton*>(plugin);
     file= get_new_handler((TABLE_SHARE*)0, &mem_root, hton);
     if (!file)
     {
@@ -8246,8 +8251,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   if (check_engine(thd, alter_ctx.new_db, alter_ctx.new_name, create_info))
     DBUG_RETURN(true);
 
-  if ((create_info->db_type != table->s->db_type() ||
-       alter_info->flags & Alter_info::ALTER_PARTITION) &&
+  if (create_info->db_type != table->s->db_type() &&
       !table->file->can_switch_engines())
   {
     my_error(ER_ROW_IS_REFERENCED, MYF(0));
@@ -8323,6 +8327,22 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
                               &alter_ctx, &partition_changed,
                               &fast_alter_partition))
     {
+      DBUG_RETURN(true);
+    }
+    if (partition_changed &&
+        !(table->file->ht->partition_flags &&
+          (table->file->ht->partition_flags() & HA_CAN_PARTITION)) &&
+        !table->file->can_switch_engines())
+    {
+      /*
+        Partitioning was changed (added/changed/removed) and the current
+        handler does not support partitioning and FK relationship exists
+        for the table.
+
+        Since the current handler does not support native partitioning, it will
+        be altered to use ha_partition which does not support foreign keys.
+      */
+      my_error(ER_FOREIGN_KEY_ON_PARTITIONED, MYF(0));
       DBUG_RETURN(true);
     }
   }
@@ -8414,8 +8434,21 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     alter_info->requested_algorithm= Alter_info::ALTER_TABLE_ALGORITHM_COPY;
   }
 
-  if (upgrade_old_temporal_types(thd, alter_info))
-    DBUG_RETURN(true);
+  /*
+    If 'avoid_temporal_upgrade' mode is not enabled, then the
+    pre MySQL 5.6.4 old temporal types if present is upgraded to the
+    current format.
+  */
+
+  mysql_mutex_lock(&LOCK_global_system_variables);
+  bool check_temporal_upgrade= !avoid_temporal_upgrade;
+  mysql_mutex_unlock(&LOCK_global_system_variables);
+
+  if (check_temporal_upgrade)
+  {
+    if (upgrade_old_temporal_types(thd, alter_info))
+      DBUG_RETURN(true);
+  }
 
   /*
     ALTER TABLE ... ENGINE to the same engine is a common way to
@@ -9473,7 +9506,7 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
               if (!(t->s->db_create_options & HA_OPTION_PACK_RECORD))
                 t->record[0][0] |= 1;
 
-	      row_crc= my_checksum(row_crc, t->record[0], t->s->null_bytes);
+	      row_crc= checksum_crc32(row_crc, t->record[0], t->s->null_bytes);
             }
 
 	    for (uint i= 0; i < t->s->fields; i++ )
@@ -9493,12 +9526,12 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
                 {
                   String tmp;
                   f->val_str(&tmp);
-                  row_crc= my_checksum(row_crc, (uchar*) tmp.ptr(),
+                  row_crc= checksum_crc32(row_crc, (uchar*) tmp.ptr(),
                            tmp.length());
                   break;
                 }
                 default:
-                  row_crc= my_checksum(row_crc, f->ptr, f->pack_length());
+                  row_crc= checksum_crc32(row_crc, f->ptr, f->pack_length());
                   break;
 	      }
 	    }

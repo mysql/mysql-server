@@ -1410,9 +1410,11 @@ fts_query_union(
 		return(query->error);
 	}
 
-	/* Single '%' would confuse parser in pars_like_rebind(). In addition,
-	our wildcard search only supports prefix search */
-	ut_ad(*token->f_str != '%');
+	if (query->index->parser != NULL
+	    && *token->f_str == '%') {
+		/* A parser plugin may not filter '%' out. */
+		return(DB_SUCCESS);
+	}
 
 	fts_query_cache(query, token);
 
@@ -2595,19 +2597,20 @@ func_exit:
 	return(query->error);
 }
 
-/*****************************************************************//**
-Split the phrase into tokens */
+/** Split the phrase into tokens
+@param[in,out]	query		query instance
+@param[in]	node		query node to search
+@param[in,out]	tokens		token vector
+@param[in,out]	orig_tokens	original node tokens include stopword
+@param[in,out]	heap	mem heap */
 static
 void
 fts_query_phrase_split(
-/*===================*/
-	fts_query_t*		query,	/*!< in: query instance */
-	const fts_ast_node_t*	node,	/*!< in: node to search */
-	ib_vector_t*		tokens,	/*!< in/out: tokens */
-	ib_vector_t*		orig_tokens, /*!< in/out: original node
-					tokens include stopword,
-					< ft_min_token_size, etc. */
-	mem_heap_t*		heap)	/*!< in: mem heap */
+	fts_query_t*		query,
+	const fts_ast_node_t*	node,
+	ib_vector_t*		tokens,
+	ib_vector_t*		orig_tokens,
+	mem_heap_t*		heap)
 {
 	fts_string_t		phrase;
 	ulint			len = 0;
@@ -2627,7 +2630,6 @@ fts_query_phrase_split(
 
 	while (true) {
 		fts_cache_t*	cache = query->index->table->fts->cache;
-		ib_rbt_bound_t	parent;
 		ulint		cur_len;
 		fts_string_t	result_str;
 
@@ -2675,11 +2677,11 @@ fts_query_phrase_split(
 			ib_vector_push(tokens, NULL));
 		fts_string_dup(token, &result_str, heap);
 
-		if (cache->stopword_info.cached_stopword
-		    && rbt_search(cache->stopword_info.cached_stopword,
-				  &parent, token) != 0
-		    && result_str.f_n_char >= fts_min_token_size
-		    && result_str.f_n_char <= fts_max_token_size) {
+		if (fts_check_token(
+			   &result_str,
+			   cache->stopword_info.cached_stopword,
+			   query->index->is_ngram,
+			   query->fts_index_table.charset)) {
 			/* Add the word to the RB tree so that we can
 			calculate it's frequencey within a document. */
 			fts_query_add_word_freq(query, token);
@@ -3908,89 +3910,6 @@ fts_query_can_optimize(
 }
 
 /*******************************************************************//**
-Pre-process the query string
-1) make it lower case
-2) in boolean mode, if there is '-' or '+' that is immediately proceeded
-and followed by valid word, make it a space
-@return the processed string */
-static
-byte*
-fts_query_str_preprocess(
-/*=====================*/
-	const byte*	query_str,	/*!< in: FTS query */
-	ulint		query_len,	/*!< in: FTS query string len */
-	ulint		*result_len,	/*!< out: result string length */
-	CHARSET_INFO*	charset,	/*!< in: string charset */
-	bool		boolean_mode)	/*!< in: is boolean mode */
-{
-	ulint	cur_pos = 0;
-	ulint	str_len;
-	byte*	str_ptr;
-	bool	in_phrase = false;
-
-	/* Convert the query string to lower case before parsing. We own
-	the ut_malloc'ed result and so remember to free it before return. */
-
-	str_len = query_len * charset->casedn_multiply + 1;
-	str_ptr = static_cast<byte*>(ut_malloc_nokey(str_len));
-
-	*result_len = innobase_fts_casedn_str(
-		charset, const_cast<char*>(reinterpret_cast<const char*>(
-			query_str)), query_len,
-		reinterpret_cast<char*>(str_ptr), str_len);
-
-	ut_ad(*result_len < str_len);
-
-	str_ptr[*result_len] = 0;
-
-	/* If it is boolean mode, no need to check for '-/+' */
-	if (!boolean_mode) {
-		return(str_ptr);
-	}
-
-	/* Otherwise, we travese the string to find any '-/+' that are
-	immediately proceeded and followed by valid search word.
-	NOTE: we should not do so for CJK languages, this should
-	be taken care of in our CJK implementation */
-	while (cur_pos < *result_len) {
-		fts_string_t	str;
-		ulint		cur_len;
-
-		cur_len = innobase_mysql_fts_get_token(
-			charset, str_ptr + cur_pos,
-			str_ptr + *result_len, &str);
-
-		if (cur_len == 0 || str.f_str == NULL) {
-			/* No valid word found */
-			break;
-		}
-
-		/* Check if we are in a phrase, if so, no need to do
-		replacement of '-/+'. */
-		for (byte* ptr = str_ptr + cur_pos; ptr < str.f_str; ptr++) {
-			if ((char) (*ptr) == '"' ) {
-				in_phrase = !in_phrase;
-			}
-		}
-
-		/* Find those are not leading '-/+' and also not in a phrase */
-		if (cur_pos > 0 && str.f_str - str_ptr - cur_pos == 1
-		    && !in_phrase) {
-			char*	last_op = reinterpret_cast<char*>(
-						str_ptr + cur_pos);
-
-			if (*last_op == '-' || *last_op == '+') {
-				*last_op = ' ';
-			}
-		}
-
-                cur_pos += cur_len;
-	}
-
-	return(str_ptr);
-}
-
-/*******************************************************************//**
 FTS Query entry point.
 @return DB_SUCCESS if successful otherwise error code */
 dberr_t
@@ -4007,6 +3926,7 @@ fts_query(
 	fts_query_t	query;
 	dberr_t		error = DB_SUCCESS;
 	byte*		lc_query_str;
+	ulint		lc_query_str_len;
 	ulint		result_len;
 	bool		boolean_mode;
 	trx_t*		query_trx;
@@ -4103,7 +4023,6 @@ fts_query(
 	/* Sort the vector so that we can do a binary search over the ids. */
 	ib_vector_sort(query.deleted->doc_ids, fts_update_doc_id_cmp);
 
-#if 0
 	/* Convert the query string to lower case before parsing. We own
 	the ut_malloc'ed result and so remember to free it before return. */
 
@@ -4117,11 +4036,6 @@ fts_query(
 	ut_ad(result_len < lc_query_str_len);
 
 	lc_query_str[result_len] = 0;
-
-#endif
-
-	lc_query_str = fts_query_str_preprocess(
-		query_str, query_len, &result_len, charset, boolean_mode);
 
 	query.heap = mem_heap_create(128);
 
@@ -4331,6 +4245,7 @@ fts_expand_query(
 
 	result_doc.charset = index_cache->charset;
 	result_doc.parser = index_cache->index->parser;
+	result_doc.is_ngram = index_cache->index->is_ngram;
 
 	query->total_size += SIZEOF_RBT_CREATE;
 #ifdef UNIV_DEBUG
@@ -4403,6 +4318,12 @@ fts_expand_query(
 	     token_node = rbt_next(result_doc.tokens, token_node)) {
 		fts_token_t*	mytoken;
 		mytoken = rbt_value(fts_token_t, token_node);
+
+		/* '%' in the end is treated as prefix search,
+		it can cause assert failure, so we skip it. */
+		if (mytoken->text.f_str[mytoken->text.f_len - 1] == '%') {
+			continue;
+		}
 
 		ut_ad(mytoken->text.f_str[mytoken->text.f_len] == 0);
 		fts_query_add_word_freq(query, &mytoken->text);

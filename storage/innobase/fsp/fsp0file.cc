@@ -275,10 +275,12 @@ Datafile::read_first_page(bool read_only_mode)
 		(ut_align(m_first_page_buf, UNIV_PAGE_SIZE));
 
 	if (!os_file_read(m_handle, m_first_page, 0, UNIV_PAGE_SIZE)) {
-			ib::error() << "Cannot read first page of '"
-				<< m_filepath << "'";
-			return(DB_IO_ERROR);
-		}
+
+		ib::error()
+			<< "Cannot read first page of '" << m_filepath << "'";
+
+		return(DB_IO_ERROR);
+	}
 
 	if (m_order == 0) {
 		m_flags = fsp_header_get_flags(m_first_page);
@@ -577,12 +579,17 @@ Datafile::find_space_id()
 					false, page, univ_page_size, false);
 			}
 
-			const page_size_t	compr_page_size(
-				page_size, univ_page_size.logical(), true);
-			bool			compressed_ok;
+			bool	compressed_ok = false;
 
-			compressed_ok = !buf_page_is_corrupted(
-				false, page, compr_page_size, false);
+			/* For compressed pages, univ_page_size.logical()
+			must be equal to or less than 16k. */
+			if (univ_page_size.logical() <= UNIV_PAGE_SIZE_DEF) {
+				const page_size_t	compr_page_size(
+					page_size, univ_page_size.logical(),
+					true);
+				compressed_ok = !buf_page_is_corrupted(
+					false, page, compr_page_size, false);
+			}
 
 			if (noncompressed_ok || compressed_ok) {
 

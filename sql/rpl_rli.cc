@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -33,6 +33,9 @@
 #include <mysql/plugin.h>
 #include <mysql/service_thd_wait.h>
 #include "strfunc.h"
+
+#include "pfs_file_provider.h"
+#include "mysql/psi/mysql_file.h"
 
 using std::min;
 using std::max;
@@ -145,7 +148,7 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
   cached_charset_invalidate();
   inited_hash_workers= FALSE;
 
-  if(!rli_fake)
+  if (!rli_fake)
   {
     mysql_mutex_init(key_relay_log_info_log_space_lock,
                      &log_space_lock, MY_MUTEX_INIT_FAST);
@@ -161,7 +164,6 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
 
     relay_log.init_pthread_objects();
     do_server_version_split(::server_version, slave_version_split);
-    last_retrieved_gtid.clear();
   }
   DBUG_VOID_RETURN;
 }
@@ -221,7 +223,6 @@ Relay_log_info::~Relay_log_info()
   }
 
   set_rli_description_event(NULL);
-  last_retrieved_gtid.clear();
 
   DBUG_VOID_RETURN;
 }
@@ -568,7 +569,7 @@ int Relay_log_info::init_relay_log_pos(const char* log,
         }
         break;
       }
-      else if (ev->get_type_code() == FORMAT_DESCRIPTION_EVENT)
+      else if (ev->get_type_code() == binary_log::FORMAT_DESCRIPTION_EVENT)
       {
         DBUG_PRINT("info",("found Format_description_log_event"));
         set_rli_description_event((Format_description_log_event *)ev);
@@ -597,7 +598,7 @@ int Relay_log_info::init_relay_log_pos(const char* log,
       {
         DBUG_PRINT("info",("found event of another type=%d",
                            ev->get_type_code()));
-        look_for_description_event= (ev->get_type_code() == ROTATE_EVENT);
+        look_for_description_event= (ev->get_type_code() == binary_log::ROTATE_EVENT);
         delete ev;
       }
     }
@@ -1171,6 +1172,10 @@ int Relay_log_info::purge_relay_logs(THD *thd, bool just_reset,
   DBUG_ASSERT(slave_running == 0);
   DBUG_ASSERT(mi->slave_running == 0);
 
+  /* Reset the transaction boundary parser and clear the last GTID queued */
+  mi->transaction_parser.reset();
+  mi->clear_last_gtid_queued();
+
   slave_skip_counter= 0;
   mysql_mutex_lock(&data_lock);
 
@@ -1328,8 +1333,10 @@ bool Relay_log_info::is_until_satisfied(THD *thd, Log_event *ev)
       if (ev && ev->server_id == (uint32) ::server_id && !replicate_same_server_id)
         DBUG_RETURN(false);
       log_name= group_master_log_name;
-      log_pos= (!ev || is_in_group() || !ev->log_pos) ?
-        group_master_log_pos : ev->log_pos - ev->data_written;
+      if (!ev || is_in_group() || !ev->common_header->log_pos)
+        log_pos= group_master_log_pos;
+      else
+        log_pos= ev->common_header->log_pos - ev->common_header->data_written;
     }
     else
     { /* until_condition == UNTIL_RELAY_POS */
@@ -1426,7 +1433,7 @@ bool Relay_log_info::is_until_satisfied(THD *thd, Log_event *ev)
       }
       global_sid_lock->unlock();
     }
-    if (ev != NULL && ev->get_type_code() == GTID_LOG_EVENT)
+    if (ev != NULL && ev->get_type_code() == binary_log::GTID_LOG_EVENT)
     {
       Gtid_log_event *gev= (Gtid_log_event *)ev;
       global_sid_lock->rdlock();
@@ -1792,6 +1799,8 @@ int Relay_log_info::rli_init_info()
   int error= 0;
   enum_return_check check_return= ERROR_CHECKING_REPOSITORY;
   const char *msg= NULL;
+  /* Store the GTID of a transaction spanned in multiple relay log files */
+  Gtid gtid_partial_trx= {0, 0};
 
   DBUG_ENTER("Relay_log_info::rli_init_info");
 
@@ -1993,16 +2002,18 @@ a file name for --relay-log-index option.", opt_relaylog_index_name);
     global_sid_lock->unlock();
 #endif
     /*
-      Below init_gtid_sets() function will parse the available relay logs and
-      set I/O retrieved gtid event in gtid_state object. We dont need to find
-      last_retrieved_gtid_event if relay_log_recovery=1 (retrieved set will
-      be cleared off in that case).
+      In the init_gtid_set below we pass the mi->transaction_parser.
+      This will be useful to ensure that we only add a GTID to
+      the Retrieved_Gtid_Set for fully retrieved transactions. Also, it will
+      be useful to ensure the Retrieved_Gtid_Set behavior when auto
+      positioning is disabled (we could have transactions spanning multiple
+      relay log files in this case).
     */
     if (!gtid_retrieved_initialized &&
         relay_log.init_gtid_sets(&gtid_set, NULL,
-                                 is_relay_log_recovery ? NULL : get_last_retrieved_gtid(),
                                  opt_slave_sql_verify_checksum,
-                                 true/*true=need lock*/))
+                                 true/*true=need lock*/,
+                                 &mi->transaction_parser, &gtid_partial_trx))
     {
       sql_print_error("Failed in init_gtid_sets() called from Relay_log_info::rli_init_info().");
       DBUG_RETURN(1);
@@ -2013,6 +2024,20 @@ a file name for --relay-log-index option.", opt_relaylog_index_name);
     gtid_set.dbug_print("set of GTIDs in relay log after initialization");
     global_sid_lock->unlock();
 #endif
+    if (!gtid_partial_trx.empty())
+    {
+      /*
+        The init_gtid_set has found an incomplete transaction in the relay log.
+        We add this transaction's GTID to the last_gtid_queued so the IO thread
+        knows which GTID to add to the Retrieved_Gtid_Set when reaching the end
+        of the incomplete transaction.
+      */
+      mi->set_last_gtid_queued(gtid_partial_trx);
+    }
+    else
+    {
+      mi->clear_last_gtid_queued();
+    }
     /*
       Configures what object is used by the current log to store processed
       gtid(s). This is necessary in the MYSQL_BIN_LOG::MYSQL_BIN_LOG to
@@ -2585,8 +2610,8 @@ void Relay_log_info::adapt_to_master_version(Format_description_log_event *fdle)
   THD *thd=info_thd;
   ulong master_version, current_version;
   int changed= !fdle || ! rli_description_event ? 0 :
-    (master_version= fdle->get_version_product()) - 
-    (current_version= rli_description_event->get_version_product());
+    (master_version= fdle->get_product_version()) -
+    (current_version= rli_description_event->get_product_version());
 
   /* When the last version is not changed nothing to adapt for */
   if (!changed)

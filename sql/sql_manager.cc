@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,18 +22,18 @@
 
 #include "sql_manager.h"
 
-#include "my_pthread.h"        // pthread_h
+#include "my_thread.h"         // my_thread_h
 #include "log.h"               // sql_print_warning
 #include "sql_base.h"          // tdc_flush_unused_tables
 
 static bool volatile manager_thread_in_use;
 static bool abort_manager;
 
-pthread_t manager_thread;
+my_thread_t manager_thread;
 mysql_mutex_t LOCK_manager;
 mysql_cond_t COND_manager;
 
-pthread_handler_t handle_manager(void *arg __attribute__((unused)))
+extern "C" void *handle_manager(void *arg __attribute__((unused)))
 {
   int error = 0;
   struct timespec abstime;
@@ -41,7 +41,7 @@ pthread_handler_t handle_manager(void *arg __attribute__((unused)))
   my_thread_init();
   DBUG_ENTER("handle_manager");
 
-  manager_thread = pthread_self();
+  manager_thread= my_thread_self();
   manager_thread_in_use = 1;
 
   for (;;)
@@ -91,7 +91,7 @@ void start_handle_manager()
   abort_manager = false;
   if (flush_time && flush_time != ~(ulong) 0L)
   {
-    pthread_t hThread;
+    my_thread_handle hThread;
     int error;
     if ((error= mysql_thread_create(key_thread_handle_manager,
                                     &hThread, &connection_attrib,

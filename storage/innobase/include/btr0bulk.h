@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -89,8 +89,9 @@ public:
 	}
 
 	/** Initialize members and allocate page if needed and start mtr.
-	Note: must be called and only once right after constructor. */
-	void init();
+	Note: must be called and only once right after constructor.
+	@return error code */
+	dberr_t init();
 
 	/** Insert a record in the page.
 	@param[in]	rec		record

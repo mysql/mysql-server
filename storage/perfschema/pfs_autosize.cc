@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@
 #include "sql_const.h"
 #include "pfs_server.h"
 
-#include <my_pthread.h> /* For pthread_t */
+#include <my_thread.h> /* For pthread_t */
 /* Make sure HAVE_PSI_XXX_INTERFACE flags are set */
 #include "mysql/psi/psi.h"
 

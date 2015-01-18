@@ -759,10 +759,13 @@ fil_node_open_file(
 		ut_free(buf2);
 
 		if (node->size == 0) {
-			if (size_bytes >= 1024 * 1024) {
-				/* Truncate the size to whole megabytes. */
-				size_bytes = ut_2pow_round(
-					size_bytes, 1024 * 1024);
+			ulint	extent_size;
+
+			extent_size = page_size.physical() * FSP_EXTENT_SIZE;
+			/* Truncate the size to a multiple of extent size. */
+			if (size_bytes >= extent_size) {
+				size_bytes = ut_2pow_round(size_bytes,
+							   extent_size);
 			}
 
 			node->size = (ulint)
@@ -5142,6 +5145,8 @@ fil_io(
 		case 4096: size_shift = 12; break;
 		case 8192: size_shift = 13; break;
 		case 16384: size_shift = 14; break;
+		case 32768: size_shift = 15; break;
+		case 65536: size_shift = 16; break;
 		default: ut_error;
 		}
 

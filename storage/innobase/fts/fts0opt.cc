@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -826,18 +826,13 @@ fts_index_fetch_words(
 	}
 
 	for (selected = fts_select_index(
-		optim->fts_index_table.charset, word->f_str, word->f_len);
-	     fts_index_selector[selected].value;
+		     optim->fts_index_table.charset, word->f_str, word->f_len);
+	     selected < FTS_NUM_AUX_INDEX;
 	     selected++) {
 
 		char	table_name[MAX_FULL_NAME_LEN];
 
 		optim->fts_index_table.suffix = fts_get_suffix(selected);
-
-		/* We've search all indexes. */
-		if (optim->fts_index_table.suffix == NULL) {
-			return(DB_TABLE_NOT_FOUND);
-		}
 
 		info = pars_info_create();
 
@@ -1156,6 +1151,7 @@ fts_optimize_encode_node(
 	}
 
 	/* Calculate the space required to store the ilist. */
+	ut_ad(doc_id > node->last_doc_id);
 	doc_id_delta = doc_id - node->last_doc_id;
 	enc_len = fts_get_encoded_len(static_cast<ulint>(doc_id_delta));
 
@@ -1398,7 +1394,8 @@ fts_optimize_word(
 
 		src_node = (fts_node_t*) ib_vector_get(word->nodes, i);
 
-		if (!dst_node) {
+		if (dst_node == NULL
+		    || dst_node->last_doc_id > src_node->first_doc_id) {
 
 			dst_node = static_cast<fts_node_t*>(
 				ib_vector_push(nodes, NULL));
@@ -1868,42 +1865,6 @@ fts_optimize_words(
 }
 
 /**********************************************************************//**
-Select the FTS index to search.
-@return TRUE if last index */
-static
-ibool
-fts_optimize_set_next_word(
-/*=======================*/
-	CHARSET_INFO*	charset,	/*!< in: charset */
-	fts_string_t*	word)		/*!< in: current last word */
-{
-	ulint		selected;
-	ibool		last = FALSE;
-
-	selected = fts_select_next_index(charset, word->f_str, word->f_len);
-
-	/* If this was the last index then reset to start. */
-	if (fts_index_selector[selected].value == 0) {
-		/* Reset the last optimized word to '' if no
-		more words could be read from the FTS index. */
-		word->f_len = 0;
-		*word->f_str = 0;
-
-		last = TRUE;
-	} else {
-		ulint	value = fts_index_selector[selected].value;
-
-		ut_a(value <= 0xff);
-
-		/* Set to the first character of the next slot. */
-		word->f_len = 1;
-		*word->f_str = (byte) value;
-	}
-
-	return(last);
-}
-
-/**********************************************************************//**
 Optimize is complete. Set the completion time, and reset the optimize
 start string for this FTS index to "".
 @return DB_SUCCESS if all OK */
@@ -1979,21 +1940,14 @@ fts_optimize_index_read_words(
 			optim, word, fts_num_word_optimize);
 
 		if (error == DB_SUCCESS) {
-
-			/* If the search returned an empty set
-			try the next index in the horizontal split. */
-			if (optim->zip->n_words > 0) {
-				break;
-			} else {
-
-				fts_optimize_set_next_word(
-					optim->fts_index_table.charset,
-					word);
-
-				if (word->f_len == 0) {
-					break;
-				}
+			/* Reset the last optimized word to '' if no
+			more words could be read from the FTS index. */
+			if (optim->zip->n_words == 0) {
+				word->f_len = 0;
+				*word->f_str = 0;
 			}
+
+			break;
 		}
 	}
 
@@ -2691,7 +2645,7 @@ fts_optimize_find_slot(
 
 		slot = static_cast<fts_slot_t*>(ib_vector_get(tables, i));
 
-		if (slot->table->id == table->id) {
+		if (slot->table == table) {
 			return(slot);
 		}
 	}
@@ -2742,7 +2696,7 @@ fts_optimize_new_table(
 
 		if (slot->state == FTS_STATE_EMPTY) {
 			empty_slot = i;
-		} else if (slot->table->id == table->id) {
+		} else if (slot->table == table) {
 			/* Already exists in our optimize queue. */
 			return(FALSE);
 		}
@@ -2788,9 +2742,8 @@ fts_optimize_del_table(
 
 		slot = static_cast<fts_slot_t*>(ib_vector_get(tables, i));
 
-		/* FIXME: Should we assert on this ? */
 		if (slot->state != FTS_STATE_EMPTY
-		    && slot->table->id == table->id) {
+		    && slot->table == table) {
 
 			if (fts_enable_diag_print) {
 				ib::info() << "FTS Optimize Removing table "
@@ -2891,7 +2844,7 @@ fts_is_sync_needed(
 			ib_vector_get_const(tables, i));
 
 		if (slot->state != FTS_STATE_EMPTY && slot->table
-		    && slot->table->fts) {
+		    && slot->table->fts && slot->table->fts->cache) {
 			total_memory += slot->table->fts->cache->total_size;
 		}
 

@@ -1,6 +1,6 @@
 #ifndef _EVENT_DATA_OBJECTS_H_
 #define _EVENT_DATA_OBJECTS_H_
-/* Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,14 +22,21 @@
   @file event_data_objects.h
 */
 
-#include "event_parse_data.h"
-#include "thr_lock.h"                           /* thr_lock_type */
+#include "my_global.h"
+#include "m_string.h"                   // LEX_CSTRING
+#include "my_alloc.h"                   // MEM_ROOT
+#include "my_time.h"                    // my_time_t
+#include "mysql/mysql_lex_string.h"     // LEX_STRING
+
+#include "my_thread.h"
 
 class Field;
+class String;
 class THD;
 class Time_zone;
 struct TABLE;
 typedef ulonglong sql_mode_t;
+typedef struct st_mysql_lex_string LEX_STRING;
 
 void init_scheduler_psi_keys(void);
 

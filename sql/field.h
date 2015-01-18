@@ -1,7 +1,7 @@
 #ifndef FIELD_INCLUDED
 #define FIELD_INCLUDED
 
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,14 +16,23 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "mysqld.h"                             /* system_charset_info */
-#include "table.h"                              /* TABLE */
-#include "sql_string.h"                         /* String */
-#include "my_decimal.h"                         /* my_decimal */
-#include "sql_error.h"                          /* Sql_condition */
-#include "mysql_version.h"                      /* FRM_VER */
-#include "mysqld_error.h"
-#include "my_time.h"                            /* my_time_binary_length */
+#include "my_global.h"
+
+#include "my_compare.h"                         // portable_sizeof_char_ptr
+#include "my_time.h"                            // MYSQL_TIME_NOTE_TRUNCATED
+#include "binary_log_funcs.h"                   // my_time_binary_length
+#include "mysqld.h"                             // system_charset_info
+#include "mysqld_error.h"                       // ER_*
+#include "sql_error.h"                          // Sql_condition
+#include "sql_string.h"                         // String
+#include "table.h"                              // TABLE
+#include "mysql_version.h"                      // FRM_VER
+
+class Create_field;
+class Protocol;
+class Relay_log_info;
+class Send_field;
+
 
 /*
 
@@ -75,12 +84,6 @@ Field (abstract)
             +--Field_datetimef
 */
 
-
-class Send_field;
-class Protocol;
-class Create_field;
-class Relay_log_info;
-class Field;
 
 enum enum_check_fields
 {
@@ -164,6 +167,8 @@ enum type_conversion_status
 
 #define my_charset_numeric      my_charset_latin1
 #define MY_REPERTOIRE_NUMERIC   MY_REPERTOIRE_ASCII
+
+#define FRM_VER_TRUE_VARCHAR (FRM_VER+4) /* 10 */
 
 struct st_cache_field;
 type_conversion_status field_conv(Field *to,Field *from);

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -862,7 +862,8 @@ row_create_prebuilt(
 						== MAX_REF_PARTS););
 		uint temp_len = 0;
 		for (uint i = 0; i < temp_index->n_uniq; i++) {
-			if (temp_index->fields[i].col->mtype == DATA_INT) {
+			ulint type = temp_index->fields[i].col->mtype;
+			if (type == DATA_INT) {
 				temp_len +=
 					temp_index->fields[i].fixed_len;
 			}
@@ -1372,6 +1373,108 @@ row_explicit_rollback(
 	return(err);
 }
 
+/** Convert a row in the MySQL format to a row in the Innobase format.
+This is specialized function used for intrinsic table with reduce branching.
+@param[in/out]	row		row where field values are copied.
+@param[in]	prebuilt	prebuilt handler
+@param[in]	mysql_rec	row in mysql format. */
+static
+void
+row_mysql_to_innobase(
+	dtuple_t*		row,
+	row_prebuilt_t*		prebuilt,
+	const byte*		mysql_rec)
+{
+	ut_ad(dict_table_is_intrinsic(prebuilt->table));
+
+	const byte*		ptr = mysql_rec;
+
+	for (ulint i = 0; i < prebuilt->n_template; i++) {
+		const mysql_row_templ_t*	templ;
+		dfield_t*			dfield;
+
+		templ = prebuilt->mysql_template + i;
+		dfield = dtuple_get_nth_field(row, i);
+
+		/* Check if column has null value. */
+		if (templ->mysql_null_bit_mask != 0) {
+			if (mysql_rec[templ->mysql_null_byte_offset]
+			    & (byte) (templ->mysql_null_bit_mask)) {
+				dfield_set_null(dfield);
+				continue;
+			}
+		}
+
+		/* Extract the column value. */
+		ptr = mysql_rec + templ->mysql_col_offset;
+		const dtype_t*	dtype = dfield_get_type(dfield);
+		ulint		col_len = templ->mysql_col_len;
+
+		ut_ad(dtype->mtype == DATA_INT
+		      || dtype->mtype == DATA_CHAR
+		      || dtype->mtype == DATA_MYSQL
+		      || dtype->mtype == DATA_VARCHAR
+		      || dtype->mtype == DATA_VARMYSQL
+		      || dtype->mtype == DATA_BINARY
+		      || dtype->mtype == DATA_FIXBINARY
+		      || dtype->mtype == DATA_FLOAT
+		      || dtype->mtype == DATA_DOUBLE
+		      || dtype->mtype == DATA_DECIMAL
+		      || dtype->mtype == DATA_BLOB
+		      || dtype->mtype == DATA_GEOMETRY
+		      || dtype->mtype == DATA_POINT
+		      || dtype->mtype == DATA_VAR_POINT);
+
+#ifdef UNIV_DEBUG
+		if (dtype_get_mysql_type(dtype) == DATA_MYSQL_TRUE_VARCHAR) {
+			ut_ad(templ->mysql_length_bytes > 0);
+		}
+#endif /* UNIV_DEBUG */
+
+		/* For now varchar field this has to be always 0 so
+		memcpy of 0 bytes shouldn't affect the original col_len. */
+		if (dtype->mtype == DATA_INT) {
+			/* Convert and Store in big-endian. */
+			byte*	buf = prebuilt->ins_upd_rec_buff
+				+ templ->mysql_col_offset;
+			byte*	copy_to = buf + col_len;
+			for (;;) {
+				copy_to--;
+				*copy_to = *ptr;
+				if (copy_to == buf) {
+					break;
+				}
+				ptr++;
+			}
+
+			if (!(dtype->prtype & DATA_UNSIGNED)) {
+				*buf ^= 128;
+			}
+
+			ptr = buf;
+			buf += col_len;
+		} else if (dtype_get_mysql_type(dtype) ==
+				DATA_MYSQL_TRUE_VARCHAR) {
+
+			ut_ad(dtype->mtype == DATA_VARCHAR
+			      || dtype->mtype == DATA_VARMYSQL
+			      || dtype->mtype == DATA_BINARY);
+
+			col_len = 0;
+			row_mysql_read_true_varchar(
+				&col_len, ptr, templ->mysql_length_bytes);
+			ptr += templ->mysql_length_bytes;
+		} else if (dtype->mtype == DATA_BLOB) {
+			ptr = row_mysql_read_blob_ref(&col_len, ptr, col_len);
+		} else if (DATA_GEOMETRY_MTYPE(dtype->mtype)) {
+			/* Point, Var-Point, Geometry */
+			ptr = row_mysql_read_geometry(&col_len, ptr, col_len);
+		}
+
+		dfield_set_data(dfield, ptr, col_len);
+	}
+}
+
 /** Does an insert for MySQL using cursor interface.
 Cursor interface is low level interface that directly interacts at
 Storage Level by-passing all the locking and transaction semantics.
@@ -1396,13 +1499,12 @@ row_insert_for_mysql_using_cursor(
 	thr = que_fork_get_first_thr(prebuilt->ins_graph);
 
 	/* Step-2: Convert row from MySQL row format to InnoDB row format. */
-	row_mysql_convert_row_to_innobase(node->row, prebuilt, mysql_rec);
+	row_mysql_to_innobase(node->row, prebuilt, mysql_rec);
 
-	/* Step-3: If an explicit clustered index is not specified then InnoDB
-	appends row-id to make the record unique. */
+	/* Step-3: Append row-id index is not unique. */
 	dict_index_t*	clust_index = dict_table_get_first_index(node->table);
 
-	if (dict_index_is_auto_gen_clust(clust_index)) {
+	if (!dict_index_is_unique(clust_index)) {
 		dict_sys_write_row_id(
 			node->row_id_buf,
 			dict_table_get_next_table_sess_row_id(node->table));
@@ -1420,8 +1522,11 @@ row_insert_for_mysql_using_cursor(
 	     node->entry = UT_LIST_GET_NEXT(tuple_list, node->entry)) {
 
 		node->index = index;
-		row_ins_index_entry_set_vals(
+		err = row_ins_index_entry_set_vals(
 			node->index, node->entry, node->row);
+		if (err != DB_SUCCESS) {
+			break;
+		}
 
 		if (dict_index_is_clust(index)) {
 			err = row_ins_clust_index_entry(
@@ -2046,9 +2151,8 @@ row_update_for_mysql_using_cursor(
 	dtuple_t*	entry;
 	dfield_t*	trx_id_field;
 
-	/* Step-1: Update row-id column if table has auto-generated index.
-	Every update will result in update of auto-generated index. */
-	if (dict_index_is_auto_gen_clust(dict_table_get_first_index(table))) {
+	/* Step-1: Update row-id column if table doesn't have unique index. */
+	if (!dict_index_is_unique(dict_table_get_first_index(table))) {
 		/* Update the row_id column. */
 		dfield_t*	row_id_field;
 
@@ -4205,7 +4309,10 @@ row_drop_table_for_mysql(
 	that is going to be dropped. */
 
 	if (table->n_ref_count == 0) {
-		lock_remove_all_on_table(table, TRUE);
+		/* We don't take lock on intrinsic table so nothing to remove.*/
+		if (!dict_table_is_intrinsic(table)) {
+			lock_remove_all_on_table(table, TRUE);
+		}
 		ut_a(table->n_rec_locks == 0);
 	} else if (table->n_ref_count > 0 || table->n_rec_locks > 0) {
 		ibool	added;
@@ -4243,7 +4350,7 @@ row_drop_table_for_mysql(
 	/* If we get this far then the table to be dropped must not have
 	any table or record locks on it. */
 
-	ut_a(!lock_table_has_locks(table));
+	ut_a(dict_table_is_intrinsic(table) || !lock_table_has_locks(table));
 
 	switch (trx_get_dict_operation(trx)) {
 	case TRX_DICT_OP_NONE:
@@ -4929,6 +5036,7 @@ row_rename_table_for_mysql(
 	ibool		old_is_tmp, new_is_tmp;
 	pars_info_t*	info			= NULL;
 	int		retry;
+	bool		aux_fts_rename		= false;
 
 	ut_a(old_name != NULL);
 	ut_a(new_name != NULL);
@@ -5197,6 +5305,9 @@ row_rename_table_for_mysql(
 	if (dict_table_has_fts_index(table)
 	    && !dict_tables_have_same_db(old_name, new_name)) {
 		err = fts_rename_aux_tables(table, new_name, trx);
+		if (err != DB_TABLE_NOT_FOUND) {
+			aux_fts_rename = true;
+		}
 	}
 
 end:
@@ -5285,10 +5396,8 @@ end:
 	}
 
 funct_exit:
-
-	if (table != NULL && err != DB_SUCCESS
-	    && dict_table_has_fts_index(table)
-	    && !is_system_tablespace(table->space)) {
+	if (aux_fts_rename && err != DB_SUCCESS
+	    && table != NULL && (table->space != 0)) {
 
 		char*	orig_name = table->name.m_name;
 		trx_t*	trx_bg = trx_allocate_for_background();
@@ -5296,11 +5405,9 @@ funct_exit:
 		/* If the first fts_rename fails, the trx would
 		be rolled back and committed, we can't use it any more,
 		so we have to start a new background trx here. */
-
 		ut_a(trx_state_eq(trx, TRX_STATE_NOT_STARTED));
-
-		trx_bg->op_info = "Revert the failing rename"
-				  " for fts aux tables";
+		trx_bg->op_info = "Revert the failing rename "
+				  "for fts aux tables";
 		trx_bg->dict_operation_lock_mode = RW_X_LATCH;
 		trx_start_for_ddl(trx_bg, TRX_DICT_OP_TABLE);
 
@@ -5420,7 +5527,7 @@ loop:
 	{
 		const char* doing = check_keys? "CHECK TABLE" : "COUNT(*)";
 		ib::warn() << doing << " on index " << index->name << " of"
-			" table " << index->table_name << " returned " << ret;
+			" table " << index->table->name << " returned " << ret;
 		/* fall through (this error is ignored by CHECK TABLE) */
 	}
 	case DB_END_OF_INDEX:

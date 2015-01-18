@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -284,7 +284,7 @@ struct TrxFactory {
 			ut_free(trx->lock.rec_pool[0]);
 		}
 
-		if (!trx->lock.rec_pool.empty()) {
+		if (!trx->lock.table_pool.empty()) {
 
 			/* See lock_trx_alloc_locks() why we only free
 			the first element. */
@@ -439,6 +439,14 @@ trx_create_low()
 	trx->api_auto_commit = false;
 
 	trx->read_write = true;
+
+	/* Background trx should not be forced to rollback,
+	we will unset the flag for user trx. */
+	trx->in_innodb |= TRX_FORCE_ROLLBACK_DISABLE;
+
+	/* Trx state can be TRX_STATE_FORCED_ROLLBACK if
+	the trx was forced to rollback before it's reused.*/
+	trx->state = TRX_STATE_NOT_STARTED;
 
 	heap = mem_heap_create(sizeof(ib_vector_t) + sizeof(void*) * 8);
 
@@ -723,6 +731,9 @@ trx_resurrect_table_locks(
 				continue;
 			}
 
+			if (trx->state == TRX_STATE_PREPARED) {
+				trx->mod_tables.insert(table);
+			}
 			lock_table_ix_resurrect(table, trx);
 
 			DBUG_PRINT("ib_trx",
@@ -1274,7 +1285,6 @@ trx_start_low(
 	ut_ad(UT_LIST_GET_LEN(trx->lock.trx_locks) == 0);
 	ut_ad(!(trx->in_innodb & TRX_FORCE_ROLLBACK));
 	ut_ad(!(trx->in_innodb & TRX_FORCE_ROLLBACK_ASYNC));
-	ut_ad(!(trx->in_innodb & TRX_FORCE_ROLLBACK_DISABLE));
 
 	++trx->version;
 
@@ -1865,7 +1875,8 @@ trx_commit_in_memory(
 
 		/* AC-NL-RO transactions can't be rolled back asynchronously. */
 		ut_ad(!trx->abort);
-		ut_ad(!(trx->in_innodb & ~TRX_FORCE_ROLLBACK_MASK));
+		ut_ad(!(trx->in_innodb
+			& (TRX_FORCE_ROLLBACK | TRX_FORCE_ROLLBACK_ASYNC)));
 
 		trx->state = TRX_STATE_NOT_STARTED;
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,35 +19,38 @@
   Handler-calling-functions
 */
 
-#include "binlog.h"
-#include "rpl_handler.h"
-#include "sql_cache.h"                   // query_cache, query_cache_*
-#include "key.h"     // key_copy, key_unpack, key_cmp_if_same, key_cmp
-#include "sql_table.h"                   // build_table_filename
-#include "sql_parse.h"                          // check_stack_overrun
-#include "auth_common.h"        // SUPER_ACL
-#include "sql_base.h"           // free_io_cache
-#include "discover.h"           // writefrm
-#include "log_event.h"          // *_rows_log_event
-#include "rpl_filter.h"
-#include <myisampack.h>
-#include "transaction.h"
-#include <errno.h>
-#include "probes_mysql.h"
+#include "handler.h"
+
+#include "my_bit.h"                   // my_count_bits
+#include "myisam.h"                   // TT_FOR_UPGRADE
+#include "binlog.h"                   // mysql_bin_log
+#include "debug_sync.h"               // DEBUG_SYNC
+#include "discover.h"                 // writefrm
+#include "log.h"                      // sql_print_error
+#include "probes_mysql.h"             // MYSQL_HANDLER_WRLOCK_START
+#include "opt_costconstantcache.h"    // reload_optimizer_cost_constants
+#include "rpl_handler.h"              // RUN_HOOK
+#include "sql_base.h"                 // free_io_cache
+#include "sql_parse.h"                // check_stack_overrun
+#include "sql_plugin.h"               // plugin_foreach
+#include "sql_table.h"                // build_table_filename
+#include "transaction.h"              // trans_commit_implicit
+#include "trigger_def.h"              // TRG_EXT
+
+#include "pfs_file_provider.h"
+#include "mysql/psi/mysql_file.h"
+
 #include <pfs_table_provider.h>
 #include <mysql/psi/mysql_table.h>
+
 #include <pfs_transaction_provider.h>
 #include <mysql/psi/mysql_transaction.h>
-#include "debug_sync.h"         // DEBUG_SYNC
-#include "sql_trigger.h"        // TRG_EXT, TRN_EXT
-#include "opt_costmodel.h"
-#include "opt_costconstantcache.h"           // reload_optimizer_cost_constants
-#include <my_bit.h>
-#include <list>
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
 #include "ha_partition.h"
 #endif
+
+#include <list>
 
 /**
   @def MYSQL_TABLE_IO_WAIT
@@ -171,6 +174,11 @@ inline double log2(double x)
   Remove when legacy_db_type is finally gone
 */
 st_plugin_int *hton2plugin[MAX_HA];
+
+const char *ha_resolve_storage_engine_name(const handlerton *db_type)
+{
+  return db_type == NULL ? "UNKNOWN" : hton2plugin[db_type->slot]->name.str;
+}
 
 static handlerton *installed_htons[128];
 
@@ -378,7 +386,7 @@ handlerton *ha_default_handlerton(THD *thd)
 {
   plugin_ref plugin= ha_default_plugin(thd);
   DBUG_ASSERT(plugin);
-  handlerton *hton= plugin_data(plugin, handlerton*);
+  handlerton *hton= plugin_data<handlerton*>(plugin);
   DBUG_ASSERT(hton);
   return hton;
 }
@@ -407,7 +415,7 @@ handlerton *ha_default_temp_handlerton(THD *thd)
 {
   plugin_ref plugin= ha_default_temp_plugin(thd);
   DBUG_ASSERT(plugin);
-  handlerton *hton= plugin_data(plugin, handlerton*);
+  handlerton *hton= plugin_data<handlerton*>(plugin);
   DBUG_ASSERT(hton);
   return hton;
 }
@@ -442,7 +450,7 @@ redo:
   if ((plugin= my_plugin_lock_by_name(thd, cstring_name,
                                       MYSQL_STORAGE_ENGINE_PLUGIN)))
   {
-    handlerton *hton= plugin_data(plugin, handlerton *);
+    handlerton *hton= plugin_data<handlerton*>(plugin);
     if (!(hton->flags & HTON_NOT_USER_SELECTABLE))
       return plugin;
       
@@ -495,7 +503,7 @@ handlerton *ha_resolve_by_legacy_type(THD *thd, enum legacy_db_type db_type)
   default:
     if (db_type > DB_TYPE_UNKNOWN && db_type < DB_TYPE_DEFAULT &&
         (plugin= ha_lock_engine(thd, installed_htons[db_type])))
-      return plugin_data(plugin, handlerton*);
+      return plugin_data<handlerton*>(plugin);
     /* fall through */
   case DB_TYPE_UNKNOWN:
     return NULL;
@@ -936,7 +944,7 @@ int ha_end()
 static my_bool dropdb_handlerton(THD *unused1, plugin_ref plugin,
                                  void *path)
 {
-  handlerton *hton= plugin_data(plugin, handlerton *);
+  handlerton *hton= plugin_data<handlerton*>(plugin);
   if (hton->state == SHOW_OPTION_YES && hton->drop_database)
     hton->drop_database(hton, (char *)path);
   return FALSE;
@@ -952,7 +960,7 @@ void ha_drop_database(char* path)
 static my_bool closecon_handlerton(THD *thd, plugin_ref plugin,
                                    void *unused)
 {
-  handlerton *hton= plugin_data(plugin, handlerton *);
+  handlerton *hton= plugin_data<handlerton*>(plugin);
   /*
     there's no need to rollback here as all transactions must
     be rolled back already
@@ -980,7 +988,7 @@ void ha_close_connection(THD* thd)
 
 static my_bool kill_handlerton(THD *thd, plugin_ref plugin, void *)
 {
-  handlerton *hton= plugin_data(plugin, handlerton *);
+  handlerton *hton= plugin_data<handlerton*>(plugin);
 
   if (hton->state == SHOW_OPTION_YES && hton->kill_connection)
   {
@@ -2135,7 +2143,7 @@ int ha_release_savepoint(THD *thd, SAVEPOINT *sv)
 static my_bool snapshot_handlerton(THD *thd, plugin_ref plugin,
                                    void *arg)
 {
-  handlerton *hton= plugin_data(plugin, handlerton *);
+  handlerton *hton= plugin_data<handlerton*>(plugin);
   if (hton->state == SHOW_OPTION_YES &&
       hton->start_consistent_snapshot)
   {
@@ -2166,7 +2174,7 @@ int ha_start_consistent_snapshot(THD *thd)
 static my_bool flush_handlerton(THD *thd, plugin_ref plugin,
                                 void *arg)
 {
-  handlerton *hton= plugin_data(plugin, handlerton *);
+  handlerton *hton= plugin_data<handlerton*>(plugin);
   if (hton->state == SHOW_OPTION_YES && hton->flush_logs &&
       hton->flush_logs(hton, *(static_cast<bool *>(arg))))
     return TRUE;
@@ -2242,39 +2250,21 @@ const char *get_canonical_filename(handler *file, const char *path,
 }
 
 
-/**
-  An interceptor to hijack the text of the error message without
-  setting an error in the thread. We need the text to present it
-  in the form of a warning to the user.
-*/
-
-struct Ha_delete_table_error_handler: public Internal_error_handler
+class Ha_delete_table_error_handler: public Internal_error_handler
 {
 public:
   virtual bool handle_condition(THD *thd,
                                 uint sql_errno,
                                 const char* sqlstate,
                                 Sql_condition::enum_severity_level *level,
-                                const char* msg,
-                                Sql_condition ** cond_hdl);
-  char buff[MYSQL_ERRMSG_SIZE];
+                                const char* msg)
+  {
+    /* Downgrade errors to warnings. */
+    if (*level == Sql_condition::SL_ERROR)
+      *level= Sql_condition::SL_WARNING;
+    return false;
+  }
 };
-
-
-bool
-Ha_delete_table_error_handler::
-handle_condition(THD *,
-                 uint,
-                 const char*,
-                 Sql_condition::enum_severity_level*,
-                 const char* msg,
-                 Sql_condition ** cond_hdl)
-{
-  *cond_hdl= NULL;
-  /* Grab the error message */
-  strmake(buff, msg, sizeof(buff)-1);
-  return TRUE;
-}
 
 
 /** @brief
@@ -2322,17 +2312,14 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
 
     file->change_table_ptr(&dummy_table, &dummy_share);
 
-    thd->push_internal_handler(&ha_delete_table_error_handler);
-    file->print_error(error, 0);
-
-    thd->pop_internal_handler();
-
     /*
       XXX: should we convert *all* errors to warnings here?
       What if the error is fatal?
     */
-    push_warning(thd, Sql_condition::SL_WARNING, error,
-                ha_delete_table_error_handler.buff);
+    thd->push_internal_handler(&ha_delete_table_error_handler);
+    file->print_error(error, 0);
+
+    thd->pop_internal_handler();
   }
   delete file;
 
@@ -5018,7 +5005,7 @@ static my_bool check_engine_system_table_handlerton(THD *unused,
                                                     void *arg)
 {
   st_sys_tbl_chk_params *check_params= (st_sys_tbl_chk_params*) arg;
-  handlerton *hton= plugin_data(plugin, handlerton *);
+  handlerton *hton= plugin_data<handlerton*>(plugin);
 
   // Do we already know that the table is a system table?
   if (check_params->status == st_sys_tbl_chk_params::KNOWN_SYSTEM_TABLE)
@@ -5114,7 +5101,7 @@ static my_bool system_databases_handlerton(THD *unused, plugin_ref plugin,
   list<const char*> *found_databases= (list<const char*> *) arg;
   const char *db;
 
-  handlerton *hton= plugin_data(plugin, handlerton *);
+  handlerton *hton= plugin_data<handlerton*>(plugin);
   if (hton->system_database)
   {
     db= hton->system_database();
@@ -5221,7 +5208,7 @@ static my_bool discover_handlerton(THD *thd, plugin_ref plugin,
                                    void *arg)
 {
   st_discover_args *vargs= (st_discover_args *)arg;
-  handlerton *hton= plugin_data(plugin, handlerton *);
+  handlerton *hton= plugin_data<handlerton*>(plugin);
   if (hton->state == SHOW_OPTION_YES && hton->discover &&
       (!(hton->discover(hton, thd, vargs->db, vargs->name, 
                         vargs->frmblob, 
@@ -5270,7 +5257,7 @@ static my_bool find_files_handlerton(THD *thd, plugin_ref plugin,
                                    void *arg)
 {
   st_find_files_args *vargs= (st_find_files_args *)arg;
-  handlerton *hton= plugin_data(plugin, handlerton *);
+  handlerton *hton= plugin_data<handlerton*>(plugin);
 
 
   if (hton->state == SHOW_OPTION_YES && hton->find_files)
@@ -5317,7 +5304,7 @@ static my_bool table_exists_in_engine_handlerton(THD *thd, plugin_ref plugin,
                                    void *arg)
 {
   st_table_exists_in_engine_args *vargs= (st_table_exists_in_engine_args *)arg;
-  handlerton *hton= plugin_data(plugin, handlerton *);
+  handlerton *hton= plugin_data<handlerton*>(plugin);
 
   int err= HA_ERR_NO_SUCH_TABLE;
 
@@ -5356,7 +5343,7 @@ static my_bool make_pushed_join_handlerton(THD *thd, plugin_ref plugin,
                                    void *arg)
 {
   st_make_pushed_join_args *vargs= (st_make_pushed_join_args *)arg;
-  handlerton *hton= plugin_data(plugin, handlerton *);
+  handlerton *hton= plugin_data<handlerton*>(plugin);
 
   if (hton && hton->make_pushed_join)
   {
@@ -5405,7 +5392,7 @@ struct binlog_func_st
 static my_bool binlog_func_list(THD *thd, plugin_ref plugin, void *arg)
 {
   hton_list_st *hton_list= (hton_list_st *)arg;
-  handlerton *hton= plugin_data(plugin, handlerton *);
+  handlerton *hton= plugin_data<handlerton*>(plugin);
   if (hton->state == SHOW_OPTION_YES && hton->binlog_func)
   {
     uint sz= hton_list->sz;
@@ -5489,7 +5476,8 @@ static my_bool binlog_log_query_handlerton(THD *thd,
                                            plugin_ref plugin,
                                            void *args)
 {
-  return binlog_log_query_handlerton2(thd, plugin_data(plugin, handlerton *), args);
+  return binlog_log_query_handlerton2(thd,
+                                      plugin_data<handlerton*>(plugin), args);
 }
 
 void ha_binlog_log_query(THD *thd, handlerton *hton,
@@ -6959,7 +6947,7 @@ static my_bool exts_handlerton(THD *unused, plugin_ref plugin,
                                void *arg)
 {
   List<char> *found_exts= (List<char> *) arg;
-  handlerton *hton= plugin_data(plugin, handlerton *);
+  handlerton *hton= plugin_data<handlerton*>(plugin);
   handler *file;
   if (hton->state == SHOW_OPTION_YES && hton->create &&
       (file= hton->create(hton, (TABLE_SHARE*) 0, current_thd->mem_root)))
@@ -7033,7 +7021,7 @@ static my_bool showstat_handlerton(THD *thd, plugin_ref plugin,
                                    void *arg)
 {
   enum ha_stat_type stat= *(enum ha_stat_type *) arg;
-  handlerton *hton= plugin_data(plugin, handlerton *);
+  handlerton *hton= plugin_data<handlerton*>(plugin);
   if (hton->state == SHOW_OPTION_YES && hton->show_status &&
       hton->show_status(hton, thd, stat_print, stat))
     return TRUE;
@@ -7356,6 +7344,10 @@ int handler::ha_write_row(uchar *buf)
   MYSQL_INSERT_ROW_START(table_share->db.str, table_share->table_name.str);
   mark_trx_read_write();
 
+  DBUG_EXECUTE_IF("handler_crashed_table_on_usage",
+                  my_error(HA_ERR_CRASHED, MYF(ME_ERRORLOG), table_share->table_name.str);
+                  DBUG_RETURN(my_errno= HA_ERR_CRASHED););
+
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_WRITE_ROW, MAX_KEY, error,
     { error= write_row(buf); })
 
@@ -7388,6 +7380,10 @@ int handler::ha_update_row(const uchar *old_data, uchar *new_data)
   MYSQL_UPDATE_ROW_START(table_share->db.str, table_share->table_name.str);
   mark_trx_read_write();
 
+  DBUG_EXECUTE_IF("handler_crashed_table_on_usage",
+                  my_error(HA_ERR_CRASHED, MYF(ME_ERRORLOG), table_share->table_name.str);
+                  return(my_errno= HA_ERR_CRASHED););
+
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_UPDATE_ROW, active_index, error,
     { error= update_row(old_data, new_data);})
 
@@ -7412,6 +7408,10 @@ int handler::ha_delete_row(const uchar *buf)
               buf == table->record[1]);
   DBUG_EXECUTE_IF("inject_error_ha_delete_row",
                   return HA_ERR_INTERNAL_ERROR; );
+
+  DBUG_EXECUTE_IF("handler_crashed_table_on_usage",
+                  my_error(HA_ERR_CRASHED, MYF(ME_ERRORLOG), table_share->table_name.str);
+                  return(my_errno= HA_ERR_CRASHED););
 
   MYSQL_DELETE_ROW_START(table_share->db.str, table_share->table_name.str);
   mark_trx_read_write();

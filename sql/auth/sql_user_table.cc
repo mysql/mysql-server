@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; version 2 of the License.
@@ -22,6 +22,7 @@
                                         /* key_restore */
 #include "log.h"                        /* sql_print_warning */
 #include "rpl_filter.h"                 /* rpl_filter */
+#include "sql_plugin.h"                 // plugin_is_ready
 
 #include "auth_internal.h"
 #include "sql_auth_cache.h"
@@ -30,6 +31,7 @@
 
 #include "tztime.h"
 #include "sql_time.h"
+#include "crypt_genhash_impl.h"         /* CRYPT_MAX_PASSWORD_SIZE */
 
 static const
 TABLE_FIELD_TYPE mysql_db_table_fields[MYSQL_DB_FIELD_COUNT] = {
@@ -1071,6 +1073,9 @@ int replace_proxies_priv_table(THD *thd, TABLE *table, const LEX_USER *user,
   }
 
   table->use_all_columns();
+
+  Write_lock proxy_users_wlk(&proxy_users_rwlock);
+
   ACL_PROXY_USER::store_pk (table, user->host, user->user,
                             proxied_user->host, proxied_user->user);
 

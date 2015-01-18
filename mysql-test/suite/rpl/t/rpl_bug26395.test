@@ -66,6 +66,12 @@ SELECT * FROM tinnodb ORDER BY a;
 
 # Sync slave's IO thread.
 --echo [on slave]
+# After the implementation of the transaction boundary parser,
+# this sync cannot use GTIDs or else sync will timeout because only
+# GTIDs of fully replicated transactions are in the
+# Retrieved_Gtid_Set of the slave and, as the last event of the
+# transaction never arrives, syncing with GTIDs won't work.
+--let ignore_gtids_on_sync= 1
 source include/sync_slave_io_with_master.inc;
 
 # Sync slave's SQL thread.

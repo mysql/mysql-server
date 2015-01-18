@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,8 +14,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "sql_base.h"                           // close_thread_tables
 #include "event_db_repository.h"
+
+#include "sql_base.h"                           // close_thread_tables
 #include "key.h"                                // key_copy
 #include "sql_db.h"                        // get_default_db_collation
 #include "sql_time.h"                      // interval_type_to_name
@@ -24,10 +25,12 @@
 #include "records.h"          // init_read_record, end_read_record
 #include "sp_head.h"
 #include "event_data_objects.h"
+#include "event_parse_data.h"
 #include "events.h"
 #include "sql_show.h"
 #include "lock.h"                               // MYSQL_LOCK_IGNORE_TIMEOUT
 #include "log.h"
+#include "item_timefunc.h"          // Item_func_now_local
 
 /**
   @addtogroup Event_Scheduler

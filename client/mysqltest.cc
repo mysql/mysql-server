@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -37,7 +37,7 @@
 #include <stdarg.h>
 #include <violite.h>
 #include "my_regex.h" /* Our own version of regex */
-#ifdef HAVE_SYS_WAIT_H
+#ifndef _WIN32
 #include <sys/wait.h>
 #endif
 #ifdef _WIN32
@@ -48,6 +48,7 @@
 
 #include <welcome_copyright_notice.h> // ORACLE_WELCOME_COPYRIGHT_NOTICE
 
+#include <string>
 #include <algorithm>
 #include <functional>
 #include "prealloced_array.h"
@@ -92,6 +93,9 @@ using std::max;
     break;                                                                     \
   case SESSION_TRACK_STATE_CHANGE:                                             \
     dynstr_append(ds, "Tracker : SESSION_TRACK_STATE_CHANGE\n");               \
+    break;                                                                     \
+  case SESSION_TRACK_GTIDS:                                                    \
+    dynstr_append(ds, "Tracker : SESSION_TRACK_GTIDS\n");                      \
     break;                                                                     \
   default:                                                                     \
     dynstr_append(ds, "\n");                                                   \
@@ -326,7 +330,7 @@ struct st_connection
   my_bool pending;
 
 #ifdef EMBEDDED_LIBRARY
-  pthread_t tid;
+  my_thread_handle tid;
   const char *cur_query;
   size_t cur_query_len;
   int command, result;
@@ -849,7 +853,7 @@ void revert_properties();
 #define EMB_END_CONNECTION 3
 
 /* attributes of the query thread */
-pthread_attr_t cn_thd_attrib;
+my_thread_attr_t cn_thd_attrib;
 
 
 /*
@@ -859,7 +863,7 @@ pthread_attr_t cn_thd_attrib;
   mysql_send_query and mysql_read_query_result() here.
 */
 
-pthread_handler_t connection_thread(void *arg)
+extern "C" void *connection_thread(void *arg)
 {
   struct st_connection *cn= (struct st_connection*)arg;
 
@@ -897,7 +901,7 @@ pthread_handler_t connection_thread(void *arg)
 end_thread:
   cn->query_done= 1;
   mysql_thread_end();
-  pthread_exit(0);
+  my_thread_exit(0);
   return 0;
 }
 
@@ -959,7 +963,7 @@ static void emb_close_connection(struct st_connection *cn)
     return;
   wait_query_thread_done(cn);
   signal_connection_thd(cn, EMB_END_CONNECTION);
-  pthread_join(cn->tid, NULL);
+  my_thread_join(&cn->tid, NULL);
   cn->has_thread= FALSE;
   native_mutex_destroy(&cn->query_mutex);
   native_cond_destroy(&cn->query_cond);
@@ -976,7 +980,7 @@ static void init_connection_thd(struct st_connection *cn)
       native_cond_init(&cn->query_cond) ||
       native_mutex_init(&cn->result_mutex, NULL) ||
       native_cond_init(&cn->result_cond) ||
-      pthread_create(&cn->tid, &cn_thd_attrib, connection_thread, (void*)cn))
+      my_thread_create(&cn->tid, &cn_thd_attrib, connection_thread, (void*)cn))
     die("Error in the thread library");
   cn->has_thread=TRUE;
 }
@@ -3240,7 +3244,17 @@ void do_exec(struct st_command *command)
   error= pclose(res_file);
   if (error > 0)
   {
+#ifdef _WIN32
     uint status= WEXITSTATUS(error);
+#else
+    uint status= 0;
+    // Do the same as many shells here: show SIGKILL as 137
+    if (WIFEXITED(error))
+      status= WEXITSTATUS(error);
+    else if (WIFSIGNALED(error))
+      status= 0x80 + WTERMSIG(error);
+#endif
+
     int i;
 
     if (command->abort_on_error)
@@ -4846,7 +4860,7 @@ void do_set_charset(struct st_command *command)
 */
 
 int query_get_string(MYSQL* mysql, const char* query,
-                     int column, DYNAMIC_STRING* ds)
+                     int column, std::string* ds)
 {
   MYSQL_RES *res= NULL;
   MYSQL_ROW row;
@@ -4864,7 +4878,7 @@ int query_get_string(MYSQL* mysql, const char* query,
     ds= 0;
     return 1;
   }
-  init_dynamic_string(ds, (row[column] ? row[column] : "NULL"), ~0, 32);
+  ds->assign(row[column] ? row[column] : "NULL");
   mysql_free_result(res);
   return 0;
 }
@@ -5012,7 +5026,7 @@ void do_shutdown_server(struct st_command *command)
 {
   long timeout=60;
   int pid, error= 0;
-  DYNAMIC_STRING ds_file_name;
+  std::string ds_file_name;
   MYSQL* mysql = &cur_con->mysql;
   static DYNAMIC_STRING ds_timeout;
   const struct command_arg shutdown_args[] = {
@@ -5043,9 +5057,8 @@ void do_shutdown_server(struct st_command *command)
     int fd;
     char buff[32];
 
-    if ((fd= my_open(ds_file_name.str, O_RDONLY, MYF(0))) < 0)
-      die("Failed to open file '%s'", ds_file_name.str);
-    dynstr_free(&ds_file_name);
+    if ((fd= my_open(ds_file_name.c_str(), O_RDONLY, MYF(0))) < 0)
+      die("Failed to open file '%s'", ds_file_name.c_str());
 
     if (my_read(fd, (uchar*)&buff,
                 sizeof(buff), MYF(0)) <= 0){
@@ -5064,9 +5077,8 @@ void do_shutdown_server(struct st_command *command)
   {
     /* Check if we should generate a minidump on timeout. */
     if (query_get_string(mysql, "SHOW VARIABLES LIKE 'core_file'", 1,
-                         &ds_file_name) || strcmp("ON", ds_file_name.str))
+                         &ds_file_name) || strcmp("ON", ds_file_name.c_str()))
     {
-      dynstr_free(&ds_file_name);
     }
     else
     {
@@ -5101,8 +5113,7 @@ void do_shutdown_server(struct st_command *command)
     /*
       Abort to make it easier to find the hang/problem.
     */
-    abort_process(pid, ds_file_name.str);
-    dynstr_free(&ds_file_name);
+    abort_process(pid, ds_file_name.c_str());
   }
   else /* timeout == 0 */
   {
@@ -8955,8 +8966,8 @@ int main(int argc, char **argv)
 
 #ifdef EMBEDDED_LIBRARY
   /* set appropriate stack for the 'query' threads */
-  (void) pthread_attr_init(&cn_thd_attrib);
-  pthread_attr_setstacksize(&cn_thd_attrib, DEFAULT_THREAD_STACK);
+  (void) my_thread_attr_init(&cn_thd_attrib);
+  my_thread_attr_setstacksize(&cn_thd_attrib, DEFAULT_THREAD_STACK);
 #endif /*EMBEDDED_LIBRARY*/
 
   /* Init file stack */

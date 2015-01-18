@@ -2514,7 +2514,7 @@ set optimizer_prune_level=0;
 explain select * from t2 where a in (select b from t1 where a=3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	a	a	5	const	8	100.00	Using index; LooseScan
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	100	1.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	100	10.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`filler` AS `filler` from `test`.`t2` semi join (`test`.`t1`) where ((`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t1`.`a` = 3))
 # Equality-propagation involving inner field => 1st sj equality is bound
@@ -2527,7 +2527,7 @@ Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`t
 # Equality-propagation involving outer field => 3rd sj equality is bound.
 explain select * from t2 where (b,a,filler) in (select a,b,a*3 from t1) and filler='abc';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	100	1.00	Using where
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	100	10.00	Using where
 1	SIMPLE	t1	NULL	ref	a	a	10	test.t2.b,test.t2.a	1	100.00	Using index; Start temporary; End temporary
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`filler` AS `filler` from `test`.`t2` semi join (`test`.`t1`) where ((`test`.`t1`.`b` = `test`.`t2`.`a`) and (`test`.`t1`.`a` = `test`.`t2`.`b`) and (`test`.`t2`.`filler` = 'abc') and (`test`.`t2`.`filler` = (`test`.`t2`.`b` * 3)))
@@ -2578,8 +2578,8 @@ show_json_object('"recalculate_access_paths_and_cost": {', TRACE)
                                     "access_type": "scan",
                                     "using_join_cache": true,
                                     "buffers_needed": 1,
-                                    "resulting_rows": 1,
-                                    "cost": 44.545,
+                                    "resulting_rows": 10,
+                                    "cost": 222.74,
                                     "chosen": true
                                   }
                                 ] /* considered_access_paths */
@@ -2611,8 +2611,8 @@ where t2.filler=t3.filler and
 (t2.b,t2.a,t2.filler) in (select a,b,a*3 from t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	a	a	10	NULL	100	100.00	Using index; Start temporary
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	100	0.05	Using where; End temporary; Using join buffer (Block Nested Loop)
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	100	1.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	100	0.10	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	100	10.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`filler` AS `filler`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`filler` AS `filler` from `test`.`t2` `t3` semi join (`test`.`t1`) join `test`.`t2` where ((`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t2`.`b` = `test`.`t1`.`a`) and (`test`.`t3`.`filler` = `test`.`t2`.`filler`) and (`test`.`t2`.`filler` = (`test`.`t1`.`a` * 3)))
 SELECT show_json_object('"recalculate_access_paths_and_cost": {', TRACE)
@@ -2678,7 +2678,7 @@ explain select * from t2 as t3 left join t2 on t2.filler+10=t3.filler+20
 where (t2.b,t2.a,t3.filler+2) in (select a,b,a*3 from t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	a	a	10	NULL	100	100.00	Using index; Start temporary
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	100	0.05	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	100	1.00	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	100	100.00	Using where; End temporary; Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`filler` AS `filler`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`filler` AS `filler` from `test`.`t2` `t3` semi join (`test`.`t1`) join `test`.`t2` where ((`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t2`.`b` = `test`.`t1`.`a`) and ((`test`.`t3`.`filler` + 2) = (`test`.`t1`.`a` * 3)) and ((`test`.`t2`.`filler` + 10) = (`test`.`t3`.`filler` + 20)))
@@ -2822,8 +2822,8 @@ show_json_object('"considered_execution_plans": [', TRACE)
                             }
                           ] /* considered_access_paths */
                         } /* best_access_path */,
-                        "condition_filtering_pct": 0.05,
-                        "rows_for_plan": 500,
+                        "condition_filtering_pct": 1,
+                        "rows_for_plan": 10000,
                         "cost_for_plan": 202055,
                         "semijoin_strategy_choice": [
                           {
@@ -2882,13 +2882,13 @@ show_json_object('"considered_execution_plans": [', TRACE)
                               ] /* tables */
                             } /* recalculate_access_paths_and_cost */,
                             "cost": 202054,
-                            "rows": 5,
+                            "rows": 100,
                             "chosen": true
                           },
                           {
                             "strategy": "DuplicatesWeedout",
-                            "cost": 202158,
-                            "rows": 5,
+                            "cost": 204077,
+                            "rows": 100,
                             "duplicate_tables_left": false,
                             "chosen": false
                           }
@@ -3163,8 +3163,8 @@ show_json_object('"considered_execution_plans": [', TRACE)
                             }
                           ] /* considered_access_paths */
                         } /* best_access_path */,
-                        "condition_filtering_pct": 0.05,
-                        "rows_for_plan": 500,
+                        "condition_filtering_pct": 1,
+                        "rows_for_plan": 10000,
                         "cost_for_plan": 202055,
                         "semijoin_strategy_choice": [
                           {
@@ -3207,8 +3207,8 @@ show_json_object('"considered_execution_plans": [', TRACE)
                           },
                           {
                             "strategy": "DuplicatesWeedout",
-                            "cost": 202158,
-                            "rows": 5,
+                            "cost": 204077,
+                            "rows": 100,
                             "duplicate_tables_left": true,
                             "chosen": true
                           }
@@ -3235,8 +3235,8 @@ show_json_object('"considered_execution_plans": [', TRACE)
                         }
                       ] /* considered_access_paths */
                     } /* best_access_path */,
-                    "condition_filtering_pct": 0.05,
-                    "rows_for_plan": 5,
+                    "condition_filtering_pct": 1,
+                    "rows_for_plan": 100,
                     "cost_for_plan": 2029.3,
                     "semijoin_strategy_choice": [
                     ] /* semijoin_strategy_choice */,
@@ -3255,14 +3255,14 @@ show_json_object('"considered_execution_plans": [', TRACE)
                               "using_join_cache": true,
                               "buffers_needed": 1,
                               "resulting_rows": 100,
-                              "cost": 104.67,
+                              "cost": 2004.9,
                               "chosen": true
                             }
                           ] /* considered_access_paths */
                         } /* best_access_path */,
                         "condition_filtering_pct": 100,
-                        "rows_for_plan": 500,
-                        "cost_for_plan": 2134,
+                        "rows_for_plan": 10000,
+                        "cost_for_plan": 4034.2,
                         "semijoin_strategy_choice": [
                           {
                             "strategy": "LooseScan",
@@ -3304,8 +3304,8 @@ show_json_object('"considered_execution_plans": [', TRACE)
                           },
                           {
                             "strategy": "DuplicatesWeedout",
-                            "cost": 2237,
-                            "rows": 5,
+                            "cost": 6056.2,
+                            "rows": 100,
                             "duplicate_tables_left": true,
                             "chosen": true
                           }

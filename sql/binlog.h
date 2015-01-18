@@ -1,5 +1,5 @@
 #ifndef BINLOG_H_INCLUDED
-/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
 #include "log_event.h"
 #include "log.h"
 #include "my_atomic.h"
+#include "rpl_trx_boundary_parser.h"
 
 class Relay_log_info;
 class Master_info;
@@ -543,7 +544,7 @@ public:
     (A)    - checksum algorithm descriptor value
     FD.(A) - the value of (A) in FD
   */
-  uint8 relay_log_checksum_alg;
+  binary_log::enum_binlog_checksum_alg relay_log_checksum_alg;
 
   MYSQL_BIN_LOG(uint *sync_period,
                 enum cache_type io_cache_type_arg);
@@ -623,18 +624,25 @@ public:
     @param lost_groups Will be filled with all GTIDs in the
     Previous_gtids_log_event of the first binary log that has a
     Previous_gtids_log_event.
-    @param last_gtid Will be filled with the last availble GTID information
-    in the binary/relay log files.
     @param verify_checksum If true, checksums will be checked.
     @param need_lock If true, LOCK_log, LOCK_index, and
     global_sid_lock->wrlock are acquired; otherwise they are asserted
     to be taken already.
+    @param trx_parser [out] This will be used to return the actual
+    relaylog transaction parser state because of the possibility
+    of partial transactions.
+    @param [out] gtid_partial_trx If a transaction was left incomplete
+    on the relaylog, it's GTID should be returned to be used in the
+    case of the rest of the transaction be added to the relaylog.
     @param is_server_starting True if the server is starting.
     @return false on success, true on error.
   */
   bool init_gtid_sets(Gtid_set *gtid_set, Gtid_set *lost_groups,
-                      Gtid *last_gtid, bool verify_checksum,
-                      bool need_lock, bool is_server_starting= false);
+                      bool verify_checksum,
+                      bool need_lock,
+                      Transaction_boundary_parser *trx_parser,
+                      Gtid *gtid_partial_trx,
+                      bool is_server_starting= false);
 
   void set_previous_gtid_set_relaylog(Gtid_set *previous_gtid_set_param)
   {

@@ -223,6 +223,7 @@ CREATE FULLTEXT INDEX ft_idx ON articles(title);
 SELECT * FROM articles WHERE MATCH (title)
 AGAINST ('相亲相爱' IN NATURAL LANGUAGE MODE);
 id	title
+1	相亲相爱
 SELECT * FROM articles WHERE MATCH (title)
 AGAINST ('怜香惜爱' IN NATURAL LANGUAGE MODE);
 id	title

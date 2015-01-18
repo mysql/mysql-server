@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,6 +17,7 @@
 INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/include 
   ${CMAKE_SOURCE_DIR}/sql/conn_handler
+  ${CMAKE_SOURCE_DIR}/libbinlogevents/include
   ${CMAKE_SOURCE_DIR}/sql 
   ${CMAKE_SOURCE_DIR}/sql/auth
   ${CMAKE_SOURCE_DIR}/regex 
@@ -90,6 +91,8 @@ SET(SQL_SHARED_SOURCES
   item_create.cc
   item_func.cc
   item_geofunc.cc
+  item_geofunc_relchecks.cc
+  item_geofunc_setops.cc
   item_row.cc 
   item_strfunc.cc
   item_subselect.cc
@@ -256,6 +259,13 @@ ENDIF()
 INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
 ADD_COMPILE_FLAGS(
   item_geofunc.cc
+  item_geofunc_relchecks.cc
+  item_geofunc_setops.cc
+  auth/sql_authorization.cc
+  auth/sql_authentication.cc
+  auth/sql_user_table.cc
+  auth/sql_user.cc
+  auth/sql_auth_cache.cc
   COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
 )
 
@@ -264,6 +274,8 @@ MY_CHECK_CXX_COMPILER_FLAG("-Wno-unused-local-typedefs" HAVE_NO_UNUSED_TYPEDEFS)
 IF(HAVE_NO_UNUSED_TYPEDEFS)
   ADD_COMPILE_FLAGS(
     item_geofunc.cc
+    item_geofunc_relchecks.cc
+    item_geofunc_setops.cc
     COMPILE_FLAGS "-Wno-unused-local-typedefs"
   )
 ENDIF()
@@ -296,7 +308,7 @@ ADD_DEPENDENCIES(sql GenServerSource)
 ADD_DEPENDENCIES(sql GenDigestServerSource)
 DTRACE_INSTRUMENT(sql)
 TARGET_LINK_LIBRARIES(sql ${MYSQLD_STATIC_PLUGIN_LIBS} 
-  mysys mysys_ssl dbug strings vio regex   
+  mysys mysys_ssl dbug strings vio regex binlogevents_static
   ${LIBWRAP} ${LIBCRYPT} ${LIBDL}
   ${SSL_LIBRARIES})
 
@@ -309,7 +321,7 @@ IF(WIN32)
   TARGET_LINK_LIBRARIES(sql auth_win_client)
 ENDIF()
 
-SET (BINLOG_SOURCE uuid.cc rpl_gtid_misc.cc
+SET (BINLOG_SOURCE rpl_gtid_misc.cc
                    rpl_gtid_sid_map.cc rpl_gtid_set.cc rpl_gtid_specification.cc
                    rpl_gtid_state.cc rpl_gtid_owned.cc rpl_gtid_cache.cc
                    rpl_gtid_execution.cc
@@ -318,7 +330,9 @@ SET (BINLOG_SOURCE uuid.cc rpl_gtid_misc.cc
                    rpl_filter.cc rpl_record.cc rpl_record_old.cc
                    rpl_utility.cc rpl_injector.cc rpl_table_access.cc)
 ADD_LIBRARY(binlog ${BINLOG_SOURCE})
-SET (RPL_SOURCE rpl_handler.cc rpl_tblmap.cc)
+TARGET_LINK_LIBRARIES(binlog binlogevents_static)
+
+SET (RPL_SOURCE rpl_handler.cc rpl_tblmap.cc rpl_context.cc)
 ADD_DEPENDENCIES(binlog GenError)
 ADD_LIBRARY(rpl ${RPL_SOURCE})
 SET (MASTER_SOURCE rpl_master.cc rpl_binlog_sender.cc)
@@ -330,7 +344,8 @@ SET (SLAVE_SOURCE rpl_slave.cc rpl_reporting.cc rpl_mi.cc rpl_rli.cc
                   rpl_info_table.cc rpl_info_values.cc rpl_info.cc
                   rpl_info_factory.cc rpl_info_table_access.cc dynamic_ids.cc
                   rpl_rli_pdb.cc rpl_info_dummy.cc rpl_mts_submode.cc
-                  rpl_slave_commit_order_manager.cc rpl_msr.cc)
+                  rpl_slave_commit_order_manager.cc rpl_msr.cc
+                  rpl_trx_boundary_parser.cc)
 ADD_LIBRARY(slave ${SLAVE_SOURCE})
 ADD_DEPENDENCIES(slave GenError)
 
@@ -339,7 +354,6 @@ ADD_DEPENDENCIES(slave GenError)
 SET(SQL_GUNIT_LIB_SOURCE 
   filesort_utils.cc 
   mdl.cc 
-  opt_costmodel.cc
   sql_list.cc 
   ../sql-common/sql_string.cc
   thr_malloc.cc
@@ -392,7 +406,7 @@ IF(NOT WITHOUT_DYNAMIC_PLUGINS)
     # incremental appears to crash from time to time,if used with /DEF option
     SET_TARGET_PROPERTIES(mysqld PROPERTIES LINK_FLAGS "${mysqld_link_flags} /DEF:mysqld.def /INCREMENTAL:NO")
 
-    FOREACH (CORELIB sql mysys mysys_ssl dbug strings)
+    FOREACH (CORELIB sql mysys mysys_ssl dbug strings binlogevents_static)
       GET_TARGET_PROPERTY(LOC ${CORELIB} LOCATION)
       FILE(TO_NATIVE_PATH ${LOC} LOC)
       SET (LIB_LOCATIONS ${LIB_LOCATIONS} ${LOC}) 
@@ -410,7 +424,7 @@ IF(NOT WITHOUT_DYNAMIC_PLUGINS)
 ENDIF()
 
 SET_TARGET_PROPERTIES(mysqld PROPERTIES ENABLE_EXPORTS TRUE) 
-TARGET_LINK_LIBRARIES(mysqld sql binlog rpl master slave sql mysys mysys_ssl)
+TARGET_LINK_LIBRARIES(mysqld sql binlog rpl master slave sql mysys mysys_ssl binlogevents_static)
 
 # Provide plugins with minimal set of libraries
 SET(INTERFACE_LIBS ${LIBRT})

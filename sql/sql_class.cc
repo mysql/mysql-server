@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,45 +23,35 @@
 **
 *****************************************************************************/
 
-#include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
-#include "binlog.h"
 #include "sql_class.h"
-#include "sql_cache.h"                          // query_cache_abort
-#include "sql_base.h"                           // close_thread_tables
-#include "sql_time.h"                         // date_time_format_copy
-#include "auth_common.h"                      // acl_getroot
-                                              // NO_ACCESS,
-                                              // acl_getroot_no_password
-#include "sql_base.h"                         // close_temporary_tables
-#include "sql_handler.h"                      // mysql_ha_cleanup
-#include "rpl_rli.h"
-#include "rpl_rli_pdb.h"
-#include "rpl_filter.h"
-#include "rpl_record.h"
-#include "rpl_slave.h"
-#include <my_bitmap.h>
-#include "log_event.h"
-#include "sql_audit.h"
-#include <m_ctype.h>
-#include <sys/stat.h>
-#include <mysys_err.h>
-#include <limits.h>
 
-#include "sp_rcontext.h"
-#include "sp_cache.h"
-#include "transaction.h"
-#include "debug_sync.h"
-#include "sql_parse.h"                          // is_update_query
-#include "sql_callback.h"
-#include "lock.h"
-#include "mysqld.h"
-#include "connection_handler_manager.h"   // Connection_handler_manager
-#include "mysqld_thd_manager.h"           // Global_THD_manager
-#include "sql_timer.h"                          // thd_timer_destroy
-#include "parse_tree_nodes.h"
-#include "sql_prepare.h"                  // Prepared_statement
+#include "mysys_err.h"                       // EE_DELETE
+#include "connection_handler_manager.h"      // Connection_handler_manager
+#include "debug_sync.h"                      // DEBUG_SYNC
+#include "lock.h"                            // mysql_lock_abort_for_thread
+#include "mysqld_thd_manager.h"              // Global_THD_manager
+#include "parse_tree_nodes.h"                // PT_select_var
+#include "rpl_rli.h"                         // Relay_log_info
+#include "rpl_rli_pdb.h"                     // Slave_worker
+#include "sp_cache.h"                        // sp_cache_clear
+#include "sp_rcontext.h"                     // sp_rcontext
+#include "sql_audit.h"                       // mysql_audit_release
+#include "sql_base.h"                        // close_temporary_tables
+#include "sql_callback.h"                    // MYSQL_CALLBACK
+#include "sql_handler.h"                     // mysql_ha_cleanup
+#include "sql_parse.h"                       // is_update_query
+#include "sql_plugin.h"                      // plugin_unlock
+#include "sql_prepare.h"                     // Prepared_statement
+#include "sql_time.h"                        // my_timeval_trunc
+#include "sql_timer.h"                       // thd_timer_destroy
+#include "transaction.h"                     // trans_rollback
 
-#include <mysql/psi/mysql_statement.h>
+#include "pfs_file_provider.h"
+#include "mysql/psi/mysql_file.h"
+
+#include "pfs_idle_provider.h"
+#include "mysql/psi/mysql_idle.h"
+
 #include "mysql/psi/mysql_ps.h"
 
 using std::min;
@@ -700,7 +690,7 @@ int thd_store_globals(THD* thd)
 
   @retval      Reference to thread attribute for connection threads
 */
-pthread_attr_t *get_connection_attrib(void)
+my_thread_attr_t *get_connection_attrib(void)
 {
   return &connection_attrib;
 }
@@ -1050,40 +1040,16 @@ char *thd_security_context(THD *thd, char *buffer, size_t length,
       dropped. So, we may have a warning that trigger does not have DEFINER
       attribute during DROP TABLE operation).
 
-  @return TRUE if the condition is handled.
+  @return true if the condition is handled.
 */
 bool Drop_table_error_handler::handle_condition(THD *thd,
                                                 uint sql_errno,
                                                 const char* sqlstate,
                                                 Sql_condition::enum_severity_level *level,
-                                                const char* msg,
-                                                Sql_condition ** cond_hdl)
+                                                const char* msg)
 {
-  *cond_hdl= NULL;
   return ((sql_errno == EE_DELETE && my_errno == ENOENT) ||
           sql_errno == ER_TRG_NO_DEFINER);
-}
-
-
-/**
-  Handle an error from MDL_context::upgrade_lock() and mysql_lock_tables().
-  Ignore ER_LOCK_ABORTED and ER_LOCK_DEADLOCK errors.
-*/
-
-bool
-MDL_deadlock_and_lock_abort_error_handler::
-handle_condition(THD *thd,
-                 uint sql_errno,
-                 const char *sqlstate,
-                 Sql_condition::enum_severity_level *level,
-                 const char* msg,
-                 Sql_condition **cond_hdl)
-{
-  *cond_hdl= NULL;
-  if (sql_errno == ER_LOCK_ABORTED || sql_errno == ER_LOCK_DEADLOCK)
-    m_need_reopen= true;
-
-  return m_need_reopen;
 }
 
 
@@ -1163,6 +1129,7 @@ THD::THD(bool enable_plugins)
 #ifndef EMBEDDED_LIBRARY
    // No need to instrument, highly unlikely to have that many plugins.
    audit_class_plugins(PSI_NOT_INSTRUMENTED),
+   audit_class_mask(PSI_NOT_INSTRUMENTED),
 #endif
 #if defined(ENABLED_DEBUG_SYNC)
    debug_sync_control(0),
@@ -1268,7 +1235,12 @@ THD::THD(bool enable_plugins)
 
   tablespace_op=FALSE;
   substitute_null_with_insert_id = FALSE;
-  thr_lock_info_init(&lock_info); /* safety: will be reset after start */
+
+  /*
+    Make sure thr_lock_info_init() is called for threads which do not get
+    assigned a proper thread_id value but keep using reserved_thread_id.
+  */
+  thr_lock_info_init(&lock_info, m_thread_id);
 
   m_internal_handler= NULL;
   m_binlog_invoker= FALSE;
@@ -1296,6 +1268,7 @@ void THD::set_transaction(Transaction_ctx *transaction_ctx)
   m_transaction.reset(transaction_ctx);
 }
 
+
 void THD::push_internal_handler(Internal_error_handler *handler)
 {
   if (m_internal_handler)
@@ -1304,35 +1277,26 @@ void THD::push_internal_handler(Internal_error_handler *handler)
     m_internal_handler= handler;
   }
   else
-  {
     m_internal_handler= handler;
-  }
 }
+
 
 bool THD::handle_condition(uint sql_errno,
                            const char* sqlstate,
                            Sql_condition::enum_severity_level *level,
-                           const char* msg,
-                           Sql_condition ** cond_hdl)
+                           const char* msg)
 {
   if (!m_internal_handler)
-  {
-    *cond_hdl= NULL;
-    return FALSE;
-  }
+    return false;
 
   for (Internal_error_handler *error_handler= m_internal_handler;
        error_handler;
        error_handler= error_handler->m_prev_internal_handler)
   {
-    if (error_handler->handle_condition(this, sql_errno, sqlstate, level, msg,
-					cond_hdl))
-    {
-      return TRUE;
-    }
+    if (error_handler->handle_condition(this, sql_errno, sqlstate, level, msg))
+      return true;
   }
-
-  return FALSE;
+  return false;
 }
 
 
@@ -1454,44 +1418,32 @@ Sql_condition* THD::raise_condition(uint sql_errno,
                                     Sql_condition::enum_severity_level level,
                                     const char* msg)
 {
-  Diagnostics_area *da= get_stmt_da();
-  Sql_condition *cond= NULL;
   DBUG_ENTER("THD::raise_condition");
 
   if (!(variables.option_bits & OPTION_SQL_NOTES) &&
       (level == Sql_condition::SL_NOTE))
     DBUG_RETURN(NULL);
 
-  /*
-    TODO: replace by DBUG_ASSERT(sql_errno != 0) once all bugs similar to
-    Bug#36768 are fixed: a SQL condition must have a real (!=0) error number
-    so that it can be caught by handlers.
-  */
-  if (sql_errno == 0)
+  DBUG_ASSERT(sql_errno != 0);
+  if (sql_errno == 0) /* Safety in release build */
     sql_errno= ER_UNKNOWN_ERROR;
   if (msg == NULL)
     msg= ER(sql_errno);
   if (sqlstate == NULL)
    sqlstate= mysql_errno_to_sqlstate(sql_errno);
 
-  switch (level)
-  {
-  case Sql_condition::SL_NOTE:
-  case Sql_condition::SL_WARNING:
-    got_warning= 1;
-    break;
-  case Sql_condition::SL_ERROR:
-    break;
-  default:
-    DBUG_ASSERT(FALSE);
-  }
+  if (handle_condition(sql_errno, sqlstate, &level, msg))
+    DBUG_RETURN(NULL);
 
-  if (handle_condition(sql_errno, sqlstate, &level, msg, &cond))
-    DBUG_RETURN(cond);
+  if (level == Sql_condition::SL_NOTE || level == Sql_condition::SL_WARNING)
+    got_warning= true;
 
+  query_cache.abort(&query_cache_tls);
+
+  Diagnostics_area *da= get_stmt_da();
   if (level == Sql_condition::SL_ERROR)
   {
-    is_slave_error=  1; // needed to catch query errors during replication
+    is_slave_error= true; // needed to catch query errors during replication
 
     if (!da->is_error())
     {
@@ -1500,13 +1452,12 @@ Sql_condition* THD::raise_condition(uint sql_errno,
     }
   }
 
-  query_cache.abort(&query_cache_tls);
-
-  /* 
-     Avoid pushing a condition for fatal out of memory errors as this will 
-     require memory allocation and therefore might fail. Non fatal out of 
-     memory errors can occur if raised by SIGNAL/RESIGNAL statement.
+  /*
+    Avoid pushing a condition for fatal out of memory errors as this will
+    require memory allocation and therefore might fail. Non fatal out of
+    memory errors can occur if raised by SIGNAL/RESIGNAL statement.
   */
+  Sql_condition *cond= NULL;
   if (!(is_fatal_error && (sql_errno == EE_OUTOFMEMORY ||
                            sql_errno == ER_OUTOFMEMORY)))
   {
@@ -1563,7 +1514,7 @@ void thd_get_xid(const MYSQL_THD thd, MYSQL_XID *xid)
 #if defined(_WIN32)
 extern "C"   THD *_current_thd_noinline(void)
 {
-  return my_pthread_get_THR_THD();
+  return my_thread_get_THR_THD();
 }
 #endif
 /*
@@ -1676,6 +1627,7 @@ void THD::set_new_thread_id()
 {
   m_thread_id= Global_THD_manager::get_instance()->get_new_thread_id();
   variables.pseudo_thread_id= m_thread_id;
+  thr_lock_info_init(&lock_info, m_thread_id);
 }
 
 
@@ -2196,8 +2148,8 @@ bool THD::store_globals()
   */
   DBUG_ASSERT(thread_stack);
 
-  if (my_pthread_set_THR_THD(this) ||
-      my_pthread_set_THR_MALLOC(&mem_root))
+  if (my_thread_set_THR_THD(this) ||
+      my_thread_set_THR_MALLOC(&mem_root))
     return 1;
   /*
     mysys_var is concurrently readable by a killer thread.
@@ -2215,13 +2167,8 @@ bool THD::store_globals()
     This allows us to move THD to different threads if needed.
   */
   mysys_var->id= m_thread_id;
-  real_id= pthread_self();                      // For debugging
+  real_id= my_thread_self();                      // For debugging
 
-  /*
-    We have to call thr_lock_info_init() again here as THD may have been
-    created in another thread
-  */
-  thr_lock_info_init(&lock_info);
   return 0;
 }
 
@@ -2238,8 +2185,8 @@ bool THD::restore_globals()
   DBUG_ASSERT(thread_stack);
 
   /* Undocking the thread specific data. */
-  my_pthread_set_THR_THD(NULL);
-  my_pthread_set_THR_MALLOC(NULL);
+  my_thread_set_THR_THD(NULL);
+  my_thread_set_THR_MALLOC(NULL);
 
   return 0;
 }
@@ -3405,199 +3352,6 @@ err:
 select_subselect::select_subselect(Item_subselect *item_arg)
 {
   item= item_arg;
-}
-
-
-bool select_singlerow_subselect::send_data(List<Item> &items)
-{
-  DBUG_ENTER("select_singlerow_subselect::send_data");
-  Item_singlerow_subselect *it= (Item_singlerow_subselect *)item;
-  if (it->assigned())
-  {
-    my_message(ER_SUBQUERY_NO_1_ROW, ER(ER_SUBQUERY_NO_1_ROW), MYF(0));
-    DBUG_RETURN(true);
-  }
-  if (unit->offset_limit_cnt)
-  {				          // Using limit offset,count
-    unit->offset_limit_cnt--;
-    DBUG_RETURN(false);
-  }
-  List_iterator_fast<Item> li(items);
-  Item *val_item;
-  for (uint i= 0; (val_item= li++); i++)
-    it->store(i, val_item);
-  if (thd->is_error())
-    DBUG_RETURN(true);
-
-  it->assigned(true);
-  DBUG_RETURN(false);
-}
-
-
-void select_max_min_finder_subselect::cleanup()
-{
-  DBUG_ENTER("select_max_min_finder_subselect::cleanup");
-  cache= 0;
-  DBUG_VOID_RETURN;
-}
-
-
-bool select_max_min_finder_subselect::send_data(List<Item> &items)
-{
-  DBUG_ENTER("select_max_min_finder_subselect::send_data");
-  Item_maxmin_subselect *it= (Item_maxmin_subselect *)item;
-  List_iterator_fast<Item> li(items);
-  Item *val_item= li++;
-  it->register_value();
-  if (it->assigned())
-  {
-    cache->store(val_item);
-    if ((this->*op)())
-      it->store(0, cache);
-  }
-  else
-  {
-    if (!cache)
-    {
-      cache= Item_cache::get_cache(val_item);
-      switch (val_item->result_type())
-      {
-      case REAL_RESULT:
-	op= &select_max_min_finder_subselect::cmp_real;
-	break;
-      case INT_RESULT:
-	op= &select_max_min_finder_subselect::cmp_int;
-	break;
-      case STRING_RESULT:
-	op= &select_max_min_finder_subselect::cmp_str;
-	break;
-      case DECIMAL_RESULT:
-        op= &select_max_min_finder_subselect::cmp_decimal;
-        break;
-      case ROW_RESULT:
-        // This case should never be choosen
-	DBUG_ASSERT(0);
-	op= 0;
-      }
-    }
-    cache->store(val_item);
-    it->store(0, cache);
-  }
-  it->assigned(true);
-  DBUG_RETURN(0);
-}
-
-/**
-  Compare two floating point numbers for MAX or MIN.
-
-  Compare two numbers and decide if the number should be cached as the
-  maximum/minimum number seen this far. If fmax==true, this is a
-  comparison for MAX, otherwise it is a comparison for MIN.
-
-  val1 is the new numer to compare against the current
-  maximum/minimum. val2 is the current maximum/minimum.
-
-  ignore_nulls is used to control behavior when comparing with a NULL
-  value. If ignore_nulls==false, the behavior is to store the first
-  NULL value discovered (i.e, return true, that it is larger than the
-  current maximum) and never replace it. If ignore_nulls==true, NULL
-  values are not stored. ANY subqueries use ignore_nulls==true, ALL
-  subqueries use ignore_nulls==false.
-
-  @retval true if the new number should be the new maximum/minimum.
-  @retval false if the maximum/minimum should stay unchanged.
- */
-bool select_max_min_finder_subselect::cmp_real()
-{
-  Item *maxmin= ((Item_singlerow_subselect *)item)->element_index(0);
-  double val1= cache->val_real(), val2= maxmin->val_real();
-  /*
-    If we're ignoring NULLs and the current maximum/minimum is NULL
-    (must have been placed there as the first value iterated over) and
-    the new value is not NULL, return true so that a new, non-NULL
-    maximum/minimum is set. Otherwise, return false to keep the
-    current non-NULL maximum/minimum.
-
-    If we're not ignoring NULLs and the current maximum/minimum is not
-    NULL, return true to store NULL. Otherwise, return false to keep
-    the NULL we've already got.
-  */
-  if (cache->null_value || maxmin->null_value)
-    return (ignore_nulls) ? !(cache->null_value) : !(maxmin->null_value);
-  return (fmax) ? (val1 > val2) : (val1 < val2);
-}
-
-/**
-  Compare two integer numbers for MAX or MIN.
-
-  @see select_max_min_finder_subselect::cmp_real()
-*/
-bool select_max_min_finder_subselect::cmp_int()
-{
-  Item *maxmin= ((Item_singlerow_subselect *)item)->element_index(0);
-  longlong val1= cache->val_int(), val2= maxmin->val_int();
-  if (cache->null_value || maxmin->null_value)
-    return (ignore_nulls) ? !(cache->null_value) : !(maxmin->null_value);
-  return (fmax) ? (val1 > val2) : (val1 < val2);
-}
-
-/**
-  Compare two decimal numbers for MAX or MIN.
-
-  @see select_max_min_finder_subselect::cmp_real()
-*/
-bool select_max_min_finder_subselect::cmp_decimal()
-{
-  Item *maxmin= ((Item_singlerow_subselect *)item)->element_index(0);
-  my_decimal cval, *cvalue= cache->val_decimal(&cval);
-  my_decimal mval, *mvalue= maxmin->val_decimal(&mval);
-  if (cache->null_value || maxmin->null_value)
-    return (ignore_nulls) ? !(cache->null_value) : !(maxmin->null_value);
-  return (fmax) 
-    ? (my_decimal_cmp(cvalue,mvalue) > 0)
-    : (my_decimal_cmp(cvalue,mvalue) < 0);
-}
-
-/**
-  Compare two strings for MAX or MIN.
-
-  @see select_max_min_finder_subselect::cmp_real()
-*/
-bool select_max_min_finder_subselect::cmp_str()
-{
-  String *val1, *val2, buf1, buf2;
-  Item *maxmin= ((Item_singlerow_subselect *)item)->element_index(0);
-  /*
-    as far as both operand is Item_cache buf1 & buf2 will not be used,
-    but added for safety
-  */
-  val1= cache->val_str(&buf1);
-  val2= maxmin->val_str(&buf1);
-  if (cache->null_value || maxmin->null_value)
-    return (ignore_nulls) ? !(cache->null_value) : !(maxmin->null_value);
-  return (fmax) 
-    ? (sortcmp(val1, val2, cache->collation.collation) > 0)
-    : (sortcmp(val1, val2, cache->collation.collation) < 0);
-}
-
-bool select_exists_subselect::send_data(List<Item> &items)
-{
-  DBUG_ENTER("select_exists_subselect::send_data");
-  Item_exists_subselect *it= (Item_exists_subselect *)item;
-  if (unit->offset_limit_cnt)
-  {				          // Using limit offset,count
-    unit->offset_limit_cnt--;
-    DBUG_RETURN(0);
-  }
-  /*
-    A subquery may be evaluated 1) by executing the JOIN 2) by optimized
-    functions (index_subquery, subquery materialization).
-    It's only in (1) that we get here when we find a row. In (2) "value" is
-    set elsewhere.
-  */
-  it->value= 1;
-  it->assigned(true);
-  DBUG_RETURN(0);
 }
 
 

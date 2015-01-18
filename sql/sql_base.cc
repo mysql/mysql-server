@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -55,37 +55,11 @@
 #include "log.h"
 #include "binlog.h"
 
+#include "pfs_table_provider.h"
+#include "mysql/psi/mysql_table.h"
 
-bool
-No_such_table_error_handler::handle_condition(THD *,
-                                              uint sql_errno,
-                                              const char*,
-                                              Sql_condition::enum_severity_level*,
-                                              const char*,
-                                              Sql_condition ** cond_hdl)
-{
-  *cond_hdl= NULL;
-  if (sql_errno == ER_NO_SUCH_TABLE)
-  {
-    m_handled_errors++;
-    return TRUE;
-  }
-
-  m_unhandled_errors++;
-  return FALSE;
-}
-
-
-bool No_such_table_error_handler::safely_trapped_errors()
-{
-  /*
-    If m_unhandled_errors != 0, something else, unanticipated, happened,
-    so the error is not trapped but returned to the caller.
-    Multiple ER_NO_SUCH_TABLE can be raised in case of views.
-  */
-  return ((m_handled_errors > 0) && (m_unhandled_errors == 0));
-}
-
+#include "pfs_file_provider.h"
+#include "mysql/psi/mysql_file.h"
 
 /**
   This handler is used for the statements which support IGNORE keyword.
@@ -99,8 +73,7 @@ bool Ignore_error_handler::handle_condition(THD *thd,
                                             uint sql_errno,
                                             const char *sqlstate,
                                             Sql_condition::enum_severity_level *level,
-                                            const char *msg,
-                                            Sql_condition **cond_hdl)
+                                            const char *msg)
 {
   /*
     If a statement is executed with IGNORE keyword then this handler
@@ -151,8 +124,7 @@ bool Strict_error_handler::handle_condition(THD *thd,
                                             uint sql_errno,
                                             const char *sqlstate,
                                             Sql_condition::enum_severity_level *level,
-                                            const char *msg,
-                                            Sql_condition **cond_hdl)
+                                            const char *msg)
 {
   /*
     STRICT error handler should not be effective if we have changed the
@@ -238,16 +210,25 @@ public:
     : m_handled_errors(false), m_unhandled_errors(false)
   {}
 
-  bool handle_condition(THD *thd,
-                        uint sql_errno,
-                        const char* sqlstate,
-                        Sql_condition::enum_severity_level *level,
-                        const char* msg,
-                        Sql_condition ** cond_hdl);
+  virtual bool handle_condition(THD *thd,
+                                uint sql_errno,
+                                const char* sqlstate,
+                                Sql_condition::enum_severity_level *level,
+                                const char* msg)
+  {
+    if (sql_errno == ER_NO_SUCH_TABLE || sql_errno == ER_WRONG_MRG_TABLE)
+    {
+      m_handled_errors= true;
+      return true;
+    }
+
+    m_unhandled_errors= true;
+    return false;
+  }
 
   /**
-    Returns TRUE if there were ER_NO_SUCH_/WRONG_MRG_TABLE and there
-    were no unhandled errors. FALSE otherwise.
+    Returns true if there were ER_NO_SUCH_/WRONG_MRG_TABLE and there
+    were no unhandled errors. false otherwise.
   */
   bool safely_trapped_errors()
   {
@@ -265,26 +246,6 @@ private:
   bool m_handled_errors;
   bool m_unhandled_errors;
 };
-
-
-bool
-Repair_mrg_table_error_handler::handle_condition(THD *,
-                                                 uint sql_errno,
-                                                 const char*,
-                                                 Sql_condition::enum_severity_level *level,
-                                                 const char*,
-                                                 Sql_condition ** cond_hdl)
-{
-  *cond_hdl= NULL;
-  if (sql_errno == ER_NO_SUCH_TABLE || sql_errno == ER_WRONG_MRG_TABLE)
-  {
-    m_handled_errors= true;
-    return TRUE;
-  }
-
-  m_unhandled_errors= true;
-  return FALSE;
-}
 
 
 /**
@@ -2614,14 +2575,29 @@ public:
     : m_ot_ctx(ot_ctx_arg), m_is_active(FALSE)
   {}
 
-  virtual ~MDL_deadlock_handler() {}
-
   virtual bool handle_condition(THD *thd,
                                 uint sql_errno,
                                 const char* sqlstate,
                                 Sql_condition::enum_severity_level *level,
-                                const char* msg,
-                                Sql_condition ** cond_hdl);
+                                const char* msg)
+  {
+    if (! m_is_active && sql_errno == ER_LOCK_DEADLOCK)
+    {
+      /* Disable the handler to avoid infinite recursion. */
+      m_is_active= true;
+      (void) m_ot_ctx->request_backoff_action(
+                        Open_table_context::OT_BACKOFF_AND_RETRY,
+                        NULL);
+      m_is_active= false;
+      /*
+        If the above back-off request failed, a new instance of
+        ER_LOCK_DEADLOCK error was emitted. Thus the current
+        instance of error condition can be treated as handled.
+      */
+      return true;
+    }
+    return false;
+  }
 
 private:
   /** Open table context to be used for back-off request. */
@@ -2633,33 +2609,6 @@ private:
   */
   bool m_is_active;
 };
-
-
-bool MDL_deadlock_handler::handle_condition(THD *,
-                                            uint sql_errno,
-                                            const char*,
-                                            Sql_condition::enum_severity_level*,
-                                            const char*,
-                                            Sql_condition ** cond_hdl)
-{
-  *cond_hdl= NULL;
-  if (! m_is_active && sql_errno == ER_LOCK_DEADLOCK)
-  {
-    /* Disable the handler to avoid infinite recursion. */
-    m_is_active= TRUE;
-    (void) m_ot_ctx->request_backoff_action(
-             Open_table_context::OT_BACKOFF_AND_RETRY,
-             NULL);
-    m_is_active= FALSE;
-    /*
-      If the above back-off request failed, a new instance of
-      ER_LOCK_DEADLOCK error was emitted. Thus the current
-      instance of error condition can be treated as handled.
-    */
-    return TRUE;
-  }
-  return FALSE;
-}
 
 
 /**
@@ -2925,6 +2874,19 @@ bool open_table(THD *thd, TABLE_LIST *table_list, Open_table_context *ot_ctx)
   /* an open table operation needs a lot of the stack space */
   if (check_stack_overrun(thd, STACK_MIN_SIZE_FOR_OPEN, (uchar *)&alias))
     DBUG_RETURN(TRUE);
+
+  DBUG_EXECUTE_IF("kill_query_on_open_table_from_tz_find",
+                  {
+                    /*
+                      When on calling my_tz_find the following
+                      tables are opened in specified order: time_zone_name,
+                      time_zone, time_zone_transition_type,
+                      time_zone_transition. Emulate killing a query
+                      on opening the second table in the list.
+                    */
+                    if (!strcmp("time_zone",  table_list->table_name))
+                      thd->killed= THD::KILL_QUERY;
+                  });
 
   if (!(flags & MYSQL_OPEN_IGNORE_KILLED) && thd->killed)
     DBUG_RETURN(TRUE);
@@ -5295,10 +5257,6 @@ bool open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags,
   bool has_prelocking_list;
   DBUG_ENTER("open_tables");
 
-  /* Accessing data in XA_IDLE or XA_PREPARED is not allowed. */
-  if (*start &&
-      thd->get_transaction()->xid_state()->check_xa_idle_or_prepared(true))
-    DBUG_RETURN(true);
 
 restart:
   /*
@@ -5497,6 +5455,11 @@ restart:
       }
     }
   }
+
+  /* Accessing data in XA_IDLE or XA_PREPARED is not allowed. */
+  if (*start &&
+      thd->get_transaction()->xid_state()->check_xa_idle_or_prepared(true))
+    DBUG_RETURN(true);
 
 #ifdef HAVE_MY_TIMER
   /*
@@ -9926,19 +9889,6 @@ bool open_trans_system_tables_for_read(THD *thd, TABLE_LIST *table_list)
     {
       // Crash in the debug build ...
       DBUG_ASSERT(!"HA_ATTACHABLE_TRX_COMPATIBLE is not set");
-
-      // ... or report an error in the release build.
-      my_error(ER_UNKNOWN_ERROR, MYF(0));
-      thd->end_attachable_transaction();
-      DBUG_RETURN(true);
-    }
-
-    // Ensure the t are of the system category (TABLE_CATEGORY_SYSTEM).
-
-    if (t->table->s->table_category != TABLE_CATEGORY_SYSTEM)
-    {
-      // Crash in the debug build ...
-      DBUG_ASSERT(!"Table category is not system");
 
       // ... or report an error in the release build.
       my_error(ER_UNKNOWN_ERROR, MYF(0));

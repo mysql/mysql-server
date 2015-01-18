@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -69,6 +69,9 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #include "parse_location.h"
 #include "parse_tree_helpers.h"
 #include "lex_token.h"
+#include "item_cmpfunc.h"
+#include "item_geofunc.h"
+#include "sql_plugin.h"                      // plugin_is_ready
 
 /* this is to get the bison compilation windows warnings out */
 #ifdef _MSC_VER
@@ -6085,7 +6088,7 @@ storage_engines:
                 thd->lex->create_info.options & HA_LEX_CREATE_TMP_TABLE);
 
             if (plugin)
-              $$= plugin_data(plugin, handlerton*);
+              $$= plugin_data<handlerton*>(plugin);
             else
             {
               if (thd->variables.sql_mode & MODE_NO_ENGINE_SUBSTITUTION)
@@ -6111,7 +6114,7 @@ known_storage_engines:
               ha_resolve_by_name(thd, &$1,
                 lex->create_info.options & HA_LEX_CREATE_TMP_TABLE);
             if (plugin)
-              $$= plugin_data(plugin, handlerton*);
+              $$= plugin_data<handlerton*>(plugin);
             else
             {
               my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), $1.str);
@@ -15065,8 +15068,7 @@ install:
           {
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_INSTALL_PLUGIN;
-            lex->comment= $3;
-            lex->ident= $5;
+            lex->m_sql_cmd= new Sql_cmd_install_plugin($3, $5);
           }
         ;
 
@@ -15075,7 +15077,7 @@ uninstall:
           {
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_UNINSTALL_PLUGIN;
-            lex->comment= $3;
+            lex->m_sql_cmd= new Sql_cmd_uninstall_plugin($3);
           }
         ;
 

@@ -454,7 +454,7 @@ trx_sys_init_at_db_start(void)
 
 	trx_lists_init_at_db_start();
 
-	/* This S lock is not strictly required, it is here only to satisfy
+	/* This mutex is not strictly required, it is here only to satisfy
 	the debug code (assertions). We are still running in single threaded
 	bootstrap mode. */
 

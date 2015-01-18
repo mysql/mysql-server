@@ -53,59 +53,15 @@ ERROR HY000: Couldn't create channel: Channel name is either invalid or too long
 CHANGE MASTER TO MASTER_HOST = "127.0.0.1", MASTER_USER = "root" FOR CHANNEL "         ";
 ERROR HY000: Couldn't create channel: Channel name is either invalid or too long.
 #
-#  3b) Test that error messages are delivered if a new channel is
-#       created with same host and port.
-#
-CHANGE MASTER TO MASTER_HOST = "127.0.0.1", MASTER_USER = "rpl", MASTER_PORT = MASTER_PORT FOR CHANNEL "channel_with_already_existing_host_port";;
-ERROR HY000: A slave channel 'channel_3' already exists for the given host and port combination.
-#
-#   3c)Create a new channel without host,port initially.
-#       Later provide already existing {host, port} to the channel.
-#       An error shall occur.
-CHANGE MASTER TO MASTER_LOG_POS = 4 FOR CHANNEL "channel_with_wrong_info";
-CHANGE MASTER TO MASTER_HOST = "127.0.0.1", MASTER_USER = "rpl", MASTER_PORT = MASTER_PORT FOR CHANNEL "channel_with_wrong_info";;
-ERROR HY000: A slave channel 'channel_3' already exists for the given host and port combination.
-#
-#    3d) create new replication channel "channel_with_different_port"
-#
-CHANGE MASTER TO MASTER_HOST = "127.0.0.1", MASTER_USER = "root", MASTER_PORT = 13500 FOR CHANNEL "channel_with_different_port";;
-Warnings:
-Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
-#
-#  Do change master with server3's port only but don't use any host.
-#  MSR slave should recognize that there is already a channel with same
-#  host and port and a failure shall occur.
-#
-CHANGE MASTER TO MASTER_USER = "root", MASTER_PORT = MASTER_PORT FOR CHANNEL "channel_with_different_port";;
-ERROR HY000: A slave channel 'channel_3' already exists for the given host and port combination.
-#
-#    3e) create new replication channel "channel_with_different_host"
-#       but with same port as server_3
-#
-CHANGE MASTER TO MASTER_HOST = "172.3.4.5", MASTER_USER = "root", MASTER_PORT = MASTER_PORT FOR CHANNEL "channel_with_different_host";;
-Warnings:
-Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
-#
-# Do change master with server3's host only but don't use any port.
-# MSR slave should recognize that there is already a channel with same
-# host and port and a failure  shall occur.
-#
-CHANGE MASTER TO MASTER_USER = "root", MASTER_HOST="127.0.0.1" FOR CHANNEL "channel_with_different_host";;
-ERROR HY000: A slave channel 'channel_3' already exists for the given host and port combination.
-#
-#  3.f) Check that maximum channels permitted error is issued.
+#  3.b) Check that maximum channels permitted error is issued.
 #
 SET GLOBAL DEBUG = "+d, max_replication_channels_exceeded";
 CHANGE MASTER TO MASTER_LOG_POS = 4 FOR CHANNEL "257th_channel";
 ERROR HY000: Maximum number of replication channels allowed exceeded.
 SET GLOBAL DEBUG=@old_debug;
 # Assert that channels are not created for failed CHANGE MASTER command.
-# and number of channels configured must be 4
+# and number of channels configured must be 2
 include/assert.inc [there shall be only four rows representing 4 channels.]
-RESET SLAVE ALL FOR CHANNEL "channel_with_different_host";
-RESET SLAVE ALL FOR CHANNEL "channel_with_different_port";
 include/rpl_end.inc
 RESET SLAVE ALL FOR CHANNEL  'channel_1';
 RESET SLAVE ALL FOR CHANNEL  'channel_3';

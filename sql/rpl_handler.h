@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,7 +19,6 @@
 #include "rpl_gtid.h"
 #include "rpl_mi.h"
 #include "rpl_rli.h"
-#include "sql_plugin.h"
 #include "replication.h"
 
 class Observer_info {
@@ -28,11 +27,7 @@ public:
   st_plugin_int *plugin_int;
   plugin_ref plugin;
 
-  Observer_info(void *ob, st_plugin_int *p)
-    :observer(ob), plugin_int(p)
-  {
-    plugin= plugin_int_to_ref(plugin_int);
-  }
+  Observer_info(void *ob, st_plugin_int *p);
 };
 
 class Delegate {

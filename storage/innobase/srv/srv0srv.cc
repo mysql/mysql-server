@@ -2454,7 +2454,9 @@ srv_do_purge(
 
 		*n_total_purged += n_pages_purged;
 
-	} while (!srv_purge_should_exit(n_pages_purged) && n_pages_purged > 0);
+	} while (!srv_purge_should_exit(n_pages_purged)
+		 && n_pages_purged > 0
+		 && purge_sys->state == PURGE_STATE_RUN);
 
 	return(rseg_history_len);
 }

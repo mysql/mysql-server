@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -33,12 +33,12 @@ enum_return_status Gtid::parse(Sid_map *sid_map, const char *text)
   SKIP_WHITESPACE();
 
   // parse sid
-  if (sid.parse(s) == RETURN_STATUS_OK)
+  if (sid.parse(s) == 0)
   {
     rpl_sidno sidno_var= sid_map->add_sid(sid);
     if (sidno_var <= 0)
       RETURN_REPORTED_ERROR;
-    s += Uuid::TEXT_LENGTH;
+    s += binary_log::Uuid::TEXT_LENGTH;
 
     SKIP_WHITESPACE();
 
@@ -112,7 +112,7 @@ bool Gtid::is_valid(const char *text)
                         (int)(s - text), text));
     DBUG_RETURN(false);
   }
-  s += Uuid::TEXT_LENGTH;
+  s += binary_log::Uuid::TEXT_LENGTH;
   SKIP_WHITESPACE();
   if (*s != ':')
   {
@@ -151,8 +151,17 @@ void check_return_status(enum_return_status status, const char *action,
     {
 #if !defined(MYSQL_CLIENT) && !defined(DBUG_OFF)
       THD *thd= current_thd;
+      /*
+        We create a new system THD with 'SYSTEM_THREAD_COMPRESS_GTID_TABLE'
+        when initializing gtid state by fetching gtids during server startup,
+        so we can check on it before diagnostic area is active and skip the
+        assert in this case. We assert that diagnostic area logged the error
+        outside server startup since the assert is realy useful.
+     */
       DBUG_ASSERT(thd == NULL ||
-                  thd->get_stmt_da()->status() == Diagnostics_area::DA_ERROR);
+                  thd->get_stmt_da()->status() == Diagnostics_area::DA_ERROR ||
+                  (thd->get_stmt_da()->status() == Diagnostics_area::DA_EMPTY &&
+                   thd->system_thread == SYSTEM_THREAD_COMPRESS_GTID_TABLE));
 #endif
     }
     DBUG_PRINT("info", ("%s error %d (%s)", action, status, status_name));

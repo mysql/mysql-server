@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,24 +24,22 @@
   @{
 */
 
-#include "sql_select.h"
 #include "sql_optimizer.h"
-#include "sql_resolver.h"                  // subquery_allows_materialization
-#include "sql_executor.h"
-#include "sql_planner.h"
+
+#include "my_bit.h"              // my_count_bits
+#include "abstract_query_plan.h" // Join_plan
 #include "debug_sync.h"          // DEBUG_SYNC
-#include "opt_trace.h"
-#include "sql_derived.h"
-#include "sql_test.h"
-#include "sql_base.h"
-#include "sql_parse.h"
-#include "my_bit.h"
-#include "lock.h"
-#include "opt_explain_format.h"  // Explain_format_flags
-#include "opt_costmodel.h"
-#include "sql_join_buffer.h"     // JOIN_CACHE
+#include "item_sum.h"            // Item_sum
+#include "lock.h"                // mysql_unlock_some_tables
 #include "opt_explain.h"         // join_type_str
-#include "abstract_query_plan.h"
+#include "opt_trace.h"           // Opt_trace_object
+#include "sql_base.h"            // init_ftfuncs
+#include "sql_derived.h"         // mysql_derived_optimize
+#include "sql_join_buffer.h"     // JOIN_CACHE
+#include "sql_parse.h"           // check_stack_overrun
+#include "sql_planner.h"         // calculate_condition_filter
+#include "sql_resolver.h"        // subquery_allows_materialization
+#include "sql_test.h"            // print_where
 
 #include <algorithm>
 using std::max;
@@ -173,7 +171,9 @@ JOIN::optimize()
 
   count_field_types(select_lex, &tmp_table_param, all_fields, false, false);
 
-  DBUG_ASSERT(!implicit_grouping || tmp_table_param.sum_func_count);
+  DBUG_ASSERT(tmp_table_param.sum_func_count == 0 ||
+              group_list || implicit_grouping);
+
   if (select_lex->olap == ROLLUP_TYPE && optimize_rollup())
     DBUG_RETURN(true); /* purecov: inspected */
 
@@ -9335,13 +9335,8 @@ static bool duplicate_order(const ORDER *first_order,
       const Item *it1= order->item[0]->real_item();
       const Item *it2= possible_dup->item[0]->real_item();
 
-      if (it1->type() == Item::FIELD_ITEM &&
-          it2->type() == Item::FIELD_ITEM &&
-          (static_cast<const Item_field*>(it1)->field ==
-           static_cast<const Item_field*>(it2)->field))
-      {
+      if (it1->eq(it2, 0))
         return true;
-      }
     }
   }
   return false;

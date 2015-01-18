@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -401,7 +401,8 @@ rec_init_offsets(
 			return;
 		case REC_STATUS_NODE_PTR:
 			n_node_ptr_field
-				= dict_index_get_n_unique_in_tree(index);
+				= dict_index_get_n_unique_in_tree_nonleaf(
+					index);
 			break;
 		case REC_STATUS_ORDINARY:
 			rec_init_offsets_comp_ordinary(
@@ -565,7 +566,7 @@ rec_get_offsets_func(
 			/* Node pointer records consist of the
 			uniquely identifying fields of the record
 			followed by a child page number field. */
-			n = dict_index_get_n_unique_in_tree(index) + 1;
+			n = dict_index_get_n_unique_in_tree_nonleaf(index) + 1;
 			break;
 		case REC_STATUS_INFIMUM:
 		case REC_STATUS_SUPREMUM:
@@ -637,7 +638,8 @@ rec_get_offsets_reverse(
 	ut_ad(dict_table_is_comp(index->table));
 
 	if (UNIV_UNLIKELY(node_ptr)) {
-		n_node_ptr_field = dict_index_get_n_unique_in_tree(index);
+		n_node_ptr_field =
+			dict_index_get_n_unique_in_tree_nonleaf(index);
 		n = n_node_ptr_field + 1;
 	} else {
 		n_node_ptr_field = ULINT_UNDEFINED;
@@ -827,17 +829,18 @@ rec_get_converted_size_comp_prefix_low(
 		col = dict_field_get_col(field);
 
 #ifdef UNIV_DEBUG
-		if (dict_index_is_spatial(index)
-		    && DATA_GEOMETRY_MTYPE(col->mtype)) {
-			if (i == 0) {
-				dtype_t*	type;
+		dtype_t*	type;
 
-				type = dfield_get_type(&fields[i]);
+		type = dfield_get_type(&fields[i]);
+		if (dict_index_is_spatial(index)) {
+			if (DATA_GEOMETRY_MTYPE(col->mtype) && i == 0) {
 				ut_ad(type->prtype & DATA_GIS_MBR);
+			} else {
+				ut_ad(type->mtype == DATA_SYS_CHILD
+				      || dict_col_type_assert_equal(col, type));
 			}
 		} else {
-			ut_ad(dict_col_type_assert_equal(col,
-				dfield_get_type(&fields[i])));
+			ut_ad(dict_col_type_assert_equal(col, type));
 		}
 #endif
 
@@ -944,7 +947,8 @@ rec_get_converted_size_comp(
 		break;
 	case REC_STATUS_NODE_PTR:
 		n_fields--;
-		ut_ad(n_fields == dict_index_get_n_unique_in_tree(index));
+		ut_ad(n_fields == dict_index_get_n_unique_in_tree_nonleaf(
+					index));
 		ut_ad(dfield_get_len(&fields[n_fields]) == REC_NODE_PTR_SIZE);
 		size = REC_NODE_PTR_SIZE; /* child page number */
 		break;
@@ -1184,7 +1188,8 @@ rec_convert_dtuple_to_rec_comp(
 			break;
 		case REC_STATUS_NODE_PTR:
 			ut_ad(n_fields
-			      == dict_index_get_n_unique_in_tree(index) + 1);
+			      == dict_index_get_n_unique_in_tree_nonleaf(index)
+				 + 1);
 			n_node_ptr_field = n_fields - 1;
 			break;
 		case REC_STATUS_INFIMUM:
@@ -1552,7 +1557,7 @@ rec_copy_prefix_to_buf(
 		break;
 	case REC_STATUS_NODE_PTR:
 		/* it doesn't make sense to copy the child page number field */
-		ut_ad(n_fields <= dict_index_get_n_unique_in_tree(index));
+		ut_ad(n_fields <= dict_index_get_n_unique_in_tree_nonleaf(index));
 		break;
 	case REC_STATUS_INFIMUM:
 	case REC_STATUS_SUPREMUM:

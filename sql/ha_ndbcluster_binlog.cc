@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -293,7 +293,7 @@ ndb_binlog_open_shadow_table(THD *thd, NDB_SHARE *share)
   Ndb_event_data *event_data= share->event_data= new Ndb_event_data(share);
   DBUG_ENTER("ndb_binlog_open_shadow_table");
 
-  MEM_ROOT **root_ptr= my_pthread_get_THR_MALLOC();
+  MEM_ROOT **root_ptr= my_thread_get_THR_MALLOC();
   MEM_ROOT *old_root= *root_ptr;
   init_sql_alloc(PSI_INSTRUMENT_ME, &event_data->mem_root, 1024, 0);
   *root_ptr= &event_data->mem_root;
@@ -6839,7 +6839,7 @@ Ndb_binlog_thread::do_run()
   // Ndb binlog thread always use row format
   thd->set_current_stmt_binlog_format_row();
 
-  thd->real_id= pthread_self();
+  thd->real_id= my_thread_self();
   thd_manager->add_thd(thd);
   thd->lex->start_transaction_opt= 0;
 
@@ -6963,7 +6963,8 @@ restart_cluster_failure:
         { C_STRING_WITH_LEN("mysqld startup")    },
         { C_STRING_WITH_LEN("cluster disconnect")}
       };
-    int ret = inj->record_incident(thd, INCIDENT_LOST_EVENTS,
+    int ret = inj->record_incident(thd,
+                                   binary_log::Incident_event::INCIDENT_LOST_EVENTS,
                                    msg[incident_id]);
     assert(ret == 0); NDB_IGNORE_VALUE(ret);
     do_incident = false; // Don't report incident again, unless we get started
@@ -7194,7 +7195,7 @@ restart_cluster_failure:
       break;
     }
 
-    MEM_ROOT **root_ptr= my_pthread_get_THR_MALLOC();
+    MEM_ROOT **root_ptr= my_thread_get_THR_MALLOC();
     MEM_ROOT *old_root= *root_ptr;
     MEM_ROOT mem_root;
     init_sql_alloc(PSI_INSTRUMENT_ME, &mem_root, 4096, 0);
@@ -7368,7 +7369,9 @@ restart_cluster_failure:
                        ("Detected missing data in GCI %llu, "
                         "inserting GAP event", gci));
             LEX_STRING const msg= { C_STRING_WITH_LEN(errmsg) };
-            inj->record_incident(thd, INCIDENT_LOST_EVENTS, msg);
+            inj->record_incident(thd,
+                                 binary_log::Incident_event::INCIDENT_LOST_EVENTS,
+                                 msg);
           }
           while ((gci_op= i_ndb->getGCIEventOperations(&iter, &event_types))
                  != NULL)
@@ -7618,7 +7621,9 @@ restart_cluster_failure:
                    ("Detected missing data in GCI %llu, "
                     "inserting GAP event", gci));
         LEX_STRING const msg= { C_STRING_WITH_LEN(errmsg) };
-        inj->record_incident(thd, INCIDENT_LOST_EVENTS, msg);
+        inj->record_incident(thd,
+                             binary_log::Incident_event::INCIDENT_LOST_EVENTS,
+                             msg);
       }
     }
 

@@ -1,7 +1,7 @@
 #ifndef ITEM_FUNC_INCLUDED
 #define ITEM_FUNC_INCLUDED
 
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,6 +16,11 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include "item.h"       // Item_result_field
+#include "set_var.h"    // enum_var_type
+#include "sql_udf.h"    // udf_handler
+
+class PT_item_list;
 
 /* Function items used by mysql */
 
@@ -1873,6 +1878,7 @@ class Item_func_get_lock :public Item_int_func
   longlong val_int();
   const char *func_name() const { return "get_lock"; }
   void fix_length_and_dec() { max_length=1; maybe_null=1;}
+  virtual uint decimal_precision() const { return max_length; }
 };
 
 class Item_func_release_lock :public Item_int_func
@@ -1887,6 +1893,7 @@ public:
   longlong val_int();
   const char *func_name() const { return "release_lock"; }
   void fix_length_and_dec() { max_length=1; maybe_null=1;}
+  virtual uint decimal_precision() const { return max_length; }
 };
 
 class Item_func_release_all_locks :public Item_int_func
@@ -2247,8 +2254,6 @@ public:
 };
 
 
-/* for fulltext search */
-#include <ft_global.h>
 class JOIN;
 
 class Item_func_match :public Item_real_func

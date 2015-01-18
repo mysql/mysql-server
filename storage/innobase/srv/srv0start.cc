@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2014, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 1996, 2015, Oracle and/or its affiliates. All rights reserved.
 Copyright (c) 2008, Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -1524,6 +1524,12 @@ innobase_start_or_create_for_mysql(void)
 	}
 
 	srv_buf_pool_size = buf_pool_size_align(srv_buf_pool_size);
+
+	if (srv_n_page_cleaners > srv_buf_pool_instances) {
+		/* limit of page_cleaner parallelizability
+		is number of buffer pool instances. */
+		srv_n_page_cleaners = srv_buf_pool_instances;
+	}
 
 	srv_boot();
 

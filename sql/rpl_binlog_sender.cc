@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,12 +18,16 @@
 #ifdef HAVE_REPLICATION
 #include "rpl_handler.h"
 #include "debug_sync.h"
-#include "my_pthread.h"
+#include "my_thread.h"
 #include "rpl_master.h"
+
+#include "pfs_file_provider.h"
+#include "mysql/psi/mysql_file.h"
 
 #ifndef DBUG_OFF
   static uint binlog_dump_count= 0;
 #endif
+using binary_log::checksum_crc32;
 
 const uint32 Binlog_sender::PACKET_MIN_SIZE= 4096;
 const uint32 Binlog_sender::PACKET_MAX_SIZE= UINT_MAX32;
@@ -347,7 +351,8 @@ int Binlog_sender::send_events(IO_CACHE *log_cache, my_off_t end_pos)
 
     DBUG_EXECUTE_IF("dump_thread_wait_before_send_xid",
                     {
-                      if ((Log_event_type) event_ptr[LOG_EVENT_OFFSET] == XID_EVENT)
+                      if ((Log_event_type) event_ptr[LOG_EVENT_OFFSET] ==
+                           binary_log::XID_EVENT)
                       {
                         net_flush(&thd->net);
                         const char act[]=
@@ -421,21 +426,19 @@ inline bool Binlog_sender::skip_event(const uchar *event_ptr, uint32 event_len,
   uint8 event_type= (Log_event_type) event_ptr[LOG_EVENT_OFFSET];
   switch (event_type)
   {
-  case GTID_LOG_EVENT:
+  case binary_log::GTID_LOG_EVENT:
     {
       Format_description_log_event fd_ev(BINLOG_VERSION);
-      fd_ev.checksum_alg= m_event_checksum_alg;
-
+      fd_ev.common_footer->checksum_alg= m_event_checksum_alg;
       Gtid_log_event gtid_ev((const char *)event_ptr, event_checksum_on() ?
                              event_len - BINLOG_CHECKSUM_LEN : event_len,
                              &fd_ev);
       Gtid gtid;
       gtid.sidno= gtid_ev.get_sidno(m_exclude_gtid->get_sid_map());
       gtid.gno= gtid_ev.get_gno();
-
       DBUG_RETURN(m_exclude_gtid->contains_gtid(gtid));
     }
-  case ROTATE_EVENT:
+  case binary_log::ROTATE_EVENT:
     DBUG_RETURN(false);
   }
   DBUG_RETURN(in_exclude_group);
@@ -670,7 +673,7 @@ void Binlog_sender::init_checksum_alg()
   LEX_STRING name= {C_STRING_WITH_LEN("master_binlog_checksum")};
   user_var_entry *entry;
 
-  m_slave_checksum_alg= BINLOG_CHECKSUM_ALG_UNDEF;
+  m_slave_checksum_alg= binary_log::BINLOG_CHECKSUM_ALG_UNDEF;
 
   /* Protects m_thd->user_vars. */
   mysql_mutex_lock(&m_thd->LOCK_thd_data);
@@ -680,8 +683,8 @@ void Binlog_sender::init_checksum_alg()
   if (entry)
   {
     m_slave_checksum_alg=
-      find_type((char*) entry->ptr(), &binlog_checksum_typelib, 1) - 1;
-    DBUG_ASSERT(m_slave_checksum_alg < BINLOG_CHECKSUM_ALG_ENUM_END);
+      static_cast<enum_binlog_checksum_alg>(find_type((char*) entry->ptr(), &binlog_checksum_typelib, 1) - 1);
+    DBUG_ASSERT(m_slave_checksum_alg < binary_log::BINLOG_CHECKSUM_ALG_ENUM_END);
   }
 
   mysql_mutex_unlock(&m_thd->LOCK_thd_data);
@@ -702,7 +705,7 @@ int Binlog_sender::fake_rotate_event(const char *next_log_file,
   DBUG_ENTER("fake_rotate_event");
   const char* p = next_log_file + dirname_length(next_log_file);
   size_t ident_len = strlen(p);
-  size_t event_len = ident_len + LOG_EVENT_HEADER_LEN + ROTATE_HEADER_LEN +
+  size_t event_len = ident_len + LOG_EVENT_HEADER_LEN + Binary_log_event::ROTATE_HEADER_LEN +
     (event_checksum_on() ? BINLOG_CHECKSUM_LEN : 0);
 
   /* reset transmit packet for the fake rotate event below */
@@ -718,14 +721,14 @@ int Binlog_sender::fake_rotate_event(const char *next_log_file,
     real and fake Rotate events (if necessary)
   */
   int4store(header, 0);
-  header[EVENT_TYPE_OFFSET] = ROTATE_EVENT;
+  header[EVENT_TYPE_OFFSET] = binary_log::ROTATE_EVENT;
   int4store(header + SERVER_ID_OFFSET, server_id);
   int4store(header + EVENT_LEN_OFFSET, static_cast<uint32>(event_len));
   int4store(header + LOG_POS_OFFSET, 0);
   int2store(header + FLAGS_OFFSET, LOG_EVENT_ARTIFICIAL_F);
 
   int8store(rotate_header, log_pos);
-  memcpy(rotate_header + ROTATE_HEADER_LEN, p, ident_len);
+  memcpy(rotate_header + Binary_log_event::ROTATE_HEADER_LEN, p, ident_len);
 
   if (event_checksum_on())
     calc_event_checksum(header, event_len);
@@ -735,8 +738,8 @@ int Binlog_sender::fake_rotate_event(const char *next_log_file,
 
 inline void Binlog_sender::calc_event_checksum(uchar *event_ptr, size_t event_len)
 {
-  ha_checksum crc= my_checksum(0L, NULL, 0);
-  crc= my_checksum(crc, event_ptr, event_len - BINLOG_CHECKSUM_LEN);
+  ha_checksum crc= checksum_crc32(0L, NULL, 0);
+  crc= checksum_crc32(crc, event_ptr, event_len - BINLOG_CHECKSUM_LEN);
   int4store(event_ptr + event_len - BINLOG_CHECKSUM_LEN, crc);
 }
 
@@ -775,28 +778,29 @@ int Binlog_sender::send_format_description_event(IO_CACHE *log_cache,
   uchar* event_ptr;
   uint32 event_len;
 
-  if (read_event(log_cache, BINLOG_CHECKSUM_ALG_OFF, &event_ptr, &event_len))
+  if (read_event(log_cache, binary_log::BINLOG_CHECKSUM_ALG_OFF, &event_ptr,
+                 &event_len))
     DBUG_RETURN(1);
 
   DBUG_PRINT("info",
              ("Looked for a Format_description_log_event, found event type %s",
               Log_event::get_type_str((Log_event_type) event_ptr[EVENT_TYPE_OFFSET])));
 
-  if (event_ptr[EVENT_TYPE_OFFSET] != FORMAT_DESCRIPTION_EVENT)
+  if (event_ptr[EVENT_TYPE_OFFSET] != binary_log::FORMAT_DESCRIPTION_EVENT)
   {
     set_fatal_error("Could not find format_description_event in binlog file");
     DBUG_RETURN(1);
   }
 
   DBUG_ASSERT(event_ptr[LOG_POS_OFFSET] > 0);
+  m_event_checksum_alg=
+    Log_event_footer::get_checksum_alg((const char *)event_ptr, event_len);
 
-  m_event_checksum_alg= get_checksum_alg((const char *)event_ptr, event_len);
-
-  DBUG_ASSERT(m_event_checksum_alg < BINLOG_CHECKSUM_ALG_ENUM_END ||
-              m_event_checksum_alg == BINLOG_CHECKSUM_ALG_UNDEF);
+  DBUG_ASSERT(m_event_checksum_alg < binary_log::BINLOG_CHECKSUM_ALG_ENUM_END ||
+              m_event_checksum_alg == binary_log::BINLOG_CHECKSUM_ALG_UNDEF);
 
   /* Slave does not support checksum, but binary events include checksum */
-  if (m_slave_checksum_alg == BINLOG_CHECKSUM_ALG_UNDEF &&
+  if (m_slave_checksum_alg == binary_log::BINLOG_CHECKSUM_ALG_UNDEF &&
       event_checksum_on())
   {
     set_fatal_error("Slave can not handle replication events with the "
@@ -864,7 +868,7 @@ int Binlog_sender::has_previous_gtid_log_event(IO_CACHE *log_cache,
       set_fatal_error(log_read_error_msg(LOG_READ_IO));
       return 1;
     }
-    *found= (buf[EVENT_TYPE_OFFSET] == PREVIOUS_GTIDS_LOG_EVENT);
+    *found= (buf[EVENT_TYPE_OFFSET] == binary_log::PREVIOUS_GTIDS_LOG_EVENT);
   }
   return 0;
 }
@@ -890,7 +894,7 @@ const char* Binlog_sender::log_read_error_msg(int error)
   }
 }
 
-inline int Binlog_sender::read_event(IO_CACHE *log_cache, uint8 checksum_alg,
+inline int Binlog_sender::read_event(IO_CACHE *log_cache, enum_binlog_checksum_alg checksum_alg,
                                      uchar **event_ptr, uint32 *event_len)
 {
   DBUG_ENTER("Binlog_sender::read_event");
@@ -962,7 +966,7 @@ int Binlog_sender::send_heartbeat_event(my_off_t log_pos)
 
   /* Timestamp field */
   int4store(header, 0);
-  header[EVENT_TYPE_OFFSET] = HEARTBEAT_LOG_EVENT;
+  header[EVENT_TYPE_OFFSET] = binary_log::HEARTBEAT_LOG_EVENT;
   int4store(header + SERVER_ID_OFFSET, server_id);
   int4store(header + EVENT_LEN_OFFSET, event_len);
   int4store(header + LOG_POS_OFFSET, static_cast<uint32>(log_pos));

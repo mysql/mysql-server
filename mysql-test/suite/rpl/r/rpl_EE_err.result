@@ -7,5 +7,5 @@ create table t1 (a int) engine=myisam;
 flush tables;
 drop table if exists t1;
 Warnings:
-Warning	2	Can't find file: 't1' (errno: 2 - No such file or directory)
+Warning	1017	Can't find file: 't1' (errno: 2 - No such file or directory)
 include/rpl_end.inc

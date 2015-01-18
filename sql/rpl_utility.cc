@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,12 +20,14 @@
 #include "sql_tmp_table.h"               // tmp tables
 #include "rpl_rli.h"
 #include "log_event.h"
+#include "binary_log_types.h"
+#include "template_utils.h"              // delete_container_pointers
 
 #include <algorithm>
 
 using std::min;
 using std::max;
-
+using binary_log::checksum_crc32;
 
 /**
    Function to compare two size_t integers for their relative
@@ -39,135 +41,8 @@ static int compare(size_t a, size_t b)
     return 1;
   return 0;
 }
-#endif //MYSQL_CLIENT
 
 
-/**
-   Max value for an unsigned integer of 'bits' bits.
-
-   The somewhat contorted expression is to avoid overflow.
- */
-static uint32 uint_max(int bits) {
-  return (((1UL << (bits - 1)) - 1) << 1) | 1;
-}
-
-
-/**
-   Compute the maximum display length of a field.
-
-   @param sql_type Type of the field
-   @param metadata The metadata from the master for the field.
-   @return Maximum length of the field in bytes.
- */
-static uint32
-max_display_length_for_field(enum_field_types sql_type, unsigned int metadata)
-{
-  DBUG_PRINT("debug", ("sql_type: %d, metadata: 0x%x", sql_type, metadata));
-  DBUG_ASSERT(metadata >> 16 == 0);
-
-  switch (sql_type) {
-  case MYSQL_TYPE_NEWDECIMAL:
-    return metadata >> 8;
-
-  case MYSQL_TYPE_FLOAT:
-    return 12;
-
-  case MYSQL_TYPE_DOUBLE:
-    return 22;
-
-  case MYSQL_TYPE_SET:
-  case MYSQL_TYPE_ENUM:
-      return metadata & 0x00ff;
-
-  case MYSQL_TYPE_STRING:
-  {
-    uchar type= metadata >> 8;
-    if (type == MYSQL_TYPE_SET || type == MYSQL_TYPE_ENUM)
-      return metadata & 0xff;
-    else
-      /* This is taken from Field_string::unpack. */
-      return (((metadata >> 4) & 0x300) ^ 0x300) + (metadata & 0x00ff);
-  }
-
-  case MYSQL_TYPE_YEAR:
-  case MYSQL_TYPE_TINY:
-    return 4;
-
-  case MYSQL_TYPE_SHORT:
-    return 6;
-
-  case MYSQL_TYPE_INT24:
-    return 9;
-
-  case MYSQL_TYPE_LONG:
-    return 11;
-
-  case MYSQL_TYPE_LONGLONG:
-    return 20;
-
-  case MYSQL_TYPE_NULL:
-    return 0;
-
-  case MYSQL_TYPE_NEWDATE:
-    return 3;
-
-  case MYSQL_TYPE_DATE:
-  case MYSQL_TYPE_TIME:
-  case MYSQL_TYPE_TIME2:
-    return 3;
-
-  case MYSQL_TYPE_TIMESTAMP:
-  case MYSQL_TYPE_TIMESTAMP2:
-    return 4;
-
-  case MYSQL_TYPE_DATETIME:
-  case MYSQL_TYPE_DATETIME2:
-    return 8;
-
-  case MYSQL_TYPE_BIT:
-    /*
-      Decode the size of the bit field from the master.
-    */
-    DBUG_ASSERT((metadata & 0xff) <= 7);
-    return 8 * (metadata >> 8U) + (metadata & 0x00ff);
-
-  case MYSQL_TYPE_VAR_STRING:
-  case MYSQL_TYPE_VARCHAR:
-    return metadata;
-
-    /*
-      The actual length for these types does not really matter since
-      they are used to calc_pack_length, which ignores the given
-      length for these types.
-
-      Since we want this to be accurate for other uses, we return the
-      maximum size in bytes of these BLOBs.
-    */
-
-  case MYSQL_TYPE_TINY_BLOB:
-    return uint_max(1 * 8);
-
-  case MYSQL_TYPE_MEDIUM_BLOB:
-    return uint_max(3 * 8);
-
-  case MYSQL_TYPE_BLOB:
-    /*
-      For the blob type, Field::real_type() lies and say that all
-      blobs are of type MYSQL_TYPE_BLOB. In that case, we have to look
-      at the length instead to decide what the max display size is.
-     */
-    return uint_max(metadata * 8);
-
-  case MYSQL_TYPE_LONG_BLOB:
-  case MYSQL_TYPE_GEOMETRY:
-    return uint_max(4 * 8);
-
-  default:
-    return ~(uint32) 0;
-  }
-}
-
-#ifndef MYSQL_CLIENT
 /*
   Compare the pack lengths of a source field (on the master) and a
   target field (on the slave).
@@ -206,148 +81,14 @@ int compare_lengths(Field *field, enum_field_types source_type, uint16 metadata)
 */
 uint32 table_def::calc_field_size(uint col, uchar *master_data) const
 {
-  uint32 length= 0;
-
-  switch (type(col)) {
-  case MYSQL_TYPE_NEWDECIMAL:
-    length= my_decimal_get_binary_size(m_field_metadata[col] >> 8, 
-                                       m_field_metadata[col] & 0xff);
-    break;
-  case MYSQL_TYPE_DECIMAL:
-  case MYSQL_TYPE_FLOAT:
-  case MYSQL_TYPE_DOUBLE:
-    length= m_field_metadata[col];
-    break;
-  /*
-    The cases for SET and ENUM are include for completeness, however
-    both are mapped to type MYSQL_TYPE_STRING and their real types
-    are encoded in the field metadata.
-  */
-  case MYSQL_TYPE_SET:
-  case MYSQL_TYPE_ENUM:
-  case MYSQL_TYPE_STRING:
-  {
-    uchar type= m_field_metadata[col] >> 8U;
-    if ((type == MYSQL_TYPE_SET) || (type == MYSQL_TYPE_ENUM))
-      length= m_field_metadata[col] & 0x00ff;
-    else
-    {
-      /*
-        We are reading the actual size from the master_data record
-        because this field has the actual lengh stored in the first
-        one or two bytes.
-      */
-      length= max_display_length_for_field(MYSQL_TYPE_STRING, m_field_metadata[col]) > 255 ? 2 : 1;
-
-      /* As in Field_string::unpack */
-      length+= ((length == 1) ? *master_data : uint2korr(master_data));
-    }
-    break;
-  }
-  case MYSQL_TYPE_YEAR:
-  case MYSQL_TYPE_TINY:
-    length= 1;
-    break;
-  case MYSQL_TYPE_SHORT:
-    length= 2;
-    break;
-  case MYSQL_TYPE_INT24:
-    length= 3;
-    break;
-  case MYSQL_TYPE_LONG:
-    length= 4;
-    break;
-  case MYSQL_TYPE_LONGLONG:
-    length= 8;
-    break;
-  case MYSQL_TYPE_NULL:
-    length= 0;
-    break;
-  case MYSQL_TYPE_NEWDATE:
-    length= 3;
-    break;
-  case MYSQL_TYPE_DATE:
-  case MYSQL_TYPE_TIME:
-    length= 3;
-    break;
-  case MYSQL_TYPE_TIME2:
-    length= my_time_binary_length(m_field_metadata[col]);
-    break;
-  case MYSQL_TYPE_TIMESTAMP:
-    length= 4;
-    break;
-  case MYSQL_TYPE_TIMESTAMP2:
-    length= my_timestamp_binary_length(m_field_metadata[col]);
-    break;
-  case MYSQL_TYPE_DATETIME:
-    length= 8;
-    break;
-  case MYSQL_TYPE_DATETIME2:
-    length= my_datetime_binary_length(m_field_metadata[col]);
-    break;
-  case MYSQL_TYPE_BIT:
-  {
-    /*
-      Decode the size of the bit field from the master.
-        from_len is the length in bytes from the master
-        from_bit_len is the number of extra bits stored in the master record
-      If from_bit_len is not 0, add 1 to the length to account for accurate
-      number of bytes needed.
-    */
-    uint from_len= (m_field_metadata[col] >> 8U) & 0x00ff;
-    uint from_bit_len= m_field_metadata[col] & 0x00ff;
-    DBUG_ASSERT(from_bit_len <= 7);
-    length= from_len + ((from_bit_len > 0) ? 1 : 0);
-    break;
-  }
-  case MYSQL_TYPE_VARCHAR:
-  {
-    length= m_field_metadata[col] > 255 ? 2 : 1; // c&p of Field_varstring::data_length()
-    length+= length == 1 ? (uint32) *master_data : uint2korr(master_data);
-    break;
-  }
-  case MYSQL_TYPE_TINY_BLOB:
-  case MYSQL_TYPE_MEDIUM_BLOB:
-  case MYSQL_TYPE_LONG_BLOB:
-  case MYSQL_TYPE_BLOB:
-  case MYSQL_TYPE_GEOMETRY:
-  {
-    /*
-      Compute the length of the data. We cannot use get_length() here
-      since it is dependent on the specific table (and also checks the
-      packlength using the internal 'table' pointer) and replication
-      is using a fixed format for storing data in the binlog.
-    */
-    switch (m_field_metadata[col]) {
-    case 1:
-      length= *master_data;
-      break;
-    case 2:
-      length= uint2korr(master_data);
-      break;
-    case 3:
-      length= uint3korr(master_data);
-      break;
-    case 4:
-      length= uint4korr(master_data);
-      break;
-    default:
-      DBUG_ASSERT(0);		// Should not come here
-      break;
-    }
-
-    length+= m_field_metadata[col];
-    break;
-  }
-  default:
-    length= ~(uint32) 0;
-  }
+  uint32 length= ::calc_field_size(type(col), master_data,
+                                   m_field_metadata[col]);
   return length;
 }
 
-#ifndef MYSQL_CLIENT
 /**
  */
+ #ifndef MYSQL_CLIENT
 static void show_sql_type(enum_field_types type, uint16 metadata, String *str,
                           const CHARSET_INFO *field_cs)
 {
@@ -1174,62 +915,6 @@ table_def::~table_def()
 #endif
 }
 
-/**
-   @param   even_buf    point to the buffer containing serialized event
-   @param   event_len   length of the event accounting possible checksum alg
-
-   @return  TRUE        if test fails
-            FALSE       as success
-*/
-bool event_checksum_test(uchar *event_buf, ulong event_len, uint8 alg)
-{
-  bool res= FALSE;
-  uint16 flags= 0; // to store in FD's buffer flags orig value
-
-  if (alg != BINLOG_CHECKSUM_ALG_OFF && alg != BINLOG_CHECKSUM_ALG_UNDEF)
-  {
-    ha_checksum incoming;
-    ha_checksum computed;
-
-    if (event_buf[EVENT_TYPE_OFFSET] == FORMAT_DESCRIPTION_EVENT)
-    {
-#ifndef DBUG_OFF
-      int8 fd_alg= event_buf[event_len - BINLOG_CHECKSUM_LEN -
-                             BINLOG_CHECKSUM_ALG_DESC_LEN];
-#endif
-      /*
-        FD event is checksummed and therefore verified w/o the binlog-in-use flag
-      */
-      flags= uint2korr(event_buf + FLAGS_OFFSET);
-      if (flags & LOG_EVENT_BINLOG_IN_USE_F)
-        event_buf[FLAGS_OFFSET] &= ~LOG_EVENT_BINLOG_IN_USE_F;
-      /*
-         The only algorithm currently is CRC32. Zero indicates
-         the binlog file is checksum-free *except* the FD-event.
-      */
-      DBUG_ASSERT(fd_alg == BINLOG_CHECKSUM_ALG_CRC32 || fd_alg == 0);
-      DBUG_ASSERT(alg == BINLOG_CHECKSUM_ALG_CRC32);
-      /*
-        Complile time guard to watch over  the max number of alg
-      */
-      compile_time_assert(BINLOG_CHECKSUM_ALG_ENUM_END <= 0x80);
-    }
-    incoming= uint4korr(event_buf + event_len - BINLOG_CHECKSUM_LEN);
-    computed= my_checksum(0L, NULL, 0);
-    /* checksum the event content but the checksum part itself */
-    computed= my_checksum(computed, (const uchar*) event_buf,
-                          event_len - BINLOG_CHECKSUM_LEN);
-    if (flags != 0)
-    {
-      /* restoring the orig value of flags of FD */
-      DBUG_ASSERT(event_buf[EVENT_TYPE_OFFSET] == FORMAT_DESCRIPTION_EVENT);
-      event_buf[FLAGS_OFFSET]= static_cast<uchar>(flags);
-    }
-    res= !(computed == incoming);
-  }
-  return DBUG_EVALUATE_IF("simulate_checksum_test_failure", TRUE, res);
-}
-
 #ifndef MYSQL_CLIENT
 
 #define HASH_ROWS_POS_SEARCH_INVALID -1
@@ -1511,7 +1196,7 @@ Hash_slave_rows::make_hash_key(TABLE *table, MY_BITMAP *cols)
    */
   if (bitmap_is_set_all(cols))
   {
-    crc= my_checksum(crc, table->null_flags, table->s->null_bytes);
+    crc= checksum_crc32(crc, table->null_flags, table->s->null_bytes);
     DBUG_PRINT("debug", ("make_hash_entry: hash after null_flags: %u", crc));
   }
 
@@ -1539,11 +1224,11 @@ Hash_slave_rows::make_hash_key(TABLE *table, MY_BITMAP *cols)
         {
           String tmp;
           f->val_str(&tmp);
-          crc= my_checksum(crc, (uchar*) tmp.ptr(), tmp.length());
+          crc= checksum_crc32(crc, (uchar*) tmp.ptr(), tmp.length());
           break;
         }
         default:
-          crc= my_checksum(crc, f->ptr, f->data_length());
+          crc= checksum_crc32(crc, f->ptr, f->data_length());
           break;
       }
 #ifndef DBUG_OFF

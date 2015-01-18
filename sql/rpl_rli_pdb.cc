@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +20,9 @@
 #include <hash.h>
 #include "rpl_mts_submode.h"
 #include "rpl_slave_commit_order_manager.h"
+
+#include "pfs_file_provider.h"
+#include "mysql/psi/mysql_file.h"
 
 #ifndef DBUG_OFF
   ulong w_rr= 0;
@@ -531,7 +534,7 @@ bool Slave_worker::commit_positions(Log_event *ev, Slave_job_group* ptr_g, bool 
   bitmap_set_bit(&group_executed, ptr_g->checkpoint_seqno);
   checkpoint_seqno= ptr_g->checkpoint_seqno;
   group_relay_log_pos= ev->future_event_relay_log_pos;
-  group_master_log_pos= ev->log_pos;
+  group_master_log_pos= ev->common_header->log_pos;
 
   /*
     Directly accessing c_rli->get_group_master_log_name() does not
@@ -1078,7 +1081,7 @@ void Slave_worker::slave_worker_ends_group(Log_event* ev, int error)
                 ptr_g->group_relay_log_name != NULL);
     DBUG_ASSERT(ptr_g->worker_id == id);
 
-    if (ev->get_type_code() != XID_EVENT)
+    if (ev->get_type_code() != binary_log::XID_EVENT)
     {
       commit_positions(ev, ptr_g, false);
       DBUG_EXECUTE_IF("crash_after_commit_and_update_pos",
@@ -1620,11 +1623,11 @@ static bool may_have_timestamp(Log_event *ev)
 
   switch (ev->get_type_code())
   {
-  case QUERY_EVENT:
+  case binary_log::QUERY_EVENT:
     res= true;
     break;
 
-  case GTID_LOG_EVENT:
+  case binary_log::GTID_LOG_EVENT:
     res= true;
     break;
 
@@ -1641,11 +1644,11 @@ static longlong get_last_committed(Log_event *ev)
 
   switch (ev->get_type_code())
   {
-  case QUERY_EVENT:
+  case binary_log::QUERY_EVENT:
     res= static_cast<Query_log_event*>(ev)->last_committed;
     break;
 
-  case GTID_LOG_EVENT:
+  case binary_log::GTID_LOG_EVENT:
     res= static_cast<Gtid_log_event*>(ev)->last_committed;
     break;
 
@@ -1662,11 +1665,11 @@ static longlong get_sequence_number(Log_event *ev)
 
   switch (ev->get_type_code())
   {
-  case QUERY_EVENT:
+  case binary_log::QUERY_EVENT:
     res= static_cast<Query_log_event*>(ev)->sequence_number;
     break;
 
-  case GTID_LOG_EVENT:
+  case binary_log::GTID_LOG_EVENT:
     res= static_cast<Gtid_log_event*>(ev)->sequence_number;
     break;
 
@@ -1700,8 +1703,8 @@ int Slave_worker::slave_worker_exec_event(Log_event *ev)
   thd->server_id = ev->server_id;
   thd->set_time();
   thd->lex->set_current_select(0);
-  if (!ev->when.tv_sec)
-    ev->when.tv_sec= static_cast<long>(my_time(0));
+  if (!ev->common_header->when.tv_sec)
+    ev->common_header->when.tv_sec= static_cast<long>(my_time(0));
   ev->thd= thd; // todo: assert because up to this point, ev->thd == 0
   ev->worker= this;
 
@@ -1777,7 +1780,7 @@ int Slave_worker::slave_worker_exec_event(Log_event *ev)
   }
 
   set_future_event_relay_log_pos(ev->future_event_relay_log_pos);
-  set_master_log_pos(static_cast<ulong>(ev->log_pos));
+  set_master_log_pos(static_cast<ulong>(ev->common_header->log_pos));
   set_gaq_index(ev->mts_group_idx);
   DBUG_RETURN(ev->do_apply_event_worker(this));
 }
@@ -2140,7 +2143,7 @@ bool append_item_to_jobs(slave_job_item *job_item,
 {
   THD *thd= rli->info_thd;
   int ret= -1;
-  size_t ev_size= ((Log_event*) (job_item->data))->data_written;
+  size_t ev_size= ((Log_event*) (job_item->data))->common_header->data_written;
   ulonglong new_pend_size;
   PSI_stage_info old_stage;
 
@@ -2286,7 +2289,7 @@ static void remove_item_from_jobs(slave_job_item *job_item,
   mysql_mutex_lock(&rli->pending_jobs_lock);
 
   rli->pending_jobs--;
-  rli->mts_pending_jobs_size-= ev->data_written;
+  rli->mts_pending_jobs_size-= ev->common_header->data_written;
   DBUG_ASSERT(rli->mts_pending_jobs_size < rli->mts_pending_jobs_size_max);
 
   /*
@@ -2468,12 +2471,13 @@ int slave_worker_exec_job_group(Slave_worker *worker, Relay_log_info *rli)
       malformed group events one by one.
     */
     DBUG_ASSERT(seen_begin || is_gtid_event(ev) ||
-                ev->get_type_code() == QUERY_EVENT ||
+                ev->get_type_code() == binary_log::QUERY_EVENT ||
                 is_mts_db_partitioned(rli) || worker->id == 0);
 
     if (ev->ends_group() ||
-        (!seen_begin && !is_gtid_event(ev) && (ev->get_type_code() == QUERY_EVENT ||
-                                               !is_mts_db_partitioned(rli))))
+        (!seen_begin && !is_gtid_event(ev) &&
+        (ev->get_type_code() == binary_log::QUERY_EVENT ||
+        !is_mts_db_partitioned(rli))))
       break;
 
     remove_item_from_jobs(job_item, worker, rli);

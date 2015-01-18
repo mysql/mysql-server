@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -40,7 +40,7 @@ SET(HEADERS
   my_sys.h 
   my_xml.h
   mysql_embed.h
-  my_pthread.h
+  my_thread.h
   decimal.h
   errmsg.h
   my_global.h
@@ -62,6 +62,7 @@ SET(HEADERS
   ${HEADERS_GEN_CONFIGURE}
 )
 
+INSTALL(FILES ../libbinlogevents/export/binary_log_types.h DESTINATION ${INSTALL_INCLUDEDIR})
 INSTALL(FILES ${HEADERS} DESTINATION ${INSTALL_INCLUDEDIR} COMPONENT Development)
 INSTALL(DIRECTORY mysql/ DESTINATION ${INSTALL_INCLUDEDIR}/mysql COMPONENT Development 
  PATTERN "*.h"

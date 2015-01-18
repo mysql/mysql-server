@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,7 +22,6 @@
 
 #include "sql_alloc.h"
 #include "violite.h"                            /* SSL_type */
-#include "item.h"               /* From item_subselect.h: subselect_union_engine */
 #include "thr_lock.h"                  /* thr_lock_type, TL_UNLOCK */
 #include "sql_array.h"
 #include "mem_root_array.h"
@@ -32,8 +31,8 @@
 #include "xa.h"                       // XID, xa_option_words
 #include "prealloced_array.h"
 #include "sql_data_change.h"
-#include "set_var.h"
 #include "query_options.h"            // OPTION_NO_CONST_TABLES
+#include "item_subselect.h"           // chooser_compare_func_creator
 
 /* YACC and LEX Definitions */
 
@@ -53,6 +52,11 @@ class sys_var;
 class Item_func_match;
 class File_parser;
 class Key_part_spec;
+class select_result_interceptor;
+class Item_func;
+typedef class st_select_lex SELECT_LEX;
+
+const size_t INITIAL_LEX_PLUGIN_LIST_SIZE = 16;
 
 #ifdef MYSQL_SERVER
 /*
@@ -3052,14 +3056,7 @@ public:
 
   LEX();
 
-  virtual ~LEX()
-  {
-    destroy_query_tables_list();
-    plugin_unlock_list(NULL, plugins.begin(), plugins.size());
-    unit= NULL;                     // Created in mem_root - no destructor
-    select_lex= NULL;
-    m_current_select= NULL;
-  }
+  virtual ~LEX();
 
   /// Reset query context to initial state
   void reset();

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,22 +18,25 @@
 
 /* Classes in mysql */
 
-#include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
-#include "sql_const.h"
-#include "sql_lex.h"
-#include <mysql/plugin_audit.h>
-#include "rpl_tblmap.h"
-#include "mdl.h"
-#include "sql_locale.h"                         /* my_locale_st */
-#include "sql_profile.h"                   /* PROFILING */
-#include "protocol.h"             /* Protocol_text, Protocol_binary */
-#include "violite.h"              /* vio_is_connected */
-#include "thr_lock.h"             /* thr_lock_type, THR_LOCK_DATA,
-                                     THR_LOCK_INFO */
-#include "opt_trace_context.h"    /* Opt_trace_context */
-#include "rpl_gtid.h"
-#include "dur_prop.h"
-#include "prealloced_array.h"
+#include "my_global.h"
+
+#include "dur_prop.h"                     // durability_properties
+#include "mysql/mysql_lex_string.h"       // LEX_STRING
+#include "mysql_com.h"                    // Item_result
+#include "mysql_com_server.h"             // NET_SERVER
+#include "auth/sql_security_ctx.h"        // Security_context
+#include "handler.h"                      // KEY_CREATE_INFO
+#include "opt_trace_context.h"            // Opt_trace_context
+#include "protocol.h"                     // Protocol_text
+#include "rpl_context.h"                  // Rpl_thd_context
+#include "rpl_gtid.h"                     // Gtid_specification
+#include "session_tracker.h"              // Session_tracker
+#include "sql_alloc.h"                    // Sql_alloc
+#include "sql_lex.h"                      // keytype
+#include "sql_locale.h"                   // MY_LOCALE
+#include "sql_profile.h"                  // PROFILING
+#include "sys_vars_resource_mgr.h"        // Session_sysvar_resource_manager
+#include "transaction_info.h"             // Ha_trx_info
 
 #include <pfs_stage_provider.h>
 #include <mysql/psi/mysql_stage.h>
@@ -41,20 +44,15 @@
 #include <pfs_statement_provider.h>
 #include <mysql/psi/mysql_statement.h>
 
-#include <pfs_idle_provider.h>
-#include <mysql/psi/mysql_idle.h>
-
-#include <mysql_com_server.h>
-#include "opt_costmodel.h"                      // Cost_model_server
-#include "sql_data_change.h"
-
-#include "sys_vars_resource_mgr.h"
-#include "session_tracker.h"
-
-#include "transaction_info.h"
 #include <memory>
 
-#include "auth/sql_security_ctx.h"   // Security_context
+class Reprepare_observer;
+class sp_cache;
+class Rows_log_event;
+struct st_thd_timer;
+typedef struct st_log_info LOG_INFO;
+typedef struct st_columndef MI_COLUMNDEF;
+typedef struct st_mysql_lex_string LEX_STRING;
 
 /**
   The meat of thd_proc_info(THD*, char*), a macro that packs the last
@@ -80,21 +78,6 @@ void set_thd_stage_info(void *thd,
 #define THD_STAGE_INFO(thd, stage) \
   (thd)->enter_stage(& stage, NULL, __func__, __FILE__, __LINE__)
 
-class Reprepare_observer;
-class Relay_log_info;
-
-class Query_log_event;
-class Load_log_event;
-class sp_rcontext;
-class sp_cache;
-class Parser_state;
-class Rows_log_event;
-class Sroutine_hash_entry;
-class user_var_entry;
-typedef struct st_log_info LOG_INFO;
-
-struct st_thd_timer;
-
 enum enum_delay_key_write { DELAY_KEY_WRITE_NONE, DELAY_KEY_WRITE_ON,
 			    DELAY_KEY_WRITE_ALL };
 enum enum_rbr_exec_mode { RBR_EXEC_MODE_STRICT,
@@ -115,6 +98,13 @@ enum enum_binlog_row_image {
   /** All columns in both before and after image. */
   BINLOG_ROW_IMAGE_FULL= 2
 };
+
+enum enum_session_track_gtids {
+  OFF= 0,
+  OWN_GTID= 1,
+  ALL_GTIDS= 2
+};
+
 enum enum_binlog_format {
   BINLOG_FORMAT_MIXED= 0, ///< statement if safe, otherwise row - autodetected
   BINLOG_FORMAT_STMT=  1, ///< statement-based
@@ -564,12 +554,19 @@ typedef struct system_variables
 
   Gtid_specification gtid_next;
   Gtid_set_or_null gtid_next_list;
+  ulong session_track_gtids;
 
   ulong max_statement_time;
 
   char *track_sysvars_ptr;
   my_bool session_track_schema;
   my_bool session_track_state_change;
+  /**
+    Compatibility option to mark the pre MySQL-5.6.4 temporals columns using
+    the old format using comments for SHOW CREATE TABLE and in I_S.COLUMNS
+    'COLUMN_TYPE' field.
+  */
+  my_bool show_old_temporals;
 } SV;
 
 
@@ -1134,8 +1131,7 @@ public:
                                 uint sql_errno,
                                 const char* sqlstate,
                                 Sql_condition::enum_severity_level *level,
-                                const char* msg,
-                                Sql_condition ** cond_hdl) = 0;
+                                const char* msg) = 0;
 
 private:
   Internal_error_handler *m_prev_internal_handler;
@@ -1151,15 +1147,14 @@ private:
 class Dummy_error_handler : public Internal_error_handler
 {
 public:
-  bool handle_condition(THD *thd,
-                        uint sql_errno,
-                        const char* sqlstate,
-                        Sql_condition::enum_severity_level *level,
-                        const char* msg,
-                        Sql_condition ** cond_hdl)
+  virtual bool handle_condition(THD *thd,
+                                uint sql_errno,
+                                const char* sqlstate,
+                                Sql_condition::enum_severity_level *level,
+                                const char* msg)
   {
     /* Ignore error */
-    return TRUE;
+    return true;
   }
 };
 
@@ -1174,17 +1169,11 @@ public:
 class Drop_table_error_handler : public Internal_error_handler
 {
 public:
-  Drop_table_error_handler() {}
-
-public:
-  bool handle_condition(THD *thd,
-                        uint sql_errno,
-                        const char* sqlstate,
-                        Sql_condition::enum_severity_level *level,
-                        const char* msg,
-                        Sql_condition ** cond_hdl);
-
-private:
+  virtual bool handle_condition(THD *thd,
+                                uint sql_errno,
+                                const char* sqlstate,
+                                Sql_condition::enum_severity_level *level,
+                                const char* msg);
 };
 
 
@@ -1197,13 +1186,17 @@ private:
 class MDL_deadlock_and_lock_abort_error_handler: public Internal_error_handler
 {
 public:
-  virtual
-  bool handle_condition(THD *thd,
-                        uint sql_errno,
-                        const char *sqlstate,
-                        Sql_condition::enum_severity_level *level,
-                        const char* msg,
-                        Sql_condition **cond_hdl);
+  virtual bool handle_condition(THD *thd,
+                                uint sql_errno,
+                                const char *sqlstate,
+                                Sql_condition::enum_severity_level *level,
+                                const char* msg)
+  {
+    if (sql_errno == ER_LOCK_ABORTED || sql_errno == ER_LOCK_DEADLOCK)
+      m_need_reopen= true;
+
+    return m_need_reopen;
+  }
 
   bool need_reopen() const { return m_need_reopen; };
   void init() { m_need_reopen= false; };
@@ -1729,7 +1722,7 @@ public:
   uint16 peer_port;
   struct timeval start_time;
   struct timeval user_time;
-  // track down slow pthread_create
+  // track down slow my_thread_create
   ulonglong  thr_create_utime;
   ulonglong  start_utime, utime_after_lock;
 
@@ -2340,11 +2333,11 @@ public:
   /* Statement id is thread-wide. This counter is used to generate ids */
   ulong      statement_id_counter;
   ulong	     rand_saved_seed1, rand_saved_seed2;
-  pthread_t  real_id;                           /* For debugging */
+  my_thread_t  real_id;                           /* For debugging */
   /**
     This counter is 32 bit because of the client protocol.
 
-    @note It is not meant to be used for pthread_self(), see @real_id for this.
+    @note It is not meant to be used for my_thread_self(), see @real_id for this.
 
     @note Set to reserved_thread_id on initialization. This is a magic
     value that is only to be used for temporary THDs not present in
@@ -2650,7 +2643,7 @@ public:
     Array of bits indicating which audit classes have already been
     added to the list of audit plugins which are currently in use.
   */
-  unsigned long audit_class_mask[MYSQL_AUDIT_CLASS_MASK_SIZE];
+  Prealloced_array<unsigned long, 1> audit_class_mask;
 #endif
 
 #if defined(ENABLED_DEBUG_SYNC)
@@ -3007,7 +3000,7 @@ public:
     DBUG_ENTER("clear_error");
     if (get_stmt_da()->is_error())
       get_stmt_da()->reset_diagnostics_area();
-    is_slave_error= 0;
+    is_slave_error= false;
     DBUG_VOID_RETURN;
   }
 #ifndef EMBEDDED_LIBRARY
@@ -3320,6 +3313,14 @@ public:
   */
   Gtid_set owned_gtid_set;
 
+  /*
+   Replication related context.
+
+   @todo: move more parts of replication related fields in THD to inside this
+          class.
+  */
+  Rpl_thd_context rpl_thd_ctx;
+
   void clear_owned_gtids()
   {
     if (owned_gtid.sidno == -1)
@@ -3456,14 +3457,12 @@ private:
     @param sqlstate the condition sqlstate
     @param level the condition level
     @param msg the condition message text
-    @param[out] cond_hdl the sql condition raised, if any
     @return true if the condition is handled
   */
   bool handle_condition(uint sql_errno,
                         const char* sqlstate,
                         Sql_condition::enum_severity_level *level,
-                        const char* msg,
-                        Sql_condition ** cond_hdl);
+                        const char* msg);
 
 public:
   /**
@@ -4084,170 +4083,6 @@ public:
   bool send_data(List<Item> &items);
 };
 
-/**
-   @todo This class is declared in sql_class.h, but the members are defined in
-   sql_insert.cc. It is very confusing that a class is defined in a file with
-   a different name than the file where it is declared.
-*/
-class select_insert :public select_result_interceptor {
-public:
-  TABLE_LIST *table_list;
-  TABLE *table;
-private:
-  /**
-     The columns of the table to be inserted into, *or* the columns of the
-     table from which values are selected. For legacy reasons both are
-     allowed.
-   */
-  List<Item> *fields;
-protected:
-  /// ha_start_bulk_insert has been called. Never cleared.
-  bool bulk_insert_started;
-public:
-  ulonglong autoinc_value_of_last_inserted_row; // autogenerated or not
-  COPY_INFO info;
-  COPY_INFO update; ///< the UPDATE part of "info"
-  bool insert_into_view;
-
-  /**
-     Creates a select_insert for routing a result set to an existing
-     table.
-
-     @param table_list_par   The table reference for the destination table.
-     @param table_par        The destination table. May be NULL.
-     @param target_columns   See details.
-     @param target_or_source_columns See details.
-     @param update_fields    The columns to be updated in case of duplicate
-                             keys. May be NULL.
-     @param update_values    The values to be assigned in case of duplicate
-                             keys. May be NULL.
-     @param duplicate        The policy for handling duplicates.
-
-     @todo This constructor takes 8 arguments, 6 of which are used to
-     immediately construct a COPY_INFO object. Obviously the constructor
-     should take the COPY_INFO object as argument instead. Also, some
-     select_insert members initialized here are totally redundant, as they are
-     found inside the COPY_INFO.
-
-     The target_columns and target_or_source_columns arguments are set by
-     callers as follows:
-     @li if CREATE SELECT:
-      - target_columns == NULL,
-      - target_or_source_columns == expressions listed after SELECT, as in
-          CREATE ... SELECT expressions
-     @li if INSERT SELECT:
-      target_columns
-      == target_or_source_columns
-      == columns listed between INSERT and SELECT, as in
-          INSERT INTO t (columns) SELECT ...
-
-     We set the manage_defaults argument of info's constructor as follows
-     ([...] denotes something optional):
-     @li If target_columns==NULL, the statement is
-@verbatim
-     CREATE TABLE a_table [(columns1)] SELECT expressions2
-@endverbatim
-     so 'info' must manage defaults of columns1.
-     @li Otherwise it is:
-@verbatim
-     INSERT INTO a_table [(columns1)] SELECT ...
-@verbatim
-     target_columns is columns1, if not empty then 'info' must manage defaults
-     of other columns than columns1.
-  */
-  select_insert(TABLE_LIST *table_list_par,
-                TABLE *table_par,
-                List<Item> *target_columns,
-                List<Item> *target_or_source_columns,
-                List<Item> *update_fields,
-                List<Item> *update_values,
-                enum_duplicates duplic)
-    :table_list(table_list_par),
-     table(table_par),
-     fields(target_or_source_columns),
-     bulk_insert_started(false),
-     autoinc_value_of_last_inserted_row(0),
-     info(COPY_INFO::INSERT_OPERATION,
-          target_columns,
-          // manage_defaults
-          (target_columns == NULL || target_columns->elements != 0),
-          duplic),
-     update(COPY_INFO::UPDATE_OPERATION,
-            update_fields,
-            update_values),
-     insert_into_view(table_list_par && table_list_par->view != 0)
-  {
-    DBUG_ASSERT(target_or_source_columns != NULL);
-    DBUG_ASSERT(target_columns == target_or_source_columns ||
-                target_columns == NULL);
-  }
-
-
-public:
-  ~select_insert();
-  virtual bool need_explain_interceptor() const { return true; }
-  int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
-  virtual int prepare2(void);
-  bool send_data(List<Item> &items);
-  virtual void store_values(List<Item> &values);
-  void send_error(uint errcode,const char *err);
-  bool send_eof();
-  virtual void abort_result_set();
-  /* not implemented: select_insert is never re-used in prepared statements */
-  void cleanup();
-};
-
-
-/**
-   @todo This class inherits a class which is non-abstract. This is not in
-   line with good programming practices and the inheritance should be broken
-   up. Also, the class is declared in sql_class.h, but defined sql_insert.cc
-   which is confusing.
-*/
-class select_create: public select_insert {
-  TABLE_LIST *create_table;
-  HA_CREATE_INFO *create_info;
-  TABLE_LIST *select_tables;
-  Alter_info *alter_info;
-  Field **field;
-  /* lock data for tmp table */
-  MYSQL_LOCK *m_lock;
-  /* m_lock or thd->extra_lock */
-  MYSQL_LOCK **m_plock;
-public:
-  select_create (TABLE_LIST *table_arg,
-		 HA_CREATE_INFO *create_info_par,
-                 Alter_info *alter_info_arg,
-		 List<Item> &select_fields,enum_duplicates duplic,
-                 TABLE_LIST *select_tables_arg)
-    :select_insert (NULL, // table_list_par
-                    NULL, // table_par
-                    NULL, // target_columns
-                    &select_fields,
-                    NULL, // update_fields
-                    NULL, // update_values
-                    duplic),
-     create_table(table_arg),
-     create_info(create_info_par),
-     select_tables(select_tables_arg),
-     alter_info(alter_info_arg),
-     m_plock(NULL)
-  {}
-  int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
-
-  int binlog_show_create_table(TABLE **tables, uint count);
-  void store_values(List<Item> &values);
-  void send_error(uint errcode,const char *err);
-  bool send_eof();
-  virtual void abort_result_set();
-
-  // Needed for access from local class MY_HOOKS in prepare(), since thd is proteted.
-  const THD *get_thd(void) { return thd; }
-  const HA_CREATE_INFO *get_create_info() { return create_info; };
-  int prepare2(void);
-};
-
-#include <myisam.h>
 
 typedef Mem_root_array<Item*, true> Func_ptr_array;
 
@@ -4365,125 +4200,6 @@ public:
   }
 };
 
-class select_union :public select_result_interceptor
-{
-  Temp_table_param tmp_table_param;
-public:
-  TABLE *table;
-
-  select_union() :table(0) {}
-  int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
-  /**
-    Do prepare() and prepare2() if they have been postponed until
-    column type information is computed (used by select_union_direct).
-
-    @param types Column types
-
-    @return false on success, true on failure
-  */
-  virtual bool postponed_prepare(List<Item> &types)
-  { return false; }
-  bool send_data(List<Item> &items);
-  bool send_eof();
-  virtual bool flush();
-  void cleanup();
-  bool create_result_table(THD *thd, List<Item> *column_types,
-                           bool is_distinct, ulonglong options,
-                           const char *alias, bool bit_fields_as_long,
-                           bool create_table);
-  friend bool mysql_derived_create(THD *thd, LEX *lex, TABLE_LIST *derived);
-};
-
-
-/**
-  UNION result that is passed directly to the receiving select_result
-  without filling a temporary table.
-
-  Function calls are forwarded to the wrapped select_result, but some
-  functions are expected to be called only once for each query, so
-  they are only executed for the first SELECT in the union (except
-  for send_eof(), which is executed only for the last SELECT).
-
-  This select_result is used when a UNION is not DISTINCT and doesn't
-  have a global ORDER BY clause. @see st_select_lex_unit::prepare().
-*/
-class select_union_direct :public select_union
-{
-private:
-  /// Result object that receives all rows
-  select_result *result;
-  /// The last SELECT_LEX of the union
-  SELECT_LEX *last_select_lex;
-
-  /// Wrapped result has received metadata
-  bool done_send_result_set_metadata;
-  /// Wrapped result has initialized tables
-  bool done_initialize_tables;
-
-  /// Accumulated limit_found_rows
-  ulonglong limit_found_rows;
-
-  /// Number of rows offset
-  ha_rows offset;
-  /// Number of rows limit + offset, @see select_union_direct::send_data()
-  ha_rows limit;
-
-public:
-  select_union_direct(select_result *result, SELECT_LEX *last_select_lex)
-    :result(result), last_select_lex(last_select_lex),
-    done_send_result_set_metadata(false), done_initialize_tables(false),
-    limit_found_rows(0)
-  {}
-  bool change_query_result(select_result *new_result);
-  uint field_count(List<Item> &fields) const
-  {
-    // Only called for top-level select_results, usually select_send
-    DBUG_ASSERT(false); /* purecov: inspected */
-    return 0; /* purecov: inspected */
-  }
-  bool postponed_prepare(List<Item> &types);
-  bool send_result_set_metadata(List<Item> &list, uint flags);
-  bool send_data(List<Item> &items);
-  bool initialize_tables (JOIN *join= NULL);
-  void send_error(uint errcode, const char *err)
-  {
-    result->send_error(errcode, err); /* purecov: inspected */
-  }
-  bool send_eof();
-  bool flush() { return false; }
-  bool check_simple_select() const
-  {
-    // Only called for top-level select_results, usually select_send
-    DBUG_ASSERT(false); /* purecov: inspected */
-    return false; /* purecov: inspected */
-  }
-  void abort_result_set()
-  {
-    result->abort_result_set(); /* purecov: inspected */
-  }
-  void cleanup() {}
-  void set_thd(THD *thd_arg)
-  {
-    /*
-      Only called for top-level select_results, usually select_send,
-      and for the results of subquery engines
-      (select_<something>_subselect).
-    */
-    DBUG_ASSERT(false); /* purecov: inspected */
-  }
-  void reset_offset_limit_cnt()
-  {
-    // EXPLAIN should never output to a select_union_direct
-    DBUG_ASSERT(false); /* purecov: inspected */
-  }
-  void begin_dataset()
-  {
-    // Only called for sp_cursor::Select_fetch_into_spvars
-    DBUG_ASSERT(false); /* purecov: inspected */
-  }
-};
-
-
 /* Base subselect interface class */
 class select_subselect :public select_result_interceptor
 {
@@ -4493,51 +4209,6 @@ public:
   select_subselect(Item_subselect *item);
   bool send_data(List<Item> &items)=0;
   bool send_eof() { return 0; };
-};
-
-/* Single value subselect interface class */
-class select_singlerow_subselect :public select_subselect
-{
-public:
-  select_singlerow_subselect(Item_subselect *item_arg)
-    :select_subselect(item_arg)
-  {}
-  bool send_data(List<Item> &items);
-};
-
-/* used in independent ALL/ANY optimisation */
-class select_max_min_finder_subselect :public select_subselect
-{
-  Item_cache *cache;
-  bool (select_max_min_finder_subselect::*op)();
-  bool fmax;
-  /**
-    If ignoring NULLs, comparisons will skip NULL values. If not
-    ignoring NULLs, the first (if any) NULL value discovered will be
-    returned as the maximum/minimum value.
-  */
-  bool ignore_nulls;
-public:
-  select_max_min_finder_subselect(Item_subselect *item_arg, bool mx,
-                                  bool ignore_nulls)
-    :select_subselect(item_arg), cache(0), fmax(mx), ignore_nulls(ignore_nulls)
-  {}
-  void cleanup();
-  bool send_data(List<Item> &items);
-private:
-  bool cmp_real();
-  bool cmp_int();
-  bool cmp_decimal();
-  bool cmp_str();
-};
-
-/* EXISTS subselect interface class */
-class select_exists_subselect :public select_subselect
-{
-public:
-  select_exists_subselect(Item_subselect *item_arg)
-    :select_subselect(item_arg){}
-  bool send_data(List<Item> &items);
 };
 
 
@@ -4809,122 +4480,6 @@ public:
   my_decimal *val_decimal(my_bool *null_value, my_decimal *result) const;
 };
 
-class multi_delete :public select_result_interceptor
-{
-  TABLE_LIST *delete_tables;
-  /// Pointers to temporary files used for delayed deletion of rows
-  Unique **tempfiles;
-  /// Pointers to table objects matching tempfiles
-  TABLE **tables;
-  ha_rows deleted, found;
-  uint num_of_tables;
-  int error;
-  /// Map of all tables to delete rows from
-  table_map delete_table_map;
-  /// Map of tables to delete from immediately
-  table_map delete_immediate;
-  // Map of transactional tables to be deleted from
-  table_map transactional_table_map;
-  /// Map of non-transactional tables to be deleted from
-  table_map non_transactional_table_map;
-  /// True if some delete operation has been performed (immediate or delayed)
-  bool do_delete;
-  /// True if some actual delete operation against non-transactional table done
-  bool non_transactional_deleted;
-  /*
-     error handling (rollback and binlogging) can happen in send_eof()
-     so that afterward send_error() needs to find out that.
-  */
-  bool error_handled;
-
-public:
-  multi_delete(TABLE_LIST *dt, uint num_of_tables);
-  ~multi_delete();
-  virtual bool need_explain_interceptor() const { return true; }
-  int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
-  bool send_data(List<Item> &items);
-  bool initialize_tables (JOIN *join);
-  void send_error(uint errcode,const char *err);
-  int do_deletes();
-  int do_table_deletes(TABLE *table);
-  bool send_eof();
-  inline ha_rows num_deleted()
-  {
-    return deleted;
-  }
-  virtual void abort_result_set();
-};
-
-
-/**
-   @todo This class is declared here but implemented in sql_update.cc, which
-   is very confusing.
-*/
-class multi_update :public select_result_interceptor
-{
-  TABLE_LIST *all_tables; /* query/update command tables */
-  TABLE_LIST *leaves;     /* list of leves of join table tree */
-  TABLE_LIST *update_tables;
-  TABLE **tmp_tables, *main_table, *table_to_update;
-  Temp_table_param *tmp_table_param;
-  ha_rows updated, found;
-  List <Item> *fields, *values;
-  List <Item> **fields_for_table, **values_for_table;
-  uint table_count;
-  /*
-   List of tables referenced in the CHECK OPTION condition of
-   the updated view excluding the updated table. 
-  */
-  List <TABLE> unupdated_check_opt_tables;
-  Copy_field *copy_field;
-  enum enum_duplicates handle_duplicates;
-  bool do_update, trans_safe;
-  /* True if the update operation has made a change in a transactional table */
-  bool transactional_tables;
-  /* 
-     error handling (rollback and binlogging) can happen in send_eof()
-     so that afterward send_error() needs to find out that.
-  */
-  bool error_handled;
-
-  /**
-     Array of update operations, arranged per _updated_ table. For each
-     _updated_ table in the multiple table update statement, a COPY_INFO
-     pointer is present at the table's position in this array.
-
-     The array is allocated and populated during multi_update::prepare(). The
-     position that each table is assigned is also given here and is stored in
-     the member TABLE::pos_in_table_list::shared. However, this is a publicly
-     available field, so nothing can be trusted about its integrity.
-
-     This member is NULL when the multi_update is created.
-
-     @see multi_update::prepare
-  */
-  COPY_INFO **update_operations;
-
-public:
-  multi_update(TABLE_LIST *ut, TABLE_LIST *leaves_list,
-	       List<Item> *fields, List<Item> *values,
-	       enum_duplicates handle_duplicates);
-  ~multi_update();
-  virtual bool need_explain_interceptor() const { return true; }
-  int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
-  bool send_data(List<Item> &items);
-  bool initialize_tables (JOIN *join);
-  void send_error(uint errcode,const char *err);
-  int  do_updates();
-  bool send_eof();
-  inline ha_rows num_found()
-  {
-    return found;
-  }
-  inline ha_rows num_updated()
-  {
-    return updated;
-  }
-  virtual void abort_result_set();
-};
 
 class select_dumpvar :public select_result_interceptor {
   ha_rows row_count;

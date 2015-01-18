@@ -9,6 +9,7 @@ extern struct my_snprintf_service_st {
 size_t my_snprintf(char* to, size_t n, const char* fmt, ...);
 size_t my_vsnprintf(char *to, size_t n, const char* fmt, va_list ap);
 #include <mysql/service_thd_alloc.h>
+#include <mysql/mysql_lex_string.h>
 struct st_mysql_lex_string
 {
   char *str;
@@ -177,55 +178,6 @@ struct st_mysql_plugin
   struct st_mysql_sys_var **system_vars;
   void * __reserved1;
   unsigned long flags;
-};
-#include "plugin_ftparser.h"
-#include "plugin.h"
-enum enum_ftparser_mode
-{
-  MYSQL_FTPARSER_SIMPLE_MODE= 0,
-  MYSQL_FTPARSER_WITH_STOPWORDS= 1,
-  MYSQL_FTPARSER_FULL_BOOLEAN_INFO= 2
-};
-enum enum_ft_token_type
-{
-  FT_TOKEN_EOF= 0,
-  FT_TOKEN_WORD= 1,
-  FT_TOKEN_LEFT_PAREN= 2,
-  FT_TOKEN_RIGHT_PAREN= 3,
-  FT_TOKEN_STOPWORD= 4
-};
-typedef struct st_mysql_ftparser_boolean_info
-{
-  enum enum_ft_token_type type;
-  int yesno;
-  int weight_adjust;
-  char wasign;
-  char trunc;
-  int position;
-  char prev;
-  char *quot;
-} MYSQL_FTPARSER_BOOLEAN_INFO;
-typedef struct st_mysql_ftparser_param
-{
-  int (*mysql_parse)(struct st_mysql_ftparser_param *,
-                     char *doc, int doc_len);
-  int (*mysql_add_word)(struct st_mysql_ftparser_param *,
-                        char *word, int word_len,
-                        MYSQL_FTPARSER_BOOLEAN_INFO *boolean_info);
-  void *ftparser_state;
-  void *mysql_ftparam;
-  const struct charset_info_st *cs;
-  char *doc;
-  int length;
-  int flags;
-  enum enum_ftparser_mode mode;
-} MYSQL_FTPARSER_PARAM;
-struct st_mysql_ftparser
-{
-  int interface_version;
-  int (*parse)(MYSQL_FTPARSER_PARAM *param);
-  int (*init)(MYSQL_FTPARSER_PARAM *param);
-  int (*deinit)(MYSQL_FTPARSER_PARAM *param);
 };
 struct st_mysql_daemon
 {

@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,7 +30,7 @@ volatile int32 b32;
 volatile int32  c32;
 
 /* add and sub a random number in a loop. Must get 0 at the end */
-pthread_handler_t test_atomic_add(void *arg)
+extern "C" void *test_atomic_add(void *arg)
 {
   int m= (*(int *)arg)/2;
   int32 x;
@@ -49,7 +49,7 @@ pthread_handler_t test_atomic_add(void *arg)
 
 volatile int64 a64;
 /* add and sub a random number in a loop. Must get 0 at the end */
-pthread_handler_t test_atomic_add64(void *arg)
+extern "C" void *test_atomic_add64(void *arg)
 {
   int m= (*(int *)arg)/2;
   int64 x;
@@ -79,7 +79,7 @@ pthread_handler_t test_atomic_add64(void *arg)
   5. subtract result from bad
   must get 0 in bad at the end
 */
-pthread_handler_t test_atomic_fas(void *arg)
+extern "C" void *test_atomic_fas(void *arg)
 {
   int    m= *(int *)arg;
   int32  x;
@@ -111,7 +111,7 @@ pthread_handler_t test_atomic_fas(void *arg)
   my_atomic_cas32 - notice that the slowdown is proportional to the
   number of CPUs
 */
-pthread_handler_t test_atomic_cas(void *arg)
+extern "C" void *test_atomic_cas(void *arg)
 {
   int m= (*(int *)arg)/2, ok= 0;
   int32 x, y;
@@ -164,14 +164,16 @@ TEST(Mysys, Atomic)
 {
   mysql_mutex_init(0, &mutex, 0);
   mysql_cond_init(0, &cond);
-  pthread_attr_init(&thr_attr);
+  my_thread_attr_init(&thr_attr);
+#ifndef _WIN32
   pthread_attr_setdetachstate(&thr_attr, PTHREAD_CREATE_DETACHED);
- 
+#endif
+
   do_tests();
 
   mysql_mutex_destroy(&mutex);
   mysql_cond_destroy(&cond);
-  pthread_attr_destroy(&thr_attr);
+  my_thread_attr_destroy(&thr_attr);
 }
 
 }

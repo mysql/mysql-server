@@ -786,5 +786,20 @@ connection con1;
 disconnect con1;
 connection default;
 #
+# Bug#20031761 ASSERTION `SCALE >= 0 && PRECISION > 0 &&
+#              SCALE <= PRECISION' FAILED
+#
+SET @@session.div_precision_increment=0;
+select * from(SELECT MIN(GET_LOCK(0,0) / 1 ^ 0)) as a;
+MIN(GET_LOCK(0,0) / 1 ^ 0)
+1
+select * from(SELECT MAX(RELEASE_LOCK(0) / 1 ^ 0)) as a;
+MAX(RELEASE_LOCK(0) / 1 ^ 0)
+1
+select * from(SELECT MAX(RELEASE_ALL_LOCKS() / 1 ^ 0)) as a;
+MAX(RELEASE_ALL_LOCKS() / 1 ^ 0)
+0
+SET @@session.div_precision_increment=default;
+#
 # End of tests
 #

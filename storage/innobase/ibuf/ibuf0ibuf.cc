@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -3950,8 +3950,7 @@ ibuf_insert_to_index_page(
 		goto dump;
 	}
 
-	if (UNIV_UNLIKELY(rec_get_n_fields(rec, index)
-			  != dtuple_get_n_fields(entry))) {
+	if (!rec_n_fields_is_sane(index, rec, entry)) {
 		ib::warn() << "Trying to insert a record from the insert"
 			" buffer to an index page but the number of fields"
 			" does not match!";

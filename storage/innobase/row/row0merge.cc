@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -98,14 +98,14 @@ public:
 	}
 
 	/** Insert spatial index rows cached in vector into spatial index
-	@param[in,out]	trx		transaction
+	@param[in]	trx_id		transaction id
 	@param[in,out]	row_heap	memory heap
 	@param[in]	pcur		cluster index scanning cursor
 	@param[in,out]	scan_mtr	mini-transaction for pcur
 	@param[out]	mtr_committed	whether scan_mtr got committed
 	@return DB_SUCCESS if successful, else error number */
 	dberr_t insert(
-		trx_t*			trx,
+		trx_id_t		trx_id,
 		mem_heap_t*		row_heap,
 		btr_pcur_t*		pcur,
 		mtr_t*			scan_mtr,
@@ -222,7 +222,7 @@ public:
 					page_update_max_trx_id(
 						btr_cur_get_block(&ins_cur),
 						btr_cur_get_page_zip(&ins_cur),
-						trx->id, &mtr);
+						trx_id, &mtr);
 				}
 			}
 
@@ -407,22 +407,86 @@ row_merge_buf_free(
 	mem_heap_free(buf->heap);
 }
 
-/******************************************************//**
-Insert a data tuple into a sort buffer.
+/** Convert the field data from compact to redundant format.
+@param[in]	row_field	field to copy from
+@param[out]	field		field to copy to
+@param[in]	len		length of the field data
+@param[in]	zip_size	compressed BLOB page size,
+				zero for uncompressed BLOBs
+@param[in,out]	heap		memory heap where to allocate data when
+				converting to ROW_FORMAT=REDUNDANT, or NULL
+				when not to invoke
+				row_merge_buf_redundant_convert(). */
+static
+void
+row_merge_buf_redundant_convert(
+	const dfield_t*		row_field,
+	dfield_t*		field,
+	ulint			len,
+	const page_size_t&	page_size,
+	mem_heap_t*		heap)
+{
+	ut_ad(DATA_MBMINLEN(field->type.mbminmaxlen) == 1);
+	ut_ad(DATA_MBMAXLEN(field->type.mbminmaxlen) > 1);
+
+	byte*		buf = (byte*) mem_heap_alloc(heap, len);
+	ulint		field_len = row_field->len;
+	ut_ad(field_len <= len);
+
+	if (row_field->ext) {
+		const byte*	field_data = static_cast<byte*>(
+			dfield_get_data(row_field));
+		ulint		ext_len;
+
+		ut_a(field_len >= BTR_EXTERN_FIELD_REF_SIZE);
+		ut_a(memcmp(field_data + field_len - BTR_EXTERN_FIELD_REF_SIZE,
+			    field_ref_zero, BTR_EXTERN_FIELD_REF_SIZE));
+
+		byte*	data = btr_copy_externally_stored_field(
+			&ext_len, field_data, page_size, field_len, heap);
+
+		ut_ad(ext_len < len);
+
+		memcpy(buf, data, ext_len);
+		field_len = ext_len;
+	} else {
+		memcpy(buf, row_field->data, field_len);
+	}
+
+	memset(buf + field_len, 0x20, len - field_len);
+
+	dfield_set_data(field, buf, len);
+}
+
+/** Insert a data tuple into a sort buffer.
+@param[in,out]	buf		sort buffer
+@param[in]	fts_index	fts index to be created
+@param[in]	old_table	original table
+@param[in,out]	psort_info	parallel sort info
+@param[in]	row		table row
+@param[in]	ext		cache of externally stored
+				column prefixes, or NULL
+@param[in,out]	doc_id		Doc ID if we are creating
+				FTS index
+@param[in,out]	conv_heap	memory heap where to allocate data when
+				converting to ROW_FORMAT=REDUNDANT, or NULL
+				when not to invoke
+				row_merge_buf_redundant_convert()
+@param[in,out]	exceed_page	set if the record size exceeds the page size
+				when converting to ROW_FORMAT=REDUNDANT
 @return number of rows added, 0 if out of space */
 static
 ulint
 row_merge_buf_add(
-/*==============*/
-	row_merge_buf_t*	buf,	/*!< in/out: sort buffer */
-	dict_index_t*		fts_index,/*!< in: fts index to be created */
-	const dict_table_t*	old_table,/*!< in: original table */
-	fts_psort_t*		psort_info, /*!< in: parallel sort info */
-	const dtuple_t*		row,	/*!< in: table row */
-	const row_ext_t*	ext,	/*!< in: cache of externally stored
-					column prefixes, or NULL */
-	doc_id_t*		doc_id)	/*!< in/out: Doc ID if we are
-					creating FTS index */
+	row_merge_buf_t*	buf,
+	dict_index_t*		fts_index,
+	const dict_table_t*	old_table,
+	fts_psort_t*		psort_info,
+	const dtuple_t*		row,
+	const row_ext_t*	ext,
+	doc_id_t*		doc_id,
+	mem_heap_t*		conv_heap,
+	bool*			exceed_page)
 {
 	ulint			i;
 	const dict_index_t*	index;
@@ -574,6 +638,18 @@ row_merge_buf_add(
 				n_row_added = 1;
 				continue;
 			}
+
+			if (col->mtype == DATA_MYSQL
+			    && col->len != field->len) {
+				if (conv_heap != NULL) {
+					row_merge_buf_redundant_convert(
+						row_field, field, col->len,
+						dict_table_page_size(old_table),
+						conv_heap);
+				} else {
+					ut_ad(dict_table_is_comp(index->table));
+				}
+			}
 		}
 
 		len = dfield_get_len(field);
@@ -685,6 +761,14 @@ row_merge_buf_add(
 	of extra_size. */
 	data_size += (extra_size + 1) + ((extra_size + 1) >= 0x80);
 
+	/* Record size can exceed page size while converting to
+	redundant row format. But there is assert
+	ut_ad(size < UNIV_PAGE_SIZE) in rec_offs_data_size().
+	It may hit the assert before attempting to insert the row. */
+	if (conv_heap != NULL && data_size > UNIV_PAGE_SIZE) {
+		*exceed_page = true;
+	}
+
 	ut_ad(data_size < srv_sort_buf_size);
 
 	/* Reserve one byte for the end marker of row_merge_block_t. */
@@ -703,6 +787,10 @@ row_merge_buf_add(
 	do {
 		dfield_dup(field++, buf->heap);
 	} while (--n_fields);
+
+	if (conv_heap != NULL) {
+		mem_heap_empty(conv_heap);
+	}
 
 	DBUG_RETURN(n_row_added);
 }
@@ -1387,19 +1475,19 @@ row_mtuple_cmp(
 }
 
 /** Insert cached spatial index rows.
-@param[in]	trx		transaction
+@param[in]	trx_id		transaction id
 @param[in]	sp_tuples	cached spatial rows
 @param[in]	num_spatial	number of spatial indexes
-@param[in]	row_heap	heap for insert
-@param[in]	sp_heap		heap for tuples
-@param[in]	pcur		cluster index cursor
-@param[in]	mtr		mini transaction
+@param[in,out]	row_heap	heap for insert
+@param[in,out]	sp_heap		heap for tuples
+@param[in,out]	pcur		cluster index cursor
+@param[in,out]	mtr		mini transaction
 @param[in,out]	mtr_committed	whether scan_mtr got committed
 @return DB_SUCCESS or error number */
 static
 dberr_t
 row_merge_spatial_rows(
-	trx_t*			trx,
+	trx_id_t		trx_id,
 	index_tuple_info_t**	sp_tuples,
 	ulint			num_spatial,
 	mem_heap_t*		row_heap,
@@ -1410,12 +1498,15 @@ row_merge_spatial_rows(
 {
 	dberr_t			err = DB_SUCCESS;
 
-	ut_ad(sp_tuples != NULL);
+	if (sp_tuples == NULL) {
+		return(DB_SUCCESS);
+	}
+
 	ut_ad(sp_heap != NULL);
 
 	for (ulint j = 0; j < num_spatial; j++) {
 		err = sp_tuples[j]->insert(
-			trx, row_heap,
+			trx_id, row_heap,
 			pcur, mtr, mtr_committed);
 
 		if (err != DB_SUCCESS) {
@@ -1502,6 +1593,7 @@ row_merge_read_clustered_index(
 	bool			clust_temp_file = false;
 	mem_heap_t*		mtuple_heap = NULL;
 	mtuple_t		prev_mtuple;
+	mem_heap_t*		conv_heap = NULL;
 	DBUG_ENTER("row_merge_read_clustered_index");
 
 	ut_ad((old_table == new_table) == !col_map);
@@ -1565,7 +1657,7 @@ row_merge_read_clustered_index(
 	if (num_spatial > 0) {
 		ulint	count = 0;
 
-		sp_heap = mem_heap_create(100);
+		sp_heap = mem_heap_create(512);
 
 		sp_tuples = static_cast<index_tuple_info_t**>(
 			ut_malloc_nokey(num_spatial
@@ -1632,6 +1724,11 @@ row_merge_read_clustered_index(
 
 	row_heap = mem_heap_create(sizeof(mrec_buf_t));
 
+	if (dict_table_is_comp(old_table)
+	    && !dict_table_is_comp(new_table)) {
+		conv_heap = mem_heap_create(sizeof(mrec_buf_t));
+	}
+
 	if (skip_pk_sort) {
 		prev_fields = static_cast<dfield_t*>(
 			ut_malloc_nokey(n_uniq * sizeof *prev_fields));
@@ -1675,21 +1772,19 @@ row_merge_read_clustered_index(
 				dbug_run_purge = true;);
 
 			/* Insert the cached spatial index rows. */
-			if (sp_tuples != NULL) {
-				bool	mtr_committed = false;
+			bool	mtr_committed = false;
 
-				err = row_merge_spatial_rows(
-					trx, sp_tuples, num_spatial,
-					row_heap, sp_heap, &pcur,
-					&mtr, &mtr_committed);
+			err = row_merge_spatial_rows(
+				trx->id, sp_tuples, num_spatial,
+				row_heap, sp_heap, &pcur,
+				&mtr, &mtr_committed);
 
-				if (err != DB_SUCCESS) {
-					goto func_exit;
-				}
+			if (err != DB_SUCCESS) {
+				goto func_exit;
+			}
 
-				if (mtr_committed) {
-					goto scan_next;
-				}
+			if (mtr_committed) {
+				goto scan_next;
 			}
 
 			if (dbug_run_purge
@@ -1939,6 +2034,7 @@ write_buffers:
 			row_merge_buf_t*	buf	= merge_buf[i];
 			merge_file_t*		file	= &files[i];
 			ulint			rows_added = 0;
+			bool			exceed_page = false;
 
 			if (dict_index_is_spatial(buf->index)) {
 
@@ -1959,12 +2055,19 @@ write_buffers:
 			if (UNIV_LIKELY
 			    (row && (rows_added = row_merge_buf_add(
 					buf, fts_index, old_table,
-					psort_info, row, ext, &doc_id)))) {
+					psort_info, row, ext, &doc_id,
+					conv_heap, &exceed_page)))) {
 
 				/* If we are creating FTS index,
 				a single row can generate more
 				records for tokenized word */
 				file->n_rec += rows_added;
+
+				if (exceed_page) {
+					err = DB_TOO_BIG_RECORD;
+					break;
+				}
+
 				if (doc_id > max_doc_id) {
 					max_doc_id = doc_id;
 				}
@@ -2050,17 +2153,15 @@ write_buffers:
 						index page could be updated, then
 						the data in cached rows become
 						invalid. */
-						if (sp_tuples != NULL) {
-							err = row_merge_spatial_rows(
-								trx, sp_tuples,
-								num_spatial,
-								row_heap, sp_heap,
-								&pcur, &mtr,
-								&mtr_committed);
+						err = row_merge_spatial_rows(
+							trx->id, sp_tuples,
+							num_spatial,
+							row_heap, sp_heap,
+							&pcur, &mtr,
+							&mtr_committed);
 
-							if (err != DB_SUCCESS) {
-								goto func_exit;
-							}
+						if (err != DB_SUCCESS) {
+							goto func_exit;
 						}
 
 						/* We are not at the end of
@@ -2248,10 +2349,16 @@ write_buffers:
 				    (!(rows_added = row_merge_buf_add(
 						buf, fts_index, old_table,
 						psort_info, row, ext,
-						&doc_id)))) {
+						&doc_id, conv_heap,
+						&exceed_page)))) {
 					/* An empty buffer should have enough
 					room for at least one record. */
 					ut_error;
+				}
+
+				if (exceed_page) {
+					err = DB_TOO_BIG_RECORD;
+					break;
 				}
 
 				file->n_rec += rows_added;
@@ -2286,6 +2393,10 @@ all_done:
 	if (prev_fields != NULL) {
 		ut_free(prev_fields);
 		mem_heap_free(mtuple_heap);
+	}
+
+	if (conv_heap != NULL) {
+		mem_heap_free(conv_heap);
 	}
 
 #ifdef FTS_INTERNAL_DIAG_PRINT
@@ -3914,6 +4025,7 @@ row_merge_create_index(
 		ut_a(index);
 
 		index->parser = index_def->parser;
+		index->is_ngram = index_def->is_ngram;
 
 		/* Note the id of the transaction that created this
 		index, we use it to restrict readers from accessing

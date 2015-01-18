@@ -79,9 +79,11 @@ DROP TABLE t1;
 --echo #            SELECT is not detected
 --echo #
 
+# we need concurrency of 2 to allow InnoDB intrinsic table (spawned
+# by Optimizer) to proceed.
 SET @old_innodb_thread_concurrency := @@innodb_thread_concurrency;
 SET @old_innodb_thread_sleep_delay := @@innodb_thread_sleep_delay;
-SET GLOBAL innodb_thread_concurrency = 1;
+SET GLOBAL innodb_thread_concurrency = 2;
 
 CREATE TABLE t1
 (user_num BIGINT,
@@ -388,8 +390,10 @@ CREATE TABLE t2 (c1 INT, PRIMARY KEY (c1),
                  FOREIGN KEY (c1) REFERENCES t1 (c1)
                  ON DELETE CASCADE)
 ENGINE=INNODB;
---error ER_ROW_IS_REFERENCED
+--error ER_FOREIGN_KEY_ON_PARTITIONED
 ALTER TABLE t1 PARTITION BY HASH(c1) PARTITIONS 5;
+--error ER_FOREIGN_KEY_ON_PARTITIONED
+ALTER TABLE t2 PARTITION BY HASH(c1) PARTITIONS 5;
 --error ER_ROW_IS_REFERENCED
 ALTER TABLE t1 ENGINE=MyISAM;
 DROP TABLE t2;
@@ -887,3 +891,4 @@ CHECK TABLE t7;
 ALTER TABLE t7 CHANGE f1 f1 INT AFTER f4, ALGORITHM=INPLACE;
 
 DROP TABLE t1,t2,t3,t4,t5,t6,t7;
+

@@ -75,37 +75,112 @@ FLUSH LOGS;
 ==== Part 2 ====
 include/rpl_reset.inc
 include/stop_slave.inc
-SET GLOBAL debug="d,rotate_slave_debug_group";
 include/start_slave.inc
+BEGIN;
+INSERT INTO t1 VALUES(0);
+COMMIT;
+include/sync_slave_sql_with_master.inc
 ---- i=1 ----
+[connection slave]
+# Adding debug point 'pause_on_queuing_event' to @@GLOBAL.debug
+[connection master]
 BEGIN;
 INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 COMMIT;
+[connection slave]
+Waiting for 3 more event(s) before flushing relaylog
+SET DEBUG_SYNC='now WAIT_FOR reached_queuing_event';
+SET DEBUG_SYNC= 'now SIGNAL continue_queuing_event';
+Waiting for 2 more event(s) before flushing relaylog
+SET DEBUG_SYNC='now WAIT_FOR reached_queuing_event';
+SET DEBUG_SYNC= 'now SIGNAL continue_queuing_event';
+Waiting for 1 more event(s) before flushing relaylog
+SET DEBUG_SYNC='now WAIT_FOR reached_queuing_event';
+SET DEBUG_SYNC= 'now SIGNAL continue_queuing_event';
+FLUSH LOCAL RELAY LOGS;
+SET DEBUG_SYNC='now WAIT_FOR reached_queuing_event';
+# Removing debug point 'pause_on_queuing_event' from @@GLOBAL.debug
+SET DEBUG_SYNC= 'now SIGNAL continue_queuing_event';
+[connection master]
 include/sync_slave_sql_with_master.inc
 extra/rpl_tests/rpl_check_gtid.inc
 FLUSH LOGS;
 ---- i=2 ----
+[connection slave]
+# Adding debug point 'pause_on_queuing_event' to @@GLOBAL.debug
+[connection master]
 BEGIN;
 INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 COMMIT;
+[connection slave]
+Waiting for 3 more event(s) before flushing relaylog
+SET DEBUG_SYNC='now WAIT_FOR reached_queuing_event';
+SET DEBUG_SYNC= 'now SIGNAL continue_queuing_event';
+Waiting for 2 more event(s) before flushing relaylog
+SET DEBUG_SYNC='now WAIT_FOR reached_queuing_event';
+SET DEBUG_SYNC= 'now SIGNAL continue_queuing_event';
+Waiting for 1 more event(s) before flushing relaylog
+SET DEBUG_SYNC='now WAIT_FOR reached_queuing_event';
+SET DEBUG_SYNC= 'now SIGNAL continue_queuing_event';
+FLUSH LOCAL RELAY LOGS;
+SET DEBUG_SYNC='now WAIT_FOR reached_queuing_event';
+# Removing debug point 'pause_on_queuing_event' from @@GLOBAL.debug
+SET DEBUG_SYNC= 'now SIGNAL continue_queuing_event';
+[connection master]
 include/sync_slave_sql_with_master.inc
 extra/rpl_tests/rpl_check_gtid.inc
 FLUSH LOGS;
 ---- i=3 ----
+[connection slave]
+# Adding debug point 'pause_on_queuing_event' to @@GLOBAL.debug
+[connection master]
 BEGIN;
 INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 COMMIT;
+[connection slave]
+Waiting for 3 more event(s) before flushing relaylog
+SET DEBUG_SYNC='now WAIT_FOR reached_queuing_event';
+SET DEBUG_SYNC= 'now SIGNAL continue_queuing_event';
+Waiting for 2 more event(s) before flushing relaylog
+SET DEBUG_SYNC='now WAIT_FOR reached_queuing_event';
+SET DEBUG_SYNC= 'now SIGNAL continue_queuing_event';
+Waiting for 1 more event(s) before flushing relaylog
+SET DEBUG_SYNC='now WAIT_FOR reached_queuing_event';
+SET DEBUG_SYNC= 'now SIGNAL continue_queuing_event';
+FLUSH LOCAL RELAY LOGS;
+SET DEBUG_SYNC='now WAIT_FOR reached_queuing_event';
+# Removing debug point 'pause_on_queuing_event' from @@GLOBAL.debug
+SET DEBUG_SYNC= 'now SIGNAL continue_queuing_event';
+[connection master]
 include/sync_slave_sql_with_master.inc
 extra/rpl_tests/rpl_check_gtid.inc
 FLUSH LOGS;
 ---- i=4 ----
+[connection slave]
+# Adding debug point 'pause_on_queuing_event' to @@GLOBAL.debug
+[connection master]
 BEGIN;
 INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 COMMIT;
+[connection slave]
+Waiting for 3 more event(s) before flushing relaylog
+SET DEBUG_SYNC='now WAIT_FOR reached_queuing_event';
+SET DEBUG_SYNC= 'now SIGNAL continue_queuing_event';
+Waiting for 2 more event(s) before flushing relaylog
+SET DEBUG_SYNC='now WAIT_FOR reached_queuing_event';
+SET DEBUG_SYNC= 'now SIGNAL continue_queuing_event';
+Waiting for 1 more event(s) before flushing relaylog
+SET DEBUG_SYNC='now WAIT_FOR reached_queuing_event';
+SET DEBUG_SYNC= 'now SIGNAL continue_queuing_event';
+FLUSH LOCAL RELAY LOGS;
+SET DEBUG_SYNC='now WAIT_FOR reached_queuing_event';
+# Removing debug point 'pause_on_queuing_event' from @@GLOBAL.debug
+SET DEBUG_SYNC= 'now SIGNAL continue_queuing_event';
+[connection master]
 include/sync_slave_sql_with_master.inc
 extra/rpl_tests/rpl_check_gtid.inc
 FLUSH LOGS;

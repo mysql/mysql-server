@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved. 
+/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,9 +26,18 @@
 #include "opt_costmodel.h"
 #include "test_utils.h"
 
+#include "bounded_queue_c.h"
+#include "bounded_queue_std.h"
+#include "bounded_queue_boost.h"
+#include "bounded_queue_boost.cc"
+
 namespace bounded_queue_unittest {
 
 const int num_elements= 14;
+
+static int count_int_ptr_compare= 0;
+static int count_operator= 0;
+static int count_test_key= 0;
 
 /*
   Elements to be sorted by tests below.
@@ -83,6 +92,18 @@ int test_key_compare(size_t *cmp_arg, Test_key **a, Test_key **b)
 }
 
 
+class Test_key_compare
+{
+public:
+  bool operator()(const Test_key *a, const Test_key *b) const
+  {
+    ++count_test_key;
+    return a->key < b->key;
+  }
+  size_t m_size;
+};
+
+
 /*
   Generates a Test_key for a given Test_element.
  */
@@ -135,6 +156,14 @@ protected:
       m_queue.push(&m_test_data[ix]);
   }
 
+  void insert_test_data_heap()
+  {
+    for (int ix= 0; ix < array_size(m_test_data); ++ix)
+    {
+      m_heap.push(&m_test_data[ix]);
+    }
+  }
+
   // Key pointers and data, used by the queue_xxx() functions.
   Key_container<num_elements / 2, Test_key> m_keys;
 
@@ -142,7 +171,9 @@ protected:
   Test_element  m_test_data[num_elements];
 
   Test_keymaker m_keymaker;
-  Bounded_queue<Test_element *, Test_key *, Test_keymaker> m_queue;
+  Bounded_QUEUE<Test_element *, Test_key *, Test_keymaker> m_queue;
+  Bounded_queue<Test_element *, Test_key *,
+                Test_keymaker, Test_key_compare> m_heap;
 private:
   GTEST_DISALLOW_COPY_AND_ASSIGN_(BoundedQueueTest);
 };
@@ -277,7 +308,7 @@ static void my_string_ptr_sort(uchar *base, uint items, size_t size)
   {
     if (size && items)
     {
-      my_qsort2(base,items, sizeof(uchar*), get_ptr_compare(size),
+      my_qsort2(base,items, sizeof(uchar*), my_testing::get_ptr_compare(size),
                 (void*) &size);
     }
   }
@@ -340,6 +371,8 @@ int int_ptr_compare(size_t *cmp_arg, int **a, int **b)
 {
   EXPECT_EQ(*cmp_arg, sizeof(int));
 
+  ++count_int_ptr_compare;
+
   int a_num= **a;
   int b_num= **b;
 
@@ -349,6 +382,18 @@ int int_ptr_compare(size_t *cmp_arg, int **a, int **b)
     return -1;
   return 0;
 }
+
+
+class Int_ptr_compare
+{
+public:
+  bool operator()(const int *a, const int *b) const
+  {
+    ++count_operator;
+    return *a > *b;
+  }
+  size_t m_compare_length;
+};
 
 
 /*
@@ -367,109 +412,141 @@ public:
 
 
 /*
-  Some basic performance testing, to compute the overhead of Bounded_queue.
+  Some basic performance testing, to compute the overhead of Bounded_QUEUE.
   Run the with 'bounded_queue-t --disable-tap-output' to see the
   millisecond output from Google Test.
- */
-const int num_rows= 10000;
-const int row_limit= 100;
-const int num_iterations= 10;
 
-class PerfTestSmall : public ::testing::Test
+  ./bounded_queue-t --disable-tap-output --gtest_filter="PerfTest*"
+
+  For testing, I used
+  num_rows  = 100000
+  row_limit = { 1, 10, 100, 1000, 10000 }
+  num_iterations = 100
+
+  The inser_into_xxx() functions insert rand() data.
+  Also test with
+    identical data : queue.push(0)
+    increasing keys: queue.push(ix)
+    decreasing keys: queue.push(-ix)
+ */
+const ha_rows num_rows= 100000;
+const ha_rows row_limit= 1;
+const int num_iterations= 1;
+
+inline int test_data(int ix __attribute__((unused)))
+{
+  return rand();
+  // return 42;
+  // return ix;
+  // return -ix;
+}
+
+
+class PerfTest : public ::testing::Test
 {
 public:
+  virtual void SetUp()
+  {
+    count_int_ptr_compare= 0;
+    count_operator= 0;
+    count_test_key= 0;
+  }
+  virtual void TearDown()
+  {
+    std::cout << "C-compare " << count_int_ptr_compare
+              << " Cpp-compare " << count_operator << std::endl << std::endl;
+  }
   /*
     The extra overhead of malloc/free should be part of the measurement,
     so we do not define the key container as a member here.
   */
   typedef Key_container<row_limit, int> Container;
-  enum { limit= row_limit };
-};
-
-class PerfTestLarge : public ::testing::Test
-{
-public:
-  /*
-    The extra overhead of malloc/free should be part of the measurement,
-    so we do not define the key container as a member here.
-  */
-  typedef Key_container<num_rows, int> Container;
-  enum { limit= num_rows };
 };
 
 
-template <int limit>
-void insert_and_sort()
+// Different queue.init, so separate insert function, see insert_into_heap.
+void insert_into_queue()
 {
-  typedef Key_container<limit, int> Container;
+  typedef Key_container<row_limit, int> Container;
+  std::cout << "insert " << num_rows
+            << " rows into queue size " << row_limit << std::endl;
   for (int it= 0; it < num_iterations; ++it)
   {
     Container *keys= new Container;
     srand(0);
     Int_keymaker int_keymaker;
-    Bounded_queue<int *, int *, Int_keymaker> queue;
-    EXPECT_EQ(0, queue.init(limit, true, int_ptr_compare,
+    Bounded_QUEUE<int *, int *, Int_keymaker> queue;
+    EXPECT_EQ(0, queue.init(row_limit, false, int_ptr_compare,
                             &int_keymaker, keys->key_ptrs));
-    for (int ix= 0; ix < num_rows; ++ix)
+    for (ha_rows ix= 0; ix < num_rows; ++ix)
     {
-      int data= rand();
+      int data= test_data(ix);
       queue.push(&data);
     }
-    my_string_ptr_sort((uchar*) &keys->key_ptrs[0],
-                       queue.num_elements(), sizeof(int));
     delete keys;
   }
 }
 
 
-/*
-  Test with Bounded_queue size == <limit>.
- */
-TEST_F(PerfTestSmall, InsertAndSort)
+// Inserts test data into Queue.
+template<typename Queue_t>
+void insert_into_heap()
 {
-  insert_and_sort<limit>();
-}
-
-
-/*
-  Test with Bounded_queue size == <number of rows>
- */
-TEST_F(PerfTestLarge, InsertAndSort)
-{
-  insert_and_sort<limit>();
-}
-
-
-/*
-  Test without bounded queue, i.e. insert keys into array, and sort it.
- */
-TEST_F(PerfTestLarge, WithoutQueue)
-{
+  typedef Key_container<row_limit, int> Container;
+  std::cout << "insert " << num_rows
+            << " rows into heap size " << row_limit << std::endl;
   for (int it= 0; it < num_iterations; ++it)
   {
     Container *keys= new Container;
     srand(0);
-    for (int ix= 0; ix < limit; ++ix)
+    Int_keymaker int_keymaker;
+    Queue_t queue;
+    EXPECT_EQ(0, queue.init(row_limit,
+                            &int_keymaker, keys->key_ptrs));
+    for (ha_rows ix= 0; ix < num_rows; ++ix)
     {
-      int data= rand();
-      keys->key_data[ix]= data;
+      int data= test_data(ix);
+      queue.push(&data);
     }
-    my_string_ptr_sort((uchar*) &keys->key_ptrs[0], limit, sizeof(int));
     delete keys;
   }
+}
+
+
+TEST_F(PerfTest, InsertIntoQUEUE)
+{
+  insert_into_queue();
+}
+
+TEST_F(PerfTest, InsertIntoPriorityQueue)
+{
+  insert_into_heap<Bounded_queue<int *, int *,
+                                 Int_keymaker, Int_ptr_compare> >();
+}
+
+TEST_F(PerfTest, InsertIntoStdQueue)
+{
+  insert_into_heap<Bounded_queue_std<int *, int *,
+                                     Int_keymaker, Int_ptr_compare> >();
+}
+
+TEST_F(PerfTest, InsertIntoBoostQueue)
+{
+  insert_into_heap<Bounded_queue_boost<int *, int *,
+                                       Int_keymaker, Int_ptr_compare> >();
 }
 
 
 /*
   Computes the overhead of setting up sort arrays, and rand() calls.
  */
-TEST_F(PerfTestLarge, NoSorting)
+TEST_F(PerfTest, NoSorting)
 {
   for (int it= 0; it < num_iterations; ++it)
   {
     Container *keys= new Container;
     srand(0);
-    for (int ix= 0; ix < limit; ++ix)
+    for (ha_rows ix= 0; ix < row_limit; ++ix)
     {
       int data= rand();
       keys->key_data[ix]= data;

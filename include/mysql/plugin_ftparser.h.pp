@@ -9,6 +9,7 @@ extern struct my_snprintf_service_st {
 size_t my_snprintf(char* to, size_t n, const char* fmt, ...);
 size_t my_vsnprintf(char *to, size_t n, const char* fmt, va_list ap);
 #include <mysql/service_thd_alloc.h>
+#include <mysql/mysql_lex_string.h>
 struct st_mysql_lex_string
 {
   char *str;
@@ -178,7 +179,6 @@ struct st_mysql_plugin
   void * __reserved1;
   unsigned long flags;
 };
-#include "plugin_ftparser.h"
 struct st_mysql_daemon
 {
   int interface_version;

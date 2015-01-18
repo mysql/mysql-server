@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@
 #include "sql_auth_cache.h"
 #include "sql_authentication.h"
 #include "sql_time.h"
+#include "sql_plugin.h"                         // lock_plugin_data etc.
 
 #define INVALID_DATE "0000-00-00 00:00:00"
 
@@ -57,6 +58,8 @@ Prealloced_array<ACL_HOST_AND_IP, ACL_PREALLOC_SIZE> *acl_wild_hosts= NULL;
 HASH column_priv_hash, proc_priv_hash, func_priv_hash;
 hash_filo *acl_cache;
 HASH acl_check_hosts;
+
+mysql_rwlock_t proxy_users_rwlock;
 
 bool initialized=0;
 bool allow_all_hosts=1;
@@ -1293,6 +1296,7 @@ my_bool acl_init(bool dont_read_acl_tables)
                            (my_hash_free_key) free,
                            &my_charset_utf8_bin);
 
+  mysql_rwlock_init(key_rwlock_proxy_users, &proxy_users_rwlock);
   /*
     cache built-in native authentication plugins,
     to avoid hash searches and a global mutex lock on every connect
@@ -1791,7 +1795,6 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
                     "please run mysql_upgrade to create it");
   }
   acl_proxy_users->shrink_to_fit();
-
   validate_user_plugin_records();
   init_check_host();
 
@@ -1886,8 +1889,14 @@ my_bool acl_reload(THD *thd)
     DBUG_RETURN(true);
   }
 
+  Write_lock proxy_users_wlk(&proxy_users_rwlock, DEFER);
+
   if ((old_initialized=initialized))
+  {
+    /* If you need these two locks, always acquire them in this order:*/
     mysql_mutex_lock(&acl_cache->lock);
+    proxy_users_wlk.lock();
+  }
 
   Prealloced_array<ACL_USER, ACL_PREALLOC_SIZE> *old_acl_users= acl_users;
   Prealloced_array<ACL_DB, ACL_PREALLOC_SIZE> *old_acl_dbs= acl_dbs;
@@ -1926,7 +1935,10 @@ my_bool acl_reload(THD *thd)
     delete old_acl_proxy_users;
   }
   if (old_initialized)
+  {
     mysql_mutex_unlock(&acl_cache->lock);
+    proxy_users_wlk.unlock();
+  }
 
   close_acl_tables(thd);
   DBUG_RETURN(return_val);
@@ -1936,7 +1948,6 @@ my_bool acl_reload(THD *thd)
 void acl_insert_proxy_user(ACL_PROXY_USER *new_value)
 {
   DBUG_ENTER("acl_insert_proxy_user");
-  mysql_mutex_assert_owner(&acl_cache->lock);
   acl_proxy_users->push_back(*new_value);
   std::sort(acl_proxy_users->begin(), acl_proxy_users->end(), ACL_compare());
   DBUG_VOID_RETURN;
@@ -2054,7 +2065,7 @@ static my_bool grant_load_procs_priv(TABLE *p_table)
   MEM_ROOT *memex_ptr;
   my_bool return_val= 1;
   bool check_no_resolve= specialflag & SPECIAL_NO_RESOLVE;
-  MEM_ROOT **save_mem_root_ptr= my_pthread_get_THR_MALLOC();
+  MEM_ROOT **save_mem_root_ptr= my_thread_get_THR_MALLOC();
   DBUG_ENTER("grant_load_procs_priv");
   (void) my_hash_init(&proc_priv_hash, &my_charset_utf8_bin,
                       0,0,0, (my_hash_get_key) get_grant_table,
@@ -2069,7 +2080,7 @@ static my_bool grant_load_procs_priv(TABLE *p_table)
   if (!p_table->file->ha_index_first(p_table->record[0]))
   {
     memex_ptr= &memex;
-    my_pthread_set_THR_MALLOC(&memex_ptr);
+    my_thread_set_THR_MALLOC(&memex_ptr);
     do
     {
       GRANT_NAME *mem_check;
@@ -2125,7 +2136,7 @@ static my_bool grant_load_procs_priv(TABLE *p_table)
 
 end_unlock:
   p_table->file->ha_index_end();
-  my_pthread_set_THR_MALLOC(save_mem_root_ptr);
+  my_thread_set_THR_MALLOC(save_mem_root_ptr);
   DBUG_RETURN(return_val);
 }
 
@@ -2151,7 +2162,7 @@ static my_bool grant_load(THD *thd, TABLE_LIST *tables)
   my_bool return_val= 1;
   TABLE *t_table= 0, *c_table= 0;
   bool check_no_resolve= specialflag & SPECIAL_NO_RESOLVE;
-  MEM_ROOT **save_mem_root_ptr= my_pthread_get_THR_MALLOC();
+  MEM_ROOT **save_mem_root_ptr= my_thread_get_THR_MALLOC();
   sql_mode_t old_sql_mode= thd->variables.sql_mode;
   DBUG_ENTER("grant_load");
 
@@ -2171,7 +2182,7 @@ static my_bool grant_load(THD *thd, TABLE_LIST *tables)
   if (!t_table->file->ha_index_first(t_table->record[0]))
   {
     memex_ptr= &memex;
-    my_pthread_set_THR_MALLOC(&memex_ptr);
+    my_thread_set_THR_MALLOC(&memex_ptr);
     do
     {
       GRANT_TABLE *mem_check;
@@ -2210,7 +2221,7 @@ static my_bool grant_load(THD *thd, TABLE_LIST *tables)
 
 end_unlock:
   t_table->file->ha_index_end();
-  my_pthread_set_THR_MALLOC(save_mem_root_ptr);
+  my_thread_set_THR_MALLOC(save_mem_root_ptr);
 end_index_init:
   thd->variables.sql_mode= old_sql_mode;
   DBUG_RETURN(return_val);
@@ -2522,8 +2533,6 @@ void acl_insert_user(const char *user, const char *host,
 
 void acl_update_proxy_user(ACL_PROXY_USER *new_value, bool is_revoke)
 {
-  mysql_mutex_assert_owner(&acl_cache->lock);
-
   DBUG_ENTER("acl_update_proxy_user");
   for (ACL_PROXY_USER *acl_user= acl_proxy_users->begin();
        acl_user != acl_proxy_users->end(); ++acl_user)

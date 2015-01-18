@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
 #define NDB_SAFE_MUTEX_HPP
 
 #include <ndb_global.h>
-#include <my_pthread.h>
+#include <my_thread.h>
 #include <assert.h>
 #include <ndb_types.h>
 #include <NdbOut.hpp>
@@ -45,7 +45,7 @@ class SafeMutex {
   const bool m_simple;
   native_mutex_t m_mutex;
   native_cond_t m_cond;
-  pthread_t m_owner;
+  my_thread_t m_owner;
   bool m_initdone;
   Uint32 m_level;
   Uint32 m_usage;       // max level used so far
