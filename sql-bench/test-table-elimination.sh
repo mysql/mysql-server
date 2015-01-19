@@ -1,4 +1,4 @@
-#!@PERL@
+#!/usr/bin/perl
 # Test of table elimination feature
 
 use Cwd;
