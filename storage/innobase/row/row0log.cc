@@ -1419,10 +1419,11 @@ blob_done:
 			dfield_set_data(dfield, data, len);
 		}
 
-		if (col->mtype == DATA_MYSQL && col->len != len) {
-			if (dict_table_is_comp(index->table)
-			    && !dict_table_is_comp(log->table)) {
-				ut_ad(col->len > len);
+		if (col->mtype == DATA_MYSQL && col->len != len
+		    && !dict_table_is_comp(log->table)) {
+
+			ut_ad(col->len >= len);
+			if (dict_table_is_comp(index->table)) {
 				byte*	buf = (byte*) mem_heap_alloc(heap,
 								     col->len);
 				memcpy(buf, dfield->data, len);
