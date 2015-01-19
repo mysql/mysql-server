@@ -1379,7 +1379,6 @@ public:
 
   typedef Gis_point self;
   typedef Geometry base;
-  typedef self point_type;
 
   explicit Gis_point(bool is_bg_adapter= true)
     :Geometry(NULL, 0, Flags_t(wkb_point, 0), default_srid)
@@ -2221,7 +2220,6 @@ public:
   typedef const T& const_reference;
   typedef T* pointer;
   typedef T& reference;
-  typedef typename T::point_type point_type;
   typedef ptrdiff_t difference_type;
 
   typedef Geometry_vector<T> Geo_vector;
@@ -3342,7 +3340,6 @@ public:
 
   /**** Boost Geometry Adapter Interface ******/
 
-  typedef Gis_point point_type;
   typedef Gis_wkb_vector<Gis_point> base_type;
   typedef Gis_line_string self;
 
@@ -3372,7 +3369,6 @@ class Gis_polygon_ring : public Gis_wkb_vector<Gis_point>
 public:
   typedef Gis_wkb_vector<Gis_point> base;
   typedef Gis_polygon_ring self;
-  typedef Gis_point point_type;
 
   virtual ~Gis_polygon_ring()
   {}
@@ -3429,7 +3425,6 @@ public:
 
 
   /**** Boost Geometry Adapter Interface ******/
-  typedef Gis_point point_type;
   typedef Gis_polygon self;
   typedef Gis_polygon_ring ring_type;
   typedef Gis_wkb_vector<ring_type> inner_container_type;
@@ -3546,7 +3541,6 @@ public:
 
   /**** Boost Geometry Adapter Interface ******/
 
-  typedef Gis_point point_type;
   typedef Gis_wkb_vector<Gis_point> base_type;
   typedef Gis_multi_point self;
 
@@ -3591,7 +3585,6 @@ public:
 
   typedef Gis_wkb_vector<Gis_line_string> base;
   typedef Gis_multi_line_string self;
-  typedef Gis_point point_type;
 
   explicit Gis_multi_line_string(bool is_bg_adapter= true)
     :base(NULL, 0, Flags_t(wkb_multilinestring, 0),
@@ -3632,7 +3625,6 @@ public:
 
 
   /**** Boost Geometry Adapter Interface ******/
-  typedef Gis_point point_type;
   typedef Gis_multi_polygon self;
   typedef Gis_wkb_vector<Gis_polygon> base;
 
@@ -3656,7 +3648,6 @@ public:
 class Gis_geometry_collection: public Geometry
 {
 public:
-  typedef Gis_point point_type;
   Gis_geometry_collection()
     :Geometry(NULL, 0, Flags_t(wkb_geometrycollection, 0), default_srid)
   {
