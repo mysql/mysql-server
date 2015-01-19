@@ -75,6 +75,7 @@ typedef int my_socket;
 
 #include "my_list.h" /* for LISTs used in 'MYSQL' and 'MYSQL_STMT' */
 
+extern unsigned int mariadb_deinitialize_ssl;
 extern unsigned int mysql_port;
 extern char *mysql_unix_port;
 

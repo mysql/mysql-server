@@ -205,7 +205,8 @@ void STDCALL mysql_server_end()
   mysql_client_plugin_deinit();
 
   finish_client_errs();
-  vio_end();
+  if (mariadb_deinitialize_ssl)
+    vio_end();
 #ifdef EMBEDDED_LIBRARY
   end_embedded_server();
 #endif
