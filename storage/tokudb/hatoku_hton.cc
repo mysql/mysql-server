@@ -1466,6 +1466,7 @@ static struct st_mysql_sys_var *tokudb_system_variables[] = {
     MYSQL_SYSVAR(rpl_unique_checks_delay),
     MYSQL_SYSVAR(rpl_lookup_rows),
     MYSQL_SYSVAR(rpl_lookup_rows_delay),
+    MYSQL_SYSVAR(rpl_check_readonly),
     MYSQL_SYSVAR(optimize_index_name),
     MYSQL_SYSVAR(optimize_index_fraction),
     MYSQL_SYSVAR(optimize_throttle),

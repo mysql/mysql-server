@@ -3545,8 +3545,12 @@ static void maybe_do_unique_checks_delay(THD *thd) {
     }
 }
 
+static bool need_read_only(THD *thd) {
+    return opt_readonly || !THDVAR(thd, rpl_check_readonly);
+}        
+
 static bool do_unique_checks(THD *thd, bool do_rpl_event) {
-    if (do_rpl_event && thd->slave_thread && opt_readonly && !THDVAR(thd, rpl_unique_checks))
+    if (do_rpl_event && thd->slave_thread && need_read_only(thd) && !THDVAR(thd, rpl_unique_checks))
         return false;
     else
         return !thd_test_options(thd, OPTION_RELAXED_UNIQUE_CHECKS);
