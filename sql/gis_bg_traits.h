@@ -75,45 +75,48 @@ public:
 };
 
 
-class Gis_multi_point_spherical: public Gis_multi_point
+class Gis_multi_point_spherical: public Gis_wkb_vector<Gis_point_spherical>
 {
 public:
   typedef Gis_point_spherical point_type;
+
+  /**** Boost Geometry Adapter Interface ******/
+
+  typedef Gis_wkb_vector<Gis_point_spherical> base_type;
+  typedef Gis_multi_point_spherical self;
+
   explicit Gis_multi_point_spherical(bool is_bg_adapter= true)
-    :Gis_multi_point(is_bg_adapter)
-  {
-  }
+    :base_type(NULL, 0, Flags_t(wkb_multipoint, 0),
+               default_srid, is_bg_adapter)
+  {}
 
-
-  /// @brief Default constructor, no initialization.
   Gis_multi_point_spherical(const void *ptr, size_t nbytes,
                             const Flags_t &flags, srid_t srid)
-    :Gis_multi_point(ptr, nbytes, flags, srid)
+    :base_type(ptr, nbytes, flags, srid, true)
   {
+    set_geotype(wkb_multipoint);
   }
 
-
-  Gis_multi_point_spherical(const Gis_multi_point_spherical &pt)
-    :Gis_multi_point(pt)
-  {
-  }
+  Gis_multi_point_spherical(const self &mpts) :base_type(mpts)
+  {}
 };
 
 
-class Gis_line_string_spherical : public Gis_line_string
+class Gis_line_string_spherical : public Gis_wkb_vector<Gis_point_spherical>
 {
-  typedef Gis_line_string base;
+  typedef Gis_wkb_vector<Gis_point_spherical> base;
   typedef Gis_line_string_spherical self;
 public:
   typedef Gis_point_spherical point_type;
   explicit Gis_line_string_spherical(bool is_bg_adapter= true)
-    :base(is_bg_adapter)
+    :base(NULL, 0, Flags_t(wkb_linestring, 0), default_srid, is_bg_adapter)
   {}
 
   Gis_line_string_spherical(const void *wkb, size_t len,
                             const Flags_t &flags, srid_t srid)
-    :base(wkb, len, flags, srid)
+    :base(wkb, len, flags, srid, true)
   {
+    set_geotype(wkb_linestring);
   }
 
   Gis_line_string_spherical(const self &ls) :base(ls)
@@ -121,25 +124,34 @@ public:
 };
 
 
-class Gis_polygon_ring_spherical : public Gis_polygon_ring
+class Gis_polygon_ring_spherical : public Gis_wkb_vector<Gis_point_spherical>
 {
   typedef Gis_polygon_ring_spherical self;
-  typedef Gis_polygon_ring base;
+  typedef Gis_wkb_vector<Gis_point_spherical> base;
 public:
   typedef Gis_point_spherical point_type;
   Gis_polygon_ring_spherical(const void *wkb, size_t nbytes,
                              const Flags_t &flags, srid_t srid)
-    :base(wkb, nbytes, flags, srid)
+    :base(wkb, nbytes, flags, srid, true)
   {
+    set_geotype(wkb_linestring);
   }
 
   Gis_polygon_ring_spherical(const self &r) :base(r)
   {}
 
-  Gis_polygon_ring_spherical() :base() {}
+  Gis_polygon_ring_spherical()
+    :base(NULL, 0, Flags_t(Geometry::wkb_linestring, 0),
+          default_srid, true)
+  {}
 };
 
 
+/*
+  It's OK to derive from Gis_polygon because Gis_polygon doesn't derive from
+  Gis_wkb_vector<T>, and when its rings are accessed, the right ring type will
+  be used and hence the right point type will be used via iterator types.
+*/
 class Gis_polygon_spherical : public Gis_polygon
 {
   typedef Gis_polygon_spherical self;
@@ -185,20 +197,22 @@ public:
 };
 
 
-class Gis_multi_line_string_spherical : public Gis_multi_line_string
+class Gis_multi_line_string_spherical : public Gis_wkb_vector<Gis_line_string_spherical>
 {
   typedef Gis_multi_line_string_spherical self;
-  typedef Gis_multi_line_string base;
+  typedef Gis_wkb_vector<Gis_line_string_spherical> base;
 public:
   typedef Gis_point_spherical point_type;
   explicit Gis_multi_line_string_spherical(bool is_bg_adapter= true)
-    :base(is_bg_adapter)
+    :base(NULL, 0, Flags_t(wkb_multilinestring, 0),
+          default_srid, is_bg_adapter)
   {}
 
   Gis_multi_line_string_spherical(const void *ptr, size_t nbytes,
                                   const Flags_t &flags, srid_t srid)
-    :base(ptr, nbytes, flags, srid)
+    :base(ptr, nbytes, flags, srid, true)
   {
+    set_geotype(wkb_multilinestring);
   }
 
   Gis_multi_line_string_spherical(const self &mls) :base(mls)
@@ -206,19 +220,20 @@ public:
 };
 
 
-class Gis_multi_polygon_spherical : public Gis_multi_polygon
+class Gis_multi_polygon_spherical : public Gis_wkb_vector<Gis_polygon_spherical>
 {
-  typedef Gis_multi_polygon base;
+  typedef Gis_wkb_vector<Gis_polygon_spherical> base;
 public:
   typedef Gis_point_spherical point_type;
   explicit Gis_multi_polygon_spherical(bool is_bg_adapter= true)
-    :base(is_bg_adapter)
+    :base(NULL, 0, Flags_t(wkb_multipolygon, 0), default_srid, is_bg_adapter)
   {}
 
   Gis_multi_polygon_spherical(const void *ptr, size_t nbytes,
                               const Flags_t &flags, srid_t srid)
-    :base(ptr, nbytes, flags, srid)
+    :base(ptr, nbytes, flags, srid, true)
   {
+    set_geotype(wkb_multipolygon);
   }
 
   Gis_multi_polygon_spherical(const Gis_multi_polygon_spherical &mpl) :base(mpl)
@@ -323,6 +338,8 @@ struct tag<Gis_line_string_spherical>
 {
   typedef boost::geometry::linestring_tag type;
 };
+
+
 ////////////////////////////////// POLYGON //////////////////////////////////
 
 
@@ -334,6 +351,7 @@ struct tag
 {
   typedef boost::geometry::polygon_tag type;
 };
+
 
 template<>
 struct ring_const_type
@@ -422,6 +440,7 @@ struct tag
 {
   typedef boost::geometry::polygon_tag type;
 };
+
 
 template<>
 struct ring_const_type
@@ -538,7 +557,12 @@ struct tag<Gis_polygon_ring_spherical>
 {
   typedef boost::geometry::ring_tag type;
 };
+
+
 ////////////////////////////////// MULTI GEOMETRIES /////////////////////////
+
+
+/////////////////////////////////// multi linestring types /////////////////////
 template<>
 struct tag< Gis_multi_line_string>
 {
@@ -550,6 +574,11 @@ struct tag< Gis_multi_line_string_spherical>
 {
   typedef boost::geometry::multi_linestring_tag type;
 };
+
+
+/////////////////////////////////// multi point types /////////////////////
+
+
 template<>
 struct tag< Gis_multi_point>
 {
@@ -580,7 +609,7 @@ struct dimension<Gis_multi_point_spherical>
   : boost::mpl::int_<GEOM_DIM>
 {};
 
-
+/////////////////////////////////// multi polygon types /////////////////////
 template<>
 struct tag< Gis_multi_polygon>
 {
@@ -592,9 +621,240 @@ struct tag< Gis_multi_polygon_spherical>
 {
   typedef boost::geometry::multi_polygon_tag type;
 };
+
+
 } // namespace traits
 
-}} // namespace boost::geometry
+
+template<>
+struct point_type
+<
+  Gis_point
+>
+{
+  typedef Gis_point type;
+};
+
+template<>
+struct point_type
+<
+  Gis_point_spherical
+>
+{
+  typedef Gis_point_spherical type;
+};
+
+
+template<>
+struct point_type
+<
+  Gis_line_string
+>
+{
+  typedef Gis_point type;
+};
+
+template<>
+struct point_type
+<
+  Gis_line_string_spherical
+>
+{
+  typedef Gis_point_spherical type;
+};
+
+
+template<>
+struct point_type
+<
+  Gis_polygon
+>
+{
+  typedef Gis_point type;
+};
+
+template<>
+struct point_type
+<
+  Gis_polygon_spherical
+>
+{
+  typedef Gis_point_spherical type;
+};
+
+
+template<>
+struct point_type
+<
+  Gis_polygon_ring
+>
+{
+  typedef Gis_point type;
+};
+
+
+template<>
+struct point_type
+<
+  Gis_polygon_ring_spherical
+>
+{
+  typedef Gis_point_spherical type;
+};
+
+template<>
+struct point_type
+<
+  Gis_multi_line_string
+>
+{
+  typedef Gis_point type;
+};
+
+template<>
+struct point_type
+<
+  Gis_multi_line_string_spherical
+>
+{
+  typedef Gis_point_spherical type;
+};
+
+
+template<>
+struct point_type
+<
+  Gis_multi_point
+>
+{
+  typedef Gis_point type;
+};
+
+template<>
+struct point_type
+<
+  Gis_multi_point_spherical
+>
+{
+  typedef Gis_point_spherical type;
+};
+
+
+template<>
+struct point_type
+<
+  Gis_multi_polygon
+>
+{
+  typedef Gis_point type;
+};
+
+template<>
+struct point_type
+<
+  Gis_multi_polygon_spherical
+>
+{
+  typedef Gis_point_spherical type;
+};
+
+}  // namespace geometry
+
+
+template<>
+struct range_value
+<
+  Gis_line_string
+>
+{
+  typedef Gis_point type;
+};
+
+template<>
+struct range_value
+<
+  Gis_line_string_spherical
+>
+{
+  typedef Gis_point_spherical type;
+};
+
+
+template<>
+struct range_value
+<
+  Gis_multi_line_string
+>
+{
+  typedef Gis_line_string type;
+};
+
+template<>
+struct range_value
+<
+  Gis_multi_line_string_spherical
+>
+{
+  typedef Gis_line_string_spherical type;
+};
+
+
+template<>
+struct range_value
+<
+  Gis_polygon_ring
+>
+{
+  typedef Gis_point type;
+};
+
+template<>
+struct range_value
+<
+  Gis_polygon_ring_spherical
+>
+{
+  typedef Gis_point_spherical type;
+};
+
+
+template<>
+struct range_value
+<
+  Gis_multi_point
+>
+{
+  typedef Gis_point type;
+};
+
+template<>
+struct range_value
+<
+  Gis_multi_point_spherical
+>
+{
+  typedef Gis_point_spherical type;
+};
+
+
+template<>
+struct range_value
+<
+  Gis_multi_polygon
+>
+{
+  typedef Gis_polygon type;
+};
+
+template<>
+struct range_value
+<
+  Gis_multi_polygon_spherical
+>
+{
+  typedef Gis_polygon_spherical type;
+};
+} // namespace boost
 
 
 #endif // !GIS_BG_TRAITS_INCLUDED
