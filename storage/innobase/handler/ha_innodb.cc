@@ -9917,10 +9917,7 @@ innobase_parse_hint_from_comment(
 		     index != NULL;
 		     index = UT_LIST_GET_NEXT(indexes, index)) {
 
-			if (index == UT_LIST_GET_FIRST(table->indexes)
-			    && innobase_strcasecmp(
-				index->name,
-				innobase_index_reserve_name) == 0) {
+			if (dict_index_is_auto_gen_clust(index)) {
 
 				/* GEN_CLUST_INDEX should use
 				merge_threshold_table */
@@ -9958,9 +9955,7 @@ innobase_parse_hint_from_comment(
 	     index != NULL;
 	     index = UT_LIST_GET_NEXT(indexes, index)) {
 
-		if (index == UT_LIST_GET_FIRST(table->indexes)
-		    && innobase_strcasecmp(
-			index->name, innobase_index_reserve_name) == 0) {
+		if (dict_index_is_auto_gen_clust(index)) {
 
 			/* GEN_CLUST_INDEX should use merge_threshold_table */
 
