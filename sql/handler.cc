@@ -594,9 +594,9 @@ handler *get_ha_partition(partition_info *part_info)
 static const char **handler_errmsgs;
 
 C_MODE_START
-static const char **get_handler_errmsgs()
+static const char *get_handler_errmsg(int nr)
 {
-  return handler_errmsgs;
+  return handler_errmsgs[nr - HA_ERR_FIRST];
 }
 C_MODE_END
 
@@ -676,27 +676,7 @@ int ha_init_errors(void)
   SETMSG(HA_ERR_FTS_TOO_MANY_WORDS_IN_PHRASE,  "Too many words in a FTS phrase or proximity search");
   SETMSG(HA_ERR_TABLE_CORRUPT,		ER_DEFAULT(ER_TABLE_CORRUPT));
   /* Register the error messages for use with my_error(). */
-  return my_error_register(get_handler_errmsgs, HA_ERR_FIRST, HA_ERR_LAST);
-}
-
-
-/**
-  Unregister handler error messages.
-
-  @retval
-    0           OK
-  @retval
-    !=0         Error
-*/
-static int ha_finish_errors(void)
-{
-  const char    **errmsgs;
-
-  /* Allocate a pointer array for the error message strings. */
-  if (! (errmsgs= my_error_unregister(HA_ERR_FIRST, HA_ERR_LAST)))
-    return 1;
-  my_free(errmsgs);
-  return 0;
+  return my_error_register(get_handler_errmsg, HA_ERR_FIRST, HA_ERR_LAST);
 }
 
 
@@ -924,21 +904,11 @@ int ha_init()
   DBUG_RETURN(error);
 }
 
-int ha_end()
+void ha_end()
 {
-  int error= 0;
-  DBUG_ENTER("ha_end");
-
-
-  /* 
-    This should be eventualy based  on the graceful shutdown flag.
-    So if flag is equal to HA_PANIC_CLOSE, the deallocate
-    the errors.
-  */
-  if (ha_finish_errors())
-    error= 1;
-
-  DBUG_RETURN(error);
+  // Unregister handler error messages.
+  my_error_unregister(HA_ERR_FIRST, HA_ERR_LAST);
+  my_free(handler_errmsgs);
 }
 
 static my_bool dropdb_handlerton(THD *unused1, plugin_ref plugin,

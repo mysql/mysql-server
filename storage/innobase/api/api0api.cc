@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2008, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2008, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -3302,20 +3302,6 @@ ib_table_truncate(
 	}
 
         return(trunc_err);
-}
-
-/*****************************************************************//**
-Frees a possible InnoDB trx object associated with the current THD.
-@return 0 or error number */
-ib_err_t
-ib_close_thd(
-/*=========*/
-	void*		thd)	/*!< in: handle to the MySQL thread of the user
-				whose resources should be free'd */
-{
-	innobase_close_thd(static_cast<THD*>(thd));
-
-	return(DB_SUCCESS);
 }
 
 /*****************************************************************//**

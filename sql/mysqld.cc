@@ -64,7 +64,6 @@
 #include "sql_servers.h"  // servers_free, servers_init
 #include "init.h"         // unireg_init
 #include "derror.h"       // init_errmessage
-#include "derror.h"       // init_errmessage
 #include "des_key_file.h" // load_des_key_file
 #include "sql_manager.h"  // stop_handle_manager, start_handle_manager
 #include "bootstrap.h"    // bootstrap
@@ -482,6 +481,11 @@ ulong expire_logs_days = 0;
   in the sp_cache for one connection.
 */
 ulong stored_program_cache_size= 0;
+/**
+  Compatibility option to prevent auto upgrade of old temporals
+  during certain ALTER TABLE operations.
+*/
+my_bool avoid_temporal_upgrade;
 
 const double log_10[] = {
   1e000, 1e001, 1e002, 1e003, 1e004, 1e005, 1e006, 1e007, 1e008, 1e009,
@@ -1428,7 +1432,7 @@ void clean_up(bool print_message)
 
   mysql_client_plugin_deinit();
   finish_client_errs();
-  (void) my_error_unregister(ER_ERROR_FIRST, ER_ERROR_LAST); // finish server errs
+  deinit_errmessage(); // finish server errs
   DBUG_PRINT("quit", ("Error messages freed"));
 
   free_charsets();
@@ -3960,7 +3964,7 @@ a file name for --log-bin-index option", opt_binlog_index_name);
     unireg_abort(0);
 
   /* if the errmsg.sys is not loaded, terminate to maintain behaviour */
-  if (!my_default_lc_messages->errmsgs->errmsgs[0][0])
+  if (!my_default_lc_messages->errmsgs->is_loaded())
   {
     sql_print_error("Unable to read errmsg.sys file");
     unireg_abort(1);
@@ -4491,10 +4495,11 @@ int mysqld_main(int argc, char **argv)
 
       if (mysql_bin_log.init_gtid_sets(&logged_gtids_binlog,
                                        &purged_gtids_binlog,
-                                       NULL,
                                        opt_master_verify_checksum,
                                        true/*true=need lock*/,
-                                       true) ||
+                                       NULL/*trx_parser*/,
+                                       NULL/*gtid_partial_trx*/,
+                                       true/*is_server_starting*/) ||
           gtid_state->fetch_gtids(executed_gtids) == -1)
         unireg_abort(1);
 
@@ -6656,7 +6661,7 @@ static int mysql_init_variables(void)
   table_alias_charset= &my_charset_bin;
   character_set_filesystem= &my_charset_bin;
 
-  opt_specialflag= SPECIAL_ENGLISH;
+  opt_specialflag= 0;
   mysql_home_ptr= mysql_home;
   pidfile_name_ptr= pidfile_name;
   log_error_file_ptr= log_error_file;
@@ -7163,6 +7168,11 @@ pfs_error:
     sql_print_warning("The use of InnoDB is mandatory since MySQL 5.7. "
                       "The former options like '--innodb=0/1/OFF/ON' or "
                       "'--skip-innodb' are ignored.");
+  case OPT_AVOID_TEMPORAL_UPGRADE:
+    push_deprecated_warn_no_replacement(NULL, "avoid_temporal_upgrade");
+    break;
+  case OPT_SHOW_OLD_TEMPORALS:
+    push_deprecated_warn_no_replacement(NULL, "show_old_temporals");
     break;
   }
   return 0;
