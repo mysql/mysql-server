@@ -95,6 +95,7 @@ SET(SQL_EMBEDDED_SOURCES
   ../sql/rpl_gtid_persist.cc
   ../sql/rpl_table_access.cc
   ../sql/rpl_context.cc
+  ../sql/rpl_trx_boundary_parser.cc
   ${IMPORTED_SOURCES}
 )
 

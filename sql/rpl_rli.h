@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -265,15 +265,10 @@ private:
     earlier on in the class constructor.
   */
   bool rli_fake;
-  /* Last gtid retrieved by IO thread */
-  Gtid last_retrieved_gtid;
   /* Flag that ensures the retrieved GTID set is initialized only once. */
   bool gtid_retrieved_initialized;
 
-
 public:
-  Gtid *get_last_retrieved_gtid() { return &last_retrieved_gtid; }
-  void set_last_retrieved_gtid(Gtid gtid) { last_retrieved_gtid= gtid; }
   void add_logged_gtid(rpl_sidno sidno, rpl_gno gno)
   {
     global_sid_lock->assert_some_lock();

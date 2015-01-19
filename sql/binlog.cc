@@ -3041,6 +3041,255 @@ bool MYSQL_BIN_LOG::open_index_file(const char *index_file_name_arg,
   return FALSE;
 }
 
+/**
+  Add the GTIDs from the given relaylog file and also
+  update the IO thread transaction parser.
+
+  @param filename Relaylog file to read from.
+  @param retrieved_set Gtid_set to store the GTIDs found on the relaylog file.
+  @param verify_checksum Set to true to verify event checksums.
+  @param trx_parser The transaction boundary parser to be used in order to
+  only add a GTID to the gtid_set after ensuring the transaction is fully
+  stored on the relay log.
+  @param gtid_partial_trx The gtid of the last incomplete transaction
+  found in the relay log.
+
+  @retval false The file was successfully read and all GTIDs from
+  Previous_gtids and Gtid_log_event from complete transactions were added to
+  the retrieved_set.
+  @retval true There was an error during the procedure.
+*/
+static bool
+read_gtids_and_update_trx_parser_from_relaylog(
+  const char *filename,
+  Gtid_set *retrieved_gtids,
+  bool verify_checksum,
+  Transaction_boundary_parser *trx_parser,
+  Gtid *gtid_partial_trx)
+{
+  DBUG_ENTER("read_gtids_and_update_trx_parser_from_relaylog");
+  DBUG_PRINT("info", ("Opening file %s", filename));
+
+  DBUG_ASSERT(retrieved_gtids != NULL);
+  DBUG_ASSERT(trx_parser != NULL);
+  DBUG_ASSERT(gtid_mode >= GTID_MODE_UPGRADE_STEP_2);
+#ifndef DBUG_OFF
+  unsigned long event_counter= 0;
+#endif
+
+  /*
+    Create a Format_description_log_event that is used to read the
+    first event of the log.
+  */
+  Format_description_log_event fd_ev(BINLOG_VERSION), *fd_ev_p= &fd_ev;
+  if (!fd_ev.is_valid())
+    DBUG_RETURN(true);
+
+  File file;
+  IO_CACHE log;
+
+  const char *errmsg= NULL;
+  if ((file= open_binlog_file(&log, filename, &errmsg)) < 0)
+  {
+    sql_print_error("%s", errmsg);
+    /*
+      As read_gtids_from_binlog() will not throw error on truncated
+      relaylog files, we should do the same here in order to keep the
+      current behavior.
+    */
+    DBUG_RETURN(false);
+  }
+
+  /*
+    Seek for Previous_gtids_log_event and Gtid_log_event events to
+    gather information what has been processed so far.
+  */
+  my_b_seek(&log, BIN_LOG_HEADER_SIZE);
+  Log_event *ev= NULL;
+  bool error= false;
+  bool seen_prev_gtids= false;
+  ulong data_len= 0;
+
+  while (!error &&
+         (ev= Log_event::read_log_event(&log, 0, fd_ev_p, verify_checksum)) !=
+         NULL)
+  {
+    DBUG_PRINT("info", ("Read event of type %s", ev->get_type_str()));
+#ifndef DBUG_OFF
+    event_counter++;
+#endif
+
+    data_len= uint4korr(ev->temp_buf + EVENT_LEN_OFFSET);
+    if (trx_parser->feed_event(ev->temp_buf, data_len, fd_ev_p, false))
+    {
+      /*
+        The transaction boundary parser found an error while parsing a
+        sequence of events from the relaylog. As we don't know if the
+        parsing has stated from a reliable point (it might started in
+        a relay log file that begins with the rest of a transaction
+        that started in a previous relay log file), it is better to do
+        nothing in this case. The boundary parser will fix itself once
+        finding an event that represent a transaction boundary.
+
+        Suppose the following relaylog:
+
+         rl-bin.000011 | rl-bin.000012 | rl-bin.000013 | rl-bin-000014
+        ---------------+---------------+---------------+---------------
+         PREV_GTIDS    | PREV_GTIDS    | PREV_GTIDS    | PREV_GTIDS
+         (empty)       | (UUID:1-2)    | (UUID:1-2)    | (UUID:1-2)
+        ---------------+---------------+---------------+---------------
+         XID           | QUERY(INSERT) | QUERY(INSERT) | XID
+        ---------------+---------------+---------------+---------------
+         GTID(UUID:2)  |
+        ---------------+
+         QUERY(CREATE  |
+         TABLE t1 ...) |
+        ---------------+
+         GTID(UUID:3)  |
+        ---------------+
+         QUERY(BEGIN)  |
+        ---------------+
+
+        As it is impossible to determine the current Retrieved_Gtid_Set by only
+        looking to the PREVIOUS_GTIDS on the last relay log file, and scanning
+        events on it, we tried to find a relay log file that contains at least
+        one GTID event during the backwards search.
+
+        In the example, we will find a GTID only in rl-bin.000011, as the
+        UUID:3 transaction was spanned across 4 relay log files.
+
+        The transaction spanning can be caused by "FLUSH RELAY LOGS" commands
+        on slave while it is queuing the transaction.
+
+        So, in order to correctly add UUID:3 into Retrieved_Gtid_Set, we need
+        to parse the relay log starting on the file we found the last GTID
+        queued to know if the transaction was fully retrieved or not.
+
+        Start scanning rl-bin.000011 after resetting the transaction parser
+        will generate an error, as XID event is only expected inside a DML,
+        but in this case, we can ignore this error and reset the parser.
+      */
+      trx_parser->reset();
+    }
+
+    switch (ev->get_type_code())
+    {
+    case binary_log::FORMAT_DESCRIPTION_EVENT:
+      if (fd_ev_p != &fd_ev)
+        delete fd_ev_p;
+      fd_ev_p= (Format_description_log_event *)ev;
+      break;
+    case binary_log::ROTATE_EVENT:
+      // do nothing; just accept this event and go to next
+      break;
+    case binary_log::PREVIOUS_GTIDS_LOG_EVENT:
+    {
+      seen_prev_gtids= true;
+      // add events to sets
+      Previous_gtids_log_event *prev_gtids_ev= (Previous_gtids_log_event *)ev;
+      if (prev_gtids_ev->add_to_set(retrieved_gtids) != 0)
+      {
+        error= true;
+        break;
+      }
+#ifndef DBUG_OFF
+      char* prev_buffer= prev_gtids_ev->get_str(NULL, NULL);
+      DBUG_PRINT("info", ("Got Previous_gtids from file '%s': Gtid_set='%s'.",
+                          filename, prev_buffer));
+      my_free(prev_buffer);
+#endif
+      break;
+    }
+    case binary_log::GTID_LOG_EVENT:
+    {
+      /* If we didn't find any PREVIOUS_GTIDS in this file */
+      if (!seen_prev_gtids)
+      {
+        my_error(ER_BINLOG_LOGICAL_CORRUPTION, MYF(0));
+        error= true;
+        break;
+      }
+
+      Gtid_log_event *gtid_ev= (Gtid_log_event *)ev;
+      rpl_sidno sidno= gtid_ev->get_sidno(retrieved_gtids->get_sid_map());
+      if (sidno < 0)
+      {
+        error= true;
+        break;
+      }
+      else
+      {
+        if (retrieved_gtids->ensure_sidno(sidno) != RETURN_STATUS_OK)
+        {
+          error= true;
+          break;
+        }
+        else
+        {
+          /*
+            As are updating the transaction boundary parser while reading
+            GTIDs from relay log files to fill the Retrieved_Gtid_Set, we
+            should not add the GTID here as we don't know if the transaction
+            is complete on the relay log yet.
+          */
+          gtid_partial_trx->set(sidno, gtid_ev->get_gno());
+        }
+        DBUG_PRINT("info", ("Found Gtid in relaylog file '%s': Gtid(%d, %lld).",
+                            filename, sidno, gtid_ev->get_gno()));
+      }
+      break;
+    }
+    case binary_log::ANONYMOUS_GTID_LOG_EVENT:
+    default:
+      /*
+        If we reached the end of a transaction after storing it's GTID
+        in gtid_partial_trx variable, it is time to add this GTID to the
+        retrieved_gtids set because the transaction is complete and there is no
+        need for asking this transaction again.
+      */
+      if (trx_parser->is_not_inside_transaction())
+      {
+        if (!gtid_partial_trx->empty())
+        {
+          DBUG_PRINT("info", ("Adding Gtid from relaylog file '%s' to "
+                              "Retrieved_Gtid_Set: Gtid(%d, %lld).",
+                              filename, gtid_partial_trx->sidno,
+                              gtid_partial_trx->gno));
+          retrieved_gtids->_add_gtid(gtid_partial_trx->sidno,
+                                     gtid_partial_trx->gno);
+          gtid_partial_trx->clear();
+        }
+      }
+      break;
+    }
+    if (ev != fd_ev_p)
+      delete ev;
+  }
+
+  if (log.error < 0)
+  {
+    // This is not a fatal error; the log may just be truncated.
+    // @todo but what other errors could happen? IO error?
+    sql_print_warning("Error reading GTIDs from relaylog: %d", log.error);
+  }
+
+  if (fd_ev_p != &fd_ev)
+  {
+    delete fd_ev_p;
+    fd_ev_p= &fd_ev;
+  }
+
+  mysql_file_close(file, MYF(MY_WME));
+  end_io_cache(&log);
+
+#ifndef DBUG_OFF
+  sql_print_information("%lu events read in relaylog file '%s' for updating "
+                        "IO thread Retrieved_Gtid_Set.",
+                        event_counter, filename);
+#endif
+
+  DBUG_RETURN(error);
+}
 
 /**
   Reads GTIDs from the given binlog file.
@@ -3052,8 +3301,6 @@ bool MYSQL_BIN_LOG::open_index_file(const char *index_file_name_arg,
   @param prev_gtids If not NULL, then the GTIDs from the
   Previous_gtids_log_events are stored in this object.
   @param first_gtid If not NULL, then the first GTID information from the
-  file will be stored in this object.
-  @param last_gtid If not NULL, then the last GTID information from the
   file will be stored in this object.
   @param sid_map The sid_map object to use in the rpl_sidno generation
   of the Gtid_log_event. If lock is needed in the sid_map, the caller
@@ -3077,9 +3324,8 @@ enum enum_read_gtids_from_binlog_status
 static enum_read_gtids_from_binlog_status
 read_gtids_from_binlog(const char *filename, Gtid_set *all_gtids,
                        Gtid_set *prev_gtids, Gtid *first_gtid,
-                       Gtid *last_gtid,
                        Sid_map* sid_map,
-                       bool verify_checksum)
+                       bool verify_checksum, bool is_relay_log)
 {
   DBUG_ENTER("read_gtids_from_binlog");
   DBUG_PRINT("info", ("Opening file %s", filename));
@@ -3193,17 +3439,17 @@ read_gtids_from_binlog(const char *filename, Gtid_set *all_gtids,
           ret= GOT_GTIDS;
       }
       /*
-        When all_gtids, first_gtid and last_gtid are all NULL,
+        When all_gtids and first_gtid are all NULL, or when this is a relaylog,
         we just check if the binary log contains at least one Gtid_log_event,
         so that we can distinguish the return values GOT_GTID and
         GOT_PREVIOUS_GTIDS. We don't need to read anything else from the
         binary log.
-        If all_gtids or last_gtid is requested (i.e., NOT NULL), we should
+        If all_gtids is requested (i.e., NOT NULL), we should
         continue to read all gtids.
         If just first_gtid was requested, we will be done after storing this
         Gtid_log_event info on it.
       */
-      if (all_gtids == NULL && first_gtid == NULL && last_gtid == NULL)
+      if (is_relay_log || (all_gtids == NULL && first_gtid == NULL))
       {
         ret= GOT_GTIDS, done= true;
       }
@@ -3230,12 +3476,9 @@ read_gtids_from_binlog(const char *filename, Gtid_set *all_gtids,
             first_gtid->set(sidno, gtid_ev->get_gno());
             seen_first_gtid= true;
             /* If the first_gtid was the only thing requested, we are done */
-            if (all_gtids == NULL && last_gtid == NULL)
+            if (all_gtids == NULL)
               ret= GOT_GTIDS, done= true;
           }
-
-          if (last_gtid)
-            last_gtid->set(sidno, gtid_ev->get_gno());
         }
       }
       break;
@@ -3246,6 +3489,17 @@ read_gtids_from_binlog(const char *filename, Gtid_set *all_gtids,
       // previous_gtids_log_event, then the rest of this binlog
       // cannot contain gtids
       if (ret != GOT_GTIDS && ret != GOT_PREVIOUS_GTIDS)
+        done= true;
+      /*
+        The GTIDs of the relaylog files will be handled later
+        because of the possibility of transactions be spanned
+        along distinct relaylog files.
+        So, if we found an ordinary event without finding the
+        GTID but we already found the PREVIOUS_GTIDS, this probably
+        means that the event is from a transaction that started on
+        previous relaylog file.
+      */
+      if (ret == GOT_PREVIOUS_GTIDS && is_relay_log)
         done= true;
       break;
     }
@@ -3337,9 +3591,9 @@ bool MYSQL_BIN_LOG::find_first_log_not_in_gtid_set(char *binlog_file_name,
     DBUG_PRINT("info", ("Read Previous_gtids_log_event from filename='%s'",
                         filename));
     switch (read_gtids_from_binlog(filename, NULL, &binlog_previous_gtid_set,
-                                   first_gtid, NULL/* last_gtid */,
+                                   first_gtid,
                                    binlog_previous_gtid_set.get_sid_map(),
-                                   opt_master_verify_checksum))
+                                   opt_master_verify_checksum, is_relay_log))
     {
     case ERROR:
       *errmsg= "Error reading header of binary log while looking for "
@@ -3389,12 +3643,26 @@ end:
 }
 
 bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *all_gtids, Gtid_set *lost_gtids,
-                                   Gtid *last_gtid, bool verify_checksum,
-                                   bool need_lock, bool is_server_starting)
+                                   bool verify_checksum, bool need_lock,
+                                   Transaction_boundary_parser *trx_parser,
+                                   Gtid *gtid_partial_trx,
+                                   bool is_server_starting)
 {
   DBUG_ENTER("MYSQL_BIN_LOG::init_gtid_sets");
   DBUG_PRINT("info", ("lost_gtids=%p; so we are recovering a %s log",
                       lost_gtids, lost_gtids == NULL ? "relay" : "binary"));
+
+  /*
+    If this is a relay log, we must have the IO thread Master_info trx_parser
+    in order to correctly feed it with relay log events.
+  */
+#ifndef DBUG_OFF
+  if (is_relay_log)
+  {
+    DBUG_ASSERT(trx_parser != NULL);
+    DBUG_ASSERT(lost_gtids == NULL);
+  }
+#endif
 
   /*
     Acquires the necessary locks to ensure that logs are not either
@@ -3441,7 +3709,8 @@ bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *all_gtids, Gtid_set *lost_gtids,
   }
   if (error != LOG_INFO_EOF)
   {
-    DBUG_PRINT("error", ("Error reading binlog index"));
+    DBUG_PRINT("error", ("Error reading %s index",
+                         is_relay_log ? "relaylog" : "binlog"));
     goto end;
   }
   /*
@@ -3458,7 +3727,11 @@ bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *all_gtids, Gtid_set *lost_gtids,
 
   if (all_gtids != NULL)
   {
-    DBUG_PRINT("info", ("Iterating backwards through binary logs, looking for the last binary log that contains a Previous_gtids_log_event."));
+    DBUG_PRINT("info", ("Iterating backwards through %s logs, "
+                        "looking for the last %s log that contains "
+                        "a Previous_gtids_log_event.",
+                        is_relay_log ? "relay" : "binary",
+                        is_relay_log ? "relay" : "binary"));
     // Iterate over all files in reverse order until we find one that
     // contains a Previous_gtids_log_event.
     rit= filename_list.rbegin();
@@ -3466,18 +3739,17 @@ bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *all_gtids, Gtid_set *lost_gtids,
     reached_first_file= (rit == filename_list.rend());
     DBUG_PRINT("info", ("filename='%s' reached_first_file=%d",
                         rit->c_str(), reached_first_file));
-    while ((!got_gtids || (last_gtid && last_gtid->empty()))
-           && !reached_first_file)
+    while (!got_gtids && !reached_first_file)
     {
       const char *filename= rit->c_str();
       rit++;
       reached_first_file= (rit == filename_list.rend());
       DBUG_PRINT("info", ("filename='%s' got_gtids=%d reached_first_file=%d",
                           filename, got_gtids, reached_first_file));
-      switch (read_gtids_from_binlog(filename, got_gtids ? NULL : all_gtids,
+      switch (read_gtids_from_binlog(filename, all_gtids,
                                      reached_first_file ? lost_gtids : NULL,
-                                     NULL/* first_gtid */, last_gtid,
-                                     sid_map, verify_checksum))
+                                     NULL/* first_gtid */,
+                                     sid_map, verify_checksum, is_relay_log))
       {
         case ERROR:
         {
@@ -3485,9 +3757,20 @@ bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *all_gtids, Gtid_set *lost_gtids,
           goto end;
         }
         case GOT_GTIDS:
-        case GOT_PREVIOUS_GTIDS:
         {
           got_gtids= true;
+          break;
+        }
+        case GOT_PREVIOUS_GTIDS:
+        {
+          /*
+            If this is a binlog file, it is enough to have GOT_PREVIOUS_GTIDS.
+            If this is a relaylog file, we need to find at least one GTID to
+            start parsing the relay log to add GTID of transactions that might
+            have spanned in distinct relaylog files.
+          */
+          if (!is_relay_log)
+            got_gtids= true;
           break;
         }
         case NO_GTIDS:
@@ -3512,6 +3795,77 @@ bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *all_gtids, Gtid_set *lost_gtids,
         }
       }
     }
+
+    /*
+      If we use GTIDs and have partial transactions on the relay log,
+      must check if it ends on next relay log files.
+      We also need to feed the boundary parser with the rest of the
+      relay log to put it in the correct state before receiving new
+      events from the master in the case of GTID auto positioning be
+      disabled.
+    */
+    if (is_relay_log && gtid_mode >= GTID_MODE_UPGRADE_STEP_2)
+    {
+      /*
+        Suppose the following relaylog:
+
+         rl-bin.000001 | rl-bin.000002 | rl-bin.000003 | rl-bin-000004
+        ---------------+---------------+---------------+---------------
+         PREV_GTIDS    | PREV_GTIDS    | PREV_GTIDS    | PREV_GTIDS
+         (empty)       | (UUID:1)      | (UUID:1)      | (UUID:1)
+        ---------------+---------------+---------------+---------------
+         GTID(UUID:1)  | QUERY(INSERT) | QUERY(INSERT) | XID
+        ---------------+---------------+---------------+---------------
+         QUERY(CREATE  |
+         TABLE t1 ...) |
+        ---------------+
+         GTID(UUID:2)  |
+        ---------------+
+         QUERY(BEGIN)  |
+        ---------------+
+
+        As it is impossible to determine the current Retrieved_Gtid_Set by only
+        looking to the PREVIOUS_GTIDS on the last relay log file, and scanning
+        events on it, we tried to find a relay log file that contains at least
+        one GTID event during the backwards search.
+
+        In the example, we will find a GTID only in rl-bin.000001, as the
+        UUID:2 transaction was spanned across 4 relay log files.
+
+        The transaction spanning can be caused by "FLUSH RELAY LOGS" commands
+        on slave while it is queuing the transaction.
+
+        So, in order to correctly add UUID:2 into Retrieved_Gtid_Set, we need
+        to parse the relay log starting on the file we found the last GTID
+        queued to know if the transaction was fully retrieved or not.
+      */
+
+      /*
+        Adjust the reverse iterator to point to the relaylog file we
+        need to start parsing, as it was incremented after generating
+        the relay log file name.
+      */
+      rit--;
+      /* Reset the transaction parser before feeding it with events */
+      trx_parser->reset();
+      gtid_partial_trx->clear();
+
+      DBUG_PRINT("info", ("Iterating forwards through relay logs, "
+                          "looking for the end of partial transactions."));
+      for (it= find(filename_list.begin(), filename_list.end(), *rit);
+           it != filename_list.end(); it++)
+      {
+        const char *filename= it->c_str();
+        DBUG_PRINT("info", ("filename='%s'", filename));
+        if (read_gtids_and_update_trx_parser_from_relaylog(filename, all_gtids,
+                                                           true, trx_parser,
+                                                           gtid_partial_trx))
+        {
+          error= 1;
+          goto end;
+        }
+      }
+    }
   }
   if (lost_gtids != NULL && !reached_first_file)
   {
@@ -3521,8 +3875,8 @@ bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *all_gtids, Gtid_set *lost_gtids,
       const char *filename= it->c_str();
       DBUG_PRINT("info", ("filename='%s'", filename));
       switch (read_gtids_from_binlog(filename, NULL, lost_gtids,
-                                     NULL/* first_gtid */, NULL/* last_gtid */,
-                                     sid_map, verify_checksum))
+                                     NULL/* first_gtid */,
+                                     sid_map, verify_checksum, is_relay_log))
       {
         case ERROR:
         {
@@ -4853,9 +5207,9 @@ int MYSQL_BIN_LOG::purge_logs(const char *to_log,
     global_sid_lock->wrlock();
     error= init_gtid_sets(NULL,
                           const_cast<Gtid_set *>(gtid_state->get_lost_gtids()),
-                          NULL,
                           opt_master_verify_checksum,
-                          false/*false=don't need lock*/);
+                          false/*false=don't need lock*/,
+                          NULL/*trx_parser*/, NULL/*gtid_partial_trx*/);
     global_sid_lock->unlock();
     if (error)
       goto err;
@@ -5599,11 +5953,43 @@ bool MYSQL_BIN_LOG::after_append_to_relay_log(Master_info *mi)
   DBUG_ASSERT(is_relay_log);
   DBUG_ASSERT(current_thd->system_thread == SYSTEM_THREAD_SLAVE_IO);
 
+  /* We allow the relay log rotation by relay log size if GTIDs are disabled */
+  bool can_rotate= gtid_mode < GTID_MODE_UPGRADE_STEP_2 ||
+  /* or if GTIDs are enabled and the trx parser in not inside a transaction. */
+                   (gtid_mode >= GTID_MODE_UPGRADE_STEP_2 &&
+                    mi->transaction_parser.is_not_inside_transaction());
+
   // Flush and sync
   bool error= false;
-  if (flush_and_sync(0) == 0)
+  if (flush_and_sync(0) == 0 && can_rotate)
   {
-    // If relay log is too big, rotate
+    if (gtid_mode >= GTID_MODE_UPGRADE_STEP_2)
+    {
+      /*
+        If the last event of the transaction has been flushed, we can add
+        the GTID (if it is not empty) to the logged set, or else it will
+        not be available in the Previous GTIDs of the next relay log file
+        if we are going to rotate the relay log.
+      */
+      Gtid *last_gtid_queued= mi->get_last_gtid_queued();
+      if (!last_gtid_queued->empty())
+      {
+        global_sid_lock->rdlock();
+        mi->rli->add_logged_gtid(last_gtid_queued->sidno,
+                                 last_gtid_queued->gno);
+        global_sid_lock->unlock();
+        mi->clear_last_gtid_queued();
+      }
+    }
+
+    /*
+      If relay log is too big, rotate. But only if not in the middle of a
+      transaction when GTIDs are enabled.
+      We now try to mimic the following master binlog behavior: "A transaction
+      is written in one chunk to the binary log, so it is never split between
+      several binary logs. Therefore, if you have big transactions, you might
+      see binary log files larger than max_binlog_size."
+    */
     if ((uint) my_b_append_tell(&log_file) >
         DBUG_EVALUATE_IF("rotate_slave_debug_group", 500, max_size))
     {

@@ -37,20 +37,22 @@ if ($rpl_multi_source)
   }
 }
 
+#
+# Always save IO thread positions, this will be useful to check missing GTIDs.
+#
+--let $_saved_file= query_get_value(SHOW SLAVE STATUS, Master_Log_File, 1)
+--let $_saved_pos= query_get_value(SHOW SLAVE STATUS, Read_Master_Log_Pos, 1)
+--let $_saved_channel_name= $rpl_channel_name
 if ($use_gtids)
 {
   --let $_saved_gtids= query_get_value(SHOW SLAVE STATUS, Retrieved_Gtid_Set, 1)
   if ($rpl_debug)
   {
-    --echo save_io_thread_pos.inc saved gtid='$_saved_gtids'
+    --echo save_io_thread_pos saved gtid='$_saved_gtids', file='$_saved_file', pos='$_saved_pos'
   }
 }
 if (!$use_gtids)
 {
-  --let $_saved_file= query_get_value(SHOW SLAVE STATUS, Master_Log_File, 1)
-  --let $_saved_pos= query_get_value(SHOW SLAVE STATUS, Read_Master_Log_Pos, 1)
-  --let $_saved_channel_name= $rpl_channel_name
-
   if ($rpl_debug)
   {
     --echo save_io_thread_pos.inc saved file='$_saved_file', pos='$_saved_pos', channel_name='$_saved_channel_name'

@@ -502,7 +502,7 @@ if [ -n "${PLUGIN_DIR}" ]; then
   plugin_dir="${PLUGIN_DIR}"
 else
   # Try to find plugin dir relative to basedir
-  for dir in lib/mysql/plugin lib/plugin
+  for dir in lib64/mysql/plugin lib64/plugin lib/mysql/plugin lib/plugin
   do
     if [ -d "${MY_BASEDIR_VERSION}/${dir}" ]; then
       plugin_dir="${MY_BASEDIR_VERSION}/${dir}"
