@@ -37,12 +37,12 @@ set global innodb_fil_make_page_dirty_debug = @space_id;
 # Ensure that dirty pages of table t1 is flushed.
 flush tables t1 for export;
 unlock tables;
-set debug='+d,crash_commit_before';
+begin;
 insert into t1 values (6, repeat('%', 12));
-ERROR HY000: Lost connection to MySQL server during query
+# Kill the server
 # Make the first page (page_no=0) of the user tablespace
 # full of zeroes.
-# Server must be started successfully, and table t1 must be fine...
+# restart
 check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
@@ -68,11 +68,11 @@ set global innodb_fil_make_page_dirty_debug = @space_id;
 # Ensure that dirty pages of table t1 is flushed.
 flush tables t1 for export;
 unlock tables;
-set debug='+d,crash_commit_before';
+begin;
 insert into t1 values (6, repeat('%', 12));
-ERROR HY000: Lost connection to MySQL server during query
+# Kill the server
 # Corrupt the first page (page_no=0) of the user tablespace.
-# Server must be started successfully, and table t1 must be fine...
+# restart
 check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
@@ -98,11 +98,11 @@ set global innodb_fil_make_page_dirty_debug = @space_id;
 # Ensure that dirty pages of table t1 is flushed.
 flush tables t1 for export;
 unlock tables;
-set debug='+d,crash_commit_before';
+begin;
 insert into t1 values (6, repeat('%', 400));
-ERROR HY000: Lost connection to MySQL server during query
+# Kill the server
 # Make the 2nd page (page_no=1) of the tablespace all zeroes.
-# Server must be started successfully, and table t1 must be fine...
+# restart
 check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
@@ -128,11 +128,11 @@ set global innodb_fil_make_page_dirty_debug = @space_id;
 # Ensure that dirty pages of table t1 is flushed.
 flush tables t1 for export;
 unlock tables;
-set debug='+d,crash_commit_before';
+begin;
 insert into t1 values (6, repeat('%', 400));
-ERROR HY000: Lost connection to MySQL server during query
+# Kill the server
 # Corrupt the 2nd page (page_no=1) of the user tablespace.
-# Server must be started successfully, and table t1 must be fine...
+# restart
 check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
@@ -154,12 +154,12 @@ set global innodb_saved_page_number_debug = 0;
 set global innodb_fil_make_page_dirty_debug = 0;
 # Ensure that the dirty page of system tablespace is also flushed.
 set global innodb_buf_flush_list_now = 1;
-set debug='+d,crash_commit_before';
+begin;
 insert into t1 values (6, repeat('%', 400));
-ERROR HY000: Lost connection to MySQL server during query
+# Kill the server
 # Make the first page (page_no=0) of the system tablespace
 # all zeroes.
-# Server must be started successfully, and table t1 must be fine...
+# restart
 check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
@@ -181,11 +181,11 @@ set global innodb_saved_page_number_debug = 0;
 set global innodb_fil_make_page_dirty_debug = 0;
 # Ensure that the dirty page of system tablespace is also flushed.
 set global innodb_buf_flush_list_now = 1;
-set debug='+d,crash_commit_before';
+begin;
 insert into t1 values (6, repeat('%', 400));
-ERROR HY000: Lost connection to MySQL server during query
+# Kill the server
 # Corrupt the first page (page_no=0) of the system tablespace.
-# Server must be started successfully, and table t1 must be fine...
+# restart
 check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
@@ -207,12 +207,12 @@ set global innodb_saved_page_number_debug = 1;
 set global innodb_fil_make_page_dirty_debug = 0;
 # Ensure that the dirty page of system tablespace is flushed.
 set global innodb_buf_flush_list_now = 1;
-set debug='+d,crash_commit_before';
+begin;
 insert into t1 values (6, repeat('%', 400));
-ERROR HY000: Lost connection to MySQL server during query
+# Kill the server
 # Make the 2nd page (page_no=1) of the system tablespace
 # all zeroes.
-# Server must be started successfully, and table t1 must be fine...
+# restart
 check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
@@ -234,12 +234,12 @@ set global innodb_saved_page_number_debug = 1;
 set global innodb_fil_make_page_dirty_debug = 0;
 # Ensure that the dirty page of system tablespace is flushed.
 set global innodb_buf_flush_list_now = 1;
-set debug='+d,crash_commit_before';
+begin;
 insert into t1 values (6, repeat('%', 400));
-ERROR HY000: Lost connection to MySQL server during query
+# Kill the server
 # Make the 2nd page (page_no=1) of the system tablespace
 # all zeroes.
-# Server must be started successfully, and table t1 must be fine...
+# restart
 check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
