@@ -586,6 +586,7 @@ then
   then
     # User explicitly asked for syslog, so warn that it isn't used
     log_error "Can't log to error log and syslog at the same time.  Remove all --log-error configuration options for --syslog to take effect."
+    want_syslog=0
   fi
 
   # Log to err_log file
