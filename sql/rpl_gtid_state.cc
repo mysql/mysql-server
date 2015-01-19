@@ -426,6 +426,7 @@ int Gtid_state::wait_for_gtid_set(THD* thd, String* gtid_set_text, longlong time
   DBUG_ENTER("Gtid_state::wait_for_gtid_set");
   DBUG_PRINT("info", ("Waiting for %s timeout %lld", gtid_set_text->c_ptr_safe(),
              timeout));
+  DEBUG_SYNC(thd, "begin_wait_for_executed_gtid_set");
 
   Sid_map sid_map(NULL);
   Gtid_set wait_gtid_set(&sid_map, NULL);

@@ -117,6 +117,9 @@ while ($_rpl_server)
   --echo **** SHOW PROCESSLIST on $CURRENT_CONNECTION ****
   SHOW PROCESSLIST;
   --echo
+  --echo **** SELECT * FROM performance_schema.threads ****
+  SELECT * FROM performance_schema.threads;
+  --echo
   --echo **** SHOW BINARY LOGS on $CURRENT_CONNECTION ****
   SHOW BINARY LOGS;
   --echo
