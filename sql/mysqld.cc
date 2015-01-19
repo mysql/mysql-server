@@ -8411,9 +8411,11 @@ mysqld_get_one_option(int optid,
   case OPT_BINLOGGING_IMPOSSIBLE_MODE:
     WARN_DEPRECATED(NULL, "--binlogging_impossible_mode",
                     "'--binlog_error_action'");
+    break;
   case OPT_SIMPLIFIED_BINLOG_GTID_RECOVERY:
     WARN_DEPRECATED(NULL, "--simplified_binlog_gtid_recovery",
                     "'--binlog_gtid_simple_recovery'");
+    break;
 #include <sslopt-case.h>
 #ifndef EMBEDDED_LIBRARY
   case 'V':
