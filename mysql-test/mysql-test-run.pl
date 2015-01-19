@@ -1494,6 +1494,7 @@ sub command_line_setup {
   {
     $default_vardir= "$glob_mysql_test_dir/var";
   }
+  $default_vardir = realpath $default_vardir unless IS_WINDOWS;
 
   if ( ! $opt_vardir )
   {
