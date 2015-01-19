@@ -3916,7 +3916,7 @@ static int test_plugin_options(MEM_ROOT *tmp_root, struct st_plugin_int *tmp,
       we copy string values to a plugin's memroot.
     */
     if (mysqld_server_started &&
-        ((o->flags & (PLUGIN_VAR_STR | PLUGIN_VAR_NOCMDOPT |
+        ((o->flags & (PLUGIN_VAR_TYPEMASK | PLUGIN_VAR_NOCMDOPT |
                        PLUGIN_VAR_MEMALLOC)) == PLUGIN_VAR_STR))
     {
       sysvar_str_t* str= (sysvar_str_t *)o;
