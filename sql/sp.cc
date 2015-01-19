@@ -1540,7 +1540,7 @@ bool lock_db_routines(THD *thd, const char *db)
       {
         table->file->ha_index_end();
         my_error(ER_SP_WRONG_NAME, MYF(0), "");
-        close_system_tables(thd, &open_tables_state_backup);
+        close_nontrans_system_tables(thd, &open_tables_state_backup);
         DBUG_RETURN(true);
       }
 
