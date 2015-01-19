@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -644,6 +644,33 @@ dict_table_get_col_name(
 }
 
 #ifndef UNIV_HOTBACKUP
+/** Allocate and init the autoinc latch of a given table.
+This function must not be called concurrently on the same table object.
+@param[in,out]	table_void	table whose autoinc latch to create */
+void
+dict_table_autoinc_alloc(
+	void*	table_void)
+{
+	dict_table_t*	table = static_cast<dict_table_t*>(table_void);
+	table->autoinc_mutex = new (std::nothrow) ib_mutex_t();
+	ut_a(table->autoinc_mutex != NULL);
+	mutex_create(autoinc_mutex_key,
+		     table->autoinc_mutex, SYNC_DICT_AUTOINC_MUTEX);
+}
+
+/** Allocate and init the zip_pad_mutex of a given index.
+This function must not be called concurrently on the same index object.
+@param[in,out]	index_void	index whose zip_pad_mutex to create */
+void
+dict_index_zip_pad_alloc(
+	void*	index_void)
+{
+	dict_index_t*	index = static_cast<dict_index_t*>(index_void);
+	index->zip_pad.mutex = new (std::nothrow) os_fast_mutex_t;
+	ut_a(index->zip_pad.mutex != NULL);
+	os_fast_mutex_init(zip_pad_mutex_key, index->zip_pad.mutex);
+}
+
 /********************************************************************//**
 Acquire the autoinc lock. */
 UNIV_INTERN
@@ -652,7 +679,32 @@ dict_table_autoinc_lock(
 /*====================*/
 	dict_table_t*	table)	/*!< in/out: table */
 {
-	mutex_enter(&table->autoinc_mutex);
+#ifdef HAVE_ATOMIC_BUILTINS
+	os_once::do_or_wait_for_done(
+		&table->autoinc_mutex_created,
+		dict_table_autoinc_alloc, table);
+#else /* HAVE_ATOMIC_BUILTINS */
+	ut_ad(table->autoinc_mutex_created == os_once::DONE);
+#endif /* HAVE_ATOMIC_BUILTINS */
+
+	mutex_enter(table->autoinc_mutex);
+}
+
+/** Acquire the zip_pad_mutex latch.
+@param[in,out]	index	the index whose zip_pad_mutex to acquire.*/
+void
+dict_index_zip_pad_lock(
+	dict_index_t*	index)
+{
+#ifdef HAVE_ATOMIC_BUILTINS
+	os_once::do_or_wait_for_done(
+		&index->zip_pad.mutex_created,
+		dict_index_zip_pad_alloc, index);
+#else /* HAVE_ATOMIC_BUILTINS */
+	ut_ad(index->zip_pad.mutex_created == os_once::DONE);
+#endif /* HAVE_ATOMIC_BUILTINS */
+
+	os_fast_mutex_lock(index->zip_pad.mutex);
 }
 
 /********************************************************************//**
@@ -664,7 +716,7 @@ dict_table_autoinc_initialize(
 	dict_table_t*	table,	/*!< in/out: table */
 	ib_uint64_t	value)	/*!< in: next value to assign to a row */
 {
-	ut_ad(mutex_own(&table->autoinc_mutex));
+	ut_ad(dict_table_autoinc_own(table));
 
 	table->autoinc = value;
 }
@@ -706,7 +758,7 @@ dict_table_autoinc_read(
 /*====================*/
 	const dict_table_t*	table)	/*!< in: table */
 {
-	ut_ad(mutex_own(&table->autoinc_mutex));
+	ut_ad(dict_table_autoinc_own(table));
 
 	return(table->autoinc);
 }
@@ -722,7 +774,7 @@ dict_table_autoinc_update_if_greater(
 	dict_table_t*	table,	/*!< in/out: table */
 	ib_uint64_t	value)	/*!< in: value which was assigned to a row */
 {
-	ut_ad(mutex_own(&table->autoinc_mutex));
+	ut_ad(dict_table_autoinc_own(table));
 
 	if (value > table->autoinc) {
 
@@ -738,7 +790,7 @@ dict_table_autoinc_unlock(
 /*======================*/
 	dict_table_t*	table)	/*!< in/out: table */
 {
-	mutex_exit(&table->autoinc_mutex);
+	mutex_exit(table->autoinc_mutex);
 }
 #endif /* !UNIV_HOTBACKUP */
 
@@ -6608,10 +6660,10 @@ dict_index_zip_success(
 		return;
 	}
 
-	os_fast_mutex_lock(&index->zip_pad.mutex);
+	dict_index_zip_pad_lock(index);
 	++index->zip_pad.success;
 	dict_index_zip_pad_update(&index->zip_pad, zip_threshold);
-	os_fast_mutex_unlock(&index->zip_pad.mutex);
+	dict_index_zip_pad_unlock(index);
 }
 
 /*********************************************************************//**
@@ -6631,10 +6683,10 @@ dict_index_zip_failure(
 		return;
 	}
 
-	os_fast_mutex_lock(&index->zip_pad.mutex);
+	dict_index_zip_pad_lock(index);
 	++index->zip_pad.failure;
 	dict_index_zip_pad_update(&index->zip_pad, zip_threshold);
-	os_fast_mutex_unlock(&index->zip_pad.mutex);
+	dict_index_zip_pad_unlock(index);
 }
 
 
@@ -6666,9 +6718,9 @@ dict_index_zip_pad_optimal_page_size(
 #ifdef HAVE_ATOMIC_BUILTINS
 	pad = os_atomic_increment_ulint(&index->zip_pad.pad, 0);
 #else /* HAVE_ATOMIC_BUILTINS */
-	os_fast_mutex_lock(&index->zip_pad.mutex);
+	dict_index_zip_pad_lock(index);
 	pad = index->zip_pad.pad;
-	os_fast_mutex_unlock(&index->zip_pad.mutex);
+	dict_index_zip_pad_unlock(index);
 #endif /* HAVE_ATOMIC_BUILTINS */
 
 	ut_ad(pad < UNIV_PAGE_SIZE);
