@@ -2556,6 +2556,53 @@ public:
     return anonymous_gtid_violation_count.atomic_get();
   }
 
+  /**
+    Increase the global counter when starting a call to
+    WAIT_FOR_EXECUTED_GTID_SET or WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS.
+  */
+  void begin_gtid_wait(enum_gtid_mode_lock gtid_mode_lock)
+  {
+    DBUG_ENTER("Gtid_state::begin_gtid_wait");
+    DBUG_ASSERT(get_gtid_mode(gtid_mode_lock) != GTID_MODE_OFF);
+#ifndef DBUG_OFF
+    int32 old_value=
+#endif
+      gtid_wait_count.atomic_add(1);
+    DBUG_PRINT("info",
+               ("gtid_wait_count changed from %d to %d",
+                old_value, old_value + 1));
+    DBUG_ASSERT(old_value >= 0);
+    DBUG_VOID_RETURN;
+  }
+
+  /**
+    Decrease the global counter when ending a call to
+    WAIT_FOR_EXECUTED_GTID_SET or WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS.
+  */
+  void end_gtid_wait()
+  {
+    DBUG_ENTER("Gtid_state::end_gtid_wait");
+    DBUG_ASSERT(get_gtid_mode(GTID_MODE_LOCK_NONE) != GTID_MODE_OFF);
+#ifndef DBUG_OFF
+    int32 old_value=
+#endif
+      gtid_wait_count.atomic_add(-1);
+    DBUG_PRINT("info",
+               ("gtid_wait_count changed from %d to %d",
+                old_value, old_value - 1));
+    DBUG_ASSERT(old_value >= 1);
+    DBUG_VOID_RETURN;
+  }
+
+  /**
+    Return the number of clients that have an ongoing call to
+    WAIT_FOR_EXECUTED_GTID_SET or WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS.
+  */
+  int32 get_gtid_wait_count()
+  {
+    return gtid_wait_count.atomic_get();
+  }
+
 #endif // ifndef MYSQL_CLIENT
 private:
   /**
@@ -2898,6 +2945,9 @@ private:
   Atomic_int32 automatic_gtid_violation_count;
   /// The number of GTID-violating transactions that use GTID_NEXT=AUTOMATIC.
   Atomic_int32 anonymous_gtid_violation_count;
+  /// The number of clients that are executing
+  /// WAIT_FOR_EXECUTED_GTID_SET or WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS.
+  Atomic_int32 gtid_wait_count;
 
   /// Used by unit tests that need to access private members.
 #ifdef FRIEND_OF_GTID_STATE

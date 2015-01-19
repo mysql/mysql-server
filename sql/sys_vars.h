@@ -2783,6 +2783,23 @@ public:
       goto err;
     }
 
+    // Can't set GTID_MODE=OFF with ongoing calls to
+    // WAIT_FOR_EXECUTED_GTID_SET or
+    // WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS.
+    DBUG_PRINT("info", ("gtid_wait_count=%d", gtid_state->get_gtid_wait_count() > 0));
+    if (new_gtid_mode == GTID_MODE_OFF &&
+        gtid_state->get_gtid_wait_count() > 0)
+    {
+      my_error(ER_CANT_SET_GTID_MODE, MYF(0), "OFF",
+               "there are ongoing calls to "
+               "WAIT_FOR_EXECUTED_GTID_SET or "
+               "WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS. Before you set "
+               "@@GLOBAL.GTID_MODE = OFF, ensure that no other "
+               "client is waiting for GTID-transactions to be "
+               "committed");
+      goto err;
+    }
+
     // Update the mode
     global_var(ulong)= new_gtid_mode;
     global_sid_lock->unlock();

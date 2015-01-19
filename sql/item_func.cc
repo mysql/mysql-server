@@ -4595,28 +4595,14 @@ longlong Item_wait_for_executed_gtid_set::val_int()
   DBUG_ASSERT(fixed == 1);
   THD* thd= current_thd;
   String *gtid= args[0]->val_str(&value);
-  int result= 0;
 
   null_value= 0;
-
-  /**
-    @todo WL#7083 We only protect gtid_mode while reading it, and
-    release it before starting to wait. So user can change GTID_MODE
-    to OFF while the function is running. This will be fixed in a
-    later step of WL#7083.
-  */
-  if (get_gtid_mode(GTID_MODE_LOCK_NONE) == GTID_MODE_OFF)
-  {
-    my_error(ER_GTID_MODE_OFF, MYF(0), "use WAIT_FOR_EXECUTED_GTID_SET");
-    null_value= 1;
-    return result;
-  }
 
   if (gtid == NULL)
   {
     my_error(ER_MALFORMED_GTID_SET_SPECIFICATION, MYF(0), "NULL");
     null_value= 1;
-    return result;
+    return 0;
   }
 
   // Since the function is independent of the slave threads we need to return
@@ -4624,13 +4610,26 @@ longlong Item_wait_for_executed_gtid_set::val_int()
   if (thd->slave_thread)
   {
     null_value= 1;
-    return result;
+    return 0;
   }
 
+  global_sid_lock->rdlock();
+  if (get_gtid_mode(GTID_MODE_LOCK_SID) == GTID_MODE_OFF)
+  {
+    global_sid_lock->unlock();
+    my_error(ER_GTID_MODE_OFF, MYF(0), "use WAIT_FOR_EXECUTED_GTID_SET");
+    null_value= 1;
+    return 0;
+  }
+  gtid_state->begin_gtid_wait(GTID_MODE_LOCK_SID);
+  global_sid_lock->unlock();
+
   longlong timeout= (arg_count== 2) ? args[1]->val_int() : 0;
-  result= gtid_state->wait_for_gtid_set(thd, gtid, timeout);
+  int result= gtid_state->wait_for_gtid_set(thd, gtid, timeout);
   if (result == -1)
     null_value= 1;
+  gtid_state->end_gtid_wait();
+
   return result;
 }
 
@@ -4649,6 +4648,7 @@ bool Item_master_gtid_set_wait::itemize(Parse_context *pc, Item **res)
 longlong Item_master_gtid_set_wait::val_int()
 {
   DBUG_ASSERT(fixed == 1);
+  DBUG_ENTER("Item_master_gtid_set_wait::val_int");
   int event_count= 0;
 
   null_value=0;
@@ -4659,21 +4659,13 @@ longlong Item_master_gtid_set_wait::val_int()
   Master_info *mi= NULL;
   longlong timeout = (arg_count>= 2) ? args[1]->val_int() : 0;
 
-  mysql_mutex_lock(&LOCK_msr_map);
-
-  /*
-    @todo WL#7083 We only protect gtid_mode while reading it, and
-    release it before starting to wait. So user can change GTID_MODE
-    to OFF while the function is running. This will be fixed in a
-    later step of WL#7083.
-  */
-  if (thd->slave_thread || !gtid ||
-      get_gtid_mode(GTID_MODE_LOCK_MSR_MAP) == GTID_MODE_OFF)
+  if (thd->slave_thread || !gtid)
   {
-    mysql_mutex_unlock(&LOCK_msr_map);
     null_value = 1;
-    return event_count;
+    DBUG_RETURN(0);
   }
+
+  mysql_mutex_lock(&LOCK_msr_map);
 
   /* If replication channel is mentioned */
   if (arg_count == 3)
@@ -4681,8 +4673,9 @@ longlong Item_master_gtid_set_wait::val_int()
     String *channel_str;
     if (!(channel_str= args[2]->val_str(&value)))
     {
+      mysql_mutex_unlock(&LOCK_msr_map);
       null_value= 1;
-      return 0;
+      DBUG_RETURN(0);
     }
     mi= msr_map.get_mi(channel_str->ptr());
   }
@@ -4690,20 +4683,29 @@ longlong Item_master_gtid_set_wait::val_int()
   {
     if (msr_map.get_num_instances() > 1)
     {
+      mysql_mutex_unlock(&LOCK_msr_map);
       mi = NULL;
       my_error(ER_SLAVE_MULTIPLE_CHANNELS_CMD, MYF(0));
+      DBUG_RETURN(0);
     }
     else
       mi= msr_map.get_mi(msr_map.get_default_channel());
   }
 
-  mysql_mutex_unlock(&LOCK_msr_map);
+  if (get_gtid_mode(GTID_MODE_LOCK_MSR_MAP) == GTID_MODE_OFF)
+  {
+    null_value= 1;
+    mysql_mutex_unlock(&LOCK_msr_map);
+    DBUG_RETURN(0);
+  }
+  gtid_state->begin_gtid_wait(GTID_MODE_LOCK_MSR_MAP);
 
+  mysql_mutex_unlock(&LOCK_msr_map);
 
   if (mi && mi->rli)
   {
-    if ((event_count = mi->rli->wait_for_gtid_set(thd, gtid, timeout))
-         == -2)
+    event_count = mi->rli->wait_for_gtid_set(thd, gtid, timeout);
+    if (event_count == -2)
     {
       null_value = 1;
       event_count=0;
@@ -4716,7 +4718,9 @@ longlong Item_master_gtid_set_wait::val_int()
     null_value = 1;
 #endif
 
-  return event_count;
+  gtid_state->end_gtid_wait();
+
+  DBUG_RETURN(event_count);
 }
 
 /**
