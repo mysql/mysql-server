@@ -227,7 +227,15 @@ void table_replication_applier_status_by_worker::make_row(Slave_worker *w)
 
   m_row.last_error_number= (unsigned int) w->last_error().number;
 
-  if (w->currently_executing_gtid.type == ANONYMOUS_GROUP)
+  if (w->currently_executing_gtid.type == GTID_GROUP)
+  {
+    global_sid_lock->rdlock();
+    m_row.last_seen_transaction_length=
+      w->currently_executing_gtid.to_string(global_sid_map,
+                                            m_row.last_seen_transaction);
+    global_sid_lock->unlock();
+  }
+  else if (w->currently_executing_gtid.type == ANONYMOUS_GROUP)
   {
     m_row.last_seen_transaction_length=
       w->currently_executing_gtid.to_string((rpl_sid *)NULL,
@@ -235,20 +243,14 @@ void table_replication_applier_status_by_worker::make_row(Slave_worker *w)
   }
   else
   {
-    DBUG_ASSERT(w->currently_executing_gtid.type == GTID_GROUP);
-    if (w->currently_executing_gtid.gtid.sidno == 0)
-    {
-      m_row.last_seen_transaction_length= 0;
-      memcpy(m_row.last_seen_transaction, "", 1);
-    }
-    else
-    {
-      global_sid_lock->rdlock();
-      m_row.last_seen_transaction_length=
-        w->currently_executing_gtid.to_string(global_sid_map,
-                                              m_row.last_seen_transaction);
-      global_sid_lock->unlock();
-    }
+    /*
+      For worker->currently_executing_gtid, type is set to
+      AUTOMATIC_GROUP when the worker is not executing any
+      transaction.  For this case, the field should be empty.
+    */
+    DBUG_ASSERT(w->currently_executing_gtid.type == AUTOMATIC_GROUP);
+    m_row.last_seen_transaction_length= 0;
+    memcpy(m_row.last_seen_transaction, "", 1);
   }
 
   m_row.last_error_number= (unsigned int) w->last_error().number;

@@ -41,9 +41,13 @@
 #     before evaluating your script.
 #
 #   $select_columns
-#     For convenience, if you set this to a space-separated list of
+#     For convenience, if you set this to a comma-separated list of
 #     numbers, it will print only the numbered columns, in the given
 #     order.
+#
+#   $mask_columns
+#     For convenience, if you set this to a comma-separated list of
+#     numbers, it will replace the numbered columns by '#'.
 #
 #   $pre_script
 #     This script will be evaluated before starting to iterate over
@@ -62,6 +66,7 @@ if ($rpl_debug)
   --echo pre_script='$pre_script'
   --echo script='$script'
   --echo select_columns='$select_columns'
+  --echo mask_columns='$mask_columns'
   --echo input_file='$input_file' output_file='$output_file'
 }
 
@@ -70,6 +75,7 @@ if ($rpl_debug)
 --let _FF_INPUT_FILE= $input_file
 --let _FF_OUTPUT_FILE= $output_file
 --let _FF_SELECT_COLUMNS= $select_columns
+--let _FF_MASK_COLUMNS= $mask_columns
 --let _FF_DEBUG= $rpl_debug
 if (!$output_file)
 {
@@ -83,6 +89,7 @@ perl;
   my $input_file = $ENV{'_FF_INPUT_FILE'};
   my $output_file = $ENV{'_FF_OUTPUT_FILE'};
   my $select_columns = $ENV{'_FF_SELECT_COLUMNS'};
+  my $mask_columns = $ENV{'_FF_MASK_COLUMNS'};
   my $debug = $ENV{'_FF_DEBUG'};
   if ($select_columns)
   {
@@ -93,6 +100,25 @@ perl;
     my @cols = split(/\t/, $_);
     $_ = join("\t", map { $cols[$_ - 1] } ('.$select_columns.'))."\n";
     ' . $script;
+  }
+  if ($mask_columns)
+  {
+    chomp($mask_columns);
+    my $last_col = 0;
+    my $regex = '';
+    my $pending_tab = '';
+    my $replacement = '';
+    my $n = 1;
+    for my $col (split(/\s*,\s*/, $mask_columns)) {
+      $regex .= '(' . $pending_tab . '[^\t]*\t' x ($col - $last_col - 1) . ')';
+      $regex .= '(?:[^\t]*)';
+      $pending_tab = '\t';
+      $replacement .= '$' . $n . '#';
+      $n++;
+      $last_col = $col;
+    }
+    $script = "s/$regex/$replacement/;
+    $script";
   }
   unless ($keep_quotes)
   {

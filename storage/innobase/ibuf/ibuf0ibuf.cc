@@ -2512,8 +2512,12 @@ ibuf_merge_pages(
 
 	/* Open a cursor to a randomly chosen leaf of the tree, at a random
 	position within the leaf */
+	bool available;
 
-	btr_pcur_open_at_rnd_pos(ibuf->index, BTR_SEARCH_LEAF, &pcur, &mtr);
+	available = btr_pcur_open_at_rnd_pos(ibuf->index, BTR_SEARCH_LEAF,
+					     &pcur, &mtr);
+	/* No one should make this index unavailable when server is running */
+	ut_a(available);
 
 	ut_ad(page_validate(btr_pcur_get_page(&pcur), ibuf->index));
 

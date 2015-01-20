@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -44,68 +44,80 @@ int gtid_acquire_ownership_single(THD *thd)
   DBUG_ENTER("gtid_acquire_ownership_single");
   int ret= 0;
   const Gtid gtid_next= thd->variables.gtid_next.gtid;
-  while (true)
+
+  if (thd->variables.gtid_next.type == ANONYMOUS_GROUP)
   {
-    global_sid_lock->rdlock();
-    // acquire lock before checking conditions
-    gtid_state->lock_sidno(gtid_next.sidno);
-
-    // GTID already logged
-    if (gtid_state->is_executed(gtid_next))
-    {
-      /*
-        Don't skip the statement here, skip it in
-        gtid_pre_statement_checks.
-      */
-      break;
-    }
-    my_thread_id owner= gtid_state->get_owner(gtid_next);
-    // GTID not owned by anyone: acquire ownership
-    if (owner == 0)
-    {
-      if (gtid_state->acquire_ownership(thd, gtid_next) != RETURN_STATUS_OK)
-        ret= 1;
-      thd->owned_gtid= gtid_next;
-      break;
-    }
-    // GTID owned by someone (other thread)
-    else
-    {
-      // The call below releases the read lock on global_sid_lock and
-      // the mutex lock on SIDNO.
-      gtid_state->wait_for_gtid(thd, gtid_next);
-
-      // global_sid_lock and mutex are now released
-
-      // Check if thread was killed.
-      if (thd->killed || abort_loop)
-        DBUG_RETURN(1);
-#ifdef HAVE_REPLICATION
-      // If this thread is a slave SQL thread or slave SQL worker
-      // thread, we need this additional condition to determine if it
-      // has been stopped by STOP SLAVE [SQL_THREAD].
-      if ((thd->system_thread &
-           (SYSTEM_THREAD_SLAVE_SQL | SYSTEM_THREAD_SLAVE_WORKER)) != 0)
-      {
-        // TODO: error is *not* reported on cancel
-        DBUG_ASSERT(thd->rli_slave!= NULL);
-        Relay_log_info *c_rli= thd->rli_slave->get_c_rli();
-        if (c_rli->abort_slave)
-          DBUG_RETURN(1);
-      }
-#endif // HAVE_REPLICATION
-    }
+    thd->owned_gtid.sidno= THD::OWNED_SIDNO_ANONYMOUS;
   }
-  gtid_state->unlock_sidno(gtid_next.sidno);
+  else
+  {
+    DBUG_ASSERT(thd->variables.gtid_next.type == GTID_GROUP);
+    DBUG_ASSERT(gtid_next.sidno >= 1);
+    DBUG_ASSERT(gtid_next.gno >= 1);
+    while (true)
+    {
+      global_sid_lock->rdlock();
+      // acquire lock before checking conditions
+      gtid_state->lock_sidno(gtid_next.sidno);
 
-  global_sid_lock->unlock();
+      // GTID already logged
+      if (gtid_state->is_executed(gtid_next))
+      {
+        /*
+          Don't skip the statement here, skip it in
+          gtid_pre_statement_checks.
+        */
+        break;
+      }
+      my_thread_id owner= gtid_state->get_owner(gtid_next);
+      // GTID not owned by anyone: acquire ownership
+      if (owner == 0)
+      {
+        if (gtid_state->acquire_ownership(thd, gtid_next) != RETURN_STATUS_OK)
+          ret= 1;
+        thd->owned_gtid= gtid_next;
+        DBUG_ASSERT(thd->owned_gtid.sidno >= 1);
+        DBUG_ASSERT(thd->owned_gtid.gno >= 1);
+        break;
+      }
+      // GTID owned by someone (other thread)
+      else
+      {
+        // The call below releases the read lock on global_sid_lock and
+        // the mutex lock on SIDNO.
+        gtid_state->wait_for_gtid(thd, gtid_next);
+
+        // global_sid_lock and mutex are now released
+
+        // Check if thread was killed.
+        if (thd->killed || abort_loop)
+          DBUG_RETURN(1);
+#ifdef HAVE_REPLICATION
+        // If this thread is a slave SQL thread or slave SQL worker
+        // thread, we need this additional condition to determine if it
+        // has been stopped by STOP SLAVE [SQL_THREAD].
+        if ((thd->system_thread &
+             (SYSTEM_THREAD_SLAVE_SQL | SYSTEM_THREAD_SLAVE_WORKER)) != 0)
+        {
+          // TODO: error is *not* reported on cancel
+          DBUG_ASSERT(thd->rli_slave!= NULL);
+          Relay_log_info *c_rli= thd->rli_slave->get_c_rli();
+          if (c_rli->abort_slave)
+            DBUG_RETURN(1);
+        }
+#endif // HAVE_REPLICATION
+      }
+    }
+    gtid_state->unlock_sidno(gtid_next.sidno);
+
+    global_sid_lock->unlock();
+  }
 
 #ifdef HAVE_PSI_TRANSACTION_INTERFACE
-  /* Set the transaction GTID in the Performance Schema */
-  if (thd->m_transaction_psi != NULL && !ret && thd->owned_gtid.sidno >= 1)
-    MYSQL_SET_TRANSACTION_GTID(thd->m_transaction_psi, &thd->owned_sid,
-                               &thd->variables.gtid_next);
+  if (!ret)
+    gtid_set_performance_schema_values(thd);
 #endif
+  thd->owned_gtid.dbug_print(NULL, "Set owned_gtid in gtid_acquire_ownership");
 
   DBUG_RETURN(ret);
 }
@@ -259,7 +271,8 @@ static inline bool is_already_logged_transaction(const THD *thd)
         DBUG_ASSERT(thd->owned_gtid.equals(gtid_next->gtid));
     }
     else
-      DBUG_ASSERT(thd->owned_gtid.sidno == 0);
+      DBUG_ASSERT(thd->owned_gtid.sidno == 0 ||
+                  thd->owned_gtid.sidno == THD::OWNED_SIDNO_ANONYMOUS);
   }
   else
   {
@@ -283,11 +296,8 @@ static inline bool is_already_logged_transaction(const THD *thd)
   Debug code executed when a transaction is skipped.
 
   @param  thd     The calling thread.
-
-  @retval GTID_STATEMENT_SKIP  Indicate that statement should be
-                               skipped by caller.
 */
-static inline enum_gtid_statement_status skip_statement(const THD *thd)
+static inline void skip_statement(const THD *thd)
 {
   DBUG_ENTER("skip_statement");
 
@@ -306,7 +316,69 @@ static inline enum_gtid_statement_status skip_statement(const THD *thd)
   global_sid_lock->unlock();
 #endif
 
-  DBUG_RETURN(GTID_STATEMENT_SKIP);
+  DBUG_VOID_RETURN;
+}
+
+
+bool gtid_reacquire_ownership_if_anonymous(THD *thd)
+{
+  DBUG_ENTER("gtid_reacquire_ownership_if_anonymous(THD *)");
+  Gtid_specification *gtid_next= &thd->variables.gtid_next;
+  /*
+    When the slave applier thread executes a
+    Format_description_log_event originating from a master
+    (corresponding to a new master binary log), it sets gtid_next to
+    NOT_YET_DETERMINED_GROUP.  This allows any following
+    Gtid_log_event will set the GTID appropriately, but if there is no
+    Gtid_log_event, gtid_next will be converted to ANONYMOUS.
+  */
+  DBUG_PRINT("info", ("gtid_next->type=%d gtid_mode=%lu",
+                      gtid_next->type, gtid_mode));
+  if (gtid_next->type == NOT_YET_DETERMINED_GROUP ||
+      (gtid_next->type == ANONYMOUS_GROUP && thd->owned_gtid.sidno == 0))
+  {
+    if (gtid_mode == GTID_MODE_ON)
+    {
+      my_error(ER_CANT_SET_GTID_NEXT_TO_ANONYMOUS_WHEN_GTID_MODE_IS_ON, MYF(0));
+      DBUG_RETURN(true);
+    }
+    DBUG_PRINT("info", ("converting NOT_YET_DETERMINED_GROUP to ANONYMOUS_GROUP"));
+
+    gtid_next->set_anonymous();
+    gtid_acquire_ownership_single(thd);
+
+#ifdef HAVE_REPLICATION
+    thd->set_currently_executing_gtid_for_slave_thread();
+#endif
+  }
+  DBUG_RETURN(false);
+}
+
+
+/**
+  Return true if the statement does not invoke any stored function,
+  and is one of the following:
+  - SET (except SET PASSWORD)
+  - SHOW
+  - SELECT
+  - DO
+  That means it is guaranteed not to cause any changes in the
+  database.
+*/
+static bool is_stmt_innocent(const THD *thd)
+{
+  LEX *lex= thd->lex;
+  enum_sql_command sql_command= lex->sql_command;
+  bool is_show=
+    (sql_command_flags[sql_command] & CF_STATUS_COMMAND) &&
+    (sql_command != SQLCOM_BINLOG_BASE64_EVENT);
+  bool is_set=
+    (sql_command == SQLCOM_SET_OPTION) && !lex->is_set_password_sql;
+  bool is_select= (sql_command == SQLCOM_SELECT);
+  bool is_do= (sql_command == SQLCOM_DO);
+  return
+    (is_set || is_select || is_do || is_show) &&
+    !lex->uses_stored_routines();
 }
 
 
@@ -314,13 +386,14 @@ enum_gtid_statement_status gtid_pre_statement_checks(THD *thd)
 {
   DBUG_ENTER("gtid_pre_statement_checks");
 
+  Gtid_specification *gtid_next= &thd->variables.gtid_next;
+
   if (enforce_gtid_consistency && !thd->is_ddl_gtid_compatible())
   {
     // error message has been generated by thd->is_ddl_gtid_compatible()
     DBUG_RETURN(GTID_STATEMENT_CANCEL);
   }
 
-  Gtid_specification *gtid_next= &thd->variables.gtid_next;
   if (stmt_causes_implicit_commit(thd, CF_IMPLICIT_COMMIT_BEGIN) &&
       thd->in_active_multi_stmt_transaction() &&
       gtid_next->type == GTID_GROUP)
@@ -331,8 +404,9 @@ enum_gtid_statement_status gtid_pre_statement_checks(THD *thd)
 
   /*
     Always allow:
-    - BEGIN/COMMIT/ROLLBACK
-    - SET/SELECT statements that do not invoke stored procedures.
+    - BEGIN/COMMIT/ROLLBACK;
+    - innocent statements, i.e., SET/SHOW/DO/SELECT which don't invoke
+      stored functions.
 
     @todo: add flag to sql_command_flags to detect if statement
     controls transactions instead of listing the commands in the
@@ -340,39 +414,10 @@ enum_gtid_statement_status gtid_pre_statement_checks(THD *thd)
 
     @todo: figure out how to handle SQLCOM_XA_*
   */
-  enum_sql_command sql_command= thd->lex->sql_command;
+  const enum_sql_command sql_command= thd->lex->sql_command;
   if (sql_command == SQLCOM_COMMIT || sql_command == SQLCOM_BEGIN ||
-      sql_command == SQLCOM_ROLLBACK ||
-      ((sql_command == SQLCOM_SELECT ||
-        (sql_command == SQLCOM_SET_OPTION && !thd->lex->is_set_password_sql)) &&
-       !thd->lex->uses_stored_routines()))
+      sql_command == SQLCOM_ROLLBACK || is_stmt_innocent(thd))
     DBUG_RETURN(GTID_STATEMENT_EXECUTE);
-
-  /*
-    When the slave applier thread executes a
-    Format_description_log_event originating from a master
-    (corresponding to a new master binary log), it sets gtid_next to
-    NOT_YET_DETERMINED_GROUP.  This allows any following
-    Gtid_log_event will set the GTID appropriately, but if there is no
-    Gtid_log_event, gtid_next will be converted to ANONYMOUS.
-  */
-  DBUG_PRINT("info", ("gtid_next->type=%d NOT_YET_DETERMINED_GROUP=%d gtid_mode=%lu", gtid_next->type, NOT_YET_DETERMINED_GROUP, gtid_mode));
-  if (gtid_next->type == NOT_YET_DETERMINED_GROUP)
-  {
-    if (gtid_mode == GTID_MODE_ON)
-    {
-      my_error(ER_CANT_SET_GTID_NEXT_TO_ANONYMOUS_WHEN_GTID_MODE_IS_ON, MYF(0));
-      DBUG_RETURN(GTID_STATEMENT_CANCEL);
-    }
-    DBUG_PRINT("info", ("converting NOT_YET_DETERMINED_GROUP to ANONYMOUS_GROUP"));
-
-    gtid_next->set_anonymous();
-
-#ifdef HAVE_REPLICATION
-    thd->set_currently_executing_gtid_for_slave_thread();
-#endif
-  }
-
 
   /*
     If a transaction updates both non-transactional and transactional
@@ -420,7 +465,10 @@ enum_gtid_statement_status gtid_pre_statement_checks(THD *thd)
   if (gtid_next_list == NULL)
   {
     if (skip_transaction)
-      DBUG_RETURN(skip_statement(thd));
+    {
+      skip_statement(thd);
+      DBUG_RETURN(GTID_STATEMENT_SKIP);
+    }
     DBUG_RETURN(GTID_STATEMENT_EXECUTE);
   }
   else
@@ -434,7 +482,10 @@ enum_gtid_statement_status gtid_pre_statement_checks(THD *thd)
       DBUG_RETURN(GTID_STATEMENT_CANCEL);
     case GTID_GROUP:
       if (skip_transaction)
-        DBUG_RETURN(skip_statement(thd));
+      {
+        skip_statement(thd);
+        DBUG_RETURN(GTID_STATEMENT_SKIP);
+      }
       /*FALLTHROUGH*/
     case ANONYMOUS_GROUP:
       DBUG_RETURN(GTID_STATEMENT_EXECUTE);
@@ -447,6 +498,34 @@ enum_gtid_statement_status gtid_pre_statement_checks(THD *thd)
   }
   DBUG_ASSERT(0);/*NOTREACHED*/
   DBUG_RETURN(GTID_STATEMENT_CANCEL);
+}
+
+
+bool gtid_pre_statement_post_implicit_commit_checks(THD *thd)
+{
+  DBUG_ENTER("gtid_pre_statement_post_implicit_commit_checks");
+  /*
+    Ensure that we hold anonymous ownership before executing any
+    statement, if gtid_next=anonymous or not_yet_determined.  But do
+    not re-acquire anonymous ownership if the statement is 'innocent'.
+    Innocent commands are those that cannot get written to the binary
+    log and cannot commit any ongoing transaction, i.e., one of the
+    SET/SELECT/DO/SHOW statements, as long as it does not invoke a
+    stored function.
+
+    It is important that we don't try to reacquire ownership for
+    innocent commands: SET could be used to set GTID_NEXT to
+    UUID:NUMBER; if anonymous was acquired before this then it would
+    result in an error.  SHOW/SELECT/DO can be useful for testing
+    ownership logic, e.g., to read @@session.gtid_owned or to read
+    warnings using SHOW WARNINGS, and to test this properly it is
+    important to not affect the ownership status.
+  */
+  if (!is_stmt_innocent(thd))
+    if (gtid_reacquire_ownership_if_anonymous(thd))
+      // this can happen if gtid_mode is on
+      DBUG_RETURN(true);
+  DBUG_RETURN(false);
 }
 
 
@@ -482,5 +561,39 @@ void gtid_post_statement_checks(THD *thd)
        sql_command == SQLCOM_ROLLBACK))
     thd->variables.gtid_next.set_undefined();
 
+  DBUG_VOID_RETURN;
+}
+
+
+void gtid_set_performance_schema_values(const THD *thd)
+{
+  DBUG_ENTER("gtid_set_performance_schema_values");
+#ifdef HAVE_PSI_TRANSACTION_INTERFACE
+  if (thd->m_transaction_psi != NULL)
+  {
+    Gtid_specification spec;
+
+    // Thread owns GTID.
+    if (thd->owned_gtid.sidno >= 1)
+    {
+      spec.type= GTID_GROUP;
+      spec.gtid= thd->owned_gtid;
+    }
+
+    // Thread owns ANONYMOUS.
+    else if (thd->owned_gtid.sidno == THD::OWNED_SIDNO_ANONYMOUS)
+    {
+      spec.type= ANONYMOUS_GROUP;
+    }
+
+    // Thread does not own anything.
+    else
+    {
+      DBUG_ASSERT(thd->owned_gtid.sidno == 0);
+      spec.type= AUTOMATIC_GROUP;
+    }
+    MYSQL_SET_TRANSACTION_GTID(thd->m_transaction_psi, &thd->owned_sid, &spec);
+  }
+#endif
   DBUG_VOID_RETURN;
 }
