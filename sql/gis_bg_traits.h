@@ -62,16 +62,6 @@ public:
     :Gis_point(ptr, nbytes, flags, srid)
   {
   }
-
-  Gis_point_spherical(const Gis_point_spherical &pt) :Gis_point(pt)
-  {
-  }
-
-  const Gis_point_spherical &operator=(const Gis_point_spherical &rhs)
-  {
-    Gis_point::operator=(rhs);
-    return rhs;
-  }
 };
 
 
@@ -96,9 +86,6 @@ public:
   {
     set_geotype(wkb_multipoint);
   }
-
-  Gis_multi_point_spherical(const self &mpts) :base_type(mpts)
-  {}
 };
 
 
@@ -118,9 +105,6 @@ public:
   {
     set_geotype(wkb_linestring);
   }
-
-  Gis_line_string_spherical(const self &ls) :base(ls)
-  {}
 };
 
 
@@ -136,9 +120,6 @@ public:
   {
     set_geotype(wkb_linestring);
   }
-
-  Gis_polygon_ring_spherical(const self &r) :base(r)
-  {}
 
   Gis_polygon_ring_spherical()
     :base(NULL, 0, Flags_t(Geometry::wkb_linestring, 0),
@@ -168,16 +149,6 @@ public:
 
   explicit Gis_polygon_spherical(bool isbgadapter= true) :base(isbgadapter)
   {
-  }
-
-  Gis_polygon_spherical(const self &r) :base(r)
-  {
-  }
-
-  const self &operator=(const self &rhs)
-  {
-    base::operator=(rhs);
-    return rhs;
   }
 
   /*
@@ -214,9 +185,6 @@ public:
   {
     set_geotype(wkb_multilinestring);
   }
-
-  Gis_multi_line_string_spherical(const self &mls) :base(mls)
-  {}
 };
 
 
@@ -235,9 +203,6 @@ public:
   {
     set_geotype(wkb_multipolygon);
   }
-
-  Gis_multi_polygon_spherical(const Gis_multi_polygon_spherical &mpl) :base(mpl)
-  {}
 };
 
 

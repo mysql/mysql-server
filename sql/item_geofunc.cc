@@ -1452,6 +1452,11 @@ String *Item_func_validate::val_str(String *str)
   if (!(geom= Geometry::construct(&buffer, swkb)))
     return error_str();
 
+  if (geom->get_srid() != 0)
+  {
+    my_error(ER_WRONG_ARGUMENTS, MYF(0));
+    return error_str();
+  }
   int isvalid= 0;
 
   try
@@ -1517,10 +1522,28 @@ String *Item_func_make_envelope::val_str(String *str)
   }
 
   MBR mbr;
-  mbr.xmin= (x1 < x2 ? x1 : x2);
-  mbr.xmax= (x1 > x2 ? x1 : x2);
-  mbr.ymin= (y1 < y2 ? y1 : y2);
-  mbr.ymax= (y1 > y2 ? y1 : y2);
+
+  if (x1 < x2)
+  {
+    mbr.xmin= x1;
+    mbr.xmax= x2;
+  }
+  else
+  {
+    mbr.xmin= x2;
+    mbr.xmax= x1;
+  }
+
+  if (y1 < y2)
+  {
+    mbr.ymin= y1;
+    mbr.ymax= y2;
+  }
+  else
+  {
+    mbr.ymin= y2;
+    mbr.ymax= y1;
+  }
 
   int dim= mbr.dimension();
   DBUG_ASSERT(dim >= 0);
@@ -3908,6 +3931,12 @@ longlong Item_func_isvalid::val_int()
   // It should return false if the argument isn't a valid GEOMETRY string.
   if (!(geom= Geometry::construct(&buffer, swkb)))
     return 0L;
+  if (geom->get_srid() != 0)
+  {
+    my_error(ER_WRONG_ARGUMENTS, MYF(0));
+    return error_int();
+  }
+
   int ret= 0;
   try
   {
@@ -4282,7 +4311,7 @@ public:
       Gis_point pt(wkb, POINT_DATA_SIZE,
                    Geometry::Flags_t(Geometry::wkb_point, len), 0);
       double x= pt.get<0>(), y= pt.get<1>();
-      if (x < xmin || x > xmax || y < ymin || y > ymax)
+      if (x <= xmin || x > xmax || y <= ymin || y > ymax)
         has_invalid= true;
     }
   }
@@ -4296,8 +4325,39 @@ public:
 };
 
 
+template <typename CoordinateSystem>
+struct BG_distance
+{};
+
+
+template <>
+struct BG_distance<bg::cs::cartesian>
+{
+  static double apply(Item_func_distance *item, Geometry *g1,
+                      Geometry *g2, bool *isdone)
+  {
+    // Do the actual computation here for the cartesian CS.
+    return item->bg_distance<bgcs::cartesian>(g1, g2, isdone);
+  }
+};
+
+
+template <>
+struct BG_distance<bg::cs::spherical_equatorial<bg::degree> >
+{
+  static double apply(Item_func_distance *item, Geometry *g1,
+                      Geometry *g2, bool *isdone)
+  {
+    // Do the actual computation here for the spherical equatorial CS
+    // with degree units.
+    return item->bg_distance_spherical(g1, g2);
+  }
+};
+
+
 double Item_func_distance::val_real()
 {
+  typedef bgcs::spherical_equatorial<bg::degree> bgcssed;
   bool cur_point_edge, isdone= false;
   const Gcalc_scan_iterator::point *evpos;
   const Gcalc_heap::Info *cur_point, *dist_point;
@@ -4310,7 +4370,8 @@ double Item_func_distance::val_real()
   DBUG_ENTER("Item_func_distance::val_real");
   DBUG_ASSERT(fixed == 1);
 
-  if ((arg_count != 2 && arg_count != 3) || (arg_count == 3 && !is_spherical))
+  if ((arg_count != 2 && arg_count != 3) ||
+      (arg_count == 3 && !is_spherical_equatorial))
   {
     my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
     DBUG_RETURN(error_real());
@@ -4350,7 +4411,7 @@ double Item_func_distance::val_real()
     DBUG_RETURN(error_real());
   }
 
-  if (is_spherical)
+  if (is_spherical_equatorial)
   {
     Geometry::wkbType gt1= g1->get_geotype();
     Geometry::wkbType gt2= g2->get_geotype();
@@ -4400,13 +4461,13 @@ double Item_func_distance::val_real()
   if (g1->get_type() != Geometry::wkb_geometrycollection &&
       g2->get_type() != Geometry::wkb_geometrycollection)
   {
-    if (is_spherical)
+    if (is_spherical_equatorial)
     {
       isdone= true;
-      distance= bg_distance_spherical(g1, g2);
+      distance= BG_distance<bgcssed>::apply(this, g1, g2, &isdone);
     }
     else
-      distance= bg_distance<bgcs::cartesian>(g1, g2, &isdone);
+      distance= BG_distance<bgcs::cartesian>::apply(this, g1, g2, &isdone);
   }
   else
   {
@@ -4455,14 +4516,14 @@ double Item_func_distance::val_real()
           DBUG_RETURN(error_real());
         }
 
-        if (is_spherical)
+        if (is_spherical_equatorial)
         {
           // For now this is never reached because we only support
           // distance([multi]point, [multi]point) for spherical.
           DBUG_ASSERT(false);
         }
         else
-          dist= bg_distance<bgcs::cartesian>(*i, *j, &isdone2);
+          dist= BG_distance<bgcs::cartesian>::apply(this, *i, *j, &isdone2);
         if (!isdone2 && !null_value)
           goto old_algo;
         if (null_value)
@@ -4650,10 +4711,10 @@ mem_error:
 }
 
 
-typedef bgcs::spherical_equatorial<bg::degree> bgcssed;
 double Item_func_distance::
 distance_point_geometry_spherical(const Geometry *g1, const Geometry *g2)
 {
+  typedef bgcs::spherical_equatorial<bg::degree> bgcssed;
   double res= 0;
   bg::strategy::distance::haversine<double, double>
     dist_strategy(earth_radius);
@@ -4692,6 +4753,7 @@ distance_point_geometry_spherical(const Geometry *g1, const Geometry *g2)
 double Item_func_distance::
 distance_multipoint_geometry_spherical(const Geometry *g1, const Geometry *g2)
 {
+  typedef bgcs::spherical_equatorial<bg::degree> bgcssed;
   double res= 0;
   bg::strategy::distance::haversine<double, double>
     dist_strategy(earth_radius);
@@ -5039,14 +5101,14 @@ double Item_func_distance::bg_distance(const Geometry *g1,
       res= distance_polygon_geometry<Coordsys>(g1, g2, isdone);
       break;
     case Geometry::wkb_multipolygon:
-      res= distance_polygon_geometry<Coordsys>(g1, g2, isdone);
+      res= distance_multipolygon_geometry<Coordsys>(g1, g2, isdone);
       break;
     default:
       DBUG_ASSERT(false);
       break;
     }
   }
-  CATCH_ALL("st_distance", null_value= true)
+  CATCH_ALL(func_name(), null_value= true)
 
   return res;
 }
