@@ -7232,7 +7232,7 @@ int MYSQL_BIN_LOG::open_binlog(const char *opt_name)
                 true/*need_lock_index=true*/,
                 true/*need_sid_lock=true*/,
                 NULL);
-    mysql_mutex_lock(&LOCK_log);
+    mysql_mutex_unlock(&LOCK_log);
     cleanup();
     return 1;
   }
