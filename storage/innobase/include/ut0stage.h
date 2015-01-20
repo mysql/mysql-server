@@ -162,13 +162,14 @@ private:
 	/** Old table PK. Used for calculating the estimate. */
 	const dict_index_t*	m_pk;
 
-	/** Number of records in the primary key (table). */
+	/** Number of records in the primary key (table), including delete
+	marked records. */
 	ulint			m_n_pk_recs;
 
 	/** Number of leaf pages in the primary key. */
 	ulint			m_n_pk_pages;
 
-	/** Estimated number of records per page. */
+	/** Estimated number of records per page in the primary key. */
 	ulint			m_n_recs_per_page;
 
 	/** Number of indexes that are being added. */
