@@ -27,6 +27,7 @@ Created Nov 12, 2014 Vasil Dimov
 #define ut0stage_h
 
 #include <algorithm>
+#include <math.h>
 
 #include "my_global.h" /* needed for headers from mysql/psi/ */
 
@@ -170,7 +171,7 @@ private:
 	ulint			m_n_pk_pages;
 
 	/** Estimated number of records per page in the primary key. */
-	ulint			m_n_recs_per_page;
+	double			m_n_recs_per_page;
 
 	/** Number of indexes that are being added. */
 	ulint			m_n_sort_indexes;
@@ -282,9 +283,17 @@ ut_stage_alter_t::inc(
 		/* Increment the progress every nth record. During
 		sort and insert phases, this method is called once per
 		record processed. */
-		ulint	every_nth = m_n_recs_per_page * multi_factor;
+		const double	every_nth = m_n_recs_per_page * multi_factor;
 
-		should_proceed = m_n_recs_processed++ % every_nth == 0;
+		const ulint	k = static_cast<ulint>(
+			round(m_n_recs_processed / every_nth));
+
+		const ulint	nth = static_cast<ulint>(
+			round(k * every_nth));
+
+		should_proceed = m_n_recs_processed == nth;
+
+		m_n_recs_processed++;
 
 		break;
 	}
@@ -315,11 +324,11 @@ ut_stage_alter_t::end_phase_read_pk()
 		/* The number of pages in the PK could be 0 if the tree is
 		empty. In this case we set m_n_recs_per_page to 1 to avoid
 		division by zero later. */
-		m_n_recs_per_page = 1;
+		m_n_recs_per_page = 1.0;
 	} else {
 		m_n_recs_per_page = std::max(
-			m_n_pk_recs / m_n_pk_pages,
-			static_cast<ulint>(1));
+			static_cast<double>(m_n_pk_recs) / m_n_pk_pages,
+			1.0);
 	}
 }
 
