@@ -1508,7 +1508,7 @@ String *Item_func_make_envelope::val_str(String *str)
              geom1->get_srid(), geom2->get_srid());
     return error_str();
   }
-  
+
   Gis_point *gpt1= static_cast<Gis_point *>(geom1);
   Gis_point *gpt2= static_cast<Gis_point *>(geom2);
   double x1= gpt1->get<0>(), y1= gpt1->get<1>();
@@ -3823,7 +3823,7 @@ static int check_geometry_valid(Geometry *geom)
   int ret= 0;
 
   // Empty geometry collection is always valid. This is shortcut for
-  // flat empty GCs, nested empty GC are also valid but will be computed below.
+  // flat empty GCs.
   if (is_empty_geocollection(geom))
     return 1;
 
@@ -4290,16 +4290,97 @@ compact_collection(const Geometry *g, Geometry_buffer *gbuf, String *str)
 }
 
 
+template<typename Num_type>
+class Numeric_interval
+{
+  Num_type left, right;
+  bool is_left_open, is_right_open;
+  bool is_left_unlimitted, is_right_unlimitted;
+public:
+  // Construct a boundless interval.
+  Numeric_interval() :left(0), right(0),
+    is_left_open(false), is_right_open(false),
+    is_left_unlimitted(true), is_right_unlimitted(true)
+  {
+  }
+
+  // Construct a both bounded internal.
+  Numeric_interval(const Num_type &l, bool left_open,
+                   const Num_type &r, bool right_open) :left(l), right(r),
+    is_left_open(left_open), is_right_open(right_open),
+    is_left_unlimitted(false), is_right_unlimitted(false)
+  {
+  }
+
+  // Construct a half boundless half bounded interval.
+  // @param is_left true to specify the left boundary and right is boundless;
+  //                false to specify the right boundary and left is boundless.
+  Numeric_interval(bool is_left, const Num_type &v, bool is_open)
+    :left(0), right(0),
+    is_left_open(false), is_right_open(false),
+    is_left_unlimitted(true), is_right_unlimitted(true)
+  {
+    if (is_left)
+    {
+      left= v;
+      is_left_open= is_open;
+      is_left_unlimitted= false;
+    }
+    else
+    {
+      right= v;
+      is_right_open= is_open;
+      is_right_unlimitted= false;
+    }
+  }
+
+  /*
+    Get left boundary specification.
+    @param [out] l takes back left boundary value. if boundless it's intact.
+    @param [out] is_open takes back left boundary openness. if boundless
+                         it's intact.
+    @return true if it's boundless, false if bounded and the two out parameters
+                 take back the boundary info.
+  */
+  bool get_left(Num_type &l, bool &is_open) const
+  {
+    if (is_left_unlimitted)
+      return true;
+    l= left;
+    is_open= is_left_open;
+    return false;
+  }
+
+
+  /*
+    Get right boundary specification.
+    @param [out] r takes back right boundary value. if boundless it's intact.
+    @param [out] is_open takes back right boundary openness. if boundless
+                         it's intact.
+    @return true if it's boundless, false if bounded and the two out parameters
+                 take back the boundary info.
+  */
+  bool get_right(Num_type &r, bool &is_open) const
+  {
+    if (is_right_unlimitted)
+      return true;
+    r= right;
+    is_open= is_right_open;
+    return false;
+  }
+};
+
+
 class Point_coordinate_checker : public WKB_scanner_event_handler
 {
   bool has_invalid;
 
   // Valid x and y coordinate range.
-  double xmin, xmax, ymin, ymax;
+  Numeric_interval<double> x_val, y_val;
 public:
-  Point_coordinate_checker(double minx, double maxx,
-                           double miny, double maxy)
-    :has_invalid(false), xmin(minx), xmax(maxx), ymin(miny), ymax(maxy)
+  Point_coordinate_checker(Numeric_interval<double> x_range,
+                           Numeric_interval<double> y_range)
+    :has_invalid(false), x_val(x_range), y_val(y_range)
   {}
 
   virtual void on_wkb_start(Geometry::wkbByteOrder bo,
@@ -4311,8 +4392,22 @@ public:
       Gis_point pt(wkb, POINT_DATA_SIZE,
                    Geometry::Flags_t(Geometry::wkb_point, len), 0);
       double x= pt.get<0>(), y= pt.get<1>();
-      if (x <= xmin || x > xmax || y <= ymin || y > ymax)
+
+      double xmin, xmax, ymin, ymax;
+      bool xmin_open, ymin_open, xmax_open, ymax_open;
+
+      if ((!x_val.get_left(xmin, xmin_open) &&
+           (x < xmin || (xmin_open && x == xmin))) ||
+          (!x_val.get_right(xmax, xmax_open) &&
+           (x > xmax || (xmax_open && x == xmax))) ||
+          (!y_val.get_left(ymin, ymin_open) &&
+           (y < ymin || (ymin_open && y == ymin))) ||
+          (!y_val.get_right(ymax, ymax_open) &&
+           (y > ymax || (ymax_open && y == ymax))))
+      {
         has_invalid= true;
+        return;
+      }
     }
   }
 
@@ -4426,7 +4521,7 @@ double Item_func_distance::val_real()
     {
       earth_radius= args[2]->val_real();
       if (args[2]->null_value)
-        return error_real();
+        DBUG_RETURN(error_real());
       if (earth_radius <= 0)
       {
         my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
@@ -4436,9 +4531,12 @@ double Item_func_distance::val_real()
 
     /*
       Make sure all points' coordinates are valid:
-      x in [-180, 180], y in [-90, 90].
+      x in (-180, 180], y in [-90, 90].
     */
-    Point_coordinate_checker checker(-180, 180, -90, 90);
+    Numeric_interval<double> x_range(-180, true, 180, false);
+    Numeric_interval<double> y_range(-90, false, 90, false);
+    Point_coordinate_checker checker(x_range, y_range);
+
     uint32 wkblen= res1->length() - 4;
     wkb_scanner(res1->ptr() + 4, &wkblen, Geometry::wkb_invalid_type,
                 true, &checker);
