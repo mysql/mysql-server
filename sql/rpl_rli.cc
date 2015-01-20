@@ -2033,7 +2033,7 @@ a file name for --relay-log-index option.", opt_relaylog_index_name);
     gtid_set.dbug_print("set of GTIDs in relay log after initialization");
     global_sid_lock->unlock();
 #endif
-    if (!gtid_partial_trx.empty())
+    if (!gtid_partial_trx.is_empty())
     {
       /*
         The init_gtid_set has found an incomplete transaction in the relay log.

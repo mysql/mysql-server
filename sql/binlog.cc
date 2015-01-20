@@ -3366,7 +3366,7 @@ read_gtids_and_update_trx_parser_from_relaylog(
       */
       if (trx_parser->is_not_inside_transaction())
       {
-        if (!gtid_partial_trx->empty())
+        if (!gtid_partial_trx->is_empty())
         {
           DBUG_PRINT("info", ("Adding Gtid from relaylog file '%s' to "
                               "Retrieved_Gtid_Set: Gtid(%d, %lld).",
@@ -6091,7 +6091,7 @@ bool MYSQL_BIN_LOG::after_append_to_relay_log(Master_info *mi)
         if we are going to rotate the relay log.
       */
       Gtid *last_gtid_queued= mi->get_last_gtid_queued();
-      if (!last_gtid_queued->empty())
+      if (!last_gtid_queued->is_empty())
       {
         global_sid_lock->rdlock();
         mi->rli->add_logged_gtid(last_gtid_queued->sidno,
