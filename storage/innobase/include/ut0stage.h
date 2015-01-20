@@ -318,8 +318,8 @@ ut_stage_alter_t::end_phase_read_pk()
 		m_n_recs_per_page = 1;
 	} else {
 		m_n_recs_per_page = std::max(
-			static_cast<unsigned long>(m_n_pk_recs / m_n_pk_pages),
-			1UL);
+			m_n_pk_recs / m_n_pk_pages,
+			static_cast<ulint>(1));
 	}
 }
 
