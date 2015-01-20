@@ -1381,8 +1381,8 @@ blob_done:
 			dfield_set_data(dfield, data, len);
 		}
 
-		if (col->mtype == DATA_MYSQL && col->len != len
-		    && !dict_table_is_comp(log->table)) {
+		if (len != UNIV_SQL_NULL && col->mtype == DATA_MYSQL
+		    && col->len != len && !dict_table_is_comp(log->table)) {
 
 			ut_ad(col->len >= len);
 			if (dict_table_is_comp(index->table)) {
@@ -1393,7 +1393,9 @@ blob_done:
 
 				dfield_set_data(dfield, buf, col->len);
 			} else {
-				/* field length mismatch */
+				/* field length mismatch should not happen
+				when rebuilding the redundant row format
+				table. */
 				ut_ad(0);
 				*error = DB_CORRUPTION;
 				return(NULL);
