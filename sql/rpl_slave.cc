@@ -2894,7 +2894,10 @@ when it try to get the value of TIME_ZONE global variable from master.";
     case COMMAND_STATUS_OK:
     {
       bool error= false;
-      master_gtid_mode= get_gtid_mode(master_row[0], &error);
+      const char *master_gtid_mode_string= master_row[0];
+      DBUG_EXECUTE_IF("simulate_master_has_unknown_gtid_mode",
+                      { master_gtid_mode_string= "Krakel Spektakel"; });
+      master_gtid_mode= get_gtid_mode(master_gtid_mode_string, &error);
       mysql_free_result(master_res);
       if (error)
       {
