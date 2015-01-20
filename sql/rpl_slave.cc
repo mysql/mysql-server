@@ -129,9 +129,6 @@ const ulong mts_coordinator_basic_nap= 5;
 */
 const ulong mts_worker_underrun_level= 10;
 
-Slave_job_item * de_queue(Slave_jobs_queue *jobs, Slave_job_item *ret);
-bool append_item_to_jobs(slave_job_item *job_item,
-                         Slave_worker *w, Relay_log_info *rli);
 
 /*
   When slave thread exits, we need to remember the temporary tables so we
@@ -6238,7 +6235,8 @@ int slave_start_single_worker(Relay_log_info *rli, ulong i)
     rli->workers.resize(i+1);
   rli->workers[i]= w;
 
-  w->currently_executing_gtid.clear();
+  w->currently_executing_gtid.set_automatic();
+
   if (DBUG_EVALUATE_IF("mts_worker_thread_fails", i == 1, 0) ||
       (error= mysql_thread_create(key_thread_slave_worker, &th,
                                   &connection_attrib, handle_slave_worker,

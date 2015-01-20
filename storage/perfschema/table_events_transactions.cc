@@ -239,24 +239,32 @@ void table_events_transactions_common::make_row(PFS_events_transactions *transac
   if (m_row.m_source_length > sizeof(m_row.m_source))
     m_row.m_source_length= sizeof(m_row.m_source);
 
-  if (transaction->m_gtid_set)
-  {
-    /* A GTID consists of the SIDNO (source id) and GNO (transaction number).
-       The SIDNO is used internally. It maps to a UUID, here called SID.
-    */
-    rpl_sid *sid= &transaction->m_sid;
+  /* A GTID consists of the SID (source id) and GNO (transaction number).
+     The SID is stored in transaction->m_sid and the GNO is stored in
+     transaction->m_gtid_spec.gno.
 
-    /* The Gtid_specification contains the SIDNO, GNO and TYPE. Given a SID,
-       it can generate the textual representation of the GTID. Without
-       the SID, the Gtid_spec would first have to map the SIDNO to the SID,
-       which requires locking the global SID map. Fortunately, mapping
-       from SIDNO to SID was already done at the time of logging.
-    */
-    Gtid_specification *gtid_spec= &transaction->m_gtid_spec;
-    m_row.m_gtid_length= gtid_spec->to_string(sid, m_row.m_gtid);
-  }
-  else
-    m_row.m_gtid_length= 0;
+     On a master, the GTID is assigned when the transaction commit.
+     On a slave, the GTID is assigned before the transaction starts.
+     If GTID_MODE = OFF, all transactions have the special GTID
+     'ANONYMOUS'.
+
+     Therefore, a transaction can be in three different states wrt GTIDs:
+     - Before the GTID has been assigned, the state is 'AUTOMATIC'.
+       On a master, this is the state until the transaction commits.
+       On a slave, this state does not appear.
+     - If GTID_MODE = ON, and a GTID is assigned, the GTID is a string
+       of the form 'UUID:NUMBER'.
+     - If GTID_MODE = OFF, and a GTID is assigned, the GTID is a string
+       of the form 'ANONYMOUS'.
+
+     The Gtid_specification contains the GNO, as well as a type code
+     that specifies which of the three modes is currently in effect.
+     Given a SID, it can generate the textual representation of the
+     GTID.
+  */
+  rpl_sid *sid= &transaction->m_sid;
+  Gtid_specification *gtid_spec= &transaction->m_gtid_spec;
+  m_row.m_gtid_length= gtid_spec->to_string(sid, m_row.m_gtid);
 
   m_row.m_xid= transaction->m_xid;
   m_row.m_isolation_level= transaction->m_isolation_level;
@@ -357,10 +365,7 @@ int table_events_transactions_common::read_row_values(TABLE *table,
           f->set_null();
         break;
       case 6: /* GTID */
-        if (m_row.m_gtid_length == 0)
-          f->set_null();
-        else
-          set_field_varchar_utf8(f, m_row.m_gtid, m_row.m_gtid_length);
+        set_field_varchar_utf8(f, m_row.m_gtid, m_row.m_gtid_length);
         break;
       case 7: /* XID */
         if (!m_row.m_xa || m_row.m_xid.is_null())

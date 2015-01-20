@@ -287,7 +287,8 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
   LEX *lex= thd->lex;
   int result_code;
   bool gtid_rollback_must_be_skipped=
-    ((thd->variables.gtid_next.type == GTID_GROUP) &&
+    ((thd->variables.gtid_next.type == GTID_GROUP ||
+      thd->variables.gtid_next.type == ANONYMOUS_GROUP) &&
     (!thd->skip_gtid_rollback));
   DBUG_ENTER("mysql_admin_table");
 
@@ -313,11 +314,13 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
     table->table= NULL;
 
   /*
-    If this statement goes to binlog and GTID_NEXT was set to a GTID_GROUP
-    (like SQL thread do when applying statements from the relay log of a
-    master server with GTIDs enabled) we have to avoid losing the ownership of
-    the GTID_GROUP by some trans_rollback_stmt() when processing individual
-    tables.
+    This statement will be written to the binary log even if it fails.
+    But a failing statement calls trans_rollback_stmt which calls
+    gtid_state->update_on_rollback, which releases GTID ownership.
+    And GTID ownership must be held when the statement is being
+    written to the binary log.  Therefore, we set this flag before
+    executing the statement. The flag tells
+    gtid_state->update_on_rollback to skip releasing ownership.
   */
   if (gtid_rollback_must_be_skipped)
     thd->skip_gtid_rollback= true;

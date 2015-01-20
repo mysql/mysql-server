@@ -1333,6 +1333,8 @@ void trans_register_ha(THD *thd, bool all, handlerton *ht_arg,
     thd->m_transaction_psi= MYSQL_START_TRANSACTION(&thd->m_transaction_state,
                                          xid, trxid, thd->tx_isolation,
                                          thd->tx_read_only, autocommit);
+    DEBUG_SYNC(thd, "after_set_transaction_psi_before_set_transaction_gtid");
+    gtid_set_performance_schema_values(thd);
   }
 #endif
   DBUG_VOID_RETURN;
@@ -1530,7 +1532,7 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock)
   */
   if ((!opt_bin_log || (thd->slave_thread && !opt_log_slave_updates)) &&
       (all || !thd->in_multi_stmt_transaction_mode()) &&
-      !thd->owned_gtid.is_null() && !thd->is_operating_gtid_table)
+      thd->owned_gtid.sidno > 0 && !thd->is_operating_gtid_table)
   {
     error= gtid_state->save(thd);
     need_clear_owned_gtid= true;

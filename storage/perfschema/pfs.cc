@@ -5815,9 +5815,8 @@ void pfs_start_transaction_v1(PSI_transaction_locker *locker,
     pfs->m_source_file= src_file;
     pfs->m_source_line= src_line;
     pfs->m_state= TRANS_STATE_ACTIVE;
-    pfs->m_gtid_set= false;
     pfs->m_sid.clear();
-    pfs->m_gtid_spec.clear();
+    pfs->m_gtid_spec.set_automatic();
   }
 }
 
@@ -5836,9 +5835,7 @@ void pfs_set_transaction_gtid_v1(PSI_transaction_locker *locker,
     DBUG_ASSERT(pfs != NULL);
     pfs->m_sid= *(rpl_sid *)sid;
     pfs->m_gtid_spec= *(Gtid_specification *)gtid_spec;
-    pfs->m_gtid_set= true;
   }
-  return;
 }
 
 void pfs_set_transaction_xid_v1(PSI_transaction_locker *locker,
