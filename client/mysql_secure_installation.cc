@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -34,8 +34,8 @@ static my_bool password_provided= FALSE;
 static my_bool g_expire_password_on_exit= FALSE;
 static my_bool opt_use_default= FALSE;
 
-#ifdef HAVE_SMEM
-static char *shared_memory_base_name= 0;
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+static char *shared_memory_base_name= default_shared_memory_base_name;
 #endif
 
 #include "sslopt-vars.h"
@@ -66,7 +66,7 @@ static struct my_option my_connection_options[]=
   {"protocol", OPT_MYSQL_PROTOCOL,
    "The protocol to use for connection (tcp, socket, pipe, memory).",
    0, 0, 0, GET_STR,  REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
    "Base name of shared memory.", &shared_memory_base_name,
    &shared_memory_base_name, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -171,7 +171,7 @@ init_connection_options(MYSQL *mysql)
   if (opt_protocol)
     mysql_options(mysql, MYSQL_OPT_PROTOCOL, (char*) &opt_protocol);
 
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   if (shared_memory_base_name)
     mysql_options(mysql, MYSQL_SHARED_MEMORY_BASE_NAME, shared_memory_base_name);
 #endif
@@ -604,7 +604,6 @@ int get_root_password()
         the temporary password file.
       */
       char *temp_pass;
-      init_connection_options(&mysql);
       if (find_temporary_password(&temp_pass) == TRUE)
       {
         my_free(password);
@@ -617,6 +616,7 @@ int get_root_password()
         password= get_tty_password("Enter password for root user: ");
       }
     }
+    init_connection_options(&mysql);
   } // if !password_provided
 
   /*
