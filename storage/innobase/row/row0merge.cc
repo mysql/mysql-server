@@ -639,7 +639,8 @@ row_merge_buf_add(
 				continue;
 			}
 
-			if (col->mtype == DATA_MYSQL
+			if (field->len != UNIV_SQL_NULL
+			    && col->mtype == DATA_MYSQL
 			    && col->len != field->len) {
 				if (conv_heap != NULL) {
 					row_merge_buf_redundant_convert(
@@ -647,6 +648,9 @@ row_merge_buf_add(
 						dict_table_page_size(old_table),
 						conv_heap);
 				} else {
+					/* Field length mismatch should not
+					happen when rebuilding redundant row
+					format table. */
 					ut_ad(dict_table_is_comp(index->table));
 				}
 			}
