@@ -100,10 +100,10 @@ SET @@SESSION.transaction_write_set_extraction=OFF;
 include/assert.inc [The value for transaction_write_set_extraction should be OFF]
 SET @@SESSION.binlog_format= STATEMENT;
 SET @@SESSION.transaction_write_set_extraction= MURMUR32;
-ERROR HY000: Cannot change the value of variable transaction_write_set_extraction without binlog format as ROW.
+ERROR HY000: Cannot change the value of variable transaction_write_set_extraction without binary log format as ROW.
 SET @@SESSION.binlog_format= MIXED;
 SET @@SESSION.transaction_write_set_extraction= MURMUR32;
-ERROR HY000: Cannot change the value of variable transaction_write_set_extraction without binlog format as ROW.
+ERROR HY000: Cannot change the value of variable transaction_write_set_extraction without binary log format as ROW.
 SET @@SESSION.binlog_format= ROW;
 SET @@SESSION.transaction_write_set_extraction= MURMUR32;
 SELECT @@SESSION.transaction_write_set_extraction;

@@ -48,7 +48,7 @@ SET GTID_NEXT= 'AUTOMATIC';
 --source include/start_group_replication.inc
 
 --let $group_replication_number_of_members= 2
---source include/rpl_group_replication_wait_for_number_of_members.inc
+--source ../inc/rpl_group_replication_wait_for_number_of_members.inc
 
 
 --echo

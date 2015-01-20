@@ -26,7 +26,7 @@ SET @@GLOBAL.DEBUG= '+d,gcs_applier_do_not_start_sql_thread';
 
 --connection server1
 --let $group_replication_number_of_members= 2
---source include/rpl_group_replication_wait_for_number_of_members.inc
+--source ../inc/rpl_group_replication_wait_for_number_of_members.inc
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1);
 
@@ -71,7 +71,7 @@ SET @@GLOBAL.DEBUG= '+d,gcs_assert_next_seqno_equal_4';
 
 --connection server1
 --let $group_replication_number_of_members= 2
---source include/rpl_group_replication_wait_for_number_of_members.inc
+--source ../inc/rpl_group_replication_wait_for_number_of_members.inc
 DROP TABLE t1;
 
 --let $sync_slave_connection= server2

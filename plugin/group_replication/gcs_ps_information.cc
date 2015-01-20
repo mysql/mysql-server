@@ -272,7 +272,7 @@ bool get_gcs_connection_status(GROUP_REPLICATION_CONNECTION_STATUS_INFO *info,
                                     bool is_gcs_running)
 {
   info->group_name= gcs_group_pointer;
-  info->node_state= is_gcs_running;
+  info->service_state= is_gcs_running;
 
   Gcs_statistics_interface* stats_if= NULL;
 

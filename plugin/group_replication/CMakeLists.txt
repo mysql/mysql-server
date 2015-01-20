@@ -105,7 +105,7 @@ IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
       COMPONENT Test
     )
     INSTALL(
-      DIRECTORY tests/mtr/t tests/mtr/r
+      DIRECTORY tests/mtr/t tests/mtr/r tests/mtr/inc
       DESTINATION "${INSTALL_MYSQLTESTDIR}/suite/group_replication"
       USE_SOURCE_PERMISSIONS
       COMPONENT Test

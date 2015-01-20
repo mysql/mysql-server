@@ -952,7 +952,7 @@
 
 # Corosync leaks
 {
-   Corosync initialize leak when we start GCS replication manually
+   Corosync initialize leak when we start Group Replication manually
    Memcheck:Leak
    fun:malloc
    fun:realloc
@@ -973,7 +973,7 @@
 }
 
 {
-   Corosync initialize leak when we start GCS replication manually
+   Corosync initialize leak when we start Group Replication manually
    Memcheck:Leak
    fun:malloc
    obj:*
@@ -994,7 +994,7 @@
 }
 
 {
-   Corosync initialize leak when we start GCS replication manually
+   Corosync initialize leak when we start Group Replication manually
    Memcheck:Leak
    fun:calloc
    obj:*
@@ -1015,7 +1015,7 @@
 }
 
 {
-   Corosync initialize leak when we start GCS replication manually
+   Corosync initialize leak when we start Group Replication manually
    Memcheck:Leak
    fun:calloc
    obj:*
@@ -1036,7 +1036,7 @@
 }
 
 {
-   Corosync initialize leak when we start GCS replication on server start
+   Corosync initialize leak when we start Group Replication on server start
    Memcheck:Leak
    fun:malloc
    fun:realloc
@@ -1057,7 +1057,7 @@
 }
 
 {
-   Corosync initialize leak when we start GCS replication on server start
+   Corosync initialize leak when we start Group Replication on server start
    Memcheck:Leak
    fun:malloc
    obj:*
@@ -1078,7 +1078,7 @@
 }
 
 {
-   Corosync initialize leak when we start GCS replication on server start
+   Corosync initialize leak when we start Group Replication on server start
    Memcheck:Leak
    fun:calloc
    obj:*
@@ -1099,7 +1099,7 @@
 }
 
 {
-   Corosync initialize leak when we start GCS replication on server start
+   Corosync initialize leak when we start Group Replication on server start
    Memcheck:Leak
    fun:calloc
    obj:*

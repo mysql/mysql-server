@@ -77,16 +77,6 @@ struct st_row_connect_status {
   char last_error_message[MAX_SLAVE_ERRMSG];
   uint last_error_message_length;
   ulonglong last_error_timestamp;
-  ulonglong total_messages_received;
-  ulonglong total_messages_sent;
-  ulonglong total_bytes_received;
-  ulonglong total_bytes_sent;
-  ulonglong last_message_timestamp;
-  ulong max_message_length;
-  ulong min_message_length;
-  char view_id[MAX_VIEW_ID_LENGTH];
-  uint view_id_lenght;
-  uint number_of_nodes;
 
   st_row_connect_status() : received_transaction_set(NULL) {}
 

@@ -39,7 +39,7 @@ SET @@GLOBAL.DEBUG='d,recovery_thread_wait';
 --echo # Node should be online as the node is alone and doesn't need recovery
 
 --let $group_replication_member_state= ONLINE
---source include/rpl_group_replication_wait_for_member_state.inc
+--source ../inc/rpl_group_replication_wait_for_member_state.inc
 
 --echo #
 --echo # 2) A new node enters the existing cluster
@@ -56,7 +56,7 @@ START GROUP_REPLICATION;
 --echo # Node should be marked as on recovery on both nodes
 
 --let $group_replication_member_state= RECOVERING
---source include/rpl_group_replication_wait_for_member_state.inc
+--source ../inc/rpl_group_replication_wait_for_member_state.inc
 
 --let $group_replication_member_id= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
@@ -64,7 +64,7 @@ START GROUP_REPLICATION;
 --echo server1
 
 --let $group_replication_member_state= RECOVERING
---source include/rpl_group_replication_wait_for_member_state.inc
+--source ../inc/rpl_group_replication_wait_for_member_state.inc
 
 --connection server2
 --echo server2
@@ -74,13 +74,13 @@ SET DEBUG_SYNC= "now SIGNAL signal.recovery_continue";
 --echo # Node should be marked as online on both nodes
 
 --let $group_replication_member_state= ONLINE
---source include/rpl_group_replication_wait_for_member_state.inc
+--source ../inc/rpl_group_replication_wait_for_member_state.inc
 
 --connection server1
 --echo server1
 
 --let $group_replication_member_state= ONLINE
---source include/rpl_group_replication_wait_for_member_state.inc
+--source ../inc/rpl_group_replication_wait_for_member_state.inc
 
 --echo #
 --echo # 3) A node leaves the existing cluster
@@ -97,14 +97,14 @@ SET DEBUG_SYNC= "now SIGNAL signal.recovery_continue";
 #reset the node id variable as it was pointing server 2
 --let $group_replication_member_id=
 --let $group_replication_member_state= ONLINE
---source include/rpl_group_replication_wait_for_member_state.inc
+--source ../inc/rpl_group_replication_wait_for_member_state.inc
 
 --source include/stop_group_replication.inc
 
 --echo # Node should be marked as offline after stop
 
 --let $group_replication_member_state= OFFLINE
---source include/rpl_group_replication_wait_for_member_state.inc
+--source ../inc/rpl_group_replication_wait_for_member_state.inc
 
 --echo #
 --echo # Cleaning up

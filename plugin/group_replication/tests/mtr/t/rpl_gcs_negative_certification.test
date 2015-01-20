@@ -13,7 +13,7 @@
 --connection server1
 
 --let $group_replication_number_of_members= 2
---source include/rpl_group_replication_wait_for_number_of_members.inc
+--source ../inc/rpl_group_replication_wait_for_number_of_members.inc
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1);
 

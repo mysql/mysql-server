@@ -36,7 +36,6 @@
 #include "mysqld_thd_manager.h"                 // Global_THD_manager
 #include <pfs_transaction_provider.h>
 #include <mysql/psi/mysql_transaction.h>
-#include "mysys_err.h"
 
 #ifdef HAVE_REPLICATION
 #include "rpl_slave_commit_order_manager.h"

@@ -36,7 +36,7 @@ enum enum_applier_status {
 typedef struct st_group_replication_connection_status_info
 {
   char* group_name;
-  bool node_state;
+  bool service_state;
   time_t last_message_timestamp;
 } GROUP_REPLICATION_CONNECTION_STATUS_INFO;
 

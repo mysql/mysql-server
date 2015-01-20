@@ -13,15 +13,15 @@
 --echo # 1. No nodes on group.
 --connection server1
 --let $group_replication_number_of_members= 0
---source include/rpl_group_replication_wait_for_number_of_members.inc
+--source ../inc/rpl_group_replication_wait_for_number_of_members.inc
 
 --connection server2
 --let $group_replication_number_of_members= 0
---source include/rpl_group_replication_wait_for_number_of_members.inc
+--source ../inc/rpl_group_replication_wait_for_number_of_members.inc
 
 --connection server3
 --let $group_replication_number_of_members= 0
---source include/rpl_group_replication_wait_for_number_of_members.inc
+--source ../inc/rpl_group_replication_wait_for_number_of_members.inc
 
 
 --echo
@@ -32,15 +32,15 @@
 
 --connection server1
 --let $group_replication_number_of_members= 1
---source include/rpl_group_replication_wait_for_number_of_members.inc
+--source ../inc/rpl_group_replication_wait_for_number_of_members.inc
 
 --connection server2
 --let $group_replication_number_of_members= 0
---source include/rpl_group_replication_wait_for_number_of_members.inc
+--source ../inc/rpl_group_replication_wait_for_number_of_members.inc
 
 --connection server3
 --let $group_replication_number_of_members= 0
---source include/rpl_group_replication_wait_for_number_of_members.inc
+--source ../inc/rpl_group_replication_wait_for_number_of_members.inc
 
 
 --echo
@@ -51,15 +51,15 @@
 
 --connection server1
 --let $group_replication_number_of_members= 2
---source include/rpl_group_replication_wait_for_number_of_members.inc
+--source ../inc/rpl_group_replication_wait_for_number_of_members.inc
 
 --connection server2
 --let $group_replication_number_of_members= 2
---source include/rpl_group_replication_wait_for_number_of_members.inc
+--source ../inc/rpl_group_replication_wait_for_number_of_members.inc
 
 --connection server3
 --let $group_replication_number_of_members= 0
---source include/rpl_group_replication_wait_for_number_of_members.inc
+--source ../inc/rpl_group_replication_wait_for_number_of_members.inc
 
 
 --echo
@@ -70,15 +70,15 @@
 
 --connection server1
 --let $group_replication_number_of_members= 3
---source include/rpl_group_replication_wait_for_number_of_members.inc
+--source ../inc/rpl_group_replication_wait_for_number_of_members.inc
 
 --connection server2
 --let $group_replication_number_of_members= 3
---source include/rpl_group_replication_wait_for_number_of_members.inc
+--source ../inc/rpl_group_replication_wait_for_number_of_members.inc
 
 --connection server3
 --let $group_replication_number_of_members= 3
---source include/rpl_group_replication_wait_for_number_of_members.inc
+--source ../inc/rpl_group_replication_wait_for_number_of_members.inc
 
 --replace_column 2 MEMBER_ID 3 MEMBER_ADDRESS
 SELECT * FROM performance_schema.replication_group_members;
@@ -92,15 +92,15 @@ SELECT * FROM performance_schema.replication_group_members;
 
 --connection server1
 --let $group_replication_number_of_members= 0
---source include/rpl_group_replication_wait_for_number_of_members.inc
+--source ../inc/rpl_group_replication_wait_for_number_of_members.inc
 
 --connection server2
 --let $group_replication_number_of_members= 2
---source include/rpl_group_replication_wait_for_number_of_members.inc
+--source ../inc/rpl_group_replication_wait_for_number_of_members.inc
 
 --connection server3
 --let $group_replication_number_of_members= 2
---source include/rpl_group_replication_wait_for_number_of_members.inc
+--source ../inc/rpl_group_replication_wait_for_number_of_members.inc
 
 
 --echo
@@ -111,15 +111,15 @@ SELECT * FROM performance_schema.replication_group_members;
 
 --connection server1
 --let $group_replication_number_of_members= 0
---source include/rpl_group_replication_wait_for_number_of_members.inc
+--source ../inc/rpl_group_replication_wait_for_number_of_members.inc
 
 --connection server2
 --let $group_replication_number_of_members= 0
---source include/rpl_group_replication_wait_for_number_of_members.inc
+--source ../inc/rpl_group_replication_wait_for_number_of_members.inc
 
 --connection server3
 --let $group_replication_number_of_members= 1
---source include/rpl_group_replication_wait_for_number_of_members.inc
+--source ../inc/rpl_group_replication_wait_for_number_of_members.inc
 
 
 --echo
@@ -130,14 +130,14 @@ SELECT * FROM performance_schema.replication_group_members;
 
 --let $group_replication_number_of_members= 0
 --connection server1
---source include/rpl_group_replication_wait_for_number_of_members.inc
+--source ../inc/rpl_group_replication_wait_for_number_of_members.inc
 
 --connection server2
 --let $group_replication_number_of_members= 0
---source include/rpl_group_replication_wait_for_number_of_members.inc
+--source ../inc/rpl_group_replication_wait_for_number_of_members.inc
 
 --connection server3
 --let $group_replication_number_of_members= 0
---source include/rpl_group_replication_wait_for_number_of_members.inc
+--source ../inc/rpl_group_replication_wait_for_number_of_members.inc
 
 --source include/rpl_end.inc

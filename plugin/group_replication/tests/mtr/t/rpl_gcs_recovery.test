@@ -49,7 +49,7 @@ while ($server_count)
 {
   --connection server$server_count
   --let $group_replication_number_of_members= 3
-  --source include/rpl_group_replication_wait_for_number_of_members.inc
+  --source ../inc/rpl_group_replication_wait_for_number_of_members.inc
 
   --dec $server_count
 }

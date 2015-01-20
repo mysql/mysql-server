@@ -27,9 +27,10 @@
 #include "pfs_instr.h"
 #include "rpl_slave.h"
 #include "rpl_info.h"
-#include "rpl_rli.h"
+#include  "rpl_rli.h"
 #include "rpl_mi.h"
 #include "sql_parse.h"
+#include "rpl_msr.h"           /* Multi source replication */
 #include "log.h"
 #include "rpl_group_replication.h"
 
@@ -379,13 +380,10 @@ void table_replication_connection_status::make_row(Master_info *mi,
     if (m_row.is_group_replication_plugin_loaded && !m_row.group_name_is_null)
       memcpy(m_row.source_uuid, group_replication_group_name, UUID_LENGTH+1);
 
-    if (group_replication_info->node_state)
+    if (group_replication_info->service_state)
       m_row.service_state= PS_RPL_CONNECT_SERVICE_STATE_YES;
     else
       m_row.service_state= PS_RPL_CONNECT_SERVICE_STATE_NO;
-
-    m_row.last_message_timestamp= (ulonglong)
-      group_replication_info->last_message_timestamp*1000000;
 
     my_free(group_replication_info);
   }
@@ -473,61 +471,6 @@ int table_replication_connection_status::read_row_values(TABLE *table,
       case 10: /*last_error_timestamp*/
         if(!m_row.is_group_replication_plugin_loaded)
           set_field_timestamp(f, m_row.last_error_timestamp);
-        else
-          f->set_null();
-        break;
-      case 11: /*total_messages_received */
-        if (m_row.is_group_replication_plugin_loaded)
-          set_field_ulonglong(f, m_row.total_messages_received);
-        else
-          f->set_null();
-        break;
-      case 12: /*total_messages_sent */
-        if (m_row.is_group_replication_plugin_loaded)
-          set_field_ulonglong(f, m_row.total_messages_sent);
-        else
-          f->set_null();
-        break;
-      case 13: /*total_bytes_received */
-        if (m_row.is_group_replication_plugin_loaded)
-          set_field_ulonglong(f, m_row.total_bytes_received);
-        else
-          f->set_null();
-        break;
-      case 14: /*total_bytes_sent */
-        if (m_row.is_group_replication_plugin_loaded)
-          set_field_ulonglong(f, m_row.total_bytes_sent);
-        else
-          f->set_null();
-        break;
-      case 15: /*last_message_timestamp*/
-        if (m_row.is_group_replication_plugin_loaded)
-           set_field_timestamp(f, m_row.last_message_timestamp);
-        else
-          f->set_null();
-        break;
-      case 16: /*max_message_length*/
-        if (m_row.is_group_replication_plugin_loaded)
-          set_field_ulong(f, m_row.max_message_length);
-        else
-          f->set_null();
-        break;
-      case 17: /*min_message_length*/
-        if (m_row.is_group_replication_plugin_loaded)
-          set_field_ulong(f, m_row.min_message_length);
-        else
-          f->set_null();
-        break;
-      case 18: /*view_id*/
-        if (m_row.is_group_replication_plugin_loaded && m_row.view_id_lenght > 0)
-          set_field_varchar_utf8(f, m_row.view_id,
-                                 m_row.view_id_lenght);
-        else
-          f->set_null();
-        break;
-      case 19: /*number_of_nodes*/
-        if (m_row.is_group_replication_plugin_loaded)
-          set_field_ulong(f, m_row.number_of_nodes);
         else
           f->set_null();
         break;

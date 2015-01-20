@@ -622,7 +622,6 @@ mysql_mutex_t LOCK_prepared_stmt_count;
 */
 mysql_mutex_t LOCK_sql_slave_skip_counter;
 mysql_mutex_t LOCK_slave_net_timeout;
-mysql_mutex_t LOCK_seq_num_map;
 mysql_mutex_t LOCK_log_throttle_qni;
 mysql_mutex_t LOCK_offline_mode;
 #ifdef HAVE_OPENSSL
@@ -1498,7 +1497,6 @@ static void clean_up_mutexes()
   mysql_mutex_destroy(&LOCK_prepared_stmt_count);
   mysql_mutex_destroy(&LOCK_sql_slave_skip_counter);
   mysql_mutex_destroy(&LOCK_slave_net_timeout);
-  mysql_mutex_destroy(&LOCK_seq_num_map);
   mysql_mutex_destroy(&LOCK_error_messages);
   mysql_mutex_destroy(&LOCK_offline_mode);
   mysql_mutex_destroy(&LOCK_default_password_lifetime);
@@ -3193,7 +3191,6 @@ static int init_thread_environment()
                    &LOCK_prepared_stmt_count, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_sql_slave_skip_counter,
                    &LOCK_sql_slave_skip_counter, MY_MUTEX_INIT_FAST);
-  mysql_mutex_init(key_LOCK_seq_num, &LOCK_seq_num_map, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_slave_net_timeout,
                    &LOCK_slave_net_timeout, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_error_messages,
