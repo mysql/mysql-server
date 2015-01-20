@@ -17,6 +17,9 @@
 #define DERROR_INCLUDED
 
 #include "my_global.h"                          /* uint */
+#ifdef EXTRA_CODE_FOR_UNIT_TESTING
+#include "mysqld_error.h"
+#endif
 
 class THD;
 
@@ -32,6 +35,25 @@ public:
 
   /** Return error message string for a given error number. */
   const char *lookup(int mysql_errno);
+
+#ifdef EXTRA_CODE_FOR_UNIT_TESTING
+  bool replace_msg(int mysql_errno, const char *new_msg)
+  {
+    int offset= 0; // Position where the current section starts in the array.
+    int num_sections= sizeof(errmsg_section_start) /
+      sizeof(errmsg_section_start[0]);
+    for (int i= 0; i < num_sections; i++)
+    {
+      if (mysql_errno < (errmsg_section_start[i] + errmsg_section_size[i]))
+      {
+        errmsgs[mysql_errno - errmsg_section_start[i] + offset]= new_msg;
+        return false;
+      }
+      offset+= errmsg_section_size[i];
+    }
+    return true;
+  }
+#endif
 
   /** Has the error message file been sucessfully loaded? */
   bool is_loaded() const { return errmsgs != NULL; }

@@ -35,10 +35,21 @@ class PartitionTest : public ::testing::Test
 protected:
   virtual void SetUp()
   {
+    // Save global settings.
     m_charset= system_charset_info;
     m_locale= my_default_lc_messages;
+
     system_charset_info    = &my_charset_utf8_bin;
     my_default_lc_messages = &my_locale_en_US;
+
+    /* Populate the necessary error messages */
+    MY_LOCALE_ERRMSGS *errmsgs= my_default_lc_messages->errmsgs;
+    EXPECT_FALSE(errmsgs->replace_msg(ER_DATABASE_NAME,     "Database"));
+    EXPECT_FALSE(errmsgs->replace_msg(ER_TABLE_NAME,        "Table"));
+    EXPECT_FALSE(errmsgs->replace_msg(ER_PARTITION_NAME,    "Partition"));
+    EXPECT_FALSE(errmsgs->replace_msg(ER_SUBPARTITION_NAME, "Subpartition"));
+    EXPECT_FALSE(errmsgs->replace_msg(ER_TEMPORARY_NAME,    "Temporary"));
+    EXPECT_FALSE(errmsgs->replace_msg(ER_RENAMED_NAME,      "Renamed"));
   }
 
   virtual void TearDown()
