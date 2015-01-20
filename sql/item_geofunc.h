@@ -1018,8 +1018,8 @@ public:
 
 class Item_func_distance: public Item_real_func
 {
-  // Default earch radius in meters.
-  bool is_spherical;
+  // Default earth radius in meters.
+  bool is_spherical_equatorial;
   double earth_radius;
   String tmp_value1;
   String tmp_value2;
@@ -1027,8 +1027,6 @@ class Item_func_distance: public Item_real_func
   Gcalc_function func;
   Gcalc_scan_iterator scan_it;
 
-  template <typename Coordsys>
-  double bg_distance(const Geometry *g1, const Geometry *g2, bool *isdone);
   template <typename Coordsys>
   double distance_point_geometry(const Geometry *g1, const Geometry *g2,
                                  bool *isdone);
@@ -1051,12 +1049,15 @@ class Item_func_distance: public Item_real_func
 
   double distance_point_geometry_spherical(const Geometry *g1,
                                            const Geometry *g2);
-  double bg_distance_spherical(const Geometry *g1, const Geometry *g2);
   double distance_multipoint_geometry_spherical(const Geometry *g1,
                                                 const Geometry *g2);
 public:
+  double bg_distance_spherical(const Geometry *g1, const Geometry *g2);
+  template <typename Coordsys>
+  double bg_distance(const Geometry *g1, const Geometry *g2, bool *isdone);
+
   Item_func_distance(const POS &pos, Item *a, Item *b, bool isspherical)
-    : Item_real_func(pos, a, b), is_spherical(isspherical)
+    : Item_real_func(pos, a, b), is_spherical_equatorial(isspherical)
   {
     /*
       Either operand can be an empty geometry collection, and it's meaningless
@@ -1075,7 +1076,7 @@ public:
   double val_real();
   const char *func_name() const
   {
-    return is_spherical ? "st_distance_sphere" : "st_distance";
+    return is_spherical_equatorial ? "st_distance_sphere" : "st_distance";
   }
 };
 
