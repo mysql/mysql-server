@@ -34,6 +34,7 @@
 #include "sql_optimizer.h"       // JOIN
 #include "sql_parse.h"           // check_stack_overrun
 #include "sql_test.h"            // print_where
+#include "sql_tmp_table.h"       // free_tmp_table
 #include "sql_union.h"           // select_union
 
 

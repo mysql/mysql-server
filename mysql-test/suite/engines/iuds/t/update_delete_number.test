@@ -226,7 +226,8 @@ update mt1,mt2 set mt1.b=mt1.b+10 where mt1.b=2;
 --sorted_result
 select * from mt1;
 # Range key (in mt1)
-update mt1,mt2 set mt1.b=mt1.b+2,mt2.b=mt1.b+10 where mt1.b between 3 and 5 and mt2.a=mt1.a-100;
+# The result depends on join order, so STRAIGHT_JOIN is used to have it repeatable.
+update mt1 straight_join mt2 set mt1.b=mt1.b+2,mt2.b=mt1.b+10 where mt1.b between 3 and 5 and mt2.a=mt1.a-100;
 --sorted_result
 select * from mt1;
 --sorted_result
@@ -398,7 +399,8 @@ create table mt1 (n int(10), d int(10));
 create table mt2 (n int(10), d int(10));
 insert into mt1 values(1,1),(1,2);
 insert into mt2 values(1,10),(2,20);
-UPDATE mt1,mt2 SET mt1.d=mt2.d,mt2.d=30 WHERE mt1.n=mt2.n;
+# The result depends on join order, so STRAIGHT_JOIN is used to have it repeatable.
+UPDATE mt1 straight_join mt2 SET mt1.d=mt2.d,mt2.d=30 WHERE mt1.n=mt2.n;
 --sorted_result
 select * from mt1;
 --sorted_result
@@ -408,12 +410,14 @@ create table mt1 (n int(10), d int(10));
 create table mt2 (n int(10), d int(10));
 insert into mt1 values(1,1),(3,2);
 insert into mt2 values(1,10),(1,20);
-UPDATE mt1,mt2 SET mt1.d=mt2.d,mt2.d=30 WHERE mt1.n=mt2.n;
+# The result depends on join order, so STRAIGHT_JOIN is used to have it repeatable.
+UPDATE mt1 straight_join mt2 SET mt1.d=mt2.d,mt2.d=30 WHERE mt1.n=mt2.n;
 --sorted_result
 select * from mt1;
 --sorted_result
 select * from mt2;
-UPDATE mt1 a ,mt2 b SET a.d=b.d,b.d=30 WHERE a.n=b.n;
+# The result depends on join order, so STRAIGHT_JOIN is used to have it repeatable.
+UPDATE mt1 a straight_join mt2 b SET a.d=b.d,b.d=30 WHERE a.n=b.n;
 --sorted_result
 select * from mt1;
 --sorted_result
@@ -815,7 +819,8 @@ update mt1,mt2 set mt1.b=mt1.b+10 where mt1.b=2;
 --sorted_result
 select * from mt1;
 # Range key (in mt1)
-update mt1,mt2 set mt1.b=mt1.b+2,mt2.b=mt1.b+10 where mt1.b between 3 and 5 and mt2.a=mt1.a-100;
+# The result depends on join order, so STRAIGHT_JOIN is used to have it repeatable.
+update mt1 straight_join mt2 set mt1.b=mt1.b+2,mt2.b=mt1.b+10 where mt1.b between 3 and 5 and mt2.a=mt1.a-100;
 --sorted_result
 select * from mt1;
 --sorted_result
@@ -1124,7 +1129,8 @@ update mt1,mt2 set mt1.b=mt1.b+10 where mt1.b=2;
 --sorted_result
 select * from mt1;
 # Range key (in mt1)
-update mt1,mt2 set mt1.b=mt1.b+2,mt2.b=mt1.b+10 where mt1.b between 3 and 5 and mt2.a=mt1.a-100;
+# The result depends on join order, so STRAIGHT_JOIN is used to have it repeatable.
+update mt1 straight_join mt2 set mt1.b=mt1.b+2,mt2.b=mt1.b+10 where mt1.b between 3 and 5 and mt2.a=mt1.a-100;
 --sorted_result
 select * from mt1;
 --sorted_result
@@ -1432,7 +1438,8 @@ update mt1,mt2 set mt1.b=mt1.b+10 where mt1.b=2;
 --sorted_result
 select * from mt1;
 # Range key (in mt1)
-update mt1,mt2 set mt1.b=mt1.b+2,mt2.b=mt1.b+10 where mt1.b between 3 and 5 and mt2.a=mt1.a-100;
+# The result depends on join order, so STRAIGHT_JOIN is used to have it repeatable.
+update mt1 straight_join mt2 set mt1.b=mt1.b+2,mt2.b=mt1.b+10 where mt1.b between 3 and 5 and mt2.a=mt1.a-100;
 --sorted_result
 select * from mt1;
 --sorted_result
@@ -1741,7 +1748,8 @@ update mt1,mt2 set mt1.b=mt1.b+10 where mt1.b=2;
 --sorted_result
 select * from mt1;
 # Range key (in mt1)
-update mt1,mt2 set mt1.b=mt1.b+2,mt2.b=mt1.b+10 where mt1.b between 3 and 5 and mt2.a=mt1.a-100;
+# The result depends on join order, so STRAIGHT_JOIN is used to have it repeatable.
+update mt1 straight_join mt2 set mt1.b=mt1.b+2,mt2.b=mt1.b+10 where mt1.b between 3 and 5 and mt2.a=mt1.a-100;
 --sorted_result
 select * from mt1;
 --sorted_result
