@@ -84,6 +84,8 @@
 #include <m_string.h>
 #include <errno.h>
 #include <ctype.h>
+#include "thr_mutex.h"
+#include "my_thread_local.h"
 
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
@@ -329,7 +331,6 @@ static void DbugVfprintf(FILE *stream, const char* format, va_list args);
 ** Macros to allow dbugging with threads
 */
 
-#include <my_thread.h>
 static native_mutex_t THR_LOCK_dbug;
 
 /**

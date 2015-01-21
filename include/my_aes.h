@@ -1,7 +1,7 @@
 #ifndef MY_AES_INCLUDED
 #define MY_AES_INCLUDED
 
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -34,9 +34,9 @@ enum my_aes_opmode
    my_aes_256_ecb,
    my_aes_128_cbc,
    my_aes_192_cbc,
-   my_aes_256_cbc,
+   my_aes_256_cbc
 #ifndef HAVE_YASSL
-   my_aes_128_cfb1,
+   ,my_aes_128_cfb1,
    my_aes_192_cfb1,
    my_aes_256_cfb1,
    my_aes_128_cfb8,
@@ -47,7 +47,7 @@ enum my_aes_opmode
    my_aes_256_cfb128,
    my_aes_128_ofb,
    my_aes_192_ofb,
-   my_aes_256_ofb,
+   my_aes_256_ofb
 #endif
 };
 

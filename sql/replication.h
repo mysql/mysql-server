@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,6 +18,8 @@
 
 #include <mysql.h>
 #include <list>
+#include "my_thread.h"                // my_thread_id
+#include "mysql/psi/mysql_thread.h"   // mysql_mutex_t
 
 typedef struct st_mysql MYSQL;
 typedef struct st_io_cache IO_CACHE;

@@ -24,7 +24,6 @@
 #include "my_dbug.h"                            // DBUG_ASSERT
 #include "opt_costconstants.h"
 #include "opt_costconstantcache.h"
-#include "my_thread.h"
 #include "template_utils.h"                     // pointer_cast
 #include "records.h"                            // READ_RECORD
 #include "sql_base.h"                           // open_and_lock_tables
