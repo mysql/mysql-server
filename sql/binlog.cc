@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -770,7 +770,7 @@ public:
   {
     my_off_t stmt_bytes= 0;
     my_off_t trx_bytes= 0;
-    DBUG_ASSERT(stmt_cache.has_xid() == 0 && trx_cache.has_xid() <= 1);
+    DBUG_ASSERT(stmt_cache.has_xid() == 0);
     if (int error= stmt_cache.flush(thd, &stmt_bytes, wrote_xid))
       return error;
     if (int error= trx_cache.flush(thd, &trx_bytes, wrote_xid))

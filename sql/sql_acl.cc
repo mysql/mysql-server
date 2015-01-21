@@ -183,220 +183,8 @@ TABLE_FIELD_TYPE mysql_db_table_fields[MYSQL_DB_FIELD_COUNT] = {
   }
 };
 
-static const
-TABLE_FIELD_TYPE mysql_user_table_fields[MYSQL_USER_FIELD_COUNT] = {
-  {
-    { C_STRING_WITH_LEN("Host") },            
-    { C_STRING_WITH_LEN("char(60)") },
-    { NULL, 0 }
-  },
-  {
-    { C_STRING_WITH_LEN("User") },            
-    { C_STRING_WITH_LEN("char(16)") },
-    { NULL, 0 }
-  },
-  {
-    { C_STRING_WITH_LEN("Password") },            
-    { C_STRING_WITH_LEN("char(41)") },
-    { C_STRING_WITH_LEN("latin1") }
-  }, 
-  {
-    { C_STRING_WITH_LEN("Select_priv") },
-    { C_STRING_WITH_LEN("enum('N','Y')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  {
-    { C_STRING_WITH_LEN("Insert_priv") },
-    { C_STRING_WITH_LEN("enum('N','Y')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  {
-    { C_STRING_WITH_LEN("Update_priv") },
-    { C_STRING_WITH_LEN("enum('N','Y')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  {
-    { C_STRING_WITH_LEN("Delete_priv") },
-    { C_STRING_WITH_LEN("enum('N','Y')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  {
-    { C_STRING_WITH_LEN("Create_priv") },
-    { C_STRING_WITH_LEN("enum('N','Y')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  {
-    { C_STRING_WITH_LEN("Drop_priv") },
-    { C_STRING_WITH_LEN("enum('N','Y')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  {
-    { C_STRING_WITH_LEN("Reload_priv") },
-    { C_STRING_WITH_LEN("enum('N','Y')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  {
-    { C_STRING_WITH_LEN("Shutdown_priv") },
-    { C_STRING_WITH_LEN("enum('N','Y')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  { 
-    { C_STRING_WITH_LEN("Process_priv") },
-    { C_STRING_WITH_LEN("enum('N','Y')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  { 
-    { C_STRING_WITH_LEN("File_priv") },
-    { C_STRING_WITH_LEN("enum('N','Y')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  { 
-    { C_STRING_WITH_LEN("Grant_priv") },
-    { C_STRING_WITH_LEN("enum('N','Y')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  { 
-    { C_STRING_WITH_LEN("References_priv") },
-    { C_STRING_WITH_LEN("enum('N','Y')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  { 
-    { C_STRING_WITH_LEN("Index_priv") },
-    { C_STRING_WITH_LEN("enum('N','Y')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  { 
-    { C_STRING_WITH_LEN("Alter_priv") },
-    { C_STRING_WITH_LEN("enum('N','Y')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  { 
-    { C_STRING_WITH_LEN("Show_db_priv") },
-    { C_STRING_WITH_LEN("enum('N','Y')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  { 
-    { C_STRING_WITH_LEN("Super_priv") },
-    { C_STRING_WITH_LEN("enum('N','Y')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  { 
-    { C_STRING_WITH_LEN("Create_tmp_table_priv") },
-    { C_STRING_WITH_LEN("enum('N','Y')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  { 
-    { C_STRING_WITH_LEN("Lock_tables_priv") },
-    { C_STRING_WITH_LEN("enum('N','Y')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  { 
-    { C_STRING_WITH_LEN("Execute_priv") },
-    { C_STRING_WITH_LEN("enum('N','Y')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  { 
-    { C_STRING_WITH_LEN("Repl_slave_priv") },
-    { C_STRING_WITH_LEN("enum('N','Y')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  { 
-    { C_STRING_WITH_LEN("Repl_client_priv") },
-    { C_STRING_WITH_LEN("enum('N','Y')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  { 
-    { C_STRING_WITH_LEN("Create_view_priv") },
-    { C_STRING_WITH_LEN("enum('N','Y')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  { 
-    { C_STRING_WITH_LEN("Show_view_priv") },
-    { C_STRING_WITH_LEN("enum('N','Y')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  { 
-    { C_STRING_WITH_LEN("Create_routine_priv") },
-    { C_STRING_WITH_LEN("enum('N','Y')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  { 
-    { C_STRING_WITH_LEN("Alter_routine_priv") },
-    { C_STRING_WITH_LEN("enum('N','Y')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  { 
-    { C_STRING_WITH_LEN("Create_user_priv") },
-    { C_STRING_WITH_LEN("enum('N','Y')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  { 
-    { C_STRING_WITH_LEN("Event_priv") },
-    { C_STRING_WITH_LEN("enum('N','Y')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  { 
-    { C_STRING_WITH_LEN("Trigger_priv") },
-    { C_STRING_WITH_LEN("enum('N','Y')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  { 
-    { C_STRING_WITH_LEN("Create_tablespace_priv") },
-    { C_STRING_WITH_LEN("enum('N','Y')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  { 
-    { C_STRING_WITH_LEN("ssl_type") },
-    { C_STRING_WITH_LEN("enum('','ANY','X509','SPECIFIED')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  { 
-    { C_STRING_WITH_LEN("ssl_cipher") },
-    { C_STRING_WITH_LEN("blob") },
-    { NULL, 0 }
-  },
-  { 
-    { C_STRING_WITH_LEN("x509_issuer") },
-    { C_STRING_WITH_LEN("blob") },
-    { NULL, 0 }
-  },
-  { 
-    { C_STRING_WITH_LEN("x509_subject") },
-    { C_STRING_WITH_LEN("blob") },
-    { NULL, 0 }
-  },
-  { 
-    { C_STRING_WITH_LEN("max_questions") },
-    { C_STRING_WITH_LEN("int(11)") },
-    { NULL, 0 }
-  },
-  { 
-    { C_STRING_WITH_LEN("max_updates") },
-    { C_STRING_WITH_LEN("int(11)") },
-    { NULL, 0 }
-  },
-  { 
-    { C_STRING_WITH_LEN("max_connections") },
-    { C_STRING_WITH_LEN("int(11)") },
-    { NULL, 0 }
-  },
-  { 
-    { C_STRING_WITH_LEN("plugin") },
-    { C_STRING_WITH_LEN("char(64)") },
-    { NULL, 0 }
-  },
-  { 
-    { C_STRING_WITH_LEN("authentication_string") },
-    { C_STRING_WITH_LEN("text") },
-    { NULL, 0 }
-  } 
-};
-
 const TABLE_FIELD_DEF
   mysql_db_table_def= {MYSQL_DB_FIELD_COUNT, mysql_db_table_fields};
-
-const TABLE_FIELD_DEF
-  mysql_user_table_def= {MYSQL_USER_FIELD_COUNT, mysql_user_table_fields};
 
 static LEX_STRING native_password_plugin_name= {
   C_STRING_WITH_LEN("mysql_native_password")
@@ -6203,7 +5991,7 @@ bool check_grant_db(THD *thd,const char *db)
   bool error= TRUE;
   size_t copy_length;
 
-  copy_length= (size_t) (strlen(sctx->priv_user ? sctx->priv_user : "") +
+  copy_length= (size_t) (strlen(sctx->priv_user) +
                  strlen(db ? db : "")) + 1; /* Added 1 at the end to avoid  
                                                buffer overflow at strmov()*/
 
@@ -9299,7 +9087,7 @@ void fill_effective_table_privileges(THD *thd, GRANT_INFO *grant,
   DBUG_PRINT("enter", ("Host: '%s', Ip: '%s', User: '%s', table: `%s`.`%s`",
                        sctx->priv_host, (sctx->get_ip()->length() ?
                        sctx->get_ip()->ptr() : "(NULL)"),
-                       (sctx->priv_user ? sctx->priv_user : "(NULL)"),
+                       sctx->priv_user,
                        db, table));
   /* --skip-grants */
   if (!initialized)
@@ -11292,8 +11080,7 @@ acl_authenticate(THD *thd, uint com_change_user_pkt_len)
     {
       general_log_print(thd, command, "%s@%s as %s on %s",
                         mpvio.auth_info.user_name, mpvio.auth_info.host_or_ip,
-                        mpvio.auth_info.authenticated_as ? 
-                          mpvio.auth_info.authenticated_as : "anonymous",
+                        mpvio.auth_info.authenticated_as,
                         mpvio.db.str ? mpvio.db.str : (char*) "");
     }
     else

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -5569,15 +5569,6 @@ my_toupper_utf8mb3(MY_UNICASE_INFO *uni_plane, my_wc_t *wc)
   MY_UNICASE_CHARACTER *page;
   if ((page= uni_plane->page[(*wc >> 8) & 0xFF]))
     *wc= page[*wc & 0xFF].toupper;
-}
-
-
-static inline void
-my_tosort_utf8mb3(MY_UNICASE_INFO *uni_plane, my_wc_t *wc)
-{
-  MY_UNICASE_CHARACTER *page;
-  if ((page= uni_plane->page[(*wc >> 8) & 0xFF]))
-    *wc= page[*wc & 0xFF].sort;
 }
 
 
