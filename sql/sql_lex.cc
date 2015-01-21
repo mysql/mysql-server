@@ -542,6 +542,7 @@ void LEX::reset()
   mark_broken(false);
   max_statement_time= 0;
   parse_gcol_expr= false;
+  opt_hints_global= NULL;
 }
 
 
@@ -604,6 +605,7 @@ st_select_lex *LEX::new_empty_query_block()
     return NULL;             /* purecov: inspected */
 
   select->parent_lex= this;
+  select->opt_hints_qb= NULL;
 
   return select;
 }
@@ -3103,6 +3105,29 @@ void st_select_lex::print(THD *thd, String *str, enum_query_type query_type)
   else
     str->append(STRING_WITH_LEN("select "));
 
+  if (thd->lex->opt_hints_global)
+  {
+    char buff[NAME_LEN];
+    String hint_str(buff, sizeof(buff), system_charset_info);
+    hint_str.length(0);
+
+    if (select_number == 1)
+    {
+      if (opt_hints_qb)
+        opt_hints_qb->append_qb_hint(thd, &hint_str);
+      thd->lex->opt_hints_global->print(thd, &hint_str);
+    }
+    else if (opt_hints_qb)
+      opt_hints_qb->append_qb_hint(thd, &hint_str);
+
+    if (hint_str.length() > 0)
+    {
+      str->append(STRING_WITH_LEN("/*+ "));
+      str->append(hint_str.ptr(), hint_str.length());
+      str->append(STRING_WITH_LEN("*/ "));
+    }
+  }
+
   if (thd->is_error())
   {
     /*
@@ -3477,7 +3502,7 @@ void Query_tables_list::destroy_query_tables_list()
 */
 
 LEX::LEX()
-  :result(0), thd(NULL),
+  :result(0), thd(NULL), opt_hints_global(NULL),
    // Quite unlikely to overflow initial allocation, so no instrumentation.
    plugins(PSI_NOT_INSTRUMENTED),
    option_type(OPT_DEFAULT),

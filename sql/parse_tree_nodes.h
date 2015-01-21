@@ -2337,8 +2337,10 @@ public:
     // Parentheses carry no meaning here.
     pc->select->set_braces(false);
 
-    if ((opt_union_clause != NULL && opt_union_clause->contextualize(pc)) ||
-        (opt_hint_list != NULL && opt_hint_list->contextualize(pc)))
+    if (opt_hint_list != NULL && opt_hint_list->contextualize(pc))
+      return true;
+
+    if (opt_union_clause != NULL && opt_union_clause->contextualize(pc))
       return true;
 
     return false;

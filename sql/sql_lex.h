@@ -72,6 +72,8 @@ struct sql_digest_state;
 typedef class st_select_lex SELECT_LEX;
 
 const size_t INITIAL_LEX_PLUGIN_LIST_SIZE = 16;
+class Opt_hints_global;
+class Opt_hints_qb;
 
 #ifdef MYSQL_SERVER
 /*
@@ -1079,6 +1081,9 @@ public:
   table_map select_list_tables;
   table_map outer_join;       ///< Bitmap of all inner tables from outer joins
 
+  Opt_hints_qb *opt_hints_qb;
+
+
   /**
     @note the group_by and order_by lists below will probably be added to the
           constructor when the parser is converted into a true bottom-up design.
@@ -1500,12 +1505,13 @@ union YYSTYPE {
   /*
     Hint parser section (sql_hints.yy)
   */
+  opt_hints_enum hint_type;
   LEX_CSTRING hint_string;
   class PT_hint *hint;
   class PT_hint_list *hint_list;
-  Hint_param_index_list *hint_param_index_list;
+  Hint_param_index_list hint_param_index_list;
   Hint_param_table hint_param_table;
-  Hint_param_table_list *hint_param_table_list;
+  Hint_param_table_list hint_param_table_list;
 
   /*
     Main parser section (sql_yacc.yy)
@@ -2918,6 +2924,9 @@ public:
   LEX_ALTER alter_password;
   THD *thd;
   Generated_column *gcol_info;
+
+  /* Optimizer hints */
+  Opt_hints_global *opt_hints_global;
 
   /* maintain a list of used plugins for this LEX */
   typedef Prealloced_array<plugin_ref,

@@ -42,9 +42,19 @@
 
 %token MAX_EXECUTION_TIME_HINT
 
-%token DEBUG_HINT1
-%token DEBUG_HINT2
-%token DEBUG_HINT3
+%token BKA_HINT
+%token BNL_HINT
+%token ICP_HINT
+%token INDEX_MERGE_HINT
+%token NO_BKA_HINT
+%token NO_BNL_HINT
+%token NO_ICP_HINT
+%token NO_INDEX_MERGE_HINT
+%token NO_MRR_HINT
+%token NO_RANGE_OPTIMIZATION_HINT
+%token MRR_HINT
+
+%token QB_NAME_HINT
 
 /* Other tokens */
 
@@ -56,18 +66,35 @@
 %token HINT_ERROR
 
 /* Types */
+%type <hint_type>
+  key_level_hint_type_on
+  key_level_hint_type_off
+  table_level_hint_type_on
+  table_level_hint_type_off
 
-%type <hint> hint
+%type <hint>
+  hint
+  max_execution_time_hint
+  index_level_hint
+  table_level_hint
+  qb_name_hint
+
 %type <hint_list> hint_list
 
 %type <hint_string> hint_param_index
-%type <hint_param_index_list> hint_param_index_list opt_hint_param_index_list
-%type <hint_param_table> hint_param_table
-%type <hint_param_table_list> hint_param_table_list
 
-%type <hint>
-  max_execution_time_hint
-  debug_hint
+%type <hint_param_index_list> hint_param_index_list opt_hint_param_index_list
+
+%type <hint_param_table>
+  hint_param_table
+  hint_param_table_ext
+  hint_param_table_empty_qb
+
+%type <hint_param_table_list>
+  hint_param_table_list
+  opt_hint_param_table_list
+  hint_param_table_list_empty_qb
+  opt_hint_param_table_list_empty_qb
 
 %type <hint_string>
   HINT_ARG_IDENT
@@ -103,9 +130,12 @@ hint_list:
         ;
 
 hint:
-          max_execution_time_hint
-        | debug_hint
+          index_level_hint
+        | table_level_hint
+        | qb_name_hint
+        | max_execution_time_hint
         ;
+
 
 max_execution_time_hint:
           MAX_EXECUTION_TIME_HINT '(' HINT_ARG_NUMBER ')'
@@ -126,46 +156,64 @@ max_execution_time_hint:
                 YYABORT; // OOM
             }
           }
-       ;
+        ;
+
+
+opt_hint_param_table_list:
+          /* empty */ { $$.init(thd->mem_root); }
+        | hint_param_table_list
+        ;
 
 hint_param_table_list:
           hint_param_table
           {
-            $$= (Hint_param_table_list *)
-                thd->alloc(sizeof(Hint_param_table_list));
-            if ($$ == NULL)
-              YYABORT;
-            new ($$) Hint_param_table_list(thd->mem_root);
-            if ($$->push_back($1))
+            $$.init(thd->mem_root);
+            if ($$.push_back($1))
               YYABORT; // OOM
           }
-        | hint_param_table_list hint_param_table
+        | hint_param_table_list ',' hint_param_table
           {
-            if ($1->push_back($2))
+            if ($1.push_back($3))
+              YYABORT; // OOM
+            $$= $1;
+          }
+        ;
+
+opt_hint_param_table_list_empty_qb:
+          /* empty */ { $$.init(thd->mem_root); }
+        | hint_param_table_list_empty_qb
+        ;
+
+hint_param_table_list_empty_qb:
+          hint_param_table_empty_qb
+          {
+            $$.init(thd->mem_root);
+            if ($$.push_back($1))
+              YYABORT; // OOM
+          }
+        | hint_param_table_list_empty_qb ',' hint_param_table_empty_qb
+          {
+            if ($1.push_back($3))
               YYABORT; // OOM
             $$= $1;
           }
         ;
 
 opt_hint_param_index_list:
-          /* empty */ { $$= NULL; }
+          /* empty */ { $$.init(thd->mem_root); }
         | hint_param_index_list
         ;
 
 hint_param_index_list:
           hint_param_index
           {
-            $$= (Hint_param_index_list *)
-                thd->alloc(sizeof(Hint_param_index_list));
-            if ($$ == NULL)
-              YYABORT; // OOM
-            new ($$) Hint_param_index_list(thd->mem_root);
-            if ($$->push_back($1))
+            $$.init(thd->mem_root);
+            if ($$.push_back($1))
               YYABORT; // OOM
           }
-        | hint_param_index_list hint_param_index
+        | hint_param_index_list ',' hint_param_index
           {
-            if ($1->push_back($2))
+            if ($1.push_back($3))
               YYABORT; // OOM
             $$= $1;
           }
@@ -173,6 +221,14 @@ hint_param_index_list:
 
 hint_param_index:
           HINT_ARG_IDENT
+        ;
+
+hint_param_table_empty_qb:
+          HINT_ARG_IDENT
+          {
+            $$.table= $1;
+            $$.opt_query_block= NULL_CSTR;
+          }
         ;
 
 hint_param_table:
@@ -183,28 +239,115 @@ hint_param_table:
           }
         ;
 
+hint_param_table_ext:
+          hint_param_table
+        | HINT_ARG_QB_NAME HINT_ARG_IDENT
+          {
+            $$.table= $2;
+            $$.opt_query_block= $1;
+          }
+        ;
+
 opt_qb_name:
           /* empty */ { $$= NULL_CSTR; }
         | HINT_ARG_QB_NAME
         ;
 
-debug_hint:
-          DEBUG_HINT1 '(' opt_qb_name hint_param_table_list ')'
+table_level_hint:
+          table_level_hint_type_on '(' opt_hint_param_table_list ')'
           {
-            $$= NEW_PTN PT_hint_debug1($3, $4);
+            $$= NEW_PTN PT_table_level_hint(NULL_CSTR, $3, TRUE, $1);
             if ($$ == NULL)
               YYABORT; // OOM
           }
-        | DEBUG_HINT2 '(' opt_hint_param_index_list ')'
+        | table_level_hint_type_on
+          '(' HINT_ARG_QB_NAME opt_hint_param_table_list_empty_qb ')'
           {
-            $$= NEW_PTN PT_hint_debug2($3);
+            $$= NEW_PTN PT_table_level_hint($3, $4, TRUE, $1);
             if ($$ == NULL)
               YYABORT; // OOM
           }
-        | DEBUG_HINT3
+        | table_level_hint_type_off '(' opt_hint_param_table_list ')'
           {
-            scanner->syntax_warning("This warning is expected");
-            $$= NULL;
+            $$= NEW_PTN PT_table_level_hint(NULL_CSTR, $3, FALSE, $1);
+            if ($$ == NULL)
+              YYABORT; // OOM
+          }
+        | table_level_hint_type_off
+          '(' HINT_ARG_QB_NAME opt_hint_param_table_list_empty_qb ')'
+          {
+            $$= NEW_PTN PT_table_level_hint($3, $4, FALSE, $1);
+            if ($$ == NULL)
+              YYABORT; // OOM
           }
         ;
 
+index_level_hint:
+          key_level_hint_type_on
+          '(' hint_param_table_ext opt_hint_param_index_list ')'
+          {
+            $$= NEW_PTN PT_key_level_hint($3, $4, TRUE, $1);
+            if ($$ == NULL)
+              YYABORT; // OOM
+          }
+        | key_level_hint_type_off
+          '(' hint_param_table_ext opt_hint_param_index_list ')'
+          {
+            $$= NEW_PTN PT_key_level_hint($3, $4, FALSE, $1);
+            if ($$ == NULL)
+              YYABORT; // OOM
+          }
+        ;
+
+table_level_hint_type_on:
+          BKA_HINT
+          {
+            $$= BKA_HINT_ENUM;
+          }
+        | BNL_HINT
+          {
+            $$= BNL_HINT_ENUM;
+          }
+        ;
+
+table_level_hint_type_off:
+          NO_BKA_HINT
+          {
+            $$= BKA_HINT_ENUM;
+          }
+        | NO_BNL_HINT
+          {
+            $$= BNL_HINT_ENUM;
+          }
+        ;
+
+key_level_hint_type_on:
+          MRR_HINT
+          {
+            $$= MRR_HINT_ENUM;
+          }
+        | NO_RANGE_OPTIMIZATION_HINT
+          {
+            $$= NO_RANGE_HINT_ENUM;
+          }
+        ;
+
+key_level_hint_type_off:
+          NO_ICP_HINT
+          {
+            $$= ICP_HINT_ENUM;
+          }
+        | NO_MRR_HINT
+          {
+            $$= MRR_HINT_ENUM;
+          }
+        ;
+
+qb_name_hint:
+          QB_NAME_HINT '(' HINT_ARG_IDENT ')'
+          {
+            $$= NEW_PTN PT_hint_qb_name($3);
+            if ($$ == NULL)
+              YYABORT; // OOM
+          }
+        ;

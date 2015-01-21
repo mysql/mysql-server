@@ -44,6 +44,8 @@
 #include "debug_sync.h"          // DEBUG_SYNC
 #include "item_sum.h"            // Item_sum
 #include "sql_planner.h"         // calculate_condition_filter
+#include "opt_hints.h"           // hint_key_state()
+
 #include <algorithm>
 
 using std::max;
@@ -1695,13 +1697,13 @@ void QEP_TAB::push_index_cond(const JOIN_TAB *join_tab,
        type() == JT_RANGE || type() ==  JT_INDEX_MERGE) &&
       join_tab->use_join_cache() == JOIN_CACHE::ALG_BNL);
 
-
   /*
     We will only attempt to push down an index condition when the
     following criteria are true:
     0. The table has a select condition
     1. The storage engine supports ICP.
-    2. The system variable for enabling ICP is ON.
+    2. The index_condition_pushdown switch is on and
+       the use of ICP is not disabled by the NO_ICP hint.
     3. The query is not a multi-table update or delete statement. The reason
        for this requirement is that the same handler will be used 
        both for doing the select/join and the update. The pushed index
@@ -1729,7 +1731,8 @@ void QEP_TAB::push_index_cond(const JOIN_TAB *join_tab,
   if (condition() &&
       tbl->file->index_flags(keyno, 0, 1) &
       HA_DO_INDEX_COND_PUSHDOWN &&
-      join_->thd->optimizer_switch_flag(OPTIMIZER_SWITCH_INDEX_CONDITION_PUSHDOWN) &&
+      hint_key_state(join_->thd, tbl, keyno, ICP_HINT_ENUM,
+                     OPTIMIZER_SWITCH_INDEX_CONDITION_PUSHDOWN) &&
       join_->thd->lex->sql_command != SQLCOM_UPDATE_MULTI &&
       join_->thd->lex->sql_command != SQLCOM_DELETE_MULTI &&
       !has_guarded_conds() &&

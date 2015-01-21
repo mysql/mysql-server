@@ -19938,6 +19938,12 @@ static void test_wl8016()
 
   myheader("test_wl8016");
 
+  rc= mysql_query(mysql, "SELECT /*+ ");
+  DIE_UNLESS(rc);
+
+  rc= mysql_query(mysql, "SELECT /*+ ICP(`test");
+  DIE_UNLESS(rc);
+
   rc= mysql_query(mysql, "SELECT /*+ ICP(`test*/ 1");
   myquery(rc);
 
