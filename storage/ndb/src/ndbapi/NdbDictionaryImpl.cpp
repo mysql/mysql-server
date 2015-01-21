@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2384,7 +2384,7 @@ NdbDictInterface::dictSignal(NdbApiSignal* sig,
     }
     DBUG_PRINT("info", ("node %d", node));
     if(node == 0){
-      if (m_impl->m_transporter_facade->is_cluster_completely_unavailable())
+      if (getTransporter()->is_cluster_completely_unavailable())
       {
         m_error.code= 4009;
       }
@@ -5972,7 +5972,7 @@ NdbDictInterface::listObjects(NdbApiSignal* signal,
     PollGuard poll_guard(* m_impl);
     Uint16 aNodeId = getTransporter()->get_an_alive_node();
     if (aNodeId == 0) {
-      if (m_impl->m_transporter_facade->is_cluster_completely_unavailable())
+      if (getTransporter()->is_cluster_completely_unavailable())
       {
         m_error.code= 4009;
       }
@@ -6141,7 +6141,7 @@ NdbDictInterface::forceGCPWait(int type)
       PollGuard pg(* m_impl);
       Uint16 aNodeId = getTransporter()->get_an_alive_node();
       if (aNodeId == 0) {
-        if (m_impl->m_transporter_facade->is_cluster_completely_unavailable())
+        if (getTransporter()->is_cluster_completely_unavailable())
         {
           m_error.code= 4009;
         }
@@ -6183,7 +6183,7 @@ NdbDictInterface::forceGCPWait(int type)
       m_impl->lock();
       Uint16 aNodeId = getTransporter()->get_an_alive_node();
       if (aNodeId == 0) {
-        if (m_impl->m_transporter_facade->is_cluster_completely_unavailable())
+        if (getTransporter()->is_cluster_completely_unavailable())
         {
           m_error.code= 4009;
         }
