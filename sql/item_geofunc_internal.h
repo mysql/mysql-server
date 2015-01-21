@@ -199,9 +199,9 @@ public:
   typedef Gis_multi_line_string_spherical Multilinestring;
   typedef Gis_multi_polygon_spherical Multipolygon;
 
-  typedef CoordinateElementType Coord_type;
+  typedef CoordinateElementType Coordnate_type;
   typedef boost::geometry::cs::spherical_equatorial<boost::geometry::degree>
-    Coordsys;
+    Coordinate_system;
 };
 
 

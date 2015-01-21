@@ -1496,7 +1496,9 @@ String *Item_func_make_envelope::val_str(String *str)
   }
 
   if (geom1->get_type() != Geometry::wkb_point ||
-      geom2->get_type() != Geometry::wkb_point)
+      geom2->get_type() != Geometry::wkb_point ||
+      geom1->get_srid() != 0 ||
+      geom2->get_srid() != 0)
   {
     my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
     return error_str();
@@ -4441,7 +4443,7 @@ template <>
 struct BG_distance<bg::cs::spherical_equatorial<bg::degree> >
 {
   static double apply(Item_func_distance *item, Geometry *g1,
-                      Geometry *g2, bool *isdone)
+                      Geometry *g2, bool * /* isdone */)
   {
     // Do the actual computation here for the spherical equatorial CS
     // with degree units.
@@ -4533,8 +4535,8 @@ double Item_func_distance::val_real()
       Make sure all points' coordinates are valid:
       x in (-180, 180], y in [-90, 90].
     */
-    Numeric_interval<double> x_range(-180, true, 180, false);
-    Numeric_interval<double> y_range(-90, false, 90, false);
+    Numeric_interval<double> x_range(-180, true, 180, false);   // (-180, 180]
+    Numeric_interval<double> y_range(-90, false, 90, false);    // [-90, 90]
     Point_coordinate_checker checker(x_range, y_range);
 
     uint32 wkblen= res1->length() - 4;

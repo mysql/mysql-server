@@ -1205,13 +1205,13 @@ ST_ISVALID(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(0 0)))')
 #
 SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 1)', 4236),
 ST_GEOMFROMTEXT('POINT(0 0)', 0)));
-ERROR HY000: Binary geometry function st_makeenvelope given two geometries of different srids: 4236 and 0, which should have been identical.
+ERROR HY000: Incorrect arguments to st_makeenvelope
 SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 1)', 1),
 ST_GEOMFROMTEXT('POINT(0 0)', 0)));
-ERROR HY000: Binary geometry function st_makeenvelope given two geometries of different srids: 1 and 0, which should have been identical.
+ERROR HY000: Incorrect arguments to st_makeenvelope
 SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 1)', 0),
 ST_GEOMFROMTEXT('POINT(0 0)', 100)));
-ERROR HY000: Binary geometry function st_makeenvelope given two geometries of different srids: 0 and 100, which should have been identical.
+ERROR HY000: Incorrect arguments to st_makeenvelope
 #
 # Bug #20085563  ASSERTION `!NULL_VALUE && OPDONE && STR_VALUE_ARG->LENGTH() > 0' FAILED
 #
