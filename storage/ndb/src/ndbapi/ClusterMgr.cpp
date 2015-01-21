@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1127,10 +1127,17 @@ bool
 ClusterMgr::is_cluster_completely_unavailable()
 {
   bool ret_code = true;
-  lock();
+
+  /**
+   * This method (and several other 'node state getters') allow
+   * reading of theNodes[] from multiple block threads while 
+   * ClusterMgr concurrently updates them. Thus, a mutex should
+   * have been expected here. See bug#20391191, and addendum patches
+   * to bug#19524096, to understand what prevents us from locking (yet)
+   */
   for (NodeId n = 1; n < MAX_NDB_NODES ; n++)
   {
-    const trp_node node = getNodeInfo(n);
+    const trp_node& node = theNodes[n];
     if (!node.defined)
     {
       /**
