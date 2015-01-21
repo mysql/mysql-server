@@ -310,7 +310,9 @@ static inline void skip_statement(const THD *thd)
 #ifndef DBUG_OFF
   const Gtid_set* executed_gtids= gtid_state->get_executed_gtids();
   global_sid_lock->rdlock();
+  gtid_state->lock_sidno(thd->variables.gtid_next.gtid.sidno);
   DBUG_ASSERT(executed_gtids->contains_gtid(thd->variables.gtid_next.gtid));
+  gtid_state->unlock_sidno(thd->variables.gtid_next.gtid.sidno);
   global_sid_lock->unlock();
 #endif
 
