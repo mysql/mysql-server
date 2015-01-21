@@ -50,7 +50,6 @@
 class Gis_point_spherical: public Gis_point
 {
 public:
-  typedef Gis_point_spherical point_type;
   explicit Gis_point_spherical(bool is_bg_adapter= true)
     :Gis_point(is_bg_adapter)
   {
@@ -67,14 +66,9 @@ public:
 
 class Gis_multi_point_spherical: public Gis_wkb_vector<Gis_point_spherical>
 {
-public:
-  typedef Gis_point_spherical point_type;
-
-  /**** Boost Geometry Adapter Interface ******/
-
   typedef Gis_wkb_vector<Gis_point_spherical> base_type;
-  typedef Gis_multi_point_spherical self;
-
+public:
+  /**** Boost Geometry Adapter Interface ******/
   explicit Gis_multi_point_spherical(bool is_bg_adapter= true)
     :base_type(NULL, 0, Flags_t(wkb_multipoint, 0),
                default_srid, is_bg_adapter)
@@ -91,17 +85,15 @@ public:
 
 class Gis_line_string_spherical : public Gis_wkb_vector<Gis_point_spherical>
 {
-  typedef Gis_wkb_vector<Gis_point_spherical> base;
-  typedef Gis_line_string_spherical self;
+  typedef Gis_wkb_vector<Gis_point_spherical> base_type;
 public:
-  typedef Gis_point_spherical point_type;
   explicit Gis_line_string_spherical(bool is_bg_adapter= true)
-    :base(NULL, 0, Flags_t(wkb_linestring, 0), default_srid, is_bg_adapter)
+    :base_type(NULL, 0, Flags_t(wkb_linestring, 0), default_srid, is_bg_adapter)
   {}
 
   Gis_line_string_spherical(const void *wkb, size_t len,
                             const Flags_t &flags, srid_t srid)
-    :base(wkb, len, flags, srid, true)
+    :base_type(wkb, len, flags, srid, true)
   {
     set_geotype(wkb_linestring);
   }
@@ -110,20 +102,18 @@ public:
 
 class Gis_polygon_ring_spherical : public Gis_wkb_vector<Gis_point_spherical>
 {
-  typedef Gis_polygon_ring_spherical self;
-  typedef Gis_wkb_vector<Gis_point_spherical> base;
+  typedef Gis_wkb_vector<Gis_point_spherical> base_type;
 public:
-  typedef Gis_point_spherical point_type;
   Gis_polygon_ring_spherical(const void *wkb, size_t nbytes,
                              const Flags_t &flags, srid_t srid)
-    :base(wkb, nbytes, flags, srid, true)
+    :base_type(wkb, nbytes, flags, srid, true)
   {
     set_geotype(wkb_linestring);
   }
 
   Gis_polygon_ring_spherical()
-    :base(NULL, 0, Flags_t(Geometry::wkb_linestring, 0),
-          default_srid, true)
+    :base_type(NULL, 0, Flags_t(Geometry::wkb_linestring, 0),
+               default_srid, true)
   {}
 };
 
@@ -135,19 +125,18 @@ public:
 */
 class Gis_polygon_spherical : public Gis_polygon
 {
-  typedef Gis_polygon_spherical self;
-  typedef Gis_polygon base;
+  typedef Gis_polygon base_type;
 public:
-  typedef Gis_point_spherical point_type;
   typedef Gis_polygon_ring_spherical ring_type;
   typedef Gis_wkb_vector<ring_type> inner_container_type;
+
   Gis_polygon_spherical(const void *wkb, size_t nbytes,
                         const Flags_t &flags, srid_t srid)
-    :base(wkb, nbytes, flags, srid)
+    :base_type(wkb, nbytes, flags, srid)
   {
   }
 
-  explicit Gis_polygon_spherical(bool isbgadapter= true) :base(isbgadapter)
+  explicit Gis_polygon_spherical(bool isbgadapter= true) :base_type(isbgadapter)
   {
   }
 
@@ -158,30 +147,28 @@ public:
    */
   ring_type &outer() const
   {
-    return *(reinterpret_cast<ring_type *>(&base::outer()));
+    return *(reinterpret_cast<ring_type *>(&base_type::outer()));
   }
 
   inner_container_type &inners() const
   {
-    return *(reinterpret_cast<inner_container_type *>(&base::inners()));
+    return *(reinterpret_cast<inner_container_type *>(&base_type::inners()));
   }
 };
 
 
 class Gis_multi_line_string_spherical : public Gis_wkb_vector<Gis_line_string_spherical>
 {
-  typedef Gis_multi_line_string_spherical self;
-  typedef Gis_wkb_vector<Gis_line_string_spherical> base;
+  typedef Gis_wkb_vector<Gis_line_string_spherical> base_type;
 public:
-  typedef Gis_point_spherical point_type;
   explicit Gis_multi_line_string_spherical(bool is_bg_adapter= true)
-    :base(NULL, 0, Flags_t(wkb_multilinestring, 0),
-          default_srid, is_bg_adapter)
+    :base_type(NULL, 0, Flags_t(wkb_multilinestring, 0),
+               default_srid, is_bg_adapter)
   {}
 
   Gis_multi_line_string_spherical(const void *ptr, size_t nbytes,
                                   const Flags_t &flags, srid_t srid)
-    :base(ptr, nbytes, flags, srid, true)
+    :base_type(ptr, nbytes, flags, srid, true)
   {
     set_geotype(wkb_multilinestring);
   }
@@ -190,16 +177,15 @@ public:
 
 class Gis_multi_polygon_spherical : public Gis_wkb_vector<Gis_polygon_spherical>
 {
-  typedef Gis_wkb_vector<Gis_polygon_spherical> base;
+  typedef Gis_wkb_vector<Gis_polygon_spherical> base_type;
 public:
-  typedef Gis_point_spherical point_type;
   explicit Gis_multi_polygon_spherical(bool is_bg_adapter= true)
-    :base(NULL, 0, Flags_t(wkb_multipolygon, 0), default_srid, is_bg_adapter)
+    :base_type(NULL, 0, Flags_t(wkb_multipolygon, 0), default_srid, is_bg_adapter)
   {}
 
   Gis_multi_polygon_spherical(const void *ptr, size_t nbytes,
                               const Flags_t &flags, srid_t srid)
-    :base(ptr, nbytes, flags, srid, true)
+    :base_type(ptr, nbytes, flags, srid, true)
   {
     set_geotype(wkb_multipolygon);
   }
@@ -556,23 +542,6 @@ struct tag< Gis_multi_point_spherical>
   typedef boost::geometry::multi_point_tag type;
 };
 
-template<>
-struct coordinate_type<Gis_multi_point_spherical>
-{
-  typedef double type;
-};
-
-template<>
-struct coordinate_system<Gis_multi_point_spherical>
-{
-  typedef boost::geometry::cs::spherical_equatorial<
-    boost::geometry::degree> type;
-};
-
-template<>
-struct dimension<Gis_multi_point_spherical>
-  : boost::mpl::int_<GEOM_DIM>
-{};
 
 /////////////////////////////////// multi polygon types /////////////////////
 template<>
