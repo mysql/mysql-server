@@ -180,8 +180,8 @@ public:
   typedef Gis_multi_line_string Multilinestring;
   typedef Gis_multi_polygon Multipolygon;
 
-  typedef CoordinateElementType Coord_type;
-  typedef CoordinateSystemType Coordsys;
+  typedef CoordinateElementType Coordinate_type;
+  typedef CoordinateSystemType Coordinate_system;
 };
 
 
@@ -199,7 +199,7 @@ public:
   typedef Gis_multi_line_string_spherical Multilinestring;
   typedef Gis_multi_polygon_spherical Multipolygon;
 
-  typedef CoordinateElementType Coordnate_type;
+  typedef CoordinateElementType Coordinate_type;
   typedef boost::geometry::cs::spherical_equatorial<boost::geometry::degree>
     Coordinate_system;
 };
