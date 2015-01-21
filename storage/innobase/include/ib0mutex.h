@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -30,6 +30,7 @@ Created 2013-03-26 Sunny Bains.
 
 #include "ut0ut.h"
 #include "ut0rnd.h"
+#include "thr_mutex.h"
 
 #ifdef UNIV_DEBUG
 /** Set when InnoDB has invoked exit(). */

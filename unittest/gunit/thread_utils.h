@@ -17,7 +17,7 @@
 #define SQL_THREAD_INCLUDED
 
 #include <my_global.h>
-#include <my_thread.h>
+#include <mysql/psi/mysql_thread.h>
 
 namespace thread {
 

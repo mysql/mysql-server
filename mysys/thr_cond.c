@@ -15,8 +15,8 @@
 
 #ifdef SAFE_MUTEX
 
-#include "my_global.h"
-#include "my_thread.h"
+#include "thr_cond.h"
+#include "my_thread_local.h"
 
 int safe_cond_wait(native_cond_t *cond, my_mutex_t *mp,
                    const char *file, uint line)

@@ -22,6 +22,8 @@
 #include "mysql_com.h"                     /* SERVER_VERSION_LENGTH */
 #include "my_atomic.h"                     /* my_atomic_add64 */
 #include "sql_cmd.h"                       /* SQLCOM_END */
+#include "my_thread_local.h"               /* my_get_thread_local */
+#include "my_thread.h"                     /* my_thread_attr_t */
 
 class THD;
 struct handlerton;
