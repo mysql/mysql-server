@@ -1183,7 +1183,6 @@ ClusterMgr::is_cluster_completely_unavailable()
       break;
     }
   }
-  unlock();
   return ret_code;
 }
 
