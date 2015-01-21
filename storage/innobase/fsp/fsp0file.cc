@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -584,11 +584,13 @@ Datafile::find_space_id()
 			bool	compressed_ok = false;
 
 			/* For compressed pages, univ_page_size.logical()
-			must be equal to or less than 16k. */
-			if (univ_page_size.logical() <= UNIV_PAGE_SIZE_DEF) {
+			and page size must be equal to or less than 16k. */
+			if (univ_page_size.logical() <= UNIV_PAGE_SIZE_DEF
+			    && univ_page_size.logical() >= page_size) {
 				const page_size_t	compr_page_size(
 					page_size, univ_page_size.logical(),
 					true);
+
 				compressed_ok = !buf_page_is_corrupted(
 					false, page, compr_page_size, false);
 			}
