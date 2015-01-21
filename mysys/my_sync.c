@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -115,6 +115,8 @@ int my_sync(File fd, myf my_flags)
 } /* my_sync */
 
 
+#ifdef NEED_EXPLICIT_SYNC_DIR
+
 static const char cur_dir_name[]= {FN_CURLIB, 0};
 
 
@@ -129,8 +131,6 @@ static const char cur_dir_name[]= {FN_CURLIB, 0};
   RETURN
     0 if ok, !=0 if error
 */
-
-#ifdef NEED_EXPLICIT_SYNC_DIR
 
 int my_sync_dir(const char *dir_name, myf my_flags)
 {

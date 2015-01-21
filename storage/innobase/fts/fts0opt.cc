@@ -42,9 +42,6 @@ Completed 2011/7/10 Sunny and Jimmy Yang
 /** The FTS optimize thread's work queue. */
 static ib_wqueue_t* fts_optimize_wq;
 
-/** The number of document ids to delete in one statement. */
-static const ulint FTS_MAX_DELETE_DOC_IDS = 1000;
-
 /** Time to wait for a message. */
 static const ulint FTS_QUEUE_WAIT_IN_USECS = 5000000;
 
