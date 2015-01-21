@@ -187,32 +187,15 @@ Applier_module::applier_thread_handle()
 
   Packet *packet= NULL;
   applier_error= 0;
-  Format_description_log_event* fde_evt= NULL;
-  Continuation* cont= NULL;
-  Pipeline_action *stop_action= NULL;
 
-  /*
-   Initialize the pipeline first avoiding the launch of the applier thread
-   in case of error
-  */
-  Pipeline_action *start_action = new Handler_start_action();
-  applier_error= pipeline->handle_action(start_action);
-  delete start_action;
-
+  mysql_mutex_lock(&run_lock);
   applier_running= true;
   mysql_cond_broadcast(&run_cond);
+  mysql_mutex_unlock(&run_lock);
 
-  if (applier_error)
-  {
-    goto end;
-  }
-
-  //broadcast if the invoker thread is waiting.
-  mysql_cond_broadcast(&run_cond);
-
-  fde_evt=
+  Format_description_log_event* fde_evt=
     new Format_description_log_event(BINLOG_VERSION);
-  cont= new Continuation();
+  Continuation* cont= new Continuation();
 
   while (!applier_error)
   {
@@ -283,10 +266,8 @@ Applier_module::applier_thread_handle()
   delete fde_evt;
   delete cont;
 
-end:
-
   //Even on error cases, send a stop signal to all handlers that could be active
-  stop_action = new Handler_stop_action();
+  Pipeline_action *stop_action= new Handler_stop_action();
   applier_error= pipeline->handle_action(stop_action);
   delete stop_action;
 
@@ -313,6 +294,18 @@ Applier_module::initialize_applier_thread()
   //avoid concurrency calls against stop invocations
   mysql_mutex_lock(&run_lock);
 
+  applier_error= 0;
+
+  Pipeline_action *start_action = new Handler_start_action();
+  applier_error= pipeline->handle_action(start_action);
+  delete start_action;
+
+  if (applier_error)
+  {
+    mysql_mutex_unlock(&run_lock);
+    DBUG_RETURN(applier_error);
+  }
+
 #ifdef HAVE_PSI_INTERFACE
   PSI_thread_info threads[]= {
     { &key_thread_receiver,
@@ -332,7 +325,7 @@ Applier_module::initialize_applier_thread()
     DBUG_RETURN(1);
   }
 
-  while (!applier_running && !applier_error)
+  while (!applier_running)
   {
     DBUG_PRINT("sleep",("Waiting for applier thread to start"));
     mysql_cond_wait(&run_cond, &run_lock);
