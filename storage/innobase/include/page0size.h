@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -66,6 +66,7 @@ public:
 		ut_ad(ut_is_2pow(logical));
 
 		ut_ad(logical <= UNIV_PAGE_SIZE_MAX);
+		ut_ad(logical >= physical);
 		ut_ad(!is_compressed || physical <= UNIV_ZIP_SIZE_MAX);
 	}
 
