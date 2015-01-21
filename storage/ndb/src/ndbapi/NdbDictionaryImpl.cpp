@@ -2384,7 +2384,7 @@ NdbDictInterface::dictSignal(NdbApiSignal* sig,
     }
     DBUG_PRINT("info", ("node %d", node));
     if(node == 0){
-      if (m_impl->m_transporter_facade->is_cluster_completely_unavailable())
+      if (getTransporter()->is_cluster_completely_unavailable())
       {
         m_error.code= 4009;
       }
@@ -5972,7 +5972,7 @@ NdbDictInterface::listObjects(NdbApiSignal* signal,
     PollGuard poll_guard(* m_impl);
     Uint16 aNodeId = getTransporter()->get_an_alive_node();
     if (aNodeId == 0) {
-      if (m_impl->m_transporter_facade->is_cluster_completely_unavailable())
+      if (getTransporter()->is_cluster_completely_unavailable())
       {
         m_error.code= 4009;
       }
@@ -6141,7 +6141,7 @@ NdbDictInterface::forceGCPWait(int type)
       PollGuard pg(* m_impl);
       Uint16 aNodeId = getTransporter()->get_an_alive_node();
       if (aNodeId == 0) {
-        if (m_impl->m_transporter_facade->is_cluster_completely_unavailable())
+        if (getTransporter()->is_cluster_completely_unavailable())
         {
           m_error.code= 4009;
         }
@@ -6183,7 +6183,7 @@ NdbDictInterface::forceGCPWait(int type)
       m_impl->lock();
       Uint16 aNodeId = getTransporter()->get_an_alive_node();
       if (aNodeId == 0) {
-        if (m_impl->m_transporter_facade->is_cluster_completely_unavailable())
+        if (getTransporter()->is_cluster_completely_unavailable())
         {
           m_error.code= 4009;
         }
