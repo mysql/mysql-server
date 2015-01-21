@@ -117,6 +117,7 @@ SET(SQL_SHARED_SOURCES
   opt_explain.cc
   opt_explain_traditional.cc
   opt_explain_json.cc
+  opt_hints.cc
   opt_range.cc
   opt_statistics.cc
   opt_sum.cc 

@@ -7453,6 +7453,16 @@ ER_WARN_BAD_MAX_EXECUTION_TIME
 
 ER_WARN_UNSUPPORTED_MAX_EXECUTION_TIME
   eng "MAX_EXECUTION_TIME hint is supported by SELECT statements only"
+
+ER_WARN_CONFLICTING_HINT
+  eng "Hint %s is ignored as conflicting/duplicated"
+
+ER_WARN_UNKNOWN_QB_NAME
+  eng "Query block name %s is not found for %s hint"
+
+ER_UNRESOLVED_HINT_NAME
+  eng "Unresolved name %s for %s hint"
+
 #
 #  End of 5.7 error messages.
 #

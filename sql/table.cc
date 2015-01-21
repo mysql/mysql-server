@@ -6456,7 +6456,7 @@ void TABLE_LIST::reinit_before_use(THD *thd)
   */
   table= 0;
 
- /*
+  /*
    Reset table_name and table_name_length,if it is a anonymous derived table
    or schema table. They are not valid as TABLEs were closed in the end of
    previous prepare or execute call. For derived table of view, restore view's

@@ -719,10 +719,17 @@ static const SYMBOL symbols[] = {
   /*
     Insert new optimizer hint keywords after than commentary:
   */
-  { SYM_H("MAX_EXECUTION_TIME",             MAX_EXECUTION_TIME_HINT)},
-  { SYM_H("DEBUG_HINT1",                    DEBUG_HINT1)},
-  { SYM_H("DEBUG_HINT2",                    DEBUG_HINT2)},
-  { SYM_H("DEBUG_HINT3",                    DEBUG_HINT3)},
+  { SYM_H("BKA",                    BKA_HINT)},
+  { SYM_H("BNL",                    BNL_HINT)},
+  { SYM_H("ICP",                    ICP_HINT)},
+  { SYM_H("MAX_EXECUTION_TIME",     MAX_EXECUTION_TIME_HINT)},
+  { SYM_H("NO_BKA",                 NO_BKA_HINT)},
+  { SYM_H("NO_BNL",                 NO_BNL_HINT)},
+  { SYM_H("NO_ICP",                 NO_ICP_HINT)},
+  { SYM_H("NO_MRR",                 NO_MRR_HINT)},
+  { SYM_H("NO_RANGE_OPTIMIZATION",  NO_RANGE_OPTIMIZATION_HINT)},
+  { SYM_H("MRR",                    MRR_HINT)},
+  { SYM_H("QB_NAME",                QB_NAME_HINT)},
 };
 
 #endif /* LEX_INCLUDED */
