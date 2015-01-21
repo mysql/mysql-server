@@ -2,7 +2,7 @@ include/have_replication_observers_example_plugin.inc
 #
 # Cause an explicit transaction in order to Trans Observer to be called
 #
-CREATE TABLE t1 (c1 INT) Engine=InnoDB;
+CREATE TABLE t1 (c1 INT PRIMARY KEY) Engine=InnoDB;
 INSERT t1 VALUES(1);
 BEGIN;
 INSERT t1 VALUES(2);

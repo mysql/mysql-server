@@ -517,12 +517,6 @@ void Rpl_info_factory::init_repository_metadata()
   worker_file_data.name_indexed= true;
 }
 
-void Rpl_info_factory::init_relay_log_file_metadata()
-{
-  rli_file_data.n_fields= Relay_log_info::get_number_info_rli_fields();
-  my_stpcpy(rli_file_data.name, relay_log_info_file);
-  my_stpcpy(rli_file_data.pattern, relay_log_info_file);
-}
 
 /**
   Decides during startup what repository will be used based on the following

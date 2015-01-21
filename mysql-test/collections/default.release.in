@@ -18,3 +18,11 @@ perl mysql-test-run.pl --force --timer --parallel=auto --experimental=collection
 perl mysql-test-run.pl --timer --force --comment=memcached --vardir=var-memcached --experimental=collections/default.experimental --parallel=auto --retry=0 --suite=memcached
 perl mysql-test-run.pl --force --timer  --testcase-timeout=60 --parallel=auto --experimental=collections/default.experimental --comment=interactive_tests  --vardir=interactive-tests  --suite=interactive_utilities
 perl mysql-test-run.pl --timer --force --big-test --testcase-timeout=60 --debug-server --parallel=auto --comment=innodb_undo-debug --vardir=var-innodb-undo --experimental=collections/default.experimental --suite=innodb_undo --mysqld=--innodb_undo_tablespaces=2 --bootstrap --innodb_undo_tablespaces=2 --skip-test-list=collections/disabled-per-push.list
+##############################
+# FIXME: remove before merge #
+##############################
+# Additional GTID coverage (rpl suite with gtid_mode=ON)
+perl mysql-test-run.pl --force --timer --debug-server --parallel=auto --experimental=collections/default.experimental --comment=rpl_gtid-big-debug --vardir=var-rpl_gtid-big-debug --suite=rpl --mysqld=--enforce-gtid-consistency --mysqld=--log-slave-updates --mysqld=--gtid-mode=on --skip-test-list=collections/disabled-gtid-on.list --big-test --testcase-timeout=60 --suite-timeout=360
+# Multi-Thread Slave
+perl mysql-test-run.pl --timer --force --big-test --testcase-timeout=60 --debug-server --parallel=auto --comment=MTS-debug-big-db-part --vardir=var-MTS-debug-big-db --suite=rpl  --experimental=collections/default.experimental --skip-test-list=collections/disabled-per-push.list --mysqld=--slave-parallel-workers=4 --mysqld=--slave-parallel-type=database --skip-test-list=collection/disabled-weekly.list
+perl mysql-test-run.pl --timer --force --big-test --testcase-timeout=60 --debug-server --parallel=auto --comment=MTS-debug-big-lc --vardir=var-MTS-debug-big-lc --suite=rpl  --experimental=collections/default.experimental --skip-test-list=collections/disabled-per-push.list --mysqld=--slave-parallel-workers=4 --mysqld=--slave-parallel-type=logical_clock --skip-test-list=collection/disabled-weekly.list

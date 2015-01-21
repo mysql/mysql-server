@@ -92,6 +92,14 @@ BEGIN;
 SET @@SESSION.transaction_write_set_extraction= MURMUR32;
 ERROR HY000: The system variable transaction_write_set_extraction cannot be set when there is an ongoing transaction.
 COMMIT;
+CREATE TABLE t2(c1 INT, c2 INT);
+CREATE TRIGGER tr2 AFTER INSERT ON t2 FOR EACH ROW
+BEGIN
+SET @@SESSION.transaction_write_set_extraction= MURMUR32;
+END|
+INSERT INTO t2 VALUES (0,0);
+ERROR HY000: The system variable transaction_write_set_extraction cannot be set when there is an ongoing transaction.
+DROP TABLE t2;
 SET @@SESSION.transaction_write_set_extraction=MURMUR32;
 SELECT @@SESSION.transaction_write_set_extraction;
 @@SESSION.transaction_write_set_extraction
@@ -113,4 +121,20 @@ SET @@SESSION.transaction_write_set_extraction = @start_session_value;
 SELECT @@SESSION.transaction_write_set_extraction;
 @@SESSION.transaction_write_set_extraction
 OFF
+SET @@GLOBAL.binlog_format= STATEMENT;
+SET @@GLOBAL.transaction_write_set_extraction= MURMUR32;
+ERROR HY000: Cannot change the value of variable transaction_write_set_extraction without binary log format as ROW.
+SET @@GLOBAL.binlog_format= MIXED;
+SET @@GLOBAL.transaction_write_set_extraction= MURMUR32;
+ERROR HY000: Cannot change the value of variable transaction_write_set_extraction without binary log format as ROW.
+SET @@GLOBAL.binlog_format= ROW;
+SET @@GLOBAL.transaction_write_set_extraction= MURMUR32;
+SELECT @@GLOBAL.transaction_write_set_extraction;
+@@GLOBAL.transaction_write_set_extraction
+MURMUR32
+SET @@GLOBAL.transaction_write_set_extraction = @start_global_value;
+SELECT @@GLOBAL.transaction_write_set_extraction;
+@@GLOBAL.transaction_write_set_extraction
+OFF
+SET @@GLOBAL.binlog_format= @start_global_binlog_format;
 DROP TABLE t1;

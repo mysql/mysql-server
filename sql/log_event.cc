@@ -12749,6 +12749,7 @@ Gtid_log_event::Gtid_log_event(uint32 server_id_arg, bool using_trans,
   to_string(buf);
   DBUG_PRINT("info", ("%s", buf));
 #endif
+  is_valid_param= true;
   DBUG_VOID_RETURN;
 }
 #endif

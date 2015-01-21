@@ -20,32 +20,14 @@
   - Server state
  */
 
-#ifndef MYSQL_SERVER
-#define MYSQL_SERVER
-#endif
-#ifndef HAVE_REPLICATION
-#define HAVE_REPLICATION
-#endif
-
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
-
-#include <my_global.h>
-#include <my_sys.h>
-#include <stdlib.h>
-#include <mysql_version.h>
+#include <mysql/group_replication_priv.h>
 #include <mysql/plugin.h>
-#include "sql_plugin.h"                         // st_plugin_int
-
 #include <mysql/service_my_plugin_log.h>
 #include <mysql/service_rpl_transaction_ctx.h>
 
-#include "rpl_gtid.h"
-#include "log_event.h"
-#include "replication.h"
-
 static MYSQL_PLUGIN plugin_info_ptr;
+
+int validate_plugin_server_requirements(Trans_param *param);
 
 /*
   Will register the number of calls to each method of Server state
@@ -310,6 +292,9 @@ int trans_after_rollback(Trans_param *param)
 {
   trans_after_rollback_call++;
 
+  DBUG_EXECUTE_IF("validate_replication_observers_plugin_server_requirements",
+                  return validate_plugin_server_requirements(param););
+
   return 0;
 }
 
@@ -453,6 +438,129 @@ Binlog_relay_IO_observer relay_io_observer = {
   binlog_relay_after_queue_event,
   binlog_relay_after_reset_slave,
 };
+
+
+/*
+  Validate plugin requirements on server code.
+  This function is mainly to ensure that any change on server code
+  will not break Group Replication requirements.
+*/
+int validate_plugin_server_requirements(Trans_param *param)
+{
+  int success= 0;
+
+  /*
+    Instantiate a Gtid_log_event without a THD parameter.
+  */
+  rpl_sid fake_sid;
+  fake_sid.parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+  rpl_sidno fake_sidno= get_sidno_from_global_sid_map(fake_sid);
+  rpl_gno fake_gno= get_last_executed_gno(fake_sidno)+1;
+
+  Gtid gtid= { fake_sidno, fake_gno };
+  Gtid_specification gtid_spec= { GTID_GROUP, gtid };
+  Gtid_log_event *gle= new Gtid_log_event(param->server_id, true, gtid_spec);
+
+  if (gle->is_valid())
+    success++;
+  else
+    my_plugin_log_message(&plugin_info_ptr,
+                          MY_INFORMATION_LEVEL,
+                          "replication_observers_example_plugin:validate_plugin_server_requirements:"
+                          " failed to instantiate a Gtid_log_event");
+  delete gle;
+
+
+  /*
+    Instantiate a Transaction_context_log_event.
+  */
+  Transaction_context_log_event *tcle= new Transaction_context_log_event(param->server_uuid,
+                                                                         param->thread_id,
+                                                                         param->is_gtid_specified);
+
+  if (tcle->is_valid())
+    success++;
+  else
+    my_plugin_log_message(&plugin_info_ptr,
+                          MY_INFORMATION_LEVEL,
+                          "replication_observers_example_plugin:validate_plugin_server_requirements:"
+                          " failed to instantiate a Transaction_context_log_event");
+  delete tcle;
+
+
+  /*
+    Instantiate a Transaction_context_log_event.
+  */
+  View_change_log_event *vcle= new View_change_log_event(const_cast<char*>("1421867646:1"));
+
+  if (vcle->is_valid())
+    success++;
+  else
+    my_plugin_log_message(&plugin_info_ptr,
+                          MY_INFORMATION_LEVEL,
+                          "replication_observers_example_plugin:validate_plugin_server_requirements:"
+                          " failed to instantiate a View_change_log_event");
+  delete vcle;
+
+
+  /*
+    include/mysql/group_replication_priv.h exported functions.
+  */
+  my_thread_attr_t *thread_attr= get_connection_attrib();
+
+  char *hostname, *uuid;
+  uint port;
+  get_server_host_port_uuid(&hostname, &port, &uuid);
+
+  Trans_context_info startup_pre_reqs;
+  get_server_startup_prerequirements(startup_pre_reqs);
+
+  bool server_engine_ready= is_server_engine_ready();
+
+  uchar *encoded_gtid_executed= NULL;
+  uint length;
+  get_server_encoded_gtid_executed(&encoded_gtid_executed, &length);
+
+#if !defined(DBUG_OFF)
+  char *encoded_gtid_executed_string=
+      encoded_gtid_set_to_string(encoded_gtid_executed, length);
+#endif
+
+  if (thread_attr != NULL &&
+      hostname != NULL &&
+      uuid != NULL &&
+      port > 0 &&
+      startup_pre_reqs.gtid_mode == 3 &&
+      server_engine_ready &&
+      encoded_gtid_executed != NULL
+#if !defined(DBUG_OFF)
+      && encoded_gtid_executed_string != NULL
+#endif
+     )
+    success++;
+  else
+    my_plugin_log_message(&plugin_info_ptr,
+                          MY_INFORMATION_LEVEL,
+                          "replication_observers_example_plugin:validate_plugin_server_requirements:"
+                          " failed to invoke group_replication_priv.h exported functions");
+
+#if !defined(DBUG_OFF)
+  my_free(encoded_gtid_executed_string);
+#endif
+  my_free(encoded_gtid_executed);
+
+
+  /*
+    Log number of successful validations.
+  */
+  my_plugin_log_message(&plugin_info_ptr,
+                        MY_INFORMATION_LEVEL,
+                        "\nreplication_observers_example_plugin:validate_plugin_server_requirements=%d",
+                        success);
+
+  return 0;
+}
+
 
 /*
   Initialize the Replication Observer example at server start or plugin

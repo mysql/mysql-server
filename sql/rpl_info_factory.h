@@ -59,8 +59,6 @@ public:
                                      Relay_log_info *rli,
                                      bool is_gaps_collecting_phase);
   static bool reset_workers(Relay_log_info *rli);
-  static void init_relay_log_file_metadata();
-
 private:
   typedef struct
   {
