@@ -33,6 +33,7 @@
 #include "rpl_gtid.h"                     // Gtid_specification
 #include "session_tracker.h"              // Session_tracker
 #include "sql_alloc.h"                    // Sql_alloc
+#include "sql_digest_stream.h"            // sql_digest_state
 #include "sql_lex.h"                      // keytype
 #include "sql_locale.h"                   // MY_LOCALE
 #include "sql_profile.h"                  // PROFILING
@@ -175,7 +176,6 @@ extern LEX_STRING EMPTY_STR;
 extern LEX_STRING NULL_STR;
 extern LEX_CSTRING EMPTY_CSTR;
 extern LEX_CSTRING NULL_CSTR;
-extern MYSQL_PLUGIN_IMPORT const char **errmesg;
 
 extern "C" LEX_CSTRING thd_query_unsafe(MYSQL_THD thd);
 extern "C" size_t thd_query_safe(MYSQL_THD thd, char *buf, size_t buflen);
@@ -691,9 +691,6 @@ mysqld_collation_get_by_name(const char *name,
 
 
 #ifdef MYSQL_SERVER
-
-void free_tmp_table(THD *thd, TABLE *entry);
-
 
 /* The following macro is to make init of Query_arena simpler */
 #ifndef DBUG_OFF

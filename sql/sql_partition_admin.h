@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,6 +15,12 @@
 
 #ifndef SQL_PARTITION_ADMIN_H
 #define SQL_PARTITION_ADMIN_H
+
+#include "my_global.h"
+#include "sql_cmd.h"                   // Sql_cmd
+#include "sql_alter.h"                 // Sql_cmd_alter_table
+#include "sql_admin.h"                 // Sql_cmd_analyze_table
+#include "sql_truncate.h"              // Sql_cmd_truncate_table
 
 #ifndef WITH_PARTITION_STORAGE_ENGINE
 

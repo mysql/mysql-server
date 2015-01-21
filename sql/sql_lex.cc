@@ -17,22 +17,16 @@
 
 /* A lexical scanner on a temporary buffer with a yacc interface */
 
-#define MYSQL_LEX 1
-#include "sql_class.h"                          // sql_lex.h: SQLCOM_END
 #include "sql_lex.h"
-#include "sql_parse.h"                          // add_to_list
-#include "item_create.h"
-#include <m_ctype.h>
-#include <hash.h>
-#include "sp.h"
-#include "sp_head.h"
-#include "sql_table.h"                 // primary_key_name
-#include "sql_show.h"                  // append_identifier
-#include "sql_select.h"                // JOIN
+
+#include "sp_head.h"                   // sp_head
+#include "sql_class.h"                 // THD
+#include "sql_parse.h"                 // add_to_list
 #include "sql_optimizer.h"             // JOIN
-#include "parse_location.h"
 #include "sql_plugin.h"                // plugin_unlock_list
-#include <mysql/psi/mysql_statement.h>
+#include "sql_show.h"                  // append_identifier
+#include "sql_table.h"                 // primary_key_name
+
 
 static int lex_one_token(YYSTYPE *yylval, THD *thd);
 
@@ -145,8 +139,7 @@ inline int lex_casecmp(const char *s, const char *t, uint len)
   return (int) len+1;
 }
 
-#include <lex_hash.h>
-
+#include <lex_hash.h> // Must be after lex_casecmp and to_upper_lex
 
 void lex_init(void)
 {
