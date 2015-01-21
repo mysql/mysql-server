@@ -9,7 +9,8 @@
 # --let $assert_text= TEXT
 # --let $assert_file= FILE
 # --let $assert_select= REGEX
-# [--let $assert_match= REGEX | --let $assert_match_count= NUMBER]
+# [--let $assert_match= REGEX | --let $assert_count= NUMBER]
+# [--let $assert_only_after= REGEX]
 # --source include/assert_grep.inc
 #
 # Parameters:
@@ -33,6 +34,12 @@
 #     Instead of asserting that the selected lines match
 #     $assert_match, assert that there were exactly $assert_count
 #     matching lines.
+#
+#   $assert_only_after
+#     Reset all the lines matched and the counter when finding this pattern.
+#     It is useful for searching things in the mysqld.err log file just
+#     after the last server restart for example (discarding the log content
+#     of previous server executions).
 
 
 if (!$assert_text)
@@ -54,7 +61,7 @@ if ($assert_match == '')
     --die !!!ERROR IN TEST: you must set either $assert_match or $assert_count
   }
 }
-if ($asssert_match != '')
+if ($assert_match != '')
 {
   if ($assert_count != '')
   {
@@ -74,6 +81,7 @@ if ($asssert_match != '')
 --let _AG_ASSERT_MATCH= $assert_match
 --let _AG_ASSERT_COUNT= $assert_count
 --let _AG_OUT= `SELECT CONCAT('$MYSQLTEST_VARDIR/tmp/_ag_', UUID())`
+--let _AG_ASSERT_ONLY_AFTER= $assert_only_after
 
 
 --perl
@@ -83,6 +91,7 @@ if ($asssert_match != '')
   my $assert_select= $ENV{'_AG_ASSERT_SELECT'};
   my $assert_match= $ENV{'_AG_ASSERT_MATCH'};
   my $assert_count= $ENV{'_AG_ASSERT_COUNT'};
+  my $assert_only_after= $ENV{'_AG_ASSERT_ONLY_AFTER'};
   my $out= $ENV{'_AG_OUT'};
 
   my $result= '';
@@ -90,6 +99,10 @@ if ($asssert_match != '')
   open(FILE, "$file") or die("Error $? opening $file: $!\n");
   while (<FILE>) {
     my $line = $_;
+    if ($assert_only_after && $line =~ /$assert_only_after/) {
+      $result = "";
+      $count = 0;
+    }
     if ($line =~ /$assert_select/) {
       if ($assert_count ne '') {
         $count++;
@@ -123,7 +136,7 @@ if ($_ag_outcome != 'assert_grep.inc ok')
   --echo assert_match: '$assert_match'
   if ($assert_match != '')
   {
-    --echo matching lines: '$_ag_outcome' 
+    --echo matching lines: '$_ag_outcome'
   }
   if ($assert_count != '')
   {

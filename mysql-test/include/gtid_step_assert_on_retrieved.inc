@@ -82,7 +82,7 @@ if ($_gtid_step_uuid == '')
 --let $local_gtid_set= query_get_value(SHOW SLAVE STATUS, Retrieved_Gtid_Set, 1)
 --echo Asserting based on SHOW SLAVE STATUS(Retrieved_Gtid_Set)
 
---let $extra_debug_eval= "$local_gtid_set", GTID_NEXT_GENERATED_SET("$gtid_step_last", "$_gtid_step_uuid", $_gtid_step_count), GTID_SUBTRACT("$local_gtid_set", "$gtid_step_last")
+--let $extra_debug_eval= "$local_gtid_set", GTID_NEXT_GENERATED_MULTIPLE("$gtid_step_last", "$_gtid_step_uuid", $_gtid_step_count), GTID_SUBTRACT("$local_gtid_set", "$gtid_step_last")
 
 if ($_gtid_step_only_count)
 {
@@ -93,7 +93,7 @@ if ($_gtid_step_only_count)
 if (!$_gtid_step_only_count)
 {
   --let $assert_text= Exactly $_gtid_step_count GTIDs should have been retrieved since last invocation
-  --let $assert_cond= GTID_NEXT_GENERATED_SET("$gtid_step_last", "$_gtid_step_uuid", $_gtid_step_count) = GTID_SUBTRACT("$local_gtid_set", "$gtid_step_last")
+  --let $assert_cond= GTID_NEXT_GENERATED_MULTIPLE("$gtid_step_last", "$_gtid_step_uuid", $_gtid_step_count) = GTID_SUBTRACT("$local_gtid_set", "$gtid_step_last")
   --source include/assert.inc
 }
 
