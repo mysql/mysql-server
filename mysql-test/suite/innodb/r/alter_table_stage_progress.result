@@ -24,7 +24,7 @@ event_name	stage/innodb/alter table (log)
 work_completed > 0	1
 work_estimated > 0	1
 work_completed <= work_estimated	1
-event_name	stage/innodb/alter table (read PK)
+event_name	stage/innodb/alter table (read PK and internal sort)
 work_completed > 0	1
 work_estimated > 0	1
 work_completed <= work_estimated	1

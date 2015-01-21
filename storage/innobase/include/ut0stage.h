@@ -230,7 +230,7 @@ ut_stage_alter_t::begin_phase_read_pk(
 	m_cur_phase = READ_PK;
 
 	m_progress = mysql_set_stage(
-		srv_stage_alter_table_read_pk.m_key);
+		srv_stage_alter_table_read_pk_internal_sort.m_key);
 
 	mysql_stage_set_work_completed(m_progress, 0);
 
@@ -348,7 +348,7 @@ ut_stage_alter_t::begin_phase_sort(
 			round(sort_multi_factor));
 	}
 
-	change_phase(&srv_stage_alter_table_sort);
+	change_phase(&srv_stage_alter_table_merge_sort);
 }
 
 /** Flag the beginning of the insert phase. */
@@ -454,9 +454,9 @@ ut_stage_alter_t::change_phase(
 		return;
 	}
 
-	if (new_stage == &srv_stage_alter_table_read_pk) {
+	if (new_stage == &srv_stage_alter_table_read_pk_internal_sort) {
 		m_cur_phase = READ_PK;
-	} else if (new_stage == &srv_stage_alter_table_sort) {
+	} else if (new_stage == &srv_stage_alter_table_merge_sort) {
 		m_cur_phase = SORT;
 	} else if (new_stage == &srv_stage_alter_table_insert) {
 		m_cur_phase = INSERT;
