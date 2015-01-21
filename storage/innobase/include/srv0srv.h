@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2014, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 1995, 2015, Oracle and/or its affiliates. All rights reserved.
 Copyright (c) 2008, 2009, Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -483,12 +483,12 @@ row_log_table_apply(). */
 extern PSI_stage_info	srv_stage_alter_table_log;
 
 /** Performance schema stage event for monitoring ALTER TABLE progress
-row_merge_read_clustered_index(). */
-extern PSI_stage_info	srv_stage_alter_table_read_pk;
+row_merge_sort(). */
+extern PSI_stage_info	srv_stage_alter_table_merge_sort;
 
 /** Performance schema stage event for monitoring ALTER TABLE progress
-row_merge_sort(). */
-extern PSI_stage_info	srv_stage_alter_table_sort;
+row_merge_read_clustered_index(). */
+extern PSI_stage_info	srv_stage_alter_table_read_pk_internal_sort;
 
 /** Performance schema stage event for monitoring buffer pool load progress. */
 extern PSI_stage_info	srv_stage_buffer_pool_load;
