@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -124,8 +124,8 @@ struct st_ndb_status {
   long pushed_queries_dropped;
   long pushed_queries_executed;
   long pushed_reads;
-  long last_commit_epoch_server;
-  long last_commit_epoch_session;
+  long long last_commit_epoch_server;
+  long long last_commit_epoch_session;
   long transaction_no_hint_count[MAX_NDB_NODES];
   long transaction_hint_count[MAX_NDB_NODES];
   long long api_client_stats[Ndb::NumClientStatistics];
