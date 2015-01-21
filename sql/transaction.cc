@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -483,6 +483,15 @@ bool trans_savepoint(THD *thd, LEX_STRING name)
   if (!(thd->in_multi_stmt_transaction_mode() || thd->in_sub_stmt) ||
       !opt_using_transactions)
     DBUG_RETURN(FALSE);
+
+  if (thd->variables.transaction_write_set_extraction != HASH_ALGORITHM_OFF)
+  {
+    // is_fatal_errror is needed to avoid stored procedures to skip the error.
+    thd->is_fatal_error= 1;
+    my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0),
+             "--transaction-write-set-extraction!=OFF");
+    DBUG_RETURN(true);
+  }
 
   if (thd->get_transaction()->xid_state()->check_has_uncommitted_xa())
     DBUG_RETURN(true);
