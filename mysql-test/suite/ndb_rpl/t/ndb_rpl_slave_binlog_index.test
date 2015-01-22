@@ -3,6 +3,11 @@
 --source suite/ndb_rpl/ndb_master-slave.inc
 --source include/have_debug.inc
 
+if ($VALGRIND_TEST)
+{
+  --skip Too slow for Valgrind
+}
+
 --connection slave
 STOP SLAVE;
 
@@ -26,7 +31,7 @@ CREATE DEFINER=`root`@`localhost` PROCEDURE `loadgen`(total int) begin   set @x 
 
 DELIMITER ;%
 
-call loadgen(400);
+call loadgen(2000);
 
 --connection slave
 START SLAVE;
