@@ -516,8 +516,6 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
     const char *errmsg;
     int error_number= dlopen_errno;
     DLERROR_GENERATE(errmsg, error_number);
-// BUH
-fprintf(stdout, "XXXYYY: errmsg: %s\n", errmsg);
 
     if (!strncmp(dlpath, errmsg, dlpathlen))
     { // if errmsg starts from dlpath, trim this prefix.
