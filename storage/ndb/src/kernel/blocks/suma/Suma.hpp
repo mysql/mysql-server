@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -578,6 +578,8 @@ private:
   void check_start_handover(Signal* signal);
   void send_handover_req(Signal* signal, Uint32 type);
 
+  void calculate_sub_data_stream(Uint16 bucket, Uint16 buckets, Uint16 replicas);
+  Uint16 get_sub_data_stream(Uint16 bucket) const;
   Uint32 get_responsible_node(Uint32 B) const;
   Uint32 get_responsible_node(Uint32 B, const NdbNodeBitmask& mask) const;
   bool check_switchover(Uint32 bucket, Uint64 gci);
@@ -613,6 +615,7 @@ private:
     Uint16 m_state;
     Uint16 m_switchover_node;
     Uint16 m_nodes[MAX_REPLICAS]; 
+    Uint16 m_sub_data_stream;
     Uint32 m_buffer_tail;   // Page
     Uint64 m_switchover_gci;
     Uint64 m_max_acked_gci;
@@ -727,6 +730,14 @@ private:
   void sendScanSubTableData(Signal* signal, Ptr<SyncRecord>, Uint32);
 };
 
+inline
+Uint16
+Suma::get_sub_data_stream(Uint16 bucket) const
+{
+  ndbassert(bucket < NO_OF_BUCKETS);
+  const Bucket* ptr= c_buckets + bucket;
+  return ptr->m_sub_data_stream;
+}
 
 #undef JAM_FILE_ID
 
