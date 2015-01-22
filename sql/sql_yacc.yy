@@ -12947,6 +12947,7 @@ keyword:
         | FLUSH_SYM             {}
         | FOLLOWS_SYM           {}
         | FORMAT_SYM            {}
+        | GROUP_REPLICATION     {}
         | HANDLER_SYM           {}
         | HELP_SYM              {}
         | HOST_SYM              {}
