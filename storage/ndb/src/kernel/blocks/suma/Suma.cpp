@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -669,6 +669,31 @@ valid_seq(Uint32 n, Uint32 r, Uint16 dst[])
 }
 
 void
+Suma::calculate_sub_data_stream(Uint16 bucket, Uint16 buckets, Uint16 replicas)
+{
+  ndbassert(bucket < NO_OF_BUCKETS);
+  Bucket* ptr = c_buckets + bucket;
+
+  // First responsible node, irrespective of it is up or not
+  const Uint16 node = ptr->m_nodes[0];
+  ndbassert(node >= 1);
+  ndbassert(node <= MAX_SUB_DATA_STREAM_GROUPS);
+  const Uint16 buckets_per_node = buckets/replicas;
+  ndbassert(buckets_per_node <= MAX_SUB_DATA_STREAMS_PER_GROUP);
+  const Uint16 sub_data_stream = (node << 8) | (bucket % buckets_per_node);
+
+#ifdef VM_TRACE
+  // Verify that this blocks sub data stream identifiers are unique.
+  for (Uint32 i = 0; i < bucket; i++)
+  {
+    ndbassert(c_buckets[i].m_sub_data_stream != sub_data_stream);
+  }
+#endif
+
+  ptr->m_sub_data_stream = sub_data_stream;
+}
+
+void
 Suma::fix_nodegroup()
 {
   Uint32 i, pos= 0;
@@ -719,6 +744,7 @@ Suma::fix_nodegroup()
           if (DBG_3R) printf("%u ", ptr->m_nodes[j]);
         }
         if (DBG_3R) printf("\n");
+        calculate_sub_data_stream(cnt, buckets, replicas);
         cnt++;
       }
     }
@@ -5173,13 +5199,60 @@ found:
   rep->senderRef  = reference();
   rep->gcp_complete_rep_count = m_gcp_complete_rep_count;
 
+  /**
+   * Append the identifiers of the data streams that this Suma has
+   * completed for the gcp.
+   * The subscribers can use that to identify duplicates or lack
+   * of reception.
+   */
+  Uint32 siglen = SubGcpCompleteRep::SignalLength;
+
+  Uint32 stream_count=0;
+  for(Uint32 bucket = 0; bucket < NO_OF_BUCKETS; bucket ++)
+  {
+    if(m_active_buckets.get(bucket) ||
+       (m_switchover_buckets.get(bucket) && (check_switchover(bucket, gci))))
+    {
+      Uint32 sub_data_stream = get_sub_data_stream(bucket);
+      if ((stream_count & 1) == 0)
+      {
+        rep->sub_data_streams[stream_count/2] = sub_data_stream;
+      }
+      else
+      {
+        rep->sub_data_streams[stream_count/2] |= sub_data_stream << 16;
+      }
+      stream_count++;
+    }
+  }
+
+  /**
+   * If count match the number of buckets that should be reported
+   * complete, send subscription data streams identifiers.
+   * If this is not the case fallback on old signal without
+   * the streams identifiers, but that should not happend!
+   */
+  if (stream_count == m_gcp_complete_rep_count)
+  {
+    rep->flags |= SubGcpCompleteRep::SUB_DATA_STREAMS_IN_SIGNAL;
+    siglen += (stream_count + 1)/2;
+  }
+  else
+  {
+    g_eventLogger->error("Suma gcp complete rep count (%u) does "
+                         "not match number of buckets that should "
+                         "be reported complete (%u).",
+                         m_gcp_complete_rep_count,
+                         stream_count);
+    ndbassert(false);
+  }
+
   if(m_gcp_complete_rep_count && !c_subscriber_nodes.isclear())
   {
     CRASH_INSERTION(13033);
 
     NodeReceiverGroup rg(API_CLUSTERMGR, c_subscriber_nodes);
-    sendSignal(rg, GSN_SUB_GCP_COMPLETE_REP, signal,
-	       SubGcpCompleteRep::SignalLength, JBB);
+    sendSignal(rg, GSN_SUB_GCP_COMPLETE_REP, signal, siglen, JBB);
     
     Ptr<Gcp_record> gcp;
     if (c_gcp_list.seizeLast(gcp))
@@ -6798,6 +6871,8 @@ Suma::resend_bucket(Signal* signal, Uint32 buck, Uint64 min_gci,
     if(sz == 0)
     {
       SubGcpCompleteRep * rep = (SubGcpCompleteRep*)signal->getDataPtrSend();
+      Uint32 siglen = SubGcpCompleteRep::SignalLength;
+
       rep->gci_hi = (Uint32)(last_gci >> 32);
       rep->gci_lo = (Uint32)(last_gci & 0xFFFFFFFF);
       rep->flags = (m_missing_data)
@@ -6805,6 +6880,11 @@ Suma::resend_bucket(Signal* signal, Uint32 buck, Uint64 min_gci,
                    : 0;
       rep->senderRef  = reference();
       rep->gcp_complete_rep_count = 1;
+
+      // Append the sub data stream id for the bucket
+      rep->sub_data_streams[0] = get_sub_data_stream(buck);
+      rep->flags |= SubGcpCompleteRep::SUB_DATA_STREAMS_IN_SIGNAL;
+      siglen ++;
 
       if (ERROR_INSERTED(13036))
       {
@@ -6824,8 +6904,7 @@ Suma::resend_bucket(Signal* signal, Uint32 buck, Uint64 min_gci,
       g_cnt = 0;
       
       NodeReceiverGroup rg(API_CLUSTERMGR, c_subscriber_nodes);
-      sendSignal(rg, GSN_SUB_GCP_COMPLETE_REP, signal,
-		 SubGcpCompleteRep::SignalLength, JBB);
+      sendSignal(rg, GSN_SUB_GCP_COMPLETE_REP, signal, siglen, JBB);
     } 
     else
     {
