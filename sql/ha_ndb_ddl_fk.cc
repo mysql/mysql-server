@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1559,8 +1559,10 @@ ha_ndbcluster::can_switch_engines()
 {
   DBUG_ENTER("ha_ndbcluster::can_switch_engines");
 
-  if (m_table == 0)
+  if (!m_table)
   {
+    /* Require the function to be called only with open table */
+    DBUG_ASSERT(m_table);
     DBUG_RETURN(0);
   }
 
@@ -1575,23 +1577,40 @@ ha_ndbcluster::can_switch_engines()
     DBUG_RETURN(0);
   }
 
-  // first shot
+  DBUG_ASSERT(thd_sql_command(thd) == SQLCOM_ALTER_TABLE);
 
-  LEX *lex= thd->lex;
-  DBUG_ASSERT(lex != 0);
-  if (lex->sql_command != SQLCOM_ALTER_TABLE)
+  HA_CREATE_INFO &create_info= thd->lex->create_info;
+  /* Check if engine clause is present */
+  if(!create_info.db_type)
+  {
+    /*
+     If not present, allow switching engines as the alter is an
+     ALTER PARTITION command and NDB allows switching engines for
+     partition regardless of FK presence.
+
+     The NULL check is done to create_info.db_type because,
+     mysql_alter_table assigns db_type value to a duplicate local copy.
+     So, create_info.db_type here will still be null, if there was
+     no 'engine' clause in alter command.(See BUG#20180331)
+     */
     DBUG_RETURN(1);
+  }
 
-  Alter_info &alter_info= lex->alter_info;
-  uint alter_flags= alter_info.flags;
-
-  if (!(alter_flags & Alter_info::ALTER_OPTIONS))
-    DBUG_RETURN(1);
-
-  HA_CREATE_INFO &create_info= lex->create_info;
   if (create_info.db_type->db_type == DB_TYPE_NDBCLUSTER)
+  {
+    /*
+     The Alter command has both PARTIITION and ENGINE clauses
+     but the value in ENGINE clause is NDB. Hence the ALTER is
+     effectively a PARTITION command.
+     So allow switching, regardless of any FK presence
+    */
     DBUG_RETURN(1);
+  }
 
+  /*
+   User wants to switch to another engine.
+   Only allow if there are no foreign key references to the table.
+  */
   if (is_child_or_parent_of_fk())
     DBUG_RETURN(0);
 
