@@ -1036,7 +1036,7 @@ static bool repository_check(sys_var *self, THD *thd, set_var *var, SLAVE_THD_TY
   mysql_mutex_lock(&LOCK_msr_map);
 
   /* Repository conversion not possible, when multiple channels exist */
-  if (msr_map.get_num_instances() > 1)
+  if (msr_map.get_num_instances(true) > 1)
   {
       msg= "Repository conversion is possible when only default channel exists";
       my_error(ER_CHANGE_RPL_INFO_REPOSITORY_FAILURE, MYF(0), msg);
