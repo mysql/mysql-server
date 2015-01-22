@@ -1246,13 +1246,6 @@ public:
   bool fix_fields(THD *thd, Item **ref);
   void fix_length_and_dec();
   void cleanup() { first_eval= TRUE; Item_real_func::cleanup(); }
-  bool check_gcol_func_processor(uchar *int_arg) 
-  {
-    DBUG_ENTER("Item_func_rand::check_gcol_func_processor");
-    DBUG_PRINT("info",
-      ("check_gcol_func_processor returns TRUE: unsupported function"));
-    DBUG_RETURN(TRUE);
-  }
 private:
   void seed_random (Item * val);  
 };

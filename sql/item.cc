@@ -1034,18 +1034,15 @@ bool Item_field::register_field_in_read_map(uchar *arg)
   return 0;
 }
 
-/*
+/**
   Mark field in bitmap supplied as *arg
 */
-
 bool Item_field::register_field_in_bitmap(uchar *arg)
 {
   MY_BITMAP *bitmap= (MY_BITMAP *) arg;
   DBUG_ASSERT(bitmap);
-  if (!bitmap)
-    return 1;
   bitmap_set_bit(bitmap, field->field_index);
-  return 0;
+  return false;
 }
 
 bool Item::check_cols(uint c)

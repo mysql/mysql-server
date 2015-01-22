@@ -466,6 +466,9 @@ bool mysql_update(THD *thd,
   table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
 
   table->mark_columns_needed_for_update();
+  if (table->vfield &&
+      check_values_valid_for_gc(thd, &fields, &values, table))
+    DBUG_RETURN(0);
 
   error= 0;
   qep_tab.set_table(table);
@@ -1962,6 +1965,9 @@ multi_update::initialize_tables(JOIN *join)
     }
     table->mark_columns_needed_for_update();
 
+    if (table->vfield &&
+        check_values_valid_for_gc(thd, fields, values, table))
+      DBUG_RETURN(0);
     /*
       enable uncacheable flag if we update a view with check option
       and check option has a subselect, otherwise, the check option

@@ -9914,7 +9914,6 @@ bool Create_field::init(THD *thd, const char *fld_name,
   /* Initialize data for a virtual field */
   if (gcol_info)
   {
-    DBUG_ASSERT(gcol_info);
     DBUG_ASSERT(gcol_info->expr_item);
     stored_in_db= gcol_info->get_field_stored();
     /*
@@ -9925,12 +9924,14 @@ bool Create_field::init(THD *thd, const char *fld_name,
     */
     switch (gcol_info->expr_item->type()) {
     case Item::FUNC_ITEM:
-         if (((Item_func *)gcol_info->expr_item)->functype() == Item_func::FUNC_SP)
-         {
-           my_error(ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED, MYF(0), field_name);
-           DBUG_RETURN(TRUE);
-         }
-         break;
+      if (((Item_func *)gcol_info->expr_item)->functype() ==
+          Item_func::FUNC_SP)
+      {
+        my_error(ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED, MYF(0),
+                 field_name);
+        DBUG_RETURN(TRUE);
+      }
+      break;
     case Item::COPY_STR_ITEM:
     case Item::FIELD_AVG_ITEM:
     case Item::PROC_ITEM:
@@ -9945,11 +9946,12 @@ bool Create_field::init(THD *thd, const char *fld_name,
     case Item::TRIGGER_FIELD_ITEM:
     case Item::XPATH_NODESET:
     case Item::XPATH_NODESET_CMP:
-    case Item::VIEW_FIXER_ITEM: 
-         my_error(ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED, MYF(0), field_name);
-         DBUG_RETURN(TRUE);
-         break;
-    default: 
+    case Item::VIEW_FIXER_ITEM:
+      my_error(ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED, MYF(0),
+               field_name);
+      DBUG_RETURN(TRUE);
+      break;
+    default:
       // Continue with the field creation
       break;
     }

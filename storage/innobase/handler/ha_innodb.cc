@@ -2347,7 +2347,7 @@ ha_innobase::ha_innobase(
 			  | HA_CAN_RTREEKEYS
 			  | HA_HAS_RECORDS
 			  | HA_NO_READ_LOCAL_LOCK
-        | HA_GENERATED_COLUMNS
+			  | HA_GENERATED_COLUMNS
 			  | HA_ATTACHABLE_TRX_COMPATIBLE
 		  ),
 	m_start_of_scan(),
@@ -6851,7 +6851,7 @@ calc_row_difference(
 	ulint		n_changed = 0;
 	dfield_t	dfield;
 	dict_index_t*	clust_index;
-        uint            i;
+  uint            i;
 	ibool		changes_fts_column = FALSE;
 	ibool		changes_fts_doc_col = FALSE;
 	trx_t*          trx = thd_to_trx(thd);

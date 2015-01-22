@@ -713,10 +713,10 @@ static bool pack_header(uchar *forminfo, enum legacy_db_type table_type,
     if (field->gcol_info)
     {
       uint tmp_len= system_charset_info->cset->charpos(system_charset_info,
-                                                  field->gcol_info->expr_str.str,
-                                                  field->gcol_info->expr_str.str +
-                                                  field->gcol_info->expr_str.length,
-                                                  GENERATED_COLUMN_EXPRESSION_MAXLEN);
+                                                       field->gcol_info->expr_str.str,
+                                                       field->gcol_info->expr_str.str +
+                                                       field->gcol_info->expr_str.length,
+                                                       GENERATED_COLUMN_EXPRESSION_MAXLEN);
 
       if (tmp_len < field->gcol_info->expr_str.length)
       {

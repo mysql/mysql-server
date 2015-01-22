@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,7 +25,6 @@
 #include "filesort.h"            // filesort_free_buffers
 #include "sql_class.h"                          // THD
 #include "sql_select.h"          // JOIN_TAB
-#include "sql_base.h"            // update_generated_read_fields
 
 
 static int rr_quick(READ_RECORD *info);
@@ -400,9 +399,6 @@ static int rr_quick(READ_RECORD *info)
       break;
     }
   }
-
-  if (!tmp && info->table->vfield && update_generated_read_fields(info->table))
-    tmp= rr_handle_error(info, HA_ERR_INTERNAL_ERROR);
   return tmp;
 }
 
@@ -518,8 +514,6 @@ int rr_sequential(READ_RECORD *info)
       break;
     }
   }
-  if (!tmp && info->table->vfield && update_generated_read_fields(info->table))
-    tmp= rr_handle_error(info, HA_ERR_INTERNAL_ERROR);
   return tmp;
 }
 

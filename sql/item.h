@@ -597,7 +597,7 @@ typedef enum monotonicity_info
 } enum_monotonicity_info;
 
 /* This enum is used to return invalid refer by GC */
-enum invalid_ref_by_gc {REF_INVALID_GC= -1, REF_INVALIDE_AUTO_INC= -2};
+enum invalid_ref_by_gc {REF_INVALID_GC= -1, REF_INVALID_AUTO_INC= -2};
 
 /*************************************************************************/
 
@@ -1750,9 +1750,8 @@ public:
 
   virtual Item* equality_substitution_transformer(uchar *arg) { return this; }
 
-  /*
-    The next function differs from the previous one that a bitmap to be updated
-    is passed as uchar *arg.
+  /**
+    Mark field in bitmap supplied as *arg
   */
   virtual bool register_field_in_bitmap(uchar *arg) { return 0; }
   /*
@@ -1847,7 +1846,7 @@ public:
    @brief  check_gcol_func_processor
      Check if an expression/function is allowed for a virtual column
 
-   @param int_arg It is just ignored
+   @param int_arg It is only used for Item_field
 
    @return
      TRUE                           Function not accepted
@@ -2320,13 +2319,6 @@ public:
   {
     return value_item->send(protocol, str);
   }
-  bool check_gcol_func_processor(uchar *int_arg) 
-  {
-    DBUG_ENTER("Item_name_const::check_gcol_func_processor");
-    DBUG_PRINT("info",
-      ("check_gcol_func_processor returns TRUE: unsupported function"));
-    DBUG_RETURN(TRUE);
-  }
 };
 
 bool agg_item_collations(DTCollation &c, const char *name,
@@ -2632,6 +2624,12 @@ public:
   bool register_field_in_read_map(uchar *arg);
   bool register_field_in_bitmap(uchar *arg);
   bool check_partition_func_processor(uchar *int_arg) {return false;}
+
+  /**
+    @param int_arg It has two kinds of uses. One is used for passing the
+    field index before calling. The other is as a carrier to return the
+    error code.
+  */
   bool check_gcol_func_processor(uchar *int_arg)
   {
     int *fld_idx= (int *)int_arg;
@@ -2645,7 +2643,7 @@ public:
     if (field->flags & AUTO_INCREMENT_FLAG &&  
           field->table->field[*fld_idx]->stored_in_db)
     {
-      *fld_idx= REF_INVALIDE_AUTO_INC;
+      *fld_idx= REF_INVALID_AUTO_INC;
       return true;
     }
 

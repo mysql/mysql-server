@@ -3132,7 +3132,6 @@ bool fill_field_definition(THD *thd,
                       &lex->interval_list,
                       lex->charset ? lex->charset :
                                      thd->variables.collation_database,
-                      // TODO check last arg
                       lex->uint_geom_type, NULL))
   {
     return true;
@@ -3650,6 +3649,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
   record_offset= 0;
   null_fields+= total_uneven_bit_length;
 
+  bool has_vgc= false;
   it.rewind();
   while ((sql_field=it++))
   {
@@ -3670,15 +3670,20 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
     */
     if (sql_field->stored_in_db)
       record_offset+= sql_field->pack_length;
+    else
+      has_vgc= true;
   }
   /* Update generated fields' offset*/
-  it.rewind();
-  while ((sql_field=it++))
+  if (has_vgc)
   {
-    if (!sql_field->stored_in_db)
+    it.rewind();
+    while ((sql_field=it++))
     {
-      sql_field->offset= record_offset;
-      record_offset+= sql_field->pack_length;
+      if (!sql_field->stored_in_db)
+      {
+        sql_field->offset= record_offset;
+        record_offset+= sql_field->pack_length;
+      }
     }
   }
   if (auto_increment > 1)
@@ -7112,7 +7117,6 @@ upgrade_old_temporal_types(THD *thd, Alter_info *alter_info)
         temporal_field->init(thd, def->field_name, sql_type, NULL, NULL,
                              (def->flags & NOT_NULL_FLAG), default_value,
                              update_value, &def->comment, def->change, NULL,
-                             // TODO check last arg
                              NULL, 0, NULL))
       DBUG_RETURN(true);
 
@@ -7264,7 +7268,8 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
     If the base column has a generated column dependency, it's not allowed
     to be dropped.
   */
-  if (table->is_field_dependent_by_generated_columns(field->field_index))
+  if (table->vfield &&
+      table->is_field_dependent_by_generated_columns(field->field_index))
     my_error(ER_DEPENDENT_BY_GENERATED_COLUMN, MYF(0), field->field_name);
 
   /*
@@ -7372,7 +7377,7 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
       goto err;
     }
 
-    //Check whether virtual GCs are mixed with other columns
+    // Check whether virtual GCs are mixed with other columns
     if (status == ADDED_NONE)
     {
       if (def->gcol_info && !def->gcol_info->get_field_stored())
@@ -7647,7 +7652,6 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
     Key *key;
     while ((key=key_it++))			// Add new keys
     {
-      // TODO how is this related to this WL?
       if (key->type == KEYTYPE_FOREIGN &&
           ((Foreign_key *)key)->validate(new_create_list))
         goto err;

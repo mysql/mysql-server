@@ -5777,8 +5777,6 @@ bool Item_func_set_user_var::register_field_in_bitmap(uchar *arg)
   DBUG_ASSERT(bitmap);
   if (result_field)
   {
-    if (!bitmap)
-      return 1;
     bitmap_set_bit(bitmap, result_field->field_index);
   }
   return 0;
@@ -7495,12 +7493,12 @@ bool Item_func_match::fix_fields(THD *thd, Item **ref)
     can have FTS_DOC_ID column. Atm this is the only way
     to distinguish MyISAM and InnoDB engines.
     Generally table_ref should be available, but in case of
-    a generated  column's generation expression it's not. Thus
+    a generated column's generation expression it's not. Thus
     we use field's table, at this moment it's already available.
   */
   TABLE *const table= table_ref ?
-	  table_ref->table :
-	  ((Item_field *)item)->field->table; 
+    table_ref->table :
+    ((Item_field *)item)->field->table;
 
   if (!(table->file->ha_table_flags() & HA_CAN_FULLTEXT))
   {

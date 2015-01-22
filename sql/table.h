@@ -2616,6 +2616,11 @@ inline void mark_as_null_row(TABLE *table)
 
 bool is_simple_order(ORDER *order);
 
+bool update_generated_write_fields(TABLE *table);
+bool update_generated_read_fields(TABLE *table);
+
+bool check_values_valid_for_gc(THD * thd, List<Item> *fields,
+                        List<Item> *values, TABLE *tab);
 #endif /* MYSQL_CLIENT */
 
 #endif /* TABLE_INCLUDED */
