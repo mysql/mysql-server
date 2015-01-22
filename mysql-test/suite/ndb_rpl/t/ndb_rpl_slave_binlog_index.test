@@ -2,11 +2,7 @@
 --source include/have_binlog_format_mixed_or_row.inc
 --source suite/ndb_rpl/ndb_master-slave.inc
 --source include/have_debug.inc
-
-if ($VALGRIND_TEST)
-{
-  --skip Too slow for Valgrind
-}
+--source include/not_valgrind.inc
 
 --connection slave
 STOP SLAVE;
