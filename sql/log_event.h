@@ -75,7 +75,7 @@ using binary_log::Format_description_event;
 class String;
 typedef ulonglong sql_mode_t;
 typedef struct st_db_worker_hash_entry db_worker_hash_entry;
-extern char server_version[SERVER_VERSION_LENGTH];
+extern "C" MYSQL_PLUGIN_IMPORT char server_version[SERVER_VERSION_LENGTH];
 #define PREFIX_SQL_LOAD "SQL_LOAD-"
 
 /**
