@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,25 +13,24 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#define MYSQL_LEX 1
-#include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "sql_view.h"
-#include "sql_base.h"    // find_table_in_global_list, lock_table_names
-#include "sql_parse.h"                          // sql_parse
-#include "sql_cache.h"                          // query_cache_*
-#include "lock.h"        // MYSQL_OPEN_SKIP_TEMPORARY 
+
+#include "auth_common.h" // CREATE_VIEW_ACL
+#include "binlog.h"      // mysql_bin_log
+#include "datadict.h"    // dd_frm_type
+#include "opt_trace.h"   // Opt_trace_object
+#include "parse_file.h"  // File_option
+#include "sp_cache.h"    // sp_cache_invalidate
+#include "sql_base.h"    // get_table_def_key
+#include "sql_cache.h"   // query_cache
+#include "sql_class.h"   // THD
+#include "sql_db.h"      // check_db_dir_existence
+#include "sql_parse.h"   // create_default_definer
 #include "sql_show.h"    // append_identifier
-#include "sql_table.h"                         // build_table_filename
-#include "sql_db.h"            // mysql_opt_change_db, mysql_change_db
-#include "auth_common.h"       // *_ACL, check_grant
-#include "sql_select.h"
-#include "parse_file.h"
-#include "sp.h"
-#include "sp_head.h"
-#include "sp_cache.h"
-#include "datadict.h"   // dd_frm_type()
-#include "opt_trace.h"  // opt_trace_disable_etc
-#include "binlog.h"
+#include "sql_table.h"   // build_table_filename
+
+#include "pfs_file_provider.h"
+#include "mysql/psi/mysql_file.h"
 
 #define MD5_BUFF_LENGTH 33
 

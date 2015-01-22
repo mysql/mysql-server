@@ -1,6 +1,15 @@
+# ==== Purpose ====
 #
 # Run a query over and over until it succeeds ot timeout occurs
 #
+# ==== Usage ====
+#
+# --let $query= STATEMENT
+# --source include/wait_for_query_to_succeed.inc
+#
+# Parameters:
+#   $query
+#     The statement to execute.
 
 
 let $counter= 100;
@@ -17,6 +26,7 @@ while ($mysql_errno)
 
   if (!$counter)
   {
+    --source include/show_rpl_debug_info.inc
     --die "Waited too long for query to succeed";
   }
 }

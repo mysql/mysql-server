@@ -105,8 +105,6 @@ my_bool my_init()
   if ((str= getenv("UMASK_DIR")) != 0)
     my_umask_dir= (int) (atoi_octal(str) | 0700);
 
-  init_glob_errs();
-
   instrumented_stdin.m_file= stdin;
   instrumented_stdin.m_psi= NULL;       /* not yet instrumented */
   mysql_stdin= & instrumented_stdin;

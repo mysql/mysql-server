@@ -609,12 +609,12 @@ end_sj_materialize(JOIN *join, QEP_TAB *qep_tab, bool end_of_records)
       if (item->is_null())
         DBUG_RETURN(NESTED_LOOP_OK);
     }
-    fill_record(thd, table->field, sjm->sj_nest->nested_join->sj_inner_exprs,
-                (table->hash_field ?
-                    &table->hash_field_bitmap : NULL), NULL);
+    fill_record(thd, table->visible_field_ptr(),
+                sjm->sj_nest->nested_join->sj_inner_exprs,
+                NULL, NULL);
     if (thd->is_error())
       DBUG_RETURN(NESTED_LOOP_ERROR); /* purecov: inspected */
-    if (!check_unique_constraint(table, 0))
+    if (!check_unique_constraint(table))
       DBUG_RETURN(NESTED_LOOP_OK);
     if ((error= table->file->ha_write_row(table->record[0])))
     {
@@ -1361,10 +1361,11 @@ int do_sj_dups_weedout(THD *thd, SJ_TMP_TABLE *sjtbl)
     }
   }
 
-  uchar *ptr= sjtbl->tmp_table->record[0] + 1;
+  uchar *ptr= sjtbl->tmp_table->visible_field_ptr()[0]->ptr;
   // Put the rowids tuple into table->record[0]:
   // 1. Store the length 
-  if (((Field_varstring*)(sjtbl->tmp_table->field[0]))->length_bytes == 1)
+  if (((Field_varstring*)(sjtbl->tmp_table->visible_field_ptr()[0]))->
+                          length_bytes == 1)
   {
     *ptr= (uchar)(sjtbl->rowid_len + sjtbl->null_bytes);
     ptr++;
@@ -1401,7 +1402,7 @@ int do_sj_dups_weedout(THD *thd, SJ_TMP_TABLE *sjtbl)
     }
   }
 
-  if (!check_unique_constraint(sjtbl->tmp_table, 0))
+  if (!check_unique_constraint(sjtbl->tmp_table))
       DBUG_RETURN(1);
   error= sjtbl->tmp_table->file->ha_write_row(sjtbl->tmp_table->record[0]);
   if (error)
@@ -3096,15 +3097,14 @@ bool group_rec_cmp(ORDER *group, uchar *rec0, uchar *rec1)
     false records are the same
 */
 
-bool table_rec_cmp(TABLE *table, int hidden_field_count)
+bool table_rec_cmp(TABLE *table)
 {
   my_ptrdiff_t diff= table->record[1] - table->record[0];
+  Field **fields= table->visible_field_ptr();
 
-  int field_count= table->s->fields - 1;
-
-  for (int i= hidden_field_count; i < field_count ; i++)
+  for (uint i= 0; i < table->visible_field_count() ; i++)
   {
-    Field *field= table->field[i];
+    Field *field= fields[i];
     if (cmp_field_value(field, diff))
       return true;
   }
@@ -3176,13 +3176,14 @@ ulonglong unique_hash_group(ORDER *group)
 }
 
 
-/* Generate hash for unique_constraint according to fields list */
+/* Generate hash for unique_constraint for all visible fields of a table */
 
-ulonglong unique_hash_fields(Field **fields, int start, int field_count)
+ulonglong unique_hash_fields(TABLE *table)
 {
   ulonglong crc= 0;
+  Field **fields= table->visible_field_ptr();
 
-  for (int i= start; i < field_count ; i++)
+  for (uint i=0 ; i < table->visible_field_count() ; i++)
     unique_hash(fields[i], &crc);
 
   return crc;
@@ -3206,7 +3207,7 @@ ulonglong unique_hash_fields(Field **fields, int start, int field_count)
     true  record wasn't found
 */
 
-bool check_unique_constraint(TABLE *table, int hidden_field_count)
+bool check_unique_constraint(TABLE *table)
 {
   ulonglong hash;
 
@@ -3219,7 +3220,7 @@ bool check_unique_constraint(TABLE *table, int hidden_field_count)
   if (table->group)
     hash= unique_hash_group(table->group);
   else
-    hash= unique_hash_fields(table->field, hidden_field_count, table->s->fields - 1);
+    hash= unique_hash_fields(table);
   table->hash_field->store(hash, true);
   int res= table->file->ha_index_read_map(table->record[1],
                                           (uchar*)table->hash_field->ptr,
@@ -3229,7 +3230,7 @@ bool check_unique_constraint(TABLE *table, int hidden_field_count)
   {
     // Check whether records are the same.
     if (!(table->distinct ?
-          table_rec_cmp(table, hidden_field_count) :
+          table_rec_cmp(table) :
           group_rec_cmp(table->group, table->record[0], table->record[1])))
       return false; // skip it
     res= table->file->ha_index_next_same(table->record[1],
@@ -3264,7 +3265,7 @@ end_write(JOIN *join, QEP_TAB *const qep_tab, bool end_of_records)
       int error;
       join->found_records++;
 
-      if (!check_unique_constraint(table, tmp_tbl->hidden_field_count))
+      if (!check_unique_constraint(table))
         goto end; // skip it
 
       if ((error=table->file->ha_write_row(table->record[0])))
@@ -3330,7 +3331,7 @@ end_update(JOIN *join, QEP_TAB *const qep_tab, bool end_of_records)
     */
     if (copy_funcs(tmp_tbl->items_to_copy, join->thd))
       DBUG_RETURN(NESTED_LOOP_ERROR);           /* purecov: inspected */
-    if (!check_unique_constraint(table, tmp_tbl->hidden_field_count))
+    if (!check_unique_constraint(table))
       group_found= true;
   }
   else

@@ -2081,6 +2081,10 @@ CREATE TABLE t2 (
 a INTEGER NOT NULL
 )ENGINE=InnoDB;
 INSERT INTO t2 VALUES (1), (2);
+ANALYZE TABLE t1,t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 SET @save_optimizer_switch= @@optimizer_switch;
 SET @@SESSION.optimizer_switch="index_condition_pushdown=on";
 EXPLAIN SELECT a1.a, a1.b, a1.c FROM (SELECT a, b, c FROM t1 ) a1

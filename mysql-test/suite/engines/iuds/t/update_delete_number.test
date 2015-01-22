@@ -29,6 +29,8 @@ UPDATE t1 SET c1=120 WHERE c2 IS NULL;
 SELECT c1,c2 FROM t1 WHERE c1=120;
 
 # Update negative value to unsigned col
+# Legacy queries below need to turn off ONLY_FULL_GROUP_BY and STRICT mode.
+SET SQL_MODE='NO_ENGINE_SUBSTITUTION';
 UPDATE t1 SET c1=-120 WHERE c2=-102;
 --sorted_result
 SELECT c1,c2 FROM t1 WHERE c2=-102;
@@ -51,6 +53,7 @@ SELECT COUNT(*) FROM t1 WHERE c1=4294967296 AND c2=2147483648 /* no rows */;
 --sorted_result
 SELECT * FROM t1 WHERE c1=4294967295 AND c2=2147483647;
 UPDATE t1 SET c2=-2147483649 WHERE c1=109 ORDER BY c1;
+SET SQL_MODE=DEFAULT;
 --sorted_result
 SELECT c1,c2 FROM t1 WHERE c1=109;
  
@@ -62,8 +65,10 @@ UPDATE t1 SET c1=NULL WHERE c2=-110;
 UPDATE IGNORE t1 SET c1=NULL WHERE c2=-110 /* updates to default value 0 */;
 --sorted_result
 SELECT c1,c2 FROM t1 WHERE c2=-110;
-SET SQL_MODE=DEFAULT;
+# Legacy queries below need to turn off ONLY_FULL_GROUP_BY and STRICT mode.
+SET SQL_MODE='NO_ENGINE_SUBSTITUTION';
 UPDATE t1 SET c1=NULL WHERE c2=-111 /* updates to default value 0 */;
+SET SQL_MODE=DEFAULT;
 --sorted_result
 SELECT * FROM t1 WHERE c1=0;
 
@@ -97,6 +102,8 @@ SELECT c1 FROM t2 WHERE c2=13;
 # Update the unsigned auto_increment field
 UPDATE t1 SET c1=4294967295,c2=2147483647 WHERE c2=13;
 SELECT c1,c2 FROM t1 ORDER BY c1;
+# Legacy queries below need to turn off ONLY_FULL_GROUP_BY and STRICT mode.
+SET SQL_MODE='NO_ENGINE_SUBSTITUTION';
 UPDATE t2 SET c1=0,c2=-2147483648 WHERE c2=2;
 SELECT c1,c2 FROM t1 ORDER BY c1;
 UPDATE t2 SET c2=0 WHERE c2=5;
@@ -108,6 +115,7 @@ UPDATE t2 SET c1=-2147483648,c2=0 WHERE c2=2;
 SELECT c1,c2 FROM t2 ORDER BY c1;
 UPDATE t2 SET c1=0,c2=0 WHERE c2=5;
 SELECT c1,c2 FROM t2 ORDER BY c1;
+SET SQL_MODE=DEFAULT;
 
 # Multi table update
 CREATE TABLE mt1 (c1 INT NOT NULL PRIMARY KEY, c2 INTEGER, KEY(c2));
@@ -218,7 +226,8 @@ update mt1,mt2 set mt1.b=mt1.b+10 where mt1.b=2;
 --sorted_result
 select * from mt1;
 # Range key (in mt1)
-update mt1,mt2 set mt1.b=mt1.b+2,mt2.b=mt1.b+10 where mt1.b between 3 and 5 and mt2.a=mt1.a-100;
+# The result depends on join order, so STRAIGHT_JOIN is used to have it repeatable.
+update mt1 straight_join mt2 set mt1.b=mt1.b+2,mt2.b=mt1.b+10 where mt1.b between 3 and 5 and mt2.a=mt1.a-100;
 --sorted_result
 select * from mt1;
 --sorted_result
@@ -390,7 +399,8 @@ create table mt1 (n int(10), d int(10));
 create table mt2 (n int(10), d int(10));
 insert into mt1 values(1,1),(1,2);
 insert into mt2 values(1,10),(2,20);
-UPDATE mt1,mt2 SET mt1.d=mt2.d,mt2.d=30 WHERE mt1.n=mt2.n;
+# The result depends on join order, so STRAIGHT_JOIN is used to have it repeatable.
+UPDATE mt1 straight_join mt2 SET mt1.d=mt2.d,mt2.d=30 WHERE mt1.n=mt2.n;
 --sorted_result
 select * from mt1;
 --sorted_result
@@ -400,12 +410,14 @@ create table mt1 (n int(10), d int(10));
 create table mt2 (n int(10), d int(10));
 insert into mt1 values(1,1),(3,2);
 insert into mt2 values(1,10),(1,20);
-UPDATE mt1,mt2 SET mt1.d=mt2.d,mt2.d=30 WHERE mt1.n=mt2.n;
+# The result depends on join order, so STRAIGHT_JOIN is used to have it repeatable.
+UPDATE mt1 straight_join mt2 SET mt1.d=mt2.d,mt2.d=30 WHERE mt1.n=mt2.n;
 --sorted_result
 select * from mt1;
 --sorted_result
 select * from mt2;
-UPDATE mt1 a ,mt2 b SET a.d=b.d,b.d=30 WHERE a.n=b.n;
+# The result depends on join order, so STRAIGHT_JOIN is used to have it repeatable.
+UPDATE mt1 a straight_join mt2 b SET a.d=b.d,b.d=30 WHERE a.n=b.n;
 --sorted_result
 select * from mt1;
 --sorted_result
@@ -605,7 +617,8 @@ SELECT * FROM t1 WHERE c1=102 AND c2 IS NULL;
 UPDATE t1 SET c1=120 WHERE c2 IS NULL;
 --sorted_result
 SELECT c1,c2 FROM t1 WHERE c1=120;
-
+# Legacy queries below need to turn off ONLY_FULL_GROUP_BY and STRICT mode.
+SET SQL_MODE='NO_ENGINE_SUBSTITUTION';
 # Update negative value to unsigned col
 UPDATE t1 SET c1=-120 WHERE c2=-102;
 --sorted_result
@@ -631,7 +644,7 @@ SELECT * FROM t1 WHERE c1=255 AND c2=127;
 UPDATE t1 SET c2=-129 WHERE c1=109 ORDER BY c1;
 --sorted_result
 SELECT c1,c2 FROM t1 WHERE c1=109;
- 
+SET SQL_MODE=DEFAULT;
 # Update ignore on bad null error
 INSERT INTO t1 VALUES(110,-110,14),(111,-111,15);
 SET SQL_MODE=STRICT_ALL_TABLES;
@@ -640,8 +653,10 @@ UPDATE t1 SET c1=NULL WHERE c2=-110;
 UPDATE IGNORE t1 SET c1=NULL WHERE c2=-110 /* updates to default value 0 */;
 --sorted_result
 SELECT c1,c2 FROM t1 WHERE c2=-110;
-SET SQL_MODE=DEFAULT;
+# Legacy queries below need to turn off ONLY_FULL_GROUP_BY and STRICT mode.
+SET SQL_MODE='NO_ENGINE_SUBSTITUTION';
 UPDATE t1 SET c1=NULL WHERE c2=-111 /* updates to default value 0 */;
+SET SQL_MODE=DEFAULT;
 --sorted_result
 SELECT * FROM t1 WHERE c1=0;
 
@@ -675,7 +690,10 @@ SELECT c1 FROM t2 WHERE c2=13;
 # Update the unsigned auto_increment field
 UPDATE t1 SET c1=255,c2=127 WHERE c2=13;
 SELECT c1,c2 FROM t1 ORDER BY c1;
+# Legacy queries below need to turn off ONLY_FULL_GROUP_BY and STRICT mode.
+SET SQL_MODE='NO_ENGINE_SUBSTITUTION';
 UPDATE t2 SET c1=0,c2=-128 WHERE c2=2;
+SET SQL_MODE=DEFAULT;
 SELECT c1,c2 FROM t1 ORDER BY c1;
 UPDATE t2 SET c2=0 WHERE c2=5;
 SELECT c1,c2 FROM t1 ORDER BY c1;
@@ -790,7 +808,10 @@ update mt1,mt2 set mt1.a=mt1.a+100;
 --sorted_result
 select * from mt1;
 # unique key
+# Legacy queries below need to turn off ONLY_FULL_GROUP_BY and STRICT mode.
+SET SQL_MODE='NO_ENGINE_SUBSTITUTION';
 update mt1,mt2 set mt1.a=mt1.a+100 where mt1.a=101;
+SET SQL_MODE=DEFAULT;
 --sorted_result
 select * from mt1;
 # ref key
@@ -798,7 +819,8 @@ update mt1,mt2 set mt1.b=mt1.b+10 where mt1.b=2;
 --sorted_result
 select * from mt1;
 # Range key (in mt1)
-update mt1,mt2 set mt1.b=mt1.b+2,mt2.b=mt1.b+10 where mt1.b between 3 and 5 and mt2.a=mt1.a-100;
+# The result depends on join order, so STRAIGHT_JOIN is used to have it repeatable.
+update mt1 straight_join mt2 set mt1.b=mt1.b+2,mt2.b=mt1.b+10 where mt1.b between 3 and 5 and mt2.a=mt1.a-100;
 --sorted_result
 select * from mt1;
 --sorted_result
@@ -907,7 +929,10 @@ UPDATE t1 SET c1=120 WHERE c2 IS NULL;
 SELECT c1,c2 FROM t1 WHERE c1=120;
 
 # Update negative value to unsigned col
+# Legacy queries below need to turn off ONLY_FULL_GROUP_BY and STRICT mode.
+SET SQL_MODE='NO_ENGINE_SUBSTITUTION';
 UPDATE t1 SET c1=-120 WHERE c2=-102;
+SET SQL_MODE=DEFAULT;
 --sorted_result
 SELECT c1,c2 FROM t1 WHERE c2=-102;
 
@@ -924,6 +949,8 @@ SELECT * FROM t1 WHERE c2=0;
 
 # Update outside range, would be clipped to closest endpoint
 INSERT INTO t1 VALUES(106,-106,9),(107,-107,10),(108,-108,11),(109,-109,12),(255,127,13);
+# Legacy queries below need to turn off ONLY_FULL_GROUP_BY and STRICT mode.
+SET SQL_MODE='NO_ENGINE_SUBSTITUTION';
 UPDATE t1 SET c1=65536,c2=32768 WHERE c2 BETWEEN -108 AND -106;
 SELECT COUNT(*) FROM t1 WHERE c1=65536 AND c2=32768 /* no rows */;
 --sorted_result
@@ -931,7 +958,7 @@ SELECT * FROM t1 WHERE c1=65535 AND c2=32767;
 UPDATE t1 SET c2=-32769 WHERE c1=109 ORDER BY c1;
 --sorted_result
 SELECT c1,c2 FROM t1 WHERE c1=109;
- 
+SET SQL_MODE=DEFAULT;
 # Update ignore on bad null error
 INSERT INTO t1 VALUES(110,-110,14),(111,-111,15);
 SET SQL_MODE=STRICT_ALL_TABLES;
@@ -940,8 +967,10 @@ UPDATE t1 SET c1=NULL WHERE c2=-110;
 UPDATE IGNORE t1 SET c1=NULL WHERE c2=-110 /* updates to default value 0 */;
 --sorted_result
 SELECT c1,c2 FROM t1 WHERE c2=-110;
-SET SQL_MODE=DEFAULT;
+# Legacy queries below need to turn off ONLY_FULL_GROUP_BY and STRICT mode.
+SET SQL_MODE='NO_ENGINE_SUBSTITUTION';
 UPDATE t1 SET c1=NULL WHERE c2=-111 /* updates to default value 0 */;
+SET SQL_MODE=DEFAULT;
 --sorted_result
 SELECT * FROM t1 WHERE c1=0;
 
@@ -975,6 +1004,8 @@ SELECT c1 FROM t2 WHERE c2=13;
 # Update the unsigned auto_increment field
 UPDATE t1 SET c1=65535,c2=32767 WHERE c2=13;
 SELECT c1,c2 FROM t1 ORDER BY c1;
+# Legacy queries below need to turn off ONLY_FULL_GROUP_BY and STRICT mode.
+SET SQL_MODE='NO_ENGINE_SUBSTITUTION';
 UPDATE t2 SET c1=0,c2=-32768 WHERE c2=2;
 SELECT c1,c2 FROM t1 ORDER BY c1;
 UPDATE t2 SET c2=0 WHERE c2=5;
@@ -986,6 +1017,7 @@ UPDATE t2 SET c1=-32768,c2=0 WHERE c2=2;
 SELECT c1,c2 FROM t2 ORDER BY c1;
 UPDATE t2 SET c1=0,c2=0 WHERE c2=5;
 SELECT c1,c2 FROM t2 ORDER BY c1;
+SET SQL_MODE=DEFAULT;
 
 # Multi table update
 CREATE TABLE mt1 (c1 SMALLINT NOT NULL PRIMARY KEY, c2 INTEGER, KEY(c2));
@@ -1097,7 +1129,8 @@ update mt1,mt2 set mt1.b=mt1.b+10 where mt1.b=2;
 --sorted_result
 select * from mt1;
 # Range key (in mt1)
-update mt1,mt2 set mt1.b=mt1.b+2,mt2.b=mt1.b+10 where mt1.b between 3 and 5 and mt2.a=mt1.a-100;
+# The result depends on join order, so STRAIGHT_JOIN is used to have it repeatable.
+update mt1 straight_join mt2 set mt1.b=mt1.b+2,mt2.b=mt1.b+10 where mt1.b between 3 and 5 and mt2.a=mt1.a-100;
 --sorted_result
 select * from mt1;
 --sorted_result
@@ -1208,6 +1241,8 @@ UPDATE t1 SET c1=120 WHERE c2 IS NULL;
 SELECT c1,c2 FROM t1 WHERE c1=120;
 
 # Update negative value to unsigned col
+# Legacy queries below need to turn off ONLY_FULL_GROUP_BY and STRICT mode.
+SET SQL_MODE='NO_ENGINE_SUBSTITUTION';
 UPDATE t1 SET c1=-120 WHERE c2=-102;
 --sorted_result
 SELECT c1,c2 FROM t1 WHERE c2=-102;
@@ -1232,7 +1267,7 @@ SELECT * FROM t1 WHERE c1=16777215 AND c2=8388607;
 UPDATE t1 SET c2=-8388609 WHERE c1=109 ORDER BY c1;
 --sorted_result
 SELECT c1,c2 FROM t1 WHERE c1=109;
- 
+SET SQL_MODE=DEFAULT;
 # Update ignore on bad null error
 INSERT INTO t1 VALUES(110,-110,14),(111,-111,15);
 SET SQL_MODE=STRICT_ALL_TABLES;
@@ -1241,8 +1276,10 @@ UPDATE t1 SET c1=NULL WHERE c2=-110;
 UPDATE IGNORE t1 SET c1=NULL WHERE c2=-110 /* updates to default value 0 */;
 --sorted_result
 SELECT c1,c2 FROM t1 WHERE c2=-110;
-SET SQL_MODE=DEFAULT;
+# Legacy queries below need to turn off ONLY_FULL_GROUP_BY and STRICT mode.
+SET SQL_MODE='NO_ENGINE_SUBSTITUTION';
 UPDATE t1 SET c1=NULL WHERE c2=-111 /* updates to default value 0 */;
+SET SQL_MODE=DEFAULT;
 --sorted_result
 SELECT * FROM t1 WHERE c1=0;
 
@@ -1276,6 +1313,8 @@ SELECT c1 FROM t2 WHERE c2=13;
 # Update the unsigned auto_increment field
 UPDATE t1 SET c1=16777215,c2=8388607 WHERE c2=13;
 SELECT c1,c2 FROM t1 ORDER BY c1;
+# Legacy queries below need to turn off ONLY_FULL_GROUP_BY and STRICT mode.
+SET SQL_MODE='NO_ENGINE_SUBSTITUTION';
 UPDATE t2 SET c1=0,c2=-8388608 WHERE c2=2;
 SELECT c1,c2 FROM t1 ORDER BY c1;
 UPDATE t2 SET c2=0 WHERE c2=5;
@@ -1287,6 +1326,7 @@ UPDATE t2 SET c1=-8388608,c2=0 WHERE c2=2;
 SELECT c1,c2 FROM t2 ORDER BY c1;
 UPDATE t2 SET c1=0,c2=0 WHERE c2=5;
 SELECT c1,c2 FROM t2 ORDER BY c1;
+SET SQL_MODE=DEFAULT;
 
 # Multi table update
 CREATE TABLE mt1 (c1 MEDIUMINT NOT NULL PRIMARY KEY, c2 INTEGER, KEY(c2));
@@ -1398,7 +1438,8 @@ update mt1,mt2 set mt1.b=mt1.b+10 where mt1.b=2;
 --sorted_result
 select * from mt1;
 # Range key (in mt1)
-update mt1,mt2 set mt1.b=mt1.b+2,mt2.b=mt1.b+10 where mt1.b between 3 and 5 and mt2.a=mt1.a-100;
+# The result depends on join order, so STRAIGHT_JOIN is used to have it repeatable.
+update mt1 straight_join mt2 set mt1.b=mt1.b+2,mt2.b=mt1.b+10 where mt1.b between 3 and 5 and mt2.a=mt1.a-100;
 --sorted_result
 select * from mt1;
 --sorted_result
@@ -1509,6 +1550,8 @@ UPDATE t1 SET c1=120 WHERE c2 IS NULL;
 SELECT c1,c2 FROM t1 WHERE c1=120;
 
 # Update negative value to unsigned col
+# Legacy queries below need to turn off ONLY_FULL_GROUP_BY and STRICT mode.
+SET SQL_MODE='NO_ENGINE_SUBSTITUTION';
 UPDATE t1 SET c1=-120 WHERE c2=-102;
 --sorted_result
 SELECT c1,c2 FROM t1 WHERE c2=-102;
@@ -1533,7 +1576,7 @@ SELECT * FROM t1 WHERE c1=18446744073709551615 AND c2=9223372036854775807;
 UPDATE t1 SET c2=-9223372036854775809 WHERE c1=109 ORDER BY c1;
 --sorted_result
 SELECT c1,c2 FROM t1 WHERE c1=109;
- 
+SET SQL_MODE=DEFAULT;
 # Update ignore on bad null error
 INSERT INTO t1 VALUES(110,-110,14),(111,-111,15);
 SET SQL_MODE=STRICT_ALL_TABLES;
@@ -1542,8 +1585,10 @@ UPDATE t1 SET c1=NULL WHERE c2=-110;
 UPDATE IGNORE t1 SET c1=NULL WHERE c2=-110 /* updates to default value 0 */;
 --sorted_result
 SELECT c1,c2 FROM t1 WHERE c2=-110;
-SET SQL_MODE=DEFAULT;
+# Legacy queries below need to turn off ONLY_FULL_GROUP_BY and STRICT mode.
+SET SQL_MODE='NO_ENGINE_SUBSTITUTION';
 UPDATE t1 SET c1=NULL WHERE c2=-111 /* updates to default value 0 */;
+SET SQL_MODE=DEFAULT;
 --sorted_result
 SELECT * FROM t1 WHERE c1=0;
 
@@ -1575,6 +1620,8 @@ SELECT c1 FROM t1 WHERE c2=13;
 INSERT INTO t2(c2,c3) VALUES(13,14);
 SELECT c1 FROM t2 WHERE c2=13;
 # Update the unsigned auto_increment field
+# Legacy queries below need to turn off ONLY_FULL_GROUP_BY and STRICT mode.
+SET SQL_MODE='NO_ENGINE_SUBSTITUTION';
 UPDATE t1 SET c1=18446744073709551615,c2=9223372036854775807 WHERE c2=13;
 SELECT c1,c2 FROM t1 ORDER BY c1;
 UPDATE t2 SET c1=0,c2=-9223372036854775808 WHERE c2=2;
@@ -1588,7 +1635,7 @@ UPDATE t2 SET c1=-9223372036854775808,c2=0 WHERE c2=2;
 SELECT c1,c2 FROM t2 ORDER BY c1;
 UPDATE t2 SET c1=0,c2=0 WHERE c2=5;
 SELECT c1,c2 FROM t2 ORDER BY c1;
-
+SET SQL_MODE=DEFAULT;
 # Multi table update
 CREATE TABLE mt1 (c1 BIGINT NOT NULL PRIMARY KEY, c2 INTEGER, KEY(c2));
 CREATE TABLE mt2 (c1 BIGINT NOT NULL PRIMARY KEY, c2 INTEGER, KEY(c2));
@@ -1701,7 +1748,8 @@ update mt1,mt2 set mt1.b=mt1.b+10 where mt1.b=2;
 --sorted_result
 select * from mt1;
 # Range key (in mt1)
-update mt1,mt2 set mt1.b=mt1.b+2,mt2.b=mt1.b+10 where mt1.b between 3 and 5 and mt2.a=mt1.a-100;
+# The result depends on join order, so STRAIGHT_JOIN is used to have it repeatable.
+update mt1 straight_join mt2 set mt1.b=mt1.b+2,mt2.b=mt1.b+10 where mt1.b between 3 and 5 and mt2.a=mt1.a-100;
 --sorted_result
 select * from mt1;
 --sorted_result

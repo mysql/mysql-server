@@ -283,18 +283,18 @@ create table t5 (id int primary key) engine = innodb
 key_block_size = 4 row_format = default;
 SELECT table_schema, table_name, row_format, data_length, index_length FROM information_schema.tables WHERE engine='innodb' AND table_schema != 'mysql';
 table_schema	table_name	row_format	data_length	index_length
-information_schema	COLUMNS	Compact	16384	0
-information_schema	EVENTS	Compact	16384	0
-information_schema	OPTIMIZER_TRACE	Compact	16384	0
-information_schema	PARAMETERS	Compact	16384	0
-information_schema	PARTITIONS	Compact	16384	0
-information_schema	PLUGINS	Compact	16384	0
-information_schema	PROCESSLIST	Compact	16384	0
-information_schema	ROUTINES	Compact	16384	0
-information_schema	TRIGGERS	Compact	16384	0
-information_schema	VIEWS	Compact	16384	0
-test	t1	Compressed	4096	0
-test	t5	Compressed	4096	0
+information_schema	COLUMNS	Compact	{valid}	0
+information_schema	EVENTS	Compact	{valid}	0
+information_schema	OPTIMIZER_TRACE	Compact	{valid}	0
+information_schema	PARAMETERS	Compact	{valid}	0
+information_schema	PARTITIONS	Compact	{valid}	0
+information_schema	PLUGINS	Compact	{valid}	0
+information_schema	PROCESSLIST	Compact	{valid}	0
+information_schema	ROUTINES	Compact	{valid}	0
+information_schema	TRIGGERS	Compact	{valid}	0
+information_schema	VIEWS	Compact	{valid}	0
+test	t1	Compressed	{valid}	0
+test	t5	Compressed	{valid}	0
 drop table t1, t5;
 create table t1 (id int primary key) engine = innodb
 key_block_size = 9 row_format = redundant;
@@ -322,16 +322,16 @@ Warning	1478	InnoDB: cannot specify ROW_FORMAT = DYNAMIC with KEY_BLOCK_SIZE.
 Error	1031	Table storage engine for 't2' doesn't have this option
 SELECT table_schema, table_name, row_format, data_length, index_length FROM information_schema.tables WHERE engine='innodb' AND table_schema != 'mysql';
 table_schema	table_name	row_format	data_length	index_length
-information_schema	COLUMNS	Compact	16384	0
-information_schema	EVENTS	Compact	16384	0
-information_schema	OPTIMIZER_TRACE	Compact	16384	0
-information_schema	PARAMETERS	Compact	16384	0
-information_schema	PARTITIONS	Compact	16384	0
-information_schema	PLUGINS	Compact	16384	0
-information_schema	PROCESSLIST	Compact	16384	0
-information_schema	ROUTINES	Compact	16384	0
-information_schema	TRIGGERS	Compact	16384	0
-information_schema	VIEWS	Compact	16384	0
+information_schema	COLUMNS	Compact	{valid}	0
+information_schema	EVENTS	Compact	{valid}	0
+information_schema	OPTIMIZER_TRACE	Compact	{valid}	0
+information_schema	PARAMETERS	Compact	{valid}	0
+information_schema	PARTITIONS	Compact	{valid}	0
+information_schema	PLUGINS	Compact	{valid}	0
+information_schema	PROCESSLIST	Compact	{valid}	0
+information_schema	ROUTINES	Compact	{valid}	0
+information_schema	TRIGGERS	Compact	{valid}	0
+information_schema	VIEWS	Compact	{valid}	0
 set global innodb_file_per_table = off;
 create table t1 (id int primary key) engine = innodb key_block_size = 1;
 ERROR HY000: Table storage engine for 't1' doesn't have this option

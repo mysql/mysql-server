@@ -23,26 +23,24 @@
   This file implements classes defined in field.h
 */
 
-#include "sql_select.h"
-#include "rpl_rli.h"                            // Pull in Relay_log_info
-#include "rpl_slave.h"                          // Pull in rpl_master_has_bug()
-#include "strfunc.h"                            // find_type2, find_set
-#include "sql_time.h"                    // str_to_datetime_with_warn,
-                                         // str_to_time_with_warn,
-                                         // TIME_to_timestamp,
-                                         // make_time, make_date,
-                                         // make_truncated_value_warning
-#include "tztime.h"                      // struct Time_zone
+#include "field.h"
+
 #include "filesort.h"                    // change_double_for_sort
-#include "log_event.h"                   // class Table_map_log_event
-#include <m_ctype.h>
-#include <errno.h>
-#include "sql_join_buffer.h"             // CACHE_FIELD
-#include "sql_base.h"
 #include "item_timefunc.h"               // Item_func_now_local
+#include "log_event.h"                   // class Table_map_log_event
+#include "rpl_rli.h"                     // Relay_log_info
+#include "rpl_slave.h"                   // rpl_master_has_bug
+#include "sql_class.h"                   // THD
+#include "sql_join_buffer.h"             // CACHE_FIELD
+#include "sql_time.h"                    // str_to_datetime_with_warn
+#include "strfunc.h"                     // find_type2
+#include "tztime.h"                      // Time_zone
+
+#include <algorithm>
 
 using std::max;
 using std::min;
+
 
 // Maximum allowed exponent value for converting string to decimal
 #define MAX_EXPONENT 1024

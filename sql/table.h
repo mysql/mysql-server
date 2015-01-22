@@ -627,7 +627,7 @@ struct TABLE_SHARE
   inline handlerton *db_type() const	/* table_type for handler */
   { 
     // DBUG_ASSERT(db_plugin);
-    return db_plugin ? plugin_data(db_plugin, handlerton*) : NULL;
+    return db_plugin ? plugin_data<handlerton*>(db_plugin) : NULL;
   }
   enum row_type row_type;		/* How rows are stored */
   enum tmp_table_type tmp_table;
@@ -1010,6 +1010,8 @@ public:
 
   THD	*in_use;                        /* Which thread uses this */
   Field **field;			/* Pointer to fields */
+  /// Count of hidden fields, if internal temporary table; 0 otherwise.
+  uint hidden_field_count;
 
   uchar *record[2];			/* Pointer to records */
   uchar *write_row_record;		/* Used as optimisation in
@@ -1056,9 +1058,6 @@ public:
   Field *found_next_number_field;	/* Set on open */
   Field **vfield;                       /* Pointer to generated fields*/
   Field *hash_field;                    /* Field used by unique constraint */
-  /* Mask and bitmap are used along with hash_field */
-  uchar *hash_field_mask;
-  MY_BITMAP hash_field_bitmap;
   Field *fts_doc_id_field;              /* Set if FTS_DOC_ID field is present */
 
   /* Table's triggers, 0 if there are no of them */
@@ -1262,8 +1261,8 @@ private:
 public:
 
   void init(THD *thd, TABLE_LIST *tl);
-  bool fill_item_list(List<Item> *item_list, uint limit= MAX_FIELDS) const;
-  void reset_item_list(List<Item> *item_list, uint limit) const;
+  bool fill_item_list(List<Item> *item_list) const;
+  void reset_item_list(List<Item> *item_list) const;
   void clear_column_bitmaps(void);
   void prepare_for_position(void);
   void mark_columns_used_by_index_no_reset(uint index, MY_BITMAP *map);
@@ -1301,6 +1300,12 @@ public:
   /** Should this instance of the table be reopened? */
   inline bool needs_reopen()
   { return !db_stat || m_needs_reopen; }
+  /// @returns first non-hidden column
+  Field **visible_field_ptr() const
+  { return field + hidden_field_count; }
+  /// @returns count of visible fields
+  uint visible_field_count() const
+  { return s->fields - hidden_field_count; }
   bool alloc_keys(uint key_count);
   bool add_tmp_key(Field_map *key_parts, char *key_name);
   void use_index(int key_to_save);

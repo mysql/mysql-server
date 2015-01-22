@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,9 +24,11 @@
 */
 
 #include "opt_trace.h"
-#include "sql_show.h"  // schema_table_stored_record()
-#include "sql_parse.h" // sql_command_flags
-#include "sp_head.h"   // for sp_head
+
+#include "auth_common.h" // check_table_access
+#include "sql_show.h"    // schema_table_stored_record
+#include "sql_parse.h"   // sql_command_flags
+#include "sp_head.h"     // sp_head
 
 #ifdef OPTIMIZER_TRACE
 

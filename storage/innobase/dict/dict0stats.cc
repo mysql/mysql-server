@@ -853,6 +853,9 @@ dict_stats_update_transient_for_index(
 
 		index->stat_n_leaf_pages = size;
 
+		/* We don't handle the return value since it will be false
+		only when some thread is dropping the table and we don't
+		have to empty the statistics of the to be dropped index */
 		btr_estimate_number_of_different_key_vals(index);
 	}
 }

@@ -28,7 +28,7 @@ ERROR HY000: @@SESSION.GTID_NEXT cannot be set to UUID:NUMBER when @@GLOBAL.GTID
 CHANGE MASTER TO MASTER_AUTO_POSITION = 1;
 ERROR HY000: CHANGE MASTER TO MASTER_AUTO_POSITION = 1 can only be executed when @@GLOBAL.GTID_MODE = ON.
 CHANGE MASTER TO MASTER_AUTO_POSITION = 0;
----- No GTIDs in binlog ----
+---- Automatic GTIDs in binlog ----
 include/start_slave.inc
 SET GTID_NEXT = 'AUTOMATIC';
 CREATE TABLE t1 (a INT) ENGINE = InnoDB;
@@ -36,14 +36,19 @@ SET GTID_NEXT = 'ANONYMOUS';
 INSERT INTO t1 VALUES (1);
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Previous_gtids	#	#	
+master-bin.000001	#	Anonymous_Gtid	#	#	SET @@SESSION.GTID_NEXT= 'ANONYMOUS'
 include/sync_slave_sql_with_master.inc
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-slave-bin.000001	#	Query	#	#	BEGIN
+slave-bin.000001	#	Previous_gtids	#	#	
+slave-bin.000001	#	Anonymous_Gtid	#	#	SET @@SESSION.GTID_NEXT= 'ANONYMOUS'
 include/show_relaylog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-relay-bin.000002	#	Previous_gtids	#	#	
 slave-relay-bin.000002	#	Rotate	#	#	master-bin.000001;pos=POS
+slave-relay-bin.000002	#	Format_desc	#	#	SERVER_VERSION, BINLOG_VERSION
+slave-relay-bin.000002	#	Anonymous_Gtid	#	#	SET @@SESSION.GTID_NEXT= 'ANONYMOUS'
 ==== Checks performed at server start when GTID_MODE = ON ====
 include/rpl_stop_server.inc [server_number=2]
 ---- GTID_MODE = UPGRADE_STEP_[1|2] not supported ----
@@ -81,13 +86,19 @@ INSERT INTO t1 VALUES (2);
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000002	#	Previous_gtids	#	#	
+master-bin.000002	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
 include/sync_slave_sql_with_master.inc
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-bin.000002	#	Previous_gtids	#	#	
+slave-bin.000002	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
 include/show_relaylog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000005	#	Previous_gtids	#	#	
+slave-relay-bin.000005	#	Rotate	#	#	master-bin.000002;pos=POS
+slave-relay-bin.000005	#	Format_desc	#	#	SERVER_VERSION, BINLOG_VERSION
+slave-relay-bin.000005	#	Rotate	#	#	master-bin.000002;pos=POS
+slave-relay-bin.000005	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
 ---- CHANGE MASTER TO MASTER_AUTO_POSITION = 1 works ----
 include/stop_slave.inc
 CHANGE MASTER TO MASTER_AUTO_POSITION = 1;

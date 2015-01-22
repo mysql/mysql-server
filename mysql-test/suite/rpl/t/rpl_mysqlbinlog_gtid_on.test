@@ -1,15 +1,47 @@
+# ==== Purpose ====
 #
-# WL#3584 GTID
-# The test verifies how mysqlbinlog handles GTID related options.
+# Verify that mysqlbinlog produces the correct output for combinations
+# of include-gtids, exclude-gtids, skip-gtids,
+# read-from-remote-server=X, and raw.
 #
+# Currently, the following combinations are implemented:
+#
+# - include-gtids
+# - exclude-gtids
+# - exclude-gtids + skip-gtids
+# - skip-gtids
+# - read-from-remote-server
+# - read-from-remote-master=BINLOG-DUMP-GTID
+# - read-from-remote-master=BINLOG-DUMP-NON-GTID
+# - read-from-remote-server + raw
+# - read-from-remote-master=BINLOG-DUMP-GTID + raw
+# - read-from-remote-master=BINLOG-DUMP-NON-GTID + raw
+# - include-gtids + read-from-remote-master=BINLOG-DUMP-GTID
+# - include-gtids + read-from-remote-master=BINLOG-DUMP-NON-GTID
+# - exclude-gtids + read-from-remote-maste=BINLOG-DUMP-GTID + raw
+# - exclude-gtids + read-from-remote-master=BINLOG-DUMP-NON-GTID + raw
+#
+# TODO: implement all combinations and make it more uniform and
+# maintainable, like:
+#
+#   for opt1 in (include-gtids, exclude-gtids, ''):
+#     for opt2 in (skip-gtids, ''):
+#       for opt3 in (read-from-remote-server,
+#                    read-from-remote-master=BINLOG-DUMP-GTID,
+#                    read-from-remote-master=BINLOG-DUMP-NON-GTID,
+#                    ''):
+#         for opt4 in (raw, ''):
+#           mysqlbinlog $opt1 $opt2 $opt3 $opt4
+#
+# ==== References ====
+#
+# WL#3584 Global Transaction Identifiers (GTIDs)
+
 --source include/have_gtid.inc
+# Output from mysqlbinlog is replayed on the slave server.
 --source include/master-slave.inc
 --source include/have_innodb.inc
 --source include/have_binlog_format_mixed.inc
-
-# Replication link is implemented through 
-# mysqlbinlog | mysql | slave pipe
-# the test call master-slave.inc to get connections to either server.
 
 --connection slave
 --source include/stop_slave.inc
@@ -113,13 +145,25 @@ let $MYSQLD_DATADIR= `SELECT @@DATADIR`;
 let $UUID= `SELECT @@SERVER_UUID`;
 
 --exec $MYSQL_BINLOG $MYSQLD_DATADIR/$binlog_file --result-file=$MYSQLTEST_VARDIR/tmp/output.000001
+
+# read-from-remote-server
 --exec $MYSQL_BINLOG --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT $binlog_file --result-file=$MYSQLTEST_VARDIR/tmp/output.000002
+
+# read-from-remote-server=BINLOG-DUMP-NON-GTID
 --exec $MYSQL_BINLOG --read-from-remote-master=BINLOG-DUMP-NON-GTID --user=root --host=127.0.0.1 --port=$MASTER_MYPORT $binlog_file --result-file=$MYSQLTEST_VARDIR/tmp/output.000003
+
+# read-from-remote-server=BINLOG-DUMP-GTID
 --exec $MYSQL_BINLOG --read-from-remote-master=BINLOG-DUMP-GTID --user=root --host=127.0.0.1 --port=$MASTER_MYPORT $binlog_file --result-file=$MYSQLTEST_VARDIR/tmp/output.000004
+
+# read-from-remote-server + raw
 --exec $MYSQL_BINLOG --raw --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT $binlog_file --result-file=$MYSQLTEST_VARDIR/tmp/
 --exec $MYSQL_BINLOG $MYSQLTEST_VARDIR/tmp/$binlog_file --result-file=$MYSQLTEST_VARDIR/tmp/output.000005
+
+# read-from-remote-server=BINLOG-DUMP-NON-GTID + raw
 --exec $MYSQL_BINLOG --raw --read-from-remote-master=BINLOG-DUMP-NON-GTID --user=root --host=127.0.0.1 --port=$MASTER_MYPORT $binlog_file --result-file=$MYSQLTEST_VARDIR/tmp/
 --exec $MYSQL_BINLOG $MYSQLTEST_VARDIR/tmp/$binlog_file --result-file=$MYSQLTEST_VARDIR/tmp/output.000006
+
+# read-from-remote-server=BINLOG-DUMP-GTID + raw
 --exec $MYSQL_BINLOG --raw --read-from-remote-master=BINLOG-DUMP-GTID --user=root --host=127.0.0.1 --port=$MASTER_MYPORT $binlog_file --result-file=$MYSQLTEST_VARDIR/tmp/
 --exec $MYSQL_BINLOG $MYSQLTEST_VARDIR/tmp/$binlog_file --result-file=$MYSQLTEST_VARDIR/tmp/output.000007
 
@@ -170,31 +214,6 @@ let $UUID= `SELECT @@SERVER_UUID`;
 --diff_files $MYSQLTEST_VARDIR/tmp/output.000002 $MYSQLTEST_VARDIR/tmp/output.000001
 --remove_file $MYSQLTEST_VARDIR/tmp/output.000001
 --remove_file $MYSQLTEST_VARDIR/tmp/output.000002
-
---echo ==== --read-from-remote-master skip the binlog without Previous_gtid_log_event
-
---let $rpl_server_number= 1
---let $rpl_server_parameters= --gtid-mode=0
---source include/rpl_restart_server.inc
-INSERT INTO t1 VALUES(20);
-INSERT INTO t1 VALUES(21);
---let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
-
---let $rpl_server_parameters=
---source include/rpl_restart_server.inc
-
---let $con_args= --user=root --host=127.0.0.1 --port=$MASTER_MYPORT
---exec $MYSQL_BINLOG $con_args --read-from-remote-server $binlog_file > $MYSQLTEST_VARDIR/tmp/$binlog_file.sql
-
-# BINLOG-DUMP-NON-GTID can dump the binlog without Previous_gtid_log_event,
-# so it cause a duplicate error
---error 1 # Duplicate Key (20)
---exec $MYSQL $con_args < $MYSQLTEST_VARDIR/tmp/$binlog_file.sql
-
-# BINLOG-DUMP-GTID skips the binlog without Previous_gtid_log_event, Only
-# Format_description_event is dumped, so it doesn't cause a duplicate error.
---exec $MYSQL_BINLOG $con_args --read-from-remote-master=BINLOG-DUMP-GTID $binlog_file > $MYSQLTEST_VARDIR/tmp/$binlog_file.sql
---exec $MYSQL $con_args < $MYSQLTEST_VARDIR/tmp/$binlog_file.sql
 
 --echo ==== Error cases ====
 

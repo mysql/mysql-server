@@ -30,6 +30,9 @@
 #include "partition_info.h"
 #include "sql_table.h"
 
+#include "pfs_file_provider.h"
+#include "mysql/psi/mysql_file.h"
+
 #include <algorithm>
 
 using std::min;

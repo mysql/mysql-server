@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +20,9 @@
 #include <hash.h>
 #include "rpl_mts_submode.h"
 #include "rpl_slave_commit_order_manager.h"
+
+#include "pfs_file_provider.h"
+#include "mysql/psi/mysql_file.h"
 
 #ifndef DBUG_OFF
   ulong w_rr= 0;
@@ -803,7 +806,7 @@ Slave_worker *map_db_to_worker(const char *dbname, Relay_log_info *rli,
 
   THD *thd= rli->info_thd;
 
-  DBUG_ENTER("get_slave_worker");
+  DBUG_ENTER("map_db_to_worker");
 
   DBUG_ASSERT(!rli->last_assigned_worker ||
               rli->last_assigned_worker == last_worker);
@@ -1186,7 +1189,7 @@ void Slave_worker::slave_worker_ends_group(Log_event* ev, int error)
     */
     Mts_submode_logical_clock* mts_submode=
       static_cast<Mts_submode_logical_clock*>(c_rli->current_mts_submode);
-    longlong min_child_waited_logical_ts=
+    int64 min_child_waited_logical_ts=
       my_atomic_load64(&mts_submode->min_waited_timestamp);
 
     if (error)
@@ -1338,7 +1341,7 @@ bool Slave_committed_queue::count_done(Relay_log_info* rli)
 
     ptr_g= &m_Q[i];
 
-    if (ptr_g->worker_id != (ulong) -1 && ptr_g->done)
+    if (ptr_g->worker_id != MTS_WORKER_UNDEF && ptr_g->done)
       cnt++;
   }
 
@@ -1635,16 +1638,12 @@ static bool may_have_timestamp(Log_event *ev)
   return res;
 }
 
-static longlong get_last_committed(Log_event *ev)
+static int64 get_last_committed(Log_event *ev)
 {
-  longlong res= SEQ_UNINIT;
+  int64 res= SEQ_UNINIT;
 
   switch (ev->get_type_code())
   {
-  case binary_log::QUERY_EVENT:
-    res= static_cast<Query_log_event*>(ev)->last_committed;
-    break;
-
   case binary_log::GTID_LOG_EVENT:
     res= static_cast<Gtid_log_event*>(ev)->last_committed;
     break;
@@ -1656,16 +1655,12 @@ static longlong get_last_committed(Log_event *ev)
   return res;
 }
 
-static longlong get_sequence_number(Log_event *ev)
+static int64 get_sequence_number(Log_event *ev)
 {
-  longlong res= SEQ_UNINIT;
+  int64 res= SEQ_UNINIT;
 
   switch (ev->get_type_code())
   {
-  case binary_log::QUERY_EVENT:
-    res= static_cast<Query_log_event*>(ev)->sequence_number;
-    break;
-
   case binary_log::GTID_LOG_EVENT:
     res= static_cast<Gtid_log_event*>(ev)->sequence_number;
     break;
@@ -1713,10 +1708,8 @@ int Slave_worker::slave_worker_exec_event(Log_event *ev)
 
     longlong lwm_estimate= static_cast<Mts_submode_logical_clock*>
       (rli->current_mts_submode)->estimate_lwm_timestamp();
-    longlong last_committed, sequence_number;
-
-    last_committed= get_last_committed(ev);
-    sequence_number= get_sequence_number(ev);
+    int64 last_committed= get_last_committed(ev);
+    int64 sequence_number= get_sequence_number(ev);
     /*
       The commit timestamp waiting condition:
 
@@ -2414,6 +2407,7 @@ int slave_worker_exec_job_group(Slave_worker *worker, Relay_log_info *rli)
   struct slave_job_item item= {NULL, 0, 0};
   struct slave_job_item *job_item= &item;
   THD *thd= worker->info_thd;
+  bool seen_gtid= false;
   bool seen_begin= false;
   int error= 0;
   Log_event *ev= NULL;
@@ -2442,7 +2436,8 @@ int slave_worker_exec_job_group(Slave_worker *worker, Relay_log_info *rli)
     DBUG_ASSERT(ev != NULL);
     DBUG_PRINT("info", ("W_%lu <- job item: %p data: %p thd: %p",
                         worker->id, job_item, ev, thd));
-
+    if (is_gtid_event(ev))
+      seen_gtid= true;
     if (!seen_begin && ev->starts_group())
     {
       seen_begin= true; // The current group is started with B-event
@@ -2466,15 +2461,18 @@ int slave_worker_exec_job_group(Slave_worker *worker, Relay_log_info *rli)
       "commit" with logical clock scheduler. In that case worker id
       points to the only active "exclusive" Worker that processes such
       malformed group events one by one.
+      WL#7592 refines the original assert disjunction formula
+      with the final disjunct.
     */
     DBUG_ASSERT(seen_begin || is_gtid_event(ev) ||
                 ev->get_type_code() == binary_log::QUERY_EVENT ||
-                is_mts_db_partitioned(rli) || worker->id == 0);
+                is_mts_db_partitioned(rli) || worker->id == 0 || seen_gtid);
 
     if (ev->ends_group() ||
         (!seen_begin && !is_gtid_event(ev) &&
-        (ev->get_type_code() == binary_log::QUERY_EVENT ||
-        !is_mts_db_partitioned(rli))))
+         (ev->get_type_code() == binary_log::QUERY_EVENT ||
+          /* break through by LC only in GTID off */
+          (!seen_gtid && !is_mts_db_partitioned(rli)))))
       break;
 
     remove_item_from_jobs(job_item, worker, rli);

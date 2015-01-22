@@ -22,6 +22,7 @@
                                         /* key_restore */
 #include "log.h"                        /* sql_print_warning */
 #include "rpl_filter.h"                 /* rpl_filter */
+#include "sql_plugin.h"                 // plugin_is_ready
 
 #include "auth_internal.h"
 #include "sql_auth_cache.h"

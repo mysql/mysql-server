@@ -38,6 +38,9 @@
 #include "log.h"
 #include "item_sum.h"                   // Item_sum
 
+#include "pfs_file_provider.h"
+#include "mysql/psi/mysql_file.h"
+
 #include <algorithm>
 #include <utility>
 using std::max;
@@ -240,7 +243,9 @@ ha_rows filesort(THD *thd, QEP_TAB *qep_tab, Filesort *filesort,
   IO_CACHE *outfile;   // Contains the final, sorted result.
   Sort_param param;
   bool multi_byte_charset;
-  Bounded_queue<uchar *, uchar *, Sort_param, Mem_compare> pq;
+  Bounded_queue<uchar *, uchar *, Sort_param, Mem_compare>
+    pq((Malloc_allocator<uchar*>
+        (key_memory_Filesort_info_record_pointers)));
   Opt_trace_context * const trace= &thd->opt_trace;
   TABLE *const table= qep_tab->table();
   ha_rows max_rows= filesort->limit;
@@ -1888,8 +1893,10 @@ int merge_buffers(Sort_param *param, IO_CACHE *from_file,
     Merge_chunk_less(cmp, first_cmp_arg) :
     Merge_chunk_less(sort_length);
   Priority_queue<Merge_chunk*,
-                 std::vector<Merge_chunk*>,
-                 Merge_chunk_less> queue(mcl);
+                 std::vector<Merge_chunk*, Malloc_allocator<Merge_chunk*> >,
+                 Merge_chunk_less>
+    queue(mcl,
+          Malloc_allocator<Merge_chunk*>(key_memory_Filesort_info_merge));
 
   if (queue.reserve(chunk_array.size()))
     DBUG_RETURN(1);

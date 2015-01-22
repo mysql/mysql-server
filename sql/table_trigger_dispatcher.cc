@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,16 +14,15 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#define MYSQL_LEX 1
+#include "table_trigger_dispatcher.h"
 
-#include "my_global.h"
+#include "auth_common.h"            // check_global_access
 #include "sp_head.h"                // sp_head
 #include "sql_parse.h"              // create_default_definer
 #include "sql_show.h"               // append_definer
 #include "sql_table.h"              // check_n_cut_mysql50_prefix
 
 #include "trigger_loader.h"
-#include "table_trigger_dispatcher.h"
 #include "trigger_chain.h"
 #include "trigger.h"
 

@@ -15,20 +15,16 @@ include/sync_slave_sql_with_master.inc
 # Master's UUID appears in the result of 'SHOW SLAVE STATUS'.
 # Slave's UUID appears in the resule of 'SHOW SLAVE HOSTS'.
 -----------------------------------------------------------------------------
-SHOW SLAVE HOSTS;
-Server_id	Host	Port	Master_id	Slave_UUID
-2	127.0.0.1	SLAVE_PORT	1	SLAVE_UUID
-include/check_slave_param.inc [Master_UUID]
+include/assert.inc ["Slave's SHOW SLAVE HOST should contain the correct value for master's server_uuid]
+include/assert.inc [Master's SHOW SLAVE HOSTS should contain the correct value for slave's server_uuid]
 
 # Case 2: 
 # After executing 'STOP SLAVE [IO_THREAD|SQL_THREAD]' successfully, Master's UUID
 # is still kept into Slave status.
 -----------------------------------------------------------------------------
-STOP SLAVE IO_THREAD;
-include/wait_for_slave_io_to_stop.inc
+include/stop_slave_io.inc
 include/check_slave_param.inc [Slave_IO_Running]
-STOP SLAVE SQL_THREAD;
-include/wait_for_slave_sql_to_stop.inc
+include/stop_slave_sql.inc
 include/check_slave_param.inc [Slave_SQL_Running]
 include/start_slave.inc
 include/stop_slave.inc

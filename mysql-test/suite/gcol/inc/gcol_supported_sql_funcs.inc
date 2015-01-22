@@ -20,19 +20,19 @@ show create table t1;
 if ($rows)
 {
 # Allow out-of-range errors
---error 0,1264,1690
+--error 0,1264,1690,3020
   eval insert into t1 values ($values1);
   dec $rows;
 }
 if ($rows)
 {
---error 0,1292,1906
+--error 0,1292,1690,3020
   eval insert into t1 values ($values2);
   dec $rows;
 }
 if ($rows)
 {
---error 0,1906
+--error 0,1690,3020
   eval insert into t1 values ($values3);
   dec $rows;
 }

@@ -1,0 +1,78 @@
+SELECT @@global.avoid_temporal_upgrade;
+@@global.avoid_temporal_upgrade
+0
+Warnings:
+Warning	1287	'@@avoid_temporal_upgrade' is deprecated and will be removed in a future release.
+SHOW GLOBAL VARIABLES LIKE 'avoid_temporal_upgrade';
+Variable_name	Value
+avoid_temporal_upgrade	OFF
+SELECT * FROM information_schema.global_variables WHERE variable_name='avoid_temporal_upgrade';
+VARIABLE_NAME	VARIABLE_VALUE
+AVOID_TEMPORAL_UPGRADE	OFF
+#It is not a session variable.
+SELECT @@session.avoid_temporal_upgrade;
+ERROR HY000: Variable 'avoid_temporal_upgrade' is a GLOBAL variable
+SHOW SESSION VARIABLES LIKE 'avoid_temporal_upgrade';
+Variable_name	Value
+avoid_temporal_upgrade	OFF
+SELECT * FROM information_schema.session_variables WHERE variable_name='avoid_temporal_upgrade';
+VARIABLE_NAME	VARIABLE_VALUE
+AVOID_TEMPORAL_UPGRADE	OFF
+SET SESSION avoid_temporal_upgrade= ON;
+ERROR HY000: Variable 'avoid_temporal_upgrade' is a GLOBAL variable and should be set with SET GLOBAL
+#Test setting the variable to various values.
+#Boolean values.
+SET GLOBAL avoid_temporal_upgrade= ON;
+Warnings:
+Warning	1287	'@@avoid_temporal_upgrade' is deprecated and will be removed in a future release.
+SELECT @@global.avoid_temporal_upgrade;
+@@global.avoid_temporal_upgrade
+1
+Warnings:
+Warning	1287	'@@avoid_temporal_upgrade' is deprecated and will be removed in a future release.
+SET GLOBAL avoid_temporal_upgrade= OFF;
+Warnings:
+Warning	1287	'@@avoid_temporal_upgrade' is deprecated and will be removed in a future release.
+SELECT @@global.avoid_temporal_upgrade;
+@@global.avoid_temporal_upgrade
+0
+Warnings:
+Warning	1287	'@@avoid_temporal_upgrade' is deprecated and will be removed in a future release.
+SET GLOBAL avoid_temporal_upgrade= 1;
+Warnings:
+Warning	1287	'@@avoid_temporal_upgrade' is deprecated and will be removed in a future release.
+SELECT @@global.avoid_temporal_upgrade;
+@@global.avoid_temporal_upgrade
+1
+Warnings:
+Warning	1287	'@@avoid_temporal_upgrade' is deprecated and will be removed in a future release.
+SET GLOBAL avoid_temporal_upgrade= 0;
+Warnings:
+Warning	1287	'@@avoid_temporal_upgrade' is deprecated and will be removed in a future release.
+SELECT @@global.avoid_temporal_upgrade;
+@@global.avoid_temporal_upgrade
+0
+Warnings:
+Warning	1287	'@@avoid_temporal_upgrade' is deprecated and will be removed in a future release.
+#Test for DEFAULT value.
+SET GLOBAL avoid_temporal_upgrade= DEFAULT;
+Warnings:
+Warning	1287	'@@avoid_temporal_upgrade' is deprecated and will be removed in a future release.
+SELECT @@global.avoid_temporal_upgrade;
+@@global.avoid_temporal_upgrade
+0
+Warnings:
+Warning	1287	'@@avoid_temporal_upgrade' is deprecated and will be removed in a future release.
+#Test for invalid value.
+SET GLOBAL avoid_temporal_upgrade= 2;
+ERROR 42000: Variable 'avoid_temporal_upgrade' can't be set to the value of '2'
+#Test for invalid statement for setting the 
+#global variable.
+SET avoid_temporal_upgrade= 1;
+ERROR HY000: Variable 'avoid_temporal_upgrade' is a GLOBAL variable and should be set with SET GLOBAL
+#Fetches the current global value for the variable.
+SELECT @@avoid_temporal_upgrade;
+@@avoid_temporal_upgrade
+0
+Warnings:
+Warning	1287	'@@avoid_temporal_upgrade' is deprecated and will be removed in a future release.

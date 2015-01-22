@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -41,6 +41,9 @@
 #include <direct.h>
 #endif
 #include "debug_sync.h"
+
+#include "pfs_file_provider.h"
+#include "mysql/psi/mysql_file.h"
 
 #define MAX_DROP_TABLE_Q_LEN      1024
 
@@ -101,7 +104,10 @@ static inline int write_to_binlog(THD *thd, char *query, size_t q_len,
   Query_log_event qinfo(thd, query, q_len, FALSE, TRUE, FALSE, 0);
   qinfo.db= db;
   qinfo.db_len= db_len;
-  return mysql_bin_log.write_event(&qinfo);
+  int error= mysql_bin_log.write_event(&qinfo);
+  if (!error)
+    error= mysql_bin_log.commit(thd, false);
+  return error;
 } 
 
 
@@ -890,9 +896,7 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db,bool if_exists, bool silent)
       If the directory is a symbolic link, remove the link first, then
       remove the directory the symbolic link pointed at
     */
-    if (found_other_files)
-      my_error(ER_DB_DROP_RMDIR, MYF(0), path, EEXIST);
-    else
+    if (!found_other_files)
       error= rm_dir_w_symlink(path, true);
   }
   thd->pop_internal_handler();
@@ -954,7 +958,26 @@ update_binlog:
     TABLE_LIST *tbl;
     size_t id_length=0;
 
+    /*
+      If GTID_NEXT=='UUID:NUMBER', we must not log an incomplete
+      statement.  However, the incomplete DROP has already 'committed'
+      (some tables were removed).  So we generate an error and let
+      user fix the situation.
+    */
+    if (thd->variables.gtid_next.type == GTID_GROUP)
+    {
+      char gtid_buf[Gtid::MAX_TEXT_LENGTH + 1];
+      thd->variables.gtid_next.gtid.to_string(global_sid_map, gtid_buf,
+                                              true);
+      my_error(ER_CANNOT_LOG_PARTIAL_DROP_DATABASE_WITH_GTID, MYF(0),
+               path, gtid_buf, db.str);
+      goto exit;
+    }
+
+    DBUG_PRINT("info", ("DROP DATABASE failed; generating DROP TABLE statement(s) in the binlog"));
+
     if (!(query= (char*) thd->alloc(MAX_DROP_TABLE_Q_LEN)))
+      // @todo: abort on out of memory instead
       goto exit; /* not much else we can do */
     query_pos= query_data_start= my_stpcpy(query,"DROP TABLE IF EXISTS ");
     query_end= query + MAX_DROP_TABLE_Q_LEN;
@@ -977,12 +1000,18 @@ update_binlog:
       tbl_name_len= strlen(tbl->table_name) + 3;
       if (query_pos + tbl_name_len + 1 >= query_end)
       {
+        DBUG_PRINT("info", ("Need multiple DROP TABLE statements in the binlog"));
+        thd->variables.gtid_next.dbug_print("gtid_next", true);
         /*
           These DDL methods and logging are protected with the exclusive
           metadata lock on the schema.
         */
-        if (write_to_binlog(thd, query, query_pos -1 - query, db.str,
-                            db.length))
+
+        thd->is_commit_in_middle_of_statement= true;
+        int ret= write_to_binlog(thd, query, query_pos -1 - query, db.str,
+                                 db.length);
+        thd->is_commit_in_middle_of_statement= false;
+        if (ret)
         {
           error= true;
           goto exit;
@@ -1010,6 +1039,14 @@ update_binlog:
         goto exit;
       }
     }
+
+    /*
+      We have postponed generating the error until now, since if the
+      error ER_CANNOT_LOG_PARTIAL_DROP_DATABASE_WITH_GTID occurs we
+      should report that instead.
+    */
+    if (found_other_files)
+      my_error(ER_DB_DROP_RMDIR, MYF(0), path, EEXIST);
   }
 
 exit:

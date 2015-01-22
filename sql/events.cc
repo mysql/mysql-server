@@ -14,10 +14,11 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include "events.h"
+
 #include "sql_parse.h"                          // check_access
 #include "sql_base.h"                           // close_mysql_tables
 #include "sql_show.h"                           // append_definer
-#include "events.h"
 #include "sql_db.h"                          // check_db_dir_existence
 #include "sql_table.h"                       // write_bin_log
 #include "tztime.h"                             // struct Time_zone

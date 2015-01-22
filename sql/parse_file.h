@@ -24,6 +24,7 @@
 class THD;
 
 typedef struct st_mem_root MEM_ROOT;
+typedef struct st_mysql_lex_string LEX_STRING;
 
 #define PARSE_FILE_TIMESTAMPLENGTH 19
 

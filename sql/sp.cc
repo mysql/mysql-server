@@ -1536,6 +1536,14 @@ bool lock_db_routines(THD *thd, const char *db)
     {
       char *sp_name= get_field(thd->mem_root,
                                table->field[MYSQL_PROC_FIELD_NAME]);
+      if (sp_name == NULL)
+      {
+        table->file->ha_index_end();
+        my_error(ER_SP_WRONG_NAME, MYF(0), "");
+        close_nontrans_system_tables(thd, &open_tables_state_backup);
+        DBUG_RETURN(true);
+      }
+
       longlong sp_type= table->field[MYSQL_PROC_MYSQL_TYPE]->val_int();
       MDL_request *mdl_request= new (thd->mem_root) MDL_request;
       MDL_REQUEST_INIT(mdl_request,

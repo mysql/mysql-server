@@ -48,6 +48,9 @@ CREATE TEMPORARY TABLE db1.t_temp (a int) engine=innodb;
 CREATE TABLE db2.t (a int) engine=myisam;
 CREATE TEMPORARY TABLE db2.t_temp (a int) engine=innodb;
 
+# CREATE-SELECT is logged as two consecutive groups with ROW format,
+# common commit parent can't be simulated.
+SET GLOBAL DEBUG ='-d,set_commit_parent_100';
 -- connection m3
 -- disable_warnings ONCE
 CREATE TABLE db3.t engine=innodb select 100*RAND() as a;
@@ -59,6 +62,7 @@ SET @VAR=100;
 CREATE TABLE db4.t engine=myisam select @VAR as a;
 CREATE TEMPORARY TABLE db4.t_temp (a int) engine=innodb;
 
+SET GLOBAL DEBUG ='+d,set_commit_parent_100';
 -- connection master
 FLUSH LOGS; # New group of transactions will be logged.
 
