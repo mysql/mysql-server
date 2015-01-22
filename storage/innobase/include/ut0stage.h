@@ -282,7 +282,12 @@ ut_stage_alter_t::inc(
 	case INSERT: {
 		/* Increment the progress every nth record. During
 		sort and insert phases, this method is called once per
-		record processed. */
+		record processed. We need fractional point numbers here
+		because "records per page" is such a number naturally and
+		to avoid rounding skew we want, for example: if there are
+		(double) N records per page, then the work_completed
+	        should be incremented on the inc() calls round(k*N),
+		for k=1,2,3... */
 		const double	every_nth = m_n_recs_per_page * multi_factor;
 
 		const ulint	k = static_cast<ulint>(
