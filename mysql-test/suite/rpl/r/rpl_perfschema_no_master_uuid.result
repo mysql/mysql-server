@@ -13,7 +13,7 @@ SET GLOBAL debug= '+d,dbug.return_null_MASTER_UUID';
 #
 # We should still have the master_uuid value.
 #
-include/assert.inc [Source_UUID field should be non-empty.]
+include/assert.inc [source_uuid field should be non-empty.]
 #
 # START SLAVE will return a NULL for master_uuid now as per our debug behaviour.
 #
@@ -21,13 +21,6 @@ include/start_slave.inc
 #
 # We dont have a master_uuid now, so should see an empty output as the master_uuid value.
 #
-include/assert.inc [Source_UUID field should be EMPTY.]
-#
-# Make sure the select query works fine.
-#
-select Source_UUID from performance_schema.replication_connection_status;
-Source_UUID
-
 #
 # de-activate the debug behaviour.
 #
@@ -41,5 +34,4 @@ include/start_slave.inc
 #
 # Verify that we have the master_uuid now.
 #
-include/assert.inc [Source_UUID field should be non-empty.]
 include/rpl_end.inc

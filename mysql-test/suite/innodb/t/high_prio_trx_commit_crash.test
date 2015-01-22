@@ -1,0 +1,80 @@
+# Scenario: High prio setup with crash points.
+#  T1= ({R(B), W(B)}, )
+#  T2= ({R(B), W(B), C}, HIGH PRIORITY)
+#
+# Outcome: T2 completes according to crash point. T1 aborts.
+
+--source include/have_innodb.inc
+--source include/have_debug.inc
+# Valgrind would complain about memory leaks when we crash on purpose.
+--source include/not_valgrind.inc
+# # Embedded server does not support crashing
+--source include/not_embedded.inc
+# # Avoid CrashReporter popup on Mac
+--source include/not_crashrep.inc
+
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (0);
+
+--connect(con1,localhost,root,,test)
+--connect(con2,localhost,root,,test)
+
+--echo
+--echo # On connection con1
+--connection con1
+START TRANSACTION;
+UPDATE t1 SET c1=1 WHERE c1=0;
+
+--echo
+--echo # On connection con2
+--connection con2
+--source include/start_transaction_high_prio.inc
+UPDATE t1 SET c1=2 WHERE c1=0;
+SET DEBUG='+d,crash_commit_after';
+# Request a crash, and restart the server.
+# Write file to make mysql-test-run.pl restart the server
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--error 2013
+COMMIT;
+
+--disconnect con1
+--disconnect con2
+
+--echo
+--echo # On connection default
+--connection default
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--echo # Value 2 is expected as server crash on high prio txn (crash_commit_after point)
+SELECT * FROM t1;
+
+DROP TABLE t1;
+
+--echo # Case : crash before commit on high prio transaction
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (0);
+
+--connect(con1,localhost,root,,test)
+--connect(con2,localhost,root,,test)
+
+--echo
+--echo # On connection con1
+--connection con1
+START TRANSACTION;
+UPDATE t1 SET c1=1 WHERE c1=0;
+
+--echo
+--echo # On connection con2
+--connection con2
+--source include/start_transaction_high_prio.inc
+UPDATE t1 SET c1=2 WHERE c1=0;
+--connection default
+--source include/kill_and_restart_mysqld.inc
+
+--disconnect con1
+--disconnect con2
+
+--echo # Value 0 is expected as server crash on high prio txn (crash_commit_before point)
+SELECT * FROM t1;
+
+DROP TABLE t1;

@@ -32,9 +32,13 @@
 #include "rpl_handler.h"              // RUN_HOOK
 #include "sql_base.h"                 // free_io_cache
 #include "sql_parse.h"                // check_stack_overrun
+#include "sql_plugin.h"               // plugin_foreach
 #include "sql_table.h"                // build_table_filename
 #include "transaction.h"              // trans_commit_implicit
 #include "trigger_def.h"              // TRG_EXT
+
+#include "pfs_file_provider.h"
+#include "mysql/psi/mysql_file.h"
 
 #include <pfs_table_provider.h>
 #include <mysql/psi/mysql_table.h>
@@ -170,6 +174,11 @@ inline double log2(double x)
   Remove when legacy_db_type is finally gone
 */
 st_plugin_int *hton2plugin[MAX_HA];
+
+const char *ha_resolve_storage_engine_name(const handlerton *db_type)
+{
+  return db_type == NULL ? "UNKNOWN" : hton2plugin[db_type->slot]->name.str;
+}
 
 static handlerton *installed_htons[128];
 
@@ -377,7 +386,7 @@ handlerton *ha_default_handlerton(THD *thd)
 {
   plugin_ref plugin= ha_default_plugin(thd);
   DBUG_ASSERT(plugin);
-  handlerton *hton= plugin_data(plugin, handlerton*);
+  handlerton *hton= plugin_data<handlerton*>(plugin);
   DBUG_ASSERT(hton);
   return hton;
 }
@@ -406,7 +415,7 @@ handlerton *ha_default_temp_handlerton(THD *thd)
 {
   plugin_ref plugin= ha_default_temp_plugin(thd);
   DBUG_ASSERT(plugin);
-  handlerton *hton= plugin_data(plugin, handlerton*);
+  handlerton *hton= plugin_data<handlerton*>(plugin);
   DBUG_ASSERT(hton);
   return hton;
 }
@@ -441,7 +450,7 @@ redo:
   if ((plugin= my_plugin_lock_by_name(thd, cstring_name,
                                       MYSQL_STORAGE_ENGINE_PLUGIN)))
   {
-    handlerton *hton= plugin_data(plugin, handlerton *);
+    handlerton *hton= plugin_data<handlerton*>(plugin);
     if (!(hton->flags & HTON_NOT_USER_SELECTABLE))
       return plugin;
       
@@ -494,7 +503,7 @@ handlerton *ha_resolve_by_legacy_type(THD *thd, enum legacy_db_type db_type)
   default:
     if (db_type > DB_TYPE_UNKNOWN && db_type < DB_TYPE_DEFAULT &&
         (plugin= ha_lock_engine(thd, installed_htons[db_type])))
-      return plugin_data(plugin, handlerton*);
+      return plugin_data<handlerton*>(plugin);
     /* fall through */
   case DB_TYPE_UNKNOWN:
     return NULL;
@@ -585,9 +594,9 @@ handler *get_ha_partition(partition_info *part_info)
 static const char **handler_errmsgs;
 
 C_MODE_START
-static const char **get_handler_errmsgs()
+static const char *get_handler_errmsg(int nr)
 {
-  return handler_errmsgs;
+  return handler_errmsgs[nr - HA_ERR_FIRST];
 }
 C_MODE_END
 
@@ -667,27 +676,7 @@ int ha_init_errors(void)
   SETMSG(HA_ERR_FTS_TOO_MANY_WORDS_IN_PHRASE,  "Too many words in a FTS phrase or proximity search");
   SETMSG(HA_ERR_TABLE_CORRUPT,		ER_DEFAULT(ER_TABLE_CORRUPT));
   /* Register the error messages for use with my_error(). */
-  return my_error_register(get_handler_errmsgs, HA_ERR_FIRST, HA_ERR_LAST);
-}
-
-
-/**
-  Unregister handler error messages.
-
-  @retval
-    0           OK
-  @retval
-    !=0         Error
-*/
-static int ha_finish_errors(void)
-{
-  const char    **errmsgs;
-
-  /* Allocate a pointer array for the error message strings. */
-  if (! (errmsgs= my_error_unregister(HA_ERR_FIRST, HA_ERR_LAST)))
-    return 1;
-  my_free(errmsgs);
-  return 0;
+  return my_error_register(get_handler_errmsg, HA_ERR_FIRST, HA_ERR_LAST);
 }
 
 
@@ -915,27 +904,17 @@ int ha_init()
   DBUG_RETURN(error);
 }
 
-int ha_end()
+void ha_end()
 {
-  int error= 0;
-  DBUG_ENTER("ha_end");
-
-
-  /* 
-    This should be eventualy based  on the graceful shutdown flag.
-    So if flag is equal to HA_PANIC_CLOSE, the deallocate
-    the errors.
-  */
-  if (ha_finish_errors())
-    error= 1;
-
-  DBUG_RETURN(error);
+  // Unregister handler error messages.
+  my_error_unregister(HA_ERR_FIRST, HA_ERR_LAST);
+  my_free(handler_errmsgs);
 }
 
 static my_bool dropdb_handlerton(THD *unused1, plugin_ref plugin,
                                  void *path)
 {
-  handlerton *hton= plugin_data(plugin, handlerton *);
+  handlerton *hton= plugin_data<handlerton*>(plugin);
   if (hton->state == SHOW_OPTION_YES && hton->drop_database)
     hton->drop_database(hton, (char *)path);
   return FALSE;
@@ -951,7 +930,7 @@ void ha_drop_database(char* path)
 static my_bool closecon_handlerton(THD *thd, plugin_ref plugin,
                                    void *unused)
 {
-  handlerton *hton= plugin_data(plugin, handlerton *);
+  handlerton *hton= plugin_data<handlerton*>(plugin);
   /*
     there's no need to rollback here as all transactions must
     be rolled back already
@@ -979,7 +958,7 @@ void ha_close_connection(THD* thd)
 
 static my_bool kill_handlerton(THD *thd, plugin_ref plugin, void *)
 {
-  handlerton *hton= plugin_data(plugin, handlerton *);
+  handlerton *hton= plugin_data<handlerton*>(plugin);
 
   if (hton->state == SHOW_OPTION_YES && hton->kill_connection)
   {
@@ -1354,6 +1333,8 @@ void trans_register_ha(THD *thd, bool all, handlerton *ht_arg,
     thd->m_transaction_psi= MYSQL_START_TRANSACTION(&thd->m_transaction_state,
                                          xid, trxid, thd->tx_isolation,
                                          thd->tx_read_only, autocommit);
+    DEBUG_SYNC(thd, "after_set_transaction_psi_before_set_transaction_gtid");
+    gtid_set_performance_schema_values(thd);
   }
 #endif
   DBUG_VOID_RETURN;
@@ -1551,7 +1532,7 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock)
   */
   if ((!opt_bin_log || (thd->slave_thread && !opt_log_slave_updates)) &&
       (all || !thd->in_multi_stmt_transaction_mode()) &&
-      !thd->owned_gtid.is_null() && !thd->is_operating_gtid_table)
+      thd->owned_gtid.sidno > 0 && !thd->is_operating_gtid_table)
   {
     error= gtid_state->save(thd);
     need_clear_owned_gtid= true;
@@ -2134,7 +2115,7 @@ int ha_release_savepoint(THD *thd, SAVEPOINT *sv)
 static my_bool snapshot_handlerton(THD *thd, plugin_ref plugin,
                                    void *arg)
 {
-  handlerton *hton= plugin_data(plugin, handlerton *);
+  handlerton *hton= plugin_data<handlerton*>(plugin);
   if (hton->state == SHOW_OPTION_YES &&
       hton->start_consistent_snapshot)
   {
@@ -2165,7 +2146,7 @@ int ha_start_consistent_snapshot(THD *thd)
 static my_bool flush_handlerton(THD *thd, plugin_ref plugin,
                                 void *arg)
 {
-  handlerton *hton= plugin_data(plugin, handlerton *);
+  handlerton *hton= plugin_data<handlerton*>(plugin);
   if (hton->state == SHOW_OPTION_YES && hton->flush_logs &&
       hton->flush_logs(hton, *(static_cast<bool *>(arg))))
     return TRUE;
@@ -5019,7 +5000,7 @@ static my_bool check_engine_system_table_handlerton(THD *unused,
                                                     void *arg)
 {
   st_sys_tbl_chk_params *check_params= (st_sys_tbl_chk_params*) arg;
-  handlerton *hton= plugin_data(plugin, handlerton *);
+  handlerton *hton= plugin_data<handlerton*>(plugin);
 
   // Do we already know that the table is a system table?
   if (check_params->status == st_sys_tbl_chk_params::KNOWN_SYSTEM_TABLE)
@@ -5115,7 +5096,7 @@ static my_bool system_databases_handlerton(THD *unused, plugin_ref plugin,
   list<const char*> *found_databases= (list<const char*> *) arg;
   const char *db;
 
-  handlerton *hton= plugin_data(plugin, handlerton *);
+  handlerton *hton= plugin_data<handlerton*>(plugin);
   if (hton->system_database)
   {
     db= hton->system_database();
@@ -5222,7 +5203,7 @@ static my_bool discover_handlerton(THD *thd, plugin_ref plugin,
                                    void *arg)
 {
   st_discover_args *vargs= (st_discover_args *)arg;
-  handlerton *hton= plugin_data(plugin, handlerton *);
+  handlerton *hton= plugin_data<handlerton*>(plugin);
   if (hton->state == SHOW_OPTION_YES && hton->discover &&
       (!(hton->discover(hton, thd, vargs->db, vargs->name, 
                         vargs->frmblob, 
@@ -5271,7 +5252,7 @@ static my_bool find_files_handlerton(THD *thd, plugin_ref plugin,
                                    void *arg)
 {
   st_find_files_args *vargs= (st_find_files_args *)arg;
-  handlerton *hton= plugin_data(plugin, handlerton *);
+  handlerton *hton= plugin_data<handlerton*>(plugin);
 
 
   if (hton->state == SHOW_OPTION_YES && hton->find_files)
@@ -5318,7 +5299,7 @@ static my_bool table_exists_in_engine_handlerton(THD *thd, plugin_ref plugin,
                                    void *arg)
 {
   st_table_exists_in_engine_args *vargs= (st_table_exists_in_engine_args *)arg;
-  handlerton *hton= plugin_data(plugin, handlerton *);
+  handlerton *hton= plugin_data<handlerton*>(plugin);
 
   int err= HA_ERR_NO_SUCH_TABLE;
 
@@ -5357,7 +5338,7 @@ static my_bool make_pushed_join_handlerton(THD *thd, plugin_ref plugin,
                                    void *arg)
 {
   st_make_pushed_join_args *vargs= (st_make_pushed_join_args *)arg;
-  handlerton *hton= plugin_data(plugin, handlerton *);
+  handlerton *hton= plugin_data<handlerton*>(plugin);
 
   if (hton && hton->make_pushed_join)
   {
@@ -5406,7 +5387,7 @@ struct binlog_func_st
 static my_bool binlog_func_list(THD *thd, plugin_ref plugin, void *arg)
 {
   hton_list_st *hton_list= (hton_list_st *)arg;
-  handlerton *hton= plugin_data(plugin, handlerton *);
+  handlerton *hton= plugin_data<handlerton*>(plugin);
   if (hton->state == SHOW_OPTION_YES && hton->binlog_func)
   {
     uint sz= hton_list->sz;
@@ -5490,7 +5471,8 @@ static my_bool binlog_log_query_handlerton(THD *thd,
                                            plugin_ref plugin,
                                            void *args)
 {
-  return binlog_log_query_handlerton2(thd, plugin_data(plugin, handlerton *), args);
+  return binlog_log_query_handlerton2(thd,
+                                      plugin_data<handlerton*>(plugin), args);
 }
 
 void ha_binlog_log_query(THD *thd, handlerton *hton,
@@ -6960,7 +6942,7 @@ static my_bool exts_handlerton(THD *unused, plugin_ref plugin,
                                void *arg)
 {
   List<char> *found_exts= (List<char> *) arg;
-  handlerton *hton= plugin_data(plugin, handlerton *);
+  handlerton *hton= plugin_data<handlerton*>(plugin);
   handler *file;
   if (hton->state == SHOW_OPTION_YES && hton->create &&
       (file= hton->create(hton, (TABLE_SHARE*) 0, current_thd->mem_root)))
@@ -7034,7 +7016,7 @@ static my_bool showstat_handlerton(THD *thd, plugin_ref plugin,
                                    void *arg)
 {
   enum ha_stat_type stat= *(enum ha_stat_type *) arg;
-  handlerton *hton= plugin_data(plugin, handlerton *);
+  handlerton *hton= plugin_data<handlerton*>(plugin);
   if (hton->state == SHOW_OPTION_YES && hton->show_status &&
       hton->show_status(hton, thd, stat_print, stat))
     return TRUE;

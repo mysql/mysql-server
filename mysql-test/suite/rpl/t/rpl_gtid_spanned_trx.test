@@ -1,0 +1,134 @@
+# ==== Purpose ====
+#
+# This test will verify if the IO thread will correctly handle the GTID and
+# the transaction boundary of transactions spanned along multiple relay log
+# files.
+#
+# This test starts creating a single transaction (CREATE TABLE), and then
+# sets a debug point that will make the IO thread to stop after queuing an
+# QUERY_LOG_EVENT. The test will stop the SQL thread after syncing with the
+# master.
+#
+# The test will then apply a transaction composed by three INSERT statements
+# that will be logged on master as one GTID_LOG_EVENT, four QUERY_LOG_EVENTS
+# (the BEGIN plus the three INSERT) and a XID_LOG_EVENT.
+#
+# By disabling GTID auto positioning, and restating the IO thread after each
+# time it stops because of the debug point, we guarantee that GTID+BEGIN will
+# be in one relay log file, each INSERT will be alone in distinct relay log
+# files and the XID will finalize the transaction in another relay log file.
+#
+# Finally, the test will restart the MySQL slave server to make it recover the
+# Retrieved_Gtid_Set from the relay log with the spanned transaction.
+#
+# ==== Related Bugs and Worklogs ====
+#
+# BUG#17943188: SHOW SLAVE STATUS/RETRIEVED_GTID_SET MAY HAVE PARTIAL TRX OR
+#               MISS COMPLETE TRX
+#
+
+# This test should run only on debug build
+--source include/have_debug.inc
+# This test uses debug sync to stop the IO thread in the middle of a transaction
+--source include/have_debug_sync.inc
+
+--source include/have_gtid.inc
+--source include/have_innodb.inc
+--source include/have_binlog_format_statement.inc
+--let $rpl_gtid_utils= 1
+--source include/master-slave.inc
+
+# Disable GTID auto positioning
+--source include/rpl_connection_slave.inc
+--source include/stop_slave.inc
+CHANGE MASTER TO MASTER_AUTO_POSITION= 0;
+--source include/start_slave.inc
+
+--source include/rpl_connection_master.inc
+CREATE TABLE t1 (c1 INT) ENGINE= InnoDB;
+
+--source include/sync_slave_sql_with_master.inc
+# We stop the SQL thread as we don't want it to apply the transaction to be
+# replicated before the recovery
+--source include/stop_slave_sql.inc
+
+--let $debug_point= stop_io_after_reading_query_log_event
+--source include/add_debug_point.inc
+
+--source include/rpl_connection_master.inc
+--let $inserts= 3
+--let $counter= 0
+# This transaction should be spanned on every query log event:
+# - 1 x BEGIN;
+# - 3 x INSERT;
+BEGIN;
+while ($counter < $inserts)
+{
+  --inc $counter
+  --eval INSERT INTO t1 VALUES ($counter)
+}
+COMMIT;
+--eval INSERT INTO t1 VALUES ($counter + 1)
+
+# We now span the transaction along distinct relay log files
+--source include/rpl_connection_slave.inc
+--let $restarts= $inserts
+# The amount of restarts is the amount of INSERT + 1 (BEGIN)
+--inc $restarts
+while ($restarts > 0)
+{
+  # Waiting for slave IO thread to stop
+  --source include/wait_for_slave_io_to_stop.inc
+  --dec $restarts
+  # At this point, the Retrieved_Gtid_Set should have only one GTID
+  --let $retrieved_gtids= query_get_value(SHOW SLAVE STATUS, Retrieved_Gtid_Set, 1)
+  --let $assert_text= Exactly one GTID should have been retrieved before having all the transaction
+  --let $assert_cond= GTID_COUNT("$retrieved_gtids") = 1
+  --source include/assert.inc
+  #
+  if ($restarts == 0)
+  {
+    --source include/remove_debug_point.inc
+  }
+  # We should not use "start_slave_io.inc" here because the IO thread
+  # will stop just a few events after starting.
+  START SLAVE IO_THREAD;
+}
+
+--source include/rpl_connection_master.inc
+--source include/sync_slave_io_with_master.inc
+
+# At this point, the Retrieved_Gtid_Set should have three GTIDs
+# One for the CREATE TABLE, one for the transaction with the split
+# INSERT and one for the last INSERT
+--let $retrieved_gtids= query_get_value(SHOW SLAVE STATUS, Retrieved_Gtid_Set, 1)
+--let $assert_text= Exactly three GTIDs should have been retrieved from master before restarting
+--let $assert_cond= GTID_COUNT("$retrieved_gtids") = 3
+--source include/assert.inc
+
+# Restart the slave to verify the spanned transaction
+--let $rpl_server_number= 2
+--let $rpl_force_stop= 0
+--source include/rpl_stop_server.inc
+--source include/rpl_start_server.inc
+
+# As we restarted the whole slave server with the spanned transaction fully
+# replicated but without any additional relay log rotation, there is no
+# PREVIOUS_GTID_LOG_EVENT on the relay log stating that the GTID of the
+# spanned transaction was retrieved. The slave will have to scan this info
+# during the relay log recovery.
+
+--source include/start_slave.inc
+--source include/rpl_connection_master.inc
+--source include/sync_slave_io_with_master.inc
+# At this point, the Retrieved_Gtid_Set should have three GTIDs
+--let $retrieved_gtids= query_get_value(SHOW SLAVE STATUS, Retrieved_Gtid_Set, 1)
+--let $assert_text= Exactly two GTIDs should have been retrieved from master after restarting
+--let $assert_cond= GTID_COUNT("$retrieved_gtids") = 3
+--source include/assert.inc
+
+# Cleanup
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+
+--source include/rpl_end.inc

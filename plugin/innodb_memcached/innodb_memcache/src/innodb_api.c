@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -77,7 +77,6 @@ static ib_cb_t* innodb_memcached_api[] = {
 	(ib_cb_t*) &ib_cb_col_get_name,
 	(ib_cb_t*) &ib_cb_table_truncate,
 	(ib_cb_t*) &ib_cb_cursor_open_index_using_name,
-	(ib_cb_t*) &ib_cb_close_thd,
 	(ib_cb_t*) &ib_cb_get_cfg,
 	(ib_cb_t*) &ib_cb_cursor_set_memcached_sync,
 	(ib_cb_t*) &ib_cb_cursor_set_cluster_access,
@@ -1964,17 +1963,6 @@ innodb_cb_trx_commit(
 	ib_trx_t	ib_trx)		/*!< in/out: transaction to commit */
 {
 	return(ib_cb_trx_commit(ib_trx));
-}
-
-/*************************************************************//**
-Close table associated to the connection
-@return DB_SUCCESS if successful or error code */
-ib_err_t
-innodb_cb_close_thd(
-/*=================*/
-	void*		thd)		/*!<in: THD */
-{
-	return(ib_cb_close_thd(thd));
 }
 
 /*****************************************************************//**

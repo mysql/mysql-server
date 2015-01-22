@@ -87,20 +87,6 @@
 #define BINLOG_VERSION    4
 
 /*
-  G_COMMIT_TS is left defined but won't be used anymore, being superceded by
-  G_COMMIT_TS2.
-  Old master event may have Q_COMMIT_TS status variable/value
-  but that info will not be used by slave applier.
-*/
-#define G_COMMIT_TS   1 /* single logical timestamp introduced by 5.7.2 */
-/*
-  Status variable stores two logical timestamps when the transaction
-  entered the commit phase. They wll be used to apply transactions in parallel
-  on the slave.
-*/
-#define G_COMMIT_TS2  2 /* two logical timestamps introduced by 7.5.6 */
-
-/*
   Constants used by Query_event.
 */
 
@@ -117,10 +103,6 @@
    mts_accessed_dbs status.
 */
 #define OVER_MAX_DBS_IN_EVENT_MTS 254
-
-/* total size of two transaction logical timestamps in the status vars in bytes */
-#define COMMIT_SEQ_LEN  16
-#define COMMIT_SEQ_LEN_OLD 8
 
 /**
   Max number of possible extra bytes in a replication event compared to a

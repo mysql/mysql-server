@@ -309,9 +309,8 @@ BINLOG '
 ';
 
 # Show binlog events to check that server ids are correct.
---replace_column 1 # 2 # 5 #
---replace_regex /Server ver: .*, Binlog ver: .*/Server ver: #, Binlog ver: #/ /table_id: [0-9]+/table_id: #/ /SET @@SESSION.GTID_NEXT=.*$/SET @@SESSION.GTID_NEXT= 'GTID';/ /GROUPS: .*:(.*,.*)/GROUPS: GTID:(X,X)/
-SHOW BINLOG EVENTS;
+--let $show_binlog_events_mask_columns= 1,2,5
+--source include/show_binlog_events.inc
 
 DROP TABLE t1;
 

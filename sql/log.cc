@@ -32,9 +32,13 @@
 #include "auth_common.h"        // SUPER_ACL
 #include "sql_audit.h"
 #include "mysql/service_my_plugin_log.h"
+#include "sql_plugin_ref.h"
 
 #include <my_dir.h>
 #include <stdarg.h>
+
+#include "pfs_file_provider.h"
+#include "mysql/psi/mysql_file.h"
 
 #ifdef _WIN32
 #include "message.h"

@@ -432,12 +432,6 @@ typedef struct st_io_cache		/* Used when cacheing files */
     somewhere else
   */
   my_bool alloced_buffer;
-  /*
-    Offset of the space allotted for commit sequence number from the beginning
-    of the cache that will be used to update it when the transaction has
-    its commit sequence.
-   */
-  uint commit_seq_offset;
 } IO_CACHE;
 
 typedef int (*qsort2_cmp)(const void *, const void *, const void *);
@@ -587,8 +581,7 @@ extern HANDLE   my_get_osfhandle(File fd);
 extern void     my_osmaperr(unsigned long last_error);
 #endif
 
-extern void init_glob_errs(void);
-extern const char** get_global_errmsgs();
+extern const char* get_global_errmsg(int nr);
 extern void wait_for_free_space(const char *filename, int errors);
 extern FILE *my_fopen(const char *FileName,int Flags,myf MyFlags);
 extern FILE *my_fdopen(File Filedes,const char *name, int Flags,myf MyFlags);
@@ -609,9 +602,9 @@ extern void my_printf_error(uint my_err, const char *format,
   __attribute__((format(printf, 2, 4)));
 extern void my_printv_error(uint error, const char *format, myf MyFlags,
                             va_list ap);
-extern int my_error_register(const char** (*get_errmsgs) (),
+extern int my_error_register(const char* (*get_errmsg) (int),
                              int first, int last);
-extern const char **my_error_unregister(int first, int last);
+extern my_bool my_error_unregister(int first, int last);
 extern void my_message(uint my_err, const char *str,myf MyFlags);
 extern void my_message_stderr(uint my_err, const char *str, myf MyFlags);
 void my_message_local_stderr(enum loglevel ll,

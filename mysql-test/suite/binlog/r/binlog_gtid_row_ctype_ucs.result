@@ -10,14 +10,15 @@ master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 flush logs;
+include/mysqlbinlog.inc
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
 # [empty]
-SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
-SET TIMESTAMP=10000/*!*/;
-SET @@session.pseudo_thread_id=999999999/*!*/;
+SET @@SESSION.GTID_NEXT= '#'/*!*/;
+SET TIMESTAMP=#/*!*/;
+SET @@session.pseudo_thread_id=#/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
 SET @@session.sql_mode=1075839008/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
@@ -28,7 +29,7 @@ SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
 COMMIT/*!*/;
-SET @@SESSION.GTID_NEXT= 'GTID' /* added by mysqlbinlog */ /*!*/;
+SET @@SESSION.GTID_NEXT= '#' /* added by mysqlbinlog */ /*!*/;
 DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;

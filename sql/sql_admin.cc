@@ -13,6 +13,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include "sql_admin.h"
+
 #include "sql_class.h"                       // THD
 #include "keycaches.h"                       // get_key_cache
 #include "sql_base.h"                        // Open_table_context
@@ -27,10 +29,12 @@
 #include "sp.h"                              // Sroutine_hash_entry
 #include "sp_rcontext.h"                     // sp_rcontext
 #include "sql_parse.h"                       // check_table_access
-#include "sql_admin.h"
 #include "table_trigger_dispatcher.h"        // Table_trigger_dispatcher
 #include "log.h"
 #include "myisam.h"                          // TT_USEFRM
+
+#include "pfs_file_provider.h"
+#include "mysql/psi/mysql_file.h"
 
 static int send_check_errmsg(THD *thd, TABLE_LIST* table,
 			     const char* operator_name, const char* errmsg)
@@ -283,7 +287,8 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
   LEX *lex= thd->lex;
   int result_code;
   bool gtid_rollback_must_be_skipped=
-    ((thd->variables.gtid_next.type == GTID_GROUP) &&
+    ((thd->variables.gtid_next.type == GTID_GROUP ||
+      thd->variables.gtid_next.type == ANONYMOUS_GROUP) &&
     (!thd->skip_gtid_rollback));
   DBUG_ENTER("mysql_admin_table");
 
@@ -309,11 +314,13 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
     table->table= NULL;
 
   /*
-    If this statement goes to binlog and GTID_NEXT was set to a GTID_GROUP
-    (like SQL thread do when applying statements from the relay log of a
-    master server with GTIDs enabled) we have to avoid losing the ownership of
-    the GTID_GROUP by some trans_rollback_stmt() when processing individual
-    tables.
+    This statement will be written to the binary log even if it fails.
+    But a failing statement calls trans_rollback_stmt which calls
+    gtid_state->update_on_rollback, which releases GTID ownership.
+    And GTID ownership must be held when the statement is being
+    written to the binary log.  Therefore, we set this flag before
+    executing the statement. The flag tells
+    gtid_state->update_on_rollback to skip releasing ownership.
   */
   if (gtid_rollback_must_be_skipped)
     thd->skip_gtid_rollback= true;

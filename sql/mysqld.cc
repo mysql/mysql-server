@@ -13,7 +13,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
+#include "mysqld.h"
 
 #include <vector>
 #include <algorithm>
@@ -64,7 +64,6 @@
 #include "sql_servers.h"  // servers_free, servers_init
 #include "init.h"         // unireg_init
 #include "derror.h"       // init_errmessage
-#include "derror.h"       // init_errmessage
 #include "des_key_file.h" // load_des_key_file
 #include "sql_manager.h"  // stop_handle_manager, start_handle_manager
 #include "bootstrap.h"    // bootstrap
@@ -89,14 +88,17 @@
 #include "sql_callback.h"
 #include "opt_trace_context.h"
 #include "opt_costconstantcache.h"
+#include "sql_plugin.h"                         // plugin_shutdown
 
-#include "mysqld.h"
 #include "my_default.h"
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #include "../storage/perfschema/pfs_server.h"
 #include <pfs_idle_provider.h>
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
+
+#include "pfs_file_provider.h"
+#include "mysql/psi/mysql_file.h"
 
 #include <mysql/psi/mysql_idle.h>
 #include <mysql/psi/mysql_socket.h>
@@ -479,6 +481,11 @@ ulong expire_logs_days = 0;
   in the sp_cache for one connection.
 */
 ulong stored_program_cache_size= 0;
+/**
+  Compatibility option to prevent auto upgrade of old temporals
+  during certain ALTER TABLE operations.
+*/
+my_bool avoid_temporal_upgrade;
 
 const double log_10[] = {
   1e000, 1e001, 1e002, 1e003, 1e004, 1e005, 1e006, 1e007, 1e008, 1e009,
@@ -1425,7 +1432,7 @@ void clean_up(bool print_message)
 
   mysql_client_plugin_deinit();
   finish_client_errs();
-  (void) my_error_unregister(ER_ERROR_FIRST, ER_ERROR_LAST); // finish server errs
+  deinit_errmessage(); // finish server errs
   DBUG_PRINT("quit", ("Error messages freed"));
 
   free_charsets();
@@ -3581,7 +3588,7 @@ initialize_storage_engine(char *se_name, const char *se_kind,
   plugin_ref plugin;
   handlerton *hton;
   if ((plugin= ha_resolve_by_name(0, &name, FALSE)))
-    hton= plugin_data(plugin, handlerton*);
+    hton= plugin_data<handlerton*>(plugin);
   else
   {
     sql_print_error("Unknown/unsupported storage engine: %s", se_name);
@@ -3957,7 +3964,7 @@ a file name for --log-bin-index option", opt_binlog_index_name);
     unireg_abort(0);
 
   /* if the errmsg.sys is not loaded, terminate to maintain behaviour */
-  if (!my_default_lc_messages->errmsgs->errmsgs[0][0])
+  if (!my_default_lc_messages->errmsgs->is_loaded())
   {
     sql_print_error("Unable to read errmsg.sys file");
     unireg_abort(1);
@@ -4488,10 +4495,11 @@ int mysqld_main(int argc, char **argv)
 
       if (mysql_bin_log.init_gtid_sets(&logged_gtids_binlog,
                                        &purged_gtids_binlog,
-                                       NULL,
                                        opt_master_verify_checksum,
                                        true/*true=need lock*/,
-                                       true) ||
+                                       NULL/*trx_parser*/,
+                                       NULL/*gtid_partial_trx*/,
+                                       true/*is_server_starting*/) ||
           gtid_state->fetch_gtids(executed_gtids) == -1)
         unireg_abort(1);
 
@@ -4554,8 +4562,6 @@ int mysqld_main(int argc, char **argv)
         unireg_abort(1);
       }
 
-      global_sid_lock->unlock();
-
       /*
         Write the previous set of gtids at this point because during
         the creation of the binary log this is not done as we cannot
@@ -4564,30 +4570,23 @@ int mysqld_main(int argc, char **argv)
 
         /Alfranio
       */
-      if (gtid_mode > 0)
-      {
-        global_sid_lock->wrlock();
-        if (gtid_mode > GTID_MODE_UPGRADE_STEP_1 ||
-            !logged_gtids_binlog.is_empty())
-        {
-          Previous_gtids_log_event prev_gtids_ev(&logged_gtids_binlog);
-          global_sid_lock->unlock();
+      Previous_gtids_log_event prev_gtids_ev(&logged_gtids_binlog);
 
-          (prev_gtids_ev.common_footer)->checksum_alg=
-             static_cast<enum_binlog_checksum_alg>(binlog_checksum_options);
+      global_sid_lock->unlock();
 
-          if (prev_gtids_ev.write(mysql_bin_log.get_log_file()))
-            unireg_abort(1);
-          mysql_bin_log.add_bytes_written(prev_gtids_ev.common_header->data_written);
+      (prev_gtids_ev.common_footer)->checksum_alg=
+        static_cast<enum_binlog_checksum_alg>(binlog_checksum_options);
 
-          if (flush_io_cache(mysql_bin_log.get_log_file()) ||
-              mysql_file_sync(mysql_bin_log.get_log_file()->file, MYF(MY_WME)))
-            unireg_abort(1);
-          mysql_bin_log.update_binlog_end_pos();
-        }
-        else
-          global_sid_lock->unlock();
-      }
+      if (prev_gtids_ev.write(mysql_bin_log.get_log_file()))
+        unireg_abort(1);
+      mysql_bin_log.add_bytes_written(
+        prev_gtids_ev.common_header->data_written);
+
+      if (flush_io_cache(mysql_bin_log.get_log_file()) ||
+          mysql_file_sync(mysql_bin_log.get_log_file()->file, MYF(MY_WME)))
+        unireg_abort(1);
+      mysql_bin_log.update_binlog_end_pos();
+
       (void) RUN_HOOK(server_state, after_engine_recovery, (NULL));
     }
     else if (gtid_mode > GTID_MODE_OFF)
@@ -6653,7 +6652,7 @@ static int mysql_init_variables(void)
   table_alias_charset= &my_charset_bin;
   character_set_filesystem= &my_charset_bin;
 
-  opt_specialflag= SPECIAL_ENGLISH;
+  opt_specialflag= 0;
   mysql_home_ptr= mysql_home;
   pidfile_name_ptr= pidfile_name;
   log_error_file_ptr= log_error_file;
@@ -7160,6 +7159,11 @@ pfs_error:
     sql_print_warning("The use of InnoDB is mandatory since MySQL 5.7. "
                       "The former options like '--innodb=0/1/OFF/ON' or "
                       "'--skip-innodb' are ignored.");
+  case OPT_AVOID_TEMPORAL_UPGRADE:
+    push_deprecated_warn_no_replacement(NULL, "avoid_temporal_upgrade");
+    break;
+  case OPT_SHOW_OLD_TEMPORALS:
+    push_deprecated_warn_no_replacement(NULL, "show_old_temporals");
     break;
   }
   return 0;

@@ -21,9 +21,6 @@
 #include "my_decimal.h"                         /* my_decimal */
 #include "mysql_com.h"                     /* SERVER_VERSION_LENGTH */
 #include "my_atomic.h"                     /* my_atomic_add64 */
-#include "pfs_file_provider.h"
-#include "mysql/psi/mysql_file.h"          /* MYSQL_FILE */
-#include "sql_list.h"                      /* I_List */
 #include "sql_cmd.h"                       /* SQLCOM_END */
 
 class THD;
@@ -33,7 +30,6 @@ template <uint default_width> class Bitmap;
 
 typedef struct st_mysql_const_lex_string LEX_CSTRING;
 typedef struct st_mysql_show_var SHOW_VAR;
-typedef struct st_mysql_socket MYSQL_SOCKET;
 
 /*
   This forward declaration is used from C files where the real
@@ -76,7 +72,6 @@ typedef Bitmap<((MAX_INDEXES+7)/8*8)> key_map; /* Used for finding keys */
 
 #define SPECIAL_NO_NEW_FUNC	2		/* Skip new functions */
 #define SPECIAL_SKIP_SHOW_DB    4               /* Don't allow 'show db' */
-#define SPECIAL_ENGLISH        32		/* English error messages */
 #define SPECIAL_NO_RESOLVE     64		/* Don't use gethostname */
 #define SPECIAL_NO_HOST_CACHE	512		/* Don't cache hosts */
 #define SPECIAL_SHORT_LOG_FORMAT 1024
@@ -278,7 +273,6 @@ extern MYSQL_PLUGIN_IMPORT MY_TMPDIR mysql_tmpdir_list;
 extern const char *show_comp_option_name[];
 extern const char *first_keyword, *binary_keyword;
 extern MYSQL_PLUGIN_IMPORT const char  *my_localhost;
-extern MYSQL_PLUGIN_IMPORT const char **errmesg;			/* Error messages */
 extern const char *myisam_recover_options_str;
 extern const char *in_left_expr_name, *in_additional_cond, *in_having_cond;
 extern SHOW_VAR status_vars[];
@@ -305,6 +299,7 @@ extern "C" MYSQL_PLUGIN_IMPORT int orig_argc;
 extern "C" MYSQL_PLUGIN_IMPORT char **orig_argv;
 extern my_thread_attr_t connection_attrib;
 extern my_bool old_mode;
+extern my_bool avoid_temporal_upgrade;
 extern LEX_STRING opt_init_connect, opt_init_slave;
 extern char err_shared_dir[];
 extern my_decimal decimal_zero;
@@ -881,7 +876,9 @@ enum options_mysqld
   OPT_TABLE_DEFINITION_CACHE,
   OPT_MDL_CACHE_SIZE,
   OPT_MDL_HASH_INSTANCES,
-  OPT_SKIP_INNODB
+  OPT_SKIP_INNODB,
+  OPT_AVOID_TEMPORAL_UPGRADE,
+  OPT_SHOW_OLD_TEMPORALS
 };
 
 
@@ -940,9 +937,6 @@ static inline THD *_current_thd(void)
 #endif
 #define current_thd _current_thd()
 
-#define ER_DEFAULT(X) my_default_lc_messages->errmsgs->errmsgs[(X) - ER_ERROR_FIRST]
-#define ER_THD(thd,X) ((thd)->variables.lc_messages->errmsgs->errmsgs[(X) - \
-                       ER_ERROR_FIRST])
 #define ER(X)         ER_THD(current_thd,X)
 
 #endif /* MYSQLD_INCLUDED */

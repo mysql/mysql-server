@@ -326,12 +326,9 @@ if ($CRC_RET_stmt_sidef) {
   --eval $CRC_RET_stmt_sidef
   --let $n_warnings= `SHOW COUNT(*) WARNINGS`
 
-  if ($n_warnings != $CRC_expected_number_of_warnings) {
-    --echo ******** Failure! Expected $CRC_expected_number_of_warnings warnings, got $n_warnings warnings. ********
-#    SHOW WARNINGS;
-#    SHOW BINLOG EVENTS;
-    --die Wrong number of warnings.
-  }
+  --let $assert_cond= $n_warnings = $CRC_expected_number_of_warnings
+  --let $assert_text= There should be $CRC_expected_number_of_warnings warning(s)
+  --source include/assert.inc
 
   # These queries are run without query log, to make result file more
   # readable.  Debug info is only printed if something abnormal
@@ -342,20 +339,15 @@ if ($CRC_RET_stmt_sidef) {
   SET SQL_LOG_BIN = 0;
   RESET MASTER;
   --eval $CRC_RET_stmt_sidef
+
   --let $n_warnings= `SHOW COUNT(*) WARNINGS`
-  if ($n_warnings != $CRC_expected_number_of_warnings_after_reset) {
-    --echo ******** Failure! Expected $CRC_expected_number_of_warnings_after_reset warnings, got $n_warnings warnings. ********
-    SHOW WARNINGS;
-    SHOW BINLOG EVENTS;
-    --die Wrong number of warnings.
-  }
-  --let $binlog_event= query_get_value(SHOW BINLOG EVENTS, Event_type, 2)
-  if ($binlog_event != No such row) {
-    --enable_query_log
-    --echo ******** Failure! Something was written to the binlog despite SQL_LOG_BIN=0 ********
-    SHOW BINLOG EVENTS;
-    --die Binlog not empty
-  }
+  --let $assert_cond= $n_warnings = $CRC_expected_number_of_warnings_after_reset
+  --let $assert_text= There should be $CRC_expected_number_of_warnings_after_reset warning(s)
+  --source include/assert.inc
+
+  --let $assert_text= Only two events should exist in the binary log
+  --let $assert_cond= "[SHOW BINLOG EVENTS, Event_type, 3]" = "No such row"
+  --source include/assert.inc
   SET SQL_LOG_BIN = 1;
 
   --echo * binlog_format = MIXED: expect row events in binlog and no warning.
@@ -365,21 +357,18 @@ if ($CRC_RET_stmt_sidef) {
   --let $n_warnings= `SHOW COUNT(*) WARNINGS`
   if ($n_warnings != $CRC_expected_number_of_warnings_after_reset) {
     --echo ******** Failure! Expected $CRC_expected_number_of_warnings_after_reset warnings, got $n_warnings warnings. ********
-    SHOW WARNINGS;
-    SHOW BINLOG EVENTS;
-    --die Warnings printed
+    --source include/show_rpl_debug_info.inc
+    --die Wrong number of warnings
   }
-  --let $event_type= query_get_value(SHOW BINLOG EVENTS, Event_type, 3)
-  # The first event is format_description, the second is
-  # Query_event('BEGIN'), and the third should be our Table_map
-  # for unsafe statement.
-  if (`SELECT '$event_type' != 'Table_map'`) {
-    --enable_query_log
-    --echo ******** Failure! Event number 3 was a '$event_type', not a 'Table_map'. ********
-    SHOW WARNINGS;
-    SHOW BINLOG EVENTS;
-    --die Wrong events in binlog.
-  }
+  # We expect the binlog to contain:
+  #  1. Format_description_log_event
+  #  2. Previous_gtids_log_event
+  #  3. Gtid_log_event
+  #  4. Query_event('BEGIN')
+  #  5. Table_map_log_event for the unsafe statement.
+  --let $assert_text= Event number 5 should be a Table_map_log_event
+  --let $assert_cond= "[SHOW BINLOG EVENTS, Event_type, 5]" = "Table_map"
+  --source include/assert.inc
   SET binlog_format = STATEMENT;
 
   --enable_query_log

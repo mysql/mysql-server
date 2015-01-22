@@ -2236,14 +2236,14 @@ bool multi_update::send_data(List<Item> &not_used_values)
       do
       {
         tbl->file->position(tbl->record[0]);
-        memcpy((char*) tmp_table->field[field_num]->ptr,
+        memcpy((char*) tmp_table->visible_field_ptr()[field_num]->ptr,
                (char*) tbl->file->ref, tbl->file->ref_length);
         /*
          For outer joins a rowid field may have no NOT_NULL_FLAG,
          so we have to reset NULL bit for this field.
          (set_notnull() resets NULL bit only if available).
         */
-        tmp_table->field[field_num]->set_notnull();
+        tmp_table->visible_field_ptr()[field_num]->set_notnull();
         field_num++;
       } while ((tbl= tbl_it++));
 
@@ -2253,7 +2253,7 @@ bool multi_update::send_data(List<Item> &not_used_values)
       */
       if (tmp_table->triggers)
       {
-        for (Field** modified_fields= tmp_table->field + 1 +
+        for (Field** modified_fields= tmp_table->visible_field_ptr() + 1 +
                                       unupdated_check_opt_tables.elements;
             *modified_fields; ++modified_fields)
         {
@@ -2263,7 +2263,8 @@ bool multi_update::send_data(List<Item> &not_used_values)
 
       /* Store regular updated fields in the row. */
       fill_record(thd,
-                  tmp_table->field + 1 + unupdated_check_opt_tables.elements,
+                  tmp_table->visible_field_ptr() +
+                  1 + unupdated_check_opt_tables.elements,
                   *values_for_table[offset], NULL, NULL);
 
       /* Write row, ignoring duplicated updates to a row */
@@ -2408,7 +2409,7 @@ int multi_update::do_updates()
       Setup copy functions to copy fields from temporary table
     */
     List_iterator_fast<Item> field_it(*fields_for_table[offset]);
-    Field **field= tmp_table->field + 
+    Field **field= tmp_table->visible_field_ptr() +
                    1 + unupdated_check_opt_tables.elements; // Skip row pointers
     Copy_field *copy_field_ptr= copy_field, *copy_field_end;
     for ( ; *field ; field++)
@@ -2453,7 +2454,7 @@ int multi_update::do_updates()
       {
         if((local_error=
               tbl->file->ha_rnd_pos(tbl->record[0],
-                                    (uchar *) tmp_table->field[field_num]->ptr)))
+                                    (uchar *) tmp_table->visible_field_ptr()[field_num]->ptr)))
         {
           if (table->file->is_fatal_error(local_error))
             error_flags|= ME_FATALERROR;

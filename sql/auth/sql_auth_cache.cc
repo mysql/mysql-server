@@ -23,6 +23,7 @@
 #include "sql_auth_cache.h"
 #include "sql_authentication.h"
 #include "sql_time.h"
+#include "sql_plugin.h"                         // lock_plugin_data etc.
 
 #define INVALID_DATE "0000-00-00 00:00:00"
 

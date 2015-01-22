@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,89 +13,101 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-
-/**
-  @file
-
-  @brief
-  Read language depeneded messagefile
-*/
-
 #include "derror.h"
 #include "mysys_err.h"
 #include "mysqld.h"                             // lc_messages_dir
-#include "derror.h"                             // read_texts
 #include "sql_class.h"                          // THD
 #include "log.h"
 
-static void init_myfunc_errs(void);
+#include "pfs_file_provider.h"
+#include "mysql/psi/mysql_file.h"
+
+static const char *ERRMSG_FILE = "errmsg.sys";
+static const int NUM_SECTIONS=
+  sizeof(errmsg_section_start) / sizeof(errmsg_section_start[0]);
+
+/*
+  Error messages are stored sequentially in an array.
+  But logically error messages are organized in sections where
+  each section contains errors that are consecutively numbered.
+  This function maps from a "logical" mysql_errno to an array
+  index and returns the string.
+*/
+const char* MY_LOCALE_ERRMSGS::lookup(int mysql_errno)
+{
+  int offset= 0; // Position where the current section starts in the array.
+  for (int i= 0; i < NUM_SECTIONS; i++)
+  {
+    if (mysql_errno < (errmsg_section_start[i] + errmsg_section_size[i]))
+      return errmsgs[mysql_errno - errmsg_section_start[i] + offset];
+    offset+= errmsg_section_size[i];
+  }
+  return "Invalid error code";
+}
+
+
+const char* ER_DEFAULT(int mysql_errno)
+{
+  return my_default_lc_messages->errmsgs->lookup(mysql_errno);
+}
+
+
+const char* ER_THD(const THD *thd, int mysql_errno)
+{
+  return thd->variables.lc_messages->errmsgs->lookup(mysql_errno);
+}
 
 
 C_MODE_START
-static const char **get_server_errmsgs()
+static const char *get_server_errmsgs(int mysql_errno)
 {
-  if (!current_thd)
-    return my_default_lc_messages->errmsgs->errmsgs;
-  return current_thd->variables.lc_messages->errmsgs->errmsgs;
+  if (current_thd)
+    return ER_THD(current_thd, mysql_errno);
+  return ER_DEFAULT(mysql_errno);
 }
 C_MODE_END
 
-/**
-  Read messages from errorfile.
 
-  This function can be called multiple times to reload the messages.
-  If it fails to load the messages, it will fail softly by initializing
-  the errmesg pointer to an array of empty strings or by keeping the
-  old array if it exists.
-
-  @retval
-    FALSE       OK
-  @retval
-    TRUE        Error
-*/
-
-bool init_errmessage(void)
+bool init_errmessage()
 {
-  const char **errmsgs;
   DBUG_ENTER("init_errmessage");
 
-  /*
-    Get a pointer to the old error messages pointer array.
-    read_texts() tries to free it.
-  */
-  errmsgs= my_error_unregister(ER_ERROR_FIRST, ER_ERROR_LAST);
-
   /* Read messages from file. */
-  read_texts(ERRMSG_FILE, my_default_lc_messages->errmsgs->language,
-             errmsgs, ER_ERROR_LAST - ER_ERROR_FIRST + 1);
-  if (!errmsgs)
-    DBUG_RETURN(TRUE); /* Fatal error, not able to allocate memory. */
+  (void)my_default_lc_messages->errmsgs->read_texts();
+
+  if (!my_default_lc_messages->errmsgs->is_loaded())
+    DBUG_RETURN(true); /* Fatal error, not able to allocate memory. */
 
   /* Register messages for use with my_error(). */
-  if (my_error_register(get_server_errmsgs, ER_ERROR_FIRST, ER_ERROR_LAST))
+  for (int i= 0; i < NUM_SECTIONS; i++)
   {
-    my_free(errmsgs);
-    DBUG_RETURN(TRUE);
+    if (my_error_register(get_server_errmsgs,
+                          errmsg_section_start[i],
+                          errmsg_section_start[i] +
+                          errmsg_section_size[i] - 1))
+    {
+      my_default_lc_messages->errmsgs->destroy();
+      DBUG_RETURN(true);
+    }
   }
 
-  my_default_lc_messages->errmsgs->errmsgs= errmsgs; /* Init global variable */
-  init_myfunc_errs();			/* Init myfunc messages */
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
+}
+
+
+void deinit_errmessage()
+{
+  for (int i= 0; i < NUM_SECTIONS; i++)
+  {
+    my_error_unregister(errmsg_section_start[i],
+                        errmsg_section_start[i] +
+                        errmsg_section_size[i] - 1);
+  }
 }
 
 
 /**
   Read text from packed textfile in language-directory.
-
-  @param  file_name      Name of packed text file.
-  @param  language       Language of error text file.
-  @param  errmsgs        Will contain all the error text messages.
-                         [This is a OUT argument]
-                         This buffer contains 2 sections.
-                         Section1: Offsets to error message text.
-                         Section2: Holds all error messages.
-
-  @param  error_messages Total number of error messages.
 
   @retval false          On success
   @retval true           On failure
@@ -103,8 +115,7 @@ bool init_errmessage(void)
   @note If we can't read messagefile then it's panic- we can't continue.
 */
 
-bool read_texts(const char *file_name, const char *language,
-                const char **&errmsgs, uint error_messages)
+bool MY_LOCALE_ERRMSGS::read_texts()
 {
   uint i;
   uint no_of_errmsgs;
@@ -115,12 +126,16 @@ bool read_texts(const char *file_name, const char *language,
   uchar *start_of_errmsgs= NULL;
   uchar *pos= NULL;
   uchar head[32];
+  uint error_messages= 0;
   DBUG_ENTER("read_texts");
+
+  for (int i= 0; i < NUM_SECTIONS; i++)
+    error_messages+= errmsg_section_size[i];
 
   convert_dirname(lang_path, language, NullS);
   (void) my_load_path(lang_path, lang_path, lc_messages_dir);
   if ((file= mysql_file_open(key_file_ERRMSG,
-                             fn_format(name, file_name, lang_path, "", 4),
+                             fn_format(name, ERRMSG_FILE, lang_path, "", 4),
                              O_RDONLY | O_SHARE | O_BINARY,
                              MYF(0))) < 0)
   {
@@ -131,7 +146,7 @@ bool read_texts(const char *file_name, const char *language,
       --language=/path/to/english/
     */
     if ((file= mysql_file_open(key_file_ERRMSG,
-                               fn_format(name, file_name,
+                               fn_format(name, ERRMSG_FILE,
                                          lc_messages_dir, "", 4),
                                O_RDONLY | O_SHARE | O_BINARY,
                                MYF(0))) < 0)
@@ -210,7 +225,7 @@ bool read_texts(const char *file_name, const char *language,
   DBUG_RETURN(false);
 
 read_err_init:
-  for (uint i= 0; i <= ER_ERROR_LAST - ER_ERROR_FIRST; ++i)
+  for (uint i= 0; i < error_messages; ++i)
     errmsgs[i]= "";
 read_err:
   sql_print_error("Can't read from messagefile '%s'", name);
@@ -223,10 +238,10 @@ open_err:
       to errmsgs during another failure in abort operation
     */
     if ((errmsgs= (const char**) my_malloc(key_memory_errmsgs,
-                                           (ER_ERROR_LAST-ER_ERROR_FIRST+1)*
-                                            sizeof(char*), MYF(0))))
+                                           error_messages *
+                                           sizeof(char*), MYF(0))))
     {
-      for (uint i= 0; i <= ER_ERROR_LAST - ER_ERROR_FIRST; ++i)
+      for (uint i= 0; i < error_messages; ++i)
         errmsgs[i]= "";
     }
   }
@@ -234,29 +249,7 @@ open_err:
 } /* read_texts */
 
 
-/**
-  Initiates error-messages used by my_func-library.
-*/
-
-static void init_myfunc_errs()
+void MY_LOCALE_ERRMSGS::destroy()
 {
-  init_glob_errs();			/* Initiate english errors */
-  if (!(specialflag & SPECIAL_ENGLISH))
-  {
-    EE(EE_FILENOTFOUND)   = ER(ER_FILE_NOT_FOUND);
-    EE(EE_CANTCREATEFILE) = ER(ER_CANT_CREATE_FILE);
-    EE(EE_READ)           = ER(ER_ERROR_ON_READ);
-    EE(EE_WRITE)          = ER(ER_ERROR_ON_WRITE);
-    EE(EE_BADCLOSE)       = ER(ER_ERROR_ON_CLOSE);
-    EE(EE_OUTOFMEMORY)    = ER(ER_OUTOFMEMORY);
-    EE(EE_DELETE)         = ER(ER_CANT_DELETE_FILE);
-    EE(EE_LINK)           = ER(ER_ERROR_ON_RENAME);
-    EE(EE_EOFERR)         = ER(ER_UNEXPECTED_EOF);
-    EE(EE_CANTLOCK)       = ER(ER_CANT_LOCK);
-    EE(EE_DIR)            = ER(ER_CANT_READ_DIR);
-    EE(EE_STAT)           = ER(ER_CANT_GET_STAT);
-    EE(EE_GETWD)          = ER(ER_CANT_GET_WD);
-    EE(EE_SETWD)          = ER(ER_CANT_SET_WD);
-    EE(EE_DISK_FULL)      = ER(ER_DISK_FULL);
-  }
+  my_free(errmsgs);
 }

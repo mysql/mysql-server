@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -51,16 +51,16 @@ enum_return_status Gtid_specification::parse(Sid_map *sid_map, const char *text)
 };
 
 
-enum_group_type Gtid_specification::get_type(const char *text)
+bool Gtid_specification::is_valid(const char *text)
 {
-  DBUG_ENTER("Gtid_specification::get_type");
+  DBUG_ENTER("Gtid_specification::is_valid");
   DBUG_ASSERT(text != NULL);
   if (my_strcasecmp(&my_charset_latin1, text, "AUTOMATIC") == 0)
-    DBUG_RETURN(AUTOMATIC_GROUP);
+    DBUG_RETURN(true);
   else if (my_strcasecmp(&my_charset_latin1, text, "ANONYMOUS") == 0)
-    DBUG_RETURN(ANONYMOUS_GROUP);
+    DBUG_RETURN(true);
   else
-    DBUG_RETURN(Gtid::is_valid(text) ? GTID_GROUP : INVALID_GROUP);
+    DBUG_RETURN(Gtid::is_valid(text));
 }
 
 #endif // ifndef MYSQL_CLIENT
@@ -92,17 +92,15 @@ int Gtid_specification::to_string(const rpl_sid *sid, char *buf) const
   case UNDEFINED_GROUP:
   case GTID_GROUP:
     DBUG_RETURN(gtid.to_string(*sid, buf));
-  case INVALID_GROUP:
-    DBUG_ASSERT(0);
   }
   DBUG_ASSERT(0);
   DBUG_RETURN(0);
 }
 
 
-int Gtid_specification::to_string(const Sid_map *sid_map, char *buf) const
+int Gtid_specification::to_string(const Sid_map *sid_map, char *buf, bool need_lock) const
 {
   return to_string(type == GTID_GROUP || type == UNDEFINED_GROUP ?
-                   &sid_map->sidno_to_sid(gtid.sidno) : NULL,
+                   &sid_map->sidno_to_sid(gtid.sidno, need_lock) : NULL,
                    buf);
 }
