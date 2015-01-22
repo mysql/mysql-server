@@ -465,7 +465,7 @@ void copy_integer(uchar *to, size_t to_length,
   generated column. It will be created during define a
   generated column or the table is opened.
 
-  If one field with such an object, it means such a field
+  If one field contains such an object, it means the field
   is a genereated one.
 */
 class Generated_column: public Sql_alloc
@@ -606,7 +606,6 @@ public:
 		CHECK,EMPTY,UNKNOWN_FIELD,CASEDN,NEXT_NUMBER,INTERVAL_FIELD,
                 BIT_FIELD, TIMESTAMP_OLD_FIELD, CAPITALIZE, BLOB_FIELD,
                 TIMESTAMP_DN_FIELD, TIMESTAMP_UN_FIELD, TIMESTAMP_DNUN_FIELD,
-                // This value is used as a flag in addition to above
                 GENERATED_FIELD= 128 };
   enum geometry_type
   {
@@ -4102,7 +4101,7 @@ public:
   uint8 row,col,sc_length,interval_id;	// For rea_create_table
   uint	offset,pack_flag;
 
-  /* Generated column expression statement */
+  /* Generated column expression information */
   Generated_column *gcol_info;
   /*
     Indication that the field is phycically stored in tables 

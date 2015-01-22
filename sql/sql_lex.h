@@ -2871,10 +2871,10 @@ public:
   */
   bool expr_allows_subselect;
   /*
-    A special command "PARSE_VCOL_EXPR" is defined for the parser 
-    to translate an expression statement of a generated column \
+    A special command "PARSE_VCOL_EXPR" is defined for the parser
+    to translate an expression statement of a generated column
     (stored in the *.frm file as a string) into an Item object.
-    The following flag is used to prevent other applications to use 
+    The following flag is used to prevent other applications to use
     this command.
   */
   bool parse_gcol_expr;

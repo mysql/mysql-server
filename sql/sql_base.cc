@@ -7064,11 +7064,12 @@ find_field_in_table(THD *thd, TABLE *table, const char *name, size_t length,
 
   if (field_ptr && *field_ptr)
   {
-    //Stored GCs are treated as the base columns for select
+    // Stored GCs are treated as the base columns for select
     if ((*field_ptr)->gcol_info && !(*field_ptr)->stored_in_db)
     {
       if (thd->mark_used_columns != MARK_COLUMNS_NONE)
       {
+        my_bitmap_map old_read_set= *(table->read_set->bitmap);
         Item *gcol_item= (*field_ptr)->gcol_info->expr_item;
         DBUG_ASSERT(gcol_item);
         gcol_item->walk(&Item::register_field_in_read_map, Item::WALK_PREFIX,
@@ -7082,7 +7083,9 @@ find_field_in_table(THD *thd, TABLE *table, const char *name, size_t length,
         */
         if (thd->mark_used_columns != MARK_COLUMNS_WRITE && 
             !(*field_ptr)->stored_in_db)
-          bitmap_set_bit((*field_ptr)->table->write_set, (*field_ptr)->field_index);
+          bitmap_set_bit(table->write_set, (*field_ptr)->field_index);
+        if (old_read_set != *(table->read_set->bitmap))
+          update_indexed_column_map(table, table->read_set);
       }
     }
     *cached_field_index_ptr= field_ptr - table->field;
@@ -8134,9 +8137,11 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
   Field *field;
   while((field= it++))
   {
+    TABLE * table= field->table;
     //Stored GCs are treated as the base columns for select
     if (field->gcol_info && !field->stored_in_db)
     {
+      my_bitmap_map old_read_set= *(table->read_set->bitmap);
       Item *gcol_item= field->gcol_info->expr_item;
       DBUG_ASSERT(gcol_item);
       gcol_item->walk(&Item::register_field_in_read_map, Item::WALK_PREFIX,
@@ -8150,6 +8155,9 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
         */
       if (thd->mark_used_columns != MARK_COLUMNS_WRITE)
         bitmap_set_bit(field->table->write_set, field->field_index);
+
+      if (old_read_set != *(table->read_set->bitmap))
+        update_indexed_column_map(table, table->read_set);
     }
   }
   if (leaf_1)
@@ -8988,11 +8996,14 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
         */
         if (field->gcol_info && !field->stored_in_db)
         {
+          my_bitmap_map old_read_set= *(table->read_set->bitmap);
           Item *gcol_item= field->gcol_info->expr_item;
           DBUG_ASSERT(gcol_item);
           gcol_item->walk(&Item::register_field_in_read_map, Item::WALK_PREFIX,
                           (uchar *) 0);
           bitmap_set_bit(field->table->write_set, field->field_index);
+          if (old_read_set != *(table->read_set->bitmap))
+            update_indexed_column_map(table, table->read_set);
         }
         if (table)
         {
@@ -9061,14 +9072,6 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
 ** Returns : 1 if some field has wrong type
 ******************************************************************************/
 
-/// Function to sort pointers in order of allocation.
-
-static int ptr_cmp_func(void *a, void *b, void *arg)
-{
-  return (a > b) ? 1 : ((a < b) ? -1 : 0);
-}
-
-
 /*
   Fill fields with given items.
 
@@ -9095,7 +9098,9 @@ fill_record(THD * thd, List<Item> &fields, List<Item> &values,
   Item *value, *fld;
   Item_field *field;
   TABLE *table= 0;
-  List<TABLE> tbl_list;
+  TABLE *tbl_set[MAX_TABLES];
+  uint tab_count= 0;
+  table_map used_table_map= 0;
   DBUG_ENTER("fill_record");
   DBUG_ASSERT(fields.elements == values.elements);
   /*
@@ -9133,16 +9138,6 @@ fill_record(THD * thd, List<Item> &fields, List<Item> &values,
     table= rfield->table;
     if (rfield == table->next_number_field)
       table->auto_increment_field_not_null= TRUE;
-    if (rfield->gcol_info && 
-        value->type() != Item::DEFAULT_VALUE_ITEM && 
-        value->type() != Item::NULL_ITEM &&
-        table->s->table_category != TABLE_CATEGORY_TEMPORARY &&
-        // Allow create table/insert/replace select to use actual GC value
-        (thd->lex->sql_command != SQLCOM_CREATE_TABLE &&
-         thd->lex->sql_command != SQLCOM_INSERT_SELECT &&
-         thd->lex->sql_command != SQLCOM_REPLACE_SELECT))
-      my_error(ER_NON_DEFAULT_VALUE_FOR_GENERATED_COLUMN, MYF(0),
-               rfield->field_name, table->s->table_name.str);
     if (value->save_in_field(rfield, false) < 0)
     {
       my_message(ER_UNKNOWN_ERROR, ER(ER_UNKNOWN_ERROR), MYF(0));
@@ -9151,27 +9146,20 @@ fill_record(THD * thd, List<Item> &fields, List<Item> &values,
     bitmap_set_bit(table->fields_set_during_insert, rfield->field_index);
     if (insert_into_fields_bitmap)
       bitmap_set_bit(insert_into_fields_bitmap, rfield->field_index);
-    tbl_list.push_back(table);
+    // Record the distinct table so that update the generate columns
+    if (table->pos_in_table_list &&
+        !(used_table_map & table->pos_in_table_list->map()))
+    {
+      used_table_map|= table->pos_in_table_list->map();
+      tbl_set[tab_count++]= table;
+    }
   }
   /* Update generated fields*/
-  if (tbl_list.elements)
+  for (uint i= 0; i < tab_count; i++)
   {
-    tbl_list.sort((Node_cmp_func)ptr_cmp_func, NULL);
-    List_iterator_fast<TABLE> t(tbl_list);
-    TABLE *prev_table= 0;
-    while ((table= t++))
-    {
-      /*
-        Do simple optimization to prevent unnecessary re-generating 
-        values for generated fields
-      */
-      if (table != prev_table)
-      {
-        prev_table= table;
-        if (table->vfield && update_generated_write_fields(table))
-          goto err;
-      }
-    }
+    table= tbl_set[i];
+    if (table->vfield && update_generated_write_fields(table))
+      goto err;
   }
   DBUG_RETURN(thd->is_error());
 err:
@@ -9356,22 +9344,11 @@ fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
       Re-calculate generated fields to cater for cases when base columns are 
       updated by the triggers.
     */
-    if (!rc)
-    {
-      TABLE *table= 0;
-      List_iterator_fast<Item> f(fields);
-      Item *fld;
-      Item_field *item_field;
-      if (fields.elements)
-      {
-        fld= (Item_field*)f++;
-        item_field= fld->field_for_view_update();
-        if (item_field && item_field->field && 
-            (table= item_field->field->table) &&
-            table->vfield)
-          rc= update_generated_write_fields(table);
-      }
-    }
+    DBUG_ASSERT(table->pos_in_table_list &&
+                !table->pos_in_table_list->view);
+    if (!rc && table->vfield)
+        rc= update_generated_write_fields(table);
+
     table->triggers->disable_fields_temporary_nullability();
 
     return rc || check_record(thd, table->field);
@@ -9411,9 +9388,10 @@ fill_record(THD *thd, Field **ptr, List<Item> &values,
   List_iterator_fast<Item> v(values);
   Item *value;
   TABLE *table= 0;
-  List<TABLE> tbl_list;
+  TABLE *tbl_set[MAX_TABLES];
+  uint tab_count= 0;
+  table_map used_table_map= 0;
   DBUG_ENTER("fill_record");
-  tbl_list.empty();
 
   Field *field;
   /*
@@ -9438,19 +9416,8 @@ fill_record(THD *thd, Field **ptr, List<Item> &values,
       continue;
     if (field == table->next_number_field)
       table->auto_increment_field_not_null= TRUE;
-    if (field->gcol_info && 
-        value->type() != Item::DEFAULT_VALUE_ITEM && 
-        value->type() != Item::NULL_ITEM &&
-        table->s->table_category != TABLE_CATEGORY_TEMPORARY &&
-        // Allow create table/insert/replace select to use actual GC value
-        (thd->lex->sql_command != SQLCOM_CREATE_TABLE &&
-         thd->lex->sql_command != SQLCOM_INSERT_SELECT &&
-         thd->lex->sql_command != SQLCOM_REPLACE_SELECT))
-      my_error(ER_NON_DEFAULT_VALUE_FOR_GENERATED_COLUMN, MYF(0),
-               field->field_name, table->s->table_name.str);
     if (value->save_in_field(field, false) == TYPE_ERR_NULL_CONSTRAINT_VIOLATION)
       goto err;
-    tbl_list.push_back(table);
     /*
       fill_record could be called as part of multi update and therefore
       table->fields_set_during_insert could be NULL.
@@ -9459,32 +9426,26 @@ fill_record(THD *thd, Field **ptr, List<Item> &values,
       bitmap_set_bit(table->fields_set_during_insert, field->field_index);
     if (insert_into_fields_bitmap)
       bitmap_set_bit(insert_into_fields_bitmap, field->field_index);
-  }
-  /* Update generated fields*/
-  if (tbl_list.head())
-  {
-    tbl_list.sort((Node_cmp_func)ptr_cmp_func, NULL);
-    List_iterator_fast<TABLE> t(tbl_list);
-    TABLE *prev_table= 0;
-    while ((table= t++))
+    // Record the distinct table so that update the generate columns
+    if (table->pos_in_table_list &&
+        !(used_table_map & table->pos_in_table_list->map()))
     {
-      /*
-        Do simple optimization to prevent unnecessary re-generating 
-        values for generated fields
-      */
-      if (table != prev_table)
-      {
-        prev_table= table;
-        if (table->vfield && update_generated_write_fields(table))
-          goto err;
-      }
+      used_table_map|= table->pos_in_table_list->map();
+      tbl_set[tab_count++]= table;
     }
   }
+  /* Update generated fields*/
+  for (uint i= 0; i < tab_count; i++)
+  {
+    table= tbl_set[i];
+    if (table->vfield && update_generated_write_fields(table))
+      goto err;
+  }
+
   DBUG_ASSERT(thd->is_error() || !v++);      // No extra value!
   DBUG_RETURN(thd->is_error());
 
 err:
-//  thd->abort_on_warning= abort_on_warning_saved;
   if (table)
     table->auto_increment_field_not_null= FALSE;
   DBUG_RETURN(TRUE);
@@ -10234,6 +10195,31 @@ open_log_table(THD *thd, TABLE_LIST *one_table, Open_tables_backup *backup)
 void close_log_table(THD *thd, Open_tables_backup *backup)
 {
   close_nontrans_system_tables(thd, backup);
+}
+
+/**
+  @brief  update_indexed_column_map
+     Update columns map for index.
+
+  @return  VOID
+*/
+void update_indexed_column_map(TABLE *table, MY_BITMAP *read_set)
+{
+  Field * field;
+  for (uint i = 0; i < table->s->fields; i++)
+  {
+    field= table->field[i];
+    if (bitmap_is_set(read_set, field->field_index))
+    {
+      /*
+        We always want to register the used keys, as the column bitmap may have
+        been set for all fields (for example for view).
+      */
+
+      table->covering_keys.intersect(field->part_of_key);
+      table->merge_keys.merge(field->part_of_key);
+    }
+  }
 }
 
 /**

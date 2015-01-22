@@ -404,9 +404,9 @@ bool foreign_key_prefix(Key *a, Key *b)
   @param table_fields         List of columns 
 
   @return
-    0   Key valid
+    false   Key valid
   @return
-    1   Key invalid
+    true   Key invalid
  */
 bool Foreign_key::validate(List<Create_field> &table_fields)
 {

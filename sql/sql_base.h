@@ -352,8 +352,6 @@ TABLE *find_table_for_mdl_upgrade(THD *thd, const char *db,
                                   bool no_error);
 void mark_tmp_table_for_reuse(TABLE *table);
 bool check_if_table_exists(THD *thd, TABLE_LIST *table, bool *exists);
-bool update_generated_write_fields(TABLE *table);
-bool update_generated_read_fields(TABLE *table);
 
 extern Item **not_found_item;
 extern Field *not_found_field;
@@ -745,5 +743,6 @@ private:
   enum_set_select_behavior m_set_select_behavior;
 };
 
+void update_indexed_column_map(TABLE *table, MY_BITMAP *read_set);
 
 #endif /* SQL_BASE_INCLUDED */

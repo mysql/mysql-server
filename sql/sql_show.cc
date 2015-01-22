@@ -1297,6 +1297,7 @@ static bool print_on_update_clause(Field *field, String *val, bool lcase)
 static bool print_default_clause(THD *thd, Field *field, String *def_value,
                                  bool quoted)
 {
+  DBUG_ASSERT(!field->gcol_info);
   enum enum_field_types field_type= field->type();
 
   const bool has_now_default= field->has_insert_default_function();
@@ -5017,7 +5018,7 @@ static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
     field->sql_type(type);
     table->field[IS_COLUMNS_COLUMN_TYPE]->store(type.ptr(), type.length(), cs);
 
-    if (print_default_clause(thd, field, &type, false))
+    if (!field->gcol_info && print_default_clause(thd, field, &type, false))
     {
       table->field[IS_COLUMNS_COLUMN_DEFAULT]->store(type.ptr(), type.length(),
                                                     cs);

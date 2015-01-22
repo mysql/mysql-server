@@ -195,7 +195,7 @@ static bool check_insert_fields(THD *thd, TABLE_LIST *table_list,
   }
   /* Mark all generated columns for write*/
   if (table->vfield)
-    table->mark_generated_columns(FALSE);
+    table->mark_generated_columns(false);
   // For the values we need select_priv
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   table->grant.want_privilege= (SELECT_ACL & ~table->grant.privilege);
@@ -1163,6 +1163,9 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
                         update_values, MARK_COLUMNS_READ, 0, 0);
     if (!res)
       res= check_valid_table_refs(table_list, update_values, map);
+    if (!res && (*insert_table_ref)->table->vfield)
+      res= check_values_valid_for_gc(thd, &fields, values,
+                                     (*insert_table_ref)->table);
     thd->lex->in_update_value_clause= false;
 
     if (!res && duplic == DUP_UPDATE)
@@ -1174,6 +1177,9 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
       select_lex->no_wrap_view_item= false;
       if (!res)
         res= check_valid_table_refs(table_list, update_fields, map);
+      if (!res && (*insert_table_ref)->table->vfield)
+        res= check_values_valid_for_gc(thd, &update_fields, &update_values,
+                                       (*insert_table_ref)->table);
     }
   }
   else if (thd->stmt_arena->is_stmt_prepare())
@@ -1204,6 +1210,10 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
     if (!res)
       map= (*insert_table_ref)->map();
 
+    if (!res && (*insert_table_ref)->table->vfield)
+      res= check_values_valid_for_gc(thd, &fields, values,
+                                     (*insert_table_ref)->table);
+
     if (!res && duplic == DUP_UPDATE)
     {
       select_lex->no_wrap_view_item= true;
@@ -1215,6 +1225,9 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
       if (!res)
         res= check_valid_table_refs(table_list, update_fields, map);
 
+      if (!res && (*insert_table_ref)->table->vfield)
+        res= check_values_valid_for_gc(thd, &update_fields, &update_values,
+                                       (*insert_table_ref)->table);
       DBUG_ASSERT(!table_list->next_name_resolution_table);
       if (select_lex->group_list.elements == 0 && !select_lex->with_sum_func)
       {

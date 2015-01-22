@@ -1642,7 +1642,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
     Field::geometry_type geom_type= Field::GEOM_GEOMETRY;
     LEX_STRING comment;
     Generated_column *gcol_info= 0;
-    bool fld_stored_in_db= TRUE;
+    bool fld_stored_in_db= true;
 
     if (new_frm_ver >= 3)
     {
@@ -1874,8 +1874,8 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   }
   *field_ptr=0;					// End marker
   /* Sanity checks: */
-  DBUG_ASSERT(share->fields>=share->stored_fields);
-  DBUG_ASSERT(share->reclength>=share->stored_rec_length);
+  DBUG_ASSERT(share->fields >= share->stored_fields);
+  DBUG_ASSERT(share->reclength >= share->stored_rec_length);
 
   /* Fix key->name and key_part->field */
   if (key_parts)
@@ -2155,24 +2155,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 } /* open_binary_frm */
 
 /**
-  @brief  clear_field_flag
-    Clear flag GET_FIXED_FIELDS_FLAG in all fields of the table.
-    This routine is used for error handling purposes.
-
-  @param table    TABLE object for which virtual columns are set-up
- */
-static void clear_field_flag(TABLE *table)
-{
-  Field **ptr;
-  DBUG_ENTER("clear_field_flag");
-
-  for (ptr= table->field; *ptr; ptr++)
-    (*ptr)->flags&= (~GET_FIXED_FIELDS_FLAG);
-  DBUG_VOID_RETURN;
-}
-
-
-/**
   @brief validate_generated_expr
     Validate the generated expression to see whether there are invalid
     Item objects.
@@ -2217,7 +2199,7 @@ static bool validate_generated_expr(Field *field)
   {
     if (fld_idx == REF_INVALID_GC)
       my_error(ER_GENERATED_COLUMN_NON_PRIOR, MYF(0), field_name);
-    else if (fld_idx == REF_INVALIDE_AUTO_INC)
+    else if (fld_idx == REF_INVALID_AUTO_INC)
       my_error(ER_GENERATED_COLUMN_REF_AUTO_INC, MYF(0), field_name);
     else
       my_error(ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED, MYF(0), field_name);
@@ -2229,10 +2211,7 @@ static bool validate_generated_expr(Field *field)
 
 /**
   @brief  fix_fields_gcol_func
-    The function uses the feature in fix_fields where the flag
-    GET_FIXED_FIELDS_FLAG is set for all fields in the item tree.
-    This field must always be reset before returning from the function
-    since it is used for other purposes as well.
+    Process generated expression of the field.
 
   @param thd                The thread object
   @param field              The processed field
@@ -2241,7 +2220,7 @@ static bool validate_generated_expr(Field *field)
     TRUE                 An error occurred, something was wrong with the
                          function.
   @return
-    FALSE                Ok, a partition field array was created
+    FALSE                Ok, generated expression is fixed sucessfully 
  */
 bool fix_fields_gcol_func(THD *thd, Field *field)
 {
@@ -2310,7 +2289,6 @@ bool fix_fields_gcol_func(THD *thd, Field *field)
   if (unlikely(error))
   {
     DBUG_PRINT("info", ("Field in generated column function not part of table"));
-    clear_field_flag(table);
     goto end;
   }
   thd->where= save_where;
@@ -2318,15 +2296,7 @@ bool fix_fields_gcol_func(THD *thd, Field *field)
     Checking if all items are valid to be part of the generated column.
   */
   if (validate_generated_expr(field))
-  {
-    clear_field_flag(table);
     goto end;
-  }
-  /*
-    Cleanup the fields marked with flag GET_FIXED_FIELDS_FLAG
-    when calling fix_fields.
-  */
-  clear_field_flag(table);
   result= FALSE;
 
 end:
@@ -2335,54 +2305,6 @@ end:
   DBUG_RETURN(result);
 }
 
-/**
-  @brief  register_base_columns 
-    Register the base columns of a generated column
-
-  @param table    Table with the checked field
-  @param gcol     Pointer to the chedk field
-
-  @return
-    TRUE            Failure
-  @return
-    FALSE           Success
- */
-bool register_base_columns(TABLE *table, Field *gcol)
-{
-  Field *field;
-  MY_BITMAP base_columns;
-  uint fields_buff_size;
-  uint32 *bitbuf;
-  MY_BITMAP *save_old_read_set;
-
-  DBUG_ENTER("register_base_columns");
-  DBUG_ASSERT(gcol->gcol_info);
-  fields_buff_size= bitmap_buffer_size(table->s->fields);
-  bitbuf= (uint32 *)alloc_root(&table->mem_root, fields_buff_size);
-  if (!bitbuf)
-    DBUG_RETURN(TRUE);
-  bitmap_init(&base_columns, bitbuf, table->s->fields, 0);
-  bitmap_clear_all(&base_columns);
-  save_old_read_set= table->read_set;
-  table->read_set= &base_columns;
-
-  gcol->gcol_info->expr_item->walk(&Item::register_field_in_read_map,
-                                           Item::WALK_PREFIX, (uchar *) 0);
-  table->read_set= save_old_read_set;
-  for (uint i=0; i < table->s->fields; i++)
-  {
-    field= table->s->field[i];
-    /* Generated columns are not needed */
-    /**
-      TODO: If gcol only depends on some stored GCs, we can only register
-      these GCs as the base columns
-    */
-    if (!field->gcol_info &&
-        bitmap_is_set(&base_columns, field->field_index))
-      gcol->gcol_info->base_columns_list.push_back(field);
-  }
-  DBUG_RETURN(FALSE);
-}
 
 /**
   @brief  unpack_gcol_info_from_frm
@@ -2483,8 +2405,6 @@ bool unpack_gcol_info_from_frm(THD *thd,
     field->gcol_info= 0;
     goto parse_err;
   }
-  if (register_base_columns(table, field))
-    goto parse_err;
   thd->stmt_arena= backup_stmt_arena_ptr;
   thd->restore_active_arena(&gcol_arena, &backup_arena);
   field->gcol_info->item_free_list= gcol_arena.free_list;
@@ -2539,7 +2459,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   uint records, i, bitmap_size;
   bool error_reported= FALSE;
   uchar *record, *bitmaps;
-  Field **field_ptr, **vfield_ptr;
+  Field **field_ptr, **vfield_ptr= NULL;
   Field *fts_doc_id_field = NULL;
   DBUG_ENTER("open_table_from_share");
   DBUG_PRINT("enter",("name: '%s.%s'  form: 0x%lx", share->db.str,
@@ -2798,31 +2718,34 @@ partititon_err:
   /*
     Process generated columns, if any.
   */
-  if (!(vfield_ptr = (Field **) alloc_root(&outparam->mem_root,
-                                          (uint) ((share->vfields+1)*
-                                                  sizeof(Field*)))))
-    goto err;
-
   outparam->vfield= vfield_ptr;
-  
-  for (field_ptr= outparam->field; *field_ptr; field_ptr++)
+  if (share->vfields)
   {
-    if ((*field_ptr)->gcol_info)
-    {
-      if (unpack_gcol_info_from_frm(thd,
-                                    outparam,
-                                    *field_ptr,
-                                    is_create_table,
-                                    &error_reported))
-      {
-        error= 4; // in case no error is reported
-        goto err;
-      }
-      *(vfield_ptr++)= *field_ptr;
-    }
-  }
-  *vfield_ptr= 0;                              // End marker
+    if (!(vfield_ptr = (Field **) alloc_root(&outparam->mem_root,
+                                             (uint) ((share->vfields+1)*
+                                                     sizeof(Field*)))))
+      goto err;
 
+    outparam->vfield= vfield_ptr;
+
+    for (field_ptr= outparam->field; *field_ptr; field_ptr++)
+    {
+      if ((*field_ptr)->gcol_info)
+      {
+        if (unpack_gcol_info_from_frm(thd,
+                                      outparam,
+                                      *field_ptr,
+                                      is_create_table,
+                                      &error_reported))
+        {
+          error= 4; // in case no error is reported
+          goto err;
+        }
+        *(vfield_ptr++)= *field_ptr;
+      }
+    }
+    *vfield_ptr= 0;                              // End marker
+  }
   /* The table struct is now initialized;  Open the table */
   error= 2;
   if (db_stat)
@@ -5727,8 +5650,7 @@ void TABLE::mark_columns_used_by_index_no_reset(uint index,
   for (;key_part != key_part_end; key_part++)
   {
     bitmap_set_bit(bitmap, key_part->fieldnr-1);
-    if (key_part->field->gcol_info &&
-        key_part->field->gcol_info->expr_item)
+    if (key_part->field->gcol_info)
       key_part->field->gcol_info->
                expr_item->walk(&Item::register_field_in_bitmap, 
                                Item::WALK_PREFIX, (uchar *) bitmap);
@@ -5885,7 +5807,8 @@ void TABLE::mark_columns_needed_for_update()
     file->column_bitmaps_signal();
   }
   /* Mark dependent generated columns as writable */
-  mark_generated_columns(TRUE);
+  if (vfield)
+    mark_generated_columns(true);
   DBUG_VOID_RETURN;
 }
 
@@ -6228,15 +6151,17 @@ void TABLE::mark_columns_needed_for_insert()
   if (found_next_number_field)
     mark_auto_increment_column();
   /* Mark all generated columns as writable */
-  mark_generated_columns(FALSE);
+  if (vfield)
+    mark_generated_columns(false);
 }
+
 
 /* 
   @brief Update the write and read table bitmap to allow
          using procedure save_in_field for all generated columns
          in the table.
-
-  @param        is_update: TRUE means the operation is UPDATE.
+  
+  @param        is_update  TRUE means the operation is UPDATE.
                            FALSE means it's INSERT.
 
   @return       void
@@ -6259,10 +6184,7 @@ void TABLE::mark_generated_columns(bool is_update)
   if (is_update)
   {
     MY_BITMAP dependent_fields;
-    uint fields_buff_size= bitmap_buffer_size(s->fields);
-    uint32 *bitbuf= (uint32 *)current_thd->alloc(fields_buff_size);
-    if (!bitbuf)
-      my_error(ER_OUT_OF_RESOURCES, MYF(0));
+    uint32 bitbuf[bitmap_buffer_size(MAX_FIELDS)];
     bitmap_init(&dependent_fields, bitbuf, s->fields, 0);
     bitmap_clear_all(&dependent_fields);
 
@@ -6283,12 +6205,11 @@ void TABLE::mark_generated_columns(bool is_update)
       if (!tmp_vfield->stored_in_db ||
           bitmap_is_overlapping(read_set, write_set))
       {
-        //The GC should be update
+        // The GC needs to be updated
         bitmap_set_bit(write_set, tmp_vfield->field_index);
-        //GC's Dependent columns should be read
+        // GC's dependent columns need to be read
         bitmap_union(save_old_read_set, read_set);
         bitmap_clear_all(read_set);
-        // TODO: consider updating column maps for index
         bitmap_updated= TRUE;
       }
 
@@ -6304,36 +6225,32 @@ void TABLE::mark_generated_columns(bool is_update)
     {
       tmp_vfield= *vfield_ptr;
       DBUG_ASSERT(tmp_vfield->gcol_info && tmp_vfield->gcol_info->expr_item);
-      tmp_vfield->gcol_info->expr_item->walk(&Item::register_field_in_read_map,
+      tmp_vfield->gcol_info->expr_item->walk(&Item::register_field_in_read_map, 
                                              Item::WALK_PREFIX, (uchar *) 0);
-      bitmap_set_bit(read_set, tmp_vfield->field_index);
       bitmap_set_bit(write_set, tmp_vfield->field_index);
-      // TODO: consider updating column maps for index
       bitmap_updated= TRUE;
     }
   }
 
   if (bitmap_updated)
+  {
+    update_indexed_column_map(this, read_set);
     file->column_bitmaps_signal();
+  }
 }
 
 /*
-  @brief Check whether a base field is dependent by any generated columns.
+  @brief Check whether a base field is dependent on any generated columns.
 
   @return
     TRUE     The field is dependent by some GC.
-  @return
-    FALSE    The field has no dependency by any GC.
 
 */
 bool TABLE::is_field_dependent_by_generated_columns(uint field_index)
 {
   Field **vfield_ptr, *tmp_vfield;
   MY_BITMAP dependent_fields;
-  uint fields_buff_size= bitmap_buffer_size(s->fields);
-  uint32 *bitbuf= (uint32 *)current_thd->alloc(fields_buff_size);
-  if (!bitbuf)
-    return true;
+  uint32 bitbuf[bitmap_buffer_size(MAX_FIELDS)];
   bitmap_init(&dependent_fields, bitbuf, s->fields, 0);
   bitmap_clear_all(&dependent_fields);
 
@@ -7083,14 +7000,14 @@ bool is_simple_order(ORDER *order)
 bool update_generated_read_fields(TABLE *table)
 {
   DBUG_ENTER("update_generated_read_fields");
-  Field **vfield_ptr, *vfield;
+  Field **vfield_ptr;
   int error= 0;
-  if (!table || !table->vfield)
-    DBUG_RETURN(FALSE);
 
+  DBUG_ASSERT(table->vfield);
   /* Iterate over generated fields in the table */
   for (vfield_ptr= table->vfield; *vfield_ptr; vfield_ptr++)
   {
+    Field *vfield;
     vfield= (*vfield_ptr);
     DBUG_ASSERT(vfield->gcol_info && vfield->gcol_info->expr_item);
     /**
@@ -7134,14 +7051,14 @@ bool update_generated_read_fields(TABLE *table)
 bool update_generated_write_fields(TABLE *table)
 {
   DBUG_ENTER("update_generated_write_fields");
-  Field **vfield_ptr, *vfield;
+  Field **vfield_ptr;
   int error= 0;
-  if (!table || !table->vfield)
-    DBUG_RETURN(FALSE);
 
+  DBUG_ASSERT(table->vfield);
   /* Iterate over generated fields in the table */
   for (vfield_ptr= table->vfield; *vfield_ptr; vfield_ptr++)
   {
+    Field *vfield;
     vfield= (*vfield_ptr);
     DBUG_ASSERT(vfield->gcol_info && vfield->gcol_info->expr_item);
     /* Only update those fields that are marked in the write_set bitmap */
@@ -7164,5 +7081,68 @@ bool update_generated_write_fields(TABLE *table)
   if (error > 0)
     DBUG_RETURN(TRUE);
   DBUG_RETURN(FALSE);
+}
+
+/*
+  Fill fields with given items.
+
+  @param thd                        thread handler
+  @param fields                     Item_fields list to be filled
+  @param values                     values to fill with
+  @param tab                        table to be checked
+  @return Operation status
+    @retval false   OK
+    @retval true    Error occured
+
+  @Note: This function must be called after table->write_set has been
+         filled.
+*/
+bool
+check_values_valid_for_gc(THD * thd, List<Item> *fields,
+                          List<Item> *values, TABLE *tab)
+{
+  Item *value, *fld;
+  TABLE *table= 0;
+  List<TABLE> tbl_list;
+  MY_BITMAP *bitmap= tab->write_set;
+  List<Item> fields_list; 
+  bool use_table_field= false;
+  DBUG_ENTER("check_values_valid_for_gc");
+
+  // If fields has no elements, we use all table fields
+  if (fields->elements == 0)
+  {
+    use_table_field= true;
+    for (uint i = 0; i < tab->s->fields; i++)
+      fields_list.push_back((Item *)tab->field[i]);
+    fields= &fields_list;
+  }
+  DBUG_ASSERT(fields->elements == values->elements);
+  List_iterator_fast<Item> f(*fields),v(*values);
+  Field *rfield;
+  while ((fld= f++))
+  {
+    if (!use_table_field)
+      rfield= ((Item_field *)fld)->field;
+    else
+      rfield= (Field *)fld;
+    table= rfield->table;
+    value=v++;
+    if (table != tab)
+      continue;
+    /* If bitmap over wanted fields are set, skip non marked fields. */
+    if (bitmap && !bitmap_is_set(bitmap, rfield->field_index))
+      continue;
+    if (rfield->gcol_info && 
+        value->type() != Item::DEFAULT_VALUE_ITEM && 
+        value->type() != Item::NULL_ITEM &&
+        table->s->table_category != TABLE_CATEGORY_TEMPORARY)
+    {
+      my_error(ER_NON_DEFAULT_VALUE_FOR_GENERATED_COLUMN, MYF(0),
+               rfield->field_name, table->s->table_name.str);
+      DBUG_RETURN(true);
+    }
+  }
+  DBUG_RETURN(false);
 }
 
