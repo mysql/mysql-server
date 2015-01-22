@@ -546,4 +546,37 @@ DROP TABLESPACE ts1
 ENGINE ndb;
 DROP LOGFILE GROUP lg1
 ENGINE = ndb;
+#test alter table add column with partion by and comment clause
+CREATE TABLE t1(id INT, PRIMARY KEY(id)) ENGINE=NDB;
+ALTER TABLE t1 ADD value INT NULL, COMMENT='comment1' PARTITION BY KEY(id);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` int(11) NOT NULL DEFAULT '0',
+  `value` int(11) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1 COMMENT='comment1'
+/*!50100 PARTITION BY KEY (id) */
+DROP TABLE t1;
+#test alter table with and without ENGINE clause
+CREATE TABLE t1(id INT, PRIMARY KEY(id)) ENGINE=NDB;
+ALTER TABLE t1 ENGINE=NDB PARTITION BY KEY(id);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` int(11) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY KEY (id) */
+DROP TABLE t1;
+CREATE TABLE t1(id INT, PRIMARY KEY(id)) ENGINE=NDB;
+ALTER TABLE t1 PARTITION BY KEY(id);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` int(11) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY KEY (id) */
+DROP TABLE t1;
 End of 5.1 tests
