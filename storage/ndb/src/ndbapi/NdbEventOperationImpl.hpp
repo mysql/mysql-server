@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -349,6 +349,7 @@ struct Gci_container
   
   Uint16 m_state;
   Uint16 m_gcp_complete_rep_count; // Remaining SUB_GCP_COMPLETE_REP until done
+  Bitmask<(MAX_SUB_DATA_STREAMS+31)/32> m_gcp_complete_rep_sub_data_streams;
   Uint64 m_gci;                    // GCI
   EventBufData_list m_data;
   EventBufData_hash m_data_hash;
@@ -840,6 +841,7 @@ private:
   void resize_known_gci();
 
   Bitmask<(unsigned int)_NDB_NODE_BITMASK_SIZE> m_alive_node_bit_mask;
+  Uint16 m_sub_data_streams[MAX_SUB_DATA_STREAMS];
 
   void handle_change_nodegroup(const SubGcpCompleteRep*);
   /* Adds a dummy event data and a dummy gci_op list
@@ -850,6 +852,7 @@ private:
   /* Discard the bucket content */
   void discard_events_from_bucket(Gci_container* bucket);
 
+  Uint16 find_sub_data_stream_number(Uint16 sub_data_stream);
 public:
   void set_total_buckets(Uint32);
 };
