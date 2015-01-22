@@ -5029,6 +5029,7 @@ found:
   /**
    * 
    */
+  Bucket_mask dropped_buckets;
   if(!m_switchover_buckets.isclear())
   {
     bool unlock = false;
@@ -5123,7 +5124,13 @@ found:
                    state & Bucket::BUCKET_DROPPED_SELF ? "self" : "other");
           if (state & Bucket::BUCKET_DROPPED_SELF)
           {
-            m_active_buckets.clear(i);
+            if (m_active_buckets.get(i))
+            {
+              m_active_buckets.clear(i);
+              // Remember this bucket, it should be listed
+              // in SUB_GCP_COMPLETE_REP signal
+              dropped_buckets.set(i);
+            }
             drop = true;
           }
         }
@@ -5211,6 +5218,7 @@ found:
   for(Uint32 bucket = 0; bucket < NO_OF_BUCKETS; bucket ++)
   {
     if(m_active_buckets.get(bucket) ||
+       dropped_buckets.get(bucket) ||
        (m_switchover_buckets.get(bucket) && (check_switchover(bucket, gci))))
     {
       Uint32 sub_data_stream = get_sub_data_stream(bucket);
