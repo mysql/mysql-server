@@ -1,0 +1,50 @@
+# test for the DB-801 bug on mysql-5.5.41
+source include/have_tokudb.inc;
+source include/have_partition.inc;
+set default_storage_engine=tokudb;
+
+disable_warnings;
+drop table if exists t;
+enable_warnings;
+
+# run the test on a tokudb table
+create table t (id int not null primary key, c int not null) engine=tokudb;
+
+insert into t values (1,0);
+
+connect(conn1,localhost,root,,);
+connection default;
+begin;
+update t set c=10 where id=1;
+
+connection conn1;
+--error ER_LOCK_WAIT_TIMEOUT
+update t set c=100;
+
+connection default;
+rollback;
+disconnect conn1;
+
+drop table t;
+
+# run the test on a partitioned tokudb table
+create table t (id int not null primary key, c int not null) engine=tokudb partition by hash(id) partitions 1;
+
+insert into t values (1,0);
+
+connect(conn1,localhost,root,,);
+connection default;
+begin;
+update t set c=10 where id=1;
+
+connection conn1;
+--error ER_LOCK_WAIT_TIMEOUT
+update t set c=100;
+
+connection default;
+rollback;
+disconnect conn1;
+
+drop table t;
+
+
