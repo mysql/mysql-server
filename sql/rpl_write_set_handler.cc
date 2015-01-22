@@ -23,8 +23,6 @@
 
 #define NAME_READ_BUFFER_SIZE 1024
 
-using namespace std;
-
 template <class type> uint32 calc_hash(type T)
 {
   return (murmur3_32((const uchar*)T, strlen(T), 0));
@@ -41,7 +39,8 @@ template <class type> uint32 calc_hash(type T)
   @param[out] foreign_key_map - a standard map which keeps track of the
                                 foreign key fields.
 */
-void check_foreign_key(TABLE *table, THD *thd, std::map<string,string> &foreign_key_map)
+void check_foreign_key(TABLE *table, THD *thd,
+                       std::map<std::string,std::string> &foreign_key_map)
 {
   DBUG_ENTER("check_foreign_key");
   List<FOREIGN_KEY_INFO> f_key_list;
@@ -91,7 +90,7 @@ void check_foreign_key(TABLE *table, THD *thd, std::map<string,string> &foreign_
 
 }
 
-void debug_check_for_write_sets(std::vector<string> &key_list_to_hash)
+void debug_check_for_write_sets(std::vector<std::string> &key_list_to_hash)
 {
   DBUG_EXECUTE_IF("PKE_assert_single_primary_key_generated_insert",
                   DBUG_ASSERT(key_list_to_hash[0] == "Ptest4t1211"););
@@ -186,7 +185,7 @@ void add_pke(TABLE *table, THD *thd)
   String row_data(name_read_buffer, sizeof(name_read_buffer), &my_charset_bin);
 
   // Fetching the foreign key value of the table and storing it in a map.
-  std::map<string,string> foreign_key_map;
+  std::map<std::string,std::string> foreign_key_map;
   check_foreign_key(table, thd, foreign_key_map);
 
   // The database name of the table in the transaction is fetched here.
@@ -248,7 +247,7 @@ void add_pke(TABLE *table, THD *thd)
     Finally these value are hashed using the murmur hash function to prevent sending more
     for certification algorithm.
   */
-  std::vector<string> key_list_to_hash;
+  std::vector<std::string> key_list_to_hash;
   bitmap_set_all(table->read_set);
   if(table->key_info && (table->s->primary_key < MAX_KEY))
   {

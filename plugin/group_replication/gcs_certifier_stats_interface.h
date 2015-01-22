@@ -14,7 +14,7 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #ifndef CERTIFIER_INTERFACE
-#define CERTIFIED_INTERFACE
+#define CERTIFIER_INTERFACE
 
 #include <mysql/group_replication_priv.h>
 

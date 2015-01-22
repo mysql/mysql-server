@@ -13,8 +13,6 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-using namespace std;
-
 #include <signal.h>
 
 #include "gcs_certifier.h"
@@ -374,8 +372,8 @@ bool Certifier::add_item(const char* item, const Gtid_set *snapshot_version)
   it= certification_info.find(key);
   if(it == certification_info.end())
   {
-    pair<Certification_info::iterator, bool> ret=
-        certification_info.insert(pair<std::string, Gtid_set*>(key, value));
+    std::pair<Certification_info::iterator, bool> ret=
+        certification_info.insert(std::pair<std::string, Gtid_set*>(key, value));
     error= !ret.second;
   }
   else
@@ -403,7 +401,7 @@ Gtid_set *Certifier::get_certified_write_set_snapshot_version(const char* item)
     DBUG_RETURN(NULL);
 
   Certification_info::iterator it;
-  string item_str(item);
+  std::string item_str(item);
 
   it= certification_info.find(item_str);
 
@@ -643,7 +641,7 @@ void Certifier::get_certification_info(std::map<std::string, std::string> *cert_
   {
     std::string key= it->first;
     std::string value= it->second->encode();
-    (*cert_info).insert(pair<std::string, std::string>(key, value));
+    (*cert_info).insert(std::pair<std::string, std::string>(key, value));
   }
   *sequence_number= next_seqno;
 
@@ -666,7 +664,7 @@ void Certifier::set_certification_info(std::map<std::string, std::string> *cert_
     std::string key= it->first;
     Gtid_set *value = new Gtid_set(certification_info_sid_map);
     value->add_gtid_encoding((const uchar*) it->second.c_str(), it->second.length());
-    certification_info.insert(pair<std::string, Gtid_set*>(key, value));
+    certification_info.insert(std::pair<std::string, Gtid_set*>(key, value));
   }
   next_seqno= sequence_number;
 
