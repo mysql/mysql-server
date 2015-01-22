@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1148,6 +1148,8 @@ NdbEventBuffer::NdbEventBuffer(Ndb *ndb) :
   init_gci_containers();
 
   m_alive_node_bit_mask.clear();
+
+  bzero(&m_sub_data_streams, sizeof(m_sub_data_streams));
 }
 
 NdbEventBuffer::~NdbEventBuffer()
@@ -2002,7 +2004,7 @@ NdbEventBuffer::execSUB_GCP_COMPLETE_REP(const SubGcpCompleteRep * const rep,
   
   DBUG_ENTER_EVENT("NdbEventBuffer::execSUB_GCP_COMPLETE_REP");
 
-  const Uint32 cnt= rep->gcp_complete_rep_count;
+  Uint32 cnt= rep->gcp_complete_rep_count;
 
   Gci_container *bucket = find_bucket(gci);
 
@@ -2037,6 +2039,45 @@ NdbEventBuffer::execSUB_GCP_COMPLETE_REP(const SubGcpCompleteRep * const rep,
     }
 #endif
     DBUG_VOID_RETURN_EVENT;
+  }
+
+  if (rep->flags & SubGcpCompleteRep::SUB_DATA_STREAMS_IN_SIGNAL)
+  {
+    Uint32 already_counted = 0;
+    for(Uint32 i = 0; i < cnt; i ++)
+    {
+      Uint16 sub_data_stream;
+      if ((i & 1) == 0)
+      {
+        sub_data_stream = rep->sub_data_streams[i / 2] & 0xFFFF;
+      }
+      else
+      {
+        sub_data_stream = (rep->sub_data_streams[i / 2] >> 16);
+      }
+      Uint32 sub_data_stream_number = find_sub_data_stream_number(sub_data_stream);
+      if (bucket->m_gcp_complete_rep_sub_data_streams.get(sub_data_stream_number))
+      {
+        // Received earlier. This must be a duplicate from the takeover node.
+        already_counted ++;
+      }
+      else
+      {
+        bucket->m_gcp_complete_rep_sub_data_streams.set(sub_data_stream_number);
+      }
+    }
+    assert(already_counted <= cnt);
+    if (already_counted <= cnt)
+    {
+      cnt -= already_counted;
+      if (cnt == 0)
+      {
+        // All sub data streams are already reported as completed for epoch
+        // So data for all streams reported in this signal have been sent
+        // twice but from two different nodes.  Ignore this duplicate report.
+        DBUG_VOID_RETURN_EVENT;
+      }
+    }
   }
 
   if (rep->flags & SubGcpCompleteRep::MISSING_DATA)
@@ -2345,6 +2386,31 @@ NdbEventBuffer::handle_change_nodegroup(const SubGcpCompleteRep* rep)
                tmp->m_gcp_complete_rep_count);
     }
   }
+}
+
+Uint16
+NdbEventBuffer::find_sub_data_stream_number(Uint16 sub_data_stream)
+{
+  /*
+   * The stream_index calculated will be the one returned unless
+   * Suma have been changed to calculate stream identifiers in a
+   * non compatible way.  In that case a linear search in the
+   * fixed size hash table will resolve the correct index.
+   */
+  const Uint16 stream_index = (sub_data_stream % 256) + MAX_SUB_DATA_STREAMS_PER_GROUP * (sub_data_stream / 256 - 1);
+  const Uint16 num0 = stream_index % NDB_ARRAY_SIZE(m_sub_data_streams);
+  Uint32 num = num0;
+  while (m_sub_data_streams[num] != sub_data_stream)
+  {
+    if (m_sub_data_streams[num] == 0)
+    {
+      m_sub_data_streams[num] = sub_data_stream;
+      break;
+    }
+    num = (num + 1) % NDB_ARRAY_SIZE(m_sub_data_streams);
+    require(num != num0);
+  }
+  return num;
 }
 
 void
