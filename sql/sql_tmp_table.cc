@@ -1138,7 +1138,7 @@ update_hidden:
     field->flags &= NOT_NULL_FLAG;
     // Register hash_field as a hidden field.
     register_hidden_field(table, default_field,
-                          from_field, blob_field, field);
+                          from_field, share->blob_field, field);
     // Repoint arrays
     table->field--;
     default_field--;

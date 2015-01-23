@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 # -*- cperl -*-
 
-# Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -174,6 +174,7 @@ our $exe_mysqladmin;
 our $exe_mysqltest;
 our $exe_libtool;
 our $exe_mysql_embedded;
+our $exe_mysql_ssl_rsa_setup;
 
 our $opt_big_test= 0;
 
@@ -2031,6 +2032,7 @@ sub executable_setup () {
   $exe_mysqladmin=     mtr_exe_exists("$path_client_bindir/mysqladmin");
   $exe_mysql=          mtr_exe_exists("$path_client_bindir/mysql");
   $exe_mysql_plugin=   mtr_exe_exists("$path_client_bindir/mysql_plugin");
+  $exe_mysql_ssl_rsa_setup= mtr_exe_exists("$path_client_bindir/mysql_ssl_rsa_setup");
 
   $exe_mysql_embedded=
     mtr_exe_maybe_exists(vs_config_dirs('libmysqld/examples','mysql_embedded'),
@@ -2489,6 +2491,7 @@ sub environment_setup {
   $ENV{'MYSQL_PLUGIN'}=                $exe_mysql_plugin;
   $ENV{'MYSQL_EMBEDDED'}=              $exe_mysql_embedded;
   $ENV{'PATH_CONFIG_FILE'}=            $path_config_file;
+  $ENV{'MYSQL_SSL_RSA_SETUP'}=         $exe_mysql_ssl_rsa_setup;
 
   my $exe_mysqld= find_mysqld($basedir);
   $ENV{'MYSQLD'}= $exe_mysqld;
