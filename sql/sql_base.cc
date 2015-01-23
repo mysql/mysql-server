@@ -6619,10 +6619,11 @@ static void update_field_dependencies(THD *thd, Field *field, TABLE *table)
       We always want to register the used keys, as the column bitmap may have
       been set for all fields (for example for view).
     */
-      
-    table->covering_keys.intersect(field->part_of_key);
-    table->merge_keys.merge(field->part_of_key);
-
+    if (field->stored_in_db)
+    {
+      table->covering_keys.intersect(field->part_of_key);
+      table->merge_keys.merge(field->part_of_key);
+    }
     if (thd->mark_used_columns == MARK_COLUMNS_READ)
       bitmap= table->read_set;
     else
@@ -8122,16 +8123,22 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
         TABLE *table_1= nj_col_1->table_ref->table;
         /* Mark field_1 used for table cache. */
         bitmap_set_bit(table_1->read_set, field_1->field_index);
-        table_1->covering_keys.intersect(field_1->part_of_key);
-        table_1->merge_keys.merge(field_1->part_of_key);
+        if (field_1->stored_in_db)
+        {
+          table_1->covering_keys.intersect(field_1->part_of_key);
+          table_1->merge_keys.merge(field_1->part_of_key);
+        }
       }
       if (field_2)
       {
         TABLE *table_2= nj_col_2->table_ref->table;
         /* Mark field_2 used for table cache. */
         bitmap_set_bit(table_2->read_set, field_2->field_index);
-        table_2->covering_keys.intersect(field_2->part_of_key);
-        table_2->merge_keys.merge(field_2->part_of_key);
+        if (field_2->stored_in_db)
+        {
+          table_2->covering_keys.intersect(field_2->part_of_key);
+          table_2->merge_keys.merge(field_2->part_of_key);
+        }
       }
 
       if (using_fields != NULL)
@@ -9012,7 +9019,7 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
           if (old_read_set != *(table->read_set->bitmap))
             update_indexed_column_map(table, table->read_set);
         }
-        if (table)
+        if (table && field->stored_in_db)
         {
           table->covering_keys.intersect(field->part_of_key);
           table->merge_keys.merge(field->part_of_key);
@@ -9034,8 +9041,11 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
             thd->lex->used_tables|= nj_col->table_ref->map();
             thd->lex->current_select()->select_list_tables|=
               nj_col->table_ref->map();
-            field_table->covering_keys.intersect(field->part_of_key);
-            field_table->merge_keys.merge(field->part_of_key);
+            if (field->stored_in_db)
+            {
+              field_table->covering_keys.intersect(field->part_of_key);
+              field_table->merge_keys.merge(field->part_of_key);
+            }
           }
         }
       }
@@ -10216,7 +10226,7 @@ void update_indexed_column_map(TABLE *table, MY_BITMAP *read_set)
   for (uint i = 0; i < table->s->fields; i++)
   {
     field= table->field[i];
-    if (bitmap_is_set(read_set, field->field_index))
+    if (field->stored_in_db && bitmap_is_set(read_set, field->field_index))
     {
       /*
         We always want to register the used keys, as the column bitmap may have
