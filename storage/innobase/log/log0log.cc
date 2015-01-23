@@ -1433,7 +1433,8 @@ log_preflush_pool_modified_pages(
 
 		ulint	n_pages;
 
-		success = buf_flush_lists(ULINT_MAX, new_oldest, &n_pages, stage);
+		success = buf_flush_lists(ULINT_MAX, new_oldest, &n_pages,
+					  stage);
 
 		buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
 
