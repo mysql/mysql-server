@@ -974,3 +974,27 @@ SELECT ST_GeoHash(@double, @double, 10);
 SELECT ST_GeoHash(POINT(10, 10), @double);
 --error ER_INCORRECT_TYPE
 SELECT ST_PointFromGeoHash("00", @double);
+
+#########################
+#     Bug#20293609      #
+#########################
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (a VARCHAR(255));
+INSERT INTO t1 (a) VALUES ('  ');
+--error ER_WRONG_VALUE_FOR_TYPE
+SELECT ST_LongFromGeoHash(a) FROM t1;
+--error ER_WRONG_VALUE_FOR_TYPE
+SELECT ST_LatFromGeoHash(a) FROM t1;
+--error ER_WRONG_VALUE_FOR_TYPE
+SELECT ST_PointFromGeoHash(a, 1) FROM t1;
+
+DELETE FROM t1;
+INSERT INTO t1 VALUES ('swpwwwwww'), ('guqtjvooguqtjvoo');
+--error ER_WRONG_VALUE_FOR_TYPE
+SELECT ST_LongFromGeoHash(a) FROM t1;
+--error ER_WRONG_VALUE_FOR_TYPE
+SELECT ST_LatFromGeoHash(a) FROM t1;
+--error ER_WRONG_VALUE_FOR_TYPE
+SELECT ST_PointFromGeoHash(a, 1) FROM t1;
+
+DROP TABLE t1;

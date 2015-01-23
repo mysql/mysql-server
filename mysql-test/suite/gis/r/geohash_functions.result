@@ -1714,3 +1714,23 @@ SELECT ST_GeoHash(POINT(10, 10), @double);
 ERROR HY000: Incorrect type for argument geohash max length in function st_geohash.
 SELECT ST_PointFromGeoHash("00", @double);
 ERROR HY000: Incorrect type for argument SRID in function st_pointfromgeohash.
+DROP TABLE IF EXISTS t1;
+Warnings:
+Note	1051	Unknown table 'test.t1'
+CREATE TABLE t1 (a VARCHAR(255));
+INSERT INTO t1 (a) VALUES ('  ');
+SELECT ST_LongFromGeoHash(a) FROM t1;
+ERROR HY000: Incorrect geohash value: '  ' for function ST_LONGFROMGEOHASH
+SELECT ST_LatFromGeoHash(a) FROM t1;
+ERROR HY000: Incorrect geohash value: '  ' for function ST_LATFROMGEOHASH
+SELECT ST_PointFromGeoHash(a, 1) FROM t1;
+ERROR HY000: Incorrect geohash value: '  ' for function st_pointfromgeohash
+DELETE FROM t1;
+INSERT INTO t1 VALUES ('swpwwwwww'), ('guqtjvooguqtjvoo');
+SELECT ST_LongFromGeoHash(a) FROM t1;
+ERROR HY000: Incorrect geohash value: 'guqtjvooguqtjvoo' for function ST_LONGFROMGEOHASH
+SELECT ST_LatFromGeoHash(a) FROM t1;
+ERROR HY000: Incorrect geohash value: 'guqtjvooguqtjvoo' for function ST_LATFROMGEOHASH
+SELECT ST_PointFromGeoHash(a, 1) FROM t1;
+ERROR HY000: Incorrect geohash value: 'guqtjvooguqtjvoo' for function st_pointfromgeohash
+DROP TABLE t1;
