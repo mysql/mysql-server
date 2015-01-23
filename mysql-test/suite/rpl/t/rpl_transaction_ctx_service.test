@@ -15,7 +15,9 @@
 --source include/not_embedded.inc
 --source include/have_debug.inc
 --source include/have_gtid.inc
---source include/have_replication_observers_example_plugin.inc
+--source include/not_group_replication_plugin.inc
+
+--source include/install_replication_observers_example.inc
 
 --let $rpl_gtid_utils=1
 --source include/master-slave.inc
@@ -172,5 +174,7 @@ SET @@GLOBAL.DEBUG= @debug_saved;
 DROP TABLE t1;
 
 --source include/rpl_end.inc
+
+--source include/uninstall_replication_observers_example.inc
 
 --echo End of test

@@ -1,4 +1,4 @@
-include/have_replication_observers_example_plugin.inc
+include/install_replication_observers_example.inc
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
@@ -85,4 +85,5 @@ include/assert.inc [GTID_EXECUTED must contain all GTIDs with the server id and 
 SET @@GLOBAL.DEBUG= @debug_saved;
 DROP TABLE t1;
 include/rpl_end.inc
+include/uninstall_replication_observers_example.inc
 End of test

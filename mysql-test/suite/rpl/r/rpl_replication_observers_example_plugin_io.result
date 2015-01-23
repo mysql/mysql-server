@@ -8,7 +8,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 # Stop slave and install plugin.
 #
 include/stop_slave.inc
-INSTALL PLUGIN replication_observers_example SONAME 'replication_observers_example_plugin.so';
+include/install_replication_observers_example.inc
 #
 # Cause a reset slave notification.
 #
@@ -28,7 +28,7 @@ include/sync_slave_sql_with_master.inc
 # Stop slave and uninstall plugin.
 #
 include/stop_slave.inc
-UNINSTALL PLUGIN replication_observers_example;
+include/uninstall_replication_observers_example.inc
 #
 # Verify that all relay hooks were called.
 #
