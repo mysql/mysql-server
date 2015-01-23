@@ -51,7 +51,7 @@ bool Multisource_info::add_mi(const char* channel_name, Master_info* mi,
   ret = map_it->second.insert(mi_map::value_type(channel_name, mi));
 
   /* If a map insert fails, ret.second is false */
-  if (!ret.second)
+  if(!ret.second)
     DBUG_RETURN(true);
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
@@ -148,7 +148,7 @@ bool Multisource_info::delete_mi(const char* channel_name)
   /* delete the master info */
   if (mi)
   {
-    if (mi->rli)
+    if(mi->rli)
     {
       delete mi->rli;
     }

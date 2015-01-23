@@ -1891,7 +1891,7 @@ int Relay_log_info::rli_init_info()
   /*
    @TODO:
     In MSR, sometimes slave fail with the following error:
-    Unable to use slave's temporary directory /tmp -
+    Unable to use slave's temporary directory /tmp - 
     Can't create/write to file '/tmp/SQL_LOAD-92d1eee0-9de4-11e3-8874-68730ad50fcb'    (Errcode: 17 - File exists), Error_code: 1
 
    */

@@ -596,7 +596,6 @@ bool Rpl_info_factory::decide_repository(Rpl_info *info, uint option,
       if (return_check_src == REPOSITORY_EXISTS &&
         return_check_dst == REPOSITORY_EXISTS)
       {
-
         *msg= "Multiple replication metadata repository instances "
               "found with data in them. Unable to decide which is "
               "the correct one to choose";

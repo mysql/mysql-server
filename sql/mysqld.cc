@@ -1215,7 +1215,6 @@ void kill_mysql(void)
   }
 #endif
   DBUG_PRINT("quit",("After pthread_kill"));
-
   DBUG_VOID_RETURN;
 }
 
@@ -1358,7 +1357,6 @@ void clean_up(bool print_message)
 #ifdef HAVE_REPLICATION
   if (use_slave_mask)
     bitmap_free(&slave_error_mask);
-
 #endif
   my_tz_free();
   my_dboptions_cache_free();
@@ -7835,7 +7833,6 @@ PSI_mutex_key
   key_LOCK_server_started, key_LOCK_status,
   key_LOCK_sql_slave_skip_counter,
   key_LOCK_slave_net_timeout,
-  key_LOCK_seq_num,
   key_LOCK_system_variables_hash, key_LOCK_table_share, key_LOCK_thd_data,
   key_LOCK_user_conn, key_LOCK_uuid_generator, key_LOG_LOCK_log,
   key_master_info_data_lock, key_master_info_run_lock,
@@ -8481,7 +8478,6 @@ PSI_memory_key key_memory_File_query_log_name;
 PSI_memory_key key_memory_Table_trigger_dispatcher;
 PSI_memory_key key_memory_show_slave_status_io_gtid_set;
 PSI_memory_key key_memory_write_set_extraction;
-PSI_memory_key key_memory_transaction_write_set;
 #ifdef HAVE_MY_TIMER
 PSI_memory_key key_memory_thd_timer;
 #endif
@@ -8632,8 +8628,7 @@ static PSI_memory_info all_server_memory[]=
   { &key_memory_THD_Session_tracker, "THD::Session_tracker", 0},
   { &key_memory_THD_Session_sysvar_resource_manager, "THD::Session_sysvar_resource_manager", 0},
   { &key_memory_show_slave_status_io_gtid_set, "show_slave_status_io_gtid_set", 0},
-  { &key_memory_write_set_extraction, "write_set_extraction", 0},
-  { &key_memory_transaction_write_set, "transaction_write_set", 0}
+  { &key_memory_write_set_extraction, "write_set_extraction", 0}
 };
 
 /* TODO: find a good header */

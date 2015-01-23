@@ -1054,7 +1054,7 @@ gtid_before_write_cache(THD* thd, binlog_cache_data* cache_data)
         != RETURN_STATUS_OK)
     {
       global_sid_lock->unlock();
-      DBUG_RETURN(1);
+      DBUG_RETURN(1); 
     }
   }
   if (write_empty_groups_to_cache(thd, cache_data) != 0)
@@ -9590,6 +9590,7 @@ int THD::binlog_flush_pending_rows_event(bool stmt_end, bool is_transactional)
 
   DBUG_RETURN(error);
 }
+
 
 /**
    binlog_row_event_extra_data_eq

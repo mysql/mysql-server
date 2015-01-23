@@ -94,7 +94,7 @@ static const TABLE_FIELD_TYPE field_types[]=
     {C_STRING_WITH_LEN("LAST_ERROR_TIMESTAMP")},
     {C_STRING_WITH_LEN("timestamp")},
     {NULL, 0}
-  },
+  }
 };
 
 TABLE_FIELD_DEF
@@ -138,6 +138,7 @@ void table_replication_connection_status::reset_position(void)
 
 ha_rows table_replication_connection_status::get_row_count()
 {
+  /*A lock is not needed for an estimate */
   uint row_count= msr_map.get_max_channels();
 
   if (is_group_replication_plugin_loaded())
@@ -336,7 +337,7 @@ void table_replication_connection_status::make_row(Master_info *mi,
     const Gtid_set* io_gtid_set= mi->rli->get_gtid_set();
 
     if ((m_row.received_transaction_set_length=
-              io_gtid_set->to_string(&m_row.received_transaction_set)) < 0)
+         io_gtid_set->to_string(&m_row.received_transaction_set)) < 0)
     {
       my_free(m_row.received_transaction_set);
       m_row.received_transaction_set_length= 0;

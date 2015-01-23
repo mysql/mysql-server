@@ -22,8 +22,6 @@
 
 #include <vector>
 
-using std::vector;
-
 Trans_delegate *transaction_delegate;
 Binlog_storage_delegate *binlog_storage_delegate;
 Server_state_delegate *server_state_delegate;
@@ -333,7 +331,7 @@ Trans_delegate::prepare_table_info(THD* thd,
   }
 
   //Gather table information
-  vector<Trans_table_info> table_info_holder;
+  std::vector<Trans_table_info> table_info_holder;
   for(; open_tables != NULL; open_tables= open_tables->next)
   {
     Trans_table_info table_info = {0,0,0};
@@ -370,7 +368,7 @@ Trans_delegate::prepare_table_info(THD* thd,
                                number_of_tables * sizeof(Trans_table_info),
                                MYF(0));
 
-    vector<Trans_table_info>::iterator table_info_holder_it
+    std::vector<Trans_table_info>::iterator table_info_holder_it
                                                   = table_info_holder.begin();
     for(int table= 0;
         table_info_holder_it != table_info_holder.end();

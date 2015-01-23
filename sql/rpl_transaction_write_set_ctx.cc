@@ -70,7 +70,7 @@ Transaction_write_set* get_transaction_write_set(unsigned long m_thread_id)
       DBUG_RETURN(NULL);
     }
 
-    result_set= (Transaction_write_set*)my_malloc(PSI_NOT_INSTRUMENTED,
+    result_set= (Transaction_write_set*)my_malloc(key_memory_write_set_extraction,
                                                   sizeof(Transaction_write_set),
                                                   MYF(0));
     result_set->write_set_size= write_set_size;
