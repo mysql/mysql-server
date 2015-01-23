@@ -3893,15 +3893,20 @@ bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *all_gtids, Gtid_set *lost_gtids,
         case NO_GTIDS:
         {
           /*
-            If the binlog_gtid_simple_recovery is enabled, and the
-            last binary log does not contain any GTID event, do not
-            read any more binary logs, GLOBAL.GTID_EXECUTED and
-            GLOBAL.GTID_PURGED should be empty in the case. Otherwise,
-            initialize GTID_EXECUTED as usual.
+            Mysql server iterates backwards through binary logs, looking for
+            the last binary log that contains a Previous_gtids_log_event for
+            gathering the set of gtid_executed on server start. This may take
+            very long time if it has many binary logs and almost all of them
+            are out of filesystem cache. So if the binlog_gtid_simple_recovery
+            is enabled, and the last binary log does not contain any GTID
+            event, do not read any more binary logs, GLOBAL.GTID_EXECUTED and
+            GLOBAL.GTID_PURGED should be empty in the case.
           */
-          if (binlog_gtid_simple_recovery && !is_relay_log)
+          if (binlog_gtid_simple_recovery && is_server_starting &&
+              !is_relay_log)
           {
-            DBUG_ASSERT(all_gtids->is_empty() && lost_gtids->is_empty());
+            DBUG_ASSERT(all_gtids->is_empty());
+            DBUG_ASSERT(lost_gtids->is_empty());
             goto end;
           }
           /*FALLTHROUGH*/
@@ -4008,16 +4013,20 @@ bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *all_gtids, Gtid_set *lost_gtids,
         case GOT_PREVIOUS_GTIDS:
         {
           /*
-            If the binlog_gtid_simple_recovery is enabled, and the
-            first binary log does not contain any GTID event, do not
-            read any more binary logs: GLOBAL.GTID_PURGED should be
-            empty in this case.
+            Mysql server iterates forwards through binary logs, looking for
+            the first binary log that contains both Previous_gtids_log_event
+            and gtid_log_event for gathering the set of gtid_purged on server
+            start. It also iterates forwards through binary logs, looking for
+            the first binary log that contains both Previous_gtids_log_event
+            and gtid_log_event for gathering the set of gtid_purged when
+            purging binary logs. This may take very long time if it has many
+            binary logs and almost all of them are out of filesystem cache.
+            So if the binlog_gtid_simple_recovery is enabled, we just
+            initialize GLOBAL.GTID_PURGED from the first binary log, do not
+            read any more binary logs.
           */
           if (binlog_gtid_simple_recovery && !is_relay_log)
-          {
-            DBUG_ASSERT(lost_gtids->is_empty());
             goto end;
-          }
           /*FALLTHROUGH*/
         }
         case TRUNCATED:
