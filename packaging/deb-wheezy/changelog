@@ -1,3 +1,21 @@
+mysql-community (5.7.6-m16-1debian7) wheezy; urgency=low
+
+  * new upstream release
+  * init script will now run my_i_db if data dir is not present or empty
+  * mysql-community-server now recommends mysql-client
+  * d/compat incremented to 9 from 8
+  * d/control updated to build depend on debhelper 9
+  * added d/*.lintian-overrides and d/source/lintian-overrides
+  * d/rules updated to reflect correct file permissions
+  * bumped up libmysqlclient version 18 => 20
+  * added new plugins to source/include-binaries
+    replication_observers_example
+    rewriter
+    rewrite_example
+  * new binary mysql_ssl_rsa_setup added to d/mysql-*-server.install
+
+ -- Akhil Mohan <akhil.mohan@oracle.com>  Fri, 16 Jan 2015 17:14:45 +0530
+
 mysql-community (5.7.5-m15-1debian7) wheezy; urgency=low
 
   * new upstream release
@@ -10,8 +28,27 @@ mysql-community (5.7.5-m15-1debian7) wheezy; urgency=low
   * removed extra file modification steps in d/rules
   * removed hotcopy, mysql_zap from d/mysql-community-server
   * removed mysql_waitpid from d/mysql-community-client
+  * added patch for testsuite search paths under d/patches
+  * modified cmake option for testsuite in d/rules
+  * removed patch d/fix-mysql_install_db.patch
+  * enabled one patch in d/patches/series
+  * removed extra permissions check in d/rules when fixed in source
+  * modified d/mysql-*-server.postinst to stop removing /usr/my.cnf
+  * modified d/*-test.* for updated location of testsuite
+  * updated d/{mysql-*-server.install,rules} to include debug plugins
+  * updated d/rules to remove storage engine cmake options
+  * modified data dir permission in d/*server.{pre,post}inst
+  * updated d/source/include-binaries to add debug plugins
+  * updated d/rules to rename debug plugins
+  * updated d/source/include-binaries to add mysql_no_login.so
+  * updated d/rules to increment -j8 as make option
+  * updated CMake option WITH_EXTRA_CHARSETS from complex to all
+  * updated d/*-server.postinst to call m_i_db with --datadir --insecure
+    --mysqld-file
+  * updated d/*-server.postinst to remove manual creation mysql db dir
+  * removed test db prompt in d/*-server.{postinst,templates,config}
 
- -- Akhil Mohan <akhil.mohan@oracle.com>  Mon, 26 Jun 2014 16:13:30 +0530
+ -- Akhil Mohan <akhil.mohan@oracle.com>  Fri, 08 Aug 2014 11:27:30 +0530
 
 mysql-community (5.7.4-m14-2debian7) wheezy; urgency=low
 

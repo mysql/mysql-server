@@ -231,6 +231,8 @@ int sha256_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
       if (passwd_len > sizeof(passwd_scramble))
       {
         /* password too long for the buffer */
+        if (got_public_key_from_server)
+          RSA_free(public_key);
         DBUG_RETURN(CR_ERROR);
       }
       memmove(passwd_scramble, mysql->passwd, passwd_len);
@@ -247,6 +249,8 @@ int sha256_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
       if (passwd_len + 41 >= (unsigned) cipher_length)
       {
         /* password message is to long */
+        if (got_public_key_from_server)
+          RSA_free(public_key);
         DBUG_RETURN(CR_ERROR);
       }
       RSA_public_encrypt(passwd_len, (unsigned char *) passwd_scramble,

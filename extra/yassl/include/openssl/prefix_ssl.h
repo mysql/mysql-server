@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -186,3 +186,4 @@
 #define MD5_Update yaMD5_Update
 #define MD5_Final yaMD5_Final
 #define SSL_set_compression yaSSL_set_compression
+#define PEM_read_X509 yaSSL_PEM_read_X509
