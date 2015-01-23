@@ -149,12 +149,12 @@ INSERT INTO gis_geometrycollection VALUES
 CREATE TABLE gis_geometrycollection_2 SELECT fid as fid2,g as g2 FROM gis_geometrycollection;
 #Checking the integrity of the above create/insert statements 
 #64 rows. 
-SELECT count(astext(g) != 'NULL') FROM gis_geometrycollection;
-count(astext(g) != 'NULL')
+SELECT count(ST_AsText(g) != 'NULL') FROM gis_geometrycollection;
+count(ST_AsText(g) != 'NULL')
 64
 #64 rows. 
-SELECT count(astext(g2) != 'NULL') FROM gis_geometrycollection_2;
-count(astext(g2) != 'NULL')
+SELECT count(ST_AsText(g2) != 'NULL') FROM gis_geometrycollection_2;
+count(ST_AsText(g2) != 'NULL')
 64
 #=======================================================================================
 # ST_DISTANCE(g1,g2)

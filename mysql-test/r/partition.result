@@ -2558,7 +2558,7 @@ INSERT INTO t1 VALUES (1,1,'a',1), (2,2,'a',1);
 SELECT 1 FROM t1 WHERE 1 IN
 (SELECT  group_concat(b)
 FROM t1
-WHERE c > geomfromtext('point(1 1)')
+WHERE c > ST_geomfromtext('point(1 1)')
 GROUP BY b
 );
 ERROR HY000: Incorrect arguments to >
