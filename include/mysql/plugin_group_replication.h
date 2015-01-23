@@ -57,7 +57,7 @@ typedef struct st_group_replication_member_stats_info
   unsigned long long int transaction_certified;
   unsigned long long int transaction_conflicts_detected;
   unsigned long long int transactions_in_validation;
-  char* committed_transations;
+  char* committed_transactions;
   const char* last_conflict_free_transaction;
 } GROUP_REPLICATION_GROUP_MEMBER_STATS_INFO;
 

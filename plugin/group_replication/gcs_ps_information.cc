@@ -243,9 +243,9 @@ bool get_gcs_group_member_stats(GROUP_REPLICATION_GROUP_MEMBER_STATS_INFO *info,
     Gtid_set* stable_gtid_set= cert_module->get_group_stable_transactions_set();
 
     if(stable_gtid_set)
-      info->committed_transations= stable_gtid_set->to_string();
+      info->committed_transactions= stable_gtid_set->to_string();
     else
-      info->committed_transations= NULL;
+      info->committed_transactions= NULL;
 
     rpl_gno temp_seq_num= cert_module->get_last_sequence_number();
     char* buf= NULL;
@@ -258,7 +258,7 @@ bool get_gcs_group_member_stats(GROUP_REPLICATION_GROUP_MEMBER_STATS_INFO *info,
     info->transaction_conflicts_detected= 0;
     info->transaction_certified= 0;
     info->transactions_in_validation= 0;
-    info->committed_transations= NULL;
+    info->committed_transactions= NULL;
     info->transaction_in_queue= 0;
     info->last_conflict_free_transaction= NULL;
   }
