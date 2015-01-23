@@ -2572,7 +2572,8 @@ wait_again:
 @param[in,out]	foffs1	offset of second source list in the file
 @param[in,out]	of	output file
 @param[in,out]	stage	performance schema accounting object, used by
-ALTER TABLE. If not NULL stage->inc() will be called for each record processed.
+ALTER TABLE. If not NULL stage->inc() will be called for each record
+processed.
 @return DB_SUCCESS or error code */
 static __attribute__((warn_unused_result))
 dberr_t
@@ -2676,7 +2677,8 @@ done1:
 @param[in,out]	foffs0	input file offset
 @param[in,out]	of	output file
 @param[in,out]	stage	performance schema accounting object, used by
-ALTER TABLE. If not NULL stage->inc() will be called for each record processed.
+ALTER TABLE. If not NULL stage->inc() will be called for each record
+processed.
 @return TRUE on success, FALSE on failure */
 static __attribute__((warn_unused_result))
 ibool
@@ -2754,7 +2756,8 @@ done0:
 @param[in,out]	run_offset	Array that contains the first offset number
 for each merge run
 @param[in,out]	stage		performance schema accounting object, used by
-ALTER TABLE. If not NULL stage->inc() will be called for each record processed.
+ALTER TABLE. If not NULL stage->inc() will be called for each record
+processed.
 @return DB_SUCCESS or error code */
 static
 dberr_t
