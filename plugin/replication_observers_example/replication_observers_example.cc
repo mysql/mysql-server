@@ -217,7 +217,7 @@ int before_commit_tests(Trans_param *param,
     transaction_termination_ctx.m_rollback_transaction= TRUE;
     transaction_termination_ctx.m_generated_gtid= FALSE;
     transaction_termination_ctx.m_sidno= -1;
-    transaction_termination_ctx.m_seqno= -1;
+    transaction_termination_ctx.m_gno= -1;
     break;
 
   case POSITIVE_CERTIFICATION_WITH_GTID:
@@ -229,14 +229,14 @@ int before_commit_tests(Trans_param *param,
     transaction_termination_ctx.m_rollback_transaction= FALSE;
     transaction_termination_ctx.m_generated_gtid= TRUE;
     transaction_termination_ctx.m_sidno= fake_sidno;
-    transaction_termination_ctx.m_seqno= fake_gno;
+    transaction_termination_ctx.m_gno= fake_gno;
     break;
 
   case POSITIVE_CERTIFICATION_WITHOUT_GTID:
     transaction_termination_ctx.m_rollback_transaction= FALSE;
     transaction_termination_ctx.m_generated_gtid= FALSE;
     transaction_termination_ctx.m_sidno= 0;
-    transaction_termination_ctx.m_seqno= 0;
+    transaction_termination_ctx.m_gno= 0;
     break;
 
   default:

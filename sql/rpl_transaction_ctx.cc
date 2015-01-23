@@ -16,7 +16,6 @@
 #include "my_dbug.h"                  /* DBUG_ENTER */
 #include "sql_parse.h"                /* Global_THD_manager, Find_thd_with_id */
 #include "rpl_transaction_ctx.h"
-#include "transaction_info.h"
 
 Rpl_transaction_ctx::Rpl_transaction_ctx()
 {
@@ -33,20 +32,20 @@ void Rpl_transaction_ctx::cleanup()
   m_transaction_ctx.m_rollback_transaction= FALSE;
   m_transaction_ctx.m_generated_gtid= FALSE;
   m_transaction_ctx.m_sidno= 0;
-  m_transaction_ctx.m_seqno= 0;
+  m_transaction_ctx.m_gno= 0;
   DBUG_VOID_RETURN;
 }
 
 int Rpl_transaction_ctx::set_rpl_transaction_ctx(Transaction_termination_ctx transaction_termination_ctx)
 {
   DBUG_ENTER("Rpl_transaction_ctx::set_verdict");
-  DBUG_ASSERT(m_transaction_ctx.m_sidno == 0 && m_transaction_ctx.m_seqno == 0);
+  DBUG_ASSERT(m_transaction_ctx.m_sidno == 0 && m_transaction_ctx.m_gno == 0);
 
   if (transaction_termination_ctx.m_generated_gtid)
   {
     if (transaction_termination_ctx.m_rollback_transaction ||
         transaction_termination_ctx.m_sidno <= 0 ||
-        transaction_termination_ctx.m_seqno <= 0)
+        transaction_termination_ctx.m_gno <= 0)
       DBUG_RETURN(1);
   }
 
@@ -66,16 +65,16 @@ bool Rpl_transaction_ctx::is_generated_gtid()
   DBUG_RETURN(m_transaction_ctx.m_generated_gtid);
 }
 
-int32 Rpl_transaction_ctx::get_sidno()
+rpl_sidno Rpl_transaction_ctx::get_sidno()
 {
   DBUG_ENTER("Rpl_transaction_ctx::get_sidno");
   DBUG_RETURN(m_transaction_ctx.m_sidno);
 }
 
-int64 Rpl_transaction_ctx::get_gno()
+rpl_gno Rpl_transaction_ctx::get_gno()
 {
   DBUG_ENTER("Rpl_transaction_ctx::get_gno");
-  DBUG_RETURN(m_transaction_ctx.m_seqno);
+  DBUG_RETURN(m_transaction_ctx.m_gno);
 }
 
 /**
@@ -86,12 +85,12 @@ int set_transaction_ctx(Transaction_termination_ctx transaction_termination_ctx)
 {
   DBUG_ENTER("set_transaction_ctx");
   DBUG_PRINT("enter", ("thread_id=%lu, rollback_transaction=%d, "
-                       "generated_gtid=%d, sidno=%d, seqno=%ld",
+                       "generated_gtid=%d, sidno=%d, gno=%lld",
                        transaction_termination_ctx.m_thread_id,
                        transaction_termination_ctx.m_rollback_transaction,
                        transaction_termination_ctx.m_generated_gtid,
                        transaction_termination_ctx.m_sidno,
-                       transaction_termination_ctx.m_seqno));
+                       transaction_termination_ctx.m_gno));
 
   THD *thd= NULL;
   uint error=ER_NO_SUCH_THREAD;

@@ -54,7 +54,7 @@ struct st_transaction_termination_ctx
    */
   char m_generated_gtid;
   int m_sidno;
-  long m_seqno;
+  long long int m_gno;
 };
 typedef struct st_transaction_termination_ctx Transaction_termination_ctx;
 

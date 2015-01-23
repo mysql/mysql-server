@@ -16,7 +16,7 @@
 #ifndef RPL_TRANSACTION_CTX_H
 #define RPL_TRANSACTION_CTX_H
 
-#include "my_global.h"
+#include "mysql/service_rpl_transaction_ctx.h"
 
 /**
   Server side support to provide a service to plugins to report if
@@ -69,14 +69,14 @@ public:
 
     @return sidno sidno value.
   */
-  int32 get_sidno();
+  int get_sidno();
 
   /**
     Get transaction gno.
 
     @return gno   gno value.
   */
-  int64 get_gno();
+  long long int get_gno();
 
   /**
    Reset transaction context to default values.

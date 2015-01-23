@@ -16,9 +16,7 @@
 #include "my_dbug.h"                  /* DBUG_ENTER */
 #include "sql_parse.h"                /* Global_THD_manager, Find_thd_with_id */
 #include "rpl_transaction_write_set_ctx.h"
-#include "transaction_info.h"
 #include "mysql/service_rpl_transaction_write_set.h"
-#include <my_stacktrace.h>
 
 Rpl_transaction_write_set_ctx::Rpl_transaction_write_set_ctx()
 {

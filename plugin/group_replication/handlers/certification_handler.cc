@@ -153,7 +153,7 @@ Certification_handler::certify(Pipeline_event *pevent, Continuation *cont)
       {
         transaction_termination_ctx.m_generated_gtid= TRUE;
         transaction_termination_ctx.m_sidno= gcs_cluster_sidno;
-        transaction_termination_ctx.m_seqno= seq_number;
+        transaction_termination_ctx.m_gno= seq_number;
       }
     }
     else
@@ -161,7 +161,7 @@ Certification_handler::certify(Pipeline_event *pevent, Continuation *cont)
       transaction_termination_ctx.m_rollback_transaction= TRUE;
       transaction_termination_ctx.m_generated_gtid= FALSE;
       transaction_termination_ctx.m_sidno= -1;
-      transaction_termination_ctx.m_seqno= -1;
+      transaction_termination_ctx.m_gno= -1;
     }
 
     if (set_transaction_ctx(transaction_termination_ctx))
