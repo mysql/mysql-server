@@ -19,10 +19,11 @@
 #include "sql_class.h"
 
 Transaction_ctx::Transaction_ctx()
-  : m_savepoints(NULL), m_scope_info(),
-    m_changed_tables(NULL), m_flags(),
+  : m_savepoints(NULL), m_changed_tables(NULL),
     last_committed(0), sequence_number(0)
 {
+  memset(&m_scope_info, 0, sizeof(m_scope_info));
+  memset(&m_flags, 0, sizeof(m_flags));
   init_sql_alloc(key_memory_thd_transactions, &m_mem_root,
                  global_system_variables.trans_alloc_block_size,
                  global_system_variables.trans_prealloc_size);
