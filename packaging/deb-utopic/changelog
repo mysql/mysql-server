@@ -18,6 +18,7 @@ mysql-community (5.7.6-m16-1ubuntu14.10) utopic; urgency=low
     replication_observers_example
     rewriter
     rewrite_example
+  * new binary mysql_ssl_rsa_setup added to d/mysql-*-server.install
 
  -- Akhil Mohan <akhil.mohan@oracle.com>  Fri, 16 Jan 2015 17:14:45 +0530
 

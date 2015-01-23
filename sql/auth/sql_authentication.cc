@@ -82,10 +82,6 @@ my_bool disconnect_on_expired_password= TRUE;
 #define AUTH_DEFAULT_RSA_PRIVATE_KEY "private_key.pem"
 #define AUTH_DEFAULT_RSA_PUBLIC_KEY "public_key.pem"
 
-#define DEFAULT_SSL_CA_CERT     "ca.pem"
-#define DEFAULT_SSL_CA_KEY      "ca-key.pem"
-#define DEFAULT_SSL_SERVER_CERT "server-cert.pem"
-#define DEFAULT_SSL_SERVER_KEY  "server-key.pem"
 #define DEFAULT_SSL_CLIENT_CERT "client-cert.pem"
 #define DEFAULT_SSL_CLIENT_KEY  "client-key.pem"
 
@@ -3595,40 +3591,33 @@ end:
   a> ssl-ca
   b> ssl-cert
   c> ssl-key
+
+  Assumption : auto_detect_ssl() is called before control reaches to
+  do_auto_cert_generation().
+
+  @param auto_detection_status [IN] Status of SSL artifacts detection process
+
+  @returns
+    @retval true i Generation is successful or skipped
+    @retval false Generation failed.
 */
-bool do_auto_cert_generation()
+bool do_auto_cert_generation(ssl_artifacts_status auto_detection_status)
 {
   if (opt_auto_generate_certs == true)
   {
-    MY_STAT cert_stat, cert_key, ca_stat;
     /*
       Do not generate SSL certificates/RSA keys,
-      If any of the SSL/RSA key option was given.
+      If any of the SSL option was specified.
     */
 
-    if ((opt_ssl_cert && opt_ssl_cert[0]) |
-        (opt_ssl_key && opt_ssl_key[0]) ||
-        (opt_ssl_ca && opt_ssl_ca[0]) ||
-        (opt_ssl_capath && opt_ssl_capath[0]) ||
-        (opt_ssl_crl && opt_ssl_crl[0]) ||
-        (opt_ssl_crlpath && opt_ssl_crlpath[0]) ||
-        (opt_ssl_cipher && opt_ssl_cipher[0]))
+    if (auto_detection_status == SSL_ARTIFACTS_VIA_OPTIONS)
     {
       sql_print_information("Skipping generation of SSL certificates "
                             "as options related to SSL are specified.");
       return true;
     }
-    else if (my_stat(DEFAULT_SSL_SERVER_CERT, &cert_stat, MYF(0)) ||
-             my_stat(DEFAULT_SSL_SERVER_KEY, &cert_key, MYF(0)) ||
-             my_stat(DEFAULT_SSL_CA_CERT, &ca_stat, MYF(0)))
+    else if(auto_detection_status == SSL_ARTIFACTS_AUTO_DETECTED)
     {
-      /*
-        We only care for ca certificate, server certificate and server key
-        files. Rest of the files will be overwritten if present.
-      */
-      opt_ssl_ca= (char *)DEFAULT_SSL_CA_CERT;
-      opt_ssl_cert= (char *)DEFAULT_SSL_SERVER_CERT;
-      opt_ssl_key= (char *)DEFAULT_SSL_SERVER_KEY;
       sql_print_information("Skipping generation of SSL certificates as "
                             "certificate files are present in data "
                             "directory.");
@@ -3636,6 +3625,7 @@ bool do_auto_cert_generation()
     }
     else
     {
+      DBUG_ASSERT(auto_detection_status == SSL_ARTIFACTS_NOT_FOUND);
       /* Initialize the key pair generator. It can also be used stand alone */
       RSA_gen rsa_gen;
       /*

@@ -1,4 +1,4 @@
-# Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -582,6 +582,7 @@ fi
 %attr(755, root, root) %{_bindir}/replace
 %attr(755, root, root) %{_bindir}/resolve_stack_dump
 %attr(755, root, root) %{_bindir}/resolveip
+%attr(755, root, root) %{_bindir}/mysql_ssl_rsa_setup
 %if 0%{?systemd}
 %attr(755, root, root) %{_bindir}/mysql-systemd-start
 %endif
@@ -782,10 +783,11 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/libmysqld.so
 
 %changelog
-* Mon Oct 27 2014 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.7.6-0.2.m16
+* Fri Jan 23 2014 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.7.6-0.2.m16
 - Include boost sources
 - Add license info in each subpackage
 - Soname bump
+- Added mysql_ssl_rsa_setup
 
 * Thu Sep 18 2014 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.7.6-0.2.m16
 - Provide replication_observers_example_plugin.so plugin
