@@ -2554,6 +2554,6 @@ DROP TABLE t1,t2,t3,t4,t5;
 #
 create table t1(a time) engine=ndbcluster;
 insert into t1 values ('00:00:00'),('01:01:01');
-select 1 from t1 where a >= geomfromtext('1');
+select 1 from t1 where a >= ST_geomfromtext('1');
 1
 drop table t1;

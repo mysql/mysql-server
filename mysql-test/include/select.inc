@@ -3791,8 +3791,8 @@ DROP TABLE t1;
 --echo #
 CREATE TABLE t1(a LINESTRING NOT NULL, SPATIAL KEY(a));
 INSERT INTO t1 VALUES
-  (GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)')),
-  (GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)'));
+  (ST_GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)')),
+  (ST_GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)'));
 EXPLAIN SELECT 1 FROM t1 NATURAL LEFT JOIN t1 AS t2;
 SELECT 1 FROM t1 NATURAL LEFT JOIN t1 AS t2;
 EXPLAIN SELECT 1 FROM t1 NATURAL LEFT JOIN t1 AS t2 FORCE INDEX(a);
@@ -4292,9 +4292,9 @@ DROP TABLE t1;
 --echo # Bug #57203 Assertion `field_length <= 255' failed.
 --echo #
 --error ER_WRONG_ARGUMENTS
-SELECT coalesce((avg(distinct (geomfromtext("point(25379 -22010)"))))) 
+SELECT coalesce((avg(distinct (ST_geomfromtext("point(25379 -22010)"))))) 
 UNION ALL 
-SELECT coalesce((avg(distinct (geomfromtext("point(25379 -22010)")))))
+SELECT coalesce((avg(distinct (ST_geomfromtext("point(25379 -22010)")))))
 AS foo
 ;
 

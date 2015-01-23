@@ -30,7 +30,7 @@ select a();
 select x();
 --error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
 select y();
-select x(PointFromText("POINT(10 20)")), y(PointFromText("POINT(10 20)"));
+select ST_x(ST_PointFromText("POINT(10 20)")), ST_y(ST_PointFromText("POINT(10 20)"));
 
 # Non deterministic warnings from db_load_routine
 --disable_warnings

@@ -646,76 +646,76 @@ drop table t1;
 # GIS functions
 #
 
-select hex(concat(Dimension(GeomFromText('LINESTRING(0 0,10 10)'))));
+select hex(concat(ST_Dimension(ST_GeomFromText('LINESTRING(0 0,10 10)'))));
 --error ER_GIS_INVALID_DATA
-create table t1 as select concat(Dimension(GeomFromText('LINSTRING(0 0,10 10)'))) as c1;
+create table t1 as select concat(ST_Dimension(ST_GeomFromText('LINSTRING(0 0,10 10)'))) as c1;
 
-select hex(concat(NumGeometries(MultiPointFromText('MULTIPOINT(0 0,10 10)'))));
-create table t1 as select concat(NumGeometries(MultiPointFromText('MULTIPOINT(0 0,10 10)'))) as c1;
+select hex(concat(ST_NumGeometries(ST_MultiPointFromText('MULTIPOINT(0 0,10 10)'))));
+create table t1 as select concat(ST_NumGeometries(ST_MultiPointFromText('MULTIPOINT(0 0,10 10)'))) as c1;
 show create table t1;
 drop table t1;
 
-select hex(concat(NumPoints(MultiPointFromText('LINESTRING(0 0,10 10)'))));
-create table t1 as select concat(NumPoints(MultiPointFromText('LINESTRING(0 0,10 10)'))) as c1;
+select hex(concat(ST_NumPoints(ST_MultiPointFromText('LINESTRING(0 0,10 10)'))));
+create table t1 as select concat(ST_NumPoints(ST_MultiPointFromText('LINESTRING(0 0,10 10)'))) as c1;
 show create table t1;
 drop table t1;
 
-select hex(concat(SRID(MultiPointFromText('MULTIPOINT(0 0,10 10)'))));
-create table t1 as select concat(SRID(MultiPointFromText('MULTIPOINT(0 0,10 10)'))) as c1;
+select hex(concat(ST_SRID(ST_MultiPointFromText('MULTIPOINT(0 0,10 10)'))));
+create table t1 as select concat(ST_SRID(ST_MultiPointFromText('MULTIPOINT(0 0,10 10)'))) as c1;
 show create table t1;
 drop table t1;
 
-select hex(concat(NumInteriorRings(PolygonFromText('POLYGON((0 0,50 0,50 50,0 50,0 0), (10 10,20 10,20 20,10 20,10 10))'))));
-create table t1 as select concat(NumInteriorRings(PolygonFromText('POLYGON((0 0,50 0,50 50,0 50,0 0), (10 10,20 10,20 20,10 20,10 10))'))) as c1;
+select hex(concat(ST_NumInteriorRings(ST_PolygonFromText('POLYGON((0 0,50 0,50 50,0 50,0 0), (10 10,20 10,20 20,10 20,10 10))'))));
+create table t1 as select concat(ST_NumInteriorRings(ST_PolygonFromText('POLYGON((0 0,50 0,50 50,0 50,0 0), (10 10,20 10,20 20,10 20,10 10))'))) as c1;
 show create table t1;
 drop table t1;
 
-select hex(concat(IsEmpty(GeomFromText('POINT(1 1)'))));
-create table t1 as select concat(IsEmpty(GeomFromText('Point(1 1)'))) as c1;
+select hex(concat(ST_IsEmpty(ST_GeomFromText('POINT(1 1)'))));
+create table t1 as select concat(ST_IsEmpty(ST_GeomFromText('Point(1 1)'))) as c1;
 show create table t1;
 drop table t1;
 
-select hex(concat(IsSimple(GeomFromText('POINT(1 1)'))));
-create table t1 as select concat(IsSimple(GeomFromText('Point(1 1)'))) as c1;
+select hex(concat(ST_IsSimple(ST_GeomFromText('POINT(1 1)'))));
+create table t1 as select concat(ST_IsSimple(ST_GeomFromText('Point(1 1)'))) as c1;
 show create table t1;
 drop table t1;
 
-select hex(concat(IsClosed(GeomFromText('LineString(1 1,2 2)'))));
-create table t1 as select concat(IsClosed(GeomFromText('LineString(1 1,2 2)'))) as c1;
+select hex(concat(ST_IsClosed(ST_GeomFromText('LineString(1 1,2 2)'))));
+create table t1 as select concat(ST_IsClosed(ST_GeomFromText('LineString(1 1,2 2)'))) as c1;
 show create table t1;
 drop table t1;
 
-select hex(concat(Equals(GeomFromText('Point(1 1)'),GeomFromText('Point(1 1)'))));
-create table t1 as select concat(Equals(GeomFromText('Point(1 1)'),GeomFromText('Point(1 1)'))) as c1;
+select hex(concat(MBREquals(ST_GeomFromText('Point(1 1)'),ST_GeomFromText('Point(1 1)'))));
+create table t1 as select concat(MBREquals(ST_GeomFromText('Point(1 1)'),ST_GeomFromText('Point(1 1)'))) as c1;
 drop table t1;
 
-select hex(concat(x(GeomFromText('Point(1 2)'))));
-create table t1 as select concat(x(GeomFromText('Point(1 2)'))) as c1;
+select hex(concat(ST_X(ST_GeomFromText('Point(1 2)'))));
+create table t1 as select concat(ST_X(ST_GeomFromText('Point(1 2)'))) as c1;
 show create table t1;
 drop table t1;
 
-select hex(concat(y(GeomFromText('Point(1 2)'))));
-create table t1 as select concat(x(GeomFromText('Point(1 2)'))) as c1;
+select hex(concat(ST_Y(ST_GeomFromText('Point(1 2)'))));
+create table t1 as select concat(ST_X(ST_GeomFromText('Point(1 2)'))) as c1;
 show create table t1;
 drop table t1;
 
-select hex(concat(GLength(GeomFromText('LineString(1 2,2 2)'))));
-create table t1 as select concat(GLength(GeomFromText('LineString(1 2, 2 2)'))) as c1;
+select hex(concat(ST_Length(ST_GeomFromText('LineString(1 2,2 2)'))));
+create table t1 as select concat(ST_Length(ST_GeomFromText('LineString(1 2, 2 2)'))) as c1;
 show create table t1;
 drop table t1;
 
-select hex(concat(Area(GeomFromText('Polygon((0 0,1 0,1 1,0 1,0 0))'))));
-create table t1 as select concat(Area(GeomFromText('Polygon((0 0,1 0,1 1,0 1,0 0))'))) as c1;
+select hex(concat(ST_Area(ST_GeomFromText('Polygon((0 0,1 0,1 1,0 1,0 0))'))));
+create table t1 as select concat(ST_Area(ST_GeomFromText('Polygon((0 0,1 0,1 1,0 1,0 0))'))) as c1;
 show create table t1;
 drop table t1;
 
-select hex(concat(GeometryType(GeomFromText('Point(1 2)'))));
-create table t1 as select concat(GeometryType(GeomFromText('Point(1 2)'))) as c1;
+select hex(concat(ST_GeometryType(ST_GeomFromText('Point(1 2)'))));
+create table t1 as select concat(ST_GeometryType(ST_GeomFromText('Point(1 2)'))) as c1;
 show create table t1;
 drop table t1;
 
-select hex(concat(AsText(GeomFromText('Point(1 2)'))));
-create table t1 as select concat(AsText(GeomFromText('Point(1 2)'))) as c1;
+select hex(concat(ST_AsText(ST_GeomFromText('Point(1 2)'))));
+create table t1 as select concat(ST_AsText(ST_GeomFromText('Point(1 2)'))) as c1;
 show create table t1;
 drop table t1;
 
@@ -1603,18 +1603,18 @@ drop function f1;
 --echo #
 --echo # Bug#54668 User variable assignments get wrong type
 --echo #
-SET @x=md5('a');
-SELECT charset(@x), collation(@x);
-SET @x=password('a');
-SELECT charset(@x), collation(@x);
-SET @x=sha('a');
-SELECT charset(@x), collation(@x);
-SET @x=sha1('a');
-SELECT charset(@x), collation(@x);
-SET @x=astext(point(1,2));
-SELECT charset(@x), collation(@x);
-SET @x=aswkt(point(1,2));
-SELECT charset(@x), collation(@x);
+SET @ST_X=md5('a');
+SELECT charset(@ST_X), collation(@ST_X);
+SET @ST_X=password('a');
+SELECT charset(@ST_X), collation(@ST_X);
+SET @ST_X=sha('a');
+SELECT charset(@ST_X), collation(@ST_X);
+SET @ST_X=sha1('a');
+SELECT charset(@ST_X), collation(@ST_X);
+SET @ST_X=ST_astext(point(1,2));
+SELECT charset(@ST_X), collation(@ST_X);
+SET @ST_X=ST_AsWKT(point(1,2));
+SELECT charset(@ST_X), collation(@ST_X);
 
 
 --echo #
@@ -1703,7 +1703,7 @@ CREATE TABLE t2 AS SELECT SOUNDEX(1) FROM t1;
 SHOW CREATE TABLE t2;
 DROP TABLE t2;
 
-CREATE TABLE t2 AS SELECT EXPORT_SET(1,'Y','N','',8);
+CREATE TABLE t2 AS SELECT EXPORT_SET(1,'ST_Y','N','',8);
 SHOW CREATE TABLE t2;
 DROP TABLE t2;
 
