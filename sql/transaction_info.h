@@ -367,7 +367,7 @@ public:
   }
 
   Transaction_ctx();
-  ~Transaction_ctx()
+  virtual ~Transaction_ctx()
   {
     free_root(&m_mem_root, MYF(0));
   }

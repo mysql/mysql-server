@@ -19,8 +19,9 @@
 #include "sql_class.h"
 
 Transaction_ctx::Transaction_ctx()
-  : m_savepoints(NULL), m_changed_tables(NULL),
-    last_committed(0), sequence_number(0)
+  : m_savepoints(NULL), m_xid_state(), m_changed_tables(NULL),
+    last_committed(0), sequence_number(0),
+    m_rpl_transaction_ctx(), m_transaction_write_set_ctx()
 {
   memset(&m_scope_info, 0, sizeof(m_scope_info));
   memset(&m_flags, 0, sizeof(m_flags));
