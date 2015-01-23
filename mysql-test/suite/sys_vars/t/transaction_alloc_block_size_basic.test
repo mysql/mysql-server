@@ -5,7 +5,7 @@
 # Access Type: Dynamic                                                        #
 # Data Type: numeric                                                          #
 # Default Value: 8192                                                         #
-# Range: 1024-4294967295                                                      #
+# Range: 1024-134217728                                                       #
 #                                                                             #
 #                                                                             #
 # Creation Date: 2008-02-14                                                   #
@@ -80,18 +80,12 @@ SELECT @@global.transaction_alloc_block_size;
 SET @@global.transaction_alloc_block_size = 60020;
 SELECT @@global.transaction_alloc_block_size;
 
-SET @@global.transaction_alloc_block_size = 4294967295;
-SELECT @@global.transaction_alloc_block_size;
-
 --echo '#--------------------FN_DYNVARS_005_04-------------------------#'
 ###################################################################
 # Change the value of variable to a valid value for SESSION Scope #
 ###################################################################
  
 SET @@session.transaction_alloc_block_size = 1024;
-SELECT @@session.transaction_alloc_block_size;
-
-SET @@session.transaction_alloc_block_size =4294967295;
 SELECT @@session.transaction_alloc_block_size;
 
 SET @@session.transaction_alloc_block_size = 65535;
@@ -110,7 +104,7 @@ SET @@global.transaction_alloc_block_size = -1024;
 SELECT @@global.transaction_alloc_block_size;
 
 
-SET @@global.transaction_alloc_block_size = 123456789201;
+SET @@global.transaction_alloc_block_size = 135217728;
 SELECT @@global.transaction_alloc_block_size;
 
 -- Error ER_WRONG_TYPE_FOR_VAR
@@ -136,7 +130,7 @@ SET @@global.transaction_alloc_block_size ="Test";
 SET @@global.transaction_alloc_block_size = 1000;
 SELECT @@global.transaction_alloc_block_size;
 
-SET @@session.transaction_alloc_block_size = 12345678901;
+SET @@session.transaction_alloc_block_size = 135217728;
 SELECT @@session.transaction_alloc_block_size;
 
 -- Error ER_WRONG_TYPE_FOR_VAR
@@ -185,7 +179,7 @@ WHERE VARIABLE_NAME='transaction_alloc_block_size';
 ###########################################################################
 
 SET @@transaction_alloc_block_size = 1024;
-SET @@global.transaction_alloc_block_size = 4294967295;
+SET @@global.transaction_alloc_block_size = 134217728;
 SELECT @@transaction_alloc_block_size = @@global.transaction_alloc_block_size;
  
 
