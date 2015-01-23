@@ -19,6 +19,7 @@
 
 #include <algorithm>
 #include <cstdio>
+#include <string>
 
 namespace binary_log
 {
@@ -153,7 +154,10 @@ Format_description_event::Format_description_event(uint8_t binlog_ver,
       ROWS_HEADER_LEN_V2,
        Gtid_event::POST_HEADER_LENGTH,         /*GTID_EVENT*/
        Gtid_event::POST_HEADER_LENGTH,         /*ANONYMOUS_GTID_EVENT*/
-       IGNORABLE_HEADER_LEN
+       IGNORABLE_HEADER_LEN,
+      TRANSACTION_CONTEXT_HEADER_LEN,
+      VIEW_CHANGE_HEADER_LEN
+
     };
      /*
        Allows us to sanity-check that all events initialized their
@@ -637,24 +641,208 @@ Previous_gtids_event(const char *buffer, unsigned int event_len,
   return;
 }
 
+/**
+  Constructor of Transaction_context_event
 
-Transaction_context_log_event::
-Transaction_context_log_event(const char *buffer, unsigned int event_len,
-                              const Format_description_event *description_event)
+  This event is used to store the information regarding the ongoing
+  transaction. Information like write_set, threads information etc. is stored
+  in this event.
+*/
+Transaction_context_event::
+Transaction_context_event(const char *buffer, unsigned int event_len,
+                          const Format_description_event *description_event)
 : Binary_log_event(&buffer, description_event->binlog_version,
-                     description_event->server_version)
+                   description_event->server_version)
 {
+  //buf is advanced in Binary_log_event constructor to point to
+  //beginning of post-header
+  const char* data_head = buffer;
+  uint8_t server_uuid_len= (static_cast<unsigned int>
+                           (data_head[ENCODED_SERVER_UUID_LEN_OFFSET]));
+
+  uint16_t write_set_len= 0;
+  memcpy(&write_set_len, data_head + ENCODED_WRITE_SET_ITEMS_OFFSET,
+         sizeof(write_set_len));
+  write_set_len= le16toh(write_set_len);
+
+  uint16_t read_set_len= 0;
+  memcpy(&read_set_len, data_head + ENCODED_READ_SET_ITEMS_OFFSET,
+         sizeof(read_set_len));
+  read_set_len= le16toh(read_set_len);
+
+  uint16_t snapshot_version_len= 0;
+  memcpy(&snapshot_version_len, data_head + ENCODED_SNAPSHOT_VERSION_OFFSET,
+         sizeof(snapshot_version_len));
+  snapshot_version_len= le16toh(snapshot_version_len);
+
+  memcpy(&thread_id, data_head + ENCODED_THREAD_ID_OFFSET, sizeof(thread_id));
+  thread_id= (uint64_t) le64toh(thread_id);
+  gtid_specified= (int8_t) data_head[ENCODED_GTID_SPECIFIED_OFFSET];
+
+  const char *pos = data_head + TRANSACTION_CONTEXT_HEADER_LEN;
+  server_uuid= bapi_strndup(pos, server_uuid_len);
+  pos += server_uuid_len;
+
+  // This is done to skip the snapshot version length which is in the
+  // derived class in mysql server in the read_snapshot_version function.
+  pos += snapshot_version_len;
+
+  pos= (const char*) read_data_set((char*)pos, write_set_len, &write_set);
+  if (pos == NULL)
+    goto err;
+  pos= (const char*) read_data_set((char*)pos, read_set_len, &read_set);
+  if (pos == NULL)
+    goto err;
+
+  return;
+
+err:
+  bapi_free((void*)server_uuid);
+  server_uuid= NULL;
+  clear_set(&write_set);
+  clear_set(&read_set);
+  return;
 }
 
+/**
+  Function to read the data set for the ongoing transaction.
 
-View_change_log_event::
-View_change_log_event(const char *buffer, unsigned int event_len,
-                      const Format_description_event *description_event)
-: Binary_log_event(&buffer, description_event->binlog_version,
-                     description_event->server_version)
+  @param[in] pos     - postion to read from.
+  @param[in] set_len - length of the set object
+  @param[in] set     - pointer to the set object
+
+  @retval - returns the pointer in the buffer to the end of the added hash
+            value.
+*/
+char* Transaction_context_event::read_data_set(char *pos,
+                                               uint16_t set_len,
+                                               std::list<const char*> *set)
 {
+  uint16_t len= 0;
+  for (int i= 0; i < set_len; i++)
+  {
+    memcpy(&len, pos, 2);
+    len= le16toh(len);
+    pos += ENCODED_READ_WRITE_SET_ITEM_LEN;
+    const char *hash= bapi_strndup(pos, len);
+    if (hash == NULL)
+      return(NULL);
+    pos += len;
+    set->push_back(hash);
+  }
+  return(pos);
 }
 
+/**
+  Function to clear the memory of the write_set and the read_set
+
+  @param[in] set - pointer to write_set or read_set.
+*/
+void Transaction_context_event::clear_set(std::list<const char*> *set)
+{
+  for (std::list<const char*>::iterator it=set->begin();
+       it != set->end();
+       ++it)
+    bapi_free((void*)*it);
+  set->clear();
+}
+
+/**
+  Destructor of the Transaction_context_event class.
+*/
+Transaction_context_event::~Transaction_context_event()
+{
+  clear_set(&write_set);
+  clear_set(&read_set);
+}
+
+/**
+  Constructor of View_change_event
+
+  This event is used to add view change events in the binary log when a member
+  enters or leaves the group.
+*/
+
+View_change_event::View_change_event(char* raw_view_id)
+: Binary_log_event(VIEW_CHANGE_EVENT),
+  view_id(), seq_number(0)
+{
+  memcpy(view_id, raw_view_id, strlen(raw_view_id));
+}
+
+View_change_event::
+View_change_event(const char *buffer, unsigned int event_len,
+                  const Format_description_event *description_event)
+: Binary_log_event(&buffer, description_event->binlog_version,
+                   description_event->server_version),
+  seq_number(0)
+{
+  //buf is advanced in Binary_log_event constructor to point to
+  //beginning of post-header
+  const char* data_header= buffer;
+  uint32_t cert_info_len= 0;
+  memcpy(view_id, data_header, ENCODED_VIEW_ID_MAX_LEN);
+  memcpy(&seq_number, data_header + ENCODED_SEQ_NUMBER_OFFSET,
+         sizeof(seq_number));
+  seq_number= (int64_t) le64toh(seq_number);
+  memcpy(&cert_info_len, data_header + ENCODED_CERT_INFO_SIZE_OFFSET,
+         sizeof(cert_info_len));
+  cert_info_len= le32toh(cert_info_len);
+
+  char *pos = (char*) data_header + VIEW_CHANGE_HEADER_LEN;
+
+  pos= read_data_map(pos, cert_info_len, &certification_info);
+  if (pos == NULL)
+    // Make is_valid() defined in the server return false.
+    view_id[0]= '\0';
+  return;
+}
+
+/**
+  This method is used to read the certification map and return pointer to
+  the snapshot version.
+
+  @param[in] pos     - start position.
+  @param[in] map_len - the length of the certification info map.
+  @param[in] map     - Certification info map
+
+  @return pointer to the snapshot version.
+*/
+char* View_change_event::read_data_map(char *pos,
+                                       unsigned int map_len,
+                                       std::map<std::string, std::string> *map)
+{
+  BAPI_ASSERT(map->empty());
+  uint16_t created= 0;
+  for (unsigned int i= 0; i < map_len; i++)
+  {
+    memcpy(&created, pos, sizeof(created));
+    uint16_t key_len= (uint16_t) le16toh(created);
+    pos+= ENCODED_CERT_INFO_KEY_SIZE_LEN;
+
+    std::string key(pos, key_len);
+    pos+= key_len;
+
+    created=0;
+    memcpy(&created, pos, sizeof(created));
+    uint16_t value_len= (uint16_t) le16toh(created);
+    pos+= ENCODED_CERT_INFO_VALUE_LEN;
+
+    std::string value(pos, value_len);
+    pos+= value_len;
+
+    (*map)[key]= value;
+  }
+  return(pos);
+}
+
+/**
+  Destructor of the View_change_event class.
+*/
+View_change_event::~View_change_event()
+{
+  certification_info.clear();
+}
 
 Heartbeat_event::Heartbeat_event(const char* buf, unsigned int event_len,
                                  const Format_description_event*

@@ -797,7 +797,9 @@ public:
     INCIDENT_HEADER_LEN= 2,
     HEARTBEAT_HEADER_LEN= 0,
     IGNORABLE_HEADER_LEN= 0,
-    ROWS_HEADER_LEN_V2= 10
+    ROWS_HEADER_LEN_V2= 10,
+    TRANSACTION_CONTEXT_HEADER_LEN= 16,
+    VIEW_CHANGE_HEADER_LEN= 52
   }; // end enum_post_header_length
 protected:
   /**

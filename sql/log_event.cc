@@ -13059,12 +13059,15 @@ int Previous_gtids_log_event::do_update_pos(Relay_log_info *rli)
 	Transaction_context_log_event methods
 **************************************************************************/
 #ifndef MYSQL_CLIENT
-Transaction_context_log_event::Transaction_context_log_event(const char *server_uuid_arg,
-                                                             my_thread_id thread_id_arg,
-                                                             bool is_gtid_specified_arg)
-  : Log_event(header(), footer(),
-              Log_event::EVENT_TRANSACTIONAL_CACHE, Log_event::EVENT_NORMAL_LOGGING),
-    thread_id(thread_id_arg), gtid_specified(is_gtid_specified_arg)
+Transaction_context_log_event::
+Transaction_context_log_event(const char *server_uuid_arg,
+                              my_thread_id thread_id_arg,
+                              bool is_gtid_specified_arg)
+  : binary_log::Transaction_context_event(thread_id_arg,
+                                          is_gtid_specified_arg),
+    Log_event(header(), footer(),
+              Log_event::EVENT_TRANSACTIONAL_CACHE,
+              Log_event::EVENT_NORMAL_LOGGING)
 {
   DBUG_ENTER("Transaction_context_log_event::Transaction_context_log_event(THD *, const char *, ulonglong)");
   sid_map= new Sid_map(NULL);
@@ -13075,6 +13078,9 @@ Transaction_context_log_event::Transaction_context_log_event(const char *server_
   else
     server_uuid= my_strdup(key_memory_log_event, server_uuid_arg, MYF(MY_WME));
   global_sid_lock->unlock();
+
+  if (server_uuid != NULL)
+    is_valid_param= true;
 
   // Debug sync point for SQL threads.
   DBUG_EXECUTE_IF("debug.wait_after_set_snapshot_version_on_transaction_context_log_event",
@@ -13092,74 +13098,53 @@ Transaction_context_log_event::Transaction_context_log_event(const char *server_
 #endif
 
 Transaction_context_log_event::
-Transaction_context_log_event(const char *buffer,
-                              uint event_len,
-                              const Format_description_log_event *descr_event)
-: binary_log::Transaction_context_log_event(buffer, event_len, descr_event),
-  Log_event(header(), footer())
+Transaction_context_log_event(const char *buffer, uint event_len,
+                              const Format_description_event *descr_event)
+  : binary_log::Transaction_context_event(buffer, event_len, descr_event),
+    Log_event(header(), footer())
 {
-  DBUG_ENTER("Transaction_context_log_event::Transaction_context_log_event(const char *, uint, const Format_description_log_event*)");
-
-  if (buffer != 0)
-    is_valid_param= true;
+  DBUG_ENTER("Transaction_context_log_event::Transaction_context_log_event (const char *, uint, const Format_description_event*)");
 
   sid_map= new Sid_map(NULL);
   snapshot_version= new Gtid_set(sid_map);
+
   const char* data_head = buffer + descr_event->common_header_len;
 
   uint8 server_uuid_len= (uint) data_head[ENCODED_SERVER_UUID_LEN_OFFSET];
-  thread_id= uint8korr(data_head + ENCODED_THREAD_ID_OFFSET);
-  gtid_specified= (int) data_head[ENCODED_GTID_SPECIFIED_OFFSET];
-  uint16 snapshot_version_len= uint2korr(data_head + ENCODED_SNAPSHOT_VERSION_OFFSET);
-  uint16 write_set_len= uint2korr(data_head + ENCODED_WRITE_SET_ITEMS_OFFSET);
-  uint16 read_set_len= uint2korr(data_head + ENCODED_READ_SET_ITEMS_OFFSET);
-  char *pos = (char*) data_head + POST_HEADER_LENGTH;
+  char *pos= (char*) data_head + Binary_log_event::TRANSACTION_CONTEXT_HEADER_LEN;
 
-  server_uuid= my_strndup(key_memory_log_event,
-                          pos, server_uuid_len, MYF(MY_WME));
+  uint16 snapshot_version_len= uint2korr(data_head + ENCODED_SNAPSHOT_VERSION_OFFSET);
+
   if (server_uuid == NULL)
     goto err;
   pos += server_uuid_len;
-
+  /*
+  TODO: Complete event data should be moved to
+        binary_log::Transaction_context_event event, what is not possible
+        since libbinlogevents must be independent of server code.
+  */
   pos= read_snapshot_version(pos, snapshot_version_len);
   if (pos == NULL)
     goto err;
 
-  pos= read_data_set(pos, write_set_len, &write_set);
-  if (pos == NULL)
-    goto err;
-  pos= read_data_set(pos, read_set_len, &read_set);
-  if (pos == NULL)
-    goto err;
+  is_valid_param= true;
 
   DBUG_VOID_RETURN;
 
 err:
-  // Make is_valid() return false.
   my_free((void*) server_uuid);
   server_uuid= NULL;
+  is_valid_param= false;
   DBUG_VOID_RETURN;
 }
 
 Transaction_context_log_event::~Transaction_context_log_event()
 {
   DBUG_ENTER("Transaction_context_log_event::~Transaction_context_log_event");
-  my_free(server_uuid);
+  my_free((void*)server_uuid);
+  server_uuid= NULL;
   delete snapshot_version;
   delete sid_map;
-  clear_set(&write_set);
-  clear_set(&read_set);
-  DBUG_VOID_RETURN;
-}
-
-void Transaction_context_log_event::clear_set(std::list<const char*> *set)
-{
-  DBUG_ENTER("Transaction_context_log_event::clear_set");
-  for (std::list<const char*>::iterator it=set->begin();
-       it != set->end();
-       ++it)
-    my_free((void*)*it);
-  set->clear();
   DBUG_VOID_RETURN;
 }
 
@@ -13213,7 +13198,7 @@ size_t Transaction_context_log_event::get_data_size()
 {
   DBUG_ENTER("Transaction_context_log_event::get_data_size");
 
-  int size= POST_HEADER_LENGTH;
+  size_t size= Binary_log_event::TRANSACTION_CONTEXT_HEADER_LEN;
   size += strlen(server_uuid);
   size += get_snapshot_version_size();
   size += get_data_set_size(&write_set);
@@ -13226,7 +13211,7 @@ size_t Transaction_context_log_event::get_data_size()
 bool Transaction_context_log_event::write_data_header(IO_CACHE* file)
 {
   DBUG_ENTER("Transaction_context_log_event::write_data_header");
-  char buf[POST_HEADER_LENGTH];
+  char buf[Binary_log_event::TRANSACTION_CONTEXT_HEADER_LEN];
 
   buf[ENCODED_SERVER_UUID_LEN_OFFSET] = (char) strlen(server_uuid);
   int8store(buf + ENCODED_THREAD_ID_OFFSET, thread_id);
@@ -13234,9 +13219,8 @@ bool Transaction_context_log_event::write_data_header(IO_CACHE* file)
   int2store(buf + ENCODED_SNAPSHOT_VERSION_OFFSET, get_snapshot_version_size());
   int2store(buf + ENCODED_WRITE_SET_ITEMS_OFFSET, write_set.size());
   int2store(buf + ENCODED_READ_SET_ITEMS_OFFSET, read_set.size());
-  DBUG_RETURN(wrapper_my_b_safe_write(file,
-                                      (const uchar *) buf,
-                                      POST_HEADER_LENGTH));
+  DBUG_RETURN(wrapper_my_b_safe_write(file, (const uchar *) buf,
+                                      Binary_log_event::TRANSACTION_CONTEXT_HEADER_LEN));
 }
 
 bool Transaction_context_log_event::write_data_body(IO_CACHE* file)
@@ -13314,26 +13298,6 @@ uint16 Transaction_context_log_event::get_snapshot_version_size()
   DBUG_RETURN(result);
 }
 
-char *Transaction_context_log_event::read_data_set(char *pos,
-                                                   uint16 set_len,
-                                                   std::list<const char*> *set)
-{
-  DBUG_ENTER("Transaction_context_log_event::read_data_set");
-  for (int i=0; i < set_len; i++)
-  {
-    uint16 len= uint2korr(pos);
-    pos += ENCODED_READ_WRITE_SET_ITEM_LEN;
-    char *hash= my_strndup(key_memory_log_event,
-                           pos, len, MYF(MY_WME));
-    if (hash == NULL)
-      DBUG_RETURN(NULL);
-    pos += len;
-    set->push_back(hash);
-  }
-
-  DBUG_RETURN(pos);
-}
-
 int Transaction_context_log_event::get_data_set_size(std::list<const char*> *set)
 {
   DBUG_ENTER("Transaction_context_log_event::get_data_set_size");
@@ -13367,13 +13331,14 @@ void Transaction_context_log_event::add_read_set(const char *hash)
 
 #ifndef MYSQL_CLIENT
 View_change_log_event::View_change_log_event(char* raw_view_id)
-  : Log_event(header(), footer(),
-              Log_event::EVENT_NO_CACHE, Log_event::EVENT_IMMEDIATE_LOGGING),
-    view_id(), seq_number(0)
+  : binary_log::View_change_event(raw_view_id),
+    Log_event(header(), footer(),
+            Log_event::EVENT_NO_CACHE, Log_event::EVENT_IMMEDIATE_LOGGING)
 {
-  DBUG_ENTER("View_change_log_event::View_change_log_event(ulonglong)");
+  DBUG_ENTER("View_change_log_event::View_change_log_event(char*)");
 
-  memcpy(view_id, raw_view_id, strlen(raw_view_id));
+  if (strlen(view_id) != 0)
+    is_valid_param= true;
 
   DBUG_VOID_RETURN;
 }
@@ -13382,34 +13347,16 @@ View_change_log_event::View_change_log_event(char* raw_view_id)
 View_change_log_event::
 View_change_log_event(const char *buffer,
                       uint event_len,
-                      const Format_description_log_event *descr_event)
-: binary_log::View_change_log_event(buffer, event_len, descr_event),
-  Log_event(header(), footer()),
-  view_id(), seq_number(0)
+                      const Format_description_event *descr_event)
+  : binary_log::View_change_event(buffer, event_len, descr_event),
+    Log_event(header(), footer())
 {
   DBUG_ENTER("View_change_log_event::View_change_log_event(const char *,"
-             " uint, const Format_description_log_event*)");
+             " uint, const Format_description_event*)");
 
-  if (buffer != 0)
+  if (strlen(view_id) != 0)
     is_valid_param= true;
 
-  const char* data_header = buffer + descr_event->common_header_len;
-
-  memcpy(view_id, data_header, ENCODED_VIEW_ID_MAX_LEN);
-
-  seq_number= uint8korr(data_header + ENCODED_SEQ_NUMBER_OFFSET);
-  uint cert_info_len= uint4korr(data_header + ENCODED_CERT_INFO_SIZE_OFFSET);
-  char *pos = (char*) data_header + POST_HEADER_LENGTH;
-
-  pos= read_data_map(pos, cert_info_len, &certification_info);
-  if (pos == NULL)
-    goto err;
-
-  DBUG_VOID_RETURN;
-
-err:
-  // Make is_valid() return false.
-  view_id[0]= '\0';
   DBUG_VOID_RETURN;
 }
 
@@ -13424,7 +13371,7 @@ size_t View_change_log_event::get_data_size()
 {
   DBUG_ENTER("View_change_log_event::get_data_size");
 
-  int size= POST_HEADER_LENGTH;
+  size_t size= Binary_log_event::VIEW_CHANGE_HEADER_LEN;
   size+= get_size_data_map(&certification_info);
 
   DBUG_RETURN(size);
@@ -13498,14 +13445,13 @@ int View_change_log_event::do_update_pos(Relay_log_info *rli)
 #ifndef MYSQL_CLIENT
 bool View_change_log_event::write_data_header(IO_CACHE* file){
   DBUG_ENTER("View_change_log_event::write_data_header");
-  char buf[POST_HEADER_LENGTH];
+  char buf[Binary_log_event::VIEW_CHANGE_HEADER_LEN];
 
   memcpy(buf, view_id, ENCODED_VIEW_ID_MAX_LEN);
   int8store(buf + ENCODED_SEQ_NUMBER_OFFSET, seq_number);
   int4store(buf + ENCODED_CERT_INFO_SIZE_OFFSET, certification_info.size());
-  DBUG_RETURN(wrapper_my_b_safe_write(file,
-                                      (const uchar *) buf,
-                                      POST_HEADER_LENGTH));
+  DBUG_RETURN(wrapper_my_b_safe_write(file,(const uchar *) buf,
+                                      Binary_log_event::VIEW_CHANGE_HEADER_LEN));
 }
 
 bool View_change_log_event::write_data_body(IO_CACHE* file){
@@ -13552,32 +13498,9 @@ bool View_change_log_event::write_data_map(IO_CACHE* file,
 
 #endif
 
-char *View_change_log_event::read_data_map(char *pos,
-                                           uint map_len,
-                                           std::map<std::string, std::string> *map)
-{
-  DBUG_ENTER("Transaction_context_log_event::read_data_set");
-  DBUG_ASSERT(map->empty());
-
-  for (uint i=0; i < map_len; i++)
-  {
-    uint16 key_len= uint2korr(pos);
-    pos+= ENCODED_CERT_INFO_KEY_SIZE_LEN;
-
-    std::string key(pos, key_len);
-    pos+= key_len;
-
-    uint16 value_len= uint2korr(pos);
-    pos+= ENCODED_CERT_INFO_VALUE_LEN;
-
-    std::string value(pos, value_len);
-    pos+= value_len;
-
-    (*map)[key]= value;
-  }
-  DBUG_RETURN(pos);
-}
-
+/*
+  Updates the certification info map.
+*/
 void
 View_change_log_event::set_certification_info(std::map<std::string, std::string> *info)
 {

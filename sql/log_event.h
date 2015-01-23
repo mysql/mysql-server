@@ -3968,36 +3968,36 @@ public:
 
 /**
   @class Transaction_context_log_event
+
+  This is the subclass of Transaction_context_event and Log_event
+  This class encodes the transaction_context_log_event.
+
+  @internal
+  The inheritance structure is as follows
+
+        Binary_log_event
+               ^
+               |
+               |
+B_l:Transaction_context_event   Log_event
+                \                    /
+                 \                  /
+                  \                /
+                   \              /
+            Transaction_context_log_event
+
+  B_l: Namespace Binary_log
+  @endinternal
 */
-class Transaction_context_log_event: public binary_log::Transaction_context_log_event,
-                                     public Log_event
+class Transaction_context_log_event : public binary_log::Transaction_context_event,
+                                      public Log_event
 {
 private:
-  char *server_uuid;
-  int64 thread_id;
-  int8 gtid_specified;
+  /// The Sid_map to use for creating the Gtid_set.
   Sid_map *sid_map;
+  /// A gtid_set which is used to store the transaction set used for
+  /// certification.
   Gtid_set *snapshot_version;
-  std::list<const char*> write_set;
-  std::list<const char*> read_set;
-
-  // 1 byte length.
-  static const int ENCODED_SERVER_UUID_LEN_OFFSET= 0;
-  // 8 bytes length.
-  static const int ENCODED_THREAD_ID_OFFSET= 1;
-  // 1 byte length.
-  static const int ENCODED_GTID_SPECIFIED_OFFSET= 9;
-  // 2 bytes length
-  static const int ENCODED_SNAPSHOT_VERSION_OFFSET= 10;
-  // 2 bytes length.
-  static const int ENCODED_WRITE_SET_ITEMS_OFFSET= 12;
-  // 2 bytes length.
-  static const int ENCODED_READ_SET_ITEMS_OFFSET=  14;
-
-  static const int ENCODED_READ_WRITE_SET_ITEM_LEN= 2;
-  static const int ENCODED_SNAPSHOT_VERSION_LEN= 2;
-
-  size_t to_string(char *buf, ulong len) const;
 
 #ifndef MYSQL_CLIENT
   bool write_data_header(IO_CACHE* file);
@@ -4013,14 +4013,11 @@ private:
 
   uint16 get_snapshot_version_size();
 
-  static char *read_data_set(char *pos, uint16 set_len, std::list<const char*> *set);
-
   static int get_data_set_size(std::list<const char*> *set);
 
-  static void clear_set(std::list<const char*> *set);
+  size_t to_string(char *buf, ulong len) const;
 
 public:
-  static const int POST_HEADER_LENGTH= 16;
 
 #ifndef MYSQL_CLIENT
   Transaction_context_log_event(const char *server_uuid_arg,
@@ -4030,16 +4027,9 @@ public:
 
   Transaction_context_log_event(const char *buffer,
                                 uint event_len,
-                                const Format_description_log_event *descr_event);
+                                const Format_description_event *descr_event);
 
   virtual ~Transaction_context_log_event();
-
-  Log_event_type get_type_code() { return binary_log::TRANSACTION_CONTEXT_EVENT; }
-
-  bool is_valid() const
-  {
-    return server_uuid != NULL;
-  }
 
   size_t get_data_size();
 
@@ -4099,33 +4089,39 @@ public:
   /**
    Return true if transaction has GTID_NEXT specified, false otherwise.
    */
-  bool is_gtid_specified() { return gtid_specified == 1; };
+  bool is_gtid_specified() { return gtid_specified == TRUE; };
 };
 
 /**
   @class View_change_log_event
+
+  This is the subclass of View_change_log_event and Log_event
+  This class created the view_change_log_event which is used as a marker in
+  case a new node joins or leaves the group.
+
+  @internal
+  The inheritance structure is as follows
+
+        Binary_log_event
+               ^
+               |
+               |
+B_l:   View_change_event      Log_event
+                \                /
+                 \              /
+                  \            /
+                   \          /
+              View_change_log_event
+
+  B_l: Namespace Binary_log
+  @endinternal
 */
-class View_change_log_event: binary_log::View_change_log_event,
+
+class View_change_log_event: public binary_log::View_change_event,
                              public Log_event
 {
-
 private:
-  // 40 bytes length.
-  static const int ENCODED_VIEW_ID_OFFSET= 0;
-  // 8 bytes length.
-  static const int ENCODED_SEQ_NUMBER_OFFSET= 40;
-  // 4 bytes length.
-  static const int ENCODED_CERT_INFO_SIZE_OFFSET= 48;
-
-  //Field sizes on serialization
-  static const int ENCODED_VIEW_ID_MAX_LEN= 40;
-  static const int ENCODED_CERT_INFO_KEY_SIZE_LEN= 2;
-  static const int ENCODED_CERT_INFO_VALUE_LEN= 2;
-
-private:
-  char view_id[ENCODED_VIEW_ID_MAX_LEN];
-  rpl_gno seq_number;
-  std::map<std::string, std::string> certification_info;
+  size_t to_string(char *buf, ulong len) const;
 
 #ifndef MYSQL_CLIENT
   bool write_data_header(IO_CACHE* file);
@@ -4135,34 +4131,19 @@ private:
   bool write_data_map(IO_CACHE* file, std::map<std::string, std::string> *map);
 #endif
 
-  static char *read_data_map(char *pos, uint map_len,
-                             std::map<std::string, std::string> *map);
-
   int get_size_data_map(std::map<std::string, std::string> *map);
 
 public:
-
-  // view id (40 bytes) + seq number (8 bytes) + map size (4 bytes)
-  static const int POST_HEADER_LENGTH= 52;
 
   View_change_log_event(char* view_id);
 
   View_change_log_event(const char *buffer,
                         uint event_len,
-                        const Format_description_log_event *descr_event);
+                        const Format_description_event *descr_event);
 
   virtual ~View_change_log_event();
 
-  Log_event_type get_type_code() { return binary_log::VIEW_CHANGE_EVENT; }
-
-  bool is_valid() const
-  {
-    return strlen(view_id) != 0;
-  }
-
   size_t get_data_size();
-
-  size_t to_string(char *buf, ulong len) const;
 
 #ifndef MYSQL_CLIENT
   int pack_info(Protocol *protocol);
@@ -4208,7 +4189,6 @@ public:
     Returns the certification sequence number
   */
   rpl_gno get_seq_number() { return seq_number; }
-
 };
 
 inline bool is_gtid_event(Log_event* evt)
