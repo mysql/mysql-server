@@ -260,29 +260,32 @@ public:
             only Master_infos or create generators when
             c++11 is introduced.
   */
-  mi_map::iterator begin()
+  mi_map::iterator begin(enum_channel_type channel_type=
+                             SLAVE_REPLICATION_CHANNEL)
   {
     replication_channel_map::iterator map_it;
-
-    map_it= rep_channel_map.find(SLAVE_REPLICATION_CHANNEL);
+    map_it= rep_channel_map.find(channel_type);
 
     if (map_it != rep_channel_map.end())
     {
       return map_it->second.begin();
     }
 
-    return end();
+    return end(channel_type);
   }
 
-  mi_map::iterator end()
+  mi_map::iterator end(enum_channel_type channel_type=
+                           SLAVE_REPLICATION_CHANNEL)
   {
     mi_map::iterator it;
 
     replication_channel_map::iterator map_it;
-    map_it= rep_channel_map.find(SLAVE_REPLICATION_CHANNEL);
+    map_it= rep_channel_map.find(channel_type);
 
     if (map_it != rep_channel_map.end())
+    {
       return map_it->second.end();
+    }
 
     return it;
   }

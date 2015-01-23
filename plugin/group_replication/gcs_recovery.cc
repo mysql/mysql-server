@@ -453,13 +453,14 @@ void
 Recovery_module::set_recovery_thread_context()
 {
   my_thread_init();
-  recovery_thd= new THD;
-  recovery_thd->set_new_thread_id();
-  recovery_thd->thread_stack= (char*) &recovery_thd;
-  recovery_thd->store_globals();
+  THD* thd= new THD;
+  thd->set_new_thread_id();
+  thd->thread_stack= (char*) &thd;
+  thd->store_globals();
 
-  global_thd_manager_add_thd(recovery_thd);
-  recovery_thd->security_context()->skip_grants();
+  global_thd_manager_add_thd(thd);
+  thd->security_context()->skip_grants();
+  recovery_thd= thd;
 }
 
 void

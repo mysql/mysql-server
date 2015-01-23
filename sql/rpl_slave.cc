@@ -1835,6 +1835,23 @@ void delete_slave_info_objects()
       it->second= 0;
     }
   }
+
+  //Clean other types of channel
+  for (mi_map::iterator it= msr_map.begin(GROUP_REPLICATION_CHANNEL);
+           it!=msr_map.end(GROUP_REPLICATION_CHANNEL); it++)
+  {
+    mi= it->second;
+
+    if (mi)
+    {
+      end_info(mi);
+      if (mi->rli)
+        delete mi->rli;
+      delete mi;
+      it->second= 0;
+    }
+  }
+
   mysql_mutex_unlock(&LOCK_msr_map);
 
   DBUG_VOID_RETURN;

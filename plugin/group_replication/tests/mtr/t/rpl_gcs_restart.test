@@ -60,6 +60,8 @@ INSERT INTO t1 VALUES (2);
 --echo ############################################################
 --echo # 4. Restart server2 again and verify that certifier sequence
 --echo # number is set from GTID_EXECUTED.
+# Retrieved gtids goes back to 0 as the server removes old relay logs. This is
+# triggered by STOP log events written to the relay log on restarts. (Step 2.)
 --source include/restart_mysqld.inc
 SET @debug_saved= @@GLOBAL.DEBUG;
 SET @@GLOBAL.DEBUG= '+d,gcs_assert_next_seqno_equal_4';

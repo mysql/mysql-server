@@ -134,21 +134,22 @@ void
 Applier_module::set_applier_thread_context()
 {
   my_thread_init();
-  applier_thd= new THD;
-  applier_thd->set_new_thread_id();
-  applier_thd->thread_stack= (char*) &applier_thd;
-  applier_thd->store_globals();
+  THD *thd= new THD;
+  thd->set_new_thread_id();
+  thd->thread_stack= (char*) &thd;
+  thd->store_globals();
 
-  my_net_init(&applier_thd->net, 0);
-  applier_thd->slave_thread= true;
+  my_net_init(&thd->net, 0);
+  thd->slave_thread= true;
   //TODO: See of the creation of a new type is desirable.
-  applier_thd->system_thread= SYSTEM_THREAD_SLAVE_IO;
-  applier_thd->security_context()->skip_grants();
+  thd->system_thread= SYSTEM_THREAD_SLAVE_IO;
+  thd->security_context()->skip_grants();
 
-  global_thd_manager_add_thd(applier_thd);
+  global_thd_manager_add_thd(thd);
 
-  applier_thd->init_for_queries();
-  set_slave_thread_options(applier_thd);
+  thd->init_for_queries();
+  set_slave_thread_options(thd);
+  applier_thd= thd;
 }
 
 void
