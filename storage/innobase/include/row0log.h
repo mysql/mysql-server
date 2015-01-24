@@ -217,12 +217,16 @@ row_log_get_max_trx(
 interrupted)
 @param[in,out]	index	secondary index
 @param[in,out]	table	MySQL table (for reporting duplicates)
+@param[in,out]	stage	performance schema accounting object, used by
+ALTER TABLE. stage->begin_phase_log_index() will be called initially and then
+stage->inc() will be called for each block of log that is applied.
 @return DB_SUCCESS, or error code on failure */
 dberr_t
 row_log_apply(
-	const trx_t*	trx,
-	dict_index_t*	index,
-	struct TABLE*	table)
+	const trx_t*		trx,
+	dict_index_t*		index,
+	struct TABLE*		table,
+	ut_stage_alter_t*	stage)
 	__attribute__((warn_unused_result));
 
 #ifdef HAVE_PSI_STAGE_INTERFACE

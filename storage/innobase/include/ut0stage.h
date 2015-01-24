@@ -58,6 +58,9 @@ if any new indexes are being added, for each one:
   begin_phase_insert()
     multiple times:
       inc() // once per record inserted
+  being_phase_log_index()
+    multiple times:
+      inc() // once per log-block applied
 begin_phase_flush()
     multiple times:
       inc() // once per page flushed
@@ -137,6 +140,10 @@ public:
 	begin_phase_flush(
 		ulint	n_flush_pages);
 
+	/** Flag the beginning of the log index phase. */
+	void
+	begin_phase_log_index();
+
 	/** Flag the beginning of the log table phase. */
 	void
 	begin_phase_log_table();
@@ -196,8 +203,9 @@ private:
 		SORT = 2,
 		INSERT = 3,
 		FLUSH = 4,
-		LOG_TABLE = 5,
-		END = 6,
+		LOG_INDEX = 5,
+		LOG_TABLE = 6,
+		END = 7,
 	}			m_cur_phase;
 };
 
@@ -304,6 +312,8 @@ ut_stage_alter_t::inc(
 	}
 	case FLUSH:
 		break;
+	case LOG_INDEX:
+		break;
 	case LOG_TABLE:
 		break;
 	case END:
@@ -377,6 +387,14 @@ ut_stage_alter_t::begin_phase_flush(
 	reestimate();
 
 	change_phase(&srv_stage_alter_table_flush);
+}
+
+/** Flag the beginning of the log index phase. */
+inline
+void
+ut_stage_alter_t::begin_phase_log_index()
+{
+	change_phase(&srv_stage_alter_table_log_index);
 }
 
 /** Flag the beginning of the log table phase. */
@@ -467,6 +485,8 @@ ut_stage_alter_t::change_phase(
 		m_cur_phase = INSERT;
 	} else if (new_stage == &srv_stage_alter_table_flush) {
 		m_cur_phase = FLUSH;
+	} else if (new_stage == &srv_stage_alter_table_log_index) {
+		m_cur_phase = LOG_INDEX;
 	} else if (new_stage == &srv_stage_alter_table_log_table) {
 		m_cur_phase = LOG_TABLE;
 	} else if (new_stage == &srv_stage_alter_table_end) {
@@ -529,6 +549,11 @@ public:
 	void
 	begin_phase_flush(
 		ulint	n_flush_pages)
+	{
+	}
+
+	void
+	begin_phase_log_index()
 	{
 	}
 

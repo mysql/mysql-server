@@ -4416,7 +4416,7 @@ wait_again:
 			log_make_checkpoint_at(LSN_MAX, TRUE, stage);
 
 			DEBUG_SYNC_C("row_log_apply_before");
-			error = row_log_apply(trx, sort_idx, table);
+			error = row_log_apply(trx, sort_idx, table, stage);
 			DEBUG_SYNC_C("row_log_apply_after");
 		}
 
