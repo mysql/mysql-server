@@ -28,7 +28,6 @@
 #include "my_global.h"                          // uint
 #include "mysql/mysql_lex_string.h"             // LEX_STRING
 #include "my_time.h"                    /* my_time_t, interval_type */
-#include "my_thread.h"                          // mysql_mutex_t
 
 #include "event_data_objects.h"
 #include "event_parse_data.h"

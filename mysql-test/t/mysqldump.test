@@ -2528,7 +2528,7 @@ DROP DATABASE `a\\k`;
 CREATE DATABASE dump_gis;
 USE dump_gis;
 CREATE TABLE t1 (a GEOMETRY);
-INSERT INTO t1 VALUES(GeomFromText('LineString(1 1, 2 1, 2 2, 1 2, 1 1)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('LineString(1 1, 2 1, 2 2, 1 2, 1 1)'));
 SELECT HEX(a) FROM t1;
 --exec $MYSQL_DUMP -necqt --compact --hex-blob dump_gis
 DROP DATABASE dump_gis;

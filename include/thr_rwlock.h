@@ -33,6 +33,12 @@
   are mysql_prlock_*() - see include/mysql/psi/mysql_thread.h
 */
 
+#include "my_global.h"
+#include "my_thread.h"
+#include "thr_cond.h"
+
+C_MODE_START
+
 #ifdef _WIN32
 typedef struct st_my_rw_lock_t
 {
@@ -202,5 +208,7 @@ rw_pr_lock_assert_not_write_owner(const rw_pr_lock_t *rwlock __attribute__((unus
               !my_thread_equal(my_thread_self(), rwlock->writer_thread));
 #endif
 }
+
+C_MODE_END
 
 #endif /* THR_RWLOCK_INCLUDED */

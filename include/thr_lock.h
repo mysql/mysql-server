@@ -17,12 +17,14 @@
 
 #ifndef _thr_lock_h
 #define _thr_lock_h
-#ifdef	__cplusplus
-extern "C" {
-#endif
 
 #include <my_thread.h>
 #include <my_list.h>
+#include "my_thread_local.h"
+
+#ifdef	__cplusplus
+extern "C" {
+#endif
 
 struct st_thr_lock;
 extern ulong locks_immediate,locks_waited ;

@@ -142,8 +142,8 @@ source extra/rpl_tests/check_type.inc;
 
 let $source_type  = GEOMETRY;
 let $target_type  = BLOB;
-let $source_value = PointFromText('POINT(10 10)');
-let $target_value = PointFromText('POINT(10 10)');
+let $source_value = ST_PointFromText('POINT(10 10)');
+let $target_value = ST_PointFromText('POINT(10 10)');
 let $can_convert  = 0;
 source extra/rpl_tests/check_type.inc;
 
@@ -156,8 +156,8 @@ source extra/rpl_tests/check_type.inc;
 
 let $source_type  = GEOMETRY;
 let $target_type  = GEOMETRY;
-let $source_value = PointFromText('POINT(10 10)');
-let $target_value = PointFromText('POINT(10 10)');
+let $source_value = ST_PointFromText('POINT(10 10)');
+let $target_value = ST_PointFromText('POINT(10 10)');
 let $can_convert  = 1;
 source extra/rpl_tests/check_type.inc;
 

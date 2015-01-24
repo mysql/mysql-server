@@ -13,7 +13,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "my_thread.h"
+#include "my_thread.h"          /* my_thread_id */
 #include "my_timer.h"           /* my_timer_t */
 #include "sql_class.h"          /* THD */
 #include "sql_timer.h"          /* thd_timer_set, etc. */

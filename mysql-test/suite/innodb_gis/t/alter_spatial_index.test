@@ -33,57 +33,57 @@ ENGINE=InnoDB;
 INSERT INTO tab1 SELECT * FROM tab;
 
 INSERT INTO tab(c1,c2,c3,c4,c5)
-VALUES(1,GeomFromText('POINT(10 10)'),GeomFromText('LINESTRING(5 5,20 20,30 30)'),
-GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))'),
-GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))'));
+VALUES(1,ST_GeomFromText('POINT(10 10)'),ST_GeomFromText('LINESTRING(5 5,20 20,30 30)'),
+ST_GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))'),
+ST_GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))'));
 
 
 INSERT INTO tab(c1,c2,c3,c4,c5)
-VALUES(2,GeomFromText('POINT(20 20)'),GeomFromText('LINESTRING(20 20,30 30,40 40)'),
-GeomFromText('POLYGON((40 50,40 70,50 100,70 100,80 80,70 50,40 50))'),
-GeomFromText('POLYGON((40 50,40 70,50 100,70 100,80 80,70 50,40 50))'));
+VALUES(2,ST_GeomFromText('POINT(20 20)'),ST_GeomFromText('LINESTRING(20 20,30 30,40 40)'),
+ST_GeomFromText('POLYGON((40 50,40 70,50 100,70 100,80 80,70 50,40 50))'),
+ST_GeomFromText('POLYGON((40 50,40 70,50 100,70 100,80 80,70 50,40 50))'));
 
 INSERT INTO tab(c1,c2,c3,c4,c5)
-VALUES(3,GeomFromText('POINT(4 4)'),GeomFromText('LINESTRING(130 130,140 140,150 150)'),
-GeomFromText('POLYGON((7 1,6 2,6 3,10 3,10 1,7 1))'),
-GeomFromText('POLYGON((4 -2,5 -4,6 -5,7 -4,7 2,4 -2))'));
+VALUES(3,ST_GeomFromText('POINT(4 4)'),ST_GeomFromText('LINESTRING(130 130,140 140,150 150)'),
+ST_GeomFromText('POLYGON((7 1,6 2,6 3,10 3,10 1,7 1))'),
+ST_GeomFromText('POLYGON((4 -2,5 -4,6 -5,7 -4,7 2,4 -2))'));
 
 INSERT INTO tab(c1,c2,c3,c4,c5)
-VALUES(4,GeomFromText('POINT(50 50)'),GeomFromText('LINESTRING(200 200,300 300,400 400)'),
-GeomFromText('POLYGON((300 300,400 400,500 500,300 500,300 400,300 300))'),
-GeomFromText('POLYGON((300 300,400 400,500 500,300 500,300 400,300 300))'));
+VALUES(4,ST_GeomFromText('POINT(50 50)'),ST_GeomFromText('LINESTRING(200 200,300 300,400 400)'),
+ST_GeomFromText('POLYGON((300 300,400 400,500 500,300 500,300 400,300 300))'),
+ST_GeomFromText('POLYGON((300 300,400 400,500 500,300 500,300 400,300 300))'));
 
 INSERT INTO tab(c1,c2,c3,c4,c5)
-VALUES(5,GeomFromText('POINT(3 3)'),GeomFromText('LINESTRING(400 400,500 500,600 700)'),
-GeomFromText('POLYGON((1010 1010,1020 1020,1030 1030,1040 1030,1020 1010,1010 1010))'),
-GeomFromText('POLYGON((1010 1010,1020 1020,1030 1030,1040 1030,1020 1010,1010 1010))'));
+VALUES(5,ST_GeomFromText('POINT(3 3)'),ST_GeomFromText('LINESTRING(400 400,500 500,600 700)'),
+ST_GeomFromText('POLYGON((1010 1010,1020 1020,1030 1030,1040 1030,1020 1010,1010 1010))'),
+ST_GeomFromText('POLYGON((1010 1010,1020 1020,1030 1030,1040 1030,1020 1010,1010 1010))'));
 
 INSERT INTO tab(c1,c2,c3,c4,c5)
-VALUES(6,GeomFromText('POINT(3 3)'),GeomFromText('LINESTRING(40 40,50 50,60 70)'),
-GeomFromText('POLYGON((2010 2010,2020 2020,2030 2030,2040 2030,2020 2010,2010 2010))'),
-GeomFromText('POLYGON((2010 2010,2020 2020,2030 2030,2040 2030,2020 2010,2010 2010))'));
+VALUES(6,ST_GeomFromText('POINT(3 3)'),ST_GeomFromText('LINESTRING(40 40,50 50,60 70)'),
+ST_GeomFromText('POLYGON((2010 2010,2020 2020,2030 2030,2040 2030,2020 2010,2010 2010))'),
+ST_GeomFromText('POLYGON((2010 2010,2020 2020,2030 2030,2040 2030,2020 2010,2010 2010))'));
 
 INSERT INTO tab(c1,c2,c3,c4,c5)
-VALUES(7,GeomFromText('POINT(60 70)'),GeomFromText('LINESTRING(40 40,50 50,60 70)'),
-GeomFromText('POLYGON((3010 3010,3020 3020,3030 3030,3040 3030,3020 3010,3010 3010))'),
-GeomFromText('POLYGON((3010 3010,3020 3020,3030 3030,3040 3030,3020 3010,3010 3010))'));
+VALUES(7,ST_GeomFromText('POINT(60 70)'),ST_GeomFromText('LINESTRING(40 40,50 50,60 70)'),
+ST_GeomFromText('POLYGON((3010 3010,3020 3020,3030 3030,3040 3030,3020 3010,3010 3010))'),
+ST_GeomFromText('POLYGON((3010 3010,3020 3020,3030 3030,3040 3030,3020 3010,3010 3010))'));
 
 INSERT INTO tab(c1,c2,c3,c4,c5)
-VALUES(8,GeomFromText('POINT(0 0)'),GeomFromText('LINESTRING(40 40,50 50,60 70)'),
-GeomFromText('POLYGON((3010 3010,3020 3020,3030 3030,3040 3030,3020 3010,3010 3010))'),
-GeomFromText('POLYGON((3010 3010,3020 3020,3030 3030,3040 3030,3020 3010,3010 3010))'));
-
-
-INSERT INTO tab(c1,c2,c3,c4,c5)
-VALUES(9,GeomFromText('POINT(120 120)'),GeomFromText('LINESTRING(100 100,110 110,120 120)'),
-GeomFromText('POLYGON((4010 4010,4020 4020,4030 4030,4040 4030,4020 4010,4010 4010))'),
-GeomFromText('POLYGON((4010 4010,4020 4020,4030 4030,4040 4030,4020 4010,4010 4010))'));
+VALUES(8,ST_GeomFromText('POINT(0 0)'),ST_GeomFromText('LINESTRING(40 40,50 50,60 70)'),
+ST_GeomFromText('POLYGON((3010 3010,3020 3020,3030 3030,3040 3030,3020 3010,3010 3010))'),
+ST_GeomFromText('POLYGON((3010 3010,3020 3020,3030 3030,3040 3030,3020 3010,3010 3010))'));
 
 
 INSERT INTO tab(c1,c2,c3,c4,c5)
-VALUES(10,GeomFromText('POINT(160 160)'),GeomFromText('LINESTRING(140 140,150 150,160 160)'),
-GeomFromText('POLYGON((5010 5010,5020 5020,5030 5030,5040 5030,5020 5010,5010 5010))'),
-GeomFromText('POLYGON((5010 5010,5020 5020,5030 5030,5040 5030,5020 5010,5010 5010))'));
+VALUES(9,ST_GeomFromText('POINT(120 120)'),ST_GeomFromText('LINESTRING(100 100,110 110,120 120)'),
+ST_GeomFromText('POLYGON((4010 4010,4020 4020,4030 4030,4040 4030,4020 4010,4010 4010))'),
+ST_GeomFromText('POLYGON((4010 4010,4020 4020,4030 4030,4040 4030,4020 4010,4010 4010))'));
+
+
+INSERT INTO tab(c1,c2,c3,c4,c5)
+VALUES(10,ST_GeomFromText('POINT(160 160)'),ST_GeomFromText('LINESTRING(140 140,150 150,160 160)'),
+ST_GeomFromText('POLYGON((5010 5010,5020 5020,5030 5030,5040 5030,5020 5010,5010 5010))'),
+ST_GeomFromText('POLYGON((5010 5010,5020 5020,5030 5030,5040 5030,5020 5010,5010 5010))'));
 
 
 ALTER TABLE tab ADD SPATIAL INDEX idx2(c2 ASC);
@@ -97,41 +97,41 @@ ALTER TABLE tab ADD SPATIAL KEY idx5(c5 ASC) COMMENT 'testing spatial index on G
 ALTER TABLE tab ADD INDEX idx6(c4(10)) USING BTREE;
 
 
-# Test the Contains
-SET @g1 = GeomFromText( 'POLYGON((7 1,6 2,6 3,10 3,10 1,7 1))');
+# Test the MBRContains
+SET @g1 = ST_GeomFromText( 'POLYGON((7 1,6 2,6 3,10 3,10 1,7 1))');
 
-SELECT c1,Astext(c2),Astext(c4) FROM tab WHERE Contains(tab.c4, @g1);
+SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM tab WHERE MBRContains(tab.c4, @g1);
 
-UPDATE tab SET C2 = GeomFromText('POINT(0 0)')
-WHERE Contains(tab.c4, @g1);
+UPDATE tab SET C2 = ST_GeomFromText('POINT(0 0)')
+WHERE MBRContains(tab.c4, @g1);
 
-SELECT c1,Astext(c2),Astext(c4) FROM tab WHERE Contains(tab.c4, @g1);
+SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM tab WHERE MBRContains(tab.c4, @g1);
 
-DELETE FROM tab WHERE Contains(tab.c4, @g1);
+DELETE FROM tab WHERE MBRContains(tab.c4, @g1);
 
-SELECT c1,Astext(c2),Astext(c4) FROM tab WHERE Contains(tab.c4, @g1);
+SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM tab WHERE MBRContains(tab.c4, @g1);
 
 
-SET @g1 = GeomFromText('LINESTRING( 300 300,400 400)');
+SET @g1 = ST_GeomFromText('LINESTRING( 300 300,400 400)');
 
-SELECT c1,Astext(c2),Astext(c4) FROM tab WHERE Contains(tab.c4, @g1);
+SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM tab WHERE MBRContains(tab.c4, @g1);
 
-UPDATE tab SET C2 = GeomFromText('POINT(100 100)')
-WHERE Contains(tab.c4, @g1);
+UPDATE tab SET C2 = ST_GeomFromText('POINT(100 100)')
+WHERE MBRContains(tab.c4, @g1);
 
-DELETE FROM tab WHERE Contains(tab.c4, @g1);
+DELETE FROM tab WHERE MBRContains(tab.c4, @g1);
 
-# Test the Within
-SET @g1 = GeomFromText( 'POLYGON((1010 1010,1020 1020,1030 1030,1040 1030,1020 1010,1010 1010))');
+# Test the MBRWithin
+SET @g1 = ST_GeomFromText( 'POLYGON((1010 1010,1020 1020,1030 1030,1040 1030,1020 1010,1010 1010))');
 
-SELECT c1,AsText(c2),Astext(c4) FROM tab WHERE Within(tab.c4, @g1);
+SELECT c1,ST_AsText(c2),ST_Astext(c4) FROM tab WHERE MBRWithin(tab.c4, @g1);
 
-UPDATE tab SET C2 = GeomFromText('POINT(200 200)')
-WHERE Within(tab.c4, @g1);
+UPDATE tab SET C2 = ST_GeomFromText('POINT(200 200)')
+WHERE MBRWithin(tab.c4, @g1);
 
-SELECT c1,AsText(c2),AsText(c4) FROM tab WHERE Within(tab.c4, @g1);
+SELECT c1,ST_AsText(c2),ST_AsText(c4) FROM tab WHERE MBRWithin(tab.c4, @g1);
 
-DELETE FROM tab WHERE Within(tab.c4, @g1);
+DELETE FROM tab WHERE MBRWithin(tab.c4, @g1);
 
 --error ER_SPATIAL_CANT_HAVE_NULL
 ALTER TABLE tab MODIFY COLUMN c2 MULTIPOINT;
@@ -181,16 +181,16 @@ SHOW CREATE TABLE tab;
 --replace_column 7 #
 SHOW INDEX FROM tab;
 
-SET @g1 = GeomFromText('POLYGON((20 20,30 30,40 40,50 50,40 50,30 40,30 30,20 20))');
+SET @g1 = ST_GeomFromText('POLYGON((20 20,30 30,40 40,50 50,40 50,30 40,30 30,20 20))');
 
-SELECT c1,Astext(c2),Astext(c4) FROM tab WHERE Crosses(tab.c4, @g1);
+SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM tab WHERE ST_Crosses(tab.c4, @g1);
 
-UPDATE tab SET C2 = GeomFromText('POINT(1000 1000)')
-WHERE Crosses(tab.c4, @g1);
+UPDATE tab SET C2 = ST_GeomFromText('POINT(1000 1000)')
+WHERE ST_Crosses(tab.c4, @g1);
 
-SELECT c1,Astext(c2),Astext(c4) FROM tab WHERE Crosses(tab.c4, @g1);
+SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM tab WHERE ST_Crosses(tab.c4, @g1);
 
-DELETE FROM tab WHERE Crosses(tab.c4, @g1);
+DELETE FROM tab WHERE ST_Crosses(tab.c4, @g1);
 
 ALTER TABLE tab CHANGE COLUMN c2 c22 POINT NOT NULL;
 
@@ -218,35 +218,35 @@ ALTER TABLE tab DISABLE KEYS;
 
 SHOW WARNINGS;
 
-SET @g1 = GeomFromText('POLYGON((5010 5010,5020 5020,5030 5030,5040 5030,5020 5010,5010 5010))');
+SET @g1 = ST_GeomFromText('POLYGON((5010 5010,5020 5020,5030 5030,5040 5030,5020 5010,5010 5010))');
 
-SELECT c1,Astext(c2),Astext(c4) FROM tab WHERE Equals(tab.c4, @g1);
+SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM tab WHERE MBREquals(tab.c4, @g1);
 
-UPDATE tab SET C2 = GeomFromText('POINT(2000 2000)')
-WHERE Equals(tab.c4, @g1);
+UPDATE tab SET C2 = ST_GeomFromText('POINT(2000 2000)')
+WHERE MBREquals(tab.c4, @g1);
 
-SELECT c1,Astext(c2),Astext(c4) FROM tab WHERE Equals(tab.c4, @g1);
+SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM tab WHERE MBREquals(tab.c4, @g1);
 
-DELETE FROM tab WHERE Equals(tab.c4, @g1);
+DELETE FROM tab WHERE MBREquals(tab.c4, @g1);
 
-SELECT c1,Astext(c2),Astext(c4) FROM tab WHERE Equals(tab.c4, @g1);
+SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM tab WHERE MBREquals(tab.c4, @g1);
 
 ALTER TABLE tab  DROP PRIMARY KEY;
 
 ALTER TABLE tab ADD PRIMARY KEY(c2) ;
 
-SET @g1 = GeomFromText( 'POLYGON((0 0,0 30,30 40,40 50,50 30,0 0))');
+SET @g1 = ST_GeomFromText( 'POLYGON((0 0,0 30,30 40,40 50,50 30,0 0))');
 
-SELECT c1,Astext(c2),Astext(c4) FROM tab WHERE Touches(tab.c4, @g1);
+SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM tab WHERE ST_Touches(tab.c4, @g1);
 
-UPDATE tab SET C2 = GeomFromText('POINT(3000 3000)') 
-WHERE Touches(tab.c4, @g1);
+UPDATE tab SET C2 = ST_GeomFromText('POINT(3000 3000)') 
+WHERE ST_Touches(tab.c4, @g1);
 
-SELECT c1,Astext(c2),Astext(c4) FROM tab WHERE Touches(tab.c4, @g1);
+SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM tab WHERE ST_Touches(tab.c4, @g1);
 
-DELETE FROM tab WHERE Touches(tab.c4, @g1);
+DELETE FROM tab WHERE ST_Touches(tab.c4, @g1);
 
-SELECT c1,Astext(c2),Astext(c4) FROM tab WHERE Touches(tab.c4, @g1);
+SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM tab WHERE ST_Touches(tab.c4, @g1);
 
 FLUSH TABLE tab FOR EXPORT;
 
@@ -259,7 +259,7 @@ ALTER TABLE tab DISCARD TABLESPACE;
 --disable_warnings
 
 --error ER_TABLESPACE_DISCARDED
-SELECT c1,Astext(c2),Astext(c4) FROM tab;
+SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM tab;
 
 --copy_file $MYSQLD_DATADIR/test/tab.ibd.bk $MYSQLD_DATADIR/test/tab.ibd
 
@@ -273,24 +273,24 @@ ALTER TABLE tab IMPORT TABLESPACE;
 
 CHECK TABLE tab;
 
-SELECT c1,Astext(c2),Astext(c4) FROM tab ORDER BY c1;
+SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM tab ORDER BY c1;
 
-SET @g1 = GeomFromText('LINESTRING( 3010 3010,4010 4010,5010 5010)');
+SET @g1 = ST_GeomFromText('LINESTRING( 3010 3010,4010 4010,5010 5010)');
 
-SELECT c1,Astext(c2),Astext(c4) FROM tab WHERE Intersects(tab.c4, @g1) order by c1;
+SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM tab WHERE MBRIntersects(tab.c4, @g1) order by c1;
 
 --error ER_DUP_ENTRY
-UPDATE tab SET c2 = GeomFromText('POINT(4000 4000)')
-WHERE Intersects(tab.c4, @g1);
+UPDATE tab SET c2 = ST_GeomFromText('POINT(4000 4000)')
+WHERE MBRIntersects(tab.c4, @g1);
 
-UPDATE tab SET c4 = GeomFromText('POINT(4000 4000)')
-WHERE Intersects(tab.c4, @g1);
+UPDATE tab SET c4 = ST_GeomFromText('POINT(4000 4000)')
+WHERE MBRIntersects(tab.c4, @g1);
 
-SELECT c1,Astext(c2),Astext(c4) FROM tab WHERE Intersects(tab.c4, @g1) ORDER BY c1;
+SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM tab WHERE MBRIntersects(tab.c4, @g1) ORDER BY c1;
 
-DELETE FROM tab WHERE Intersects(tab.c4, @g1);
+DELETE FROM tab WHERE MBRIntersects(tab.c4, @g1);
 
-SELECT c1,Astext(c2),Astext(c4) FROM tab WHERE Overlaps(tab.c4, @g1) ORDER BY c1;
+SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM tab WHERE MBROverlaps(tab.c4, @g1) ORDER BY c1;
 
 INSERT INTO tab SELECT * FROM tab1;
 
@@ -314,20 +314,20 @@ CREATE SPATIAL INDEX idx5 ON temp_tab(c5);
 
 SHOW CREATE TABLE temp_tab;
 
-SET @g1 = GeomFromText( 'POLYGON((7 1,6 2,6 3,10 3,10 1,7 1))');
+SET @g1 = ST_GeomFromText( 'POLYGON((7 1,6 2,6 3,10 3,10 1,7 1))');
 
-SELECT c1,Astext(c2),Astext(c4) FROM temp_tab WHERE Contains(temp_tab.c4, @g1) ORDER BY c1;
+SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM temp_tab WHERE MBRContains(temp_tab.c4, @g1) ORDER BY c1;
 
 # The following comments will be removed once the patch is available
-UPDATE temp_tab SET C2 = GeomFromText('POINT(1000 1000)')
-WHERE Contains(temp_tab.c4, @g1);
+UPDATE temp_tab SET C2 = ST_GeomFromText('POINT(1000 1000)')
+WHERE MBRContains(temp_tab.c4, @g1);
 
-SELECT c1,Astext(c2),Astext(c4) FROM temp_tab WHERE Contains(temp_tab.c4, @g1);
+SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM temp_tab WHERE MBRContains(temp_tab.c4, @g1);
 
 # Sever crashes Here so commented, will be removed later
-DELETE FROM temp_tab WHERE Contains(temp_tab.c4, @g1);
+DELETE FROM temp_tab WHERE MBRContains(temp_tab.c4, @g1);
 
-SELECT c1,Astext(c2),Astext(c4) FROM temp_tab WHERE Contains(temp_tab.c4, @g1) ORDER BY c1;
+SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM temp_tab WHERE MBRContains(temp_tab.c4, @g1) ORDER BY c1;
 
 # Check Unique constraint on spatial index column POINT
 
@@ -350,9 +350,9 @@ SHOW CREATE TABLE tab;
 SHOW INDEX FROM tab;
 
 INSERT INTO tab(c1,c2,c3,c4,c5)
-VALUES(1,GeomFromText('POINT(10 10)'),GeomFromText('LINESTRING(5 5,20 20,30 30)'),
-GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))'),
-GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))'));
+VALUES(1,ST_GeomFromText('POINT(10 10)'),ST_GeomFromText('LINESTRING(5 5,20 20,30 30)'),
+ST_GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))'),
+ST_GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))'));
 
 # Check Unique constraint on spatial index column Geometry
 
@@ -372,9 +372,9 @@ SHOW CREATE TABLE tab;
 SHOW INDEX FROM tab;
 
 INSERT INTO tab(c1,c2,c3,c4,c5)
-VALUES(1,GeomFromText('POINT(10 10)'),GeomFromText('LINESTRING(5 5,20 20,30 30)'),
-GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))'),
-GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))'));
+VALUES(1,ST_GeomFromText('POINT(10 10)'),ST_GeomFromText('LINESTRING(5 5,20 20,30 30)'),
+ST_GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))'),
+ST_GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))'));
 
 #cleanup
 DROP TABLE tab,tab1,temp_tab;
@@ -387,57 +387,57 @@ c3 LINESTRING NOT NULL,c4 POLYGON NOT NULL,c5 GEOMETRY NOT NULL)
 ENGINE=InnoDB;
 
 INSERT INTO tab(c1,c2,c3,c4,c5)
-VALUES(1,GeomFromText('POINT(10 10)'),GeomFromText('LINESTRING(5 5,20 20,30 30)'),
-GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))'),
-GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))'));
+VALUES(1,ST_GeomFromText('POINT(10 10)'),ST_GeomFromText('LINESTRING(5 5,20 20,30 30)'),
+ST_GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))'),
+ST_GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))'));
 
 
 INSERT INTO tab(c1,c2,c3,c4,c5)
-VALUES(2,GeomFromText('POINT(20 20)'),GeomFromText('LINESTRING(20 20,30 30,40 40)'),
-GeomFromText('POLYGON((40 50,40 70,50 100,70 100,80 80,70 50,40 50))'),
-GeomFromText('POLYGON((40 50,40 70,50 100,70 100,80 80,70 50,40 50))'));
+VALUES(2,ST_GeomFromText('POINT(20 20)'),ST_GeomFromText('LINESTRING(20 20,30 30,40 40)'),
+ST_GeomFromText('POLYGON((40 50,40 70,50 100,70 100,80 80,70 50,40 50))'),
+ST_GeomFromText('POLYGON((40 50,40 70,50 100,70 100,80 80,70 50,40 50))'));
 
 INSERT INTO tab(c1,c2,c3,c4,c5)
-VALUES(3,GeomFromText('POINT(4 4)'),GeomFromText('LINESTRING(130 130,140 140,150 150)'),
-GeomFromText('POLYGON((7 1,6 2,6 3,10 3,10 1,7 1))'),
-GeomFromText('POLYGON((4 -2,5 -4,6 -5,7 -4,7 2,4 -2))'));
+VALUES(3,ST_GeomFromText('POINT(4 4)'),ST_GeomFromText('LINESTRING(130 130,140 140,150 150)'),
+ST_GeomFromText('POLYGON((7 1,6 2,6 3,10 3,10 1,7 1))'),
+ST_GeomFromText('POLYGON((4 -2,5 -4,6 -5,7 -4,7 2,4 -2))'));
 
 INSERT INTO tab(c1,c2,c3,c4,c5)
-VALUES(4,GeomFromText('POINT(50 50)'),GeomFromText('LINESTRING(200 200,300 300,400 400)'),
-GeomFromText('POLYGON((300 300,400 400,500 500,300 500,300 400,300 300))'),
-GeomFromText('POLYGON((300 300,400 400,500 500,300 500,300 400,300 300))'));
+VALUES(4,ST_GeomFromText('POINT(50 50)'),ST_GeomFromText('LINESTRING(200 200,300 300,400 400)'),
+ST_GeomFromText('POLYGON((300 300,400 400,500 500,300 500,300 400,300 300))'),
+ST_GeomFromText('POLYGON((300 300,400 400,500 500,300 500,300 400,300 300))'));
 
 INSERT INTO tab(c1,c2,c3,c4,c5)
-VALUES(5,GeomFromText('POINT(3 3)'),GeomFromText('LINESTRING(400 400,500 500,600 700)'),
-GeomFromText('POLYGON((1010 1010,1020 1020,1030 1030,1040 1030,1020 1010,1010 1010))'),
-GeomFromText('POLYGON((1010 1010,1020 1020,1030 1030,1040 1030,1020 1010,1010 1010))'));
+VALUES(5,ST_GeomFromText('POINT(3 3)'),ST_GeomFromText('LINESTRING(400 400,500 500,600 700)'),
+ST_GeomFromText('POLYGON((1010 1010,1020 1020,1030 1030,1040 1030,1020 1010,1010 1010))'),
+ST_GeomFromText('POLYGON((1010 1010,1020 1020,1030 1030,1040 1030,1020 1010,1010 1010))'));
 
 INSERT INTO tab(c1,c2,c3,c4,c5)
-VALUES(6,GeomFromText('POINT(3 3)'),GeomFromText('LINESTRING(40 40,50 50,60 70)'),
-GeomFromText('POLYGON((2010 2010,2020 2020,2030 2030,2040 2030,2020 2010,2010 2010))'),
-GeomFromText('POLYGON((2010 2010,2020 2020,2030 2030,2040 2030,2020 2010,2010 2010))'));
+VALUES(6,ST_GeomFromText('POINT(3 3)'),ST_GeomFromText('LINESTRING(40 40,50 50,60 70)'),
+ST_GeomFromText('POLYGON((2010 2010,2020 2020,2030 2030,2040 2030,2020 2010,2010 2010))'),
+ST_GeomFromText('POLYGON((2010 2010,2020 2020,2030 2030,2040 2030,2020 2010,2010 2010))'));
 
 INSERT INTO tab(c1,c2,c3,c4,c5)
-VALUES(7,GeomFromText('POINT(60 70)'),GeomFromText('LINESTRING(40 40,50 50,60 70)'),
-GeomFromText('POLYGON((3010 3010,3020 3020,3030 3030,3040 3030,3020 3010,3010 3010))'),
-GeomFromText('POLYGON((3010 3010,3020 3020,3030 3030,3040 3030,3020 3010,3010 3010))'));
+VALUES(7,ST_GeomFromText('POINT(60 70)'),ST_GeomFromText('LINESTRING(40 40,50 50,60 70)'),
+ST_GeomFromText('POLYGON((3010 3010,3020 3020,3030 3030,3040 3030,3020 3010,3010 3010))'),
+ST_GeomFromText('POLYGON((3010 3010,3020 3020,3030 3030,3040 3030,3020 3010,3010 3010))'));
 
 INSERT INTO tab(c1,c2,c3,c4,c5)
-VALUES(8,GeomFromText('POINT(0 0)'),GeomFromText('LINESTRING(40 40,50 50,60 70)'),
-GeomFromText('POLYGON((3010 3010,3020 3020,3030 3030,3040 3030,3020 3010,3010 3010))'),
-GeomFromText('POLYGON((3010 3010,3020 3020,3030 3030,3040 3030,3020 3010,3010 3010))'));
-
-
-INSERT INTO tab(c1,c2,c3,c4,c5)
-VALUES(9,GeomFromText('POINT(120 120)'),GeomFromText('LINESTRING(100 100,110 110,120 120)'),
-GeomFromText('POLYGON((4010 4010,4020 4020,4030 4030,4040 4030,4020 4010,4010 4010))'),
-GeomFromText('POLYGON((4010 4010,4020 4020,4030 4030,4040 4030,4020 4010,4010 4010))'));
+VALUES(8,ST_GeomFromText('POINT(0 0)'),ST_GeomFromText('LINESTRING(40 40,50 50,60 70)'),
+ST_GeomFromText('POLYGON((3010 3010,3020 3020,3030 3030,3040 3030,3020 3010,3010 3010))'),
+ST_GeomFromText('POLYGON((3010 3010,3020 3020,3030 3030,3040 3030,3020 3010,3010 3010))'));
 
 
 INSERT INTO tab(c1,c2,c3,c4,c5)
-VALUES(10,GeomFromText('POINT(160 160)'),GeomFromText('LINESTRING(140 140,150 150,160 160)'),
-GeomFromText('POLYGON((5010 5010,5020 5020,5030 5030,5040 5030,5020 5010,5010 5010))'),
-GeomFromText('POLYGON((5010 5010,5020 5020,5030 5030,5040 5030,5020 5010,5010 5010))'));
+VALUES(9,ST_GeomFromText('POINT(120 120)'),ST_GeomFromText('LINESTRING(100 100,110 110,120 120)'),
+ST_GeomFromText('POLYGON((4010 4010,4020 4020,4030 4030,4040 4030,4020 4010,4010 4010))'),
+ST_GeomFromText('POLYGON((4010 4010,4020 4020,4030 4030,4040 4030,4020 4010,4010 4010))'));
+
+
+INSERT INTO tab(c1,c2,c3,c4,c5)
+VALUES(10,ST_GeomFromText('POINT(160 160)'),ST_GeomFromText('LINESTRING(140 140,150 150,160 160)'),
+ST_GeomFromText('POLYGON((5010 5010,5020 5020,5030 5030,5040 5030,5020 5010,5010 5010))'),
+ST_GeomFromText('POLYGON((5010 5010,5020 5020,5030 5030,5040 5030,5020 5010,5010 5010))'));
 
 ANALYZE TABLE tab;
 
@@ -470,16 +470,16 @@ SHOW CREATE TABLE tab;
 --replace_column 7 #
 SHOW INDEX FROM tab;
 
-SET @g1 = GeomFromText( 'POLYGON((7 1,6 2,6 3,10 3,10 1,7 1))');
+SET @g1 = ST_GeomFromText( 'POLYGON((7 1,6 2,6 3,10 3,10 1,7 1))');
 
-UPDATE tab SET C2 = GeomFromText('POINT(1000 1000)') 
-WHERE Contains(tab.c4, @g1);
+UPDATE tab SET C2 = ST_GeomFromText('POINT(1000 1000)') 
+WHERE MBRContains(tab.c4, @g1);
 
-SELECT c1,Astext(c2),Astext(c4) FROM tab WHERE Contains(tab.c4, @g1) ORDER BY c1;
+SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM tab WHERE MBRContains(tab.c4, @g1) ORDER BY c1;
 
-DELETE FROM tab WHERE Contains(tab.c4, @g1);
+DELETE FROM tab WHERE MBRContains(tab.c4, @g1);
 
-SELECT c1,Astext(c2),Astext(c4) FROM tab WHERE Contains(tab.c4, @g1) ORDER BY c1;
+SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM tab WHERE MBRContains(tab.c4, @g1) ORDER BY c1;
 
 ALTER TABLE tab MODIFY COLUMN c2 POLYGON NOT NULL;
 
@@ -496,29 +496,29 @@ SHOW INDEX FROM tab;
 
 ANALYZE TABLE tab;
 
-SET @g1 = GeomFromText('POLYGON((5010 5010,5020 5020,5030 5030,5040 5030,5020 5010,5010 5010))');
+SET @g1 = ST_GeomFromText('POLYGON((5010 5010,5020 5020,5030 5030,5040 5030,5020 5010,5010 5010))');
 
-SET @g2 = GeomFromText('LINESTRING(140 140,150 150,160 160)');
+SET @g2 = ST_GeomFromText('LINESTRING(140 140,150 150,160 160)');
 
-SELECT c1,Astext(c2),AsText(c3),Astext(c4) FROM tab WHERE Equals(tab.c4, @g1) 
-AND Equals(tab.c3,@g2) ORDER BY c1;
+SELECT c1,ST_Astext(c2),ST_AsText(c3),ST_Astext(c4) FROM tab WHERE MBREquals(tab.c4, @g1) 
+AND MBREquals(tab.c3,@g2) ORDER BY c1;
 
-UPDATE tab SET C2 = GeomFromText('POINT(2000 2000)')
-WHERE Equals(tab.c4, @g1) AND Equals(tab.c3,@g2);
+UPDATE tab SET C2 = ST_GeomFromText('POINT(2000 2000)')
+WHERE MBREquals(tab.c4, @g1) AND MBREquals(tab.c3,@g2);
 
-SELECT c1,Astext(c2),AsText(c3),Astext(c4) FROM tab WHERE Equals(tab.c4, @g1) 
-AND Equals(tab.c3,@g2) ORDER BY c1;
+SELECT c1,ST_Astext(c2),ST_AsText(c3),ST_Astext(c4) FROM tab WHERE MBREquals(tab.c4, @g1) 
+AND MBREquals(tab.c3,@g2) ORDER BY c1;
 
-DELETE FROM tab WHERE Equals(tab.c4, @g1) AND Equals(tab.c3,@g2);
+DELETE FROM tab WHERE MBREquals(tab.c4, @g1) AND MBREquals(tab.c3,@g2);
 
-SELECT c1,Astext(c2),AsText(c3),Astext(c4) FROM tab WHERE Equals(tab.c4, @g1)
-AND Equals(tab.c3,@g2) ORDER BY c1;
+SELECT c1,ST_Astext(c2),ST_AsText(c3),ST_Astext(c4) FROM tab WHERE MBREquals(tab.c4, @g1)
+AND MBREquals(tab.c3,@g2) ORDER BY c1;
 
 ANALYZE TABLE tab;
 
-SET @g1 = GeomFromText('POLYGON((4010 4010,4020 4020,4030 4030,4040 4030,4020 4010,4010 4010))'); 
+SET @g1 = ST_GeomFromText('POLYGON((4010 4010,4020 4020,4030 4030,4040 4030,4020 4010,4010 4010))'); 
 
-SET @g2 = GeomFromText('LINESTRING(1 1,2 2,3 3)');
+SET @g2 = ST_GeomFromText('LINESTRING(1 1,2 2,3 3)');
 
 # When Point type data exist in the column allow DDL operation
 ALTER TABLE tab MODIFY COLUMN c2 POINT NOT NULL;
@@ -534,43 +534,43 @@ SHOW INDEX FROM tab;
 
 ANALYZE TABLE tab;
 
-SET @g1 = GeomFromText( 'POLYGON((0 0,0 30,30 40,40 50,50 30,0 0))');
+SET @g1 = ST_GeomFromText( 'POLYGON((0 0,0 30,30 40,40 50,50 30,0 0))');
 
-SET @g2 = GeomFromText('LINESTRING(1 1,2 2,3 3)');
-
-# Should be 0 rows affected
-SELECT c1,Astext(c2),AsText(c3),Astext(c4) FROM tab WHERE Touches(tab.c4, @g1) 
-AND Touches(tab.c3,@g2);
+SET @g2 = ST_GeomFromText('LINESTRING(1 1,2 2,3 3)');
 
 # Should be 0 rows affected
-UPDATE tab SET C2 = GeomFromText('POINT(2000 2000)')
-WHERE Touches(tab.c4, @g1) AND Touches(tab.c3,@g2);
+SELECT c1,ST_Astext(c2),ST_AsText(c3),ST_Astext(c4) FROM tab WHERE ST_Touches(tab.c4, @g1) 
+AND ST_Touches(tab.c3,@g2);
 
 # Should be 0 rows affected
-DELETE FROM tab WHERE Touches(tab.c4, @g1) AND Touches(tab.c3,@g2);
+UPDATE tab SET C2 = ST_GeomFromText('POINT(2000 2000)')
+WHERE ST_Touches(tab.c4, @g1) AND ST_Touches(tab.c3,@g2);
 
 # Should be 0 rows affected
-SELECT c1,Astext(c2),AsText(c3),Astext(c4) FROM tab WHERE Touches(tab.c4, @g1)
-AND Touches(tab.c3,@g2);
+DELETE FROM tab WHERE ST_Touches(tab.c4, @g1) AND ST_Touches(tab.c3,@g2);
+
+# Should be 0 rows affected
+SELECT c1,ST_Astext(c2),ST_AsText(c3),ST_Astext(c4) FROM tab WHERE ST_Touches(tab.c4, @g1)
+AND ST_Touches(tab.c3,@g2);
 
 # should be 1 row affected
-SELECT c1,Astext(c2),AsText(c3),Astext(c4) FROM tab WHERE Touches(tab.c4, @g1)
-OR Touches(tab.c3,@g2);
+SELECT c1,ST_Astext(c2),ST_AsText(c3),ST_Astext(c4) FROM tab WHERE ST_Touches(tab.c4, @g1)
+OR ST_Touches(tab.c3,@g2);
 
 # should be 1 row affected
-UPDATE tab SET C2 = GeomFromText('POINT(2000 2000)')
-WHERE Touches(tab.c4, @g1) OR Touches(tab.c3,@g2);
+UPDATE tab SET C2 = ST_GeomFromText('POINT(2000 2000)')
+WHERE ST_Touches(tab.c4, @g1) OR ST_Touches(tab.c3,@g2);
 
 # should be 1 row affected
-SELECT c1,Astext(c2),AsText(c3),Astext(c4) FROM tab WHERE Touches(tab.c4, @g1)
-OR Touches(tab.c3,@g2);
+SELECT c1,ST_Astext(c2),ST_AsText(c3),ST_Astext(c4) FROM tab WHERE ST_Touches(tab.c4, @g1)
+OR ST_Touches(tab.c3,@g2);
 
 # should be 1 row affected
-DELETE FROM tab WHERE Touches(tab.c4, @g1) OR Touches(tab.c3,@g2);
+DELETE FROM tab WHERE ST_Touches(tab.c4, @g1) OR ST_Touches(tab.c3,@g2);
 
 # Should be Empty set
-SELECT c1,Astext(c2),AsText(c3),Astext(c4) FROM tab WHERE Touches(tab.c4, @g1)
-OR Touches(tab.c3,@g2);
+SELECT c1,ST_Astext(c2),ST_AsText(c3),ST_Astext(c4) FROM tab WHERE ST_Touches(tab.c4, @g1)
+OR ST_Touches(tab.c3,@g2);
 
 --error ER_SPATIAL_MUST_HAVE_GEOM_COL
 ALTER TABLE tab MODIFY COLUMN c4 INT NOT NULL;
@@ -585,25 +585,25 @@ ALTER TABLE tab  ENGINE InnoDB;
 
 ANALYZE TABLE tab;
 
-SET @g1 = GeomFromText('POLYGON((1010 1010,1020 1020,1030 1030,1040 1030,1020 1010,1010 1010))');
+SET @g1 = ST_GeomFromText('POLYGON((1010 1010,1020 1020,1030 1030,1040 1030,1020 1010,1010 1010))');
 
-SET @g2 = GeomFromText('LINESTRING(400 400,500 500,600 700)');
+SET @g2 = ST_GeomFromText('LINESTRING(400 400,500 500,600 700)');
 
-SELECT c1,AsText(c2),AsText(c3),Astext(c4) FROM tab WHERE Within(tab.c4, @g1) AND Within(tab.c3, @g2);
+SELECT c1,ST_AsText(c2),ST_AsText(c3),ST_Astext(c4) FROM tab WHERE MBRWithin(tab.c4, @g1) AND MBRWithin(tab.c3, @g2);
 
-UPDATE tab SET c2 = GeomFromText('POINT(2000 2000)'),
-           c3=GeomFromText('POINT(2000 2000)')
-WHERE Within(tab.c4, @g1) AND Within(tab.c3, @g2);
+UPDATE tab SET c2 = ST_GeomFromText('POINT(2000 2000)'),
+           c3=ST_GeomFromText('POINT(2000 2000)')
+WHERE MBRWithin(tab.c4, @g1) AND MBRWithin(tab.c3, @g2);
 
-SET @g1 = GeomFromText('POINT(2000 2000)');
+SET @g1 = ST_GeomFromText('POINT(2000 2000)');
 
-SET @g2 = GeomFromText('POINT(2000 2000)');
+SET @g2 = ST_GeomFromText('POINT(2000 2000)');
 
-SELECT c1,AsText(c2),AsText(c3),Astext(c4) FROM tab WHERE Within(tab.c2, @g1) AND Within(tab.c3, @g2);
+SELECT c1,ST_AsText(c2),ST_AsText(c3),ST_Astext(c4) FROM tab WHERE MBRWithin(tab.c2, @g1) AND MBRWithin(tab.c3, @g2);
 
-DELETE FROM tab WHERE Within(tab.c2, @g1) AND Within(tab.c3, @g2);
+DELETE FROM tab WHERE MBRWithin(tab.c2, @g1) AND MBRWithin(tab.c3, @g2);
 
-SELECT c1,AsText(c2),AsText(c3),Astext(c4) FROM tab WHERE Within(tab.c2, @g1) AND Within(tab.c3, @g2);
+SELECT c1,ST_AsText(c2),ST_AsText(c3),ST_Astext(c4) FROM tab WHERE MBRWithin(tab.c2, @g1) AND MBRWithin(tab.c3, @g2);
 
 #cleanup
 DROP TABLE tab;

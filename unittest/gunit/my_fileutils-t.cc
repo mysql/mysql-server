@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@
 
 #include "my_global.h"
 #include "my_sys.h"
+#include "my_thread_local.h"
 #include "mysql/psi/mysql_file.h"
 
 #if !defined(_WIN32)

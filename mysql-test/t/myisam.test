@@ -1550,10 +1550,10 @@ DROP TABLE t1;
 --echo #
 
 CREATE TABLE t1 (line LINESTRING NOT NULL) engine=myisam;
-INSERT INTO t1 VALUES (GeomFromText("POINT(0 0)"));
+INSERT INTO t1 VALUES (ST_GeomFromText("POINT(0 0)"));
 checksum table t1;
 CREATE TABLE t2 (line LINESTRING NOT NULL) engine=myisam;
-INSERT INTO t2 VALUES (GeomFromText("POINT(0 0)"));
+INSERT INTO t2 VALUES (ST_GeomFromText("POINT(0 0)"));
 checksum table t2;
 CREATE TABLE t3 select * from t1;
 checksum table t3;

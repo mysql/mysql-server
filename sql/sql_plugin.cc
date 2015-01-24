@@ -3183,6 +3183,7 @@ static bool plugin_var_memalloc_global_update(THD *thd,
                                               char **dest, const char *value)
 {
   char *old_value= *dest;
+  DBUG_EXECUTE_IF("simulate_bug_20292712", my_sleep(1000););
   DBUG_ENTER("plugin_var_memalloc_global_update");
 
   if (value && !(value= my_strdup(key_memory_global_system_variables,
