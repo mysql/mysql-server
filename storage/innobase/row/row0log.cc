@@ -3307,18 +3307,18 @@ corrupted:
 	return(mrec);
 }
 
-/******************************************************//**
-Applies operations to a secondary index that was being created.
+/** Applies operations to a secondary index that was being created.
+@param[in]	trx	transaction (for checking if the operation was
+interrupted)
+@param[in,out]	index	index
+@param[in,out]	dup	for reporting duplicate key errors
 @return DB_SUCCESS, or error code on failure */
-static __attribute__((nonnull))
+static
 dberr_t
 row_log_apply_ops(
-/*==============*/
-	trx_t*		trx,	/*!< in: transaction (for checking if
-				the operation was interrupted) */
-	dict_index_t*	index,	/*!< in/out: index */
-	row_merge_dup_t*dup)	/*!< in/out: for reporting duplicate key
-				errors */
+	const trx_t*		trx,
+	dict_index_t*		index,
+	row_merge_dup_t*	dup)
 {
 	dberr_t		error;
 	const mrec_t*	mrec	= NULL;
@@ -3628,17 +3628,17 @@ func_exit:
 	return(error);
 }
 
-/******************************************************//**
-Apply the row log to the index upon completing index creation.
+/** Apply the row log to the index upon completing index creation.
+@param[in]	trx	transaction (for checking if the operation was
+interrupted)
+@param[in,out]	index	secondary index
+@param[in,out]	table	MySQL table (for reporting duplicates)
 @return DB_SUCCESS, or error code on failure */
 dberr_t
 row_log_apply(
-/*==========*/
-	trx_t*		trx,	/*!< in: transaction (for checking if
-				the operation was interrupted) */
-	dict_index_t*	index,	/*!< in/out: secondary index */
-	struct TABLE*	table)	/*!< in/out: MySQL table
-				(for reporting duplicates) */
+	const trx_t*	trx,
+	dict_index_t*	index,
+	struct TABLE*	table)
 {
 	dberr_t		error;
 	row_log_t*	log;
