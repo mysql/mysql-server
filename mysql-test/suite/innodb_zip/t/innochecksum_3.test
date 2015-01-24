@@ -30,7 +30,7 @@ linestring_nokey GEOMETRY NOT NULL)
 ENGINE=InnoDB ;
 
 INSERT INTO tab1 (pk, linestring_key, linestring_nokey)
-VALUES (1, GeomFromText('POINT(10 10) '), GeomFromText('POINT(10 10) '));
+VALUES (1, ST_GeomFromText('POINT(10 10) '), ST_GeomFromText('POINT(10 10) '));
 
 CREATE INDEX linestring_index ON tab1(linestring_nokey(5));
 ALTER TABLE tab1 ADD  KEY (linestring_key(5));
@@ -84,7 +84,7 @@ EOF
 --source include/start_mysqld.inc
 
 INSERT INTO tab1 (pk, linestring_key, linestring_nokey)
-VALUES (2, GeomFromText('LINESTRING(10 10,20 20,30 30)'), GeomFromText('LINESTRING(10 10,20 20,30 30)'));
+VALUES (2, ST_GeomFromText('LINESTRING(10 10,20 20,30 30)'), ST_GeomFromText('LINESTRING(10 10,20 20,30 30)'));
 
 # load the with repeat function
 SET @col_1 = repeat('a', 5);
@@ -100,7 +100,7 @@ eval INSERT INTO tab2(col_1,col_2,col_3,col_4,col_5,col_6,col_7)
 VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,$i);
 
 -- disable_result_log
-SELECT pk,AsText(linestring_key),AsText(linestring_nokey)
+SELECT pk,ST_AsText(linestring_key),ST_AsText(linestring_nokey)
 FROM tab1 ORDER BY pk;
 
 -- disable_result_log
@@ -125,8 +125,8 @@ EOF
 
 # check the table status is GOOD with DML
 INSERT INTO tab1 (pk, linestring_key, linestring_nokey)
-VALUES (3, GeomFromText('POLYGON((0 0,5 5,10 10,15 15,0 0),(10 10,20 20,30 30,40 40,10 10))'),
-GeomFromText('POLYGON((0 0,5 5,10 10,15 15,0 0),(10 10,20 20,30 30,40 40,10 10))'));
+VALUES (3, ST_GeomFromText('POLYGON((0 0,5 5,10 10,15 15,0 0),(10 10,20 20,30 30,40 40,10 10))'),
+ST_GeomFromText('POLYGON((0 0,5 5,10 10,15 15,0 0),(10 10,20 20,30 30,40 40,10 10))'));
 
 # load the with repeat function
 SET @col_1 = repeat('g', 5);
@@ -143,7 +143,7 @@ VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,$i);
 
 # check the records from table
 -- disable_result_log
-SELECT pk,AsText(linestring_key),AsText(linestring_nokey)
+SELECT pk,ST_AsText(linestring_key),ST_AsText(linestring_nokey)
 FROM tab1 ORDER BY pk;
 
 -- disable_result_log
@@ -170,7 +170,7 @@ let $restart_parameters = restart: --innodb_checksum_algorithm=strict_none --def
 
 # check the table status is GOOD with DML
 INSERT INTO tab1 (pk, linestring_key, linestring_nokey)
-VALUES (4, GeomFromText('MULTIPOINT(0 0,5 5,10 10,20 20) '), GeomFromText('MULTIPOINT(0 0,5 5,10 10,20 20) '));
+VALUES (4, ST_GeomFromText('MULTIPOINT(0 0,5 5,10 10,20 20) '), ST_GeomFromText('MULTIPOINT(0 0,5 5,10 10,20 20) '));
 
 # load the with repeat function
 SET @col_1 = repeat('m', 5);
@@ -187,7 +187,7 @@ VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,$i);
 
 # check the records from table
 -- disable_result_log
-SELECT pk,AsText(linestring_key),AsText(linestring_nokey)
+SELECT pk,ST_AsText(linestring_key),ST_AsText(linestring_nokey)
 FROM tab1 ORDER BY pk;
 
 --disable_result_log

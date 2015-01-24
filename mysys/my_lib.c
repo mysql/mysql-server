@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,10 +16,12 @@
 
 /* TODO: check for overun of memory for names. */
 
-#include	"mysys_priv.h"
-#include	<m_string.h>
-#include	<my_dir.h>	/* Structs used by my_dir,includes sys/types */
-#include	"mysys_err.h"
+#include "mysys_priv.h"
+#include "my_sys.h"
+#include "m_string.h"
+#include "my_dir.h"	/* Structs used by my_dir,includes sys/types */
+#include "mysys_err.h"
+#include "my_thread_local.h"
 #if defined(HAVE_DIRENT_H)
 # include <dirent.h>
 # define NAMLEN(dirent) strlen((dirent)->d_name)

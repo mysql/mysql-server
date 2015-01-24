@@ -195,9 +195,9 @@ CREATE TABLE gis_geometrycollection_2 SELECT fid as fid2,g as g2 FROM gis_geomet
 --echo #Checking the integrity of the above create/insert statements 
 
 --echo #64 rows. 
-SELECT count(astext(g) != 'NULL') FROM gis_geometrycollection;
+SELECT count(ST_AsText(g) != 'NULL') FROM gis_geometrycollection;
 --echo #64 rows. 
-SELECT count(astext(g2) != 'NULL') FROM gis_geometrycollection_2;
+SELECT count(ST_AsText(g2) != 'NULL') FROM gis_geometrycollection_2;
 
 --echo #=======================================================================================
 --echo # ST_DISTANCE(g1,g2)

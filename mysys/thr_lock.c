@@ -68,7 +68,7 @@ lock at the same time as multiple read locks.
 */
 
 #include "mysys_priv.h"
-
+#include "my_sys.h"
 #include "thr_lock.h"
 #include "mysql/psi/mysql_table.h"
 #include <m_string.h>

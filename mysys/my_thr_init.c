@@ -19,8 +19,10 @@
 */
 
 #include "mysys_priv.h"
+#include "my_sys.h"
 #include <m_string.h>
 #include <signal.h>
+#include "my_thread_local.h"
 
 static my_bool THR_KEY_mysys_initialized= FALSE;
 static my_bool my_thread_global_init_done= FALSE;

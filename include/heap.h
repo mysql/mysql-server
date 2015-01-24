@@ -28,7 +28,6 @@ extern "C" {
 #include <my_base.h>
 #endif
 
-#include <my_thread.h>
 #include <thr_lock.h>
 
 #include "my_compare.h"

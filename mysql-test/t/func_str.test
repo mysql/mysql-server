@@ -1525,7 +1525,7 @@ DO
 round(
   concat( (
     coalesce( (
-      linefromwkb('2147483648',
+      ST_linefromwkb('2147483648',
                   -b'1111111111111111111111111111111111111111111')),
       ( convert('[.DC2.]',decimal(30,30)) ),
       bit_count('')

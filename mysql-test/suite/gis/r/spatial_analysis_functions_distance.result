@@ -149,12 +149,12 @@ INSERT INTO gis_geometrycollection VALUES
 CREATE TABLE gis_geometrycollection_2 SELECT fid as fid2,g as g2 FROM gis_geometrycollection;
 #Checking the integrity of the above create/insert statements 
 #64 rows. 
-SELECT count(astext(g) != 'NULL') FROM gis_geometrycollection;
-count(astext(g) != 'NULL')
+SELECT count(ST_AsText(g) != 'NULL') FROM gis_geometrycollection;
+count(ST_AsText(g) != 'NULL')
 64
 #64 rows. 
-SELECT count(astext(g2) != 'NULL') FROM gis_geometrycollection_2;
-count(astext(g2) != 'NULL')
+SELECT count(ST_AsText(g2) != 'NULL') FROM gis_geometrycollection_2;
+count(ST_AsText(g2) != 'NULL')
 64
 #=======================================================================================
 # ST_DISTANCE(g1,g2)
@@ -224,7 +224,7 @@ ST_DISTANCE(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('MULTILINESTRING((10 1
 1
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('MULTILINESTRING((10 10,10 0),(0.0000 -0.0000))'));
 ST_DISTANCE(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('MULTILINESTRING((10 10,10 0),(0.0000 -0.0000))'))
-10
+0
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POINT(1e77 0)'),ST_GEOMFROMTEXT('MULTILINESTRING((0 0,0 1e154),(0 1e154,1e154 0))'));
 ST_DISTANCE(ST_GEOMFROMTEXT('POINT(1e77 0)'),ST_GEOMFROMTEXT('MULTILINESTRING((0 0,0 1e154),(0 1e154,1e154 0))'))
 1e77

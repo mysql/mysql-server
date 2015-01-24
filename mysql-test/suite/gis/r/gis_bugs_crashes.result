@@ -353,6 +353,8 @@ ST_GEOMFROMTEXT(
                                     '(-202 390,-954 804,682 504,-394 -254,832 371,907 -369,827 126,-567 -337,-304 -555,-957 -483,-660 792),'
              
 1
+Warnings:
+Warning	1287	'GEOMFROMTEXT' is deprecated and will be removed in a future release. Please use ST_GEOMFROMTEXT instead
 ######################################################################################################
 # BUG#20085563 : ASSERTION `!NULL_VALUE && OPDONE && STR_VALUE_ARG->LENGTH() > 0' FAILED
 ######################################################################################################
