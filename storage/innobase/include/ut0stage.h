@@ -61,7 +61,7 @@ if any new indexes are being added, for each one:
 begin_phase_flush()
     multiple times:
       inc() // once per page flushed
-begin_phase_log()
+begin_phase_log_table()
     multiple times:
       inc() // once per log-block applied
 begin_phase_end()
@@ -137,9 +137,9 @@ public:
 	begin_phase_flush(
 		ulint	n_flush_pages);
 
-	/** Flag the beginning of the log phase. */
+	/** Flag the beginning of the log table phase. */
 	void
-	begin_phase_log();
+	begin_phase_log_table();
 
 	/** Flag the beginning of the end phase. */
 	void
@@ -196,7 +196,7 @@ private:
 		SORT = 2,
 		INSERT = 3,
 		FLUSH = 4,
-		LOG = 5,
+		LOG_TABLE = 5,
 		END = 6,
 	}			m_cur_phase;
 };
@@ -304,7 +304,7 @@ ut_stage_alter_t::inc(
 	}
 	case FLUSH:
 		break;
-	case LOG:
+	case LOG_TABLE:
 		break;
 	case END:
 		break;
@@ -379,12 +379,12 @@ ut_stage_alter_t::begin_phase_flush(
 	change_phase(&srv_stage_alter_table_flush);
 }
 
-/** Flag the beginning of the log phase. */
+/** Flag the beginning of the log table phase. */
 inline
 void
-ut_stage_alter_t::begin_phase_log()
+ut_stage_alter_t::begin_phase_log_table()
 {
-	change_phase(&srv_stage_alter_table_log);
+	change_phase(&srv_stage_alter_table_log_table);
 }
 
 /** Flag the beginning of the end phase. */
@@ -404,9 +404,9 @@ ut_stage_alter_t::reestimate()
 		return;
 	}
 
-	/* During the log phase we calculate the estimate as
+	/* During the log table phase we calculate the estimate as
 	work done so far + log size remaining. */
-	if (m_cur_phase == LOG) {
+	if (m_cur_phase == LOG_TABLE) {
 		mysql_stage_set_work_estimated(
 			m_progress,
 			mysql_stage_get_work_completed(m_progress)
@@ -467,8 +467,8 @@ ut_stage_alter_t::change_phase(
 		m_cur_phase = INSERT;
 	} else if (new_stage == &srv_stage_alter_table_flush) {
 		m_cur_phase = FLUSH;
-	} else if (new_stage == &srv_stage_alter_table_log) {
-		m_cur_phase = LOG;
+	} else if (new_stage == &srv_stage_alter_table_log_table) {
+		m_cur_phase = LOG_TABLE;
 	} else if (new_stage == &srv_stage_alter_table_end) {
 		m_cur_phase = END;
 	} else {
@@ -533,7 +533,7 @@ public:
 	}
 
 	void
-	begin_phase_log()
+	begin_phase_log_table()
 	{
 	}
 
