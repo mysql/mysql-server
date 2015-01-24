@@ -2874,7 +2874,7 @@ func_exit:
 @param[in]	old_table	old table
 @param[in,out]	table		MySQL table (for reporting duplicates)
 @param[in,out]	stage		performance schema accounting object, used by
-ALTER TABLE. stage->begin_phase_log() will be called initially and then
+ALTER TABLE. stage->begin_phase_log_table() will be called initially and then
 stage->inc() will be called for each block of log that is applied.
 @return DB_SUCCESS, or error code on failure */
 dberr_t
@@ -2891,7 +2891,7 @@ row_log_table_apply(
 	DBUG_EXECUTE_IF("innodb_trx_duplicates",
 			thr_get_trx(thr)->duplicates = TRX_DUP_REPLACE;);
 
-	stage->begin_phase_log();
+	stage->begin_phase_log_table();
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(!rw_lock_own(&dict_operation_lock, RW_LOCK_S));

@@ -480,7 +480,7 @@ extern PSI_stage_info	srv_stage_alter_table_insert;
 
 /** Performance schema stage event for monitoring ALTER TABLE progress
 row_log_table_apply(). */
-extern PSI_stage_info	srv_stage_alter_table_log;
+extern PSI_stage_info	srv_stage_alter_table_log_table;
 
 /** Performance schema stage event for monitoring ALTER TABLE progress
 row_merge_sort(). */
