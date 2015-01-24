@@ -44,6 +44,7 @@ bool get_gcs_group_member_stats(GROUP_REPLICATION_GROUP_MEMBER_STATS_INFO *info,
 bool get_gcs_connection_status(GROUP_REPLICATION_CONNECTION_STATUS_INFO *info,
                                Gcs_interface *gcs_module,
                                char* gcs_group_pointer,
+                               char *channel_name,
                                bool is_gcs_running);
 
 #endif	/* GCS_PS_INFORMATION_INCLUDED */

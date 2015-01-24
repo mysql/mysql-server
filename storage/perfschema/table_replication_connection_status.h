@@ -52,8 +52,6 @@ enum enum_rpl_connect_status_service_state {
   PS_RPL_CONNECT_SERVICE_STATE_CONNECTING
 };
 
-#define MAX_VIEW_ID_LENGTH 40
-
 /*
   A row in the table. The fields with string values have an additional
   length field denoted by <field_name>_length.

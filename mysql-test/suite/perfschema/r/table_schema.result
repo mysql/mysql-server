@@ -884,7 +884,7 @@ def	performance_schema	replication_connection_configuration	CONNECTION_RETRY_INT
 def	performance_schema	replication_connection_configuration	CONNECTION_RETRY_COUNT	17	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
 def	performance_schema	replication_connection_configuration	HEARTBEAT_INTERVAL	18	NULL	NO	double	NULL	NULL	10	3	NULL	NULL	NULL	double(10,3) unsigned			select,insert,update,references	Number of seconds after which a heartbeat will be sent .
 def	performance_schema	replication_connection_status	CHANNEL_NAME	1	NULL	NO	char	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	char(64)			select,insert,update,references	
-def	performance_schema	replication_connection_status	GROUP_NAME	2	NULL	NO	varchar	36	108	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(36)			select,insert,update,references	
+def	performance_schema	replication_connection_status	GROUP_NAME	2	NULL	NO	char	36	108	NULL	NULL	NULL	utf8	utf8_bin	char(36)			select,insert,update,references	
 def	performance_schema	replication_connection_status	SOURCE_UUID	3	NULL	NO	char	36	108	NULL	NULL	NULL	utf8	utf8_bin	char(36)			select,insert,update,references	
 def	performance_schema	replication_connection_status	THREAD_ID	4	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
 def	performance_schema	replication_connection_status	SERVICE_STATE	5	NULL	NO	enum	10	30	NULL	NULL	NULL	utf8	utf8_general_ci	enum('ON','OFF','CONNECTING')			select,insert,update,references	
@@ -894,13 +894,13 @@ def	performance_schema	replication_connection_status	RECEIVED_TRANSACTION_SET	8	
 def	performance_schema	replication_connection_status	LAST_ERROR_NUMBER	9	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references	
 def	performance_schema	replication_connection_status	LAST_ERROR_MESSAGE	10	NULL	NO	varchar	1024	3072	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(1024)			select,insert,update,references	
 def	performance_schema	replication_connection_status	LAST_ERROR_TIMESTAMP	11	0000-00-00 00:00:00	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select,insert,update,references	
-def	performance_schema	replication_group_members	CHANNEL_NAME	1	NULL	NO	varchar	256	768	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(256)			select,insert,update,references	
-def	performance_schema	replication_group_members	MEMBER_ID	2	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select,insert,update,references	
-def	performance_schema	replication_group_members	MEMBER_ADDRESS	3	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select,insert,update,references	
+def	performance_schema	replication_group_members	CHANNEL_NAME	1	NULL	NO	char	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	char(64)			select,insert,update,references	
+def	performance_schema	replication_group_members	MEMBER_ID	2	NULL	NO	char	36	108	NULL	NULL	NULL	utf8	utf8_bin	char(36)			select,insert,update,references	
+def	performance_schema	replication_group_members	MEMBER_ADDRESS	3	NULL	NO	char	60	180	NULL	NULL	NULL	utf8	utf8_bin	char(60)			select,insert,update,references	
 def	performance_schema	replication_group_members	MEMBER_STATE	4	NULL	NO	enum	10	30	NULL	NULL	NULL	utf8	utf8_general_ci	enum('ONLINE','OFFLINE','RECOVERING')			select,insert,update,references	
-def	performance_schema	replication_group_member_stats	CHANNEL_NAME	1	NULL	NO	varchar	256	768	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(256)			select,insert,update,references	
-def	performance_schema	replication_group_member_stats	VIEW_ID	2	NULL	NO	varchar	256	768	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(256)			select,insert,update,references	
-def	performance_schema	replication_group_member_stats	MEMBER_ID	3	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select,insert,update,references	
+def	performance_schema	replication_group_member_stats	CHANNEL_NAME	1	NULL	NO	char	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	char(64)			select,insert,update,references	
+def	performance_schema	replication_group_member_stats	VIEW_ID	2	NULL	NO	char	60	180	NULL	NULL	NULL	utf8	utf8_bin	char(60)			select,insert,update,references	
+def	performance_schema	replication_group_member_stats	MEMBER_ID	3	NULL	NO	char	36	108	NULL	NULL	NULL	utf8	utf8_bin	char(36)			select,insert,update,references	
 def	performance_schema	replication_group_member_stats	COUNT_TRANSACTIONS_IN_QUEUE	4	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
 def	performance_schema	replication_group_member_stats	COUNT_TRANSACTIONS_CHECKED	5	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
 def	performance_schema	replication_group_member_stats	COUNT_CONFLICTS_DETECTED	6	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	

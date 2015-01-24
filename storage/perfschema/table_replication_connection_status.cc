@@ -47,7 +47,7 @@ static const TABLE_FIELD_TYPE field_types[]=
   },
   {
     {C_STRING_WITH_LEN("GROUP_NAME")},
-    {C_STRING_WITH_LEN("varchar(36)")},
+    {C_STRING_WITH_LEN("char(36)")},
     {NULL, 0}
   },
   {
@@ -152,19 +152,17 @@ ha_rows table_replication_connection_status::get_row_count()
 int table_replication_connection_status::rnd_next(void)
 {
   Master_info *mi= NULL;
-
   int offset = 0;
 
   m_pos.set_at(&m_next_pos);
   if (is_group_replication_plugin_loaded())
   {
-
-     if (m_pos.m_index == 0)
-     {
-       make_row(NULL, true);
-       m_next_pos.set_after(&m_pos);
-       return 0;
-     }
+    if (m_pos.m_index == 0)
+    {
+      make_row(NULL, true);
+      m_next_pos.set_after(&m_pos);
+      return 0;
+    }
     offset= 1;
   }
 
@@ -224,60 +222,18 @@ void table_replication_connection_status::make_row(Master_info *mi,
                                                    bool group_replication_row)
 {
   DBUG_ENTER("table_replication_connection_status::make_row");
-
   m_row_exists= false;
 
-  //default values
+  // Default values
   m_row.group_name_is_null= true;
   m_row.source_uuid_is_null= true;
-  m_row.thread_id= 0;
+  m_row.thread_id_is_null= true;
 
-  //Load Group Replication stats
-  char* group_replication_group_name;
-  GROUP_REPLICATION_CONNECTION_STATUS_INFO* group_replication_info;
+  // Check if Group Replication plugin is loaded.
+  m_row.is_group_replication_plugin_loaded= group_replication_row &&
+                                                is_group_replication_plugin_loaded();
 
-  m_row.is_group_replication_plugin_loaded= is_group_replication_plugin_loaded() && group_replication_row;
-
-  if (m_row.is_group_replication_plugin_loaded)
-  {
-
-    if(!(group_replication_info= (GROUP_REPLICATION_CONNECTION_STATUS_INFO*)
-                                     my_malloc(PSI_NOT_INSTRUMENTED,
-                                               sizeof(GROUP_REPLICATION_CONNECTION_STATUS_INFO),
-                                               MYF(MY_WME))))
-    {
-       sql_print_error("Unable to allocate memory on"
-                       " table_replication_connection_status::make_row");
-       DBUG_VOID_RETURN;
-    }
-
-    bool stats_not_available= get_group_replication_connection_status_info(group_replication_info);
-    if (stats_not_available)
-    {
-      m_row.is_group_replication_plugin_loaded= false;
-      my_free(group_replication_info);
-      /*
-        Here, these stats about Group Replication would not be
-        available only when plugin is not available/not loaded
-        at this point in time.
-        Hence, modified the flag after the check.
-      */
-      group_replication_info= NULL;
-      DBUG_PRINT("info", ("Group Replication stats not available!"));
-    }
-
-    if(m_row.is_group_replication_plugin_loaded)
-    {
-      group_replication_group_name= group_replication_info->group_name;
-      if (group_replication_group_name)
-      {
-        memcpy(m_row.group_name, group_replication_group_name, UUID_LENGTH+1);
-        m_row.group_name_is_null= false;
-      }
-    }
-  }
-
-  if(!group_replication_row) //if slave channel
+  if (!group_replication_row) // slave channel
   {
     DBUG_ASSERT(mi != NULL);
     DBUG_ASSERT(mi->rli != NULL);
@@ -285,11 +241,11 @@ void table_replication_connection_status::make_row(Master_info *mi,
     mysql_mutex_lock(&mi->data_lock);
     mysql_mutex_lock(&mi->rli->data_lock);
 
-    //Channel
+    // Channel
     m_row.channel_name_length= mi->get_channel() ? strlen(mi->get_channel()):0;
     memcpy(m_row.channel_name, mi->get_channel(), m_row.channel_name_length);
 
-    //Source uuid
+    // Source uuid
     if (mi->master_uuid[0] != 0)
     {
       memcpy(m_row.source_uuid, mi->master_uuid, UUID_LENGTH+1);
@@ -371,20 +327,44 @@ void table_replication_connection_status::make_row(Master_info *mi,
     mysql_mutex_unlock(&mi->data_lock);
 
   }
-  else if (m_row.is_group_replication_plugin_loaded) //if group replication channel
+  else if (m_row.is_group_replication_plugin_loaded) // group replication channel
   {
-    char group_replication_channel[] = "group_replication_applier";
-    //Channel
-    m_row.channel_name_length= strlen(group_replication_channel);
-    memcpy(m_row.channel_name, group_replication_channel , m_row.channel_name_length);
+    GROUP_REPLICATION_CONNECTION_STATUS_INFO* group_replication_info;
+    if (!(group_replication_info= (GROUP_REPLICATION_CONNECTION_STATUS_INFO*)
+                                     my_malloc(PSI_NOT_INSTRUMENTED,
+                                               sizeof(GROUP_REPLICATION_CONNECTION_STATUS_INFO),
+                                               MYF(MY_WME))))
+    {
+       sql_print_error("Unable to allocate memory on"
+                       " table_replication_connection_status::make_row");
+       DBUG_VOID_RETURN;
+    }
 
-    if (m_row.is_group_replication_plugin_loaded && !m_row.group_name_is_null)
-      memcpy(m_row.source_uuid, group_replication_group_name, UUID_LENGTH+1);
-
-    if (group_replication_info->service_state)
-      m_row.service_state= PS_RPL_CONNECT_SERVICE_STATE_YES;
+    bool stats_not_available= get_group_replication_connection_status_info(group_replication_info);
+    if (stats_not_available)
+    {
+      DBUG_PRINT("info", ("Group Replication stats not available!"));
+    }
     else
-      m_row.service_state= PS_RPL_CONNECT_SERVICE_STATE_NO;
+    {
+      m_row.channel_name_length= strlen(group_replication_info->channel_name);
+      memcpy(m_row.channel_name, group_replication_info->channel_name,
+             m_row.channel_name_length);
+
+      if (group_replication_info->group_name != NULL)
+      {
+        memcpy(m_row.group_name, group_replication_info->group_name, UUID_LENGTH+1);
+        m_row.group_name_is_null= false;
+
+        memcpy(m_row.source_uuid, group_replication_info->group_name, UUID_LENGTH+1);
+        m_row.source_uuid_is_null= false;
+      }
+
+      if (group_replication_info->service_state)
+        m_row.service_state= PS_RPL_CONNECT_SERVICE_STATE_YES;
+      else
+        m_row.service_state= PS_RPL_CONNECT_SERVICE_STATE_NO;
+    }
 
     my_free(group_replication_info);
   }
@@ -418,7 +398,7 @@ int table_replication_connection_status::read_row_values(TABLE *table,
         break;
       case 1: /** group_name */
         if (!m_row.group_name_is_null)
-          set_field_varchar_utf8(f, m_row.group_name, UUID_LENGTH);
+          set_field_char_utf8(f, m_row.group_name, UUID_LENGTH);
         else
           f->set_null();
         break;
@@ -429,7 +409,7 @@ int table_replication_connection_status::read_row_values(TABLE *table,
           f->set_null();
         break;
       case 3: /** thread_id */
-        if (m_row.thread_id_is_null)
+        if(m_row.thread_id_is_null)
           f->set_null();
         else
           set_field_ulonglong(f, m_row.thread_id);

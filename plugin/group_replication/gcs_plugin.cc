@@ -104,8 +104,6 @@ static bool init_cluster_sidno();
 
 static bool server_engine_initialized();
 
-char* get_last_certified_transaction(char* buf, rpl_gno last_seq_num);
-
 enum enum_applier_status
 map_node_applier_state_to_member_applier_status(Member_applier_state
                                                               applier_status);
@@ -152,8 +150,10 @@ struct st_mysql_group_replication gcs_rpl_descriptor=
 
 bool get_gcs_connection_status(GROUP_REPLICATION_CONNECTION_STATUS_INFO *info)
 {
+  char* channel_name= applier_module_channel_name;
+
   return get_gcs_connection_status(info, gcs_module, gcs_group_pointer,
-                                   is_gcs_rpl_running());
+                                   channel_name, is_gcs_rpl_running());
 }
 
 bool get_gcs_group_members(uint index, GROUP_REPLICATION_GROUP_MEMBERS_INFO *info)

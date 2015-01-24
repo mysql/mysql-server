@@ -225,7 +225,7 @@ replication_applier_status_by_worker	10	Dynamic
 replication_connection_configuration	10	Dynamic
 replication_connection_status	10	Dynamic
 replication_group_member_stats	10	Dynamic
-replication_group_members	10	Dynamic
+replication_group_members	10	Fixed
 rwlock_instances	10	Dynamic
 session_account_connect_attrs	10	Dynamic
 session_connect_attrs	10	Dynamic

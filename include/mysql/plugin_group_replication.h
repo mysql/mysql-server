@@ -35,16 +35,16 @@ enum enum_applier_status {
 
 typedef struct st_group_replication_connection_status_info
 {
+  char* channel_name;
   char* group_name;
   bool service_state;
-  time_t last_message_timestamp;
 } GROUP_REPLICATION_CONNECTION_STATUS_INFO;
 
 typedef struct st_group_replication_group_members_info
 {
   char* channel_name;
-  const char* member_id;
-  const char* member_address;
+  char* member_id;
+  char* member_address;
   enum enum_member_state member_state;
 } GROUP_REPLICATION_GROUP_MEMBERS_INFO;
 
@@ -52,13 +52,13 @@ typedef struct st_group_replication_member_stats_info
 {
   char* channel_name;
   char* view_id;
-  const char* member_id;
+  char* member_id;
   unsigned long long int transaction_in_queue;
   unsigned long long int transaction_certified;
   unsigned long long int transaction_conflicts_detected;
   unsigned long long int transactions_in_validation;
   char* committed_transactions;
-  const char* last_conflict_free_transaction;
+  char* last_conflict_free_transaction;
 } GROUP_REPLICATION_GROUP_MEMBER_STATS_INFO;
 
 struct st_mysql_group_replication

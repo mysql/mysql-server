@@ -34,17 +34,17 @@ static const TABLE_FIELD_TYPE field_types[]=
 {
   {
     {C_STRING_WITH_LEN("CHANNEL_NAME")},
-    {C_STRING_WITH_LEN("varchar(256)")},
+    {C_STRING_WITH_LEN("char(64)")},
     {NULL, 0}
   },
   {
     {C_STRING_WITH_LEN("VIEW_ID")},
-    {C_STRING_WITH_LEN("varchar(256)")},
+    {C_STRING_WITH_LEN("char(60)")},
     {NULL, 0}
   },
   {
     {C_STRING_WITH_LEN("MEMBER_ID")},
-    {C_STRING_WITH_LEN("varchar(64)")},
+    {C_STRING_WITH_LEN("char(36)")},
     {NULL, 0}
   },
   {
@@ -277,14 +277,14 @@ int table_replication_group_member_stats::read_row_values(TABLE *table,
       switch(f->field_index)
       {
       case 0: /** channel_name */
-        set_field_varchar_utf8(f, m_row.channel_name,
+        set_field_char_utf8(f, m_row.channel_name,
                                m_row.channel_name_length);
         break;
       case 1: /** view id */
-        set_field_varchar_utf8(f, m_row.view_id, m_row.view_id_length);
+        set_field_char_utf8(f, m_row.view_id, m_row.view_id_length);
         break;
       case 2: /** member_id */
-        set_field_varchar_utf8(f, m_row.member_id, m_row.member_id_length);
+        set_field_char_utf8(f, m_row.member_id, m_row.member_id_length);
         break;
       case 3: /** transaction_in_queue */
         set_field_ulonglong(f, m_row.trx_in_queue);

@@ -26,6 +26,7 @@
 #include "pfs_column_types.h"
 #include "pfs_engine_table.h"
 #include "mysql_com.h"
+#include "rpl_info.h"
 #include <mysql/plugin_group_replication.h>
 
 /**
@@ -39,11 +40,11 @@
 */
 
 struct st_row_group_member_stats {
-  char channel_name[HOSTNAME_LENGTH];
+  char channel_name[CHANNEL_NAME_LENGTH];
   uint channel_name_length;
   char view_id[HOSTNAME_LENGTH];
   uint view_id_length;
-  char member_id[HOSTNAME_LENGTH];
+  char member_id[UUID_LENGTH];
   uint member_id_length;
   ulonglong trx_in_queue;
   ulonglong trx_checked;

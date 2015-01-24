@@ -190,8 +190,7 @@ bool get_gcs_group_member_stats(GROUP_REPLICATION_GROUP_MEMBER_STATS_INFO *info,
   //This means that the plugin never started
   if(cluster_member_manager == NULL)
   {
-    string empty_string("");
-    info->member_id= empty_string.c_str();
+    info->member_id= const_cast<char*>("");
   }
   else
   {
@@ -269,32 +268,12 @@ bool get_gcs_group_member_stats(GROUP_REPLICATION_GROUP_MEMBER_STATS_INFO *info,
 bool get_gcs_connection_status(GROUP_REPLICATION_CONNECTION_STATUS_INFO *info,
                                     Gcs_interface *gcs_module,
                                     char* gcs_group_pointer,
+                                    char *channel_name,
                                     bool is_gcs_running)
 {
+  info->channel_name= channel_name;
   info->group_name= gcs_group_pointer;
   info->service_state= is_gcs_running;
-
-  Gcs_statistics_interface* stats_if= NULL;
-
-  if(gcs_group_pointer != NULL)
-  {
-    string gcs_group_name(gcs_group_pointer);
-    Gcs_group_identifier group_id(gcs_group_name);
-
-    if(gcs_module != NULL)
-    {
-      stats_if= gcs_module->get_statistics(group_id);
-    }
-  }
-
-  if(stats_if != NULL)
-  {
-    info->last_message_timestamp= stats_if->get_last_message_timestamp();
-  }
-  else
-  {
-    info->last_message_timestamp= 0;
-  }
 
   return false;
 }
