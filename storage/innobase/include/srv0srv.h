@@ -479,6 +479,10 @@ row_merge_insert_index_tuples(). */
 extern PSI_stage_info	srv_stage_alter_table_insert;
 
 /** Performance schema stage event for monitoring ALTER TABLE progress
+row_log_apply(). */
+extern PSI_stage_info	srv_stage_alter_table_log_index;
+
+/** Performance schema stage event for monitoring ALTER TABLE progress
 row_log_table_apply(). */
 extern PSI_stage_info	srv_stage_alter_table_log_table;
 

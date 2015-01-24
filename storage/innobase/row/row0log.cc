@@ -3381,13 +3381,17 @@ corrupted:
 interrupted)
 @param[in,out]	index	index
 @param[in,out]	dup	for reporting duplicate key errors
+@param[in,out]	stage	performance schema accounting object, used by
+ALTER TABLE. If not NULL, then stage->inc() will be called for each block
+of log that is applied.
 @return DB_SUCCESS, or error code on failure */
 static
 dberr_t
 row_log_apply_ops(
 	const trx_t*		trx,
 	dict_index_t*		index,
-	row_merge_dup_t*	dup)
+	row_merge_dup_t*	dup,
+	ut_stage_alter_t*	stage)
 {
 	dberr_t		error;
 	const mrec_t*	mrec	= NULL;
@@ -3423,6 +3427,8 @@ next_block:
 	ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(index->online_log->head.bytes == 0);
+
+	stage->inc(row_log_progress_inc_per_block());
 
 	if (trx_is_interrupted(trx)) {
 		goto interrupted;
@@ -3702,12 +3708,16 @@ func_exit:
 interrupted)
 @param[in,out]	index	secondary index
 @param[in,out]	table	MySQL table (for reporting duplicates)
+@param[in,out]	stage	performance schema accounting object, used by
+ALTER TABLE. stage->begin_phase_log_index() will be called initially and then
+stage->inc() will be called for each block of log that is applied.
 @return DB_SUCCESS, or error code on failure */
 dberr_t
 row_log_apply(
-	const trx_t*	trx,
-	dict_index_t*	index,
-	struct TABLE*	table)
+	const trx_t*		trx,
+	dict_index_t*		index,
+	struct TABLE*		table,
+	ut_stage_alter_t*	stage)
 {
 	dberr_t		error;
 	row_log_t*	log;
@@ -3717,12 +3727,14 @@ row_log_apply(
 	ut_ad(dict_index_is_online_ddl(index));
 	ut_ad(!dict_index_is_clust(index));
 
+	stage->begin_phase_log_index();
+
 	log_free_check();
 
 	rw_lock_x_lock(dict_index_get_lock(index));
 
 	if (!dict_table_is_corrupted(index->table)) {
-		error = row_log_apply_ops(trx, index, &dup);
+		error = row_log_apply_ops(trx, index, &dup, stage);
 	} else {
 		error = DB_SUCCESS;
 	}
