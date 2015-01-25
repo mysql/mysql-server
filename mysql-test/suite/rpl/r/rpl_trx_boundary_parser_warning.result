@@ -5,7 +5,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection master]
 [connection slave]
 call mtr.add_suppression("An unexpected event sequence was detected by the IO thread");
-call mtr.add_suppression("GTID_LOG_EVENT is not expected");
+call mtr.add_suppression("GTID_LOG_EVENT .* is not expected in an event stream");
 call mtr.add_suppression("QUERY.* is not expected in an event stream");
 include/stop_slave.inc
 CHANGE MASTER TO MASTER_AUTO_POSITION= 0;
@@ -396,7 +396,6 @@ Note	3084	Replication thread(s) for channel '' are already stopped.
 DROP TABLE IF EXISTS t1, t2;
 RESET MASTER;
 RESET SLAVE;
-CHANGE MASTER TO MASTER_AUTO_POSITION= 1;
 include/start_slave.inc
 [connection master]
 DROP TABLE t1, t2;
