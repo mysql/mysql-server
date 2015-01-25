@@ -21,6 +21,7 @@
 #include "sql_array.h"   // Bounds_checked_array
 #include "trigger_def.h" // enum_trigger_variable_type
 #include "table_trigger_field_support.h" // Table_trigger_field_support
+#include "mysql/service_parser.h"
 
 class user_var_entry;
 
@@ -702,11 +703,20 @@ public:
 
   enum traverse_order { POSTFIX, PREFIX };
 
+  /**
+    @todo
+    -# Move this away from the Item class. It is a property of the
+    visitor in what direction the traversal is done, not of the visitee.
+
+    -# Make this two booleans instead. There are two orthogonal flags here.
+  */
   enum enum_walk
   {
     WALK_PREFIX=   0x01,
     WALK_POSTFIX=  0x02,
-    WALK_SUBQUERY= 0x04
+    WALK_SUBQUERY= 0x04,
+    WALK_SUBQUERY_PREFIX= 0x05,
+    WALK_SUBQUERY_POSTFIX= 0x06
   };
   
   /* Reuse size, only used by SP local variable assignment, otherwize 0 */
@@ -1497,6 +1507,7 @@ public:
       - to generate a view definition query (SELECT-statement);
       - to generate a SQL-query for EXPLAIN EXTENDED;
       - to generate a SQL-query to be shown in INFORMATION_SCHEMA;
+      - to generate a SQL-query that looks like a prepared statement for query_rewrite
       - debug.
 
     For more information about view definition query, INFORMATION_SCHEMA
@@ -1676,6 +1687,9 @@ public:
     table 'arg' that are referred to by the Item.
   */
   virtual bool add_field_to_set_processor(uchar * arg) { return false; }
+
+  /// A processor to handle the select lex visitor framework.
+  virtual bool visitor_processor(uchar *arg);
 
   /**
     Item::walk function. Set bit in table->cond_set for all fields of
@@ -2747,7 +2761,7 @@ public:
 
   virtual inline void print(String *str, enum_query_type query_type)
   {
-    str->append(STRING_WITH_LEN("NULL"));
+    str->append(query_type == QT_NORMALIZED_FORMAT ? "?" : "NULL");
   }
 
   Item *safe_charset_converter(const CHARSET_INFO *tocs);
@@ -3780,9 +3794,11 @@ public:
   }
   bool walk(Item_processor processor, enum_walk walk, uchar *arg)
   {
-    return ((walk & WALK_PREFIX) && (this->*processor)(arg)) ||
-           (*ref)->walk(processor, walk, arg) ||
-           ((walk & WALK_POSTFIX) && (this->*processor)(arg));
+    return
+      ((walk & WALK_PREFIX) && (this->*processor)(arg)) ||
+      // For having clauses 'ref' will consistently =NULL.
+      (ref != NULL ? (*ref)->walk(processor, walk, arg) :false) ||
+      ((walk & WALK_POSTFIX) && (this->*processor)(arg));
   }
   virtual Item* transform(Item_transformer, uchar *arg);
   virtual Item* compile(Item_analyzer analyzer, uchar **arg_p,
