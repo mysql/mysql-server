@@ -1142,6 +1142,8 @@ THD::THD(bool enable_plugins)
    is_commit_in_middle_of_statement(false),
    main_da(false),
    m_parser_da(false),
+   m_query_rewrite_plugin_da(false),
+   m_query_rewrite_plugin_da_ptr(&m_query_rewrite_plugin_da),
    m_stmt_da(&main_da)
 {
   mdl_context.init(this);
@@ -1881,6 +1883,7 @@ THD::~THD()
 #endif
 
   free_root(&main_mem_root, MYF(0));
+  
   DBUG_VOID_RETURN;
 }
 

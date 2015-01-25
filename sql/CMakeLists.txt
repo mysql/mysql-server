@@ -123,11 +123,14 @@ SET(SQL_SHARED_SOURCES
   parse_tree_items.cc
   parse_tree_node_base.cc
   parse_tree_nodes.cc
+  select_lex_visitor.cc
+  parser_service.cc
   partition_info.cc
   procedure.cc 
   protocol.cc
   records.cc
   rpl_handler.cc
+  rules_table_service.cc
   session_tracker.cc
   set_var.cc 
   sp.cc
@@ -176,6 +179,7 @@ SET(SQL_SHARED_SOURCES
   sql_plugin.cc
   sql_prepare.cc
   sql_profile.cc
+  sql_query_rewrite.cc
   sql_reload.cc
   sql_rename.cc
   sql_resolver.cc

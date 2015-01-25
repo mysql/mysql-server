@@ -768,7 +768,6 @@ public:
   virtual void cleanup_stmt();
 };
 
-
 class Prepared_statement;
 
 /**
@@ -776,6 +775,7 @@ class Prepared_statement;
 
   Prepared statements in Prepared_statement_map have unique id
   (guaranteed by id assignment in Prepared_statement::Prepared_statement).
+
   Non-empty statement names are unique too: attempt to insert a new statement
   with duplicate name causes older statement to be deleted.
 
@@ -1423,6 +1423,7 @@ private:
     The query associated with this statement.
   */
   LEX_CSTRING m_query_string;
+  String m_normalized_query;
 
   /**
     Currently selected catalog.
@@ -3067,6 +3068,21 @@ public:
   Diagnostics_area *get_parser_da()
   { return &m_parser_da; }
 
+
+  /**
+    Returns thread-local Diagnostics Area to be used by query rewrite plugins.
+    Query rewrite plugins use their own diagnostics area. The reason is that
+    they are invoked right before and right after parsing, and we don't want
+    conditions raised by plugins in either statement nor parser DA until we
+    know which type of statement we have parsed.
+
+    @note The diagnostics area is instantiated the first time it is asked for.
+  */
+  Diagnostics_area *get_query_rewrite_plugin_da()
+  {
+    return m_query_rewrite_plugin_da_ptr;
+  }  
+
   /**
     Push the given Diagnostics Area on top of the stack, making
     it the new first Diagnostics Area. Conditions in the new second
@@ -3817,6 +3833,25 @@ public:
   }
 
   /**
+    The current query in normalized form. The format is intended to be
+    identical to the digest text of performance_schema, but not limited in
+    size. In this case the parse tree is traversed as opposed to a (limited)
+    token buffer. The string is allocated by this Statement and will be
+    available until the next call to this function or this object is deleted.
+
+    @note We have no protection against out-of-memory errors as this function
+    relies on the Item::print() interface which does not propagate errors.
+
+    @return The current query in normalized form.
+  */
+  const String normalized_query()
+  {
+    m_normalized_query.mem_free();
+    lex->unit->print(&m_normalized_query, QT_NORMALIZED_FORMAT);
+    return m_normalized_query;
+  }
+
+  /**
     Assign a new value to thd->m_query_string.
     Protected with the LOCK_thd_query mutex.
   */
@@ -3974,6 +4009,9 @@ private:
   MEM_ROOT main_mem_root;
   Diagnostics_area main_da;
   Diagnostics_area m_parser_da;              /**< cf. get_parser_da() */
+  Diagnostics_area m_query_rewrite_plugin_da;
+  Diagnostics_area *m_query_rewrite_plugin_da_ptr;
+
   Diagnostics_area *m_stmt_da;
 
   /**
