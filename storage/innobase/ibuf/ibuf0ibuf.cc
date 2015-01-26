@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -2512,8 +2512,12 @@ ibuf_merge_pages(
 
 	/* Open a cursor to a randomly chosen leaf of the tree, at a random
 	position within the leaf */
+	bool available;
 
-	btr_pcur_open_at_rnd_pos(ibuf->index, BTR_SEARCH_LEAF, &pcur, &mtr);
+	available = btr_pcur_open_at_rnd_pos(ibuf->index, BTR_SEARCH_LEAF,
+					     &pcur, &mtr);
+	/* No one should make this index unavailable when server is running */
+	ut_a(available);
 
 	ut_ad(page_validate(btr_pcur_get_page(&pcur), ibuf->index));
 
@@ -3948,8 +3952,7 @@ ibuf_insert_to_index_page(
 		goto dump;
 	}
 
-	if (UNIV_UNLIKELY(rec_get_n_fields(rec, index)
-			  != dtuple_get_n_fields(entry))) {
+	if (!rec_n_fields_is_sane(index, rec, entry)) {
 		ib::warn() << "Trying to insert a record from the insert"
 			" buffer to an index page but the number of fields"
 			" does not match!";

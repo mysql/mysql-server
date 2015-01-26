@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,7 +19,7 @@
 #define SOCKET_CONNECTION_INCLUDED
 
 #include "my_global.h"               // uint
-#include "my_pthread.h"
+#include "my_thread.h"
 #include "pfs_socket_provider.h"
 #include "mysql/psi/mysql_socket.h"  // MYSQL_SOCKET
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,12 +28,12 @@
 */
 
 #include "sql_base.h"                           // close_mysql_tables
-#include "sql_parse.h"                        // check_identifier_name
+#include "sql_parse.h"                        // check_string_char_length
 #include "sql_table.h"                        // write_bin_log
 #include "records.h"          // init_read_record, end_read_record
-#include <my_pthread.h>
 #include "lock.h"                               // MYSQL_LOCK_IGNORE_TIMEOUT
 #include "log.h"
+#include "sql_plugin.h"                         // check_valid_path
 
 #ifdef HAVE_DLFCN_H
 #include <dlfcn.h>

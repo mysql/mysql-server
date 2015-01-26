@@ -2,7 +2,7 @@
 #define HA_PARTITION_INCLUDED
 
 /*
-   Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
 #include "sql_partition.h"      /* part_id_range, partition_element */
 #include "priority_queue.h"
 #include "key.h"
+#include "malloc_allocator.h"
 #include <vector>
 
 enum partition_keywords
@@ -184,7 +185,9 @@ private:
   uchar *m_rec0;                        // table->record[0]
   const uchar *m_err_rec;               // record which gave error
 
-  Priority_queue<uchar *, std::vector<uchar*>, Key_rec_less>
+  Priority_queue<uchar *,
+                 std::vector<uchar*, Malloc_allocator<uchar*> >,
+                 Key_rec_less>
     m_queue;                        // Prio queue used by sorted read
 
   /*

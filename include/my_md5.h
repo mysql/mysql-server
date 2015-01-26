@@ -1,7 +1,7 @@
 #ifndef MY_MD5_INCLUDED
 #define MY_MD5_INCLUDED
 
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,8 +17,7 @@
    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
 #include "m_string.h"
-
-#define MD5_HASH_SIZE 16 /* Hash size in bytes */
+#include "my_md5_size.h"
 
 /*
   Wrapper function for MD5 implementation.

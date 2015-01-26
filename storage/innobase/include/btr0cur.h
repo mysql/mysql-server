@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -267,8 +267,10 @@ btr_cur_open_at_index_side_with_no_latch_func(
 		f,i,c,lv,__FILE__,__LINE__,m)
 
 /**********************************************************************//**
-Positions a cursor at a randomly chosen position within a B-tree. */
-void
+Positions a cursor at a randomly chosen position within a B-tree.
+@return true if the index is available and we have put the cursor, false
+if the index is unavailable */
+bool
 btr_cur_open_at_rnd_pos_func(
 /*=========================*/
 	dict_index_t*	index,		/*!< in: index */
@@ -632,8 +634,10 @@ The estimates are stored in the array index->stat_n_diff_key_vals[] (indexed
 index->stat_n_sample_sizes[].
 If innodb_stats_method is nulls_ignored, we also record the number of
 non-null values for each prefix and stored the estimates in
-array index->stat_n_non_null_key_vals. */
-void
+array index->stat_n_non_null_key_vals.
+@return true if the index is available and we get the estimated numbers,
+false if the index is unavailable. */
+bool
 btr_estimate_number_of_different_key_vals(
 /*======================================*/
 	dict_index_t*	index);	/*!< in: index */
@@ -848,7 +852,8 @@ btr_cur_latch_leaves(
 
 /** In the pessimistic delete, if the page data size drops below this
 limit, merging it to a neighbor is tried */
-#define BTR_CUR_PAGE_COMPRESS_LIMIT	(UNIV_PAGE_SIZE / 2)
+#define BTR_CUR_PAGE_COMPRESS_LIMIT(index) \
+	((UNIV_PAGE_SIZE * (ulint)((index)->merge_threshold)) / 100)
 
 /** A slot in the path array. We store here info on a search path down the
 tree. Each slot contains data on a single level of the tree. */

@@ -1,0 +1,37 @@
+--echo #
+--echo # Test of stored procedures. Queries within them will not be rewritten.
+--echo #
+
+--source suite/query_rewrite_plugins/include/have_plugin_rewriter.inc
+
+CREATE TABLE t1 ( a INTEGER, b CHAR(1) );
+INSERT INTO t1 VALUES ( 1, 'a' ), ( 2, 'b' ), ( 3, 'c' );
+
+--source suite/query_rewrite_plugins/include/install_rewriter.inc
+
+INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
+VALUES ( 'SELECT ?, ?, ?', 'SELECT ?, ?' );
+
+CALL query_rewrite.flush_rewrite_rules();
+
+SELECT 1, 2, 3;
+
+DELIMITER //;
+
+CREATE PROCEDURE p1() SELECT 1, 2, 3//
+
+CREATE PROCEDURE p2()
+BEGIN
+  SELECT 1, 2, 3;
+  SELECT 4, 5, 6;
+END//
+
+DELIMITER ;//
+
+CALL p1();
+CALL p2();
+
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+DROP TABLE t1;
+--source suite/query_rewrite_plugins/include/uninstall_rewriter.inc

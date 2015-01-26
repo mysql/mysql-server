@@ -55,83 +55,58 @@ select "--- Local --" as "";
 # be time dependend. Better than nothing.
 #
 let $MYSQLD_DATADIR= `select @@datadir`;
---replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
---replace_regex /SQL_LOAD_MB-[0-9]-[0-9]/SQL_LOAD_MB-#-#/
---exec $MYSQL_BINLOG --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ $MYSQLD_DATADIR/master-bin.000001
+--let $mysqlbinlog_parameters= --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ $MYSQLD_DATADIR/master-bin.000001
+--source include/mysqlbinlog.inc
 
 # this should not fail but shouldn't produce any working statements
---disable_query_log
-select "--- Broken LOAD DATA --" as "";
---enable_query_log
---replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
---replace_regex /SQL_LOAD_MB-[0-9]-[0-9]/SQL_LOAD_MB-#-#/
---exec $MYSQL_BINLOG --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ $MYSQLD_DATADIR/master-bin.000002 2> /dev/null
+--echo --- Broken LOAD DATA --
+--let $mysqlbinlog_parameters= --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ $MYSQLD_DATADIR/master-bin.000002 2> /dev/null
+--source include/mysqlbinlog.inc
 
 # this should show almost nothing
---disable_query_log
-select "--- --database --" as "";
---enable_query_log
---replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
---replace_regex /SQL_LOAD_MB-[0-9]-[0-9]/SQL_LOAD_MB-#-#/
---exec $MYSQL_BINLOG --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --database=nottest $MYSQLD_DATADIR/master-bin.000001 2> /dev/null
+--echo --- --database --
+--let $mysqlbinlog_parameters= --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --database=nottest $MYSQLD_DATADIR/master-bin.000001 2> /dev/null
+--source include/mysqlbinlog.inc
 
 # this test for start-position option
---disable_query_log
-select "--- --start-position --" as "";
---enable_query_log
---replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
---replace_regex /SQL_LOAD_MB-[0-9]-[0-9]/SQL_LOAD_MB-#-#/
---exec $MYSQL_BINLOG --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --start-position=$binlog_start_pos $MYSQLD_DATADIR/master-bin.000002
+--echo --- --start-position --
+--let $mysqlbinlog_parameters= --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --start-position=$binlog_start_pos $MYSQLD_DATADIR/master-bin.000002
+--source include/mysqlbinlog.inc
 
 # These are tests for remote binlog.
 # They should return the same as previous test.
 
---disable_query_log
-select "--- Remote --" as "";
---enable_query_log
+--echo --- Remote --
 
 # This is broken now
---replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
---replace_regex /SQL_LOAD_MB-[0-9]-[0-9]/SQL_LOAD_MB-#-#/
---exec $MYSQL_BINLOG --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000001
+--let $mysqlbinlog_parameters= --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000001
+--source include/mysqlbinlog.inc
 
 # This is broken too
---disable_query_log
-select "--- Broken LOAD DATA --" as "";
---enable_query_log
---replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
---replace_regex /SQL_LOAD_MB-[0-9]-[0-9]/SQL_LOAD_MB-#-#/
---exec $MYSQL_BINLOG --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000002 2> /dev/null
+--echo --- Broken LOAD DATA --
+--let $mysqlbinlog_parameters= --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000002 2> /dev/null
+--source include/mysqlbinlog.inc
 
 # And this too ! (altough it is documented)
---disable_query_log
-select "--- --database --" as "";
---enable_query_log
---replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
---replace_regex /SQL_LOAD_MB-[0-9]-[0-9]/SQL_LOAD_MB-#-#/
---exec $MYSQL_BINLOG --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT --database=nottest master-bin.000001 2> /dev/null
+--echo --- --database --
+--let $mysqlbinlog_parameters= --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT --database=nottest master-bin.000001 2> /dev/null
+--source include/mysqlbinlog.inc
 
 # Strangely but this works
---disable_query_log
-select "--- --start-position --" as "";
---enable_query_log
---replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
---replace_regex /SQL_LOAD_MB-[0-9]-[0-9]/SQL_LOAD_MB-#-#/
---exec $MYSQL_BINLOG --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --read-from-remote-server --start-position=$binlog_start_pos --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000002
+--echo --- --start-position --
+--let $mysqlbinlog_parameters= --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --read-from-remote-server --start-position=$binlog_start_pos --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000002
+--source include/mysqlbinlog.inc
 
 # Bug#7853 mysqlbinlog does not accept input from stdin
---disable_query_log
-select "--- reading stdin --" as "";
---enable_query_log
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
---replace_regex /SQL_LOAD_MB-[0-9]-[0-9]/SQL_LOAD_MB-#-#/
---exec $MYSQL_BINLOG --short-form - < $MYSQL_TEST_DIR/std_data/trunc_binlog.000001
+--echo --- reading stdin --
+--let $mysqlbinlog_parameters= --short-form - < $MYSQL_TEST_DIR/std_data/trunc_binlog.000001
+--source include/mysqlbinlog.inc
 
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
---replace_regex /SQL_LOAD_MB-[0-9]-[0-9]/SQL_LOAD_MB-#-#/
 # postion is constant to correspond to an event in pre-recorded binlog
 --let $binlog_start_pos=79
---exec $MYSQL_BINLOG --short-form --start-position=$binlog_start_pos - < $MYSQL_TEST_DIR/std_data/trunc_binlog.000001
+--let $mysqlbinlog_parameters= --short-form --start-position=$binlog_start_pos - < $MYSQL_TEST_DIR/std_data/trunc_binlog.000001
+--source include/mysqlbinlog.inc
+
 drop table t1,t2;
 
 #
@@ -201,8 +176,8 @@ call p1();
 drop procedure p1;
 --error ER_SP_DOES_NOT_EXIST
 call p1();
---replace_regex /SQL_LOAD_MB-[0-9]-[0-9]/SQL_LOAD_MB-#-#/
---exec $MYSQL_BINLOG --short-form $MYSQLD_DATADIR/master-bin.000008
+--let $mysqlbinlog_parameters= --short-form $MYSQLD_DATADIR/master-bin.000008
+--source include/mysqlbinlog.inc
 --exec $MYSQL_BINLOG --short-form $MYSQLD_DATADIR/master-bin.000008 | $MYSQL
 call p1();
 drop procedure p1;
@@ -236,9 +211,9 @@ load data infile '../../std_data/loaddata6.dat' into table t1 character set koi8
 select hex(a) from t1;
 drop table t1;
 flush logs;
---replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
---replace_regex /SQL_LOAD_MB-[0-9]-[0-9]/SQL_LOAD_MB-#-#/
---exec $MYSQL_BINLOG --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ $MYSQLD_DATADIR/master-bin.000010
+
+--let $mysqlbinlog_parameters= --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ $MYSQLD_DATADIR/master-bin.000010
+--source include/mysqlbinlog.inc
 
 #
 # Bug#28293 missed '#' sign in the hex dump when the dump length
@@ -454,17 +429,22 @@ FLUSH LOGS;
 
 --echo #
 --echo # Test if the 'BEGIN', 'ROLLBACK' and 'COMMIT' are output if the database specified exists
---exec $MYSQL_BINLOG --database=test --short-form $MYSQLTEST_VARDIR/std_data/binlog_transaction.000001
+--let $mysqlbinlog_parameters= --database=test --short-form $MYSQLTEST_VARDIR/std_data/binlog_transaction.000001
+--source include/mysqlbinlog.inc
 --echo #
 --echo # Test if the 'BEGIN', 'ROLLBACK' and 'COMMIT' are output if the database specified does not exist
---exec $MYSQL_BINLOG --database=not_exist --short-form $MYSQLTEST_VARDIR/std_data/binlog_transaction.000001
+--let $mysqlbinlog_parameters= --database=not_exist --short-form $MYSQLTEST_VARDIR/std_data/binlog_transaction.000001
+--source include/mysqlbinlog.inc
 
 --echo #
 --echo # Test if the 'SAVEPOINT', 'ROLLBACK TO' are output if the database specified exists
---exec $MYSQL_BINLOG --database=db1 --short-form $MYSQLTEST_VARDIR/std_data/binlog_savepoint.000001
+--let $mysqlbinlog_parameters= --database=db1 --short-form $MYSQLTEST_VARDIR/std_data/binlog_savepoint.000001
+--source include/mysqlbinlog.inc
 --echo #
 --echo # Test if the 'SAVEPOINT', 'ROLLBACK TO' are output if the database specified does not exist
---exec $MYSQL_BINLOG --database=not_exist --short-form $MYSQLTEST_VARDIR/std_data/binlog_savepoint.000001
+--let $mysqlbinlog_parameters= --database=not_exist --short-form $MYSQLTEST_VARDIR/std_data/binlog_savepoint.000001
+--source include/mysqlbinlog.inc
+
 
 --echo End of 5.0 tests
 
@@ -567,7 +547,8 @@ eval SET GLOBAL SERVER_ID = $old_server_id;
 --echo # Bug#12688860 : SECURITY RECOMMENDATION: PASSWORDS ON CLI
 --echo #
 
---exec $MYSQL_BINLOG -uroot --password="" std_data/master-bin.000001 2>&1
+--let $mysqlbinlog_parameters= -uroot --password="" std_data/master-bin.000001 2>&1
+--source include/mysqlbinlog.inc
 
 --echo
 --echo End of tests

@@ -26,16 +26,25 @@
 #     Return only the gtids with the given uuid from the GTID set
 #   GTID_COUNT(gtid_set)
 #     Return the number of gtids in the gtid_set.
+#   GTID_FROM_GTID_SET(gtid_set)
+#     Return one GTID from the given GTID set.
 #   GTID_NEXT_GENERATED(gtid_set, uuid)
 #     Return the next GNO that will be generated for the given uuid.
-#   GTID_NEXT_GENERATED_SET(gtid_set, uuid, count)
+#   GTID_NEXT_GENERATED_MULTIPLE(gtid_set, uuid, count)
 #     Return the GTID set consisting of the next 'count' GTIDs that will
 #     be generated for the given uuid.
+#   GTID_NEXT_GENERATED_SET(base, diff)
+#     Return the GTID set obtained by replacing any substring of diff
+#     that has the form 'UUID:+N' by
+#     GTID_NEXT_GENERATED_MULTIPLE(base, UUID, N).
 #   GTID_COMPARE(old, diff, new)
 #     The same as GTID_IS_DISJOINT_UNION, except it has the following
 #     additional feature: if diff begins by '~', then it returns true
 #     if 'old' is the disjoint union of 'new' and 'diff' (where the
 #     tilde is removed).
+#   GTID_EXECUTED_FROM_TABLE()
+#     Return a canonicalized Gtid_set containing the GTIDs in the
+#     mysql.gtid_executed table.
 #   NUMBER_TO_UUID(N)
 #     Given a number N between 0 and 99, returns a uuid consisting of the
 #     number repeated, like:
@@ -182,6 +191,18 @@ BEGIN
   RETURN result;
 END|
 
+# Returns one GTID from a GTID set.
+CREATE FUNCTION GTID_FROM_GTID_SET(gtid_set TEXT(10000))
+RETURNS VARCHAR(100)
+BEGIN
+  DECLARE normalized VARCHAR(10000) DEFAULT GTID_NORMALIZE(gtid_set);
+  DECLARE end_of_number INT
+    DEFAULT LEAST(LOCATE2('-', normalized, 38),
+                  LOCATE2(':', normalized, 38),
+                  LOCATE2(',', normalized, 38));
+  RETURN SUBSTR(normalized, 1, end_of_number - 1);
+END|
+
 # Return the next GNO (numeric component) to be generated for the given UUID
 CREATE FUNCTION GTID_NEXT_GENERATED(gtid_set TEXT(10000), uuid TEXT(100))
 RETURNS INT
@@ -209,7 +230,7 @@ END|
 # Return a GTID set consisting of the the next 'count' GTIDs that will
 # be generated for the given UUID.
 # This is inefficient if count is big, consider optimizing it if needed.
-CREATE FUNCTION GTID_NEXT_GENERATED_SET(gtid_set TEXT(10000), uuid TEXT(100), count INT)
+CREATE FUNCTION GTID_NEXT_GENERATED_MULTIPLE(gtid_set TEXT(10000), uuid TEXT(100), count INT)
 RETURNS TEXT(10000)
 BEGIN
   DECLARE result TEXT(10000) DEFAULT '';
@@ -224,13 +245,50 @@ BEGIN
   RETURN result;
 END|
 
+# Return the GTID set obtained by replacing any substring of diff that
+# has the form 'UUID:+N' by GTID_NEXT_GENERATED_MULTIPLE(base, UUID, N).
+CREATE FUNCTION GTID_NEXT_GENERATED_SET(base VARCHAR(10000), diff VARCHAR(10000))
+RETURNS TEXT(10000)
+BEGIN
+  DECLARE colon_plus_pos INT DEFAULT LOCATE(':+', diff);
+  DECLARE uuid TEXT(36);
+  DECLARE end_of_number_pos INT;
+  DECLARE number INT;
+  WHILE colon_plus_pos != 0 DO
+    SET uuid = SUBSTR(diff, colon_plus_pos - 36, 36);
+    SET end_of_number_pos= LEAST(LOCATE2(':', diff, colon_plus_pos + 2), LOCATE2(',', diff, colon_plus_pos + 2));
+    SET number = SUBSTR(diff, colon_plus_pos + 2, end_of_number_pos - colon_plus_pos - 2);
+    SET diff = CONCAT(SUBSTR(diff, 1, colon_plus_pos - 1), SUBSTR(diff, end_of_number_pos), ',', GTID_NEXT_GENERATED_MULTIPLE(base, uuid, number));
+    SET colon_plus_pos = LOCATE(':+', diff);
+  END WHILE;
+  RETURN GTID_NORMALIZE(diff);
+END|
+
 # Return true if gtid_set 'new' is obtained by adding 'diff' to 'old',
-# and all three are disjoint.  If 'diff' is prefixed by a tilde, then
-# returns true if 'old' is obtained by adding 'diff' (with the tilde
-# removed) from 'new'.
+# and all three are disjoint.
+#
+# If 'diff' is prefixed by a tilde, then returns true if 'old' is
+# obtained by adding 'diff' (with the tilde removed) from 'new'.
+#
+# If 'diff' contains substrings of the format UUID:+N, then this is
+# interpreted as GTID_NEXT_GENERATED_SET(old, diff).
 CREATE FUNCTION GTID_COMPARE(old TEXT(10000), diff TEXT(10000), new TEXT(10000))
-RETURNS INT
-RETURN IF(SUBSTR(diff, 1, 1) != '~', GTID_IS_DISJOINT_UNION(old, diff, new), GTID_IS_DISJOINT_UNION(new, SUBSTR(diff, 2), old))|
+RETURNS TEXT(10000)
+RETURN IF(SUBSTR(diff, 1, 1) != '~',
+          GTID_IS_DISJOINT_UNION(old, GTID_NEXT_GENERATED_SET(old, diff), new),
+          GTID_IS_DISJOINT_UNION(new, GTID_NEXT_GENERATED_SET(old, SUBSTR(diff, 2)), old))|
+
+# Read a Gtid_set from gtid_executed table
+CREATE FUNCTION GTID_EXECUTED_FROM_TABLE()
+RETURNS VARCHAR(10000)
+BEGIN
+  DECLARE old_group_concat_max_len INT DEFAULT @@SESSION.GROUP_CONCAT_MAX_LEN;
+  DECLARE tmp TEXT(100000);
+  SET @@SESSION.GROUP_CONCAT_MAX_LEN = 100000;
+  SELECT GROUP_CONCAT(CONCAT(source_uuid, ':', interval_start, '-', interval_end) SEPARATOR ',') FROM mysql.gtid_executed INTO tmp;
+  SET @@SESSION.GROUP_CONCAT_MAX_LEN = old_group_concat_max_len;
+  RETURN GTID_NORMALIZE(tmp);
+END|
 
 # convert strings like '1:4-5,97:1' to
 # '01010101-0101-0101-0101-010101010101:4-5,97979797-9797-9797-9797-979797979797:1'
@@ -257,9 +315,12 @@ BEGIN
     SET n = SUBSTR(str, pos + 1, colon - pos - 1);
     # convert number to uuid
     SET nn = REPEAT(LPAD(n, 2, '0'), 2);
-    SET _uuid = CONCAT(nn, nn, '-', nn, '-', nn, '-', nn, '-', nn, nn, nn);
-    # replace number by uuid
-    SET str = CONCAT(SUBSTR(str, 1, pos), _uuid, SUBSTR(str, colon));
+    # length != 4 happens if the string already contains a uuid
+    IF LENGTH(nn) = 4 THEN
+      SET _uuid = CONCAT(nn, nn, '-', nn, '-', nn, '-', nn, '-', nn, nn, nn);
+      # replace number by uuid
+      SET str = CONCAT(SUBSTR(str, 1, pos), _uuid, SUBSTR(str, colon));
+    END IF;
     # find next substring to replace
     SET comma = LOCATE(',', str, pos + 1), tilde = LOCATE('~', str, pos + 1);
     SET pos = IF(comma != 0 AND (tilde = 0 OR comma < tilde), comma, tilde);

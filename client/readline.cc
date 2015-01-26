@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@
 #include <m_string.h>
 #include <my_dir.h>
 #include "my_readline.h"
+#include "my_thread_local.h"
 
 static bool init_line_buffer(LINE_BUFFER *buffer,File file,ulong size,
 			    ulong max_size);

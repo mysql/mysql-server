@@ -19,7 +19,11 @@
 #     Name of the connection to connect to.
 #
 #   $rpl_connection_silent
-#     Do not print the connection name unless $rpl_debug is set.
+#     Only print the connection name if $rpl_debug is set.
+#
+#   $rpl_connection_silent_if_same
+#     Only print the connection name if it differs from the previous
+#     one, or if $rpl_debug is set.
 #
 #   $rpl_debug
 #     By default, the connection name is printed only when this file
@@ -33,22 +37,33 @@ if (!$rpl_connection_name)
   --die ERROR IN TEST: you must set $rpl_connection_name before sourcing rpl_connection.inc
 }
 
-# This is the same as "if (!$_rpl_include_file_depth || $rpl_debug)",
-# but the mysqltest language doesn't have boolean operations.
-
-if ($rpl_debug)
+# Print connection name if $rpl_debug is set.
+# Otherwise, if we are outside any include file: if silent don't
+# print; if silent_if_same and connection does not change don't print;
+# otherwise print.
+--let $_rc_print_connection_name= 0
+if (!$_include_file_depth)
 {
-  --echo [connection $rpl_connection_name]
-}
-if (!$rpl_debug)
-{
-  if (!$_include_file_depth)
+  --let $_rc_print_connection_name= 1
+  if ($rpl_connection_silent_if_same)
   {
-    if (!$rpl_connection_silent)
+    if ($rpl_connection_name == $CURRENT_CONNECTION)
     {
-      --echo [connection $rpl_connection_name]
+      --let $_rc_print_connection_name= 0
     }
   }
+  if ($rpl_connection_silent)
+  {
+    --let $_rc_print_connection_name= 0
+  }
+}
+if ($rpl_debug)
+{
+  --let $_rc_print_connection_name= 1
+}
+if ($_rc_print_connection_name)
+{
+  --echo [connection $rpl_connection_name]
 }
 
 --connection $rpl_connection_name

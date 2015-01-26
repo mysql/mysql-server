@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,6 +14,7 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "event_queue.h"
+
 #include "event_data_objects.h"
 #include "event_db_repository.h"
 #include "events.h"
@@ -42,7 +43,10 @@
 */
 
 Event_queue::Event_queue()
-  :next_activation_at(0),
+  :queue(Event_queue_less(),
+         Malloc_allocator<Event_queue_element*>
+         (key_memory_Event_scheduler_scheduler_param)),
+   next_activation_at(0),
    mutex_last_locked_at_line(0),
    mutex_last_unlocked_at_line(0),
    mutex_last_attempted_lock_at_line(0),

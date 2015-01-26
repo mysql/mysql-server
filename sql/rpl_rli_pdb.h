@@ -582,5 +582,9 @@ TABLE* mts_move_temp_tables_to_thd(THD*, TABLE*);
 // Auxiliary function
 TABLE* mts_move_temp_tables_to_thd(THD*, TABLE*, enum_mts_parallel_type);
 
+bool append_item_to_jobs(slave_job_item *job_item,
+                         Slave_worker *w, Relay_log_info *rli);
+Slave_job_item* de_queue(Slave_jobs_queue *jobs, Slave_job_item *ret);
+
 #endif // HAVE_REPLICATION
 #endif

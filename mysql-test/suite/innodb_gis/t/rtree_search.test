@@ -25,30 +25,30 @@ delimiter ;|
 CALL insert_t1(1000);
 select count(*) from t1;
 
-set @g1 = GeomFromText('Polygon((0 0,0 1000,1000 1000,1000 0,0 0))');
+set @g1 = ST_GeomFromText('Polygon((0 0,0 1000,1000 1000,1000 0,0 0))');
 
-select count(*) from t1 where Within(t1.c2, @g1);
+select count(*) from t1 where MBRWithin(t1.c2, @g1);
 
-set @g1 = GeomFromText('Polygon((0 0,0 100,100 100,100 0,0 0))');
-select count(*) from t1 where Within(t1.c2, @g1);
+set @g1 = ST_GeomFromText('Polygon((0 0,0 100,100 100,100 0,0 0))');
+select count(*) from t1 where MBRWithin(t1.c2, @g1);
 
-set @g1 = GeomFromText('Polygon((10 10,10 800,800 800,800 10,10 10))');
-select count(*) from t1 where Within(t1.c2, @g1);
+set @g1 = ST_GeomFromText('Polygon((10 10,10 800,800 800,800 10,10 10))');
+select count(*) from t1 where MBRWithin(t1.c2, @g1);
 
-set @g1 = GeomFromText('Polygon((100 100,100 800,800 800,800 100,100 100))');
-select count(*) from t1 where Within(t1.c2, @g1);
+set @g1 = ST_GeomFromText('Polygon((100 100,100 800,800 800,800 100,100 100))');
+select count(*) from t1 where MBRWithin(t1.c2, @g1);
 
 #SET DEBUG='+d, rtr_pessimistic_position';
-#select count(*) from t1 where Within(t1.c2, @g1);
+#select count(*) from t1 where MBRWithin(t1.c2, @g1);
 #SET DEBUG='-d, rtr_pessimistic_position';
 
 # Equality search
-set @g1 =  GeomFromText('Point(1 1)');
-select count(*) from t1 where equals(t1.c2, @g1);
+set @g1 =  ST_GeomFromText('Point(1 1)');
+select count(*) from t1 where MBRequals(t1.c2, @g1);
 
-# Disjoint search
-set @g1 = GeomFromText('Polygon((0 0,0 100,100 100,100 0,0 0))');
-select count(*) from t1 where disjoint(t1.c2, @g1);
+# MBRDisjoint search
+set @g1 = ST_GeomFromText('Polygon((0 0,0 100,100 100,100 0,0 0))');
+select count(*) from t1 where MBRdisjoint(t1.c2, @g1);
 
 # Clean up.
 DROP PROCEDURE insert_t1;
@@ -59,24 +59,24 @@ let $1=150;
 let $2=150;
 while ($1)
 {
-  eval INSERT INTO t1  VALUES ($1, GeomFromText('LineString($1 $1, $2 $2)'));
+  eval INSERT INTO t1  VALUES ($1, ST_GeomFromText('LineString($1 $1, $2 $2)'));
   dec $1;
   inc $2;
 }
 
 select count(*) from t1;
 
-set @g1 = GeomFromText('Polygon((0 0,0 1000,1000 1000,1000 0,0 0))');
-select count(*) from t1 where within(t1.c2, @g1);
+set @g1 = ST_GeomFromText('Polygon((0 0,0 1000,1000 1000,1000 0,0 0))');
+select count(*) from t1 where MBRwithin(t1.c2, @g1);
 truncate t1;
 
-INSERT INTO t1  VALUES (1, GeomFromText('LineString(2 2, 150 150)'));
-INSERT INTO t1  VALUES (1, GeomFromText('LineString(3 3, 160 160)'));
-INSERT INTO t1  VALUES (1, GeomFromText('LineString(4 4, 170 170)'));
-INSERT INTO t1  VALUES (1, GeomFromText('LineString(5 5, 180 180)'));
-INSERT INTO t1  VALUES (1, GeomFromText('LineString(6 6, 190 190)'));
-INSERT INTO t1  VALUES (1, GeomFromText('LineString(7 7, 200 200)'));
-INSERT INTO t1  VALUES (1, GeomFromText('LineString(8 8, 210 210)'));
+INSERT INTO t1  VALUES (1, ST_GeomFromText('LineString(2 2, 150 150)'));
+INSERT INTO t1  VALUES (1, ST_GeomFromText('LineString(3 3, 160 160)'));
+INSERT INTO t1  VALUES (1, ST_GeomFromText('LineString(4 4, 170 170)'));
+INSERT INTO t1  VALUES (1, ST_GeomFromText('LineString(5 5, 180 180)'));
+INSERT INTO t1  VALUES (1, ST_GeomFromText('LineString(6 6, 190 190)'));
+INSERT INTO t1  VALUES (1, ST_GeomFromText('LineString(7 7, 200 200)'));
+INSERT INTO t1  VALUES (1, ST_GeomFromText('LineString(8 8, 210 210)'));
 
 insert into t1 select * from t1;
 insert into t1 select * from t1;
@@ -90,20 +90,20 @@ insert into t1 select * from t1;
 insert into t1 select * from t1;
 insert into t1 select * from t1;
 
-# Testing "touches"
+# Testing "MBRtouches"
 # This is apparently now treated as "intersects"
-set @g1 = GeomFromText('Polygon((0 0,0 2, 2 2, 2 0, 0 0))');
-select count(*) from t1 where touches(t1.c2, @g1);
+set @g1 = ST_GeomFromText('Polygon((0 0,0 2, 2 2, 2 0, 0 0))');
+select count(*) from t1 where MBRtouches(t1.c2, @g1);
 
-set @g1 = GeomFromText('Polygon((0 0,0 200,200 200,200 0,0 0))');
-select count(*) from t1 where Within(t1.c2, @g1);
+set @g1 = ST_GeomFromText('Polygon((0 0,0 200,200 200,200 0,0 0))');
+select count(*) from t1 where MBRWithin(t1.c2, @g1);
 
-# Test equals
-set @g1 = GeomFromText('LineString(2 2, 150 150)');
-select count(*) from t1 where equals(t1.c2, @g1);
+# Test MBRequals
+set @g1 = ST_GeomFromText('LineString(2 2, 150 150)');
+select count(*) from t1 where MBRequals(t1.c2, @g1);
 
 # Test store procedure with open cursor
-set @g1 = GeomFromText('Polygon((0 0,0 200,200 200,200 0,0 0))');
+set @g1 = ST_GeomFromText('Polygon((0 0,0 200,200 200,200 0,0 0))');
 create table t3 (a int) engine = innodb;
 
 delimiter |;
@@ -113,7 +113,7 @@ BEGIN
   DECLARE done INT DEFAULT FALSE;
   DECLARE a INT;
 
-  DECLARE cur1 CURSOR FOR SELECT c1 from t1 where  Within(t1.c2, @g1);
+  DECLARE cur1 CURSOR FOR SELECT c1 from t1 where  MBRWithin(t1.c2, @g1);
   DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
 
   OPEN cur1;

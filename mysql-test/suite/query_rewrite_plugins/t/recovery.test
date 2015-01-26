@@ -1,0 +1,35 @@
+--echo #
+--echo # Test of recovery. We load some rewrite rule and restart the server.
+--echo # The rewrite rule should now be loaded.
+--echo #
+--source suite/query_rewrite_plugins/include/have_plugin_rewriter.inc
+--source suite/query_rewrite_plugins/include/install_rewriter.inc
+
+--echo # checks that the plugin is well installed
+SELECT plugin_name, plugin_type
+FROM information_schema.plugins
+WHERE plugin_name = 'Rewriter';
+
+INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
+VALUES ( 'SELECT "Rewrite"', 'SELECT "Rewritten"' );
+
+CALL query_rewrite.flush_rewrite_rules();
+SELECT * FROM query_rewrite.rewrite_rules;
+
+SELECT 'Rewrite';
+
+--echo #
+--echo # Restart the server
+--echo #
+
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server 10
+--source include/wait_until_disconnected.inc
+
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+SELECT 'Rewrite';
+
+--source suite/query_rewrite_plugins/include/uninstall_rewriter.inc

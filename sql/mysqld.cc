@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,7 +13,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
+#include "mysqld.h"
 
 #include <vector>
 #include <algorithm>
@@ -64,7 +64,6 @@
 #include "sql_servers.h"  // servers_free, servers_init
 #include "init.h"         // unireg_init
 #include "derror.h"       // init_errmessage
-#include "derror.h"       // init_errmessage
 #include "des_key_file.h" // load_des_key_file
 #include "sql_manager.h"  // stop_handle_manager, start_handle_manager
 #include "bootstrap.h"    // bootstrap
@@ -89,14 +88,17 @@
 #include "sql_callback.h"
 #include "opt_trace_context.h"
 #include "opt_costconstantcache.h"
+#include "sql_plugin.h"                         // plugin_shutdown
 
-#include "mysqld.h"
 #include "my_default.h"
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #include "../storage/perfschema/pfs_server.h"
 #include <pfs_idle_provider.h>
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
+
+#include "pfs_file_provider.h"
+#include "mysql/psi/mysql_file.h"
 
 #include <mysql/psi/mysql_idle.h>
 #include <mysql/psi/mysql_socket.h>
@@ -124,6 +126,8 @@
 #include "socket_connection.h"          // Mysqld_socket_listener
 #include "mysqld_thd_manager.h"         // Global_THD_manager
 #include "my_getopt.h"
+#include "item_cmpfunc.h"               // arg_cmp_func
+#include "item_strfunc.h"               // Item_func_uuid
 
 #ifdef _WIN32
 #include "named_pipe.h"
@@ -308,7 +312,7 @@ char *opt_log_syslog_facility;
   Thread handle of shutdown event handler thread.
   It is used as argument during thread join.
 */
-HANDLE shutdown_thr_handle= NULL;
+my_thread_handle shutdown_thr_handle;
 #endif
 uint host_cache_size;
 ulong log_error_verbosity= 3; // have a non-zero value during early start-up
@@ -477,6 +481,11 @@ ulong expire_logs_days = 0;
   in the sp_cache for one connection.
 */
 ulong stored_program_cache_size= 0;
+/**
+  Compatibility option to prevent auto upgrade of old temporals
+  during certain ALTER TABLE operations.
+*/
+my_bool avoid_temporal_upgrade;
 
 const double log_10[] = {
   1e000, 1e001, 1e002, 1e003, 1e004, 1e005, 1e006, 1e007, 1e008, 1e009,
@@ -627,8 +636,8 @@ mysql_mutex_t LOCK_des_key_file;
 #endif
 mysql_rwlock_t LOCK_grant, LOCK_sys_init_connect, LOCK_sys_init_slave;
 mysql_rwlock_t LOCK_system_variables_hash;
-pthread_t signal_thread_id= 0;
-pthread_attr_t connection_attrib;
+my_thread_handle signal_thread_id;
+my_thread_attr_t connection_attrib;
 mysql_mutex_t LOCK_server_started;
 mysql_cond_t COND_server_started;
 mysql_mutex_t LOCK_compress_gtid_table;
@@ -907,7 +916,7 @@ struct rand_struct sql_rand; ///< used by sql_class.cc:THD::THD()
 #ifndef EMBEDDED_LIBRARY
 struct passwd *user_info= NULL;
 #ifndef _WIN32
-static pthread_t main_thread_id;
+static my_thread_t main_thread_id;
 #endif // !_WIN32
 #endif // !EMBEDDED_LIBRARY
 
@@ -974,7 +983,7 @@ struct st_VioSSLFd *ssl_acceptor_fd;
 
 /* Function declarations */
 
-pthread_handler_t signal_hand(void *arg);
+extern "C" void *signal_hand(void *arg);
 static int mysql_init_variables(void);
 static int get_options(int *argc_ptr, char ***argv_ptr);
 static void add_terminator(vector<my_option> *options);
@@ -1207,7 +1216,7 @@ void kill_mysql(void)
     */
   }
 #else
-  if (pthread_kill(signal_thread_id, SIGTERM))
+  if (pthread_kill(signal_thread_id.thread, SIGTERM))
   {
     DBUG_PRINT("error",("Got error %d from pthread_kill",errno)); /* purecov: inspected */
   }
@@ -1238,12 +1247,12 @@ extern "C" void unireg_abort(int exit_code)
     sql_print_error("Aborting\n");
 
 #ifndef _WIN32
-  if (signal_thread_id != 0)
+  if (signal_thread_id.thread != 0)
   {
-    pthread_kill(signal_thread_id, SIGTERM);
-    pthread_join(signal_thread_id, NULL);
+    pthread_kill(signal_thread_id.thread, SIGTERM);
+    my_thread_join(&signal_thread_id, NULL);
   }
-  signal_thread_id= 0;
+  signal_thread_id.thread= 0;
 #endif
 
   clean_up(!opt_help && (exit_code || !opt_bootstrap)); /* purecov: inspected */
@@ -1423,7 +1432,7 @@ void clean_up(bool print_message)
 
   mysql_client_plugin_deinit();
   finish_client_errs();
-  (void) my_error_unregister(ER_ERROR_FIRST, ER_ERROR_LAST); // finish server errs
+  deinit_errmessage(); // finish server errs
   DBUG_PRINT("quit", ("Error messages freed"));
 
   free_charsets();
@@ -1784,7 +1793,7 @@ static inline void decrement_handler_count()
 }
 
 
-pthread_handler_t socket_conn_event_handler(void *arg)
+extern "C" void *socket_conn_event_handler(void *arg)
 {
   my_thread_init();
 
@@ -1798,7 +1807,7 @@ pthread_handler_t socket_conn_event_handler(void *arg)
 }
 
 
-pthread_handler_t named_pipe_conn_event_handler(void *arg)
+extern "C" void *named_pipe_conn_event_handler(void *arg)
 {
   my_thread_init();
 
@@ -1812,7 +1821,7 @@ pthread_handler_t named_pipe_conn_event_handler(void *arg)
 }
 
 
-pthread_handler_t shared_mem_conn_event_handler(void *arg)
+extern "C" void *shared_mem_conn_event_handler(void *arg)
 {
   my_thread_init();
 
@@ -1828,7 +1837,7 @@ pthread_handler_t shared_mem_conn_event_handler(void *arg)
 
 void setup_conn_event_handler_threads()
 {
-  pthread_t hThread;
+  my_thread_handle hThread;
 
   DBUG_ENTER("handle_connections_methods");
 
@@ -2104,10 +2113,10 @@ void my_init_signals()
 static void start_signal_handler()
 {
   int error;
-  pthread_attr_t thr_attr;
+  my_thread_attr_t thr_attr;
   DBUG_ENTER("start_signal_handler");
 
-  (void) pthread_attr_init(&thr_attr);
+  (void) my_thread_attr_init(&thr_attr);
   (void) pthread_attr_setscope(&thr_attr, PTHREAD_SCOPE_SYSTEM);
   (void) pthread_attr_setdetachstate(&thr_attr, PTHREAD_CREATE_JOINABLE);
 
@@ -2120,13 +2129,13 @@ static void start_signal_handler()
   */
   guardize= my_thread_stack_size;
 #endif
-  (void) pthread_attr_setstacksize(&thr_attr, my_thread_stack_size + guardize);
+  (void) my_thread_attr_setstacksize(&thr_attr, my_thread_stack_size + guardize);
 
   /*
     Set main_thread_id so that SIGTERM/SIGQUIT/SIGKILL can interrupt
     the socket listener successfully.
   */
-  main_thread_id= pthread_self();
+  main_thread_id= my_thread_self();
 
   mysql_mutex_lock(&LOCK_start_signal_handler);
   if ((error=
@@ -2140,14 +2149,14 @@ static void start_signal_handler()
   mysql_cond_wait(&COND_start_signal_handler, &LOCK_start_signal_handler);
   mysql_mutex_unlock(&LOCK_start_signal_handler);
 
-  (void) pthread_attr_destroy(&thr_attr);
+  (void) my_thread_attr_destroy(&thr_attr);
   DBUG_VOID_RETURN;
 }
 
 
 /** This threads handles all signals and alarms. */
 /* ARGSUSED */
-pthread_handler_t signal_hand(void *arg __attribute__((unused)))
+extern "C" void *signal_hand(void *arg __attribute__((unused)))
 {
   my_thread_init();
 
@@ -2185,7 +2194,7 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
     if (cleanup_done)
     {
       my_thread_end();
-      pthread_exit(0);        // Safety
+      my_thread_exit(0);      // Safety
       return NULL;            // Avoid compiler warnings
     }
     switch (sig) {
@@ -2223,7 +2232,7 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
 
         close_connections();
         my_thread_end();
-        pthread_exit(0);
+        my_thread_exit(0);
         return NULL;  // Avoid compiler warnings
       }
       break;
@@ -3243,10 +3252,11 @@ static int init_thread_environment()
 #endif // _WIN32
 #endif // !EMBEDDED_LIBRARY
   /* Parameter for threads created for connections */
-  (void) pthread_attr_init(&connection_attrib);
-  (void) pthread_attr_setdetachstate(&connection_attrib,
-             PTHREAD_CREATE_DETACHED);
+  (void) my_thread_attr_init(&connection_attrib);
+#ifndef _WIN32
+  pthread_attr_setdetachstate(&connection_attrib, PTHREAD_CREATE_DETACHED);
   pthread_attr_setscope(&connection_attrib, PTHREAD_SCOPE_SYSTEM);
+#endif
 
   DBUG_ASSERT(! THR_THD_initialized);
   DBUG_ASSERT(! THR_MALLOC_initialized);
@@ -3265,7 +3275,7 @@ static int init_thread_environment()
 #if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
 static unsigned long openssl_id_function()
 {
-  return (unsigned long) pthread_self();
+  return (unsigned long) my_thread_self();
 }
 
 
@@ -3330,6 +3340,126 @@ static void openssl_lock(int mode, openssl_lock_t *lock, const char *file,
 }
 #endif /* HAVE_OPENSSL */
 
+#ifndef EMBEDDED_LIBRARY
+ssl_artifacts_status auto_detect_ssl()
+{
+  MY_STAT cert_stat, cert_key, ca_stat;
+  ssl_artifacts_status ret_status= SSL_ARTIFACTS_VIA_OPTIONS;
+
+  if ((!opt_ssl_cert || !opt_ssl_cert[0]) &&
+      (!opt_ssl_key || !opt_ssl_key[0]) &&
+      (!opt_ssl_ca || !opt_ssl_ca[0]) &&
+      (!opt_ssl_capath || !opt_ssl_capath[0]) &&
+      (!opt_ssl_crl || !opt_ssl_crl[0]) &&
+      (!opt_ssl_crlpath || !opt_ssl_crlpath[0]) &&
+      (!opt_ssl_cipher || !opt_ssl_cipher[0]))
+  {
+    if (my_stat(DEFAULT_SSL_SERVER_CERT, &cert_stat, MYF(0)) &&
+        my_stat(DEFAULT_SSL_SERVER_KEY, &cert_key, MYF(0)) &&
+        my_stat(DEFAULT_SSL_CA_CERT, &ca_stat, MYF(0)))
+    {
+      opt_ssl_ca= (char *)DEFAULT_SSL_CA_CERT;
+      opt_ssl_cert= (char *)DEFAULT_SSL_SERVER_CERT;
+      opt_ssl_key= (char *)DEFAULT_SSL_SERVER_KEY;
+
+      ret_status= SSL_ARTIFACTS_AUTO_DETECTED;
+    }
+    else
+    {
+      ret_status= SSL_ARTIFACTS_NOT_FOUND;
+    }
+  }
+  return ret_status;
+}
+
+int warn_one(const char *file_name)
+{
+  FILE *fp;
+  char *issuer= NULL;
+  char *subject= NULL;
+
+  if (!(fp= my_fopen(file_name, O_RDONLY | O_BINARY, MYF(MY_WME))))
+  {
+    sql_print_error("Error opening CA certificate file");
+    return 1;
+  }
+
+  X509 *ca_cert= PEM_read_X509(fp, 0, 0, 0);
+
+  if (!ca_cert)
+  {
+    /* We are not interested in anything other than X509 certificates */
+    my_fclose(fp, MYF(MY_WME));
+    return 0;
+  }
+
+  issuer= X509_NAME_oneline(X509_get_issuer_name(ca_cert), 0, 0);
+  subject= X509_NAME_oneline(X509_get_subject_name(ca_cert), 0, 0);
+
+  if (!strcmp(issuer, subject))
+  {
+    sql_print_warning("CA certificate %s is self signed.", file_name);
+  }
+
+  OPENSSL_free(issuer);
+  OPENSSL_free(subject);
+  X509_free(ca_cert);
+  my_fclose(fp, MYF(MY_WME));
+  return 0;
+
+}
+
+int warn_self_signed_ca()
+{
+  int ret_val= 0;
+  if (opt_ssl_ca && opt_ssl_ca[0])
+  {
+    if (warn_one(opt_ssl_ca))
+      return 1;
+  }
+#ifndef HAVE_YASSL
+  if (opt_ssl_capath && opt_ssl_capath[0])
+  {
+    /* We have ssl-capath. So search all files in the dir */
+    MY_DIR *ca_dir;
+    uint file_count;
+    DYNAMIC_STRING file_path;
+    char dir_separator[FN_REFLEN];
+    size_t dir_path_length;
+
+    init_dynamic_string(&file_path, opt_ssl_capath, FN_REFLEN, FN_REFLEN);
+    dir_separator[0]= FN_LIBCHAR;
+    dir_separator[1]= 0;
+    dynstr_append(&file_path, dir_separator);
+    dir_path_length= file_path.length;
+
+    if (!(ca_dir= my_dir(opt_ssl_capath,MY_WANT_STAT|MY_DONT_SORT|MY_WME)))
+    {
+      sql_print_error("Error accessing directory pointed by --ssl-capath");
+      return 1;
+    }
+
+    for (file_count = 0; file_count < ca_dir->number_off_files; file_count++)
+    {
+      if (!MY_S_ISDIR(ca_dir->dir_entry[file_count].mystat->st_mode))
+      {
+        file_path.length= dir_path_length;
+        dynstr_append(&file_path, ca_dir->dir_entry[file_count].name);
+        if ((ret_val= warn_one(file_path.str)))
+          break;
+      }
+    }
+    my_dirend(ca_dir);
+    dynstr_free(&file_path);
+
+    ca_dir= 0;
+    memset(&file_path, 0, sizeof(file_path));
+  }
+#endif /* HAVE_YASSL */
+  return ret_val;
+}
+
+#endif /* EMBEDDED_LIBRARY */
 
 static int init_ssl()
 {
@@ -3339,14 +3469,21 @@ static int init_ssl()
 #endif
   ssl_start();
 #ifndef EMBEDDED_LIBRARY
+
   if (opt_use_ssl)
   {
-    enum enum_ssl_init_error error= SSL_INITERR_NOERROR;
-
+    ssl_artifacts_status auto_detection_status= auto_detect_ssl();
+    if (auto_detection_status == SSL_ARTIFACTS_AUTO_DETECTED)
+      sql_print_information("Found %s, %s and %s in data directory."
+                            "Trying to enable SSL support using them.",
+                            DEFAULT_SSL_CA_CERT, DEFAULT_SSL_SERVER_CERT,
+                            DEFAULT_SSL_SERVER_KEY);
 #ifndef HAVE_YASSL
-    if (do_auto_cert_generation() == false)
+    if (do_auto_cert_generation(auto_detection_status) == false)
       return 1;
 #endif
+
+    enum enum_ssl_init_error error= SSL_INITERR_NOERROR;
 
     /* having ssl_acceptor_fd != 0 signals the use of SSL */
     ssl_acceptor_fd= new_VioSSLAcceptorFd(opt_ssl_key, opt_ssl_cert,
@@ -3361,6 +3498,12 @@ static int init_ssl()
       sql_print_warning("SSL error: %s", sslGetErrString(error));
       opt_use_ssl = 0;
       have_ssl= SHOW_OPTION_DISABLED;
+    }
+    else
+    {
+      /* Check if CA certificate is self signed */
+      if (warn_self_signed_ca())
+        return 1;
     }
   }
   else
@@ -3578,7 +3721,7 @@ initialize_storage_engine(char *se_name, const char *se_kind,
   plugin_ref plugin;
   handlerton *hton;
   if ((plugin= ha_resolve_by_name(0, &name, FALSE)))
-    hton= plugin_data(plugin, handlerton*);
+    hton= plugin_data<handlerton*>(plugin);
   else
   {
     sql_print_error("Unknown/unsupported storage engine: %s", se_name);
@@ -3954,7 +4097,7 @@ a file name for --log-bin-index option", opt_binlog_index_name);
     unireg_abort(0);
 
   /* if the errmsg.sys is not loaded, terminate to maintain behaviour */
-  if (!my_default_lc_messages->errmsgs->errmsgs[0][0])
+  if (!my_default_lc_messages->errmsgs->is_loaded())
   {
     sql_print_error("Unable to read errmsg.sys file");
     unireg_abort(1);
@@ -4121,7 +4264,7 @@ a file name for --log-bin-index option", opt_binlog_index_name);
 #ifndef EMBEDDED_LIBRARY
 #ifdef _WIN32
 
-pthread_handler_t handle_shutdown(void *arg)
+extern "C" void *handle_shutdown(void *arg)
 {
   MSG msg;
   my_thread_init();
@@ -4133,7 +4276,7 @@ pthread_handler_t handle_shutdown(void *arg)
     abort_loop= true;
     close_connections();
     my_thread_end();
-    pthread_exit(0);
+    my_thread_exit(0);
   }
   return 0;
 }
@@ -4142,19 +4285,15 @@ pthread_handler_t handle_shutdown(void *arg)
 static void create_shutdown_thread()
 {
   hEventShutdown=CreateEvent(0, FALSE, FALSE, shutdown_event_name);
-  pthread_attr_t thr_attr;
+  my_thread_attr_t thr_attr;
   DBUG_ENTER("create_shutdown_thread");
-  pthread_t shutdown_thread;
 
-  pthread_attr_init(&thr_attr);
-  pthread_attr_setscope(&thr_attr, PTHREAD_SCOPE_SYSTEM);
-  pthread_attr_setdetachstate(&thr_attr, PTHREAD_CREATE_JOINABLE);
+  my_thread_attr_init(&thr_attr);
 
-  if (pthread_create_get_handle(&shutdown_thread, &thr_attr,
-                                handle_shutdown, 0, &shutdown_thr_handle))
+  if (my_thread_create(&shutdown_thr_handle, &thr_attr, handle_shutdown, 0))
     sql_print_warning("Can't create thread to handle shutdown requests"
                       " (errno= %d)", errno);
-  pthread_attr_destroy(&thr_attr);
+  my_thread_attr_destroy(&thr_attr);
   // On "Stop Service" we have to do regular shutdown
   Service.SetShutdownEvent(hEventShutdown);
 }
@@ -4358,10 +4497,12 @@ int mysqld_main(int argc, char **argv)
   my_init_signals();
 
   size_t guardize= 0;
+#ifndef _WIN32
   int retval= pthread_attr_getguardsize(&connection_attrib, &guardize);
   DBUG_ASSERT(retval == 0);
   if (retval != 0)
     guardize= my_thread_stack_size;
+#endif
 
 #if defined(__ia64__) || defined(__ia64)
   /*
@@ -4371,13 +4512,13 @@ int mysqld_main(int argc, char **argv)
   guardize= my_thread_stack_size;
 #endif
 
-  pthread_attr_setstacksize(&connection_attrib,
+  my_thread_attr_setstacksize(&connection_attrib,
                             my_thread_stack_size + guardize);
 
   {
     /* Retrieve used stack size;  Needed for checking stack overflows */
     size_t stack_size= 0;
-    pthread_attr_getstacksize(&connection_attrib, &stack_size);
+    my_thread_attr_getstacksize(&connection_attrib, &stack_size);
 
     /* We must check if stack_size = 0 as Solaris 2.9 can return 0 here */
     if (stack_size && stack_size < (my_thread_stack_size + guardize))
@@ -4487,10 +4628,11 @@ int mysqld_main(int argc, char **argv)
 
       if (mysql_bin_log.init_gtid_sets(&logged_gtids_binlog,
                                        &purged_gtids_binlog,
-                                       NULL,
                                        opt_master_verify_checksum,
                                        true/*true=need lock*/,
-                                       true) ||
+                                       NULL/*trx_parser*/,
+                                       NULL/*gtid_partial_trx*/,
+                                       true/*is_server_starting*/) ||
           gtid_state->fetch_gtids(executed_gtids) == -1)
         unireg_abort(1);
 
@@ -4553,8 +4695,6 @@ int mysqld_main(int argc, char **argv)
         unireg_abort(1);
       }
 
-      global_sid_lock->unlock();
-
       /*
         Write the previous set of gtids at this point because during
         the creation of the binary log this is not done as we cannot
@@ -4563,30 +4703,23 @@ int mysqld_main(int argc, char **argv)
 
         /Alfranio
       */
-      if (gtid_mode > 0)
-      {
-        global_sid_lock->wrlock();
-        if (gtid_mode > GTID_MODE_UPGRADE_STEP_1 ||
-            !logged_gtids_binlog.is_empty())
-        {
-          Previous_gtids_log_event prev_gtids_ev(&logged_gtids_binlog);
-          global_sid_lock->unlock();
+      Previous_gtids_log_event prev_gtids_ev(&logged_gtids_binlog);
 
-          (prev_gtids_ev.common_footer)->checksum_alg=
-             static_cast<enum_binlog_checksum_alg>(binlog_checksum_options);
+      global_sid_lock->unlock();
 
-          if (prev_gtids_ev.write(mysql_bin_log.get_log_file()))
-            unireg_abort(1);
-          mysql_bin_log.add_bytes_written(prev_gtids_ev.common_header->data_written);
+      (prev_gtids_ev.common_footer)->checksum_alg=
+        static_cast<enum_binlog_checksum_alg>(binlog_checksum_options);
 
-          if (flush_io_cache(mysql_bin_log.get_log_file()) ||
-              mysql_file_sync(mysql_bin_log.get_log_file()->file, MYF(MY_WME)))
-            unireg_abort(1);
-          mysql_bin_log.update_binlog_end_pos();
-        }
-        else
-          global_sid_lock->unlock();
-      }
+      if (prev_gtids_ev.write(mysql_bin_log.get_log_file()))
+        unireg_abort(1);
+      mysql_bin_log.add_bytes_written(
+        prev_gtids_ev.common_header->data_written);
+
+      if (flush_io_cache(mysql_bin_log.get_log_file()) ||
+          mysql_file_sync(mysql_bin_log.get_log_file()->file, MYF(MY_WME)))
+        unireg_abort(1);
+      mysql_bin_log.update_binlog_end_pos();
+
       (void) RUN_HOOK(server_state, after_engine_recovery, (NULL));
     }
     else if (gtid_mode > GTID_MODE_OFF)
@@ -4645,7 +4778,9 @@ int mysqld_main(int argc, char **argv)
   {
     abort_loop= true;
 
-    (void) pthread_kill(signal_thread_id, SIGTERM);
+#ifndef _WIN32
+    (void) pthread_kill(signal_thread_id.thread, SIGTERM);
+#endif
 
     delete_pid_file(MYF(MY_WME));
 
@@ -4817,15 +4952,15 @@ int mysqld_main(int argc, char **argv)
   DBUG_PRINT("info", ("Waiting for shutdown proceed"));
   int ret= 0;
 #ifdef _WIN32
-  if (shutdown_thr_handle)
-    ret= pthread_join_with_handle(shutdown_thr_handle);
-  shutdown_thr_handle= NULL;
+  if (shutdown_thr_handle.handle)
+    ret= my_thread_join(&shutdown_thr_handle, NULL);
+  shutdown_thr_handle.handle= NULL;
   if (0 != ret)
     sql_print_warning("Could not join shutdown thread. error:%d", ret);
 #else
-  if (signal_thread_id != 0)
-    ret= pthread_join(signal_thread_id, NULL);
-  signal_thread_id= 0;
+  if (signal_thread_id.thread != 0)
+    ret= my_thread_join(&signal_thread_id, NULL);
+  signal_thread_id.thread= 0;
   if (0 != ret)
     sql_print_warning("Could not join signal_thread. error:%d", ret);
 #endif
@@ -6650,7 +6785,7 @@ static int mysql_init_variables(void)
   table_alias_charset= &my_charset_bin;
   character_set_filesystem= &my_charset_bin;
 
-  opt_specialflag= SPECIAL_ENGLISH;
+  opt_specialflag= 0;
   mysql_home_ptr= mysql_home;
   pidfile_name_ptr= pidfile_name;
   log_error_file_ptr= log_error_file;
@@ -7157,6 +7292,11 @@ pfs_error:
     sql_print_warning("The use of InnoDB is mandatory since MySQL 5.7. "
                       "The former options like '--innodb=0/1/OFF/ON' or "
                       "'--skip-innodb' are ignored.");
+  case OPT_AVOID_TEMPORAL_UPGRADE:
+    push_deprecated_warn_no_replacement(NULL, "avoid_temporal_upgrade");
+    break;
+  case OPT_SHOW_OLD_TEMPORALS:
+    push_deprecated_warn_no_replacement(NULL, "show_old_temporals");
     break;
   }
   return 0;
@@ -8060,7 +8200,7 @@ static PSI_cond_info all_server_conds[]=
 
 PSI_thread_key key_thread_bootstrap, key_thread_handle_manager, key_thread_main,
   key_thread_one_connection, key_thread_signal_hand,
-  key_thread_compress_gtid_table;
+  key_thread_compress_gtid_table, key_thread_parser_service;
 
 #ifdef HAVE_MY_TIMER
 PSI_thread_key key_thread_timer_notifier;
@@ -8082,7 +8222,8 @@ static PSI_thread_info all_server_threads[]=
   { &key_thread_main, "main", PSI_FLAG_GLOBAL},
   { &key_thread_one_connection, "one_connection", 0},
   { &key_thread_signal_hand, "signal_handler", PSI_FLAG_GLOBAL},
-  { &key_thread_compress_gtid_table, "compress_gtid_table", PSI_FLAG_GLOBAL}
+  { &key_thread_compress_gtid_table, "compress_gtid_table", PSI_FLAG_GLOBAL},
+  { &key_thread_parser_service, "parser_service", PSI_FLAG_GLOBAL}
 };
 
 PSI_file_key key_file_map;

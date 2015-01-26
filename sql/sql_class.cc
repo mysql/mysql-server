@@ -23,45 +23,35 @@
 **
 *****************************************************************************/
 
-#include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
-#include "binlog.h"
 #include "sql_class.h"
-#include "sql_cache.h"                          // query_cache_abort
-#include "sql_base.h"                           // close_thread_tables
-#include "sql_time.h"                         // date_time_format_copy
-#include "auth_common.h"                      // acl_getroot
-                                              // NO_ACCESS,
-                                              // acl_getroot_no_password
-#include "sql_base.h"                         // close_temporary_tables
-#include "sql_handler.h"                      // mysql_ha_cleanup
-#include "rpl_rli.h"
-#include "rpl_rli_pdb.h"
-#include "rpl_filter.h"
-#include "rpl_record.h"
-#include "rpl_slave.h"
-#include <my_bitmap.h>
-#include "log_event.h"
-#include "sql_audit.h"
-#include <m_ctype.h>
-#include <sys/stat.h>
-#include <mysys_err.h>
-#include <limits.h>
 
-#include "sp_rcontext.h"
-#include "sp_cache.h"
-#include "transaction.h"
-#include "debug_sync.h"
-#include "sql_parse.h"                          // is_update_query
-#include "sql_callback.h"
-#include "lock.h"
-#include "mysqld.h"
-#include "connection_handler_manager.h"   // Connection_handler_manager
-#include "mysqld_thd_manager.h"           // Global_THD_manager
-#include "sql_timer.h"                          // thd_timer_destroy
-#include "parse_tree_nodes.h"
-#include "sql_prepare.h"                  // Prepared_statement
+#include "mysys_err.h"                       // EE_DELETE
+#include "connection_handler_manager.h"      // Connection_handler_manager
+#include "debug_sync.h"                      // DEBUG_SYNC
+#include "lock.h"                            // mysql_lock_abort_for_thread
+#include "mysqld_thd_manager.h"              // Global_THD_manager
+#include "parse_tree_nodes.h"                // PT_select_var
+#include "rpl_rli.h"                         // Relay_log_info
+#include "rpl_rli_pdb.h"                     // Slave_worker
+#include "sp_cache.h"                        // sp_cache_clear
+#include "sp_rcontext.h"                     // sp_rcontext
+#include "sql_audit.h"                       // mysql_audit_release
+#include "sql_base.h"                        // close_temporary_tables
+#include "sql_callback.h"                    // MYSQL_CALLBACK
+#include "sql_handler.h"                     // mysql_ha_cleanup
+#include "sql_parse.h"                       // is_update_query
+#include "sql_plugin.h"                      // plugin_unlock
+#include "sql_prepare.h"                     // Prepared_statement
+#include "sql_time.h"                        // my_timeval_trunc
+#include "sql_timer.h"                       // thd_timer_destroy
+#include "transaction.h"                     // trans_rollback
 
-#include <mysql/psi/mysql_statement.h>
+#include "pfs_file_provider.h"
+#include "mysql/psi/mysql_file.h"
+
+#include "pfs_idle_provider.h"
+#include "mysql/psi/mysql_idle.h"
+
 #include "mysql/psi/mysql_ps.h"
 
 using std::min;
@@ -700,7 +690,7 @@ int thd_store_globals(THD* thd)
 
   @retval      Reference to thread attribute for connection threads
 */
-pthread_attr_t *get_connection_attrib(void)
+my_thread_attr_t *get_connection_attrib(void)
 {
   return &connection_attrib;
 }
@@ -1050,40 +1040,16 @@ char *thd_security_context(THD *thd, char *buffer, size_t length,
       dropped. So, we may have a warning that trigger does not have DEFINER
       attribute during DROP TABLE operation).
 
-  @return TRUE if the condition is handled.
+  @return true if the condition is handled.
 */
 bool Drop_table_error_handler::handle_condition(THD *thd,
                                                 uint sql_errno,
                                                 const char* sqlstate,
                                                 Sql_condition::enum_severity_level *level,
-                                                const char* msg,
-                                                Sql_condition ** cond_hdl)
+                                                const char* msg)
 {
-  *cond_hdl= NULL;
   return ((sql_errno == EE_DELETE && my_errno == ENOENT) ||
           sql_errno == ER_TRG_NO_DEFINER);
-}
-
-
-/**
-  Handle an error from MDL_context::upgrade_lock() and mysql_lock_tables().
-  Ignore ER_LOCK_ABORTED and ER_LOCK_DEADLOCK errors.
-*/
-
-bool
-MDL_deadlock_and_lock_abort_error_handler::
-handle_condition(THD *thd,
-                 uint sql_errno,
-                 const char *sqlstate,
-                 Sql_condition::enum_severity_level *level,
-                 const char* msg,
-                 Sql_condition **cond_hdl)
-{
-  *cond_hdl= NULL;
-  if (sql_errno == ER_LOCK_ABORTED || sql_errno == ER_LOCK_DEADLOCK)
-    m_need_reopen= true;
-
-  return m_need_reopen;
 }
 
 
@@ -1163,14 +1129,21 @@ THD::THD(bool enable_plugins)
 #ifndef EMBEDDED_LIBRARY
    // No need to instrument, highly unlikely to have that many plugins.
    audit_class_plugins(PSI_NOT_INSTRUMENTED),
+   audit_class_mask(PSI_NOT_INSTRUMENTED),
 #endif
 #if defined(ENABLED_DEBUG_SYNC)
    debug_sync_control(0),
 #endif /* defined(ENABLED_DEBUG_SYNC) */
    m_enable_plugins(enable_plugins),
+#ifdef HAVE_GTID_NEXT_LIST
    owned_gtid_set(global_sid_map),
+#endif
+   skip_gtid_rollback(false),
+   is_commit_in_middle_of_statement(false),
    main_da(false),
    m_parser_da(false),
+   m_query_rewrite_plugin_da(false),
+   m_query_rewrite_plugin_da_ptr(&m_query_rewrite_plugin_da),
    m_stmt_da(&main_da)
 {
   mdl_context.init(this);
@@ -1244,7 +1217,6 @@ THD::THD(bool enable_plugins)
   slave_net = 0;
   set_command(COM_CONNECT);
   *scramble= '\0';
-  skip_gtid_rollback= false;
 
   /* Call to init() below requires fully initialized Open_tables_state. */
   reset_open_tables_state();
@@ -1301,6 +1273,7 @@ void THD::set_transaction(Transaction_ctx *transaction_ctx)
   m_transaction.reset(transaction_ctx);
 }
 
+
 void THD::push_internal_handler(Internal_error_handler *handler)
 {
   if (m_internal_handler)
@@ -1309,35 +1282,26 @@ void THD::push_internal_handler(Internal_error_handler *handler)
     m_internal_handler= handler;
   }
   else
-  {
     m_internal_handler= handler;
-  }
 }
+
 
 bool THD::handle_condition(uint sql_errno,
                            const char* sqlstate,
                            Sql_condition::enum_severity_level *level,
-                           const char* msg,
-                           Sql_condition ** cond_hdl)
+                           const char* msg)
 {
   if (!m_internal_handler)
-  {
-    *cond_hdl= NULL;
-    return FALSE;
-  }
+    return false;
 
   for (Internal_error_handler *error_handler= m_internal_handler;
        error_handler;
        error_handler= error_handler->m_prev_internal_handler)
   {
-    if (error_handler->handle_condition(this, sql_errno, sqlstate, level, msg,
-					cond_hdl))
-    {
-      return TRUE;
-    }
+    if (error_handler->handle_condition(this, sql_errno, sqlstate, level, msg))
+      return true;
   }
-
-  return FALSE;
+  return false;
 }
 
 
@@ -1459,44 +1423,32 @@ Sql_condition* THD::raise_condition(uint sql_errno,
                                     Sql_condition::enum_severity_level level,
                                     const char* msg)
 {
-  Diagnostics_area *da= get_stmt_da();
-  Sql_condition *cond= NULL;
   DBUG_ENTER("THD::raise_condition");
 
   if (!(variables.option_bits & OPTION_SQL_NOTES) &&
       (level == Sql_condition::SL_NOTE))
     DBUG_RETURN(NULL);
 
-  /*
-    TODO: replace by DBUG_ASSERT(sql_errno != 0) once all bugs similar to
-    Bug#36768 are fixed: a SQL condition must have a real (!=0) error number
-    so that it can be caught by handlers.
-  */
-  if (sql_errno == 0)
+  DBUG_ASSERT(sql_errno != 0);
+  if (sql_errno == 0) /* Safety in release build */
     sql_errno= ER_UNKNOWN_ERROR;
   if (msg == NULL)
     msg= ER(sql_errno);
   if (sqlstate == NULL)
    sqlstate= mysql_errno_to_sqlstate(sql_errno);
 
-  switch (level)
-  {
-  case Sql_condition::SL_NOTE:
-  case Sql_condition::SL_WARNING:
-    got_warning= 1;
-    break;
-  case Sql_condition::SL_ERROR:
-    break;
-  default:
-    DBUG_ASSERT(FALSE);
-  }
+  if (handle_condition(sql_errno, sqlstate, &level, msg))
+    DBUG_RETURN(NULL);
 
-  if (handle_condition(sql_errno, sqlstate, &level, msg, &cond))
-    DBUG_RETURN(cond);
+  if (level == Sql_condition::SL_NOTE || level == Sql_condition::SL_WARNING)
+    got_warning= true;
 
+  query_cache.abort(&query_cache_tls);
+
+  Diagnostics_area *da= get_stmt_da();
   if (level == Sql_condition::SL_ERROR)
   {
-    is_slave_error=  1; // needed to catch query errors during replication
+    is_slave_error= true; // needed to catch query errors during replication
 
     if (!da->is_error())
     {
@@ -1505,13 +1457,12 @@ Sql_condition* THD::raise_condition(uint sql_errno,
     }
   }
 
-  query_cache.abort(&query_cache_tls);
-
-  /* 
-     Avoid pushing a condition for fatal out of memory errors as this will 
-     require memory allocation and therefore might fail. Non fatal out of 
-     memory errors can occur if raised by SIGNAL/RESIGNAL statement.
+  /*
+    Avoid pushing a condition for fatal out of memory errors as this will
+    require memory allocation and therefore might fail. Non fatal out of
+    memory errors can occur if raised by SIGNAL/RESIGNAL statement.
   */
+  Sql_condition *cond= NULL;
   if (!(is_fatal_error && (sql_errno == EE_OUTOFMEMORY ||
                            sql_errno == ER_OUTOFMEMORY)))
   {
@@ -1568,7 +1519,7 @@ void thd_get_xid(const MYSQL_THD thd, MYSQL_XID *xid)
 #if defined(_WIN32)
 extern "C"   THD *_current_thd_noinline(void)
 {
-  return my_pthread_get_THR_THD();
+  return my_thread_get_THR_THD();
 }
 #endif
 /*
@@ -1640,9 +1591,9 @@ void THD::init(void)
   session_tracker.init(this->charset());
   session_tracker.enable(this);
 
-  owned_gtid.sidno= 0;
-  owned_gtid.gno= 0;
+  owned_gtid.clear();
   owned_sid.clear();
+  owned_gtid.dbug_print(NULL, "set owned_gtid (clear) in THD::init");
 }
 
 
@@ -1932,6 +1883,7 @@ THD::~THD()
 #endif
 
   free_root(&main_mem_root, MYF(0));
+  
   DBUG_VOID_RETURN;
 }
 
@@ -2202,8 +2154,8 @@ bool THD::store_globals()
   */
   DBUG_ASSERT(thread_stack);
 
-  if (my_pthread_set_THR_THD(this) ||
-      my_pthread_set_THR_MALLOC(&mem_root))
+  if (my_thread_set_THR_THD(this) ||
+      my_thread_set_THR_MALLOC(&mem_root))
     return 1;
   /*
     mysys_var is concurrently readable by a killer thread.
@@ -2221,7 +2173,7 @@ bool THD::store_globals()
     This allows us to move THD to different threads if needed.
   */
   mysys_var->id= m_thread_id;
-  real_id= pthread_self();                      // For debugging
+  real_id= my_thread_self();                      // For debugging
 
   return 0;
 }
@@ -2239,8 +2191,8 @@ bool THD::restore_globals()
   DBUG_ASSERT(thread_stack);
 
   /* Undocking the thread specific data. */
-  my_pthread_set_THR_THD(NULL);
-  my_pthread_set_THR_MALLOC(NULL);
+  my_thread_set_THR_THD(NULL);
+  my_thread_set_THR_MALLOC(NULL);
 
   return 0;
 }

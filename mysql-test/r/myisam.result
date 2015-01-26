@@ -2370,12 +2370,12 @@ DROP TABLE t1;
 # (same content / differen checksum)
 #
 CREATE TABLE t1 (line LINESTRING NOT NULL) engine=myisam;
-INSERT INTO t1 VALUES (GeomFromText("POINT(0 0)"));
+INSERT INTO t1 VALUES (ST_GeomFromText("POINT(0 0)"));
 checksum table t1;
 Table	Checksum
 test.t1	326284887
 CREATE TABLE t2 (line LINESTRING NOT NULL) engine=myisam;
-INSERT INTO t2 VALUES (GeomFromText("POINT(0 0)"));
+INSERT INTO t2 VALUES (ST_GeomFromText("POINT(0 0)"));
 checksum table t2;
 Table	Checksum
 test.t2	326284887

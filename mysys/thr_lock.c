@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -68,7 +68,7 @@ lock at the same time as multiple read locks.
 */
 
 #include "mysys_priv.h"
-
+#include "my_sys.h"
 #include "thr_lock.h"
 #include "mysql/psi/mysql_table.h"
 #include <m_string.h>
@@ -1439,8 +1439,8 @@ static void *test_thread(void *arg)
 
 int main(int argc __attribute__((unused)),char **argv __attribute__((unused)))
 {
-  pthread_t tid;
-  pthread_attr_t thr_attr;
+  my_thread_handle tid;
+  my_thread_attr_t thr_attr;
   int i,*param,error;
   MY_INIT(argv[0]);
   if (argc > 1 && argv[1][0] == '-' && argv[1][1] == '#')
@@ -1467,18 +1467,20 @@ int main(int argc __attribute__((unused)),char **argv __attribute__((unused)))
     locks[i].copy_status=  test_copy_status;
     locks[i].get_status=   test_get_status;
   }
-  if ((error=pthread_attr_init(&thr_attr)))
+  if ((error=my_thread_attr_init(&thr_attr)))
   {
     my_message_stderr(0, "Got error %d from pthread_attr_init",errno);
     exit(1);
   }
+#ifndef _WIN32
   if ((error=pthread_attr_setdetachstate(&thr_attr,PTHREAD_CREATE_DETACHED)))
   {
     my_message_stderr(0, "Got error %d from "
                       "pthread_attr_setdetachstate", errno);
     exit(1);
   }
-  if ((error=pthread_attr_setstacksize(&thr_attr,65536L)))
+#endif
+  if ((error= my_thread_attr_setstacksize(&thr_attr,65536L)))
   {
     my_message_stderr(0, "Got error %d from "
                       "pthread_attr_setstacksize", error);
@@ -1508,7 +1510,7 @@ int main(int argc __attribute__((unused)),char **argv __attribute__((unused)))
     mysql_mutex_unlock(&LOCK_thread_count);
   }
 
-  pthread_attr_destroy(&thr_attr);
+  my_thread_attr_destroy(&thr_attr);
   if ((error= mysql_mutex_lock(&LOCK_thread_count)))
     my_message_stderr(0, "Got error %d from mysql_mutex_lock", error);
   while (thread_count)

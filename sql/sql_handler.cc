@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -52,13 +52,14 @@
 */
 
 #include "sql_handler.h"
+
+#include "auth_common.h"                        // check_table_access
 #include "sql_base.h"                           // close_thread_tables
 #include "lock.h"                               // mysql_unlock_tables
 #include "key.h"                                // key_copy
 #include "sql_base.h"                           // insert_fields
 #include "sql_select.h"
 #include "transaction.h"
-#include "sql_parse.h"                          // check_table_access
 #include "log.h"
 
 #define HANDLER_TABLES_HASH_SIZE 120
@@ -587,6 +588,7 @@ retry:
   thd->set_open_tables(hash_tables->table);
 
   /* Re-use Sql_handler_lock_error instance which was initialized earlier. */
+  DBUG_ASSERT(!sql_handler_lock_error.need_reopen());
   thd->push_internal_handler(&sql_handler_lock_error);
 
   lock= mysql_lock_tables(thd, &thd->open_tables, 1, 0);

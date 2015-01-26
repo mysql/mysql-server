@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -32,8 +32,10 @@ Created 03/11/2014 Shaohua Wang
 /** Innodb B-tree index fill factor for bulk load. */
 long	innobase_fill_factor;
 
-/** Initialize members, allocate page if needed and start mtr. */
-void
+/** Initialize members, allocate page if needed and start mtr.
+Note: we commit all mtrs on failure.
+@return error code. */
+dberr_t
 PageBulk::init()
 {
 	mtr_t*		mtr;
@@ -61,9 +63,24 @@ PageBulk::init()
 		mtr_start(&alloc_mtr);
 		alloc_mtr.set_named_space(dict_index_get_space(m_index));
 
+		ulint	n_reserved;
+		bool	success;
+		success = fsp_reserve_free_extents(&n_reserved, m_index->space,
+						   1, FSP_NORMAL, &alloc_mtr);
+		if (!success) {
+			mtr_commit(&alloc_mtr);
+			mtr_commit(mtr);
+			return(DB_OUT_OF_FILE_SPACE);
+		}
+
 		/* Allocate a new page. */
 		new_block = btr_page_alloc(m_index, 0, FSP_UP, m_level,
 					   &alloc_mtr, mtr);
+
+		if (n_reserved > 0) {
+			fil_space_release_free_extents(m_index->space,
+						       n_reserved);
+		}
 
 		mtr_commit(&alloc_mtr);
 
@@ -127,6 +144,8 @@ PageBulk::init()
 
 	ut_d(m_total_data = 0);
 	page_header_set_field(m_page, NULL, PAGE_HEAP_TOP, UNIV_PAGE_SIZE - 1);
+
+	return(DB_SUCCESS);
 }
 
 /** Insert a record in the page.
@@ -612,7 +631,10 @@ BtrBulk::pageSplit(
 	/* 2. create a new page. */
 	PageBulk new_page_bulk(m_index, m_trx_id, FIL_NULL,
 			       page_bulk->getLevel());
-	new_page_bulk.init();
+	dberr_t	err = new_page_bulk.init();
+	if (err != DB_SUCCESS) {
+		return(err);
+	}
 
 	/* 3. copy the upper half to new page. */
 	rec_t*	split_rec = page_bulk->getSplitRec();
@@ -620,7 +642,7 @@ BtrBulk::pageSplit(
 	page_bulk->copyOut(split_rec);
 
 	/* 4. commit the splitted page. */
-	dberr_t	err = pageCommit(page_bulk, &new_page_bulk, true);
+	err = pageCommit(page_bulk, &new_page_bulk, true);
 	if (err != DB_SUCCESS) {
 		pageAbort(&new_page_bulk);
 		return(err);
@@ -741,7 +763,10 @@ BtrBulk::insert(
 		PageBulk*	new_page_bulk
 			= UT_NEW_NOKEY(PageBulk(m_index, m_trx_id, FIL_NULL,
 						level));
-		new_page_bulk->init();
+		dberr_t	err = new_page_bulk->init();
+		if (err != DB_SUCCESS) {
+			return(err);
+		}
 
 		m_page_bulks->push_back(new_page_bulk);
 		ut_ad(level + 1 == m_page_bulks->size());
@@ -779,13 +804,15 @@ BtrBulk::insert(
 	}
 
 	if (!page_bulk->isSpaceAvailable(rec_size)) {
-		PageBulk*	sibling_page_bulk;
-		dberr_t		err;
-
 		/* Create a sibling page_bulk. */
+		PageBulk*	sibling_page_bulk;
 		sibling_page_bulk = UT_NEW_NOKEY(PageBulk(m_index, m_trx_id,
 							  FIL_NULL, level));
-		sibling_page_bulk->init();
+		dberr_t	err = sibling_page_bulk->init();
+		if (err != DB_SUCCESS) {
+			UT_DELETE(sibling_page_bulk);
+			return(err);
+		}
 
 		/* Commit page bulk. */
 		err = pageCommit(page_bulk, sibling_page_bulk, true);
@@ -910,7 +937,11 @@ BtrBulk::finish(
 		ut_ad(page_rec_is_user_rec(first_rec));
 
 		/* Copy last page to root page. */
-		root_page_bulk.init();
+		err = root_page_bulk.init();
+		if (err != DB_SUCCESS) {
+			mtr_commit(&mtr);
+			return(err);
+		}
 		root_page_bulk.copyIn(first_rec);
 
 		/* Remove last page. */

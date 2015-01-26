@@ -1,28 +1,21 @@
---let $MYSQLD_DATADIR= `select @@datadir`
---let $events_file=$MYSQLTEST_VARDIR/tmp/events.sql
---let GREP_PRINT_NOT_VERBOSE=1
-
 RESET MASTER;
 
 # A first event in a new binlog has commit parent timestamp as zero
 # and itself as one.
 CREATE TABLE t1 (a int) ENGINE= innodb;
 
---exec $MYSQL_BINLOG --force-if-open $MYSQLD_DATADIR/master-bin.000001 > $events_file
---let GREP_FILE=$events_file
---let GREP_PATTERN=last_committed=0	sequence_number=1
---echo Must be 1 occurence found
---source extra/rpl_tests/grep_pattern.inc
+--let $binlog_file= master-bin.000001
+
+--let $logical_timestamps= 0 1
+--source include/assert_logical_timestamps.inc
 
 # A next transaction increments either counter
 
---let $binlog_pos= query_get_value(SHOW MASTER STATUS, Position, 1)
+--let $binlog_position= query_get_value(SHOW MASTER STATUS, Position, 1)
 INSERT INTO t1 SET a=1;
 
---exec $MYSQL_BINLOG --force-if-open $MYSQLD_DATADIR/master-bin.000001 --start-position=$binlog_pos > $events_file
---let GREP_PATTERN=last_committed=1	sequence_number=2
---echo Must be 1 occurence found
---source extra/rpl_tests/grep_pattern.inc
+--let $logical_timestamps= 1 2
+--source include/assert_logical_timestamps.inc
 
 # Transaction's last committed timestamp is computed at its last
 # being executed query.
@@ -51,33 +44,29 @@ INSERT INTO t1 SET a=1;
 
 --let $rpl_connection_name=two
 --source include/rpl_connection.inc
---let $binlog_pos= query_get_value(SHOW MASTER STATUS, Position, 1)
+--let $binlog_position= query_get_value(SHOW MASTER STATUS, Position, 1)
 # (3,4)
 BEGIN;
 INSERT INTO t1 SET a=2;
 COMMIT;
 
---exec $MYSQL_BINLOG --force-if-open $MYSQLD_DATADIR/master-bin.000001 --start-position=$binlog_pos > $events_file
---let GREP_PATTERN=last_committed=3	sequence_number=4
---echo Must be 1 occurence found
---source extra/rpl_tests/grep_pattern.inc
+--let $logical_timestamps= 3 4
+--source include/assert_logical_timestamps.inc
 
 
 --let $rpl_connection_name=one
 --source include/rpl_connection.inc
 # (3,5)
---let $binlog_pos= query_get_value(SHOW MASTER STATUS, Position, 1)
+--let $binlog_position= query_get_value(SHOW MASTER STATUS, Position, 1)
 COMMIT;
---exec $MYSQL_BINLOG --force-if-open $MYSQLD_DATADIR/master-bin.000001 --start-position=$binlog_pos > $events_file
---let GREP_PATTERN=last_committed=3	sequence_number=5
---echo Must be 1 occurence found
---source extra/rpl_tests/grep_pattern.inc
+--let $logical_timestamps= 3 5
+--source include/assert_logical_timestamps.inc
 
 # Two independent and concurrent (autoincrement)  transaction will either
 # have the same commit parent as the last committed of so far, or
 # one of them will be such to another.
 
---let $binlog_pos= query_get_value(SHOW MASTER STATUS, Position, 1)
+--let $binlog_position= query_get_value(SHOW MASTER STATUS, Position, 1)
 
 --let $rpl_connection_name=one
 --source include/rpl_connection.inc
@@ -94,11 +83,8 @@ COMMIT;
 --source include/rpl_connection.inc
 --reap
 
---exec $MYSQL_BINLOG --force-if-open $MYSQLD_DATADIR/master-bin.000001 --start-position=$binlog_pos > $events_file
---let GREP_PATTERN=last_committed=[56]	sequence_number=[67]
-
---echo Must be 2 occurences found
---source extra/rpl_tests/grep_pattern.inc
+--let $logical_timestamps= 5 6;[56] 7
+--source include/assert_logical_timestamps.inc
 
 
 #
@@ -128,10 +114,9 @@ COMMIT;
 
 # Not "rotated" 2nd transaction is logged following the regular rule.
 # Its timestamp pair of (1,2) must be found.
---exec $MYSQL_BINLOG --force-if-open $MYSQLD_DATADIR/master-bin.000001 > $events_file
---let GREP_PATTERN=last_committed=1	sequence_number=2
---echo Must be 1 occurence found
---source extra/rpl_tests/grep_pattern.inc
+--let $binlog_position=
+--let $logical_timestamps= 0 1;1 2
+--source include/assert_logical_timestamps.inc
 
 FLUSH LOGS;
 
@@ -142,10 +127,9 @@ COMMIT;
 # Now the proof: the "rotated" transaction is logged with uninitialized last committed
 # as expected. Its timestamp pair of (0,1) must be found.
 
---exec $MYSQL_BINLOG --force-if-open $MYSQLD_DATADIR/master-bin.000002 > $events_file
---let GREP_PATTERN=last_committed=0	sequence_number=1
---echo Must be 1 occurence found
---source extra/rpl_tests/grep_pattern.inc
+--let $binlog_file= master-bin.000002
+--let $logical_timestamps= 0 1
+--source include/assert_logical_timestamps.inc
 
 #
 # Testing logging of transaction that commits after RESET MASTER.
@@ -179,10 +163,9 @@ COMMIT;
 
 # Not "rotated" 2nd transaction is logged following the regular rule.
 # Its timestamp pair of (1,2) must be found.
---exec $MYSQL_BINLOG --force-if-open $MYSQLD_DATADIR/master-bin.000001 > $events_file
---let GREP_PATTERN=last_committed=1	sequence_number=2
---echo Must be 1 occurence found
---source extra/rpl_tests/grep_pattern.inc
+--let $binlog_file= master-bin.000001
+--let $logical_timestamps= 0 1;1 2
+--source include/assert_logical_timestamps.inc
 
 RESET MASTER;
 
@@ -196,13 +179,41 @@ COMMIT;
 # Now the proof: the "rotated" transactions are logged with uninitialized last committed
 # as expected. Its timestamp pair of (0,[12]) must be found.
 
---exec $MYSQL_BINLOG --force-if-open $MYSQLD_DATADIR/master-bin.000001 > $events_file
---let GREP_PATTERN=last_committed=0	sequence_number=[12]
---echo Must be 2 occurences found
---source extra/rpl_tests/grep_pattern.inc
+--let $logical_timestamps= 0 1;0 2
+--source include/assert_logical_timestamps.inc
 
 #
 # Cleanup
 #
 
 DROP TABLE t1;
+
+
+
+#
+# Testing DROP of multiple tables logging when a query produces few groups
+# into binary log.
+#
+
+CREATE TABLE t1 (a int) ENGINE= innodb;
+CREATE TABLE tm (a int) ENGINE= MyISAM;
+RESET MASTER;
+CREATE TEMPORARY TABLE ttm1 (a INT) ENGINE=MyISAM;
+CREATE TEMPORARY TABLE tti1 (a INT) ENGINE=Innodb;
+
+# The query is logged in three parts where only
+# the first one is sequenced.
+# Such logging is caused by just one cache is used for logging.
+
+--echo *** The query is logged in three parts.
+
+DROP TABLE tm,t1,ttm1,tti1;
+
+
+--let $logical_timestamps= 0 1;1 2;2 3;3 4;4 5
+--source include/assert_logical_timestamps.inc
+
+#
+# The final grep invocation should be done by the top level part.
+# It may produce results sensitive to the test environment (e.g GTID).
+#

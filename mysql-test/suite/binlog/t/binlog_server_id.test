@@ -18,13 +18,7 @@ while ($i)
   --eval set global server_id=$i
   --eval create table t$i (a int)
 
-  --let $row_number= 2
-  if (!`SELECT COUNT(*)=0 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME = 'GTID_MODE' AND VARIABLE_VALUE = 'ON'`) 
-  {
-    # Previous_gtid_log_event + Gtid_log_event
-    --let $row_number=`SELECT $row_number + 2`
-  }
-
+  --let $row_number= 4
   --let $binlog_server_id= query_get_value(SHOW BINLOG EVENTS, Server_id, $row_number)
   --let $server_id= `SELECT @@server_id`
 

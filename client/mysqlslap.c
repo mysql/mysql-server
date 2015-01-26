@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -265,7 +265,7 @@ static int create_schema(MYSQL *mysql, const char *db, statement *stmt,
 static void set_sql_mode(MYSQL *mysql);
 static int run_scheduler(stats *sptr, statement *stmts, uint concur, 
                          ulonglong limit);
-pthread_handler_t run_task(void *p);
+void *run_task(void *p);
 void statement_cleanup(statement *stmt);
 void option_cleanup(option_string *stmt);
 void concurrency_loop(MYSQL *mysql, uint current, option_string *eptr);
@@ -1805,16 +1805,17 @@ run_scheduler(stats *sptr, statement *stmts, uint concur, ulonglong limit)
   uint x;
   struct timeval start_time, end_time;
   thread_context con;
-  pthread_t mainthread;            /* Thread descriptor */
-  pthread_attr_t attr;          /* Thread attributes */
+  my_thread_handle mainthread;    /* Thread descriptor */
+  my_thread_attr_t attr;          /* Thread attributes */
   DBUG_ENTER("run_scheduler");
 
   con.stmt= stmts;
   con.limit= limit;
 
-  pthread_attr_init(&attr);
-  pthread_attr_setdetachstate(&attr,
-		  PTHREAD_CREATE_DETACHED);
+  my_thread_attr_init(&attr);
+#ifndef _WIN32
+  pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+#endif
 
   native_mutex_lock(&counter_mutex);
   thread_counter= 0;
@@ -1825,8 +1826,8 @@ run_scheduler(stats *sptr, statement *stmts, uint concur, ulonglong limit)
   for (x= 0; x < concur; x++)
   {
     /* now you create the thread */
-    if (pthread_create(&mainthread, &attr, run_task, 
-                       (void *)&con) != 0)
+    if (my_thread_create(&mainthread, &attr, run_task, 
+                         (void *)&con) != 0)
     {
       fprintf(stderr,"%s: Could not create thread\n",
               my_progname);
@@ -1835,7 +1836,7 @@ run_scheduler(stats *sptr, statement *stmts, uint concur, ulonglong limit)
     thread_counter++;
   }
   native_mutex_unlock(&counter_mutex);
-  pthread_attr_destroy(&attr);
+  my_thread_attr_destroy(&attr);
 
   native_mutex_lock(&sleeper_mutex);
   master_wakeup= 0;
@@ -1868,7 +1869,7 @@ run_scheduler(stats *sptr, statement *stmts, uint concur, ulonglong limit)
 }
 
 
-pthread_handler_t run_task(void *p)
+void *run_task(void *p)
 {
   ulonglong counter= 0, queries;
   ulonglong detach_counter;

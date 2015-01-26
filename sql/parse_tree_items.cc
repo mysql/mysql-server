@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,9 +13,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "my_config.h"
 #include "parse_tree_items.h"
+
 #include "parse_tree_nodes.h"
+#include "item_cmpfunc.h"          // Item_func_eq
 
 /**
   Helper to resolve the SQL:2003 Syntax exception 1) in <in predicate>.
@@ -91,6 +92,32 @@ static Item* handle_sql2003_note184_exception(Parse_context *pc, Item* left,
 
   DBUG_RETURN(result);
 }
+
+
+bool PTI_table_wild::itemize(Parse_context *pc, Item **item)
+{
+  if (super::itemize(pc, item))
+    return true;
+
+  schema= pc->thd->client_capabilities & CLIENT_NO_SCHEMA ?  NullS : schema;
+  *item= new (pc->mem_root) Item_field(POS(), schema, table, "*");
+  if (*item == NULL || (*item)->itemize(pc, item))
+    return true;
+  pc->select->with_wild++;
+  return false;
+}
+
+
+bool PTI_comp_op::itemize(Parse_context *pc, Item **res)
+{
+  if (super::itemize(pc, res) ||
+      left->itemize(pc, &left) || right->itemize(pc, &right))
+    return true;
+
+  *res= (*boolfunc2creator)(0)->create(left, right);
+  return false;
+}
+
 
 bool PTI_comp_op_all::itemize(Parse_context *pc, Item **res)
 {

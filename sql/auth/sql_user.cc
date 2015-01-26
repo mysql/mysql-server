@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; version 2 of the License.
@@ -26,6 +26,7 @@
 #include "sql_authentication.h"
 #include "prealloced_array.h"
 #include "tztime.h"
+#include "crypt_genhash_impl.h"         /* CRYPT_MAX_PASSWORD_SIZE */
 
 /**
   Auxiliary function for constructing a  user list string.

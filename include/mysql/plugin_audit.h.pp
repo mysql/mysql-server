@@ -1,4 +1,5 @@
 #include "plugin.h"
+typedef void* MYSQL_ITEM;
 typedef void * MYSQL_PLUGIN;
 #include <mysql/services.h>
 #include <mysql/service_my_snprintf.h>
@@ -9,6 +10,7 @@ extern struct my_snprintf_service_st {
 size_t my_snprintf(char* to, size_t n, const char* fmt, ...);
 size_t my_vsnprintf(char *to, size_t n, const char* fmt, va_list ap);
 #include <mysql/service_thd_alloc.h>
+#include <mysql/mysql_lex_string.h>
 struct st_mysql_lex_string
 {
   char *str;
@@ -132,6 +134,63 @@ extern void my_free(void *ptr);
 extern void * my_memdup(PSI_memory_key key, const void *from, size_t length, myf_t flags);
 extern char * my_strdup(PSI_memory_key key, const char *from, myf_t flags);
 extern char * my_strndup(PSI_memory_key key, const char *from, size_t length, myf_t flags);
+#include <mysql/service_parser.h>
+#include "my_md5_size.h"
+#include <mysql/plugin.h>
+typedef
+int (*parse_node_visit_function)(MYSQL_ITEM item, unsigned char* arg);
+typedef
+int (*sql_condition_handler_function)(int sql_errno,
+                                      const char* sqlstate,
+                                      const char* msg,
+                                      void *state);
+struct st_my_thread_handle;
+extern struct mysql_parser_service_st {
+  void* (*mysql_current_session)();
+  void* (*mysql_open_session)();
+  void (*mysql_start_thread)(void* thd, void *(*callback_fun)(void*),
+                             void *arg,
+                             struct st_my_thread_handle *thread_handle);
+  void (*mysql_join_thread)(struct st_my_thread_handle *thread_handle);
+  void (*mysql_set_current_database)(void* thd, const MYSQL_LEX_STRING db);
+  int (*mysql_parse)(void* thd, const MYSQL_LEX_STRING query,
+                     unsigned char is_prepared,
+                     sql_condition_handler_function handle_condition,
+                     void *condition_handler_state);
+  int (*mysql_get_statement_digest)(void* thd, unsigned char *digest);
+  int (*mysql_parser_get_number_params)(void* thd);
+  int (*mysql_parser_extract_prepared_params)(void* thd, int *positions);
+  int (*mysql_parser_visit_tree)(void* thd,
+                                 parse_node_visit_function processor,
+                                 unsigned char* arg);
+  MYSQL_LEX_STRING (*mysql_parser_item_string)(MYSQL_ITEM item);
+  void (*mysql_parser_free_string)(MYSQL_LEX_STRING string);
+  MYSQL_LEX_STRING (*mysql_parser_get_query)(void* thd);
+  MYSQL_LEX_STRING (*mysql_parser_get_normalized_query)(void* thd);
+} *mysql_parser_service;
+typedef void *(*callback_function)(void*);
+void* mysql_parser_current_session();
+void* mysql_parser_open_session();
+void mysql_parser_start_thread(void* thd, callback_function fun, void *arg,
+                               struct st_my_thread_handle *thread_handle);
+void mysql_parser_join_thread(struct st_my_thread_handle *thread_handle);
+void mysql_parser_set_current_database(void* thd,
+                                       const MYSQL_LEX_STRING db);
+int mysql_parser_parse(void* thd, const MYSQL_LEX_STRING query,
+                       unsigned char is_prepared,
+                       sql_condition_handler_function handle_condition,
+                       void *condition_handler_state);
+int mysql_parser_get_statement_type(void* thd);
+int mysql_parser_get_statement_digest(void* thd, unsigned char *digest);
+int mysql_parser_get_number_params(void* thd);
+int mysql_parser_extract_prepared_params(void* thd, int *positions);
+int mysql_parser_visit_tree(void* thd,
+                            parse_node_visit_function processor,
+                            unsigned char* arg);
+MYSQL_LEX_STRING mysql_parser_item_string(MYSQL_ITEM item);
+void mysql_parser_free_string(MYSQL_LEX_STRING string);
+MYSQL_LEX_STRING mysql_parser_get_query(void* thd);
+MYSQL_LEX_STRING mysql_parser_get_normalized_query(void* thd);
 struct st_mysql_xid {
   long formatID;
   long gtrid_length;
@@ -177,55 +236,6 @@ struct st_mysql_plugin
   struct st_mysql_sys_var **system_vars;
   void * __reserved1;
   unsigned long flags;
-};
-#include "plugin_ftparser.h"
-#include "plugin.h"
-enum enum_ftparser_mode
-{
-  MYSQL_FTPARSER_SIMPLE_MODE= 0,
-  MYSQL_FTPARSER_WITH_STOPWORDS= 1,
-  MYSQL_FTPARSER_FULL_BOOLEAN_INFO= 2
-};
-enum enum_ft_token_type
-{
-  FT_TOKEN_EOF= 0,
-  FT_TOKEN_WORD= 1,
-  FT_TOKEN_LEFT_PAREN= 2,
-  FT_TOKEN_RIGHT_PAREN= 3,
-  FT_TOKEN_STOPWORD= 4
-};
-typedef struct st_mysql_ftparser_boolean_info
-{
-  enum enum_ft_token_type type;
-  int yesno;
-  int weight_adjust;
-  char wasign;
-  char trunc;
-  int position;
-  char prev;
-  char *quot;
-} MYSQL_FTPARSER_BOOLEAN_INFO;
-typedef struct st_mysql_ftparser_param
-{
-  int (*mysql_parse)(struct st_mysql_ftparser_param *,
-                     char *doc, int doc_len);
-  int (*mysql_add_word)(struct st_mysql_ftparser_param *,
-                        char *word, int word_len,
-                        MYSQL_FTPARSER_BOOLEAN_INFO *boolean_info);
-  void *ftparser_state;
-  void *mysql_ftparam;
-  const struct charset_info_st *cs;
-  char *doc;
-  int length;
-  int flags;
-  enum enum_ftparser_mode mode;
-} MYSQL_FTPARSER_PARAM;
-struct st_mysql_ftparser
-{
-  int interface_version;
-  int (*parse)(MYSQL_FTPARSER_PARAM *param);
-  int (*init)(MYSQL_FTPARSER_PARAM *param);
-  int (*deinit)(MYSQL_FTPARSER_PARAM *param);
 };
 struct st_mysql_daemon
 {

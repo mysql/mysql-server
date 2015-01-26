@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -62,24 +62,24 @@ TEST(MyErrorTest, MyGetErrMsgUnitialized)
 
 const char *faux_errmsgs[]= { "alpha", "beta", NULL, "delta" };
 
-const char** get_faux_errmsgs()
-{
-  return faux_errmsgs;
-}
-
 static const int faux_error_first= 8000;
 static const int faux_error_last=  8003;
+
+const char* get_faux_errmsg(int nr)
+{
+  return faux_errmsgs[nr - faux_error_first];
+}
 
 TEST(MyErrorTest, MyGetErrMsgInitialized)
 {
   const char *msg;
 
-  EXPECT_EQ(0, my_error_register(get_faux_errmsgs,
+  EXPECT_EQ(0, my_error_register(get_faux_errmsg,
                                  faux_error_first,
                                  faux_error_last));
 
   // flag error when trying to register overlapping area
-  EXPECT_NE(0, my_error_register(get_faux_errmsgs,
+  EXPECT_NE(0, my_error_register(get_faux_errmsg,
                                  faux_error_first + 2,
                                  faux_error_last + 2));
 
@@ -105,10 +105,10 @@ TEST(MyErrorTest, MyGetErrMsgInitialized)
   msg= my_get_err_msg(faux_error_last + 1);
   EXPECT_TRUE(msg == NULL);
 
-  EXPECT_TRUE(my_error_unregister(faux_error_first, faux_error_last) != NULL);
+  EXPECT_FALSE(my_error_unregister(faux_error_first, faux_error_last));
 
   // flag error when trying to unregister twice
-  EXPECT_TRUE(my_error_unregister(faux_error_first, faux_error_last) == NULL);
+  EXPECT_TRUE(my_error_unregister(faux_error_first, faux_error_last));
 }
 
 }

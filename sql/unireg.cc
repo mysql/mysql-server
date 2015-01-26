@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,6 +29,9 @@
 #include "sql_class.h"
 #include "partition_info.h"
 #include "sql_table.h"
+
+#include "pfs_file_provider.h"
+#include "mysql/psi/mysql_file.h"
 
 #include <algorithm>
 
@@ -63,32 +66,23 @@ static bool make_empty_rec(THD *thd, int file,
   XXX: what is a UNIREG  screen?
 */
 
-struct Pack_header_error_handler: public Internal_error_handler
+class Pack_header_error_handler: public Internal_error_handler
 {
+  bool m_is_handled;
+public:
   virtual bool handle_condition(THD *thd,
                                 uint sql_errno,
                                 const char* sqlstate,
                                 Sql_condition::enum_severity_level *level,
-                                const char* msg,
-                                Sql_condition ** cond_hdl);
-  bool is_handled;
-  Pack_header_error_handler() :is_handled(FALSE) {}
+                                const char* msg)
+  {
+    m_is_handled= (sql_errno == ER_TOO_MANY_FIELDS);
+    return m_is_handled;
+  }
+  Pack_header_error_handler() :m_is_handled(false) {}
+  bool is_handled() const { return m_is_handled; }
 };
 
-
-bool
-Pack_header_error_handler::
-handle_condition(THD *,
-                 uint sql_errno,
-                 const char*,
-                 Sql_condition::enum_severity_level*,
-                 const char*,
-                 Sql_condition ** cond_hdl)
-{
-  *cond_hdl= NULL;
-  is_handled= (sql_errno == ER_TOO_MANY_FIELDS);
-  return is_handled;
-}
 
 /*
   Create a frm (table definition) file
@@ -158,7 +152,7 @@ bool mysql_create_frm(THD *thd, const char *file_name,
   if (error)
   {
     my_free(screen_buff);
-    if (! pack_header_error_handler.is_handled)
+    if (! pack_header_error_handler.is_handled())
       DBUG_RETURN(1);
 
     // Try again without UNIREG screens (to get more columns)

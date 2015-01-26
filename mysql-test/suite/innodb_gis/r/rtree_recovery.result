@@ -25,7 +25,7 @@ drop table t1;
 create table t1 (c1 int, c2 point not null, spatial index (c2))engine=innodb;
 CALL insert_t1(367);
 CALL update_t1(367);
-SET @poly1 = GeomFromText('POLYGON((10000 10000, 10000 10350, 10350 10350, 10350 10000, 10000 10000))');
+SET @poly1 = ST_GeomFromText('POLYGON((10000 10000, 10000 10350, 10350 10350, 10350 10000, 10000 10000))');
 delete from t1 where ST_Contains(@poly1, c2);
 COMMIT;
 # Kill and restart
@@ -35,8 +35,8 @@ test.t1	check	status	OK
 select count(*) from t1;
 count(*)
 18
-select c1, astext(c2) from t1;
-c1	astext(c2)
+select c1, ST_astext(c2) from t1;
+c1	ST_astext(c2)
 350	POINT(10350 10350)
 351	POINT(10351 10351)
 352	POINT(10352 10352)

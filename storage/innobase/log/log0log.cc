@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2009, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -85,8 +85,11 @@ log_t*	log_sys	= NULL;
 
 /* These control how often we print warnings if the last checkpoint is too
 old */
-ibool	log_has_printed_chkp_warning = FALSE;
+bool	log_has_printed_chkp_warning = false;
 time_t	log_last_warning_time;
+
+bool	log_has_printed_chkp_margine_warning = false;
+time_t	log_last_margine_warning_time;
 
 /* A margin for free space in the log buffer before a log entry is catenated */
 #define LOG_BUF_WRITE_MARGIN	(4 * OS_FILE_LOG_BLOCK_SIZE)
@@ -232,6 +235,64 @@ log_buffer_extend(
 
 	ib::info() << "innodb_log_buffer_size was extended to "
 		<< LOG_BUFFER_SIZE << ".";
+}
+
+/** Check margin not to overwrite transaction log from the last checkpoint.
+If would estimate the log write to exceed the log_group_capacity,
+waits for the checkpoint is done enough.
+@param[in]	len	length of the data to be written */
+
+void
+log_margin_checkpoint_age(
+	ulint	len)
+{
+	ulint	margin = len * 2;
+
+	ut_ad(log_mutex_own());
+
+	if (margin > log_sys->log_group_capacity) {
+		/* return with warning output to avoid deadlock */
+		if (!log_has_printed_chkp_margine_warning
+		    || difftime(time(NULL),
+				log_last_margine_warning_time) > 15) {
+			log_has_printed_chkp_margine_warning = true;
+			log_last_margine_warning_time = time(NULL);
+
+			ib::error() << "The transaction log files are too"
+				" small for the single transaction log (size="
+				<< len << "). So, the last checkpoint age"
+				" might exceed the log group capacity "
+				<< log_sys->log_group_capacity << ".";
+		}
+
+		return;
+	}
+
+	while (log_sys->lsn - log_sys->last_checkpoint_lsn + margin
+	       > log_sys->log_group_capacity) {
+		/* The log write of 'len' might overwrite the transaction log
+		after the last checkpoint. Makes checkpoint. */
+
+		bool	flushed_enough = false;
+
+		if (log_sys->lsn - log_buf_pool_get_oldest_modification()
+		    + margin
+		    <= log_sys->log_group_capacity) {
+			flushed_enough = true;
+		}
+
+		log_sys->check_flush_or_checkpoint = true;
+		log_mutex_exit();
+
+		if (!flushed_enough) {
+			os_thread_sleep(100000);
+		}
+		log_checkpoint(true, false);
+
+		log_mutex_enter();
+	}
+
+	return;
 }
 
 /** Open the log for log_write_low. The log must be closed with log_close.
@@ -405,7 +466,7 @@ log_close(void)
 		if (!log_has_printed_chkp_warning
 		    || difftime(time(NULL), log_last_warning_time) > 15) {
 
-			log_has_printed_chkp_warning = TRUE;
+			log_has_printed_chkp_warning = true;
 			log_last_warning_time = time(NULL);
 
 			ib::error() << "The age of the last checkpoint is "
@@ -1348,7 +1409,6 @@ log_preflush_pool_modified_pages(
 	lsn_t			new_oldest)
 {
 	bool	success;
-	ulint	n_pages;
 
 	if (recv_recovery_on) {
 		/* If the recovery is running, we must first apply all
@@ -1363,19 +1423,31 @@ log_preflush_pool_modified_pages(
 		recv_apply_hashed_log_recs(TRUE);
 	}
 
-	success = buf_flush_lists(ULINT_MAX, new_oldest, &n_pages);
+	if (new_oldest == LSN_MAX
+	    || !buf_page_cleaner_is_active
+	    || srv_is_being_started) {
+		ulint	n_pages;
 
-	buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
+		success = buf_flush_lists(ULINT_MAX, new_oldest, &n_pages);
 
-	if (!success) {
-		MONITOR_INC(MONITOR_FLUSH_SYNC_WAITS);
+		buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
+
+		if (!success) {
+			MONITOR_INC(MONITOR_FLUSH_SYNC_WAITS);
+		}
+
+		MONITOR_INC_VALUE_CUMULATIVE(
+			MONITOR_FLUSH_SYNC_TOTAL_PAGE,
+			MONITOR_FLUSH_SYNC_COUNT,
+			MONITOR_FLUSH_SYNC_PAGES,
+			n_pages);
+	} else {
+		/* better to wait for flushed by page cleaner */
+
+		buf_flush_wait_flushed(new_oldest);
+
+		success = true;
 	}
-
-	MONITOR_INC_VALUE_CUMULATIVE(
-		MONITOR_FLUSH_SYNC_TOTAL_PAGE,
-		MONITOR_FLUSH_SYNC_COUNT,
-		MONITOR_FLUSH_SYNC_PAGES,
-		n_pages);
 
 	return(success);
 }
@@ -1835,7 +1907,7 @@ loop:
 	if (age > log->max_modified_age_sync) {
 
 		/* A flush is urgent: we have to do a synchronous preflush */
-		advance = 2 * (age - log->max_modified_age_sync);
+		advance = age - log->max_modified_age_sync;
 	}
 
 	checkpoint_age = log->lsn - log->last_checkpoint_lsn;

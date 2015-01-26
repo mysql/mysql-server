@@ -1,7 +1,7 @@
 #ifndef SQL_EXECUTOR_INCLUDED
 #define SQL_EXECUTOR_INCLUDED
 
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights
  * reserved.
 
    This program is free software; you can redistribute it and/or modify
@@ -19,8 +19,8 @@
 
 /** @file Classes for query execution */
 
-#include "records.h"                          /* READ_RECORD */
-#include "sql_opt_exec_shared.h"
+#include "records.h"               // READ_RECORD
+#include "sql_opt_exec_shared.h"   // QEP_shared_owner
 
 class JOIN;
 class JOIN_TAB;
@@ -326,7 +326,7 @@ bool setup_copy_fields(THD *thd, Temp_table_param *param,
 		  Ref_ptr_array ref_pointer_array,
 		  List<Item> &res_selected_fields, List<Item> &res_all_fields,
 		  uint elements, List<Item> &all_fields);
-bool check_unique_constraint(TABLE *table, int hidden_field_count);
+bool check_unique_constraint(TABLE *table);
 ulonglong unique_hash(Field *field, ulonglong *hash);
 
 class Opt_trace_object;

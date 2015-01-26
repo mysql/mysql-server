@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -49,6 +49,7 @@
 
 #include "key.h"                                // key_cmp_if_same
 #include "sql_select.h"
+#include "item_sum.h"                           // Item_sum
 
 static bool find_key_for_maxmin(bool max_fl, TABLE_REF *ref,
                                 Item_field *item_field, Item *cond,

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -1417,6 +1417,27 @@ blob_done:
 		} else {
 			data = rec_get_nth_field(mrec, offsets, i, &len);
 			dfield_set_data(dfield, data, len);
+		}
+
+		if (len != UNIV_SQL_NULL && col->mtype == DATA_MYSQL
+		    && col->len != len && !dict_table_is_comp(log->table)) {
+
+			ut_ad(col->len >= len);
+			if (dict_table_is_comp(index->table)) {
+				byte*	buf = (byte*) mem_heap_alloc(heap,
+								     col->len);
+				memcpy(buf, dfield->data, len);
+				memset(buf + len, 0x20, col->len - len);
+
+				dfield_set_data(dfield, buf, col->len);
+			} else {
+				/* field length mismatch should not happen
+				when rebuilding the redundant row format
+				table. */
+				ut_ad(0);
+				*error = DB_CORRUPTION;
+				return(NULL);
+			}
 		}
 
 		/* See if any columns were changed to NULL or NOT NULL. */
@@ -3286,18 +3307,18 @@ corrupted:
 	return(mrec);
 }
 
-/******************************************************//**
-Applies operations to a secondary index that was being created.
+/** Applies operations to a secondary index that was being created.
+@param[in]	trx	transaction (for checking if the operation was
+interrupted)
+@param[in,out]	index	index
+@param[in,out]	dup	for reporting duplicate key errors
 @return DB_SUCCESS, or error code on failure */
-static __attribute__((nonnull))
+static
 dberr_t
 row_log_apply_ops(
-/*==============*/
-	trx_t*		trx,	/*!< in: transaction (for checking if
-				the operation was interrupted) */
-	dict_index_t*	index,	/*!< in/out: index */
-	row_merge_dup_t*dup)	/*!< in/out: for reporting duplicate key
-				errors */
+	const trx_t*		trx,
+	dict_index_t*		index,
+	row_merge_dup_t*	dup)
 {
 	dberr_t		error;
 	const mrec_t*	mrec	= NULL;
@@ -3607,17 +3628,17 @@ func_exit:
 	return(error);
 }
 
-/******************************************************//**
-Apply the row log to the index upon completing index creation.
+/** Apply the row log to the index upon completing index creation.
+@param[in]	trx	transaction (for checking if the operation was
+interrupted)
+@param[in,out]	index	secondary index
+@param[in,out]	table	MySQL table (for reporting duplicates)
 @return DB_SUCCESS, or error code on failure */
 dberr_t
 row_log_apply(
-/*==========*/
-	trx_t*		trx,	/*!< in: transaction (for checking if
-				the operation was interrupted) */
-	dict_index_t*	index,	/*!< in/out: secondary index */
-	struct TABLE*	table)	/*!< in/out: MySQL table
-				(for reporting duplicates) */
+	const trx_t*	trx,
+	dict_index_t*	index,
+	struct TABLE*	table)
 {
 	dberr_t		error;
 	row_log_t*	log;

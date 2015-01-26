@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -263,6 +263,7 @@ SET(TESTS
   my_murmur3
   my_qsort_vs_stdsort
   my_regex
+  my_thread
   mysys_base64
   mysys_lf
   mysys_my_atomic
@@ -324,6 +325,7 @@ SET(SERVER_TESTS
   opt_range
   opt_ref
   opt_trace
+  select_lex_visitor
   segfault
   sql_table
   strings_utf8
