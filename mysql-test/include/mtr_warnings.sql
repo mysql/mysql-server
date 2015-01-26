@@ -1,4 +1,4 @@
--- Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+-- Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License as published by
@@ -243,7 +243,7 @@ INSERT INTO global_suppressions VALUES
  
  ("Changed limits: max_open_files: *"),
  ("Changed limits: max_connections: *"),
- ("Changed limits: table_cache: *"),
+ ("Changed limits: table_open_cache: *"),
  ("Could not increase number of max_open_files to more than *"),
 
  ("THE_LAST_SUPPRESSION")||
