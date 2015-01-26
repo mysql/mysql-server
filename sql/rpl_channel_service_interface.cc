@@ -210,6 +210,8 @@ err:
     delete_surrogate_thread(thd);
   }
 
+  delete lex_mi;
+
   DBUG_RETURN(error);
 }
 

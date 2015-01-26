@@ -646,6 +646,7 @@ public:
 
   explicit Log_event_header(Log_event_type type_code_arg= ENUM_END_EVENT)
     : type_code(type_code_arg),
+      data_written(0),
       log_pos(0),
       flags(0)
   {

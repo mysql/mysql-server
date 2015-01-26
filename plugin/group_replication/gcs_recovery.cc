@@ -354,6 +354,8 @@ Recovery_module::recovery_thread_handle()
   mysql_cond_broadcast(&run_cond);
   mysql_mutex_unlock(&run_lock);
 
+  THD_STAGE_INFO(recovery_thd, stage_executing);
+
   //a new recovery round is starting, clean the status
   rejected_donors.clear();
 
@@ -368,6 +370,8 @@ Recovery_module::recovery_thread_handle()
     goto cleanup;
   }
 
+  THD_STAGE_INFO(recovery_thd, stage_connecting_to_master);
+
   if (!recovery_aborted)
   {
     //if the connection to the donor failed, abort recovery
@@ -376,6 +380,8 @@ Recovery_module::recovery_thread_handle()
       goto cleanup;
     }
   }
+
+  THD_STAGE_INFO(recovery_thd, stage_executing);
 
   mysql_mutex_lock(&recovery_lock);
   while (!donor_transfer_finished && !recovery_aborted)

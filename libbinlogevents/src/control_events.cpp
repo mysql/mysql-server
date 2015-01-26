@@ -770,7 +770,7 @@ Transaction_context_event::~Transaction_context_event()
 
 View_change_event::View_change_event(char* raw_view_id)
 : Binary_log_event(VIEW_CHANGE_EVENT),
-  view_id(), seq_number(0)
+  view_id(), seq_number(0), certification_info()
 {
   memcpy(view_id, raw_view_id, strlen(raw_view_id));
 }
@@ -780,7 +780,7 @@ View_change_event(const char *buffer, unsigned int event_len,
                   const Format_description_event *description_event)
 : Binary_log_event(&buffer, description_event->binlog_version,
                    description_event->server_version),
-  seq_number(0)
+  view_id(), seq_number(0), certification_info()
 {
   //buf is advanced in Binary_log_event constructor to point to
   //beginning of post-header

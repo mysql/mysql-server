@@ -339,7 +339,7 @@ private:
 
     /*
       The cache is for this event only so we know what size it needs.
-      Some events however can have their data_writen field set to 0,
+      Some events however can have their data_written field set to 0,
       being my_default_record_cache_size the default size used for the cache
     */
     open_cached_file(&cache, mysql_tmpdir, "pipeline_cache",

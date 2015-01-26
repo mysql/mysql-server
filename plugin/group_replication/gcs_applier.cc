@@ -149,6 +149,7 @@ Applier_module::set_applier_thread_context()
 
   thd->init_for_queries();
   set_slave_thread_options(thd);
+  THD_STAGE_INFO(thd, stage_executing);
   applier_thd= thd;
 }
 

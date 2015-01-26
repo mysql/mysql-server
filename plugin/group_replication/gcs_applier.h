@@ -410,6 +410,8 @@ private:
 
     suspended = true;
 
+    THD_STAGE_INFO(applier_thd, stage_suspending);
+
     //Alert any interested party about the applier suspension
     mysql_cond_broadcast(&suspension_waiting_condition);
 
@@ -417,6 +419,9 @@ private:
     {
       mysql_cond_wait(&suspend_cond, &suspend_lock);
     }
+
+    THD_STAGE_INFO(applier_thd, stage_executing);
+
     mysql_mutex_unlock(&suspend_lock);
   }
 
