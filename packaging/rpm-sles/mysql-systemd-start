@@ -14,7 +14,7 @@ install_db () {
     
     # Restore log, dir, perms and SELinux contexts
     [ -d "$datadir" ] || install -d -m 0755 -omysql -gmysql "$datadir" || exit 1
-    log=/var/log/mysqld.log
+    log=/var/log/mysql/mysqld.log
     [ -e $log ] || touch $log
     chmod 0640 $log
     chown mysql:mysql $log || exit 1
@@ -27,13 +27,7 @@ install_db () {
     [ -d "$datadir/mysql" ] && exit 0
 
     # Create initial db
-    /usr/bin/mysql_install_db --rpm --datadir="$datadir" --user=mysql
-
-    # Create a file to trigger execution of mysql_secure_installation
-    # after server has started
-    touch  "$datadir"/.phase_two_required
-
-    exit 0
+    /usr/bin/mysql_install_db --rpm --datadir="$datadir" --user=mysql --keep-my-cnf
 }
 
 pinger () {
@@ -45,13 +39,6 @@ pinger () {
         sleep 1
         mysqladmin ping >/dev/null 2>&1 && ret=0 && break
     done
-
-    # If server has been started successfully and file created in
-    # install_db step is present we run mysql_secure_installation
-    if [ $ret -eq 0 -a -e "$datadir"/.phase_two_required -a -x /usr/bin/mysql_secure_installation ] ; then
-	/usr/bin/mysql_secure_installation --use-default --defaults-file=/etc/my.cnf
-	rm -f "$datadir"/.phase_two_required
-    fi
 
     exit 0
 }
