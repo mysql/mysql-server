@@ -1164,8 +1164,8 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
     if (!res)
       res= check_valid_table_refs(table_list, update_values, map);
     if (!res && (*insert_table_ref)->table->vfield)
-      res= check_values_valid_for_gc(thd, &fields, values,
-                                     (*insert_table_ref)->table);
+      res= validate_gc_assignment(thd, &fields, values,
+                                  (*insert_table_ref)->table);
     thd->lex->in_update_value_clause= false;
 
     if (!res && duplic == DUP_UPDATE)
@@ -1178,8 +1178,8 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
       if (!res)
         res= check_valid_table_refs(table_list, update_fields, map);
       if (!res && (*insert_table_ref)->table->vfield)
-        res= check_values_valid_for_gc(thd, &update_fields, &update_values,
-                                       (*insert_table_ref)->table);
+        res= validate_gc_assignment(thd, &update_fields, &update_values,
+                                    (*insert_table_ref)->table);
     }
   }
   else if (thd->stmt_arena->is_stmt_prepare())
@@ -1211,8 +1211,8 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
       map= (*insert_table_ref)->map();
 
     if (!res && (*insert_table_ref)->table->vfield)
-      res= check_values_valid_for_gc(thd, &fields, values,
-                                     (*insert_table_ref)->table);
+      res= validate_gc_assignment(thd, &fields, values,
+                                  (*insert_table_ref)->table);
 
     if (!res && duplic == DUP_UPDATE)
     {
@@ -1226,8 +1226,8 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
         res= check_valid_table_refs(table_list, update_fields, map);
 
       if (!res && (*insert_table_ref)->table->vfield)
-        res= check_values_valid_for_gc(thd, &update_fields, &update_values,
-                                       (*insert_table_ref)->table);
+        res= validate_gc_assignment(thd, &update_fields, &update_values,
+                                    (*insert_table_ref)->table);
       DBUG_ASSERT(!table_list->next_name_resolution_table);
       if (select_lex->group_list.elements == 0 && !select_lex->with_sum_func)
       {

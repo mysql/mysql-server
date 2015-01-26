@@ -7155,6 +7155,10 @@ upgrade_old_temporal_types(THD *thd, Alter_info *alter_info)
       continue;
     }
 
+    DBUG_ASSERT(!def->gcol_info ||
+                (def->gcol_info  &&
+                 (def->sql_type != MYSQL_TYPE_DATETIME
+                 || def->sql_type != MYSQL_TYPE_TIMESTAMP)));
     // Replace the old temporal field with the new temporal field.
     Create_field *temporal_field= NULL;
     if (!(temporal_field= new (thd->mem_root) Create_field()) ||
@@ -7313,7 +7317,7 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
     to be dropped.
   */
   if (table->vfield &&
-      table->is_field_dependent_by_generated_columns(field->field_index))
+      table->is_field_dependent_on_generated_columns(field->field_index))
     my_error(ER_DEPENDENT_BY_GENERATED_COLUMN, MYF(0), field->field_name);
 
   /*

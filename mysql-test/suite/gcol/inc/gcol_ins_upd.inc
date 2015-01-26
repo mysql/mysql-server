@@ -41,6 +41,7 @@ delete from t1;
 select * from t1;
 
 --echo # INSERT INTO tbl_name VALUES... NULL is specified against gcols
+--error ER_NON_DEFAULT_VALUE_FOR_GENERATED_COLUMN
 insert into t1 values (1,null,null);
 select * from t1;
 delete from t1;
@@ -67,6 +68,7 @@ delete from t1;
 select * from t1;
 
 --echo # INSERT INTO tbl_name (<normal+gcols>) VALUES... NULL is specified against gcols
+--error ER_NON_DEFAULT_VALUE_FOR_GENERATED_COLUMN
 insert into t1 (a,b) values (1,null), (2,null);
 select * from t1;
 delete from t1;

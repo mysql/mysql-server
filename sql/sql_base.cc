@@ -7077,10 +7077,11 @@ find_field_in_table(THD *thd, TABLE *table, const char *name, size_t length,
     {
       if (thd->mark_used_columns != MARK_COLUMNS_NONE)
       {
-        my_bitmap_map old_read_set= *(table->read_set->bitmap);
         Item *gcol_item= (*field_ptr)->gcol_info->expr_item;
         DBUG_ASSERT(gcol_item);
         gcol_item->walk(&Item::register_field_in_read_map, Item::WALK_PREFIX,
+                        (uchar *) 0);
+        gcol_item->walk(&Item::update_indexed_column_map, Item::WALK_PREFIX,
                         (uchar *) 0);
         /*
           As non-persistent generated columns are calculated on the fly, they
@@ -7092,8 +7093,6 @@ find_field_in_table(THD *thd, TABLE *table, const char *name, size_t length,
         if (thd->mark_used_columns != MARK_COLUMNS_WRITE && 
             !(*field_ptr)->stored_in_db)
           bitmap_set_bit(table->write_set, (*field_ptr)->field_index);
-        if (old_read_set != *(table->read_set->bitmap))
-          update_indexed_column_map(table, table->read_set);
       }
     }
     *cached_field_index_ptr= field_ptr - table->field;
@@ -8151,27 +8150,24 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
   Field *field;
   while((field= it++))
   {
-    TABLE * table= field->table;
-    //Stored GCs are treated as the base columns for select
+    // Stored GCs are treated as the base columns for select
     if (field->gcol_info && !field->stored_in_db)
     {
-      my_bitmap_map old_read_set= *(table->read_set->bitmap);
       Item *gcol_item= field->gcol_info->expr_item;
       DBUG_ASSERT(gcol_item);
       gcol_item->walk(&Item::register_field_in_read_map, Item::WALK_PREFIX,
                       (uchar *) 0);
-      /*
+      gcol_item->walk(&Item::update_indexed_column_map, Item::WALK_PREFIX,
+                      (uchar *) 0);
+      /**
         As non-persistent generated columns are calculated on the fly, they
         needs to be stored (written, even for read-only statements) to the
         field in order to be used, so set the generated field for write here if
         1) this procedure is called for a read-only operation (SELECT), and
         2) the generated column is not phycically stored in the table
-        */
+      */
       if (thd->mark_used_columns != MARK_COLUMNS_WRITE)
         bitmap_set_bit(field->table->write_set, field->field_index);
-
-      if (old_read_set != *(table->read_set->bitmap))
-        update_indexed_column_map(table, table->read_set);
     }
   }
   if (leaf_1)
@@ -9010,14 +9006,13 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
         */
         if (field->gcol_info && !field->stored_in_db)
         {
-          my_bitmap_map old_read_set= *(table->read_set->bitmap);
           Item *gcol_item= field->gcol_info->expr_item;
           DBUG_ASSERT(gcol_item);
           gcol_item->walk(&Item::register_field_in_read_map, Item::WALK_PREFIX,
                           (uchar *) 0);
+          gcol_item->walk(&Item::update_indexed_column_map, Item::WALK_PREFIX,
+                          (uchar *) 0);
           bitmap_set_bit(field->table->write_set, field->field_index);
-          if (old_read_set != *(table->read_set->bitmap))
-            update_indexed_column_map(table, table->read_set);
         }
         if (table && field->stored_in_db)
         {
@@ -10212,31 +10207,6 @@ open_log_table(THD *thd, TABLE_LIST *one_table, Open_tables_backup *backup)
 void close_log_table(THD *thd, Open_tables_backup *backup)
 {
   close_nontrans_system_tables(thd, backup);
-}
-
-/**
-  @brief  update_indexed_column_map
-     Update columns map for index.
-
-  @return  VOID
-*/
-void update_indexed_column_map(TABLE *table, MY_BITMAP *read_set)
-{
-  Field * field;
-  for (uint i = 0; i < table->s->fields; i++)
-  {
-    field= table->field[i];
-    if (field->stored_in_db && bitmap_is_set(read_set, field->field_index))
-    {
-      /*
-        We always want to register the used keys, as the column bitmap may have
-        been set for all fields (for example for view).
-      */
-
-      table->covering_keys.intersect(field->part_of_key);
-      table->merge_keys.merge(field->part_of_key);
-    }
-  }
 }
 
 /**

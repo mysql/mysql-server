@@ -1262,7 +1262,7 @@ public:
   }
   bool check_gcol_func_processor(uchar *int_arg) 
   {
-    DBUG_ENTER("Item_func_curdate::check_gcol_func_processor");
+    DBUG_ENTER("Item_func_now::check_gcol_func_processor");
     DBUG_PRINT("info",
       ("check_gcol_func_processor returns TRUE: unsupported function"));
     DBUG_RETURN(TRUE);

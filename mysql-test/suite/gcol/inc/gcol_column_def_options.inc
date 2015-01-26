@@ -141,6 +141,22 @@ create table t1 (a int, b int generated always as (a % 2) virtual);
 alter table t1 modify b int generated always as (a % 2) stored references t2(a);
 show create table t1;
 drop table t1;
+drop table t2;
+--echo FK options
+create table t1(a int,  b int as (a % 2), c int as (a) stored);
+create table t2 (a int);
+--error ER_KEY_COLUMN_DOES_NOT_EXITS
+alter table t1 add constraint foreign key fk(d) references t2(a);
+--error ER_KEY_BASED_ON_GENERATED_COLUMN
+alter table t1 add constraint foreign key fk(b) references t2(a);
+--error ER_WRONG_FK_OPTION_FOR_GENERATED_COLUMN
+alter table t1 add constraint foreign key fk(c) references t2(a) on delete set null;
+--error ER_WRONG_FK_OPTION_FOR_GENERATED_COLUMN
+alter table t1 add constraint foreign key fk(c) references t2(a) on update set null;
+--error ER_WRONG_FK_OPTION_FOR_GENERATED_COLUMN
+alter table t1 add constraint foreign key fk(c) references t2(a) on update cascade;
+drop table t1;
+drop table t2;
 --echo Generated alwasy is optional
 create table t1 (a int, b int as (a % 2) virtual);
 show create table t1;

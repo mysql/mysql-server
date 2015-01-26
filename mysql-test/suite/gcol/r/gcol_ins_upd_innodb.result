@@ -16,9 +16,9 @@ select * from t1;
 a	b	c
 # INSERT INTO tbl_name VALUES... NULL is specified against gcols
 insert into t1 values (1,null,null);
+ERROR HY000: The value specified for generated column 'b' in table 't1' is not allowed.
 select * from t1;
 a	b	c
-1	-1	-1
 delete from t1;
 select * from t1;
 a	b	c
@@ -51,10 +51,9 @@ select * from t1;
 a	b	c
 # INSERT INTO tbl_name (<normal+gcols>) VALUES... NULL is specified against gcols
 insert into t1 (a,b) values (1,null), (2,null);
+ERROR HY000: The value specified for generated column 'b' in table 't1' is not allowed.
 select * from t1;
 a	b	c
-1	-1	-1
-2	-2	-2
 delete from t1;
 select * from t1;
 a	b	c
