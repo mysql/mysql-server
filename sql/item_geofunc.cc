@@ -3939,7 +3939,7 @@ longlong Item_func_isvalid::val_int()
     return 0L;
   if (geom->get_srid() != 0)
   {
-    my_error(ER_WRONG_ARGUMENTS, MYF(0));
+    my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
     return error_int();
   }
 
