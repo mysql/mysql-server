@@ -55,21 +55,21 @@ DROP TABLE t1;
 --echo # Verify that all Server Listening hooks were called
 --echo #
 
---let GREP_FILE=$MYSQLTEST_VARDIR/log/mysqld.1.err
---let GREP_PATTERN=replication_observers_example_plugin:before_handle_connection
---source extra/rpl_tests/grep_pattern.inc
+--let $grep_file=$MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $grep_pattern=replication_observers_example_plugin:before_handle_connection
+--source include/grep_pattern.inc
 
---let GREP_FILE=$MYSQLTEST_VARDIR/log/mysqld.1.err
---let GREP_PATTERN=replication_observers_example_plugin:before_recovery
---source extra/rpl_tests/grep_pattern.inc
+--let $grep_file=$MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $grep_pattern=replication_observers_example_plugin:before_recovery
+--source include/grep_pattern.inc
 
---let GREP_FILE=$MYSQLTEST_VARDIR/log/mysqld.1.err
---let GREP_PATTERN=replication_observers_example_plugin:after_engine_recovery
---source extra/rpl_tests/grep_pattern.inc
+--let $grep_file=$MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $grep_pattern=replication_observers_example_plugin:after_engine_recovery
+--source include/grep_pattern.inc
 
---let GREP_FILE=$MYSQLTEST_VARDIR/log/mysqld.1.err
---let GREP_PATTERN=replication_observers_example_plugin:after_recovery
---source extra/rpl_tests/grep_pattern.inc
+--let $grep_file=$MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $grep_pattern=replication_observers_example_plugin:after_recovery
+--source include/grep_pattern.inc
 
 --let $include_filename= rpl_replication_observers_example_plugin_server_startup.inc
 --source include/end_include_file.inc

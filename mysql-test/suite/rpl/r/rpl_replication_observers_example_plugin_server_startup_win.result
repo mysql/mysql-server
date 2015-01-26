@@ -16,17 +16,13 @@ DROP TABLE t1;
 #
 Matching lines are:
 replication_observers_example_plugin:before_handle_connection'
-
-Occurrences of the replication_observers_example_plugin:before_handle_connection in the input file : 1
+Occurrences of 'replication_observers_example_plugin:before_handle_connection' in the input file: 1
 Matching lines are:
 replication_observers_example_plugin:before_recovery'
-
-Occurrences of the replication_observers_example_plugin:before_recovery in the input file : 1
+Occurrences of 'replication_observers_example_plugin:before_recovery' in the input file: 1
 Matching lines are:
 replication_observers_example_plugin:after_engine_recovery'
-
-Occurrences of the replication_observers_example_plugin:after_engine_recovery in the input file : 1
+Occurrences of 'replication_observers_example_plugin:after_engine_recovery' in the input file: 1
 Matching lines are:
 replication_observers_example_plugin:after_recovery'
-
-Occurrences of the replication_observers_example_plugin:after_recovery in the input file : 1
+Occurrences of 'replication_observers_example_plugin:after_recovery' in the input file: 1

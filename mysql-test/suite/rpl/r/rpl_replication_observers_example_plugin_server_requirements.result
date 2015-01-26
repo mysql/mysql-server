@@ -10,5 +10,4 @@ include/uninstall_replication_observers_example.inc
 #
 Matching lines are:
 replication_observers_example_plugin:validate_plugin_server_requirements=4'
-
-Occurrences of the replication_observers_example_plugin:validate_plugin_server_requirements=4 in the input file : 1
+Occurrences of 'replication_observers_example_plugin:validate_plugin_server_requirements=4' in the input file: 1
