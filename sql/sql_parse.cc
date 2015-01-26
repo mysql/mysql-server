@@ -66,8 +66,6 @@
 #include <algorithm>
 using std::max;
 
-#define FLAGSTR(V,F) ((V)&(F)?#F" ":"")
-
 /**
   @defgroup Runtime_Environment Runtime Environment
   @{

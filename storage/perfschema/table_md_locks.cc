@@ -25,6 +25,7 @@
 #include "pfs_column_values.h"
 #include "table_md_locks.h"
 #include "pfs_global.h"
+#include "field.h"
 
 THR_LOCK table_metadata_locks::m_table_lock;
 

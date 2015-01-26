@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -18,8 +18,11 @@
 #ifndef RPL_GTID_PERSIST_H_
 #define RPL_GTID_PERSIST_H_
 
+#include "my_global.h"
+#include "rpl_table_access.h"        // System_table_access
+#include "sql_class.h"               // Open_tables_backup
+
 #include <string>
-#include "rpl_table_access.h"
 using std::string;
 
 class Open_tables_backup;

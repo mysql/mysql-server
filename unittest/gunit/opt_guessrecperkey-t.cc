@@ -22,7 +22,7 @@
 #include "fake_key.h"                             // Fake_KEY
 #include "test_utils.h"
 
-#include "structs.h"                              // KEY
+#include "key.h"                                  // KEY
 #include "opt_statistics.h"                       // guess_rec_per_key
 
 namespace guessrecperkey_unittest {

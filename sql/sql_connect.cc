@@ -28,7 +28,6 @@
 #include "hostname.h"                   // Host_errors
 #include "log.h"                        // sql_print_information
 #include "mysqld.h"                     // LOCK_user_conn
-#include "structs.h"                    // user_conn
 #include "sql_audit.h"                  // MYSQL_AUDIT_NOTIFY_CONNECTION_CONNECT
 #include "sql_class.h"                  // THD
 #include "sql_parse.h"                  // sql_command_flags

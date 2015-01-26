@@ -22,6 +22,7 @@
 #include "pfs_host.h"
 #include "pfs_visitor.h"
 #include "pfs_memory.h"
+#include "field.h"
 
 THR_LOCK table_hosts::m_table_lock;
 

@@ -24,6 +24,7 @@ Created July 18, 2007 Vasil Dimov
 *******************************************************/
 
 #include "ha_prototypes.h"
+#include <field.h>
 #include <sql_acl.h>
 #include <sql_show.h>
 #include <sql_time.h>
