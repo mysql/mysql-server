@@ -300,3 +300,34 @@ SELECT * FROM V1;
 
 DROP VIEW V1;
 DROP TABLE A,C;
+
+--echo #
+--echo # Bug#20406510: WL411:VALGRIND WARNINGS WITH
+--echo #    COUNT DISTINCT QUERY ON VIRTUAL GC VARCHAR COLUMN
+--echo # 
+CREATE TABLE A (
+  pk INTEGER AUTO_INCREMENT,
+  col_time_key TIME NOT NULL,
+  col_datetime_key DATETIME NOT NULL,
+  PRIMARY KEY (pk),
+  KEY (col_time_key),
+  KEY (col_datetime_key)
+);
+
+CREATE TABLE C (
+  pk INTEGER AUTO_INCREMENT,
+  col_int_key INTEGER NOT NULL,
+  col_varchar_key VARCHAR(1) NOT NULL,
+  col_varchar_nokey VARCHAR(2) GENERATED ALWAYS AS
+  (CONCAT(col_varchar_key, col_varchar_key)),
+  PRIMARY KEY (pk),
+  KEY (col_int_key),
+  KEY (col_varchar_key, col_int_key)
+);
+
+INSERT INTO C (col_int_key,col_varchar_key) VALUES (0, 'j'),(8, 'v'),(1, 'c'),(8, 'm'),(9, 'd');
+SELECT MIN(  alias2 . col_int_key ) AS field1,
+COUNT( DISTINCT alias2 . col_varchar_nokey ) AS field2
+FROM ( A AS alias1 , C AS alias2 )
+ORDER BY alias1.col_time_key, alias1.col_datetime_key, alias1.pk ASC;
+DROP TABLE A,C;
