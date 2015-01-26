@@ -27,6 +27,7 @@
 #include "table_setup_instruments.h"
 #include "pfs_global.h"
 #include "pfs_setup_object.h"
+#include "field.h"
 
 THR_LOCK table_setup_instruments::m_table_lock;
 

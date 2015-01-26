@@ -26,6 +26,7 @@
 #include "table_tlws_by_table.h"
 #include "pfs_global.h"
 #include "pfs_visitor.h"
+#include "field.h"
 
 THR_LOCK table_tlws_by_table::m_table_lock;
 

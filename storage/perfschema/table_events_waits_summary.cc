@@ -25,6 +25,7 @@
 #include "pfs_column_values.h"
 #include "table_events_waits_summary.h"
 #include "pfs_global.h"
+#include "field.h"
 
 THR_LOCK table_events_waits_summary_by_instance::m_table_lock;
 

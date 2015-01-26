@@ -24,6 +24,7 @@
 #include "pfs_instr.h"
 #include "pfs_events_waits.h"
 #include "pfs_digest.h"
+#include "field.h"
 
 #define COUNT_SETUP_CONSUMERS 15
 

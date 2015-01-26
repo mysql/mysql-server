@@ -1,7 +1,7 @@
 #ifndef SQL_USER_CACHE_INCLUDED
 #define SQL_USER_CACHE_INCLUDED
 
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,7 +19,6 @@
 #include "my_global.h"                  // NO_EMBEDDED_ACCESS_CHECKS
 #include "my_sys.h"                     // wild_many, wild_one, wild_prefix
 #include <string.h>                     // strchr
-#include "structs.h"                    // USER_RESOURCES
 #include "mysql_com.h"                  // SCRAMBLE_LENGTH
 #include "violite.h"                    // SSL_type
 #include "hash_filo.h"                  // HASH, hash_filo
