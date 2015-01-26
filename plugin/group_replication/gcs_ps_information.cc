@@ -83,8 +83,11 @@ bool get_gcs_group_members_info(uint index,
                         char* gcs_group_pointer,
                         char *channel_name)
 {
-
+  // Default values.
   info->channel_name= channel_name;
+  info->member_id= NULL;
+  info->member_address= NULL;
+  info->member_state= MEMBER_STATE_OFFLINE;
 
   /*
    This case means that the plugin has never been initialized...
@@ -223,6 +226,10 @@ bool get_gcs_group_member_stats(GROUP_REPLICATION_GROUP_MEMBER_STATS_INFO *info,
   if(view != NULL)
   {
     info->view_id= view->get_view_id()->get_representation();
+  }
+  else
+  {
+    info->view_id= NULL;
   }
 
   Certification_handler *cert= NULL;
