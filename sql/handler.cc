@@ -36,7 +36,6 @@
 #include "sql_table.h"                // build_table_filename
 #include "transaction.h"              // trans_commit_implicit
 #include "trigger_def.h"              // TRG_EXT
-#include "sql_select.h"               // actual_key_parts
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
@@ -2507,96 +2506,11 @@ int handler::ha_close(void)
 }
 
 
-/*
-  DESCRIPTION
-    Check whether a virtual gc needs an update when doing key-scan.
-    If an convering index scan includes all of the base columns of
-    virtual GCs depend on, virtual GCs' value will be updated. Otherwise,
-    the value won't be updated.
-
-  @param      table        Pointer of scanned table
-  @param      key          Key to search for
-  @param      keypart_map  Which part of key to use
-
-  @returns
-    @retval  TRUE  Don't need update GCs
-             FALSE GCs need update
-*/
-bool check_gcol_need_update(TABLE *table, uint key,
-                       key_part_map keypart_map= ~(key_part_map)0)
-{
-  DBUG_ENTER("check_gcol_need_update");
-  DBUG_ASSERT(table->vfield); // This is checked before calling
-
-  // Ignore the case of non-convering index scan
-  if (!table->key_read)
-    DBUG_RETURN(false);
-
-  MY_BITMAP key_fields_map;
-  uint32 bitbuf[bitmap_buffer_size(MAX_FIELDS)];
-  bitmap_init(&key_fields_map, bitbuf, table->s->fields, 0);
-  bitmap_clear_all(&key_fields_map);
-
-  KEY *key_info= table->key_info + key;
-  KEY_PART_INFO *key_part= key_info->key_part;
-  KEY_PART_INFO *end_key_part= key_part + actual_key_parts(key_info);
-
-  while (key_part < end_key_part && keypart_map)
-  {
-    bitmap_set_bit(&key_fields_map, key_part->field->field_index);
-    keypart_map >>= 1;
-    key_part++;
-  }
-
-  /**
-    Primary key is included in every secondary key. We needs conbine
-    key parts of primary key except primary key has been processed in
-    the above.
-  */
-  if (table->s->primary_key != MAX_KEY &&
-      table->s->primary_key != key)
-  {
-    key_info= table->key_info + table->s->primary_key;
-    key_part= key_info->key_part;
-    end_key_part= key_part + actual_key_parts(key_info);
-
-    while (key_part < end_key_part)
-    {
-      bitmap_set_bit(&key_fields_map, key_part->field->field_index);
-      key_part++;
-    }
-  }
-
-  /**
-    Because virtual GC might have been added into read_set, we have
-    to clean them because we only need care the base columns of it but
-    not itself.
-  */
-  MY_BITMAP base_fields_map;
-  uint32 bitbuf1[bitmap_buffer_size(MAX_FIELDS)];
-  bitmap_init(&base_fields_map, bitbuf1, table->s->fields, 0);
-  bitmap_clear_all(&base_fields_map);
-  bitmap_union(&base_fields_map, table->read_set);
-  Field **vfield;
-  Field *field;
-  for (vfield= table->vfield; *vfield; vfield++)
-  {
-    field= *vfield;
-    if (!field->stored_in_db)
-      bitmap_clear_bit(&base_fields_map, field->field_index);
-  }
-
-  if (bitmap_is_subset(&base_fields_map, &key_fields_map))
-    DBUG_RETURN(false);
-
-  DBUG_RETURN(true);
-}
-
 /**
-  fInitialize use of index.
+  Initialize use of index.
 
   @param idx     Index to use
-  @daparam sorted  Use sorted order
+  @param sorted  Use sorted order
 
   @return Operation status
     @retval 0     Success
@@ -2780,8 +2694,7 @@ int handler::ha_index_read_map(uchar *buf, const uchar *key,
 
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, active_index, result,
     { result= index_read_map(buf, key, keypart_map, find_flag); })
-  if (!result && table->vfield &&
-      !check_gcol_need_update(table, active_index, keypart_map))
+  if (!result && table->vfield)
     result= update_generated_read_fields(table);
   DBUG_RETURN(result);
 }
@@ -2798,8 +2711,7 @@ int handler::ha_index_read_last_map(uchar *buf, const uchar *key,
 
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, active_index, result,
     { result= index_read_last_map(buf, key, keypart_map); })
-  if (!result && table->vfield &&
-      !check_gcol_need_update(table, active_index, keypart_map))
+  if (!result && table->vfield)
     result= update_generated_read_fields(table);
   DBUG_RETURN(result);
 }
@@ -2823,8 +2735,7 @@ int handler::ha_index_read_idx_map(uchar *buf, uint index, const uchar *key,
 
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, index, result,
     { result= index_read_idx_map(buf, index, key, keypart_map, find_flag); })
-  if (!result && table->vfield &&
-      !check_gcol_need_update(table, index, keypart_map))
+  if (!result && table->vfield)
     result= update_generated_read_fields(table);
   return result;
 }
@@ -2852,8 +2763,7 @@ int handler::ha_index_next(uchar * buf)
 
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, active_index, result,
     { result= index_next(buf); })
-  if (!result && table->vfield &&
-      !check_gcol_need_update(table, active_index))
+  if (!result && table->vfield)
     result= update_generated_read_fields(table);
   DBUG_RETURN(result);
 }
@@ -2881,8 +2791,7 @@ int handler::ha_index_prev(uchar * buf)
 
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, active_index, result,
     { result= index_prev(buf); })
-  if (!result && table->vfield &&
-      !check_gcol_need_update(table, active_index))
+  if (!result && table->vfield)
     result= update_generated_read_fields(table);
   DBUG_RETURN(result);
 }
@@ -2910,8 +2819,7 @@ int handler::ha_index_first(uchar * buf)
 
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, active_index, result,
     { result= index_first(buf); })
-  if (!result && table->vfield &&
-      !check_gcol_need_update(table, active_index))
+  if (!result && table->vfield)
     result= update_generated_read_fields(table);
   DBUG_RETURN(result);
 }
@@ -2939,8 +2847,7 @@ int handler::ha_index_last(uchar * buf)
 
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, active_index, result,
     { result= index_last(buf); })
-  if (!result && table->vfield &&
-      !check_gcol_need_update(table, active_index))
+  if (!result && table->vfield)
     result= update_generated_read_fields(table);
   DBUG_RETURN(result);
 }
@@ -2970,8 +2877,7 @@ int handler::ha_index_next_same(uchar *buf, const uchar *key, uint keylen)
 
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, active_index, result,
     { result= index_next_same(buf, key, keylen); })
-  if (!result && table->vfield &&
-      !check_gcol_need_update(table, active_index))
+  if (!result && table->vfield)
     result= update_generated_read_fields(table);
   DBUG_RETURN(result);
 }
@@ -3018,8 +2924,7 @@ int handler::read_first_row(uchar * buf, uint primary_key)
         error= end_error;
     }
   }
-  if (!error && table->vfield &&
-      !check_gcol_need_update(table, primary_key))
+  if (!error && table->vfield)
     error= update_generated_read_fields(table);
   DBUG_RETURN(error);
 }

@@ -5647,10 +5647,6 @@ void TABLE::mark_columns_used_by_index_no_reset(uint index,
   for (;key_part != key_part_end; key_part++)
   {
     bitmap_set_bit(bitmap, key_part->fieldnr-1);
-    if (key_part->field->gcol_info)
-      key_part->field->gcol_info->
-               expr_item->walk(&Item::register_field_in_bitmap, 
-                               Item::WALK_PREFIX, (uchar *) bitmap);
   }
 }
 
