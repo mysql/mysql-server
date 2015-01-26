@@ -506,8 +506,8 @@ The following options may be given as the first argument:
  If this is not 0, then mysqld will use this value to
  reserve file descriptors to use with setrlimit(). If this
  value is 0 then mysqld will reserve max_connections*5 or
- max_connections + table_cache*2 (whichever is larger)
- number of file descriptors
+ max_connections + table_open_cache*2 (whichever is
+ larger) number of file descriptors
  --optimizer-prune-level=# 
  Controls the heuristic(s) applied during query
  optimization to prune less-promising partial plans from
