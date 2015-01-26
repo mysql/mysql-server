@@ -1513,6 +1513,15 @@ SELECT ST_ISVALID(ST_GEOMFROMTEXT(@star_center,-1024));
 ERROR HY000: Incorrect arguments to st_isvalid
 SELECT ST_ISVALID(ST_GEOMFROMTEXT(@star_all_points,-1));
 ERROR HY000: Incorrect arguments to st_isvalid
+#
+# Bug#20414966 WL#8034 : CRASH WITH ST_VAIDATE() IN ITEM_FUNC_VALIDATE::VAL_STR
+#
+SET @star_center= 'POINT(15 10)';
+SET @star_all_points= 'MULTIPOINT(5 0,25 0,15 10,15 25)';
+SELECT ST_VALIDATE(ST_GEOMFROMTEXT(@star_center,-1024));
+ERROR HY000: Incorrect arguments to st_validate
+SELECT ST_VALIDATE(ST_GEOMFROMTEXT(@star_all_points,-1));
+ERROR HY000: Incorrect arguments to st_validate
 DROP TABLE IF EXISTS p1;
 CREATE PROCEDURE p1(dist DOUBLE, geom TEXT)
 BEGIN
