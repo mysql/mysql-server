@@ -2,5 +2,7 @@
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
 
-show variables like "performance_schema%";
+show variables where
+    `Variable_name` != "performance_schema_max_statement_classes" and
+    `Variable_name` like "performance_schema%";
 show status like "performance_schema%";
