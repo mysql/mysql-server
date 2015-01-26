@@ -1059,14 +1059,14 @@ public:
   double bg_distance(const Geometry *g1, const Geometry *g2, bool *isdone);
 
   Item_func_distance(const POS &pos, Item *a, Item *b, bool isspherical)
-    : Item_real_func(pos, a, b), is_spherical_equatorial(isspherical)
+    : Item_real_func(pos, a, b), is_spherical_equatorial(isspherical),
+      earth_radius(6370986.0)                   /* Default earth radius. */
   {
     /*
       Either operand can be an empty geometry collection, and it's meaningless
       for a distance between them.
     */
     maybe_null= true;
-    earth_radius= 6370986.0;                    /* Default earth radius. */
   }
 
   void fix_length_and_dec()

@@ -44,9 +44,10 @@
 
 #include "spatial.h"
 
-// Helper class for spherical, spherical_equaltorial(i.e. geography)
-// coordinate systems. Every Geometry subclass will need one, we for now
-// only need two.
+/**
+  Helper class for spherical, spherical_equaltorial(i.e. geography)
+  coordinate systems. Every Geometry subclass will need one.
+*/
 class Gis_point_spherical: public Gis_point
 {
 public:
@@ -157,7 +158,8 @@ public:
 };
 
 
-class Gis_multi_line_string_spherical : public Gis_wkb_vector<Gis_line_string_spherical>
+class Gis_multi_line_string_spherical :
+  public Gis_wkb_vector<Gis_line_string_spherical>
 {
   typedef Gis_wkb_vector<Gis_line_string_spherical> base_type;
 public:
