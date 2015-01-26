@@ -30,57 +30,39 @@
   (for example in storage/myisam/ha_myisam.cc) !
 */
 
-#include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
-#include "sql_class.h"
-#include "rpl_gtid.h"
 #include "sys_vars.h"
-#include "mysql_com.h"
 
-#include "events.h"
-#include "rpl_slave.h"
-#include "rpl_mi.h"
-#include "rpl_rli.h"
-#include "rpl_slave.h"
-#include "rpl_msr.h"           /* Multisource replication */
-#include "rpl_info_factory.h"
-#include "transaction.h"
-#include "opt_trace.h"
-#include "mysqld.h"
-#include "lock.h"
-#include "sql_time.h"                       // known_date_time_formats
-#include "auth_common.h" // SUPER_ACL,
-                         // mysql_user_table_is_in_short_password_format
-                         // disconnect_on_expired_password
-#include "derror.h"  // read_texts
-#include "sql_base.h"                           // close_cached_tables
-#include "debug_sync.h"                         // DEBUG_SYNC
-#include "hostname.h"                           // host_cache_size
-#include "sql_show.h"                           // opt_ignore_db_dirs
-#include "table_cache.h"                        // Table_cache_manager
-#include "connection_handler_impl.h"            // Per_thread_connection_handler
-#include "connection_handler_manager.h"         // Connection_handler_manager
-#include "socket_connection.h"                  // MY_BIND_ALL_ADDRESSES
-#include "sp_head.h" // SP_PSI_STATEMENT_INFO_COUNT 
-#include "my_aes.h" // my_aes_opmode_names
-#include "item_timefunc.h"                      // ISO_FORMAT
-#include "myisam.h"                             // myisam_concurrent_insert
+#include "my_aes.h"                      // my_aes_opmode_names
+#include "myisam.h"                      // myisam_flush
+#include "auth_common.h"                 // validate_user_plugins
+#include "binlog.h"                      // mysql_bin_log
+#include "connection_handler_impl.h"     // Per_thread_connection_handler
+#include "connection_handler_manager.h"  // Connection_handler_manager
+#include "debug_sync.h"                  // DEBUG_SYNC
+#include "derror.h"                      // read_texts
+#include "events.h"                      // Events
+#include "hostname.h"                    // host_cache_resize
+#include "item_timefunc.h"               // ISO_FORMAT
+#include "log_event.h"                   // MAX_MAX_ALLOWED_PACKET
+#include "rpl_info_factory.h"            // Rpl_info_factory
+#include "rpl_info_handler.h"            // INFO_REPOSITORY_FILE
+#include "rpl_mi.h"                      // Master_info
+#include "rpl_msr.h"                     // msr_map
+#include "rpl_slave.h"                   // SLAVE_THD_TYPE
+#include "socket_connection.h"           // MY_BIND_ALL_ADDRESSES
+#include "sp_head.h"                     // SP_PSI_STATEMENT_INFO_COUNT
+#include "sql_parse.h"                   // killall_non_super_threads
+#include "sql_show.h"                    // opt_ignore_db_dirs
+#include "sql_tmp_table.h"               // internal_tmp_disk_storage_engine
+#include "sql_time.h"                    // global_date_format
+#include "table_cache.h"                 // Table_cache_manager
+#include "transaction.h"                 // trans_commit_stmt
 
-#include "log_event.h"
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #include "../storage/perfschema/pfs_server.h"
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
-#include "sql_tmp_table.h"  // internal_tmp_disk_storage_engine
 
 TYPELIB bool_typelib={ array_elements(bool_values)-1, "", bool_values, 0 };
-
-/*
-  This forward declaration is needed because including sql_base.h
-  causes further includes.  [TODO] Eliminate this forward declaration
-  and include a file with the prototype instead.
-*/
-extern void close_thread_tables(THD *thd);
-
-extern void killall_non_super_threads(THD *thd);
 
 static bool update_buffer_size(THD *thd, KEY_CACHE *key_cache,
                                ptrdiff_t offset, ulonglong new_value)
@@ -2869,7 +2851,7 @@ static Sys_var_ulong Sys_trans_alloc_block_size(
        "transaction_alloc_block_size",
        "Allocation block size for transactions to be stored in binary log",
        SESSION_VAR(trans_alloc_block_size), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(1024, ULONG_MAX), DEFAULT(QUERY_ALLOC_BLOCK_SIZE),
+       VALID_RANGE(1024, 128 * 1024 * 1024), DEFAULT(QUERY_ALLOC_BLOCK_SIZE),
        BLOCK_SIZE(1024), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(fix_trans_mem_root));
 
@@ -2877,7 +2859,7 @@ static Sys_var_ulong Sys_trans_prealloc_size(
        "transaction_prealloc_size",
        "Persistent buffer for transactions to be stored in binary log",
        SESSION_VAR(trans_prealloc_size), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(1024, ULONG_MAX), DEFAULT(TRANS_ALLOC_PREALLOC_SIZE),
+       VALID_RANGE(1024, 128 * 1024 * 1024), DEFAULT(TRANS_ALLOC_PREALLOC_SIZE),
        BLOCK_SIZE(1024), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(fix_trans_mem_root));
 
@@ -4743,13 +4725,11 @@ static bool check_locale(sys_var *self, THD *thd, set_var *var)
 
   var->save_result.ptr= locale;
 
-  if (!locale->errmsgs->errmsgs)
+  if (!locale->errmsgs->is_loaded())
   {
     mysql_mutex_lock(&LOCK_error_messages);
-    if (!locale->errmsgs->errmsgs &&
-        read_texts(ERRMSG_FILE, locale->errmsgs->language,
-                   locale->errmsgs->errmsgs,
-                   ER_ERROR_LAST - ER_ERROR_FIRST + 1))
+    if (!locale->errmsgs->is_loaded() &&
+        locale->errmsgs->read_texts())
     {
       push_warning_printf(thd, Sql_condition::SL_WARNING, ER_UNKNOWN_ERROR,
                           "Can't process error message file for locale '%s'",
@@ -4991,14 +4971,19 @@ static bool check_gtid_next(sys_var *self, THD *thd, set_var *var)
 #endif
   }
   // check that we don't own a GTID
-  else if(thd->owned_gtid.sidno != 0)
+  else if (thd->owned_gtid.sidno != 0 &&
+           thd->owned_gtid.sidno != THD::OWNED_SIDNO_ANONYMOUS)
   {
     char buf[Gtid::MAX_TEXT_LENGTH + 1];
 #ifndef DBUG_OFF
     DBUG_ASSERT(thd->owned_gtid.sidno > 0);
     global_sid_lock->wrlock();
-    DBUG_ASSERT(gtid_state->get_owned_gtids()->
-                thread_owns_anything(thd->thread_id()));
+    if (thd->owned_gtid.sidno == THD::OWNED_SIDNO_ANONYMOUS)
+      DBUG_ASSERT(!gtid_state->get_owned_gtids()->
+                  thread_owns_anything(thd->thread_id()));
+    else
+      DBUG_ASSERT(gtid_state->get_owned_gtids()->
+                  thread_owns_anything(thd->thread_id()));
 #else
     global_sid_lock->rdlock();
 #endif
@@ -5013,10 +4998,13 @@ static bool check_gtid_next(sys_var *self, THD *thd, set_var *var)
 
 static bool update_gtid_next(sys_var *self, THD *thd, enum_var_type type)
 {
+  DBUG_ENTER("update_gtid_next");
   DBUG_ASSERT(type == OPT_SESSION);
-  if (thd->variables.gtid_next.type == GTID_GROUP)
-    return gtid_acquire_ownership_single(thd) != 0 ? true : false;
-  return false;
+  if (thd->variables.gtid_next.type == GTID_GROUP ||
+      thd->variables.gtid_next.type == ANONYMOUS_GROUP)
+    if (gtid_acquire_ownership_single(thd) != 0)
+      DBUG_RETURN(true);
+  DBUG_RETURN(false);
 }
 
 #ifdef HAVE_GTID_NEXT_LIST
@@ -5346,3 +5334,27 @@ static Sys_var_mybool Sys_offline_mode(
        GLOBAL_VAR(offline_mode), CMD_LINE(OPT_ARG), DEFAULT(FALSE),
        &PLock_offline_mode, NOT_IN_BINLOG,
        ON_CHECK(0), ON_UPDATE(handle_offline_mode));
+
+static Sys_var_mybool Sys_avoid_temporal_upgrade(
+       "avoid_temporal_upgrade",
+       "When this option is enabled, the pre-5.6.4 temporal types are "
+       "not upgraded to the new format for ALTER TABLE requests ADD/CHANGE/MODIFY"
+       " COLUMN, ADD INDEX or FORCE operation. "
+       "This variable is deprecated and will be removed in a future release.",
+        GLOBAL_VAR(avoid_temporal_upgrade),
+        CMD_LINE(OPT_ARG, OPT_AVOID_TEMPORAL_UPGRADE),
+        DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+        ON_CHECK(0), ON_UPDATE(0),
+        DEPRECATED(""));
+
+static Sys_var_mybool Sys_show_old_temporals(
+       "show_old_temporals",
+       "When this option is enabled, the pre-5.6.4 temporal types will "
+       "be marked in the 'SHOW CREATE TABLE' and 'INFORMATION_SCHEMA.COLUMNS' "
+       "table as a comment in COLUMN_TYPE field. "
+       "This variable is deprecated and will be removed in a future release.",
+        SESSION_VAR(show_old_temporals),
+        CMD_LINE(OPT_ARG, OPT_SHOW_OLD_TEMPORALS),
+        DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+        ON_CHECK(0), ON_UPDATE(0),
+        DEPRECATED(""));

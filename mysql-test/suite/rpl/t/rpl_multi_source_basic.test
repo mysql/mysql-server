@@ -331,6 +331,30 @@ DELETE FROM dbcommon.t101 where a=1729;
 #
 # Cleanup; This involves deleting/dropping and manual syncing
 #
+
+# sync the channels before anything else, so that previous
+# events from different channels do not have the chance of
+# being overtaken by the next statements and thus cause
+# random failures
+
+--echo # channel 1
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+--let $rpl_channel_name= channel_1
+--let $sync_slave_connection= server_2
+--source include/sync_slave_sql_with_master.inc
+
+--echo # channel 3
+--let $rpl_connection_name= server_3
+--source include/rpl_connection.inc
+
+--let $rpl_channel_name= channel_3
+--let $sync_slave_connection= server_2
+--source include/sync_slave_sql_with_master.inc
+
+# now do the clean up
+
 --echo connection_server_1
 --connection server_1
 DROP DATABASE db1;

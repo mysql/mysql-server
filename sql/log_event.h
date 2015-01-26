@@ -78,7 +78,7 @@ using binary_log::Format_description_event;
 class String;
 typedef ulonglong sql_mode_t;
 typedef struct st_db_worker_hash_entry db_worker_hash_entry;
-extern char server_version[SERVER_VERSION_LENGTH];
+extern "C" MYSQL_PLUGIN_IMPORT char server_version[SERVER_VERSION_LENGTH];
 #define PREFIX_SQL_LOAD "SQL_LOAD-"
 
 /**
@@ -181,7 +181,6 @@ struct sql_ex_info
 #define SL_MASTER_PORT_OFFSET   8
 #define SL_MASTER_POS_OFFSET    0
 #define SL_MASTER_HOST_OFFSET   10
-
 
 /* Intvar event post-header */
 
@@ -562,6 +561,40 @@ protected:
   };
 
   bool is_valid_param;
+  /**
+    Writes the common header of this event to the given memory buffer.
+
+    This does not update the checksum.
+
+    @note This has the following form:
+
+    +---------+---------+---------+------------+-----------+-------+
+    |timestamp|type code|server_id|event_length|end_log_pos|flags  |
+    |4 bytes  |1 byte   |4 bytes  |4 bytes     |4 bytes    |2 bytes|
+    +---------+---------+---------+------------+-----------+-------+
+
+    @param buf Memory buffer to write to. This must be at least
+    LOG_EVENT_HEADER_LEN bytes long.
+
+    @return The number of bytes written, i.e., always
+    LOG_EVENT_HEADER_LEN.
+  */
+  uint32 write_header_to_memory(uchar *buf);
+  /**
+    Writes the common-header of this event to the given IO_CACHE and
+    updates the checksum.
+
+    @param file The event will be written to this IO_CACHE.
+
+    @param data_length The length of the post-header section plus the
+    length of the data section; i.e., the length of the event minus
+    the common-header and the checksum.
+  */
+  bool write_header(IO_CACHE* file, size_t data_length);
+  bool write_footer(IO_CACHE* file);
+  my_bool need_checksum();
+
+
 public:
   /*
      A temp buffer for read_log_event; it is later analysed according to the
@@ -788,13 +821,20 @@ public:
   /* Placement version of the above operators */
   static void *operator new(size_t, void* ptr) { return ptr; }
   static void operator delete(void*, void*) { }
+  /**
+    Write the given buffer to the given IO_CACHE, updating the
+    checksum if checksums are enabled.
+
+    @param file The IO_CACHE to write to.
+    @param buf The buffer to write.
+    @param data_length The number of bytes to write.
+
+    @retval false Success.
+    @retval true Error.
+  */
   bool wrapper_my_b_safe_write(IO_CACHE* file, const uchar* buf, size_t data_length);
 
 #ifdef MYSQL_SERVER
-  bool write_header(IO_CACHE* file, size_t data_length);
-  bool write_footer(IO_CACHE* file);
-  my_bool need_checksum();
-
   virtual bool write(IO_CACHE* file)
   {
     return(write_header(file, get_data_size()) ||
@@ -927,7 +967,6 @@ public:
     return
       ((get_type_code() == binary_log::LOAD_EVENT         ||
         get_type_code() == binary_log::CREATE_FILE_EVENT  ||
-        get_type_code() == binary_log::DELETE_FILE_EVENT  ||
         get_type_code() == binary_log::NEW_LOAD_EVENT     ||
         get_type_code() == binary_log::EXEC_LOAD_EVENT)    &&
        is_scheduler_dbname)                                  ||
@@ -1120,13 +1159,13 @@ public:
      @return TRUE  if the event starts a group (transaction)
              FASE  otherwise
   */
-  virtual bool starts_group() { return FALSE; }
+  virtual bool starts_group() { return false; }
 
   /**
      @return TRUE  if the event ends a group (transaction)
              FASE  otherwise
   */
-  virtual bool ends_group()   { return FALSE; }
+  virtual bool ends_group()   { return false; }
 
   /**
      Apply the event to the database.
@@ -1447,6 +1486,9 @@ public:        /* !!! Public in this patch to allow old usage */
       (!native_strncasecmp(query, STRING_WITH_LEN("ROLLBACK"))
        && native_strncasecmp(query, STRING_WITH_LEN("ROLLBACK TO ")));
   }
+  static size_t get_query(const char *buf, size_t length,
+                          const Format_description_log_event *fd_event,
+                          char** query);
 };
 
 
@@ -1890,7 +1932,7 @@ class Xid_log_event: public binary_log::Xid_event, public Log_event
 #ifdef MYSQL_SERVER
   bool write(IO_CACHE* file);
 #endif
-  virtual bool ends_group() { return TRUE; }
+  virtual bool ends_group() { return true; }
 private:
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
   virtual int do_apply_event(Relay_log_info const *rli);
@@ -3715,12 +3757,9 @@ extern TYPELIB binlog_checksum_typelib;
 /**
   @class Gtid_log_event
 
-  This is the subclass if Gtid_event and Log_event
-  Each transaction has a coordinate in the form of a pair:
-  GTID = (SID, GNO)
-  GTID stands for Global Transaction IDentifier,
-       SID for Source Identifier, and
-       GNO for Group Number.
+  This is a subclass if Gtid_event and Log_event.  It contains
+  per-transaction fields, including the GTID and logical timestamps
+  used by MTS.
 
   @internal
   The inheritance structure is as follows
@@ -3744,17 +3783,17 @@ class Gtid_log_event : public binary_log::Gtid_event, public Log_event
 public:
 #ifndef MYSQL_CLIENT
   /**
-    Create a new event using the GTID from the given Gtid_specification,
-    or from @@SESSION.GTID_NEXT if spec==NULL.
+    Create a new event using the GTID owned by the given thread.
   */
   Gtid_log_event(THD *thd_arg, bool using_trans,
-                 const Gtid_specification *spec= NULL);
+                 int64 last_committed_arg, int64 sequence_number_arg);
 
   /**
     Create a new event using the GTID from the given Gtid_specification
     without a THD object.
   */
   Gtid_log_event(uint32 server_id_arg, bool using_trans,
+                 int64 last_committed_arg, int64 sequence_number_arg,
                  const Gtid_specification spec_arg);
 #endif
 
@@ -3772,17 +3811,58 @@ private:
   /// Used internally by both print() and pack_info().
   size_t to_string(char *buf) const;
 
+#ifdef MYSQL_SERVER
+  /**
+    Writes the post-header to the given IO_CACHE file.
+
+    This is an auxiliary function typically used by the write() member
+    function.
+
+    @param file The file to write to.
+
+    @retval true Error.
+    @retval false Success.
+  */
+  bool write_data_header(IO_CACHE *file);
+  /**
+    Writes the post-header to the given memory buffer.
+
+    This is an auxiliary function used by write_to_memory.
+
+    @param buffer Buffer to which the post-header will be written.
+
+    @return The number of bytes written, i.e., always
+    Gtid_log_event::POST_HEADER_LENGTH.
+  */
+  uint32 write_data_header_to_memory(uchar *buffer);
+#endif
+
 public:
 #ifdef MYSQL_CLIENT
   void print(FILE *file, PRINT_EVENT_INFO *print_event_info);
 #endif
 #ifdef MYSQL_SERVER
-  bool write_data_header(IO_CACHE *file);
+  /**
+    Writes this event to a memory buffer.
+
+    @param buf The event will be written to this buffer.
+
+    @return the number of bytes written, i.e., always
+    LOG_EVENT_HEADER_LEN + Gtid_log_event::POST_HEADEr_LENGTH.
+  */
+  uint32 write_to_memory(uchar *buf)
+  {
+    common_header->data_written= LOG_EVENT_HEADER_LEN + get_data_size();
+    uint32 len= write_header_to_memory(buf);
+    len+= write_data_header_to_memory(buf + len);
+    return len;
+  }
 #endif
 
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
   int do_apply_event(Relay_log_info const *rli);
   int do_update_pos(Relay_log_info *rli);
+  enum_skip_reason do_shall_skip(Relay_log_info *rli);
 #endif
 
   /**
@@ -3833,7 +3913,7 @@ public:
 
     @param sid_map The sid_map to use.
     @retval SIDNO if successful.
-    @negative if adding SID to sid_map causes an error.
+    @retval negative if adding SID to sid_map causes an error.
   */
   rpl_sidno get_sidno(Sid_map *sid_map)
   {
@@ -3841,8 +3921,6 @@ public:
   }
   /// Return the GNO for this GTID.
   rpl_gno get_gno() const { return spec.gtid.gno; }
-  /// Return true if this is the last group of the transaction, else false.
-  bool get_commit_flag() const { return commit_flag; }
 
   /// string holding the text "SET @@GLOBAL.GTID_NEXT = '"
   static const char *SET_STRING_PREFIX;
@@ -4021,6 +4099,7 @@ public:
 
 #ifndef MYSQL_CLIENT
   Transaction_context_log_event(const char *server_uuid_arg,
+                                bool using_trans,
                                 my_thread_id thread_id_arg,
                                 bool is_gtid_specified_arg);
 #endif

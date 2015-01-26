@@ -28,12 +28,12 @@
 #include <my_thread.h>
 #include <my_sys.h>
 
+#include <debug_sync.h>
+#include <log_event.h>
 #include <replication.h>
 #include <rpl_channel_service_interface.h>
 #include <rpl_pipeline_interfaces.h>
 #include <rpl_gtid.h>
-#include <log_event.h>
-#include <debug_sync.h>
 
 
 /**
@@ -110,12 +110,40 @@ char* encoded_gtid_set_to_string(uchar *encoded_gtid_set, uint length);
 #endif
 
 
+/**
+  Return last gno for a given sidno, see
+  Gtid_state::get_last_executed_gno() for details.
+*/
+rpl_gno get_last_executed_gno(rpl_sidno sidno);
+
+
+/**
+  Return sidno for a given sid, see Sid_map::add_sid() for details.
+*/
+rpl_sidno get_sidno_from_global_sid_map(rpl_sid sid);
+
+
+/**
+  Set slave thread default options.
+
+  @param[in] thd  The thread
+*/
 void set_slave_thread_options(THD* thd);
 
 
+/**
+  Add thread to Global_THD_manager singleton.
+
+  @param[in] thd  The thread
+*/
 void global_thd_manager_add_thd(THD *thd);
 
 
+/**
+  Remove thread from Global_THD_manager singleton.
+
+  @param[in] thd  The thread
+*/
 void global_thd_manager_remove_thd(THD *thd);
 
 

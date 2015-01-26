@@ -838,48 +838,17 @@ struct Uuid
 
   @section Gtid_event_binary_format Binary Format
 
-  The Body has five components:
-
-  <table>
-  <caption>Body for Gtid_event</caption>
-
-  <tr>
-    <th>Name</th>
-    <th>Format</th>
-    <th>Description</th>
-  </tr>
-
-  </tr>
-  <tr>
-    <td>ENCODED_FLAG_LENGTH</td>
-    <td>4 bytes static const integer</td>
-    <td>Length of the commit_flag in event encoding</td>
-  </tr>
-  <tr>
-    <td>ENCODED_SID_LENGTH</td>
-    <td>4 bytes static const integer</td>
-    <td>Length of SID in event encoding</td>
-  </tr>
-  <tr>
-    <td>ENCODED_GNO_LENGTH</td>
-    <td>4 bytes static const integer</td>
-    <td>Length of GNO in event encoding.</td>
-  </tr>
-  <tr>
-    <td>commit_flag</td>
-    <td>bool</td>
-    <td>True if this is the last group of the transaction</td>
-  </tr>
-  </table>
-
+  @todo
 */
 class Gtid_event: public Binary_log_event
 {
 public:
   /*
-    Last committed as commit parent's sequence number,
-    and the transaction own sequence number.
-   */
+    The transaction's logical timestamps used for MTS: see
+    Transaction_ctx::last_committed and
+    Transaction_ctx::sequence_number for details.
+    Note: Transaction_ctx is in the MySQL server code.
+  */
   long long int last_committed;
   long long int sequence_number;
   /**
@@ -906,11 +875,13 @@ public:
   Gtid_event(const char *buffer, uint32_t event_len,
              const Format_description_event *descr_event);
   /**
-    It is the minimal constructor which sets the commit_flag.
+    Constructor.
   */
-  explicit Gtid_event(bool commit_flag_arg)
+  explicit Gtid_event(long long int last_committed_arg,
+                      long long int sequence_number_arg)
     : Binary_log_event(GTID_LOG_EVENT),
-      commit_flag(commit_flag_arg)
+      last_committed(last_committed_arg),
+      sequence_number(sequence_number_arg)
   {}
 #ifndef HAVE_MYSYS
   //TODO(WL#7684): Implement the method print_event_info and print_long_info
@@ -922,19 +893,25 @@ protected:
   static const int ENCODED_FLAG_LENGTH= 1;
   static const int ENCODED_SID_LENGTH= 16;// Uuid::BYTE_LENGTH;
   static const int ENCODED_GNO_LENGTH= 8;
-  /// Length of COMMIT TIMESTAMP index in event encoding
-  static const int COMMIT_TS_INDEX_LEN= 1;
+  /// Length of typecode for logical timestamps.
+  static const int LOGICAL_TIMESTAMP_TYPECODE_LENGTH= 1;
+  /// Length of two logical timestamps.
+  static const int LOGICAL_TIMESTAMP_LENGTH= 16;
+  // Type code used before the logical timestamps.
+  static const int LOGICAL_TIMESTAMP_TYPECODE= 2;
   gtid_info gtid_info_struct;
   Uuid Uuid_parent_struct;
-  bool commit_flag;
 public:
   /// Total length of post header
   static const int POST_HEADER_LENGTH=
-    ENCODED_FLAG_LENGTH      +  /* flags */
-    ENCODED_SID_LENGTH       +  /* SID length */
-    ENCODED_GNO_LENGTH       +  /* GNO length */
-    COMMIT_TS_INDEX_LEN      +  /* TYPECODE for G_COMMIT_TS  */
-    COMMIT_SEQ_LEN;             /* COMMIT sequence length */
+    ENCODED_FLAG_LENGTH               +  /* flags */
+    ENCODED_SID_LENGTH                +  /* SID length */
+    ENCODED_GNO_LENGTH                +  /* GNO length */
+    LOGICAL_TIMESTAMP_TYPECODE_LENGTH + /* length of typecode */
+    LOGICAL_TIMESTAMP_LENGTH;           /* length of two logical timestamps */
+
+  static const int MAX_EVENT_LENGTH=
+    LOG_EVENT_HEADER_LEN + POST_HEADER_LENGTH;
 };
 
 

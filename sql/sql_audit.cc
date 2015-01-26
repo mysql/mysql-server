@@ -15,6 +15,7 @@
 
 #include "sql_audit.h"
 #include "log.h"
+#include "sql_plugin.h"                         // my_plugin_foreach
 
 extern int initialize_audit_plugin(st_plugin_int *plugin);
 extern int finalize_audit_plugin(st_plugin_int *plugin);
@@ -140,7 +141,7 @@ static my_bool acquire_plugins(THD *thd, plugin_ref plugin, void *arg)
 {
   uint event_class= *(uint*) arg;
   unsigned long event_class_mask[MYSQL_AUDIT_CLASS_MASK_SIZE];
-  st_mysql_audit *data= plugin_data(plugin, struct st_mysql_audit *);
+  st_mysql_audit *data= plugin_data<st_mysql_audit*>(plugin);
 
   set_audit_mask(event_class_mask, event_class);
 
@@ -229,7 +230,7 @@ void mysql_audit_release(THD *thd)
   plugins_last= thd->audit_class_plugins.end();
   for (; plugins != plugins_last; plugins++)
   {
-    st_mysql_audit *data= plugin_data(*plugins, struct st_mysql_audit *);
+    st_mysql_audit *data= plugin_data<st_mysql_audit*>(*plugins);
 	
     /* Check to see if the plugin has a release method */
     if (!(data->release_thd))
@@ -373,8 +374,8 @@ int initialize_audit_plugin(st_plugin_int *plugin)
 */
 static my_bool calc_class_mask(THD *thd, plugin_ref plugin, void *arg)
 {
-  st_mysql_audit *data= plugin_data(plugin, struct st_mysql_audit *);
-  if ((data= plugin_data(plugin, struct st_mysql_audit *)))
+  st_mysql_audit *data= plugin_data<st_mysql_audit*>(plugin);
+  if (data)
     add_audit_mask((unsigned long *) arg, data->class_mask);
   return 0;
 }
@@ -435,7 +436,7 @@ static my_bool plugins_dispatch(THD *thd, plugin_ref plugin, void *arg)
   const struct st_mysql_event_generic *event_generic=
     (const struct st_mysql_event_generic *) arg;
   unsigned long event_class_mask[MYSQL_AUDIT_CLASS_MASK_SIZE];
-  st_mysql_audit *data= plugin_data(plugin, struct st_mysql_audit *);
+  st_mysql_audit *data= plugin_data<st_mysql_audit*>(plugin);
 
   set_audit_mask(event_class_mask, event_generic->event_class);
 

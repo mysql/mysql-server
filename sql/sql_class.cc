@@ -40,15 +40,19 @@
 #include "sql_callback.h"                    // MYSQL_CALLBACK
 #include "sql_handler.h"                     // mysql_ha_cleanup
 #include "sql_parse.h"                       // is_update_query
+#include "sql_plugin.h"                      // plugin_unlock
 #include "sql_prepare.h"                     // Prepared_statement
 #include "sql_time.h"                        // my_timeval_trunc
 #include "sql_timer.h"                       // thd_timer_destroy
 #include "transaction.h"                     // trans_rollback
 
-#include <pfs_idle_provider.h>
-#include <mysql/psi/mysql_idle.h>
+#include "pfs_file_provider.h"
+#include "mysql/psi/mysql_file.h"
 
-#include <mysql/psi/mysql_ps.h>
+#include "pfs_idle_provider.h"
+#include "mysql/psi/mysql_idle.h"
+
+#include "mysql/psi/mysql_ps.h"
 
 using std::min;
 using std::max;
@@ -1131,7 +1135,11 @@ THD::THD(bool enable_plugins)
    debug_sync_control(0),
 #endif /* defined(ENABLED_DEBUG_SYNC) */
    m_enable_plugins(enable_plugins),
+#ifdef HAVE_GTID_NEXT_LIST
    owned_gtid_set(global_sid_map),
+#endif
+   skip_gtid_rollback(false),
+   is_commit_in_middle_of_statement(false),
    main_da(false),
    m_parser_da(false),
    m_stmt_da(&main_da)
@@ -1207,7 +1215,6 @@ THD::THD(bool enable_plugins)
   slave_net = 0;
   set_command(COM_CONNECT);
   *scramble= '\0';
-  skip_gtid_rollback= false;
 
   /* Call to init() below requires fully initialized Open_tables_state. */
   reset_open_tables_state();
@@ -1582,9 +1589,9 @@ void THD::init(void)
   session_tracker.init(this->charset());
   session_tracker.enable(this);
 
-  owned_gtid.sidno= 0;
-  owned_gtid.gno= 0;
+  owned_gtid.clear();
   owned_sid.clear();
+  owned_gtid.dbug_print(NULL, "set owned_gtid (clear) in THD::init");
 }
 
 

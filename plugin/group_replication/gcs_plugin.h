@@ -42,7 +42,7 @@
 
 //Plugin variables
 typedef st_mysql_sys_var SYS_VAR;
-extern const char *plugin_name;
+extern const char *group_replication_plugin_name;
 extern char gcs_replication_group[UUID_LENGTH+1];
 extern rpl_sidno gcs_cluster_sidno;
 extern char gcs_replication_boot;

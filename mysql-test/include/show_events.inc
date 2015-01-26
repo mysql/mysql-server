@@ -10,27 +10,19 @@
 --let $include_filename= show_events.inc
 --source include/begin_include_file.inc
 
-if (!$binlog_start)
-{
-  # If $binlog_start is not set, we will set it as the second event's
-  # position.  The first event(Description Event) is always ignored. For
-  # description event's length might be changed because of adding new events,
-  # 'SHOW BINLOG EVENTS LIMIT 1' is used to get the right value.
-  --let $binlog_start= query_get_value(SHOW BINLOG EVENTS LIMIT 1, End_log_pos, 1)
-}
-
 --let $_se_old_statement= $statement
 
---let $statement=show BINLOG events
+--let $statement= SHOW BINLOG EVENTS
 --let $_se_for_channel=
 if ($is_relay_log)
 {
-  --let $statement=show relaylog events
+  --let $statement= SHOW RELAYLOG EVENTS
   if ($rpl_channel_name != '')
   {
     --let $_se_for_channel= FOR CHANNEL  '$rpl_channel_name'
   }
 }
+--let $statement_masked= $statement
 
 if ($binlog_file)
 {
@@ -46,14 +38,38 @@ if ($binlog_file)
       --let $_binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
     }
   }
-  --let $statement= $statement in '$_binlog_file'
+  --let $statement= $statement IN '$_binlog_file'
+  --let $statement_masked= $statement_masked IN <FILE>
 }
 
---let $statement= $statement from $binlog_start
+--let $_binlog_start= $binlog_start
+
+if (!$_binlog_start)
+{
+  # If $binlog_start is not set, we will set it as the second event's
+  # position.  The first event(Description Event) is always ignored. For
+  # description event's length might be changed because of adding new events,
+  # 'SHOW BINLOG EVENTS LIMIT 1' is used to get the right value.
+  --let $_binlog_start= query_get_value(SHOW BINLOG EVENTS LIMIT 1, End_log_pos, 1)
+}
+
+--let $statement= $statement FROM $_binlog_start
+--let $statement_masked= $statement_masked FROM <POSITION>
 
 if ($binlog_limit != '')
 {
-  --let $statement= $statement limit $binlog_limit
+  --let $statement= $statement LIMIT $binlog_limit
+  --let $statement_masked= $statement_masked LIMIT $binlog_limit
+}
+
+if ($show_binlog_events_verbose)
+{
+  --echo ---- [$CURRENT_CONNECTION] $statement_masked ----
+}
+
+if ($rpl_debug)
+{
+  --echo statement='$statement'
 }
 
 --let $statement= $statement $_se_for_channel
@@ -64,9 +80,15 @@ if ($binlog_limit != '')
 
 # Filter the file through the following script.
 --delimiter ||
+if ($show_binlog_events_mask_columns != '')
+{
+  --let $mask_columns = $show_binlog_events_mask_columns
+}
+if ($show_binlog_events_mask_columns == '')
+{
+  --let $mask_columns = 2,4,5
+}
 let $script=
-  # todo: use select_columns instead (requires updating all result files)
-  s{([^\t]*\t)[^\t]*(\t[^\t]*\t)[^\t]*\t[^\t]*(\t[^\t]*)}{DOLLAR1#DOLLAR2#\t#DOLLAR3};
   s{/\* xid=.* \*/}{/\* XID \*/};
   s{table_id: [0-9]+}{table_id: #};
   s{file_id=[0-9]+}{file_id=#};
@@ -87,15 +109,15 @@ if (!$keep_view_change_events)
 
 if (!$keep_gtid_events)
 {
-  --let $script= $script DOLLAR_ = '' if (m{\t(?:Gtid|Previous_gtids)\t});
+  --let $script= $script DOLLAR_ = '' if (m{\t(?:Gtid|Previous_gtids|Anonymous_Gtid)\t});
 }
 if ($keep_gtid_events)
 {
   let $pre_script= $pre_script
     my DOLLARuuid_regex = '[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}';
-    my DOLLARuuid_sidno_regex = DOLLARuuid_regex.'(?::[0-9]+(?:-[0-9]+)?)+';
+    my DOLLARuuid_gno_regex = DOLLARuuid_regex.'(?::[0-9]+(?:-[0-9]+)?)+';
   ||
-  --let $script= $script s{DOLLARuuid_sidno_regex(?:,DOLLARuuid_sidno_regex)*}{Gtid_set};
+  --let $script= $script s{DOLLARuuid_gno_regex(?:,DOLLARuuid_gno_regex)*}{Gtid_set};
 }
 # To mask binlog and relaylog commit events
 if ($mask_binlog_commit_events)

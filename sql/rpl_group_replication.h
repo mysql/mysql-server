@@ -122,9 +122,19 @@ char* encoded_gtid_set_to_string(uchar *encoded_gtid_set, uint length);
 #endif
 
 
+/**
+  Add thread to Global_THD_manager singleton.
+
+  @param[in] thd  The thread
+*/
 void global_thd_manager_add_thd(THD *thd);
 
 
+/**
+  Remove thread from Global_THD_manager singleton.
+
+  @param[in] thd  The thread
+*/
 void global_thd_manager_remove_thd(THD *thd);
 
 

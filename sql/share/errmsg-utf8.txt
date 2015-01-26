@@ -6724,7 +6724,7 @@ ER_CANT_SET_GTID_NEXT_LIST_TO_NON_NULL_WHEN_GTID_MODE_IS_OFF
   eng "@@SESSION.GTID_NEXT_LIST cannot be set to a non-NULL value when @@GLOBAL.GTID_MODE = OFF."
 
 ER_FOUND_GTID_EVENT_WHEN_GTID_MODE_IS_OFF
-  eng "Found a Gtid_log_event or Previous_gtids_log_event when @@GLOBAL.GTID_MODE = OFF."
+  eng "Found a Gtid_log_event when @@GLOBAL.GTID_MODE = OFF."
 
 ER_GTID_UNSAFE_NON_TRANSACTIONAL_TABLE
   eng "When @@GLOBAL.ENFORCE_GTID_CONSISTENCY = 1, updates to non-transactional tables can only be done in either autocommitted statements or single-statement transactions, and never in the same statement as updates to transactional tables."
@@ -7067,6 +7067,8 @@ ER_SLAVE_HAS_MORE_GTIDS_THAN_MASTER
 #  End of 5.6 error messages.
 #
 
+start-error-number 3000
+
 ER_FILE_CORRUPT
   eng "File %s is corrupted"
 
@@ -7341,6 +7343,9 @@ ER_MIX_OF_GROUP_FUNC_AND_FIELDS_V2
 # When using this error message, use the ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT error code.
 ER_WARN_DEPRECATED_SYSVAR_UPDATE
   eng "Updating '%s' is deprecated. It will be made read-only in a future release."
+
+ER_CANNOT_LOG_PARTIAL_DROP_DATABASE_WITH_GTID
+  eng "DROP DATABASE failed; some tables may have been dropped but the database directory remains. The GTID has not been added to GTID_EXECUTED and the statement was not written to the binary log. Fix this as follows: (1) remove all files from the database directory %-.192s; (2) SET GTID_NEXT='%-.192s'; (3) DROP DATABASE `%-.192s`."
 
 ER_GROUP_REPLICATION_CONFIGURATION
   eng "The server is not configured properly to be an active member of the group. Please see more details on error log."

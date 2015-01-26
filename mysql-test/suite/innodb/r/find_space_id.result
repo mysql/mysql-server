@@ -1,0 +1,12 @@
+#
+# Bug#20382921 INNODB ASSERT "!IS_COMPRESSED || PHYSICAL <= (1 << 14)" IN FIND_SPACE_ID
+#
+create table t1 (f1 int primary key) engine=innodb;
+begin;
+insert into t1 values(1);
+# Kill the server
+# Make the first page (page_no=0) of the user tablespace
+# full of zeroes.
+# restart: --innodb-force-recovery=1
+# restart
+drop table t1;

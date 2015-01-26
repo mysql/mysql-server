@@ -13,96 +13,54 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#define MYSQL_LEX 1
-#include "my_global.h"
-#include "sql_parse.h"        // sql_kill, *_precheck, *_prepare
-#include "lock.h"             // try_transactional_lock,
-                              // check_transactional_lock,
-                              // set_handler_table_locks,
-                              // lock_global_read_lock,
-                              // make_global_read_lock_block_commit
-#include "sql_base.h"         // find_temporary_table
-#include "sql_cache.h"        // QUERY_CACHE_FLAGS_SIZE, query_cache_*
-#include "sql_show.h"         // mysqld_list_*, mysqld_show_*,
-                              // calc_sum_of_all_status
-#include "mysqld.h"
-#include "sql_locale.h"                         // my_locale_en_US
-#include "log.h"                                // flush_error_log
-#include "sql_view.h"         // mysql_create_view, mysql_drop_view
-#include "sql_delete.h"       // mysql_delete
-#include "sql_insert.h"       // mysql_insert
-#include "sql_update.h"       // mysql_update, mysql_multi_update
-#include "sql_partition.h"    // struct partition_info
-#include "sql_db.h"           // mysql_change_db, mysql_create_db,
-                              // mysql_rm_db, mysql_upgrade_db,
-                              // mysql_alter_db,
-                              // check_db_dir_existence,
-                              // my_dbopt_cleanup
-#include "sql_table.h"        // mysql_create_like_table,
-                              // mysql_create_table,
-                              // mysql_alter_table,
-                              // mysql_backup_table,
-                              // mysql_restore_table
-#include "sql_reload.h"       // reload_acl_and_cache
-#include "sql_admin.h"        // mysql_assign_to_keycache
-#include "sql_connect.h"      // check_user,
-                              // decrease_user_connections,
-                              // thd_init_client_charset, check_mqh,
-                              // reset_mqh
-#include "sql_rename.h"       // mysql_rename_table
-#include "sql_tablespace.h"   // mysql_alter_tablespace
-#include "hostname.h"         // hostname_cache_refresh
-#include "auth_common.h"      // acl_authenticate
-                              // *_ACL, check_grant, is_acl_user,
-                              // has_any_table_level_privileges,
-                              // mysql_drop_user, mysql_rename_user,
-                              // check_grant_routine,
-                              // mysql_routine_grant,
-                              // mysql_show_grants,
-                              // sp_grant_privileges, ...
-#include "sql_test.h"         // mysql_print_status
-#include "sql_select.h"       // handle_query
-#include "sql_load.h"         // mysql_load
-#include "sql_servers.h"      // create_servers, alter_servers,
-                              // drop_servers, servers_reload
-#include "sql_handler.h"      // mysql_ha_open, mysql_ha_close,
-                              // mysql_ha_read
-#include "sql_binlog.h"       // mysql_client_binlog_statement
-#include "sql_do.h"           // mysql_do
-#include "sql_help.h"         // mysqld_help
-#include "rpl_constants.h"    // Incident, INCIDENT_LOST_EVENTS
-#include "log_event.h"
-#include "rpl_slave.h"
-#include "rpl_master.h"
-#include "rpl_msr.h"        /* Multisource replication */
-#include "rpl_filter.h"
-#include <m_ctype.h>
-#include <myisam.h>
-#include <my_dir.h>
-#include <dur_prop.h>
-#include "rpl_handler.h"
+#include "sql_parse.h"
 
-#include "sp_head.h"
-#include "sp.h"
-#include "sp_cache.h"
-#include "events.h"
-#include "sql_trigger.h"      // mysql_create_or_drop_trigger
-#include "transaction.h"
-#include "xa.h"
-#include "sql_audit.h"
-#include "sql_prepare.h"
-#include "debug_sync.h"
-#include "probes_mysql.h"
-#include "opt_trace.h"
-#include "mysql/psi/mysql_statement.h"
-#include "opt_explain.h"
-#include "sql_rewrite.h"
-#include "sql_analyse.h"
-#include "table_cache.h" // table_cache_manager
-#include "sql_timer.h"   // thd_timer_set, thd_timer_reset
-#include "sp_rcontext.h"
-#include "parse_location.h"
-#include "item_timefunc.h"       // Item_func_unix_timestamp
+#include "auth_common.h"      // acl_authenticate
+#include "binlog.h"           // purge_master_logs
+#include "debug_sync.h"       // DEBUG_SYNC
+#include "events.h"           // Events
+#include "item_timefunc.h"    // Item_func_unix_timestamp
+#include "log.h"              // query_logger
+#include "log_event.h"        // slave_execute_deferred_events
+#include "opt_explain.h"      // mysql_explain_other
+#include "opt_trace.h"        // Opt_trace_start
+#include "partition_info.h"   // partition_info
+#include "probes_mysql.h"     // MYSQL_COMMAND_START
+#include "rpl_filter.h"       // rpl_filter
+#include "rpl_master.h"       // register_slave
+#include "rpl_rli.h"          // mysql_show_relaylog_events
+#include "rpl_slave.h"        // change_master_cmd
+#include "sp.h"               // sp_create_routine
+#include "sp_cache.h"         // sp_cache_enforce_limit
+#include "sp_head.h"          // sp_head
+#include "sql_admin.h"        // mysql_assign_to_keycache
+#include "sql_analyse.h"      // select_analyse
+#include "sql_audit.h"        // MYSQL_AUDIT_NOTIFY_CONNECTION_CHANGE_USER
+#include "sql_base.h"         // find_temporary_table
+#include "sql_binlog.h"       // mysql_client_binlog_statement
+#include "sql_cache.h"        // query_cache
+#include "sql_connect.h"      // decrease_user_connections
+#include "sql_db.h"           // mysql_change_db
+#include "sql_delete.h"       // mysql_delete
+#include "sql_do.h"           // mysql_do
+#include "sql_handler.h"      // mysql_ha_rm_tables
+#include "sql_help.h"         // mysqld_help
+#include "sql_insert.h"       // select_create
+#include "sql_load.h"         // mysql_load
+#include "sql_prepare.h"      // mysql_stmt_execute
+#include "sql_reload.h"       // reload_acl_and_cache
+#include "sql_rename.h"       // mysql_rename_tables
+#include "sql_select.h"       // handle_query
+#include "sql_show.h"         // find_schema_table
+#include "sql_table.h"        // mysql_create_table
+#include "sql_tablespace.h"   // mysql_alter_tablespace
+#include "sql_test.h"         // mysql_print_status
+#include "sql_timer.h"        // thd_timer_set
+#include "sql_trigger.h"      // add_table_for_trigger
+#include "sql_update.h"       // mysql_update
+#include "sql_view.h"         // mysql_create_view
+#include "table_cache.h"      // table_cache_manager
+#include "transaction.h"      // trans_commit_implicit
 
 #include "rpl_group_replication.h"
 #include <algorithm>
@@ -2382,6 +2340,9 @@ mysql_execute_command(THD *thd)
     /* Release metadata locks acquired in this transaction. */
     thd->mdl_context.release_transactional_locks();
   }
+
+  if (gtid_pre_statement_post_implicit_commit_checks(thd))
+    DBUG_RETURN(-1);
 
 #ifndef DBUG_OFF
   if (lex->sql_command != SQLCOM_SET_OPTION)
@@ -5447,50 +5408,44 @@ void mysql_parse(THD *thd, Parser_state *parser_state)
           }
           else
             error= mysql_execute_command(thd);
+
+          /*
+            This performs end-of-transaction actions needed by GTIDs:
+            in particular, it generates an empty transaction if
+            needed (e.g., if the statement was filtered out).
+
+            It is executed at the end of an implicitly or explicitly
+            committing statement.
+
+            In addition, it is executed after CREATE TEMPORARY TABLE
+            or DROP TEMPORARY TABLE when they occur outside
+            transactional context.  When enforce_gtid_consistency is
+            enabled, these statements cannot occur in transactional
+            context, and then they behave exactly as implicitly
+            committing: they are written to the binary log
+            immediately, not wrapped in BEGIN/COMMIT, and cannot be
+            rolled back. However, they do not count as implicitly
+            committing according to stmt_causes_implicit_commit(), so
+            we need to add special cases in the condition below. Hence
+            the clauses for SQLCOM_CREATE_TABLE and SQLCOM_DROP_TABLE.
+
+            If enforce_gtid_consistency=off, CREATE TEMPORARY TABLE
+            and DROP TEMPORARY TABLE can occur in the middle of a
+            transaction.  Then they do not behave as DDL; they are
+            written to the binary log inside BEGIN/COMMIT.
+
+            (For base tables, SQLCOM_[CREATE|DROP]_TABLE match both
+            the stmt_causes_implicit_commit(...) clause and the
+            thd->lex->sql_command == SQLCOM_* clause; for temporary
+            tables they match only thd->lex->sql_command == SQLCOM_*.)
+          */
           if (error == 0 &&
-              thd->variables.gtid_next.type == GTID_GROUP &&
-              thd->owned_gtid.sidno != 0 &&
               (thd->lex->sql_command == SQLCOM_COMMIT ||
                stmt_causes_implicit_commit(thd, CF_IMPLICIT_COMMIT_END) ||
-               thd->lex->sql_command == SQLCOM_CREATE_TABLE ||
-               thd->lex->sql_command == SQLCOM_DROP_TABLE))
-          {
-            if (!opt_bin_log || (thd->slave_thread && !opt_log_slave_updates))
-            {
-              /*
-                Save gtid into table for a DDL statement if binlog is
-                disabled, or binlog is enabled and log_slave_updates is
-                disabled with slave SQL thread or slave worker thread.
-              */
-              if ((error= gtid_state->save(thd)))
-                gtid_state->update_on_rollback(thd);
-              else
-                gtid_state->update_on_commit(thd);
-            }
-            else
-            {
-              /*
-                This ensures that an empty transaction is logged if
-                needed. It is executed at the end of an implicitly or
-                explicitly committing statement, or after CREATE
-                TEMPORARY TABLE or DROP TEMPORARY TABLE.
-
-                CREATE/DROP TEMPORARY do not count as implicitly
-                committing according to stmt_causes_implicit_commit(),
-                but are written to the binary log as DDL (not between
-                BEGIN/COMMIT). Thus we need special cases for these
-                statements in the condition above. Hence the clauses for
-                for SQLCOM_CREATE_TABLE and SQLCOM_DROP_TABLE above.
-
-                Thus, for base tables, SQLCOM_[CREATE|DROP]_TABLE match
-                both the stmt_causes_implicit_commit clause and the
-                thd->lex->sql_command == SQLCOM_* clause; for temporary
-                tables they match only thd->lex->sql_command ==
-                SQLCOM_*.
-              */
-              error= gtid_empty_group_log_and_cleanup(thd);
-            }
-          }
+               ((thd->lex->sql_command == SQLCOM_CREATE_TABLE ||
+                 thd->lex->sql_command == SQLCOM_DROP_TABLE) &&
+                !thd->in_multi_stmt_transaction_mode())))
+            mysql_bin_log.gtid_end_transaction(thd);
           MYSQL_QUERY_EXEC_DONE(error);
 	}
       }
@@ -6333,7 +6288,7 @@ void add_join_natural(TABLE_LIST *a, TABLE_LIST *b, List<String> *using_fields,
 */
 
 
-uint kill_one_thread(THD *thd, my_thread_id id, bool only_kill_query)
+static uint kill_one_thread(THD *thd, my_thread_id id, bool only_kill_query)
 {
   THD *tmp= NULL;
   uint error=ER_NO_SUCH_THREAD;
@@ -6763,45 +6718,6 @@ LEX_USER *create_default_definer(THD *thd)
 
 
 /**
-  Create definer with the given user and host names.
-
-  @param[in] thd          thread handler
-  @param[in] user_name    user name
-  @param[in] host_name    host name
-
-  @return
-    - On success, return a valid pointer to the created and initialized
-    LEX_USER, which contains definer information.
-    - On error, return 0.
-*/
-
-LEX_USER *create_definer(THD *thd, LEX_STRING *user_name, LEX_STRING *host_name)
-{
-  LEX_USER *definer;
-
-  /* Create and initialize. */
-
-  if (! (definer= (LEX_USER*) thd->alloc(sizeof(LEX_USER))))
-    return 0;
-
-  definer->user.str= user_name->str;
-  definer->user.length= user_name->length;
-  definer->host.str= host_name->str;
-  definer->host.length= host_name->length;
-  definer->password.str= NULL;
-  definer->password.length= 0;
-  definer->uses_authentication_string_clause= false;
-  definer->uses_identified_by_clause= false;
-  definer->uses_identified_by_password_clause= false;
-  definer->uses_identified_with_clause= false;
-  definer->alter_status.update_password_expired_column= false;
-  definer->alter_status.use_default_password_lifetime= true;
-  definer->alter_status.expire_after_days= 0;
-  return definer;
-}
-
-
-/**
   Retuns information about user or current user.
 
   @param[in] thd          thread handler
@@ -6868,8 +6784,9 @@ LEX_USER *get_current_user(THD *thd, LEX_USER *user)
     The function is not used in existing code but can be useful later?
 */
 
-bool check_string_byte_length(const LEX_CSTRING &str, const char *err_msg,
-                              size_t max_byte_length)
+static bool check_string_byte_length(const LEX_CSTRING &str,
+                                     const char *err_msg,
+                                     size_t max_byte_length)
 {
   if (str.length <= max_byte_length)
     return FALSE;

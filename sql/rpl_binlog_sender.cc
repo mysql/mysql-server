@@ -18,8 +18,10 @@
 #ifdef HAVE_REPLICATION
 #include "rpl_handler.h"
 #include "debug_sync.h"
-#include "my_thread.h"
 #include "rpl_master.h"
+
+#include "pfs_file_provider.h"
+#include "mysql/psi/mysql_file.h"
 
 #ifndef DBUG_OFF
   static uint binlog_dump_count= 0;
@@ -373,7 +375,9 @@ int Binlog_sender::send_events(IO_CACHE *log_cache, my_off_t end_pos)
                                                         in_exclude_group)))
     {
       exclude_group_end_pos= log_pos;
-      DBUG_PRINT("info", ("Event is skipped\n"));
+      DBUG_PRINT("info", ("Event of type %s is skipped",
+                          Log_event::get_type_str(
+                            (Log_event_type)event_ptr[LOG_EVENT_OFFSET])));
     }
     else
     {
@@ -406,6 +410,11 @@ int Binlog_sender::send_events(IO_CACHE *log_cache, my_off_t end_pos)
       DBUG_RETURN(1);
   }
 
+  /*
+    A heartbeat is needed before waiting for more events, if some
+    events are skipped. This is needed so that the slave can increase
+    master_log_pos correctly.
+  */
   if (unlikely(in_exclude_group))
   {
     if (send_heartbeat_event(log_pos))
@@ -990,6 +999,10 @@ inline int Binlog_sender::flush_net()
 
 inline int Binlog_sender::send_packet()
 {
+  DBUG_ENTER("Binlog_sender::send_packet");
+  DBUG_PRINT("info",
+             ("Sending event of type %s", Log_event::get_type_str(
+                (Log_event_type)m_packet.ptr()[1 + EVENT_TYPE_OFFSET])));
   // We should always use the same buffer to guarantee that the reallocation
   // logic is not broken.
   if (DBUG_EVALUATE_IF("simulate_send_error", true,
@@ -997,11 +1010,12 @@ inline int Binlog_sender::send_packet()
                                     m_packet.length())))
   {
     set_unknow_error("Failed on my_net_write()");
-    return 1;
+    DBUG_RETURN(1);
   }
 
   /* Shrink the packet if needed. */
-  return shrink_packet() ? 1 : 0;
+  int ret= shrink_packet() ? 1 : 0;
+  DBUG_RETURN(ret);
 }
 
 inline int Binlog_sender::send_packet_and_flush()

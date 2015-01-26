@@ -19,7 +19,6 @@
 #include "rpl_gtid.h"
 #include "rpl_mi.h"
 #include "rpl_rli.h"
-#include "sql_plugin.h"
 #include "replication.h"
 
 class Observer_info {
@@ -28,11 +27,7 @@ public:
   st_plugin_int *plugin_int;
   plugin_ref plugin;
 
-  Observer_info(void *ob, st_plugin_int *p)
-    :observer(ob), plugin_int(p)
-  {
-    plugin= plugin_int_to_ref(plugin_int);
-  }
+  Observer_info(void *ob, st_plugin_int *p);
 };
 
 class Delegate {
@@ -171,7 +166,6 @@ public:
 
   int before_dml(THD *thd, int& result);
   int before_commit(THD *thd, bool all,
-                    my_bool is_gtid_specified,
                     IO_CACHE *trx_cache_log,
                     IO_CACHE *stmt_cache_log,
                     ulonglong cache_log_max_size);

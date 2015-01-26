@@ -2,6 +2,7 @@
 
 --source include/no_valgrind_without_big.inc
 --source include/have_innodb.inc
+--source include/have_innodb_zip.inc
 
 # Because we have inserted row size > 2k, we require page size > 4k.
 if (`SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE LOWER(variable_name) = 'innodb_page_size' AND variable_value = 4096`)

@@ -25,7 +25,9 @@
 #include "ft_global.h"       // ft_hints
 #include "thr_lock.h"        // thr_lock_type
 #include "mysqld.h"          // lower_case_table_names
-#include "sql_plugin.h"      // plugin_ref
+#include "sql_const.h"       // SHOW_COMP_OPTION
+#include "sql_list.h"        // SQL_I_List
+#include "sql_plugin_ref.h"  // plugin_ref
 #include "structs.h"         // Discrete_interval
 
 #include "mysql/psi/psi.h"
@@ -3659,10 +3661,7 @@ static inline enum legacy_db_type ha_legacy_type(const handlerton *db_type)
   return (db_type == NULL) ? DB_TYPE_UNKNOWN : db_type->db_type;
 }
 
-static inline const char *ha_resolve_storage_engine_name(const handlerton *db_type)
-{
-  return db_type == NULL ? "UNKNOWN" : hton2plugin[db_type->slot]->name.str;
-}
+const char *ha_resolve_storage_engine_name(const handlerton *db_type);
 
 static inline bool ha_check_storage_engine_flag(const handlerton *db_type, uint32 flag)
 {
@@ -3678,7 +3677,7 @@ static inline bool ha_storage_engine_is_enabled(const handlerton *db_type)
 /* basic stuff */
 int ha_init_errors(void);
 int ha_init(void);
-int ha_end(void);
+void ha_end();
 int ha_initialize_handlerton(st_plugin_int *plugin);
 int ha_finalize_handlerton(st_plugin_int *plugin);
 

@@ -18,6 +18,8 @@
 
 #include <mysql.h>
 #include <list>
+#include "my_thread.h"                // my_thread_id
+#include "mysql/psi/mysql_thread.h"   // mysql_mutex_t
 
 #include "handler.h"
 
@@ -71,6 +73,15 @@ typedef struct Trans_context_info {
 } Trans_context_info;
 
 /**
+  This represents the GTID context of the transaction.
+ */
+typedef struct Trans_gtid_info {
+  ulong type;                    // enum values in enum_group_type
+  int sidno;                     // transaction sidno
+  long long int gno;             // transaction gno
+} Trans_gtid_info;
+
+/**
    Transaction observer parameter
 */
 typedef struct Trans_param {
@@ -90,9 +101,9 @@ typedef struct Trans_param {
   my_off_t log_pos;
 
   /*
-    True if transaction has GTID_NEXT specified, False otherwise.
+    Transaction GTID information.
   */
-  my_bool is_gtid_specified;
+  Trans_gtid_info gtid_info;
 
   /*
     Set on before_commit hook.

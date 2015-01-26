@@ -17,7 +17,8 @@
 #define NDB_SAFE_MUTEX_HPP
 
 #include <ndb_global.h>
-#include <my_thread.h>
+#include <thr_cond.h>
+#include <thr_mutex.h>
 #include <assert.h>
 #include <ndb_types.h>
 #include <NdbOut.hpp>

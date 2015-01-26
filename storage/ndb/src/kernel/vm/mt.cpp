@@ -2201,7 +2201,7 @@ senddelay(Uint32 thr_no, const SignalHeader* s, Uint32 delay)
 {
   struct thr_repository* rep = g_thr_repository;
   struct thr_data* selfptr = &rep->m_thread[thr_no].m_thr_data;
-  assert(pthread_equal(selfptr->m_thr_id, pthread_self()));
+  assert(my_thread_equal(selfptr->m_thr_id, my_thread_self()));
   unsigned siglen = (sizeof(*s) >> 2) + s->theLength + s->m_noOfSections;
 
   Uint32 max;
@@ -4634,7 +4634,7 @@ sendlocal(Uint32 self, const SignalHeader *s, const Uint32 *data,
   Uint32 dst = block2ThreadId(block, instance);
   struct thr_repository* rep = g_thr_repository;
   struct thr_data *selfptr = &rep->m_thread[self].m_thr_data;
-  assert(pthread_equal(selfptr->m_thr_id, pthread_self()));
+  assert(my_thread_equal(selfptr->m_thr_id, my_thread_self()));
   struct thr_data *dstptr = &rep->m_thread[dst].m_thr_data;
 
   selfptr->m_stat.m_priob_count++;
@@ -4665,7 +4665,7 @@ sendprioa(Uint32 self, const SignalHeader *s, const uint32 *data,
   struct thr_repository* rep = g_thr_repository;
   struct thr_data *selfptr = &rep->m_thread[self].m_thr_data;
   assert(s->theVerId_signalNumber == GSN_START_ORD ||
-         pthread_equal(selfptr->m_thr_id, pthread_self()));
+         my_thread_equal(selfptr->m_thr_id, my_thread_self()));
   struct thr_data *dstptr = &rep->m_thread[dst].m_thr_data;
 
   selfptr->m_stat.m_prioa_count++;
@@ -5882,7 +5882,7 @@ mt_assert_own_thread(SimulatedBlock* block)
   Uint32 thr_no = block->getThreadId();
   struct thr_data *thrptr = &g_thr_repository->m_thread[thr_no].m_thr_data;
 
-  if (unlikely(pthread_equal(thrptr->m_thr_id, pthread_self()) == 0))
+  if (unlikely(my_thread_equal(thrptr->m_thr_id, my_thread_self()) == 0))
   {
     fprintf(stderr, "mt_assert_own_thread() - assertion-failure\n");
     fflush(stderr);

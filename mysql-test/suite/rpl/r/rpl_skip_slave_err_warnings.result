@@ -9,5 +9,5 @@ DROP TABLE t1;
 include/sync_slave_sql_with_master.inc
 Matching lines are:
 None
-Occurrences of the Could not execute Query event. in the input file : 0
+Occurrences of 'Could not execute Query event.' in the input file: 0
 include/rpl_end.inc

@@ -13,7 +13,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
+#include "mysqld.h"
 
 #include <vector>
 #include <algorithm>
@@ -64,7 +64,6 @@
 #include "sql_servers.h"  // servers_free, servers_init
 #include "init.h"         // unireg_init
 #include "derror.h"       // init_errmessage
-#include "derror.h"       // init_errmessage
 #include "des_key_file.h" // load_des_key_file
 #include "sql_manager.h"  // stop_handle_manager, start_handle_manager
 #include "bootstrap.h"    // bootstrap
@@ -89,14 +88,17 @@
 #include "sql_callback.h"
 #include "opt_trace_context.h"
 #include "opt_costconstantcache.h"
+#include "sql_plugin.h"                         // plugin_shutdown
 
-#include "mysqld.h"
 #include "my_default.h"
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #include "../storage/perfschema/pfs_server.h"
 #include <pfs_idle_provider.h>
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
+
+#include "pfs_file_provider.h"
+#include "mysql/psi/mysql_file.h"
 
 #include <mysql/psi/mysql_idle.h>
 #include <mysql/psi/mysql_socket.h>
@@ -479,6 +481,11 @@ ulong expire_logs_days = 0;
   in the sp_cache for one connection.
 */
 ulong stored_program_cache_size= 0;
+/**
+  Compatibility option to prevent auto upgrade of old temporals
+  during certain ALTER TABLE operations.
+*/
+my_bool avoid_temporal_upgrade;
 
 const double log_10[] = {
   1e000, 1e001, 1e002, 1e003, 1e004, 1e005, 1e006, 1e007, 1e008, 1e009,
@@ -1425,7 +1432,7 @@ void clean_up(bool print_message)
 
   mysql_client_plugin_deinit();
   finish_client_errs();
-  (void) my_error_unregister(ER_ERROR_FIRST, ER_ERROR_LAST); // finish server errs
+  deinit_errmessage(); // finish server errs
   DBUG_PRINT("quit", ("Error messages freed"));
 
   free_charsets();
@@ -3335,6 +3342,126 @@ static void openssl_lock(int mode, openssl_lock_t *lock, const char *file,
 }
 #endif /* HAVE_OPENSSL */
 
+#ifndef EMBEDDED_LIBRARY
+ssl_artifacts_status auto_detect_ssl()
+{
+  MY_STAT cert_stat, cert_key, ca_stat;
+  ssl_artifacts_status ret_status= SSL_ARTIFACTS_VIA_OPTIONS;
+
+  if ((!opt_ssl_cert || !opt_ssl_cert[0]) &&
+      (!opt_ssl_key || !opt_ssl_key[0]) &&
+      (!opt_ssl_ca || !opt_ssl_ca[0]) &&
+      (!opt_ssl_capath || !opt_ssl_capath[0]) &&
+      (!opt_ssl_crl || !opt_ssl_crl[0]) &&
+      (!opt_ssl_crlpath || !opt_ssl_crlpath[0]) &&
+      (!opt_ssl_cipher || !opt_ssl_cipher[0]))
+  {
+    if (my_stat(DEFAULT_SSL_SERVER_CERT, &cert_stat, MYF(0)) &&
+        my_stat(DEFAULT_SSL_SERVER_KEY, &cert_key, MYF(0)) &&
+        my_stat(DEFAULT_SSL_CA_CERT, &ca_stat, MYF(0)))
+    {
+      opt_ssl_ca= (char *)DEFAULT_SSL_CA_CERT;
+      opt_ssl_cert= (char *)DEFAULT_SSL_SERVER_CERT;
+      opt_ssl_key= (char *)DEFAULT_SSL_SERVER_KEY;
+
+      ret_status= SSL_ARTIFACTS_AUTO_DETECTED;
+    }
+    else
+    {
+      ret_status= SSL_ARTIFACTS_NOT_FOUND;
+    }
+  }
+  return ret_status;
+}
+
+int warn_one(const char *file_name)
+{
+  FILE *fp;
+  char *issuer= NULL;
+  char *subject= NULL;
+
+  if (!(fp= my_fopen(file_name, O_RDONLY | O_BINARY, MYF(MY_WME))))
+  {
+    sql_print_error("Error opening CA certificate file");
+    return 1;
+  }
+
+  X509 *ca_cert= PEM_read_X509(fp, 0, 0, 0);
+
+  if (!ca_cert)
+  {
+    /* We are not interested in anything other than X509 certificates */
+    my_fclose(fp, MYF(MY_WME));
+    return 0;
+  }
+
+  issuer= X509_NAME_oneline(X509_get_issuer_name(ca_cert), 0, 0);
+  subject= X509_NAME_oneline(X509_get_subject_name(ca_cert), 0, 0);
+
+  if (!strcmp(issuer, subject))
+  {
+    sql_print_warning("CA certificate %s is self signed.", file_name);
+  }
+
+  OPENSSL_free(issuer);
+  OPENSSL_free(subject);
+  X509_free(ca_cert);
+  my_fclose(fp, MYF(MY_WME));
+  return 0;
+
+}
+
+int warn_self_signed_ca()
+{
+  int ret_val= 0;
+  if (opt_ssl_ca && opt_ssl_ca[0])
+  {
+    if (warn_one(opt_ssl_ca))
+      return 1;
+  }
+#ifndef HAVE_YASSL
+  if (opt_ssl_capath && opt_ssl_capath[0])
+  {
+    /* We have ssl-capath. So search all files in the dir */
+    MY_DIR *ca_dir;
+    uint file_count;
+    DYNAMIC_STRING file_path;
+    char dir_separator[FN_REFLEN];
+    size_t dir_path_length;
+
+    init_dynamic_string(&file_path, opt_ssl_capath, FN_REFLEN, FN_REFLEN);
+    dir_separator[0]= FN_LIBCHAR;
+    dir_separator[1]= 0;
+    dynstr_append(&file_path, dir_separator);
+    dir_path_length= file_path.length;
+
+    if (!(ca_dir= my_dir(opt_ssl_capath,MY_WANT_STAT|MY_DONT_SORT|MY_WME)))
+    {
+      sql_print_error("Error accessing directory pointed by --ssl-capath");
+      return 1;
+    }
+
+    for (file_count = 0; file_count < ca_dir->number_off_files; file_count++)
+    {
+      if (!MY_S_ISDIR(ca_dir->dir_entry[file_count].mystat->st_mode))
+      {
+        file_path.length= dir_path_length;
+        dynstr_append(&file_path, ca_dir->dir_entry[file_count].name);
+        if ((ret_val= warn_one(file_path.str)))
+          break;
+      }
+    }
+    my_dirend(ca_dir);
+    dynstr_free(&file_path);
+
+    ca_dir= 0;
+    memset(&file_path, 0, sizeof(file_path));
+  }
+#endif /* HAVE_YASSL */
+  return ret_val;
+}
+
+#endif /* EMBEDDED_LIBRARY */
 
 static int init_ssl()
 {
@@ -3344,14 +3471,21 @@ static int init_ssl()
 #endif
   ssl_start();
 #ifndef EMBEDDED_LIBRARY
+
   if (opt_use_ssl)
   {
-    enum enum_ssl_init_error error= SSL_INITERR_NOERROR;
-
+    ssl_artifacts_status auto_detection_status= auto_detect_ssl();
+    if (auto_detection_status == SSL_ARTIFACTS_AUTO_DETECTED)
+      sql_print_information("Found %s, %s and %s in data directory."
+                            "Trying to enable SSL support using them.",
+                            DEFAULT_SSL_CA_CERT, DEFAULT_SSL_SERVER_CERT,
+                            DEFAULT_SSL_SERVER_KEY);
 #ifndef HAVE_YASSL
-    if (do_auto_cert_generation() == false)
+    if (do_auto_cert_generation(auto_detection_status) == false)
       return 1;
 #endif
+
+    enum enum_ssl_init_error error= SSL_INITERR_NOERROR;
 
     /* having ssl_acceptor_fd != 0 signals the use of SSL */
     ssl_acceptor_fd= new_VioSSLAcceptorFd(opt_ssl_key, opt_ssl_cert,
@@ -3366,6 +3500,12 @@ static int init_ssl()
       sql_print_warning("SSL error: %s", sslGetErrString(error));
       opt_use_ssl = 0;
       have_ssl= SHOW_OPTION_DISABLED;
+    }
+    else
+    {
+      /* Check if CA certificate is self signed */
+      if (warn_self_signed_ca())
+        return 1;
     }
   }
   else
@@ -3583,7 +3723,7 @@ initialize_storage_engine(char *se_name, const char *se_kind,
   plugin_ref plugin;
   handlerton *hton;
   if ((plugin= ha_resolve_by_name(0, &name, FALSE)))
-    hton= plugin_data(plugin, handlerton*);
+    hton= plugin_data<handlerton*>(plugin);
   else
   {
     sql_print_error("Unknown/unsupported storage engine: %s", se_name);
@@ -3959,7 +4099,7 @@ a file name for --log-bin-index option", opt_binlog_index_name);
     unireg_abort(0);
 
   /* if the errmsg.sys is not loaded, terminate to maintain behaviour */
-  if (!my_default_lc_messages->errmsgs->errmsgs[0][0])
+  if (!my_default_lc_messages->errmsgs->is_loaded())
   {
     sql_print_error("Unable to read errmsg.sys file");
     unireg_abort(1);
@@ -4490,10 +4630,11 @@ int mysqld_main(int argc, char **argv)
 
       if (mysql_bin_log.init_gtid_sets(&logged_gtids_binlog,
                                        &purged_gtids_binlog,
-                                       NULL,
                                        opt_master_verify_checksum,
                                        true/*true=need lock*/,
-                                       true) ||
+                                       NULL/*trx_parser*/,
+                                       NULL/*gtid_partial_trx*/,
+                                       true/*is_server_starting*/) ||
           gtid_state->fetch_gtids(executed_gtids) == -1)
         unireg_abort(1);
 
@@ -4556,8 +4697,6 @@ int mysqld_main(int argc, char **argv)
         unireg_abort(1);
       }
 
-      global_sid_lock->unlock();
-
       /*
         Write the previous set of gtids at this point because during
         the creation of the binary log this is not done as we cannot
@@ -4566,30 +4705,23 @@ int mysqld_main(int argc, char **argv)
 
         /Alfranio
       */
-      if (gtid_mode > 0)
-      {
-        global_sid_lock->wrlock();
-        if (gtid_mode > GTID_MODE_UPGRADE_STEP_1 ||
-            !logged_gtids_binlog.is_empty())
-        {
-          Previous_gtids_log_event prev_gtids_ev(&logged_gtids_binlog);
-          global_sid_lock->unlock();
+      Previous_gtids_log_event prev_gtids_ev(&logged_gtids_binlog);
 
-          (prev_gtids_ev.common_footer)->checksum_alg=
-             static_cast<enum_binlog_checksum_alg>(binlog_checksum_options);
+      global_sid_lock->unlock();
 
-          if (prev_gtids_ev.write(mysql_bin_log.get_log_file()))
-            unireg_abort(1);
-          mysql_bin_log.add_bytes_written(prev_gtids_ev.common_header->data_written);
+      (prev_gtids_ev.common_footer)->checksum_alg=
+        static_cast<enum_binlog_checksum_alg>(binlog_checksum_options);
 
-          if (flush_io_cache(mysql_bin_log.get_log_file()) ||
-              mysql_file_sync(mysql_bin_log.get_log_file()->file, MYF(MY_WME)))
-            unireg_abort(1);
-          mysql_bin_log.update_binlog_end_pos();
-        }
-        else
-          global_sid_lock->unlock();
-      }
+      if (prev_gtids_ev.write(mysql_bin_log.get_log_file()))
+        unireg_abort(1);
+      mysql_bin_log.add_bytes_written(
+        prev_gtids_ev.common_header->data_written);
+
+      if (flush_io_cache(mysql_bin_log.get_log_file()) ||
+          mysql_file_sync(mysql_bin_log.get_log_file()->file, MYF(MY_WME)))
+        unireg_abort(1);
+      mysql_bin_log.update_binlog_end_pos();
+
       (void) RUN_HOOK(server_state, after_engine_recovery, (NULL));
     }
     else if (gtid_mode > GTID_MODE_OFF)
@@ -6655,7 +6787,7 @@ static int mysql_init_variables(void)
   table_alias_charset= &my_charset_bin;
   character_set_filesystem= &my_charset_bin;
 
-  opt_specialflag= SPECIAL_ENGLISH;
+  opt_specialflag= 0;
   mysql_home_ptr= mysql_home;
   pidfile_name_ptr= pidfile_name;
   log_error_file_ptr= log_error_file;
@@ -7162,6 +7294,11 @@ pfs_error:
     sql_print_warning("The use of InnoDB is mandatory since MySQL 5.7. "
                       "The former options like '--innodb=0/1/OFF/ON' or "
                       "'--skip-innodb' are ignored.");
+  case OPT_AVOID_TEMPORAL_UPGRADE:
+    push_deprecated_warn_no_replacement(NULL, "avoid_temporal_upgrade");
+    break;
+  case OPT_SHOW_OLD_TEMPORALS:
+    push_deprecated_warn_no_replacement(NULL, "show_old_temporals");
     break;
   }
   return 0;

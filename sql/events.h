@@ -25,20 +25,9 @@
   A public interface of Events_Scheduler module.
 */
 
-#ifdef HAVE_PSI_INTERFACE
-extern PSI_mutex_key key_event_scheduler_LOCK_scheduler_state;
-extern PSI_cond_key key_event_scheduler_COND_state;
-extern PSI_thread_key key_thread_event_scheduler, key_thread_event_worker;
-#endif /* HAVE_PSI_INTERFACE */
-
-extern PSI_memory_key key_memory_event_basic_root;
-
-/* Always defined, for SHOW PROCESSLIST. */
-extern PSI_stage_info stage_waiting_on_empty_queue;
-extern PSI_stage_info stage_waiting_for_next_activation;
-extern PSI_stage_info stage_waiting_for_scheduler_to_stop;
-
+#include "my_global.h"
 #include "mysql/mysql_lex_string.h"             // LEX_STRING
+#include "mysql/psi/mysql_thread.h"             // PSI_mutex_key
 #include "my_time.h"                            /* interval_type */
 
 class Event_db_repository;
@@ -51,6 +40,19 @@ struct TABLE_LIST;
 class THD;
 typedef struct charset_info_st CHARSET_INFO;
 typedef struct st_mysql_lex_string LEX_STRING;
+
+#ifdef HAVE_PSI_INTERFACE
+extern PSI_mutex_key key_event_scheduler_LOCK_scheduler_state;
+extern PSI_cond_key key_event_scheduler_COND_state;
+extern PSI_thread_key key_thread_event_scheduler, key_thread_event_worker;
+#endif /* HAVE_PSI_INTERFACE */
+
+extern PSI_memory_key key_memory_event_basic_root;
+
+/* Always defined, for SHOW PROCESSLIST. */
+extern PSI_stage_info stage_waiting_on_empty_queue;
+extern PSI_stage_info stage_waiting_for_next_activation;
+extern PSI_stage_info stage_waiting_for_scheduler_to_stop;
 
 int
 sortcmp_lex_string(LEX_STRING s, LEX_STRING t, CHARSET_INFO *cs);

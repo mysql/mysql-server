@@ -1,7 +1,7 @@
 #ifndef STRUCTS_INCLUDED
 #define STRUCTS_INCLUDED
 
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,9 +16,8 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "sql_plugin.h"                         /* plugin_ref */
-#include "sql_const.h"                          /* MAX_REFLENGTH */
-#include "thr_lock.h"                  /* thr_lock_type */
+#include "sql_plugin_ref.h"            /* plugin_ref */
+#include "m_string.h"                  /* LEX_CSTRING */
 #include "my_base.h"                   /* ha_rows, ha_key_alg */
 
 struct TABLE;

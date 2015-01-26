@@ -8,13 +8,15 @@
 # --replicate-same-server-id is set.
 #
 ##############################################################################
---let $rpl_server_count= 3
+# Does not work with GTIDs because it uses replicate-same-server-id to
+# replicate from one server to itself.
 --source include/not_gtid_enabled.inc
---source include/not_group_replication_plugin.inc
 --source include/not_embedded.inc
 --source include/no_valgrind_without_big.inc
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
+
+--let $rpl_server_count= 3
 --source include/master-slave.inc
 
 call mtr.add_suppression("Slave I/O thread .* register on master");
@@ -43,36 +45,26 @@ connection master;
 --echo # Master's UUID appears in the result of 'SHOW SLAVE STATUS'.
 --echo # Slave's UUID appears in the resule of 'SHOW SLAVE HOSTS'.
 --echo -----------------------------------------------------------------------------
-connection master;
---let $master_uuid_on_master= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
---let $slave_uuid_on_master= query_get_value(SHOW SLAVE HOSTS, Slave_UUID, 1)
 
---source include/show_slave_hosts.inc
+--let $assert_cond= "[master:SELECT @@SERVER_UUID AS a, a, 1]" = "[slave:SHOW SLAVE STATUS, Master_UUID, 1]"
+--let $assert_text= "Slave's SHOW SLAVE HOST should contain the correct value for master's server_uuid
+--source include/assert.inc
+
+--let $assert_cond= "[master:SHOW SLAVE HOSTS, Slave_UUID, 1]" = "[slave:SHOW VARIABLES LIKE "SERVER_UUID", Value, 1]"
+--let $assert_text= Master's SHOW SLAVE HOSTS should contain the correct value for slave's server_uuid
+--source include/assert.inc
 
 connection slave;
---let $slave_uuid_on_slave= query_get_value(SHOW VARIABLES LIKE 'SERVER_UUID', Value, 1)
-
---let $slave_param= Master_UUID
---let $slave_param_value= $master_uuid_on_master
-source include/check_slave_param.inc;
-
-if ($slave_uuid_on_slave != $slave_uuid_on_master)
-{
-  --echo slave_uuid_on_slave <> slave_uuid_on_master
-  --echo $slave_uuid_on_slave <> $slave_uuid_on_master
-}
 
 --echo 
 --echo # Case 2: 
 --echo # After executing 'STOP SLAVE [IO_THREAD|SQL_THREAD]' successfully, Master's UUID
 --echo # is still kept into Slave status.
 --echo -----------------------------------------------------------------------------
-STOP SLAVE IO_THREAD;
---source include/wait_for_slave_io_to_stop.inc
+--source include/stop_slave_io.inc
 source include/check_slave_param.inc;
 
-STOP SLAVE SQL_THREAD;
---source include/wait_for_slave_sql_to_stop.inc
+--source include/stop_slave_sql.inc
 --source include/check_slave_param.inc
 
 --source include/start_slave.inc

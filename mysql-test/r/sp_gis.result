@@ -19,8 +19,8 @@ select x();
 ERROR 42000: Incorrect parameter count in the call to native function 'x'
 select y();
 ERROR 42000: Incorrect parameter count in the call to native function 'y'
-select x(PointFromText("POINT(10 20)")), y(PointFromText("POINT(10 20)"));
-x(PointFromText("POINT(10 20)"))	y(PointFromText("POINT(10 20)"))
+select ST_x(ST_PointFromText("POINT(10 20)")), ST_y(ST_PointFromText("POINT(10 20)"));
+ST_x(ST_PointFromText("POINT(10 20)"))	ST_y(ST_PointFromText("POINT(10 20)"))
 10	20
 select test.a(), test.x(), test.y();
 test.a()	test.x()	test.y()

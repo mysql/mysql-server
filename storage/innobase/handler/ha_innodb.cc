@@ -450,7 +450,6 @@ ib_cb_t innodb_api_cb[] = {
 	(ib_cb_t) ib_col_get_name,
 	(ib_cb_t) ib_table_truncate,
 	(ib_cb_t) ib_cursor_open_index_using_name,
-	(ib_cb_t) ib_close_thd,
 	(ib_cb_t) ib_cfg_get_cfg,
 	(ib_cb_t) ib_cursor_set_memcached_sync,
 	(ib_cb_t) ib_cursor_set_cluster_access,
@@ -4101,24 +4100,6 @@ innobase_kill_connection(
 	}
 
 	DBUG_VOID_RETURN;
-}
-
-/*****************************************************************//**
-Frees a possible InnoDB trx object associated with the current THD.
-@return 0 or error number */
-int
-innobase_close_thd(
-/*===============*/
-	THD*		thd)	/*!< in: handle to the MySQL thread of the user
-				whose resources should be free'd */
-{
-	trx_t*	trx = thd_to_trx(thd);
-
-	if (trx == NULL) {
-		return(0);
-	}
-
-	return(innobase_close_connection(innodb_hton_ptr, thd));
 }
 
 /*************************************************************************//**
@@ -9936,10 +9917,7 @@ innobase_parse_hint_from_comment(
 		     index != NULL;
 		     index = UT_LIST_GET_NEXT(indexes, index)) {
 
-			if (index == UT_LIST_GET_FIRST(table->indexes)
-			    && innobase_strcasecmp(
-				index->name,
-				innobase_index_reserve_name) == 0) {
+			if (dict_index_is_auto_gen_clust(index)) {
 
 				/* GEN_CLUST_INDEX should use
 				merge_threshold_table */
@@ -9977,9 +9955,7 @@ innobase_parse_hint_from_comment(
 	     index != NULL;
 	     index = UT_LIST_GET_NEXT(indexes, index)) {
 
-		if (index == UT_LIST_GET_FIRST(table->indexes)
-		    && innobase_strcasecmp(
-			index->name, innobase_index_reserve_name) == 0) {
+		if (dict_index_is_auto_gen_clust(index)) {
 
 			/* GEN_CLUST_INDEX should use merge_threshold_table */
 

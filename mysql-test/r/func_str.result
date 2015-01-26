@@ -3013,7 +3013,7 @@ DO
 round(
 concat( (
 coalesce( (
-linefromwkb('2147483648',
+ST_linefromwkb('2147483648',
 -b'1111111111111111111111111111111111111111111')),
 ( convert('[.DC2.]',decimal(30,30)) ),
 bit_count('')
@@ -3026,7 +3026,7 @@ sha1('P'),
 )
 );
 Warnings:
-Error	1923	Invalid GIS data provided to function st_geometryfromwkb.
+Error	3037	Invalid GIS data provided to function st_geometryfromwkb.
 Warning	1292	Truncated incorrect DECIMAL value: '[.DC2.]'
 SET @@global.max_allowed_packet:= @tmp_max;
 #

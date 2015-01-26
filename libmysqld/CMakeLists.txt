@@ -89,12 +89,12 @@ SET(SQL_EMBEDDED_SOURCES
   ../sql/rpl_gtid_specification.cc
   ../sql/rpl_gtid_state.cc
   ../sql/rpl_gtid_owned.cc
-  ../sql/rpl_gtid_cache.cc
   ../sql/rpl_gtid_execution.cc
   ../sql/rpl_gtid_mutex_cond_array.cc
   ../sql/rpl_gtid_persist.cc
   ../sql/rpl_table_access.cc
   ../sql/rpl_context.cc
+  ../sql/rpl_trx_boundary_parser.cc
   ${IMPORTED_SOURCES}
 )
 

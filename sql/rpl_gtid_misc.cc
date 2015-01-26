@@ -93,10 +93,39 @@ int Gtid::to_string(const rpl_sid &sid, char *buf) const
 }
 
 
-int Gtid::to_string(const Sid_map *sid_map, char *buf) const
+int Gtid::to_string(const Sid_map *sid_map, char *buf, bool need_lock) const
 {
   DBUG_ENTER("Gtid::to_string");
-  int ret= to_string(sid_map->sidno_to_sid(sidno), buf);
+  int ret;
+  if (sid_map != NULL)
+  {
+    Checkable_rwlock *lock= sid_map->get_sid_lock();
+    if (lock)
+    {
+      if (need_lock)
+        lock->rdlock();
+      else
+        lock->assert_some_lock();
+    }
+    const rpl_sid &sid= sid_map->sidno_to_sid(sidno);
+    if (lock && need_lock)
+      lock->unlock();
+    ret= to_string(sid, buf);
+  }
+  else
+  {
+#ifdef DBUG_OFF
+    /*
+      NULL is only allowed in debug mode, since the sidno does not
+      make sense for users but is useful to include in debug
+      printouts.  Therefore, we want to ASSERT(0) in non-debug mode.
+      Since there is no ASSERT in non-debug mode, we use abort
+      instead.
+    */
+    abort();
+#endif
+    ret= sprintf(buf, "%d:%lld", sidno, gno);
+  }
   DBUG_RETURN(ret);
 }
 
@@ -151,8 +180,17 @@ void check_return_status(enum_return_status status, const char *action,
     {
 #if !defined(MYSQL_CLIENT) && !defined(DBUG_OFF)
       THD *thd= current_thd;
+      /*
+        We create a new system THD with 'SYSTEM_THREAD_COMPRESS_GTID_TABLE'
+        when initializing gtid state by fetching gtids during server startup,
+        so we can check on it before diagnostic area is active and skip the
+        assert in this case. We assert that diagnostic area logged the error
+        outside server startup since the assert is realy useful.
+     */
       DBUG_ASSERT(thd == NULL ||
-                  thd->get_stmt_da()->status() == Diagnostics_area::DA_ERROR);
+                  thd->get_stmt_da()->status() == Diagnostics_area::DA_ERROR ||
+                  (thd->get_stmt_da()->status() == Diagnostics_area::DA_EMPTY &&
+                   thd->system_thread == SYSTEM_THREAD_COMPRESS_GTID_TABLE));
 #endif
     }
     DBUG_PRINT("info", ("%s error %d (%s)", action, status, status_name));

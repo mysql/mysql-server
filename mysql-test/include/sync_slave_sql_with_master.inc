@@ -15,7 +15,8 @@
 # [--let $slave_timeout= NUMBER]
 # [--let $rpl_debug= 1]
 # [--let $wait_for_executed_gtid_set= 1]
-# --source include/sync_slave_io_with_master.inc
+# [--let $ignore_gtids_on_sync= 1]
+# --source include/sync_slave_sql_with_master.inc
 #
 # Must be called on the master. Will change connection to the slave.
 #

@@ -27,6 +27,7 @@
 #include <sys/stat.h>
 #include <signal.h>
 #include <time.h>
+#include "my_thread_local.h"
 #ifdef	 HAVE_PWD_H
 #include <pwd.h>
 #endif

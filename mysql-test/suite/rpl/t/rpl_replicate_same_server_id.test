@@ -1,0 +1,111 @@
+# ==== Purpose ====
+#
+# Test that replicate-same-server-id works correctly in two cases:
+#
+#  1. If a server replicates to itself (and log-slave-updates is off)
+#     then every transaction should be executed twice.
+#
+#  2. START SLAVE UNTIL should work correctly if replicate-same-server-id
+#     is enabled and master and slave have different server_ids. This is
+#     to test BUG#38934.
+#
+# ==== Note ====
+#
+# This test file was named rpl_server_id2.test prior to MySQL 5.7.5.
+
+# Replicating in a loop like this won't work with GTIDs.
+--source include/not_group_replication_plugin.inc
+--source include/not_gtid_enabled.inc
+--source include/master-slave.inc
+
+--echo ==== If server with replicate-same-server-id is slave of itself, it executes transactions twice ====
+
+--echo ---- Initialize ----
+
+--source include/rpl_connection_slave.inc
+CREATE TABLE t1 (n INT);
+RESET MASTER;
+
+# replicate slave -> slave
+--source include/stop_slave.inc
+--replace_result $SLAVE_MYPORT SLAVE_PORT
+eval CHANGE MASTER TO MASTER_PORT = $SLAVE_MYPORT;
+--source include/start_slave.inc
+
+--echo ---- Test ----
+
+INSERT INTO t1 VALUES (1);
+--save_master_pos
+--sync_with_master
+
+SELECT * FROM t1; # check that indeed 2 were inserted
+
+--echo ---- Clean up ----
+
+# We stop the slave before cleaning up otherwise we'll get
+# 'DROP TABLE t1' executed twice, so an error in the slave.err
+# (not critical).
+--source include/stop_slave.inc
+
+DROP TABLE t1;
+
+--replace_result $MASTER_MYPORT MASTER_PORT
+eval CHANGE MASTER TO MASTER_PORT = $MASTER_MYPORT;
+
+
+#
+# Bug#38934 slave slave until does not work with --replicate-same-server-id
+#
+# Verifying that slave performs all events until the master_log_pos
+# in presense of --replicate-same-server-id the slave is started with.
+
+--echo ==== START SLAVE UNTIL works with replicate-same-server-id ====
+
+--echo ---- Initialize ----
+
+--source include/rpl_connection_master.inc
+
+# setting the until position to correspond to the first following create table
+# which will make the event executed and the slave sql thread stopped
+# right after that.
+
+CREATE TABLE t1(n int);
+--let $until_pos= query_get_value(SHOW MASTER STATUS, Position, 1)
+
+CREATE TABLE t2(n int);
+
+--echo ---- Test ----
+
+--source include/rpl_connection_slave.inc
+
+--replace_result $until_pos UNTIL_POS
+--disable_warnings
+eval START SLAVE UNTIL MASTER_LOG_FILE = 'master-bin.000001', MASTER_LOG_POS = $until_pos;
+--enable_warnings
+--source include/wait_for_slave_io_to_start.inc
+
+# It is theoretically possible that the SQL thread starts after the IO
+# thread, so wait_for_io_to_start returns after the IO thread has
+# started and before the SQL thread has started.  So we have to wait
+# for the actual change to appear on the slave, so that we know that
+# the SQL thread has started before we wait for it to stop.
+
+--let $query= SELECT * FROM t1
+--source include/wait_for_query_to_succeed.inc
+
+--source include/wait_for_slave_sql_to_stop.inc
+
+--let $assert_cond= "[SHOW TABLES]" = "t1"
+--let $assert_text= t1 should be replicated, t2 should not
+--source include/assert.inc
+
+--echo ---- Clean up ----
+
+--source include/rpl_connection_slave.inc
+--source include/start_slave_sql.inc
+
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+DROP TABLE t2;
+
+--source include/rpl_end.inc

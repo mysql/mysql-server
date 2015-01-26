@@ -64,10 +64,11 @@ START SLAVE IO_THREAD;
 --let $rpl_server_parameters=--skip_slave_start=FALSE --master-info-repository=TABLE --relay-log-info-repository=TABLE --relay-log-recovery=1
 --source include/rpl_start_server.inc
 
---replace_regex /[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]\.[0-9][0-9][0-9][0-9][0-9][0-9][-+Z][0-9:]* *[0-9]* *\[/DATE_TIME [/
---let GREP_FILE=$MYSQLTEST_VARDIR/tmp/slave.err
---let GREP_PATTERN=Error during --relay-log-recovery
---source extra/rpl_tests/grep_pattern.inc
+--let $assert_text= One error should match 'Error during --relay-log-recovery'
+--let $assert_file= $MYSQLTEST_VARDIR/tmp/slave.err
+--let $assert_select= Error during --relay-log-recovery
+--let $assert_count= 1
+--source include/assert_grep.inc
 
 # Clean up Server needs to be restarted with relay-log-recovery=0
 --let $rpl_server_number= 2

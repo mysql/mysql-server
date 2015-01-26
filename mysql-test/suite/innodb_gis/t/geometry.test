@@ -60,48 +60,48 @@ SHOW FIELDS FROM gis_geometry;
 
 --echo #INSERT using all WKT & WKB functions
 INSERT INTO gis_point VALUES
-(101, PointFromText('POINT(10 10)')),
-(102, PointFromText('POINT(20 10)')),
-(103, PointFromText('POINT(20 20)')),
-(104, PointFromWKB(AsWKB(PointFromText('POINT(10 20)'))));
+(101, ST_PointFromText('POINT(10 10)')),
+(102, ST_PointFromText('POINT(20 10)')),
+(103, ST_PointFromText('POINT(20 20)')),
+(104, ST_PointFromWKB(ST_AsWKB(ST_PointFromText('POINT(10 20)'))));
 
 
 INSERT INTO gis_line VALUES
-(105, LineFromText('LINESTRING(0 0,0 10,10 0)')),
-(106, LineStringFromText('LINESTRING(10 10,20 10,20 20,10 20,10 10)')),
-(107, LineStringFromWKB(AsWKB(LineString(Point(10, 10), Point(40, 10)))));
+(105, ST_LineFromText('LINESTRING(0 0,0 10,10 0)')),
+(106, ST_LineStringFromText('LINESTRING(10 10,20 10,20 20,10 20,10 10)')),
+(107, ST_LineStringFromWKB(ST_AsWKB(LineString(Point(10, 10), Point(40, 10)))));
 
 
 INSERT INTO gis_polygon VALUES
-(108, PolygonFromText('POLYGON((10 10,20 10,20 20,10 20,10 10))')),
-(109, PolyFromText('POLYGON((0 0,50 0,50 50,0 50,0 0), (10 10,20 10,20 20,10 20,10 10))')),
-(110, PolyFromWKB(AsWKB(Polygon(LineString(Point(0, 0), Point(30, 0), Point(30, 30), Point(0, 0))))));
+(108, ST_PolygonFromText('POLYGON((10 10,20 10,20 20,10 20,10 10))')),
+(109, ST_PolyFromText('POLYGON((0 0,50 0,50 50,0 50,0 0), (10 10,20 10,20 20,10 20,10 10))')),
+(110, ST_PolyFromWKB(ST_AsWKB(Polygon(LineString(Point(0, 0), Point(30, 0), Point(30, 30), Point(0, 0))))));
 
 
 INSERT INTO gis_multi_point VALUES
-(111, MultiPointFromText('MULTIPOINT(0 0,10 10,10 20,20 20)')),
-(112, MPointFromText('MULTIPOINT(1 1,11 11,11 21,21 21)')),
-(113, MPointFromWKB(AsWKB(MultiPoint(Point(3, 6), Point(4, 10)))));
+(111, ST_MultiPointFromText('MULTIPOINT(0 0,10 10,10 20,20 20)')),
+(112, ST_MPointFromText('MULTIPOINT(1 1,11 11,11 21,21 21)')),
+(113, ST_MPointFromWKB(ST_AsWKB(MultiPoint(Point(3, 6), Point(4, 10)))));
 
 
 INSERT INTO gis_multi_line VALUES
-(114, MultiLineStringFromText('MULTILINESTRING((10 48,10 21,10 0),(16 0,16 23,16 48))')),
-(115, MLineFromText('MULTILINESTRING((10 48,10 21,10 0))')),
-(116, MLineFromWKB(AsWKB(MultiLineString(LineString(Point(1, 2), Point(3, 5)), LineString(Point(2, 5), Point(5, 8), Point(21, 7))))));
+(114, ST_MultiLineStringFromText('MULTILINESTRING((10 48,10 21,10 0),(16 0,16 23,16 48))')),
+(115, ST_MLineFromText('MULTILINESTRING((10 48,10 21,10 0))')),
+(116, ST_MLineFromWKB(ST_AsWKB(MultiLineString(LineString(Point(1, 2), Point(3, 5)), LineString(Point(2, 5), Point(5, 8), Point(21, 7))))));
 
 
 INSERT INTO gis_multi_polygon VALUES
-(117, MultiPolygonFromText('MULTIPOLYGON(((28 26,28 0,84 0,84 42,28 26),(52 18,66 23,73 9,48 6,52 18)),
+(117, ST_MultiPolygonFromText('MULTIPOLYGON(((28 26,28 0,84 0,84 42,28 26),(52 18,66 23,73 9,48 6,52 18)),
 ((59 18,67 18,67 13,59 13,59 18)))')),
-(118, MPolyFromText('MULTIPOLYGON(((28 26,28 0,84 0,84 42,28 26),
+(118, ST_MPolyFromText('MULTIPOLYGON(((28 26,28 0,84 0,84 42,28 26),
 (52 18,66 23,73 9,48 6,52 18)),((59 18,67 18,67 13,59 13,59 18)))')),
-(119, MPolyFromWKB(AsWKB(MultiPolygon(Polygon(LineString(Point(0, 3), Point(3, 3), Point(3, 0), Point(0, 3)))))));
+(119, ST_MPolyFromWKB(ST_AsWKB(MultiPolygon(Polygon(LineString(Point(0, 3), Point(3, 3), Point(3, 0), Point(0, 3)))))));
 
 
 INSERT INTO gis_geometrycollection VALUES
-(120, GeomCollFromText('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(0 0,10 10))')),
-(121, GeometryCollectionFromText('GEOMETRYCOLLECTION(POINT(10 10), LINESTRING(10 10,20 20))')),
-(122, GeometryFromWKB(AsWKB(GeometryCollection(Point(44, 6), LineString(Point(3, 6), Point(7, 9))))));
+(120, ST_GeomCollFromText('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(0 0,10 10))')),
+(121, ST_GeometryCollectionFromText('GEOMETRYCOLLECTION(POINT(10 10), LINESTRING(10 10,20 20))')),
+(122, ST_GeometryFromWKB(ST_AsWKB(GeometryCollection(Point(44, 6), LineString(Point(3, 6), Point(7, 9))))));
 
 --echo #check INSERT using SELECT query
 INSERT into gis_geometry SELECT * FROM gis_point;
@@ -113,14 +113,14 @@ INSERT into gis_geometry SELECT * FROM gis_multi_polygon;
 INSERT into gis_geometry SELECT * FROM gis_geometrycollection;
 
 --echo #check format coversion functions & spatial values
-SELECT fid, AsText(g) FROM gis_point;
-SELECT fid, AsText(g) FROM gis_line;
-SELECT fid, AsText(g) FROM gis_polygon;
-SELECT fid, AsText(g) FROM gis_multi_point;
-SELECT fid, AsText(g) FROM gis_multi_line;
-SELECT fid, AsText(g) FROM gis_multi_polygon;
-SELECT fid, AsText(g) FROM gis_geometrycollection;
-SELECT fid, AsText(g) FROM gis_geometry;
+SELECT fid, ST_AsText(g) FROM gis_point;
+SELECT fid, ST_AsText(g) FROM gis_line;
+SELECT fid, ST_AsText(g) FROM gis_polygon;
+SELECT fid, ST_AsText(g) FROM gis_multi_point;
+SELECT fid, ST_AsText(g) FROM gis_multi_line;
+SELECT fid, ST_AsText(g) FROM gis_multi_polygon;
+SELECT fid, ST_AsText(g) FROM gis_geometrycollection;
+SELECT fid, ST_AsText(g) FROM gis_geometry;
 
 --echo #2.1 check DDL functionality on GIS datatypes
 CREATE TABLE tab(c1 POINT,c2 LINESTRING,c3 POLYGON,C4 MULTIPOINT,c5 MULTILINESTRING ,
@@ -135,14 +135,14 @@ WHERE st.NAME='test/tab'
 ORDER BY sc.name;
 
 --echo #check Perform convesrion before INSERT using WKT functions
-SET @c1=PointFromText('POINT(10 10)');
-SET @c2=LineFromText('LINESTRING(10 10,20 20,30 30)');
-SET @c3=PolyFromText('POLYGON((0 0,5 5,10 10,15 15,0 0),(10 10,20 20,30 30,40 40,10 10))');
-SET @c4=MPointFromText('MULTIPOINT(0 0,5 5,10 10,20 20)');
-SET @c5=MLineFromText('MULTILINESTRING((1 1,2 2,3 3),(10 10,20 20,30 30))');
-SET @c6=MPolyFromText('MULTIPOLYGON(((28 26,28 0,84 0,84 42,28 26),(52 18,66 23,73 9,48 6,52 18)),((59 18,67 18,67 13,59 13,59 18)))');
-SET @c7=GeomCollFromText('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(0 0,10 10))');
-SET @c8=GeomCollFromText('GeometryCollection(Point(1 1),LineString(2 2, 3 3))');
+SET @c1=ST_PointFromText('POINT(10 10)');
+SET @c2=ST_LineFromText('LINESTRING(10 10,20 20,30 30)');
+SET @c3=ST_PolyFromText('POLYGON((0 0,5 5,10 10,15 15,0 0),(10 10,20 20,30 30,40 40,10 10))');
+SET @c4=ST_MPointFromText('MULTIPOINT(0 0,5 5,10 10,20 20)');
+SET @c5=ST_MLineFromText('MULTILINESTRING((1 1,2 2,3 3),(10 10,20 20,30 30))');
+SET @c6=ST_MPolyFromText('MULTIPOLYGON(((28 26,28 0,84 0,84 42,28 26),(52 18,66 23,73 9,48 6,52 18)),((59 18,67 18,67 13,59 13,59 18)))');
+SET @c7=ST_GeomCollFromText('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(0 0,10 10))');
+SET @c8=ST_GeomCollFromText('GeometryCollection(Point(1 1),LineString(2 2, 3 3))');
 
 --echo #Insert the spatial values
 INSERT INTO tab VALUES(@c1,@c2,@c3,@c4,@c5,@c6,@c7,@c8);
@@ -154,67 +154,67 @@ CREATE UNIQUE INDEX idx2 on tab(c8(5) ASC) ;
 
 --echo #check equality predicate on the index columns
 --replace_column 10 #
-EXPLAIN SELECT ASText(c1),AsText(c2),AsText(c8) FROM tab
-WHERE c2=LineFromText('LINESTRING(10 10,20 20,30 30)');
+EXPLAIN SELECT ST_ASText(c1),ST_AsText(c2),ST_AsText(c8) FROM tab
+WHERE c2=ST_LineFromText('LINESTRING(10 10,20 20,30 30)');
 
 --echo #check index with  WKB function
 --replace_column 10 #
-EXPLAIN SELECT ASText(c1),AsText(c2),AsText(c8)
-FROM tab WHERE c2=LineStringFromWKB(AsWKB(LineFromText('LINESTRING(10 10,20 20,30 30)')));
+EXPLAIN SELECT ST_ASText(c1),ST_AsText(c2),ST_AsText(c8)
+FROM tab WHERE c2=ST_LineStringFromWKB(ST_AsWKB(ST_LineFromText('LINESTRING(10 10,20 20,30 30)')));
 
 --echo #check index with  WKT function
 --replace_column 10 #
-EXPLAIN SELECT ASText(c1),AsText(c2),AsText(c8) FROM tab
-WHERE c3=PolyFromText('POLYGON((0 0,5 5,10 10,15 15,0 0),(10 10,20 20,30 30,40 40,10 10))');
+EXPLAIN SELECT ST_ASText(c1),ST_AsText(c2),ST_AsText(c8) FROM tab
+WHERE c3=ST_PolyFromText('POLYGON((0 0,5 5,10 10,15 15,0 0),(10 10,20 20,30 30,40 40,10 10))');
 
 --echo #check index with  WKB function
 --replace_column 10 #
-EXPLAIN SELECT ASText(c1),AsText(c2),AsText(c8)
+EXPLAIN SELECT ST_ASText(c1),ST_AsText(c2),ST_AsText(c8)
 FROM tab
-WHERE c3=PolyFromWKB(AsWkB(PolyFromText('POLYGON((0 0,5 5,10 10,15 15,0 0),(10 10,20 20,30 30,40 40,10 10))')));
+WHERE c3=ST_PolyFromWKB(ST_AsWkB(ST_PolyFromText('POLYGON((0 0,5 5,10 10,15 15,0 0),(10 10,20 20,30 30,40 40,10 10))')));
 
 --echo #check index with  WKT function
 --replace_column 10 #
-EXPLAIN SELECT ASText(c1),AsText(c2),AsText(c8) FROM tab
-WHERE c8=GeomCollFromText('GeometryCollection(Point(1 1),LineString(2 2, 3 3))');
+EXPLAIN SELECT ST_ASText(c1),ST_AsText(c2),ST_AsText(c8) FROM tab
+WHERE c8=ST_GeomCollFromText('GeometryCollection(Point(1 1),LineString(2 2, 3 3))');
 
 --echo #check index with  WKB function
 --replace_column 10 #
-EXPLAIN SELECT ASText(c1),AsText(c2),AsText(c8)
+EXPLAIN SELECT ST_ASText(c1),ST_AsText(c2),ST_AsText(c8)
 FROM tab
-WHERE c8=GeometryFromWKB(AsWKB(GeomCollFromText('GeometryCollection(Point(1 1),LineString(2 2, 3 3))')));
+WHERE c8=ST_GeometryFromWKB(ST_AsWKB(ST_GeomCollFromText('GeometryCollection(Point(1 1),LineString(2 2, 3 3))')));
 
 --echo #check range predicate on the index columns
 --replace_column 10 #
 --error ER_WRONG_ARGUMENTS
-EXPLAIN SELECT ASText(c1),AsText(c2),AsText(c8) FROM tab
-WHERE c2>=LineFromText('LINESTRING(10 10,20 20,30 30)');
+EXPLAIN SELECT ST_ASText(c1),ST_AsText(c2),ST_AsText(c8) FROM tab
+WHERE c2>=ST_LineFromText('LINESTRING(10 10,20 20,30 30)');
 
 --replace_column 10 #
 --error ER_WRONG_ARGUMENTS
-EXPLAIN SELECT ASText(c1),AsText(c2),AsText(c8) FROM tab
-WHERE c3>=PolyFromText('POLYGON((0 0,5 5,10 10,15 15,0 0),(10 10,20 20,30 30,40 40,10 10))');
+EXPLAIN SELECT ST_ASText(c1),ST_AsText(c2),ST_AsText(c8) FROM tab
+WHERE c3>=ST_PolyFromText('POLYGON((0 0,5 5,10 10,15 15,0 0),(10 10,20 20,30 30,40 40,10 10))');
 
 --replace_column 10 #
 --error ER_WRONG_ARGUMENTS
-EXPLAIN SELECT ASText(c1),AsText(c2),AsText(c8) FROM tab
-WHERE c8>=GeomCollFromText('GeometryCollection(Point(1 1),LineString(2 2, 3 3))');
+EXPLAIN SELECT ST_ASText(c1),ST_AsText(c2),ST_AsText(c8) FROM tab
+WHERE c8>=ST_GeomCollFromText('GeometryCollection(Point(1 1),LineString(2 2, 3 3))');
 
 --echo #check index with DELETE operation
 --replace_column 10 #
 EXPLAIN DELETE FROM tab
-WHERE c8=GeometryFromWKB(AsWKB(GeomCollFromText('GeometryCollection(Point(1 1),LineString(2 2, 3 3))')));
+WHERE c8=ST_GeometryFromWKB(ST_AsWKB(ST_GeomCollFromText('GeometryCollection(Point(1 1),LineString(2 2, 3 3))')));
 
 
 --echo #check the spatial values
-SELECT AsText(c1) FROM tab;
-SELECT AsText(c2) FROM tab;
-SELECT AsText(c3) FROM tab;
-SELECT AsText(c4) FROM tab;
-SELECT AsText(c5) FROM tab;
-SELECT AsText(c6) FROM tab;
-SELECT AsText(c7) FROM tab;
-SELECT AsText(c8) From tab;
+SELECT ST_AsText(c1) FROM tab;
+SELECT ST_AsText(c2) FROM tab;
+SELECT ST_AsText(c3) FROM tab;
+SELECT ST_AsText(c4) FROM tab;
+SELECT ST_AsText(c5) FROM tab;
+SELECT ST_AsText(c6) FROM tab;
+SELECT ST_AsText(c7) FROM tab;
+SELECT ST_AsText(c8) From tab;
 
 --echo #check by modify the column type
 ALTER TABLE tab MODIFY COLUMN c1 Geometry;
@@ -229,14 +229,14 @@ ALTER TABLE tab MODIFY COLUMN c7 Geometry;
 SHOW FIELDS FROM tab;
 
 --echo #check the data after modify
-SELECT AsText(c1) FROM tab;
-SELECT AsText(c2) FROM tab;
-SELECT AsText(c3) FROM tab;
-SELECT AsText(c4) FROM tab;
-SELECT AsText(c5) FROM tab;
-SELECT AsText(c6) FROM tab;
-SELECT AsText(c7) FROM tab;
-SELECT AsText(c8) From tab;
+SELECT ST_AsText(c1) FROM tab;
+SELECT ST_AsText(c2) FROM tab;
+SELECT ST_AsText(c3) FROM tab;
+SELECT ST_AsText(c4) FROM tab;
+SELECT ST_AsText(c5) FROM tab;
+SELECT ST_AsText(c6) FROM tab;
+SELECT ST_AsText(c7) FROM tab;
+SELECT ST_AsText(c8) From tab;
 
 --echo #check by modify the column type
 ALTER TABLE tab MODIFY COLUMN c1 POINT;
@@ -251,14 +251,14 @@ ALTER TABLE tab MODIFY COLUMN c7 GEOMETRYCOLLECTION;
 SHOW FIELDS FROM tab;
 
 --echo #check the data after modify
-SELECT AsText(c1) FROM tab;
-SELECT AsText(c2) FROM tab;
-SELECT AsText(c3) FROM tab;
-SELECT AsText(c4) FROM tab;
-SELECT AsText(c5) FROM tab;
-SELECT AsText(c6) FROM tab;
-SELECT AsText(c7) FROM tab;
-SELECT AsText(c8) From tab;
+SELECT ST_AsText(c1) FROM tab;
+SELECT ST_AsText(c2) FROM tab;
+SELECT ST_AsText(c3) FROM tab;
+SELECT ST_AsText(c4) FROM tab;
+SELECT ST_AsText(c5) FROM tab;
+SELECT ST_AsText(c6) FROM tab;
+SELECT ST_AsText(c7) FROM tab;
+SELECT ST_AsText(c8) From tab;
 
 --echo #check change the column type
 ALTER TABLE tab MODIFY COLUMN c1 BLOB;
@@ -267,7 +267,7 @@ ALTER TABLE tab MODIFY COLUMN c1 BLOB;
 SHOW CREATE TABLE tab;
 
 --echo #check the data after modify
-SELECT AsText(c1) FROM tab;
+SELECT ST_AsText(c1) FROM tab;
 
 --echo #change the column name
 ALTER TABLE tab CHANGE COLUMN c1 c0 GEOMETRY ;
@@ -306,31 +306,31 @@ END |
 delimiter ;|
 
 --echo #set the spatial values
-SET @c1=PointFromText('POINT(10 10)');
-SET @c2=LineFromText('LINESTRING(10 10,20 20,30 30)');
-SET @c3=PolyFromText('POLYGON((0 0,5 5,10 10,15 15,0 0),(10 10,20 20,30 30,40 40,10 10))');
-SET @c4=MPointFromText('MULTIPOINT(0 0,5 5,10 10,20 20)');
-SET @c5=MLineFromText('MULTILINESTRING((1 1,2 2,3 3),(10 10,20 20,30 30))');
-SET @c6=MPolyFromText('MULTIPOLYGON(((28 26,28 0,84 0,84 42,28 26),(52 18,66 23,73 9,48 6,52 18)),((59 18,67 18,67 13,59 13,59 18)))');
-SET @c7=GeomCollFromText('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(0 0,10 10))');
-SET @c8=GeomCollFromText('GeometryCollection(Point(1 1),LineString(2 2, 3 3))');
+SET @c1=ST_PointFromText('POINT(10 10)');
+SET @c2=ST_LineFromText('LINESTRING(10 10,20 20,30 30)');
+SET @c3=ST_PolyFromText('POLYGON((0 0,5 5,10 10,15 15,0 0),(10 10,20 20,30 30,40 40,10 10))');
+SET @c4=ST_MPointFromText('MULTIPOINT(0 0,5 5,10 10,20 20)');
+SET @c5=ST_MLineFromText('MULTILINESTRING((1 1,2 2,3 3),(10 10,20 20,30 30))');
+SET @c6=ST_MPolyFromText('MULTIPOLYGON(((28 26,28 0,84 0,84 42,28 26),(52 18,66 23,73 9,48 6,52 18)),((59 18,67 18,67 13,59 13,59 18)))');
+SET @c7=ST_GeomCollFromText('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(0 0,10 10))');
+SET @c8=ST_GeomCollFromText('GeometryCollection(Point(1 1),LineString(2 2, 3 3))');
 
 --echo #call the proc
 CALL geom_insert(@c1,@c2,@c3,@c4,@c5,@c6,@c7,@c8);
 
 --echo #check the values ofter proc call
-SELECT AsText(c0) FROM tab;
-SELECT AsText(c2) FROM tab;
-SELECT AsText(c3) FROM tab;
-SELECT AsText(c4) FROM tab;
-SELECT AsText(c5) FROM tab;
-SELECT AsText(c6) FROM tab;
-SELECT AsText(c7) FROM tab;
-SELECT AsText(c8) From tab;
+SELECT ST_AsText(c0) FROM tab;
+SELECT ST_AsText(c2) FROM tab;
+SELECT ST_AsText(c3) FROM tab;
+SELECT ST_AsText(c4) FROM tab;
+SELECT ST_AsText(c5) FROM tab;
+SELECT ST_AsText(c6) FROM tab;
+SELECT ST_AsText(c7) FROM tab;
+SELECT ST_AsText(c8) From tab;
 
 
 --echo #set the input spatial value
-SET @c9=GeomCollFromText('GeometryCollection(Point(1 1),LineString(2 2, 3 3))');
+SET @c9=ST_GeomCollFromText('GeometryCollection(Point(1 1),LineString(2 2, 3 3))');
 
 delimiter |;
 
@@ -338,8 +338,8 @@ delimiter |;
 CREATE PROCEDURE geominout(INOUT c9 GEOMETRY)
 BEGIN
 
-SELECT AsText(@c9);
-SET c9=GeomCollFromText('GeometryCollection(Point(10 10),LineString(20 20, 30 30))');
+SELECT ST_AsText(@c9);
+SET c9=ST_GeomCollFromText('GeometryCollection(Point(10 10),LineString(20 20, 30 30))');
 
 END|
 
@@ -349,7 +349,7 @@ delimiter ;|
 CALL geominout(@c9);
 
 --echo #now check the out spatial values should be changed to new values
-SELECT AsText(@c9);
+SELECT ST_AsText(@c9);
 
 #check GIS datatype with Triggers
 
@@ -375,27 +375,27 @@ END|
 delimiter ;|
 
 --echo #set the spatial values
-SET @c1=PointFromText('POINT(10 10)');
-SET @c2=LineFromText('LINESTRING(10 10,20 20,30 30)');
-SET @c3=PolyFromText('POLYGON((0 0,5 5,10 10,15 15,0 0),(10 10,20 20,30 30,40 40,10 10))');
-SET @c4=MPointFromText('MULTIPOINT(0 0,5 5,10 10,20 20)');
-SET @c5=MLineFromText('MULTILINESTRING((1 1,2 2,3 3),(10 10,20 20,30 30))');
-SET @c6=MPolyFromText('MULTIPOLYGON(((28 26,28 0,84 0,84 42,28 26),(52 18,66 23,73 9,48 6,52 18)),((59 18,67 18,67 13,59 13,59 18)))');
-SET @c7=GeomCollFromText('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(0 0,10 10))');
-SET @c8=GeomCollFromText('GeometryCollection(Point(1 1),LineString(2 2, 3 3))');
+SET @c1=ST_PointFromText('POINT(10 10)');
+SET @c2=ST_LineFromText('LINESTRING(10 10,20 20,30 30)');
+SET @c3=ST_PolyFromText('POLYGON((0 0,5 5,10 10,15 15,0 0),(10 10,20 20,30 30,40 40,10 10))');
+SET @c4=ST_MPointFromText('MULTIPOINT(0 0,5 5,10 10,20 20)');
+SET @c5=ST_MLineFromText('MULTILINESTRING((1 1,2 2,3 3),(10 10,20 20,30 30))');
+SET @c6=ST_MPolyFromText('MULTIPOLYGON(((28 26,28 0,84 0,84 42,28 26),(52 18,66 23,73 9,48 6,52 18)),((59 18,67 18,67 13,59 13,59 18)))');
+SET @c7=ST_GeomCollFromText('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(0 0,10 10))');
+SET @c8=ST_GeomCollFromText('GeometryCollection(Point(1 1),LineString(2 2, 3 3))');
 
 --echo #Insert the spatial values
 INSERT INTO tab VALUES(@c1,@c2,@c3,@c4,@c5,@c6,@c7,@c8);
 
 --echo #check the values whether populated
-SELECT AsText(c0) FROM tab2;
-SELECT AsText(c2) FROM tab2;
-SELECT AsText(c3) FROM tab2;
-SELECT AsText(c4) FROM tab2;
-SELECT AsText(c5) FROM tab2;
-SELECT AsText(c6) FROM tab2;
-SELECT AsText(c7) FROM tab2;
-SELECT AsText(c8) From tab2;
+SELECT ST_AsText(c0) FROM tab2;
+SELECT ST_AsText(c2) FROM tab2;
+SELECT ST_AsText(c3) FROM tab2;
+SELECT ST_AsText(c4) FROM tab2;
+SELECT ST_AsText(c5) FROM tab2;
+SELECT ST_AsText(c6) FROM tab2;
+SELECT ST_AsText(c7) FROM tab2;
+SELECT ST_AsText(c8) From tab2;
 
 --echo #check Cursor with Geometry
 
@@ -410,7 +410,7 @@ BEGIN
   FETCH c INTO v;
   CLOSE c;
 
-  SELECT AsText(v);
+  SELECT ST_AsText(v);
 END|
 
 delimiter ;|
@@ -421,49 +421,49 @@ delimiter ;|
 #CALL geom_cursor();
 
 --echo check self join
-SELECT AsText(a.c0),AsText(a.c2),AsText(a.c3)
+SELECT ST_AsText(a.c0),ST_AsText(a.c2),ST_AsText(a.c3)
 FROM tab a,tab2 b WHERE a.c0=b.c0 AND a.c2=b.c2
 AND a.c3=b.c3 AND a.c4=b.c4 AND a.c5=b.c5 AND a.c6=b.c6
 AND a.c7=b.c7 AND a.c8=b.c8;
 
 --echo #check equi join
-SELECT AsText(a.c2),AsText(b.c2) FROM tab a,tab2 b WHERE a.c2=b.c2;
+SELECT ST_AsText(a.c2),ST_AsText(b.c2) FROM tab a,tab2 b WHERE a.c2=b.c2;
 
 --echo #check DELETE stmt with Where clause and a constant predicate
 DELETE FROM tab
-Where c8=c8=GeometryFromWKB(AsWKB(GeomCollFromText('GeometryCollection(Point(1 1),LineString(2 2, 3 3))')));
+Where c8=c8=ST_GeometryFromWKB(ST_AsWKB(ST_GeomCollFromText('GeometryCollection(Point(1 1),LineString(2 2, 3 3))')));
 
 --echo #check the data, should 0
 SELECT COUNT(*) FROM tab;
 
 --echo #check UPDATE stmt with Where clause and a constant predicate
-SET @c8=GeomCollFromText('GeometryCollection(Point(10 10),LineString(20 20, 30 30))');
+SET @c8=ST_GeomCollFromText('GeometryCollection(Point(10 10),LineString(20 20, 30 30))');
 UPDATE tab2 SET c8=@c8
-WHERE c2=LineStringFromWKB(AsWKB(LineFromText('LINESTRING(10 10,20 20,30 30)')));
+WHERE c2=ST_LineStringFromWKB(ST_AsWKB(ST_LineFromText('LINESTRING(10 10,20 20,30 30)')));
 
 --echo #check the column should be modified to LINESTRING(10 10,20 20,30 30)
-SELECT AsText(c8) From tab2;
+SELECT ST_AsText(c8) From tab2;
 
 --echo #check GIS datatypes with aggregate functions
-SELECT COUNT(AsText(g)) FROM gis_point;
-SELECT COUNT(AsText(g)) FROM gis_line;
-SELECT COUNT(AsText(g)) FROM gis_polygon;
-SELECT COUNT(AsText(g)) FROM gis_multi_point;
-SELECT COUNT(AsText(g)) FROM gis_multi_line;
-SELECT COUNT(AsText(g)) FROM gis_multi_polygon;
-SELECT COUNT(AsText(g)) FROM gis_geometrycollection;
-SELECT COUNT(AsText(g)) FROM gis_geometry;
+SELECT COUNT(ST_AsText(g)) FROM gis_point;
+SELECT COUNT(ST_AsText(g)) FROM gis_line;
+SELECT COUNT(ST_AsText(g)) FROM gis_polygon;
+SELECT COUNT(ST_AsText(g)) FROM gis_multi_point;
+SELECT COUNT(ST_AsText(g)) FROM gis_multi_line;
+SELECT COUNT(ST_AsText(g)) FROM gis_multi_polygon;
+SELECT COUNT(ST_AsText(g)) FROM gis_geometrycollection;
+SELECT COUNT(ST_AsText(g)) FROM gis_geometry;
 
-SELECT SUM(AsText(g)) FROM gis_point;
-SELECT SUM(AsText(g)) FROM gis_line;
-SELECT AVG(AsText(g)) FROM gis_polygon;
+SELECT SUM(ST_AsText(g)) FROM gis_point;
+SELECT SUM(ST_AsText(g)) FROM gis_line;
+SELECT AVG(ST_AsText(g)) FROM gis_polygon;
 --echo #here it show some string value no meaning
-SELECT MAX(AsText(g)) FROM gis_multi_point;
+SELECT MAX(ST_AsText(g)) FROM gis_multi_point;
 --echo #here it show some string value no meaning
-SELECT MIN(AsText(g)) FROM gis_multi_line;
-SELECT STD(AsText(g)) FROM gis_multi_polygon;
-SELECT COUNT(AsText(g)) FROM gis_geometrycollection;
-SELECT AVG(AsText(g)) FROM gis_geometry;
+SELECT MIN(ST_AsText(g)) FROM gis_multi_line;
+SELECT STD(ST_AsText(g)) FROM gis_multi_polygon;
+SELECT COUNT(ST_AsText(g)) FROM gis_geometrycollection;
+SELECT AVG(ST_AsText(g)) FROM gis_geometry;
 
 --disable_warnings
 --echo #check Datatypes with compression tables
@@ -494,14 +494,14 @@ WHERE st.NAME='test/tab3'
 ORDER BY sc.name;
 
 --echo #check Perform convesrion before INSERT using WKT functions
-SET @c1=PointFromText('POINT(10 10)');
-SET @c2=LineFromText('LINESTRING(10 10,20 20,30 30)');
-SET @c3=PolyFromText('POLYGON((0 0,5 5,10 10,15 15,0 0),(10 10,20 20,30 30,40 40,10 10))');
-SET @c4=MPointFromText('MULTIPOINT(0 0,5 5,10 10,20 20)');
-SET @c5=MLineFromText('MULTILINESTRING((1 1,2 2,3 3),(10 10,20 20,30 30))');
-SET @c6=MPolyFromText('MULTIPOLYGON(((28 26,28 0,84 0,84 42,28 26),(52 18,66 23,73 9,48 6,52 18)),((59 18,67 18,67 13,59 13,59 18)))');
-SET @c7=GeomCollFromText('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(0 0,10 10))');
-SET @c8=GeomCollFromText('GeometryCollection(Point(1 1),LineString(2 2, 3 3))');
+SET @c1=ST_PointFromText('POINT(10 10)');
+SET @c2=ST_LineFromText('LINESTRING(10 10,20 20,30 30)');
+SET @c3=ST_PolyFromText('POLYGON((0 0,5 5,10 10,15 15,0 0),(10 10,20 20,30 30,40 40,10 10))');
+SET @c4=ST_MPointFromText('MULTIPOINT(0 0,5 5,10 10,20 20)');
+SET @c5=ST_MLineFromText('MULTILINESTRING((1 1,2 2,3 3),(10 10,20 20,30 30))');
+SET @c6=ST_MPolyFromText('MULTIPOLYGON(((28 26,28 0,84 0,84 42,28 26),(52 18,66 23,73 9,48 6,52 18)),((59 18,67 18,67 13,59 13,59 18)))');
+SET @c7=ST_GeomCollFromText('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(0 0,10 10))');
+SET @c8=ST_GeomCollFromText('GeometryCollection(Point(1 1),LineString(2 2, 3 3))');
 
 --echo #Insert the spatial values
 INSERT INTO tab3 VALUES(@c1,@c2,@c3,@c4,@c5,@c6,@c7,@c8);
@@ -515,67 +515,67 @@ CREATE UNIQUE INDEX idx2 on tab3(c8(5) ASC) ;
 
 --echo #check equality predicate on the index columns
 --replace_column 10 #
-EXPLAIN SELECT ASText(c1),AsText(c2),AsText(c8) FROM tab3
-WHERE c2=LineFromText('LINESTRING(10 10,20 20,30 30)');
+EXPLAIN SELECT ST_ASText(c1),ST_AsText(c2),ST_AsText(c8) FROM tab3
+WHERE c2=ST_LineFromText('LINESTRING(10 10,20 20,30 30)');
 
 --echo #check index with  WKB function
 --replace_column 10 #
-EXPLAIN SELECT ASText(c1),AsText(c2),AsText(c8)
-FROM tab3 WHERE c2=LineStringFromWKB(AsWKB(LineFromText('LINESTRING(10 10,20 20,30 30)')));
+EXPLAIN SELECT ST_ASText(c1),ST_AsText(c2),ST_AsText(c8)
+FROM tab3 WHERE c2=ST_LineStringFromWKB(ST_AsWKB(ST_LineFromText('LINESTRING(10 10,20 20,30 30)')));
 
 --echo #check index with  WKT function
 --replace_column 10 #
-EXPLAIN SELECT ASText(c1),AsText(c2),AsText(c8) FROM tab3
-WHERE c3=PolyFromText('POLYGON((0 0,5 5,10 10,15 15,0 0),(10 10,20 20,30 30,40 40,10 10))');
+EXPLAIN SELECT ST_ASText(c1),ST_AsText(c2),ST_AsText(c8) FROM tab3
+WHERE c3=ST_PolyFromText('POLYGON((0 0,5 5,10 10,15 15,0 0),(10 10,20 20,30 30,40 40,10 10))');
 
 --echo #check index with  WKB function
 --replace_column 10 #
-EXPLAIN SELECT ASText(c1),AsText(c2),AsText(c8)
+EXPLAIN SELECT ST_ASText(c1),ST_AsText(c2),ST_AsText(c8)
 FROM tab3
-WHERE c3=PolyFromWKB(AsWkB(PolyFromText('POLYGON((0 0,5 5,10 10,15 15,0 0),(10 10,20 20,30 30,40 40,10 10))')));
+WHERE c3=ST_PolyFromWKB(ST_AsWkB(ST_PolyFromText('POLYGON((0 0,5 5,10 10,15 15,0 0),(10 10,20 20,30 30,40 40,10 10))')));
 
 --echo #check index with  WKT function
 --replace_column 10 #
-EXPLAIN SELECT ASText(c1),AsText(c2),AsText(c8) FROM tab3
-WHERE c8=GeomCollFromText('GeometryCollection(Point(1 1),LineString(2 2, 3 3))');
+EXPLAIN SELECT ST_ASText(c1),ST_AsText(c2),ST_AsText(c8) FROM tab3
+WHERE c8=ST_GeomCollFromText('GeometryCollection(Point(1 1),LineString(2 2, 3 3))');
 
 --echo #check index with  WKB function
 --replace_column 10 #
-EXPLAIN SELECT ASText(c1),AsText(c2),AsText(c8)
+EXPLAIN SELECT ST_ASText(c1),ST_AsText(c2),ST_AsText(c8)
 FROM tab3
-WHERE c8=GeometryFromWKB(AsWKB(GeomCollFromText('GeometryCollection(Point(1 1),LineString(2 2, 3 3))')));
+WHERE c8=ST_GeometryFromWKB(ST_AsWKB(ST_GeomCollFromText('GeometryCollection(Point(1 1),LineString(2 2, 3 3))')));
 
 --echo #check range predicate on the index columns
 --replace_column 10 #
 --error ER_WRONG_ARGUMENTS
-EXPLAIN SELECT ASText(c1),AsText(c2),AsText(c8) FROM tab3
-WHERE c2>=LineFromText('LINESTRING(10 10,20 20,30 30)');
+EXPLAIN SELECT ST_ASText(c1),ST_AsText(c2),ST_AsText(c8) FROM tab3
+WHERE c2>=ST_LineFromText('LINESTRING(10 10,20 20,30 30)');
 
 --replace_column 10 #
 --error ER_WRONG_ARGUMENTS
-EXPLAIN SELECT ASText(c1),AsText(c2),AsText(c8) FROM tab3
-WHERE c3>=PolyFromText('POLYGON((0 0,5 5,10 10,15 15,0 0),(10 10,20 20,30 30,40 40,10 10))');
+EXPLAIN SELECT ST_ASText(c1),ST_AsText(c2),ST_AsText(c8) FROM tab3
+WHERE c3>=ST_PolyFromText('POLYGON((0 0,5 5,10 10,15 15,0 0),(10 10,20 20,30 30,40 40,10 10))');
 
 --replace_column 10 #
 --error ER_WRONG_ARGUMENTS
-EXPLAIN SELECT ASText(c1),AsText(c2),AsText(c8) FROM tab3
-WHERE c8>=GeomCollFromText('GeometryCollection(Point(1 1),LineString(2 2, 3 3))');
+EXPLAIN SELECT ST_ASText(c1),ST_AsText(c2),ST_AsText(c8) FROM tab3
+WHERE c8>=ST_GeomCollFromText('GeometryCollection(Point(1 1),LineString(2 2, 3 3))');
 
 --echo #check index with DELETE operation
 --replace_column 10 #
 EXPLAIN DELETE FROM tab3
-WHERE c8=GeometryFromWKB(AsWKB(GeomCollFromText('GeometryCollection(Point(1 1),LineString(2 2, 3 3))')));
+WHERE c8=ST_GeometryFromWKB(ST_AsWKB(ST_GeomCollFromText('GeometryCollection(Point(1 1),LineString(2 2, 3 3))')));
 
 
 --echo #check the spatial values
-SELECT AsText(c1) FROM tab3;
-SELECT AsText(c2) FROM tab3;
-SELECT AsText(c3) FROM tab3;
-SELECT AsText(c4) FROM tab3;
-SELECT AsText(c5) FROM tab3;
-SELECT AsText(c6) FROM tab3;
-SELECT AsText(c7) FROM tab3;
-SELECT AsText(c8) From tab3;
+SELECT ST_AsText(c1) FROM tab3;
+SELECT ST_AsText(c2) FROM tab3;
+SELECT ST_AsText(c3) FROM tab3;
+SELECT ST_AsText(c4) FROM tab3;
+SELECT ST_AsText(c5) FROM tab3;
+SELECT ST_AsText(c6) FROM tab3;
+SELECT ST_AsText(c7) FROM tab3;
+SELECT ST_AsText(c8) From tab3;
 
 --echo #check with Row_format = Dynamic
 --disable_warnings
@@ -587,79 +587,79 @@ SHOW CREATE TABLE tab3;
 
 --echo #check index with  WKB function
 --replace_column 10 #
-EXPLAIN SELECT ASText(c1),AsText(c2),AsText(c8)
-FROM tab3 WHERE c2=LineStringFromWKB(AsWKB(LineFromText('LINESTRING(10 10,20 20,30 30)')));
+EXPLAIN SELECT ST_ASText(c1),ST_AsText(c2),ST_AsText(c8)
+FROM tab3 WHERE c2=ST_LineStringFromWKB(ST_AsWKB(ST_LineFromText('LINESTRING(10 10,20 20,30 30)')));
 
 --echo #check index with  WKT function
 --replace_column 10 #
-EXPLAIN SELECT ASText(c1),AsText(c2),AsText(c8) FROM tab3
-WHERE c3=PolyFromText('POLYGON((0 0,5 5,10 10,15 15,0 0),(10 10,20 20,30 30,40 40,10 10))');
+EXPLAIN SELECT ST_ASText(c1),ST_AsText(c2),ST_AsText(c8) FROM tab3
+WHERE c3=ST_PolyFromText('POLYGON((0 0,5 5,10 10,15 15,0 0),(10 10,20 20,30 30,40 40,10 10))');
 
 
 
 --echo #check the Geometry property functions
-SELECT fid, Dimension(g) FROM gis_geometry;
-SELECT fid, GeometryType(g) FROM gis_geometry;
-SELECT fid, IsEmpty(g) FROM gis_geometry;
-SELECT fid, AsText(Envelope(g)) FROM gis_geometry;
+SELECT fid, ST_Dimension(g) FROM gis_geometry;
+SELECT fid, ST_GeometryType(g) FROM gis_geometry;
+SELECT fid, ST_IsEmpty(g) FROM gis_geometry;
+SELECT fid, ST_AsText(ST_Envelope(g)) FROM gis_geometry;
 --replace_column 10 #
-explain extended select Dimension(g), GeometryType(g), IsEmpty(g), AsText(Envelope(g)) from gis_geometry;
+explain extended select ST_Dimension(g), ST_GeometryType(g), ST_IsEmpty(g), ST_AsText(ST_Envelope(g)) from gis_geometry;
 
 --echo #check Geometry point functions
-SELECT fid, X(g) FROM gis_point;
-SELECT fid, Y(g) FROM gis_point;
+SELECT fid, ST_X(g) FROM gis_point;
+SELECT fid, ST_Y(g) FROM gis_point;
 --replace_column 10 #
-explain extended select X(g),Y(g) FROM gis_point;
+explain extended select ST_X(g),ST_Y(g) FROM gis_point;
 
-SELECT fid, AsText(StartPoint(g)) FROM gis_line;
-SELECT fid, AsText(EndPoint(g)) FROM gis_line;
-SELECT fid, GLength(g) FROM gis_line;
-SELECT fid, NumPoints(g) FROM gis_line;
-SELECT fid, AsText(PointN(g, 2)) FROM gis_line;
-SELECT fid, IsClosed(g) FROM gis_line;
+SELECT fid, ST_AsText(ST_StartPoint(g)) FROM gis_line;
+SELECT fid, ST_AsText(ST_EndPoint(g)) FROM gis_line;
+SELECT fid, ST_Length(g) FROM gis_line;
+SELECT fid, ST_NumPoints(g) FROM gis_line;
+SELECT fid, ST_AsText(ST_PointN(g, 2)) FROM gis_line;
+SELECT fid, ST_IsClosed(g) FROM gis_line;
 --replace_column 10 #
-explain extended select AsText(StartPoint(g)),AsText(EndPoint(g)),
-GLength(g),NumPoints(g),AsText(PointN(g, 2)),IsClosed(g) FROM gis_line;
+explain extended select ST_AsText(ST_StartPoint(g)),ST_AsText(ST_EndPoint(g)),
+ST_Length(g),ST_NumPoints(g),ST_AsText(ST_PointN(g, 2)),ST_IsClosed(g) FROM gis_line;
 
-SELECT fid, AsText(Centroid(g)) FROM gis_polygon;
-SELECT fid, Area(g) FROM gis_polygon;
-SELECT fid, AsText(ExteriorRing(g)) FROM gis_polygon;
-SELECT fid, NumInteriorRings(g) FROM gis_polygon;
-SELECT fid, AsText(InteriorRingN(g, 1)) FROM gis_polygon;
+SELECT fid, ST_AsText(ST_Centroid(g)) FROM gis_polygon;
+SELECT fid, ST_Area(g) FROM gis_polygon;
+SELECT fid, ST_AsText(ST_ExteriorRing(g)) FROM gis_polygon;
+SELECT fid, ST_NumInteriorRings(g) FROM gis_polygon;
+SELECT fid, ST_AsText(ST_InteriorRingN(g, 1)) FROM gis_polygon;
 --replace_column 10 #
-explain extended select AsText(Centroid(g)),Area(g),AsText(ExteriorRing(g)),
-NumInteriorRings(g),AsText(InteriorRingN(g, 1)) FROM gis_polygon;
+explain extended select ST_AsText(ST_Centroid(g)),ST_Area(g),ST_AsText(ST_ExteriorRing(g)),
+ST_NumInteriorRings(g),ST_AsText(ST_InteriorRingN(g, 1)) FROM gis_polygon;
 
-SELECT fid, IsClosed(g) FROM gis_multi_line;
+SELECT fid, ST_IsClosed(g) FROM gis_multi_line;
 
-SELECT fid, AsText(Centroid(g)) FROM gis_multi_polygon;
-SELECT fid, Area(g) FROM gis_multi_polygon;
+SELECT fid, ST_AsText(ST_Centroid(g)) FROM gis_multi_polygon;
+SELECT fid, ST_Area(g) FROM gis_multi_polygon;
 
-SELECT fid, NumGeometries(g) from gis_multi_point;
-SELECT fid, NumGeometries(g) from gis_multi_line;
-SELECT fid, NumGeometries(g) from gis_multi_polygon;
-SELECT fid, NumGeometries(g) from gis_geometrycollection;
+SELECT fid, ST_NumGeometries(g) from gis_multi_point;
+SELECT fid, ST_NumGeometries(g) from gis_multi_line;
+SELECT fid, ST_NumGeometries(g) from gis_multi_polygon;
+SELECT fid, ST_NumGeometries(g) from gis_geometrycollection;
 --replace_column 10 #
-explain extended SELECT fid, NumGeometries(g) from gis_multi_point;
+explain extended SELECT fid, ST_NumGeometries(g) from gis_multi_point;
 
-SELECT fid, AsText(GeometryN(g, 2)) from gis_multi_point;
-SELECT fid, AsText(GeometryN(g, 2)) from gis_multi_line;
-SELECT fid, AsText(GeometryN(g, 2)) from gis_multi_polygon;
-SELECT fid, AsText(GeometryN(g, 2)) from gis_geometrycollection;
-SELECT fid, AsText(GeometryN(g, 1)) from gis_geometrycollection;
+SELECT fid, ST_AsText(ST_GeometryN(g, 2)) from gis_multi_point;
+SELECT fid, ST_AsText(ST_GeometryN(g, 2)) from gis_multi_line;
+SELECT fid, ST_AsText(ST_GeometryN(g, 2)) from gis_multi_polygon;
+SELECT fid, ST_AsText(ST_GeometryN(g, 2)) from gis_geometrycollection;
+SELECT fid, ST_AsText(ST_GeometryN(g, 1)) from gis_geometrycollection;
 --replace_column 10 #
-explain extended SELECT fid, AsText(GeometryN(g, 2)) from gis_multi_point;
+explain extended SELECT fid, ST_AsText(ST_GeometryN(g, 2)) from gis_multi_point;
 
 SELECT g1.fid as first, g2.fid as second,
-Within(g1.g, g2.g) as w, Contains(g1.g, g2.g) as c, Overlaps(g1.g, g2.g) as o,
-Equals(g1.g, g2.g) as e, Disjoint(g1.g, g2.g) as d, Touches(g1.g, g2.g) as t,
-Intersects(g1.g, g2.g) as i, Crosses(g1.g, g2.g) as r
+MBRWithin(g1.g, g2.g) as w, MBRContains(g1.g, g2.g) as c, MBROverlaps(g1.g, g2.g) as o,
+MBREquals(g1.g, g2.g) as e, MBRDisjoint(g1.g, g2.g) as d, ST_Touches(g1.g, g2.g) as t,
+MBRIntersects(g1.g, g2.g) as i, ST_Crosses(g1.g, g2.g) as r
 FROM gis_geometrycollection g1, gis_geometrycollection g2 ORDER BY first, second;
 --replace_column 10 #
 explain extended SELECT g1.fid as first, g2.fid as second,
-Within(g1.g, g2.g) as w, Contains(g1.g, g2.g) as c, Overlaps(g1.g, g2.g) as o,
-Equals(g1.g, g2.g) as e, Disjoint(g1.g, g2.g) as d, Touches(g1.g, g2.g) as t,
-Intersects(g1.g, g2.g) as i, Crosses(g1.g, g2.g) as r
+MBRWithin(g1.g, g2.g) as w, MBRContains(g1.g, g2.g) as c, MBROverlaps(g1.g, g2.g) as o,
+MBREquals(g1.g, g2.g) as e, MBRDisjoint(g1.g, g2.g) as d, ST_Touches(g1.g, g2.g) as t,
+MBRIntersects(g1.g, g2.g) as i, ST_Crosses(g1.g, g2.g) as r
 FROM gis_geometrycollection g1, gis_geometrycollection g2 ORDER BY first, second;
 
 --echo # check support of Foreign Key constraint

@@ -24,6 +24,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 include/sync_slave_sql_with_master.inc
 # On slave
 include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 DROP DATABASE mydb;
 include/sync_slave_sql_with_master.inc
 include/rpl_end.inc

@@ -459,7 +459,7 @@ int validate_plugin_server_requirements(Trans_param *param)
 
   Gtid gtid= { fake_sidno, fake_gno };
   Gtid_specification gtid_spec= { GTID_GROUP, gtid };
-  Gtid_log_event *gle= new Gtid_log_event(param->server_id, true, gtid_spec);
+  Gtid_log_event *gle= new Gtid_log_event(param->server_id, true, 0, 1, gtid_spec);
 
   if (gle->is_valid())
     success++;
@@ -475,8 +475,9 @@ int validate_plugin_server_requirements(Trans_param *param)
     Instantiate a Transaction_context_log_event.
   */
   Transaction_context_log_event *tcle= new Transaction_context_log_event(param->server_uuid,
+                                                                         true,
                                                                          param->thread_id,
-                                                                         param->is_gtid_specified);
+                                                                         false);
 
   if (tcle->is_valid())
     success++;

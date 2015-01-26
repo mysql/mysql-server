@@ -17,9 +17,9 @@
 #define SQL_TABLE_INCLUDED
 
 #include "my_global.h"                          /* my_bool */
-#include "my_thread.h"
 #include "m_ctype.h"                            /* CHARSET_INFO */
 #include "mysql_com.h"                          /* enum_field_types */
+#include "mysql/psi/mysql_thread.h"             /* mysql_mutex_t */
 
 class Alter_info;
 class Alter_table_ctx;

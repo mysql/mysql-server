@@ -36,7 +36,7 @@ TYPELIB gcs_protocol_typelib=
 { array_elements(available_bindings_names) - 1, "", available_bindings_names, NULL };
 
 //Plugin related
-const char *plugin_name= "group_replication";
+const char *group_replication_plugin_name= "group_replication";
 char gcs_replication_group[UUID_LENGTH+1];
 char gcs_replication_boot;
 rpl_sidno gcs_cluster_sidno;
@@ -369,7 +369,7 @@ int gcs_replication_init(MYSQL_PLUGIN plugin_info)
 {
   pthread_mutex_init(&gcs_running_mutex, NULL);
   plugin_info_ptr= plugin_info;
-  if (group_replication_init(plugin_name))
+  if (group_replication_init(group_replication_plugin_name))
   {
     log_message(MY_ERROR_LEVEL,
                 "Failure on GCS Cluster handler initialization");
@@ -1002,7 +1002,7 @@ mysql_declare_plugin(gcs_repl_plugin)
 {
   MYSQL_GROUP_REPLICATION_PLUGIN,
   &gcs_rpl_descriptor,
-  plugin_name,
+  group_replication_plugin_name,
   "ORACLE",
   "Group Replication",
   PLUGIN_LICENSE_GPL,

@@ -1141,7 +1141,7 @@ bool Aggregator_distinct::add()
       return tree->unique_add(table->record[0] + table->s->null_bytes);
     }
 
-    if (!check_unique_constraint(table, 0))
+    if (!check_unique_constraint(table))
       return false;
     if ((error= table->file->ha_write_row(table->record[0])) &&
         !table->file->is_ignorable_error(error))

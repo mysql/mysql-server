@@ -14,10 +14,12 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "mysys_priv.h"
+#include "my_sys.h"
 #include "my_static.h"
 #include "mysys_err.h"
 #include "m_string.h"
 #include "mysql/psi/mysql_stage.h"
+#include "mysql/psi/mysql_file.h"
 
 #ifdef HAVE_SYS_RESOURCE_H
 #include <sys/resource.h>
@@ -104,8 +106,6 @@ my_bool my_init()
   /* Default creation of new dir's */
   if ((str= getenv("UMASK_DIR")) != 0)
     my_umask_dir= (int) (atoi_octal(str) | 0700);
-
-  init_glob_errs();
 
   instrumented_stdin.m_file= stdin;
   instrumented_stdin.m_psi= NULL;       /* not yet instrumented */

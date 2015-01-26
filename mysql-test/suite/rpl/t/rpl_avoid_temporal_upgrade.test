@@ -1,0 +1,117 @@
+--echo #
+--echo # BUG#18985760 - "FAST" ALTER TABLE CHANGE ON ENUM COLUMN
+--echo #                 TRIGGERS FULL TABLE REBUILD.
+
+--echo # Test case below ensures that the columns with old temporal
+--echo # format are not upgraded on the slave since the global variable
+--echo # 'avoid_temporal_upgrade' is enabled on the slave.
+
+--source include/not_group_replication_plugin.inc
+--source include/master-slave.inc
+
+--connection master
+--let MASTER_DATADIR=`select @@datadir`
+--connection slave
+--let SLAVE_DATADIR=`select @@datadir`
+
+--echo # Copy the table containing the old Mysql-5.5 temporal format
+--echo # to the master and slave.
+
+--copy_file std_data/55_temporal.frm $MASTER_DATADIR/test/t2.frm
+--copy_file std_data/55_temporal.MYD $MASTER_DATADIR/test/t2.MYD
+--copy_file std_data/55_temporal.MYI $MASTER_DATADIR/test/t2.MYI
+
+--copy_file std_data/55_temporal.frm $SLAVE_DATADIR/test/t2.frm
+--copy_file std_data/55_temporal.MYD $SLAVE_DATADIR/test/t2.MYD
+--copy_file std_data/55_temporal.MYI $SLAVE_DATADIR/test/t2.MYI
+
+--echo # Enable the 'avoid_temporal_column' global variable on slave.
+--connection slave
+STOP SLAVE;
+SET @@global.avoid_temporal_upgrade= ON;
+START SLAVE;
+
+--echo # ALTER TABLE on the master.
+--connection master
+SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
+HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
+ALTER TABLE t2 ADD COLUMN fld1 INT;
+INSERT INTO t2 VALUES ('22:22:22','2011-11-21 22:22:22','2011-11-21 22:22:22', 0);
+--echo # Since the global variable 'avoid_temporal_upgrade' is disabled on 
+--echo # the master, the temporal columns of old format are upgraded to the
+--echo # new format.
+SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
+HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
+--source include/sync_slave_sql_with_master.inc
+
+--echo # Since 'avoid_temporal_upgrade' is enabled on the slave,
+--echo # the old temporal will not be upgraded on the slave.
+--connection slave
+SET @saved_show_old_temporals= @@session.show_old_temporals;
+SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
+HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
+SET SESSION show_old_temporals= ON;
+SHOW CREATE TABLE t2;
+SELECT COLUMN_TYPE FROM information_schema.columns WHERE table_name='t2';
+SET @@session.show_old_temporals= @saved_show_old_temporals;
+
+--echo #Cleanup
+--connection master
+DROP TABLE t2;
+--source include/sync_slave_sql_with_master.inc
+
+--echo # Testcase to ensure that the temporal columns of old format
+--echo # are upgraded on the slave since 'avoid_temporal_column'
+--echo # global variable is not enabled on the slave.
+
+--echo # Copy the table containing the old Mysql-5.5 temporal format
+--echo # to the master and slave.
+
+--copy_file std_data/55_temporal.frm $MASTER_DATADIR/test/t3.frm
+--copy_file std_data/55_temporal.MYD $MASTER_DATADIR/test/t3.MYD
+--copy_file std_data/55_temporal.MYI $MASTER_DATADIR/test/t3.MYI
+
+--copy_file std_data/55_temporal.frm $SLAVE_DATADIR/test/t3.frm
+--copy_file std_data/55_temporal.MYD $SLAVE_DATADIR/test/t3.MYD
+--copy_file std_data/55_temporal.MYI $SLAVE_DATADIR/test/t3.MYI
+
+--echo # Disable the 'avoid_temporal_column' global variable on slave.
+--connection slave
+STOP SLAVE;
+SET @@global.avoid_temporal_upgrade= 0;
+START SLAVE;
+
+--echo # ALTER TABLE on the master.
+--connection master
+SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
+HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t3;
+ALTER TABLE t3 ADD COLUMN fld1 INT;
+INSERT INTO t3 VALUES ('22:22:22','2011-11-21 22:22:22','2011-11-21 22:22:22', 0);
+
+--echo # Since the default value of 'avoid_temporal_upgrade' is FALSE,
+--echo # the old temporal will be upgraded on the master.
+SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
+       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t3;
+SHOW CREATE TABLE t3;
+SELECT COLUMN_TYPE FROM information_schema.columns WHERE table_name='t3';
+
+--source include/sync_slave_sql_with_master.inc
+
+--echo # Since the default value of 'avoid_temporal_upgrade' is FALSE,
+--echo # the old temporal will be upgraded on the slave.
+--connection slave
+SET @saved_show_old_temporals= @@session.show_old_temporals;
+SET SESSION show_old_temporals= ON;
+SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
+HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t3;
+SHOW CREATE TABLE t3;
+SELECT COLUMN_TYPE FROM information_schema.columns WHERE table_name='t3';
+SET @@session.show_old_temporals= @saved_show_old_temporals;
+
+--echo # cleanup
+--connection master
+DROP TABLE t3;
+--source include/sync_slave_sql_with_master.inc
+
+
+--source include/rpl_end.inc

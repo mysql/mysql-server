@@ -37,34 +37,50 @@ if ($output_file == '')
   --echo DO_NOT_CHECK_IN_THIS_LINE: include/show_all_relay_logs.inc should only be used for debugging. Never check in a test that calls it on success.
 }
 
---let $last_relay_log_file= query_get_value(SHOW SLAVE STATUS, Relay_Log_File, 1)
---let $relay_log_base= `SELECT SUBSTRING_INDEX('$last_relay_log_file', '.', 1)`
---let $relay_log_count= `SELECT CONCAT('1', SUBSTRING_INDEX('$last_relay_log_file', '.', -1)) - 1000000`
---let $number= 1
-while ($number <= $relay_log_count)
+--let $_sarl_table_name= `SELECT CONCAT('relay_logs_', REPLACE(UUID(), '-', '_'))`
+--let $_sarl_sql_log_bin_old= `SELECT @@SESSION.sql_LOG_BIN`
+SET SESSION SQL_LOG_BIN = 0;
+eval CREATE TEMPORARY TABLE $_sarl_table_name
+            (id INT PRIMARY KEY AUTO_INCREMENT, filename VARCHAR(512));
+
+--let $_sarl_old_index_file= $index_file
+--let $_sarl_old_table= $table
+--let $index_file= `SELECT @@GLOBAL.RELAY_LOG_INDEX`
+--let $table= $_sarl_table_name
+--source include/rpl_read_binlog_index_into_table.inc
+--let $index_file= $_sarl_old_index_file
+--let $table= $_sarl_old_table
+
+--let $_sarl_count= `SELECT COUNT(*) FROM $_sarl_table_name`
+
+--echo ######## Showing $_sarl_count relay logs ########
+
+--let $_sarl_number= 0
+while ($_sarl_number < $_sarl_count)
 {
-  --let $padded_number= `SELECT LPAD('$number', 6, '0')`
-  --let $statement= SHOW RELAYLOG EVENTS IN '$relay_log_base.$padded_number'
-  --let $header= ======== $statement ========
+  --let $_sarl_file= `SELECT filename FROM $_sarl_table_name LIMIT $_sarl_number, 1`
+  --let $statement= SHOW RELAYLOG EVENTS IN '$_sarl_file'
+  --let $_sarl_header= ======== $statement ========
 
   if ($output_file != '')
   {
     --let $write_to_file= $output_file
-    --let $write_var= $header
-    --let $allow_error= 1
+    --let $write_var= $_sarl_header
     --source include/write_var_to_file.inc
 
     --source include/write_result_to_file.inc
   }
   if ($output_file == '')
   {
-    --echo $header
-    --error 0, 1220 # 1220 = ER_ERROR_WHEN_EXECUTING_COMMAND
+    --echo $_sarl_header
+    #    --error 0, 1220 # 1220 = ER_ERROR_WHEN_EXECUTING_COMMAND
     eval $statement;
   }
 
-  --inc $number
+  --inc $_sarl_number
 }
 
+eval DROP TEMPORARY TABLE $_sarl_table_name;
+eval SET SESSION SQL_LOG_BIN= $_sarl_sql_log_bin_old;
 
 --source include/end_include_file.inc

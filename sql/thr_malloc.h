@@ -16,12 +16,11 @@
 #ifndef THR_MALLOC_INCLUDED
 #define THR_MALLOC_INCLUDED
 
-#include "my_global.h"                          // uint, size_t
-#include "my_thread.h"
-#include "mysql/psi/psi.h"
+#include "my_global.h"
 
 typedef struct charset_info_st CHARSET_INFO;
 typedef struct st_mem_root MEM_ROOT;
+typedef unsigned int PSI_memory_key;
 
 void init_sql_alloc(PSI_memory_key key,
                     MEM_ROOT *root, uint block_size, uint pre_alloc_size);

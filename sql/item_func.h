@@ -16,7 +16,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include "my_global.h"
 #include "item.h"       // Item_result_field
+#include "my_decimal.h" // string2my_decimal
 #include "set_var.h"    // enum_var_type
 #include "sql_udf.h"    // udf_handler
 
@@ -2254,8 +2256,6 @@ public:
 };
 
 
-/* for fulltext search */
-#include <ft_global.h>
 class JOIN;
 
 class Item_func_match :public Item_real_func

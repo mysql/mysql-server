@@ -150,9 +150,13 @@ bool trans_begin(THD *thd, uint flags)
   */
 #ifdef HAVE_PSI_TRANSACTION_INTERFACE
   if (thd->m_transaction_psi == NULL)
+  {
     thd->m_transaction_psi= MYSQL_START_TRANSACTION(&thd->m_transaction_state,
                                                  NULL, NULL, thd->tx_isolation,
                                                  thd->tx_read_only, false);
+    DEBUG_SYNC(thd, "after_set_transaction_psi_before_set_transaction_gtid");
+    gtid_set_performance_schema_values(thd);
+  }
 #endif
 
   DBUG_RETURN(MY_TEST(res));

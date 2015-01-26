@@ -265,15 +265,10 @@ private:
     earlier on in the class constructor.
   */
   bool rli_fake;
-  /* Last gtid retrieved by IO thread */
-  Gtid last_retrieved_gtid;
   /* Flag that ensures the retrieved GTID set is initialized only once. */
   bool gtid_retrieved_initialized;
 
-
 public:
-  Gtid *get_last_retrieved_gtid() { return &last_retrieved_gtid; }
-  void set_last_retrieved_gtid(Gtid gtid) { last_retrieved_gtid= gtid; }
   void add_logged_gtid(rpl_sidno sidno, rpl_gno gno)
   {
     global_sid_lock->assert_some_lock();
@@ -851,22 +846,71 @@ public:
     m_flags &= ~(1UL << flag);
   }
 
+private:
   /**
-     Is the replication inside a group?
+    Auxiliary function used by is_in_group.
 
-     Replication is inside a group if either:
-     - The OPTION_BEGIN flag is set, meaning we're inside a transaction
-     - The RLI_IN_STMT flag is set, meaning we're inside a statement
-     - There is an GTID owned by the thd, meaning we've passed a SET GTID_NEXT
+    The execute thread is in the middle of a statement in the
+    following cases:
+    - User_var/Intvar/Rand events have been processed, but the
+      corresponding Query_log_event has not been processed.
+    - Table_map or Row events have been processed, and the last Row
+      event did not have the STMT_END_F set.
 
-     @retval true Replication thread is currently inside a group
-     @retval false Replication thread is currently not inside a group
+    @retval true Replication thread is inside a statement.
+    @retval false Replication thread is not inside a statement.
    */
-  bool is_in_group() const {
-    return (info_thd->variables.option_bits & OPTION_BEGIN) ||
-      (m_flags & (1UL << IN_STMT)) ||
-      /* If a SET GTID_NEXT was issued we are inside of a group */
-      info_thd->owned_gtid.sidno;
+  bool is_in_stmt() const
+  {
+    bool ret= (m_flags & (1UL << IN_STMT));
+    DBUG_PRINT("info", ("is_in_stmt()=%d", ret));
+    return ret;
+  }
+  /**
+    Auxiliary function used by is_in_group.
+
+    @retval true The execute thread is inside a statement or a
+    transaction, i.e., either a BEGIN has been executed or we are in
+    the middle of a statement.
+    @retval false The execute thread thread is not inside a statement
+    or a transaction.
+  */
+  bool is_in_trx_or_stmt() const
+  {
+    bool ret= is_in_stmt() || (info_thd->variables.option_bits & OPTION_BEGIN);
+    DBUG_PRINT("info", ("is_in_trx_or_stmt()=%d", ret));
+    return ret;
+  }
+public:
+  /**
+    A group is defined as the entire range of events that constitute
+    a transaction or auto-committed statement. It has one of the
+    following forms:
+
+    (Gtid)? Query(BEGIN) ... (Query(COMMIT) | Query(ROLLBACK) | Xid)
+    (Gtid)? (Rand | User_var | Int_var)* Query(DDL)
+
+    Thus, to check if the execute thread is in a group, there are
+    two cases:
+
+    - If the master generates Gtid events (5.7.5 or later, or 5.6 or
+      later with GTID_MODE=ON), then is_in_group is the same as
+      info_thd->owned_gtid.sidno != 0, since owned_gtid.sidno is set
+      to non-zero by the Gtid_log_event and cleared to zero at commit
+      or rollback.
+
+    - If the master does not generate Gtid events (i.e., master is
+      pre-5.6, or pre-5.7.5 with GTID_MODE=OFF), then is_in_group is
+      the same as is_in_trx_or_stmt().
+
+    @retval true Replication thread is inside a group.
+    @retval false Replication thread is not inside a group.
+  */
+  bool is_in_group() const
+  {
+    bool ret= is_in_trx_or_stmt() || info_thd->owned_gtid.sidno != 0;
+    DBUG_PRINT("info", ("is_in_group()=%d", ret));
+    return ret;
   }
 
   int count_relay_log_space();

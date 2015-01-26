@@ -583,13 +583,6 @@ public:
   char mts_accessed_db_names[MAX_DBS_IN_EVENT_MTS][NAME_LEN];
 
   /**
-    Commit parent and point. will be set to 0 if the event is not a
-    transaction starter.
-  */
-  long long int last_committed;
-  long long int sequence_number;
-
-  /**
     The constructor will be used while creating a Query_event, to be
     written to the binary log.
   */

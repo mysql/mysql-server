@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -34,7 +34,9 @@
 #include "mysql_version.h"
 #include "auth_utils.h"
 #include "path.h"
+#include "logger.h"
 #include "infix_ostream_it.h"
+#include "my_dir.h"
 
 // Additional C++ headers
 #include <string>
@@ -56,6 +58,9 @@ using namespace std;
 
 #define PROGRAM_NAME "mysql_install_db"
 #define MYSQLD_EXECUTABLE "mysqld"
+#if defined(HAVE_YASSL)
+#define MYSQL_CERT_SETUP_EXECUTABLE "mysql_ssl_rsa_setup"
+#endif /* HAVE_YASSL */
 #define MAX_MYSQLD_ARGUMENTS 10
 #define MAX_USER_NAME_LEN 16
 
@@ -73,6 +78,10 @@ char *opt_adminhost= 0;
 char default_authplugin[]= "mysql_native_password";
 char *opt_authplugin= 0;
 char *opt_mysqldfile= 0;
+#if defined (HAVE_YASSL)
+char *opt_mysql_cert_setup_file= 0;
+char default_mysql_cert_setup_file[]= MYSQL_CERT_SETUP_EXECUTABLE;
+#endif
 char *opt_randpwdfile= 0;
 char default_randpwfile[]= ".mysql_secret";
 char *opt_langpath= 0;
@@ -135,6 +144,10 @@ static struct my_option my_connection_options[]=
    &opt_ssl, 0, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"mysqld-file", 0, "Qualified path to the mysqld binary.", &opt_mysqldfile,
    0, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+#if defined(HAVE_YASSL)
+  {"ssl-setup-file", 0, "Qualified path to the mysql_ssl_setup binary", &opt_mysql_cert_setup_file,
+   0, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+#endif
   {"random-password-file", 0, "Specifies the qualified path to the "
      ".mysql_secret temporary password file.", &opt_randpwdfile,
    0, 0, GET_STR_ALLOC, REQUIRED_ARG, 0,
@@ -152,88 +165,6 @@ static struct my_option my_connection_options[]=
    0, 0, GET_STR_ALLOC, REQUIRED_ARG, (longlong)&default_lang, 0, 0, 0, 0, 0},
   /* End token */
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
-};
-
-
-/**
-  A trivial placeholder for inserting Time signatures into streams.
- @example cout << Datetime() << "[Info] Today was a sunny day" << endl;
-*/
-struct Datetime {};
-
-ostream &operator<<(ostream &os, const Datetime &dt)
-{
-  const char format[]= "%F %X";
-  time_t t(time(NULL));
-  tm tm(*localtime(&t));
-  std::locale loc(cout.getloc());
-  ostringstream sout;
-  const std::time_put<char> &tput =
-          std::use_facet<std::time_put<char> >(loc);
-  tput.put(sout.rdbuf(), sout, '\0', &tm, &format[0], &format[5]);
-  os << sout.str() << " ";
-  return os;
-}
-
-class Gen_spaces
-{
-public:
-  Gen_spaces(int s)
-  {
-    m_spaces.assign(s,' ');
-  }
-  ostream &operator<<(ostream &os)
-  {
-    return os;
-  }
-  friend ostream &operator<<(ostream &os, const Gen_spaces &gen);
-private:
-  string m_spaces;
-};
-
-ostream &operator<<(ostream &os, const Gen_spaces &gen)
-{
-  return os << gen.m_spaces;
-}
-
-class Log : public ostream
-{
-public:
-  Log(ostream &str, string logclass) :
-   ostream(NULL), m_buffer(str, logclass)
-  {
-    this->init(&m_buffer);
-  }
-  void enabled(bool s) { m_buffer.enabled(s); }
-private:
-
-  class Log_buff : public stringbuf
-  {
-  public:
-    Log_buff(ostream &str, string &logc)
-      :m_os(str),m_logc(logc), m_enabled(true)
-    {}
-    void set_log_class(string &s) { m_logc= s; }
-    void enabled(bool s) { m_enabled= s; }
-    virtual int sync()
-    {
-      string sout(str());
-      if (m_enabled && sout.length() > 0)
-      {
-        m_os << Datetime() << "[" << m_logc << "]"
-          << Gen_spaces(8-m_logc.length()) << sout;
-      }
-      str("");
-      m_os.flush();
-      return 0;
-    }
-  private:
-    ostream &m_os;
-    string m_logc;
-    bool m_enabled;
-  };
-
-  Log_buff m_buffer;
 };
 
 Log info(cout,"NOTE");
@@ -404,7 +335,7 @@ void print_version(const string &p)
 void usage(const string &p)
 {
   print_version(p);
-  cout << ORACLE_WELCOME_COPYRIGHT_NOTICE("2014") << endl
+  cout << ORACLE_WELCOME_COPYRIGHT_NOTICE("2015") << endl
        << "MySQL Database Deployment Utility." << endl
        << "Usage: "
        << p
@@ -632,7 +563,7 @@ void add_standard_search_paths(vector<Path > *spaths)
 }
 
 /**
-  Attempts to locate the mysqld file.
+ Attempts to locate the mysqld file.
  If opt_mysqldfile is specified then the this assumed to be a correct qualified
  path to the mysqld executable.
  If opt_basedir is specified then opt_basedir+"/bin" is assumed to be a
@@ -695,11 +626,76 @@ bool assert_mysqld_exists(const string &opt_mysqldfile,
   return true;
 }
 
+#if defined(HAVE_YASSL)
+/**
+ Attempts to locate the mysql_ssl_rsa_setup file.
+ If opt_mysql_cert_setup_file is specified then the this assumed to be a
+ correct qualified path to the mysql_ssl_rsa_setup executable.
+ If opt_basedir is specified then opt_basedir+"/bin" is assumed to be a
+ candidate path for the mysql_ssl_rsa_setup executable.
+ If opt_srcdir is set then opt_srcdir+"/bin" is assumed to be a
+ candidate path for the mysql_ssl_rsa_setup executable.
+ If opt_builddir is set then opt_builddir+"/client" is assumed to be a
+ candidate path for the mysql_system_tables executable.
+
+ If the executable isn't found in any of these locations,
+ attempt to search the local directory and "bin" subdirectory.
+ Finally check "/usr/bin","/usr/sbin", "/usr/local/bin","/usr/local/sbin",
+ "/opt/mysql/bin","/opt/mysql/sbin"
+
+*/
+bool assert_cert_generator_exists(const string &opt_mysql_cert_setup_file,
+                                  const string &opt_basedir,
+                                  const string &opt_builddir,
+                                  const string &opt_srcdir,
+                                  Path *qpath)
+{
+  vector<Path > spaths;
+  if (opt_mysql_cert_setup_file.length() > 0)
+  {
+    /* Use explicit option to file mysql_ssl_rsa_setup */
+    if (!locate_file(opt_mysql_cert_setup_file, 0, qpath))
+    {
+      error << "No such file: " << opt_mysql_cert_setup_file << endl;
+      return false;
+    }
+  }
+  else
+  {
+    if (opt_basedir.length() > 0)
+    {
+      spaths.push_back(Path(opt_basedir).
+        append("bin"));
+    }
+    if (opt_builddir.length() > 0)
+    {
+      spaths.push_back(Path(opt_builddir).
+        append("client"));
+    }
+
+    add_standard_search_paths(&spaths);
+
+    if (!locate_file(MYSQL_CERT_SETUP_EXECUTABLE, &spaths, qpath))
+    {
+      error << "Can't locate the server executable (mysql_ssl_rsa_setup)."
+            << endl;
+      info << "The following paths were searched: ";
+      copy(spaths.begin(), spaths.end(),
+           infix_ostream_iterator<Path >(info, ", "));
+      info << endl;
+      return false;
+    }
+  }
+  return true;
+}
+#endif /* HAVE_YASSL */
+
+
 bool assert_valid_language_directory(const string &opt_langpath,
-                                         const string &opt_basedir,
-                                         const string &opt_builddir,
-                                         const string &opt_srcdir,
-                                         Path *language_directory)
+                                     const string &opt_basedir,
+                                     const string &opt_builddir,
+                                     const string &opt_srcdir,
+                                     Path *language_directory)
 {
   vector<Path > search_paths;
   bool found_subdir= false;
@@ -755,15 +751,15 @@ bool assert_valid_language_directory(const string &opt_langpath,
 }
 
 /**
- Parse the login.cnf file and extract the missing admin credentials.
- If any of adminuser or adminhost contains information, it won't be overwritten
- by new data. Password is always updated.
+  Parse the login.cnf file and extract the missing admin credentials.
+  If any of adminuser or adminhost contains information, it won't be overwritten
+  by new data. Password is always updated.
 
- @return Error
-   @retval ALL_OK Reporting success
-   @retval ERR_FILE File not found
-   @retval ERR_ENCRYPTION Error while decrypting
-   @retval ERR_SYNTAX Error while parsing
+  @return Error
+    @retval ALL_OK Reporting success
+    @retval ERR_FILE File not found
+    @retval ERR_ENCRYPTION Error while decrypting
+    @retval ERR_SYNTAX Error while parsing
 */
 int get_admin_credentials(const string &opt_adminlogin,
                           const string &login_path,
@@ -808,6 +804,19 @@ void create_ssl_policy(string *ssl_type, string *ssl_cipher,
   *x509_issuer= "";
   *x509_subject= "";
 }
+
+#if defined(HAVE_YASSL)
+
+class SSL_generator_writer
+{
+public:
+  bool operator()(int fh __attribute__((unused)))
+  {
+    return true;
+  }
+};
+
+#endif /* HAVE_YASSL */
 
 #define  READ_BUFFER_SIZE 2048
 #define TIMEOUT_IN_SEC 30
@@ -1471,6 +1480,20 @@ int main(int argc,char *argv[])
     return 1;
   }
 
+#if defined(HAVE_YASSL)
+  Path mysql_cert_setup;
+  if( !opt_insecure &&
+      !assert_cert_generator_exists(create_string(opt_mysql_cert_setup_file),
+                                    basedir,
+                                    builddir,
+                                    srcdir,
+                                    &mysql_cert_setup))
+  {
+    /* Subroutine reported error */
+    return 1;
+  }
+#endif /* HAVE_YASSL */
+
   if (opt_def_extra_file)
   {
     Path def_extra_file;
@@ -1599,6 +1622,20 @@ int main(int argc,char *argv[])
   command_line.push_back(string("--basedir=")
     .append(basedir));
 
+#if defined(HAVE_YASSL)
+  vector<string> cert_setup_command_line;
+  if (!opt_insecure)
+  {
+    if (opt_no_defaults == TRUE && opt_defaults_file == NULL &&
+        opt_def_extra_file == NULL)
+      cert_setup_command_line.push_back(string("--no-defaults"));
+    cert_setup_command_line.push_back(string("--datadir=")
+      .append(data_directory.to_str()));
+    cert_setup_command_line.push_back(string("--suffix=")
+      .append(MYSQL_SERVER_VERSION));
+  }
+#endif /* HAVE_YASSL */
+
   // DEBUG
   //mysqld_exec.append("\"").insert(0, "gnome-terminal -e \"gdb --args ");
 
@@ -1665,5 +1702,36 @@ int main(int argc,char *argv[])
     info << "Success!"
          << endl;
   }
+
+#if defined(HAVE_YASSL)
+  if (!opt_insecure)
+  {
+    string ssl_output;
+    info << "Generating SSL Certificates" << endl;
+    success= process_execute(mysql_cert_setup.to_str(),
+                             cert_setup_command_line.begin(),
+                             cert_setup_command_line.end(),
+                             Process_reader(&ssl_output),
+                             SSL_generator_writer());
+    if (!success)
+    {
+      warning << "failed to execute " << mysql_cert_setup.to_str() << " ";
+      copy(cert_setup_command_line.begin(), cert_setup_command_line.end(),
+           infix_ostream_iterator<Path>(error, " "));
+      warning << endl;
+      warning << "SSL functionality may not work";
+      warning << endl;
+    }
+    else if ((ssl_output.size() > 0))
+    {
+      info << "SSL certificate generation :"
+           << endl
+           << ssl_output
+           << endl;
+    }
+  }
+
+#endif /* HAVE_YASSL */
+
   return 0;
 }

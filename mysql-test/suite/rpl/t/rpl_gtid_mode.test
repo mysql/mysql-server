@@ -117,7 +117,7 @@ CHANGE MASTER TO MASTER_AUTO_POSITION = 1;
 # No error
 CHANGE MASTER TO MASTER_AUTO_POSITION = 0;
 
---echo ---- No GTIDs in binlog ----
+--echo ---- Automatic GTIDs in binlog ----
 
 --disable_warnings
 --source include/start_slave.inc
@@ -130,12 +130,16 @@ SET GTID_NEXT = 'ANONYMOUS';
 INSERT INTO t1 VALUES (1);
 
 --let $binlog_file= LAST
---let $binlog_limit= 1
+# binlog_limit=2 because it contains Previous_gtids, Anonymous_gtid
+--let $binlog_limit= 2
 --let $keep_gtid_events= 1
 --source include/show_binlog_events.inc
 
 --source include/sync_slave_sql_with_master.inc
 --source include/show_binlog_events.inc
+# binlog_limit=4 because it contains:
+# Previous_gtids, Rotate, Rotate, Anonymous_gtid
+--let $binlog_limit= 4
 --source include/show_relaylog_events.inc
 
 --echo ==== Checks performed at server start when GTID_MODE = ON ====
@@ -241,12 +245,16 @@ SET GTID_NEXT = 'AUTOMATIC';
 INSERT INTO t1 VALUES (2);
 
 --let $binlog_file= LAST
---let $binlog_limit= 1
+# binlog_limit=2 because it contains Previous_gtids, Gtid
+--let $binlog_limit= 2
 --let $keep_gtid_events= 1
 --source include/show_binlog_events.inc
 
 --source include/sync_slave_sql_with_master.inc
 --source include/show_binlog_events.inc
+# binlog_limit=5 because it contains:
+# Previous_gtids, Rotate, Format_desc, Rotate, Gtid
+--let $binlog_limit= 5
 --source include/show_relaylog_events.inc
 
 --echo ---- CHANGE MASTER TO MASTER_AUTO_POSITION = 1 works ----

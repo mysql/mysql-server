@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -346,7 +346,7 @@ uint Cost_model_constants::find_handler_slot_from_name(THD *thd,
     return HA_SLOT_UNDEF;
 
   // Find the handlerton for this storage engine
-  handlerton *ht= plugin_data(plugin, handlerton *);
+  handlerton *ht= plugin_data<handlerton*>(plugin);
   DBUG_ASSERT(ht != NULL);
   if (!ht)
   {

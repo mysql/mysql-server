@@ -54,6 +54,9 @@ static const ulint FTS_OPTIMIZE_INTERVAL_IN_SECS = 300;
 /** Server is shutting down, so does we exiting the optimize thread */
 static bool fts_opt_start_shutdown = false;
 
+/** Event to wait for shutdown of the optimize thread */
+static os_event_t fts_opt_shutdown_event = NULL;
+
 /** Initial size of nodes in fts_word_t. */
 static const ulint FTS_WORD_NODES_INIT_SIZE = 64;
 
@@ -1151,6 +1154,7 @@ fts_optimize_encode_node(
 	}
 
 	/* Calculate the space required to store the ilist. */
+	ut_ad(doc_id > node->last_doc_id);
 	doc_id_delta = doc_id - node->last_doc_id;
 	enc_len = fts_get_encoded_len(static_cast<ulint>(doc_id_delta));
 
@@ -1393,7 +1397,8 @@ fts_optimize_word(
 
 		src_node = (fts_node_t*) ib_vector_get(word->nodes, i);
 
-		if (!dst_node) {
+		if (dst_node == NULL
+		    || dst_node->last_doc_id > src_node->first_doc_id) {
 
 			dst_node = static_cast<fts_node_t*>(
 				ib_vector_push(nodes, NULL));
@@ -2919,7 +2924,6 @@ fts_optimize_thread(
 	ulint		current = 0;
 	ibool		done = FALSE;
 	ulint		n_tables = 0;
-	os_event_t	exit_event = 0;
 	ulint		n_optimize = 0;
 	ib_wqueue_t*	wq = (ib_wqueue_t*) arg;
 
@@ -2990,7 +2994,6 @@ fts_optimize_thread(
 
 			case FTS_MSG_STOP:
 				done = TRUE;
-				exit_event = (os_event_t) msg->ptr;
 				break;
 
 			case FTS_MSG_ADD_TABLE:
@@ -3079,7 +3082,7 @@ fts_optimize_thread(
 
 	ib::info() << "FTS optimize thread exiting.";
 
-	os_event_set(exit_event);
+	os_event_set(fts_opt_shutdown_event);
 	my_thread_end();
 
 	/* We count the number of threads in os_thread_exit(). A created
@@ -3101,6 +3104,7 @@ fts_optimize_init(void)
 	ut_a(fts_optimize_wq == NULL);
 
 	fts_optimize_wq = ib_wqueue_create();
+	fts_opt_shutdown_event = os_event_create(0);
 	ut_a(fts_optimize_wq != NULL);
 	last_check_sync_time = ut_time();
 
@@ -3126,7 +3130,6 @@ fts_optimize_start_shutdown(void)
 	ut_ad(!srv_read_only_mode);
 
 	fts_msg_t*	msg;
-	os_event_t	event;
 
 	/* If there is an ongoing activity on dictionary, such as
 	srv_master_evict_from_table_cache(), wait for it */
@@ -3141,16 +3144,14 @@ fts_optimize_start_shutdown(void)
 	/* We tell the OPTIMIZE thread to switch to state done, we
 	can't delete the work queue here because the add thread needs
 	deregister the FTS tables. */
-	event = os_event_create(0);
 
 	msg = fts_optimize_create_msg(FTS_MSG_STOP, NULL);
-	msg->ptr = event;
 
 	ib_wqueue_add(fts_optimize_wq, msg, msg->heap);
 
-	os_event_wait(event);
+	os_event_wait(fts_opt_shutdown_event);
 
-	os_event_destroy(event);
+	os_event_destroy(fts_opt_shutdown_event);
 
 	ib_wqueue_free(fts_optimize_wq);
 }

@@ -20,19 +20,29 @@
 #ifndef SQL_LEX_INCLUDED
 #define SQL_LEX_INCLUDED
 
-#include "sql_alloc.h"
-#include "violite.h"                            /* SSL_type */
-#include "thr_lock.h"                  /* thr_lock_type, TL_UNLOCK */
-#include "sql_array.h"
-#include "mem_root_array.h"
-#include "sql_alter.h"                // Alter_info
-#include "sql_servers.h"
-#include "trigger_def.h"              // enum_trigger_action_time_type
-#include "xa.h"                       // XID, xa_option_words
-#include "prealloced_array.h"
-#include "sql_data_change.h"
-#include "query_options.h"            // OPTION_NO_CONST_TABLES
+#include "my_global.h"
+#include "mem_root_array.h"           // Mem_root_array
+#include "prealloced_array.h"         // Prealloced_array
+#include "thr_lock.h"                 // thr_lock_type
+#include "violite.h"                  // SSL_type
+#include "item.h"                     // Name_resolution_context
 #include "item_subselect.h"           // chooser_compare_func_creator
+#include "lex_symbol.h"               // LEX_SYMBOL
+#include "parse_tree_node_base.h"     // enum_parsing_context
+#include "query_options.h"            // OPTION_NO_CONST_TABLES
+#include "sql_alloc.h"                // Sql_alloc
+#include "sql_alter.h"                // Alter_info
+#include "sql_data_change.h"          // enum_duplicates
+#include "sql_get_diagnostics.h"      // Diagnostics_information
+#include "sql_servers.h"              // Server_options
+#include "sql_signal.h"               // enum_condition_item_name
+#include "table.h"                    // TABLE_LIST
+#include "trigger_def.h"              // enum_trigger_action_time_type
+#include "xa.h"                       // xa_option_words
+
+#ifdef MYSQL_SERVER
+#include "item_func.h"                // Cast_target
+#endif
 
 /* YACC and LEX Definitions */
 
@@ -54,7 +64,11 @@ class File_parser;
 class Key_part_spec;
 class select_result_interceptor;
 class Item_func;
+class Sql_cmd;
+struct sql_digest_state;
 typedef class st_select_lex SELECT_LEX;
+
+const size_t INITIAL_LEX_PLUGIN_LIST_SIZE = 16;
 
 #ifdef MYSQL_SERVER
 /*
@@ -140,8 +154,6 @@ struct sys_var_with_base
 
 union YYSTYPE;
 typedef YYSTYPE *LEX_YYSTYPE;
-#include "sql_cmd.h"
-#include "sql_digest_stream.h"
 
 // describe/explain types
 #define DESCRIBE_NONE		0 // Not explain query
@@ -1274,11 +1286,6 @@ inline bool st_select_lex_unit::is_union () const
 }
 
 #ifdef MYSQL_SERVER
-#include "lex_symbol.h"
-#include "item_func.h"            /* Cast_target used in sql_yacc.h */
-#include "sql_signal.h"
-#include "sql_get_diagnostics.h"  /* Types used in sql_yacc.h */
-
 
 struct Cast_type
 {
@@ -3055,14 +3062,7 @@ public:
 
   LEX();
 
-  virtual ~LEX()
-  {
-    destroy_query_tables_list();
-    plugin_unlock_list(NULL, plugins.begin(), plugins.size());
-    unit= NULL;                     // Created in mem_root - no destructor
-    select_lex= NULL;
-    m_current_select= NULL;
-  }
+  virtual ~LEX();
 
   /// Reset query context to initial state
   void reset();

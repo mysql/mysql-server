@@ -34,30 +34,23 @@ include/uninstall_replication_observers_example.inc
 #
 Matching lines are:
 replication_observers_example_plugin:binlog_relay_after_reset_slave'
-
-Occurrences of the replication_observers_example_plugin:binlog_relay_after_reset_slave in the input file : 1
+Occurrences of 'replication_observers_example_plugin:binlog_relay_after_reset_slave' in the input file: 1
 Matching lines are:
 replication_observers_example_plugin:binlog_relay_thread_start'
-
-Occurrences of the replication_observers_example_plugin:binlog_relay_thread_start in the input file : 1
+Occurrences of 'replication_observers_example_plugin:binlog_relay_thread_start' in the input file: 1
 Matching lines are:
 replication_observers_example_plugin:binlog_relay_before_request_transmit'
-
-Occurrences of the replication_observers_example_plugin:binlog_relay_before_request_transmit in the input file : 1
+Occurrences of 'replication_observers_example_plugin:binlog_relay_before_request_transmit' in the input file: 1
 Matching lines are:
 replication_observers_example_plugin:binlog_relay_after_read_event'
-
-Occurrences of the replication_observers_example_plugin:binlog_relay_after_read_event in the input file : 1
+Occurrences of 'replication_observers_example_plugin:binlog_relay_after_read_event' in the input file: 1
 Matching lines are:
 replication_observers_example_plugin:binlog_relay_after_queue_event'
-
-Occurrences of the replication_observers_example_plugin:binlog_relay_after_queue_event in the input file : 1
+Occurrences of 'replication_observers_example_plugin:binlog_relay_after_queue_event' in the input file: 1
 Matching lines are:
 replication_observers_example_plugin:binlog_relay_applier_stop'
-
-Occurrences of the replication_observers_example_plugin:binlog_relay_applier_stop in the input file : 1
+Occurrences of 'replication_observers_example_plugin:binlog_relay_applier_stop' in the input file: 1
 Matching lines are:
 replication_observers_example_plugin:binlog_relay_thread_stop'
-
-Occurrences of the replication_observers_example_plugin:binlog_relay_thread_stop in the input file : 1
+Occurrences of 'replication_observers_example_plugin:binlog_relay_thread_stop' in the input file: 1
 include/rpl_end.inc

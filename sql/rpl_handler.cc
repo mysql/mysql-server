@@ -19,6 +19,7 @@
 #include <my_dir.h>
 #include "rpl_handler.h"
 #include "debug_sync.h"
+#include "sql_plugin.h"                         // plugin_int_to_ref
 
 #include <vector>
 
@@ -30,6 +31,13 @@ Server_state_delegate *server_state_delegate;
 Binlog_transmit_delegate *binlog_transmit_delegate;
 Binlog_relay_IO_delegate *binlog_relay_io_delegate;
 #endif /* HAVE_REPLICATION */
+
+Observer_info::Observer_info(void *ob, st_plugin_int *p)
+  : observer(ob), plugin_int(p)
+{
+  plugin= plugin_int_to_ref(plugin_int);
+}
+
 
 /*
   structure to save transaction log filename and position
@@ -287,17 +295,18 @@ void delegates_destroy()
     plugin_unlock_list(0, &plugins[0], plugins.size());
 
 int Trans_delegate::before_commit(THD *thd, bool all,
-                                  my_bool is_gtid_specified,
                                   IO_CACHE *trx_cache_log,
                                   IO_CACHE *stmt_cache_log,
                                   ulonglong cache_log_max_size)
 {
   DBUG_ENTER("Trans_delegate::before_commit");
-  Trans_param param = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, {0, 0, 0, 0, 0, 0, 0} };
+  Trans_param param = { 0, 0, 0, 0, 0, 0, {0, 0, 0}, 0, 0, 0, 0, 0, {0, 0, 0, 0, 0, 0, 0} };
   param.server_id= thd->server_id;
   param.server_uuid= server_uuid;
   param.thread_id= thd->thread_id();
-  param.is_gtid_specified= is_gtid_specified;
+  param.gtid_info.type= thd->variables.gtid_next.type;
+  param.gtid_info.sidno= thd->variables.gtid_next.gtid.sidno;
+  param.gtid_info.gno= thd->variables.gtid_next.gtid.gno;
   param.trx_cache_log= trx_cache_log;
   param.stmt_cache_log= stmt_cache_log;
   param.cache_log_max_size= cache_log_max_size;
@@ -411,7 +420,7 @@ void prepare_transaction_context(THD* thd, Trans_context_info& ctx_info)
 int Trans_delegate::before_dml(THD* thd, int& result)
 {
   DBUG_ENTER("Trans_delegate::before_dml");
-  Trans_param param = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, {0, 0, 0, 0, 0, 0, 0} };
+  Trans_param param = { 0, 0, 0, 0, 0, 0, {0, 0, 0}, 0, 0, 0, 0, 0, {0, 0, 0, 0, 0, 0, 0} };
 
   param.server_id= thd->server_id;
   param.server_uuid= server_uuid;
@@ -431,7 +440,7 @@ int Trans_delegate::before_dml(THD* thd, int& result)
 int Trans_delegate::before_rollback(THD *thd, bool all)
 {
   DBUG_ENTER("Trans_delegate::before_rollback");
-  Trans_param param = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ,0 ,0, {0, 0, 0, 0, 0, 0, 0} };
+  Trans_param param = { 0, 0, 0, 0, 0, 0, {0, 0, 0}, 0, 0, 0, 0, 0, {0, 0, 0, 0, 0, 0, 0} };
   param.server_id= thd->server_id;
   param.server_uuid= server_uuid;
   param.thread_id= thd->thread_id();
@@ -449,7 +458,7 @@ int Trans_delegate::before_rollback(THD *thd, bool all)
 int Trans_delegate::after_commit(THD *thd, bool all)
 {
   DBUG_ENTER("Trans_delegate::after_commit");
-  Trans_param param = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ,0, 0, {0, 0, 0, 0, 0, 0, 0} };
+  Trans_param param = { 0, 0, 0, 0, 0, 0, {0, 0, 0}, 0, 0, 0, 0, 0, {0, 0, 0, 0, 0, 0, 0} };
   param.server_uuid= server_uuid;
   param.thread_id= thd->thread_id();
 
@@ -472,7 +481,7 @@ int Trans_delegate::after_commit(THD *thd, bool all)
 int Trans_delegate::after_rollback(THD *thd, bool all)
 {
   DBUG_ENTER("Trans_delegate::after_rollback");
-  Trans_param param = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ,0, 0, {0, 0, 0, 0, 0, 0, 0} };
+  Trans_param param = { 0, 0, 0, 0, 0, 0, {0, 0, 0}, 0, 0, 0, 0, 0, {0, 0, 0, 0, 0, 0, 0} };
   param.server_uuid= server_uuid;
   param.thread_id= thd->thread_id();
 

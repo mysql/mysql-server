@@ -223,6 +223,12 @@ include/wait_for_slave_sql_error.inc [errno=1062]
 include/assert.inc [Value returned by SSS and PS table for Last_Error_Number should be same.]
 DELETE FROM dbcommon.t101 where a=1729;
 include/start_slave.inc
+# channel 1
+[connection server_1]
+include/sync_slave_sql_with_master.inc
+# channel 3
+[connection server_3]
+include/sync_slave_sql_with_master.inc
 connection_server_1
 DROP DATABASE db1;
 DROP DATABASE dbcommon;

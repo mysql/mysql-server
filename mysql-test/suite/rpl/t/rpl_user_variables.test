@@ -26,10 +26,26 @@ enable_query_log;
 # We wait for the slave to have written all he wants to the binlog
 # (otherwise RESET MASTER may come too early).
 --source include/sync_slave_sql_with_master.inc
+# Save slave's GTID_EXECUTED before issuing a reset master on it.
+--let $old_gtid_executed= `SELECT @@GLOBAL.GTID_EXECUTED`
+
 reset master;
 connection slave;
 --source include/stop_slave.inc
 RESET MASTER;
+
+# As the master have a GTID for the suppression added in the beginning of the
+# test case, we have to make this GTID as purged on slave because we are not
+# issuing a RESET SLAVE, and the IO thread will not ask for this first
+# transaction again. Without doing this, the test will fail because the
+# master's GTID_EXECUTED will differ from slave's the end of the test.
+--disable_query_log
+if ( `SELECT @@GLOBAL.GTID_MODE = "ON"` )
+{
+  --eval SET @@GLOBAL.GTID_PURGED='$old_gtid_executed'
+}
+--enable_query_log
+
 --source include/start_slave.inc
 connection master;
 

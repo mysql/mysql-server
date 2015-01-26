@@ -162,8 +162,21 @@ int gcs_trans_before_commit(Trans_param *param)
   if (!is_real_trans)
     DBUG_RETURN(0);
 
-  // GCS cache.
+  // Transaction information.
+  const bool is_gtid_specified= param->gtid_info.type == GTID_GROUP;
+  Gtid gtid= { param->gtid_info.sidno, param->gtid_info.gno };
+  if (!is_gtid_specified)
+  {
+    // Dummy values that will be replaced after certification.
+    gtid.sidno= 1;
+    gtid.gno= 1;
+  }
+
+  const Gtid_specification gtid_specification= { GTID_GROUP, gtid };
+  Gtid_log_event *gle= NULL;
+
   Transaction_context_log_event *tcle= NULL;
+  // GCS cache.
   IO_CACHE cache;
   // Todo optimize for memory (IO-cache's buf to start with, if not enough then trans mem-root)
   // to avoid New message create/delete and/or its implicit MessageBuffer.
@@ -222,8 +235,9 @@ int gcs_trans_before_commit(Trans_param *param)
 
   // Create transaction context.
   tcle= new Transaction_context_log_event(param->server_uuid,
+                                          is_dml,
                                           param->thread_id,
-                                          param->is_gtid_specified);
+                                          is_gtid_specified);
 
   if (is_dml)
   {
@@ -233,7 +247,7 @@ int gcs_trans_before_commit(Trans_param *param)
       a transaction may have not write set at all because it didn't
       change any data, it will just persist that GTID as applied.
     */
-    if ((write_set == NULL) && (!param->is_gtid_specified))
+    if ((write_set == NULL) && (!is_gtid_specified))
     {
       log_message(MY_ERROR_LEVEL, "Failed to extract the set of items written "
                                   "during the execution of the current "
@@ -254,12 +268,16 @@ int gcs_trans_before_commit(Trans_param *param)
         goto err;
       }
       cleanup_transaction_write_set(write_set);
-      DBUG_ASSERT(param->is_gtid_specified || (tcle->get_write_set()->size() > 0));
+      DBUG_ASSERT(is_gtid_specified || (tcle->get_write_set()->size() > 0));
     }
   }
 
   // Write transaction context to GCS cache.
   tcle->write(&cache);
+
+  // Write Gtid log event to GCS cache.
+  gle= new Gtid_log_event(param->server_id, is_dml, 0, 1, gtid_specification);
+  gle->write(&cache);
 
   // Reinit GCS cache to read.
   if (reinit_cache(&cache, READ_CACHE, 0))
@@ -329,6 +347,7 @@ int gcs_trans_before_commit(Trans_param *param)
   }
 
 err:
+  delete gle;
   delete tcle;
   close_cached_file(&cache);
 

@@ -220,10 +220,12 @@ Certification_handler::inject_gtid(Pipeline_event *pevent, Continuation *cont)
 
     // Create new GTID event.
     Gtid gtid= { cluster_sidno, get_gtid_generated_id() };
-    Gtid_specification spec= { GTID_GROUP, gtid };
+    Gtid_specification gtid_specification= { GTID_GROUP, gtid };
     Gtid_log_event *gle= new Gtid_log_event(gle_old->server_id,
                                             gle_old->is_using_trans_cache(),
-                                            spec);
+                                            gle_old->last_committed,
+                                            gle_old->sequence_number,
+                                            gtid_specification);
 
     pevent->reset_pipeline_event();
     pevent->set_LogEvent(gle);

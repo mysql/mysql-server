@@ -22,7 +22,7 @@
 
 #include "sql_manager.h"
 
-#include "my_thread.h"         // my_thread_h
+#include "my_thread.h"         // my_thread_t
 #include "log.h"               // sql_print_warning
 #include "sql_base.h"          // tdc_flush_unused_tables
 

@@ -1649,9 +1649,8 @@ FLUSH LOGS;
 --echo # Call mysqlbinlog to display the log file contents.
 --echo #
 let $MYSQLD_DATADIR= `select @@datadir`;
---replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
---replace_regex /SQL_LOAD_MB-[0-9]-[0-9]/SQL_LOAD_MB-#-#/ /exec_time=[0-9]*/exec_time=#/ /last_committed=[0-9]*/last_committed=#/ /sequence_number=[0-9]*/sequence_number=#/ /end_log_pos [0-9]*/end_log_pos #/ /# at [0-9]*/# at #/ /Xid = [0-9]*/Xid = #/ /thread_id=[0-9]*/thread_id=#/ /table id [0-9]*/table id #/ /mapped to number [0-9]*/mapped to number #/ /server v [^ ]*/server v #.##.##/ /(@[0-9]*=[0-9-]*[.][0-9]{1,3})[0-9e+-]*[^ ]*[ ]*(.*(FLOAT|DOUBLE).*[*].)/\1... \2/ /SET @@SESSION.GTID_NEXT= '.*'/SET @@SESSION.GTID_NEXT= 'GTID'/ /([0-9A-F\-]{36})\:[0-9]+\-[0-9]+/GTID:#-#/ /GROUPS: .*:(.*,.*)/GROUPS: GTID:(X,X)/ /CRC32 0x[0-9a-f]{8}/CRC32 #/
---exec $MYSQL_BINLOG --base64-output=decode-rows -v -v $MYSQLD_DATADIR/master-bin.000001
+--let $mysqlbinlog_parameters= --base64-output=decode-rows -v -v $MYSQLD_DATADIR/master-bin.000001
+--source include/mysqlbinlog.inc
 
 --echo #
 --echo # Cleanup.
@@ -1729,9 +1728,8 @@ FLUSH LOGS;
 --echo # Call mysqlbinlog to display the log file contents.
 --echo #
 let $MYSQLD_DATADIR= `select @@datadir`;
---replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
---replace_regex /SQL_LOAD_MB-[0-9]-[0-9]/SQL_LOAD_MB-#-#/ /exec_time=[0-9]*/exec_time=#/ /last_committed=[0-9]*/last_committed=#/ /sequence_number=[0-9]*/sequence_number=#/ /end_log_pos [0-9]*/end_log_pos #/ /# at [0-9]*/# at #/ /Xid = [0-9]*/Xid = #/ /thread_id=[0-9]*/thread_id=#/ /table id [0-9]*/table id #/ /mapped to number [0-9]*/mapped to number #/ /server v [^ ]*/server v #.##.##/ /(@[0-9]*=[0-9-]*[.][0-9]{1,3})[0-9e+-]*[^ ]*[ ]*(.*(FLOAT|DOUBLE).*[*].)/\1... \2/ /SET @@SESSION.GTID_NEXT= '.*'/SET @@SESSION.GTID_NEXT= 'GTID'/ /([0-9A-F\-]{36})\:[0-9]+\-[0-9]+/GTID:#-#/ /GROUPS: .*:(.*,.*)/GROUPS: GTID:(X,X)/ /CRC32 0x[0-9a-f]{8}/CRC32 #/
---exec $MYSQL_BINLOG --base64-output=decode-rows -v -v $MYSQLD_DATADIR/master-bin.000001
+--let $mysqlbinlog_parameters=  --base64-output=decode-rows -v -v $MYSQLD_DATADIR/master-bin.000001
+--source include/mysqlbinlog.inc
 
 --echo #
 --echo # Cleanup.
@@ -1856,9 +1854,8 @@ FLUSH LOGS;
 --echo # Call mysqlbinlog to display the log file contents.
 --echo #
 let $MYSQLD_DATADIR= `select @@datadir`;
---replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
---replace_regex /SQL_LOAD_MB-[0-9]-[0-9]/SQL_LOAD_MB-#-#/ /exec_time=[0-9]*/exec_time=#/ /last_committed=[0-9]*/last_committed=#/ /sequence_number=[0-9]*/sequence_number=#/ /end_log_pos [0-9]*/end_log_pos #/ /# at [0-9]*/# at #/ /Xid = [0-9]*/Xid = #/ /thread_id=[0-9]*/thread_id=#/ /table id [0-9]*/table id #/ /mapped to number [0-9]*/mapped to number #/ /server v [^ ]*/server v #.##.##/ /(@[0-9]*=[0-9-]*[.][0-9]{1,3})[0-9e+-]*[^ ]*[ ]*(.*(FLOAT|DOUBLE).*[*].)/\1... \2/ /SET @@SESSION.GTID_NEXT= '.*'/SET @@SESSION.GTID_NEXT= 'GTID'/ /([0-9A-F\-]{36})\:[0-9]+\-[0-9]+/GTID:#-#/ /GROUPS: .*:(.*,.*)/GROUPS: GTID:(X,X)/ /CRC32 0x[0-9a-f]{8}/CRC32 #/
---exec $MYSQL_BINLOG --base64-output=decode-rows -v -v $MYSQLD_DATADIR/master-bin.000001
+--let $mysqlbinlog_parameters= --base64-output=decode-rows -v -v $MYSQLD_DATADIR/master-bin.000001
+--source include/mysqlbinlog.inc
 
 --echo #
 --echo # Cleanup.
@@ -1914,9 +1911,8 @@ FLUSH LOGS;
 --echo # Call mysqlbinlog to display the log file contents.
 --echo #
 let $MYSQLD_DATADIR= `select @@datadir`;
---replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
---replace_regex /SQL_LOAD_MB-[0-9]-[0-9]/SQL_LOAD_MB-#-#/ /exec_time=[0-9]*/exec_time=#/ /last_committed=[0-9]*/last_committed=#/ /sequence_number=[0-9]*/sequence_number=#/ /end_log_pos [0-9]*/end_log_pos #/ /# at [0-9]*/# at #/ /Xid = [0-9]*/Xid = #/ /thread_id=[0-9]*/thread_id=#/ /table id [0-9]*/table id #/ /mapped to number [0-9]*/mapped to number #/ /server v [^ ]*/server v #.##.##/ /(@[0-9]*=[0-9-]*[.][0-9]{1,3})[0-9e+-]*[^ ]*[ ]*(.*(FLOAT|DOUBLE).*[*].)/\1... \2/ /SET @@SESSION.GTID_NEXT= '.*'/SET @@SESSION.GTID_NEXT= 'GTID'/ /CRC32 0x[0-9a-f]{8}/CRC32 #/
---exec $MYSQL_BINLOG --base64-output=decode-rows -v -v $MYSQLD_DATADIR/master-bin.000001
+--let $mysqlbinlog_parameters= --base64-output=decode-rows -v -v $MYSQLD_DATADIR/master-bin.000001
+--source include/mysqlbinlog.inc
 
 --echo #
 --echo # Cleanup.

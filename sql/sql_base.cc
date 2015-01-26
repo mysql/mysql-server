@@ -55,9 +55,12 @@
 #include "table_cache.h" // Table_cache_manager, Table_cache
 #include "log.h"
 #include "binlog.h"
+
 #include "pfs_table_provider.h"
 #include "mysql/psi/mysql_table.h"
 
+#include "pfs_file_provider.h"
+#include "mysql/psi/mysql_file.h"
 
 /**
   This handler is used for the statements which support IGNORE keyword.
@@ -1741,14 +1744,16 @@ bool close_temporary_tables(THD *thd)
 
     DBUG_RETURN(FALSE);
   }
-  /* We are about to generate DROP TEMPORARY TABLE statements for all
-    the left out temporary tables. If this part of the code is reached
-    when GTIDs are enabled, we must make sure that it will be able to
-    generate GTIDs for the statements with this server's UUID. Thence
-    gtid_next is set to AUTOMATIC_GROUP below.
+  /*
+    We are about to generate DROP TEMPORARY TABLE statements for all
+    the left out temporary tables. If GTID_NEXT is set (e.g. if user
+    did SET GTID_NEXT just before disconnecting the client), we must
+    ensure that it will be able to generate GTIDs for the statements
+    with this server's UUID. Therefore we set gtid_next to
+    AUTOMATIC_GROUP.
   */
-  if (gtid_mode > 0)
-    thd->variables.gtid_next.set_automatic();
+  gtid_state->update_on_rollback(thd);
+  thd->variables.gtid_next.set_automatic();
 
   /*
     We must separate transactional temp tables and
@@ -6205,7 +6210,8 @@ bool lock_tables(THD *thd, TABLE_LIST *tables, uint count,
       the same statement.
     */
     thd->lex->lock_tables_state= Query_tables_list::LTS_LOCKED;
-    DBUG_RETURN(thd->decide_logging_format(tables));
+    int ret= thd->decide_logging_format(tables);
+    DBUG_RETURN(ret);
   }
 
   /*
@@ -6397,7 +6403,8 @@ bool lock_tables(THD *thd, TABLE_LIST *tables, uint count,
   */
   thd->lex->lock_tables_state= Query_tables_list::LTS_LOCKED;
 
-  DBUG_RETURN(thd->decide_logging_format(tables));
+  int ret= thd->decide_logging_format(tables);
+  DBUG_RETURN(ret);
 }
 
 

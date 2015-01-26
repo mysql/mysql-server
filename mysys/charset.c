@@ -14,11 +14,13 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "mysys_priv.h"
+#include "my_sys.h"
 #include "mysys_err.h"
 #include <m_ctype.h>
 #include <m_string.h>
 #include <my_dir.h>
 #include <my_xml.h>
+#include "mysql/psi/mysql_file.h"
 
 /*
   The code below implements this functionality:

@@ -23,6 +23,7 @@
 #include "item_func.h"
 
 #include "my_bit.h"              // my_count_bits
+#include "auth_common.h"         // check_password_strength
 #include "binlog.h"              // mysql_bin_log
 #include "debug_sync.h"          // DEBUG_SYNC
 #include "item_cmpfunc.h"        // get_datetime_value
@@ -2484,8 +2485,8 @@ double Item_func_latlongfromgeohash::val_real()
 
   if (input_value->length() == 0)
   {
-    my_error(ER_WRONG_VALUE_FOR_TYPE, MYF(0), "geohash", input_value->c_ptr(),
-             func_name());
+    my_error(ER_WRONG_VALUE_FOR_TYPE, MYF(0), "geohash",
+             input_value->c_ptr_safe(), func_name());
     return error_real();
   }
 
@@ -2494,8 +2495,8 @@ double Item_func_latlongfromgeohash::val_real()
   if (decode_geohash(input_value, upper_latitude, lower_latitude,
                      upper_longitude, lower_longitude, &latitude, &longitude))
   {
-    my_error(ER_WRONG_VALUE_FOR_TYPE, MYF(0), "geohash", input_value->c_ptr(),
-             func_name());
+    my_error(ER_WRONG_VALUE_FOR_TYPE, MYF(0), "geohash",
+             input_value->c_ptr_safe(), func_name());
     return error_real();
   }
 

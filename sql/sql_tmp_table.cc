@@ -15,17 +15,24 @@
 
 /** @file Temporary tables implementation */
 
-#include "sql_select.h"
 #include "sql_tmp_table.h"
-#include "sql_executor.h"
-#include "sql_base.h"
-#include "opt_trace.h"
-#include "opt_costmodel.h"
-#include "debug_sync.h"
-#include "filesort.h"   // filesort_free_buffers
-#include "item_sum.h"   // Item_sum
+
+#include "myisam.h"               // MI_COLUMNDEF
+#include "debug_sync.h"           // DEBUG_SYNC
+#include "filesort.h"             // filesort_free_buffers
+#include "item_func.h"            // Item_func
+#include "item_sum.h"             // Item_sum
+#include "mem_root_array.h"       // Mem_root_array
+#include "opt_range.h"            // QUICK_SELECT_I
+#include "opt_trace.h"            // Opt_trace_object
+#include "opt_trace_context.h"    // Opt_trace_context
+#include "sql_base.h"             // free_io_cache
+#include "sql_class.h"            // THD
+#include "sql_executor.h"         // SJ_TMP_TABLE
+#include "sql_plugin.h"           // plugin_unlock
 
 #include <algorithm>
+
 using std::max;
 using std::min;
 
@@ -498,6 +505,42 @@ static const char *create_tmp_table_field_tmp_name(THD *thd, int field_index)
 }
 
 /**
+  Helper function for create_tmp_table().
+
+  Insert a field at the head of the hidden field area.
+
+  @param table            Temporary table
+  @param default_field    Default value array pointer
+  @param from_field       Original field array pointer
+  @param blob_field       Array pointer to record fields index of blob type
+  @param field            The registed hidden field
+ */
+
+static void register_hidden_field(TABLE *table, 
+                              Field **default_field,
+                              Field **from_field,
+                              uint *blob_field,
+                              Field *field)
+{
+  uint i;
+  Field **tmp_field= table->field;
+
+  /* Increase all of registed fields index */
+  for (i= 0; i < table->s->fields; i++)
+    tmp_field[i]->field_index++;
+
+  // Increase the field_index of visible blob field
+  for (i= 0; i < table->s->blob_fields; i++)
+    blob_field[i]++;
+  // Insert field
+  table->field[-1]= field;
+  default_field[-1]= NULL;
+  from_field[-1]= NULL;
+  field->table= field->orig_table= table;
+  field->field_index= 0;
+}
+
+/**
   Create a temp table according to a field list.
 
   Given field pointers are changed to point at tmp_table for
@@ -694,6 +737,10 @@ create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
   thd->mem_root= &table->mem_root;
   copy_func->set_mem_root(&table->mem_root);
 
+  // Leave the first place to be prepared for hash_field
+  reg_field++;
+  default_field++;
+  from_field++;
   table->field=reg_field;
   table->alias= table_alias;
   table->reginfo.lock_type=TL_WRITE;	/* Will be updated */
@@ -923,6 +970,7 @@ update_hidden:
   *reg_field= 0;
   *blob_field= 0;				// End marker
   share->fields= field_count;
+  share->blob_fields= blob_count;
 
   /* If result table is small; use a heap */
   if (select_options & TMP_TABLE_FORCE_MYISAM)
@@ -1079,32 +1127,32 @@ update_hidden:
   {
     using_unique_constraint= true;
     Field_longlong *field= new(&table->mem_root) 
-          Field_longlong(8, false, "<hash_field>", true);
+          Field_longlong(sizeof(ulonglong), false, "<hash_field>", true);
     if (!field)
     {
       DBUG_ASSERT(thd->is_fatal_error);
       goto err;   // Got OOM
     }
-    *(reg_field++)= field;
-    table->hash_field= field;
-    field->table= field->orig_table= table;
-    field->field_index= fieldnr++;
+
+    // Mark hash_field as NOT NULL
+    field->flags &= NOT_NULL_FLAG;
+    // Register hash_field as a hidden field.
+    register_hidden_field(table, default_field,
+                          from_field, share->blob_field, field);
+    // Repoint arrays
+    table->field--;
+    default_field--;
+    from_field--;
     reclength+= field->pack_length();
-    table->hash_field_mask= (uchar*)
-      alloc_root(&table->mem_root, bitmap_buffer_size(field_count + 2));
-    bitmap_init(&table->hash_field_bitmap,
-                (my_bitmap_map*)table->hash_field_mask, field_count + 2,
-                FALSE);
-    bitmap_set_all(&table->hash_field_bitmap);
-    bitmap_clear_bit(&table->hash_field_bitmap, field->field_index);
-    field_count= fieldnr;
-    *reg_field= 0;
-    *blob_field= 0;     // End marker
+    field_count= ++fieldnr;
+    param->hidden_field_count++;
     share->fields= field_count;
+    table->hash_field= field;
   }
 
   // Update the handler with information about the table object
   table->file->change_table_ptr(table, share);
+  table->hidden_field_count= param->hidden_field_count;
 
   if (table->file->set_ha_share_ref(&share->ha_share))
   {
@@ -1118,7 +1166,6 @@ update_hidden:
   if (!using_unique_constraint)
     reclength+= group_null_items;	// null flag is stored separately
 
-  share->blob_fields= blob_count;
   if (blob_count == 0)
   {
     /* We need to ensure that first byte is not 0 for the delete link */
@@ -1456,7 +1503,7 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
   MI_COLUMNDEF *recinfo, *start_recinfo;
   bool using_unique_constraint=false;
   Field *field, *key_field;
-  uint null_pack_length, null_count;
+  uint null_pack_length;
   uchar *null_flags;
   uchar	*pos;
   uint i;
@@ -1538,7 +1585,29 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
   share->keys_for_keyread.init();
   share->keys_in_use.init();
 
+  uint reclength= 0;
+  uint null_count= 0;
+
   /* Create the field */
+  if (using_unique_constraint)
+  {
+    Field_longlong *field= new(&table->mem_root)
+          Field_longlong(sizeof(ulonglong), false, "<hash_field>", true);
+    if (!field)
+    {
+      DBUG_ASSERT(thd->is_fatal_error);
+      goto err;				// Got OOM
+    }
+    // Mark hash_field as NOT NULL
+    field->flags &= NOT_NULL_FLAG;
+    *(reg_field++)= sjtbl->hash_field= field;
+    table->hash_field= field;
+    field->table= field->orig_table= table;
+    share->fields++;
+    field->field_index= 0;
+    reclength= field->pack_length();
+    table->hidden_field_count++;
+  }
   {
     /*
       For the sake of uniformity, always use Field_varstring (altough we could
@@ -1554,16 +1623,17 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
     field->reset_fields();
     field->init(table);
     field->orig_table= NULL;
-    field->field_index= 0;
     *(reg_field++)= field;
     *blob_field= 0;
     *reg_field= 0;
 
-    share->fields= 1;
+    field->field_index= share->fields;
+    share->fields++;
     share->blob_fields= 0;
+    reclength+= field->pack_length();
+    null_count++;
   }
 
-  uint reclength= field->pack_length();
   if (using_unique_constraint)
   {
     switch (internal_tmp_disk_storage_engine)
@@ -1588,25 +1658,6 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
                                  share->db_type());
   }
 
-  null_count=1;
-  if (using_unique_constraint) 
-  {
-    Field_longlong *field= new(&table->mem_root) 
-          Field_longlong(8, false, "<hash_field>", true);
-    if (!field)
-    {
-      DBUG_ASSERT(thd->is_fatal_error);
-      goto err;				// Got OOM
-    }
-    *(reg_field++)= sjtbl->hash_field= field;
-    table->hash_field= field;
-    field->table= field->orig_table= table;
-    share->fields++;
-    share->blob_fields= 0;
-    field->field_index= share->fields - 1;
-    reclength+= field->pack_length();
-    null_count++;
-  }
 
   if (!table->file)
     goto err;

@@ -1696,12 +1696,6 @@ void memcached_shutdown(void)
 {
   if (initialized)
   {
-    /*
-      It's perfectly safe not to lock LOCK_plugin, as there're no
-      concurrent threads anymore. But some functions called from here
-      use mysql_mutex_assert_owner(), so we lock the mutex to satisfy it
-    */
-    mysql_mutex_lock(&LOCK_plugin);
 
     for (st_plugin_int **it= plugin_array->begin();
          it != plugin_array->end(); ++it)
@@ -1712,12 +1706,14 @@ void memcached_shutdown(void)
 	  && strcmp(plugin->name.str, "daemon_memcached") == 0)
       {
 	plugin_deinitialize(plugin, true);
+
+        mysql_mutex_lock(&LOCK_plugin);
 	plugin->state= PLUGIN_IS_DYING;
 	plugin_del(plugin);
+        mysql_mutex_unlock(&LOCK_plugin);
       }
     }
 
-    mysql_mutex_unlock(&LOCK_plugin);
   }
 }
 
@@ -3191,6 +3187,7 @@ static bool plugin_var_memalloc_global_update(THD *thd,
                                               char **dest, const char *value)
 {
   char *old_value= *dest;
+  DBUG_EXECUTE_IF("simulate_bug_20292712", my_sleep(1000););
   DBUG_ENTER("plugin_var_memalloc_global_update");
 
   if (value && !(value= my_strdup(key_memory_global_system_variables,

@@ -61,11 +61,13 @@
 #include "sql_show.h"                        // append_identifier
 #include "sql_admin.h"                       // SQL_ADMIN_MSG_TEXT_SIZE
 #include "myisam.h"                          // TT_FOR_UPGRADE
-
 #include "debug_sync.h"
 #ifndef DBUG_OFF
 #include "sql_test.h"                        // print_where
 #endif
+
+#include "pfs_file_provider.h"
+#include "mysql/psi/mysql_file.h"
 
 using std::min;
 using std::max;
@@ -2721,13 +2723,13 @@ bool ha_partition::create_handlers(MEM_ROOT *mem_root)
   memset(m_file, 0, alloc_len);
   for (i= 0; i < m_tot_parts; i++)
   {
-    handlerton *hton= plugin_data(m_engine_array[i], handlerton*);
+    handlerton *hton= plugin_data<handlerton*>(m_engine_array[i]);
     if (!(m_file[i]= get_new_handler(table_share, mem_root, hton)))
       DBUG_RETURN(TRUE);
     DBUG_PRINT("info", ("engine_type: %u", hton->db_type));
   }
   /* For the moment we only support partition over the same table engine */
-  hton0= plugin_data(m_engine_array[0], handlerton*);
+  hton0= plugin_data<handlerton*>(m_engine_array[0]);
   if (hton0 == myisam_hton)
   {
     DBUG_PRINT("info", ("MyISAM"));

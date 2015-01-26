@@ -20,6 +20,7 @@
 #include "log_event.h"
 #include "log.h"
 #include "my_atomic.h"
+#include "rpl_trx_boundary_parser.h"
 
 class Relay_log_info;
 class Master_info;
@@ -623,24 +624,67 @@ public:
     @param lost_groups Will be filled with all GTIDs in the
     Previous_gtids_log_event of the first binary log that has a
     Previous_gtids_log_event.
-    @param last_gtid Will be filled with the last availble GTID information
-    in the binary/relay log files.
     @param verify_checksum If true, checksums will be checked.
     @param need_lock If true, LOCK_log, LOCK_index, and
     global_sid_lock->wrlock are acquired; otherwise they are asserted
     to be taken already.
+    @param trx_parser [out] This will be used to return the actual
+    relaylog transaction parser state because of the possibility
+    of partial transactions.
+    @param [out] gtid_partial_trx If a transaction was left incomplete
+    on the relaylog, it's GTID should be returned to be used in the
+    case of the rest of the transaction be added to the relaylog.
     @param is_server_starting True if the server is starting.
     @return false on success, true on error.
   */
   bool init_gtid_sets(Gtid_set *gtid_set, Gtid_set *lost_groups,
-                      Gtid *last_gtid, bool verify_checksum,
-                      bool need_lock, bool is_server_starting= false);
+                      bool verify_checksum,
+                      bool need_lock,
+                      Transaction_boundary_parser *trx_parser,
+                      Gtid *gtid_partial_trx,
+                      bool is_server_starting= false);
 
   void set_previous_gtid_set_relaylog(Gtid_set *previous_gtid_set_param)
   {
     DBUG_ASSERT(is_relay_log);
     previous_gtid_set_relaylog= previous_gtid_set_param;
   }
+  /**
+    If the thread owns a GTID, this function generates an empty
+    transaction and releases ownership of the GTID.
+
+    - If the binary log is disabled for this thread, the GTID is
+      inserted directly into the mysql.gtid_executed table and the
+      GTID is included in @@global.gtid_executed.  (This only happens
+      for DDL, since DML will save the GTID into table and release
+      ownership inside ha_commit_trans.)
+
+    - If the binary log is enabled for this thread, an empty
+      transaction consisting of GTID, BEGIN, COMMIT is written to the
+      binary log, the GTID is included in @@global.gtid_executed, and
+      the GTID is added to the mysql.gtid_executed table on the next
+      binlog rotation.
+
+    This function must be called by any committing statement (COMMIT,
+    implicitly committing statements, or Xid_log_event), after the
+    statement has completed execution, regardless of whether the
+    statement updated the database.
+
+    This logic ensures that an empty transaction is generated for the
+    following cases:
+
+    - Explicit empty transaction:
+      SET GTID_NEXT = 'UUID:NUMBER'; BEGIN; COMMIT;
+
+    - Transaction or DDL that gets completely filtered out in the
+      slave thread.
+
+    @param thd The committing thread
+
+    @retval 0 Success
+    @retval nonzero Error
+  */
+  int gtid_end_transaction(THD *thd);
 private:
   /* The prevoius gtid set in relay log. */
   Gtid_set* previous_gtid_set_relaylog;
@@ -740,7 +784,8 @@ public:
   }
 
   int wait_for_update_relay_log(THD* thd, const struct timespec * timeout);
-  int  wait_for_update_bin_log(THD* thd, const struct timespec * timeout);
+  int wait_for_update_bin_log(THD* thd, const struct timespec * timeout);
+  bool do_write_cache(IO_CACHE *cache, class Binlog_event_writer *writer);
 public:
   void init_pthread_objects();
   void cleanup();
@@ -772,9 +817,10 @@ public:
   int new_file(Format_description_log_event *extra_description_event);
 
   bool write_event(Log_event* event_info);
-  bool write_cache(THD *thd, class binlog_cache_data *binlog_cache_data);
-  int  do_write_cache(IO_CACHE *cache,
-                      int64 last_committed, int64 sequence_number);
+  bool write_cache(THD *thd, class binlog_cache_data *binlog_cache_data,
+                   class Binlog_event_writer *writer);
+  bool write_gtid(THD *thd, binlog_cache_data *cache_data,
+                  class Binlog_event_writer *writer);
 
   void set_write_error(THD *thd, bool is_transactional);
   bool check_write_error(THD *thd);
@@ -909,7 +955,6 @@ void check_binlog_cache_size(THD *thd);
 void check_binlog_stmt_cache_size(THD *thd);
 bool binlog_enabled();
 void register_binlog_handler(THD *thd, bool trx);
-int gtid_empty_group_log_and_cleanup(THD *thd);
 int query_error_code(THD *thd, bool not_killed);
 
 extern const char *log_bin_index;

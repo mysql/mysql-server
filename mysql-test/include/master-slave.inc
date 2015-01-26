@@ -13,6 +13,7 @@
 #   [--let $slave_timeout= NUMBER]
 #   [--let $use_gtids= 1]
 #   [--let $rpl_gtid_utils= 1]
+#   [--let $rpl_set_gtid_next_anonymous_in_new_connection= 1]
 #   [--let $rpl_skip_group_replication_start= 1]
 #   --source include/master-slave.inc
 #
@@ -20,6 +21,7 @@
 #   $rpl_check_server_ids, $rpl_skip_reset_master_and_slave,
 #   $rpl_skip_change_master, $rpl_skip_start_slave, $rpl_debug,
 #   $slave_timeout, $use_gtids, $rpl_gtid_utils,
+#   $rpl_set_gtid_next_anonymous_in_new_connection,
 #   $rpl_skip_group_replication_start
 #     See include/rpl_init.inc
 #
