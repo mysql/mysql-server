@@ -156,6 +156,7 @@ Applier_module::set_applier_thread_context()
 void
 Applier_module::clean_applier_thread_context()
 {
+  net_end(&applier_thd->net);
   applier_thd->release_resources();
   THD_CHECK_SENTRY(applier_thd);
   global_thd_manager_remove_thd(applier_thd);
