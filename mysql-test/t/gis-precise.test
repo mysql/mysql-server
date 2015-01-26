@@ -922,5 +922,14 @@ SELECT ST_ISVALID(ST_GEOMFROMTEXT(@star_center,-1024));
 --error ER_WRONG_ARGUMENTS
 SELECT ST_ISVALID(ST_GEOMFROMTEXT(@star_all_points,-1));
 
+--echo #
+--echo # Bug#20414966 WL#8034 : CRASH WITH ST_VAIDATE() IN ITEM_FUNC_VALIDATE::VAL_STR
+--echo #
+SET @star_center= 'POINT(15 10)';
+SET @star_all_points= 'MULTIPOINT(5 0,25 0,15 10,15 25)';
+--error ER_WRONG_ARGUMENTS
+SELECT ST_VALIDATE(ST_GEOMFROMTEXT(@star_center,-1024));
+--error ER_WRONG_ARGUMENTS
+SELECT ST_VALIDATE(ST_GEOMFROMTEXT(@star_all_points,-1));
 
 --source include/gis_debug.inc

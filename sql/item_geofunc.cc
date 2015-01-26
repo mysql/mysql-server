@@ -1458,7 +1458,7 @@ String *Item_func_validate::val_str(String *str)
 
   if (geom->get_srid() != 0)
   {
-    my_error(ER_WRONG_ARGUMENTS, MYF(0));
+    my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
     return error_str();
   }
   int isvalid= 0;
