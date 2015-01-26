@@ -950,172 +950,45 @@
    fun:malloc_info
 }
 
-# Corosync leaks
+# Supress Corosync leaks
 {
-   Corosync initialize leak when we start Group Replication manually
+   Corosync leak when we start Group Replication on server start
    Memcheck:Leak
    fun:malloc
-   fun:realloc
-   obj:*
-   obj:*
-   obj:*
-   obj:*
-   obj:*
-   obj:*
-   obj:*
-   obj:*
-   obj:*
-   fun:_ZN23Gcs_replication_handler13gcs_rpl_startEv
-   fun:_Z13start_gcs_rplv
-   fun:_Z21mysql_execute_commandP3THD
-   fun:_Z11mysql_parseP3THDP12Parser_state
-   fun:_Z16dispatch_command19enum_server_commandP3THDPcm
-}
-
-{
-   Corosync initialize leak when we start Group Replication manually
-   Memcheck:Leak
-   fun:malloc
-   obj:*
-   obj:*
-   obj:*
-   obj:*
-   obj:*
-   obj:*
-   obj:*
-   obj:*
-   obj:*
-   fun:_ZN23Gcs_replication_handler13gcs_rpl_startEv
-   fun:_Z13start_gcs_rplv
-   fun:_Z21mysql_execute_commandP3THD
-   fun:_Z11mysql_parseP3THDP12Parser_state
-   fun:_Z16dispatch_command19enum_server_commandP3THDPcm
-   fun:_Z10do_commandP3THD
-}
-
-{
-   Corosync initialize leak when we start Group Replication manually
-   Memcheck:Leak
-   fun:calloc
-   obj:*
-   obj:*
-   obj:*
-   obj:*
-   obj:*
-   obj:*
-   obj:*
-   fun:_ZN23Gcs_replication_handler13gcs_rpl_startEv
-   fun:_Z13start_gcs_rplv
-   fun:_Z21mysql_execute_commandP3THD
-   fun:_Z11mysql_parseP3THDP12Parser_state
-   fun:_Z16dispatch_command19enum_server_commandP3THDPcm
-   fun:_Z10do_commandP3THD
-   fun:handle_connection
-   fun:pfs_spawn_thread
-}
-
-{
-   Corosync initialize leak when we start Group Replication manually
-   Memcheck:Leak
-   fun:calloc
-   obj:*
-   obj:*
-   obj:*
-   obj:*
-   obj:*
-   obj:*
-   obj:*
-   obj:*
-   fun:_ZN23Gcs_replication_handler13gcs_rpl_startEv
-   fun:_Z13start_gcs_rplv
-   fun:_Z21mysql_execute_commandP3THD
-   fun:_Z11mysql_parseP3THDP12Parser_state
-   fun:_Z16dispatch_command19enum_server_commandP3THDPcm
-   fun:_Z10do_commandP3THD
-   fun:handle_connection
-}
-
-{
-   Corosync initialize leak when we start Group Replication on server start
-   Memcheck:Leak
-   fun:malloc
-   fun:realloc
-   obj:*
-   obj:*
-   obj:*
-   obj:*
-   obj:*
-   obj:*
-   obj:*
-   obj:*
-   obj:*
-   fun:_ZN23Gcs_replication_handler13gcs_rpl_startEv
-   fun:_Z13start_gcs_rplv
+   ...
+   fun:_ZN25Group_replication_handler5startEv
+   fun:_Z23group_replication_startv
    obj:*
    fun:_ZL17plugin_initializeP13st_plugin_int
    fun:_Z11plugin_initPiPPci
+   ...
 }
 
 {
-   Corosync initialize leak when we start Group Replication on server start
-   Memcheck:Leak
-   fun:malloc
-   obj:*
-   obj:*
-   obj:*
-   obj:*
-   obj:*
-   obj:*
-   obj:*
-   obj:*
-   obj:*
-   fun:_ZN23Gcs_replication_handler13gcs_rpl_startEv
-   fun:_Z13start_gcs_rplv
-   obj:*
-   fun:_ZL17plugin_initializeP13st_plugin_int
-   fun:_Z11plugin_initPiPPci
-   fun:_ZL22init_server_componentsv
-}
-
-{
-   Corosync initialize leak when we start Group Replication on server start
+   Corosync leak when we start Group Replication on server start
    Memcheck:Leak
    fun:calloc
-   obj:*
-   obj:*
-   obj:*
-   obj:*
-   obj:*
-   obj:*
-   obj:*
-   fun:_ZN23Gcs_replication_handler13gcs_rpl_startEv
-   fun:_Z13start_gcs_rplv
+   ...
+   fun:_ZN25Group_replication_handler5startEv
+   fun:_Z23group_replication_startv
    obj:*
    fun:_ZL17plugin_initializeP13st_plugin_int
    fun:_Z11plugin_initPiPPci
    fun:_ZL22init_server_componentsv
    fun:_Z11mysqld_mainiPPc
-   fun:main
+   ...
 }
 
 {
-   Corosync initialize leak when we start Group Replication on server start
+   Corosync leak when we start Group Replication manually
    Memcheck:Leak
-   fun:calloc
-   obj:*
-   obj:*
-   obj:*
-   obj:*
-   obj:*
-   obj:*
-   obj:*
-   obj:*
-   fun:_ZN23Gcs_replication_handler13gcs_rpl_startEv
-   fun:_Z13start_gcs_rplv
-   obj:*
-   fun:_ZL17plugin_initializeP13st_plugin_int
-   fun:_Z11plugin_initPiPPci
-   fun:_ZL22init_server_componentsv
-   fun:_Z11mysqld_mainiPPc
+   fun:*
+   ...
+   fun:_ZN25Group_replication_handler5startEv
+   fun:_Z23group_replication_startv
+   fun:_Z21mysql_execute_commandP3THD
+   fun:_Z11mysql_parseP3THDP12Parser_state
+   fun:_Z16dispatch_command19enum_server_commandP3THDPcm
+   ...
 }
 
