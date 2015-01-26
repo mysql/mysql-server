@@ -274,32 +274,6 @@ SELECT ST_ISVALID(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(MULTILINESTRING((-7 -2,-9 
                                                      'MULTIPOINT(-7 -5,6 9,7 4))'));
 
 --echo #####################################################################################
---echo #====================================================================================
---echo # ST_ISVALID(geometry) with different SRID values
---echo #====================================================================================
---error ER_WRONG_ARGUMENTS
-SELECT ST_ISVALID(ST_GEOMFROMTEXT(@star_center,-1024));
-
---error ER_WRONG_ARGUMENTS
-SELECT ST_ISVALID(ST_GEOMFROMTEXT(@star_all_points,-1));
-
-SELECT ST_ISVALID(ST_GEOMFROMTEXT(@star_top_to_center,0));
-
---error ER_WRONG_ARGUMENTS
-SELECT ST_ISVALID(ST_GEOMFROMTEXT(@star_lines_near_vertical,4236));
-
---error ER_WRONG_ARGUMENTS
-SELECT ST_ISVALID(ST_GEOMFROMTEXT(@star,123456789));
-
---error ER_WRONG_ARGUMENTS
-SELECT ST_ISVALID(ST_GEOMFROMTEXT(@star_elem_vertical,4294967295));
-
-SELECT ST_ISVALID(ST_GEOMFROMTEXT(@star_of_elems,4294967296));
-
---error ER_WRONG_ARGUMENTS
-SELECT ST_ISVALID(ST_GEOMFROMTEXT(@star_collection_elems,4294967295000));
-
---echo #====================================================================================
 --echo # Invalid function calls
 --echo #####################################################################################
 
