@@ -1,7 +1,7 @@
 #ifndef ITEM_INCLUDED
 #define ITEM_INCLUDED
 
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,24 +16,18 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include "field.h"       // Derivation
+#include "parse_tree_node_base.h" // Parse_tree_node
+#include "sql_array.h"   // Bounds_checked_array
+#include "trigger_def.h" // enum_trigger_variable_type
+#include "table_trigger_field_support.h" // Table_trigger_field_support
+#include "mysql/service_parser.h"
 
-#include "sql_const.h"                 /* RAND_TABLE_BIT, MAX_FIELD_NAME */
-#include "thr_malloc.h"                         /* sql_calloc */
-#include "field.h"                              /* Derivation */
-#include "sql_array.h"
-#include "table_trigger_field_support.h"  // Table_trigger_field_support
-#include "parse_tree_node_base.h"
-#include "my_time.h"                      // timestamp_type
-
-#include <algorithm>                    // std::max
-
-class Protocol;
-struct TABLE_LIST;
-void item_init(void);			/* Init item functions */
-class Item_field;
 class user_var_entry;
 
 typedef Bounds_checked_array<Item*> Ref_ptr_array;
+
+void item_init(void);			/* Init item functions */
 
 /**
   Default condition filtering (selectivity) values used by
@@ -709,11 +703,20 @@ public:
 
   enum traverse_order { POSTFIX, PREFIX };
 
+  /**
+    @todo
+    -# Move this away from the Item class. It is a property of the
+    visitor in what direction the traversal is done, not of the visitee.
+
+    -# Make this two booleans instead. There are two orthogonal flags here.
+  */
   enum enum_walk
   {
     WALK_PREFIX=   0x01,
     WALK_POSTFIX=  0x02,
-    WALK_SUBQUERY= 0x04
+    WALK_SUBQUERY= 0x04,
+    WALK_SUBQUERY_PREFIX= 0x05,
+    WALK_SUBQUERY_POSTFIX= 0x06
   };
   
   /* Reuse size, only used by SP local variable assignment, otherwize 0 */
@@ -1504,6 +1507,7 @@ public:
       - to generate a view definition query (SELECT-statement);
       - to generate a SQL-query for EXPLAIN EXTENDED;
       - to generate a SQL-query to be shown in INFORMATION_SCHEMA;
+      - to generate a SQL-query that looks like a prepared statement for query_rewrite
       - debug.
 
     For more information about view definition query, INFORMATION_SCHEMA
@@ -1683,6 +1687,9 @@ public:
     table 'arg' that are referred to by the Item.
   */
   virtual bool add_field_to_set_processor(uchar * arg) { return false; }
+
+  /// A processor to handle the select lex visitor framework.
+  virtual bool visitor_processor(uchar *arg);
 
   /**
     Item::walk function. Set bit in table->cond_set for all fields of
@@ -2754,7 +2761,7 @@ public:
 
   virtual inline void print(String *str, enum_query_type query_type)
   {
-    str->append(STRING_WITH_LEN("NULL"));
+    str->append(query_type == QT_NORMALIZED_FORMAT ? "?" : "NULL");
   }
 
   Item *safe_charset_converter(const CHARSET_INFO *tocs);
@@ -3787,9 +3794,11 @@ public:
   }
   bool walk(Item_processor processor, enum_walk walk, uchar *arg)
   {
-    return ((walk & WALK_PREFIX) && (this->*processor)(arg)) ||
-           (*ref)->walk(processor, walk, arg) ||
-           ((walk & WALK_POSTFIX) && (this->*processor)(arg));
+    return
+      ((walk & WALK_PREFIX) && (this->*processor)(arg)) ||
+      // For having clauses 'ref' will consistently =NULL.
+      (ref != NULL ? (*ref)->walk(processor, walk, arg) :false) ||
+      ((walk & WALK_POSTFIX) && (this->*processor)(arg));
   }
   virtual Item* transform(Item_transformer, uchar *arg);
   virtual Item* compile(Item_analyzer analyzer, uchar **arg_p,
@@ -4166,22 +4175,6 @@ public:
   }
 };
 
-
-#ifdef MYSQL_SERVER
-#include "gstream.h"
-#include "spatial.h"
-#include "item_sum.h"
-#include "set_var.h"                            /* enum_var_type */
-#include "item_func.h"
-#include "item_row.h"
-#include "item_cmpfunc.h"
-#include "item_strfunc.h"
-#include "item_geofunc.h"
-#include "item_timefunc.h"
-#include "item_subselect.h"
-#include "item_xmlfunc.h"
-#include "item_create.h"
-#endif
 
 /**
   Base class to implement typed value caching Item classes

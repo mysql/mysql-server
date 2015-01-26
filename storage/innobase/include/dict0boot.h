@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -220,7 +220,8 @@ enum dict_col_sys_indexes_enum {
 	DICT_COL__SYS_INDEXES__TYPE		= 4,
 	DICT_COL__SYS_INDEXES__SPACE		= 5,
 	DICT_COL__SYS_INDEXES__PAGE_NO		= 6,
-	DICT_NUM_COLS__SYS_INDEXES		= 7
+	DICT_COL__SYS_INDEXES__MERGE_THRESHOLD	= 7,
+	DICT_NUM_COLS__SYS_INDEXES		= 8
 };
 /* The field numbers in the SYS_INDEXES clustered index */
 enum dict_fld_sys_indexes_enum {
@@ -233,7 +234,8 @@ enum dict_fld_sys_indexes_enum {
 	DICT_FLD__SYS_INDEXES__TYPE		= 6,
 	DICT_FLD__SYS_INDEXES__SPACE		= 7,
 	DICT_FLD__SYS_INDEXES__PAGE_NO		= 8,
-	DICT_NUM_FIELDS__SYS_INDEXES		= 9
+	DICT_FLD__SYS_INDEXES__MERGE_THRESHOLD	= 9,
+	DICT_NUM_FIELDS__SYS_INDEXES		= 10
 };
 /* The columns in SYS_FIELDS */
 enum dict_col_sys_fields_enum {

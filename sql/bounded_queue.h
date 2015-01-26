@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved. 
+/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved. 
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
 #include "my_sys.h"
 #include "mysys_err.h"
 #include "priority_queue.h"
+#include "malloc_allocator.h"
 
 /**
   A priority queue with a fixed, limited size.
@@ -45,8 +46,16 @@ template<typename Element_type,
 class Bounded_queue
 {
 public:
-  Bounded_queue()
-    : m_sort_keys(NULL),
+  typedef Priority_queue<Key_type,
+                         std::vector<Key_type, Malloc_allocator<Key_type> >,
+                         Key_compare> Queue_type;
+
+  typedef typename Queue_type::allocator_type allocator_type;
+
+  explicit Bounded_queue(const allocator_type
+                         &alloc = allocator_type(PSI_NOT_INSTRUMENTED))
+    : m_queue(Key_compare(), alloc),
+      m_sort_keys(NULL),
       m_sort_param(NULL)
   {}
 
@@ -105,10 +114,6 @@ public:
     The number of elements in the queue.
    */
   size_t num_elements() const { return m_queue.size(); }
-
-  typedef Priority_queue<Key_type,
-                         std::vector<Key_type>,
-                         Key_compare> Queue_type;
 
 private:
   Queue_type         m_queue;

@@ -1,0 +1,21 @@
+--echo #
+--echo # Tests that it works to have the rules table in different engines.
+--echo #
+
+--source suite/query_rewrite_plugins/include/have_plugin_rewriter.inc
+--source suite/query_rewrite_plugins/include/install_rewriter_with_optional_columns.inc
+
+--echo # We don't need this column for this test, and digests aren't stable.
+ALTER TABLE query_rewrite.rewrite_rules DROP COLUMN pattern_digest;
+
+ALTER TABLE query_rewrite.rewrite_rules ENGINE = myisam;
+SELECT engine FROM information_schema.tables WHERE table_name = 'rewrite_rules';
+
+--source suite/query_rewrite_plugins/include/basic.inc
+
+ALTER TABLE query_rewrite.rewrite_rules ENGINE = memory;
+SELECT engine FROM information_schema.tables WHERE table_name = 'rewrite_rules';
+
+--source suite/query_rewrite_plugins/include/basic.inc
+
+--source suite/query_rewrite_plugins/include/uninstall_rewriter.inc

@@ -38,65 +38,65 @@ INSERT INTO t1 (latin1_f) VALUES (_latin1'Y');
 INSERT INTO t1 (latin1_f) VALUES (_latin1'y');
 INSERT INTO t1 (latin1_f) VALUES (_latin1'Z');
 INSERT INTO t1 (latin1_f) VALUES (_latin1'z');
-SELECT latin1_f FROM t1 ORDER BY latin1_f;
+SELECT latin1_f FROM t1 ORDER BY latin1_f, hex(latin1_f);
 latin1_f
 A
 a
 AD
 ad
-ae
 AE
+ae
 AF
 af
-b
 B
+b
 SS
 ss
-u
 U
+u
 UE
 ue
 Y
 y
-ü
 Ü
+ü
 Z
 z
-å
 Å
+å
 Ä
 ä
 ß
-SELECT latin1_f FROM t1 ORDER BY latin1_f COLLATE latin1_swedish_ci;
+SELECT latin1_f FROM t1 ORDER BY latin1_f COLLATE latin1_swedish_ci, hex(latin1_f);
 latin1_f
 A
 a
 AD
 ad
-ae
 AE
+ae
 AF
 af
-b
 B
+b
 SS
 ss
-u
 U
+u
 UE
 ue
 Y
 y
-ü
 Ü
+ü
 Z
 z
-å
 Å
+å
 Ä
 ä
 ß
-SELECT latin1_f FROM t1 ORDER BY latin1_f COLLATE latin1_german2_ci;
+SELECT latin1_f FROM t1 ORDER BY latin1_f COLLATE latin1_german2_ci, hex(latin1_f);
 latin1_f
 A
 a
@@ -104,28 +104,28 @@ a
 å
 AD
 ad
-Ä
-ae
 AE
+ae
+Ä
 ä
-af
 AF
-b
+af
 B
-ß
-ss
+b
 SS
+ss
+ß
 U
 u
-ue
 UE
-ü
+ue
 Ü
+ü
 Y
 y
 Z
 z
-SELECT latin1_f FROM t1 ORDER BY latin1_f COLLATE latin1_general_ci;
+SELECT latin1_f FROM t1 ORDER BY latin1_f COLLATE latin1_general_ci, hex(latin1_f);
 latin1_f
 A
 a
@@ -133,23 +133,23 @@ AD
 ad
 AE
 ae
-af
 AF
+af
 Ä
 ä
 Å
 å
-b
 B
-ss
+b
 SS
+ss
 ß
 U
 u
 UE
 ue
-ü
 Ü
+ü
 Y
 y
 Z
@@ -185,36 +185,36 @@ z
 ü
 SELECT latin1_f FROM t1 ORDER BY latin1_f COLLATE koi8r_general_ci;
 ERROR 42000: COLLATION 'koi8r_general_ci' is not valid for CHARACTER SET 'latin1'
-SELECT latin1_f COLLATE latin1_swedish_ci AS latin1_f_as FROM t1 ORDER BY latin1_f_as;
+SELECT latin1_f COLLATE latin1_swedish_ci AS latin1_f_as FROM t1 ORDER BY latin1_f_as, hex(latin1_f_as);
 latin1_f_as
 A
 a
 AD
 ad
-ae
 AE
+ae
 AF
 af
-b
 B
+b
 SS
 ss
-u
 U
+u
 UE
 ue
 Y
 y
-ü
 Ü
+ü
 Z
 z
-å
 Å
+å
 Ä
 ä
 ß
-SELECT latin1_f COLLATE latin1_german2_ci AS latin1_f_as FROM t1 ORDER BY latin1_f_as;
+SELECT latin1_f COLLATE latin1_german2_ci AS latin1_f_as FROM t1 ORDER BY latin1_f_as, hex(latin1_f_as);
 latin1_f_as
 A
 a
@@ -222,28 +222,28 @@ a
 å
 AD
 ad
-Ä
-ae
 AE
+ae
+Ä
 ä
-af
 AF
-b
+af
 B
-ß
-ss
+b
 SS
+ss
+ß
 U
 u
-ue
 UE
-ü
+ue
 Ü
+ü
 Y
 y
 Z
 z
-SELECT latin1_f COLLATE latin1_general_ci AS latin1_f_as FROM t1 ORDER BY latin1_f_as;
+SELECT latin1_f COLLATE latin1_general_ci AS latin1_f_as FROM t1 ORDER BY latin1_f_as, hex(latin1_f_as);
 latin1_f_as
 A
 a
@@ -251,23 +251,23 @@ AD
 ad
 AE
 ae
-af
 AF
+af
 Ä
 ä
 Å
 å
-b
 B
-ss
+b
 SS
+ss
 ß
 U
 u
 UE
 ue
-ü
 Ü
+ü
 Y
 y
 Z

@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,7 +16,7 @@
 #include <my_global.h>
 #include <mysql.h>
 #include <mysqld_error.h>
-#include <my_pthread.h>
+#include <my_thread.h>
 #include <my_sys.h>
 #include <mysys_err.h>
 #include <m_string.h>

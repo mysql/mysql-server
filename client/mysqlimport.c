@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,7 +26,7 @@
 #include "my_default.h"
 #include "mysql_version.h"
 #ifdef HAVE_LIBPTHREAD
-#include <my_pthread.h>
+#include <my_thread.h>
 #endif
 
 #include <welcome_copyright_notice.h>   /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
@@ -649,9 +649,9 @@ int main(int argc, char **argv)
 #ifdef HAVE_LIBPTHREAD
   if (opt_use_threads && !lock_tables)
   {
-    pthread_t mainthread;            /* Thread descriptor */
-    pthread_attr_t attr;          /* Thread attributes */
-    pthread_attr_init(&attr);
+    my_thread_t mainthread;            /* Thread descriptor */
+    my_thread_attr_t attr;          /* Thread attributes */
+    my_thread_attr_init(&attr);
     pthread_attr_setdetachstate(&attr,
                                 PTHREAD_CREATE_DETACHED);
 
@@ -672,8 +672,8 @@ int main(int argc, char **argv)
       counter++;
       native_mutex_unlock(&counter_mutex);
       /* now create the thread */
-      if (pthread_create(&mainthread, &attr, worker_thread, 
-                         (void *)*argv) != 0)
+      if (my_thread_create(&mainthread, &attr, worker_thread, 
+                           (void *)*argv) != 0)
       {
         native_mutex_lock(&counter_mutex);
         counter--;
@@ -697,7 +697,7 @@ int main(int argc, char **argv)
     native_mutex_unlock(&counter_mutex);
     native_mutex_destroy(&counter_mutex);
     native_cond_destroy(&count_threshold);
-    pthread_attr_destroy(&attr);
+    my_thread_attr_destroy(&attr);
   }
   else
 #endif

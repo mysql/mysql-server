@@ -16,23 +16,23 @@
 #ifndef SQL_PARSE_INCLUDED
 #define SQL_PARSE_INCLUDED
 
-#include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
-#include "auth_common.h"                        /* GLOBAL_ACLS */
-#include "mysqld_thd_manager.h"                 /* Global_THD_manager */
+#include "my_global.h"
+#include "handler.h"                 // enum_schema_tables
+#include "mysqld_thd_manager.h"      // Find_THD_Impl
+#include "sql_class.h"               // THD
 
 class Comp_creator;
 class Item;
 class Object_creation_ctx;
 class Parser_state;
-struct TABLE_LIST;
-class THD;
 class Table_ident;
 struct LEX;
+struct Parse_context;
+struct TABLE_LIST;
+typedef struct st_lex_user LEX_USER;
+typedef struct st_order ORDER;
+typedef class st_select_lex SELECT_LEX;
 
-enum enum_mysql_completiontype {
-  ROLLBACK_RELEASE=-2, ROLLBACK=1,  ROLLBACK_AND_CHAIN=7,
-  COMMIT_RELEASE=-1,   COMMIT=0,    COMMIT_AND_CHAIN=6
-};
 
 extern "C" int test_if_data_home_dir(const char *dir);
 
@@ -45,8 +45,6 @@ extern void turn_parser_debug_on();
 bool parse_sql(THD *thd,
                Parser_state *parser_state,
                Object_creation_ctx *creation_ctx);
-
-uint kill_one_thread(THD *thd, ulong id, bool only_kill_query);
 
 void free_items(Item *item);
 void cleanup_items(Item *item);
@@ -62,18 +60,13 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
                          enum enum_schema_tables schema_table_idx);
 void get_default_definer(THD *thd, LEX_USER *definer);
 LEX_USER *create_default_definer(THD *thd);
-LEX_USER *create_definer(THD *thd, LEX_STRING *user_name, LEX_STRING *host_name);
 LEX_USER *get_current_user(THD *thd, LEX_USER *user);
-bool check_string_byte_length(const LEX_CSTRING &str, const char *err_msg,
-                              size_t max_byte_length);
 bool check_string_char_length(const LEX_CSTRING &str, const char *err_msg,
                               size_t max_char_length, const CHARSET_INFO *cs,
                               bool no_error);
 const CHARSET_INFO* merge_charset_and_collation(const CHARSET_INFO *cs,
                                                 const CHARSET_INFO *cl);
 bool check_host_name(const LEX_CSTRING &str);
-bool check_identifier_name(LEX_STRING *str, uint max_char_length,
-                           uint err_code, const char *param_for_err_msg);
 bool mysql_test_parse_for_slave(THD *thd);
 bool is_update_query(enum enum_sql_command command);
 bool is_explainable_query(enum enum_sql_command command);
@@ -120,34 +113,19 @@ void killall_non_super_threads(THD *thd);
 /* Variables */
 
 extern uint sql_command_flags[];
-extern uint server_command_flags[];
 extern const LEX_STRING command_name[];
-extern uint server_command_flags[];
 
 #ifdef HAVE_MY_TIMER
 // Statement timeout function(s)
 extern void reset_statement_timer(THD *thd);
 #endif
 
-/* Inline functions */
-inline bool check_identifier_name(LEX_STRING *str, uint err_code)
-{
-  return check_identifier_name(str, NAME_CHAR_LEN, err_code, "");
-}
-
-inline bool check_identifier_name(LEX_STRING *str)
-{
-  return check_identifier_name(str, NAME_CHAR_LEN, 0, "");
-}
-
-/* These were under the INNODB_COMPATIBILITY_HOOKS */
-
 inline bool is_supported_parser_charset(const CHARSET_INFO *cs)
 {
   return (cs->mbminlen == 1);
 }
 
-extern "C" bool sqlcom_can_generate_row_events(const THD *thd);
+bool sqlcom_can_generate_row_events(const THD *thd);
 
 /**
   Callback function used by kill_one_thread and timer_notify functions

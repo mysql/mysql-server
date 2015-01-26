@@ -21,24 +21,22 @@
 
 */
 
-/*
-  It is necessary to include set_var.h instead of item.h because there
-  are dependencies on include order for set_var.h and item.h. This
-  will be resolved later.
-*/
-#include "sql_class.h"                          // set_var.h: THD
-#include "set_var.h"
-#include "sql_select.h"
-#include "opt_trace.h"
-#include "sql_parse.h"                          // check_stack_overrun
-#include "sql_derived.h"                        // mysql_derived_create, ...
-#include "debug_sync.h"
-#include "sql_test.h"
-#include "sql_join_buffer.h"                    // JOIN_CACHE
-#include "sql_optimizer.h"                      // JOIN
-#include "opt_explain_format.h"
-#include "parse_tree_nodes.h"
-#include "sql_union.h"                          // select_union
+#include "item_subselect.h"
+
+#include "debug_sync.h"          // DEBUG_SYNC
+#include "item_sum.h"            // Item_sum_max
+#include "opt_trace.h"           // OPT_TRACE_TRANSFORM
+#include "parse_tree_nodes.h"    // PT_subselect
+#include "sql_class.h"           // THD
+#include "sql_derived.h"         // mysql_derived_create
+#include "sql_join_buffer.h"     // JOIN_CACHE
+#include "sql_lex.h"             // st_select_lex
+#include "sql_optimizer.h"       // JOIN
+#include "sql_parse.h"           // check_stack_overrun
+#include "sql_test.h"            // print_where
+#include "sql_tmp_table.h"       // free_tmp_table
+#include "sql_union.h"           // select_union
+
 
 Item_subselect::Item_subselect():
   Item_result_field(), value_assigned(0), traced_before(false),
@@ -438,10 +436,10 @@ err:
   JOINs may be nested. Walk nested joins recursively to apply the
   processor.
 */
-bool Item_subselect::walk_join_condition(List<TABLE_LIST> *tables,
-                                         Item_processor processor,
-                                         enum_walk walk,
-                                         uchar *arg)
+static bool walk_join_condition(List<TABLE_LIST> *tables,
+                                Item_processor processor,
+                                Item::enum_walk walk,
+                                uchar *arg)
 {
   TABLE_LIST *table;
   List_iterator<TABLE_LIST> li(*tables);
@@ -3833,7 +3831,7 @@ bool subselect_hash_sj_engine::setup(List<Item> *tmp_columns)
     Item_func_eq *eq_cond; 
     /* Item for the corresponding field from the materialized temp table. */
     Item_field *right_col_item;
-    Field *field= tmp_table->field[part_no];
+    Field *field= tmp_table->visible_field_ptr()[part_no];
     const bool nullable= field->real_maybe_null();
     tmp_tab->ref().items[part_no]= item_in->left_expr->element_index(part_no);
 

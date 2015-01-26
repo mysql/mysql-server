@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,7 +16,7 @@
 
 #if defined (_WIN32)
 #include "my_global.h"
-#include "my_pthread.h"     /* my_thread_init, my_thread_end */
+#include "my_thread.h"      /* my_thread_init, my_thread_end */
 #include "my_sys.h"         /* my_message_local */
 #include "my_timer.h"       /* my_timer_t */
 #include <windows.h>        /* Timer Queue and IO completion port functions */
@@ -24,7 +24,7 @@
 #define  TIMER_EXPIRED    1
 
 // Timer notifier thread id.
-static pthread_t timer_notify_thread;
+static my_thread_handle timer_notify_thread;
 
 // IO completion port handle
 HANDLE io_compl_port= 0;
@@ -223,7 +223,7 @@ my_timer_deinitialize()
     io_compl_port= 0;
   }
 
-  pthread_join(timer_notify_thread, NULL);
+  my_thread_join(&timer_notify_thread, NULL);
 }
 
 

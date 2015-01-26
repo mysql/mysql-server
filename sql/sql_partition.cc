@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -45,28 +45,27 @@
 
 /* Some general useful functions */
 
-#define MYSQL_LEX 1
 #include "sql_partition.h"
-#include "key.h"                            // key_restore
-#include "sql_parse.h"                      // parse_sql
-#include "sql_cache.h"                      // query_cache_invalidate3
-#include "lock.h"                           // mysql_lock_remove
-#include "sql_show.h"                       // append_identifier
-#include <errno.h>
-#include <m_ctype.h>
-#include "my_md5.h"
-#include "transaction.h"
-#include "debug_sync.h"
 
-#include "sql_base.h"                   // close_all_tables_for_name
-#include "sql_table.h"                  // build_table_filename,
-                                        // build_table_shadow_filename,
-                                        // table_to_filename
-                                        // mysql_*_alter_copy_data
+#include "hash.h"                       // HASH
+#include "debug_sync.h"                 // DEBUG_SYNC
+#include "item.h"                       // enum_monotoncity_info
+#include "key.h"                        // key_restore
+#include "lock.h"                       // mysql_lock_remove
+#include "log.h"                        // sql_print_warning
 #include "opt_range.h"                  // store_key_image_to_rec
 #include "sql_analyse.h"                // append_escaped
 #include "sql_alter.h"                  // Alter_table_ctx
-#include "log.h"
+#include "sql_base.h"                   // wait_while_table_is_used
+#include "sql_cache.h"                  // query_cache
+#include "sql_class.h"                  // THD
+#include "sql_parse.h"                  // parse_sql
+#include "sql_show.h"                   // append_identifier
+#include "sql_table.h"                  // build_table_filename
+#include "table.h"                      // TABLE_SHARE
+
+#include "pfs_file_provider.h"
+#include "mysql/psi/mysql_file.h"
 
 #include <algorithm>
 using std::max;

@@ -18,6 +18,8 @@
 
 /* subselect Item */
 
+#include "item.h"   // Item_result_field
+
 class st_select_lex;
 class st_select_lex_unit;
 class JOIN;
@@ -29,6 +31,8 @@ class Item_bool_func2;
 class Cached_item;
 class Comp_creator;
 class PT_subselect;
+class Item_in_optimizer;
+class Item_func_not_all;
 
 typedef class st_select_lex SELECT_LEX;
 
@@ -163,8 +167,6 @@ public:
   */
   virtual void reset_value_registration() {}
   enum_parsing_context place() { return parsing_place; }
-  bool walk_join_condition(List<TABLE_LIST> *tables, Item_processor processor,
-                           enum_walk walk, uchar *arg);
   bool walk_body(Item_processor processor, enum_walk walk, uchar *arg);
   bool walk(Item_processor processor, enum_walk walk, uchar *arg);
   virtual bool explain_subquery_checker(uchar **arg);

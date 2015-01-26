@@ -49,13 +49,12 @@ bool select_union::send_data(List<Item> &values)
     unit->offset_limit_cnt--;
     return false;
   }
-  fill_record(thd, table->field, values,
-              (table->hash_field ?
-               &table->hash_field_bitmap : NULL), NULL);
+  fill_record(thd, table->visible_field_ptr(), values,
+               NULL, NULL);
   if (thd->is_error())
     return true;
 
-  if (!check_unique_constraint(table, 0))
+  if (!check_unique_constraint(table))
     return false;
 
   if ((error= table->file->ha_write_row(table->record[0])))
@@ -588,9 +587,7 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
     if (!item_list.elements)
     {
       Prepared_stmt_arena_holder ps_arena_holder(thd);
-      // Create fields list, but skip hash field that could be added at
-      // the end.
-      if ((status= table->fill_item_list(&item_list, types.elements)))
+      if ((status= table->fill_item_list(&item_list)))
         goto err;            /* purecov: inspected */
     }
     else
@@ -599,7 +596,7 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
         We're in execution of a prepared statement or stored procedure:
         reset field items to point at fields from the created temporary table.
       */
-      table->reset_item_list(&item_list, types.elements);
+      table->reset_item_list(&item_list);
     }
     if (fake_select_lex != NULL)
     {

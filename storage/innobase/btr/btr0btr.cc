@@ -46,6 +46,7 @@ Created 6/2/1994 Heikki Tuuri
 #include "srv0mon.h"
 #include "gis0geo.h"
 #include "ut0new.h"
+#include "dict0boot.h"
 
 /**************************************************************//**
 Checks if the page in the cursor can be merged with given page.
@@ -4243,7 +4244,12 @@ btr_index_rec_validate(
 
 	n = dict_index_get_n_fields(index);
 
-	if (!page_is_comp(page) && rec_get_n_fields_old(rec) != n) {
+	if (!page_is_comp(page)
+	    && (rec_get_n_fields_old(rec) != n
+		/* a record for older SYS_INDEXES table
+		(missing merge_threshold column) is acceptable. */
+		&& !(index->id == DICT_INDEXES_ID
+		     && rec_get_n_fields_old(rec) == n - 1))) {
 		btr_index_rec_validate_report(page, rec, index);
 
 		ib::error() << "Has " << rec_get_n_fields_old(rec)

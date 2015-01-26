@@ -123,11 +123,14 @@ SET(SQL_SHARED_SOURCES
   parse_tree_items.cc
   parse_tree_node_base.cc
   parse_tree_nodes.cc
+  select_lex_visitor.cc
+  parser_service.cc
   partition_info.cc
   procedure.cc 
   protocol.cc
   records.cc
   rpl_handler.cc
+  rules_table_service.cc
   session_tracker.cc
   set_var.cc 
   sp.cc
@@ -176,6 +179,7 @@ SET(SQL_SHARED_SOURCES
   sql_plugin.cc
   sql_prepare.cc
   sql_profile.cc
+  sql_query_rewrite.cc
   sql_reload.cc
   sql_rename.cc
   sql_resolver.cc
@@ -323,8 +327,7 @@ ENDIF()
 
 SET (BINLOG_SOURCE rpl_gtid_misc.cc
                    rpl_gtid_sid_map.cc rpl_gtid_set.cc rpl_gtid_specification.cc
-                   rpl_gtid_state.cc rpl_gtid_owned.cc rpl_gtid_cache.cc
-                   rpl_gtid_execution.cc
+                   rpl_gtid_state.cc rpl_gtid_owned.cc rpl_gtid_execution.cc
                    rpl_gtid_mutex_cond_array.cc rpl_gtid_persist.cc
                    log_event.cc log_event_old.cc binlog.cc sql_binlog.cc
                    rpl_filter.cc rpl_record.cc rpl_record_old.cc
@@ -344,7 +347,8 @@ SET (SLAVE_SOURCE rpl_slave.cc rpl_reporting.cc rpl_mi.cc rpl_rli.cc
                   rpl_info_table.cc rpl_info_values.cc rpl_info.cc
                   rpl_info_factory.cc rpl_info_table_access.cc dynamic_ids.cc
                   rpl_rli_pdb.cc rpl_info_dummy.cc rpl_mts_submode.cc
-                  rpl_slave_commit_order_manager.cc rpl_msr.cc)
+                  rpl_slave_commit_order_manager.cc rpl_msr.cc
+                  rpl_trx_boundary_parser.cc)
 ADD_LIBRARY(slave ${SLAVE_SOURCE})
 ADD_DEPENDENCIES(slave GenError)
 

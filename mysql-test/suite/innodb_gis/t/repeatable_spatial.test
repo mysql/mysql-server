@@ -24,12 +24,12 @@ ALTER TABLE tab ADD SPATIAL INDEX idx4(c4 ASC) COMMENT 'testing spatial index on
 ALTER TABLE tab ADD SPATIAL KEY idx5(c5 ASC) COMMENT 'testing spatial index on Geometry';
 
 INSERT INTO tab(c1,c2,c3,c4,c5) 
-VALUES(1,GeomFromText('POINT(10 10)'),GeomFromText('LINESTRING(5 5,20 20,30 30)'),
-GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))'),
-GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))'));
+VALUES(1,ST_GeomFromText('POINT(10 10)'),ST_GeomFromText('LINESTRING(5 5,20 20,30 30)'),
+ST_GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))'),
+ST_GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))'));
 
 # 1 record is expected
-SELECT c1,AsText(c2),AsText(c3),AsText(c4),AsText(c5) FROM tab;
+SELECT c1,ST_AsText(c2),ST_AsText(c3),ST_AsText(c4),ST_AsText(c5) FROM tab;
 
 # Record count should be 1
 SELECT COUNT(*) FROM tab;
@@ -46,7 +46,7 @@ SELECT @@tx_isolation;
 SELECT COUNT(*) FROM tab;
 
 # 1 record is expected
-SELECT c1,AsText(c2),AsText(c3),AsText(c4),AsText(c5) FROM tab;
+SELECT c1,ST_AsText(c2),ST_AsText(c3),ST_AsText(c4),ST_AsText(c5) FROM tab;
 
 --echo "In connection 2"
 connect (con2,localhost,root,,);
@@ -59,24 +59,24 @@ SELECT @@tx_isolation;
 START TRANSACTION;
 
 INSERT INTO tab(c1,c2,c3,c4,c5) 
-VALUES(2,GeomFromText('POINT(20 20)'),GeomFromText('LINESTRING(20 20,30 30,40 40)'),
-GeomFromText('POLYGON((40 50,40 70,50 100,70 100,80 80,70 50,40 50))'),
-GeomFromText('POLYGON((40 50,40 70,50 100,70 100,80 80,70 50,40 50))'));
+VALUES(2,ST_GeomFromText('POINT(20 20)'),ST_GeomFromText('LINESTRING(20 20,30 30,40 40)'),
+ST_GeomFromText('POLYGON((40 50,40 70,50 100,70 100,80 80,70 50,40 50))'),
+ST_GeomFromText('POLYGON((40 50,40 70,50 100,70 100,80 80,70 50,40 50))'));
 
-SET @g1 = GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))');
-SET @g2 = GeomFromText('POINT(10 10)');
+SET @g1 = ST_GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))');
+SET @g2 = ST_GeomFromText('POINT(10 10)');
 
 # Record should be updated
-UPDATE tab SET C5 = GeomFromText('POLYGON((300 300,400 400,500 500,300 500,300 400,300 300))')
-WHERE Equals(tab.c4, @g1) AND Equals(tab.c2, @g2);
+UPDATE tab SET C5 = ST_GeomFromText('POLYGON((300 300,400 400,500 500,300 500,300 400,300 300))')
+WHERE MBREquals(tab.c4, @g1) AND MBREquals(tab.c2, @g2);
 
 --echo "In connection 1"
 connection con1;
 
-SET @g3 = GeomFromText('POLYGON((40 50,40 70,50 100,70 100,80 80,70 50,40 50))');
+SET @g3 = ST_GeomFromText('POLYGON((40 50,40 70,50 100,70 100,80 80,70 50,40 50))');
 
 # No record is expected (No phantom row)
-SELECT c1,AsText(c2),AsText(c4),AsText(c5) FROM tab WHERE Equals(tab.c5, @g3);
+SELECT c1,ST_AsText(c2),ST_AsText(c4),ST_AsText(c5) FROM tab WHERE MBREquals(tab.c5, @g3);
 
 # Record count should be 1
 SELECT COUNT(*) FROM tab;
@@ -103,21 +103,21 @@ connection con1;
 # Record count should be 1
 SELECT COUNT(*) FROM tab;
 
-SET @g4 = GeomFromText('POLYGON((300 300,400 400,500 500,300 500,300 400,300 300))');
+SET @g4 = ST_GeomFromText('POLYGON((300 300,400 400,500 500,300 500,300 400,300 300))');
 
 # No records are expected (No phantom row)
-SELECT AsText(c5) FROM tab  WHERE Equals(tab.c5, @g4);
+SELECT ST_AsText(c5) FROM tab  WHERE MBREquals(tab.c5, @g4);
 
 COMMIT;
 
 # The updated record is expected 
-SELECT AsText(c5) FROM tab  WHERE Equals(tab.c5, @g4);
+SELECT ST_AsText(c5) FROM tab  WHERE MBREquals(tab.c5, @g4);
 
 # Record count should be 2
 SELECT COUNT(*) FROM tab;
 
 # 2 records are expected
-SELECT c1,AsText(c2),AsText(c4),AsText(c5) FROM tab;
+SELECT c1,ST_AsText(c2),ST_AsText(c4),ST_AsText(c5) FROM tab;
 
 disconnect con1;
 --source include/wait_until_disconnected.inc
@@ -139,12 +139,12 @@ ALTER TABLE tab ADD SPATIAL INDEX idx4(c4 ASC) COMMENT 'testing spatial index on
 ALTER TABLE tab ADD SPATIAL KEY idx5(c5 ASC) COMMENT 'testing spatial index on Geometry';
 
 INSERT INTO tab(c1,c2,c3,c4,c5) 
-VALUES(1,GeomFromText('POINT(10 10)'),GeomFromText('LINESTRING(5 5,20 20,30 30)'),
-GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))'),
-GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))'));
+VALUES(1,ST_GeomFromText('POINT(10 10)'),ST_GeomFromText('LINESTRING(5 5,20 20,30 30)'),
+ST_GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))'),
+ST_GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))'));
 
 # 1 record is expected
-SELECT c1,AsText(c2),AsText(c3),AsText(c4),AsText(c5) FROM tab;
+SELECT c1,ST_AsText(c2),ST_AsText(c3),ST_AsText(c4),ST_AsText(c5) FROM tab;
 
 # Record count should be 1
 SELECT COUNT(*) FROM tab;
@@ -161,7 +161,7 @@ SELECT @@tx_isolation;
 SELECT COUNT(*) FROM tab;
 
 # 1 record is expected
-SELECT c1,AsText(c2),AsText(c3),AsText(c4),AsText(c5) FROM tab;
+SELECT c1,ST_AsText(c2),ST_AsText(c3),ST_AsText(c4),ST_AsText(c5) FROM tab;
 
 --echo "In connection 2"
 connect (con2,localhost,root,,);
@@ -174,24 +174,24 @@ SELECT @@tx_isolation;
 START TRANSACTION;
 
 INSERT INTO tab(c1,c2,c3,c4,c5) 
-VALUES(2,GeomFromText('POINT(20 20)'),GeomFromText('LINESTRING(20 20,30 30,40 40)'),
-GeomFromText('POLYGON((40 50,40 70,50 100,70 100,80 80,70 50,40 50))'),
-GeomFromText('POLYGON((40 50,40 70,50 100,70 100,80 80,70 50,40 50))'));
+VALUES(2,ST_GeomFromText('POINT(20 20)'),ST_GeomFromText('LINESTRING(20 20,30 30,40 40)'),
+ST_GeomFromText('POLYGON((40 50,40 70,50 100,70 100,80 80,70 50,40 50))'),
+ST_GeomFromText('POLYGON((40 50,40 70,50 100,70 100,80 80,70 50,40 50))'));
 
-SET @g1 = GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))');
-SET @g2 = GeomFromText('POINT(10 10)');
+SET @g1 = ST_GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))');
+SET @g2 = ST_GeomFromText('POINT(10 10)');
 
 # Record should be updated
-UPDATE tab SET C5 = GeomFromText('POLYGON((300 300,400 400,500 500,300 500,300 400,300 300))')
-WHERE Equals(tab.c4, @g1) AND Equals(tab.c2, @g2);
+UPDATE tab SET C5 = ST_GeomFromText('POLYGON((300 300,400 400,500 500,300 500,300 400,300 300))')
+WHERE MBREquals(tab.c4, @g1) AND MBREquals(tab.c2, @g2);
 
 --echo "In connection 1"
 connection con1;
 
-SET @g3 = GeomFromText('POLYGON((40 50,40 70,50 100,70 100,80 80,70 50,40 50))');
+SET @g3 = ST_GeomFromText('POLYGON((40 50,40 70,50 100,70 100,80 80,70 50,40 50))');
 
 # No record is expected (No phantom row)
-SELECT c1,AsText(c2),AsText(c4),AsText(c5) FROM tab WHERE Equals(tab.c5, @g3);
+SELECT c1,ST_AsText(c2),ST_AsText(c4),ST_AsText(c5) FROM tab WHERE MBREquals(tab.c5, @g3);
 
 # Record count should be 1
 SELECT COUNT(*) FROM tab;
@@ -218,21 +218,21 @@ connection con1;
 # Record count should be 1
 SELECT COUNT(*) FROM tab;
 
-SET @g4 = GeomFromText('POLYGON((300 300,400 400,500 500,300 500,300 400,300 300))');
+SET @g4 = ST_GeomFromText('POLYGON((300 300,400 400,500 500,300 500,300 400,300 300))');
 
 # No records are expected (No phantom row)
-SELECT AsText(c5) FROM tab  WHERE Equals(tab.c5, @g4);
+SELECT ST_AsText(c5) FROM tab  WHERE MBREquals(tab.c5, @g4);
 
 COMMIT;
 
 # The updated record is expected 
-SELECT AsText(c5) FROM tab  WHERE Equals(tab.c5, @g4);
+SELECT ST_AsText(c5) FROM tab  WHERE MBREquals(tab.c5, @g4);
 
 # Record count should be 2
 SELECT COUNT(*) FROM tab;
 
 # 2 records are expected
-SELECT c1,AsText(c2),AsText(c4),AsText(c5) FROM tab;
+SELECT c1,ST_AsText(c2),ST_AsText(c4),ST_AsText(c5) FROM tab;
 
 disconnect con1;
 --source include/wait_until_disconnected.inc

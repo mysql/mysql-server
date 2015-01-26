@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,15 +16,8 @@
 #ifndef _SP_HEAD_H_
 #define _SP_HEAD_H_
 
-/*
-  It is necessary to include set_var.h instead of item.h because there
-  are dependencies on include order for set_var.h and item.h. This
-  will be resolved later.
-*/
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
-#include "sql_class.h"                          // THD, set_var.h: THD
-#include "set_var.h"                            // Item
-#include "sp_pcontext.h"                        // sp_pcontext
+#include "sql_class.h"                          // THD
 #include "mem_root_array.h"
 
 /**
@@ -33,9 +26,10 @@
   @{
 */
 
-class sp_instr;
 class sp_branch_instr;
+class sp_instr;
 class sp_lex_branch_instr;
+class sp_pcontext;
 
 /**
   Number of PSI_statement_info instruments

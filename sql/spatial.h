@@ -16,10 +16,11 @@
 #ifndef SPATIAL_INCLUDED
 #define SPATIAL_INCLUDED
 
-#include "sql_string.h"                         /* String, LEX_STRING */
-#include <my_compiler.h>
+#include "my_global.h"
+#include "mysql/mysql_lex_string.h"     // LEX_STRING
 #include "gcalc_tools.h"
 #include "mysqld.h"
+#include "sql_string.h"                 // String
 
 #include <vector>
 #include <algorithm>

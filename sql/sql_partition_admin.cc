@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,19 +13,13 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "sql_parse.h"                      // check_access,
-                                            // check_merge_table_access
-                                            // check_one_table_access
+#include "sql_partition_admin.h"
+
+#include "auth_common.h"                    // check_access
 #include "sql_table.h"                      // mysql_alter_table, etc.
-#include "sql_cmd.h"                        // Sql_cmd
-#include "sql_alter.h"                      // Sql_cmd_alter_table
 #include "sql_partition.h"                  // struct partition_info, etc.
 #include "sql_base.h"                       // open_and_lock_tables, etc
 #include "debug_sync.h"                     // DEBUG_SYNC
-#include "sql_truncate.h"                   // mysql_truncate_table,
-                                            // Sql_cmd_truncate_table
-#include "sql_admin.h"                      // Sql_cmd_Analyze/Check/.._table
-#include "sql_partition_admin.h"            // Alter_table_*_partition
 #ifdef WITH_PARTITION_STORAGE_ENGINE
 #include "ha_partition.h"                   // ha_partition
 #endif

@@ -1,1 +1,1 @@
---binlog-ignore-db=db2
+--binlog-ignore-db=binlog_ignore_db

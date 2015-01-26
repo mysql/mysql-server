@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,13 +16,13 @@
 #ifndef PARSE_TREE_NODES_INCLUDED
 #define PARSE_TREE_NODES_INCLUDED
 
-#include "my_config.h"
-#include "parse_tree_helpers.h"
-#include "parse_tree_node_base.h"
-#include "sql_class.h"
-#include "sql_parse.h"
-#include "sp_head.h"
-#include "sp_instr.h"
+#include "my_global.h"
+#include "parse_tree_helpers.h"      // PT_item_list
+#include "sp_head.h"                 // sp_head
+#include "sql_class.h"               // THD
+#include "sql_lex.h"                 // LEX
+#include "sql_parse.h"               // add_join_natural
+
 
 template<enum_parsing_context Context> class PTI_context;
 

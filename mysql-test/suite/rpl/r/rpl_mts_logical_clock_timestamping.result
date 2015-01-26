@@ -22,8 +22,7 @@ INSERT INTO t1 SET a=3;
 FLUSH LOGS;
 COMMIT;
 COMMIT;
-Matching lines are:
-Occurrences of the last_committed=0	sequence_number=[12] in the input file : 2
+Occurrences of 'last_committed=0\tsequence_number=[12]' in the input file: 2
 INSERT INTO t1 SET a=1;
 BEGIN;
 INSERT INTO t1 SET a=2;

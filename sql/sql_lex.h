@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,20 +20,30 @@
 #ifndef SQL_LEX_INCLUDED
 #define SQL_LEX_INCLUDED
 
-#include "sql_alloc.h"
-#include "violite.h"                            /* SSL_type */
-#include "item.h"               /* From item_subselect.h: subselect_union_engine */
-#include "thr_lock.h"                  /* thr_lock_type, TL_UNLOCK */
-#include "sql_array.h"
-#include "mem_root_array.h"
-#include "sql_alter.h"                // Alter_info
-#include "sql_servers.h"
-#include "trigger_def.h"              // enum_trigger_action_time_type
-#include "xa.h"                       // XID, xa_option_words
-#include "prealloced_array.h"
-#include "sql_data_change.h"
-#include "set_var.h"
+#include "my_global.h"
+#include "mem_root_array.h"           // Mem_root_array
+#include "prealloced_array.h"         // Prealloced_array
+#include "thr_lock.h"                 // thr_lock_type
+#include "violite.h"                  // SSL_type
+#include "item.h"                     // Name_resolution_context
+#include "item_subselect.h"           // chooser_compare_func_creator
+#include "lex_symbol.h"               // LEX_SYMBOL
+#include "parse_tree_node_base.h"     // enum_parsing_context
 #include "query_options.h"            // OPTION_NO_CONST_TABLES
+#include "sql_alloc.h"                // Sql_alloc
+#include "sql_alter.h"                // Alter_info
+#include "sql_data_change.h"          // enum_duplicates
+#include "sql_get_diagnostics.h"      // Diagnostics_information
+#include "sql_servers.h"              // Server_options
+#include "sql_signal.h"               // enum_condition_item_name
+#include "table.h"                    // TABLE_LIST
+#include "trigger_def.h"              // enum_trigger_action_time_type
+#include "xa.h"                       // xa_option_words
+#include "select_lex_visitor.h"
+
+#ifdef MYSQL_SERVER
+#include "item_func.h"                // Cast_target
+#endif
 
 /* YACC and LEX Definitions */
 
@@ -53,6 +63,13 @@ class sys_var;
 class Item_func_match;
 class File_parser;
 class Key_part_spec;
+class select_result_interceptor;
+class Item_func;
+class Sql_cmd;
+struct sql_digest_state;
+typedef class st_select_lex SELECT_LEX;
+
+const size_t INITIAL_LEX_PLUGIN_LIST_SIZE = 16;
 
 #ifdef MYSQL_SERVER
 /*
@@ -138,8 +155,6 @@ struct sys_var_with_base
 
 union YYSTYPE;
 typedef YYSTYPE *LEX_YYSTYPE;
-#include "sql_cmd.h"
-#include "sql_digest_stream.h"
 
 // describe/explain types
 #define DESCRIBE_NONE		0 // Not explain query
@@ -616,6 +631,7 @@ public:
   void reinit_exec_mechanism();
 
   void print(String *str, enum_query_type query_type);
+  bool accept(Select_lex_visitor *visitor);
 
   bool add_fake_select_lex(THD *thd);
   bool prepare_fake_select_lex(THD *thd);
@@ -1133,6 +1149,9 @@ public:
                           enum_query_type query_type);
   void print_limit(THD *thd, String *str, enum_query_type query_type);
   void fix_prepare_information(THD *thd);
+
+  virtual bool accept(Select_lex_visitor *visitor);
+
   /**
     Cleanup this subtree (this SELECT_LEX and all nested SELECT_LEXes and
     SELECT_LEX_UNITs).
@@ -1271,11 +1290,6 @@ inline bool st_select_lex_unit::is_union () const
 }
 
 #ifdef MYSQL_SERVER
-#include "lex_symbol.h"
-#include "item_func.h"            /* Cast_target used in sql_yacc.h */
-#include "sql_signal.h"
-#include "sql_get_diagnostics.h"  /* Types used in sql_yacc.h */
-
 
 struct Cast_type
 {
@@ -2275,29 +2289,23 @@ enum enum_comment_state
 
 
 /**
-  @brief This class represents the character input stream consumed during
-  lexical analysis.
+  This class represents the character input stream consumed during lexical
+  analysis.
 
-  In addition to consuming the input stream, this class performs some
-  comment pre processing, by filtering out out of bound special text
-  from the query input stream.
-  Two buffers, with pointers inside each buffers, are maintained in
-  parallel. The 'raw' buffer is the original query text, which may
-  contain out-of-bound comments. The 'cpp' (for comments pre processor)
-  is the pre-processed buffer that contains only the query text that
-  should be seen once out-of-bound data is removed.
+  In addition to consuming the input stream, this class performs some comment
+  pre processing, by filtering out out-of-bound special text from the query
+  input stream.
+
+  Two buffers, with pointers inside each, are maintained in parallel. The
+  'raw' buffer is the original query text, which may contain out-of-bound
+  comments. The 'cpp' (for comments pre processor) is the pre-processed buffer
+  that contains only the query text that should be seen once out-of-bound data
+  is removed.
 */
 
 class Lex_input_stream
 {
 public:
-  Lex_input_stream()
-  {
-  }
-
-  ~Lex_input_stream()
-  {
-  }
 
   /**
      Object initializer. Must be called before usage.
@@ -2726,7 +2734,6 @@ public:
 };
 
 
-
 /* The state of the lex parsing. This is saved in the THD struct */
 
 struct LEX: public Query_tables_list
@@ -3052,14 +3059,7 @@ public:
 
   LEX();
 
-  virtual ~LEX()
-  {
-    destroy_query_tables_list();
-    plugin_unlock_list(NULL, plugins.begin(), plugins.size());
-    unit= NULL;                     // Created in mem_root - no destructor
-    select_lex= NULL;
-    m_current_select= NULL;
-  }
+  virtual ~LEX();
 
   /// Reset query context to initial state
   void reset();
@@ -3200,6 +3200,9 @@ public:
     }
     return FALSE;
   }
+
+  bool accept(Select_lex_visitor *visitor);
+
 };
 
 
@@ -3312,8 +3315,8 @@ struct Parser_input
 class Parser_state
 {
 public:
-  Parser_state()
-    : m_input(), m_lip(), m_yacc(), m_comment(false)
+  Parser_state() :
+    m_input(), m_lip(), m_yacc(), m_comment(false)
   {}
 
   /**
@@ -3326,9 +3329,6 @@ public:
   {
     return m_lip.init(thd, buff, length);
   }
-
-  ~Parser_state()
-  {}
 
   void reset(const char *found_semicolon, size_t length)
   {

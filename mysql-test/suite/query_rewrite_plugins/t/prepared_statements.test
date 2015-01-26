@@ -1,0 +1,46 @@
+--echo #
+--echo # Test of prepared statements being rewritten.
+--echo #
+
+--source suite/query_rewrite_plugins/include/have_plugin_rewriter.inc
+
+CREATE TABLE t1 ( a INTEGER, b CHAR(1) );
+INSERT INTO t1 VALUES ( 1, 'a' ), ( 2, 'b' ), ( 3, 'c' );
+
+--source suite/query_rewrite_plugins/include/install_rewriter.inc
+
+INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
+VALUES ( 'SELECT a FROM test.t1 WHERE a = ?',
+         'SELECT b FROM test.t1 WHERE a = ?' ),
+       ( 'SELECT 1, ?', 'SELECT "rewritten"' );
+
+CALL query_rewrite.flush_rewrite_rules();
+
+SELECT a FROM test.t1 WHERE a = 1;
+
+PREPARE stmt1 FROM 'SELECT a FROM test.t1 WHERE a = 1';
+EXECUTE stmt1;
+
+PREPARE stmt2 FROM 'SELECT a FROM test.t1 WHERE a = ?';
+
+SET @var = 1;
+EXECUTE stmt2 USING @var;
+
+SET @var = 2;
+EXECUTE stmt2 USING @var;
+
+SET @var = 3;
+EXECUTE stmt2 USING @var;
+
+PREPARE stmt3 FROM 'SELECT 1, ?';
+SET @var= 1;
+EXECUTE stmt3;
+
+--echo # Can't be rewritten. We rewrite at prepare time, when we don't know
+--echo # the value of the first '?'.
+PREPARE stmt3 FROM 'SELECT ?, ?';
+SET @var= 1;
+EXECUTE stmt3 USING @var, @var;
+
+DROP TABLE t1;
+--source suite/query_rewrite_plugins/include/uninstall_rewriter.inc

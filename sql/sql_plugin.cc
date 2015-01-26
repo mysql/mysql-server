@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,31 +14,30 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "my_global.h"                       // REQUIRED by m_string.h
-#include "sql_class.h"                          // set_var.h: THD
-#include "sys_vars_shared.h"
-#include "sql_locale.h"
 #include "sql_plugin.h"
-#include "sql_parse.h"          // check_table_access
-#include "sql_base.h"                           // close_mysql_tables
-#include "key.h"                                // key_copy
-#include "sql_show.h"           // remove_status_vars, add_status_vars
-#include "strfunc.h"            // find_set
-#include "auth_common.h"        // *_ACL
-#include "records.h"          // init_read_record, end_read_record
-#include <my_pthread.h>
-#include <my_getopt.h>
-#include "sql_audit.h"
+
+#include "mysql_version.h"
 #include <mysql/plugin_auth.h>
-#include "lock.h"                               // MYSQL_LOCK_IGNORE_TIMEOUT
-#include "sql_tmp_table.h"
 #include <mysql/plugin_validate_password.h>
-#include "my_default.h"
-#include "debug_sync.h"
-#include "mutex_lock.h"
-#include "prealloced_array.h"
-#include "log.h"
-#include "transaction.h"
+#include "auth_common.h"       // check_table_access
+#include "debug_sync.h"        // DEBUG_SYNC
+#include "handler.h"           // ha_initalize_handlerton
+#include "item.h"              // Item
+#include "key.h"               // key_copy
+#include "log.h"               // sql_print_error
+#include "mutex_lock.h"        // Mutex_lock
+#include "my_default.h"        // free_defaults
+#include "records.h"           // READ_RECORD
+#include "sql_audit.h"         // mysql_audit_acquire_plugins
+#include "sql_base.h"          // close_mysql_tables
+#include "sql_class.h"         // THD
+#include "sql_parse.h"         // check_string_char_length
+#include "sql_show.h"          // add_status_vars
+#include "strfunc.h"           // find_type
+#include "sys_vars_shared.h"   // intern_find_sys_var
+#include "template_utils.h"    // pointer_cast
+#include "transaction.h"       // trans_rollback_stmt
+
 #include <algorithm>
 
 #ifdef HAVE_DLFCN_H
@@ -92,7 +91,9 @@ const LEX_STRING plugin_type_names[MYSQL_MAX_PLUGIN_TYPE_NUM]=
   { C_STRING_WITH_LEN("AUDIT") },
   { C_STRING_WITH_LEN("REPLICATION") },
   { C_STRING_WITH_LEN("AUTHENTICATION") },
-  { C_STRING_WITH_LEN("VALIDATE PASSWORD") }
+  { C_STRING_WITH_LEN("VALIDATE PASSWORD") },
+  { C_STRING_WITH_LEN("QUERY REWRITE PRE PARSE") },
+  { C_STRING_WITH_LEN("QUERY REWRITE POST PARSE") }
 };
 
 extern int initialize_schema_table(st_plugin_int *plugin);
@@ -100,6 +101,10 @@ extern int finalize_schema_table(st_plugin_int *plugin);
 
 extern int initialize_audit_plugin(st_plugin_int *plugin);
 extern int finalize_audit_plugin(st_plugin_int *plugin);
+
+extern int initialize_rewrite_pre_parse_plugin(st_plugin_int *plugin);
+extern int initialize_rewrite_post_parse_plugin(st_plugin_int *plugin);
+extern int finalize_rewrite_plugin(st_plugin_int *plugin);
 
 /*
   The number of elements in both plugin_type_initialize and
@@ -109,13 +114,25 @@ extern int finalize_audit_plugin(st_plugin_int *plugin);
 plugin_type_init plugin_type_initialize[MYSQL_MAX_PLUGIN_TYPE_NUM]=
 {
   0,ha_initialize_handlerton,0,0,initialize_schema_table,
-  initialize_audit_plugin,0,0,0
+  initialize_audit_plugin,0,0,0,
+
+  /// Initializer function for pre parse query rewrite plugins.
+  initialize_rewrite_pre_parse_plugin,
+
+  /// Initializer function for post parse query rewrite plugins.
+  initialize_rewrite_post_parse_plugin
 };
 
 plugin_type_init plugin_type_deinitialize[MYSQL_MAX_PLUGIN_TYPE_NUM]=
 {
   0,ha_finalize_handlerton,0,0,finalize_schema_table,
-  finalize_audit_plugin,0,0,0
+  finalize_audit_plugin,0,0,0,
+
+  /* Finalizer function for pre parse query rewrite plugins. */
+  finalize_rewrite_plugin,
+
+  /* Finalizer function for post parse query rewrite plugins. */
+  finalize_rewrite_plugin
 };
 
 #ifdef HAVE_DLOPEN
@@ -142,7 +159,9 @@ static int min_plugin_info_interface_version[MYSQL_MAX_PLUGIN_TYPE_NUM]=
   MYSQL_AUDIT_INTERFACE_VERSION,
   MYSQL_REPLICATION_INTERFACE_VERSION,
   MYSQL_AUTHENTICATION_INTERFACE_VERSION,
-  MYSQL_VALIDATE_PASSWORD_INTERFACE_VERSION
+  MYSQL_VALIDATE_PASSWORD_INTERFACE_VERSION,
+  MYSQL_REWRITE_PRE_PARSE_INTERFACE_VERSION,
+  MYSQL_REWRITE_POST_PARSE_INTERFACE_VERSION
 };
 static int cur_plugin_info_interface_version[MYSQL_MAX_PLUGIN_TYPE_NUM]=
 {
@@ -154,7 +173,9 @@ static int cur_plugin_info_interface_version[MYSQL_MAX_PLUGIN_TYPE_NUM]=
   MYSQL_AUDIT_INTERFACE_VERSION,
   MYSQL_REPLICATION_INTERFACE_VERSION,
   MYSQL_AUTHENTICATION_INTERFACE_VERSION,
-  MYSQL_VALIDATE_PASSWORD_INTERFACE_VERSION
+  MYSQL_VALIDATE_PASSWORD_INTERFACE_VERSION,
+  MYSQL_REWRITE_PRE_PARSE_INTERFACE_VERSION,
+  MYSQL_REWRITE_POST_PARSE_INTERFACE_VERSION
 };
 
 /* support for Services */
@@ -1693,12 +1714,6 @@ void memcached_shutdown(void)
 {
   if (initialized)
   {
-    /*
-      It's perfectly safe not to lock LOCK_plugin, as there're no
-      concurrent threads anymore. But some functions called from here
-      use mysql_mutex_assert_owner(), so we lock the mutex to satisfy it
-    */
-    mysql_mutex_lock(&LOCK_plugin);
 
     for (st_plugin_int **it= plugin_array->begin();
          it != plugin_array->end(); ++it)
@@ -1709,12 +1724,14 @@ void memcached_shutdown(void)
 	  && strcmp(plugin->name.str, "daemon_memcached") == 0)
       {
 	plugin_deinitialize(plugin, true);
+
+        mysql_mutex_lock(&LOCK_plugin);
 	plugin->state= PLUGIN_IS_DYING;
 	plugin_del(plugin);
+        mysql_mutex_unlock(&LOCK_plugin);
       }
     }
 
-    mysql_mutex_unlock(&LOCK_plugin);
   }
 }
 
@@ -3188,6 +3205,7 @@ static bool plugin_var_memalloc_global_update(THD *thd,
                                               char **dest, const char *value)
 {
   char *old_value= *dest;
+  DBUG_EXECUTE_IF("simulate_bug_20292712", my_sleep(1000););
   DBUG_ENTER("plugin_var_memalloc_global_update");
 
   if (value && !(value= my_strdup(key_memory_global_system_variables,

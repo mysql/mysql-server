@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -741,5 +741,11 @@ static inline ulonglong diff_timespec(struct timespec *ts1, struct timespec *ts2
 #define USER_RWX        USER_READ | USER_WRITE | USER_EXECUTE
 #define GROUP_RWX       GROUP_READ | GROUP_WRITE | GROUP_EXECUTE
 #define OTHERS_RWX      OTHERS_READ | OTHERS_WRITE | OTHERS_EXECUTE
+
+/* Defaults */
+#define DEFAULT_SSL_CA_CERT     "ca.pem"
+#define DEFAULT_SSL_CA_KEY      "ca-key.pem"
+#define DEFAULT_SSL_SERVER_CERT "server-cert.pem"
+#define DEFAULT_SSL_SERVER_KEY  "server-key.pem"
 
 #endif  // MY_GLOBAL_INCLUDED

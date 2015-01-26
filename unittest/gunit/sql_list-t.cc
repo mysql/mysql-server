@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,7 +29,7 @@
 #include "thr_malloc.h"
 #include "sql_string.h"
 #include "sql_error.h"
-#include <my_pthread.h>
+#include <my_thread.h>
 #include "test_utils.h"
 
 namespace sql_list_unittest {

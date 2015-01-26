@@ -24,7 +24,6 @@
     Abort logging when we get an error in reading or writing log files
 */
 
-#include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "log.h"
 #include "sql_base.h"                           // open_log_table
 #include "sql_parse.h"                          // command_name
@@ -33,9 +32,13 @@
 #include "auth_common.h"        // SUPER_ACL
 #include "sql_audit.h"
 #include "mysql/service_my_plugin_log.h"
+#include "sql_plugin_ref.h"
 
 #include <my_dir.h>
 #include <stdarg.h>
+
+#include "pfs_file_provider.h"
+#include "mysql/psi/mysql_file.h"
 
 #ifdef _WIN32
 #include "message.h"
@@ -221,16 +224,12 @@ class Silence_log_table_errors : public Internal_error_handler
 public:
   Silence_log_table_errors() { m_message[0]= '\0'; }
 
-  virtual ~Silence_log_table_errors() {}
-
   virtual bool handle_condition(THD *thd,
                                 uint sql_errno,
                                 const char* sql_state,
                                 Sql_condition::enum_severity_level *level,
-                                const char* msg,
-                                Sql_condition ** cond_hdl)
+                                const char* msg)
   {
-    *cond_hdl= NULL;
     strmake(m_message, msg, sizeof(m_message)-1);
     return true;
   }
@@ -1754,6 +1753,8 @@ bool Slow_log_throttle::log(THD *thd, bool eligible)
 bool Error_log_throttle::log()
 {
   ulonglong end_utime_of_query= my_micro_time();
+  DBUG_EXECUTE_IF("simulate_error_throttle_expiry",
+                  end_utime_of_query+=Log_throttle::LOG_THROTTLE_WINDOW_SIZE;);
 
   /*
     If the window has expired, we'll try to write a summary line.

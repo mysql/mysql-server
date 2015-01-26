@@ -20,7 +20,11 @@
   @brief
   This file defines all spatial functions
 */
-#include "my_config.h"
+#include "item_geofunc.h"
+
+#include "gstream.h"      // Gis_read_stream
+#include "sql_class.h"    // THD
+#include "gis_bg_traits.h"
 
 #include "parse_tree_helpers.h"
 #include <rapidjson/document.h>
@@ -2546,7 +2550,7 @@ String *Item_func_pointfromgeohash::val_str(String *str)
 
   if (geohash->length() == 0)
   {
-    my_error(ER_WRONG_VALUE_FOR_TYPE, MYF(0), "geohash", geohash->c_ptr(),
+    my_error(ER_WRONG_VALUE_FOR_TYPE, MYF(0), "geohash", geohash->c_ptr_safe(),
              func_name());
     return error_str();
   }
@@ -2560,7 +2564,7 @@ String *Item_func_pointfromgeohash::val_str(String *str)
                                                    lower_longitude, &latitude,
                                                    &longitude))
   {
-    my_error(ER_WRONG_VALUE_FOR_TYPE, MYF(0), "geohash", geohash->c_ptr(),
+    my_error(ER_WRONG_VALUE_FOR_TYPE, MYF(0), "geohash", geohash->c_ptr_safe(),
              func_name());
     return error_str();
   }

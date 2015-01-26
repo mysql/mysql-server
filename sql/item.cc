@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,30 +14,24 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include "item.h"
 
-#include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
-#include <mysql.h>
-#include <m_ctype.h>
-#include "my_dir.h"
-#include "sp_rcontext.h"
-#include "sp_head.h"                  // sp_prepare_func_item
-#include "sp.h"                       // sp_map_item_type
-#include "sql_select.h"
-#include "sql_show.h"                           // append_identifier
-#include "sql_view.h"                           // VIEW_ANY_SQL
-#include "sql_time.h"                  // str_to_datetime_with_warn,
-                                       // make_truncated_value_warning
-#include "auth_common.h"               // SELECT_ACL, UPDATE_ACL, INSERT_ACL
-                                       // get_column_grant,
-                                       // check_grant_column
-#include "sql_base.h"                  // enum_resolution_type,
-                                       // REPORT_EXCEPT_NOT_FOUND,
-                                       // find_item_in_list,
-                                       // RESOLVED_AGAINST_ALIAS, ...
-#include "log_event.h"                 // append_query_string
-#include "sql_test.h"                  // print_where
-#include "sql_optimizer.h"             // JOIN
-#include "aggregate_check.h"
+#include "aggregate_check.h" // Distinct_check
+#include "auth_common.h"     // get_column_grant
+#include "item_cmpfunc.h"    // COND_EQUAL
+#include "item_create.h"     // create_temporal_literal
+#include "item_func.h"       // item_func_sleep_init
+#include "item_strfunc.h"    // Item_func_conv_charset
+#include "item_sum.h"        // Item_sum
+#include "log_event.h"       // append_query_string
+#include "sp.h"              // sp_map_item_type
+#include "sp_rcontext.h"     // sp_rcontext
+#include "sql_base.h"        // view_ref_found
+#include "sql_class.h"       // THD
+#include "sql_show.h"        // append_identifier
+#include "sql_time.h"        // Date_time_format
+#include "sql_view.h"        // VIEW_ANY_ACL
+#include "template_utils.h"
 
 using std::min;
 using std::max;
@@ -716,7 +710,7 @@ void Item::print_item_w_name(String *str, enum_query_type query_type)
 {
   print(str, query_type);
 
-  if (item_name.is_set())
+  if (item_name.is_set() && query_type != QT_NORMALIZED_FORMAT)
   {
     THD *thd= current_thd;
     str->append(STRING_WITH_LEN(" AS "));
@@ -749,7 +743,9 @@ void Item::print_for_order(String *str,
                            enum_query_type query_type,
                            bool used_alias)
 {
-  if (used_alias)
+  if ((query_type & QT_NORMALIZED_FORMAT) != 0)
+    str->append("?");
+  else if (used_alias)
   {
     DBUG_ASSERT(item_name.is_set());
     // In the clause, user has referenced expression using an alias; we use it
@@ -794,6 +790,12 @@ bool Item::cleanup_processor(uchar *arg)
   if (fixed)
     cleanup();
   return FALSE;
+}
+
+bool Item::visitor_processor(uchar *arg)
+{
+  Select_lex_visitor *visitor= pointer_cast<Select_lex_visitor*>(arg);
+  return visitor->visit(this);
 }
 
 
@@ -3127,6 +3129,11 @@ String *Item_int::val_str(String *str)
 
 void Item_int::print(String *str, enum_query_type query_type)
 {
+  if (query_type & QT_NORMALIZED_FORMAT)
+  {
+    str->append("?");
+    return;
+  }
   // my_charset_bin is good enough for numbers
   str_value.set_int(value, unsigned_flag, &my_charset_bin);
   str->append(str_value);
@@ -3144,6 +3151,11 @@ String *Item_uint::val_str(String *str)
 
 void Item_uint::print(String *str, enum_query_type query_type)
 {
+  if (query_type & QT_NORMALIZED_FORMAT)
+  {
+    str->append("?");
+    return;
+  }
   // latin1 is good enough for numbers
   str_value.set((ulonglong) value, default_charset());
   str->append(str_value);
@@ -3246,6 +3258,11 @@ String *Item_decimal::val_str(String *result)
 
 void Item_decimal::print(String *str, enum_query_type query_type)
 {
+  if (query_type & QT_NORMALIZED_FORMAT)
+  {
+    str->append("?");
+    return;
+  }
   my_decimal2string(E_DEC_FATAL_ERROR, &decimal_value, 0, 0, 0, &str_value);
   str->append(str_value);
 }
@@ -3310,6 +3327,11 @@ my_decimal *Item_float::val_decimal(my_decimal *decimal_value)
 */
 void Item_string::print(String *str, enum_query_type query_type)
 {
+  if (query_type & QT_NORMALIZED_FORMAT)
+  {
+    str->append("?");
+    return;
+  }
   const bool print_introducer=
     !(query_type & QT_WITHOUT_INTRODUCERS) && is_cs_specified();
   if (print_introducer)
@@ -4209,7 +4231,7 @@ Item_param::eq(const Item *arg, bool binary_cmp) const
 
 void Item_param::print(String *str, enum_query_type query_type)
 {
-  if (state == NO_VALUE)
+  if (state == NO_VALUE || query_type & QT_NORMALIZED_FORMAT)
   {
     str->append('?');
   }
@@ -6659,6 +6681,11 @@ Item_float::save_in_field(Field *field, bool no_conversions)
 
 void Item_float::print(String *str, enum_query_type query_type)
 {
+  if (query_type & QT_NORMALIZED_FORMAT)
+  {
+    str->append("?");
+    return;
+  }
   if (presentation.ptr())
   {
     str->append(presentation.ptr());
@@ -6811,6 +6838,11 @@ warn:
 
 void Item_hex_string::print(String *str, enum_query_type query_type)
 {
+  if (query_type & QT_NORMALIZED_FORMAT)
+  {
+    str->append("?");
+    return;
+  }
   char *end= (char*) str_value.ptr() + str_value.length(),
        *ptr= end - min<size_t>(str_value.length(), sizeof(longlong));
   str->append("0x");

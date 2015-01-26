@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +19,7 @@
 #include <my_dir.h>
 #include "rpl_handler.h"
 #include "debug_sync.h"
+#include "sql_plugin.h"                         // plugin_int_to_ref
 
 Trans_delegate *transaction_delegate;
 Binlog_storage_delegate *binlog_storage_delegate;
@@ -28,6 +29,13 @@ Server_state_delegate *server_state_delegate;
 Binlog_transmit_delegate *binlog_transmit_delegate;
 Binlog_relay_IO_delegate *binlog_relay_io_delegate;
 #endif /* HAVE_REPLICATION */
+
+Observer_info::Observer_info(void *ob, st_plugin_int *p)
+  : observer(ob), plugin_int(p)
+{
+  plugin= plugin_int_to_ref(plugin_int);
+}
+
 
 /*
   structure to save transaction log filename and position
