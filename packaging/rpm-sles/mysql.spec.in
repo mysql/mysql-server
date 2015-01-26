@@ -52,10 +52,19 @@
 %global license_type          GPLv2
 %endif
 
-%if 0%{?sles_version} == 011
+%if 0%{?suse_version} == 1110
 %global dist                  .sles11
 %global sles11                1
 %endif
+
+%if 0%{?suse_version} == 1315
+%global dist                  .sles12
+%global sles12                1
+%endif
+
+# https://en.opensuse.org/openSUSE:Systemd_packaging_guidelines
+%{?sles12:                %global systemd 1}
+%{!?_tmpfilesdir:         %global _tmpfilesdir /usr/lib/tmpfiles.d}
 
 Name:           mysql-%{product_suffix}
 Summary:        A very fast and reliable SQL database server
@@ -81,6 +90,8 @@ BuildRequires:  openssl-devel
 BuildRequires:  zlib-devel
 %if 0%{?systemd}
 BuildRequires:  systemd
+BuildRequires:  pkgconfig(systemd)
+BuildRequires:  systemd-rpm-macros
 %endif
 BuildRoot:      %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 
@@ -118,7 +129,6 @@ Group:          Applications/Databases
 Requires:       coreutils
 Requires:       grep
 Requires:       procps
-Requires:       shadow-utils
 Requires:       net-tools
 Requires:       perl-base
 %if 0%{?commercial}
@@ -140,14 +150,12 @@ Obsoletes:      mariadb-galera-server
 Provides:       mysql = %{version}-%{release}
 Provides:       mysql-tools = %{version}-%{release}
 %if 0%{?systemd}
-Requires(post):   systemd
-Requires(preun):  systemd
-Requires(postun): systemd
+%{?systemd_requires}
 %else
 PreReq:         insserv
+%endif
 PreReq:         sed
 PreReq:         pwdutils
-%endif
 Conflicts:      otherproviders(mysql)
 Conflicts:      otherproviders(mysql-debug)
 Conflicts:      otherproviders(mysql-tools)
@@ -367,7 +375,7 @@ mkdir debug
 (
   cd debug
   # Attempt to remove any optimisation flags from the debug build
-  optflags=$(echo "%{optflags}" | sed -e 's/-O2 / /' -e 's/-Wp,-D_FORTIFY_SOURCE=2/ /')
+  optflags=$(echo "%{optflags}" | sed -e 's/-O2 / /' -e 's/-D_FORTIFY_SOURCE=2/ /' -e 's/-Wp, / /')
   cmake ../%{src_dir} \
            -DBUILD_CONFIG=mysql_release \
            -DINSTALL_LAYOUT=RPM \
@@ -420,7 +428,7 @@ MBD=$RPM_BUILD_DIR/%{src_dir}
 # Ensure that needed directories exists
 install -d -m 0755 %{buildroot}/var/lib/mysql
 install -d -m 0755 %{buildroot}/var/run/mysql
-install -d -m 0660 %{buildroot}/var/log/mysql
+install -d -m 0750 %{buildroot}/var/log/mysql
 
 # Install all binaries
 cd $MBD/release
@@ -432,7 +440,7 @@ install -D -m 0644 $MBD/release/packaging/rpm-sles/my.cnf %{buildroot}%{_sysconf
 install -d %{buildroot}%{_sysconfdir}/my.cnf.d
 %if 0%{?systemd}
 install -D -m 0755 %{SOURCE1} %{buildroot}%{_bindir}/mysql-systemd-start
-install -D -m 0644 %{SOURCE2} %{buildroot}%{_unitdir}/mysqld.service
+install -D -m 0644 %{SOURCE2} %{buildroot}%{_unitdir}/mysql.service
 %else
 install -D -m 0755 $MBD/release/packaging/rpm-sles/mysql.init %{buildroot}%{_sysconfdir}/init.d/mysql
 %endif
@@ -464,7 +472,11 @@ rm -f %{buildroot}%{_datadir}/mysql/win_install_firewall.sql
 
 # rcmysql symlink
 install -d %{buildroot}%{_sbindir}
+%if 0%{?systemd}
+ln -sf %{_sbindir}/service %{buildroot}%{_sbindir}/rcmysql
+%else
 ln -sf %{_initrddir}/mysql %{buildroot}%{_sbindir}/rcmysql
+%endif
 
 %check
 %if 0%{?runselftest}
@@ -484,21 +496,25 @@ rm -r $(readlink var) var
 /usr/sbin/groupadd -r mysql >/dev/null 2>&1 || :
 /usr/sbin/useradd -g mysql -o -r -d /var/lib/mysql -s /bin/false \
     -c "MySQL Server" -u 60 mysql >/dev/null 2>&1 || :
+%if 0%{?systemd}
+%service_add_pre mysql.service
+%endif
 
 %post server
 datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n 's/--datadir=//p')
 /bin/chmod 0755 "$datadir"
 /bin/touch /var/log/mysql/mysqld.log
 %if 0%{?systemd}
-%systemd_post mysqld.service
-/sbin/service mysqld enable >/dev/null 2>&1 || :
+%service_add_post mysql.service
+/usr/bin/systemd-tmpfiles --create %{_tmpfilesdir}/mysql.conf >/dev/null 2>&1 || :
+/bin/systemctl enable mysql.service >/dev/null 2>&1 || :
 %else
 /sbin/insserv /etc/init.d/mysql
 %endif
 
 %preun server
 %if 0%{?systemd}
-%systemd_preun mysqld.service
+%service_del_preun mysql.service
 %else
 if [ "$1" -eq 0 ]; then
     /usr/sbin/rcmysql stop >/dev/null 2>&1 || :
@@ -508,7 +524,7 @@ fi
 
 %postun server
 %if 0%{?systemd}
-%systemd_postun_with_restart mysqld.service
+%service_del_postun mysql.service
 %else
 if [ $1 -ge 1 ]; then
     /usr/sbin/rcmysql condrestart >/dev/null 2>&1 || :
@@ -642,14 +658,14 @@ fi
 %attr(644, root, root) %{_datadir}/mysql/magic
 %attr(644, root, root) %{_prefix}/lib/tmpfiles.d/mysql.conf
 %if 0%{?systemd}
-%attr(644, root, root) %{_unitdir}/mysqld.service
+%attr(644, root, root) %{_unitdir}/mysql.service
 %else
 %attr(755, root, root) %{_sysconfdir}/init.d/mysql
 %endif
 %attr(644, root, root) %config(noreplace,missingok) %{_sysconfdir}/logrotate.d/mysql
 %dir %attr(755, mysql, mysql) /var/lib/mysql
 %dir %attr(755, mysql, mysql) /var/run/mysql
-%dir %attr(660, mysql, mysql) /var/log/mysql
+%dir %attr(750, mysql, mysql) /var/log/mysql
 
 %files common
 %defattr(-, root, root, -)
