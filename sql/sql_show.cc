@@ -1302,7 +1302,6 @@ static bool print_on_update_clause(Field *field, String *val, bool lcase)
 static bool print_default_clause(THD *thd, Field *field, String *def_value,
                                  bool quoted)
 {
-  DBUG_ASSERT(!field->gcol_info);
   enum enum_field_types field_type= field->type();
 
   const bool has_now_default= field->has_insert_default_function();
@@ -1312,6 +1311,9 @@ static bool print_default_clause(THD *thd, Field *field, String *def_value,
      field->unireg_check != Field::NEXT_NUMBER &&
      !((thd->variables.sql_mode & (MODE_MYSQL323 | MODE_MYSQL40))
        && has_now_default));
+
+  if (field->gcol_info)
+    return false;
 
   def_value->length(0);
   if (has_default)
@@ -1572,8 +1574,7 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       break;
     }
 
-    if (!field->gcol_info &&
-        print_default_clause(thd, field, &def_value, true))
+    if (print_default_clause(thd, field, &def_value, true))
     {
       packet->append(STRING_WITH_LEN(" DEFAULT "));
       packet->append(def_value.ptr(), def_value.length(), system_charset_info);
@@ -5047,7 +5048,7 @@ static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
     field->sql_type(type);
     table->field[IS_COLUMNS_COLUMN_TYPE]->store(type.ptr(), type.length(), cs);
 
-    if (!field->gcol_info && print_default_clause(thd, field, &type, false))
+    if (print_default_clause(thd, field, &type, false))
     {
       table->field[IS_COLUMNS_COLUMN_DEFAULT]->store(type.ptr(), type.length(),
                                                     cs);

@@ -467,7 +467,7 @@ bool mysql_update(THD *thd,
 
   table->mark_columns_needed_for_update();
   if (table->vfield &&
-      check_values_valid_for_gc(thd, &fields, &values, table))
+      validate_gc_assignment(thd, &fields, &values, table))
     DBUG_RETURN(0);
 
   error= 0;
@@ -1966,7 +1966,7 @@ multi_update::initialize_tables(JOIN *join)
     table->mark_columns_needed_for_update();
 
     if (table->vfield &&
-        check_values_valid_for_gc(thd, fields, values, table))
+        validate_gc_assignment(thd, fields, values, table))
       DBUG_RETURN(0);
     /*
       enable uncacheable flag if we update a view with check option

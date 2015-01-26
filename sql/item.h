@@ -597,7 +597,7 @@ typedef enum monotonicity_info
 } enum_monotonicity_info;
 
 /* This enum is used to return invalid refer by GC */
-enum invalid_ref_by_gc {REF_INVALID_GC= -1, REF_INVALID_AUTO_INC= -2};
+enum invalid_ref_by_gc {REF_INVALID_GC, REF_INVALID_AUTO_INC};
 
 /*************************************************************************/
 
@@ -1861,6 +1861,15 @@ public:
     DBUG_RETURN(TRUE);
   }
 
+  /**
+    @brief  update_indexed_column_map
+    Update columns map for index.
+
+    @param int_arg It's useless 
+    @return  false successfully update 
+    */
+  virtual bool update_indexed_column_map(uchar *int_arg) { return false; }
+
   /*
     For SP local variable returns pointer to Item representing its
     current value and pointer to current Item otherwise.
@@ -2048,6 +2057,7 @@ public:
 
   void set_used_tables(table_map map) { used_table_map= map; }
   table_map used_tables() const { return used_table_map; }
+  bool check_gcol_func_processor(uchar *int_arg) { return false;}
   /* to prevent drop fixed flag (no need parent cleanup call) */
   void cleanup()
   {
@@ -2374,7 +2384,6 @@ public:
   virtual Item_num *neg()= 0;
   Item *safe_charset_converter(const CHARSET_INFO *tocs);
   bool check_partition_func_processor(uchar *int_arg) { return false;}
-  bool check_gcol_func_processor(uchar *int_arg) { return false;}
 };
 
 #define NO_CACHED_FIELD_INDEX ((uint)(-1))
@@ -2632,21 +2641,38 @@ public:
   */
   bool check_gcol_func_processor(uchar *int_arg)
   {
-    int *fld_idx= (int *)int_arg;
+    int *args= (int *)int_arg;
+    int fld_idx= args[0];
     // Don't allow GC to refer itself or another GC that is defined after it.
-    if (field && field->gcol_info && field->field_index >= *fld_idx)
+    if (field && field->gcol_info && field->field_index >= fld_idx)
     {
-      *fld_idx= REF_INVALID_GC;
+      args[1]= REF_INVALID_GC;
       return true;
     }
     // Auto-increment field can't be referenced by stored generated columns
     if (field->flags & AUTO_INCREMENT_FLAG &&  
-          field->table->field[*fld_idx]->stored_in_db)
+          field->table->field[fld_idx]->stored_in_db)
     {
-      *fld_idx= REF_INVALID_AUTO_INC;
+      args[1]= REF_INVALID_AUTO_INC;
       return true;
     }
 
+    return false;
+  }
+
+  virtual bool update_indexed_column_map(uchar *int_arg)
+  {
+    if (field->stored_in_db &&
+        bitmap_is_set(field->table->read_set, field->field_index))
+    {
+      /**
+        We always want to register the used keys, as the column bitmap may have
+        been set for all fields (for example for view).
+      */
+      field->table->covering_keys.intersect(field->part_of_key);
+      field->table->merge_keys.merge(field->part_of_key);
+    }
+    
     return false;
   }
   void cleanup();
@@ -2805,7 +2831,6 @@ public:
 
   Item *safe_charset_converter(const CHARSET_INFO *tocs);
   bool check_partition_func_processor(uchar *int_arg) {return false;}
-  bool check_gcol_func_processor(uchar *int_arg) { return false;}
 };
 
 /**
@@ -3477,7 +3502,6 @@ public:
   }
   virtual void print(String *str, enum_query_type query_type);
   bool check_partition_func_processor(uchar *int_arg) {return false;}
-  bool check_gcol_func_processor(uchar *int_arg) { return false;}
 
   /**
     Return TRUE if character-set-introducer was explicitly specified in the
@@ -3661,7 +3685,6 @@ public:
   bool eq(const Item *item, bool binary_cmp) const;
   virtual Item *safe_charset_converter(const CHARSET_INFO *tocs);
   bool check_partition_func_processor(uchar *int_arg) {return false;}
-  bool check_gcol_func_processor(uchar *int_arg) { return false;}
   static LEX_STRING make_hex_str(const char *str, size_t str_length);
 private:
   void hex_string_init(const char *str, uint str_length);
@@ -4840,6 +4863,7 @@ public:
   bool walk (Item_processor processor, enum_walk walk, uchar *arg);
   virtual void clear() { null_value= TRUE; value_cached= FALSE; }
   bool is_null() { return value_cached ? null_value : example->is_null(); }
+  bool check_gcol_func_processor(uchar *int_arg) { return true;}
   Item_result result_type() const
   {
     if (!example)

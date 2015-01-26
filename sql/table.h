@@ -1273,7 +1273,7 @@ public:
   void mark_columns_needed_for_insert(void);
   void mark_columns_per_binlog_row_image(void);
   void mark_generated_columns(bool is_update);
-  bool is_field_dependent_by_generated_columns(uint field_index);
+  bool is_field_dependent_on_generated_columns(uint field_index);
   inline void column_bitmaps_set(MY_BITMAP *read_set_arg,
                                  MY_BITMAP *write_set_arg)
   {
@@ -2624,8 +2624,8 @@ bool is_simple_order(ORDER *order);
 bool update_generated_write_fields(TABLE *table);
 bool update_generated_read_fields(TABLE *table);
 
-bool check_values_valid_for_gc(THD * thd, List<Item> *fields,
-                        List<Item> *values, TABLE *tab);
+bool validate_gc_assignment(THD * thd, List<Item> *fields,
+                            List<Item> *values, TABLE *tab);
 #endif /* MYSQL_CLIENT */
 
 #endif /* TABLE_INCLUDED */

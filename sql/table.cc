@@ -2176,7 +2176,7 @@ static bool validate_generated_expr(Field *field)
 {
   bool error;
   Item* expr= field->gcol_info->expr_item;
-  int fld_idx= field->field_index;
+  int args[2];
   const char *field_name= field->field_name;
   DBUG_ENTER("validate_generate_expr");
   DBUG_ASSERT(expr);
@@ -2187,7 +2187,7 @@ static bool validate_generated_expr(Field *field)
     3) System variables and parameters are not allowed
    */
   if (expr->has_subquery() ||              // 1)
-      expr->has_stored_program() ||       // 2)
+      expr->has_stored_program() ||        // 2)
       (expr->used_tables() &
        (RAND_TABLE_BIT | PARAM_TABLE_BIT)))// 3)
   {
@@ -2198,13 +2198,15 @@ static bool validate_generated_expr(Field *field)
     Walk through the Item tree checking if all items are valid
     to be part of the generated column. 
   */
+  args[0]= field->field_index;
+  args[1]= -1;
   error= expr->walk(&Item::check_gcol_func_processor, Item::WALK_POSTFIX,
-                         (uchar*)&fld_idx);
+                         (uchar*)&args);
   if (error)
   {
-    if (fld_idx == REF_INVALID_GC)
+    if (args[1] == REF_INVALID_GC)
       my_error(ER_GENERATED_COLUMN_NON_PRIOR, MYF(0), field_name);
-    else if (fld_idx == REF_INVALID_AUTO_INC)
+    else if (args[1] == REF_INVALID_AUTO_INC)
       my_error(ER_GENERATED_COLUMN_REF_AUTO_INC, MYF(0), field_name);
     else
       my_error(ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED, MYF(0), field_name);
@@ -6179,7 +6181,7 @@ void TABLE::mark_generated_columns(bool is_update)
   if (is_update)
   {
     MY_BITMAP dependent_fields;
-    uint32 bitbuf[bitmap_buffer_size(MAX_FIELDS)];
+    my_bitmap_map bitbuf[bitmap_buffer_size(MAX_FIELDS) / sizeof(my_bitmap_map)];
     bitmap_init(&dependent_fields, bitbuf, s->fields, 0);
     bitmap_clear_all(&dependent_fields);
 
@@ -6200,6 +6202,9 @@ void TABLE::mark_generated_columns(bool is_update)
       if (!tmp_vfield->stored_in_db ||
           bitmap_is_overlapping(read_set, write_set))
       {
+        tmp_vfield->gcol_info->expr_item->walk(&Item::update_indexed_column_map,
+                                               Item::WALK_PREFIX,
+                                               (uchar *) 0);
         // The GC needs to be updated
         bitmap_set_bit(write_set, tmp_vfield->field_index);
         // GC's dependent columns need to be read
@@ -6222,16 +6227,16 @@ void TABLE::mark_generated_columns(bool is_update)
       DBUG_ASSERT(tmp_vfield->gcol_info && tmp_vfield->gcol_info->expr_item);
       tmp_vfield->gcol_info->expr_item->walk(&Item::register_field_in_read_map, 
                                              Item::WALK_PREFIX, (uchar *) 0);
+      tmp_vfield->gcol_info->expr_item->walk(&Item::update_indexed_column_map,
+                                             Item::WALK_PREFIX,
+                                             (uchar *) 0);
       bitmap_set_bit(write_set, tmp_vfield->field_index);
       bitmap_updated= TRUE;
     }
   }
 
   if (bitmap_updated)
-  {
-    update_indexed_column_map(this, read_set);
     file->column_bitmaps_signal();
-  }
 }
 
 /*
@@ -6241,11 +6246,11 @@ void TABLE::mark_generated_columns(bool is_update)
     TRUE     The field is dependent by some GC.
 
 */
-bool TABLE::is_field_dependent_by_generated_columns(uint field_index)
+bool TABLE::is_field_dependent_on_generated_columns(uint field_index)
 {
   Field **vfield_ptr, *tmp_vfield;
   MY_BITMAP dependent_fields;
-  uint32 bitbuf[bitmap_buffer_size(MAX_FIELDS)];
+  my_bitmap_map bitbuf[bitmap_buffer_size(MAX_FIELDS) / sizeof(my_bitmap_map)];
   bitmap_init(&dependent_fields, bitbuf, s->fields, 0);
   bitmap_clear_all(&dependent_fields);
 
@@ -7078,13 +7083,15 @@ bool update_generated_write_fields(TABLE *table)
   DBUG_RETURN(FALSE);
 }
 
-/*
-  Fill fields with given items.
+/**
+  @brief  validate_gc_assignment
+  Check whether the other values except DEFAULT are assigned
+  for generated columns.
 
   @param thd                        thread handler
   @param fields                     Item_fields list to be filled
   @param values                     values to fill with
-  @param tab                        table to be checked
+  @param table                      table to be checked
   @return Operation status
     @retval false   OK
     @retval true    Error occured
@@ -7093,48 +7100,42 @@ bool update_generated_write_fields(TABLE *table)
          filled.
 */
 bool
-check_values_valid_for_gc(THD * thd, List<Item> *fields,
-                          List<Item> *values, TABLE *tab)
+validate_gc_assignment(THD * thd, List<Item> *fields,
+                       List<Item> *values, TABLE *table)
 {
-  Item *value, *fld;
-  TABLE *table= 0;
-  List<TABLE> tbl_list;
-  MY_BITMAP *bitmap= tab->write_set;
-  List<Item> fields_list; 
+  Field **fld;
+  MY_BITMAP *bitmap= table->write_set;
   bool use_table_field= false;
-  DBUG_ENTER("check_values_valid_for_gc");
+  DBUG_ENTER("validate_gc_assignment");
 
   // If fields has no elements, we use all table fields
   if (fields->elements == 0)
   {
     use_table_field= true;
-    for (uint i = 0; i < tab->s->fields; i++)
-      fields_list.push_back((Item *)tab->field[i]);
-    fields= &fields_list;
+    fld= table->field;
   }
-  DBUG_ASSERT(fields->elements == values->elements);
   List_iterator_fast<Item> f(*fields),v(*values);
   Field *rfield;
-  while ((fld= f++))
+  Item *value;
+  while ((value= v++))
   {
+    TABLE *tab= 0;
+
     if (!use_table_field)
-      rfield= ((Item_field *)fld)->field;
+      rfield= ((Item_field *)f++)->field;
     else
-      rfield= (Field *)fld;
-    table= rfield->table;
-    value=v++;
-    if (table != tab)
+      rfield= *(fld++);
+    tab= rfield->table;
+    if (tab != table)
       continue;
-    /* If bitmap over wanted fields are set, skip non marked fields. */
-    if (bitmap && !bitmap_is_set(bitmap, rfield->field_index))
+    /* skip non marked fields */
+    if (!bitmap_is_set(bitmap, rfield->field_index))
       continue;
     if (rfield->gcol_info && 
-        value->type() != Item::DEFAULT_VALUE_ITEM && 
-        value->type() != Item::NULL_ITEM &&
-        table->s->table_category != TABLE_CATEGORY_TEMPORARY)
+        value->type() != Item::DEFAULT_VALUE_ITEM)
     {
       my_error(ER_NON_DEFAULT_VALUE_FOR_GENERATED_COLUMN, MYF(0),
-               rfield->field_name, table->s->table_name.str);
+               rfield->field_name, tab->s->table_name.str);
       DBUG_RETURN(true);
     }
   }
