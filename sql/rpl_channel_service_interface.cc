@@ -130,7 +130,7 @@ int channel_create(const char* channel,
 
   Master_info *mi= 0;
   int error= 0;
-  LEX_MASTER_INFO* lex_mi;
+  LEX_MASTER_INFO* lex_mi= NULL;
 
   bool thd_created= false;
   THD *thd= current_thd;

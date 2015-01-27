@@ -209,6 +209,7 @@ int before_commit_tests(Trans_param *param,
   rpl_gno fake_gno;
 
   Transaction_termination_ctx transaction_termination_ctx;
+  memset(&transaction_termination_ctx, 0, sizeof(transaction_termination_ctx));
   transaction_termination_ctx.m_thread_id= param->thread_id;
 
   switch(test_case)

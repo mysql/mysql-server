@@ -143,6 +143,7 @@ Certification_handler::certify(Pipeline_event *pevent, Continuation *cont)
       value to transaction context.
     */
     Transaction_termination_ctx transaction_termination_ctx;
+    memset(&transaction_termination_ctx, 0, sizeof(transaction_termination_ctx));
     transaction_termination_ctx.m_thread_id= tcle->get_thread_id();
     if (seq_number > 0)
     {
