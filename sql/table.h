@@ -47,6 +47,7 @@ class ACL_internal_table_access;
 class Field;
 class Field_temporal_with_date_and_time;
 class Table_cache_element;
+typedef int8 plan_idx;
 
 #define store_record(A,B) memcpy((A)->B,(A)->record[0],(size_t) (A)->s->reclength)
 #define restore_record(A,B) memcpy((A)->record[0],(A)->B,(size_t) (A)->s->reclength)
@@ -1533,6 +1534,30 @@ public:
 };
 
 
+/*
+  This structure holds the specifications relating to
+  ALTER user ... PASSWORD EXPIRE ...
+*/
+typedef struct st_lex_alter {
+  bool update_password_expired_column;
+  bool use_default_password_lifetime;
+  uint16 expire_after_days;
+} LEX_ALTER;
+
+typedef struct	st_lex_user {
+  LEX_CSTRING user;
+  LEX_CSTRING host;
+  LEX_CSTRING password;
+  LEX_CSTRING plugin;
+  LEX_CSTRING auth;
+  bool uses_identified_by_clause;
+  bool uses_identified_with_clause;
+  bool uses_authentication_string_clause;
+  bool uses_identified_by_password_clause;
+  LEX_ALTER alter_status;
+} LEX_USER;
+
+
 /**
   Derive type of metadata lock to be requested for table used by a DML
   statement from the type of THR_LOCK lock requested for this table.
@@ -2437,14 +2462,6 @@ typedef struct st_nested_join
   List<Item>        sj_outer_exprs, sj_inner_exprs;
   Semijoin_mat_optimize sjm;
 } NESTED_JOIN;
-
-
-typedef struct st_changed_table_list
-{
-  struct	st_changed_table_list *next;
-  char		*key;
-  uint32        key_length;
-} CHANGED_TABLE_LIST;
 
 
 typedef struct st_open_table_list{

@@ -8,7 +8,7 @@ b multipoint not null,
 c varchar(256));
 insert into t1 set
 a='hello',
-b=geomfromtext('multipoint(1 1)'),
+b=ST_GeomFromText('multipoint(1 1)'),
 c='geometry';
 create table t2 (a int(11) not null auto_increment primary key,
 b geometrycollection default null,

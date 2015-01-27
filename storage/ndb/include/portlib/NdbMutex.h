@@ -19,12 +19,11 @@
 #define NDB_MUTEX_H
 
 #include <ndb_global.h>
+#include <thr_mutex.h>
 
 #ifdef	__cplusplus
 extern "C" {
 #endif
-
-#include <my_thread.h>
 
 #if !defined NDB_MUTEX_STAT && !defined NDB_MUTEX_DEADLOCK_DETECTOR
 typedef native_mutex_t NdbMutex;

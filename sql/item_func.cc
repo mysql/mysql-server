@@ -2485,8 +2485,8 @@ double Item_func_latlongfromgeohash::val_real()
 
   if (input_value->length() == 0)
   {
-    my_error(ER_WRONG_VALUE_FOR_TYPE, MYF(0), "geohash", input_value->c_ptr(),
-             func_name());
+    my_error(ER_WRONG_VALUE_FOR_TYPE, MYF(0), "geohash",
+             input_value->c_ptr_safe(), func_name());
     return error_real();
   }
 
@@ -2495,8 +2495,8 @@ double Item_func_latlongfromgeohash::val_real()
   if (decode_geohash(input_value, upper_latitude, lower_latitude,
                      upper_longitude, lower_longitude, &latitude, &longitude))
   {
-    my_error(ER_WRONG_VALUE_FOR_TYPE, MYF(0), "geohash", input_value->c_ptr(),
-             func_name());
+    my_error(ER_WRONG_VALUE_FOR_TYPE, MYF(0), "geohash",
+             input_value->c_ptr_safe(), func_name());
     return error_real();
   }
 

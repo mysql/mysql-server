@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -33,27 +33,9 @@ case "$1" in
 
 		MYSQLDATA=/var/lib/mysql
 
-		if [ ! -d "${MYSQLDATA}/mysql" -a ! -L "${MYSQLDATA}/mysql" ];
+		if [ ! "$(ls -A ${MYSQLDATA})" ];
 		then
-			mkdir ${MYSQLDATA}/mysql
-			chown mysql:mysql ${MYSQLDATA}/mysql
-			chmod 700 ${MYSQLDATA}/mysql
-			if [ ! "$(ls -A ${MYSQLDATA}/mysql)" ];
-			then
-				mysql_install_db --user=mysql --skip-random-passwords > /dev/null
-				if [ -f "/usr/my.cnf" ];
-				then
-					rm -f /usr/my.cnf
-				fi
-			fi
-		fi
-
-		db_get mysql-community-server/remove-test-db && RMTESTDB=${RET}
-		if [ -z "${RMTESTDB}" ] || [ "${RMTESTDB}" = "false" ];
-		then
-			RMTESTDB="DROP DATABASE IF EXISTS test;"
-		else
-			RMTESTDB=""
+			mysql_install_db --user=mysql --mysqld-file=/usr/sbin/mysqld --datadir=${MYSQLDATA} --insecure > /dev/null
 		fi
 
 		db_get mysql-community-server/root-pass && PASSWD=${RET}
@@ -68,8 +50,6 @@ case "$1" in
 				cat << EOF > ${SQL}
 USE mysql;
 UPDATE user SET password=PASSWORD("${PASSWD}") WHERE user='root';
-DELETE FROM user WHERE user='';
-${RMTESTDB}
 FLUSH PRIVILEGES;
 EOF
 				mysqld --basedir=/usr --bootstrap --user=mysql --skip-grant-tables < $SQL

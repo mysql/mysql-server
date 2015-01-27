@@ -27,9 +27,8 @@
 
 #include "my_global.h"
 #include "mysql/mysql_lex_string.h"             // LEX_STRING
+#include "mysql/psi/mysql_thread.h"             // PSI_mutex_key
 #include "my_time.h"                            /* interval_type */
-
-#include "my_thread.h"
 
 class Event_db_repository;
 class Event_parse_data;

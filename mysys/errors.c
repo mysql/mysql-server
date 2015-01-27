@@ -15,6 +15,8 @@
 
 #include "mysys_priv.h"
 #include "mysys_err.h"
+#include "my_sys.h"
+#include "my_thread_local.h"
 
 const char *globerrs[GLOBERRS]=
 {

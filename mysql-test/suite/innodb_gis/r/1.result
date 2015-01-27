@@ -41,33 +41,33 @@ Field	Type	Null	Key	Default	Extra
 fid	int(11)	NO	PRI	NULL	
 g	geometry	YES		NULL	
 INSERT INTO gis_point VALUES 
-(101, PointFromText('POINT(10 10)')),
-(102, PointFromText('POINT(20 10)')),
-(103, PointFromText('POINT(20 20)')),
-(104, PointFromWKB(AsWKB(PointFromText('POINT(10 20)'))));
+(101, ST_PointFromText('POINT(10 10)')),
+(102, ST_PointFromText('POINT(20 10)')),
+(103, ST_PointFromText('POINT(20 20)')),
+(104, ST_PointFromWKB(ST_AsWKB(ST_PointFromText('POINT(10 20)'))));
 INSERT INTO gis_line VALUES
-(105, LineFromText('LINESTRING(0 0,0 10,10 0)')),
-(106, LineStringFromText('LINESTRING(10 10,20 10,20 20,10 20,10 10)')),
-(107, LineStringFromWKB(AsWKB(LineString(Point(10, 10), Point(40, 10)))));
+(105, ST_LineFromText('LINESTRING(0 0,0 10,10 0)')),
+(106, ST_LineStringFromText('LINESTRING(10 10,20 10,20 20,10 20,10 10)')),
+(107, ST_LineStringFromWKB(ST_AsWKB(LineString(Point(10, 10), Point(40, 10)))));
 INSERT INTO gis_polygon VALUES
-(108, PolygonFromText('POLYGON((10 10,20 10,20 20,10 20,10 10))')),
-(109, PolyFromText('POLYGON((0 0,50 0,50 50,0 50,0 0), (10 10,20 10,20 20,10 20,10 10))')),
-(110, PolyFromWKB(AsWKB(Polygon(LineString(Point(0, 0), Point(30, 0), Point(30, 30), Point(0, 0))))));
+(108, ST_PolygonFromText('POLYGON((10 10,20 10,20 20,10 20,10 10))')),
+(109, ST_PolyFromText('POLYGON((0 0,50 0,50 50,0 50,0 0), (10 10,20 10,20 20,10 20,10 10))')),
+(110, ST_PolyFromWKB(ST_AsWKB(Polygon(LineString(Point(0, 0), Point(30, 0), Point(30, 30), Point(0, 0))))));
 INSERT INTO gis_multi_point VALUES
-(111, MultiPointFromText('MULTIPOINT(0 0,10 10,10 20,20 20)')),
-(112, MPointFromText('MULTIPOINT(1 1,11 11,11 21,21 21)')),
-(113, MPointFromWKB(AsWKB(MultiPoint(Point(3, 6), Point(4, 10)))));
+(111, ST_MultiPointFromText('MULTIPOINT(0 0,10 10,10 20,20 20)')),
+(112, ST_MPointFromText('MULTIPOINT(1 1,11 11,11 21,21 21)')),
+(113, ST_MPointFromWKB(ST_AsWKB(MultiPoint(Point(3, 6), Point(4, 10)))));
 INSERT INTO gis_multi_line VALUES
-(114, MultiLineStringFromText('MULTILINESTRING((10 48,10 21,10 0),(16 0,16 23,16 48))')),
-(115, MLineFromText('MULTILINESTRING((10 48,10 21,10 0))')),
-(116, MLineFromWKB(AsWKB(MultiLineString(LineString(Point(1, 2), Point(3, 5)), LineString(Point(2, 5), Point(5, 8), Point(21, 7))))));
+(114, ST_MultiLineStringFromText('MULTILINESTRING((10 48,10 21,10 0),(16 0,16 23,16 48))')),
+(115, ST_MLineFromText('MULTILINESTRING((10 48,10 21,10 0))')),
+(116, ST_MLineFromWKB(ST_AsWKB(MultiLineString(LineString(Point(1, 2), Point(3, 5)), LineString(Point(2, 5), Point(5, 8), Point(21, 7))))));
 INSERT INTO gis_multi_polygon VALUES
-(117, MultiPolygonFromText('MULTIPOLYGON(((28 26,28 0,84 0,84 42,28 26),(52 18,66 23,73 9,48 6,52 18)),((59 18,67 18,67 13,59 13,59 18)))')),
-(118, MPolyFromText('MULTIPOLYGON(((28 26,28 0,84 0,84 42,28 26),(52 18,66 23,73 9,48 6,52 18)),((59 18,67 18,67 13,59 13,59 18)))')),
-(119, MPolyFromWKB(AsWKB(MultiPolygon(Polygon(LineString(Point(0, 3), Point(3, 3), Point(3, 0), Point(0, 3)))))));
+(117, ST_MultiPolygonFromText('MULTIPOLYGON(((28 26,28 0,84 0,84 42,28 26),(52 18,66 23,73 9,48 6,52 18)),((59 18,67 18,67 13,59 13,59 18)))')),
+(118, ST_MPolyFromText('MULTIPOLYGON(((28 26,28 0,84 0,84 42,28 26),(52 18,66 23,73 9,48 6,52 18)),((59 18,67 18,67 13,59 13,59 18)))')),
+(119, ST_MPolyFromWKB(ST_AsWKB(MultiPolygon(Polygon(LineString(Point(0, 3), Point(3, 3), Point(3, 0), Point(0, 3)))))));
 INSERT INTO gis_geometrycollection VALUES
-(120, GeomCollFromText('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(0 0,10 10))')),
-(121, GeometryFromWKB(AsWKB(GeometryCollection(Point(44, 6), LineString(Point(3, 6), Point(7, 9))))));
+(120, ST_GeomCollFromText('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(0 0,10 10))')),
+(121, ST_GeometryFromWKB(ST_AsWKB(GeometryCollection(Point(44, 6), LineString(Point(3, 6), Point(7, 9))))));
 INSERT into gis_geometry SELECT * FROM gis_point;
 INSERT into gis_geometry SELECT * FROM gis_line;
 INSERT into gis_geometry SELECT * FROM gis_polygon;
@@ -75,43 +75,43 @@ INSERT into gis_geometry SELECT * FROM gis_multi_point;
 INSERT into gis_geometry SELECT * FROM gis_multi_line;
 INSERT into gis_geometry SELECT * FROM gis_multi_polygon;
 INSERT into gis_geometry SELECT * FROM gis_geometrycollection;
-SELECT fid, AsText(g) FROM gis_point;
-fid	AsText(g)
+SELECT fid, ST_AsText(g) FROM gis_point;
+fid	ST_AsText(g)
 101	POINT(10 10)
 102	POINT(20 10)
 103	POINT(20 20)
 104	POINT(10 20)
-SELECT fid, AsText(g) FROM gis_line;
-fid	AsText(g)
+SELECT fid, ST_AsText(g) FROM gis_line;
+fid	ST_AsText(g)
 105	LINESTRING(0 0,0 10,10 0)
 106	LINESTRING(10 10,20 10,20 20,10 20,10 10)
 107	LINESTRING(10 10,40 10)
-SELECT fid, AsText(g) FROM gis_polygon;
-fid	AsText(g)
+SELECT fid, ST_AsText(g) FROM gis_polygon;
+fid	ST_AsText(g)
 108	POLYGON((10 10,20 10,20 20,10 20,10 10))
 109	POLYGON((0 0,50 0,50 50,0 50,0 0),(10 10,20 10,20 20,10 20,10 10))
 110	POLYGON((0 0,30 0,30 30,0 0))
-SELECT fid, AsText(g) FROM gis_multi_point;
-fid	AsText(g)
+SELECT fid, ST_AsText(g) FROM gis_multi_point;
+fid	ST_AsText(g)
 111	MULTIPOINT(0 0,10 10,10 20,20 20)
 112	MULTIPOINT(1 1,11 11,11 21,21 21)
 113	MULTIPOINT(3 6,4 10)
-SELECT fid, AsText(g) FROM gis_multi_line;
-fid	AsText(g)
+SELECT fid, ST_AsText(g) FROM gis_multi_line;
+fid	ST_AsText(g)
 114	MULTILINESTRING((10 48,10 21,10 0),(16 0,16 23,16 48))
 115	MULTILINESTRING((10 48,10 21,10 0))
 116	MULTILINESTRING((1 2,3 5),(2 5,5 8,21 7))
-SELECT fid, AsText(g) FROM gis_multi_polygon;
-fid	AsText(g)
+SELECT fid, ST_AsText(g) FROM gis_multi_polygon;
+fid	ST_AsText(g)
 117	MULTIPOLYGON(((28 26,28 0,84 0,84 42,28 26),(52 18,66 23,73 9,48 6,52 18)),((59 18,67 18,67 13,59 13,59 18)))
 118	MULTIPOLYGON(((28 26,28 0,84 0,84 42,28 26),(52 18,66 23,73 9,48 6,52 18)),((59 18,67 18,67 13,59 13,59 18)))
 119	MULTIPOLYGON(((0 3,3 3,3 0,0 3)))
-SELECT fid, AsText(g) FROM gis_geometrycollection;
-fid	AsText(g)
+SELECT fid, ST_AsText(g) FROM gis_geometrycollection;
+fid	ST_AsText(g)
 120	GEOMETRYCOLLECTION(POINT(0 0),LINESTRING(0 0,10 10))
 121	GEOMETRYCOLLECTION(POINT(44 6),LINESTRING(3 6,7 9))
-SELECT fid, AsText(g) FROM gis_geometry;
-fid	AsText(g)
+SELECT fid, ST_AsText(g) FROM gis_geometry;
+fid	ST_AsText(g)
 101	POINT(10 10)
 102	POINT(20 10)
 103	POINT(20 20)
@@ -133,8 +133,8 @@ fid	AsText(g)
 119	MULTIPOLYGON(((0 3,3 3,3 0,0 3)))
 120	GEOMETRYCOLLECTION(POINT(0 0),LINESTRING(0 0,10 10))
 121	GEOMETRYCOLLECTION(POINT(44 6),LINESTRING(3 6,7 9))
-SELECT fid, Dimension(g) FROM gis_geometry;
-fid	Dimension(g)
+SELECT fid, ST_Dimension(g) FROM gis_geometry;
+fid	ST_Dimension(g)
 101	0
 102	0
 103	0
@@ -156,8 +156,8 @@ fid	Dimension(g)
 119	2
 120	1
 121	1
-SELECT fid, GeometryType(g) FROM gis_geometry;
-fid	GeometryType(g)
+SELECT fid, ST_GeometryType(g) FROM gis_geometry;
+fid	ST_GeometryType(g)
 101	POINT
 102	POINT
 103	POINT
@@ -179,8 +179,8 @@ fid	GeometryType(g)
 119	MULTIPOLYGON
 120	GEOMETRYCOLLECTION
 121	GEOMETRYCOLLECTION
-SELECT fid, IsEmpty(g) FROM gis_geometry;
-fid	IsEmpty(g)
+SELECT fid, ST_IsEmpty(g) FROM gis_geometry;
+fid	ST_IsEmpty(g)
 101	0
 102	0
 103	0
@@ -202,8 +202,8 @@ fid	IsEmpty(g)
 119	0
 120	0
 121	0
-SELECT fid, AsText(Envelope(g)) FROM gis_geometry;
-fid	AsText(Envelope(g))
+SELECT fid, ST_AsText(ST_Envelope(g)) FROM gis_geometry;
+fid	ST_AsText(ST_Envelope(g))
 101	POLYGON((10 10,10 10,10 10,10 10,10 10))
 102	POLYGON((20 10,20 10,20 10,20 10,20 10))
 103	POLYGON((20 20,20 20,20 20,20 20,20 20))
@@ -225,170 +225,170 @@ fid	AsText(Envelope(g))
 119	POLYGON((0 0,3 0,3 3,0 3,0 0))
 120	POLYGON((0 0,10 0,10 10,0 10,0 0))
 121	POLYGON((3 6,44 6,44 9,3 9,3 6))
-explain extended select Dimension(g), GeometryType(g), IsEmpty(g), AsText(Envelope(g)) from gis_geometry;
+explain extended select ST_Dimension(g), ST_GeometryType(g), ST_IsEmpty(g), ST_AsText(ST_Envelope(g)) from gis_geometry;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	gis_geometry	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select st_dimension(`test`.`gis_geometry`.`g`) AS `Dimension(g)`,st_geometrytype(`test`.`gis_geometry`.`g`) AS `GeometryType(g)`,st_isempty(`test`.`gis_geometry`.`g`) AS `IsEmpty(g)`,st_astext(st_envelope(`test`.`gis_geometry`.`g`)) AS `AsText(Envelope(g))` from `test`.`gis_geometry`
-SELECT fid, X(g) FROM gis_point;
-fid	X(g)
+Note	1003	/* select#1 */ select st_dimension(`test`.`gis_geometry`.`g`) AS `ST_Dimension(g)`,st_geometrytype(`test`.`gis_geometry`.`g`) AS `ST_GeometryType(g)`,st_isempty(`test`.`gis_geometry`.`g`) AS `ST_IsEmpty(g)`,st_astext(st_envelope(`test`.`gis_geometry`.`g`)) AS `ST_AsText(ST_Envelope(g))` from `test`.`gis_geometry`
+SELECT fid, ST_X(g) FROM gis_point;
+fid	ST_X(g)
 101	10
 102	20
 103	20
 104	10
-SELECT fid, Y(g) FROM gis_point;
-fid	Y(g)
+SELECT fid, ST_Y(g) FROM gis_point;
+fid	ST_Y(g)
 101	10
 102	10
 103	20
 104	20
-explain extended select X(g),Y(g) FROM gis_point;
+explain extended select ST_X(g),ST_Y(g) FROM gis_point;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	gis_point	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select st_x(`test`.`gis_point`.`g`) AS `X(g)`,st_y(`test`.`gis_point`.`g`) AS `Y(g)` from `test`.`gis_point`
-SELECT fid, AsText(StartPoint(g)) FROM gis_line;
-fid	AsText(StartPoint(g))
+Note	1003	/* select#1 */ select st_x(`test`.`gis_point`.`g`) AS `ST_X(g)`,st_y(`test`.`gis_point`.`g`) AS `ST_Y(g)` from `test`.`gis_point`
+SELECT fid, ST_AsText(ST_StartPoint(g)) FROM gis_line;
+fid	ST_AsText(ST_StartPoint(g))
 105	POINT(0 0)
 106	POINT(10 10)
 107	POINT(10 10)
-SELECT fid, AsText(EndPoint(g)) FROM gis_line;
-fid	AsText(EndPoint(g))
+SELECT fid, ST_AsText(ST_EndPoint(g)) FROM gis_line;
+fid	ST_AsText(ST_EndPoint(g))
 105	POINT(10 0)
 106	POINT(10 10)
 107	POINT(40 10)
-SELECT fid, GLength(g) FROM gis_line;
-fid	GLength(g)
+SELECT fid, ST_Length(g) FROM gis_line;
+fid	ST_Length(g)
 105	24.14213562373095
 106	40
 107	30
-SELECT fid, NumPoints(g) FROM gis_line;
-fid	NumPoints(g)
+SELECT fid, ST_NumPoints(g) FROM gis_line;
+fid	ST_NumPoints(g)
 105	3
 106	5
 107	2
-SELECT fid, AsText(PointN(g, 2)) FROM gis_line;
-fid	AsText(PointN(g, 2))
+SELECT fid, ST_AsText(ST_PointN(g, 2)) FROM gis_line;
+fid	ST_AsText(ST_PointN(g, 2))
 105	POINT(0 10)
 106	POINT(20 10)
 107	POINT(40 10)
-SELECT fid, IsClosed(g) FROM gis_line;
-fid	IsClosed(g)
+SELECT fid, ST_IsClosed(g) FROM gis_line;
+fid	ST_IsClosed(g)
 105	0
 106	1
 107	0
-explain extended select AsText(StartPoint(g)),AsText(EndPoint(g)),GLength(g),NumPoints(g),AsText(PointN(g, 2)),IsClosed(g) FROM gis_line;
+explain extended select ST_AsText(ST_StartPoint(g)),ST_AsText(ST_EndPoint(g)),ST_Length(g),ST_NumPoints(g),ST_AsText(ST_PointN(g, 2)),ST_IsClosed(g) FROM gis_line;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	gis_line	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select st_astext(st_startpoint(`test`.`gis_line`.`g`)) AS `AsText(StartPoint(g))`,st_astext(st_endpoint(`test`.`gis_line`.`g`)) AS `AsText(EndPoint(g))`,st_length(`test`.`gis_line`.`g`) AS `GLength(g)`,st_numpoints(`test`.`gis_line`.`g`) AS `NumPoints(g)`,st_astext(st_pointn(`test`.`gis_line`.`g`,2)) AS `AsText(PointN(g, 2))`,st_isclosed(`test`.`gis_line`.`g`) AS `IsClosed(g)` from `test`.`gis_line`
-SELECT fid, AsText(Centroid(g)) FROM gis_polygon;
-fid	AsText(Centroid(g))
+Note	1003	/* select#1 */ select st_astext(st_startpoint(`test`.`gis_line`.`g`)) AS `ST_AsText(ST_StartPoint(g))`,st_astext(st_endpoint(`test`.`gis_line`.`g`)) AS `ST_AsText(ST_EndPoint(g))`,st_length(`test`.`gis_line`.`g`) AS `ST_Length(g)`,st_numpoints(`test`.`gis_line`.`g`) AS `ST_NumPoints(g)`,st_astext(st_pointn(`test`.`gis_line`.`g`,2)) AS `ST_AsText(ST_PointN(g, 2))`,st_isclosed(`test`.`gis_line`.`g`) AS `ST_IsClosed(g)` from `test`.`gis_line`
+SELECT fid, ST_AsText(ST_Centroid(g)) FROM gis_polygon;
+fid	ST_AsText(ST_Centroid(g))
 108	POINT(15 15)
 109	POINT(25.416666666666668 25.416666666666668)
 110	POINT(20 10)
-SELECT fid, Area(g) FROM gis_polygon;
-fid	Area(g)
+SELECT fid, ST_Area(g) FROM gis_polygon;
+fid	ST_Area(g)
 108	100
 109	2400
 110	450
-SELECT fid, AsText(ExteriorRing(g)) FROM gis_polygon;
-fid	AsText(ExteriorRing(g))
+SELECT fid, ST_AsText(ST_ExteriorRing(g)) FROM gis_polygon;
+fid	ST_AsText(ST_ExteriorRing(g))
 108	LINESTRING(10 10,20 10,20 20,10 20,10 10)
 109	LINESTRING(0 0,50 0,50 50,0 50,0 0)
 110	LINESTRING(0 0,30 0,30 30,0 0)
-SELECT fid, NumInteriorRings(g) FROM gis_polygon;
-fid	NumInteriorRings(g)
+SELECT fid, ST_NumInteriorRings(g) FROM gis_polygon;
+fid	ST_NumInteriorRings(g)
 108	0
 109	1
 110	0
-SELECT fid, AsText(InteriorRingN(g, 1)) FROM gis_polygon;
-fid	AsText(InteriorRingN(g, 1))
+SELECT fid, ST_AsText(ST_InteriorRingN(g, 1)) FROM gis_polygon;
+fid	ST_AsText(ST_InteriorRingN(g, 1))
 108	NULL
 109	LINESTRING(10 10,20 10,20 20,10 20,10 10)
 110	NULL
-explain extended select AsText(Centroid(g)),Area(g),AsText(ExteriorRing(g)),NumInteriorRings(g),AsText(InteriorRingN(g, 1)) FROM gis_polygon;
+explain extended select ST_AsText(ST_Centroid(g)),ST_Area(g),ST_AsText(ST_ExteriorRing(g)),ST_NumInteriorRings(g),ST_AsText(ST_InteriorRingN(g, 1)) FROM gis_polygon;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	gis_polygon	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select st_astext(st_centroid(`test`.`gis_polygon`.`g`)) AS `AsText(Centroid(g))`,st_area(`test`.`gis_polygon`.`g`) AS `Area(g)`,st_astext(st_exteriorring(`test`.`gis_polygon`.`g`)) AS `AsText(ExteriorRing(g))`,st_numinteriorrings(`test`.`gis_polygon`.`g`) AS `NumInteriorRings(g)`,st_astext(st_interiorringn(`test`.`gis_polygon`.`g`,1)) AS `AsText(InteriorRingN(g, 1))` from `test`.`gis_polygon`
-SELECT fid, IsClosed(g) FROM gis_multi_line;
-fid	IsClosed(g)
+Note	1003	/* select#1 */ select st_astext(st_centroid(`test`.`gis_polygon`.`g`)) AS `ST_AsText(ST_Centroid(g))`,st_area(`test`.`gis_polygon`.`g`) AS `ST_Area(g)`,st_astext(st_exteriorring(`test`.`gis_polygon`.`g`)) AS `ST_AsText(ST_ExteriorRing(g))`,st_numinteriorrings(`test`.`gis_polygon`.`g`) AS `ST_NumInteriorRings(g)`,st_astext(st_interiorringn(`test`.`gis_polygon`.`g`,1)) AS `ST_AsText(ST_InteriorRingN(g, 1))` from `test`.`gis_polygon`
+SELECT fid, ST_IsClosed(g) FROM gis_multi_line;
+fid	ST_IsClosed(g)
 114	0
 115	0
 116	0
-SELECT fid, AsText(Centroid(g)) FROM gis_multi_polygon;
-fid	AsText(Centroid(g))
+SELECT fid, ST_AsText(ST_Centroid(g)) FROM gis_multi_polygon;
+fid	ST_AsText(ST_Centroid(g))
 117	POINT(57.98031067576927 17.854754130800437)
 118	POINT(57.98031067576927 17.854754130800437)
 119	POINT(2 2)
-SELECT fid, Area(g) FROM gis_multi_polygon;
-fid	Area(g)
+SELECT fid, ST_Area(g) FROM gis_multi_polygon;
+fid	ST_Area(g)
 117	1684.5
 118	1684.5
 119	4.5
-SELECT fid, NumGeometries(g) from gis_multi_point;
-fid	NumGeometries(g)
+SELECT fid, ST_NumGeometries(g) from gis_multi_point;
+fid	ST_NumGeometries(g)
 111	4
 112	4
 113	2
-SELECT fid, NumGeometries(g) from gis_multi_line;
-fid	NumGeometries(g)
+SELECT fid, ST_NumGeometries(g) from gis_multi_line;
+fid	ST_NumGeometries(g)
 114	2
 115	1
 116	2
-SELECT fid, NumGeometries(g) from gis_multi_polygon;
-fid	NumGeometries(g)
+SELECT fid, ST_NumGeometries(g) from gis_multi_polygon;
+fid	ST_NumGeometries(g)
 117	2
 118	2
 119	1
-SELECT fid, NumGeometries(g) from gis_geometrycollection;
-fid	NumGeometries(g)
+SELECT fid, ST_NumGeometries(g) from gis_geometrycollection;
+fid	ST_NumGeometries(g)
 120	2
 121	2
-explain extended SELECT fid, NumGeometries(g) from gis_multi_point;
+explain extended SELECT fid, ST_NumGeometries(g) from gis_multi_point;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	gis_multi_point	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`gis_multi_point`.`fid` AS `fid`,st_numgeometries(`test`.`gis_multi_point`.`g`) AS `NumGeometries(g)` from `test`.`gis_multi_point`
-SELECT fid, AsText(GeometryN(g, 2)) from gis_multi_point;
-fid	AsText(GeometryN(g, 2))
+Note	1003	/* select#1 */ select `test`.`gis_multi_point`.`fid` AS `fid`,st_numgeometries(`test`.`gis_multi_point`.`g`) AS `ST_NumGeometries(g)` from `test`.`gis_multi_point`
+SELECT fid, ST_AsText(ST_GeometryN(g, 2)) from gis_multi_point;
+fid	ST_AsText(ST_GeometryN(g, 2))
 111	POINT(10 10)
 112	POINT(11 11)
 113	POINT(4 10)
-SELECT fid, AsText(GeometryN(g, 2)) from gis_multi_line;
-fid	AsText(GeometryN(g, 2))
+SELECT fid, ST_AsText(ST_GeometryN(g, 2)) from gis_multi_line;
+fid	ST_AsText(ST_GeometryN(g, 2))
 114	LINESTRING(16 0,16 23,16 48)
 115	NULL
 116	LINESTRING(2 5,5 8,21 7)
-SELECT fid, AsText(GeometryN(g, 2)) from gis_multi_polygon;
-fid	AsText(GeometryN(g, 2))
+SELECT fid, ST_AsText(ST_GeometryN(g, 2)) from gis_multi_polygon;
+fid	ST_AsText(ST_GeometryN(g, 2))
 117	POLYGON((59 18,67 18,67 13,59 13,59 18))
 118	POLYGON((59 18,67 18,67 13,59 13,59 18))
 119	NULL
-SELECT fid, AsText(GeometryN(g, 2)) from gis_geometrycollection;
-fid	AsText(GeometryN(g, 2))
+SELECT fid, ST_AsText(ST_GeometryN(g, 2)) from gis_geometrycollection;
+fid	ST_AsText(ST_GeometryN(g, 2))
 120	LINESTRING(0 0,10 10)
 121	LINESTRING(3 6,7 9)
-SELECT fid, AsText(GeometryN(g, 1)) from gis_geometrycollection;
-fid	AsText(GeometryN(g, 1))
+SELECT fid, ST_AsText(ST_GeometryN(g, 1)) from gis_geometrycollection;
+fid	ST_AsText(ST_GeometryN(g, 1))
 120	POINT(0 0)
 121	POINT(44 6)
-explain extended SELECT fid, AsText(GeometryN(g, 2)) from gis_multi_point;
+explain extended SELECT fid, ST_AsText(ST_GeometryN(g, 2)) from gis_multi_point;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	gis_multi_point	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`gis_multi_point`.`fid` AS `fid`,st_astext(st_geometryn(`test`.`gis_multi_point`.`g`,2)) AS `AsText(GeometryN(g, 2))` from `test`.`gis_multi_point`
+Note	1003	/* select#1 */ select `test`.`gis_multi_point`.`fid` AS `fid`,st_astext(st_geometryn(`test`.`gis_multi_point`.`g`,2)) AS `ST_AsText(ST_GeometryN(g, 2))` from `test`.`gis_multi_point`
 SELECT g1.fid as first, g2.fid as second,
-Within(g1.g, g2.g) as w, Contains(g1.g, g2.g) as c, Overlaps(g1.g, g2.g) as o,
-Equals(g1.g, g2.g) as e, Disjoint(g1.g, g2.g) as d, Touches(g1.g, g2.g) as t,
-Intersects(g1.g, g2.g) as i, Crosses(g1.g, g2.g) as r
+MBRWithin(g1.g, g2.g) as w, MBRContains(g1.g, g2.g) as c, MBROverlaps(g1.g, g2.g) as o,
+MBREquals(g1.g, g2.g) as e, MBRDisjoint(g1.g, g2.g) as d, ST_Touches(g1.g, g2.g) as t,
+MBRIntersects(g1.g, g2.g) as i, ST_Crosses(g1.g, g2.g) as r
 FROM gis_geometrycollection g1, gis_geometrycollection g2 ORDER BY first, second;
 first	second	w	c	o	e	d	t	i	r
 120	120	1	1	0	1	0	0	1	0
@@ -396,9 +396,9 @@ first	second	w	c	o	e	d	t	i	r
 121	120	0	0	1	0	0	0	1	0
 121	121	1	1	0	1	0	0	1	0
 explain extended SELECT g1.fid as first, g2.fid as second,
-Within(g1.g, g2.g) as w, Contains(g1.g, g2.g) as c, Overlaps(g1.g, g2.g) as o,
-Equals(g1.g, g2.g) as e, Disjoint(g1.g, g2.g) as d, Touches(g1.g, g2.g) as t,
-Intersects(g1.g, g2.g) as i, Crosses(g1.g, g2.g) as r
+MBRWithin(g1.g, g2.g) as w, MBRContains(g1.g, g2.g) as c, MBROverlaps(g1.g, g2.g) as o,
+MBREquals(g1.g, g2.g) as e, MBRDisjoint(g1.g, g2.g) as d, ST_Touches(g1.g, g2.g) as t,
+MBRIntersects(g1.g, g2.g) as i, ST_Crosses(g1.g, g2.g) as r
 FROM gis_geometrycollection g1, gis_geometrycollection g2 ORDER BY first, second;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	g1	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Using temporary; Using filesort
@@ -440,38 +440,38 @@ gc	geometrycollection	YES		NULL
 gm	geometry	YES		NULL	
 fid	int(11)	NO		NULL	
 DROP TABLE t1;
-SELECT AsText(GeometryFromWKB(AsWKB(GeometryFromText('POINT(1 4)'))));
-AsText(GeometryFromWKB(AsWKB(GeometryFromText('POINT(1 4)'))))
+SELECT ST_AsText(ST_GeometryFromWKB(ST_AsWKB(ST_GeometryFromText('POINT(1 4)'))));
+ST_AsText(ST_GeometryFromWKB(ST_AsWKB(ST_GeometryFromText('POINT(1 4)'))))
 POINT(1 4)
-explain extended SELECT AsText(GeometryFromWKB(AsWKB(GeometryFromText('POINT(1 4)'))));
+explain extended SELECT ST_AsText(ST_GeometryFromWKB(ST_AsWKB(ST_GeometryFromText('POINT(1 4)'))));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select st_astext(st_geometryfromwkb(st_aswkb(st_geometryfromtext('POINT(1 4)')))) AS `AsText(GeometryFromWKB(AsWKB(GeometryFromText('POINT(1 4)'))))`
-explain extended SELECT AsText(GeometryFromWKB(AsWKB(PointFromText('POINT(1 4)'))));
+Note	1003	/* select#1 */ select st_astext(st_geometryfromwkb(st_aswkb(st_geometryfromtext('POINT(1 4)')))) AS `ST_AsText(ST_GeometryFromWKB(ST_AsWKB(ST_GeometryFromText('POINT(1 4)'))))`
+explain extended SELECT ST_AsText(ST_GeometryFromWKB(ST_AsWKB(ST_PointFromText('POINT(1 4)'))));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select st_astext(st_geometryfromwkb(st_aswkb(st_geometryfromtext('POINT(1 4)')))) AS `AsText(GeometryFromWKB(AsWKB(PointFromText('POINT(1 4)'))))`
-SELECT SRID(GeomFromText('LineString(1 1,2 2)',101));
-SRID(GeomFromText('LineString(1 1,2 2)',101))
+Note	1003	/* select#1 */ select st_astext(st_geometryfromwkb(st_aswkb(st_geometryfromtext('POINT(1 4)')))) AS `ST_AsText(ST_GeometryFromWKB(ST_AsWKB(ST_PointFromText('POINT(1 4)'))))`
+SELECT ST_SRID(ST_GeomFromText('LineString(1 1,2 2)',101));
+ST_SRID(ST_GeomFromText('LineString(1 1,2 2)',101))
 101
-explain extended SELECT SRID(GeomFromText('LineString(1 1,2 2)',101));
+explain extended SELECT ST_SRID(ST_GeomFromText('LineString(1 1,2 2)',101));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select srid(st_geometryfromtext('LineString(1 1,2 2)',101)) AS `SRID(GeomFromText('LineString(1 1,2 2)',101))`
-explain extended select issimple(MultiPoint(Point(3, 6), Point(4, 10))), issimple(Point(3, 6));
+Note	1003	/* select#1 */ select srid(st_geometryfromtext('LineString(1 1,2 2)',101)) AS `ST_SRID(ST_GeomFromText('LineString(1 1,2 2)',101))`
+explain extended select ST_issimple(MultiPoint(Point(3, 6), Point(4, 10))), ST_issimple(Point(3, 6));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select st_issimple(multipoint(point(3,6),point(4,10))) AS `issimple(MultiPoint(Point(3, 6), Point(4, 10)))`,st_issimple(point(3,6)) AS `issimple(Point(3, 6))`
+Note	1003	/* select#1 */ select st_issimple(multipoint(point(3,6),point(4,10))) AS `ST_issimple(MultiPoint(Point(3, 6), Point(4, 10)))`,st_issimple(point(3,6)) AS `ST_issimple(Point(3, 6))`
 create table t1 (a geometry not null);
-insert into t1 values (GeomFromText('Point(1 2)'));
+insert into t1 values (ST_GeomFromText('Point(1 2)'));
 insert into t1 values ('Garbage');
 ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 insert IGNORE into t1 values ('Garbage');
@@ -480,117 +480,117 @@ alter table t1 add spatial index(a);
 drop table t1;
 create table t1(a geometry not null, index(a(5)));
 insert into t1 values
-(GeomFromText('POINT(1 1)')), (GeomFromText('POINT(3 3)')), 
-(GeomFromText('POINT(4 4)')), (GeomFromText('POINT(6 6)'));
-select AsText(a) from t1 where
-MBRContains(GeomFromText('Polygon((0 0, 0 2, 2 2, 2 0, 0 0))'), a)
+(ST_GeomFromText('POINT(1 1)')), (ST_GeomFromText('POINT(3 3)')), 
+(ST_GeomFromText('POINT(4 4)')), (ST_GeomFromText('POINT(6 6)'));
+select ST_AsText(a) from t1 where
+MBRContains(ST_GeomFromText('Polygon((0 0, 0 2, 2 2, 2 0, 0 0))'), a)
 or
-MBRContains(GeomFromText('Polygon((2 2, 2 5, 5 5, 5 2, 2 2))'), a);
-AsText(a)
+MBRContains(ST_GeomFromText('Polygon((2 2, 2 5, 5 5, 5 2, 2 2))'), a);
+ST_AsText(a)
 POINT(1 1)
 POINT(3 3)
 POINT(4 4)
-select AsText(a) from t1 where
-MBRContains(GeomFromText('Polygon((0 0, 0 2, 2 2, 2 0, 0 0))'), a)
+select ST_AsText(a) from t1 where
+MBRContains(ST_GeomFromText('Polygon((0 0, 0 2, 2 2, 2 0, 0 0))'), a)
 and
-MBRContains(GeomFromText('Polygon((0 0, 0 7, 7 7, 7 0, 0 0))'), a);
-AsText(a)
+MBRContains(ST_GeomFromText('Polygon((0 0, 0 7, 7 7, 7 0, 0 0))'), a);
+ST_AsText(a)
 POINT(1 1)
 drop table t1;
 CREATE TABLE t1 (Coordinates POINT NOT NULL, INDEX(Coordinates(10)));
-INSERT INTO t1 VALUES(GeomFromText('POINT(383293632 1754448)'));
-INSERT INTO t1 VALUES(GeomFromText('POINT(564952612 157516260)'));
-INSERT INTO t1 VALUES(GeomFromText('POINT(903994614 180726515)'));
-INSERT INTO t1 VALUES(GeomFromText('POINT(98128178 141127631)'));
-INSERT INTO t1 VALUES(GeomFromText('POINT(862547902 799334546)'));
-INSERT INTO t1 VALUES(GeomFromText('POINT(341989013 850270906)'));
-INSERT INTO t1 VALUES(GeomFromText('POINT(803302376 93039099)'));
-INSERT INTO t1 VALUES(GeomFromText('POINT(857439153 817431356)'));
-INSERT INTO t1 VALUES(GeomFromText('POINT(319757546 343162742)'));
-INSERT INTO t1 VALUES(GeomFromText('POINT(826341972 717484432)'));
-INSERT INTO t1 VALUES(GeomFromText('POINT(305066789 201736238)'));
-INSERT INTO t1 VALUES(GeomFromText('POINT(626068992 616241497)'));
-INSERT INTO t1 VALUES(GeomFromText('POINT(55789424 755830108)'));
-INSERT INTO t1 VALUES(GeomFromText('POINT(802874458 312435220)'));
-INSERT INTO t1 VALUES(GeomFromText('POINT(153795660 551723671)'));
-INSERT INTO t1 VALUES(GeomFromText('POINT(242207428 537089292)'));
-INSERT INTO t1 VALUES(GeomFromText('POINT(553478119 807160039)'));
-INSERT INTO t1 VALUES(GeomFromText('POINT(694605552 457472733)'));
-INSERT INTO t1 VALUES(GeomFromText('POINT(987886554 792733729)'));
-INSERT INTO t1 VALUES(GeomFromText('POINT(598600363 850434457)'));
-INSERT INTO t1 VALUES(GeomFromText('POINT(592068275 940589376)'));
-INSERT INTO t1 VALUES(GeomFromText('POINT(700705362 395370650)'));
-INSERT INTO t1 VALUES(GeomFromText('POINT(33628474 558144514)'));
-INSERT INTO t1 VALUES(GeomFromText('POINT(212802006 353386020)'));
-INSERT INTO t1 VALUES(GeomFromText('POINT(901307256 39143977)'));
-INSERT INTO t1 VALUES(GeomFromText('POINT(70870451 206374045)'));
-INSERT INTO t1 VALUES(GeomFromText('POINT(240880214 696939443)'));
-INSERT INTO t1 VALUES(GeomFromText('POINT(822615542 296669638)'));
-INSERT INTO t1 VALUES(GeomFromText('POINT(452769551 625489999)'));
-INSERT INTO t1 VALUES(GeomFromText('POINT(609104858 606565210)'));
-INSERT INTO t1 VALUES(GeomFromText('POINT(177213669 851312285)'));
-INSERT INTO t1 VALUES(GeomFromText('POINT(143654501 730691787)'));
-INSERT INTO t1 VALUES(GeomFromText('POINT(658472325 838260052)'));
-INSERT INTO t1 VALUES(GeomFromText('POINT(188164520 646358878)'));
-INSERT INTO t1 VALUES(GeomFromText('POINT(630993781 786764883)'));
-INSERT INTO t1 VALUES(GeomFromText('POINT(496793334 223062055)'));
-INSERT INTO t1 VALUES(GeomFromText('POINT(727354258 197498696)'));
-INSERT INTO t1 VALUES(GeomFromText('POINT(618432704 760982731)'));
-INSERT INTO t1 VALUES(GeomFromText('POINT(755643210 831234710)'));
-INSERT INTO t1 VALUES(GeomFromText('POINT(114368751 656950466)'));
-INSERT INTO t1 VALUES(GeomFromText('POINT(870378686 185239202)'));
-INSERT INTO t1 VALUES(GeomFromText('POINT(863324511 111258900)'));
-INSERT INTO t1 VALUES(GeomFromText('POINT(882178645 685940052)'));
-INSERT INTO t1 VALUES(GeomFromText('POINT(407928538 334948195)'));
-INSERT INTO t1 VALUES(GeomFromText('POINT(311430051 17033395)'));
-INSERT INTO t1 VALUES(GeomFromText('POINT(941513405 488643719)'));
-INSERT INTO t1 VALUES(GeomFromText('POINT(868345680 85167906)'));
-INSERT INTO t1 VALUES(GeomFromText('POINT(219335507 526818004)'));
-INSERT INTO t1 VALUES(GeomFromText('POINT(923427958 407500026)'));
-INSERT INTO t1 VALUES(GeomFromText('POINT(173176882 554421738)'));
-INSERT INTO t1 VALUES(GeomFromText('POINT(194264908 669970217)'));
-INSERT INTO t1 VALUES(GeomFromText('POINT(777483793 921619165)'));
-INSERT INTO t1 VALUES(GeomFromText('POINT(867468912 395916497)'));
-INSERT INTO t1 VALUES(GeomFromText('POINT(682601897 623112122)'));
-INSERT INTO t1 VALUES(GeomFromText('POINT(227151206 796970647)'));
-INSERT INTO t1 VALUES(GeomFromText('POINT(280062588 97529892)'));
-INSERT INTO t1 VALUES(GeomFromText('POINT(982209849 143387099)'));
-INSERT INTO t1 VALUES(GeomFromText('POINT(208788792 864388493)'));
-INSERT INTO t1 VALUES(GeomFromText('POINT(829327151 616717329)'));
-INSERT INTO t1 VALUES(GeomFromText('POINT(199336688 140757201)'));
-INSERT INTO t1 VALUES(GeomFromText('POINT(633750724 140850093)'));
-INSERT INTO t1 VALUES(GeomFromText('POINT(629400920 502096404)'));
-INSERT INTO t1 VALUES(GeomFromText('POINT(226017998 848736426)'));
-INSERT INTO t1 VALUES(GeomFromText('POINT(28914408 149445955)'));
-INSERT INTO t1 VALUES(GeomFromText('POINT(256236452 202091290)'));
-INSERT INTO t1 VALUES(GeomFromText('POINT(703867693 450501360)'));
-INSERT INTO t1 VALUES(GeomFromText('POINT(872061506 481351486)'));
-INSERT INTO t1 VALUES(GeomFromText('POINT(372120524 739530418)'));
-INSERT INTO t1 VALUES(GeomFromText('POINT(877267982 54722420)'));
-INSERT INTO t1 VALUES(GeomFromText('POINT(362642540 104419188)'));
-INSERT INTO t1 VALUES(GeomFromText('POINT(851693067 642705127)'));
-INSERT INTO t1 VALUES(GeomFromText('POINT(201949080 833902916)'));
-INSERT INTO t1 VALUES(GeomFromText('POINT(786092225 410737872)'));
-INSERT INTO t1 VALUES(GeomFromText('POINT(698291409 615419376)'));
-INSERT INTO t1 VALUES(GeomFromText('POINT(27455201 897628096)'));
-INSERT INTO t1 VALUES(GeomFromText('POINT(756176576 661205925)'));
-INSERT INTO t1 VALUES(GeomFromText('POINT(38478189 385577496)'));
-INSERT INTO t1 VALUES(GeomFromText('POINT(163302328 264496186)'));
-INSERT INTO t1 VALUES(GeomFromText('POINT(234313922 192216735)'));
-INSERT INTO t1 VALUES(GeomFromText('POINT(413942141 490550373)'));
-INSERT INTO t1 VALUES(GeomFromText('POINT(394308025 117809834)'));
-INSERT INTO t1 VALUES(GeomFromText('POINT(941051732 266369530)'));
-INSERT INTO t1 VALUES(GeomFromText('POINT(599161319 313172256)'));
-INSERT INTO t1 VALUES(GeomFromText('POINT(5899948 476429301)'));
-INSERT INTO t1 VALUES(GeomFromText('POINT(367894677 368542487)'));
-INSERT INTO t1 VALUES(GeomFromText('POINT(580848489 219587743)'));
-INSERT INTO t1 VALUES(GeomFromText('POINT(11247614 782797569)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(383293632 1754448)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(564952612 157516260)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(903994614 180726515)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(98128178 141127631)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(862547902 799334546)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(341989013 850270906)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(803302376 93039099)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(857439153 817431356)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(319757546 343162742)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(826341972 717484432)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(305066789 201736238)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(626068992 616241497)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(55789424 755830108)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(802874458 312435220)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(153795660 551723671)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(242207428 537089292)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(553478119 807160039)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(694605552 457472733)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(987886554 792733729)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(598600363 850434457)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(592068275 940589376)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(700705362 395370650)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(33628474 558144514)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(212802006 353386020)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(901307256 39143977)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(70870451 206374045)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(240880214 696939443)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(822615542 296669638)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(452769551 625489999)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(609104858 606565210)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(177213669 851312285)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(143654501 730691787)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(658472325 838260052)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(188164520 646358878)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(630993781 786764883)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(496793334 223062055)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(727354258 197498696)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(618432704 760982731)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(755643210 831234710)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(114368751 656950466)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(870378686 185239202)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(863324511 111258900)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(882178645 685940052)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(407928538 334948195)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(311430051 17033395)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(941513405 488643719)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(868345680 85167906)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(219335507 526818004)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(923427958 407500026)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(173176882 554421738)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(194264908 669970217)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(777483793 921619165)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(867468912 395916497)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(682601897 623112122)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(227151206 796970647)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(280062588 97529892)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(982209849 143387099)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(208788792 864388493)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(829327151 616717329)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(199336688 140757201)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(633750724 140850093)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(629400920 502096404)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(226017998 848736426)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(28914408 149445955)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(256236452 202091290)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(703867693 450501360)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(872061506 481351486)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(372120524 739530418)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(877267982 54722420)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(362642540 104419188)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(851693067 642705127)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(201949080 833902916)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(786092225 410737872)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(698291409 615419376)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(27455201 897628096)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(756176576 661205925)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(38478189 385577496)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(163302328 264496186)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(234313922 192216735)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(413942141 490550373)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(394308025 117809834)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(941051732 266369530)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(599161319 313172256)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(5899948 476429301)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(367894677 368542487)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(580848489 219587743)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(11247614 782797569)'));
 drop table t1;
-create table t1 select GeomFromWKB(POINT(1,3));
+create table t1 select ST_GeomFromWKB(POINT(1,3));
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `GeomFromWKB(POINT(1,3))` geometry DEFAULT NULL
+  `ST_GeomFromWKB(POINT(1,3))` geometry DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
@@ -599,7 +599,7 @@ geometry NOT NULL default '') ENGINE=InnoDB ;
 Warnings:
 Warning	1101	BLOB/TEXT column 'geo' can't have a default value
 SET sql_mode = default;
-insert into t1 values ('85984',GeomFromText('MULTIPOLYGON(((-115.006363
+insert into t1 values ('85984',ST_GeomFromText('MULTIPOLYGON(((-115.006363
 36.305435,-114.992394 36.305202,-114.991219 36.305975,-114.991163
 36.306845,-114.989432 36.309452,-114.978275 36.312642,-114.977363
 36.311978,-114.975327 36.312344,-114.96502 36.31597,-114.963364
@@ -647,7 +647,7 @@ insert into t1 values ('85984',GeomFromText('MULTIPOLYGON(((-115.006363
 36.188275,-115.098435 36.237569,-115.097535 36.240369,-115.097535
 36.240369,-115.093235 36.240369,-115.089135 36.240469,-115.083135
 36.240569,-115.083135 36.240569,-115.079835
-36.244369)))')),('85998',GeomFromText('MULTIPOLYGON(((-115.333107
+36.244369)))')),('85998',ST_GeomFromText('MULTIPOLYGON(((-115.333107
 36.264587,-115.333168 36.280638,-115.333168 36.280638,-115.32226
 36.280643,-115.322538 36.274311,-115.327222 36.274258,-115.32733
 36.263026,-115.330675 36.262984,-115.332132 36.264673,-115.333107
@@ -662,13 +662,13 @@ insert into t1 values ('85984',GeomFromText('MULTIPOLYGON(((-115.006363
 36.255018,-115.333069 36.255018,-115.333042 36.247767,-115.279039
 36.248666,-115.263639 36.247466,-115.263839 36.252766,-115.261439
 36.252666,-115.261439 36.247366,-115.247239 36.247066)))'));
-select object_id, geometrytype(geo), ISSIMPLE(GEO), ASTEXT(centroid(geo)) from
+select object_id, ST_geometrytype(geo), ST_ISSIMPLE(GEO), ST_ASTEXT(ST_centroid(geo)) from
 t1 where object_id=85998;
-object_id	geometrytype(geo)	ISSIMPLE(GEO)	ASTEXT(centroid(geo))
+object_id	ST_geometrytype(geo)	ST_ISSIMPLE(GEO)	ST_ASTEXT(ST_centroid(geo))
 85998	MULTIPOLYGON	1	POINT(-115.29706048618988 36.23335611474115)
-select object_id, geometrytype(geo), ISSIMPLE(GEO), ASTEXT(centroid(geo)) from
+select object_id, ST_geometrytype(geo), ST_ISSIMPLE(GEO), ST_ASTEXT(ST_centroid(geo)) from
 t1 where object_id=85984;
-object_id	geometrytype(geo)	ISSIMPLE(GEO)	ASTEXT(centroid(geo))
+object_id	ST_geometrytype(geo)	ST_ISSIMPLE(GEO)	ST_ASTEXT(ST_centroid(geo))
 85984	MULTIPOLYGON	1	POINT(-114.86854471507417 36.3472521808043)
 drop table t1;
 create table t1 (fl geometry not null);
@@ -678,24 +678,24 @@ insert into t1 values (1.11);
 ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 insert into t1 values ("qwerty");
 ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
-insert into t1 values (pointfromtext('point(1,1)'));
+insert into t1 values (ST_pointfromtext('point(1,1)'));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 drop table t1;
-select (asWKT(geomfromwkb((0x000000000140240000000000004024000000000000))));
-(asWKT(geomfromwkb((0x000000000140240000000000004024000000000000))))
+select (ST_asWKT(ST_geomfromwkb((0x000000000140240000000000004024000000000000))));
+(ST_asWKT(ST_geomfromwkb((0x000000000140240000000000004024000000000000))))
 POINT(10 10)
-select (asWKT(geomfromwkb((0x010100000000000000000024400000000000002440))));
-(asWKT(geomfromwkb((0x010100000000000000000024400000000000002440))))
+select (ST_asWKT(ST_geomfromwkb((0x010100000000000000000024400000000000002440))));
+(ST_asWKT(ST_geomfromwkb((0x010100000000000000000024400000000000002440))))
 POINT(10 10)
 create table t1 (g GEOMETRY);
 select * from t1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
 def	test	t1	t1	g	g	255	4294967295	0	Y	144	0	63
 g
-select asbinary(g) from t1;
+select ST_asbinary(g) from t1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					asbinary(g)	252	4294967295	0	Y	128	0	63
-asbinary(g)
+def					ST_asbinary(g)	252	4294967295	0	Y	128	0	63
+ST_asbinary(g)
 drop table t1;
 create table t1 (a TEXT, b GEOMETRY NOT NULL, INDEX(b(5)));
 alter table t1 disable keys;
@@ -715,21 +715,21 @@ a	b
 2	NULL
 3	1
 select
-geometryfromtext(b) IS NULL, geometryfromwkb(b) IS NULL, astext(b) IS NULL, 
-aswkb(b) IS NULL, geometrytype(b) IS NULL, centroid(b) IS NULL,
-envelope(b) IS NULL, startpoint(b) IS NULL, endpoint(b) IS NULL,
-exteriorring(b) IS NULL, pointn(b, 1) IS NULL, geometryn(b, 1) IS NULL,
-interiorringn(b, 1) IS NULL, multipoint(b) IS NULL, isempty(b) IS NULL,
-issimple(b) IS NULL, isclosed(b) IS NULL, dimension(b) IS NULL,
-numgeometries(b) IS NULL, numinteriorrings(b) IS NULL, numpoints(b) IS NULL,
-area(b) IS NULL, glength(b) IS NULL, srid(b) IS NULL, x(b) IS NULL, 
-y(b) IS NULL
+ST_geometryfromtext(b) IS NULL, ST_geometryfromwkb(b) IS NULL, ST_astext(b) IS NULL, 
+ST_aswkb(b) IS NULL, ST_geometrytype(b) IS NULL, ST_centroid(b) IS NULL,
+ST_envelope(b) IS NULL, ST_startpoint(b) IS NULL, ST_endpoint(b) IS NULL,
+ST_exteriorring(b) IS NULL, ST_pointn(b, 1) IS NULL, ST_geometryn(b, 1) IS NULL,
+ST_interiorringn(b, 1) IS NULL, multipoint(b) IS NULL, ST_isempty(b) IS NULL,
+ST_issimple(b) IS NULL, ST_isclosed(b) IS NULL, ST_dimension(b) IS NULL,
+ST_numgeometries(b) IS NULL, ST_numinteriorrings(b) IS NULL, ST_numpoints(b) IS NULL,
+ST_area(b) IS NULL, ST_length(b) IS NULL, ST_srid(b) IS NULL, ST_x(b) IS NULL, 
+ST_y(b) IS NULL
 from t1;
 ERROR 22007: Illegal non geometric '`test`.`t1`.`b`' value found during parsing
 select 
-within(b, b) IS NULL, contains(b, b) IS NULL, overlaps(b, b) IS NULL, 
-equals(b, b) IS NULL, disjoint(b, b) IS NULL, touches(b, b) IS NULL, 
-intersects(b, b) IS NULL, crosses(b, b) IS NULL
+MBRwithin(b, b) IS NULL, MBRcontains(b, b) IS NULL, MBRoverlaps(b, b) IS NULL, 
+MBRequals(b, b) IS NULL, MBRdisjoint(b, b) IS NULL, ST_touches(b, b) IS NULL, 
+MBRintersects(b, b) IS NULL, ST_crosses(b, b) IS NULL
 from t1;
 ERROR 22023: Invalid GIS data provided to function mbrwithin.
 select 
@@ -749,7 +749,7 @@ CREATE TABLE `t1` ( `col9` set('a'), `col89` date);
 INSERT IGNORE INTO `t1` VALUES ('','0000-00-00');
 Warnings:
 Warning	1264	Out of range value for column 'col89' at row 1
-select geomfromtext(col9,col89) as a from t1;
+select ST_geomfromtext(col9,col89) as a from t1;
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 DROP TABLE t1;
 CREATE TABLE t1 (
@@ -766,12 +766,12 @@ Warnings:
 Warning	1478	InnoDB: assuming ROW_FORMAT=COMPACT.
 CREATE TABLE t3
 select 
-aswkb(ws.geomdata) AS geomdatawkb 
+ST_aswkb(ws.geomdata) AS geomdatawkb 
 from 
 t1 ws
 union 
 select 
-aswkb(ws.geomdata) AS geomdatawkb 
+ST_aswkb(ws.geomdata) AS geomdatawkb 
 from 
 t2 ws;
 describe t3;
@@ -782,8 +782,8 @@ drop table t2;
 drop table t3;
 create table t1(col1 geometry default null,col15 geometrycollection not
 null, index(col15(5)),index(col1(15)))engine=InnoDB;
-insert into t1 set col15 = GeomFromText('POINT(6 5)');
-insert into t1 set col15 = GeomFromText('POINT(6 5)');
+insert into t1 set col15 = ST_GeomFromText('POINT(6 5)');
+insert into t1 set col15 = ST_GeomFromText('POINT(6 5)');
 check table t1 extended;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
@@ -795,14 +795,14 @@ insert into t1 values (null,null);
 ERROR 23000: Column 's1' cannot be null
 drop table t1;
 drop procedure if exists fn3;
-create function fn3 () returns point deterministic return GeomFromText("point(1 1)");
+create function fn3 () returns point deterministic return ST_GeomFromText("point(1 1)");
 show create function fn3;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 fn3	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `fn3`() RETURNS point
     DETERMINISTIC
-return GeomFromText("point(1 1)")	latin1	latin1_swedish_ci	latin1_swedish_ci
-select astext(fn3());
-astext(fn3())
+return ST_GeomFromText("point(1 1)")	latin1	latin1_swedish_ci	latin1_swedish_ci
+select ST_astext(fn3());
+ST_astext(fn3())
 POINT(1 1)
 drop function fn3;
 create table t1(pt POINT);
@@ -813,53 +813,51 @@ alter table t1 add primary key pti(pt);
 ERROR 42000: BLOB/TEXT column 'pt' used in key specification without a key length
 alter table t1 add primary key pti(pt(20));
 drop table t1;
-create table t1 select GeomFromText('point(1 1)');
+create table t1 select ST_GeomFromText('point(1 1)');
 desc t1;
 Field	Type	Null	Key	Default	Extra
-GeomFromText('point(1 1)')	geometry	YES		NULL	
+ST_GeomFromText('point(1 1)')	geometry	YES		NULL	
 drop table t1;
 create table t1 (g geometry not null);
 insert into t1 values(default);
 ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 drop table t1;
 CREATE TABLE t1 (a GEOMETRY);
-CREATE VIEW v1 AS SELECT GeomFromwkb(ASBINARY(a)) FROM t1;
+CREATE VIEW v1 AS SELECT ST_GeomFromwkb(ST_ASBINARY(a)) FROM t1;
 CREATE VIEW v2 AS SELECT a FROM t1;
 DESCRIBE v1;
 Field	Type	Null	Key	Default	Extra
-GeomFromwkb(ASBINARY(a))	geometry	YES		NULL	
+ST_GeomFromwkb(ST_ASBINARY(a))	geometry	YES		NULL	
 DESCRIBE v2;
 Field	Type	Null	Key	Default	Extra
 a	geometry	YES		NULL	
 DROP VIEW v1,v2;
 DROP TABLE t1;
 create table t1 (name VARCHAR(100), square GEOMETRY);
-INSERT INTO t1 VALUES("center", GeomFromText('POLYGON (( 0 0, 0 2, 2 2, 2 0, 0 0))'));
-INSERT INTO t1 VALUES("small",  GeomFromText('POLYGON (( 0 0, 0 1, 1 1, 1 0, 0 0))'));
-INSERT INTO t1 VALUES("big",    GeomFromText('POLYGON (( 0 0, 0 3, 3 3, 3 0, 0 0))'));
-INSERT INTO t1 VALUES("up",     GeomFromText('POLYGON (( 0 1, 0 3, 2 3, 2 1, 0 1))'));
-INSERT INTO t1 VALUES("up2",    GeomFromText('POLYGON (( 0 2, 0 4, 2 4, 2 2, 0 2))'));
-INSERT INTO t1 VALUES("up3",    GeomFromText('POLYGON (( 0 3, 0 5, 2 5, 2 3, 0 3))'));
-INSERT INTO t1 VALUES("down",   GeomFromText('POLYGON (( 0 -1, 0  1, 2  1, 2 -1, 0 -1))'));
-INSERT INTO t1 VALUES("down2",  GeomFromText('POLYGON (( 0 -2, 0  0, 2  0, 2 -2, 0 -2))'));
-INSERT INTO t1 VALUES("down3",  GeomFromText('POLYGON (( 0 -3, 0 -1, 2 -1, 2 -3, 0 -3))'));
-INSERT INTO t1 VALUES("right",  GeomFromText('POLYGON (( 1 0, 1 2, 3 2, 3 0, 1 0))'));
-INSERT INTO t1 VALUES("right2", GeomFromText('POLYGON (( 2 0, 2 2, 4 2, 4 0, 2 0))'));
-INSERT INTO t1 VALUES("right3", GeomFromText('POLYGON (( 3 0, 3 2, 5 2, 5 0, 3 0))'));
-INSERT INTO t1 VALUES("left",   GeomFromText('POLYGON (( -1 0, -1 2,  1 2,  1 0, -1 0))'));
-INSERT INTO t1 VALUES("left2",  GeomFromText('POLYGON (( -2 0, -2 2,  0 2,  0 0, -2 0))'));
-INSERT INTO t1 VALUES("left3",  GeomFromText('POLYGON (( -3 0, -3 2, -1 2, -1 0, -3 0))'));
+INSERT INTO t1 VALUES("center", ST_GeomFromText('POLYGON (( 0 0, 0 2, 2 2, 2 0, 0 0))'));
+INSERT INTO t1 VALUES("small",  ST_GeomFromText('POLYGON (( 0 0, 0 1, 1 1, 1 0, 0 0))'));
+INSERT INTO t1 VALUES("big",    ST_GeomFromText('POLYGON (( 0 0, 0 3, 3 3, 3 0, 0 0))'));
+INSERT INTO t1 VALUES("up",     ST_GeomFromText('POLYGON (( 0 1, 0 3, 2 3, 2 1, 0 1))'));
+INSERT INTO t1 VALUES("up2",    ST_GeomFromText('POLYGON (( 0 2, 0 4, 2 4, 2 2, 0 2))'));
+INSERT INTO t1 VALUES("up3",    ST_GeomFromText('POLYGON (( 0 3, 0 5, 2 5, 2 3, 0 3))'));
+INSERT INTO t1 VALUES("down",   ST_GeomFromText('POLYGON (( 0 -1, 0  1, 2  1, 2 -1, 0 -1))'));
+INSERT INTO t1 VALUES("down2",  ST_GeomFromText('POLYGON (( 0 -2, 0  0, 2  0, 2 -2, 0 -2))'));
+INSERT INTO t1 VALUES("down3",  ST_GeomFromText('POLYGON (( 0 -3, 0 -1, 2 -1, 2 -3, 0 -3))'));
+INSERT INTO t1 VALUES("right",  ST_GeomFromText('POLYGON (( 1 0, 1 2, 3 2, 3 0, 1 0))'));
+INSERT INTO t1 VALUES("right2", ST_GeomFromText('POLYGON (( 2 0, 2 2, 4 2, 4 0, 2 0))'));
+INSERT INTO t1 VALUES("right3", ST_GeomFromText('POLYGON (( 3 0, 3 2, 5 2, 5 0, 3 0))'));
+INSERT INTO t1 VALUES("left",   ST_GeomFromText('POLYGON (( -1 0, -1 2,  1 2,  1 0, -1 0))'));
+INSERT INTO t1 VALUES("left2",  ST_GeomFromText('POLYGON (( -2 0, -2 2,  0 2,  0 0, -2 0))'));
+INSERT INTO t1 VALUES("left3",  ST_GeomFromText('POLYGON (( -3 0, -3 2, -1 2, -1 0, -3 0))'));
 SELECT GROUP_CONCAT(a2.name ORDER BY a2.name) AS mbrcontains  FROM t1 a1 JOIN t1 a2 ON MBRContains(   a1.square, a2.square) WHERE a1.name = "center" GROUP BY a1.name;
 mbrcontains
 center,small
 SELECT GROUP_CONCAT(a2.name ORDER BY a2.name) AS mbrdisjoint  FROM t1 a1 JOIN t1 a2 ON MBRDisjoint(   a1.square, a2.square) WHERE a1.name = "center" GROUP BY a1.name;
 mbrdisjoint
 down3,left3,right3,up3
-SELECT GROUP_CONCAT(a2.name ORDER BY a2.name) AS mbrequal     FROM t1 a1 JOIN t1 a2 ON MBREqual(      a1.square, a2.square) WHERE a1.name = "center" GROUP BY a1.name;
-mbrequal
+SELECT GROUP_CONCAT(a2.name ORDER BY a2.name) AS mbrequals     FROM t1 a1 JOIN t1 a2 ON MBREquals(      a1.square, a2.square) WHERE a1.name = "center" GROUP BY a1.name;
+mbrequals
 center
-Warnings:
-Warning	1287	'MBREQUAL' is deprecated and will be removed in a future release. Please use MBREQUALS instead
 SELECT GROUP_CONCAT(a2.name ORDER BY a2.name) AS mbrintersect FROM t1 a1 JOIN t1 a2 ON MBRIntersects( a1.square, a2.square) WHERE a1.name = "center" GROUP BY a1.name;
 mbrintersect
 big,center,down,down2,left,left2,right,right2,small,up,up2
@@ -872,70 +870,70 @@ down2,left2,right2,up2
 SELECT GROUP_CONCAT(a2.name ORDER BY a2.name) AS mbrwithin    FROM t1 a1 JOIN t1 a2 ON MBRWithin(     a1.square, a2.square) WHERE a1.name = "center" GROUP BY a1.name;
 mbrwithin
 big,center
-SELECT GROUP_CONCAT(a2.name ORDER BY a2.name) AS contains     FROM t1 a1 JOIN t1 a2 ON Contains(      a1.square, a2.square) WHERE a1.name = "center" GROUP BY a1.name;
-contains
+SELECT GROUP_CONCAT(a2.name ORDER BY a2.name) AS MBRcontains     FROM t1 a1 JOIN t1 a2 ON MBRContains(      a1.square, a2.square) WHERE a1.name = "center" GROUP BY a1.name;
+MBRcontains
 center,small
-SELECT GROUP_CONCAT(a2.name ORDER BY a2.name) AS disjoint     FROM t1 a1 JOIN t1 a2 ON Disjoint(      a1.square, a2.square) WHERE a1.name = "center" GROUP BY a1.name;
-disjoint
+SELECT GROUP_CONCAT(a2.name ORDER BY a2.name) AS MBRdisjoint     FROM t1 a1 JOIN t1 a2 ON MBRDisjoint(      a1.square, a2.square) WHERE a1.name = "center" GROUP BY a1.name;
+MBRdisjoint
 down3,left3,right3,up3
-SELECT GROUP_CONCAT(a2.name ORDER BY a2.name) AS equals       FROM t1 a1 JOIN t1 a2 ON Equals(        a1.square, a2.square) WHERE a1.name = "center" GROUP BY a1.name;
-equals
+SELECT GROUP_CONCAT(a2.name ORDER BY a2.name) AS MBRequals       FROM t1 a1 JOIN t1 a2 ON MBREquals(        a1.square, a2.square) WHERE a1.name = "center" GROUP BY a1.name;
+MBRequals
 center
-SELECT GROUP_CONCAT(a2.name ORDER BY a2.name) AS intersect    FROM t1 a1 JOIN t1 a2 ON Intersects(    a1.square, a2.square) WHERE a1.name = "center" GROUP BY a1.name;
+SELECT GROUP_CONCAT(a2.name ORDER BY a2.name) AS intersect    FROM t1 a1 JOIN t1 a2 ON MBRIntersects(    a1.square, a2.square) WHERE a1.name = "center" GROUP BY a1.name;
 intersect
 big,center,down,down2,left,left2,right,right2,small,up,up2
-SELECT GROUP_CONCAT(a2.name ORDER BY a2.name) AS overlaps     FROM t1 a1 JOIN t1 a2 ON Overlaps(      a1.square, a2.square) WHERE a1.name = "center" GROUP BY a1.name;
-overlaps
+SELECT GROUP_CONCAT(a2.name ORDER BY a2.name) AS MBRoverlaps     FROM t1 a1 JOIN t1 a2 ON MBROverlaps(      a1.square, a2.square) WHERE a1.name = "center" GROUP BY a1.name;
+MBRoverlaps
 down,left,right,up
-SELECT GROUP_CONCAT(a2.name ORDER BY a2.name) AS touches      FROM t1 a1 JOIN t1 a2 ON Touches(       a1.square, a2.square) WHERE a1.name = "center" GROUP BY a1.name;
-touches
+SELECT GROUP_CONCAT(a2.name ORDER BY a2.name) AS ST_touches      FROM t1 a1 JOIN t1 a2 ON ST_Touches(       a1.square, a2.square) WHERE a1.name = "center" GROUP BY a1.name;
+ST_touches
 down2,left2,right2,up2
-SELECT GROUP_CONCAT(a2.name ORDER BY a2.name) AS within       FROM t1 a1 JOIN t1 a2 ON Within(        a1.square, a2.square) WHERE a1.name = "center" GROUP BY a1.name;
-within
+SELECT GROUP_CONCAT(a2.name ORDER BY a2.name) AS MBRwithin       FROM t1 a1 JOIN t1 a2 ON MBRWithin(        a1.square, a2.square) WHERE a1.name = "center" GROUP BY a1.name;
+MBRwithin
 big,center
-SET @vert1   = GeomFromText('POLYGON ((0 -2, 0 2, 0 -2))');
-SET @horiz1  = GeomFromText('POLYGON ((-2 0, 2 0, -2 0))');
-SET @horiz2 = GeomFromText('POLYGON ((-1 0, 3 0, -1 0))');
-SET @horiz3 = GeomFromText('POLYGON ((2 0, 3 0, 2 0))');
-SET @point1 = GeomFromText('POLYGON ((0 0))');
-SET @point2 = GeomFromText('POLYGON ((-2 0))');
-SELECT GROUP_CONCAT(a1.name ORDER BY a1.name) AS overlaps FROM t1 a1 WHERE Overlaps(a1.square, @vert1) GROUP BY a1.name;
-overlaps
-SELECT GROUP_CONCAT(a1.name ORDER BY a1.name) AS overlaps FROM t1 a1 WHERE Overlaps(a1.square, @horiz1) GROUP BY a1.name;
-overlaps
-SELECT Overlaps(@horiz1, @vert1) FROM DUAL;
-Overlaps(@horiz1, @vert1)
+SET @vert1   = ST_GeomFromText('POLYGON ((0 -2, 0 2, 0 -2))');
+SET @horiz1  = ST_GeomFromText('POLYGON ((-2 0, 2 0, -2 0))');
+SET @horiz2 = ST_GeomFromText('POLYGON ((-1 0, 3 0, -1 0))');
+SET @horiz3 = ST_GeomFromText('POLYGON ((2 0, 3 0, 2 0))');
+SET @point1 = ST_GeomFromText('POLYGON ((0 0))');
+SET @point2 = ST_GeomFromText('POLYGON ((-2 0))');
+SELECT GROUP_CONCAT(a1.name ORDER BY a1.name) AS MBRoverlaps FROM t1 a1 WHERE MBROverlaps(a1.square, @vert1) GROUP BY a1.name;
+MBRoverlaps
+SELECT GROUP_CONCAT(a1.name ORDER BY a1.name) AS MBRoverlaps FROM t1 a1 WHERE MBROverlaps(a1.square, @horiz1) GROUP BY a1.name;
+MBRoverlaps
+SELECT MBROverlaps(@horiz1, @vert1) FROM DUAL;
+MBROverlaps(@horiz1, @vert1)
 0
-SELECT Overlaps(@horiz1, @horiz2) FROM DUAL;
-Overlaps(@horiz1, @horiz2)
+SELECT MBROverlaps(@horiz1, @horiz2) FROM DUAL;
+MBROverlaps(@horiz1, @horiz2)
 1
-SELECT Overlaps(@horiz1, @horiz3) FROM DUAL;
-Overlaps(@horiz1, @horiz3)
+SELECT MBROverlaps(@horiz1, @horiz3) FROM DUAL;
+MBROverlaps(@horiz1, @horiz3)
 0
-SELECT Overlaps(@horiz1, @point1) FROM DUAL;
-Overlaps(@horiz1, @point1)
+SELECT MBROverlaps(@horiz1, @point1) FROM DUAL;
+MBROverlaps(@horiz1, @point1)
 0
-SELECT Overlaps(@horiz1, @point2) FROM DUAL;
-Overlaps(@horiz1, @point2)
+SELECT MBROverlaps(@horiz1, @point2) FROM DUAL;
+MBROverlaps(@horiz1, @point2)
 0
 DROP TABLE t1;
 create table t1(f1 geometry, f2 polygon, f3 linestring);
 select f1 from t1 union select f1 from t1;
 f1
-insert into t1 (f2,f3) values (GeomFromText('POLYGON((10 10,20 10,20 20,10 20,10 10))'), GeomFromText('LINESTRING(0 0,1 1,2 2)'));
-select AsText(f2),AsText(f3) from t1;
-AsText(f2)	AsText(f3)
+insert into t1 (f2,f3) values (ST_GeomFromText('POLYGON((10 10,20 10,20 20,10 20,10 10))'), ST_GeomFromText('LINESTRING(0 0,1 1,2 2)'));
+select ST_AsText(f2),ST_AsText(f3) from t1;
+ST_AsText(f2)	ST_AsText(f3)
 POLYGON((10 10,20 10,20 20,10 20,10 10))	LINESTRING(0 0,1 1,2 2)
-select AsText(a) from (select f2 as a from t1 union select f3 from t1) t;
-AsText(a)
+select ST_AsText(a) from (select f2 as a from t1 union select f3 from t1) t;
+ST_AsText(a)
 POLYGON((10 10,20 10,20 20,10 20,10 10))
 LINESTRING(0 0,1 1,2 2)
 create table t2 as select f2 as a from t1 union select f3 from t1;
 desc t2;
 Field	Type	Null	Key	Default	Extra
 a	geometry	YES		NULL	
-select AsText(a) from t2;
-AsText(a)
+select ST_AsText(a) from t2;
+ST_AsText(a)
 POLYGON((10 10,20 10,20 20,10 20,10 10))
 LINESTRING(0 0,1 1,2 2)
 drop table t1, t2;
@@ -944,47 +942,47 @@ SELECT 1;
 1
 CREATE TABLE t1 (p POINT);
 CREATE TABLE t2 (p POINT, INDEX(p));
-INSERT INTO t1 VALUES (POINTFROMTEXT('POINT(1 2)'));
-INSERT INTO t2 VALUES (POINTFROMTEXT('POINT(1 2)'));
-SELECT COUNT(*) FROM t1 WHERE p=POINTFROMTEXT('POINT(1 2)');
+INSERT INTO t1 VALUES (ST_POINTFROMTEXT('POINT(1 2)'));
+INSERT INTO t2 VALUES (ST_POINTFROMTEXT('POINT(1 2)'));
+SELECT COUNT(*) FROM t1 WHERE p=ST_POINTFROMTEXT('POINT(1 2)');
 COUNT(*)
 1
 EXPLAIN 
-SELECT COUNT(*) FROM t2 WHERE p=POINTFROMTEXT('POINT(1 2)');
+SELECT COUNT(*) FROM t2 WHERE p=ST_POINTFROMTEXT('POINT(1 2)');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ref	p	p	28	const	1	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t2` where (`test`.`t2`.`p` = <cache>(st_geometryfromtext('POINT(1 2)')))
-SELECT COUNT(*) FROM t2 WHERE p=POINTFROMTEXT('POINT(1 2)');
+SELECT COUNT(*) FROM t2 WHERE p=ST_POINTFROMTEXT('POINT(1 2)');
 COUNT(*)
 1
-INSERT INTO t1 VALUES (POINTFROMTEXT('POINT(1 2)'));
-INSERT INTO t2 VALUES (POINTFROMTEXT('POINT(1 2)'));
+INSERT INTO t1 VALUES (ST_POINTFROMTEXT('POINT(1 2)'));
+INSERT INTO t2 VALUES (ST_POINTFROMTEXT('POINT(1 2)'));
 EXPLAIN 
-SELECT COUNT(*) FROM t1 WHERE p=POINTFROMTEXT('POINT(1 2)');
+SELECT COUNT(*) FROM t1 WHERE p=ST_POINTFROMTEXT('POINT(1 2)');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where (`test`.`t1`.`p` = <cache>(st_geometryfromtext('POINT(1 2)')))
-SELECT COUNT(*) FROM t1 WHERE p=POINTFROMTEXT('POINT(1 2)');
+SELECT COUNT(*) FROM t1 WHERE p=ST_POINTFROMTEXT('POINT(1 2)');
 COUNT(*)
 2
 EXPLAIN 
-SELECT COUNT(*) FROM t2 WHERE p=POINTFROMTEXT('POINT(1 2)');
+SELECT COUNT(*) FROM t2 WHERE p=ST_POINTFROMTEXT('POINT(1 2)');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ref	p	p	28	const	2	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t2` where (`test`.`t2`.`p` = <cache>(st_geometryfromtext('POINT(1 2)')))
-SELECT COUNT(*) FROM t2 WHERE p=POINTFROMTEXT('POINT(1 2)');
+SELECT COUNT(*) FROM t2 WHERE p=ST_POINTFROMTEXT('POINT(1 2)');
 COUNT(*)
 2
 EXPLAIN 
-SELECT COUNT(*) FROM t2 IGNORE INDEX(p) WHERE p=POINTFROMTEXT('POINT(1 2)');
+SELECT COUNT(*) FROM t2 IGNORE INDEX(p) WHERE p=ST_POINTFROMTEXT('POINT(1 2)');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t2` IGNORE INDEX (`p`) where (`test`.`t2`.`p` = <cache>(st_geometryfromtext('POINT(1 2)')))
-SELECT COUNT(*) FROM t2 IGNORE INDEX(p) WHERE p=POINTFROMTEXT('POINT(1 2)');
+SELECT COUNT(*) FROM t2 IGNORE INDEX(p) WHERE p=ST_POINTFROMTEXT('POINT(1 2)');
 COUNT(*)
 2
 DROP TABLE t1, t2;
@@ -1012,10 +1010,10 @@ drop table t1;
 CREATE TABLE t1(a INT, b MULTIPOLYGON);
 INSERT INTO t1 VALUES 
 (0,
-GEOMFROMTEXT(
+ST_GEOMFROMTEXT(
 'multipolygon(((1 2,3 4,5 6,7 8,9 8),(7 6,5 4,3 2,1 2,3 4)))'));
 # must not crash
-SELECT 1 FROM t1 WHERE a <> (SELECT GEOMETRYCOLLECTIONFROMWKB(b) FROM t1);
+SELECT 1 FROM t1 WHERE a <> (SELECT ST_GEOMETRYCOLLECTIONFROMWKB(b) FROM t1);
 1
 DROP TABLE t1;
 #
@@ -1048,17 +1046,17 @@ ERROR 22007: Illegal non geometric '12345' value found during parsing
 SELECT 1 FROM (SELECT GREATEST(1,GEOMETRYCOLLECTION('00000','00000')) b FROM DUAL) AS d WHERE (LINESTRING(d.b));
 ERROR 22007: Illegal non geometric ''00000'' value found during parsing
 #
-# BUG#51875: crash when loading data into geometry function polyfromwkb
+# BUG#51875: crash when loading data into geometry function ST_polyfromwkb
 #
 SET @a=0x00000000030000000100000000000000000000000000144000000000000014400000000000001840000000000000184000000000000014400000000000001440;
-SET @a=POLYFROMWKB(@a);
+SET @a=ST_POLYFROMWKB(@a);
 ERROR 22023: Invalid GIS data provided to function st_geometryfromwkb.
 SET @a=0x00000000030000000000000000000000000000000000144000000000000014400000000000001840000000000000184000000000000014400000000000001440;
-SET @a=POLYFROMWKB(@a);
+SET @a=ST_POLYFROMWKB(@a);
 ERROR 22023: Invalid GIS data provided to function st_geometryfromwkb.
 create table t1(a polygon NOT NULL)engine=InnoDB;
-insert into t1 values (geomfromtext("point(0 1)"));
-insert into t1 values (geomfromtext("point(1 0)"));
+insert into t1 values (ST_geomfromtext("point(0 1)"));
+insert into t1 values (ST_geomfromtext("point(1 0)"));
 select * from (select polygon(t1.a) as p from t1 order by t1.a) d;
 p
 NULL
@@ -1102,9 +1100,9 @@ INDEX i1 (col1(5), col2(5))
 );
 DROP TABLE IF EXISTS t0, t1, t2, t3,t4;
 #
-# BUG#12414917 - ISCLOSED() CRASHES ON 64-BIT BUILDS
+# BUG#12414917 - ST_ISCLOSED() CRASHES ON 64-BIT BUILDS
 #
-SELECT ISCLOSED(CONVERT(CONCAT('     ', 0x2), BINARY(20)));
+SELECT ST_ISCLOSED(CONVERT(CONCAT('     ', 0x2), BINARY(20)));
 ERROR HY000: Geometry byte string must be little endian.
 #
 # BUG#12537203 - CRASH WHEN SUBSELECTING GLOBAL VARIABLES IN 
@@ -1118,8 +1116,8 @@ End of 5.1 tests
 #
 CREATE TABLE g1
 (a geometry NOT NULL, UNIQUE KEY i (a(151))) engine=InnoDB;
-INSERT INTO g1 VALUES (geomfromtext('point(1 1)'));
-INSERT INTO g1 VALUES (geomfromtext('point(1 2)'));
+INSERT INTO g1 VALUES (ST_geomfromtext('point(1 1)'));
+INSERT INTO g1 VALUES (ST_geomfromtext('point(1 2)'));
 FLUSH TABLES;
 SELECT 1 FROM g1 
 FORCE INDEX(i) WHERE a = date_sub(now(), interval 2808.4 year_month)
@@ -1136,7 +1134,7 @@ DROP TABLE g1;
 CREATE TABLE g1(a TEXT NOT NULL, KEY(a(255)));
 INSERT INTO g1 VALUES ('a'),('a');
 SELECT 1 FROM g1 WHERE a >= ANY
-(SELECT 1 FROM g1 WHERE a = geomfromtext('') OR a) ;
+(SELECT 1 FROM g1 WHERE a = ST_geomfromtext('') OR a) ;
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 DROP TABLE g1;
 End of 5.5 tests
@@ -1196,7 +1194,7 @@ neatline POLYGON);
 # Lakes
 INSERT INTO lakes VALUES ( 
 101, 'BLUE LAKE', 
-PolyFromText( 
+ST_PolyFromText( 
 'POLYGON( 
 (52 18,66 23,73 9,48 6,52 18), 
 (59 18,67 18,67 13,59 13,59 18) 
@@ -1204,237 +1202,237 @@ PolyFromText(
 101));
 # Road Segments
 INSERT INTO road_segments VALUES(102, 'Route 5', NULL, 2, 
-LineFromText( 
+ST_LineFromText( 
 'LINESTRING( 0 18, 10 21, 16 23, 28 26, 44 31 )' ,101));
 INSERT INTO road_segments VALUES(103, 'Route 5', 'Main Street', 4, 
-LineFromText( 
+ST_LineFromText( 
 'LINESTRING( 44 31, 56 34, 70 38 )' ,101));
 INSERT INTO road_segments VALUES(104, 'Route 5', NULL, 2, 
-LineFromText( 
+ST_LineFromText( 
 'LINESTRING( 70 38, 72 48 )' ,101));
 INSERT INTO road_segments VALUES(105, 'Main Street', NULL, 4, 
-LineFromText( 
+ST_LineFromText( 
 'LINESTRING( 70 38, 84 42 )' ,101));
 INSERT INTO road_segments VALUES(106, 'Dirt Road by Green Forest', NULL, 
 1, 
-LineFromText( 
+ST_LineFromText( 
 'LINESTRING( 28 26, 28 0 )',101));
 # DividedRoutes 
 INSERT INTO divided_routes VALUES(119, 'Route 75', 4, 
-MLineFromText( 
+ST_MLineFromText( 
 'MULTILINESTRING((10 48,10 21,10 0), 
 (16 0,16 23,16 48))', 101));
 # Forests 
 INSERT INTO forests VALUES(109, 'Green Forest', 
-MPolyFromText( 
+ST_MPolyFromText( 
 'MULTIPOLYGON(((28 26,28 0,84 0,84 42,28 26), 
 (52 18,66 23,73 9,48 6,52 18)),((59 18,67 18,67 13,59 13,59 18)))', 
 101));
 # Bridges 
-INSERT INTO bridges VALUES(110, 'Cam Bridge', PointFromText( 
+INSERT INTO bridges VALUES(110, 'Cam Bridge', ST_PointFromText( 
 'POINT( 44 31 )', 101));
 # Streams 
 INSERT INTO streams VALUES(111, 'Cam Stream', 
-LineFromText( 
+ST_LineFromText( 
 'LINESTRING( 38 48, 44 41, 41 36, 44 31, 52 18 )', 101));
 INSERT INTO streams VALUES(112, NULL, 
-LineFromText( 
+ST_LineFromText( 
 'LINESTRING( 76 0, 78 4, 73 9 )', 101));
 # Buildings 
 INSERT INTO buildings VALUES(113, '123 Main Street', 
-PointFromText( 
+ST_PointFromText( 
 'POINT( 52 30 )', 101), 
-PolyFromText( 
+ST_PolyFromText( 
 'POLYGON( ( 50 31, 54 31, 54 29, 50 29, 50 31) )', 101));
 INSERT INTO buildings VALUES(114, '215 Main Street', 
-PointFromText( 
+ST_PointFromText( 
 'POINT( 64 33 )', 101), 
-PolyFromText( 
+ST_PolyFromText( 
 'POLYGON( ( 66 34, 62 34, 62 32, 66 32, 66 34) )', 101));
 # Ponds 
 INSERT INTO ponds VALUES(120, NULL, 'Stock Pond', 
-MPolyFromText( 
+ST_MPolyFromText( 
 'MULTIPOLYGON( ( ( 24 44, 22 42, 24 40, 24 44) ), 
 ( ( 26 44, 26 40, 28 42, 26 44) ) )', 101));
 # Named Places 
 INSERT INTO named_places VALUES(117, 'Ashton', 
-PolyFromText( 
+ST_PolyFromText( 
 'POLYGON( ( 62 48, 84 48, 84 30, 56 30, 56 34, 62 48) )', 101));
 INSERT INTO named_places VALUES(118, 'Goose Island', 
-PolyFromText( 
+ST_PolyFromText( 
 'POLYGON( ( 67 13, 67 18, 59 18, 59 13, 67 13) )', 101));
 # Map Neatlines 
 INSERT INTO map_neatlines VALUES(115, 
-PolyFromText( 
+ST_PolyFromText( 
 'POLYGON( ( 0 0, 0 48, 84 48, 84 0, 0 0 ) )', 101));
 #
 # C.3.3.3 Geometry types and functions schema test queries 
 
 # Conformance Item T6 
-SELECT Dimension(shore) 
+SELECT ST_Dimension(shore) 
 FROM lakes 
 WHERE name = 'Blue Lake';
-Dimension(shore)
+ST_Dimension(shore)
 2
 # Conformance Item T7 
-SELECT GeometryType(centerlines) 
+SELECT ST_GeometryType(centerlines) 
 FROM divided_routes
 WHERE name = 'Route 75';
-GeometryType(centerlines)
+ST_GeometryType(centerlines)
 MULTILINESTRING
 # Conformance Item T8 
-SELECT AsText(boundary) 
+SELECT ST_AsText(boundary) 
 FROM named_places 
 WHERE name = 'Goose Island';
-AsText(boundary)
+ST_AsText(boundary)
 POLYGON((67 13,67 18,59 18,59 13,67 13))
 # Conformance Item T9 
-SELECT AsText(PolyFromWKB(AsBinary(boundary),101)) 
+SELECT ST_AsText(ST_PolyFromWKB(ST_AsBinary(boundary),101)) 
 FROM named_places 
 WHERE name = 'Goose Island';
-AsText(PolyFromWKB(AsBinary(boundary),101))
+ST_AsText(ST_PolyFromWKB(ST_AsBinary(boundary),101))
 POLYGON((67 13,67 18,59 18,59 13,67 13))
 # Conformance Item T10 
-SELECT SRID(boundary) 
+SELECT ST_SRID(boundary) 
 FROM named_places 
 WHERE name = 'Goose Island';
-SRID(boundary)
+ST_SRID(boundary)
 101
 # Conformance Item T11 
-SELECT IsEmpty(centerline) 
+SELECT ST_IsEmpty(centerline) 
 FROM road_segments 
 WHERE name = 'Route 5' 
 AND aliases = 'Main Street';
-IsEmpty(centerline)
+ST_IsEmpty(centerline)
 0
 # Conformance Item T14 
-SELECT AsText(Envelope(boundary)) 
+SELECT ST_AsText(ST_Envelope(boundary)) 
 FROM named_places 
 WHERE name = 'Goose Island';
-AsText(Envelope(boundary))
+ST_AsText(ST_Envelope(boundary))
 POLYGON((59 13,67 13,67 18,59 18,59 13))
 # Conformance Item T15 
-SELECT X(position) 
+SELECT ST_X(position) 
 FROM bridges 
 WHERE name = 'Cam Bridge';
-X(position)
+ST_X(position)
 44
 # Conformance Item T16 
-SELECT Y(position) 
+SELECT ST_Y(position) 
 FROM bridges 
 WHERE name = 'Cam Bridge';
-Y(position)
+ST_Y(position)
 31
 # Conformance Item T17 
-SELECT AsText(StartPoint(centerline)) 
+SELECT ST_AsText(ST_StartPoint(centerline)) 
 FROM road_segments 
 WHERE fid = 102;
-AsText(StartPoint(centerline))
+ST_AsText(ST_StartPoint(centerline))
 POINT(0 18)
 # Conformance Item T18 
-SELECT AsText(EndPoint(centerline)) 
+SELECT ST_AsText(ST_EndPoint(centerline)) 
 FROM road_segments 
 WHERE fid = 102;
-AsText(EndPoint(centerline))
+ST_AsText(ST_EndPoint(centerline))
 POINT(44 31)
 # Conformance Item T21 
-SELECT GLength(centerline) 
+SELECT ST_Length(centerline) 
 FROM road_segments 
 WHERE fid = 106;
-GLength(centerline)
+ST_Length(centerline)
 26
 # Conformance Item T22 
-SELECT NumPoints(centerline) 
+SELECT ST_NumPoints(centerline) 
 FROM road_segments 
 WHERE fid = 102;
-NumPoints(centerline)
+ST_NumPoints(centerline)
 5
 # Conformance Item T23 
-SELECT AsText(PointN(centerline, 1)) 
+SELECT ST_AsText(ST_PointN(centerline, 1)) 
 FROM road_segments 
 WHERE fid = 102;
-AsText(PointN(centerline, 1))
+ST_AsText(ST_PointN(centerline, 1))
 POINT(0 18)
 # Conformance Item T24 
-SELECT AsText(Centroid(boundary)) 
+SELECT ST_AsText(ST_Centroid(boundary)) 
 FROM named_places 
 WHERE name = 'Goose Island';
-AsText(Centroid(boundary))
+ST_AsText(ST_Centroid(boundary))
 POINT(63 15.5)
 # Conformance Item T26 
-SELECT Area(boundary) 
+SELECT ST_Area(boundary) 
 FROM named_places 
 WHERE name = 'Goose Island';
-Area(boundary)
+ST_Area(boundary)
 40
 # Conformance Item T27 
-SELECT AsText(ExteriorRing(shore)) 
+SELECT ST_AsText(ST_ExteriorRing(shore)) 
 FROM lakes 
 WHERE name = 'Blue Lake';
-AsText(ExteriorRing(shore))
+ST_AsText(ST_ExteriorRing(shore))
 LINESTRING(52 18,66 23,73 9,48 6,52 18)
 # Conformance Item T28 
-SELECT NumInteriorRings(shore) 
+SELECT ST_NumInteriorRings(shore) 
 FROM lakes 
 WHERE name = 'Blue Lake';
-NumInteriorRings(shore)
+ST_NumInteriorRings(shore)
 1
 # Conformance Item T29 
-SELECT AsText(InteriorRingN(shore, 1)) 
+SELECT ST_AsText(ST_InteriorRingN(shore, 1)) 
 FROM lakes 
 WHERE name = 'Blue Lake';
-AsText(InteriorRingN(shore, 1))
+ST_AsText(ST_InteriorRingN(shore, 1))
 LINESTRING(59 18,67 18,67 13,59 13,59 18)
 # Conformance Item T30 
-SELECT NumGeometries(centerlines) 
+SELECT ST_NumGeometries(centerlines) 
 FROM divided_routes 
 WHERE name = 'Route 75';
-NumGeometries(centerlines)
+ST_NumGeometries(centerlines)
 2
 # Conformance Item T31 
-SELECT AsText(GeometryN(centerlines, 2)) 
+SELECT ST_AsText(ST_GeometryN(centerlines, 2)) 
 FROM divided_routes 
 WHERE name = 'Route 75';
-AsText(GeometryN(centerlines, 2))
+ST_AsText(ST_GeometryN(centerlines, 2))
 LINESTRING(16 0,16 23,16 48)
 # Conformance Item T32 
-SELECT IsClosed(centerlines) 
+SELECT ST_IsClosed(centerlines) 
 FROM divided_routes 
 WHERE name = 'Route 75';
-IsClosed(centerlines)
+ST_IsClosed(centerlines)
 0
 # Conformance Item T33 
-SELECT GLength(centerlines) 
+SELECT ST_Length(centerlines) 
 FROM divided_routes 
 WHERE name = 'Route 75';
-GLength(centerlines)
+ST_Length(centerlines)
 96
 # Conformance Item T34 
-SELECT AsText(Centroid(shores)) 
+SELECT ST_AsText(ST_Centroid(shores)) 
 FROM ponds 
 WHERE fid = 120;
-AsText(Centroid(shores))
+ST_AsText(ST_Centroid(shores))
 POINT(25 42)
 # Conformance Item T36 
-SELECT Area(shores) 
+SELECT ST_Area(shores) 
 FROM ponds 
 WHERE fid = 120;
-Area(shores)
+ST_Area(shores)
 8
 # Conformance Item T37 
 SELECT ST_Equals(boundary, 
-PolyFromText('POLYGON( ( 67 13, 67 18, 59 18, 59 13, 67 13) )',1)) 
+ST_PolyFromText('POLYGON( ( 67 13, 67 18, 59 18, 59 13, 67 13) )',1)) 
 FROM named_places 
 WHERE name = 'Goose Island';
 ERROR HY000: Binary geometry function st_equals given two geometries of different srids: 101 and 1, which should have been identical.
 # Conformance Item T37
 # Geometry arguments' SRIDs must be identical.
 SELECT ST_Equals(boundary,
-PolyFromText('POLYGON( ( 67 13, 67 18, 59 18, 59 13, 67 13) )',101))
+ST_PolyFromText('POLYGON( ( 67 13, 67 18, 59 18, 59 13, 67 13) )',101))
 FROM named_places
 WHERE name = 'Goose Island';
 ST_Equals(boundary,
-PolyFromText('POLYGON( ( 67 13, 67 18, 59 18, 59 13, 67 13) )',101))
+ST_PolyFromText('POLYGON( ( 67 13, 67 18, 59 18, 59 13, 67 13) )',101))
 1
 # Conformance Item T38 
 SELECT ST_Disjoint(centerlines, boundary) 
@@ -1451,11 +1449,11 @@ AND lakes.name = 'Blue Lake';
 ST_Touches(centerline, shore)
 1
 # Conformance Item T42
-SELECT Crosses(road_segments.centerline, divided_routes.centerlines)
+SELECT ST_Crosses(road_segments.centerline, divided_routes.centerlines)
 FROM road_segments, divided_routes 
 WHERE road_segments.fid = 102 
 AND divided_routes.name = 'Route 75';
-Crosses(road_segments.centerline, divided_routes.centerlines)
+ST_Crosses(road_segments.centerline, divided_routes.centerlines)
 1
 # Conformance Item T43 
 SELECT ST_Intersects(road_segments.centerline, divided_routes.centerlines) 
@@ -1479,24 +1477,24 @@ AND named_places.name = 'Ashton';
 ST_Distance(position, boundary)
 12
 # Conformance Item T48 
-SELECT AsText(ST_Difference(named_places.boundary, forests.boundary)) 
+SELECT ST_AsText(ST_Difference(named_places.boundary, forests.boundary)) 
 FROM named_places, forests 
 WHERE named_places.name = 'Ashton' 
 AND forests.name = 'Green Forest';
-AsText(ST_Difference(named_places.boundary, forests.boundary))
+ST_AsText(ST_Difference(named_places.boundary, forests.boundary))
 POLYGON((84 42,84 48,62 48,56 34,84 42))
-SELECT AsText(ST_Union(shore, boundary)) 
+SELECT ST_AsText(ST_Union(shore, boundary)) 
 FROM lakes, named_places 
 WHERE lakes.name = 'Blue Lake' 
 AND named_places.name = 'Goose Island';
-AsText(ST_Union(shore, boundary))
+ST_AsText(ST_Union(shore, boundary))
 POLYGON((52 18,48 6,73 9,66 23,52 18))
 # Conformance Item T50 
-SELECT AsText(ST_SymDifference(shore, boundary)) 
+SELECT ST_AsText(ST_SymDifference(shore, boundary)) 
 FROM lakes, named_places 
 WHERE lakes.name = 'Blue Lake' 
 AND named_places.name = 'Ashton';
-AsText(ST_SymDifference(shore, boundary))
+ST_AsText(ST_SymDifference(shore, boundary))
 MULTIPOLYGON(((52 18,48 6,73 9,66 23,52 18),(59 18,67 18,67 13,59 13,59 18)),((62 48,56 34,56 30,84 30,84 48,62 48)))
 # Conformance Item T51 
 SELECT count(*) 

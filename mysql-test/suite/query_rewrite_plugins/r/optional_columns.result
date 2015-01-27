@@ -1,0 +1,859 @@
+#
+# Tests that the optional column columns work both of they are present
+# and absent. PATTERN_DIGEST and NORMALIZED_PATTERN are optional write-
+# only columns that are not present by default. The MESSAGE column is
+# optional, but included in the install script by default.
+#
+# Query rewrite plugin was installed.
+#
+# Testing with PATTERN_DIGEST and NORMALIZED_PATTERN columns.
+#
+CREATE TABLE t1 ( a VARCHAR(10), b VARCHAR(10) );
+INSERT INTO t1 VALUES ( 'abc', 'def' ), ( 'ghi', 'klm' ), ( 'nop', 'qrs' );
+CREATE TABLE t2 ( a VARCHAR(10) );
+INSERT INTO t2 VALUES ( 'abc' ), ( 'klm' );
+# Test of literals matching.
+INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
+VALUES ( 'SELECT ?', 'SELECT "literal"' );
+SELECT * FROM query_rewrite.rewrite_rules;
+pattern	pattern_database	replacement	enabled	message	pattern_digest	normalized_pattern
+SELECT ?	NULL	SELECT "literal"	Y	NULL	NULL	NULL
+CALL query_rewrite.flush_rewrite_rules();
+SELECT * FROM query_rewrite.rewrite_rules;
+pattern	pattern_database	replacement	enabled	message	pattern_digest	normalized_pattern
+SELECT ?	NULL	SELECT "literal"	Y	NULL	ed0f18e9ad39bba6ff1d44b6a248dba7	select ?
+SELECT NULL;
+literal
+literal
+Warnings:
+Note	1105	Query 'SELECT NULL' rewritten to 'SELECT "literal"' by plugin: Rewriter.
+SELECT 'abc';
+literal
+literal
+Warnings:
+Note	1105	Query 'SELECT 'abc'' rewritten to 'SELECT "literal"' by plugin: Rewriter.
+SELECT 1;
+literal
+literal
+Warnings:
+Note	1105	Query 'SELECT 1' rewritten to 'SELECT "literal"' by plugin: Rewriter.
+SELECT 1.1;
+literal
+literal
+Warnings:
+Note	1105	Query 'SELECT 1.1' rewritten to 'SELECT "literal"' by plugin: Rewriter.
+SELECT 123456789123456789123456789123456789123456789123456789;
+literal
+literal
+Warnings:
+Note	1105	Query 'SELECT 123456789123456789123456789123456789123456789123456789' rewritten to 'SELECT "literal"' by plugin: Rewriter.
+# Check our status variables.
+SHOW STATUS LIKE 'Rewriter%';
+Variable_name	Value
+Rewriter_number_loaded_rules	1
+Rewriter_number_reloads	2
+Rewriter_number_rewritten_queries	5
+Rewriter_reload_error	OFF
+DELETE FROM query_rewrite.rewrite_rules;
+INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
+VALUES ( 'SELECT * FROM test.t1 WHERE ( a = ? AND TRUE ) OR b = ?',
+'SELECT a FROM test.t1 WHERE a = ?' ),
+( 'SELECT a FROM test.t1',
+'SELECT * FROM test.t1 WHERE a = \'abc\'' ),
+( 'SELECT a FROM test.t1 WHERE b = ?',
+'SELECT * FROM test.t1 WHERE b = ?' ),
+( 'SELECT * FROM test.t2',
+'SELECT * FROM test.t1 JOIN test.t2 ON t1.a = t2.a' ),
+( 'SELECT * FROM test.t1 WHERE a = ? OR b = ?',
+'SELECT * FROM test.t1 WHERE b = ? OR a = ?' );
+SELECT * FROM query_rewrite.rewrite_rules;
+pattern	pattern_database	replacement	enabled	message	pattern_digest	normalized_pattern
+SELECT * FROM test.t1 WHERE ( a = ? AND TRUE ) OR b = ?	NULL	SELECT a FROM test.t1 WHERE a = ?	Y	NULL	NULL	NULL
+SELECT a FROM test.t1	NULL	SELECT * FROM test.t1 WHERE a = 'abc'	Y	NULL	NULL	NULL
+SELECT a FROM test.t1 WHERE b = ?	NULL	SELECT * FROM test.t1 WHERE b = ?	Y	NULL	NULL	NULL
+SELECT * FROM test.t2	NULL	SELECT * FROM test.t1 JOIN test.t2 ON t1.a = t2.a	Y	NULL	NULL	NULL
+SELECT * FROM test.t1 WHERE a = ? OR b = ?	NULL	SELECT * FROM test.t1 WHERE b = ? OR a = ?	Y	NULL	NULL	NULL
+CALL query_rewrite.flush_rewrite_rules();
+SELECT * FROM query_rewrite.rewrite_rules;
+pattern	pattern_database	replacement	enabled	message	pattern_digest	normalized_pattern
+SELECT * FROM test.t1 WHERE ( a = ? AND TRUE ) OR b = ?	NULL	SELECT a FROM test.t1 WHERE a = ?	Y	NULL	4f923b3191b2a476d0070e72709dd377	select `*` from `test`.`t1` where (((`a` = ?) and ?) or (`b` = ?))
+SELECT a FROM test.t1	NULL	SELECT * FROM test.t1 WHERE a = 'abc'	Y	NULL	74c6a60ef0e717aa6ce2852219674119	select `a` from `test`.`t1`
+SELECT a FROM test.t1 WHERE b = ?	NULL	SELECT * FROM test.t1 WHERE b = ?	Y	NULL	2f7e6e4304939ce2e9e783ad46842212	select `a` from `test`.`t1` where (`b` = ?)
+SELECT * FROM test.t2	NULL	SELECT * FROM test.t1 JOIN test.t2 ON t1.a = t2.a	Y	NULL	e2c84d1d67db6d3d742bfe91dcdc11de	select `*` from `test`.`t2`
+SELECT * FROM test.t1 WHERE a = ? OR b = ?	NULL	SELECT * FROM test.t1 WHERE b = ? OR a = ?	Y	NULL	3e591063354c7c5034bb09a77d39405b	select `*` from `test`.`t1` where ((`a` = ?) or (`b` = ?))
+# Check a query that doesn't have a rewrite rule doesn't get rewritten.
+SELECT b FROM test.t1;
+b
+def
+klm
+qrs
+# Check a query with just one parameter.
+SELECT a FROM test.t1 WHERE b = 'qrs';
+a	b
+nop	qrs
+Warnings:
+Note	1105	Query 'SELECT a FROM test.t1 WHERE b = 'qrs'' rewritten to 'SELECT * FROM test.t1 WHERE b = 'qrs'' by plugin: Rewriter.
+# Check a rule with parameter truncation (fewer parameters in the
+# output query than in the input query);
+SELECT * FROM test.t1 WHERE ( a = 'abc' AND TRUE ) OR b = 'klm';
+a
+abc
+Warnings:
+Note	1105	Query 'SELECT * FROM test.t1 WHERE ( a = 'abc' AND TRUE ) OR b = 'klm'' rewritten to 'SELECT a FROM test.t1 WHERE a = 'abc'' by plugin: Rewriter.
+SELECT * FROM test.t1 WHERE ( a = 'abc' AND FALSE ) OR b = 'klm';
+a	b
+ghi	klm
+# Check a non parameterized query.
+SELECT * from t1 WHERE a = 'abc';
+a	b
+abc	def
+# Check that a non-rewritten query does not yield a warning.
+SELECT b FROM test.t1;
+b
+def
+klm
+qrs
+# Check that a query is not rewritten if the query corresponds to a
+# replacement.
+SELECT a FROM test.t1;
+a	b
+abc	def
+Warnings:
+Note	1105	Query 'SELECT a FROM test.t1' rewritten to 'SELECT * FROM test.t1 WHERE a = 'abc'' by plugin: Rewriter.
+# Check that we can execute a rewrite more than once.
+SELECT * FROM test.t2;
+a	b	a
+abc	def	abc
+Warnings:
+Note	1105	Query 'SELECT * FROM test.t2' rewritten to 'SELECT * FROM test.t1 JOIN test.t2 ON t1.a = t2.a' by plugin: Rewriter.
+SELECT * FROM test.t2;
+a	b	a
+abc	def	abc
+Warnings:
+Note	1105	Query 'SELECT * FROM test.t2' rewritten to 'SELECT * FROM test.t1 JOIN test.t2 ON t1.a = t2.a' by plugin: Rewriter.
+# Remove the warnings.
+SELECT b FROM test.t1;
+b
+def
+klm
+qrs
+# Check parameter switching in a query rewrite
+SELECT * FROM test.t1 WHERE a = 'def' OR b = 'ghi';
+a	b
+abc	def
+ghi	klm
+Warnings:
+Note	1105	Query 'SELECT * FROM test.t1 WHERE a = 'def' OR b = 'ghi'' rewritten to 'SELECT * FROM test.t1 WHERE b = 'def' OR a = 'ghi'' by plugin: Rewriter.
+# Verify with whitespace.
+SELECT * FROM test.t1   WHERE   a  = 'def' OR b  =  'ghi';
+a	b
+abc	def
+ghi	klm
+Warnings:
+Note	1105	Query 'SELECT * FROM test.t1   WHERE   a  = 'def' OR b  =  'ghi'' rewritten to 'SELECT * FROM test.t1 WHERE b = 'def' OR a = 'ghi'' by plugin: Rewriter.
+# Verify with comments.
+SELECT * FROM test.t1 WHERE a =/* 'def' ? */'def' OR b = 'ghi';
+a	b
+abc	def
+ghi	klm
+Warnings:
+Note	1105	Query 'SELECT * FROM test.t1 WHERE a =/* 'def' ? */'def' OR b = 'ghi'' rewritten to 'SELECT * FROM test.t1 WHERE b = 'def' OR a = 'ghi'' by plugin: Rewriter.
+# Check our status variables.
+SHOW STATUS LIKE 'Rewriter%';
+Variable_name	Value
+Rewriter_number_loaded_rules	5
+Rewriter_number_reloads	3
+Rewriter_number_rewritten_queries	13
+Rewriter_reload_error	OFF
+DROP TABLE t1;
+DROP TABLE t2;
+DELETE FROM query_rewrite.rewrite_rules;
+# Test of literals matching.
+INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
+VALUES ( 'SELECT 1, ?', 'SELECT "rewritten w/rule 1"' ),
+( 'SELECT 2, ?', 'SELECT "rewritten w/rule 2"' ),
+( 'SELECT "The_original_query"', 'SELECT "The_rewritten_query"');
+SELECT * FROM query_rewrite.rewrite_rules;
+pattern	pattern_database	replacement	enabled	message	pattern_digest	normalized_pattern
+SELECT 1, ?	NULL	SELECT "rewritten w/rule 1"	Y	NULL	NULL	NULL
+SELECT 2, ?	NULL	SELECT "rewritten w/rule 2"	Y	NULL	NULL	NULL
+SELECT "The_original_query"	NULL	SELECT "The_rewritten_query"	Y	NULL	NULL	NULL
+CALL query_rewrite.flush_rewrite_rules();
+SELECT * FROM query_rewrite.rewrite_rules;
+pattern	pattern_database	replacement	enabled	message	pattern_digest	normalized_pattern
+SELECT 1, ?	NULL	SELECT "rewritten w/rule 1"	Y	NULL	4077abb1c6924eb2e61a4e6b5832e610	select ?,?
+SELECT 2, ?	NULL	SELECT "rewritten w/rule 2"	Y	NULL	4077abb1c6924eb2e61a4e6b5832e610	select ?,?
+SELECT "The_original_query"	NULL	SELECT "The_rewritten_query"	Y	NULL	ed0f18e9ad39bba6ff1d44b6a248dba7	select ?
+SELECT 1, 1;
+rewritten w/rule 1
+rewritten w/rule 1
+Warnings:
+Note	1105	Query 'SELECT 1, 1' rewritten to 'SELECT "rewritten w/rule 1"' by plugin: Rewriter.
+SELECT 1, 2;
+rewritten w/rule 1
+rewritten w/rule 1
+Warnings:
+Note	1105	Query 'SELECT 1, 2' rewritten to 'SELECT "rewritten w/rule 1"' by plugin: Rewriter.
+SELECT 2, 1;
+rewritten w/rule 2
+rewritten w/rule 2
+Warnings:
+Note	1105	Query 'SELECT 2, 1' rewritten to 'SELECT "rewritten w/rule 2"' by plugin: Rewriter.
+SELECT 2, 2;
+rewritten w/rule 2
+rewritten w/rule 2
+Warnings:
+Note	1105	Query 'SELECT 2, 2' rewritten to 'SELECT "rewritten w/rule 2"' by plugin: Rewriter.
+SELECT 3, 1;
+3	1
+3	1
+SELECT 3, 2;
+3	2
+3	2
+SELECT 'The_original_query';
+The_rewritten_query
+The_rewritten_query
+Warnings:
+Note	1105	Query 'SELECT 'The_original_query'' rewritten to 'SELECT "The_rewritten_query"' by plugin: Rewriter.
+DELETE FROM query_rewrite.rewrite_rules;
+DELETE FROM query_rewrite.rewrite_rules;
+#
+# Testing with a NORMALIZED_PATTERN column.
+#
+ALTER TABLE query_rewrite.rewrite_rules DROP COLUMN pattern_digest;
+CREATE TABLE t1 ( a VARCHAR(10), b VARCHAR(10) );
+INSERT INTO t1 VALUES ( 'abc', 'def' ), ( 'ghi', 'klm' ), ( 'nop', 'qrs' );
+CREATE TABLE t2 ( a VARCHAR(10) );
+INSERT INTO t2 VALUES ( 'abc' ), ( 'klm' );
+# Test of literals matching.
+INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
+VALUES ( 'SELECT ?', 'SELECT "literal"' );
+SELECT * FROM query_rewrite.rewrite_rules;
+pattern	pattern_database	replacement	enabled	message	normalized_pattern
+SELECT ?	NULL	SELECT "literal"	Y	NULL	NULL
+CALL query_rewrite.flush_rewrite_rules();
+SELECT * FROM query_rewrite.rewrite_rules;
+pattern	pattern_database	replacement	enabled	message	normalized_pattern
+SELECT ?	NULL	SELECT "literal"	Y	NULL	select ?
+SELECT NULL;
+literal
+literal
+Warnings:
+Note	1105	Query 'SELECT NULL' rewritten to 'SELECT "literal"' by plugin: Rewriter.
+SELECT 'abc';
+literal
+literal
+Warnings:
+Note	1105	Query 'SELECT 'abc'' rewritten to 'SELECT "literal"' by plugin: Rewriter.
+SELECT 1;
+literal
+literal
+Warnings:
+Note	1105	Query 'SELECT 1' rewritten to 'SELECT "literal"' by plugin: Rewriter.
+SELECT 1.1;
+literal
+literal
+Warnings:
+Note	1105	Query 'SELECT 1.1' rewritten to 'SELECT "literal"' by plugin: Rewriter.
+SELECT 123456789123456789123456789123456789123456789123456789;
+literal
+literal
+Warnings:
+Note	1105	Query 'SELECT 123456789123456789123456789123456789123456789123456789' rewritten to 'SELECT "literal"' by plugin: Rewriter.
+# Check our status variables.
+SHOW STATUS LIKE 'Rewriter%';
+Variable_name	Value
+Rewriter_number_loaded_rules	1
+Rewriter_number_reloads	5
+Rewriter_number_rewritten_queries	23
+Rewriter_reload_error	OFF
+DELETE FROM query_rewrite.rewrite_rules;
+INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
+VALUES ( 'SELECT * FROM test.t1 WHERE ( a = ? AND TRUE ) OR b = ?',
+'SELECT a FROM test.t1 WHERE a = ?' ),
+( 'SELECT a FROM test.t1',
+'SELECT * FROM test.t1 WHERE a = \'abc\'' ),
+( 'SELECT a FROM test.t1 WHERE b = ?',
+'SELECT * FROM test.t1 WHERE b = ?' ),
+( 'SELECT * FROM test.t2',
+'SELECT * FROM test.t1 JOIN test.t2 ON t1.a = t2.a' ),
+( 'SELECT * FROM test.t1 WHERE a = ? OR b = ?',
+'SELECT * FROM test.t1 WHERE b = ? OR a = ?' );
+SELECT * FROM query_rewrite.rewrite_rules;
+pattern	pattern_database	replacement	enabled	message	normalized_pattern
+SELECT * FROM test.t1 WHERE ( a = ? AND TRUE ) OR b = ?	NULL	SELECT a FROM test.t1 WHERE a = ?	Y	NULL	NULL
+SELECT a FROM test.t1	NULL	SELECT * FROM test.t1 WHERE a = 'abc'	Y	NULL	NULL
+SELECT a FROM test.t1 WHERE b = ?	NULL	SELECT * FROM test.t1 WHERE b = ?	Y	NULL	NULL
+SELECT * FROM test.t2	NULL	SELECT * FROM test.t1 JOIN test.t2 ON t1.a = t2.a	Y	NULL	NULL
+SELECT * FROM test.t1 WHERE a = ? OR b = ?	NULL	SELECT * FROM test.t1 WHERE b = ? OR a = ?	Y	NULL	NULL
+CALL query_rewrite.flush_rewrite_rules();
+SELECT * FROM query_rewrite.rewrite_rules;
+pattern	pattern_database	replacement	enabled	message	normalized_pattern
+SELECT * FROM test.t1 WHERE ( a = ? AND TRUE ) OR b = ?	NULL	SELECT a FROM test.t1 WHERE a = ?	Y	NULL	select `*` from `test`.`t1` where (((`a` = ?) and ?) or (`b` = ?))
+SELECT a FROM test.t1	NULL	SELECT * FROM test.t1 WHERE a = 'abc'	Y	NULL	select `a` from `test`.`t1`
+SELECT a FROM test.t1 WHERE b = ?	NULL	SELECT * FROM test.t1 WHERE b = ?	Y	NULL	select `a` from `test`.`t1` where (`b` = ?)
+SELECT * FROM test.t2	NULL	SELECT * FROM test.t1 JOIN test.t2 ON t1.a = t2.a	Y	NULL	select `*` from `test`.`t2`
+SELECT * FROM test.t1 WHERE a = ? OR b = ?	NULL	SELECT * FROM test.t1 WHERE b = ? OR a = ?	Y	NULL	select `*` from `test`.`t1` where ((`a` = ?) or (`b` = ?))
+# Check a query that doesn't have a rewrite rule doesn't get rewritten.
+SELECT b FROM test.t1;
+b
+def
+klm
+qrs
+# Check a query with just one parameter.
+SELECT a FROM test.t1 WHERE b = 'qrs';
+a	b
+nop	qrs
+Warnings:
+Note	1105	Query 'SELECT a FROM test.t1 WHERE b = 'qrs'' rewritten to 'SELECT * FROM test.t1 WHERE b = 'qrs'' by plugin: Rewriter.
+# Check a rule with parameter truncation (fewer parameters in the
+# output query than in the input query);
+SELECT * FROM test.t1 WHERE ( a = 'abc' AND TRUE ) OR b = 'klm';
+a
+abc
+Warnings:
+Note	1105	Query 'SELECT * FROM test.t1 WHERE ( a = 'abc' AND TRUE ) OR b = 'klm'' rewritten to 'SELECT a FROM test.t1 WHERE a = 'abc'' by plugin: Rewriter.
+SELECT * FROM test.t1 WHERE ( a = 'abc' AND FALSE ) OR b = 'klm';
+a	b
+ghi	klm
+# Check a non parameterized query.
+SELECT * from t1 WHERE a = 'abc';
+a	b
+abc	def
+# Check that a non-rewritten query does not yield a warning.
+SELECT b FROM test.t1;
+b
+def
+klm
+qrs
+# Check that a query is not rewritten if the query corresponds to a
+# replacement.
+SELECT a FROM test.t1;
+a	b
+abc	def
+Warnings:
+Note	1105	Query 'SELECT a FROM test.t1' rewritten to 'SELECT * FROM test.t1 WHERE a = 'abc'' by plugin: Rewriter.
+# Check that we can execute a rewrite more than once.
+SELECT * FROM test.t2;
+a	b	a
+abc	def	abc
+Warnings:
+Note	1105	Query 'SELECT * FROM test.t2' rewritten to 'SELECT * FROM test.t1 JOIN test.t2 ON t1.a = t2.a' by plugin: Rewriter.
+SELECT * FROM test.t2;
+a	b	a
+abc	def	abc
+Warnings:
+Note	1105	Query 'SELECT * FROM test.t2' rewritten to 'SELECT * FROM test.t1 JOIN test.t2 ON t1.a = t2.a' by plugin: Rewriter.
+# Remove the warnings.
+SELECT b FROM test.t1;
+b
+def
+klm
+qrs
+# Check parameter switching in a query rewrite
+SELECT * FROM test.t1 WHERE a = 'def' OR b = 'ghi';
+a	b
+abc	def
+ghi	klm
+Warnings:
+Note	1105	Query 'SELECT * FROM test.t1 WHERE a = 'def' OR b = 'ghi'' rewritten to 'SELECT * FROM test.t1 WHERE b = 'def' OR a = 'ghi'' by plugin: Rewriter.
+# Verify with whitespace.
+SELECT * FROM test.t1   WHERE   a  = 'def' OR b  =  'ghi';
+a	b
+abc	def
+ghi	klm
+Warnings:
+Note	1105	Query 'SELECT * FROM test.t1   WHERE   a  = 'def' OR b  =  'ghi'' rewritten to 'SELECT * FROM test.t1 WHERE b = 'def' OR a = 'ghi'' by plugin: Rewriter.
+# Verify with comments.
+SELECT * FROM test.t1 WHERE a =/* 'def' ? */'def' OR b = 'ghi';
+a	b
+abc	def
+ghi	klm
+Warnings:
+Note	1105	Query 'SELECT * FROM test.t1 WHERE a =/* 'def' ? */'def' OR b = 'ghi'' rewritten to 'SELECT * FROM test.t1 WHERE b = 'def' OR a = 'ghi'' by plugin: Rewriter.
+# Check our status variables.
+SHOW STATUS LIKE 'Rewriter%';
+Variable_name	Value
+Rewriter_number_loaded_rules	5
+Rewriter_number_reloads	6
+Rewriter_number_rewritten_queries	31
+Rewriter_reload_error	OFF
+DROP TABLE t1;
+DROP TABLE t2;
+DELETE FROM query_rewrite.rewrite_rules;
+# Test of literals matching.
+INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
+VALUES ( 'SELECT 1, ?', 'SELECT "rewritten w/rule 1"' ),
+( 'SELECT 2, ?', 'SELECT "rewritten w/rule 2"' ),
+( 'SELECT "The_original_query"', 'SELECT "The_rewritten_query"');
+SELECT * FROM query_rewrite.rewrite_rules;
+pattern	pattern_database	replacement	enabled	message	normalized_pattern
+SELECT 1, ?	NULL	SELECT "rewritten w/rule 1"	Y	NULL	NULL
+SELECT 2, ?	NULL	SELECT "rewritten w/rule 2"	Y	NULL	NULL
+SELECT "The_original_query"	NULL	SELECT "The_rewritten_query"	Y	NULL	NULL
+CALL query_rewrite.flush_rewrite_rules();
+SELECT * FROM query_rewrite.rewrite_rules;
+pattern	pattern_database	replacement	enabled	message	normalized_pattern
+SELECT 1, ?	NULL	SELECT "rewritten w/rule 1"	Y	NULL	select ?,?
+SELECT 2, ?	NULL	SELECT "rewritten w/rule 2"	Y	NULL	select ?,?
+SELECT "The_original_query"	NULL	SELECT "The_rewritten_query"	Y	NULL	select ?
+SELECT 1, 1;
+rewritten w/rule 1
+rewritten w/rule 1
+Warnings:
+Note	1105	Query 'SELECT 1, 1' rewritten to 'SELECT "rewritten w/rule 1"' by plugin: Rewriter.
+SELECT 1, 2;
+rewritten w/rule 1
+rewritten w/rule 1
+Warnings:
+Note	1105	Query 'SELECT 1, 2' rewritten to 'SELECT "rewritten w/rule 1"' by plugin: Rewriter.
+SELECT 2, 1;
+rewritten w/rule 2
+rewritten w/rule 2
+Warnings:
+Note	1105	Query 'SELECT 2, 1' rewritten to 'SELECT "rewritten w/rule 2"' by plugin: Rewriter.
+SELECT 2, 2;
+rewritten w/rule 2
+rewritten w/rule 2
+Warnings:
+Note	1105	Query 'SELECT 2, 2' rewritten to 'SELECT "rewritten w/rule 2"' by plugin: Rewriter.
+SELECT 3, 1;
+3	1
+3	1
+SELECT 3, 2;
+3	2
+3	2
+SELECT 'The_original_query';
+The_rewritten_query
+The_rewritten_query
+Warnings:
+Note	1105	Query 'SELECT 'The_original_query'' rewritten to 'SELECT "The_rewritten_query"' by plugin: Rewriter.
+DELETE FROM query_rewrite.rewrite_rules;
+DELETE FROM query_rewrite.rewrite_rules;
+#
+# Testing with a NORMALIZED_PATTERN column but no MESSAGE column.
+#
+ALTER TABLE query_rewrite.rewrite_rules DROP COLUMN message;
+CREATE TABLE t1 ( a VARCHAR(10), b VARCHAR(10) );
+INSERT INTO t1 VALUES ( 'abc', 'def' ), ( 'ghi', 'klm' ), ( 'nop', 'qrs' );
+CREATE TABLE t2 ( a VARCHAR(10) );
+INSERT INTO t2 VALUES ( 'abc' ), ( 'klm' );
+# Test of literals matching.
+INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
+VALUES ( 'SELECT ?', 'SELECT "literal"' );
+SELECT * FROM query_rewrite.rewrite_rules;
+pattern	pattern_database	replacement	enabled	normalized_pattern
+SELECT ?	NULL	SELECT "literal"	Y	NULL
+CALL query_rewrite.flush_rewrite_rules();
+SELECT * FROM query_rewrite.rewrite_rules;
+pattern	pattern_database	replacement	enabled	normalized_pattern
+SELECT ?	NULL	SELECT "literal"	Y	select ?
+SELECT NULL;
+literal
+literal
+Warnings:
+Note	1105	Query 'SELECT NULL' rewritten to 'SELECT "literal"' by plugin: Rewriter.
+SELECT 'abc';
+literal
+literal
+Warnings:
+Note	1105	Query 'SELECT 'abc'' rewritten to 'SELECT "literal"' by plugin: Rewriter.
+SELECT 1;
+literal
+literal
+Warnings:
+Note	1105	Query 'SELECT 1' rewritten to 'SELECT "literal"' by plugin: Rewriter.
+SELECT 1.1;
+literal
+literal
+Warnings:
+Note	1105	Query 'SELECT 1.1' rewritten to 'SELECT "literal"' by plugin: Rewriter.
+SELECT 123456789123456789123456789123456789123456789123456789;
+literal
+literal
+Warnings:
+Note	1105	Query 'SELECT 123456789123456789123456789123456789123456789123456789' rewritten to 'SELECT "literal"' by plugin: Rewriter.
+# Check our status variables.
+SHOW STATUS LIKE 'Rewriter%';
+Variable_name	Value
+Rewriter_number_loaded_rules	1
+Rewriter_number_reloads	8
+Rewriter_number_rewritten_queries	41
+Rewriter_reload_error	OFF
+DELETE FROM query_rewrite.rewrite_rules;
+INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
+VALUES ( 'SELECT * FROM test.t1 WHERE ( a = ? AND TRUE ) OR b = ?',
+'SELECT a FROM test.t1 WHERE a = ?' ),
+( 'SELECT a FROM test.t1',
+'SELECT * FROM test.t1 WHERE a = \'abc\'' ),
+( 'SELECT a FROM test.t1 WHERE b = ?',
+'SELECT * FROM test.t1 WHERE b = ?' ),
+( 'SELECT * FROM test.t2',
+'SELECT * FROM test.t1 JOIN test.t2 ON t1.a = t2.a' ),
+( 'SELECT * FROM test.t1 WHERE a = ? OR b = ?',
+'SELECT * FROM test.t1 WHERE b = ? OR a = ?' );
+SELECT * FROM query_rewrite.rewrite_rules;
+pattern	pattern_database	replacement	enabled	normalized_pattern
+SELECT * FROM test.t1 WHERE ( a = ? AND TRUE ) OR b = ?	NULL	SELECT a FROM test.t1 WHERE a = ?	Y	NULL
+SELECT a FROM test.t1	NULL	SELECT * FROM test.t1 WHERE a = 'abc'	Y	NULL
+SELECT a FROM test.t1 WHERE b = ?	NULL	SELECT * FROM test.t1 WHERE b = ?	Y	NULL
+SELECT * FROM test.t2	NULL	SELECT * FROM test.t1 JOIN test.t2 ON t1.a = t2.a	Y	NULL
+SELECT * FROM test.t1 WHERE a = ? OR b = ?	NULL	SELECT * FROM test.t1 WHERE b = ? OR a = ?	Y	NULL
+CALL query_rewrite.flush_rewrite_rules();
+SELECT * FROM query_rewrite.rewrite_rules;
+pattern	pattern_database	replacement	enabled	normalized_pattern
+SELECT * FROM test.t1 WHERE ( a = ? AND TRUE ) OR b = ?	NULL	SELECT a FROM test.t1 WHERE a = ?	Y	select `*` from `test`.`t1` where (((`a` = ?) and ?) or (`b` = ?))
+SELECT a FROM test.t1	NULL	SELECT * FROM test.t1 WHERE a = 'abc'	Y	select `a` from `test`.`t1`
+SELECT a FROM test.t1 WHERE b = ?	NULL	SELECT * FROM test.t1 WHERE b = ?	Y	select `a` from `test`.`t1` where (`b` = ?)
+SELECT * FROM test.t2	NULL	SELECT * FROM test.t1 JOIN test.t2 ON t1.a = t2.a	Y	select `*` from `test`.`t2`
+SELECT * FROM test.t1 WHERE a = ? OR b = ?	NULL	SELECT * FROM test.t1 WHERE b = ? OR a = ?	Y	select `*` from `test`.`t1` where ((`a` = ?) or (`b` = ?))
+# Check a query that doesn't have a rewrite rule doesn't get rewritten.
+SELECT b FROM test.t1;
+b
+def
+klm
+qrs
+# Check a query with just one parameter.
+SELECT a FROM test.t1 WHERE b = 'qrs';
+a	b
+nop	qrs
+Warnings:
+Note	1105	Query 'SELECT a FROM test.t1 WHERE b = 'qrs'' rewritten to 'SELECT * FROM test.t1 WHERE b = 'qrs'' by plugin: Rewriter.
+# Check a rule with parameter truncation (fewer parameters in the
+# output query than in the input query);
+SELECT * FROM test.t1 WHERE ( a = 'abc' AND TRUE ) OR b = 'klm';
+a
+abc
+Warnings:
+Note	1105	Query 'SELECT * FROM test.t1 WHERE ( a = 'abc' AND TRUE ) OR b = 'klm'' rewritten to 'SELECT a FROM test.t1 WHERE a = 'abc'' by plugin: Rewriter.
+SELECT * FROM test.t1 WHERE ( a = 'abc' AND FALSE ) OR b = 'klm';
+a	b
+ghi	klm
+# Check a non parameterized query.
+SELECT * from t1 WHERE a = 'abc';
+a	b
+abc	def
+# Check that a non-rewritten query does not yield a warning.
+SELECT b FROM test.t1;
+b
+def
+klm
+qrs
+# Check that a query is not rewritten if the query corresponds to a
+# replacement.
+SELECT a FROM test.t1;
+a	b
+abc	def
+Warnings:
+Note	1105	Query 'SELECT a FROM test.t1' rewritten to 'SELECT * FROM test.t1 WHERE a = 'abc'' by plugin: Rewriter.
+# Check that we can execute a rewrite more than once.
+SELECT * FROM test.t2;
+a	b	a
+abc	def	abc
+Warnings:
+Note	1105	Query 'SELECT * FROM test.t2' rewritten to 'SELECT * FROM test.t1 JOIN test.t2 ON t1.a = t2.a' by plugin: Rewriter.
+SELECT * FROM test.t2;
+a	b	a
+abc	def	abc
+Warnings:
+Note	1105	Query 'SELECT * FROM test.t2' rewritten to 'SELECT * FROM test.t1 JOIN test.t2 ON t1.a = t2.a' by plugin: Rewriter.
+# Remove the warnings.
+SELECT b FROM test.t1;
+b
+def
+klm
+qrs
+# Check parameter switching in a query rewrite
+SELECT * FROM test.t1 WHERE a = 'def' OR b = 'ghi';
+a	b
+abc	def
+ghi	klm
+Warnings:
+Note	1105	Query 'SELECT * FROM test.t1 WHERE a = 'def' OR b = 'ghi'' rewritten to 'SELECT * FROM test.t1 WHERE b = 'def' OR a = 'ghi'' by plugin: Rewriter.
+# Verify with whitespace.
+SELECT * FROM test.t1   WHERE   a  = 'def' OR b  =  'ghi';
+a	b
+abc	def
+ghi	klm
+Warnings:
+Note	1105	Query 'SELECT * FROM test.t1   WHERE   a  = 'def' OR b  =  'ghi'' rewritten to 'SELECT * FROM test.t1 WHERE b = 'def' OR a = 'ghi'' by plugin: Rewriter.
+# Verify with comments.
+SELECT * FROM test.t1 WHERE a =/* 'def' ? */'def' OR b = 'ghi';
+a	b
+abc	def
+ghi	klm
+Warnings:
+Note	1105	Query 'SELECT * FROM test.t1 WHERE a =/* 'def' ? */'def' OR b = 'ghi'' rewritten to 'SELECT * FROM test.t1 WHERE b = 'def' OR a = 'ghi'' by plugin: Rewriter.
+# Check our status variables.
+SHOW STATUS LIKE 'Rewriter%';
+Variable_name	Value
+Rewriter_number_loaded_rules	5
+Rewriter_number_reloads	9
+Rewriter_number_rewritten_queries	49
+Rewriter_reload_error	OFF
+DROP TABLE t1;
+DROP TABLE t2;
+DELETE FROM query_rewrite.rewrite_rules;
+# Test of literals matching.
+INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
+VALUES ( 'SELECT 1, ?', 'SELECT "rewritten w/rule 1"' ),
+( 'SELECT 2, ?', 'SELECT "rewritten w/rule 2"' ),
+( 'SELECT "The_original_query"', 'SELECT "The_rewritten_query"');
+SELECT * FROM query_rewrite.rewrite_rules;
+pattern	pattern_database	replacement	enabled	normalized_pattern
+SELECT 1, ?	NULL	SELECT "rewritten w/rule 1"	Y	NULL
+SELECT 2, ?	NULL	SELECT "rewritten w/rule 2"	Y	NULL
+SELECT "The_original_query"	NULL	SELECT "The_rewritten_query"	Y	NULL
+CALL query_rewrite.flush_rewrite_rules();
+SELECT * FROM query_rewrite.rewrite_rules;
+pattern	pattern_database	replacement	enabled	normalized_pattern
+SELECT 1, ?	NULL	SELECT "rewritten w/rule 1"	Y	select ?,?
+SELECT 2, ?	NULL	SELECT "rewritten w/rule 2"	Y	select ?,?
+SELECT "The_original_query"	NULL	SELECT "The_rewritten_query"	Y	select ?
+SELECT 1, 1;
+rewritten w/rule 1
+rewritten w/rule 1
+Warnings:
+Note	1105	Query 'SELECT 1, 1' rewritten to 'SELECT "rewritten w/rule 1"' by plugin: Rewriter.
+SELECT 1, 2;
+rewritten w/rule 1
+rewritten w/rule 1
+Warnings:
+Note	1105	Query 'SELECT 1, 2' rewritten to 'SELECT "rewritten w/rule 1"' by plugin: Rewriter.
+SELECT 2, 1;
+rewritten w/rule 2
+rewritten w/rule 2
+Warnings:
+Note	1105	Query 'SELECT 2, 1' rewritten to 'SELECT "rewritten w/rule 2"' by plugin: Rewriter.
+SELECT 2, 2;
+rewritten w/rule 2
+rewritten w/rule 2
+Warnings:
+Note	1105	Query 'SELECT 2, 2' rewritten to 'SELECT "rewritten w/rule 2"' by plugin: Rewriter.
+SELECT 3, 1;
+3	1
+3	1
+SELECT 3, 2;
+3	2
+3	2
+SELECT 'The_original_query';
+The_rewritten_query
+The_rewritten_query
+Warnings:
+Note	1105	Query 'SELECT 'The_original_query'' rewritten to 'SELECT "The_rewritten_query"' by plugin: Rewriter.
+DELETE FROM query_rewrite.rewrite_rules;
+DELETE FROM query_rewrite.rewrite_rules;
+#
+# Testing with no optional columns.
+#
+ALTER TABLE query_rewrite.rewrite_rules DROP COLUMN normalized_pattern;
+CREATE TABLE t1 ( a VARCHAR(10), b VARCHAR(10) );
+INSERT INTO t1 VALUES ( 'abc', 'def' ), ( 'ghi', 'klm' ), ( 'nop', 'qrs' );
+CREATE TABLE t2 ( a VARCHAR(10) );
+INSERT INTO t2 VALUES ( 'abc' ), ( 'klm' );
+# Test of literals matching.
+INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
+VALUES ( 'SELECT ?', 'SELECT "literal"' );
+SELECT * FROM query_rewrite.rewrite_rules;
+pattern	pattern_database	replacement	enabled
+SELECT ?	NULL	SELECT "literal"	Y
+CALL query_rewrite.flush_rewrite_rules();
+SELECT * FROM query_rewrite.rewrite_rules;
+pattern	pattern_database	replacement	enabled
+SELECT ?	NULL	SELECT "literal"	Y
+SELECT NULL;
+literal
+literal
+Warnings:
+Note	1105	Query 'SELECT NULL' rewritten to 'SELECT "literal"' by plugin: Rewriter.
+SELECT 'abc';
+literal
+literal
+Warnings:
+Note	1105	Query 'SELECT 'abc'' rewritten to 'SELECT "literal"' by plugin: Rewriter.
+SELECT 1;
+literal
+literal
+Warnings:
+Note	1105	Query 'SELECT 1' rewritten to 'SELECT "literal"' by plugin: Rewriter.
+SELECT 1.1;
+literal
+literal
+Warnings:
+Note	1105	Query 'SELECT 1.1' rewritten to 'SELECT "literal"' by plugin: Rewriter.
+SELECT 123456789123456789123456789123456789123456789123456789;
+literal
+literal
+Warnings:
+Note	1105	Query 'SELECT 123456789123456789123456789123456789123456789123456789' rewritten to 'SELECT "literal"' by plugin: Rewriter.
+# Check our status variables.
+SHOW STATUS LIKE 'Rewriter%';
+Variable_name	Value
+Rewriter_number_loaded_rules	1
+Rewriter_number_reloads	11
+Rewriter_number_rewritten_queries	59
+Rewriter_reload_error	OFF
+DELETE FROM query_rewrite.rewrite_rules;
+INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
+VALUES ( 'SELECT * FROM test.t1 WHERE ( a = ? AND TRUE ) OR b = ?',
+'SELECT a FROM test.t1 WHERE a = ?' ),
+( 'SELECT a FROM test.t1',
+'SELECT * FROM test.t1 WHERE a = \'abc\'' ),
+( 'SELECT a FROM test.t1 WHERE b = ?',
+'SELECT * FROM test.t1 WHERE b = ?' ),
+( 'SELECT * FROM test.t2',
+'SELECT * FROM test.t1 JOIN test.t2 ON t1.a = t2.a' ),
+( 'SELECT * FROM test.t1 WHERE a = ? OR b = ?',
+'SELECT * FROM test.t1 WHERE b = ? OR a = ?' );
+SELECT * FROM query_rewrite.rewrite_rules;
+pattern	pattern_database	replacement	enabled
+SELECT * FROM test.t1 WHERE ( a = ? AND TRUE ) OR b = ?	NULL	SELECT a FROM test.t1 WHERE a = ?	Y
+SELECT a FROM test.t1	NULL	SELECT * FROM test.t1 WHERE a = 'abc'	Y
+SELECT a FROM test.t1 WHERE b = ?	NULL	SELECT * FROM test.t1 WHERE b = ?	Y
+SELECT * FROM test.t2	NULL	SELECT * FROM test.t1 JOIN test.t2 ON t1.a = t2.a	Y
+SELECT * FROM test.t1 WHERE a = ? OR b = ?	NULL	SELECT * FROM test.t1 WHERE b = ? OR a = ?	Y
+CALL query_rewrite.flush_rewrite_rules();
+SELECT * FROM query_rewrite.rewrite_rules;
+pattern	pattern_database	replacement	enabled
+SELECT * FROM test.t1 WHERE ( a = ? AND TRUE ) OR b = ?	NULL	SELECT a FROM test.t1 WHERE a = ?	Y
+SELECT a FROM test.t1	NULL	SELECT * FROM test.t1 WHERE a = 'abc'	Y
+SELECT a FROM test.t1 WHERE b = ?	NULL	SELECT * FROM test.t1 WHERE b = ?	Y
+SELECT * FROM test.t2	NULL	SELECT * FROM test.t1 JOIN test.t2 ON t1.a = t2.a	Y
+SELECT * FROM test.t1 WHERE a = ? OR b = ?	NULL	SELECT * FROM test.t1 WHERE b = ? OR a = ?	Y
+# Check a query that doesn't have a rewrite rule doesn't get rewritten.
+SELECT b FROM test.t1;
+b
+def
+klm
+qrs
+# Check a query with just one parameter.
+SELECT a FROM test.t1 WHERE b = 'qrs';
+a	b
+nop	qrs
+Warnings:
+Note	1105	Query 'SELECT a FROM test.t1 WHERE b = 'qrs'' rewritten to 'SELECT * FROM test.t1 WHERE b = 'qrs'' by plugin: Rewriter.
+# Check a rule with parameter truncation (fewer parameters in the
+# output query than in the input query);
+SELECT * FROM test.t1 WHERE ( a = 'abc' AND TRUE ) OR b = 'klm';
+a
+abc
+Warnings:
+Note	1105	Query 'SELECT * FROM test.t1 WHERE ( a = 'abc' AND TRUE ) OR b = 'klm'' rewritten to 'SELECT a FROM test.t1 WHERE a = 'abc'' by plugin: Rewriter.
+SELECT * FROM test.t1 WHERE ( a = 'abc' AND FALSE ) OR b = 'klm';
+a	b
+ghi	klm
+# Check a non parameterized query.
+SELECT * from t1 WHERE a = 'abc';
+a	b
+abc	def
+# Check that a non-rewritten query does not yield a warning.
+SELECT b FROM test.t1;
+b
+def
+klm
+qrs
+# Check that a query is not rewritten if the query corresponds to a
+# replacement.
+SELECT a FROM test.t1;
+a	b
+abc	def
+Warnings:
+Note	1105	Query 'SELECT a FROM test.t1' rewritten to 'SELECT * FROM test.t1 WHERE a = 'abc'' by plugin: Rewriter.
+# Check that we can execute a rewrite more than once.
+SELECT * FROM test.t2;
+a	b	a
+abc	def	abc
+Warnings:
+Note	1105	Query 'SELECT * FROM test.t2' rewritten to 'SELECT * FROM test.t1 JOIN test.t2 ON t1.a = t2.a' by plugin: Rewriter.
+SELECT * FROM test.t2;
+a	b	a
+abc	def	abc
+Warnings:
+Note	1105	Query 'SELECT * FROM test.t2' rewritten to 'SELECT * FROM test.t1 JOIN test.t2 ON t1.a = t2.a' by plugin: Rewriter.
+# Remove the warnings.
+SELECT b FROM test.t1;
+b
+def
+klm
+qrs
+# Check parameter switching in a query rewrite
+SELECT * FROM test.t1 WHERE a = 'def' OR b = 'ghi';
+a	b
+abc	def
+ghi	klm
+Warnings:
+Note	1105	Query 'SELECT * FROM test.t1 WHERE a = 'def' OR b = 'ghi'' rewritten to 'SELECT * FROM test.t1 WHERE b = 'def' OR a = 'ghi'' by plugin: Rewriter.
+# Verify with whitespace.
+SELECT * FROM test.t1   WHERE   a  = 'def' OR b  =  'ghi';
+a	b
+abc	def
+ghi	klm
+Warnings:
+Note	1105	Query 'SELECT * FROM test.t1   WHERE   a  = 'def' OR b  =  'ghi'' rewritten to 'SELECT * FROM test.t1 WHERE b = 'def' OR a = 'ghi'' by plugin: Rewriter.
+# Verify with comments.
+SELECT * FROM test.t1 WHERE a =/* 'def' ? */'def' OR b = 'ghi';
+a	b
+abc	def
+ghi	klm
+Warnings:
+Note	1105	Query 'SELECT * FROM test.t1 WHERE a =/* 'def' ? */'def' OR b = 'ghi'' rewritten to 'SELECT * FROM test.t1 WHERE b = 'def' OR a = 'ghi'' by plugin: Rewriter.
+# Check our status variables.
+SHOW STATUS LIKE 'Rewriter%';
+Variable_name	Value
+Rewriter_number_loaded_rules	5
+Rewriter_number_reloads	12
+Rewriter_number_rewritten_queries	67
+Rewriter_reload_error	OFF
+DROP TABLE t1;
+DROP TABLE t2;
+DELETE FROM query_rewrite.rewrite_rules;
+# Test of literals matching.
+INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
+VALUES ( 'SELECT 1, ?', 'SELECT "rewritten w/rule 1"' ),
+( 'SELECT 2, ?', 'SELECT "rewritten w/rule 2"' ),
+( 'SELECT "The_original_query"', 'SELECT "The_rewritten_query"');
+SELECT * FROM query_rewrite.rewrite_rules;
+pattern	pattern_database	replacement	enabled
+SELECT 1, ?	NULL	SELECT "rewritten w/rule 1"	Y
+SELECT 2, ?	NULL	SELECT "rewritten w/rule 2"	Y
+SELECT "The_original_query"	NULL	SELECT "The_rewritten_query"	Y
+CALL query_rewrite.flush_rewrite_rules();
+SELECT * FROM query_rewrite.rewrite_rules;
+pattern	pattern_database	replacement	enabled
+SELECT 1, ?	NULL	SELECT "rewritten w/rule 1"	Y
+SELECT 2, ?	NULL	SELECT "rewritten w/rule 2"	Y
+SELECT "The_original_query"	NULL	SELECT "The_rewritten_query"	Y
+SELECT 1, 1;
+rewritten w/rule 1
+rewritten w/rule 1
+Warnings:
+Note	1105	Query 'SELECT 1, 1' rewritten to 'SELECT "rewritten w/rule 1"' by plugin: Rewriter.
+SELECT 1, 2;
+rewritten w/rule 1
+rewritten w/rule 1
+Warnings:
+Note	1105	Query 'SELECT 1, 2' rewritten to 'SELECT "rewritten w/rule 1"' by plugin: Rewriter.
+SELECT 2, 1;
+rewritten w/rule 2
+rewritten w/rule 2
+Warnings:
+Note	1105	Query 'SELECT 2, 1' rewritten to 'SELECT "rewritten w/rule 2"' by plugin: Rewriter.
+SELECT 2, 2;
+rewritten w/rule 2
+rewritten w/rule 2
+Warnings:
+Note	1105	Query 'SELECT 2, 2' rewritten to 'SELECT "rewritten w/rule 2"' by plugin: Rewriter.
+SELECT 3, 1;
+3	1
+3	1
+SELECT 3, 2;
+3	2
+3	2
+SELECT 'The_original_query';
+The_rewritten_query
+The_rewritten_query
+Warnings:
+Note	1105	Query 'SELECT 'The_original_query'' rewritten to 'SELECT "The_rewritten_query"' by plugin: Rewriter.
+DELETE FROM query_rewrite.rewrite_rules;
+DELETE FROM query_rewrite.rewrite_rules;
+# Query rewrite plugin was uninstalled.

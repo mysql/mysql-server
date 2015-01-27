@@ -1,0 +1,175 @@
+--source suite/query_rewrite_plugins/include/have_plugin_rewriter.inc
+
+--echo # This test aims to rewrite queries with parameters in many
+--echo # different places.
+
+CREATE TABLE t1 ( c1 INTEGER, c2 CHAR(1), c3 CHAR(1) );
+
+INSERT INTO t1 VALUES ( 1, 'd', 'a' ),
+                      ( 3, 'c', 'b' ),
+                      ( 2, 'b', 'c' ),
+                      ( 4, 'a', 'a' ),
+                      ( 6, 'd', 'b' ),
+                      ( 5, 'f', 'c' ),
+                      ( 8, 'd', 'a' ),
+                      ( 7, 'e', 'b' );
+
+--source suite/query_rewrite_plugins/include/install_rewriter.inc
+
+INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
+VALUES ( 'SELECT c1, c2 FROM test.t1 ORDER BY ?',
+         'SELECT c1, c2 FROM test.t1 ORDER BY 2, ? DESC' );
+
+CALL query_rewrite.flush_rewrite_rules();
+
+--echo # Should be rewritten.
+SELECT c1, c2 FROM test.t1 ORDER BY 1;
+
+--echo # Should not be rewritten.
+SELECT c1, c2 FROM test.t1 ORDER BY c1;
+
+INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
+VALUES ( 'SELECT c1, c2 FROM test.t1 LIMIT ?',
+         'SELECT c1, c2 FROM test.t1 ORDER BY 1 LIMIT 1, ?' );
+
+CALL query_rewrite.flush_rewrite_rules();
+
+--echo # Should be rewritten.
+SELECT c1, c2 FROM test.t1 LIMIT 2;
+
+--echo # Should be rewritten.
+SELECT c1, c2 FROM test.t1 LIMIT 4;
+
+--echo # Should not be rewritten.
+SELECT c1, c2 FROM test.t1 LIMIT 2, 1;
+
+
+INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
+VALUES ( 'SELECT c1 + ? AS c FROM test.t1',
+         'SELECT c1 + ? * 2 AS c FROM test.t1 ORDER BY c' );
+
+CALL query_rewrite.flush_rewrite_rules();
+
+--echo # Should be rewritten.
+SELECT c1 + 3 AS c FROM test.t1;
+
+--echo # Should be rewritten.
+SELECT c1 + 20 AS c FROM test.t1;
+
+--echo # Should not be rewritten.
+SELECT c1 + 3 * 2 AS c FROM test.t1;
+
+INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
+VALUES  (  'SELECT c1 * ? FROM test.t1', 'SELECT c1 + ? FROM test.t1'  );
+
+CALL query_rewrite.flush_rewrite_rules();
+
+--echo # Should be rewritten.
+SELECT c1 * 3 FROM test.t1;
+
+--echo # Should not be rewritten.
+SELECT c1 + 3 FROM test.t1;
+
+INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
+VALUES ( 'SELECT COUNT( c1 ), c2, c3 FROM test.t1 GROUP BY ?, ?',
+         'SELECT SUM( c1 ), c2, c3 FROM test.t1 GROUP BY ?, ?' );
+
+CALL query_rewrite.flush_rewrite_rules();
+
+--echo # Should be rewritten.
+SELECT COUNT( c1 ), c2, c3 FROM test.t1 GROUP BY 2, 3;
+
+--echo # Should be rewritten.
+SELECT COUNT( c1 ), c2, c3 FROM test.t1 GROUP BY 3, 2;
+
+--echo # Should not be rewritten.
+SELECT COUNT( c1 ), c2, c3 FROM test.t1 GROUP BY c2, c3;
+
+INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
+VALUES ( 'SELECT COUNT(c1) as c, c2, c3 FROM test.t1 GROUP BY ?, ? HAVING c > ?',
+         'SELECT COUNT(c1) as c, c2, c3 FROM test.t1 GROUP BY ?, ? HAVING c < ?'
+         );
+
+CALL query_rewrite.flush_rewrite_rules();
+
+SELECT COUNT( c1 ) as c, c2, c3 FROM test.t1 GROUP BY 2, 3 HAVING c > 2;
+
+SELECT COUNT( c1 ) as c, c2, c3 FROM test.t1 GROUP BY 3, 2 HAVING c > 3;
+
+
+CREATE TABLE t2 ( c1 INTEGER, c2 CHAR ( 1 ), c3 CHAR ( 1 ) );
+
+INSERT INTO t2 VALUES ( 1, 'd', 'a' ),
+                      ( 2, 'b', 'c' ),
+                      ( 6, 'd', 'b' ),
+                      ( 5, 'f', 'c' );
+
+INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
+VALUES ( 'SELECT c.c1, c.c2 FROM test.t1 AS c JOIN test.t2 AS d ON(c.c1=d.c1)WHERE c.c1=1',
+         'SELECT c.c1, c.c2 FROM test.t1 AS c JOIN test.t2 AS d ON ( c.c1=d.c1 )' );
+
+CALL query_rewrite.flush_rewrite_rules();
+
+SELECT c.c1, c.c2 FROM test.t1 AS c JOIN test.t2 AS d ON ( c.c1=d.c1 ) WHERE c.c1=1;
+
+SELECT c.c1, c.c2 FROM test.t1 AS d JOIN test.t2 AS c ON ( c.c1=d.c1 ) WHERE c.c1=1;
+
+--echo # Finish extraction in the from clause.
+INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
+VALUES ( 'SELECT c.c1 FROM ( SELECT c1 FROM test.t1 WHERE c1=? ) c',
+         'SELECT c1 FROM test.t1 WHERE c1=?' );
+
+CALL query_rewrite.flush_rewrite_rules();
+
+SELECT c.c1 FROM ( SELECT c1 FROM test.t1 WHERE c1=3 ) c;
+
+SET sql_mode = 'PIPES_AS_CONCAT';
+INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
+VALUES ( 'SELECT c1,c2,c3 FROM test.t1 WHERE c1=? ' ||
+         'UNION ' ||
+         'SELECT c1 FROM test.t1 WHERE c1=? ORDER BY ?',
+         'SELECT c1,c2, c3 FROM test.t1 WHERE c1 IN ( ?,? ) ORDER BY ?' );
+
+CALL query_rewrite.flush_rewrite_rules();
+
+--echo # That's right, query does not compile unless rewritten.
+SELECT c1, c2, c3 FROM test.t1 WHERE c1 = 1
+UNION
+SELECT c1 FROM test.t1 WHERE c1 = 2 ORDER BY 2;
+
+--echo # Test with many parameters.
+INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
+VALUES ( 'SELECT c1, c2 FROM test.t1 WHERE c1 IN ' ||
+         '( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )',
+
+         'SELECT c1, c2 FROM test.t1 WHERE c1 NOT IN ' ||
+         '( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )' );
+
+CALL query_rewrite.flush_rewrite_rules();
+
+SELECT c1, c2
+FROM test.t1
+WHERE c1 IN ( 1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14 );
+
+INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
+VALUES ( 'SELECT test.t1.c1,  ( SELECT c1 FROM test.t2 WHERE c1=? ) t'
+         ' FROM test.t1, '
+         '      ( SELECT * FROM ( SELECT * FROM test.t2 WHERE c1=? ) tb ) tc'
+         ' WHERE test.t1.c2=tc.c2 AND tc.c1 < ?',
+          'SELECT test.t1.c1, test.t2.c1, test.t2.c2, test.t1.c2'
+          ' FROM test.t1 JOIN test.t2 ON ( test.t1.c1=t2.c1 AND test.t2.c1 IN ( ?, ? ) )'
+          ' WHERE test.t1.c1 > ?' );
+
+CALL query_rewrite.flush_rewrite_rules();
+
+SELECT test.t1.c1,  ( SELECT c1 FROM test.t2 WHERE c1=2 ) t
+FROM test.t1,
+      ( SELECT * FROM ( SELECT * FROM test.t2 WHERE c1=1 ) tb ) tc
+WHERE test.t1.c2=tc.c2 AND tc.c1 < 0;
+
+--echo # Check our status variables:.
+SHOW STATUS LIKE 'Rewriter%';
+
+DROP TABLE t1, t2;
+SET sql_mode = DEFAULT;
+--source suite/query_rewrite_plugins/include/uninstall_rewriter.inc

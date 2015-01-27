@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -72,6 +72,24 @@ static struct mysql_malloc_service_st mysql_malloc_handler=
   my_strndup
 };
 
+static struct mysql_parser_service_st parser_handler=
+{
+  mysql_parser_current_session,
+  mysql_parser_open_session,
+  mysql_parser_start_thread,
+  mysql_parser_join_thread,
+  mysql_parser_set_current_database,
+  mysql_parser_parse,
+  mysql_parser_get_statement_digest,
+  mysql_parser_get_number_params,
+  mysql_parser_extract_prepared_params,
+  mysql_parser_visit_tree,
+  mysql_parser_item_string,
+  mysql_parser_free_string,
+  mysql_parser_get_query,
+  mysql_parser_get_normalized_query
+};
+
 static struct st_service_ref list_of_services[]=
 {
   { "my_snprintf_service", VERSION_my_snprintf, &my_snprintf_handler },
@@ -82,6 +100,7 @@ static struct st_service_ref list_of_services[]=
   { "my_plugin_log_service", VERSION_my_plugin_log, &my_plugin_log_handler },
   { "mysql_string_service",
     VERSION_mysql_string, &mysql_string_handler },
-  { "mysql_malloc_service", VERSION_mysql_malloc, &mysql_malloc_handler }
+  { "mysql_malloc_service", VERSION_mysql_malloc, &mysql_malloc_handler },
+  { "mysql_parser_service", VERSION_parser, &parser_handler }
 };
 

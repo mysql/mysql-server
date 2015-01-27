@@ -14,10 +14,12 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "mysys_priv.h"
+#include "my_sys.h"
 #include "my_static.h"
 #include "mysys_err.h"
 #include "m_string.h"
 #include "mysql/psi/mysql_stage.h"
+#include "mysql/psi/mysql_file.h"
 
 #ifdef HAVE_SYS_RESOURCE_H
 #include <sys/resource.h>

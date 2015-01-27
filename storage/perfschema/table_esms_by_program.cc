@@ -29,6 +29,7 @@
 #include "pfs_visitor.h"
 #include "pfs_program.h"
 #include "table_esms_by_program.h"
+#include "field.h"
 
 THR_LOCK table_esms_by_program::m_table_lock;
 

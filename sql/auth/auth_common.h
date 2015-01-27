@@ -1,7 +1,7 @@
 #ifndef AUTH_COMMON_INCLUDED
 #define AUTH_COMMON_INCLUDED
 
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,11 +17,16 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
-#include "sql_class.h"                          /* LEX_COLUMN */
 #include "auth_acls.h"                          /* ACL information */
+#include "sql_string.h"                         /* String */
+#include "table.h"                              /* TABLE_LIST */
 
 /* Forward Declarations */
+class LEX_COLUMN;
 class THD;
+struct GRANT_INFO;
+struct LEX;
+typedef struct user_conn USER_CONN;
 
 /* Classes */
 
@@ -404,6 +409,6 @@ void close_acl_tables(THD *thd);
 
 #if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
 extern my_bool opt_auto_generate_certs;
-bool do_auto_cert_generation();
+bool do_auto_cert_generation(ssl_artifacts_status auto_detection_status);
 #endif /* HAVE_OPENSSL && !HAVE_YASSL */
 #endif /* AUTH_COMMON_INCLUDED */

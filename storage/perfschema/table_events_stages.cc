@@ -25,6 +25,7 @@
 #include "pfs_instr.h"
 #include "pfs_events_stages.h"
 #include "pfs_timer.h"
+#include "field.h"
 
 THR_LOCK table_events_stages_current::m_table_lock;
 

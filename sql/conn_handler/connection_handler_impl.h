@@ -18,9 +18,10 @@
 #ifndef CONNECTION_HANDLER_IMPL_INCLUDED
 #define CONNECTION_HANDLER_IMPL_INCLUDED
 
-#include "my_global.h"           // uint
-#include "my_thread.h"          // mysql_mutex_t
-#include "connection_handler.h"  // Connection_handler
+#include "my_global.h"
+#include "mysql/psi/mysql_thread.h" // mysql_mutex_t
+#include "connection_handler.h"     // Connection_handler
+
 #include <list>
 
 class Channel_info;

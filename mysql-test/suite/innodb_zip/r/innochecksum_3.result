@@ -8,7 +8,7 @@ linestring_key GEOMETRY NOT NULL,
 linestring_nokey GEOMETRY NOT NULL)
 ENGINE=InnoDB ;
 INSERT INTO tab1 (pk, linestring_key, linestring_nokey)
-VALUES (1, GeomFromText('POINT(10 10) '), GeomFromText('POINT(10 10) '));
+VALUES (1, ST_GeomFromText('POINT(10 10) '), ST_GeomFromText('POINT(10 10) '));
 CREATE INDEX linestring_index ON tab1(linestring_nokey(5));
 ALTER TABLE tab1 ADD  KEY (linestring_key(5));
 SET GLOBAL innodb_file_format='barracuda';
@@ -43,7 +43,7 @@ SELECT * FROM tab2 ORDER BY col_7;
 : start the server with innodb_checksum_algorithm=strict_innodb
 # restart
 INSERT INTO tab1 (pk, linestring_key, linestring_nokey)
-VALUES (2, GeomFromText('LINESTRING(10 10,20 20,30 30)'), GeomFromText('LINESTRING(10 10,20 20,30 30)'));
+VALUES (2, ST_GeomFromText('LINESTRING(10 10,20 20,30 30)'), ST_GeomFromText('LINESTRING(10 10,20 20,30 30)'));
 SET @col_1 = repeat('a', 5);
 SET @col_2 = repeat('b', 20);
 SET @col_3 = repeat('c', 100);
@@ -52,7 +52,7 @@ SET @col_5 = repeat('e', 100);
 SET @col_6 = repeat('f', 100);
 INSERT INTO tab2(col_1,col_2,col_3,col_4,col_5,col_6,col_7)
 VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,6);
-SELECT pk,AsText(linestring_key),AsText(linestring_nokey)
+SELECT pk,ST_AsText(linestring_key),ST_AsText(linestring_nokey)
 FROM tab1 ORDER BY pk;
 SELECT * FROM tab2 ORDER BY col_7;
 # stop the server
@@ -60,8 +60,8 @@ SELECT * FROM tab2 ORDER BY col_7;
 # start the server with innodb_checksum_algorithm=strict_crc32
 # restart
 INSERT INTO tab1 (pk, linestring_key, linestring_nokey)
-VALUES (3, GeomFromText('POLYGON((0 0,5 5,10 10,15 15,0 0),(10 10,20 20,30 30,40 40,10 10))'),
-GeomFromText('POLYGON((0 0,5 5,10 10,15 15,0 0),(10 10,20 20,30 30,40 40,10 10))'));
+VALUES (3, ST_GeomFromText('POLYGON((0 0,5 5,10 10,15 15,0 0),(10 10,20 20,30 30,40 40,10 10))'),
+ST_GeomFromText('POLYGON((0 0,5 5,10 10,15 15,0 0),(10 10,20 20,30 30,40 40,10 10))'));
 SET @col_1 = repeat('g', 5);
 SET @col_2 = repeat('h', 20);
 SET @col_3 = repeat('i', 100);
@@ -70,14 +70,14 @@ SET @col_5 = repeat('k', 100);
 SET @col_6 = repeat('l', 100);
 INSERT INTO tab2(col_1,col_2,col_3,col_4,col_5,col_6,col_7)
 VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,7);
-SELECT pk,AsText(linestring_key),AsText(linestring_nokey)
+SELECT pk,ST_AsText(linestring_key),ST_AsText(linestring_nokey)
 FROM tab1 ORDER BY pk;
 SELECT * FROM tab2 ORDER BY col_7;
 # stop the server
 [1(c)]: Rewrite into new checksum=none for all *.ibd file and ibdata1
 # restart: --innodb_checksum_algorithm=strict_none --default_storage_engine=InnoDB
 INSERT INTO tab1 (pk, linestring_key, linestring_nokey)
-VALUES (4, GeomFromText('MULTIPOINT(0 0,5 5,10 10,20 20) '), GeomFromText('MULTIPOINT(0 0,5 5,10 10,20 20) '));
+VALUES (4, ST_GeomFromText('MULTIPOINT(0 0,5 5,10 10,20 20) '), ST_GeomFromText('MULTIPOINT(0 0,5 5,10 10,20 20) '));
 SET @col_1 = repeat('m', 5);
 SET @col_2 = repeat('n', 20);
 SET @col_3 = repeat('o', 100);
@@ -86,7 +86,7 @@ SET @col_5 = repeat('q', 100);
 SET @col_6 = repeat('r', 100);
 INSERT INTO tab2(col_1,col_2,col_3,col_4,col_5,col_6,col_7)
 VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,8);
-SELECT pk,AsText(linestring_key),AsText(linestring_nokey)
+SELECT pk,ST_AsText(linestring_key),ST_AsText(linestring_nokey)
 FROM tab1 ORDER BY pk;
 SELECT * FROM tab2 ORDER BY col_7;
 # stop the server

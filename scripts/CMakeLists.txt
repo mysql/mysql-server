@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -63,7 +63,6 @@ ADD_CUSTOM_TARGET(GenFixPrivs
   DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/mysql_fix_privilege_tables_sql.c
 )
 
-IF(UNIX)
 ADD_CUSTOM_COMMAND(
   OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/sql_commands_system_data.h
   COMMAND comp_sql
@@ -104,7 +103,6 @@ ADD_CUSTOM_TARGET(GenBootstrapPriv
   ${CMAKE_CURRENT_BINARY_DIR}/sql_commands_system_tables.h
   ${CMAKE_CURRENT_BINARY_DIR}/sql_commands_help_data.h
 )
-ENDIF(UNIX)
 
 IF(UNIX)
  FILE(WRITE ${CMAKE_CURRENT_BINARY_DIR}/make_binary_distribution 

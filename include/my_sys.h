@@ -17,8 +17,13 @@
 #define _my_sys_h
 
 #include "my_global.h"                  /* C_MODE_START, C_MODE_END */
-#include "my_thread.h"
 #include "m_ctype.h"                    /* for CHARSET_INFO */
+
+#include "my_thread.h"                  /* Needed for psi.h */
+#include "mysql/psi/psi.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysql/psi/mysql_memory.h"
+#include "mysql/psi/mysql_thread.h"
 
 #ifdef HAVE_ALLOCA_H
 #include <alloca.h>
@@ -145,10 +150,6 @@ C_MODE_START
 
 	/* defines when allocating data */
 extern void *my_multi_malloc(PSI_memory_key key, myf flags, ...);
-
-#include <mysql/psi/psi.h>
-#include <mysql/service_mysql_alloc.h>
-#include <mysql/psi/mysql_memory.h>
 
 /*
   Switch to my_malloc() if the memory block to be allocated is bigger than
@@ -903,8 +904,6 @@ void my_win_console_putc(const CHARSET_INFO *cs, int c);
 void my_win_console_vfprintf(const CHARSET_INFO *cs, const char *fmt, va_list args);
 int my_win_translate_command_line_args(const CHARSET_INFO *cs, int *ac, char ***av);
 #endif /* _WIN32 */
-
-#include <mysql/psi/psi.h>
 
 #ifdef HAVE_PSI_INTERFACE
 extern MYSQL_PLUGIN_IMPORT struct PSI_bootstrap *PSI_hook;

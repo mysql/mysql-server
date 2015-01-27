@@ -19,7 +19,8 @@
 #define NDB_COMPONENT_H
 
 #include <my_global.h>
-#include <my_thread.h>
+#include <thr_cond.h>
+#include <thr_mutex.h>
 
 extern "C" void * Ndb_component_run_C(void *);
 
