@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -3267,7 +3267,7 @@ buf_page_set_file_page_was_freed(
 		mutex_enter(block_mutex);
 		rw_lock_s_unlock(hash_lock);
 		/* bpage->file_page_was_freed can already hold
-		when this code is invoked from dict_drop_index_tree_step() */
+		when this code is invoked from dict_drop_index_tree() */
 		bpage->file_page_was_freed = TRUE;
 		mutex_exit(block_mutex);
 	}

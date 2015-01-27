@@ -28,6 +28,24 @@ class Item_func_match;
 class store_key;
 class QUICK_SELECT_I;
 
+/**
+   This represents the index of a JOIN_TAB/QEP_TAB in an array. "plan_idx": "Plan
+   Table Index".
+   It is signed, because:
+   - firstmatch_return may be PRE_FIRST_PLAN_IDX (it can happen that the first
+   table of the plan uses FirstMatch: SELECT ... WHERE literal IN (SELECT
+   ...)).
+   - it must hold the invalid value NO_PLAN_IDX (which means "no
+   JOIN_TAB/QEP_TAB", equivalent of NULL pointer); this invalid value must
+   itself be different from PRE_FIRST_PLAN_IDX, to distinguish "FirstMatch to
+   before-first-table" (firstmatch_return==PRE_FIRST_PLAN_IDX) from "No
+   FirstMatch" (firstmatch_return==NO_PLAN_IDX).
+*/
+typedef int8 plan_idx;
+#define NO_PLAN_IDX (-2)          ///< undefined index
+#define PRE_FIRST_PLAN_IDX (-1) ///< right before the first (first's index is 0)
+
+
 typedef struct st_table_ref : public Sql_alloc
 {
   bool		key_err;

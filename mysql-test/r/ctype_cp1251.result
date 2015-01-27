@@ -1503,140 +1503,140 @@ t1	CREATE TABLE `t1` (
   `c1` varchar(1) CHARACTER SET cp1251 DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
-select hex(concat(Dimension(GeomFromText('LINESTRING(0 0,10 10)'))));
-hex(concat(Dimension(GeomFromText('LINESTRING(0 0,10 10)'))))
+select hex(concat(ST_Dimension(ST_GeomFromText('LINESTRING(0 0,10 10)'))));
+hex(concat(ST_Dimension(ST_GeomFromText('LINESTRING(0 0,10 10)'))))
 31
-create table t1 as select concat(Dimension(GeomFromText('LINSTRING(0 0,10 10)'))) as c1;
+create table t1 as select concat(ST_Dimension(ST_GeomFromText('LINSTRING(0 0,10 10)'))) as c1;
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-select hex(concat(NumGeometries(MultiPointFromText('MULTIPOINT(0 0,10 10)'))));
-hex(concat(NumGeometries(MultiPointFromText('MULTIPOINT(0 0,10 10)'))))
+select hex(concat(ST_NumGeometries(ST_MultiPointFromText('MULTIPOINT(0 0,10 10)'))));
+hex(concat(ST_NumGeometries(ST_MultiPointFromText('MULTIPOINT(0 0,10 10)'))))
 32
-create table t1 as select concat(NumGeometries(MultiPointFromText('MULTIPOINT(0 0,10 10)'))) as c1;
+create table t1 as select concat(ST_NumGeometries(ST_MultiPointFromText('MULTIPOINT(0 0,10 10)'))) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varchar(10) CHARACTER SET cp1251 DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
-select hex(concat(NumPoints(MultiPointFromText('LINESTRING(0 0,10 10)'))));
-hex(concat(NumPoints(MultiPointFromText('LINESTRING(0 0,10 10)'))))
+select hex(concat(ST_NumPoints(ST_MultiPointFromText('LINESTRING(0 0,10 10)'))));
+hex(concat(ST_NumPoints(ST_MultiPointFromText('LINESTRING(0 0,10 10)'))))
 32
-create table t1 as select concat(NumPoints(MultiPointFromText('LINESTRING(0 0,10 10)'))) as c1;
+create table t1 as select concat(ST_NumPoints(ST_MultiPointFromText('LINESTRING(0 0,10 10)'))) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varchar(10) CHARACTER SET cp1251 DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
-select hex(concat(SRID(MultiPointFromText('MULTIPOINT(0 0,10 10)'))));
-hex(concat(SRID(MultiPointFromText('MULTIPOINT(0 0,10 10)'))))
+select hex(concat(ST_SRID(ST_MultiPointFromText('MULTIPOINT(0 0,10 10)'))));
+hex(concat(ST_SRID(ST_MultiPointFromText('MULTIPOINT(0 0,10 10)'))))
 30
-create table t1 as select concat(SRID(MultiPointFromText('MULTIPOINT(0 0,10 10)'))) as c1;
+create table t1 as select concat(ST_SRID(ST_MultiPointFromText('MULTIPOINT(0 0,10 10)'))) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varchar(10) CHARACTER SET cp1251 DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
-select hex(concat(NumInteriorRings(PolygonFromText('POLYGON((0 0,50 0,50 50,0 50,0 0), (10 10,20 10,20 20,10 20,10 10))'))));
-hex(concat(NumInteriorRings(PolygonFromText('POLYGON((0 0,50 0,50 50,0 50,0 0), (10 10,20 10,20 20,10 20,10 10))'))))
+select hex(concat(ST_NumInteriorRings(ST_PolygonFromText('POLYGON((0 0,50 0,50 50,0 50,0 0), (10 10,20 10,20 20,10 20,10 10))'))));
+hex(concat(ST_NumInteriorRings(ST_PolygonFromText('POLYGON((0 0,50 0,50 50,0 50,0 0), (10 10,20 10,20 20,10 20,10 10))'))))
 31
-create table t1 as select concat(NumInteriorRings(PolygonFromText('POLYGON((0 0,50 0,50 50,0 50,0 0), (10 10,20 10,20 20,10 20,10 10))'))) as c1;
+create table t1 as select concat(ST_NumInteriorRings(ST_PolygonFromText('POLYGON((0 0,50 0,50 50,0 50,0 0), (10 10,20 10,20 20,10 20,10 10))'))) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varchar(10) CHARACTER SET cp1251 DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
-select hex(concat(IsEmpty(GeomFromText('POINT(1 1)'))));
-hex(concat(IsEmpty(GeomFromText('POINT(1 1)'))))
+select hex(concat(ST_IsEmpty(ST_GeomFromText('POINT(1 1)'))));
+hex(concat(ST_IsEmpty(ST_GeomFromText('POINT(1 1)'))))
 30
-create table t1 as select concat(IsEmpty(GeomFromText('Point(1 1)'))) as c1;
+create table t1 as select concat(ST_IsEmpty(ST_GeomFromText('Point(1 1)'))) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varchar(21) CHARACTER SET cp1251 DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
-select hex(concat(IsSimple(GeomFromText('POINT(1 1)'))));
-hex(concat(IsSimple(GeomFromText('POINT(1 1)'))))
+select hex(concat(ST_IsSimple(ST_GeomFromText('POINT(1 1)'))));
+hex(concat(ST_IsSimple(ST_GeomFromText('POINT(1 1)'))))
 31
-create table t1 as select concat(IsSimple(GeomFromText('Point(1 1)'))) as c1;
+create table t1 as select concat(ST_IsSimple(ST_GeomFromText('Point(1 1)'))) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varchar(21) CHARACTER SET cp1251 DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
-select hex(concat(IsClosed(GeomFromText('LineString(1 1,2 2)'))));
-hex(concat(IsClosed(GeomFromText('LineString(1 1,2 2)'))))
+select hex(concat(ST_IsClosed(ST_GeomFromText('LineString(1 1,2 2)'))));
+hex(concat(ST_IsClosed(ST_GeomFromText('LineString(1 1,2 2)'))))
 30
-create table t1 as select concat(IsClosed(GeomFromText('LineString(1 1,2 2)'))) as c1;
+create table t1 as select concat(ST_IsClosed(ST_GeomFromText('LineString(1 1,2 2)'))) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varchar(21) CHARACTER SET cp1251 DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
-select hex(concat(Equals(GeomFromText('Point(1 1)'),GeomFromText('Point(1 1)'))));
-hex(concat(Equals(GeomFromText('Point(1 1)'),GeomFromText('Point(1 1)'))))
+select hex(concat(MBREquals(ST_GeomFromText('Point(1 1)'),ST_GeomFromText('Point(1 1)'))));
+hex(concat(MBREquals(ST_GeomFromText('Point(1 1)'),ST_GeomFromText('Point(1 1)'))))
 31
-create table t1 as select concat(Equals(GeomFromText('Point(1 1)'),GeomFromText('Point(1 1)'))) as c1;
+create table t1 as select concat(MBREquals(ST_GeomFromText('Point(1 1)'),ST_GeomFromText('Point(1 1)'))) as c1;
 drop table t1;
-select hex(concat(x(GeomFromText('Point(1 2)'))));
-hex(concat(x(GeomFromText('Point(1 2)'))))
+select hex(concat(ST_X(ST_GeomFromText('Point(1 2)'))));
+hex(concat(ST_X(ST_GeomFromText('Point(1 2)'))))
 31
-create table t1 as select concat(x(GeomFromText('Point(1 2)'))) as c1;
+create table t1 as select concat(ST_X(ST_GeomFromText('Point(1 2)'))) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varchar(23) CHARACTER SET cp1251 DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
-select hex(concat(y(GeomFromText('Point(1 2)'))));
-hex(concat(y(GeomFromText('Point(1 2)'))))
+select hex(concat(ST_Y(ST_GeomFromText('Point(1 2)'))));
+hex(concat(ST_Y(ST_GeomFromText('Point(1 2)'))))
 32
-create table t1 as select concat(x(GeomFromText('Point(1 2)'))) as c1;
+create table t1 as select concat(ST_X(ST_GeomFromText('Point(1 2)'))) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varchar(23) CHARACTER SET cp1251 DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
-select hex(concat(GLength(GeomFromText('LineString(1 2,2 2)'))));
-hex(concat(GLength(GeomFromText('LineString(1 2,2 2)'))))
+select hex(concat(ST_Length(ST_GeomFromText('LineString(1 2,2 2)'))));
+hex(concat(ST_Length(ST_GeomFromText('LineString(1 2,2 2)'))))
 31
-create table t1 as select concat(GLength(GeomFromText('LineString(1 2, 2 2)'))) as c1;
+create table t1 as select concat(ST_Length(ST_GeomFromText('LineString(1 2, 2 2)'))) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varchar(23) CHARACTER SET cp1251 DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
-select hex(concat(Area(GeomFromText('Polygon((0 0,1 0,1 1,0 1,0 0))'))));
-hex(concat(Area(GeomFromText('Polygon((0 0,1 0,1 1,0 1,0 0))'))))
+select hex(concat(ST_Area(ST_GeomFromText('Polygon((0 0,1 0,1 1,0 1,0 0))'))));
+hex(concat(ST_Area(ST_GeomFromText('Polygon((0 0,1 0,1 1,0 1,0 0))'))))
 31
-create table t1 as select concat(Area(GeomFromText('Polygon((0 0,1 0,1 1,0 1,0 0))'))) as c1;
+create table t1 as select concat(ST_Area(ST_GeomFromText('Polygon((0 0,1 0,1 1,0 1,0 0))'))) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varchar(23) CHARACTER SET cp1251 DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
-select hex(concat(GeometryType(GeomFromText('Point(1 2)'))));
-hex(concat(GeometryType(GeomFromText('Point(1 2)'))))
+select hex(concat(ST_GeometryType(ST_GeomFromText('Point(1 2)'))));
+hex(concat(ST_GeometryType(ST_GeomFromText('Point(1 2)'))))
 504F494E54
-create table t1 as select concat(GeometryType(GeomFromText('Point(1 2)'))) as c1;
+create table t1 as select concat(ST_GeometryType(ST_GeomFromText('Point(1 2)'))) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varchar(20) CHARACTER SET cp1251 DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
-select hex(concat(AsText(GeomFromText('Point(1 2)'))));
-hex(concat(AsText(GeomFromText('Point(1 2)'))))
+select hex(concat(ST_AsText(ST_GeomFromText('Point(1 2)'))));
+hex(concat(ST_AsText(ST_GeomFromText('Point(1 2)'))))
 504F494E542831203229
-create table t1 as select concat(AsText(GeomFromText('Point(1 2)'))) as c1;
+create table t1 as select concat(ST_AsText(ST_GeomFromText('Point(1 2)'))) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2952,29 +2952,29 @@ drop function f1;
 #
 # Bug#54668 User variable assignments get wrong type
 #
-SET @x=md5('a');
-SELECT charset(@x), collation(@x);
-charset(@x)	collation(@x)
+SET @ST_X=md5('a');
+SELECT charset(@ST_X), collation(@ST_X);
+charset(@ST_X)	collation(@ST_X)
 cp1251	cp1251_general_ci
-SET @x=password('a');
-SELECT charset(@x), collation(@x);
-charset(@x)	collation(@x)
+SET @ST_X=password('a');
+SELECT charset(@ST_X), collation(@ST_X);
+charset(@ST_X)	collation(@ST_X)
 cp1251	cp1251_general_ci
-SET @x=sha('a');
-SELECT charset(@x), collation(@x);
-charset(@x)	collation(@x)
+SET @ST_X=sha('a');
+SELECT charset(@ST_X), collation(@ST_X);
+charset(@ST_X)	collation(@ST_X)
 cp1251	cp1251_general_ci
-SET @x=sha1('a');
-SELECT charset(@x), collation(@x);
-charset(@x)	collation(@x)
+SET @ST_X=sha1('a');
+SELECT charset(@ST_X), collation(@ST_X);
+charset(@ST_X)	collation(@ST_X)
 cp1251	cp1251_general_ci
-SET @x=astext(point(1,2));
-SELECT charset(@x), collation(@x);
-charset(@x)	collation(@x)
+SET @ST_X=ST_astext(point(1,2));
+SELECT charset(@ST_X), collation(@ST_X);
+charset(@ST_X)	collation(@ST_X)
 cp1251	cp1251_general_ci
-SET @x=aswkt(point(1,2));
-SELECT charset(@x), collation(@x);
-charset(@x)	collation(@x)
+SET @ST_X=ST_AsWKT(point(1,2));
+SELECT charset(@ST_X), collation(@ST_X);
+charset(@ST_X)	collation(@ST_X)
 cp1251	cp1251_general_ci
 #
 # Bug#54916 GROUP_CONCAT + IFNULL truncates output
@@ -3115,11 +3115,11 @@ t2	CREATE TABLE `t2` (
   `SOUNDEX(1)` varchar(4) CHARACTER SET cp1251 DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 DROP TABLE t2;
-CREATE TABLE t2 AS SELECT EXPORT_SET(1,'Y','N','',8);
+CREATE TABLE t2 AS SELECT EXPORT_SET(1,'ST_Y','N','',8);
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `EXPORT_SET(1,'Y','N','',8)` varchar(64) CHARACTER SET cp1251 DEFAULT NULL
+  `EXPORT_SET(1,'ST_Y','N','',8)` varchar(256) CHARACTER SET cp1251 DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 DROP TABLE t2;
 DROP TABLE t1;

@@ -27,6 +27,7 @@
 #include "pfs_global.h"
 #include "pfs_account.h"
 #include "pfs_visitor.h"
+#include "field.h"
 
 THR_LOCK table_esms_by_host_by_event_name::m_table_lock;
 

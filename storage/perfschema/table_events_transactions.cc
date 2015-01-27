@@ -26,6 +26,8 @@
 #include "pfs_events_transactions.h"
 #include "pfs_timer.h"
 #include "table_helper.h"
+#include "field.h"
+#include "xa.h"
 
 THR_LOCK table_events_transactions_current::m_table_lock;
 

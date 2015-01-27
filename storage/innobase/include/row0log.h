@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -206,18 +206,18 @@ row_log_get_max_trx(
 	dict_index_t*	index)	/*!< in: index, must be locked */
 	__attribute__((nonnull, warn_unused_result));
 
-/******************************************************//**
-Merge the row log to the index upon completing index creation.
+/** Apply the row log to the index upon completing index creation.
+@param[in]	trx	transaction (for checking if the operation was
+interrupted)
+@param[in,out]	index	secondary index
+@param[in,out]	table	MySQL table (for reporting duplicates)
 @return DB_SUCCESS, or error code on failure */
 dberr_t
 row_log_apply(
-/*==========*/
-	trx_t*		trx,	/*!< in: transaction (for checking if
-				the operation was interrupted) */
-	dict_index_t*	index,	/*!< in/out: secondary index */
-	struct TABLE*	table)	/*!< in/out: MySQL table
-				(for reporting duplicates) */
-	__attribute__((nonnull, warn_unused_result));
+	const trx_t*	trx,
+	dict_index_t*	index,
+	struct TABLE*	table)
+	__attribute__((warn_unused_result));
 
 #ifndef UNIV_NONINL
 #include "row0log.ic"

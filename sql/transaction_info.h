@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,17 +20,21 @@
 #include "my_dbug.h"                   // DBUG_ENTER
 #include "my_sys.h"                    // strmake_root
 #include "xa.h"                        // XID_STATE
-#include "table.h"                     // CHANGED_TABLE_LIST
 #include "my_alloc.h"                  // MEM_ROOT
 #include "thr_malloc.h"                // init_sql_alloc
 #include "sql_cache.h"                 // query_cache
 #include "mdl.h"                       // MDL_savepoint
+#include "handler.h"                   // handlerton
 
 class THD;
 
-class Ha_trx_info;
+typedef struct st_changed_table_list
+{
+  struct	st_changed_table_list *next;
+  char		*key;
+  uint32        key_length;
+} CHANGED_TABLE_LIST;
 
-#define FLAGSTR(V,F) ((V)&(F)?#F" ":"")
 
 /**
   Either statement transaction or normal transaction - related

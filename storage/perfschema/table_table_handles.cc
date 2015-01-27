@@ -26,6 +26,7 @@
 #include "table_table_handles.h"
 #include "pfs_global.h"
 #include "pfs_stat.h"
+#include "field.h"
 
 THR_LOCK table_table_handles::m_table_lock;
 

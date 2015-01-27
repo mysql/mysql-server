@@ -1,0 +1,32 @@
+--echo #
+--echo # Test for the example pre parse query rewrite plugin. The example
+--echo # plugin rewrites queries to lowercase.
+--echo #
+
+--source suite/query_rewrite_plugins/include/have_plugin_rewrite_example.inc
+--source include/not_embedded.inc
+--source suite/query_rewrite_plugins/include/install_pre_parse_plugin.inc
+
+SELECT PLUGIN_NAME, PLUGIN_TYPE
+FROM information_schema.plugins
+WHERE plugin_name LIKE 'rewrite%';
+
+--echo # We roll our own show warnings here. We try GET DIAGNOSTICS at the same
+--echo # time, so automatic SHOW WARNINGS would just be confusing.
+--disable_warnings
+
+SELECT 'LOWERCASE';
+SHOW WARNINGS;
+
+SELECT 'LOWERCASE AGAIN';
+GET DIAGNOSTICS CONDITION 1 @c1p1 = MESSAGE_TEXT;
+GET DIAGNOSTICS CONDITION 2 @c2p1 = MESSAGE_TEXT;
+
+SELECT @c1p1;
+SELECT @c2p1;
+
+--enable_warnings
+
+UNINSTALL PLUGIN rewrite_example;
+
+SELECT 'UPPERCASE';

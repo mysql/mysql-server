@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,6 +16,7 @@
 #include "rpl_info_table.h"
 #include "rpl_utility.h"
 #include "log.h"
+#include "sql_class.h"
 
 Rpl_info_table::Rpl_info_table(uint nparam,
                                const char* param_schema,

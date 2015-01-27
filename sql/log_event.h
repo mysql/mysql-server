@@ -75,7 +75,7 @@ using binary_log::Format_description_event;
 class String;
 typedef ulonglong sql_mode_t;
 typedef struct st_db_worker_hash_entry db_worker_hash_entry;
-extern char server_version[SERVER_VERSION_LENGTH];
+extern "C" MYSQL_PLUGIN_IMPORT char server_version[SERVER_VERSION_LENGTH];
 #define PREFIX_SQL_LOAD "SQL_LOAD-"
 
 /**
@@ -3983,14 +3983,25 @@ public:
 #ifdef MYSQL_SERVER
   bool write(IO_CACHE* file)
   {
-    if (DBUG_EVALUATE_IF("skip_writing_previous_gtids_log_event", 1, 0))
+    if (DBUG_EVALUATE_IF("skip_writing_previous_gtids_log_event", 1, 0) &&
+        /*
+          The skip_writing_previous_gtids_log_event debug point was designed
+          for skipping the writing of the previous_gtids_log_event on binlog
+          files only.
+        */
+        !is_relay_log_event())
     {
       DBUG_PRINT("info", ("skip writing Previous_gtids_log_event because of"
                           "debug option 'skip_writing_previous_gtids_log_event'"));
       return false;
     }
 
-    if (DBUG_EVALUATE_IF("write_partial_previous_gtids_log_event", 1, 0))
+    if (DBUG_EVALUATE_IF("write_partial_previous_gtids_log_event", 1, 0) &&
+        /*
+          The write_partial_previous_gtids_log_event debug point was designed
+          for writing a partial previous_gtids_log_event on binlog files only.
+        */
+        !is_relay_log_event())
     {
       DBUG_PRINT("info", ("writing partial Previous_gtids_log_event because of"
                           "debug option 'write_partial_previous_gtids_log_event'"));

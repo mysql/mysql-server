@@ -26,6 +26,7 @@
 #include "pfs_setup_actor.h"
 #include "table_setup_actors.h"
 #include "pfs_global.h"
+#include "field.h"
 
 THR_LOCK table_setup_actors::m_table_lock;
 

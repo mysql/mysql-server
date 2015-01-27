@@ -1,0 +1,20 @@
+--echo #
+--echo # Test of how rewritten queries are logged with --log-raw logging.
+--echo #
+
+--source suite/query_rewrite_plugins/include/have_plugin_rewriter.inc
+--source suite/query_rewrite_plugins/include/install_rewriter.inc
+
+INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement  )
+VALUES ( 'SELECT"The_original_query"', 'SELECT"The_rewritten_query"' );
+
+CALL query_rewrite.flush_rewrite_rules();
+
+--source suite/query_rewrite_plugins/include/setup_general_log.inc
+
+SELECT 'The_original_query';
+
+--source suite/query_rewrite_plugins/include/show_general_log.inc
+
+--source suite/query_rewrite_plugins/include/uninstall_rewriter.inc
+--remove_file $MYSQLTEST_VARDIR/log/rewrite_general.log

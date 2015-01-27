@@ -3893,15 +3893,20 @@ bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *all_gtids, Gtid_set *lost_gtids,
         case NO_GTIDS:
         {
           /*
-            If the binlog_gtid_simple_recovery is enabled, and the
-            last binary log does not contain any GTID event, do not
-            read any more binary logs, GLOBAL.GTID_EXECUTED and
-            GLOBAL.GTID_PURGED should be empty in the case. Otherwise,
-            initialize GTID_EXECUTED as usual.
+            Mysql server iterates backwards through binary logs, looking for
+            the last binary log that contains a Previous_gtids_log_event for
+            gathering the set of gtid_executed on server start. This may take
+            very long time if it has many binary logs and almost all of them
+            are out of filesystem cache. So if the binlog_gtid_simple_recovery
+            is enabled, and the last binary log does not contain any GTID
+            event, do not read any more binary logs, GLOBAL.GTID_EXECUTED and
+            GLOBAL.GTID_PURGED should be empty in the case.
           */
-          if (binlog_gtid_simple_recovery && !is_relay_log)
+          if (binlog_gtid_simple_recovery && is_server_starting &&
+              !is_relay_log)
           {
-            DBUG_ASSERT(all_gtids->is_empty() && lost_gtids->is_empty());
+            DBUG_ASSERT(all_gtids->is_empty());
+            DBUG_ASSERT(lost_gtids->is_empty());
             goto end;
           }
           /*FALLTHROUGH*/
@@ -4008,16 +4013,20 @@ bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *all_gtids, Gtid_set *lost_gtids,
         case GOT_PREVIOUS_GTIDS:
         {
           /*
-            If the binlog_gtid_simple_recovery is enabled, and the
-            first binary log does not contain any GTID event, do not
-            read any more binary logs: GLOBAL.GTID_PURGED should be
-            empty in this case.
+            Mysql server iterates forwards through binary logs, looking for
+            the first binary log that contains both Previous_gtids_log_event
+            and gtid_log_event for gathering the set of gtid_purged on server
+            start. It also iterates forwards through binary logs, looking for
+            the first binary log that contains both Previous_gtids_log_event
+            and gtid_log_event for gathering the set of gtid_purged when
+            purging binary logs. This may take very long time if it has many
+            binary logs and almost all of them are out of filesystem cache.
+            So if the binlog_gtid_simple_recovery is enabled, we just
+            initialize GLOBAL.GTID_PURGED from the first binary log, do not
+            read any more binary logs.
           */
           if (binlog_gtid_simple_recovery && !is_relay_log)
-          {
-            DBUG_ASSERT(lost_gtids->is_empty());
             goto end;
-          }
           /*FALLTHROUGH*/
         }
         case TRUNCATED:
@@ -4232,6 +4241,8 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
       }
       logged_gtids_binlog.remove_gtid_set(gtids_only_in_table);
     }
+    DBUG_PRINT("info",("Generating PREVIOUS_GTIDS for %s file.",
+                       is_relay_log ? "relaylog" : "binlog"));
     Previous_gtids_log_event prev_gtids_ev(previous_logged_gtids);
     if (is_relay_log)
       prev_gtids_ev.set_relay_log_event();
@@ -4242,6 +4253,48 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
     if (prev_gtids_ev.write(&log_file))
       goto err;
     bytes_written+= prev_gtids_ev.common_header->data_written;
+  }
+  else // !(current_thd)
+  {
+    /*
+      If the slave was configured before server restart, the server will
+      generate a new relay log file without having current_thd, but this
+      new relay log file must have a PREVIOUS_GTIDS event as we now
+      generate the PREVIOUS_GTIDS event always.
+
+      This is only needed for relay log files because the server will add
+      the PREVIOUS_GTIDS of binary logs (when current_thd==NULL) after
+      server's GTID initialization.
+
+      During server's startup at mysqld_main(), from the binary/relay log
+      initialization point of view, it will:
+      1) Call init_server_components() that will generate a new binary log
+         file but won't write the PREVIOUS_GTIDS event yet;
+      2) Initialize server's GTIDs;
+      3) Write the binary log PREVIOUS_GTIDS;
+      4) Call init_slave() in where the new relay log file will be created
+         after initializing relay log's Retrieved_Gtid_Set;
+    */
+    if (is_relay_log)
+    {
+      if (need_sid_lock)
+        global_sid_lock->wrlock();
+      else
+        global_sid_lock->assert_some_wrlock();
+
+      DBUG_PRINT("info",("Generating PREVIOUS_GTIDS for relaylog file."));
+      Previous_gtids_log_event prev_gtids_ev(previous_gtid_set_relaylog);
+      prev_gtids_ev.set_relay_log_event();
+
+      if (need_sid_lock)
+        global_sid_lock->unlock();
+
+      prev_gtids_ev.common_footer->checksum_alg=
+                                   (s.common_footer)->checksum_alg;
+      if (prev_gtids_ev.write(&log_file))
+        goto err;
+      bytes_written+= prev_gtids_ev.common_header->data_written;
+    }
   }
   if (extra_description_event &&
       extra_description_event->binlog_version>=4)

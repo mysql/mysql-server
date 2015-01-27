@@ -13,8 +13,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <my_global.h>
-#include "my_thread.h"
+#include "thr_mutex.h"
+#include "my_thread_local.h"
 
 #if defined(SAFE_MUTEX)
 /* This makes a wrapper for mutex handling to make it easier to debug mutex */

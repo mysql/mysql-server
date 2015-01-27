@@ -30,8 +30,8 @@
   module are in events.h and event_data_objects.h.
 */
 
-#include "my_global.h"   // uint
-#include "my_thread.h"   // mysql_cond_t
+#include "my_global.h"
+#include "mysql/psi/mysql_thread.h"  // mysql_cond_t
 
 class Event_queue;
 class Event_job_data;

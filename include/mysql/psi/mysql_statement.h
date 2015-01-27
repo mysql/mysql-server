@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -22,6 +22,9 @@
 */
 
 #include "mysql/psi/psi.h"
+
+class Diagnostics_area;
+typedef struct charset_info_st CHARSET_INFO;
 
 #ifndef PSI_STATEMENT_CALL
 #define PSI_STATEMENT_CALL(M) PSI_DYNAMIC_CALL(M)

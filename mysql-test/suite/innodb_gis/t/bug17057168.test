@@ -22,9 +22,9 @@ tmp tmp2 ORDER BY tmp1.id, tmp2.id;
 
 #Befor fix, the row number will be the total number of index recs,
 #After fix, the row number will be 1.
-EXPLAIN SELECT id, AsText(location) FROM t1 WHERE location = POINT(1,
+EXPLAIN SELECT id, ST_AsText(location) FROM t1 WHERE location = POINT(1,
 2);
-SELECT id, AsText(location) FROM t1 WHERE location = POINT(1, 2);
+SELECT id, ST_AsText(location) FROM t1 WHERE location = POINT(1, 2);
 
 DROP TABLE t1;
 DROP TABLE tmp;

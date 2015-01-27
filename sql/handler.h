@@ -22,13 +22,14 @@
 /* Definitions for parameters to do with handler-routines */
 
 #include "my_global.h"
-#include "ft_global.h"       // ft_hints
-#include "thr_lock.h"        // thr_lock_type
-#include "mysqld.h"          // lower_case_table_names
-#include "sql_const.h"       // SHOW_COMP_OPTION
-#include "sql_list.h"        // SQL_I_List
-#include "sql_plugin_ref.h"  // plugin_ref
-#include "structs.h"         // Discrete_interval
+#include "ft_global.h"         // ft_hints
+#include "thr_lock.h"          // thr_lock_type
+#include "discrete_interval.h" // Discrete_interval
+#include "key.h"               // KEY
+#include "mysqld.h"            // lower_case_table_names
+#include "sql_const.h"         // SHOW_COMP_OPTION
+#include "sql_list.h"          // SQL_I_List
+#include "sql_plugin_ref.h"    // plugin_ref
 
 #include "mysql/psi/psi.h"
 
