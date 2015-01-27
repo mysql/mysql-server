@@ -123,6 +123,12 @@ private:
 
 #endif  /* WITH_PERFSCHEMA_STORAGE_ENGINE */
 
+  /*
+    A empty mi_map to allow Multisource_info::end() to return a
+    valid constant value.
+  */
+  mi_map empty_mi_map;
+
 public:
 
   /* Constructor for this class.*/
@@ -277,8 +283,6 @@ public:
   mi_map::iterator end(enum_channel_type channel_type=
                            SLAVE_REPLICATION_CHANNEL)
   {
-    mi_map::iterator it;
-
     replication_channel_map::iterator map_it;
     map_it= rep_channel_map.find(channel_type);
 
@@ -287,7 +291,7 @@ public:
       return map_it->second.end();
     }
 
-    return it;
+    return empty_mi_map.end();
   }
 
 private:
