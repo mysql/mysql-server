@@ -14,35 +14,31 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/* Some general useful functions */
-
-#include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "table.h"
-#include "key.h"                                // find_ref_key
-#include "sql_table.h"                          // build_table_filename,
-                                                // primary_key_name
-#include "table_trigger_dispatcher.h"           // Table_trigger_dispatcher
-#include "sql_parse.h"                          // free_items
-#include "strfunc.h"                            // unhex_type2
-#include "sql_partition.h"       // mysql_unpack_partition,
-                                 // fix_partition_func, partition_info
-#include "auth_common.h"         // acl_getroot
-                                 // *_ACL, acl_getroot_no_password
-#include "sql_base.h"            // release_table_share
-#include "sql_derived.h"
-#include <m_ctype.h>
-#include "my_md5.h"
-#include "my_bit.h"
-#include "sql_select.h"
-#include "mdl.h"                 // MDL_wait_for_graph_visitor
-#include "opt_trace.h"           // opt_trace_disable_if_no_security_...
-#include "table_cache.h"         // table_cache_manager
-#include "sql_view.h"
-#include "debug_sync.h"
-#include "log.h"
-#include "binlog.h"
-#include "parse_file.h"          // sql_parse_prepare
-#include "sql_plugin.h"          // plugin_unlock
+
+#include "my_md5.h"                      // compute_md5_hash
+#include "myisam.h"                      // MI_MAX_KEY_LENGTH
+#include "auth_common.h"                 // acl_getroot
+#include "binlog.h"                      // mysql_bin_log
+#include "debug_sync.h"                  // DEBUG_SYNC
+#include "item_cmpfunc.h"                // and_conds
+#include "key.h"                         // find_ref_key
+#include "log.h"                         // sql_print_warning
+#include "opt_trace.h"                   // opt_trace_disable_if_no_security_...
+#include "parse_file.h"                  // sql_parse_prepare
+#include "partition_info.h"              // partition_info
+#include "sql_base.h"                    // OPEN_VIEW_ONLY
+#include "sql_class.h"                   // THD
+#include "sql_derived.h"                 // mysql_handle_single_derived
+#include "sql_parse.h"                   // check_stack_overrun
+#include "sql_partition.h"               // mysql_unpack_partition
+#include "sql_plugin.h"                  // plugin_unlock
+#include "sql_select.h"                  // actual_key_parts
+#include "sql_table.h"                   // build_table_filename
+#include "sql_view.h"                    // view_type
+#include "strfunc.h"                     // unhex_type2
+#include "table_cache.h"                 // table_cache_manager
+#include "table_trigger_dispatcher.h"    // Table_trigger_dispatcher
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
@@ -259,8 +255,9 @@ char *fn_rext(char *name)
   return name + strlen(name);
 }
 
-TABLE_CATEGORY get_table_category(const LEX_STRING &db,
-                                  const LEX_STRING &name)
+
+static TABLE_CATEGORY get_table_category(const LEX_STRING &db,
+                                         const LEX_STRING &name)
 {
   DBUG_ASSERT(db.str != NULL);
   DBUG_ASSERT(name.str != NULL);
