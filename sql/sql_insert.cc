@@ -36,6 +36,7 @@
 #include "sql_view.h"                 // check_key_in_view
 #include "table_trigger_dispatcher.h" // Table_trigger_dispatcher
 #include "transaction.h"              // trans_commit_stmt
+#include "sql_resolver.h"             // validate_gc_assignment
 #ifdef WITH_PARTITION_STORAGE_ENGINE
 #include "partition_info.h"           // partition_info
 #endif
