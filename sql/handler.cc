@@ -27,6 +27,7 @@
 #include "debug_sync.h"               // DEBUG_SYNC
 #include "discover.h"                 // writefrm
 #include "log.h"                      // sql_print_error
+#include "log_event.h"                // Write_rows_log_event
 #include "probes_mysql.h"             // MYSQL_HANDLER_WRLOCK_START
 #include "opt_costconstantcache.h"    // reload_optimizer_cost_constants
 #include "rpl_handler.h"              // RUN_HOOK

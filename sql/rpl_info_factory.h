@@ -18,16 +18,18 @@
 
 #ifdef HAVE_REPLICATION
 
-#include "rpl_info.h"
-#include "rpl_mi.h"
-#include "rpl_rli.h"
-#include "rpl_rli_pdb.h"
-#include "rpl_info_file.h"
-#include "rpl_info_table.h"
-#include "rpl_info_dummy.h"
-#include "rpl_info_handler.h"
-#include "rpl_msr.h"
+#include "my_global.h"
+#include "rpl_channel_service_interface.h" // enum_channel_type
+#include "rpl_info_handler.h"              // enum_return_check
+
 #include <vector>
+
+class Master_info;
+class Multisource_info;
+class Relay_log_info;
+class Rpl_info;
+class Slave_worker;
+
 
 extern ulong opt_mi_repository_id;
 extern ulong opt_rli_repository_id;

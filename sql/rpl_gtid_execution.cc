@@ -17,14 +17,13 @@
 
 #include "rpl_gtid.h"
 
-#include "sql_class.h"
-#include "binlog.h"
-#include "transaction.h"
-#include "rpl_slave.h"
-#include "rpl_mi.h"
-#include "sql_parse.h"
-#include <pfs_transaction_provider.h>
-#include <mysql/psi/mysql_transaction.h>
+#include "rpl_rli.h"                          // Relay_log_info
+#include "sql_class.h"                        // THD
+#include "sql_parse.h"                        // stmt_causes_implicit_commit
+
+#include "pfs_transaction_provider.h"
+#include "mysql/psi/mysql_transaction.h"
+
 
 /**
   Acquire group ownership for a single group.  This is used to start a

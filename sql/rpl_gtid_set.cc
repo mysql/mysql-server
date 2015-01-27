@@ -17,15 +17,11 @@
 
 #include "rpl_gtid.h"
 
-#include <ctype.h>
-#include <algorithm>
-#include "my_dbug.h"
-#include "mysqld_error.h"
-#include <algorithm>
-#include <my_stacktrace.h>
+#include "my_stacktrace.h"       // my_safe_printf_stderr
+#include "mysqld_error.h"        // ER_*
 
 #ifndef MYSQL_CLIENT
-#include "log.h"
+#include "log.h"                 // sql_print_warning
 #endif
 
 

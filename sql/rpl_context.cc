@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -15,8 +15,11 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
    02110-1301 USA */
 
-#include "sql_class.h"
 #include "rpl_context.h"
+
+#include "rpl_gtid.h"         // Gtid_set
+#include "sql_class.h"        // THD
+
 
 Session_consistency_gtids_ctx::Session_consistency_gtids_ctx() : m_sid_map(NULL),
         m_gtid_set(NULL), m_listener(NULL) { }

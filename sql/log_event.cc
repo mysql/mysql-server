@@ -14,37 +14,28 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-
-#include "binary_log_funcs.h"
-
-#ifdef MYSQL_CLIENT
-
-#include "mysqld_error.h"
-
-#else
-
-#include "binlog.h"
-#include "my_global.h" // REQUIRED by log_event.h > m_string.h > my_bitmap.h
 #include "log_event.h"
-#include "sql_base.h"                           // close_thread_tables
-#include "sql_cache.h"                       // QUERY_CACHE_FLAGS_SIZE
-#include "sql_locale.h" // MY_LOCALE, my_locale_by_number, my_locale_en_US
-#include "lock.h"       // mysql_unlock_tables
-#include "sql_parse.h"  // mysql_test_parse_for_slave
-#include "tztime.h"     // struct Time_zone
-#include "sql_load.h"   // mysql_load
-#include "sql_db.h"     // load_db_opt_by_name
-#include "rpl_slave.h"
-#include "rpl_rli.h"
-#include "rpl_mi.h"
-#include "rpl_filter.h"
-#include "rpl_record.h"
-#include "rpl_mts_submode.h"
-#include "transaction.h"
-#include <my_dir.h>
-#include "rpl_rli_pdb.h"
-#include "sql_show.h"    // append_identifier
-#include "debug_sync.h"
+
+#include "base64.h"            // base64_encode
+#include "binary_log_funcs.h"  // my_timestamp_binary_length
+
+#ifndef MYSQL_CLIENT
+#include "debug_sync.h"        // debug_sync_set_action
+#include "my_dir.h"            // my_dir
+#include "log.h"               // Log_throttle
+#include "rpl_mts_submode.h"   // Mts_submode
+#include "rpl_rli.h"           // Relay_log_info
+#include "rpl_rli_pdb.h"       // Slave_job_group
+#include "rpl_slave.h"         // use_slave_mask
+#include "sql_base.h"          // close_thread_tables
+#include "sql_cache.h"         // QUERY_CACHE_FLAGS_SIZE
+#include "sql_db.h"            // load_db_opt_by_name
+#include "sql_load.h"          // mysql_load
+#include "sql_locale.h"        // my_locale_by_number
+#include "sql_parse.h"         // mysql_test_parse_for_slave
+#include "sql_show.h"          // append_identifier
+#include "transaction.h"       // trans_rollback_stmt
+#include "tztime.h"            // Time_zone
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
@@ -59,15 +50,6 @@ slave_ignored_err_throttle(window_size,
                            " \"Slave SQL thread ignored the query because of"
                            " replicate-*-table rules\" got suppressed.");
 #endif /* MYSQL_CLIENT */
-
-#include <base64.h>
-#include <my_bitmap.h>
-#include <map>
-#include "rpl_utility.h"
-/* This is necessary for the List manipuation */
-#include "sql_list.h"                           /* I_List */
-#include "hash.h"
-#include "rpl_gtid.h"
 
 PSI_memory_key key_memory_log_event;
 PSI_memory_key key_memory_Incident_log_event_message;

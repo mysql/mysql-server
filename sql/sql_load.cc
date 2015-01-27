@@ -36,6 +36,7 @@
 #include "table_trigger_dispatcher.h"  // Table_trigger_dispatcher
 #include "sql_show.h"
 #include "item_timefunc.h"  // Item_func_now_local
+#include "rpl_rli.h"     // Relay_log_info
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
