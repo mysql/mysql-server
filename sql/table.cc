@@ -6154,19 +6154,56 @@ void TABLE::mark_columns_needed_for_insert()
 
 
 /* 
-  @brief Update the write and read table bitmap to allow
-         using procedure save_in_field for all generated columns
-         in the table.
-  
+  @brief Update the write/read_set for generated columns
+         when doing update and insert operation.
+
   @param        is_update  TRUE means the operation is UPDATE.
                            FALSE means it's INSERT.
 
   @return       void
 
   @detail
-    Each generated field is set in the write column map.
-    All fields that the generated columns are based on are set in the
-    read bitmap.
+
+  Prerequisites for INSERT:
+
+  - write_map is filled with all base columns.
+
+  - read_map is filled with base columns and generated columns to be read. 
+  Otherwise, it is empty. covering_keys and merge_keys are adjusted according
+  to read_map.
+
+  Actions for INSERT:
+
+  - Fill write_map with all generated columns.
+  Stored columns are needed because their values will be stored.
+  Virtual columns are needed because their values must be checked against
+  constraints and it might be referenced by latter generated columns.
+
+  - Fill read_map with base columns for all generated columns.
+  This has no technical reason, but is required because the function that
+  evaluates generated functions asserts that base columns are in the read_map.
+  covering_keys and merge_keys are adjusted according to read_map.
+
+  Prerequisites for UPDATE:
+
+  - write_map is filled with base columns to be updated.
+
+  - read_map is filled with base columns and generated columns to be read
+  prior to the row update. covering_keys and merge_keys are adjusted
+  according to read_map.
+
+  Actions for UPDATE:
+
+  - Fill write_map with generated columns that are dependent on updated base columns
+  and all virtual generated columns.
+  Stored columns are needed because their values will be stored.
+  Virtual columns are needed because their values must be checked against
+  constraints and might be referenced by latter generated columns.
+
+  - Fill read_map with base columns for all virtual generated columns.
+  This has no technical reason, but is required because the function that
+  evaluates generated functions asserts that base columns are in the read_map.
+  covering_keys and merge_keys are adjusted according to read_map.
 */
 
 void TABLE::mark_generated_columns(bool is_update)
@@ -6196,8 +6233,7 @@ void TABLE::mark_generated_columns(bool is_update)
                                              Item::WALK_PREFIX, (uchar *) 0);
       /**
         If the stored GC depends on any of the write-column, make it writable.
-        For virtual GC, mark it writable anyway because they are needed to be
-        filled when read the updatable record.
+        For virtual GC, mark it writable anyway.
       */
       if (!tmp_vfield->stored_in_db ||
           bitmap_is_overlapping(read_set, write_set))
@@ -6213,7 +6249,7 @@ void TABLE::mark_generated_columns(bool is_update)
         bitmap_updated= TRUE;
       }
 
-      // If the GC is needed to update, add base column to read_set
+      // If the GC itself is needed to update, add base column to read_set
       if (bitmap_is_set(write_set, tmp_vfield->field_index))
         bitmap_union(save_old_read_set, read_set);
     }
@@ -7081,64 +7117,5 @@ bool update_generated_write_fields(TABLE *table)
   if (error > 0)
     DBUG_RETURN(TRUE);
   DBUG_RETURN(FALSE);
-}
-
-/**
-  @brief  validate_gc_assignment
-  Check whether the other values except DEFAULT are assigned
-  for generated columns.
-
-  @param thd                        thread handler
-  @param fields                     Item_fields list to be filled
-  @param values                     values to fill with
-  @param table                      table to be checked
-  @return Operation status
-    @retval false   OK
-    @retval true    Error occured
-
-  @Note: This function must be called after table->write_set has been
-         filled.
-*/
-bool
-validate_gc_assignment(THD * thd, List<Item> *fields,
-                       List<Item> *values, TABLE *table)
-{
-  Field **fld;
-  MY_BITMAP *bitmap= table->write_set;
-  bool use_table_field= false;
-  DBUG_ENTER("validate_gc_assignment");
-
-  // If fields has no elements, we use all table fields
-  if (fields->elements == 0)
-  {
-    use_table_field= true;
-    fld= table->field;
-  }
-  List_iterator_fast<Item> f(*fields),v(*values);
-  Field *rfield;
-  Item *value;
-  while ((value= v++))
-  {
-    TABLE *tab= 0;
-
-    if (!use_table_field)
-      rfield= ((Item_field *)f++)->field;
-    else
-      rfield= *(fld++);
-    tab= rfield->table;
-    if (tab != table)
-      continue;
-    /* skip non marked fields */
-    if (!bitmap_is_set(bitmap, rfield->field_index))
-      continue;
-    if (rfield->gcol_info && 
-        value->type() != Item::DEFAULT_VALUE_ITEM)
-    {
-      my_error(ER_NON_DEFAULT_VALUE_FOR_GENERATED_COLUMN, MYF(0),
-               rfield->field_name, tab->s->table_name.str);
-      DBUG_RETURN(true);
-    }
-  }
-  DBUG_RETURN(false);
 }
 

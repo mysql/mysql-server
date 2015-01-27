@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2804,6 +2804,63 @@ bool SELECT_LEX::resolve_rollup(THD *thd)
     }
   }
   return false;
+}
+
+/**
+  @brief  validate_gc_assignment
+  Check whether the other values except DEFAULT are assigned
+  for generated columns.
+
+  @param thd                        thread handler
+  @param fields                     Item_fields list to be filled
+  @param values                     values to fill with
+  @param table                      table to be checked
+  @return Operation status
+    @retval false   OK
+    @retval true    Error occured
+
+  @Note: This function must be called after table->write_set has been
+         filled.
+*/
+bool
+validate_gc_assignment(THD * thd, List<Item> *fields,
+                       List<Item> *values, TABLE *table)
+{
+  Field **fld;
+  MY_BITMAP *bitmap= table->write_set;
+  bool use_table_field= false;
+  DBUG_ENTER("validate_gc_assignment");
+
+  // If fields has no elements, we use all table fields
+  if (fields->elements == 0)
+  {
+    use_table_field= true;
+    fld= table->field;
+  }
+  List_iterator_fast<Item> f(*fields),v(*values);
+  Item *value;
+  while ((value= v++))
+  {
+    Field *rfield;
+
+    if (!use_table_field)
+      rfield= ((Item_field *)f++)->field;
+    else
+      rfield= *(fld++);
+    if (rfield->table != table)
+      continue;
+    /* skip non marked fields */
+    if (!bitmap_is_set(bitmap, rfield->field_index))
+      continue;
+    if (rfield->gcol_info && 
+        value->type() != Item::DEFAULT_VALUE_ITEM)
+    {
+      my_error(ER_NON_DEFAULT_VALUE_FOR_GENERATED_COLUMN, MYF(0),
+               rfield->field_name, rfield->table->s->table_name.str);
+      DBUG_RETURN(true);
+    }
+  }
+  DBUG_RETURN(false);
 }
 
 
