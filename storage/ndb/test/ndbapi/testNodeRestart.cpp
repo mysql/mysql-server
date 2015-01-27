@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -5142,9 +5142,18 @@ runLCPTakeOver(NDBT_Context* ctx, NDBT_Step* step)
       int val1[] = { 7099 };
       res.dumpStateOneNode(master, val1, 1);
       int list[] = { master, victim };
-      res.waitNodesNoStart(list, 2);
-      res.startNodes(list, 2);
-      res.waitClusterStarted();
+      if (res.waitNodesNoStart(list, NDB_ARRAY_SIZE(list)))
+      {
+        return NDBT_FAILED;
+      }
+      if (res.startNodes(list, NDB_ARRAY_SIZE(list)))
+      {
+        return NDBT_FAILED;
+      }
+      if (res.waitClusterStarted())
+      {
+        return NDBT_FAILED;
+      }
     }
   }
 
