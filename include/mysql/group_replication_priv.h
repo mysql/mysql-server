@@ -32,7 +32,6 @@
 #include <log_event.h>
 #include <replication.h>
 #include <rpl_channel_service_interface.h>
-#include <rpl_pipeline_interfaces.h>
 #include <rpl_gtid.h>
 
 

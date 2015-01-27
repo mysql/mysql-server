@@ -16,7 +16,7 @@
 #ifndef PIPELINE_FACTORY_INCLUDED
 #define PIPELINE_FACTORY_INCLUDED
 
-#include <mysql/group_replication_priv.h>
+#include "pipeline_interfaces.h"
 
 /**
   @enum Handler_id

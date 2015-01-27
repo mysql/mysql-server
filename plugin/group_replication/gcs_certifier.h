@@ -27,6 +27,7 @@
 #include "gcs_member_info.h"
 #include "gcs_plugin_messages.h"
 #include "gcs_plugin_utils.h"
+#include "pipeline_interfaces.h"
 
 #include <mysql/group_replication_priv.h>
 

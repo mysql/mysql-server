@@ -17,6 +17,7 @@
 #define	GCS_PIPELINE_INTERFACE_INCLUDED
 
 #include "../gcs_member_info.h"
+#include "../pipeline_interfaces.h"
 #include "gcs_communication_interface.h"
 #include "gcs_control_interface.h"
 #include <mysql/group_replication_priv.h>

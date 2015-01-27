@@ -13,12 +13,11 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#ifndef RPL_PIPELINE_INTERFACES_INCLUDED
-#define RPL_PIPELINE_INTERFACES_INCLUDED
+#ifndef PIPELINE_INTERFACES_INCLUDED
+#define PIPELINE_INTERFACES_INCLUDED
 
-#include "log_event.h"
-#include "rpl_reporting.h"
-#include "log.h"
+#include <mysql/group_replication_priv.h>
+#include "gcs_plugin_log.h"
 
 //Define the data packet type
 #define DATA_PACKET_TYPE  1
@@ -310,8 +309,9 @@ private:
 
     if (unlikely(!log_event))
     {
-      sql_print_error("Unable to convert a packet into an event on the applier! "
-                      "Error: %s \n", errmsg);
+      log_message(MY_ERROR_LEVEL,
+                  "Unable to convert a packet into an event on the applier!"
+                  " Error: %s \n", errmsg);
       error= 1;
     }
 
@@ -346,8 +346,9 @@ private:
                      log_event->common_header->data_written, MYF(MY_WME));
     if ((error= log_event->write(&cache)))
     {
-      sql_print_error("Unable to convert the event into a packet on the applier!"
-                      " Error: %d\n", error);
+      log_message(MY_ERROR_LEVEL,
+                  "Unable to convert the event into a packet on the applier!"
+                  " Error: %d\n", error);
       return error;
     }
 
@@ -355,8 +356,9 @@ private:
     if ((error= Log_event::read_log_event(&cache, &packet_data, 0,
                                           binary_log::BINLOG_CHECKSUM_ALG_OFF)))
     {
-      sql_print_error("Unable to convert the event into a packet on the applier!"
-                      " Error: %d\n", error);
+      log_message(MY_ERROR_LEVEL,
+                  "Unable to convert the event into a packet on the applier!"
+                  " Error: %d\n", error);
     }
     packet= new Data_packet((uchar*)packet_data.ptr(), packet_data.length());
 
