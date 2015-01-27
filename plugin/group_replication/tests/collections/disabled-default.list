@@ -1,5 +1,6 @@
 rpl.rpl_plugin_load                    : Does not support Group Replication.
 rpl.rpl_semi_sync_event                : Does not support Group Replication.
+rpl.rpl_transaction_ctx_service        : Does not support Group Replication.
 rpl.rpl_udf                            : Does not support Group Replication.
 i_rpl.rpl_gtid_semisync                : Does not support Group Replication.
 i_rpl.rpl_semi_sync_shutdown           : Does not support Group Replication.
