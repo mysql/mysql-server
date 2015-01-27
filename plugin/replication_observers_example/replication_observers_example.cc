@@ -198,7 +198,8 @@ int trans_before_dml(Trans_param *param, int& out_val)
 typedef enum enum_before_commit_test_cases {
   NEGATIVE_CERTIFICATION,
   POSITIVE_CERTIFICATION_WITH_GTID,
-  POSITIVE_CERTIFICATION_WITHOUT_GTID
+  POSITIVE_CERTIFICATION_WITHOUT_GTID,
+  INVALID_CERTIFICATION_OUTCOME
 } before_commit_test_cases;
 
 int before_commit_tests(Trans_param *param,
@@ -240,6 +241,12 @@ int before_commit_tests(Trans_param *param,
     transaction_termination_ctx.m_gno= 0;
     break;
 
+  case INVALID_CERTIFICATION_OUTCOME:
+    transaction_termination_ctx.m_rollback_transaction= TRUE;
+    transaction_termination_ctx.m_generated_gtid= TRUE;
+    transaction_termination_ctx.m_sidno= -1;
+    transaction_termination_ctx.m_gno= -1;
+
   default:
     break;
   }
@@ -248,7 +255,7 @@ int before_commit_tests(Trans_param *param,
   {
     my_plugin_log_message(&plugin_info_ptr,
                           MY_ERROR_LEVEL,
-                          "Unable to update certification result on server side, thread_id: %lu",
+                          "Unable to update transaction context service on server, thread_id: %lu",
                           param->thread_id);
     return 1;
   }
@@ -271,6 +278,9 @@ int trans_before_commit(Trans_param *param)
 
   DBUG_EXECUTE_IF("force_positive_certification_outcome_with_gtid",
                   return before_commit_tests(param, POSITIVE_CERTIFICATION_WITH_GTID););
+
+  DBUG_EXECUTE_IF("force_invalid_certification_outcome",
+                  return before_commit_tests(param, INVALID_CERTIFICATION_OUTCOME););
 
   return 0;
 }
@@ -473,6 +483,22 @@ int validate_plugin_server_requirements(Trans_param *param)
 
 
   /*
+    Instantiate a anonymous Gtid_log_event without a THD parameter.
+  */
+  Gtid_specification anonymous_gtid_spec= { ANONYMOUS_GROUP, gtid };
+  gle= new Gtid_log_event(param->server_id, true, 0, 1, anonymous_gtid_spec);
+
+  if (gle->is_valid())
+    success++;
+  else
+    my_plugin_log_message(&plugin_info_ptr,
+                          MY_INFORMATION_LEVEL,
+                          "replication_observers_example_plugin:validate_plugin_server_requirements:"
+                          " failed to instantiate a anonymous Gtid_log_event");
+  delete gle;
+
+
+  /*
     Instantiate a Transaction_context_log_event.
   */
   Transaction_context_log_event *tcle= new Transaction_context_log_event(param->server_uuid,
@@ -481,7 +507,14 @@ int validate_plugin_server_requirements(Trans_param *param)
                                                                          false);
 
   if (tcle->is_valid())
+  {
+    Gtid_set *snapshot_version= tcle->get_snapshot_version();
+    my_plugin_log_message(&plugin_info_ptr,
+                          MY_INFORMATION_LEVEL,
+                          "snapshot version is '%s'",
+                          snapshot_version->encode().c_str());
     success++;
+  }
   else
     my_plugin_log_message(&plugin_info_ptr,
                           MY_INFORMATION_LEVEL,
@@ -496,7 +529,10 @@ int validate_plugin_server_requirements(Trans_param *param)
   View_change_log_event *vcle= new View_change_log_event(const_cast<char*>("1421867646:1"));
 
   if (vcle->is_valid())
+  {
+    vcle->do_apply_event(NULL);
     success++;
+  }
   else
     my_plugin_log_message(&plugin_info_ptr,
                           MY_INFORMATION_LEVEL,

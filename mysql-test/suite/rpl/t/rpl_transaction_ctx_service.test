@@ -7,9 +7,10 @@
 #
 # One will then test:
 # 1) before_commit failure
-# 2) Transaction Context Service reports that the transaction must abort
-# 3) Transaction Context Service reports OK without generating a GTID
-# 4) Transaction Context Service reports OK generating a GTID internally
+# 2) Transaction Context Service reports that parameters are invalid
+# 3) Transaction Context Service reports that the transaction must abort
+# 4) Transaction Context Service reports OK without generating a GTID
+# 5) Transaction Context Service reports OK generating a GTID internally
 #
 
 --source include/not_embedded.inc
@@ -72,8 +73,51 @@ INSERT t1 VALUES(2);
 
 SET @@GLOBAL.DEBUG='';
 
+
 --echo #
 --echo # Case 2. This will force the Transaction Context to report an invalid
+--echo # transaction certification outcome,
+--echo #
+
+SET @@GLOBAL.DEBUG= '+d,force_invalid_certification_outcome';
+
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Plugin replication_observers_example reported: 'Unable to update transaction context service on server, thread_id:.*");
+SET SESSION sql_log_bin= 1;
+
+BEGIN;
+INSERT t1 VALUES(1);
+--error ER_RUN_HOOK_ERROR
+COMMIT;
+
+--error ER_RUN_HOOK_ERROR
+INSERT t1 VALUES(2);
+
+--let $assert_text= GTID_EXECUTED must remain the same
+--let $assert_cond= GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED, "$master_uuid:1")
+--source include/assert.inc
+
+--let $assert_text= Table must remain empty
+--let $assert_cond= "[SELECT COUNT(*) FROM t1]" = "0"
+--source include/assert.inc
+
+--source include/sync_slave_sql_with_master.inc
+
+--let $assert_text= GTID_EXECUTED must remain the same
+--let $assert_cond= GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED, "$master_uuid:1")
+--source include/assert.inc
+
+--let $assert_text= Table must remain empty
+--let $assert_cond= "[SELECT COUNT(*) FROM t1]" = "0"
+--source include/assert.inc
+
+--connection master
+
+SET @@GLOBAL.DEBUG='';
+
+
+--echo #
+--echo # Case 3. This will force the Transaction Context to report an negative
 --echo # transaction certification outcome,
 --echo #
 
@@ -110,7 +154,7 @@ INSERT t1 VALUES(2);
 SET @@GLOBAL.DEBUG='';
 
 --echo #
---echo # Case 3. This will force the Transaction Context to report a valid
+--echo # Case 4. This will force the Transaction Context to report a valid
 --echo # outcome without generating a GTID.
 --echo #
 
@@ -139,7 +183,7 @@ INSERT t1 VALUES(2);
 SET @@GLOBAL.DEBUG='';
 
 --echo #
---echo # Case 4. This will force the Transaction Context to report a valid
+--echo # Case 5. This will force the Transaction Context to report a valid
 --echo # outcome generating a GTID
 --echo #
 
