@@ -90,6 +90,10 @@
 #include "opt_costconstantcache.h"
 #include "sql_plugin.h"                         // plugin_shutdown
 #include "sql_initialize.h"
+#include "log_event.h"
+#include "log.h"
+#include "binlog.h"
+#include "rpl_rli.h"     // Relay_log_info
 
 #include "my_default.h"
 

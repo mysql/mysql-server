@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,11 +16,16 @@
 #define RPL_INFO_TABLE_ACCESS_H
 
 #include "my_global.h"
+#include "rpl_table_access.h"    // System_table_access
+/*
 #include <table.h>
 #include <key.h>
-#include "rpl_table_access.h"
 #include "rpl_info_handler.h"
 #include "rpl_info_values.h"
+*/
+class Field;
+class Rpl_info_values;
+
 
 enum enum_return_id { FOUND_ID= 1, NOT_FOUND_ID, ERROR_ID };
 

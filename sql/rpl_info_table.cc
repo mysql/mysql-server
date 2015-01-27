@@ -14,9 +14,13 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "rpl_info_table.h"
-#include "rpl_utility.h"
-#include "log.h"
-#include "sql_class.h"
+
+#include "dynamic_ids.h"            // Server_ids
+#include "log.h"                    // sql_print_error
+#include "rpl_info_table_access.h"  // Rpl_info_table_access
+#include "rpl_info_values.h"        // Rpl_info_values
+#include "sql_class.h"              // THD
+
 
 Rpl_info_table::Rpl_info_table(uint nparam,
                                const char* param_schema,

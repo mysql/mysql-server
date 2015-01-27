@@ -32,6 +32,7 @@
 #include "parse_tree_helpers.h"  // PT_item_list
 #include "rpl_mi.h"              // Master_info
 #include "rpl_msr.h"             // msr_map
+#include "rpl_rli.h"             // Relay_log_info
 #include "sp.h"                  // sp_find_routine
 #include "sp_head.h"             // sp_name
 #include "sql_class.h"           // THD

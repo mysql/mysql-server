@@ -25,11 +25,14 @@
 #include "sql_class.h"                   /* THD */
 #include<vector>
 #include "prealloced_array.h"
+#include "rpl_mts_submode.h"
 
 struct RPL_TABLE_LIST;
 class Master_info;
 class Mts_submode;
 class Commit_order_manager;
+class Slave_committed_queue;
+typedef struct st_db_worker_hash_entry db_worker_hash_entry;
 extern uint sql_slave_skip_counter;
 
 typedef Prealloced_array<Slave_worker*, 4> Slave_worker_array;

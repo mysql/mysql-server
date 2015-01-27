@@ -45,6 +45,7 @@
 #include <signal.h>
 #include <mysql.h>
 #include <myisam.h>
+#include "rpl_constants.h"
 
 #include "sql_base.h"                           // close_thread_tables
 #include "tztime.h"                             // struct Time_zone

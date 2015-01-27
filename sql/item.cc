@@ -16,6 +16,7 @@
 
 #include "item.h"
 
+#include "mysql.h"           // IS_NUM
 #include "aggregate_check.h" // Distinct_check
 #include "auth_common.h"     // get_column_grant
 #include "item_cmpfunc.h"    // COND_EQUAL

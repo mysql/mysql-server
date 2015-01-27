@@ -16,6 +16,8 @@
 #ifndef RPL_SLAVE_H
 #define RPL_SLAVE_H
 
+typedef struct st_mysql MYSQL;
+
 typedef enum { SLAVE_THD_IO, SLAVE_THD_SQL, SLAVE_THD_WORKER } SLAVE_THD_TYPE;
 
 /**

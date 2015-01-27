@@ -13,12 +13,16 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
+#ifdef HAVE_REPLICATION
 #include "rpl_binlog_sender.h"
 
-#ifdef HAVE_REPLICATION
-#include "rpl_handler.h"
-#include "debug_sync.h"
-#include "rpl_master.h"
+#include "debug_sync.h"              // debug_sync_set_action
+#include "log_event.h"               // MAX_MAX_ALLOWED_PACKET
+#include "rpl_constants.h"           // BINLOG_DUMP_NON_BLOCK
+#include "rpl_handler.h"             // RUN_HOOK
+#include "rpl_master.h"              // opt_sporadic_binlog_dump_fail
+#include "rpl_reporting.h"           // MAX_SLAVE_ERRMSG
+#include "sql_class.h"               // THD
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
@@ -33,6 +37,20 @@ const uint32 Binlog_sender::PACKET_MAX_SIZE= UINT_MAX32;
 const ushort Binlog_sender::PACKET_SHRINK_COUNTER_THRESHOLD= 100;
 const float Binlog_sender::PACKET_GROW_FACTOR= 2.0;
 const float Binlog_sender::PACKET_SHRINK_FACTOR= 0.5;
+
+Binlog_sender::Binlog_sender(THD *thd, const char *start_file,
+                             my_off_t start_pos,
+                             Gtid_set *exclude_gtids, uint32 flag)
+  : m_thd(thd), m_packet(thd->packet), m_start_file(start_file),
+    m_start_pos(start_pos), m_exclude_gtid(exclude_gtids),
+    m_using_gtid_protocol(exclude_gtids != NULL),
+    m_check_previous_gtid_event(exclude_gtids != NULL),
+    m_gtid_clear_fd_created_flag(exclude_gtids == NULL),
+    m_diag_area(false),
+    m_errmsg(NULL), m_errno(0), m_last_file(NULL), m_last_pos(0),
+    m_half_buffer_size_req_counter(0), m_new_shrink_size(PACKET_MIN_SIZE),
+    m_flag(flag), m_observe_transmission(false), m_transmit_started(false)
+  {}
 
 void Binlog_sender::init()
 {
