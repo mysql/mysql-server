@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -113,6 +113,7 @@ When one supplies long data for a placeholder:
 #else
 #include <mysql_com.h>
 #endif
+#include "sql_query_rewrite.h"
 
 #include <algorithm>
 using std::max;
@@ -3320,10 +3321,25 @@ bool Prepared_statement::prepare(const char *packet, size_t packet_len)
 
   thd->m_digest= NULL;
   thd->m_statement_psi= NULL;
-  error= parse_sql(thd, & parser_state, NULL) ||
+
+  sql_digest_state digest;
+  digest.reset();
+  thd->m_digest= &digest;
+
+  enable_digest_if_any_plugin_needs_it(thd, &parser_state);
+
+  error= parse_sql(thd, &parser_state, NULL) ||
     thd->is_error() ||
     init_param_array(this);
+
+  if (!error)
+  { // We've just created the statement maybe there is a rewrite
+    invoke_post_parse_rewrite_plugins(thd, true);
+    error= init_param_array(this);
+  }
+
   thd->m_digest= parent_digest;
+
   thd->m_statement_psi= parent_locker;
 
   lex->set_trg_event_type_for_tables();
