@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights
  * reserved.
 
    This program is free software; you can redistribute it and/or modify
@@ -8774,7 +8774,6 @@ int test_rb_tree(SEL_ARG *element,SEL_ARG *parent)
   }
   return -1;					// Error, no more warnings
 }
-#endif
 
 
 /**
@@ -8836,7 +8835,6 @@ static ulong count_key_part_usage(SEL_ARG *root, SEL_ARG *key)
 }
 
 
-#ifndef DBUG_OFF
 /*
   Check if SEL_ARG::use_count value is correct
 
