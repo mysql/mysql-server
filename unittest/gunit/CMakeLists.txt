@@ -325,6 +325,7 @@ SET(SERVER_TESTS
   opt_range
   opt_ref
   opt_trace
+  select_lex_visitor
   segfault
   sql_table
   strings_utf8

@@ -26,6 +26,7 @@
 #include "table_tiws_by_index_usage.h"
 #include "pfs_global.h"
 #include "pfs_visitor.h"
+#include "field.h"
 
 THR_LOCK table_tiws_by_index_usage::m_table_lock;
 

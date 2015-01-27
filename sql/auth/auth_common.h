@@ -17,11 +17,16 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
-#include "sql_class.h"                          /* LEX_COLUMN */
 #include "auth_acls.h"                          /* ACL information */
+#include "sql_string.h"                         /* String */
+#include "table.h"                              /* TABLE_LIST */
 
 /* Forward Declarations */
+class LEX_COLUMN;
 class THD;
+struct GRANT_INFO;
+struct LEX;
+typedef struct user_conn USER_CONN;
 
 /* Classes */
 

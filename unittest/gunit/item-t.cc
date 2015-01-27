@@ -841,4 +841,19 @@ TEST_F(ItemTest, ItemDecimalTypecast)
 
 }
 
+TEST_F(ItemTest, NormalizedPrint)
+{
+  Item_null *item_null= new Item_null;
+  {
+    String s;
+    item_null->print(&s, QT_ORDINARY);
+    EXPECT_STREQ("NULL", s.c_ptr());
+  }
+  {
+    String s;
+    item_null->print(&s, QT_NORMALIZED_FORMAT);
+    EXPECT_STREQ("?", s.c_ptr());
+  }
+}
+
 }

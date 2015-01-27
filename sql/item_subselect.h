@@ -167,8 +167,6 @@ public:
   */
   virtual void reset_value_registration() {}
   enum_parsing_context place() { return parsing_place; }
-  bool walk_join_condition(List<TABLE_LIST> *tables, Item_processor processor,
-                           enum_walk walk, uchar *arg);
   bool walk_body(Item_processor processor, enum_walk walk, uchar *arg);
   bool walk(Item_processor processor, enum_walk walk, uchar *arg);
   virtual bool explain_subquery_checker(uchar **arg);

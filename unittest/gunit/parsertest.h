@@ -1,6 +1,6 @@
 #ifndef PARSERTEST_INCLUDED
 #define PARSERTEST_INCLUDED
-/* Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -79,6 +79,8 @@ protected:
     EXPECT_FALSE(err);
     return thd()->lex->current_select();
   }
+
+  SELECT_LEX *parse(const char *query) { return parse(query, 0); }
 
 };
 

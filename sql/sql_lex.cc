@@ -184,15 +184,13 @@ void struct_slave_connection::reset()
 /**
   Perform initialization of Lex_input_stream instance.
 
-  Basically, a buffer for pre-processed query. This buffer should be large
-  enough to keep multi-statement query. The allocation is done once in
+  Basically, a buffer for a pre-processed query. This buffer should be large
+  enough to keep a multi-statement query. The allocation is done once in
   Lex_input_stream::init() in order to prevent memory pollution when
   the server is processing large multi-statement queries.
 */
 
-bool Lex_input_stream::init(THD *thd,
-			    const char* buff,
-			    size_t length)
+bool Lex_input_stream::init(THD *thd, const char* buff, size_t length)
 {
   DBUG_EXECUTE_IF("bug42064_simulate_oom",
                   DBUG_SET("+d,simulate_out_of_memory"););
@@ -487,8 +485,8 @@ void LEX::reset()
 
 /**
   Call lex_start() before every query that is to be prepared and executed.
-  Because of this, it's critical to not do too much things here.
-  (We already do too much here)
+  Because of this, it's critical not to do too many things here.  (We already
+  do too much)
 
   The function creates a select_lex and a select_lex_unit object.
   These objects should rather be created by the parser bottom-up.
@@ -3137,6 +3135,110 @@ void st_select_lex::print(THD *thd, String *str, enum_query_type query_type)
 }
 
 
+Item::enum_walk get_walk_flags(const Select_lex_visitor *visitor)
+{
+  if (visitor->visits_in_prefix_order())
+    return Item::WALK_SUBQUERY_PREFIX;
+  else
+    return Item::WALK_SUBQUERY_POSTFIX;
+}
+
+
+bool walk_item(Item *item, Select_lex_visitor *visitor)
+{
+  if (item == NULL)
+    return false;
+  return item->walk(&Item::visitor_processor, get_walk_flags(visitor),
+                    pointer_cast<uchar*>(visitor));
+}
+
+
+static bool accept_for_order(SQL_I_List<ORDER> orders,
+                             Select_lex_visitor *visitor)
+{
+  if (orders.elements == 0)
+    return false;
+
+  for (ORDER *order= orders.first; order != NULL; order= order->next)
+    if (walk_item(*order->item, visitor))
+      return true;
+  return false;
+}
+
+bool st_select_lex_unit::accept(Select_lex_visitor *visitor)
+{
+  SELECT_LEX *end= NULL;
+  for (SELECT_LEX *sl= first_select(); sl != end; sl= sl->next_select())
+    if (sl->accept(visitor))
+      return true;
+
+  if (fake_select_lex &&
+      accept_for_order(fake_select_lex->order_list, visitor))
+    return true;
+
+  return visitor->visit(this);
+}
+
+
+static bool accept_for_join(List<TABLE_LIST> *tables,
+                            Select_lex_visitor *visitor)
+{
+  List_iterator<TABLE_LIST> ti(*tables);
+  TABLE_LIST *end= NULL;
+  for (TABLE_LIST *t= ti++; t != end; t= ti++)
+  {
+    if (t->nested_join && accept_for_join(&t->nested_join->join_list, visitor))
+      return true;
+    else if (t->derived)
+      t->derived->accept(visitor);
+    if (walk_item(t->join_cond(), visitor))
+        return true;
+  }
+  return false;
+}
+
+
+bool st_select_lex::accept(Select_lex_visitor *visitor)
+{
+  // Select clause
+  List_iterator<Item> it(item_list);
+  Item *end= NULL;
+  for (Item *item= it++; item != end; item= it++)
+    if (walk_item(item, visitor))
+      return true;
+
+  // From clause
+  if (table_list.elements != 0 && accept_for_join(join_list, visitor))
+      return true;
+
+  // Where clause
+  Item *where_condition= join != NULL ? join->where_cond : m_where_cond;
+  if (where_condition != NULL && walk_item(where_condition, visitor))
+    return true;
+
+  // Group by and olap clauses
+  if (accept_for_order(group_list, visitor))
+    return true;
+
+  // Having clause
+  Item *having_condition=
+    join != NULL ? join->having_for_explain : m_having_cond;
+  if (walk_item(having_condition, visitor))
+    return true;
+
+  // Order clause
+  if (accept_for_order(order_list, visitor))
+    return true;
+
+  // Limit clause
+  if (explicit_limit)
+    if (walk_item(offset_limit, visitor) || walk_item(select_limit, visitor))
+      return true;
+
+  return visitor->visit(this);
+}
+
+
 /**
   @brief Restore the LEX and THD in case of a parse error.
 
@@ -4488,6 +4590,29 @@ bool LEX::is_partition_management() const
   return (sql_command == SQLCOM_ALTER_TABLE &&
           (alter_info.flags == Alter_info::ALTER_ADD_PARTITION ||
            alter_info.flags == Alter_info::ALTER_REORGANIZE_PARTITION));
+}
+
+
+/**
+  @todo This function is obviously incomplete. It does not walk update lists,
+  for instance. At the time of writing, however, this function has only a
+  single use, to walk all parts of select statements. If more functionality is
+  needed, it should be added here, in the same fashion as for SQLCOM_INSERT
+  below.
+*/
+bool LEX::accept(Select_lex_visitor *visitor)
+{
+  if (unit->accept(visitor))
+    return true;
+  if (sql_command == SQLCOM_INSERT)
+  {
+    List_iterator<Item> it(*insert_list);
+    Item *end= NULL;
+    for (Item *item= it++; item != end; item= it++)
+      if (walk_item(item, visitor))
+        return true;
+  }
+  return false;
 }
 
 

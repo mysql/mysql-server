@@ -26,6 +26,7 @@
 #include "pfs_column_values.h"
 #include "table_sync_instances.h"
 #include "pfs_global.h"
+#include "field.h"
 
 THR_LOCK table_mutex_instances::m_table_lock;
 

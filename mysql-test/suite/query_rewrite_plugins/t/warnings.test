@@ -1,0 +1,73 @@
+--echo #
+--echo # Test of rules where the parser gives warnings about the originial
+--echo # query, pattern or replacement.
+--echo #
+
+--echo # Most of these tests are pointless unless the plugin accepts insert
+--echo # statements as pattern, which it currently does not.
+
+call mtr.add_suppression("Plugin rewriter reported: 'Some rules failed to load.'");
+
+--source suite/query_rewrite_plugins/include/have_plugin_rewriter.inc
+--source suite/query_rewrite_plugins/include/install_rewriter.inc
+
+--echo # In rule 1, we get a warning during parsing of the replacement.
+--echo # In rule 2, we get a warning during parsing of the pattern.
+INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
+VALUES ( 'INSERT INTO test.t1 VALUES ( ? )',
+         'INSERT DELAYED INTO test.t1 VALUES ( ? )' ),
+       ( 'INSERT DELAYED INTO test.t1 VALUES ( ? )',
+         'INSERT INTO test.t1 VALUES ( ? )' );
+
+--error ER_SIGNAL_EXCEPTION
+CALL query_rewrite.flush_rewrite_rules();
+
+SELECT * FROM query_rewrite.rewrite_rules;
+
+CREATE TABLE t1 ( a INT );
+
+--echo # This will translate into INSERT DELAYED, which causes the parser to
+--echo # warn.
+INSERT INTO test.t1 VALUES ( 1 );
+
+--echo # Here we get a warning during the parsing of the original query.
+INSERT DELAYED INTO test.t1 VALUES ( 1 );
+
+INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
+VALUES ( 'SHOW WARNINGS', 'SHOW /* I rewrote it */ WARNINGS' );
+
+--error ER_SIGNAL_EXCEPTION
+CALL query_rewrite.flush_rewrite_rules();
+
+--echo # We want the note about the query being rewritten here ...
+SHOW WARNINGS;
+SHOW ERRORS;
+GET DIAGNOSTICS CONDITION 1 @p1 = RETURNED_SQLSTATE, @p2 = MESSAGE_TEXT;
+SELECT @p1;
+SELECT @p2;
+
+--echo # ... but not here, since we failed parsing after seeing SHOW WARNINGS.
+--error ER_PARSE_ERROR
+SHOW WARNINGS and give me a parse error, please;
+
+DELETE FROM query_rewrite.rewrite_rules;
+
+--echo # Test of warnings when we rewrite the diagnostics statement.  echo #
+--echo # We disable mtr's SHOW WARNINGS here, as it would just be confusing
+--echo # when it gets rewritten without us seeing it.
+--disable_warnings
+INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
+VALUES ( 'SHOW WARNINGS', 'SELECT "used to be SHOW WARNINGS"' ),
+       ( 'SELECT 1', 'SHOW WARNINGS' );
+
+--error ER_SIGNAL_EXCEPTION
+CALL query_rewrite.flush_rewrite_rules();
+
+SELECT 1;
+
+SHOW WARNINGS;
+
+--enable_warnings
+DROP TABLE t1;
+
+--source suite/query_rewrite_plugins/include/uninstall_rewriter.inc

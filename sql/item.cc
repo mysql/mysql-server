@@ -31,6 +31,7 @@
 #include "sql_show.h"        // append_identifier
 #include "sql_time.h"        // Date_time_format
 #include "sql_view.h"        // VIEW_ANY_ACL
+#include "template_utils.h"
 
 using std::min;
 using std::max;
@@ -709,7 +710,7 @@ void Item::print_item_w_name(String *str, enum_query_type query_type)
 {
   print(str, query_type);
 
-  if (item_name.is_set())
+  if (item_name.is_set() && query_type != QT_NORMALIZED_FORMAT)
   {
     THD *thd= current_thd;
     str->append(STRING_WITH_LEN(" AS "));
@@ -742,7 +743,9 @@ void Item::print_for_order(String *str,
                            enum_query_type query_type,
                            bool used_alias)
 {
-  if (used_alias)
+  if ((query_type & QT_NORMALIZED_FORMAT) != 0)
+    str->append("?");
+  else if (used_alias)
   {
     DBUG_ASSERT(item_name.is_set());
     // In the clause, user has referenced expression using an alias; we use it
@@ -787,6 +790,12 @@ bool Item::cleanup_processor(uchar *arg)
   if (fixed)
     cleanup();
   return FALSE;
+}
+
+bool Item::visitor_processor(uchar *arg)
+{
+  Select_lex_visitor *visitor= pointer_cast<Select_lex_visitor*>(arg);
+  return visitor->visit(this);
 }
 
 
@@ -3120,6 +3129,11 @@ String *Item_int::val_str(String *str)
 
 void Item_int::print(String *str, enum_query_type query_type)
 {
+  if (query_type & QT_NORMALIZED_FORMAT)
+  {
+    str->append("?");
+    return;
+  }
   // my_charset_bin is good enough for numbers
   str_value.set_int(value, unsigned_flag, &my_charset_bin);
   str->append(str_value);
@@ -3137,6 +3151,11 @@ String *Item_uint::val_str(String *str)
 
 void Item_uint::print(String *str, enum_query_type query_type)
 {
+  if (query_type & QT_NORMALIZED_FORMAT)
+  {
+    str->append("?");
+    return;
+  }
   // latin1 is good enough for numbers
   str_value.set((ulonglong) value, default_charset());
   str->append(str_value);
@@ -3239,6 +3258,11 @@ String *Item_decimal::val_str(String *result)
 
 void Item_decimal::print(String *str, enum_query_type query_type)
 {
+  if (query_type & QT_NORMALIZED_FORMAT)
+  {
+    str->append("?");
+    return;
+  }
   my_decimal2string(E_DEC_FATAL_ERROR, &decimal_value, 0, 0, 0, &str_value);
   str->append(str_value);
 }
@@ -3303,6 +3327,11 @@ my_decimal *Item_float::val_decimal(my_decimal *decimal_value)
 */
 void Item_string::print(String *str, enum_query_type query_type)
 {
+  if (query_type & QT_NORMALIZED_FORMAT)
+  {
+    str->append("?");
+    return;
+  }
   const bool print_introducer=
     !(query_type & QT_WITHOUT_INTRODUCERS) && is_cs_specified();
   if (print_introducer)
@@ -4202,7 +4231,7 @@ Item_param::eq(const Item *arg, bool binary_cmp) const
 
 void Item_param::print(String *str, enum_query_type query_type)
 {
-  if (state == NO_VALUE)
+  if (state == NO_VALUE || query_type & QT_NORMALIZED_FORMAT)
   {
     str->append('?');
   }
@@ -6652,6 +6681,11 @@ Item_float::save_in_field(Field *field, bool no_conversions)
 
 void Item_float::print(String *str, enum_query_type query_type)
 {
+  if (query_type & QT_NORMALIZED_FORMAT)
+  {
+    str->append("?");
+    return;
+  }
   if (presentation.ptr())
   {
     str->append(presentation.ptr());
@@ -6804,6 +6838,11 @@ warn:
 
 void Item_hex_string::print(String *str, enum_query_type query_type)
 {
+  if (query_type & QT_NORMALIZED_FORMAT)
+  {
+    str->append("?");
+    return;
+  }
   char *end= (char*) str_value.ptr() + str_value.length(),
        *ptr= end - min<size_t>(str_value.length(), sizeof(longlong));
   str->append("0x");

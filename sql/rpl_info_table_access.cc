@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,6 +17,7 @@
 #include "rpl_utility.h"
 #include "handler.h"
 #include "sql_parse.h"
+#include "sql_base.h"
 
 
 void Rpl_info_table_access::before_open(THD *thd)
