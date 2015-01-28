@@ -1,7 +1,7 @@
 # ==== Purpose ====
 #
 # Issues STOP GROUP_REPLICATION on the current connection. Then waits
-# until node state is OFFLINE.
+# until member state is OFFLINE.
 #
 #
 # ==== Usage ====
@@ -36,14 +36,21 @@ if (!$rpl_debug)
 
 STOP GROUP_REPLICATION;
 
---let $_node_id= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
---let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.replication_group_members group_member WHERE group_member.member_id="$_node_id" AND group_member.member_state="OFFLINE"
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.replication_connection_status connection_status WHERE connection_status.channel_name="group_replication_applier" AND connection_status.service_state="OFF"
 --source include/wait_condition.inc
 if (!$success)
 {
   --echo Current connection: $CURRENT_CONNECTION
+
+  --echo # performance_schema.replication_connection_status
   --query_vertical SELECT * FROM performance_schema.replication_connection_status
+
+  --echo # performance_schema.replication_group_members
   --query_vertical SELECT * FROM performance_schema.replication_group_members
+
+  --echo # performance_schema.replication_group_member_stats
+  --query_vertical SELECT * FROM performance_schema.replication_group_member_stats
+
   --die Timeout in wait_condition.inc
 }
 

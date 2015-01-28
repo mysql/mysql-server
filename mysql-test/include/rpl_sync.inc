@@ -189,8 +189,9 @@ if ($rpl_group_replication)
   {
     --let $rpl_connection_name=server_$_rpl_server
     --source include/rpl_connection.inc
-    --let $node_state= `SELECT MEMBER_STATE FROM performance_schema.replication_group_members`
-    if ($node_state == "ONLINE")
+    --let $_member_id= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+    --let $_member_state= `SELECT member_state FROM performance_schema.replication_group_members group_members WHERE group_members.channel_name="group_replication_applier" AND group_members.member_id="$_member_id"`
+    if ($_member_state == "ONLINE")
     {
       --let $rpl_connection_name= $biggest_gtid_executed_server
       --source include/rpl_connection.inc

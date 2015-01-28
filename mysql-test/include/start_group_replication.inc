@@ -1,7 +1,7 @@
 # ==== Purpose ====
 #
 # Issues START GROUP_REPLICATION on the current connection. Then waits
-# until node state is ONLINE.
+# until member state is ONLINE.
 #
 #
 # ==== Usage ====
@@ -37,14 +37,22 @@ if (!$rpl_debug)
 --eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
 START GROUP_REPLICATION;
 
---let $_node_id= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
---let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.replication_group_members group_member WHERE group_member.member_id="$_node_id" AND group_member.member_state="ONLINE"
+--let $_member_id= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.replication_group_members group_members WHERE group_members.channel_name="group_replication_applier" AND group_members.member_id="$_member_id" AND group_members.member_state="ONLINE"
 --source include/wait_condition.inc
 if (!$success)
 {
   --echo Current connection: $CURRENT_CONNECTION
+
+  --echo # performance_schema.replication_connection_status
   --query_vertical SELECT * FROM performance_schema.replication_connection_status
+
+  --echo # performance_schema.replication_group_members
   --query_vertical SELECT * FROM performance_schema.replication_group_members
+
+  --echo # performance_schema.replication_group_member_stats
+  --query_vertical SELECT * FROM performance_schema.replication_group_member_stats
+
   --die Timeout in wait_condition.inc
 }
 
