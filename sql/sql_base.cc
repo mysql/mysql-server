@@ -1569,10 +1569,12 @@ bool close_temporary_tables(THD *thd)
   mysql_ha_rm_temporary_tables(thd);
   if (!mysql_bin_log.is_open())
   {
-    for (TABLE *t= thd->temporary_tables; t; t= t->next)
+    TABLE *tmp_next;
+    for (TABLE *t= thd->temporary_tables; t; t= tmp_next)
     {
-        mysql_lock_remove(thd, thd->lock, t);
-        close_temporary(t, 1, 1);
+      tmp_next= t->next;
+      mysql_lock_remove(thd, thd->lock, t);
+      close_temporary(t, 1, 1);
     }
     thd->temporary_tables= 0;
     if (thd->slave_thread)
