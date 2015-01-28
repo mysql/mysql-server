@@ -2831,6 +2831,9 @@ validate_gc_assignment(THD * thd, List<Item> *fields,
   bool use_table_field= false;
   DBUG_ENTER("validate_gc_assignment");
 
+  if (!values || (values->elements == 0))
+      DBUG_RETURN(false);
+
   // If fields has no elements, we use all table fields
   if (fields->elements == 0)
   {
