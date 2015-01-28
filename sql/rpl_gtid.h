@@ -2485,9 +2485,11 @@ public:
   void end_automatic_gtid_violating_transaction()
   {
     DBUG_ENTER("Gtid_state::end_automatic_gtid_violating_transaction");
+#ifndef DBUG_OFF
+    global_sid_lock->rdlock();
     DBUG_ASSERT(get_gtid_mode(GTID_MODE_LOCK_SID) <= GTID_MODE_OFF_PERMISSIVE);
     DBUG_ASSERT(get_gtid_consistency_mode() != GTID_CONSISTENCY_MODE_ON);
-#ifndef DBUG_OFF
+    global_sid_lock->unlock();
     int32 old_value=
 #endif
       automatic_gtid_violation_count.atomic_add(-1);
@@ -2530,9 +2532,11 @@ public:
   void end_anonymous_gtid_violating_transaction()
   {
     DBUG_ENTER("Gtid_state::end_anonymous_gtid_violating_transaction");
+#ifndef DBUG_OFF
+    global_sid_lock->rdlock();
     DBUG_ASSERT(get_gtid_mode(GTID_MODE_LOCK_SID) != GTID_MODE_ON);
     DBUG_ASSERT(get_gtid_consistency_mode() != GTID_CONSISTENCY_MODE_ON);
-#ifndef DBUG_OFF
+    global_sid_lock->unlock();
     int32 old_value=
 #endif
       anonymous_gtid_violation_count.atomic_add(-1);
@@ -2540,6 +2544,8 @@ public:
     DBUG_ASSERT(old_value >= 1);
     DBUG_VOID_RETURN;
   }
+
+  void end_gtid_violating_transaction(THD *thd);
 
   /**
     Return the number of ongoing GTID-violating transactions having

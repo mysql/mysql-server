@@ -3622,6 +3622,24 @@ public:
     is_ddl_gtid_consistent or is_dml_gtid_consistent returned false.
   */
   bool has_gtid_consistency_violation;
+  /*
+    Hack used to communicate between MYSQL_BIN_LOG::commit and
+    Gtid_state::update_on_[commit|rollback].
+
+    Normally, MYSQL_BIN_LOG::commit will invoke some function that
+    eventually calls Gtid_state::update_on_commit.  However, in some
+    corner cases it may not happen, for instance if there is nothing
+    commit or in some error cases.  In those cases,
+    MYSQL_BIN_LOG::commit has to call
+    Gtid_state::update_on_[commit|rollback] instead.
+
+    The control flow inside MYSQL_BIN_LOG::commit is very complex, so
+    the easiest way to check if Gtid_state::update_on_commit was
+    called is to set a flag when it gets called and check the flag in
+    MYSQL_BIN_LOG::commit.
+  */
+  bool pending_gtid_state_update;
+
 
   const LEX_CSTRING &db() const
   { return m_db; }
@@ -3947,12 +3965,30 @@ public:
 
     The first two conditions have to be checked in
     decide_logging_format, because that's where we know if the table
-    is transactional or not.
+    is transactional or not.  These are implemented in
+    is_dml_gtid_compatible().
 
     The third and fourth conditions have to be checked in
     mysql_execute_command because (1) that prevents implicit commit
     from being executed if the statement fails; (2) DROP TEMPORARY
-    TABLE does not invoke decide_logging_format.
+    TABLE does not invoke decide_logging_format.  These are
+    implemented in is_ddl_gtid_compatible().
+
+    In the cases where GTID violations generate errors,
+    is_ddl_gtid_compatible() needs to be called before the implicit
+    pre-commit, so that there is no implicit commit if the statement
+    fails.
+
+    In the cases where GTID violations do not generate errors,
+    is_ddl_gtid_compatible() needs to be called after the implicit
+    pre-commit, because in these cases the function will increase the
+    global counter automatic_gtid_violating_transaction_count or
+    anonymous_gtid_violating_transaction_count.  If there is an
+    ongoing transaction, the implicit commit will commit the
+    transaction, which will call update_gtids_impl, which should
+    decrease the counters depending on whether the *old* was violating
+    GTID-consistency or not.  Thus, we should increase the counters
+    only after the old transaction is committed.
 
     @param some_transactional_table true if the statement updates some
     transactional table; false otherwise.
@@ -3970,7 +4006,7 @@ public:
   is_dml_gtid_compatible(bool some_transactional_table,
                          bool some_non_transactional_table,
                          bool non_transactional_tables_are_tmp);
-  bool is_ddl_gtid_compatible();
+  bool is_ddl_gtid_compatible(bool handle_error, bool handle_nonerror);
   void binlog_invoker() { m_binlog_invoker= TRUE; }
   bool need_binlog_invoker() { return m_binlog_invoker; }
   void get_definer(LEX_USER *definer);

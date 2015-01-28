@@ -2808,6 +2808,7 @@ int Query_result_create::prepare2()
 
 int Query_result_create::binlog_show_create_table(TABLE **tables, uint count)
 {
+  DBUG_ENTER("select_create::binlog_show_create_table");
   /*
     Note 1: In RBR mode, we generate a CREATE TABLE statement for the
     created table by calling store_create_info() (behaves as SHOW
@@ -2853,8 +2854,9 @@ int Query_result_create::binlog_show_create_table(TABLE **tables, uint count)
     thd->is_commit_in_middle_of_statement= true;
     result |= mysql_bin_log.commit(thd, true);
     thd->is_commit_in_middle_of_statement= false;
+    thd->pending_gtid_state_update= true;
   }
-  return result;
+  DBUG_RETURN(result);
 }
 
 

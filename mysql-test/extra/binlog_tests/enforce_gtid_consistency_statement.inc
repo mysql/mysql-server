@@ -11,9 +11,12 @@
 # --let $gtid_next= VALUE
 # --let $statement= STATEMENT
 # --let $gtid_violation= [0|1]
+# --let $statement_ends_transaction= [0|1]
+# [--let $statement_ends_transaction_row= [0|1]]
 # --let $violation_result= [0|1|2]
-# --let $error= ER_SOMETHING
-# --let $error= some text
+# --let $error_code= ER_SOMETHING
+# --let $error_message= some text
+# --let $sync_point= DEBUG_SYNC_POINT
 #
 # Parameters:
 #
@@ -40,29 +43,25 @@
 #     violation: 0 means no problem, 1 means error, and 2 means
 #     warning.
 #
-#   $expect_counter_value
-#     If there is a violation but it does not result in an error
-#     (i.e., $gtid_violation==1 and $violation_result!=1), then the
-#     global counter ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT or
-#     AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should normally
-#     increase by 1 for the duration of the transaction. Which of the
-#     counters increases, depends on GTID_NEXT, and this script
-#     automatically determines which variable it is using $gtid_next.
-#     $expect_counter_value specifies the expected value of the
-#     counter after $statement. Normally, if $statement ends the
-#     transaction this value should be 0 since the commit decreases
-#     the counter, whereas if $statement leaves the transaction open
-#     this value should be
+#   $statement_ends_transaction
+#     Set this to 0 if the transaction is still expected to be open
+#     after $statement has been executed; set it to 1 if the
+#     transaction is expected to have ended. This affects the expected
+#     value of the counters
+#     ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT and
+#     ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT, since a
+#     transaction that increases the counters will decrease them when
+#     the transaction ends.
 #
-#   $expect_counter_value_row
-#     Normally, $expect_counter_value is used regardless of
+#   $statement_ends_transaction_row
+#     Normally, $statement_ends_transaction is used regardless of
 #     BINLOG_FORMAT.  But in some corner cases, the value of
-#     $expect_counter_value depends on BINLOG_FORMAT.  For those
-#     cases, the caller should set $expect_counter_value to the
+#     $statement_ends_transaction depends on BINLOG_FORMAT.  For those
+#     cases, the caller should set $statement_ends_transaction to the
 #     expected value when BINLOG_FORMAT==STATEMENT or MIXED, and
-#     $expect_counter_value_row to the expected value when
-#     BINLOG_FORMAT=ROW.  The output to the result file will be
-#     the same regardless of BINLOG_FORMAT.
+#     $statement_ends_transaction_row to the expected value when
+#     BINLOG_FORMAT=ROW.  The output to the result file will be the
+#     same regardless of BINLOG_FORMAT.
 #
 #   $error_code
 #     The expected error code (ER_*), in case $statement generates an
@@ -74,22 +73,42 @@
 
 --echo # enforce_gtid_consistency=$enforce_gtid_consistency gtid_mode=$gtid_mode gtid_next=$gtid_next
 
-# $expectation is 0 if the statement is ok, 1 if an error is expected,
+if ($statement_ends_transaction == '')
+{
+  --die !!!ERROR in test: set $statement_ends_transaction before sourcing enforce_gtid_consistency_statement.inc
+}
+if ($extra_warning_count == '')
+{
+  --let $extra_warning_count= 0
+}
+
+# $expected_status is 0 if the statement is ok, 1 if an error is expected,
 # 2 if a warning is expected.
---let $expectation= 0
+#
+# $expected_counter is 1 if any of the counters
+# ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT or
+# ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT is expected to
+# increase, 0 otherwise.
+--let $expected_status= 0
+--let $expected_counter= 0
 if ($gtid_violation)
 {
-  --let $expectation= $violation_result
+  --let $expected_status= $violation_result
+  if ($violation_result != 1)
+  {
+    --let $expected_counter= 1
+  }
 }
 
 if ($rpl_debug)
 {
-  --echo gtid_violation='$gtid_violation' violation_result='$violation_result' error_code='$error_code' expectation='$expectation' expect_counter_value='$expect_counter_value' expect_counter_value_row='$expect_counter_value_row'
+  --echo gtid_violation='$gtid_violation' violation_result='$violation_result' error_code='$error_code' expectation='$expected_status' statement_ends_transaction='$statement_ends_transaction' statement_ends_transaction_row='$statement_ends_transaction_row'
   --echo pre_statement='$pre_statement'
   --echo gtid_next='$gtid_next'
   --echo statement='$statement'
 }
 
+--connection $statement_connection
 --let $binlog_format= `SELECT @@GLOBAL.BINLOG_FORMAT`
 --source include/set_gtid_next_gtid_mode_agnostic.inc
 
@@ -98,39 +117,69 @@ if ($pre_statement != '')
   eval $pre_statement;
 }
 
-if ($expectation == 1)
+--let $automatic_counter_expected= 0
+--let $anonymous_counter_expected= 0
+
+if ($expected_status == 1)
 {
   --echo error $error_code
   --replace_regex /[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}:[0-9]*/#/
   --error $error_code
   eval $statement;
 }
-if ($expectation != 1)
+if ($expected_status != 1)
 {
-  eval $statement;
+  --source include/execute_to_sync_point.inc
+  --connection $auxiliary_connection
+
+  if ($expected_counter)
+  {
+    if ($gtid_next == 'AUTOMATIC')
+    {
+      --let $automatic_counter_expected= 1
+    }
+    if ($gtid_next == 'ANONYMOUS')
+    {
+      --let $anonymous_counter_expected= 1
+    }
+  }
+
+  --let $automatic_counter= query_get_value(SHOW STATUS LIKE "ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT", Value, 1)
+  --let $anonymous_counter= query_get_value(SHOW STATUS LIKE "ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT", Value, 1)
+
+  --let $assert_text= ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be $automatic_counter_expected
+  --let $assert_cond= $automatic_counter = $automatic_counter_expected
+  --source include/assert.inc
+
+  --let $assert_text= ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be $anonymous_counter_expected
+  --let $assert_cond= $anonymous_counter = $anonymous_counter_expected
+  --source include/assert.inc
+
+  --source include/execute_from_sync_point.inc
 }
 
 # Check warnings / errors.
 
+--connection $statement_connection
 --let $warning_count= `SHOW COUNT(*) WARNINGS`
 --let $warning_message= query_get_value(SHOW WARNINGS, Message, 1)
 --let $warning_level= query_get_value(SHOW WARNINGS, Level, 1)
 
---connection default
+--connection $auxiliary_connection
 
 # The message may contain a single quote ('), which confuses
 # include/assert.inc So we remove any single quotes.
 --let $warning_message= `SELECT REPLACE("$warning_message", "'", "")`
 
-if ($expectation == 0)
+if ($expected_status == 0)
 {
   --let $assert_text= No warning or error should be generated.
-  --let $assert_cond= $warning_count = 0
+  --let $assert_cond= $warning_count = 0 + $extra_warning_count
   --let $extra_debug_info= $warning_message
   --source include/assert.inc
   --let $extra_debug_info=
 }
-if ($expectation == 1)
+if ($expected_status == 1)
 {
   --let $assert_text= One warning/error should be generated.
   --let $assert_cond= $warning_count = 1
@@ -146,10 +195,10 @@ if ($expectation == 1)
   --source include/assert.inc
   --let $extra_debug_info=
 }
-if ($expectation == 2)
+if ($expected_status == 2)
 {
   --let $assert_text= One warning/error should be generated.
-  --let $assert_cond= $warning_count = 1
+  --let $assert_cond= $warning_count = 1 + $extra_warning_count
   --source include/assert.inc
 
   --let $assert_text= It should be a Warning, not an Error.
@@ -162,69 +211,70 @@ if ($expectation == 2)
   --source include/assert.inc
   --let $extra_debug_info=
 }
---connection server_1
+#--connection server_1
 
 # Check counters.
---let $automatic_counter= query_get_value(SHOW STATUS LIKE "AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT", Value, 1)
---let $anonymous_counter= query_get_value(SHOW STATUS LIKE "ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT", Value, 1)
+--let $automatic_counter= query_get_value(SHOW STATUS LIKE "ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT", Value, 1)
+--let $anonymous_counter= query_get_value(SHOW STATUS LIKE "ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT", Value, 1)
 
---connection default
+#--connection default
 
 # Compute what counter values to expect. By default, expect both to be 0.
---let $automatic_counter_expected= 0
---let $anonymous_counter_expected= 0
---let $automatic_counter_expected_text= 0
---let $anonymous_counter_expected_text= 0
 if ($rpl_debug)
 {
-  --echo !!!expectation='$expectation' cv='$expect_counter_value' gtid_next='$gtid_next'
+  --echo !!!expectation='$expected_status' cv='$expect_counter_value' gtid_next='$gtid_next'
 }
-if ($expectation != 1)
+
+--let $expect_end_transaction= $statement_ends_transaction
+if ($statement_ends_transaction_row != '')
 {
-  --let $expect_counter_text= $expect_counter_value
-  if ($expect_counter_value_row != '')
+  if ($binlog_format == 'ROW')
   {
-    --let $expect_counter_text= $expect_counter_value (stm) / $expect_counter_value_row (row)
-    if ($binlog_format == 'ROW')
-    {
-      --let $expect_counter_value= $expect_counter_value_row
-    }
+    --let $expect_end_transaction= $statement_ends_transaction_row
   }
+  --let $counter_expected_text= $statement_ends_transaction_row (stm) / $statement_ends_transaction (row)
   if ($gtid_next == 'AUTOMATIC')
   {
-    --let $automatic_counter_expected= $expect_counter_value
-    --let $automatic_counter_expected_text= $expect_counter_text
+    --let $automatic_counter_expected_text= $counter_expected_text
   }
   if ($gtid_next == 'ANONYMOUS')
   {
-    --let $anonymous_counter_expected= $expect_counter_value
-    --let $anonymous_counter_expected_text= $expect_counter_text
+    --let $anonymous_counter_expected_text= $counter_expected_text
   }
 }
+if ($expect_end_transaction)
+{
+  --let $automatic_counter_expected= 0
+  --let $anonymous_counter_expected= 0
+}
+if ($statement_ends_transaction_row == '')
+{
+  --let $automatic_counter_expected_text= $automatic_counter_expected
+  --let $anonymous_counter_expected_text= $anonymous_counter_expected
+}
 
---let $assert_text= AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be $automatic_counter_expected_text
+--let $assert_text= ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be $automatic_counter_expected_text
 --let $assert_cond= $automatic_counter = $automatic_counter_expected
 --source include/assert.inc
 
---let $assert_text= ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be $anonymous_counter_expected_text
+--let $assert_text= ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be $anonymous_counter_expected_text
 --let $assert_cond= $anonymous_counter = $anonymous_counter_expected
 --source include/assert.inc
 
---connection server_1
+--connection $statement_connection
 
 # Clear transaction state.
 ROLLBACK;
 SET GTID_NEXT = 'AUTOMATIC';
 
 # Check that counters are reset.
---let $automatic_counter= query_get_value(SHOW STATUS LIKE "AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT", Value, 1)
---let $anonymous_counter= query_get_value(SHOW STATUS LIKE "ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT", Value, 1)
+--let $automatic_counter= query_get_value(SHOW STATUS LIKE "ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT", Value, 1)
+--let $anonymous_counter= query_get_value(SHOW STATUS LIKE "ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT", Value, 1)
 
 --let $assert_text= Both counters should be 0
 --let $assert_cond= $automatic_counter = 0 AND $anonymous_counter = 0
 --source include/assert.inc
 
---let $expect_counter_value= 0
---let $expect_counter_value_row=
+#--let $statement_ends_transaction= 0
+--let $statement_ends_transaction_row=
 --let $pre_statement=
---let $statements=
