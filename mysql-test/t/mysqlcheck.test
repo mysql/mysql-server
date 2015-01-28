@@ -13,8 +13,8 @@
 #
 
 --disable_warnings
-DROP TABLE IF EXISTS t1, `t``1`, `t 1`;
-drop view if exists v1;
+DROP TABLE IF EXISTS t1, `t``1`, `t 1`, test.`t.1`, v1;
+drop view if exists t1, `t``1`, `t 1`, test.`t.1`, v1;
 drop database if exists client_test_db;
 # Repair any tables in mysql, sometimes the slow_log is marked as crashed
 # after server has been killed
@@ -313,3 +313,13 @@ CHECK TABLE bug47205 FOR UPGRADE;
 CHECK TABLE bug47205 FOR UPGRADE;
 
 DROP TABLE bug47205;
+
+--echo #
+--echo #MDEV-6128:[PATCH] mysqlcheck wrongly escapes '.' in table names
+--echo #
+CREATE TABLE test.`t.1` (id int);
+
+--echo mysqlcheck test t.1
+--exec $MYSQL_CHECK test t.1
+
+drop table test.`t.1`;

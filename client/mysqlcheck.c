@@ -514,9 +514,6 @@ static uint fixed_name_length(const char *name)
   {
     if (*p == '`')
       extra_length++;
-    else if (*p == '.')
-      extra_length+= 2;
-
   }
   DBUG_RETURN((uint) ((p - name) + extra_length));
 }
@@ -530,11 +527,6 @@ static char *fix_table_name(char *dest, char *src)
   for (; *src; src++)
   {
     switch (*src) {
-    case '.':            /* add backticks around '.' */
-      *dest++= '`';
-      *dest++= '.';
-      *dest++= '`';
-      break;
     case '`':            /* escape backtick character */
       *dest++= '`';
       /* fall through */
@@ -818,13 +810,17 @@ static void print_result()
 {
   MYSQL_RES *res;
   MYSQL_ROW row;
-  char prev[(NAME_LEN+9)*2+2];
+  char prev[(NAME_LEN+9)*3+2];
   char prev_alter[MAX_ALTER_STR_SIZE];
+  char *db_name;
+  uint length_of_db;
   uint i;
   my_bool found_error=0, table_rebuild=0;
   DBUG_ENTER("print_result");
 
   res = mysql_use_result(sock);
+  db_name= sock->db;
+  length_of_db= strlen(db_name);
 
   prev[0] = '\0';
   prev_alter[0]= 0;
@@ -848,10 +844,16 @@ static void print_result()
           if (prev_alter[0])
             insert_dynamic(&alter_table_cmds, (uchar*) prev_alter);
           else
-            insert_dynamic(&tables4rebuild, (uchar*) prev);
+          {
+            char *table_name= prev + (length_of_db+1);
+            insert_dynamic(&tables4rebuild, (uchar*) table_name);
+          }
         }
         else
-          insert_dynamic(&tables4repair, (uchar*) prev);
+        {
+          char *table_name= prev + (length_of_db+1);
+          insert_dynamic(&tables4repair, (uchar*) table_name);
+        }
       }
       found_error=0;
       table_rebuild=0;
@@ -911,10 +913,16 @@ static void print_result()
       if (prev_alter[0])
         insert_dynamic(&alter_table_cmds, (uchar*) prev_alter);
       else
-        insert_dynamic(&tables4rebuild, (uchar*) prev);
+      {
+        char *table_name= prev + (length_of_db+1);
+        insert_dynamic(&tables4rebuild, (uchar*) table_name);
+      }
     }
     else
-      insert_dynamic(&tables4repair, (uchar*) prev);
+    {
+      char *table_name= prev + (length_of_db+1);
+      insert_dynamic(&tables4repair, (uchar*) table_name);
+    }
   }
   mysql_free_result(res);
   DBUG_VOID_RETURN;
