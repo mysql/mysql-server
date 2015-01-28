@@ -19,6 +19,7 @@
 
 #include "rpl_gtid_persist.h"      // gtid_table_persistor
 #include "sql_class.h"             // THD
+#include "debug_sync.h"            // DEBUG_SYNC
 
 
 int Gtid_state::clear(THD *thd)
@@ -144,12 +145,9 @@ void Gtid_state::update_on_commit(THD *thd)
 {
   DBUG_ENTER("Gtid_state::update_on_commit");
 
-  if (!thd->owned_gtid.is_empty())
-  {
-    global_sid_lock->rdlock();
-    update_gtids_impl(thd, true);
-    global_sid_lock->unlock();
-  }
+  update_gtids_impl(thd, true);
+  DEBUG_SYNC(thd, "end_of_gtid_state_update_on_commit");
+
   DBUG_VOID_RETURN;
 }
 
@@ -157,20 +155,6 @@ void Gtid_state::update_on_commit(THD *thd)
 void Gtid_state::update_on_rollback(THD *thd)
 {
   DBUG_ENTER("Gtid_state::update_on_rollback");
-
-  /*
-    If we don't own anything, there is nothing to do, so we do an
-    early return.  Except if there is a GTID consistency violation;
-    then we need to decrement the counter, so then we go ahead and
-    call update_gtids_impl.
-  */
-  if (thd->owned_gtid.is_empty() && !thd->has_gtid_consistency_violation)
-  {
-    DBUG_PRINT("info", ("skipping gtid rollback because "
-                        "thread does not own anything and does not violate "
-                        "gtid consistency"));
-    DBUG_VOID_RETURN;
-  }
 
   /*
     The administrative commands [CHECK|REPAIR|OPTIMIZE|ANALYZE] TABLE
@@ -190,9 +174,7 @@ void Gtid_state::update_on_rollback(THD *thd)
     DBUG_VOID_RETURN;
   }
 
-  global_sid_lock->rdlock();
   update_gtids_impl(thd, false);
-  global_sid_lock->unlock();
 
   DBUG_VOID_RETURN;
 }
@@ -201,6 +183,21 @@ void Gtid_state::update_on_rollback(THD *thd)
 void Gtid_state::update_gtids_impl(THD *thd, bool is_commit)
 {
   DBUG_ENTER("Gtid_state::update_gtids_impl");
+
+  /*
+    If we don't own anything, there is nothing to do, so we do an
+    early return.  Except if there is a GTID consistency violation;
+    then we need to decrement the counter, so then we go ahead and
+    call update_gtids_impl.
+  */
+  if (thd->owned_gtid.is_empty() && !thd->has_gtid_consistency_violation)
+  {
+    thd->pending_gtid_state_update= false;
+    DBUG_PRINT("info", ("skipping update_gtids_impl because "
+                        "thread does not own anything and does not violate "
+                        "gtid consistency"));
+    DBUG_VOID_RETURN;
+  }
 
   /*
     This variable is true for anonymous transactions, when the
@@ -242,11 +239,11 @@ void Gtid_state::update_gtids_impl(THD *thd, bool is_commit)
   */
   bool more_transactions_with_same_gtid_next=
     thd->is_commit_in_middle_of_statement;
-  DBUG_PRINT("info", ("thd->is_commit_in_middle_of_statement=%d",
+  DBUG_PRINT("info", ("query='%s' thd->is_commit_in_middle_of_statement=%d",
+                      thd->query().str,
                       thd->is_commit_in_middle_of_statement));
 
-  // Caller must take global_sid_lock.
-  global_sid_lock->assert_some_lock();
+  global_sid_lock->rdlock();
 
   if (thd->owned_gtid.sidno == THD::OWNED_SIDNO_GTID_SET)
   {
@@ -363,28 +360,60 @@ void Gtid_state::update_gtids_impl(THD *thd, bool is_commit)
   }
   else
   {
-    // Nothing is owned. Then it must be a rollback of an automatic
-    // transaction.
-    DBUG_ASSERT(!is_commit);
+    /*
+      Nothing is owned.  There are two cases when this happens:
+
+      - Normally, it is a rollback of an automatic transaction, so
+        then is_commit is false and gtid_next=automatic.
+
+      - There is also a corner case. If CREATE...SELECT is logged in
+        row format, it gets logged as CREATE without select, followed
+        by a transaction containing row events.  For this case, there
+        is a commit after the table has been created, before rows have
+        been selected.  After this commit,
+        thd->pending_gtid_state_update is set to true by the
+        CREATE...SELECT code.  This means that later, when the part of
+        the statement that selects rows calls
+        MYSQL_BIN_BINLOG::commit, if there were no matching rows so
+        that there is nothing to commit, MYSQL_BIN_LOG::commit does a
+        direct call to gtid_state->update_on_[commit|rollback] since
+        other functions called from MYSQL_BIN_LOG::commit did not do
+        this.  Then, if GTID_NEXT=AUTOMATIC, nothing will be owned at
+        this point.  Thus, to cover this case we add the
+        '||thd->pending_gtid_state_update' clause.
+    */
+    DBUG_ASSERT(!is_commit || thd->pending_gtid_state_update);
     DBUG_ASSERT(thd->variables.gtid_next.type == AUTOMATIC_GROUP);
   }
 
-  if (thd->has_gtid_consistency_violation &&
-      !more_transactions_with_same_gtid_next)
-  {
-    if (thd->variables.gtid_next.type == AUTOMATIC_GROUP)
-      gtid_state->end_automatic_gtid_violating_transaction();
-    else
-    {
-      DBUG_ASSERT(thd->variables.gtid_next.type == ANONYMOUS_GROUP);
-      gtid_state->end_anonymous_gtid_violating_transaction();
-    }
-    thd->has_gtid_consistency_violation= false;
-  }
+  global_sid_lock->unlock();
+
+  if (!more_transactions_with_same_gtid_next)
+    end_gtid_violating_transaction(thd);
 
   thd->owned_gtid.dbug_print(NULL,
                              "set owned_gtid (clear) in update_gtids_impl");
 
+  thd->pending_gtid_state_update= false;
+
+  DBUG_VOID_RETURN;
+}
+
+
+void Gtid_state::end_gtid_violating_transaction(THD *thd)
+{
+  DBUG_ENTER("end_gtid_violating_transaction");
+  if (thd->has_gtid_consistency_violation)
+  {
+    if (thd->variables.gtid_next.type == AUTOMATIC_GROUP)
+      end_automatic_gtid_violating_transaction();
+    else
+    {
+      DBUG_ASSERT(thd->variables.gtid_next.type == ANONYMOUS_GROUP);
+      end_anonymous_gtid_violating_transaction();
+    }
+    thd->has_gtid_consistency_violation= false;
+  }
   DBUG_VOID_RETURN;
 }
 
