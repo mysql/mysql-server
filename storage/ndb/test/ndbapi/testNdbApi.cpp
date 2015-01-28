@@ -6002,6 +6002,239 @@ testNdbRecordSpecificationCompatibility(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+int testSchemaObjectOwnerCheck(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* const ndb = GETNDB(step);
+  Ndb *otherNdb = NULL;
+  NdbDictionary::Dictionary* const dict = ndb->getDictionary();
+  NdbTransaction *trans = ndb->startTransaction();
+  NdbRestarter restarter;
+  int result = NDBT_OK;
+
+  do
+  {
+    ndbout << "Creating table with index" << endl;
+    NdbDictionary::Table tab;
+    NdbDictionary::Index idx;
+    tab.setName("SchemaObjOwnerCheck_tab");
+    tab.setLogging(true);
+
+    // create column
+    NdbDictionary::Column col("col1");
+    col.setType(NdbDictionary::Column::Unsigned);
+    col.setPrimaryKey(true);
+    tab.addColumn(col);
+
+    // create index on column
+    idx.setTable("SchemaObjOwnerCheck_tab");
+    idx.setName("SchemaObjOwnerCheck_idx");
+    idx.setType(NdbDictionary::Index::UniqueHashIndex);
+    idx.setLogging(false);
+    idx.addColumnName("col1");
+
+    NdbError error;
+    if(tab.validate(error) == -1)
+    {
+      ndbout << "Failed to create table" << endl;
+      break;
+    }
+    
+    if (dict->createTable(tab) == -1) {
+      g_err << "Failed to create SchemaObjOwnerCheck_tab table." << endl;
+      result = NDBT_FAILED;
+      break;
+    }
+    if (dict->createIndex(idx) == -1) {
+      g_err << "Failed to create index, error: " << dict->getNdbError() << endl;
+      result = NDBT_FAILED;
+      break;
+    }
+
+    ndbout << "Setting up other connection to acquire schema objects." << endl;
+    char connectString[256];
+    ctx->m_cluster_connection.get_connectstring(connectString,
+                                                sizeof(connectString));
+    otherConnection= new Ndb_cluster_connection(connectString);
+    if (otherConnection == NULL)
+    {
+      ndbout << "otherConnection is null" << endl;
+      result = NDBT_FAILED;
+      break;
+    }
+    int rc= otherConnection->connect();
+    if (rc != 0)
+    {
+      ndbout << "Connect of otherConnection failed with rc " << rc << endl;
+      result = NDBT_FAILED;
+      break;
+    }
+    if (otherConnection->wait_until_ready(10,10) != 0)
+    {
+      ndbout << "Cluster connection otherConnection was not ready" << endl;
+      result = NDBT_FAILED;
+      break;
+    }
+    otherNdb = new Ndb(otherConnection, "TEST_DB");
+    if(!otherNdb)
+    {
+      ndbout << "Failed to acquire Ndb object from otherConnection" << endl;
+      result = NDBT_FAILED;
+      break;
+    }
+    otherNdb->init();
+    if(otherNdb->waitUntilReady(10) != 0)
+    {
+      ndbout << "Failed to init Ndb object from otherConnection" << endl;
+      result = NDBT_FAILED;
+      break;
+    }
+    const NdbDictionary::Table *otherTable = otherNdb->getDictionary()->getTable("SchemaObjOwnerCheck_tab");
+    if(!otherTable)
+    {
+      ndbout << "Failed to get Ndb table from otherConnection" << endl;
+      result = NDBT_FAILED;
+      break;
+    }
+    const NdbDictionary::Index *otherIndex = otherNdb->getDictionary()->getIndex("SchemaObjOwnerCheck_idx", "SchemaObjOwnerCheck_tab");
+    if(!otherIndex)
+    {
+      ndbout << "Failed to get Ndb index from otherConnection" << endl;
+      result = NDBT_FAILED;
+      break;
+    }
+  
+    ndbout << "Enabling schema object ownership check on ctx connection" << endl;
+    trans->setSchemaObjOwnerChecks(true);
+  
+    ndbout << "Attempting to acquire Ndb*Operations on schema objects ";
+    ndbout << "which belong to other connection" << endl;
+    NdbOperation *op = trans->getNdbOperation(otherTable);
+    const NdbError err1 = trans->getNdbError();
+    if(err1.code != 1231)
+    {
+      ndbout << "Failed to detect Table with wrong owner for NdbOperation" << endl;
+      result = NDBT_FAILED;
+      break;
+    } 
+    NdbScanOperation *scanop = trans->getNdbScanOperation(otherTable);
+    const NdbError err2 = trans->getNdbError();
+    if(err2.code != 1231)
+    {
+      ndbout << "Failed to detect Table with wrong owner for NdbScanOperation" << endl;
+      result = NDBT_FAILED;
+      break;
+    } 
+    NdbIndexScanOperation *idxscanop = trans->getNdbIndexScanOperation(otherIndex, otherTable);
+    const NdbError err3 = trans->getNdbError();
+    if(err3.code != 1231)
+    {
+      ndbout << "Failed to detect Table/Index with wrong owner for NdbIndexScanOperation" << endl;
+      result = NDBT_FAILED;
+      break;
+    } 
+    NdbIndexOperation *idxop = trans->getNdbIndexOperation(otherIndex);
+    const NdbError err4 = trans->getNdbError();
+    if(err4.code != 1231)
+    {
+      ndbout << "Failed to detect Index with wrong owner for NdbIndexOperation" << endl;
+      result = NDBT_FAILED;
+      break;
+    } 
+    ndbout << "Success: ownership check detected wrong owner" << endl;   
+ 
+    ndbout << "Disabling schema object ownership check on valid connection" << endl;
+    trans->setSchemaObjOwnerChecks(false);
+  
+    ndbout << "Attempting to acquire Ndb*Operations ";
+    ndbout << "on valid schema objects from other connection" << endl;
+    op = trans->getNdbOperation(otherTable);
+    scanop = trans->getNdbScanOperation(otherTable);
+    idxscanop = trans->getNdbIndexScanOperation(otherIndex, otherTable);
+    idxop = trans->getNdbIndexOperation(otherIndex);
+    
+    if(!op || !scanop || !idxscanop || !idxop)  // failure to acquire at least one op
+    {
+      ndbout << "Failed to acquire ";
+      if(!op)        ndbout << "NdbOperation, ";
+      if(!scanop)    ndbout << "NdbScanOperation, ";
+      if(!idxscanop) ndbout << "NdbIndexScanOperation, ";
+      if(!idxop)     ndbout << "NdbIndexOperation, ";
+      ndbout << "error: " << trans->getNdbError().message << endl;
+      result = NDBT_FAILED;
+      break;
+    }
+    ndbout << "Success: ownership check skipped, wrong owner not detected" << endl;   
+
+    ndbout << "Enabling schema object ownership check on valid connection" << endl;
+    trans->setSchemaObjOwnerChecks(true);
+ 
+    ndbout << "Acquiring schema objects from current connection" << endl;
+    const NdbDictionary::Table *table = ndb->getDictionary()->getTable("SchemaObjOwnerCheck_tab");
+    if(!table)
+    {
+      ndbout << "Failed to get Ndb table from connection" << endl;
+      result = NDBT_FAILED;
+      break;
+    }
+    const NdbDictionary::Index *index = ndb->getDictionary()->getIndex("SchemaObjOwnerCheck_idx", "SchemaObjOwnerCheck_tab");
+    if(!index)
+    {
+      ndbout << "Failed to get Ndb index from connection" << endl;
+      result = NDBT_FAILED;
+      break;
+    }
+ 
+    ndbout << "Attempting to acquire Ndb*Operations ";
+    ndbout << "on owned schema objects with different db" << endl;
+    ndb->setDatabaseName("notexist");
+    NdbOperation *op2 = trans->getNdbOperation(table);
+    NdbScanOperation *scanop2 = trans->getNdbScanOperation(table);
+    NdbIndexScanOperation *idxscanop2 = trans->getNdbIndexScanOperation(index, table);
+    NdbIndexOperation *idxop2 = trans->getNdbIndexOperation(index, table);
+
+    if(!op2 || !scanop2 || !idxscanop2 || !idxop2)  // failure to acquire at least one op
+    {
+      ndbout << "Failed to acquire ";
+      if(!op)        ndbout << "NdbOperation, ";
+      if(!scanop)    ndbout << "NdbScanOperation, ";
+      if(!idxscanop) ndbout << "NdbIndexScanOperation, ";
+      if(!idxop)     ndbout << "NdbIndexOperation, ";
+      ndbout << "error: " << trans->getNdbError().message << endl;
+      result = NDBT_FAILED;
+      break;
+    }
+    ndbout << "Success: acquired Ndb*Operations on owned schema objects" << endl;   
+  } while(false);
+
+  ndbout << "Cleanup" << endl; 
+  ndb->setDatabaseName("TEST_DB");
+  if (dict->dropIndex("SchemaObjOwnerCheck_idx", "SchemaObjOwnerCheck_tab") == -1) 
+  {
+    g_err << "Failed to drop SchemaObjOwnerCheck_idx index." << endl;
+    result = NDBT_FAILED;
+  }
+  if (dict->dropTable("SchemaObjOwnerCheck_tab") == -1) 
+  {
+    g_err << "Failed to drop SchemaObjOwnerCheck_tab table." << endl;
+    result = NDBT_FAILED;
+  }
+
+  trans->setSchemaObjOwnerChecks(false);
+  ndb->closeTransaction(trans);
+
+  if(otherNdb)
+  {
+    delete otherNdb;
+    otherNdb = NULL;
+  }
+  if(otherConnection)
+  {
+    delete otherConnection;
+    otherConnection = NULL;
+  }
+  return result;
+}
+
 NDBT_TESTSUITE(testNdbApi);
 TESTCASE("MaxNdb", 
 	 "Create Ndb objects until no more can be created\n"){ 
@@ -6296,6 +6529,10 @@ TESTCASE("ReceiveTRANSIDAIAfterRollback",
 TESTCASE("RecordSpecificationBackwardCompatibility",
          "Test RecordSpecification struct's backward compatibility"){
   STEP(testNdbRecordSpecificationCompatibility);
+}
+TESTCASE("SchemaObjectOwnerCheck",
+         "Test use of schema objects with non-owning connections"){
+  STEP(testSchemaObjectOwnerCheck);
 }
 NDBT_TESTSUITE_END(testNdbApi);
 
