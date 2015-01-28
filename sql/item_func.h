@@ -1670,13 +1670,6 @@ public:
   */
   table_map get_initial_pseudo_tables() const { return RAND_TABLE_BIT; }
   longlong val_int();
-  bool check_gcol_func_processor(uchar *int_arg) 
-  {
-    DBUG_ENTER("Item_func_sleep::check_gcol_func_processor");
-    DBUG_PRINT("info",
-      ("check_gcol_func_processor returns TRUE: unsupported function"));
-    DBUG_RETURN(TRUE);
-  }
 };
 
 
@@ -2073,6 +2066,7 @@ public:
   {
     return get_time_from_non_temporal(ltime);
   }
+  bool check_gcol_func_processor(uchar *int_arg) { return TRUE;}
 };
 
 
@@ -2174,7 +2168,6 @@ public:
   { save_in_field(field, true, false); }
 
   bool register_field_in_read_map(uchar *arg);
-  bool register_field_in_bitmap(uchar *arg);
   bool set_entry(THD *thd, bool create_if_not_exists);
   void cleanup();
 };

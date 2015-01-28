@@ -3242,7 +3242,6 @@ public:
   virtual void print(String *str, enum_query_type query_type);
   Item_num *neg ();
   uint decimal_precision() const { return max_length; }
-  bool check_partition_func_processor(uchar *bool_arg) { return false;}
   bool check_gcol_func_processor(uchar *int_arg) { return false;}
 };
 
@@ -3295,7 +3294,6 @@ public:
   bool eq(const Item *, bool binary_cmp) const;
   void set_decimal_value(my_decimal *value_par);
   bool check_partition_func_processor(uchar *bool_arg) { return false;}
-  bool check_gcol_func_processor(uchar *int_arg) { return false;}
 };
 
 
