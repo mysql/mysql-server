@@ -21,10 +21,10 @@
 
 #ifdef HAVE_REPLICATION
 
-#include<map>
-#include<string>
+#include <map>
+#include <string>
 #include "rpl_mi.h"
-#include <rpl_channel_service_interface.h>
+#include "rpl_channel_service_interface.h"
 
 /**
    Maps a channel name to it's Master_info.

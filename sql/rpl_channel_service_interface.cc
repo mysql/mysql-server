@@ -14,9 +14,9 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "my_global.h"
-#include <rpl_channel_service_interface.h>
-#include <rpl_slave.h>
-#include <rpl_info_factory.h>
+#include "rpl_channel_service_interface.h"
+#include "rpl_slave.h"
+#include "rpl_info_factory.h"
 #include "rpl_mi.h"
 #include "rpl_msr.h"         /* Multisource replication */
 

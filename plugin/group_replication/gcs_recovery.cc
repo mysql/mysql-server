@@ -96,7 +96,7 @@ int
 Recovery_module::start_recovery(const string& group_name,
                                 char* rec_view_id)
 {
-  DBUG_ENTER("Recovery_module::initialize_recovery_thd");
+  DBUG_ENTER("Recovery_module::start_recovery");
 
   mysql_mutex_lock(&run_lock);
 
@@ -170,7 +170,7 @@ Recovery_module::check_recovery_thread_status()
 int
 Recovery_module::stop_recovery()
 {
-  DBUG_ENTER("Recovery_module::stop_recovery_thread");
+  DBUG_ENTER("Recovery_module::stop_recovery");
 
   mysql_mutex_lock(&run_lock);
 
@@ -329,6 +329,8 @@ Recovery_module::update_recovery_process(bool did_nodes_left)
 
 int Recovery_module::donor_failover()
 {
+  DBUG_ENTER("Recovery_module::donor_failover");
+
   //Stop the threads before reconfiguring the connection
   int error= 0;
   if ((error= donor_connection_interface.stop_threads(true, true)))
@@ -336,14 +338,16 @@ int Recovery_module::donor_failover()
     log_message(MY_ERROR_LEVEL,
                 "Can't kill the current group replication recovery process. "
                 "Recovery will shutdown.");
-    return error;
+    DBUG_RETURN(error);
   }
-  return(establish_donor_connection(true));
+  DBUG_RETURN(establish_donor_connection(true));
 }
 
 int
 Recovery_module::recovery_thread_handle()
 {
+  DBUG_ENTER("Recovery_module::recovery_thread_handle");
+
   int error= 0;
   donor_transfer_finished= false;
 
@@ -432,12 +436,14 @@ cleanup:
 
   clean_recovery_thread_context();
 
-  return 0;
+  DBUG_RETURN(error);
 }
 
 int
 Recovery_module::set_retrieved_cert_info(void* info)
 {
+  DBUG_ENTER("Recovery_module::set_retrieved_cert_info");
+
   mysql_mutex_lock(&recovery_lock);
 
   View_change_log_event* view_change_event= static_cast<View_change_log_event*>(info);
@@ -452,7 +458,7 @@ Recovery_module::set_retrieved_cert_info(void* info)
   mysql_cond_broadcast(&recovery_condition);
   mysql_mutex_unlock(&recovery_lock);
 
-  return 0;
+  DBUG_RETURN(0);
 }
 
 void
@@ -483,6 +489,8 @@ Recovery_module::clean_recovery_thread_context()
 
 bool Recovery_module::select_donor()
 {
+  DBUG_ENTER("Recovery_module::select_donor");
+
   bool no_available_donors= false;
   bool clean_run= rejected_donors.empty();
   while (!no_available_donors)
@@ -511,7 +519,7 @@ bool Recovery_module::select_donor()
 
         delete member_set;
 
-        return no_available_donors;
+        DBUG_RETURN(no_available_donors);
       }
       ++it;
     }
@@ -535,11 +543,13 @@ bool Recovery_module::select_donor()
       break;
     }
   }
-  return no_available_donors;
+  DBUG_RETURN(no_available_donors);
 }
 
 int Recovery_module::establish_donor_connection(bool failover)
 {
+  DBUG_ENTER("Recovery_module::establish_donor_connection");
+
   int error= -1;
   connected_to_donor= false;
 
@@ -552,7 +562,7 @@ int Recovery_module::establish_donor_connection(bool failover)
     {
       if (!failover)
         mysql_mutex_unlock(&donor_selection_lock);
-      return error; //no available donors, abort
+      DBUG_RETURN(error); //no available donors, abort
     }
 
 #ifndef DBUG_OFF
@@ -588,7 +598,7 @@ int Recovery_module::establish_donor_connection(bool failover)
                     "Aborting group replication recovery.");
         if (!failover)
           mysql_mutex_unlock(&donor_selection_lock);
-        return error; // max number of retries reached, abort
+        DBUG_RETURN(error); // max number of retries reached, abort
       }
       else
       {
@@ -609,7 +619,7 @@ int Recovery_module::establish_donor_connection(bool failover)
       mysql_mutex_unlock(&donor_selection_lock);
   }
 
-  return error;
+  DBUG_RETURN(error);
 }
 
 int Recovery_module::initialize_donor_connection(bool purge_logs){
@@ -623,7 +633,7 @@ int Recovery_module::initialize_donor_connection(bool purge_logs){
 
   if (selected_donor == NULL)
   {
-    return(1);
+    DBUG_RETURN(1);
   }
 
   /*
@@ -652,7 +662,7 @@ int Recovery_module::initialize_donor_connection(bool purge_logs){
     log_message(MY_INFORMATION_LEVEL,
                 "Establishing connection to a group replication recovery donor"
                 " %s at %s port: %d.",
-                selected_donor->get_uuid()->c_str(),
+                selected_donor_uuid.c_str(),
                 hostname,
                 port);
   }
@@ -661,7 +671,7 @@ int Recovery_module::initialize_donor_connection(bool purge_logs){
     log_message(MY_ERROR_LEVEL,
                 "Error while creating the group replication recovery channel "
                 "with donor %s at %s port: %d.",
-                selected_donor->get_uuid()->c_str(),
+                selected_donor_uuid.c_str(),
                 hostname,
                 port);
   }
@@ -670,7 +680,7 @@ int Recovery_module::initialize_donor_connection(bool purge_logs){
 
 int Recovery_module::start_recovery_donor_threads()
 {
-  DBUG_ENTER("Recovery_module::initialize_sql_thread");
+  DBUG_ENTER("Recovery_module::start_recovery_donor_threads");
 
   int error= donor_connection_interface.start_threads(true, true,
                                                       &view_id, true);
@@ -697,7 +707,7 @@ int Recovery_module::start_recovery_donor_threads()
 
 int Recovery_module::terminate_recovery_slave_threads()
 {
-  DBUG_ENTER("Recovery_module::terminate_slave_threads");
+  DBUG_ENTER("Recovery_module::terminate_recovery_slave_threads");
 
   log_message(MY_INFORMATION_LEVEL,
               "Terminating existing group replication donor connection "
@@ -763,6 +773,8 @@ void Recovery_module::wait_for_applier_module_recovery()
 
 void Recovery_module::notify_cluster_recovery_end()
 {
+  DBUG_ENTER("Recovery_module::notify_cluster_recovery_end");
+
   Recovery_message *recovery_msg
     = new Recovery_message(Recovery_message::RECOVERY_END_MESSAGE,
                            local_node_information->get_uuid());
@@ -788,6 +800,8 @@ void Recovery_module::notify_cluster_recovery_end()
 
   delete recovery_msg;
   delete msg;
+
+  DBUG_VOID_RETURN;
 }
 
 bool Recovery_module::is_own_event_channel(my_thread_id id)
