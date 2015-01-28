@@ -2758,11 +2758,19 @@ BG_geometry_collection::as_geometry_collection(String *geodata) const
   component is a geometry collection.
   @param geo The Geometry object to put into this collection. We duplicate
          geo's data rather than directly using it.
+  @param break_multi_geom whether break a multipoint or multilinestring or
+         multipolygon so as to store its components separately into this object.
   @return true if error occured, false if no error(successful).
  */
-bool BG_geometry_collection::store_geometry(const Geometry *geo)
+bool BG_geometry_collection::store_geometry(const Geometry *geo,
+                                            bool break_multi_geom)
 {
-  if (geo->get_type() == Geometry::wkb_geometrycollection)
+  Geometry::wkbType geo_type= geo->get_type();
+
+  if ((geo_type == Geometry::wkb_geometrycollection) ||
+      (break_multi_geom && (geo_type == Geometry::wkb_multipoint ||
+                            geo_type == Geometry::wkb_multipolygon ||
+                            geo_type == Geometry::wkb_multilinestring)))
   {
     uint32 ngeom= 0;
 
@@ -2797,7 +2805,7 @@ bool BG_geometry_collection::store_geometry(const Geometry *geo)
       }
       else if (geo2->get_type() == Geometry::wkb_geometrycollection)
       {
-        if (store_geometry(geo2))
+        if (store_geometry(geo2, break_multi_geom))
           return true;
       }
       else
@@ -3342,16 +3350,17 @@ longlong Item_func_isempty::val_int()
   String tmp;
   String *swkb= args[0]->val_str(&tmp);
   Geometry_buffer buffer;
+  Geometry *g= NULL;
 
   if ((null_value= (!swkb || args[0]->null_value)))
     return 0;
-  if (!(Geometry::construct(&buffer, swkb)))
+  if (!(g= Geometry::construct(&buffer, swkb)))
   {
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
     return error_int();
   }
 
-  return null_value ? 1 : 0;
+  return (null_value || is_empty_geocollection(g)) ? 1 : 0;
 }
 
 

@@ -146,9 +146,9 @@ public:
     m_srid= srid;
   }
 
-  bool fill(const Geometry *geo)
+  bool fill(const Geometry *geo, bool break_multi_geom= false)
   {
-    return store_geometry(geo);
+    return store_geometry(geo, break_multi_geom);
   }
 
   const Geometry_list &get_geometries() const
@@ -173,12 +173,12 @@ public:
 
   Gis_geometry_collection *as_geometry_collection(String *geodata) const;
   template<typename Coord_type, typename Coordsys>
-  void merge_components(bool *pdone, my_bool *pnull_value);
+  void merge_components(my_bool *pnull_value);
 private:
   template<typename Coord_type, typename Coordsys>
   bool merge_one_run(Item_func_spatial_operation *ifso,
-                     bool *pdone, my_bool *pnull_value);
-  bool store_geometry(const Geometry *geo);
+                     my_bool *pnull_value);
+  bool store_geometry(const Geometry *geo, bool break_multi_geom);
   Geometry *store(const Geometry *geo);
 };
 
@@ -625,7 +625,7 @@ public:
   bool is_null() { (void) val_int(); return null_value; }
 
   template<typename CoordinateElementType, typename CoordinateSystemType>
-  static int bg_geo_relation_check(Geometry *g1, Geometry *g2, bool *pisdone,
+  static int bg_geo_relation_check(Geometry *g1, Geometry *g2,
                                    Functype relchk_type, my_bool *);
 
 protected:
@@ -635,46 +635,50 @@ protected:
 
   template<typename Geotypes>
   static int within_check(Geometry *g1, Geometry *g2,
-                          bool *pbgdone, my_bool *pnull_value);
+                          my_bool *pnull_value);
   template<typename Geotypes>
   static int equals_check(Geometry *g1, Geometry *g2,
-                          bool *pbgdone, my_bool *pnull_value);
+                          my_bool *pnull_value);
   template<typename Geotypes>
   static int disjoint_check(Geometry *g1, Geometry *g2,
-                            bool *pbgdone, my_bool *pnull_value);
+                            my_bool *pnull_value);
   template<typename Geotypes>
   static int intersects_check(Geometry *g1, Geometry *g2,
-                              bool *pbgdone, my_bool *pnull_value);
+                              my_bool *pnull_value);
   template<typename Geotypes>
   static int overlaps_check(Geometry *g1, Geometry *g2,
-                            bool *pbgdone, my_bool *pnull_value);
+                            my_bool *pnull_value);
   template<typename Geotypes>
   static int touches_check(Geometry *g1, Geometry *g2,
-                           bool *pbgdone, my_bool *pnull_value);
+                           my_bool *pnull_value);
   template<typename Geotypes>
   static int crosses_check(Geometry *g1, Geometry *g2,
-                           bool *pbgdone, my_bool *pnull_value);
+                           my_bool *pnull_value);
 
   template<typename Coord_type, typename Coordsys>
-  int geocol_relation_check(Geometry *g1, Geometry *g2, bool *pbgdone);
+  int multipoint_within_geometry_collection(Gis_multi_point *mpts,
+                                            const typename
+                                            BG_geometry_collection::
+                                            Geometry_list *gv2,
+                                            const void *prtree);
+
+  template<typename Coord_type, typename Coordsys>
+  int geocol_relation_check(Geometry *g1, Geometry *g2);
   template<typename Coord_type, typename Coordsys>
   int geocol_relcheck_intersect_disjoint(const typename BG_geometry_collection::
                                          Geometry_list *gv1,
                                          const typename BG_geometry_collection::
-                                         Geometry_list *gv2,
-                                         bool *pbgdone);
+                                         Geometry_list *gv2);
   template<typename Coord_type, typename Coordsys>
   int geocol_relcheck_within(const typename BG_geometry_collection::
                              Geometry_list *gv1,
                              const typename BG_geometry_collection::
-                             Geometry_list *gv2,
-                             bool *pbgdone);
+                             Geometry_list *gv2);
   template<typename Coord_type, typename Coordsys>
   int geocol_equals_check(const typename BG_geometry_collection::
                           Geometry_list *gv1,
                           const typename BG_geometry_collection::
-                          Geometry_list *gv2,
-                          bool *pbgdone);
+                          Geometry_list *gv2);
 
   int func_touches();
   int func_equals();
