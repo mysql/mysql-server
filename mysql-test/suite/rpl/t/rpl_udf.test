@@ -5,8 +5,9 @@
 # statement based format. This tests work completed in WL#3629.   #
 ###################################################################
 
---source include/master-slave.inc
+--source include/not_group_replication_plugin.inc
 --source include/have_myisam.inc
+--source include/master-slave.inc
 
 disable_query_log;
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");

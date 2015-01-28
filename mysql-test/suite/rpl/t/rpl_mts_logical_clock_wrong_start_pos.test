@@ -7,10 +7,10 @@
 # malformed group events. Therefore this test applies to cross-version replication
 # as well.
 #
---source include/master-slave.inc
 # GTIDs are expected in binlog when events are indexed by query_get_value below
 --source include/have_gtid.inc
 --source include/have_binlog_format_mixed.inc
+--source include/master-slave.inc
 
 # Logic of the test is as the following.
 # Configure MTS with few workers and LOGICAL_CLOCK scheduler.

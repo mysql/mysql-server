@@ -54,7 +54,7 @@ SELECT search_error_log( '[Note]', '%Plugin Rewriter reported: ''Statement "SELE
 'WHERE a = "digest_collision.test"%' );
 search_error_log( '[Note]', '%Plugin Rewriter reported: ''Statement "SELECT * FROM test.t1 ' ||
 'WHERE a = "digest_collision.test"%' )
-[Note] Plugin Rewriter reported: 'Statement "SELECT * FROM test.t1 WHERE a = "digest_collision.test" UNION SELECT * FROM test.t1 WHERE a = "diges..." with digest "6b18b90067510e1b97f5e918aa11c89c" matched some rule but had different parse tree and/or literals.'
+[Note] Plugin Rewriter reported: 'Statement "SELECT * FROM test.t1 WHERE a = "digest_collision.test" UNION SELECT * FROM test.t1 WHERE a = "diges..." with digest "ffe6eb8866fa395663c0a86fcd093d35" matched some rule but had different parse tree and/or literals.'
 DROP TABLE t1;
 # Query rewrite plugin was uninstalled.
 DROP TABLE error_log;

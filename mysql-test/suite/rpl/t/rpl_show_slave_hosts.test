@@ -9,6 +9,7 @@
 # Remove the "Rpl_recovery_rank" column from SHOW SLAVE HOSTS, It is not
 # implemented.
 #######################################################################
+--source include/not_group_replication_plugin.inc
 source include/master-slave.inc;
 connect (slave2,127.0.0.1,root,,test,$SLAVE_MYPORT2,);
 
