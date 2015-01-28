@@ -1,5 +1,6 @@
 #Want to skip this test from daily Valgrind execution
 --source include/no_valgrind_without_big.inc
+--source include/not_group_replication_plugin.inc
 #
 # WL#5563 Prototype for Parallel Slave with db name partitioning.
 #
@@ -7,8 +8,8 @@
 # counterpart rpl_parallel.test. Read more comments in there.
 #
 
---source include/master-slave.inc
 --source include/not_mts_slave_parallel_workers.inc
+--source include/master-slave.inc
 
 connection slave;
 

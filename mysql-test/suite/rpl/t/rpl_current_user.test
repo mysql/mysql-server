@@ -172,6 +172,7 @@ connection master;
 INSERT INTO t1 VALUES(CURRENT_USER()), ('1234');
 SELECT * FROM t1;
 --source include/sync_slave_sql_with_master.inc
+--connection slave
 --echo # [On slave]
 SELECT * FROM t1;
 --echo # [On server_3]
@@ -184,6 +185,7 @@ connection master;
 UPDATE t1 SET c1=CURRENT_USER() WHERE c1='1234';
 SELECT * FROM t1;
 --source include/sync_slave_sql_with_master.inc
+--connection slave
 --echo # [On slave]
 SELECT * FROM t1;
 --let $sync_slave_connection= server_3
@@ -196,6 +198,7 @@ connection master;
 DELETE FROM t1 WHERE c1=CURRENT_USER();
 SELECT * FROM t1;
 --source include/sync_slave_sql_with_master.inc
+--connection slave
 --echo # [On slave]
 SELECT * FROM t1;
 --let $sync_slave_connection= server_3
@@ -220,6 +223,7 @@ INSERT INTO t1 VALUES(my_user());
 SELECT * FROM t1;
 SELECT * FROM t2;
 --source include/sync_slave_sql_with_master.inc
+--connection slave
 --echo # [On slave]
 SELECT * FROM t1;
 SELECT * FROM t2;

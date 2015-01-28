@@ -35,6 +35,9 @@
 #include "hash.h"
 #include "table_id.h"
 #include <set>
+#include <list>
+#include <string>
+#include <map>
 
 #ifdef MYSQL_CLIENT
 #include "sql_const.h"
@@ -808,11 +811,7 @@ public:
                     bool is_more);
 #endif // ifdef MYSQL_SERVER ... else
 
-  static void *operator new(size_t size)
-  {
-    return (void*) my_malloc(key_memory_log_event,
-                             (uint)size, MYF(MY_WME|MY_FAE));
-  }
+  void *operator new(size_t size);
 
   static void operator delete(void *ptr, size_t)
   {
@@ -3788,6 +3787,14 @@ public:
   */
   Gtid_log_event(THD *thd_arg, bool using_trans,
                  int64 last_committed_arg, int64 sequence_number_arg);
+
+  /**
+    Create a new event using the GTID from the given Gtid_specification
+    without a THD object.
+  */
+  Gtid_log_event(uint32 server_id_arg, bool using_trans,
+                 int64 last_committed_arg, int64 sequence_number_arg,
+                 const Gtid_specification spec_arg);
 #endif
 
 #ifndef MYSQL_CLIENT
@@ -4045,6 +4052,233 @@ public:
   int do_apply_event(Relay_log_info const *rli) { return 0; }
   int do_update_pos(Relay_log_info *rli);
 #endif
+};
+
+
+/**
+  @class Transaction_context_log_event
+
+  This is the subclass of Transaction_context_event and Log_event
+  This class encodes the transaction_context_log_event.
+
+  @internal
+  The inheritance structure is as follows
+
+        Binary_log_event
+               ^
+               |
+               |
+B_l:Transaction_context_event   Log_event
+                \                    /
+                 \                  /
+                  \                /
+                   \              /
+            Transaction_context_log_event
+
+  B_l: Namespace Binary_log
+  @endinternal
+*/
+class Transaction_context_log_event : public binary_log::Transaction_context_event,
+                                      public Log_event
+{
+private:
+  /// The Sid_map to use for creating the Gtid_set.
+  Sid_map *sid_map;
+  /// A gtid_set which is used to store the transaction set used for
+  /// certification.
+  Gtid_set *snapshot_version;
+
+#ifndef MYSQL_CLIENT
+  bool write_data_header(IO_CACHE* file);
+
+  bool write_data_body(IO_CACHE* file);
+
+  bool write_snapshot_version(IO_CACHE* file);
+
+  bool write_data_set(IO_CACHE* file, std::list<const char*> *set);
+#endif
+
+  char *read_snapshot_version(char *pos, uint16 len);
+
+  uint16 get_snapshot_version_size();
+
+  static int get_data_set_size(std::list<const char*> *set);
+
+  size_t to_string(char *buf, ulong len) const;
+
+public:
+
+#ifndef MYSQL_CLIENT
+  Transaction_context_log_event(const char *server_uuid_arg,
+                                bool using_trans,
+                                my_thread_id thread_id_arg,
+                                bool is_gtid_specified_arg);
+#endif
+
+  Transaction_context_log_event(const char *buffer,
+                                uint event_len,
+                                const Format_description_event *descr_event);
+
+  virtual ~Transaction_context_log_event();
+
+  size_t get_data_size();
+
+#ifndef MYSQL_CLIENT
+  int pack_info(Protocol *protocol);
+#endif
+
+#ifdef MYSQL_CLIENT
+  void print(FILE *file, PRINT_EVENT_INFO *print_event_info);
+#endif
+
+#if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
+  int do_apply_event(Relay_log_info const *rli) { return 0; }
+  int do_update_pos(Relay_log_info *rli);
+#endif
+
+  /**
+    Add a hash which identifies a inserted/updated/deleted row on the
+    ongoing transaction.
+
+    @param[in] hash  row identifier
+   */
+  void add_write_set(const char *hash);
+
+  /**
+    Return a pointer to write-set list.
+   */
+  std::list<const char*> *get_write_set() { return &write_set; }
+
+  /**
+    Add a hash which identifies a read row on the ongoing transaction.
+
+    @param[in] hash  row identifier
+   */
+  void add_read_set(const char *hash);
+
+  /**
+    Return a pointer to read-set list.
+   */
+  std::list<const char*> *get_read_set() { return &read_set; }
+
+  /**
+    Return the transaction snapshot timestamp.
+   */
+  Gtid_set *get_snapshot_version() { return snapshot_version; }
+
+  /**
+    Return the server uuid.
+   */
+  const char* get_server_uuid() { return server_uuid; }
+
+  /**
+    Return the id of the committing thread.
+   */
+  my_thread_id get_thread_id() { return thread_id; }
+
+  /**
+   Return true if transaction has GTID_NEXT specified, false otherwise.
+   */
+  bool is_gtid_specified() { return gtid_specified == TRUE; };
+};
+
+/**
+  @class View_change_log_event
+
+  This is the subclass of View_change_log_event and Log_event
+  This class created the view_change_log_event which is used as a marker in
+  case a new node joins or leaves the group.
+
+  @internal
+  The inheritance structure is as follows
+
+        Binary_log_event
+               ^
+               |
+               |
+B_l:   View_change_event      Log_event
+                \                /
+                 \              /
+                  \            /
+                   \          /
+              View_change_log_event
+
+  B_l: Namespace Binary_log
+  @endinternal
+*/
+
+class View_change_log_event: public binary_log::View_change_event,
+                             public Log_event
+{
+private:
+  size_t to_string(char *buf, ulong len) const;
+
+#ifndef MYSQL_CLIENT
+  bool write_data_header(IO_CACHE* file);
+
+  bool write_data_body(IO_CACHE* file);
+
+  bool write_data_map(IO_CACHE* file, std::map<std::string, std::string> *map);
+#endif
+
+  int get_size_data_map(std::map<std::string, std::string> *map);
+
+public:
+
+  View_change_log_event(char* view_id);
+
+  View_change_log_event(const char *buffer,
+                        uint event_len,
+                        const Format_description_event *descr_event);
+
+  virtual ~View_change_log_event();
+
+  size_t get_data_size();
+
+#ifndef MYSQL_CLIENT
+  int pack_info(Protocol *protocol);
+#endif
+
+#ifdef MYSQL_CLIENT
+  void print(FILE *file, PRINT_EVENT_INFO *print_event_info);
+#endif
+
+#if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
+  int do_apply_event(Relay_log_info const *rli);
+  int do_update_pos(Relay_log_info *rli);
+#endif
+
+  /**
+    Returns the view id.
+  */
+  char* get_view_id() { return view_id; }
+
+  /**
+    Sets the certification info
+
+    @param db the database
+  */
+  void set_certification_info(std::map<std::string, std::string> *info);
+
+  /**
+    Returns the certification info
+  */
+  std::map<std::string, std::string>* get_certification_info()
+  {
+    return &certification_info;
+  }
+
+  /**
+    Set the certification sequence number
+
+    @param number the sequence number
+  */
+  void set_seq_number(rpl_gno number) { seq_number= number; }
+
+  /**
+    Returns the certification sequence number
+  */
+  rpl_gno get_seq_number() { return seq_number; }
 };
 
 inline bool is_gtid_event(Log_event* evt)

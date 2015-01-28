@@ -9,7 +9,8 @@
 # 3. CHANGE MASTER errors related to Channel as input.
 #
 
-
+#Skip on group replication runs
+--source include/not_group_replication_plugin.inc
 --source include/have_binlog_format_mixed.inc
 --source include/have_debug.inc
 
@@ -89,6 +90,15 @@ SET GLOBAL DEBUG = "+d, max_replication_channels_exceeded";
 CHANGE MASTER TO MASTER_LOG_POS = 4 FOR CHANNEL "257th_channel";
 
 SET GLOBAL DEBUG=@old_debug;
+
+--echo #
+--echo #  3.c) Check that restricted channel names cannot be used
+--echo #
+
+--error ER_SLAVE_CHANNEL_NAME_INVALID_OR_TOO_LONG
+CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10 FOR CHANNEL "group_replication_applier";
+--error ER_SLAVE_CHANNEL_NAME_INVALID_OR_TOO_LONG
+CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10 FOR CHANNEL "group_replication_recovery";
 
 --echo # Assert that channels are not created for failed CHANGE MASTER command.
 --echo # and number of channels configured must be 2

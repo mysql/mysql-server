@@ -26,6 +26,8 @@ extern "C" {
 #include <mysql/service_mysql_string.h>
 #include <mysql/service_mysql_alloc.h>
 #include <mysql/service_parser.h>
+#include <mysql/service_rpl_transaction_ctx.h>
+#include <mysql/service_rpl_transaction_write_set.h>
 
 #ifdef __cplusplus
 }

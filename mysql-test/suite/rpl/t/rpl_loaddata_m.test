@@ -7,6 +7,7 @@
 # Change: Test rewritten to remove show binlog events
 #         and to test the option better + Cleanup
 ######################################################
+--source include/not_group_replication_plugin.inc
 -- source include/master-slave.inc
 
 --disable_warnings

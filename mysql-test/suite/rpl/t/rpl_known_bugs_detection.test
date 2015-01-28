@@ -3,6 +3,7 @@
 # (assuming the bug is fixed in the slave, slave cannot of course
 # imitate the bug, so it has to stop).
 
+--source include/not_group_replication_plugin.inc
 source include/have_debug.inc;
 # because of pretend_version_50034_in_binlog the test can't run with checksum
 source include/have_binlog_checksum_off.inc;

@@ -63,6 +63,7 @@
 #include "transaction.h"      // trans_commit_implicit
 #include "sql_query_rewrite.h"
 
+#include "rpl_group_replication.h"
 #include <algorithm>
 using std::max;
 
@@ -438,6 +439,8 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_CHANGE_REPLICATION_FILTER]=    CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_SLAVE_START]=        CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_SLAVE_STOP]=         CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_START_GROUP_REPLICATION]= CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_STOP_GROUP_REPLICATION]=  CF_AUTO_COMMIT_TRANS;
 
   /*
     The following statements can deal with temporary tables,
@@ -2935,6 +2938,59 @@ end_with_restore_list:
     break;
   }
 #ifdef HAVE_REPLICATION
+  case SQLCOM_START_GROUP_REPLICATION:
+  {
+    res= group_replication_start();
+
+    //To reduce server dependency, server errors are not used here
+    switch (res)
+    {
+      case 1: //GROUP_REPLICATION_CONFIGURATION_ERROR
+        my_message(ER_GROUP_REPLICATION_CONFIGURATION,
+                   ER(ER_GROUP_REPLICATION_CONFIGURATION), MYF(0));
+        goto error;
+      case 2: //GROUP_REPLICATION_ALREADY_RUNNING
+        my_message(ER_GROUP_REPLICATION_RUNNING,
+                   ER(ER_GROUP_REPLICATION_RUNNING), MYF(0));
+        goto error;
+      case 3: //GROUP_REPLICATION_REPLICATION_APPLIER_INIT_ERROR
+        my_message(ER_GROUP_REPLICATION_APPLIER_INIT_ERROR,
+                   ER(ER_GROUP_REPLICATION_APPLIER_INIT_ERROR), MYF(0));
+        goto error;
+      case 4: //GROUP_REPLICATION_COMMUNICATION_LAYER_JOIN_ERROR
+        my_message(ER_GROUP_REPLICATION_COMMUNICATION_LAYER_SESSION_ERROR,
+                   ER(ER_GROUP_REPLICATION_COMMUNICATION_LAYER_SESSION_ERROR), MYF(0));
+        goto error;
+      case 5: //GROUP_REPLICATION_COMMUNICATION_LAYER_SESSION_ERROR
+        my_message(ER_GROUP_REPLICATION_COMMUNICATION_LAYER_JOIN_ERROR,
+                   ER(ER_GROUP_REPLICATION_COMMUNICATION_LAYER_JOIN_ERROR), MYF(0));
+        goto error;
+    }
+    my_ok(thd);
+    res= 0;
+    break;
+  }
+
+  case SQLCOM_STOP_GROUP_REPLICATION:
+  {
+    res= group_replication_stop();
+    if (res == 1) //GROUP_REPLICATION_CONFIGURATION_ERROR
+    {
+      my_message(ER_GROUP_REPLICATION_CONFIGURATION,
+                 ER(ER_GROUP_REPLICATION_CONFIGURATION), MYF(0));
+      goto error;
+    }
+    if (res == 6) //GROUP_REPLICATION_APPLIER_THREAD_TIMEOUT
+    {
+      my_message(ER_GROUP_REPLICATION_STOP_APPLIER_THREAD_TIMEOUT,
+                 ER(ER_GROUP_REPLICATION_STOP_APPLIER_THREAD_TIMEOUT), MYF(0));
+      goto error;
+    }
+    my_ok(thd);
+    res= 0;
+    break;
+  }
+
   case SQLCOM_SLAVE_START:
   {
     res= start_slave_cmd(thd);
@@ -3107,6 +3163,9 @@ end_with_restore_list:
     // Need to open to check for multi-update
     if (!(res= open_normal_and_derived_tables(thd, all_tables, 0)))
     {
+      if (run_before_dml_hook(thd))
+        goto error;
+
       if (!all_tables->multitable_view)
       {
         /* Push ignore / strict error handler */
@@ -3351,6 +3410,9 @@ end_with_restore_list:
 
     if (!(res= open_normal_and_derived_tables(thd, all_tables, 0)))
     {
+      if (run_before_dml_hook(thd))
+        goto error;
+
       MYSQL_INSERT_SELECT_START(const_cast<char*>(thd->query().str));
       /* Skip first table, which is the table we are inserting in */
       TABLE_LIST *second_table= first_table->next_local;
@@ -3446,6 +3508,9 @@ end_with_restore_list:
     THD_STAGE_INFO(thd, stage_init);
     if ((res= open_normal_and_derived_tables(thd, all_tables, 0)))
       break;
+
+    if (run_before_dml_hook(thd))
+      goto error;
 
     MYSQL_MULTI_DELETE_START(const_cast<char*>(thd->query().str));
     if ((res= mysql_multi_delete_prepare(thd, &del_table_count)))

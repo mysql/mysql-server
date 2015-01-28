@@ -129,7 +129,11 @@ SET(SQL_SHARED_SOURCES
   procedure.cc 
   protocol.cc
   records.cc
+  rpl_group_replication.cc
   rpl_handler.cc
+  rpl_transaction_ctx.cc
+  rpl_transaction_write_set_ctx.cc
+  rpl_write_set_handler.cc
   rules_table_service.cc
   session_tracker.cc
   set_var.cc 
@@ -350,7 +354,7 @@ SET (SLAVE_SOURCE rpl_slave.cc rpl_reporting.cc rpl_mi.cc rpl_rli.cc
                   rpl_info_factory.cc rpl_info_table_access.cc dynamic_ids.cc
                   rpl_rli_pdb.cc rpl_info_dummy.cc rpl_mts_submode.cc
                   rpl_slave_commit_order_manager.cc rpl_msr.cc
-                  rpl_trx_boundary_parser.cc)
+                  rpl_trx_boundary_parser.cc rpl_channel_service_interface.cc)
 ADD_LIBRARY(slave ${SLAVE_SOURCE})
 ADD_DEPENDENCIES(slave GenError)
 
@@ -411,7 +415,7 @@ IF(NOT WITHOUT_DYNAMIC_PLUGINS)
     # incremental appears to crash from time to time,if used with /DEF option
     SET_TARGET_PROPERTIES(mysqld PROPERTIES LINK_FLAGS "${mysqld_link_flags} /DEF:mysqld.def /INCREMENTAL:NO")
 
-    FOREACH (CORELIB sql mysys mysys_ssl dbug strings binlogevents_static)
+    FOREACH (CORELIB sql binlog slave mysys mysys_ssl dbug strings binlogevents_static)
       GET_TARGET_PROPERTY(LOC ${CORELIB} LOCATION)
       FILE(TO_NATIVE_PATH ${LOC} LOC)
       SET (LIB_LOCATIONS ${LIB_LOCATIONS} ${LOC}) 

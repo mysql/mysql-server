@@ -38,10 +38,13 @@ public:
   static bool create_slave_info_objects(uint mi_option, uint rli_option, int
                                         thread_mask, Multisource_info *pmsr_map);
 
-  static Master_info*  create_slave_per_channel(uint mi_option,uint rli_option,
-                                                const char* channel,
-                                                bool convert_repo,
-                                                Multisource_info* msr_map);
+  static Master_info*
+  create_slave_per_channel(uint mi_option,uint rli_option,
+                           const char* channel,
+                           bool convert_repo,
+                           Multisource_info* msr_map,
+                           enum_channel_type channel_type=
+                               SLAVE_REPLICATION_CHANNEL);
 
   static Master_info *create_mi(uint rli_option, const char* channel,
                                 bool conver_repo);

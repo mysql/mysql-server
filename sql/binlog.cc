@@ -1126,7 +1126,10 @@ bool MYSQL_BIN_LOG::write_gtid(THD *thd, binlog_cache_data *cache_data,
   /* Generate GTID */
   if (thd->variables.gtid_next.type == AUTOMATIC_GROUP)
   {
-    if (gtid_state->generate_automatic_gtid(thd) != RETURN_STATUS_OK)
+    if (gtid_state->generate_automatic_gtid(thd,
+            thd->get_transaction()->get_rpl_transaction_ctx()->get_sidno(),
+            thd->get_transaction()->get_rpl_transaction_ctx()->get_gno())
+            != RETURN_STATUS_OK)
       DBUG_RETURN(true);
   }
   else
@@ -4974,7 +4977,7 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd, bool delete_only)
 
 #ifdef HAVE_REPLICATION
   /*
-    For relay logs we clear the gtid state assosiated per channel(i.e rli)
+    For relay logs we clear the gtid state associated per channel(i.e rli)
     in the purge_relay_logs()
   */
   if (!is_relay_log)
@@ -6376,6 +6379,25 @@ MYSQL_BIN_LOG::flush_and_set_pending_rows_event(THD *thd,
   DBUG_RETURN(error);
 }
 
+int
+MYSQL_BIN_LOG::write_event_into_log_file(Log_event* event){
+
+  DBUG_ENTER("MYSQL_BIN_LOG::write_event_into_log_file(Log_event *)");
+
+  mysql_mutex_lock(&LOCK_log);
+
+  int error= event->write(&log_file);
+
+  if (!error && !(error= flush_and_sync()))
+  {
+    update_binlog_end_pos();
+  }
+
+  mysql_mutex_unlock(&LOCK_log);
+
+  DBUG_RETURN(error);
+}
+
 /**
   Write an event to the binary log.
 */
@@ -7598,9 +7620,22 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all)
                   thd_get_cache_mngr(thd)->get_binlog_cache_log(true),
                   thd_get_cache_mngr(thd)->get_binlog_cache_log(false),
                   max<my_off_t>(max_binlog_cache_size,
-                                max_binlog_stmt_cache_size),
-                  NULL)))
+                                max_binlog_stmt_cache_size))))
+    {
+      ha_rollback_low(thd, all);
+      my_error(ER_RUN_HOOK_ERROR, MYF(0), "before_commit");
       DBUG_RETURN(RESULT_ABORTED);
+    }
+    /*
+      Check whether the transaction should commit or abort given the
+      plugin feedback.
+    */
+    if (thd->get_transaction()->get_rpl_transaction_ctx()->is_transaction_rollback())
+    {
+      ha_rollback_low(thd, all);
+      my_error(ER_TRANSACTION_ROLLBACK_DURING_COMMIT, MYF(0));
+      DBUG_RETURN(RESULT_ABORTED);
+    }
 
     if (ordered_commit(thd, all))
       DBUG_RETURN(RESULT_INCONSISTENT);

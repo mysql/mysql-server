@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,30 +20,14 @@
   - Server state
  */
 
-#ifndef MYSQL_SERVER
-#define MYSQL_SERVER
-#endif
-#ifndef HAVE_REPLICATION
-#define HAVE_REPLICATION
-#endif
-
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
-
-#include <my_global.h>
-#include <my_sys.h>
-#include <stdlib.h>
-#include <mysql_version.h>
+#include <mysql/group_replication_priv.h>
 #include <mysql/plugin.h>
-#include "sql_plugin.h"                         // st_plugin_int
-
 #include <mysql/service_my_plugin_log.h>
-
-#include "log_event.h"
-#include "replication.h"
+#include <mysql/service_rpl_transaction_ctx.h>
 
 static MYSQL_PLUGIN plugin_info_ptr;
+
+int validate_plugin_server_requirements(Trans_param *param);
 
 /*
   Will register the number of calls to each method of Server state
@@ -156,6 +140,7 @@ Server_state_observer server_state_observer = {
   after_server_shutdown,     //after shutdown
 };
 
+static int trans_before_dml_call= 0;
 static int trans_before_commit_call= 0;
 static int trans_before_rollback_call= 0;
 static int trans_after_commit_call= 0;
@@ -163,6 +148,13 @@ static int trans_after_rollback_call= 0;
 
 static void dump_transaction_calls()
 {
+
+  if(trans_before_dml_call)
+  {
+    my_plugin_log_message(&plugin_info_ptr,
+                          MY_INFORMATION_LEVEL,
+                          "\nreplication_observers_example_plugin:trans_before_dml");
+  }
 
   if(trans_before_commit_call)
   {
@@ -192,12 +184,103 @@ static void dump_transaction_calls()
                           "\nreplication_observers_example_plugin:trans_after_rollback");
   }
 }
+
 /*
   Transaction lifecycle events observers.
 */
+int trans_before_dml(Trans_param *param, int& out_val)
+{
+  trans_before_dml_call++;
+
+  return 0;
+}
+
+typedef enum enum_before_commit_test_cases {
+  NEGATIVE_CERTIFICATION,
+  POSITIVE_CERTIFICATION_WITH_GTID,
+  POSITIVE_CERTIFICATION_WITHOUT_GTID,
+  INVALID_CERTIFICATION_OUTCOME
+} before_commit_test_cases;
+
+int before_commit_tests(Trans_param *param,
+                        before_commit_test_cases test_case)
+{
+  rpl_sid fake_sid;
+  rpl_sidno fake_sidno;
+  rpl_gno fake_gno;
+
+  Transaction_termination_ctx transaction_termination_ctx;
+  memset(&transaction_termination_ctx, 0, sizeof(transaction_termination_ctx));
+  transaction_termination_ctx.m_thread_id= param->thread_id;
+
+  switch(test_case)
+  {
+  case NEGATIVE_CERTIFICATION:
+    transaction_termination_ctx.m_rollback_transaction= TRUE;
+    transaction_termination_ctx.m_generated_gtid= FALSE;
+    transaction_termination_ctx.m_sidno= -1;
+    transaction_termination_ctx.m_gno= -1;
+    break;
+
+  case POSITIVE_CERTIFICATION_WITH_GTID:
+    fake_sid.parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+    fake_sidno= get_sidno_from_global_sid_map(fake_sid);
+    fake_gno= get_last_executed_gno(fake_sidno);
+    fake_gno++;
+
+    transaction_termination_ctx.m_rollback_transaction= FALSE;
+    transaction_termination_ctx.m_generated_gtid= TRUE;
+    transaction_termination_ctx.m_sidno= fake_sidno;
+    transaction_termination_ctx.m_gno= fake_gno;
+    break;
+
+  case POSITIVE_CERTIFICATION_WITHOUT_GTID:
+    transaction_termination_ctx.m_rollback_transaction= FALSE;
+    transaction_termination_ctx.m_generated_gtid= FALSE;
+    transaction_termination_ctx.m_sidno= 0;
+    transaction_termination_ctx.m_gno= 0;
+    break;
+
+  case INVALID_CERTIFICATION_OUTCOME:
+    transaction_termination_ctx.m_rollback_transaction= TRUE;
+    transaction_termination_ctx.m_generated_gtid= TRUE;
+    transaction_termination_ctx.m_sidno= -1;
+    transaction_termination_ctx.m_gno= -1;
+
+  default:
+    break;
+  }
+
+  if (set_transaction_ctx(transaction_termination_ctx))
+  {
+    my_plugin_log_message(&plugin_info_ptr,
+                          MY_ERROR_LEVEL,
+                          "Unable to update transaction context service on server, thread_id: %lu",
+                          param->thread_id);
+    return 1;
+  }
+
+  return 0;
+}
+
 int trans_before_commit(Trans_param *param)
 {
   trans_before_commit_call++;
+
+  DBUG_EXECUTE_IF("force_error_on_before_commit_listener",
+                  return 1;);
+
+  DBUG_EXECUTE_IF("force_negative_certification_outcome",
+                  return before_commit_tests(param, NEGATIVE_CERTIFICATION););
+
+  DBUG_EXECUTE_IF("force_positive_certification_outcome_without_gtid",
+                  return before_commit_tests(param, POSITIVE_CERTIFICATION_WITHOUT_GTID););
+
+  DBUG_EXECUTE_IF("force_positive_certification_outcome_with_gtid",
+                  return before_commit_tests(param, POSITIVE_CERTIFICATION_WITH_GTID););
+
+  DBUG_EXECUTE_IF("force_invalid_certification_outcome",
+                  return before_commit_tests(param, INVALID_CERTIFICATION_OUTCOME););
 
   return 0;
 }
@@ -220,12 +303,16 @@ int trans_after_rollback(Trans_param *param)
 {
   trans_after_rollback_call++;
 
+  DBUG_EXECUTE_IF("validate_replication_observers_plugin_server_requirements",
+                  return validate_plugin_server_requirements(param););
+
   return 0;
 }
 
 Trans_observer trans_observer = {
   sizeof(Trans_observer),
 
+  trans_before_dml,
   trans_before_commit,
   trans_before_rollback,
   trans_after_commit,
@@ -237,7 +324,7 @@ Trans_observer trans_observer = {
 */
 static int binlog_relay_thread_start_call= 0;
 static int binlog_relay_thread_stop_call= 0;
-static int binlog_relay_consumer_thread_stop_call= 0;
+static int binlog_relay_applier_stop_call= 0;
 static int binlog_relay_before_request_transmit_call= 0;
 static int binlog_relay_after_read_event_call= 0;
 static int binlog_relay_after_queue_event_call= 0;
@@ -259,11 +346,11 @@ static void dump_binlog_relay_calls()
                           "\nreplication_observers_example_plugin:binlog_relay_thread_stop");
   }
 
-  if (binlog_relay_consumer_thread_stop_call)
+  if (binlog_relay_applier_stop_call)
   {
     my_plugin_log_message(&plugin_info_ptr,
                           MY_INFORMATION_LEVEL,
-                          "\nreplication_observers_example_plugin:binlog_relay_consumer_thread_stop");
+                          "\nreplication_observers_example_plugin:binlog_relay_applier_stop");
   }
 
   if (binlog_relay_before_request_transmit_call)
@@ -309,10 +396,10 @@ int binlog_relay_thread_stop(Binlog_relay_IO_param *param)
   return 0;
 }
 
-int binlog_relay_consumer_thread_stop(Binlog_relay_IO_param *param,
-                                      bool aborted)
+int binlog_relay_applier_stop(Binlog_relay_IO_param *param,
+                              bool aborted)
 {
-  binlog_relay_consumer_thread_stop_call++;
+  binlog_relay_applier_stop_call++;
 
   return 0;
 }
@@ -356,12 +443,162 @@ Binlog_relay_IO_observer relay_io_observer = {
 
   binlog_relay_thread_start,
   binlog_relay_thread_stop,
-  binlog_relay_consumer_thread_stop,
+  binlog_relay_applier_stop,
   binlog_relay_before_request_transmit,
   binlog_relay_after_read_event,
   binlog_relay_after_queue_event,
   binlog_relay_after_reset_slave,
 };
+
+
+/*
+  Validate plugin requirements on server code.
+  This function is mainly to ensure that any change on server code
+  will not break Group Replication requirements.
+*/
+int validate_plugin_server_requirements(Trans_param *param)
+{
+  int success= 0;
+
+  /*
+    Instantiate a Gtid_log_event without a THD parameter.
+  */
+  rpl_sid fake_sid;
+  fake_sid.parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+  rpl_sidno fake_sidno= get_sidno_from_global_sid_map(fake_sid);
+  rpl_gno fake_gno= get_last_executed_gno(fake_sidno)+1;
+
+  Gtid gtid= { fake_sidno, fake_gno };
+  Gtid_specification gtid_spec= { GTID_GROUP, gtid };
+  Gtid_log_event *gle= new Gtid_log_event(param->server_id, true, 0, 1, gtid_spec);
+
+  if (gle->is_valid())
+    success++;
+  else
+    my_plugin_log_message(&plugin_info_ptr,
+                          MY_INFORMATION_LEVEL,
+                          "replication_observers_example_plugin:validate_plugin_server_requirements:"
+                          " failed to instantiate a Gtid_log_event");
+  delete gle;
+
+
+  /*
+    Instantiate a anonymous Gtid_log_event without a THD parameter.
+  */
+  Gtid_specification anonymous_gtid_spec= { ANONYMOUS_GROUP, gtid };
+  gle= new Gtid_log_event(param->server_id, true, 0, 1, anonymous_gtid_spec);
+
+  if (gle->is_valid())
+    success++;
+  else
+    my_plugin_log_message(&plugin_info_ptr,
+                          MY_INFORMATION_LEVEL,
+                          "replication_observers_example_plugin:validate_plugin_server_requirements:"
+                          " failed to instantiate a anonymous Gtid_log_event");
+  delete gle;
+
+
+  /*
+    Instantiate a Transaction_context_log_event.
+  */
+  Transaction_context_log_event *tcle= new Transaction_context_log_event(param->server_uuid,
+                                                                         true,
+                                                                         param->thread_id,
+                                                                         false);
+
+  if (tcle->is_valid())
+  {
+    Gtid_set *snapshot_version= tcle->get_snapshot_version();
+    my_plugin_log_message(&plugin_info_ptr,
+                          MY_INFORMATION_LEVEL,
+                          "snapshot version is '%s'",
+                          snapshot_version->encode().c_str());
+    success++;
+  }
+  else
+    my_plugin_log_message(&plugin_info_ptr,
+                          MY_INFORMATION_LEVEL,
+                          "replication_observers_example_plugin:validate_plugin_server_requirements:"
+                          " failed to instantiate a Transaction_context_log_event");
+  delete tcle;
+
+
+  /*
+    Instantiate a Transaction_context_log_event.
+  */
+  View_change_log_event *vcle= new View_change_log_event(const_cast<char*>("1421867646:1"));
+
+  if (vcle->is_valid())
+  {
+    vcle->do_apply_event(NULL);
+    success++;
+  }
+  else
+    my_plugin_log_message(&plugin_info_ptr,
+                          MY_INFORMATION_LEVEL,
+                          "replication_observers_example_plugin:validate_plugin_server_requirements:"
+                          " failed to instantiate a View_change_log_event");
+  delete vcle;
+
+
+  /*
+    include/mysql/group_replication_priv.h exported functions.
+  */
+  my_thread_attr_t *thread_attr= get_connection_attrib();
+
+  char *hostname, *uuid;
+  uint port;
+  get_server_host_port_uuid(&hostname, &port, &uuid);
+
+  Trans_context_info startup_pre_reqs;
+  get_server_startup_prerequirements(startup_pre_reqs);
+
+  bool server_engine_ready= is_server_engine_ready();
+
+  uchar *encoded_gtid_executed= NULL;
+  uint length;
+  get_server_encoded_gtid_executed(&encoded_gtid_executed, &length);
+
+#if !defined(DBUG_OFF)
+  char *encoded_gtid_executed_string=
+      encoded_gtid_set_to_string(encoded_gtid_executed, length);
+#endif
+
+  if (thread_attr != NULL &&
+      hostname != NULL &&
+      uuid != NULL &&
+      port > 0 &&
+      startup_pre_reqs.gtid_mode == 3 &&
+      server_engine_ready &&
+      encoded_gtid_executed != NULL
+#if !defined(DBUG_OFF)
+      && encoded_gtid_executed_string != NULL
+#endif
+     )
+    success++;
+  else
+    my_plugin_log_message(&plugin_info_ptr,
+                          MY_INFORMATION_LEVEL,
+                          "replication_observers_example_plugin:validate_plugin_server_requirements:"
+                          " failed to invoke group_replication_priv.h exported functions");
+
+#if !defined(DBUG_OFF)
+  my_free(encoded_gtid_executed_string);
+#endif
+  my_free(encoded_gtid_executed);
+
+
+  /*
+    Log number of successful validations.
+  */
+  my_plugin_log_message(&plugin_info_ptr,
+                        MY_INFORMATION_LEVEL,
+                        "\nreplication_observers_example_plugin:validate_plugin_server_requirements=%d",
+                        success);
+
+  return 0;
+}
+
 
 /*
   Initialize the Replication Observer example at server start or plugin
