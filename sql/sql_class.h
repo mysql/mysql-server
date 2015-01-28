@@ -48,6 +48,7 @@
 #include <mysql/psi/mysql_statement.h>
 
 #include <memory>
+#include "rpl_context.h"
 
 class Reprepare_observer;
 class sp_cache;

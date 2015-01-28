@@ -698,6 +698,7 @@ SELECT ST_ASTEXT(ST_UNION(g,ST_GEOMFROMTEXT(@star_elem_vertical))) FROM gis_geom
 --echo #-------------------------------------------------------------------------------------------
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_of_elems)));
 
+--error ER_BOOST_GEOMETRY_OVERLAY_INVALID_INPUT_EXCEPTION
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,15 25,35 0,0 0)),((5 0,15 25,25 0,15 5,5 0)))')));
 
 SELECT ST_ASTEXT(ST_UNION(g,ST_GEOMFROMTEXT(@star_collection_elems))) FROM gis_geometrycollection WHERE fid=115;
