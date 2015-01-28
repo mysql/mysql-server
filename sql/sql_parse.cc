@@ -61,12 +61,11 @@
 #include "sql_view.h"         // mysql_create_view
 #include "table_cache.h"      // table_cache_manager
 #include "transaction.h"      // trans_commit_implicit
+#include "sql_query_rewrite.h"
 
 #include "rpl_group_replication.h"
 #include <algorithm>
 using std::max;
-
-#define FLAGSTR(V,F) ((V)&(F)?#F" ":"")
 
 /**
   @defgroup Runtime_Environment Runtime Environment
@@ -1184,6 +1183,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
                       (char *) (thd->db().str ? thd->db().str : ""),
                       (char *) thd->security_context()->priv_user().str,
                       (char *) thd->security_context()->host_or_ip().str);
+
     const char *packet_end= thd->query().str + thd->query().length;
 
     if (opt_general_log_raw)
@@ -5300,16 +5300,21 @@ void mysql_parse(THD *thd, Parser_state *parser_state)
   mysql_reset_thd_for_next_command(thd);
   lex_start(thd);
 
+  thd->m_parser_state= parser_state;
+  invoke_pre_parse_rewrite_plugins(thd);
+  thd->m_parser_state= NULL;
+
+  enable_digest_if_any_plugin_needs_it(thd, parser_state);
+
   if (query_cache.send_result_to_client(thd, thd->query()) <= 0)
   {
     LEX *lex= thd->lex;
 
     bool err= parse_sql(thd, parser_state, NULL);
+    if (!err)
+      err= invoke_post_parse_rewrite_plugins(thd, false);
 
     const char *found_semicolon= parser_state->m_lip.found_semicolon;
-    size_t      qlen= found_semicolon
-                      ? (found_semicolon - thd->query().str)
-                      : thd->query().length;
 
     if (!err)
     {
@@ -5346,8 +5351,14 @@ void mysql_parse(THD *thd, Parser_state *parser_state)
                                          thd->rewritten_query.c_ptr_safe(),
                                          thd->rewritten_query.length());
         else
+        {
+          size_t qlen= found_semicolon
+            ? (found_semicolon - thd->query().str)
+            : thd->query().length;
+          
           query_logger.general_log_write(thd, COM_QUERY,
                                          thd->query().str, qlen);
+        }
       }
 
       /* Audit_log notification when general log is disabled */
@@ -7019,9 +7030,6 @@ bool parse_sql(THD *thd,
 
   thd->push_diagnostics_area(parser_da, false);
 
-  parser_da->reset_diagnostics_area();
-  parser_da->reset_condition_info(thd);
-
   bool mysql_parse_status= MYSQLparse(thd) != 0;
 
   /*
@@ -7043,10 +7051,14 @@ bool parse_sql(THD *thd,
   if (parser_da->current_statement_cond_count() != 0)
   {
     /*
-      Error/warning during parsing: top DA should contain parse error(s)!
-      Any pre-existing conditions will be replaced.
+      Error/warning during parsing: top DA should contain parse error(s)!  Any
+      pre-existing conditions will be replaced. The exception is diagnostics
+      statements, in which case we wish to keep the errors so they can be sent
+      to the client.
     */
-    da->reset_condition_info(thd);
+    if (thd->lex->sql_command != SQLCOM_SHOW_WARNS &&
+        thd->lex->sql_command != SQLCOM_GET_DIAGNOSTICS)
+      da->reset_condition_info(thd);
 
     /*
       We need to put any errors in the DA as well as the condition list.
@@ -7059,6 +7071,9 @@ bool parse_sql(THD *thd,
     }
 
     da->copy_sql_conditions_from_da(thd, parser_da);
+
+    parser_da->reset_diagnostics_area();
+    parser_da->reset_condition_info(thd);
 
     /*
       Do not clear the condition list when starting execution as it

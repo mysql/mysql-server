@@ -254,7 +254,7 @@ int Certifier::initialize(rpl_gno last_delivered_gno)
                               last_executed_gno == 0););
   DBUG_EXECUTE_IF("gcs_assert_next_seqno_equal_4",
                   DBUG_ASSERT(next_seqno == 4 &&
-                              last_delivered_gno == 0 &&
+                              last_delivered_gno == 2 &&
                               last_executed_gno == 3););
 
   int error= broadcast_thread->initialize();

@@ -789,6 +789,8 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/libmemcached.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/mypluglib.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/mysql_no_login.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/rewrite_example.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/rewriter.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/semisync_master.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/semisync_slave.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/validate_password.so
@@ -800,6 +802,8 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libmemcached.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/mypluglib.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/mysql_no_login.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/rewrite_example.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/rewriter.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/semisync_master.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/semisync_slave.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/validate_password.so
@@ -822,6 +826,9 @@ fi
 %attr(644, root, root) %{_datadir}/mysql/mysql_security_commands.sql
 %attr(644, root, root) %{_datadir}/mysql/dictionary.txt
 %attr(644, root, root) %{_datadir}/mysql/innodb_memcached_config.sql
+%attr(644, root, root) %{_datadir}/mysql/install_rewriter.sql
+%attr(644, root, root) %{_datadir}/mysql/install_rewriter_with_optional_columns.sql
+%attr(644, root, root) %{_datadir}/mysql/uninstall_rewriter.sql
 %attr(644, root, root) %{_datadir}/mysql/magic
 %attr(644, root, root) %{_prefix}/lib/tmpfiles.d/mysql.conf
 %if 0%{?systemd}

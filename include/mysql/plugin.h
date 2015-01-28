@@ -44,8 +44,10 @@
 class THD;
 class Item;
 #define MYSQL_THD THD*
+typedef Item* MYSQL_ITEM;
 #else
 #define MYSQL_THD void*
+typedef void* MYSQL_ITEM;
 #endif
 
 typedef void * MYSQL_PLUGIN;
@@ -87,8 +89,10 @@ typedef struct st_mysql_xid MYSQL_XID;
 #define MYSQL_REPLICATION_PLUGIN     6	/* The replication plugin type */
 #define MYSQL_AUTHENTICATION_PLUGIN  7  /* The authentication plugin type */
 #define MYSQL_VALIDATE_PASSWORD_PLUGIN  8   /* validate password plugin type */
-#define MYSQL_GROUP_REPLICATION_PLUGIN  9   /* The Group Replication plugin */
-#define MYSQL_MAX_PLUGIN_TYPE_NUM    10  /* The number of plugin types   */
+#define MYSQL_REWRITE_PRE_PARSE_PLUGIN  9   /* Pre-parse query rewrite. */
+#define MYSQL_REWRITE_POST_PARSE_PLUGIN 10  /* Post-parse query rewrite. */
+#define MYSQL_GROUP_REPLICATION_PLUGIN  11  /* The Group Replication plugin */
+#define MYSQL_MAX_PLUGIN_TYPE_NUM    12  /* The number of plugin types   */
 
 /* We use the following strings to define licenses for plugins */
 #define PLUGIN_LICENSE_PROPRIETARY 0
@@ -456,6 +460,13 @@ struct st_mysql_plugin
 #define MYSQL_FTPARSER_INTERFACE_VERSION 0x0101
 
 /*************************************************************************
+  API for Query Rewrite plugin. (MYSQL_QUERY_REWRITE_PLUGIN)
+*/
+
+#define MYSQL_REWRITE_PRE_PARSE_INTERFACE_VERSION 0x0010
+#define MYSQL_REWRITE_POST_PARSE_INTERFACE_VERSION 0x0010
+
+/*************************************************************************
   API for Storage Engine plugin. (MYSQL_DAEMON_PLUGIN)
 */
 
@@ -699,5 +710,4 @@ void thd_set_ha_data(MYSQL_THD thd, const struct handlerton *hton,
 }
 #endif
 
-#endif
-
+#endif /* _my_plugin_h */

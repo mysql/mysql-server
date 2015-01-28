@@ -4247,6 +4247,8 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
       }
       logged_gtids_binlog.remove_gtid_set(gtids_only_in_table);
     }
+    DBUG_PRINT("info",("Generating PREVIOUS_GTIDS for %s file.",
+                       is_relay_log ? "relaylog" : "binlog"));
     Previous_gtids_log_event prev_gtids_ev(previous_logged_gtids);
     if (is_relay_log)
       prev_gtids_ev.set_relay_log_event();
@@ -4257,6 +4259,48 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
     if (prev_gtids_ev.write(&log_file))
       goto err;
     bytes_written+= prev_gtids_ev.common_header->data_written;
+  }
+  else // !(current_thd)
+  {
+    /*
+      If the slave was configured before server restart, the server will
+      generate a new relay log file without having current_thd, but this
+      new relay log file must have a PREVIOUS_GTIDS event as we now
+      generate the PREVIOUS_GTIDS event always.
+
+      This is only needed for relay log files because the server will add
+      the PREVIOUS_GTIDS of binary logs (when current_thd==NULL) after
+      server's GTID initialization.
+
+      During server's startup at mysqld_main(), from the binary/relay log
+      initialization point of view, it will:
+      1) Call init_server_components() that will generate a new binary log
+         file but won't write the PREVIOUS_GTIDS event yet;
+      2) Initialize server's GTIDs;
+      3) Write the binary log PREVIOUS_GTIDS;
+      4) Call init_slave() in where the new relay log file will be created
+         after initializing relay log's Retrieved_Gtid_Set;
+    */
+    if (is_relay_log)
+    {
+      if (need_sid_lock)
+        global_sid_lock->wrlock();
+      else
+        global_sid_lock->assert_some_wrlock();
+
+      DBUG_PRINT("info",("Generating PREVIOUS_GTIDS for relaylog file."));
+      Previous_gtids_log_event prev_gtids_ev(previous_gtid_set_relaylog);
+      prev_gtids_ev.set_relay_log_event();
+
+      if (need_sid_lock)
+        global_sid_lock->unlock();
+
+      prev_gtids_ev.common_footer->checksum_alg=
+                                   (s.common_footer)->checksum_alg;
+      if (prev_gtids_ev.write(&log_file))
+        goto err;
+      bytes_written+= prev_gtids_ev.common_header->data_written;
+    }
   }
   if (extra_description_event &&
       extra_description_event->binlog_version>=4)

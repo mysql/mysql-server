@@ -27,6 +27,7 @@
 #include "pfs_engine_table.h"
 #include "mysql_com.h"
 #include "rpl_info.h"
+#include "rpl_gtid.h"
 #include <mysql/plugin_group_replication.h>
 
 /**

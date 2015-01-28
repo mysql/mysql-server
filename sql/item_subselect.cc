@@ -436,10 +436,10 @@ err:
   JOINs may be nested. Walk nested joins recursively to apply the
   processor.
 */
-bool Item_subselect::walk_join_condition(List<TABLE_LIST> *tables,
-                                         Item_processor processor,
-                                         enum_walk walk,
-                                         uchar *arg)
+static bool walk_join_condition(List<TABLE_LIST> *tables,
+                                Item_processor processor,
+                                Item::enum_walk walk,
+                                uchar *arg)
 {
   TABLE_LIST *table;
   List_iterator<TABLE_LIST> li(*tables);

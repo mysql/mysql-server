@@ -1,4 +1,5 @@
 #include <mysql/plugin.h>
+typedef void* MYSQL_ITEM;
 typedef void * MYSQL_PLUGIN;
 #include <mysql/services.h>
 #include <mysql/service_my_snprintf.h>
@@ -133,6 +134,63 @@ extern void my_free(void *ptr);
 extern void * my_memdup(PSI_memory_key key, const void *from, size_t length, myf_t flags);
 extern char * my_strdup(PSI_memory_key key, const char *from, myf_t flags);
 extern char * my_strndup(PSI_memory_key key, const char *from, size_t length, myf_t flags);
+#include <mysql/service_parser.h>
+#include "my_md5_size.h"
+#include <mysql/plugin.h>
+typedef
+int (*parse_node_visit_function)(MYSQL_ITEM item, unsigned char* arg);
+typedef
+int (*sql_condition_handler_function)(int sql_errno,
+                                      const char* sqlstate,
+                                      const char* msg,
+                                      void *state);
+struct st_my_thread_handle;
+extern struct mysql_parser_service_st {
+  void* (*mysql_current_session)();
+  void* (*mysql_open_session)();
+  void (*mysql_start_thread)(void* thd, void *(*callback_fun)(void*),
+                             void *arg,
+                             struct st_my_thread_handle *thread_handle);
+  void (*mysql_join_thread)(struct st_my_thread_handle *thread_handle);
+  void (*mysql_set_current_database)(void* thd, const MYSQL_LEX_STRING db);
+  int (*mysql_parse)(void* thd, const MYSQL_LEX_STRING query,
+                     unsigned char is_prepared,
+                     sql_condition_handler_function handle_condition,
+                     void *condition_handler_state);
+  int (*mysql_get_statement_digest)(void* thd, unsigned char *digest);
+  int (*mysql_parser_get_number_params)(void* thd);
+  int (*mysql_parser_extract_prepared_params)(void* thd, int *positions);
+  int (*mysql_parser_visit_tree)(void* thd,
+                                 parse_node_visit_function processor,
+                                 unsigned char* arg);
+  MYSQL_LEX_STRING (*mysql_parser_item_string)(MYSQL_ITEM item);
+  void (*mysql_parser_free_string)(MYSQL_LEX_STRING string);
+  MYSQL_LEX_STRING (*mysql_parser_get_query)(void* thd);
+  MYSQL_LEX_STRING (*mysql_parser_get_normalized_query)(void* thd);
+} *mysql_parser_service;
+typedef void *(*callback_function)(void*);
+void* mysql_parser_current_session();
+void* mysql_parser_open_session();
+void mysql_parser_start_thread(void* thd, callback_function fun, void *arg,
+                               struct st_my_thread_handle *thread_handle);
+void mysql_parser_join_thread(struct st_my_thread_handle *thread_handle);
+void mysql_parser_set_current_database(void* thd,
+                                       const MYSQL_LEX_STRING db);
+int mysql_parser_parse(void* thd, const MYSQL_LEX_STRING query,
+                       unsigned char is_prepared,
+                       sql_condition_handler_function handle_condition,
+                       void *condition_handler_state);
+int mysql_parser_get_statement_type(void* thd);
+int mysql_parser_get_statement_digest(void* thd, unsigned char *digest);
+int mysql_parser_get_number_params(void* thd);
+int mysql_parser_extract_prepared_params(void* thd, int *positions);
+int mysql_parser_visit_tree(void* thd,
+                            parse_node_visit_function processor,
+                            unsigned char* arg);
+MYSQL_LEX_STRING mysql_parser_item_string(MYSQL_ITEM item);
+void mysql_parser_free_string(MYSQL_LEX_STRING string);
+MYSQL_LEX_STRING mysql_parser_get_query(void* thd);
+MYSQL_LEX_STRING mysql_parser_get_normalized_query(void* thd);
 #include <mysql/service_rpl_transaction_ctx.h>
 struct st_transaction_termination_ctx
 {

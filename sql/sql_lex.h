@@ -32,6 +32,7 @@
 #include "query_options.h"            // OPTION_NO_CONST_TABLES
 #include "sql_alloc.h"                // Sql_alloc
 #include "sql_alter.h"                // Alter_info
+#include "sql_connect.h"              // USER_RESOURCES
 #include "sql_data_change.h"          // enum_duplicates
 #include "sql_get_diagnostics.h"      // Diagnostics_information
 #include "sql_servers.h"              // Server_options
@@ -39,6 +40,7 @@
 #include "table.h"                    // TABLE_LIST
 #include "trigger_def.h"              // enum_trigger_action_time_type
 #include "xa.h"                       // xa_option_words
+#include "select_lex_visitor.h"
 
 #ifdef MYSQL_SERVER
 #include "item_func.h"                // Cast_target
@@ -49,7 +51,6 @@
 /* These may not be declared yet */
 class Table_ident;
 class sql_exchange;
-class LEX_COLUMN;
 class sp_head;
 class sp_name;
 class sp_instr;
@@ -631,6 +632,7 @@ public:
   void reinit_exec_mechanism();
 
   void print(String *str, enum_query_type query_type);
+  bool accept(Select_lex_visitor *visitor);
 
   bool add_fake_select_lex(THD *thd);
   bool prepare_fake_select_lex(THD *thd);
@@ -1148,6 +1150,9 @@ public:
                           enum_query_type query_type);
   void print_limit(THD *thd, String *str, enum_query_type query_type);
   void fix_prepare_information(THD *thd);
+
+  virtual bool accept(Select_lex_visitor *visitor);
+
   /**
     Cleanup this subtree (this SELECT_LEX and all nested SELECT_LEXes and
     SELECT_LEX_UNITs).
@@ -2285,29 +2290,23 @@ enum enum_comment_state
 
 
 /**
-  @brief This class represents the character input stream consumed during
-  lexical analysis.
+  This class represents the character input stream consumed during lexical
+  analysis.
 
-  In addition to consuming the input stream, this class performs some
-  comment pre processing, by filtering out out of bound special text
-  from the query input stream.
-  Two buffers, with pointers inside each buffers, are maintained in
-  parallel. The 'raw' buffer is the original query text, which may
-  contain out-of-bound comments. The 'cpp' (for comments pre processor)
-  is the pre-processed buffer that contains only the query text that
-  should be seen once out-of-bound data is removed.
+  In addition to consuming the input stream, this class performs some comment
+  pre processing, by filtering out out-of-bound special text from the query
+  input stream.
+
+  Two buffers, with pointers inside each, are maintained in parallel. The
+  'raw' buffer is the original query text, which may contain out-of-bound
+  comments. The 'cpp' (for comments pre processor) is the pre-processed buffer
+  that contains only the query text that should be seen once out-of-bound data
+  is removed.
 */
 
 class Lex_input_stream
 {
 public:
-  Lex_input_stream()
-  {
-  }
-
-  ~Lex_input_stream()
-  {
-  }
 
   /**
      Object initializer. Must be called before usage.
@@ -2735,6 +2734,14 @@ public:
   bool text_string_is_7bit() const { return !(tok_bitmap & 0x80); }
 };
 
+
+class LEX_COLUMN : public Sql_alloc
+{
+public:
+  String column;
+  uint rights;
+  LEX_COLUMN (const String& x,const  uint& y ): column (x),rights (y) {}
+};
 
 
 /* The state of the lex parsing. This is saved in the THD struct */
@@ -3203,6 +3210,9 @@ public:
     }
     return FALSE;
   }
+
+  bool accept(Select_lex_visitor *visitor);
+
 };
 
 
@@ -3315,8 +3325,8 @@ struct Parser_input
 class Parser_state
 {
 public:
-  Parser_state()
-    : m_input(), m_lip(), m_yacc(), m_comment(false)
+  Parser_state() :
+    m_input(), m_lip(), m_yacc(), m_comment(false)
   {}
 
   /**
@@ -3329,9 +3339,6 @@ public:
   {
     return m_lip.init(thd, buff, length);
   }
-
-  ~Parser_state()
-  {}
 
   void reset(const char *found_semicolon, size_t length)
   {

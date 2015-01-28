@@ -326,6 +326,7 @@ SET(SERVER_TESTS
   opt_range
   opt_ref
   opt_trace
+  select_lex_visitor
   segfault
   sql_table
   strings_utf8
@@ -334,6 +335,7 @@ SET(SERVER_TESTS
   thd_manager
   unique
   security_context
+  initialize_password
 )
 
 ## Merging tests into fewer executables saves *a lot* of

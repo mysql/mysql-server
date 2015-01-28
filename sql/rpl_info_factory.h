@@ -18,7 +18,6 @@
 
 #ifdef HAVE_REPLICATION
 
-#include "table.h"
 #include "rpl_info.h"
 #include "rpl_mi.h"
 #include "rpl_rli.h"

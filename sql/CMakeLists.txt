@@ -123,6 +123,8 @@ SET(SQL_SHARED_SOURCES
   parse_tree_items.cc
   parse_tree_node_base.cc
   parse_tree_nodes.cc
+  select_lex_visitor.cc
+  parser_service.cc
   partition_info.cc
   procedure.cc 
   protocol.cc
@@ -133,6 +135,7 @@ SET(SQL_SHARED_SOURCES
   rpl_transaction_ctx.cc
   rpl_transaction_write_set_ctx.cc
   rpl_write_set_handler.cc
+  rules_table_service.cc
   session_tracker.cc
   set_var.cc 
   sp.cc
@@ -150,6 +153,7 @@ SET(SQL_SHARED_SOURCES
   sql_audit.cc
   sql_base.cc 
   sql_bootstrap.cc
+  sql_initialize.cc
   sql_cache.cc
   sql_class.cc
   sql_connect.cc
@@ -181,6 +185,7 @@ SET(SQL_SHARED_SOURCES
   sql_plugin.cc
   sql_prepare.cc
   sql_profile.cc
+  sql_query_rewrite.cc
   sql_reload.cc
   sql_rename.cc
   sql_resolver.cc
@@ -311,6 +316,7 @@ RECOMPILE_FOR_EMBEDDED)
 ADD_LIBRARY(sql STATIC ${SQL_SOURCE})
 ADD_DEPENDENCIES(sql GenServerSource)
 ADD_DEPENDENCIES(sql GenDigestServerSource)
+ADD_DEPENDENCIES(sql GenBootstrapPriv)
 DTRACE_INSTRUMENT(sql)
 TARGET_LINK_LIBRARIES(sql ${MYSQLD_STATIC_PLUGIN_LIBS} 
   mysys mysys_ssl dbug strings vio regex binlogevents_static
@@ -466,6 +472,7 @@ ELSE()
     RENAME mysqld-debug)
 ENDIF()
 
+
 # Handle out-of-source build from source package with possibly broken 
 # bison. Copy bison output to from source to build directory, if not already 
 # there
@@ -559,36 +566,38 @@ IF(NOT CMAKE_CROSSCOMPILING)
   ENDIF()
 ENDIF()
 IF(WIN32 AND MYSQLD_EXECUTABLE)
-  CONFIGURE_FILE(
-    ${CMAKE_SOURCE_DIR}/cmake/create_initial_db.cmake.in
-    ${CMAKE_CURRENT_BINARY_DIR}/create_initial_db.cmake
-    @ONLY
-  )
-  
-  IF(MSVC_IDE OR CMAKE_GENERATOR MATCHES "Xcode")
-    SET (CONFIG_PARAM -DCONFIG=${CMAKE_CFG_INTDIR})
-  ENDIF()
-  MAKE_DIRECTORY(${CMAKE_CURRENT_BINARY_DIR}/data)
-  # Copy db.opt into data/test/
-  SET(DBOPT_FILE ${CMAKE_CURRENT_SOURCE_DIR}/db.opt ) 
-  INSTALL(FILES ${DBOPT_FILE} DESTINATION data/test COMPONENT DataFiles)
-
   ADD_CUSTOM_COMMAND(
-     OUTPUT initdb.dep
-     COMMAND ${CMAKE_COMMAND}
-     ${CONFIG_PARAM} -P ${CMAKE_CURRENT_BINARY_DIR}/create_initial_db.cmake
-     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/data
+     OUTPUT data
+     COMMAND "${CMAKE_COMMAND}" -E remove_directory
+       ${CMAKE_CURRENT_BINARY_DIR}/data
+     COMMAND "${MYSQLD_EXECUTABLE}"
+       --no-defaults
+       --console
+       --lc-messages-dir=${CMAKE_CURRENT_BINARY_DIR}/share
+       --datadir=${CMAKE_CURRENT_BINARY_DIR}/data
+       --default-storage-engine=MyISAM
+       --default-tmp-storage-engine=MyISAM
+       --loose-skip-auto_generate_certs
+       --loose-skip-sha256_password_auto_generate_rsa_keys
+       --initialize-insecure
+       --log_syslog=0
+       --skip-ssl
+     COMMAND "${CMAKE_COMMAND}" -E make_directory
+       ${CMAKE_CURRENT_BINARY_DIR}/data/test
+     COMMAND "${CMAKE_COMMAND}" -E remove
+       ${CMAKE_CURRENT_BINARY_DIR}/data/mysql/db.opt
+     COMMAND "${CMAKE_COMMAND}" -E remove
+       ${CMAKE_CURRENT_BINARY_DIR}/data/performance_schema/db.opt
+     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
      DEPENDS mysqld
   )
-  ADD_CUSTOM_TARGET(initial_database  
+  ADD_CUSTOM_TARGET(initial_database
     ALL
-    DEPENDS  initdb.dep
+    DEPENDS  data
   )
   INSTALL(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/data
-    DESTINATION . 
-    COMPONENT DataFiles
-    PATTERN "initdb.dep" EXCLUDE
-    PATTERN "bootstrap.sql" EXCLUDE)
+    DESTINATION .
+    COMPONENT DataFiles)
 ELSE()
   # Not windows or cross compiling, just install an empty directory
   INSTALL(FILES ${DUMMY_FILE} DESTINATION data/mysql COMPONENT DataFiles)

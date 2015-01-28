@@ -89,6 +89,7 @@
 #include "opt_trace_context.h"
 #include "opt_costconstantcache.h"
 #include "sql_plugin.h"                         // plugin_shutdown
+#include "sql_initialize.h"
 
 #include "my_default.h"
 
@@ -321,6 +322,7 @@ ulong slow_start_timeout;
 #endif
 
 my_bool opt_bootstrap= 0;
+my_bool opt_initialize= 0;
 my_bool opt_skip_slave_start = 0; ///< If set, slave is not autostarted
 my_bool opt_reckless_slave = 0;
 my_bool opt_enable_named_pipe= 0;
@@ -3113,6 +3115,30 @@ int init_common_variables()
   if (my_dboptions_cache_init())
     return 1;
 
+  /* create the data directory if requested */
+  if (unlikely(opt_initialize))
+  {
+    MY_STAT dummy_stat;
+    int flags=
+#ifdef _WIN32
+      0
+#else
+      S_IRWXU | S_IRGRP | S_IXGRP
+#endif
+      ;
+
+    if (my_stat(mysql_real_data_home, &dummy_stat, MYF(0)))
+    {
+      sql_print_error("--initialize specified but the data directory exists. Aborting.");
+      return 1;        /* purecov: inspected */
+    }
+
+    sql_print_information("Creating the data directory %s", mysql_real_data_home);
+    if (my_mkdir(mysql_real_data_home, flags, MYF(MY_WME)))
+      return 1;        /* purecov: inspected */
+  }
+
+
   /*
     Ensure that lower_case_table_names is set on system where we have case
     insensitive names.  If this is not done the users MyISAM tables will
@@ -4552,6 +4578,18 @@ int mysqld_main(int argc, char **argv)
 #ifndef _WIN32
   if ((user_info= check_user(mysqld_user)))
   {
+    /* need to change the owner of the freshly created data directory */
+    if (unlikely(opt_initialize)
+#if HAVE_CHOWN
+        && chown(mysql_real_data_home, user_info->pw_uid, user_info->pw_gid)
+#endif
+       )
+    {
+      sql_print_error("Can't change data directory owner to %s", mysqld_user);
+      unireg_abort(1);
+    }
+
+
 #if defined(HAVE_MLOCKALL) && defined(MCL_CURRENT)
     if (locked_in_memory) // getuid() == 0 here
       set_effective_user(user_info);
@@ -5262,6 +5300,27 @@ int handle_early_options()
     /* Add back the program name handle_options removes */
     remaining_argc++;
     remaining_argv--;
+
+    /* adjust the bootstrap options */
+    if (opt_bootstrap)
+    {
+      my_message_local(WARNING_LEVEL,
+                       "--bootstrap is deprecated. "
+                       "Please consider using --initialize instead");
+    }
+    if (opt_initialize_insecure)
+      opt_initialize= TRUE;
+    if (opt_initialize)
+    {
+      if (opt_bootstrap)
+      {
+        my_getopt_error_reporter(ERROR_LEVEL,
+                                 "Both --bootstrap and --initialize specified."
+                                 " Please pick one. Exiting.");
+        ho_error= EXIT_AMBIGUOUS_OPTION;
+      }
+      opt_bootstrap= TRUE;
+    }
   }
 
   // Swap with an empty vector, i.e. delete elements and free allocated space.
@@ -5415,7 +5474,14 @@ struct my_option my_long_early_options[]=
    &opt_verbose, &opt_verbose, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"version", 'V', "Output version information and exit.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
-  {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
+  {"initialize", 0, "Create the default database and exit."
+   " Create a super user with a random expired password and store it into the log.",
+   &opt_initialize, &opt_initialize, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"initialize-insecure", 0, "Create the default database and exit."
+   " Create a super user with empty password.",
+   &opt_initialize_insecure, &opt_initialize_insecure, 0, GET_BOOL, NO_ARG,
+   0, 0, 0, 0, 0, 0},
+  { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 }
 };
 
 /**
@@ -7098,7 +7164,7 @@ mysqld_get_one_option(int optid,
       opt_error_log= 0;     // Force logs to stdout
     break;
   case OPT_BOOTSTRAP:
-    opt_bootstrap=1;
+    opt_bootstrap= 1;
     break;
   case OPT_SERVER_ID:
     /*
@@ -7423,7 +7489,7 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
     struct my_option *opt= &all_options[0];
     for (; opt->name; opt++)
       if (!strcmp("log_error_verbosity", opt->name))
-        opt->def_value= 1;
+        opt->def_value= opt_initialize ? 2 : 1;
   }
 
   /* Skip unknown options so that they may be processed later by plugins */
@@ -8202,7 +8268,7 @@ static PSI_cond_info all_server_conds[]=
 
 PSI_thread_key key_thread_bootstrap, key_thread_handle_manager, key_thread_main,
   key_thread_one_connection, key_thread_signal_hand,
-  key_thread_compress_gtid_table;
+  key_thread_compress_gtid_table, key_thread_parser_service;
 
 #ifdef HAVE_MY_TIMER
 PSI_thread_key key_thread_timer_notifier;
@@ -8224,7 +8290,8 @@ static PSI_thread_info all_server_threads[]=
   { &key_thread_main, "main", PSI_FLAG_GLOBAL},
   { &key_thread_one_connection, "one_connection", 0},
   { &key_thread_signal_hand, "signal_handler", PSI_FLAG_GLOBAL},
-  { &key_thread_compress_gtid_table, "compress_gtid_table", PSI_FLAG_GLOBAL}
+  { &key_thread_compress_gtid_table, "compress_gtid_table", PSI_FLAG_GLOBAL},
+  { &key_thread_parser_service, "parser_service", PSI_FLAG_GLOBAL}
 };
 
 PSI_file_key key_file_map;

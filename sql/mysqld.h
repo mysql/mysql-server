@@ -123,7 +123,7 @@ extern bool opt_skip_name_resolve;
 extern bool opt_ignore_builtin_innodb;
 extern my_bool opt_character_set_client_handshake;
 extern MYSQL_PLUGIN_IMPORT bool volatile abort_loop;
-extern my_bool opt_bootstrap;
+extern my_bool opt_bootstrap, opt_initialize;
 extern my_bool opt_safe_user_create;
 extern my_bool opt_safe_show_db, opt_local_infile, opt_myisam_use_mmap;
 extern my_bool opt_slave_compressed_protocol, use_temp_pool;
@@ -461,7 +461,7 @@ extern PSI_cond_key key_commit_order_manager_cond;
 extern PSI_thread_key key_thread_bootstrap,
   key_thread_handle_manager, key_thread_main,
   key_thread_one_connection, key_thread_signal_hand,
-  key_thread_compress_gtid_table;
+  key_thread_compress_gtid_table, key_thread_parser_service;
 
 #ifdef HAVE_MY_TIMER
 extern PSI_thread_key key_thread_timer_notifier;
@@ -915,7 +915,12 @@ enum enum_query_type
   /// Print in charset of Item::print() argument (typically thd->charset()).
   QT_TO_ARGUMENT_CHARSET= (1 << 5),
   /// Print identifiers in compact format, omitting schema names.
-  QT_COMPACT_FORMAT= (1 << 6)
+  QT_COMPACT_FORMAT= (1 << 6),
+  /**
+    Change all Item_basic_constant to ? (used by query rewrite to compute
+    digest.)
+  */
+  QT_NORMALIZED_FORMAT= (1 << 7)
 };
 
 /* query_id */

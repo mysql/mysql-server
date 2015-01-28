@@ -48,5 +48,7 @@ libmemcached       plugin/innodb_memcached/daemon_memcached DAEMON_MEMCACHED
 # libmemcached       plugin/innodb_memcached/daemon_memcached DAEMON_MEMCACHED daemon_memcached
 innodb_engine      plugin/innodb_memcached/innodb_memcache INNODB_ENGINE
 validate_password  plugin/password_validation VALIDATE_PASSWORD validate_password
+rewrite_example    plugin/rewrite_example REWRITE_EXAMPLE
+rewriter           plugin/rewriter    REWRITER
 mysql_no_login     plugin/mysql_no_login      MYSQL_NO_LOGIN    mysql_no_login
 group_replication  plugin/group_replication   GROUP_REPLICATION

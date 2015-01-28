@@ -118,8 +118,6 @@ TYPELIB binlog_checksum_typelib=
 
 #define log_cs	&my_charset_latin1
 
-#define FLAGSTR(V,F) ((V)&(F)?#F" ":"")
-
 /*
   Size of buffer for printing a double in format %.<PREC>g
 

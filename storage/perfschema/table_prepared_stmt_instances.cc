@@ -29,6 +29,7 @@
 #include "pfs_visitor.h"
 #include "pfs_prepared_stmt.h"
 #include "table_prepared_stmt_instances.h"
+#include "field.h"
 
 THR_LOCK table_prepared_stmt_instances::m_table_lock;
 

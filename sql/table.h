@@ -30,23 +30,23 @@
 #include "table_id.h"      // Table_id
 
 /* Structs that defines the TABLE */
-typedef struct st_key KEY;
 class File_parser;
-class Item;				/* Needed by ORDER */
 class Item_subselect;
 class Item_field;
 class GRANT_TABLE;
 class st_select_lex_unit;
-class st_select_lex;
-class partition_info;
 class COND_EQUAL;
 class Security_context;
-struct TABLE_LIST;
 class ACL_internal_schema_access;
 class ACL_internal_table_access;
-class Field;
-class Field_temporal_with_date_and_time;
 class Table_cache_element;
+class Table_trigger_dispatcher;
+class select_union;
+class Temp_table_param;
+class Index_hint;
+struct Name_resolution_context;
+struct LEX;
+typedef int8 plan_idx;
 
 #define store_record(A,B) memcpy((A)->B,(A)->record[0],(size_t) (A)->s->reclength)
 #define restore_record(A,B) memcpy((A)->record[0],(A)->B,(size_t) (A)->s->reclength)
@@ -322,11 +322,7 @@ enum tmp_table_type
   NO_TMP_TABLE, NON_TRANSACTIONAL_TMP_TABLE, TRANSACTIONAL_TMP_TABLE,
   INTERNAL_TMP_TABLE, SYSTEM_TMP_TABLE
 };
-enum release_type { RELEASE_NORMAL, RELEASE_WAIT_FOR_DROP };
 
-
-class Field_blob;
-class Table_trigger_dispatcher;
 
 /**
   Category of table found in the table share.
@@ -476,10 +472,6 @@ enum enum_table_category
   TABLE_CATEGORY_GTID=8
 };
 typedef enum enum_table_category TABLE_CATEGORY;
-
-TABLE_CATEGORY get_table_category(const LEX_STRING *db,
-                                  const LEX_STRING *name);
-
 
 extern ulong refresh_version;
 
@@ -1483,8 +1475,6 @@ enum enum_derived_type {
 /** The threshold size a blob field buffer before it is freed */
 #define MAX_TDC_BLOB_SIZE 65536
 
-class select_union;
-class Temp_table_param;
 
 struct Field_translator
 {
@@ -1525,6 +1515,30 @@ public:
 };
 
 
+/*
+  This structure holds the specifications relating to
+  ALTER user ... PASSWORD EXPIRE ...
+*/
+typedef struct st_lex_alter {
+  bool update_password_expired_column;
+  bool use_default_password_lifetime;
+  uint16 expire_after_days;
+} LEX_ALTER;
+
+typedef struct	st_lex_user {
+  LEX_CSTRING user;
+  LEX_CSTRING host;
+  LEX_CSTRING password;
+  LEX_CSTRING plugin;
+  LEX_CSTRING auth;
+  bool uses_identified_by_clause;
+  bool uses_identified_with_clause;
+  bool uses_authentication_string_clause;
+  bool uses_identified_by_password_clause;
+  LEX_ALTER alter_status;
+} LEX_USER;
+
+
 /**
   Derive type of metadata lock to be requested for table used by a DML
   statement from the type of THR_LOCK lock requested for this table.
@@ -1562,9 +1576,6 @@ public:
   Field_map used_fields;
 };
 
-class Index_hint;
-class Item_exists_subselect;
-
 
 /*
   Table reference in the FROM clause.
@@ -1600,8 +1611,6 @@ class Item_exists_subselect;
        ;
 */
 
-struct Name_resolution_context;
-struct LEX;
 struct TABLE_LIST
 {
   TABLE_LIST() {}                          /* Remove gcc warning */
@@ -2220,10 +2229,6 @@ private:
 };
 
 
-struct st_position;
-  
-class Item;
-
 /*
   Iterator over the fields of a generic table reference.
 */
@@ -2431,14 +2436,6 @@ typedef struct st_nested_join
 } NESTED_JOIN;
 
 
-typedef struct st_changed_table_list
-{
-  struct	st_changed_table_list *next;
-  char		*key;
-  uint32        key_length;
-} CHANGED_TABLE_LIST;
-
-
 typedef struct st_open_table_list{
   struct st_open_table_list *next;
   char	*db,*table;
@@ -2542,7 +2539,6 @@ int read_string(File file, uchar* *to, size_t length);
 void free_blobs(TABLE *table);
 void free_field_buffers_larger_than(TABLE *table, uint32 size);
 int set_zone(int nr,int min_zone,int max_zone);
-ulong get_form_pos(File file, uchar *head, TYPELIB *save_names);
 ulong make_new_entry(File file,uchar *fileinfo,TYPELIB *formnames,
 		     const char *newname);
 ulong next_io_size(ulong pos);
