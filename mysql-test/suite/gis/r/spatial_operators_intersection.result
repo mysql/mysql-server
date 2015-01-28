@@ -188,25 +188,25 @@ POINT(5 0)
 #-------------------------------------------------------------------------------------------
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_top_to_center)));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_top_to_center)))
-NULL
+POINT(15 25)
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_bottom_left),ST_GEOMFROMTEXT(@star_top_to_center)));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_bottom_left),ST_GEOMFROMTEXT(@star_top_to_center)))
-NULL
+GEOMETRYCOLLECTION()
 SELECT ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_top_to_center))) FROM gis_geometrycollection WHERE fid=104;
 ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_top_to_center)))
-NULL
+POINT(15 25)
 #-------------------------------------------------------------------------------------------
 # point,multilinestring
 #-------------------------------------------------------------------------------------------
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_lines_near_vertical)));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_lines_near_vertical)))
-NULL
+POINT(15 25)
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_center),ST_GEOMFROMTEXT(@star_lines_near_vertical)));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_center),ST_GEOMFROMTEXT(@star_lines_near_vertical)))
-NULL
+GEOMETRYCOLLECTION()
 SELECT ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_lines_near_vertical))) FROM gis_geometrycollection WHERE fid=104;
 ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_lines_near_vertical)))
-NULL
+POINT(15 25)
 #-------------------------------------------------------------------------------------------
 # point,polygon
 #-------------------------------------------------------------------------------------------
@@ -236,16 +236,16 @@ POINT(15 25)
 #-------------------------------------------------------------------------------------------
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_collection_elems)));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_collection_elems)))
-NULL
+POINT(15 25)
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top_3),ST_GEOMFROMTEXT(@star_collection_elems)));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top_3),ST_GEOMFROMTEXT(@star_collection_elems)))
 GEOMETRYCOLLECTION()
 SELECT ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_collection_elems))) FROM gis_geometrycollection WHERE fid=104;
 ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_collection_elems)))
-NULL
+POINT(15 25)
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_collection_multilinestr)));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_collection_multilinestr)))
-NULL
+POINT(15 25)
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION()')));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION()')))
 GEOMETRYCOLLECTION()
@@ -284,25 +284,25 @@ MULTIPOINT(5 0,25 0)
 #-------------------------------------------------------------------------------------------
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_top_to_center)));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_top_to_center)))
-NULL
+MULTIPOINT(15 10,15 25)
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_top_to_center)));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_top_to_center)))
-NULL
+MULTIPOINT(15 10,15 25)
 SELECT ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_top_to_center))) FROM gis_geometrycollection WHERE fid=109;
 ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_top_to_center)))
-NULL
+MULTIPOINT(15 10,15 25)
 #-------------------------------------------------------------------------------------------
 # multipoint,multilinestring
 #-------------------------------------------------------------------------------------------
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_lines_near_vertical)));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_lines_near_vertical)))
-NULL
+POINT(15 25)
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_lines_near_horizontal)));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_lines_near_horizontal)))
-NULL
+POINT(25 0)
 SELECT ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_lines_near_horizontal))) FROM gis_geometrycollection WHERE fid=109;
 ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_lines_near_horizontal)))
-NULL
+POINT(25 0)
 #-------------------------------------------------------------------------------------------
 # multipoint,polygon
 #-------------------------------------------------------------------------------------------
@@ -332,16 +332,16 @@ MULTIPOINT(5 0,15 10,15 25,25 0)
 #-------------------------------------------------------------------------------------------
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT('MULTIPOINT(0 0,0 30,30 25)'),ST_GEOMFROMTEXT(@star_collection_elems)));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT('MULTIPOINT(0 0,0 30,30 25)'),ST_GEOMFROMTEXT(@star_collection_elems)))
-NULL
+GEOMETRYCOLLECTION()
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_collection_elems)));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_collection_elems)))
-POINT(15 10)
+MULTIPOINT(5 0,15 10,15 25,25 0)
 SELECT ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_collection_elems))) FROM gis_geometrycollection WHERE fid=109;
 ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_collection_elems)))
-POINT(15 10)
+MULTIPOINT(5 0,15 10,15 25,25 0)
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_collection_multilinestr)));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_collection_multilinestr)))
-POINT(15 10)
+MULTIPOINT(5 0,15 10,15 25,25 0)
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT('MULTIPOINT(0 0,10 10)'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION()')));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT('MULTIPOINT(0 0,10 10)'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION()')))
 GEOMETRYCOLLECTION()
@@ -355,28 +355,28 @@ POINT(0 0)
 #-------------------------------------------------------------------------------------------
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top_to_center),ST_GEOMFROMTEXT(@star_center)));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top_to_center),ST_GEOMFROMTEXT(@star_center)))
-NULL
+POINT(15 10)
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT('LINESTRING(15 25,15 10)'),ST_GEOMFROMTEXT('POINT(15 10)')));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT('LINESTRING(15 25,15 10)'),ST_GEOMFROMTEXT('POINT(15 10)')))
-NULL
+POINT(15 10)
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top_to_center),ST_GEOMFROMTEXT(@star_bottom_left)));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top_to_center),ST_GEOMFROMTEXT(@star_bottom_left)))
-NULL
+GEOMETRYCOLLECTION()
 SELECT ST_ASTEXT(ST_INTERSECTION(g,g2)) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=110 and fid2=105;
 ST_ASTEXT(ST_INTERSECTION(g,g2))
-NULL
+GEOMETRYCOLLECTION()
 #-------------------------------------------------------------------------------------------
 # linestring,multipoint
 #-------------------------------------------------------------------------------------------
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_line_vertical),ST_GEOMFROMTEXT('MULTIPOINT(15 10,15 25)')));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_line_vertical),ST_GEOMFROMTEXT('MULTIPOINT(15 10,15 25)')))
-NULL
+MULTIPOINT(15 10,15 25)
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_line_vertical),ST_GEOMFROMTEXT(@star_all_points)));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_line_vertical),ST_GEOMFROMTEXT(@star_all_points)))
-NULL
+MULTIPOINT(15 10,15 25)
 SELECT ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT('MULTIPOINT(15 10,15 25)'))) FROM gis_geometrycollection WHERE fid=111;
 ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT('MULTIPOINT(15 10,15 25)')))
-NULL
+MULTIPOINT(15 10,15 25)
 #-------------------------------------------------------------------------------------------
 # linestring,linestring
 #-------------------------------------------------------------------------------------------
@@ -456,28 +456,28 @@ LINESTRING(5 5,10 10)
 #-------------------------------------------------------------------------------------------
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_top)));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_top)))
-NULL
+POINT(15 25)
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_center)));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_center)))
-NULL
+GEOMETRYCOLLECTION()
 SELECT ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_top))) FROM gis_geometrycollection WHERE fid=114;
 ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_top)))
-NULL
+POINT(15 25)
 #-------------------------------------------------------------------------------------------
 # multilinestring,multipoint
 #-------------------------------------------------------------------------------------------
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_bottom_points)));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_bottom_points)))
-NULL
+GEOMETRYCOLLECTION()
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_all_points)));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_all_points)))
-NULL
+POINT(15 25)
 SELECT ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_bottom_points))) FROM gis_geometrycollection WHERE fid=114;
 ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_bottom_points)))
-NULL
+GEOMETRYCOLLECTION()
 SELECT ST_ASTEXT(ST_INTERSECTION(g,g2)) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=114 and fid2=108;
 ST_ASTEXT(ST_INTERSECTION(g,g2))
-NULL
+GEOMETRYCOLLECTION()
 #-------------------------------------------------------------------------------------------
 # multilinestring,linestring
 #-------------------------------------------------------------------------------------------
@@ -525,22 +525,22 @@ ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT('MULTILINESTRING((0 25,25 0,25 30))'),
 LINESTRING(10.714285714285714 14.285714285714286,25 0)
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_of_elems)));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_of_elems)))
-LINESTRING(5.172413793103448 11.89655172413793,7.5 15)
+GEOMETRYCOLLECTION(MULTILINESTRING((5.172413793103448 11.89655172413793,7.5 15)),POINT(15 25))
 SELECT ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_of_elems))) FROM gis_geometrycollection WHERE fid=114;
 ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_of_elems)))
-LINESTRING(5.172413793103448 11.89655172413793,7.5 15)
+GEOMETRYCOLLECTION(MULTILINESTRING((5.172413793103448 11.89655172413793,7.5 15)),POINT(15 25))
 #-------------------------------------------------------------------------------------------
 # multilinestring,geometrycollection
 #-------------------------------------------------------------------------------------------
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT('MULTILINESTRING((0 25,25 0,25 30))'),ST_GEOMFROMTEXT(@star_collection_elems)));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT('MULTILINESTRING((0 25,25 0,25 30))'),ST_GEOMFROMTEXT(@star_collection_elems)))
-MULTILINESTRING((25 0,10 15),(25 11.875,25 15))
+GEOMETRYCOLLECTION(MULTILINESTRING((10 15,25 0),(25 11.875,25 15)),MULTIPOINT(25 0))
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_collection_elems)));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_collection_elems)))
-LINESTRING(4.883720930232558 11.511627906976745,7.5 15)
+GEOMETRYCOLLECTION(MULTILINESTRING((4.883720930232558 11.511627906976745,7.5 15)),POINT(15 25),POINT(15 25))
 SELECT ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_collection_elems))) FROM gis_geometrycollection WHERE fid=114;
 ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_collection_elems)))
-LINESTRING(4.883720930232558 11.511627906976745,7.5 15)
+GEOMETRYCOLLECTION(MULTILINESTRING((4.883720930232558 11.511627906976745,7.5 15)),POINT(15 25),POINT(15 25))
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_lines_near_horizontal),ST_GEOMFROMTEXT(@star_collection_multilinestr)));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_lines_near_horizontal),ST_GEOMFROMTEXT(@star_collection_multilinestr)))
 GEOMETRYCOLLECTION(LINESTRING(25 0,4.411764705882352 12.352941176470587),LINESTRING(4.2 12,4.411764705882352 12.352941176470587),LINESTRING(4.411764705882352 12.352941176470587,6 15),LINESTRING(4.411764705882352 12.352941176470587,0 15),POINT(15 30))
@@ -599,13 +599,13 @@ LINESTRING(15 5,15 25)
 #-------------------------------------------------------------------------------------------
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_lines_near_vertical)));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_lines_near_vertical)))
-LINESTRING(4.883720930232558 11.511627906976745,7.5 15)
+GEOMETRYCOLLECTION(MULTILINESTRING((4.883720930232558 11.511627906976745,7.5 15)),POINT(15 25))
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT(@star_lines_near_horizontal)));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT(@star_lines_near_horizontal)))
 LINESTRING(25 0,8.870967741935484 9.67741935483871)
 SELECT ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_lines_near_vertical))) FROM gis_geometrycollection WHERE fid=100;
 ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_lines_near_vertical)))
-LINESTRING(4.883720930232558 11.511627906976745,7.5 15)
+GEOMETRYCOLLECTION(MULTILINESTRING((4.883720930232558 11.511627906976745,7.5 15)),POINT(15 25))
 #-------------------------------------------------------------------------------------------
 # polygon,polygon
 #-------------------------------------------------------------------------------------------
@@ -635,16 +635,16 @@ MULTIPOLYGON(((0 15,25 0,22 10,30 15,20 15,10 15,0 15)),((15 25,5 0,15 5,25 0,15
 #-------------------------------------------------------------------------------------------
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_collection_elems)));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_collection_elems)))
-GEOMETRYCOLLECTION(MULTIPOLYGON(((0 15,25 0,22 10,30 15,20 15,10 15,0 15)),((15 25,5 0,15 5,25 0,15 25))),MULTIPOLYGON(((7 10,5 0,15 5,25 0,22 10,30 15,20 15,15 25,10 15,0 15,7 10))),MULTILINESTRING((15 25,15 10)),MULTIPOINT(5 0,25 0),POINT(15 25))
+GEOMETRYCOLLECTION(MULTIPOLYGON(((7 10,5 0,15 5,25 0,22 10,30 15,20 15,15 25,10 15,0 15,7 10))),MULTIPOINT(5 0,25 0),POINT(15 25))
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_collection_elems_3)));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_collection_elems_3)))
 GEOMETRYCOLLECTION()
 SELECT ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_collection_elems))) FROM gis_geometrycollection WHERE fid=100;
 ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_collection_elems)))
-GEOMETRYCOLLECTION(MULTIPOLYGON(((0 15,25 0,22 10,30 15,20 15,10 15,0 15)),((15 25,5 0,15 5,25 0,15 25))),MULTIPOLYGON(((7 10,5 0,15 5,25 0,22 10,30 15,20 15,15 25,10 15,0 15,7 10))),MULTILINESTRING((15 25,15 10)),MULTIPOINT(5 0,25 0),POINT(15 25))
+GEOMETRYCOLLECTION(MULTIPOLYGON(((7 10,5 0,15 5,25 0,22 10,30 15,20 15,15 25,10 15,0 15,7 10))),MULTIPOINT(5 0,25 0),POINT(15 25))
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_collection_multilinestr)));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_collection_multilinestr)))
-GEOMETRYCOLLECTION(MULTIPOLYGON(((0 15,25 0,22 10,30 15,20 15,10 15,0 15)),((15 25,5 0,15 5,25 0,15 25))),MULTIPOLYGON(((7 10,5 0,15 5,25 0,22 10,30 15,20 15,15 25,10 15,0 15,7 10))),MULTILINESTRING((25 0,0 15),(6 15,4.2 12)),MULTILINESTRING((15 25,15 10)),MULTIPOINT(5 0,25 0),POINT(15 25))
+GEOMETRYCOLLECTION(MULTIPOLYGON(((7 10,5 0,15 5,25 0,22 10,30 15,20 15,15 25,10 15,0 15,7 10))),MULTIPOINT(5 0,25 0),POINT(15 25))
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT('POLYGON((0 0,10 10,10 0))'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())')));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT('POLYGON((0 0,10 10,10 0))'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())')))
 GEOMETRYCOLLECTION()
@@ -697,13 +697,13 @@ LINESTRING(15 15,15 10)
 #-------------------------------------------------------------------------------------------
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_lines_near_vertical)));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_lines_near_vertical)))
-LINESTRING(5.172413793103448 11.89655172413793,7.5 15)
+GEOMETRYCOLLECTION(MULTILINESTRING((5.172413793103448 11.89655172413793,7.5 15)),POINT(15 25))
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('MULTILINESTRING((0 30,30 30,0 35))')));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('MULTILINESTRING((0 30,30 30,0 35))')))
 GEOMETRYCOLLECTION()
 SELECT ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_lines_near_vertical))) FROM gis_geometrycollection WHERE fid=103;
 ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_lines_near_vertical)))
-LINESTRING(5.172413793103448 11.89655172413793,7.5 15)
+GEOMETRYCOLLECTION(MULTILINESTRING((5.172413793103448 11.89655172413793,7.5 15)),POINT(15 25))
 #-------------------------------------------------------------------------------------------
 # multipolygon,polygon
 #-------------------------------------------------------------------------------------------
@@ -730,6 +730,18 @@ MULTIPOLYGON(((3 5,3 3,5 3,5 5,3 5)),((5 7,5 5,7 5,7 7,5 7)),((9 10,9 9,10 9,10 
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_collection_elems_3)));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_collection_elems_3)))
 GEOMETRYCOLLECTION()
+SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_collection_elems)));
+ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_collection_elems)))
+GEOMETRYCOLLECTION(MULTIPOLYGON(((0 15,25 0,22 10,30 15,20 15,10 15,0 15)),((15 25,5 0,15 5,25 0,15 25))),MULTIPOINT(5 0,25 0),POINT(15 25))
+SELECT ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_collection_elems))) FROM gis_geometrycollection WHERE fid=103;
+ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_collection_elems)))
+GEOMETRYCOLLECTION(MULTIPOLYGON(((0 15,25 0,22 10,30 15,20 15,10 15,0 15)),((15 25,5 0,15 5,25 0,15 25))),MULTIPOINT(5 0,25 0),POINT(15 25))
+SELECT ST_ASTEXT(ST_INTERSECTION(g,g2)) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=115 and fid2=115;
+ST_ASTEXT(ST_INTERSECTION(g,g2))
+GEOMETRYCOLLECTION(MULTIPOLYGON(((7 10,5 0,15 5,25 0,22 10,30 15,20 15,15 25,10 15,0 15,7 10))),MULTIPOINT(5 0,25 0),POINT(15 25))
+SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_collection_multilinestr)));
+ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_collection_multilinestr)))
+GEOMETRYCOLLECTION(MULTIPOLYGON(((0 15,25 0,22 10,30 15,20 15,10 15,0 15)),((15 25,5 0,15 5,25 0,15 25))),MULTILINESTRING((25 0,8.870967741935484 9.67741935483871),(6 15,4.411764705882353 12.352941176470587)),POINT(0 15),MULTIPOINT(5 0,25 0),POINT(15 25))
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,10 10,10 0)))'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())')));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,10 10,10 0)))'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())')))
 GEOMETRYCOLLECTION()
@@ -746,13 +758,13 @@ POLYGON((4 6,4 4,6 4,6 6,4 6))
 #-------------------------------------------------------------------------------------------
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_top)));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_top)))
-NULL
+POINT(15 25)
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('POINT(30 30)')));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('POINT(30 30)')))
 GEOMETRYCOLLECTION()
 SELECT ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_top))) FROM gis_geometrycollection WHERE fid=115;
 ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_top)))
-NULL
+POINT(15 25)
 #-------------------------------------------------------------------------------------------
 # geometrycollection,multipoint
 #-------------------------------------------------------------------------------------------
@@ -770,40 +782,55 @@ MULTIPOINT(5 0,25 0)
 #-------------------------------------------------------------------------------------------
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_top_to_center)));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_top_to_center)))
-LINESTRING(15 10,15 25)
+GEOMETRYCOLLECTION(MULTILINESTRING((15 25,15 10)),POINT(15 25))
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('LINESTRING(30 30,0 35)')));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('LINESTRING(30 30,0 35)')))
 GEOMETRYCOLLECTION()
 SELECT ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_top_to_center))) FROM gis_geometrycollection WHERE fid=115;
 ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_top_to_center)))
-LINESTRING(15 10,15 25)
+GEOMETRYCOLLECTION(MULTILINESTRING((15 25,15 10)),POINT(15 25))
 #-------------------------------------------------------------------------------------------
 # geometrycollection,multilinestring
 #-------------------------------------------------------------------------------------------
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_lines_near_vertical)));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_lines_near_vertical)))
-LINESTRING(4.883720930232558 11.511627906976745,7.5 15)
+GEOMETRYCOLLECTION(MULTILINESTRING((4.883720930232558 11.511627906976745,7.5 15)),POINT(15 25),POINT(15 25))
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('MULTILINESTRING((0 30,30 30,0 35))')));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('MULTILINESTRING((0 30,30 30,0 35))')))
 GEOMETRYCOLLECTION()
 SELECT ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_lines_near_vertical))) FROM gis_geometrycollection WHERE fid=115;
 ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_lines_near_vertical)))
-LINESTRING(4.883720930232558 11.511627906976745,7.5 15)
+GEOMETRYCOLLECTION(MULTILINESTRING((4.883720930232558 11.511627906976745,7.5 15)),POINT(15 25),POINT(15 25))
 #-------------------------------------------------------------------------------------------
 # geometrycollection,polygon
 #-------------------------------------------------------------------------------------------
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star)));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star)))
-GEOMETRYCOLLECTION(MULTIPOLYGON(((0 15,25 0,22 10,30 15,20 15,10 15,0 15)),((15 25,5 0,15 5,25 0,15 25))),MULTIPOLYGON(((7 10,5 0,15 5,25 0,22 10,30 15,20 15,15 25,10 15,0 15,7 10))),MULTILINESTRING((15 25,15 10)),MULTIPOINT(5 0,25 0),POINT(15 25))
+GEOMETRYCOLLECTION(MULTIPOLYGON(((7 10,5 0,15 5,25 0,22 10,30 15,20 15,15 25,10 15,0 15,7 10))),MULTIPOINT(5 0,25 0),POINT(15 25))
+SELECT ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_elem_vertical))) FROM gis_geometrycollection WHERE fid=115;
+ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_elem_vertical)))
+GEOMETRYCOLLECTION(MULTIPOLYGON(((15 25,5 0,15 5,25 0,15 25))),MULTIPOINT(5 0,25 0),POINT(15 25))
+SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_elem_vertical)));
+ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_elem_vertical)))
+GEOMETRYCOLLECTION(MULTIPOLYGON(((15 25,5 0,15 5,25 0,15 25))),MULTIPOINT(5 0,25 0),POINT(15 25))
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('POLYGON((0 0,15 25,35 0,0 0))')));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('POLYGON((0 0,15 25,35 0,0 0))')))
-GEOMETRYCOLLECTION(MULTIPOLYGON(((15 25,5 0,15 5,25 0,15 25)),((6.617647058823529 11.029411764705882,25 0,22 10,25.333333333333336 12.083333333333334,23 15,9 15,6.617647058823529 11.029411764705882))),MULTIPOLYGON(((6.3 10.5,7 10,5 0,15 5,25 0,22 10,25.333333333333336 12.083333333333334,23 15,20 15,15 25,10 15,9 15,6.3 10.5))),MULTILINESTRING((15 25,15 10)),MULTIPOINT(5 0,25 0),POINT(15 25))
+GEOMETRYCOLLECTION(MULTIPOLYGON(((6.3 10.5,7 10,5 0,15 5,25 0,22 10,25.333333333333336 12.083333333333334,23 15,20 15,15 25,10 15,9 15,6.3 10.5))),MULTIPOINT(5 0,25 0),POINT(15 25))
 #-------------------------------------------------------------------------------------------
 # geometrycollection,multipolygon
 #-------------------------------------------------------------------------------------------
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 5,5 5,0 0)))')));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 5,5 5,0 0)))')))
 GEOMETRYCOLLECTION()
+SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_of_elems)));
+ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_of_elems)))
+GEOMETRYCOLLECTION(MULTIPOLYGON(((0 15,25 0,22 10,30 15,20 15,10 15,0 15)),((15 25,5 0,15 5,25 0,15 25))),MULTIPOINT(5 0,25 0),POINT(15 25))
+SELECT ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_collection_elems))) FROM gis_geometrycollection WHERE fid=115;
+ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_collection_elems)))
+GEOMETRYCOLLECTION(MULTIPOLYGON(((7 10,5 0,15 5,25 0,22 10,30 15,20 15,15 25,10 15,0 15,7 10))),MULTIPOINT(5 0,25 0),POINT(15 25))
+SELECT ST_ASTEXT(ST_INTERSECTION(g,g2)) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=115 and fid2=215;
+ST_ASTEXT(ST_INTERSECTION(g,g2))
+GEOMETRYCOLLECTION(MULTIPOLYGON(((7 10,5 0,15 5,25 0,22 10,30 15,20 15,15 25,10 15,0 15,7 10))),MULTIPOINT(5 0,25 0),POINT(15 25))
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0),LINESTRING(3 3,6 6))'),
 ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 5,5 5,5 0,0 0)),((5 5,5 10,10 10,10 5,5 5)))')));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0),LINESTRING(3 3,6 6))'),
@@ -815,6 +842,12 @@ GEOMETRYCOLLECTION(POINT(0 0),MULTILINESTRING((3 3,5 5),(5 5,6 6)))
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_collection_elems_3)));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_collection_elems_3)))
 GEOMETRYCOLLECTION()
+SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_collection_multilinestr),ST_GEOMFROMTEXT(@star_collection_elems)));
+ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_collection_multilinestr),ST_GEOMFROMTEXT(@star_collection_elems)))
+GEOMETRYCOLLECTION(MULTIPOLYGON(((7 10,5 0,15 5,25 0,22 10,30 15,20 15,15 25,10 15,0 15,7 10))),MULTIPOINT(5 0,25 0),POINT(15 25))
+SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_collection_elems)));
+ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_collection_elems)))
+GEOMETRYCOLLECTION(MULTIPOLYGON(((7 10,5 0,15 5,25 0,22 10,30 15,20 15,15 25,10 15,0 15,7 10))),MULTIPOINT(5 0,25 0),POINT(15 25))
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0),LINESTRING(1 1,2 2))'),
 ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0),POINT(5 5))')));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0),LINESTRING(1 1,2 2))'),
@@ -942,7 +975,8 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT(@star_of_elems)));
 ERROR HY000: Geometry overlay calculation error: geometry data is invalid in function st_intersection.
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT(@star_collection_elems)));
-ERROR HY000: Geometry overlay calculation error: geometry data is invalid in function st_intersection.
+ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT(@star_collection_elems)))
+GEOMETRYCOLLECTION(MULTIPOLYGON(((15 25,5 0,15 5,25 0,15 25))),MULTIPOINT(5 0,25 0),POINT(15 25))
 SELECT ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_elem_vertical))) FROM gis_geometrycollection WHERE fid=103;
 ERROR HY000: Geometry overlay calculation error: geometry data is invalid in function st_intersection.
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_elem_vertical)));
@@ -956,34 +990,8 @@ SELECT ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_of_elems))) FROM gis_ge
 ERROR HY000: Geometry overlay calculation error: geometry data is invalid in function st_intersection.
 SELECT ST_ASTEXT(ST_INTERSECTION(g,g2)) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=103;
 ERROR HY000: Geometry overlay calculation error: geometry data is invalid in function st_intersection.
-SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_collection_elems)));
-ERROR HY000: Geometry overlay calculation error: geometry data is invalid in function st_intersection.
-SELECT ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_collection_elems))) FROM gis_geometrycollection WHERE fid=103;
-ERROR HY000: Geometry overlay calculation error: geometry data is invalid in function st_intersection.
-SELECT ST_ASTEXT(ST_INTERSECTION(g,g2)) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=115 and fid2=115;
-ERROR HY000: Geometry overlay calculation error: geometry data is invalid in function st_intersection.
-SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_collection_multilinestr)));
-ERROR HY000: Geometry overlay calculation error: geometry data is invalid in function st_intersection.
-SELECT ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_elem_vertical))) FROM gis_geometrycollection WHERE fid=115;
-ERROR HY000: Geometry overlay calculation error: geometry data is invalid in function st_intersection.
-SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_elem_vertical)));
-ERROR HY000: Geometry overlay calculation error: geometry data is invalid in function st_intersection.
-SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_of_elems)));
-ERROR HY000: Geometry overlay calculation error: geometry data is invalid in function st_intersection.
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_collection_elems),
 ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,15 25,35 0,0 0)),((5 0,15 25,25 0,15 5,5 0)))')));
-ERROR HY000: Geometry overlay calculation error: geometry data is invalid in function st_intersection.
-SELECT ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_collection_elems))) FROM gis_geometrycollection WHERE fid=115;
-ERROR HY000: Geometry overlay calculation error: geometry data is invalid in function st_intersection.
-SELECT ST_ASTEXT(ST_INTERSECTION(g,g2)) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=115 and fid2=215;
-ERROR HY000: Geometry overlay calculation error: geometry data is invalid in function st_intersection.
-SELECT ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_collection_elems))) FROM gis_geometrycollection WHERE fid=115;
-ERROR HY000: Geometry overlay calculation error: geometry data is invalid in function st_intersection.
-SELECT ST_ASTEXT(ST_INTERSECTION(g,g2)) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=115 and fid2=215;
-ERROR HY000: Geometry overlay calculation error: geometry data is invalid in function st_intersection.
-SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_collection_multilinestr),ST_GEOMFROMTEXT(@star_collection_elems)));
-ERROR HY000: Geometry overlay calculation error: geometry data is invalid in function st_intersection.
-SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_collection_elems)));
 ERROR HY000: Geometry overlay calculation error: geometry data is invalid in function st_intersection.
 #clean up
 DROP TABLE gis_geometrycollection;

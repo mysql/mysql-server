@@ -3721,6 +3721,15 @@ public:
                the scanner just scanned.
    */
   virtual void on_wkb_end(const void *wkb)= 0;
+
+  /*
+    Called after each on_wkb_start/end call, if returns false, wkb_scanner
+    will stop scanning.
+   */
+  virtual bool continue_scan() const
+  {
+    return true;
+  }
 };
 
 

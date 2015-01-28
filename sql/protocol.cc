@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -331,6 +331,9 @@ net_send_ok(THD *thd,
 
   if (thd->client_capabilities & CLIENT_SESSION_TRACK)
   {
+    /* the info field */
+    if (state_changed || (message && message[0]))
+      pos= net_store_data(pos, (uchar*) message, message ? strlen(message) : 0);
     /* session state change information */
     if (unlikely(state_changed))
     {
@@ -349,8 +352,11 @@ net_send_ok(THD *thd,
       pos= start+store.length();
     }
   }
-  if (message && message[0])
+  else if (message && message[0])
+  {
+    /* the info field, if there is a message to store */
     pos= net_store_data(pos, (uchar*) message, strlen(message));
+  }
 
   /* OK packet length will be restricted to 16777215 bytes */
   if (((size_t) (pos - start)) > MAX_PACKET_LENGTH)

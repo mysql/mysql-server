@@ -288,6 +288,7 @@ SET(TESTS
   strtoll
   thread_utils
   my_timer
+  timespec
   )
  
 IF (UNIX)
@@ -334,6 +335,7 @@ SET(SERVER_TESTS
   thd_manager
   unique
   security_context
+  initialize_password
 )
 
 ## Merging tests into fewer executables saves *a lot* of
