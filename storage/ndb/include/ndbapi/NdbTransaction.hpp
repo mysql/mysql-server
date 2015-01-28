@@ -310,6 +310,14 @@ public:
    */
   NdbIndexOperation* getNdbIndexOperation(const NdbDictionary::Index *anIndex);
 
+  /**
+   * Enable/disable schema object ownership check: check that objects used by this 
+   * transaction belong to the dictionary owned by this connection. This is a 
+   * debugging feature for when multiple cluster connections are in use, and has a 
+   * performance cost. 
+   */
+  void setSchemaObjOwnerChecks(bool runChecks) { m_enable_schema_obj_owner_check = runChecks; }
+
   /** 
    * @name Execute Transaction
    * @{
@@ -1195,6 +1203,9 @@ private:
 #endif
   bool checkState_TransId(const Uint32 * transId) const;
 
+  // Check table and index objects wrt current connection - for debugging
+  bool checkSchemaObjects(const NdbTableImpl *tab, const NdbIndexImpl *idx=0);
+
   void remove_list(NdbOperation*& head, NdbOperation*);
   void define_scan_op(NdbIndexScanOperation*);
 
@@ -1221,6 +1232,8 @@ private:
   NdbQueryImpl* m_scanningQuery;
 
   Uint32 m_tcRef;
+
+  bool m_enable_schema_obj_owner_check;
 };
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
