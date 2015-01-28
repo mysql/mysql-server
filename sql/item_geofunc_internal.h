@@ -253,6 +253,44 @@ make_rtree(const BG_geometry_collection::Geometry_list &gl,
 }
 
 
+/*
+  A functor to make an rtree value entry from an array element of
+  Boost.Geometry model type.
+ */
+struct Rtree_value_maker_bggeom
+{
+  typedef std::pair<BG_box, size_t> result_type;
+  template<typename  T>
+  result_type operator()(T const &v) const
+  {
+    BG_box box;
+    boost::geometry::envelope(v.value(), box);
+
+    return result_type(box, v.index());
+  }
+};
+
+
+/**
+  Build an rtree set using array of Boost.Geometry objects, which are
+  components of a multi geometry.
+  @param mg the multi geometry.
+  @param rtree the rtree to build.
+ */
+template <typename MultiGeometry>
+inline void
+make_rtree_bggeom(const MultiGeometry &mg,
+                  Rtree_index *rtree)
+{
+  Rtree_index temp_rtree(mg | boost::adaptors::indexed() |
+                         boost::adaptors::
+                         transformed(Rtree_value_maker_bggeom()) |
+                         boost::adaptors::filtered(Is_rtree_box_valid()));
+
+  rtree->swap(temp_rtree);
+}
+
+
 inline Gis_geometry_collection *
 empty_collection(String *str, uint32 srid)
 {
@@ -261,8 +299,40 @@ empty_collection(String *str, uint32 srid)
 }
 
 
+class Is_empty_geometry : public WKB_scanner_event_handler
+{
+public:
+  bool is_empty;
+
+  Is_empty_geometry() :is_empty(true)
+  {
+  }
+
+  virtual void on_wkb_start(Geometry::wkbByteOrder bo,
+                            Geometry::wkbType geotype,
+                            const void *wkb, uint32 len, bool has_hdr)
+  {
+    if (is_empty && geotype != Geometry::wkb_geometrycollection)
+      is_empty= false;
+  }
+
+  virtual void on_wkb_end(const void *wkb)
+  {
+  }
+
+  virtual bool continue_scan() const
+  {
+    return is_empty;
+  }
+};
+
 /*
-  Check whether g is an empty geometry collection.
+  Check whether a geometry is an empty geometry collection, i.e. one that
+  doesn't contain any geometry component of [multi]point or [multi]linestring
+  or [multi]polygon type.
+  @param g the geometry to check.
+  @return true if g is such an empty geometry collection;
+          false otherwise.
 */
 inline bool is_empty_geocollection(const Geometry *g)
 {
@@ -270,14 +340,27 @@ inline bool is_empty_geocollection(const Geometry *g)
     return false;
 
   uint32 num= uint4korr(g->get_cptr());
-  return num == 0;
+  if (num == 0)
+    return true;
+
+  Is_empty_geometry checker;
+  uint32 len= g->get_data_size();
+  wkb_scanner(g->get_cptr(), &len, Geometry::wkb_geometrycollection,
+              false, &checker);
+  return checker.is_empty;
+
 }
 
 
 /*
-  Here wkbres is a piece of geometry data of GEOMETRY format,
-  i.e. an SRID prefixing a WKB.
-  Check if wkbres is the data of an empty geometry collection.
+  Check whether wkbres is the data of an empty geometry collection, i.e. one
+  that doesn't contain any geometry component of [multi]point or
+  [multi]linestring or [multi]polygon type.
+
+  @param wkbres a piece of geometry data of GEOMETRY format, i.e. an SRID
+                prefixing a WKB.
+  @return true if wkbres contains such an empty geometry collection;
+          false otherwise.
  */
 inline bool is_empty_geocollection(const String &wkbres)
 {
@@ -286,8 +369,17 @@ inline bool is_empty_geocollection(const String &wkbres)
 
   uint32 geotype= uint4korr(wkbres.ptr() + SRID_SIZE + 1);
 
-  return (geotype == static_cast<uint32>(Geometry::wkb_geometrycollection) &&
-          uint4korr(wkbres.ptr() + SRID_SIZE + WKB_HEADER_SIZE) == 0);
+  if (geotype != static_cast<uint32>(Geometry::wkb_geometrycollection))
+    return false;
+
+  if (uint4korr(wkbres.ptr() + SRID_SIZE + WKB_HEADER_SIZE) == 0)
+    return true;
+
+  Is_empty_geometry checker;
+  uint32 len= wkbres.length() - GEOM_HEADER_SIZE;
+  wkb_scanner(wkbres.ptr() + GEOM_HEADER_SIZE, &len,
+              Geometry::wkb_geometrycollection, false, &checker);
+  return checker.is_empty;
 }
 
 
@@ -451,19 +543,19 @@ bool post_fix_result(BG_result_buf_mgr *resbuf_mgr,
           boost::geometry::cs.
   @param ifso the Item_func_spatial_operation object, we here rely on it to
          do union operation.
-  @param[out] pdone takes back whether the merge operation is completed.
   @param[out] pnull_value takes back null_value set during the operation.
  */
 template<typename Coord_type, typename Coordsys>
 void BG_geometry_collection::
-merge_components(bool *pdone, my_bool *pnull_value)
+merge_components(my_bool *pnull_value)
 {
   if (is_comp_no_overlapped())
     return;
 
   POS pos;
   Item_func_spatial_operation ifso(pos, NULL, NULL, Gcalc_function::op_union);
-  while (merge_one_run<Coord_type, Coordsys>(&ifso, pdone, pnull_value))
+  while (!*pnull_value &&
+         merge_one_run<Coord_type, Coordsys>(&ifso, pnull_value))
     ;
 }
 
@@ -524,18 +616,15 @@ public:
           boost::geometry::cs.
   @param ifso the Item_func_spatial_operation object, we here rely on it to
          do union operation.
-  @param[out] pdone takes back whether the merge operation is completed.
   @param[out] pnull_value takes back null_value set during the operation.
   @return whether need another call of this function.
  */
 template<typename Coord_type, typename Coordsys>
 bool BG_geometry_collection::merge_one_run(Item_func_spatial_operation *ifso,
-                                           bool *pdone, my_bool *pnull_value)
+                                           my_bool *pnull_value)
 {
   Geometry *gres= NULL;
-  bool isdone= false;
   bool has_new= false;
-  bool opdone= false;
   my_bool &null_value= *pnull_value;
   String wkbres;
   Pointer_vector<Geometry> added;
@@ -545,7 +634,6 @@ bool BG_geometry_collection::merge_one_run(Item_func_spatial_operation *ifso,
   Rtree_index rtree;
   make_rtree(m_geos, &rtree);
   Rtree_result rtree_result;
-  *pdone= false;
 
   for (Geometry_list::iterator i= m_geos.begin(); i != m_geos.end(); ++i)
   {
@@ -573,15 +661,15 @@ bool BG_geometry_collection::merge_one_run(Item_func_spatial_operation *ifso,
     Rtree_entry_compare rtree_entry_compare;
     std::sort(rtree_result.begin(), rtree_result.end(), rtree_entry_compare);
 
+    // Used to stop the nested loop.
+    bool stop_it= false;
+
     for (Rtree_result::iterator j= rtree_result.begin();
          j != rtree_result.end(); ++j)
     {
       Geometry *geom2= m_geos[j->second];
       if (*i == geom2 || geom2 == NULL)
         continue;
-
-      isdone= false;
-      opdone= false;
 
       /*
         TODO: in future when BG::covered_by has full support for all type
@@ -592,35 +680,33 @@ bool BG_geometry_collection::merge_one_run(Item_func_spatial_operation *ifso,
 
       // Equals is much easier and faster to check, so put it first.
       if (Item_func_spatial_rel::bg_geo_relation_check<Coord_type, Coordsys>
-          (geom2, *i, &isdone, Item_func::SP_EQUALS_FUNC, &null_value) &&
-          isdone && !null_value)
+          (geom2, *i, Item_func::SP_EQUALS_FUNC, &null_value) && !null_value)
       {
         *i= NULL;
         break;
       }
 
       if (Item_func_spatial_rel::bg_geo_relation_check<Coord_type, Coordsys>
-          (*i, geom2, &isdone, Item_func::SP_WITHIN_FUNC, &null_value) &&
-          isdone && !null_value)
+          (*i, geom2, Item_func::SP_WITHIN_FUNC, &null_value) && !null_value)
       {
         *i= NULL;
         break;
       }
 
       if (Item_func_spatial_rel::bg_geo_relation_check<Coord_type, Coordsys>
-          (geom2, *i, &isdone, Item_func::SP_WITHIN_FUNC, &null_value) &&
-          isdone && !null_value)
+          (geom2, *i, Item_func::SP_WITHIN_FUNC, &null_value) && !null_value)
       {
         m_geos[j->second]= NULL;
         continue;
       }
 
       if (Item_func_spatial_rel::bg_geo_relation_check<Coord_type, Coordsys>
-          (*i, geom2, &isdone, Item_func::SP_OVERLAPS_FUNC, &null_value) &&
-          isdone && !null_value)
+          (*i, geom2, Item_func::SP_OVERLAPS_FUNC, &null_value) && !null_value)
       {
         // Free before using it, wkbres may have WKB data from last execution.
         wkbres.mem_free();
+
+        bool opdone= false;
         gres= ifso->bg_geo_set_op<Coord_type, Coordsys>(*i, geom2,
                                                         &wkbres, &opdone);
         null_value= ifso->null_value;
@@ -629,7 +715,8 @@ bool BG_geometry_collection::merge_one_run(Item_func_spatial_operation *ifso,
         {
           if (gres != NULL && gres != *i && gres != geom2)
             delete gres;
-          return !null_value;
+          stop_it= true;
+          break;
         }
 
         if (gres != *i)
@@ -649,13 +736,17 @@ bool BG_geometry_collection::merge_one_run(Item_func_spatial_operation *ifso,
         break;
       }
 
-      /*
-        Proceed if !isdone to leave the two geometries as is, this is OK.
-       */
       if (null_value)
-        return false;
+      {
+        stop_it= true;
+        break;
+      }
 
     } // for (*i)
+
+    if (stop_it)
+      break;
+
   } // for (*j)
 
   // Remove deleted Geometry object pointers, then append new components if any.
@@ -674,6 +765,5 @@ bool BG_geometry_collection::merge_one_run(Item_func_spatial_operation *ifso,
     fill(*i);
   }
 
-  *pdone= true;
   return has_new;
 }

@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -817,4 +817,6 @@ CHECK_CXX_SOURCE_COMPILES(
   }
   " HAVE_IMPLICIT_DEPENDENT_NAME_TYPING)
 
-SET(CMAKE_EXTRA_INCLUDE_FILES) 
+SET(CMAKE_EXTRA_INCLUDE_FILES)
+
+CHECK_FUNCTION_EXISTS(chown HAVE_CHOWN)
