@@ -26,6 +26,7 @@
 #include "mysql_com_server.h"             // NET_SERVER
 #include "auth/sql_security_ctx.h"        // Security_context
 #include "derror.h"                       // ER_THD
+#include "discrete_interval.h"            // Discrete_interval
 #include "handler.h"                      // KEY_CREATE_INFO
 #include "opt_trace_context.h"            // Opt_trace_context
 #include "protocol.h"                     // Protocol_text
@@ -47,6 +48,7 @@
 #include <mysql/psi/mysql_statement.h>
 
 #include <memory>
+#include "rpl_context.h"
 
 class Reprepare_observer;
 class sp_cache;
@@ -55,6 +57,7 @@ struct st_thd_timer;
 typedef struct st_log_info LOG_INFO;
 typedef struct st_columndef MI_COLUMNDEF;
 typedef struct st_mysql_lex_string LEX_STRING;
+typedef struct user_conn USER_CONN;
 
 /**
   The meat of thd_proc_info(THD*, char*), a macro that packs the last
@@ -374,14 +377,6 @@ typedef struct rpl_event_coordinates
   my_off_t  pos;       // event's position in the binlog file
 } LOG_POS_COORD;
 
-
-class LEX_COLUMN : public Sql_alloc
-{
-public:
-  String column;
-  uint rights;
-  LEX_COLUMN (const String& x,const  uint& y ): column (x),rights (y) {}
-};
 
 class MY_LOCALE;
 

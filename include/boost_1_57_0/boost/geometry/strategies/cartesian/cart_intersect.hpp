@@ -7,6 +7,7 @@
 // Modifications copyright (c) 2014, Oracle and/or its affiliates.
 
 // Contributed and/or modified by Menelaos Karavelas, on behalf of Oracle
+// Contributed and/or modified by Adam Wulkiewicz, on behalf of Oracle
 
 // Use, modification and distribution is subject to the Boost Software License,
 // Version 1.0. (See accompanying file LICENSE_1_0.txt or copy at
@@ -364,10 +365,38 @@ private:
         RobustType const length_a = oa_2 - oa_1; // no abs, see above
         RobustType const length_b = ob_2 - ob_1;
 
-        RatioType const ra_from(oa_1 - ob_1, length_b);
-        RatioType const ra_to(oa_2 - ob_1, length_b);
-        RatioType const rb_from(ob_1 - oa_1, length_a);
-        RatioType const rb_to(ob_2 - oa_1, length_a);
+        RatioType ra_from(oa_1 - ob_1, length_b);
+        RatioType ra_to(oa_2 - ob_1, length_b);
+        RatioType rb_from(ob_1 - oa_1, length_a);
+        RatioType rb_to(ob_2 - oa_1, length_a);
+
+        // use absolute measure to detect endpoints intersection
+        // NOTE: some of those conditions shouldn't be met in the same time,
+        // e.g. a1 == b1 && a2 == b1 but they're checked anyway
+        // CONSIDER: below the ratio is modified if it should indicate that
+        // the endpoints intersect (but maybe it doesn't)
+        // should also the opposite case be handled explicitly? That is,
+        // if ratio indicates that the endpoints intersect but they aren't?
+        if ( math::equals(oa_1, ob_1) )
+        {
+            ra_from.assign(0, 1);
+            rb_from.assign(0, 1);
+        }
+        if ( math::equals(oa_2, ob_1) )
+        {
+            ra_to.assign(0, 1);
+            rb_from.assign(1, 1);
+        }
+        if ( math::equals(oa_1, ob_2) )
+        {
+            ra_from.assign(1, 1);
+            rb_to.assign(0, 1);
+        }        
+        if ( math::equals(oa_2, ob_2) )
+        {
+            ra_to.assign(1, 1);
+            rb_to.assign(1, 1);
+        }
 
         if ((ra_from.left() && ra_to.left()) || (ra_from.right() && ra_to.right()))
         {

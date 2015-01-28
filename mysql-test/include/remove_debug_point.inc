@@ -65,7 +65,19 @@ if (`SELECT @new_debug = @previous_debug`)
 --let $message_prefix=`SELECT REPEAT("#", $_include_file_depth)`
 --echo $message_prefix Removing debug point '$debug_point' from @@$_debug_type.debug
 
---eval SET @@$_debug_type.debug=@new_debug;
+if ($rpl_debug)
+{
+  --let $_to_display=`SELECT @@$_debug_type.debug`
+  --echo @@$_debug_type.debug was '$_to_display'
+}
+
+--eval SET @@$_debug_type.debug=@new_debug
+
+if ($rpl_debug)
+{
+  --let $_to_display=`SELECT @@$_debug_type.debug`
+  --echo @@$_debug_type.debug set to '$_to_display'
+}
 
 --let $include_filename= remove_debug_point.inc
 --source include/end_include_file.inc

@@ -30,6 +30,7 @@
 #include "pfs_visitor.h"
 #include "table_esms_by_digest.h"
 #include "pfs_digest.h"
+#include "field.h"
 
 THR_LOCK table_esms_by_digest::m_table_lock;
 

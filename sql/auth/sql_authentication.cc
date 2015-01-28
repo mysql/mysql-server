@@ -3736,6 +3736,11 @@ static bool do_auto_rsa_keys_generation()
 #endif /* HAVE_YASSL */
 #endif /* HAVE_OPENSSL */
 
+bool MPVIO_EXT::can_authenticate()
+{
+  return (acl_user && acl_user->can_authenticate);
+}
+
 static struct st_mysql_auth native_password_handler=
 {
   MYSQL_AUTHENTICATION_INTERFACE_VERSION,

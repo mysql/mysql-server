@@ -658,7 +658,7 @@ Warnings:
 Warning	1287	'STARTPOINT' is deprecated and will be removed in a future release. Please use ST_STARTPOINT instead
 SELECT Touches(ST_GeomFromText(@linestring), ST_GeomFromText(@linestring));
 Touches(ST_GeomFromText(@linestring), ST_GeomFromText(@linestring))
-1
+0
 Warnings:
 Warning	1287	'TOUCHES' is deprecated and will be removed in a future release. Please use ST_TOUCHES instead
 SELECT X(ST_GeomFromText(@point_1));

@@ -644,7 +644,6 @@ POINT(8 16)
 POINT(9 18)
 SELECT ST_AsText(p1) FROM gis_point1 WHERE ST_Touches(p1, @ls1);
 ST_AsText(p1)
-POINT(5 10)
 SELECT ST_AsText(p1) FROM gis_point1 WHERE MBRDisjoint(p1, @ls1);
 ST_AsText(p1)
 POINT(10 21)
@@ -842,7 +841,6 @@ POINT(8 16)
 POINT(9 18)
 SELECT ST_AsText(p1) FROM gis_point1 WHERE ST_Touches(p1, @ls1);
 ST_AsText(p1)
-POINT(5 10)
 SELECT ST_AsText(p1) FROM gis_point1 WHERE MBRDisjoint(p1, @ls1);
 ST_AsText(p1)
 POINT(10 21)
@@ -927,7 +925,6 @@ POINT(2 4)
 POINT(1 2)
 SELECT ST_AsText(p1) FROM gis_point WHERE ST_Touches(p1, @ls1);
 ST_AsText(p1)
-POINT(5 10)
 SELECT ST_AsText(p1) FROM gis_point WHERE MBRDisjoint(p1, @ls1);
 ST_AsText(p1)
 POINT(32.1234 64.2468)
@@ -1125,7 +1122,6 @@ POINT(2 4)
 POINT(1 2)
 SELECT ST_AsText(p1) FROM gis_point WHERE ST_Touches(p1, @ls1);
 ST_AsText(p1)
-POINT(5 10)
 SELECT ST_AsText(p1) FROM gis_point WHERE MBRDisjoint(p1, @ls1);
 ST_AsText(p1)
 POINT(32.1234 64.2468)
@@ -1166,7 +1162,6 @@ POINT(8 16)
 POINT(9 18)
 SELECT ST_AsText(p1) FROM gis_point WHERE ST_Touches(p1, @ls1);
 ST_AsText(p1)
-POINT(5 10)
 SELECT ST_AsText(p1) FROM gis_point WHERE MBRDisjoint(p1, @ls1);
 ST_AsText(p1)
 POINT(10 21)
@@ -1364,7 +1359,6 @@ POINT(8 16)
 POINT(9 18)
 SELECT ST_AsText(p1) FROM gis_point WHERE ST_Touches(p1, @ls1);
 ST_AsText(p1)
-POINT(5 10)
 SELECT ST_AsText(p1) FROM gis_point WHERE MBRDisjoint(p1, @ls1);
 ST_AsText(p1)
 POINT(10 21)

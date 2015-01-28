@@ -16,53 +16,53 @@
 
 /* Function with list databases, tables or fields */
 
-#include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
-#include "sql_select.h"
-#include "sql_base.h"                       // close_tables_for_reopen
 #include "sql_show.h"
-#include "sql_table.h"                        // filename_to_tablename,
-                                              // primary_key_name,
-                                              // build_table_filename
-#include "sql_view.h"                           // mysql_frm_type
-#include "sql_parse.h"             // check_access, check_table_access
-#include "sql_partition.h"         // partition_element
-#include "sql_derived.h"           // mysql_derived_prepare,
-                                   // mysql_handle_derived,
-#include "sql_db.h"     // check_db_dir_existence, load_db_opt_by_name
-#include "sql_time.h"   // interval_type_to_name
-#include "tztime.h"                             // struct Time_zone
-#include "auth_common.h"           // TABLE_ACLS, check_grant, DB_ACLS
-                                   // acl_get, check_grant_db
-                                   // fill_schema_*_privileges
-#include "filesort.h"    // filesort_free_buffers
-#include "sp.h"
-#include "sp_head.h"
-#include "sp_pcontext.h"
-#include "set_var.h"
-#include "table_trigger_dispatcher.h" // Table_trigger_dispatcher
-#include "trigger_loader.h"           // Trigger_loader::trg_file_exists()
-#include "trigger_chain.h"            // Trigger_chain
-#include "trigger.h"                  // Trigger
-#include "sql_derived.h"
-#include "sql_partition.h"
+
+#include "mutex_lock.h"                     // Mutex_lock
+#include "my_dir.h"                         // MY_DIR
+#include "prealloced_array.h"               // Prealloced_array
+#include "template_utils.h"                 // delete_container_pointers
+#include "auth_common.h"                    // check_grant_db
+#include "datadict.h"                       // dd_frm_type
+#include "debug_sync.h"                     // DEBUG_SYNC
+#include "field.h"                          // Field
+#include "filesort.h"                       // filesort_free_buffers
+#include "item.h"                           // Item_empty_string
+#include "item_cmpfunc.h"                   // Item_cond
+#include "log.h"                            // sql_print_warning
+#include "mysqld_thd_manager.h"             // Global_THD_manager
+#include "opt_trace.h"                      // fill_optimizer_trace_info
+#include "protocol.h"                       // Protocol
+#include "sp.h"                             // MYSQL_PROC_FIELD_DB
+#include "sp_head.h"                        // sp_head
+#include "sql_base.h"                       // close_thread_tables
+#include "sql_class.h"                      // THD
+#include "sql_db.h"                         // check_db_dir_existence
+#include "sql_derived.h"                    // mysql_derived_prepare
+#include "sql_optimizer.h"                  // JOIN
+#include "sql_parse.h"                      // command_name
+#include "sql_plugin.h"                     // PLUGIN_IS_DELTED
+#include "sql_table.h"                      // filename_to_tablename
+#include "sql_time.h"                       // interval_type_to_name
+#include "sql_tmp_table.h"                  // create_tmp_table
+#include "sql_view.h"                       // mysql_make_view
+#include "table_trigger_dispatcher.h"       // Table_trigger_dispatcher
+#include "trigger.h"                        // Trigger
+#include "trigger_chain.h"                  // Trigger_chain
+#include "trigger_loader.h"                 // Trigger_loader
+#include "tztime.h"                         // Time_zone
+
 #ifndef EMBEDDED_LIBRARY
-#include "events.h"
-#include "event_data_objects.h"
-#include "event_parse_data.h"
+#include "events.h"                         // Events
+#include "event_data_objects.h"             // Event_timed
+#include "event_parse_data.h"               // Event_parse_data
 #endif
-#include <my_dir.h>
-#include "lock.h"                           // MYSQL_OPEN_IGNORE_FLUSH
-#include "debug_sync.h"
-#include "datadict.h"   // dd_frm_type()
-#include "opt_trace.h"     // Optimizer trace information schema tables
-#include "sql_tmp_table.h" // Tmp tables
-#include "sql_optimizer.h" // JOIN
-#include "mysqld_thd_manager.h"  // Global_THD_manager
-#include "mutex_lock.h"
-#include "prealloced_array.h"
-#include "template_utils.h"
-#include "log.h"
-#include "sql_plugin.h"                         // PLUGIN_IS_DELETED etc.
+
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+#include "ha_partition.h"                   // PKW_HASH
+#include "partition_element.h"              // partition_element
+#include "partition_info.h"                 // partition_info
+#endif
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
@@ -74,9 +74,6 @@ using std::min;
 
 #define STR_OR_NIL(S) ((S) ? (S) : "<nil>")
 
-#ifdef WITH_PARTITION_STORAGE_ENGINE
-#include "ha_partition.h"
-#endif
 enum enum_i_s_events_fields
 {
   ISE_EVENT_CATALOG= 0,
@@ -6249,7 +6246,6 @@ int get_cs_converted_part_value_from_string(THD *thd,
                                 use_hex);
   return FALSE;
 }
-#endif
 
 
 static void store_schema_partitions_record(THD *thd, TABLE *schema_table,
@@ -6327,7 +6323,6 @@ static void store_schema_partitions_record(THD *thd, TABLE *schema_table,
   return;
 }
 
-#ifdef WITH_PARTITION_STORAGE_ENGINE
 static int
 get_partition_column_description(THD *thd,
                                  partition_info *part_info,
@@ -6371,7 +6366,6 @@ get_partition_column_description(THD *thd,
   }
   DBUG_RETURN(0);
 }
-#endif /* WITH_PARTITION_STORAGE_ENGINE */
 
 static int get_schema_partitions_record(THD *thd, TABLE_LIST *tables,
                                         TABLE *table, bool res,
@@ -6384,9 +6378,7 @@ static int get_schema_partitions_record(THD *thd, TABLE_LIST *tables,
   String tmp_str;
   TABLE *show_table= tables->table;
   handler *file;
-#ifdef WITH_PARTITION_STORAGE_ENGINE
   partition_info *part_info;
-#endif
   DBUG_ENTER("get_schema_partitions_record");
 
   if (res)
@@ -6399,7 +6391,6 @@ static int get_schema_partitions_record(THD *thd, TABLE_LIST *tables,
     DBUG_RETURN(0);
   }
   file= show_table->file;
-#ifdef WITH_PARTITION_STORAGE_ENGINE
   part_info= show_table->part_info;
   if (part_info)
   {
@@ -6606,7 +6597,6 @@ static int get_schema_partitions_record(THD *thd, TABLE_LIST *tables,
     DBUG_RETURN(0);
   }
   else
-#endif
   {
     store_schema_partitions_record(thd, table, show_table, 0, file, 0);
     if(schema_table_store_record(thd, table))
@@ -6614,6 +6604,7 @@ static int get_schema_partitions_record(THD *thd, TABLE_LIST *tables,
   }
   DBUG_RETURN(0);
 }
+#endif /* WITH_PARTITION_STORAGE_ENGINE */
 
 
 #ifndef EMBEDDED_LIBRARY
@@ -8440,9 +8431,11 @@ ST_SCHEMA_TABLE schema_tables[]=
 #endif
   {"PARAMETERS", parameters_fields_info, create_schema_table,
    fill_schema_proc, 0, 0, -1, -1, 0, 0},
+#ifdef WITH_PARTITION_STORAGE_ENGINE
   {"PARTITIONS", partitions_fields_info, create_schema_table,
    get_all_tables, 0, get_schema_partitions_record, 1, 2, 0,
    OPTIMIZE_I_S_TABLE|OPEN_TABLE_ONLY},
+#endif
   {"PLUGINS", plugin_fields_info, create_schema_table,
    fill_plugins, make_old_format, 0, -1, -1, 0, 0},
   {"PROCESSLIST", processlist_fields_info, create_schema_table,

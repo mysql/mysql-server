@@ -187,7 +187,6 @@ longlong Item_func_spatial_rel::val_int()
   int result= 0;
   int mask= 0;
   int tres= 0;
-  bool bgdone= false;
   bool had_except= false;
   my_bool had_error= false;
   String wkt1, wkt2;
@@ -228,21 +227,17 @@ longlong Item_func_spatial_rel::val_int()
     {
       // Must use double, otherwise may lose valid result, not only precision.
       tres= bg_geo_relation_check<double, bgcs::cartesian>
-        (g1, g2, &bgdone, spatial_rel, &had_error);
+        (g1, g2, spatial_rel, &had_error);
     }
     else
-      tres= geocol_relation_check<double, bgcs::cartesian>(g1, g2, &bgdone);
+      tres= geocol_relation_check<double, bgcs::cartesian>(g1, g2);
   }
   CATCH_ALL(func_name(), { had_except= true; })
 
   if (had_except || had_error || null_value)
-  {
-    bgdone= false;
     DBUG_RETURN(error_int());
-  }
 
-  if (bgdone)
-    DBUG_RETURN(tres);
+  DBUG_RETURN(tres);
 
   // Start of old GIS algorithms for geometry relationship checks.
   if (spatial_rel == SP_TOUCHES_FUNC)
@@ -323,15 +318,11 @@ exit:
           boost::geometry::cs.
   @param g1 the 1st geometry collection parameter.
   @param g2 the 2nd geometry collection parameter.
-  @param[out] pbgdone Whether the operation is successfully performed by
-  Boost Geometry. Note that BG doesn't support many type combinations so far,
-  in case not, the operation is to be done by old GIS algorithm instead.
   @return whether g1 and g2 satisfy the specified relation, 0 for negative,
                 none 0 for positive.
  */
 template<typename Coord_type, typename Coordsys>
-int Item_func_spatial_rel::geocol_relation_check(Geometry *g1, Geometry *g2,
-                                                 bool *pbgdone)
+int Item_func_spatial_rel::geocol_relation_check(Geometry *g1, Geometry *g2)
 {
   String gcbuf;
   Geometry *tmpg= NULL;
@@ -340,8 +331,6 @@ int Item_func_spatial_rel::geocol_relation_check(Geometry *g1, Geometry *g2,
   BG_geometry_collection bggc1, bggc2;
   bool empty1= is_empty_geocollection(g1);
   bool empty2= is_empty_geocollection(g2);
-
-  *pbgdone= false;
 
   /*
     An empty geometry collection is an empty point set, according to OGC
@@ -353,7 +342,6 @@ int Item_func_spatial_rel::geocol_relation_check(Geometry *g1, Geometry *g2,
       tres= 1;
     else if (empty1 && empty2 && spatial_rel == SP_EQUALS_FUNC)
       tres= 1;
-    *pbgdone= true;
     return tres;
   }
 
@@ -365,14 +353,21 @@ int Item_func_spatial_rel::geocol_relation_check(Geometry *g1, Geometry *g2,
     spatial_rel= SP_WITHIN_FUNC;
   }
 
-  bool opdone= false;
-
   bggc1.fill(g1);
   bggc2.fill(g2);
-  bggc1.merge_components<Coord_type, Coordsys>(&opdone, &null_value);
+
+  /*
+    When checking GC1 within GC2, we want GC1 to be disintegrated pieces
+    rather than merging its components to larger pieces, because a
+    multi-geometry of GC1 may consist of multiple components which are within
+    different components of GC2, but if merged, it would not be within any
+    component of GC2.
+   */
+  if (spatial_rel != SP_WITHIN_FUNC)
+    bggc1.merge_components<Coord_type, Coordsys>(&null_value);
   if (null_value)
     return tres;
-  bggc2.merge_components<Coord_type, Coordsys>(&opdone, &null_value);
+  bggc2.merge_components<Coord_type, Coordsys>(&null_value);
   if (null_value)
     return tres;
 
@@ -382,13 +377,12 @@ int Item_func_spatial_rel::geocol_relation_check(Geometry *g1, Geometry *g2,
   if (gv1->size() == 0 || gv2->size() == 0)
   {
     null_value= true;
-    *pbgdone= true;
     return tres;
   }
   else if (gv1->size() == 1 && gv2->size() == 1)
   {
     tres= bg_geo_relation_check<Coord_type, Coordsys>
-      (*(gv1->begin()), *(gv2->begin()), pbgdone, spatial_rel, &null_value);
+      (*(gv1->begin()), *(gv2->begin()), spatial_rel, &null_value);
     return tres;
   }
 
@@ -399,17 +393,15 @@ int Item_func_spatial_rel::geocol_relation_check(Geometry *g1, Geometry *g2,
       OGC says this is not applicable, and we always return false for
       inapplicable situations.
     */
-    *pbgdone= true;
     return 0;
   }
 
   if (spatial_rel == SP_DISJOINT_FUNC || spatial_rel == SP_INTERSECTS_FUNC)
-    tres= geocol_relcheck_intersect_disjoint<Coord_type, Coordsys>
-      (gv1, gv2, pbgdone);
+    tres= geocol_relcheck_intersect_disjoint<Coord_type, Coordsys>(gv1, gv2);
   else if (spatial_rel == SP_WITHIN_FUNC)
-    tres= geocol_relcheck_within<Coord_type, Coordsys>(gv1, gv2, pbgdone);
+    tres= geocol_relcheck_within<Coord_type, Coordsys>(gv1, gv2);
   else if (spatial_rel == SP_EQUALS_FUNC)
-    tres= geocol_equals_check<Coord_type, Coordsys>(gv1, gv2, pbgdone);
+    tres= geocol_equals_check<Coord_type, Coordsys>(gv1, gv2);
   else
     DBUG_ASSERT(false);
 
@@ -436,9 +428,6 @@ int Item_func_spatial_rel::geocol_relation_check(Geometry *g1, Geometry *g2,
           boost::geometry::cs.
   @param g1 the 1st geometry collection parameter.
   @param g2 the 2nd geometry collection parameter.
-  @param[out] pbgdone Whether the operation is successfully performed by
-  Boost Geometry. Note that BG doesn't support many type combinations so far,
-  in case not, the operation is to be done by old GIS algorithm instead.
   @return whether g1 and g2 satisfy the specified relation, 0 for negative,
                 none 0 for positive.
  */
@@ -447,11 +436,9 @@ int Item_func_spatial_rel::
 geocol_relcheck_intersect_disjoint(const typename BG_geometry_collection::
                                    Geometry_list *gv1,
                                    const typename BG_geometry_collection::
-                                   Geometry_list *gv2,
-                                   bool *pbgdone)
+                                   Geometry_list *gv2)
 {
   int tres= 0;
-  *pbgdone= false;
 
   DBUG_ASSERT(spatial_rel == SP_DISJOINT_FUNC ||
               spatial_rel == SP_INTERSECTS_FUNC);
@@ -471,7 +458,6 @@ geocol_relcheck_intersect_disjoint(const typename BG_geometry_collection::
   Rtree_index rtree;
   make_rtree(*gvr, &rtree);
 
-  Rtree_result rtree_result;
   for (BG_geometry_collection::
        Geometry_list::const_iterator i= gv->begin();
        i != gv->end(); ++i)
@@ -480,11 +466,9 @@ geocol_relcheck_intersect_disjoint(const typename BG_geometry_collection::
 
     BG_box box;
     make_bg_box(*i, &box);
-    rtree_result.clear();
-    rtree.query(bgi::intersects(box), std::back_inserter(rtree_result));
-
-    for (Rtree_result::iterator j= rtree_result.begin();
-         j != rtree_result.end(); ++j)
+    for (Rtree_index::const_query_iterator
+         j= rtree.qbegin(bgi::intersects(box));
+         j != rtree.qend(); ++j)
     {
       bool had_except= false;
       my_bool had_error= false;
@@ -492,17 +476,14 @@ geocol_relcheck_intersect_disjoint(const typename BG_geometry_collection::
       try
       {
         tres= bg_geo_relation_check<Coord_type, Coordsys>
-          (*i, (*gvr)[j->second], pbgdone, spatial_rel, &had_error);
+          (*i, (*gvr)[j->second], spatial_rel, &had_error);
       }
       CATCH_ALL(func_name(), {had_except= true;})
 
       if (had_except || had_error)
-      {
-        *pbgdone= false;
         return error_int();
-      }
 
-      if (!*pbgdone || null_value)
+      if (null_value)
         return tres;
 
       /*
@@ -512,10 +493,7 @@ geocol_relcheck_intersect_disjoint(const typename BG_geometry_collection::
        */
       if ((spatial_rel == SP_INTERSECTS_FUNC && tres) ||
           (spatial_rel == SP_DISJOINT_FUNC && !tres))
-      {
-        *pbgdone= true;
         return tres;
-      }
     }
   }
 
@@ -535,8 +513,112 @@ geocol_relcheck_intersect_disjoint(const typename BG_geometry_collection::
    */
   DBUG_ASSERT(spatial_rel == SP_DISJOINT_FUNC ||
               (!tres && spatial_rel == SP_INTERSECTS_FUNC));
-  *pbgdone= true;
   return tres;
+}
+
+
+/**
+  Multipoint need special handling because for a multipoint MP to be
+  within geometry G, only one point in MP has to be 'within' G,
+  the rest only need to intersect G.
+
+  @param pmpts the multipoint to check.
+  @param gv2 the geometry collection's component list.
+  @param prtree the rtree index built on gv2. We can't expose the
+  Rtree_index type in item_geofunc.h so have to use the generic void* type.
+  This function is called where an rtree index on gv2 is already built so
+  we want to pass it in to avoid unnecessarily build the same one again.
+ */
+template<typename Coord_type, typename Coordsys>
+int Item_func_spatial_rel::
+multipoint_within_geometry_collection(Gis_multi_point *pmpts,
+                                      const typename BG_geometry_collection::
+                                      Geometry_list *gv2,
+                                      const void *prtree)
+{
+  int has_inner= 0;
+  int tres= 0;
+  my_bool had_error= false;
+
+  Rtree_index &rtree= *((Rtree_index *)prtree);
+
+  TYPENAME BG_models<Coord_type, Coordsys>::
+    Multipoint mpts(pmpts->get_data_ptr(), pmpts->get_data_size(),
+                    pmpts->get_flags(), pmpts->get_srid());
+
+  for (TYPENAME BG_models<Coord_type, Coordsys>::Multipoint::iterator
+       k= mpts.begin(); k != mpts.end(); ++k)
+  {
+    bool already_in= false;
+    BG_box box;
+    make_bg_box(&(*k), &box);
+
+    /*
+      Search for geometries in gv2 that may intersect *k point using the
+      rtree index.
+      All geometries that possibly intersect *k point are given by the
+      rtree iteration below.
+    */
+    for (Rtree_index::const_query_iterator
+         j= rtree.qbegin(bgi::intersects(box));
+         j != rtree.qend(); ++j)
+    {
+      /*
+        If we don't have a point in mpts that's within a component of gv2 yet,
+        check whether *k is within *j.
+        If *k is within *j, it's already in the geometry collection gv2,
+        so no need for more checks for the point *k, get out of the iteration.
+      */
+      if (!has_inner)
+      {
+        tres= bg_geo_relation_check<Coord_type, Coordsys>
+          (&(*k), (*gv2)[j->second], SP_WITHIN_FUNC, &had_error);
+        if (had_error || null_value)
+          return error_int();
+        if ((has_inner= tres))
+        {
+          already_in= true;
+          break;
+        }
+      }
+
+      /*
+        If we already have a point within gv2, OR if *k is checked above to
+        be not within *j, check whether *k intersects *j.
+        *k has to intersect one of the components in this loop, otherwise *k
+        is out of gv2.
+       */
+      tres= bg_geo_relation_check<Coord_type, Coordsys>
+        (&(*k), (*gv2)[j->second], SP_INTERSECTS_FUNC, &had_error);
+      if (had_error || null_value)
+        return error_int();
+
+      if (tres)
+      {
+        already_in= true;
+        /*
+          It's likely that *k is within another geometry, so only stop the
+          iteration if we already have a point that's within gv2,
+          in order not to miss the potential geometry containing *k.
+        */
+        if (has_inner)
+          break;
+      }
+    }
+
+    /*
+      The *k point isn't within or intersects any geometry compoennt of gv2,
+      so mpts isn't within geom.
+    */
+    if (!already_in)
+      return 0;
+  }
+
+  /*
+    All points in mpts at least intersects geom, so the result is determined
+    by whether there is at least one point in mpts that's within geom.
+  */
+  return has_inner;
 }
 
 
@@ -549,9 +631,6 @@ geocol_relcheck_intersect_disjoint(const typename BG_geometry_collection::
           boost::geometry::cs.
   @param g1 the 1st geometry collection parameter.
   @param g2 the 2nd geometry collection parameter.
-  @param[out] pbgdone Whether the operation is successfully performed by
-  Boost Geometry. Note that BG doesn't support many type combinations so far,
-  in case not, the operation is to be done by old GIS algorithm instead.
   @return whether g1 and g2 satisfy the specified relation, 0 for negative,
                 none 0 for positive.
  */
@@ -560,18 +639,57 @@ int Item_func_spatial_rel::
 geocol_relcheck_within(const typename BG_geometry_collection::
                        Geometry_list *gv1,
                        const typename BG_geometry_collection::
-                       Geometry_list *gv2,
-                       bool *pbgdone)
+                       Geometry_list *gv2)
 {
   int tres= 0;
 
-  *pbgdone= false;
+  /*
+    When this function is called by geocol_equals_check,this is true:
+    spatial_rel == SP_EQUALS_FUNC
+    But even in this case, in this function we still want to check each
+    component of gv1 is within gv2, so in this function we always assume
+    with check and and use SP_WITHIN_FUNC.
+  */
   DBUG_ASSERT(spatial_rel == SP_WITHIN_FUNC || spatial_rel == SP_EQUALS_FUNC);
 
   // Within isn't symetric so we have to always build rtree tndex on gv2.
   Rtree_index rtree;
   make_rtree(*gv2, &rtree);
-  Rtree_result rtree_result;
+
+  BG_geometry_collection bggc;
+  bool no_fill= true;
+
+  /*
+    We have to break any multi-geometry into its components before the within
+    check, because the components of some multi-geometry MG in gv1 may be in
+    different geometries of gv2, and in all the MG is still in gv2.
+    Without the disintegration, MG would be seen as not within gv2.
+
+    Multipoint need special handling because for a multipoint MP to be within
+    geometry G, only one point in MP has to be 'within' G, the rest only need
+    to intersect G.
+  */
+  for (size_t i= 0; i < gv1->size(); i++)
+  {
+    Geometry::wkbType gtype= (*gv1)[i]->get_type();
+    if (gtype == Geometry::wkb_multipolygon ||
+        gtype == Geometry::wkb_multilinestring)
+    {
+      if (no_fill)
+      {
+        for (size_t j= 0; j < i; j++)
+          bggc.fill((*gv1)[j]);
+        no_fill= false;
+      }
+
+      bggc.fill((*gv1)[i], true/* break multi-geometry. */);
+    }
+    else if (!no_fill)
+      bggc.fill((*gv1)[i]);
+  }
+
+  if (!no_fill)
+    gv1= &(bggc.get_geometries());
 
   for (BG_geometry_collection::
        Geometry_list::const_iterator i= gv1->begin();
@@ -579,6 +697,20 @@ geocol_relcheck_within(const typename BG_geometry_collection::
   {
     bool innerOK= false;
     tres= 0;
+
+    if ((*i)->get_type() == Geometry::wkb_multipoint)
+    {
+      Gis_multi_point *mpts= static_cast<Gis_multi_point *>(*i);
+      tres= multipoint_within_geometry_collection<Coord_type, Coordsys>
+        (mpts, gv2, &rtree);
+      if (null_value)
+        return error_int();
+      if (tres)
+        continue;
+      else
+        return tres;
+    }
+
     /*
       Why it works to scan rtree index for within check? Because of the below
       conclusions.
@@ -600,15 +732,14 @@ geocol_relcheck_within(const typename BG_geometry_collection::
 
     BG_box box;
     make_bg_box(*i, &box);
-    rtree_result.clear();
-    rtree.query(bgi::covers(box), std::back_inserter(rtree_result));
 
     /*
-      Above theory makes sure all results are in rtree_result, the logic
-      here is sufficient when rtree_result is empty.
+      Above theory makes sure all results are in rtree search result, the logic
+      here is sufficient when the result is empty.
     */
-    for (Rtree_result::iterator j= rtree_result.begin();
-         j != rtree_result.end(); ++j)
+    for (Rtree_index::const_query_iterator
+         j= rtree.qbegin(bgi::covers(box));
+         j != rtree.qend(); ++j)
     {
       bool had_except= false;
       my_bool had_error= false;
@@ -616,26 +747,19 @@ geocol_relcheck_within(const typename BG_geometry_collection::
       try
       {
         tres= bg_geo_relation_check<Coord_type, Coordsys>
-          (*i, (*gv2)[j->second], pbgdone, spatial_rel, &had_error);
+          (*i, (*gv2)[j->second], SP_WITHIN_FUNC, &had_error);
       }
       CATCH_ALL(func_name(), {had_except= true;})
 
       if (had_except || had_error || null_value)
-      {
-        *pbgdone= false;
         return error_int();
-      }
-
-      if (!*pbgdone)
-        return tres;
 
       /*
         We've found a geometry j in gv2 so that current geometry element i
         in gv1 is within j, or i is equal to j. This means i in gv1
         passes the test, proceed to next geometry in gv1.
        */
-      if ((spatial_rel == SP_WITHIN_FUNC ||
-           spatial_rel == SP_EQUALS_FUNC) && tres)
+      if (tres)
       {
         innerOK= true;
         break;
@@ -649,7 +773,6 @@ geocol_relcheck_within(const typename BG_geometry_collection::
      */
     if (!innerOK)
     {
-      *pbgdone= true;
       DBUG_ASSERT(tres == 0);
       return tres;
     }
@@ -663,7 +786,6 @@ geocol_relcheck_within(const typename BG_geometry_collection::
     geometries from the two collections are true for the relation check.
    */
   DBUG_ASSERT(tres);
-  *pbgdone= true;
 
   return tres;
 }
@@ -676,26 +798,21 @@ geocol_relcheck_within(const typename BG_geometry_collection::
           boost::geometry::cs.
   @param g1 the 1st geometry collection parameter.
   @param g2 the 2nd geometry collection parameter.
-  @param[out] pbgdone Whether the operation is successfully performed by
-  Boost Geometry. Note that BG doesn't support many type combinations so far,
-  in case not, the operation is to be done by old GIS algorithm instead.
   @return whether g1 and g2 satisfy the specified relation, 0 for negative,
                 none 0 for positive.
  */
 template<typename Coord_type, typename Coordsys>
 int Item_func_spatial_rel::
 geocol_equals_check(const typename BG_geometry_collection::Geometry_list *gv1,
-                    const typename BG_geometry_collection::Geometry_list *gv2,
-                    bool *pbgdone)
+                    const typename BG_geometry_collection::Geometry_list *gv2)
 {
   int tres= 0, num_try= 0;
-  *pbgdone= false;
   DBUG_ASSERT(spatial_rel == SP_EQUALS_FUNC);
 
   do
   {
-    tres= geocol_relcheck_within<Coord_type, Coordsys>(gv1, gv2, pbgdone);
-    if (!tres || !*pbgdone || null_value)
+    tres= geocol_relcheck_within<Coord_type, Coordsys>(gv1, gv2);
+    if (!tres || null_value)
       return tres;
     /*
       Two sets A and B are equal means A is a subset of B and B is a
@@ -740,51 +857,84 @@ public:
   typedef std::vector<Point> Point_vector;
 
   static int point_within_geometry(Geometry *g1, Geometry *g2,
-                                   bool *pbgdone, my_bool *pnull_value);
+                                   my_bool *pnull_value);
 
   static int multipoint_within_geometry(Geometry *g1, Geometry *g2,
-                                        bool *pbgdone, my_bool *pnull_value);
+                                        my_bool *pnull_value);
+
+  static int linestring_within_geometry(Geometry *g1, Geometry *g2,
+                                        my_bool *pnull_value);
+  static int multilinestring_within_geometry(Geometry *g1, Geometry *g2,
+                                             my_bool *pnull_value);
+  static int polygon_within_geometry(Geometry *g1, Geometry *g2,
+                                     my_bool *pnull_value);
+  static int multipolygon_within_geometry(Geometry *g1, Geometry *g2,
+                                          my_bool *pnull_value);
 
   static int multipoint_equals_geometry(Geometry *g1, Geometry *g2,
-                                        bool *pbgdone, my_bool *pnull_value);
+                                        my_bool *pnull_value);
 
   static int point_disjoint_geometry(Geometry *g1, Geometry *g2,
-                                     bool *pbgdone, my_bool *pnull_value);
+                                     my_bool *pnull_value);
   static int multipoint_disjoint_geometry(Geometry *g1, Geometry *g2,
-                                          bool *pbgdone, my_bool *pnull_value);
+                                          my_bool *pnull_value);
 
   static int linestring_disjoint_geometry(Geometry *g1, Geometry *g2,
-                                          bool *pbgdone, my_bool *pnull_value);
+                                          my_bool *pnull_value);
   static int multilinestring_disjoint_geometry(Geometry *g1, Geometry *g2,
-                                               bool *pbgdone,
                                                my_bool *pnull_value);
   static int polygon_disjoint_geometry(Geometry *g1, Geometry *g2,
-                                       bool *pbgdone, my_bool *pnull_value);
+                                       my_bool *pnull_value);
   static int multipolygon_disjoint_geometry(Geometry *g1, Geometry *g2,
-                                            bool *pbgdone,
                                             my_bool *pnull_value);
   static int point_intersects_geometry(Geometry *g1, Geometry *g2,
-                                       bool *pbgdone, my_bool *pnull_value);
+                                       my_bool *pnull_value);
   static int multipoint_intersects_geometry(Geometry *g1, Geometry *g2,
-                                            bool *pbgdone,
                                             my_bool *pnull_value);
   static int linestring_intersects_geometry(Geometry *g1, Geometry *g2,
-                                            bool *pbgdone,
                                             my_bool *pnull_value);
   static int multilinestring_intersects_geometry(Geometry *g1, Geometry *g2,
-                                                 bool *pbgdone,
                                                  my_bool *pnull_value);
   static int polygon_intersects_geometry(Geometry *g1, Geometry *g2,
-                                         bool *pbgdone, my_bool *pnull_value);
+                                         my_bool *pnull_value);
   static int multipolygon_intersects_geometry(Geometry *g1, Geometry *g2,
-                                              bool *pbgdone,
                                               my_bool *pnull_value);
+  static int linestring_crosses_geometry(Geometry *g1, Geometry *g2,
+                                         my_bool *pnull_value);
   static int multipoint_crosses_geometry(Geometry *g1, Geometry *g2,
-                                         bool *pbgdone, my_bool *pnull_value);
+                                         my_bool *pnull_value);
+  static int multilinestring_crosses_geometry(Geometry *g1, Geometry *g2,
+                                              my_bool *pnull_value);
   static int multipoint_overlaps_multipoint(Geometry *g1, Geometry *g2,
-                                            bool *pbgdone,
                                             my_bool *pnull_value);
-};// bg_wrapper
+  static int point_touches_geometry(Geometry *g1, Geometry *g2,
+                                    my_bool *pnull_value);
+  static int multipoint_touches_geometry(Geometry *g1, Geometry *g2,
+                                         my_bool *pnull_value);
+  static int linestring_touches_geometry(Geometry *g1, Geometry *g2,
+                                         my_bool *pnull_value);
+  static int multilinestring_touches_polygon(Geometry *g1, Geometry *g2,
+                                             my_bool *pnull_value);
+  static int multilinestring_touches_geometry(Geometry *g1, Geometry *g2,
+                                              my_bool *pnull_value);
+  static int polygon_touches_geometry(Geometry *g1, Geometry *g2,
+                                      my_bool *pnull_value);
+  static int multipolygon_touches_geometry(Geometry *g1, Geometry *g2,
+                                           my_bool *pnull_value);
+
+private:
+  template<typename Geom_type>
+  static int multipoint_disjoint_geometry_internal(const Multipoint &mpts1,
+                                                   const Geom_type &geom);
+  template<typename Geom_type>
+  static int multipoint_disjoint_multi_geometry(const Multipoint &mpts,
+                                                const Geom_type &geom);
+  template <typename GeomType>
+  static int multipoint_within_geometry_internal(const Multipoint &mpts,
+                                                 const GeomType &geom);
+  static int multipoint_within_multipolygon(const Multipoint &mpts,
+                                            const Multipolygon &mplgn);
+};// BG_wrap
 
 
 /*
@@ -816,53 +966,34 @@ public:
   Dispatcher for 'point WITHIN xxx'.
 
   @tparam Geom_types Geometry types definitions.
-  @param g1 First Geometry operand, a Point.
+  @param g1 First Geometry operand, a point.
   @param g2 Second Geometry operand, not a geometry collection.
-  @param[out] pbgdone Returns whether the specified relation check operation is
-        performed. For now BG doesn't support many type combinatioons
-        for each type of relation check. We have implemented some of the
-        checks for some type combinations, which are not supported by BG,
-        bgdone will also be set to true for such checks.
   @param[out] pnull_value Returns whether error occured duirng the computation.
   @return 0 if specified relation doesn't hold for the given operands,
                 otherwise returns none 0.
  */
 template<typename Geom_types>
 int BG_wrap<Geom_types>::point_within_geometry(Geometry *g1, Geometry *g2,
-                                               bool *pbgdone,
                                                my_bool *pnull_value)
 {
   int result= 0;
   Geometry::wkbType gt2= g2->get_type();
 
-  *pbgdone= false;
-
   if (gt2 == Geometry::wkb_polygon)
-  {
     BGCALL(result, within, Point, g1, Polygon, g2, pnull_value);
-    *pbgdone= true;
-  }
   else if (gt2 == Geometry::wkb_multipolygon)
-  {
     BGCALL(result, within, Point, g1, Multipolygon, g2, pnull_value);
-    *pbgdone= true;
-  }
   else if (gt2 == Geometry::wkb_point)
-  {
-    BGCALL(result, equals, Point, g1, Point, g2, pnull_value);
-    *pbgdone= true;
-  }
+    BGCALL(result, within, Point, g1, Point, g2, pnull_value);
   else if (gt2 == Geometry::wkb_multipoint)
-  {
-    Multipoint mpts(g2->get_data_ptr(),
-                    g2->get_data_size(), g2->get_flags(), g2->get_srid());
-    Point pt(g1->get_data_ptr(),
-             g1->get_data_size(), g1->get_flags(), g1->get_srid());
+    BGCALL(result, within, Point, g1, Multipoint, g2, pnull_value);
+  else if (gt2 == Geometry::wkb_linestring)
+    BGCALL(result, within, Point, g1, Linestring, g2, pnull_value);
+  else if (gt2 == Geometry::wkb_multilinestring)
+    BGCALL(result, within, Point, g1, Multilinestring, g2, pnull_value);
+  else
+    DBUG_ASSERT(false);
 
-    Point_set ptset(mpts.begin(), mpts.end());
-    result= ((ptset.find(pt) != ptset.end()));
-    *pbgdone= true;
-  }
   return result;
 }
 
@@ -871,27 +1002,19 @@ int BG_wrap<Geom_types>::point_within_geometry(Geometry *g1, Geometry *g2,
   Dispatcher for 'multipoint WITHIN xxx'.
 
   @tparam Geom_types Geometry types definitions.
-  @param g1 First Geometry operand, a Point.
+  @param g1 First Geometry operand, a multipoint.
   @param g2 Second Geometry operand, not a geometry collection.
-  @param[out] pbgdone Returns whether the specified relation check operation is
-        performed. For now BG doesn't support many type combinatioons
-        for each type of relation check. We have implemented some of the
-        checks for some type combinations, which are not supported by BG,
-        bgdone will also be set to true for such checks.
   @param[out] pnull_value Returns whether error occured duirng the computation.
   @return 0 if specified relation doesn't hold for the given operands,
                 otherwise returns none 0.
  */
 template<typename Geom_types>
 int BG_wrap<Geom_types>::multipoint_within_geometry(Geometry *g1, Geometry *g2,
-                                                    bool *pbgdone,
                                                     my_bool *pnull_value)
 {
   int result= 0;
   Geometry::wkbType gt2= g2->get_type();
   const void *data_ptr= NULL;
-
-  *pbgdone= false;
 
   Multipoint mpts(g1->get_data_ptr(), g1->get_data_size(),
                   g1->get_flags(), g1->get_srid());
@@ -908,14 +1031,7 @@ int BG_wrap<Geom_types>::multipoint_within_geometry(Geometry *g1, Geometry *g2,
     Polygon plg(data_ptr, g2->get_data_size(),
                 g2->get_flags(), g2->get_srid());
 
-    for (TYPENAME Multipoint::iterator i= mpts.begin(); i != mpts.end(); ++i)
-    {
-      result= boost::geometry::within(*i, plg);
-      if (result == 0)
-        break;
-    }
-    *pbgdone= true;
-
+    result= multipoint_within_geometry_internal(mpts, plg);
   }
   else if (gt2 == Geometry::wkb_multipolygon)
   {
@@ -929,13 +1045,24 @@ int BG_wrap<Geom_types>::multipoint_within_geometry(Geometry *g1, Geometry *g2,
 
     Multipolygon mplg(data_ptr, g2->get_data_size(),
                       g2->get_flags(), g2->get_srid());
-    for (TYPENAME Multipoint::iterator i= mpts.begin(); i != mpts.end(); ++i)
-    {
-      result= boost::geometry::within(*i, mplg);
-      if (result == 0)
-        break;
-    }
-    *pbgdone= true;
+
+    /*
+      One may want to build the rtree index on mpts when mpts has more
+      components than mplg, but then one would have to track the points that
+      are already known to be in one of mplg's polygons and avoid checking
+      again (which may fail and cause false alarm) for other polygon components.
+      Such maintenance brings extra cost and performance test prooves that
+      it's not desirable.
+      The containers tried for such maintenance including std::vector<bool>,
+      std::set<array_index>, mpts[i].set_props().
+
+      Also, even if the mplg has only one polygon, i.e. the worst case for
+      building rtree index on mplg, the performance is still very very close to
+      the linear search done in multipoint_within_geometry_internal.
+
+      So always build index on mplg as below.
+    */
+    result= multipoint_within_multipolygon(mpts, mplg);
   }
   else if (gt2 == Geometry::wkb_point)
   {
@@ -945,7 +1072,6 @@ int BG_wrap<Geom_types>::multipoint_within_geometry(Geometry *g1, Geometry *g2,
              g2->get_data_size(), g2->get_flags(), g2->get_srid());
     result= ((ptset1.size() == 1) &&
              boost::geometry::equals(*ptset1.begin(), pt));
-    *pbgdone= true;
   }
   else if (gt2 == Geometry::wkb_multipoint)
   {
@@ -961,8 +1087,230 @@ int BG_wrap<Geom_types>::multipoint_within_geometry(Geometry *g1, Geometry *g2,
                                   ptset2.begin(), ptset2.end(),
                                   respts.begin(), bgpt_lt());
     result= (ptset1.size() == static_cast<size_t>(endpos - respts.begin()));
-    *pbgdone= true;
   }
+  else if (gt2 == Geometry::wkb_linestring)
+  {
+    Linestring ls(g2->get_data_ptr(), g2->get_data_size(),
+                  g2->get_flags(), g2->get_srid());
+    result= multipoint_within_geometry_internal(mpts, ls);
+  }
+  else if (gt2 == Geometry::wkb_multilinestring)
+  {
+    Multilinestring mls(g2->get_data_ptr(), g2->get_data_size(),
+                        g2->get_flags(), g2->get_srid());
+    /*
+      Here we can't separate linestrings of a multilinstring MLS to do within
+      check one by one because if N (N > 1) linestrings share the same boundary
+      point P, P may or may not be a boundary point of MLS, depending on N%2,
+      if N is an even number P is an internal point of MLS, otherwise P is a
+      boundary point of MLS.
+    */
+    result= multipoint_within_geometry_internal(mpts, mls);
+  }
+  else
+    DBUG_ASSERT(false);
+
+  return result;
+}
+
+
+template <typename Geom_types>
+template <typename GeomType>
+int BG_wrap<Geom_types>::
+multipoint_within_geometry_internal(const Multipoint &mpts,
+                                    const GeomType &geom)
+{
+  bool has_inner= false;
+
+  for (TYPENAME Multipoint::iterator i= mpts.begin(); i != mpts.end(); ++i)
+  {
+    /*
+      Checking for intersects is faster than within, so if there is at least
+      one point within geom, only check that the rest points intersects geom.
+     */
+    if (!has_inner && (has_inner= boost::geometry::within(*i, geom)))
+      continue;
+
+    if (!boost::geometry::intersects(*i, geom))
+      return 0;
+  }
+
+  return has_inner;
+}
+
+
+template <typename Geom_types>
+int BG_wrap<Geom_types>::
+multipoint_within_multipolygon(const Multipoint &mpts,
+                               const Multipolygon &mplgn)
+{
+  bool has_inner= false;
+
+  Rtree_index rtree;
+  make_rtree_bggeom(mplgn, &rtree);
+  BG_box box;
+
+  for (TYPENAME Multipoint::iterator i= mpts.begin(); i != mpts.end(); ++i)
+  {
+    bool already_in= false;
+    // Search for polygons that may intersect *i point using the rtree index.
+    boost::geometry::envelope(*i, box);
+    Rtree_index::const_query_iterator j= rtree.qbegin(bgi::intersects(box));
+    if (j == rtree.qend())
+      return 0;
+    /*
+      All polygons that possibly intersect *i point are given by the
+      rtree iteration below.
+    */
+    for (; j != rtree.qend(); ++j)
+    {
+      /*
+        Checking for intersects is faster than within, so if there is at least
+        one point within geom, only check that the rest points intersects geom.
+      */
+      const Polygon &plgn= mplgn[j->second];
+      /*
+        If we don't have a point in mpts that's within mplgn yet,
+        check whether *i is within plgn.
+        If *i is within plgn, it's already in the multipolygon, so no need
+        for more checks.
+      */
+      if (!has_inner && (has_inner= boost::geometry::within(*i, plgn)))
+      {
+        already_in= true;
+        break;
+      }
+
+      /*
+        If we already have a point within mplgn, OR if *i is checked above to
+        be not within plgn, check whether *i intersects plgn.
+        *i has to intersect one of the components in this loop, otherwise *i
+        is out of mplgn.
+       */
+      if (boost::geometry::intersects(*i, plgn))
+      {
+        already_in= true;
+        /*
+          It's likely that *i is within another plgn, so only stop the
+          iteration if we already have a point that's within the multipolygon,
+          in order not to miss the polygon containing *i.
+        */
+        if (has_inner)
+          break;
+      }
+    }
+
+    /*
+      The *i point isn't within or intersects any polygon of mplgn,
+      so mpts isn't within geom.
+    */
+    if (!already_in)
+      return 0;
+  }
+
+  /*
+    All points in mpts at least intersects geom, so the result is determined
+    by whether there is at least one point in mpts that's within geom.
+  */
+  return has_inner;
+}
+
+
+template<typename Geom_types>
+int BG_wrap<Geom_types>::
+linestring_within_geometry(Geometry *g1, Geometry *g2,
+                           my_bool *pnull_value)
+{
+  int result= 0;
+  Geometry::wkbType gt2= g2->get_type();
+
+  if (gt2 == Geometry::wkb_polygon)
+    BGCALL(result, within, Linestring, g1, Polygon, g2, pnull_value);
+  else if (gt2 == Geometry::wkb_multipolygon)
+    BGCALL(result, within, Linestring, g1, Multipolygon, g2, pnull_value);
+  else if (gt2 == Geometry::wkb_point || gt2 == Geometry::wkb_multipoint)
+    return 0;
+  else if (gt2 == Geometry::wkb_linestring)
+    BGCALL(result, within, Linestring, g1, Linestring, g2, pnull_value);
+  else if (gt2 == Geometry::wkb_multilinestring)
+    BGCALL(result, within, Linestring, g1, Multilinestring, g2, pnull_value);
+  else
+    DBUG_ASSERT(false);
+
+  return result;
+}
+
+
+template<typename Geom_types>
+int BG_wrap<Geom_types>::
+multilinestring_within_geometry(Geometry *g1, Geometry *g2,
+                                my_bool *pnull_value)
+{
+  int result= 0;
+  Geometry::wkbType gt2= g2->get_type();
+
+  if (gt2 == Geometry::wkb_polygon)
+    BGCALL(result, within, Multilinestring, g1, Polygon, g2, pnull_value);
+  else if (gt2 == Geometry::wkb_multipolygon)
+    BGCALL(result, within, Multilinestring, g1, Multipolygon, g2, pnull_value);
+  else if (gt2 == Geometry::wkb_point || gt2 == Geometry::wkb_multipoint)
+    return 0;
+  else if (gt2 == Geometry::wkb_linestring)
+    BGCALL(result, within, Multilinestring, g1,
+           Linestring, g2, pnull_value);
+  else if (gt2 == Geometry::wkb_multilinestring)
+    BGCALL(result, within, Multilinestring, g1,
+           Multilinestring, g2, pnull_value);
+  else
+    DBUG_ASSERT(false);
+
+  return result;
+}
+
+
+template<typename Geom_types>
+int BG_wrap<Geom_types>::
+polygon_within_geometry(Geometry *g1, Geometry *g2,
+                        my_bool *pnull_value)
+{
+  int result= 0;
+  Geometry::wkbType gt2= g2->get_type();
+
+  if (gt2 == Geometry::wkb_polygon)
+    BGCALL(result, within, Polygon, g1, Polygon, g2, pnull_value);
+  else if (gt2 == Geometry::wkb_multipolygon)
+    BGCALL(result, within, Polygon, g1, Multipolygon, g2, pnull_value);
+  else if (gt2 == Geometry::wkb_point || gt2 == Geometry::wkb_multipoint ||
+           gt2 == Geometry::wkb_linestring ||
+           gt2 == Geometry::wkb_multilinestring)
+    return 0;
+  else
+    DBUG_ASSERT(false);
+
+  return result;
+}
+
+
+template<typename Geom_types>
+int BG_wrap<Geom_types>::
+multipolygon_within_geometry(Geometry *g1, Geometry *g2,
+                             my_bool *pnull_value)
+{
+
+  int result= 0;
+  Geometry::wkbType gt2= g2->get_type();
+
+  if (gt2 == Geometry::wkb_polygon)
+    BGCALL(result, within, Multipolygon, g1, Polygon, g2, pnull_value);
+  else if (gt2 == Geometry::wkb_multipolygon)
+    BGCALL(result, within, Multipolygon, g1, Multipolygon, g2, pnull_value);
+  else if (gt2 == Geometry::wkb_point || gt2 == Geometry::wkb_multipoint ||
+           gt2 == Geometry::wkb_linestring ||
+           gt2 == Geometry::wkb_multilinestring)
+    return 0;
+  else
+    DBUG_ASSERT(false);
+
   return result;
 }
 
@@ -971,30 +1319,23 @@ int BG_wrap<Geom_types>::multipoint_within_geometry(Geometry *g1, Geometry *g2,
   Dispatcher for 'multipoint EQUALS xxx'.
 
   @tparam Geom_types Geometry types definitions.
-  @param g1 First Geometry operand, a Point.
+  @param g1 First Geometry operand, a multipoint.
   @param g2 Second Geometry operand, not a geometry collection.
-  @param[out] pbgdone Returns whether the specified relation check operation is
-        performed. For now BG doesn't support many type combinatioons
-        for each type of relation check. We have implemented some of the
-        checks for some type combinations, which are not supported by BG,
-        bgdone will also be set to true for such checks.
   @param[out] pnull_value Returns whether error occured duirng the computation.
   @return 0 if specified relation doesn't hold for the given operands,
                 otherwise returns none 0.
  */
 template<typename Geom_types>
 int BG_wrap<Geom_types>::multipoint_equals_geometry(Geometry *g1, Geometry *g2,
-                                                    bool *pbgdone,
                                                     my_bool *pnull_value)
 {
-  *pbgdone= false;
   int result= 0;
   Geometry::wkbType gt2= g2->get_type();
 
   switch (gt2)
   {
   case Geometry::wkb_point:
-    result= Ifsr::equals_check<Geom_types>(g2, g1, pbgdone, pnull_value);
+    result= Ifsr::equals_check<Geom_types>(g2, g1, pnull_value);
     break;
   case Geometry::wkb_multipoint:
     {
@@ -1014,7 +1355,6 @@ int BG_wrap<Geom_types>::multipoint_equals_geometry(Geometry *g1, Geometry *g2,
     result= 0;
     break;
   }
-  *pbgdone= true;
   return result;
 }
 
@@ -1023,13 +1363,8 @@ int BG_wrap<Geom_types>::multipoint_equals_geometry(Geometry *g1, Geometry *g2,
   Dispatcher for 'multipoint disjoint xxx'.
 
   @tparam Geom_types Geometry types definitions.
-  @param g1 First Geometry operand, a Point.
+  @param g1 First Geometry operand, a multipoint.
   @param g2 Second Geometry operand, not a geometry collection.
-  @param[out] pbgdone Returns whether the specified relation check operation is
-        performed. For now BG doesn't support many type combinatioons
-        for each type of relation check. We have implemented some of the
-        checks for some type combinations, which are not supported by BG,
-        bgdone will also be set to true for such checks.
   @param[out] pnull_value Returns whether error occured duirng the computation.
   @return 0 if specified relation doesn't hold for the given operands,
                 otherwise returns none 0.
@@ -1037,23 +1372,21 @@ int BG_wrap<Geom_types>::multipoint_equals_geometry(Geometry *g1, Geometry *g2,
 template<typename Geom_types>
 int BG_wrap<Geom_types>::
 multipoint_disjoint_geometry(Geometry *g1, Geometry *g2,
-                             bool *pbgdone, my_bool *pnull_value)
+                             my_bool *pnull_value)
 {
   int result= 0;
   Geometry::wkbType gt2= g2->get_type();
   const void *data_ptr= NULL;
 
-  *pbgdone= false;
-
+  Multipoint mpts1(g1->get_data_ptr(),
+                   g1->get_data_size(), g1->get_flags(), g1->get_srid());
   switch (gt2)
   {
   case Geometry::wkb_point:
-    result= point_disjoint_geometry(g2, g1, pbgdone, pnull_value);
+    result= point_disjoint_geometry(g2, g1, pnull_value);
     break;
   case Geometry::wkb_multipoint:
     {
-      Multipoint mpts1(g1->get_data_ptr(),
-                       g1->get_data_size(), g1->get_flags(), g1->get_srid());
       Multipoint mpts2(g2->get_data_ptr(),
                        g2->get_data_size(), g2->get_flags(), g2->get_srid());
       Point_set ptset1(mpts1.begin(), mpts1.end());
@@ -1067,13 +1400,10 @@ multipoint_disjoint_geometry(Geometry *g1, Geometry *g2,
                                     ptset2.begin(), ptset2.end(),
                                     respts.begin(), bgpt_lt());
       result= (endpos == respts.begin());
-      *pbgdone= true;
     }
     break;
   case Geometry::wkb_polygon:
     {
-      Multipoint mpts1(g1->get_data_ptr(),
-                       g1->get_data_size(), g1->get_flags(), g1->get_srid());
       data_ptr= g2->normalize_ring_order();
       if (data_ptr == NULL)
       {
@@ -1084,23 +1414,11 @@ multipoint_disjoint_geometry(Geometry *g1, Geometry *g2,
 
       Polygon plg(data_ptr, g2->get_data_size(),
                   g2->get_flags(), g2->get_srid());
-
-      for (TYPENAME Multipoint::iterator i= mpts1.begin();
-           i != mpts1.end(); ++i)
-      {
-        result= boost::geometry::disjoint(*i, plg);
-
-        if (!result)
-          break;
-      }
-
-      *pbgdone= true;
+      result= multipoint_disjoint_geometry_internal(mpts1, plg);
     }
     break;
   case Geometry::wkb_multipolygon:
     {
-      Multipoint mpts1(g1->get_data_ptr(),
-                       g1->get_data_size(), g1->get_flags(), g1->get_srid());
       data_ptr= g2->normalize_ring_order();
       if (data_ptr == NULL)
       {
@@ -1111,23 +1429,114 @@ multipoint_disjoint_geometry(Geometry *g1, Geometry *g2,
 
       Multipolygon mplg(data_ptr, g2->get_data_size(),
                         g2->get_flags(), g2->get_srid());
-
-      for (TYPENAME Multipoint::iterator i= mpts1.begin();
-           i != mpts1.end(); ++i)
-      {
-        result= boost::geometry::disjoint(*i, mplg);
-
-        if (!result)
-          break;
-      }
-
-      *pbgdone= true;
+      result= multipoint_disjoint_multi_geometry(mpts1, mplg);
+    }
+    break;
+  case Geometry::wkb_linestring:
+    {
+      Linestring ls(g2->get_data_ptr(), g2->get_data_size(),
+                    g2->get_flags(), g2->get_srid());
+      result= multipoint_disjoint_geometry_internal(mpts1, ls);
+    }
+    break;
+  case Geometry::wkb_multilinestring:
+    {
+      Multilinestring mls(g2->get_data_ptr(), g2->get_data_size(),
+                          g2->get_flags(), g2->get_srid());
+      result= multipoint_disjoint_multi_geometry(mpts1, mls);
     }
     break;
   default:
+    DBUG_ASSERT(false);
     break;
   }
+
   return result;
+}
+
+
+template<typename Geom_types>
+template<typename Geom_type>
+int BG_wrap<Geom_types>::
+multipoint_disjoint_geometry_internal(const Multipoint &mpts,
+                                      const Geom_type &geom)
+{
+  for (TYPENAME Multipoint::iterator i= mpts.begin(); i != mpts.end(); ++i)
+  {
+    if (!boost::geometry::disjoint(*i, geom))
+      return 0;
+  }
+
+  return 1;
+}
+
+
+template<typename Geom_types>
+template<typename Geom_type>
+int BG_wrap<Geom_types>::
+multipoint_disjoint_multi_geometry(const Multipoint &mpts,
+                                   const Geom_type &geom)
+{
+  Rtree_index rtree;
+
+  // Choose the one with more components to build rtree index on, to get more
+  // performance improvement.
+  if (mpts.size() > geom.size())
+  {
+    make_rtree_bggeom(mpts, &rtree);
+    for (TYPENAME Geom_type::iterator j= geom.begin(); j != geom.end(); ++j)
+    {
+      BG_box box;
+      boost::geometry::envelope(*j, box);
+
+      /*
+        For each component *j in geom, find points in mpts who intersect
+        with MBR(*j), such points are likely to intersect *j, the rest are
+        for sure disjoint *j thus no need to check precisely.
+      */
+      for (Rtree_index::const_query_iterator
+           i= rtree.qbegin(bgi::intersects(box));
+           i != rtree.qend(); ++i)
+      {
+        /*
+          If *i really intersect *j, we have the result as false;
+          If no *i intersects *j, *j disjoint mpts.
+          And if no *j intersect mpts, we can conclude that mpts disjoint geom.
+        */
+        if (!boost::geometry::disjoint(mpts[i->second], *j))
+          return 0;
+      }
+    }
+  }
+  else
+  {
+    make_rtree_bggeom(geom, &rtree);
+    for (TYPENAME Multipoint::iterator j= mpts.begin(); j != mpts.end(); ++j)
+    {
+      BG_box box;
+      boost::geometry::envelope(*j, box);
+
+      /*
+        For each point *j in mpts, find components *i in geom such that
+        MBR(*i) intersect *j, such *i are likely to intersect *j, the rest are
+        for sure disjoint *j thus no need to check precisely.
+      */
+      for (Rtree_index::const_query_iterator
+           i= rtree.qbegin(bgi::intersects(box));
+           i != rtree.qend(); ++i)
+      {
+        /*
+          If *i really intersect *j, we have the result as false;
+          If no *i intersects *j, *j disjoint geom.
+          And if no *j intersect geom, we can conclude that mpts disjoint geom.
+        */
+        if (!boost::geometry::disjoint(geom[i->second], *j))
+          return 0;
+      }
+    }
+  }
+
+  return 1;
 }
 
 
@@ -1135,13 +1544,8 @@ multipoint_disjoint_geometry(Geometry *g1, Geometry *g2,
   Dispatcher for 'linestring disjoint xxx'.
 
   @tparam Geom_types Geometry types definitions.
-  @param g1 First Geometry operand, a Point.
+  @param g1 First Geometry operand, a linestring.
   @param g2 Second Geometry operand, not a geometry collection.
-  @param[out] pbgdone Returns whether the specified relation check operation is
-        performed. For now BG doesn't support many type combinatioons
-        for each type of relation check. We have implemented some of the
-        checks for some type combinations, which are not supported by BG,
-        bgdone will also be set to true for such checks.
   @param[out] pnull_value Returns whether error occured duirng the computation.
   @return 0 if specified relation doesn't hold for the given operands,
                 otherwise returns none 0.
@@ -1149,38 +1553,25 @@ multipoint_disjoint_geometry(Geometry *g1, Geometry *g2,
 template<typename Geom_types>
 int BG_wrap<Geom_types>::
 linestring_disjoint_geometry(Geometry *g1, Geometry *g2,
-                             bool *pbgdone, my_bool *pnull_value)
+                             my_bool *pnull_value)
 {
   int result= 0;
-  *pbgdone= false;
   Geometry::wkbType gt2= g2->get_type();
 
   if (gt2 == Geometry::wkb_linestring)
-  {
     BGCALL(result, disjoint, Linestring, g1, Linestring, g2, pnull_value);
-    *pbgdone= true;
-  }
   else if (gt2 == Geometry::wkb_multilinestring)
-  {
-    Multilinestring mls(g2->get_data_ptr(), g2->get_data_size(),
-                        g2->get_flags(), g2->get_srid());
-    Linestring ls(g1->get_data_ptr(),
-                  g1->get_data_size(), g1->get_flags(), g1->get_srid());
-
-    for (TYPENAME Multilinestring::iterator i= mls.begin();
-         i != mls.end(); ++i)
-    {
-      result= boost::geometry::disjoint(ls, *i);
-
-      if (!result)
-        break;
-    }
-    *pbgdone= true;
-
-  }
+    BGCALL(result, disjoint, Linestring, g1, Multilinestring, g2, pnull_value);
+  else if (gt2 == Geometry::wkb_point)
+    BGCALL(result, disjoint, Linestring, g1, Point, g2, pnull_value);
+  else if (gt2 == Geometry::wkb_multipoint)
+    result= multipoint_disjoint_geometry(g2, g1, pnull_value);
+  else if (gt2 == Geometry::wkb_polygon)
+    BGCALL(result, disjoint, Linestring, g1, Polygon, g2, pnull_value);
+  else if (gt2 == Geometry::wkb_multipolygon)
+    BGCALL(result, disjoint, Linestring, g1, Multipolygon, g2, pnull_value);
   else
-    *pbgdone= false;
-
+    DBUG_ASSERT(false);
   return result;
 }
 
@@ -1189,13 +1580,8 @@ linestring_disjoint_geometry(Geometry *g1, Geometry *g2,
   Dispatcher for 'multilinestring disjoint xxx'.
 
   @tparam Geom_types Geometry types definitions.
-  @param g1 First Geometry operand, a Point.
+  @param g1 First Geometry operand, a multilinestring.
   @param g2 Second Geometry operand, not a geometry collection.
-  @param[out] pbgdone Returns whether the specified relation check operation is
-        performed. For now BG doesn't support many type combinatioons
-        for each type of relation check. We have implemented some of the
-        checks for some type combinations, which are not supported by BG,
-        bgdone will also be set to true for such checks.
   @param[out] pnull_value Returns whether error occured duirng the computation.
   @return 0 if specified relation doesn't hold for the given operands,
                 otherwise returns none 0.
@@ -1203,41 +1589,26 @@ linestring_disjoint_geometry(Geometry *g1, Geometry *g2,
 template<typename Geom_types>
 int BG_wrap<Geom_types>::
 multilinestring_disjoint_geometry(Geometry *g1, Geometry *g2,
-                                  bool *pbgdone, my_bool *pnull_value)
+                                  my_bool *pnull_value)
 {
   int result= 0;
-  *pbgdone= false;
   Geometry::wkbType gt2= g2->get_type();
 
   if (gt2 == Geometry::wkb_linestring)
     result= BG_wrap<Geom_types>::
-      linestring_disjoint_geometry(g2, g1, pbgdone, pnull_value);
+      linestring_disjoint_geometry(g2, g1, pnull_value);
   else if (gt2 == Geometry::wkb_multilinestring)
-  {
-    Multilinestring mls1(g1->get_data_ptr(), g1->get_data_size(),
-                         g1->get_flags(), g1->get_srid());
-    Multilinestring mls2(g2->get_data_ptr(), g2->get_data_size(),
-                         g2->get_flags(), g2->get_srid());
-
-    for (TYPENAME Multilinestring::iterator i= mls1.begin();
-         i != mls1.end(); ++i)
-    {
-      for (TYPENAME Multilinestring::iterator j= mls2.begin();
-           j != mls2.end(); ++j)
-      {
-        result= boost::geometry::disjoint(*i, *j);
-        if (!result)
-          break;
-      }
-
-      if (!result)
-        break;
-    }
-
-    *pbgdone= true;
-  }
+    BGCALL(result, disjoint, Multilinestring, g1, Multilinestring, g2, pnull_value);
+  else if (gt2 == Geometry::wkb_point)
+    BGCALL(result, disjoint, Multilinestring, g1, Point, g2, pnull_value);
+  else if (gt2 == Geometry::wkb_multipoint)
+    result= multipoint_disjoint_geometry(g2, g1, pnull_value);
+  else if (gt2 == Geometry::wkb_polygon)
+    BGCALL(result, disjoint, Multilinestring, g1, Polygon, g2, pnull_value);
+  else if (gt2 == Geometry::wkb_multipolygon)
+    BGCALL(result, disjoint, Multilinestring, g1, Multipolygon, g2, pnull_value);
   else
-    *pbgdone= false;
+    DBUG_ASSERT(false);
 
   return result;
 }
@@ -1247,13 +1618,8 @@ multilinestring_disjoint_geometry(Geometry *g1, Geometry *g2,
   Dispatcher for 'point disjoint xxx'.
 
   @tparam Geom_types Geometry types definitions.
-  @param g1 First Geometry operand, a Point.
+  @param g1 First Geometry operand, a point.
   @param g2 Second Geometry operand, not a geometry collection.
-  @param[out] pbgdone Returns whether the specified relation check operation is
-        performed. For now BG doesn't support many type combinatioons
-        for each type of relation check. We have implemented some of the
-        checks for some type combinations, which are not supported by BG,
-        bgdone will also be set to true for such checks.
   @param[out] pnull_value Returns whether error occured duirng the computation.
   @return 0 if specified relation doesn't hold for the given operands,
                 otherwise returns none 0.
@@ -1261,25 +1627,21 @@ multilinestring_disjoint_geometry(Geometry *g1, Geometry *g2,
 template<typename Geom_types>
 int BG_wrap<Geom_types>::
 point_disjoint_geometry(Geometry *g1, Geometry *g2,
-                        bool *pbgdone, my_bool *pnull_value)
+                        my_bool *pnull_value)
 {
   int result= 0;
-  *pbgdone= false;
   Geometry::wkbType gt2= g2->get_type();
 
   switch (gt2)
   {
   case Geometry::wkb_point:
     BGCALL(result, disjoint, Point, g1, Point, g2, pnull_value);
-    *pbgdone= true;
     break;
   case Geometry::wkb_polygon:
     BGCALL(result, disjoint, Point, g1, Polygon, g2, pnull_value);
-    *pbgdone= true;
     break;
   case Geometry::wkb_multipolygon:
     BGCALL(result, disjoint, Point, g1, Multipolygon, g2, pnull_value);
-    *pbgdone= true;
     break;
   case Geometry::wkb_multipoint:
     {
@@ -1290,11 +1652,16 @@ point_disjoint_geometry(Geometry *g1, Geometry *g2,
 
       Point_set ptset(mpts.begin(), mpts.end());
       result= (ptset.find(pt) == ptset.end());
-      *pbgdone= true;
     }
     break;
+  case Geometry::wkb_linestring:
+    BGCALL(result, disjoint, Point, g1, Linestring, g2, pnull_value);
+    break;
+  case Geometry::wkb_multilinestring:
+    BGCALL(result, disjoint, Point, g1, Multilinestring, g2, pnull_value);
+    break;
   default:
-    *pbgdone= false;
+    DBUG_ASSERT(false);
     break;
   }
   return result;
@@ -1305,13 +1672,8 @@ point_disjoint_geometry(Geometry *g1, Geometry *g2,
   Dispatcher for 'polygon disjoint xxx'.
 
   @tparam Geom_types Geometry types definitions.
-  @param g1 First Geometry operand, a Point.
+  @param g1 First Geometry operand, a polygon.
   @param g2 Second Geometry operand, not a geometry collection.
-  @param[out] pbgdone Returns whether the specified relation check operation is
-        performed. For now BG doesn't support many type combinatioons
-        for each type of relation check. We have implemented some of the
-        checks for some type combinations, which are not supported by BG,
-        bgdone will also be set to true for such checks.
   @param[out] pnull_value Returns whether error occured duirng the computation.
   @return 0 if specified relation doesn't hold for the given operands,
                 otherwise returns none 0.
@@ -1319,32 +1681,33 @@ point_disjoint_geometry(Geometry *g1, Geometry *g2,
 template<typename Geom_types>
 int BG_wrap<Geom_types>::
 polygon_disjoint_geometry(Geometry *g1, Geometry *g2,
-                          bool *pbgdone, my_bool *pnull_value)
+                          my_bool *pnull_value)
 {
   int result= 0;
   Geometry::wkbType gt2= g2->get_type();
-
-  *pbgdone= false;
 
   switch (gt2)
   {
   case Geometry::wkb_point:
     BGCALL(result, disjoint, Polygon, g1, Point, g2, pnull_value);
-    *pbgdone= true;
     break;
   case Geometry::wkb_multipoint:
-    result= multipoint_disjoint_geometry(g2, g1, pbgdone, pnull_value);
+    result= multipoint_disjoint_geometry(g2, g1, pnull_value);
     break;
   case Geometry::wkb_polygon:
     BGCALL(result, disjoint, Polygon, g1, Polygon, g2, pnull_value);
-    *pbgdone= true;
     break;
   case Geometry::wkb_multipolygon:
     BGCALL(result, disjoint, Polygon, g1, Multipolygon, g2, pnull_value);
-    *pbgdone= true;
+    break;
+  case Geometry::wkb_linestring:
+    BGCALL(result, disjoint, Polygon, g1, Linestring, g2, pnull_value);
+    break;
+  case Geometry::wkb_multilinestring:
+    BGCALL(result, disjoint, Polygon, g1, Multilinestring, g2, pnull_value);
     break;
   default:
-    *pbgdone= false;
+    DBUG_ASSERT(false);
     break;
   }
   return result;
@@ -1355,13 +1718,8 @@ polygon_disjoint_geometry(Geometry *g1, Geometry *g2,
   Dispatcher for 'multipolygon disjoint xxx'.
 
   @tparam Geom_types Geometry types definitions.
-  @param g1 First Geometry operand, a Point.
+  @param g1 First Geometry operand, a multipolygon.
   @param g2 Second Geometry operand, not a geometry collection.
-  @param[out] pbgdone Returns whether the specified relation check operation is
-        performed. For now BG doesn't support many type combinatioons
-        for each type of relation check. We have implemented some of the
-        checks for some type combinations, which are not supported by BG,
-        bgdone will also be set to true for such checks.
   @param[out] pnull_value Returns whether error occured duirng the computation.
   @return 0 if specified relation doesn't hold for the given operands,
                 otherwise returns none 0.
@@ -1369,32 +1727,33 @@ polygon_disjoint_geometry(Geometry *g1, Geometry *g2,
 template<typename Geom_types>
 int BG_wrap<Geom_types>::
 multipolygon_disjoint_geometry(Geometry *g1, Geometry *g2,
-                               bool *pbgdone, my_bool *pnull_value)
+                               my_bool *pnull_value)
 {
   int result= 0;
   Geometry::wkbType gt2= g2->get_type();
-
-  *pbgdone= false;
 
   switch (gt2)
   {
   case Geometry::wkb_point:
     BGCALL(result, disjoint, Multipolygon, g1, Point, g2, pnull_value);
-    *pbgdone= true;
     break;
   case Geometry::wkb_multipoint:
-    result= multipoint_disjoint_geometry(g2, g1, pbgdone, pnull_value);
+    result= multipoint_disjoint_geometry(g2, g1, pnull_value);
     break;
   case Geometry::wkb_polygon:
     BGCALL(result, disjoint, Multipolygon, g1, Polygon, g2, pnull_value);
-    *pbgdone= true;
     break;
   case Geometry::wkb_multipolygon:
     BGCALL(result, disjoint, Multipolygon, g1, Multipolygon, g2, pnull_value);
-    *pbgdone= true;
+    break;
+  case Geometry::wkb_linestring:
+    BGCALL(result, disjoint, Multipolygon, g1, Linestring, g2, pnull_value);
+    break;
+  case Geometry::wkb_multilinestring:
+    BGCALL(result, disjoint, Multipolygon, g1, Multilinestring, g2, pnull_value);
     break;
   default:
-    *pbgdone= false;
+    DBUG_ASSERT(false);
     break;
   }
 
@@ -1406,13 +1765,8 @@ multipolygon_disjoint_geometry(Geometry *g1, Geometry *g2,
   Dispatcher for 'point intersects xxx'.
 
   @tparam Geom_types Geometry types definitions.
-  @param g1 First Geometry operand, a Point.
+  @param g1 First Geometry operand, a point.
   @param g2 Second Geometry operand, not a geometry collection.
-  @param[out] pbgdone Returns whether the specified relation check operation is
-        performed. For now BG doesn't support many type combinatioons
-        for each type of relation check. We have implemented some of the
-        checks for some type combinations, which are not supported by BG,
-        bgdone will also be set to true for such checks.
   @param[out] pnull_value Returns whether error occured duirng the computation.
   @return 0 if specified relation doesn't hold for the given operands,
                 otherwise returns none 0.
@@ -1420,32 +1774,29 @@ multipolygon_disjoint_geometry(Geometry *g1, Geometry *g2,
 template<typename Geom_types>
 int BG_wrap<Geom_types>::
 point_intersects_geometry(Geometry *g1, Geometry *g2,
-                          bool *pbgdone, my_bool *pnull_value)
+                          my_bool *pnull_value)
 {
   int result= 0;
   Geometry::wkbType gt2= g2->get_type();
-
-  *pbgdone= false;
 
   switch (gt2)
   {
   case Geometry::wkb_point:
     BGCALL(result, intersects, Point, g1, Point, g2, pnull_value);
-    *pbgdone= true;
     break;
   case Geometry::wkb_multipoint:
-    result= !point_disjoint_geometry(g1, g2, pbgdone, pnull_value);
-    *pbgdone= true;
+  case Geometry::wkb_linestring:
+  case Geometry::wkb_multilinestring:
+    result= !point_disjoint_geometry(g1, g2, pnull_value);
     break;
   case Geometry::wkb_polygon:
     BGCALL(result, intersects, Point, g1, Polygon, g2, pnull_value);
-    *pbgdone= true;
     break;
   case Geometry::wkb_multipolygon:
     BGCALL(result, intersects, Point, g1, Multipolygon, g2, pnull_value);
-    *pbgdone= true;
     break;
   default:
+    DBUG_ASSERT(false);
     break;
   }
   return result;
@@ -1456,13 +1807,8 @@ point_intersects_geometry(Geometry *g1, Geometry *g2,
   Dispatcher for 'multipoint intersects xxx'.
 
   @tparam Geom_types Geometry types definitions.
-  @param g1 First Geometry operand, a Point.
+  @param g1 First Geometry operand, a multipoint.
   @param g2 Second Geometry operand, not a geometry collection.
-  @param[out] pbgdone Returns whether the specified relation check operation is
-        performed. For now BG doesn't support many type combinatioons
-        for each type of relation check. We have implemented some of the
-        checks for some type combinations, which are not supported by BG,
-        bgdone will also be set to true for such checks.
   @param[out] pnull_value Returns whether error occured duirng the computation.
   @return 0 if specified relation doesn't hold for the given operands,
                 otherwise returns none 0.
@@ -1470,25 +1816,9 @@ point_intersects_geometry(Geometry *g1, Geometry *g2,
 template<typename Geom_types>
 int BG_wrap<Geom_types>::
 multipoint_intersects_geometry(Geometry *g1, Geometry *g2,
-                               bool *pbgdone, my_bool *pnull_value)
+                               my_bool *pnull_value)
 {
-  int result= 0;
-  Geometry::wkbType gt2= g2->get_type();
-
-  *pbgdone= false;
-
-  switch(gt2)
-  {
-  case Geometry::wkb_point:
-  case Geometry::wkb_multipoint:
-  case Geometry::wkb_polygon:
-  case Geometry::wkb_multipolygon:
-    result= !multipoint_disjoint_geometry(g1, g2, pbgdone, pnull_value);
-    break;
-  default:
-    break;
-  }
-  return result;
+  return !multipoint_disjoint_geometry(g1, g2, pnull_value);
 }
 
 
@@ -1496,13 +1826,8 @@ multipoint_intersects_geometry(Geometry *g1, Geometry *g2,
   Dispatcher for 'linestring intersects xxx'.
 
   @tparam Geom_types Geometry types definitions.
-  @param g1 First Geometry operand, a Point.
+  @param g1 First Geometry operand, a linestring.
   @param g2 Second Geometry operand, not a geometry collection.
-  @param[out] pbgdone Returns whether the specified relation check operation is
-        performed. For now BG doesn't support many type combinatioons
-        for each type of relation check. We have implemented some of the
-        checks for some type combinations, which are not supported by BG,
-        bgdone will also be set to true for such checks.
   @param[out] pnull_value Returns whether error occured duirng the computation.
   @return 0 if specified relation doesn't hold for the given operands,
                 otherwise returns none 0.
@@ -1510,22 +1835,25 @@ multipoint_intersects_geometry(Geometry *g1, Geometry *g2,
 template<typename Geom_types>
 int BG_wrap<Geom_types>::
 linestring_intersects_geometry(Geometry *g1, Geometry *g2,
-                               bool *pbgdone, my_bool *pnull_value)
+                               my_bool *pnull_value)
 {
   int result= 0;
   Geometry::wkbType gt2= g2->get_type();
 
-  *pbgdone= false;
-
-  if (gt2 == Geometry::wkb_linestring)
-  {
+  if (gt2 == Geometry::wkb_point)
+    BGCALL(result, intersects, Linestring, g1, Point, g2, pnull_value);
+  else if (gt2 == Geometry::wkb_multipoint)
+    result= multipoint_intersects_geometry(g2, g1, pnull_value);
+  else if (gt2 == Geometry::wkb_linestring)
     BGCALL(result, intersects, Linestring, g1, Linestring, g2, pnull_value);
-    *pbgdone= true;
-  }
   else if (gt2 == Geometry::wkb_multilinestring)
-  {
-    result= !linestring_disjoint_geometry(g1, g2, pbgdone, pnull_value);
-  }
+    BGCALL(result, intersects, Linestring, g1, Multilinestring, g2, pnull_value);
+  else if (gt2 == Geometry::wkb_polygon)
+    BGCALL(result, intersects, Linestring, g1, Polygon, g2, pnull_value);
+  else if (gt2 == Geometry::wkb_multipolygon)
+    BGCALL(result, intersects, Linestring, g1, Multipolygon, g2, pnull_value);
+  else
+    DBUG_ASSERT(false);
 
   return result;
 }
@@ -1535,13 +1863,8 @@ linestring_intersects_geometry(Geometry *g1, Geometry *g2,
   Dispatcher for 'multilinestring intersects xxx'.
 
   @tparam Geom_types Geometry types definitions.
-  @param g1 First Geometry operand, a Point.
+  @param g1 First Geometry operand, a multilinestring.
   @param g2 Second Geometry operand, not a geometry collection.
-  @param[out] pbgdone Returns whether the specified relation check operation is
-        performed. For now BG doesn't support many type combinatioons
-        for each type of relation check. We have implemented some of the
-        checks for some type combinations, which are not supported by BG,
-        bgdone will also be set to true for such checks.
   @param[out] pnull_value Returns whether error occured duirng the computation.
   @return 0 if specified relation doesn't hold for the given operands,
                 otherwise returns none 0.
@@ -1549,18 +1872,25 @@ linestring_intersects_geometry(Geometry *g1, Geometry *g2,
 template<typename Geom_types>
 int BG_wrap<Geom_types>::
 multilinestring_intersects_geometry(Geometry *g1, Geometry *g2,
-                                    bool *pbgdone, my_bool *pnull_value)
+                                    my_bool *pnull_value)
 {
   int result= 0;
   Geometry::wkbType gt2= g2->get_type();
 
-  if (gt2 == Geometry::wkb_linestring ||
-      gt2 == Geometry::wkb_multilinestring)
-    result= (!BG_wrap<Geom_types>::
-             multilinestring_disjoint_geometry(g1, g2,
-                                               pbgdone, pnull_value) ? 1 : 0);
+  if (gt2 == Geometry::wkb_point)
+    BGCALL(result, intersects, Multilinestring, g1, Point, g2, pnull_value);
+  else if (gt2 == Geometry::wkb_multipoint)
+    result= multipoint_intersects_geometry(g2, g1, pnull_value);
+  else if (gt2 == Geometry::wkb_linestring)
+    BGCALL(result, intersects, Multilinestring, g1, Linestring, g2, pnull_value);
+  else if (gt2 == Geometry::wkb_multilinestring)
+    BGCALL(result, intersects, Multilinestring, g1, Multilinestring, g2, pnull_value);
+  else if (gt2 == Geometry::wkb_polygon)
+    BGCALL(result, intersects, Multilinestring, g1, Polygon, g2, pnull_value);
+  else if (gt2 == Geometry::wkb_multipolygon)
+    BGCALL(result, intersects, Multilinestring, g1, Multipolygon, g2, pnull_value);
   else
-    *pbgdone= false;
+    DBUG_ASSERT(false);
 
   return result;
 }
@@ -1570,13 +1900,8 @@ multilinestring_intersects_geometry(Geometry *g1, Geometry *g2,
   Dispatcher for 'polygon intersects xxx'.
 
   @tparam Geom_types Geometry types definitions.
-  @param g1 First Geometry operand, a Point.
+  @param g1 First Geometry operand, a polygon.
   @param g2 Second Geometry operand, not a geometry collection.
-  @param[out] pbgdone Returns whether the specified relation check operation is
-        performed. For now BG doesn't support many type combinatioons
-        for each type of relation check. We have implemented some of the
-        checks for some type combinations, which are not supported by BG,
-        bgdone will also be set to true for such checks.
   @param[out] pnull_value Returns whether error occured duirng the computation.
   @return 0 if specified relation doesn't hold for the given operands,
                 otherwise returns none 0.
@@ -1584,31 +1909,33 @@ multilinestring_intersects_geometry(Geometry *g1, Geometry *g2,
 template<typename Geom_types>
 int BG_wrap<Geom_types>::
 polygon_intersects_geometry(Geometry *g1, Geometry *g2,
-                            bool *pbgdone, my_bool *pnull_value)
+                            my_bool *pnull_value)
 {
   int result= 0;
   Geometry::wkbType gt2= g2->get_type();
-
-  *pbgdone= false;
 
   switch (gt2)
   {
   case Geometry::wkb_point:
     BGCALL(result, intersects, Polygon, g1, Point, g2, pnull_value);
-    *pbgdone= true;
     break;
   case Geometry::wkb_multipoint:
-    result= !multipoint_disjoint_geometry(g2, g1, pbgdone, pnull_value);
+    result= !multipoint_disjoint_geometry(g2, g1, pnull_value);
     break;
   case Geometry::wkb_polygon:
     BGCALL(result, intersects, Polygon, g1, Polygon, g2, pnull_value);
-    *pbgdone= true;
     break;
   case Geometry::wkb_multipolygon:
     BGCALL(result, intersects, Polygon, g1, Multipolygon, g2, pnull_value);
-    *pbgdone= true;
+    break;
+  case Geometry::wkb_linestring:
+    BGCALL(result, intersects, Polygon, g1, Linestring, g2, pnull_value);
+    break;
+  case Geometry::wkb_multilinestring:
+    BGCALL(result, intersects, Polygon, g1, Multilinestring, g2, pnull_value);
     break;
   default:
+    DBUG_ASSERT(false);
     break;
   }
 
@@ -1620,13 +1947,8 @@ polygon_intersects_geometry(Geometry *g1, Geometry *g2,
   Dispatcher for 'multipolygon intersects xxx'.
 
   @tparam Geom_types Geometry types definitions.
-  @param g1 First Geometry operand, a Point.
+  @param g1 First Geometry operand, a multipolygon.
   @param g2 Second Geometry operand, not a geometry collection.
-  @param[out] pbgdone Returns whether the specified relation check operation is
-        performed. For now BG doesn't support many type combinatioons
-        for each type of relation check. We have implemented some of the
-        checks for some type combinations, which are not supported by BG,
-        bgdone will also be set to true for such checks.
   @param[out] pnull_value Returns whether error occured duirng the computation.
   @return 0 if specified relation doesn't hold for the given operands,
                 otherwise returns none 0.
@@ -1634,31 +1956,116 @@ polygon_intersects_geometry(Geometry *g1, Geometry *g2,
 template<typename Geom_types>
 int BG_wrap<Geom_types>::
 multipolygon_intersects_geometry(Geometry *g1, Geometry *g2,
-                                 bool *pbgdone, my_bool *pnull_value)
+                                 my_bool *pnull_value)
 {
   int result= 0;
   Geometry::wkbType gt2= g2->get_type();
-
-  *pbgdone= false;
 
   switch (gt2)
   {
   case Geometry::wkb_point:
     BGCALL(result, intersects, Multipolygon, g1, Point, g2, pnull_value);
-    *pbgdone= true;
     break;
   case Geometry::wkb_multipoint:
-    result= !multipoint_disjoint_geometry(g2, g1, pbgdone, pnull_value);
+    result= !multipoint_disjoint_geometry(g2, g1, pnull_value);
     break;
   case Geometry::wkb_polygon:
     BGCALL(result, intersects, Multipolygon, g1, Polygon, g2, pnull_value);
-    *pbgdone= true;
     break;
   case Geometry::wkb_multipolygon:
     BGCALL(result, intersects, Multipolygon, g1, Multipolygon, g2, pnull_value);
-    *pbgdone= true;
+    break;
+  case Geometry::wkb_linestring:
+    BGCALL(result, intersects, Multipolygon, g1, Linestring, g2, pnull_value);
+    break;
+  case Geometry::wkb_multilinestring:
+    BGCALL(result, intersects, Multipolygon, g1, Multilinestring, g2, pnull_value);
     break;
   default:
+    DBUG_ASSERT(false);
+    break;
+  }
+  return result;
+}
+
+
+/**
+  Dispatcher for 'linestring crosses xxx'.
+
+  @tparam Geom_types Geometry types definitions.
+  @param g1 First Geometry operand, a linestring.
+  @param g2 Second Geometry operand, not a geometry collection.
+  @param[out] pnull_value Returns whether error occured duirng the computation.
+  @return 0 if specified relation doesn't hold for the given operands,
+                otherwise returns none 0.
+ */
+template<typename Geom_types>
+int BG_wrap<Geom_types>::
+linestring_crosses_geometry(Geometry *g1, Geometry *g2,
+                            my_bool *pnull_value)
+{
+  int result= 0;
+  Geometry::wkbType gt2= g2->get_type();
+
+  switch (gt2)
+  {
+  case Geometry::wkb_linestring:
+    BGCALL(result, crosses, Linestring, g1, Linestring, g2, pnull_value);
+    break;
+  case Geometry::wkb_multilinestring:
+    BGCALL(result, crosses, Linestring, g1,
+           Multilinestring, g2, pnull_value);
+    break;
+  case Geometry::wkb_polygon:
+    BGCALL(result, crosses, Linestring, g1, Polygon, g2, pnull_value);
+    break;
+  case Geometry::wkb_multipolygon:
+    BGCALL(result, crosses, Linestring, g1, Multipolygon, g2, pnull_value);
+    break;
+  default:
+    DBUG_ASSERT(false);
+    break;
+  }
+
+  return result;
+}
+
+
+/**
+  Dispatcher for 'multilinestring crosses xxx'.
+
+  @tparam Geom_types Geometry types definitions.
+  @param g1 First Geometry operand, a multilinestring.
+  @param g2 Second Geometry operand, not a geometry collection.
+  @param[out] pnull_value Returns whether error occured duirng the computation.
+  @return 0 if specified relation doesn't hold for the given operands,
+                otherwise returns none 0.
+ */
+template<typename Geom_types>
+int BG_wrap<Geom_types>::
+multilinestring_crosses_geometry(Geometry *g1, Geometry *g2,
+                                 my_bool *pnull_value)
+{
+  int result= 0;
+  Geometry::wkbType gt2= g2->get_type();
+
+  switch (gt2)
+  {
+  case Geometry::wkb_linestring:
+    BGCALL(result, crosses, Multilinestring, g1, Linestring, g2, pnull_value);
+    break;
+  case Geometry::wkb_multilinestring:
+    BGCALL(result, crosses, Multilinestring, g1,
+           Multilinestring, g2, pnull_value);
+    break;
+  case Geometry::wkb_polygon:
+    BGCALL(result, crosses, Multilinestring, g1, Polygon, g2, pnull_value);
+    break;
+  case Geometry::wkb_multipolygon:
+    BGCALL(result, crosses, Multilinestring, g1, Multipolygon, g2, pnull_value);
+    break;
+  default:
+    DBUG_ASSERT(false);
     break;
   }
   return result;
@@ -1669,13 +2076,8 @@ multipolygon_intersects_geometry(Geometry *g1, Geometry *g2,
   Dispatcher for 'multipoint crosses xxx'.
 
   @tparam Geom_types Geometry types definitions.
-  @param g1 First Geometry operand, a Point.
+  @param g1 First Geometry operand, a multipoint.
   @param g2 Second Geometry operand, not a geometry collection.
-  @param[out] pbgdone Returns whether the specified relation check operation is
-        performed. For now BG doesn't support many type combinatioons
-        for each type of relation check. We have implemented some of the
-        checks for some type combinations, which are not supported by BG,
-        bgdone will also be set to true for such checks.
   @param[out] pnull_value Returns whether error occured duirng the computation.
   @return 0 if specified relation doesn't hold for the given operands,
                 otherwise returns none 0.
@@ -1683,12 +2085,10 @@ multipolygon_intersects_geometry(Geometry *g1, Geometry *g2,
 template<typename Geom_types>
 int BG_wrap<Geom_types>::
 multipoint_crosses_geometry(Geometry *g1, Geometry *g2,
-                            bool *pbgdone, my_bool *pnull_value)
+                            my_bool *pnull_value)
 {
   int result= 0;
   Geometry::wkbType gt2= g2->get_type();
-
-  *pbgdone= false;
 
   switch (gt2)
   {
@@ -1697,7 +2097,7 @@ multipoint_crosses_geometry(Geometry *g1, Geometry *g2,
   case Geometry::wkb_polygon:
   case Geometry::wkb_multipolygon:
     {
-      bool isdone= false, has_in= false, has_out= false;
+      bool has_in= false, has_out= false;
       int res= 0;
 
       Multipoint mpts(g1->get_data_ptr(),
@@ -1709,28 +2109,31 @@ multipoint_crosses_geometry(Geometry *g1, Geometry *g2,
       for (TYPENAME Multipoint::iterator i= mpts.begin(); i != mpts.end() &&
            !(has_in && has_out); ++i)
       {
-        res= point_disjoint_geometry(&(*i), g2, &isdone, pnull_value);
+        if (!has_out)
+        {
+          res= point_disjoint_geometry(&(*i), g2, pnull_value);
 
-        if (isdone && !*pnull_value)
-        {
-          if (!res)
-            has_in= true;
+          if (!*pnull_value)
+          {
+            has_out= res;
+            if (has_out)
+              continue;
+          }
           else
-            has_out= true;
+            return 0;
         }
-        else
+
+        if (!has_in)
         {
-          *pbgdone= false;
-          return 0;
+          res= point_within_geometry(&(*i), g2, pnull_value);
+          if (!*pnull_value)
+            has_in= res;
+          else
+            return 0;
         }
       }
 
-      *pbgdone= true;
-
-      if (has_in && has_out)
-        result= 1;
-      else
-        result= 0;
+      result= (has_in && has_out);
     }
     break;
   default:
@@ -1746,13 +2149,8 @@ multipoint_crosses_geometry(Geometry *g1, Geometry *g2,
   Dispatcher for 'multipoint crosses xxx'.
 
   @tparam Geom_types Geometry types definitions.
-  @param g1 First Geometry operand, a Point.
+  @param g1 First Geometry operand, a multipoint.
   @param g2 Second Geometry operand, not a geometry collection.
-  @param[out] pbgdone Returns whether the specified relation check operation is
-        performed. For now BG doesn't support many type combinatioons
-        for each type of relation check. We have implemented some of the
-        checks for some type combinations, which are not supported by BG,
-        bgdone will also be set to true for such checks.
   @param[out] pnull_value Returns whether error occured duirng the computation.
   @return 0 if specified relation doesn't hold for the given operands,
                 otherwise returns none 0.
@@ -1760,11 +2158,9 @@ multipoint_crosses_geometry(Geometry *g1, Geometry *g2,
 template<typename Geom_types>
 int BG_wrap<Geom_types>::
 multipoint_overlaps_multipoint(Geometry *g1, Geometry *g2,
-                               bool *pbgdone, my_bool *pnull_value)
+                               my_bool *pnull_value)
 {
   int result= 0;
-
-  *pbgdone= false;
 
   Multipoint mpts1(g1->get_data_ptr(),
                    g1->get_data_size(), g1->get_flags(), g1->get_srid());
@@ -1792,7 +2188,305 @@ multipoint_overlaps_multipoint(Geometry *g1, Geometry *g2,
   else
     result= 0;
 
-  *pbgdone= true;
+  return result;
+}
+
+
+/**
+  Dispatcher for 'multilinestring touches polygon'.
+
+  @tparam Geom_types Geometry types definitions.
+  @param g1 First Geometry operand, a multilinestring.
+  @param g2 Second Geometry operand, a polygon.
+  @param[out] pnull_value Returns whether error occured duirng the computation.
+  @return 0 if specified relation doesn't hold for the given operands,
+                otherwise returns none 0.
+ */
+template<typename Geom_types>
+int BG_wrap<Geom_types>::
+multilinestring_touches_polygon(Geometry *g1, Geometry *g2,
+                                my_bool *pnull_value)
+{
+
+  const void *data_ptr= g2->normalize_ring_order();
+  if (data_ptr == NULL)
+  {
+    *pnull_value= true;
+    my_error(ER_GIS_INVALID_DATA, MYF(0), "st_touches");
+    return 0;
+  }
+
+  Polygon plgn(data_ptr, g2->get_data_size(),
+               g2->get_flags(), g2->get_srid());
+  Multilinestring mls(g1->get_data_ptr(), g1->get_data_size(),
+                      g1->get_flags(), g1->get_srid());
+
+  Multipolygon mplgn;
+  mplgn.push_back(plgn);
+
+  int result= boost::geometry::touches(mls, mplgn);
+
+  return result;
+}
+
+
+/**
+  Dispatcher for 'point touches geometry'.
+
+  @tparam Geom_types Geometry types definitions.
+  @param g1 First Geometry operand, a point.
+  @param g2 Second Geometry operand, a geometry other than geometry collection.
+  @param[out] pnull_value Returns whether error occured duirng the computation.
+  @return 0 if specified relation doesn't hold for the given operands,
+                otherwise returns none 0.
+ */
+template<typename Geom_types>
+int BG_wrap<Geom_types>::
+point_touches_geometry(Geometry *g1, Geometry *g2,
+                       my_bool *pnull_value)
+{
+  int result= 0;
+  Geometry::wkbType gt2= g2->get_type();
+
+  switch (gt2)
+  {
+  case Geometry::wkb_linestring:
+    BGCALL(result, touches, Point, g1, Linestring, g2, pnull_value);
+    break;
+  case Geometry::wkb_multilinestring:
+    BGCALL(result, touches, Point, g1, Multilinestring, g2, pnull_value);
+    break;
+  case Geometry::wkb_polygon:
+    BGCALL(result, touches, Point, g1, Polygon, g2, pnull_value);
+    break;
+  case Geometry::wkb_multipolygon:
+    BGCALL(result, touches, Point, g1, Multipolygon, g2, pnull_value);
+    break;
+  default:
+    DBUG_ASSERT(false);
+    break;
+  }
+
+  return result;
+}
+
+
+/**
+  Dispatcher for 'multipoint touches geometry'.
+
+  @tparam Geom_types Geometry types definitions.
+  @param g1 First Geometry operand, a multipoint.
+  @param g2 Second Geometry operand, a geometry other than geometry collection.
+  @param[out] pnull_value Returns whether error occured duirng the computation.
+  @return 0 if specified relation doesn't hold for the given operands,
+                otherwise returns none 0.
+ */
+template<typename Geom_types>
+int BG_wrap<Geom_types>::
+multipoint_touches_geometry(Geometry *g1, Geometry *g2,
+                            my_bool *pnull_value)
+{
+  int has_touches= 0;
+
+  Multipoint mpts(g1->get_data_ptr(), g1->get_data_size(),
+                  g1->get_flags(), g1->get_srid());
+  for (TYPENAME Multipoint::iterator i= mpts.begin(); i != mpts.end(); ++i)
+  {
+    int ptg= point_touches_geometry(&(*i), g2, pnull_value);
+    if (*pnull_value)
+      return 0;
+    if (ptg)
+      has_touches= 1;
+    else if (!point_disjoint_geometry(&(*i), g2, pnull_value))
+      return 0;
+  }
+
+  return has_touches;
+}
+
+
+/**
+  Dispatcher for 'linestring touches geometry'.
+
+  @tparam Geom_types Geometry types definitions.
+  @param g1 First Geometry operand, a linestring.
+  @param g2 Second Geometry operand, a geometry other than geometry collection.
+  @param[out] pnull_value Returns whether error occured duirng the computation.
+  @return 0 if specified relation doesn't hold for the given operands,
+                otherwise returns none 0.
+ */
+template<typename Geom_types>
+int BG_wrap<Geom_types>::
+linestring_touches_geometry(Geometry *g1, Geometry *g2,
+                            my_bool *pnull_value)
+{
+  int result= 0;
+  Geometry::wkbType gt2= g2->get_type();
+
+  switch (gt2)
+  {
+  case Geometry::wkb_point:
+    BGCALL(result, touches, Linestring, g1, Point, g2, pnull_value);
+    break;
+  case Geometry::wkb_multipoint:
+    result= multipoint_touches_geometry(g2, g1, pnull_value);
+    break;
+  case Geometry::wkb_linestring:
+    BGCALL(result, touches, Linestring, g1, Linestring, g2, pnull_value);
+    break;
+  case Geometry::wkb_multilinestring:
+    BGCALL(result, touches, Linestring, g1, Multilinestring, g2, pnull_value);
+    break;
+  case Geometry::wkb_polygon:
+    BGCALL(result, touches, Linestring, g1, Polygon, g2, pnull_value);
+    break;
+  case Geometry::wkb_multipolygon:
+    BGCALL(result, touches, Linestring, g1, Multipolygon, g2, pnull_value);
+    break;
+  default:
+    DBUG_ASSERT(false);
+    break;
+  }
+  return result;
+}
+
+
+/**
+  Dispatcher for 'multilinestring touches geometry'.
+
+  @tparam Geom_types Geometry types definitions.
+  @param g1 First Geometry operand, a multilinestring.
+  @param g2 Second Geometry operand, a geometry other than geometry collection.
+  @param[out] pnull_value Returns whether error occured duirng the computation.
+  @return 0 if specified relation doesn't hold for the given operands,
+                otherwise returns none 0.
+ */
+template<typename Geom_types>
+int BG_wrap<Geom_types>::
+multilinestring_touches_geometry(Geometry *g1, Geometry *g2,
+                                 my_bool *pnull_value)
+{
+  int result= 0;
+  Geometry::wkbType gt2= g2->get_type();
+
+  switch (gt2)
+  {
+  case Geometry::wkb_point:
+    BGCALL(result, touches, Multilinestring, g1, Point, g2, pnull_value);
+    break;
+  case Geometry::wkb_multipoint:
+    result= multipoint_touches_geometry(g2, g1, pnull_value);
+    break;
+  case Geometry::wkb_linestring:
+    BGCALL(result, touches, Multilinestring, g1, Linestring, g2, pnull_value);
+    break;
+  case Geometry::wkb_multilinestring:
+    BGCALL(result, touches, Multilinestring, g1, Multilinestring, g2, pnull_value);
+    break;
+  case Geometry::wkb_polygon:
+    result= BG_wrap<Geom_types>::
+      multilinestring_touches_polygon(g1, g2, pnull_value);
+    break;
+  case Geometry::wkb_multipolygon:
+    BGCALL(result, touches, Multilinestring, g1, Multipolygon, g2, pnull_value);
+    break;
+  default:
+    DBUG_ASSERT(false);
+    break;
+  }
+  return result;
+}
+
+
+/**
+  Dispatcher for 'polygon touches geometry'.
+
+  @tparam Geom_types Geometry types definitions.
+  @param g1 First Geometry operand, a polygon.
+  @param g2 Second Geometry operand, a geometry other than geometry collection.
+  @param[out] pnull_value Returns whether error occured duirng the computation.
+  @return 0 if specified relation doesn't hold for the given operands,
+                otherwise returns none 0.
+ */
+template<typename Geom_types>
+int BG_wrap<Geom_types>::
+polygon_touches_geometry(Geometry *g1, Geometry *g2,
+                         my_bool *pnull_value)
+{
+  int result= 0;
+  Geometry::wkbType gt2= g2->get_type();
+
+  switch (gt2)
+  {
+  case Geometry::wkb_point:
+    BGCALL(result, touches, Polygon, g1, Point, g2, pnull_value);
+    break;
+  case Geometry::wkb_multipoint:
+    result= multipoint_touches_geometry(g2, g1, pnull_value);
+    break;
+  case Geometry::wkb_polygon:
+    BGCALL(result, touches, Polygon, g1, Polygon, g2, pnull_value);
+    break;
+  case Geometry::wkb_multipolygon:
+    BGCALL(result, touches, Polygon, g1, Multipolygon, g2, pnull_value);
+    break;
+  case Geometry::wkb_linestring:
+    BGCALL(result, touches, Polygon, g1, Linestring, g2, pnull_value);
+    break;
+  case Geometry::wkb_multilinestring:
+    result= BG_wrap<Geom_types>::
+      multilinestring_touches_polygon(g2, g1, pnull_value);
+    break;
+  default:
+    DBUG_ASSERT(false);
+    break;
+  }
+  return result;
+}
+
+
+/**
+  Dispatcher for 'multipolygon touches geometry'.
+
+  @tparam Geom_types Geometry types definitions.
+  @param g1 First Geometry operand, a multipolygon.
+  @param g2 Second Geometry operand, a geometry other than geometry collection.
+  @param[out] pnull_value Returns whether error occured duirng the computation.
+  @return 0 if specified relation doesn't hold for the given operands,
+                otherwise returns none 0.
+ */
+template<typename Geom_types>
+int BG_wrap<Geom_types>::
+multipolygon_touches_geometry(Geometry *g1, Geometry *g2,
+                              my_bool *pnull_value)
+{
+  int result= 0;
+  Geometry::wkbType gt2= g2->get_type();
+
+  switch (gt2)
+  {
+  case Geometry::wkb_point:
+    BGCALL(result, touches, Multipolygon, g1, Point, g2, pnull_value);
+    break;
+  case Geometry::wkb_multipoint:
+    result= multipoint_touches_geometry(g2, g1, pnull_value);
+    break;
+  case Geometry::wkb_polygon:
+    BGCALL(result, touches, Multipolygon, g1, Polygon, g2, pnull_value);
+    break;
+  case Geometry::wkb_multipolygon:
+    BGCALL(result, touches, Multipolygon, g1, Multipolygon, g2, pnull_value);
+    break;
+  case Geometry::wkb_linestring:
+    BGCALL(result, touches, Multipolygon, g1, Linestring, g2, pnull_value);
+    break;
+  case Geometry::wkb_multilinestring:
+    BGCALL(result, touches, Multipolygon, g1, Multilinestring, g2, pnull_value);
+    break;
+  default:
+    DBUG_ASSERT(false);
+    break;
+  }
 
   return result;
 }
@@ -1804,18 +2498,13 @@ multipoint_overlaps_multipoint(Geometry *g1, Geometry *g2,
   @tparam Geom_types Geometry types definitions.
   @param g1 First Geometry operand, not a geometry collection.
   @param g2 Second Geometry operand, not a geometry collection.
-  @param[out] pbgdone Returns whether the specified relation check operation is
-        performed. For now BG doesn't support many type combinatioons
-        for each type of relation check. We have implemented some of the
-        checks for some type combinations, which are not supported by BG,
-        bgdone will also be set to true for such checks.
   @param[out] pnull_value Returns whether error occured duirng the computation.
   @return 0 if specified relation doesn't hold for the given operands,
                 otherwise returns none 0.
 */
 template<typename Geom_types>
 int Item_func_spatial_rel::within_check(Geometry *g1, Geometry *g2,
-                                        bool *pbgdone, my_bool *pnull_value)
+                                        my_bool *pnull_value)
 {
   Geometry::wkbType gt1;
   int result= 0;
@@ -1823,24 +2512,24 @@ int Item_func_spatial_rel::within_check(Geometry *g1, Geometry *g2,
   gt1= g1->get_type();
 
   if (gt1 == Geometry::wkb_point)
-    result= BG_wrap<Geom_types>::point_within_geometry(g1, g2,
-                                                       pbgdone, pnull_value);
+    result= BG_wrap<Geom_types>::point_within_geometry(g1, g2, pnull_value);
   else if (gt1 == Geometry::wkb_multipoint)
     result= BG_wrap<Geom_types>::
-      multipoint_within_geometry(g1, g2, pbgdone, pnull_value);
-  /*
-    Can't do above if gt1 is Linestring or Polygon, because g2 can be
-    an concave Polygon.
-    Note: need within(lstr, plgn), within(pnt, lstr), within(lstr, lstr),
-    within(plgn, plgn), (lstr, multiplgn), (lstr, multilstr),
-    (multilstr, multilstr), (multilstr, multiplgn), (multiplgn, multiplgn),
-    (plgn, multiplgn).
-
-    Note that we can't iterate geometries in multiplgn, multilstr one by one
-    and use within(lstr, plgn)(plgn, plgn) to do within computation for them
-    because it's possible for a lstr to be not in any member plgn but in the
-    multiplgn.
-   */
+      multipoint_within_geometry(g1, g2, pnull_value);
+  else if (gt1 == Geometry::wkb_linestring)
+    result= BG_wrap<Geom_types>::
+      linestring_within_geometry(g1, g2, pnull_value);
+  else if (gt1 == Geometry::wkb_multilinestring)
+    result= BG_wrap<Geom_types>::
+      multilinestring_within_geometry(g1, g2, pnull_value);
+  else if (gt1 == Geometry::wkb_polygon)
+    result= BG_wrap<Geom_types>::
+      polygon_within_geometry(g1, g2, pnull_value);
+  else if (gt1 == Geometry::wkb_multipolygon)
+    result= BG_wrap<Geom_types>::
+      multipolygon_within_geometry(g1, g2, pnull_value);
+  else
+    DBUG_ASSERT(false);
   return result;
 }
 
@@ -1853,27 +2542,22 @@ int Item_func_spatial_rel::within_check(Geometry *g1, Geometry *g2,
   @tparam Geom_types Geometry types definitions.
   @param g1 First Geometry operand, not a geometry collection.
   @param g2 Second Geometry operand, not a geometry collection.
-  @param[out] pbgdone Returns whether the specified relation check operation is
-        performed. For now BG doesn't support many type combinatioons
-        for each type of relation check. We have implemented some of the
-        checks for some type combinations, which are not supported by BG,
-        bgdone will also be set to true for such checks.
   @param[out] pnull_value Returns whether error occured duirng the computation.
   @return 0 if specified relation doesn't hold for the given operands,
                 otherwise returns none 0.
 */
 template<typename Geom_types>
 int Item_func_spatial_rel::equals_check(Geometry *g1, Geometry *g2,
-                                        bool *pbgdone, my_bool *pnull_value)
+                                        my_bool *pnull_value)
 {
   typedef typename Geom_types::Point Point;
   typedef typename Geom_types::Linestring Linestring;
+  typedef typename Geom_types::Multilinestring Multilinestring;
   typedef typename Geom_types::Polygon Polygon;
   typedef typename Geom_types::Multipoint Multipoint;
   typedef typename Geom_types::Multipolygon Multipolygon;
   typedef std::set<Point, bgpt_lt> Point_set;
 
-  *pbgdone= false;
   int result= 0;
   Geometry::wkbType gt1= g1->get_type();
   Geometry::wkbType gt2= g2->get_type();
@@ -1883,7 +2567,6 @@ int Item_func_spatial_rel::equals_check(Geometry *g1, Geometry *g2,
     combinations always result as false. This is different from all other types
     of geometry relation checks.
    */
-  *pbgdone= true;
   if (gt1 == Geometry::wkb_point)
   {
     if (gt2 == Geometry::wkb_point)
@@ -1905,24 +2588,20 @@ int Item_func_spatial_rel::equals_check(Geometry *g1, Geometry *g2,
   }
   else if (gt1 == Geometry::wkb_multipoint)
     result= BG_wrap<Geom_types>::
-      multipoint_equals_geometry(g1, g2, pbgdone, pnull_value);
+      multipoint_equals_geometry(g1, g2, pnull_value);
   else if (gt1 == Geometry::wkb_linestring &&
            gt2 == Geometry::wkb_linestring)
     BGCALL(result, equals, Linestring, g1, Linestring, g2, pnull_value);
-  else if ((gt1 == Geometry::wkb_linestring &&
-            gt2 == Geometry::wkb_multilinestring) ||
-           (gt2 == Geometry::wkb_linestring &&
-            gt1 == Geometry::wkb_multilinestring) ||
-           (gt2 == Geometry::wkb_multilinestring &&
-            gt1 == Geometry::wkb_multilinestring))
-  {
-    *pbgdone= false;
-    /*
-      Note: can't handle this case simply like Multipoint&point above,
-      because multiple line segments can form a longer linesegment equal
-      to a single line segment.
-     */
-  }
+  else if (gt1 == Geometry::wkb_linestring &&
+           gt2 == Geometry::wkb_multilinestring)
+    BGCALL(result, equals, Linestring, g1, Multilinestring, g2, pnull_value);
+  else if (gt2 == Geometry::wkb_linestring &&
+           gt1 == Geometry::wkb_multilinestring)
+    BGCALL(result, equals, Multilinestring, g1, Linestring, g2, pnull_value);
+  else if (gt2 == Geometry::wkb_multilinestring &&
+           gt1 == Geometry::wkb_multilinestring)
+    BGCALL(result, equals, Multilinestring, g1, Multilinestring,
+           g2, pnull_value);
   else if (gt1 == Geometry::wkb_polygon && gt2 == Geometry::wkb_polygon)
     BGCALL(result, equals, Polygon, g1, Polygon, g2, pnull_value);
   else if (gt1 == Geometry::wkb_polygon && gt2 ==Geometry::wkb_multipolygon)
@@ -1933,6 +2612,7 @@ int Item_func_spatial_rel::equals_check(Geometry *g1, Geometry *g2,
            gt2 == Geometry::wkb_multipolygon)
     BGCALL(result, equals, Multipolygon, g1, Multipolygon, g2, pnull_value);
   else
+    /* This branch covers all the unequal dimension combinations. */
     result= 0;
   return result;
 }
@@ -1946,52 +2626,47 @@ int Item_func_spatial_rel::equals_check(Geometry *g1, Geometry *g2,
   @tparam Geom_types Geometry types definitions.
   @param g1 First Geometry operand, not a geometry collection.
   @param g2 Second Geometry operand, not a geometry collection.
-  @param[out] pbgdone Returns whether the specified relation check operation is
-        performed. For now BG doesn't support many type combinatioons
-        for each type of relation check. We have implemented some of the
-        checks for some type combinations, which are not supported by BG,
-        bgdone will also be set to true for such checks.
   @param[out] pnull_value Returns whether error occured duirng the computation.
   @return 0 if specified relation doesn't hold for the given operands,
                 otherwise returns none 0.
 */
 template<typename Geom_types>
 int Item_func_spatial_rel::disjoint_check(Geometry *g1, Geometry *g2,
-                                          bool *pbgdone, my_bool *pnull_value)
+                                          my_bool *pnull_value)
 {
   Geometry::wkbType gt1;
   int result= 0;
 
-  *pbgdone= false;
   gt1= g1->get_type();
 
   switch (gt1)
   {
   case Geometry::wkb_point:
     result= BG_wrap<Geom_types>::
-      point_disjoint_geometry(g1, g2, pbgdone, pnull_value);
+      point_disjoint_geometry(g1, g2, pnull_value);
     break;
   case Geometry::wkb_multipoint:
     result= BG_wrap<Geom_types>::
-      multipoint_disjoint_geometry(g1, g2, pbgdone, pnull_value);
+      multipoint_disjoint_geometry(g1, g2, pnull_value);
     break;
   case Geometry::wkb_linestring:
     result= BG_wrap<Geom_types>::
-      linestring_disjoint_geometry(g1, g2, pbgdone, pnull_value);
+      linestring_disjoint_geometry(g1, g2, pnull_value);
     break;
   case Geometry::wkb_multilinestring:
     result= BG_wrap<Geom_types>::
-      multilinestring_disjoint_geometry(g1, g2, pbgdone, pnull_value);
+      multilinestring_disjoint_geometry(g1, g2, pnull_value);
     break;
   case Geometry::wkb_polygon:
     result= BG_wrap<Geom_types>::
-      polygon_disjoint_geometry(g1, g2, pbgdone, pnull_value);
+      polygon_disjoint_geometry(g1, g2, pnull_value);
     break;
   case Geometry::wkb_multipolygon:
     result= BG_wrap<Geom_types>::
-      multipolygon_disjoint_geometry(g1, g2, pbgdone, pnull_value);
+      multipolygon_disjoint_geometry(g1, g2, pnull_value);
     break;
   default:
+    DBUG_ASSERT(false);
     break;
   }
 
@@ -2010,21 +2685,15 @@ int Item_func_spatial_rel::disjoint_check(Geometry *g1, Geometry *g2,
   @tparam Geom_types Geometry types definitions.
   @param g1 First Geometry operand, not a geometry collection.
   @param g2 Second Geometry operand, not a geometry collection.
-  @param[out] pbgdone Returns whether the specified relation check operation is
-        performed. For now BG doesn't support many type combinatioons
-        for each type of relation check. We have implemented some of the
-        checks for some type combinations, which are not supported by BG,
-        bgdone will also be set to true for such checks.
   @param[out] pnull_value Returns whether error occured duirng the computation.
   @return 0 if specified relation doesn't hold for the given operands,
                 otherwise returns none 0.
 */
 template<typename Geom_types>
 int Item_func_spatial_rel::intersects_check(Geometry *g1, Geometry *g2,
-                                            bool *pbgdone, my_bool *pnull_value)
+                                            my_bool *pnull_value)
 {
   Geometry::wkbType gt1;
-  *pbgdone= false;
   int result= 0;
 
   gt1= g1->get_type();
@@ -2037,30 +2706,30 @@ int Item_func_spatial_rel::intersects_check(Geometry *g1, Geometry *g2,
   {
   case Geometry::wkb_point:
     result= BG_wrap<Geom_types>::
-      point_intersects_geometry(g1, g2, pbgdone, pnull_value);
+      point_intersects_geometry(g1, g2, pnull_value);
     break;
   case Geometry::wkb_multipoint:
     result= BG_wrap<Geom_types>::
-      multipoint_intersects_geometry(g1, g2, pbgdone, pnull_value);
+      multipoint_intersects_geometry(g1, g2, pnull_value);
     break;
   case Geometry::wkb_linestring:
     result= BG_wrap<Geom_types>::
-      linestring_intersects_geometry(g1, g2, pbgdone, pnull_value);
+      linestring_intersects_geometry(g1, g2, pnull_value);
     break;
   case Geometry::wkb_multilinestring:
     result= BG_wrap<Geom_types>::
-      multilinestring_intersects_geometry(g1, g2, pbgdone, pnull_value);
+      multilinestring_intersects_geometry(g1, g2, pnull_value);
     break;
   case Geometry::wkb_polygon:
     result= BG_wrap<Geom_types>::
-      polygon_intersects_geometry(g1, g2, pbgdone, pnull_value);
+      polygon_intersects_geometry(g1, g2, pnull_value);
     break;
   case Geometry::wkb_multipolygon:
     result= BG_wrap<Geom_types>::
-      multipolygon_intersects_geometry(g1, g2, pbgdone, pnull_value);
+      multipolygon_intersects_geometry(g1, g2, pnull_value);
     break;
   default:
-    *pbgdone= false;
+    DBUG_ASSERT(false);
     break;
   }
   /*
@@ -2078,32 +2747,29 @@ int Item_func_spatial_rel::intersects_check(Geometry *g1, Geometry *g2,
   @tparam Geom_types Geometry types definitions.
   @param g1 First Geometry operand, not a geometry collection.
   @param g2 Second Geometry operand, not a geometry collection.
-  @param[out] pbgdone Returns whether the specified relation check operation is
-        performed. For now BG doesn't support many type combinatioons
-        for each type of relation check. We have implemented some of the
-        checks for some type combinations, which are not supported by BG,
-        bgdone will also be set to true for such checks.
   @param[out] pnull_value Returns whether error occured duirng the computation.
   @return 0 if specified relation doesn't hold for the given operands,
                 otherwise returns none 0.
 */
 template<typename Geom_types>
 int Item_func_spatial_rel::overlaps_check(Geometry *g1, Geometry *g2,
-                                          bool *pbgdone, my_bool *pnull_value)
+                                          my_bool *pnull_value)
 {
   typedef typename Geom_types::Point Point;
   typedef typename Geom_types::Multipoint Multipoint;
+  typedef typename Geom_types::Linestring Linestring;
+  typedef typename Geom_types::Multilinestring Multilinestring;
+  typedef typename Geom_types::Polygon Polygon;
+  typedef typename Geom_types::Multipolygon Multipolygon;
   typedef std::set<Point, bgpt_lt> Point_set;
   typedef std::vector<Point> Point_vector;
 
   int result= 0;
-  *pbgdone= false;
   Geometry::wkbType gt1= g1->get_type();
   Geometry::wkbType gt2= g2->get_type();
 
   if (g1->feature_dimension() != g2->feature_dimension())
   {
-    *pbgdone= true;
     /*
       OGC says this is not applicable, and we always return false for
       inapplicable situations.
@@ -2112,18 +2778,86 @@ int Item_func_spatial_rel::overlaps_check(Geometry *g1, Geometry *g2,
   }
 
   if (gt1 == Geometry::wkb_point || gt2 == Geometry::wkb_point)
-  {
-    *pbgdone= true;
-    result= 0;
-  }
+    return 0;
 
   if (gt1 == Geometry::wkb_multipoint && gt2 == Geometry::wkb_multipoint)
+  {
     result= BG_wrap<Geom_types>::
-      multipoint_overlaps_multipoint(g1, g2, pbgdone, pnull_value);
+      multipoint_overlaps_multipoint(g1, g2, pnull_value);
+    return result;
+  }
 
-  /*
-    Note: Need overlaps([m]ls, [m]ls), overlaps([m]plgn, [m]plgn).
-   */
+  switch (gt1)
+  {
+  case Geometry::wkb_linestring:
+  {
+    switch (gt2)
+    {
+    case Geometry::wkb_linestring:
+      BGCALL(result, overlaps, Linestring, g1, Linestring, g2, pnull_value);
+      break;
+    case Geometry::wkb_multilinestring:
+      BGCALL(result, overlaps, Linestring, g1, Multilinestring, g2, pnull_value);
+      break;
+    default:
+      DBUG_ASSERT(false);
+      break;
+    }
+    break;
+  }
+  case Geometry::wkb_multilinestring:
+  {
+    switch (gt2)
+    {
+    case Geometry::wkb_linestring:
+      BGCALL(result, overlaps, Multilinestring, g1, Linestring, g2, pnull_value);
+      break;
+    case Geometry::wkb_multilinestring:
+      BGCALL(result, overlaps, Multilinestring, g1, Multilinestring, g2, pnull_value);
+      break;
+    default:
+      DBUG_ASSERT(false);
+      break;
+    }
+    break;
+  }
+  case Geometry::wkb_polygon:
+  {
+    switch (gt2)
+    {
+    case Geometry::wkb_polygon:
+      BGCALL(result, overlaps, Polygon, g1, Polygon, g2, pnull_value);
+      break;
+    case Geometry::wkb_multipolygon:
+      BGCALL(result, overlaps, Polygon, g1, Multipolygon, g2, pnull_value);
+      break;
+    default:
+      DBUG_ASSERT(false);
+      break;
+    }
+    break;
+  }
+  case Geometry::wkb_multipolygon:
+  {
+    switch (gt2)
+    {
+    case Geometry::wkb_polygon:
+      BGCALL(result, overlaps, Multipolygon, g1, Polygon, g2, pnull_value);
+      break;
+    case Geometry::wkb_multipolygon:
+      BGCALL(result, overlaps, Multipolygon, g1, Multipolygon, g2, pnull_value);
+      break;
+    default:
+      DBUG_ASSERT(false);
+      break;
+    }
+    break;
+  }
+  default:
+    DBUG_ASSERT(false);
+    break;
+  }
+
   return result;
 }
 
@@ -2136,31 +2870,26 @@ int Item_func_spatial_rel::overlaps_check(Geometry *g1, Geometry *g2,
   @tparam Geom_types Geometry types definitions.
   @param g1 First Geometry operand, not a geometry collection.
   @param g2 Second Geometry operand, not a geometry collection.
-  @param[out] pbgdone Returns whether the specified relation check operation is
-        performed. For now BG doesn't support many type combinatioons
-        for each type of relation check. We have implemented some of the
-        checks for some type combinations, which are not supported by BG,
-        bgdone will also be set to true for such checks.
   @param[out] pnull_value Returns whether error occured duirng the computation.
   @return 0 if specified relation doesn't hold for the given operands,
                 otherwise returns none 0.
 */
 template<typename Geom_types>
 int Item_func_spatial_rel::touches_check(Geometry *g1, Geometry *g2,
-                                         bool *pbgdone, my_bool *pnull_value)
+                                         my_bool *pnull_value)
 {
+  typedef typename Geom_types::Linestring Linestring;
+  typedef typename Geom_types::Multilinestring Multilinestring;
   typedef typename Geom_types::Polygon Polygon;
   typedef typename Geom_types::Multipolygon Multipolygon;
 
   int result= 0;
-  *pbgdone= false;
   Geometry::wkbType gt1= g1->get_type();
   Geometry::wkbType gt2= g2->get_type();
 
   if ((gt1 == Geometry::wkb_point || gt1 == Geometry::wkb_multipoint) &&
       (gt2 == Geometry::wkb_point || gt2 == Geometry::wkb_multipoint))
   {
-    *pbgdone= true;
     /*
       OGC says this is not applicable, and we always return false for
       inapplicable situations.
@@ -2168,51 +2897,38 @@ int Item_func_spatial_rel::touches_check(Geometry *g1, Geometry *g2,
     return 0;
   }
   /*
-    Touches is symetric, and one argument is allowed to be a Point/multipoint.
+    Touches is symetric, and one argument is allowed to be a point/multipoint.
    */
   switch (gt1)
   {
+  case Geometry::wkb_point:
+    result= BG_wrap<Geom_types>::
+      point_touches_geometry(g1, g2, pnull_value);
+    break;
+  case Geometry::wkb_multipoint:
+    result= BG_wrap<Geom_types>::
+      multipoint_touches_geometry(g1, g2, pnull_value);
+    break;
+  case Geometry::wkb_linestring:
+    result= BG_wrap<Geom_types>::
+      linestring_touches_geometry(g1, g2, pnull_value);
+    break;
+  case Geometry::wkb_multilinestring:
+    result= BG_wrap<Geom_types>::
+      multilinestring_touches_geometry(g1, g2, pnull_value);
+    break;
   case Geometry::wkb_polygon:
-    switch (gt2)
-    {
-    case Geometry::wkb_polygon:
-      BGCALL(result, touches, Polygon, g1, Polygon, g2, pnull_value);
-      *pbgdone= true;
-      break;
-    case Geometry::wkb_multipolygon:
-      BGCALL(result, touches, Polygon, g1, Multipolygon, g2, pnull_value);
-      *pbgdone= true;
-      break;
-    default:
-      *pbgdone= false;
-      break;
-    }
+    result= BG_wrap<Geom_types>::
+      polygon_touches_geometry(g1, g2, pnull_value);
     break;
   case Geometry::wkb_multipolygon:
-    switch (gt2)
-    {
-    case Geometry::wkb_polygon:
-      BGCALL(result, touches, Multipolygon, g1, Polygon, g2, pnull_value);
-      *pbgdone= true;
-      break;
-    case Geometry::wkb_multipolygon:
-      BGCALL(result, touches, Multipolygon, g1, Multipolygon, g2, pnull_value);
-      *pbgdone= true;
-      break;
-    default:
-      *pbgdone= false;
-      break;
-    }
+    result= BG_wrap<Geom_types>::
+      multipolygon_touches_geometry(g1, g2, pnull_value);
     break;
   default:
-    *pbgdone= false;
+    DBUG_ASSERT(false);
     break;
   }
-  /*
-    Note: need touches(pnt, lstr), (pnt, plgn), (lstr, lstr), (lstr, plgn).
-    for multi geometry, can iterate geos in it and compute for
-    each geo separately.
-   */
   return result;
 }
 
@@ -2225,28 +2941,21 @@ int Item_func_spatial_rel::touches_check(Geometry *g1, Geometry *g2,
   @tparam Geom_types Geometry types definitions.
   @param g1 First Geometry operand, not a geometry collection.
   @param g2 Second Geometry operand, not a geometry collection.
-  @param[out] pbgdone Returns whether the specified relation check operation is
-        performed. For now BG doesn't support many type combinatioons
-        for each type of relation check. We have implemented some of the
-        checks for some type combinations, which are not supported by BG,
-        bgdone will also be set to true for such checks.
   @param[out] pnull_value Returns whether error occured duirng the computation.
   @return 0 if specified relation doesn't hold for the given operands,
                 otherwise returns none 0.
 */
 template<typename Geom_types>
 int Item_func_spatial_rel::crosses_check(Geometry *g1, Geometry *g2,
-                                         bool *pbgdone, my_bool *pnull_value)
+                                         my_bool *pnull_value)
 {
   int result= 0;
-  *pbgdone= false;
   Geometry::wkbType gt1= g1->get_type();
   Geometry::wkbType gt2= g2->get_type();
 
   if (gt1 == Geometry::wkb_polygon || gt2 == Geometry::wkb_point ||
       (gt1 == Geometry::wkb_multipolygon || gt2 == Geometry::wkb_multipoint))
   {
-    *pbgdone= true;
     /*
       OGC says this is not applicable, and we always return false for
       inapplicable situations.
@@ -2256,7 +2965,6 @@ int Item_func_spatial_rel::crosses_check(Geometry *g1, Geometry *g2,
 
   if (gt1 == Geometry::wkb_point)
   {
-    *pbgdone= true;
     result= 0;
     return result;
   }
@@ -2265,18 +2973,21 @@ int Item_func_spatial_rel::crosses_check(Geometry *g1, Geometry *g2,
   {
   case Geometry::wkb_multipoint:
     result= BG_wrap<Geom_types>::
-      multipoint_crosses_geometry(g1, g2, pbgdone, pnull_value);
+      multipoint_crosses_geometry(g1, g2, pnull_value);
     break;
   case Geometry::wkb_linestring:
+    result= BG_wrap<Geom_types>::
+      linestring_crosses_geometry(g1, g2, pnull_value);
+    break;
   case Geometry::wkb_multilinestring:
+    result= BG_wrap<Geom_types>::
+      multilinestring_crosses_geometry(g1, g2, pnull_value);
     break;
   default:
     DBUG_ASSERT(false);
     break;
   }
-  /*
-    Note: needs crosses([m]ls, [m]ls), crosses([m]ls, [m]plgn).
-   */
+
   return result;
 }
 
@@ -2293,10 +3004,6 @@ int Item_func_spatial_rel::crosses_check(Geometry *g1, Geometry *g2,
           boost::geometry::cs.
   @param g1 First Geometry operand, not a geometry collection.
   @param g2 Second Geometry operand, not a geometry collection.
-  @param[out] pisdone Returns whether the specified relation check operation is
-        performed by BG. For now BG doesn't support many type combinatioons
-        for each type of relation check. If isdone returns false, old GIS
-        algorithms will be called to do the check.
   @param relchk_type The type of relation check.
   @param[out] pnull_value Returns whether error occured duirng the computation.
   @return 0 if specified relation doesn't hold for the given operands,
@@ -2304,16 +3011,13 @@ int Item_func_spatial_rel::crosses_check(Geometry *g1, Geometry *g2,
  */
 template<typename Coord_type, typename Coordsys>
 int Item_func_spatial_rel::bg_geo_relation_check(Geometry *g1, Geometry *g2,
-                                                 bool *pisdone,
                                                  Functype relchk_type,
                                                  my_bool *pnull_value)
 {
   int result= 0;
-  bool bgdone= false;
 
   typedef BG_models<Coord_type, Coordsys> Geom_types;
 
-  *pisdone= false;
   /*
     Dispatch calls to all specific type combinations for each relation check
     function.
@@ -2322,40 +3026,38 @@ int Item_func_spatial_rel::bg_geo_relation_check(Geometry *g1, Geometry *g2,
     e.g. the above Point, Linestring, and Polygon templates don't have a common
     base class template, so we have to dispatch by types.
 
-    The checking functions should set bgdone to true if the relation check is
-    performed, they should also set null_value to true if there is error.
+    The checking functions should set null_value to true if there is error.
    */
 
   switch (relchk_type) {
   case SP_CONTAINS_FUNC:
-    result= within_check<Geom_types>(g2, g1, &bgdone, pnull_value);
+    result= within_check<Geom_types>(g2, g1, pnull_value);
     break;
   case SP_WITHIN_FUNC:
-    result= within_check<Geom_types>(g1, g2, &bgdone, pnull_value);
+    result= within_check<Geom_types>(g1, g2, pnull_value);
     break;
   case SP_EQUALS_FUNC:
-    result= equals_check<Geom_types>(g1, g2, &bgdone, pnull_value);
+    result= equals_check<Geom_types>(g1, g2, pnull_value);
     break;
   case SP_DISJOINT_FUNC:
-    result= disjoint_check<Geom_types>(g1, g2, &bgdone, pnull_value);
+    result= disjoint_check<Geom_types>(g1, g2, pnull_value);
     break;
   case SP_INTERSECTS_FUNC:
-    result= intersects_check<Geom_types>(g1, g2, &bgdone, pnull_value);
+    result= intersects_check<Geom_types>(g1, g2, pnull_value);
     break;
   case SP_OVERLAPS_FUNC:
-    result= overlaps_check<Geom_types>(g1, g2, &bgdone, pnull_value);
+    result= overlaps_check<Geom_types>(g1, g2, pnull_value);
     break;
   case SP_TOUCHES_FUNC:
-    result= touches_check<Geom_types>(g1, g2, &bgdone, pnull_value);
+    result= touches_check<Geom_types>(g1, g2, pnull_value);
     break;
   case SP_CROSSES_FUNC:
-    result= crosses_check<Geom_types>(g1, g2, &bgdone, pnull_value);
+    result= crosses_check<Geom_types>(g1, g2, pnull_value);
     break;
   default:
     DBUG_ASSERT(FALSE);
     break;
   }
 
-  *pisdone= bgdone;
   return result;
 }

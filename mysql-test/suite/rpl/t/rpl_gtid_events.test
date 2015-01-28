@@ -110,6 +110,28 @@ INSERT INTO t1 VALUES ('5');
 --connection slave
 --source include/start_slave_io.inc
 --source include/sync_slave_io.inc
+# At this point, the slave running without GTID auto positioning will
+# produce one relaylog file more than the slave running with GTID and auto
+# positioning.
+#
+# This happens because the slave based on master positions will reconnect
+# asking for the last known good position (at master-bin.000003) and will
+# read the master rotating to master-bin.000004 and will rotate the relaylog.
+#
+# The slave based on GTIDs and AUTO_POSITION will ask for the transaction
+# which GTID event is at master-bin.000004, so it will not read the master's
+# rotate event to master-bin.000004.
+#
+# So, to make both configurations to have the same amount of relaylog files,
+# we will generate a FLUSH RELAY LOG only if GTID AUTO_POSITION is enabled.
+
+--let $is_auto_position_enabled= query_get_value(SHOW SLAVE STATUS, Auto_Position, 1)
+if ($is_auto_position_enabled)
+{
+  --disable_query_log
+  FLUSH RELAY LOGS;
+  --enable_query_log
+}
 --source include/stop_slave_io.inc
 # Needed in the 'grow over the limit' case below.  We don't want to
 # disturb that case by reconnecting the receiver thread, so we set the
@@ -205,13 +227,9 @@ CREATE TEMPORARY TABLE relay_logs
 --let $i= 0
 while ($i < $count)
 {
-  # No event is generated in this case because of BUG#20106390
-  if ($i != 12)
-  {
-    --let $binlog_file= `SELECT filename FROM relay_logs LIMIT $i, 1`
-    --let $event_sequence= Format_desc # Previous_gtids(.|#)*
-    --source include/assert_binlog_events.inc
-  }
+  --let $binlog_file= `SELECT filename FROM relay_logs LIMIT $i, 1`
+  --let $event_sequence= Format_desc # Previous_gtids(.|#)*
+  --source include/assert_binlog_events.inc
 
   --inc $i
 }

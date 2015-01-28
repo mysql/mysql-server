@@ -15,14 +15,13 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
    02110-1301 USA */
 
+#include "rpl_gtid_persist.h"
 #include "log.h"
 #include "key.h"
 #include "sql_parse.h"
 #include "replication.h"
-#include "rpl_gtid_persist.h"
 #include "debug_sync.h"
-#include "sql_class.h"
-#include "my_global.h"
+#include "sql_base.h"
 
 using std::list;
 

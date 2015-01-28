@@ -45,6 +45,7 @@ if (!$debug_point)
   --die ERROR IN TEST: the mysqltest variable 'debug_point' must be set
 }
 
+--let $_debug_point= $debug_point
 --disable_query_log
 
 --eval SET @previous_debug = @@$_debug_type.debug;
@@ -81,12 +82,25 @@ if ( `SELECT INSTR(@previous_debug,'d,') = 1 AND INSTR(@previous_debug,':') > 0`
 {
   SET @before_debug_point=LEFT(@previous_debug, INSTR(@previous_debug,':') - 1);
   SET @after_debug_point=RIGHT(@previous_debug, LENGTH(@previous_debug) - INSTR(@previous_debug,':') + 1);
+  --let $_debug_point= ,$_debug_point
 }
 
 --let $message_prefix=`SELECT REPEAT("#", $_include_file_depth)`
 --echo $message_prefix Adding debug point '$debug_point' to @@$_debug_type.debug
 
---eval SET @@$_debug_type.debug=CONCAT(@before_debug_point, '$debug_point', @after_debug_point)
+if ($rpl_debug)
+{
+  --let $_to_display=`SELECT @@$_debug_type.debug`
+  --echo @@$_debug_type.debug was '$_to_display'
+}
+
+--eval SET @@$_debug_type.debug=CONCAT(@before_debug_point, '$_debug_point', @after_debug_point)
+
+if ($rpl_debug)
+{
+  --let $_to_display=`SELECT @@$_debug_type.debug`
+  --echo @@$_debug_type.debug set to '$_to_display'
+}
 
 --let $include_filename= add_debug_point.inc
 --source include/end_include_file.inc

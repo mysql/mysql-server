@@ -23,6 +23,7 @@
 #include "table_setup_timers.h"
 #include "pfs_column_values.h"
 #include "pfs_timer.h"
+#include "field.h"
 
 #define COUNT_SETUP_TIMERS 5
 
