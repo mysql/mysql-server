@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1190,7 +1190,10 @@ float calculate_condition_filter(const JOIN_TAB *const tab,
     2d) 'tab' is in a select_lex with a semijoin nest. Rationale: the
         cost of some of the duplicate elimination strategies depends
         on the size of the output, or
-    2e) Statement is EXPLAIN
+    2e) The query has either an order by or group by clause and a limit clause.
+        Rationale: some of the limit optimizations take the filtering effect
+        on the last table into account.
+    2f) Statement is EXPLAIN
 
     Note: Even in the case of a single table query, the filtering
     effect may effect the QEP because the cost of sorting fewer rows
@@ -1207,7 +1210,9 @@ float calculate_condition_filter(const JOIN_TAB *const tab,
         remaining_tables != 0 ||                                           // 2b
         tab->join()->select_lex-> master_unit()->outer_select() != NULL || // 2c
         !tab->join()->select_lex->sj_nests.is_empty() ||                   // 2d
-        thd->lex->describe)))                                              // 2e
+        ((tab->join()->order || tab->join()->group_list) &&
+         tab->join()->unit->select_limit_cnt != HA_POS_ERROR) ||           // 2e
+        thd->lex->describe)))                                              // 2f
     return COND_FILTER_ALLPASS;
 
   // No filtering is calculated if we expect less than one row to be fetched

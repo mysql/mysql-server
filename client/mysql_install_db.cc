@@ -1357,6 +1357,9 @@ int main(int argc,char *argv[])
     return 1;
   }
 
+  warning << "mysql_install_db is deprecated. ";
+  warning << "Please consider switching to mysqld --initialize" << endl;
+
   bool expire_password= !opt_insecure;
   string adminuser(create_string(opt_adminuser));
   string adminhost(create_string(opt_adminhost));

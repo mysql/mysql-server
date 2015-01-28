@@ -77,10 +77,7 @@ struct MPVIO_EXT : public MYSQL_PLUGIN_VIO
   Thd_charset_adapter *charset_adapter;
   LEX_CSTRING acl_user_plugin;
   int vio_is_encrypted;
-  bool can_authenticate()
-  {
-    return (acl_user && acl_user->can_authenticate);
-  }
+  bool can_authenticate();
 };
 
 #if defined(HAVE_OPENSSL)

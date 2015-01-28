@@ -32,6 +32,7 @@
 #include "query_options.h"            // OPTION_NO_CONST_TABLES
 #include "sql_alloc.h"                // Sql_alloc
 #include "sql_alter.h"                // Alter_info
+#include "sql_connect.h"              // USER_RESOURCES
 #include "sql_data_change.h"          // enum_duplicates
 #include "sql_get_diagnostics.h"      // Diagnostics_information
 #include "sql_servers.h"              // Server_options
@@ -50,7 +51,6 @@
 /* These may not be declared yet */
 class Table_ident;
 class sql_exchange;
-class LEX_COLUMN;
 class sp_head;
 class sp_name;
 class sp_instr;
@@ -2731,6 +2731,15 @@ public:
   sql_digest_state* m_digest;
 
   bool text_string_is_7bit() const { return !(tok_bitmap & 0x80); }
+};
+
+
+class LEX_COLUMN : public Sql_alloc
+{
+public:
+  String column;
+  uint rights;
+  LEX_COLUMN (const String& x,const  uint& y ): column (x),rights (y) {}
 };
 
 

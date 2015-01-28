@@ -136,8 +136,8 @@ public:
 
   /**
     Do point insersection point operation.
-    @param g1 First Geometry operand, must be a Point.
-    @param g2 Second Geometry operand, must be a Point.
+    @param g1 First geometry operand, must be a point.
+    @param g2 Second geometry operand, must be a point.
     @param[out] result Holds WKB data of the result.
     @param[out] pdone Whether the operation is performed successfully.
     @return the result Geometry whose WKB data is in result.
@@ -211,24 +211,15 @@ public:
 #endif
     Geometry *retgeo= NULL;
     *pdone= false;
-    /*
-      Whether Ifsr::bg_geo_relation_check or this function is
-      completed. Only check this variable immediately after calling the two
-      functions. If !isdone, unable to proceed, simply return 0.
-
-      This is also true for other uses of this variable in other member
-      functions of this class.
-     */
-    bool isdone= false;
 
     bool is_out= !Ifsr::bg_geo_relation_check<Coord_type, Coordsys>
-      (g1, g2, &isdone, Ifsr::SP_DISJOINT_FUNC, &null_value);
+      (g1, g2, Ifsr::SP_DISJOINT_FUNC, &null_value);
 
     DBUG_ASSERT(gt2 == Geometry::wkb_linestring ||
                 gt2 == Geometry::wkb_polygon ||
                 gt2 == Geometry::wkb_multilinestring ||
                 gt2 == Geometry::wkb_multipolygon);
-    if (isdone && !null_value)
+    if (!null_value)
     {
       if (is_out)
       {
@@ -304,7 +295,6 @@ public:
                     g1->get_data_size(), g1->get_flags(), g1->get_srid());
     Multipoint *mpts2= new Multipoint();
     auto_ptr<Multipoint> guard(mpts2);
-    bool isdone= false;
 
     *pdone= false;
     mpts2->set_srid(g1->get_srid());
@@ -319,13 +309,12 @@ public:
     {
       Point &pt= const_cast<Point&>(*i);
       if (!Ifsr::bg_geo_relation_check<Coord_type, Coordsys>
-          (&pt, g2, &isdone, Ifsr::SP_DISJOINT_FUNC, &null_value) &&
-          isdone && !null_value)
+          (&pt, g2, Ifsr::SP_DISJOINT_FUNC, &null_value) && !null_value)
       {
         mpts2->push_back(pt);
       }
 
-      if (null_value || !isdone)
+      if (null_value)
         return 0;
     }
 
@@ -611,21 +600,18 @@ public:
 #if !defined(DBUG_OFF)
     Geometry::wkbType gt2= g2->get_type();
 #endif
-    bool isdone= false;
-
     DBUG_ASSERT(gt2 == Geometry::wkb_linestring ||
                 gt2 == Geometry::wkb_polygon ||
                 gt2 == Geometry::wkb_multilinestring ||
                 gt2 == Geometry::wkb_multipolygon);
     if (Ifsr::bg_geo_relation_check<Coord_type, Coordsys>
-        (g1, g2, &isdone, Ifsr::SP_DISJOINT_FUNC, &null_value) &&
-        isdone && !null_value)
+        (g1, g2, Ifsr::SP_DISJOINT_FUNC, &null_value) && !null_value)
     {
       Gis_geometry_collection *geocol= new Gis_geometry_collection(g2, result);
       null_value= (geocol == NULL || geocol->append_geometry(g1, result));
       retgeo= geocol;
     }
-    else if (!isdone || null_value)
+    else if (null_value)
     {
       retgeo= NULL;
       return 0;
@@ -692,7 +678,6 @@ public:
     Point_set ptset;
     Multipoint mpts(g1->get_data_ptr(),
                     g1->get_data_size(), g1->get_flags(), g1->get_srid());
-    bool isdone= false;
 
     DBUG_ASSERT(gt2 == Geometry::wkb_linestring ||
                 gt2 == Geometry::wkb_polygon ||
@@ -708,19 +693,15 @@ public:
     {
       Point &pt= const_cast<Point&>(*i);
       if (Ifsr::bg_geo_relation_check<Coord_type, Coordsys>
-          (&pt, g2, &isdone, Ifsr::SP_DISJOINT_FUNC, &null_value) &&
-          isdone)
+          (&pt, g2, Ifsr::SP_DISJOINT_FUNC, &null_value))
       {
         if (null_value || (null_value= geocol->append_geometry(&pt, result)))
           break;
         added= true;
       }
-
-      if (!isdone)
-        break;
     }
 
-    if (null_value || !isdone)
+    if (null_value)
       return 0;
 
     if (added)
@@ -789,11 +770,10 @@ public:
   {
     *pdone= false;
     Geometry *retgeo= NULL;
-    bool isdone= false;
     bool is_out= Ifsr::bg_geo_relation_check<Coord_type, Coordsys>
-      (g1, g2, &isdone, Ifsr::SP_DISJOINT_FUNC, &null_value);
+      (g1, g2, Ifsr::SP_DISJOINT_FUNC, &null_value);
 
-    if (isdone && !null_value)
+    if (!null_value)
     {
       if (is_out)
       {
@@ -824,21 +804,17 @@ public:
     Multipoint mpts1(g1->get_data_ptr(),
                      g1->get_data_size(), g1->get_flags(), g1->get_srid());
     Point_set ptset;
-    bool isdone= false;
 
     for (TYPENAME Multipoint::iterator i= mpts1.begin();
          i != mpts1.end(); ++i)
     {
       if (Ifsr::bg_geo_relation_check<Coord_type, Coordsys>
-          (&(*i), g2, &isdone, Ifsr::SP_DISJOINT_FUNC, &null_value) && isdone)
+          (&(*i), g2, Ifsr::SP_DISJOINT_FUNC, &null_value))
       {
         if (null_value)
           return 0;
         ptset.insert(*i);
       }
-
-      if (!isdone)
-        return 0;
     }
 
     if (ptset.empty() == false)
@@ -1764,7 +1740,7 @@ bg_geo_set_op(Geometry *g1, Geometry *g2, String *result, bool *pdone)
   }
 
   // If we got effective result, the wkb encoding is written to 'result', and
-  // the retgeo is effective Geometry object whose data Points into
+  // the retgeo is effective geometry object whose data points into
   // 'result''s data.
   return retgeo;
 
@@ -1803,7 +1779,7 @@ combine_sub_results(Geometry *geo1, Geometry *geo2, String *result)
   typedef BG_models<Coord_type, Coordsys> Geom_types;
   typedef typename Geom_types::Multipoint Multipoint;
   Geometry *retgeo= NULL;
-  bool isin= false, isdone= false, added= false;
+  bool isin= false, added= false;
 
   if (null_value)
   {
@@ -1851,11 +1827,8 @@ combine_sub_results(Geometry *geo1, Geometry *geo2, String *result)
        i != mpts.end(); ++i)
   {
     isin= !Item_func_spatial_rel::bg_geo_relation_check<Coord_type,
-      Coordsys>(&(*i), geo1, &isdone, SP_DISJOINT_FUNC, &had_error);
+      Coordsys>(&(*i), geo1, SP_DISJOINT_FUNC, &had_error);
 
-    // The bg_geo_relation_check can't handle pt intersects/within/disjoint ls
-    // for now(isdone == false), so we have no points in mpts. When BG's
-    // missing feature is completed, we will work correctly here.
     if (had_error)
     {
       error_str();
@@ -2333,7 +2306,6 @@ Geometry *Item_func_spatial_operation::
 geometry_collection_set_operation(Geometry *g1, Geometry *g2,
                                   String *result, bool *pdone)
 {
-  bool opdone= false;
   Geometry *gres= NULL;
   BG_geometry_collection bggc1, bggc2;
 
@@ -2355,17 +2327,10 @@ geometry_collection_set_operation(Geometry *g1, Geometry *g2,
       return empty_result(result, g1->get_srid());
     }
 
-    if (empty1 && (spatial_op == Gcalc_function::op_union ||
-                   spatial_op == Gcalc_function::op_symdifference))
-    {
-      *pdone= true;
-      null_value= g2->as_geometry(result, true/* shallow copy */);
-      return g2;
-    }
+    // If spatial_op is op_union or op_symdifference and one of g1/g2 is empty,
+    // we will continue in order to merge components in the argument.
 
-    if (empty2 && (spatial_op == Gcalc_function::op_difference ||
-                   spatial_op == Gcalc_function::op_union ||
-                   spatial_op == Gcalc_function::op_symdifference))
+    if (empty2 && spatial_op == Gcalc_function::op_difference)
     {
       *pdone= true;
       null_value= g1->as_geometry(result, true/* shallow copy */);
@@ -2377,16 +2342,38 @@ geometry_collection_set_operation(Geometry *g1, Geometry *g2,
   bggc2.fill(g2);
   if (spatial_op != Gcalc_function::op_union)
   {
-    bggc1.merge_components<Coord_type, Coordsys>(&opdone, &null_value);
+    bggc1.merge_components<Coord_type, Coordsys>(&null_value);
     if (null_value)
       return gres;
-    bggc2.merge_components<Coord_type, Coordsys>(&opdone, &null_value);
+    bggc2.merge_components<Coord_type, Coordsys>(&null_value);
     if (null_value)
       return gres;
   }
 
   BG_geometry_collection::Geometry_list &gv1= bggc1.get_geometries();
   BG_geometry_collection::Geometry_list &gv2= bggc2.get_geometries();
+
+  /*
+    If there is only one component in one argument and the other is empty,
+    no merge is possible.
+  */
+  if (spatial_op == Gcalc_function::op_union ||
+      spatial_op == Gcalc_function::op_symdifference)
+  {
+    if (gv1.size() == 0 && gv2.size() == 1)
+    {
+      *pdone= true;
+      null_value= g2->as_geometry(result, true/* shallow copy */);
+      return g2;
+    }
+
+    if (gv1.size() == 1 && gv2.size() == 0)
+    {
+      *pdone= true;
+      null_value= g1->as_geometry(result, true/* shallow copy */);
+      return g1;
+    }
+  }
 
   /*
     If both collections have only one basic component, do basic set operation.
@@ -2542,7 +2529,6 @@ geocol_intersection(const BG_geometry_collection &bggc1,
 
   Rtree_index rtree;
   make_rtree(*gvr, &rtree);
-  Rtree_result rtree_result;
 
   for (BG_geometry_collection::
        Geometry_list::const_iterator i= gv->begin();
@@ -2550,16 +2536,12 @@ geocol_intersection(const BG_geometry_collection &bggc1,
   {
     BG_box box;
     make_bg_box(*i, &box);
-    rtree_result.clear();
-    rtree.query(bgi::intersects(box), std::back_inserter(rtree_result));
-    if (rtree_result.size() == 0)
+
+    Rtree_index::const_query_iterator j= rtree.qbegin(bgi::intersects(box));
+    if (j == rtree.qend())
       continue;
 
-    Rtree_entry_compare rtree_entry_compare;
-    std::sort(rtree_result.begin(), rtree_result.end(), rtree_entry_compare);
-
-    for (Rtree_result::iterator j= rtree_result.begin();
-         j != rtree_result.end(); ++j)
+    for (; j != rtree.qend(); ++j)
     {
       Geometry *geom= (*gvr)[j->second];
       // Free before using it, wkbres may have WKB data from last execution.
@@ -2592,7 +2574,7 @@ geocol_intersection(const BG_geometry_collection &bggc1,
     that can be merged into a larger one of the same type in the result.
     We will need to figure out how to make such enhancements.
    */
-  bggc.merge_components<Coord_type, Coordsys>(pdone, &null_value);
+  bggc.merge_components<Coord_type, Coordsys>(&null_value);
   if (null_value)
     return NULL;
   gres= bggc.as_geometry_collection(result);
@@ -2636,12 +2618,12 @@ geocol_union(const BG_geometry_collection &bggc1,
   gv.insert(gv.end(), bggc2.get_geometries().begin(),
             bggc2.get_geometries().end());
   bggc.set_srid(bggc1.get_srid());
-  *pdone= false;
+  *pdone= true;
 
   // It's likely that there are overlapping components in bggc because it
   // has components from both bggc1 and bggc2.
-  bggc.merge_components<Coord_type, Coordsys>(pdone, &null_value);
-  if (!null_value && *pdone)
+  bggc.merge_components<Coord_type, Coordsys>(&null_value);
+  if (!null_value)
     gres= bggc.as_geometry_collection(result);
 
   return gres;
@@ -2686,7 +2668,6 @@ geocol_difference(const BG_geometry_collection &bggc1,
   // Difference isn't symetric so we have to always build rtree tndex on gv2.
   Rtree_index rtree;
   make_rtree(*gv2, &rtree);
-  Rtree_result rtree_result;
 
   for (BG_geometry_collection::
        Geometry_list::const_iterator i= gv1->begin();
@@ -2700,18 +2681,14 @@ geocol_difference(const BG_geometry_collection &bggc1,
 
     BG_box box;
     make_bg_box(*i, &box);
-    rtree_result.clear();
-    rtree.query(bgi::intersects(box), std::back_inserter(rtree_result));
-
-    Rtree_entry_compare rtree_entry_compare;
-    std::sort(rtree_result.begin(), rtree_result.end(), rtree_entry_compare);
 
     /*
       Above theory makes sure all results are in rtree_result, the logic
       here is sufficient when rtree_result is empty.
     */
-    for (Rtree_result::iterator j= rtree_result.begin();
-         j != rtree_result.end(); ++j)
+    for (Rtree_index::const_query_iterator
+         j= rtree.qbegin(bgi::intersects(box));
+         j != rtree.qend(); ++j)
     {
       Geometry *geom= (*gv2)[j->second];
 
@@ -2760,7 +2737,7 @@ geocol_difference(const BG_geometry_collection &bggc1,
       guard11.reset(NULL);
   }
 
-  bggc.merge_components<Coord_type, Coordsys>(pdone, &null_value);
+  bggc.merge_components<Coord_type, Coordsys>(&null_value);
   if (null_value)
     return NULL;
   gres= bggc.as_geometry_collection(result);

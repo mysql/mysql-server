@@ -334,6 +334,7 @@ SET(SERVER_TESTS
   thd_manager
   unique
   security_context
+  initialize_password
 )
 
 ## Merging tests into fewer executables saves *a lot* of
