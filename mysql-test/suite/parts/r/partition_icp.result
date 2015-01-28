@@ -53,7 +53,7 @@ EXPLAIN
       "key_length": "7",
       "rows_examined_per_scan": 6,
       "rows_produced_per_join": 6,
-      "filtered": 100,
+      "filtered": "100.00",
       "cost_info": {
         "read_cost": "8.21",
         "eval_cost": "1.20",
@@ -110,7 +110,7 @@ EXPLAIN
       "key_length": "7",
       "rows_examined_per_scan": 3,
       "rows_produced_per_join": 3,
-      "filtered": 100,
+      "filtered": "100.00",
       "index_condition": "(`test`.`t1`.`a` % 2)",
       "cost_info": {
         "read_cost": "4.61",

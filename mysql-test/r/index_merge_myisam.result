@@ -851,7 +851,7 @@ EXPLAIN
       "key_length": "5,5,5,5",
       "rows_examined_per_scan": 154,
       "rows_produced_per_join": 154,
-      "filtered": 100,
+      "filtered": "100.00",
       "cost_info": {
         "read_cost": "380.91",
         "eval_cost": "30.80",

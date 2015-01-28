@@ -809,7 +809,7 @@ EXPLAIN
       "key_length": "5,5,5,5",
       "rows_examined_per_scan": 4,
       "rows_produced_per_join": 4,
-      "filtered": 100,
+      "filtered": "100.00",
       "cost_info": {
         "read_cost": "27.07",
         "eval_cost": "0.80",
