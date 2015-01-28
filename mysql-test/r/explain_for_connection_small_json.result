@@ -10,7 +10,7 @@ Diff: EXPLAIN NORMAL vs OTHER
 -      "table_name": "t1",
 -      "access_type": "ALL",
 -      "rows_examined_per_scan": 1,
--      "filtered": 100,
+-      "filtered": "100.00",
 -      "message": "Deleting all rows"
 -    }
 +    "message": "Plan isn't ready yet"
@@ -63,7 +63,7 @@ Diff: EXPLAIN NORMAL vs OTHER
            ],
 -          "rows_examined_per_scan": 7,
 -          "rows_produced_per_join": 8,
--          "filtered": 28.571,
+-          "filtered": "28.57",
 +          "key": "PRIMARY",
 +          "used_key_parts": [
 +            "a"
@@ -71,7 +71,7 @@ Diff: EXPLAIN NORMAL vs OTHER
 +          "key_length": "4",
 +          "rows_examined_per_scan": 2,
 +          "rows_produced_per_join": 28,
-+          "filtered": 100,
++          "filtered": "100.00",
            "range_checked_for_each_record": "index map: 0x1",
 @@ -108,5 +113,5 @@
              "read_cost": "2.02",
@@ -86,7 +86,7 @@ STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
 @@ -116,2 +116,3 @@
-             "filtered": 28.571,
+             "filtered": "28.57",
 +            "using_where": true,
              "using_index": true,
 @@ -125,4 +126,3 @@
@@ -131,7 +131,7 @@ Diff: EXPLAIN NORMAL vs OTHER
 -              "key_length": "5",
 -              "rows_examined_per_scan": 11,
 -              "rows_produced_per_join": 11,
--              "filtered": 100,
+-              "filtered": "100.00",
 -              "using_index_for_group_by": true,
 -              "cost_info": {
 -                "read_cost": "4.30",
@@ -157,10 +157,10 @@ Diff: EXPLAIN NORMAL vs OTHER
 @@ -24,10 +24,11 @@
          "rows_examined_per_scan": 5,
 -        "rows_produced_per_join": 0,
--        "filtered": 16,
+-        "filtered": "16.00",
 -        "index_condition": "(`test`.`t1`.`key1` <=> 1130)",
 +        "rows_produced_per_join": 4,
-+        "filtered": 80,
++        "filtered": "80.00",
 +        "index_condition": true,
 +        "using_where": true,
          "cost_info": {
@@ -184,7 +184,7 @@ STATUS:NOT_EQUAL
 SYNC_POINT:after_join_optimize
 Diff: EXPLAIN NORMAL vs OTHER
 @@ -34,2 +34,3 @@
-           "filtered": 10,
+           "filtered": "10.00",
 +          "using_where": true,
            "using_join_buffer": "Block Nested Loop",
 @@ -45,4 +46,3 @@
@@ -194,7 +194,7 @@ Diff: EXPLAIN NORMAL vs OTHER
 +          ]
          }
 @@ -56,2 +56,3 @@
-           "filtered": 33.33,
+           "filtered": "33.33",
 +          "using_where": true,
            "using_join_buffer": "Block Nested Loop",
 @@ -67,4 +68,3 @@
@@ -210,9 +210,9 @@ Diff: EXPLAIN NORMAL vs OTHER
 @@ -47,4 +47,5 @@
              "rows_examined_per_scan": 1,
 -            "rows_produced_per_join": 0,
--            "filtered": 50,
+-            "filtered": "50.00",
 +            "rows_produced_per_join": 1,
-+            "filtered": 100,
++            "filtered": "100.00",
 +            "using_where": true,
              "using_index": true,
 @@ -52,5 +53,5 @@
@@ -236,9 +236,9 @@ Diff: EXPLAIN NORMAL vs OTHER
 @@ -46,9 +46,10 @@
            "rows_examined_per_scan": 1,
 -          "rows_produced_per_join": 3,
--          "filtered": 33.33,
+-          "filtered": "33.33",
 +          "rows_produced_per_join": 10,
-+          "filtered": 100,
++          "filtered": "100.00",
 +          "using_where": true,
            "cost_info": {
              "read_cost": "10.00",
@@ -261,9 +261,9 @@ Diff: EXPLAIN NORMAL vs OTHER
 @@ -47,9 +47,10 @@
            "rows_examined_per_scan": 1,
 -          "rows_produced_per_join": 3,
--          "filtered": 33.33,
+-          "filtered": "33.33",
 +          "rows_produced_per_join": 10,
-+          "filtered": 100,
++          "filtered": "100.00",
 +          "using_where": true,
            "cost_info": {
              "read_cost": "10.00",
@@ -288,7 +288,7 @@ STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
 @@ -36,2 +36,3 @@
-           "filtered": 75,
+           "filtered": "75.00",
 +          "using_where": true,
            "cost_info": {
 @@ -45,4 +46,3 @@
@@ -302,7 +302,7 @@ STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
 @@ -40,2 +40,3 @@
-           "filtered": 100,
+           "filtered": "100.00",
 +          "using_where": true,
            "cost_info": {
 @@ -49,4 +50,3 @@
@@ -316,7 +316,7 @@ STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
 @@ -28,2 +28,3 @@
-         "filtered": 100,
+         "filtered": "100.00",
 +        "using_where": true,
          "using_index": true,
 @@ -39,4 +40,3 @@
@@ -330,7 +330,7 @@ STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
 @@ -26,3 +26,3 @@
-         "filtered": 50,
+         "filtered": "50.00",
 -        "index_condition": "((`test`.`t1`.`b` = 1) or isnull(`test`.`t1`.`b`))",
 +        "index_condition": true,
          "cost_info": {
@@ -341,10 +341,10 @@ Diff: EXPLAIN NORMAL vs OTHER
 @@ -25,10 +25,11 @@
          "rows_examined_per_scan": 2,
 -        "rows_produced_per_join": 0,
--        "filtered": 37.5,
+-        "filtered": "37.50",
 -        "index_condition": "(`test`.`t1`.`a` <=> 2)",
 +        "rows_produced_per_join": 1,
-+        "filtered": 50,
++        "filtered": "50.00",
 +        "index_condition": true,
 +        "using_where": true,
          "cost_info": {
@@ -368,10 +368,10 @@ Diff: EXPLAIN NORMAL vs OTHER
 @@ -25,10 +25,11 @@
          "rows_examined_per_scan": 2,
 -        "rows_produced_per_join": 0,
--        "filtered": 37.5,
+-        "filtered": "37.50",
 -        "index_condition": "(`test`.`t1`.`a` <=> 2)",
 +        "rows_produced_per_join": 1,
-+        "filtered": 50,
++        "filtered": "50.00",
 +        "index_condition": true,
 +        "using_where": true,
          "cost_info": {
@@ -393,7 +393,7 @@ STATUS:NOT_EQUAL
 SYNC_POINT:planned_single_update
 Diff: EXPLAIN NORMAL vs OTHER
 @@ -24,3 +24,3 @@
-       "filtered": 100,
+       "filtered": "100.00",
 -      "attached_condition": "(`test`.`t1`.`a` = 5)"
 +      "using_where": true
      },
@@ -411,9 +411,9 @@ Diff: EXPLAIN NORMAL vs OTHER
 @@ -50,4 +50,5 @@
            "rows_examined_per_scan": 6,
 -          "rows_produced_per_join": 2,
--          "filtered": 9.2574,
+-          "filtered": "9.26",
 +          "rows_produced_per_join": 25,
-+          "filtered": 83.333,
++          "filtered": "83.33",
 +          "using_where": true,
            "using_join_buffer": "Block Nested Loop",
 @@ -55,5 +56,5 @@
@@ -435,7 +435,7 @@ STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
 @@ -13,2 +13,3 @@
-       "filtered": 100,
+       "filtered": "100.00",
 +      "using_where": true,
        "cost_info": {
 @@ -23,3 +24,2 @@
@@ -447,7 +447,7 @@ STATUS:NOT_EQUAL
 SYNC_POINT:planned_single_delete
 Diff: EXPLAIN NORMAL vs OTHER
 @@ -10,40 +10,10 @@
-       "filtered": 100,
+       "filtered": "100.00",
 -      "attached_condition": "(`test`.`t1`.`b` = (/* select#2 */ select `test`.`t2`.`b` from `test`.`t2` where (`test`.`t1`.`a` = `test`.`t2`.`a`)))",
 +      "using_where": true,
        "attached_subqueries": [
@@ -477,7 +477,7 @@ Diff: EXPLAIN NORMAL vs OTHER
 -              ],
 -              "rows_examined_per_scan": 1,
 -              "rows_produced_per_join": 1,
--              "filtered": 100,
+-              "filtered": "100.00",
 -              "cost_info": {
 -                "read_cost": "1.00",
 -                "eval_cost": "0.20",
@@ -496,7 +496,7 @@ STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
 @@ -25,2 +25,3 @@
-         "filtered": 100,
+         "filtered": "100.00",
 +        "using_where": true,
          "using_index": true,
 @@ -35,3 +36,2 @@
@@ -508,7 +508,7 @@ STATUS:NOT_EQUAL
 SYNC_POINT:planned_single_delete
 Diff: EXPLAIN NORMAL vs OTHER
 @@ -10,72 +10,20 @@
-       "filtered": 100,
+       "filtered": "100.00",
 -      "attached_condition": "<in_optimizer>(`test`.`t1`.`topic`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`topic`) in t2 on topic where ((not(exists(/* select#3 */ select 1 from dual where ('1' = `test`.`t2`.`topic`)))) and (<cache>(`test`.`t1`.`topic`) = `test`.`t2`.`topic`)))))",
 +      "using_where": true,
        "attached_subqueries": [
@@ -538,7 +538,7 @@ Diff: EXPLAIN NORMAL vs OTHER
 -              ],
 -              "rows_examined_per_scan": 2,
 -              "rows_produced_per_join": 2,
--              "filtered": 100,
+-              "filtered": "100.00",
 -              "using_index": true,
 -              "cost_info": {
 -                "read_cost": "1.02",
@@ -567,7 +567,7 @@ Diff: EXPLAIN NORMAL vs OTHER
 -                      ],
 -                      "rows_examined_per_scan": 1,
 -                      "rows_produced_per_join": 1,
--                      "filtered": 100,
+-                      "filtered": "100.00",
 -                      "cost_info": {
 -                        "read_cost": "0.00",
 -                        "eval_cost": "0.20",
@@ -598,7 +598,7 @@ STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
 @@ -52,2 +52,3 @@
-               "filtered": 16.667,
+               "filtered": "16.67",
 +              "using_where": true,
                "using_index": true,
 @@ -62,4 +63,3 @@
@@ -612,7 +612,7 @@ STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
 @@ -51,2 +51,3 @@
-               "filtered": 10.117,
+               "filtered": "10.12",
 +              "using_where": true,
                "using_index": true,
 @@ -61,4 +62,3 @@
@@ -628,7 +628,7 @@ STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
 @@ -25,2 +25,3 @@
-           "filtered": 100,
+           "filtered": "100.00",
 +          "using_where": true,
            "using_index": true,
 @@ -35,4 +36,3 @@
@@ -638,7 +638,7 @@ Diff: EXPLAIN NORMAL vs OTHER
 +          ]
          }
 @@ -102,2 +102,3 @@
-               "filtered": 40,
+               "filtered": "40.00",
 +              "using_where": true,
                "using_index": true,
 @@ -113,4 +114,3 @@
@@ -652,7 +652,7 @@ STATUS:NOT_EQUAL
 SYNC_POINT:after_join_optimize
 Diff: EXPLAIN NORMAL vs OTHER
 @@ -43,2 +43,3 @@
-             "filtered": 20,
+             "filtered": "20.00",
 +            "using_where": true,
              "using_join_buffer": "Block Nested Loop",
 @@ -53,4 +54,3 @@
@@ -662,7 +662,7 @@ Diff: EXPLAIN NORMAL vs OTHER
 +            ]
            }
 @@ -95,2 +95,3 @@
-             "filtered": 100,
+             "filtered": "100.00",
 +            "using_where": true,
              "using_index": true,
 @@ -105,4 +106,3 @@
@@ -676,7 +676,7 @@ STATUS:NOT_EQUAL
 SYNC_POINT:after_join_optimize
 Diff: EXPLAIN NORMAL vs OTHER
 @@ -43,2 +43,3 @@
-             "filtered": 20,
+             "filtered": "20.00",
 +            "using_where": true,
              "using_join_buffer": "Block Nested Loop",
 @@ -53,4 +54,3 @@
@@ -686,7 +686,7 @@ Diff: EXPLAIN NORMAL vs OTHER
 +            ]
            }
 @@ -95,2 +95,3 @@
-             "filtered": 100,
+             "filtered": "100.00",
 +            "using_where": true,
              "using_index": true,
 @@ -105,4 +106,3 @@
@@ -702,9 +702,9 @@ Diff: EXPLAIN NORMAL vs OTHER
 @@ -73,9 +73,10 @@
              "rows_examined_per_scan": 2,
 -            "rows_produced_per_join": 0,
--            "filtered": 25,
+-            "filtered": "25.00",
 +            "rows_produced_per_join": 1,
-+            "filtered": 50,
++            "filtered": "50.00",
 +            "using_where": true,
              "cost_info": {
                "read_cost": "1.00",
@@ -723,7 +723,7 @@ STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
 @@ -51,2 +51,3 @@
-               "filtered": 100,
+               "filtered": "100.00",
 +              "using_where": true,
                "using_index": true,
 @@ -63,3 +64,2 @@
@@ -735,7 +735,7 @@ STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
 @@ -15,2 +15,3 @@
-           "filtered": 100,
+           "filtered": "100.00",
 +          "using_where": true,
            "cost_info": {
 @@ -24,4 +25,3 @@

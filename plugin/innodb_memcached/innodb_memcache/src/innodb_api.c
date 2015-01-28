@@ -1392,9 +1392,19 @@ innodb_api_link(
 			column_used = 0;
 		}
 
+		/* For int column, we don't support append command. */
+		if (append && !result->extra_col_value[column_used].is_str) {
+			return DB_UNSUPPORTED;
+		}
+
 		before_len = result->extra_col_value[column_used].value_len;
 		before_val = result->extra_col_value[column_used].value_str;
 	} else {
+		/* For int column, we don't support append command. */
+		if (append && !result->col_value[MCI_COL_VALUE].is_str) {
+			return DB_UNSUPPORTED;
+		}
+
 		before_len = result->col_value[MCI_COL_VALUE].value_len;
 		before_val = result->col_value[MCI_COL_VALUE].value_str;
 		column_used = UPDATE_ALL_VAL_COL;

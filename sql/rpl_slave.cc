@@ -5474,6 +5474,10 @@ ignore_log_space_limit=%d",
         if (event_buf[EVENT_TYPE_OFFSET] == binary_log::WRITE_ROWS_EVENT)
           thd->killed= THD::KILLED_NO_VALUE;
       );
+      DBUG_EXECUTE_IF("stop_io_after_reading_unknown_event",
+        if (event_buf[EVENT_TYPE_OFFSET] >= binary_log::ENUM_END_EVENT)
+          thd->killed= THD::KILLED_NO_VALUE;
+      );
       DBUG_EXECUTE_IF("stop_io_after_queuing_event",
         thd->killed= THD::KILLED_NO_VALUE;
       );
@@ -7549,14 +7553,44 @@ int queue_event(Master_info* mi,const char* buf, ulong event_len)
   mysql_mutex_lock(&mi->data_lock);
 
   /*
+    Simulate an unknown ignorable log event by rewriting a Xid
+    log event before queuing it into relay log.
+  */
+  DBUG_EXECUTE_IF("simulate_unknown_ignorable_log_event_with_xid",
+    if (event_type == binary_log::XID_EVENT)
+    {
+      uchar* ev_buf= (uchar*)buf;
+      /* Overwrite the log event type with an unknown type. */
+      ev_buf[EVENT_TYPE_OFFSET]= binary_log::ENUM_END_EVENT + 1;
+      /* Set LOG_EVENT_IGNORABLE_F for the log event. */
+      int2store(ev_buf + FLAGS_OFFSET,
+                uint2korr(ev_buf + FLAGS_OFFSET) | LOG_EVENT_IGNORABLE_F);
+      /* Recalc event's CRC */
+      ha_checksum ev_crc= checksum_crc32(0L, NULL, 0);
+      ev_crc= checksum_crc32(ev_crc, (const uchar *) ev_buf,
+                             event_len - BINLOG_CHECKSUM_LEN);
+      int4store(&ev_buf[event_len - BINLOG_CHECKSUM_LEN], ev_crc);
+      /*
+        We will skip writing this event to the relay log in order to let
+        the startup procedure to not finding it and assuming this transaction
+        is incomplete.
+        But we have to keep the unknown ignorable error to let the
+        "stop_io_after_reading_unknown_event" debug point to work after
+        "queuing" this event.
+      */
+      mi->set_master_log_pos(mi->get_master_log_pos() + event_len);
+      goto skip_relay_logging;
+    }
+  );
+
+  /*
     This transaction parser is used to ensure that the GTID of the transaction
     (if it has one) will only be added to the Retrieved_Gtid_Set after the
     last event of the transaction be queued.
     It will also be used to avoid rotating the relay log in the middle of
-    a transaction when GTIDs are enabled.
+    a transaction.
   */
-  if (gtid_mode >= GTID_MODE_UPGRADE_STEP_2 &&
-      mi->transaction_parser.feed_event(buf, event_len,
+  if (mi->transaction_parser.feed_event(buf, event_len,
                                         mi->get_mi_description_event(), true))
   {
     /*
@@ -7978,6 +8012,26 @@ int queue_event(Master_info* mi,const char* buf, ulong event_len)
       if (event_type == binary_log::GTID_LOG_EVENT)
       {
         mi->set_last_gtid_queued(gtid);
+      }
+
+      /*
+        If we are starting an anonymous transaction, we have to discard
+        the GTID of the partial transaction that was not finished (if
+        there is one).
+        */
+      if (event_type == binary_log::ANONYMOUS_GTID_LOG_EVENT)
+      {
+#ifndef DBUG_OFF
+        if (!mi->get_last_gtid_queued()->is_empty())
+        {
+          DBUG_PRINT("info", ("Discarding Gtid(%d, %lld) as the transaction "
+                              "wasn't complete and we found an "
+                              "ANONYMOUS_GTID_LOG_EVENT.",
+                              mi->get_last_gtid_queued()->sidno,
+                              mi->get_last_gtid_queued()->gno));
+        }
+#endif
+        mi->clear_last_gtid_queued();
       }
     }
     else

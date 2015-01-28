@@ -125,6 +125,12 @@ if ($mask_binlog_commit_events)
   --let $script= $script s{ \/\* XID \*\/}{};
   --let $script= $script s{Xid}{Query};
 }
+# To mask ANONYMOUS_GTID events as GTID events
+if ($mask_anonymous_gtid_events)
+{
+  --let $script= $script s{Anonymous_Gtid}{Gtid};
+  --let $script= $script s{ANONYMOUS}{Gtid_set};
+}
 --delimiter ;
 
 #--let $select_columns= 1 3 6

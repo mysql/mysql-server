@@ -289,6 +289,7 @@ SET(TESTS
   strtoll
   thread_utils
   my_timer
+  timespec
   )
  
 IF (UNIX)

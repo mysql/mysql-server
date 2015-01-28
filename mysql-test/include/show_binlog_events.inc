@@ -10,6 +10,7 @@
 # [--let $keep_gtid_events= 1]
 # [--let $keep_view_change_events= 1]
 # [--let $mask_binlog_commit_events= 1]
+# [--let $mask_anonymous_gtid_events= 1]
 # --source include/show_binlog_events.inc
 #
 # Parameters:
@@ -55,6 +56,11 @@
 #     set $show_binlog_events_mask_columns to a comma-separated list
 #     of column numbers. The contents of a masked column is replaced
 #     by a single '#' character.
+#
+#   $mask_anonymous_gtid_event
+#     Mask ANONYMOUS_GTID_LOG_EVENT as GTID_LOG_EVENTS to make a non-GTID
+#     enabled event stream similar to a GTID enabled one, as the server now
+#     generates [ANONYMOUS_]GTID always.
 
 
 --let $include_filename= show_binlog_events.inc
