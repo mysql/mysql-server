@@ -7220,6 +7220,10 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
   if (create_info->storage_media == HA_SM_DEFAULT)
     create_info->storage_media= table->s->default_storage_media;
 
+  /* Creation of federated table with LIKE clause needs connection string */
+  if (!(used_fields & HA_CREATE_USED_CONNECTION))
+    create_info->connect_string= table->s->connect_string;
+
   restore_record(table, s->default_values);     // Empty record for DEFAULT
   Create_field *def;
 
