@@ -27,7 +27,7 @@ SET @@GLOBAL.DEBUG= @debug_saved;
 --echo # Verify that plugin server requirements were validated.
 --echo #
 
---let $grep_file=$MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $grep_file=$MYSQLTEST_VARDIR/tmp/rpl_replication_observers_example_plugin_server_requirements.err
 --let $grep_pattern=replication_observers_example_plugin:validate_plugin_server_requirements=5
 --source include/grep_pattern.inc
 
