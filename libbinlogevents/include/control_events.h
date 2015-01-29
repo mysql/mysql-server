@@ -1019,6 +1019,19 @@ protected:
   </tr>
 
   <tr>
+    <td>encoded_snapshot_version</td>
+    <td>unsigned char array</td>
+    <td>A gtid_set which is used to store the transaction set used for
+        conflict detection.</td>
+  </tr>
+
+  <tr>
+    <td>encoded_snapshot_version_length</td>
+    <td>4 byte integer</td>
+    <td>Length of the above char array.</td>
+  </tr>
+
+  <tr>
     <td>write_set</td>
     <td>variable length list to store the hash values. </td>
     <td>Used to store the hash values of the rows identifier for the rows
@@ -1065,8 +1078,8 @@ public:
 
   virtual ~Transaction_context_event();
 
-  static char *read_data_set(char *pos, uint16_t set_len,
-                             std::list<const char*> *set);
+  static const char *read_data_set(const char *pos, uint16_t set_len,
+                                   std::list<const char*> *set);
 
   static void clear_set(std::list<const char*> *set);
 
@@ -1079,11 +1092,13 @@ protected:
   const char *server_uuid;
   long long int thread_id;
   bool gtid_specified;
+  const unsigned char *encoded_snapshot_version;
+  uint32_t encoded_snapshot_version_length;
   std::list<const char*> write_set;
   std::list<const char*> read_set;
 
-  // The values mentioned on the next class's constants is the offset where the
-  // data corresponding data reside in the the buffer.
+  // The values mentioned on the next class constants is the offset where the
+  // data that will be copied in the buffer.
 
   // 1 byte length.
   static const int ENCODED_SERVER_UUID_LEN_OFFSET= 0;
@@ -1091,12 +1106,12 @@ protected:
   static const int ENCODED_THREAD_ID_OFFSET= 1;
   // 1 byte length.
   static const int ENCODED_GTID_SPECIFIED_OFFSET= 9;
-  // 2 bytes length
-  static const int ENCODED_SNAPSHOT_VERSION_OFFSET= 10;
+  // 4 bytes length
+  static const int ENCODED_SNAPSHOT_VERSION_LEN_OFFSET= 10;
   // 2 bytes length.
-  static const int ENCODED_WRITE_SET_ITEMS_OFFSET= 12;
+  static const int ENCODED_WRITE_SET_ITEMS_OFFSET= 14;
   // 2 bytes length.
-  static const int ENCODED_READ_SET_ITEMS_OFFSET=  14;
+  static const int ENCODED_READ_SET_ITEMS_OFFSET=  16;
 
   // The values mentioned on the next class's constants is the length of the
   // data that will be copied in the buffer.
