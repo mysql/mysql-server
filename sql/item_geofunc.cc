@@ -2190,7 +2190,7 @@ String *Item_func_simplify::val_str(String *str)
     return error_str();
   if (!(geom= Geometry::construct(&buffer, swkb)))
   {
-    my_error(ER_GIS_INVALID_DATA, MYF(0));
+    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
     return error_str();
   }
 
