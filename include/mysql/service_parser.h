@@ -17,10 +17,20 @@
     Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA */
 
 #include "my_md5_size.h"
-#include <mysql/plugin.h>
+#include <mysql/mysql_lex_string.h>
 
 #ifndef MYSQL_ABI_CHECK
 #include <stdlib.h>
+#endif
+
+#ifdef __cplusplus
+class THD;
+class Item;
+#define MYSQL_THD THD*
+typedef Item* MYSQL_ITEM;
+#else
+#define MYSQL_THD void*
+typedef void* MYSQL_ITEM;
 #endif
 
 #ifdef __cplusplus

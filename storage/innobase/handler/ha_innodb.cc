@@ -48,6 +48,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <sql_show.h>
 #include <sql_table.h>
 #include <my_check_opt.h>
+#include <mysql/service_thd_alloc.h>
+#include <mysql/service_thd_wait.h>
 
 /* Include necessary InnoDB headers */
 #include "api0api.h"

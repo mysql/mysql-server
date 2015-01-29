@@ -28,6 +28,7 @@
 #include "debug_sync.h"          // DEBUG_SYNC
 #include "item_cmpfunc.h"        // get_datetime_value
 #include "item_strfunc.h"        // Item_func_geohash
+#include <mysql/service_thd_wait.h>
 #include "parse_tree_helpers.h"  // PT_item_list
 #include "rpl_mi.h"              // Master_info
 #include "rpl_msr.h"             // msr_map

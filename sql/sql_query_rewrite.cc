@@ -15,10 +15,11 @@
 
 #include "my_global.h"
 #include "mysql/plugin_query_rewrite.h"
-#include "sql_plugin.h"
+#include "mysql/service_rules_table.h"
 #include "sql_cache.h"
 #include "sql_error.h"
 #include "sql_parse.h"
+#include "sql_plugin.h"
 #include "sql_query_rewrite.h"
 #include "log.h"
 #include "sql_base.h"

@@ -18,6 +18,7 @@
 #include "ha_ndbcluster_glue.h"
 #include "ha_ndbcluster.h"
 #include "ndb_table_guard.h"
+#include "mysql/service_thd_alloc.h"
 
 #define ERR_RETURN(err)                  \
 {                                        \

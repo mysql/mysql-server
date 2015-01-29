@@ -1,4 +1,4 @@
-/*  Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
     
     This program is free software; you can redistribute it and/or
     modify it under the terms of the GNU General Public License as
@@ -28,6 +28,7 @@
 #include <my_global.h>
 #include <mysql/plugin_auth.h>
 #include <mysql/client_plugin.h>
+#include <mysql/service_my_plugin_log.h>
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
