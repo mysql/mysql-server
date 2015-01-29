@@ -675,10 +675,11 @@ Transaction_context_event(const char *buffer, unsigned int event_len,
          sizeof(read_set_len));
   read_set_len= le16toh(read_set_len);
 
-  uint16_t snapshot_version_len= 0;
-  memcpy(&snapshot_version_len, data_head + ENCODED_SNAPSHOT_VERSION_OFFSET,
-         sizeof(snapshot_version_len));
-  snapshot_version_len= le16toh(snapshot_version_len);
+  encoded_snapshot_version_length= 0;
+  memcpy(&encoded_snapshot_version_length,
+         data_head + ENCODED_SNAPSHOT_VERSION_LEN_OFFSET,
+         sizeof(encoded_snapshot_version_length));
+  encoded_snapshot_version_length= le32toh(encoded_snapshot_version_length);
 
   memcpy(&thread_id, data_head + ENCODED_THREAD_ID_OFFSET, sizeof(thread_id));
   thread_id= (uint64_t) le64toh(thread_id);
@@ -688,14 +689,15 @@ Transaction_context_event(const char *buffer, unsigned int event_len,
   server_uuid= bapi_strndup(pos, server_uuid_len);
   pos += server_uuid_len;
 
-  // This is done to skip the snapshot version length which is in the
-  // derived class in mysql server in the read_snapshot_version function.
-  pos += snapshot_version_len;
+  encoded_snapshot_version=
+      reinterpret_cast<const unsigned char *>(bapi_strndup(pos,
+                                                           encoded_snapshot_version_length));
+  pos += encoded_snapshot_version_length;
 
-  pos= (const char*) read_data_set((char*)pos, write_set_len, &write_set);
+  pos= read_data_set(pos, write_set_len, &write_set);
   if (pos == NULL)
     goto err;
-  pos= (const char*) read_data_set((char*)pos, read_set_len, &read_set);
+  pos= read_data_set(pos, read_set_len, &read_set);
   if (pos == NULL)
     goto err;
 
@@ -704,6 +706,8 @@ Transaction_context_event(const char *buffer, unsigned int event_len,
 err:
   bapi_free((void*)server_uuid);
   server_uuid= NULL;
+  bapi_free((void*)encoded_snapshot_version);
+  encoded_snapshot_version= NULL;
   clear_set(&write_set);
   clear_set(&read_set);
   return;
@@ -719,9 +723,9 @@ err:
   @retval - returns the pointer in the buffer to the end of the added hash
             value.
 */
-char* Transaction_context_event::read_data_set(char *pos,
-                                               uint16_t set_len,
-                                               std::list<const char*> *set)
+const char* Transaction_context_event::read_data_set(const char *pos,
+                                                     uint16_t set_len,
+                                                     std::list<const char*> *set)
 {
   uint16_t len= 0;
   for (int i= 0; i < set_len; i++)
@@ -757,6 +761,10 @@ void Transaction_context_event::clear_set(std::list<const char*> *set)
 */
 Transaction_context_event::~Transaction_context_event()
 {
+  bapi_free((void*)server_uuid);
+  server_uuid= NULL;
+  bapi_free((void*)encoded_snapshot_version);
+  encoded_snapshot_version= NULL;
   clear_set(&write_set);
   clear_set(&read_set);
 }
