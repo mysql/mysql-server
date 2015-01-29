@@ -75,7 +75,7 @@ typedef struct st_mysql_xid MYSQL_XID;
   Plugin API. Common for all plugin types.
 */
 
-#define MYSQL_PLUGIN_INTERFACE_VERSION 0x0106
+#define MYSQL_PLUGIN_INTERFACE_VERSION 0x0105
 
 /*
   The allowable types of plugins
