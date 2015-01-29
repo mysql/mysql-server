@@ -17,7 +17,6 @@
 #define _my_plugin_h
 
 #ifndef MYSQL_ABI_CHECK
-#include "my_config.h"
 #include <stddef.h>
 #endif
 
