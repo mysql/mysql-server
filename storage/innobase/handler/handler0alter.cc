@@ -50,6 +50,7 @@ Smart ALTER TABLE
 #include "row0sel.h"
 #include "ha_innodb.h"
 #include "ut0new.h"
+#include "ut0stage.h"
 
 /** Operations for creating secondary indexes (no rebuild needed) */
 static const Alter_inplace_info::HA_ALTER_FLAGS INNOBASE_ONLINE_CREATE
@@ -4539,6 +4540,15 @@ ok_exit:
 	DBUG_ASSERT(ctx->trx);
 	DBUG_ASSERT(ctx->prebuilt == m_prebuilt);
 
+	dict_index_t*		pk;
+	ut_stage_alter_t*	stage;
+
+	pk = dict_table_get_first_index(m_prebuilt->table);
+	ut_ad(pk != NULL);
+	stage = UT_NEW_NOKEY(ut_stage_alter_t(pk));
+
+	ha_alter_info->alter_info->se_blob = stage;
+
 	if (m_prebuilt->table->ibd_file_missing
 	    || dict_table_is_discarded(m_prebuilt->table)) {
 		goto all_done;
@@ -4555,14 +4565,15 @@ ok_exit:
 		ctx->online,
 		ctx->add_index, ctx->add_key_numbers, ctx->num_to_add_index,
 		altered_table, ctx->add_cols, ctx->col_map,
-		ctx->add_autoinc, ctx->sequence, ctx->skip_pk_sort);
+		ctx->add_autoinc, ctx->sequence, ctx->skip_pk_sort, stage);
+
 #ifndef DBUG_OFF
 oom:
 #endif /* !DBUG_OFF */
 	if (error == DB_SUCCESS && ctx->online && ctx->need_rebuild()) {
 		DEBUG_SYNC_C("row_log_table_apply1_before");
 		error = row_log_table_apply(
-			ctx->thr, m_prebuilt->table, altered_table);
+			ctx->thr, m_prebuilt->table, altered_table, stage);
 	}
 
 	DEBUG_SYNC_C("inplace_after_index_build");
@@ -5639,8 +5650,12 @@ commit_try_rebuild(
 
 	if (ctx->online) {
 		DEBUG_SYNC_C("row_log_table_apply2_before");
+
 		error = row_log_table_apply(
-			ctx->thr, user_table, altered_table);
+			ctx->thr, user_table, altered_table,
+			static_cast<ut_stage_alter_t*>(
+				ha_alter_info->alter_info->se_blob));
+
 		ulint	err_key = thr_get_trx(ctx->thr)->error_key_num;
 
 		switch (error) {
@@ -6205,19 +6220,31 @@ ha_innobase::commit_inplace_alter_table(
 
 	DEBUG_SYNC_C("innodb_commit_inplace_alter_table_wait");
 
+	ut_stage_alter_t*	stage = static_cast<ut_stage_alter_t*>(
+		ha_alter_info->alter_info->se_blob);
+
+	if (stage != NULL) {
+		stage->begin_phase_end();
+	}
+
 	if (!commit) {
 		/* A rollback is being requested. So far we may at
 		most have created some indexes. If any indexes were to
 		be dropped, they would actually be dropped in this
 		method if commit=true. */
-		DBUG_RETURN(rollback_inplace_alter_table(
-				    ha_alter_info, table, m_prebuilt));
+		const bool	ret = rollback_inplace_alter_table(
+			ha_alter_info, table, m_prebuilt);
+		UT_DELETE(stage);
+		ha_alter_info->alter_info->se_blob = NULL;
+		DBUG_RETURN(ret);
 	}
 
 	if (!(ha_alter_info->handler_flags & ~INNOBASE_INPLACE_IGNORE)) {
 		DBUG_ASSERT(!ctx0);
 		MONITOR_ATOMIC_DEC(MONITOR_PENDING_ALTER_TABLE);
 		ha_alter_info->group_commit_ctx = NULL;
+		UT_DELETE(stage);
+		ha_alter_info->alter_info->se_blob = NULL;
 		DBUG_RETURN(false);
 	}
 
@@ -6274,6 +6301,8 @@ ha_innobase::commit_inplace_alter_table(
 		if (error != DB_SUCCESS) {
 			my_error_innodb(
 				error, table_share->table_name.str, 0);
+			UT_DELETE(stage);
+			ha_alter_info->alter_info->se_blob = NULL;
 			DBUG_RETURN(true);
 		}
 	}
@@ -6620,6 +6649,8 @@ foreign_fail:
 
 		row_mysql_unlock_data_dictionary(trx);
 		trx_free_for_mysql(trx);
+		UT_DELETE(stage);
+		ha_alter_info->alter_info->se_blob = NULL;
 		DBUG_RETURN(true);
 	}
 
@@ -6796,6 +6827,8 @@ foreign_fail:
 #endif /* DBUG_OFF */
 
 	MONITOR_ATOMIC_DEC(MONITOR_PENDING_ALTER_TABLE);
+	UT_DELETE(stage);
+	ha_alter_info->alter_info->se_blob = NULL;
 	DBUG_RETURN(false);
 }
 

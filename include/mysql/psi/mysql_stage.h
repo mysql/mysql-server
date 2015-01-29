@@ -47,7 +47,9 @@
 
 /**
   @def MYSQL_SET_STAGE
-  Set the current stage
+  Set the current stage.
+  Use this API when the file and line
+  is passed from the caller.
   @param K the stage key
   @param F the source file name
   @param L the source file line
@@ -59,6 +61,32 @@
 #else
   #define MYSQL_SET_STAGE(K, F, L) \
     NULL
+#endif
+
+/**
+  @def mysql_set_stage
+  Set the current stage.
+  @param K the stage key
+  @return the current stage progress
+*/
+#ifdef HAVE_PSI_STAGE_INTERFACE
+  #define mysql_set_stage(K) \
+    inline_mysql_set_stage(K, __FILE__, __LINE__)
+#else
+  #define mysql_set_stage(K) \
+    NULL
+#endif
+
+/**
+  @def mysql_end_stage
+  End the last stage
+*/
+#ifdef HAVE_PSI_STAGE_INTERFACE
+  #define mysql_end_stage \
+    inline_mysql_end_stage
+#else
+  #define mysql_end_stage \
+  do {} while (0)
 #endif
 
 #ifdef HAVE_PSI_STAGE_INTERFACE
@@ -79,10 +107,24 @@ inline_mysql_set_stage(PSI_stage_key key,
 #endif
 
 #ifdef HAVE_PSI_STAGE_INTERFACE
+static inline void
+inline_mysql_end_stage()
+{
+  PSI_STAGE_CALL(end_stage)();
+}
+#endif
+
+#ifdef HAVE_PSI_STAGE_INTERFACE
 #define mysql_stage_set_work_completed(P1, P2) \
   inline_mysql_stage_set_work_completed(P1, P2)
+
+#define mysql_stage_get_work_completed(P1) \
+  inline_mysql_stage_get_work_completed(P1)
 #else
 #define mysql_stage_set_work_completed(P1, P2) \
+  do {} while (0)
+
+#define mysql_stage_get_work_completed(P1) \
   do {} while (0)
 #endif
 
@@ -97,8 +139,14 @@ inline_mysql_set_stage(PSI_stage_key key,
 #ifdef HAVE_PSI_STAGE_INTERFACE
 #define mysql_stage_set_work_estimated(P1, P2) \
   inline_mysql_stage_set_work_estimated(P1, P2)
+
+#define mysql_stage_get_work_estimated(P1) \
+  inline_mysql_stage_get_work_estimated(P1)
 #else
 #define mysql_stage_set_work_estimated(P1, P2) \
+  do {} while (0)
+
+#define mysql_stage_get_work_estimated(P1) \
   do {} while (0)
 #endif
 
@@ -109,6 +157,12 @@ inline_mysql_stage_set_work_completed(PSI_stage_progress *progress,
 {
   if (progress != NULL)
     progress->m_work_completed= val;
+}
+
+static inline ulonglong
+inline_mysql_stage_get_work_completed(PSI_stage_progress *progress)
+{
+  return progress->m_work_completed;
 }
 #endif
 
@@ -129,6 +183,12 @@ inline_mysql_stage_set_work_estimated(PSI_stage_progress *progress,
 {
   if (progress != NULL)
     progress->m_work_estimated= val;
+}
+
+static inline ulonglong
+inline_mysql_stage_get_work_estimated(PSI_stage_progress *progress)
+{
+  return progress->m_work_estimated;
 }
 #endif
 
