@@ -38,6 +38,8 @@ extern ibool buf_page_cleaner_is_active;
 /** Event to synchronise with the flushing. */
 extern os_event_t	buf_flush_event;
 
+class ut_stage_alter_t;
+
 /********************************************************************//**
 Remove a block from the flush list of modified blocks. */
 void
@@ -97,6 +99,9 @@ oldest_modification is smaller than this should be flushed (if their number
 does not exceed min_n), otherwise ignored
 @param[out]	n_processed	the number of pages which were processed is
 passed back to caller. Ignored if NULL
+@param[in,out]	stage		performance schema accounting object, used by
+ALTER TABLE. If not NULL, then stage->inc() will be called for each page
+flushed.
 @retval true	if a batch was queued successfully.
 @retval false	if another batch of same type was already running. */
 bool
@@ -105,7 +110,8 @@ buf_flush_do_batch(
 	buf_flush_t		type,
 	ulint			min_n,
 	lsn_t			lsn_limit,
-	ulint*			n_processed);
+	ulint*			n_processed,
+	ut_stage_alter_t*	stage = NULL);
 
 /** This utility flushes dirty blocks from the end of the flush list of all
 buffer pool instances.
@@ -117,6 +123,10 @@ oldest_modification is smaller than this should be flushed (if their number
 does not exceed min_n), otherwise ignored
 @param[out]	n_processed	the number of pages which were processed is
 passed back to caller. Ignored if NULL.
+@param[in,out]	stage		performance schema accounting object, used by
+ALTER TABLE. If not NULL, then stage->begin_phase_flush() will be called
+initially, specifying the number of pages to be flushed and subsequently,
+stage->inc() will be called for each page flushed.
 @return true if a batch was queued successfully for each buffer pool
 instance. false if another batch of same type was already running in
 at least one of the buffer pool instance */
@@ -124,7 +134,8 @@ bool
 buf_flush_lists(
 	ulint			min_n,
 	lsn_t			lsn_limit,
-	ulint*			n_processed);
+	ulint*			n_processed,
+	ut_stage_alter_t*	stage = NULL);
 
 /******************************************************************//**
 This function picks up a single page from the tail of the LRU

@@ -1,0 +1,24 @@
+#
+# Test some bits of
+# WL#5889 Add InnoDB events to Performance Schema's Event Stage table
+#
+
+-- source include/have_innodb.inc
+-- source include/have_perfschema.inc
+
+CREATE TABLE wl5889 (a INT) ENGINE=INNODB;
+
+ALTER TABLE wl5889 ADD COLUMN b INT;
+
+-- vertical_results
+
+SELECT
+event_name,
+work_completed > 0,
+work_estimated > 0,
+work_completed <= work_estimated
+FROM performance_schema.events_stages_history_long
+WHERE event_name LIKE 'stage/innodb/alter table%'
+ORDER BY 1;
+
+DROP TABLE wl5889;
