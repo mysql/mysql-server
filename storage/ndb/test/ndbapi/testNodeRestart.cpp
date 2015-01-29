@@ -4739,9 +4739,9 @@ int analyseDynamicOrder(NDBT_Context* ctx, NDBT_Step* step)
   {
     dynamicOrder.push_back(master);
     nodeGroup.push_back(restarter.getNodeGroup(master));
-    master = restarter.getNextMasterNodeId(master);
     Uint32 zero=0;
     nodeIdToDynamicIndex.set(n, master, zero);
+    master = restarter.getNextMasterNodeId(master);
   }
 
   /* Look at implied HB links */
@@ -5015,13 +5015,19 @@ int runSplitLatency25PctFail(NDBT_Context* ctx, NDBT_Step* step)
   } while (2 * not_started != node_count);
 
   ndbout_c("Restarting cluster");
-  restarter.restartAll(false, true, true);
+  if (restarter.restartAll(false, true, true))
+    return NDBT_FAILED;
+
   ndbout_c("Waiting cluster not started");
-  restarter.waitClusterNoStart();
+  if (restarter.waitClusterNoStart())
+    return NDBT_FAILED;
 
   ndbout_c("Starting");
-  restarter.startAll();
-  restarter.waitClusterStarted();
+  if (restarter.startAll())
+    return NDBT_FAILED;
+
+  if (restarter.waitClusterStarted())
+    return NDBT_FAILED;
 
   return NDBT_OK;
 }
