@@ -13258,6 +13258,11 @@ Transaction_context_log_event(const char *server_uuid_arg,
     server_uuid= my_strdup(key_memory_log_event, server_uuid_arg, MYF(MY_WME));
   global_sid_lock->unlock();
 
+  // These two fields are only populated on event decoding.
+  // Encoding is done directly from snapshot_version field.
+  encoded_snapshot_version= NULL;
+  encoded_snapshot_version_length= 0;
+
   if (server_uuid != NULL)
     is_valid_param= true;
 
@@ -13287,32 +13292,16 @@ Transaction_context_log_event(const char *buffer, uint event_len,
   sid_map= new Sid_map(NULL);
   snapshot_version= new Gtid_set(sid_map);
 
-  const char* data_head = buffer + descr_event->common_header_len;
-
-  uint8 server_uuid_len= (uint) data_head[ENCODED_SERVER_UUID_LEN_OFFSET];
-  char *pos= (char*) data_head + Binary_log_event::TRANSACTION_CONTEXT_HEADER_LEN;
-
-  uint16 snapshot_version_len= uint2korr(data_head + ENCODED_SNAPSHOT_VERSION_OFFSET);
-
-  if (server_uuid == NULL)
+  if (server_uuid == NULL || encoded_snapshot_version == NULL)
     goto err;
-  pos += server_uuid_len;
-  /*
-  TODO: Complete event data should be moved to
-        binary_log::Transaction_context_event event, what is not possible
-        since libbinlogevents must be independent of server code.
-  */
-  pos= read_snapshot_version(pos, snapshot_version_len);
-  if (pos == NULL)
+
+  if (read_snapshot_version())
     goto err;
 
   is_valid_param= true;
-
   DBUG_VOID_RETURN;
 
 err:
-  my_free((void*) server_uuid);
-  server_uuid= NULL;
   is_valid_param= false;
   DBUG_VOID_RETURN;
 }
@@ -13322,6 +13311,8 @@ Transaction_context_log_event::~Transaction_context_log_event()
   DBUG_ENTER("Transaction_context_log_event::~Transaction_context_log_event");
   my_free((void*)server_uuid);
   server_uuid= NULL;
+  my_free((void*) encoded_snapshot_version);
+  encoded_snapshot_version= NULL;
   delete snapshot_version;
   delete sid_map;
   DBUG_VOID_RETURN;
@@ -13395,7 +13386,7 @@ bool Transaction_context_log_event::write_data_header(IO_CACHE* file)
   buf[ENCODED_SERVER_UUID_LEN_OFFSET] = (char) strlen(server_uuid);
   int8store(buf + ENCODED_THREAD_ID_OFFSET, thread_id);
   buf[ENCODED_GTID_SPECIFIED_OFFSET] = gtid_specified;
-  int2store(buf + ENCODED_SNAPSHOT_VERSION_OFFSET, get_snapshot_version_size());
+  int4store(buf + ENCODED_SNAPSHOT_VERSION_LEN_OFFSET, get_snapshot_version_size());
   int2store(buf + ENCODED_WRITE_SET_ITEMS_OFFSET, write_set.size());
   int2store(buf + ENCODED_READ_SET_ITEMS_OFFSET, read_set.size());
   DBUG_RETURN(wrapper_my_b_safe_write(file, (const uchar *) buf,
@@ -13457,23 +13448,19 @@ bool Transaction_context_log_event::write_data_set(IO_CACHE* file,
 }
 #endif
 
-char *Transaction_context_log_event::read_snapshot_version(char *pos,
-                                                           uint16 len)
+bool Transaction_context_log_event::read_snapshot_version()
 {
   DBUG_ENTER("Transaction_context_log_event::read_snapshot_version");
-  char *result= NULL;
   DBUG_ASSERT(snapshot_version->is_empty());
-
-  if (snapshot_version->add_gtid_encoding((const uchar*) pos, len) == RETURN_STATUS_OK)
-    result= pos+len;
-
-  DBUG_RETURN(result);
+  DBUG_RETURN(snapshot_version->add_gtid_encoding(encoded_snapshot_version,
+                                                  encoded_snapshot_version_length)
+                  != RETURN_STATUS_OK);
 }
 
-uint16 Transaction_context_log_event::get_snapshot_version_size()
+size_t Transaction_context_log_event::get_snapshot_version_size()
 {
   DBUG_ENTER("Transaction_context_log_event::get_snapshot_version_size");
-  uint16 result= snapshot_version->get_encoded_length();
+  size_t result= snapshot_version->get_encoded_length();
   DBUG_RETURN(result);
 }
 

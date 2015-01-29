@@ -4085,7 +4085,7 @@ private:
   /// The Sid_map to use for creating the Gtid_set.
   Sid_map *sid_map;
   /// A gtid_set which is used to store the transaction set used for
-  /// certification.
+  /// conflict detection.
   Gtid_set *snapshot_version;
 
 #ifndef MYSQL_CLIENT
@@ -4098,9 +4098,9 @@ private:
   bool write_data_set(IO_CACHE* file, std::list<const char*> *set);
 #endif
 
-  char *read_snapshot_version(char *pos, uint16 len);
+  bool read_snapshot_version();
 
-  uint16 get_snapshot_version_size();
+  size_t get_snapshot_version_size();
 
   static int get_data_set_size(std::list<const char*> *set);
 
