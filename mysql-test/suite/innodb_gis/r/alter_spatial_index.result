@@ -428,8 +428,6 @@ ALTER TABLE tab ADD SPATIAL KEY idx5(c5 ASC) COMMENT 'testing spatial index on G
 ALTER TABLE tab ADD INDEX idx6(c4(10)) USING BTREE;
 ALTER TABLE tab MODIFY COLUMN c2 GEOMETRY NOT NULL;
 ALTER TABLE tab MODIFY COLUMN c3 POLYGON NOT NULL;
-ALTER TABLE tab MODIFY COLUMN c4 POINT NOT NULL;
-ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 ALTER TABLE tab add COLUMN c7 POINT NOT NULL;
 ALTER TABLE tab add COLUMN c8 POINT NOT NULL, ALGORITHM = INPLACE, LOCK=NONE;
 ERROR 0A000: LOCK=NONE is not supported. Reason: Do not support online operation on table with GIS index. Try LOCK=SHARED.
@@ -467,8 +465,6 @@ DELETE FROM tab WHERE MBRContains(tab.c4, @g1);
 SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM tab WHERE MBRContains(tab.c4, @g1) ORDER BY c1;
 c1	ST_Astext(c2)	ST_Astext(c4)
 ALTER TABLE tab MODIFY COLUMN c2 POLYGON NOT NULL;
-ALTER TABLE tab MODIFY COLUMN c3 POINT NOT NULL;
-ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 ALTER TABLE tab MODIFY COLUMN c4 GEOMETRY NOT NULL;
 SHOW CREATE TABLE tab;
 Table	Create Table

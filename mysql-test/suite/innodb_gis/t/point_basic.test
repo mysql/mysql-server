@@ -43,33 +43,8 @@ DROP TABLE gis_point;
 
 
 --echo #
---echo # Test for innodb_optimize_point_storage
+--echo # Test some ALTER TABLE operations on POINT tables
 --echo #
-SET @start_optimize_point_storage = @@session.innodb_optimize_point_storage;
-SET @@session.innodb_optimize_point_storage = 1;
-SELECT @@session.innodb_optimize_point_storage;
-
---echo # Create a geometry table and check mtypes
-CREATE TABLE t1 (
-  p POINT NOT NULL,
-  g GEOMETRY NOT NULL
-) ENGINE=InnoDB;
-
-SELECT name, mtype, prtype, len FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS WHERE name = 'p' OR name = 'g';
-
-INSERT INTO t1 VALUES(ST_PointFromText('POINT(0 1)'), ST_PointFromText('POINT(10 11)'));
-INSERT INTO t1 VALUES(ST_PointFromText('POINT(1 1)'), ST_PointFromText('POINT(10 12)'));
-INSERT INTO t1 VALUES(ST_PointFromText('POINT(1 0)'), ST_PointFromText('POINT(10 13)'));
-INSERT INTO t1 VALUES(ST_PointFromText('POINT(0 0)'), ST_PointFromText('POINT(10 14)'));
-
-SELECT ST_AsText(p), ST_AsText(g) FROM t1;
-
-DROP TABLE t1;
-
---echo # Changing the setting and verify the mtype of POINT would change for new
---echo # geometry tables
-SET @@session.innodb_optimize_point_storage = 0;
-SELECT @@session.innodb_optimize_point_storage;
 
 CREATE TABLE t1 (
   p POINT NOT NULL,
@@ -85,60 +60,28 @@ SELECT ST_AsText(p), ST_AsText(g) FROM t1;
 
 SELECT name, mtype, prtype, len FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS WHERE name = 'p' OR name = 'g';
 
---echo # Changing the setting would affect the new introduced POINT mtype, if it's an in-place alter table
-SET @@session.innodb_optimize_point_storage = 1;
-SELECT @@session.innodb_optimize_point_storage;
 ALTER TABLE t1 ADD COLUMN p1 POINT NOT NULL, ADD COLUMN p2 POINT NOT NULL, ADD KEY(p), ADD KEY(p1), ADD KEY(p2);
 SELECT name, mtype, prtype, len FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS WHERE name = 'p' OR name = 'g' OR name = 'p1' OR name = 'p2';
 
---echo # NOT NULL POINT will use POINT(0 0) as default value
-SELECT count(*) AS `Expect 4` FROM t1 WHERE p1 = ST_PointFromText('POINT(0 0)');
-SELECT count(*) AS `Expect 4` FROM t1 WHERE p2 = ST_PointFromText('POINT(0 0)');
+--echo # NOT NULL POINT will use ''
+SELECT count(*) AS `Expect 4` FROM t1 WHERE p1 = '';
+SELECT count(*) AS `Expect 4` FROM t1 WHERE p2 = '';
 
 SELECT ST_AsText(p), ST_AsText(p1) FROM t1 WHERE p = p1;
 SELECT ST_AsText(p), ST_AsText(p1) FROM t1 WHERE p = p2;
 
 ALTER TABLE t1 DROP COLUMN p2;
 
---echo # NULLABLE POINT will use null
+--echo # NULLABLE POINT will use NULL
 ALTER TABLE t1 ADD COLUMN p2 POINT, ADD KEY(p2);
 SELECT name, mtype, prtype, len FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS WHERE name = 'p' OR name = 'g' OR name = 'p1' OR name = 'p2';
 
 SELECT count(*) AS `Expect 4` FROM t1 WHERE p2 IS NULL;
 UPDATE t1 SET p2 = ST_PointFromText('POINT(10 20)');
-SELECT ST_AsText(p2) FROM t1;
+UPDATE t1 SET p1 = ST_PointFromText('POINT(10 20)');
 
 ALTER TABLE t1 DROP COLUMN p2;
 SELECT name, mtype, prtype, len FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS WHERE name = 'p' OR name = 'g' OR name = 'p1';
-
-SET @@session.innodb_optimize_point_storage = 0;
-SELECT @@session.innodb_optimize_point_storage;
-
---echo # NULLABLE POINT will use null
-ALTER TABLE t1 ADD COLUMN p2 POINT, ADD KEY(p2);
-SELECT name, mtype, prtype, len FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS WHERE name = 'p' OR name = 'g' OR name = 'p1' OR name = 'p2';
-
-SELECT count(*) AS `Expect 4` FROM t1 WHERE p2 IS NULL;
-UPDATE t1 SET p2 = ST_PointFromText('POINT(10 20)');
-SELECT ST_AsText(p2) FROM t1;
-
-ALTER TABLE t1 DROP COLUMN p2;
-
-SET @@session.innodb_optimize_point_storage = 1;
-SELECT @@session.innodb_optimize_point_storage;
-
-ALTER TABLE t1 ADD COLUMN p2 POINT, ADD KEY(p2);
-SELECT name, mtype, prtype, len FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS WHERE name = 'p' OR name = 'g' OR name = 'p1' OR name = 'p2';
-
-SELECT count(*) AS `Expect 4` FROM t1 WHERE p2 IS NULL;
-
-SELECT ST_AsText(p2) FROM t1;
-
-ALTER TABLE t1 DROP COLUMN p2;
-
-UPDATE t1 SET p1 = ST_PointFromText('POINT(10 20)');
-
-SELECT ST_AsText(p), ST_AsText(p1) FROM t1;
 
 SELECT ST_AsText(p), ST_AsText(p1) FROM t1 WHERE p = p1;
 
@@ -167,10 +110,6 @@ SELECT ST_AsText(p), ST_AsText(p1) FROM t1 WHERE p1 = ST_PointFromText('POINT(10
 SELECT ST_AsText(p), ST_AsText(p1) FROM t1 WHERE MBRWithin(p1, ST_GeomFromText('POLYGON((5 5, 20 5, 20 21, 5 21, 5 5))'));
 SELECT ST_AsText(p), ST_AsText(p1) FROM t1 WHERE MBRWithin(p, ST_GeomFromText('POLYGON((-1 0.5, -1 -0.5, 1 -0.5, 1 0.5, -1 0.5))'));
 
---echo # Change it again to test for ALTER TABLE ... ALGORITHM = COPY
-SET @@session.innodb_optimize_point_storage = 0;
-SELECT @@session.innodb_optimize_point_storage;
-
 TRUNCATE t1;
 
 ALTER TABLE t1 DROP COLUMN p, DROP COLUMN p1;
@@ -192,19 +131,12 @@ SELECT ST_AsText(p), ST_AsText(p1) FROM t1 WHERE p1 = ST_PointFromText('POINT(10
 SELECT ST_AsText(p), ST_AsText(p1) FROM t1 WHERE MBRWithin(p1, ST_GeomFromText('POLYGON((5 5, 20 5, 20 21, 5 21, 5 5))'));
 SELECT ST_AsText(p), ST_AsText(p1) FROM t1 WHERE MBRWithin(p, ST_GeomFromText('POLYGON((-1 0.5, -1 -0.5, 1 -0.5, 1 0.5, -1 0.5))'));
 
---echo # CHANGE COLUMN might change the mtype
-SET @@session.innodb_optimize_point_storage = 1;
-SELECT @@session.innodb_optimize_point_storage;
-
 ALTER TABLE t1 DROP COLUMN p1, ADD COLUMN p1 POINT NOT NULL, CHANGE COLUMN p pp POINT NOT NULL AFTER p1;
 SELECT name, mtype, prtype, len FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS WHERE name = 'pp' OR name = 'g' OR name = 'p1';
 
 UPDATE t1 SET p1 = ST_PointFromText('POINT(5 5)');
 
 SELECT ST_AsText(pp), ST_AsText(p1) FROM t1;
-
-SET @@session.innodb_optimize_point_storage = 0;
-SELECT @@session.innodb_optimize_point_storage;
 
 ALTER TABLE t1 ADD SPATIAL(p1), ADD SPATIAL(pp), ALGORITHM = COPY;
 SELECT name, mtype, prtype, len FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS WHERE name = 'pp' OR name = 'g' OR name = 'p1';
@@ -275,9 +207,7 @@ SELECT name, mtype, prtype, len FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS WHERE
 
 SELECT length(p) FROM gis_point;
 
-SET @@session.innodb_optimize_point_storage = 0;
 ALTER TABLE gis_point DROP COLUMN g, ALGORITHM = COPY;
-SELECT name, mtype, prtype, len FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS WHERE name = 'pp';
 
 TRUNCATE gis_point;
 
@@ -304,8 +234,6 @@ CHECK TABLE gis_point;
 
 SELECT name, mtype, prtype, len FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS WHERE name = 'p' OR name = 'g';
 
-SET @@session.innodb_optimize_point_storage = 1;
-
 DROP TABLE gis_point;
 
 
@@ -329,10 +257,6 @@ DROP TABLE g;
 --echo # check the mtype and len with CREATE TABLE AS
 --echo #
 
-SET innodb_optimize_point_storage = 0;
-
-select @@innodb_optimize_point_storage;
-
 CREATE TABLE t1 (
   p POINT NOT NULL,
   g GEOMETRY NOT NULL
@@ -343,11 +267,6 @@ INSERT INTO t1 VALUES(ST_PointFromText('POINT(10 10)'),ST_GeomFromText('POLYGON(
 
 # Check the mtype and len of the table
 SELECT name, mtype, prtype, len FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS WHERE name = 'p' OR name = 'g' AND name='t1';
-
-
-SET innodb_optimize_point_storage = 1;
-
-SELECT @@innodb_optimize_point_storage;
 
 CREATE TABLE t2 AS SELECT * FROM t1;
 
@@ -392,9 +311,7 @@ INSERT INTO gis_point VALUES
 (ST_PointFromText('POINT(26.25 57)'), ST_PointFromText('POINT(1 2)')),
 (ST_PointFromText('POINT(32.1234 64.2468)'), ST_PointFromText('POINT(-1 -1)'));
 
-SET @@session.innodb_optimize_point_storage = 0;
 CREATE TABLE gis_point1 SELECT * FROM gis_point;
-SET @@session.innodb_optimize_point_storage = 1;
 
 SELECT name, mtype, prtype, len FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS WHERE name = 'p1' OR name = 'p2';
 
@@ -703,32 +620,6 @@ SELECT ST_AsText(p1) AS 'Expect (32.1234 64.2468) AND (20.5 41)' FROM gis_point 
 
 CHECK TABLE gis_point;
 
--- echo Test the same trx for optimize_point_storage = 0
-SELECT name, mtype, prtype, len FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS WHERE name = 'p1' OR name = 'p3';
-SET @@session.innodb_optimize_point_storage = 0;
-ALTER TABLE gis_point CHANGE COLUMN p2 p3 POINT NOT NULL, ALGORITHM = COPY;
-SELECT name, mtype, prtype, len FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS WHERE name = 'p1' OR name = 'p3';
-
-START TRANSACTION;
-
-DELETE FROM gis_point WHERE ST_Equals(p3, ST_PointFromText('POINT(-8 4)'));
-
-INSERT INTO gis_point VALUES(ST_PointFromText('POINT(20.5 -41)'), ST_PointFromText('POINT(8 -4)'));
-
-SELECT ST_AsText(p1) AS 'Expect (32.1234 64.2468)' FROM gis_point WHERE ST_Touches(@poly3, p1) AND MBRWithin(p3, @poly4);
-
-UPDATE gis_point SET p1 = ST_PointFromText('POINT(20.5 49)'), p3 = ST_PointFromText('POINT(-8 4)') WHERE ST_Intersection(@ls3, @ls4) = p1;
-
-SELECT ST_AsText(p1) AS 'Expect (32.1234 64.2468) AND (20.5 49)' FROM gis_point WHERE ST_Touches(@poly3, p1) AND MBRWithin(p3, @poly4);
-
-ROLLBACK;
-
-SELECT ST_AsText(p1) AS 'Expect (32.1234 64.2468) AND (20.5 41)' FROM gis_point WHERE ST_Touches(@poly3, p1) AND MBRWithin(p3, @poly4);
-
-CHECK TABLE gis_point;
-
-SET @@session.innodb_optimize_point_storage = 1;
-
 DROP TABLE gis_point;
 
 
@@ -743,29 +634,15 @@ CREATE TABLE geom (i INT, g GEOMETRY NOT NULL, SPATIAL KEY(g)) ENGINE=InnoDB;
 INSERT INTO gis_point VALUES(0, ST_PointFromText('POINT(1 1)'));
 INSERT INTO gis_point VALUES(1, ST_PointFromText('POINT(2 2)'));
 INSERT INTO gis_point VALUES(2, NULL);
---error ER_CANT_CREATE_GEOMETRY_OBJECT
-INSERT INTO gis_point VALUES(3, ST_GeomFromText('POLYGON((7 1,6 2,6 3,10 3,10 1,7 1))'));
 
-SET @@session.innodb_optimize_point_storage = 0;
 ALTER TABLE gis_point ADD COLUMN j INT, ALGORITHM = COPY;
 
 SELECT name, mtype, prtype, len FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS WHERE name = 'p';
-
---error ER_CANT_CREATE_GEOMETRY_OBJECT
-INSERT INTO gis_point VALUES(3, ST_GeomFromText('POLYGON((7 1,6 2,6 3,10 3,10 1,7 1))'), 5);
-
---error ER_CANT_CREATE_GEOMETRY_OBJECT
-UPDATE gis_point SET p = ST_GeomFromText('POLYGON((7 1,6 2,6 3,10 3,10 1,7 1))');
-
-SET @@session.innodb_optimize_point_storage = 1;
-ALTER TABLE gis_point DROP COLUMN j, ALGORITHM = COPY;
 
 SELECT name, mtype, prtype, len FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS WHERE name = 'p';
 
 SELECT i, ST_AsText(p) FROM gis_point;
 
---error ER_CANT_CREATE_GEOMETRY_OBJECT
-UPDATE gis_point SET p = ST_GeomFromText('POLYGON((7 1,6 2,6 3,10 3,10 1,7 1))');
 UPDATE gis_point SET p = NULL WHERE p = ST_PointFromText('POINT(1 1)');
 UPDATE gis_point SET p = ST_PointFromText('POINT(1 2)') WHERE p = ST_PointFromText('POINT(2 2)');
 UPDATE gis_point SET p = ST_PointFromText('POINT(1 1)') WHERE p IS NULL;
@@ -778,14 +655,7 @@ INSERT INTO geom VALUES(2, ST_GeomFromText('POLYGON((7 1,6 2,6 3,10 3,10 1,7 1))
 
 SELECT ST_AsText(g) FROM geom;
 
---error ER_CANT_CREATE_GEOMETRY_OBJECT
-INSERT INTO gis_point SELECT * FROM geom;
-
 SELECT ST_AsText(p) FROM gis_point;
-
---echo From GEOMETRY to POINT, and NOT ALL the data are POINT
---error ER_CANT_CREATE_GEOMETRY_OBJECT
-ALTER TABLE geom MODIFY g POINT NOT NULL;
 
 DELETE FROM geom WHERE g = ST_GeomFromText('POLYGON((7 1,6 2,6 3,10 3,10 1,7 1))');
 --echo From GEOMETRY to POINT, now ALL the data are POINT
@@ -889,7 +759,6 @@ CHECK TABLE t1;
 
 DROP TABLE t1;
 
-
 --echo #
 --echo # Test for foreign keys.
 --echo #
@@ -908,29 +777,10 @@ ALTER TABLE parent DROP INDEX idx1;
 ALTER TABLE child ADD FOREIGN KEY(p) REFERENCES parent(p);
 
 ALTER TABLE child DROP INDEX idx2;
+--error ER_CANNOT_ADD_FOREIGN
 ALTER TABLE child ADD FOREIGN KEY(p) REFERENCES parent(p);
 
---error ER_NO_REFERENCED_ROW_2
-INSERT INTO child VALUES(ST_GeomFromText('POINT(10 10)'));
-
-INSERT INTO parent VALUES(ST_GeomFromText('POINT(10 10)'));
-INSERT INTO child VALUES(ST_GeomFromText('POINT(10 10)'));
-
---error ER_ROW_IS_REFERENCED_2
-DELETE FROM parent;
-
---error ER_ROW_IS_REFERENCED
-DROP TABLE parent;
-
-SET FOREIGN_KEY_CHECKS = 0;
-DROP TABLE parent;
-SET FOREIGN_KEY_CHECKS = 1;
-
---error ER_NO_REFERENCED_ROW_2
-INSERT INTO child VALUES(ST_GeomFromText('POINT(15 15)'));
-
-DROP TABLE child;
-
+DROP TABLE child, parent;
 
 --echo #
 --echo # Bug#28763: Selecting geometry fields in UNION caused server crash.

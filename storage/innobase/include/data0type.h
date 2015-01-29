@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -85,6 +85,10 @@ format (http://www.opengeospatial.org/standards/sfa).
 We use BLOB as underlying datatype for DATA_GEOMETRY and DATA_VAR_POINT
 while CHAR for DATA_POINT */
 #define DATA_GEOMETRY	14	/* geometry datatype of variable length */
+/* The following two are disabled temporarily, we won't create them in
+get_innobase_type_from_mysql_type().
+TODO: We will enable DATA_POINT/them when we come to the fixed-length POINT
+again. */
 #define DATA_POINT	15	/* geometry datatype of fixed length POINT */
 #define DATA_VAR_POINT	16	/* geometry datatype of variable length
 				POINT, used when we want to store POINT

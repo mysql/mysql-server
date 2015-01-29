@@ -152,14 +152,11 @@ VARCHAR and the new true VARCHAR in >= 5.0.3 by the 'prtype'.
 @param[out]	unsigned_flag		DATA_UNSIGNED if an 'unsigned type';
 at least ENUM and SET, and unsigned integer types are 'unsigned types'
 @param[in]	f			MySQL Field
-@param[in]	optimize_point_storage	true if we want to optimize POINT
-storage
 @return DATA_BINARY, DATA_VARCHAR, ... */
 ulint
 get_innobase_type_from_mysql_type(
 	ulint*			unsigned_flag,
-	const void*		field,
-	bool			optimize_point_storage);
+	const void*		field);
 
 /******************************************************************//**
 Get the variable length bounds of the given character set. */
@@ -304,13 +301,6 @@ thd_set_lock_wait_time(
 /*===================*/
 	THD*	thd,	/*!< in/out: thread handle */
 	ulint	value);	/*!< in: time waited for the lock */
-
-/** Return the optimize_point_storage for current connection.
-@param[in]	thd	the thd of current connection
-@return the optimize_point_storage */
-bool
-thd_optimize_point_storage(
-	THD*	thd);
 
 /**********************************************************************//**
 Get the current setting of the table_cache_size global parameter. We do
