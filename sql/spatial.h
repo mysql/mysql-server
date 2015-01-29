@@ -2452,7 +2452,8 @@ Gis_wkb_vector(const void *ptr, size_t nbytes, const Flags_t &flags,
 
   wkbType geotype= get_geotype();
   // Points don't need it, polygon creates it when parsing.
-  if (geotype != Geometry::wkb_point && geotype != Geometry::wkb_polygon)
+  if (geotype != Geometry::wkb_point &&
+      geotype != Geometry::wkb_polygon && ptr != NULL)
     guard.reset(m_geo_vect= new Geo_vector());
   // For polygon parsing to work
   if (geotype == Geometry::wkb_polygon)
