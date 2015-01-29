@@ -252,7 +252,7 @@ rpl_sidno get_sidno_from_global_sid_map(rpl_sid sid)
 {
   DBUG_ENTER("get_sidno_from_global_sid_map(rpl_sid)");
 
-  global_sid_lock->wrlock();
+  global_sid_lock->rdlock();
   rpl_sidno sidno= global_sid_map->add_sid(sid);
   global_sid_lock->unlock();
 

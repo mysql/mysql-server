@@ -559,7 +559,7 @@ int validate_plugin_server_requirements(Trans_param *param)
   get_server_host_port_uuid(&hostname, &port, &uuid);
 
   Trans_context_info startup_pre_reqs;
-  get_server_startup_prerequirements(startup_pre_reqs);
+  get_server_startup_prerequirements(startup_pre_reqs, false);
 
   bool server_engine_ready= is_server_engine_ready();
 
