@@ -1882,12 +1882,12 @@ public:
 
 
 /**
-  Class for variables that store values of type Gtid_specification.
+  Class for gtid_next.
 */
-class Sys_var_gtid_specification: public sys_var
+class Sys_var_gtid_next: public sys_var
 {
 public:
-  Sys_var_gtid_specification(const char *name_arg,
+  Sys_var_gtid_next(const char *name_arg,
           const char *comment, int flag_args, ptrdiff_t off, size_t size,
           CMD_LINE getopt,
           const char *def_val,
@@ -1906,50 +1906,57 @@ public:
   }
   bool session_update(THD *thd, set_var *var)
   {
-    DBUG_ENTER("Sys_var_gtid::session_update");
+    DBUG_ENTER("Sys_var_gtid_next::session_update");
+    char buf[Gtid::MAX_TEXT_LENGTH + 1];
+    // Get the value
+    String str(buf, sizeof(buf), &my_charset_latin1);
+    char* res= NULL;
+    if (!var->value)
+    {
+      // set session gtid_next= default
+      DBUG_ASSERT(var->save_result.string_value.str);
+      DBUG_ASSERT(var->save_result.string_value.length);
+      res= var->save_result.string_value.str;
+    }
+    else if (var->value->val_str(&str))
+      res= var->value->val_str(&str)->c_ptr_safe();
+    if (!res)
+    {
+      my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), name.str, "NULL");
+      DBUG_RETURN(true);
+    }
     global_sid_lock->rdlock();
-    bool ret= (((Gtid_specification *)session_var_ptr(thd))->
-               parse(global_sid_map,
-                     var->save_result.string_value.str) != 0);
-    global_sid_lock->unlock();
+    Gtid_specification spec;
+    if (spec.parse(global_sid_map, res) != RETURN_STATUS_OK)
+    {
+      global_sid_lock->unlock();
+      DBUG_RETURN(true);
+    }
+
+    bool ret= set_gtid_next(thd, spec);
+    // set_gtid_next releases global_sid_lock
     DBUG_RETURN(ret);
   }
   bool global_update(THD *thd, set_var *var)
   { DBUG_ASSERT(FALSE); return true; }
   void session_save_default(THD *thd, set_var *var)
   {
-    DBUG_ENTER("Sys_var_gtid::session_save_default");
-    char *ptr= (char*)(intptr)option.def_value;
+    DBUG_ENTER("Sys_var_gtid_next::session_save_default");
+    char* ptr= (char*)(intptr)option.def_value;
     var->save_result.string_value.str= ptr;
     var->save_result.string_value.length= ptr ? strlen(ptr) : 0;
+    thd->variables.gtid_next.set_automatic();
     DBUG_VOID_RETURN;
   }
   void global_save_default(THD *thd, set_var *var)
   { DBUG_ASSERT(FALSE); }
   bool do_check(THD *thd, set_var *var)
-  {
-    DBUG_ENTER("Sys_var_gtid::do_check");
-    char buf[Gtid_specification::MAX_TEXT_LENGTH + 1];
-    String str(buf, sizeof(buf), &my_charset_latin1);
-    String *res= var->value->val_str(&str);
-    if (!res)
-      DBUG_RETURN(true);
-    var->save_result.string_value.str= thd->strmake(res->c_ptr_safe(), res->length());
-    if (!var->save_result.string_value.str)
-    {
-      my_error(ER_OUT_OF_RESOURCES, MYF(0)); // thd->strmake failed
-      DBUG_RETURN(true);
-    }
-    var->save_result.string_value.length= res->length();
-    bool ret= Gtid_specification::is_valid(res->c_ptr_safe()) ? false : true;
-    DBUG_PRINT("info", ("ret=%d", ret));
-    DBUG_RETURN(ret);
-  }
+  { return false; }
   bool check_update_type(Item_result type)
   { return type != STRING_RESULT; }
   uchar *session_value_ptr(THD *thd, LEX_STRING *base)
   {
-    DBUG_ENTER("Sys_var_gtid::session_value_ptr");
+    DBUG_ENTER("Sys_var_gtid_next::session_value_ptr");
     char buf[Gtid_specification::MAX_TEXT_LENGTH + 1];
     global_sid_lock->rdlock();
     ((Gtid_specification *)session_var_ptr(thd))->
