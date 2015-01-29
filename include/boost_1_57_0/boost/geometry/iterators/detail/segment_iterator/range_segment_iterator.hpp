@@ -100,13 +100,9 @@ class range_segment_iterator
             Reference
         >
 {
-private:
-    static bool has_less_than_two_elements(Range const& r)
+    static inline bool has_less_than_two_elements(Range const& r)
     {
-        iterator_type first = range_iterator_begin<Range>::apply(r);
-        iterator_type last = range_iterator_end<Range>::apply(r);
-
-        return first == last || ++first == last;
+        return boost::size(r) < ((closure<Range>::value == open) ? 1u : 2u);
     }
 
 public:
@@ -114,7 +110,7 @@ public:
 
     // default constructor
     range_segment_iterator()
-        : m_it(), m_has_less_than_two_elements()
+        : m_it(), m_has_less_than_two_elements(false)
     {}
 
     // for begin
@@ -128,7 +124,7 @@ public:
         : m_it(range_iterator_end<Range>::apply(r))
         , m_has_less_than_two_elements(has_less_than_two_elements(r))
     {
-        if (!m_has_less_than_two_elements)
+        if (! m_has_less_than_two_elements)
         {
             // the range consists of at least two items
             --m_it;
