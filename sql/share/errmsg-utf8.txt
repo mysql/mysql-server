@@ -7330,7 +7330,7 @@ ER_SLAVE_CHANNEL_SQL_THREAD_MUST_STOP
   eng "This operation cannot be performed with a running slave sql thread; run STOP SLAVE SQL_THREAD FOR CHANNEL '%s' first."
 
 ER_SLAVE_CHANNEL_SQL_SKIP_COUNTER
-  eng "When sql_slave_skip_counter > 0, it is not allowed to start SQL threads for multiple channels. To use sql_slave_skip_counter, stop SQL threads of all channels and execute START SLAVE FOR CHANNEL statement."
+  eng "When sql_slave_skip_counter > 0, it is not allowed to start more than one SQL thread by using 'START SLAVE [SQL_THREAD]'. Value of sql_slave_skip_counter can only be used by one SQL thread at a time. Please use 'START SLAVE [SQL_THREAD] FOR CHANNEL' to start the SQL thread which will use the value of sql_slave_skip_counter."
 
 # When using this error message, use the ER_WRONG_FIELD_WITH_GROUP error code.
 ER_WRONG_FIELD_WITH_GROUP_V2
