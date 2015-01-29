@@ -764,25 +764,7 @@ static bool check_has_super(sys_var *self, THD *thd, set_var *var)
   return false;
 }
 
-#if defined(HAVE_GTID_NEXT_LIST) || defined(NON_DISABLED_GTID) || defined(HAVE_REPLICATION)
-static bool check_top_level_stmt(sys_var *self, THD *thd, set_var *var)
-{
-  if (thd->in_sub_stmt)
-  {
-    my_error(ER_VARIABLE_NOT_SETTABLE_IN_SF_OR_TRIGGER, MYF(0), var->var->name.str);
-    return true;
-  }
-  return false;
-}
-
-static bool check_top_level_stmt_and_super(sys_var *self, THD *thd, set_var *var)
-{
-  return (check_has_super(self, thd, var) ||
-          check_top_level_stmt(self, thd, var));
-}
-#endif
-
-static bool check_outside_transaction(sys_var *self, THD *thd, set_var *var)
+static bool check_outside_trx(sys_var *self, THD *thd, set_var *var)
 {
   if (thd->in_active_multi_stmt_transaction())
   {
@@ -791,9 +773,26 @@ static bool check_outside_transaction(sys_var *self, THD *thd, set_var *var)
   }
   return false;
 }
-#if defined(HAVE_GTID_NEXT_LIST) || defined(HAVE_REPLICATION)
-static bool check_outside_sp(sys_var *self, THD *thd, set_var *var)
+
+#ifdef HAVE_REPLICATION
+static bool check_super_outside_trx_outside_sf(sys_var *self, THD *thd, set_var *var)
 {
+  if (thd->in_sub_stmt)
+  {
+    my_error(ER_VARIABLE_NOT_SETTABLE_IN_SF_OR_TRIGGER, MYF(0), var->var->name.str);
+    return true;
+  }
+  if (check_outside_trx(self, thd, var))
+    return true;
+  if (self->scope() != sys_var::GLOBAL)
+    return check_has_super(self, thd, var);
+  return false;
+}
+
+static bool check_super_outside_trx_outside_sf_outside_sp(sys_var *self, THD *thd, set_var *var)
+{
+  if (check_super_outside_trx_outside_sf(self, thd, var))
+    return true;
   if (thd->lex->sphead)
   {
     my_error(ER_VARIABLE_NOT_SETTABLE_IN_SP, MYF(0), var->var->name.str);
@@ -801,7 +800,7 @@ static bool check_outside_sp(sys_var *self, THD *thd, set_var *var)
   }
   return false;
 }
-#endif
+#endif /* HAVE_REPLICATION */
 
 static bool binlog_format_check(sys_var *self, THD *thd, set_var *var)
 {
@@ -935,7 +934,7 @@ static Sys_var_enum Sys_session_track_gtids(
        "(Default: OFF).",
        SESSION_VAR(session_track_gtids), CMD_LINE(REQUIRED_ARG),
        session_track_gtids_names, DEFAULT(OFF),
-       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_outside_transaction),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_outside_trx),
        ON_UPDATE(on_session_track_gtids_update));
 
 static bool binlog_direct_check(sys_var *self, THD *thd, set_var *var)
@@ -4772,8 +4771,7 @@ static bool check_enforce_gtid_consistency(
            "ENFORCE_GTID_CONSISTENCY");
   DBUG_RETURN(true);
 
-  if (check_top_level_stmt_and_super(self, thd, var) ||
-      check_outside_transaction(self, thd, var))
+  if (check_super_outside_trx_outside_sf_outside_sp(self, thd, var))
     DBUG_RETURN(true);
   if (get_gtid_mode() >= GTID_MODE_ON_PERMISSIVE && var->value->val_int() == 0)
   {
@@ -4889,7 +4887,7 @@ static bool check_gtid_next(sys_var *self, THD *thd, set_var *var)
   DBUG_PRINT("info", ("thd->in_sub_stmt=%d", thd->in_sub_stmt));
 
   // GTID_NEXT must be set by SUPER in a top-level statement
-  if (check_top_level_stmt_and_super(self, thd, var))
+  if (check_super_outside_trx_outside_sf(self, thd, var))
     DBUG_RETURN(true);
 
   // check compatibility with GTID_NEXT
@@ -4988,8 +4986,7 @@ static bool check_gtid_next_list(sys_var *self, THD *thd, set_var *var)
 {
   DBUG_ENTER("check_gtid_next_list");
   my_error(ER_NOT_SUPPORTED_YET, MYF(0), "GTID_NEXT_LIST");
-  if (check_top_level_stmt_and_super(self, thd, var) ||
-      check_outside_transaction(self, thd, var))
+  if (check_super_outside_trx_outside_sf_outside_sp(self, thd, var))
     DBUG_RETURN(true);
   if (gtid_mode == GTID_MODE_OFF && var->save_result.string_value.str != NULL)
     my_error(ER_CANT_SET_GTID_NEXT_LIST_TO_NON_NULL_WHEN_GTID_MODE_IS_OFF,
@@ -5037,9 +5034,8 @@ static bool check_gtid_purged(sys_var *self, THD *thd, set_var *var)
 {
   DBUG_ENTER("check_gtid_purged");
 
-  if (!var->value || check_top_level_stmt(self, thd, var) ||
-      check_outside_transaction(self, thd, var) ||
-      check_outside_sp(self, thd, var))
+  if (!var->value ||
+      check_super_outside_trx_outside_sf_outside_sp(self, thd, var))
     DBUG_RETURN(true);
 
   /// @todo WL#7083: revisit this and remove the check
@@ -5127,8 +5123,7 @@ static bool check_gtid_mode(sys_var *self, THD *thd, set_var *var)
   my_error(ER_NOT_SUPPORTED_YET, MYF(0), "GTID_MODE");
   DBUG_RETURN(true);
 
-  if (check_top_level_stmt_and_super(self, thd, var) ||
-      check_outside_transaction(self, thd, var))
+  if (check_super_outside_trx_outside_sf(self, thd, var))
     DBUG_RETURN(true);
   uint new_gtid_mode= var->value->val_int();
   if (abs((long)(new_gtid_mode - gtid_mode)) > 1)
