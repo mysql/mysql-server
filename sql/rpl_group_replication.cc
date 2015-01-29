@@ -166,7 +166,25 @@ bool is_group_replication_plugin_loaded()
 int group_replication_start()
 {
   if (group_replication_handler)
-    return group_replication_handler->start();
+  {
+    /*
+      We need to take global_sid_lock because
+      group_replication_handler->start function will (among other
+      things) do the following:
+
+       1. Call get_server_startup_prerequirements, which calls get_gtid_mode.
+       2. Set plugin-internal state that ensures that
+          is_group_replication_running() returns true.
+
+      In order to prevent a concurrent client from executing SET
+      GTID_MODE=ON_PERMISSIVE between 1 and 2, we must hold
+      gtid_mode_lock.
+    */
+    gtid_mode_lock->rdlock();
+    int ret= group_replication_handler->start();
+    gtid_mode_lock->unlock();
+    return ret;
+  }
   return 1;
 }
 
@@ -240,12 +258,15 @@ void get_server_host_port_uuid(char **hostname, uint *port, char** uuid)
 
 #ifdef HAVE_REPLICATION
 void
-get_server_startup_prerequirements(Trans_context_info& requirements)
+get_server_startup_prerequirements(Trans_context_info& requirements,
+                                   bool has_lock)
 {
   requirements.binlog_enabled= opt_bin_log;
   requirements.binlog_format= global_system_variables.binlog_format;
   requirements.binlog_checksum_options= binlog_checksum_options;
-  requirements.gtid_mode= get_gtid_mode(GTID_MODE_LOCK_NONE);
+  requirements.gtid_mode=
+    get_gtid_mode(has_lock ? GTID_MODE_LOCK_GTID_MODE :
+                  GTID_MODE_LOCK_NONE);
   requirements.transaction_write_set_extraction=
     global_system_variables.transaction_write_set_extraction;
   requirements.mi_repository_type= opt_mi_repository_id;

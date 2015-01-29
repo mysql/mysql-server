@@ -38,6 +38,7 @@
 #include "binlog.h"               // mysql_bin_log
 #include "rpl_rli.h"              // sql_slave_skip_counter
 #include "rpl_msr.h"              // msr_map
+#include "rpl_group_replication.h"// is_group_replication_running
 
 
 /*
@@ -2444,6 +2445,17 @@ public:
           goto err;
         }
       }
+    }
+
+    // Can't set GTID_MODE != ON when group replication is enabled.
+    if (is_group_replication_running())
+    {
+      DBUG_ASSERT(old_gtid_mode == GTID_MODE_ON);
+      DBUG_ASSERT(new_gtid_mode == GTID_MODE_ON_PERMISSIVE);
+      my_error(ER_CANT_SET_GTID_MODE, MYF(0),
+               get_gtid_mode_string(new_gtid_mode),
+               "group replication requires @@GLOBAL.GTID_MODE=ON");
+      goto err;
     }
 
     // Update the mode
