@@ -24,7 +24,7 @@ Created 11/11/1995 Heikki Tuuri
 *******************************************************/
 
 #include "ha_prototypes.h"
-#include <mysql/plugin.h>
+#include <mysql/service_thd_wait.h>
 
 #include "buf0flu.h"
 
