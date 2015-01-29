@@ -4877,110 +4877,6 @@ static Sys_var_mybool Sys_pseudo_slave_mode(
 
 
 #ifdef HAVE_REPLICATION
-static bool check_gtid_next(sys_var *self, THD *thd, set_var *var)
-{
-  DBUG_ENTER("check_gtid_next");
-
-  // Note: we also check in sql_yacc.yy:set_system_variable that the
-  // SET GTID_NEXT statement does not invoke a stored function.
-
-  DBUG_PRINT("info", ("thd->in_sub_stmt=%d", thd->in_sub_stmt));
-
-  // GTID_NEXT must be set by SUPER in a top-level statement
-  if (check_super_outside_trx_outside_sf(self, thd, var))
-    DBUG_RETURN(true);
-
-  // check compatibility with GTID_NEXT
-  const Gtid_set *gtid_next_list= thd->get_gtid_next_list_const();
-
-  // Inside a transaction, GTID_NEXT is read-only if GTID_NEXT_LIST is
-  // NULL.
-  if (thd->in_active_multi_stmt_transaction() && gtid_next_list == NULL)
-  {
-    my_error(ER_CANT_CHANGE_GTID_NEXT_IN_TRANSACTION_WHEN_GTID_NEXT_LIST_IS_NULL, MYF(0));
-    DBUG_RETURN(true);
-  }
-
-  // Read specification
-  Gtid_specification spec;
-  global_sid_lock->rdlock();
-  if (spec.parse(global_sid_map, var->save_result.string_value.str) !=
-      RETURN_STATUS_OK)
-  {
-    // fail on out of memory
-    global_sid_lock->unlock();
-    DBUG_RETURN(true);
-  }
-  global_sid_lock->unlock();
-
-  // check compatibility with GTID_MODE
-  if (get_gtid_mode() == GTID_MODE_OFF && spec.type == GTID_GROUP)
-    my_error(ER_CANT_SET_GTID_NEXT_TO_GTID_WHEN_GTID_MODE_IS_OFF, MYF(0));
-  if (get_gtid_mode() == GTID_MODE_ON && spec.type == ANONYMOUS_GROUP)
-    my_error(ER_CANT_SET_GTID_NEXT_TO_ANONYMOUS_WHEN_GTID_MODE_IS_ON, MYF(0));
-
-  if (gtid_next_list != NULL)
-  {
-#ifdef HAVE_GTID_NEXT_LIST
-    // If GTID_NEXT==SID:GNO, then SID:GNO must be listed in GTID_NEXT_LIST
-    if (spec.type == GTID_GROUP && !gtid_next_list->contains_gtid(spec.gtid))
-    {
-      char buf[Gtid_specification::MAX_TEXT_LENGTH + 1];
-      global_sid_lock->rdlock();
-      spec.gtid.to_string(global_sid_map, buf);
-      global_sid_lock->unlock();
-      my_error(ER_GTID_NEXT_IS_NOT_IN_GTID_NEXT_LIST, MYF(0), buf);
-      DBUG_RETURN(true);
-    }
-
-    // GTID_NEXT cannot be "AUTOMATIC" when GTID_NEXT_LIST != NULL.
-    if (spec.type == AUTOMATIC_GROUP)
-    {
-      my_error(ER_GTID_NEXT_CANT_BE_AUTOMATIC_IF_GTID_NEXT_LIST_IS_NON_NULL,
-               MYF(0));
-      DBUG_RETURN(true);
-    }
-#else
-    DBUG_ASSERT(0);
-#endif
-  }
-  // check that we don't own a GTID
-  else if (thd->owned_gtid.sidno != 0 &&
-           thd->owned_gtid.sidno != THD::OWNED_SIDNO_ANONYMOUS)
-  {
-    char buf[Gtid::MAX_TEXT_LENGTH + 1];
-#ifndef DBUG_OFF
-    DBUG_ASSERT(thd->owned_gtid.sidno > 0);
-    global_sid_lock->wrlock();
-    if (thd->owned_gtid.sidno == THD::OWNED_SIDNO_ANONYMOUS)
-      DBUG_ASSERT(!gtid_state->get_owned_gtids()->
-                  thread_owns_anything(thd->thread_id()));
-    else
-      DBUG_ASSERT(gtid_state->get_owned_gtids()->
-                  thread_owns_anything(thd->thread_id()));
-#else
-    global_sid_lock->rdlock();
-#endif
-    thd->owned_gtid.to_string(global_sid_map, buf);
-    global_sid_lock->unlock();
-    my_error(ER_CANT_SET_GTID_NEXT_WHEN_OWNING_GTID, MYF(0), buf);
-    DBUG_RETURN(true);
-  }
-
-  DBUG_RETURN(false);
-}
-
-static bool update_gtid_next(sys_var *self, THD *thd, enum_var_type type)
-{
-  DBUG_ENTER("update_gtid_next");
-  DBUG_ASSERT(type == OPT_SESSION);
-  if (thd->variables.gtid_next.type == GTID_GROUP ||
-      thd->variables.gtid_next.type == ANONYMOUS_GROUP)
-    if (gtid_acquire_ownership_single(thd) != 0)
-      DBUG_RETURN(true);
-  DBUG_RETURN(false);
-}
-
 #ifdef HAVE_GTID_NEXT_LIST
 static bool check_gtid_next_list(sys_var *self, THD *thd, set_var *var)
 {
@@ -5015,13 +4911,13 @@ static Sys_var_gtid_set Sys_gtid_next_list(
 export sys_var *Sys_gtid_next_list_ptr= &Sys_gtid_next_list;
 #endif
 
-static Sys_var_gtid_specification Sys_gtid_next(
+static Sys_var_gtid_next Sys_gtid_next(
        "gtid_next",
-       "Specified the Global Transaction Identifier for the following "
-       "re-executed statement.",
+       "Specifies the Global Transaction Identifier for the following "
+       "transaction.",
        SESSION_ONLY(gtid_next), NO_CMD_LINE,
        DEFAULT("AUTOMATIC"), NO_MUTEX_GUARD,
-       NOT_IN_BINLOG, ON_CHECK(check_gtid_next), ON_UPDATE(update_gtid_next));
+       NOT_IN_BINLOG, ON_CHECK(check_super_outside_trx_outside_sf));
 export sys_var *Sys_gtid_next_ptr= &Sys_gtid_next;
 
 static Sys_var_gtid_executed Sys_gtid_executed(

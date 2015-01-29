@@ -2990,7 +2990,32 @@ bool gtid_pre_statement_post_implicit_commit_checks(THD *thd);
 */
 void gtid_post_statement_checks(THD *thd);
 
-int gtid_acquire_ownership_single(THD *thd);
+/**
+  Acquire ownership of the given Gtid_specification.
+
+  The Gtid_specification must be of type GTID_GROUP or ANONYMOUS_GROUP.
+
+  The caller must hold global_sid_lock (normally the rdlock).  The
+  lock may be termporarily released and acquired again. In the end,
+  the lock will be released, so the caller should *not* release the
+  lock.
+
+  The function will try to acquire ownership of the GTID and update
+  both THD::gtid_next, Gtid_state::owned_gtids, and
+  THD::owned_gtid/THD::owned_sid.
+
+  @param thd The thread that acquires ownership.
+
+  @param spec The Gtid_specification.
+
+  @retval false Success: either we have acquired ownership of the
+  GTID, or it is already included in GTID_EXECUTED and will be
+  skipped.
+
+  @retval true Failure; the thread was killed or an error occurred.
+  The error has been reported using my_error.
+*/
+bool set_gtid_next(THD *thd, const Gtid_specification &spec);
 #ifdef HAVE_GTID_NEXT_LIST
 int gtid_acquire_ownership_multiple(THD *thd);
 #endif

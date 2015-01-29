@@ -25,6 +25,21 @@ set session gtid_next = "ANONYMOUS";
 select @@session.gtid_next;
 
 #
+# Show that one can set it to default
+#
+ROLLBACK;
+set session gtid_next=default;
+select @@session.gtid_next;
+
+#
+# Show that one cannot set it to NULL
+#
+ROLLBACK;
+--error ER_WRONG_VALUE_FOR_VAR
+set session gtid_next=NULL;
+select @@session.gtid_next;
+
+#
 # restore original value
 #
 set session gtid_next = @start_global_value;
