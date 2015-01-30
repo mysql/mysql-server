@@ -13,3 +13,5 @@
 rpl_row_create_table : Bug#11759274 Feb 27 2010 andrei failed different way than earlier with bug#45576
 rpl_get_master_version_and_clock : Bug#11766137 Jan 05 2011 joro Valgrind warnings rpl_get_master_version_and_clock
 rpl_stop_slave : bug#XXX 2011-04-09 jonas Fails randomly...and then timesout so put it here instead of in experimental
+rpl_ssl : expired SSL certs
+rpl_ssl1 : expired SSL certs

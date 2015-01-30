@@ -15,3 +15,9 @@ main.log_tables-big      : Bug#11756699 2010-11-15 mattiasj report already exist
 query_cache_28249        : Bug#12584161 2011-11-17 joh      fails sporadically in 5.1 only
 main.mysqlhotcopy_archive: Bug#11753830 2014-06-12 mblaudd  LIBMYSQLCLIENT IN MYSQL CLUSTER BREAKS ABI
 main.mysqlhotcopy_myisam : Bug#11753830 2014-06-12 mblaudd  LIBMYSQLCLIENT IN MYSQL CLUSTER BREAKS ABI
+main.ssl_8k_key          : expired SSL certs
+main.ssl_cipher          : expired SSL certs
+main.openssl_1           : expired SSL certs
+main.ssl                 : expired SSL certs
+main.ssl_connect         : expired SSL certs
+main.ssl_compress        : expired SSL certs
