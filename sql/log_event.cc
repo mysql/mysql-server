@@ -6230,6 +6230,17 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
         update it inside mysql_load().
       */
       List<Item> tmp_list;
+      /*
+        Prepare column privilege check for LOAD statement.
+        This is necessary because the replication code for LOAD bypasses
+        regular privilege checking, which is done by check_one_table_access()
+        in regular code path.
+        We can assign INSERT privileges to the table since the slave thread
+        operates with all privileges.
+      */
+      tables.set_privileges(INSERT_ACL);
+      tables.set_want_privilege(INSERT_ACL);
+
       if (open_temporary_tables(thd, &tables) ||
           mysql_load(thd, &ex, &tables, field_list, tmp_list, tmp_list,
                      handle_dup, net != 0))
@@ -10599,7 +10610,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
     /* A small test to verify that objects have consistent types */
     DBUG_ASSERT(sizeof(thd->variables.option_bits) == sizeof(OPTION_RELAXED_UNIQUE_CHECKS));
 
-    if (open_and_lock_tables(thd, rli->tables_to_lock, FALSE, 0))
+    if (open_and_lock_tables(thd, rli->tables_to_lock, 0))
     {
       uint actual_error= thd->get_stmt_da()->mysql_errno();
       if (thd->is_slave_error || thd->is_fatal_error)

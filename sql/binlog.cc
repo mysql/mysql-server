@@ -9118,7 +9118,7 @@ int THD::decide_logging_format(TABLE_LIST *tables)
     */
     for (TABLE_LIST *table= tables; table; table= table->next_global)
     {
-      if (table->placeholder())
+      if (table->is_placeholder())
         continue;
 
       handler::Table_flags const flags= table->table->file->ha_table_flags();
@@ -9412,7 +9412,7 @@ int THD::decide_logging_format(TABLE_LIST *tables)
       */
       for (TABLE_LIST *table= tables; table; table= table->next_global)
       {
-        if (table->placeholder())
+        if (table->is_placeholder())
           continue;
 
         DBUG_ASSERT(table->table);
@@ -9448,7 +9448,7 @@ int THD::decide_logging_format(TABLE_LIST *tables)
       */
       for (TABLE_LIST *table= tables; table; table= table->next_global)
       {
-        if (table->placeholder())
+        if (table->is_placeholder())
           continue;
         if (table->table->file->ht->db_type == DB_TYPE_BLACKHOLE_DB &&
             table->lock_type >= TL_WRITE_ALLOW_WRITE)

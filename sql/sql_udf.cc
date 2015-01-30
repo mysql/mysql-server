@@ -174,7 +174,7 @@ void udf_init()
 
   tables.init_one_table(db, sizeof(db)-1, "func", 4, "func", TL_READ);
 
-  if (open_and_lock_tables(new_thd, &tables, FALSE, MYSQL_LOCK_IGNORE_TIMEOUT))
+  if (open_and_lock_tables(new_thd, &tables, MYSQL_LOCK_IGNORE_TIMEOUT))
   {
     DBUG_PRINT("error",("Can't open udf table"));
     sql_print_error("Can't open the mysql.func table. Please "

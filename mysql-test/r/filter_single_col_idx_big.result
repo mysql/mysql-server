@@ -654,6 +654,8 @@ insert into t25 select pk+2, i from t25;
 insert into t25 select pk+4, i from t25;
 insert into t25 select pk+8, i from t25;
 insert into t25 select pk+16, i from t25 limit 9;
+set @optimizer_switch_saved=@@optimizer_switch;
+set optimizer_switch='derived_merge=off';
 EXPLAIN SELECT * FROM (
 SELECT t10_1.*
 FROM t10 AS t10_1,
@@ -679,6 +681,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DERIVED	t25_2	NULL	index	NULL	PRIMARY	4	NULL	25	100.00	Using index; Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	/* select#1 */ select `d`.`pk` AS `pk`,`d`.`i` AS `i` from (/* select#2 */ select `test`.`t10_1`.`pk` AS `pk`,`test`.`t10_1`.`i` AS `i` from `test`.`t10` `t10_1` join `test`.`t10` `t10_2` join `test`.`t10` `t10_3` join `test`.`t10` `t10_4` join `test`.`t10` `t10_5` join `test`.`t10` `t10_6` join `test`.`t25` `t25_1` join `test`.`t25` `t25_2` join `test`.`t19`) `d`
+set optimizer_switch=@optimizer_switch_saved;
 DROP TABLE t10;
 DROP TABLE t19;
 DROP TABLE t25;

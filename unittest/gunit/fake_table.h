@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -101,6 +101,8 @@ class Fake_TABLE: public TABLE
 
   void initialize()
   {
+    TABLE *as_table= static_cast<TABLE*>(this);
+    memset(as_table, 0, sizeof(*as_table));
     s= &table_share;
     file= NULL;
     in_use= current_thd;
@@ -114,7 +116,6 @@ class Fake_TABLE: public TABLE
     EXPECT_EQ(0, bitmap_init(read_set, &read_set_buf, s->fields, false));
 
     const_table= false;
-    maybe_null= 0;
     table_list.set_tableno(highest_table_id);
     highest_table_id= (highest_table_id + 1) % MAX_TABLES;
     key_info= &m_keys[0];

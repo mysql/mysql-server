@@ -86,7 +86,7 @@ root@localhost
 root@localhost
 select QUERY, length(TRACE), INSUFFICIENT_PRIVILEGES from information_schema.OPTIMIZER_TRACE;
 QUERY	length(TRACE)	INSUFFICIENT_PRIVILEGES
-select * from v1	644	0
+select * from v1	898	0
 select * from v1	2156	0
 set optimizer_trace_offset=0,optimizer_trace_limit=100;
 insert into t2 values(current_user());
@@ -289,7 +289,7 @@ user1@localhost
 user1@localhost
 select QUERY, length(TRACE), INSUFFICIENT_PRIVILEGES from information_schema.OPTIMIZER_TRACE;
 QUERY	length(TRACE)	INSUFFICIENT_PRIVILEGES
-select * from v1	644	0
+select * from v1	898	0
 select * from v1	2156	0
 set optimizer_trace_offset=2,optimizer_trace_limit=1;
 call p1();
@@ -493,7 +493,7 @@ user1@localhost
 user1@localhost
 select QUERY, length(TRACE), INSUFFICIENT_PRIVILEGES from information_schema.OPTIMIZER_TRACE;
 QUERY	length(TRACE)	INSUFFICIENT_PRIVILEGES
-select * from v1	644	0
+select * from v1	898	0
 select * from v1	2156	0
 # Trace exposed body of view, and content of t1, which we
 # could see anyway:
@@ -926,7 +926,7 @@ user1@localhost
 user1@localhost
 select QUERY, length(TRACE), INSUFFICIENT_PRIVILEGES from information_schema.OPTIMIZER_TRACE;
 QUERY	length(TRACE)	INSUFFICIENT_PRIVILEGES
-select * from v1	644	0
+select * from v1	898	0
 select * from v1	2156	0
 # Trace exposed body of view, and content of t1, which we
 # could see anyway:
@@ -958,8 +958,8 @@ a
 first
 select QUERY, length(TRACE), INSUFFICIENT_PRIVILEGES from information_schema.OPTIMIZER_TRACE;
 QUERY	length(TRACE)	INSUFFICIENT_PRIVILEGES
-select a from (select a from t1 where a like "f%") as tt where a like "fi%"	559	0
-select a from (select a from t1 where a like "f%") as tt where a like "fi%"	7054	0
+select a from (select a from t1 where a like "f%") as tt where a like "fi%"	1061	0
+select a from (select a from t1 where a like "f%") as tt where a like "fi%"	3195	0
 
 # For routines, as they only use t1 and we added only one
 # privilege on t1, we have nothing to remove.

@@ -37,7 +37,6 @@
 #include "sql_tmp_table.h"       // free_tmp_table
 #include "sql_union.h"           // select_union
 
-
 Item_subselect::Item_subselect():
   Item_result_field(), value_assigned(0), traced_before(false),
   substitution(NULL), in_cond_of_tab(NO_PLAN_IDX), engine(NULL), old_engine(NULL),
@@ -3286,14 +3285,13 @@ bool subselect_indexsubquery_engine::exec()
 
   if (tl && tl->uses_materialization() && !tab->materialized)
   {
-    bool err= mysql_handle_single_derived(table->in_use->lex, tl,
-                                          mysql_derived_create) ||
-              mysql_handle_single_derived(table->in_use->lex, tl,
-                                          mysql_derived_materialize);
-    err|= mysql_handle_single_derived(table->in_use->lex, tl,
-                                      mysql_derived_cleanup);
+    THD *const thd= table->in_use;
+    bool err= tl->create_derived(thd);
+    if (!err)
+      err= tl->materialize_derived(thd);
+    err|= tl->cleanup_derived();
     if (err)
-      DBUG_RETURN(1);
+      DBUG_RETURN(true);
 
     tab->materialized= true;
   }
@@ -4038,6 +4036,7 @@ err:
       is UNKNOWN. Do as if searching with all triggered conditions disabled:
       this would surely find a row. The caller will translate this to UNKNOWN.
     */
+    DBUG_ASSERT(item_in->left_expr->element_index(0)->maybe_null);
     DBUG_ASSERT(item_in->left_expr->cols() == 1);
     item_in->value= true;
     DBUG_RETURN(false);

@@ -1784,7 +1784,9 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
       BLOCK_UNLOCK_RD(query_block);
       DBUG_RETURN(-1);				// Privilege error
     }
-    if (table_list.grant.want_privilege)
+    DBUG_ASSERT((SELECT_ACL & ~table_list.grant.privilege) ==
+                table_list.grant.want_privilege);
+    if ((table_list.grant.privilege & SELECT_ACL) == 0)
     {
       DBUG_PRINT("qcache", ("Need to check column privileges for %s.%s",
 			    table_list.db, table_list.alias));
@@ -1924,9 +1926,10 @@ void Query_cache::invalidate_single(THD *thd, TABLE_LIST *table_used,
   if (is_disabled())
     DBUG_VOID_RETURN;
 
-  using_transactions= using_transactions && thd->in_multi_stmt_transaction_mode();
+  using_transactions&= thd->in_multi_stmt_transaction_mode();
   DBUG_ASSERT(!using_transactions || table_used->table!=0);
-  if (table_used->derived)
+  DBUG_ASSERT(!table_used->is_view_or_derived());
+  if (table_used->is_view_or_derived())
     DBUG_VOID_RETURN;
   if (using_transactions &&
       (table_used->table->file->table_cache_type() ==
@@ -3024,7 +3027,7 @@ Query_cache::register_tables_from_list(TABLE_LIST *tables_used,
        tables_used;
        tables_used= tables_used->next_global, n++, block_table++)
   {
-    if (tables_used->is_anonymous_derived_table())
+    if (tables_used->is_derived())
     {
       DBUG_PRINT("qcache", ("derived table skipped"));
       n--;
@@ -3032,7 +3035,7 @@ Query_cache::register_tables_from_list(TABLE_LIST *tables_used,
       continue;
     }
     block_table->n= n;
-    if (tables_used->view)
+    if (tables_used->is_view())
     {
       const char *key;
       size_t key_length;
@@ -3695,7 +3698,7 @@ Query_cache::process_and_count_tables(THD *thd, TABLE_LIST *tables_used,
   for (; tables_used; tables_used= tables_used->next_global)
   {
     table_count++;
-#ifndef NO_EMBEDDED_ACCESS_CHECKS 
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
     /*
       Disable any attempt to store this statement if there are
       column level grants on any referenced tables.
@@ -3707,22 +3710,25 @@ Query_cache::process_and_count_tables(THD *thd, TABLE_LIST *tables_used,
       of a VIEW definition because we want to be able to cache
       views.
 
-      TODO: Although it is possible to cache views, the privilege
-      check on view tables always fall back on column privileges
-      even if there are more generic table privileges. Thus it isn't
-      currently possible to retrieve cached view-tables unless the
-      client has the super user privileges.
+      Tables underlying a MERGE table does not have useful privilege
+      information in their grant objects, so skip these tables from the test.
     */
-    if (tables_used->grant.want_privilege &&
-        tables_used->belong_to_view == NULL)
+    if (tables_used->belong_to_view == NULL &&
+        (!tables_used->parent_l ||
+         tables_used->parent_l->table->file->ht->db_type != DB_TYPE_MRG_MYISAM))
     {
-      DBUG_PRINT("qcache", ("Don't cache statement as it refers to "
-                            "tables with column privileges."));
-      thd->lex->safe_to_cache_query= 0;
-      DBUG_RETURN(0);
+      DBUG_ASSERT((SELECT_ACL & ~tables_used->grant.privilege) ==
+                  tables_used->grant.want_privilege);
+      if ((tables_used->grant.privilege & SELECT_ACL) == 0)
+      {
+        DBUG_PRINT("qcache", ("Don't cache statement as it refers to "
+                              "tables with column privileges."));
+        thd->lex->safe_to_cache_query= 0;
+        DBUG_RETURN(0);
+      }
     }
 #endif
-    if (tables_used->view)
+    if (tables_used->is_view())
     {
       DBUG_PRINT("qcache", ("view: %s  db: %s",
                             tables_used->view_name.str,
@@ -3731,16 +3737,17 @@ Query_cache::process_and_count_tables(THD *thd, TABLE_LIST *tables_used,
     }
     else
     {
-      DBUG_PRINT("qcache", ("table: %s  db:  %s  type: %u",
-                            tables_used->table->s->table_name.str,
-                            tables_used->table->s->db.str,
-                            tables_used->table->s->db_type()->db_type));
-      if (tables_used->derived)
+      if (tables_used->is_derived())
       {
+        DBUG_PRINT("qcache", ("table: %s", tables_used->alias));
         table_count--;
         DBUG_PRINT("qcache", ("derived table skipped"));
         continue;
       }
+      DBUG_PRINT("qcache", ("table: %s  db:  %s  type: %u",
+                            tables_used->table->s->table_name.str,
+                            tables_used->table->s->db.str,
+                            tables_used->table->s->db_type()->db_type));
       *tables_type|= tables_used->table->file->table_cache_type();
 
       /*
@@ -3846,7 +3853,7 @@ my_bool Query_cache::ask_handler_allowance(THD *thd,
     if (!(table= tables_used->table))
       continue;
     handler= table->file;
-    /* Allow caching of queries with derived tables. */
+    // Allow caching of queries with materialized derived tables or views
     if (tables_used->uses_materialization())
     {
       /*
@@ -3861,6 +3868,7 @@ my_bool Query_cache::ask_handler_allowance(THD *thd,
     }
 
     /*
+      @todo: I think this code can be skipped, anyway it is dead now!
       We're skipping a special case here (MERGE VIEW on top of a TEMPTABLE
       view). This is MyISAMly safe because we know it's not a user-created
       TEMPTABLE as those are guarded against in
@@ -3870,10 +3878,12 @@ my_bool Query_cache::ask_handler_allowance(THD *thd,
       in MyISAM to check on it is pointless. Finally, we should see the
       TEMPTABLE view again in a subsequent iteration, anyway.
     */
-    if ((tables_used->effective_algorithm == VIEW_ALGORITHM_MERGE) &&
-        (table->s->get_table_ref_type() == TABLE_REF_TMP_TABLE))
+    if (tables_used->is_view() && tables_used->is_merged() &&
+        table->s->get_table_ref_type() == TABLE_REF_TMP_TABLE)
+    {
+      DBUG_ASSERT(false);
       continue;
-
+    }
     if (!handler->register_query_cache_table(thd,
                                              table->s->normalized_path.str,
                                              table->s->normalized_path.length,

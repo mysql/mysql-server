@@ -86,9 +86,9 @@ ERROR 42000: UPDATE command denied to user 'privtest'@'localhost' for table 't1'
 UPDATE t1 SET a = a + 1;
 ERROR 42000: UPDATE command denied to user 'privtest'@'localhost' for table 't1'
 EXPLAIN UPDATE t1, t2 SET t1.a = t1.a + 1 WHERE t1.a = t2.a;
-ERROR 42000: UPDATE command denied to user 'privtest'@'localhost' for table 't1'
+ERROR 42000: UPDATE command denied to user 'privtest'@'localhost' for column 'a' in table 't1'
 UPDATE t1, t2 SET t1.a = t1.a + 1 WHERE t1.a = t2.a;
-ERROR 42000: UPDATE command denied to user 'privtest'@'localhost' for table 't1'
+ERROR 42000: UPDATE command denied to user 'privtest'@'localhost' for column 'a' in table 't1'
 GRANT UPDATE, SELECT ON privtest_db.t1 TO 'privtest'@'localhost';
 EXPLAIN UPDATE t1 SET a = a + 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra

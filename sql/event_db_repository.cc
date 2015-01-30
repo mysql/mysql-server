@@ -620,7 +620,7 @@ Event_db_repository::open_event_table(THD *thd, enum thr_lock_type lock_type,
 
   tables.init_one_table("mysql", 5, "event", 5, "event", lock_type);
 
-  if (open_and_lock_tables(thd, &tables, FALSE, MYSQL_LOCK_IGNORE_TIMEOUT))
+  if (open_and_lock_tables(thd, &tables, MYSQL_LOCK_IGNORE_TIMEOUT))
     DBUG_RETURN(TRUE);
 
   *table= tables.table;
@@ -1204,7 +1204,7 @@ Event_db_repository::check_system_tables(THD *thd)
   /* Check mysql.db */
   tables.init_one_table("mysql", 5, "db", 2, "db", TL_READ);
 
-  if (open_and_lock_tables(thd, &tables, FALSE, MYSQL_LOCK_IGNORE_TIMEOUT))
+  if (open_and_lock_tables(thd, &tables, MYSQL_LOCK_IGNORE_TIMEOUT))
   {
     ret= 1;
     sql_print_error("Cannot open mysql.db");
@@ -1218,7 +1218,7 @@ Event_db_repository::check_system_tables(THD *thd)
   /* Check mysql.user */
   tables.init_one_table("mysql", 5, "user", 4, "user", TL_READ);
 
-  if (open_and_lock_tables(thd, &tables, FALSE, MYSQL_LOCK_IGNORE_TIMEOUT))
+  if (open_and_lock_tables(thd, &tables, MYSQL_LOCK_IGNORE_TIMEOUT))
   {
     ret= 1;
     sql_print_error("Cannot open mysql.user");
@@ -1238,7 +1238,7 @@ Event_db_repository::check_system_tables(THD *thd)
   /* Check mysql.event */
   tables.init_one_table("mysql", 5, "event", 5, "event", TL_READ);
 
-  if (open_and_lock_tables(thd, &tables, FALSE, MYSQL_LOCK_IGNORE_TIMEOUT))
+  if (open_and_lock_tables(thd, &tables, MYSQL_LOCK_IGNORE_TIMEOUT))
   {
     ret= 1;
     sql_print_error("Cannot open mysql.event");

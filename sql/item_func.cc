@@ -5747,26 +5747,6 @@ Item_func_set_user_var::fix_length_and_dec()
 }
 
 
-/*
-  Mark field in read_map
-
-  NOTES
-    This is used by filesort to register used fields in a a temporary
-    column read set or to register used fields in a view
-*/
-
-bool Item_func_set_user_var::register_field_in_read_map(uchar *arg)
-{
-  if (result_field)
-  {
-    TABLE *table= (TABLE *) arg;
-    if (result_field->table == table || !table)
-      bitmap_set_bit(result_field->table->read_set, result_field->field_index);
-  }
-  return 0;
-}
-
-
 bool user_var_entry::mem_realloc(size_t length)
 {
   if (length <= extra_size)
@@ -7977,7 +7957,8 @@ Item_func_sp::init_result_field(THD *thd)
   
   share= dummy_table->s;
   dummy_table->alias = "";
-  dummy_table->maybe_null = maybe_null;
+  if (maybe_null)
+    dummy_table->set_nullable();
   dummy_table->in_use= thd;
   dummy_table->copy_blobs= TRUE;
   share->table_cache_key = empty_name;

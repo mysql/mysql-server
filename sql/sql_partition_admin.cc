@@ -777,7 +777,7 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd)
           engines supporting native partitioning.
   */
 
-  if (!first_table->table || first_table->view ||
+  if (!first_table->table || first_table->is_view() ||
       first_table->table->s->db_type() != partition_hton)
   {
     my_error(ER_PARTITION_MGMT_ON_NONPARTITIONED, MYF(0));

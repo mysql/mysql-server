@@ -1088,6 +1088,7 @@ void Open_tables_state::reset_open_tables_state()
 THD::THD(bool enable_plugins)
   :Query_arena(&main_mem_root, STMT_CONVENTIONAL_EXECUTION),
    mark_used_columns(MARK_COLUMNS_READ),
+   want_privilege(0),
    lex(&main_lex),
    m_query_string(NULL_CSTR),
    m_db(NULL_CSTR),

@@ -1995,7 +1995,7 @@ bool sp_head::merge_table_list(THD *thd,
   }
 
   for (; table ; table= table->next_global)
-    if (!table->derived && !table->schema_table)
+    if (!table->is_derived() && !table->schema_table)
     {
       /*
         Structure of key for the multi-set is "db\0table\0alias\0".
