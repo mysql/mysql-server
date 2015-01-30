@@ -39,7 +39,9 @@ Created 2011-05-26 Marko Makela
 #include "srv0mon.h"
 #include "handler0alter.h"
 #include "ut0new.h"
+#include "ut0stage.h"
 
+#include <algorithm>
 #include <map>
 
 /** Table row modification operations during online table rebuild.
@@ -2462,15 +2464,73 @@ row_log_table_apply_op(
 	return(next_mrec);
 }
 
+#ifdef HAVE_PSI_STAGE_INTERFACE
+/** Estimate how much an ALTER TABLE progress should be incremented per
+one block of log applied.
+For the other phases of ALTER TABLE we increment the progress with 1 per
+page processed.
+@return amount of abstract units to add to work_completed when one block
+of log is applied.
+*/
+inline
+ulint
+row_log_progress_inc_per_block()
+{
+	/* We must increment the progress once per page (as in
+	univ_page_size, usually 16KiB). One block here is srv_sort_buf_size
+	(usually 1MiB). */
+	const ulint	pages_per_block = std::max(
+		static_cast<unsigned long>(
+			srv_sort_buf_size / univ_page_size.physical()),
+		1UL);
+
+	/* Multiply by an artificial factor of 6 to even the pace with
+	the rest of the ALTER TABLE phases, they process page_size amount
+	of data faster. */
+	return(pages_per_block * 6);
+}
+
+/** Estimate how much work is to be done by the log apply phase
+of an ALTER TABLE for this index.
+@param[in]	index	index whose log to assess
+@return work to be done by log-apply in abstract units
+*/
+ulint
+row_log_estimate_work(
+	const dict_index_t*	index)
+{
+	if (index == NULL || index->online_log == NULL) {
+		return(0);
+	}
+
+	const row_log_t*	l = index->online_log;
+	const ulint		bytes_left = l->tail.total - l->head.total;
+	const ulint		blocks_left = bytes_left / srv_sort_buf_size;
+
+	return(blocks_left * row_log_progress_inc_per_block());
+}
+#else /* HAVE_PSI_STAGE_INTERFACE */
+inline
+ulint
+row_log_progress_inc_per_block()
+{
+	return(0);
+}
+#endif /* HAVE_PSI_STAGE_INTERFACE */
+
 /** Applies operations to a table was rebuilt.
 @param[in]	thr	query graph
 @param[in,out]	dup	for reporting duplicate key errors
+@param[in,out]	stage	performance schema accounting object, used by
+ALTER TABLE. If not NULL, then stage->inc() will be called for each block
+of log that is applied.
 @return DB_SUCCESS, or error code on failure */
 static __attribute__((warn_unused_result))
 dberr_t
 row_log_table_apply_ops(
 	que_thr_t*		thr,
-	row_merge_dup_t*	dup)
+	row_merge_dup_t*	dup,
+	ut_stage_alter_t*	stage)
 {
 	dberr_t		error;
 	const mrec_t*	mrec		= NULL;
@@ -2523,6 +2583,8 @@ next_block:
 	ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(index->online_log->head.bytes == 0);
+
+	stage->inc(row_log_progress_inc_per_block());
 
 	if (trx_is_interrupted(trx)) {
 		goto interrupted;
@@ -2811,12 +2873,16 @@ func_exit:
 @param[in]	thr		query graph
 @param[in]	old_table	old table
 @param[in,out]	table		MySQL table (for reporting duplicates)
+@param[in,out]	stage		performance schema accounting object, used by
+ALTER TABLE. stage->begin_phase_log_table() will be called initially and then
+stage->inc() will be called for each block of log that is applied.
 @return DB_SUCCESS, or error code on failure */
 dberr_t
 row_log_table_apply(
 	que_thr_t*		thr,
 	dict_table_t*		old_table,
-	struct TABLE*		table)
+	struct TABLE*		table,
+	ut_stage_alter_t*	stage)
 {
 	dberr_t		error;
 	dict_index_t*	clust_index;
@@ -2824,6 +2890,8 @@ row_log_table_apply(
 	thr_get_trx(thr)->error_key_num = 0;
 	DBUG_EXECUTE_IF("innodb_trx_duplicates",
 			thr_get_trx(thr)->duplicates = TRX_DUP_REPLACE;);
+
+	stage->begin_phase_log_table();
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(!rw_lock_own(&dict_operation_lock, RW_LOCK_S));
@@ -2846,7 +2914,7 @@ row_log_table_apply(
 			clust_index->online_log->col_map, 0
 		};
 
-		error = row_log_table_apply_ops(thr, &dup);
+		error = row_log_table_apply_ops(thr, &dup, stage);
 
 		ut_ad(error != DB_SUCCESS
 		      || clust_index->online_log->head.total
@@ -2856,6 +2924,7 @@ row_log_table_apply(
 	rw_lock_x_unlock(dict_index_get_lock(clust_index));
 	DBUG_EXECUTE_IF("innodb_trx_duplicates",
 			thr_get_trx(thr)->duplicates = 0;);
+
 	return(error);
 }
 
@@ -3312,13 +3381,17 @@ corrupted:
 interrupted)
 @param[in,out]	index	index
 @param[in,out]	dup	for reporting duplicate key errors
+@param[in,out]	stage	performance schema accounting object, used by
+ALTER TABLE. If not NULL, then stage->inc() will be called for each block
+of log that is applied.
 @return DB_SUCCESS, or error code on failure */
 static
 dberr_t
 row_log_apply_ops(
 	const trx_t*		trx,
 	dict_index_t*		index,
-	row_merge_dup_t*	dup)
+	row_merge_dup_t*	dup,
+	ut_stage_alter_t*	stage)
 {
 	dberr_t		error;
 	const mrec_t*	mrec	= NULL;
@@ -3354,6 +3427,8 @@ next_block:
 	ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(index->online_log->head.bytes == 0);
+
+	stage->inc(row_log_progress_inc_per_block());
 
 	if (trx_is_interrupted(trx)) {
 		goto interrupted;
@@ -3633,12 +3708,16 @@ func_exit:
 interrupted)
 @param[in,out]	index	secondary index
 @param[in,out]	table	MySQL table (for reporting duplicates)
+@param[in,out]	stage	performance schema accounting object, used by
+ALTER TABLE. stage->begin_phase_log_index() will be called initially and then
+stage->inc() will be called for each block of log that is applied.
 @return DB_SUCCESS, or error code on failure */
 dberr_t
 row_log_apply(
-	const trx_t*	trx,
-	dict_index_t*	index,
-	struct TABLE*	table)
+	const trx_t*		trx,
+	dict_index_t*		index,
+	struct TABLE*		table,
+	ut_stage_alter_t*	stage)
 {
 	dberr_t		error;
 	row_log_t*	log;
@@ -3648,12 +3727,14 @@ row_log_apply(
 	ut_ad(dict_index_is_online_ddl(index));
 	ut_ad(!dict_index_is_clust(index));
 
+	stage->begin_phase_log_index();
+
 	log_free_check();
 
 	rw_lock_x_lock(dict_index_get_lock(index));
 
 	if (!dict_table_is_corrupted(index->table)) {
-		error = row_log_apply_ops(trx, index, &dup);
+		error = row_log_apply_ops(trx, index, &dup, stage);
 	} else {
 		error = DB_SUCCESS;
 	}

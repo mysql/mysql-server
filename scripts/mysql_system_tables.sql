@@ -2205,12 +2205,52 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
+
+--
+-- TABLE replication_group_member_stats
+--
+
+SET @cmd="CREATE TABLE performance_schema.replication_group_member_stats("
+  "CHANNEL_NAME CHAR(64) collate utf8_general_ci not null,"
+  "VIEW_ID CHAR(60) collate utf8_bin not null,"
+  "MEMBER_ID CHAR(36) collate utf8_bin not null,"
+  "COUNT_TRANSACTIONS_IN_QUEUE BIGINT unsigned not null,"
+  "COUNT_TRANSACTIONS_CHECKED BIGINT unsigned not null,"
+  "COUNT_CONFLICTS_DETECTED BIGINT unsigned not null,"
+  "COUNT_TRANSACTIONS_VALIDATING BIGINT unsigned not null,"
+  "TRANSACTIONS_COMMITTED_ALL_MEMBERS TEXT not null,"
+  "LAST_CONFLICT_FREE_TRANSACTION TEXT not null"
+  ") ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+
+--
+-- TABLE replication_group_members
+--
+
+SET @cmd="CREATE TABLE performance_schema.replication_group_members("
+  "CHANNEL_NAME CHAR(64) collate utf8_general_ci not null,"
+  "MEMBER_ID CHAR(36) collate utf8_bin not null,"
+  "MEMBER_ADDRESS CHAR(60) collate utf8_bin not null,"
+  "MEMBER_STATE ENUM('ONLINE','OFFLINE','RECOVERING') not null"
+  ") ENGINE=PERFORMANCE_SCHEMA;";
+
+ SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+ PREPARE stmt FROM @str;
+ EXECUTE stmt;
+ DROP PREPARE stmt;
+
 --
 -- TABLE replication_connection_status
 --
 
 SET @cmd="CREATE TABLE performance_schema.replication_connection_status("
   "CHANNEL_NAME CHAR(64) collate utf8_general_ci not null,"
+  "GROUP_NAME CHAR(36) collate utf8_bin not null,"
   "SOURCE_UUID CHAR(36) collate utf8_bin not null,"
   "THREAD_ID BIGINT unsigned,"
   "SERVICE_STATE ENUM('ON','OFF','CONNECTING') not null,"

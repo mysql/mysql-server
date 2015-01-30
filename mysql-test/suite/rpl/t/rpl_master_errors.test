@@ -1,9 +1,10 @@
 ################################################################################
 # It tests the cases where the dump thread returns an error to the client.
 ################################################################################
---source include/master-slave.inc
+--source include/not_group_replication_plugin.inc
 --source include/have_debug.inc
 --source include/have_gtid.inc
+--source include/master-slave.inc
 
 call mtr.add_suppression(".* You need to use --log-bin to make .* work.");
 --sync_slave_with_master

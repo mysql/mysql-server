@@ -557,6 +557,9 @@ unsigned long mysql_hex_string(char *to,const char *from,
 unsigned long mysql_real_escape_string(MYSQL *mysql,
             char *to,const char *from,
             unsigned long length);
+unsigned long mysql_real_escape_string_quote(MYSQL *mysql,
+                 char *to, const char *from,
+                 unsigned long length, char quote);
 void mysql_debug(const char *debug);
 void myodbc_remove_escape(MYSQL *mysql,char *name);
 unsigned int mysql_thread_safe(void);

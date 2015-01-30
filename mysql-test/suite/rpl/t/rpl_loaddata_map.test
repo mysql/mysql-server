@@ -16,6 +16,7 @@
 #  BUG#33413 show binlog events fails if binlog has event size of close
 #            to max_allowed_packet
 
+--source include/not_group_replication_plugin.inc
 source include/have_binlog_format_statement.inc;
 source include/master-slave.inc;
 

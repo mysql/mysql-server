@@ -2609,7 +2609,7 @@ EXPLAIN
       "key_length": "5",
       "rows_examined_per_scan": 11,
       "rows_produced_per_join": 11,
-      "filtered": 100,
+      "filtered": "100.00",
       "using_index": true,
       "cost_info": {
         "read_cost": "3.48",

@@ -3,10 +3,11 @@
 # tables. For further details, please, read WL#2687 and WL#5072.
 ###################################################################################
 --source include/big_test.inc
+--source include/not_group_replication_plugin.inc
 --source include/have_binlog_format_statement.inc
---source include/master-slave.inc
 --source include/have_innodb.inc
 --source include/not_gtid_enabled.inc
+--source include/master-slave.inc
 
 --disable_query_log
 SET SESSION binlog_direct_non_transactional_updates = OFF;

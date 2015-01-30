@@ -1,0 +1,46 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection slave]
+include/stop_slave.inc
+CHANGE MASTER TO MASTER_AUTO_POSITION=0;
+call mtr.add_suppression("An unexpected event sequence was detected by the IO thread");
+call mtr.add_suppression("GTID_LOG_EVENT .* is not expected in an event stream");
+include/start_slave_io.inc
+include/gtid_step_reset_on_retrieved.inc
+# Adding debug point 'simulate_unknown_ignorable_log_event_with_xid' to @@GLOBAL.debug
+[connection master]
+# This should be MASTER_UUID:1
+CREATE TABLE t1 (c1 INT) ENGINE= InnoDB;
+include/sync_slave_io_with_master.inc
+[connection master]
+# This should be MASTER_UUID:2,
+# but it will not be fully retrieved nor applied on slave
+INSERT INTO t1 VALUES (1);
+# This should be MASTER_UUID:3,
+CREATE TABLE t2 (c1 INT) ENGINE=InnoDB;
+include/sync_slave_io_with_master.inc
+include/stop_slave_io.inc
+# Removing debug point 'simulate_unknown_ignorable_log_event_with_xid' from @@GLOBAL.debug
+[connection master]
+# This should be MASTER_UUID:4
+INSERT INTO t1 VALUES (3);
+[connection slave]
+include/rpl_restart_server.inc [server_number=2]
+include/start_slave_io.inc
+[connection master]
+include/sync_slave_io_with_master.inc
+include/gtid_step_assert_on_retrieved.inc [count=3, only_count=1]
+Asserting based on SHOW SLAVE STATUS(Retrieved_Gtid_Set)
+include/stop_slave_io.inc
+RESET SLAVE;
+RESET MASTER;
+CHANGE MASTER TO MASTER_AUTO_POSITION= 1;
+[connection master]
+DROP TABLE t1,t2;
+RESET MASTER;
+[connection slave]
+include/start_slave.inc
+include/rpl_end.inc

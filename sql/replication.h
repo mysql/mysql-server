@@ -21,6 +21,8 @@
 #include "my_thread.h"                // my_thread_id
 #include "mysql/psi/mysql_thread.h"   // mysql_mutex_t
 
+#include "handler.h"
+
 typedef struct st_mysql MYSQL;
 typedef struct st_io_cache IO_CACHE;
 
@@ -35,6 +37,49 @@ enum Trans_flags {
   /** Transaction is a real transaction */
   TRANS_IS_REAL_TRANS = 1
 };
+
+/**
+ This represents table metadata involved in a transaction
+ */
+typedef struct Trans_table_info {
+  const char* table_name;
+  uint number_of_primary_keys;
+  bool transactional_table;
+} Trans_table_info;
+
+/**
+  This represents some of the context in which a transaction is running
+  It summarizes all necessary requirements for Group Replication to work.
+
+  These requirements might be extracted in two different moments in time, and,
+  as such, with different contexts:
+  - Startup verifications, that are extracted when Group Replication starts,
+    and typically from global vars.
+  - Runtime verifications, that are extracted when a transaction is running. It
+    it typically from session THD vars or from mutable global vars.
+
+  Please refer to the place where information is extracted for more details
+  about it.
+ */
+typedef struct Trans_context_info {
+  bool  binlog_enabled;
+  ulong gtid_mode;               //enum values in enum_gtid_mode
+  ulong binlog_checksum_options; //enum values in enum enum_binlog_checksum_alg
+  ulong binlog_format;           //enum values in enum enum_binlog_format
+  // enum values in enum_transaction_write_set_hashing_algorithm
+  ulong transaction_write_set_extraction;
+  ulong mi_repository_type;     //enum values in enum_info_repository
+  ulong rli_repository_type;    //enum values in enum_info_repository
+} Trans_context_info;
+
+/**
+  This represents the GTID context of the transaction.
+ */
+typedef struct Trans_gtid_info {
+  ulong type;                    // enum values in enum_group_type
+  int sidno;                     // transaction sidno
+  long long int gno;             // transaction gno
+} Trans_gtid_info;
 
 /**
    Transaction observer parameter
@@ -56,19 +101,29 @@ typedef struct Trans_param {
   my_off_t log_pos;
 
   /*
+    Transaction GTID information.
+  */
+  Trans_gtid_info gtid_info;
+
+  /*
     Set on before_commit hook.
   */
   IO_CACHE *trx_cache_log;
-  ulonglong trx_cache_log_max_size;
-
   IO_CACHE *stmt_cache_log;
   ulonglong cache_log_max_size;
 
   /*
-    This is the list containing the write_set of the transaction
-    that is tranferrred for the certification purpose.
-  */
-  std::list<uint32> *write_set;
+   This is the list of tables that are involved in this transaction and its
+   information
+   */
+  Trans_table_info* tables_info;
+  uint number_of_tables;
+
+  /*
+   Context information about system variables in the transaction
+   */
+  Trans_context_info trans_ctx_info;
+
 } Trans_param;
 
 /**
@@ -76,6 +131,8 @@ typedef struct Trans_param {
 */
 typedef struct Trans_observer {
   uint32 len;
+
+  int (*before_dml)(Trans_param *param, int& out_val);
 
   /**
      This callback is called before transaction commit
@@ -289,7 +346,7 @@ typedef struct Binlog_transmit_param {
 */
 typedef struct Binlog_transmit_observer {
   uint32 len;
-  
+
   /**
      This callback is called when binlog dumping starts
 
@@ -308,7 +365,7 @@ typedef struct Binlog_transmit_observer {
      This callback is called when binlog dumping stops
 
      @param param Observer common parameter
-     
+
      @retval 0 Sucess
      @retval 1 Failure
   */
@@ -450,7 +507,7 @@ typedef struct Binlog_relay_IO_observer {
      @retval 0 Sucess
      @retval 1 Failure
   */
-  int (*consumer_thread_stop)(Binlog_relay_IO_param *param, bool aborted);
+  int (*applier_stop)(Binlog_relay_IO_param *param, bool aborted);
 
   /**
      This callback is called before slave requesting binlog transmission from master
@@ -499,7 +556,7 @@ typedef struct Binlog_relay_IO_observer {
 
   /**
      This callback is called after reset slave relay log IO status
-     
+
      @param param Observer common parameter
 
      @retval 0 Sucess
@@ -721,7 +778,6 @@ int get_user_var_str(const char *name,
                      char *value, unsigned long len,
                      unsigned int precision, int *null_value);
 
-  
 
 #ifdef __cplusplus
 }

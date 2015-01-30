@@ -7249,8 +7249,6 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
   uint used_fields= create_info->used_fields;
   KEY *key_info=table->key_info;
   bool rc= TRUE;
-  //Status for checking whether virtual GCs are mixed with other columns
-  enum {ADDED_NONE, ADDED_VGC, ADDED_OTHER} status= ADDED_NONE;
 
   DBUG_ENTER("mysql_prepare_alter_table");
 
@@ -7284,6 +7282,10 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
 
   if (create_info->storage_media == HA_SM_DEFAULT)
     create_info->storage_media= table->s->default_storage_media;
+
+  /* Creation of federated table with LIKE clause needs connection string */
+  if (!(used_fields & HA_CREATE_USED_CONNECTION))
+    create_info->connect_string= table->s->connect_string;
 
   restore_record(table, s->default_values);     // Empty record for DEFAULT
   Create_field *def;
@@ -7424,33 +7426,6 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
       goto err;
     }
 
-    // Check whether virtual GCs are mixed with other columns
-    if (status == ADDED_NONE)
-    {
-      if (def->gcol_info && !def->gcol_info->get_field_stored())
-        status= ADDED_VGC;
-      else
-        status= ADDED_OTHER;
-    }
-    else if (status == ADDED_VGC)
-    {
-      //Doesn't support mixture of virtual GCs and other columns added
-      if (!def->gcol_info ||
-          (def->gcol_info && def->gcol_info->get_field_stored()))
-        my_error(ER_UNSUPPORTED_ACTION_ON_GENERATED_COLUMN,
-                 MYF(0),
-                 "Virtual generated column combines with other columns "
-                 "to be added together");
-    }
-    else
-    {
-      //Doesn't support mixture of virtual GCs and other columns added
-      if (def->gcol_info && !def->gcol_info->get_field_stored())
-        my_error(ER_UNSUPPORTED_ACTION_ON_GENERATED_COLUMN,
-                 MYF(0),
-                 "Virtual generated column combines with other columns "
-                 "to be added together");
-    }
     /*
       Check that the DATE/DATETIME not null field we are going to add is
       either has a default value or the '0000-00-00' is allowed by the

@@ -27,3 +27,5 @@
 #define VERSION_mysql_string  0x0100
 #define VERSION_mysql_malloc  0x0100
 #define VERSION_parser  0x0100
+#define VERSION_rpl_transaction_ctx_service 0x0100
+#define VERSION_transaction_write_set_service 0x0100

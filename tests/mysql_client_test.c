@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13199,7 +13199,7 @@ from t2);");
 
 
 /*
- Test mysql_real_escape_string() with gbk charset
+ Test mysql_real_escape_string_quote() with gbk charset
 
  The important part is that 0x27 (') is the second-byte in a invalid
  two-byte GBK character here. But 0xbf5c is a valid GBK character, so
@@ -13243,7 +13243,7 @@ static void test_bug8378()
   rc= mysql_query(lmysql, "SET SQL_MODE=''");
   myquery(rc);
 
-  len= mysql_real_escape_string(lmysql, out, TEST_BUG8378_IN, 4);
+  len= mysql_real_escape_string_quote(lmysql, out, TEST_BUG8378_IN, 4, '\'');
 
   /* No escaping should have actually happened. */
   DIE_UNLESS(memcmp(out, TEST_BUG8378_OUT, len) == 0);
@@ -14067,7 +14067,7 @@ static void test_bug11656()
 
 /*
   Check that the server signals when NO_BACKSLASH_ESCAPES mode is in effect,
-  and mysql_real_escape_string() does the right thing as a result.
+  and mysql_real_escape_string_quote() does the right thing as a result.
 */
 
 static void test_bug10214()
@@ -14079,14 +14079,78 @@ static void test_bug10214()
 
   DIE_UNLESS(!(mysql->server_status & SERVER_STATUS_NO_BACKSLASH_ESCAPES));
 
-  len= mysql_real_escape_string(mysql, out, "a'b\\c", 5);
+  len= mysql_real_escape_string_quote(mysql, out, "a'b\\c", 5, '\'');
   DIE_UNLESS(memcmp(out, "a\\'b\\\\c", len) == 0);
 
   mysql_query(mysql, "set sql_mode='NO_BACKSLASH_ESCAPES'");
   DIE_UNLESS(mysql->server_status & SERVER_STATUS_NO_BACKSLASH_ESCAPES);
 
-  len= mysql_real_escape_string(mysql, out, "a'b\\c", 5);
+  len= mysql_real_escape_string_quote(mysql, out, "a'b\\c", 5, '\'');
   DIE_UNLESS(memcmp(out, "a''b\\c", len) == 0);
+
+  mysql_query(mysql, "set sql_mode=''");
+}
+
+/*
+  Check that the server signals when NO_BACKSLASH_ESCAPES mode is in effect,
+  a deprecated mysql_real_escape_string() function exits with error and the
+  mysql_real_escape_string_quote() does the right thing as a result.
+*/
+
+static void test_bug21246()
+{
+  int   len;
+  char  out[10];
+
+  myheader("test_bug21246");
+
+  DIE_UNLESS(!(mysql->server_status & SERVER_STATUS_NO_BACKSLASH_ESCAPES));
+
+  len= mysql_real_escape_string(mysql, out, "a'b\\c", 5);
+  DIE_UNLESS(len == 7);
+  DIE_UNLESS(memcmp(out, "a\\'b\\\\c", len) == 0);
+
+  len = mysql_real_escape_string_quote(mysql, out, "a'b\\c", 5, '\'');
+  DIE_UNLESS(len == 7);
+  DIE_UNLESS(memcmp(out, "a\\'b\\\\c", len) == 0);
+
+  len = mysql_real_escape_string_quote(mysql, out, "`a'b\\c`", 7, '\'');
+  DIE_UNLESS(len == 9);
+  DIE_UNLESS(memcmp(out, "`a\\'b\\\\c`", len) == 0);
+
+  len = mysql_real_escape_string_quote(mysql, out, "`a'b\\c`", 7, '`');
+  DIE_UNLESS(len == 9);
+  DIE_UNLESS(memcmp(out, "`a\\'b\\\\c`", len) == 0);
+
+  len = mysql_real_escape_string_quote(mysql, out, "`a'b\\c\"", 7, '"');
+  DIE_UNLESS(len == 10);
+  DIE_UNLESS(memcmp(out, "`a\\'b\\\\c\\\"", len) == 0);
+
+  mysql_query(mysql, "set sql_mode='NO_BACKSLASH_ESCAPES'");
+  DIE_UNLESS(mysql->server_status & SERVER_STATUS_NO_BACKSLASH_ESCAPES);
+
+  len = mysql_real_escape_string(mysql, out, "a'b\\c", 5);
+  DIE_UNLESS(len == -1);
+
+  len= mysql_real_escape_string_quote(mysql, out, "a'b\"c", 5, '\'');
+  DIE_UNLESS(len == 6);
+  DIE_UNLESS(memcmp(out, "a''b\"c", len) == 0);
+
+  len = mysql_real_escape_string_quote(mysql, out, "a'b\"c", 5, '\"');
+  DIE_UNLESS(len == 6);
+  DIE_UNLESS(memcmp(out, "a'b\"\"c", len) == 0);
+
+  len = mysql_real_escape_string_quote(mysql, out, "`a'b\"c`\"", 8, '\"');
+  DIE_UNLESS(len == 10);
+  DIE_UNLESS(memcmp(out, "`a'b\"\"c`\"\"", len) == 0);
+
+  len = mysql_real_escape_string_quote(mysql, out, "`a'b\"c`\"", 8, '`');
+  DIE_UNLESS(len == 10);
+  DIE_UNLESS(memcmp(out, "``a'b\"c``\"", len) == 0);
+
+  len = mysql_real_escape_string_quote(mysql, out, "\"a'b\"c\"\"", 8, '`');
+  DIE_UNLESS(len == 8);
+  DIE_UNLESS(memcmp(out, "\"a'b\"c\"\"", len) == 0);
 
   mysql_query(mysql, "set sql_mode=''");
 }
@@ -20048,6 +20112,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug11172", test_bug11172 },
   { "test_bug11656", test_bug11656 },
   { "test_bug10214", test_bug10214 },
+  { "test_bug21246", test_bug21246 },
   { "test_bug9735", test_bug9735 },
   { "test_bug11183", test_bug11183 },
   { "test_bug11037", test_bug11037 },

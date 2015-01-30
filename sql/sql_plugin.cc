@@ -19,6 +19,7 @@
 #include "mysql_version.h"
 #include <mysql/plugin_auth.h>
 #include <mysql/plugin_validate_password.h>
+#include <mysql/plugin_group_replication.h>
 #include "auth_common.h"       // check_table_access
 #include "debug_sync.h"        // DEBUG_SYNC
 #include "handler.h"           // ha_initalize_handlerton
@@ -93,7 +94,8 @@ const LEX_STRING plugin_type_names[MYSQL_MAX_PLUGIN_TYPE_NUM]=
   { C_STRING_WITH_LEN("AUTHENTICATION") },
   { C_STRING_WITH_LEN("VALIDATE PASSWORD") },
   { C_STRING_WITH_LEN("QUERY REWRITE PRE PARSE") },
-  { C_STRING_WITH_LEN("QUERY REWRITE POST PARSE") }
+  { C_STRING_WITH_LEN("QUERY REWRITE POST PARSE") },
+  { C_STRING_WITH_LEN("GROUP REPLICATION") }
 };
 
 extern int initialize_schema_table(st_plugin_int *plugin);
@@ -161,7 +163,8 @@ static int min_plugin_info_interface_version[MYSQL_MAX_PLUGIN_TYPE_NUM]=
   MYSQL_AUTHENTICATION_INTERFACE_VERSION,
   MYSQL_VALIDATE_PASSWORD_INTERFACE_VERSION,
   MYSQL_REWRITE_PRE_PARSE_INTERFACE_VERSION,
-  MYSQL_REWRITE_POST_PARSE_INTERFACE_VERSION
+  MYSQL_REWRITE_POST_PARSE_INTERFACE_VERSION,
+  MYSQL_GROUP_REPLICATION_INTERFACE_VERSION
 };
 static int cur_plugin_info_interface_version[MYSQL_MAX_PLUGIN_TYPE_NUM]=
 {
@@ -175,7 +178,8 @@ static int cur_plugin_info_interface_version[MYSQL_MAX_PLUGIN_TYPE_NUM]=
   MYSQL_AUTHENTICATION_INTERFACE_VERSION,
   MYSQL_VALIDATE_PASSWORD_INTERFACE_VERSION,
   MYSQL_REWRITE_PRE_PARSE_INTERFACE_VERSION,
-  MYSQL_REWRITE_POST_PARSE_INTERFACE_VERSION
+  MYSQL_REWRITE_POST_PARSE_INTERFACE_VERSION,
+  MYSQL_GROUP_REPLICATION_INTERFACE_VERSION
 };
 
 /* support for Services */

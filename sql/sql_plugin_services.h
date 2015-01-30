@@ -15,6 +15,7 @@
 
 /* support for Services */
 #include <service_versions.h>
+#include "mysql/services.h"
 
 struct st_service_ref {
   const char *name;
@@ -90,6 +91,14 @@ static struct mysql_parser_service_st parser_handler=
   mysql_parser_get_normalized_query
 };
 
+static struct rpl_transaction_ctx_service_st rpl_transaction_ctx_handler= {
+  set_transaction_ctx,
+};
+
+static struct transaction_write_set_service_st transaction_write_set_handler= {
+  get_transaction_write_set,
+};
+
 static struct st_service_ref list_of_services[]=
 {
   { "my_snprintf_service", VERSION_my_snprintf, &my_snprintf_handler },
@@ -101,6 +110,10 @@ static struct st_service_ref list_of_services[]=
   { "mysql_string_service",
     VERSION_mysql_string, &mysql_string_handler },
   { "mysql_malloc_service", VERSION_mysql_malloc, &mysql_malloc_handler },
-  { "mysql_parser_service", VERSION_parser, &parser_handler }
+  { "mysql_parser_service", VERSION_parser, &parser_handler },
+  { "rpl_transaction_ctx_service",
+    VERSION_rpl_transaction_ctx_service, &rpl_transaction_ctx_handler },
+  { "transaction_write_set_service",
+    VERSION_transaction_write_set_service, &transaction_write_set_handler }
 };
 

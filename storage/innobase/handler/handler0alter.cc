@@ -50,6 +50,7 @@ Smart ALTER TABLE
 #include "row0sel.h"
 #include "ha_innodb.h"
 #include "ut0new.h"
+#include "ut0stage.h"
 
 /** Operations for creating secondary indexes (no rebuild needed) */
 static const Alter_inplace_info::HA_ALTER_FLAGS INNOBASE_ONLINE_CREATE
@@ -1505,11 +1506,8 @@ name_ok:
 				= key_part1.field;
 			ibool			is_unsigned;
 
-			/* We don't care about if there is a POINT field here,
-			so we just assume optimize_point_storage=true, which
-			wouldn't affect the result */
 			switch (get_innobase_type_from_mysql_type(
-				&is_unsigned, field, true)) {
+					&is_unsigned, field)) {
 			default:
 				break;
 			case DATA_INT:
@@ -1560,55 +1558,16 @@ name_ok:
 	return(0);
 }
 
-/** Get the exact POINT type of the specified column
-@param[in]	table			table object
-@param[in]	col_nr			guessed column number
-@param[in]	col_name		column name
-@param[in]	optimize_point_storage	true if we want to optimize new POINT field, otherwise false
-@return DATA_VAR_POINT or DATA_POINT for the given column */
-unsigned
-innobase_get_exact_point_type(
-	const dict_table_t*	table,
-	ulint			col_nr,
-	const char*		col_name,
-	bool			optimize_point_storage)
-{
-	unsigned	col_type;
-	ulint		col = dict_table_has_column(table, col_name, col_nr);
-
-	if (col < table->n_def) {
-		col_type = table->cols[col].mtype;
-	} else if (optimize_point_storage) {
-		col_type = DATA_POINT;
-	} else {
-		col_type = DATA_VAR_POINT;
-	}
-
-	/** col_type could be DATA_BLOB, since it could be a field
-	upgraded from 5.6, where we store POINT as BLOB.
-	Also it could be DATA_GEOMETRY, which is updated from DATA_BLOB
-	mentioned above. */
-	ut_ad(DATA_POINT_MTYPE(col_type) || col_type == DATA_GEOMETRY
-	      || col_type == DATA_BLOB);
-
-	return(col_type);
-}
-
 /** Create index field definition for key part
 @param[in]	altered_table		MySQL table that is being altered,
 or NULL if a new clustered index is not being created
-@param[in]	user_table		old Innodb table which is being altered
 @param[in]	key_part		MySQL key definition
-@param[in]	optimize_point_storage	true if we want to store POINT as
-DATA_POINT, otherwise as DATA_VAR_POINT
 @param[out]	index_field		index field */
-static __attribute__((nonnull(3,5)))
+static
 void
 innobase_create_index_field_def(
 	const TABLE*		altered_table,
-	const dict_table_t*	user_table,
 	const KEY_PART_INFO*	key_part,
-	bool			optimize_point_storage,
 	index_field_t*		index_field)
 {
 	const Field*	field;
@@ -1628,14 +1587,7 @@ innobase_create_index_field_def(
 	index_field->col_no = key_part->fieldnr;
 
 	col_type = get_innobase_type_from_mysql_type(
-			&is_unsigned, field, true);
-
-	if (DATA_POINT_MTYPE(col_type)) {
-		col_type = innobase_get_exact_point_type(
-			user_table, key_part->fieldnr,
-			key_part->field->field_name,
-			optimize_point_storage);
-	}
+		&is_unsigned, field);
 
 	if (DATA_LARGE_MTYPE(col_type)
 	    || (key_part->length < field->pack_length()
@@ -1654,7 +1606,6 @@ innobase_create_index_field_def(
 
 /** Create index definition for key
 @param[in]	altered_table		MySQL table that is being altered
-@param[in]	user_table		old Innodb table which is being altered
 @param[in]	keys			key definitions
 @param[in]	key_number		MySQL key number
 @param[in]	new_clustered		true if generating a new clustered
@@ -1666,7 +1617,6 @@ static __attribute__((nonnull))
 void
 innobase_create_index_def(
 	const TABLE*		altered_table,
-	const dict_table_t*	user_table,
 	const KEY*		keys,
 	ulint			key_number,
 	bool			new_clustered,
@@ -1677,15 +1627,9 @@ innobase_create_index_def(
 	const KEY*	key = &keys[key_number];
 	ulint		i;
 	ulint		n_fields = key->user_defined_key_parts;
-	bool		optimize_point_storage;
 
 	DBUG_ENTER("innobase_create_index_def");
 	DBUG_ASSERT(!key_clustered || new_clustered);
-
-	optimize_point_storage = thd_optimize_point_storage(
-					altered_table
-					? altered_table->in_use
-					: current_thd);
 
 	index->fields = static_cast<index_field_t*>(
 		mem_heap_alloc(heap, n_fields * sizeof *index->fields));
@@ -1756,8 +1700,8 @@ innobase_create_index_def(
 	if (!(key->flags & HA_SPATIAL)) {
 		for (i = 0; i < n_fields; i++) {
 			innobase_create_index_field_def(
-				altered_table, user_table, &key->key_part[i],
-				optimize_point_storage, &index->fields[i]);
+				altered_table, &key->key_part[i],
+				&index->fields[i]);
 		}
 	}
 
@@ -2003,7 +1947,6 @@ innobase_create_key_defs(
 {
 	index_def_t*		indexdef;
 	index_def_t*		indexdefs;
-	dict_table_t*		table;
 	bool			new_primary;
 	const uint*const	add
 		= ha_alter_info->index_add_buffer;
@@ -2013,9 +1956,6 @@ innobase_create_key_defs(
 	DBUG_ENTER("innobase_create_key_defs");
 	DBUG_ASSERT(!add_fts_doc_id || add_fts_doc_idx);
 	DBUG_ASSERT(ha_alter_info->index_add_count == n_add);
-
-	table = (static_cast<ha_innobase_inplace_ctx*>
-		(ha_alter_info->handler_ctx))->new_table;
 
 	/* If there is a primary key, it is always the first index
 	defined for the innodb_table. */
@@ -2087,7 +2027,7 @@ innobase_create_key_defs(
 
 		/* Create the PRIMARY key index definition */
 		innobase_create_index_def(
-			altered_table, table, key_info, primary_key_number,
+			altered_table, key_info, primary_key_number,
 			true, true, indexdef++, heap);
 
 created_clustered:
@@ -2099,7 +2039,7 @@ created_clustered:
 			}
 			/* Copy the index definitions. */
 			innobase_create_index_def(
-				altered_table, table, key_info, i, true,
+				altered_table, key_info, i, true,
 				false, indexdef, heap);
 
 			if (indexdef->ind_type & DICT_FTS) {
@@ -2143,7 +2083,7 @@ created_clustered:
 
 		for (ulint i = 0; i < n_add; i++) {
 			innobase_create_index_def(
-				altered_table, table, key_info, add[i],
+				altered_table, key_info, add[i],
 				false, false, indexdef, heap);
 
 			if (indexdef->ind_type & DICT_FTS) {
@@ -3097,7 +3037,6 @@ prepare_inplace_alter_table_dict(
 				ctx->new_table->id);
 		ulint		n_cols;
 		dtuple_t*	add_cols;
-		bool		optimize_point_storage;
 		ulint		space_id = 0;
 
 		if (innobase_check_foreigns(
@@ -3142,9 +3081,6 @@ prepare_inplace_alter_table_dict(
 				user_table->data_dir_path);
 		}
 
-		optimize_point_storage = thd_optimize_point_storage(
-					ctx->prebuilt->trx->mysql_thd);
-
 		for (uint i = 0; i < altered_table->s->fields; i++) {
 			const Field*	field = altered_table->field[i];
 			ulint		is_unsigned;
@@ -3152,23 +3088,9 @@ prepare_inplace_alter_table_dict(
 				= (ulint) field->type();
 			ulint		col_type
 				= get_innobase_type_from_mysql_type(
-					&is_unsigned, field, true);
+					&is_unsigned, field);
 			ulint		charset_no;
 			ulint		col_len;
-
-			if (DATA_POINT_MTYPE(col_type)) {
-				col_type = innobase_get_exact_point_type(
-						user_table, i,
-						field->field_name,
-						optimize_point_storage);
-
-				/* We could possible get DATA_BLOB here,
-				it means the POINT is from 5.6. Just convert
-				it to DATA_GEOMETRY */
-				if (col_type == DATA_BLOB) {
-					col_type = DATA_GEOMETRY;
-				}
-			}
 
 			/* we assume in dtype_form_prtype() that this
 			fits in two bytes */
@@ -4618,6 +4540,15 @@ ok_exit:
 	DBUG_ASSERT(ctx->trx);
 	DBUG_ASSERT(ctx->prebuilt == m_prebuilt);
 
+	dict_index_t*		pk;
+	ut_stage_alter_t*	stage;
+
+	pk = dict_table_get_first_index(m_prebuilt->table);
+	ut_ad(pk != NULL);
+	stage = UT_NEW_NOKEY(ut_stage_alter_t(pk));
+
+	ha_alter_info->alter_info->se_blob = stage;
+
 	if (m_prebuilt->table->ibd_file_missing
 	    || dict_table_is_discarded(m_prebuilt->table)) {
 		goto all_done;
@@ -4634,14 +4565,15 @@ ok_exit:
 		ctx->online,
 		ctx->add_index, ctx->add_key_numbers, ctx->num_to_add_index,
 		altered_table, ctx->add_cols, ctx->col_map,
-		ctx->add_autoinc, ctx->sequence, ctx->skip_pk_sort);
+		ctx->add_autoinc, ctx->sequence, ctx->skip_pk_sort, stage);
+
 #ifndef DBUG_OFF
 oom:
 #endif /* !DBUG_OFF */
 	if (error == DB_SUCCESS && ctx->online && ctx->need_rebuild()) {
 		DEBUG_SYNC_C("row_log_table_apply1_before");
 		error = row_log_table_apply(
-			ctx->thr, m_prebuilt->table, altered_table);
+			ctx->thr, m_prebuilt->table, altered_table, stage);
 	}
 
 	DEBUG_SYNC_C("inplace_after_index_build");
@@ -5718,8 +5650,12 @@ commit_try_rebuild(
 
 	if (ctx->online) {
 		DEBUG_SYNC_C("row_log_table_apply2_before");
+
 		error = row_log_table_apply(
-			ctx->thr, user_table, altered_table);
+			ctx->thr, user_table, altered_table,
+			static_cast<ut_stage_alter_t*>(
+				ha_alter_info->alter_info->se_blob));
+
 		ulint	err_key = thr_get_trx(ctx->thr)->error_key_num;
 
 		switch (error) {
@@ -6284,19 +6220,31 @@ ha_innobase::commit_inplace_alter_table(
 
 	DEBUG_SYNC_C("innodb_commit_inplace_alter_table_wait");
 
+	ut_stage_alter_t*	stage = static_cast<ut_stage_alter_t*>(
+		ha_alter_info->alter_info->se_blob);
+
+	if (stage != NULL) {
+		stage->begin_phase_end();
+	}
+
 	if (!commit) {
 		/* A rollback is being requested. So far we may at
 		most have created some indexes. If any indexes were to
 		be dropped, they would actually be dropped in this
 		method if commit=true. */
-		DBUG_RETURN(rollback_inplace_alter_table(
-				    ha_alter_info, table, m_prebuilt));
+		const bool	ret = rollback_inplace_alter_table(
+			ha_alter_info, table, m_prebuilt);
+		UT_DELETE(stage);
+		ha_alter_info->alter_info->se_blob = NULL;
+		DBUG_RETURN(ret);
 	}
 
 	if (!(ha_alter_info->handler_flags & ~INNOBASE_INPLACE_IGNORE)) {
 		DBUG_ASSERT(!ctx0);
 		MONITOR_ATOMIC_DEC(MONITOR_PENDING_ALTER_TABLE);
 		ha_alter_info->group_commit_ctx = NULL;
+		UT_DELETE(stage);
+		ha_alter_info->alter_info->se_blob = NULL;
 		DBUG_RETURN(false);
 	}
 
@@ -6353,6 +6301,8 @@ ha_innobase::commit_inplace_alter_table(
 		if (error != DB_SUCCESS) {
 			my_error_innodb(
 				error, table_share->table_name.str, 0);
+			UT_DELETE(stage);
+			ha_alter_info->alter_info->se_blob = NULL;
 			DBUG_RETURN(true);
 		}
 	}
@@ -6699,6 +6649,8 @@ foreign_fail:
 
 		row_mysql_unlock_data_dictionary(trx);
 		trx_free_for_mysql(trx);
+		UT_DELETE(stage);
+		ha_alter_info->alter_info->se_blob = NULL;
 		DBUG_RETURN(true);
 	}
 
@@ -6875,6 +6827,8 @@ foreign_fail:
 #endif /* DBUG_OFF */
 
 	MONITOR_ATOMIC_DEC(MONITOR_PENDING_ALTER_TABLE);
+	UT_DELETE(stage);
+	ha_alter_info->alter_info->se_blob = NULL;
 	DBUG_RETURN(false);
 }
 

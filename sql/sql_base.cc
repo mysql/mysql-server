@@ -47,6 +47,7 @@
 #include <my_dir.h>
 #include <hash.h>
 #include "rpl_filter.h"
+#include "rpl_handler.h"
 #include "sql_table.h"                          // build_table_filename
 #include "datadict.h"   // dd_frm_type()
 #include "sql_hset.h"   // Hash_set
@@ -1728,13 +1729,20 @@ bool close_temporary_tables(THD *thd)
   DBUG_ASSERT(!thd->slave_thread ||
               thd->system_thread != SYSTEM_THREAD_SLAVE_WORKER);
 
+  /*
+    Ensure we don't have open HANDLERs for tables we are about to close.
+    This is necessary when close_temporary_tables() is called as part
+    of execution of BINLOG statement (e.g. for format description event).
+  */
+  mysql_ha_rm_temporary_tables(thd);
   if (!mysql_bin_log.is_open())
   {
     TABLE *tmp_next;
-    for (table= thd->temporary_tables; table; table= tmp_next)
+    for (TABLE *t= thd->temporary_tables; t; t= tmp_next)
     {
-      tmp_next= table->next;
-      close_temporary(table, 1, 1);
+      tmp_next= t->next;
+      mysql_lock_remove(thd, thd->lock, t);
+      close_temporary(t, 1, 1);
     }
 
     thd->temporary_tables= 0;
@@ -1743,6 +1751,7 @@ bool close_temporary_tables(THD *thd)
 
     DBUG_RETURN(FALSE);
   }
+
   /*
     We are about to generate DROP TEMPORARY TABLE statements for all
     the left out temporary tables. If GTID_NEXT is set (e.g. if user
@@ -1866,6 +1875,7 @@ bool close_temporary_tables(THD *thd)
         }
 
         next= table->next;
+        mysql_lock_remove(thd, thd->lock, table);
         close_temporary(table, 1, 1);
       }
       thd->clear_error();
@@ -5037,6 +5047,30 @@ extern "C" uchar *schema_set_get_key(const uchar *record, size_t *length,
   TABLE_LIST *table=(TABLE_LIST*) record;
   *length= table->db_length;
   return (uchar*) table->db;
+}
+
+/**
+  Run the server hook called "before_dml". This is a hook originated from
+  replication that allow server plugins to execute code before any DML
+  instruction is executed.
+  In case of negative outcome, it will set my_error to
+  ER_BEFORE_DML_VALIDATION_ERROR
+
+  @param thd Thread context
+
+  @return hook outcome
+    @retval 0    Everything is fine
+    @retval !=0  Error in the outcome of the hook.
+ */
+int run_before_dml_hook(THD *thd)
+{
+  int out_value= 0;
+  (void) RUN_HOOK(transaction, before_dml, (thd, out_value));
+
+  if (out_value)
+    my_error(ER_BEFORE_DML_VALIDATION_ERROR, MYF(0));
+
+  return out_value;
 }
 
 /**

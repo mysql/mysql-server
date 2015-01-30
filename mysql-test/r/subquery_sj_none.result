@@ -3409,7 +3409,7 @@ EXPLAIN
       "access_type": "ALL",
       "rows_examined_per_scan": 32,
       "rows_produced_per_join": 32,
-      "filtered": 100,
+      "filtered": "100.00",
       "cost_info": {
         "read_cost": "2.11",
         "eval_cost": "6.40",
@@ -3436,7 +3436,7 @@ EXPLAIN
               "access_type": "ALL",
               "rows_examined_per_scan": 8,
               "rows_produced_per_join": 1,
-              "filtered": 12.5,
+              "filtered": "12.50",
               "cost_info": {
                 "read_cost": "2.03",
                 "eval_cost": "0.20",
@@ -3530,7 +3530,7 @@ EXPLAIN
       "access_type": "ALL",
       "rows_examined_per_scan": 11,
       "rows_produced_per_join": 11,
-      "filtered": 100,
+      "filtered": "100.00",
       "cost_info": {
         "read_cost": "10.55",
         "eval_cost": "2.20",
@@ -3555,7 +3555,7 @@ EXPLAIN
               "access_type": "ALL",
               "rows_examined_per_scan": 20,
               "rows_produced_per_join": 2,
-              "filtered": 10,
+              "filtered": "10.00",
               "cost_info": {
                 "read_cost": "2.03",
                 "eval_cost": "0.40",
@@ -3584,7 +3584,7 @@ EXPLAIN
             "access_type": "ALL",
             "rows_examined_per_scan": 11,
             "rows_produced_per_join": 11,
-            "filtered": 100,
+            "filtered": "100.00",
             "cost_info": {
               "read_cost": "2.02",
               "eval_cost": "2.20",
@@ -3823,7 +3823,7 @@ EXPLAIN
           "access_type": "ALL",
           "rows_examined_per_scan": 10,
           "rows_produced_per_join": 1,
-          "filtered": 10,
+          "filtered": "10.00",
           "cost_info": {
             "read_cost": "3.82",
             "eval_cost": "0.20",
@@ -3845,7 +3845,7 @@ EXPLAIN
           ],
           "rows_examined_per_scan": 1000,
           "rows_produced_per_join": 793,
-          "filtered": 79.3,
+          "filtered": "79.30",
           "using_join_buffer": "Block Nested Loop",
           "cost_info": {
             "read_cost": "70.01",
@@ -3873,7 +3873,7 @@ EXPLAIN
                   "access_type": "ALL",
                   "rows_examined_per_scan": 10,
                   "rows_produced_per_join": 1,
-                  "filtered": 10,
+                  "filtered": "10.00",
                   "cost_info": {
                     "read_cost": "2.02",
                     "eval_cost": "0.20",
@@ -7109,7 +7109,7 @@ EXPLAIN
       "access_type": "ALL",
       "rows_examined_per_scan": 16,
       "rows_produced_per_join": 16,
-      "filtered": 100,
+      "filtered": "100.00",
       "cost_info": {
         "read_cost": "2.27",
         "eval_cost": "3.20",
@@ -7150,7 +7150,7 @@ EXPLAIN
               ],
               "rows_examined_per_scan": 1,
               "rows_produced_per_join": 0,
-              "filtered": 95.455,
+              "filtered": "95.45",
               "cost_info": {
                 "read_cost": "1.00",
                 "eval_cost": "0.19",
@@ -7188,7 +7188,7 @@ EXPLAIN
               "key_length": "4",
               "rows_examined_per_scan": 1,
               "rows_produced_per_join": 0,
-              "filtered": 10,
+              "filtered": "10.00",
               "cost_info": {
                 "read_cost": "2.21",
                 "eval_cost": "0.02",
@@ -8999,7 +8999,7 @@ EXPLAIN
             ],
             "rows_examined_per_scan": 11,
             "rows_produced_per_join": 1,
-            "filtered": 10,
+            "filtered": "10.00",
             "cost_info": {
               "read_cost": "2.03",
               "eval_cost": "0.22",
@@ -9038,7 +9038,7 @@ EXPLAIN
                         ],
                         "rows_examined_per_scan": 2,
                         "rows_produced_per_join": 2,
-                        "filtered": 100,
+                        "filtered": "100.00",
                         "cost_info": {
                           "read_cost": "2.00",
                           "eval_cost": "0.40",
@@ -9066,7 +9066,7 @@ EXPLAIN
                         "key_length": "4",
                         "rows_examined_per_scan": 1,
                         "rows_produced_per_join": 2,
-                        "filtered": 100,
+                        "filtered": "100.00",
                         "using_index": true,
                         "using_join_buffer": "Block Nested Loop",
                         "cost_info": {
@@ -10865,7 +10865,7 @@ EXPLAIN
           "access_type": "ALL",
           "rows_examined_per_scan": 6,
           "rows_produced_per_join": 6,
-          "filtered": 100,
+          "filtered": "100.00",
           "cost_info": {
             "read_cost": "2.03",
             "eval_cost": "1.20",
@@ -10891,7 +10891,7 @@ EXPLAIN
                   "access_type": "ALL",
                   "rows_examined_per_scan": 6,
                   "rows_produced_per_join": 1,
-                  "filtered": 16.667,
+                  "filtered": "16.67",
                   "cost_info": {
                     "read_cost": "2.03",
                     "eval_cost": "0.20",
@@ -10914,7 +10914,7 @@ EXPLAIN
           "access_type": "ALL",
           "rows_examined_per_scan": 2,
           "rows_produced_per_join": 12,
-          "filtered": 100,
+          "filtered": "100.00",
           "using_join_buffer": "Block Nested Loop",
           "cost_info": {
             "read_cost": "2.01",
@@ -11031,7 +11031,7 @@ EXPLAIN
           "access_type": "ALL",
           "rows_examined_per_scan": 7,
           "rows_produced_per_join": 7,
-          "filtered": 100,
+          "filtered": "100.00",
           "cost_info": {
             "read_cost": "10.35",
             "eval_cost": "1.40",
@@ -11068,7 +11068,7 @@ EXPLAIN
                   ],
                   "rows_examined_per_scan": 2,
                   "rows_produced_per_join": 0,
-                  "filtered": 14.286,
+                  "filtered": "14.29",
                   "cost_info": {
                     "read_cost": "2.00",
                     "eval_cost": "0.06",
@@ -11098,7 +11098,7 @@ EXPLAIN
                 "access_type": "ALL",
                 "rows_examined_per_scan": 7,
                 "rows_produced_per_join": 7,
-                "filtered": 100,
+                "filtered": "100.00",
                 "cost_info": {
                   "read_cost": "2.03",
                   "eval_cost": "1.40",
@@ -11120,7 +11120,7 @@ EXPLAIN
           "access_type": "ALL",
           "rows_examined_per_scan": 20,
           "rows_produced_per_join": 140,
-          "filtered": 100,
+          "filtered": "100.00",
           "using_join_buffer": "Block Nested Loop",
           "cost_info": {
             "read_cost": "2.10",
@@ -11196,7 +11196,7 @@ EXPLAIN
           "access_type": "ALL",
           "rows_examined_per_scan": 20,
           "rows_produced_per_join": 20,
-          "filtered": 100,
+          "filtered": "100.00",
           "cost_info": {
             "read_cost": "2.04",
             "eval_cost": "4.00",
@@ -11233,7 +11233,7 @@ EXPLAIN
                   ],
                   "rows_examined_per_scan": 2,
                   "rows_produced_per_join": 0,
-                  "filtered": 10,
+                  "filtered": "10.00",
                   "cost_info": {
                     "read_cost": "2.00",
                     "eval_cost": "0.05",
@@ -11257,7 +11257,7 @@ EXPLAIN
           "access_type": "ALL",
           "rows_examined_per_scan": 20,
           "rows_produced_per_join": 400,
-          "filtered": 100,
+          "filtered": "100.00",
           "using_join_buffer": "Block Nested Loop",
           "cost_info": {
             "read_cost": "2.05",
@@ -11423,7 +11423,7 @@ EXPLAIN
           ],
           "rows_examined_per_scan": 20,
           "rows_produced_per_join": 20,
-          "filtered": 100,
+          "filtered": "100.00",
           "cost_info": {
             "read_cost": "2.12",
             "eval_cost": "4.00",
@@ -11452,7 +11452,7 @@ EXPLAIN
                       "access_type": "ALL",
                       "rows_examined_per_scan": 20,
                       "rows_produced_per_join": 0,
-                      "filtered": 3.333,
+                      "filtered": "3.33",
                       "cost_info": {
                         "read_cost": "4.78",
                         "eval_cost": "0.13",
@@ -11472,7 +11472,7 @@ EXPLAIN
                       "access_type": "ALL",
                       "rows_examined_per_scan": 20,
                       "rows_produced_per_join": 1,
-                      "filtered": 10,
+                      "filtered": "10.00",
                       "using_join_buffer": "Block Nested Loop",
                       "cost_info": {
                         "read_cost": "2.12",
@@ -11509,7 +11509,7 @@ EXPLAIN
           ],
           "rows_examined_per_scan": 1,
           "rows_produced_per_join": 20,
-          "filtered": 100,
+          "filtered": "100.00",
           "cost_info": {
             "read_cost": "20.00",
             "eval_cost": "4.00",
@@ -11528,7 +11528,7 @@ EXPLAIN
           "access_type": "ALL",
           "rows_examined_per_scan": 20,
           "rows_produced_per_join": 400,
-          "filtered": 100,
+          "filtered": "100.00",
           "using_join_buffer": "Block Nested Loop",
           "cost_info": {
             "read_cost": "2.12",

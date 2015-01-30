@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -178,7 +178,7 @@ static const char* fts_create_common_tables_sql = {
 	""
 	"CREATE TABLE $CONFIG (\n"
 	"  key CHAR(50),\n"
-	"  value CHAR(50) NOT NULL\n"
+	"  value CHAR(200) NOT NULL\n"
 	") COMPACT;\n"
 	"CREATE UNIQUE CLUSTERED INDEX IND ON $CONFIG(key);\n"
 };
