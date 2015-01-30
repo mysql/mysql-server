@@ -57,6 +57,7 @@
 #    [--let $rpl_debug= 1]
 #    [--let $slave_timeout= NUMBER]
 #    [--let $use_gtids= 1]
+#    [--let $rpl_group_replication= 1]
 #    [--let $rpl_gtid_utils= 1]
 #    [--let $rpl_set_gtid_next_anonymous_in_new_connection= 1]
 #    --source include/rpl_init.inc
@@ -124,6 +125,11 @@
 #      Use option MASTER_AUTO_POSITION = 1 to CHANGE MASTER, and use
 #      GTIDs in sync_*.inc. If the variable is not set, then this
 #      script sets it to 1 if GTID_MODE = ON and 0 otherwise.
+#
+#    $rpl_group_replication
+#      This checks for whether we have Group Replication enabled or not. Based
+#      on the check this parameter we execute change master or not in this
+#      inc file.
 #
 #    $rpl_gtid_utils
 #      Create stored functions for GTID manipulation on every server (see
@@ -261,6 +267,12 @@ if ($gtid_mode == 'ON')
 # database, set autoinc variables.
 --let $_rpl_server= $rpl_server_count
 --let $underscore= _
+
+if ($group_replication_group_name == '')
+{
+  --let $group_replication_group_name= `SELECT UUID()`
+}
+
 while ($_rpl_server)
 {
   # Connect.
@@ -334,6 +346,13 @@ while ($_rpl_server)
     --let $server_10_uuid= `SELECT @@server_uuid`
   }
 
+  if($rpl_group_replication)
+  {
+    if(!$rpl_skip_group_replication_start)
+    {
+      --source include/start_group_replication.inc
+    }
+  }
   --dec $_rpl_server
 }
 
@@ -390,7 +409,10 @@ if ($use_gtids == '')
 
 if (!$rpl_skip_start_slave)
 {
-  --source include/rpl_start_slaves.inc
+  if(!$rpl_group_replication)
+  {
+    --source include/rpl_start_slaves.inc
+  }
 }
 
 

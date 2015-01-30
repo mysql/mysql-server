@@ -1,0 +1,34 @@
+# WL#7796 - WAIT_FOR_EXECUTED_GTID_SET
+# Test to check for the condition that the given UUID is not already on the
+# global_sid_map.
+
+--source include/not_group_replication_plugin.inc
+--source include/have_gtid.inc
+--source include/master-slave.inc
+
+--let $uuid= 8a94f357-aab4-11df-86ab-c80aa9429560
+
+CREATE TABLE t1 (i int);
+--let $connection_id= `SELECT CONNECTION_ID()`
+--send
+--replace_result $uuid UNKNOWN_UUID
+--eval SELECT WAIT_FOR_EXECUTED_GTID_SET('$uuid:42', 9999)
+
+--connection master1
+# Checking the waiting thread condition.
+--echo The connection master should be waiting for the WAIT_FOR_EXECUTED_GTID_SET here
+--let $wait_condition=SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE Id='$connection_id' AND Info Like 'SELECT WAIT_FOR_EXECUTED_GTID_SET%'
+--source include/wait_condition.inc
+
+--connection master1
+--replace_result $uuid UNKNOWN_UUID
+--eval SET GTID_NEXT = '$uuid:42'
+INSERT INTO t1 VALUES (1);
+COMMIT;
+
+--connection master
+--replace_result $uuid UNKNOWN_UUID
+--reap
+
+DROP TABLE t1;
+--source include/rpl_end.inc

@@ -16,24 +16,15 @@
 #ifndef SQL_SHOW_H
 #define SQL_SHOW_H
 
-#include "sql_list.h"                           /* List */
-#include "handler.h"                            /* enum_schema_tables */
-#include "table.h"                              /* enum_schema_table_state */
-#include "set_var.h"                            /* enum_var_type */
+#include "my_global.h"
+#include "handler.h"                            // enum_schema_tables
+#include "table.h"                              // enum_schema_table_state
+#include "set_var.h"                            // enum_var_type
 
 /* Forward declarations */
 class JOIN;
-class String;
-class THD;
 class sp_name;
-struct TABLE_LIST;
-struct st_ha_create_information;
 typedef class st_select_lex SELECT_LEX;
-typedef st_ha_create_information HA_CREATE_INFO;
-struct LEX;
-typedef struct st_mysql_show_var SHOW_VAR;
-typedef struct st_schema_table ST_SCHEMA_TABLE;
-struct TABLE;
 typedef struct system_status_var STATUS_VAR;
 
 enum find_files_result {

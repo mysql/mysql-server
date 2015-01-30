@@ -166,7 +166,7 @@ ON sc.TABLE_ID=st.TABLE_ID
 WHERE st.NAME='test/tab'
 ORDER BY sc.name;
 name	pos	mtype
-c1	0	16
+c1	0	14
 c2	1	14
 c3	2	14
 C4	3	14
@@ -673,7 +673,7 @@ ON sc.TABLE_ID=st.TABLE_ID
 WHERE st.NAME='test/tab3'
 ORDER BY sc.name;
 name	pos	mtype
-c1	0	16
+c1	0	14
 c2	1	14
 c3	2	14
 C4	3	14

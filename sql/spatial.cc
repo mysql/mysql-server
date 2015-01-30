@@ -183,7 +183,13 @@ int MBR::within(const MBR *mbr) const
   17
 */
 
-#define MAX_DIGITS_IN_DOUBLE 30
+/*
+  This used to be 30 but there was a test case which produces a double value
+  string of 34 chars instead of a scientific notation string.
+  A bug was filed to fix my_gcvt and before it's fixed we define this to
+  50 to be large enough.
+*/
+#define MAX_DIGITS_IN_DOUBLE 50
 
 
 /**
@@ -629,6 +635,8 @@ wkb_scanner(const char *wkb, uint32 *len, uint32 geotype, bool has_hdr,
     q= wkb + WKB_HEADER_SIZE;
     *len-= WKB_HEADER_SIZE;
     handler->on_wkb_start(get_byte_order(wkb), gt, q, *len, true);
+    if (!handler->continue_scan())
+      return NULL;
   }
   else
   {
@@ -636,6 +644,8 @@ wkb_scanner(const char *wkb, uint32 *len, uint32 geotype, bool has_hdr,
     q= wkb;
     gt= static_cast<Geometry::wkbType>(geotype);
     handler->on_wkb_start(Geometry::wkb_ndr, gt, q, *len, false);
+    if (!handler->continue_scan())
+      return NULL;
   }
 
   if (gt != Geometry::wkb_point)
@@ -656,6 +666,8 @@ wkb_scanner(const char *wkb, uint32 *len, uint32 geotype, bool has_hdr,
     *len-= POINT_DATA_SIZE;
     done= true;
     handler->on_wkb_end(q);
+    if (!handler->continue_scan())
+      return NULL;
     break;
   case Geometry::wkb_linestring:
     comp_type= Geometry::wkb_point;
@@ -692,6 +704,8 @@ wkb_scanner(const char *wkb, uint32 *len, uint32 geotype, bool has_hdr,
         return NULL;
     }
     handler->on_wkb_end(q);
+    if (!handler->continue_scan())
+      return NULL;
   }
 
   return q;

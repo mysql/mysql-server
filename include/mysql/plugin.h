@@ -16,6 +16,10 @@
 #ifndef _my_plugin_h
 #define _my_plugin_h
 
+#ifndef MYSQL_ABI_CHECK
+#include <stddef.h>
+#endif
+
 /*
   On Windows, exports from DLL need to be declared.
   Also, plugin needs to be declared as extern "C" because MSVC 
@@ -44,15 +48,15 @@
 class THD;
 class Item;
 #define MYSQL_THD THD*
-typedef Item* MYSQL_ITEM;
 #else
 #define MYSQL_THD void*
-typedef void* MYSQL_ITEM;
 #endif
 
 typedef void * MYSQL_PLUGIN;
 
+#ifndef MYSQL_ABI_CHECK
 #include <mysql/services.h>
+#endif
 
 #define MYSQL_XIDDATASIZE 128
 /**
@@ -91,7 +95,8 @@ typedef struct st_mysql_xid MYSQL_XID;
 #define MYSQL_VALIDATE_PASSWORD_PLUGIN  8   /* validate password plugin type */
 #define MYSQL_REWRITE_PRE_PARSE_PLUGIN  9   /* Pre-parse query rewrite. */
 #define MYSQL_REWRITE_POST_PARSE_PLUGIN 10  /* Post-parse query rewrite. */
-#define MYSQL_MAX_PLUGIN_TYPE_NUM    11  /* The number of plugin types   */
+#define MYSQL_GROUP_REPLICATION_PLUGIN  11  /* The Group Replication plugin */
+#define MYSQL_MAX_PLUGIN_TYPE_NUM    12  /* The number of plugin types   */
 
 /* We use the following strings to define licenses for plugins */
 #define PLUGIN_LICENSE_PROPRIETARY 0

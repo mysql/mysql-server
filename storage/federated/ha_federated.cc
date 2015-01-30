@@ -2913,7 +2913,7 @@ int ha_federated::info(uint flag)
 
   }
 
-  if (flag & HA_STATUS_AUTO)
+  if ((flag & HA_STATUS_AUTO) && mysql)
     stats.auto_increment_value= mysql->insert_id;
 
   mysql_free_result(result);

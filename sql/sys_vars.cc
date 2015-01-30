@@ -1018,7 +1018,7 @@ static bool repository_check(sys_var *self, THD *thd, set_var *var, SLAVE_THD_TY
   mysql_mutex_lock(&LOCK_msr_map);
 
   /* Repository conversion not possible, when multiple channels exist */
-  if (msr_map.get_num_instances() > 1)
+  if (msr_map.get_num_instances(true) > 1)
   {
       msg= "Repository conversion is possible when only default channel exists";
       my_error(ER_CHANGE_RPL_INFO_REPOSITORY_FAILURE, MYF(0), msg);
@@ -1700,6 +1700,55 @@ static Sys_var_mybool Sys_locked_in_memory(
 static Sys_var_mybool Sys_log_bin(
        "log_bin", "Whether the binary log is enabled",
        READ_ONLY GLOBAL_VAR(opt_bin_log), NO_CMD_LINE, DEFAULT(FALSE));
+
+static bool transaction_write_set_check(sys_var *self, THD *thd, set_var *var)
+{
+  if (var->type == OPT_GLOBAL &&
+      global_system_variables.binlog_format != BINLOG_FORMAT_ROW)
+  {
+    my_error(ER_PREVENTS_VARIABLE_WITHOUT_RBR, MYF(0), var->var->name.str);
+    return true;
+  }
+
+  if (var->type == OPT_SESSION &&
+      thd->variables.binlog_format != BINLOG_FORMAT_ROW)
+  {
+    my_error(ER_PREVENTS_VARIABLE_WITHOUT_RBR, MYF(0), var->var->name.str);
+    return true;
+  }
+  /*
+    if in a stored function/trigger, it's too late to change
+  */
+  if (thd->in_sub_stmt)
+  {
+    my_error(ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION, MYF(0),
+             var->var->name.str);
+    return true;
+  }
+  /*
+    Make the session variable 'transaction_write_set_extraction' read-only inside a transaction.
+  */
+  if (thd->in_active_multi_stmt_transaction())
+  {
+    my_error(ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION, MYF(0),
+             var->var->name.str);
+    return true;
+  }
+  return false;
+}
+
+static const char *transaction_write_set_hashing_algorithms[]=
+       {"OFF", "MURMUR32", 0};
+
+static Sys_var_enum Sys_extract_write_set(
+       "transaction_write_set_extraction",
+       "This option is used to let the server know when to"
+       "extract the write set which will be used for various purposes. ",
+       SESSION_VAR(transaction_write_set_extraction), CMD_LINE(OPT_ARG),
+       transaction_write_set_hashing_algorithms,
+       DEFAULT(HASH_ALGORITHM_OFF), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+       ON_CHECK(transaction_write_set_check),
+       ON_UPDATE(NULL));
 
 static Sys_var_ulong Sys_rpl_stop_slave_timeout(
        "rpl_stop_slave_timeout",
@@ -4494,13 +4543,7 @@ static bool check_slave_skip_counter(sys_var *self, THD *thd, set_var *var)
   /* slave_skip_counter becomes per channel in multisource replication*/
   mysql_mutex_lock(&LOCK_msr_map);
 
-  if (is_any_slave_channel_running(SLAVE_SQL))
-  {
-    my_message(ER_SLAVE_SQL_THREAD_MUST_STOP,
-               ER(ER_SLAVE_SQL_THREAD_MUST_STOP), MYF(0));
-    result= true;
-  }
-  if (gtid_mode == 3)
+  if (gtid_mode == GTID_MODE_ON)
   {
     my_message(ER_SQL_SLAVE_SKIP_COUNTER_NOT_SETTABLE_IN_GTID_MODE,
                ER(ER_SQL_SLAVE_SKIP_COUNTER_NOT_SETTABLE_IN_GTID_MODE),
@@ -4511,52 +4554,14 @@ static bool check_slave_skip_counter(sys_var *self, THD *thd, set_var *var)
   mysql_mutex_unlock(&LOCK_msr_map);
   return result;
 }
-static bool fix_slave_skip_counter(sys_var *self, THD *thd, enum_var_type type)
-{
-  Master_info *mi;
 
-  /* set for all replication channels in multisource replication */
-
-  /*
-   To understand the below two unlock statments, please see comments in
-    fix_slave_net_timeout function above
-   */
-  mysql_mutex_unlock(&LOCK_sql_slave_skip_counter);
-  mysql_mutex_unlock(&LOCK_global_system_variables);
-  mysql_mutex_lock(&LOCK_msr_map);
-
-  for (mi_map::iterator it = msr_map.begin(); it!=msr_map.end(); it++)
-  {
-    mi= it->second;
-    if (mi != NULL)
-    {
-      mysql_mutex_lock(&mi->rli->run_lock);
-      /*
-       The following test should normally never be true as we test this
-       in the check function;  To be safe against multiple
-       SQL_SLAVE_SKIP_COUNTER request, we do the check anyway
-      */
-      if (!mi->rli->slave_running)
-      {
-        mysql_mutex_lock(&mi->rli->data_lock);
-        mi->rli->slave_skip_counter= sql_slave_skip_counter;
-        mysql_mutex_unlock(&mi->rli->data_lock);
-      }
-      mysql_mutex_unlock(&mi->rli->run_lock);
-    }
-  }
-  mysql_mutex_unlock(&LOCK_msr_map);
-  mysql_mutex_lock(&LOCK_global_system_variables);
-  mysql_mutex_lock(&LOCK_sql_slave_skip_counter);
-  return 0;
-}
 static PolyLock_mutex PLock_sql_slave_skip_counter(&LOCK_sql_slave_skip_counter);
 static Sys_var_uint Sys_slave_skip_counter(
        "sql_slave_skip_counter", "sql_slave_skip_counter",
        GLOBAL_VAR(sql_slave_skip_counter), NO_CMD_LINE,
        VALID_RANGE(0, UINT_MAX), DEFAULT(0), BLOCK_SIZE(1),
        &PLock_sql_slave_skip_counter, NOT_IN_BINLOG,
-       ON_CHECK(check_slave_skip_counter), ON_UPDATE(fix_slave_skip_counter));
+       ON_CHECK(check_slave_skip_counter));
 
 static Sys_var_charptr Sys_slave_skip_errors(
        "slave_skip_errors", "Tells the slave thread to continue "

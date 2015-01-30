@@ -678,14 +678,24 @@ static inline void set_timespec_nsec(struct timespec *abstime, ulonglong nsec)
 {
 #ifndef _WIN32
   ulonglong now= my_getsystime() + (nsec / 100);
-  abstime->tv_sec=   now / 10000000ULL;
+  ulonglong tv_sec= now / 10000000ULL;
+#if SIZEOF_TIME_T < SIZEOF_LONG_LONG
+  /* Ensure that the number of seconds don't overflow. */
+  tv_sec= MY_MIN(tv_sec, ((ulonglong)INT_MAX32));
+#endif
+  abstime->tv_sec=  (time_t)tv_sec;
   abstime->tv_nsec= (now % 10000000ULL) * 100 + (nsec % 100);
-#else
+#else /* !_WIN32 */
+  ulonglong max_timeout_msec= (nsec / 1000000);
   union ft64 tv;
   GetSystemTimeAsFileTime(&tv.ft);
   abstime->tv.i64= tv.i64 + (__int64)(nsec / 100);
-  abstime->max_timeout_msec= (long)(nsec / 1000000);
+#if SIZEOF_LONG < SIZEOF_LONG_LONG
+  /* Ensure that the msec value doesn't overflow. */
+  max_timeout_msec= MY_MIN(max_timeout_msec, ((ulonglong)INT_MAX32));
 #endif
+  abstime->max_timeout_msec= (long)max_timeout_msec;
+#endif /* !_WIN32 */
 }
 
 static inline void set_timespec(struct timespec *abstime, ulonglong sec)

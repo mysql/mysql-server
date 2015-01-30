@@ -1,0 +1,224 @@
+#
+# The purpose of this test is to demonstrate:
+# 1) The behaviour of the before_commit hook placed in binlog.cc and all
+#    possible return values.
+# 2) All the possible ramifications of the execution of the Transaction Context
+#    Service and its behaviour in the server.
+#
+# One will then test:
+# 1) before_commit failure
+# 2) Transaction Context Service reports that parameters are invalid
+# 3) Transaction Context Service reports that the transaction must abort
+# 4) Transaction Context Service reports OK without generating a GTID
+# 5) Transaction Context Service reports OK generating a GTID internally
+#
+
+--source include/not_embedded.inc
+--source include/have_debug.inc
+--source include/have_gtid.inc
+--source include/not_group_replication_plugin.inc
+
+--source include/install_replication_observers_example.inc
+
+--let $rpl_gtid_utils=1
+--source include/master-slave.inc
+
+--echo #
+--echo # Set up test
+--echo #
+
+--let $master_uuid= `SELECT @@GLOBAL.SERVER_UUID`
+
+CREATE TABLE t1 (c1 INT PRIMARY KEY) Engine=InnoDB;
+
+--echo #
+--echo # Case 1. This will cause the before_commit hook to fail. As a
+--echo # consequence, the whole transaction shall fail.
+--echo #
+
+SET @debug_saved= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG= '+d,force_error_on_before_commit_listener';
+
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Run function 'before_commit' in plugin");
+SET SESSION sql_log_bin= 1;
+
+BEGIN;
+INSERT t1 VALUES(1);
+--error ER_RUN_HOOK_ERROR
+COMMIT;
+
+--error ER_RUN_HOOK_ERROR
+INSERT t1 VALUES(2);
+
+--let $assert_text= GTID_EXECUTED must remain the same
+--let $assert_cond= GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED, "$master_uuid:1")
+--source include/assert.inc
+
+--let $assert_text= Table must remain empty
+--let $assert_cond= "[SELECT COUNT(*) FROM t1]" = "0"
+--source include/assert.inc
+
+--source include/sync_slave_sql_with_master.inc
+
+--let $assert_text= GTID_EXECUTED must remain the same
+--let $assert_cond= GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED, "$master_uuid:1")
+--source include/assert.inc
+
+--let $assert_text= Table must remain empty
+--let $assert_cond= "[SELECT COUNT(*) FROM t1]" = "0"
+--source include/assert.inc
+
+--connection master
+
+SET @@GLOBAL.DEBUG='';
+
+
+--echo #
+--echo # Case 2. This will force the Transaction Context to report an invalid
+--echo # transaction certification outcome,
+--echo #
+
+SET @@GLOBAL.DEBUG= '+d,force_invalid_certification_outcome';
+
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Plugin replication_observers_example reported: 'Unable to update transaction context service on server, thread_id:.*");
+SET SESSION sql_log_bin= 1;
+
+BEGIN;
+INSERT t1 VALUES(1);
+--error ER_RUN_HOOK_ERROR
+COMMIT;
+
+--error ER_RUN_HOOK_ERROR
+INSERT t1 VALUES(2);
+
+--let $assert_text= GTID_EXECUTED must remain the same
+--let $assert_cond= GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED, "$master_uuid:1")
+--source include/assert.inc
+
+--let $assert_text= Table must remain empty
+--let $assert_cond= "[SELECT COUNT(*) FROM t1]" = "0"
+--source include/assert.inc
+
+--source include/sync_slave_sql_with_master.inc
+
+--let $assert_text= GTID_EXECUTED must remain the same
+--let $assert_cond= GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED, "$master_uuid:1")
+--source include/assert.inc
+
+--let $assert_text= Table must remain empty
+--let $assert_cond= "[SELECT COUNT(*) FROM t1]" = "0"
+--source include/assert.inc
+
+--connection master
+
+SET @@GLOBAL.DEBUG='';
+
+
+--echo #
+--echo # Case 3. This will force the Transaction Context to report an negative
+--echo # transaction certification outcome,
+--echo #
+
+SET @@GLOBAL.DEBUG= '+d,force_negative_certification_outcome';
+
+BEGIN;
+INSERT t1 VALUES(1);
+--error ER_TRANSACTION_ROLLBACK_DURING_COMMIT
+COMMIT;
+
+--error ER_TRANSACTION_ROLLBACK_DURING_COMMIT
+INSERT t1 VALUES(2);
+
+--let $assert_text= GTID_EXECUTED must remain the same
+--let $assert_cond= GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED, "$master_uuid:1")
+--source include/assert.inc
+
+--let $assert_text= Table must remain empty
+--let $assert_cond= "[SELECT COUNT(*) FROM t1]" = "0"
+--source include/assert.inc
+
+--source include/sync_slave_sql_with_master.inc
+
+--let $assert_text= GTID_EXECUTED must remain the same
+--let $assert_cond= GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED, "$master_uuid:1")
+--source include/assert.inc
+
+--let $assert_text= Table must remain empty
+--let $assert_cond= "[SELECT COUNT(*) FROM t1]" = "0"
+--source include/assert.inc
+
+--connection master
+
+SET @@GLOBAL.DEBUG='';
+
+--echo #
+--echo # Case 4. This will force the Transaction Context to report a valid
+--echo # outcome without generating a GTID.
+--echo #
+
+SET @@GLOBAL.DEBUG= '+d,force_positive_certification_outcome_without_gtid';
+
+BEGIN;
+INSERT t1 VALUES(1);
+COMMIT;
+
+INSERT t1 VALUES(2);
+
+--query_vertical SELECT * FROM t1;
+
+--let $assert_text= At this point we should have 2 successful operations
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-3"
+--source include/assert.inc
+
+--source include/sync_slave_sql_with_master.inc
+
+--let $assert_text= At this point we should have 2 successful operations
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-3"
+--source include/assert.inc
+
+--connection master
+
+SET @@GLOBAL.DEBUG='';
+
+--echo #
+--echo # Case 5. This will force the Transaction Context to report a valid
+--echo # outcome generating a GTID
+--echo #
+
+SET @@GLOBAL.DEBUG= '+d,force_positive_certification_outcome_with_gtid';
+
+BEGIN;
+INSERT t1 VALUES(3);
+COMMIT;
+
+INSERT t1 VALUES(4);
+
+--query_vertical SELECT * FROM t1;
+
+--let $assert_text= GTID_EXECUTED must contain all GTIDs with the server id and with the fake id
+--let $assert_cond= GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED, "$master_uuid:1-3,$uuida:1-2")
+--source include/assert.inc
+
+--source include/sync_slave_sql_with_master.inc
+
+--let $assert_text= GTID_EXECUTED must contain all GTIDs with the server id and with the fake id
+--let $assert_cond= GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED, "$master_uuid:1-3,$uuida:1-2")
+--source include/assert.inc
+
+--echo #
+--echo # Clean up
+--echo #
+
+--connection master
+
+SET @@GLOBAL.DEBUG= @debug_saved;
+
+DROP TABLE t1;
+
+--source include/rpl_end.inc
+
+--source include/uninstall_replication_observers_example.inc
+
+--echo End of test

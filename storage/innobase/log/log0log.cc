@@ -53,6 +53,7 @@ Created 12/9/1995 Heikki Tuuri
 #include "trx0roll.h"
 #include "srv0mon.h"
 #include "sync0sync.h"
+#include "ut0stage.h"
 
 /*
 General philosophy of InnoDB redo-logs:
@@ -1401,12 +1402,15 @@ NOTE: this function may only be called if the calling thread owns no
 synchronization objects!
 @param[in]	new_oldest	try to advance oldest_modified_lsn at least to
 this lsn
+@param[in,out]	stage		performance schema accounting object, used by
+ALTER TABLE. It is passed to buf_flush_lists() for accounting.
 @return false if there was a flush batch of the same type running,
 which means that we could not start this flush batch */
 static
 bool
 log_preflush_pool_modified_pages(
-	lsn_t			new_oldest)
+	lsn_t			new_oldest,
+	ut_stage_alter_t*	stage = NULL)
 {
 	bool	success;
 
@@ -1426,9 +1430,11 @@ log_preflush_pool_modified_pages(
 	if (new_oldest == LSN_MAX
 	    || !buf_page_cleaner_is_active
 	    || srv_is_being_started) {
+
 		ulint	n_pages;
 
-		success = buf_flush_lists(ULINT_MAX, new_oldest, &n_pages);
+		success = buf_flush_lists(ULINT_MAX, new_oldest, &n_pages,
+					  stage);
 
 		buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
 
@@ -1856,15 +1862,19 @@ log_checkpoint(
 @param[in]	lsn		the log sequence number, or LSN_MAX
 for the latest LSN
 @param[in]	write_always	force a write even if no log
-has been generated since the latest checkpoint */
+has been generated since the latest checkpoint
+@param[in,out]	stage		performance schema accounting object, used by
+ALTER TABLE. It is passed to log_preflush_pool_modified_pages() for
+accounting. */
 void
 log_make_checkpoint_at(
 	lsn_t			lsn,
-	bool			write_always)
+	bool			write_always,
+	ut_stage_alter_t*	stage /* = NULL */)
 {
 	/* Preflush pages synchronously */
 
-	while (!log_preflush_pool_modified_pages(lsn)) {
+	while (!log_preflush_pool_modified_pages(lsn, stage)) {
 		/* Flush as much as we can */
 	}
 

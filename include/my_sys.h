@@ -881,9 +881,8 @@ extern size_t escape_string_for_mysql(const CHARSET_INFO *charset_info,
 extern CHARSET_INFO *fs_character_set(void);
 #endif
 extern size_t escape_quotes_for_mysql(CHARSET_INFO *charset_info,
-                                      char *to, size_t to_length,
-                                      const char *from, size_t length);
-
+                                  char *to, size_t to_length,
+                                  const char *from, size_t length, char quote);
 #ifdef _WIN32
 extern my_bool have_tcpip;		/* Is set if tcpip is used */
 

@@ -1315,7 +1315,7 @@ int main(int argc,char *argv[])
 
   put_info(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000"), INFO_INFO);
 
-  if (!status.batch && !quick && !opt_html && !opt_xml)
+  if (!status.batch && !quick)
   {
     init_dynamic_string(&histignore_buffer, "*IDENTIFIED*:*PASSWORD*",
                         1024, 1024);
@@ -1411,8 +1411,7 @@ void mysql_end(int sig)
 
   mysql_close(&mysql);
 #ifdef HAVE_READLINE
-  if (!status.batch && !quick && !opt_html && !opt_xml &&
-      histfile && histfile[0])
+  if (!status.batch && !quick && histfile && histfile[0])
   {
     /* write-history */
     if (verbose)

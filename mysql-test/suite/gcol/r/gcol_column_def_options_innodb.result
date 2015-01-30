@@ -34,12 +34,9 @@ drop table t1;
 # Added columns mixed with virtual GC and other columns  
 create table t1 (a int);
 alter table t1 add column (b int generated always as (a+1) virtual, c int);
-ERROR HY000: 'Virtual generated column combines with other columns to be added together' is not supported for generated columns.
-alter table t1 add column (b int, c int generated always as (a+1) virtual);
-ERROR HY000: 'Virtual generated column combines with other columns to be added together' is not supported for generated columns.
-alter table t1 add column (b int generated always as (a+1) virtual, c int as(5) stored);
-ERROR HY000: 'Virtual generated column combines with other columns to be added together' is not supported for generated columns.
-alter table t1 add column (b int generated always as (a+1) virtual, c int as(5) virtual);
+alter table t1 add column (d int, e int generated always as (a+1) virtual);
+alter table t1 add column (f int generated always as (a+1) virtual, g int as(5) stored);
+alter table t1 add column (h int generated always as (a+1) virtual, i int as(5) virtual);
 drop table t1;
 # DEFAULT
 create table t1 (a int, b int generated always as (a+1) virtual default 0);

@@ -19,7 +19,6 @@
 
 #include "my_global.h"                  /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "violite.h"                    /* SSL_type */
-#include "table.h"
 
 #include "auth_common.h"
 

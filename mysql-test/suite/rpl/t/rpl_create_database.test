@@ -6,6 +6,7 @@
 # (e.g., american) will not be replicated. 
 #
 
+--source include/not_group_replication_plugin.inc
 source include/master-slave.inc;
 
 # Bug#6391 (binlog-do-db rules ignored)

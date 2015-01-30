@@ -22,11 +22,12 @@
 #  http://dev.mysql.com/doc/refman/5.1/en/sql-syntax-data-definition.html
 #
 
-source include/master-slave.inc;
+--source include/not_group_replication_plugin.inc
 #CREATE TEMPORARY TABLE statements are not binlogged in row mode,
 #So it must be test by itself.
 source include/have_binlog_format_mixed_or_statement.inc;
 source include/not_gtid_enabled.inc;
+source include/master-slave.inc;
 
 disable_warnings;
 

@@ -4,7 +4,7 @@ STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
 @@ -39,2 +39,3 @@
-             "filtered": 25,
+             "filtered": "25.00",
 +            "using_where": true,
              "cost_info": {
 @@ -48,4 +49,3 @@
@@ -18,7 +18,7 @@ STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
 @@ -79,2 +79,3 @@
-               "filtered": 50,
+               "filtered": "50.00",
 +              "using_where": true,
                "cost_info": {
 @@ -87,4 +88,3 @@

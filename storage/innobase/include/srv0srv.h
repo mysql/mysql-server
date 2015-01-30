@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2014, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 1995, 2015, Oracle and/or its affiliates. All rights reserved.
 Copyright (c) 2008, 2009, Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -40,6 +40,11 @@ Created 10/10/1995 Heikki Tuuri
 
 #ifndef srv0srv_h
 #define srv0srv_h
+
+#include "my_global.h"
+
+#include "mysql/psi/mysql_stage.h"
+#include "mysql/psi/psi.h"
 
 #include "univ.i"
 #ifndef UNIV_HOTBACKUP
@@ -459,6 +464,39 @@ do {								\
 	PSI_THREAD_CALL(delete_current_thread)();		\
 } while (0)
 # endif /* UNIV_PFS_THREAD */
+
+#ifdef HAVE_PSI_STAGE_INTERFACE
+/** Performance schema stage event for monitoring ALTER TABLE progress
+everything after flush log_make_checkpoint_at(). */
+extern PSI_stage_info	srv_stage_alter_table_end;
+
+/** Performance schema stage event for monitoring ALTER TABLE progress
+log_make_checkpoint_at(). */
+extern PSI_stage_info	srv_stage_alter_table_flush;
+
+/** Performance schema stage event for monitoring ALTER TABLE progress
+row_merge_insert_index_tuples(). */
+extern PSI_stage_info	srv_stage_alter_table_insert;
+
+/** Performance schema stage event for monitoring ALTER TABLE progress
+row_log_apply(). */
+extern PSI_stage_info	srv_stage_alter_table_log_index;
+
+/** Performance schema stage event for monitoring ALTER TABLE progress
+row_log_table_apply(). */
+extern PSI_stage_info	srv_stage_alter_table_log_table;
+
+/** Performance schema stage event for monitoring ALTER TABLE progress
+row_merge_sort(). */
+extern PSI_stage_info	srv_stage_alter_table_merge_sort;
+
+/** Performance schema stage event for monitoring ALTER TABLE progress
+row_merge_read_clustered_index(). */
+extern PSI_stage_info	srv_stage_alter_table_read_pk_internal_sort;
+
+/** Performance schema stage event for monitoring buffer pool load progress. */
+extern PSI_stage_info	srv_stage_buffer_pool_load;
+#endif /* HAVE_PSI_STAGE_INTERFACE */
 
 #endif /* !UNIV_HOTBACKUP */
 

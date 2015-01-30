@@ -13,6 +13,7 @@
 # Fix: If server's character set is not supported as client's character set,
 #  then set default's client character set(latin1) as client's character set.
 ###############################################################################
+--source include/not_group_replication_plugin.inc
 --source include/master-slave.inc
 CREATE TABLE t1(i VARCHAR(20));
 INSERT INTO t1 VALUES (0xFFFF);

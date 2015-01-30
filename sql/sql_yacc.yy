@@ -678,6 +678,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  GE
 %token  GENERAL
 %token  GENERATED
+%token  GROUP_REPLICATION
 %token  GEOMETRYCOLLECTION
 %token  GEOMETRY_SYM
 %token  GET_FORMAT                    /* MYSQL-FUNC */
@@ -1351,6 +1352,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
         part_column_list
         server_options_list server_option
         definer_opt no_definer definer get_diagnostics
+        group_replication
 END_OF_INPUT
 
 %type <NONE> call sp_proc_stmts sp_proc_stmts1 sp_proc_stmt
@@ -1618,6 +1620,7 @@ statement:
         | execute
         | flush
         | get_diagnostics
+        | group_replication
         | grant
         | handler
         | help
@@ -8231,6 +8234,19 @@ opt_to:
         | AS {}
         ;
 
+group_replication:
+                 START_SYM GROUP_REPLICATION
+                 {
+                   LEX *lex=Lex;
+                   lex->sql_command = SQLCOM_START_GROUP_REPLICATION;
+                 }
+               | STOP_SYM GROUP_REPLICATION
+                 {
+                   LEX *lex=Lex;
+                   lex->sql_command = SQLCOM_STOP_GROUP_REPLICATION;
+                 }
+               ;
+
 slave:
         slave_start start_slave_opts{}
       | STOP_SYM SLAVE opt_slave_thread_option_list opt_channel
@@ -13056,6 +13072,7 @@ keyword:
         | FLUSH_SYM             {}
         | FOLLOWS_SYM           {}
         | FORMAT_SYM            {}
+        | GROUP_REPLICATION     {}
         | HANDLER_SYM           {}
         | HELP_SYM              {}
         | HOST_SYM              {}

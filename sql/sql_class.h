@@ -87,6 +87,8 @@ enum enum_delay_key_write { DELAY_KEY_WRITE_NONE, DELAY_KEY_WRITE_ON,
 enum enum_rbr_exec_mode { RBR_EXEC_MODE_STRICT,
                           RBR_EXEC_MODE_IDEMPOTENT,
                           RBR_EXEC_MODE_LAST_BIT };
+enum enum_transaction_write_set_hashing_algorithm { HASH_ALGORITHM_OFF= 0,
+                                                    HASH_ALGORITHM_MURMUR32= 1 };
 enum enum_slave_type_conversions { SLAVE_TYPE_CONVERSIONS_ALL_LOSSY,
                                    SLAVE_TYPE_CONVERSIONS_ALL_NON_LOSSY,
                                    SLAVE_TYPE_CONVERSIONS_ALL_UNSIGNED,
@@ -489,6 +491,7 @@ typedef struct system_variables
   my_bool binlog_direct_non_trans_update;
   ulong binlog_row_image; 
   my_bool sql_log_bin;
+  ulong transaction_write_set_extraction;
   ulong completion_type;
   ulong query_cache_type;
   ulong tx_isolation;

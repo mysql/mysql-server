@@ -47,13 +47,10 @@ drop table t1;
 
 --echo # Added columns mixed with virtual GC and other columns  
 create table t1 (a int);
---error ER_UNSUPPORTED_ACTION_ON_GENERATED_COLUMN 
 alter table t1 add column (b int generated always as (a+1) virtual, c int);
---error ER_UNSUPPORTED_ACTION_ON_GENERATED_COLUMN 
-alter table t1 add column (b int, c int generated always as (a+1) virtual);
---error ER_UNSUPPORTED_ACTION_ON_GENERATED_COLUMN 
-alter table t1 add column (b int generated always as (a+1) virtual, c int as(5) stored);
-alter table t1 add column (b int generated always as (a+1) virtual, c int as(5) virtual);
+alter table t1 add column (d int, e int generated always as (a+1) virtual);
+alter table t1 add column (f int generated always as (a+1) virtual, g int as(5) stored);
+alter table t1 add column (h int generated always as (a+1) virtual, i int as(5) virtual);
 drop table t1;
 
 --echo # DEFAULT

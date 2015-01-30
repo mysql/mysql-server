@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,7 +18,6 @@
 
 #ifdef HAVE_REPLICATION
 
-#include "table.h"
 #include "rpl_info.h"
 #include "rpl_mi.h"
 #include "rpl_rli.h"
@@ -39,10 +38,13 @@ public:
   static bool create_slave_info_objects(uint mi_option, uint rli_option, int
                                         thread_mask, Multisource_info *pmsr_map);
 
-  static Master_info*  create_slave_per_channel(uint mi_option,uint rli_option,
-                                                const char* channel,
-                                                bool convert_repo,
-                                                Multisource_info* msr_map);
+  static Master_info*
+  create_slave_per_channel(uint mi_option,uint rli_option,
+                           const char* channel,
+                           bool convert_repo,
+                           Multisource_info* msr_map,
+                           enum_channel_type channel_type=
+                               SLAVE_REPLICATION_CHANNEL);
 
   static Master_info *create_mi(uint rli_option, const char* channel,
                                 bool conver_repo);
