@@ -325,7 +325,7 @@ any_value(a)	sum(b)
 1	100
 select any_value(a), sum(b) from (select * from t1 order by a desc) as d;
 any_value(a)	sum(b)
-2	100
+1	100
 select a,b,sum(c) from t1 group by a;
 ERROR 42000: Expression #2 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.t1.b' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
 select a,any_value(b),sum(c) from t1 group by a;
@@ -336,8 +336,9 @@ select a,any_value(b),sum(c)
 from (select * from t1 order by a desc, b desc) as d
 group by a;
 a	any_value(b)	sum(c)
-1	20	0
-2	40	0
+1	10	0
+2	30	0
+set @optimizer_switch_saved=@@optimizer_switch;
 # Merged view
 create algorithm=merge view v1 as select t1.a*2 as a, t1.b as b, t1.c as c, t1.d as d, t1.a as e from t1;
 show create view v1;
@@ -533,6 +534,8 @@ Note	1051	Unknown table 'test.v1'
 drop view if exists v1;
 Warnings:
 Note	1051	Unknown table 'test.v1'
+set optimizer_switch=@optimizer_switch_saved;
+set @optimizer_switch_saved=@@optimizer_switch;
 # Materialized view
 create algorithm=temptable view v1 as select t1.a*2 as a, t1.b as b, t1.c as c, t1.d as d, t1.a as e from t1;
 show create view v1;
@@ -886,7 +889,10 @@ show_json_object('"functional_dependencies_of_GROUP_columns": {', TRACE)
               ] /* searched_in_materialized_tables */
             } 
 drop view if exists v1;
-# Derived table
+set optimizer_switch=@optimizer_switch_saved;
+set @optimizer_switch_saved=@@optimizer_switch;
+# Materialized derived table
+set optimizer_switch='derived_merge=off';
 select sin(a) as z from (select t1.a*2 as a, t1.b as b, t1.c as c, t1.d as d, t1.a as e from t1) as v1 group by b;
 ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'v1.a' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
 select sin(a) as z from (select t1.a*2 as a, t1.b as b, t1.c as c, t1.d as d, t1.a as e from t1) as v1 group by d,b;
@@ -1241,6 +1247,7 @@ show_json_object('"functional_dependencies_of_GROUP_columns": {', TRACE)
 drop view if exists v1;
 Warnings:
 Note	1051	Unknown table 'test.v1'
+set optimizer_switch=@optimizer_switch_saved;
 create algorithm=temptable view v2
 as select a as a, 2*a as b from t1;
 create algorithm=merge view v1
@@ -1451,13 +1458,14 @@ ERROR 42000: Expression #2 of SELECT list is not in GROUP BY clause and contains
 drop table t1,t2;
 create table t1(a int, b int);
 insert into t1 values(null,0),(null,1);
+# Due to bug#17023060, this result is wrong:
 select d.a,d.c
 from t1 left join (select a, coalesce(a,3) as c from t1) as d
 on t1.b>0;
 a	c
 NULL	3
 NULL	3
-NULL	NULL
+NULL	3
 select d.a,d.c
 from t1 left join (select a, coalesce(a,3) as c from t1) as d
 on t1.b>0 group by d.a;
@@ -1468,15 +1476,7 @@ show_json_object('"functional_dependencies_of_GROUP_columns": {', TRACE)
 "functional_dependencies_of_GROUP_columns": {
               "columns": [
                 "d.a"
-              ] /* columns */,
-              "searched_in_materialized_tables": [
-                {
-                  "table": " `d`",
-                  "columns": [
-                    "test.t1.a"
-                  ] /* columns */
-                }
-              ] /* searched_in_materialized_tables */
+              ] /* columns */
             } 
 select d.a,d.c
 from t1 left join (select a, count(a) as c from t1 group by a) as d

@@ -21,6 +21,9 @@
 #include <pfs_transaction_provider.h>
 #include <mysql/psi/mysql_transaction.h>
 #include "rpl_context.h"
+#include "sql_class.h"
+#include "log.h"
+#include "binlog.h"
 
 /**
   Check if we have a condition where the transaction state must

@@ -50,10 +50,6 @@ bool check_duplicate_names(List<Item>& item_list, bool gen_unique_view_names);
 bool mysql_rename_view(THD *thd, const char *new_db, const char *new_name,
                        TABLE_LIST *view);
 
-void repoint_contexts_of_join_nests(List<TABLE_LIST> join_list,
-                                    SELECT_LEX *removed_select,
-                                    SELECT_LEX *parent_select);
-
 #define VIEW_ANY_ACL (SELECT_ACL | UPDATE_ACL | INSERT_ACL | DELETE_ACL)
 
 extern const LEX_STRING view_type;

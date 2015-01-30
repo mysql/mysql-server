@@ -16,15 +16,20 @@
 #ifndef REPLICATION_H
 #define REPLICATION_H
 
-#include <mysql.h>
-#include <list>
+#include "my_global.h"
 #include "my_thread.h"                // my_thread_id
 #include "mysql/psi/mysql_thread.h"   // mysql_mutex_t
 
-#include "handler.h"
-
 typedef struct st_mysql MYSQL;
 typedef struct st_io_cache IO_CACHE;
+
+
+#ifdef __cplusplus
+class THD;
+#define MYSQL_THD THD*
+#else
+#define MYSQL_THD void*
+#endif
 
 #ifdef __cplusplus
 extern "C" {

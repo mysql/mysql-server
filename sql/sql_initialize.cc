@@ -182,7 +182,7 @@ void Compiled_in_command_iterator::begin(void)
                       password);
     log_error_verbosity= saved_verbosity;
 
-    escape_quotes_for_mysql(&my_charset_bin,
+    escape_string_for_mysql(&my_charset_bin,
                             escaped_password, sizeof(escaped_password),
                             password, GENERATED_PASSWORD_LENGTH);
 

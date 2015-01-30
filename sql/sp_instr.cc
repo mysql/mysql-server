@@ -357,7 +357,7 @@ bool sp_lex_instr::reset_lex_and_exec_core(THD *thd,
                                UINT_MAX, false));
 
     if (!rc)
-      rc= open_and_lock_tables(thd, m_lex->query_tables, true, 0);
+      rc= open_and_lock_tables(thd, m_lex->query_tables, 0);
 
     if (!rc)
     {

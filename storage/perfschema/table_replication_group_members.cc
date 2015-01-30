@@ -142,36 +142,48 @@ void table_replication_group_members::make_row(uint index)
     DBUG_VOID_RETURN;
   }
 
-  group_replication_info->member_address= NULL;
-
   bool stats_not_available= get_group_replication_group_members_info(index, group_replication_info);
   if (stats_not_available)
     DBUG_PRINT("info", ("Group Replication stats not available!"));
   else
   {
-    m_row.channel_name_length= strlen(group_replication_info->channel_name);
-    memcpy(m_row.channel_name, group_replication_info->channel_name,
-           m_row.channel_name_length);
+    m_row.channel_name_length= 0;
+    if (group_replication_info->channel_name != NULL)
+    {
+      m_row.channel_name_length= strlen(group_replication_info->channel_name);
+      memcpy(m_row.channel_name, group_replication_info->channel_name,
+             m_row.channel_name_length);
 
-    m_row.member_id_length= strlen(group_replication_info->member_id);
-    memcpy(m_row.member_id, group_replication_info->member_id, m_row.member_id_length);
+      my_free((void*)group_replication_info->channel_name);
+    }
 
-    m_row.member_address_length= strlen(group_replication_info->member_address);
-    memcpy(m_row.member_address, group_replication_info->member_address,
-           m_row.member_address_length);
+    m_row.member_id_length= 0;
+    if (group_replication_info->member_id != NULL)
+    {
+      m_row.member_id_length= strlen(group_replication_info->member_id);
+      memcpy(m_row.member_id, group_replication_info->member_id,
+             m_row.member_id_length);
+
+      my_free((void*)group_replication_info->member_id);
+    }
+
+    m_row.member_address_length= 0;
+    if (group_replication_info->member_address != NULL)
+    {
+      m_row.member_address_length= strlen(group_replication_info->member_address);
+      memcpy(m_row.member_address, group_replication_info->member_address,
+             m_row.member_address_length);
+
+      my_free((void*)group_replication_info->member_address);
+    }
 
     m_row.member_state= group_replication_info->member_state;
 
     m_row_exists= true;
   }
 
-  if(group_replication_info->member_address != NULL)
-    my_free((char*)group_replication_info->member_address);
+  my_free((void*)group_replication_info);
 
-  if(group_replication_info->member_id != NULL)
-    my_free((char*)group_replication_info->member_id);
-
-  my_free(group_replication_info);
   DBUG_VOID_RETURN;
 }
 

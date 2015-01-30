@@ -15,6 +15,8 @@
 
 #include "rpl_msr.h"
 
+#include "rpl_rli.h"     // Relay_log_info
+
 const char* Multisource_info::default_channel= "";
 const char* Multisource_info::group_replication_channel_names[] = {
   "group_replication_applier",

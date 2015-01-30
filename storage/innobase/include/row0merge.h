@@ -38,6 +38,7 @@ Created 13/06/2005 Jan Lindstrom
 #include "row0mysql.h"
 #include "lock0types.h"
 #include "srv0srv.h"
+#include "ut0stage.h"
 
 // Forward declaration
 struct ib_sequence_t;
@@ -286,6 +287,9 @@ ULINT_UNDEFINED if none is added
 @param[in,out]	sequence	autoinc sequence
 @param[in]	skip_pk_sort	whether the new PRIMARY KEY will follow
 existing order
+@param[in,out]	stage		performance schema accounting object, used by
+ALTER TABLE. stage->begin_phase_read_pk() will be called at the beginning of
+this function and it will be passed to other functions for further accounting.
 @return DB_SUCCESS or error code */
 dberr_t
 row_merge_build_indexes(
@@ -301,7 +305,8 @@ row_merge_build_indexes(
 	const ulint*		col_map,
 	ulint			add_autoinc,
 	ib_sequence_t&		sequence,
-	bool			skip_pk_sort)
+	bool			skip_pk_sort,
+	ut_stage_alter_t*	stage)
 __attribute__((warn_unused_result));
 
 /********************************************************************//**
@@ -355,6 +360,9 @@ row_merge_file_create(
 @param[in,out]	file	file containing index entries
 @param[in,out]	block	3 buffers
 @param[in,out]	tmpfd	temporary file handle
+@param[in,out]	stage	performance schema accounting object, used by
+ALTER TABLE. If not NULL, stage->begin_phase_sort() will be called initially
+and then stage->inc() will be called for each record processed.
 @return DB_SUCCESS or error code */
 dberr_t
 row_merge_sort(
@@ -362,7 +370,8 @@ row_merge_sort(
 	const row_merge_dup_t*	dup,
 	merge_file_t*		file,
 	row_merge_block_t*	block,
-	int*			tmpfd);
+	int*			tmpfd,
+	ut_stage_alter_t*	stage = NULL);
 
 /*********************************************************************//**
 Allocate a sort buffer.

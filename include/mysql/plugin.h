@@ -16,6 +16,10 @@
 #ifndef _my_plugin_h
 #define _my_plugin_h
 
+#ifndef MYSQL_ABI_CHECK
+#include <stddef.h>
+#endif
+
 /*
   On Windows, exports from DLL need to be declared.
   Also, plugin needs to be declared as extern "C" because MSVC 
@@ -44,15 +48,15 @@
 class THD;
 class Item;
 #define MYSQL_THD THD*
-typedef Item* MYSQL_ITEM;
 #else
 #define MYSQL_THD void*
-typedef void* MYSQL_ITEM;
 #endif
 
 typedef void * MYSQL_PLUGIN;
 
+#ifndef MYSQL_ABI_CHECK
 #include <mysql/services.h>
+#endif
 
 #define MYSQL_XIDDATASIZE 128
 /**

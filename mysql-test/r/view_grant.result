@@ -223,7 +223,7 @@ ERROR 42000: UPDATE command denied to user 'mysqltest_1'@'localhost' for column 
 update v2 set c=a+c;
 ERROR 42000: UPDATE command denied to user 'mysqltest_1'@'localhost' for column 'c' in table 'v2'
 update t2,v3 set v3.a=v3.a+v3.c where t2.x=v3.c;
-ERROR 42000: UPDATE command denied to user 'mysqltest_1'@'localhost' for table 'v3'
+ERROR 42000: UPDATE command denied to user 'mysqltest_1'@'localhost' for column 'a' in table 'v3'
 update v3 set a=a+c;
 ERROR 42000: UPDATE command denied to user 'mysqltest_1'@'localhost' for table 'v3'
 use test;
@@ -593,6 +593,7 @@ ERROR 42000: UPDATE command denied to user 'readonly'@'localhost' for table 'v_t
 UPDATE mysqltest1.v_ts SET x= 200;
 ERROR 42000: UPDATE command denied to user 'readonly'@'localhost' for table 'v_ts'
 UPDATE mysqltest1.v_tu SET x= 200 WHERE x = 100;
+ERROR 42000: SELECT command denied to user 'readonly'@'localhost' for column 'x' in table 'v_tu'
 UPDATE mysqltest1.v_tus SET x= 200 WHERE x = 100;
 UPDATE mysqltest1.v_tu SET x= 200;
 DELETE FROM mysqltest1.v_ts WHERE x= 200;
@@ -1659,7 +1660,7 @@ update mysqltest2.t2 as t2, mysqltest1.v1_temp as v1 set t2.val= 'test4'
 #      Temptable views can't be updated.
 update mysqltest2.t2 as t2, mysqltest1.v1_merge as v1 set v1.val= 'test5'
   where t2.id= v1.id;
-ERROR 42000: UPDATE command denied to user 'user_11766767'@'localhost' for table 'v1_merge'
+ERROR 42000: UPDATE command denied to user 'user_11766767'@'localhost' for column 'val' in table 'v1_merge'
 update mysqltest1.t1 as t1, mysqltest2.v2_merge as v2 set v2.val= 'test6'
   where t1.id= v2.id;
 #
@@ -1683,7 +1684,7 @@ update mysqltest2.t2 as t2, mysqltest1.v11_temp as v11 set t2.val= 'test10'
 #      on a view.
 update mysqltest2.t2 as t2, mysqltest1.v11_merge as v11 set v11.val= 'test11'
   where t2.id= v11.id;
-ERROR 42000: UPDATE command denied to user 'user_11766767'@'localhost' for table 'v11_merge'
+ERROR 42000: UPDATE command denied to user 'user_11766767'@'localhost' for column 'val' in table 'v11_merge'
 update mysqltest1.t1 as t1, mysqltest2.v21_merge as v21 set v21.val= 'test12'
   where t1.id= v21.id;
 #      As before, temptable views are not updateable.
@@ -1737,3 +1738,839 @@ update mysqltest1.t11 as t11, mysqltest2.v42 as v4 set v4.val= 'test20'
 drop user user_11766767;
 drop database mysqltest1;
 drop database mysqltest2;
+#
+# WL#5275 Process subqueries in FROM clause in the same way as view
+#         Extended testing of column privileges for views
+#
+CREATE DATABASE test1;
+USE test1;
+CREATE USER user1@localhost;
+CREATE TABLE test1.t1
+(cn CHAR(1), cs CHAR(1), ci CHAR(1), cu CHAR(1), cus CHAR(1));
+GRANT SELECT(cs,cus) ON test1.t1 TO user1@localhost;
+GRANT INSERT(ci) ON test1.t1 TO user1@localhost;
+GRANT UPDATE(cu,cus) ON test1.t1 TO user1@localhost;
+INSERT INTO test1.t1 VALUES('0', '0', '0', '0', '0');
+CREATE TABLE test1.single (a INTEGER);
+GRANT ALL PRIVILEGES ON test1.single TO user1@localhost;
+INSERT INTO test1.single VALUES(1);
+CREATE SQL SECURITY INVOKER VIEW test1.v1_none AS
+SELECT * FROM test1.t1;
+CREATE SQL SECURITY INVOKER VIEW test1.v1_all AS
+SELECT * FROM test1.t1;
+GRANT SELECT,INSERT,UPDATE,DELETE ON test1.v1_all TO user1@localhost;
+CREATE SQL SECURITY INVOKER VIEW test1.v1_same AS
+SELECT * FROM test1.t1;
+GRANT SELECT(cs,cus) ON test1.v1_same TO user1@localhost;
+GRANT INSERT(ci) ON test1.v1_same TO user1@localhost;
+GRANT UPDATE(cu,cus) ON test1.v1_same TO user1@localhost;
+CREATE SQL SECURITY INVOKER VIEW test1.v1_cross AS
+SELECT * FROM test1.t1;
+GRANT SELECT(cu,ci) ON test1.v1_cross TO user1@localhost;
+GRANT INSERT(cus) ON test1.v1_cross TO user1@localhost;
+GRANT UPDATE(cs) ON test1.v1_cross TO user1@localhost;
+CREATE SQL SECURITY INVOKER VIEW test1.v1_middle AS
+SELECT * FROM test1.t1;
+GRANT SELECT(cus) ON test1.v1_middle TO user1@localhost;
+CREATE SQL SECURITY INVOKER VIEW test1.v1_multi AS
+SELECT * FROM test1.v1_middle;
+GRANT SELECT(cs,cus) ON test1.v1_multi TO user1@localhost;
+GRANT INSERT(ci) ON test1.v1_multi TO user1@localhost;
+GRANT UPDATE(cu,cus) ON test1.v1_multi TO user1@localhost;
+CREATE SQL SECURITY INVOKER VIEW test1.v1_renamed AS
+SELECT cn AS cs, cn AS cx, cs AS cus, cs AS cy FROM test1.t1;
+GRANT SELECT(cs,cus) ON test1.v1_renamed TO user1@localhost;
+# Connect as user1 on database test
+# Test access to a base table
+SELECT cs, cus FROM test1.t1;
+cs	cus
+0	0
+SELECT * FROM test1.t1;
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'cn' in table 't1'
+SELECT cn FROM test1.t1;
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'cn' in table 't1'
+SELECT ci FROM test1.t1;
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'ci' in table 't1'
+SELECT cu FROM test1.t1;
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'cu' in table 't1'
+SELECT cs FROM test1.t1 WHERE cs = '0';
+cs
+0
+SELECT cs FROM test1.t1 WHERE cus = '0';
+cs
+0
+SELECT cs FROM test1.t1 WHERE cn = '0';
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'cn' in table 't1'
+SELECT cs FROM test1.t1 WHERE ci = '0';
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'ci' in table 't1'
+SELECT cs FROM test1.t1 WHERE cu = '0';
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'cu' in table 't1'
+SELECT COUNT(*) AS c FROM test1.t1 GROUP BY cs;
+c
+1
+SELECT COUNT(*) AS c FROM test1.t1 GROUP BY cus;
+c
+1
+SELECT COUNT(*) AS c FROM test1.t1 GROUP BY cn;
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'cn' in table 't1'
+SELECT COUNT(*) AS c FROM test1.t1 GROUP BY ci;
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'ci' in table 't1'
+SELECT COUNT(*) AS c FROM test1.t1 GROUP BY cu;
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'cu' in table 't1'
+SELECT COUNT(*) AS c FROM test1.t1 HAVING MIN(cs) = '0';
+c
+1
+SELECT COUNT(*) AS c FROM test1.t1 HAVING MIN(cus) = '0';
+c
+1
+SELECT COUNT(*) AS c FROM test1.t1 HAVING MIN(cn) = '0';
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'cn' in table 't1'
+SELECT COUNT(*) AS c FROM test1.t1 HAVING MIN(ci) = '0';
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'ci' in table 't1'
+SELECT COUNT(*) AS c FROM test1.t1 HAVING MIN(cu) = '0';
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'cu' in table 't1'
+SELECT COUNT(*) AS c FROM test1.t1 ORDER BY MIN(cs);
+c
+1
+SELECT COUNT(*) AS c FROM test1.t1 ORDER BY MIN(cus);
+c
+1
+SELECT COUNT(*) AS c FROM test1.t1 ORDER BY MIN(cn);
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'cn' in table 't1'
+SELECT COUNT(*) AS c FROM test1.t1 ORDER BY MIN(ci);
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'ci' in table 't1'
+SELECT COUNT(*) AS c FROM test1.t1 ORDER BY MIN(cu);
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'cu' in table 't1'
+UPDATE test1.t1 SET cu='u';
+UPDATE test1.t1 SET cus='s' WHERE cus='0';
+UPDATE test1.t1, test1.single SET cu='u';
+UPDATE test1.t1, test1.single SET cus='s' WHERE cus='0';
+UPDATE test1.t1 SET cn='x';
+ERROR 42000: UPDATE command denied to user 'user1'@'localhost' for column 'cn' in table 't1'
+UPDATE test1.t1, test1.single SET cn='x';
+ERROR 42000: UPDATE command denied to user 'user1'@'localhost' for column 'cn' in table 't1'
+UPDATE test1.t1 SET cs='x';
+ERROR 42000: UPDATE command denied to user 'user1'@'localhost' for column 'cs' in table 't1'
+UPDATE test1.t1, test1.single SET cs='x';
+ERROR 42000: UPDATE command denied to user 'user1'@'localhost' for column 'cs' in table 't1'
+UPDATE test1.t1 SET ci='x';
+ERROR 42000: UPDATE command denied to user 'user1'@'localhost' for column 'ci' in table 't1'
+UPDATE test1.t1, test1.single SET ci='x';
+ERROR 42000: UPDATE command denied to user 'user1'@'localhost' for column 'ci' in table 't1'
+UPDATE test1.t1 SET cu='x' WHERE cn='0';
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'cn' in table 't1'
+UPDATE test1.t1, test1.single SET cu='x' WHERE cn='0';
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'cn' in table 't1'
+INSERT INTO test1.t1(ci) VALUES('i');
+INSERT INTO test1.t1(ci) SELECT 'i' FROM test1.single;
+INSERT INTO test1.t1(ci) VALUES('i')
+ON DUPLICATE KEY UPDATE cu='u';
+INSERT INTO test1.t1(ci) SELECT 'i' FROM test1.single
+ON DUPLICATE KEY UPDATE cu='u';
+INSERT INTO test1.t1(cn) VALUES('x');
+ERROR 42000: INSERT command denied to user 'user1'@'localhost' for column 'cn' in table 't1'
+INSERT INTO test1.t1(cn) SELECT 'x' FROM test1.single;
+ERROR 42000: INSERT command denied to user 'user1'@'localhost' for column 'cn' in table 't1'
+INSERT INTO test1.t1(cs) VALUES('x');
+ERROR 42000: INSERT command denied to user 'user1'@'localhost' for column 'cs' in table 't1'
+INSERT INTO test1.t1(cs) SELECT 'x' FROM test1.single;
+ERROR 42000: INSERT command denied to user 'user1'@'localhost' for column 'cs' in table 't1'
+INSERT INTO test1.t1(cu) VALUES('x');
+ERROR 42000: INSERT command denied to user 'user1'@'localhost' for column 'cu' in table 't1'
+INSERT INTO test1.t1(cu) SELECT 'x' FROM test1.single;
+ERROR 42000: INSERT command denied to user 'user1'@'localhost' for column 'cu' in table 't1'
+INSERT INTO test1.t1(cus) VALUES('x');
+ERROR 42000: INSERT command denied to user 'user1'@'localhost' for column 'cus' in table 't1'
+INSERT INTO test1.t1(cus) SELECT 'x' FROM test1.single;
+ERROR 42000: INSERT command denied to user 'user1'@'localhost' for column 'cus' in table 't1'
+INSERT INTO test1.t1(ci) VALUES('i')
+ON DUPLICATE KEY UPDATE cn='u';
+ERROR 42000: UPDATE command denied to user 'user1'@'localhost' for column 'cn' in table 't1'
+INSERT INTO test1.t1(ci) SELECT 'i' FROM test1.single
+ON DUPLICATE KEY UPDATE cn='u';
+ERROR 42000: UPDATE command denied to user 'user1'@'localhost' for column 'cn' in table 't1'
+DELETE FROM test1.t1;
+ERROR 42000: DELETE command denied to user 'user1'@'localhost' for table 't1'
+DELETE FROM test1.t1 WHERE cs='0';
+ERROR 42000: DELETE command denied to user 'user1'@'localhost' for table 't1'
+DELETE test1.t1 FROM test1.t1, test1.single WHERE cs='0';
+ERROR 42000: DELETE command denied to user 'user1'@'localhost' for table 't1'
+# Test access to derived tables
+SELECT * FROM (SELECT cs FROM test1.t1) AS dt;
+cs
+0
+NULL
+NULL
+NULL
+NULL
+SELECT * FROM (SELECT cus FROM test1.t1) AS dt;
+cus
+s
+NULL
+NULL
+NULL
+NULL
+SELECT * FROM (SELECT cn FROM test1.t1) AS dt;
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'cn' in table 't1'
+SELECT * FROM (SELECT cu FROM test1.t1) AS dt;
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'cu' in table 't1'
+SELECT * FROM (SELECT ci FROM test1.t1) AS dt;
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'ci' in table 't1'
+SELECT * FROM (SELECT MIN(cs) AS c FROM test1.t1) AS dt;
+c
+0
+SELECT * FROM (SELECT MIN(cus) AS c FROM test1.t1) AS dt;
+c
+s
+SELECT * FROM (SELECT MIN(cn) AS c FROM test1.t1) AS dt;
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'cn' in table 't1'
+SELECT * FROM (SELECT MIN(cu) AS c FROM test1.t1) AS dt;
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'cu' in table 't1'
+SELECT * FROM (SELECT MIN(ci) AS c FROM test1.t1) AS dt;
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'ci' in table 't1'
+SELECT * FROM (SELECT cs FROM test1.t1 WHERE cs = '0') AS dt;
+cs
+0
+SELECT * FROM (SELECT cs FROM test1.t1 WHERE cus = '0') AS dt;
+cs
+SELECT * FROM (SELECT cs FROM test1.t1 WHERE cn = '0') AS dt;
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'cn' in table 't1'
+SELECT * FROM (SELECT cs FROM test1.t1 WHERE ci = '0') AS dt;
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'ci' in table 't1'
+SELECT * FROM (SELECT cs FROM test1.t1 WHERE cu = '0') AS dt;
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'cu' in table 't1'
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.t1 GROUP BY cs) AS dt;
+c
+4
+1
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.t1 GROUP BY cus) AS dt;
+c
+4
+1
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.t1 GROUP BY cn) AS dt;
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'cn' in table 't1'
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.t1 GROUP BY ci) AS dt;
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'ci' in table 't1'
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.t1 GROUP BY cu) AS dt;
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'cu' in table 't1'
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.t1 HAVING MIN(cs) = '0') AS dt;
+c
+5
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.t1 HAVING MIN(cus) = '0') AS dt;
+c
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.t1 HAVING MIN(cn) = '0') AS dt;
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'cn' in table 't1'
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.t1 HAVING MIN(ci) = '0') AS dt;
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'ci' in table 't1'
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.t1 HAVING MIN(cu) = '0') AS dt;
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'cu' in table 't1'
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.t1 ORDER BY MIN(cs)) AS dt;
+c
+5
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.t1 ORDER BY MIN(cus)) AS dt;
+c
+5
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.t1 ORDER BY MIN(cn)) AS dt;
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'cn' in table 't1'
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.t1 ORDER BY MIN(ci)) AS dt;
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'ci' in table 't1'
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.t1 ORDER BY MIN(cu)) AS dt;
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'cu' in table 't1'
+# Test access to a view with no privileges
+SELECT cs, cus FROM test1.v1_none;
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for table 'v1_none'
+UPDATE test1.v1_none SET cu='x';
+ERROR 42000: UPDATE command denied to user 'user1'@'localhost' for table 'v1_none'
+UPDATE test1.v1_none, test1.single SET cu='x';
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for table 'v1_none'
+UPDATE test1.v1_none SET cus='x' WHERE cus='0';
+ERROR 42000: UPDATE command denied to user 'user1'@'localhost' for table 'v1_none'
+UPDATE test1.v1_none, test1.single SET cus='x' WHERE cus='0';
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for table 'v1_none'
+INSERT INTO test1.v1_none(ci) VALUES('x');
+ERROR 42000: INSERT command denied to user 'user1'@'localhost' for table 'v1_none'
+INSERT INTO test1.v1_none(ci) SELECT 'x' FROM test1.single;
+ERROR 42000: INSERT command denied to user 'user1'@'localhost' for table 'v1_none'
+INSERT INTO test1.v1_none(ci) VALUES('x')
+ON DUPLICATE KEY UPDATE cu='u';
+ERROR 42000: INSERT, UPDATE command denied to user 'user1'@'localhost' for table 'v1_none'
+INSERT INTO test1.v1_none(ci) SELECT 'x' FROM test1.single
+ON DUPLICATE KEY UPDATE cu='u';
+ERROR 42000: INSERT, UPDATE command denied to user 'user1'@'localhost' for table 'v1_none'
+DELETE FROM test1.v1_none;
+ERROR 42000: DELETE command denied to user 'user1'@'localhost' for table 'v1_none'
+DELETE FROM test1.v1_none WHERE cs='0';
+ERROR 42000: DELETE command denied to user 'user1'@'localhost' for table 'v1_none'
+DELETE test1.v1_none FROM test1.v1_none, test1.single WHERE cs='0';
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for table 'v1_none'
+# Test access to a view with all privileges
+SELECT cs, cus FROM test1.v1_all;
+cs	cus
+0	s
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+SELECT * FROM test1.v1_all;
+ERROR HY000: View 'test1.v1_all' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+SELECT cn FROM test1.v1_all;
+ERROR HY000: View 'test1.v1_all' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+SELECT ci FROM test1.v1_all;
+ERROR HY000: View 'test1.v1_all' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+SELECT cu FROM test1.v1_all;
+ERROR HY000: View 'test1.v1_all' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+UPDATE test1.v1_all SET cu='v';
+UPDATE test1.v1_all, test1.single SET cu='v';
+UPDATE test1.v1_all SET cus='t' WHERE cus='0';
+UPDATE test1.v1_all, test1.single SET cus='t' WHERE cus='0';
+UPDATE test1.v1_all SET cn='x';
+ERROR HY000: View 'test1.v1_all' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+UPDATE test1.v1_all, test1.single SET cn='x';
+ERROR HY000: View 'test1.v1_all' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+UPDATE test1.v1_all SET cs='x';
+ERROR HY000: View 'test1.v1_all' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+UPDATE test1.v1_all, test1.single SET cs='x';
+ERROR HY000: View 'test1.v1_all' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+UPDATE test1.v1_all SET ci='x';
+ERROR HY000: View 'test1.v1_all' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+UPDATE test1.v1_all, test1.single SET ci='x';
+ERROR HY000: View 'test1.v1_all' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+UPDATE test1.v1_all SET cu='x' WHERE cn='0';
+ERROR HY000: View 'test1.v1_all' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+UPDATE test1.v1_all, test1.single SET cu='x' WHERE cn='0';
+ERROR HY000: View 'test1.v1_all' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+INSERT INTO test1.v1_all(ci) VALUES('j');
+INSERT INTO test1.v1_all(ci) SELECT 'j' FROM test1.single;
+INSERT INTO test1.v1_all(ci) VALUES('j')
+ON DUPLICATE KEY UPDATE cu='u';
+INSERT INTO test1.v1_all(ci) SELECT 'j' FROM test1.single
+ON DUPLICATE KEY UPDATE cu='u';
+INSERT INTO test1.v1_all(cn) VALUES('x');
+ERROR HY000: View 'test1.v1_all' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+INSERT INTO test1.v1_all(cn) SELECT 'x' FROM test1.single;
+ERROR HY000: View 'test1.v1_all' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+INSERT INTO test1.v1_all(cs) VALUES('x');
+ERROR HY000: View 'test1.v1_all' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+INSERT INTO test1.v1_all(cs) SELECT 'x' FROM test1.single;
+ERROR HY000: View 'test1.v1_all' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+INSERT INTO test1.v1_all(cu) VALUES('x');
+ERROR HY000: View 'test1.v1_all' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+INSERT INTO test1.v1_all(cu) SELECT 'x' FROM test1.single;
+ERROR HY000: View 'test1.v1_all' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+INSERT INTO test1.v1_all(cus) VALUES('x');
+ERROR HY000: View 'test1.v1_all' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+INSERT INTO test1.v1_all(cus) SELECT 'x' FROM test1.single;
+ERROR HY000: View 'test1.v1_all' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+INSERT INTO test1.v1_all(cn) VALUES('x')
+ON DUPLICATE KEY UPDATE cu='u';
+ERROR HY000: View 'test1.v1_all' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+INSERT INTO test1.v1_all(cn) SELECT 'x' FROM test1.single
+ON DUPLICATE KEY UPDATE cu='u';
+ERROR HY000: View 'test1.v1_all' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+INSERT INTO test1.v1_all(ci) VALUES('x')
+ON DUPLICATE KEY UPDATE cn='u';
+ERROR HY000: View 'test1.v1_all' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+INSERT INTO test1.v1_all(ci) SELECT 'x' FROM test1.single
+ON DUPLICATE KEY UPDATE cn='u';
+ERROR HY000: View 'test1.v1_all' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+DELETE FROM test1.v1_all;
+ERROR HY000: View 'test1.v1_all' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+DELETE FROM test1.v1_all WHERE cs='0';
+ERROR HY000: View 'test1.v1_all' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+DELETE test1.v1_all FROM test1.v1_all, test1.single WHERE cs='0';
+ERROR HY000: View 'test1.v1_all' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+# Test access to a view with all privileges, inside derived table
+SELECT * FROM (SELECT cs FROM test1.v1_all) AS dt;
+cs
+0
+NULL
+NULL
+NULL
+NULL
+NULL
+NULL
+NULL
+NULL
+SELECT * FROM (SELECT cus FROM test1.v1_all) AS dt;
+cus
+s
+NULL
+NULL
+NULL
+NULL
+NULL
+NULL
+NULL
+NULL
+SELECT * FROM (SELECT cn FROM test1.v1_all) AS dt;
+ERROR HY000: View 'test1.v1_all' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+SELECT * FROM (SELECT cu FROM test1.v1_all) AS dt;
+ERROR HY000: View 'test1.v1_all' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+SELECT * FROM (SELECT ci FROM test1.v1_all) AS dt;
+ERROR HY000: View 'test1.v1_all' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+SELECT * FROM (SELECT MIN(cs) AS c FROM test1.v1_all) AS dt;
+c
+0
+SELECT * FROM (SELECT MIN(cus) AS c FROM test1.v1_all) AS dt;
+c
+s
+SELECT * FROM (SELECT MIN(cn) AS c FROM test1.v1_all) AS dt;
+ERROR HY000: View 'test1.v1_all' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+SELECT * FROM (SELECT MIN(cu) AS c FROM test1.v1_all) AS dt;
+ERROR HY000: View 'test1.v1_all' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+SELECT * FROM (SELECT MIN(ci) AS c FROM test1.v1_all) AS dt;
+ERROR HY000: View 'test1.v1_all' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+SELECT * FROM (SELECT cs FROM test1.v1_all WHERE cs = '0') AS dt;
+cs
+0
+SELECT * FROM (SELECT cs FROM test1.v1_all WHERE cus = '0') AS dt;
+cs
+SELECT * FROM (SELECT cs FROM test1.v1_all WHERE cn = '0') AS dt;
+ERROR HY000: View 'test1.v1_all' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+SELECT * FROM (SELECT cs FROM test1.v1_all WHERE ci = '0') AS dt;
+ERROR HY000: View 'test1.v1_all' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+SELECT * FROM (SELECT cs FROM test1.v1_all WHERE cu = '0') AS dt;
+ERROR HY000: View 'test1.v1_all' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.v1_all GROUP BY cs) AS dt;
+c
+8
+1
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.v1_all GROUP BY cus) AS dt;
+c
+8
+1
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.v1_all GROUP BY cn) AS dt;
+ERROR HY000: View 'test1.v1_all' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.v1_all GROUP BY ci) AS dt;
+ERROR HY000: View 'test1.v1_all' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.v1_all GROUP BY cu) AS dt;
+ERROR HY000: View 'test1.v1_all' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.v1_all HAVING MIN(cs) = '0') AS dt;
+c
+9
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.v1_all HAVING MIN(cus) = '0') AS dt;
+c
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.v1_all HAVING MIN(cn) = '0') AS dt;
+ERROR HY000: View 'test1.v1_all' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.v1_all HAVING MIN(ci) = '0') AS dt;
+ERROR HY000: View 'test1.v1_all' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.v1_all HAVING MIN(cu) = '0') AS dt;
+ERROR HY000: View 'test1.v1_all' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.v1_all ORDER BY MIN(cs)) AS dt;
+c
+9
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.v1_all ORDER BY MIN(cus)) AS dt;
+c
+9
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.v1_all ORDER BY MIN(cn)) AS dt;
+ERROR HY000: View 'test1.v1_all' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.v1_all ORDER BY MIN(ci)) AS dt;
+ERROR HY000: View 'test1.v1_all' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.v1_all ORDER BY MIN(cu)) AS dt;
+ERROR HY000: View 'test1.v1_all' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+# Test access to a view with same privileges as base table
+SELECT cs, cus FROM test1.v1_same;
+cs	cus
+0	s
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+SELECT * FROM test1.v1_same;
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'cn' in table 'v1_same'
+SELECT cn FROM test1.v1_same;
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'cn' in table 'v1_same'
+SELECT ci FROM test1.v1_same;
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'ci' in table 'v1_same'
+SELECT cu FROM test1.v1_same;
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'cu' in table 'v1_same'
+UPDATE test1.v1_same SET cu='w';
+UPDATE test1.v1_same, test1.single SET cu='w';
+UPDATE test1.v1_same SET cus='z' WHERE cus='0';
+UPDATE test1.v1_same, test1.single SET cus='z' WHERE cus='0';
+UPDATE test1.v1_same SET cn='x';
+ERROR 42000: UPDATE command denied to user 'user1'@'localhost' for column 'cn' in table 'v1_same'
+UPDATE test1.v1_same, test1.single SET cn='x';
+ERROR 42000: UPDATE command denied to user 'user1'@'localhost' for column 'cn' in table 'v1_same'
+UPDATE test1.v1_same SET cs='x';
+ERROR 42000: UPDATE command denied to user 'user1'@'localhost' for column 'cs' in table 'v1_same'
+UPDATE test1.v1_same, test1.single SET cs='x';
+ERROR 42000: UPDATE command denied to user 'user1'@'localhost' for column 'cs' in table 'v1_same'
+UPDATE test1.v1_same SET ci='x';
+ERROR 42000: UPDATE command denied to user 'user1'@'localhost' for column 'ci' in table 'v1_same'
+UPDATE test1.v1_same, test1.single SET ci='x';
+ERROR 42000: UPDATE command denied to user 'user1'@'localhost' for column 'ci' in table 'v1_same'
+UPDATE test1.v1_same SET cu='x' WHERE cn='0';
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'cn' in table 'v1_same'
+UPDATE test1.v1_same, test1.single SET cu='x' WHERE cn='0';
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'cn' in table 'v1_same'
+INSERT INTO test1.v1_same(ci) VALUES('k');
+INSERT INTO test1.v1_same(ci) SELECT 'k' FROM test1.single;
+INSERT INTO test1.v1_same(ci) VALUES('k')
+ON DUPLICATE KEY UPDATE cu='u';
+INSERT INTO test1.v1_same(ci) SELECT 'k' FROM test1.single
+ON DUPLICATE KEY UPDATE cu='u';
+INSERT INTO test1.v1_same(cn) VALUES('x');
+ERROR 42000: INSERT command denied to user 'user1'@'localhost' for column 'cn' in table 'v1_same'
+INSERT INTO test1.v1_same(cn) SELECT 'x' FROM test1.single;
+ERROR 42000: INSERT command denied to user 'user1'@'localhost' for column 'cn' in table 'v1_same'
+INSERT INTO test1.v1_same(cs) VALUES('x');
+ERROR 42000: INSERT command denied to user 'user1'@'localhost' for column 'cs' in table 'v1_same'
+INSERT INTO test1.v1_same(cs) SELECT 'x' FROM test1.single;
+ERROR 42000: INSERT command denied to user 'user1'@'localhost' for column 'cs' in table 'v1_same'
+INSERT INTO test1.v1_same(cu) VALUES('x');
+ERROR 42000: INSERT command denied to user 'user1'@'localhost' for column 'cu' in table 'v1_same'
+INSERT INTO test1.v1_same(cu) SELECT 'x' FROM test1.single;
+ERROR 42000: INSERT command denied to user 'user1'@'localhost' for column 'cu' in table 'v1_same'
+INSERT INTO test1.v1_same(cus) VALUES('x');
+ERROR 42000: INSERT command denied to user 'user1'@'localhost' for column 'cus' in table 'v1_same'
+INSERT INTO test1.v1_same(cus) SELECT 'x' FROM test1.single;
+ERROR 42000: INSERT command denied to user 'user1'@'localhost' for column 'cus' in table 'v1_same'
+DELETE FROM test1.v1_same;
+ERROR 42000: DELETE command denied to user 'user1'@'localhost' for table 'v1_same'
+DELETE FROM test1.v1_same WHERE cs='0';
+ERROR 42000: DELETE command denied to user 'user1'@'localhost' for table 'v1_same'
+DELETE test1.v1_same FROM test1.v1_same, test1.single WHERE cs='0';
+ERROR 42000: DELETE command denied to user 'user1'@'localhost' for table 'v1_same'
+# Test access to a view with same privileges, inside derived table
+SELECT * FROM (SELECT cs FROM test1.v1_same) AS dt;
+cs
+0
+NULL
+NULL
+NULL
+NULL
+NULL
+NULL
+NULL
+NULL
+NULL
+NULL
+NULL
+NULL
+SELECT * FROM (SELECT cus FROM test1.v1_same) AS dt;
+cus
+s
+NULL
+NULL
+NULL
+NULL
+NULL
+NULL
+NULL
+NULL
+NULL
+NULL
+NULL
+NULL
+SELECT * FROM (SELECT cn FROM test1.v1_same) AS dt;
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'cn' in table 'v1_same'
+SELECT * FROM (SELECT cu FROM test1.v1_same) AS dt;
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'cu' in table 'v1_same'
+SELECT * FROM (SELECT ci FROM test1.v1_same) AS dt;
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'ci' in table 'v1_same'
+SELECT * FROM (SELECT MIN(cs) AS c FROM test1.v1_same) AS dt;
+c
+0
+SELECT * FROM (SELECT MIN(cus) AS c FROM test1.v1_same) AS dt;
+c
+s
+SELECT * FROM (SELECT MIN(cn) AS c FROM test1.v1_same) AS dt;
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'cn' in table 'v1_same'
+SELECT * FROM (SELECT MIN(cu) AS c FROM test1.v1_same) AS dt;
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'cu' in table 'v1_same'
+SELECT * FROM (SELECT MIN(ci) AS c FROM test1.v1_same) AS dt;
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'ci' in table 'v1_same'
+SELECT * FROM (SELECT cs FROM test1.v1_same WHERE cs = '0') AS dt;
+cs
+0
+SELECT * FROM (SELECT cs FROM test1.v1_same WHERE cus = '0') AS dt;
+cs
+SELECT * FROM (SELECT cs FROM test1.v1_same WHERE cn = '0') AS dt;
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'cn' in table 'v1_same'
+SELECT * FROM (SELECT cs FROM test1.v1_same WHERE ci = '0') AS dt;
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'ci' in table 'v1_same'
+SELECT * FROM (SELECT cs FROM test1.v1_same WHERE cu = '0') AS dt;
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'cu' in table 'v1_same'
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.v1_same GROUP BY cs) AS dt;
+c
+12
+1
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.v1_same GROUP BY cus) AS dt;
+c
+12
+1
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.v1_same GROUP BY cn) AS dt;
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'cn' in table 'v1_same'
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.v1_same GROUP BY ci) AS dt;
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'ci' in table 'v1_same'
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.v1_same GROUP BY cu) AS dt;
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'cu' in table 'v1_same'
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.v1_same HAVING MIN(cs) = '0') AS dt;
+c
+13
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.v1_same HAVING MIN(cus) = '0') AS dt;
+c
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.v1_same HAVING MIN(cn) = '0') AS dt;
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'cn' in table 'v1_same'
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.v1_same HAVING MIN(ci) = '0') AS dt;
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'ci' in table 'v1_same'
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.v1_same HAVING MIN(cu) = '0') AS dt;
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'cu' in table 'v1_same'
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.v1_same ORDER BY MIN(cs)) AS dt;
+c
+13
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.v1_same ORDER BY MIN(cus)) AS dt;
+c
+13
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.v1_same ORDER BY MIN(cn)) AS dt;
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'cn' in table 'v1_same'
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.v1_same ORDER BY MIN(ci)) AS dt;
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'ci' in table 'v1_same'
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.v1_same ORDER BY MIN(cu)) AS dt;
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'cu' in table 'v1_same'
+# Test access to a view with "mixed" privileges
+SELECT cs, cus FROM test1.v1_cross;
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'cs' in table 'v1_cross'
+SELECT * FROM test1.v1_cross;
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'cn' in table 'v1_cross'
+SELECT cn FROM test1.v1_cross;
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'cn' in table 'v1_cross'
+SELECT ci FROM test1.v1_cross;
+ERROR HY000: View 'test1.v1_cross' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+SELECT cu FROM test1.v1_cross;
+ERROR HY000: View 'test1.v1_cross' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+UPDATE test1.v1_cross SET cu='x';
+ERROR 42000: UPDATE command denied to user 'user1'@'localhost' for column 'cu' in table 'v1_cross'
+UPDATE test1.v1_cross, test1.single SET cu='x';
+ERROR 42000: UPDATE command denied to user 'user1'@'localhost' for column 'cu' in table 'v1_cross'
+UPDATE test1.v1_cross SET cus='x' WHERE cus='0';
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'cus' in table 'v1_cross'
+UPDATE test1.v1_cross, test1.single SET cus='x' WHERE cus='0';
+ERROR 42000: UPDATE command denied to user 'user1'@'localhost' for column 'cus' in table 'v1_cross'
+UPDATE test1.v1_cross SET cn='x';
+ERROR 42000: UPDATE command denied to user 'user1'@'localhost' for column 'cn' in table 'v1_cross'
+UPDATE test1.v1_cross, test1.single SET cn='x';
+ERROR 42000: UPDATE command denied to user 'user1'@'localhost' for column 'cn' in table 'v1_cross'
+UPDATE test1.v1_cross SET cs='x';
+ERROR HY000: View 'test1.v1_cross' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+UPDATE test1.v1_cross, test1.single SET cs='x';
+ERROR HY000: View 'test1.v1_cross' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+UPDATE test1.v1_cross SET ci='x';
+ERROR 42000: UPDATE command denied to user 'user1'@'localhost' for column 'ci' in table 'v1_cross'
+UPDATE test1.v1_cross, test1.single SET ci='x';
+ERROR 42000: UPDATE command denied to user 'user1'@'localhost' for column 'ci' in table 'v1_cross'
+UPDATE test1.v1_cross SET cu='x' WHERE cn='0';
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'cn' in table 'v1_cross'
+UPDATE test1.v1_cross, test1.single SET cu='x' WHERE cn='0';
+ERROR 42000: UPDATE command denied to user 'user1'@'localhost' for column 'cu' in table 'v1_cross'
+INSERT INTO test1.v1_cross(ci) VALUES('x');
+ERROR 42000: INSERT command denied to user 'user1'@'localhost' for column 'ci' in table 'v1_cross'
+INSERT INTO test1.v1_cross(ci) SELECT 'x' FROM test1.single;
+ERROR 42000: INSERT command denied to user 'user1'@'localhost' for column 'ci' in table 'v1_cross'
+INSERT INTO test1.v1_cross(ci) VALUES('k')
+ON DUPLICATE KEY UPDATE cu='u';
+ERROR 42000: INSERT command denied to user 'user1'@'localhost' for column 'ci' in table 'v1_cross'
+INSERT INTO test1.v1_cross(ci) SELECT 'k' FROM test1.single
+ON DUPLICATE KEY UPDATE cu='u';
+ERROR 42000: INSERT command denied to user 'user1'@'localhost' for column 'ci' in table 'v1_cross'
+INSERT INTO test1.v1_cross(cn) VALUES('x');
+ERROR 42000: INSERT command denied to user 'user1'@'localhost' for column 'cn' in table 'v1_cross'
+INSERT INTO test1.v1_cross(cn) SELECT 'x' FROM test1.single;
+ERROR 42000: INSERT command denied to user 'user1'@'localhost' for column 'cn' in table 'v1_cross'
+INSERT INTO test1.v1_cross(cs) VALUES('x');
+ERROR 42000: INSERT command denied to user 'user1'@'localhost' for column 'cs' in table 'v1_cross'
+INSERT INTO test1.v1_cross(cs) SELECT 'x' FROM test1.single;
+ERROR 42000: INSERT command denied to user 'user1'@'localhost' for column 'cs' in table 'v1_cross'
+INSERT INTO test1.v1_cross(cu) VALUES('x');
+ERROR 42000: INSERT command denied to user 'user1'@'localhost' for column 'cu' in table 'v1_cross'
+INSERT INTO test1.v1_cross(cu) SELECT 'x' FROM test1.single;
+ERROR 42000: INSERT command denied to user 'user1'@'localhost' for column 'cu' in table 'v1_cross'
+INSERT INTO test1.v1_cross(cus) VALUES('x');
+ERROR HY000: View 'test1.v1_cross' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+INSERT INTO test1.v1_cross(cus) SELECT 'x' FROM test1.single;
+ERROR HY000: View 'test1.v1_cross' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+DELETE FROM test1.v1_cross;
+ERROR 42000: DELETE command denied to user 'user1'@'localhost' for table 'v1_cross'
+DELETE FROM test1.v1_cross WHERE cs='0';
+ERROR 42000: DELETE command denied to user 'user1'@'localhost' for table 'v1_cross'
+DELETE test1.v1_cross FROM test1.v1_cross, test1.single WHERE cs='0';
+ERROR 42000: DELETE command denied to user 'user1'@'localhost' for table 'v1_cross'
+# Test access to a multi-level view with no privileges
+SELECT cs FROM test1.v1_multi;
+ERROR HY000: View 'test1.v1_multi' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+SELECT cus FROM test1.v1_multi;
+cus
+s
+NULL
+NULL
+NULL
+NULL
+NULL
+NULL
+NULL
+NULL
+NULL
+NULL
+NULL
+NULL
+UPDATE test1.v1_multi SET cu='x';
+ERROR HY000: View 'test1.v1_multi' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+UPDATE test1.v1_multi, test1.single SET cu='x';
+ERROR HY000: View 'test1.v1_multi' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+UPDATE test1.v1_multi SET cus='x' WHERE cus='0';
+ERROR HY000: View 'test1.v1_multi' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+UPDATE test1.v1_multi, test1.single SET cus='x' WHERE cus='0';
+ERROR HY000: View 'test1.v1_multi' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+INSERT INTO test1.v1_multi(ci) VALUES('x');
+ERROR HY000: View 'test1.v1_multi' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+INSERT INTO test1.v1_multi(ci) SELECT 'x' FROM test1.single;
+ERROR HY000: View 'test1.v1_multi' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+INSERT INTO test1.v1_multi(ci) VALUES('x')
+ON DUPLICATE KEY UPDATE cu='u';
+ERROR HY000: View 'test1.v1_multi' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+INSERT INTO test1.v1_multi(ci) SELECT 'x' FROM test1.single
+ON DUPLICATE KEY UPDATE cu='u';
+ERROR HY000: View 'test1.v1_multi' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+DELETE FROM test1.v1_multi;
+ERROR 42000: DELETE command denied to user 'user1'@'localhost' for table 'v1_multi'
+DELETE FROM test1.v1_multi WHERE cs='0';
+ERROR 42000: DELETE command denied to user 'user1'@'localhost' for table 'v1_multi'
+DELETE test1.v1_multi FROM test1.v1_multi WHERE cs='0';
+ERROR 42000: DELETE command denied to user 'user1'@'localhost' for table 'v1_multi'
+# Test access to a renamed view
+SELECT cn FROM test1.v1_renamed;
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'cn' in table 'v1_renamed'
+SELECT cs FROM test1.v1_renamed;
+ERROR HY000: View 'test1.v1_renamed' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+SELECT cus FROM test1.v1_renamed;
+cus
+0
+NULL
+NULL
+NULL
+NULL
+NULL
+NULL
+NULL
+NULL
+NULL
+NULL
+NULL
+NULL
+SELECT cx FROM test1.v1_renamed;
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'cx' in table 'v1_renamed'
+SELECT cy FROM test1.v1_renamed;
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'cy' in table 'v1_renamed'
+# Test access to a derived tables. Since they can be used in SELECT
+# only, update functions are not needed
+SELECT cs, cus FROM (SELECT * FROM test1.t1) AS dt;
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'cn' in table 't1'
+SELECT * FROM (SELECT * FROM test1.t1) AS dt;
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'cn' in table 't1'
+SELECT cn FROM (SELECT * FROM test1.t1) AS dt;
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'cn' in table 't1'
+SELECT ci FROM (SELECT * FROM test1.t1) AS dt;
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'cn' in table 't1'
+SELECT cu FROM (SELECT * FROM test1.t1) AS dt;
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'cn' in table 't1'
+SELECT * FROM (SELECT cs, cus FROM test1.t1) AS dt;
+cs	cus
+0	s
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+SELECT cs, cus FROM (SELECT cs, cus FROM test1.t1) AS dt;
+cs	cus
+0	s
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+SELECT cx FROM (SELECT CONCAT(cs, cus) AS cx FROM test1.t1) AS dt;
+cx
+0s
+NULL
+NULL
+NULL
+NULL
+NULL
+NULL
+NULL
+NULL
+NULL
+NULL
+NULL
+NULL
+SELECT * FROM (SELECT cn FROM test1.t1) AS dt;
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'cn' in table 't1'
+SELECT * FROM (SELECT ci FROM test1.t1) AS dt;
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'ci' in table 't1'
+SELECT * FROM (SELECT cu FROM test1.t1) AS dt;
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'cu' in table 't1'
+SELECT * FROM (SELECT CONCAT(cs, cu) AS cx FROM test1.t1) AS dt;
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'cu' in table 't1'
+SELECT * FROM (SELECT CONCAT(ci, cu) AS cx FROM test1.t1) AS dt;
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'ci' in table 't1'
+SELECT cx FROM (SELECT CONCAT(cs, cu) AS cx FROM test1.t1) AS dt;
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'cu' in table 't1'
+SELECT cx FROM (SELECT CONCAT(ci, cu) AS cx FROM test1.t1) AS dt;
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for column 'ci' in table 't1'
+DROP VIEW test1.v1_none, test1.v1_all, test1.v1_same;
+DROP VIEW test1.v1_cross, test1.v1_middle, test1.v1_multi;
+DROP VIEW test1.v1_renamed;
+DROP USER user1@localhost;
+CREATE USER user1@localhost;
+GRANT SELECT(cs) ON test1.t1 TO user1@localhost;
+CREATE DEFINER=user1@localhost SQL SECURITY DEFINER VIEW test1.v1_none AS
+SELECT cs FROM test1.t1;
+CREATE DEFINER=user1@localhost SQL SECURITY DEFINER VIEW test1.v1_middle AS
+SELECT cs FROM test1.t1;
+CREATE DEFINER=user1@localhost SQL SECURITY DEFINER VIEW test1.v1_multi AS
+SELECT * FROM test1.v1_middle;
+REVOKE SELECT(cs) ON test1.t1 FROM user1@localhost;
+SHOW GRANTS FOR user1@localhost;
+Grants for user1@localhost
+GRANT USAGE ON *.* TO 'user1'@'localhost'
+SELECT * FROM test1.t1 LIMIT 1;
+cn	cs	ci	cu	cus
+0	0	0	w	s
+# Test access to a view with no privileges
+SELECT cs FROM test1.v1_none;
+ERROR HY000: View 'test1.v1_none' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+GRANT SELECT(cs) ON test1.t1 TO user1@localhost;
+SELECT cs FROM test1.v1_none LIMIT 1;
+cs
+0
+SELECT cs FROM test1.v1_multi;
+ERROR HY000: View 'test1.v1_multi' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+GRANT SELECT(cs) ON test1.v1_middle TO user1@localhost;
+SELECT cs FROM test1.v1_multi LIMIT 1;
+cs
+0
+REVOKE SELECT(cs) ON test1.t1 FROM user1@localhost;
+SELECT cs FROM test1.v1_multi;
+ERROR HY000: View 'test1.v1_multi' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+DROP USER user1@localhost;
+DROP DATABASE test1;

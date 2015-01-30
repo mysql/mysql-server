@@ -17,12 +17,12 @@
 
 #include "rpl_gtid.h"
 
-#include <ctype.h>
+#include "mysqld_error.h"     // ER_*
 
-#include "mysqld_error.h"
 #ifndef MYSQL_CLIENT
-#include "sql_class.h"
-#endif // ifndef MYSQL_CLIENT
+#include "sql_class.h"        // THD
+#endif
+
 
 enum_return_status Gtid::parse(Sid_map *sid_map, const char *text)
 {

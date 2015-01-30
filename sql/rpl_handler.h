@@ -16,10 +16,25 @@
 #ifndef RPL_HANDLER_H
 #define RPL_HANDLER_H
 
-#include "rpl_gtid.h"
-#include "rpl_mi.h"
-#include "rpl_rli.h"
-#include "replication.h"
+#include "my_global.h"
+#include "my_sys.h"                        // free_root
+#include "mysql/psi/mysql_thread.h"        // mysql_rwlock_t
+#include "mysqld.h"                        // key_memory_delegate
+#include "sql_list.h"                      // List
+#include "sql_plugin_ref.h"                // plugin_ref
+
+#include <list>
+
+class Master_info;
+class String;
+struct Binlog_relay_IO_observer;
+struct Binlog_relay_IO_param;
+struct Binlog_storage_observer;
+struct Binlog_transmit_observer;
+struct Server_state_observer;
+struct Trans_observer;
+struct Trans_table_info;
+
 
 class Observer_info {
 public:

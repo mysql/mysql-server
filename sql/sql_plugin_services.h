@@ -15,6 +15,7 @@
 
 /* support for Services */
 #include <service_versions.h>
+#include "mysql/services.h"
 
 struct st_service_ref {
   const char *name;

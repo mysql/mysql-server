@@ -267,6 +267,7 @@ group by a;
 let $count=3;
 while($count)
 {
+set @optimizer_switch_saved=@@optimizer_switch;
 let $source_query=select t1.a*2 as a, t1.b as b, t1.c as c, t1.d as d, t1.a as e from t1;
 if ($count == 3)
 {
@@ -286,7 +287,8 @@ let $source_no_alias=v1;
 }
 if ($count == 1)
 {
---echo # Derived table
+--echo # Materialized derived table
+set optimizer_switch='derived_merge=off';
 let $source=($source_query) as v1;
 let $source_no_alias=($source_query);
 }
@@ -447,6 +449,7 @@ eval $show_trace;
 drop view if exists v1;
 
 dec $count;
+set optimizer_switch=@optimizer_switch_saved;
 }
 
 # Derived table in merged view
@@ -597,6 +600,7 @@ let $query=
 select d.a,d.c
 from t1 left join (select a, coalesce(a,3) as c from t1) as d
 on t1.b>0;
+--echo # Due to bug#17023060, this result is wrong:
 eval $query;
 # Now group it by d.a:
 --error ER_WRONG_FIELD_WITH_GROUP

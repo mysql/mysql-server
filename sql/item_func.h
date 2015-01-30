@@ -2115,7 +2115,6 @@ public:
   void save_org_in_field(Field *field)
   { save_in_field(field, true, false); }
 
-  bool register_field_in_read_map(uchar *arg);
   bool set_entry(THD *thd, bool create_if_not_exists);
   void cleanup();
 };

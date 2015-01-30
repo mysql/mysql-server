@@ -442,6 +442,7 @@ void LEX::reset()
   context_analysis_only= 0;
   derived_tables= 0;
   safe_to_cache_query= true;
+  insert_table= NULL;
   leaf_tables_insert= NULL;
   parsing_options.reset();
   empty_field_list_on_rset= false;
@@ -620,6 +621,11 @@ st_select_lex *LEX::new_query(st_select_lex *curr_select)
       We should fix 1) and then use it unconditionally here.
     */
     select->context.outer_context= outer_context;
+  }
+  else if (select->outer_select()->parsing_place == CTX_DERIVED)
+  {
+    // Currently, outer references are not allowed for a derived table
+    DBUG_ASSERT(select->context.outer_context == NULL);
   }
   else
   {
@@ -2119,6 +2125,7 @@ st_select_lex::st_select_lex
   linkage(UNSPECIFIED_TYPE),
   no_table_names_allowed(false),
   context(),
+  first_context(&context),
   resolve_place(RESOLVE_NONE),
   resolve_nest(NULL),
   semijoin_disallowed(false),
@@ -2144,6 +2151,11 @@ st_select_lex::st_select_lex
   embedding(NULL),
   sj_nests(),
   leaf_tables(NULL),
+  leaf_table_count(0),
+  derived_table_count(0),
+  materialized_derived_table_count(0),
+  has_sj_nests(false),
+  partitioned_table_count(0),
   order_list(),
   order_list_ptrs(NULL),
   select_limit(NULL),
@@ -2155,8 +2167,10 @@ st_select_lex::st_select_lex
   max_equal_elems(0),
   select_n_where_fields(0),
   parsing_place(CTX_NONE),
-  with_sum_func(false),
   in_sum_expr(0),
+  with_sum_func(false),
+  n_sum_items(0),
+  n_child_sum_items(0),
   select_number(0),
   nest_level(0),
   inner_sum_func_list(NULL),
@@ -2165,19 +2179,14 @@ st_select_lex::st_select_lex
   having_fix_field(false),
   group_fix_field(false),
   inner_refs_list(),
-  n_sum_items(0),
-  n_child_sum_items(0),
   explicit_limit(false),
   subquery_in_having(false),
   first_execution(true),
-  first_natural_join_processing(true),
   sj_pullout_done(false),
-  no_wrap_view_item(false),
   exclude_from_table_unique_test(false),
   prev_join_using(NULL),
   select_list_tables(0),
   outer_join(0),
-  removed_select(NULL),
   m_agg_func_used(false),
   sj_candidates(NULL)
 {
@@ -2860,7 +2869,7 @@ bool db_is_default_db(const char *db, size_t db_len, const THD *thd)
   @param str   string where table should be printed
 */
 
-void TABLE_LIST::print(THD *thd, String *str, enum_query_type query_type)
+void TABLE_LIST::print(THD *thd, String *str, enum_query_type query_type) const
 {
   if (nested_join)
   {
@@ -2884,9 +2893,9 @@ void TABLE_LIST::print(THD *thd, String *str, enum_query_type query_type)
       append_identifier(thd, str, view_name.str, view_name.length);
       cmp_name= view_name.str;
     }
-    else if (derived)
+    else if (is_derived() && !is_merged())
     {
-      // A derived table
+      // A derived table that is materialized or without specified algorithm
       if (!(query_type & QT_DERIVED_TABLE_ONLY_ALIAS))
       {
         str->append('(');
@@ -3189,8 +3198,8 @@ static bool accept_for_join(List<TABLE_LIST> *tables,
   {
     if (t->nested_join && accept_for_join(&t->nested_join->join_list, visitor))
       return true;
-    else if (t->derived)
-      t->derived->accept(visitor);
+    else if (t->is_derived())
+      t->derived_unit()->accept(visitor);
     if (walk_item(t->join_cond(), visitor))
         return true;
   }
@@ -3300,7 +3309,7 @@ void Query_tables_list::reset_query_tables_list(bool init)
     TABLE_LIST *table= query_tables;
     for (;;)
     {
-      delete table->view;
+      delete table->view_query();
       if (query_tables_last == &table->next_global ||
           !(table= table->next_global))
         break;
@@ -3369,57 +3378,6 @@ LEX::LEX()
   in_update_value_clause(false)
 {
   reset_query_tables_list(TRUE);
-}
-
-
-/*
-  Check whether the merging algorithm can be used on this VIEW
-
-  SYNOPSIS
-    LEX::can_be_merged()
-
-  DESCRIPTION
-    We can apply merge algorithm if it is single SELECT view  with
-    subqueries only in WHERE clause (we do not count SELECTs of underlying
-    views, and second level subqueries) and we have not grpouping, ordering,
-    HAVING clause, aggregate functions, DISTINCT clause, LIMIT clause and
-    several underlying tables.
-
-  RETURN
-    FALSE - only temporary table algorithm can be used
-    TRUE  - merge algorithm can be used
-*/
-
-bool LEX::can_be_merged()
-{
-  // TODO: do not forget implement case when select_lex->table_list.elements==0
-
-  /* find non VIEW subqueries/unions */
-  bool selects_allow_merge= select_lex->next_select() == NULL;
-  if (selects_allow_merge)
-  {
-    for (SELECT_LEX_UNIT *tmp_unit= select_lex->first_inner_unit();
-         tmp_unit;
-         tmp_unit= tmp_unit->next_unit())
-    {
-      if (tmp_unit->first_select()->parent_lex == this &&
-          (tmp_unit->item == 0 ||
-           (tmp_unit->item->place() != CTX_WHERE &&
-            tmp_unit->item->place() != CTX_ON)))
-      {
-        selects_allow_merge= 0;
-        break;
-      }
-    }
-  }
-
-  return selects_allow_merge &&
-         select_lex->group_list.elements == 0 &&
-         select_lex->having_cond() == NULL &&
-         !select_lex->with_sum_func &&
-         select_lex->table_list.elements >= 1 &&
-         !select_lex->is_distinct() &&
-         select_lex->select_limit == NULL;
 }
 
 
@@ -3686,6 +3644,48 @@ void st_select_lex_unit::include_chain(LEX *lex, st_select_lex *outer)
   outer->slave= this;
 }
 
+
+/**
+  Return true if query expression can be merged into an outer query.
+  Being mergeable also means that derived table/view is updatable.
+
+  A view/derived table is not mergeable if it is one of the following:
+   - A union (implementation restriction).
+   - An aggregated query, or has HAVING, or has DISTINCT
+     (A general aggregated query cannot be merged with a non-aggregated one).
+   - A table-less query (unimportant special case).
+   - A query with a LIMIT (limit applies to subquery, so the implementation
+     strategy is to materialize this subquery, including row count constraint).
+   - A query that modifies variables (When variables are modified, try to
+     preserve the original structure of the query. This is less likely to cause
+     changes in variable assignment order).
+   - A query with subqueries in the SELECT list
+     (this is a pure implementation limitation).
+*/
+bool st_select_lex_unit::is_mergeable() const
+{
+  SELECT_LEX *const select= first_select();
+
+  if (is_union())
+    return false;
+
+  for (SELECT_LEX_UNIT *unit= select->first_inner_unit();
+       unit;
+       unit= unit->next_unit())
+  {
+    if (unit->outer_select() == select &&
+        unit->item &&
+        unit->item->place() == CTX_SELECT_LIST)
+      return false;
+  }
+
+  return !first_select()->is_grouped() &&
+         !first_select()->having_cond() &&
+         !first_select()->is_distinct() &&
+         first_select()->table_list.elements > 0 &&
+         !first_select()->has_limit() &&
+         thd->lex->set_var_list.elements == 0;
+}
 
 /**
   Renumber contained select_lex objects.
@@ -4127,40 +4127,6 @@ void st_select_lex::fix_prepare_information(THD *thd)
   st_select_lex_unit::change_query_result
   are in sql_union.cc
 */
-
-
-/**
-  @brief Process all derived tables/views of the SELECT.
-
-  @param lex    LEX of this thread
-
-  @details
-  This function runs given processor on all derived tables from the
-  table_list of this select.
-  The SELECT_LEX::leaf_tables/TABLE_LIST::next_leaf chain is used as the tables
-  list for current select. This chain is built by make_leaves_list and thus
-  this function can't be used prior to setup_tables. As the chain includes all
-  tables from merged views there is no need in diving into views.
-
-  @see mysql_handle_derived.
-
-  @return FALSE ok.
-  @return TRUE an error occur.
-*/
-
-bool st_select_lex::handle_derived(LEX *lex,
-                                   bool (*processor)(THD*, LEX*, TABLE_LIST*))
-{
-  for (TABLE_LIST *table_ref= leaf_tables;
-       table_ref;
-       table_ref= table_ref->next_leaf)
-  {
-    if (table_ref->is_view_or_derived() &&
-        table_ref->handle_derived(lex, processor))
-      return TRUE;
-  }
-  return FALSE;
-}
 
 
 st_select_lex::type_enum st_select_lex::type()

@@ -35,6 +35,8 @@ Created 2011-05-26 Marko Makela
 #include "trx0types.h"
 #include "que0types.h"
 
+class ut_stage_alter_t;
+
 /******************************************************//**
 Allocate the row log for an index and flag the index
 for online creation.
@@ -188,12 +190,16 @@ row_log_table_blob_alloc(
 @param[in]	thr		query graph
 @param[in]	old_table	old table
 @param[in,out]	table		MySQL table (for reporting duplicates)
+@param[in,out]	stage		performance schema accounting object, used by
+ALTER TABLE. stage->begin_phase_log_table() will be called initially and then
+stage->inc() will be called for each block of log that is applied.
 @return DB_SUCCESS, or error code on failure */
 dberr_t
 row_log_table_apply(
 	que_thr_t*		thr,
 	dict_table_t*		old_table,
-	struct TABLE*		table)
+	struct TABLE*		table,
+	ut_stage_alter_t*	stage)
 __attribute__((warn_unused_result));
 
 /******************************************************//**
@@ -211,13 +217,28 @@ row_log_get_max_trx(
 interrupted)
 @param[in,out]	index	secondary index
 @param[in,out]	table	MySQL table (for reporting duplicates)
+@param[in,out]	stage	performance schema accounting object, used by
+ALTER TABLE. stage->begin_phase_log_index() will be called initially and then
+stage->inc() will be called for each block of log that is applied.
 @return DB_SUCCESS, or error code on failure */
 dberr_t
 row_log_apply(
-	const trx_t*	trx,
-	dict_index_t*	index,
-	struct TABLE*	table)
+	const trx_t*		trx,
+	dict_index_t*		index,
+	struct TABLE*		table,
+	ut_stage_alter_t*	stage)
 	__attribute__((warn_unused_result));
+
+#ifdef HAVE_PSI_STAGE_INTERFACE
+/** Estimate how much work is to be done by the log apply phase
+of an ALTER TABLE for this index.
+@param[in]	index	index whose log to assess
+@return work to be done by log-apply in abstract units
+*/
+ulint
+row_log_estimate_work(
+	const dict_index_t*	index);
+#endif /* HAVE_PSI_STAGE_INTERFACE */
 
 #ifndef UNIV_NONINL
 #include "row0log.ic"

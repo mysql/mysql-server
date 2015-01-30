@@ -231,5 +231,67 @@ Database: b12688860_db
 +---------------+
 DROP TABLE b12688860_db.b12688860_tab;
 DROP DATABASE b12688860_db;
+#
+# Bug #21246 sql-mode parameter NO_BACKSLASH_ESCAPES
+#            breaks parameters with apostrophe's (')
+#
+# sql_mode = 'NO_BACKSLASH_ESCAPES'
+SET @OLD_SQL_MODE = @@SQL_MODE;
+SET GLOBAL sql_mode = 'NO_BACKSLASH_ESCAPES';
+SHOW GLOBAL VARIABLES LIKE 'sql_mode';
+Variable_name	Value
+sql_mode	NO_BACKSLASH_ESCAPES
+DROP TABLE IF EXISTS ```t1`,```t2`;
+CREATE TABLE ```t1` (a int);
+INSERT INTO ```t1` VALUES (1),(2),(3);
+CREATE TABLE ```t2` (a int, b int);
+show tables;
+Tables_in_test
+`t1
+`t2
+Database: test
++--------+
+| Tables |
++--------+
+| `t1    |
+| `t2    |
++--------+
+Database: test  Wildcard: `t%
++--------+
+| Tables |
++--------+
+| `t1    |
+| `t2    |
++--------+
+DROP TABLE ```t1`, ```t2`;
+# sql_mode = ''
+SET GLOBAL sql_mode = '';
+SHOW GLOBAL VARIABLES LIKE 'sql_mode';
+Variable_name	Value
+sql_mode	
+DROP TABLE IF EXISTS ```t1`,```t2`;
+CREATE TABLE ```t1` (a int);
+INSERT INTO ```t1` VALUES (1),(2),(3);
+CREATE TABLE ```t2` (a int, b int);
+show tables;
+Tables_in_test
+`t1
+`t2
+Database: test
++--------+
+| Tables |
++--------+
+| `t1    |
+| `t2    |
++--------+
+Database: test  Wildcard: `t%
++--------+
+| Tables |
++--------+
+| `t1    |
+| `t2    |
++--------+
+DROP TABLE ```t1`, ```t2`;
+SET GLOBAL sql_mode = @OLD_SQL_MODE;
 
 End of tests

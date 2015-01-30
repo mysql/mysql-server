@@ -332,6 +332,8 @@ test.t11	analyze	status	OK
 test.t12	analyze	status	OK
 test.t13	analyze	status	OK
 test.t14	analyze	status	OK
+SET @optimizer_switch_saved= @@optimizer_switch;
+SET @@optimizer_switch="derived_merge=off";
 explain format = json select sql_buffer_result * from t1;
 EXPLAIN
 {
@@ -2048,7 +2050,7 @@ a	b
 3	c
 3	c
 4	c
-set optimizer_switch=default;
+set optimizer_switch='default,derived_merge=off';
 explain format = json update t1, t2 set t1.a = 9, t2.a = 10 where t1.b = 'a';
 EXPLAIN
 {
@@ -2264,7 +2266,10 @@ or not outr.pk > 9)
 or outr.col_varchar_key is null;
 x
 102
+SET @@optimizer_switch=@optimizer_switch_saved;
 # restart: --innodb-read-only --big-tables=1
+SET @optimizer_switch_saved= @@optimizer_switch;
+SET @@optimizer_switch="derived_merge=off";
 explain format = json select sql_buffer_result * from t1;
 EXPLAIN
 {
@@ -3952,7 +3957,7 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t2`) where (`test`.`t2`.`a` = `test`.`t1`.`a`)
 select * from t1 where t1.a in (select a from t2) ;
 a	b
-set optimizer_switch=default;
+set optimizer_switch='default,derived_merge=off';
 explain format = json select count(distinct a) from t1;
 EXPLAIN
 {
@@ -4115,6 +4120,7 @@ or not outr.pk > 9)
 or outr.col_varchar_key is null;
 x
 102
+SET @@optimizer_switch=@optimizer_switch_saved;
 # restart
 drop function func1;
 drop table t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14;

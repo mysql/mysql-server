@@ -26,6 +26,7 @@
 #include "connection_handler_manager.h"
 #include "crypt_genhash_impl.h"         /* generate_user_salt */
 #include <mysql/plugin_validate_password.h> /* validate_password plugin */
+#include <mysql/service_my_plugin_log.h>
 #include "sys_vars.h"
 #include <fstream>                      /* std::fstream */
 #include <string>                       /* std::string */

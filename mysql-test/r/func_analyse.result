@@ -100,6 +100,8 @@ select f3 from t1 procedure analyse(1, 1);
 Field_name	Min_value	Max_value	Min_length	Max_length	Empties_or_zeros	Nulls	Avg_value_or_avg_length	Std	Optimal_fieldtype
 test.t1.f3	5.99999	9.55555	7	7	0	0	7.77777	1.77778	FLOAT(6,5) NOT NULL
 drop table t1;
+set @optimizer_switch_saved=@@session.optimizer_switch;
+set optimizer_switch='derived_merge=off';
 CREATE TABLE t1(a INT,b INT,c INT,d INT,e INT,f INT,g INT,h INT,i INT,j INT,k INT);
 INSERT INTO t1 VALUES ();
 SELECT * FROM (SELECT * FROM t1) d PROCEDURE ANALYSE();
@@ -116,6 +118,7 @@ d.i	NULL	NULL	0	0	0	1	0.0	0.0	CHAR(0)
 d.j	NULL	NULL	0	0	0	1	0.0	0.0	CHAR(0)
 d.k	NULL	NULL	0	0	0	1	0.0	0.0	CHAR(0)
 DROP TABLE t1;
+set @@session.optimizer_switch=@optimizer_switch_saved;
 End of 4.1 tests
 #
 # Bug #48293: crash with procedure analyse, view with > 10 columns, 
@@ -303,18 +306,16 @@ DROP PROCEDURE p1;
 ANALYZE TABLE t1;
 EXPLAIN SELECT * FROM t1, (SELECT * FROM t1) tt1 WHERE t1.a = tt1.a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
-1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	5	test.t1.a	2	100.00	Using index
-2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`tt1`.`a` AS `a` from `test`.`t1` join (/* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`) `tt1` where (`tt1`.`a` = `test`.`t1`.`a`)
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`a` AS `a` from `test`.`t1` join `test`.`t1` where (`test`.`t1`.`a` = `test`.`t1`.`a`)
 EXPLAIN SELECT * FROM t1, (SELECT * FROM t1) tt1 WHERE t1.a = tt1.a PROCEDURE ANALYSE();
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
-1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	5	test.t1.a	2	100.00	Using index
-2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`tt1`.`a` AS `a` from `test`.`t1` join (/* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`) `tt1` where (`tt1`.`a` = `test`.`t1`.`a`)
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`a` AS `a` from `test`.`t1` join `test`.`t1` where (`test`.`t1`.`a` = `test`.`t1`.`a`)
 CREATE TABLE t2 (i INT, j INT);
 # PROCEDURE ANALYSE ignores ROLLUP rows:
 INSERT INTO t2 VALUES (1, 1), (2, 2), (3, 3), (4, 4);

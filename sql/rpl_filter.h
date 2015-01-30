@@ -16,17 +16,17 @@
 #ifndef RPL_FILTER_H
 #define RPL_FILTER_H
 
-#include "my_global.h"                          /* uint */
-#include "mysql.h"
-#include "sql_list.h"                           /* I_List */
-#include "hash.h"                               /* HASH */
-#include "prealloced_array.h"
-#include "sql_cmd.h"                            /* Sql_cmd */
-#include "mysqld.h"                             /* options_mysqld */
+#include "my_global.h"
+#include "hash.h"                               // HASH
+#include "mysqld.h"                             // options_mysqld
+#include "prealloced_array.h"                   // Prealloced_arrray
+#include "sql_cmd.h"                            // Sql_cmd
+#include "sql_list.h"                           // I_List
 
+class Item;
 class String;
 struct TABLE_LIST;
-class Item;
+
 
 typedef struct st_table_rule_ent
 {

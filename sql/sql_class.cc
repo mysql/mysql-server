@@ -31,6 +31,7 @@
 #include "lock.h"                            // mysql_lock_abort_for_thread
 #include "mysqld_thd_manager.h"              // Global_THD_manager
 #include "parse_tree_nodes.h"                // PT_select_var
+#include "rpl_filter.h"                      // binlog_filter
 #include "rpl_rli.h"                         // Relay_log_info
 #include "rpl_rli_pdb.h"                     // Slave_worker
 #include "sp_cache.h"                        // sp_cache_clear
@@ -1087,6 +1088,7 @@ void Open_tables_state::reset_open_tables_state()
 THD::THD(bool enable_plugins)
   :Query_arena(&main_mem_root, STMT_CONVENTIONAL_EXECUTION),
    mark_used_columns(MARK_COLUMNS_READ),
+   want_privilege(0),
    lex(&main_lex),
    m_query_string(NULL_CSTR),
    m_db(NULL_CSTR),

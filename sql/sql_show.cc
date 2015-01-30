@@ -797,7 +797,7 @@ public:
        The handler does not handle the errors raised by itself.
        At this point we know if top_view is really a view.
     */
-    if (m_handling || !m_top_view->view)
+    if (m_handling || !m_top_view->is_view())
       return false;
 
     m_handling= true;
@@ -867,24 +867,37 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
 
   {
     /*
-      Use open_tables() directly rather than open_normal_and_derived_tables().
-      This ensures that close_thread_tables() is not called if open tables fails
-      and the error is ignored. This allows us to handle broken views nicely.
+      If there is an error during processing of an underlying view, an
+      error message is wanted, but it has to be converted to a warning,
+      so that execution can continue.
+      This is handled by the Show_create_error_handler class.
+
+      Use open_tables() instead of open_tables_for_query(). If an error occurs,
+      this will ensure that tables are not closed on error, but remain open
+      for the rest of the processing of the SHOW statement.
     */
-    uint counter;
     Show_create_error_handler view_error_suppressor(thd, table_list);
     thd->push_internal_handler(&view_error_suppressor);
-    bool open_error=
-      open_tables(thd, &table_list, &counter,
-                  MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL) ||
-                  mysql_handle_derived(thd->lex, &mysql_derived_prepare);
+
+    uint counter;
+    bool open_error= open_tables(thd, &table_list, &counter,
+                                 MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL);
+    if (!open_error && table_list->is_view_or_derived())
+    {
+      /*
+        Prepare result table for view so that we can read the column list.
+        Notice that Show_create_error_handler remains active, so that any
+        errors due to missing underlying objects are converted to warnings.
+      */
+      open_error= table_list->resolve_derived(thd, true);
+    }
     thd->pop_internal_handler();
     if (open_error && (thd->killed || thd->is_error()))
       goto exit;
   }
 
   /* TODO: add environment variables show when it become possible */
-  if (thd->lex->only_view && !table_list->view)
+  if (thd->lex->only_view && !table_list->is_view())
   {
     my_error(ER_WRONG_OBJECT, MYF(0),
              table_list->db, table_list->table_name, "VIEW");
@@ -893,16 +906,16 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
 
   buffer.length(0);
 
-  if (table_list->view)
+  if (table_list->is_view())
     buffer.set_charset(table_list->view_creation_ctx->get_client_cs());
 
-  if ((table_list->view ?
+  if ((table_list->is_view() ?
        view_store_create_info(thd, table_list, &buffer) :
        store_create_info(thd, table_list, &buffer, NULL,
                          FALSE /* show_database */)))
     goto exit;
 
-  if (table_list->view)
+  if (table_list->is_view())
   {
     field_list.push_back(new Item_empty_string("View",NAME_CHAR_LEN));
     field_list.push_back(new Item_empty_string("Create View",
@@ -925,7 +938,7 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
     goto exit;
 
   protocol->prepare_for_resend();
-  if (table_list->view)
+  if (table_list->is_view())
     protocol->store(table_list->view_name.str, system_charset_info);
   else
   {
@@ -936,7 +949,7 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
       protocol->store(table_list->table->alias, system_charset_info);
   }
 
-  if (table_list->view)
+  if (table_list->is_view())
   {
     protocol->store(buffer.ptr(), buffer.length(),
                     table_list->view_creation_ctx->get_client_cs());
@@ -1059,16 +1072,23 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
 void
 mysqld_list_fields(THD *thd, TABLE_LIST *table_list, const char *wild)
 {
-  TABLE *table;
   DBUG_ENTER("mysqld_list_fields");
   DBUG_PRINT("enter",("table: %s",table_list->table_name));
 
-  if (open_normal_and_derived_tables(thd, table_list,
-                                     MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL))
+  if (open_tables_for_query(thd, table_list,
+                            MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL))
     DBUG_VOID_RETURN;
-  table= table_list->table;
-  /* Create derived tables result table prior to reading it's fields list. */
-  mysql_handle_single_derived(thd->lex, table_list, &mysql_derived_create);
+
+  if (table_list->is_view_or_derived())
+  {
+    // Setup materialized result table so that we can read the column list
+    if (table_list->resolve_derived(thd, false))
+      DBUG_VOID_RETURN;
+    if (table_list->setup_materialized_derived(thd))
+      DBUG_VOID_RETURN;
+  }
+  TABLE *table= table_list->table;
+
   List<Item> field_list;
 
   Field **ptr,*field;
@@ -1077,7 +1097,7 @@ mysqld_list_fields(THD *thd, TABLE_LIST *table_list, const char *wild)
     if (!wild || !wild[0] || 
         !wild_case_compare(system_charset_info, field->field_name,wild))
     {
-      if (table_list->view)
+      if (table_list->is_view())
         field_list.push_back(new Item_ident_for_show(field,
                                                      table_list->view_db.str,
                                                      table_list->view_name.str));
@@ -1927,7 +1947,7 @@ static void append_algorithm(TABLE_LIST *table, String *buff)
   case VIEW_ALGORITHM_UNDEFINED:
     buff->append(STRING_WITH_LEN("UNDEFINED "));
     break;
-  case VIEW_ALGORITHM_TMPTABLE:
+  case VIEW_ALGORITHM_TEMPTABLE:
     buff->append(STRING_WITH_LEN("TEMPTABLE "));
     break;
   case VIEW_ALGORITHM_MERGE:
@@ -1988,7 +2008,8 @@ view_store_create_info(THD *thd, TABLE_LIST *table, String *buff)
          tbl;
          tbl= tbl->next_global)
     {
-      if (strcmp(table->view_db.str, tbl->view ? tbl->view_db.str :tbl->db)!= 0)
+      if (strcmp(table->view_db.str,
+                 tbl->is_view() ? tbl->view_db.str : tbl->db) != 0)
       {
         compact_view_format= FALSE;
         break;
@@ -2014,7 +2035,7 @@ view_store_create_info(THD *thd, TABLE_LIST *table, String *buff)
     We can't just use table->query, because our SQL_MODE may trigger
     a different syntax, like when ANSI_QUOTES is defined.
   */
-  table->view->unit->print(buff, 
+  table->view_query()->unit->print(buff, 
                            enum_query_type(QT_TO_ARGUMENT_CHARSET | 
                                            (compact_view_format ?
                                             QT_COMPACT_FORMAT : 0)));
@@ -3689,13 +3710,16 @@ fill_schema_table_by_open(THD *thd, bool is_show_fields_or_keys,
   result= open_temporary_tables(thd, table_list);
 
   if (!result)
+    result= open_tables_for_query(thd, table_list,
+                                  MYSQL_OPEN_IGNORE_FLUSH |
+                                  MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL |
+                                  (can_deadlock ?
+                                   MYSQL_OPEN_FAIL_ON_MDL_CONFLICT : 0));
+  if (!result && table_list->is_view_or_derived())
   {
-    result= open_normal_and_derived_tables(thd, table_list,
-                                           (MYSQL_OPEN_IGNORE_FLUSH |
-                                            MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL |
-                                            (can_deadlock ?
-                                             MYSQL_OPEN_FAIL_ON_MDL_CONFLICT : 0)));
-    lex->select_lex->handle_derived(lex, &mysql_derived_create);
+    result= table_list->resolve_derived(thd, false);
+    if (!result)
+      result= table_list->setup_materialized_derived(thd);
   }
   /*
     Restore old value of sql_command back as it is being looked at in
@@ -3707,7 +3731,7 @@ fill_schema_table_by_open(THD *thd, bool is_show_fields_or_keys,
 
   /*
     XXX:  show_table_list has a flag i_is_requested,
-    and when it's set, open_normal_and_derived_tables()
+    and when it's set, open_tables_for_query()
     can return an error without setting an error message
     in THD, which is a hack. This is why we have to
     check for res, then for thd->is_error() and only then
@@ -4084,8 +4108,7 @@ static int fill_schema_table_from_frm(THD *thd, TABLE_LIST *tables,
     else if (schema_table->i_s_requested_object & OPEN_VIEW_FULL)
     {
       /*
-        tell get_all_tables() to fall back to
-        open_normal_and_derived_tables()
+        tell get_all_tables() to fall back to open_tables_for_query()
       */
       res= 1;
       goto end_share;
@@ -4096,7 +4119,8 @@ static int fill_schema_table_from_frm(THD *thd, TABLE_LIST *tables,
   {
     if (mysql_make_view(thd, share, &table_list, true))
       goto end_share;
-    table_list.view= (LEX*) share->is_view;
+    // Actual view query is not needed, just indicate that this is a view:
+    table_list.set_view_query((LEX *) 1);
     res= schema_table->process_table(thd, &table_list, table,
                                      res, db_name, table_name);
     goto end_share;
@@ -4114,7 +4138,7 @@ static int fill_schema_table_from_frm(THD *thd, TABLE_LIST *tables,
     {
       tbl.s= share;
       table_list.table= &tbl;
-      table_list.view= (LEX*) share->is_view;
+      table_list.set_view_query((LEX*) share->is_view);
       res= schema_table->process_table(thd, &table_list, table,
                                        res, db_name, table_name);
       free_root(&tbl.mem_root, MYF(0));
@@ -4543,7 +4567,7 @@ static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
   if (res)
   {
     /* There was a table open error, so set the table type and return */
-    if (tables->view)
+    if (tables->is_view())
       table->field[3]->store(STRING_WITH_LEN("VIEW"), cs);
     else if (tables->schema_table)
       table->field[3]->store(STRING_WITH_LEN("SYSTEM VIEW"), cs);
@@ -4553,7 +4577,7 @@ static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
     goto err;
   }
 
-  if (tables->view)
+  if (tables->is_view())
   {
     table->field[3]->store(STRING_WITH_LEN("VIEW"), cs);
     table->field[20]->store(STRING_WITH_LEN("VIEW"), cs);
@@ -5657,7 +5681,7 @@ static int get_schema_stat_record(THD *thd, TABLE_LIST *tables,
     }
     DBUG_RETURN(res);
   }
-  else if (!tables->view)
+  else if (!tables->is_view())
   {
     TABLE *show_table= tables->table;
     KEY *key_info=show_table->s->key_info;
@@ -5745,7 +5769,7 @@ static int get_schema_views_record(THD *thd, TABLE_LIST *tables,
   bool updatable_view;
   DBUG_ENTER("get_schema_views_record");
 
-  if (tables->view)
+  if (tables->is_view())
   {
     Security_context *sctx= thd->security_context();
     if (!tables->allowed_show)
@@ -5806,24 +5830,24 @@ static int get_schema_views_record(THD *thd, TABLE_LIST *tables,
       security_type from i_s.views).  Do not try to access the
       underlying tables if there was an error when opening the
       view: all underlying tables are released back to the table
-      definition cache on error inside open_normal_and_derived_tables().
+      definition cache on error inside open_tables_for_query().
       If a field is not assigned explicitly, it defaults to NULL.
     */
     if (res == FALSE &&
         table->pos_in_table_list->table_open_method & OPEN_FULL_TABLE)
     {
       updatable_view= 0;
-      if (tables->algorithm != VIEW_ALGORITHM_TMPTABLE)
+      if (tables->algorithm != VIEW_ALGORITHM_TEMPTABLE)
       {
         /*
-          We should use tables->view->select_lex->item_list here
+          We should use tables->view_query()->select_lex->item_list here
           and can not use Field_iterator_view because the view
           always uses temporary algorithm during opening for I_S
           and TABLE_LIST fields 'field_translation'
           & 'field_translation_end' are uninitialized is this
           case.
         */
-        List<Item> *fields= &tables->view->select_lex->item_list;
+        List<Item> *fields= &tables->view_query()->select_lex->item_list;
         List_iterator<Item> it(*fields);
         Item *item;
         /*
@@ -5838,7 +5862,7 @@ static int get_schema_views_record(THD *thd, TABLE_LIST *tables,
             break;
           }
         }
-        if (updatable_view && !tables->view->can_be_merged())
+        if (updatable_view && !tables->view_query()->unit->is_mergeable())
           updatable_view= 0;
       }
       if (updatable_view)
@@ -5909,7 +5933,7 @@ static int get_schema_constraints_record(THD *thd, TABLE_LIST *tables,
     thd->clear_error();
     DBUG_RETURN(0);
   }
-  else if (!tables->view)
+  else if (!tables->is_view())
   {
     List<FOREIGN_KEY_INFO> f_key_list;
     TABLE *show_table= tables->table;
@@ -6039,7 +6063,7 @@ static int get_schema_triggers_record(THD *thd, TABLE_LIST *tables,
     DBUG_RETURN(0);
   }
 
-  if (tables->view || !tables->table->triggers)
+  if (tables->is_view() || !tables->table->triggers)
     DBUG_RETURN(0);
 
   if (check_table_access(thd, TRIGGER_ACL, tables, false, 1, true))
@@ -6107,7 +6131,7 @@ static int get_schema_key_column_usage_record(THD *thd,
     thd->clear_error();
     DBUG_RETURN(0);
   }
-  else if (!tables->view)
+  else if (!tables->is_view())
   {
     List<FOREIGN_KEY_INFO> f_key_list;
     TABLE *show_table= tables->table;
@@ -6936,7 +6960,7 @@ get_referential_constraints_record(THD *thd, TABLE_LIST *tables,
     thd->clear_error();
     DBUG_RETURN(0);
   }
-  if (!tables->view)
+  if (!tables->is_view())
   {
     List<FOREIGN_KEY_INFO> f_key_list;
     TABLE *show_table= tables->table;
@@ -7413,7 +7437,7 @@ int mysql_schema_table(THD *thd, LEX *lex, TABLE_LIST *table_list)
   if (!(table= table_list->schema_table->create_table(thd, table_list)))
     DBUG_RETURN(1);
   table->s->tmp_table= SYSTEM_TMP_TABLE;
-  table->grant.privilege= SELECT_ACL;
+  table->grant.privilege= table_list->grant.privilege= SELECT_ACL;
   /*
     This test is necessary to make
     case insensitive file systems +
@@ -7441,6 +7465,11 @@ int mysql_schema_table(THD *thd, LEX *lex, TABLE_LIST *table_list)
     Item *item;
     Field_translator *transl, *org_transl;
 
+    ulonglong want_privilege_saved= thd->want_privilege;
+    thd->want_privilege= SELECT_ACL;
+    enum enum_mark_columns save_mark_used_columns= thd->mark_used_columns;
+    thd->mark_used_columns= MARK_COLUMNS_READ;
+
     if (table_list->field_translation)
     {
       Field_translator *end= table_list->field_translation_end;
@@ -7450,6 +7479,10 @@ int mysql_schema_table(THD *thd, LEX *lex, TABLE_LIST *table_list)
             transl->item->fix_fields(thd, &transl->item))
           DBUG_RETURN(1);
       }
+
+      thd->want_privilege= want_privilege_saved;
+      thd->mark_used_columns= save_mark_used_columns;
+
       DBUG_RETURN(0);
     }
     List_iterator_fast<Item> it(sel->item_list);
@@ -7469,6 +7502,9 @@ int mysql_schema_table(THD *thd, LEX *lex, TABLE_LIST *table_list)
         DBUG_RETURN(1);
       }
     }
+
+    thd->want_privilege= want_privilege_saved;
+    thd->mark_used_columns= save_mark_used_columns;
     table_list->field_translation= org_transl;
     table_list->field_translation_end= transl;
   }

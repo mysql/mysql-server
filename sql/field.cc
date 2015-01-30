@@ -1727,7 +1727,7 @@ void Field::make_field(Send_field *field)
   field->charsetnr= charset()->number;
   field->length=field_length;
   field->type=type();
-  field->flags=table->maybe_null ? (flags & ~NOT_NULL_FLAG) : flags;
+  field->flags=table->is_nullable() ? (flags & ~NOT_NULL_FLAG) : flags;
   field->decimals= decimals();
 }
 
@@ -1978,7 +1978,7 @@ Field *Field::new_field(MEM_ROOT *root, TABLE *new_table,
   if (tmp == NULL)
     return 0;
 
-  if (tmp->table->maybe_null)
+  if (tmp->table->is_nullable())
     tmp->flags&= ~NOT_NULL_FLAG;
   tmp->table= new_table;
   tmp->key_start.init(0);

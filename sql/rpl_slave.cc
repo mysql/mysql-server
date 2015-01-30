@@ -45,6 +45,7 @@
 #include <signal.h>
 #include <mysql.h>
 #include <myisam.h>
+#include "rpl_constants.h"
 
 #include "sql_base.h"                           // close_thread_tables
 #include "tztime.h"                             // struct Time_zone
@@ -539,6 +540,21 @@ int start_slave(THD *thd)
   }
   else
   {
+    /*
+      Users cannot start more than one channel's applier thread
+      if sql_slave_skip_counter > 0. It throws an error to the session.
+    */
+    mysql_mutex_lock(&LOCK_sql_slave_skip_counter);
+    /* sql_slave_skip_counter > 0 && !(START SLAVE IO_THREAD) */
+    if (sql_slave_skip_counter > 0 && !(thd->lex->slave_thd_opt & SLAVE_IO))
+    {
+      error= ER_SLAVE_CHANNEL_SQL_SKIP_COUNTER;
+      my_error(error, MYF(0));
+      mysql_mutex_unlock(&LOCK_sql_slave_skip_counter);
+      goto err;
+    }
+    mysql_mutex_unlock(&LOCK_sql_slave_skip_counter);
+
     for (mi_map::iterator it= msr_map.begin(); it!= msr_map.end(); it++)
     {
       mi= it->second;
@@ -553,7 +569,7 @@ int start_slave(THD *thd)
         if (error)
         {
           sql_print_error("Slave: Could not start slave for channel '%s'."
-                            " operation discontinued", mi->get_channel());
+                          " operation discontinued", mi->get_channel());
           goto err;
         }
       }
@@ -4322,7 +4338,7 @@ apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli)
 #endif
   if (reason == Log_event::EVENT_SKIP_COUNT)
   {
-    sql_slave_skip_counter= --rli->slave_skip_counter;
+    --rli->slave_skip_counter;
     skip_event= TRUE;
   }
   set_timespec_nsec(&rli->ts_exec[0], 0);
@@ -9254,28 +9270,21 @@ int start_slave(THD* thd,
       }
 
       /*
-        Evaluate the sql_slave_skip_counter.
-        We cannot start any slave thread when sql_slave_skip_counter > 0 if:
-        - We are about to start more than one SQL thread;
-        or
-        - We are about to start a single SQL thread, but there is already
-          an SQL thread started.
-      */
-      if (sql_slave_skip_counter > 0 && !(thd->lex->slave_thd_opt & SLAVE_IO) &&
-          ((!thd->lex->mi.for_channel && msr_map.get_num_instances() > 1) ||
-           (thd->lex->mi.for_channel &&
-            is_any_slave_channel_running(SLAVE_SQL, mi))))
-      {
-        slave_errno= ER_SLAVE_CHANNEL_SQL_SKIP_COUNTER;
-      }
-
-      /*
         If we will start SQL thread we will care about UNTIL options If
         not and they are specified we will ignore them and warn user
         about this fact.
       */
       if (thread_mask & SLAVE_SQL)
       {
+        /*
+          sql_slave_skip_counter only effects the applier thread which is
+          first started. So after sql_slave_skip_counter is copied to
+          rli->slave_skip_counter, it is reset to 0.
+        */
+        mysql_mutex_lock(&LOCK_sql_slave_skip_counter);
+        mi->rli->slave_skip_counter= sql_slave_skip_counter;
+        sql_slave_skip_counter= 0;
+        mysql_mutex_unlock(&LOCK_sql_slave_skip_counter);
         /*
           To cache the MTS system var values and used them in the following
           runtime. The system vars can change meanwhile but having no other
