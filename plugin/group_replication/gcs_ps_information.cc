@@ -76,18 +76,27 @@ char* get_last_certified_transaction(char* buf, rpl_gno last_seq_num,
 }
 
 bool get_gcs_group_members_info(uint index,
-                        GROUP_REPLICATION_GROUP_MEMBERS_INFO *info,
-                        Cluster_member_info_manager_interface
+                                GROUP_REPLICATION_GROUP_MEMBERS_INFO *info,
+                                Cluster_member_info_manager_interface
                                                         *cluster_member_manager,
-                        Gcs_interface *gcs_module,
-                        char* gcs_group_pointer,
-                        char *channel_name)
+                                Gcs_interface *gcs_module,
+                                char* gcs_group_pointer,
+                                char *channel_name)
 {
-  // Default values.
-  info->channel_name= channel_name;
+  //Initialize all values
+  memset(info, 0, sizeof(GROUP_REPLICATION_GROUP_MEMBERS_INFO));
+  info->channel_name= NULL;
   info->member_id= NULL;
   info->member_address= NULL;
   info->member_state= MEMBER_STATE_OFFLINE;
+
+  info->channel_name= my_strndup(
+#ifdef HAVE_PSI_MEMORY_INTERFACE
+                                 PSI_NOT_INSTRUMENTED,
+#endif
+                                 channel_name,
+                                 strlen(channel_name),
+                                 MYF(0));
 
   /*
    This case means that the plugin has never been initialized...
@@ -95,22 +104,20 @@ bool get_gcs_group_members_info(uint index,
    */
   if(cluster_member_manager == NULL)
   {
-    string empty_string("");
-
     info->member_id= my_strndup(
 #ifdef HAVE_PSI_MEMORY_INTERFACE
                              PSI_NOT_INSTRUMENTED,
 #endif
-                             empty_string.c_str(),
-                             empty_string.length(),
+                             "",
+                             0,
                              MYF(0));
 
     info->member_address= my_strndup(
 #ifdef HAVE_PSI_MEMORY_INTERFACE
                              PSI_NOT_INSTRUMENTED,
 #endif
-                             empty_string.c_str(),
-                             empty_string.length(),
+                             "",
+                             0,
                              MYF(0));
 
     info->member_state= MEMBER_STATE_OFFLINE;
@@ -183,17 +190,35 @@ bool get_gcs_group_members_info(uint index,
 }
 
 bool get_gcs_group_member_stats(GROUP_REPLICATION_GROUP_MEMBER_STATS_INFO *info,
-                            Cluster_member_info_manager_interface
-                                                       *cluster_member_manager,
-                            Applier_module *applier_module,
-                            Gcs_interface *gcs_module,
-                            char* gcs_group_pointer,
-                            char *channel_name)
+                                Cluster_member_info_manager_interface
+                                                        *cluster_member_manager,
+                                Applier_module *applier_module,
+                                Gcs_interface *gcs_module,
+                                char* gcs_group_pointer,
+                                char *channel_name)
 {
+  //Initialize all fields
+  memset(info, 0, sizeof(GROUP_REPLICATION_GROUP_MEMBER_STATS_INFO));
+  info->channel_name= NULL;
+  info->committed_transactions= NULL;
+  info->last_conflict_free_transaction= NULL;
+  info->member_id= NULL;
+  info->view_id= NULL;
+  info->transaction_conflicts_detected= 0;
+  info->transaction_certified= 0;
+  info->transactions_in_validation= 0;
+  info->transaction_in_queue= 0;
+
   //This means that the plugin never started
   if(cluster_member_manager == NULL)
   {
-    info->member_id= const_cast<char*>("");
+    info->member_id= my_strndup(
+#ifdef HAVE_PSI_MEMORY_INTERFACE
+                                PSI_NOT_INSTRUMENTED,
+#endif
+                                "",
+                                0,
+                                MYF(0));
   }
   else
   {
@@ -201,10 +226,25 @@ bool get_gcs_group_member_stats(GROUP_REPLICATION_GROUP_MEMBER_STATS_INFO *info,
     uint port;
     get_server_host_port_uuid(&hostname, &port, &uuid);
 
-    info->member_id= uuid;
+    info->member_id= my_strndup(
+#ifdef HAVE_PSI_MEMORY_INTERFACE
+                                PSI_NOT_INSTRUMENTED,
+#endif
+                                uuid,
+                                strlen(uuid),
+                                MYF(0));
   }
 
-  info->channel_name= channel_name;
+  if(channel_name != NULL)
+  {
+    info->channel_name= my_strndup(
+#ifdef HAVE_PSI_MEMORY_INTERFACE
+                                PSI_NOT_INSTRUMENTED,
+#endif
+                                channel_name,
+                                strlen(channel_name),
+                                MYF(0));
+  }
 
   //Retrieve view information
   Gcs_view* view= NULL;
@@ -225,11 +265,14 @@ bool get_gcs_group_member_stats(GROUP_REPLICATION_GROUP_MEMBER_STATS_INFO *info,
 
   if(view != NULL)
   {
-    info->view_id= view->get_view_id()->get_representation();
-  }
-  else
-  {
-    info->view_id= NULL;
+    char* view_id_representation= view->get_view_id()->get_representation();
+    info->view_id= my_strndup(
+#ifdef HAVE_PSI_MEMORY_INTERFACE
+                              PSI_NOT_INSTRUMENTED,
+#endif
+                              view_id_representation,
+                              strlen(view_id_representation),
+                              MYF(0));
   }
 
   Certification_handler *cert= NULL;
@@ -250,36 +293,49 @@ bool get_gcs_group_member_stats(GROUP_REPLICATION_GROUP_MEMBER_STATS_INFO *info,
 
     if(stable_gtid_set)
       info->committed_transactions= stable_gtid_set->to_string();
-    else
-      info->committed_transactions= NULL;
 
     rpl_gno temp_seq_num= cert_module->get_last_sequence_number();
     char* buf= NULL;
     info->last_conflict_free_transaction=
         get_last_certified_transaction(buf, temp_seq_num, gcs_group_pointer);
   }
-  else // gcs replication not running.
-  {
-    info->view_id= NULL;
-    info->transaction_conflicts_detected= 0;
-    info->transaction_certified= 0;
-    info->transactions_in_validation= 0;
-    info->committed_transactions= NULL;
-    info->transaction_in_queue= 0;
-    info->last_conflict_free_transaction= NULL;
-  }
 
   return false;
 }
 
 bool get_gcs_connection_status(GROUP_REPLICATION_CONNECTION_STATUS_INFO *info,
-                                    Gcs_interface *gcs_module,
-                                    char* gcs_group_pointer,
-                                    char *channel_name,
-                                    bool is_gcs_running)
+                               Gcs_interface *gcs_module,
+                               char* gcs_group_pointer,
+                               char *channel_name,
+                               bool is_gcs_running)
 {
-  info->channel_name= channel_name;
-  info->group_name= gcs_group_pointer;
+  //Initialize all fields
+  memset(info, 0, sizeof(GROUP_REPLICATION_CONNECTION_STATUS_INFO));
+  info->channel_name= NULL;
+  info->group_name= NULL;
+
+  if(channel_name != NULL)
+  {
+    info->channel_name= my_strndup(
+#ifdef HAVE_PSI_MEMORY_INTERFACE
+                                   PSI_NOT_INSTRUMENTED,
+#endif
+                                   channel_name,
+                                   strlen(channel_name),
+                                   MYF(0));
+  }
+
+  if(gcs_group_pointer != NULL)
+  {
+    info->group_name= my_strndup(
+#ifdef HAVE_PSI_MEMORY_INTERFACE
+                                PSI_NOT_INSTRUMENTED,
+#endif
+                                gcs_group_pointer,
+                                strlen(gcs_group_pointer),
+                                MYF(0));
+  }
+
   info->service_state= is_gcs_running;
 
   return false;
