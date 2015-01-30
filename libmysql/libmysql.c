@@ -1150,13 +1150,84 @@ mysql_escape_string(char *to,const char *from,ulong length)
   return (uint) escape_string_for_mysql(default_charset_info, to, 0, from, length);
 }
 
+/**
+  Escapes special characters in a string for use in an SQL statement.
+
+  Escapes special characters in the unescaped string, taking into account
+  the current character set and sql mode of the connection so that is safe
+  to place the string in a mysql_query(). This function must be used for
+  binary data.
+
+  This function does not work correctly when NO_BACKSLASH_ESCAPES sql mode
+  is used and string quote in the SQL statement is different than '\''.
+
+  @deprecated This function should not be used.
+              Use mysql_real_escape_string_quote instead.
+
+  @see mysql_real_escape_string_quote
+
+  @param mysql  [in]  MySQL connection structure.
+  @param to     [out] Escaped string output buffer.
+  @param from   [in]  String to escape.
+  @param length [in]  String to escape length.
+
+  @return Result value.
+    @retval != (ulong)-1 Succeeded. Number of bytes written to the output
+                         buffer without the '\0' character.
+    @retval (ulong)-1    Failed. Use mysql_error() to get error message.
+*/
+
 ulong STDCALL
 mysql_real_escape_string(MYSQL *mysql, char *to,const char *from,
-			 ulong length)
+                         ulong length)
 {
   if (mysql->server_status & SERVER_STATUS_NO_BACKSLASH_ESCAPES)
-    return (uint) escape_quotes_for_mysql(mysql->charset, to, 0, from, length);
-  return (uint) escape_string_for_mysql(mysql->charset, to, 0, from, length);
+  {
+    DBUG_PRINT("error",
+               ("NO_BACKSLASH_ESCAPES sql mode requires usage of the "
+                "mysql_real_escape_string_quote function"));
+    set_mysql_extended_error(mysql, CR_INSECURE_API_ERR, unknown_sqlstate,
+                             ER(CR_INSECURE_API_ERR),
+                             "mysql_real_escape_string",
+                             "mysql_real_escape_string_quote");
+    return (ulong)-1;
+  }
+
+  return (uint)mysql_real_escape_string_quote(mysql, to, from, length, '\'');
+}
+
+/**
+  Escapes special characters in a string for use in an SQL statement.
+
+  Escapes special characters in the unescaped string, taking into account
+  the current character set and sql mode of the connection so that is safe
+  to place the string in a mysql_query(). This function must be used for
+  binary data.
+
+  This function should be used for escaping identifiers and string parameters.
+
+  @param mysql  [in]  MySQL connection structure.
+  @param to     [out] Escaped string output buffer.
+  @param from   [in]  String to escape.
+  @param length [in]  String to escape length.
+  @param quote  [in]  String quoting character used in an SQL statement. This
+                      should be one of '\'', '"' or '`' depending on the
+                      parameter quoting applied in the SQL statement.
+
+  @return Result value.
+    @retval != (ulong)-1 Succeeded. Number of bytes written to the output
+                         buffer without the '\0' character.
+    @retval (ulong)-1    Failed.
+*/
+
+ulong STDCALL
+mysql_real_escape_string_quote(MYSQL *mysql, char *to, const char *from,
+                               ulong length, char quote)
+{
+  if (mysql->server_status & SERVER_STATUS_NO_BACKSLASH_ESCAPES)
+    return (uint)escape_quotes_for_mysql(mysql->charset, to, 0,
+                                         from, length, quote);
+  return (uint)escape_string_for_mysql(mysql->charset, to, 0, from, length);
 }
 
 void STDCALL

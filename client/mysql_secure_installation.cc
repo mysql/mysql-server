@@ -373,7 +373,7 @@ int install_password_validation_plugin()
 	                       MYF(MY_WME));
       end= my_stpcpy(query, "SET GLOBAL validate_password_policy = ");
       *end++ = '\'';
-      end+= mysql_real_escape_string(&mysql, end, strength, strength_length);
+      end+= mysql_real_escape_string_quote(&mysql, end, strength, strength_length, '\'');
       *end++ = '\'';
       if (!execute_query((const char **) &query,(unsigned int) (end-query)))
 	DBUG_PRINT("info", ("query success!"));
@@ -406,7 +406,7 @@ void estimate_password_strength(char *password_string)
                            MYF(MY_WME));
   end= my_stpcpy(query, "SELECT validate_password_strength(");
   *end++ = '\'';
-  end+= mysql_real_escape_string(&mysql, end, password_string, password_length);
+  end+= mysql_real_escape_string_quote(&mysql, end, password_string, password_length, '\'');
   *end++ = '\'';
   *end++ = ')';
   if (!execute_query((const char **) &query,(unsigned int) (end-query)))
@@ -442,7 +442,7 @@ my_bool mysql_set_password(MYSQL *mysql, char *password)
   char *query, *end;
   query= (char *)my_malloc(PSI_NOT_INSTRUMENTED, password_len+50, MYF(MY_WME));
   end= my_stpmov(query, "SET PASSWORD= PASSWORD('");
-  end += mysql_real_escape_string(mysql, end, password, password_len);
+  end+= mysql_real_escape_string_quote(mysql, end, password, password_len, '\'');
   *end++ = '\'';
   *end++ = ')';
   if (mysql_real_query(mysql, query, (unsigned int) (end - query)))
@@ -551,7 +551,7 @@ static void set_root_password(int plugin_set)
 	                       (pass_length*2 + tmp)*sizeof(char), MYF(MY_WME));
       end= my_stpcpy(query, "SET PASSWORD=PASSWORD(");
       *end++ = '\'';
-      end+= mysql_real_escape_string(&mysql, end, password1, pass_length);
+      end+= mysql_real_escape_string_quote(&mysql, end, password1, pass_length, '\'');
       *end++ = '\'';
       *end++ = ')';
       my_free(password1);
@@ -705,11 +705,11 @@ void drop_users(MYSQL_RES *result)
 	                     sizeof(char), MYF(MY_WME));
     end= my_stpcpy(query, "DROP USER ");
     *end++ = '\'';
-    end+= mysql_real_escape_string(&mysql, end, user_tmp, user_length);
+    end+= mysql_real_escape_string_quote(&mysql, end, user_tmp, user_length, '\'');
     *end++ = '\'';
     *end++ = '@';
     *end++ = '\'';
-    end+= mysql_real_escape_string(&mysql, end, host_tmp, host_length);
+    end+= mysql_real_escape_string_quote(&mysql, end, host_tmp, host_length, '\'');
     *end++ = '\'';
     if (!execute_query((const char **) &query, (unsigned int) (end-query)))
       DBUG_PRINT("info", ("query success!"));
