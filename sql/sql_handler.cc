@@ -59,6 +59,7 @@
 #include "key.h"                                // key_copy
 #include "sql_base.h"                           // insert_fields
 #include "sql_select.h"
+#include "sql_resolver.h"                       // Column_privilege_tracker
 #include "transaction.h"
 #include "log.h"
 
@@ -628,6 +629,8 @@ retry:
 
   if (cond)
   {
+    Column_privilege_tracker column_privilege(thd, SELECT_ACL);
+
     if (table->query_id != thd->query_id)
       cond->cleanup();                          // File was reopened
     if ((!cond->fixed &&
@@ -741,6 +744,9 @@ retry:
 	my_error(ER_TOO_MANY_KEY_PARTS, MYF(0), keyinfo->user_defined_key_parts);
 	goto err;
       }
+
+      Column_privilege_tracker column_privilege(thd, SELECT_ACL);
+
       List_iterator<Item> it_ke(*m_key_expr);
       Item *item;
       key_part_map keypart_map;
@@ -855,7 +861,7 @@ static TABLE_LIST *mysql_ha_find(THD *thd, TABLE_LIST *tables)
     hash_tables= (TABLE_LIST*) my_hash_element(&thd->handler_tables_hash, i);
     for (tables= first; tables; tables= tables->next_local)
     {
-      if (tables->is_anonymous_derived_table())
+      if (tables->is_derived())
         continue;
       if ((! *tables->get_db_name() ||
           ! my_strcasecmp(&my_charset_latin1,

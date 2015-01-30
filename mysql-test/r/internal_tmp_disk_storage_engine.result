@@ -20,6 +20,8 @@ set @old_internal_tmp_disk_storage_engine= @@internal_tmp_disk_storage_engine;
 set global internal_tmp_disk_storage_engine='innodb';
 set @old_big_tables= @@big_tables;
 set big_tables= on;
+set @old_optimizer_switch= @@optimizer_switch;
+set optimizer_switch='derived_merge=off';
 explain format=json select SQL_BUFFER_RESULT * from t1;
 EXPLAIN
 {
@@ -1314,6 +1316,7 @@ a	b
 3	c
 3	c
 4	c
+set @tmp_optimizer_switch= @@optimizer_switch;
 set optimizer_switch='materialization=off';
 set optimizer_switch='firstmatch=off';
 set optimizer_switch='loosescan=off';
@@ -1379,7 +1382,7 @@ a	b
 3	c
 3	c
 4	c
-set optimizer_switch=default;
+set optimizer_switch= @tmp_optimizer_switch;
 explain format=json select * from information_schema.character_sets order by 1 limit 3;
 EXPLAIN
 {
@@ -3054,4 +3057,5 @@ sum(b)
 DROP TABLE t1;
 set @@global.internal_tmp_disk_storage_engine= @old_internal_tmp_disk_storage_engine;
 set big_tables= @old_big_tables;
+set optimizer_switch= @old_optimizer_switch;
 #

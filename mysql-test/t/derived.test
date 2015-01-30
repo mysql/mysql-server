@@ -2,7 +2,7 @@
 # BUG#11783262,Bug#11808582,Bug#12726927
 # All tests are required to run with Myisam.
 # Hence MTR starts mysqld with MyISAM as default
-
+ 
 --source include/force_myisam_default.inc
 --source include/have_myisam.inc
 
@@ -433,6 +433,9 @@ FROM C table1
   ) ON table3 .`i2`  = table2 .o1   
 ;
 
+SET @optimizer_switch_saved= @@optimizer_switch;
+SET @@optimizer_switch="derived_merge=off";
+
 --echo # Ref access to the derived table should be used.
 EXPLAIN SELECT table1 . o1 
 FROM C table1  
@@ -441,6 +444,8 @@ FROM C table1
     ON table3 .`i1`  = table2 .o1  
   ) ON table3 .`i2`  = table2 .o1   
 ;
+
+SET @@optimizer_switch=@optimizer_switch_saved;
 
 DROP TABLE cc;
 DROP TABLE C;
@@ -500,7 +505,7 @@ DROP VIEW v1, v2;
 --echo # WL#5274: Postpone materialization of views/subqueries in FROM clause.
 --echo #          Additional tests.
 --echo #
-# TODO: update test result after WL#5275 is pushed
+
 CREATE TABLE t1(f1 int, f11 int);
 CREATE TABLE t2(f2 int, f22 int);
 INSERT INTO t1 VALUES(1,1),(2,2),(3,3),(5,5),(9,9),(7,7);
@@ -911,11 +916,17 @@ create table t1(f1 char(255) charset utf8);
 insert into t1 values('1'),('2'),('3'),('4'),('5'),('6'),('7'),('8'),('9'),('0');
 set @save_heap_size= @@max_heap_table_size;
 set @@max_heap_table_size= 1;
+SET @optimizer_switch_saved= @@optimizer_switch;
+SET @@optimizer_switch="derived_merge=off";
+
 flush status;
+
 select count(*) from t1 join (
   select t1.f1 from t1 join t1 as t2 join t1 as t3) tt on t1.f1 = tt.f1;
 show status like 'Handler_write';
 set @@max_heap_table_size= @save_heap_size;
+SET @@optimizer_switch= @optimizer_switch_saved;
+
 drop table t1;
 
 --echo #
@@ -929,10 +940,13 @@ CREATE FUNCTION func1 (param1 INTEGER) RETURNS INT NOT DETERMINISTIC
 return param1;
 CREATE FUNCTION func2 (param1 INTEGER) RETURNS INT 
 return param1;
+SET @optimizer_switch_saved= @@optimizer_switch;
+SET @@optimizer_switch="derived_merge=off";
 SELECT * FROM (SELECT * FROM t1) tt WHERE f1 = func1(f1);
 EXPLAIN SELECT * FROM (SELECT * FROM t1) tt WHERE f1 = func1(f1);
 SELECT * FROM (SELECT * FROM t1) tt WHERE f1 = func2(f1);
 EXPLAIN SELECT * FROM (SELECT * FROM t1) tt WHERE f1 = func2(f1);
+SET @@optimizer_switch= @optimizer_switch_saved;
 DROP FUNCTION func1;
 DROP FUNCTION func2;
 DROP TABLE t1;
@@ -949,11 +963,14 @@ f13 INT, f14 INT, f15 INT, f16 INT, f17 INT, f18 INT,
 f19 INT, f20 INT, f21 INT, f22 INT, f23 INT, f24 INT,
 f25 INT, f26 INT, f27 INT, f28 INT, f29 INT, f30 INT,
 f31 INT, f32 TEXT, fk INT) ENGINE=INNODB;
+SET @optimizer_switch_saved= @@optimizer_switch;
+SET @@optimizer_switch="derived_merge=off";
 SELECT alias2.fk AS field1 FROM t1 AS alias1 JOIN
   (SELECT * FROM t2 ) AS alias2 ON alias1.fk = alias2.fk;
 EXPLAIN 
 SELECT alias2.fk AS field1 FROM t1 AS alias1 JOIN
   (SELECT * FROM t2 ) AS alias2 ON alias1.fk = alias2.fk;
+SET @@optimizer_switch= @optimizer_switch_saved;
 DROP TABLE t1, t2;
 --echo #
 
@@ -972,7 +989,7 @@ DROP TABLE t1,t2;
 --echo # Bug#12910006: MRR initialization on a derived table caused crash.
 --echo #
 SET @save_switch= @@SESSION.optimizer_switch;
-SET @@SESSION.optimizer_switch="batched_key_access=on";
+SET @@SESSION.optimizer_switch="batched_key_access=on,derived_merge=off";
 
 CREATE TABLE t1 ( pk integer auto_increment,
 col_blob_key blob, primary key (pk)) ENGINE=innodb;
@@ -996,7 +1013,7 @@ DROP TABLE t1, t2;
 --echo #
 
 SET @save_switch= @@optimizer_switch;
-SET @@optimizer_switch="materialization=off";
+SET @@optimizer_switch="materialization=off,derived_merge=off";
 
 CREATE TABLE t1 (pk INTEGER PRIMARY KEY, vc VARCHAR(20));
 
@@ -1028,6 +1045,10 @@ DROP TABLE t1, t2, t3;
 --echo #
 --echo # Bug#13107577: Derived table in a semi-join caused failed assertion. 
 --echo #
+
+SET @save_switch= @@optimizer_switch;
+SET @@optimizer_switch="derived_merge=off";
+
 CREATE TABLE t1 (
   `col_int_key` int(11) NOT NULL,
   `col_varchar_nokey` varchar(1) NOT NULL
@@ -1052,7 +1073,8 @@ WHERE ( NOT EXISTS (
 
 DROP VIEW v1;
 DROP TABLE t1;
---echo #
+
+SET @@optimizer_switch= @save_switch;
 
 --echo #
 --echo # Bug#13105833: Crash when using LooseScan sj-strategy for a view.
@@ -1106,6 +1128,8 @@ INSERT INTO t2 VALUES ('d',9);
 
 SET @save_heap_size= @@max_heap_table_size;
 SET @@max_heap_table_size= 16384;
+SET @optimizer_switch_saved= @@optimizer_switch;
+SET @@optimizer_switch="derived_merge=off";
 
 SELECT t2.col_int
 FROM t2
@@ -1122,6 +1146,7 @@ FROM t2
 WHERE t2.col_int IS NOT NULL ;
 
 SET @@max_heap_table_size= @save_heap_size;
+SET @@optimizer_switch= @optimizer_switch_saved;
 DROP TABLE t1,t2;
 --echo #
 
@@ -1203,6 +1228,9 @@ CREATE TABLE t3 (
 
 INSERT INTO t3 VALUES (8,'04:07:22','g','g');
 
+SET @optimizer_switch_saved= @@optimizer_switch;
+SET @@optimizer_switch="derived_merge=off";
+
 let $query=
 SELECT col_time_nokey AS x
 FROM (SELECT * FROM t2) AS outr
@@ -1217,6 +1245,8 @@ WHERE col_varchar_nokey IN (
 ;
 eval explain $query;
 eval $query;
+
+SET @@optimizer_switch= @optimizer_switch_saved;
 
 DROP TABLE t1, t2, t3;
 
@@ -1248,12 +1278,16 @@ insert into t1 select * from t1;
 insert into t1 select * from t1;
 insert into t1 select * from t1;
 
+SET @optimizer_switch_saved= @@optimizer_switch;
+SET @@optimizer_switch="derived_merge=off";
+
 select tt.field100 from t1 join (select * from t1) tt where t1.field100=tt.field100
 limit 1;
 --echo Should use auto_key0 and ref access.
 explain 
 select tt.field100 from t1 join (select * from t1) tt where t1.field100=tt.field100
 limit 1;
+SET @@optimizer_switch= @optimizer_switch_saved;
 
 drop table t1;
 --echo #
@@ -1300,6 +1334,9 @@ INSERT INTO t3 VALUES
  (7,'q','q'),
  (6,'c','c');
 
+SET @optimizer_switch_saved= @@optimizer_switch;
+SET @@optimizer_switch="derived_merge=off";
+
 let $query=
 SELECT grandparent.col_varchar_nokey AS g1
 FROM (SELECT * FROM t3) AS grandparent
@@ -1319,6 +1356,8 @@ ORDER BY grandparent.col_varchar_nokey;
 eval explain $query;
 eval $query;
 
+SET @@optimizer_switch= @optimizer_switch_saved;
+
 DROP TABLE t1, t2, t3;
 
 --echo #
@@ -1327,8 +1366,11 @@ DROP TABLE t1, t2, t3;
 --echo #
 CREATE TABLE t1 ( pk INT, col_blob BLOB ) ENGINE = MyISAM;
 CREATE TABLE t2 ( pk INT, col_blob BLOB ) ENGINE = InnoDB;
+SET @optimizer_switch_saved= @@optimizer_switch;
+SET @@optimizer_switch="derived_merge=off";
 SELECT pk FROM ( SELECT col_blob, pk FROM t2 ) AS A NATURAL JOIN t1;
 EXPLAIN SELECT pk FROM ( SELECT col_blob, pk FROM t2 ) AS a NATURAL JOIN t1;
+SET @@optimizer_switch= @optimizer_switch_saved;
 DROP TABLE t1,t2;
 
 --echo #
@@ -1340,7 +1382,12 @@ CREATE TABLE t2 (c INT);
 CREATE TABLE t3 (d INT);
 INSERT INTO t3 VALUES (0);
 
+SET @optimizer_switch_saved= @@optimizer_switch;
+SET @@optimizer_switch="derived_merge=off";
+
 SELECT * FROM (SELECT * FROM t1) AS a1 RIGHT JOIN t3 LEFT JOIN t2 ON d=c ON a=c;
+
+SET @@optimizer_switch= @optimizer_switch_saved;
 
 DROP TABLE t1, t2, t3;
 
@@ -1384,9 +1431,546 @@ DROP TABLE t2, t1;
 --echo # End of test for Bug #17814492
 
 --echo #
+--echo # WL#5275 Process subqueries in FROM clause in the same way as view
+--echo #
+
+CREATE TABLE t1(a INTEGER, b INTEGER);
+CREATE TABLE t2(a INTEGER, b INTEGER);
+
+INSERT INTO t1 VALUES(1, 10), (2, 20);
+INSERT INTO t2 VALUES(1, 100), (2, 200);
+
+# Check allowed merge scenarios
+
+# Allowed: Simple selection, joins, WHERE clause
+
+let $query=
+SELECT *
+FROM t1 JOIN (SELECT * FROM t2) AS dt ON t1.a=dt.a;
+eval $query;
+eval explain $query;
+
+let $query=
+SELECT *
+FROM t1, (SELECT * FROM t2) AS dt WHERE t1.a=dt.a;
+eval $query;
+eval explain $query;
+
+let $query=
+SELECT *
+FROM (t1 JOIN t2 ON t1.a=t2.a) JOIN (SELECT * FROM t2) AS dt ON t1.a=dt.a;
+eval $query;
+eval explain $query;
+
+let $query=
+SELECT *
+FROM t1 JOIN (SELECT t2.a, t2.b FROM t1 JOIN t2 USING (a)) AS dt ON t1.a=dt.a;
+eval $query;
+eval explain $query;
+
+let $query=
+SELECT *
+FROM (t1 JOIN t2 USING (a))
+     JOIN
+     (SELECT t2.a, t2.b FROM t1 JOIN t2 USING (a)) AS dt
+     ON t1.a=dt.a;
+eval $query;
+eval explain $query;
+
+let $query=
+SELECT *
+FROM (t1 JOIN t2 USING (a))
+     JOIN
+     (SELECT t1.a, t2.b FROM t1 JOIN t2 USING (a)) AS dt1
+     ON t1.a=dt1.a AND t2.b=dt1.b
+     JOIN
+     (SELECT t2.a, t2.b FROM t1 JOIN t2 USING (a)) AS dt2
+     ON dt1.a=dt2.a;
+eval $query;
+eval explain $query;
+
+let $query=
+SELECT *
+FROM t1 JOIN (SELECT t2.a, t2.b FROM t1 JOIN t2 USING (a)
+              WHERE t1.b > 15) AS dt ON t1.a=dt.a;
+eval $query;
+eval explain $query;
+
+# Allowed: Subqueries in WHERE clause
+
+let $query=
+SELECT *
+FROM t1 JOIN (SELECT * FROM t2
+              WHERE a IN (SELECT a FROM t1)) AS dt ON t1.a=dt.a;
+eval $query;
+eval explain $query;
+
+# Disallowed: UNION, aggregated queries, LIMIT, OFFSET, table-less, variables:
+
+let $query=
+SELECT *
+FROM t1 JOIN (SELECT * FROM t2 UNION SELECT * FROM t2) AS dt ON t1.a=dt.a;
+eval $query;
+eval explain $query;
+
+let $query=
+SELECT *
+FROM t1 JOIN (SELECT * FROM t2 UNION ALL SELECT * FROM t2) AS dt ON t1.a=dt.a;
+eval $query;
+eval explain $query;
+
+let $query=
+SELECT *
+FROM t1 JOIN (SELECT DISTINCT a, b FROM t2) AS dt ON t1.a=dt.a;
+eval $query;
+eval explain $query;
+
+let $query=
+SELECT *
+FROM t1 JOIN (SELECT SUM(a) AS a, SUM(b) AS b FROM t2) AS dt ON t1.a=dt.a;
+eval $query;
+eval explain $query;
+
+let $query=
+SELECT *
+FROM t1 JOIN (SELECT a, SUM(b) AS b FROM t2 GROUP BY a) AS dt ON t1.a=dt.a;
+eval $query;
+eval explain $query;
+
+let $query=
+SELECT *
+FROM t1 JOIN (SELECT 1 AS a FROM t2 HAVING COUNT(*) > 1) AS dt ON t1.a=dt.a;
+eval $query;
+eval explain $query;
+
+let $query=
+SELECT *
+FROM t1 JOIN (SELECT * FROM t2 LIMIT 1) AS dt ON t1.a=dt.a;
+eval $query;
+eval explain $query;
+
+let $query=
+SELECT *
+FROM t1 JOIN (SELECT * FROM t2 LIMIT 2 OFFSET 1) AS dt ON t1.a=dt.a;
+eval $query;
+eval explain $query;
+
+let $query=
+SELECT *
+FROM t1 JOIN (SELECT 1 AS a) AS dt ON t1.a=dt.a;
+eval $query;
+eval explain $query;
+
+let $query=
+SELECT *
+FROM t1 JOIN (SELECT a, b, @c:= a+b FROM t2) AS dt ON t1.a=dt.a;
+eval $query;
+eval explain $query;
+
+# Allowed: ORDER BY list
+
+# Simple outer query: ORDER BY is propagated to outer level
+
+let $query=
+SELECT *
+FROM (SELECT * FROM t2 ORDER BY t2.a) AS dt;
+eval $query;
+eval explain $query;
+
+let $query=
+SELECT *
+FROM (SELECT * FROM t2 ORDER BY t2.a DESC) AS dt;
+eval $query;
+eval explain $query;
+
+let $query=
+SELECT *
+FROM (SELECT * FROM t2 ORDER BY t2.a) AS dt
+WHERE dt.a > 0;
+eval $query;
+eval explain $query;
+
+let $query=
+SELECT *
+FROM (SELECT * FROM t2 ORDER BY t2.a DESC) AS dt
+WHERE dt.a > 0;
+eval $query;
+eval explain $query;
+
+# Joined outer query: Inner ORDER BY is discarded
+
+let $query=
+SELECT *
+FROM t1 JOIN (SELECT * FROM t2 ORDER BY t2.a) AS dt ON t1.a=dt.a;
+eval $query;
+eval explain $query;
+
+let $query=
+SELECT *
+FROM t1 JOIN (SELECT * FROM t2 ORDER BY t2.a DESC) AS dt ON t1.a=dt.a;
+eval $query;
+eval explain $query;
+
+# Grouped outer query: Inner ORDER BY is discarded
+
+let $query=
+SELECT dt.a, COUNT(*)
+FROM (SELECT * FROM t2 ORDER BY t2.a) AS dt
+GROUP BY dt.a;
+eval $query;
+eval explain $query;
+
+let $query=
+SELECT dt.a, COUNT(*)
+FROM (SELECT * FROM t2 ORDER BY t2.a DESC) AS dt
+GROUP BY dt.a;
+eval $query;
+eval explain $query;
+
+let $query=
+SELECT COUNT(*)
+FROM (SELECT * FROM t2 ORDER BY t2.a) AS dt;
+eval $query;
+eval explain $query;
+
+let $query=
+SELECT COUNT(*)
+FROM (SELECT * FROM t2 ORDER BY t2.a DESC) AS dt;
+eval $query;
+eval explain $query;
+
+let $query=
+SELECT DISTINCT *
+FROM (SELECT * FROM t2 ORDER BY t2.a) AS dt;
+eval $query;
+eval explain $query;
+
+let $query=
+SELECT DISTINCT *
+FROM (SELECT * FROM t2 ORDER BY t2.a DESC) AS dt;
+eval $query;
+eval explain $query;
+
+# Ordered outer query: Inner ORDER BY is discarded
+
+let $query=
+SELECT *
+FROM t1 JOIN (SELECT * FROM t2 ORDER BY t2.a) AS dt ON t1.a=dt.a
+ORDER BY t1.b;
+eval $query;
+eval explain $query;
+
+let $query=
+SELECT *
+FROM t1 JOIN (SELECT * FROM t2 ORDER BY t2.a DESC) AS dt ON t1.a=dt.a
+ORDER BY t1.b;
+eval $query;
+eval explain $query;
+
+# Disallowed: Subquery in SELECT list:
+
+let $query=
+SELECT *
+FROM t1 JOIN (SELECT a, (SELECT b) AS b FROM t2) AS dt ON t1.a=dt.a;
+eval $query;
+eval explain $query;
+
+# Enable and disable derived table merging:
+
+SET @optimizer_switch_saved= @@optimizer_switch;
+SET @@optimizer_switch="derived_merge=off";
+
+let $query=
+SELECT *
+FROM (t1 JOIN t2 USING (a))
+     JOIN (SELECT t2.a, t2.b FROM t1 JOIN t2 USING (a)) AS dt
+     ON t1.a=dt.a;
+eval $query;
+eval explain $query;
+
+SET @@optimizer_switch="derived_merge=on";
+
+eval $query;
+eval explain $query;
+
+SET @@optimizer_switch= @optimizer_switch_saved;
+
+# Check that derived tables as update targets are rejected:
+
+--error ER_PARSE_ERROR
+INSERT INTO (SELECT * FROM t1) AS dt VALUES(9, 99);
+
+--error ER_PARSE_ERROR
+INSERT INTO (SELECT * FROM t1) AS dt SELECT 9, 99;
+
+--error ER_NON_UPDATABLE_TABLE
+UPDATE (SELECT * FROM t1) AS dt SET b=b+1;
+
+--error ER_NON_UPDATABLE_TABLE
+UPDATE t1 JOIN (SELECT * FROM t2) AS dt ON t1.a=dt.a SET dt.b=dt.b+1;
+
+--error ER_PARSE_ERROR
+DELETE FROM (SELECT * FROM t1) AS dt WHERE a=1;
+
+--error ER_NON_UPDATABLE_TABLE
+DELETE dt FROM t1 JOIN (SELECT * FROM t2) AS dt ON t1.a=dt.a WHERE a=1;
+
+# Multi-table UPDATE and DELETE allows derived tables that are not updated:
+
+UPDATE t1 JOIN (SELECT * FROM t2) AS dt ON t1.a=dt.a SET t1.b=t1.b+1;
+
+DELETE t1 FROM t1 JOIN (SELECT * FROM t2) AS dt ON t1.a=dt.a WHERE t1.a=1;
+
+SELECT * FROM t1;
+
+SELECT * FROM t2;
+
+DROP TABLE t1, t2;
+
+--echo # Bug#19791944: Assert fail in subselect_hash_sj_engine::exec
+
+CREATE TABLE t1 (
+  pk int NOT NULL,
+  col_int_key int NOT NULL,
+  col_varchar_key varchar(1) NOT NULL,
+  PRIMARY KEY (pk),
+  KEY col_varchar_key (col_varchar_key, col_int_key)
+);
+
+INSERT INTO t1 VALUES
+(1,4,'j'), (2,6,'v'), (3,3,'c'), (4,5,'m'), (5,3,'d'), (6,246,'d'), (7,2,'y'), (8,9,'t'),
+(9,3,'d'), (10,8,'s'), (11,1,'r'), (12,8,'m'), (13,8,'b'), (14,5,'x'), (15,7,'g'), (16,5,'p'),
+(17,1,'q'), (18,6,'w'), (19,2,'d'), (20,9,'e');
+
+CREATE TABLE t2 (
+  pk int NOT NULL,
+  col_int_nokey int NOT NULL,
+  col_int_key int NOT NULL,
+  col_date_key date NOT NULL,
+  col_varchar_nokey varchar(1) NOT NULL,
+  PRIMARY KEY (pk),
+  KEY col_int_key (col_int_key),
+  KEY col_date_key (col_date_key)
+);
+
+INSERT INTO t2 VALUES (1,1,7,'1900-01-01','k');
+
+CREATE TABLE t3 (
+  pk int NOT NULL ,
+  col_date_nokey date NOT NULL,
+  col_varchar_nokey varchar(1) NOT NULL,
+  PRIMARY KEY (pk)
+);
+
+INSERT INTO t3 VALUES (10,'1900-01-01','b');
+
+let $query=
+SELECT outr.col_date_key AS x
+FROM (SELECT * FROM t1) AS outr2 LEFT JOIN (SELECT * FROM t2) AS outr
+     ON outr2.col_varchar_key = outr.col_varchar_nokey
+WHERE (outr.col_int_key, outr.col_int_key) IN
+       (SELECT innr.pk AS x, innr.pk AS y
+        FROM (SELECT * FROM t3) AS innr
+        WHERE innr.col_date_nokey IS NOT NULL XOR
+              innr.col_varchar_nokey > 'p'
+        ORDER BY innr.col_date_nokey) XOR
+      (outr.col_int_nokey < 2 OR
+       NOT outr.col_int_key IS NULL)
+ORDER BY outr.col_int_key,
+         outr.pk;
+
+eval EXPLAIN $query;
+eval $query;
+
+DROP TABLE t1, t2, t3;
+
+--echo # Bug#20087645: Assert fail in subselect_hash_sj_engine::exec
+
+CREATE TABLE t1 (
+  pk int NOT NULL,
+  col_int_nokey int NOT NULL,
+  col_varchar_key varchar(1) NOT NULL,
+  PRIMARY KEY (pk),
+  KEY col_varchar_key(col_varchar_key)
+) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES
+ (10,1,'v'), (11,7,'s'), (12,4,'l'), (13,7,'y'), (14,0,'c'), (15,2,'i');
+
+CREATE TABLE t2 (
+  pk int NOT NULL,
+  col_varchar_key varchar(1) NOT NULL,
+  col_varchar_nokey varchar(1) NOT NULL,
+  PRIMARY KEY (pk),
+  KEY col_varchar_key (col_varchar_key)
+) ENGINE=InnoDB;
+
+INSERT INTO t2 VALUES (1,'k','k');
+
+CREATE TABLE t3 (
+  pk int NOT NULL,
+  col_varchar_nokey varchar(1) NOT NULL,
+  PRIMARY KEY (pk)
+) ENGINE=InnoDB;
+
+INSERT INTO t3 VALUES
+ (1,'j'), (2,'v'), (3,'c'), (4,'m'), (5,'d');
+
+ANALYZE TABLE t1, t2, t3;
+
+let $query=
+SELECT table1.pk
+FROM (SELECT * FROM t1) AS table1
+     LEFT JOIN
+       (SELECT * FROM t1) AS table2
+       RIGHT OUTER JOIN
+       (SELECT * FROM t2) AS table3
+       ON table3.col_varchar_nokey = table2.col_varchar_key
+     ON table3.pk = table2.col_int_nokey
+WHERE table3.col_varchar_key <> ALL
+       (SELECT sq1_t1.col_varchar_nokey AS sq1_field1
+        FROM (SELECT * FROM t3) AS sq1_t1
+             LEFT OUTER JOIN
+             (SELECT * FROM t1) AS sq1_t2
+             ON sq1_t2.col_varchar_key = sq1_t1.col_varchar_nokey
+       ) OR
+      table1.pk = 96;
+
+eval EXPLAIN $query;
+eval $query;
+
+DROP TABLE t1, t2, t3;
+
+--echo # Bug#19812352: Assert fail in subselect_hash_sj_engine::setup
+
+CREATE TABLE t1 (
+  col_time_nokey time NOT NULL
+);
+
+INSERT INTO t1 VALUES ('00:00:00');
+
+CREATE TABLE t2 (
+  pk int NOT NULL,
+  col_int_nokey int NOT NULL,
+  col_int_key int NOT NULL,
+  col_date_nokey date NOT NULL,
+  col_varchar_key varchar(1) NOT NULL,
+  col_varchar_nokey varchar(1) NOT NULL,
+  PRIMARY KEY (pk),
+  KEY col_int_key(col_int_key),
+  KEY col_varchar_key(col_varchar_key, col_int_key)
+);
+
+INSERT INTO t2 VALUES
+(1,4,0,'0001-01-01','j','j'), (2,6,8,'2004-09-18','v','v'),
+(3,3,1,'2009-12-01','c','c'), (4,5,8,'2004-12-17','m','m'),
+(5,3,9,'2000-03-14','d','d'), (6,246,24,'2000-10-08','d','d'),
+(7,2,6,'2006-05-25','y','y'), (8,9,1,'2008-01-23','t','t'),
+(9,3,6,'2007-06-18','d','d'), (10,8,2,'2002-10-13','s','s'),
+(11,1,4,'1900-01-01','r','r'), (12,8,8,'0001-01-01','m','m'),
+(13,8,4,'2006-03-09','b','b'), (14,5,4,'2001-06-05','x','x'),
+(15,7,7,'2006-05-28','g','g'), (16,5,4,'2001-04-19','p','p'),
+(17,1,1,'1900-01-01','q','q'), (18,6,9,'2004-08-20','w','w'),
+(19,2,4,'2004-10-10','d','d'), (20,9,8,'2000-04-02','e','e');
+
+CREATE TABLE t3 (
+  pk int NOT NULL,
+  col_int_key int NOT NULL,
+  col_varchar_key varchar(1) NOT NULL,
+  PRIMARY KEY (pk),
+  KEY col_varchar_key (col_varchar_key, col_int_key)
+);
+
+INSERT INTO t3 VALUES
+(10,1,'v'), (11,7,'s'), (12,4,'l'), (13,7,'y'), (14,0,'c'),
+(15,2,'i'), (16,9,'h'), (17,4,'q'), (18,0,'a'), (19,9,'v'),
+(20,1,'u'), (21,3,'s'), (22,8,'y'), (23,8,'z'), (24,18,'h'),
+(25,84,'p'), (26,6,'e'), (27,3,'i'), (28,6,'y'), (29,6,'w');
+
+CREATE TABLE t4 (
+  pk int NOT NULL,
+  col_int_nokey int NOT NULL,
+  col_int_key int NOT NULL,
+  col_varchar_nokey varchar(1) NOT NULL,
+  PRIMARY KEY (pk),
+  KEY col_int_key (col_int_key)
+);
+
+INSERT INTO t4 VALUES (10,8,7,'b');
+
+let $query=
+SELECT outr.pk AS x
+FROM (SELECT * FROM t1) AS outr2
+     LEFT JOIN (SELECT * FROM t2) AS outr
+     ON outr2.col_time_nokey >= outr.col_date_nokey
+WHERE (outr.col_int_nokey, outr.col_int_key) IN
+       (SELECT innr.col_int_key AS x,
+               innr.col_int_nokey AS y
+        FROM (SELECT * FROM t3) AS innr2
+             LEFT JOIN (SELECT * FROM t4) AS innr
+             ON innr2.col_varchar_key <> innr.col_varchar_nokey
+        WHERE innr.col_int_key <> innr.pk OR innr.pk = 9
+       ) AND
+       outr.pk < 7 XOR outr.col_varchar_nokey <> 'i'
+ORDER BY outr.col_varchar_key, outr.pk;
+
+eval EXPLAIN $query;
+eval $query;
+
+DROP TABLE t1, t2, t3, t4;
+
+--echo # Bug#19811762: Assert fail in JOIN::propagate_dependencies
+
+CREATE TABLE t1 (
+  pk int NOT NULL
+);
+
+CREATE TABLE t2 (
+  pk int NOT NULL,
+  col_int_key int DEFAULT NULL,
+  col_varchar_key varchar(1) DEFAULT NULL,
+  PRIMARY KEY (pk),
+  KEY col_int_key (col_int_key),
+  KEY col_varchar_key (col_varchar_key, col_int_key)
+);
+
+CREATE TABLE t3 (
+  pk int NOT NULL AUTO_INCREMENT,
+  col_int_nokey int DEFAULT NULL,
+  col_varchar_nokey varchar(1) DEFAULT NULL,
+  PRIMARY KEY (pk)
+);
+
+let $query=
+SELECT table1.pk
+FROM   t1 AS table1
+     RIGHT JOIN
+         t2 AS table2
+       LEFT OUTER JOIN
+         (SELECT sq2_t1.*
+          FROM t2 AS sq2_t1 INNER JOIN t3 AS sq2_t2
+               ON sq2_t2.col_int_nokey = sq2_t1.col_int_key
+          WHERE sq2_t2.col_varchar_nokey <= sq2_t1.col_varchar_key OR
+                sq2_t2.col_int_nokey <> 2
+         ) AS table3
+        ON table3.col_int_key = table2.col_int_key
+      ON table3.pk = table2.col_int_key
+WHERE table3.pk >= 6 OR
+      table1.pk > 68 AND
+      table1.pk < ( 68 + 76 );
+
+eval EXPLAIN $query;
+eval $query;
+
+DROP TABLE t1, t2, t3;
+
+--echo #
 --echo # Bug#19793998 ASSERTION FAILED: ROWS >= 0.0 IN
 --echo #              HANDLER::INDEX_SCAN_COST()
 --echo #
+
+SET @optimizer_switch_saved= @@optimizer_switch;
+SET @@optimizer_switch="derived_merge=off";
 
 CREATE TABLE t1 (
   pk INTEGER PRIMARY KEY
@@ -1407,6 +1991,178 @@ eval explain $query;
 eval $query;
 
 DROP TABLE t1, t2;
+
+SET @@optimizer_switch= @optimizer_switch_saved;
+
+--echo # Bug#20073930 Assert fail in store_top_level_join_columns
+
+CREATE TABLE t1 (
+  pk int NOT NULL,
+  col_varchar_key varchar(1) NOT NULL,
+  PRIMARY KEY (pk)
+) engine=innodb;
+
+CREATE TABLE t2 (
+  pk int NOT NULL,
+  col_int_key int NOT NULL,
+  PRIMARY KEY (pk),
+  KEY col_int_key (col_int_key)
+) engine=innodb;
+
+CREATE TABLE t3 (
+  pk int NOT NULL,
+  PRIMARY KEY (pk)
+) engine=innodb;
+
+CREATE TABLE t4 (
+  pk int NOT NULL ,
+  col_varchar_key varchar(1) NOT NULL,
+  PRIMARY KEY (pk)
+) engine=innodb;
+
+let query=
+SELECT table2.pk AS field2
+FROM (SELECT sq1_t2.pk
+      FROM t1 AS sq1_t1
+           JOIN
+            (t1 AS sq1_t2 RIGHT JOIN t2 AS sq1_t3
+             ON sq1_t3.pk = sq1_t2.pk
+            )
+           ON sq1_t3.col_int_key = sq1_t2.pk AND
+              sq1_t1.col_varchar_key IN
+             (SELECT child_sq1_t2.col_varchar_key AS child_sq1_field1
+              FROM t1 AS child_sq1_t2
+             )
+     ) AS table1
+     LEFT JOIN
+     t1 AS table2
+       JOIN
+       (SELECT sq2_t1.* FROM t1 AS sq2_t1) AS table3
+       ON table3.col_varchar_key = table2.col_varchar_key 
+     ON table3.col_varchar_key = table2.col_varchar_key;
+
+eval explain $query;
+eval $query;
+
+DROP TABLE t1, t2, t3, t4;
+
+--echo # Bug#20118755 Assert fail in JOIN::propagate_dependencies
+
+CREATE TABLE t1 (
+  pk int NOT NULL ,
+  col_varchar_key varchar(1) DEFAULT NULL,
+  col_varchar_nokey varchar(1) DEFAULT NULL,
+  PRIMARY KEY (pk)
+);
+
+CREATE TABLE t2 (
+  pk int NOT NULL,
+  col_int_nokey int DEFAULT NULL,
+  col_int_key int DEFAULT NULL,
+  col_varchar_key varchar(1) DEFAULT NULL,
+  col_varchar_nokey varchar(1) DEFAULT NULL,
+  PRIMARY KEY (pk)
+);
+
+let $query=
+SELECT table1.pk AS field1,
+       table2.pk field2
+FROM (SELECT sq1_t1.*
+      FROM t1 AS sq1_t1
+     ) AS table1
+     RIGHT JOIN
+       (SELECT sq2_t1.*
+        FROM t2 AS sq2_t1
+        WHERE sq2_t1.col_int_key NOT IN
+               (SELECT child_sq1_t1.col_int_key AS child_sq2_field1
+                FROM t2 AS child_sq1_t1
+               )
+       ) AS table2
+       RIGHT JOIN t2 AS table3
+       ON table3.col_varchar_nokey = table2.col_varchar_key
+     ON table3.col_varchar_nokey = table2.col_varchar_key;
+
+eval explain $query;
+eval $query;
+
+DROP TABLE t1, t2;
+
+--echo # Bug#20073366 Assert fail in
+--echo #              Optimize_table_order::Optimize_straight_join
+
+CREATE TABLE t1 (
+  pk int NOT NULL,
+  col_int_nokey int DEFAULT NULL,
+  col_int_key int DEFAULT NULL,
+  col_date_key date DEFAULT NULL,
+  col_varchar_key varchar(1) DEFAULT NULL,
+  PRIMARY KEY (pk),
+  KEY col_int_key (col_int_key),
+  KEY col_date_key (col_date_key),
+  KEY col_varchar_key (col_varchar_key, col_int_key)
+);
+
+CREATE TABLE t2 (
+  pk int NOT NULL,
+  col_varchar_key varchar(1) DEFAULT NULL,
+  PRIMARY KEY (pk)
+);
+
+CREATE TABLE t3 (
+  pk int NOT NULL,
+  col_varchar_key varchar(1) DEFAULT NULL,
+  col_varchar_nokey varchar(1) DEFAULT NULL,
+  PRIMARY KEY (pk)
+);
+
+let $query=
+SELECT STRAIGHT_JOIN alias1.col_date_key AS field1
+FROM t1 AS alias1
+     INNER JOIN
+     ((SELECT  sq1_alias1.col_varchar_key
+       FROM t1 AS sq1_alias1 RIGHT OUTER JOIN t2 AS sq1_alias2
+            ON sq1_alias2.pk = sq1_alias1.col_int_key
+       WHERE ('n', 'l') IN
+          (SELECT
+                  c_sq1_alias1.col_varchar_nokey AS c_sq1_field1,
+                  c_sq1_alias1.col_varchar_key AS c_sq1_field2
+           FROM t3 AS c_sq1_alias1
+                INNER JOIN
+                 (t1 AS c_sq1_alias2
+                  INNER JOIN t1 AS c_sq1_alias3
+                  ON c_sq1_alias3.col_varchar_key = c_sq1_alias2.col_varchar_key
+                 )
+                 ON c_sq1_alias3.pk = c_sq1_alias2.pk
+           WHERE c_sq1_alias3.col_int_nokey <> c_sq1_alias2.col_int_nokey
+          ) AND
+             sq1_alias2.col_varchar_key = 't'
+       ) AS alias2
+        INNER JOIN t3 AS alias3
+        ON alias3.col_varchar_nokey = alias2.col_varchar_key
+      )
+      ON alias3.col_varchar_key = alias2.col_varchar_key;
+
+eval explain $query;
+eval $query;
+
+DROP TABLE t1, t2, t3;
+
+--echo # Bug#20204415 Assertion failure in TABLE_LIST::set_merged()
+
+CREATE TABLE t(a INTEGER);
+CREATE VIEW v AS SELECT * FROM t;
+
+SET optimizer_switch='derived_merge=off';
+PREPARE s1 FROM 'SELECT * FROM v';
+PREPARE s2 FROM 'SELECT * FROM (SELECT * FROM t) AS dt';
+SET optimizer_switch='derived_merge=on';
+EXECUTE s1;
+EXECUTE s2;
+
+DEALLOCATE PREPARE s1; 
+DEALLOCATE PREPARE s2; 
+DROP VIEW v;
+DROP TABLE t;
 
 --echo #
 --echo # Bug #18607971 : 5.5 TO 5.6 REGRESSION WITH A SUBQUERY IN THE FROM
@@ -1535,3 +2291,33 @@ EXPLAIN SELECT * FROM (SELECT v1.a
 
 DROP VIEW v1, v2;
 DROP TABLE t;
+
+--echo # Bug #20443457 : Assert fail in calc_length_and_keyparts
+
+CREATE TABLE t1(
+  pk INTEGER PRIMARY KEY,
+  k INTEGER,
+  KEY k(k),
+  nk INTEGER);
+
+INSERT INTO t1 VALUES(1, 10, 100), (2, 20, 200);
+
+set @optimizer_switch_saved=@@optimizer_switch;
+set @@optimizer_switch='firstmatch=off';
+
+let $query=
+SELECT t1.k
+FROM t1 RIGHT JOIN
+     (SELECT t2.*
+      FROM t1 AS t2 JOIN t1 AS t3
+           ON TRUE
+      WHERE t3.k IN (SELECT k FROM t1 AS t4 WHERE k>1)
+     ) AS dt
+     ON t1.pk = dt.pk;
+
+eval explain $query;
+eval $query;
+
+SET @@optimizer_switch=@optimizer_switch_saved;
+
+DROP TABLE t1;

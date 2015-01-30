@@ -190,6 +190,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   const String *escaped=    ex->field.escaped;
   const String *enclosed=   ex->field.enclosed;
   bool is_fifo=0;
+  SELECT_LEX *select= thd->lex->select_lex;
 #ifndef EMBEDDED_LIBRARY
   LOAD_FILE_INFO lf_info;
   THD::killed_state killed_status= THD::NOT_KILLED;
@@ -235,24 +236,21 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
                  ER(WARN_NON_ASCII_SEPARATOR_NOT_IMPLEMENTED));
   } 
 
-  if (open_and_lock_tables(thd, table_list, TRUE, 0))
-    DBUG_RETURN(TRUE);
+  if (open_and_lock_tables(thd, table_list, 0))
+    DBUG_RETURN(true);
+
+  if (select->setup_tables(thd, table_list, false))
 
   if (run_before_dml_hook(thd))
     DBUG_RETURN(true);
 
-  if (setup_tables_and_check_access(thd, &thd->lex->select_lex->context,
-                                    &thd->lex->select_lex->top_join_list,
-                                    table_list,
-                                    &thd->lex->select_lex->leaf_tables, FALSE,
-                                    INSERT_ACL | UPDATE_ACL,
-                                    INSERT_ACL | UPDATE_ACL))
-     DBUG_RETURN(true);
+  if (table_list->is_view() && select->resolve_derived(thd, false))
+    DBUG_RETURN(true);
 
   TABLE_LIST *const insert_table_ref=
-    table_list->updatable &&             // View must be updatable
-    !table_list->multitable_view &&      // Multi-table view not allowed
-    !table_list->derived ?               // derived tables not allowed
+    table_list->is_updatable() &&        // View must be updatable
+    !table_list->is_multiple_tables() && // Multi-table view not allowed
+    !table_list->is_derived() ?          // derived tables not allowed
     table_list->updatable_base_table() : NULL;
 
   if (insert_table_ref == NULL ||
@@ -261,9 +259,20 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     my_error(ER_NON_UPDATABLE_TABLE, MYF(0), table_list->alias, "LOAD");
     DBUG_RETURN(TRUE);
   }
-  if (table_list->prepare_where(thd, 0, TRUE) ||
-      table_list->prepare_check_option(thd))
-    DBUG_RETURN(TRUE);
+  if (select->derived_table_count &&
+      select->check_view_privileges(thd, INSERT_ACL, SELECT_ACL))
+    DBUG_RETURN(true);
+
+  if (table_list->is_merged())
+  {
+    if (table_list->effective_with_check &&
+        table_list->prepare_check_option(thd))
+      DBUG_RETURN(TRUE);
+
+    if (handle_duplicates == DUP_REPLACE &&
+        table_list->prepare_replace_filter(thd))
+      DBUG_RETURN(true);
+  }
 
   // Pass the check option down to the underlying table:
   insert_table_ref->check_option= table_list->check_option;
@@ -308,22 +317,22 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       in this case.
     */
     if (setup_fields(thd, Ref_ptr_array(),
-                     set_fields, MARK_COLUMNS_WRITE, 0, 0) ||
-        setup_fields(thd, Ref_ptr_array(), set_values, MARK_COLUMNS_READ, 0, 0))
+                     set_fields, INSERT_ACL, 0, 0) ||
+        setup_fields(thd, Ref_ptr_array(), set_values, SELECT_ACL, 0, 0))
       DBUG_RETURN(TRUE);
   }
   else
   {						// Part field list
     /* TODO: use this conds for 'WITH CHECK OPTIONS' */
     if (setup_fields(thd, Ref_ptr_array(),
-                     fields_vars, MARK_COLUMNS_WRITE, 0, 0) ||
+                     fields_vars, INSERT_ACL, 0, 0) ||
         setup_fields(thd, Ref_ptr_array(),
-                     set_fields, MARK_COLUMNS_WRITE, 0, 0))
+                     set_fields, INSERT_ACL, 0, 0))
       DBUG_RETURN(TRUE);
     /* We explicitly ignore the return value */
     (void)check_that_all_fields_are_given_values(thd, table, table_list);
     /* Fix the expressions in SET clause */
-    if (setup_fields(thd, Ref_ptr_array(), set_values, MARK_COLUMNS_READ, 0, 0))
+    if (setup_fields(thd, Ref_ptr_array(), set_values, SELECT_ACL, 0, 0))
       DBUG_RETURN(TRUE);
   }
 

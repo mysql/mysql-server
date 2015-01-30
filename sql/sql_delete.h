@@ -23,7 +23,7 @@ class THD;
 class Unique;
 struct TABLE_LIST;
 
-bool mysql_prepare_delete(THD *thd, const TABLE_LIST *delete_table_ref);
+bool mysql_prepare_delete(THD *thd);
 bool mysql_delete(THD *thd, ha_rows rows);
 int mysql_multi_delete_prepare(THD *thd, uint *table_count);
 

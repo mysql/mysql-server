@@ -1310,10 +1310,9 @@ Warnings:
 Note	1003	/* select#1 */ select `information_schema`.`tables`.`TABLE_SCHEMA` AS `object_schema`,`information_schema`.`tables`.`TABLE_NAME` AS `object_name`,`information_schema`.`tables`.`TABLE_TYPE` AS `object_type` from `information_schema`.`tables` order by `information_schema`.`tables`.`TABLE_SCHEMA`
 explain select * from (select table_name from information_schema.tables) as a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-2	DERIVED	tables	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Skip_open_table; Scanned all databases
+1	SIMPLE	tables	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Skip_open_table; Scanned all databases
 Warnings:
-Note	1003	/* select#1 */ select `a`.`table_name` AS `table_name` from (/* select#2 */ select `information_schema`.`tables`.`TABLE_NAME` AS `table_name` from `information_schema`.`tables`) `a`
+Note	1003	/* select#1 */ select `information_schema`.`tables`.`TABLE_NAME` AS `table_name` from `information_schema`.`tables`
 drop view v1;
 create table t1 (f1 int(11));
 create table t2 (f1 int(11), f2 int(11));

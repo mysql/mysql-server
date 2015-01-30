@@ -37,6 +37,14 @@ create view v1 (c,d) as select a,b+@@global.max_user_connections from t1;
 -- error ER_VIEW_SELECT_VARIABLE
 create view v1 (c,d) as select a,b from t1
   where a = @@global.max_user_connections;
+-- error ER_VIEW_SELECT_VARIABLE
+CREATE VIEW v1 AS SELECT @a=1 FROM DUAL;
+-- error ER_VIEW_SELECT_VARIABLE
+CREATE VIEW v1 AS SELECT 1 FROM DUAL WHERE @a>1;
+-- error ER_VIEW_SELECT_VARIABLE
+CREATE VIEW v1 AS SELECT (@a:= 1) AS one FROM DUAL;
+-- error ER_VIEW_SELECT_VARIABLE
+CREATE VIEW v1 AS SELECT 1 FROM DUAL WHERE (@a:= 1);
 
 # simple view
 create view v1 (c) as select b+1 from t1;
@@ -270,7 +278,7 @@ create algorithm=temptable view v2 (a,c) as select a, b+1 from t1;
 update t2,v1 set v1.c=v1.a+v1.c where t2.x=v1.a;
 # try to update VIEW with forced TEMPORARY TABLE algorithm
 -- error ER_NON_UPDATABLE_TABLE
-update t2,v2 set v2.a=v2.v2.a+c where t2.x=v2.a;
+update t2,v2 set v2.a=v2.a+c where t2.x=v2.a;
 # updatable field of updateable view
 update t2,v1 set v1.a=v1.a+v1.c where t2.x=v1.a;
 select * from v1;
@@ -4334,6 +4342,319 @@ WHERE
 DROP VIEW v_t1;
 DROP TABLE t1;
 
+--echo #
+--echo # WL#5275 Process subqueries in FROM clause in the same way as view
+--echo #
+
+CREATE TABLE t1(a INTEGER, b INTEGER);
+CREATE TABLE t2(a INTEGER, b INTEGER);
+
+INSERT INTO t1 VALUES(1, 10), (2, 20);
+INSERT INTO t2 VALUES(1, 100), (2, 200);
+
+CREATE VIEW v2 AS SELECT * FROM t2;
+CREATE VIEW v2_sj AS SELECT * FROM t2
+                     WHERE a IN (SELECT a FROM t1);
+CREATE VIEW v12_1 AS SELECT t2.a, t2.b FROM t1 JOIN t2 USING (a);
+CREATE VIEW v12_2 AS SELECT t1.a, t2.b FROM t1 JOIN t2 USING (a);
+CREATE VIEW v12_3 AS SELECT t2.a, t2.b FROM t1 JOIN t2 USING (a)
+                     WHERE t1.b > 15;
+CREATE VIEW vu_1 AS SELECT * FROM t2 UNION SELECT * FROM t2;
+CREATE VIEW vu_2 AS SELECT * FROM t2 UNION ALL SELECT * FROM t2;
+CREATE VIEW vd_1 AS SELECT DISTINCT a, b FROM t2;
+CREATE VIEW va_1 AS SELECT SUM(a) AS a, SUM(b) AS b FROM t2;
+CREATE VIEW vg_1 AS SELECT a, SUM(b) AS b FROM t2 GROUP BY a;
+CREATE VIEW vh_1 AS SELECT 1 AS a FROM t2 HAVING COUNT(*) > 1;
+CREATE VIEW vl_1 AS SELECT * FROM t2 LIMIT 1;
+CREATE VIEW vlo_1 AS SELECT * FROM t2 LIMIT 2 OFFSET 1;
+CREATE VIEW vrow AS SELECT 1 AS a;
+CREATE VIEW vo_1 AS SELECT * FROM t2 ORDER BY a;
+CREATE VIEW vo_2 AS SELECT * FROM t2 ORDER BY a DESC;
+CREATE VIEW vx AS SELECT a, (SELECT b) AS b FROM t2;
+
+# Check allowed merge scenarios
+
+# Allowed: Simple selection, joins, WHERE clause
+
+let $query=
+SELECT *
+FROM t1 JOIN v2 AS dt ON t1.a=dt.a;
+eval $query;
+eval explain $query;
+
+let $query=
+SELECT *
+FROM t1, v2 AS dt WHERE t1.a=dt.a;
+eval $query;
+eval explain $query;
+
+let $query=
+SELECT *
+FROM (t1 JOIN t2 ON t1.a=t2.a) JOIN v2 AS dt ON t1.a=dt.a;
+eval $query;
+eval explain $query;
+
+let $query=
+SELECT *
+FROM t1 JOIN v12_1 AS dt ON t1.a=dt.a;
+eval $query;
+eval explain $query;
+
+let $query=
+SELECT *
+FROM (t1 JOIN t2 USING (a))
+     JOIN v12_1 AS dt
+     ON t1.a=dt.a;
+eval $query;
+eval explain $query;
+
+let $query=
+SELECT *
+FROM (t1 JOIN t2 USING (a))
+     JOIN v12_2 AS dt1
+     ON t1.a=dt1.a AND t2.b=dt1.b
+     JOIN v12_1 AS dt2
+     ON dt1.a=dt2.a;
+eval $query;
+eval explain $query;
+
+let $query=
+SELECT *
+FROM t1 JOIN v12_3 AS dt ON t1.a=dt.a;
+eval $query;
+eval explain $query;
+
+# Allowed: Subqueries in WHERE clause
+
+let $query=
+SELECT *
+FROM t1 JOIN v2_sj AS dt ON t1.a=dt.a;
+eval $query;
+eval explain $query;
+
+# Disallowed: UNION, aggregated queries, LIMIT, OFFSET, table-less, variables:
+
+let $query=
+SELECT *
+FROM t1 JOIN vu_1 AS dt ON t1.a=dt.a;
+eval $query;
+eval explain $query;
+
+let $query=
+SELECT *
+FROM t1 JOIN vu_2 AS dt ON t1.a=dt.a;
+eval $query;
+eval explain $query;
+
+let $query=
+SELECT *
+FROM t1 JOIN vd_1 AS dt ON t1.a=dt.a;
+eval $query;
+eval explain $query;
+
+let $query=
+SELECT *
+FROM t1 JOIN va_1 AS dt ON t1.a=dt.a;
+eval $query;
+eval explain $query;
+
+let $query=
+SELECT *
+FROM t1 JOIN vg_1 AS dt ON t1.a=dt.a;
+eval $query;
+eval explain $query;
+
+let $query=
+SELECT *
+FROM t1 JOIN vh_1 AS dt ON t1.a=dt.a;
+eval $query;
+eval explain $query;
+
+let $query=
+SELECT *
+FROM t1 JOIN vl_1 AS dt ON t1.a=dt.a;
+eval $query;
+eval explain $query;
+
+let $query=
+SELECT *
+FROM t1 JOIN vlo_1 AS dt ON t1.a=dt.a;
+eval $query;
+eval explain $query;
+
+let $query=
+SELECT *
+FROM t1 JOIN vrow AS dt ON t1.a=dt.a;
+eval $query;
+eval explain $query;
+
+# Allowed: ORDER BY list
+
+# Simple outer query: ORDER BY is propagated to outer level
+
+let $query=
+SELECT *
+FROM vo_1 AS dt;
+eval $query;
+eval explain $query;
+
+let $query=
+SELECT *
+FROM vo_2 AS dt;
+eval $query;
+eval explain $query;
+
+let $query=
+SELECT *
+FROM vo_1 AS dt
+WHERE dt.a > 0;
+eval $query;
+eval explain $query;
+
+let $query=
+SELECT *
+FROM vo_2 AS dt
+WHERE dt.a > 0;
+eval $query;
+eval explain $query;
+
+# Joined outer query: Inner ORDER BY is discarded
+
+let $query=
+SELECT *
+FROM t1 JOIN vo_1 AS dt ON t1.a=dt.a;
+eval $query;
+eval explain $query;
+
+let $query=
+SELECT *
+FROM t1 JOIN vo_2 AS dt ON t1.a=dt.a;
+eval $query;
+eval explain $query;
+
+# Grouped outer query: Inner ORDER BY is discarded
+
+let $query=
+SELECT dt.a, COUNT(*)
+FROM vo_1 AS dt
+GROUP BY dt.a;
+eval $query;
+eval explain $query;
+
+let $query=
+SELECT dt.a, COUNT(*)
+FROM vo_2 AS dt
+GROUP BY dt.a;
+eval $query;
+eval explain $query;
+
+let $query=
+SELECT COUNT(*)
+FROM vo_1 AS dt;
+eval $query;
+eval explain $query;
+
+let $query=
+SELECT COUNT(*)
+FROM vo_2 AS dt;
+eval $query;
+eval explain $query;
+
+let $query=
+SELECT DISTINCT *
+FROM vo_1 AS dt;
+eval $query;
+eval explain $query;
+
+let $query=
+SELECT DISTINCT *
+FROM vo_2 AS dt;
+eval $query;
+eval explain $query;
+
+# Ordered outer query: Inner ORDER BY is discarded
+
+let $query=
+SELECT *
+FROM t1 JOIN vo_1 AS dt ON t1.a=dt.a
+ORDER BY t1.b;
+eval $query;
+eval explain $query;
+
+let $query=
+SELECT *
+FROM t1 JOIN vo_2 AS dt ON t1.a=dt.a
+ORDER BY t1.b;
+eval $query;
+eval explain $query;
+
+# Disallowed: Subquery in SELECT list:
+
+let $query=
+SELECT *
+FROM t1 JOIN vx AS dt ON t1.a=dt.a;
+eval $query;
+eval explain $query;
+
+# Enable and disable derived table merging:
+
+SET @optimizer_switch_saved= @@optimizer_switch;
+SET @@optimizer_switch="derived_merge=off";
+
+let $query=
+SELECT *
+FROM (t1 JOIN t2 USING (a))
+     JOIN v12_1 AS dt
+     ON t1.a=dt.a;
+eval $query;
+eval explain $query;
+
+SET @@optimizer_switch="derived_merge=on";
+
+eval $query;
+eval explain $query;
+
+SET @@optimizer_switch= @optimizer_switch_saved;
+
+DROP VIEW v2, v2_sj, v12_1, v12_2, v12_3;
+DROP VIEW vu_1, vu_2, vd_1, va_1, vg_1, vh_1, vl_1;
+DROP VIEW vlo_1, vrow, vo_1, vo_2, vx;
+
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#19789450 Assert fail in add_key_field
+--echo #
+
+CREATE TABLE t1 (
+  pk int NOT NULL,
+  col_date_key date DEFAULT NULL,
+  PRIMARY KEY (pk),
+  KEY col_date_key (col_date_key)
+) ;
+
+CREATE TABLE t2 (
+  pk int NOT NULL,
+  col_time_key time DEFAULT NULL,
+  col_datetime_key datetime DEFAULT NULL,
+  PRIMARY KEY (pk),
+  KEY col_time_key (col_time_key),
+  KEY col_datetime_key (col_datetime_key)
+);
+
+CREATE ALGORITHM=MERGE VIEW v1 AS 
+SELECT col_date_key
+FROM t1 WHERE (pk, pk, col_date_key) IN
+       (SELECT col_datetime_key,
+               col_time_key,
+               col_time_key
+        FROM t2
+        WHERE pk <= 7);
+
+SELECT * FROM v1;
+
+DROP VIEW v1;
+DROP TABLE t1, t2;
 
 --echo #
 --echo # BUG#14117018 - MYSQL SERVER CREATES INVALID VIEW DEFINITION 
@@ -4371,6 +4692,52 @@ SHOW CREATE VIEW v4;
 
 DROP VIEW v1, v2, v3, v4;
 
+--echo # Bug#20087932 Assert fail in Join_tab_compare_straight::operator()
+
+CREATE TABLE t1 (
+  pk int NOT NULL,
+  col_varchar_key varchar(1) NOT NULL,
+  PRIMARY KEY (pk)
+);
+
+CREATE TABLE t2 (
+  pk int NOT NULL,
+  col_varchar_key varchar(1) NOT NULL,
+  col_varchar_nokey varchar(1) NOT NULL,
+  PRIMARY KEY (pk)
+);
+
+CREATE TABLE t3 (
+  pk int NOT NULL,
+  col_int_key int NOT NULL,
+  col_varchar_nokey varchar(1) NOT NULL,
+  PRIMARY KEY (pk)
+);
+
+CREATE VIEW v2 AS SELECT * FROM t2;
+
+let $query=
+SELECT STRAIGHT_JOIN alias1.pk
+FROM t2 AS alias1
+     RIGHT JOIN
+     (SELECT sq1_alias2.*
+      FROM t1 AS sq1_alias1
+           RIGHT OUTER JOIN
+           v2 AS sq1_alias2
+           ON sq1_alias2.col_varchar_key = sq1_alias1.col_varchar_key AND
+              sq1_alias2.col_varchar_nokey IN
+             (SELECT c_sq1_alias1.col_varchar_nokey AS c_sq1_field1
+              FROM t3 AS c_sq1_alias1
+              WHERE c_sq1_alias1.col_int_key <> c_sq1_alias1.col_int_key
+             )
+     ) AS alias2
+     ON alias2.col_varchar_key = alias1.col_varchar_key;
+
+eval explain $query;
+eval $query;
+
+DROP VIEW v2;
+DROP TABLE t1, t2, t3;
 
 # Check that all connections opened by test cases in this file are really
 # gone so execution of other tests won't be affected by their presence.

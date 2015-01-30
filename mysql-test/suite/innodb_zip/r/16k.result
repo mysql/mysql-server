@@ -702,6 +702,8 @@ INSERT INTO t1(a,b) SELECT a,b FROM t1;
 INSERT INTO t1(a,b) SELECT a,b FROM t1;
 INSERT INTO t1(a,b) SELECT a,b FROM t1;
 INSERT INTO t1 VALUES (1000000, 0, 0);
+set @optimizer_switch_saved=@@optimizer_switch;
+SET SESSION optimizer_switch='derived_merge=off';
 SET SESSION sort_buffer_size = 1024*36;
 EXPLAIN
 SELECT COUNT(*) FROM
@@ -717,6 +719,7 @@ SELECT COUNT(*) FROM
 WHERE a BETWEEN 2 AND 7 OR pk=1000000) AS t;
 COUNT(*)
 1537
+set @@optimizer_switch=@optimizer_switch_saved;
 SET SESSION sort_buffer_size = DEFAULT;
 DROP TABLE t1;
 DROP TABLE t1_purge, t2_purge, t3_purge, t4_purge;

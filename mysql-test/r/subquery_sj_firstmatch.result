@@ -3507,63 +3507,35 @@ a
 19
 explain select * from (select a from t0) x where a in (select a from t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	11	100.00	NULL
-1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	20	10.00	Using where; FirstMatch(<derived2>); Using join buffer (Block Nested Loop)
-2	DERIVED	t0	NULL	ALL	NULL	NULL	NULL	NULL	11	100.00	NULL
+1	SIMPLE	t0	NULL	ALL	NULL	NULL	NULL	NULL	11	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	20	10.00	Using where; FirstMatch(t0); Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select `x`.`a` AS `a` from (/* select#2 */ select `test`.`t0`.`a` AS `a` from `test`.`t0`) `x` semi join (`test`.`t1`) where (`test`.`t1`.`a` = `x`.`a`)
+Note	1003	/* select#1 */ select `test`.`t0`.`a` AS `a` from `test`.`t0` semi join (`test`.`t1`) where (`test`.`t1`.`a` = `test`.`t0`.`a`)
 explain format=json select * from (select a from t0) x where a in (select a from t1);
 EXPLAIN
 {
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "58.78"
+      "query_cost": "50.25"
     },
     "nested_loop": [
       {
         "table": {
-          "table_name": "x",
+          "table_name": "t0",
           "access_type": "ALL",
           "rows_examined_per_scan": 11,
           "rows_produced_per_join": 11,
           "filtered": "100.00",
           "cost_info": {
-            "read_cost": "10.55",
+            "read_cost": "2.02",
             "eval_cost": "2.20",
-            "prefix_cost": "12.75",
-            "data_read_per_join": "176"
+            "prefix_cost": "4.22",
+            "data_read_per_join": "88"
           },
           "used_columns": [
             "a"
-          ],
-          "materialized_from_subquery": {
-            "using_temporary_table": true,
-            "dependent": false,
-            "cacheable": true,
-            "query_block": {
-              "select_id": 2,
-              "cost_info": {
-                "query_cost": "4.22"
-              },
-              "table": {
-                "table_name": "t0",
-                "access_type": "ALL",
-                "rows_examined_per_scan": 11,
-                "rows_produced_per_join": 11,
-                "filtered": "100.00",
-                "cost_info": {
-                  "read_cost": "2.02",
-                  "eval_cost": "2.20",
-                  "prefix_cost": "4.22",
-                  "data_read_per_join": "88"
-                },
-                "used_columns": [
-                  "a"
-                ]
-              }
-            }
-          }
+          ]
         }
       },
       {
@@ -3573,25 +3545,25 @@ EXPLAIN
           "rows_examined_per_scan": 20,
           "rows_produced_per_join": 11,
           "filtered": "10.00",
-          "first_match": "x",
+          "first_match": "t0",
           "using_join_buffer": "Block Nested Loop",
           "cost_info": {
             "read_cost": "2.03",
             "eval_cost": "2.20",
-            "prefix_cost": "58.78",
+            "prefix_cost": "50.25",
             "data_read_per_join": "88"
           },
           "used_columns": [
             "a"
           ],
-          "attached_condition": "(`test`.`t1`.`a` = `x`.`a`)"
+          "attached_condition": "(`test`.`t1`.`a` = `test`.`t0`.`a`)"
         }
       }
     ]
   }
 }
 Warnings:
-Note	1003	/* select#1 */ select `x`.`a` AS `a` from (/* select#2 */ select `test`.`t0`.`a` AS `a` from `test`.`t0`) `x` semi join (`test`.`t1`) where (`test`.`t1`.`a` = `x`.`a`)
+Note	1003	/* select#1 */ select `test`.`t0`.`a` AS `a` from `test`.`t0` semi join (`test`.`t1`) where (`test`.`t1`.`a` = `test`.`t0`.`a`)
 drop table t0, t1;
 create table t0 (a int);
 insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
@@ -10565,6 +10537,8 @@ FROM t3 AS sq2_alias1 LEFT OUTER JOIN t3 AS sq2_alias2
 ON sq2_alias1.pk = sq2_alias2.col_int_key;
 CREATE VIEW view_inline_2 AS
 SELECT 'p', 'p' UNION SELECT 'k', 's';
+SET @optimizer_switch_saved= @@optimizer_switch;
+SET @@optimizer_switch="derived_merge=off";
 explain SELECT SUM(alias1.col_varchar_nokey) AS field2
 FROM t2 AS alias2
 LEFT JOIN (SELECT * FROM view_inline_0) AS alias1
@@ -10577,16 +10551,18 @@ WHERE (alias1.col_varchar_key, alias1.col_varchar_nokey) IN
 );
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived7>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Start temporary
-1	PRIMARY	alias2	NULL	ALL	NULL	NULL	NULL	NULL	11	10.00	Using where; Using join buffer (Block Nested Loop)
-1	PRIMARY	sq2_alias1	NULL	ALL	NULL	NULL	NULL	NULL	15	10.00	Using where; Using join buffer (Block Nested Loop)
-1	PRIMARY	sq2_alias2	NULL	ref	col_int_key	col_int_key	5	test.sq2_alias1.pk	2	10.00	Using where
 1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	8	view_inline_2.p,view_inline_2.My_exp_p	2	100.00	End temporary
+1	PRIMARY	alias2	NULL	ALL	NULL	NULL	NULL	NULL	11	10.00	Using where; Using join buffer (Block Nested Loop)
+1	PRIMARY	<derived6>	NULL	ref	<auto_key0>	<auto_key0>	8	test.alias2.col_varchar_nokey,view_inline_2.p	3	100.00	Using index; FirstMatch(alias2)
 7	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 8	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 NULL	UNION RESULT	<union7,8>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
-2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+6	DERIVED	sq2_alias1	NULL	ALL	NULL	NULL	NULL	NULL	15	100.00	NULL
+6	DERIVED	sq2_alias2	NULL	ref	col_int_key	col_int_key	5	test.sq2_alias1.pk	2	100.00	NULL
+2	DERIVED	<derived5>	NULL	ALL	NULL	NULL	NULL	NULL	15	100.00	NULL
+5	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
-Note	1003	/* select#1 */ select sum(`alias1`.`col_varchar_nokey`) AS `field2` from `test`.`t2` `alias2` semi join (`test`.`view_inline_2`) semi join (`test`.`t3` `sq2_alias1` join `test`.`t3` `sq2_alias2`) join (/* select#2 */ select NULL AS `pk`,NULL AS `col_varchar_key`,NULL AS `col_varchar_nokey` from `test`.`t1` join `test`.`t3` where multiple equal(NULL, `t3`.`pk`)) `alias1` where ((`test`.`sq2_alias2`.`col_int_key` = `sq2_alias1`.`pk`) and (`test`.`sq2_alias2`.`col_varchar_key` = `test`.`alias2`.`col_varchar_nokey`) and (`alias1`.`col_varchar_nokey` = `view_inline_2`.`My_exp_p`) and (`test`.`alias2`.`col_varchar_key` = `view_inline_2`.`p`) and (`sq2_alias1`.`col_varchar_key` = `view_inline_2`.`p`) and (`alias1`.`col_varchar_key` = `view_inline_2`.`p`))
+Note	1003	/* select#1 */ select sum(`alias1`.`col_varchar_nokey`) AS `field2` from `test`.`t2` `alias2` semi join (`test`.`view_inline_2`) semi join (`test`.`view_inline_1`) join (/* select#2 */ select `view_inline_0`.`pk` AS `pk`,`view_inline_0`.`col_varchar_key` AS `col_varchar_key`,`view_inline_0`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`view_inline_0`) `alias1` where ((`view_inline_1`.`sq2_field1` = `test`.`alias2`.`col_varchar_nokey`) and (`alias1`.`col_varchar_nokey` = `view_inline_2`.`My_exp_p`) and (`alias1`.`col_varchar_key` = `view_inline_2`.`p`) and (`test`.`alias2`.`col_varchar_key` = `view_inline_2`.`p`) and (`view_inline_1`.`sq2_field2` = `view_inline_2`.`p`))
 SELECT SUM(alias1.col_varchar_nokey) AS field2
 FROM t2 AS alias2
 LEFT JOIN (SELECT * FROM view_inline_0) AS alias1
@@ -10599,6 +10575,7 @@ WHERE (alias1.col_varchar_key, alias1.col_varchar_nokey) IN
 );
 field2
 NULL
+SET @@optimizer_switch= @optimizer_switch_saved;
 DROP VIEW view_inline_0, view_inline_1, view_inline_2;
 DROP TABLE t1, t2, t3;
 # End of test for bug#13956813.
@@ -10692,6 +10669,8 @@ PRIMARY KEY (pk)
 CREATE TABLE t3 (
 i INT
 );
+SET @optimizer_switch_saved= @@optimizer_switch;
+SET @@optimizer_switch="derived_merge=off";
 explain SELECT table1.pk AS field1
 FROM ( SELECT subquery1_t1. *
 FROM t2 AS subquery1_t1
@@ -10726,6 +10705,7 @@ FROM t1 AS subquery3_t1
 )
 ;
 field1
+SET @@optimizer_switch= @optimizer_switch_saved;
 DROP TABLE t1, t2, t3;
 # End of test for bug#13971022.
 #
@@ -10985,6 +10965,8 @@ KEY col_varchar_key(col_varchar_key)
 );
 INSERT INTO t2 VALUES
 ('j','j'), ('v','v'), ('c','c'), ('m','m'), ('d','d'), ('d','d'), ('y','y');
+SET @optimizer_switch_saved= @@optimizer_switch;
+SET @@optimizer_switch="derived_merge=off";
 explain format=json SELECT *
 FROM (SELECT * FROM t2) AS derived1
 LEFT JOIN t1
@@ -11133,6 +11115,7 @@ j	j
 m	m
 d	d
 d	d
+SET @@optimizer_switch= @optimizer_switch_saved;
 DROP TABLE t1, t2;
 CREATE TABLE t1 (
 col_int_nokey int NOT NULL,

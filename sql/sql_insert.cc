@@ -28,6 +28,7 @@
 #include "rpl_rli.h"                  // Relay_log_info
 #include "rpl_slave.h"                // rpl_master_has_bug
 #include "sql_base.h"                 // setup_fields
+#include "sql_resolver.h"             // Column_privilege_tracker
 #include "sql_select.h"               // free_underlaid_joins
 #include "sql_show.h"                 // store_create_info
 #include "sql_table.h"                // quick_rm_table
@@ -69,7 +70,7 @@ static bool check_view_single_update(List<Item> &fields, TABLE_LIST *view,
   while ((item= it++))
     tables|= item->used_tables();
 
-  if (view->check_single_table(insert_table_ref, tables, view) ||
+  if (view->check_single_table(insert_table_ref, tables) ||
       *insert_table_ref == NULL)
   {
     my_error(ER_VIEW_MULTIUPDATE, MYF(0),
@@ -111,7 +112,7 @@ static bool check_insert_fields(THD *thd, TABLE_LIST *table_list,
 
   TABLE *table= table_list->table;
 
-  DBUG_ASSERT(table_list->updatable);
+  DBUG_ASSERT(table_list->is_updatable());
 
   if (fields.elements == 0 && value_count_known && value_count > 0)
   {
@@ -156,7 +157,6 @@ static bool check_insert_fields(THD *thd, TABLE_LIST *table_list,
     }
 
     thd->dup_field= 0;
-    select_lex->no_wrap_view_item= true;
 
     /* Save the state of the current name resolution context. */
     ctx_state.save_state(context, table_list);
@@ -167,16 +167,15 @@ static bool check_insert_fields(THD *thd, TABLE_LIST *table_list,
     */
     table_list->next_local= NULL;
     context->resolve_in_table_list_only(table_list);
-    res= setup_fields(thd, Ref_ptr_array(), fields, MARK_COLUMNS_WRITE, 0, 0);
+    res= setup_fields(thd, Ref_ptr_array(), fields, INSERT_ACL, 0, 0);
 
     /* Restore the current context. */
     ctx_state.restore_state(context, table_list);
-    select_lex->no_wrap_view_item= false;
 
     if (res)
       return true;
 
-    if (table_list->effective_algorithm == VIEW_ALGORITHM_MERGE)
+    if (table_list->is_merged())
     {
       if (check_view_single_update(fields, table_list, insert_table_ref))
         return true;
@@ -193,13 +192,9 @@ static bool check_insert_fields(THD *thd, TABLE_LIST *table_list,
       return true;
     }
   }
-  // For the values we need select_priv
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-  table->grant.want_privilege= (SELECT_ACL & ~table->grant.privilege);
-#endif
 
   if (check_key_in_view(thd, table_list, *insert_table_ref) ||
-      (table_list->view &&
+      (table_list->is_view() &&
        check_view_insertability(thd, table_list, *insert_table_ref)))
   {
     my_error(ER_NON_INSERTABLE_TABLE, MYF(0), table_list->alias, "INSERT");
@@ -228,9 +223,9 @@ static bool check_valid_table_refs(const TABLE_LIST *view, List<Item> &values,
   Item *item;
 
   // A base table will always match the supplied map.
-  DBUG_ASSERT(view->view || (view->table && map));
+  DBUG_ASSERT(view->is_view() || (view->table && map));
 
-  if (!view->view)       // Ignore check if called with base table.
+  if (!view->is_view())       // Ignore check if called with base table.
     return false;
 
   map|= PSEUDO_TABLE_BITS;
@@ -380,7 +375,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
 
   select_lex->make_active_options(0, 0);
 
-  if (open_normal_and_derived_tables(thd, table_list, 0))
+  if (open_tables_for_query(thd, table_list, 0))
     DBUG_RETURN(true);
 
   if (run_before_dml_hook(thd))
@@ -398,7 +393,10 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
                            update_fields, update_values, duplic, &unused_conds,
                            false,
                            (fields.elements || !value_count ||
-                           table_list->view != 0)))
+                            table_list->is_view())))
+    goto exit_without_my_ok;
+
+  if (select_lex->apply_local_transforms(thd, false))
     goto exit_without_my_ok;
 
   insert_table= insert_table_ref->table;
@@ -478,7 +476,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
       my_error(ER_WRONG_VALUE_COUNT_ON_ROW, MYF(0), counter);
       goto exit_without_my_ok;
     }
-    if (setup_fields(thd, Ref_ptr_array(), *values, MARK_COLUMNS_READ, 0, 0))
+    if (setup_fields(thd, Ref_ptr_array(), *values, SELECT_ACL, 0, 0))
       goto exit_without_my_ok;
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
@@ -615,10 +613,6 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     insert_table->file->ha_start_bulk_insert(values_list.elements);
 
   prepare_triggers_for_insert_stmt(insert_table);
-
-  if (table_list->prepare_where(thd, 0, TRUE) ||
-      table_list->prepare_check_option(thd))
-    error= 1;
 
   for (Field** next_field= insert_table->field; *next_field; ++next_field)
   {
@@ -888,7 +882,7 @@ static bool check_view_insertability(THD *thd, TABLE_LIST *view,
  {
   DBUG_ENTER("check_view_insertability");
 
-  const uint num= view->view->select_lex->item_list.elements;
+  const uint num= view->view_query()->select_lex->item_list.elements;
   TABLE *const table= insert_table_ref->table;
   MY_BITMAP used_fields;
   enum_mark_columns save_mark_used_columns= thd->mark_used_columns;
@@ -909,26 +903,28 @@ static bool check_view_insertability(THD *thd, TABLE_LIST *view,
 
   thd->mark_used_columns= MARK_COLUMNS_NONE;
 
+  // No privilege checking is done for these columns
+  Column_privilege_tracker column_privilege(thd, 0);
+
   /* check simplicity and prepare unique test of view */
   Field_translator *const trans_start= view->field_translation;
   Field_translator *const trans_end= trans_start + num;
 
   for (Field_translator *trans= trans_start; trans != trans_end; trans++)
   {
+    /*
+      @todo
+      This fix_fields() call is necessary for execution of prepared statements.
+      When repeated preparation is eliminated the call can be deleted.
+    */
     if (!trans->item->fixed && trans->item->fix_fields(thd, &trans->item))
-    {
-      /* purecov: begin inspected */
-      thd->mark_used_columns= save_mark_used_columns;
-      DBUG_RETURN(true);
-      /* purecov: end */
-    }
+      DBUG_RETURN(true);  /* purecov: inspected */
+
     Item_field *field;
     /* simple SELECT list entry (field without expression) */
     if (!(field= trans->item->field_for_view_update()))
-    {
-      thd->mark_used_columns= save_mark_used_columns;
       DBUG_RETURN(true);
-    }
+
     if (field->field->unireg_check == Field::NEXT_NUMBER)
       view->contain_auto_increment= true;
     /* prepare unique test */
@@ -939,6 +935,7 @@ static bool check_view_insertability(THD *thd, TABLE_LIST *view,
     trans->item= field;
   }
   thd->mark_used_columns= save_mark_used_columns;
+
   /* unique test */
   for (Field_translator *trans= trans_start; trans != trans_end; trans++)
   {
@@ -953,6 +950,39 @@ static bool check_view_insertability(THD *thd, TABLE_LIST *view,
   DBUG_RETURN(false);
 }
 
+
+/**
+  Recursive helper function for resolving join conditions for
+  insertion into view for prepared statements.
+
+  @param thd      Thread handler
+  @param tr       Table structure which is traversed recursively
+
+  @return false if success, true if error
+*/
+static bool fix_join_cond_for_insert(THD *thd, TABLE_LIST *tr)
+{
+  if (tr->join_cond() && !tr->join_cond()->fixed)
+  {
+    Column_privilege_tracker column_privilege(thd, SELECT_ACL);
+
+    if (tr->join_cond()->fix_fields(thd, NULL))
+      return true;
+  }
+
+  if (tr->nested_join == NULL)
+    return false;
+
+  List_iterator<TABLE_LIST> li(tr->nested_join->join_list);
+  TABLE_LIST *ti;
+
+  while ((ti= li++))
+  {
+    if (fix_join_cond_for_insert(thd, ti))
+      return true;
+  }
+  return false;
+}
 
 /**
   Check if table can be updated
@@ -971,31 +1001,56 @@ static bool mysql_prepare_insert_check_table(THD *thd, TABLE_LIST *table_list,
 {
   DBUG_ENTER("mysql_prepare_insert_check_table");
 
-  const bool insert_into_view= table_list->view != NULL;
+  SELECT_LEX *const select= thd->lex->select_lex;
+  const bool insert_into_view= table_list->is_view();
 
-  if (!table_list->updatable)
+  if (select->setup_tables(thd, table_list, select_insert))
+    DBUG_RETURN(true);
+
+  if (insert_into_view)
+  {
+    // Allowing semi-join would transform this table into a "join view"
+    if (table_list->resolve_derived(thd, false))
+      DBUG_RETURN(true);
+
+    if (select->merge_derived(thd, table_list))
+      DBUG_RETURN(true);
+
+    /*
+      On second preparation, we may need to resolve view condition generated
+      when merging the view.
+    */
+    if (!select->first_execution && table_list->is_merged() &&
+        fix_join_cond_for_insert(thd, table_list))
+      DBUG_RETURN(true);
+  }
+
+  if (!table_list->is_updatable())
   {
     my_error(ER_NON_INSERTABLE_TABLE, MYF(0), table_list->alias, "INSERT");
     DBUG_RETURN(true);
   }
-  /*
-     first table in list is the one we'll INSERT into, requires INSERT_ACL.
-     all others require SELECT_ACL only. the ACL requirement below is for
-     new leaves only anyway (view-constituents), so check for SELECT rather
-     than INSERT.
-  */
 
-  if (setup_tables_and_check_access(thd, &thd->lex->select_lex->context,
-                                    &thd->lex->select_lex->top_join_list,
-                                    table_list,
-                                    &thd->lex->select_lex->leaf_tables,
-                                    select_insert, INSERT_ACL, SELECT_ACL))
+  // Allow semi-join for selected tables containing subqueries
+  if (select->derived_table_count && select->resolve_derived(thd, true))
+    DBUG_RETURN(true);
+
+  /*
+    First table in list is the one being inserted into, requires INSERT_ACL.
+    All other tables require SELECT_ACL only.
+  */
+  if (select->derived_table_count &&
+      select->check_view_privileges(thd, INSERT_ACL, SELECT_ACL))
+    DBUG_RETURN(true);
+
+  // Precompute and store the row types of NATURAL/USING joins.
+  if (setup_natural_join_row_types(thd, select->join_list, &select->context))
     DBUG_RETURN(true);
 
   if (insert_into_view && !fields.elements)
   {
     thd->lex->empty_field_list_on_rset= 1;
-    if (table_list->multitable_view)
+    if (table_list->is_multiple_tables())
     {
       my_error(ER_VIEW_NO_INSERT_FIELD_LIST, MYF(0),
                table_list->view_db.str, table_list->view_name.str);
@@ -1003,6 +1058,13 @@ static bool mysql_prepare_insert_check_table(THD *thd, TABLE_LIST *table_list,
     }
     if (insert_view_fields(thd, &fields, table_list))
       DBUG_RETURN(true);
+    /*
+       Item_fields inserted above from field_translation list have been
+       already fixed in resolved_derived(), thus setup_fields() in
+       check_insert_fields() will not process them, not mark them in write_set;
+       we have to do it:
+    */
+    bitmap_set_all(table_list->updatable_base_table()->table->write_set);
   }
 
   DBUG_RETURN(false);
@@ -1025,7 +1087,7 @@ static void prepare_for_positional_update(TABLE *table, TABLE_LIST *tables)
     return;
   }
 
-  DBUG_ASSERT(tables->view);
+  DBUG_ASSERT(tables->is_view());
   List_iterator<TABLE_LIST> it(*tables->view_tables);
   TABLE_LIST *tbl;
   while ((tbl= it++))
@@ -1075,26 +1137,21 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
 {
   DBUG_ENTER("mysql_prepare_insert");
 
-  /* INSERT should have a SELECT or VALUES clause */
+  // INSERT should have a SELECT or VALUES clause
   DBUG_ASSERT (!select_insert || !values);
+
+  // Number of update fields must match number of update values
+  DBUG_ASSERT(update_fields.elements == update_values.elements);
 
   SELECT_LEX *const select_lex= thd->lex->select_lex;
   Name_resolution_context *const context= &select_lex->context;
   Name_resolution_context_state ctx_state;
-  const bool insert_into_view= (table_list->view != 0);
+  const bool insert_into_view= table_list->is_view();
   bool res= false;
 
   DBUG_PRINT("enter", ("table_list 0x%lx, view %d",
                        (ulong)table_list,
                        (int)insert_into_view));
-
-  // REPLACE for a JOIN view is not permitted.
-  if (table_list->multitable_view && duplic == DUP_REPLACE)
-  {
-    my_error(ER_VIEW_DELETE_MERGE_VIEW, MYF(0),
-             table_list->view_db.str, table_list->view_name.str);
-    DBUG_RETURN(true);
-  }
 
   *insert_table_ref= NULL;
   /*
@@ -1117,15 +1174,23 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
     }
   }
 
+  if (mysql_prepare_insert_check_table(thd, table_list, fields, select_insert))
+    DBUG_RETURN(true);
+
+  // REPLACE for a JOIN view is not permitted.
+  if (table_list->is_multiple_tables() && duplic == DUP_REPLACE)
+  {
+    my_error(ER_VIEW_DELETE_MERGE_VIEW, MYF(0),
+             table_list->view_db.str, table_list->view_name.str);
+    DBUG_RETURN(true);
+  }
+
   if (duplic == DUP_UPDATE)
   {
     /* it should be allocated before Item::fix_fields() */
     if (table_list->set_insert_values(thd->mem_root))
       DBUG_RETURN(true);                       /* purecov: inspected */
   }
-
-  if (mysql_prepare_insert_check_table(thd, table_list, fields, select_insert))
-    DBUG_RETURN(true);
 
   // Save the state of the current name resolution context.
   ctx_state.save_state(context, table_list);
@@ -1154,24 +1219,26 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
 
     if (!res)
       res= setup_fields(thd, Ref_ptr_array(),
-                        *values, MARK_COLUMNS_READ, 0, 0);
+                        *values, SELECT_ACL, 0, 0);
     if (!res)
       res= check_valid_table_refs(table_list, *values, map);
+
     thd->lex->in_update_value_clause= true;
     if (!res)
       res= setup_fields(thd, Ref_ptr_array(),
-                        update_values, MARK_COLUMNS_READ, 0, 0);
+                        update_values, SELECT_ACL, 0, 0);
     if (!res)
       res= check_valid_table_refs(table_list, update_values, map);
     thd->lex->in_update_value_clause= false;
 
     if (!res && duplic == DUP_UPDATE)
     {
-      select_lex->no_wrap_view_item= true;
-      // Resolve the columns that will be updated
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+      table_list->set_want_privilege(UPDATE_ACL);
+#endif
+      // Setup the columns to be updated
       res= setup_fields(thd, Ref_ptr_array(),
-                        update_fields, MARK_COLUMNS_WRITE, 0, 0);
-      select_lex->no_wrap_view_item= false;
+                        update_fields, UPDATE_ACL, 0, 0);
       if (!res)
         res= check_valid_table_refs(table_list, update_fields, map);
     }
@@ -1206,12 +1273,12 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
 
     if (!res && duplic == DUP_UPDATE)
     {
-      select_lex->no_wrap_view_item= true;
-
-      // Resolve the columns that will be updated
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+      table_list->set_want_privilege(UPDATE_ACL);
+#endif
+      // Setup the columns to be modified
       res= setup_fields(thd, Ref_ptr_array(),
-                        update_fields, MARK_COLUMNS_WRITE, 0, 0);
-      select_lex->no_wrap_view_item= false;
+                        update_fields, UPDATE_ACL, 0, 0);
       if (!res)
         res= check_valid_table_refs(table_list, update_fields, map);
 
@@ -1229,7 +1296,7 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
       thd->lex->in_update_value_clause= true;
       if (!res)
         res= setup_fields(thd, Ref_ptr_array(), update_values,
-                          MARK_COLUMNS_READ, 0, 0);
+                          SELECT_ACL, 0, 0);
       thd->lex->in_update_value_clause= false;
 
       /*
@@ -1257,8 +1324,19 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
       update_non_unique_table_error(table_list, "INSERT", duplicate);
       DBUG_RETURN(true);
     }
-    select_lex->fix_prepare_information(thd);
-    select_lex->first_execution= false;
+  }
+
+  if (table_list->is_merged())
+  {
+    Column_privilege_tracker column_privilege(thd, SELECT_ACL);
+
+    if (table_list->effective_with_check &&
+        table_list->prepare_check_option(thd))
+      DBUG_RETURN(true);
+
+    if (duplic == DUP_REPLACE &&
+        table_list->prepare_replace_filter(thd))
+      DBUG_RETURN(true);
   }
   if (duplic == DUP_UPDATE || duplic == DUP_REPLACE)
     prepare_for_positional_update((*insert_table_ref)->table, table_list);
@@ -1566,7 +1644,7 @@ int write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update)
       {
         TABLE_LIST *view= table->pos_in_table_list->belong_to_view;
 
-        if (view && view->where)
+        if (view && view->replace_filter)
         {
           const size_t record_length= table->s->reclength;
 
@@ -1586,7 +1664,7 @@ int write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update)
           memcpy(table->record[0], table->record[1], record_length);
 
           // Checking if the row being conflicted is visible by the view.
-          bool found_row_in_view= MY_TEST(view->where->val_int());
+          bool found_row_in_view= view->replace_filter->val_int();
 
           // Restoring the record back.
           memcpy(table->record[0], record0_saved, record_length);
@@ -1745,11 +1823,11 @@ int check_that_all_fields_are_given_values(THD *thd, TABLE *entry,
         ((*field)->flags & NO_DEFAULT_VALUE_FLAG) &&
         ((*field)->real_type() != MYSQL_TYPE_ENUM))
     {
-      bool view= FALSE;
+      bool view= false;
       if (table_list)
       {
         table_list= table_list->top_table();
-        view= MY_TEST(table_list->view);
+        view= table_list->is_view();
       }
       if (view)
         (*field)->set_warning(Sql_condition::SL_WARNING,
@@ -1807,7 +1885,10 @@ bool mysql_insert_select_prepare(THD *thd)
     INSERT
   */
   DBUG_ASSERT(select_lex->leaf_tables != 0);
+  DBUG_ASSERT(lex->insert_table == select_lex->leaf_tables->top_table());
+
   lex->leaf_tables_insert= select_lex->leaf_tables;
+  select_lex->leaf_table_count--;
   /* skip all leaf tables belonged to view where we are insert */
   for (first_select_leaf_table= select_lex->leaf_tables->next_leaf;
        first_select_leaf_table &&
@@ -1815,7 +1896,9 @@ bool mysql_insert_select_prepare(THD *thd)
        first_select_leaf_table->belong_to_view ==
        lex->leaf_tables_insert->belong_to_view;
        first_select_leaf_table= first_select_leaf_table->next_leaf)
-  {}
+  {
+    select_lex->leaf_table_count--;
+  }
   select_lex->leaf_tables= first_select_leaf_table;
   DBUG_RETURN(FALSE);
 }
@@ -1844,7 +1927,7 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   res= check_insert_fields(thd, table_list, *fields, values.elements, true,
                            !insert_into_view, &insert_table_ref);
   if (!res)
-    res= setup_fields(thd, Ref_ptr_array(), values, MARK_COLUMNS_READ, 0, 0);
+    res= setup_fields(thd, Ref_ptr_array(), values, SELECT_ACL, 0, 0);
 
   if (duplicate_handling == DUP_UPDATE && !res)
   {
@@ -1858,9 +1941,11 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
     table_list->next_local= NULL;
     context->resolve_in_table_list_only(table_list);
 
-    res= res || setup_fields_with_no_wrap(thd, Ref_ptr_array(),
-                                          *update.get_changed_columns(),
-                                          MARK_COLUMNS_WRITE, 0, 0);
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+    table_list->set_want_privilege(UPDATE_ACL);
+#endif
+    res= res || setup_fields(thd, Ref_ptr_array(),
+                             *update.get_changed_columns(), UPDATE_ACL, 0, 0);
     /*
       When we are not using GROUP BY and there are no ungrouped aggregate
       functions 
@@ -1883,7 +1968,7 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
     }
     lex->in_update_value_clause= true;
     res= res || setup_fields(thd, Ref_ptr_array(), *update.update_values,
-                             MARK_COLUMNS_READ, 0, 0);
+                             SELECT_ACL, 0, 0);
     lex->in_update_value_clause= false;
     if (!res)
     {
@@ -1962,8 +2047,6 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
     table->file->extra(HA_EXTRA_WRITE_CAN_REPLACE);
   if (duplicate_handling == DUP_UPDATE)
     table->file->extra(HA_EXTRA_INSERT_WITH_UPDATE);
-  res= (table_list->prepare_where(thd, 0, TRUE) ||
-        table_list->prepare_check_option(thd));
 
   if (!res)
   {
@@ -2409,7 +2492,7 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
   tmp_table.s->db_low_byte_first= 
         MY_TEST(create_info->db_type == myisam_hton ||
                 create_info->db_type == heap_hton);
-  tmp_table.null_row=tmp_table.maybe_null=0;
+  tmp_table.null_row= 0;
 
   if (!thd->variables.explicit_defaults_for_timestamp)
     promote_first_timestamp_column(&alter_info->create_list);

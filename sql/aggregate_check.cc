@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -599,7 +599,7 @@ Item *Group_check::select_expression(uint idx)
 void Group_check::add_to_source_of_mat_table(Item_field *item_field,
                                              TABLE_LIST *tl)
 {
-  SELECT_LEX_UNIT *const mat_unit= tl->get_unit();
+  SELECT_LEX_UNIT *const mat_unit= tl->derived_unit();
   // Query expression underlying 'tl':
   SELECT_LEX *const mat_select= mat_unit->first_select();
   if (mat_unit->is_union() || mat_select->olap != UNSPECIFIED_OLAP_TYPE)
@@ -786,7 +786,7 @@ bool Group_check::is_in_fd_of_underlying(Item_ident *item)
     TABLE_LIST *const tl= item_field->field->table->pos_in_table_list;
     if (tl->uses_materialization()) // materialized table
     {
-      SELECT_LEX *const mat_select= tl->get_unit()->first_select();
+      SELECT_LEX *const mat_select= tl->derived_unit()->first_select();
       uint j;
       for (j= 0; j < mat_tables.size() ; j++)
       {
@@ -1094,7 +1094,7 @@ void Group_check::to_opt_trace2(Opt_trace_context *ctx,
 {
 #ifdef OPTIMIZER_TRACE
   if (table)
-    parent->add_utf8_table(table->table);
+    parent->add_utf8_table(table);
   if (whole_tables_fd)
   {
     Opt_trace_array array(ctx, "all_columns_of_table_map_bits");

@@ -1982,7 +1982,7 @@ void Optimize_table_order::optimize_straight_join(table_map join_tables)
     if (unlikely(trace->is_started()))
     {
       trace_plan_prefix(join, idx, excluded_tables);
-      trace_table.add_utf8_table(s->table());
+      trace_table.add_utf8_table(s->table_ref);
     }
     /*
       Dependency computation (JOIN::make_join_plan()) and proper ordering
@@ -2556,7 +2556,7 @@ bool Optimize_table_order::best_extension_by_limited_search(
       if (unlikely(trace->is_started()))
       {
         trace_plan_prefix(join, idx, excluded_tables);
-        trace_one_table.add_utf8_table(s->table());
+        trace_one_table.add_utf8_table(s->table_ref);
       }
       POSITION *const position= join->positions + idx;
 
@@ -2906,7 +2906,7 @@ table_map Optimize_table_order::eq_ref_extension_by_limited_search(
       if (unlikely(trace->is_started()))
       {
         trace_plan_prefix(join, idx, excluded_tables);
-        trace_one_table.add_utf8_table(s->table());
+        trace_one_table.add_utf8_table(s->table_ref);
       }
       POSITION *const position= join->positions + idx;
 
@@ -3553,7 +3553,7 @@ bool Optimize_table_order::semijoin_firstmatch_loosescan_access_paths(
     if (is_ls_driving_tab || positions[i].use_join_buffer)
     {
       Opt_trace_object trace_one_table(trace);
-      trace_one_table.add_utf8_table(tab->table());
+      trace_one_table.add_utf8_table(tab->table_ref);
 
       /*
         Find the best access method with specified join buffering strategy.
@@ -3692,7 +3692,7 @@ void Optimize_table_order::semijoin_mat_scan_access_paths(
   {
     Opt_trace_object trace_one_table(trace);
     JOIN_TAB *const tab= positions[i].table;
-    trace_one_table.add_utf8_table(tab->table());
+    trace_one_table.add_utf8_table(tab->table_ref);
     POSITION regular_pos;
     POSITION *const dst_pos= final ? positions + i : &regular_pos;
     best_access_path(tab, remaining_tables, i, false,

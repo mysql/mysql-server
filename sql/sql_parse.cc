@@ -1961,7 +1961,7 @@ retry:
 
   for (table= tables; table; table= table->next_global)
   {
-    if (!table->placeholder())
+    if (!table->is_placeholder())
     {
       if (table->table->s->tmp_table)
       {
@@ -2471,7 +2471,7 @@ case SQLCOM_PREPARE:
   }
   case SQLCOM_DO:
     if (check_table_access(thd, SELECT_ACL, all_tables, FALSE, UINT_MAX, FALSE)
-        || open_and_lock_tables(thd, all_tables, TRUE, 0))
+        || open_and_lock_tables(thd, all_tables, 0))
       goto error;
 
     res= mysql_do(thd, *lex->insert_list);
@@ -2781,10 +2781,10 @@ case SQLCOM_PREPARE:
         goto end_with_restore_list;
       }
 
-      if (!(res= open_normal_and_derived_tables(thd, all_tables, 0)))
+      if (!(res= open_tables_for_query(thd, all_tables, 0)))
       {
         /* The table already exists */
-        if (create_table->table || create_table->view)
+        if (create_table->table || create_table->is_view())
         {
           if (create_info.options & HA_LEX_CREATE_IF_NOT_EXISTS)
           {
@@ -3161,12 +3161,14 @@ end_with_restore_list:
     MYSQL_UPDATE_START(const_cast<char*>(thd->query().str));
 
     // Need to open to check for multi-update
-    if (!(res= open_normal_and_derived_tables(thd, all_tables, 0)))
+    res= open_tables_for_query(thd, all_tables, 0);
+    res= res || mysql_update_prepare_table(thd, select_lex);
+    if (!res)
     {
       if (run_before_dml_hook(thd))
         goto error;
 
-      if (!all_tables->multitable_view)
+      if (!all_tables->is_multiple_tables())
       {
         /* Push ignore / strict error handler */
         Ignore_error_handler ignore_handler;
@@ -3188,16 +3190,8 @@ end_with_restore_list:
       }
       else
       {
-        DBUG_ASSERT(all_tables->view != 0);
+        DBUG_ASSERT(all_tables->is_view());
         DBUG_PRINT("info", ("Switch to multi-update"));
-        if (select_lex->order_list.elements ||
-            select_lex->select_limit)
-        { // Clauses not supported by multi-update: can't switch.
-          my_error(ER_VIEW_PREVENT_UPDATE, MYF(0),
-                   all_tables->alias, "UPDATE", all_tables->alias);
-          res= true;
-          break;
-        }
         if (!thd->in_sub_stmt)
           thd->query_plan.set_query_plan(SQLCOM_UPDATE_MULTI, lex,
                                          !thd->stmt_arena->is_conventional());
@@ -3366,7 +3360,7 @@ end_with_restore_list:
       a view, then we should restore LAST_INSERT_ID to the value it
       had before the statement.
     */
-    if (first_table->view && !first_table->contain_auto_increment)
+    if (first_table->is_view() && !first_table->contain_auto_increment)
       thd->first_successful_insert_id_in_cur_stmt=
         thd->first_successful_insert_id_in_prev_stmt;
 
@@ -3408,12 +3402,13 @@ end_with_restore_list:
 
     unit->set_limit(select_lex);
 
-    if (!(res= open_normal_and_derived_tables(thd, all_tables, 0)))
+    if (!(res= open_tables_for_query(thd, all_tables, 0)))
     {
       if (run_before_dml_hook(thd))
         goto error;
 
       MYSQL_INSERT_SELECT_START(const_cast<char*>(thd->query().str));
+
       /* Skip first table, which is the table we are inserting in */
       TABLE_LIST *second_table= first_table->next_local;
       select_lex->table_list.first= second_table;
@@ -3457,7 +3452,7 @@ end_with_restore_list:
       a view, then we should restore LAST_INSERT_ID to the value it
       had before the statement.
     */
-    if (first_table->view && !first_table->contain_auto_increment)
+    if (first_table->is_view() && !first_table->contain_auto_increment)
       thd->first_successful_insert_id_in_cur_stmt=
         thd->first_successful_insert_id_in_prev_stmt;
 
@@ -3506,7 +3501,7 @@ end_with_restore_list:
       goto error;
 
     THD_STAGE_INFO(thd, stage_init);
-    if ((res= open_normal_and_derived_tables(thd, all_tables, 0)))
+    if ((res= open_tables_for_query(thd, all_tables, 0)))
       break;
 
     if (run_before_dml_hook(thd))
@@ -3651,7 +3646,7 @@ end_with_restore_list:
     List<set_var_base> *lex_var_list= &lex->var_list;
 
     if ((check_table_access(thd, SELECT_ACL, all_tables, FALSE, UINT_MAX, FALSE)
-         || open_and_lock_tables(thd, all_tables, TRUE, 0)))
+         || open_and_lock_tables(thd, all_tables, 0)))
       goto error;
     if (!(res= sql_set_variables(thd, lex_var_list)))
     {
@@ -4422,7 +4417,7 @@ end_with_restore_list:
       */
       if (check_table_access(thd, SELECT_ACL, all_tables, FALSE,
                              UINT_MAX, FALSE) ||
-          open_and_lock_tables(thd, all_tables, TRUE, 0))
+          open_and_lock_tables(thd, all_tables, 0))
        goto error;
 
       /*
@@ -4977,7 +4972,7 @@ static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables)
     statement_timer_armed= set_statement_timer(thd);
 #endif
 
-  if (!(res= open_normal_and_derived_tables(thd, all_tables, 0)))
+  if (!(res= open_tables_for_query(thd, all_tables, 0)))
   {
     MYSQL_SELECT_START(const_cast<char*>(thd->query().str));
     if (lex->is_explain())
@@ -5200,6 +5195,11 @@ void THD::reset_for_next_command()
   thd->commit_error= THD::CE_NONE;
   thd->durability_property= HA_REGULAR_DURABILITY;
   thd->set_trans_pos(NULL, 0);
+
+  thd->derived_tables_processing= false;
+
+  // Need explicit setting, else demand all privileges to a table.
+  thd->want_privilege= ~NO_ACCESS;
 
   DBUG_PRINT("debug",
              ("is_current_stmt_binlog_format_row(): %d",
@@ -5781,8 +5781,8 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
   /* TODO: remove TL_OPTION_FORCE_INDEX as it looks like it's not used */
   ptr->force_index= MY_TEST(table_options & TL_OPTION_FORCE_INDEX);
   ptr->ignore_leaves= MY_TEST(table_options & TL_OPTION_IGNORE_LEAVES);
-  ptr->derived=	    table->sel;
-  if (!ptr->derived && is_infoschema_db(ptr->db, ptr->db_length))
+  ptr->set_derived_unit(table->sel);
+  if (!ptr->is_derived() && is_infoschema_db(ptr->db, ptr->db_length))
   {
     ST_SCHEMA_TABLE *schema_table;
     if (ptr->updating &&
@@ -5879,8 +5879,8 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
   }
   if (table->is_derived_table())
   {
-    ptr->effective_algorithm= DERIVED_ALGORITHM_TMPTABLE;
     ptr->derived_key_list.empty();
+    derived_table_count++;
   }
   DBUG_RETURN(ptr);
 }
@@ -6209,6 +6209,8 @@ push_new_name_resolution_context(Parse_context *pc,
   on_context->last_name_resolution_table=
     right_op->last_leaf_for_name_resolution();
   on_context->select_lex= pc->select;
+  on_context->next_context= pc->select->first_context;
+  pc->select->first_context= on_context;
   // Save join nest's context in right_op, to find it later in view merging.
   DBUG_ASSERT(right_op->context_of_embedding == NULL);
   right_op->context_of_embedding= on_context;
@@ -6596,7 +6598,7 @@ bool multi_delete_set_locks_and_link_aux_tables(LEX *lex)
     TABLE_LIST *walk= multi_delete_table_match(lex, target_tbl, tables);
     if (!walk)
       DBUG_RETURN(TRUE);
-    if (!walk->derived)
+    if (!walk->is_derived())
     {
       target_tbl->table_name= walk->table_name;
       target_tbl->table_name_length= walk->table_name_length;

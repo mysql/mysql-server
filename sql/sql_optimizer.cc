@@ -159,7 +159,7 @@ JOIN::optimize()
       future ("SET x=(subq)" is one such case; because it locks tables before
       prepare()).
     */
-    if (select_lex->apply_local_transforms(thd))
+    if (select_lex->apply_local_transforms(thd, false))
       DBUG_RETURN(error= 1);
   }
 
@@ -192,8 +192,14 @@ JOIN::optimize()
     Run optimize phase for all derived tables/views used in this SELECT,
     including those in semi-joins.
   */
-  if (select_lex->handle_derived(thd->lex, &mysql_derived_optimize))
-    DBUG_RETURN(1);
+  if (select_lex->materialized_derived_table_count)
+  {
+    for (TABLE_LIST *tl= select_lex->leaf_tables; tl; tl= tl->next_leaf)
+    {
+      if (tl->is_view_or_derived() && tl->optimize_derived(thd))
+        DBUG_RETURN(1);
+    }
+  }
 
   /* dump_TABLE_LIST_graph(select_lex, select_lex->leaf_tables); */
 
@@ -1806,7 +1812,7 @@ test_if_skip_sort_order(JOIN_TAB *tab, ORDER *order, ha_rows select_limit,
 
           Opt_trace_object
             trace_recest(trace, "rows_estimation");
-          trace_recest.add_utf8_table(tab->table()).
+          trace_recest.add_utf8_table(tab->table_ref).
           add_utf8("index", table->key_info[new_ref_key].name);
           QUICK_SELECT_I *qck;
           const bool no_quick=
@@ -1906,7 +1912,7 @@ test_if_skip_sort_order(JOIN_TAB *tab, ORDER *order, ha_rows select_limit,
       tab->quick_order_tested.set_bit(best_key);
       Opt_trace_object
         trace_recest(trace, "rows_estimation");
-      trace_recest.add_utf8_table(tab->table()).
+      trace_recest.add_utf8_table(tab->table_ref).
         add_utf8("index", table->key_info[best_key].name);
 
       key_map keys_to_use;           // Force the creation of quick select
@@ -2143,7 +2149,7 @@ fix_ICP:
 
   Opt_trace_object
     trace_change_index(trace, "index_order_summary");
-  trace_change_index.add_utf8_table(tab->table())
+  trace_change_index.add_utf8_table(tab->table_ref)
     .add("index_provides_order", can_skip_sorting)
     .add_alnum("order_direction", order_direction == 1 ? "asc" :
                ((order_direction == -1) ? "desc" :
@@ -2334,7 +2340,7 @@ void JOIN::adjust_access_methods()
         Opt_trace_context * const trace= &thd->opt_trace;
         Opt_trace_object wrapper(trace);
         Opt_trace_object (trace, "access_type_changed").
-          add_utf8_table(tab->table()).
+          add_utf8_table(tl).
           add_utf8("index",
                    tab->table()->key_info[tab->position()->key->key].name).
           add_alnum("old_type", "ref").
@@ -2540,8 +2546,8 @@ bool JOIN::get_best_combination()
       tab->set_sj_mat_exec(sjm_exec);
 
       if (!sjm_exec ||
-          setup_materialized_table(tab, sjm_index,
-                                   pos, best_positions + sjm_index))
+          setup_semijoin_materialized_table(tab, sjm_index,
+                                            pos, best_positions + sjm_index))
         err= true;                              /* purecov: inspected */
 
       outer_target++;
@@ -4716,7 +4722,7 @@ bool JOIN::make_join_plan()
     DBUG_RETURN(true);
 
   // Cleanup after update_ref_and_keys has added keys for derived tables.
-  if (select_lex->materialized_table_count)
+  if (select_lex->materialized_derived_table_count)
     drop_unused_derived_keys();
 
   // No need for this struct after new JOIN_TAB array is set up.
@@ -4792,7 +4798,6 @@ bool JOIN::init_planner_arrays()
     TABLE *const table= tl->table;
     tab->table_ref= tl;
     tab->set_table(table);
-    table->pos_in_table_list= tl;
     const int err= tl->fetch_number_of_rows();
 
     // Initialize the cost model for the table
@@ -4922,15 +4927,6 @@ bool JOIN::propagate_dependencies()
       return true;
     }
 
-    if (select_lex->outer_join & tab->table_ref->map())
-    {
-      /*
-        Semijoin inner tables in ON condition of outer join have been moved
-        into outer join nest, but after setup_table_map(), so maybe_null is
-        not yet set for them:
-      */
-      tab->table()->maybe_null= true;
-    }
     tab->key_dependent= tab->dependent;
   }
 
@@ -5266,7 +5262,7 @@ bool JOIN::estimate_rowcount()
   {
     const Cost_model_table *const cost_model= tab->table()->cost_model();
     Opt_trace_object trace_table(trace);
-    trace_table.add_utf8_table(tab->table());
+    trace_table.add_utf8_table(tab->table_ref);
     if (tab->type() == JT_SYSTEM || tab->type() == JT_CONST)
     {
       trace_table.add("rows", 1).add("cost", 1)
@@ -5561,7 +5557,7 @@ static ha_rows get_quick_record_count(THD *thd, JOIN_TAB *tab, ha_rows limit)
   }
   else if (tl->materializable_is_const())
   {
-    DBUG_RETURN(tl->get_unit()->query_result()->estimated_rowcount);
+    DBUG_RETURN(tl->derived_unit()->query_result()->estimated_rowcount);
   }
   DBUG_RETURN(HA_POS_ERROR);
 }
@@ -5635,11 +5631,11 @@ static void trace_table_dependencies(Opt_trace_context * trace,
   Opt_trace_array trace_dep(trace, "table_dependencies");
   for (uint i= 0 ; i < table_count ; i++)
   {
-    const TABLE *table= join_tabs[i].table();
+    TABLE_LIST *table_ref= join_tabs[i].table_ref;
     Opt_trace_object trace_one_table(trace);
-    trace_one_table.add_utf8_table(table).
-      add("row_may_be_null", table->maybe_null != 0);
-    const table_map map= join_tabs[i].table_ref->map();
+    trace_one_table.add_utf8_table(table_ref).
+      add("row_may_be_null", table_ref->table->is_nullable());
+    const table_map map= table_ref->map();
     DBUG_ASSERT(map < (1ULL << table_count));
     for (uint j= 0; j < table_count; j++)
     {
@@ -5651,7 +5647,7 @@ static void trace_table_dependencies(Opt_trace_context * trace,
     }
     Opt_trace_array depends_on(trace, "depends_on_map_bits");
     // RAND_TABLE_BIT may be in join_tabs[i].dependent, so we test all 64 bits
-    compile_time_assert(sizeof(join_tabs[i].table_ref->map()) <= 64);
+    compile_time_assert(sizeof(table_ref->map()) <= 64);
     for (uint j= 0; j < 64; j++)
     {
       if (join_tabs[i].dependent & (1ULL << j))
@@ -5721,7 +5717,7 @@ static void add_not_null_conds(JOIN *join)
     JOIN_TAB *const tab= join->best_ref[i];
     if ((tab->type() == JT_REF || tab->type() == JT_EQ_REF || 
          tab->type() == JT_REF_OR_NULL) &&
-        !tab->table()->maybe_null)
+        !tab->table()->is_nullable())
     {
       for (uint keypart= 0; keypart < tab->ref().key_parts; keypart++)
       {
@@ -6114,7 +6110,7 @@ static bool pull_out_semijoin_tables(JOIN *join)
           {
             pulled_a_table= TRUE;
             pulled_tables |= tbl->map();
-            Opt_trace_object(trace).add_utf8_table(tbl->table).
+            Opt_trace_object(trace).add_utf8_table(tbl).
               add("functionally_dependent", true);
             /*
               Pulling a table out of uncorrelated subquery in general makes
@@ -6515,7 +6511,7 @@ add_key_field(Key_field **key_fields, uint and_level, Item_func *cond,
   {
     // Don't remove column IS NULL on a LEFT JOIN table
     if (!eq_func || (*value)->type() != Item::NULL_ITEM ||
-        !tl->table->maybe_null || field->real_maybe_null())
+        !tl->table->is_nullable() || field->real_maybe_null())
       return;					// Not a key. Skip it
     exists_optimize= KEY_OPTIMIZE_EXISTS;
     DBUG_ASSERT(num_values == 1);
@@ -6535,7 +6531,7 @@ add_key_field(Key_field **key_fields, uint and_level, Item_func *cond,
     if (!(usable_tables & tl->map()))
     {
       if (!eq_func || (*value)->type() != Item::NULL_ITEM ||
-          !tl->table->maybe_null || field->real_maybe_null())
+          !tl->table->is_nullable() || field->real_maybe_null())
         return; // Can't use left join optimize
       exists_optimize= KEY_OPTIMIZE_EXISTS;
     }
@@ -7764,7 +7760,7 @@ update_ref_and_keys(THD *thd, Key_use_array *keyuse,JOIN_TAB *join_tab,
   }
 
   /* Generate keys descriptions for derived tables */
-  if (select_lex->materialized_table_count)
+  if (select_lex->materialized_derived_table_count)
   {
     if (join->generate_derived_keys())
       return true;
@@ -8356,7 +8352,7 @@ void JOIN::remove_subq_pushed_predicates()
 
 bool JOIN::generate_derived_keys()
 {
-  DBUG_ASSERT(select_lex->materialized_table_count);
+  DBUG_ASSERT(select_lex->materialized_derived_table_count);
 
   for (TABLE_LIST *table= select_lex->leaf_tables;
        table;
@@ -8384,7 +8380,7 @@ bool JOIN::generate_derived_keys()
 
 void JOIN::drop_unused_derived_keys()
 {
-  DBUG_ASSERT(select_lex->materialized_table_count);
+  DBUG_ASSERT(select_lex->materialized_derived_table_count);
   ASSERT_BEST_REF_IN_JOIN_ORDER(this);
 
   for (uint i= 0 ; i < tables ; i++)
@@ -8927,7 +8923,7 @@ static bool make_join_select(JOIN *join, Item *cond)
           if (recheck_reason != DONT_RECHECK)
           {
             Opt_trace_object trace_one_table(trace);
-            trace_one_table.add_utf8_table(tab->table());
+            trace_one_table.add_utf8_table(tab->table_ref);
             Opt_trace_object trace_table(trace, "rechecking_index_usage");
             if (recheck_reason == NOT_FIRST_TABLE)
               trace_table.add_alnum("recheck_reason", "not_first_table");
@@ -9168,7 +9164,7 @@ static bool make_join_select(JOIN *join, Item *cond)
         continue;
       Item * const cond= tab->condition();
       Opt_trace_object trace_one_table(trace);
-      trace_one_table.add_utf8_table(tab->table()).
+      trace_one_table.add_utf8_table(tab->table_ref).
         add("attached", cond);
       if (cond &&
           cond->has_subquery() /* traverse only if needed */ )
@@ -9229,7 +9225,7 @@ eq_ref_table(JOIN *join, ORDER *start_order, JOIN_TAB *tab,
   /* We can skip const tables only if not an outer table */
   if (tab->type() == JT_CONST && tab->first_inner() == NO_PLAN_IDX)
     return true;
-  if (tab->type() != JT_EQ_REF || tab->table()->maybe_null)
+  if (tab->type() != JT_EQ_REF || tab->table()->is_nullable())
     return false;
 
   const table_map map= tab->table_ref->map();
@@ -9820,7 +9816,7 @@ remove_eq_conds(THD *thd, Item *cond, Item::cond_result *cond_value)
     if (args[0]->type() == Item::FIELD_ITEM)
     {
       Field *field=((Item_field*) args[0])->field;
-      if (field->flags & AUTO_INCREMENT_FLAG && !field->table->maybe_null &&
+      if (field->flags & AUTO_INCREMENT_FLAG && !field->table->is_nullable() &&
 	  (thd->variables.option_bits & OPTION_AUTO_IS_NULL) &&
 	  (thd->first_successful_insert_id_in_prev_stmt > 0 &&
            thd->substitute_null_with_insert_id))
@@ -10680,7 +10676,7 @@ bool JOIN::compare_costs_of_subquery_strategies(
         DBUG_ASSERT((int)idx >= 0 && idx < parent_join->tables);
         trace_parent.add("subq_attached_to_table", true);
         QEP_TAB *const parent_tab= &parent_join->qep_tab[idx];
-        trace_parent.add_utf8_table(parent_tab->table());
+        trace_parent.add_utf8_table(parent_tab->table_ref);
         parent_fanout= parent_tab->position()->rows_fetched;
         if ((idx > parent_join->const_tables) &&
             !sj_is_materialize_strategy(parent_tab->position()->sj_strategy))

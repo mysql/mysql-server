@@ -669,6 +669,8 @@ DROP TABLE t1;
 # Bug#54543: update ignore with incorrect subquery leads to assertion
 # failure: inited==INDEX
 #
+set @optimizer_switch_saved=@@optimizer_switch;
+set optimizer_switch='derived_merge=off';
 SET SESSION sql_safe_updates = 0;
 CREATE TABLE t1 ( a INT );
 INSERT INTO t1 VALUES (1), (2);
@@ -685,9 +687,12 @@ Warning	1242	Subquery returns more than 1 row
 Warning	1242	Subquery returns more than 1 row
 DROP TABLE t1, t2, t3;
 SET SESSION sql_safe_updates = DEFAULT;
+set @@optimizer_switch=@optimizer_switch_saved;
 #
 # Bug#52157 various crashes and assertions with multi-table update, stored function
 #
+set @optimizer_switch_saved=@@optimizer_switch;
+set optimizer_switch='derived_merge=off';
 CREATE FUNCTION f1 () RETURNS BLOB RETURN 1;
 CREATE TABLE t1 (f1 DATE);
 INSERT INTO t1 VALUES('2001-01-01');
@@ -696,6 +701,7 @@ Warnings:
 Warning	1292	Truncated incorrect datetime value: '1'
 DROP FUNCTION f1;
 DROP TABLE t1;
+set @@optimizer_switch=@optimizer_switch_saved;
 #
 # BUG#57373: Multi update+InnoDB reports ER_KEY_NOT_FOUND if a
 #            table is updated twice
@@ -815,6 +821,35 @@ UPDATE v SET a=1 LIMIT 3;
 Got one of the listed errors
 DROP TABLE t1;
 DROP VIEW v;
+#
+# WL#5275: Multi-table update, view with subquery in CHECK OPTION
+#
+CREATE TABLE t1 (f1 INTEGER PRIMARY KEY) ENGINE=InnoDB;
+CREATE TABLE t2 (f1 INTEGER PRIMARY KEY, f2 INTEGER) ENGINE=InnoDB;
+CREATE TABLE t3 (f1 INTEGER) ENGINE=INNODB;
+INSERT INTO t1 VALUES (1), (2);
+INSERT INTO t2 VALUES (1, 1), (2, 2);
+INSERT INTO t3 VALUES (1), (2);
+CREATE VIEW v2 AS 
+SELECT * FROM t2 WHERE f2 IN (SELECT f1 FROM t3)
+WITH CHECK OPTION;
+SELECT * FROM t1 JOIN v2 ON t1.f1=v2.f1;
+f1	f1	f2
+1	1	1
+2	2	2
+UPDATE t1 JOIN v2 ON t1.f1=v2.f1
+SET f2 = f2 + 1
+WHERE t1.f1=1;
+UPDATE t1 JOIN v2 ON t1.f1=v2.f1
+SET f2 = f2 + 1
+WHERE t1.f1=2;
+ERROR HY000: CHECK OPTION failed 'test.v2'
+SELECT * FROM t1 JOIN v2 ON t1.f1=v2.f1;
+f1	f1	f2
+1	1	2
+2	2	2
+DROP VIEW v2;
+DROP TABLE t1, t2, t3;
 #
 # Bug 18449085: WRONG VALUE AFTER MULTI UPDATE
 #

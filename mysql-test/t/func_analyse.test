@@ -86,10 +86,15 @@ drop table t1;
 #
 # Bug#46184 Crash, SELECT ... FROM derived table procedure analyze
 #
+set @optimizer_switch_saved=@@session.optimizer_switch;
+set optimizer_switch='derived_merge=off';
+
 CREATE TABLE t1(a INT,b INT,c INT,d INT,e INT,f INT,g INT,h INT,i INT,j INT,k INT);
 INSERT INTO t1 VALUES ();
 SELECT * FROM (SELECT * FROM t1) d PROCEDURE ANALYSE();
 DROP TABLE t1;
+
+set @@session.optimizer_switch=@optimizer_switch_saved;
 
 --echo End of 4.1 tests
 

@@ -1388,7 +1388,7 @@ int do_sj_dups_weedout(THD *thd, SJ_TMP_TABLE *sjtbl)
   for (uint i=0; tab != tab_end; tab++, i++)
   {
     handler *h= tab->qep_tab->table()->file;
-    if (tab->qep_tab->table()->maybe_null &&
+    if (tab->qep_tab->table()->is_nullable() &&
         tab->qep_tab->table()->null_row)
     {
       /* It's a NULL-complemented row */
@@ -1878,8 +1878,6 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
     if ((table->null_row= (tab->join_cond()->val_int() == 0)))
       mark_as_null_row(table);  
   }
-  if (!table->null_row)
-    table->maybe_null=0;
 
   /* Check appearance of new constant items in Item_equal objects */
   JOIN *const join= tab->join();
@@ -2336,7 +2334,7 @@ join_init_quick_read_record(QEP_TAB *tab)
 
   Opt_trace_object wrapper(trace);
   Opt_trace_object trace_table(trace, "rows_estimation_per_outer_row");
-  trace_table.add_utf8_table(tab->table());
+  trace_table.add_utf8_table(tab->table_ref);
 #endif
 
   /* 
@@ -2450,9 +2448,8 @@ int join_materialize_derived(QEP_TAB *tab)
   if (derived->materializable_is_const()) // Has been materialized by optimizer
     return NESTED_LOOP_OK;
 
-  bool res= mysql_handle_single_derived(thd->lex,
-                                        derived, &mysql_derived_materialize);
-  res|= mysql_handle_single_derived(thd->lex, derived, &mysql_derived_cleanup);
+  bool res= derived->materialize_derived(thd);
+  res|= derived->cleanup_derived();
   DEBUG_SYNC(thd, "after_materialize_derived");
   return res ? NESTED_LOOP_ERROR : NESTED_LOOP_OK;
 }

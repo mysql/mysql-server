@@ -11245,7 +11245,7 @@ update:
             Select->parsing_place= CTX_NONE;
             if (lex->select_lex->table_list.elements > 1)
               lex->sql_command= SQLCOM_UPDATE_MULTI;
-            else if (lex->select_lex->get_table_list()->derived)
+            else if (lex->select_lex->get_table_list()->is_derived())
             {
               /* it is single table update and it is update of derived table */
               my_error(ER_NON_UPDATABLE_TABLE, MYF(0),
@@ -11336,6 +11336,7 @@ single_multi:
                                            NULL,
                                            $3))
               MYSQL_YYABORT;
+            Select->top_join_list.push_back(Select->get_table_list());
             YYPS->m_lock_type= TL_READ_DEFAULT;
             YYPS->m_mdl_type= MDL_SHARED_READ;
           }
@@ -14500,7 +14501,7 @@ view_algorithm:
         | ALGORITHM_SYM EQ MERGE_SYM
           { Lex->create_view_algorithm= VIEW_ALGORITHM_MERGE; }
         | ALGORITHM_SYM EQ TEMPTABLE_SYM
-          { Lex->create_view_algorithm= VIEW_ALGORITHM_TMPTABLE; }
+          { Lex->create_view_algorithm= VIEW_ALGORITHM_TEMPTABLE; }
         ;
 
 view_suid:
