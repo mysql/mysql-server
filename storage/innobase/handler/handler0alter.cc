@@ -4543,6 +4543,12 @@ ok_exit:
 	dict_index_t*		pk;
 	ut_stage_alter_t*	stage;
 
+	stage = static_cast<ut_stage_alter_t*>(
+		ha_alter_info->alter_info->se_blob);
+	/* For partitioned tables this could be already allocated from a
+	previous partition invocation. For normal tables this is NULL. */
+	UT_DELETE(stage);
+
 	pk = dict_table_get_first_index(m_prebuilt->table);
 	ut_ad(pk != NULL);
 	stage = UT_NEW_NOKEY(ut_stage_alter_t(pk));
