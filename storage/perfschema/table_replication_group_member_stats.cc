@@ -108,7 +108,7 @@ table_replication_group_member_stats::table_replication_group_member_stats()
     m_row_exists(false), m_pos(0), m_next_pos(0)
 {
   m_row.trx_committed= NULL;
-  m_row.trx_committed_lenght= 0;
+  m_row.trx_committed_length= 0;
   m_row.last_cert_trx_length= -1;
 }
 
@@ -185,19 +185,28 @@ void table_replication_group_member_stats::make_row()
   bool dbsm_stats_not_available
                             = get_group_replication_group_member_stats_info
                                                       (group_member_stats_info);
+
   if(dbsm_stats_not_available)
     DBUG_PRINT("info", ("Member's DBSM stats not available!"));
   else
   {
-    m_row.channel_name_length= strlen(group_member_stats_info->channel_name);
-    memcpy(m_row.channel_name, group_member_stats_info->channel_name,
-           m_row.channel_name_length);
+    m_row.channel_name_length= 0;
+    if (group_member_stats_info->channel_name != NULL)
+    {
+      m_row.channel_name_length= strlen(group_member_stats_info->channel_name);
+      memcpy(m_row.channel_name, group_member_stats_info->channel_name,
+             m_row.channel_name_length);
+
+      my_free((void*)group_member_stats_info->channel_name);
+    }
 
     if(group_member_stats_info->view_id != NULL)
     {
       m_row.view_id_length= strlen(group_member_stats_info->view_id);
       memcpy(m_row.view_id, group_member_stats_info->view_id,
              m_row.view_id_length);
+
+      my_free((void*)group_member_stats_info->view_id);
     }
     else
     {
@@ -205,9 +214,15 @@ void table_replication_group_member_stats::make_row()
       m_row.view_id[0]= '\0';
     }
 
-    m_row.member_id_length= strlen(group_member_stats_info->member_id);
-    memcpy(m_row.member_id, group_member_stats_info->member_id,
-           m_row.member_id_length);
+    m_row.member_id_length= 0;
+    if (group_member_stats_info->member_id != NULL)
+    {
+      m_row.member_id_length= strlen(group_member_stats_info->member_id);
+      memcpy(m_row.member_id, group_member_stats_info->member_id,
+             m_row.member_id_length);
+
+      my_free((void*)group_member_stats_info->member_id);
+    }
 
     m_row.trx_in_queue= group_member_stats_info->transaction_in_queue;
     m_row.trx_checked= group_member_stats_info->transaction_certified;
@@ -215,29 +230,31 @@ void table_replication_group_member_stats::make_row()
                                              ->transaction_conflicts_detected;
     m_row.trx_validating= group_member_stats_info->transactions_in_validation;
 
-    if(group_member_stats_info->committed_transactions)
+    m_row.trx_committed_length= 0;
+    if (group_member_stats_info->committed_transactions != NULL)
     {
-      m_row.trx_committed_lenght= strlen(group_member_stats_info
-                                                       ->committed_transactions);
+      m_row.trx_committed_length= strlen(group_member_stats_info
+                                                      ->committed_transactions);
       m_row.trx_committed= (char*) my_malloc(PSI_NOT_INSTRUMENTED,
-                                          m_row.trx_committed_lenght + 1,
-                                          MYF(0));
+                                             m_row.trx_committed_length + 1,
+                                             MYF(0));
 
-      memcpy(m_row.trx_committed, group_member_stats_info->committed_transactions,
-             m_row.trx_committed_lenght+1);
-    }
-    else
-    {
-      m_row.trx_committed_lenght= 0;
+      memcpy(m_row.trx_committed,
+             group_member_stats_info->committed_transactions,
+             m_row.trx_committed_length+1);
+
+      my_free((void*)group_member_stats_info->committed_transactions);
     }
 
-    if(group_member_stats_info->last_conflict_free_transaction)
+    if(group_member_stats_info->last_conflict_free_transaction != NULL)
     {
       m_row.last_cert_trx_length=
         strlen(group_member_stats_info->last_conflict_free_transaction);
       memcpy(m_row.last_cert_trx,
              group_member_stats_info->last_conflict_free_transaction,
              m_row.last_cert_trx_length);
+
+      my_free((void*)group_member_stats_info->last_conflict_free_transaction);
     }
     else
     {
@@ -248,11 +265,8 @@ void table_replication_group_member_stats::make_row()
     m_row_exists= true;
   }
 
-  if(group_member_stats_info->committed_transactions)
-    my_free((void*)group_member_stats_info->committed_transactions);
-  if(group_member_stats_info->last_conflict_free_transaction)
-    my_free((void*)group_member_stats_info->last_conflict_free_transaction);
   my_free(group_member_stats_info);
+
   DBUG_VOID_RETURN;
 }
 
@@ -300,7 +314,7 @@ int table_replication_group_member_stats::read_row_values(TABLE *table,
         break;
       case 7: /** stable_set */
         set_field_longtext_utf8(f, m_row.trx_committed,
-                                m_row.trx_committed_lenght);
+                                m_row.trx_committed_length);
         break;
       case 8: /** last_certified_transaction */
         set_field_longtext_utf8(f, m_row.last_cert_trx,
