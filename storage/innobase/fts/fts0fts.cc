@@ -193,7 +193,7 @@ static const char* fts_create_common_tables_sql = {
 	""
 	"CREATE TABLE \"%s_CONFIG\" (\n"
 	"  key CHAR(50),\n"
-	"  value CHAR(50) NOT NULL\n"
+	"  value CHAR(200) NOT NULL\n"
 	") COMPACT;\n"
 	"CREATE UNIQUE CLUSTERED INDEX IND ON \"%s_CONFIG\"(key);\n"
 };
