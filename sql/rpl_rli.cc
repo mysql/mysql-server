@@ -13,32 +13,23 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "rpl_mi.h"
 #include "rpl_rli.h"
-#include "rpl_msr.h"
-#include "rpl_mts_submode.h"
-#include "sql_base.h"                        // close_thread_tables
-#include <my_dir.h>    // For MY_STAT
-#include "log_event.h" // Format_description_log_event, Log_event,
-                       // FORMAT_DESCRIPTION_LOG_EVENT, ROTATE_EVENT,
-                       // PREFIX_SQL_LOAD
-#include "rpl_slave.h"
-#include "rpl_utility.h"
-#include "transaction.h"
-#include "sql_parse.h"                          // end_trans, ROLLBACK
-#include "rpl_slave.h"
-#include "rpl_rli_pdb.h"
-#include "rpl_info_factory.h"
-#include "rpl_slave_commit_order_manager.h"
-#include <mysql/plugin.h>
-#include <mysql/service_thd_wait.h>
-#include "strfunc.h"
-#include "rpl_group_replication.h"
 
+#include "my_dir.h"                // MY_STAT
+#include "log_event.h"             // Log_event
+#include "rpl_group_replication.h" // set_group_replication_retrieved_certifi...
+#include "rpl_info_factory.h"      // Rpl_info_factory
+#include "rpl_mi.h"                // Master_info
+#include "rpl_msr.h"               // msr_map
+#include "rpl_rli_pdb.h"           // Slave_worker
+#include "sql_base.h"              // close_thread_tables
+#include "strfunc.h"               // strconvert
+#include "transaction.h"           // trans_commit_stmt
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
 
+#include <algorithm>
 using std::min;
 using std::max;
 

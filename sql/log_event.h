@@ -70,6 +70,7 @@ using binary_log::Log_event_footer;
 using binary_log::Binary_log_event;
 using binary_log::Format_description_event;
 
+class Slave_reporting_capability;
 class String;
 typedef ulonglong sql_mode_t;
 typedef struct st_db_worker_hash_entry db_worker_hash_entry;
