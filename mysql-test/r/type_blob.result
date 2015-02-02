@@ -812,6 +812,8 @@ a
 NULL
 drop table t1;
 set @@sql_mode='TRADITIONAL';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 create table t1 (a text default '');
 ERROR 42000: BLOB/TEXT column 'a' can't have a default value
 set @@sql_mode='';

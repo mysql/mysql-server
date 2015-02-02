@@ -1,6 +1,6 @@
 CREATE USER 'kristofer';
 SET old_passwords=2;
-SET PASSWORD FOR 'kristofer'=PASSWORD('secret');
+ALTER USER 'kristofer' IDENTIFIED BY 'secret';
 SELECT user, plugin FROM mysql.user;
 user	plugin
 root	mysql_native_password
@@ -13,15 +13,19 @@ USER()	CURRENT_USER()
 kristofer@localhost	kristofer@%
 DROP USER 'kristofer';
 GRANT ALL ON *.* TO 'kristofer'@'localhost' IDENTIFIED WITH 'sha256_password';
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 GRANT ALL ON *.* TO 'kristofer2'@'localhost' IDENTIFIED WITH 'sha256_password';
-SET PASSWORD FOR 'kristofer'@'localhost'=PASSWORD('secret2');
-SET PASSWORD FOR 'kristofer2'@'localhost'=PASSWORD('secret2');
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
+ALTER USER 'kristofer'@'localhost' IDENTIFIED BY 'secret2';
+ALTER USER 'kristofer2'@'localhost' IDENTIFIED BY 'secret2';
 SELECT USER(),CURRENT_USER();
 USER()	CURRENT_USER()
 kristofer@localhost	kristofer@localhost
 SHOW GRANTS FOR 'kristofer'@'localhost';
 Grants for kristofer@localhost
-GRANT ALL PRIVILEGES ON *.* TO 'kristofer'@'localhost' IDENTIFIED BY PASSWORD '<non-deterministic-password-hash>'
+GRANT ALL PRIVILEGES ON *.* TO 'kristofer'@'localhost'
 Change user (should succeed)
 SELECT USER(),CURRENT_USER();
 USER()	CURRENT_USER()
@@ -38,7 +42,9 @@ kristofer@localhost	kristofer@localhost
 DROP USER 'kristofer'@'localhost';
 DROP USER 'kristofer2'@'localhost';
 GRANT ALL ON *.* TO 'kristofer'@'localhost';
-SET PASSWORD FOR 'kristofer'@'localhost'=PASSWORD('');
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
+ALTER USER 'kristofer'@'localhost' IDENTIFIED BY '';
 SELECT USER(),CURRENT_USER();
 USER()	CURRENT_USER()
 kristofer@localhost	kristofer@localhost
@@ -47,18 +53,20 @@ Grants for kristofer@localhost
 GRANT ALL PRIVILEGES ON *.* TO 'kristofer'@'localhost'
 DROP USER 'kristofer'@'localhost';
 GRANT ALL ON *.* TO 'kristofer'@'33.33.33.33';
-SET PASSWORD FOR 'kristofer'@'33.33.33.33'=PASSWORD('');
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
+ALTER USER 'kristofer'@'33.33.33.33' IDENTIFIED BY '';
 Connection should fail for localhost
 ERROR 28000: Access denied for user 'kristofer'@'localhost' (using password: NO)
 DROP USER 'kristofer'@'33.33.33.33';
 GRANT ALL ON *.* TO 'kristofer'@'localhost' IDENTIFIED BY 'awesomeness';
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 SELECT USER(),CURRENT_USER();
 USER()	CURRENT_USER()
 kristofer@localhost	kristofer@localhost
 SHOW GRANTS FOR 'kristofer'@'localhost';
 Grants for kristofer@localhost
-GRANT ALL PRIVILEGES ON *.* TO 'kristofer'@'localhost' IDENTIFIED BY PASSWORD '<non-deterministic-password-hash>'
-SET @@OLD_PASSWORDS= 0;
-SET PASSWORD FOR 'kristofer'@'localhost'= PASSWORD('error');
-ERROR HY000: The password hash doesn't have the expected format. Check if the correct password algorithm is being used with the PASSWORD() function.
+GRANT ALL PRIVILEGES ON *.* TO 'kristofer'@'localhost'
+ALTER USER 'kristofer'@'localhost' IDENTIFIED BY 'error';
 DROP USER 'kristofer'@'localhost';

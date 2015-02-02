@@ -132,6 +132,8 @@ INSERT INTO tstmt(text) VALUES (@@global.lc_time_names);
 INSERT INTO tstmt(text) VALUES (@@local.lc_time_names);
 SET @@global.sql_mode = '';
 SET @@local.sql_mode = 'IGNORE_SPACE,NO_AUTO_CREATE_USER';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 INSERT INTO tstmt(text) VALUES (@@global.sql_mode);
 INSERT INTO tstmt(text) VALUES (@@local.sql_mode);
 SET @@global.sql_mode = 'NO_AUTO_VALUE_ON_ZERO,NO_BACKSLASH_ESCAPES,NO_DIR_IN_CREATE,NO_ENGINE_SUBSTITUTION';
@@ -523,6 +525,8 @@ EXECUTE p47;
 EXECUTE p48;
 EXECUTE p49;
 EXECUTE p50;
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 EXECUTE p51;
 EXECUTE p52;
 EXECUTE p53;

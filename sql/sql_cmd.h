@@ -94,6 +94,7 @@ enum enum_sql_command {
   SQLCOM_GET_DIAGNOSTICS,
   SQLCOM_ALTER_USER,
   SQLCOM_EXPLAIN_OTHER,
+  SQLCOM_SHOW_CREATE_USER,
 
   /*
     When a command is added here, be sure it's also added in mysqld.cc

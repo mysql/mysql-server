@@ -1068,6 +1068,8 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
   const char *db_name, *table_name;
   bool save_binlog_row_based;
   bool transactional_tables;
+  ulong what_to_set= 0;
+
   DBUG_ENTER("mysql_table_grant");
 
   if (!initialized)
@@ -1244,25 +1246,23 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
     int error;
     bool is_user_applied= true;
     GRANT_TABLE *grant_table;
+
     if (!(Str= get_current_user(thd, tmp_Str)))
     {
       result= TRUE;
       continue;
     }
 
-    /*
-      No User, but a password?
-      They did GRANT ... TO CURRENT_USER() IDENTIFIED BY ... !
-      Get the current user, and shallow-copy the new password to them!
-    */
-    if (!tmp_Str->user.str && tmp_Str->password.str)
-      Str->password= tmp_Str->password;
-    
+    if (set_and_validate_user_attributes(thd, Str, what_to_set))
+    {
+      result= TRUE;
+      continue;
+    }
+
     /* Create user if needed */
     error=replace_user_table(thd, tables[0].table, Str,
                              0, revoke_grant, create_new_users,
-                             MY_TEST(thd->variables.sql_mode &
-                                     MODE_NO_AUTO_CREATE_USER));
+                             what_to_set);
     if (error)
     {
       result= TRUE;                             // Remember error
@@ -1328,7 +1328,6 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
       column_priv|= grant_table->cols;
     }
 
-
     /* update table and columns */
 
     if (replace_table_table(thd, grant_table, tables[1].table, *Str,
@@ -1384,9 +1383,24 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
                         "the privilege tables.", thd->query().str);
   }
   else
-    result= result |
-            write_bin_log(thd, FALSE, thd->query().str, thd->query().length,
-                          transactional_tables);
+  {
+    if (!revoke_grant)
+    {
+      String *rlb= &thd->rewritten_query;
+      rlb->mem_free();
+      mysql_rewrite_grant(thd, rlb);
+    }
+    if (thd->rewritten_query.length())
+      result= result |
+          write_bin_log(thd, FALSE,
+                        thd->rewritten_query.c_ptr_safe(),
+                        thd->rewritten_query.length(),
+                        transactional_tables);
+    else
+      result= result |
+        write_bin_log(thd, FALSE, thd->query().str, thd->query().length,
+                            transactional_tables);
+  }
 
   mysql_rwlock_unlock(&LOCK_grant);
 
@@ -1433,6 +1447,8 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
   const char *db_name, *table_name;
   bool save_binlog_row_based;
   bool transactional_tables;
+  ulong what_to_set= 0;
+
   DBUG_ENTER("mysql_routine_grant");
 
   if (!initialized)
@@ -1519,17 +1535,23 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
   {
     int error;
     GRANT_NAME *grant_name;
+
     if (!(Str= get_current_user(thd, tmp_Str)))
     {
       result= TRUE;
       continue;
     }
-    
+
+    if (set_and_validate_user_attributes(thd, Str, what_to_set))
+    {
+      result= TRUE;
+      continue;
+    }
+
     /* Create user if needed */
     error=replace_user_table(thd, tables[0].table, Str,
                              0, revoke_grant, create_new_users,
-                             MY_TEST(thd->variables.sql_mode &
-                                     MODE_NO_AUTO_CREATE_USER));
+                             what_to_set);
     if (error)
     {
       result= TRUE;                             // Remember error
@@ -1599,6 +1621,12 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
     }
     else
     {
+      if (!revoke_grant)
+      {
+        String *rlb= &thd->rewritten_query;
+        rlb->mem_free();
+        mysql_rewrite_grant(thd, rlb);
+      }
       /*
         For performance reasons, we don't rewrite the query if we don't have to.
         If that was the case, write the original query.
@@ -1646,6 +1674,7 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
   TABLE_LIST tables[2];
   bool save_binlog_row_based;
   bool transactional_tables;
+  ulong what_to_set= 0;
   DBUG_ENTER("mysql_grant");
   if (!initialized)
   {
@@ -1740,24 +1769,22 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
   while ((tmp_Str = str_list++))
   {
     bool is_user_applied= true;
+
     if (!(Str= get_current_user(thd, tmp_Str)))
     {
       result= TRUE;
       continue;
     }
 
-    /*
-      No User, but a password?
-      They did GRANT ... TO CURRENT_USER() IDENTIFIED BY ... !
-      Get the current user, and shallow-copy the new password to them!
-    */
-    if (!tmp_Str->user.str && tmp_Str->password.str)
-      Str->password= tmp_Str->password;
- 
+    if (set_and_validate_user_attributes(thd, Str, what_to_set))
+    {
+      result= TRUE;
+      continue;
+    }
+
     if (replace_user_table(thd, tables[0].table, Str,
                            (!db ? rights : 0), revoke_grant, create_new_users,
-                           MY_TEST(thd->variables.sql_mode &
-                                   MODE_NO_AUTO_CREATE_USER)))
+                           (what_to_set | ACCESS_RIGHTS_ATTR)))
     {
       result= -1;
       is_user_applied= false;
@@ -1819,6 +1846,12 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
   }
   else
   {
+    if (!revoke_grant)
+    {
+      String *rlb= &thd->rewritten_query;
+      rlb->mem_free();
+      mysql_rewrite_grant(thd, rlb);
+    }
     if (thd->rewritten_query.length())
       result= result |
           write_bin_log(thd, FALSE,
@@ -2552,23 +2585,6 @@ ulong get_column_grant(THD *thd, GRANT_INFO *grant,
   return priv;
 }
 
-
-/* Help function for mysql_show_grants */
-
-static void add_user_option(String *grant, ulong value, const char *name)
-{
-  if (value)
-  {
-    char buff[22], *p; // just as in int2str
-    grant->append(' ');
-    grant->append(name, strlen(name));
-    grant->append(' ');
-    p=int10_to_str(value, buff, 10);
-    grant->append(buff,p-buff);
-  }
-}
-
-
 static int show_routine_grants(THD* thd, LEX_USER *lex_user, HASH *hash,
                                const char *type, int typelen,
                                char *buff, int buffsize)
@@ -2799,88 +2815,9 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
     global.append (STRING_WITH_LEN("'@'"));
     global.append(lex_user->host.str,lex_user->host.length,
                   system_charset_info);
-    global.append ('\'');    
-#if defined(HAVE_OPENSSL)
-    if (acl_user->plugin.str == sha256_password_plugin_name.str &&
-        acl_user->auth_string.length > 0)
-    {
-      global.append(STRING_WITH_LEN(" IDENTIFIED BY PASSWORD"));
-      if (thd->security_context()->check_access(SUPER_ACL))
-      {
-        global.append(" \'");
-        global.append((const char *) &acl_user->auth_string.str[0]);
-        global.append('\'');
-      }
-    }
-    else
-#endif /* HAVE_OPENSSL */
-    if (acl_user->salt_len)
-    {
-      global.append(STRING_WITH_LEN(" IDENTIFIED BY PASSWORD"));
-      char passwd_buff[SCRAMBLED_PASSWORD_CHAR_LENGTH+1];
-
-      DBUG_ASSERT(acl_user->salt_len == SCRAMBLE_LENGTH);
-      make_password_from_salt(passwd_buff, acl_user->salt);
-      if (thd->security_context()->check_access(SUPER_ACL))
-      {
-        global.append(" \'");
-        global.append(passwd_buff);
-        global.append('\'');
-      }
-    }
-    /* "show grants" SSL related stuff */
-    if (acl_user->ssl_type == SSL_TYPE_ANY)
-      global.append(STRING_WITH_LEN(" REQUIRE SSL"));
-    else if (acl_user->ssl_type == SSL_TYPE_X509)
-      global.append(STRING_WITH_LEN(" REQUIRE X509"));
-    else if (acl_user->ssl_type == SSL_TYPE_SPECIFIED)
-    {
-      int ssl_options = 0;
-      global.append(STRING_WITH_LEN(" REQUIRE "));
-      if (acl_user->x509_issuer)
-      {
-        ssl_options++;
-        global.append(STRING_WITH_LEN("ISSUER \'"));
-        global.append(acl_user->x509_issuer,strlen(acl_user->x509_issuer));
-        global.append('\'');
-      }
-      if (acl_user->x509_subject)
-      {
-        if (ssl_options++)
-          global.append(' ');
-        global.append(STRING_WITH_LEN("SUBJECT \'"));
-        global.append(acl_user->x509_subject,strlen(acl_user->x509_subject),
-                      system_charset_info);
-        global.append('\'');
-      }
-      if (acl_user->ssl_cipher)
-      {
-        if (ssl_options++)
-          global.append(' ');
-        global.append(STRING_WITH_LEN("CIPHER '"));
-        global.append(acl_user->ssl_cipher,strlen(acl_user->ssl_cipher),
-                      system_charset_info);
-        global.append('\'');
-      }
-    }
-    if ((want_access & GRANT_ACL) ||
-        (acl_user->user_resource.questions ||
-         acl_user->user_resource.updates ||
-         acl_user->user_resource.conn_per_hour ||
-         acl_user->user_resource.user_conn))
-    {
-      global.append(STRING_WITH_LEN(" WITH"));
-      if (want_access & GRANT_ACL)
-        global.append(STRING_WITH_LEN(" GRANT OPTION"));
-      add_user_option(&global, acl_user->user_resource.questions,
-                      "MAX_QUERIES_PER_HOUR");
-      add_user_option(&global, acl_user->user_resource.updates,
-                      "MAX_UPDATES_PER_HOUR");
-      add_user_option(&global, acl_user->user_resource.conn_per_hour,
-                      "MAX_CONNECTIONS_PER_HOUR");
-      add_user_option(&global, acl_user->user_resource.user_conn,
-                      "MAX_USER_CONNECTIONS");
-    }
+    global.append ('\'');
+    if (want_access & GRANT_ACL)
+      global.append(STRING_WITH_LEN(" WITH GRANT OPTION"));
     protocol->prepare_for_resend();
     protocol->store(global.ptr(),global.length(),global.charset());
     if (protocol->write())
@@ -3153,6 +3090,7 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
   while ((tmp_lex_user= user_list++))
   {
     bool is_user_applied= true;
+    ulong what_to_set= 0;
     if (!(lex_user= get_current_user(thd, tmp_lex_user)))
     {
       result= -1;
@@ -3164,8 +3102,12 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
       continue;
     }
 
+    /* copy password expire attributes to individual user */
+    lex_user->alter_status= thd->lex->alter_password;
+
     if (replace_user_table(thd, tables[0].table,
-                           lex_user, ~(ulong) 0, 1, 0, 0))
+                           lex_user, ~(ulong) 0, 1, 0,
+                           (what_to_set | ACCESS_RIGHTS_ATTR)))
     {
       result= -1;
       continue;
@@ -3536,7 +3478,6 @@ bool sp_grant_privileges(THD *thd, const char *sp_db, const char *sp_name,
   thd->make_lex_string(&combo->host,
                        combo->host.str, strlen(combo->host.str), 0);
 
-  combo->password= EMPTY_CSTR;
   combo->plugin= EMPTY_CSTR;
   combo->auth= EMPTY_CSTR;
   combo->uses_identified_by_clause= false;

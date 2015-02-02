@@ -1442,6 +1442,8 @@ SELECT @@global.expire_logs_days;
 SET GLOBAL expire_logs_days = 11;
 SET @old_mode=@@sql_mode;
 SET SESSION sql_mode = 'TRADITIONAL';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET GLOBAL expire_logs_days = 100;
 ERROR 42000: Variable 'expire_logs_days' can't be set to the value of '100'
 needs to be unchanged (11)

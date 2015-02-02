@@ -74,6 +74,8 @@ event_schema	event_name	sql_mode
 events_test	e_16407	REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,ANSI
 "Let's check whether we change the sql_mode on ALTER EVENT"
 set sql_mode='traditional';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 alter event e_16407 do select 1;
 select event_schema, event_name, sql_mode from information_schema.events order by event_schema, event_name;
 event_schema	event_name	sql_mode
@@ -86,6 +88,8 @@ get_lock('ee_16407_2', 60)
 set global event_scheduler= 1;
 "Another sql_mode test"
 set sql_mode="traditional";
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 create table events_smode_test(ev_name char(10), a date);
 "This should never insert something"
 create event ee_16407_2 on schedule every 60 second do
@@ -152,6 +156,8 @@ get_lock('ee_16407_5', 60)
 1
 set global event_scheduler= on;
 set sql_mode='traditional';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 create procedure ee_16407_5_pendant() begin insert into events_test.events_smode_test values('ee_16407_5','2001-02-29'); end|
 create procedure ee_16407_6_pendant() begin insert into events_test.events_smode_test values('ee_16407_6','2004-02-29'); end|
 create event ee_16407_5 on schedule every 60 second do
@@ -576,13 +582,13 @@ CREATE TABLE events_test.event_log
 ENGINE=MyISAM;
 SET autocommit=0;
 CREATE USER evtest1@localhost;
-SET PASSWORD FOR evtest1@localhost = password('ev1');
+ALTER USER evtest1@localhost IDENTIFIED BY 'ev1';
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM evtest1@localhost;
 GRANT create, insert, select, event ON events_test.* TO evtest1@localhost;
 GRANT select,insert ON test.* TO evtest1@localhost;
 SHOW GRANTS FOR evtest1@localhost;
 Grants for evtest1@localhost
-GRANT USAGE ON *.* TO 'evtest1'@'localhost' IDENTIFIED BY PASSWORD '*3170F3644E31580C25DE4A08F4C07CC9A2D40C32'
+GRANT USAGE ON *.* TO 'evtest1'@'localhost'
 GRANT SELECT, INSERT ON `test`.* TO 'evtest1'@'localhost'
 GRANT SELECT, INSERT, CREATE, EVENT ON `events_test`.* TO 'evtest1'@'localhost'
 connection e1;
@@ -636,6 +642,8 @@ DROP EVENT IF EXISTS e1;
 DROP EVENT IF EXISTS e2;
 
 GRANT EVENT ON *.* TO mysqltest_u1@localhost;
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 
 SET GLOBAL READ_ONLY = 1;
 
@@ -732,6 +740,7 @@ Warnings:
 Warning	3027	'ERROR_FOR_DIVISION_BY_ZERO' mode no longer has any effect. Use STRICT_ALL_TABLES or STRICT_TRANS_TABLES instead.
 Warning	3027	'NO_ZERO_DATE' mode no longer has any effect. Use STRICT_ALL_TABLES or STRICT_TRANS_TABLES instead.
 Warning	3027	'NO_ZERO_IN_DATE' mode no longer has any effect. Use STRICT_ALL_TABLES or STRICT_TRANS_TABLES instead.
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 create event e1 on schedule every 1 day do select 1;
 select @@sql_mode into @full_mode;
 set @@sql_mode= @old_mode;

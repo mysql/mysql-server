@@ -1560,12 +1560,6 @@ union YYSTYPE {
     enum enum_trigger_order_type ordering_clause;
     LEX_STRING anchor_trigger_name;
   } trg_characteristics;
-  struct
-  {
-    bool set_password_expire_flag;    /* true if password expires */
-    bool use_default_password_expiry; /* true if password_lifetime is NULL*/
-    uint16 expire_after_days;
-  } user_password_expiration;
   class Index_hint *key_usage_element;
   List<Index_hint> *key_usage_list;
   class PT_subselect *subselect;
@@ -2870,6 +2864,7 @@ public:
   Item *default_value, *on_update_value;
   LEX_STRING comment, ident;
   LEX_USER *grant_user;
+  LEX_ALTER alter_password;
   THD *thd;
 
   /* maintain a list of used plugins for this LEX */

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -4037,10 +4037,10 @@ end_with_restore_list:
             goto error;
         } 
         else if (is_acl_user(user->host.str, user->user.str) &&
-                 user->password.str &&
+                 user->auth.str &&
                  check_change_password (thd, user->host.str, user->user.str,
-                                        user->password.str,
-                                        user->password.length))
+                                        user->auth.str,
+                                        user->auth.length))
           goto error;
       }
     }
@@ -4211,6 +4211,14 @@ end_with_restore_list:
     {
       res = mysql_show_grants(thd, grant_user);
     }
+    break;
+  }
+  case SQLCOM_SHOW_CREATE_USER:
+  {
+    LEX_USER *show_user= get_current_user(thd, lex->grant_user);
+    if (!strcmp(thd->security_context()->priv_user().str, show_user->user.str) ||
+        !check_access(thd, SELECT_ACL, "mysql", NULL, NULL, 1, 0))
+      res= mysql_show_create_user(thd, show_user);
     break;
   }
 #endif
@@ -4789,13 +4797,69 @@ end_with_restore_list:
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   case SQLCOM_ALTER_USER:
-    if (check_access(thd, UPDATE_ACL, "mysql", NULL, NULL, 1, 1) &&
-        check_global_access(thd, CREATE_USER_ACL))
-      break;
+  {
+    LEX_USER *user, *tmp_user;
+
+    List_iterator <LEX_USER> user_list(lex->users_list);
+    while ((tmp_user= user_list++))
+    {
+      bool update_password_only= FALSE;
+
+      /* If it is an empty lex_user update it with current user */
+      if (!tmp_user->host.str && !tmp_user->user.str)
+      {
+        /* set user information as of the current user */
+        DBUG_ASSERT(thd->security_context()->priv_host().str);
+        tmp_user->host.str= (char *) thd->security_context()->priv_host().str;
+        tmp_user->host.length= strlen(thd->security_context()->priv_host().str);
+        DBUG_ASSERT(thd->security_context()->user().str);
+        tmp_user->user.str= (char *) thd->security_context()->user().str;
+        tmp_user->user.length= strlen(thd->security_context()->user().str);
+      }
+      if (!(user= get_current_user(thd, tmp_user)))
+        goto error;
+
+      /* copy password expire attributes to individual lex user */
+      user->alter_status= thd->lex->alter_password;
+
+      if (user->uses_identified_by_clause &&
+          !thd->lex->mqh.specified_limits &&
+          !user->alter_status.update_password_expired_column &&
+          !user->alter_status.expire_after_days &&
+          user->alter_status.use_default_password_lifetime &&
+          (thd->lex->ssl_type == SSL_TYPE_NOT_SPECIFIED))
+        update_password_only= TRUE;
+
+      /*
+        if user executes ALTER statement to change password only
+        for himself then skip access check.
+      */
+      if (update_password_only &&
+          !(strcmp(thd->security_context()->user().str, user->user.str) ||
+          my_strcasecmp(&my_charset_latin1, user->host.str,
+                        thd->security_context()->priv_host().str)))
+        continue;
+      else
+      {
+        if (check_access(thd, UPDATE_ACL, "mysql", NULL, NULL, 1, 1) &&
+            check_global_access(thd, CREATE_USER_ACL))
+          goto error;
+        else
+          break;
+      }
+      if (update_password_only &&
+          !strcmp(thd->security_context()->priv_user().str,""))
+      {
+        my_message(ER_PASSWORD_ANONYMOUS_USER, ER(ER_PASSWORD_ANONYMOUS_USER),
+                   MYF(0));
+        goto error;
+      }
+    }
     /* Conditionally writes to binlog */
-    if (!(res= mysql_user_password_expire(thd, lex->users_list)))
+    if (!(res= mysql_alter_user(thd, lex->users_list)))
       my_ok(thd);
     break;
+  }
 #endif
   default:
 #ifndef EMBEDDED_LIBRARY
@@ -5412,7 +5476,8 @@ void mysql_parse(THD *thd, Parser_state *parser_state)
             0);
           if (unlikely(thd->security_context()->password_expired() &&
                        !lex->is_set_password_sql &&
-                       lex->sql_command != SQLCOM_SET_OPTION))
+                       lex->sql_command != SQLCOM_SET_OPTION &&
+                       lex->sql_command != SQLCOM_ALTER_USER))
           {
             my_error(ER_MUST_CHANGE_PASSWORD, MYF(0));
             error= 1;
@@ -6693,9 +6758,8 @@ void get_default_definer(THD *thd, LEX_USER *definer)
   definer->host.str= (char *) sctx->priv_host().str;
   definer->host.length= strlen(definer->host.str);
 
-  definer->password= NULL_CSTR;
   definer->plugin= EMPTY_CSTR;
-  definer->auth= EMPTY_CSTR;
+  definer->auth= NULL_CSTR;
   definer->uses_identified_with_clause= false;
   definer->uses_identified_by_clause= false;
   definer->uses_authentication_string_clause= false;

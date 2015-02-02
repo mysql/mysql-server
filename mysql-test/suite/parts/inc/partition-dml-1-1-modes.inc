@@ -10,8 +10,10 @@ let $TABLENAME= t1;
 
 --enable_connect_log
 
-GRANT ALL PRIVILEGES ON test.* TO test_user_1 IDENTIFIED BY 'testpw';
-GRANT ALL PRIVILEGES ON test.* TO test_user_2 IDENTIFIED BY 'testpw';
+CREATE USER test_user_1 IDENTIFIED BY 'testpw';
+CREATE USER test_user_2 IDENTIFIED BY 'testpw';
+GRANT ALL PRIVILEGES ON test.* TO test_user_1 ;
+GRANT ALL PRIVILEGES ON test.* TO test_user_2 ;
 
 --echo # Run in empty mode
 set @@global.sql_mode= '';

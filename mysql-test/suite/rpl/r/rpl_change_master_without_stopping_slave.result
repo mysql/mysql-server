@@ -7,6 +7,8 @@ Note	####	Storing MySQL user name or password information in the master info rep
 Create a replication user to use in change master tests.
 
 GRANT REPLICATION SLAVE ON *.* TO replssl@localhost REQUIRE SSL;
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 include/sync_slave_sql_with_master.inc
 
 With both receiver and applier stopped, all CHANGE MASTER options should

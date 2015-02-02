@@ -521,8 +521,14 @@ mysqltest	CREATE DATABASE `mysqltest` /*!40100 DEFAULT CHARACTER SET latin1 */
 create table mysqltest.t1(a int);
 insert into mysqltest.t1 values(1);
 grant select on `mysqltest`.* to mysqltest_1@localhost;
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 grant usage  on `mysqltest`.* to mysqltest_2@localhost;
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 grant drop   on `mysqltest`.* to mysqltest_3@localhost;
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 select * from t1;
 a
 1
@@ -1278,6 +1284,8 @@ mysqltest	CREATE DATABASE `mysqltest` /*!40100 DEFAULT CHARACTER SET latin1 */
 create table mysqltest.t1(a int);
 insert into mysqltest.t1 values(1);
 grant select on `mysqltest`.`t1` to mysqltest_4@localhost;
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 show create database mysqltest;
 Database	Create Database
 mysqltest	CREATE DATABASE `mysqltest` /*!40100 DEFAULT CHARACTER SET latin1 */

@@ -1,4 +1,4 @@
-/*  Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2010, 2015 Oracle and/or its affiliates. All rights reserved.
     
     This program is free software; you can redistribute it and/or
     modify it under the terms of the GNU General Public License as
@@ -147,11 +147,43 @@ static int qa_auth_interface (MYSQL_PLUGIN_VIO *vio, MYSQL_SERVER_AUTH_INFO *inf
   return err;
 }
 
+int generate_auth_string_hash(char *outbuf, unsigned int *buflen,
+                              const char *inbuf, unsigned int inbuflen)
+{
+  /*
+    if buffer specified by server is smaller than the buffer given
+    by plugin then return error
+  */
+  if (*buflen < inbuflen)
+    return 1;
+  strncpy(outbuf, inbuf, inbuflen);
+  *buflen= strlen(inbuf);
+  return 0;
+}
+
+int validate_auth_string_hash(char* const inbuf  __attribute__((unused)),
+                              unsigned int buflen  __attribute__((unused)))
+{
+  return 0;
+}
+
+int set_salt(const char* password __attribute__((unused)),
+             unsigned int password_len __attribute__((unused)),
+             unsigned char* salt __attribute__((unused)),
+             unsigned char* salt_len)
+{
+  *salt_len= 0;
+  return 0;
+}
+
 static struct st_mysql_auth qa_auth_test_handler=
 {
   MYSQL_AUTHENTICATION_INTERFACE_VERSION,
   "qa_auth_interface", /* requires test_plugin client's plugin */
-  qa_auth_interface
+  qa_auth_interface,
+  generate_auth_string_hash,
+  validate_auth_string_hash,
+  set_salt
 };
 
 mysql_declare_plugin(test_plugin)
@@ -164,7 +196,7 @@ mysql_declare_plugin(test_plugin)
   PLUGIN_LICENSE_GPL,
   NULL,
   NULL,
-  0x0100,
+  0x0101,
   NULL,
   NULL,
   NULL,

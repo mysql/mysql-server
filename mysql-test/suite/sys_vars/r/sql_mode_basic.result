@@ -48,6 +48,8 @@ SELECT @@global.sql_mode;
 @@global.sql_mode
 STRICT_TRANS_TABLES
 SET @@global.sql_mode = TRADITIONAL;
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @@global.sql_mode;
 @@global.sql_mode
 STRICT_TRANS_TABLES,STRICT_ALL_TABLES,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
@@ -74,6 +76,8 @@ SELECT @@global.sql_mode;
 @@global.sql_mode
 IGNORE_SPACE
 SET @@global.sql_mode = NO_AUTO_CREATE_USER;
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @@global.sql_mode;
 @@global.sql_mode
 NO_AUTO_CREATE_USER
@@ -146,6 +150,8 @@ SELECT @@global.sql_mode;
 @@global.sql_mode
 PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,DB2,NO_KEY_OPTIONS,NO_TABLE_OPTIONS,NO_FIELD_OPTIONS
 SET @@global.sql_mode = MAXDB;
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @@global.sql_mode;
 @@global.sql_mode
 PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,MAXDB,NO_KEY_OPTIONS,NO_TABLE_OPTIONS,NO_FIELD_OPTIONS,NO_AUTO_CREATE_USER
@@ -162,6 +168,8 @@ SELECT @@global.sql_mode;
 @@global.sql_mode
 MYSQL40,HIGH_NOT_PRECEDENCE
 SET @@global.sql_mode = ORACLE;
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @@global.sql_mode;
 @@global.sql_mode
 PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ORACLE,NO_KEY_OPTIONS,NO_TABLE_OPTIONS,NO_FIELD_OPTIONS,NO_AUTO_CREATE_USER
@@ -170,6 +178,8 @@ SELECT @@global.sql_mode;
 @@global.sql_mode
 PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,POSTGRESQL,NO_KEY_OPTIONS,NO_TABLE_OPTIONS,NO_FIELD_OPTIONS
 SET @@global.sql_mode = TRADITIONAL;
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @@global.sql_mode;
 @@global.sql_mode
 STRICT_TRANS_TABLES,STRICT_ALL_TABLES,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
@@ -184,6 +194,8 @@ SELECT @@session.sql_mode;
 @@session.sql_mode
 STRICT_TRANS_TABLES
 SET @@session.sql_mode = TRADITIONAL;
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @@session.sql_mode;
 @@session.sql_mode
 STRICT_TRANS_TABLES,STRICT_ALL_TABLES,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
@@ -210,6 +222,8 @@ SELECT @@session.sql_mode;
 @@session.sql_mode
 IGNORE_SPACE
 SET @@session.sql_mode = NO_AUTO_CREATE_USER;
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @@session.sql_mode;
 @@session.sql_mode
 NO_AUTO_CREATE_USER
@@ -282,6 +296,8 @@ SELECT @@session.sql_mode;
 @@session.sql_mode
 PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,DB2,NO_KEY_OPTIONS,NO_TABLE_OPTIONS,NO_FIELD_OPTIONS
 SET @@session.sql_mode = MAXDB;
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @@session.sql_mode;
 @@session.sql_mode
 PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,MAXDB,NO_KEY_OPTIONS,NO_TABLE_OPTIONS,NO_FIELD_OPTIONS,NO_AUTO_CREATE_USER
@@ -298,6 +314,8 @@ SELECT @@session.sql_mode;
 @@session.sql_mode
 MYSQL40,HIGH_NOT_PRECEDENCE
 SET @@session.sql_mode = ORACLE;
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @@session.sql_mode;
 @@session.sql_mode
 PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ORACLE,NO_KEY_OPTIONS,NO_TABLE_OPTIONS,NO_FIELD_OPTIONS,NO_AUTO_CREATE_USER
@@ -306,6 +324,8 @@ SELECT @@session.sql_mode;
 @@session.sql_mode
 PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,POSTGRESQL,NO_KEY_OPTIONS,NO_TABLE_OPTIONS,NO_FIELD_OPTIONS
 SET @@session.sql_mode = TRADITIONAL;
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @@session.sql_mode;
 @@session.sql_mode
 STRICT_TRANS_TABLES,STRICT_ALL_TABLES,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
@@ -367,6 +387,8 @@ SELECT @@global.sql_mode;
 @@global.sql_mode
 REAL_AS_FLOAT,PIPES_AS_CONCAT
 SET @@global.sql_mode = 50000;
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @@global.sql_mode;
 @@global.sql_mode
 PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,,,NO_UNSIGNED_SUBTRACTION,POSTGRESQL,ORACLE,NO_KEY_OPTIONS,NO_TABLE_OPTIONS,NO_FIELD_OPTIONS,NO_AUTO_CREATE_USER
@@ -379,6 +401,7 @@ Warnings:
 Warning	3027	'ERROR_FOR_DIVISION_BY_ZERO' mode no longer has any effect. Use STRICT_ALL_TABLES or STRICT_TRANS_TABLES instead.
 Warning	3027	'NO_ZERO_DATE' mode no longer has any effect. Use STRICT_ALL_TABLES or STRICT_TRANS_TABLES instead.
 Warning	3027	'NO_ZERO_IN_DATE' mode no longer has any effect. Use STRICT_ALL_TABLES or STRICT_TRANS_TABLES instead.
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @@global.sql_mode;
 @@global.sql_mode
 REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,,,ONLY_FULL_GROUP_BY,NO_UNSIGNED_SUBTRACTION,NO_DIR_IN_CREATE,POSTGRESQL,ORACLE,MSSQL,DB2,MAXDB,NO_KEY_OPTIONS,NO_TABLE_OPTIONS,NO_FIELD_OPTIONS,MYSQL323,MYSQL40,ANSI,NO_AUTO_VALUE_ON_ZERO,NO_BACKSLASH_ESCAPES,STRICT_TRANS_TABLES,STRICT_ALL_TABLES,ALLOW_INVALID_DATES,TRADITIONAL,NO_AUTO_CREATE_USER,HIGH_NOT_PRECEDENCE,NO_ENGINE_SUBSTITUTION,PAD_CHAR_TO_FULL_LENGTH
@@ -411,10 +434,14 @@ SELECT @@global.sql_mode;
 
 '#---------------------FN_DYNVARS_152_10----------------------#'
 SET @@session.sql_mode = 'TRADITIONAL,ALLOW_INVALID_DATES,ANSI_QUOTES';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @@session.sql_mode;
 @@session.sql_mode
 ANSI_QUOTES,STRICT_TRANS_TABLES,STRICT_ALL_TABLES,ALLOW_INVALID_DATES,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
 SET @@global.sql_mode = 'ONLY_FULL_GROUP_BY,PIPES_AS_CONCAT,REAL_AS_FLOAT,ORACLE,POSTGRESQL';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @@global.sql_mode;
 @@global.sql_mode
 REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,POSTGRESQL,ORACLE,NO_KEY_OPTIONS,NO_TABLE_OPTIONS,NO_FIELD_OPTIONS,NO_AUTO_CREATE_USER

@@ -184,6 +184,8 @@ DROP DATABASE wl6797;
 # FOR ERROR CASES
 
 grant all privileges on *.* to  'user_wl6797'@'localhost';
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 ALTER USER user_wl6797@localhost PASSWORD EXPIRE;
 mysqltest: At line 1: reset connection failed: You must SET PASSWORD before executing this statement
 DROP USER user_wl6797@localhost;
