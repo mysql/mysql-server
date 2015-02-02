@@ -227,6 +227,12 @@ public:
   virtual void no_rows_in_result();
 
   uint cols();
+  /**
+    @note that this returns the i-th element of the SELECT list.
+    To check for nullability, look at this->maybe_null and not
+    element_index[i]->maybe_null, since the selected expressions are
+    always NULL if the subquery is empty.
+  */
   Item* element_index(uint i) { return reinterpret_cast<Item*>(row[i]); }
   Item** addr(uint i) { return (Item**)row + i; }
   bool check_cols(uint c);
