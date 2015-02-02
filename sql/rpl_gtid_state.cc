@@ -243,7 +243,9 @@ void Gtid_state::update_gtids_impl(THD *thd, bool is_commit)
                       thd->query().str,
                       thd->is_commit_in_middle_of_statement));
 
+  DEBUG_SYNC(thd, "update_gtid_state_before_global_sid_lock");
   global_sid_lock->rdlock();
+  DEBUG_SYNC(thd, "update_gtid_state_after_global_sid_lock");
 
   if (thd->owned_gtid.sidno == THD::OWNED_SIDNO_GTID_SET)
   {
