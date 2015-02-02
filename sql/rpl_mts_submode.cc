@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,9 +14,14 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "rpl_mts_submode.h"
-#include "rpl_rli_pdb.h"
-#include "rpl_slave.h"
-#include "rpl_slave_commit_order_manager.h"
+
+#include "hash.h"                           // HASH
+#include "log_event.h"                      // Query_log_event
+#include "rpl_rli.h"                        // Relay_log_info
+#include "rpl_rli_pdb.h"                    // db_worker_hash_entry
+#include "rpl_slave_commit_order_manager.h" // Commit_order_manager
+#include "sql_class.h"                      // THD
+
 
 /**
  Does necessary arrangement before scheduling next event.

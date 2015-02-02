@@ -349,7 +349,6 @@ SET sql_mode = default;
 
 
 
-
   CREATE TABLE t1 ( pk int(11) NOT NULL AUTO_INCREMENT, col_int_key int(11) NOT NULL, col_varchar_key varchar(1) NOT NULL, col_varchar_nokey varchar(1) NOT NULL, PRIMARY KEY (pk), KEY col_int_key (col_int_key), KEY col_varchar_key (col_varchar_key,col_int_key) ) ;
   INSERT INTO t1 VALUES (1,0,'j','j'),(2,8,'v','v'), (3,1,'c','c'),(4,8,'m','m'),(5,9,'d','d') ;
   CREATE VIEW v1 AS SELECT * FROM t1 ;

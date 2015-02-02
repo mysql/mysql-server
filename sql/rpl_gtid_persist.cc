@@ -16,14 +16,16 @@
    02110-1301 USA */
 
 #include "rpl_gtid_persist.h"
-#include "log.h"
-#include "key.h"
-#include "sql_parse.h"
-#include "replication.h"
-#include "debug_sync.h"
-#include "sql_base.h"
+
+#include "debug_sync.h"       // debug_sync_set_action
+#include "log.h"              // sql_print_error
+#include "replication.h"      // THD_ENTER_COND
+#include "sql_base.h"         // MYSQL_OPEN_IGNORE_GLOBAL_READ_LOCK
+#include "sql_parse.h"        // mysql_reset_thd_for_next_command
 
 using std::list;
+using std::string;
+
 
 my_thread_handle compress_thread_id;
 static bool terminate_compress_thread= false;

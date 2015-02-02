@@ -75,7 +75,7 @@ Cursor::Cursor(MYSQL_THD mysql_thd) :
 
   m_table_list->updating= true;
 
-  if (open_and_lock_tables(m_thd, m_table_list, false, 0))
+  if (open_and_lock_tables(m_thd, m_table_list, 0))
     return; // Error
 
   TABLE *table= m_table_list->table;

@@ -17,13 +17,8 @@
 
 #include "rpl_gtid.h"
 
-#include "rpl_mi.h"
-#include "rpl_slave.h"
-#include "sql_class.h"
-#include "rpl_gtid_persist.h"
-#include "log.h"
-#include "binlog.h"
-#include "rpl_context.h"
+#include "rpl_gtid_persist.h"      // gtid_table_persistor
+#include "sql_class.h"             // THD
 
 
 int Gtid_state::clear(THD *thd)

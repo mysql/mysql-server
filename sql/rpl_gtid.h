@@ -19,15 +19,16 @@
 #ifndef RPL_GTID_H_INCLUDED
 #define RPL_GTID_H_INCLUDED
 
-#include <m_string.h>
-#include <mysqld_error.h>
-#include <my_global.h>
+#include "my_global.h"
+#include "hash.h"               // HASH
+#include "my_atomic.h"          // my_atomic_add32
+#include "prealloced_array.h"   // Prealloced_array
+#include "control_events.h"     // binary_log::Uuid
+
 #ifdef MYSQL_SERVER
-#include <mysqld.h>
+#include "mysqld.h"             // key_rwlock_global_sid_lock
 #endif
-#include <binlog_event.h>
-#include <control_events.h>
-#include "prealloced_array.h"
+
 #include <list>
 #include <string>
 
@@ -49,10 +50,6 @@ using binary_log::Uuid;
 #define BINLOG_ERROR(MYSQLBINLOG_ERROR, SERVER_ERROR) my_error SERVER_ERROR
 #endif
 
-
-#include "hash.h"
-#include "lf.h"
-#include "my_atomic.h"
 
 extern PSI_memory_key key_memory_Gtid_set_to_string;
 extern PSI_memory_key key_memory_Owned_gtids_to_string;

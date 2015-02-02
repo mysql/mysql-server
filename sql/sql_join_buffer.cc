@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -191,7 +191,7 @@ void JOIN_CACHE::calc_record_fields()
                            &used_fields, &used_fieldlength, &used_blobs,
                            &tab->used_null_fields, &tab->used_uneven_bit_fields);
     flag_fields+= tab->used_null_fields || tab->used_uneven_bit_fields;
-    flag_fields+= MY_TEST(tab->table()->maybe_null);
+    flag_fields+= MY_TEST(tab->table()->is_nullable());
     fields+= used_fields;
     blobs+= used_blobs;
   }
@@ -297,7 +297,7 @@ void JOIN_CACHE::create_flag_fields()
                                             &copy);
  
     /* Create table for the null row flag if needed */
-    if (table->maybe_null)
+    if (table->is_nullable())
       length+= add_flag_field_to_join_cache((uchar*) &table->null_row,
                                             sizeof(table->null_row),
                                             &copy);

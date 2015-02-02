@@ -13,18 +13,18 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA */
 
-
-
-
 #ifndef RPL_MSR_H
 #define RPL_MSR_H
 
 #ifdef HAVE_REPLICATION
 
+#include "my_global.h"
+#include "rpl_channel_service_interface.h" // enum_channel_type
+#include "rpl_mi.h"                        // Master_info
+
 #include <map>
 #include <string>
-#include "rpl_mi.h"
-#include "rpl_channel_service_interface.h"
+
 
 /**
    Maps a channel name to it's Master_info.

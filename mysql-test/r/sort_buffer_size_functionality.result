@@ -162,6 +162,8 @@ variable_value
 set @Sort_merge_passes = (select variable_value from information_schema.session_status where variable_name ='Sort_merge_passes');
 set @Sort_rows = (select variable_value from information_schema.session_status where variable_name ='Sort_rows');
 set @Sort_scan = (select variable_value from information_schema.session_status where variable_name ='Sort_scan');
+set @optimizer_switch_saved=@@optimizer_switch;
+set optimizer_switch='derived_merge=off';
 select count(1) from (select b.* from tab1 b inner join tab1 c inner join tab1 d inner join tab1 e inner join tab1 f order by 1) a;
 count(1)
 100000
@@ -194,6 +196,7 @@ select (select variable_value from information_schema.global_status where variab
 (select variable_value from information_schema.global_status where variable_name ='Sort_scan') = @Sort_scan + 2
 1
 1 Expected
+set @@optimizer_switch=@optimizer_switch_saved;
 #cleanup
 DROP TABLE IF EXISTS tab1;
 SET @@session.sort_buffer_size=DEFAULT;

@@ -155,14 +155,7 @@ STATUS: EQUAL
 QUERY: SELECT alias2.col_varchar_nokey FROM t1 AS alias2 LEFT JOIN v1 AS alias1 ON 1 WHERE alias2.col_varchar_key IN ( SELECT sq2_alias1.col_varchar_nokey FROM v1 AS sq2_alias1 LEFT JOIN t1 AS sq2_alias2 ON (sq2_alias2.col_int_key = sq2_alias1.pk) WHERE sq2_alias1.pk != alias1.col_int_key AND sq2_alias1.col_varchar_key > alias1.col_varchar_key ) 
 STATUS: EQUAL
 QUERY: SELECT d FROM (SELECT * FROM t2) AS a2 RIGHT JOIN (SELECT * FROM t1) AS a1 ON c = a WHERE d LIKE '_' ORDER BY d 
-STATUS:NOT_EQUAL
-SYNC_POINT:before_reset_query_plan
-Diff: EXPLAIN NORMAL vs OTHER
-@@ -2,3 +2,3 @@
- 1	PRIMARY	<derived3>	NULL	system	NULL	NULL	NULL	NULL	1	100.00	Using filesort
--1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	5	const	2	25.00	Using where
-+1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	5	const	2	50.00	Using where
- 3	DERIVED	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+STATUS: EQUAL
 QUERY: SELECT (SELECT rs.t2_id FROM t2 rs WHERE rs.t1_id= (SELECT lt.t1_id FROM t1 lt WHERE lt.t3_id=a.t3_id) ORDER BY b DESC LIMIT 1) from t3 AS a 
 STATUS: EQUAL
 QUERY: UPDATE t1 join t2 on (t1.a=t2.a) set t1.id=t2.id 

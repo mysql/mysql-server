@@ -4910,28 +4910,26 @@ QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
 SELECT * FROM v1	{
   "steps": [
     {
-      "view": {
-        "database": "test",
-        "view": "v1",
-        "in_select#": 1,
-        "select#": 2,
-        "materialized": true
-      }
-    },
-    {
-      "join_preparation": {
-        "select#": 2,
-        "steps": [
-          {
-            "expanded_query": "/* select#2 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2` from `t1` order by `t1`.`f1`,`t1`.`f0` limit 30"
-          }
-        ]
-      }
-    },
-    {
       "join_preparation": {
         "select#": 1,
         "steps": [
+          {
+            "join_preparation": {
+              "select#": 2,
+              "steps": [
+                {
+                  "expanded_query": "/* select#2 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2` from `t1` order by `t1`.`f1`,`t1`.`f0` limit 30"
+                }
+              ]
+            }
+          },
+          {
+            "view": {
+              "table": "`v1`",
+              "select#": 2,
+              "materialized": true
+            }
+          },
           {
             "expanded_query": "/* select#1 */ select `v1`.`f0` AS `f0`,`v1`.`f1` AS `f1`,`v1`.`f2` AS `f2` from `v1`"
           }
@@ -5197,28 +5195,26 @@ QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
 SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
   "steps": [
     {
-      "view": {
-        "database": "test",
-        "view": "v1",
-        "in_select#": 1,
-        "select#": 2,
-        "materialized": true
-      }
-    },
-    {
-      "join_preparation": {
-        "select#": 2,
-        "steps": [
-          {
-            "expanded_query": "/* select#2 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2` from `t1` order by `t1`.`f1`,`t1`.`f0` limit 100"
-          }
-        ]
-      }
-    },
-    {
       "join_preparation": {
         "select#": 1,
         "steps": [
+          {
+            "join_preparation": {
+              "select#": 2,
+              "steps": [
+                {
+                  "expanded_query": "/* select#2 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2` from `t1` order by `t1`.`f1`,`t1`.`f0` limit 100"
+                }
+              ]
+            }
+          },
+          {
+            "view": {
+              "table": "`v1`",
+              "select#": 2,
+              "materialized": true
+            }
+          },
           {
             "expanded_query": "/* select#1 */ select `v1`.`f0` AS `f0`,`v1`.`f1` AS `f1`,`v1`.`f2` AS `f2` from `v1` order by `v1`.`f2`,`v1`.`f0` limit 30"
           }
@@ -5531,47 +5527,43 @@ SELECT * FROM v1 JOIN v2 on v1.f1=v2.f1 ORDER BY v1.f2,v1.f0,v2.f0
 LIMIT 30	{
   "steps": [
     {
-      "view": {
-        "database": "test",
-        "view": "v1",
-        "in_select#": 1,
-        "select#": 2,
-        "materialized": true
-      }
-    },
-    {
-      "view": {
-        "database": "test",
-        "view": "v2",
-        "in_select#": 1,
-        "select#": 3,
-        "materialized": true
-      }
-    },
-    {
-      "join_preparation": {
-        "select#": 2,
-        "steps": [
-          {
-            "expanded_query": "/* select#2 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2` from `t1` order by `t1`.`f1`,`t1`.`f0` limit 100"
-          }
-        ]
-      }
-    },
-    {
-      "join_preparation": {
-        "select#": 3,
-        "steps": [
-          {
-            "expanded_query": "/* select#3 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2` from `t1` order by `t1`.`f2`,`t1`.`f0` limit 100"
-          }
-        ]
-      }
-    },
-    {
       "join_preparation": {
         "select#": 1,
         "steps": [
+          {
+            "join_preparation": {
+              "select#": 2,
+              "steps": [
+                {
+                  "expanded_query": "/* select#2 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2` from `t1` order by `t1`.`f1`,`t1`.`f0` limit 100"
+                }
+              ]
+            }
+          },
+          {
+            "join_preparation": {
+              "select#": 3,
+              "steps": [
+                {
+                  "expanded_query": "/* select#3 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2` from `t1` order by `t1`.`f2`,`t1`.`f0` limit 100"
+                }
+              ]
+            }
+          },
+          {
+            "view": {
+              "table": "`v1`",
+              "select#": 2,
+              "materialized": true
+            }
+          },
+          {
+            "view": {
+              "table": "`v2`",
+              "select#": 3,
+              "materialized": true
+            }
+          },
           {
             "expanded_query": "/* select#1 */ select `v1`.`f0` AS `f0`,`v1`.`f1` AS `f1`,`v1`.`f2` AS `f2`,`v2`.`f0` AS `f0`,`v2`.`f1` AS `f1`,`v2`.`f2` AS `f2` from (`v1` join `v2` on((`v1`.`f1` = `v2`.`f1`))) order by `v1`.`f2`,`v1`.`f0`,`v2`.`f0` limit 30"
           },
@@ -7023,28 +7015,26 @@ QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
 SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
   "steps": [
     {
-      "view": {
-        "database": "test",
-        "view": "v1",
-        "in_select#": 1,
-        "select#": 2,
-        "materialized": true
-      }
-    },
-    {
-      "join_preparation": {
-        "select#": 2,
-        "steps": [
-          {
-            "expanded_query": "/* select#2 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2` from `t1` order by `t1`.`f1`,`t1`.`f0` limit 100"
-          }
-        ]
-      }
-    },
-    {
       "join_preparation": {
         "select#": 1,
         "steps": [
+          {
+            "join_preparation": {
+              "select#": 2,
+              "steps": [
+                {
+                  "expanded_query": "/* select#2 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2` from `t1` order by `t1`.`f1`,`t1`.`f0` limit 100"
+                }
+              ]
+            }
+          },
+          {
+            "view": {
+              "table": "`v1`",
+              "select#": 2,
+              "materialized": true
+            }
+          },
           {
             "expanded_query": "/* select#1 */ select `v1`.`f0` AS `f0`,`v1`.`f1` AS `f1`,`v1`.`f2` AS `f2` from `v1` order by `v1`.`f2`,`v1`.`f0` limit 30"
           }
@@ -7360,18 +7350,25 @@ ORDER BY d1.f2 DESC LIMIT 30	{
   "steps": [
     {
       "join_preparation": {
-        "select#": 2,
-        "steps": [
-          {
-            "expanded_query": "/* select#2 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2` from `t1` order by `t1`.`f1` limit 30"
-          }
-        ]
-      }
-    },
-    {
-      "join_preparation": {
         "select#": 1,
         "steps": [
+          {
+            "join_preparation": {
+              "select#": 2,
+              "steps": [
+                {
+                  "expanded_query": "/* select#2 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2` from `t1` order by `t1`.`f1` limit 30"
+                }
+              ]
+            }
+          },
+          {
+            "derived": {
+              "table": " `d1`",
+              "select#": 2,
+              "materialized": true
+            }
+          },
           {
             "expanded_query": "/* select#1 */ select `d1`.`f1` AS `f1`,`d1`.`f2` AS `f2` from (`t1` left join (/* select#2 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2` from `t1` order by `t1`.`f1` limit 30) `d1` on((`t1`.`f1` = `d1`.`f1`))) order by `d1`.`f2` desc limit 30"
           },

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3205,6 +3205,7 @@ void Item_func_if::fix_after_pullout(st_select_lex *parent_select,
                           args[2]->not_null_tables());
 }
 
+
 void Item_func_if::cache_type_info(Item *source)
 {
   collation.set(source->collation);
@@ -5400,8 +5401,7 @@ Item_cond::fix_fields(THD *thd, Item **ref)
     with_sum_func|=  item->with_sum_func;
     with_subselect|= item->has_subquery();
     with_stored_program|= item->has_stored_program();
-    if (item->maybe_null)
-      maybe_null= true;
+    maybe_null|= item->maybe_null;
   }
   thd->lex->current_select()->cond_count+= list.elements;
   fix_length_and_dec();
@@ -6955,12 +6955,9 @@ bool Item_equal::fix_fields(THD *thd, Item **ref)
   const_item_cache= 0;
   while ((item= li++))
   {
-    table_map tmp_table_map;
     used_tables_cache|= item->used_tables();
-    tmp_table_map= item->not_null_tables();
-    not_null_tables_cache|= tmp_table_map;
-    if (item->maybe_null)
-      maybe_null=1;
+    not_null_tables_cache|= item->not_null_tables();
+    maybe_null|= item->maybe_null;
   }
   fix_length_and_dec();
   fixed= 1;
@@ -7085,6 +7082,7 @@ void Item_equal::update_used_tables()
   {
     item->update_used_tables();
     used_tables_cache|= item->used_tables();
+    not_null_tables_cache|= item->not_null_tables();
     /* see commentary at Item_equal::update_const() */
     const_item_cache&= item->const_item() && !item->is_outer_field();
     with_subselect|= item->has_subquery();

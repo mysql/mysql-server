@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -17,8 +17,8 @@
 
 #include "rpl_gtid.h"
 
-#include "hash.h"
-#include "mysqld_error.h"
+#include "mysqld_error.h"    // ER_*
+
 
 PSI_memory_key key_memory_Sid_map_Node;
 

@@ -340,16 +340,23 @@ void table_replication_connection_status::make_row(Master_info *mi,
        DBUG_VOID_RETURN;
     }
 
-    bool stats_not_available= get_group_replication_connection_status_info(group_replication_info);
+    bool stats_not_available
+         = get_group_replication_connection_status_info(group_replication_info);
     if (stats_not_available)
     {
       DBUG_PRINT("info", ("Group Replication stats not available!"));
     }
     else
     {
-      m_row.channel_name_length= strlen(group_replication_info->channel_name);
-      memcpy(m_row.channel_name, group_replication_info->channel_name,
-             m_row.channel_name_length);
+      m_row.channel_name_length= 0;
+      if (group_replication_info->channel_name != NULL)
+      {
+        m_row.channel_name_length= strlen(group_replication_info->channel_name);
+        memcpy(m_row.channel_name, group_replication_info->channel_name,
+               m_row.channel_name_length);
+
+        my_free((void*)group_replication_info->channel_name);
+      }
 
       if (group_replication_info->group_name != NULL)
       {
@@ -358,6 +365,8 @@ void table_replication_connection_status::make_row(Master_info *mi,
 
         memcpy(m_row.source_uuid, group_replication_info->group_name, UUID_LENGTH+1);
         m_row.source_uuid_is_null= false;
+
+        my_free((void*)group_replication_info->group_name);
       }
 
       if (group_replication_info->service_state)

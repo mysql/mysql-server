@@ -994,9 +994,8 @@ FROM t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 3	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
-2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
-Note	1003	/* select#1 */ select min(NULL) AS `MIN(a)` from (/* select#2 */ select NULL AS `a` from `test`.`empty1`) `tt` having <in_optimizer>('m','m' in ( <materialize> (/* select#3 */ select `test`.`t2`.`v` from `test`.`t2` where (`test`.`t2`.`v` = <cache>('m')) ), <primary_index_lookup>('m' in <temporary table> on <auto_key> where (('m' = `materialized-subquery`.`v`)))))
+Note	1003	/* select#1 */ select min(NULL) AS `MIN(a)` from `test`.`empty1` having <in_optimizer>('m','m' in ( <materialize> (/* select#3 */ select `test`.`t2`.`v` from `test`.`t2` where (`test`.`t2`.`v` = <cache>('m')) ), <primary_index_lookup>('m' in <temporary table> on <auto_key> where (('m' = `materialized-subquery`.`v`)))))
 
 #
 # 5) Test that subquery materialization is setup for query with
@@ -1164,10 +1163,9 @@ SELECT t1.* FROM t1 LEFT JOIN t2 ON t1.a > 3 OR t2.b IN (SELECT a FROM t1)
 ) table1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
-2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 3	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
-Note	1003	/* select#1 */ select NULL AS `a` from (/* select#2 */ select NULL AS `a` from `test`.`t1` left join `test`.`t2` on(((NULL > 3) or <in_optimizer>(NULL,<exists>(/* select#3 */ select 1 from `test`.`t1` where (<cache>(NULL) = NULL)))))) `table1`
+Note	1003	/* select#1 */ select NULL AS `a` from `test`.`t1` left join `test`.`t2` on(((NULL > 3) or <in_optimizer>(NULL,<exists>(/* select#3 */ select 1 from `test`.`t1` where (<cache>(NULL) = NULL)))))
 SELECT a FROM (
 SELECT t1.* FROM t1 LEFT JOIN t2 ON t1.a > 3 OR t2.b IN (SELECT a FROM t1)
 ) table1;

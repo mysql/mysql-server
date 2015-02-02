@@ -48,6 +48,8 @@
 #include "rpl_info_handler.h"            // INFO_REPOSITORY_FILE
 #include "rpl_mi.h"                      // Master_info
 #include "rpl_msr.h"                     // msr_map
+#include "rpl_mts_submode.h"             // MTS_PARALLEL_TYPE_DB_NAME
+#include "rpl_rli.h"                     // Relay_log_info
 #include "rpl_slave.h"                   // SLAVE_THD_TYPE
 #include "socket_connection.h"           // MY_BIND_ALL_ADDRESSES
 #include "sp_head.h"                     // SP_PSI_STATEMENT_INFO_COUNT
@@ -2494,7 +2496,8 @@ static const char *optimizer_switch_names[]=
   "block_nested_loop", "batched_key_access",
   "materialization", "semijoin", "loosescan", "firstmatch",
   "subquery_materialization_cost_based",
-  "use_index_extensions", "condition_fanout_filter", "default", NullS
+  "use_index_extensions", "condition_fanout_filter", "derived_merge",
+  "default", NullS
 };
 static Sys_var_flagset Sys_optimizer_switch(
        "optimizer_switch",
@@ -2504,8 +2507,9 @@ static Sys_var_flagset Sys_optimizer_switch(
        "index_condition_pushdown, mrr, mrr_cost_based"
        ", materialization, semijoin, loosescan, firstmatch,"
        " subquery_materialization_cost_based"
-       ", block_nested_loop, batched_key_access, use_index_extensions, "
-       "condition_fanout_filter} and val is one of {on, off, default}",
+       ", block_nested_loop, batched_key_access, use_index_extensions,"
+       " condition_fanout_filter, derived_merge} and val is one of "
+       "{on, off, default}",
        SESSION_VAR(optimizer_switch), CMD_LINE(REQUIRED_ARG),
        optimizer_switch_names, DEFAULT(OPTIMIZER_SWITCH_DEFAULT),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(NULL), ON_UPDATE(NULL));

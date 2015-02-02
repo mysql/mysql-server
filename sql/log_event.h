@@ -28,23 +28,29 @@
 #ifndef _log_event_h
 #define _log_event_h
 
-#include <my_bitmap.h>
-#include "rpl_constants.h"
-/* These two header files are necessary for the List manipuation */
-#include "sql_list.h"                           /* I_List */
-#include "hash.h"
-#include "table_id.h"
-#include <set>
-#include <list>
-#include <string>
-#include <map>
+#include "my_global.h"
+#include "my_bitmap.h"               // MY_BITMAP
+#include "binary_log.h"              // binary_log
+#include "rpl_utility.h"             // Hash_slave_rows
+
+#ifdef MYSQL_SERVER
+#include "rpl_filter.h"              // rpl_filter
+#include "rpl_record.h"              // unpack_row
+#include "sql_class.h"               // THD
+#endif
 
 #ifdef MYSQL_CLIENT
-#include "sql_const.h"
-#include "rpl_utility.h"
-#include "hash.h"
-#include "rpl_tblmap.h"
+#include "rpl_tblmap.h"              // table_mapping
+#include "sql_const.h"               // MAX_TIME_ZONE_NAME_LENGTH
+#include "sql_list.h"                // I_List
+#endif
 
+#include <list>
+#include <map>
+#include <set>
+#include <string>
+
+#ifdef MYSQL_CLIENT
 /*
   Variable to suppress the USE <DATABASE> command when using the
   new mysqlbinlog option
@@ -52,17 +58,6 @@
 bool option_rewrite_set= FALSE;
 extern I_List<i_string_pair> binlog_rewrite_db;
 #endif
-
-#ifdef MYSQL_SERVER
-#include "rpl_record.h"
-#include "rpl_reporting.h"
-#include "sql_class.h"                          /* THD */
-#include "rpl_utility.h"                        /* Hash_slave_rows */
-#include "rpl_filter.h"
-#include "key.h"                                /* key_copy, compare_keys */
-#endif
-
-#include "binary_log.h"
 
 extern PSI_memory_key key_memory_Incident_log_event_message;
 extern PSI_memory_key key_memory_Rows_query_log_event_rows_query;

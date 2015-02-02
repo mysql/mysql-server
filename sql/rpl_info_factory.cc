@@ -13,9 +13,19 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <my_global.h>
-#include "rpl_slave.h"
 #include "rpl_info_factory.h"
+
+#include "log.h"                    // sql_print_error
+#include "mysqld.h"                 // key_master_info_run_lock
+#include "rpl_info_dummy.h"         // Rpl_info_dummy
+#include "rpl_info_file.h"          // Rpl_info_file
+#include "rpl_info_table.h"         // Rpl_info_table
+#include "rpl_info_table_access.h"  // Rpl_info_table_access
+#include "rpl_mi.h"                 // Master_info
+#include "rpl_msr.h"                // msr_map
+#include "rpl_rli.h"                // Relay_log_info
+#include "rpl_rli_pdb.h"            // Slave_worker
+
 
 /*
   Defines meta information on diferent repositories.

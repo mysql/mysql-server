@@ -31,8 +31,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 EXPLAIN FORMAT=TRADITIONAL FOR QUERY 'SELECT * FROM (SELECT * FROM t1) tt'
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 EXPLAIN FORMAT=TRADITIONAL FOR QUERY 'SELECT * FROM t1 WHERE f1 IN (SELECT * FROM t1)'
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
@@ -74,50 +73,23 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "10.50"
+      "query_cost": "1.40"
     },
     "table": {
-      "table_name": "tt",
+      "table_name": "t1",
       "access_type": "ALL",
       "rows_examined_per_scan": 2,
       "rows_produced_per_join": 2,
       "filtered": "100.00",
       "cost_info": {
-        "read_cost": "10.10",
+        "read_cost": "1.00",
         "eval_cost": "0.40",
-        "prefix_cost": "10.50",
-        "data_read_per_join": "32"
+        "prefix_cost": "1.40",
+        "data_read_per_join": "16"
       },
       "used_columns": [
         "f1"
-      ],
-      "materialized_from_subquery": {
-        "using_temporary_table": true,
-        "dependent": false,
-        "cacheable": true,
-        "query_block": {
-          "select_id": 2,
-          "cost_info": {
-            "query_cost": "1.40"
-          },
-          "table": {
-            "table_name": "t1",
-            "access_type": "ALL",
-            "rows_examined_per_scan": 2,
-            "rows_produced_per_join": 2,
-            "filtered": "100.00",
-            "cost_info": {
-              "read_cost": "1.00",
-              "eval_cost": "0.40",
-              "prefix_cost": "1.40",
-              "data_read_per_join": "16"
-            },
-            "used_columns": [
-              "f1"
-            ]
-          }
-        }
-      }
+      ]
     }
   }
 }
@@ -632,6 +604,8 @@ EXPLAIN
   }
 }
 Ensure materialized derived still has plans after materialization
+set @optimizer_switch_saved= @@optimizer_switch;
+set optimizer_switch='derived_merge=off';
 EXPLAIN FORMAT=TRADITIONAL FOR QUERY 'SELECT * FROM (SELECT * FROM t1) tt'
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	17	100.00	NULL
@@ -689,6 +663,7 @@ EXPLAIN
     }
   }
 }
+set optimizer_switch= @optimizer_switch_saved;
 WHERE subqueries, neither parent query nor subquery has plan
 EXPLAIN FORMAT=JSON FOR QUERY 'SELECT t2.f1 FROM t1 STRAIGHT_JOIN t1 AS t2
 WHERE t1.f1>(SELECT t3.f1 FROM t1 AS t3 LIMIT 1)'

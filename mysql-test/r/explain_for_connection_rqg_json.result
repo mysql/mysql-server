@@ -78,29 +78,29 @@ QUERY: SELECT    alias1.col_int_key AS field1 , alias1.col_int_key AS field2 FRO
 STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
-@@ -175,2 +175,3 @@
+@@ -56,2 +56,3 @@
                  "filtered": "100.00",
 +                "using_where": true,
                  "using_index": true,
-@@ -186,3 +187,2 @@
+@@ -67,3 +68,2 @@
                  ],
 -                "attached_condition": "<if>(is_not_null_compl(sq3_alias2..sq3_alias3), (`test`.`sq3_alias1`.`col_int_key` > (/* select#5 */ select count(distinct `test`.`c_sq1_alias1`.`col_int_nokey`) AS `c_sq1_field1` from `test`.`d` `c_sq1_alias1` where (`test`.`c_sq1_alias1`.`col_int_nokey` <> `test`.`c_sq1_alias1`.`pk`))), true)",
                  "attached_subqueries": [
-@@ -202,2 +202,3 @@
+@@ -83,2 +83,3 @@
                          "filtered": "90.00",
 +                        "using_where": true,
                          "cost_info": {
-@@ -211,4 +212,3 @@
+@@ -92,4 +93,3 @@
                            "col_int_nokey"
 -                        ],
 -                        "attached_condition": "(`test`.`c_sq1_alias1`.`col_int_nokey` <> `test`.`c_sq1_alias1`.`pk`)"
 +                        ]
                        }
-@@ -238,2 +238,3 @@
+@@ -119,2 +119,3 @@
                  "filtered": "100.00",
 +                "using_where": true,
                  "cost_info": {
-@@ -247,4 +248,3 @@
+@@ -128,4 +129,3 @@
                    "col_int_key"
 -                ],
 -                "attached_condition": "<if>(is_not_null_compl(sq3_alias2..sq3_alias3), (`test`.`sq3_alias3`.`col_int_key` = `test`.`sq3_alias2`.`col_int_key`), true)"
@@ -154,34 +154,34 @@ QUERY: SELECT    table2.col_time_key AS field1 FROM ( ( SELECT   subquery1_t1.* 
 STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
-@@ -63,2 +63,3 @@
-                       "filtered": "100.00",
-+                      "using_where": true,
-                       "cost_info": {
-@@ -81,4 +82,3 @@
-                         "col_varchar_nokey"
--                      ],
--                      "attached_condition": "((`test`.`subquery1_t1`.`pk` <= 7) and (`test`.`subquery1_t1`.`col_int_key` is not null))"
-+                      ]
-                     }
-@@ -161,2 +161,3 @@
-                   "filtered": "100.00",
-+                  "using_where": true,
-                   "cost_info": {
-@@ -179,4 +180,3 @@
-                     "col_varchar_nokey"
--                  ],
--                  "attached_condition": "(`test`.`subquery2_t1`.`col_varchar_nokey` <= 'l')"
-+                  ]
-                 }
-@@ -205,2 +205,3 @@
+@@ -27,2 +27,3 @@
              "filtered": "100.00",
 +            "using_where": true,
              "cost_info": {
-@@ -214,4 +215,3 @@
+@@ -39,4 +40,3 @@
+               "col_varchar_nokey"
+-            ],
+-            "attached_condition": "((`test`.`subquery1_t1`.`pk` <= 7) and (`test`.`subquery1_t1`.`col_int_key` is not null))"
++            ]
+           }
+@@ -85,2 +85,3 @@
+             "filtered": "100.00",
++            "using_where": true,
+             "cost_info": {
+@@ -96,4 +97,3 @@
+               "col_varchar_nokey"
+-            ],
+-            "attached_condition": "<if>(is_not_null_compl(subquery2_t1..table3), (`test`.`subquery2_t1`.`col_varchar_nokey` <= 'l'), true)"
++            ]
+           }
+@@ -119,2 +119,3 @@
+             "filtered": "100.00",
++            "using_where": true,
+             "cost_info": {
+@@ -128,4 +129,3 @@
                "col_varchar_key"
 -            ],
--            "attached_condition": "<if>(is_not_null_compl(table2..table3), (`test`.`table3`.`col_varchar_key` = `table2`.`col_varchar_key`), true)"
+-            "attached_condition": "<if>(is_not_null_compl(subquery2_t1..table3), (`test`.`table3`.`col_varchar_key` = `test`.`subquery2_t1`.`col_varchar_key`), true)"
 +            ]
            }
 QUERY: SELECT    alias1.col_datetime_key AS field1 FROM ( view_cc AS alias1 , bb AS alias2 , cc AS alias3 ) WHERE  alias2.pk < ALL (SELECT   sq1_alias2.pk AS sq1_field1 FROM ( c AS sq1_alias1 , cc AS sq1_alias2 ) WHERE  sq1_alias1.col_varchar_nokey != (SELECT   COUNT(  c_sq1_alias1.col_varchar_key ) AS c_sq1_field1 FROM ( cc AS c_sq1_alias1 RIGHT OUTER JOIN ( ( cc AS c_sq1_alias2 INNER JOIN b AS c_sq1_alias3 ON (c_sq1_alias3.col_varchar_nokey = c_sq1_alias2.col_varchar_key ) ) ) ON (c_sq1_alias3.pk = c_sq1_alias2.pk ) ) WHERE c_sq1_alias1.col_varchar_key < 'm' )   )  GROUP BY field1 HAVING ((field1 <= 'USA' OR field1 < 2) AND field1 <> 'd') ORDER BY alias1.col_time_key DESC , field1 LIMIT 10 OFFSET 208
@@ -278,77 +278,67 @@ SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
 @@ -5,3 +5,3 @@
      "cost_info": {
--      "query_cost": "20.50"
-+      "query_cost": "47.50"
+-      "query_cost": "14.20"
++      "query_cost": "38.80"
      },
-@@ -18,2 +18,3 @@
-             "filtered": "75.00",
+@@ -22,2 +22,3 @@
+             "filtered": "6.83",
 +            "using_where": true,
              "cost_info": {
-@@ -37,3 +38,2 @@
+@@ -34,3 +35,2 @@
              ],
--            "attached_condition": "(<not>((`table1`.`col_varchar_nokey` < <max>(/* select#4 */ select sql_small_result `test`.`subquery2_t1`.`col_varchar_key` AS `subquery2_field1` from `test`.`c` `subquery2_t1` join `test`.`cc` `subquery2_t2` where (`test`.`subquery2_t2`.`pk` = `test`.`subquery2_t1`.`col_int_nokey`)))) or (`table1`.`pk` = 98))",
+-            "attached_condition": "((<not>((`test`.`subquery1_t1`.`col_varchar_nokey` < <max>(/* select#4 */ select sql_small_result `test`.`subquery2_t1`.`col_varchar_key` AS `subquery2_field1` from `test`.`c` `subquery2_t1` join `test`.`cc` `subquery2_t2` where (`test`.`subquery2_t2`.`pk` = `test`.`subquery2_t1`.`col_int_nokey`)))) or (`test`.`subquery1_t1`.`pk` = 98)) and (`test`.`subquery1_t1`.`col_int_nokey` = `test`.`subquery1_t1`.`col_int_nokey`))",
              "attached_subqueries": [
-@@ -55,2 +55,3 @@
+@@ -52,2 +52,3 @@
                          "filtered": "100.00",
 +                        "using_where": true,
                          "cost_info": {
-@@ -64,4 +65,3 @@
+@@ -61,4 +62,3 @@
                            "col_varchar_key"
 -                        ],
 -                        "attached_condition": "(`test`.`subquery2_t1`.`col_int_nokey` is not null)"
 +                        ]
                        }
-@@ -117,2 +117,3 @@
-                   "filtered": "10.00",
-+                  "using_where": true,
-                   "cost_info": {
-@@ -135,4 +136,3 @@
-                     "col_varchar_nokey"
--                  ],
--                  "attached_condition": "(`test`.`subquery1_t1`.`col_int_nokey` = `test`.`subquery1_t1`.`col_int_nokey`)"
-+                  ]
-                 },
-@@ -163,2 +163,3 @@
-                             "filtered": "100.00",
-+                            "using_where": true,
-                             "using_index": true,
-@@ -173,4 +174,3 @@
-                               "col_int_key"
--                            ],
--                            "attached_condition": "(`test`.`child_subquery1_t2`.`col_int_key` <> 7)"
-+                            ]
-                           }
-@@ -223,4 +223,5 @@
+@@ -109,4 +109,5 @@
              "rows_examined_per_scan": 20,
--            "rows_produced_per_join": 3,
+-            "rows_produced_per_join": 2,
 -            "filtered": "10.00",
-+            "rows_produced_per_join": 30,
++            "rows_produced_per_join": 27,
 +            "filtered": "100.00",
 +            "using_where": true,
              "using_join_buffer": "Block Nested Loop",
-@@ -228,5 +229,5 @@
+@@ -114,5 +115,5 @@
                "read_cost": "1.00",
--              "eval_cost": "0.60",
-+              "eval_cost": "6.00",
-               "prefix_cost": "17.50",
--              "data_read_per_join": "144"
+-              "eval_cost": "0.55",
++              "eval_cost": "5.47",
+               "prefix_cost": "11.47",
+-              "data_read_per_join": "131"
 +              "data_read_per_join": "1K"
              },
-@@ -238,3 +239,2 @@
+@@ -124,3 +125,2 @@
              ],
--            "attached_condition": "((`test`.`table2`.`col_varchar_nokey` = `table1`.`col_varchar_key`) and (<not>((`table1`.`col_varchar_nokey` < <max>(/* select#4 */ select sql_small_result `test`.`subquery2_t1`.`col_varchar_key` AS `subquery2_field1` from `test`.`c` `subquery2_t1` join `test`.`cc` `subquery2_t2` where (`test`.`subquery2_t2`.`pk` = `test`.`subquery2_t1`.`col_int_nokey`)))) or ((`table1`.`pk` = 98) and (`test`.`table2`.`col_varchar_key` <> 'q'))))",
+-            "attached_condition": "((`test`.`table2`.`col_varchar_nokey` = `test`.`subquery1_t1`.`col_varchar_key`) and (<not>((`test`.`subquery1_t1`.`col_varchar_nokey` < <max>(/* select#4 */ select sql_small_result `test`.`subquery2_t1`.`col_varchar_key` AS `subquery2_field1` from `test`.`c` `subquery2_t1` join `test`.`cc` `subquery2_t2` where (`test`.`subquery2_t2`.`pk` = `test`.`subquery2_t1`.`col_int_nokey`)))) or ((`test`.`subquery1_t1`.`pk` = 98) and (`test`.`table2`.`col_varchar_key` <> 'q'))))",
              "attached_subqueries": [
-@@ -256,2 +256,3 @@
+@@ -142,2 +142,3 @@
                          "filtered": "100.00",
 +                        "using_where": true,
                          "cost_info": {
-@@ -265,4 +266,3 @@
+@@ -151,4 +152,3 @@
                            "col_varchar_key"
 -                        ],
 -                        "attached_condition": "(`test`.`subquery2_t1`.`col_int_nokey` is not null)"
 +                        ]
                        }
+@@ -217,2 +217,3 @@
+                   "filtered": "100.00",
++                  "using_where": true,
+                   "using_index": true,
+@@ -227,4 +228,3 @@
+                     "col_int_key"
+-                  ],
+-                  "attached_condition": "(`test`.`child_subquery1_t2`.`col_int_key` <> 7)"
++                  ]
+                 }
 QUERY: SELECT    alias1.col_int_key AS field1 , alias2.col_datetime_key AS field2 , alias1.col_varchar_nokey AS field3 , alias1.col_int_nokey AS field4 , alias1.col_int_key AS field5 FROM ( b AS alias1 , view_d AS alias2 ) WHERE  alias1.col_varchar_nokey >= ANY (SELECT  SQL_SMALL_RESULT sq1_alias1.col_varchar_key AS sq1_field1 FROM ( c AS sq1_alias1 INNER JOIN c AS sq1_alias2 ON (sq1_alias2.col_int_key = sq1_alias1.pk  ) )   )  GROUP BY field1, field2, field3, field4, field5  ORDER BY alias1.col_date_key ASC , field1, field2, field3, field4, field5 
 STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
@@ -507,29 +497,45 @@ QUERY: SELECT  STRAIGHT_JOIN  alias1.col_int_key AS field1 FROM ( b AS alias1 , 
 STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
-@@ -91,2 +91,3 @@
-                         "filtered": "66.67",
-+                        "using_where": true,
-                         "using_index": true,
-@@ -103,3 +104,2 @@
-                         ],
--                        "attached_condition": "<nop>((`test`.`sq1_alias2`.`col_int_key` >= (/* select#3 */ select min(`test`.`c_sq1_alias1`.`col_int_key`) from `test`.`c` `c_sq1_alias1`)))",
-                         "attached_subqueries": [
-@@ -135,2 +135,3 @@
-                         "filtered": "7.14",
-+                        "using_where": true,
-                         "cost_info": {
-@@ -144,4 +145,3 @@
-                           "col_varchar_key"
--                        ],
--                        "attached_condition": "(`test`.`sq1_alias3`.`col_varchar_key` = `test`.`sq1_alias2`.`col_varchar_key`)"
-+                        ]
-                       }
-@@ -198,2 +198,3 @@
+@@ -5,3 +5,3 @@
+     "cost_info": {
+-      "query_cost": "147.59"
++      "query_cost": "395.22"
+     },
+@@ -79,2 +79,3 @@
+               "filtered": "66.67",
++              "using_where": true,
+               "using_index": true,
+@@ -92,3 +93,2 @@
+               ],
+-              "attached_condition": "<nop>((`test`.`sq1_alias2`.`col_int_key` >= (/* select#3 */ select min(`test`.`c_sq1_alias1`.`col_int_key`) from `test`.`c` `c_sq1_alias1`)))",
+               "attached_subqueries": [
+@@ -122,9 +122,10 @@
+               "rows_examined_per_scan": 1,
+-              "rows_produced_per_join": 19,
+-              "filtered": "7.14",
++              "rows_produced_per_join": 266,
++              "filtered": "100.00",
++              "using_where": true,
+               "cost_info": {
+                 "read_cost": "13.33",
+-                "eval_cost": "3.81",
++                "eval_cost": "53.34",
+                 "prefix_cost": "128.54",
+-                "data_read_per_join": "914"
++                "data_read_per_join": "12K"
+               },
+@@ -133,4 +134,3 @@
+                 "col_varchar_key"
+-              ],
+-              "attached_condition": "(`test`.`sq1_alias3`.`col_varchar_key` = `test`.`sq1_alias2`.`col_varchar_key`)"
++              ]
+             }
+@@ -153,2 +153,3 @@
                  "filtered": "33.33",
 +                "using_where": true,
                  "cost_info": {
-@@ -207,4 +208,3 @@
+@@ -162,4 +163,3 @@
                    "col_varchar_nokey"
 -                ],
 -                "attached_condition": "(`test`.`sq2_alias1`.`col_varchar_nokey` < 'p')"
@@ -575,39 +581,31 @@ Diff: EXPLAIN NORMAL vs OTHER
 -                          "attached_condition": "(`test`.`subquery2_t2`.`col_int_nokey` = `test`.`subquery2_t1`.`col_int_key`)"
 +                          ]
                          }
-@@ -169,2 +169,3 @@
+@@ -172,2 +172,3 @@
            "filtered": "100.00",
 +          "using_where": true,
            "using_join_buffer": "Block Nested Loop",
-@@ -189,3 +190,2 @@
-           ],
--          "attached_condition": "(<if>(found_match(table1), ((`test`.`table2`.`col_varchar_nokey` <> 't') or (`table1`.`col_varchar_nokey` = `test`.`table2`.`col_varchar_nokey`)), true) and <if>(is_not_null_compl(table1), (`test`.`table3`.`col_varchar_nokey` = `test`.`table2`.`col_varchar_key`), true))",
-           "materialized_from_subquery": {
-@@ -208,2 +208,3 @@
-                 "filtered": "100.00",
-+                "using_where": true,
-                 "cost_info": {
-@@ -226,4 +227,3 @@
-                   "col_varchar_nokey"
--                ],
--                "attached_condition": "((`test`.`subquery1_t1`.`col_varchar_key` <> 'y') or (`test`.`subquery1_t1`.`col_varchar_key` <= 'd'))"
-+                ]
-               }
-@@ -278,2 +278,3 @@
+@@ -183,4 +184,3 @@
+             "col_varchar_nokey"
+-          ],
+-          "attached_condition": "(<if>(found_match(subquery1_t1), ((`test`.`table2`.`col_varchar_nokey` <> 't') or (`test`.`subquery1_t1`.`col_varchar_nokey` = `test`.`table2`.`col_varchar_nokey`)), true) and <if>(is_not_null_compl(subquery1_t1), ((`test`.`table3`.`col_varchar_nokey` = `test`.`table2`.`col_varchar_key`) and ((`test`.`subquery1_t1`.`col_varchar_key` <> 'y') or (`test`.`subquery1_t1`.`col_varchar_key` <= 'd'))), true))"
++          ]
+         }
+@@ -232,2 +232,3 @@
                  "filtered": "100.00",
 +                "using_where": true,
                  "using_join_buffer": "Block Nested Loop",
-@@ -288,4 +289,3 @@
+@@ -242,4 +243,3 @@
                    "col_varchar_key"
 -                ],
 -                "attached_condition": "(`test`.`subquery3_t2`.`col_int_nokey` is not null)"
 +                ]
                }
-@@ -311,2 +311,3 @@
+@@ -265,2 +265,3 @@
                  "filtered": "7.14",
 +                "using_where": true,
                  "cost_info": {
-@@ -320,4 +321,3 @@
+@@ -274,4 +275,3 @@
                    "col_varchar_key"
 -                ],
 -                "attached_condition": "(`test`.`subquery3_t3`.`col_varchar_key` = `test`.`subquery3_t2`.`col_varchar_key`)"
@@ -619,16 +617,16 @@ QUERY: SELECT    MAX(  alias2.pk ) AS field1 , SUM( DISTINCT alias1.col_varchar_
 STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
-@@ -102,2 +102,3 @@
-                         "filtered": "40.00",
-+                        "using_where": true,
-                         "cost_info": {
-@@ -112,4 +113,3 @@
-                           "col_varchar_nokey"
--                        ],
--                        "attached_condition": "((`test`.`sq2_alias1`.`col_varchar_nokey` = 'o') or (`test`.`sq2_alias1`.`col_varchar_key` <= 'd'))"
-+                        ]
-                       }
+@@ -43,2 +43,3 @@
+               "filtered": "40.00",
++              "using_where": true,
+               "using_join_buffer": "Block Nested Loop",
+@@ -54,4 +55,3 @@
+                 "col_varchar_nokey"
+-              ],
+-              "attached_condition": "((`test`.`sq2_alias1`.`col_varchar_nokey` = 'o') or (`test`.`sq2_alias1`.`col_varchar_key` <= 'd'))"
++              ]
+             }
 QUERY: SELECT  col_int_nokey AS field1 FROM a AS table1 WHERE table1 .pk = table1.pk
 STATUS: EQUAL
 QUERY: SELECT    alias1.col_time_key AS field1 , alias1.col_datetime_key AS field2 , alias1.col_int_key AS field3 FROM ( bb AS alias1 , ( SELECT   sq1_alias1.* FROM ( cc AS sq1_alias1 INNER JOIN cc AS sq1_alias2 ON (sq1_alias2.col_varchar_key = sq1_alias1.col_varchar_nokey  ) )  ) AS alias2 , ( SELECT   sq2_alias1.* FROM b AS sq2_alias1  ) AS alias3 ) WHERE  alias1.col_varchar_nokey <= ANY (SELECT   sq3_alias1.col_varchar_nokey AS sq3_field1 FROM ( c AS sq3_alias1 INNER JOIN ( c AS sq3_alias2 INNER JOIN c AS sq3_alias3 ON (sq3_alias3.pk = sq3_alias2.col_int_key  ) ) ON (sq3_alias3.col_varchar_nokey = sq3_alias2.col_varchar_key  ) )   )   
@@ -663,16 +661,16 @@ Diff: EXPLAIN NORMAL vs OTHER
 -                      "attached_condition": "(`test`.`sq3_alias3`.`col_varchar_nokey` = `test`.`sq3_alias2`.`col_varchar_key`)"
 +                      ]
                      }
-@@ -235,2 +235,3 @@
-                     "filtered": "100.00",
-+                    "using_where": true,
-                     "cost_info": {
-@@ -253,4 +254,3 @@
-                       "col_varchar_nokey"
--                    ],
--                    "attached_condition": "(`test`.`sq1_alias1`.`col_varchar_nokey` is not null)"
-+                    ]
-                   }
+@@ -154,2 +154,3 @@
+           "filtered": "100.00",
++          "using_where": true,
+           "using_join_buffer": "Block Nested Loop",
+@@ -163,4 +164,3 @@
+             "col_varchar_nokey"
+-          ],
+-          "attached_condition": "(`test`.`sq1_alias1`.`col_varchar_nokey` is not null)"
++          ]
+         }
 QUERY: SELECT    alias1.col_varchar_nokey AS field1 , alias1.col_varchar_key AS field2 , alias1.col_varchar_key AS field3 FROM ( b AS alias1 , c AS alias2 , b AS alias3 ) WHERE (  alias1.col_varchar_nokey >= ALL (SELECT DISTINCT  sq1_alias1.col_varchar_key AS sq1_field1 FROM ( view_a AS sq1_alias1 LEFT OUTER JOIN c AS sq1_alias2 ON (sq1_alias2.col_varchar_key = sq1_alias1.col_varchar_nokey  ) )   ) ) AND alias1.col_int_key NOT BETWEEN 20 AND ( 20 + 10 ) AND (   EXISTS (SELECT DISTINCT  sq2_alias1.col_int_key AS sq2_field1 FROM ( cc AS sq2_alias1 INNER JOIN b AS sq2_alias2 ON (sq2_alias2.col_int_nokey = sq2_alias1.col_int_key  ) ) WHERE sq2_alias1.col_varchar_nokey != alias3.col_varchar_nokey AND sq2_alias1.col_varchar_nokey <= 'g' ) AND alias1.col_varchar_nokey != 'z' )  HAVING field1 <= 3 ORDER BY CONCAT( alias1.col_varchar_key, alias2.col_varchar_key ), field1, field2, field3 LIMIT 1
 STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
@@ -727,147 +725,109 @@ QUERY: SELECT   SQL_SMALL_RESULT  (SELECT   COUNT(  sq1_alias1.col_varchar_nokey
 STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
-@@ -45,2 +45,3 @@
-               "filtered": "50.00",
+@@ -75,2 +75,3 @@
+               "filtered": "100.00",
 +              "using_where": true,
-               "using_join_buffer": "Block Nested Loop",
-@@ -65,3 +66,2 @@
+               "cost_info": {
+@@ -83,4 +84,3 @@
+                 "col_varchar_nokey"
+-              ],
+-              "attached_condition": "<if>(is_not_null_compl(sq2_alias1..sq3_alias2), (`test`.`sq3_alias1`.`col_varchar_nokey` <> `test`.`sq2_alias1`.`col_varchar_key`), true)"
++              ]
+             }
+@@ -106,2 +106,3 @@
+               "filtered": "100.00",
++              "using_where": true,
+               "cost_info": {
+@@ -116,3 +117,2 @@
                ],
--              "attached_condition": "<if>(found_match(alias3..alias2), <not>((`alias3`.`col_varchar_key` <= <max>(/* select#5 */ select `test`.`sq4_alias2`.`col_varchar_nokey` AS `sq4_field1` from `test`.`d` `sq4_alias1` straight_join `test`.`cc` `sq4_alias2` where (`test`.`sq4_alias2`.`pk` = `test`.`sq4_alias1`.`col_int_key`)))), true)",
+-              "attached_condition": "(<if>(found_match(sq2_alias1..sq3_alias2), <not>((`test`.`sq3_alias2`.`col_varchar_key` <= <max>(/* select#5 */ select `test`.`sq4_alias2`.`col_varchar_nokey` AS `sq4_field1` from `test`.`d` `sq4_alias1` straight_join `test`.`cc` `sq4_alias2` where (`test`.`sq4_alias2`.`pk` = `test`.`sq4_alias1`.`col_int_key`)))), true) and <if>(is_not_null_compl(sq2_alias1..sq3_alias2), (`test`.`sq3_alias2`.`col_varchar_key` = `test`.`sq2_alias1`.`col_varchar_key`), true))",
                "attached_subqueries": [
-@@ -91,2 +91,3 @@
+@@ -142,2 +142,3 @@
                            "filtered": "100.00",
 +                          "using_where": true,
                            "using_index": true,
-@@ -100,4 +101,3 @@
+@@ -151,4 +152,3 @@
                              "col_int_key"
 -                          ],
 -                          "attached_condition": "(`test`.`sq4_alias1`.`col_int_key` is not null)"
 +                          ]
                          }
-@@ -173,2 +173,3 @@
-                         "filtered": "5.00",
-+                        "using_where": true,
-                         "using_join_buffer": "Block Nested Loop",
-@@ -192,4 +193,3 @@
-                           "col_varchar_nokey"
--                        ],
--                        "attached_condition": "(`test`.`sq3_alias1`.`col_varchar_nokey` <> `test`.`sq3_alias2`.`col_varchar_key`)"
-+                        ]
-                       }
-@@ -208,2 +208,3 @@
-               "filtered": "100.00",
-+              "using_where": true,
-               "using_join_buffer": "Block Nested Loop",
-@@ -228,3 +229,2 @@
-               ],
--              "attached_condition": "<if>(is_not_null_compl(alias3..alias2), ((`alias2`.`pk` = `alias3`.`pk`) and (`alias2`.`col_varchar_key` = `alias3`.`col_varchar_key`)), true)",
-               "materialized_from_subquery": {
 QUERY: SELECT    CONCAT( table1.col_varchar_nokey , table1.col_varchar_key ) AS field1 , table1.col_varchar_key AS field2 , CONCAT( table1.col_varchar_nokey , table1.col_varchar_key ) AS field3 FROM ( cc AS table1 STRAIGHT_JOIN ( ( ( SELECT   subquery1_t2.* FROM ( c AS subquery1_t1 LEFT  JOIN ( c AS subquery1_t2 LEFT OUTER JOIN cc AS subquery1_t3 ON (subquery1_t3.col_int_key = subquery1_t2.pk  ) ) ON (subquery1_t3.col_int_key = subquery1_t2.col_int_key  ) )  ) AS table2 LEFT OUTER JOIN bb AS table3 ON (table3.col_varchar_key = table2.col_varchar_nokey  ) ) ) ON (table3.col_varchar_nokey = table2.col_varchar_key  ) ) WHERE (  table3.col_varchar_key <= (SELECT 'r' FROM dummy ) ) AND ( table1.pk <= table2.col_int_key AND table1.pk > table3.col_int_key ) 
 STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
-@@ -47,3 +47,4 @@
+@@ -47,2 +47,3 @@
            "filtered": "100.00",
--          "index_condition": "(`test`.`table3`.`col_varchar_key` is not null)",
-+          "index_condition": true,
 +          "using_where": true,
            "using_join_buffer": "Block Nested Loop",
-@@ -60,3 +61,2 @@
+@@ -59,3 +60,2 @@
            ],
--          "attached_condition": "(((`test`.`table3`.`col_varchar_key` <= (/* select#3 */ select 'r' from `test`.`dummy`)) and (`test`.`table1`.`pk` > `test`.`table3`.`col_int_key`)) and (`test`.`table3`.`col_varchar_nokey` is not null))",
+-          "attached_condition": "((`test`.`table3`.`col_varchar_key` <= (/* select#3 */ select 'r' from `test`.`dummy`)) and (`test`.`table1`.`pk` > `test`.`table3`.`col_int_key`))",
            "attached_subqueries": [
-@@ -106,9 +106,10 @@
-           "rows_examined_per_scan": 13,
--          "rows_produced_per_join": 92,
--          "filtered": "33.33",
-+          "rows_produced_per_join": 276,
-+          "filtered": "100.00",
+@@ -107,3 +107,4 @@
+           "filtered": "3.50",
+-          "index_condition": "((`test`.`subquery1_t2`.`pk` = `test`.`subquery1_t2`.`col_int_key`) and (`test`.`table1`.`pk` <= `test`.`subquery1_t2`.`col_int_key`))",
++          "index_condition": true,
 +          "using_where": true,
            "cost_info": {
-             "read_cost": "276.92",
--            "eval_cost": "18.46",
-+            "eval_cost": "55.38",
-             "prefix_cost": "385.51",
--            "data_read_per_join": "4K"
-+            "data_read_per_join": "12K"
-           },
-@@ -127,3 +128,2 @@
-           ],
--          "attached_condition": "(`test`.`table1`.`pk` <= `table2`.`col_int_key`)",
-           "materialized_from_subquery": {
-@@ -205,2 +205,3 @@
-                     "filtered": "100.00",
-+                    "using_where": true,
-                     "cost_info": {
-@@ -223,4 +224,3 @@
-                       "col_varchar_nokey"
--                    ],
--                    "attached_condition": "<if>(is_not_null_compl(subquery1_t3..subquery1_t2), (`test`.`subquery1_t3`.`col_int_key` = `test`.`subquery1_t2`.`col_int_key`), true)"
-+                    ]
-                   }
+@@ -119,4 +120,3 @@
+             "col_varchar_nokey"
+-          ],
+-          "attached_condition": "(`test`.`subquery1_t2`.`col_varchar_nokey` = `test`.`table3`.`col_varchar_key`)"
++          ]
+         }
 QUERY: SELECT    CONCAT( table2.col_varchar_key , table1.col_varchar_key ) AS field1 , table2.pk AS field2 , table1.pk AS field3 FROM ( cc AS table1 STRAIGHT_JOIN ( ( ( SELECT  SQL_SMALL_RESULT subquery1_t2.* FROM ( cc AS subquery1_t1 RIGHT OUTER JOIN bb AS subquery1_t2 ON (subquery1_t2.col_int_nokey = subquery1_t1.pk  ) )  ) AS table2 INNER JOIN cc AS table3 ON (table3.pk = table2.pk  ) ) ) ON (table3.col_int_key = table2.col_int_nokey  ) ) WHERE (   EXISTS (SELECT   subquery2_t1.col_int_nokey AS subquery2_field1 FROM ( c AS subquery2_t1 INNER JOIN ( c AS subquery2_t2 STRAIGHT_JOIN b AS subquery2_t3 ON (subquery2_t3.col_int_key = subquery2_t2.pk  AND subquery2_t2.col_int_key NOT IN (SELECT   child_subquery1_t1.col_int_nokey AS child_subquery1_field1 FROM ( cc AS child_subquery1_t1 LEFT  JOIN c AS child_subquery1_t2 ON (child_subquery1_t2.col_int_nokey = child_subquery1_t1.col_int_key ) )    ) ) ) ON (subquery2_t3.col_varchar_key = subquery2_t2.col_varchar_key  ) ) WHERE subquery2_t3.col_varchar_nokey <= table2.col_varchar_nokey AND subquery2_t3.pk <= table2.pk ) ) OR ( table3.col_varchar_nokey <= 'c' AND table2.col_varchar_key != table2.col_varchar_nokey ) ORDER BY table1.col_varchar_key /*+JavaDB:Postgres: NULLS FIRST*/ , table1 .pk DESC /*+JavaDB:Postgres: NULLS LAST */, field1 /*+JavaDB:Postgres: NULLS FIRST */, field2 /*+JavaDB:Postgres: NULLS FIRST */, field3 /*+JavaDB:Postgres: NULLS FIRST */ 
 STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
-@@ -44,2 +44,3 @@
+@@ -47,2 +47,3 @@
              "filtered": "100.00",
 +            "using_where": true,
              "using_join_buffer": "Block Nested Loop",
-@@ -64,3 +65,2 @@
+@@ -60,3 +61,2 @@
              ],
--            "attached_condition": "(exists(/* select#3 */ select `test`.`subquery2_t1`.`col_int_nokey` AS `subquery2_field1` from `test`.`c` `subquery2_t1` join `test`.`c` `subquery2_t2` straight_join `test`.`b` `subquery2_t3` where ((`test`.`subquery2_t3`.`col_int_key` = `test`.`subquery2_t2`.`pk`) and (`test`.`subquery2_t3`.`col_varchar_key` = `test`.`subquery2_t2`.`col_varchar_key`) and (`test`.`subquery2_t3`.`col_varchar_nokey` <= `table2`.`col_varchar_nokey`) and (`test`.`subquery2_t3`.`pk` <= `table2`.`pk`) and (not(<in_optimizer>(`test`.`subquery2_t2`.`col_int_key`,`test`.`subquery2_t2`.`col_int_key` in ( <materialize> (/* select#4 */ select `test`.`child_subquery1_t1`.`col_int_nokey` AS `child_subquery1_field1` from `test`.`cc` `child_subquery1_t1` left join `test`.`c` `child_subquery1_t2` on((`test`.`child_subquery1_t2`.`col_int_nokey` = `test`.`child_subquery1_t1`.`col_int_key`)) where 1 having 1 ), <primary_index_lookup>(`test`.`subquery2_t2`.`col_int_key` in <temporary table> on <auto_key> where ((`test`.`subquery2_t2`.`col_int_key` = `materialized-subquery`.`child_subquery1_field1`))))))))) or (`table2`.`col_varchar_key` <> `table2`.`col_varchar_nokey`))",
+-            "attached_condition": "(exists(/* select#3 */ select `test`.`subquery2_t1`.`col_int_nokey` AS `subquery2_field1` from `test`.`c` `subquery2_t1` join `test`.`c` `subquery2_t2` straight_join `test`.`b` `subquery2_t3` where ((`test`.`subquery2_t3`.`col_int_key` = `test`.`subquery2_t2`.`pk`) and (`test`.`subquery2_t3`.`col_varchar_key` = `test`.`subquery2_t2`.`col_varchar_key`) and (`test`.`subquery2_t3`.`col_varchar_nokey` <= `test`.`subquery1_t2`.`col_varchar_nokey`) and (`test`.`subquery2_t3`.`pk` <= `test`.`subquery1_t2`.`pk`) and (not(<in_optimizer>(`test`.`subquery2_t2`.`col_int_key`,`test`.`subquery2_t2`.`col_int_key` in ( <materialize> (/* select#4 */ select `test`.`child_subquery1_t1`.`col_int_nokey` AS `child_subquery1_field1` from `test`.`cc` `child_subquery1_t1` left join `test`.`c` `child_subquery1_t2` on((`test`.`child_subquery1_t2`.`col_int_nokey` = `test`.`child_subquery1_t1`.`col_int_key`)) where 1 having 1 ), <primary_index_lookup>(`test`.`subquery2_t2`.`col_int_key` in <temporary table> on <auto_key> where ((`test`.`subquery2_t2`.`col_int_key` = `materialized-subquery`.`child_subquery1_field1`))))))))) or (`test`.`subquery1_t2`.`col_varchar_key` <> `test`.`subquery1_t2`.`col_varchar_nokey`))",
              "attached_subqueries": [
-@@ -110,2 +110,3 @@
+@@ -106,2 +106,3 @@
                          "filtered": "100.00",
 +                        "using_where": true,
                          "using_index": true,
-@@ -123,3 +124,2 @@
+@@ -119,3 +120,2 @@
                          ],
 -                        "attached_condition": "(not(<in_optimizer>(`test`.`subquery2_t2`.`col_int_key`,`test`.`subquery2_t2`.`col_int_key` in ( <materialize> (/* select#4 */ select `test`.`child_subquery1_t1`.`col_int_nokey` AS `child_subquery1_field1` from `test`.`cc` `child_subquery1_t1` left join `test`.`c` `child_subquery1_t2` on((`test`.`child_subquery1_t2`.`col_int_nokey` = `test`.`child_subquery1_t1`.`col_int_key`)) where 1 having 1 ), <primary_index_lookup>(`test`.`subquery2_t2`.`col_int_key` in <temporary table> on <auto_key> where ((`test`.`subquery2_t2`.`col_int_key` = `materialized-subquery`.`child_subquery1_field1`)))))))",
                          "attached_subqueries": [
-@@ -168,2 +168,3 @@
+@@ -164,2 +164,3 @@
                                          "filtered": "100.00",
 +                                        "using_where": true,
                                          "using_join_buffer": "Block Nested Loop",
-@@ -177,4 +178,3 @@
+@@ -173,4 +174,3 @@
                                            "col_int_nokey"
 -                                        ],
 -                                        "attached_condition": "<if>(is_not_null_compl(child_subquery1_t2), (`test`.`child_subquery1_t2`.`col_int_nokey` = `test`.`child_subquery1_t1`.`col_int_key`), true)"
 +                                        ]
                                        }
-@@ -310,9 +310,10 @@
-             "rows_examined_per_scan": 1,
--            "rows_produced_per_join": 5,
--            "filtered": "12.50",
-+            "rows_produced_per_join": 40,
-+            "filtered": "100.00",
+@@ -237,2 +237,3 @@
+             "filtered": "12.50",
 +            "using_where": true,
              "cost_info": {
-               "read_cost": "2.00",
--              "eval_cost": "1.00",
-+              "eval_cost": "8.00",
-               "prefix_cost": "33.11",
--              "data_read_per_join": "240"
-+              "data_read_per_join": "1K"
-             },
-@@ -323,3 +324,2 @@
+@@ -248,3 +249,2 @@
              ],
--            "attached_condition": "((`test`.`table3`.`col_int_key` = `table2`.`col_int_nokey`) and (exists(/* select#3 */ select `test`.`subquery2_t1`.`col_int_nokey` AS `subquery2_field1` from `test`.`c` `subquery2_t1` join `test`.`c` `subquery2_t2` straight_join `test`.`b` `subquery2_t3` where ((`test`.`subquery2_t3`.`col_int_key` = `test`.`subquery2_t2`.`pk`) and (`test`.`subquery2_t3`.`col_varchar_key` = `test`.`subquery2_t2`.`col_varchar_key`) and (`test`.`subquery2_t3`.`col_varchar_nokey` <= `table2`.`col_varchar_nokey`) and (`test`.`subquery2_t3`.`pk` <= `table2`.`pk`) and (not(<in_optimizer>(`test`.`subquery2_t2`.`col_int_key`,`test`.`subquery2_t2`.`col_int_key` in ( <materialize> (/* select#4 */ select `test`.`child_subquery1_t1`.`col_int_nokey` AS `child_subquery1_field1` from `test`.`cc` `child_subquery1_t1` left join `test`.`c` `child_subquery1_t2` on((`test`.`child_subquery1_t2`.`col_int_nokey` = `test`.`child_subquery1_t1`.`col_int_key`)) where 1 having 1 ), <primary_index_lookup>(`test`.`subquery2_t2`.`col_int_key` in <temporary table> on <auto_key> where ((`test`.`subquery2_t2`.`col_int_key` = `materialized-subquery`.`child_subquery1_field1`))))))))) or ((`test`.`table3`.`col_varchar_nokey` <= 'c') and (`table2`.`col_varchar_key` <> `table2`.`col_varchar_nokey`))))",
+-            "attached_condition": "((`test`.`table3`.`col_int_key` = `test`.`subquery1_t2`.`col_int_nokey`) and (exists(/* select#3 */ select `test`.`subquery2_t1`.`col_int_nokey` AS `subquery2_field1` from `test`.`c` `subquery2_t1` join `test`.`c` `subquery2_t2` straight_join `test`.`b` `subquery2_t3` where ((`test`.`subquery2_t3`.`col_int_key` = `test`.`subquery2_t2`.`pk`) and (`test`.`subquery2_t3`.`col_varchar_key` = `test`.`subquery2_t2`.`col_varchar_key`) and (`test`.`subquery2_t3`.`col_varchar_nokey` <= `test`.`subquery1_t2`.`col_varchar_nokey`) and (`test`.`subquery2_t3`.`pk` <= `test`.`subquery1_t2`.`pk`) and (not(<in_optimizer>(`test`.`subquery2_t2`.`col_int_key`,`test`.`subquery2_t2`.`col_int_key` in ( <materialize> (/* select#4 */ select `test`.`child_subquery1_t1`.`col_int_nokey` AS `child_subquery1_field1` from `test`.`cc` `child_subquery1_t1` left join `test`.`c` `child_subquery1_t2` on((`test`.`child_subquery1_t2`.`col_int_nokey` = `test`.`child_subquery1_t1`.`col_int_key`)) where 1 having 1 ), <primary_index_lookup>(`test`.`subquery2_t2`.`col_int_key` in <temporary table> on <auto_key> where ((`test`.`subquery2_t2`.`col_int_key` = `materialized-subquery`.`child_subquery1_field1`))))))))) or ((`test`.`table3`.`col_varchar_nokey` <= 'c') and (`test`.`subquery1_t2`.`col_varchar_key` <> `test`.`subquery1_t2`.`col_varchar_nokey`))))",
              "attached_subqueries": [
-@@ -369,2 +369,3 @@
+@@ -294,2 +294,3 @@
                          "filtered": "100.00",
 +                        "using_where": true,
                          "using_index": true,
-@@ -382,3 +383,2 @@
+@@ -307,3 +308,2 @@
                          ],
 -                        "attached_condition": "(not(<in_optimizer>(`test`.`subquery2_t2`.`col_int_key`,`test`.`subquery2_t2`.`col_int_key` in ( <materialize> (/* select#4 */ select `test`.`child_subquery1_t1`.`col_int_nokey` AS `child_subquery1_field1` from `test`.`cc` `child_subquery1_t1` left join `test`.`c` `child_subquery1_t2` on((`test`.`child_subquery1_t2`.`col_int_nokey` = `test`.`child_subquery1_t1`.`col_int_key`)) where 1 having 1 ), <primary_index_lookup>(`test`.`subquery2_t2`.`col_int_key` in <temporary table> on <auto_key> where ((`test`.`subquery2_t2`.`col_int_key` = `materialized-subquery`.`child_subquery1_field1`)))))))",
                          "attached_subqueries": [
-@@ -427,2 +427,3 @@
+@@ -352,2 +352,3 @@
                                          "filtered": "100.00",
 +                                        "using_where": true,
                                          "using_join_buffer": "Block Nested Loop",
-@@ -436,4 +437,3 @@
+@@ -361,4 +362,3 @@
                                            "col_int_nokey"
 -                                        ],
 -                                        "attached_condition": "<if>(is_not_null_compl(child_subquery1_t2), (`test`.`child_subquery1_t2`.`col_int_nokey` = `test`.`child_subquery1_t1`.`col_int_key`), true)"
@@ -889,21 +849,31 @@ QUERY: SELECT     (SELECT 5 FROM dummy ) AS field1 FROM ( b AS table1 INNER JOIN
 STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
-@@ -87,2 +87,3 @@
-                       "filtered": "100.00",
-+                      "using_where": true,
-                       "cost_info": {
-@@ -105,4 +106,3 @@
-                         "col_varchar_nokey"
--                      ],
--                      "attached_condition": "(`test`.`subquery2_t1`.`col_varchar_key` is not null)"
-+                      ]
-                     }
-@@ -200,2 +200,3 @@
+@@ -56,2 +56,3 @@
+             "filtered": "80.00",
++            "using_where": true,
+             "using_index": true,
+@@ -68,4 +69,3 @@
+               "col_varchar_key"
+-            ],
+-            "attached_condition": "((`test`.`table3`.`col_int_key` is not null) and (`test`.`table3`.`col_varchar_key` is not null))"
++            ]
+           }
+@@ -91,2 +91,3 @@
+             "filtered": "6.67",
++            "using_where": true,
+             "cost_info": {
+@@ -100,4 +101,3 @@
+               "col_varchar_key"
+-            ],
+-            "attached_condition": "(`test`.`subquery2_t1`.`col_varchar_key` = `test`.`table3`.`col_varchar_key`)"
++            ]
+           }
+@@ -156,2 +156,3 @@
                    "filtered": "100.00",
 +                  "using_where": true,
                    "cost_info": {
-@@ -209,4 +210,3 @@
+@@ -165,4 +166,3 @@
                      "col_varchar_nokey"
 -                  ],
 -                  "attached_condition": "(`test`.`subquery3_t2`.`col_int_key` is not null)"
@@ -917,65 +887,39 @@ QUERY: SELECT    alias1.col_int_key AS field1 , alias2.col_varchar_key AS field2
 STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
-@@ -33,2 +33,3 @@
-                   "filtered": "100.00",
-+                  "using_where": true,
-                   "using_index": true,
-@@ -43,4 +44,3 @@
-                     "col_int_key"
--                  ],
--                  "attached_condition": "(`test`.`sq3_alias1`.`col_int_key` is not null)"
-+                  ]
-                 }
+@@ -167,3 +167,2 @@
+             "rows_examined_per_scan": 1,
+-            "attached_condition": "(`<subquery4>`.`sq3_field1` = `test`.`sq2_alias1`.`col_int_key`)",
+             "materialized_from_subquery": {
 QUERY: SELECT  STRAIGHT_JOIN  table1.pk AS field1 FROM ( c AS table1 INNER JOIN ( ( c AS table2 INNER JOIN ( SELECT   subquery1_t1.* FROM ( bb AS subquery1_t1 STRAIGHT_JOIN cc AS subquery1_t2 ON (subquery1_t2.pk = subquery1_t1.col_int_nokey  ) ) WHERE ( subquery1_t2.col_varchar_key < 'x' AND subquery1_t1.col_int_nokey != subquery1_t2.pk ) ) AS table3 ON (table3.pk = table2.col_int_key  AND table2.col_int_key = (SELECT   MIN(  subquery2_t1.col_int_nokey ) AS subquery2_field1 FROM ( cc AS subquery2_t1 INNER JOIN cc AS subquery2_t2 ON (subquery2_t2.pk = subquery2_t1.col_int_nokey  ) )  ) ) ) ) ON (table3.col_varchar_key = table2.col_varchar_nokey  ) ) WHERE (  table1.pk = ALL (SELECT 25 FROM dummy UNION SELECT 2 FROM dummy ) ) AND ( table1.col_varchar_key NOT IN ('z', 'n') OR table1.pk > 67 AND table1.pk < ( 67 + 32 ) ) 
 STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
-@@ -23,2 +23,3 @@
-                 "filtered": "100.00",
-+                "using_where": true,
-                 "cost_info": {
-@@ -41,4 +42,3 @@
-                   "col_varchar_nokey"
--                ],
--                "attached_condition": "((`test`.`subquery1_t1`.`col_int_nokey` <> `test`.`subquery1_t1`.`col_int_nokey`) and (`test`.`subquery1_t1`.`col_int_nokey` is not null))"
-+                ]
-               }
-@@ -64,2 +64,3 @@
-                 "filtered": "70.00",
-+                "using_where": true,
-                 "cost_info": {
-@@ -73,4 +74,3 @@
-                   "col_varchar_key"
--                ],
--                "attached_condition": "(`test`.`subquery1_t2`.`col_varchar_key` < 'x')"
-+                ]
-               }
-@@ -105,2 +105,3 @@
+@@ -29,2 +29,3 @@
                      "filtered": "100.00",
 +                    "using_where": true,
                      "cost_info": {
-@@ -110,4 +111,3 @@
+@@ -34,4 +35,3 @@
                        "data_read_per_join": "8"
 -                    },
 -                    "attached_condition": "(<cache>(`test`.`table1`.`pk`) <> 25)"
 +                    }
                    }
-@@ -129,2 +129,3 @@
+@@ -53,2 +53,3 @@
                      "filtered": "100.00",
 +                    "using_where": true,
                      "cost_info": {
-@@ -134,4 +135,3 @@
+@@ -58,4 +59,3 @@
                        "data_read_per_join": "8"
 -                    },
 -                    "attached_condition": "(<cache>(`test`.`table1`.`pk`) <> 2)"
 +                    }
                    }
-@@ -159,2 +159,3 @@
+@@ -83,2 +83,3 @@
                  "filtered": "100.00",
 +                "using_where": true,
                  "cost_info": {
-@@ -167,4 +168,3 @@
+@@ -91,4 +92,3 @@
                    "col_int_nokey"
 -                ],
 -                "attached_condition": "(`test`.`subquery2_t1`.`col_int_nokey` is not null)"
@@ -1040,41 +984,36 @@ QUERY: SELECT    alias1.col_varchar_key AS field1 FROM ( ( SELECT   sq1_alias1.*
 STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
-@@ -79,3 +79,3 @@
-                       "table_name": "cc",
--                      "access_type": "ALL",
-+                      "access_type": "range",
-                       "possible_keys": [
-@@ -83,3 +83,8 @@
-                       ],
--                      "rows_examined_per_scan": 20,
-+                      "key": "PRIMARY",
-+                      "used_key_parts": [
-+                        "pk"
-+                      ],
-+                      "key_length": "4",
-+                      "rows_examined_per_scan": 1,
-                       "rows_produced_per_join": 133,
-@@ -118,4 +123,5 @@
+@@ -52,2 +52,3 @@
+             "filtered": "10.00",
++            "using_where": true,
+             "using_join_buffer": "Block Nested Loop",
+@@ -62,4 +63,3 @@
+               "col_varchar_nokey"
+-            ],
+-            "attached_condition": "(`test`.`alias2`.`col_varchar_nokey` = `test`.`cc`.`col_varchar_key`)"
++            ]
+           }
+@@ -71,4 +71,5 @@
              "rows_examined_per_scan": 20,
--            "rows_produced_per_join": 22,
--            "filtered": "10.00",
-+            "rows_produced_per_join": 220,
+-            "rows_produced_per_join": 13,
+-            "filtered": "33.33",
++            "rows_produced_per_join": 40,
 +            "filtered": "100.00",
 +            "using_where": true,
              "using_join_buffer": "Block Nested Loop",
-@@ -123,5 +129,5 @@
+@@ -76,5 +77,5 @@
                "read_cost": "1.00",
--              "eval_cost": "4.40",
-+              "eval_cost": "44.00",
-               "prefix_cost": "58.43",
--              "data_read_per_join": "1K"
-+              "data_read_per_join": "10K"
+-              "eval_cost": "2.67",
++              "eval_cost": "8.00",
+               "prefix_cost": "15.20",
+-              "data_read_per_join": "639"
++              "data_read_per_join": "1K"
              },
-@@ -130,4 +136,3 @@
-               "col_varchar_nokey"
+@@ -83,4 +84,3 @@
+               "col_int_nokey"
 -            ],
--            "attached_condition": "(`test`.`alias2`.`col_varchar_nokey` = `alias1`.`col_varchar_key`)"
+-            "attached_condition": "(`test`.`cc`.`pk` < `test`.`sq1_alias2`.`col_int_nokey`)"
 +            ]
            }
 QUERY: SELECT    table2.pk AS field1 FROM ( ( SELECT   subquery1_t1.* FROM ( cc AS subquery1_t1 INNER JOIN c AS subquery1_t2 ON (subquery1_t2.col_varchar_key = subquery1_t1.col_varchar_key  ) ) WHERE (  NOT EXISTS (SELECT   child_subquery1_t2.col_varchar_nokey AS child_subquery1_field1 FROM ( cc AS child_subquery1_t1 INNER JOIN c AS child_subquery1_t2 ON (child_subquery1_t2.pk = child_subquery1_t1.pk ) ) WHERE child_subquery1_t2.col_int_nokey <> subquery1_t1.pk ) OR subquery1_t2.col_varchar_key >= 'c' ) ) AS table1 INNER JOIN cc AS table2 ON (table2.col_int_nokey = table1.col_int_key  ) ) WHERE (  table2.col_varchar_key > (SELECT 'r' FROM dummy ) ) AND table1.col_int_key = 104 ORDER BY table1.col_time_key ASC /*+JavaDB:Postgres: NULLS FIRST */ , field1 /*+JavaDB:Postgres: NULLS FIRST */ LIMIT 1
@@ -1089,51 +1028,51 @@ Diff: EXPLAIN NORMAL vs OTHER
              ],
 -            "attached_condition": "((`test`.`table2`.`col_int_nokey` = 104) and (`test`.`table2`.`col_varchar_key` > (/* select#4 */ select 'r' from `test`.`dummy`)))",
              "attached_subqueries": [
-@@ -122,2 +122,3 @@
-                       "filtered": "100.00",
-+                      "using_where": true,
-                       "cost_info": {
-@@ -141,3 +142,2 @@
-                       ],
--                      "attached_condition": "(((not(exists(/* select#3 */ select `test`.`child_subquery1_t2`.`col_varchar_nokey` AS `child_subquery1_field1` from `test`.`cc` `child_subquery1_t1` join `test`.`c` `child_subquery1_t2` where ((`test`.`child_subquery1_t1`.`pk` = `test`.`child_subquery1_t2`.`pk`) and (`test`.`child_subquery1_t2`.`col_int_nokey` <> `test`.`subquery1_t1`.`pk`))))) or (`test`.`subquery1_t1`.`col_varchar_key` >= 'c')) and (`test`.`subquery1_t1`.`col_varchar_key` is not null))",
-                       "attached_subqueries": [
-@@ -162,2 +162,3 @@
-                                   "filtered": "90.00",
-+                                  "using_where": true,
-                                   "cost_info": {
-@@ -172,4 +173,3 @@
-                                     "col_varchar_nokey"
--                                  ],
--                                  "attached_condition": "(`test`.`child_subquery1_t2`.`col_int_nokey` <> `test`.`subquery1_t1`.`pk`)"
-+                                  ]
-                                 }
+@@ -84,2 +84,3 @@
+             "filtered": "100.00",
++            "using_where": true,
+             "cost_info": {
+@@ -96,3 +97,2 @@
+             ],
+-            "attached_condition": "(((not(exists(/* select#3 */ select `test`.`child_subquery1_t2`.`col_varchar_nokey` AS `child_subquery1_field1` from `test`.`cc` `child_subquery1_t1` join `test`.`c` `child_subquery1_t2` where ((`test`.`child_subquery1_t1`.`pk` = `test`.`child_subquery1_t2`.`pk`) and (`test`.`child_subquery1_t2`.`col_int_nokey` <> `test`.`subquery1_t1`.`pk`))))) or (`test`.`subquery1_t1`.`col_varchar_key` >= 'c')) and (`test`.`subquery1_t1`.`col_varchar_key` is not null))",
+             "attached_subqueries": [
+@@ -117,2 +117,3 @@
+                         "filtered": "90.00",
++                        "using_where": true,
+                         "cost_info": {
+@@ -127,4 +128,3 @@
+                           "col_varchar_nokey"
+-                        ],
+-                        "attached_condition": "(`test`.`child_subquery1_t2`.`col_int_nokey` <> `test`.`subquery1_t1`.`pk`)"
++                        ]
+                       }
 QUERY: SELECT    alias1.col_datetime_key AS field1 , alias1.col_datetime_key AS field2 FROM ( view_cc AS alias1 , cc AS alias2 , ( SELECT   sq1_alias1.* FROM bb AS sq1_alias1  ) AS alias3 ) WHERE (  NOT EXISTS (SELECT   sq2_alias1.col_int_nokey AS sq2_field1 FROM c AS sq2_alias1 WHERE sq2_alias1.col_varchar_key > alias2.col_varchar_nokey AND sq2_alias1.pk >= 8 ) ) AND alias1.col_varchar_key <> 'b'  HAVING field2 < 'b' ORDER BY alias1.col_time_key  , field1, field2 
 STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
-@@ -89,2 +89,3 @@
+@@ -48,2 +48,3 @@
              "filtered": "95.00",
 +            "using_where": true,
              "using_join_buffer": "Block Nested Loop",
-@@ -101,4 +102,3 @@
+@@ -60,4 +61,3 @@
                "col_varchar_key"
 -            ],
 -            "attached_condition": "(`test`.`cc`.`col_varchar_key` <> 'b')"
 +            ]
            }
-@@ -112,2 +112,3 @@
+@@ -71,2 +71,3 @@
              "filtered": "100.00",
 +            "using_where": true,
              "using_join_buffer": "Block Nested Loop",
-@@ -123,3 +124,2 @@
+@@ -82,3 +83,2 @@
              ],
 -            "attached_condition": "(not(exists(/* select#3 */ select `test`.`sq2_alias1`.`col_int_nokey` AS `sq2_field1` from `test`.`c` `sq2_alias1` where ((`test`.`sq2_alias1`.`col_varchar_key` > `test`.`alias2`.`col_varchar_nokey`) and (`test`.`sq2_alias1`.`pk` >= 8)))))",
              "attached_subqueries": [
-@@ -148,2 +148,3 @@
+@@ -107,2 +107,3 @@
                      "filtered": "33.33",
 +                    "using_where": true,
                      "cost_info": {
-@@ -158,4 +159,3 @@
+@@ -117,4 +118,3 @@
                        "col_varchar_key"
 -                    ],
 -                    "attached_condition": "((`test`.`sq2_alias1`.`col_varchar_key` > `test`.`alias2`.`col_varchar_nokey`) and (`test`.`sq2_alias1`.`pk` >= 8))"
@@ -1144,36 +1083,26 @@ STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
 @@ -15,2 +15,3 @@
-           "filtered": "33.33",
+           "filtered": "11.11",
 +          "using_where": true,
            "cost_info": {
-@@ -34,3 +35,2 @@
+@@ -27,3 +28,2 @@
            ],
--          "attached_condition": "(`alias2`.`col_varchar_nokey` > (/* select#4 */ select sum(`test`.`sq3_alias1`.`col_varchar_key`) AS `sq3_field1` from `test`.`cc` `sq3_alias1` join `test`.`b` `sq3_alias2` where ((`test`.`sq3_alias1`.`col_varchar_key` = `test`.`sq3_alias2`.`col_varchar_key`) and <not>((`test`.`sq3_alias2`.`pk` <= <max>(/* select#5 */ select 7 union /* select#6 */ select 7))))))",
+-          "attached_condition": "((`test`.`sq2_alias1`.`col_varchar_nokey` > (/* select#4 */ select sum(`test`.`sq3_alias1`.`col_varchar_key`) AS `sq3_field1` from `test`.`cc` `sq3_alias1` join `test`.`b` `sq3_alias2` where ((`test`.`sq3_alias1`.`col_varchar_key` = `test`.`sq3_alias2`.`col_varchar_key`) and <not>((`test`.`sq3_alias2`.`pk` <= <max>(/* select#5 */ select 7 union /* select#6 */ select 7)))))) and (`test`.`sq2_alias1`.`pk` < `test`.`sq2_alias1`.`col_int_nokey`))",
            "attached_subqueries": [
-@@ -61,2 +61,3 @@
+@@ -54,2 +54,3 @@
                        "filtered": "100.00",
 +                      "using_where": true,
                        "using_index": true,
-@@ -72,3 +73,2 @@
+@@ -65,3 +66,2 @@
                        ],
 -                      "attached_condition": "(<not>((`test`.`sq3_alias2`.`pk` <= <max>(/* select#5 */ select 7 union /* select#6 */ select 7))) and (`test`.`sq3_alias2`.`col_varchar_key` is not null))",
                        "attached_subqueries": [
-@@ -155,2 +155,3 @@
-                 "filtered": "33.33",
-+                "using_where": true,
-                 "cost_info": {
-@@ -173,4 +174,3 @@
-                   "col_varchar_nokey"
--                ],
--                "attached_condition": "(`test`.`sq2_alias1`.`pk` < `test`.`sq2_alias1`.`col_int_nokey`)"
-+                ]
-               }
-@@ -329,2 +329,3 @@
+@@ -284,2 +284,3 @@
                  "filtered": "100.00",
 +                "using_where": true,
                  "using_index": true,
-@@ -338,4 +339,3 @@
+@@ -293,4 +294,3 @@
                    "col_varchar_key"
 -                ],
 -                "attached_condition": "<if>(is_not_null_compl(sq4_alias2..sq4_alias3), (`test`.`sq4_alias3`.`col_varchar_key` = `test`.`sq4_alias2`.`col_varchar_nokey`), true)"
@@ -1184,29 +1113,29 @@ STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
 @@ -15,2 +15,3 @@
-           "filtered": "50.00",
-+          "using_where": true,
-           "cost_info": {
-@@ -34,3 +35,2 @@
-           ],
--          "attached_condition": "<nop>((`alias1`.`col_int_nokey` < <max>(/* select#4 */ select 7 union /* select#5 */ select 3)))",
-           "attached_subqueries": [
-@@ -123,2 +123,3 @@
            "filtered": "100.00",
 +          "using_where": true,
            "cost_info": {
-@@ -133,3 +134,2 @@
+@@ -27,3 +28,2 @@
            ],
--          "attached_condition": "<if>(found_match(alias2), <nop>(<in_optimizer>(`alias1`.`col_varchar_nokey`,<exists>(/* select#3 */ select 1 from `test`.`cc` `sq2_alias1` where ((`test`.`sq2_alias1`.`col_varchar_nokey` <> `test`.`alias2`.`col_varchar_key`) and (`test`.`sq2_alias1`.`col_varchar_nokey` <> `test`.`alias2`.`col_varchar_nokey`) and <if>(outer_field_is_not_null, ((<cache>(`alias1`.`col_varchar_nokey`) >= `test`.`sq2_alias1`.`col_varchar_key`) or isnull(`test`.`sq2_alias1`.`col_varchar_key`)), true)) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`sq2_alias1`.`col_varchar_key`), true)))), true)",
+-          "attached_condition": "<nop>((`test`.`sq1_alias1`.`col_int_nokey` < <max>(/* select#4 */ select 7 union /* select#5 */ select 3)))",
            "attached_subqueries": [
-@@ -149,2 +149,3 @@
+@@ -79,2 +79,3 @@
+           "filtered": "100.00",
++          "using_where": true,
+           "cost_info": {
+@@ -89,3 +90,2 @@
+           ],
+-          "attached_condition": "<if>(found_match(alias2), <nop>(<in_optimizer>(`test`.`sq1_alias1`.`col_varchar_nokey`,<exists>(/* select#3 */ select 1 from `test`.`cc` `sq2_alias1` where ((`test`.`sq2_alias1`.`col_varchar_nokey` <> `test`.`alias2`.`col_varchar_key`) and (`test`.`sq2_alias1`.`col_varchar_nokey` <> `test`.`alias2`.`col_varchar_nokey`) and <if>(outer_field_is_not_null, ((<cache>(`test`.`sq1_alias1`.`col_varchar_nokey`) >= `test`.`sq2_alias1`.`col_varchar_key`) or isnull(`test`.`sq2_alias1`.`col_varchar_key`)), true)) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`sq2_alias1`.`col_varchar_key`), true)))), true)",
+           "attached_subqueries": [
+@@ -105,2 +105,3 @@
                    "filtered": "81.00",
 +                  "using_where": true,
                    "cost_info": {
-@@ -158,4 +159,3 @@
+@@ -114,4 +115,3 @@
                      "col_varchar_nokey"
 -                  ],
--                  "attached_condition": "((`test`.`sq2_alias1`.`col_varchar_nokey` <> `test`.`alias2`.`col_varchar_key`) and (`test`.`sq2_alias1`.`col_varchar_nokey` <> `test`.`alias2`.`col_varchar_nokey`) and <if>(outer_field_is_not_null, ((<cache>(`alias1`.`col_varchar_nokey`) >= `test`.`sq2_alias1`.`col_varchar_key`) or isnull(`test`.`sq2_alias1`.`col_varchar_key`)), true))"
+-                  "attached_condition": "((`test`.`sq2_alias1`.`col_varchar_nokey` <> `test`.`alias2`.`col_varchar_key`) and (`test`.`sq2_alias1`.`col_varchar_nokey` <> `test`.`alias2`.`col_varchar_nokey`) and <if>(outer_field_is_not_null, ((<cache>(`test`.`sq1_alias1`.`col_varchar_nokey`) >= `test`.`sq2_alias1`.`col_varchar_key`) or isnull(`test`.`sq2_alias1`.`col_varchar_key`)), true))"
 +                  ]
                  }
 QUERY: SELECT    COUNT(  alias1.col_varchar_nokey ) AS field1 FROM ( cc AS alias1 INNER JOIN ( ( b AS alias2 RIGHT OUTER JOIN ( SELECT   sq1_alias1.* FROM ( b AS sq1_alias1 , cc AS sq1_alias2 )  ) AS alias3 ON (alias3.col_varchar_key = alias2.col_varchar_key  ) ) ) ON (alias3.col_varchar_key = alias2.col_varchar_key  ) ) WHERE  alias2.col_varchar_nokey <= ANY (SELECT 'z' UNION DISTINCT SELECT 'l' )  HAVING (field1 <> 'j' AND field1 >= 'wr') ORDER BY field1 DESC , alias1.col_int_key  , alias1.col_datetime_key DESC
@@ -1255,57 +1184,49 @@ QUERY: SELECT    CONCAT( table2.col_varchar_key , table2.col_varchar_nokey ) AS 
 STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
-@@ -18,2 +18,3 @@
-             "filtered": "60.00",
+@@ -26,2 +26,3 @@
+             "filtered": "100.00",
 +            "using_where": true,
-             "cost_info": {
+             "using_index": true,
 @@ -37,3 +38,2 @@
              ],
--            "attached_condition": "((isnull((/* select#7 */ select sql_small_result sum(distinct `test`.`subquery3_t1`.`col_int_key`) AS `subquery3_field1` from `test`.`bb` `subquery3_t1` join `test`.`cc` `subquery3_t2` where (`test`.`subquery3_t2`.`col_varchar_key` = `test`.`subquery3_t1`.`col_varchar_nokey`))) and ((`table1`.`col_varchar_key` in ('g','z','w','v','t')) or ((`table1`.`pk` > 39) and (`table1`.`pk` < <cache>((39 + 233)))))) or isnull(`table1`.`col_varchar_key`))",
+-            "attached_condition": "(not(exists(/* select#5 */ select sql_small_result `test`.`child_subquery2_t1`.`col_int_key` AS `child_subquery1_field1` from `test`.`a` `child_subquery2_t1` join `test`.`cc` `child_subquery2_t2` join `test`.`c` `child_subquery2_t3` where ((`test`.`child_subquery2_t2`.`col_varchar_nokey` = `test`.`child_subquery2_t3`.`col_varchar_key`) and (`test`.`child_subquery2_t2`.`pk` = `test`.`child_subquery2_t3`.`col_int_nokey`) and (`test`.`child_subquery2_t1`.`pk` <= `test`.`subquery1_t2`.`col_int_key`)))))",
              "attached_subqueries": [
-@@ -55,2 +55,3 @@
+@@ -81,2 +81,3 @@
+                         "filtered": "100.00",
++                        "using_where": true,
+                         "using_join_buffer": "Block Nested Loop",
+@@ -91,4 +92,3 @@
+                           "col_varchar_key"
+-                        ],
+-                        "attached_condition": "(`test`.`child_subquery2_t3`.`col_int_nokey` is not null)"
++                        ]
+                       }
+@@ -113,2 +113,3 @@
+                         "filtered": "10.00",
++                        "using_where": true,
+                         "cost_info": {
+@@ -122,4 +123,3 @@
+                           "col_varchar_nokey"
+-                        ],
+-                        "attached_condition": "(`test`.`child_subquery2_t2`.`col_varchar_nokey` = `test`.`child_subquery2_t3`.`col_varchar_key`)"
++                        ]
+                       }
+@@ -143,2 +143,3 @@
+             "filtered": "41.00",
++            "using_where": true,
+             "using_join_buffer": "Block Nested Loop",
+@@ -156,3 +157,2 @@
+             ],
+-            "attached_condition": "(((isnull((/* select#7 */ select sql_small_result sum(distinct `test`.`subquery3_t1`.`col_int_key`) AS `subquery3_field1` from `test`.`bb` `subquery3_t1` join `test`.`cc` `subquery3_t2` where (`test`.`subquery3_t2`.`col_varchar_key` = `test`.`subquery3_t1`.`col_varchar_nokey`))) and ((`test`.`subquery1_t1`.`col_varchar_key` in ('g','z','w','v','t')) or ((`test`.`subquery1_t1`.`pk` > 39) and (`test`.`subquery1_t1`.`pk` < <cache>((39 + 233)))))) or isnull(`test`.`subquery1_t1`.`col_varchar_key`)) and ((`test`.`subquery1_t1`.`pk` = `test`.`subquery1_t2`.`col_int_key`) or <not>((`test`.`subquery1_t1`.`col_int_nokey` < <max>(/* select#3 */ select 3 from `test`.`dummy` union /* select#4 */ select 4 from `test`.`dummy`)))))",
+             "attached_subqueries": [
+@@ -174,2 +174,3 @@
                          "filtered": "100.00",
 +                        "using_where": true,
                          "cost_info": {
-@@ -64,4 +65,3 @@
+@@ -183,4 +184,3 @@
                            "col_varchar_nokey"
 -                        ],
 -                        "attached_condition": "(`test`.`subquery3_t1`.`col_varchar_nokey` is not null)"
 +                        ]
                        }
-@@ -127,2 +127,3 @@
-                       "filtered": "100.00",
-+                      "using_where": true,
-                       "using_index": true,
-@@ -137,3 +138,2 @@
-                       ],
--                      "attached_condition": "(not(exists(/* select#5 */ select sql_small_result `test`.`child_subquery2_t1`.`col_int_key` AS `child_subquery1_field1` from `test`.`a` `child_subquery2_t1` join `test`.`cc` `child_subquery2_t2` join `test`.`c` `child_subquery2_t3` where ((`test`.`child_subquery2_t2`.`col_varchar_nokey` = `test`.`child_subquery2_t3`.`col_varchar_key`) and (`test`.`child_subquery2_t2`.`pk` = `test`.`child_subquery2_t3`.`col_int_nokey`) and (`test`.`child_subquery2_t1`.`pk` <= `test`.`subquery1_t2`.`col_int_key`)))))",
-                       "attached_subqueries": [
-@@ -181,2 +181,3 @@
-                                   "filtered": "100.00",
-+                                  "using_where": true,
-                                   "using_join_buffer": "Block Nested Loop",
-@@ -191,4 +192,3 @@
-                                     "col_varchar_key"
--                                  ],
--                                  "attached_condition": "(`test`.`child_subquery2_t3`.`col_int_nokey` is not null)"
-+                                  ]
-                                 }
-@@ -213,2 +213,3 @@
-                                   "filtered": "10.00",
-+                                  "using_where": true,
-                                   "cost_info": {
-@@ -222,4 +223,3 @@
-                                     "col_varchar_nokey"
--                                  ],
--                                  "attached_condition": "(`test`.`child_subquery2_t2`.`col_varchar_nokey` = `test`.`child_subquery2_t3`.`col_varchar_key`)"
-+                                  ]
-                                 }
-@@ -242,2 +242,3 @@
-                       "filtered": "68.34",
-+                      "using_where": true,
-                       "using_join_buffer": "Block Nested Loop",
-@@ -262,3 +263,2 @@
-                       ],
--                      "attached_condition": "((`test`.`subquery1_t1`.`pk` = `test`.`subquery1_t2`.`col_int_key`) or <not>((`test`.`subquery1_t1`.`col_int_nokey` < <max>(/* select#3 */ select 3 from `test`.`dummy` union /* select#4 */ select 4 from `test`.`dummy`))))",
-                       "attached_subqueries": [

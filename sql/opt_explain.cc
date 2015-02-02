@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -833,7 +833,7 @@ bool Explain_union_result::explain_extra()
 bool Explain_table_base::explain_partitions()
 {
 #ifdef WITH_PARTITION_STORAGE_ENGINE
-  if (!table->pos_in_table_list->derived && table->part_info)
+  if (table->part_info)
     return make_used_partitions_str(table->part_info,
                                     &fmt->entry()->col_partitions);
 #endif
@@ -1154,7 +1154,7 @@ bool Explain_join::explain_modify_flags()
          at;
          at= at->next_local)
     {
-      if (at->correspondent_table->updatable &&
+      if (at->correspondent_table->is_updatable() &&
           at->correspondent_table->updatable_base_table()->table == table)
       {
         fmt->entry()->mod_type= MT_DELETE;
@@ -1372,7 +1372,7 @@ bool Explain_join::explain_qep_tab(size_t tabnum)
 
 bool Explain_join::explain_table_name()
 {
-  if (table->pos_in_table_list->derived && !fmt->is_hierarchical())
+  if (table->pos_in_table_list->is_view_or_derived() && !fmt->is_hierarchical())
   {
     /* Derived table name generation */
     char table_name_buffer[NAME_LEN];
@@ -1685,7 +1685,7 @@ bool Explain_join::explain_extra()
         TABLE *prev_table= join->qep_tab[tab->firstmatch_return].table();
         if (prev_table->pos_in_table_list->query_block_id() &&
             !fmt->is_hierarchical() &&
-            prev_table->pos_in_table_list->derived)
+            prev_table->pos_in_table_list->is_derived())
         {
           char namebuf[NAME_LEN];
           /* Derived table name generation */
@@ -1950,7 +1950,7 @@ static bool check_acl_for_explain(const TABLE_LIST *table_list)
 {
   for (const TABLE_LIST *tbl= table_list; tbl; tbl= tbl->next_global)
   {
-    if (tbl->view && tbl->view_no_explain)
+    if (tbl->is_view() && tbl->view_no_explain)
     {
       my_message(ER_VIEW_NO_EXPLAIN, ER(ER_VIEW_NO_EXPLAIN), MYF(0));
       return true;

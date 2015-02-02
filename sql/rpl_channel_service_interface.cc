@@ -19,6 +19,8 @@
 #include "rpl_info_factory.h"
 #include "rpl_mi.h"
 #include "rpl_msr.h"         /* Multisource replication */
+#include "rpl_rli.h"
+#include "rpl_rli_pdb.h"
 
 int intialize_channel_service_interface() {return 0;}
 

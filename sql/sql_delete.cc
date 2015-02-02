@@ -62,64 +62,32 @@ bool mysql_delete(THD *thd, ha_rows limit)
 
   uint usable_index= MAX_KEY;
   SELECT_LEX *const select_lex= thd->lex->select_lex;
-  TABLE_LIST *const table_list= select_lex->get_table_list();
   ORDER *order= select_lex->order_list.first;
+  TABLE_LIST *const table_list= select_lex->get_table_list();
   THD::killed_state killed_status= THD::NOT_KILLED;
   THD::enum_binlog_query_type query_type= THD::ROW_QUERY_TYPE;
 
   select_lex->make_active_options(0, 0);
 
   const bool safe_update= thd->variables.option_bits & OPTION_SAFE_UPDATES;
-  if (open_normal_and_derived_tables(thd, table_list, 0))
+
+  if (open_tables_for_query(thd, table_list, 0))
     DBUG_RETURN(TRUE);
+
+  THD_STAGE_INFO(thd, stage_init);
 
   if (run_before_dml_hook(thd))
     DBUG_RETURN(true);
 
-  if (!table_list->updatable)
-  {
-    my_error(ER_NON_UPDATABLE_TABLE, MYF(0), table_list->alias, "DELETE");
-    DBUG_RETURN(true);
-  }
-
-  if (table_list->multitable_view)
-  {
-    my_error(ER_VIEW_DELETE_MERGE_VIEW, MYF(0),
-             table_list->view_db.str, table_list->view_name.str);
+  if (mysql_prepare_delete(thd))
     DBUG_RETURN(TRUE);
-  }
-  THD_STAGE_INFO(thd, stage_init);
 
   TABLE_LIST *const delete_table_ref= table_list->updatable_base_table();
   TABLE *const table= delete_table_ref->table;
 
-  if (mysql_prepare_delete(thd, delete_table_ref))
-    DBUG_RETURN(TRUE);
-
   Item *conds;
   if (select_lex->get_optimizable_conditions(thd, &conds, NULL))
     DBUG_RETURN(TRUE);
-
-  /* check ORDER BY even if it can be ignored */
-  if (order)
-  {
-    TABLE_LIST   tables;
-    List<Item>   fields;
-    List<Item>   all_fields;
-
-    memset(&tables, 0, sizeof(tables));
-    tables.table = table;
-    tables.alias = table_list->alias;
-
-    DBUG_ASSERT(!select_lex->group_list.elements);
-    if (select_lex->setup_ref_array(thd) ||
-        setup_order(thd, select_lex->ref_pointer_array, &tables,
-                    fields, all_fields, order))
-    {
-      free_underlaid_joins(thd, select_lex);
-      DBUG_RETURN(TRUE);
-    }
-  }
 
   QEP_TAB_standalone qep_tab_st;
   QEP_TAB &qep_tab= qep_tab_st.as_QEP_TAB();
@@ -145,8 +113,7 @@ bool mysql_delete(THD *thd, ha_rows limit)
       Modification_plan plan(thd, MT_DELETE, table,
                              "No matching rows after partition pruning",
                              true, 0);
-      err= explain_single_table_modification(thd, &plan,
-                                             thd->lex->select_lex);
+      err= explain_single_table_modification(thd, &plan, select_lex);
       goto exit_without_my_ok;
     }
     my_ok(thd, 0);
@@ -208,8 +175,7 @@ bool mysql_delete(THD *thd, ha_rows limit)
                            "Deleting all rows", false, maybe_deleted);
     if (thd->lex->describe)
     {
-      err= explain_single_table_modification(thd, &plan,
-                                             thd->lex->select_lex);
+      err= explain_single_table_modification(thd, &plan, select_lex);
       goto exit_without_my_ok;
     }
 
@@ -252,8 +218,7 @@ bool mysql_delete(THD *thd, ha_rows limit)
       {
         Modification_plan plan(thd, MT_DELETE, table,
                                "Impossible WHERE", true, 0);
-        err= explain_single_table_modification(thd, &plan,
-                                               thd->lex->select_lex);
+        err= explain_single_table_modification(thd, &plan, select_lex);
         goto exit_without_my_ok;
       }
     }
@@ -286,8 +251,7 @@ bool mysql_delete(THD *thd, ha_rows limit)
       Modification_plan plan(thd, MT_DELETE, table,
                              "No matching rows after partition pruning",
                              true, 0);
-      err= explain_single_table_modification(thd, &plan,
-                                             thd->lex->select_lex);
+      err= explain_single_table_modification(thd, &plan, select_lex);
       goto exit_without_my_ok;
     }
     my_ok(thd, 0);
@@ -301,7 +265,7 @@ bool mysql_delete(THD *thd, ha_rows limit)
 
   { // Enter scope for optimizer trace wrapper
     Opt_trace_object wrapper(&thd->opt_trace);
-    wrapper.add_utf8_table(table);
+    wrapper.add_utf8_table(delete_table_ref);
     bool zero_rows= false; // True if it's sure that we'll find no rows
     if (limit == 0)
       zero_rows= true;
@@ -320,8 +284,7 @@ bool mysql_delete(THD *thd, ha_rows limit)
       {
         Modification_plan plan(thd, MT_DELETE, table,
                                "Impossible WHERE", true, 0);
-        err= explain_single_table_modification(thd, &plan,
-                                               thd->lex->select_lex);
+        err= explain_single_table_modification(thd, &plan, select_lex);
         goto exit_without_my_ok;
       }
 
@@ -381,8 +344,7 @@ bool mysql_delete(THD *thd, ha_rows limit)
 
     if (thd->lex->describe)
     {
-      err= explain_single_table_modification(thd, &plan,
-                                             thd->lex->select_lex);
+      err= explain_single_table_modification(thd, &plan, select_lex);
       goto exit_without_my_ok;
     }
 
@@ -627,31 +589,77 @@ exit_without_my_ok:
   Prepare items in DELETE statement
 
   @param thd        - thread handler
-  @param delete_table_ref - The base table to be deleted from
 
   @return false if success, true if error
 */
 
-bool mysql_prepare_delete(THD *thd, const TABLE_LIST *delete_table_ref)
+bool mysql_prepare_delete(THD *thd)
 {
   DBUG_ENTER("mysql_prepare_delete");
 
   List<Item> all_fields;
-  SELECT_LEX *const select_lex= thd->lex->select_lex;
-  TABLE_LIST *const table_list= select_lex->get_table_list();
+  SELECT_LEX *const select= thd->lex->select_lex;
+  TABLE_LIST *const table_list= select->get_table_list();
+
+  if (select->setup_tables(thd, table_list, false))
+    DBUG_RETURN(true);
+
+  if (table_list->is_view() && select->resolve_derived(thd, false))
+    DBUG_RETURN(true);
+
+  if (!table_list->is_updatable())
+  {
+    my_error(ER_NON_UPDATABLE_TABLE, MYF(0), table_list->alias, "DELETE");
+    DBUG_RETURN(true);
+  }
+
+  if (table_list->is_multiple_tables())
+  {
+    my_error(ER_VIEW_DELETE_MERGE_VIEW, MYF(0),
+             table_list->view_db.str, table_list->view_name.str);
+    DBUG_RETURN(TRUE);
+  }
+
+  TABLE_LIST *const delete_table_ref= table_list->updatable_base_table();
 
   thd->lex->allow_sum_func= 0;
-  if (setup_tables_and_check_access(thd, &select_lex->context,
-                                    &select_lex->top_join_list,
-                                    table_list,
-                                    &select_lex->leaf_tables, false,
-                                    DELETE_ACL, SELECT_ACL))
+  if (table_list->is_view() &&
+      select->check_view_privileges(thd, DELETE_ACL, SELECT_ACL))
     DBUG_RETURN(true);
-  if (select_lex->setup_conds(thd))
+
+  ulong want_privilege_saved= thd->want_privilege;
+  thd->want_privilege= SELECT_ACL;
+
+  if (select->setup_conds(thd))
     DBUG_RETURN(true);
-  if (setup_ftfuncs(select_lex))
+
+  // check ORDER BY even if it can be ignored
+  if (select->order_list.first)
+  {
+    TABLE_LIST   tables;
+    List<Item>   fields;
+    List<Item>   all_fields;
+
+    memset(&tables, 0, sizeof(tables));
+    tables.table = table_list->table;
+    tables.alias = table_list->alias;
+
+    DBUG_ASSERT(!select->group_list.elements);
+    if (select->setup_ref_array(thd))
+      DBUG_RETURN(true);
+    if (setup_order(thd, select->ref_pointer_array, &tables,
+                    fields, all_fields, select->order_list.first))
+      DBUG_RETURN(true);
+  }
+
+  thd->want_privilege= want_privilege_saved;
+
+  if (setup_ftfuncs(select))
     DBUG_RETURN(true);                       /* purecov: inspected */
-  if (check_key_in_view(thd, table_list, delete_table_ref))
+
+  // check_key_in_view() may send an SQL note, but we only want it once.
+  if (select->first_execution &&
+      check_key_in_view(thd, table_list, delete_table_ref))
   {
     my_error(ER_NON_UPDATABLE_TABLE, MYF(0), table_list->alias, "DELETE");
     DBUG_RETURN(true);
@@ -665,10 +673,11 @@ bool mysql_prepare_delete(THD *thd, const TABLE_LIST *delete_table_ref)
     DBUG_RETURN(true);
   }
 
-  if (select_lex->inner_refs_list.elements && select_lex->fix_inner_refs(thd))
+  if (select->inner_refs_list.elements && select->fix_inner_refs(thd))
     DBUG_RETURN(true);                       /* purecov: inspected */
 
-  select_lex->fix_prepare_information(thd);
+  if (select->apply_local_transforms(thd, false))
+    DBUG_RETURN(true);
 
   DBUG_RETURN(false);
 }
@@ -711,13 +720,17 @@ int mysql_multi_delete_prepare(THD *thd, uint *table_count)
 
     lex->query_tables also point on local list of DELETE SELECT_LEX
   */
-  if (setup_tables_and_check_access(thd, &select->context,
-                                    &select->top_join_list,
-                                    lex->query_tables,
-                                    &select->leaf_tables, false,
-                                    DELETE_ACL, SELECT_ACL))
-    DBUG_RETURN(TRUE);
+  if (select->setup_tables(thd, lex->query_tables, false))
+    DBUG_RETURN(true);
 
+  if (select->derived_table_count)
+  {
+    if (select->resolve_derived(thd, true))
+      DBUG_RETURN(true);
+
+    if (select->check_view_privileges(thd, DELETE_ACL, SELECT_ACL))
+      DBUG_RETURN(true);
+  }
   *table_count= 0;
 
   /*
@@ -735,16 +748,22 @@ int mysql_multi_delete_prepare(THD *thd, uint *table_count)
 
     TABLE_LIST *const table_ref= delete_target->correspondent_table;
 
+    if (!table_ref->is_updatable())
+    {
+      my_error(ER_NON_UPDATABLE_TABLE, MYF(0),
+               delete_target->table_name, "DELETE");
+      DBUG_RETURN(true);
+    }
+
     // DELETE does not allow deleting from multi-table views
-    if (table_ref->multitable_view)
+    if (table_ref->is_multiple_tables())
     {
       my_error(ER_VIEW_DELETE_MERGE_VIEW, MYF(0),
                table_ref->view_db.str, table_ref->view_name.str);
       DBUG_RETURN(true);
     }
 
-    if (!table_ref->updatable ||
-        check_key_in_view(thd, table_ref, table_ref->updatable_base_table()))
+    if (check_key_in_view(thd, table_ref, table_ref->updatable_base_table()))
     {
       my_error(ER_NON_UPDATABLE_TABLE, MYF(0),
                delete_target->table_name, "DELETE");
@@ -752,7 +771,7 @@ int mysql_multi_delete_prepare(THD *thd, uint *table_count)
     }
 
     // A view must be merged, and thus cannot have a TABLE 
-    DBUG_ASSERT(!table_ref->view || table_ref->table == NULL);
+    DBUG_ASSERT(!table_ref->is_view() || table_ref->table == NULL);
 
     // Enable the following code if allowing LIMIT with multi-table DELETE
     DBUG_ASSERT(select->select_limit == 0);
