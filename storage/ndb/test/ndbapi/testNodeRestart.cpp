@@ -5385,7 +5385,7 @@ static struct { int errnum; bool obsolete; } other_err[] =
   {7206, true},  // execEMPTY_LCP_CONF (not in use since 7.4.3)
   {7230, false}, // sendMASTER_LCPCONF and die
   {7232, false}, // Die after sending MASTER_LCPCONF
-  0
+  {0, false},
 };
 
 int
