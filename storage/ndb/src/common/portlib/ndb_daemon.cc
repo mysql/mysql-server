@@ -396,7 +396,7 @@ void ndb_daemon_exit(int status)
     g_ntsvc.Stop();
 #endif
 
-#ifdef HAVE_gcov
+#ifdef HAVE_GCOV
    exit(status);
 #else
   _exit(status);
