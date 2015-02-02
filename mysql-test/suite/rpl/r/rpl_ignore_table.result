@@ -18,22 +18,32 @@ DROP TABLE t4;
 create table test.t1(a int);
 create table test.t4(a int);
 GRANT SELECT ON test.t1 TO mysqltest1@localhost;
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 GRANT INSERT ON test.t4 TO mysqltest2@localhost;
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 GRANT select, update, insert, references on t1
 to mysqltest2@localhost;
 GRANT SELECT ON test.* TO mysqltest3@localhost;
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 GRANT INSERT ON test.t4 TO mysqltest3@localhost;
 GRANT select(a), update(a), insert(a), references(a) on t4
 to mysqltest3@localhost;
 create database mysqltest2;
 create table mysqltest2.t2 (id int);
 GRANT SELECT ON mysqltest2.t2 TO mysqltest4@localhost IDENTIFIED BY 'pass';
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 insert ignore into mysql.user (user, host) values ("mysqltest5", "somehost");
 Warnings:
 Warning	1364	Field 'ssl_cipher' doesn't have a default value
 Warning	1364	Field 'x509_issuer' doesn't have a default value
 Warning	1364	Field 'x509_subject' doesn't have a default value
 GRANT SELECT ON *.* TO mysqltest6@localhost;
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 GRANT INSERT ON *.* TO mysqltest6@localhost;
 GRANT INSERT ON test.* TO mysqltest6@localhost;
 GRANT INSERT ON test.t1 TO mysqltest6@localhost;
@@ -53,7 +63,7 @@ GRANT SELECT ON `test`.* TO 'mysqltest3'@'localhost'
 GRANT SELECT (a), INSERT, INSERT (a), UPDATE (a), REFERENCES (a) ON `test`.`t4` TO 'mysqltest3'@'localhost'
 show grants for mysqltest4@localhost;
 Grants for mysqltest4@localhost
-GRANT USAGE ON *.* TO 'mysqltest4'@'localhost' IDENTIFIED BY PASSWORD '*196BDEDE2AE4F84CA44C47D54D78478C7E2BD7B7'
+GRANT USAGE ON *.* TO 'mysqltest4'@'localhost'
 GRANT SELECT ON `mysqltest2`.`t2` TO 'mysqltest4'@'localhost'
 show grants for mysqltest6@localhost;
 Grants for mysqltest6@localhost
@@ -76,7 +86,7 @@ GRANT SELECT ON `test`.* TO 'mysqltest3'@'localhost'
 GRANT SELECT (a), INSERT, INSERT (a), UPDATE (a), REFERENCES (a) ON `test`.`t4` TO 'mysqltest3'@'localhost'
 show grants for mysqltest4@localhost;
 Grants for mysqltest4@localhost
-GRANT USAGE ON *.* TO 'mysqltest4'@'localhost' IDENTIFIED BY PASSWORD '*196BDEDE2AE4F84CA44C47D54D78478C7E2BD7B7'
+GRANT USAGE ON *.* TO 'mysqltest4'@'localhost'
 GRANT SELECT ON `mysqltest2`.`t2` TO 'mysqltest4'@'localhost'
 show grants for mysqltest5@somehost;
 Grants for mysqltest5@somehost
@@ -102,7 +112,7 @@ GRANT SELECT ON `test`.* TO 'mysqltest3'@'localhost'
 GRANT INSERT, INSERT (a), UPDATE (a), REFERENCES (a) ON `test`.`t4` TO 'mysqltest3'@'localhost'
 show grants for mysqltest4@localhost;
 Grants for mysqltest4@localhost
-GRANT USAGE ON *.* TO 'mysqltest4'@'localhost' IDENTIFIED BY PASSWORD '*196BDEDE2AE4F84CA44C47D54D78478C7E2BD7B7'
+GRANT USAGE ON *.* TO 'mysqltest4'@'localhost'
 **** Checking grants on slave ****
 show grants for mysqltest1@localhost;
 ERROR 42000: There is no such grant defined for user 'mysqltest1' on host 'localhost'
@@ -113,7 +123,7 @@ GRANT SELECT ON `test`.* TO 'mysqltest3'@'localhost'
 GRANT INSERT, INSERT (a), UPDATE (a), REFERENCES (a) ON `test`.`t4` TO 'mysqltest3'@'localhost'
 show grants for mysqltest4@localhost;
 Grants for mysqltest4@localhost
-GRANT USAGE ON *.* TO 'mysqltest4'@'localhost' IDENTIFIED BY PASSWORD '*196BDEDE2AE4F84CA44C47D54D78478C7E2BD7B7'
+GRANT USAGE ON *.* TO 'mysqltest4'@'localhost'
 set global slave_exec_mode='IDEMPOTENT';
 call mtr.add_suppression("Slave SQL.*Could not execute Delete_rows event on table mysql.* Error_code: 1032");
 drop table t1, mysqltest2.t2;

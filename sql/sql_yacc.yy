@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2015 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1155,7 +1155,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
         table_ident_opt_wild
 
 %type <simple_string>
-        opt_db text_or_password
+        opt_db password
 
 %type <string>
         text_string opt_gconcat_separator
@@ -1274,7 +1274,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 
 %type <symbol> keyword keyword_sp
 
-%type <lex_user> user grant_user
+%type <lex_user> user grant_user user_func
 
 %type <charset>
         opt_collate
@@ -1341,6 +1341,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
         part_column_list
         server_options_list server_option
         definer_opt no_definer definer get_diagnostics
+        alter_user_command
         group_replication
 END_OF_INPUT
 
@@ -1511,7 +1512,6 @@ END_OF_INPUT
 
 %type <text_literal> text_literal
 
-%type <user_password_expiration> opt_user_password_expiration
 %%
 
 /*
@@ -2290,7 +2290,8 @@ create:
           }
           view_or_trigger_or_sp_or_event
           {}
-        | CREATE USER clear_privileges grant_list
+        | CREATE USER clear_privileges grant_list require_clause
+                      connect_options password_expire_options
           {
             Lex->sql_command = SQLCOM_CREATE_USER;
           }
@@ -2561,6 +2562,9 @@ clear_privileges:
            lex->select_lex->db= NULL;
            lex->ssl_type= SSL_TYPE_NOT_SPECIFIED;
            lex->ssl_cipher= lex->x509_subject= lex->x509_issuer= 0;
+           lex->alter_password.update_password_expired_column= false;
+           lex->alter_password.use_default_password_lifetime= true;
+           lex->alter_password.expire_after_days= 0;
            memset(&(lex->mqh), 0, sizeof(lex->mqh));
          }
         ;
@@ -7464,60 +7468,108 @@ alter:
             lex->m_sql_cmd=
               new (YYTHD->mem_root) Sql_cmd_alter_server(&Lex->server_options);
           }
-        | ALTER USER clear_privileges alter_user_list
+        | alter_user_command grant_list require_clause
+          connect_options password_expire_options
+        | alter_user_command user_func IDENTIFIED_SYM BY TEXT_STRING
+          {
+            $2->auth.str= $5.str;
+            $2->auth.length= $5.length;
+            $2->uses_identified_by_clause= true;
+            Lex->contains_plaintext_password= true;
+          }
+        ;
+
+alter_user_command:
+          ALTER USER clear_privileges
           {
             Lex->sql_command= SQLCOM_ALTER_USER;
           }
         ;
 
-alter_user_list:
-          alter_user
-        | alter_user_list ',' alter_user
-        ;
-
-alter_user:
-          user PASSWORD EXPIRE_SYM opt_user_password_expiration
+password_expire_options:
+          /* empty */ {}
+        | PASSWORD EXPIRE_SYM
           {
-            $1->alter_status.update_password_expired_column=
-              $4.set_password_expire_flag;
-            $1->alter_status.expire_after_days=
-              $4.expire_after_days;
-            $1->alter_status.use_default_password_lifetime=
-              $4.use_default_password_expiry;
-
-            if (Lex->users_list.push_back($1))
-              MYSQL_YYABORT;
+            LEX *lex=Lex;
+            lex->alter_password.update_password_expired_column= true;
           }
-        ;
-
-opt_user_password_expiration:
-          /* For traditional "ALTER USER <foo> PASSWORD EXPIRE": */
+        | PASSWORD EXPIRE_SYM INTERVAL_SYM real_ulong_num DAY_SYM
           {
-            $$.set_password_expire_flag= true;
-          }
-        | INTERVAL_SYM real_ulong_num DAY_SYM
-          {
-            if ($2 == 0 || $2 > UINT_MAX16)
+            if ($4 == 0 || $4 > UINT_MAX16)
             {
               char buf[MAX_BIGINT_WIDTH + 1];
-              my_snprintf(buf, sizeof(buf), "%lu", $2);
+              my_snprintf(buf, sizeof(buf), "%lu", $4);
               my_error(ER_WRONG_VALUE, MYF(0), "DAY", buf);
               MYSQL_YYABORT;
             }
-            $$.set_password_expire_flag= false;
-            $$.expire_after_days= static_cast<uint16>($2);
-            $$.use_default_password_expiry= false;
+            LEX *lex=Lex;
+            lex->alter_password.update_password_expired_column= false;
+            lex->alter_password.expire_after_days= $4;
+            lex->alter_password.use_default_password_lifetime= false;
           }
-        | NEVER_SYM
+        | PASSWORD EXPIRE_SYM NEVER_SYM
           {
-            $$.set_password_expire_flag= false;
-            $$.expire_after_days= 0;
-            $$.use_default_password_expiry= false;
+            LEX *lex=Lex;
+            lex->alter_password.update_password_expired_column= false;
+            lex->alter_password.expire_after_days= 0;
+            lex->alter_password.use_default_password_lifetime= false;
           }
-        | DEFAULT
+        | PASSWORD EXPIRE_SYM DEFAULT
           {
-            $$.set_password_expire_flag= false;
-            $$.use_default_password_expiry= true;
+            LEX *lex=Lex;
+            lex->alter_password.update_password_expired_column= false;
+            lex->alter_password.use_default_password_lifetime= true;
+          }
+        ;
+
+connect_options:
+          /* empty */ {}
+        | WITH connect_option_list
+        ;
+
+connect_option_list:
+          connect_option_list connect_option {}
+        | connect_option {}
+        ;
+
+connect_option:
+          MAX_QUERIES_PER_HOUR ulong_num
+          {
+            LEX *lex=Lex;
+            lex->mqh.questions=$2;
+            lex->mqh.specified_limits|= USER_RESOURCES::QUERIES_PER_HOUR;
+          }
+        | MAX_UPDATES_PER_HOUR ulong_num
+          {
+            LEX *lex=Lex;
+            lex->mqh.updates=$2;
+            lex->mqh.specified_limits|= USER_RESOURCES::UPDATES_PER_HOUR;
+          }
+        | MAX_CONNECTIONS_PER_HOUR ulong_num
+          {
+            LEX *lex=Lex;
+            lex->mqh.conn_per_hour= $2;
+            lex->mqh.specified_limits|= USER_RESOURCES::CONNECTIONS_PER_HOUR;
+          }
+        | MAX_USER_CONNECTIONS_SYM ulong_num
+          {
+            LEX *lex=Lex;
+            lex->mqh.user_conn= $2;
+            lex->mqh.specified_limits|= USER_RESOURCES::USER_CONNECTIONS;
+          }
+        ;
+
+user_func:
+          USER '(' ')'
+          {
+            /* empty LEX_USER means current_user */
+            LEX_USER *curr_user;
+            if (!(curr_user= (LEX_USER*) Lex->thd->alloc(sizeof(st_lex_user))))
+              MYSQL_YYABORT;
+
+            memset(curr_user, 0, sizeof(st_lex_user));
+            Lex->users_list.push_back(curr_user);
+            $$= curr_user;
           }
         ;
 
@@ -11762,7 +11814,7 @@ show_param:
             LEX *lex=Lex;
             lex->sql_command= SQLCOM_SHOW_GRANTS;
             lex->grant_user=$3;
-            lex->grant_user->password= NULL_CSTR;
+            lex->grant_user->auth= NULL_CSTR;
           }
         | CREATE DATABASE opt_if_not_exists ident
           {
@@ -11843,6 +11895,11 @@ show_param:
           {
             Lex->spname= $3;
             Lex->sql_command = SQLCOM_SHOW_CREATE_EVENT;
+          }
+        | CREATE USER clear_privileges user
+          {
+            Lex->sql_command= SQLCOM_SHOW_CREATE_USER;
+            Lex->grant_user=$4;
           }
         ;
 
@@ -12865,9 +12922,8 @@ user:
             $$->user.length= $1.length;
             $$->host.str= "%";
             $$->host.length= 1;
-            $$->password= NULL_CSTR;
             $$->plugin= EMPTY_CSTR;
-            $$->auth= EMPTY_CSTR;
+            $$->auth= NULL_CSTR;
             $$->uses_identified_by_clause= false;
             $$->uses_identified_with_clause= false;
             $$->uses_identified_by_password_clause= false;
@@ -12895,9 +12951,8 @@ user:
             $$->user.length= $1.length;
             $$->host.str= $3.str;
             $$->host.length= $3.length;
-            $$->password= NULL_CSTR;
             $$->plugin= EMPTY_CSTR;
-            $$->auth= EMPTY_CSTR;
+            $$->auth= NULL_CSTR;
             $$->uses_identified_by_clause= false;
             $$->uses_identified_with_clause= false;
             $$->uses_identified_by_password_clause= false;
@@ -13343,11 +13398,11 @@ start_option_value_list:
           {
             $$= NEW_PTN PT_start_option_value_list_type($1, $2);
           }
-        | PASSWORD equal text_or_password
+        | PASSWORD equal password
           {
             $$= NEW_PTN PT_option_value_no_option_type_password($3, @3);
           }
-        | PASSWORD FOR_SYM user equal text_or_password
+        | PASSWORD FOR_SYM user equal password
           {
             $$= NEW_PTN PT_option_value_no_option_type_password_for($3, $5, @5);
           }
@@ -13521,17 +13576,10 @@ isolation_types:
         | SERIALIZABLE_SYM         { $$= ISO_SERIALIZABLE; }
         ;
 
-text_or_password:
-          TEXT_STRING { $$=$1.str;}
-        | PASSWORD '(' TEXT_STRING ')'
+password:
+          TEXT_STRING
           {
-            if ($3.length == 0)
-              $$= $3.str;
-            else
-              $$= Item_func_password::
-                create_password_hash_buffer(YYTHD, $3.str, $3.length);
-            if ($$ == NULL)
-              MYSQL_YYABORT;
+            $$=$1.str;
             Lex->contains_plaintext_password= true;
           }
         ;
@@ -13767,12 +13815,12 @@ revoke:
         ;
 
 revoke_command:
-          grant_privileges ON opt_table grant_ident FROM grant_list
+          grant_privileges ON opt_table grant_ident FROM user_list
           {
             LEX *lex= Lex;
             lex->type= 0;
           }
-        | grant_privileges ON FUNCTION_SYM grant_ident FROM grant_list
+        | grant_privileges ON FUNCTION_SYM grant_ident FROM user_list
           {
             LEX *lex= Lex;
             if (lex->columns.elements)
@@ -13782,7 +13830,7 @@ revoke_command:
             }
             lex->type= TYPE_ENUM_FUNCTION;
           }
-        | grant_privileges ON PROCEDURE_SYM grant_ident FROM grant_list
+        | grant_privileges ON PROCEDURE_SYM grant_ident FROM user_list
           {
             LEX *lex= Lex;
             if (lex->columns.elements)
@@ -13792,11 +13840,11 @@ revoke_command:
             }
             lex->type= TYPE_ENUM_PROCEDURE;
           }
-        | ALL opt_privileges ',' GRANT OPTION FROM grant_list
+        | ALL opt_privileges ',' GRANT OPTION FROM user_list
           {
             Lex->sql_command = SQLCOM_REVOKE_ALL;
           }
-        | PROXY_SYM ON user FROM grant_list
+        | PROXY_SYM ON user FROM user_list
           {
             LEX *lex= Lex;
             lex->users_list.push_front ($3);
@@ -14043,51 +14091,25 @@ grant_user:
           user IDENTIFIED_SYM BY TEXT_STRING
           {
             $$=$1;
-            $1->password.str= $4.str;
-            $1->password.length= $4.length;
-            if (Lex->sql_command == SQLCOM_REVOKE)
-            {
-              my_syntax_error(ER(ER_SYNTAX_ERROR));
-              MYSQL_YYABORT;
-            }
-            String *password = new (YYTHD->mem_root) String((const char*)$4.str,
-                                    YYTHD->variables.character_set_client);
-            check_password_policy(password);
-            /*
-              1. Plugin must be resolved
-              2. Password must be digested
-            */
+            $1->auth.str= $4.str;
+            $1->auth.length= $4.length;
             $1->uses_identified_by_clause= true;
             Lex->contains_plaintext_password= true;
           }
         | user IDENTIFIED_SYM BY PASSWORD TEXT_STRING
           {
-            if (Lex->sql_command == SQLCOM_REVOKE)
-            {
-              my_syntax_error(ER(ER_SYNTAX_ERROR));
-              MYSQL_YYABORT;
-            }
             $$= $1;
-            $1->password.str= $5.str;
-            $1->password.length= $5.length;
-            if (!strcmp($5.str, ""))
-            {
-              String *password= new (YYTHD->mem_root) String ((const char *)"",
-                                     YYTHD->variables.character_set_client);
-              check_password_policy(password);
-            }
-            /*
-              1. Plugin must be resolved
-            */
+            $1->auth.str= $5.str;
+            $1->auth.length= $5.length;
             $1->uses_identified_by_password_clause= true;
+            if (Lex->sql_command == SQLCOM_ALTER_USER)
+              MYSQL_YYABORT;
+            else
+              push_deprecated_warn(YYTHD, "IDENTIFIED BY PASSWORD",
+                                   "IDENTIFIED WITH <plugin> AS <hash>");
           }
         | user IDENTIFIED_SYM WITH ident_or_text
           {
-            if (Lex->sql_command == SQLCOM_REVOKE)
-            {
-              my_syntax_error(ER(ER_SYNTAX_ERROR));
-              MYSQL_YYABORT;
-            }
             $$= $1;
             $1->plugin.str= $4.str;
             $1->plugin.length= $4.length;
@@ -14096,11 +14118,6 @@ grant_user:
           }
         | user IDENTIFIED_SYM WITH ident_or_text AS TEXT_STRING_sys
           {
-            if (Lex->sql_command == SQLCOM_REVOKE)
-            {
-              my_syntax_error(ER(ER_SYNTAX_ERROR));
-              MYSQL_YYABORT;
-            }
             $$= $1;
             $1->plugin.str= $4.str;
             $1->plugin.length= $4.length;
@@ -14109,10 +14126,21 @@ grant_user:
             $1->uses_identified_with_clause= true;
             $1->uses_authentication_string_clause= true;
           }
+        | user IDENTIFIED_SYM WITH ident_or_text BY TEXT_STRING_sys
+          {
+            $$= $1;
+            $1->plugin.str= $4.str;
+            $1->plugin.length= $4.length;
+            $1->auth.str= $6.str;
+            $1->auth.length= $6.length;
+            $1->uses_identified_with_clause= true;
+            $1->uses_identified_by_clause= true;
+            Lex->contains_plaintext_password= true;
+          }
         | user
           {
             $$= $1;
-            $1->password= NULL_CSTR;
+            $1->auth= NULL_CSTR;
           }
         ;
 

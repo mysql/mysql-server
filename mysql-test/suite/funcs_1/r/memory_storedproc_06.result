@@ -112,6 +112,8 @@ Ensure that root always has the GRANT CREATE ROUTINE privilege.
 (checked by other testscases)
 --------------------------------------------------------------------------------
 grant create routine on db_storedproc_1.* to 'user_1'@'localhost';
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 flush privileges;
 DROP PROCEDURE IF EXISTS db_storedproc_1.sp3;
 DROP FUNCTION IF EXISTS db_storedproc_1.fn1;

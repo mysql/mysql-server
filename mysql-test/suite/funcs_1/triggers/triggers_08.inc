@@ -17,11 +17,11 @@ let $message= Testcase: 3.5:;
 --disable_abort_on_error
 
 	create User test_general@localhost;
-	set password for test_general@localhost = password('PWD');
+        alter user test_general@localhost identified by 'PWD';
 	revoke ALL PRIVILEGES, GRANT OPTION FROM test_general@localhost;
 
 	create User test_super@localhost;
-	set password for test_super@localhost = password('PWD');
+        alter user test_super@localhost identified by 'PWD';
 	grant ALL on *.* to test_super@localhost with grant OPTION;
 	connect (con2_general,localhost,test_general,PWD,test,$MASTER_MYPORT,$MASTER_MYSOCK);
 	connect (con2_super,localhost,test_super,PWD,test,$MASTER_MYPORT,$MASTER_MYSOCK);
@@ -57,6 +57,7 @@ let $message= Testcase 3.5.8.3/4:;
 # creating test tables to perform the trigger SQL on
 	connection con2_super;
 	create database db_test;
+        create user test_general;
 	grant SELECT, INSERT, UPDATE, DELETE on db_test.* to test_general;
 	grant LOCK TABLES on db_test.* to test_general;
 	Use db_test;

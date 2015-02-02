@@ -2744,6 +2744,8 @@ SET sql_mode = default;
 # Testing bad values with TRADITIONAL mode
 #
 SET sql_mode=traditional;
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1 (a TIME(6));
 INSERT INTO t1 VALUES ('00:00:00.111111 xxx');
 ERROR 22007: Incorrect time value: '00:00:00.111111 xxx' for column 'a' at row 1
@@ -7376,6 +7378,8 @@ SET sql_mode=default;
 # Testing bad values with TRADITIONAL mode
 #
 SET sql_mode=traditional;
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1 (a DATETIME, b DATETIME(6));
 INSERT INTO t1 VALUES ('xxx', NULL);
 ERROR 22007: Incorrect datetime value: 'xxx' for column 'a' at row 1

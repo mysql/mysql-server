@@ -1094,6 +1094,8 @@ EXPLAIN
 }
 # Check access rights checking
 GRANT USAGE ON *.* TO 'privtest'@'localhost';
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 GRANT SUPER ON *.* TO 'privtest'@'localhost';
 GRANT SELECT ON mysqltest1.t2 TO 'privtest'@'localhost';
 CREATE VIEW v2 AS SELECT * FROM t2;

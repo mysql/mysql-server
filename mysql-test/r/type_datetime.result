@@ -224,6 +224,8 @@ insert into t1 values ('2007-03-23 13:49:38','2007-03-23 13:49:38');
 Warnings:
 Note	1292	Incorrect date value: '2007-03-23 13:49:38' for column 'da' at row 1
 set @@sql_mode='ansi,traditional';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 insert into t1 values ('2007-03-23 13:49:38','2007-03-23 13:49:38');
 Warnings:
 Note	1292	Incorrect date value: '2007-03-23 13:49:38' for column 'da' at row 1
@@ -618,6 +620,8 @@ insert into t1 values ('2007-03-23 13:49:38','2007-03-23 13:49:38');
 Warnings:
 Note	1292	Incorrect date value: '2007-03-23 13:49:38' for column 'da' at row 1
 set @@sql_mode='ansi,traditional';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 insert into t1 values ('2007-03-23 13:49:38','2007-03-23 13:49:38');
 Warnings:
 Note	1292	Incorrect date value: '2007-03-23 13:49:38' for column 'da' at row 1

@@ -261,13 +261,13 @@ events_stages_summary_global_by_event_name	150	0
 events_statements_current	2000	0
 events_statements_history	2000	0
 events_statements_history_long	1000	0
-events_statements_summary_by_account_by_event_name	19000	0
+events_statements_summary_by_account_by_event_name	19100	0
 events_statements_summary_by_digest	200	0
-events_statements_summary_by_host_by_event_name	19000	0
+events_statements_summary_by_host_by_event_name	19100	0
 events_statements_summary_by_program	5000	0
-events_statements_summary_by_thread_by_event_name	38000	0
-events_statements_summary_by_user_by_event_name	19000	0
-events_statements_summary_global_by_event_name	190	0
+events_statements_summary_by_thread_by_event_name	38200	0
+events_statements_summary_by_user_by_event_name	19100	0
+events_statements_summary_global_by_event_name	191	0
 events_transactions_current	200	0
 events_transactions_history	2000	0
 events_transactions_history_long	1000	0
@@ -313,7 +313,7 @@ session_account_connect_attrs	409600	0
 session_connect_attrs	409600	0
 setup_actors	1	0
 setup_consumers	15	0
-setup_instruments	1045	0
+setup_instruments	1046	0
 setup_objects	20	0
 setup_timers	5	0
 socket_instances	1000	0

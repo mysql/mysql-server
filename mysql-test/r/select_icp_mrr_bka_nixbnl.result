@@ -4361,6 +4361,8 @@ NULL
 Warnings:
 Warning	1411	Incorrect datetime value: '2007-10-00' for function str_to_date
 set SQL_MODE=TRADITIONAL;
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 select str_to_date('2007-10-00 12:34','%Y-%m-%d %H:%i') = '2007-10-00 12:34';
 str_to_date('2007-10-00 12:34','%Y-%m-%d %H:%i') = '2007-10-00 12:34'
 NULL

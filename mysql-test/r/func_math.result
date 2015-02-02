@@ -251,6 +251,8 @@ Warning	1292	Truncated incorrect time value: '17540424:00:00'
 drop table t1;
 SET timestamp=DEFAULT;
 set sql_mode='traditional';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 select ln(-1);
 ln(-1)
 NULL

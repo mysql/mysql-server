@@ -1536,7 +1536,6 @@ typedef struct st_lex_alter {
 typedef struct	st_lex_user {
   LEX_CSTRING user;
   LEX_CSTRING host;
-  LEX_CSTRING password;
   LEX_CSTRING plugin;
   LEX_CSTRING auth;
   bool uses_identified_by_clause;

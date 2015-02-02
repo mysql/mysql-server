@@ -273,18 +273,10 @@ struct Sql_user
 
   void to_sql(string *cmdstr)
   {
-    stringstream set_oldpasscmd,ss;
+    stringstream set_passcmd,ss, flush_priv;
     ss << "INSERT INTO mysql.user VALUES ("
        << "'" << escape_string(host) << "','" << escape_string(user) << "',";
 
-    if (plugin == "mysql_native_password")
-    {
-      ss << "PASSWORD('" << escape_string(password) << "'),";
-    }
-    else if (plugin == "sha256_password")
-    {
-      ss << "'',";
-    }
     uint64_t acl= priv.to_int();
     for(int i= 0; i< NUM_ACLS; ++i)
     {
@@ -302,22 +294,19 @@ struct Sql_user
        << max_connections << ","
        << max_user_connections << ","
        << "'" << plugin << "',";
-    if (plugin == "sha256_password")
-    {
-      set_oldpasscmd << "SET @@old_passwords= 2;\n";
-      ss << "PASSWORD('" << escape_string(password) << "'),";
-    }
-    else
-    {
-      ss << "'" << escape_string(authentication_string) << "',";
-    }
+    ss << "'',";
     if (password_expired)
       ss << "'Y',";
     else
       ss << "'N',";
     ss << "now(), NULL);\n";
 
-    cmdstr->append(set_oldpasscmd.str()).append(ss.str());
+    flush_priv << "FLUSH PRIVILEGES;\n";
+
+    set_passcmd << "ALTER USER '" << escape_string(user) << "'@'"
+                << escape_string(host) << "' IDENTIFIED BY '"
+                << escape_string(password) << "';\n";
+    cmdstr->append(ss.str()).append(flush_priv.str()).append(set_passcmd.str());
   }
 
 };

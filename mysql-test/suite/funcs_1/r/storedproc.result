@@ -21636,6 +21636,8 @@ set a = '2005-03-14 01:01:02';
 insert into temp_table values(a);
 END	latin1	latin1_swedish_ci	latin1_swedish_ci
 set @@sql_mode = 'traditional';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CALL sp2 ();
 SELECT * from temp_table;
 f1

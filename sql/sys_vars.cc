@@ -3302,6 +3302,24 @@ export sql_mode_t expand_sql_mode(sql_mode_t sql_mode)
   if (sql_mode & MODE_TRADITIONAL)
     sql_mode|= (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES |
                 MODE_NO_AUTO_CREATE_USER | MODE_NO_ENGINE_SUBSTITUTION);
+
+  if (sql_mode & MODE_NO_AUTO_CREATE_USER)
+  {
+    THD *thd= current_thd;
+    if (thd)
+    {
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
+                          ER_WARN_DEPRECATED_SQLMODE,
+                          ER(ER_WARN_DEPRECATED_SQLMODE),
+                          "NO_AUTO_CREATE_USER");
+    }
+    else
+    {
+      sql_print_warning("'NO_AUTO_CREATE_USER' mode is deprecated. "
+                        "It will be made read-only in a future release.");
+    }
+  }
+
   return sql_mode;
 }
 static bool check_sql_mode(sys_var *self, THD *thd, set_var *var)
@@ -5294,6 +5312,13 @@ static Sys_var_mybool Sys_offline_mode(
        GLOBAL_VAR(offline_mode), CMD_LINE(OPT_ARG), DEFAULT(FALSE),
        &PLock_offline_mode, NOT_IN_BINLOG,
        ON_CHECK(0), ON_UPDATE(handle_offline_mode));
+
+static Sys_var_mybool Sys_log_backward_compatible_user_definitions(
+       "log_backward_compatible_user_definitions",
+       "Controls logging of CREATE/ALTER/GRANT user statements "
+       "in replication binlogs, general query logs and audit logs.",
+       GLOBAL_VAR(opt_log_backward_compatible_user_definitions),
+       CMD_LINE(OPT_ARG), DEFAULT(FALSE));
 
 static Sys_var_mybool Sys_avoid_temporal_upgrade(
        "avoid_temporal_upgrade",
