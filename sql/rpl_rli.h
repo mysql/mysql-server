@@ -16,16 +16,19 @@
 #ifndef RPL_RLI_H
 #define RPL_RLI_H
 
-#include "rpl_info.h"
-#include "rpl_utility.h"
-#include "rpl_tblmap.h"
-#include "rpl_reporting.h"
-#include "rpl_utility.h"
-#include "binlog.h"                      /* MYSQL_BIN_LOG */
-#include "sql_class.h"                   /* THD */
-#include<vector>
-#include "prealloced_array.h"
-#include "rpl_mts_submode.h"
+#include "my_global.h"
+
+#include "binlog.h"            // MYSQL_BIN_LOG
+#include "prealloced_array.h"  // Prealloced_array
+#include "rpl_gtid.h"          // Gtid_set
+#include "rpl_info.h"          // Rpl_info
+#include "rpl_mts_submode.h"   // enum_mts_parallel_type
+#include "rpl_tblmap.h"        // table_mapping
+#include "rpl_utility.h"       // Deferred_log_events
+#include "sql_class.h"         // THD
+
+#include <string>
+#include <vector>
 
 struct RPL_TABLE_LIST;
 class Master_info;

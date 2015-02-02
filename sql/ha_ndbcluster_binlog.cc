@@ -33,6 +33,7 @@
 #include "slave.h"
 #include "log_event.h"
 #endif
+#include "binlog.h"
 #include "ha_ndbcluster_binlog.h"
 #include <ndbapi/NdbDictionary.hpp>
 #include <ndbapi/ndb_cluster_connection.hpp>
