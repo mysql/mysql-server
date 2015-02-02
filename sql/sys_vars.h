@@ -2774,6 +2774,15 @@ public:
       goto err;
     }
 
+    // Compatible with ENFORCE_GTID_CONSISTENCY.
+    if (new_gtid_mode == GTID_MODE_ON &&
+        get_gtid_consistency_mode() != GTID_CONSISTENCY_MODE_ON)
+    {
+      my_error(ER_CANT_SET_GTID_MODE, MYF(0), "ON",
+               "ENFORCE_GTID_CONSISTENCY is not ON");
+      goto err;
+    }
+
     // Update the mode
     global_var(ulong)= new_gtid_mode;
     global_sid_lock->unlock();
