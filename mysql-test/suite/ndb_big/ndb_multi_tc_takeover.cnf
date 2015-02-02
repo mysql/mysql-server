@@ -13,6 +13,7 @@ MaxNoOfConcurrentOperations=   200
 MaxNoOfLocalOperations=        10000
 NoOfReplicas=                 2
 ThreadConfig=main={count=1},tc={count=1},ldm={count=4},io={count=1},rep={count=1},recv={count=2},send={count=2}
+Checksum=1
 
 ndbd=,,,
 ndb_mgmd=

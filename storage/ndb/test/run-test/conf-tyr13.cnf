@@ -22,7 +22,6 @@ ndb_mgmd = CHOOSE_host1
 ndbd = CHOOSE_host2,CHOOSE_host3
 ndbapi= CHOOSE_host1,CHOOSE_host1,CHOOSE_host1
 mysqld = CHOOSE_host1
-Checksum=1
 
 NoOfReplicas = 2
 IndexMemory = 100M 
@@ -36,6 +35,7 @@ ODirect=1
 MaxNoOfExecutionThreads=8
 SendBufferMemory=4M
 MaxNoOfAttributes=2000
+Checksum=1
 
 SharedGlobalMemory=256M
 DiskPageBufferMemory=256M
