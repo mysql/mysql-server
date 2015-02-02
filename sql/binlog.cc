@@ -34,6 +34,7 @@
 
 #include <pfs_transaction_provider.h>
 #include <mysql/psi/mysql_transaction.h>
+#include "xa.h"
 
 #include <list>
 #include <string>
@@ -85,6 +86,8 @@ static bool binlog_savepoint_rollback_can_release_mdl(handlerton *hton,
 static int binlog_commit(handlerton *hton, THD *thd, bool all);
 static int binlog_rollback(handlerton *hton, THD *thd, bool all);
 static int binlog_prepare(handlerton *hton, THD *thd, bool all);
+static int binlog_xa_commit(handlerton *hton,  XID *xid);
+static int binlog_xa_rollback(handlerton *hton,  XID *xid);
 
 
 /**
@@ -287,6 +290,7 @@ public:
   }
 
   int finalize(THD *thd, Log_event *end_event);
+  int finalize(THD *thd, Log_event *end_event, XID_STATE *xs);
   int flush(THD *thd, my_off_t *bytes, bool *wrote_xid);
   int write_event(THD *thd, Log_event *event);
 
@@ -860,6 +864,10 @@ binlog_trans_log_savepos(THD *thd, my_off_t *pos)
   DBUG_VOID_RETURN;
 }
 
+static int binlog_dummy_recover(handlerton *hton, XID *xid, uint len)
+{
+  return 0;
+}
 
 /**
   Auxiliary class to copy serialized events to the binary log and
@@ -1040,8 +1048,11 @@ static int binlog_init(void *p)
   binlog_hton->savepoint_rollback_can_release_mdl=
                                      binlog_savepoint_rollback_can_release_mdl;
   binlog_hton->commit= binlog_commit;
+  binlog_hton->commit_by_xid= binlog_xa_commit;
   binlog_hton->rollback= binlog_rollback;
+  binlog_hton->rollback_by_xid= binlog_xa_rollback;
   binlog_hton->prepare= binlog_prepare;
+  binlog_hton->recover=binlog_dummy_recover;
   binlog_hton->flags= HTON_NOT_USER_SELECTABLE | HTON_HIDDEN;
   return 0;
 }
@@ -1284,6 +1295,29 @@ binlog_cache_data::finalize(THD *thd, Log_event *end_event)
   DBUG_RETURN(0);
 }
 
+
+/**
+   The method writes XA END query to XA-prepared transaction's cache
+   and calls the "basic" finalize().
+
+   @return error code, 0 success
+*/
+
+int binlog_cache_data::finalize(THD *thd, Log_event *end_event, XID_STATE *xs)
+{
+  int error= 0;
+  char buf[XID::ser_buf_size];
+  char query[sizeof("XA END") + 1 + sizeof(buf)];
+  int qlen= sprintf(query, "XA END %s", xs->get_xid()->serialize(buf));
+  Query_log_event qev(thd, query, qlen, true, false, true, 0);
+
+  if ((error= write_event(thd, &qev)))
+    return error;
+
+  return finalize(thd, end_event);
+}
+
+
 /**
   Flush caches to the binary log.
 
@@ -1434,6 +1468,38 @@ binlog_trx_cache_data::truncate(THD *thd, bool all)
   DBUG_RETURN(error);
 }
 
+
+inline enum xa_option_words get_xa_opt(THD *thd)
+{
+  enum xa_option_words xa_opt= XA_NONE;
+  switch(thd->lex->sql_command)
+  {
+  case SQLCOM_XA_COMMIT:
+    xa_opt= static_cast<Sql_cmd_xa_commit*>(thd->lex->m_sql_cmd)->get_xa_opt();
+    break;
+  default:
+    break;
+  }
+
+  return xa_opt;
+}
+
+
+/**
+   Predicate function yields true when XA transaction is
+   being logged having a proper state ready for prepare or
+   commit in one phase.
+
+   @param thd    THD pointer of running transaction
+   @return true  When the being prepared transaction should be binlogged,
+           false otherwise.
+*/
+
+inline bool is_loggable_xa_prepare(THD *thd)
+{
+  return thd->get_transaction()->xid_state()->has_state(XID_STATE::XA_IDLE);
+}
+
 static int binlog_prepare(handlerton *hton, THD *thd, bool all)
 {
   DBUG_ENTER("binlog_prepare");
@@ -1443,8 +1509,109 @@ static int binlog_prepare(handlerton *hton, THD *thd, bool all)
     thd->get_transaction()->
       store_commit_parent(clock.get_timestamp());
   }
-  DBUG_RETURN(0);
+
+  DBUG_RETURN(all && is_loggable_xa_prepare(thd) ?
+              mysql_bin_log.commit(thd, true) : 0);
 }
+
+
+/**
+   Logging XA commit/rollback of a prepared transaction.
+
+   The function is called at XA-commit or XA-rollback logging via
+   two paths: the recovered-or-slave-applier or immediately through
+   the  XA-prepared transaction connection itself.
+   It fills in appropiate event in the statement cache whenever
+   xid state is marked with is_binlogged() flag.
+   In the recovered-or-slave-applier case the function may be called
+   for the 2nd time which is ineffective thanks to @c cache_mngr test.
+   Not empty cache designates its the 2nd time invocation.
+   ONE_PHASE option to XA-COMMIT is handled to skip writing XA-commit
+   event now.
+
+   @param thd          THD handle
+   @param xid          a pointer to XID object that is serialized
+   @param commit       when @c true XA-COMMIT is to be logged,
+                       and @c false when it's XA-ROLLBACK.
+   @return error code, 0 success
+*/
+
+inline int do_binlog_xa_commit_rollback(THD *thd, XID *xid, bool commit)
+{
+  DBUG_ASSERT(thd->lex->sql_command == SQLCOM_XA_COMMIT ||
+              thd->lex->sql_command == SQLCOM_XA_ROLLBACK);
+
+  XID_STATE *xid_state= thd->get_transaction()->xid_state();
+  binlog_cache_mngr *cache_mngr= thd_get_cache_mngr(thd);
+
+  if (get_xa_opt(thd) == XA_ONE_PHASE)
+    return 0;
+  if (cache_mngr && !cache_mngr->is_binlog_empty())
+    return 0; // have been there
+  if (!xid_state->is_binlogged())
+    return 0; // nothing was really logged at prepare
+
+  DBUG_ASSERT(!xid->is_null() ||
+              !(thd->variables.option_bits & OPTION_BIN_LOG));
+
+  char buf[XID::ser_buf_size];
+  char query[(sizeof("XA ROLLBACK")) + 1 + sizeof(buf)];
+  int qlen= sprintf(query, "XA %s %s", commit ? "COMMIT" : "ROLLBACK",
+                    xid->serialize(buf));
+  Query_log_event qinfo(thd, query, qlen, false, true, true, 0, false);
+  return mysql_bin_log.write_event(&qinfo);
+}
+
+
+/**
+   Logging XA commit/rollback of a prepared transaction in the case
+   it was disconnected and resumed (recovered), or executed by a slave applier.
+
+   @param thd         THD handle
+   @param xid         a pointer to XID object
+   @param commit      when @c true XA-COMMIT is logged, otherwise XA-ROLLBACK
+
+   @return error code, 0 success
+*/
+
+inline int binlog_xa_commit_or_rollback(THD *thd, XID *xid, bool commit)
+{
+  int error= 0;
+
+  if (!(error= do_binlog_xa_commit_rollback(thd, xid, commit)))
+  {
+    /*
+      Error can't be propagated naturally via result.
+      A grand-caller has to access to it through thd's da.
+      todo:
+      Bug #20488921 ERROR PROPAGATION DOES FULLY WORK IN XA
+      stands in the way of implementing a failure simulation
+      for XA PREPARE/COMMIT/ROLLBACK.
+    */
+    if (commit)
+      (void) mysql_bin_log.commit(thd, true);
+    else
+      (void) mysql_bin_log.rollback(thd, true);
+  }
+  return error;
+}
+
+
+static int binlog_xa_commit(handlerton *hton,  XID *xid)
+{
+  (void) binlog_xa_commit_or_rollback(current_thd, xid, true);
+
+  return 0;
+}
+
+
+static int binlog_xa_rollback(handlerton *hton,  XID *xid)
+{
+  (void) binlog_xa_commit_or_rollback(current_thd, xid, false);
+
+  return 0;
+}
+
 
 /**
   This function is called once after each statement.
@@ -1733,21 +1900,36 @@ int MYSQL_BIN_LOG::rollback(THD *thd, bool all)
 {
   int error= 0;
   bool stuff_logged= false;
+  binlog_cache_mngr *cache_mngr= thd_get_cache_mngr(thd);
 
-  binlog_cache_mngr *const cache_mngr= thd_get_cache_mngr(thd);
   DBUG_ENTER("MYSQL_BIN_LOG::rollback(THD *thd, bool all)");
   DBUG_PRINT("enter", ("all: %s, cache_mngr: 0x%llx, thd->is_error: %s",
-                       YESNO(all), (ulonglong) cache_mngr, YESNO(thd->is_error())));
-
+                       YESNO(all), (ulonglong) cache_mngr,
+                       YESNO(thd->is_error())));
   /*
-    We roll back the transaction in the engines early since this will
-    release locks and allow other transactions to start executing.
+    Defer XA-transaction rollback until its XA-rollback event is recorded.
+    When we are executing a ROLLBACK TO SAVEPOINT, we
+    should only clear the caches since this function is called as part
+    of the engine rollback.
+    In other cases we roll back the transaction in the engines early
+    since this will release locks and allow other transactions to
+    start executing.
+  */
+  if (thd->lex->sql_command == SQLCOM_XA_ROLLBACK)
+  {
+    XID_STATE *xs= thd->get_transaction()->xid_state();
 
-    If we are executing a ROLLBACK TO SAVEPOINT, we should only clear
-    the caches since this function is called as part of the engine
-    rollback.
-   */
-  if (thd->lex->sql_command != SQLCOM_ROLLBACK_TO_SAVEPOINT)
+    DBUG_ASSERT(all || !xs->is_binlogged() ||
+                (!xs->is_in_recovery() && thd->is_error()));
+    DBUG_ASSERT(cache_mngr != NULL
+                || !(thd->variables.option_bits & OPTION_BIN_LOG)
+                || xs->is_in_recovery());
+
+    if ((error= do_binlog_xa_commit_rollback(thd, xs->get_xid(), false)))
+      goto end;
+    cache_mngr= thd_get_cache_mngr(thd);
+  }
+  else if (thd->lex->sql_command != SQLCOM_ROLLBACK_TO_SAVEPOINT)
     if ((error= ha_rollback_low(thd, all)))
       goto end;
 
@@ -1756,7 +1938,9 @@ int MYSQL_BIN_LOG::rollback(THD *thd, bool all)
     caches, there are no caches to roll back, so we're trivially done.
    */
   if (cache_mngr == NULL || cache_mngr->is_binlog_empty())
+  {
     goto end;
+  }
 
   DBUG_PRINT("debug",
              ("all.cannot_safely_rollback(): %s, trx_cache_empty: %s",
@@ -1866,6 +2050,10 @@ int MYSQL_BIN_LOG::rollback(THD *thd, bool all)
   DBUG_PRINT("debug", ("error: %d", error));
   if (error == 0 && stuff_logged)
     error= ordered_commit(thd, all, /* skip_commit */ true);
+
+  /* Deferred xa rollback to engines */
+  if (!error && thd->lex->sql_command == SQLCOM_XA_ROLLBACK)
+    error= ha_rollback_low(thd, all);
 
   if (check_write_error(thd))
   {
@@ -7482,6 +7670,7 @@ TC_LOG::enum_result MYSQL_BIN_LOG::write_binlog_and_commit_engine(THD *thd,
   Transaction_ctx *trn_ctx= thd->get_transaction();
   my_xid xid= trn_ctx->xid_state()->get_xid()->get_my_xid();
   bool stuff_logged= false;
+  bool skip_commit= false;
 
   DBUG_PRINT("enter", ("thd: 0x%llx, all: %s, xid: %llu, cache_mngr: 0x%llx",
                        (ulonglong) thd, YESNO(all), (ulonglong) xid,
@@ -7533,6 +7722,20 @@ TC_LOG::enum_result MYSQL_BIN_LOG::write_binlog_and_commit_engine(THD *thd,
       cache_mngr->stmt_cache.is_binlog_empty())
     DBUG_RETURN(RESULT_SUCCESS);
 
+  if (thd->lex->sql_command == SQLCOM_XA_COMMIT)
+  {
+    /* The Commit phase of the XA two phase logging. */
+
+    DBUG_ASSERT(all);
+
+    XID_STATE *xs= thd->get_transaction()->xid_state();
+
+    if (DBUG_EVALUATE_IF("simulate_xa_commit_log_failure", true,
+                         do_binlog_xa_commit_rollback(thd, xs->get_xid(),
+                                                      true)))
+      DBUG_RETURN(RESULT_ABORTED);
+  }
+
   /*
     If there is anything in the stmt cache, and GTIDs are enabled,
     then this is a single statement outside a transaction and it is
@@ -7568,7 +7771,7 @@ TC_LOG::enum_result MYSQL_BIN_LOG::write_binlog_and_commit_engine(THD *thd,
 
     /*
       We are committing an XA transaction if it is a "real" transaction
-      and have an XID assigned (because some handlerton registered). A
+      and has an XID assigned (because some handlerton registered). A
       transaction is "real" if either 'all' is true or the 'all.ha_list'
       is empty.
 
@@ -7576,9 +7779,26 @@ TC_LOG::enum_result MYSQL_BIN_LOG::write_binlog_and_commit_engine(THD *thd,
       handlerton will then make the transaction XA, which is not really
       true. This occurs for example if a MyISAM statement is executed
       with row-based replication on.
-   */
-    if (real_trans && xid && trn_ctx->rw_ha_count(trx_scope) > 1 &&
-        !trn_ctx->no_2pc(trx_scope))
+    */
+    if (is_loggable_xa_prepare(thd))
+    {
+      /* The prepare phase of XA transaction two phase logging. */
+      int err= 0;
+      bool one_phase= get_xa_opt(thd) == XA_ONE_PHASE;
+
+      DBUG_ASSERT(thd->lex->sql_command != SQLCOM_XA_COMMIT || one_phase);
+
+      XID_STATE *xs= thd->get_transaction()->xid_state();
+      XA_prepare_log_event end_evt(thd, xs->get_xid(), one_phase);
+
+      xs->set_binlogged();
+      skip_commit= true;
+      err= cache_mngr->trx_cache.finalize(thd, &end_evt, xs);
+      if (err)
+        DBUG_RETURN(RESULT_ABORTED);
+    }
+    else if (real_trans && xid && trn_ctx->rw_ha_count(trx_scope) > 1 &&
+             !trn_ctx->no_2pc(trx_scope))
     {
       Xid_log_event end_evt(thd, xid);
       if (cache_mngr->trx_cache.finalize(thd, &end_evt))
@@ -7635,7 +7855,7 @@ TC_LOG::enum_result MYSQL_BIN_LOG::write_binlog_and_commit_engine(THD *thd,
       DBUG_RETURN(RESULT_ABORTED);
     }
 
-    if (ordered_commit(thd, all))
+    if (ordered_commit(thd, all, skip_commit))
       DBUG_RETURN(RESULT_INCONSISTENT);
   }
   else
@@ -8693,8 +8913,31 @@ static int binlog_start_trans_and_stmt(THD *thd, Log_event *start_event)
   */
   if (cache_data->is_binlog_empty())
   {
-    Query_log_event qinfo(thd, STRING_WITH_LEN("BEGIN"),
-                          is_transactional, FALSE, TRUE, 0, TRUE);
+    static const char begin[]= "BEGIN";
+    const char *query= NULL;
+    char buf[XID::ser_buf_size];
+    char xa_start[sizeof("XA START") + 1 + sizeof(buf)];
+    XID_STATE *xs= thd->get_transaction()->xid_state();
+    int qlen= sizeof(begin) - 1;
+
+    if (is_transactional && xs->has_state(XID_STATE::XA_ACTIVE))
+    {
+      /*
+        XA-prepare logging case.
+      */
+      qlen= sprintf(xa_start, "XA START %s", xs->get_xid()->serialize(buf));
+      query= xa_start;
+    }
+    else
+    {
+      /*
+        Regular transaction case.
+      */
+      query= begin;
+    }
+
+    Query_log_event qinfo(thd, query, qlen,
+                          is_transactional, false, true, 0, true);
     if (cache_data->write_event(thd, &qinfo))
       DBUG_RETURN(1);
   }
