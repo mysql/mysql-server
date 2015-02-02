@@ -3051,8 +3051,8 @@ runMNF(NDBT_Context* ctx, NDBT_Step* step)
     return NDBT_OK;
   }
 
-  Vector<int> part0;
-  Vector<int> part1;
+  Vector<int> part0; // One node per ng
+  Vector<int> part1; // All other nodes
   Bitmask<255> part0mask;
   Bitmask<255> part1mask;
   Bitmask<255> ngmask;
@@ -3089,8 +3089,9 @@ runMNF(NDBT_Context* ctx, NDBT_Step* step)
     int cnt, *nodes;
     int master = res.getMasterNodeId();
     int nextMaster = res.getNextMasterNodeId(master);
+    bool obsolete_error = false;
 
-    bool cmf = false;
+    bool cmf = false; // true if both master and nextMaster will crash
     if (part0mask.get(master) && part0mask.get(nextMaster))
     {
       cmf = true;
@@ -3116,7 +3117,7 @@ runMNF(NDBT_Context* ctx, NDBT_Step* step)
       } 
       else 
       {
-        cnt = part1.size();
+        cnt = part0.size();
         nodes = part0.getBase();
         printf("restarting part0");
       }
@@ -3213,6 +3214,8 @@ runMNF(NDBT_Context* ctx, NDBT_Step* step)
       int lcp = 7099;
       res.insertErrorInNode(master, 7193);
       res.dumpStateOneNode(master, &lcp, 1);
+
+      obsolete_error = true;
       break;
     }
     case 6:
@@ -3225,18 +3228,59 @@ runMNF(NDBT_Context* ctx, NDBT_Step* step)
       int lcp = 7099;
       res.insertErrorInNode(master, 7193);
       res.dumpStateOneNode(master, &lcp, 1);
+
+      obsolete_error = true;
       break;
     }
     }
     
-    if (res.waitNodesNoStart(nodes, cnt))
-      return NDBT_FAILED;
+    /**
+     * Note: After version >= 7.4.3, the EMPTY_LCP protocol
+     * tested by case 5 & 6 above has become obsolete.
+     * Thus, the error insert 7206 / 5008 in all nodes
+     * has no effect in case 5 & 6
+     * (EMPTY_LCP code still kept for backward compat.)
+     * -> Only master node is now killed by error 7193 insert,
+     *    and test below now verify that EMPTY_LCP not
+     *    being used.
+     *
+     * Test will fail if mixing versions with and
+     * without EMPTY_LCP in use.
+     */ 
+    if (obsolete_error) // Error no longer in use, only master will crash
+    {
+      if (res.waitNodesNoStart(&master, 1))
+        return NDBT_FAILED;
     
-    if (res.startNodes(nodes, cnt))
-      return NDBT_FAILED;
+      if (res.startNodes(&master, 1))
+        return NDBT_FAILED;
+
+    }
+    else
+    {
+      if (res.waitNodesNoStart(nodes, cnt))
+        return NDBT_FAILED;
+    
+      if (res.startNodes(nodes, cnt))
+        return NDBT_FAILED;
+    }
     
     if (res.waitClusterStarted())
       return NDBT_FAILED; 
+
+    if (obsolete_error) // Error never cleared nor node restarted
+    {
+      /*
+       * For obsolete error inserts, error is never cleared nor node
+       * restarted.  Clearing those here after test case succeeded.
+       */
+      for (int i = 0; i<cnt; i++)
+      {
+        if (nodes[i] == master)
+          continue;
+        res.insertErrorInNode(nodes[i], 0);
+      }
+    }
   }
 
   ctx->stopTest();
@@ -5335,12 +5379,12 @@ int master_err[] =
   0
 };
 
-int other_err[] =
+static struct { int errnum; bool obsolete; } other_err[] =
 {
-  7205, // execMASTER_LCPREQ
-  7206, // execEMPTY_LCP_CONF
-  7230, // sendMASTER_LCPCONF and die
-  7232, // Die after sending MASTER_LCPCONF
+  {7205, false}, // execMASTER_LCPREQ
+  {7206, true},  // execEMPTY_LCP_CONF (not in use since 7.4.3)
+  {7230, false}, // sendMASTER_LCPCONF and die
+  {7232, false}, // Die after sending MASTER_LCPCONF
   0
 };
 
@@ -5359,9 +5403,10 @@ runLCPTakeOver(NDBT_Context* ctx, NDBT_Step* step)
   for (int i = 0; master_err[i] != 0; i++)
   {
     int errno1 = master_err[i];
-    for (int j = 0; other_err[j] != 0; j++)
+    for (int j = 0; other_err[j].errnum != 0; j++)
     {
-      int errno2 = other_err[j];
+      int errno2 = other_err[j].errnum;
+      bool only_master_crash = other_err[j].obsolete;
 
       /**
        * we want to kill master,
@@ -5388,17 +5433,31 @@ runLCPTakeOver(NDBT_Context* ctx, NDBT_Step* step)
       int val1[] = { 7099 };
       res.dumpStateOneNode(master, val1, 1);
       int list[] = { master, victim };
-      if (res.waitNodesNoStart(list, NDB_ARRAY_SIZE(list)))
+      int cnt = NDB_ARRAY_SIZE(list);
+      if (only_master_crash)
+      {
+        cnt = 1;
+      }
+      if (res.waitNodesNoStart(list, cnt))
       {
         return NDBT_FAILED;
       }
-      if (res.startNodes(list, NDB_ARRAY_SIZE(list)))
+      if (res.startNodes(list, cnt))
       {
         return NDBT_FAILED;
       }
       if (res.waitClusterStarted())
       {
         return NDBT_FAILED;
+      }
+      if (only_master_crash)
+      {
+        /*
+         * Error set in victim should never be reached, so it will not
+         * be cleared, nor node restarted.  Clearing error here after
+         * test case succeeded.
+         */
+        res.insertErrorInNode(victim, 0);
       }
     }
   }
