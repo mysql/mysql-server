@@ -37,7 +37,7 @@ select USER(),CURRENT_USER();
 --echo ## test SET PASSWORD
 #--error ER_SET_PASSWORD_AUTH_PLUGIN
 --echo Setting password is allowed but it won't affect the authentication mechanism.
-SET PASSWORD = PASSWORD('plug_dest');
+SET PASSWORD = 'plug_dest';
 
 connection default;
 disconnect plug_con;
@@ -120,15 +120,6 @@ connection default;
 disconnect plug_con_grant;
 
 DROP USER new_grant_user;
-
---echo # try re-create existing user via GRANT IDENTIFIED WITH
---error ER_GRANT_PLUGIN_USER_EXISTS
-GRANT ALL PRIVILEGES ON test_grant_db.* TO plug
-  IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
-
---error ER_GRANT_PLUGIN_USER_EXISTS
-GRANT ALL PRIVILEGES ON test_grant_db.* TO plug_dest
-  IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
 
 --error ER_PARSE_ERROR
 REVOKE SELECT on test_grant_db.* FROM joro 
@@ -461,7 +452,6 @@ DROP USER uplain@localhost;
 INSERT INTO mysql.user(
   Host, 
   User, 
-  Password,  
   Select_priv, 
   Insert_priv,
   Update_priv, 
@@ -499,7 +489,7 @@ INSERT INTO mysql.user(
   max_connections)
 VALUES (
   'localhost', 
-  'inserttest', '', 
+  'inserttest',
   'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y',
   'Y', 'Y',  'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 
   /*!50001 'Y', 'Y', 'Y', 'Y', 'Y', */'', '', '', '', '0', '0', '0');
@@ -537,7 +527,7 @@ SELECT IS_NULLABLE, COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
 --echo #
 
 CREATE USER bug12610784@localhost; 
-SET PASSWORD FOR bug12610784@localhost = PASSWORD('secret');
+SET PASSWORD FOR bug12610784@localhost = 'secret';
 --disable_query_log
 --error ER_ACCESS_DENIED_ERROR
 connect(b12610784,localhost,bug12610784,,test);
@@ -574,7 +564,7 @@ connect(bug12818542_con,localhost,bug12818542,bug12818542_dest);
 connection bug12818542_con;
 SELECT USER(),CURRENT_USER();
 
-SET PASSWORD = PASSWORD('bruhaha');
+SET PASSWORD = 'bruhaha';
 
 connection default;
 disconnect bug12818542_con;
@@ -604,7 +594,7 @@ connect(bug12818542_con,localhost,bug12818542,bug12818542_dest);
 connection bug12818542_con;
 SELECT USER(),CURRENT_USER();
 
-SET PASSWORD = PASSWORD('bruhaha');
+SET PASSWORD = 'bruhaha';
 
 connection default;
 disconnect bug12818542_con;

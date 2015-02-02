@@ -1059,6 +1059,8 @@ Success: Was able to run FTWRL while 'replace into t1_temp select * from t1_base
 # 
 # 29.1) REVOKE privileges is incompatible with FTWRL. 
 grant all privileges on t1_base to mysqltest_u1;
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 # Skip last part of testing as this statement does
 # implicit commit and releases metadata locks in
 # non-standard place.
@@ -1132,8 +1134,8 @@ Success: Was able to run 'set @a:= f2_temp()' with FTWRL active in another conne
 create user mysqltest_u1;
 # Skip last part of compatibility testing as our helper debug
 # sync-point doesn't work for SET statements.
-Success: Was not able to run 'set password for 'mysqltest_u1' = password('')' under FTWRL.
-Success: 'set password for 'mysqltest_u1' = password('')' is blocked by FTWRL active in another connection.
+Success: Was not able to run 'ALTER USER 'mysqltest_u1' IDENTIFIED BY ''' under FTWRL.
+Success: 'ALTER USER 'mysqltest_u1' IDENTIFIED BY ''' is blocked by FTWRL active in another connection.
 drop user mysqltest_u1;
 #
 # 31.d.II) SET READ_ONLY is compatible with FTWRL (but has no

@@ -13,10 +13,11 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <m_string.h>
-#include "log_event.h"
 #include "rpl_trx_boundary_parser.h"
-#include "log.h"                                /* sql_print_warning */
+
+#include "log.h"           // sql_print_warning
+#include "log_event.h"     // Log_event
+
 
 #ifndef DBUG_OFF
 /* Event parser state names */

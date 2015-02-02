@@ -40,9 +40,7 @@ USER()	CURRENT_USER()
 plug@localhost	plug_dest@%
 ## test SET PASSWORD
 Setting password is allowed but it won't affect the authentication mechanism.
-SET PASSWORD = PASSWORD('plug_dest');
-Warnings:
-Note	1699	SET PASSWORD has no significance for users authenticating via plugins
+SET PASSWORD = 'plug_dest';
 ## test bad credentials
 ERROR 28000: Access denied for user 'plug'@'localhost' (using password: YES)
 ## test bad default plugin : should get CR_AUTH_PLUGIN_CANNOT_LOAD
@@ -52,7 +50,11 @@ USER()	CURRENT_USER()
 plug@localhost	plug_dest@%
 ## test no_auto_create_user sql mode with plugin users
 SET @@sql_mode=no_auto_create_user;
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 GRANT INSERT ON TEST.* TO grant_user IDENTIFIED WITH 'test_plugin_server';
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 SET @@sql_mode=default;
 DROP USER grant_user;
 ## test utf-8 user name
@@ -67,6 +69,8 @@ CREATE DATABASE test_grant_db;
 # create new user via GRANT WITH
 GRANT ALL PRIVILEGES ON test_grant_db.* TO new_grant_user 
 IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 GRANT PROXY ON plug_dest TO new_grant_user;
 select USER(),CURRENT_USER();
 USER()	CURRENT_USER()
@@ -78,8 +82,6 @@ REVOKE ALL PRIVILEGES ON test_grant_db.* FROM new_grant_user;
 # try re-create existing user via GRANT IDENTIFIED BY
 GRANT ALL PRIVILEGES ON test_grant_db.* TO new_grant_user
 IDENTIFIED BY 'unused_password';
-Warnings:
-Warning	1699	SET PASSWORD has no significance for users authenticating via plugins
 # make sure password doesn't take precendence
 ERROR 28000: Access denied for user 'new_grant_user'@'localhost' (using password: YES)
 #make sure plugin auth still available
@@ -90,13 +92,6 @@ USE test_grant_db;
 CREATE TABLE t1 (a INT);
 DROP TABLE t1;
 DROP USER new_grant_user;
-# try re-create existing user via GRANT IDENTIFIED WITH
-GRANT ALL PRIVILEGES ON test_grant_db.* TO plug
-IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
-ERROR HY000: GRANT with IDENTIFIED WITH is illegal because the user plug already exists
-GRANT ALL PRIVILEGES ON test_grant_db.* TO plug_dest
-IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
-ERROR HY000: GRANT with IDENTIFIED WITH is illegal because the user plug_dest already exists
 REVOKE SELECT on test_grant_db.* FROM joro 
 INDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'' at line 2
@@ -154,6 +149,8 @@ REVOKE PROXY ON ''@'' FROM grant_plug;
 should work : root has PROXY to all users
 GRANT PROXY ON ''@'' TO proxy_admin IDENTIFIED BY 'test' 
 WITH GRANT OPTION;
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 need USAGE : PROXY doesn't contain it.
 GRANT USAGE on *.* TO proxy_admin;
 in proxy_admin_con;
@@ -240,18 +237,21 @@ WL#5706 -- show the above got logged/rewritten correctly
 SELECT argument FROM mysql.general_log WHERE argument LIKE CONCAT('%IDENTIFIED ','WITH %');
 argument
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
+CREATE USER 'plug_dest'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' PASSWORD EXPIRE DEFAULT
 GRANT INSERT ON TEST.* TO grant_user IDENTIFIED WITH 'test_plugin_server'
 CREATE USER `Ÿ` IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
 GRANT ALL PRIVILEGES ON test_grant_db.* TO new_grant_user 
 IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
-GRANT ALL PRIVILEGES ON test_grant_db.* TO plug
-IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
-GRANT ALL PRIVILEGES ON test_grant_db.* TO plug_dest
-IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
+GRANT ALL PRIVILEGES ON `test_grant_db`.* TO 'new_grant_user'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>'
 CREATE USER grant_plug IDENTIFIED WITH 'test_plugin_server' 
 AS 'grant_plug_dest'
+CREATE USER 'grant_plug_dest'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' PASSWORD EXPIRE DEFAULT
+CREATE USER 'grant_plug_dest2'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' PASSWORD EXPIRE DEFAULT
+GRANT USAGE ON *.* TO ''@'','proxy_admin'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' WITH GRANT OPTION
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
+CREATE USER 'plug_dest'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' PASSWORD EXPIRE DEFAULT
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
+CREATE USER 'plug_dest'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' PASSWORD EXPIRE DEFAULT
 ## cleanup
 DROP USER plug;
 DROP USER plug_dest;
@@ -262,8 +262,12 @@ SET GLOBAL general_log= @old_general_log;
 #  Bug #56798 : Wrong credentials assigned when using a proxy user.
 #
 GRANT ALL PRIVILEGES ON *.* TO power_user;
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 GRANT USAGE ON anonymous_db.* TO ''@''
   IDENTIFIED WITH 'test_plugin_server' AS 'power_user';
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 GRANT PROXY ON power_user TO ''@'';
 CREATE DATABASE confidential_db;
 SELECT user(),current_user(),@@proxy_user;
@@ -384,7 +388,6 @@ DROP USER uplain@localhost;
 INSERT INTO mysql.user(
 Host, 
 User, 
-Password,  
 Select_priv, 
 Insert_priv,
 Update_priv, 
@@ -422,7 +425,7 @@ max_updates,
 max_connections)
 VALUES (
 'localhost', 
-'inserttest', '', 
+'inserttest',
 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y',
 'Y', 'Y',  'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 
 /*!50001 'Y', 'Y', 'Y', 'Y', 'Y', */'', '', '', '', '0', '0', '0');
@@ -494,7 +497,7 @@ NO	plugin
 # Bug #12610784: SET PASSWORD INCORRECTLY KEEP AN OLD EMPTY PASSWORD
 #
 CREATE USER bug12610784@localhost;
-SET PASSWORD FOR bug12610784@localhost = PASSWORD('secret');
+SET PASSWORD FOR bug12610784@localhost = 'secret';
 ERROR 28000: Access denied for user 'bug12610784'@'localhost' (using password: NO)
 DROP USER bug12610784@localhost;
 #
@@ -517,9 +520,7 @@ GRANT PROXY ON bug12818542_dest@localhost TO bug12818542@localhost;
 SELECT USER(),CURRENT_USER();
 USER()	CURRENT_USER()
 bug12818542@localhost	bug12818542_dest@localhost
-SET PASSWORD = PASSWORD('bruhaha');
-Warnings:
-Note	1699	SET PASSWORD has no significance for users authenticating via plugins
+SET PASSWORD = 'bruhaha';
 SELECT USER(),CURRENT_USER();
 USER()	CURRENT_USER()
 bug12818542@localhost	bug12818542_dest@localhost
@@ -537,9 +538,7 @@ GRANT PROXY ON bug12818542_dest@localhost TO bug12818542@localhost;
 SELECT USER(),CURRENT_USER();
 USER()	CURRENT_USER()
 bug12818542@localhost	bug12818542_dest@localhost
-SET PASSWORD = PASSWORD('bruhaha');
-Warnings:
-Note	1699	SET PASSWORD has no significance for users authenticating via plugins
+SET PASSWORD = 'bruhaha';
 SELECT USER(),CURRENT_USER();
 USER()	CURRENT_USER()
 bug12818542@localhost	bug12818542_dest@localhost

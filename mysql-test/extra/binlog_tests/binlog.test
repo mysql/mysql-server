@@ -227,8 +227,8 @@ create table if not exists t3 like tt1;
 
 --disable_warnings
 USE mysql;
-INSERT IGNORE INTO user SET host='localhost', user='@#@', password=password('Just a test');
-UPDATE user SET password=password('Another password') WHERE host='localhost' AND user='@#@';
+INSERT IGNORE INTO user SET host='localhost', user='@#@', authentication_string=password('Just a test');
+UPDATE user SET authentication_string=password('Another password') WHERE host='localhost' AND user='@#@';
 DELETE FROM user WHERE host='localhost' AND user='@#@';
 --enable_warnings
 

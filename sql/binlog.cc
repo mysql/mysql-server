@@ -22,6 +22,7 @@
 #include "rpl_handler.h"                    // RUN_HOOK
 #include "rpl_mi.h"                         // Master_info
 #include "rpl_rli.h"                        // Relay_log_info
+#include "rpl_rli_pdb.h"                    // Slave_worker
 #include "rpl_slave_commit_order_manager.h" // Commit_order_manager
 #include "rpl_trx_boundary_parser.h"        // Transaction_boundary_parser
 #include "sql_class.h"                      // THD

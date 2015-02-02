@@ -7344,6 +7344,10 @@ ER_MIX_OF_GROUP_FUNC_AND_FIELDS_V2
 ER_WARN_DEPRECATED_SYSVAR_UPDATE
   eng "Updating '%s' is deprecated. It will be made read-only in a future release."
 
+# Use this error message to deprecate SQL MODES
+ER_WARN_DEPRECATED_SQLMODE
+  eng "Setting sql mode '%s' is deprecated. It will be made read-only in a future release."
+
 ER_CANNOT_LOG_PARTIAL_DROP_DATABASE_WITH_GTID
   eng "DROP DATABASE failed; some tables may have been dropped but the database directory remains. The GTID has not been added to GTID_EXECUTED and the statement was not written to the binary log. Fix this as follows: (1) remove all files from the database directory %-.192s; (2) SET GTID_NEXT='%-.192s'; (3) DROP DATABASE `%-.192s`."
 

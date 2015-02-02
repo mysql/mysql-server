@@ -134,4 +134,9 @@ struct st_mysql_auth
   int interface_version;
   const char *client_auth_plugin;
   int (*authenticate_user)(MYSQL_PLUGIN_VIO *vio, MYSQL_SERVER_AUTH_INFO *info);
+  int (*generate_authentication_string)(char *outbuf,
+      unsigned int *outbuflen, const char *inbuf, unsigned int inbuflen);
+  int (*validate_authentication_string)(char* const inbuf, unsigned int buflen);
+  int (*set_salt)(const char *password, unsigned int password_len,
+                  unsigned char* salt, unsigned char *salt_len);
 };

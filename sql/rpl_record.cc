@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,11 +13,15 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "rpl_rli.h"
 #include "rpl_record.h"
-#include "rpl_slave.h"                  // Need to pull in slave_print_msg
-#include "rpl_utility.h"
-#include "rpl_rli.h"
+
+#include "my_bitmap.h"        // MY_BITMAP
+#include "derror.h"           // ER_THD
+#include "field.h"            // Field
+#include "mysqld.h"           // ER
+#include "rpl_rli.h"          // Relay_log_info
+#include "rpl_utility.h"      // table_def
+#include "table.h"            // TABLE
 
 using std::min;
 using std::max;

@@ -1,6 +1,8 @@
 use performance_schema;
 set @start_read_only= @@global.read_only;
 grant SELECT, UPDATE on performance_schema.* to pfsuser@localhost;
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 flush privileges;
 connect (con1, localhost, pfsuser, , test);
 connection default;

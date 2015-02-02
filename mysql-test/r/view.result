@@ -2932,6 +2932,7 @@ CREATE DATABASE bug21261DB;
 USE bug21261DB;
 CREATE TABLE t1 (x INT);
 CREATE SQL SECURITY INVOKER VIEW v1 AS SELECT x FROM t1;
+CREATE USER 'user21261'@'localhost';
 GRANT INSERT, UPDATE ON v1 TO 'user21261'@'localhost';
 GRANT INSERT, UPDATE ON t1 TO 'user21261'@'localhost';
 CREATE TABLE t2 (y INT);
@@ -3687,6 +3688,8 @@ Warnings:
 Warning	1423	Field of view 'test.v1' underlying table doesn't have a default value
 set @old_mode=@@sql_mode;
 set @@sql_mode=traditional;
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 insert into v1 values(1);
 ERROR HY000: Field of view 'test.v1' underlying table doesn't have a default value
 set @@sql_mode=@old_mode;

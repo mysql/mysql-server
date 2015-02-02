@@ -622,6 +622,8 @@ SET sql_mode='';
 CREATE TABLE default_date(a DATE NOT NULL DEFAULT '0000-00-00');
 INSERT INTO default_date VALUES();
 SET sql_mode='traditional';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 INSERT INTO default_date VALUES();
 ERROR 22007: Incorrect date value: '0000-00-00' for column 'a' at row 1
 INSERT INTO default_date VALUES('0000-00-00');

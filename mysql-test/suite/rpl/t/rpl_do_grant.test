@@ -35,22 +35,22 @@ show grants for rpl_do_grant@localhost;
 
 # test replication of SET PASSWORD
 connection master;
-set password for rpl_do_grant@localhost=password("does it work?");
+set password for rpl_do_grant@localhost="does it work?";
 sync_slave_with_master;
-select password<>_binary'' from mysql.user where user=_binary'rpl_do_grant';
+select authentication_string<>_binary'' from mysql.user where user=_binary'rpl_do_grant';
 
 #
 # Bug#24158 SET PASSWORD in binary log fails under ANSI_QUOTES
 #
 connection master;
-update mysql.user set password='' where user='rpl_do_grant';
+update mysql.user set authentication_string='' where user='rpl_do_grant';
 flush privileges;
-select password<>'' from mysql.user where user='rpl_do_grant';
+select authentication_string<>'' from mysql.user where user='rpl_do_grant';
 set sql_mode='ANSI_QUOTES';
-set password for rpl_do_grant@localhost=password('does it work?');
+set password for rpl_do_grant@localhost='does it work?';
 set sql_mode='';
 sync_slave_with_master;
-select password<>'' from mysql.user where user='rpl_do_grant';
+select authentication_string<>'' from mysql.user where user='rpl_do_grant';
 
 
 # clear what we have done, to not influence other tests.

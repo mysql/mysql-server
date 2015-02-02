@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,14 +20,11 @@
 #error "Don't include this C++ header file from a non-C++ file!"
 #endif
 
-#include "m_string.h"
+#include "my_global.h"
+#include "prealloced_array.h"   // Prealloced_array
 #ifdef MYSQL_SERVER
-#include "table.h"                              /* TABLE_LIST */
+#include "table.h"              // TABLE_LIST
 #endif
-#include "mysql_com.h"
-#include <hash.h>
-#include "prealloced_array.h"
-
 
 class Relay_log_info;
 class Log_event;

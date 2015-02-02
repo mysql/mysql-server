@@ -35,10 +35,10 @@ let $message= Testcase 3.5.3:;
 	eval create table t1 (f1 char(20)) engine= $engine_type;
 
 	create User test_noprivs@localhost;
-	set password for test_noprivs@localhost = password('PWD');
+	set password for test_noprivs@localhost = 'PWD';
 
 	create User test_yesprivs@localhost;
-	set password for test_yesprivs@localhost = password('PWD');
+	set password for test_yesprivs@localhost = 'PWD';
 
 #Section 3.5.3.1 / 3.5.3.2
 # Test case: Ensure TRIGGER privilege is required to create a trigger

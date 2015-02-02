@@ -10,6 +10,8 @@ set @@autocommit=0;
 start transaction;
 insert into t values (1);
 grant select on t to x@y;
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 rollback;
 show grants for x@y;
 Grants for x@y
