@@ -27,7 +27,7 @@ select * from t1 limit 10;
 --source include/sync_slave_sql_with_master.inc
 stop slave;
 connection master;
-set password for root@"localhost" = password('foo');
+set password for root@"localhost" = 'foo';
 connection slave;
 start slave;
 connection master;
@@ -35,7 +35,7 @@ connection master;
 # Give slave time to do at last one failed connect retry
 # This one must be short so that the slave will not stop retrying
 real_sleep 2;
-set password for root@"localhost" = password('');
+set password for root@"localhost" = '';
 # Give slave time to connect (will retry every second)
 sleep 2;
 
@@ -131,8 +131,7 @@ connection master1;
 drop table t1;
 create table t1 (n int);
 insert into t1 values(3456);
-insert ignore into mysql.user (Host, User, Password)
- VALUES ("10.10.10.%", "blafasel2", password("blafasel2"));
+create user 'blafasel2'@'10.10.10.%' identified by 'blafasel2';
 select select_priv,user from mysql.user where user = _binary'blafasel2';
 update mysql.user set Select_priv = "Y" where User= _binary"blafasel2";
 select select_priv,user from mysql.user where user = _binary'blafasel2';

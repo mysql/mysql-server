@@ -22,6 +22,7 @@
                                         /* check_for_max_user_connections */
                                         /* release_user_connection */
 #include "hostname.h"                   /* Host_errors, inc_host_errors */
+#include "password.h"                 // my_make_scrambled_password
 #include "sql_db.h"                     /* mysql_change_db */
 #include "connection_handler_manager.h"
 #include "crypt_genhash_impl.h"         /* generate_user_salt */
@@ -392,58 +393,6 @@ void optimize_plugin_compare_by_pointer(LEX_CSTRING *plugin_name)
       plugin_name->str= native_password_plugin_name.str;
       plugin_name->length= native_password_plugin_name.length;
   }
-}
-
-
-/*  
- PASSWORD_VALIDATION_CODE, invoking appropriate plugin to validate
- the password strength.
-*/
-
-/* for validate_password_strength SQL function */
-int check_password_strength(String *password)
-{
-  int res= 0;
-  DBUG_ASSERT(password != NULL);
-  plugin_ref plugin= my_plugin_lock_by_name(0, validate_password_plugin_name,
-                                            MYSQL_VALIDATE_PASSWORD_PLUGIN);
-  if (plugin)
-  {
-    st_mysql_validate_password *password_strength=
-                      (st_mysql_validate_password *) plugin_decl(plugin)->info;
-
-    res= password_strength->get_password_strength(password);
-    plugin_unlock(0, plugin);
-  }
-  return(res);
-}
-
-
-/* called when new user is created or exsisting password is changed */
-int check_password_policy(String *password)
-{
-  plugin_ref plugin;
-  String empty_string;
-
-  if (!password)
-    password= &empty_string;
-
-  plugin= my_plugin_lock_by_name(0, validate_password_plugin_name,
-                                 MYSQL_VALIDATE_PASSWORD_PLUGIN);
-  if (plugin)
-  {
-    st_mysql_validate_password *password_validate=
-                      (st_mysql_validate_password *) plugin_decl(plugin)->info;
-
-    if (!password_validate->validate_password(password))
-    {  
-      my_error(ER_NOT_VALID_PASSWORD, MYF(0));
-      plugin_unlock(0, plugin);
-      return (1);
-    }
-    plugin_unlock(0, plugin);
-  }
-  return (0);
 }
 
 
@@ -2418,6 +2367,116 @@ acl_authenticate(THD *thd, size_t com_change_user_pkt_len)
   DBUG_RETURN(0);
 }
 
+int generate_native_password(char *outbuf, unsigned int *buflen,
+                             const char *inbuf, unsigned int inbuflen)
+{
+  if (my_validate_password_policy(inbuf))
+    return 1;
+  /* for empty passwords */
+  if (inbuflen == 0)
+  {
+    *buflen= 0;
+    return 0;
+  }
+  char *buffer= (char*)my_malloc(PSI_NOT_INSTRUMENTED,
+                                 SCRAMBLED_PASSWORD_CHAR_LENGTH+1,
+                                 MYF(0));
+  if (buffer == NULL)
+    return 1;
+  my_make_scrambled_password_sha1(buffer, inbuf, inbuflen);
+  /*
+    if buffer specified by server is smaller than the buffer given
+    by plugin then return error
+  */
+  if (*buflen < strlen(buffer))
+  {
+    my_free(buffer);
+    return 1;
+  }
+  *buflen= SCRAMBLED_PASSWORD_CHAR_LENGTH;
+  memcpy(outbuf, buffer, *buflen);
+  my_free(buffer);
+  return 0;
+}
+
+int validate_native_password_hash(char* const inbuf, unsigned int buflen)
+{
+  /* empty password is also valid */
+  if ((buflen &&
+      buflen == SCRAMBLED_PASSWORD_CHAR_LENGTH && inbuf[0] == '*') ||
+      buflen == 0)
+    return 0;
+  return 1;
+}
+
+int set_native_salt(const char* password, unsigned int password_len,
+                    unsigned char* salt, unsigned char *salt_len)
+{
+  /* for empty passwords salt_len is 0 */
+  if (password_len == 0)
+    *salt_len= 0;
+  else
+  {
+    get_salt_from_password(salt, password);
+    *salt_len= SCRAMBLE_LENGTH;
+  }
+  return 0;
+}
+
+#if defined(HAVE_OPENSSL)
+int generate_sha256_password(char *outbuf, unsigned int *buflen,
+                             const char *inbuf, unsigned int inbuflen)
+{
+  if (my_validate_password_policy(inbuf))
+    return 1;
+  if (inbuflen == 0)
+  {
+    *buflen= 0;
+    return 0;
+  }
+  char *buffer= (char*)my_malloc(PSI_NOT_INSTRUMENTED,
+                                 CRYPT_MAX_PASSWORD_SIZE+1,
+                                 MYF(0));
+  if (buffer == NULL)
+    return 1;
+  my_make_scrambled_password(buffer, inbuf, inbuflen);
+  memcpy(outbuf, buffer, CRYPT_MAX_PASSWORD_SIZE);
+  /*
+    if buffer specified by server is smaller than the buffer given
+    by plugin then return error
+  */
+  if (*buflen < strlen(buffer))
+  {
+    my_free(buffer);
+    return 1;
+  }
+  *buflen= strlen(buffer);
+  my_free(buffer);
+  return 0;
+}
+
+int validate_sha256_password_hash(char* const inbuf, unsigned int buflen)
+{
+  if ((inbuf && inbuf[0] == '$' &&
+      inbuf[1] == '5' && inbuf[2] == '$' &&
+      buflen < CRYPT_MAX_PASSWORD_SIZE+1) ||
+      buflen == 0)
+    return 0;
+  return 1;
+}
+
+int set_sha256_salt(const char* password __attribute__((unused)),
+                    unsigned int password_len __attribute__((unused)),
+                    unsigned char* salt __attribute__((unused)),
+                    unsigned char *salt_len)
+{
+  *salt_len= 0;
+  return 0;
+}
+
+#endif
+
+
 /**
   MySQL Server Password Authentication Plugin
 
@@ -3746,7 +3805,10 @@ static struct st_mysql_auth native_password_handler=
 {
   MYSQL_AUTHENTICATION_INTERFACE_VERSION,
   native_password_plugin_name.str,
-  native_password_authenticate
+  native_password_authenticate,
+  generate_native_password,
+  validate_native_password_hash,
+  set_native_salt
 };
 
 #if defined(HAVE_OPENSSL)
@@ -3754,7 +3816,10 @@ static struct st_mysql_auth sha256_password_handler=
 {
   MYSQL_AUTHENTICATION_INTERFACE_VERSION,
   sha256_password_plugin_name.str,
-  sha256_password_authenticate
+  sha256_password_authenticate,
+  generate_sha256_password,
+  validate_sha256_password_hash,
+  set_sha256_salt
 };
 
 #endif /* HAVE_OPENSSL */
@@ -3769,7 +3834,7 @@ mysql_declare_plugin(mysql_password)
   PLUGIN_LICENSE_GPL,                           /* License          */
   NULL,                                         /* Init function    */
   NULL,                                         /* Deinit function  */
-  0x0100,                                       /* Version (1.0)    */
+  0x0101,                                       /* Version (1.0)    */
   NULL,                                         /* status variables */
   NULL,                                         /* system variables */
   NULL,                                         /* config options   */
@@ -3786,7 +3851,7 @@ mysql_declare_plugin(mysql_password)
   PLUGIN_LICENSE_GPL,                           /* License          */
   &init_sha256_password_handler,                /* Init function    */
   NULL,                                         /* Deinit function  */
-  0x0100,                                       /* Version (1.0)    */
+  0x0101,                                       /* Version (1.0)    */
   NULL,                                         /* status variables */
 #if !defined(HAVE_YASSL)
   sha256_password_sysvars,                      /* system variables */

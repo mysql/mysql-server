@@ -366,6 +366,7 @@ my_bool opt_large_pages= 0;
 my_bool opt_super_large_pages= 0;
 my_bool opt_myisam_use_mmap= 0;
 my_bool offline_mode= 0;
+my_bool opt_log_backward_compatible_user_definitions= 0;
 uint   opt_large_page_size= 0;
 uint default_password_lifetime= 0;
 
@@ -2562,6 +2563,7 @@ SHOW_VAR com_status_vars[]= {
   {"xa_recover",           (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_XA_RECOVER]),SHOW_LONG_STATUS},
   {"xa_rollback",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_XA_ROLLBACK]),SHOW_LONG_STATUS},
   {"xa_start",             (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_XA_START]),SHOW_LONG_STATUS},
+  {"show_create_user",     (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_CREATE_USER]),SHOW_LONG_STATUS},
   {NullS, NullS, SHOW_LONG}
 };
 

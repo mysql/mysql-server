@@ -14,12 +14,18 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "rpl_write_set_handler.h"
-#include "my_dbug.h"                   // DBUG_ENTER
+
+#include "my_global.h"
+#include "my_murmur3.h"    // murmur3_32
+#include "my_stacktrace.h" // my_safe_itoa
+#include "field.h"         // Field
+#include "sql_class.h"     // THD
+#include "sql_list.h"      // List
+#include "table.h"         // TABLE
+
 #include <map>
 #include <string>
 #include <vector>
-#include <my_murmur3.h>
-#include <my_stacktrace.h>
 
 #define NAME_READ_BUFFER_SIZE 1024
 

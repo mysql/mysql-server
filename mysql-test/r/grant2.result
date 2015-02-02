@@ -11,6 +11,8 @@ call mtr.add_suppression("Did not write failed .* into binary log while "
 call mtr.add_suppression("Did not write failed .* into binary log while "
                          "revoking all_privileges from a list of users.");
 grant all privileges on `my\_1`.* to mysqltest_1@localhost with grant option;
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 grant create user on *.* to mysqltest_1@localhost;
 create user mysqltest_2@localhost;
 grant select on `my\_1`.* to mysqltest_2@localhost;
@@ -18,24 +20,36 @@ grant select on `my\_1`.* to mysqltest_2@localhost identified by 'pass';
 ERROR 42000: Access denied for user 'mysqltest_1'@'localhost' to database 'mysql'
 grant update on mysql.* to mysqltest_1@localhost;
 grant select on `my\_1`.* to mysqltest_2@localhost identified by 'pass';
+Warnings:
+Warning	1287	Using GRANT statement to modify existing user's properties other than privileges is deprecated and will be removed in future release. Use ALTER USER statement for this operation.
 grant select on `my\_1`.* to mysqltest_3@localhost;
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 grant insert on mysql.* to mysqltest_1@localhost;
 grant select on `my\_1`.* to mysqltest_3@localhost;
 grant select on `my\_1`.* to mysqltest_4@localhost identified by 'pass';
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 delete from mysql.user where user like 'mysqltest\_%';
 delete from mysql.db where user like 'mysqltest\_%';
 delete from mysql.tables_priv where user like 'mysqltest\_%';
 delete from mysql.columns_priv where user like 'mysqltest\_%';
 flush privileges;
 grant all privileges on `my\_%`.* to mysqltest_1@localhost with grant option;
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 grant create user on *.* to mysqltest_1@localhost;
 select current_user();
 current_user()
 mysqltest_1@localhost
 grant all privileges on `my\_1`.* to mysqltest_2@localhost with grant option;
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 grant all privileges on `my_%`.* to mysqltest_3@localhost with grant option;
 ERROR 42000: Access denied for user 'mysqltest_1'@'localhost' to database 'my_%'
 set @@sql_mode='NO_AUTO_CREATE_USER';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 select @@sql_mode;
 @@sql_mode
 NO_AUTO_CREATE_USER
@@ -43,6 +57,8 @@ grant select on `my\_1`.* to mysqltest_4@localhost with grant option;
 ERROR 42000: Can't find any matching row in the user table
 grant select on `my\_1`.* to mysqltest_4@localhost identified by 'mypass'
 with grant option;
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 show grants for mysqltest_1@localhost;
 Grants for mysqltest_1@localhost
 GRANT CREATE USER ON *.* TO 'mysqltest_1'@'localhost'
@@ -58,6 +74,8 @@ delete from mysql.db where user like 'mysqltest\_%';
 flush privileges;
 create database mysqltest_1;
 grant all privileges on `mysqltest\_1`.* to mysqltest_1@localhost with grant option;
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 select current_user();
 current_user()
 mysqltest_1@localhost
@@ -78,6 +96,8 @@ drop database mysqltest_1;
 flush privileges;
 create database mysqltest;
 grant INSERT, SELECT on mysqltest.* to mysqltest_1@localhost;
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 flush privileges;
 use mysqltest;
 create table t1 (id int primary key, data varchar(255));
@@ -99,6 +119,8 @@ delete from mysql.db where user like 'mysqltest\_%';
 flush privileges;
 create table t1 (a int, b int);
 grant select (a) on t1 to mysqltest_1@localhost with grant option;
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 grant select (a,b) on t1 to mysqltest_2@localhost;
 ERROR 42000: SELECT command denied to user 'mysqltest_1'@'localhost' for column 'b' in table 't1'
 grant select on t1 to mysqltest_3@localhost;
@@ -124,6 +146,8 @@ drop user mysqltest_1@host1, mysqltest_2@host2, mysqltest_4@host4,
 mysqltest_5@host5, mysqltest_6@host6, mysqltest_7@host7;
 create database mysqltest_1;
 grant select, insert, update on `mysqltest\_1`.* to mysqltest_1@localhost;
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 set sql_log_off = 1;
 ERROR 42000: Access denied; you need (at least one of) the SUPER privilege(s) for this operation
 set sql_log_bin = 0;
@@ -133,6 +157,8 @@ delete from mysql.db where user like 'mysqltest\_1';
 drop database mysqltest_1;
 flush privileges;
 set sql_mode='maxdb';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 drop table if exists t1, t2;
 create table t1(c1 int);
 create table t2(c1 int, c2 int);
@@ -141,15 +167,15 @@ create user 'mysqltest_1';
 ERROR HY000: Operation CREATE USER failed for 'mysqltest_1'@'%'
 create user 'mysqltest_2' identified by 'Mysqltest-2';
 create user 'mysqltest_3' identified by password 'fffffffffffffffffffffffffffffffffffffffff';
+ERROR HY000: The password hash doesn't have the expected format. Check if the correct password algorithm is being used with the PASSWORD() function.
 grant select on *.* to 'mysqltest_2';
 grant insert on test.* to 'mysqltest_2';
 grant update on test.t1 to 'mysqltest_2';
 grant update (c2) on test.t2 to 'mysqltest_2';
-select host,user,password from mysql.user where user like 'mysqltest_%' order by host,user,password;
-host	user	password
+select host,user,authentication_string from mysql.user where user like 'mysqltest_%' order by host,user,authentication_string;
+host	user	authentication_string
 %	mysqltest_1	
 %	mysqltest_2	*BD447CBA355AF58578D3AE33BA2E2CD388BA08D1
-%	mysqltest_3	fffffffffffffffffffffffffffffffffffffffff
 select host,db,user from mysql.db where user like 'mysqltest_%' order by host,db,user;
 host	db	user
 %	test	mysqltest_2
@@ -165,15 +191,14 @@ Grants for mysqltest_1@%
 GRANT USAGE ON *.* TO 'mysqltest_1'@'%'
 show grants for 'mysqltest_2';
 Grants for mysqltest_2@%
-GRANT SELECT ON *.* TO 'mysqltest_2'@'%' IDENTIFIED BY PASSWORD '*BD447CBA355AF58578D3AE33BA2E2CD388BA08D1'
+GRANT SELECT ON *.* TO 'mysqltest_2'@'%'
 GRANT INSERT ON "test".* TO 'mysqltest_2'@'%'
 GRANT UPDATE (c2) ON "test"."t2" TO 'mysqltest_2'@'%'
 GRANT UPDATE ON "test"."t1" TO 'mysqltest_2'@'%'
 drop user 'mysqltest_1';
-select host,user,password from mysql.user where user like 'mysqltest_%' order by host,user,password;
-host	user	password
+select host,user,authentication_string from mysql.user where user like 'mysqltest_%' order by host,user,authentication_string;
+host	user	authentication_string
 %	mysqltest_2	*BD447CBA355AF58578D3AE33BA2E2CD388BA08D1
-%	mysqltest_3	fffffffffffffffffffffffffffffffffffffffff
 select host,db,user from mysql.db where user like 'mysqltest_%' order by host,db,user;
 host	db	user
 %	test	mysqltest_2
@@ -187,10 +212,9 @@ host	db	user	table_name	column_name
 show grants for 'mysqltest_1';
 ERROR 42000: There is no such grant defined for user 'mysqltest_1' on host '%'
 rename user 'mysqltest_2' to 'mysqltest_1';
-select host,user,password from mysql.user where user like 'mysqltest_%' order by host,user,password;
-host	user	password
+select host,user,authentication_string from mysql.user where user like 'mysqltest_%' order by host,user,authentication_string;
+host	user	authentication_string
 %	mysqltest_1	*BD447CBA355AF58578D3AE33BA2E2CD388BA08D1
-%	mysqltest_3	fffffffffffffffffffffffffffffffffffffffff
 select host,db,user from mysql.db where user like 'mysqltest_%' order by host,db,user;
 host	db	user
 %	test	mysqltest_1
@@ -203,11 +227,11 @@ host	db	user	table_name	column_name
 %	test	mysqltest_1	t2	c2
 show grants for 'mysqltest_1';
 Grants for mysqltest_1@%
-GRANT SELECT ON *.* TO 'mysqltest_1'@'%' IDENTIFIED BY PASSWORD '*BD447CBA355AF58578D3AE33BA2E2CD388BA08D1'
+GRANT SELECT ON *.* TO 'mysqltest_1'@'%'
 GRANT INSERT ON "test".* TO 'mysqltest_1'@'%'
 GRANT UPDATE (c2) ON "test"."t2" TO 'mysqltest_1'@'%'
 GRANT UPDATE ON "test"."t1" TO 'mysqltest_1'@'%'
-drop user 'mysqltest_1', 'mysqltest_3';
+drop user 'mysqltest_1';
 drop user 'mysqltest_1';
 ERROR HY000: Operation DROP USER failed for 'mysqltest_1'@'%'
 drop table t1, t2;
@@ -236,7 +260,9 @@ select host,db,user,table_name,column_name from mysql.columns_priv where user = 
 host	db	user	table_name	column_name
 create user 'mysqltest_1', 'mysqltest_2', 'mysqltest_3';
 drop user 'mysqltest_1', 'mysqltest_2', 'mysqltest_3';
-create user 'mysqltest_1', 'mysqltest_2' identified by 'Mysqltest-2', 'mysqltest_3' identified by password 'fffffffffffffffffffffffffffffffffffffffff';
+create user 'mysqltest_1', 'mysqltest_2' identified by 'Mysqltest-2', 'mysqltest_3' identified by password '*ffffffffffffffffffffffffffffffffffffffff';
+Warnings:
+Warning	1287	'IDENTIFIED BY PASSWORD' is deprecated and will be removed in a future release. Please use IDENTIFIED WITH <plugin> AS <hash> instead
 rename user 'mysqltest_1' to 'mysqltest_1a', 'mysqltest_2' TO 'mysqltest_2a', 'mysqltest_3' TO 'mysqltest_3a';
 drop user 'mysqltest_1', 'mysqltest_2', 'mysqltest_3';
 ERROR HY000: Operation DROP USER failed for 'mysqltest_1'@'%','mysqltest_2'@'%','mysqltest_3'@'%'
@@ -272,7 +298,7 @@ GRANT SELECT ON "mysql".* TO '%@a'@'a'
 drop user '%@a'@'a';
 create user mysqltest_2@localhost;
 grant create user on *.* to mysqltest_2@localhost;
-select host,user,password from mysql.user where user like 'mysqltest_%' order by host,user,password;
+select host,user,authentication_string from mysql.user where user like 'mysqltest_%' order by host,user,authentication_string;
 ERROR 42000: SELECT command denied to user 'mysqltest_2'@'localhost' for table 'user'
 create user mysqltest_A@'%';
 rename user mysqltest_A@'%' to mysqltest_B@'%';
@@ -284,7 +310,7 @@ show grants;
 Grants for mysqltest_3@localhost
 GRANT USAGE ON *.* TO 'mysqltest_3'@'localhost'
 GRANT INSERT, UPDATE, DELETE ON `mysql`.* TO 'mysqltest_3'@'localhost'
-select host,user,password from mysql.user where user like 'mysqltest_%' order by host,user,password;
+select host,user,authentication_string from mysql.user where user like 'mysqltest_%' order by host,user,authentication_string;
 ERROR 42000: SELECT command denied to user 'mysqltest_3'@'localhost' for table 'user'
 insert ignore into mysql.user set host='%', user='mysqltest_B';
 Warnings:
@@ -301,6 +327,8 @@ create database mysqltest_1;
 create table mysqltest_1.t1 (i int);
 insert into mysqltest_1.t1 values (1),(2),(3);
 GRANT ALL ON mysqltest_1.t1 TO mysqltest_1@'127.0.0.0/255.0.0.0';
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 show grants for current_user();
 Grants for mysqltest_1@127.0.0.0/255.0.0.0
 GRANT USAGE ON *.* TO 'mysqltest_1'@'127.0.0.0/255.0.0.0'
@@ -315,36 +343,42 @@ delete from mysql.user where user like 'mysqltest\_1';
 flush privileges;
 drop table mysqltest_1.t1;
 grant all on mysqltest_1.* to mysqltest_1@'127.0.0.1';
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 select current_user();
 current_user()
 mysqltest_1@127.0.0.1
-set password = password('changed');
-select host, length(password) from mysql.user where user like 'mysqltest\_1';
-host	length(password)
+set password = 'changed';
+select host, length(authentication_string) from mysql.user where user like 'mysqltest\_1';
+host	length(authentication_string)
 127.0.0.1	41
 revoke all on mysqltest_1.* from mysqltest_1@'127.0.0.1';
 delete from mysql.user where user like 'mysqltest\_1';
 flush privileges;
 grant all on mysqltest_1.* to mysqltest_1@'127.0.0.0/255.0.0.0';
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 select current_user();
 current_user()
 mysqltest_1@127.0.0.0/255.0.0.0
-set password = password('changed');
-select host, length(password) from mysql.user where user like 'mysqltest\_1';
-host	length(password)
+set password = 'changed';
+select host, length(authentication_string) from mysql.user where user like 'mysqltest\_1';
+host	length(authentication_string)
 127.0.0.0/255.0.0.0	41
 revoke all on mysqltest_1.* from mysqltest_1@'127.0.0.0/255.0.0.0';
 delete from mysql.user where user like 'mysqltest\_1';
 flush privileges;
 drop database mysqltest_1;
-set password = password("changed");
+set password = "changed";
 ERROR 42000: You are using MySQL as an anonymous user and anonymous users are not allowed to change passwords
 lock table mysql.user write;
 flush privileges;
 grant all on *.* to 'mysqltest_1'@'localhost';
 unlock tables;
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 lock table mysql.user write;
-set password for 'mysqltest_1'@'localhost' = password('');
+set password for 'mysqltest_1'@'localhost' = '';
 revoke all on *.* from 'mysqltest_1'@'localhost';
 unlock tables;
 drop user 'mysqltest_1'@'localhost';
@@ -352,8 +386,8 @@ create database TESTDB;
 create table t2(a int);
 create temporary table t1 as select * from mysql.user;
 delete from mysql.user where host='localhost';
-INSERT INTO mysql.user (host, user, password) VALUES
-('%','mysqltest_1',password('password'));
+INSERT INTO mysql.user (host, user) VALUES
+('%','mysqltest_1');
 Warnings:
 Warning	1364	Field 'ssl_cipher' doesn't have a default value
 Warning	1364	Field 'x509_issuer' doesn't have a default value
@@ -372,6 +406,8 @@ flush privileges;
 SET @old_log_bin_trust_function_creators= @@global.log_bin_trust_function_creators;
 SET GLOBAL log_bin_trust_function_creators = 1;
 GRANT ALL PRIVILEGES ON test.* TO `a@`@localhost;
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 GRANT EXECUTE ON * TO `a@`@localhost;
 CREATE TABLE t2 (s1 INT);
 INSERT INTO t2 VALUES (1);
@@ -392,6 +428,8 @@ drop user mysqltest_u1@localhost;
 create database mysqltest_1;
 create database mysqltest_2;
 grant all on mysqltest_1.* to mysqltest_u1@localhost;
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 use mysqltest_2;
 create table t1 (i int);
 show create table mysqltest_2.t1;
@@ -410,7 +448,11 @@ drop database mysqltest_1;
 drop database mysqltest_2;
 drop user mysqltest_u1@localhost;
 grant all on `mysqltest\_%`.* to mysqltest_1@localhost with grant option;
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 grant usage on *.* to mysqltest_2@localhost;
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 create database mysqltest_1;
 use mysqltest_1;
 create table t1 (f1 int);
@@ -434,6 +476,8 @@ INSERT INTO t1 VALUES (1,1),(2,2);
 CREATE TABLE t2 (b INT, c INT);
 INSERT INTO t2 VALUES (1,100),(2,200);
 GRANT SELECT ON t1 TO mysqltest1@localhost;
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 GRANT SELECT (b) ON t2 TO mysqltest1@localhost;
 USE db1;
 SELECT c FROM t2;
@@ -450,26 +494,28 @@ End of 5.0 tests
 USE mysql;
 SELECT LEFT(CURRENT_USER(),INSTR(CURRENT_USER(),'@')-1) INTO @u;
 SELECT MID(CURRENT_USER(),INSTR(CURRENT_USER(),'@')+1)  INTO @h;
-SELECT password FROM user WHERE user=@u AND host=@h INTO @pwd;
-SELECT user,host,password,insert_priv FROM user WHERE user=@u AND host=@h;
-user	host	password	insert_priv
+SELECT authentication_string FROM user WHERE user=@u AND host=@h INTO @pwd;
+SELECT user,host,authentication_string,insert_priv FROM user WHERE user=@u AND host=@h;
+user	host	authentication_string	insert_priv
 root	localhost		Y
 UPDATE user SET insert_priv='N' WHERE user=@u AND host=@h;
-SELECT user,host,password,insert_priv FROM user WHERE user=@u AND host=@h;
-user	host	password	insert_priv
+SELECT user,host,authentication_string,insert_priv FROM user WHERE user=@u AND host=@h;
+user	host	authentication_string	insert_priv
 root	localhost		N
 GRANT INSERT ON *.* TO CURRENT_USER();
-SELECT user,host,password,insert_priv FROM user WHERE user=@u AND host=@h;
-user	host	password	insert_priv
+SELECT user,host,authentication_string,insert_priv FROM user WHERE user=@u AND host=@h;
+user	host	authentication_string	insert_priv
 root	localhost		Y
 UPDATE user SET insert_priv='N' WHERE user=@u AND host=@h;
 GRANT INSERT ON *.* TO CURRENT_USER() IDENTIFIED BY 'keksdose';
-SELECT user,host,password,insert_priv FROM user WHERE user=@u AND host=@h;
-user	host	password	insert_priv
+Warnings:
+Warning	1287	Using GRANT statement to modify existing user's properties other than privileges is deprecated and will be removed in future release. Use ALTER USER statement for this operation.
+SELECT user,host,authentication_string,insert_priv FROM user WHERE user=@u AND host=@h;
+user	host	authentication_string	insert_priv
 root	localhost	*0BB7188CF0DE9B403BA66E9DD810D82652D002EB	Y
-UPDATE user SET password=@pwd WHERE user=@u AND host=@h;
-SELECT user,host,password,insert_priv FROM user WHERE user=@u AND host=@h;
-user	host	password	insert_priv
+UPDATE user SET authentication_string=@pwd WHERE user=@u AND host=@h;
+SELECT user,host,authentication_string,insert_priv FROM user WHERE user=@u AND host=@h;
+user	host	authentication_string	insert_priv
 root	localhost		Y
 FLUSH PRIVILEGES;
 USE test;
@@ -494,22 +540,32 @@ CREATE DATABASE mysqltest_db2;
 # (EXECUTE_ACL is needed to call p0, and FILE_ACL is needed for SELECT
 # OUTFILE/LOAD DATA INFILE).
 GRANT FILE ON *.* TO mysqltest_u1@localhost;
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 GRANT CREATE TEMPORARY TABLES, EXECUTE ON mysqltest_db1.* TO mysqltest_u1@localhost;
 # mysqltest_u2@localhost has all privileges but CREATE_TMP_ACL.
 GRANT ALL PRIVILEGES ON mysqltest_db1.* TO mysqltest_u2@localhost;
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 REVOKE CREATE TEMPORARY TABLES ON mysqltest_db1.* FROM mysqltest_u2@localhost;
 # mysqltest_u3@localhost has CREATE_TMP_ACL & EXECUTE_ACL.
 # This user is required to check SUID-stored-routines.
 GRANT CREATE TEMPORARY TABLES ON mysqltest_db1.* TO mysqltest_u3@localhost;
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 GRANT EXECUTE ON mysqltest_db1.* TO mysqltest_u3@localhost;
 # mysqltest_u4@localhost has only EXECUTE_ACL.
 # We need this user to check that once created temporary tables
 # are accessible by anyone.
 GRANT EXECUTE ON mysqltest_db1.* TO mysqltest_u4@localhost;
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 # mysqltest_u5@localhost has CREATE_TMP_ACL and SELECT_ACL, UPDATE_ACL,
 # DELETE_ACL on mysqltest_db1; and only CREATE_TMP_ACL on mysqltest_db2.
 # By means of this user we check privileges required for merge tables.
 GRANT CREATE TEMPORARY TABLES ON mysqltest_db1.* TO mysqltest_u5@localhost;
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 GRANT CREATE TEMPORARY TABLES ON mysqltest_db2.* TO mysqltest_u5@localhost;
 GRANT SELECT, UPDATE, DELETE ON mysqltest_db1.* TO mysqltest_u5@localhost;
 # Create stored routine to test how privilege checking is done for its

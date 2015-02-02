@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,6 +15,9 @@
 
 #ifndef TABLE_MAPPING_H
 #define TABLE_MAPPING_H
+
+#include "my_global.h"
+#include "hash.h"        // HASH
 
 /* Forward declarations */
 #ifndef MYSQL_CLIENT
@@ -51,8 +54,6 @@ void free_table_map_log_event(TABLE *table);
   than a query, it was dangerous.
   A dedicated MEM_ROOT needs to be used, see below.
 */
-
-#include "hash.h"                               /* HASH */
 
 class table_mapping {
 

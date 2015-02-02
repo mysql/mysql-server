@@ -1,6 +1,10 @@
 create database db1;
 GRANT CREATE ON db1.* to user_1@localhost;
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 GRANT SELECT ON db1.* to USER_1@localhost;
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 CREATE TABLE t1(f1 int);
 SELECT * FROM t1;
 ERROR 42000: SELECT command denied to user 'user_1'@'localhost' for table 't1'

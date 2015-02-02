@@ -17,10 +17,9 @@
 #define RPL_SLAVE_COMMIT_ORDER_MANAGER
 
 #include "my_global.h"
-#include "sql_class.h"
+#include "rpl_rli.h"          // is_slave_worker
+#include "sql_class.h"        // THD
 
-#include "rpl_rli.h"
-#include "rpl_rli_pdb.h"
 
 class Commit_order_manager
 {

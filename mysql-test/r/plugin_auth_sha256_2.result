@@ -14,6 +14,8 @@ user()	current_user()
 kristofer@localhost	kristofer@%
 DROP USER 'kristofer';
 GRANT ALL ON *.* TO 'kristofer'@'localhost' IDENTIFIED BY 'secret2';
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 user()	current_user()
 kristofer@localhost	kristofer@localhost
 user()	current_user()
@@ -22,9 +24,11 @@ user()	current_user()
 kristofer@localhost	kristofer@localhost
 SHOW GRANTS FOR 'kristofer'@'localhost';
 Grants for kristofer@localhost
-GRANT ALL PRIVILEGES ON *.* TO 'kristofer'@'localhost' IDENTIFIED BY PASSWORD '<non-deterministic-password-hash>'
+GRANT ALL PRIVILEGES ON *.* TO 'kristofer'@'localhost'
 DROP USER 'kristofer'@'localhost';
 GRANT ALL ON *.* TO 'kristofer'@'localhost' IDENTIFIED BY '';
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 user()	current_user()
 kristofer@localhost	kristofer@localhost
 user()	current_user()
@@ -36,6 +40,8 @@ Grants for kristofer@localhost
 GRANT ALL PRIVILEGES ON *.* TO 'kristofer'@'localhost'
 DROP USER 'kristofer'@'localhost';
 GRANT ALL ON *.* TO 'kristofer'@'33.33.33.33' IDENTIFIED BY '';
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 Connection should fail for localhost
 ERROR 28000: Access denied for user 'kristofer'@'localhost' (using password: NO)
 DROP USER 'kristofer'@'33.33.33.33';

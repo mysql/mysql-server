@@ -335,6 +335,8 @@ DROP FUNCTION fn2;
 DROP TRIGGER tr1;
 DROP TABLE t1;
 SET sql_mode=traditional;
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT 1/0;
 1/0
 NULL
@@ -354,6 +356,8 @@ Warnings:
 Warning	1365	Division by 0
 DROP PROCEDURE proc_c;
 SET sql_mode=traditional;
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE FUNCTION fn1() RETURNS TINYINT
 BEGIN
 SET  @x=floor('1a');

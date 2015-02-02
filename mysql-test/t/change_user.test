@@ -2,8 +2,10 @@
 #
 connect (con_main,localhost,root);
 
+create user test_nopw;
 grant select on test.* to test_nopw;
-grant select on test.* to test_newpw identified by "newpw";
+create user test_newpw identified by "newpw";
+grant select on test.* to test_newpw;
 
 select user(), current_user(), database();
 #

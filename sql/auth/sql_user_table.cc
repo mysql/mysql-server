@@ -331,434 +331,19 @@ void get_grantor(THD *thd, char *grantor)
   strxmov(grantor, user, "@", host, NullS);
 }
 
-
 /**
-  Update record for user in mysql.user privilege table with new password.
+  Update SSL properties in mysql.user table.
 
-  @param table Pointer to TABLE object for open mysql.user table
-  @param host Hostname
-  @param user Username
-  @param new_password New password hash
-  @param new_password_len Length of new password hash
-  @param password_field The password field to use 
-  @param password_expired Password expiration flag
-  @param builtin_plugin Plugin is MySQL server managed
-  @param alter_status LEX structure holding ALTER command details
+  @param thd          Thread context
+  @param tables       table points to mysql.user table.
 
 */
 
-bool
-update_user_table(THD *thd, TABLE *table,
-                  const char *host, const char *user,
-                  const char *new_password, uint new_password_len,
-                  enum mysql_user_table_field password_field,
-                  bool password_expired,
-		  bool builtin_plugin,
-		  LEX_ALTER *alter_status)
+void updateSSLProperties(THD *thd, TABLE *table)
 {
-  char user_key[MAX_KEY_LENGTH];
-  int error;
-  DBUG_ENTER("update_user_table");
-  DBUG_PRINT("enter",("user: %s  host: %s",user,host));
-
-  /* ALTER USER PASSWORD EXPIRE makes no sense on old system tables */
-  if (table->s->fields <= MYSQL_USER_FIELD_PASSWORD_EXPIRED &&
-      password_expired)
-  {
-    my_error(ER_BAD_FIELD_ERROR, MYF(0), "password_expired", "mysql.user");
-    DBUG_RETURN(1);
-  }
-
-  table->use_all_columns();
-  DBUG_ASSERT(host != NULL);
-  table->field[MYSQL_USER_FIELD_HOST]->store(host, strlen(host),
-					     system_charset_info);
-  table->field[MYSQL_USER_FIELD_USER]->store(user, strlen(user),
-					     system_charset_info);
-  key_copy((uchar *) user_key, table->record[0], table->key_info,
-	   table->key_info->key_length);
-
-  if (table->file->ha_index_read_idx_map(table->record[0], 0,
-					 (uchar *) user_key, HA_WHOLE_KEY,
-					 HA_READ_KEY_EXACT))
-  {
-    my_message(ER_PASSWORD_NO_MATCH, ER(ER_PASSWORD_NO_MATCH),
-	       MYF(0));	/* purecov: deadcode */
-    DBUG_RETURN(1);		/* purecov: deadcode */
-  }
-  store_record(table,record[1]);
- 
-  /* 
-    When the flag is on we're inside ALTER TABLE ... PASSWORD EXPIRE and we 
-    have no password to update.
-  */
-  if (!password_expired)
-  {
-    table->field[(int) password_field]->store(new_password, new_password_len,
-                                              system_charset_info);
-  }
-
-  if (table->s->fields > MYSQL_USER_FIELD_PASSWORD_EXPIRED
-      && (!alter_status || alter_status->update_password_expired_column))
-  {
-    /* update password_expired if present and if that 
-       column is to be updated */
-    table->field[MYSQL_USER_FIELD_PASSWORD_EXPIRED]->store(password_expired ?
-                                                           "Y" : "N", 1,
-                                                           system_charset_info);
-  }
-
-  /*
-    If we have have updated the password we also update the
-    password last changed field
-  */
-  if (table->s->fields > MYSQL_USER_FIELD_PASSWORD_LAST_CHANGED &&
-      !password_expired && builtin_plugin)
-  {
-    /*
-      Calculate time stamp up to seconds elapsed
-      from 1 Jan 1970 00:00:00.
-    */
-    struct timeval password_change_timestamp= thd->query_start_timeval_trunc(0);
-
-    table->field[MYSQL_USER_FIELD_PASSWORD_LAST_CHANGED]->store_timestamp
-      (&password_change_timestamp);
-    table->field[MYSQL_USER_FIELD_PASSWORD_LAST_CHANGED]->set_notnull();
-  }
-
-  /*
-    If password_expired column is not to be updated and only
-    password_lifetime is to be updated
-  */
-  if (table->s->fields > MYSQL_USER_FIELD_PASSWORD_LIFETIME &&
-      builtin_plugin && (alter_status &&
-      !alter_status->update_password_expired_column))
-  {
-    if (!alter_status->use_default_password_lifetime)
-    {
-      table->field[MYSQL_USER_FIELD_PASSWORD_LIFETIME]->
-        store((longlong) alter_status->expire_after_days, TRUE);
-      table->field[MYSQL_USER_FIELD_PASSWORD_LIFETIME]->set_notnull();
-    }
-    else
-      table->field[MYSQL_USER_FIELD_PASSWORD_LIFETIME]->set_null();
-  }
-
-  if ((error=table->file->ha_update_row(table->record[1],table->record[0])) &&
-       error != HA_ERR_RECORD_IS_THE_SAME)
-  {
-    table->file->print_error(error,MYF(0));	/* purecov: deadcode */
-    DBUG_RETURN(1);
-  }
-
-  DBUG_RETURN(0);
-}
-
-
-int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
-                       ulong rights, bool revoke_grant,
-                       bool can_create_user, bool no_auto_create)
-{
-  int error = -1;
-  bool old_row_exists=0;
-  bool builtin_plugin= true;
-  bool update_password;
-  const char *password= empty_c_string;
-  size_t password_len= 0;
-  char what= (revoke_grant) ? 'N' : 'Y';
-  uchar user_key[MAX_KEY_LENGTH];
   LEX *lex= thd->lex;
-  struct timeval password_change_timestamp= {0, 0};
-  DBUG_ENTER("replace_user_table");
-
-  mysql_mutex_assert_owner(&acl_cache->lock);
-  
-  if (!table->key_info)
+  switch (lex->ssl_type)
   {
-    my_error(ER_TABLE_CORRUPT, MYF(0), table->s->db.str,
-             table->s->table_name.str);
-    goto end;
-  }
- 
-  table->use_all_columns();
-  DBUG_ASSERT(combo->host.str != NULL);
-  table->field[MYSQL_USER_FIELD_HOST]->store(combo->host.str,combo->host.length,
-                                             system_charset_info);
-  table->field[MYSQL_USER_FIELD_USER]->store(combo->user.str,combo->user.length,
-                                             system_charset_info);
-  key_copy(user_key, table->record[0], table->key_info,
-           table->key_info->key_length);
-
-  update_password= combo->uses_identified_by_clause ||
-                   combo->uses_identified_by_password_clause;
-
-  if (table->file->ha_index_read_idx_map(table->record[0], 0, user_key,
-                                         HA_WHOLE_KEY,
-                                         HA_READ_KEY_EXACT))
-  {
-    /*
-      The user record wasn't found; if the intention was to revoke privileges
-      (indicated by what == 'N') then execution must fail now.
-    */
-    if (what == 'N')
-    {
-      my_error(ER_NONEXISTING_GRANT, MYF(0), combo->user.str, combo->host.str);
-      goto end;
-    }
-
-    if (!combo->uses_identified_by_clause &&
-        !combo->uses_identified_with_clause &&
-        !combo->uses_identified_by_password_clause)
-    {
-      if (check_password_policy(NULL))
-      {
-        error= 1;
-        goto end;
-      }
-    }
-    
-    /* 1. Unresolved plugins become default plugin */
-    if (!combo->uses_identified_with_clause)
-    {
-      combo->plugin.str= default_auth_plugin_name.str;
-      combo->plugin.length= default_auth_plugin_name.length;
-    }
-    /* 2. Digest password if needed (plugin must have been resolved) */
-    if (combo->uses_identified_by_clause)
-    {
-      if (digest_password(thd, combo))
-      {
-        my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), CRYPT_MAX_PASSWORD_SIZE);
-        error= 1;
-        goto end;
-      }
-    }
-    password= combo->password.str;
-    password_len= combo->password.length;
-    /*
-      There are four options which affect the process of creation of
-      a new user (mysqld option --safe-create-user, 'insert' privilege
-      on 'mysql.user' table, using 'GRANT' with 'IDENTIFIED BY' and
-      SQL_MODE flag NO_AUTO_CREATE_USER). Below is the simplified rule
-      how it should work.
-      if (safe-user-create && ! INSERT_priv) => reject
-      else if (identified_by) => create
-      else if (no_auto_create_user) => reject
-      else create
-
-      see also test_if_create_new_users()
-    */
-
-    builtin_plugin= auth_plugin_is_built_in(combo->plugin.str);
-
-    if (!password_len && builtin_plugin && no_auto_create)
-    {
-      my_error(ER_PASSWORD_NO_MATCH, MYF(0), combo->user.str, combo->host.str);
-      goto end;
-    }
-    else if (!can_create_user)
-    {
-      my_error(ER_CANT_CREATE_USER_WITH_GRANT, MYF(0));
-      goto end;
-    }
-    else if (combo->plugin.str[0])
-    {
-      if (!plugin_is_ready(combo->plugin, MYSQL_AUTHENTICATION_PLUGIN))
-      {
-        my_error(ER_PLUGIN_IS_NOT_LOADED, MYF(0), combo->plugin.str);
-        goto end;
-      }
-    }
-
-    old_row_exists = 0;
-    restore_record(table,s->default_values);
-    DBUG_ASSERT(combo->host.str != NULL);
-    table->field[MYSQL_USER_FIELD_HOST]->store(combo->host.str,combo->host.length,
-                                               system_charset_info);
-    table->field[MYSQL_USER_FIELD_USER]->store(combo->user.str,combo->user.length,
-                                               system_charset_info);
-#if defined(HAVE_OPENSSL)
-    if (combo->plugin.str == sha256_password_plugin_name.str)
-    {
-      /* Use the authentication_string field */
-      combo->auth.str= password;
-      combo->auth.length= password_len;
-      table->
-        field[MYSQL_USER_FIELD_AUTHENTICATION_STRING]->
-          store(password, password_len, &my_charset_utf8_bin);
-      /* Assert that the proper plugin is set */
-      table->
-        field[MYSQL_USER_FIELD_PLUGIN]->
-          store(sha256_password_plugin_name.str,
-                sha256_password_plugin_name.length,
-                system_charset_info);
-
-    }
-    else
-#endif
-    {
-      /* Use the legacy Password field */
-      table->field[MYSQL_USER_FIELD_PASSWORD]->store(password, password_len,
-                                                     system_charset_info);
-      table->field[MYSQL_USER_FIELD_AUTHENTICATION_STRING]->store("\0", 0,
-                                                     &my_charset_utf8_bin);
-    }
-  }
-  else // if (table->file->ha_index_read_idx_map [..]
-  {
-    /*
-      There is a matching user record ------------------------------------------
-     */
-
-    old_row_exists = 1;
-    store_record(table,record[1]);			// Save copy for update
-
-    /*
-      GRANT statement using IDENTIFIED WITH clause can be used only to create
-      user and apply privileges to it. Hence it throws an error when used on
-      existing users.
-    */
-    if (combo->uses_identified_with_clause)
-    {
-      error= 1;
-      my_error(ER_GRANT_PLUGIN_USER_EXISTS, MYF(0), combo->user.length,
-	       combo->user.str);
-      goto end;
-    }
-    
-    /* 1. resolve plugins in the LEX_USER struct if needed */
-
-    LEX_CSTRING old_plugin;
-    /*
-      Get old plugin value from storage.
-    */
-    old_plugin.str=
-      get_field(thd->mem_root, table->field[MYSQL_USER_FIELD_PLUGIN]);
-
-    if (old_plugin.str == NULL || *old_plugin.str == '\0')
-    {
-      my_error(ER_PASSWORD_NO_MATCH, MYF(0));
-      error= 1;
-      goto end;
-    }
-
-    /* 
-      It is important not to include the trailing '\0' in the string length 
-      because otherwise the plugin hash search will fail.
-    */
-    old_plugin.length= strlen(old_plugin.str);
-
-    /*
-      Optimize for pointer comparision of built-in plugin name
-    */
-
-    optimize_plugin_compare_by_pointer(&old_plugin);
-
-    builtin_plugin= auth_plugin_is_built_in(old_plugin.str);
-
-    /*
-      Disable plugin change for existing rows with anything but
-      the built in plugins.
-      The idea is that all built in plugins support
-      IDENTIFIED BY ... and none of the external ones currently do.
-    */
-    if (update_password && !builtin_plugin)
-    {
-      push_warning(thd, Sql_condition::SL_WARNING, 
-                   ER_SET_PASSWORD_AUTH_PLUGIN,
-		   ER(ER_SET_PASSWORD_AUTH_PLUGIN));
-    }
-
-
-    combo->plugin= old_plugin;
-
-    if (!combo->uses_authentication_string_clause)
-    {
-      combo->auth.str= get_field(thd->mem_root,
-        table->field[MYSQL_USER_FIELD_AUTHENTICATION_STRING]);
-      if (combo->auth.str)
-        combo->auth.length= strlen(combo->auth.str);
-      else
-        combo->auth.length= 0;
-    }
-    
-    /* 2. Digest password if needed (plugin must have been resolved */
-    if (combo->uses_identified_by_clause)
-    {
-      if (digest_password(thd, combo))
-      {
-        error= 1;
-        goto end;
-      }
-    }
-    password= combo->password.str;
-    password_len= combo->password.length;
-
-    if (update_password && builtin_plugin)
-    {
-#if defined(HAVE_OPENSSL)
-      if (combo->plugin.str == sha256_password_plugin_name.str)
-      {
-        table->field[MYSQL_USER_FIELD_AUTHENTICATION_STRING]->
-          store(password, password_len, &my_charset_utf8_bin);
-        combo->auth.str= password;
-        combo->auth.length= password_len;
-      }
-      else
-#endif
-      {
-        table->field[MYSQL_USER_FIELD_PASSWORD]->
-          store(password, password_len, system_charset_info);
-        table->field[MYSQL_USER_FIELD_AUTHENTICATION_STRING]->
-          store("\0", 0, &my_charset_utf8_bin);
-      }
-    }
-    else if (!rights && !revoke_grant &&
-             lex->ssl_type == SSL_TYPE_NOT_SPECIFIED &&
-             !lex->mqh.specified_limits)
-    {
-     
-      DBUG_PRINT("info", ("Proxy user exit path"));
-      DBUG_RETURN(0);
-    }
-  }
-
-  /* error checks on password */
-  if (password_len > 0)
-  {
-    /*
-     We need to check for hash validity here since later, when
-     set_user_salt() is executed it will be too late to signal
-     an error.
-    */
-    if (combo->plugin.str == native_password_plugin_name.str &&
-        password_len != SCRAMBLED_PASSWORD_CHAR_LENGTH)
-    {
-      my_error(ER_PASSWORD_FORMAT, MYF(0));
-      error= 1;
-      goto end;
-    }
-  }
-
-  /* Update table columns with new privileges */
-
-  Field **tmp_field;
-  ulong priv;
-  uint next_field;
-  for (tmp_field= table->field+3, priv = SELECT_ACL;
-       *tmp_field && (*tmp_field)->real_type() == MYSQL_TYPE_ENUM &&
-	 ((Field_enum*) (*tmp_field))->typelib->count == 2 ;
-       tmp_field++, priv <<= 1)
-  {
-    if (priv & rights)				 // set requested privileges
-      (*tmp_field)->store(&what, 1, &my_charset_latin1);
-  }
-  rights= get_access(table, 3, &next_field);
-  DBUG_PRINT("info",("table fields: %d",table->s->fields));
-  if (table->s->fields >= 31)		/* From 4.0.0 we have more fields */
-  {
-    /* We write down SSL related ACL stuff */
-    switch (lex->ssl_type) {
     case SSL_TYPE_ANY:
       table->field[MYSQL_USER_FIELD_SSL_TYPE]->store(STRING_WITH_LEN("ANY"),
                                       &my_charset_latin1);
@@ -799,68 +384,286 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
       table->field[MYSQL_USER_FIELD_X509_ISSUER]->store("", 0, &my_charset_latin1);
       table->field[MYSQL_USER_FIELD_X509_SUBJECT]->store("", 0, &my_charset_latin1);
       break;
-    }
-    next_field+=4;
+  }
+}
 
-    USER_RESOURCES mqh= lex->mqh;
-    if (mqh.specified_limits & USER_RESOURCES::QUERIES_PER_HOUR)
-      table->field[MYSQL_USER_FIELD_MAX_QUESTIONS]->
-        store((longlong) mqh.questions, TRUE);
-    if (mqh.specified_limits & USER_RESOURCES::UPDATES_PER_HOUR)
-      table->field[MYSQL_USER_FIELD_MAX_UPDATES]->
-        store((longlong) mqh.updates, TRUE);
-    if (mqh.specified_limits & USER_RESOURCES::CONNECTIONS_PER_HOUR)
-      table->field[MYSQL_USER_FIELD_MAX_CONNECTIONS]->
-        store((longlong) mqh.conn_per_hour, TRUE);
-    if (table->s->fields >= 36 &&
-        (mqh.specified_limits & USER_RESOURCES::USER_CONNECTIONS))
-      table->field[MYSQL_USER_FIELD_MAX_USER_CONNECTIONS]->
-        store((longlong) mqh.user_conn, TRUE);
-    mqh_used= mqh_used || mqh.questions || mqh.updates || mqh.conn_per_hour;
+/**
+  Update user resources in mysql.user table.
 
-    next_field+= 4;
-    if (combo->plugin.length > 0 && !old_row_exists)
+  @param tables       table points to mysql.user table.
+  @param mqh          user resourses to be updated
+
+*/
+
+void updateUserResource(TABLE *table, USER_RESOURCES *mqh)
+{
+  if (mqh->specified_limits & USER_RESOURCES::QUERIES_PER_HOUR)
+    table->field[MYSQL_USER_FIELD_MAX_QUESTIONS]->
+      store((longlong) mqh->questions, TRUE);
+  if (mqh->specified_limits & USER_RESOURCES::UPDATES_PER_HOUR)
+    table->field[MYSQL_USER_FIELD_MAX_UPDATES]->
+      store((longlong) mqh->updates, TRUE);
+  if (mqh->specified_limits & USER_RESOURCES::CONNECTIONS_PER_HOUR)
+    table->field[MYSQL_USER_FIELD_MAX_CONNECTIONS]->
+      store((longlong) mqh->conn_per_hour, TRUE);
+  if (table->s->fields >= 36 &&
+      (mqh->specified_limits & USER_RESOURCES::USER_CONNECTIONS))
+    table->field[MYSQL_USER_FIELD_MAX_USER_CONNECTIONS]->
+      store((longlong) mqh->user_conn, TRUE);
+}
+
+int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
+                       ulong rights, bool revoke_grant,
+                       bool can_create_user, ulong what_to_replace)
+{
+  int error = -1;
+  bool old_row_exists=0;
+  bool builtin_plugin= true;
+  bool update_password= (what_to_replace & PLUGIN_ATTR);
+  char what= (revoke_grant) ? 'N' : 'Y';
+  uchar user_key[MAX_KEY_LENGTH];
+  LEX *lex= thd->lex;
+  LEX_CSTRING old_plugin;
+  struct timeval password_change_timestamp= {0, 0};
+  DBUG_ENTER("replace_user_table");
+
+  mysql_mutex_assert_owner(&acl_cache->lock);
+  
+  if (!table->key_info)
+  {
+    my_error(ER_TABLE_CORRUPT, MYF(0), table->s->db.str,
+             table->s->table_name.str);
+    goto end;
+  }
+
+  table->use_all_columns();
+  DBUG_ASSERT(combo->host.str != NULL);
+  table->field[MYSQL_USER_FIELD_HOST]->store(combo->host.str,combo->host.length,
+                                             system_charset_info);
+  table->field[MYSQL_USER_FIELD_USER]->store(combo->user.str,combo->user.length,
+                                             system_charset_info);
+  key_copy(user_key, table->record[0], table->key_info,
+           table->key_info->key_length);
+
+  if (table->file->ha_index_read_idx_map(table->record[0], 0, user_key,
+                                         HA_WHOLE_KEY,
+                                         HA_READ_KEY_EXACT))
+  {
+    /*
+      The user record wasn't found; if the intention was to revoke privileges
+      (indicated by what == 'N') then execution must fail now.
+    */
+    if (what == 'N')
     {
-      if (table->s->fields >= 41)
+      my_error(ER_NONEXISTING_GRANT, MYF(0), combo->user.str, combo->host.str);
+      goto end;
+    }
+
+    optimize_plugin_compare_by_pointer(&combo->plugin);
+    builtin_plugin= auth_plugin_is_built_in(combo->plugin.str);
+
+    if (!can_create_user)
+    {
+      my_error(ER_CANT_CREATE_USER_WITH_GRANT, MYF(0));
+      goto end;
+    }
+    if (thd->lex->sql_command == SQLCOM_GRANT)
+    {
+      /*
+        If NO_AUTO_CREATE_USER SQL mode is set and GRANT is not specified
+        with authentication information then report error
+      */
+      if ((thd->variables.sql_mode & MODE_NO_AUTO_CREATE_USER) &&
+          (what_to_replace & DEFAULT_AUTH_ATTR))
       {
-        table->field[MYSQL_USER_FIELD_PLUGIN]->
-          store(combo->plugin.str, combo->plugin.length, system_charset_info);
-        table->field[MYSQL_USER_FIELD_PLUGIN]->set_notnull();
-        table->field[MYSQL_USER_FIELD_AUTHENTICATION_STRING]->
-          store(combo->auth.str, combo->auth.length, &my_charset_utf8_bin);
-        table->field[MYSQL_USER_FIELD_AUTHENTICATION_STRING]->set_notnull();
+        my_error(ER_PASSWORD_NO_MATCH, MYF(0), combo->user.str, combo->host.str);
+        goto end;
+      }
+      push_warning(thd, Sql_condition::SL_WARNING, ER_WARN_DEPRECATED_SYNTAX,
+                   "Using GRANT for creating new user is deprecated "
+                   "and will be removed in future release. "
+                   "Create new user with CREATE USER statement.");
+    }
+    old_row_exists = 0;
+    restore_record(table,s->default_values);
+    DBUG_ASSERT(combo->host.str != NULL);
+    table->field[MYSQL_USER_FIELD_HOST]->store(combo->host.str,combo->host.length,
+                                               system_charset_info);
+    table->field[MYSQL_USER_FIELD_USER]->store(combo->user.str,combo->user.length,
+                                               system_charset_info);
+  }
+  else // if (table->file->ha_index_read_idx_map [..]
+  {
+    /*
+      There is a matching user record ------------------------------------------
+     */
+
+    old_row_exists = 1;
+    store_record(table,record[1]);			// Save copy for update
+
+    /* 1. resolve plugins in the LEX_USER struct if needed */
+
+    /* Get old plugin value from storage. */
+    old_plugin.str=
+      get_field(thd->mem_root, table->field[MYSQL_USER_FIELD_PLUGIN]);
+
+    if (old_plugin.str == NULL || *old_plugin.str == '\0')
+    {
+      my_error(ER_PASSWORD_NO_MATCH, MYF(0));
+      error= 1;
+      goto end;
+    }
+
+    /* 
+      It is important not to include the trailing '\0' in the string length 
+      because otherwise the plugin hash search will fail.
+    */
+    old_plugin.length= strlen(old_plugin.str);
+
+    /* Optimize for pointer comparision of built-in plugin name */
+    optimize_plugin_compare_by_pointer(&old_plugin);
+    builtin_plugin= auth_plugin_is_built_in(old_plugin.str);
+
+    /* there is nothing to update */
+    if ((thd->lex->sql_command != SQLCOM_ALTER_USER) && !rights &&
+        lex->ssl_type == SSL_TYPE_NOT_SPECIFIED &&
+        !lex->mqh.specified_limits && !revoke_grant &&
+        (!builtin_plugin || !update_password))
+    {
+      DBUG_PRINT("info", ("Proxy user exit path"));
+      DBUG_RETURN(0);
+    }
+    /* GRANT will be used only to specify access rights for existing user */
+    if ((thd->lex->sql_command == SQLCOM_GRANT) &&
+        (what_to_replace & ~(DEFAULT_AUTH_ATTR | ACCESS_RIGHTS_ATTR)))
+    {
+      push_warning(thd, Sql_condition::SL_WARNING, ER_WARN_DEPRECATED_SYNTAX,
+                     "Using GRANT statement to modify existing user's "
+                     "properties other than privileges is deprecated and "
+                     "will be removed in future release. "
+                     "Use ALTER USER statement for this operation.");
+    }
+  }
+
+  if (what_to_replace & PLUGIN_ATTR ||
+      (what_to_replace & DEFAULT_AUTH_ATTR && !old_row_exists))
+  {
+    if (table->s->fields >= 41)
+    {
+      table->field[MYSQL_USER_FIELD_PLUGIN]->
+        store(combo->plugin.str, combo->plugin.length, system_charset_info);
+      table->field[MYSQL_USER_FIELD_PLUGIN]->set_notnull();
+      table->field[MYSQL_USER_FIELD_AUTHENTICATION_STRING]->
+        store(combo->auth.str, combo->auth.length, &my_charset_utf8_bin);
+      table->field[MYSQL_USER_FIELD_AUTHENTICATION_STRING]->set_notnull();
+    }
+    else
+    {
+      my_error(ER_BAD_FIELD_ERROR, MYF(0), "plugin", "mysql.user");
+      goto end;
+    }
+    /* If we change user plugin then check if it is builtin plugin */
+    optimize_plugin_compare_by_pointer(&combo->plugin);
+    builtin_plugin= auth_plugin_is_built_in(combo->plugin.str);
+    /*
+      we update the password last changed field whenever there is change
+      in auth str and plugin is built in
+    */
+    if (table->s->fields > MYSQL_USER_FIELD_PASSWORD_LAST_CHANGED)
+    {
+      if (builtin_plugin)
+      {
+        /*
+          Calculate time stamp up to seconds elapsed
+          from 1 Jan 1970 00:00:00.
+        */
+        password_change_timestamp= thd->query_start_timeval_trunc(0);
+        table->field[MYSQL_USER_FIELD_PASSWORD_LAST_CHANGED]->store_timestamp
+            (&password_change_timestamp);
+        table->field[MYSQL_USER_FIELD_PASSWORD_LAST_CHANGED]->set_notnull();
+      }
+    }
+    else
+    {
+      my_error(ER_BAD_FIELD_ERROR, MYF(0), "password_last_changed", "mysql.user");
+      goto end;
+    }
+    /* if we have a password supplied we update the expiration field */
+    if (table->s->fields > MYSQL_USER_FIELD_PASSWORD_EXPIRED)
+    {
+      if (auth_plugin_supports_expiration(combo->plugin.str))
+        table->field[MYSQL_USER_FIELD_PASSWORD_EXPIRED]->store("N",
+                                       1, system_charset_info);
+    }
+    else
+    {
+      my_error(ER_BAD_FIELD_ERROR, MYF(0), "password_expired", "mysql.user");
+      goto end;
+    }
+  }
+  /* Update table columns with new privileges */
+  uint next_field;
+  if (what_to_replace & ACCESS_RIGHTS_ATTR)
+  {
+    Field **tmp_field;
+    ulong priv;
+    for (tmp_field= table->field+2, priv = SELECT_ACL;
+         *tmp_field && (*tmp_field)->real_type() == MYSQL_TYPE_ENUM &&
+         ((Field_enum*) (*tmp_field))->typelib->count == 2 ;
+         tmp_field++, priv <<= 1)
+    {
+      if (priv & rights)              // set requested privileges
+        (*tmp_field)->store(&what, 1, &my_charset_latin1);
+    }
+  }
+  rights= get_access(table, MYSQL_USER_FIELD_SELECT_PRIV, &next_field);
+  DBUG_PRINT("info",("table fields: %d",table->s->fields));
+
+  /* We write down SSL related ACL stuff */
+  if ((what_to_replace & SSL_ATTR) && (table->s->fields >= 31))
+    updateSSLProperties(thd, table);
+  next_field+=4;
+
+  if (what_to_replace & RESOURCE_ATTR)
+    updateUserResource(table, &lex->mqh);
+  mqh_used= mqh_used || lex->mqh.questions || lex->mqh.updates ||
+            lex->mqh.conn_per_hour;
+  next_field+= 4;
+
+  if (what_to_replace & PASSWORD_EXPIRE_ATTR)
+  {
+    /*
+      ALTER/CREATE USER <user> PASSWORD EXPIRE  (or)
+      ALTER USER <user> IDENTIFIED WITH plugin
+    */
+    if (combo->alter_status.update_password_expired_column)
+    {
+      if (table->s->fields > MYSQL_USER_FIELD_PASSWORD_EXPIRED)
+      {
+        table->field[MYSQL_USER_FIELD_PASSWORD_EXPIRED]->
+               store("Y", 1, system_charset_info);
       }
       else
       {
-        my_error(ER_BAD_FIELD_ERROR, MYF(0), "plugin", "mysql.user");
+        my_error(ER_BAD_FIELD_ERROR, MYF(0), "password_expired", "mysql.user");
         goto end;
       }
     }
-
-    /* if we have a password supplied we update the expiration field */
-    if (table->s->fields > MYSQL_USER_FIELD_PASSWORD_EXPIRED &&
-        update_password && auth_plugin_supports_expiration(combo->plugin.str))
-    {
-      table->field[MYSQL_USER_FIELD_PASSWORD_EXPIRED]->store("N", 1,
-                                                             system_charset_info);
-    }
-
     /*
-       if we have a password supplied and plugin is built in we update
-       the password last changed field
+      If password_expired column is not to be updated and only
+      password_lifetime is to be updated
     */
-    if (table->s->fields > MYSQL_USER_FIELD_PASSWORD_LAST_CHANGED &&
-        builtin_plugin && (update_password || !old_row_exists))
+    if (table->s->fields > MYSQL_USER_FIELD_PASSWORD_LIFETIME &&
+        !combo->alter_status.update_password_expired_column)
     {
-      /*
-        Calculate time stamp up to seconds elapsed
-        from 1 Jan 1970 00:00:00.
-      */
-      password_change_timestamp= thd->query_start_timeval_trunc(0);
-
-      table->field[MYSQL_USER_FIELD_PASSWORD_LAST_CHANGED]->store_timestamp
-	(&password_change_timestamp);
-      table->field[MYSQL_USER_FIELD_PASSWORD_LAST_CHANGED]->set_notnull();
+      if (!combo->alter_status.use_default_password_lifetime)
+      {
+        table->field[MYSQL_USER_FIELD_PASSWORD_LIFETIME]->
+          store((longlong) combo->alter_status.expire_after_days, TRUE);
+        table->field[MYSQL_USER_FIELD_PASSWORD_LIFETIME]->set_notnull();
+      }
+      else
+        table->field[MYSQL_USER_FIELD_PASSWORD_LIFETIME]->set_null();
     }
   }
 
@@ -912,7 +715,6 @@ end:
     acl_cache->clear(1);			// Clear privilege cache
     if (old_row_exists)
       acl_update_user(combo->user.str, combo->host.str,
-                      combo->password.str, password_len,
 		      lex->ssl_type,
 		      lex->ssl_cipher,
 		      lex->x509_issuer,
@@ -921,9 +723,10 @@ end:
 		      rights,
 		      combo->plugin,
 		      combo->auth,
-                      password_change_time);
+                      password_change_time,
+                      combo->alter_status);
     else
-      acl_insert_user(combo->user.str, combo->host.str, password, password_len,
+      acl_insert_user(combo->user.str, combo->host.str,
 		      lex->ssl_type,
 		      lex->ssl_cipher,
 		      lex->x509_issuer,
@@ -932,7 +735,8 @@ end:
 		      rights,
 		      combo->plugin,
 		      combo->auth,
-                      password_change_time);
+                      password_change_time,
+                      combo->alter_status);
   }
   DBUG_RETURN(error);
 }

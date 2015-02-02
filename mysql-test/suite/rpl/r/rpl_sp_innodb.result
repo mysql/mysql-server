@@ -65,6 +65,8 @@ create procedure foo3()
 deterministic
 insert into t1 values (15);
 grant CREATE ROUTINE, EXECUTE on mysqltest1.* to "zedjzlcsjhd"@127.0.0.1;
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 grant SELECT on mysqltest1.t1 to "zedjzlcsjhd"@127.0.0.1;
 grant SELECT, INSERT on mysqltest1.t2 to "zedjzlcsjhd"@127.0.0.1;
 SELECT 1;
@@ -436,9 +438,9 @@ master-bin.000001	#	Query	#	#	use `mysqltest1`; create table t2 like t1
 master-bin.000001	#	Query	#	#	use `mysqltest1`; CREATE DEFINER=`root`@`localhost` PROCEDURE `foo3`()
     DETERMINISTIC
 insert into t1 values (15)
-master-bin.000001	#	Query	#	#	use `mysqltest1`; grant CREATE ROUTINE, EXECUTE on mysqltest1.* to "zedjzlcsjhd"@127.0.0.1
-master-bin.000001	#	Query	#	#	use `mysqltest1`; grant SELECT on mysqltest1.t1 to "zedjzlcsjhd"@127.0.0.1
-master-bin.000001	#	Query	#	#	use `mysqltest1`; grant SELECT, INSERT on mysqltest1.t2 to "zedjzlcsjhd"@127.0.0.1
+master-bin.000001	#	Query	#	#	use `mysqltest1`; GRANT EXECUTE, CREATE ROUTINE ON `mysqltest1`.* TO 'zedjzlcsjhd'@'127.0.0.1'
+master-bin.000001	#	Query	#	#	use `mysqltest1`; GRANT SELECT ON `mysqltest1`.`t1` TO 'zedjzlcsjhd'@'127.0.0.1'
+master-bin.000001	#	Query	#	#	use `mysqltest1`; GRANT SELECT, INSERT ON `mysqltest1`.`t2` TO 'zedjzlcsjhd'@'127.0.0.1'
 master-bin.000001	#	Query	#	#	use `mysqltest1`; CREATE DEFINER=`zedjzlcsjhd`@`127.0.0.1` PROCEDURE `foo4`()
     DETERMINISTIC
 begin
@@ -737,15 +739,15 @@ insert into t1 values (15)
 /*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
-grant CREATE ROUTINE, EXECUTE on mysqltest1.* to "zedjzlcsjhd"@127.0.0.1
+GRANT EXECUTE, CREATE ROUTINE ON `mysqltest1`.* TO 'zedjzlcsjhd'@'127.0.0.1'
 /*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
-grant SELECT on mysqltest1.t1 to "zedjzlcsjhd"@127.0.0.1
+GRANT SELECT ON `mysqltest1`.`t1` TO 'zedjzlcsjhd'@'127.0.0.1'
 /*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
-grant SELECT, INSERT on mysqltest1.t2 to "zedjzlcsjhd"@127.0.0.1
+GRANT SELECT, INSERT ON `mysqltest1`.`t2` TO 'zedjzlcsjhd'@'127.0.0.1'
 /*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
