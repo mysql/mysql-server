@@ -22,6 +22,7 @@
 #include <my_global.h>
 #include <mysql/plugin_query_rewrite.h>
 #include <mysql/psi/mysql_thread.h>
+#include <mysql/service_my_plugin_log.h>
 #include <my_atomic.h>
 #include <my_sys.h>
 #include "services.h"

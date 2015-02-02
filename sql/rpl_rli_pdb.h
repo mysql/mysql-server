@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,6 +25,8 @@
 #include <my_bitmap.h>
 #include "rpl_slave.h"
 #include "prealloced_array.h"
+#include "log_event.h"
+#include "rpl_mts_submode.h"   // enum_mts_parallel_type
 
 #ifndef DBUG_OFF
 extern ulong w_rr;

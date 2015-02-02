@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -17,15 +17,11 @@
 
 #include "rpl_gtid.h"
 
-#include <ctype.h>
-#include <algorithm>
-#include "my_dbug.h"
-#include "mysqld_error.h"
-#include <algorithm>
-#include <my_stacktrace.h>
+#include "my_stacktrace.h"       // my_safe_printf_stderr
+#include "mysqld_error.h"        // ER_*
 
 #ifndef MYSQL_CLIENT
-#include "log.h"
+#include "log.h"                 // sql_print_warning
 #endif
 
 
@@ -789,6 +785,29 @@ bool Gtid_set::contains_gtid(rpl_sidno sidno, rpl_gno gno) const
   DBUG_RETURN(false);
 }
 
+rpl_gno Gtid_set::get_last_gno(rpl_sidno sidno) const
+{
+  DBUG_ENTER("Gtid_set::get_last_gno");
+  rpl_gno gno= 0;
+
+  if (sid_lock != NULL)
+    sid_lock->assert_some_lock();
+
+  if (sidno > get_max_sidno())
+    DBUG_RETURN(gno);
+
+  Const_interval_iterator ivit(this, sidno);
+  const Gtid_set::Interval *iv= ivit.get();
+  while(iv != NULL)
+  {
+    gno= iv->end-1;
+    ivit.next();
+    iv= ivit.get();
+  }
+
+  DBUG_RETURN(gno);
+}
+
 int Gtid_set::to_string(char **buf_arg, const Gtid_set::String_format *sf_arg) const
 {
   DBUG_ENTER("Gtid_set::to_string");
@@ -974,10 +993,6 @@ int Gtid_set::get_string_length(const Gtid_set::String_format *sf) const
   return cached_string_length;
 }
 
-/*
-  Functions sidno_equals() and equals() are only used by unitests
-*/
-#ifdef NON_DISABLED_UNITTEST_GTID
 bool Gtid_set::sidno_equals(rpl_sidno sidno, const Gtid_set *other,
                             rpl_sidno other_sidno) const
 {
@@ -1069,7 +1084,6 @@ bool Gtid_set::equals(const Gtid_set *other) const
   DBUG_ASSERT(0); // not reached
   DBUG_RETURN(true);
 }
-#endif
 
 
 bool Gtid_set::is_interval_subset(Const_interval_iterator *sub,
@@ -1404,6 +1418,21 @@ void Gtid_set::encode(uchar *buf) const
   int8store(n_sids_p, n_sids);
   DBUG_ASSERT(buf - n_sids_p == (int)get_encoded_length());
   DBUG_VOID_RETURN;
+}
+
+
+std::string Gtid_set::encode() const
+{
+  DBUG_ENTER("std::string Gtid_set::encode()");
+
+  size_t len= get_encoded_length();
+  uchar* buf= (uchar *)my_malloc(key_memory_Gtid_set_to_string,
+                                 len, MYF(MY_WME));
+  encode(buf);
+  std::string result(reinterpret_cast<const char*>(buf), len);
+  my_free(buf);
+
+  DBUG_RETURN(result);
 }
 
 

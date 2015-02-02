@@ -25,6 +25,8 @@
 #include "sql_cache.h"                 // query_cache
 #include "mdl.h"                       // MDL_savepoint
 #include "handler.h"                   // handlerton
+#include "rpl_transaction_ctx.h"       // Rpl_transaction_ctx
+#include "rpl_transaction_write_set_ctx.h" // Transaction_write_set_ctx
 
 class THD;
 
@@ -369,7 +371,7 @@ public:
   }
 
   Transaction_ctx();
-  ~Transaction_ctx()
+  virtual ~Transaction_ctx()
   {
     free_root(&m_mem_root, MYF(0));
   }
@@ -380,6 +382,8 @@ public:
     m_changed_tables= NULL;
     m_savepoints= NULL;
     m_xid_state.cleanup();
+    m_rpl_transaction_ctx.cleanup();
+    m_transaction_write_set_ctx.clear_write_set();
     free_root(&m_mem_root,MYF(MY_KEEP_PREALLOC));
     DBUG_VOID_RETURN;
   }
@@ -573,6 +577,31 @@ private:
     else
       return true;
   }
+
+public:
+  Rpl_transaction_ctx *get_rpl_transaction_ctx()
+  {
+    return &m_rpl_transaction_ctx;
+  }
+
+  const Rpl_transaction_ctx *get_rpl_transaction_ctx() const
+  {
+    return &m_rpl_transaction_ctx;
+  }
+
+  Rpl_transaction_write_set_ctx *get_transaction_write_set_ctx()
+  {
+    return &m_transaction_write_set_ctx;
+  }
+
+  const Rpl_transaction_write_set_ctx *get_transaction_write_set_ctx() const
+  {
+    return &m_transaction_write_set_ctx;
+  }
+
+private:
+  Rpl_transaction_ctx m_rpl_transaction_ctx;
+  Rpl_transaction_write_set_ctx m_transaction_write_set_ctx;
 };
 
 #endif

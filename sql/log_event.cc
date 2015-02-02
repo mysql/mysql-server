@@ -14,36 +14,28 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-
-#include "binary_log_funcs.h"
-
-#ifdef MYSQL_CLIENT
-
-#include "mysqld_error.h"
-
-#else
-
-#include "binlog.h"
-#include "my_global.h" // REQUIRED by log_event.h > m_string.h > my_bitmap.h
 #include "log_event.h"
-#include "sql_base.h"                           // close_thread_tables
-#include "sql_cache.h"                       // QUERY_CACHE_FLAGS_SIZE
-#include "sql_locale.h" // MY_LOCALE, my_locale_by_number, my_locale_en_US
-#include "lock.h"       // mysql_unlock_tables
-#include "sql_parse.h"  // mysql_test_parse_for_slave
-#include "tztime.h"     // struct Time_zone
-#include "sql_load.h"   // mysql_load
-#include "sql_db.h"     // load_db_opt_by_name
-#include "rpl_slave.h"
-#include "rpl_rli.h"
-#include "rpl_mi.h"
-#include "rpl_filter.h"
-#include "rpl_record.h"
-#include "rpl_mts_submode.h"
-#include "transaction.h"
-#include <my_dir.h>
-#include "rpl_rli_pdb.h"
-#include "sql_show.h"    // append_identifier
+
+#include "base64.h"            // base64_encode
+#include "binary_log_funcs.h"  // my_timestamp_binary_length
+
+#ifndef MYSQL_CLIENT
+#include "debug_sync.h"        // debug_sync_set_action
+#include "my_dir.h"            // my_dir
+#include "log.h"               // Log_throttle
+#include "rpl_mts_submode.h"   // Mts_submode
+#include "rpl_rli.h"           // Relay_log_info
+#include "rpl_rli_pdb.h"       // Slave_job_group
+#include "rpl_slave.h"         // use_slave_mask
+#include "sql_base.h"          // close_thread_tables
+#include "sql_cache.h"         // QUERY_CACHE_FLAGS_SIZE
+#include "sql_db.h"            // load_db_opt_by_name
+#include "sql_load.h"          // mysql_load
+#include "sql_locale.h"        // my_locale_by_number
+#include "sql_parse.h"         // mysql_test_parse_for_slave
+#include "sql_show.h"          // append_identifier
+#include "transaction.h"       // trans_rollback_stmt
+#include "tztime.h"            // Time_zone
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
@@ -58,13 +50,6 @@ slave_ignored_err_throttle(window_size,
                            " \"Slave SQL thread ignored the query because of"
                            " replicate-*-table rules\" got suppressed.");
 #endif /* MYSQL_CLIENT */
-
-#include <base64.h>
-#include <my_bitmap.h>
-#include "rpl_utility.h"
-/* This is necessary for the List manipuation */
-#include "sql_list.h"                           /* I_List */
-#include "hash.h"
 
 PSI_memory_key key_memory_log_event;
 PSI_memory_key key_memory_Incident_log_event_message;
@@ -801,6 +786,8 @@ const char* Log_event::get_type_str(Log_event_type type)
   case binary_log::ANONYMOUS_GTID_LOG_EVENT: return "Anonymous_Gtid";
   case binary_log::PREVIOUS_GTIDS_LOG_EVENT: return "Previous_gtids";
   case binary_log::HEARTBEAT_LOG_EVENT: return "Heartbeat";
+  case binary_log::TRANSACTION_CONTEXT_EVENT: return "Transaction_context";
+  case binary_log::VIEW_CHANGE_EVENT: return "View_change";
   default: return "Unknown";                            /* impossible */
   }
 }
@@ -873,6 +860,16 @@ Log_event::Log_event(Log_event_header *header,
 #else
   server_id = common_header->unmasked_server_id;
 #endif
+}
+
+/*
+  This method is not on header file to avoid using key_memory_log_event
+  outside log_event.cc, allowing header file to be included on plugins.
+*/
+void* Log_event::operator new(size_t size)
+{
+  return (void*) my_malloc(key_memory_log_event,
+                           (uint)size, MYF(MY_WME|MY_FAE));
 }
 
 #ifndef MYSQL_CLIENT
@@ -1787,6 +1784,12 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
       break;
     case binary_log::DELETE_ROWS_EVENT:
       ev = new Delete_rows_log_event(buf, event_len, description_event);
+      break;
+    case binary_log::TRANSACTION_CONTEXT_EVENT:
+      ev = new Transaction_context_log_event(buf, event_len, description_event);
+      break;
+    case binary_log::VIEW_CHANGE_EVENT:
+      ev = new View_change_log_event(buf, event_len, description_event);
       break;
 #endif
     default:
@@ -6227,6 +6230,17 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
         update it inside mysql_load().
       */
       List<Item> tmp_list;
+      /*
+        Prepare column privilege check for LOAD statement.
+        This is necessary because the replication code for LOAD bypasses
+        regular privilege checking, which is done by check_one_table_access()
+        in regular code path.
+        We can assign INSERT privileges to the table since the slave thread
+        operates with all privileges.
+      */
+      tables.set_privileges(INSERT_ACL);
+      tables.set_want_privilege(INSERT_ACL);
+
       if (open_temporary_tables(thd, &tables) ||
           mysql_load(thd, &ex, &tables, field_list, tmp_list, tmp_list,
                      handle_dup, net != 0))
@@ -10596,7 +10610,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
     /* A small test to verify that objects have consistent types */
     DBUG_ASSERT(sizeof(thd->variables.option_bits) == sizeof(OPTION_RELAXED_UNIQUE_CHECKS));
 
-    if (open_and_lock_tables(thd, rli->tables_to_lock, FALSE, 0))
+    if (open_and_lock_tables(thd, rli->tables_to_lock, 0))
     {
       uint actual_error= thd->get_stmt_da()->mysql_errno();
       if (thd->is_slave_error || thd->is_fatal_error)
@@ -12839,6 +12853,50 @@ Gtid_log_event::Gtid_log_event(THD* thd_arg, bool using_trans,
   is_valid_param= true;
   DBUG_VOID_RETURN;
 }
+
+Gtid_log_event::Gtid_log_event(uint32 server_id_arg, bool using_trans,
+                               int64 last_committed_arg,
+                               int64 sequence_number_arg,
+                               const Gtid_specification spec_arg)
+ : binary_log::Gtid_event(last_committed_arg, sequence_number_arg),
+   Log_event(header(), footer(),
+             using_trans ? Log_event::EVENT_TRANSACTIONAL_CACHE :
+             Log_event::EVENT_STMT_CACHE, Log_event::EVENT_NORMAL_LOGGING)
+{
+  DBUG_ENTER("Gtid_log_event::Gtid_log_event(uint32, bool, int64, int64, const Gtid_specification)");
+  server_id= server_id_arg;
+  common_header->unmasked_server_id= server_id_arg;
+
+  if (spec_arg.type == GTID_GROUP)
+  {
+    DBUG_ASSERT(spec_arg.gtid.sidno > 0 && spec_arg.gtid.gno > 0);
+    spec.set(spec_arg.gtid);
+    global_sid_lock->rdlock();
+    sid= global_sid_map->sidno_to_sid(spec_arg.gtid.sidno);
+    global_sid_lock->unlock();
+  }
+  else
+  {
+    DBUG_ASSERT(spec_arg.type == ANONYMOUS_GROUP);
+    spec.set_anonymous();
+    spec.gtid.clear();
+    sid.clear();
+    common_header->flags|= LOG_EVENT_IGNORABLE_F;
+  }
+
+  Log_event_type event_type= (spec.type == ANONYMOUS_GROUP ?
+                              binary_log::ANONYMOUS_GTID_LOG_EVENT :
+                              binary_log::GTID_LOG_EVENT);
+  common_header->type_code= event_type;
+
+#ifndef DBUG_OFF
+  char buf[MAX_SET_STRING_LENGTH + 1];
+  to_string(buf);
+  DBUG_PRINT("info", ("%s", buf));
+#endif
+  is_valid_param= true;
+  DBUG_VOID_RETURN;
+}
 #endif
 
 #ifndef MYSQL_CLIENT
@@ -13166,6 +13224,458 @@ int Previous_gtids_log_event::do_update_pos(Relay_log_info *rli)
   return 0;
 }
 #endif
+
+
+/**************************************************************************
+	Transaction_context_log_event methods
+**************************************************************************/
+#ifndef MYSQL_CLIENT
+Transaction_context_log_event::
+Transaction_context_log_event(const char *server_uuid_arg,
+                              bool using_trans,
+                              my_thread_id thread_id_arg,
+                              bool is_gtid_specified_arg)
+  : binary_log::Transaction_context_event(thread_id_arg,
+                                          is_gtid_specified_arg),
+    Log_event(header(), footer(),
+              using_trans ? Log_event::EVENT_TRANSACTIONAL_CACHE :
+              Log_event::EVENT_STMT_CACHE, Log_event::EVENT_NORMAL_LOGGING)
+{
+  DBUG_ENTER("Transaction_context_log_event::Transaction_context_log_event(THD *, const char *, ulonglong)");
+  sid_map= new Sid_map(NULL);
+  snapshot_version= new Gtid_set(sid_map);
+  global_sid_lock->wrlock();
+  if (snapshot_version->add_gtid_set(gtid_state->get_executed_gtids()) != RETURN_STATUS_OK)
+    server_uuid= NULL;
+  else
+    server_uuid= my_strdup(key_memory_log_event, server_uuid_arg, MYF(MY_WME));
+  global_sid_lock->unlock();
+
+  // These two fields are only populated on event decoding.
+  // Encoding is done directly from snapshot_version field.
+  encoded_snapshot_version= NULL;
+  encoded_snapshot_version_length= 0;
+
+  if (server_uuid != NULL)
+    is_valid_param= true;
+
+  // Debug sync point for SQL threads.
+  DBUG_EXECUTE_IF("debug.wait_after_set_snapshot_version_on_transaction_context_log_event",
+                  {
+                    const char act[]=
+                        "now wait_for "
+                        "signal.resume_after_set_snapshot_version_on_transaction_context_log_event";
+                    DBUG_ASSERT(opt_debug_sync_timeout > 0);
+                    DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                                                       STRING_WITH_LEN(act)));
+                  };);
+
+  DBUG_VOID_RETURN;
+}
+#endif
+
+Transaction_context_log_event::
+Transaction_context_log_event(const char *buffer, uint event_len,
+                              const Format_description_event *descr_event)
+  : binary_log::Transaction_context_event(buffer, event_len, descr_event),
+    Log_event(header(), footer())
+{
+  DBUG_ENTER("Transaction_context_log_event::Transaction_context_log_event (const char *, uint, const Format_description_event*)");
+
+  sid_map= new Sid_map(NULL);
+  snapshot_version= new Gtid_set(sid_map);
+
+  if (server_uuid == NULL || encoded_snapshot_version == NULL)
+    goto err;
+
+  if (read_snapshot_version())
+    goto err;
+
+  is_valid_param= true;
+  DBUG_VOID_RETURN;
+
+err:
+  is_valid_param= false;
+  DBUG_VOID_RETURN;
+}
+
+Transaction_context_log_event::~Transaction_context_log_event()
+{
+  DBUG_ENTER("Transaction_context_log_event::~Transaction_context_log_event");
+  my_free((void*)server_uuid);
+  server_uuid= NULL;
+  my_free((void*) encoded_snapshot_version);
+  encoded_snapshot_version= NULL;
+  delete snapshot_version;
+  delete sid_map;
+  DBUG_VOID_RETURN;
+}
+
+size_t Transaction_context_log_event::to_string(char *buf, ulong len) const
+{
+  DBUG_ENTER("Transaction_context_log_event::to_string");
+  DBUG_RETURN(my_snprintf(buf, len,
+                          "server_uuid=%s\tthread_id=%lu",
+                          server_uuid, thread_id));
+}
+
+#ifndef MYSQL_CLIENT
+int Transaction_context_log_event::pack_info(Protocol *protocol)
+{
+  DBUG_ENTER("Transaction_context_log_event::pack_info");
+  char buf[256];
+  size_t bytes= to_string(buf, 256);
+  protocol->store(buf, bytes, &my_charset_bin);
+  DBUG_RETURN(0);
+}
+#endif
+
+#ifdef MYSQL_CLIENT
+void Transaction_context_log_event::print(FILE *file,
+                                          PRINT_EVENT_INFO *print_event_info)
+{
+  DBUG_ENTER("Transaction_context_log_event::print");
+  char buf[256];
+  IO_CACHE *const head= &print_event_info->head_cache;
+
+  if (!print_event_info->short_form)
+  {
+    to_string(buf, 256);
+    print_header(head, print_event_info, FALSE);
+    my_b_printf(head, "Transaction_context: %s\n", buf);
+  }
+  DBUG_VOID_RETURN;
+}
+#endif
+
+#if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
+int Transaction_context_log_event::do_update_pos(Relay_log_info *rli)
+{
+  DBUG_ENTER("Transaction_context_log_event::do_update_pos");
+  rli->inc_event_relay_log_pos();
+  DBUG_RETURN(0);
+}
+#endif
+
+size_t Transaction_context_log_event::get_data_size()
+{
+  DBUG_ENTER("Transaction_context_log_event::get_data_size");
+
+  size_t size= Binary_log_event::TRANSACTION_CONTEXT_HEADER_LEN;
+  size += strlen(server_uuid);
+  size += get_snapshot_version_size();
+  size += get_data_set_size(&write_set);
+  size += get_data_set_size(&read_set);
+
+  DBUG_RETURN(size);
+}
+
+#ifndef MYSQL_CLIENT
+bool Transaction_context_log_event::write_data_header(IO_CACHE* file)
+{
+  DBUG_ENTER("Transaction_context_log_event::write_data_header");
+  char buf[Binary_log_event::TRANSACTION_CONTEXT_HEADER_LEN];
+
+  buf[ENCODED_SERVER_UUID_LEN_OFFSET] = (char) strlen(server_uuid);
+  int8store(buf + ENCODED_THREAD_ID_OFFSET, thread_id);
+  buf[ENCODED_GTID_SPECIFIED_OFFSET] = gtid_specified;
+  int4store(buf + ENCODED_SNAPSHOT_VERSION_LEN_OFFSET, get_snapshot_version_size());
+  int2store(buf + ENCODED_WRITE_SET_ITEMS_OFFSET, write_set.size());
+  int2store(buf + ENCODED_READ_SET_ITEMS_OFFSET, read_set.size());
+  DBUG_RETURN(wrapper_my_b_safe_write(file, (const uchar *) buf,
+                                      Binary_log_event::TRANSACTION_CONTEXT_HEADER_LEN));
+}
+
+bool Transaction_context_log_event::write_data_body(IO_CACHE* file)
+{
+  DBUG_ENTER("Transaction_context_log_event::write_data_body");
+
+  if (wrapper_my_b_safe_write(file,
+                              (const uchar*) server_uuid,
+                              strlen(server_uuid)) ||
+      write_snapshot_version(file) ||
+      write_data_set(file, &write_set) ||
+      write_data_set(file, &read_set))
+    DBUG_RETURN(true);
+
+  DBUG_RETURN(false);
+}
+
+bool Transaction_context_log_event::write_snapshot_version(IO_CACHE* file)
+{
+  DBUG_ENTER("Transaction_context_log_event::write_snapshot_version");
+  bool result= false;
+
+  uint16 len= get_snapshot_version_size();
+  uchar *buffer= (uchar *) my_malloc(key_memory_log_event,
+                                     len, MYF(MY_WME));
+  snapshot_version->encode(buffer);
+  if (wrapper_my_b_safe_write(file, buffer, len))
+    result= true;
+
+  my_free(buffer);
+  DBUG_RETURN(result);
+}
+
+bool Transaction_context_log_event::write_data_set(IO_CACHE* file,
+                                                   std::list<const char*> *set)
+{
+  DBUG_ENTER("Transaction_context_log_event::write_data_set");
+  for (std::list<const char*>::iterator it=set->begin();
+       it != set->end();
+       ++it)
+  {
+    char buf[ENCODED_READ_WRITE_SET_ITEM_LEN];
+    const char* hash= *it;
+    uint16 len= strlen(hash);
+
+    int2store(buf, len);
+    if (wrapper_my_b_safe_write(file,
+                                (const uchar*) buf,
+                                ENCODED_READ_WRITE_SET_ITEM_LEN) ||
+        wrapper_my_b_safe_write(file, (const uchar*) hash, len))
+      DBUG_RETURN(true);
+  }
+
+  DBUG_RETURN(false);
+}
+#endif
+
+bool Transaction_context_log_event::read_snapshot_version()
+{
+  DBUG_ENTER("Transaction_context_log_event::read_snapshot_version");
+  DBUG_ASSERT(snapshot_version->is_empty());
+  DBUG_RETURN(snapshot_version->add_gtid_encoding(encoded_snapshot_version,
+                                                  encoded_snapshot_version_length)
+                  != RETURN_STATUS_OK);
+}
+
+size_t Transaction_context_log_event::get_snapshot_version_size()
+{
+  DBUG_ENTER("Transaction_context_log_event::get_snapshot_version_size");
+  size_t result= snapshot_version->get_encoded_length();
+  DBUG_RETURN(result);
+}
+
+int Transaction_context_log_event::get_data_set_size(std::list<const char*> *set)
+{
+  DBUG_ENTER("Transaction_context_log_event::get_data_set_size");
+  int size= 0;
+
+  for (std::list<const char*>::iterator it=set->begin();
+       it != set->end();
+       ++it)
+    size += ENCODED_READ_WRITE_SET_ITEM_LEN + strlen(*it);
+
+  DBUG_RETURN(size);
+}
+
+void Transaction_context_log_event::add_write_set(const char *hash)
+{
+  DBUG_ENTER("Transaction_context_log_event::add_write_set");
+  write_set.push_back(hash);
+  DBUG_VOID_RETURN;
+}
+
+void Transaction_context_log_event::add_read_set(const char *hash)
+{
+  DBUG_ENTER("Transaction_context_log_event::add_read_set");
+  read_set.push_back(hash);
+  DBUG_VOID_RETURN;
+}
+
+/**************************************************************************
+	View_change_log_event methods
+**************************************************************************/
+
+#ifndef MYSQL_CLIENT
+View_change_log_event::View_change_log_event(char* raw_view_id)
+  : binary_log::View_change_event(raw_view_id),
+    Log_event(header(), footer(),
+            Log_event::EVENT_NO_CACHE, Log_event::EVENT_IMMEDIATE_LOGGING)
+{
+  DBUG_ENTER("View_change_log_event::View_change_log_event(char*)");
+
+  if (strlen(view_id) != 0)
+    is_valid_param= true;
+
+  DBUG_VOID_RETURN;
+}
+#endif
+
+View_change_log_event::
+View_change_log_event(const char *buffer,
+                      uint event_len,
+                      const Format_description_event *descr_event)
+  : binary_log::View_change_event(buffer, event_len, descr_event),
+    Log_event(header(), footer())
+{
+  DBUG_ENTER("View_change_log_event::View_change_log_event(const char *,"
+             " uint, const Format_description_event*)");
+
+  if (strlen(view_id) != 0)
+    is_valid_param= true;
+
+  DBUG_VOID_RETURN;
+}
+
+View_change_log_event::~View_change_log_event()
+{
+  DBUG_ENTER("View_change_log_event::~View_change_log_event");
+  certification_info.clear();
+  DBUG_VOID_RETURN;
+}
+
+size_t View_change_log_event::get_data_size()
+{
+  DBUG_ENTER("View_change_log_event::get_data_size");
+
+  size_t size= Binary_log_event::VIEW_CHANGE_HEADER_LEN;
+  size+= get_size_data_map(&certification_info);
+
+  DBUG_RETURN(size);
+}
+
+int
+View_change_log_event::get_size_data_map(std::map<std::string, std::string> *map)
+{
+  DBUG_ENTER("View_change_log_event::get_size_data_map");
+  int size= 0;
+
+  std::map<std::string, std::string>::iterator iter;
+  size+= (ENCODED_CERT_INFO_KEY_SIZE_LEN +
+          ENCODED_CERT_INFO_VALUE_LEN) * map->size();
+  for (iter= map->begin(); iter!= map->end(); iter++)
+    size+= iter->first.length() + iter->second.length();
+
+  DBUG_RETURN(size);
+}
+
+size_t View_change_log_event::to_string(char *buf, ulong len) const
+{
+  DBUG_ENTER("View_change_log_event::to_string");
+  DBUG_RETURN(my_snprintf(buf, len, "view_id=%s", view_id));
+}
+
+#ifndef MYSQL_CLIENT
+int View_change_log_event::pack_info(Protocol *protocol)
+{
+  DBUG_ENTER("View_change_log_event::pack_info");
+  char buf[256];
+  size_t bytes= to_string(buf, 256);
+  protocol->store(buf, bytes, &my_charset_bin);
+  DBUG_RETURN(0);
+}
+#endif
+
+#ifdef MYSQL_CLIENT
+void View_change_log_event::print(FILE *file,
+                                  PRINT_EVENT_INFO *print_event_info)
+{
+  DBUG_ENTER("View_change_log_event::print");
+  char buf[256];
+  IO_CACHE *const head= &print_event_info->head_cache;
+
+  if (!print_event_info->short_form)
+  {
+    to_string(buf, 256);
+    print_header(head, print_event_info, FALSE);
+    my_b_printf(head, "View_change_log_event: %s\n", buf);
+  }
+  DBUG_VOID_RETURN;
+}
+#endif
+
+#if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
+
+ int View_change_log_event::do_apply_event(Relay_log_info const *rli)
+ {
+   return mysql_bin_log.write_event_into_log_file(this);
+ }
+
+int View_change_log_event::do_update_pos(Relay_log_info *rli)
+{
+  DBUG_ENTER("View_change_log_event::do_update_pos");
+  rli->inc_event_relay_log_pos();
+  DBUG_RETURN(0);
+}
+#endif
+
+#ifndef MYSQL_CLIENT
+bool View_change_log_event::write_data_header(IO_CACHE* file){
+  DBUG_ENTER("View_change_log_event::write_data_header");
+  char buf[Binary_log_event::VIEW_CHANGE_HEADER_LEN];
+
+  memcpy(buf, view_id, ENCODED_VIEW_ID_MAX_LEN);
+  int8store(buf + ENCODED_SEQ_NUMBER_OFFSET, seq_number);
+  int4store(buf + ENCODED_CERT_INFO_SIZE_OFFSET, certification_info.size());
+  DBUG_RETURN(wrapper_my_b_safe_write(file,(const uchar *) buf,
+                                      Binary_log_event::VIEW_CHANGE_HEADER_LEN));
+}
+
+bool View_change_log_event::write_data_body(IO_CACHE* file){
+  DBUG_ENTER("Transaction_context_log_event::write_data_body");
+
+  if (write_data_map(file, &certification_info))
+    DBUG_RETURN(true);
+
+  DBUG_RETURN(false);
+}
+
+bool View_change_log_event::write_data_map(IO_CACHE* file,
+                                           std::map<std::string, std::string> *map)
+{
+  DBUG_ENTER("View_change_log_event::write_data_set");
+  bool result= false;
+
+  std::map<std::string, std::string>::iterator iter;
+  for (iter= map->begin(); iter!= map->end(); iter++)
+  {
+    uchar buf_key_len[ENCODED_CERT_INFO_KEY_SIZE_LEN];
+    uint16 key_len= iter->first.length();
+    int2store(buf_key_len, key_len);
+
+    const char *key= iter->first.c_str();
+
+    uchar buf_value_len[ENCODED_CERT_INFO_VALUE_LEN];
+    uint16 value_len= iter->second.length();
+    int2store(buf_value_len, value_len);
+
+    const char *value= iter->second.c_str();
+
+    if (wrapper_my_b_safe_write(file, buf_key_len,
+                                ENCODED_CERT_INFO_KEY_SIZE_LEN) ||
+        wrapper_my_b_safe_write(file, (const uchar*) key, key_len) ||
+        wrapper_my_b_safe_write(file, buf_value_len,
+                                ENCODED_CERT_INFO_VALUE_LEN) ||
+        wrapper_my_b_safe_write(file, (const uchar*) value, value_len))
+      DBUG_RETURN(result);
+  }
+
+  DBUG_RETURN(false);
+}
+
+#endif
+
+/*
+  Updates the certification info map.
+*/
+void
+View_change_log_event::set_certification_info(std::map<std::string, std::string> *info)
+{
+  DBUG_ENTER("View_change_log_event::set_certification_database_snapshot");
+  certification_info.clear();
+
+  std::map<std::string, std::string>::iterator it;
+  for(it= info->begin(); it != info->end(); ++it)
+  {
+    std::string key= it->first;
+    std::string value= it->second;
+    certification_info[key]= value;
+  }
+
+  DBUG_VOID_RETURN;
+}
 
 
 #ifdef MYSQL_CLIENT

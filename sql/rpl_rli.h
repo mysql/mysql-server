@@ -25,11 +25,14 @@
 #include "sql_class.h"                   /* THD */
 #include<vector>
 #include "prealloced_array.h"
+#include "rpl_mts_submode.h"
 
 struct RPL_TABLE_LIST;
 class Master_info;
 class Mts_submode;
 class Commit_order_manager;
+class Slave_committed_queue;
+typedef struct st_db_worker_hash_entry db_worker_hash_entry;
 extern uint sql_slave_skip_counter;
 
 typedef Prealloced_array<Slave_worker*, 4> Slave_worker_array;
@@ -349,14 +352,19 @@ public:
      notify_*_log_name_updated() methods. (They need to be called only if SQL
      thread is running).
    */
-  enum {UNTIL_NONE= 0, UNTIL_MASTER_POS, UNTIL_RELAY_POS,
-        UNTIL_SQL_BEFORE_GTIDS, UNTIL_SQL_AFTER_GTIDS,
-        UNTIL_SQL_AFTER_MTS_GAPS
+  enum
+  {
+    UNTIL_NONE= 0,
+    UNTIL_MASTER_POS,
+    UNTIL_RELAY_POS,
+    UNTIL_SQL_BEFORE_GTIDS,
+    UNTIL_SQL_AFTER_GTIDS,
+    UNTIL_SQL_AFTER_MTS_GAPS,
+    UNTIL_SQL_VIEW_ID,
 #ifndef DBUG_OFF
-        , UNTIL_DONE
+    UNTIL_DONE
 #endif
-}
-    until_condition;
+  } until_condition;
   char until_log_name[FN_REFLEN];
   ulonglong until_log_pos;
   /* extension extracted from log_name and converted to int */
@@ -384,6 +392,8 @@ public:
   } until_log_names_cmp_result;
 
   char cached_charset[6];
+
+  std::string until_view_id;
   /*
     trans_retries varies between 0 to slave_transaction_retries and counts how
     many times the slave has retried the present transaction; gets reset to 0
@@ -448,6 +458,8 @@ public:
   int wait_for_pos(THD* thd, String* log_name, longlong log_pos, 
 		   longlong timeout);
   int wait_for_gtid_set(THD* thd, String* gtid, longlong timeout);
+  int wait_for_gtid_set(THD* thd, const Gtid_set* wait_gtid_set, longlong timeout);
+
   void close_temporary_tables();
 
   /* Check if UNTIL condition is satisfied. See slave.cc for more. */
@@ -706,6 +718,8 @@ public:
       return NULL;
   }
 
+  /*Channel defined mts submode*/
+  enum_mts_parallel_type channel_mts_submode;
   /* MTS submode  */
   Mts_submode* current_mts_submode;
 
@@ -1185,6 +1199,25 @@ private:
   const char* add_channel_to_relay_log_name(char *buff, uint buff_size,
                                             const char *base_name);
 
+  /*
+    Applier thread InnoDB priority.
+    When two transactions conflict inside InnoDB, the one with
+    greater priority wins.
+    Priority must be set before applier thread start so that all
+    executed transactions have the same priority.
+  */
+  int thd_tx_priority;
+
+public:
+  void set_thd_tx_priority(int priority)
+  {
+    thd_tx_priority= priority;
+  }
+
+  int get_thd_tx_priority()
+  {
+    return thd_tx_priority;
+  }
 };
 
 bool mysql_show_relaylog_events(THD* thd);

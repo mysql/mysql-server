@@ -676,6 +676,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  FUNCTION_SYM                  /* SQL-2003-R */
 %token  GE
 %token  GENERAL
+%token  GROUP_REPLICATION
 %token  GEOMETRYCOLLECTION
 %token  GEOMETRY_SYM
 %token  GET_FORMAT                    /* MYSQL-FUNC */
@@ -1340,6 +1341,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
         part_column_list
         server_options_list server_option
         definer_opt no_definer definer get_diagnostics
+        group_replication
 END_OF_INPUT
 
 %type <NONE> call sp_proc_stmts sp_proc_stmts1 sp_proc_stmt
@@ -1607,6 +1609,7 @@ statement:
         | execute
         | flush
         | get_diagnostics
+        | group_replication
         | grant
         | handler
         | help
@@ -8109,6 +8112,19 @@ opt_to:
         | AS {}
         ;
 
+group_replication:
+                 START_SYM GROUP_REPLICATION
+                 {
+                   LEX *lex=Lex;
+                   lex->sql_command = SQLCOM_START_GROUP_REPLICATION;
+                 }
+               | STOP_SYM GROUP_REPLICATION
+                 {
+                   LEX *lex=Lex;
+                   lex->sql_command = SQLCOM_STOP_GROUP_REPLICATION;
+                 }
+               ;
+
 slave:
         slave_start start_slave_opts{}
       | STOP_SYM SLAVE opt_slave_thread_option_list opt_channel
@@ -11229,7 +11245,7 @@ update:
             Select->parsing_place= CTX_NONE;
             if (lex->select_lex->table_list.elements > 1)
               lex->sql_command= SQLCOM_UPDATE_MULTI;
-            else if (lex->select_lex->get_table_list()->derived)
+            else if (lex->select_lex->get_table_list()->is_derived())
             {
               /* it is single table update and it is update of derived table */
               my_error(ER_NON_UPDATABLE_TABLE, MYF(0),
@@ -11320,6 +11336,7 @@ single_multi:
                                            NULL,
                                            $3))
               MYSQL_YYABORT;
+            Select->top_join_list.push_back(Select->get_table_list());
             YYPS->m_lock_type= TL_READ_DEFAULT;
             YYPS->m_mdl_type= MDL_SHARED_READ;
           }
@@ -12933,6 +12950,7 @@ keyword:
         | FLUSH_SYM             {}
         | FOLLOWS_SYM           {}
         | FORMAT_SYM            {}
+        | GROUP_REPLICATION     {}
         | HANDLER_SYM           {}
         | HELP_SYM              {}
         | HOST_SYM              {}
@@ -14483,7 +14501,7 @@ view_algorithm:
         | ALGORITHM_SYM EQ MERGE_SYM
           { Lex->create_view_algorithm= VIEW_ALGORITHM_MERGE; }
         | ALGORITHM_SYM EQ TEMPTABLE_SYM
-          { Lex->create_view_algorithm= VIEW_ALGORITHM_TMPTABLE; }
+          { Lex->create_view_algorithm= VIEW_ALGORITHM_TEMPTABLE; }
         ;
 
 view_suid:

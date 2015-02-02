@@ -182,7 +182,7 @@ static void trace_filesort_information(Opt_trace_context *trace,
     if (sortorder->field)
     {
       if (strlen(sortorder->field->table->alias) != 0)
-        oto.add_utf8_table(sortorder->field->table);
+        oto.add_utf8_table(sortorder->field->table->pos_in_table_list);
       else
         oto.add_alnum("table", "intermediate_tmp_table");
       oto.add_alnum("field", sortorder->field->field_name ?
@@ -837,22 +837,26 @@ static ha_rows find_all_keys(Sort_param *param, QEP_TAB *qep_tab,
   */
   DBUG_ASSERT(bitmap_is_clear_all(&sort_form->tmp_set));
 
-  /* Temporary set for register_used_fields and register_field_in_read_map */
+  // Temporary set for register_used_fields and mark_field_in_map()
   sort_form->read_set= &sort_form->tmp_set;
   // Include fields used for sorting in the read_set.
   register_used_fields(param); 
 
   // Include fields used by conditions in the read_set.
   if (qep_tab->condition())
-    qep_tab->condition()->walk(&Item::register_field_in_read_map,
-                               walk_subquery, (uchar*) sort_form);
-
+  {
+    Mark_field mf(sort_form, MARK_COLUMNS_TEMP);
+    qep_tab->condition()->walk(&Item::mark_field_in_map,
+                               walk_subquery, (uchar*) &mf);
+  }
   // Include fields used by pushed conditions in the read_set.
   if (qep_tab->table()->file->pushed_idx_cond)
-    qep_tab->table()->file->pushed_idx_cond->
-      walk(&Item::register_field_in_read_map, walk_subquery,
-           (uchar*) sort_form);
-
+  {
+    Mark_field mf(sort_form, MARK_COLUMNS_TEMP);
+    qep_tab->table()->file->pushed_idx_cond->walk(&Item::mark_field_in_map,
+                                                  walk_subquery,
+                                                  (uchar*) &mf);
+  }
   sort_form->column_bitmaps_set(&sort_form->tmp_set, &sort_form->tmp_set);
 
   DEBUG_SYNC(thd, "after_index_merge_phase1");
@@ -1362,6 +1366,7 @@ static void register_used_fields(Sort_param *param)
   Bounds_checked_array<st_sort_field>::const_iterator sort_field;
   TABLE *table=param->sort_form;
   MY_BITMAP *bitmap= table->read_set;
+  Mark_field mf(table, MARK_COLUMNS_TEMP);
 
   for (sort_field= param->local_sortorder.begin() ;
        sort_field != param->local_sortorder.end() ;
@@ -1375,8 +1380,8 @@ static void register_used_fields(Sort_param *param)
     }
     else
     {						// Item
-      sort_field->item->walk(&Item::register_field_in_read_map, walk_subquery,
-                             (uchar *) table);
+      sort_field->item->walk(&Item::mark_field_in_map, walk_subquery,
+                             (uchar *)&mf);
     }
   }
 

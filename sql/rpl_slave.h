@@ -16,6 +16,8 @@
 #ifndef RPL_SLAVE_H
 #define RPL_SLAVE_H
 
+typedef struct st_mysql MYSQL;
+
 typedef enum { SLAVE_THD_IO, SLAVE_THD_SQL, SLAVE_THD_WORKER } SLAVE_THD_TYPE;
 
 /**
@@ -49,6 +51,7 @@ typedef enum { SLAVE_THD_IO, SLAVE_THD_SQL, SLAVE_THD_WORKER } SLAVE_THD_TYPE;
 #include "my_list.h"
 #include "rpl_filter.h"
 #include "rpl_tblmap.h"
+#include "rpl_msr.h"
 
 #define SLAVE_NET_TIMEOUT  3600
 
@@ -273,6 +276,8 @@ extern const char *relay_log_basename;
 bool start_slave_cmd(THD* thd);
 bool stop_slave_cmd(THD* thd);
 bool change_master_cmd(THD *thd);
+int change_master(THD* thd, Master_info* mi, LEX_MASTER_INFO* lex_mi,
+                  bool preserve_logs= false);
 bool reset_slave_cmd(THD *thd);
 bool show_slave_status_cmd(THD *thd);
 bool flush_relay_logs_cmd(THD *thd);
@@ -280,7 +285,7 @@ bool is_any_slave_channel_running(int thread_mask,
                                   Master_info* already_locked_mi=NULL);
 
 bool flush_relay_logs(Master_info *mi);
-int reset_slave(THD *thd, Master_info* mi);
+int reset_slave(THD *thd, Master_info* mi, bool reset_all);
 int reset_slave(THD *thd);
 int init_slave();
 int init_recovery(Master_info* mi, const char** errmsg);
@@ -291,7 +296,8 @@ int flush_master_info(Master_info* mi, bool force);
 void add_slave_skip_errors(const char* arg);
 void set_slave_skip_errors(char** slave_skip_errors_ptr);
 int register_slave_on_master(MYSQL* mysql);
-
+int add_new_channel(Master_info** mi, const char* channel,
+                    enum_channel_type channel_type= SLAVE_REPLICATION_CHANNEL);
 /**
   Terminates the slave threads according to the given mask.
 
@@ -321,9 +327,15 @@ int start_slave_threads(bool need_lock_slave, bool wait_for_start,
 			Master_info* mi, int thread_mask);
 int start_slave(THD *thd);
 int stop_slave(THD *thd);
-int start_slave(THD* thd, Master_info* mi, bool net_report, bool for_one_channel=true);
-int stop_slave(THD* thd, Master_info* mi, bool net_report, bool for_one_channel=true);
-
+int start_slave(THD* thd,
+                LEX_SLAVE_CONNECTION* connection_param,
+                LEX_MASTER_INFO* master_param,
+                int thread_mask_input,
+                Master_info* mi,
+                bool set_mts_settings,
+                bool net_report);
+int stop_slave(THD* thd, Master_info* mi, bool net_report,
+               bool for_one_channel=true);
 /*
   cond_lock is usually same as start_lock. It is needed for the case when
   start_lock is 0 which happens if start_slave_thread() is called already
@@ -366,6 +378,7 @@ void set_slave_thread_options(THD* thd);
 void set_slave_thread_default_charset(THD *thd, Relay_log_info const *rli);
 int apply_event_and_update_pos(Log_event* ev, THD* thd, Relay_log_info* rli);
 int rotate_relay_log(Master_info* mi);
+int queue_event(Master_info* mi,const char* buf, ulong event_len);
 
 extern "C" void *handle_slave_io(void *arg);
 extern "C" void *handle_slave_sql(void *arg);

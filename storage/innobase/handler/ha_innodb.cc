@@ -48,6 +48,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <sql_show.h>
 #include <sql_table.h>
 #include <my_check_opt.h>
+#include <mysql/service_thd_alloc.h>
+#include <mysql/service_thd_wait.h>
 
 /* Include necessary InnoDB headers */
 #include "api0api.h"
@@ -549,10 +551,6 @@ static MYSQL_THDVAR_STR(ft_user_stopword_table,
   PLUGIN_VAR_OPCMDARG|PLUGIN_VAR_MEMALLOC,
   "User supplied stopword table name, effective in the session level.",
   innodb_stopword_table_validate, NULL, NULL);
-
-static MYSQL_THDVAR_BOOL(optimize_point_storage, PLUGIN_VAR_OPCMDARG,
-  "Optimize POINT storage as fixed length, rather than variable length"
-  " (disabled by default)", NULL, NULL, FALSE);
 
 static SHOW_VAR innodb_status_variables[]= {
   {"buffer_pool_dump_status",
@@ -1398,16 +1396,6 @@ thd_is_ins_sel_stmt(THD* user_thd)
 	Use of AHI is blocked if statement is insert .... select statement. */
 	innodb_session_t*	innodb_priv = thd_to_innodb_session(user_thd);
 	return (innodb_priv->count_register_table_handler() > 0 ? true : false);
-}
-
-/** Return the optimize_point_storage for current connection.
-@param[in]	thd	the thd of current connection
-@return the optimize_point_storage */
-bool
-thd_optimize_point_storage(
-	THD*	thd)
-{
-	return(THDVAR(thd, optimize_point_storage));
 }
 
 /** Add the table handler to thread cache.
@@ -4538,12 +4526,9 @@ innobase_match_index_columns(
 		ulint	mtype = innodb_idx_fld->col->mtype;
 
 		/* Need to translate to InnoDB column type before
-		comparison.
-		We assume optimize_point_storage is TRUE first,
-		since we don't need to know how it was set when the original
-		table was created before. We would do a double check later. */
+		comparison. */
 		col_type = get_innobase_type_from_mysql_type(
-			&is_unsigned, key_part->field, true);
+			&is_unsigned, key_part->field);
 
 		/* Ignore InnoDB specific system columns. */
 		while (mtype == DATA_SYS) {
@@ -4555,13 +4540,29 @@ innobase_match_index_columns(
 		}
 
 		if (col_type != mtype) {
-			/* Double check for POINT here, we will treat
-			DATA_POINT the same as DATA_VAR_POINT.
-			Besides, point from 5.6 would be stored as
-			DATA_GEOMETRY, which is a special case. */
-			if (DATA_POINT_MTYPE(col_type)
-			    && !(DATA_POINT_MTYPE(mtype)
-				 || mtype == DATA_GEOMETRY)) {
+			/* If the col_type we get from mysql type is a geometry
+			data type, we should check if mtype is a legacy type
+			from 5.6, either upgraded to DATA_GEOMETRY or not.
+			This is indeed not an accurate check, but should be
+			safe, since DATA_BLOB would be upgraded once we create
+			spatial index on it and we intend to use DATA_GEOMETRY
+			for legacy GIS data types which are of var-length. */
+			switch (col_type) {
+			case DATA_POINT:
+			case DATA_VAR_POINT:
+				if (DATA_POINT_MTYPE(mtype)
+				    || mtype == DATA_GEOMETRY
+				    || mtype == DATA_BLOB) {
+					break;
+				}
+				/* Fall through */
+			case DATA_GEOMETRY:
+				if (mtype == DATA_BLOB) {
+					break;
+				}
+				/* Fall through */
+			default:
+				/* Column type mismatches */
 				DBUG_RETURN(false);
 			}
 		}
@@ -5522,14 +5523,11 @@ VARCHAR and the new true VARCHAR in >= 5.0.3 by the 'prtype'.
 @param[out]	unsigned_flag	DATA_UNSIGNED if an 'unsigned type'; at least
 ENUM and SET, and unsigned integer types are 'unsigned types'
 @param[in]	f		MySQL Field
-@param[in]	optimize_point_storage
-				true if we want to optimize POINT storage
 @return DATA_BINARY, DATA_VARCHAR, ... */
 ulint
 get_innobase_type_from_mysql_type(
 	ulint*			unsigned_flag,
-	const void*		f,
-	bool			optimize_point_storage)
+	const void*		f)
 {
 	const class Field* field = reinterpret_cast<const class Field*>(f);
 
@@ -5620,16 +5618,7 @@ get_innobase_type_from_mysql_type(
 	case MYSQL_TYPE_DECIMAL:
 		return(DATA_DECIMAL);
 	case MYSQL_TYPE_GEOMETRY:
-		switch (field->get_geometry_type()) {
-		case Field::GEOM_POINT:
-			/* When we want to optimize the storage,
-			we use fixed length type DATA_POINT,
-			otherwise DATA_VAR_POINT */
-			return(optimize_point_storage ?
-				DATA_POINT : DATA_VAR_POINT);
-		default:
-			return(DATA_GEOMETRY);
-		}
+		return(DATA_GEOMETRY);
 	case MYSQL_TYPE_TINY_BLOB:
 	case MYSQL_TYPE_MEDIUM_BLOB:
 	case MYSQL_TYPE_BLOB:
@@ -6943,18 +6932,6 @@ calc_row_difference(
 			}
 
 			if (n_len != UNIV_SQL_NULL) {
-				if (n_len != DATA_POINT_LEN
-				    && DATA_POINT_MTYPE(col_type)) {
-					/* The same with insert, we should
-					do a data checking for POINT.
-					If new data length is different and
-					not null, it must be wrong.
-					See row_ins_index_entry_set_vals. */
-					ut_ad(o_len == DATA_POINT_LEN
-					      || o_len == UNIV_SQL_NULL);
-					return(DB_CANT_CREATE_GEOMETRY_OBJECT);
-				}
-
 				dict_col_copy_type(prebuilt->table->cols + i,
 						   dfield_get_type(&dfield));
 
@@ -8656,9 +8633,6 @@ create_table_check_doc_id_col(
 					ULINT_UNDEFINED if column is of the
 					wrong type/name/size */
 {
-	bool		optimize_point_storage
-			= thd_optimize_point_storage(trx->mysql_thd);
-
 	for (ulint i = 0; i < form->s->fields; i++) {
 		const Field*	field;
 		ulint		col_type;
@@ -8668,7 +8642,7 @@ create_table_check_doc_id_col(
 		field = form->field[i];
 
 		col_type = get_innobase_type_from_mysql_type(
-			&unsigned_type, field, optimize_point_storage);
+			&unsigned_type, field);
 
 		col_len = field->pack_length();
 
@@ -8723,7 +8697,6 @@ create_table_info_t::create_table_def()
 	ulint		doc_id_col = 0;
 	ibool		has_doc_id_col = FALSE;
 	mem_heap_t*	heap;
-	bool		optimize_point_storage = true;
 
 	DBUG_ENTER("create_table_def");
 	DBUG_PRINT("enter", ("table_name: %s", m_table_name));
@@ -8791,8 +8764,6 @@ create_table_info_t::create_table_def()
 	}
 	heap = mem_heap_create(1000);
 
-	optimize_point_storage = thd_optimize_point_storage(m_trx->mysql_thd);
-
 	for (i = 0; i < n_cols; i++) {
 		Field*	field = m_form->field[i];
 
@@ -8816,7 +8787,7 @@ create_table_info_t::create_table_def()
 		}
 
 		col_type = get_innobase_type_from_mysql_type(
-			&unsigned_type, field, optimize_point_storage);
+			&unsigned_type, field);
 
 		if (!col_type) {
 			push_warning_printf(
@@ -8988,7 +8959,6 @@ create_index(
 	const KEY*	key;
 	ulint		ind_type;
 	ulint*		field_lengths;
-	bool		optimize_point_storage = true;
 
 	DBUG_ENTER("create_index");
 
@@ -9063,8 +9033,6 @@ create_index(
 		index->disable_ahi = true;
 	}
 
-	optimize_point_storage = thd_optimize_point_storage(trx->mysql_thd);
-
 	for (ulint i = 0; i < key->user_defined_key_parts; i++) {
 		KEY_PART_INFO*	key_part = key->key_part + i;
 		ulint		prefix_len;
@@ -9105,7 +9073,7 @@ found:
 		}
 
 		col_type = get_innobase_type_from_mysql_type(
-			&is_unsigned, key_part->field, optimize_point_storage);
+			&is_unsigned, key_part->field);
 
 		if (DATA_LARGE_MTYPE(col_type)
 		    || (key_part->length < field->pack_length()
@@ -17285,7 +17253,6 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(sync_array_size),
   MYSQL_SYSVAR(compression_failure_threshold_pct),
   MYSQL_SYSVAR(compression_pad_pct_max),
-  MYSQL_SYSVAR(optimize_point_storage),
 #ifdef UNIV_DEBUG
   MYSQL_SYSVAR(trx_rseg_n_slots_debug),
   MYSQL_SYSVAR(limit_optimistic_insert_debug),

@@ -19,16 +19,18 @@
 #ifndef RPL_GTID_H_INCLUDED
 #define RPL_GTID_H_INCLUDED
 
-#include <m_string.h>
-#include <mysqld_error.h>
-#include <my_global.h>
+#include "my_global.h"
+#include "hash.h"               // HASH
+#include "my_atomic.h"          // my_atomic_add32
+#include "prealloced_array.h"   // Prealloced_array
+#include "control_events.h"     // binary_log::Uuid
+
 #ifdef MYSQL_SERVER
-#include <mysqld.h>
+#include "mysqld.h"             // key_rwlock_global_sid_lock
 #endif
-#include <binlog_event.h>
-#include <control_events.h>
-#include "prealloced_array.h"
+
 #include <list>
+#include <string>
 
 using binary_log::Uuid;
 /**
@@ -48,10 +50,6 @@ using binary_log::Uuid;
 #define BINLOG_ERROR(MYSQLBINLOG_ERROR, SERVER_ERROR) my_error SERVER_ERROR
 #endif
 
-
-#include "hash.h"
-#include "lf.h"
-#include "my_atomic.h"
 
 extern PSI_memory_key key_memory_Gtid_set_to_string;
 extern PSI_memory_key key_memory_Owned_gtids_to_string;
@@ -1034,6 +1032,8 @@ public:
   /// Return true iff the given GTID exists in this set.
   bool contains_gtid(const Gtid &gtid) const
   { return contains_gtid(gtid.sidno, gtid.gno); }
+  // Get last gno or 0 if this set is empty.
+  rpl_gno get_last_gno(rpl_sidno sidno) const;
   /// Returns the maximal sidno that this Gtid_set currently has space for.
   rpl_sidno get_max_sidno() const
   {
@@ -1056,6 +1056,11 @@ public:
   enum_return_status ensure_sidno(rpl_sidno sidno);
   /// Returns true if this Gtid_set is a subset of the other Gtid_set.
   bool is_subset(const Gtid_set *super) const;
+  /// Returns true if this Gtid_set is a non equal subset of the other Gtid_set.
+  bool is_subset_not_equals(const Gtid_set *super) const
+  {
+    return (is_subset(super) && !equals(super));
+  }
 
   /**
     Returns true if this Gtid_set is a subset of the given gtid_set
@@ -1459,6 +1464,10 @@ public:
   */
   void encode(uchar *buf) const;
   /**
+    Encodes this Gtid_set as a binary string using std::string.
+  */
+  std::string encode() const;
+  /**
     Returns the length of this Gtid_set when encoded using the
     encode() function.
   */
@@ -1479,10 +1488,6 @@ private:
   /// The default number of intervals in an Interval_chunk.
   static const int CHUNK_GROW_SIZE= 8;
 
-/*
-  Functions sidno_equals() and equals() are only used by unitests
-*/
-#ifdef NON_DISABLED_UNITTEST_GTID
   /**
     Return true if the given sidno of this Gtid_set contains the same
     intervals as the given sidno of the other Gtid_set.
@@ -1496,7 +1501,6 @@ private:
                     const Gtid_set *other, rpl_sidno other_sidno) const;
   /// Returns true if this Gtid_set is equal to the other Gtid_set.
   bool equals(const Gtid_set *other) const;
-#endif
 
   /// Return the number of intervals for the given sidno.
   int get_n_intervals(rpl_sidno sidno) const
@@ -2233,15 +2237,29 @@ private:
   rpl_gno get_automatic_gno(rpl_sidno sidno) const;
 public:
   /**
+    Return the last executed GNO for a given SIDNO, e.g.
+    for the following set: UUID:1-10, UUID:12, UUID:15-20
+    20 will be returned.
+
+    @param sidno The group's SIDNO.
+
+    @retval The GNO or 0 if set is empty.
+  */
+  rpl_gno get_last_executed_gno(rpl_sidno sidno) const;
+  /**
     Generates the GTID (or ANONYMOUS, if GTID_MODE = OFF or
     OFF_FLEXIBLE) for the THD, and acquires ownership.
 
     @param THD The thread.
+    @param specified_sidno Externaly generated sidno.
+    @param specified_gno   Externaly generated gno.
 
     @return RETURN_STATUS_OK or RETURN_STATUS_ERROR. Error can happen
     in case of out of memory or if the range of GNOs was exhausted.
   */
-  enum_return_status generate_automatic_gtid(THD *thd);
+  enum_return_status generate_automatic_gtid(THD *thd,
+                                             rpl_sidno specified_sidno= 0,
+                                             rpl_gno specified_gno= 0);
   /// Locks a mutex for the given SIDNO.
   void lock_sidno(rpl_sidno sidno) { sid_locks.lock(sidno); }
   /// Unlocks a mutex for the given SIDNO.
@@ -2875,6 +2893,17 @@ int gtid_acquire_ownership_single(THD *thd);
 #ifdef HAVE_GTID_NEXT_LIST
 int gtid_acquire_ownership_multiple(THD *thd);
 #endif
+
+/**
+  Return sidno for a given sid, see Sid_map::add_sid() for details.
+*/
+rpl_sidno get_sidno_from_global_sid_map(rpl_sid sid);
+
+/**
+  Return last gno for a given sidno, see
+  Gtid_state::get_last_executed_gno() for details.
+*/
+rpl_gno get_last_executed_gno(rpl_sidno sidno);
 
 void gtid_set_performance_schema_values(const THD *thd);
 

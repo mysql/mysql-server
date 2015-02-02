@@ -3829,10 +3829,9 @@ ndb_binlog_index_table__open(THD *thd,
   /* Only allow real table to be opened */
   tables.required_type= FRMTYPE_TABLE;
 
-  const bool derived = false;
   const uint flags =
     MYSQL_LOCK_IGNORE_TIMEOUT; /* Wait for lock "infinitely" */
-  if (open_and_lock_tables(thd, &tables, derived, flags))
+  if (open_and_lock_tables(thd, &tables, flags))
   {
     if (thd->killed)
       DBUG_PRINT("error", ("NDB Binlog: Opening ndb_binlog_index: killed"));

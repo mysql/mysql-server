@@ -1,5 +1,5 @@
 /*
-      Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
+      Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
 
       This program is free software; you can redistribute it and/or modify
       it under the terms of the GNU General Public License as published by
@@ -31,6 +31,8 @@
 #include "rpl_mi.h"
 #include "sql_parse.h"
 #include "rpl_msr.h"           /* Multi source replication */
+#include "log.h"
+#include "rpl_group_replication.h"
 
 THR_LOCK table_replication_connection_status::m_table_lock;
 
@@ -43,7 +45,11 @@ static const TABLE_FIELD_TYPE field_types[]=
     {C_STRING_WITH_LEN("char(64)")},
     {NULL, 0}
   },
-
+  {
+    {C_STRING_WITH_LEN("GROUP_NAME")},
+    {C_STRING_WITH_LEN("char(36)")},
+    {NULL, 0}
+  },
   {
     {C_STRING_WITH_LEN("SOURCE_UUID")},
     {C_STRING_WITH_LEN("char(36)")},
@@ -92,8 +98,7 @@ static const TABLE_FIELD_TYPE field_types[]=
 };
 
 TABLE_FIELD_DEF
-table_replication_connection_status::m_field_def=
-{ 10, field_types };
+table_replication_connection_status::m_field_def= { 11, field_types };
 
 PFS_engine_table_share
 table_replication_connection_status::m_share=
@@ -134,7 +139,12 @@ void table_replication_connection_status::reset_position(void)
 ha_rows table_replication_connection_status::get_row_count()
 {
   /*A lock is not needed for an estimate */
- return msr_map.get_max_channels();
+  uint row_count= msr_map.get_max_channels();
+
+  if (is_group_replication_plugin_loaded())
+    row_count+= 1;
+
+  return row_count;
 }
 
 
@@ -142,17 +152,31 @@ ha_rows table_replication_connection_status::get_row_count()
 int table_replication_connection_status::rnd_next(void)
 {
   Master_info *mi= NULL;
+  int offset = 0;
+
+  m_pos.set_at(&m_next_pos);
+  if (is_group_replication_plugin_loaded())
+  {
+    if (m_pos.m_index == 0)
+    {
+      make_row(NULL, true);
+      m_next_pos.set_after(&m_pos);
+      return 0;
+    }
+    offset= 1;
+  }
 
   mysql_mutex_lock(&LOCK_msr_map);
 
-  for (m_pos.set_at(&m_next_pos); m_pos.m_index < msr_map.get_max_channels();
-      m_pos.next())
+  for (m_pos.set_at(&m_next_pos);
+       m_pos.m_index - offset < msr_map.get_max_channels();
+       m_pos.next())
   {
-    mi= msr_map.get_mi_at_pos(m_pos.m_index);
+    mi= msr_map.get_mi_at_pos(m_pos.m_index - offset);
 
     if (mi && mi->host[0])
     {
-      make_row(mi);
+      make_row(mi, false);
       m_next_pos.set_after(&m_pos);
 
       mysql_mutex_unlock(&LOCK_msr_map);
@@ -172,11 +196,17 @@ int table_replication_connection_status::rnd_pos(const void *pos)
 
   set_position(pos);
 
+  if (is_group_replication_plugin_loaded() && m_pos.m_index == 0)
+  {
+    make_row(NULL, true);
+    return 0;
+  }
+
   mysql_mutex_lock(&LOCK_msr_map);
 
   if ((mi= msr_map.get_mi_at_pos(m_pos.m_index)))
   {
-    make_row(mi);
+    make_row(mi, false);
 
     mysql_mutex_unlock(&LOCK_msr_map);
     return 0;
@@ -188,64 +218,76 @@ int table_replication_connection_status::rnd_pos(const void *pos)
 
 }
 
-void table_replication_connection_status::make_row(Master_info *mi)
+void table_replication_connection_status::make_row(Master_info *mi,
+                                                   bool group_replication_row)
 {
+  DBUG_ENTER("table_replication_connection_status::make_row");
   m_row_exists= false;
 
-  DBUG_ASSERT(mi != NULL);
-  DBUG_ASSERT(mi->rli != NULL);
+  // Default values
+  m_row.group_name_is_null= true;
+  m_row.source_uuid_is_null= true;
+  m_row.thread_id_is_null= true;
 
-  mysql_mutex_lock(&mi->data_lock);
-  mysql_mutex_lock(&mi->rli->data_lock);
+  // Check if Group Replication plugin is loaded.
+  m_row.is_group_replication_plugin_loaded= group_replication_row &&
+                                                is_group_replication_plugin_loaded();
 
-  m_row.channel_name_length= mi->get_channel() ? strlen(mi->get_channel()):0;
-  memcpy(m_row.channel_name, mi->get_channel(), m_row.channel_name_length);
-
-  memcpy(m_row.source_uuid, mi->master_uuid, UUID_LENGTH+1);
-  if (mi->master_uuid[0] != 0)
-    memcpy(m_row.source_uuid, mi->master_uuid, UUID_LENGTH+1);
-  else
-    m_row.source_uuid[0]= 0;
-
-  m_row.thread_id= 0;
-
-  if (mi->slave_running == MYSQL_SLAVE_RUN_CONNECT)
+  if (!group_replication_row) // slave channel
   {
-    PSI_thread *psi= thd_get_psi(mi->info_thd);
-    PFS_thread *pfs= reinterpret_cast<PFS_thread *> (psi);
-    if(pfs)
+    DBUG_ASSERT(mi != NULL);
+    DBUG_ASSERT(mi->rli != NULL);
+
+    mysql_mutex_lock(&mi->data_lock);
+    mysql_mutex_lock(&mi->rli->data_lock);
+
+    // Channel
+    m_row.channel_name_length= mi->get_channel() ? strlen(mi->get_channel()):0;
+    memcpy(m_row.channel_name, mi->get_channel(), m_row.channel_name_length);
+
+    // Source uuid
+    if (mi->master_uuid[0] != 0)
     {
-      m_row.thread_id= pfs->m_thread_internal_id;
-      m_row.thread_id_is_null= false;
+      memcpy(m_row.source_uuid, mi->master_uuid, UUID_LENGTH+1);
+      m_row.source_uuid_is_null= false;
+    }
+
+    if (mi->slave_running == MYSQL_SLAVE_RUN_CONNECT)
+    {
+      PSI_thread *psi= thd_get_psi(mi->info_thd);
+      PFS_thread *pfs= reinterpret_cast<PFS_thread *> (psi);
+      if(pfs)
+      {
+        m_row.thread_id= pfs->m_thread_internal_id;
+        m_row.thread_id_is_null= false;
+      }
+      else
+        m_row.thread_id_is_null= true;
     }
     else
       m_row.thread_id_is_null= true;
-  }
-  else
-    m_row.thread_id_is_null= true;
 
-  if (mi->slave_running == MYSQL_SLAVE_RUN_CONNECT)
-    m_row.service_state= PS_RPL_CONNECT_SERVICE_STATE_YES;
-  else
-  {
-    if (mi->slave_running == MYSQL_SLAVE_RUN_NOT_CONNECT)
-      m_row.service_state= PS_RPL_CONNECT_SERVICE_STATE_CONNECTING;
+    if (mi->slave_running == MYSQL_SLAVE_RUN_CONNECT)
+      m_row.service_state= PS_RPL_CONNECT_SERVICE_STATE_YES;
     else
-      m_row.service_state= PS_RPL_CONNECT_SERVICE_STATE_NO;
-  }
+    {
+      if (mi->slave_running == MYSQL_SLAVE_RUN_NOT_CONNECT)
+        m_row.service_state= PS_RPL_CONNECT_SERVICE_STATE_CONNECTING;
+      else
+        m_row.service_state= PS_RPL_CONNECT_SERVICE_STATE_NO;
+    }
 
-  m_row.count_received_heartbeats= mi->received_heartbeats;
-  /*
-    Time in Milliseconds since epoch. active_mi->last_heartbeat contains
-    number of seconds so we multiply by 1000000.
-  */
-  m_row.last_heartbeat_timestamp= (ulonglong)mi->last_heartbeat*1000000;
+    m_row.count_received_heartbeats= mi->received_heartbeats;
+    /*
+      Time in Milliseconds since epoch. active_mi->last_heartbeat contains
+      number of seconds so we multiply by 1000000.
+    */
+    m_row.last_heartbeat_timestamp= (ulonglong)mi->last_heartbeat*1000000;
 
-  mysql_mutex_lock(&mi->err_lock);
-  mysql_mutex_lock(&mi->rli->err_lock);
+    mysql_mutex_lock(&mi->err_lock);
+    mysql_mutex_lock(&mi->rli->err_lock);
 
-  if (mi != NULL)
-  {
+
     global_sid_lock->wrlock();
 
     const Gtid_set* io_gtid_set= mi->rli->get_gtid_set();
@@ -259,33 +301,85 @@ void table_replication_connection_status::make_row(Master_info *mi)
       return;
     }
     global_sid_lock->unlock();
+
+
+    m_row.last_error_number= (unsigned int) mi->last_error().number;
+    m_row.last_error_message_length= 0;
+    m_row.last_error_timestamp= 0;
+
+    /** If error, set error message and timestamp */
+    if (m_row.last_error_number)
+    {
+      char* temp_store= (char*)mi->last_error().message;
+      m_row.last_error_message_length= strlen(temp_store);
+      memcpy(m_row.last_error_message, temp_store,
+              m_row.last_error_message_length);
+
+      /*
+        Time in millisecond since epoch. active_mi->last_error().skr contains
+        number of seconds so we multiply by 1000000. */
+      m_row.last_error_timestamp= (ulonglong)mi->last_error().skr*1000000;
+    }
+
+    mysql_mutex_unlock(&mi->rli->err_lock);
+    mysql_mutex_unlock(&mi->err_lock);
+    mysql_mutex_unlock(&mi->rli->data_lock);
+    mysql_mutex_unlock(&mi->data_lock);
+
   }
-
-  m_row.last_error_number= (unsigned int) mi->last_error().number;
-  m_row.last_error_message_length= 0;
-  m_row.last_error_timestamp= 0;
-
-  /** If error, set error message and timestamp */
-  if (m_row.last_error_number)
+  else if (m_row.is_group_replication_plugin_loaded) // group replication channel
   {
-    char* temp_store= (char*)mi->last_error().message;
-    m_row.last_error_message_length= strlen(temp_store);
-    memcpy(m_row.last_error_message, temp_store,
-           m_row.last_error_message_length);
+    GROUP_REPLICATION_CONNECTION_STATUS_INFO* group_replication_info;
+    if (!(group_replication_info= (GROUP_REPLICATION_CONNECTION_STATUS_INFO*)
+                                     my_malloc(PSI_NOT_INSTRUMENTED,
+                                               sizeof(GROUP_REPLICATION_CONNECTION_STATUS_INFO),
+                                               MYF(MY_WME))))
+    {
+       sql_print_error("Unable to allocate memory on"
+                       " table_replication_connection_status::make_row");
+       DBUG_VOID_RETURN;
+    }
 
-    /*
-      Time in millisecond since epoch. active_mi->last_error().skr contains
-      number of seconds so we multiply by 1000000. */
-    m_row.last_error_timestamp= (ulonglong)mi->last_error().skr*1000000;
+    bool stats_not_available
+         = get_group_replication_connection_status_info(group_replication_info);
+    if (stats_not_available)
+    {
+      DBUG_PRINT("info", ("Group Replication stats not available!"));
+    }
+    else
+    {
+      m_row.channel_name_length= 0;
+      if (group_replication_info->channel_name != NULL)
+      {
+        m_row.channel_name_length= strlen(group_replication_info->channel_name);
+        memcpy(m_row.channel_name, group_replication_info->channel_name,
+               m_row.channel_name_length);
+
+        my_free((void*)group_replication_info->channel_name);
+      }
+
+      if (group_replication_info->group_name != NULL)
+      {
+        memcpy(m_row.group_name, group_replication_info->group_name, UUID_LENGTH+1);
+        m_row.group_name_is_null= false;
+
+        memcpy(m_row.source_uuid, group_replication_info->group_name, UUID_LENGTH+1);
+        m_row.source_uuid_is_null= false;
+
+        my_free((void*)group_replication_info->group_name);
+      }
+
+      if (group_replication_info->service_state)
+        m_row.service_state= PS_RPL_CONNECT_SERVICE_STATE_YES;
+      else
+        m_row.service_state= PS_RPL_CONNECT_SERVICE_STATE_NO;
+    }
+
+    my_free(group_replication_info);
   }
-
-  mysql_mutex_unlock(&mi->rli->err_lock);
-  mysql_mutex_unlock(&mi->err_lock);
-  mysql_mutex_unlock(&mi->rli->data_lock);
-  mysql_mutex_unlock(&mi->data_lock);
 
   m_row_exists= true;
-
+  DBUG_VOID_RETURN;
 }
 
 int table_replication_connection_status::read_row_values(TABLE *table,
@@ -308,40 +402,67 @@ int table_replication_connection_status::read_row_values(TABLE *table,
       switch(f->field_index)
       {
       case 0: /** channel_name*/
-        set_field_char_utf8(f, m_row.channel_name,m_row.channel_name_length);
+        if(m_row.channel_name_length > 0)
+          set_field_char_utf8(f, m_row.channel_name,m_row.channel_name_length);
         break;
-      case 1: /** source_uuid */
-        if (m_row.source_uuid[0] != 0)
+      case 1: /** group_name */
+        if (!m_row.group_name_is_null)
+          set_field_char_utf8(f, m_row.group_name, UUID_LENGTH);
+        else
+          f->set_null();
+        break;
+      case 2: /** source_uuid */
+        if (!m_row.source_uuid_is_null)
           set_field_char_utf8(f, m_row.source_uuid, UUID_LENGTH);
+        else
+          f->set_null();
         break;
-      case 2: /** thread_id */
+      case 3: /** thread_id */
         if(m_row.thread_id_is_null)
           f->set_null();
         else
           set_field_ulonglong(f, m_row.thread_id);
         break;
-      case 3: /** service_state */
+      case 4: /** service_state */
         set_field_enum(f, m_row.service_state);
         break;
-      case 4: /** number of heartbeat events received **/
-        set_field_ulonglong(f, m_row.count_received_heartbeats);
+      case 5: /** number of heartbeat events received **/
+        if(!m_row.is_group_replication_plugin_loaded)
+          set_field_ulonglong(f, m_row.count_received_heartbeats);
+        else
+          f->set_null();
         break;
-      case 5: /** time of receipt of last heartbeat event **/
-        set_field_timestamp(f, m_row.last_heartbeat_timestamp);
+      case 6: /** time of receipt of last heartbeat event **/
+        if(!m_row.is_group_replication_plugin_loaded)
+          set_field_timestamp(f, m_row.last_heartbeat_timestamp);
+        else
+          f->set_null();
         break;
-      case 6: /** received_transaction_set */
-        set_field_longtext_utf8(f, m_row.received_transaction_set,
-                                m_row.received_transaction_set_length);
+      case 7: /** received_transaction_set */
+        if(!m_row.is_group_replication_plugin_loaded)
+          set_field_longtext_utf8(f, m_row.received_transaction_set,
+                                  m_row.received_transaction_set_length);
+        else
+          f->set_null();
         break;
-      case 7: /*last_error_number*/
-        set_field_ulong(f, m_row.last_error_number);
+      case 8: /*last_error_number*/
+        if(!m_row.is_group_replication_plugin_loaded)
+          set_field_ulong(f, m_row.last_error_number);
+        else
+          f->set_null();
         break;
-      case 8: /*last_error_message*/
-        set_field_varchar_utf8(f, m_row.last_error_message,
-                               m_row.last_error_message_length);
+      case 9: /*last_error_message*/
+        if(!m_row.is_group_replication_plugin_loaded)
+          set_field_varchar_utf8(f, m_row.last_error_message,
+                                 m_row.last_error_message_length);
+        else
+          f->set_null();
         break;
-      case 9: /*last_error_timestamp*/
-         set_field_timestamp(f, m_row.last_error_timestamp);
+      case 10: /*last_error_timestamp*/
+        if(!m_row.is_group_replication_plugin_loaded)
+          set_field_timestamp(f, m_row.last_error_timestamp);
+        else
+          f->set_null();
         break;
       default:
         DBUG_ASSERT(false);

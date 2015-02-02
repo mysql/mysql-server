@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -17,13 +17,8 @@
 
 #include "rpl_gtid.h"
 
-#include "rpl_mi.h"
-#include "rpl_slave.h"
-#include "sql_class.h"
-#include "rpl_gtid_persist.h"
-#include "log.h"
-#include "binlog.h"
-#include "rpl_context.h"
+#include "rpl_gtid_persist.h"      // gtid_table_persistor
+#include "sql_class.h"             // THD
 
 
 int Gtid_state::clear(THD *thd)
@@ -388,23 +383,42 @@ rpl_gno Gtid_state::get_automatic_gno(rpl_sidno sidno) const
 }
 
 
-enum_return_status Gtid_state::generate_automatic_gtid(THD *thd)
+rpl_gno Gtid_state::get_last_executed_gno(rpl_sidno sidno) const
+{
+  DBUG_ENTER("Gtid:state::get_last_executed_gno");
+  rpl_gno gno= 0;
+
+  gtid_state->lock_sidno(sidno);
+  gno= executed_gtids.get_last_gno(sidno);
+  gtid_state->unlock_sidno(sidno);
+
+  DBUG_RETURN(gno);
+}
+
+
+enum_return_status Gtid_state::generate_automatic_gtid(THD *thd,
+                                                       rpl_sidno specified_sidno,
+                                                       rpl_gno specified_gno)
 {
   DBUG_ENTER("Gtid_state::generate_automatic_gtid");
   enum_return_status ret= RETURN_STATUS_OK;
 
   DBUG_ASSERT(thd->variables.gtid_next.type == AUTOMATIC_GROUP);
+  DBUG_ASSERT(specified_sidno >= 0 && specified_gno >= 0);
 
   // If GTID_MODE = UPGRADE_STEP_2 or ON, generate a new GTID
   if (gtid_mode >= GTID_MODE_UPGRADE_STEP_2)
   {
-    Gtid automatic_gtid;
-    automatic_gtid.sidno= get_server_sidno();
+    Gtid automatic_gtid= { specified_sidno, specified_gno };
+
+    if (automatic_gtid.sidno == 0)
+      automatic_gtid.sidno= get_server_sidno();
 
     sid_lock->rdlock();
     lock_sidno(automatic_gtid.sidno);
 
-    automatic_gtid.gno= get_automatic_gno(automatic_gtid.sidno);
+    if (automatic_gtid.gno == 0)
+      automatic_gtid.gno= get_automatic_gno(automatic_gtid.sidno);
 
     if (automatic_gtid.gno != -1)
       acquire_ownership(thd, automatic_gtid);

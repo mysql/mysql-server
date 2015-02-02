@@ -22,6 +22,8 @@ set @old_internal_tmp_disk_storage_engine= @@internal_tmp_disk_storage_engine;
 set global internal_tmp_disk_storage_engine='innodb';
 set @old_big_tables= @@big_tables;
 set big_tables= on;
+set @old_optimizer_switch= @@optimizer_switch;
+set optimizer_switch='derived_merge=off';
 
 #========================begin=============================
 # use SQL_BUFFER_RESULT
@@ -129,6 +131,8 @@ drop table t3;
 explain format=json select * from t1 where t1.a in (select a from t2) ;
 select * from t1 where t1.a in (select a from t2) order by 1, 2;
 #tmp table for semi-join weedout
+set @tmp_optimizer_switch= @@optimizer_switch;
+
 if (`select locate('materialization', @@optimizer_switch) > 0`) 
 {
     set optimizer_switch='materialization=off';
@@ -143,7 +147,7 @@ if (`select locate('loosescan', @@optimizer_switch) > 0`)
 }
 explain format=json select * from t1 where t1.a in (select a from t2) ;
 select * from t1 where t1.a in (select a from t2) order by 1, 2;
-set optimizer_switch=default;
+set optimizer_switch= @tmp_optimizer_switch;
 
 #system table
 explain format=json select * from information_schema.character_sets order by 1 limit 3;
@@ -1297,6 +1301,7 @@ DROP TABLE t1;
 #============================end && cleanup======================= 
 set @@global.internal_tmp_disk_storage_engine= @old_internal_tmp_disk_storage_engine;
 set big_tables= @old_big_tables;
+set optimizer_switch= @old_optimizer_switch;
 --source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 --echo #
 

@@ -1056,7 +1056,7 @@ public:
   { m_count_cuted_fields_saved= count_cuted_fields; }
 
   bool maybe_null(void) const
-  { return real_maybe_null() || table->maybe_null; }
+  { return real_maybe_null() || table->is_nullable(); }
 
   /// @return true if this field is NULL-able, false otherwise.
   bool real_maybe_null(void) const

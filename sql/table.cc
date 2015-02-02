@@ -3739,7 +3739,7 @@ void TABLE::init(THD *thd, TABLE_LIST *tl)
 
   const_table= 0;
   null_row= 0;
-  maybe_null= 0;
+  nullable= 0;
   force_index= 0;
   force_index_order= 0;
   force_index_group= 0;
@@ -3866,6 +3866,34 @@ TABLE_LIST *TABLE_LIST::new_nested_join(MEM_ROOT *allocator,
 
   return join_nest;
 }
+
+/**
+  Merge tables from a query block into a nested join structure.
+
+  @param select Query block containing tables to be merged into nested join
+
+  @return false if success, true if error
+*/
+
+bool TABLE_LIST::merge_underlying_tables(class st_select_lex *select)
+{
+  DBUG_ASSERT(nested_join->join_list.is_empty());
+
+  List_iterator_fast<TABLE_LIST> li(select->top_join_list);
+  TABLE_LIST *tl;
+  while ((tl= li++))
+  {
+    tl->embedding= this;
+    tl->join_list= &nested_join->join_list;
+    if (nested_join->join_list.push_back(tl))
+      return true;
+  }
+
+  return false;
+}
+
+
+
 /*
   calculate md5 of query
 
@@ -3884,344 +3912,306 @@ void  TABLE_LIST::calc_md5(char *buffer)
 
 
 /**
-   @brief Set underlying table for table place holder of view.
-
-   @details
-
-   Replace all views that only use one table with the table itself.  This
-   allows us to treat the view as a simple table and even update it (it is a
-   kind of optimization).
-
-   @note 
-
-   This optimization is potentially dangerous as it makes views
-   masquerade as base tables: Views don't have the pointer TABLE_LIST::table
-   set to non-@c NULL.
-
-   We may have the case where a view accesses tables not normally accessible
-   in the current Security_context (only in the definer's
-   Security_context). According to the table's GRANT_INFO (TABLE::grant),
-   access is fulfilled, but this is implicitly meant in the definer's security
-   context. Hence we must never look at only a TABLE's GRANT_INFO without
-   looking at the one of the referring TABLE_LIST.
+   Reset a table before starting optimization
 */
-
-void TABLE_LIST::set_underlying_merge()
+void TABLE_LIST::reset()
 {
-  TABLE_LIST *tbl;
+  // @todo If TABLE::init() was always called, this would not be necessary:
+  table->const_table= 0;
+  table->null_row= 0;
+  table->status= STATUS_GARBAGE | STATUS_NOT_FOUND;
 
-  if ((tbl= merge_underlying_list))
-  {
-    /* This is a view. Process all tables of view */
-    DBUG_ASSERT(view && effective_algorithm == VIEW_ALGORITHM_MERGE);
-    do
-    {
-      if (tbl->merge_underlying_list)          // This is a view
-      {
-        DBUG_ASSERT(tbl->view &&
-                    tbl->effective_algorithm == VIEW_ALGORITHM_MERGE);
-        /*
-          This is the only case where set_ancestor is called on an object
-          that may not be a view (in which case ancestor is 0)
-        */
-        tbl->merge_underlying_list->set_underlying_merge();
-      }
-    } while ((tbl= tbl->next_local));
-
-    if (!multitable_view)
-    {
-      /*
-        If underlying view is not updatable and current view
-        is a single table view
-      */
-      if (!merge_underlying_list->updatable)
-        updatable= false;
-    }
-  }
+  table->force_index= force_index;
+  table->force_index_order= table->force_index_group= 0;
+  table->covering_keys= table->s->keys_for_keyread;
+  table->merge_keys.clear_all();
 }
 
 
-/*
-  setup fields of placeholder of merged VIEW
+/**
+  Merge WHERE condition of view or derived table into outer query.
 
-  SYNOPSIS
-    TABLE_LIST::setup_underlying()
-    thd		    - thread handler
+  If the derived table is on the inner side of an outer join, its WHERE
+  condition is merged into the respective join operation's join condition,
+  otherwise the WHERE condition is merged with the derived table's
+  join condition.
 
-  DESCRIPTION
-    It is:
-    - preparing translation table for view columns
-    If there are underlying view(s) procedure first will be called for them.
+  @param thd    thread handler
 
-  RETURN
-    FALSE - OK
-    TRUE  - error
+  @return false if success, true if error
 */
 
-bool TABLE_LIST::setup_underlying(THD *thd)
+bool TABLE_LIST::merge_where(THD *thd)
 {
-  DBUG_ENTER("TABLE_LIST::setup_underlying");
+  DBUG_ENTER("TABLE_LIST::merge_where");
 
-  if (!field_translation && merge_underlying_list)
-  {
-    Field_translator *transl;
-    SELECT_LEX *select= view->select_lex;
-    Item *item;
-    TABLE_LIST *tbl;
-    List_iterator_fast<Item> it(select->item_list);
-    uint field_count= 0;
+  DBUG_ASSERT(is_merged());
 
-    if (check_stack_overrun(thd, STACK_MIN_SIZE, (uchar*) &field_count))
-    {
-      DBUG_RETURN(TRUE);
-    }
+  Item *const condition= derived_unit()->first_select()->where_cond();
 
-    for (tbl= merge_underlying_list; tbl; tbl= tbl->next_local)
-    {
-      if (tbl->merge_underlying_list &&
-          tbl->setup_underlying(thd))
-      {
-        DBUG_RETURN(TRUE);
-      }
-    }
+  if (!condition)
+    DBUG_RETURN(false);
 
-    /* Create view fields translation table */
+  /*
+    Save the WHERE condition separately. This is needed because it is already
+    resolved, so we need to explicitly update used tables information after
+    merging this derived table into the outer query.
+  */
+  derived_where_cond= condition;
 
-    if (!(transl=
-          (Field_translator*)(thd->stmt_arena->
-                              alloc(select->item_list.elements *
-                                    sizeof(Field_translator)))))
-    {
-      DBUG_RETURN(TRUE);
-    }
+  Prepared_stmt_arena_holder ps_arena_holder(thd);
 
-    while ((item= it++))
-    {
-      transl[field_count].name= item->item_name.ptr();
-      transl[field_count++].item= item;
-    }
-    field_translation= transl;
-    field_translation_end= transl + field_count;
-    /* TODO: use hash for big number of fields */
+  /*
+    Merge WHERE condition with the join condition of the outer join nest
+    and attach it to join nest representing this derived table.
+  */
+  set_join_cond(and_conds(join_cond(), condition));
+  if (!join_cond())
+    DBUG_RETURN(true);
 
-    /* full text function moving to current select */
-    if (view->select_lex->ftfunc_list->elements)
-    {
-      Item_func_match *ifm;
-      SELECT_LEX *current_select= thd->lex->current_select();
-      List_iterator_fast<Item_func_match>
-        li(*(view->select_lex->ftfunc_list));
-      while ((ifm= li++))
-        current_select->ftfunc_list->push_front(ifm);
-    }
-  }
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 
-/*
-  Prepare where expression of view
+/**
+  Create field translation for merged derived table/view.
 
-  SYNOPSIS
-    TABLE_LIST::prep_where()
-    thd             - thread handler
-    conds           - condition of this JOIN
-    no_where_clause - do not build WHERE or ON outer qwery do not need it
-                      (it is INSERT), we do not need conds if this flag is set
+  @param thd  Thread handle
 
-  NOTE: have to be called befor CHECK OPTION preparation, because it makes
-  fix_fields for view WHERE clause
-
-  RETURN
-    FALSE - OK
-    TRUE  - error
+  @return false if success, true if error.
 */
 
-bool TABLE_LIST::prep_where(THD *thd, Item **conds,
-                               bool no_where_clause)
+bool TABLE_LIST::create_field_translation(THD *thd)
 {
-  DBUG_ENTER("TABLE_LIST::prep_where");
+  Item *item;
+  SELECT_LEX *select= derived->first_select();
+  List_iterator_fast<Item> it(select->item_list);
+  uint field_count= 0;
 
-  for (TABLE_LIST *tbl= merge_underlying_list; tbl; tbl= tbl->next_local)
+  DBUG_ASSERT(derived->is_prepared());
+
+  if (field_translation)
   {
-    if (tbl->view && tbl->prep_where(thd, conds, no_where_clause))
-    {
-      DBUG_RETURN(TRUE);
-    }
-  }
-
-  if (where && !where_processed)
-  {
-
-    if (!where->fixed)
-    {
-      /*
-        This WHERE will be included in check_option. If it contains a
-        subquery, fix_fields() may convert it to semijoin, making it
-        impossible to call val_int() on the Item[...]_subselect, preventing
-        evaluation of check_option when we insert/update/delete a row.
-        So we must forbid semijoin transformation in fix_fields():
-      */
-      Disable_semijoin_flattening DSF(thd->lex->current_select(),
-                                      effective_with_check != VIEW_CHECK_NONE);
-
-      if (where->fix_fields(thd, &where))
-        DBUG_RETURN(TRUE);
-    }
-
     /*
-      check that it is not VIEW in which we insert with INSERT SELECT
-      (in this case we can't add view WHERE condition to main SELECT_LEX)
+      Update items in the field translation after view have been prepared.
+      It's needed because some items in the select list, like
+      IN subquery predicates, might be substituted for optimized ones.
     */
-    if (!no_where_clause)
+    if (is_view())
     {
-      TABLE_LIST *tbl= this;
-
-      Prepared_stmt_arena_holder ps_arena_holder(thd);
-
-      /* Go up to join tree and try to find left join */
-      for (; tbl; tbl= tbl->embedding)
+      while ((item= it++))
       {
-        if (tbl->outer_join)
-        {
-          /*
-            Store WHERE condition to ON expression for outer join, because
-            we can't use WHERE to correctly execute left joins on VIEWs and
-            this expression will not be moved to WHERE condition (i.e. will
-            be clean correctly for PS/SP)
-          */
-          tbl->set_join_cond(and_conds(tbl->join_cond(),
-                                       where->copy_andor_structure(thd)));
-          break;
-        }
+        field_translation[field_count++].item= item;
       }
-      if (tbl == 0)
-        *conds= and_conds(*conds, where->copy_andor_structure(thd));
-      where_processed= TRUE;
     }
+
+    return false;
   }
 
-  DBUG_RETURN(FALSE);
+  Prepared_stmt_arena_holder ps_arena_holder(thd);
+
+  // Create view fields translation table
+  Field_translator *transl=
+    (Field_translator *)thd->stmt_arena->alloc(select->item_list.elements *
+                                               sizeof(Field_translator));
+  if (!transl)
+    return true;
+
+  while ((item= it++))
+  {
+    // All columns from inner side of an outer join are nullable
+    if (is_inner_table_of_outer_join())
+      item->maybe_null= true;
+    transl[field_count].name= item->item_name.ptr();
+    transl[field_count++].item= item;
+  }
+  field_translation= transl;
+  field_translation_end= transl + field_count;
+
+  return false;
 }
 
 
-/*
-  Merge ON expressions for a view
+/**
+  Return merged WHERE clause and join conditions for a view
 
-  SYNOPSIS
-    merge_on_conds()
-    thd             thread handle
-    table           table for the VIEW
-    is_cascaded     TRUE <=> merge ON expressions from underlying views
+  @param thd          thread handle
+  @param table        table for the VIEW
+  @param[out] pcond   Pointer to the built condition (NULL if none)
 
-  DESCRIPTION
-    This function returns the result of ANDing the ON expressions
-    of the given view and all underlying views. The ON expressions
-    of the underlying views are added only if is_cascaded is TRUE.
+  This function returns the result of ANDing the WHERE clause and the
+  join conditions of the given view.
 
-  RETURN
-    Pointer to the built expression if there is any.
-    Otherwise and in the case of a failure NULL is returned.
+  @returns  false for success, true for error
 */
 
-static Item *
-merge_on_conds(THD *thd, TABLE_LIST *table, bool is_cascaded)
+static bool merge_join_conditions(THD *thd, TABLE_LIST *table, Item **pcond)
 {
-  DBUG_ENTER("merge_on_conds");
+  DBUG_ENTER("merge_join_conditions");
 
-  Item *cond= NULL;
+  *pcond= NULL;
   DBUG_PRINT("info", ("alias: %s", table->alias));
   if (table->join_cond())
-    cond= table->join_cond()->copy_andor_structure(thd);
+  {
+    if (!(*pcond= table->join_cond()->copy_andor_structure(thd)))
+      DBUG_RETURN(true);
+  }
   if (!table->nested_join)
-    DBUG_RETURN(cond);
+    DBUG_RETURN(false);
   List_iterator<TABLE_LIST> li(table->nested_join->join_list);
   while (TABLE_LIST *tbl= li++)
   {
-    if (tbl->view && !is_cascaded)
+    if (tbl->is_view())
       continue;
-    cond= and_conds(cond, merge_on_conds(thd, tbl, is_cascaded));
+    Item *cond;
+    if (merge_join_conditions(thd, tbl, &cond))
+      DBUG_RETURN(true);
+    if (cond && !(*pcond= and_conds(*pcond, cond)))
+      DBUG_RETURN(true);
   }
-  DBUG_RETURN(cond);
+  DBUG_RETURN(false);
 }
 
 
-/*
+/**
   Prepare check option expression of table
 
-  SYNOPSIS
-    TABLE_LIST::prep_check_option()
-    thd             - thread handler
-    check_opt_type  - WITH CHECK OPTION type (VIEW_CHECK_NONE,
-                      VIEW_CHECK_LOCAL, VIEW_CHECK_CASCADED)
-                      we use this parameter instead of direct check of
-                      effective_with_check to change type of underlying
-                      views to VIEW_CHECK_CASCADED if outer view have
-                      such option and prevent processing of underlying
-                      view check options if outer view have just
-                      VIEW_CHECK_LOCAL option.
+  @param thd            thread handler
+  @param check_opt_type WITH CHECK OPTION type (VIEW_CHECK_NONE,
+                        VIEW_CHECK_LOCAL, VIEW_CHECK_CASCADED).
+                        Use this parameter instead of direct check of
+                        effective_with_check to change type of underlying
+                        views to VIEW_CHECK_CASCADED if outer view have
+                        such option and prevent processing of underlying
+                        view check options if outer view have just
+                        VIEW_CHECK_LOCAL option.
 
-  NOTE
-    This method builds check option condition to use it later on
-    every call (usual execution or every SP/PS call).
-    This method have to be called after WHERE preparation
-    (TABLE_LIST::prep_where)
+  @details
 
-  RETURN
-    FALSE - OK
-    TRUE  - error
+  This function builds check option condition for use in regular execution or
+  subsequent SP/PS executions.
+
+  This function must be called after the WHERE clause and join condition
+  of this and all underlying derived tables/views have been resolved.
+
+  The function will always call itself recursively for all underlying views
+  and base tables.
+
+  On first invocation, the check option condition is built bottom-up in
+  statement mem_root, and check_option_processed is set true.
+
+  On subsequent executions, check_option_processed is true and no
+  expression building is necessary. However, the function needs to assure that
+  the expression is resolved by calling fix_fields() on it.
+
+  @returns false if success, true if error
 */
 
 bool TABLE_LIST::prep_check_option(THD *thd, uint8 check_opt_type)
 {
   DBUG_ENTER("TABLE_LIST::prep_check_option");
+
   bool is_cascaded= check_opt_type == VIEW_CHECK_CASCADED;
 
   for (TABLE_LIST *tbl= merge_underlying_list; tbl; tbl= tbl->next_local)
   {
     /* see comment of check_opt_type parameter */
-    if (tbl->view && tbl->prep_check_option(thd, (is_cascaded ?
-                                                  VIEW_CHECK_CASCADED :
-                                                  VIEW_CHECK_NONE)))
-      DBUG_RETURN(TRUE);
+    if (tbl->is_view() && tbl->prep_check_option(thd, is_cascaded ?
+                                                      VIEW_CHECK_CASCADED :
+                                                      VIEW_CHECK_NONE))
+      DBUG_RETURN(true);
   }
 
   if (check_opt_type && !check_option_processed)
   {
     Prepared_stmt_arena_holder ps_arena_holder(thd);
 
-    if (where)
-    {
-      DBUG_ASSERT(where->fixed);
-      check_option= where->copy_andor_structure(thd);
-    }
+    if (merge_join_conditions(thd, this, &check_option))
+      DBUG_RETURN(true);
+
     if (is_cascaded)
     {
       for (TABLE_LIST *tbl= merge_underlying_list; tbl; tbl= tbl->next_local)
       {
         if (tbl->check_option)
-          check_option= and_conds(check_option, tbl->check_option);
+        {
+          if (!(check_option= and_conds(check_option, tbl->check_option)))
+            DBUG_RETURN(true);
+        }
       }
     }
-    check_option= and_conds(check_option,
-                            merge_on_conds(thd, this, is_cascaded));
-
-    check_option_processed= TRUE;
+    check_option_processed= true;
   }
 
-  if (check_option)
+  if (check_option && !check_option->fixed)
   {
     const char *save_where= thd->where;
     thd->where= "check option";
-    if ((!check_option->fixed &&
-        check_option->fix_fields(thd, &check_option)) ||
+    if (check_option->fix_fields(thd, &check_option) ||
         check_option->check_cols(1))
-    {
-      DBUG_RETURN(TRUE);
-    }
+      DBUG_RETURN(true);
     thd->where= save_where;
   }
-  DBUG_RETURN(FALSE);
+
+  DBUG_RETURN(false);
+}
+
+
+/**
+  Prepare replace filter for a table that is inserted into via a view.
+
+  Used with REPLACE command to filter out rows that should not be deleted.
+  Concatenate WHERE clauses from multiple views into one permanent field:
+  TABLE::replace_filter.
+
+  Since REPLACE is not possible against a join view, there is no need to
+  process join conditions, only WHERE clause is needed. But we still call
+  merge_join_conditions() since this is a general function that handles both
+  join conditions (if any) and the original WHERE clause.
+
+  @param thd            thread handler
+
+  @returns false if success, true if error
+*/
+
+bool TABLE_LIST::prepare_replace_filter(THD *thd)
+{
+  DBUG_ENTER("TABLE_LIST::prepare_replace_filter");
+
+  for (TABLE_LIST *tbl= merge_underlying_list; tbl; tbl= tbl->next_local)
+  {
+    if (tbl->is_view() && tbl->prepare_replace_filter(thd))
+      DBUG_RETURN(true);
+  }
+
+  if (!replace_filter_processed)
+  {
+    Prepared_stmt_arena_holder ps_arena_holder(thd);
+
+    if (merge_join_conditions(thd, this, &replace_filter))
+      DBUG_RETURN(true);
+    for (TABLE_LIST *tbl= merge_underlying_list; tbl; tbl= tbl->next_local)
+    {
+      if (tbl->replace_filter)
+      {
+        if (!(replace_filter= and_conds(replace_filter, tbl->replace_filter)))
+          DBUG_RETURN(true);
+      }
+    }
+    replace_filter_processed= true;
+  }
+
+  if (replace_filter && !replace_filter->fixed)
+  {
+    const char *save_where= thd->where;
+    thd->where= "replace filter";
+    if (replace_filter->fix_fields(thd, &replace_filter) ||
+        replace_filter->check_cols(1))
+      DBUG_RETURN(true);
+    thd->where= save_where;
+  }
+
+  DBUG_RETURN(false);
 }
 
 
@@ -4240,7 +4230,9 @@ bool TABLE_LIST::prep_check_option(THD *thd, uint8 check_opt_type)
 
 void TABLE_LIST::hide_view_error(THD *thd)
 {
-  if (thd->killed || thd->get_internal_handler())
+  // HOTFIX: overcome problem introduced in STRICT worklog
+  //if (thd->killed || thd->get_internal_handler())
+  if (thd->killed || thd->lex->sql_command == SQLCOM_SHOW_CREATE)
     return;
   /* Hide "Unknown column" or "Unknown function" error */
   DBUG_ASSERT(thd->is_error());
@@ -4275,11 +4267,8 @@ void TABLE_LIST::hide_view_error(THD *thd)
 }
 
 
-/*
-  cleanup items belonged to view fields translation table
-
-  SYNOPSIS
-    TABLE_LIST::cleanup_items()
+/**
+  Cleanup items belonged to view fields translation table
 */
 
 void TABLE_LIST::cleanup_items()
@@ -4295,10 +4284,10 @@ void TABLE_LIST::cleanup_items()
 
 
 /**
-  check CHECK OPTION condition
+  Check CHECK OPTION condition
 
-  @param thd                Thread object
- 
+  @param thd       thread handler
+
   @retval VIEW_CHECK_OK     OK
   @retval VIEW_CHECK_ERROR  FAILED
   @retval VIEW_CHECK_SKIP   FAILED, but continue
@@ -4319,56 +4308,49 @@ int TABLE_LIST::view_check_option(THD *thd) const
 }
 
 
-/*
-  Find table in underlying tables by mask and check that only this
-  table belong to given mask
+/**
+  Find table in underlying tables by map and check that only this
+  table belong to given map.
 
-  SYNOPSIS
-    TABLE_LIST::check_single_table()
-    table_arg	reference on variable where to store found table
-		(should be 0 on call, to find table, or point to table for
-		unique test)
-    map         bit mask of tables
-    view_arg    view for which we are looking table
+  @param[out] table_ref reference to found table
+		        (must be set to NULL by caller)
+  @param      map       bit mask of tables
 
-  RETURN
-    FALSE table not found or found only one
-    TRUE  found several tables
+  @retval false table not found or found only one
+  @retval true  found several tables
+
+  @note This function should be called for tables to be updated, meaning
+        that any view references must be merged.
 */
 
-bool TABLE_LIST::check_single_table(TABLE_LIST **table_arg,
-                                       table_map map,
-                                       TABLE_LIST *view_arg)
+bool TABLE_LIST::check_single_table(TABLE_LIST **table_ref, table_map map)
 {
   for (TABLE_LIST *tbl= merge_underlying_list; tbl; tbl= tbl->next_local)
   {
-    if (tbl->table)
+    if (tbl->is_view_or_derived())
     {
-      if (tbl->map() & map)
-      {
-	if (*table_arg)
-	  return TRUE;
-        *table_arg= tbl;
-        tbl->check_option= view_arg->check_option;
-      }
+      DBUG_ASSERT(tbl->is_merged());
+      if (tbl->check_single_table(table_ref, map))
+        return true;
     }
-    else if (tbl->check_single_table(table_arg, map, view_arg))
-      return TRUE;
+    else if (tbl->map() & map)
+    {
+      if (*table_ref)
+        return true;
+
+      *table_ref= tbl;
+    }
   }
-  return FALSE;
+  return false;
 }
 
 
-/*
+/**
   Set insert_values buffer
 
-  SYNOPSIS
-    set_insert_values()
-    mem_root   memory pool for allocating
+  @param mem_root   memory pool for allocating
 
-  RETURN
-    FALSE - OK
-    TRUE  - out of memory
+  @returns false if success, true if error (out of memory)
 */
 
 bool TABLE_LIST::set_insert_values(MEM_ROOT *mem_root)
@@ -4377,17 +4359,17 @@ bool TABLE_LIST::set_insert_values(MEM_ROOT *mem_root)
   {
     if (!table->insert_values &&
         !(table->insert_values= (uchar *)alloc_root(mem_root,
-                                                   table->s->rec_buff_length)))
-      return TRUE;
+                                                    table->s->rec_buff_length)))
+      return true;
   }
   else
   {
     DBUG_ASSERT(view && merge_underlying_list);
     for (TABLE_LIST *tbl= merge_underlying_list; tbl; tbl= tbl->next_local)
       if (tbl->set_insert_values(mem_root))
-        return TRUE;
+        return true;
   }
-  return FALSE;
+  return false;
 }
 
 
@@ -4407,9 +4389,9 @@ bool TABLE_LIST::set_insert_values(MEM_ROOT *mem_root)
   RETURN
     TRUE if a leaf, FALSE otherwise.
 */
-bool TABLE_LIST::is_leaf_for_name_resolution()
+bool TABLE_LIST::is_leaf_for_name_resolution() const
 {
-  return (view || is_natural_join || is_join_columns_complete ||
+  return (is_view_or_derived() || is_natural_join || is_join_columns_complete ||
           !nested_join);
 }
 
@@ -4528,26 +4510,24 @@ TABLE_LIST *TABLE_LIST::last_leaf_for_name_resolution()
 }
 
 
-/*
-  Register access mode which we need for underlying tables
+/**
+  Set privileges needed for columns of underlying tables
 
-  SYNOPSIS
-    register_want_access()
-    want_access          Acess which we require
+  @param want_privilege  Required privileges
 */
 
-void TABLE_LIST::register_want_access(ulong want_access)
+void TABLE_LIST::set_want_privilege(ulong want_privilege)
 {
-  /* Remove SHOW_VIEW_ACL, because it will be checked during making view */
-  want_access&= ~SHOW_VIEW_ACL;
-  if (belong_to_view)
-  {
-    grant.want_privilege= want_access;
-    if (table)
-      table->grant.want_privilege= want_access;
-  }
+#ifndef DBUG_OFF
+  // Remove SHOW_VIEW_ACL, because it will be checked during making view
+  want_privilege&= ~SHOW_VIEW_ACL;
+
+  grant.want_privilege= want_privilege & ~grant.privilege;
+  if (table)
+    table->grant.want_privilege= want_privilege & ~table->grant.privilege;
   for (TABLE_LIST *tbl= merge_underlying_list; tbl; tbl= tbl->next_local)
-    tbl->register_want_access(want_access);
+    tbl->set_want_privilege(want_privilege);
+#endif
 }
 
 
@@ -4857,7 +4837,6 @@ static Item *create_view_field(THD *thd, TABLE_LIST *view, Item **field_ref,
                                const char *name,
                                Name_resolution_context *context)
 {
-  bool save_wrapper= thd->lex->select_lex->no_wrap_view_item;
   Item *field= *field_ref;
   DBUG_ENTER("create_view_field");
 
@@ -4873,23 +4852,15 @@ static Item *create_view_field(THD *thd, TABLE_LIST *view, Item **field_ref,
   }
 
   DBUG_ASSERT(field);
-  thd->lex->current_select()->no_wrap_view_item= TRUE;
   if (!field->fixed)
   {
     if (field->fix_fields(thd, field_ref))
-    {
-      thd->lex->current_select()->no_wrap_view_item= save_wrapper;
-      DBUG_RETURN(0);
-    }
+      DBUG_RETURN(NULL);
     field= *field_ref;
   }
-  thd->lex->current_select()->no_wrap_view_item= save_wrapper;
-  if (save_wrapper)
-  {
-    DBUG_RETURN(field);
-  }
   Item *item= new Item_direct_view_ref(context, field_ref,
-                                       view->alias, view->table_name, name);
+                                       view->alias, view->table_name,
+                                       name, view);
   DBUG_RETURN(item);
 }
 
@@ -4943,8 +4914,7 @@ void Field_iterator_table_ref::set_field_iterator()
   /* This is a merge view, so use field_translation. */
   else if (table_ref->field_translation)
   {
-    DBUG_ASSERT(table_ref->view &&
-                table_ref->effective_algorithm == VIEW_ALGORITHM_MERGE);
+    DBUG_ASSERT(table_ref->is_merged());
     field_it= &view_field_it;
     DBUG_PRINT("info", ("field_it for '%s' is Field_iterator_view",
                         table_ref->alias));
@@ -4952,7 +4922,7 @@ void Field_iterator_table_ref::set_field_iterator()
   /* This is a base table or stored view. */
   else
   {
-    DBUG_ASSERT(table_ref->table || table_ref->view);
+    DBUG_ASSERT(table_ref->table || table_ref->is_view());
     field_it= &table_field_it;
     DBUG_PRINT("info", ("field_it for '%s' is Field_iterator_table",
                         table_ref->alias));
@@ -4992,7 +4962,7 @@ void Field_iterator_table_ref::next()
 
 const char *Field_iterator_table_ref::get_table_name()
 {
-  if (table_ref->view)
+  if (table_ref->is_view())
     return table_ref->view_name.str;
   else if (table_ref->is_natural_join)
     return natural_join_it.column_ref()->table_name();
@@ -5005,7 +4975,7 @@ const char *Field_iterator_table_ref::get_table_name()
 
 const char *Field_iterator_table_ref::get_db_name()
 {
-  if (table_ref->view)
+  if (table_ref->is_view())
     return table_ref->view_db.str;
   else if (table_ref->is_natural_join)
     return natural_join_it.column_ref()->db_name();
@@ -5026,7 +4996,7 @@ const char *Field_iterator_table_ref::get_db_name()
 
 GRANT_INFO *Field_iterator_table_ref::grant()
 {
-  if (table_ref->view)
+  if (table_ref->is_view())
     return &(table_ref->grant);
   else if (table_ref->is_natural_join)
     return natural_join_it.column_ref()->grant();
@@ -5226,6 +5196,67 @@ void TABLE::prepare_for_position()
     mark_columns_used_by_index_no_reset(s->primary_key, read_set);
     /* signal change */
     file->column_bitmaps_signal();
+  }
+  DBUG_VOID_RETURN;
+}
+
+
+/**
+  Mark column as either read or written (or none) according to mark_used.
+
+  @note If marking a written field, set thd->dup_field if the column is
+        already marked.
+
+  @note If TABLE::get_fields_in_item_tree is set, set the flag bit
+        GET_FIXED_FIELDS_FLAG for the field.
+
+  @param thd      Thread handler (only used for duplicate handling)
+  @param field    The column to be marked as used
+  @param mark_used =MARK_COLUMNS_NONE: Only update flag field, if applicable
+                   =MARK_COLUMNS_READ: Mark column as read
+                   =MARK_COLUMNS_WRITE: Mark column as written
+                   =MARK_COLUMNS_TEMP: Mark column as read, use by filesort()
+*/
+
+void TABLE::mark_column_used(THD *thd, Field *field,
+                             enum enum_mark_columns mark)
+{
+  DBUG_ENTER("TABLE::mark_column_used");
+
+  switch (mark)
+  {
+  case MARK_COLUMNS_NONE:
+    if (get_fields_in_item_tree)
+      field->flags|= GET_FIXED_FIELDS_FLAG;
+    break;
+
+  case MARK_COLUMNS_READ:
+    bitmap_set_bit(read_set, field->field_index);
+
+    // Update covering_keys and merge_keys based on all fields that are read:      
+    covering_keys.intersect(field->part_of_key);
+    merge_keys.merge(field->part_of_key);
+    if (get_fields_in_item_tree)
+      field->flags|= GET_FIXED_FIELDS_FLAG;
+    break;
+
+  case MARK_COLUMNS_WRITE:
+    if (bitmap_fast_test_and_set(write_set, field->field_index))
+    {
+      /*
+        This is relevant for INSERT only, but duplicate indication is set
+        for all fields that are updated.
+      */
+      DBUG_PRINT("warning", ("Found duplicated field"));
+      thd->dup_field= field;
+    }
+    if (get_fields_in_item_tree)
+      field->flags|= GET_FIXED_FIELDS_FLAG;
+    break;
+
+  case MARK_COLUMNS_TEMP:
+    bitmap_set_bit(read_set, field->field_index);
+    break;
   }
   DBUG_VOID_RETURN;
 }
@@ -5780,7 +5811,7 @@ void TABLE_LIST::reinit_before_use(THD *thd)
    or schema table. They are not valid as TABLEs were closed in the end of
    previous prepare or execute call.
  */
-  if (derived)
+  if (is_derived())
   {
     table_name= NULL;
     table_name_length= 0;
@@ -5797,23 +5828,6 @@ void TABLE_LIST::reinit_before_use(THD *thd)
   mdl_request.ticket= NULL;
 }
 
-/*
-  Return subselect that contains the FROM list this table is taken from
-
-  SYNOPSIS
-    TABLE_LIST::containing_subselect()
- 
-  RETURN
-    Subselect item for the subquery that contains the FROM list
-    this table is taken from if there is any
-    0 - otherwise
-
-*/
-
-Item_subselect *TABLE_LIST::containing_subselect()
-{    
-  return (select_lex ? select_lex->master_unit()->item : 0);
-}
 
 uint TABLE_LIST::query_block_id() const
 {
@@ -6031,13 +6045,44 @@ void init_mdl_requests(TABLE_LIST *table_list)
 }
 
 
+///  @returns true if view or derived table and can be merged
+bool TABLE_LIST::is_mergeable() const
+{
+  return is_view_or_derived() &&
+         algorithm != VIEW_ALGORITHM_TEMPTABLE &&
+         derived->is_mergeable();
+}
 
 ///  @returns true if materializable table contains one or zero rows
 bool TABLE_LIST::materializable_is_const() const
 {
   DBUG_ASSERT(uses_materialization());
-  return get_unit()->query_result()->estimated_rowcount <= 1;
+  return derived_unit()->query_result()->estimated_rowcount <= 1;
 }
+
+
+/**
+  Return the number of leaf tables for a merged view.
+*/
+
+uint TABLE_LIST::leaf_tables_count() const
+{
+  DBUG_ASSERT(is_view_or_derived() && is_merged());
+  uint count= 0;
+  for (TABLE_LIST *tbl= merge_underlying_list; tbl; tbl= tbl->next_local)
+  {
+    if (tbl->is_view_or_derived())
+      count+= tbl->leaf_tables_count();
+    else
+    {
+      DBUG_ASSERT(tbl->nested_join == NULL);
+      count++;
+    }
+  }
+
+  return count;
+}
+
 
 /**
   @brief
@@ -6319,63 +6364,6 @@ bool TABLE_LIST::generate_keys()
 }
 
 
-/*
-  @brief Run derived tables/view handling phases on underlying select_lex.
-
-  @param lex    LEX for this thread
-  @param phases derived tables/views handling phases to run
-                (set of DT_XXX constants)
-  @details
-  This function runs this derived table through specified 'phases' and used for
-  handling materialized derived tables on all stages except preparation.
-  The reason that on all stages except prepare derived tables of different
-  type needs different handling. Materializable derived tables needs
-  processor to be called directly on them. Mergeable derived tables doesn't
-  need such call, but require diving into them to process underlying derived
-  tables. This differs from the mysql_handle_derived which runs preparation
-  processor on all derived tables without exception. 'lex' is passed as
-  an argument to called functions.
-
-  @see mysql_handle_derived.
-
-  @return TRUE on error
-  @return FALSE ok
-*/
-
-bool TABLE_LIST::handle_derived(LEX *lex,
-                                bool (*processor)(THD*, LEX*, TABLE_LIST*))
-{
-  SELECT_LEX_UNIT *unit= get_unit();
-  DBUG_ASSERT(unit);
-
-  /* Dive into a merged derived table or materialize as is otherwise. */
-  if (!uses_materialization())
-  {
-    for (SELECT_LEX *sl= unit->first_select(); sl; sl= sl->next_select())
-      if (sl->handle_derived(lex, processor))
-        return TRUE;
-  }
-  else
-    return mysql_handle_single_derived(lex, this, processor);
-
-  return FALSE;
-}
-
-
-/**
-  @brief
-  Return unit of this derived table/view
-
-  @return reference to a unit  if it's a derived table/view.
-  @return 0                    when it's not a derived table/view.
-*/
-
-st_select_lex_unit *TABLE_LIST::get_unit() const
-{
-  return (view ? view->unit : derived);
-}
-
-
 /**
   Update TABLE::const_key_parts for single table UPDATE/DELETE query
 
@@ -6469,3 +6457,4 @@ bool is_simple_order(ORDER *order)
   }
   return TRUE;
 }
+

@@ -24,6 +24,8 @@ Created 12/4/2005 Jan Lindstrom
 Completed by Sunny Bains and Marko Makela
 *******************************************************/
 
+#include <math.h>
+
 #include "ha_prototypes.h"
 
 #include "row0merge.h"
@@ -42,6 +44,7 @@ Completed by Sunny Bains and Marko Makela
 #include "btr0bulk.h"
 #include "fsp0sysspace.h"
 #include "ut0new.h"
+#include "ut0stage.h"
 
 /* Ignore posix_fadvise() on those platforms where it does not exist */
 #if defined _WIN32
@@ -265,6 +268,9 @@ private:
 @param[in]	row_buf		row_buf the sorted data tuples,
 or NULL if fd, block will be used instead
 @param[in,out]	btr_bulk	btr bulk instance
+@param[in,out]	stage		performance schema accounting object, used by
+ALTER TABLE. If not NULL stage->begin_phase_insert() will be called initially
+and then stage->inc() will be called for each record that is processed.
 @return DB_SUCCESS or error number */
 static	__attribute__((warn_unused_result))
 dberr_t
@@ -275,7 +281,8 @@ row_merge_insert_index_tuples(
 	int			fd,
 	row_merge_block_t*	block,
 	const row_merge_buf_t*	row_buf,
-	BtrBulk*		btr_bulk);
+	BtrBulk*		btr_bulk,
+	ut_stage_alter_t*	stage = NULL);
 
 /******************************************************//**
 Encode an index record. */
@@ -1549,6 +1556,9 @@ ULINT_UNDEFINED if none is added
 @param[in]	skip_pk_sort	whether the new PRIMARY KEY will follow
 existing order
 @param[in,out]	tmpfd		temporary file handle
+@param[in,out]	stage		performance schema accounting object, used by
+ALTER TABLE. stage->n_pk_recs_inc() will be called for each record read and
+stage->inc() will be called for each page read.
 @return DB_SUCCESS or error */
 static __attribute__((warn_unused_result))
 dberr_t
@@ -1570,7 +1580,8 @@ row_merge_read_clustered_index(
 	ib_sequence_t&		sequence,
 	row_merge_block_t*	block,
 	bool			skip_pk_sort,
-	int*			tmpfd)
+	int*			tmpfd,
+	ut_stage_alter_t*	stage)
 {
 	dict_index_t*		clust_index;	/* Clustered index */
 	mem_heap_t*		row_heap;	/* Heap memory to create
@@ -1751,7 +1762,12 @@ row_merge_read_clustered_index(
 
 		page_cur_move_to_next(cur);
 
+		stage->n_pk_recs_inc();
+
 		if (page_cur_is_after_last(cur)) {
+
+			stage->inc();
+
 			if (UNIV_UNLIKELY(trx_is_interrupted(trx))) {
 				err = DB_INTERRUPTED;
 				trx->error_key_num = 0;
@@ -2514,7 +2530,7 @@ wait_again:
 @param N number of the buffer (0 or 1)
 @param INDEX record descriptor
 @param AT_END statement to execute at end of input */
-#define ROW_MERGE_WRITE_GET_NEXT(N, INDEX, AT_END)			\
+#define ROW_MERGE_WRITE_GET_NEXT_LOW(N, INDEX, AT_END)			\
 	do {								\
 		b2 = row_merge_write_rec(&block[2 * srv_sort_buf_size], \
 					 &buf[2], b2,			\
@@ -2535,6 +2551,19 @@ wait_again:
 		}							\
 	} while (0)
 
+#ifdef HAVE_PSI_STAGE_INTERFACE
+#define ROW_MERGE_WRITE_GET_NEXT(N, INDEX, AT_END)			\
+	do {								\
+		if (stage != NULL) {					\
+			stage->inc();					\
+		}							\
+		ROW_MERGE_WRITE_GET_NEXT_LOW(N, INDEX, AT_END);		\
+	} while (0)
+#else /* HAVE_PSI_STAGE_INTERFACE */
+#define ROW_MERGE_WRITE_GET_NEXT(N, INDEX, AT_END)			\
+	ROW_MERGE_WRITE_GET_NEXT_LOW(N, INDEX, AT_END)
+#endif /* HAVE_PSI_STAGE_INTERFACE */
+
 /** Merge two blocks of records on disk and write a bigger block.
 @param[in]	dup	descriptor of index being created
 @param[in]	file	file containing index entries
@@ -2542,6 +2571,9 @@ wait_again:
 @param[in,out]	foffs0	offset of first source list in the file
 @param[in,out]	foffs1	offset of second source list in the file
 @param[in,out]	of	output file
+@param[in,out]	stage	performance schema accounting object, used by
+ALTER TABLE. If not NULL stage->inc() will be called for each record
+processed.
 @return DB_SUCCESS or error code */
 static __attribute__((warn_unused_result))
 dberr_t
@@ -2551,7 +2583,8 @@ row_merge_blocks(
 	row_merge_block_t*	block,
 	ulint*			foffs0,
 	ulint*			foffs1,
-	merge_file_t*		of)
+	merge_file_t*		of,
+	ut_stage_alter_t*	stage)
 {
 	mem_heap_t*	heap;	/*!< memory heap for offsets0, offsets1 */
 
@@ -2643,6 +2676,9 @@ done1:
 @param[in,out]	block	3 buffers
 @param[in,out]	foffs0	input file offset
 @param[in,out]	of	output file
+@param[in,out]	stage	performance schema accounting object, used by
+ALTER TABLE. If not NULL stage->inc() will be called for each record
+processed.
 @return TRUE on success, FALSE on failure */
 static __attribute__((warn_unused_result))
 ibool
@@ -2651,7 +2687,8 @@ row_merge_blocks_copy(
 	const merge_file_t*	file,
 	row_merge_block_t*	block,
 	ulint*			foffs0,
-	merge_file_t*		of)
+	merge_file_t*		of,
+	ut_stage_alter_t*	stage)
 {
 	mem_heap_t*	heap;	/*!< memory heap for offsets0, offsets1 */
 
@@ -2718,6 +2755,9 @@ done0:
 @param[in,out]	num_run		Number of runs that remain to be merged
 @param[in,out]	run_offset	Array that contains the first offset number
 for each merge run
+@param[in,out]	stage		performance schema accounting object, used by
+ALTER TABLE. If not NULL stage->inc() will be called for each record
+processed.
 @return DB_SUCCESS or error code */
 static
 dberr_t
@@ -2728,7 +2768,8 @@ row_merge(
 	row_merge_block_t*	block,
 	int*			tmpfd,
 	ulint*			num_run,
-	ulint*			run_offset)
+	ulint*			run_offset,
+	ut_stage_alter_t*	stage)
 {
 	ulint		foffs0;	/*!< first input offset */
 	ulint		foffs1;	/*!< second input offset */
@@ -2771,7 +2812,7 @@ row_merge(
 		run_offset[n_run++] = of.offset;
 
 		error = row_merge_blocks(dup, file, block,
-					 &foffs0, &foffs1, &of);
+					 &foffs0, &foffs1, &of, stage);
 
 		if (error != DB_SUCCESS) {
 			return(error);
@@ -2790,7 +2831,7 @@ row_merge(
 		run_offset[n_run++] = of.offset;
 
 		if (!row_merge_blocks_copy(dup->index, file, block,
-					   &foffs0, &of)) {
+					   &foffs0, &of, stage)) {
 			return(DB_CORRUPTION);
 		}
 	}
@@ -2806,7 +2847,7 @@ row_merge(
 		run_offset[n_run++] = of.offset;
 
 		if (!row_merge_blocks_copy(dup->index, file, block,
-					   &foffs1, &of)) {
+					   &foffs1, &of, stage)) {
 			return(DB_CORRUPTION);
 		}
 	}
@@ -2846,6 +2887,9 @@ row_merge(
 @param[in,out]	file	file containing index entries
 @param[in,out]	block	3 buffers
 @param[in,out]	tmpfd	temporary file handle
+@param[in,out]	stage	performance schema accounting object, used by
+ALTER TABLE. If not NULL, stage->begin_phase_sort() will be called initially
+and then stage->inc() will be called for each record processed.
 @return DB_SUCCESS or error code */
 dberr_t
 row_merge_sort(
@@ -2853,7 +2897,8 @@ row_merge_sort(
 	const row_merge_dup_t*	dup,
 	merge_file_t*		file,
 	row_merge_block_t*	block,
-	int*			tmpfd)
+	int*			tmpfd,
+	ut_stage_alter_t*	stage /* = NULL */)
 {
 	const ulint	half	= file->offset / 2;
 	ulint		num_runs;
@@ -2863,6 +2908,10 @@ row_merge_sort(
 
 	/* Record the number of merge runs we need to perform */
 	num_runs = file->offset;
+
+	if (stage != NULL) {
+		stage->begin_phase_sort(log2(num_runs));
+	}
 
 	/* If num_runs are less than 1, nothing to merge */
 	if (num_runs <= 1) {
@@ -2883,7 +2932,7 @@ row_merge_sort(
 	/* Merge the runs until we have one big run */
 	do {
 		error = row_merge(trx, dup, file, block, tmpfd,
-				  &num_runs, run_offset);
+				  &num_runs, run_offset, stage);
 
 		if (error != DB_SUCCESS) {
 			break;
@@ -2991,6 +3040,9 @@ row_merge_mtuple_to_dtuple(
 @param[in]	row_buf		row_buf the sorted data tuples,
 or NULL if fd, block will be used instead
 @param[in,out]	btr_bulk	btr bulk instance
+@param[in,out]	stage		performance schema accounting object, used by
+ALTER TABLE. If not NULL stage->begin_phase_insert() will be called initially
+and then stage->inc() will be called for each record that is processed.
 @return DB_SUCCESS or error number */
 static	__attribute__((warn_unused_result))
 dberr_t
@@ -3001,7 +3053,8 @@ row_merge_insert_index_tuples(
 	int			fd,
 	row_merge_block_t*	block,
 	const row_merge_buf_t*	row_buf,
-	BtrBulk*		btr_bulk)
+	BtrBulk*		btr_bulk,
+	ut_stage_alter_t*	stage /* = NULL */)
 {
 	const byte*		b;
 	mem_heap_t*		heap;
@@ -3018,6 +3071,10 @@ row_merge_insert_index_tuples(
 	ut_ad(!(index->type & DICT_FTS));
 	ut_ad(!dict_index_is_spatial(index));
 	ut_ad(trx_id);
+
+	if (stage != NULL) {
+		stage->begin_phase_insert();
+	}
 
 	tuple_heap = mem_heap_create(1000);
 
@@ -3061,6 +3118,10 @@ row_merge_insert_index_tuples(
 		const mrec_t*	mrec;
 		ulint		n_ext;
 		mtr_t		mtr;
+
+		if (stage != NULL) {
+			stage->inc();
+		}
 
 		 if (row_buf != NULL) {
 			if (n_rows >= row_buf->n_tuples) {
@@ -4105,6 +4166,9 @@ ULINT_UNDEFINED if none is added
 @param[in,out]	sequence	autoinc sequence
 @param[in]	skip_pk_sort	whether the new PRIMARY KEY will follow
 existing order
+@param[in,out]	stage		performance schema accounting object, used by
+ALTER TABLE. stage->begin_phase_read_pk() will be called at the beginning of
+this function and it will be passed to other functions for further accounting.
 @return DB_SUCCESS or error code */
 dberr_t
 row_merge_build_indexes(
@@ -4120,7 +4184,8 @@ row_merge_build_indexes(
 	const ulint*		col_map,
 	ulint			add_autoinc,
 	ib_sequence_t&		sequence,
-	bool			skip_pk_sort)
+	bool			skip_pk_sort,
+	ut_stage_alter_t*	stage)
 {
 	merge_file_t*		merge_files;
 	row_merge_block_t*	block;
@@ -4139,6 +4204,10 @@ row_merge_build_indexes(
 	ut_ad(!srv_read_only_mode);
 	ut_ad((old_table == new_table) == !col_map);
 	ut_ad(!add_cols || col_map);
+
+	stage->begin_phase_read_pk(skip_pk_sort && new_table != old_table
+				   ? n_indexes - 1
+				   : n_indexes);
 
 	/* Allocate memory for merge file data structure and initialize
 	fields */
@@ -4224,7 +4293,9 @@ row_merge_build_indexes(
 		trx, table, old_table, new_table, online, indexes,
 		fts_sort_idx, psort_info, merge_files, key_numbers,
 		n_indexes, add_cols, col_map, add_autoinc, sequence,
-		block, skip_pk_sort, &tmpfd);
+		block, skip_pk_sort, &tmpfd, stage);
+
+	stage->end_phase_read_pk();
 
 	if (error != DB_SUCCESS) {
 
@@ -4314,7 +4385,7 @@ wait_again:
 
 			error = row_merge_sort(
 				trx, &dup, &merge_files[i],
-				block, &tmpfd);
+				block, &tmpfd, stage);
 
 			if (error == DB_SUCCESS) {
 				BtrBulk	btr_bulk(sort_idx, trx->id);
@@ -4323,7 +4394,7 @@ wait_again:
 				error = row_merge_insert_index_tuples(
 					trx->id, sort_idx, old_table,
 					merge_files[i].fd, block, NULL,
-					&btr_bulk);
+					&btr_bulk, stage);
 
 				error = btr_bulk.finish(error);
 			}
@@ -4342,10 +4413,10 @@ wait_again:
 			ut_ad(sort_idx->online_status
 			      == ONLINE_INDEX_COMPLETE);
 		} else {
-			log_make_checkpoint_at(LSN_MAX, TRUE);
+			log_make_checkpoint_at(LSN_MAX, TRUE, stage);
 
 			DEBUG_SYNC_C("row_log_apply_before");
-			error = row_log_apply(trx, sort_idx, table);
+			error = row_log_apply(trx, sort_idx, table, stage);
 			DEBUG_SYNC_C("row_log_apply_after");
 		}
 
@@ -4428,7 +4499,7 @@ func_exit:
 	DBUG_EXECUTE_IF("ib_index_crash_after_bulk_load", DBUG_SUICIDE(););
 
 	if (error == DB_SUCCESS && need_end_checkpoint) {
-		log_make_checkpoint_at(LSN_MAX, TRUE);
+		log_make_checkpoint_at(LSN_MAX, TRUE, stage);
 	}
 
 	DBUG_RETURN(error);

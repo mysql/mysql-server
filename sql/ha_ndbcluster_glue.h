@@ -37,6 +37,7 @@
 #include "key.h"            // key_restore
 #include "rpl_constants.h"  // Transid in Binlog
 #include "rpl_slave.h"      // Silent retry definition
+#include "log_event.h"      // my_strmov_quoted_identifier
 
 #include "sql_show.h"       // init_fill_schema_files_row,
                             // schema_table_store_record

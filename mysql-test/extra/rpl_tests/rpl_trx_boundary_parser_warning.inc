@@ -67,7 +67,7 @@ RESET SLAVE;
 START SLAVE IO_THREAD;
 # We always start counting by the second event, skipping slave's FD
 --let $event_counter= 2
---let $master_pos= 120
+--let $master_pos= 122
 # Disabling query log during queue event counting
 --disable_query_log
 ###

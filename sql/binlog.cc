@@ -13,27 +13,20 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-
-#include "my_global.h"
-#include "log.h"
 #include "binlog.h"
-#include "log_event.h"
-#include "rpl_filter.h"
-#include "rpl_rli.h"
-#include "sql_plugin.h"
-#include "rpl_handler.h"
-#include "rpl_info_factory.h"
-#include "rpl_utility.h"
-#include "debug_sync.h"
-#include "sql_show.h"
-#include "sql_parse.h"
-#include "rpl_mi.h"
-#include "dur_prop.h"
-#include <list>
-#include <string>
-#include <m_ctype.h>				// For is_number
-#include <my_stacktrace.h>
-#include "mysqld_thd_manager.h"                 // Global_THD_manager
+
+#include "my_stacktrace.h"                  // my_safe_print_system_time
+#include "debug_sync.h"                     // DEBUG_SYNC
+#include "log_event.h"                      // Rows_log_event
+#include "mysqld_thd_manager.h"             // Global_THD_manager
+#include "rpl_handler.h"                    // RUN_HOOK
+#include "rpl_mi.h"                         // Master_info
+#include "rpl_rli.h"                        // Relay_log_info
+#include "rpl_slave_commit_order_manager.h" // Commit_order_manager
+#include "rpl_trx_boundary_parser.h"        // Transaction_boundary_parser
+#include "sql_class.h"                      // THD
+#include "sql_parse.h"                      // sqlcom_can_generate_row_events
+#include "sql_show.h"                       // append_identifier
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
@@ -41,9 +34,8 @@
 #include <pfs_transaction_provider.h>
 #include <mysql/psi/mysql_transaction.h>
 
-#ifdef HAVE_REPLICATION
-#include "rpl_slave_commit_order_manager.h"
-#endif
+#include <list>
+#include <string>
 
 using std::max;
 using std::min;
@@ -1126,7 +1118,10 @@ bool MYSQL_BIN_LOG::write_gtid(THD *thd, binlog_cache_data *cache_data,
   /* Generate GTID */
   if (thd->variables.gtid_next.type == AUTOMATIC_GROUP)
   {
-    if (gtid_state->generate_automatic_gtid(thd) != RETURN_STATUS_OK)
+    if (gtid_state->generate_automatic_gtid(thd,
+            thd->get_transaction()->get_rpl_transaction_ctx()->get_sidno(),
+            thd->get_transaction()->get_rpl_transaction_ctx()->get_gno())
+            != RETURN_STATUS_OK)
       DBUG_RETURN(true);
   }
   else
@@ -1680,6 +1675,15 @@ time_t Stage_manager::wait_count_or_timeout(ulong count, time_t usec, StageID st
     to_wait -= delta;
   }
   return to_wait;
+}
+
+void Stage_manager::signal_done(THD *queue)
+{
+  mysql_mutex_lock(&m_lock_done);
+  for (THD *thd= queue ; thd ; thd = thd->next_to_commit)
+    thd->get_transaction()->m_flags.pending= false;
+  mysql_mutex_unlock(&m_lock_done);
+  mysql_cond_broadcast(&m_cond_done);
 }
 
 #ifndef DBUG_OFF
@@ -4974,7 +4978,7 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd, bool delete_only)
 
 #ifdef HAVE_REPLICATION
   /*
-    For relay logs we clear the gtid state assosiated per channel(i.e rli)
+    For relay logs we clear the gtid state associated per channel(i.e rli)
     in the purge_relay_logs()
   */
   if (!is_relay_log)
@@ -5913,6 +5917,37 @@ bool MYSQL_BIN_LOG::is_active(const char *log_file_name_arg)
 }
 
 
+void MYSQL_BIN_LOG::inc_prep_xids(THD *thd)
+{
+  DBUG_ENTER("MYSQL_BIN_LOG::inc_prep_xids");
+#ifndef DBUG_OFF
+  int result= my_atomic_add32(&m_prep_xids, 1);
+#else
+  (void) my_atomic_add32(&m_prep_xids, 1);
+#endif
+  DBUG_PRINT("debug", ("m_prep_xids: %d", result + 1));
+  thd->get_transaction()->m_flags.xid_written= true;
+  DBUG_VOID_RETURN;
+}
+
+
+void MYSQL_BIN_LOG::dec_prep_xids(THD *thd)
+{
+  DBUG_ENTER("MYSQL_BIN_LOG::dec_prep_xids");
+  int32 result= my_atomic_add32(&m_prep_xids, -1);
+  DBUG_PRINT("debug", ("m_prep_xids: %d", result - 1));
+  thd->get_transaction()->m_flags.xid_written= false;
+  /* If the old value was 1, it is zero now. */
+  if (result == 1)
+  {
+    mysql_mutex_lock(&LOCK_xids);
+    mysql_cond_signal(&m_prep_xids_cond);
+    mysql_mutex_unlock(&LOCK_xids);
+  }
+  DBUG_VOID_RETURN;
+}
+
+
 /*
   Wrappers around new_file_impl to avoid using argument
   to control locking. The argument 1) less readable 2) breaks
@@ -6372,6 +6407,25 @@ MYSQL_BIN_LOG::flush_and_set_pending_rows_event(THD *thd,
   }
 
   cache_data->set_pending(event);
+
+  DBUG_RETURN(error);
+}
+
+int
+MYSQL_BIN_LOG::write_event_into_log_file(Log_event* event){
+
+  DBUG_ENTER("MYSQL_BIN_LOG::write_event_into_log_file(Log_event *)");
+
+  mysql_mutex_lock(&LOCK_log);
+
+  int error= event->write(&log_file);
+
+  if (!error && !(error= flush_and_sync()))
+  {
+    update_binlog_end_pos();
+  }
+
+  mysql_mutex_unlock(&LOCK_log);
 
   DBUG_RETURN(error);
 }
@@ -7598,9 +7652,22 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all)
                   thd_get_cache_mngr(thd)->get_binlog_cache_log(true),
                   thd_get_cache_mngr(thd)->get_binlog_cache_log(false),
                   max<my_off_t>(max_binlog_cache_size,
-                                max_binlog_stmt_cache_size),
-                  NULL)))
+                                max_binlog_stmt_cache_size))))
+    {
+      ha_rollback_low(thd, all);
+      my_error(ER_RUN_HOOK_ERROR, MYF(0), "before_commit");
       DBUG_RETURN(RESULT_ABORTED);
+    }
+    /*
+      Check whether the transaction should commit or abort given the
+      plugin feedback.
+    */
+    if (thd->get_transaction()->get_rpl_transaction_ctx()->is_transaction_rollback())
+    {
+      ha_rollback_low(thd, all);
+      my_error(ER_TRANSACTION_ROLLBACK_DURING_COMMIT, MYF(0));
+      DBUG_RETURN(RESULT_ABORTED);
+    }
 
     if (ordered_commit(thd, all))
       DBUG_RETURN(RESULT_INCONSISTENT);
@@ -9051,7 +9118,7 @@ int THD::decide_logging_format(TABLE_LIST *tables)
     */
     for (TABLE_LIST *table= tables; table; table= table->next_global)
     {
-      if (table->placeholder())
+      if (table->is_placeholder())
         continue;
 
       handler::Table_flags const flags= table->table->file->ha_table_flags();
@@ -9345,7 +9412,7 @@ int THD::decide_logging_format(TABLE_LIST *tables)
       */
       for (TABLE_LIST *table= tables; table; table= table->next_global)
       {
-        if (table->placeholder())
+        if (table->is_placeholder())
           continue;
 
         DBUG_ASSERT(table->table);
@@ -9381,7 +9448,7 @@ int THD::decide_logging_format(TABLE_LIST *tables)
       */
       for (TABLE_LIST *table= tables; table; table= table->next_global)
       {
-        if (table->placeholder())
+        if (table->is_placeholder())
           continue;
         if (table->table->file->ht->db_type == DB_TYPE_BLACKHOLE_DB &&
             table->lock_type >= TL_WRITE_ALLOW_WRITE)

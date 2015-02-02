@@ -8,7 +8,11 @@
 # Test supplied by Are Casilla
 
 source include/master-slave.inc;
+
+SET SESSION sql_log_bin= 0;
 call mtr.add_suppression('Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.');
+SET SESSION sql_log_bin= 1;
+
 --disable_warnings
 connection master;
 drop database if exists test1;
@@ -57,6 +61,10 @@ CALL simpleproc3();
 select * from t1;
 
 --source include/sync_slave_sql_with_master.inc
+
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression('Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.');
+SET SESSION sql_log_bin= 1;
 
 use test1;
 select * from t1;

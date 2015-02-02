@@ -824,6 +824,9 @@ DROP TABLE t4;
 --echo #
 --echo # Test derived tables like SELECT * FROM (SELECT * FROM ...)
 --echo #
+set @optimizer_switch_saved=@@optimizer_switch;
+set optimizer_switch='derived_merge=off';
+
 FLUSH STATUS;
 SELECT * FROM (SELECT * FROM t1 WHERE a IN (0,2,3,13,26)) t3;
 eval $get_handler_status_counts;
@@ -928,6 +931,7 @@ EXPLAIN PARTITIONS SELECT * FROM (SELECT * FROM (SELECT * FROM t1 WHERE a IN (0,
 eval $get_handler_status_counts;
 --echo # 12 locks (2 tables, 3 + 1 partitions lock/unlock)
 
+set @@optimizer_switch=@optimizer_switch_saved;
 
 --echo #
 --echo # Test UPDATE
