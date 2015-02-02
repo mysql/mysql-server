@@ -23,6 +23,7 @@
 #include "table_trigger_field_support.h" // Table_trigger_field_support
 #include "mysql/service_parser.h"
 
+
 class user_var_entry;
 
 typedef Bounds_checked_array<Item*> Ref_ptr_array;
@@ -155,6 +156,24 @@ public:
       default: return "UNKNOWN";
     }
   }
+};
+
+
+/**
+  Class used as argument to Item::walk() together with mark_field_in_map()
+*/
+class Mark_field
+{
+public:
+  Mark_field(TABLE *table, enum_mark_columns mark) :
+  table(table), mark(mark)
+  {}
+  Mark_field(enum_mark_columns mark) :
+  table(NULL), mark(mark)
+  {}
+
+  TABLE *const table;
+  const enum_mark_columns mark;
 };
 
 /*************************************************************************/
@@ -436,6 +455,8 @@ struct Name_resolution_context: Sql_alloc
     resolved in this context (the context of an outer select)
   */
   Name_resolution_context *outer_context;
+  /// Link to next name res context with the same query block as the base
+  Name_resolution_context *next_context;
 
   /*
     List of tables used to resolve the items of this context.  Usually these
@@ -492,9 +513,9 @@ struct Name_resolution_context: Sql_alloc
   Security_context *security_ctx;
 
   Name_resolution_context()
-    :outer_context(0), table_list(0), select_lex(0),
-    error_processor_data(0),
-    security_ctx(0)
+    :outer_context(NULL), next_context(NULL),
+    table_list(NULL), select_lex(NULL),
+    error_processor_data(NULL), security_ctx(NULL)
     {}
 
   void init()
@@ -1741,7 +1762,8 @@ public:
   virtual bool change_context_processor(uchar *context) { return false; }
   virtual bool reset_query_id_processor(uchar *query_id_arg) { return false; }
   virtual bool find_item_processor(uchar *arg) { return this == (void *) arg; }
-  virtual bool register_field_in_read_map(uchar *arg) { return false; }
+  virtual bool mark_field_in_map(uchar *arg) { return false; }
+  virtual bool check_column_privileges(uchar *arg) { return false; }
   virtual bool inform_item_in_cond_of_tab(uchar *join_tab_index) {return false;}
   /**
      Clean up after removing the item from the item tree.
@@ -2640,8 +2662,9 @@ public:
   bool add_field_to_cond_set_processor(uchar *unused);
   bool remove_column_from_bitmap(uchar * arg);
   bool find_item_in_field_list_processor(uchar *arg);
-  bool register_field_in_read_map(uchar *arg);
-  bool check_partition_func_processor(uchar *int_arg) {return false;}
+  bool mark_field_in_map(uchar *arg);
+  bool check_column_privileges(uchar *arg);
+  bool check_partition_func_processor(uchar *int_arg) { return false; }
   void cleanup();
   Item_equal *find_item_equal(COND_EQUAL *cond_equal);
   bool subst_argument_checker(uchar **arg);
@@ -3945,9 +3968,10 @@ public:
   virtual Ref_Type ref_type() const { return DIRECT_REF; }
 };
 
-/*
-  Class for view fields, the same as Item_direct_ref, but call fix_fields
-  of reference if it is not called yet
+/**
+  Class for fields from derived tables and views.
+  The same as Item_direct_ref, but call fix_fields() of reference if
+  not called yet.
 */
 class Item_direct_view_ref :public Item_direct_ref
 {
@@ -3956,15 +3980,20 @@ public:
                        Item **item,
                        const char *alias_name_arg,
                        const char *table_name_arg,
-                       const char *field_name_arg)
+                       const char *field_name_arg,
+                       TABLE_LIST *tl)
     : Item_direct_ref(context_arg, item, alias_name_arg, field_name_arg)
   {
     orig_table_name= table_name_arg;
+    cached_table= tl;
   }
 
   /* Constructor need to process subselect with temporary tables (see Item) */
   Item_direct_view_ref(THD *thd, Item_direct_ref *item)
-    :Item_direct_ref(thd, item) {}
+    :Item_direct_ref(thd, item)
+  {
+    cached_table= item->cached_table;
+  }
 
   /*
     We share one underlying Item_field, so we have to disable
@@ -3985,6 +4014,8 @@ public:
     return item;
   }
   virtual Ref_Type ref_type() const { return VIEW_REF; }
+
+  virtual bool check_column_privileges(uchar *arg);
 };
 
 

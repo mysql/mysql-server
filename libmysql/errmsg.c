@@ -87,6 +87,7 @@ const char *client_errors[]=
   "Authentication plugin '%s' cannot be loaded: %s",
   "There is an attribute with the same name already",
   "Authentication plugin '%s' reported error: %s",
+  "Insecure API function call: '%s' Use instead: '%s'",
   ""
 };
 

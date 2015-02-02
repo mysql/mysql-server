@@ -16,6 +16,7 @@
 
 #include "item.h"
 
+#include "mysql.h"           // IS_NUM
 #include "aggregate_check.h" // Distinct_check
 #include "auth_common.h"     // get_column_grant
 #include "item_cmpfunc.h"    // COND_EQUAL
@@ -1024,22 +1025,72 @@ bool Item_field::find_item_in_field_list_processor(uchar *arg)
 }
 
 
-/*
-  Mark field in read_map
+/**
+  Mark field in read or write map of a table.
 
-  NOTES
-    This is used by filesort to register used fields in a a temporary
-    column read set or to register used fields in a view
+  @param arg Struct that tells which map to update and how
+           table If = NULL, update map of any table
+                 If <> NULL, update map only if field is from this table
+           mark  How to mark current column
 */
 
-bool Item_field::register_field_in_read_map(uchar *arg)
+bool Item_field::mark_field_in_map(uchar *arg)
 {
-  TABLE *table= (TABLE *) arg;
-  if (field->table == table || !table)
-    bitmap_set_bit(field->table->read_set, field->field_index);
-  return 0;
+  Mark_field *mark_field= (Mark_field *)arg;
+  TABLE *table= mark_field->table;
+  if (table != NULL && table != field->table)
+    return false;
+
+  table= field->table;
+  table->mark_column_used(table->in_use, field, mark_field->mark);
+
+  return false;
 }
 
+
+/**
+  Check privileges of base table column
+*/
+
+bool Item_field::check_column_privileges(uchar *arg)
+{
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+
+  THD *thd= (THD *)arg;
+
+  if (check_column_grant_in_table_ref(thd, cached_table,
+                                      field_name, strlen(field_name),
+                                      thd->want_privilege))
+  {
+    context->process_error(thd);
+    return true;
+  }
+#endif
+
+  return false;
+}
+
+/**
+  Check privileges of view column
+*/
+
+bool Item_direct_view_ref::check_column_privileges(uchar *arg)
+{
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+
+  THD *thd= (THD *)arg;
+
+  if (check_column_grant_in_table_ref(thd, cached_table,
+                                      field_name, strlen(field_name),
+                                      thd->want_privilege))
+  {
+    context->process_error(thd);
+    return true;
+  }
+#endif
+
+  return false;
+}
 
 bool Item::check_cols(uint c)
 {
@@ -2486,7 +2537,7 @@ void Item_ident_for_show::make_field(Send_field *tmp_field)
   tmp_field->charsetnr= field->charset()->number;
   tmp_field->length=field->field_length;
   tmp_field->type=field->type();
-  tmp_field->flags= field->table->maybe_null ? 
+  tmp_field->flags= field->table->is_nullable() ? 
     (field->flags & ~NOT_NULL_FLAG) : field->flags;
   tmp_field->decimals= field->decimals();
 }
@@ -3019,22 +3070,13 @@ void Item_ident::fix_after_pullout(st_select_lex *parent_select,
     return;
   }
 
-  if (context->select_lex == removed_select ||
-      context->select_lex == parent_select)
+  // context->select_lex should already have been updated.
+  DBUG_ASSERT(context->select_lex != removed_select);
+
+  if (context->select_lex == parent_select)
   {
     if (parent_select == depended_from)
       depended_from= NULL;
-    Name_resolution_context *ctx= new Name_resolution_context();
-    ctx->outer_context= NULL; // We don't build a complete name resolver
-    ctx->table_list= NULL;    // We rely on first_name_resolution_table instead
-    ctx->select_lex= parent_select;
-    ctx->first_name_resolution_table= context->first_name_resolution_table;
-    ctx->last_name_resolution_table=  context->last_name_resolution_table;
-    ctx->error_processor=             context->error_processor;
-    ctx->error_processor_data=        context->error_processor_data;
-    ctx->resolve_in_select_list=      context->resolve_in_select_list;
-    ctx->security_ctx=                context->security_ctx;
-    this->context=ctx;
   }
   else
   {
@@ -5213,14 +5255,15 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
       the found view field into '*reference', in other words, it
       substitutes this Item_field with the found expression.
     */
-    if (field_found || (*from_field= find_field_in_tables(thd, this,
-                                          outer_context->
-                                            first_name_resolution_table,
-                                          outer_context->
-                                            last_name_resolution_table,
-                                          reference,
-                                          IGNORE_EXCEPT_NON_UNIQUE,
-                                          TRUE, TRUE)) !=
+    if (field_found ||
+        (*from_field=
+           find_field_in_tables(thd, this,
+                                outer_context->first_name_resolution_table,
+                                outer_context->last_name_resolution_table,
+                                reference,
+                                IGNORE_EXCEPT_NON_UNIQUE,
+                                thd->want_privilege,
+                                true)) !=
         not_found_field)
     {
       if (*from_field)
@@ -5279,6 +5322,11 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
             (*reference)->resolved_used_tables();
           prev_subselect_item->const_item_cache&=
             (*reference)->const_item();
+          if (thd->lex->in_sum_func &&
+              thd->lex->in_sum_func->nest_level >= select->nest_level)
+            set_if_bigger(thd->lex->in_sum_func->max_arg_level,
+                          select->nest_level);
+
           mark_as_dependent(thd, last_checked_context->select_lex,
                             context->select_lex, this,
                             ((ref_type == REF_ITEM || ref_type == FIELD_ITEM) ?
@@ -5341,7 +5389,8 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
                            context->first_name_resolution_table,
                            context->last_name_resolution_table,
                            reference, REPORT_ALL_ERRORS,
-                           !any_privileges, TRUE);
+                           any_privileges ? 0 : thd->want_privilege,
+                           true);
     }
     return -1;
   }
@@ -5480,14 +5529,15 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
       expression to 'reference', i.e. it substitute that expression instead
       of this Item_field
     */
-    from_field= find_field_in_tables(thd, this,
-                                     context->first_name_resolution_table,
-                                     context->last_name_resolution_table,
-                                     reference,
-                                     thd->lex->use_only_table_context ?
-                                       REPORT_ALL_ERRORS : 
-                                       IGNORE_EXCEPT_NON_UNIQUE,
-                                     !any_privileges, true);
+    from_field=
+      find_field_in_tables(thd, this,
+                           context->first_name_resolution_table,
+                           context->last_name_resolution_table,
+                           reference,
+                           thd->lex->use_only_table_context ?
+                             REPORT_ALL_ERRORS : IGNORE_EXCEPT_NON_UNIQUE,
+                           any_privileges ? 0 : thd->want_privilege,
+                           true);
     if (thd->is_error())
       goto error;
     if (from_field == not_found_field)
@@ -5637,15 +5687,7 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
       other_bitmap=   table->read_set;
     }
     if (!bitmap_fast_test_and_set(current_bitmap, field->field_index))
-    {
-      if (!bitmap_is_set(other_bitmap, field->field_index))
-      {
-        /* First usage of column */
-        /* purecov: begin inspected */
-        table->covering_keys.intersect(field->part_of_key);
-        /* purecov: end */
-      }
-    }
+      DBUG_ASSERT(bitmap_is_set(other_bitmap, field->field_index));
   }
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (any_privileges)
@@ -6308,7 +6350,9 @@ Item_field::save_in_field(Field *to, bool no_conversions)
   if (result_field->is_null())
   {
     null_value=1;
-    DBUG_RETURN(set_field_to_null_with_conversions(to, no_conversions));
+    const type_conversion_status status=
+      set_field_to_null_with_conversions(to, no_conversions);
+    DBUG_RETURN(status);
   }
   to->set_notnull();
 
@@ -7464,14 +7508,14 @@ bool Item_ref::fix_fields(THD *thd, Item **reference)
             field expression to 'reference', i.e. it substitute that
             expression instead of this Item_ref
           */
-          from_field= find_field_in_tables(thd, this,
-                                           outer_context->
-                                             first_name_resolution_table,
-                                           outer_context->
-                                             last_name_resolution_table,
-                                           reference,
-                                           IGNORE_EXCEPT_NON_UNIQUE,
-                                           TRUE, TRUE);
+          from_field=
+            find_field_in_tables(thd, this,
+                                 outer_context->first_name_resolution_table,
+                                 outer_context->last_name_resolution_table,
+                                 reference,
+                                 IGNORE_EXCEPT_NON_UNIQUE,
+                                 thd->want_privilege,
+                                 true);
           if (! from_field)
             goto error;
           if (from_field == view_ref_found)
@@ -7538,7 +7582,6 @@ bool Item_ref::fix_fields(THD *thd, Item **reference)
         {
           Prepared_stmt_arena_holder ps_arena_holder(thd);
           fld= new Item_field(thd, context, from_field);
-
           if (!fld)
             goto error;
         }
@@ -8080,25 +8123,8 @@ bool Item_direct_view_ref::fix_fields(THD *thd, Item **reference)
   /* view fild reference must be defined */
   DBUG_ASSERT(*ref);
   /* (*ref)->check_cols() will be made in Item_direct_ref::fix_fields */
-  if ((*ref)->fixed)
-  {
-    Item *ref_item= (*ref)->real_item();
-    if (ref_item->type() == Item::FIELD_ITEM)
-    {
-      /*
-        In some cases we need to update table read set(see bug#47150).
-        If ref item is FIELD_ITEM and fixed then field and table
-        have proper values. So we can use them for update.
-      */
-      Field *fld= ((Item_field*) ref_item)->field;
-      DBUG_ASSERT(fld && fld->table);
-      if (thd->mark_used_columns == MARK_COLUMNS_READ)
-        bitmap_set_bit(fld->table->read_set, fld->field_index);
-    }
-  }
-  else if (!(*ref)->fixed &&
-           ((*ref)->fix_fields(thd, ref)))
-    return TRUE;
+  if (!(*ref)->fixed && ((*ref)->fix_fields(thd, ref)))
+    return true;
 
   return Item_direct_ref::fix_fields(thd, reference);
 }
@@ -8249,6 +8275,10 @@ bool Item_default_value::fix_fields(THD *thd, Item **items)
 
   def_field->move_field_offset(def_field->table->default_values_offset());
   set_field(def_field);
+
+  // Needs cached_table for some Item traversal functions:
+  cached_table= table_ref;
+
   return FALSE;
 
 error:
@@ -8429,6 +8459,7 @@ void Item_insert_value::print(String *str, enum_query_type query_type)
     array of Fields).  It also binds Item_trigger_field to
     Table_trigger_field_support object for table of trigger which uses this
     item.
+    Another difference is that the field is not marked in read_set/write_set.
 */
 
 void Item_trigger_field::setup_field(THD *thd,
@@ -8436,22 +8467,12 @@ void Item_trigger_field::setup_field(THD *thd,
                                      GRANT_INFO *table_grant_info)
 {
   /*
-    It is too early to mark fields used here, because before execution
-    of statement that will invoke trigger other statements may use same
-    TABLE object, so all such mark-up will be wiped out.
-    So instead we do it in Table_trigger_dispatcher::mark_fields()
-    method which is called during execution of these statements.
-  */
-  enum_mark_columns save_mark_used_columns= thd->mark_used_columns;
-  thd->mark_used_columns= MARK_COLUMNS_NONE;
-  /*
     Try to find field by its name and if it will be found
     set field_idx properly.
   */
   (void) find_field_in_table(thd, table_triggers->get_subject_table(),
                              field_name, strlen(field_name),
                              0, &field_idx);
-  thd->mark_used_columns= save_mark_used_columns;
   triggers= table_triggers;
   table_grants= table_grant_info;
 }
@@ -8525,13 +8546,15 @@ bool Item_trigger_field::fix_fields(THD *thd, Item **items)
 
     if (table_grants)
     {
+#ifndef DBUG_OFF
       table_grants->want_privilege= want_privilege;
-
+#endif
       if (check_grant_column(thd, table_grants,
                              triggers->get_subject_table()->s->db.str,
                              triggers->get_subject_table()->s->table_name.str,
                              field_name,
-                             strlen(field_name), thd->security_context()))
+                             strlen(field_name), thd->security_context(),
+                             want_privilege))
         return TRUE;
     }
 #endif // NO_EMBEDDED_ACCESS_CHECKS
@@ -9466,7 +9489,9 @@ Item_result Item_type_holder::result_type() const
 
 enum_field_types Item_type_holder::get_real_type(Item *item)
 {
-  switch(item->type())
+  item= item->real_item();
+
+  switch (item->type())
   {
   case FIELD_ITEM:
   {

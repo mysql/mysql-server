@@ -53,10 +53,15 @@ EXECUTE stmt;
 INSERT INTO t1 VALUES (1), (2), (3), (4), (5), (6), (7);
 INSERT INTO t2 VALUES (1), (2);
 
+--echo # Check materialized derived table
+
+set @optimizer_switch_saved= @@optimizer_switch;
+set optimizer_switch='derived_merge=off';
 EXPLAIN
 SELECT * FROM (SELECT * FROM (SELECT * FROM (SELECT a1.i FROM (SELECT * FROM t1) a1, t2) a2) a3) a4;
 EXPLAIN FORMAT=JSON
 SELECT * FROM (SELECT * FROM (SELECT * FROM (SELECT a1.i FROM (SELECT * FROM t1) a1, t2) a2) a3) a4;
+set optimizer_switch= @optimizer_switch_saved;
 
 --echo # subquery in WHERE
 EXPLAIN             SELECT * FROM t1 WHERE i IN (SELECT i FROM t2 WHERE t1.i = 10 ORDER BY RAND());

@@ -6020,6 +6020,9 @@ FROM t3 AS sq2_alias1 LEFT OUTER JOIN t3 AS sq2_alias2
 CREATE VIEW view_inline_2 AS
 SELECT 'p', 'p' UNION SELECT 'k', 's';
 
+SET @optimizer_switch_saved= @@optimizer_switch;
+SET @@optimizer_switch="derived_merge=off";
+
 let $query=
 SELECT SUM(alias1.col_varchar_nokey) AS field2
 FROM t2 AS alias2
@@ -6034,6 +6037,8 @@ WHERE (alias1.col_varchar_key, alias1.col_varchar_nokey) IN
 
 eval explain $query;
 eval $query;
+
+SET @@optimizer_switch= @optimizer_switch_saved;
 
 DROP VIEW view_inline_0, view_inline_1, view_inline_2;
 DROP TABLE t1, t2, t3;
@@ -6136,6 +6141,9 @@ CREATE TABLE t3 (
   i INT
 );
 
+SET @optimizer_switch_saved= @@optimizer_switch;
+SET @@optimizer_switch="derived_merge=off";
+
 let $query=
 SELECT table1.pk AS field1
 FROM ( SELECT subquery1_t1. *
@@ -6152,6 +6160,8 @@ WHERE table1.col_varchar_nokey IN
 
 eval explain $query;
 eval $query;
+
+SET @@optimizer_switch= @optimizer_switch_saved;
 
 DROP TABLE t1, t2, t3;
 
@@ -6317,6 +6327,9 @@ CREATE TABLE t2 (
 INSERT INTO t2 VALUES
  ('j','j'), ('v','v'), ('c','c'), ('m','m'), ('d','d'), ('d','d'), ('y','y');
 
+SET @optimizer_switch_saved= @@optimizer_switch;
+SET @@optimizer_switch="derived_merge=off";
+
 let $query=
 SELECT *
 FROM (SELECT * FROM t2) AS derived1
@@ -6329,6 +6342,8 @@ WHERE (col_varchar_nokey, col_varchar_nokey) IN
 
 eval explain format=json $query;
 eval $query;
+
+SET @@optimizer_switch= @optimizer_switch_saved;
 
 DROP TABLE t1, t2;
 

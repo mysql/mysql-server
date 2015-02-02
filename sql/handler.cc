@@ -27,6 +27,7 @@
 #include "debug_sync.h"               // DEBUG_SYNC
 #include "discover.h"                 // writefrm
 #include "log.h"                      // sql_print_error
+#include "log_event.h"                // Write_rows_log_event
 #include "probes_mysql.h"             // MYSQL_HANDLER_WRLOCK_START
 #include "opt_costconstantcache.h"    // reload_optimizer_cost_constants
 #include "rpl_handler.h"              // RUN_HOOK
@@ -36,6 +37,7 @@
 #include "sql_table.h"                // build_table_filename
 #include "transaction.h"              // trans_commit_implicit
 #include "trigger_def.h"              // TRG_EXT
+#include "rpl_write_set_handler.h"    // add_pke
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
@@ -7175,6 +7177,36 @@ int binlog_log_row(TABLE* table,
 
   if (check_table_binlog_row_based(thd, table))
   {
+    if (thd->variables.transaction_write_set_extraction != HASH_ALGORITHM_OFF)
+    {
+      bitmap_set_all(table->read_set);
+      if (before_record && after_record)
+      {
+        size_t length= table->s->reclength;
+        uchar* temp_image=(uchar*) my_malloc(PSI_NOT_INSTRUMENTED,
+                                             length,
+                                             MYF(MY_WME));
+        if (!temp_image)
+        {
+          sql_print_error("Out of memory on transaction write set extraction");
+          return 1;
+        }
+        add_pke(table, thd);
+
+        memcpy(temp_image, table->record[0],(size_t) table->s->reclength);
+        memcpy(table->record[0],table->record[1],(size_t) table->s->reclength);
+
+        add_pke(table, thd);
+
+        memcpy(table->record[0], temp_image, (size_t) table->s->reclength);
+
+        my_free(temp_image);
+      }
+      else
+      {
+        add_pke(table, thd);
+      }
+    }
     DBUG_DUMP("read_set 10", (uchar*) table->read_set->bitmap,
               (table->s->fields + 7) / 8);
 

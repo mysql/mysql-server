@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -318,6 +318,10 @@ enum Log_event_type
   ANONYMOUS_GTID_LOG_EVENT= 34,
 
   PREVIOUS_GTIDS_LOG_EVENT= 35,
+
+  TRANSACTION_CONTEXT_EVENT= 36,
+
+  VIEW_CHANGE_EVENT= 37,
 
   /**
     Add new events here - right above this comment!
@@ -642,6 +646,7 @@ public:
 
   explicit Log_event_header(Log_event_type type_code_arg= ENUM_END_EVENT)
     : type_code(type_code_arg),
+      data_written(0),
       log_pos(0),
       flags(0)
   {
@@ -775,7 +780,9 @@ public:
     INCIDENT_HEADER_LEN= 2,
     HEARTBEAT_HEADER_LEN= 0,
     IGNORABLE_HEADER_LEN= 0,
-    ROWS_HEADER_LEN_V2= 10
+    ROWS_HEADER_LEN_V2= 10,
+    TRANSACTION_CONTEXT_HEADER_LEN= 18,
+    VIEW_CHANGE_HEADER_LEN= 52
   }; // end enum_post_header_length
 protected:
   /**

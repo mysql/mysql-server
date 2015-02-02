@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -115,15 +115,15 @@ bool
 fts_is_charset_cjk(
 	const CHARSET_INFO*	cs)
 {
-	if (cs == &my_charset_gb2312_chinese_ci
-	    || cs == &my_charset_gbk_chinese_ci
-	    || cs == &my_charset_big5_chinese_ci
-	    || cs == &my_charset_gb18030_chinese_ci
-	    || cs == &my_charset_ujis_japanese_ci
-	    || cs == &my_charset_sjis_japanese_ci
-	    || cs == &my_charset_cp932_japanese_ci
-	    || cs == &my_charset_eucjpms_japanese_ci
-	    || cs == &my_charset_euckr_korean_ci) {
+	if (strcmp(cs->name, "gb2312_chinese_ci") == 0
+	    || strcmp(cs->name, "gbk_chinese_ci") == 0
+	    || strcmp(cs->name, "big5_chinese_ci") == 0
+	    || strcmp(cs->name, "gb18030_chinese_ci") == 0
+	    || strcmp(cs->name, "ujis_japanese_ci") == 0
+	    || strcmp(cs->name, "sjis_japanese_ci") == 0
+	    || strcmp(cs->name, "cp932_japanese_ci") == 0
+	    || strcmp(cs->name, "eucjpms_japanese_ci") == 0
+	    || strcmp(cs->name, "euckr_korean_ci") == 0) {
 		return(true);
 	} else {
 		return(false);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -45,6 +45,13 @@
   improve performance as the thread pool will be more active at managing the
   thread workload.
 */
+
+#ifdef __cplusplus
+class THD;
+#define MYSQL_THD THD*
+#else
+#define MYSQL_THD void*
+#endif
 
 #ifdef __cplusplus
 extern "C" {

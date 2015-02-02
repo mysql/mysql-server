@@ -477,3 +477,54 @@ INSERT IGNORE INTO t VALUES (1),(1);
 DROP TABLE t;
 --disable_info
 
+--echo #
+--echo # WL#5275 Process subqueries in FROM clause in the same way as view
+--echo #
+
+CREATE TABLE t1(pk INTEGER PRIMARY KEY, a INTEGER);
+CREATE TABLE t2(pk INTEGER PRIMARY KEY, a INTEGER);
+CREATE TABLE t3(a INTEGER);
+CREATE TABLE t4(b INTEGER);
+
+INSERT INTO t2 VALUES(1, 10), (2, 20), (3, 30), (4, 40);
+INSERT INTO t3 VALUES(1), (3);
+INSERT INTO t4 VALUES(1);
+
+CREATE VIEW v1 AS
+SELECT * FROM t1 WHERE pk IN (SELECT a FROM t3);
+
+CREATE VIEW v2 AS
+SELECT * FROM t2 WHERE pk IN (SELECT a FROM t3);
+
+CREATE VIEW v3 AS
+SELECT t1.pk,t1.a FROM t1 JOIN t4 ON pk IN (SELECT a FROM t3);
+
+# Allow semi-join for selected tables, but not for inserted table:
+
+let $query=
+INSERT INTO v1
+SELECT * FROM v2;
+eval EXPLAIN $query;
+eval $query;
+
+DELETE FROM t1;
+
+let $query=
+INSERT INTO v3(pk,a)
+SELECT * FROM v2;
+eval EXPLAIN $query;
+eval $query;
+
+DELETE FROM t1;
+
+# Allow semi-join and view merging for selected tables:
+
+let $query=
+INSERT INTO v1
+SELECT dt.pk, v2.a
+FROM (SELECT * FROM v2) AS dt JOIN v2 ON dt.pk=v2.pk;
+eval EXPLAIN $query;
+eval $query;
+
+DROP VIEW v1, v2, v3;
+DROP TABLE t1, t2, t3, t4;

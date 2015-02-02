@@ -1,6 +1,7 @@
 #
 # Check LOAD DATA + character sets + replication
 #
+--source include/not_group_replication_plugin.inc
 source include/master-slave.inc;
 
 #

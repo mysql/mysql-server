@@ -23,9 +23,10 @@
 # bug in this test: BUG#30594: rpl.rpl_skip_error is nondeterministic:
 # BUG#39393: slave-skip-errors does not work when using ROW based replication
 
-source include/master-slave.inc;
+--source include/not_group_replication_plugin.inc
 source include/have_innodb.inc;
 source include/have_myisam.inc;
+source include/master-slave.inc;
 
 --echo ==== Test Without sql_mode=strict_trans_tables ====
 

@@ -176,24 +176,20 @@ bool select_precheck(THD *thd, LEX *lex, TABLE_LIST *tables,
 
 bool multi_update_precheck(THD *thd, TABLE_LIST *tables)
 {
-  const char *msg= 0;
-  TABLE_LIST *table;
   LEX *lex= thd->lex;
-  SELECT_LEX *select_lex= lex->select_lex;
   DBUG_ENTER("multi_update_precheck");
 
-  if (select_lex->item_list.elements != lex->value_list.elements)
-  {
-    my_message(ER_WRONG_VALUE_COUNT, ER(ER_WRONG_VALUE_COUNT), MYF(0));
-    DBUG_RETURN(TRUE);
-  }
   /*
     Ensure that we have UPDATE or SELECT privilege for each table
     The exact privilege is checked in mysql_multi_update()
   */
-  for (table= tables; table; table= table->next_local)
+  for (TABLE_LIST *table= tables; table; table= table->next_local)
   {
-    if (table->derived)
+    /*
+      "uses_materialization()" covers the case where a prepared statement is
+      executed and a view is decided to be materialized during preparation.
+    */
+    if (table->is_derived() || table->uses_materialization())
       table->grant.privilege= SELECT_ACL;
     else if ((check_access(thd, UPDATE_ACL, table->db,
                            &table->grant.privilege,
@@ -215,7 +211,7 @@ bool multi_update_precheck(THD *thd, TABLE_LIST *tables)
   if (lex->select_lex != lex->all_selects_list)
   {
     DBUG_PRINT("info",("Checking sub query list"));
-    for (table= tables; table; table= table->next_global)
+    for (TABLE_LIST *table= tables; table; table= table->next_global)
     {
       if (!table->table_in_first_from_clause)
       {
@@ -229,15 +225,6 @@ bool multi_update_precheck(THD *thd, TABLE_LIST *tables)
     }
   }
 
-  if (select_lex->order_list.elements)
-    msg= "ORDER BY";
-  else if (select_lex->select_limit)
-    msg= "LIMIT";
-  if (msg)
-  {
-    my_error(ER_WRONG_USAGE, MYF(0), "UPDATE", msg);
-    DBUG_RETURN(TRUE);
-  }
   DBUG_RETURN(FALSE);
 }
 
@@ -305,12 +292,8 @@ bool multi_delete_precheck(THD *thd, TABLE_LIST *tables)
 bool update_precheck(THD *thd, TABLE_LIST *tables)
 {
   DBUG_ENTER("update_precheck");
-  if (thd->lex->select_lex->item_list.elements != thd->lex->value_list.elements)
-  {
-    my_message(ER_WRONG_VALUE_COUNT, ER(ER_WRONG_VALUE_COUNT), MYF(0));
-    DBUG_RETURN(TRUE);
-  }
-  DBUG_RETURN(check_one_table_access(thd, UPDATE_ACL, tables));
+  const bool res= check_one_table_access(thd, UPDATE_ACL, tables);
+  DBUG_RETURN(res);
 }
 
 
@@ -332,7 +315,7 @@ bool delete_precheck(THD *thd, TABLE_LIST *tables)
   if (check_one_table_access(thd, DELETE_ACL, tables))
     DBUG_RETURN(TRUE);
   /* Set privilege for the WHERE clause */
-  tables->grant.want_privilege=(SELECT_ACL & ~tables->grant.privilege);
+  tables->set_want_privilege(SELECT_ACL);
   DBUG_RETURN(FALSE);
 }
 
@@ -365,11 +348,6 @@ bool insert_precheck(THD *thd, TABLE_LIST *tables)
   if (check_one_table_access(thd, privilege, tables))
     DBUG_RETURN(TRUE);
 
-  if (lex->update_list.elements != lex->value_list.elements)
-  {
-    my_message(ER_WRONG_VALUE_COUNT, ER(ER_WRONG_VALUE_COUNT), MYF(0));
-    DBUG_RETURN(TRUE);
-  }
   DBUG_RETURN(FALSE);
 }
 
@@ -521,37 +499,36 @@ err:
   @param privilege		requested privilege
   @param all_tables		global table list of query
 
-  @retval
-    0   OK
-  @retval
-    1   access denied, error is sent to client
+  @returns false on success, true on access denied error
 */
 
 bool check_one_table_access(THD *thd, ulong privilege, TABLE_LIST *all_tables)
 {
-  if (check_single_table_access (thd,privilege,all_tables, FALSE))
-    return 1;
+  if (check_single_table_access(thd, privilege, all_tables, false))
+    return true;
 
-  /* Check rights on tables of subselects and implicitly opened tables */
-  TABLE_LIST *subselects_tables, *view= all_tables->view ? all_tables : 0;
-  if ((subselects_tables= all_tables->next_global))
+  // Check privileges on tables from subqueries and implicitly opened tables
+  TABLE_LIST *subquery_table;
+  TABLE_LIST *const view= all_tables->is_view() ? all_tables : NULL;
+
+  if ((subquery_table= all_tables->next_global))
   {
     /*
       Access rights asked for the first table of a view should be the same
       as for the view
     */
-    if (view && subselects_tables->belong_to_view == view)
+    if (view && subquery_table->belong_to_view == view)
     {
-      if (check_single_table_access (thd, privilege, subselects_tables, FALSE))
-        return 1;
-      subselects_tables= subselects_tables->next_global;
+      if (check_single_table_access(thd, privilege, subquery_table, false))
+        return true;
+      subquery_table= subquery_table->next_global;
     }
-    if (subselects_tables &&
-        (check_table_access(thd, SELECT_ACL, subselects_tables, FALSE,
-                            UINT_MAX, FALSE)))
-      return 1;
+    if (subquery_table &&
+        check_table_access(thd, SELECT_ACL, subquery_table, false,
+                           UINT_MAX, false))
+      return true;
   }
-  return 0;
+  return false;
 }
 
 
@@ -580,7 +557,7 @@ bool check_single_table_access(THD *thd, ulong privilege,
     thd->set_security_context(all_tables->security_ctx);
 
   const char *db_name;
-  if ((all_tables->view || all_tables->field_translation) &&
+  if ((all_tables->is_view() || all_tables->field_translation) &&
       !all_tables->schema_table)
     db_name= all_tables->view_db.str;
   else
@@ -989,12 +966,6 @@ check_table_access(THD *thd, ulong requirements,TABLE_LIST *tables,
       sctx= backup_ctx;
 
     /*
-       Register access for view underlying table.
-       Remove SHOW_VIEW_ACL, because it will be checked during making view
-     */
-    table_ref->grant.orig_want_privilege= (want_access & ~SHOW_VIEW_ACL);
-
-    /*
       We should not encounter table list elements for reformed SHOW
       statements unless this is first table list element in the main
       select.
@@ -1005,10 +976,10 @@ check_table_access(THD *thd, ulong requirements,TABLE_LIST *tables,
     DBUG_ASSERT(!table_ref->schema_table_reformed ||
                 table_ref == thd->lex->select_lex->table_list.first);
 
-    DBUG_PRINT("info", ("derived: %d  view: %d", table_ref->derived != 0,
-                        table_ref->view != 0));
+    DBUG_PRINT("info", ("derived: %d  view: %d", table_ref->is_derived(),
+                        table_ref->is_view()));
 
-    if (table_ref->is_anonymous_derived_table())
+    if (table_ref->is_derived())
       continue;
 
     thd->set_security_context(sctx);
@@ -1119,9 +1090,18 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
       class LEX_COLUMN *column;
       List_iterator <LEX_COLUMN> column_iter(columns);
 
-      if (open_normal_and_derived_tables(thd, table_list, 0))
+      if (open_tables_for_query(thd, table_list, 0))
         DBUG_RETURN(TRUE);
 
+      if (table_list->is_view())
+      {
+        if (table_list->resolve_derived(thd, false))
+          DBUG_RETURN(true);
+
+        // Prepare a readonly (materialized) view for access to columns
+        if (table_list->setup_materialized_derived(thd))
+          DBUG_RETURN(true);
+      }
       while ((column = column_iter++))
       {
         uint unused_field_idx= NO_CACHED_FIELD_INDEX;
@@ -1129,8 +1109,12 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
         Field *f=find_field_in_table_ref(thd, table_list, column->column.ptr(),
                                          column->column.length(),
                                          column->column.ptr(), NULL, NULL,
-                                         NULL, TRUE, FALSE,
-                                         &unused_field_idx, FALSE, &dummy);
+                                         NULL,
+                                         // check that we have the
+                                         // to-be-granted privilege:
+                                         column->rights,
+                                         false,
+                                         &unused_field_idx, false, &dummy);
         if (f == (Field*)0)
         {
           my_error(ER_BAD_FIELD_ERROR, MYF(0),
@@ -1158,15 +1142,16 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
           DBUG_RETURN(TRUE);
         }
       }
-      if (table_list->grant.want_privilege)
+      ulong missing_privilege= rights & ~table_list->grant.privilege;
+      DBUG_ASSERT(missing_privilege == table_list->grant.want_privilege);
+      if (missing_privilege)
       {
         char command[128];
-        get_privilege_desc(command, sizeof(command),
-                           table_list->grant.want_privilege);
+        get_privilege_desc(command, sizeof(command), missing_privilege);
         my_error(ER_TABLEACCESS_DENIED_ERROR, MYF(0),
                  command, thd->security_context()->priv_user().str,
                  thd->security_context()->host_or_ip().str, table_list->alias);
-        DBUG_RETURN(-1);
+        DBUG_RETURN(true);
       }
     }
   }
@@ -1229,7 +1214,7 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
     this value corresponds to the statement being executed.
   */
   thd->lex->sql_command= backup.sql_command;
-  if (open_and_lock_tables(thd, tables, FALSE, MYSQL_LOCK_IGNORE_TIMEOUT))
+  if (open_and_lock_tables(thd, tables, MYSQL_LOCK_IGNORE_TIMEOUT))
   {                                             // Should never happen
     /* Restore the state of binlog format */
     DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
@@ -1508,7 +1493,7 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
   }
 #endif /* HAVE_REPLICATION */
 
-  if (open_and_lock_tables(thd, tables, FALSE, MYSQL_LOCK_IGNORE_TIMEOUT))
+  if (open_and_lock_tables(thd, tables, MYSQL_LOCK_IGNORE_TIMEOUT))
   {                                             // Should never happen
     /* Restore the state of binlog format */
     DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
@@ -1730,7 +1715,7 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
   }
 #endif /*HAVE_REPLICATION */
 
-  if (open_and_lock_tables(thd, tables, FALSE, MYSQL_LOCK_IGNORE_TIMEOUT))
+  if (open_and_lock_tables(thd, tables, MYSQL_LOCK_IGNORE_TIMEOUT))
   {                                     // This should never happen
     /* Restore the state of binlog format */
     DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
@@ -1912,33 +1897,9 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
   TABLE_LIST *tl;
   TABLE_LIST *const first_not_own_table= thd->lex->first_not_own_table();
   Security_context *sctx= thd->security_context();
-  uint i;
   ulong orig_want_access= want_access;
   DBUG_ENTER("check_grant");
   DBUG_ASSERT(number > 0);
-
-  /*
-    Walk through the list of tables that belong to the query and save the
-    requested access (orig_want_privilege) to be able to use it when
-    checking access rights to the underlying tables of a view. Our grant
-    system gradually eliminates checked bits from want_privilege and thus
-    after all checks are done we can no longer use it.
-    The check that first_not_own_table is not reached is for the case when
-    the given table list refers to the list for prelocking (contains tables
-    of other queries). For simple queries first_not_own_table is 0.
-  */
-  for (i= 0, tl= tables;
-       i < number  && tl != first_not_own_table;
-       tl= tl->next_global, i++)
-  {
-    TABLE_LIST *const t_ref=
-      tl->correspondent_table ? tl->correspondent_table : tl;
-    /*
-      Save a copy of the privileges without the SHOW_VIEW_ACL attribute.
-      It will be checked during making view.
-    */
-    t_ref->grant.orig_want_privilege= (want_access & ~SHOW_VIEW_ACL);
-  }
 
   mysql_rwlock_rdlock(&LOCK_grant);
   for (tl= tables;
@@ -1965,7 +1926,9 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
            Depend on the controls in the P_S table itself.
         */
         t_ref->grant.privilege|= TMP_TABLE_ACLS;
+#ifndef DBUG_OFF
         t_ref->grant.want_privilege= 0;
+#endif
         continue;
       case ACL_INTERNAL_ACCESS_DENIED:
         goto err;
@@ -1980,7 +1943,7 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
       continue;                                 // ok
 
     if (!(~t_ref->grant.privilege & want_access) ||
-        t_ref->is_anonymous_derived_table() || t_ref->schema_table)
+        t_ref->is_derived() || t_ref->schema_table)
     {
       /*
         It is subquery in the FROM clause. VIEW set t_ref->derived after
@@ -1993,7 +1956,9 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
           clause, or an INFORMATION_SCHEMA table, drop the request for
           a privilege.
         */
+#ifndef DBUG_OFF
         t_ref->grant.want_privilege= 0;
+#endif
       }
       continue;
     }
@@ -2007,7 +1972,9 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
         if user has CREATE_TMP_ACL.
       */
       t_ref->grant.privilege|= TMP_TABLE_ACLS;
+#ifndef DBUG_OFF
       t_ref->grant.want_privilege= 0;
+#endif
       continue;
     }
 
@@ -2034,8 +2001,7 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
     t_ref->grant.grant_table= grant_table; // Remember for column test
     t_ref->grant.version= grant_version;
     t_ref->grant.privilege|= grant_table->privs;
-    t_ref->grant.want_privilege=
-      ((want_access & COL_ACLS) & ~t_ref->grant.privilege);
+    t_ref->set_want_privilege(want_access & COL_ACLS);
 
     if (!(~t_ref->grant.privilege & want_access))
       continue;
@@ -2077,6 +2043,7 @@ err:
     name                 column name
     length               column name length
     sctx                 security context
+    want_privilege       wanted privileges
 
   RETURN
     FALSE OK
@@ -2085,15 +2052,23 @@ err:
 
 bool check_grant_column(THD *thd, GRANT_INFO *grant,
                         const char *db_name, const char *table_name,
-                        const char *name, size_t length,  Security_context *sctx)
+                        const char *name, size_t length,
+                        Security_context *sctx, ulong want_privilege)
 {
   GRANT_TABLE *grant_table;
   GRANT_COLUMN *grant_column;
-  ulong want_access= grant->want_privilege & ~grant->privilege;
   DBUG_ENTER("check_grant_column");
-  DBUG_PRINT("enter", ("table: %s  want_access: %lu", table_name, want_access));
+  DBUG_PRINT("enter", ("table: %s  want_privilege: %lu",
+                       table_name, want_privilege));
 
-  if (!want_access)
+  /*
+    Make sure that the privilege request is aligned with the overall privileges
+    granted to and requested for the table.
+  */
+  DBUG_ASSERT(!(want_privilege & ~(grant->want_privilege | grant->privilege)));
+  // Adjust wanted privileges based on privileges granted to table:
+  want_privilege&= ~grant->privilege;
+  if (!want_privilege)
     DBUG_RETURN(0);                             // Already checked
 
   mysql_rwlock_rdlock(&LOCK_grant);
@@ -2112,7 +2087,7 @@ bool check_grant_column(THD *thd, GRANT_INFO *grant,
     goto err;                                   /* purecov: deadcode */
 
   grant_column=column_hash_search(grant_table, name, length);
-  if (grant_column && !(~grant_column->rights & want_access))
+  if (grant_column && !(~grant_column->rights & want_privilege))
   {
     mysql_rwlock_unlock(&LOCK_grant);
     DBUG_RETURN(0);
@@ -2121,7 +2096,7 @@ bool check_grant_column(THD *thd, GRANT_INFO *grant,
 err:
   mysql_rwlock_unlock(&LOCK_grant);
   char command[128];
-  get_privilege_desc(command, sizeof(command), want_access);
+  get_privilege_desc(command, sizeof(command), want_privilege);
   my_error(ER_COLUMNACCESS_DENIED_ERROR, MYF(0),
            command,
            sctx->priv_user().str,
@@ -2133,7 +2108,7 @@ err:
 
 
 /*
-  Check the access right to a column depending on the type of table.
+  Check the privileges to a column depending on the type of table.
 
   SYNOPSIS
     check_column_grant_in_table_ref()
@@ -2141,13 +2116,19 @@ err:
     table_ref        table reference where to check the field
     name             name of field to check
     length           length of name
+    want_privilege   wanted privileges
 
   DESCRIPTION
-    Check the access rights to a column depending on the type of table
+    Check the privileges to a column depending on the type of table
     reference where the column is checked. The function provides a
-    generic interface to check column access rights that hides the
+    generic interface to check column privileges that hides the
     heterogeneity of the column representation - whether it is a view
-    or a stored table colum.
+    or a stored table column.
+
+    Notice that this function does not understand that a column from a view
+    reference must be checked for privileges both in the view and in the
+    underlying base table (or view) reference. This is the responsibility of
+    the caller.
 
   RETURN
     FALSE OK
@@ -2155,7 +2136,8 @@ err:
 */
 
 bool check_column_grant_in_table_ref(THD *thd, TABLE_LIST * table_ref,
-                                     const char *name, size_t length)
+                                     const char *name, size_t length,
+                                     ulong want_privilege)
 {
   GRANT_INFO *grant;
   const char *db_name;
@@ -2163,7 +2145,7 @@ bool check_column_grant_in_table_ref(THD *thd, TABLE_LIST * table_ref,
   Security_context *sctx= MY_TEST(table_ref->security_ctx) ?
                           table_ref->security_ctx : thd->security_context();
 
-  if (table_ref->view || table_ref->field_translation)
+  if (table_ref->is_view() || table_ref->field_translation)
   {
     /* View or derived information schema table. */
     ulong view_privs;
@@ -2190,7 +2172,8 @@ bool check_column_grant_in_table_ref(THD *thd, TABLE_LIST * table_ref,
     List_iterator<TABLE_LIST> it(table_ref->nested_join->join_list);
     TABLE_LIST *table;
     while (!error && (table= it++))
-      error|= check_column_grant_in_table_ref(thd, table, name, length);
+      error|= check_column_grant_in_table_ref(thd, table, name, length,
+                                              want_privilege);
     return error;
   }
   else
@@ -2202,12 +2185,14 @@ bool check_column_grant_in_table_ref(THD *thd, TABLE_LIST * table_ref,
     table_name= table->s->table_name.str;
   }
 
-  if (grant->want_privilege)
+  if (want_privilege)
     return check_grant_column(thd, grant, db_name, table_name, name,
-                              length, sctx);
+                              length, sctx, want_privilege);
   else
-    return FALSE;
-
+  {
+    DBUG_ASSERT(grant->want_privilege == 0);
+    return false;
+  }
 }
 
 
@@ -4262,7 +4247,7 @@ bool check_fk_parent_table_access(THD *thd,
                         &parent_table.grant.privilege,
                         &parent_table.grant.m_internal, false, true) ||
            check_grant(thd, REFERENCES_ACL, &parent_table, false, 1, true)) ||
-          parent_table.grant.want_privilege)
+          (parent_table.grant.privilege & REFERENCES_ACL) == 0)
       {
         if (is_qualified_table_name)
         {

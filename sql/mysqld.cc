@@ -90,6 +90,10 @@
 #include "opt_costconstantcache.h"
 #include "sql_plugin.h"                         // plugin_shutdown
 #include "sql_initialize.h"
+#include "log_event.h"
+#include "log.h"
+#include "binlog.h"
+#include "rpl_rli.h"     // Relay_log_info
 
 #include "my_default.h"
 
@@ -2538,6 +2542,8 @@ SHOW_VAR com_status_vars[]= {
   {"show_warnings",        (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_WARNS]), SHOW_LONG_STATUS},
   {"slave_start",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SLAVE_START]), SHOW_LONG_STATUS},
   {"slave_stop",           (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SLAVE_STOP]), SHOW_LONG_STATUS},
+  {"group_replication_start", (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_START_GROUP_REPLICATION]), SHOW_LONG_STATUS},
+  {"group_replication_stop",  (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_STOP_GROUP_REPLICATION]), SHOW_LONG_STATUS},
   {"stmt_close",           (char*) offsetof(STATUS_VAR, com_stmt_close), SHOW_LONG_STATUS},
   {"stmt_execute",         (char*) offsetof(STATUS_VAR, com_stmt_execute), SHOW_LONG_STATUS},
   {"stmt_fetch",           (char*) offsetof(STATUS_VAR, com_stmt_fetch), SHOW_LONG_STATUS},
@@ -8679,6 +8685,7 @@ PSI_memory_key key_memory_Quick_ranges;
 PSI_memory_key key_memory_File_query_log_name;
 PSI_memory_key key_memory_Table_trigger_dispatcher;
 PSI_memory_key key_memory_show_slave_status_io_gtid_set;
+PSI_memory_key key_memory_write_set_extraction;
 #ifdef HAVE_MY_TIMER
 PSI_memory_key key_memory_thd_timer;
 #endif
@@ -8828,7 +8835,8 @@ static PSI_memory_info all_server_memory[]=
 #endif
   { &key_memory_THD_Session_tracker, "THD::Session_tracker", 0},
   { &key_memory_THD_Session_sysvar_resource_manager, "THD::Session_sysvar_resource_manager", 0},
-  { &key_memory_show_slave_status_io_gtid_set, "show_slave_status_io_gtid_set", 0}
+  { &key_memory_show_slave_status_io_gtid_set, "show_slave_status_io_gtid_set", 0},
+  { &key_memory_write_set_extraction, "write_set_extraction", 0}
 };
 
 /* TODO: find a good header */

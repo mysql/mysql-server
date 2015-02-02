@@ -45,6 +45,7 @@ IF(CMAKE_COMPILER_IS_GNUCC AND RUN_ABI_CHECK)
     ${CMAKE_SOURCE_DIR}/include/mysql/client_plugin.h
     ${CMAKE_SOURCE_DIR}/include/mysql/plugin_auth.h
     ${CMAKE_SOURCE_DIR}/include/mysql/plugin_query_rewrite.h
+    ${CMAKE_SOURCE_DIR}/include/mysql/services.h
   )
 
   ADD_CUSTOM_TARGET(abi_check ALL

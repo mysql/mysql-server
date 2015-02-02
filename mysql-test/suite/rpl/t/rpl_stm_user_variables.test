@@ -2,9 +2,10 @@
 # BUG#49562: SBR out of sync when using numeric data types + user variable
 #
 
--- source include/master-slave.inc
+-- source include/not_group_replication_plugin.inc
 -- source include/have_binlog_format_statement.inc
 -- source include/have_myisam.inc
+-- source include/master-slave.inc
 
 ## Setup user variables for several numeric types, so that we get
 ## coverage on the User_var_log_event different val types

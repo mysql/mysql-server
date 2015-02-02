@@ -299,9 +299,11 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
                  bool any_combination_will_do, uint number, bool no_errors);
 bool check_grant_column (THD *thd, GRANT_INFO *grant,
                          const char *db_name, const char *table_name,
-                         const char *name, size_t length, Security_context *sctx);
+                         const char *name, size_t length,
+                         Security_context *sctx, ulong want_privilege);
 bool check_column_grant_in_table_ref(THD *thd, TABLE_LIST * table_ref,
-                                     const char *name, size_t length);
+                                     const char *name, size_t length,
+                                     ulong want_privilege);
 bool check_grant_all_columns(THD *thd, ulong want_access, 
                              Field_iterator_table_ref *fields);
 bool check_grant_routine(THD *thd, ulong want_access,

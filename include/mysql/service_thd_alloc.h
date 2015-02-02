@@ -32,6 +32,13 @@
 #endif
 
 #ifdef __cplusplus
+class THD;
+#define MYSQL_THD THD*
+#else
+#define MYSQL_THD void*
+#endif
+
+#ifdef __cplusplus
 extern "C" {
 #endif
 

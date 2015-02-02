@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,6 +30,8 @@
 #define CONTROL_EVENT_INCLUDED
 
 #include "binlog_event.h"
+#include <list>
+#include <map>
 #include <vector>
 
 namespace binary_log
@@ -987,6 +989,241 @@ public:
 protected:
   size_t buf_size;
   const unsigned char *buf;
+};
+
+/**
+  @class Transaction_context_event
+
+  This class is used to combine the information of the ongoing transaction
+  including the write set and other information of the thread executing the
+  transaction.
+
+  <tr>
+    <th>Name</th>
+    <th>Format</th>
+    <th>Description</th>
+  </tr>
+
+  <tr>
+    <td>thread_id</td>
+    <td>long long type variable</td>
+    <td>The identifier for the thread executing the transaction.</td>
+  </tr>
+
+  <tr>
+    <td>gtid_specified</td>
+    <td>bool type variable</td>
+    <td>Variable to identify whether the Gtid have been specified for the ongoing
+        transaction or not.
+    </td>
+  </tr>
+
+  <tr>
+    <td>encoded_snapshot_version</td>
+    <td>unsigned char array</td>
+    <td>A gtid_set which is used to store the transaction set used for
+        conflict detection.</td>
+  </tr>
+
+  <tr>
+    <td>encoded_snapshot_version_length</td>
+    <td>4 byte integer</td>
+    <td>Length of the above char array.</td>
+  </tr>
+
+  <tr>
+    <td>write_set</td>
+    <td>variable length list to store the hash values. </td>
+    <td>Used to store the hash values of the rows identifier for the rows
+        which have changed in the ongoing transaction.
+    </td>
+  </tr>
+
+  <tr>
+    <td>read_set</td>
+    <td>variable length list to store the read set values. Currently empty. </td>
+    <td>Will be used to store the read set values of the current transaction.</td>
+  </tr>
+
+*/
+class Transaction_context_event : public Binary_log_event
+{
+public:
+  /**
+    Decodes the transaction_context_log_event of the ongoing transaction.
+
+    <pre>
+    The buffer layout is as follows
+    </pre>
+
+    @param buf                Contains the serialized event.
+    @param event_len          Length of the serialized event.
+    @param descr_event        An FDE event, used to get the
+                              following information
+                              -binlog_version
+                              -server_version
+                              -post_header_len
+                              -common_header_len
+                              The content of this object
+                              depends on the binlog-version currently in use.
+  */
+  Transaction_context_event(const char *buf, unsigned int event_len,
+                            const Format_description_event *descr_event);
+
+  Transaction_context_event(unsigned int thread_id_arg,
+                            bool is_gtid_specified_arg)
+    : Binary_log_event(TRANSACTION_CONTEXT_EVENT),
+      thread_id(thread_id_arg), gtid_specified(is_gtid_specified_arg)
+  {}
+
+  virtual ~Transaction_context_event();
+
+  static const char *read_data_set(const char *pos, uint16_t set_len,
+                                   std::list<const char*> *set);
+
+  static void clear_set(std::list<const char*> *set);
+
+#ifndef HAVE_MYSYS
+  void print_event_info(std::ostream& info) { }
+  void print_long_info(std::ostream& info) { }
+#endif
+
+protected:
+  const char *server_uuid;
+  long long int thread_id;
+  bool gtid_specified;
+  const unsigned char *encoded_snapshot_version;
+  uint32_t encoded_snapshot_version_length;
+  std::list<const char*> write_set;
+  std::list<const char*> read_set;
+
+  // The values mentioned on the next class constants is the offset where the
+  // data that will be copied in the buffer.
+
+  // 1 byte length.
+  static const int ENCODED_SERVER_UUID_LEN_OFFSET= 0;
+  // 8 bytes length.
+  static const int ENCODED_THREAD_ID_OFFSET= 1;
+  // 1 byte length.
+  static const int ENCODED_GTID_SPECIFIED_OFFSET= 9;
+  // 4 bytes length
+  static const int ENCODED_SNAPSHOT_VERSION_LEN_OFFSET= 10;
+  // 2 bytes length.
+  static const int ENCODED_WRITE_SET_ITEMS_OFFSET= 14;
+  // 2 bytes length.
+  static const int ENCODED_READ_SET_ITEMS_OFFSET=  16;
+
+  // The values mentioned on the next class's constants is the length of the
+  // data that will be copied in the buffer.
+  static const int ENCODED_READ_WRITE_SET_ITEM_LEN= 2;
+  static const int ENCODED_SNAPSHOT_VERSION_LEN= 2;
+};
+
+/**
+  @class View_change_event
+
+  This class is used to add view change markers in the binary log when a
+  member of the group enters or leaves the group.
+
+  <tr>
+    <th>Name</th>
+    <th>Format</th>
+    <th>Description</th>
+  </tr>
+
+  <tr>
+    <td>view_id</td>
+    <td>40 length character array</td>
+    <td>This is used to store the view id value of the new view change when a node add or
+        leaves the group.
+    </td>
+  </tr>
+
+  <tr>
+    <td>seq_number</td>
+    <td>FILL</td>
+    <td>Variable to identify the next sequence number to be alloted to the certified transaction.</td>
+  </tr>
+
+  <tr>
+    <td>certification_info</td>
+    <td>variable length map to store the certification data.</td>
+    <td>Map to store the certification info ie. the hash of write_set and the
+        snapshot sequence value.
+    </td>
+  </tr>
+
+*/
+class View_change_event : public Binary_log_event
+{
+public:
+  /**
+    Decodes the view_change_log_event generated incase a server enters or
+    leaves the group.
+
+    <pre>
+    The buffer layout is as follows
+    </pre>
+
+    @param buf                Contains the serialized event.
+    @param event_len          Length of the serialized event.
+    @param descr_event        An FDE event, used to get the
+                              following information
+                              -binlog_version
+                              -server_version
+                              -post_header_len
+                              -common_header_len
+                              The content of this object
+                              depends on the binlog-version currently in use.
+  */
+  View_change_event(const char *buf, unsigned int event_len,
+                    const Format_description_event *descr_event);
+
+  explicit View_change_event(char* raw_view_id);
+
+  virtual ~View_change_event();
+
+  static char *read_data_map(char *pos, unsigned int map_len,
+                             std::map<std::string, std::string> *map);
+
+#ifndef HAVE_MYSYS
+  void print_event_info(std::ostream& info) { }
+  void print_long_info(std::ostream& info) { }
+#endif
+
+protected:
+  // The values mentioned on the next class constants is the offset where the
+  // data that will be copied in the buffer.
+
+  // 40 bytes length.
+  static const int ENCODED_VIEW_ID_OFFSET= 0;
+  // 8 bytes length.
+  static const int ENCODED_SEQ_NUMBER_OFFSET= 40;
+  // 4 bytes length.
+  static const int ENCODED_CERT_INFO_SIZE_OFFSET= 48;
+
+  /*
+    The layout of the buffer is as follows
+    +--------------------- -+-------------+----------+
+    | View Id               | seq number  | map size |
+    +-----------------------+-------------+----------+
+   view id (40 bytes) + seq number (8 bytes) + map size (4 bytes)
+   Sum of the length of the values at the above OFFSETS.
+  */
+
+  // The values mentioned on the next class constants is the length of the data
+  // that will be copied in the buffer.
+
+  //Field sizes on serialization
+  static const int ENCODED_VIEW_ID_MAX_LEN= 40;
+  static const int ENCODED_CERT_INFO_KEY_SIZE_LEN= 2;
+  static const int ENCODED_CERT_INFO_VALUE_LEN= 2;
+
+  char view_id[ENCODED_VIEW_ID_MAX_LEN];
+
+  long long int seq_number;
+
+  std::map<std::string, std::string> certification_info;
 };
 
 

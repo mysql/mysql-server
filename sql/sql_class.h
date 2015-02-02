@@ -48,7 +48,6 @@
 #include <mysql/psi/mysql_statement.h>
 
 #include <memory>
-#include "rpl_context.h"
 
 class Reprepare_observer;
 class sp_cache;
@@ -88,6 +87,8 @@ enum enum_delay_key_write { DELAY_KEY_WRITE_NONE, DELAY_KEY_WRITE_ON,
 enum enum_rbr_exec_mode { RBR_EXEC_MODE_STRICT,
                           RBR_EXEC_MODE_IDEMPOTENT,
                           RBR_EXEC_MODE_LAST_BIT };
+enum enum_transaction_write_set_hashing_algorithm { HASH_ALGORITHM_OFF= 0,
+                                                    HASH_ALGORITHM_MURMUR32= 1 };
 enum enum_slave_type_conversions { SLAVE_TYPE_CONVERSIONS_ALL_LOSSY,
                                    SLAVE_TYPE_CONVERSIONS_ALL_NON_LOSSY,
                                    SLAVE_TYPE_CONVERSIONS_ALL_UNSIGNED,
@@ -116,9 +117,6 @@ enum enum_binlog_format {
   BINLOG_FORMAT_ROW=   2, ///< row-based
   BINLOG_FORMAT_UNSPEC=3  ///< thd_binlog_format() returns it when binlog is closed
 };
-
-enum enum_mark_columns
-{ MARK_COLUMNS_NONE, MARK_COLUMNS_READ, MARK_COLUMNS_WRITE};
 
 /* Bits for different SQL modes modes (including ANSI mode) */
 #define MODE_REAL_AS_FLOAT              1
@@ -488,6 +486,7 @@ typedef struct system_variables
   my_bool binlog_direct_non_trans_update;
   ulong binlog_row_image; 
   my_bool sql_log_bin;
+  ulong transaction_write_set_extraction;
   ulong completion_type;
   ulong query_cache_type;
   ulong tx_isolation;
@@ -1402,14 +1401,26 @@ public:
     MARK_COLUMNS_NONE:  Means mark_used_colums is not set and no indicator to
                         handler of fields used is set
     MARK_COLUMNS_READ:  Means a bit in read set is set to inform handler
-                        that the field is to be read. If field list contains
-                        duplicates, then thd->dup_field is set to point
-                        to the last found duplicate.
+                        that the field is to be read. Update covering_keys
+                        and merge_keys too.
     MARK_COLUMNS_WRITE: Means a bit is set in write set to inform handler
                         that it needs to update this field in write_row
-                        and update_row.
+                        and update_row. If field list contains duplicates,
+                        then thd->dup_field is set to point to the last
+                        found duplicate.
+    MARK_COLUMNS_TEMP:  Mark bit in read set, but ignore key sets.
+                        Used by filesort().
   */
   enum enum_mark_columns mark_used_columns;
+  /**
+    Used by Item::check_column_privileges() to tell which privileges
+    to check for.
+    Set to ~0ULL before starting to resolve a statement.
+    Set to desired privilege mask before calling a resolver function that will
+    call Item::check_column_privileges().
+    After use, restore previous value as current value.
+  */
+  ulong want_privilege;
 
   LEX *lex;                                     // parse tree descriptor
 
@@ -4366,7 +4377,6 @@ public:
   bool send_data(List<Item> &items);
 };
 
-
 typedef Mem_root_array<Item*, true> Func_ptr_array;
 
 /**
@@ -4534,6 +4544,7 @@ public:
     table.str= internal_table_name;
     table.length=1;
   }
+  // True if we can tell from syntax that this is an unnamed derived table.
   bool is_derived_table() const { return MY_TEST(sel); }
   inline void change_db(const char *db_name)
   {

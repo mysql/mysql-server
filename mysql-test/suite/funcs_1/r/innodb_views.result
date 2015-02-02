@@ -22457,7 +22457,7 @@ INSERT INTO t1 SET f1 = 0, f4x = 'ABC', report = 't1 1';
 INSERT INTO v1 SET f1 = 0, f4  = 'ABC', report = 'v1 1';
 ERROR HY000: View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 INSERT INTO v1 SET f1 = 0, f4x = 'ABC', report = 'v1 1a';
-ERROR 42S22: Unknown column 'f4x' in 'field list'
+ERROR HY000: View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 INSERT INTO v1 SET f1 = 0, report = 'v1 1b';
 ERROR HY000: View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 DESCRIBE t1;

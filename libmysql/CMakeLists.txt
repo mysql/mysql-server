@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -87,6 +87,7 @@ mysql_query
 mysql_read_query_result
 mysql_real_connect
 mysql_real_escape_string
+mysql_real_escape_string_quote
 mysql_real_query
 mysql_refresh
 mysql_rollback

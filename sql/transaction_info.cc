@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,8 +19,12 @@
 #include "sql_class.h"
 
 Transaction_ctx::Transaction_ctx()
+  : m_savepoints(NULL), m_xid_state(), m_changed_tables(NULL),
+    last_committed(0), sequence_number(0),
+    m_rpl_transaction_ctx(), m_transaction_write_set_ctx()
 {
-  memset(this, 0, sizeof(*this));
+  memset(&m_scope_info, 0, sizeof(m_scope_info));
+  memset(&m_flags, 0, sizeof(m_flags));
   init_sql_alloc(key_memory_thd_transactions, &m_mem_root,
                  global_system_variables.trans_alloc_block_size,
                  global_system_variables.trans_prealloc_size);

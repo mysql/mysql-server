@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,12 +15,29 @@
 #ifndef MTS_SUBMODE_H
 #define MTS_SUBMODE_H
 
-#include "log.h"
-#include "log_event.h"
-#include "rpl_rli.h"
+#include "my_global.h"
+#include "my_atomic.h"         // my_atomic_load64
+#include "my_thread.h"         // my_thread_id
+#include "prealloced_array.h"  // Prealloced_array
+#include "binlog_event.h"      // SEQ_UNINIT
 
+class Log_event;
 class Mts_submode_database;
 class Mts_submode_logical_clock;
+class Query_log_event;
+class Relay_log_info;
+class Slave_worker;
+class THD;
+struct TABLE;
+typedef Prealloced_array<Slave_worker*, 4> Slave_worker_array;
+
+
+enum enum_mts_parallel_type {
+  /* Parallel slave based on Database name */
+  MTS_PARALLEL_TYPE_DB_NAME= 0,
+  /* Parallel slave based on group information from Binlog group commit */
+  MTS_PARALLEL_TYPE_LOGICAL_CLOCK= 1
+};
 
 // Extend the following class as per requirement for each sub mode
 class Mts_submode

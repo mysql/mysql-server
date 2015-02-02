@@ -1874,7 +1874,7 @@ my_bool acl_reload(THD *thd)
   tables[0].open_type= tables[1].open_type= tables[2].open_type= OT_BASE_ONLY;
   tables[2].open_strategy= TABLE_LIST::OPEN_IF_EXISTS;
 
-  if (open_and_lock_tables(thd, tables, FALSE, MYSQL_LOCK_IGNORE_TIMEOUT))
+  if (open_and_lock_tables(thd, tables, MYSQL_LOCK_IGNORE_TIMEOUT))
   {
     /*
       Execution might have been interrupted; only print the error message
@@ -2253,7 +2253,7 @@ static my_bool grant_reload_procs_priv(THD *thd)
                        TL_READ);
   table.open_type= OT_BASE_ONLY;
 
-  if (open_and_lock_tables(thd, &table, FALSE, MYSQL_LOCK_IGNORE_TIMEOUT))
+  if (open_and_lock_tables(thd, &table, MYSQL_LOCK_IGNORE_TIMEOUT))
     DBUG_RETURN(TRUE);
 
   mysql_rwlock_wrlock(&LOCK_grant);
@@ -2320,7 +2320,7 @@ my_bool grant_reload(THD *thd)
     To avoid deadlocks we should obtain table locks before
     obtaining LOCK_grant rwlock.
   */
-  if (open_and_lock_tables(thd, tables, FALSE, MYSQL_LOCK_IGNORE_TIMEOUT))
+  if (open_and_lock_tables(thd, tables, MYSQL_LOCK_IGNORE_TIMEOUT))
     goto end;
 
   mysql_rwlock_wrlock(&LOCK_grant);

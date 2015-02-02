@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -102,7 +102,7 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
     */
     ev_thd->lex->set_stmt_row_injection();
 
-    if (open_and_lock_tables(ev_thd, rli->tables_to_lock, FALSE, 0))
+    if (open_and_lock_tables(ev_thd, rli->tables_to_lock, 0))
     {
       uint actual_error= ev_thd->get_stmt_da()->mysql_errno();
       if (ev_thd->is_slave_error || ev_thd->is_fatal_error)

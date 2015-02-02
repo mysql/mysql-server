@@ -18,16 +18,17 @@
 
 #ifdef HAVE_REPLICATION
 
-#include <my_global.h>
-
-#define DEFAULT_CONNECT_RETRY 60
-
-#include "rpl_rli.h"
-#include "my_sys.h"
-#include "rpl_trx_boundary_parser.h"
+#include "my_global.h"
+#include "binlog_event.h"     // enum_binlog_checksum_alg
+#include "rpl_info.h"               // Rpl_info
+#include "rpl_trx_boundary_parser.h" // Transaction_boundary_parser
 
 typedef struct st_mysql MYSQL;
 class Rpl_info_factory;
+
+using binary_log::enum_binlog_checksum_alg;
+
+#define DEFAULT_CONNECT_RETRY 60
 
 /*****************************************************************************
   Replication IO Thread

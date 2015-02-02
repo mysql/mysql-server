@@ -316,5 +316,4 @@ one
 1
 *** Cleanup  ***
 DROP TABLE t300;
-include/sync_slave_sql_with_master.inc
 include/rpl_end.inc
