@@ -13,13 +13,15 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "rpl_mi.h"
-#include "log_event.h"
-#include "rpl_filter.h"
-#include <my_dir.h>
 #include "rpl_handler.h"
-#include "debug_sync.h"
-#include "sql_plugin.h"                         // plugin_int_to_ref
+
+#include "debug_sync.h"        // DEBUG_SYNC
+#include "log.h"               // sql_print_error
+#include "replication.h"       // Trans_param
+#include "rpl_mi.h"            // Master_info
+#include "sql_class.h"         // THD
+#include "sql_plugin.h"        // plugin_int_to_ref
+
 
 #include <vector>
 

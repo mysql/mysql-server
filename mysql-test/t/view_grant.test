@@ -266,7 +266,7 @@ update t2,v2 set v2.c=v2.a+v2.c where t2.x=v2.c;
 --error ER_COLUMNACCESS_DENIED_ERROR
 update v2 set c=a+c;
 # no rights for view
---error ER_TABLEACCESS_DENIED_ERROR
+--error ER_COLUMNACCESS_DENIED_ERROR
 update t2,v3 set v3.a=v3.a+v3.c where t2.x=v3.c;
 --error ER_TABLEACCESS_DENIED_ERROR
 update v3 set a=a+c;
@@ -781,6 +781,7 @@ INSERT INTO mysqltest1.v_ti VALUES (100);
 UPDATE mysqltest1.v_ts SET x= 200 WHERE x = 100;
 --error ER_TABLEACCESS_DENIED_ERROR
 UPDATE mysqltest1.v_ts SET x= 200;
+--error ER_COLUMNACCESS_DENIED_ERROR
 UPDATE mysqltest1.v_tu SET x= 200 WHERE x = 100;
 UPDATE mysqltest1.v_tus SET x= 200 WHERE x = 100;
 UPDATE mysqltest1.v_tu SET x= 200;
@@ -2105,7 +2106,7 @@ update mysqltest2.t2 as t2, mysqltest1.v1_temp as v1 set t2.val= 'test4'
 --echo #
 --echo # A.2) If view is updated an UPDATE privilege on it is required.
 --echo #      Temptable views can't be updated.
---error ER_TABLEACCESS_DENIED_ERROR
+--error ER_COLUMNACCESS_DENIED_ERROR
 update mysqltest2.t2 as t2, mysqltest1.v1_merge as v1 set v1.val= 'test5'
   where t2.id= v1.id;
 update mysqltest1.t1 as t1, mysqltest2.v2_merge as v2 set v2.val= 'test6'
@@ -2129,7 +2130,7 @@ update mysqltest2.t2 as t2, mysqltest1.v11_temp as v11 set t2.val= 'test10'
   where t2.id= v11.id;
 --echo #      When one of view's tables is updated, UPDATE is required
 --echo #      on a view.
---error ER_TABLEACCESS_DENIED_ERROR
+--error ER_COLUMNACCESS_DENIED_ERROR
 update mysqltest2.t2 as t2, mysqltest1.v11_merge as v11 set v11.val= 'test11'
   where t2.id= v11.id;
 update mysqltest1.t1 as t1, mysqltest2.v21_merge as v21 set v21.val= 'test12'
@@ -2191,6 +2192,733 @@ drop user user_11766767;
 drop database mysqltest1;
 drop database mysqltest2;
 
+--echo #
+--echo # WL#5275 Process subqueries in FROM clause in the same way as view
+--echo #         Extended testing of column privileges for views
+--echo #
+
+CREATE DATABASE test1;
+USE test1;
+CREATE USER user1@localhost;
+
+CREATE TABLE test1.t1
+ (cn CHAR(1), cs CHAR(1), ci CHAR(1), cu CHAR(1), cus CHAR(1));
+GRANT SELECT(cs,cus) ON test1.t1 TO user1@localhost;
+GRANT INSERT(ci) ON test1.t1 TO user1@localhost;
+GRANT UPDATE(cu,cus) ON test1.t1 TO user1@localhost;
+
+INSERT INTO test1.t1 VALUES('0', '0', '0', '0', '0');
+
+CREATE TABLE test1.single (a INTEGER);
+GRANT ALL PRIVILEGES ON test1.single TO user1@localhost;
+
+INSERT INTO test1.single VALUES(1);
+
+CREATE SQL SECURITY INVOKER VIEW test1.v1_none AS
+SELECT * FROM test1.t1;
+
+CREATE SQL SECURITY INVOKER VIEW test1.v1_all AS
+SELECT * FROM test1.t1;
+GRANT SELECT,INSERT,UPDATE,DELETE ON test1.v1_all TO user1@localhost;
+
+CREATE SQL SECURITY INVOKER VIEW test1.v1_same AS
+SELECT * FROM test1.t1;
+GRANT SELECT(cs,cus) ON test1.v1_same TO user1@localhost;
+GRANT INSERT(ci) ON test1.v1_same TO user1@localhost;
+GRANT UPDATE(cu,cus) ON test1.v1_same TO user1@localhost;
+
+CREATE SQL SECURITY INVOKER VIEW test1.v1_cross AS
+SELECT * FROM test1.t1;
+GRANT SELECT(cu,ci) ON test1.v1_cross TO user1@localhost;
+GRANT INSERT(cus) ON test1.v1_cross TO user1@localhost;
+GRANT UPDATE(cs) ON test1.v1_cross TO user1@localhost;
+
+CREATE SQL SECURITY INVOKER VIEW test1.v1_middle AS
+SELECT * FROM test1.t1;
+GRANT SELECT(cus) ON test1.v1_middle TO user1@localhost;
+
+CREATE SQL SECURITY INVOKER VIEW test1.v1_multi AS
+SELECT * FROM test1.v1_middle;
+GRANT SELECT(cs,cus) ON test1.v1_multi TO user1@localhost;
+GRANT INSERT(ci) ON test1.v1_multi TO user1@localhost;
+GRANT UPDATE(cu,cus) ON test1.v1_multi TO user1@localhost;
+
+CREATE SQL SECURITY INVOKER VIEW test1.v1_renamed AS
+SELECT cn AS cs, cn AS cx, cs AS cus, cs AS cy FROM test1.t1;
+GRANT SELECT(cs,cus) ON test1.v1_renamed TO user1@localhost;
+
+--echo # Connect as user1 on database test
+connect (conn1, localhost, user1, , test);
+connection conn1;
+
+--echo # Test access to a base table
+
+SELECT cs, cus FROM test1.t1;
+
+--error ER_COLUMNACCESS_DENIED_ERROR
+SELECT * FROM test1.t1;
+--error ER_COLUMNACCESS_DENIED_ERROR
+SELECT cn FROM test1.t1;
+--error ER_COLUMNACCESS_DENIED_ERROR
+SELECT ci FROM test1.t1;
+--error ER_COLUMNACCESS_DENIED_ERROR
+SELECT cu FROM test1.t1;
+
+SELECT cs FROM test1.t1 WHERE cs = '0';
+SELECT cs FROM test1.t1 WHERE cus = '0';
+--error ER_COLUMNACCESS_DENIED_ERROR
+SELECT cs FROM test1.t1 WHERE cn = '0';
+--error ER_COLUMNACCESS_DENIED_ERROR
+SELECT cs FROM test1.t1 WHERE ci = '0';
+--error ER_COLUMNACCESS_DENIED_ERROR
+SELECT cs FROM test1.t1 WHERE cu = '0';
+
+SELECT COUNT(*) AS c FROM test1.t1 GROUP BY cs;
+SELECT COUNT(*) AS c FROM test1.t1 GROUP BY cus;
+--error ER_COLUMNACCESS_DENIED_ERROR
+SELECT COUNT(*) AS c FROM test1.t1 GROUP BY cn;
+--error ER_COLUMNACCESS_DENIED_ERROR
+SELECT COUNT(*) AS c FROM test1.t1 GROUP BY ci;
+--error ER_COLUMNACCESS_DENIED_ERROR
+SELECT COUNT(*) AS c FROM test1.t1 GROUP BY cu;
+
+SELECT COUNT(*) AS c FROM test1.t1 HAVING MIN(cs) = '0';
+SELECT COUNT(*) AS c FROM test1.t1 HAVING MIN(cus) = '0';
+--error ER_COLUMNACCESS_DENIED_ERROR
+SELECT COUNT(*) AS c FROM test1.t1 HAVING MIN(cn) = '0';
+--error ER_COLUMNACCESS_DENIED_ERROR
+SELECT COUNT(*) AS c FROM test1.t1 HAVING MIN(ci) = '0';
+--error ER_COLUMNACCESS_DENIED_ERROR
+SELECT COUNT(*) AS c FROM test1.t1 HAVING MIN(cu) = '0';
+
+SELECT COUNT(*) AS c FROM test1.t1 ORDER BY MIN(cs);
+SELECT COUNT(*) AS c FROM test1.t1 ORDER BY MIN(cus);
+--error ER_COLUMNACCESS_DENIED_ERROR
+SELECT COUNT(*) AS c FROM test1.t1 ORDER BY MIN(cn);
+--error ER_COLUMNACCESS_DENIED_ERROR
+SELECT COUNT(*) AS c FROM test1.t1 ORDER BY MIN(ci);
+--error ER_COLUMNACCESS_DENIED_ERROR
+SELECT COUNT(*) AS c FROM test1.t1 ORDER BY MIN(cu);
+
+UPDATE test1.t1 SET cu='u';
+UPDATE test1.t1 SET cus='s' WHERE cus='0';
+
+UPDATE test1.t1, test1.single SET cu='u';
+UPDATE test1.t1, test1.single SET cus='s' WHERE cus='0';
+
+--error ER_COLUMNACCESS_DENIED_ERROR
+UPDATE test1.t1 SET cn='x';
+--error ER_COLUMNACCESS_DENIED_ERROR
+UPDATE test1.t1, test1.single SET cn='x';
+--error ER_COLUMNACCESS_DENIED_ERROR
+UPDATE test1.t1 SET cs='x';
+--error ER_COLUMNACCESS_DENIED_ERROR
+UPDATE test1.t1, test1.single SET cs='x';
+--error ER_COLUMNACCESS_DENIED_ERROR
+UPDATE test1.t1 SET ci='x';
+--error ER_COLUMNACCESS_DENIED_ERROR
+UPDATE test1.t1, test1.single SET ci='x';
+--error ER_COLUMNACCESS_DENIED_ERROR
+UPDATE test1.t1 SET cu='x' WHERE cn='0';
+--error ER_COLUMNACCESS_DENIED_ERROR
+UPDATE test1.t1, test1.single SET cu='x' WHERE cn='0';
+
+INSERT INTO test1.t1(ci) VALUES('i');
+INSERT INTO test1.t1(ci) SELECT 'i' FROM test1.single;
+INSERT INTO test1.t1(ci) VALUES('i')
+ON DUPLICATE KEY UPDATE cu='u';
+INSERT INTO test1.t1(ci) SELECT 'i' FROM test1.single
+ON DUPLICATE KEY UPDATE cu='u';
+
+--error ER_COLUMNACCESS_DENIED_ERROR
+INSERT INTO test1.t1(cn) VALUES('x');
+--error ER_COLUMNACCESS_DENIED_ERROR
+INSERT INTO test1.t1(cn) SELECT 'x' FROM test1.single;
+--error ER_COLUMNACCESS_DENIED_ERROR
+INSERT INTO test1.t1(cs) VALUES('x');
+--error ER_COLUMNACCESS_DENIED_ERROR
+INSERT INTO test1.t1(cs) SELECT 'x' FROM test1.single;
+--error ER_COLUMNACCESS_DENIED_ERROR
+INSERT INTO test1.t1(cu) VALUES('x');
+--error ER_COLUMNACCESS_DENIED_ERROR
+INSERT INTO test1.t1(cu) SELECT 'x' FROM test1.single;
+--error ER_COLUMNACCESS_DENIED_ERROR
+INSERT INTO test1.t1(cus) VALUES('x');
+--error ER_COLUMNACCESS_DENIED_ERROR
+INSERT INTO test1.t1(cus) SELECT 'x' FROM test1.single;
+--error ER_COLUMNACCESS_DENIED_ERROR
+INSERT INTO test1.t1(ci) VALUES('i')
+ON DUPLICATE KEY UPDATE cn='u';
+--error ER_COLUMNACCESS_DENIED_ERROR
+INSERT INTO test1.t1(ci) SELECT 'i' FROM test1.single
+ON DUPLICATE KEY UPDATE cn='u';
+
+--error ER_TABLEACCESS_DENIED_ERROR
+DELETE FROM test1.t1;
+--error ER_TABLEACCESS_DENIED_ERROR
+DELETE FROM test1.t1 WHERE cs='0';
+--error ER_TABLEACCESS_DENIED_ERROR
+DELETE test1.t1 FROM test1.t1, test1.single WHERE cs='0';
+
+--echo # Test access to derived tables
+
+SELECT * FROM (SELECT cs FROM test1.t1) AS dt;
+SELECT * FROM (SELECT cus FROM test1.t1) AS dt;
+--error ER_COLUMNACCESS_DENIED_ERROR
+SELECT * FROM (SELECT cn FROM test1.t1) AS dt;
+--error ER_COLUMNACCESS_DENIED_ERROR
+SELECT * FROM (SELECT cu FROM test1.t1) AS dt;
+--error ER_COLUMNACCESS_DENIED_ERROR
+SELECT * FROM (SELECT ci FROM test1.t1) AS dt;
+
+SELECT * FROM (SELECT MIN(cs) AS c FROM test1.t1) AS dt;
+SELECT * FROM (SELECT MIN(cus) AS c FROM test1.t1) AS dt;
+--error ER_COLUMNACCESS_DENIED_ERROR
+SELECT * FROM (SELECT MIN(cn) AS c FROM test1.t1) AS dt;
+--error ER_COLUMNACCESS_DENIED_ERROR
+SELECT * FROM (SELECT MIN(cu) AS c FROM test1.t1) AS dt;
+--error ER_COLUMNACCESS_DENIED_ERROR
+SELECT * FROM (SELECT MIN(ci) AS c FROM test1.t1) AS dt;
+
+SELECT * FROM (SELECT cs FROM test1.t1 WHERE cs = '0') AS dt;
+SELECT * FROM (SELECT cs FROM test1.t1 WHERE cus = '0') AS dt;
+--error ER_COLUMNACCESS_DENIED_ERROR
+SELECT * FROM (SELECT cs FROM test1.t1 WHERE cn = '0') AS dt;
+--error ER_COLUMNACCESS_DENIED_ERROR
+SELECT * FROM (SELECT cs FROM test1.t1 WHERE ci = '0') AS dt;
+--error ER_COLUMNACCESS_DENIED_ERROR
+SELECT * FROM (SELECT cs FROM test1.t1 WHERE cu = '0') AS dt;
+
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.t1 GROUP BY cs) AS dt;
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.t1 GROUP BY cus) AS dt;
+--error ER_COLUMNACCESS_DENIED_ERROR
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.t1 GROUP BY cn) AS dt;
+--error ER_COLUMNACCESS_DENIED_ERROR
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.t1 GROUP BY ci) AS dt;
+--error ER_COLUMNACCESS_DENIED_ERROR
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.t1 GROUP BY cu) AS dt;
+
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.t1 HAVING MIN(cs) = '0') AS dt;
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.t1 HAVING MIN(cus) = '0') AS dt;
+--error ER_COLUMNACCESS_DENIED_ERROR
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.t1 HAVING MIN(cn) = '0') AS dt;
+--error ER_COLUMNACCESS_DENIED_ERROR
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.t1 HAVING MIN(ci) = '0') AS dt;
+--error ER_COLUMNACCESS_DENIED_ERROR
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.t1 HAVING MIN(cu) = '0') AS dt;
+
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.t1 ORDER BY MIN(cs)) AS dt;
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.t1 ORDER BY MIN(cus)) AS dt;
+--error ER_COLUMNACCESS_DENIED_ERROR
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.t1 ORDER BY MIN(cn)) AS dt;
+--error ER_COLUMNACCESS_DENIED_ERROR
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.t1 ORDER BY MIN(ci)) AS dt;
+--error ER_COLUMNACCESS_DENIED_ERROR
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.t1 ORDER BY MIN(cu)) AS dt;
+
+--echo # Test access to a view with no privileges
+ 
+--error ER_TABLEACCESS_DENIED_ERROR
+SELECT cs, cus FROM test1.v1_none;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+UPDATE test1.v1_none SET cu='x';
+--error ER_TABLEACCESS_DENIED_ERROR
+UPDATE test1.v1_none, test1.single SET cu='x';
+--error ER_TABLEACCESS_DENIED_ERROR
+UPDATE test1.v1_none SET cus='x' WHERE cus='0';
+--error ER_TABLEACCESS_DENIED_ERROR
+UPDATE test1.v1_none, test1.single SET cus='x' WHERE cus='0';
+
+--error ER_TABLEACCESS_DENIED_ERROR
+INSERT INTO test1.v1_none(ci) VALUES('x');
+--error ER_TABLEACCESS_DENIED_ERROR
+INSERT INTO test1.v1_none(ci) SELECT 'x' FROM test1.single;
+--error ER_TABLEACCESS_DENIED_ERROR
+INSERT INTO test1.v1_none(ci) VALUES('x')
+ON DUPLICATE KEY UPDATE cu='u';
+--error ER_TABLEACCESS_DENIED_ERROR
+INSERT INTO test1.v1_none(ci) SELECT 'x' FROM test1.single
+ON DUPLICATE KEY UPDATE cu='u';
+
+--error ER_TABLEACCESS_DENIED_ERROR
+DELETE FROM test1.v1_none;
+--error ER_TABLEACCESS_DENIED_ERROR
+DELETE FROM test1.v1_none WHERE cs='0';
+--error ER_TABLEACCESS_DENIED_ERROR
+DELETE test1.v1_none FROM test1.v1_none, test1.single WHERE cs='0';
+
+--echo # Test access to a view with all privileges
+
+SELECT cs, cus FROM test1.v1_all;
+
+--error ER_VIEW_INVALID
+SELECT * FROM test1.v1_all;
+--error ER_VIEW_INVALID
+SELECT cn FROM test1.v1_all;
+--error ER_VIEW_INVALID
+SELECT ci FROM test1.v1_all;
+--error ER_VIEW_INVALID
+SELECT cu FROM test1.v1_all;
+
+UPDATE test1.v1_all SET cu='v';
+UPDATE test1.v1_all, test1.single SET cu='v';
+
+UPDATE test1.v1_all SET cus='t' WHERE cus='0';
+UPDATE test1.v1_all, test1.single SET cus='t' WHERE cus='0';
+
+--error ER_VIEW_INVALID
+UPDATE test1.v1_all SET cn='x';
+--error ER_VIEW_INVALID
+UPDATE test1.v1_all, test1.single SET cn='x';
+--error ER_VIEW_INVALID
+UPDATE test1.v1_all SET cs='x';
+--error ER_VIEW_INVALID
+UPDATE test1.v1_all, test1.single SET cs='x';
+--error ER_VIEW_INVALID
+UPDATE test1.v1_all SET ci='x';
+--error ER_VIEW_INVALID
+UPDATE test1.v1_all, test1.single SET ci='x';
+--error ER_VIEW_INVALID
+UPDATE test1.v1_all SET cu='x' WHERE cn='0';
+--error ER_VIEW_INVALID
+UPDATE test1.v1_all, test1.single SET cu='x' WHERE cn='0';
+
+INSERT INTO test1.v1_all(ci) VALUES('j');
+INSERT INTO test1.v1_all(ci) SELECT 'j' FROM test1.single;
+INSERT INTO test1.v1_all(ci) VALUES('j')
+ON DUPLICATE KEY UPDATE cu='u';
+INSERT INTO test1.v1_all(ci) SELECT 'j' FROM test1.single
+ON DUPLICATE KEY UPDATE cu='u';
+
+--error ER_VIEW_INVALID
+INSERT INTO test1.v1_all(cn) VALUES('x');
+--error ER_VIEW_INVALID
+INSERT INTO test1.v1_all(cn) SELECT 'x' FROM test1.single;
+--error ER_VIEW_INVALID
+INSERT INTO test1.v1_all(cs) VALUES('x');
+--error ER_VIEW_INVALID
+INSERT INTO test1.v1_all(cs) SELECT 'x' FROM test1.single;
+--error ER_VIEW_INVALID
+INSERT INTO test1.v1_all(cu) VALUES('x');
+--error ER_VIEW_INVALID
+INSERT INTO test1.v1_all(cu) SELECT 'x' FROM test1.single;
+--error ER_VIEW_INVALID
+INSERT INTO test1.v1_all(cus) VALUES('x');
+--error ER_VIEW_INVALID
+INSERT INTO test1.v1_all(cus) SELECT 'x' FROM test1.single;
+--error ER_VIEW_INVALID
+INSERT INTO test1.v1_all(cn) VALUES('x')
+ON DUPLICATE KEY UPDATE cu='u';
+--error ER_VIEW_INVALID
+INSERT INTO test1.v1_all(cn) SELECT 'x' FROM test1.single
+ON DUPLICATE KEY UPDATE cu='u';
+--error ER_VIEW_INVALID
+INSERT INTO test1.v1_all(ci) VALUES('x')
+ON DUPLICATE KEY UPDATE cn='u';
+--error ER_VIEW_INVALID
+INSERT INTO test1.v1_all(ci) SELECT 'x' FROM test1.single
+ON DUPLICATE KEY UPDATE cn='u';
+
+--error ER_VIEW_INVALID
+DELETE FROM test1.v1_all;
+--error ER_VIEW_INVALID
+DELETE FROM test1.v1_all WHERE cs='0';
+--error ER_VIEW_INVALID
+DELETE test1.v1_all FROM test1.v1_all, test1.single WHERE cs='0';
+
+--echo # Test access to a view with all privileges, inside derived table
+
+SELECT * FROM (SELECT cs FROM test1.v1_all) AS dt;
+SELECT * FROM (SELECT cus FROM test1.v1_all) AS dt;
+--error ER_VIEW_INVALID
+SELECT * FROM (SELECT cn FROM test1.v1_all) AS dt;
+--error ER_VIEW_INVALID
+SELECT * FROM (SELECT cu FROM test1.v1_all) AS dt;
+--error ER_VIEW_INVALID
+SELECT * FROM (SELECT ci FROM test1.v1_all) AS dt;
+
+SELECT * FROM (SELECT MIN(cs) AS c FROM test1.v1_all) AS dt;
+SELECT * FROM (SELECT MIN(cus) AS c FROM test1.v1_all) AS dt;
+--error ER_VIEW_INVALID
+SELECT * FROM (SELECT MIN(cn) AS c FROM test1.v1_all) AS dt;
+--error ER_VIEW_INVALID
+SELECT * FROM (SELECT MIN(cu) AS c FROM test1.v1_all) AS dt;
+--error ER_VIEW_INVALID
+SELECT * FROM (SELECT MIN(ci) AS c FROM test1.v1_all) AS dt;
+
+SELECT * FROM (SELECT cs FROM test1.v1_all WHERE cs = '0') AS dt;
+SELECT * FROM (SELECT cs FROM test1.v1_all WHERE cus = '0') AS dt;
+--error ER_VIEW_INVALID
+SELECT * FROM (SELECT cs FROM test1.v1_all WHERE cn = '0') AS dt;
+--error ER_VIEW_INVALID
+SELECT * FROM (SELECT cs FROM test1.v1_all WHERE ci = '0') AS dt;
+--error ER_VIEW_INVALID
+SELECT * FROM (SELECT cs FROM test1.v1_all WHERE cu = '0') AS dt;
+
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.v1_all GROUP BY cs) AS dt;
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.v1_all GROUP BY cus) AS dt;
+--error ER_VIEW_INVALID
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.v1_all GROUP BY cn) AS dt;
+--error ER_VIEW_INVALID
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.v1_all GROUP BY ci) AS dt;
+--error ER_VIEW_INVALID
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.v1_all GROUP BY cu) AS dt;
+
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.v1_all HAVING MIN(cs) = '0') AS dt;
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.v1_all HAVING MIN(cus) = '0') AS dt;
+--error ER_VIEW_INVALID
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.v1_all HAVING MIN(cn) = '0') AS dt;
+--error ER_VIEW_INVALID
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.v1_all HAVING MIN(ci) = '0') AS dt;
+--error ER_VIEW_INVALID
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.v1_all HAVING MIN(cu) = '0') AS dt;
+
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.v1_all ORDER BY MIN(cs)) AS dt;
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.v1_all ORDER BY MIN(cus)) AS dt;
+--error ER_VIEW_INVALID
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.v1_all ORDER BY MIN(cn)) AS dt;
+--error ER_VIEW_INVALID
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.v1_all ORDER BY MIN(ci)) AS dt;
+--error ER_VIEW_INVALID
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.v1_all ORDER BY MIN(cu)) AS dt;
+
+--echo # Test access to a view with same privileges as base table
+
+SELECT cs, cus FROM test1.v1_same;
+
+--error ER_COLUMNACCESS_DENIED_ERROR
+SELECT * FROM test1.v1_same;
+--error ER_COLUMNACCESS_DENIED_ERROR
+SELECT cn FROM test1.v1_same;
+--error ER_COLUMNACCESS_DENIED_ERROR
+SELECT ci FROM test1.v1_same;
+--error ER_COLUMNACCESS_DENIED_ERROR
+SELECT cu FROM test1.v1_same;
+
+UPDATE test1.v1_same SET cu='w';
+UPDATE test1.v1_same, test1.single SET cu='w';
+UPDATE test1.v1_same SET cus='z' WHERE cus='0';
+UPDATE test1.v1_same, test1.single SET cus='z' WHERE cus='0';
+
+--error ER_COLUMNACCESS_DENIED_ERROR
+UPDATE test1.v1_same SET cn='x';
+--error ER_COLUMNACCESS_DENIED_ERROR
+UPDATE test1.v1_same, test1.single SET cn='x';
+--error ER_COLUMNACCESS_DENIED_ERROR
+UPDATE test1.v1_same SET cs='x';
+--error ER_COLUMNACCESS_DENIED_ERROR
+UPDATE test1.v1_same, test1.single SET cs='x';
+--error ER_COLUMNACCESS_DENIED_ERROR
+UPDATE test1.v1_same SET ci='x';
+--error ER_COLUMNACCESS_DENIED_ERROR
+UPDATE test1.v1_same, test1.single SET ci='x';
+--error ER_COLUMNACCESS_DENIED_ERROR
+UPDATE test1.v1_same SET cu='x' WHERE cn='0';
+--error ER_COLUMNACCESS_DENIED_ERROR
+UPDATE test1.v1_same, test1.single SET cu='x' WHERE cn='0';
+
+INSERT INTO test1.v1_same(ci) VALUES('k');
+INSERT INTO test1.v1_same(ci) SELECT 'k' FROM test1.single;
+INSERT INTO test1.v1_same(ci) VALUES('k')
+ON DUPLICATE KEY UPDATE cu='u';
+INSERT INTO test1.v1_same(ci) SELECT 'k' FROM test1.single
+ON DUPLICATE KEY UPDATE cu='u';
+
+--error ER_COLUMNACCESS_DENIED_ERROR
+INSERT INTO test1.v1_same(cn) VALUES('x');
+--error ER_COLUMNACCESS_DENIED_ERROR
+INSERT INTO test1.v1_same(cn) SELECT 'x' FROM test1.single;
+--error ER_COLUMNACCESS_DENIED_ERROR
+INSERT INTO test1.v1_same(cs) VALUES('x');
+--error ER_COLUMNACCESS_DENIED_ERROR
+INSERT INTO test1.v1_same(cs) SELECT 'x' FROM test1.single;
+--error ER_COLUMNACCESS_DENIED_ERROR
+INSERT INTO test1.v1_same(cu) VALUES('x');
+--error ER_COLUMNACCESS_DENIED_ERROR
+INSERT INTO test1.v1_same(cu) SELECT 'x' FROM test1.single;
+--error ER_COLUMNACCESS_DENIED_ERROR
+INSERT INTO test1.v1_same(cus) VALUES('x');
+--error ER_COLUMNACCESS_DENIED_ERROR
+INSERT INTO test1.v1_same(cus) SELECT 'x' FROM test1.single;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+DELETE FROM test1.v1_same;
+--error ER_TABLEACCESS_DENIED_ERROR
+DELETE FROM test1.v1_same WHERE cs='0';
+--error ER_TABLEACCESS_DENIED_ERROR
+DELETE test1.v1_same FROM test1.v1_same, test1.single WHERE cs='0';
+
+--echo # Test access to a view with same privileges, inside derived table
+
+SELECT * FROM (SELECT cs FROM test1.v1_same) AS dt;
+SELECT * FROM (SELECT cus FROM test1.v1_same) AS dt;
+--error ER_COLUMNACCESS_DENIED_ERROR
+SELECT * FROM (SELECT cn FROM test1.v1_same) AS dt;
+--error ER_COLUMNACCESS_DENIED_ERROR
+SELECT * FROM (SELECT cu FROM test1.v1_same) AS dt;
+--error ER_COLUMNACCESS_DENIED_ERROR
+SELECT * FROM (SELECT ci FROM test1.v1_same) AS dt;
+
+SELECT * FROM (SELECT MIN(cs) AS c FROM test1.v1_same) AS dt;
+SELECT * FROM (SELECT MIN(cus) AS c FROM test1.v1_same) AS dt;
+--error ER_COLUMNACCESS_DENIED_ERROR
+SELECT * FROM (SELECT MIN(cn) AS c FROM test1.v1_same) AS dt;
+--error ER_COLUMNACCESS_DENIED_ERROR
+SELECT * FROM (SELECT MIN(cu) AS c FROM test1.v1_same) AS dt;
+--error ER_COLUMNACCESS_DENIED_ERROR
+SELECT * FROM (SELECT MIN(ci) AS c FROM test1.v1_same) AS dt;
+
+SELECT * FROM (SELECT cs FROM test1.v1_same WHERE cs = '0') AS dt;
+SELECT * FROM (SELECT cs FROM test1.v1_same WHERE cus = '0') AS dt;
+--error ER_COLUMNACCESS_DENIED_ERROR
+SELECT * FROM (SELECT cs FROM test1.v1_same WHERE cn = '0') AS dt;
+--error ER_COLUMNACCESS_DENIED_ERROR
+SELECT * FROM (SELECT cs FROM test1.v1_same WHERE ci = '0') AS dt;
+--error ER_COLUMNACCESS_DENIED_ERROR
+SELECT * FROM (SELECT cs FROM test1.v1_same WHERE cu = '0') AS dt;
+
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.v1_same GROUP BY cs) AS dt;
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.v1_same GROUP BY cus) AS dt;
+--error ER_COLUMNACCESS_DENIED_ERROR
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.v1_same GROUP BY cn) AS dt;
+--error ER_COLUMNACCESS_DENIED_ERROR
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.v1_same GROUP BY ci) AS dt;
+--error ER_COLUMNACCESS_DENIED_ERROR
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.v1_same GROUP BY cu) AS dt;
+
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.v1_same HAVING MIN(cs) = '0') AS dt;
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.v1_same HAVING MIN(cus) = '0') AS dt;
+--error ER_COLUMNACCESS_DENIED_ERROR
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.v1_same HAVING MIN(cn) = '0') AS dt;
+--error ER_COLUMNACCESS_DENIED_ERROR
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.v1_same HAVING MIN(ci) = '0') AS dt;
+--error ER_COLUMNACCESS_DENIED_ERROR
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.v1_same HAVING MIN(cu) = '0') AS dt;
+
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.v1_same ORDER BY MIN(cs)) AS dt;
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.v1_same ORDER BY MIN(cus)) AS dt;
+--error ER_COLUMNACCESS_DENIED_ERROR
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.v1_same ORDER BY MIN(cn)) AS dt;
+--error ER_COLUMNACCESS_DENIED_ERROR
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.v1_same ORDER BY MIN(ci)) AS dt;
+--error ER_COLUMNACCESS_DENIED_ERROR
+SELECT * FROM (SELECT COUNT(*) AS c FROM test1.v1_same ORDER BY MIN(cu)) AS dt;
+
+--echo # Test access to a view with "mixed" privileges
+
+--error ER_COLUMNACCESS_DENIED_ERROR
+SELECT cs, cus FROM test1.v1_cross;
+--error ER_COLUMNACCESS_DENIED_ERROR
+SELECT * FROM test1.v1_cross;
+--error ER_COLUMNACCESS_DENIED_ERROR
+SELECT cn FROM test1.v1_cross;
+--error ER_VIEW_INVALID
+SELECT ci FROM test1.v1_cross;
+--error ER_VIEW_INVALID
+SELECT cu FROM test1.v1_cross;
+
+--error ER_COLUMNACCESS_DENIED_ERROR
+UPDATE test1.v1_cross SET cu='x';
+--error ER_COLUMNACCESS_DENIED_ERROR
+UPDATE test1.v1_cross, test1.single SET cu='x';
+--error ER_COLUMNACCESS_DENIED_ERROR
+UPDATE test1.v1_cross SET cus='x' WHERE cus='0';
+--error ER_COLUMNACCESS_DENIED_ERROR
+UPDATE test1.v1_cross, test1.single SET cus='x' WHERE cus='0';
+--error ER_COLUMNACCESS_DENIED_ERROR
+UPDATE test1.v1_cross SET cn='x';
+--error ER_COLUMNACCESS_DENIED_ERROR
+UPDATE test1.v1_cross, test1.single SET cn='x';
+--error ER_VIEW_INVALID
+UPDATE test1.v1_cross SET cs='x';
+--error ER_VIEW_INVALID
+UPDATE test1.v1_cross, test1.single SET cs='x';
+--error ER_COLUMNACCESS_DENIED_ERROR
+UPDATE test1.v1_cross SET ci='x';
+--error ER_COLUMNACCESS_DENIED_ERROR
+UPDATE test1.v1_cross, test1.single SET ci='x';
+--error ER_COLUMNACCESS_DENIED_ERROR
+UPDATE test1.v1_cross SET cu='x' WHERE cn='0';
+--error ER_COLUMNACCESS_DENIED_ERROR
+UPDATE test1.v1_cross, test1.single SET cu='x' WHERE cn='0';
+
+--error ER_COLUMNACCESS_DENIED_ERROR
+INSERT INTO test1.v1_cross(ci) VALUES('x');
+--error ER_COLUMNACCESS_DENIED_ERROR
+INSERT INTO test1.v1_cross(ci) SELECT 'x' FROM test1.single;
+--error ER_COLUMNACCESS_DENIED_ERROR
+INSERT INTO test1.v1_cross(ci) VALUES('k')
+ON DUPLICATE KEY UPDATE cu='u';
+--error ER_COLUMNACCESS_DENIED_ERROR
+INSERT INTO test1.v1_cross(ci) SELECT 'k' FROM test1.single
+ON DUPLICATE KEY UPDATE cu='u';
+
+--error ER_COLUMNACCESS_DENIED_ERROR
+INSERT INTO test1.v1_cross(cn) VALUES('x');
+--error ER_COLUMNACCESS_DENIED_ERROR
+INSERT INTO test1.v1_cross(cn) SELECT 'x' FROM test1.single;
+--error ER_COLUMNACCESS_DENIED_ERROR
+INSERT INTO test1.v1_cross(cs) VALUES('x');
+--error ER_COLUMNACCESS_DENIED_ERROR
+INSERT INTO test1.v1_cross(cs) SELECT 'x' FROM test1.single;
+--error ER_COLUMNACCESS_DENIED_ERROR
+INSERT INTO test1.v1_cross(cu) VALUES('x');
+--error ER_COLUMNACCESS_DENIED_ERROR
+INSERT INTO test1.v1_cross(cu) SELECT 'x' FROM test1.single;
+--error ER_VIEW_INVALID
+INSERT INTO test1.v1_cross(cus) VALUES('x');
+--error ER_VIEW_INVALID
+INSERT INTO test1.v1_cross(cus) SELECT 'x' FROM test1.single;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+DELETE FROM test1.v1_cross;
+--error ER_TABLEACCESS_DENIED_ERROR
+DELETE FROM test1.v1_cross WHERE cs='0';
+--error ER_TABLEACCESS_DENIED_ERROR
+DELETE test1.v1_cross FROM test1.v1_cross, test1.single WHERE cs='0';
+
+--echo # Test access to a multi-level view with no privileges
+ 
+--error ER_VIEW_INVALID
+SELECT cs FROM test1.v1_multi;
+
+SELECT cus FROM test1.v1_multi;
+
+--error ER_VIEW_INVALID
+UPDATE test1.v1_multi SET cu='x';
+--error ER_VIEW_INVALID
+UPDATE test1.v1_multi, test1.single SET cu='x';
+
+--error ER_VIEW_INVALID
+UPDATE test1.v1_multi SET cus='x' WHERE cus='0';
+--error ER_VIEW_INVALID
+UPDATE test1.v1_multi, test1.single SET cus='x' WHERE cus='0';
+
+--error ER_VIEW_INVALID
+INSERT INTO test1.v1_multi(ci) VALUES('x');
+--error ER_VIEW_INVALID
+INSERT INTO test1.v1_multi(ci) SELECT 'x' FROM test1.single;
+--error ER_VIEW_INVALID
+INSERT INTO test1.v1_multi(ci) VALUES('x')
+ON DUPLICATE KEY UPDATE cu='u';
+--error ER_VIEW_INVALID
+INSERT INTO test1.v1_multi(ci) SELECT 'x' FROM test1.single
+ON DUPLICATE KEY UPDATE cu='u';
+
+--error ER_TABLEACCESS_DENIED_ERROR
+DELETE FROM test1.v1_multi;
+--error ER_TABLEACCESS_DENIED_ERROR
+DELETE FROM test1.v1_multi WHERE cs='0';
+--error ER_TABLEACCESS_DENIED_ERROR
+DELETE test1.v1_multi FROM test1.v1_multi WHERE cs='0';
+
+--echo # Test access to a renamed view
+
+--error ER_COLUMNACCESS_DENIED_ERROR
+SELECT cn FROM test1.v1_renamed;
+--error ER_VIEW_INVALID
+SELECT cs FROM test1.v1_renamed;
+SELECT cus FROM test1.v1_renamed;
+--error ER_COLUMNACCESS_DENIED_ERROR
+SELECT cx FROM test1.v1_renamed;
+--error ER_COLUMNACCESS_DENIED_ERROR
+SELECT cy FROM test1.v1_renamed;
+
+--echo # Test access to a derived tables. Since they can be used in SELECT
+--echo # only, update functions are not needed
+
+--error ER_COLUMNACCESS_DENIED_ERROR
+SELECT cs, cus FROM (SELECT * FROM test1.t1) AS dt;
+
+--error ER_COLUMNACCESS_DENIED_ERROR
+SELECT * FROM (SELECT * FROM test1.t1) AS dt;
+--error ER_COLUMNACCESS_DENIED_ERROR
+SELECT cn FROM (SELECT * FROM test1.t1) AS dt;
+--error ER_COLUMNACCESS_DENIED_ERROR
+SELECT ci FROM (SELECT * FROM test1.t1) AS dt;
+--error ER_COLUMNACCESS_DENIED_ERROR
+SELECT cu FROM (SELECT * FROM test1.t1) AS dt;
+
+SELECT * FROM (SELECT cs, cus FROM test1.t1) AS dt;
+SELECT cs, cus FROM (SELECT cs, cus FROM test1.t1) AS dt;
+SELECT cx FROM (SELECT CONCAT(cs, cus) AS cx FROM test1.t1) AS dt;
+
+--error ER_COLUMNACCESS_DENIED_ERROR
+SELECT * FROM (SELECT cn FROM test1.t1) AS dt;
+--error ER_COLUMNACCESS_DENIED_ERROR
+SELECT * FROM (SELECT ci FROM test1.t1) AS dt;
+--error ER_COLUMNACCESS_DENIED_ERROR
+SELECT * FROM (SELECT cu FROM test1.t1) AS dt;
+--error ER_COLUMNACCESS_DENIED_ERROR
+SELECT * FROM (SELECT CONCAT(cs, cu) AS cx FROM test1.t1) AS dt;
+--error ER_COLUMNACCESS_DENIED_ERROR
+SELECT * FROM (SELECT CONCAT(ci, cu) AS cx FROM test1.t1) AS dt;
+--error ER_COLUMNACCESS_DENIED_ERROR
+SELECT cx FROM (SELECT CONCAT(cs, cu) AS cx FROM test1.t1) AS dt;
+--error ER_COLUMNACCESS_DENIED_ERROR
+SELECT cx FROM (SELECT CONCAT(ci, cu) AS cx FROM test1.t1) AS dt;
+
+disconnect conn1;
+connection default;
+
+DROP VIEW test1.v1_none, test1.v1_all, test1.v1_same;
+DROP VIEW test1.v1_cross, test1.v1_middle, test1.v1_multi;
+DROP VIEW test1.v1_renamed;
+
+DROP USER user1@localhost;
+
+# SQL SECURITY DEFINER tests
+
+CREATE USER user1@localhost;
+
+# SELECT privilege is required to create the views:
+GRANT SELECT(cs) ON test1.t1 TO user1@localhost;
+
+CREATE DEFINER=user1@localhost SQL SECURITY DEFINER VIEW test1.v1_none AS
+SELECT cs FROM test1.t1;
+
+CREATE DEFINER=user1@localhost SQL SECURITY DEFINER VIEW test1.v1_middle AS
+SELECT cs FROM test1.t1;
+
+CREATE DEFINER=user1@localhost SQL SECURITY DEFINER VIEW test1.v1_multi AS
+SELECT * FROM test1.v1_middle;
+
+REVOKE SELECT(cs) ON test1.t1 FROM user1@localhost;
+
+SHOW GRANTS FOR user1@localhost;
+
+# Note that we're connected as root.
+SELECT * FROM test1.t1 LIMIT 1;
+
+--echo # Test access to a view with no privileges
+
+# user1 cannot see t1.cs
+--error ER_VIEW_INVALID
+SELECT cs FROM test1.v1_none;
+
+GRANT SELECT(cs) ON test1.t1 TO user1@localhost;
+
+# user1 can see t1.cs
+SELECT cs FROM test1.v1_none LIMIT 1;
+
+# user1 can see t1.cs but not v1_middle.cs
+--error ER_VIEW_INVALID
+SELECT cs FROM test1.v1_multi;
+
+GRANT SELECT(cs) ON test1.v1_middle TO user1@localhost;
+
+# user1 can see t1.cs and v1_middle.cs
+SELECT cs FROM test1.v1_multi LIMIT 1;
+
+REVOKE SELECT(cs) ON test1.t1 FROM user1@localhost;
+
+# user1 cannot see t1.cs, can see v1_middle.cs
+--error ER_VIEW_INVALID
+SELECT cs FROM test1.v1_multi;
+
+DROP USER user1@localhost;
+DROP DATABASE test1;
 
 # Wait till we reached the initial number of concurrent sessions
 --source include/wait_until_count_sessions.inc

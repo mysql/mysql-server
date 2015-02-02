@@ -14100,7 +14100,7 @@ static void test_bug10214()
 static void test_bug21246()
 {
   int   len;
-  char  out[10];
+  char  out[11];
 
   myheader("test_bug21246");
 

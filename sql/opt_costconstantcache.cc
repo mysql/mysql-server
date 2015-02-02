@@ -444,7 +444,7 @@ static void read_cost_constants(Cost_model_constants* cost_constants)
   tables[0].next_global= tables[0].next_local=
     tables[0].next_name_resolution_table= &tables[1];
 
-  if (!open_and_lock_tables(thd, tables, false, MYSQL_LOCK_IGNORE_TIMEOUT))
+  if (!open_and_lock_tables(thd, tables, MYSQL_LOCK_IGNORE_TIMEOUT))
   {
     DBUG_ASSERT(tables[0].table != NULL);
     DBUG_ASSERT(tables[1].table != NULL);

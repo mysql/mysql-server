@@ -51,7 +51,7 @@ public:
                            bool is_distinct, ulonglong options,
                            const char *alias, bool bit_fields_as_long,
                            bool create_table);
-  friend bool mysql_derived_create(THD *thd, LEX *lex, TABLE_LIST *derived);
+  friend bool TABLE_LIST::create_derived(THD *thd);
 };
 
 #endif /* SQL_UNION_INCLUDED */

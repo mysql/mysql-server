@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,13 +14,12 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifdef HAVE_REPLICATION
-#include <my_global.h>
-#include <my_dir.h>
 #include "rpl_mi.h"
-#include "rpl_slave.h"                          // SLAVE_MAX_HEARTBEAT_PERIOD
 
-using std::min;
-using std::max;
+#include "dynamic_ids.h"        // Server_ids
+#include "log.h"                // sql_print_error
+#include "rpl_slave.h"          // master_retry_count
+
 
 enum {
   LINES_IN_MASTER_INFO_WITH_SSL= 14,

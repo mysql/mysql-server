@@ -79,6 +79,8 @@ insert into t25 select pk+4, i from t25;
 insert into t25 select pk+8, i from t25;
 insert into t25 select pk+16, i from t25 limit 9;
 
+set @optimizer_switch_saved=@@optimizer_switch;
+set optimizer_switch='derived_merge=off';
 --disable_query_log
 --disable_result_log
 ANALYZE TABLE t10, t19, t25;
@@ -97,6 +99,8 @@ FROM t10 AS t10_1,
      t25 AS t25_2,
      t19
 ) AS d;
+
+set optimizer_switch=@optimizer_switch_saved;
 
 DROP TABLE t10;
 DROP TABLE t19;

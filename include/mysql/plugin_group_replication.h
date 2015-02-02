@@ -87,16 +87,31 @@ struct st_mysql_group_replication
 
   /*
     This function is used to fetch information for group replication kernel stats.
+
+    @param info[out] The retrieved information
+
+    @note The caller is responsible to free memory from the info structure and
+          from all its fields.
   */
   bool (*get_connection_status_info)(GROUP_REPLICATION_CONNECTION_STATUS_INFO *info);
 
   /*
     This function is used to fetch information for group replication members.
+
+    @param info[out] The retrieved information
+
+    @note The caller is responsible to free memory from the info structure and
+          from all its fields.
   */
   bool (*get_group_members_info)(uint index, GROUP_REPLICATION_GROUP_MEMBERS_INFO *info);
 
   /*
     This function is used to fetch information for group replication members statistics.
+
+    @param info[out] The retrieved information
+
+    @note The caller is responsible to free memory from the info structure and
+          from all its fields.
   */
   bool (*get_group_member_stats_info)(GROUP_REPLICATION_GROUP_MEMBER_STATS_INFO* info);
 

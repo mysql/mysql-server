@@ -101,6 +101,9 @@ Warnings:
 Note	1003	/* select#1 */ select NULL AS `i` from `test`.`t1`
 INSERT INTO t1 VALUES (1), (2), (3), (4), (5), (6), (7);
 INSERT INTO t2 VALUES (1), (2);
+# Check materialized derived table
+set @optimizer_switch_saved= @@optimizer_switch;
+set optimizer_switch='derived_merge=off';
 EXPLAIN
 SELECT * FROM (SELECT * FROM (SELECT * FROM (SELECT a1.i FROM (SELECT * FROM t1) a1, t2) a2) a3) a4;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -269,6 +272,7 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `a4`.`i` AS `i` from (/* select#2 */ select `a3`.`i` AS `i` from (/* select#3 */ select `a2`.`i` AS `i` from (/* select#4 */ select `a1`.`i` AS `i` from (/* select#5 */ select `test`.`t1`.`i` AS `i` from `test`.`t1`) `a1` join `test`.`t2`) `a2`) `a3`) `a4`
+set optimizer_switch= @optimizer_switch_saved;
 # subquery in WHERE
 EXPLAIN             SELECT * FROM t1 WHERE i IN (SELECT i FROM t2 WHERE t1.i = 10 ORDER BY RAND());
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -996,31 +1000,19 @@ DROP TABLE t1, t2, t3, t4;
 CREATE TABLE t1 (i INT);
 EXPLAIN SELECT 1 FROM (SELECT 1 AS x FROM t1) tt WHERE x;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
-2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
-Note	1003	/* select#1 */ select 1 AS `1` from (/* select#2 */ select 1 AS `x` from `test`.`t1`) `tt` where NULL
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where 1
 EXPLAIN FORMAT= JSON SELECT 1 FROM (SELECT 1 AS x FROM t1) tt WHERE x;
 EXPLAIN
 {
   "query_block": {
     "select_id": 1,
-    "message": "no matching row in const table",
-    "table": {
-      "materialized_from_subquery": {
-        "using_temporary_table": true,
-        "dependent": false,
-        "cacheable": true,
-        "query_block": {
-          "select_id": 2,
-          "message": "no matching row in const table"
-        } /* query_block */
-      } /* materialized_from_subquery */
-    } /* table */
+    "message": "no matching row in const table"
   } /* query_block */
 }
 Warnings:
-Note	1003	/* select#1 */ select 1 AS `1` from (/* select#2 */ select 1 AS `x` from `test`.`t1`) `tt` where NULL
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where 1
 DROP TABLE t1;
 # complex subqueries
 CREATE TABLE t1 (a INT, b INT);

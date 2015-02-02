@@ -2647,6 +2647,8 @@ DROP TABLE t4;
 #
 # Test derived tables like SELECT * FROM (SELECT * FROM ...)
 #
+set @optimizer_switch_saved=@@optimizer_switch;
+set optimizer_switch='derived_merge=off';
 FLUSH STATUS;
 SELECT * FROM (SELECT * FROM t1 WHERE a IN (0,2,3,13,26)) t3;
 a	b
@@ -2990,6 +2992,7 @@ HANDLER_EXTERNAL_LOCK	12
 HANDLER_READ_KEY	1
 HANDLER_WRITE	17
 # 12 locks (2 tables, 3 + 1 partitions lock/unlock)
+set @@optimizer_switch=@optimizer_switch_saved;
 #
 # Test UPDATE
 #

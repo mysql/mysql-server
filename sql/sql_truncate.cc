@@ -232,7 +232,7 @@ Sql_cmd_truncate_table::handler_truncate(THD *thd, TABLE_LIST *table_ref,
   }
 
   /* Open the table as it will handle some required preparations. */
-  if (open_and_lock_tables(thd, table_ref, FALSE, flags))
+  if (open_and_lock_tables(thd, table_ref, flags))
     DBUG_RETURN(TRUNCATE_FAILED_SKIP_BINLOG);
 
   /* Whether to truncate regardless of foreign keys. */

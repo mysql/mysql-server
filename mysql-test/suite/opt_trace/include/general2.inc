@@ -101,8 +101,6 @@ create table t1(a int, b int);
 create view v1 as select a from t1;
 select VIEW_DEFINITION from information_schema.VIEWS
 where TABLE_SCHEMA="test" and TABLE_NAME="v1";
-select locate("\"view\": \"v1\"", TRACE) != 0
-from information_schema.OPTIMIZER_TRACE;
 drop table t1;
 drop view v1;
 

@@ -1699,7 +1699,7 @@ int open_grant_tables(THD *thd, TABLE_LIST *tables, bool *transactional_tables)
   }
 #endif
 
-  if (open_and_lock_tables(thd, tables, FALSE, MYSQL_LOCK_IGNORE_TIMEOUT))
+  if (open_and_lock_tables(thd, tables, MYSQL_LOCK_IGNORE_TIMEOUT))
   {                                             // This should never happen
     DBUG_RETURN(-1);
   }

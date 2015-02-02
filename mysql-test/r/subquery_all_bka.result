@@ -209,12 +209,11 @@ select (select t3.a from t3 where a<8 order by 1 desc limit 1), a from
 explain extended select (select t3.a from t3 where a<8 order by 1 desc limit 1), a from
 (select * from t2 where a>1) as tt;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-3	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 2	SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Using filesort
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select (/* select#2 */ select `test`.`t3`.`a` from `test`.`t3` where (`test`.`t3`.`a` < 8) order by `test`.`t3`.`a` desc limit 1) AS `(select t3.a from t3 where a<8 order by 1 desc limit 1)`,`tt`.`a` AS `a` from (/* select#3 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` where (`test`.`t2`.`a` > 1)) `tt`
+Note	1003	/* select#1 */ select (/* select#2 */ select `test`.`t3`.`a` from `test`.`t3` where (`test`.`t3`.`a` < 8) order by `test`.`t3`.`a` desc limit 1) AS `(select t3.a from t3 where a<8 order by 1 desc limit 1)`,`test`.`t2`.`a` AS `a` from `test`.`t2` where (`test`.`t2`.`a` > 1)
 select * from t1 where t1.a=(select t2.a from t2 where t2.b=(select max(a) from t3) order by 1 desc limit 1);
 a
 2
@@ -6395,10 +6394,9 @@ INSERT INTO t1 VALUES (3, 10), (2, 20), (7, 10), (5, 20);
 
 EXPLAIN SELECT * FROM (SELECT * FROM t1 WHERE a=7) t;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-2	DERIVED	t1	NULL	ref	a	a	5	const	1	100.00	NULL
+1	SIMPLE	t1	NULL	ref	a	a	5	const	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `t`.`a` AS `a`,`t`.`b` AS `b` from (/* select#2 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`a` = 7)) `t`
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`a` = 7)
 
 EXPLAIN SELECT * FROM t1 WHERE EXISTS (SELECT * FROM t1 WHERE a=7);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -6563,10 +6561,9 @@ INSERT INTO t1 VALUES (3, 10), (2, 20), (7, 10), (5, 20);
 
 EXPLAIN SELECT * FROM (SELECT * FROM t1 WHERE a=7) t;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-2	DERIVED	t1	NULL	ref	a	a	5	const	1	100.00	NULL
+1	SIMPLE	t1	NULL	ref	a	a	5	const	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `t`.`a` AS `a`,`t`.`b` AS `b` from (/* select#2 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`a` = 7)) `t`
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`a` = 7)
 
 EXPLAIN SELECT * FROM t1 WHERE EXISTS (SELECT * FROM t1 WHERE a=7);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -7079,8 +7076,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	sq2_alias2	NULL	index	col_int_key	col_int_key	4	NULL	5	100.00	Using where; Using index; End temporary; Using join buffer (Block Nested Loop)
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1276	Field or reference 'alias1.col_int_key' of SELECT #3 was resolved in SELECT #1
-Note	1276	Field or reference 'alias1.col_varchar_key' of SELECT #3 was resolved in SELECT #1
+Note	1276	Field or reference 'alias1.col_int_key' of SELECT #3 was resolved in SELECT #2
+Note	1276	Field or reference 'alias1.col_varchar_key' of SELECT #3 was resolved in SELECT #2
 Note	1003	/* select#1 */ select `test`.`alias2`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`t1` `alias2` semi join (`test`.`t1` left join `test`.`t1` `sq2_alias2` on((`sq2_alias2`.`col_int_key` = `test`.`t1`.`pk`))) join `test`.`t1` where ((`test`.`alias2`.`col_varchar_key` = `test`.`t1`.`col_varchar_nokey`) and (`test`.`t1`.`pk` <> `t1`.`col_int_key`) and (`test`.`t1`.`col_varchar_key` > `t1`.`col_varchar_key`))
 SELECT * FROM v2;
 col_varchar_nokey
@@ -7240,10 +7237,9 @@ WHERE (c_sq1_alias1.col_int_nokey != @var2
 OR c_sq1_alias1.pk != @var3)) ) AS alias3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
-2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 3	UNCACHEABLE SUBQUERY	c_sq1_alias1	NULL	system	PRIMARY,col_varchar_key	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select NULL AS `pk`,NULL AS `col_int_nokey`,NULL AS `col_int_key`,NULL AS `col_time_key`,NULL AS `col_varchar_key`,NULL AS `col_varchar_nokey` from (/* select#2 */ select NULL AS `pk`,NULL AS `col_int_nokey`,NULL AS `col_int_key`,NULL AS `col_time_key`,NULL AS `col_varchar_key`,NULL AS `col_varchar_nokey` from `test`.`t1` `sq4_alias1` where (not(<in_optimizer>((NULL,NULL),(NULL,NULL) in ( <materialize> (/* select#3 */ select 'b' AS `c_sq1_field1`,'b' AS `c_sq1_field2` from dual where (('4' <> (@`var2`)) or ('1' <> (@`var3`))) having 1 ), <primary_index_lookup>(NULL in <temporary table> on <auto_key> where ((NULL = `materialized-subquery`.`c_sq1_field1`) and (NULL = `materialized-subquery`.`c_sq1_field2`)))))))) `alias3`
+Note	1003	/* select#1 */ select NULL AS `pk`,NULL AS `col_int_nokey`,NULL AS `col_int_key`,NULL AS `col_time_key`,NULL AS `col_varchar_key`,NULL AS `col_varchar_nokey` from `test`.`t1` `sq4_alias1` where (not(<in_optimizer>((NULL,NULL),(NULL,NULL) in ( <materialize> (/* select#3 */ select 'b' AS `c_sq1_field1`,'b' AS `c_sq1_field2` from dual where (('4' <> (@`var2`)) or ('1' <> (@`var3`))) having 1 ), <primary_index_lookup>(NULL in <temporary table> on <auto_key> where ((NULL = `materialized-subquery`.`c_sq1_field1`) and (NULL = `materialized-subquery`.`c_sq1_field2`)))))))
 SELECT * FROM ( SELECT sq4_alias1.*
 FROM t1 AS sq4_alias1
 WHERE (sq4_alias1.col_varchar_key , sq4_alias1.col_varchar_nokey)

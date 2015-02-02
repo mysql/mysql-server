@@ -5475,7 +5475,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
     LOCK TABLE a non-existing table). And the only way we then can end up here
     is if IF EXISTS was used.
   */
-  DBUG_ASSERT(table->table || table->view ||
+  DBUG_ASSERT(table->table || table->is_view() ||
               (create_info->options & HA_LEX_CREATE_TMP_TABLE) ||
               (thd->locked_tables_mode != LTM_LOCK_TABLES &&
                thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE,
@@ -5532,7 +5532,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
           binlogging problems related to CREATE TABLE IF NOT EXISTS LIKE
           when the existing object is a view will be solved by BUG 47442.
         */
-        if (!table->view)
+        if (!table->is_view())
         {
           if (!table->table)
           {
@@ -5616,10 +5616,9 @@ int mysql_discard_or_import_tablespace(THD *thd,
   /* Do not open views. */
   table_list->required_type= FRMTYPE_TABLE;
 
-  if (open_and_lock_tables(thd, table_list, FALSE, 0,
-                           &alter_prelocking_strategy))
+  if (open_and_lock_tables(thd, table_list, 0, &alter_prelocking_strategy))
   {
-    thd->tablespace_op=FALSE;
+    thd->tablespace_op= false;
     DBUG_RETURN(-1);
   }
 
@@ -9365,6 +9364,8 @@ copy_data_between_tables(PSI_stage_progress *psi,
       tables.db= from->s->db.str;
       error= 1;
 
+      Column_privilege_tracker column_privilege(thd, SELECT_ACL);
+
       if (select_lex->setup_ref_array(thd))
         goto err;            /* purecov: inspected */
       if (setup_order(thd, select_lex->ref_pointer_array,
@@ -9580,7 +9581,7 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
     table->required_type= FRMTYPE_TABLE;
 
     if (open_temporary_tables(thd, table) ||
-        open_and_lock_tables(thd, table, FALSE, 0))
+        open_and_lock_tables(thd, table, 0))
     {
       t= NULL;
     }

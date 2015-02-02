@@ -3522,35 +3522,34 @@ a
 19
 explain select * from (select a from t0) x where a in (select a from t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	11	100.00	Using where
+1	PRIMARY	t0	NULL	ALL	NULL	NULL	NULL	NULL	11	100.00	Using where
 3	SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	20	100.00	NULL
-2	DERIVED	t0	NULL	ALL	NULL	NULL	NULL	NULL	11	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `x`.`a` AS `a` from (/* select#2 */ select `test`.`t0`.`a` AS `a` from `test`.`t0`) `x` where <in_optimizer>(`x`.`a`,`x`.`a` in ( <materialize> (/* select#3 */ select `test`.`t1`.`a` from `test`.`t1` where 1 ), <primary_index_lookup>(`x`.`a` in <temporary table> on <auto_key> where ((`x`.`a` = `materialized-subquery`.`a`)))))
+Note	1003	/* select#1 */ select `test`.`t0`.`a` AS `a` from `test`.`t0` where <in_optimizer>(`test`.`t0`.`a`,`test`.`t0`.`a` in ( <materialize> (/* select#3 */ select `test`.`t1`.`a` from `test`.`t1` where 1 ), <primary_index_lookup>(`test`.`t0`.`a` in <temporary table> on <auto_key> where ((`test`.`t0`.`a` = `materialized-subquery`.`a`)))))
 explain format=json select * from (select a from t0) x where a in (select a from t1);
 EXPLAIN
 {
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "12.75"
+      "query_cost": "4.22"
     },
     "table": {
-      "table_name": "x",
+      "table_name": "t0",
       "access_type": "ALL",
       "rows_examined_per_scan": 11,
       "rows_produced_per_join": 11,
       "filtered": "100.00",
       "cost_info": {
-        "read_cost": "10.55",
+        "read_cost": "2.02",
         "eval_cost": "2.20",
-        "prefix_cost": "12.75",
-        "data_read_per_join": "176"
+        "prefix_cost": "4.22",
+        "data_read_per_join": "88"
       },
       "used_columns": [
         "a"
       ],
-      "attached_condition": "<in_optimizer>(`x`.`a`,`x`.`a` in ( <materialize> (/* select#3 */ select `test`.`t1`.`a` from `test`.`t1` where 1 ), <primary_index_lookup>(`x`.`a` in <temporary table> on <auto_key> where ((`x`.`a` = `materialized-subquery`.`a`)))))",
+      "attached_condition": "<in_optimizer>(`test`.`t0`.`a`,`test`.`t0`.`a` in ( <materialize> (/* select#3 */ select `test`.`t1`.`a` from `test`.`t1` where 1 ), <primary_index_lookup>(`test`.`t0`.`a` in <temporary table> on <auto_key> where ((`test`.`t0`.`a` = `materialized-subquery`.`a`)))))",
       "attached_subqueries": [
         {
           "table": {
@@ -3588,39 +3587,12 @@ EXPLAIN
             }
           }
         }
-      ],
-      "materialized_from_subquery": {
-        "using_temporary_table": true,
-        "dependent": false,
-        "cacheable": true,
-        "query_block": {
-          "select_id": 2,
-          "cost_info": {
-            "query_cost": "4.22"
-          },
-          "table": {
-            "table_name": "t0",
-            "access_type": "ALL",
-            "rows_examined_per_scan": 11,
-            "rows_produced_per_join": 11,
-            "filtered": "100.00",
-            "cost_info": {
-              "read_cost": "2.02",
-              "eval_cost": "2.20",
-              "prefix_cost": "4.22",
-              "data_read_per_join": "88"
-            },
-            "used_columns": [
-              "a"
-            ]
-          }
-        }
-      }
+      ]
     }
   }
 }
 Warnings:
-Note	1003	/* select#1 */ select `x`.`a` AS `a` from (/* select#2 */ select `test`.`t0`.`a` AS `a` from `test`.`t0`) `x` where <in_optimizer>(`x`.`a`,`x`.`a` in ( <materialize> (/* select#3 */ select `test`.`t1`.`a` from `test`.`t1` where 1 ), <primary_index_lookup>(`x`.`a` in <temporary table> on <auto_key> where ((`x`.`a` = `materialized-subquery`.`a`)))))
+Note	1003	/* select#1 */ select `test`.`t0`.`a` AS `a` from `test`.`t0` where <in_optimizer>(`test`.`t0`.`a`,`test`.`t0`.`a` in ( <materialize> (/* select#3 */ select `test`.`t1`.`a` from `test`.`t1` where 1 ), <primary_index_lookup>(`test`.`t0`.`a` in <temporary table> on <auto_key> where ((`test`.`t0`.`a` = `materialized-subquery`.`a`)))))
 drop table t0, t1;
 create table t0 (a int);
 insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
@@ -10143,7 +10115,7 @@ ON subquery2_t3.pk = subquery2_t2.pk
 explain SELECT * FROM v1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	table1	NULL	index	NULL	col_int_key	5	NULL	20	100.00	Using index
-1	PRIMARY	table2	NULL	ALL	PRIMARY	NULL	NULL	NULL	20	100.00	Using where; Using join buffer (Block Nested Loop)
+1	PRIMARY	table2	NULL	ALL	PRIMARY	NULL	NULL	NULL	20	100.00	Using join buffer (Block Nested Loop)
 1	PRIMARY	table3	NULL	ref	col_int_key	col_int_key	5	test.table2.pk	2	100.00	Using where
 3	SUBQUERY	subquery2_t3	NULL	index	PRIMARY,col_varchar_key	col_varchar_key	4	NULL	20	100.00	Using where; Using index
 3	SUBQUERY	subquery2_t2	NULL	eq_ref	PRIMARY,col_varchar_key	PRIMARY	4	test.subquery2_t3.pk	1	7.14	Using where
@@ -10575,6 +10547,8 @@ FROM t3 AS sq2_alias1 LEFT OUTER JOIN t3 AS sq2_alias2
 ON sq2_alias1.pk = sq2_alias2.col_int_key;
 CREATE VIEW view_inline_2 AS
 SELECT 'p', 'p' UNION SELECT 'k', 's';
+SET @optimizer_switch_saved= @@optimizer_switch;
+SET @@optimizer_switch="derived_merge=off";
 explain SELECT SUM(alias1.col_varchar_nokey) AS field2
 FROM t2 AS alias2
 LEFT JOIN (SELECT * FROM view_inline_0) AS alias1
@@ -10592,11 +10566,13 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 7	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 8	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 NULL	UNION RESULT	<union7,8>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
-3	SUBQUERY	sq2_alias1	NULL	ALL	NULL	NULL	NULL	NULL	15	100.00	NULL
-3	SUBQUERY	sq2_alias2	NULL	ref	col_int_key	col_int_key	5	test.sq2_alias1.pk	2	100.00	NULL
-2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+3	SUBQUERY	<derived6>	NULL	ALL	NULL	NULL	NULL	NULL	30	100.00	NULL
+6	DERIVED	sq2_alias1	NULL	ALL	NULL	NULL	NULL	NULL	15	100.00	NULL
+6	DERIVED	sq2_alias2	NULL	ref	col_int_key	col_int_key	5	test.sq2_alias1.pk	2	100.00	NULL
+2	DERIVED	<derived5>	NULL	ALL	NULL	NULL	NULL	NULL	15	100.00	NULL
+5	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
-Note	1003	/* select#1 */ select sum(`alias1`.`col_varchar_nokey`) AS `field2` from `test`.`t2` `alias2` join (/* select#2 */ select NULL AS `pk`,NULL AS `col_varchar_key`,NULL AS `col_varchar_nokey` from `test`.`t1` join `test`.`t3` where multiple equal(NULL, `t3`.`pk`)) `alias1` where ((`alias1`.`col_varchar_key` = `test`.`alias2`.`col_varchar_key`) and <in_optimizer>((`alias1`.`col_varchar_key`,`alias1`.`col_varchar_nokey`),(`alias1`.`col_varchar_key`,`alias1`.`col_varchar_nokey`) in ( <materialize> (/* select#4 */ select `view_inline_2`.`p`,`view_inline_2`.`My_exp_p` from `test`.`view_inline_2` where 1 ), <primary_index_lookup>(`alias1`.`col_varchar_key` in <temporary table> on <auto_key> where ((`alias1`.`col_varchar_key` = `materialized-subquery`.`p`) and (`alias1`.`col_varchar_nokey` = `materialized-subquery`.`My_exp_p`))))) and <in_optimizer>((`test`.`alias2`.`col_varchar_nokey`,`test`.`alias2`.`col_varchar_key`),(`test`.`alias2`.`col_varchar_nokey`,`test`.`alias2`.`col_varchar_key`) in ( <materialize> (/* select#3 */ select `test`.`sq2_alias2`.`col_varchar_key`,`sq2_alias1`.`col_varchar_key` from `test`.`t3` `sq2_alias1` join `test`.`t3` `sq2_alias2` where (`test`.`sq2_alias2`.`col_int_key` = `sq2_alias1`.`pk`) ), <primary_index_lookup>(`test`.`alias2`.`col_varchar_nokey` in <temporary table> on <auto_key> where ((`test`.`alias2`.`col_varchar_nokey` = `materialized-subquery`.`sq2_field1`) and (`test`.`alias2`.`col_varchar_key` = `materialized-subquery`.`sq2_field2`))))))
+Note	1003	/* select#1 */ select sum(`alias1`.`col_varchar_nokey`) AS `field2` from `test`.`t2` `alias2` join (/* select#2 */ select `view_inline_0`.`pk` AS `pk`,`view_inline_0`.`col_varchar_key` AS `col_varchar_key`,`view_inline_0`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`view_inline_0`) `alias1` where ((`alias1`.`col_varchar_key` = `test`.`alias2`.`col_varchar_key`) and <in_optimizer>((`alias1`.`col_varchar_key`,`alias1`.`col_varchar_nokey`),(`alias1`.`col_varchar_key`,`alias1`.`col_varchar_nokey`) in ( <materialize> (/* select#4 */ select `view_inline_2`.`p`,`view_inline_2`.`My_exp_p` from `test`.`view_inline_2` where 1 ), <primary_index_lookup>(`alias1`.`col_varchar_key` in <temporary table> on <auto_key> where ((`alias1`.`col_varchar_key` = `materialized-subquery`.`p`) and (`alias1`.`col_varchar_nokey` = `materialized-subquery`.`My_exp_p`))))) and <in_optimizer>((`test`.`alias2`.`col_varchar_nokey`,`test`.`alias2`.`col_varchar_key`),(`test`.`alias2`.`col_varchar_nokey`,`test`.`alias2`.`col_varchar_key`) in ( <materialize> (/* select#3 */ select `view_inline_1`.`sq2_field1`,`view_inline_1`.`sq2_field2` from `test`.`view_inline_1` where 1 ), <primary_index_lookup>(`test`.`alias2`.`col_varchar_nokey` in <temporary table> on <auto_key> where ((`test`.`alias2`.`col_varchar_nokey` = `materialized-subquery`.`sq2_field1`) and (`test`.`alias2`.`col_varchar_key` = `materialized-subquery`.`sq2_field2`))))))
 SELECT SUM(alias1.col_varchar_nokey) AS field2
 FROM t2 AS alias2
 LEFT JOIN (SELECT * FROM view_inline_0) AS alias1
@@ -10609,6 +10585,7 @@ WHERE (alias1.col_varchar_key, alias1.col_varchar_nokey) IN
 );
 field2
 NULL
+SET @@optimizer_switch= @optimizer_switch_saved;
 DROP VIEW view_inline_0, view_inline_1, view_inline_2;
 DROP TABLE t1, t2, t3;
 # End of test for bug#13956813.
@@ -10704,6 +10681,8 @@ PRIMARY KEY (pk)
 CREATE TABLE t3 (
 i INT
 );
+SET @optimizer_switch_saved= @@optimizer_switch;
+SET @@optimizer_switch="derived_merge=off";
 explain SELECT table1.pk AS field1
 FROM ( SELECT subquery1_t1. *
 FROM t2 AS subquery1_t1
@@ -10738,6 +10717,7 @@ FROM t1 AS subquery3_t1
 )
 ;
 field1
+SET @@optimizer_switch= @optimizer_switch_saved;
 DROP TABLE t1, t2, t3;
 # End of test for bug#13971022.
 #
@@ -11015,6 +10995,8 @@ KEY col_varchar_key(col_varchar_key)
 );
 INSERT INTO t2 VALUES
 ('j','j'), ('v','v'), ('c','c'), ('m','m'), ('d','d'), ('d','d'), ('y','y');
+SET @optimizer_switch_saved= @@optimizer_switch;
+SET @@optimizer_switch="derived_merge=off";
 explain format=json SELECT *
 FROM (SELECT * FROM t2) AS derived1
 LEFT JOIN t1
@@ -11165,6 +11147,7 @@ j	j
 m	m
 d	d
 d	d
+SET @@optimizer_switch= @optimizer_switch_saved;
 DROP TABLE t1, t2;
 CREATE TABLE t1 (
 col_int_nokey int NOT NULL,
