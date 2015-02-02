@@ -488,7 +488,7 @@ ndbd_exit(int code)
     code = 255;
 
 // gcov will not produce results when using _exit
-#ifdef HAVE_gcov
+#ifdef HAVE_GCOV
   exit(code);
 #else
   _exit(code);
