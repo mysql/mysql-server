@@ -533,10 +533,15 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
   (void) unpack_filename(dlpath, dlpath);
   plugin_dl.ref_count= 1;
   /* Open new dll handle */
+  mysql_mutex_assert_owner(&LOCK_plugin);
   if (!(plugin_dl.handle= dlopen(dlpath, RTLD_NOW)))
   {
     const char *errmsg;
     int error_number= dlopen_errno;
+    /*
+      Conforming applications should use a critical section to retrieve
+      the error pointer and buffer...
+    */
     DLERROR_GENERATE(errmsg, error_number);
 
     if (!strncmp(dlpath, errmsg, dlpathlen))
@@ -546,6 +551,19 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
       if (*errmsg == ' ') errmsg++;
     }
     report_error(report, ER_CANT_OPEN_LIBRARY, dlpath, error_number, errmsg);
+
+    /*
+      "The messages returned by dlerror() may reside in a static buffer
+       that is overwritten on each call to dlerror()."
+
+      Some implementations have a static pointer instead, and the memory it
+      points to may be reported as "still reachable" by Valgrind.
+      Calling dlerror() once more will free the memory.
+     */
+#if !defined(_WIN32)
+    errmsg= dlerror();
+    DBUG_ASSERT(errmsg == NULL);
+#endif
     DBUG_RETURN(NULL);
   }
   /* Determine interface version */
