@@ -1241,7 +1241,9 @@ intersection_operation(Geometry *g1, Geometry *g2,
   default:
     break;
   }
-  null_value= wrap.get_null_value();
+
+  if (!null_value)
+    null_value= wrap.get_null_value();
   return retgeo;
 }
 
@@ -1398,7 +1400,9 @@ union_operation(Geometry *g1, Geometry *g2, String *result, bool *pdone)
   default:
     break;
   }
-  null_value= wrap.get_null_value();
+
+  if (!null_value)
+    null_value= wrap.get_null_value();
   return retgeo;
 }
 
@@ -1581,7 +1585,9 @@ difference_operation(Geometry *g1, Geometry *g2, String *result, bool *pdone)
   default:
     break;
   }
-  null_value= wrap.get_null_value();
+
+  if (!null_value)
+    null_value= wrap.get_null_value();
   return retgeo;
 }
 
@@ -1663,7 +1669,7 @@ symdifference_operation(Geometry *g1, Geometry *g2, String *result, bool *pdone)
   if (do_geocol_setop)
     retgeo= geometry_collection_set_operation<Coord_type,
       Coordsys>(g1, g2, result, pdone);
-  else
+  else if (!null_value)
     null_value= wrap.get_null_value();
   return retgeo;
 }
