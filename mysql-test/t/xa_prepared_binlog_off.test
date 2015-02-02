@@ -1,0 +1,10 @@
+###############################################################################
+# Bug#12161 Xa recovery and client disconnection
+# Testing XA behaviour in conjuction with new server
+# --xa-prepared-rollback-at-disconnect option.
+###############################################################################
+
+# Common part with XA binlogging testing
+call mtr.add_suppression("You need to use --log-bin to make --log-slave-updates work.");
+--source extra/binlog_tests/binlog_xa_prepared.test
+

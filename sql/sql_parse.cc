@@ -5185,6 +5185,9 @@ void mysql_parse(THD *thd, Parser_state *parser_state)
           */
           if (error == 0 &&
               (thd->lex->sql_command == SQLCOM_COMMIT ||
+               (thd->slave_thread &&
+                (thd->lex->sql_command == SQLCOM_XA_COMMIT ||
+                 thd->lex->sql_command == SQLCOM_XA_ROLLBACK)) ||
                stmt_causes_implicit_commit(thd, CF_IMPLICIT_COMMIT_END) ||
                ((thd->lex->sql_command == SQLCOM_CREATE_TABLE ||
                  thd->lex->sql_command == SQLCOM_DROP_TABLE) &&

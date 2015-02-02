@@ -451,7 +451,9 @@ bool trans_rollback_stmt(THD *thd)
 
   /* In autocommit=1 mode the transaction should be marked as complete in P_S */
   DBUG_ASSERT(thd->in_active_multi_stmt_transaction() ||
-              thd->m_transaction_psi == NULL);
+              thd->m_transaction_psi == NULL ||
+              /* Todo: BUG#20488921 is in the way. */
+              DBUG_EVALUATE_IF("simulate_xa_commit_log_failure", true, false));
 
   thd->get_transaction()->reset(Transaction_ctx::STMT);
 
