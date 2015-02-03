@@ -1,4 +1,4 @@
-# Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -1176,7 +1176,7 @@ echo "====="                                     >> $STATUS_HISTORY
 /sbin/ldconfig
 
 # ----------------------------------------------------------------------------
-%files -n MySQL-test%{product_suffix}
+%files -n MySQL-test%{product_suffix} -f release/support-files/plugins-testonly.files
 %defattr(-, root, root, 0755)
 %if %{defined license_files_server}
 %doc %{license_files_server}
