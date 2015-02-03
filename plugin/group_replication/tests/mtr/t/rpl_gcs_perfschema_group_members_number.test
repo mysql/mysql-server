@@ -80,7 +80,7 @@
 --let $group_replication_number_of_members= 3
 --source ../inc/rpl_group_replication_wait_for_number_of_members.inc
 
---replace_column 2 MEMBER_ID 3 MEMBER_ADDRESS
+--replace_column 2 MEMBER_ID 3 MEMBER_HOST 4 MEMBER_PORT
 SELECT * FROM performance_schema.replication_group_members;
 
 

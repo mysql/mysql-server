@@ -72,7 +72,8 @@ bool get_gcs_group_members_info(uint index,
   memset(info, 0, sizeof(GROUP_REPLICATION_GROUP_MEMBERS_INFO));
   info->channel_name= NULL;
   info->member_id= NULL;
-  info->member_address= NULL;
+  info->member_host= NULL;
+  info->member_port= 0;
   info->member_state= MEMBER_STATE_OFFLINE;
 
   info->channel_name= my_strndup(
@@ -97,15 +98,13 @@ bool get_gcs_group_members_info(uint index,
                              0,
                              MYF(0));
 
-    info->member_address= my_strndup(
+    info->member_host= my_strndup(
 #ifdef HAVE_PSI_MEMORY_INTERFACE
                              PSI_NOT_INSTRUMENTED,
 #endif
                              "",
                              0,
                              MYF(0));
-
-    info->member_state= MEMBER_STATE_OFFLINE;
 
     return false;
   }
@@ -157,13 +156,15 @@ bool get_gcs_group_members_info(uint index,
                               member_info->get_uuid()->length(),
                               MYF(0));
 
-  info->member_address= my_strndup(
+  info->member_host= my_strndup(
 #ifdef HAVE_PSI_MEMORY_INTERFACE
                                    PSI_NOT_INSTRUMENTED,
 #endif
                                    member_info->get_hostname()->c_str(),
                                    member_info->get_hostname()->length(),
                                    MYF(0));
+
+  info->member_port= member_info->get_port();
 
   info->member_state=
       map_protocol_node_state_to_server_member_state(

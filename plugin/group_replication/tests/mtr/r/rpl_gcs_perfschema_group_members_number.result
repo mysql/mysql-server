@@ -31,10 +31,10 @@ include/rpl_group_replication_wait_for_number_of_members.inc
 include/rpl_group_replication_wait_for_number_of_members.inc
 include/rpl_group_replication_wait_for_number_of_members.inc
 SELECT * FROM performance_schema.replication_group_members;
-CHANNEL_NAME	MEMBER_ID	MEMBER_ADDRESS	MEMBER_STATE
-group_replication_applier	MEMBER_ID	MEMBER_ADDRESS	ONLINE
-group_replication_applier	MEMBER_ID	MEMBER_ADDRESS	ONLINE
-group_replication_applier	MEMBER_ID	MEMBER_ADDRESS	ONLINE
+CHANNEL_NAME	MEMBER_ID	MEMBER_HOST	MEMBER_PORT	MEMBER_STATE
+group_replication_applier	MEMBER_ID	MEMBER_HOST	MEMBER_PORT	ONLINE
+group_replication_applier	MEMBER_ID	MEMBER_HOST	MEMBER_PORT	ONLINE
+group_replication_applier	MEMBER_ID	MEMBER_HOST	MEMBER_PORT	ONLINE
 
 ###########################################################
 # 5. Two nodes on group.
