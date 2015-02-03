@@ -2910,7 +2910,7 @@ inline ulong ha_ndbcluster::index_flags(uint idx_no, uint part,
 }
 
 bool
-ha_ndbcluster::primary_key_is_clustered()
+ha_ndbcluster::primary_key_is_clustered() const
 {
 
   if (table->s->primary_key == MAX_KEY)
