@@ -62,10 +62,10 @@ Note	1265	Data truncated for column 'f152' at row 1
 Testcase: 3.5:
 --------------
 create User test_general@localhost;
-set password for test_general@localhost = password('PWD');
+alter user test_general@localhost identified by 'PWD';
 revoke ALL PRIVILEGES, GRANT OPTION FROM test_general@localhost;
 create User test_super@localhost;
-set password for test_super@localhost = password('PWD');
+alter user test_super@localhost identified by 'PWD';
 grant ALL on *.* to test_super@localhost with grant OPTION;
 
 Testcase 3.5.8.1: (implied in previous tests)
@@ -77,6 +77,7 @@ Testcase 3.5.8.2: (implied in previous tests)
 Testcase 3.5.8.3/4:
 -------------------
 create database db_test;
+create user test_general;
 grant SELECT, INSERT, UPDATE, DELETE on db_test.* to test_general;
 grant LOCK TABLES on db_test.* to test_general;
 Use db_test;

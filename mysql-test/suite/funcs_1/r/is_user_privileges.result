@@ -89,7 +89,6 @@ SELECT * FROM mysql.user
 WHERE user LIKE 'testuser%' ORDER BY host, user;
 Host	localhost
 User	testuser1
-Password	
 Select_priv	N
 Insert_priv	N
 Update_priv	N
@@ -134,7 +133,6 @@ password_last_changed	DTVALUE
 password_lifetime	NULL
 Host	localhost
 User	testuser2
-Password	
 Select_priv	N
 Insert_priv	Y
 Update_priv	Y
@@ -179,7 +177,6 @@ password_last_changed	DTVALUE
 password_lifetime	NULL
 Host	localhost
 User	testuser3
-Password	
 Select_priv	N
 Insert_priv	N
 Update_priv	N
@@ -248,7 +245,6 @@ SELECT * FROM mysql.user
 WHERE user LIKE 'testuser%' ORDER BY host, user;
 Host	localhost
 User	testuser1
-Password	
 Select_priv	N
 Insert_priv	N
 Update_priv	N
@@ -293,7 +289,6 @@ password_last_changed	DTVALUE
 password_lifetime	NULL
 Host	localhost
 User	testuser2
-Password	
 Select_priv	N
 Insert_priv	Y
 Update_priv	Y
@@ -338,7 +333,6 @@ password_last_changed	DTVALUE
 password_lifetime	NULL
 Host	localhost
 User	testuser3
-Password	
 Select_priv	N
 Insert_priv	N
 Update_priv	N
@@ -393,7 +387,6 @@ SELECT * FROM mysql.user
 WHERE user LIKE 'testuser%' ORDER BY host, user;
 Host	localhost
 User	testuser1
-Password	
 Select_priv	N
 Insert_priv	N
 Update_priv	N
@@ -438,7 +431,6 @@ password_last_changed	DTVALUE
 password_lifetime	NULL
 Host	localhost
 User	testuser2
-Password	
 Select_priv	N
 Insert_priv	Y
 Update_priv	Y
@@ -483,7 +475,6 @@ password_last_changed	DTVALUE
 password_lifetime	NULL
 Host	localhost
 User	testuser3
-Password	
 Select_priv	N
 Insert_priv	N
 Update_priv	N
@@ -560,7 +551,6 @@ SELECT * FROM mysql.user
 WHERE user LIKE 'testuser%' ORDER BY host, user;
 Host	localhost
 User	testuser1
-Password	
 Select_priv	Y
 Insert_priv	N
 Update_priv	N
@@ -605,7 +595,6 @@ password_last_changed	DTVALUE
 password_lifetime	NULL
 Host	localhost
 User	testuser2
-Password	
 Select_priv	N
 Insert_priv	Y
 Update_priv	Y
@@ -650,7 +639,6 @@ password_last_changed	DTVALUE
 password_lifetime	NULL
 Host	localhost
 User	testuser3
-Password	
 Select_priv	N
 Insert_priv	N
 Update_priv	N
@@ -719,7 +707,6 @@ SELECT * FROM mysql.user
 WHERE user LIKE 'testuser%' ORDER BY host, user;
 Host	localhost
 User	testuser1
-Password	
 Select_priv	Y
 Insert_priv	N
 Update_priv	N
@@ -764,7 +751,6 @@ password_last_changed	DTVALUE
 password_lifetime	NULL
 Host	localhost
 User	testuser2
-Password	
 Select_priv	N
 Insert_priv	Y
 Update_priv	Y
@@ -809,7 +795,6 @@ password_last_changed	DTVALUE
 password_lifetime	NULL
 Host	localhost
 User	testuser3
-Password	
 Select_priv	N
 Insert_priv	N
 Update_priv	N
@@ -864,7 +849,6 @@ SELECT * FROM mysql.user
 WHERE user LIKE 'testuser%' ORDER BY host, user;
 Host	localhost
 User	testuser1
-Password	
 Select_priv	Y
 Insert_priv	N
 Update_priv	N
@@ -909,7 +893,6 @@ password_last_changed	DTVALUE
 password_lifetime	NULL
 Host	localhost
 User	testuser2
-Password	
 Select_priv	N
 Insert_priv	Y
 Update_priv	Y
@@ -954,7 +937,6 @@ password_last_changed	DTVALUE
 password_lifetime	NULL
 Host	localhost
 User	testuser3
-Password	
 Select_priv	N
 Insert_priv	N
 Update_priv	N
@@ -1061,7 +1043,6 @@ SELECT * FROM mysql.user
 WHERE user LIKE 'testuser%' ORDER BY host, user;
 Host	localhost
 User	testuser1
-Password	
 Select_priv	N
 Insert_priv	N
 Update_priv	N
@@ -1106,7 +1087,6 @@ password_last_changed	DTVALUE
 password_lifetime	NULL
 Host	localhost
 User	testuser2
-Password	
 Select_priv	N
 Insert_priv	Y
 Update_priv	Y
@@ -1151,7 +1131,6 @@ password_last_changed	DTVALUE
 password_lifetime	NULL
 Host	localhost
 User	testuser3
-Password	
 Select_priv	N
 Insert_priv	N
 Update_priv	N
@@ -1253,7 +1232,6 @@ SELECT * FROM mysql.user
 WHERE user LIKE 'testuser%' ORDER BY host, user;
 Host	localhost
 User	testuser1
-Password	
 Select_priv	N
 Insert_priv	N
 Update_priv	N
@@ -1298,7 +1276,6 @@ password_last_changed	DTVALUE
 password_lifetime	NULL
 Host	localhost
 User	testuser2
-Password	
 Select_priv	N
 Insert_priv	Y
 Update_priv	Y
@@ -1343,7 +1320,6 @@ password_last_changed	DTVALUE
 password_lifetime	NULL
 Host	localhost
 User	testuser3
-Password	
 Select_priv	N
 Insert_priv	N
 Update_priv	N
@@ -1398,7 +1374,6 @@ SELECT * FROM mysql.user
 WHERE user LIKE 'testuser%' ORDER BY host, user;
 Host	localhost
 User	testuser1
-Password	
 Select_priv	N
 Insert_priv	N
 Update_priv	N
@@ -1443,7 +1418,6 @@ password_last_changed	DTVALUE
 password_lifetime	NULL
 Host	localhost
 User	testuser2
-Password	
 Select_priv	N
 Insert_priv	Y
 Update_priv	Y
@@ -1488,7 +1462,6 @@ password_last_changed	DTVALUE
 password_lifetime	NULL
 Host	localhost
 User	testuser3
-Password	
 Select_priv	N
 Insert_priv	N
 Update_priv	N
@@ -1550,7 +1523,6 @@ SELECT * FROM mysql.user
 WHERE user LIKE 'testuser%' ORDER BY host, user;
 Host	localhost
 User	testuser1
-Password	
 Select_priv	N
 Insert_priv	N
 Update_priv	N
@@ -1595,7 +1567,6 @@ password_last_changed	DTVALUE
 password_lifetime	NULL
 Host	localhost
 User	testuser2
-Password	
 Select_priv	N
 Insert_priv	Y
 Update_priv	Y
@@ -1640,7 +1611,6 @@ password_last_changed	DTVALUE
 password_lifetime	NULL
 Host	localhost
 User	testuser3
-Password	
 Select_priv	N
 Insert_priv	N
 Update_priv	N
@@ -1717,7 +1687,6 @@ SELECT * FROM mysql.user
 WHERE user LIKE 'testuser%' ORDER BY host, user;
 Host	localhost
 User	testuser1
-Password	
 Select_priv	N
 Insert_priv	N
 Update_priv	N
@@ -1762,7 +1731,6 @@ password_last_changed	DTVALUE
 password_lifetime	NULL
 Host	localhost
 User	testuser2
-Password	
 Select_priv	N
 Insert_priv	Y
 Update_priv	Y
@@ -1807,7 +1775,6 @@ password_last_changed	DTVALUE
 password_lifetime	NULL
 Host	localhost
 User	testuser3
-Password	
 Select_priv	N
 Insert_priv	N
 Update_priv	N

@@ -16,7 +16,8 @@
 #ifndef RPL_TRANSACTION_CTX_H
 #define RPL_TRANSACTION_CTX_H
 
-#include "mysql/service_rpl_transaction_ctx.h"
+#include "my_global.h"
+#include "mysql/service_rpl_transaction_ctx.h" // Transaction_termination_ctx
 
 /**
   Server side support to provide a service to plugins to report if

@@ -16,11 +16,11 @@ let $message= Testcase: 3.5:;
 --disable_abort_on_error
 
 	create User test_general@localhost;
-	set password for test_general@localhost = password('PWD');
+        alter user test_general@localhost identified by 'PWD';
 	revoke ALL PRIVILEGES, GRANT OPTION FROM test_general@localhost;
 
 	create User test_super@localhost;
-	set password for test_super@localhost = password('PWD');
+        alter user test_super@localhost identified by 'PWD';
 	grant ALL on *.* to test_super@localhost with grant OPTION;
 	connect (con1_general,localhost,test_general,PWD,test,$MASTER_MYPORT,$MASTER_MYSOCK);
 	connect (con1_super,localhost,test_super,PWD,test,$MASTER_MYPORT,$MASTER_MYSOCK);
@@ -46,6 +46,7 @@ let $message= Testcase 3.5.4.1:;
 	Use db_drop;
         --replace_result $engine_type <engine_to_be_used>
 	eval create table t1 (f1 char(30)) engine = $engine_type;
+        create user test_general;
 	grant INSERT, SELECT on db_drop.t1 to test_general;
 	Use db_drop;
 	Create trigger trg1 BEFORE INSERT on t1

@@ -774,6 +774,8 @@ INSERT INTO t1 ( b ) SELECT MAX( b ) FROM t1 WHERE b = 2;
 ERROR 23000: Duplicate entry '0' for key 'PRIMARY'
 DROP TABLE t1;
 SET SQL_MODE='STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1 (c VARCHAR(30), INDEX ix_c (c(10)));
 CREATE TABLE t2 (d VARCHAR(10));
 INSERT INTO t1 (c) VALUES ('7_chars'), ('13_characters');

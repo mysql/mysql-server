@@ -39,11 +39,11 @@ select count(*) from mysql.db where user=_binary'rpl_ignore_grant';
 # not what we want; we want it to be not-replicated).
 grant select on *.* to rpl_ignore_grant@localhost;
 connection master;
-set password for rpl_ignore_grant@localhost=password("does it work?");
+set password for rpl_ignore_grant@localhost="does it work?";
 save_master_pos;
 connection slave;
 sync_with_master;
-select password<>_binary'' from mysql.user where user=_binary'rpl_ignore_grant';
+select authentication_string<>_binary'' from mysql.user where user=_binary'rpl_ignore_grant';
 
 # clear what we have done, to not influence other tests.
 connection master;

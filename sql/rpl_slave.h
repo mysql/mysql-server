@@ -16,7 +16,21 @@
 #ifndef RPL_SLAVE_H
 #define RPL_SLAVE_H
 
+#include "my_global.h"
+#include "my_thread.h"                     // my_start_routine
+#include "mysql/psi/mysql_thread.h"        // mysql_mutex_t
+#include "rpl_channel_service_interface.h" // enum_channel_type
+
+class Log_event;
+class Master_info;
+class Relay_log_info;
+class THD;
+typedef struct st_bitmap MY_BITMAP;
+typedef struct st_lex_master_info LEX_MASTER_INFO;
+typedef struct st_list LIST;
 typedef struct st_mysql MYSQL;
+typedef struct st_net NET;
+typedef struct struct_slave_connection LEX_SLAVE_CONNECTION;
 
 typedef enum { SLAVE_THD_IO, SLAVE_THD_SQL, SLAVE_THD_WORKER } SLAVE_THD_TYPE;
 
@@ -47,12 +61,6 @@ typedef enum { SLAVE_THD_IO, SLAVE_THD_SQL, SLAVE_THD_WORKER } SLAVE_THD_TYPE;
 
 #ifdef HAVE_REPLICATION
 
-#include "binlog.h"
-#include "my_list.h"
-#include "rpl_filter.h"
-#include "rpl_tblmap.h"
-#include "rpl_msr.h"
-
 #define SLAVE_NET_TIMEOUT  3600
 
 #define MAX_SLAVE_ERROR    2000
@@ -68,10 +76,6 @@ typedef enum { SLAVE_THD_IO, SLAVE_THD_SQL, SLAVE_THD_WORKER } SLAVE_THD_TYPE;
    2^16-1 = 65535 bytes => (2^16-1) * 8 = 524280 bits
 */
 #define MTS_MAX_BITS_IN_GROUP ((1L << 19) - 8) /* 524280 */
-
-// Forward declarations
-class Relay_log_info;
-class Master_info;
 
 extern bool server_id_supplied;
 

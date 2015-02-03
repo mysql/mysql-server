@@ -634,3 +634,13 @@ LEFT OUTER JOIN t2 AS OUTR2  ON ( OUTR1.a = OUTR2.b )
 WHERE OUTR1.a < ( SELECT t3.c  from t3 where 1 XOR OUTR2.b IS NOT NULL);
 ERROR 21000: Subquery returns more than 1 row
 DROP TABLE t1,t2,t3;
+#
+# Bug#20460208: !table || (!table->read_set || bitmap_is_set)
+#
+CREATE TABLE t1(a INTEGER) engine=innodb;
+CREATE TABLE t2(a BLOB) engine=innodb;
+INSERT INTO t1 SET z=1;
+ERROR 42S22: Unknown column 'z' in 'field list'
+INSERT INTO t2 VALUES('a');
+DELETE FROM t2 WHERE 1 = a;
+DROP TABLE t1, t2;

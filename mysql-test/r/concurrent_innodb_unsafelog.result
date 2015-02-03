@@ -6,7 +6,7 @@ SELECT @@global.innodb_locks_unsafe_for_binlog;
 @@global.innodb_locks_unsafe_for_binlog
 1
 # keep_locks == 0
-GRANT USAGE ON test.* TO mysqltest@localhost;
+CREATE USER mysqltest@localhost;
 drop table if exists t1;
 
 **

@@ -540,7 +540,7 @@ set names latin1;
 # - Caused by a user with host ''
 #
 create user mysqltest_7@;
-set password for mysqltest_7@ = password('systpass');
+alter user mysqltest_7@ identified by 'systpass';
 show grants for mysqltest_7@;
 drop user mysqltest_7@;
 --error ER_NONEXISTING_GRANT
@@ -1306,8 +1306,8 @@ drop function test_function;
 # Bug#41456 SET PASSWORD hates CURRENT_USER()
 #
 SELECT CURRENT_USER();
-SET PASSWORD FOR CURRENT_USER() = PASSWORD("admin");
-SET PASSWORD FOR CURRENT_USER() = PASSWORD("");
+SET PASSWORD FOR CURRENT_USER() = "admin";
+SET PASSWORD FOR CURRENT_USER() = "";
 
 #
 # Bug#57952: privilege change is not taken into account by EXECUTE.
@@ -2322,7 +2322,7 @@ SELECT 1;
 --echo # Setting variables should work
 SET old_passwords=0;
 --echo # Setting password should work
-SET PASSWORD = PASSWORD('new_wl7131');
+ALTER USER wl7131 IDENTIFIED BY 'new_wl7131';
 --echo # Doing something should pass
 SELECT 1;
 disconnect con1;
@@ -2397,7 +2397,7 @@ ALTER USER 'wl7131' PASSWORD EXPIRE INTERVAL 0 DAY;
 ALTER USER 'wl7131' PASSWORD EXPIRE INTERVAL 65536 DAY;
 
 --echo # Setting an empty password. It should update the timestamp column.
-SET PASSWORD FOR 'wl7131' = PASSWORD('');
+ALTER USER 'wl7131' IDENTIFIED BY '';
 --echo # This should report 1.
 # The difference should be but less than a threshold (2 seconds).
 SELECT (SELECT now()-(SELECT password_last_changed from mysql.user where user='wl7131')) <= 2;

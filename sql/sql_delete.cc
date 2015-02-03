@@ -629,6 +629,8 @@ bool mysql_prepare_delete(THD *thd)
 
   ulong want_privilege_saved= thd->want_privilege;
   thd->want_privilege= SELECT_ACL;
+  enum enum_mark_columns mark_used_columns_saved= thd->mark_used_columns;
+  thd->mark_used_columns= MARK_COLUMNS_READ;
 
   if (select->setup_conds(thd))
     DBUG_RETURN(true);
@@ -653,6 +655,7 @@ bool mysql_prepare_delete(THD *thd)
   }
 
   thd->want_privilege= want_privilege_saved;
+  thd->mark_used_columns= mark_used_columns_saved;
 
   if (setup_ftfuncs(select))
     DBUG_RETURN(true);                       /* purecov: inspected */

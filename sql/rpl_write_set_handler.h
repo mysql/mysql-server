@@ -16,7 +16,8 @@
 #ifndef RPL_WRITE_SET_HANDLER_INCLUDED
 #define RPL_WRITE_SET_HANDLER_INCLUDED
 
-#include "sql_class.h"
+class THD;
+struct TABLE;
 
 /**
   Function to add the hash of the PKE to the transaction context object.

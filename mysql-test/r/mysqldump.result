@@ -2323,6 +2323,8 @@ create trigger trg2 before update on t1 for each row begin
 if old.a % 2 = 0 then set new.b := 12; end if;
 end|
 set sql_mode="traditional"|
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 create trigger trg3 after update on t1 for each row
 begin
 if new.a = -1 then
@@ -3702,7 +3704,11 @@ use test;
 #
 create database mysqldump_test_db;
 grant all privileges on mysqldump_test_db.*  to user1;
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 grant all privileges on mysqldump_test_db.*  to user2;
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 create procedure mysqldump_test_db.sp1() select 'hello';
 
 -- insufficient privileges to SHOW CREATE PROCEDURE `sp1`
@@ -4908,6 +4914,8 @@ END
 # Test to check 'Insufficient privileges' error.
 
 GRANT ALL PRIVILEGES ON BUG52792.* TO user1;
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 # Running 'replace_regex on timestamp'
 <?xml version="1.0"?>
 <mysqldump xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">

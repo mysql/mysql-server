@@ -1017,10 +1017,12 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
     }
     case ADMIN_PASSWORD:
     {
-      char buff[128],crypted_pw[64];
+      char buff[128];
       time_t start_time;
-      char *typed_password= NULL, *verified= NULL;
-      bool log_off= true, err= false;
+      char *typed_password= NULL, *verified= NULL, *tmp= NULL;
+      bool log_off= true, err= false, ssl_conn= false;
+      uint ssl_enforce= 0;
+      size_t password_len;
 
       /* Do initialization the same way as we do in mysqld */
       start_time=time((time_t*) 0);
@@ -1042,6 +1044,11 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
           err= true;
           goto error;
         }
+        /* escape quotes if password has any special characters */
+        password_len= strlen(typed_password);
+        tmp= (char*) my_malloc(PSI_NOT_INSTRUMENTED, password_len*2+1, MYF(MY_WME));
+        mysql_real_escape_string(mysql, tmp, typed_password, password_len);
+        typed_password= tmp;
       }
       else
       {
@@ -1074,12 +1081,21 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
           TODO: make sure this always uses SSL and then let the server
           calculate the scramble.
         */
-        make_scrambled_password(crypted_pw, typed_password);
       }
-      else
-	crypted_pw[0]=0;			/* No password */
 
-      sprintf(buff, "set password='%s'", crypted_pw);
+      /* Warn about password being set in non ssl connection */
+#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
+      mysql_get_option(mysql, MYSQL_OPT_SSL_ENFORCE, &ssl_enforce);
+      if (opt_use_ssl && ssl_enforce)
+        ssl_conn= true;
+      if (!ssl_conn)
+      {
+        fprintf(stderr, "Warning: Since password will be sent to server in "
+                "plain text, use ssl connection to ensure password safety.\n");
+      }
+#endif
+      memset(buff, 0, sizeof(buff));
+      sprintf(buff, "ALTER USER USER() IDENTIFIED BY '%s'", typed_password);
 
       if (mysql_query(mysql,buff))
       {

@@ -23,7 +23,7 @@ let $message= #########      Testcase for transactions:   ########;
 	eval create table t1 (f1 char(20)) engine= $engine_type;
 
 	create User test_yesprivs@localhost;
-	set password for test_yesprivs@localhost = password('PWD');
+	set password for test_yesprivs@localhost = 'PWD';
 
 	revoke ALL PRIVILEGES, GRANT OPTION FROM test_yesprivs@localhost;
 

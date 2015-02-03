@@ -15,20 +15,13 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 #include "sql_binlog.h"
-#include "sql_parse.h"
-#include "auth_common.h"
-#include "rpl_info.h"
-#include "rpl_info_factory.h"
-#include "base64.h"
-#include "rpl_slave.h"                              // apply_event_and_update_pos
-#include "log_event.h"                          // Format_description_log_event,
-                                                // EVENT_LEN_OFFSET,
-                                                // EVENT_TYPE_OFFSET,
-                                                // FORMAT_DESCRIPTION_LOG_EVENT,
-                                                // START_EVENT_V3,
-                                                // Log_event_type,
-                                                // Log_event
-#include "rpl_rli.h"
+
+#include "my_global.h"
+#include "base64.h"                             // base64_needed_decoded_length
+#include "auth_common.h"                        // check_global_access
+#include "log_event.h"                          // Format_description_log_event
+#include "rpl_info_factory.h"                   // Rpl_info_factory
+#include "rpl_rli.h"                            // Relay_log_info
 
 
 /**

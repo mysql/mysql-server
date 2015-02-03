@@ -13,7 +13,7 @@ connection default;
 disconnect con1;
 eval REVOKE ALL ON test.* FROM testuser@'$IPv6';
 eval RENAME USER testuser@'$IPv6' to testuser1@'$IPv6';
-eval SET PASSWORD FOR testuser1@'$IPv6' = PASSWORD ('9876');
+eval SET PASSWORD FOR testuser1@'$IPv6' = '9876';
 --replace_result ::1 localhost
 SELECT USER();
 eval DROP USER testuser1@'$IPv6';

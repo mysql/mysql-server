@@ -240,6 +240,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     DBUG_RETURN(true);
 
   if (select->setup_tables(thd, table_list, false))
+    DBUG_RETURN(true);
 
   if (run_before_dml_hook(thd))
     DBUG_RETURN(true);

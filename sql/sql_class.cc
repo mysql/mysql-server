@@ -4344,11 +4344,9 @@ void THD::get_definer(LEX_USER *definer)
   {
     definer->user= m_invoker_user;
     definer->host= m_invoker_host;
-    definer->password.str= NULL;
-    definer->password.length= 0;
     definer->plugin.str= (char *) "";
     definer->plugin.length= 0;
-    definer->auth.str=  (char *) "";
+    definer->auth.str=  NULL;
     definer->auth.length= 0;
   }
   else

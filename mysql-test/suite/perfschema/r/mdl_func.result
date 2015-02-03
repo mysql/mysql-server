@@ -4,7 +4,11 @@ WHERE name in ('wait/io/table/sql/handler',
 'wait/lock/table/sql/handler',
 'wait/lock/metadata/sql/mdl');
 grant ALL on *.* to user1@localhost;
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 grant ALL on *.* to user2@localhost;
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 insert into performance_schema.setup_objects (object_type, object_schema, object_name, enabled, timed)
 values ('TABLE', 'mtr', '%', 'NO', 'NO');
 # Switch to (con1, localhost, user1, , )

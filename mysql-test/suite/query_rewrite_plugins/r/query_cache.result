@@ -1,6 +1,7 @@
 #
 # Test of query rewrites and query cache.
 #
+SET sql_mode = 'PIPES_AS_CONCAT';
 SHOW VARIABLES LIKE '%query_cache%';
 Variable_name	Value
 have_query_cache	YES
@@ -97,6 +98,53 @@ Qcache_inserts	1
 SHOW STATUS LIKE "Qcache_hits";
 Variable_name	Value
 Qcache_hits	1
+# Now let's define a syntactically correct rule followed by one with a
+# syntax error. The query cache should still be cleared even if
+# flush_rewrite_rules() exits with an error.
+RESET QUERY CACHE;
+DELETE FROM query_rewrite.rewrite_rules;
+SELECT @@query_cache_size;
+@@query_cache_size
+1048576
+SELECT * FROM test.t1;
+a
+1
+2
+3
+SELECT * FROM test.t1;
+a
+1
+2
+3
+CALL mtr.add_suppression("Plugin rewriter reported: " ||
+"'Some rules failed to load.'");
+INSERT INTO query_rewrite.rewrite_rules( pattern, replacement )
+VALUES ( 'SELECT * FROM test.t1', 'SELECT "rewritten"' ),
+( 'This rule has syntax error', 'so it never gets rewritten' );
+CALL query_rewrite.flush_rewrite_rules();
+ERROR 45000: Loading of some rule(s) failed.
+SELECT * FROM query_rewrite.rewrite_rules;
+id	pattern	pattern_database	replacement	enabled	message
+2	SELECT * FROM test.t1	NULL	SELECT "rewritten"	Y	NULL
+3	This rule has syntax error	NULL	so it never gets rewritten	Y	Parse error in pattern: >>You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'This rule has syntax error' at line 1<<
+FLUSH STATUS;
+# The query matching the rule should be evicted from the cache.
+SHOW STATUS LIKE "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	1
+SHOW STATUS LIKE "Qcache_inserts";
+Variable_name	Value
+Qcache_inserts	0
+SHOW STATUS LIKE "Qcache_hits";
+Variable_name	Value
+Qcache_hits	0
+# The query would not get rewritten if it were still cached.
+SELECT * FROM test.t1;
+rewritten
+rewritten
+Warnings:
+Note	1105	Query 'SELECT * FROM test.t1' rewritten to 'SELECT "rewritten"' by plugin: Rewriter.
+DELETE FROM query_rewrite.rewrite_rules;
 # Query rewrite plugin was uninstalled.
 SELECT * FROM test.t1;
 a
@@ -116,7 +164,7 @@ Variable_name	Value
 Qcache_inserts	1
 SHOW STATUS LIKE "Qcache_hits";
 Variable_name	Value
-Qcache_hits	3
+Qcache_hits	1
 DROP TABLE t1, t2;
 SET GLOBAL query_cache_size = DEFAULT;
 #
@@ -178,3 +226,4 @@ Warnings:
 Note	1105	Query 'SELECT * FROM test.t2' rewritten to 'SELECT * FROM test.t1 JOIN test.t2 ON test.t1.c1 = test.t2.c1' by plugin: Rewriter.
 DROP TABLE t1, t2;
 # Query rewrite plugin was uninstalled.
+SET sql_mode = DEFAULT;

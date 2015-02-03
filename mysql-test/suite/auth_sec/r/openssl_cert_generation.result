@@ -28,6 +28,8 @@ ERROR HY000: Variable 'sha256_password_auto_generate_rsa_keys' is a read only va
 # Ensure that sha connection is not possible in absence of certificates and keys
 create user wl7699_sha256 identified with 'sha256_password';
 grant usage on *.* to wl7699_sha256 identified by 'abcd';
+Warnings:
+Warning	1287	Using GRANT statement to modify existing user's properties other than privileges is deprecated and will be removed in future release. Use ALTER USER statement for this operation.
 drop user wl7699_sha256;
 # Test 3 : SSL certificates
 # 3.1 : Restarting mysqld with : --auto-generate-certs=1
@@ -79,6 +81,8 @@ sha256_password_public_key_path	public_key.pem
 # 5.3 : SHA256_password user
 create user wl7699_sha256 identified with 'sha256_password';
 grant usage on *.* to wl7699_sha256 identified by 'abcd';
+Warnings:
+Warning	1287	Using GRANT statement to modify existing user's properties other than privileges is deprecated and will be removed in future release. Use ALTER USER statement for this operation.
 # Should be able to connect to server using generated SSL certificates.
 Variable_name	Value
 Ssl_cipher	DHE-RSA-AES256-SHA
@@ -120,6 +124,8 @@ Ssl_cipher	DHE-RSA-AES256-SHA
 # 6.4 : SHA256_password user
 create user wl7699_sha256 identified with 'sha256_password';
 grant usage on *.* to wl7699_sha256 identified by 'abcd';
+Warnings:
+Warning	1287	Using GRANT statement to modify existing user's properties other than privileges is deprecated and will be removed in future release. Use ALTER USER statement for this operation.
 # Should be able to connect to server using generated SSL certificates.
 Variable_name	Value
 Ssl_cipher	DHE-RSA-AES256-SHA
@@ -158,6 +164,8 @@ sha256_password_public_key_path	public_key.pem
 # 7.4 : SHA256_password user
 create user wl7699_sha256 identified with 'sha256_password';
 grant usage on *.* to wl7699_sha256 identified by 'abcd';
+Warnings:
+Warning	1287	Using GRANT statement to modify existing user's properties other than privileges is deprecated and will be removed in future release. Use ALTER USER statement for this operation.
 # Should not be able to connect to server using generated SSL certificates.
 # Should be able to connect to server using RSA key pair.
 current_user()

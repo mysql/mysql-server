@@ -4283,8 +4283,8 @@ Determines if the primary key is clustered index.
 @return true */
 
 bool
-ha_innobase::primary_key_is_clustered()
-/*===================================*/
+ha_innobase::primary_key_is_clustered() const
+/*=========================================*/
 {
 	return(true);
 }
@@ -14770,6 +14770,20 @@ innodb_buffer_pool_size_update(
 		return;
 	}
 
+#ifdef UNIV_DEBUG
+	if (buf_disable_resize_buffer_pool_debug == TRUE) {
+		push_warning_printf(thd, Sql_condition::SL_WARNING,
+			ER_WRONG_ARGUMENTS,
+			"Cannot update innodb_buffer_pool_size,"
+			" because innodb_disable_resize_buffer_pool_debug"
+			" is set.");
+		ib::warn() << "Cannot update innodb_buffer_pool_size,"
+			" because innodb_disable_resize_buffer_pool_debug"
+			" is set.";
+		return;
+	}
+#endif /* UNIV_DEBUG */
+
 	buf_pool_mutex_enter_all();
 	if (srv_buf_pool_old_size != srv_buf_pool_size) {
 		buf_pool_mutex_exit_all();
@@ -17103,6 +17117,11 @@ static MYSQL_SYSVAR_ULONG(saved_page_number_debug,
   srv_saved_page_number_debug, PLUGIN_VAR_OPCMDARG,
   "An InnoDB page number.",
   NULL, innodb_save_page_no, 0, 0, UINT_MAX32, 0);
+
+static MYSQL_SYSVAR_BOOL(disable_resize_buffer_pool_debug,
+  buf_disable_resize_buffer_pool_debug, PLUGIN_VAR_NOCMDARG,
+  "Disable resizing buffer pool to make assertion code not expensive.",
+  NULL, NULL, TRUE);
 #endif /* UNIV_DEBUG */
 
 static struct st_mysql_sys_var* innobase_system_variables[]= {
@@ -17259,6 +17278,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(trx_purge_view_update_only_debug),
   MYSQL_SYSVAR(fil_make_page_dirty_debug),
   MYSQL_SYSVAR(saved_page_number_debug),
+  MYSQL_SYSVAR(disable_resize_buffer_pool_debug),
 #endif /* UNIV_DEBUG */
   NULL
 };

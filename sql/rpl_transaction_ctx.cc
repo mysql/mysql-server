@@ -13,9 +13,13 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "my_dbug.h"                  /* DBUG_ENTER */
-#include "sql_parse.h"                /* Global_THD_manager, Find_thd_with_id */
 #include "rpl_transaction_ctx.h"
+
+#include "mysqld_thd_manager.h" // Global_THD_manager
+#include "rpl_gtid.h"           // rpl_sidno
+#include "sql_class.h"          // THD
+#include "sql_parse.h"          // Find_thd_with_id
+
 
 Rpl_transaction_ctx::Rpl_transaction_ctx()
 {

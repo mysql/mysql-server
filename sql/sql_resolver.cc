@@ -504,7 +504,6 @@ bool subquery_allows_materialization(Item_in_subselect *predicate,
                                      SELECT_LEX *select_lex,
                                      const SELECT_LEX *outer)
 {
-  bool has_nullables= false;
   const uint elements= predicate->unit->first_select()->item_list.elements;
   DBUG_ENTER("subquery_allows_materialization");
   DBUG_ASSERT(elements >= 1);
@@ -568,8 +567,10 @@ bool subquery_allows_materialization(Item_in_subselect *predicate,
       description of restrictions we need to put on the compared expressions.
     */
     DBUG_ASSERT(predicate->left_expr->fixed);
-    List_iterator<Item> it(predicate->unit->first_select()->item_list);
+    // @see comment in Item_subselect::element_index()
+    bool has_nullables= predicate->left_expr->maybe_null;
 
+    List_iterator<Item> it(predicate->unit->first_select()->item_list);
     for (uint i= 0; i < elements; i++)
     {
       Item * const inner= it++;
@@ -584,7 +585,7 @@ bool subquery_allows_materialization(Item_in_subselect *predicate,
         cause= "inner blob";
         break;
       }
-      has_nullables|= outer->maybe_null | inner->maybe_null;
+      has_nullables|= inner->maybe_null;
     }
 
     if (!cause)

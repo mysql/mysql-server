@@ -12,8 +12,7 @@ CREATE TABLE IF NOT EXISTS query_rewrite.rewrite_rules (
 ) DEFAULT CHARSET = utf8 ENGINE = INNODB;
 
 eval INSTALL PLUGIN rewriter SONAME '$REWRITER';
-eval CREATE FUNCTION load_rewrite_rules RETURNS STRING
-SONAME '$REWRITER';
+eval CREATE FUNCTION load_rewrite_rules RETURNS STRING SONAME '$REWRITER';
 
 DELIMITER //;
 
@@ -22,10 +21,10 @@ BEGIN
   DECLARE message_text VARCHAR(100);
   COMMIT;
   SELECT load_rewrite_rules() INTO message_text;
+  RESET QUERY CACHE;
   IF NOT message_text IS NULL THEN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = message_text;
   END IF;
-  RESET QUERY CACHE;
 END //
 
 DELIMITER ;//
