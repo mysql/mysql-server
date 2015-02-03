@@ -701,3 +701,15 @@ DELETE  FROM OUTR1.* USING t1 AS OUTR1
 WHERE OUTR1.a < ( SELECT t3.c  from t3 where 1 XOR OUTR2.b IS NOT NULL);
 
 DROP TABLE t1,t2,t3;
+
+--echo #
+--echo # Bug#20460208: !table || (!table->read_set || bitmap_is_set)
+--echo #
+
+CREATE TABLE t1(a INTEGER) engine=innodb;
+CREATE TABLE t2(a BLOB) engine=innodb;
+--error ER_BAD_FIELD_ERROR
+INSERT INTO t1 SET z=1;
+INSERT INTO t2 VALUES('a');
+DELETE FROM t2 WHERE 1 = a;
+DROP TABLE t1, t2;
