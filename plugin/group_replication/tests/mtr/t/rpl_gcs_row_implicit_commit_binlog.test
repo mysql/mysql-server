@@ -102,7 +102,7 @@ while ($ddl_cases >= 1)
   }
   if ($ddl_cases == 21)
   {
-    --let $cmd= SET PASSWORD FOR 'user'@'localhost' = PASSWORD('newpass')
+    --let $cmd= SET PASSWORD FOR 'user'@'localhost' = 'newpass'
   }
   if ($ddl_cases == 20)
   {
