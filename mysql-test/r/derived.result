@@ -2010,3 +2010,197 @@ a	b	c
 SET @@SESSION.optimizer_switch= @save_optimizer_switch;
 DROP TABLE t2, t1;
 # End of test for Bug #17814492
+#
+# Bug #18607971 : 5.5 TO 5.6 REGRESSION WITH A SUBQUERY IN THE FROM
+#                 CLAUSE.
+#
+CREATE TABLE t(id INT PRIMARY KEY,
+c1 INT, c2 INT, key(c2)) engine=InnoDB;
+INSERT INTO t(id, c1, c2) VALUES(1, 2, 3), (2, 3, 4), (3, 3, 4), (4, 3, 4);
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+EXPLAIN SELECT * FROM
+(SELECT t1.c1
+FROM t t1 INNER JOIN t t2 ON t1.c1= 3
+GROUP BY t1.c1) a, t b
+WHERE b.id BETWEEN 1 AND 10;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	1	NULL
+1	PRIMARY	b	range	PRIMARY	PRIMARY	4	NULL	4	Using where
+2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	4	Using where
+2	DERIVED	t2	index	NULL	c2	5	NULL	4	Using index; Using join buffer (Block Nested Loop)
+EXPLAIN SELECT * FROM
+(SELECT t1.id
+FROM t t1 INNER JOIN t t2 ON t1.id=1 AND t1.c1=t2.id
+GROUP BY t1.id, t2.c2) a, t b
+WHERE b.id BETWEEN 1 AND 10;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	1	NULL
+1	PRIMARY	b	range	PRIMARY	PRIMARY	4	NULL	4	Using where
+2	DERIVED	t1	const	PRIMARY	PRIMARY	4	const	1	NULL
+2	DERIVED	t2	const	PRIMARY	PRIMARY	4	const	1	NULL
+EXPLAIN SELECT * FROM
+(SELECT t1.c1
+FROM t t1 INNER JOIN t t2 ON t1.c1= 3 AND t2.c2= 3
+GROUP BY t1.c1) a, t b
+WHERE b.id BETWEEN 1 AND 10;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	1	NULL
+1	PRIMARY	b	range	PRIMARY	PRIMARY	4	NULL	4	Using where
+2	DERIVED	t2	ref	c2	c2	5	const	1	Using index
+2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	4	Using where; Using join buffer (Block Nested Loop)
+EXPLAIN SELECT * FROM
+(SELECT t1.c1
+FROM t t1 INNER JOIN t t2 ON t1.c1= 3 AND t2.c2= 3
+GROUP BY t1.c1, t2.c2) a, t b
+WHERE b.id BETWEEN 1 AND 10;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	1	NULL
+1	PRIMARY	b	range	PRIMARY	PRIMARY	4	NULL	4	Using where
+2	DERIVED	t2	ref	c2	c2	5	const	1	Using index
+2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	4	Using where; Using join buffer (Block Nested Loop)
+EXPLAIN SELECT * FROM
+(SELECT t1.c1
+FROM t t1 INNER JOIN t t2 ON t1.c1= 3 AND t2.c2= 3
+GROUP BY t1.c1, t1.id) a, t b
+WHERE b.id BETWEEN 1 AND 10;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	b	range	PRIMARY	PRIMARY	4	NULL	4	Using where
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	4	Using join buffer (Block Nested Loop)
+2	DERIVED	t2	ref	c2	c2	5	const	1	Using index; Using temporary; Using filesort
+2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	4	Using where; Using join buffer (Block Nested Loop)
+EXPLAIN SELECT * FROM
+(SELECT t1.id
+FROM t t1 INNER JOIN t t2 ON t1.id=1 AND t1.c1=t2.c1
+GROUP BY t2.c1, t1.id) a, t b
+WHERE b.id BETWEEN 1 AND 10;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	1	NULL
+1	PRIMARY	b	range	PRIMARY	PRIMARY	4	NULL	4	Using where
+2	DERIVED	t1	const	PRIMARY	PRIMARY	4	const	1	NULL
+2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	4	Using where
+EXPLAIN SELECT * FROM
+(SELECT t1.id
+FROM t t1 INNER JOIN t t2 ON t1.id=1 AND t1.c1=t2.id
+GROUP BY t2.c1, t1.id) a, t b
+WHERE b.id BETWEEN 1 AND 10;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	1	NULL
+1	PRIMARY	b	range	PRIMARY	PRIMARY	4	NULL	4	Using where
+2	DERIVED	t1	const	PRIMARY	PRIMARY	4	const	1	NULL
+2	DERIVED	t2	const	PRIMARY	PRIMARY	4	const	1	NULL
+EXPLAIN SELECT * FROM
+(SELECT t1.id
+FROM t t1 INNER JOIN t t2 ON t1.id=1 AND t1.c1=t2.id
+GROUP BY t2.c2, t1.id) a, t b
+WHERE b.id BETWEEN 1 AND 10;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	1	NULL
+1	PRIMARY	b	range	PRIMARY	PRIMARY	4	NULL	4	Using where
+2	DERIVED	t1	const	PRIMARY	PRIMARY	4	const	1	NULL
+2	DERIVED	t2	const	PRIMARY	PRIMARY	4	const	1	NULL
+EXPLAIN SELECT * FROM
+(SELECT t1.id
+FROM t t1 INNER JOIN t t2 ON t1.id=1 AND t1.c1=t2.id
+GROUP BY t1.id, t2.c2) a, t b
+WHERE b.id BETWEEN 1 AND 10;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	1	NULL
+1	PRIMARY	b	range	PRIMARY	PRIMARY	4	NULL	4	Using where
+2	DERIVED	t1	const	PRIMARY	PRIMARY	4	const	1	NULL
+2	DERIVED	t2	const	PRIMARY	PRIMARY	4	const	1	NULL
+EXPLAIN SELECT * FROM
+(SELECT t1.id
+FROM t t1 INNER JOIN t t2 INNER JOIN t t3 ON t1.id=1 AND t1.c1=t2.id AND t2.c1=t3.id
+GROUP BY t1.id, t2.c2, t3.c2) a, t b
+WHERE b.id BETWEEN 1 AND 10;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	1	NULL
+1	PRIMARY	b	range	PRIMARY	PRIMARY	4	NULL	4	Using where
+2	DERIVED	t1	const	PRIMARY	PRIMARY	4	const	1	NULL
+2	DERIVED	t2	const	PRIMARY	PRIMARY	4	const	1	NULL
+2	DERIVED	t3	const	PRIMARY	PRIMARY	4	const	1	NULL
+EXPLAIN SELECT * FROM
+(SELECT DISTINCT t1.id
+FROM t t1
+WHERE t1.id= 1) a, t b
+WHERE b.id BETWEEN 1 AND 10;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	1	NULL
+1	PRIMARY	b	range	PRIMARY	PRIMARY	4	NULL	4	Using where
+2	DERIVED	t1	const	PRIMARY	PRIMARY	4	const	1	Using index
+EXPLAIN SELECT * FROM
+(SELECT t1.id + 1
+FROM t t1 INNER JOIN t t2 ON t1.id= 1
+GROUP BY t1.id + 1) a, t b
+WHERE b.id BETWEEN 1 AND 10;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	1	NULL
+1	PRIMARY	b	range	PRIMARY	PRIMARY	4	NULL	4	Using where
+2	DERIVED	t1	const	PRIMARY	PRIMARY	4	const	1	Using index
+2	DERIVED	t2	index	NULL	c2	5	NULL	4	Using index
+EXPLAIN SELECT * FROM
+(SELECT t1.c1
+FROM t t1 INNER JOIN t t2 ON t1.c1= 3
+GROUP BY 1.5) a, t b
+WHERE b.id BETWEEN 1 AND 10;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	1	NULL
+1	PRIMARY	b	range	PRIMARY	PRIMARY	4	NULL	4	Using where
+2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	4	Using where
+2	DERIVED	t2	index	NULL	c2	5	NULL	4	Using index; Using join buffer (Block Nested Loop)
+EXPLAIN SELECT * FROM
+(SELECT t1.id
+FROM t t1 INNER JOIN t t2 ON mod(t1.id,1000)= 1
+GROUP BY t1.id) a, t b
+WHERE b.id BETWEEN 1 AND 10;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	b	range	PRIMARY	PRIMARY	4	NULL	4	Using where
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	16	Using join buffer (Block Nested Loop)
+2	DERIVED	t1	index	PRIMARY,c2	c2	5	NULL	4	Using where; Using index; Using temporary; Using filesort
+2	DERIVED	t2	index	NULL	c2	5	NULL	4	Using index; Using join buffer (Block Nested Loop)
+EXPLAIN SELECT * FROM
+(SELECT t1.id + 1
+FROM t t1 INNER JOIN t t2 ON t1.id + 1= 2
+GROUP BY t1.id + 1) a, t b
+WHERE b.id BETWEEN 1 AND 10;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	1	NULL
+1	PRIMARY	b	range	PRIMARY	PRIMARY	4	NULL	4	Using where
+2	DERIVED	t1	index	PRIMARY,c2	c2	5	NULL	4	Using where; Using index
+2	DERIVED	t2	index	NULL	c2	5	NULL	4	Using index; Using join buffer (Block Nested Loop)
+CREATE VIEW v1 AS SELECT c1 a FROM t WHERE c1 = 3;
+CREATE VIEW v2 AS SELECT c2 b FROM t WHERE c2 > 3;
+EXPLAIN SELECT * FROM (SELECT v1.a
+FROM v1 LEFT OUTER JOIN v2 ON v1.a = v2.b
+GROUP BY v1.a) p, t q
+WHERE q.id BETWEEN 1 AND 10;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	1	NULL
+1	PRIMARY	q	range	PRIMARY	PRIMARY	4	NULL	4	Using where
+2	DERIVED	t	ALL	NULL	NULL	NULL	NULL	4	Using where
+2	DERIVED	t	ref	c2	c2	5	const	1	Using where; Using index
+DROP VIEW v1;
+CREATE VIEW v1 AS SELECT c1 a FROM t;
+EXPLAIN SELECT * FROM (SELECT v1.a
+FROM v1 LEFT OUTER JOIN v2 ON v1.a = v2.b AND v1.a = 10
+GROUP BY v1.a) p, t q
+WHERE q.id BETWEEN 1 AND 10;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	q	range	PRIMARY	PRIMARY	4	NULL	4	Using where
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	4	Using join buffer (Block Nested Loop)
+2	DERIVED	t	ALL	NULL	NULL	NULL	NULL	4	Using temporary; Using filesort
+2	DERIVED	t	ref	c2	c2	5	func	1	Using where; Using index
+EXPLAIN SELECT * FROM (SELECT v1.a
+FROM v1 LEFT OUTER JOIN v2 ON v1.a = v2.b
+WHERE v1.a = 3
+GROUP BY v1.a) p, t q
+WHERE q.id BETWEEN 1 AND 10;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	1	NULL
+1	PRIMARY	q	range	PRIMARY	PRIMARY	4	NULL	4	Using where
+2	DERIVED	t	ALL	NULL	NULL	NULL	NULL	4	Using where
+2	DERIVED	t	ref	c2	c2	5	const	1	Using where; Using index
+DROP VIEW v1, v2;
+DROP TABLE t;

@@ -4360,11 +4360,15 @@ err_exit:
 rename_foreign:
 	trx->op_info = "renaming column in SYS_FOREIGN_COLS";
 
+	std::list<dict_foreign_t*>	fk_evict;
+	bool		foreign_modified;
+
 	for (dict_foreign_set::iterator it = user_table->foreign_set.begin();
 	     it != user_table->foreign_set.end();
 	     ++it) {
 
 		dict_foreign_t*	foreign = *it;
+		foreign_modified = false;
 
 		for (unsigned i = 0; i < foreign->n_fields; i++) {
 			if (strcmp(foreign->foreign_col_names[i], from)) {
@@ -4392,6 +4396,11 @@ rename_foreign:
 			if (error != DB_SUCCESS) {
 				goto err_exit;
 			}
+			foreign_modified = true;
+		}
+
+		if (foreign_modified) {
+			fk_evict.push_back(foreign);
 		}
 	}
 
@@ -4400,7 +4409,9 @@ rename_foreign:
 	     it != user_table->referenced_set.end();
 	     ++it) {
 
+		foreign_modified = false;
 		dict_foreign_t*	foreign = *it;
+
 		for (unsigned i = 0; i < foreign->n_fields; i++) {
 			if (strcmp(foreign->referenced_col_names[i], from)) {
 				continue;
@@ -4427,7 +4438,17 @@ rename_foreign:
 			if (error != DB_SUCCESS) {
 				goto err_exit;
 			}
+			foreign_modified = true;
 		}
+
+		if (foreign_modified) {
+			fk_evict.push_back(foreign);
+		}
+	}
+
+	if (new_clustered) {
+		std::for_each(fk_evict.begin(), fk_evict.end(),
+			      dict_foreign_remove_from_cache);
 	}
 
 	trx->op_info = "";

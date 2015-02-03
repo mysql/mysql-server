@@ -329,4 +329,11 @@ struct fts_ast_state_t {
 						tokenization */
 };
 
+#ifdef UNIV_DEBUG
+const char*
+fts_ast_oper_name_get(fts_ast_oper_t	oper);
+const char*
+fts_ast_node_type_get(fts_ast_type_t	type);
+#endif /* UNIV_DEBUG */
+
 #endif /* INNOBASE_FSTS0AST_H */
