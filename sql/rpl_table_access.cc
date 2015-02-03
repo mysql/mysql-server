@@ -15,8 +15,15 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
    02110-1301 USA */
 
-#include "log.h"
 #include "rpl_table_access.h"
+
+#include "handler.h"     // ha_rollback_trans
+#include "log.h"         // sql_print_warning
+#include "sql_base.h"    // close_thread_tables
+#include "sql_class.h"   // THD
+#include "sql_lex.h"     // Query_tables_list
+#include "table.h"       // TABLE_LIST
+
 
 bool System_table_access::open_table(THD* thd, const LEX_STRING dbstr,
                                      const LEX_STRING tbstr,

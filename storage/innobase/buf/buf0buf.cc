@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -308,6 +308,9 @@ static buf_pool_chunk_map_t*	buf_chunk_map_ref = NULL;
 /** Protect reference for buf_chunk_map_ref from deleting map,
 because the reference can be caused by debug assertion code. */
 static rw_lock_t	buf_chunk_map_latch;
+
+/** Disable resizing buffer pool to make assertion code not expensive. */
+my_bool			buf_disable_resize_buffer_pool_debug = TRUE;
 #endif /* UNIV_DEBUG */
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
@@ -3267,7 +3270,7 @@ buf_page_set_file_page_was_freed(
 		mutex_enter(block_mutex);
 		rw_lock_s_unlock(hash_lock);
 		/* bpage->file_page_was_freed can already hold
-		when this code is invoked from dict_drop_index_tree_step() */
+		when this code is invoked from dict_drop_index_tree() */
 		bpage->file_page_was_freed = TRUE;
 		mutex_exit(block_mutex);
 	}
@@ -3580,7 +3583,10 @@ buf_block_align(
 	ulint	counter = 0;
 retry:
 #ifdef UNIV_DEBUG
-	rw_lock_s_lock(&buf_chunk_map_latch);
+	bool resize_disabled = (buf_disable_resize_buffer_pool_debug != FALSE);
+	if (!resize_disabled) {
+		rw_lock_s_lock(&buf_chunk_map_latch);
+	}
 #endif /* UNIV_DEBUG */
 	buf_pool_chunk_map_t*	chunk_map = buf_chunk_map_ref;
 
@@ -3593,7 +3599,9 @@ retry:
 
 	if (it == chunk_map->end()) {
 #ifdef UNIV_DEBUG
-		rw_lock_s_unlock(&buf_chunk_map_latch);
+		if (!resize_disabled) {
+			rw_lock_s_unlock(&buf_chunk_map_latch);
+		}
 #endif /* UNIV_DEBUG */
 		/* The block should always be found. */
 		++counter;
@@ -3604,7 +3612,9 @@ retry:
 
 	buf_chunk_t*	chunk = it->second;
 #ifdef UNIV_DEBUG
-	rw_lock_s_unlock(&buf_chunk_map_latch);
+	if (!resize_disabled) {
+		rw_lock_s_unlock(&buf_chunk_map_latch);
+	}
 #endif /* UNIV_DEBUG */
 
 	ulint		offs = ptr - chunk->blocks->frame;

@@ -28,20 +28,29 @@
 #ifndef _log_event_h
 #define _log_event_h
 
-#include <my_bitmap.h>
-#include "rpl_constants.h"
-/* These two header files are necessary for the List manipuation */
-#include "sql_list.h"                           /* I_List */
-#include "hash.h"
-#include "table_id.h"
-#include <set>
+#include "my_global.h"
+#include "my_bitmap.h"               // MY_BITMAP
+#include "binary_log.h"              // binary_log
+#include "rpl_utility.h"             // Hash_slave_rows
+
+#ifdef MYSQL_SERVER
+#include "rpl_filter.h"              // rpl_filter
+#include "rpl_record.h"              // unpack_row
+#include "sql_class.h"               // THD
+#endif
 
 #ifdef MYSQL_CLIENT
-#include "sql_const.h"
-#include "rpl_utility.h"
-#include "hash.h"
-#include "rpl_tblmap.h"
+#include "rpl_tblmap.h"              // table_mapping
+#include "sql_const.h"               // MAX_TIME_ZONE_NAME_LENGTH
+#include "sql_list.h"                // I_List
+#endif
 
+#include <list>
+#include <map>
+#include <set>
+#include <string>
+
+#ifdef MYSQL_CLIENT
 /*
   Variable to suppress the USE <DATABASE> command when using the
   new mysqlbinlog option
@@ -49,17 +58,6 @@
 bool option_rewrite_set= FALSE;
 extern I_List<i_string_pair> binlog_rewrite_db;
 #endif
-
-#ifdef MYSQL_SERVER
-#include "rpl_record.h"
-#include "rpl_reporting.h"
-#include "sql_class.h"                          /* THD */
-#include "rpl_utility.h"                        /* Hash_slave_rows */
-#include "rpl_filter.h"
-#include "key.h"                                /* key_copy, compare_keys */
-#endif
-
-#include "binary_log.h"
 
 extern PSI_memory_key key_memory_Incident_log_event_message;
 extern PSI_memory_key key_memory_Rows_query_log_event_rows_query;
@@ -72,10 +70,11 @@ using binary_log::Log_event_footer;
 using binary_log::Binary_log_event;
 using binary_log::Format_description_event;
 
+class Slave_reporting_capability;
 class String;
 typedef ulonglong sql_mode_t;
 typedef struct st_db_worker_hash_entry db_worker_hash_entry;
-extern char server_version[SERVER_VERSION_LENGTH];
+extern "C" MYSQL_PLUGIN_IMPORT char server_version[SERVER_VERSION_LENGTH];
 #define PREFIX_SQL_LOAD "SQL_LOAD-"
 
 /**
@@ -178,7 +177,6 @@ struct sql_ex_info
 #define SL_MASTER_PORT_OFFSET   8
 #define SL_MASTER_POS_OFFSET    0
 #define SL_MASTER_HOST_OFFSET   10
-
 
 /* Intvar event post-header */
 
@@ -559,6 +557,40 @@ protected:
   };
 
   bool is_valid_param;
+  /**
+    Writes the common header of this event to the given memory buffer.
+
+    This does not update the checksum.
+
+    @note This has the following form:
+
+    +---------+---------+---------+------------+-----------+-------+
+    |timestamp|type code|server_id|event_length|end_log_pos|flags  |
+    |4 bytes  |1 byte   |4 bytes  |4 bytes     |4 bytes    |2 bytes|
+    +---------+---------+---------+------------+-----------+-------+
+
+    @param buf Memory buffer to write to. This must be at least
+    LOG_EVENT_HEADER_LEN bytes long.
+
+    @return The number of bytes written, i.e., always
+    LOG_EVENT_HEADER_LEN.
+  */
+  uint32 write_header_to_memory(uchar *buf);
+  /**
+    Writes the common-header of this event to the given IO_CACHE and
+    updates the checksum.
+
+    @param file The event will be written to this IO_CACHE.
+
+    @param data_length The length of the post-header section plus the
+    length of the data section; i.e., the length of the event minus
+    the common-header and the checksum.
+  */
+  bool write_header(IO_CACHE* file, size_t data_length);
+  bool write_footer(IO_CACHE* file);
+  my_bool need_checksum();
+
+
 public:
   /*
      A temp buffer for read_log_event; it is later analysed according to the
@@ -775,11 +807,7 @@ public:
                     bool is_more);
 #endif // ifdef MYSQL_SERVER ... else
 
-  static void *operator new(size_t size)
-  {
-    return (void*) my_malloc(key_memory_log_event,
-                             (uint)size, MYF(MY_WME|MY_FAE));
-  }
+  void *operator new(size_t size);
 
   static void operator delete(void *ptr, size_t)
   {
@@ -789,13 +817,20 @@ public:
   /* Placement version of the above operators */
   static void *operator new(size_t, void* ptr) { return ptr; }
   static void operator delete(void*, void*) { }
+  /**
+    Write the given buffer to the given IO_CACHE, updating the
+    checksum if checksums are enabled.
+
+    @param file The IO_CACHE to write to.
+    @param buf The buffer to write.
+    @param data_length The number of bytes to write.
+
+    @retval false Success.
+    @retval true Error.
+  */
   bool wrapper_my_b_safe_write(IO_CACHE* file, const uchar* buf, size_t data_length);
 
 #ifdef MYSQL_SERVER
-  bool write_header(IO_CACHE* file, size_t data_length);
-  bool write_footer(IO_CACHE* file);
-  my_bool need_checksum();
-
   virtual bool write(IO_CACHE* file)
   {
     return(write_header(file, get_data_size()) ||
@@ -1120,13 +1155,13 @@ public:
      @return TRUE  if the event starts a group (transaction)
              FASE  otherwise
   */
-  virtual bool starts_group() { return FALSE; }
+  virtual bool starts_group() { return false; }
 
   /**
      @return TRUE  if the event ends a group (transaction)
              FASE  otherwise
   */
-  virtual bool ends_group()   { return FALSE; }
+  virtual bool ends_group()   { return false; }
 
   /**
      Apply the event to the database.
@@ -1893,7 +1928,7 @@ class Xid_log_event: public binary_log::Xid_event, public Log_event
 #ifdef MYSQL_SERVER
   bool write(IO_CACHE* file);
 #endif
-  virtual bool ends_group() { return TRUE; }
+  virtual bool ends_group() { return true; }
 private:
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
   virtual int do_apply_event(Relay_log_info const *rli);
@@ -3718,12 +3753,9 @@ extern TYPELIB binlog_checksum_typelib;
 /**
   @class Gtid_log_event
 
-  This is the subclass if Gtid_event and Log_event
-  Each transaction has a coordinate in the form of a pair:
-  GTID = (SID, GNO)
-  GTID stands for Global Transaction IDentifier,
-       SID for Source Identifier, and
-       GNO for Group Number.
+  This is a subclass if Gtid_event and Log_event.  It contains
+  per-transaction fields, including the GTID and logical timestamps
+  used by MTS.
 
   @internal
   The inheritance structure is as follows
@@ -3747,11 +3779,18 @@ class Gtid_log_event : public binary_log::Gtid_event, public Log_event
 public:
 #ifndef MYSQL_CLIENT
   /**
-    Create a new event using the GTID from the given Gtid_specification,
-    or from @@SESSION.GTID_NEXT if spec==NULL.
+    Create a new event using the GTID owned by the given thread.
   */
   Gtid_log_event(THD *thd_arg, bool using_trans,
-                 const Gtid_specification *spec= NULL);
+                 int64 last_committed_arg, int64 sequence_number_arg);
+
+  /**
+    Create a new event using the GTID from the given Gtid_specification
+    without a THD object.
+  */
+  Gtid_log_event(uint32 server_id_arg, bool using_trans,
+                 int64 last_committed_arg, int64 sequence_number_arg,
+                 const Gtid_specification spec_arg);
 #endif
 
 #ifndef MYSQL_CLIENT
@@ -3768,17 +3807,58 @@ private:
   /// Used internally by both print() and pack_info().
   size_t to_string(char *buf) const;
 
+#ifdef MYSQL_SERVER
+  /**
+    Writes the post-header to the given IO_CACHE file.
+
+    This is an auxiliary function typically used by the write() member
+    function.
+
+    @param file The file to write to.
+
+    @retval true Error.
+    @retval false Success.
+  */
+  bool write_data_header(IO_CACHE *file);
+  /**
+    Writes the post-header to the given memory buffer.
+
+    This is an auxiliary function used by write_to_memory.
+
+    @param buffer Buffer to which the post-header will be written.
+
+    @return The number of bytes written, i.e., always
+    Gtid_log_event::POST_HEADER_LENGTH.
+  */
+  uint32 write_data_header_to_memory(uchar *buffer);
+#endif
+
 public:
 #ifdef MYSQL_CLIENT
   void print(FILE *file, PRINT_EVENT_INFO *print_event_info);
 #endif
 #ifdef MYSQL_SERVER
-  bool write_data_header(IO_CACHE *file);
+  /**
+    Writes this event to a memory buffer.
+
+    @param buf The event will be written to this buffer.
+
+    @return the number of bytes written, i.e., always
+    LOG_EVENT_HEADER_LEN + Gtid_log_event::POST_HEADEr_LENGTH.
+  */
+  uint32 write_to_memory(uchar *buf)
+  {
+    common_header->data_written= LOG_EVENT_HEADER_LEN + get_data_size();
+    uint32 len= write_header_to_memory(buf);
+    len+= write_data_header_to_memory(buf + len);
+    return len;
+  }
 #endif
 
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
   int do_apply_event(Relay_log_info const *rli);
   int do_update_pos(Relay_log_info *rli);
+  enum_skip_reason do_shall_skip(Relay_log_info *rli);
 #endif
 
   /**
@@ -3829,7 +3909,7 @@ public:
 
     @param sid_map The sid_map to use.
     @retval SIDNO if successful.
-    @negative if adding SID to sid_map causes an error.
+    @retval negative if adding SID to sid_map causes an error.
   */
   rpl_sidno get_sidno(Sid_map *sid_map)
   {
@@ -3837,8 +3917,6 @@ public:
   }
   /// Return the GNO for this GTID.
   rpl_gno get_gno() const { return spec.gtid.gno; }
-  /// Return true if this is the last group of the transaction, else false.
-  bool get_commit_flag() const { return commit_flag; }
 
   /// string holding the text "SET @@GLOBAL.GTID_NEXT = '"
   static const char *SET_STRING_PREFIX;
@@ -3908,14 +3986,25 @@ public:
 #ifdef MYSQL_SERVER
   bool write(IO_CACHE* file)
   {
-    if (DBUG_EVALUATE_IF("skip_writing_previous_gtids_log_event", 1, 0))
+    if (DBUG_EVALUATE_IF("skip_writing_previous_gtids_log_event", 1, 0) &&
+        /*
+          The skip_writing_previous_gtids_log_event debug point was designed
+          for skipping the writing of the previous_gtids_log_event on binlog
+          files only.
+        */
+        !is_relay_log_event())
     {
       DBUG_PRINT("info", ("skip writing Previous_gtids_log_event because of"
                           "debug option 'skip_writing_previous_gtids_log_event'"));
       return false;
     }
 
-    if (DBUG_EVALUATE_IF("write_partial_previous_gtids_log_event", 1, 0))
+    if (DBUG_EVALUATE_IF("write_partial_previous_gtids_log_event", 1, 0) &&
+        /*
+          The write_partial_previous_gtids_log_event debug point was designed
+          for writing a partial previous_gtids_log_event on binlog files only.
+        */
+        !is_relay_log_event())
     {
       DBUG_PRINT("info", ("writing partial Previous_gtids_log_event because of"
                           "debug option 'write_partial_previous_gtids_log_event'"));
@@ -3959,6 +4048,233 @@ public:
   int do_apply_event(Relay_log_info const *rli) { return 0; }
   int do_update_pos(Relay_log_info *rli);
 #endif
+};
+
+
+/**
+  @class Transaction_context_log_event
+
+  This is the subclass of Transaction_context_event and Log_event
+  This class encodes the transaction_context_log_event.
+
+  @internal
+  The inheritance structure is as follows
+
+        Binary_log_event
+               ^
+               |
+               |
+B_l:Transaction_context_event   Log_event
+                \                    /
+                 \                  /
+                  \                /
+                   \              /
+            Transaction_context_log_event
+
+  B_l: Namespace Binary_log
+  @endinternal
+*/
+class Transaction_context_log_event : public binary_log::Transaction_context_event,
+                                      public Log_event
+{
+private:
+  /// The Sid_map to use for creating the Gtid_set.
+  Sid_map *sid_map;
+  /// A gtid_set which is used to store the transaction set used for
+  /// conflict detection.
+  Gtid_set *snapshot_version;
+
+#ifndef MYSQL_CLIENT
+  bool write_data_header(IO_CACHE* file);
+
+  bool write_data_body(IO_CACHE* file);
+
+  bool write_snapshot_version(IO_CACHE* file);
+
+  bool write_data_set(IO_CACHE* file, std::list<const char*> *set);
+#endif
+
+  bool read_snapshot_version();
+
+  size_t get_snapshot_version_size();
+
+  static int get_data_set_size(std::list<const char*> *set);
+
+  size_t to_string(char *buf, ulong len) const;
+
+public:
+
+#ifndef MYSQL_CLIENT
+  Transaction_context_log_event(const char *server_uuid_arg,
+                                bool using_trans,
+                                my_thread_id thread_id_arg,
+                                bool is_gtid_specified_arg);
+#endif
+
+  Transaction_context_log_event(const char *buffer,
+                                uint event_len,
+                                const Format_description_event *descr_event);
+
+  virtual ~Transaction_context_log_event();
+
+  size_t get_data_size();
+
+#ifndef MYSQL_CLIENT
+  int pack_info(Protocol *protocol);
+#endif
+
+#ifdef MYSQL_CLIENT
+  void print(FILE *file, PRINT_EVENT_INFO *print_event_info);
+#endif
+
+#if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
+  int do_apply_event(Relay_log_info const *rli) { return 0; }
+  int do_update_pos(Relay_log_info *rli);
+#endif
+
+  /**
+    Add a hash which identifies a inserted/updated/deleted row on the
+    ongoing transaction.
+
+    @param[in] hash  row identifier
+   */
+  void add_write_set(const char *hash);
+
+  /**
+    Return a pointer to write-set list.
+   */
+  std::list<const char*> *get_write_set() { return &write_set; }
+
+  /**
+    Add a hash which identifies a read row on the ongoing transaction.
+
+    @param[in] hash  row identifier
+   */
+  void add_read_set(const char *hash);
+
+  /**
+    Return a pointer to read-set list.
+   */
+  std::list<const char*> *get_read_set() { return &read_set; }
+
+  /**
+    Return the transaction snapshot timestamp.
+   */
+  Gtid_set *get_snapshot_version() { return snapshot_version; }
+
+  /**
+    Return the server uuid.
+   */
+  const char* get_server_uuid() { return server_uuid; }
+
+  /**
+    Return the id of the committing thread.
+   */
+  my_thread_id get_thread_id() { return thread_id; }
+
+  /**
+   Return true if transaction has GTID_NEXT specified, false otherwise.
+   */
+  bool is_gtid_specified() { return gtid_specified == TRUE; };
+};
+
+/**
+  @class View_change_log_event
+
+  This is the subclass of View_change_log_event and Log_event
+  This class created the view_change_log_event which is used as a marker in
+  case a new node joins or leaves the group.
+
+  @internal
+  The inheritance structure is as follows
+
+        Binary_log_event
+               ^
+               |
+               |
+B_l:   View_change_event      Log_event
+                \                /
+                 \              /
+                  \            /
+                   \          /
+              View_change_log_event
+
+  B_l: Namespace Binary_log
+  @endinternal
+*/
+
+class View_change_log_event: public binary_log::View_change_event,
+                             public Log_event
+{
+private:
+  size_t to_string(char *buf, ulong len) const;
+
+#ifndef MYSQL_CLIENT
+  bool write_data_header(IO_CACHE* file);
+
+  bool write_data_body(IO_CACHE* file);
+
+  bool write_data_map(IO_CACHE* file, std::map<std::string, std::string> *map);
+#endif
+
+  int get_size_data_map(std::map<std::string, std::string> *map);
+
+public:
+
+  View_change_log_event(char* view_id);
+
+  View_change_log_event(const char *buffer,
+                        uint event_len,
+                        const Format_description_event *descr_event);
+
+  virtual ~View_change_log_event();
+
+  size_t get_data_size();
+
+#ifndef MYSQL_CLIENT
+  int pack_info(Protocol *protocol);
+#endif
+
+#ifdef MYSQL_CLIENT
+  void print(FILE *file, PRINT_EVENT_INFO *print_event_info);
+#endif
+
+#if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
+  int do_apply_event(Relay_log_info const *rli);
+  int do_update_pos(Relay_log_info *rli);
+#endif
+
+  /**
+    Returns the view id.
+  */
+  char* get_view_id() { return view_id; }
+
+  /**
+    Sets the certification info
+
+    @param db the database
+  */
+  void set_certification_info(std::map<std::string, std::string> *info);
+
+  /**
+    Returns the certification info
+  */
+  std::map<std::string, std::string>* get_certification_info()
+  {
+    return &certification_info;
+  }
+
+  /**
+    Set the certification sequence number
+
+    @param number the sequence number
+  */
+  void set_seq_number(rpl_gno number) { seq_number= number; }
+
+  /**
+    Returns the certification sequence number
+  */
+  rpl_gno get_seq_number() { return seq_number; }
 };
 
 inline bool is_gtid_event(Log_event* evt)

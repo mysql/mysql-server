@@ -22,10 +22,12 @@
                                         /* check_for_max_user_connections */
                                         /* release_user_connection */
 #include "hostname.h"                   /* Host_errors, inc_host_errors */
+#include "password.h"                 // my_make_scrambled_password
 #include "sql_db.h"                     /* mysql_change_db */
 #include "connection_handler_manager.h"
 #include "crypt_genhash_impl.h"         /* generate_user_salt */
 #include <mysql/plugin_validate_password.h> /* validate_password plugin */
+#include <mysql/service_my_plugin_log.h>
 #include "sys_vars.h"
 #include <fstream>                      /* std::fstream */
 #include <string>                       /* std::string */
@@ -82,10 +84,6 @@ my_bool disconnect_on_expired_password= TRUE;
 #define AUTH_DEFAULT_RSA_PRIVATE_KEY "private_key.pem"
 #define AUTH_DEFAULT_RSA_PUBLIC_KEY "public_key.pem"
 
-#define DEFAULT_SSL_CA_CERT     "ca.pem"
-#define DEFAULT_SSL_CA_KEY      "ca-key.pem"
-#define DEFAULT_SSL_SERVER_CERT "server-cert.pem"
-#define DEFAULT_SSL_SERVER_KEY  "server-key.pem"
 #define DEFAULT_SSL_CLIENT_CERT "client-cert.pem"
 #define DEFAULT_SSL_CLIENT_KEY  "client-key.pem"
 
@@ -395,58 +393,6 @@ void optimize_plugin_compare_by_pointer(LEX_CSTRING *plugin_name)
       plugin_name->str= native_password_plugin_name.str;
       plugin_name->length= native_password_plugin_name.length;
   }
-}
-
-
-/*  
- PASSWORD_VALIDATION_CODE, invoking appropriate plugin to validate
- the password strength.
-*/
-
-/* for validate_password_strength SQL function */
-int check_password_strength(String *password)
-{
-  int res= 0;
-  DBUG_ASSERT(password != NULL);
-  plugin_ref plugin= my_plugin_lock_by_name(0, validate_password_plugin_name,
-                                            MYSQL_VALIDATE_PASSWORD_PLUGIN);
-  if (plugin)
-  {
-    st_mysql_validate_password *password_strength=
-                      (st_mysql_validate_password *) plugin_decl(plugin)->info;
-
-    res= password_strength->get_password_strength(password);
-    plugin_unlock(0, plugin);
-  }
-  return(res);
-}
-
-
-/* called when new user is created or exsisting password is changed */
-int check_password_policy(String *password)
-{
-  plugin_ref plugin;
-  String empty_string;
-
-  if (!password)
-    password= &empty_string;
-
-  plugin= my_plugin_lock_by_name(0, validate_password_plugin_name,
-                                 MYSQL_VALIDATE_PASSWORD_PLUGIN);
-  if (plugin)
-  {
-    st_mysql_validate_password *password_validate=
-                      (st_mysql_validate_password *) plugin_decl(plugin)->info;
-
-    if (!password_validate->validate_password(password))
-    {  
-      my_error(ER_NOT_VALID_PASSWORD, MYF(0));
-      plugin_unlock(0, plugin);
-      return (1);
-    }
-    plugin_unlock(0, plugin);
-  }
-  return (0);
 }
 
 
@@ -2421,6 +2367,116 @@ acl_authenticate(THD *thd, size_t com_change_user_pkt_len)
   DBUG_RETURN(0);
 }
 
+int generate_native_password(char *outbuf, unsigned int *buflen,
+                             const char *inbuf, unsigned int inbuflen)
+{
+  if (my_validate_password_policy(inbuf))
+    return 1;
+  /* for empty passwords */
+  if (inbuflen == 0)
+  {
+    *buflen= 0;
+    return 0;
+  }
+  char *buffer= (char*)my_malloc(PSI_NOT_INSTRUMENTED,
+                                 SCRAMBLED_PASSWORD_CHAR_LENGTH+1,
+                                 MYF(0));
+  if (buffer == NULL)
+    return 1;
+  my_make_scrambled_password_sha1(buffer, inbuf, inbuflen);
+  /*
+    if buffer specified by server is smaller than the buffer given
+    by plugin then return error
+  */
+  if (*buflen < strlen(buffer))
+  {
+    my_free(buffer);
+    return 1;
+  }
+  *buflen= SCRAMBLED_PASSWORD_CHAR_LENGTH;
+  memcpy(outbuf, buffer, *buflen);
+  my_free(buffer);
+  return 0;
+}
+
+int validate_native_password_hash(char* const inbuf, unsigned int buflen)
+{
+  /* empty password is also valid */
+  if ((buflen &&
+      buflen == SCRAMBLED_PASSWORD_CHAR_LENGTH && inbuf[0] == '*') ||
+      buflen == 0)
+    return 0;
+  return 1;
+}
+
+int set_native_salt(const char* password, unsigned int password_len,
+                    unsigned char* salt, unsigned char *salt_len)
+{
+  /* for empty passwords salt_len is 0 */
+  if (password_len == 0)
+    *salt_len= 0;
+  else
+  {
+    get_salt_from_password(salt, password);
+    *salt_len= SCRAMBLE_LENGTH;
+  }
+  return 0;
+}
+
+#if defined(HAVE_OPENSSL)
+int generate_sha256_password(char *outbuf, unsigned int *buflen,
+                             const char *inbuf, unsigned int inbuflen)
+{
+  if (my_validate_password_policy(inbuf))
+    return 1;
+  if (inbuflen == 0)
+  {
+    *buflen= 0;
+    return 0;
+  }
+  char *buffer= (char*)my_malloc(PSI_NOT_INSTRUMENTED,
+                                 CRYPT_MAX_PASSWORD_SIZE+1,
+                                 MYF(0));
+  if (buffer == NULL)
+    return 1;
+  my_make_scrambled_password(buffer, inbuf, inbuflen);
+  memcpy(outbuf, buffer, CRYPT_MAX_PASSWORD_SIZE);
+  /*
+    if buffer specified by server is smaller than the buffer given
+    by plugin then return error
+  */
+  if (*buflen < strlen(buffer))
+  {
+    my_free(buffer);
+    return 1;
+  }
+  *buflen= strlen(buffer);
+  my_free(buffer);
+  return 0;
+}
+
+int validate_sha256_password_hash(char* const inbuf, unsigned int buflen)
+{
+  if ((inbuf && inbuf[0] == '$' &&
+      inbuf[1] == '5' && inbuf[2] == '$' &&
+      buflen < CRYPT_MAX_PASSWORD_SIZE+1) ||
+      buflen == 0)
+    return 0;
+  return 1;
+}
+
+int set_sha256_salt(const char* password __attribute__((unused)),
+                    unsigned int password_len __attribute__((unused)),
+                    unsigned char* salt __attribute__((unused)),
+                    unsigned char *salt_len)
+{
+  *salt_len= 0;
+  return 0;
+}
+
+#endif
+
+
 /**
   MySQL Server Password Authentication Plugin
 
@@ -3595,40 +3651,33 @@ end:
   a> ssl-ca
   b> ssl-cert
   c> ssl-key
+
+  Assumption : auto_detect_ssl() is called before control reaches to
+  do_auto_cert_generation().
+
+  @param auto_detection_status [IN] Status of SSL artifacts detection process
+
+  @returns
+    @retval true i Generation is successful or skipped
+    @retval false Generation failed.
 */
-bool do_auto_cert_generation()
+bool do_auto_cert_generation(ssl_artifacts_status auto_detection_status)
 {
   if (opt_auto_generate_certs == true)
   {
-    MY_STAT cert_stat, cert_key, ca_stat;
     /*
       Do not generate SSL certificates/RSA keys,
-      If any of the SSL/RSA key option was given.
+      If any of the SSL option was specified.
     */
 
-    if ((opt_ssl_cert && opt_ssl_cert[0]) |
-        (opt_ssl_key && opt_ssl_key[0]) ||
-        (opt_ssl_ca && opt_ssl_ca[0]) ||
-        (opt_ssl_capath && opt_ssl_capath[0]) ||
-        (opt_ssl_crl && opt_ssl_crl[0]) ||
-        (opt_ssl_crlpath && opt_ssl_crlpath[0]) ||
-        (opt_ssl_cipher && opt_ssl_cipher[0]))
+    if (auto_detection_status == SSL_ARTIFACTS_VIA_OPTIONS)
     {
       sql_print_information("Skipping generation of SSL certificates "
                             "as options related to SSL are specified.");
       return true;
     }
-    else if (my_stat(DEFAULT_SSL_SERVER_CERT, &cert_stat, MYF(0)) ||
-             my_stat(DEFAULT_SSL_SERVER_KEY, &cert_key, MYF(0)) ||
-             my_stat(DEFAULT_SSL_CA_CERT, &ca_stat, MYF(0)))
+    else if(auto_detection_status == SSL_ARTIFACTS_AUTO_DETECTED)
     {
-      /*
-        We only care for ca certificate, server certificate and server key
-        files. Rest of the files will be overwritten if present.
-      */
-      opt_ssl_ca= (char *)DEFAULT_SSL_CA_CERT;
-      opt_ssl_cert= (char *)DEFAULT_SSL_SERVER_CERT;
-      opt_ssl_key= (char *)DEFAULT_SSL_SERVER_KEY;
       sql_print_information("Skipping generation of SSL certificates as "
                             "certificate files are present in data "
                             "directory.");
@@ -3636,6 +3685,7 @@ bool do_auto_cert_generation()
     }
     else
     {
+      DBUG_ASSERT(auto_detection_status == SSL_ARTIFACTS_NOT_FOUND);
       /* Initialize the key pair generator. It can also be used stand alone */
       RSA_gen rsa_gen;
       /*
@@ -3746,11 +3796,19 @@ static bool do_auto_rsa_keys_generation()
 #endif /* HAVE_YASSL */
 #endif /* HAVE_OPENSSL */
 
+bool MPVIO_EXT::can_authenticate()
+{
+  return (acl_user && acl_user->can_authenticate);
+}
+
 static struct st_mysql_auth native_password_handler=
 {
   MYSQL_AUTHENTICATION_INTERFACE_VERSION,
   native_password_plugin_name.str,
-  native_password_authenticate
+  native_password_authenticate,
+  generate_native_password,
+  validate_native_password_hash,
+  set_native_salt
 };
 
 #if defined(HAVE_OPENSSL)
@@ -3758,7 +3816,10 @@ static struct st_mysql_auth sha256_password_handler=
 {
   MYSQL_AUTHENTICATION_INTERFACE_VERSION,
   sha256_password_plugin_name.str,
-  sha256_password_authenticate
+  sha256_password_authenticate,
+  generate_sha256_password,
+  validate_sha256_password_hash,
+  set_sha256_salt
 };
 
 #endif /* HAVE_OPENSSL */
@@ -3773,7 +3834,7 @@ mysql_declare_plugin(mysql_password)
   PLUGIN_LICENSE_GPL,                           /* License          */
   NULL,                                         /* Init function    */
   NULL,                                         /* Deinit function  */
-  0x0100,                                       /* Version (1.0)    */
+  0x0101,                                       /* Version (1.0)    */
   NULL,                                         /* status variables */
   NULL,                                         /* system variables */
   NULL,                                         /* config options   */
@@ -3790,7 +3851,7 @@ mysql_declare_plugin(mysql_password)
   PLUGIN_LICENSE_GPL,                           /* License          */
   &init_sha256_password_handler,                /* Init function    */
   NULL,                                         /* Deinit function  */
-  0x0100,                                       /* Version (1.0)    */
+  0x0101,                                       /* Version (1.0)    */
   NULL,                                         /* status variables */
 #if !defined(HAVE_YASSL)
   sha256_password_sysvars,                      /* system variables */

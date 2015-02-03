@@ -1,10 +1,31 @@
-source include/master-slave.inc;
+# ==== Purpose ====
+#
+# Test that replication of transaction boundary statements (BEGIN,
+# COMMIT, and ROLLBACK) works with filters.
+#
+# The following properties are tested:
+#
+#  1. Transaction boundary statements should never be skipped, even if
+#     filtered out by the slave thread.  If they were skipped, a
+#     transaction where the BEGIN is filtered out and the DML is not
+#     filtered out could be executed as a sequence of autocommitted
+#     statements.
+#
+# ==== Implementation ====
+#
+# ==== References ====
+#
+# BUG#43263 BEGIN skipped in some replicate-do-db cases
+# BUG#50407 mysqlbinlog --database=X produces bad output for SAVEPOINTs
+# BUG#55798 Slave SQL retry on transaction inserts extra data into non-transaction table
+
 source include/have_innodb.inc;
 source include/have_myisam.inc;
 source include/have_binlog_format_statement.inc;
 source include/not_gtid_enabled.inc;
-# UNTIL is not supported yet (TODO: support and remove the guard)
+# UNTIL is not supported by MTS yet (TODO: support and remove the guard)
 -- source include/not_mts_slave_parallel_workers.inc
+source include/master-slave.inc;
 
 connection slave;
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
@@ -14,26 +35,20 @@ call mtr.add_suppression("Unsafe statement written to the binary log using state
 
 SET @@session.binlog_direct_non_transactional_updates= FALSE;
 
-disable_warnings;
-DROP DATABASE IF EXISTS db1;
-DROP DATABASE IF EXISTS db2;
-enable_warnings;
+CREATE DATABASE replicate_do_db;
+CREATE DATABASE binlog_ignore_db;
 
-CREATE DATABASE db1;
-CREATE DATABASE db2;
+USE replicate_do_db;
 
-use db1;
-
-CREATE TABLE db1.t1 (a INT) ENGINE=InnoDB;
-CREATE TABLE db1.t2 (s CHAR(255)) ENGINE=MyISAM;
+CREATE TABLE replicate_do_db.t1 (a INT) ENGINE=InnoDB;
+CREATE TABLE replicate_do_db.t2 (s CHAR(255)) ENGINE=MyISAM;
 
 --source include/sync_slave_sql_with_master.inc
 source include/stop_slave.inc;
-connection master;
-echo [on master];
+--source include/rpl_connection_master.inc
 
 DELIMITER //;
-CREATE PROCEDURE db1.p1 ()
+CREATE PROCEDURE replicate_do_db.p1 ()
 BEGIN
   INSERT INTO t1 VALUES (1);
   INSERT INTO t1 VALUES (2);
@@ -42,18 +57,18 @@ BEGIN
   INSERT INTO t1 VALUES (5);
 END//
 
-CREATE PROCEDURE db1.p2 ()
+CREATE PROCEDURE replicate_do_db.p2 ()
 BEGIN
   INSERT INTO t1 VALUES (6);
   INSERT INTO t1 VALUES (7);
   INSERT INTO t1 VALUES (8);
   INSERT INTO t1 VALUES (9);
   INSERT INTO t1 VALUES (10);
-  INSERT INTO t2 VALUES ('executed db1.p2()');
+  INSERT INTO t2 VALUES ('executed replicate_do_db.p2()');
 END//
 DELIMITER ;//
 
-INSERT INTO db1.t2 VALUES ('before call db1.p1()');
+INSERT INTO replicate_do_db.t2 VALUES ('before call replicate_do_db.p1()');
 
 # Note: the master_log_pos is set to be the position of the BEGIN + 1,
 # so before fix of BUG#43263 if the BEGIN is ignored, then all the
@@ -62,73 +77,76 @@ INSERT INTO db1.t2 VALUES ('before call db1.p1()');
 # BUG#43263, BEGIN will not be ignored by the replication db rules,
 # and then the whole transaction will be executed before slave SQL
 # stop.
-let $master_pos= query_get_value(SHOW MASTER STATUS, Position, 1);
-let $master_pos= `SELECT $master_pos + 1`;
+--let $master_pos= query_get_value(SHOW MASTER STATUS, Position, 1)
 
-use test;
+USE test;
 BEGIN;
-CALL db1.p1();
+CALL replicate_do_db.p1();
 COMMIT;
 
-# The position where the following START SLAVE UNTIL will stop at
+# $master_pos is the position after the Gtid/Anonymous event, just
+# before query_log_event(BEGIN).
+--let $master_pos= query_get_value(SHOW BINLOG EVENTS FROM $master_pos LIMIT 1, End_log_pos, 1)
+# $master_pos is one byte into the BEGIN event.
+# This means START SLAVE UNTIL should skip the entire transaction.
+--inc $master_pos
+
+# The position where the following START SLAVE UNTIL should stop at
 let $master_end_trans_pos= query_get_value(SHOW MASTER STATUS, Position, 1);
 
-INSERT INTO db1.t2 VALUES ('after call db1.p1()');
-SELECT * FROM db1.t1;
-SELECT * FROM db1.t2;
+INSERT INTO replicate_do_db.t2 VALUES ('after call replicate_do_db.p1()');
+SELECT * FROM replicate_do_db.t1;
+SELECT * FROM replicate_do_db.t2;
 
-connection slave;
-echo [on slave];
+--source include/rpl_connection_slave.inc
 
 replace_result $master_pos MASTER_POS;
-eval start slave until master_log_file='master-bin.000001', master_log_pos=$master_pos;
-source include/wait_for_slave_sql_to_stop.inc;
-let $slave_sql_stop_pos= query_get_value(SHOW SLAVE STATUS, Exec_Master_Log_Pos, 1);
-let $result= query_get_value(SELECT $slave_sql_stop_pos - $master_end_trans_pos as result, result, 1);
+eval START SLAVE UNTIL MASTER_LOG_FILE='master-bin.000001', MASTER_LOG_POS=$master_pos;
+--source include/wait_for_slave_sql_to_stop.inc
 
---echo #
---echo # If we got non-zero here, then we're suffering BUG#43263
---echo #
-eval SELECT $result as 'Must be 0';
-SELECT * from db1.t1;
-SELECT * from db1.t2;
+# Test BUG#43263
+--let $assert_cond= [SHOW SLAVE STATUS, Exec_Master_Log_Pos, 1] = $master_end_trans_pos
+--let $assert_text= Slave should have stopped after executing the stored procedure transaction
+--source include/assert.inc
 
-connection master;
-echo [on master];
+SELECT * from replicate_do_db.t1;
+SELECT * from replicate_do_db.t2;
 
-INSERT INTO db1.t2 VALUES ('before call db1.p2()');
+--source include/rpl_connection_master.inc
+
+INSERT INTO replicate_do_db.t2 VALUES ('before call replicate_do_db.p2()');
 
 # See comments above.
-let $master_pos= query_get_value(SHOW MASTER STATUS, Position, 1);
-let $master_pos= `SELECT $master_pos + 1`;
+--let $master_pos= query_get_value(SHOW MASTER STATUS, Position, 1)
 
 BEGIN;
-CALL db1.p2();
+CALL replicate_do_db.p2();
 disable_warnings;
 ROLLBACK;
 enable_warnings;
+
+--let $master_pos= query_get_value(SHOW BINLOG EVENTS FROM $master_pos LIMIT 1, End_log_pos, 1)
+--inc $master_pos
+
 let $master_end_trans_pos= query_get_value(SHOW MASTER STATUS, Position, 1);
 
-INSERT INTO db1.t2 VALUES ('after call db1.p2()');
-SELECT * FROM db1.t1;
-SELECT * FROM db1.t2;
+INSERT INTO replicate_do_db.t2 VALUES ('after call replicate_do_db.p2()');
+SELECT * FROM replicate_do_db.t1;
+SELECT * FROM replicate_do_db.t2;
 
-connection slave;
-echo [on slave];
+--source include/rpl_connection_slave.inc
 
-replace_result $master_pos MASTER_POS;
-eval start slave until master_log_file='master-bin.000001', master_log_pos=$master_pos;
+--replace_result $master_pos MASTER_POS
+eval START SLAVE UNTIL MASTER_LOG_FILE='master-bin.000001', MASTER_LOG_POS=$master_pos;
 source include/wait_for_slave_sql_to_stop.inc;
 
-let $slave_sql_stop_pos= query_get_value(SHOW SLAVE STATUS, Exec_Master_Log_Pos, 1);
-let $result= query_get_value(SELECT $slave_sql_stop_pos - $master_end_trans_pos as result, result, 1);
+# Test BUG#43263
+--let $assert_cond= [SHOW SLAVE STATUS, Exec_Master_Log_Pos, 1] = $master_end_trans_pos
+--let $assert_text= Slave should have stopped after executing the stored procedure transaction
+--source include/assert.inc
 
---echo #
---echo # If we got non-zero here, then we're suffering BUG#43263
---echo #
-eval SELECT $result as 'Must be 0';
-SELECT * from db1.t1;
-SELECT * from db1.t2;
+SELECT * from replicate_do_db.t1;
+SELECT * from replicate_do_db.t2;
 
 START SLAVE;
 source include/wait_for_slave_sql_to_start.inc;
@@ -136,32 +154,30 @@ source include/wait_for_slave_sql_to_start.inc;
 --echo #
 --echo # SAVEPOINT and ROLLBACK TO have the same problem in BUG#43263
 --echo # This was reported by BUG#50407
-connection master;
-echo [on master]
-SET SESSION AUTOCOMMIT=0;
+--source include/rpl_connection_master.inc
 let $binlog_start=query_get_value(SHOW MASTER STATUS, Position, 1);
 
 BEGIN;
-INSERT INTO db1.t1 VALUES(20);
+INSERT INTO replicate_do_db.t1 VALUES(20);
 
 --echo # 
 --echo # Verify whether this statement is binlogged correctly
 /*comment*/ SAVEPOINT has_comment;
-USE db1;
-INSERT INTO db1.t1 VALUES(30);
-INSERT INTO db1.t2 VALUES("in savepoint has_comment");
-USE db2;
+USE replicate_do_db;
+INSERT INTO replicate_do_db.t1 VALUES(30);
+INSERT INTO replicate_do_db.t2 VALUES("in savepoint has_comment");
+USE binlog_ignore_db;
 SavePoint mixed_cases;
-USE db1;
-INSERT INTO db1.t2 VALUES("in savepoint mixed_cases");
-INSERT INTO db1.t1 VALUES(40);
-USE db2;
+USE replicate_do_db;
+INSERT INTO replicate_do_db.t2 VALUES("in savepoint mixed_cases");
+INSERT INTO replicate_do_db.t1 VALUES(40);
+USE binlog_ignore_db;
 ROLLBACK TO mixed_cases;
 ROLLBACK TO has_comment;
-USE db1;
-INSERT INTO db1.t2 VALUES("after rollback to");
-INSERT INTO db1.t1 VALUES(50);
-USE db2;
+USE replicate_do_db;
+INSERT INTO replicate_do_db.t2 VALUES("after rollback to");
+INSERT INTO replicate_do_db.t1 VALUES(50);
+USE binlog_ignore_db;
 COMMIT;
 source include/show_binlog_events.inc;
 --source include/sync_slave_sql_with_master.inc
@@ -170,10 +186,10 @@ source include/show_binlog_events.inc;
 --echo #
 --echo # Verify INSERT statements in savepoints are executed, for MyISAM table
 --echo # is not effected by ROLLBACK TO
-SELECT * FROM db1.t2 WHERE s LIKE '% savepoint %';
+SELECT * FROM replicate_do_db.t2 WHERE s LIKE '% savepoint %';
 --echo #
 --echo # Verify INSERT statements on the Innodb table are rolled back;
-SELECT * FROM db1.t1 WHERE a IN (30, 40);
+SELECT * FROM replicate_do_db.t1 WHERE a IN (30, 40);
 
 --echo
 --echo # BUG#55798 Slave SQL retry on transaction inserts extra data into
@@ -183,9 +199,10 @@ SELECT * FROM db1.t1 WHERE a IN (30, 40);
 --echo # not be rolled back safely, even though only a temporary error is
 --echo # encountered.
 --echo
---echo # [ on master ]
-connection master;
-USE db1;
+
+--source include/rpl_connection_master.inc
+
+USE replicate_do_db;
 DROP TABLE t1, t2;
 CREATE TABLE t1(c1 INT KEY, c2 CHAR(100)) ENGINE=InnoDB;
 CREATE TABLE t2(c1 INT) ENGINE=MyISAM;
@@ -197,7 +214,7 @@ SET @@session.binlog_direct_non_transactional_updates= FALSE;
 --source include/sync_slave_sql_with_master.inc
 
 --echo # [ on slave ]
-USE db1;
+USE replicate_do_db;
 
 SET @timeout_old= @@GLOBAL.innodb_lock_wait_timeout;
 SET GLOBAL innodb_lock_wait_timeout= 1;
@@ -333,6 +350,6 @@ SET @@global.innodb_lock_wait_timeout= @timeout_old;
 --echo # Clean up
 --echo #
 connection master;
-DROP DATABASE db1;
-DROP DATABASE db2;
+DROP DATABASE replicate_do_db;
+DROP DATABASE binlog_ignore_db;
 --source include/rpl_end.inc

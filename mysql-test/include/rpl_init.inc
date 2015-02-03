@@ -10,6 +10,11 @@
 #  - Verifies that @@server_id of all servers are different.
 #  - Calls RESET MASTER, RESET SLAVE, USE test, CHANGE MASTER, START SLAVE.
 #  - Sets the connection to server_1 before exiting.
+#  - Sets the following mtr variables for convenience:
+#    $gtid_mode: the value of @@global.gtid_mode on server 1
+#    $gtid_mode_on: 1 if gtid_mode=on, 0 if gtid_mode=off
+#    $server_1_datadir, ..., $server_10_datadir: the @@datadir on each server.
+#    $server_1_uuid, ..., $server_10_uuid: the @@server_uuid on each server.
 #
 # ==== Usage ====
 #
@@ -52,7 +57,9 @@
 #    [--let $rpl_debug= 1]
 #    [--let $slave_timeout= NUMBER]
 #    [--let $use_gtids= 1]
+#    [--let $rpl_group_replication= 1]
 #    [--let $rpl_gtid_utils= 1]
+#    [--let $rpl_set_gtid_next_anonymous_in_new_connection= 1]
 #    --source include/rpl_init.inc
 #
 #    Parameters:
@@ -115,11 +122,21 @@
 #      See include/wait_for_slave_param.inc
 #
 #    $use_gtids
-#      Use option MASTER_AUTO_POSITION = 1 to CHANGE MASTER.
+#      Use option MASTER_AUTO_POSITION = 1 to CHANGE MASTER, and use
+#      GTIDs in sync_*.inc. If the variable is not set, then this
+#      script sets it to 1 if GTID_MODE = ON and 0 otherwise.
+#
+#    $rpl_group_replication
+#      This checks for whether we have Group Replication enabled or not. Based
+#      on the check this parameter we execute change master or not in this
+#      inc file.
 #
 #    $rpl_gtid_utils
 #      Create stored functions for GTID manipulation on every server (see
 #      gtid_utils.inc).
+#
+#    $rpl_set_gtid_next_anonymous_in_new_connection
+#       Executes SET GTID_NEXT = 'ANONYMOUS' in each new connection.
 #
 #
 # ==== Side effects ====
@@ -139,7 +156,7 @@
 #   check that $rpl_server_count does not between rpl_init.inc and
 #   rpl_end.inc
 #
-# $rpl_server_count_length:
+# $rpl_server_count_length
 #   Set to LENGTH($rpl_server_count). So if $rpl_server_count < 10,
 #   then $rpl_server_count_length = 1; if 10 <= $rpl_server_count <
 #   100, then $rpl_server_count_length = 2, etc.
@@ -200,10 +217,17 @@ if (!$SERVER_MYPORT_4)
 # Check that $rpl_server_count is set
 if (!$rpl_server_count)
 {
-  --let $rpl_server_count= `SELECT REPLACE('$rpl_topology', '->', ',')`
-  if (`SELECT LOCATE(',', '$rpl_server_count')`)
+  if ($rpl_topology == none)
   {
-    --let $rpl_server_count= `SELECT GREATEST($rpl_server_count)`
+    --let $rpl_server_count= 1
+  }
+  if ($rpl_topology != none)
+  {
+    --let $rpl_server_count= `SELECT REPLACE('$rpl_topology', '->', ',')`
+    if (`SELECT LOCATE(',', '$rpl_server_count')`)
+    {
+      --let $rpl_server_count= `SELECT GREATEST($rpl_server_count)`
+    }
   }
 }
 # Set $rpl_server_count_length and some auxiliary variables.
@@ -232,10 +256,23 @@ if (!$rpl_debug)
 }
 
 
+--let $gtid_mode= `SELECT @@GLOBAL.GTID_MODE`
+--let $gtid_mode_on= 0
+if ($gtid_mode == 'ON')
+{
+  --let $gtid_mode_on= 1
+}
+
 # Create two connections to each server; reset master/slave, select
 # database, set autoinc variables.
 --let $_rpl_server= $rpl_server_count
 --let $underscore= _
+
+if ($group_replication_group_name == '')
+{
+  --let $group_replication_group_name= `SELECT UUID()`
+}
+
 while ($_rpl_server)
 {
   # Connect.
@@ -270,35 +307,52 @@ while ($_rpl_server)
   # Only way to do this in mtr :-(
   if ($_rpl_server == 1) {
     --let $server_1_datadir= `SELECT @@datadir`
+    --let $server_1_uuid= `SELECT @@server_uuid`
   }
   if ($_rpl_server == 2) {
     --let $server_2_datadir= `SELECT @@datadir`
+    --let $server_2_uuid= `SELECT @@server_uuid`
   }
   if ($_rpl_server == 3) {
     --let $server_3_datadir= `SELECT @@datadir`
+    --let $server_3_uuid= `SELECT @@server_uuid`
   }
   if ($_rpl_server == 4) {
     --let $server_4_datadir= `SELECT @@datadir`
+    --let $server_4_uuid= `SELECT @@server_uuid`
   }
   if ($_rpl_server == 5) {
     --let $server_5_datadir= `SELECT @@datadir`
+    --let $server_5_uuid= `SELECT @@server_uuid`
   }
   if ($_rpl_server == 6) {
     --let $server_6_datadir= `SELECT @@datadir`
+    --let $server_6_uuid= `SELECT @@server_uuid`
   }
   if ($_rpl_server == 7) {
     --let $server_7_datadir= `SELECT @@datadir`
+    --let $server_7_uuid= `SELECT @@server_uuid`
   }
   if ($_rpl_server == 8) {
     --let $server_8_datadir= `SELECT @@datadir`
+    --let $server_8_uuid= `SELECT @@server_uuid`
   }
   if ($_rpl_server == 9) {
     --let $server_9_datadir= `SELECT @@datadir`
+    --let $server_9_uuid= `SELECT @@server_uuid`
   }
   if ($_rpl_server == 10) {
     --let $server_10_datadir= `SELECT @@datadir`
+    --let $server_10_uuid= `SELECT @@server_uuid`
   }
 
+  if($rpl_group_replication)
+  {
+    if(!$rpl_skip_group_replication_start)
+    {
+      --source include/start_group_replication.inc
+    }
+  }
   --dec $_rpl_server
 }
 
@@ -346,7 +400,7 @@ if ($rpl_check_server_ids)
 # Determine if we should use gtids or not.
 if ($use_gtids == '')
 {
-  --let $use_gtids= `SELECT @@GLOBAL.GTID_MODE = 'ON'`
+  --let $use_gtids= $gtid_mode_on
 }
 
 
@@ -355,7 +409,10 @@ if ($use_gtids == '')
 
 if (!$rpl_skip_start_slave)
 {
-  --source include/rpl_start_slaves.inc
+  if(!$rpl_group_replication)
+  {
+    --source include/rpl_start_slaves.inc
+  }
 }
 
 

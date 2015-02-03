@@ -292,6 +292,11 @@ The following options may be given as the first argument:
  --init-file=name    Read SQL commands from this file at startup
  --init-slave=name   Command(s) that are executed by a slave server each time
  the SQL thread starts
+ --initialize        Create the default database and exit. Create a super user
+ with a random expired password and store it into the log.
+ --initialize-insecure 
+ Create the default database and exit. Create a super user
+ with empty password.
  --interactive-timeout=# 
  The number of seconds the server waits for activity on an
  interactive connection before closing it
@@ -329,6 +334,9 @@ The following options may be given as the first argument:
  --lock-wait-timeout=# 
  Timeout in seconds to wait for a lock before returning an
  error.
+ --log-backward-compatible-user-definitions 
+ Controls logging of CREATE/ALTER/GRANT user statements in
+ replication binlogs, general query logs and audit logs.
  --log-bin[=name]    Log update queries in binary format. Optional (but
  strongly recommended to avoid replication problems if
  server's hostname changes) argument should be the chosen
@@ -568,8 +576,8 @@ The following options may be given as the first argument:
  mrr_cost_based, materialization, semijoin, loosescan,
  firstmatch, subquery_materialization_cost_based,
  block_nested_loop, batched_key_access,
- use_index_extensions, condition_fanout_filter} and val is
- one of {on, off, default}
+ use_index_extensions, condition_fanout_filter,
+ derived_merge} and val is one of {on, off, default}
  --optimizer-trace=name 
  Controls tracing of the Optimizer:
  optimizer_trace=option=val[,option=val...], where option
@@ -1101,6 +1109,9 @@ The following options may be given as the first argument:
  --transaction-read-only 
  Default transaction access mode. True if transactions are
  read-only.
+ --transaction-write-set-extraction[=name] 
+ This option is used to let the server know when toextract
+ the write set which will be used for various purposes. 
  --updatable-views-with-limit=name 
  YES = Don't issue an error message (warning only) if a
  VIEW without presence of a key of the underlying table is
@@ -1195,6 +1206,8 @@ ignore-builtin-innodb FALSE
 init-connect 
 init-file (No default value)
 init-slave 
+initialize FALSE
+initialize-insecure FALSE
 interactive-timeout 28800
 internal-tmp-disk-storage-engine INNODB
 join-buffer-size 262144
@@ -1209,6 +1222,7 @@ lc-messages-dir MYSQL_SHAREDIR/
 lc-time-names en_US
 local-infile TRUE
 lock-wait-timeout 31536000
+log-backward-compatible-user-definitions FALSE
 log-bin (No default value)
 log-bin-index (No default value)
 log-bin-trust-function-creators FALSE
@@ -1284,7 +1298,7 @@ old-passwords 0
 old-style-user-limits FALSE
 optimizer-prune-level 1
 optimizer-search-depth 62
-optimizer-switch index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on
+optimizer-switch index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on
 optimizer-trace 
 optimizer-trace-features greedy_search=on,range_optimizer=on,dynamic_range=on,repeated_subselect=on
 optimizer-trace-limit 1
@@ -1335,7 +1349,7 @@ performance-schema-max-rwlock-instances -1
 performance-schema-max-socket-classes 10
 performance-schema-max-socket-instances -1
 performance-schema-max-stage-classes 150
-performance-schema-max-statement-classes 188
+performance-schema-max-statement-classes 191
 performance-schema-max-statement-stack 10
 performance-schema-max-table-handles -1
 performance-schema-max-table-instances -1
@@ -1433,6 +1447,7 @@ transaction-alloc-block-size 8192
 transaction-isolation REPEATABLE-READ
 transaction-prealloc-size 4096
 transaction-read-only FALSE
+transaction-write-set-extraction OFF
 updatable-views-with-limit YES
 validate-user-plugins TRUE
 verbose TRUE

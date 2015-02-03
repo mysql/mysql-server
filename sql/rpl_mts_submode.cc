@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,9 +14,14 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "rpl_mts_submode.h"
-#include "rpl_rli_pdb.h"
-#include "rpl_slave.h"
-#include "rpl_slave_commit_order_manager.h"
+
+#include "hash.h"                           // HASH
+#include "log_event.h"                      // Query_log_event
+#include "rpl_rli.h"                        // Relay_log_info
+#include "rpl_rli_pdb.h"                    // db_worker_hash_entry
+#include "rpl_slave_commit_order_manager.h" // Commit_order_manager
+#include "sql_class.h"                      // THD
+
 
 /**
  Does necessary arrangement before scheduling next event.
@@ -531,14 +536,8 @@ Mts_submode_logical_clock::schedule_next_event(Relay_log_info* rli,
   */
   switch (ev->get_type_code())
   {
-  case binary_log::QUERY_EVENT:
-    ptr_group->sequence_number= sequence_number=
-      static_cast<Query_log_event*>(ev)->sequence_number;
-    ptr_group->last_committed= last_committed=
-      static_cast<Query_log_event*>(ev)->last_committed;
-    break;
-
   case binary_log::GTID_LOG_EVENT:
+  case binary_log::ANONYMOUS_GTID_LOG_EVENT:
     // TODO: control continuity
     ptr_group->sequence_number= sequence_number=
       static_cast<Gtid_log_event*>(ev)->sequence_number;

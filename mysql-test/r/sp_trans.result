@@ -535,6 +535,8 @@ use db_bug7787|
 CREATE PROCEDURE p1()
 SHOW ENGINE INNODB STATUS; |
 GRANT EXECUTE ON PROCEDURE p1 TO user_bug7787@localhost|
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 DROP DATABASE db_bug7787|
 drop user user_bug7787@localhost|
 use test|

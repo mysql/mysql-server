@@ -16,16 +16,21 @@
 
 #define BINLOG_H_INCLUDED
 
-#include "mysqld.h"                             /* opt_relay_logname */
-#include "log_event.h"
-#include "log.h"
-#include "my_atomic.h"
-#include "rpl_trx_boundary_parser.h"
+#include "my_global.h"
+#include "binlog_event.h"              // enum_binlog_checksum_alg
+#include "log.h"                       // TC_LOG
 
 class Relay_log_info;
 class Master_info;
-
+class Slave_worker;
 class Format_description_log_event;
+class Transaction_boundary_parser;
+class Rows_log_event;
+class Rows_query_log_event;
+class Incident_log_event;
+class Log_event;
+class Gtid_set;
+struct Gtid;
 
 /**
   Logical timestamp generator for logical timestamping binlog transactions.
@@ -264,13 +269,7 @@ public:
    */
   time_t wait_count_or_timeout(ulong count, time_t usec, StageID stage);
 
-  void signal_done(THD *queue) {
-    mysql_mutex_lock(&m_lock_done);
-    for (THD *thd= queue ; thd ; thd = thd->next_to_commit)
-      thd->get_transaction()->m_flags.pending= false;
-    mysql_mutex_unlock(&m_lock_done);
-    mysql_cond_broadcast(&m_cond_done);
-  }
+  void signal_done(THD *queue);
 
 private:
   /**
@@ -437,37 +436,14 @@ class MYSQL_BIN_LOG: public TC_LOG
   /**
     Increment the prepared XID counter.
    */
-  void inc_prep_xids(THD *thd) {
-    DBUG_ENTER("MYSQL_BIN_LOG::inc_prep_xids");
-#ifndef DBUG_OFF
-    int result= my_atomic_add32(&m_prep_xids, 1);
-#else
-    (void) my_atomic_add32(&m_prep_xids, 1);
-#endif
-    DBUG_PRINT("debug", ("m_prep_xids: %d", result + 1));
-    thd->get_transaction()->m_flags.xid_written= true;
-    DBUG_VOID_RETURN;
-  }
+  void inc_prep_xids(THD *thd);
 
   /**
     Decrement the prepared XID counter.
 
     Signal m_prep_xids_cond if the counter reaches zero.
    */
-  void dec_prep_xids(THD *thd) {
-    DBUG_ENTER("MYSQL_BIN_LOG::dec_prep_xids");
-    int32 result= my_atomic_add32(&m_prep_xids, -1);
-    DBUG_PRINT("debug", ("m_prep_xids: %d", result - 1));
-    thd->get_transaction()->m_flags.xid_written= false;
-    /* If the old value was 1, it is zero now. */
-    if (result == 1)
-    {
-      mysql_mutex_lock(&LOCK_xids);
-      mysql_cond_signal(&m_prep_xids_cond);
-      mysql_mutex_unlock(&LOCK_xids);
-    }
-    DBUG_VOID_RETURN;
-  }
+  void dec_prep_xids(THD *thd);
 
   int32 get_prep_xids() {
     int32 result= my_atomic_load32(&m_prep_xids);
@@ -649,6 +625,42 @@ public:
     DBUG_ASSERT(is_relay_log);
     previous_gtid_set_relaylog= previous_gtid_set_param;
   }
+  /**
+    If the thread owns a GTID, this function generates an empty
+    transaction and releases ownership of the GTID.
+
+    - If the binary log is disabled for this thread, the GTID is
+      inserted directly into the mysql.gtid_executed table and the
+      GTID is included in @@global.gtid_executed.  (This only happens
+      for DDL, since DML will save the GTID into table and release
+      ownership inside ha_commit_trans.)
+
+    - If the binary log is enabled for this thread, an empty
+      transaction consisting of GTID, BEGIN, COMMIT is written to the
+      binary log, the GTID is included in @@global.gtid_executed, and
+      the GTID is added to the mysql.gtid_executed table on the next
+      binlog rotation.
+
+    This function must be called by any committing statement (COMMIT,
+    implicitly committing statements, or Xid_log_event), after the
+    statement has completed execution, regardless of whether the
+    statement updated the database.
+
+    This logic ensures that an empty transaction is generated for the
+    following cases:
+
+    - Explicit empty transaction:
+      SET GTID_NEXT = 'UUID:NUMBER'; BEGIN; COMMIT;
+
+    - Transaction or DDL that gets completely filtered out in the
+      slave thread.
+
+    @param thd The committing thread
+
+    @retval 0 Success
+    @retval nonzero Error
+  */
+  int gtid_end_transaction(THD *thd);
 private:
   /* The prevoius gtid set in relay log. */
   Gtid_set* previous_gtid_set_relaylog;
@@ -680,6 +692,16 @@ public:
   void update_thd_next_event_pos(THD *thd);
   int flush_and_set_pending_rows_event(THD *thd, Rows_log_event* event,
                                        bool is_transactional);
+  /**
+    Method to write events directly to the binlog with no cache use.
+
+    @param event the event to be written
+
+    @return the operation status
+      @retval 0      write successful
+      @retval !=0    error on write
+  */
+  int write_event_into_log_file(Log_event *event);
 
 #endif /* !defined(MYSQL_CLIENT) */
   void add_bytes_written(ulonglong inc)
@@ -738,7 +760,8 @@ public:
   }
 
   int wait_for_update_relay_log(THD* thd, const struct timespec * timeout);
-  int  wait_for_update_bin_log(THD* thd, const struct timespec * timeout);
+  int wait_for_update_bin_log(THD* thd, const struct timespec * timeout);
+  bool do_write_cache(IO_CACHE *cache, class Binlog_event_writer *writer);
 public:
   void init_pthread_objects();
   void cleanup();
@@ -770,9 +793,10 @@ public:
   int new_file(Format_description_log_event *extra_description_event);
 
   bool write_event(Log_event* event_info);
-  bool write_cache(THD *thd, class binlog_cache_data *binlog_cache_data);
-  int  do_write_cache(IO_CACHE *cache,
-                      int64 last_committed, int64 sequence_number);
+  bool write_cache(THD *thd, class binlog_cache_data *binlog_cache_data,
+                   class Binlog_event_writer *writer);
+  bool write_gtid(THD *thd, binlog_cache_data *cache_data,
+                  class Binlog_event_writer *writer);
 
   void set_write_error(THD *thd, bool is_transactional);
   bool check_write_error(THD *thd);
@@ -907,7 +931,6 @@ void check_binlog_cache_size(THD *thd);
 void check_binlog_stmt_cache_size(THD *thd);
 bool binlog_enabled();
 void register_binlog_handler(THD *thd, bool trx);
-int gtid_empty_group_log_and_cleanup(THD *thd);
 int query_error_code(THD *thd, bool not_killed);
 
 extern const char *log_bin_index;

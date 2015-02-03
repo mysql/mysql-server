@@ -16,7 +16,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include "my_global.h"
 #include "item.h"       // Item_result_field
+#include "my_decimal.h" // string2my_decimal
 #include "set_var.h"    // enum_var_type
 #include "sql_udf.h"    // udf_handler
 
@@ -2113,7 +2115,6 @@ public:
   void save_org_in_field(Field *field)
   { save_in_field(field, true, false); }
 
-  bool register_field_in_read_map(uchar *arg);
   bool set_entry(THD *thd, bool create_if_not_exists);
   void cleanup();
 };

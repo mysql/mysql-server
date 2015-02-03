@@ -4360,6 +4360,8 @@ NULL
 Warnings:
 Warning	1411	Incorrect datetime value: '2007-10-00' for function str_to_date
 set SQL_MODE=TRADITIONAL;
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 select str_to_date('2007-10-00 12:34','%Y-%m-%d %H:%i') = '2007-10-00 12:34';
 str_to_date('2007-10-00 12:34','%Y-%m-%d %H:%i') = '2007-10-00 12:34'
 NULL
@@ -4601,8 +4603,8 @@ DROP TABLE t1;
 #
 CREATE TABLE t1(a LINESTRING NOT NULL, SPATIAL KEY(a));
 INSERT INTO t1 VALUES
-(GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)')),
-(GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)'));
+(ST_GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)')),
+(ST_GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)'));
 EXPLAIN SELECT 1 FROM t1 NATURAL LEFT JOIN t1 AS t2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
@@ -5244,9 +5246,9 @@ DROP TABLE t1;
 #
 # Bug #57203 Assertion `field_length <= 255' failed.
 #
-SELECT coalesce((avg(distinct (geomfromtext("point(25379 -22010)"))))) 
+SELECT coalesce((avg(distinct (ST_geomfromtext("point(25379 -22010)"))))) 
 UNION ALL 
-SELECT coalesce((avg(distinct (geomfromtext("point(25379 -22010)")))))
+SELECT coalesce((avg(distinct (ST_geomfromtext("point(25379 -22010)")))))
 AS foo
 ;
 ERROR HY000: Incorrect arguments to avg(distinct 

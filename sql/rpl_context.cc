@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -15,8 +15,11 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
    02110-1301 USA */
 
-#include "sql_class.h"
 #include "rpl_context.h"
+
+#include "rpl_gtid.h"         // Gtid_set
+#include "sql_class.h"        // THD
+
 
 Session_consistency_gtids_ctx::Session_consistency_gtids_ctx() : m_sid_map(NULL),
         m_gtid_set(NULL), m_listener(NULL) { }
@@ -90,8 +93,8 @@ bool Session_consistency_gtids_ctx::notify_after_gtid_executed_update(const THD 
     if (gtid.sidno == -1) // we need to add thd->owned_gtid_set
     {
       /* Caller must only call this function if the set was not empty. */
-      DBUG_ASSERT(!thd->owned_gtid_set.is_empty());
 #ifdef HAVE_GTID_NEXT_LIST
+      DBUG_ASSERT(!thd->owned_gtid_set.is_empty());
       res= m_gtid_set->add_gtid_set(&thd->owned_gtid_set) != RETURN_STATUS_OK;
 #else
       DBUG_ASSERT(0);

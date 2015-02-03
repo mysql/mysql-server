@@ -8,6 +8,9 @@
 # [--let $binlog_start= <POSITION> ]
 # [--let $binlog_limit= 1, 3 ]
 # [--let $keep_gtid_events= 1]
+# [--let $keep_view_change_events= 1]
+# [--let $mask_binlog_commit_events= 1]
+# [--let $mask_anonymous_gtid_events= 1]
 # --source include/show_binlog_events.inc
 #
 # Parameters:
@@ -32,6 +35,33 @@
 #     filtered out, so that the output is independent of whether GTIDs
 #     are enabled or not.  If this flag is set, events are kept but
 #     the actual GTID values are masked out.
+#
+#   $keep_view_change_events
+#     By default, View Change Events are filtered out, so that the output is
+#     independent of Group Replication being enabled. If this flag is set,
+#     events are kept.
+#
+#   $mask_binlog_commit_events
+#     If specified, any Xid_log_event is masked as a
+#     Query_log_event(COMMIT), to make the output uniform for
+#     transactional and non-transactional engines.
+#
+#   $show_binlog_events_verbose
+#     Print the SHOW BINLOG EVENT statement, with filenames and positions
+#     masked out.
+#
+#   $show_binlog_events_mask_columns
+#     By default, this script masks columns 2, 4, and 5 (offset,
+#     server_id, and end_log_pos). To mask a different set of columns,
+#     set $show_binlog_events_mask_columns to a comma-separated list
+#     of column numbers. The contents of a masked column is replaced
+#     by a single '#' character.
+#
+#   $mask_anonymous_gtid_event
+#     Mask ANONYMOUS_GTID_LOG_EVENT as GTID_LOG_EVENTS to make a non-GTID
+#     enabled event stream similar to a GTID enabled one, as the server now
+#     generates [ANONYMOUS_]GTID always.
+
 
 --let $include_filename= show_binlog_events.inc
 --source include/begin_include_file.inc

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -3584,8 +3584,16 @@ row_import_for_mysql(
 		filepath = fil_make_filepath(
 			NULL, table->name.m_name, IBD, false);
 	}
+
+	DBUG_EXECUTE_IF(
+		"ib_import_OOM_15",
+		ut_free(filepath);
+		filepath = NULL;
+	);
+
 	if (filepath == NULL) {
-		return(DB_OUT_OF_MEMORY);
+		row_mysql_unlock_data_dictionary(trx);
+		return(row_import_cleanup(prebuilt, trx, DB_OUT_OF_MEMORY));
 	}
 
 	/* Open the tablespace so that we can access via the buffer pool.

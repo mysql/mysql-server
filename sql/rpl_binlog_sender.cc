@@ -13,13 +13,16 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
+#ifdef HAVE_REPLICATION
 #include "rpl_binlog_sender.h"
 
-#ifdef HAVE_REPLICATION
-#include "rpl_handler.h"
-#include "debug_sync.h"
-#include "my_thread.h"
-#include "rpl_master.h"
+#include "debug_sync.h"              // debug_sync_set_action
+#include "log_event.h"               // MAX_MAX_ALLOWED_PACKET
+#include "rpl_constants.h"           // BINLOG_DUMP_NON_BLOCK
+#include "rpl_handler.h"             // RUN_HOOK
+#include "rpl_master.h"              // opt_sporadic_binlog_dump_fail
+#include "rpl_reporting.h"           // MAX_SLAVE_ERRMSG
+#include "sql_class.h"               // THD
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
@@ -34,6 +37,20 @@ const uint32 Binlog_sender::PACKET_MAX_SIZE= UINT_MAX32;
 const ushort Binlog_sender::PACKET_SHRINK_COUNTER_THRESHOLD= 100;
 const float Binlog_sender::PACKET_GROW_FACTOR= 2.0;
 const float Binlog_sender::PACKET_SHRINK_FACTOR= 0.5;
+
+Binlog_sender::Binlog_sender(THD *thd, const char *start_file,
+                             my_off_t start_pos,
+                             Gtid_set *exclude_gtids, uint32 flag)
+  : m_thd(thd), m_packet(thd->packet), m_start_file(start_file),
+    m_start_pos(start_pos), m_exclude_gtid(exclude_gtids),
+    m_using_gtid_protocol(exclude_gtids != NULL),
+    m_check_previous_gtid_event(exclude_gtids != NULL),
+    m_gtid_clear_fd_created_flag(exclude_gtids == NULL),
+    m_diag_area(false),
+    m_errmsg(NULL), m_errno(0), m_last_file(NULL), m_last_pos(0),
+    m_half_buffer_size_req_counter(0), m_new_shrink_size(PACKET_MIN_SIZE),
+    m_flag(flag), m_observe_transmission(false), m_transmit_started(false)
+  {}
 
 void Binlog_sender::init()
 {
@@ -376,7 +393,9 @@ int Binlog_sender::send_events(IO_CACHE *log_cache, my_off_t end_pos)
                                                         in_exclude_group)))
     {
       exclude_group_end_pos= log_pos;
-      DBUG_PRINT("info", ("Event is skipped\n"));
+      DBUG_PRINT("info", ("Event of type %s is skipped",
+                          Log_event::get_type_str(
+                            (Log_event_type)event_ptr[LOG_EVENT_OFFSET])));
     }
     else
     {
@@ -409,6 +428,11 @@ int Binlog_sender::send_events(IO_CACHE *log_cache, my_off_t end_pos)
       DBUG_RETURN(1);
   }
 
+  /*
+    A heartbeat is needed before waiting for more events, if some
+    events are skipped. This is needed so that the slave can increase
+    master_log_pos correctly.
+  */
   if (unlikely(in_exclude_group))
   {
     if (send_heartbeat_event(log_pos))
@@ -439,6 +463,8 @@ inline bool Binlog_sender::skip_event(const uchar *event_ptr, uint32 event_len,
       DBUG_RETURN(m_exclude_gtid->contains_gtid(gtid));
     }
   case binary_log::ROTATE_EVENT:
+    DBUG_RETURN(false);
+  case binary_log::VIEW_CHANGE_EVENT:
     DBUG_RETURN(false);
   }
   DBUG_RETURN(in_exclude_group);
@@ -991,6 +1017,10 @@ inline int Binlog_sender::flush_net()
 
 inline int Binlog_sender::send_packet()
 {
+  DBUG_ENTER("Binlog_sender::send_packet");
+  DBUG_PRINT("info",
+             ("Sending event of type %s", Log_event::get_type_str(
+                (Log_event_type)m_packet.ptr()[1 + EVENT_TYPE_OFFSET])));
   // We should always use the same buffer to guarantee that the reallocation
   // logic is not broken.
   if (DBUG_EVALUATE_IF("simulate_send_error", true,
@@ -998,11 +1028,12 @@ inline int Binlog_sender::send_packet()
                                     m_packet.length())))
   {
     set_unknow_error("Failed on my_net_write()");
-    return 1;
+    DBUG_RETURN(1);
   }
 
   /* Shrink the packet if needed. */
-  return shrink_packet() ? 1 : 0;
+  int ret= shrink_packet() ? 1 : 0;
+  DBUG_RETURN(ret);
 }
 
 inline int Binlog_sender::send_packet_and_flush()

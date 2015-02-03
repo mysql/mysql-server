@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,9 +14,12 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "rpl_info_table_access.h"
-#include "rpl_utility.h"
-#include "handler.h"
-#include "sql_parse.h"
+
+#include "rpl_info_values.h" // Rpl_info_values
+#include "sql_base.h"       // MYSQL_OPEN_IGNORE_FLUSH
+#include "sql_class.h"      // THD
+#include "sql_parse.h"      // mysql_reset_thd_for_next_command
+#include "table.h"          // TABLE
 
 
 void Rpl_info_table_access::before_open(THD *thd)

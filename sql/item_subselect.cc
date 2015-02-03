@@ -34,8 +34,8 @@
 #include "sql_optimizer.h"       // JOIN
 #include "sql_parse.h"           // check_stack_overrun
 #include "sql_test.h"            // print_where
+#include "sql_tmp_table.h"       // free_tmp_table
 #include "sql_union.h"           // select_union
-
 
 Item_subselect::Item_subselect():
   Item_result_field(), value_assigned(0), traced_before(false),
@@ -435,10 +435,10 @@ err:
   JOINs may be nested. Walk nested joins recursively to apply the
   processor.
 */
-bool Item_subselect::walk_join_condition(List<TABLE_LIST> *tables,
-                                         Item_processor processor,
-                                         enum_walk walk,
-                                         uchar *arg)
+static bool walk_join_condition(List<TABLE_LIST> *tables,
+                                Item_processor processor,
+                                Item::enum_walk walk,
+                                uchar *arg)
 {
   TABLE_LIST *table;
   List_iterator<TABLE_LIST> li(*tables);
@@ -805,7 +805,7 @@ Item_singlerow_subselect::Item_singlerow_subselect(st_select_lex *select_lex)
 {
   DBUG_ENTER("Item_singlerow_subselect::Item_singlerow_subselect");
   init(select_lex, new select_singlerow_subselect(this));
-  maybe_null= 1;
+  maybe_null= 1; // if the subquery is empty, value is NULL
   max_columns= UINT_MAX;
   DBUG_VOID_RETURN;
 }
@@ -3285,14 +3285,13 @@ bool subselect_indexsubquery_engine::exec()
 
   if (tl && tl->uses_materialization() && !tab->materialized)
   {
-    bool err= mysql_handle_single_derived(table->in_use->lex, tl,
-                                          mysql_derived_create) ||
-              mysql_handle_single_derived(table->in_use->lex, tl,
-                                          mysql_derived_materialize);
-    err|= mysql_handle_single_derived(table->in_use->lex, tl,
-                                      mysql_derived_cleanup);
+    THD *const thd= table->in_use;
+    bool err= tl->create_derived(thd);
+    if (!err)
+      err= tl->materialize_derived(thd);
+    err|= tl->cleanup_derived();
     if (err)
-      DBUG_RETURN(1);
+      DBUG_RETURN(true);
 
     tab->materialized= true;
   }
@@ -4037,6 +4036,7 @@ err:
       is UNKNOWN. Do as if searching with all triggered conditions disabled:
       this would surely find a row. The caller will translate this to UNKNOWN.
     */
+    DBUG_ASSERT(item_in->left_expr->element_index(0)->maybe_null);
     DBUG_ASSERT(item_in->left_expr->cols() == 1);
     item_in->value= true;
     DBUG_RETURN(false);

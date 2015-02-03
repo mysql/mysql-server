@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -64,8 +64,6 @@ struct PFS_events_transactions : public PFS_events
   enum_transaction_state m_state;
   /** Global Transaction ID specifier. */
   Gtid_specification m_gtid_spec;
-  /** True if gtid has been set. */
-  my_bool m_gtid_set;
   /** True if XA transaction. */
   my_bool m_xa;
   /** XA transaction ID. */

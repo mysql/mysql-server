@@ -16,20 +16,26 @@
 #ifndef RPL_RLI_H
 #define RPL_RLI_H
 
-#include "rpl_info.h"
-#include "rpl_utility.h"
-#include "rpl_tblmap.h"
-#include "rpl_reporting.h"
-#include "rpl_utility.h"
-#include "binlog.h"                      /* MYSQL_BIN_LOG */
-#include "sql_class.h"                   /* THD */
-#include<vector>
-#include "prealloced_array.h"
+#include "my_global.h"
+
+#include "binlog.h"            // MYSQL_BIN_LOG
+#include "prealloced_array.h"  // Prealloced_array
+#include "rpl_gtid.h"          // Gtid_set
+#include "rpl_info.h"          // Rpl_info
+#include "rpl_mts_submode.h"   // enum_mts_parallel_type
+#include "rpl_tblmap.h"        // table_mapping
+#include "rpl_utility.h"       // Deferred_log_events
+#include "sql_class.h"         // THD
+
+#include <string>
+#include <vector>
 
 struct RPL_TABLE_LIST;
 class Master_info;
 class Mts_submode;
 class Commit_order_manager;
+class Slave_committed_queue;
+typedef struct st_db_worker_hash_entry db_worker_hash_entry;
 extern uint sql_slave_skip_counter;
 
 typedef Prealloced_array<Slave_worker*, 4> Slave_worker_array;
@@ -349,14 +355,19 @@ public:
      notify_*_log_name_updated() methods. (They need to be called only if SQL
      thread is running).
    */
-  enum {UNTIL_NONE= 0, UNTIL_MASTER_POS, UNTIL_RELAY_POS,
-        UNTIL_SQL_BEFORE_GTIDS, UNTIL_SQL_AFTER_GTIDS,
-        UNTIL_SQL_AFTER_MTS_GAPS
+  enum
+  {
+    UNTIL_NONE= 0,
+    UNTIL_MASTER_POS,
+    UNTIL_RELAY_POS,
+    UNTIL_SQL_BEFORE_GTIDS,
+    UNTIL_SQL_AFTER_GTIDS,
+    UNTIL_SQL_AFTER_MTS_GAPS,
+    UNTIL_SQL_VIEW_ID,
 #ifndef DBUG_OFF
-        , UNTIL_DONE
+    UNTIL_DONE
 #endif
-}
-    until_condition;
+  } until_condition;
   char until_log_name[FN_REFLEN];
   ulonglong until_log_pos;
   /* extension extracted from log_name and converted to int */
@@ -384,6 +395,8 @@ public:
   } until_log_names_cmp_result;
 
   char cached_charset[6];
+
+  std::string until_view_id;
   /*
     trans_retries varies between 0 to slave_transaction_retries and counts how
     many times the slave has retried the present transaction; gets reset to 0
@@ -448,6 +461,8 @@ public:
   int wait_for_pos(THD* thd, String* log_name, longlong log_pos, 
 		   longlong timeout);
   int wait_for_gtid_set(THD* thd, String* gtid, longlong timeout);
+  int wait_for_gtid_set(THD* thd, const Gtid_set* wait_gtid_set, longlong timeout);
+
   void close_temporary_tables();
 
   /* Check if UNTIL condition is satisfied. See slave.cc for more. */
@@ -706,6 +721,8 @@ public:
       return NULL;
   }
 
+  /*Channel defined mts submode*/
+  enum_mts_parallel_type channel_mts_submode;
   /* MTS submode  */
   Mts_submode* current_mts_submode;
 
@@ -835,22 +852,71 @@ public:
     m_flags &= ~(1UL << flag);
   }
 
+private:
   /**
-     Is the replication inside a group?
+    Auxiliary function used by is_in_group.
 
-     Replication is inside a group if either:
-     - The OPTION_BEGIN flag is set, meaning we're inside a transaction
-     - The RLI_IN_STMT flag is set, meaning we're inside a statement
-     - There is an GTID owned by the thd, meaning we've passed a SET GTID_NEXT
+    The execute thread is in the middle of a statement in the
+    following cases:
+    - User_var/Intvar/Rand events have been processed, but the
+      corresponding Query_log_event has not been processed.
+    - Table_map or Row events have been processed, and the last Row
+      event did not have the STMT_END_F set.
 
-     @retval true Replication thread is currently inside a group
-     @retval false Replication thread is currently not inside a group
+    @retval true Replication thread is inside a statement.
+    @retval false Replication thread is not inside a statement.
    */
-  bool is_in_group() const {
-    return (info_thd->variables.option_bits & OPTION_BEGIN) ||
-      (m_flags & (1UL << IN_STMT)) ||
-      /* If a SET GTID_NEXT was issued we are inside of a group */
-      info_thd->owned_gtid.sidno;
+  bool is_in_stmt() const
+  {
+    bool ret= (m_flags & (1UL << IN_STMT));
+    DBUG_PRINT("info", ("is_in_stmt()=%d", ret));
+    return ret;
+  }
+  /**
+    Auxiliary function used by is_in_group.
+
+    @retval true The execute thread is inside a statement or a
+    transaction, i.e., either a BEGIN has been executed or we are in
+    the middle of a statement.
+    @retval false The execute thread thread is not inside a statement
+    or a transaction.
+  */
+  bool is_in_trx_or_stmt() const
+  {
+    bool ret= is_in_stmt() || (info_thd->variables.option_bits & OPTION_BEGIN);
+    DBUG_PRINT("info", ("is_in_trx_or_stmt()=%d", ret));
+    return ret;
+  }
+public:
+  /**
+    A group is defined as the entire range of events that constitute
+    a transaction or auto-committed statement. It has one of the
+    following forms:
+
+    (Gtid)? Query(BEGIN) ... (Query(COMMIT) | Query(ROLLBACK) | Xid)
+    (Gtid)? (Rand | User_var | Int_var)* Query(DDL)
+
+    Thus, to check if the execute thread is in a group, there are
+    two cases:
+
+    - If the master generates Gtid events (5.7.5 or later, or 5.6 or
+      later with GTID_MODE=ON), then is_in_group is the same as
+      info_thd->owned_gtid.sidno != 0, since owned_gtid.sidno is set
+      to non-zero by the Gtid_log_event and cleared to zero at commit
+      or rollback.
+
+    - If the master does not generate Gtid events (i.e., master is
+      pre-5.6, or pre-5.7.5 with GTID_MODE=OFF), then is_in_group is
+      the same as is_in_trx_or_stmt().
+
+    @retval true Replication thread is inside a group.
+    @retval false Replication thread is not inside a group.
+  */
+  bool is_in_group() const
+  {
+    bool ret= is_in_trx_or_stmt() || info_thd->owned_gtid.sidno != 0;
+    DBUG_PRINT("info", ("is_in_group()=%d", ret));
+    return ret;
   }
 
   int count_relay_log_space();
@@ -1136,6 +1202,25 @@ private:
   const char* add_channel_to_relay_log_name(char *buff, uint buff_size,
                                             const char *base_name);
 
+  /*
+    Applier thread InnoDB priority.
+    When two transactions conflict inside InnoDB, the one with
+    greater priority wins.
+    Priority must be set before applier thread start so that all
+    executed transactions have the same priority.
+  */
+  int thd_tx_priority;
+
+public:
+  void set_thd_tx_priority(int priority)
+  {
+    thd_tx_priority= priority;
+  }
+
+  int get_thd_tx_priority()
+  {
+    return thd_tx_priority;
+  }
 };
 
 bool mysql_show_relaylog_events(THD* thd);

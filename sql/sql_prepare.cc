@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -84,7 +84,6 @@ When one supplies long data for a placeholder:
 */
 
 #include "sql_prepare.h"
-
 #include "auth_common.h"        // insert_precheck
 #include "log.h"                // query_logger
 #include "opt_trace.h"          // Opt_trace_array
@@ -93,7 +92,7 @@ When one supplies long data for a placeholder:
 #include "sp.h"                 // Sroutine_hash_entry
 #include "sp_cache.h"           // sp_cache_enforce_limit
 #include "sql_analyse.h"        // select_analyse
-#include "sql_base.h"           // open_temporary_table
+#include "sql_base.h"           // open_tables_for_query, open_temporary_table
 #include "sql_cursor.h"         // Server_side_cursor
 #include "sql_db.h"             // mysql_change_db
 #include "sql_delete.h"         // mysql_prepare_delete
@@ -113,6 +112,7 @@ When one supplies long data for a placeholder:
 #else
 #include <mysql_com.h>
 #endif
+#include "sql_query_rewrite.h"
 
 #include <algorithm>
 using std::max;
@@ -1184,8 +1184,7 @@ static bool mysql_test_insert(Prepared_statement *stmt,
     Note that this is done without locks (should not be needed as we will not
     access any data here)
   */
-  if (open_normal_and_derived_tables(thd, table_list,
-                                     MYSQL_OPEN_FORCE_SHARED_MDL))
+  if (open_tables_for_query(thd, table_list, MYSQL_OPEN_FORCE_SHARED_MDL))
     goto error;
 
   if ((values= its++))
@@ -1217,7 +1216,7 @@ static bool mysql_test_insert(Prepared_statement *stmt,
         my_error(ER_WRONG_VALUE_COUNT_ON_ROW, MYF(0), counter);
         goto error;
       }
-      if (setup_fields(thd, Ref_ptr_array(), *values, MARK_COLUMNS_NONE, 0, 0))
+      if (setup_fields(thd, Ref_ptr_array(), *values, 0, 0, 0))
         goto error;
     }
   }
@@ -1257,56 +1256,41 @@ static int mysql_test_update(Prepared_statement *stmt)
 
   if (update_precheck(thd, table_list))
     DBUG_RETURN(1);
-  if (open_normal_and_derived_tables(thd, table_list,
-                                     MYSQL_OPEN_FORCE_SHARED_MDL))
+  if (open_tables_for_query(thd, table_list, MYSQL_OPEN_FORCE_SHARED_MDL))
     DBUG_RETURN(1);
 
-  if (table_list->multitable_view)
+  if (select->setup_tables(thd, table_list, false))
+    DBUG_RETURN(true);
+
+  if (table_list->is_view())
   {
-    DBUG_ASSERT(table_list->view != 0);
-    DBUG_PRINT("info", ("Switch to multi-update"));
-    /* convert to multiupdate */
-    DBUG_RETURN(2);
+    if (table_list->resolve_derived(thd, false))
+      DBUG_RETURN(true);
+
+    if (select->merge_derived(thd, table_list))
+      DBUG_RETURN(true);
   }
 
-  if (!table_list->updatable)
+  if (!table_list->is_updatable())
   {
     my_error(ER_NON_UPDATABLE_TABLE, MYF(0), table_list->alias, "UPDATE");
     DBUG_RETURN(1);
   }
 
+  if (table_list->is_multiple_tables())
+  {
+    DBUG_ASSERT(table_list->is_view());
+    DBUG_PRINT("info", ("Switch to multi-update"));
+    /* convert to multiupdate */
+    DBUG_RETURN(2);
+  }
+
   TABLE_LIST *const update_table_ref= table_list->updatable_base_table();
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-  /* Force privilege re-checking for views after they have been opened. */
-  const uint want_privilege= (table_list->view ? UPDATE_ACL :
-                             table_list->grant.want_privilege);
-#endif
-
-  if (mysql_prepare_update(thd, update_table_ref))
+  key_map covering_keys_for_cond;
+  if (mysql_prepare_update(thd, update_table_ref, &covering_keys_for_cond))
     DBUG_RETURN(1);
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-  TABLE *const table= update_table_ref->table;
-
-  table_list->grant.want_privilege= want_privilege;
-  table->grant.want_privilege= want_privilege;
-  table_list->register_want_access(want_privilege);
-#endif
-  DBUG_ASSERT(select == thd->lex->select_lex);
-  if (setup_fields_with_no_wrap(thd, Ref_ptr_array(),
-                                select->item_list, MARK_COLUMNS_READ, 0, 0))
-    DBUG_RETURN(1);
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-  /* Check values */
-  table_list->grant.want_privilege=
-  table->grant.want_privilege=
-    (SELECT_ACL & ~table->grant.privilege);
-  table_list->register_want_access(SELECT_ACL);
-#endif
-  if (setup_fields(thd, Ref_ptr_array(),
-                   stmt->lex->value_list, MARK_COLUMNS_NONE, 0, 0))
-    DBUG_RETURN(1);
   /* TODO: here we should send types of placeholders to the client. */
   DBUG_RETURN(0);
 }
@@ -1325,34 +1309,20 @@ static int mysql_test_update(Prepared_statement *stmt)
 
 static bool mysql_test_delete(Prepared_statement *stmt)
 {
-  THD *thd= stmt->thd;
-  LEX *lex= stmt->lex;
   DBUG_ENTER("mysql_test_delete");
+
+  THD        *const thd= stmt->thd;
+  SELECT_LEX *const select= stmt->lex->select_lex;
+
   DBUG_ASSERT(stmt->is_stmt_prepare());
-  DBUG_ASSERT(lex->select_lex == thd->lex->select_lex);
-  TABLE_LIST *const table_list= lex->select_lex->get_table_list();
+  TABLE_LIST *const table_list= select->get_table_list();
 
   if (delete_precheck(thd, table_list))
     DBUG_RETURN(true);
-  if (open_normal_and_derived_tables(thd, table_list,
-                                     MYSQL_OPEN_FORCE_SHARED_MDL))
+  if (open_tables_for_query(thd, table_list, MYSQL_OPEN_FORCE_SHARED_MDL))
     DBUG_RETURN(true);
 
-  if (!table_list->updatable)
-  {
-    my_error(ER_NON_UPDATABLE_TABLE, MYF(0), table_list->alias, "DELETE");
-    DBUG_RETURN(true);
-  }
-
-  if (table_list->multitable_view)
-  {
-    my_error(ER_VIEW_DELETE_MERGE_VIEW, MYF(0),
-             table_list->view_db.str, table_list->view_name.str);
-    DBUG_RETURN(true);
-  }
-
-  TABLE_LIST *const delete_table_ref= table_list->updatable_base_table();
-  if (mysql_prepare_delete(thd, delete_table_ref))
+  if (mysql_prepare_delete(thd))
     DBUG_RETURN(true);
 
   DBUG_RETURN(false);
@@ -1396,7 +1366,7 @@ static int mysql_test_select(Prepared_statement *stmt,
     goto error;
   }
 
-  if (open_normal_and_derived_tables(thd, tables, MYSQL_OPEN_FORCE_SHARED_MDL))
+  if (open_tables_for_query(thd, tables, MYSQL_OPEN_FORCE_SHARED_MDL))
     goto error;
 
   thd->lex->used_tables= 0;                        // Updated by setup_fields
@@ -1466,10 +1436,12 @@ static bool mysql_test_do_fields(Prepared_statement *stmt,
                                    UINT_MAX, FALSE))
     DBUG_RETURN(TRUE);
 
-  if (open_normal_and_derived_tables(thd, tables, MYSQL_OPEN_FORCE_SHARED_MDL))
+  if (open_tables_for_query(thd, tables, MYSQL_OPEN_FORCE_SHARED_MDL))
     DBUG_RETURN(TRUE);
-  DBUG_RETURN(setup_fields(thd, Ref_ptr_array(),
-                           *values, MARK_COLUMNS_NONE, 0, 0));
+  if (setup_fields(thd, Ref_ptr_array(), *values, 0, 0, 0))
+    DBUG_RETURN(TRUE);
+
+  DBUG_RETURN(false);
 }
 
 
@@ -1496,19 +1468,20 @@ static bool mysql_test_set_fields(Prepared_statement *stmt,
   DBUG_ENTER("mysql_test_set_fields");
   DBUG_ASSERT(stmt->is_stmt_prepare());
 
-  if ((tables && check_table_access(thd, SELECT_ACL, tables, FALSE,
-                                    UINT_MAX, FALSE)) ||
-      open_normal_and_derived_tables(thd, tables, MYSQL_OPEN_FORCE_SHARED_MDL))
-    goto error;
+  if (tables &&
+      check_table_access(thd, SELECT_ACL, tables, FALSE, UINT_MAX, FALSE))
+    DBUG_RETURN(true);
+
+  if (open_tables_for_query(thd, tables, MYSQL_OPEN_FORCE_SHARED_MDL))
+    DBUG_RETURN(true);
 
   while ((var= it++))
   {
     if (var->light_check(thd))
-      goto error;
+      DBUG_RETURN(true);
   }
-  DBUG_RETURN(FALSE);
-error:
-  DBUG_RETURN(TRUE);
+
+  DBUG_RETURN(false);
 }
 
 
@@ -1533,20 +1506,21 @@ static bool mysql_test_call_fields(Prepared_statement *stmt,
   DBUG_ENTER("mysql_test_call_fields");
   DBUG_ASSERT(stmt->is_stmt_prepare());
 
-  if ((tables && check_table_access(thd, SELECT_ACL, tables, FALSE,
-                                    UINT_MAX, FALSE)) ||
-      open_normal_and_derived_tables(thd, tables, MYSQL_OPEN_FORCE_SHARED_MDL))
-    goto err;
+  if (tables &&
+      check_table_access(thd, SELECT_ACL, tables, FALSE, UINT_MAX, FALSE))
+    DBUG_RETURN(true);
+
+  if (open_tables_for_query(thd, tables, MYSQL_OPEN_FORCE_SHARED_MDL))
+    DBUG_RETURN(true);
 
   while ((item= it++))
   {
     if ((!item->fixed && item->fix_fields(thd, it.ref())) ||
         item->check_cols(1))
-      goto err;
+      DBUG_RETURN(true);
   }
-  DBUG_RETURN(FALSE);
-err:
-  DBUG_RETURN(TRUE);
+
+  DBUG_RETURN(false);
 }
 
 
@@ -1614,18 +1588,14 @@ select_like_stmt_test_with_open(Prepared_statement *stmt,
   DBUG_ENTER("select_like_stmt_test_with_open");
   DBUG_ASSERT(stmt->is_stmt_prepare());
 
-  /*
-    We should not call LEX::unit->cleanup() after this
-    open_normal_and_derived_tables() call because we don't allow
-    prepared EXPLAIN yet so derived tables will clean up after
-    themself.
-  */
-  if (open_normal_and_derived_tables(stmt->thd, tables,
-                                     MYSQL_OPEN_FORCE_SHARED_MDL))
-    DBUG_RETURN(TRUE);
+  if (open_tables_for_query(stmt->thd, tables, MYSQL_OPEN_FORCE_SHARED_MDL))
+    DBUG_RETURN(true);
 
-  DBUG_RETURN(select_like_stmt_test(stmt, specific_prepare,
-                                    setup_tables_done_option));
+  if (select_like_stmt_test(stmt, specific_prepare,
+                            setup_tables_done_option))
+    DBUG_RETURN(true);
+
+  DBUG_RETURN(false);
 }
 
 
@@ -1662,8 +1632,8 @@ static bool mysql_test_create_table(Prepared_statement *stmt)
     if (!(lex->create_info.options & HA_LEX_CREATE_TMP_TABLE))
       create_table->open_type= OT_BASE_ONLY;
 
-    if (open_normal_and_derived_tables(stmt->thd, lex->query_tables,
-                                       MYSQL_OPEN_FORCE_SHARED_MDL))
+    if (open_tables_for_query(stmt->thd, lex->query_tables,
+                              MYSQL_OPEN_FORCE_SHARED_MDL))
       DBUG_RETURN(TRUE);
 
     select_lex->context.resolve_in_select_list= true;
@@ -1682,8 +1652,8 @@ static bool mysql_test_create_table(Prepared_statement *stmt)
       we validate metadata of all CREATE TABLE statements,
       which keeps metadata validation code simple.
     */
-    if (open_normal_and_derived_tables(stmt->thd, lex->query_tables,
-                                       MYSQL_OPEN_FORCE_SHARED_MDL))
+    if (open_tables_for_query(stmt->thd, lex->query_tables,
+                              MYSQL_OPEN_FORCE_SHARED_MDL))
       DBUG_RETURN(TRUE);
   }
 
@@ -1724,7 +1694,7 @@ static bool mysql_test_create_view(Prepared_statement *stmt)
   if (open_temporary_tables(thd, tables))
     goto err;
 
-  if (open_normal_and_derived_tables(thd, tables, MYSQL_OPEN_FORCE_SHARED_MDL))
+  if (open_tables_for_query(thd, tables, MYSQL_OPEN_FORCE_SHARED_MDL))
     goto err;
 
   lex->context_analysis_only|=  CONTEXT_ANALYSIS_ONLY_VIEW;
@@ -1794,42 +1764,35 @@ static bool mysql_test_multidelete(Prepared_statement *stmt,
   if (add_item_to_list(stmt->thd, new Item_null()))
   {
     my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), 0);
-    goto error;
+    return true;
   }
 
-  if (multi_delete_precheck(stmt->thd, tables) ||
-      select_like_stmt_test_with_open(stmt, tables,
+  if (multi_delete_precheck(stmt->thd, tables))
+    return true;
+  if (select_like_stmt_test_with_open(stmt, tables,
                                       &mysql_multi_delete_prepare_tester,
                                       OPTION_SETUP_TABLES_DONE))
-    goto error;
-  if (tables->multitable_view)
-  {
-    my_error(ER_VIEW_DELETE_MERGE_VIEW, MYF(0),
-             tables->view_db.str, tables->view_name.str);
-    goto error;
-  }
-  return FALSE;
-error:
-  return TRUE;
+    return true;
+
+  return false;
 }
 
 
 /**
   Wrapper for mysql_insert_select_prepare, to make change of local tables
-  after open_normal_and_derived_tables() call.
+  after open_tables_for_query() call.
 
   @param thd                thread handle
 
-  @note
     We need to remove the first local table after
-    open_normal_and_derived_tables(), because mysql_handle_derived
+    open_tables_for_query(), because mysql_insert_select_prepare()
     uses local tables lists.
 */
 
 static int mysql_insert_select_prepare_tester(THD *thd)
 {
-  SELECT_LEX *first_select= thd->lex->select_lex;
-  TABLE_LIST *second_table= first_select->table_list.first->next_local;
+  SELECT_LEX *const first_select= thd->lex->select_lex;
+  TABLE_LIST *const second_table= first_select->table_list.first->next_local;
 
   /* Skip first table, which is the table we are inserting in */
   first_select->table_list.first= second_table;
@@ -3320,10 +3283,25 @@ bool Prepared_statement::prepare(const char *packet, size_t packet_len)
 
   thd->m_digest= NULL;
   thd->m_statement_psi= NULL;
-  error= parse_sql(thd, & parser_state, NULL) ||
+
+  sql_digest_state digest;
+  digest.reset();
+  thd->m_digest= &digest;
+
+  enable_digest_if_any_plugin_needs_it(thd, &parser_state);
+
+  error= parse_sql(thd, &parser_state, NULL) ||
     thd->is_error() ||
     init_param_array(this);
+
+  if (!error)
+  { // We've just created the statement maybe there is a rewrite
+    invoke_post_parse_rewrite_plugins(thd, true);
+    error= init_param_array(this);
+  }
+
   thd->m_digest= parent_digest;
+
   thd->m_statement_psi= parent_locker;
 
   lex->set_trg_event_type_for_tables();

@@ -25,6 +25,7 @@
 #include "pfs_column_values.h"
 #include "table_socket_instances.h"
 #include "pfs_global.h"
+#include "field.h"
 
 THR_LOCK table_socket_instances::m_table_lock;
 

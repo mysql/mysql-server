@@ -17,22 +17,16 @@
 
 /* A lexical scanner on a temporary buffer with a yacc interface */
 
-#define MYSQL_LEX 1
-#include "sql_class.h"                          // sql_lex.h: SQLCOM_END
 #include "sql_lex.h"
-#include "sql_parse.h"                          // add_to_list
-#include "item_create.h"
-#include <m_ctype.h>
-#include <hash.h>
-#include "sp.h"
-#include "sp_head.h"
-#include "sql_table.h"                 // primary_key_name
-#include "sql_show.h"                  // append_identifier
-#include "sql_select.h"                // JOIN
+
+#include "sp_head.h"                   // sp_head
+#include "sql_class.h"                 // THD
+#include "sql_parse.h"                 // add_to_list
 #include "sql_optimizer.h"             // JOIN
-#include "parse_location.h"
 #include "sql_plugin.h"                // plugin_unlock_list
-#include <mysql/psi/mysql_statement.h>
+#include "sql_show.h"                  // append_identifier
+#include "sql_table.h"                 // primary_key_name
+
 
 static int lex_one_token(YYSTYPE *yylval, THD *thd);
 
@@ -145,8 +139,7 @@ inline int lex_casecmp(const char *s, const char *t, uint len)
   return (int) len+1;
 }
 
-#include <lex_hash.h>
-
+#include <lex_hash.h> // Must be after lex_casecmp and to_upper_lex
 
 void lex_init(void)
 {
@@ -191,15 +184,13 @@ void struct_slave_connection::reset()
 /**
   Perform initialization of Lex_input_stream instance.
 
-  Basically, a buffer for pre-processed query. This buffer should be large
-  enough to keep multi-statement query. The allocation is done once in
+  Basically, a buffer for a pre-processed query. This buffer should be large
+  enough to keep a multi-statement query. The allocation is done once in
   Lex_input_stream::init() in order to prevent memory pollution when
   the server is processing large multi-statement queries.
 */
 
-bool Lex_input_stream::init(THD *thd,
-			    const char* buff,
-			    size_t length)
+bool Lex_input_stream::init(THD *thd, const char* buff, size_t length)
 {
   DBUG_EXECUTE_IF("bug42064_simulate_oom",
                   DBUG_SET("+d,simulate_out_of_memory"););
@@ -451,6 +442,7 @@ void LEX::reset()
   context_analysis_only= 0;
   derived_tables= 0;
   safe_to_cache_query= true;
+  insert_table= NULL;
   leaf_tables_insert= NULL;
   parsing_options.reset();
   empty_field_list_on_rset= false;
@@ -494,8 +486,8 @@ void LEX::reset()
 
 /**
   Call lex_start() before every query that is to be prepared and executed.
-  Because of this, it's critical to not do too much things here.
-  (We already do too much here)
+  Because of this, it's critical not to do too many things here.  (We already
+  do too much)
 
   The function creates a select_lex and a select_lex_unit object.
   These objects should rather be created by the parser bottom-up.
@@ -629,6 +621,11 @@ st_select_lex *LEX::new_query(st_select_lex *curr_select)
       We should fix 1) and then use it unconditionally here.
     */
     select->context.outer_context= outer_context;
+  }
+  else if (select->outer_select()->parsing_place == CTX_DERIVED)
+  {
+    // Currently, outer references are not allowed for a derived table
+    DBUG_ASSERT(select->context.outer_context == NULL);
   }
   else
   {
@@ -2128,6 +2125,7 @@ st_select_lex::st_select_lex
   linkage(UNSPECIFIED_TYPE),
   no_table_names_allowed(false),
   context(),
+  first_context(&context),
   resolve_place(RESOLVE_NONE),
   resolve_nest(NULL),
   semijoin_disallowed(false),
@@ -2153,6 +2151,11 @@ st_select_lex::st_select_lex
   embedding(NULL),
   sj_nests(),
   leaf_tables(NULL),
+  leaf_table_count(0),
+  derived_table_count(0),
+  materialized_derived_table_count(0),
+  has_sj_nests(false),
+  partitioned_table_count(0),
   order_list(),
   order_list_ptrs(NULL),
   select_limit(NULL),
@@ -2164,8 +2167,10 @@ st_select_lex::st_select_lex
   max_equal_elems(0),
   select_n_where_fields(0),
   parsing_place(CTX_NONE),
-  with_sum_func(false),
   in_sum_expr(0),
+  with_sum_func(false),
+  n_sum_items(0),
+  n_child_sum_items(0),
   select_number(0),
   nest_level(0),
   inner_sum_func_list(NULL),
@@ -2174,19 +2179,14 @@ st_select_lex::st_select_lex
   having_fix_field(false),
   group_fix_field(false),
   inner_refs_list(),
-  n_sum_items(0),
-  n_child_sum_items(0),
   explicit_limit(false),
   subquery_in_having(false),
   first_execution(true),
-  first_natural_join_processing(true),
   sj_pullout_done(false),
-  no_wrap_view_item(false),
   exclude_from_table_unique_test(false),
   prev_join_using(NULL),
   select_list_tables(0),
   outer_join(0),
-  removed_select(NULL),
   m_agg_func_used(false),
   sj_candidates(NULL)
 {
@@ -2869,7 +2869,7 @@ bool db_is_default_db(const char *db, size_t db_len, const THD *thd)
   @param str   string where table should be printed
 */
 
-void TABLE_LIST::print(THD *thd, String *str, enum_query_type query_type)
+void TABLE_LIST::print(THD *thd, String *str, enum_query_type query_type) const
 {
   if (nested_join)
   {
@@ -2893,9 +2893,9 @@ void TABLE_LIST::print(THD *thd, String *str, enum_query_type query_type)
       append_identifier(thd, str, view_name.str, view_name.length);
       cmp_name= view_name.str;
     }
-    else if (derived)
+    else if (is_derived() && !is_merged())
     {
-      // A derived table
+      // A derived table that is materialized or without specified algorithm
       if (!(query_type & QT_DERIVED_TABLE_ONLY_ALIAS))
       {
         str->append('(');
@@ -3144,6 +3144,110 @@ void st_select_lex::print(THD *thd, String *str, enum_query_type query_type)
 }
 
 
+Item::enum_walk get_walk_flags(const Select_lex_visitor *visitor)
+{
+  if (visitor->visits_in_prefix_order())
+    return Item::WALK_SUBQUERY_PREFIX;
+  else
+    return Item::WALK_SUBQUERY_POSTFIX;
+}
+
+
+bool walk_item(Item *item, Select_lex_visitor *visitor)
+{
+  if (item == NULL)
+    return false;
+  return item->walk(&Item::visitor_processor, get_walk_flags(visitor),
+                    pointer_cast<uchar*>(visitor));
+}
+
+
+static bool accept_for_order(SQL_I_List<ORDER> orders,
+                             Select_lex_visitor *visitor)
+{
+  if (orders.elements == 0)
+    return false;
+
+  for (ORDER *order= orders.first; order != NULL; order= order->next)
+    if (walk_item(*order->item, visitor))
+      return true;
+  return false;
+}
+
+bool st_select_lex_unit::accept(Select_lex_visitor *visitor)
+{
+  SELECT_LEX *end= NULL;
+  for (SELECT_LEX *sl= first_select(); sl != end; sl= sl->next_select())
+    if (sl->accept(visitor))
+      return true;
+
+  if (fake_select_lex &&
+      accept_for_order(fake_select_lex->order_list, visitor))
+    return true;
+
+  return visitor->visit(this);
+}
+
+
+static bool accept_for_join(List<TABLE_LIST> *tables,
+                            Select_lex_visitor *visitor)
+{
+  List_iterator<TABLE_LIST> ti(*tables);
+  TABLE_LIST *end= NULL;
+  for (TABLE_LIST *t= ti++; t != end; t= ti++)
+  {
+    if (t->nested_join && accept_for_join(&t->nested_join->join_list, visitor))
+      return true;
+    else if (t->is_derived())
+      t->derived_unit()->accept(visitor);
+    if (walk_item(t->join_cond(), visitor))
+        return true;
+  }
+  return false;
+}
+
+
+bool st_select_lex::accept(Select_lex_visitor *visitor)
+{
+  // Select clause
+  List_iterator<Item> it(item_list);
+  Item *end= NULL;
+  for (Item *item= it++; item != end; item= it++)
+    if (walk_item(item, visitor))
+      return true;
+
+  // From clause
+  if (table_list.elements != 0 && accept_for_join(join_list, visitor))
+      return true;
+
+  // Where clause
+  Item *where_condition= join != NULL ? join->where_cond : m_where_cond;
+  if (where_condition != NULL && walk_item(where_condition, visitor))
+    return true;
+
+  // Group by and olap clauses
+  if (accept_for_order(group_list, visitor))
+    return true;
+
+  // Having clause
+  Item *having_condition=
+    join != NULL ? join->having_for_explain : m_having_cond;
+  if (walk_item(having_condition, visitor))
+    return true;
+
+  // Order clause
+  if (accept_for_order(order_list, visitor))
+    return true;
+
+  // Limit clause
+  if (explicit_limit)
+    if (walk_item(offset_limit, visitor) || walk_item(select_limit, visitor))
+      return true;
+
+  return visitor->visit(this);
+}
+
+
 /**
   @brief Restore the LEX and THD in case of a parse error.
 
@@ -3205,7 +3309,7 @@ void Query_tables_list::reset_query_tables_list(bool init)
     TABLE_LIST *table= query_tables;
     for (;;)
     {
-      delete table->view;
+      delete table->view_query();
       if (query_tables_last == &table->next_global ||
           !(table= table->next_global))
         break;
@@ -3274,57 +3378,6 @@ LEX::LEX()
   in_update_value_clause(false)
 {
   reset_query_tables_list(TRUE);
-}
-
-
-/*
-  Check whether the merging algorithm can be used on this VIEW
-
-  SYNOPSIS
-    LEX::can_be_merged()
-
-  DESCRIPTION
-    We can apply merge algorithm if it is single SELECT view  with
-    subqueries only in WHERE clause (we do not count SELECTs of underlying
-    views, and second level subqueries) and we have not grpouping, ordering,
-    HAVING clause, aggregate functions, DISTINCT clause, LIMIT clause and
-    several underlying tables.
-
-  RETURN
-    FALSE - only temporary table algorithm can be used
-    TRUE  - merge algorithm can be used
-*/
-
-bool LEX::can_be_merged()
-{
-  // TODO: do not forget implement case when select_lex->table_list.elements==0
-
-  /* find non VIEW subqueries/unions */
-  bool selects_allow_merge= select_lex->next_select() == NULL;
-  if (selects_allow_merge)
-  {
-    for (SELECT_LEX_UNIT *tmp_unit= select_lex->first_inner_unit();
-         tmp_unit;
-         tmp_unit= tmp_unit->next_unit())
-    {
-      if (tmp_unit->first_select()->parent_lex == this &&
-          (tmp_unit->item == 0 ||
-           (tmp_unit->item->place() != CTX_WHERE &&
-            tmp_unit->item->place() != CTX_ON)))
-      {
-        selects_allow_merge= 0;
-        break;
-      }
-    }
-  }
-
-  return selects_allow_merge &&
-         select_lex->group_list.elements == 0 &&
-         select_lex->having_cond() == NULL &&
-         !select_lex->with_sum_func &&
-         select_lex->table_list.elements >= 1 &&
-         !select_lex->is_distinct() &&
-         select_lex->select_limit == NULL;
 }
 
 
@@ -3591,6 +3644,48 @@ void st_select_lex_unit::include_chain(LEX *lex, st_select_lex *outer)
   outer->slave= this;
 }
 
+
+/**
+  Return true if query expression can be merged into an outer query.
+  Being mergeable also means that derived table/view is updatable.
+
+  A view/derived table is not mergeable if it is one of the following:
+   - A union (implementation restriction).
+   - An aggregated query, or has HAVING, or has DISTINCT
+     (A general aggregated query cannot be merged with a non-aggregated one).
+   - A table-less query (unimportant special case).
+   - A query with a LIMIT (limit applies to subquery, so the implementation
+     strategy is to materialize this subquery, including row count constraint).
+   - A query that modifies variables (When variables are modified, try to
+     preserve the original structure of the query. This is less likely to cause
+     changes in variable assignment order).
+   - A query with subqueries in the SELECT list
+     (this is a pure implementation limitation).
+*/
+bool st_select_lex_unit::is_mergeable() const
+{
+  SELECT_LEX *const select= first_select();
+
+  if (is_union())
+    return false;
+
+  for (SELECT_LEX_UNIT *unit= select->first_inner_unit();
+       unit;
+       unit= unit->next_unit())
+  {
+    if (unit->outer_select() == select &&
+        unit->item &&
+        unit->item->place() == CTX_SELECT_LIST)
+      return false;
+  }
+
+  return !first_select()->is_grouped() &&
+         !first_select()->having_cond() &&
+         !first_select()->is_distinct() &&
+         first_select()->table_list.elements > 0 &&
+         !first_select()->has_limit() &&
+         thd->lex->set_var_list.elements == 0;
+}
 
 /**
   Renumber contained select_lex objects.
@@ -4034,40 +4129,6 @@ void st_select_lex::fix_prepare_information(THD *thd)
 */
 
 
-/**
-  @brief Process all derived tables/views of the SELECT.
-
-  @param lex    LEX of this thread
-
-  @details
-  This function runs given processor on all derived tables from the
-  table_list of this select.
-  The SELECT_LEX::leaf_tables/TABLE_LIST::next_leaf chain is used as the tables
-  list for current select. This chain is built by make_leaves_list and thus
-  this function can't be used prior to setup_tables. As the chain includes all
-  tables from merged views there is no need in diving into views.
-
-  @see mysql_handle_derived.
-
-  @return FALSE ok.
-  @return TRUE an error occur.
-*/
-
-bool st_select_lex::handle_derived(LEX *lex,
-                                   bool (*processor)(THD*, LEX*, TABLE_LIST*))
-{
-  for (TABLE_LIST *table_ref= leaf_tables;
-       table_ref;
-       table_ref= table_ref->next_leaf)
-  {
-    if (table_ref->is_view_or_derived() &&
-        table_ref->handle_derived(lex, processor))
-      return TRUE;
-  }
-  return FALSE;
-}
-
-
 st_select_lex::type_enum st_select_lex::type()
 {
   if (master_unit()->fake_select_lex == this)
@@ -4498,6 +4559,29 @@ bool LEX::is_partition_management() const
 }
 
 
+/**
+  @todo This function is obviously incomplete. It does not walk update lists,
+  for instance. At the time of writing, however, this function has only a
+  single use, to walk all parts of select statements. If more functionality is
+  needed, it should be added here, in the same fashion as for SQLCOM_INSERT
+  below.
+*/
+bool LEX::accept(Select_lex_visitor *visitor)
+{
+  if (unit->accept(visitor))
+    return true;
+  if (sql_command == SQLCOM_INSERT)
+  {
+    List_iterator<Item> it(*insert_list);
+    Item *end= NULL;
+    for (Item *item= it++; item != end; item= it++)
+      if (walk_item(item, visitor))
+        return true;
+  }
+  return false;
+}
+
+
 void st_lex_master_info::initialize()
 {
   host= user= password= log_file_name= bind_addr = NULL;
@@ -4508,6 +4592,7 @@ void st_lex_master_info::initialize()
   server_id= retry_count= 0;
   gtid= NULL;
   gtid_until_condition= UNTIL_SQL_BEFORE_GTIDS;
+  view_id= NULL;
   until_after_gaps= false;
   ssl= ssl_verify_server_cert= heartbeat_opt= repl_ignore_server_ids_opt= 
     retry_count_opt= auto_position= LEX_MI_UNCHANGED;

@@ -13,6 +13,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include "sql_truncate.h"
+
 #include "debug_sync.h"  // DEBUG_SYNC
 #include "table.h"       // TABLE, FOREIGN_KEY_INFO
 #include "sql_class.h"   // THD
@@ -22,7 +24,6 @@
 #include "lock.h"        // MYSQL_OPEN_* flags
 #include "auth_common.h" // DROP_ACL
 #include "sql_parse.h"   // check_one_table_access()
-#include "sql_truncate.h"
 #include "sql_show.h"    //append_identifier()
 
 
@@ -231,7 +232,7 @@ Sql_cmd_truncate_table::handler_truncate(THD *thd, TABLE_LIST *table_ref,
   }
 
   /* Open the table as it will handle some required preparations. */
-  if (open_and_lock_tables(thd, table_ref, FALSE, flags))
+  if (open_and_lock_tables(thd, table_ref, flags))
     DBUG_RETURN(TRUNCATE_FAILED_SKIP_BINLOG);
 
   /* Whether to truncate regardless of foreign keys. */

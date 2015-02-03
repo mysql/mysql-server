@@ -17,12 +17,12 @@
 
 #include "rpl_gtid.h"
 
-#include <ctype.h>
+#include "mysqld_error.h"     // ER_*
 
-#include "mysqld_error.h"
 #ifndef MYSQL_CLIENT
-#include "sql_class.h"
-#endif // ifndef MYSQL_CLIENT
+#include "sql_class.h"        // THD
+#endif
+
 
 enum_return_status Gtid::parse(Sid_map *sid_map, const char *text)
 {
@@ -93,10 +93,39 @@ int Gtid::to_string(const rpl_sid &sid, char *buf) const
 }
 
 
-int Gtid::to_string(const Sid_map *sid_map, char *buf) const
+int Gtid::to_string(const Sid_map *sid_map, char *buf, bool need_lock) const
 {
   DBUG_ENTER("Gtid::to_string");
-  int ret= to_string(sid_map->sidno_to_sid(sidno), buf);
+  int ret;
+  if (sid_map != NULL)
+  {
+    Checkable_rwlock *lock= sid_map->get_sid_lock();
+    if (lock)
+    {
+      if (need_lock)
+        lock->rdlock();
+      else
+        lock->assert_some_lock();
+    }
+    const rpl_sid &sid= sid_map->sidno_to_sid(sidno);
+    if (lock && need_lock)
+      lock->unlock();
+    ret= to_string(sid, buf);
+  }
+  else
+  {
+#ifdef DBUG_OFF
+    /*
+      NULL is only allowed in debug mode, since the sidno does not
+      make sense for users but is useful to include in debug
+      printouts.  Therefore, we want to ASSERT(0) in non-debug mode.
+      Since there is no ASSERT in non-debug mode, we use abort
+      instead.
+    */
+    abort();
+#endif
+    ret= sprintf(buf, "%d:%lld", sidno, gno);
+  }
   DBUG_RETURN(ret);
 }
 
@@ -168,3 +197,28 @@ void check_return_status(enum_return_status status, const char *action,
   }
 }
 #endif // ! DBUG_OFF
+
+
+#ifndef MYSQL_CLIENT
+rpl_sidno get_sidno_from_global_sid_map(rpl_sid sid)
+{
+  DBUG_ENTER("get_sidno_from_global_sid_map(rpl_sid)");
+
+  global_sid_lock->wrlock();
+  rpl_sidno sidno= global_sid_map->add_sid(sid);
+  global_sid_lock->unlock();
+
+  DBUG_RETURN(sidno);
+}
+
+rpl_gno get_last_executed_gno(rpl_sidno sidno)
+{
+  DBUG_ENTER("get_last_executed_gno(rpl_sidno)");
+
+  global_sid_lock->rdlock();
+  rpl_gno gno= gtid_state->get_last_executed_gno(sidno);
+  global_sid_lock->unlock();
+
+  DBUG_RETURN(gno);
+}
+#endif // ifndef MYSQL_CLIENT

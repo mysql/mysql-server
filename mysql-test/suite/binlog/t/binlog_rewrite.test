@@ -18,7 +18,7 @@ RESET MASTER;
 
 CREATE USER user1@localhost IDENTIFIED BY 'secret';
 CREATE USER user2@localhost IDENTIFIED BY 'secret';
-SET PASSWORD FOR user1@localhost = PASSWORD('secret');
+SET PASSWORD FOR user1@localhost = 'secret';
 
 --echo # Test the password is encrypted in binary log
 --echo # when granting privileges on tables.
@@ -57,7 +57,7 @@ CHANGE MASTER TO MASTER_PASSWORD='azundris3';
 
 # 1.1.1.4
 CREATE USER 'test_user4'@'localhost';
-SET PASSWORD FOR 'test_user4'@'localhost' = PASSWORD('azundris4');
+SET PASSWORD FOR 'test_user4'@'localhost' = 'azundris4';
 
 --source include/show_binlog_events.inc
 

@@ -24,7 +24,7 @@ Created 11/11/1995 Heikki Tuuri
 *******************************************************/
 
 #include "ha_prototypes.h"
-#include <mysql/plugin.h>
+#include <mysql/service_thd_wait.h>
 
 #include "buf0flu.h"
 
@@ -49,6 +49,7 @@ Created 11/11/1995 Heikki Tuuri
 #include "trx0sys.h"
 #include "srv0mon.h"
 #include "fsp0sysspace.h"
+#include "ut0stage.h"
 
 #ifdef UNIV_LINUX
 /* include defs for CPU time priority settings */
@@ -1210,6 +1211,9 @@ buf_flush_check_neighbor(
 @param[in]	flush_type	BUF_FLUSH_LRU or BUF_FLUSH_LIST
 @param[in]	n_flushed	number of pages flushed so far in this batch
 @param[in]	n_to_flush	maximum number of pages we are allowed to flush
+@param[in,out]	stage		performance schema accounting object, used by
+ALTER TABLE. If not NULL, then stage->inc() will be called for each page we
+attempt to flush.
 @return number of pages flushed */
 static
 ulint
@@ -1217,7 +1221,8 @@ buf_flush_try_neighbors(
 	const page_id_t&	page_id,
 	buf_flush_t		flush_type,
 	ulint			n_flushed,
-	ulint			n_to_flush)
+	ulint			n_to_flush,
+	ut_stage_alter_t*	stage)
 {
 	ulint		i;
 	ulint		low;
@@ -1293,6 +1298,10 @@ buf_flush_try_neighbors(
 			      (unsigned) low, (unsigned) high));
 
 	for (ulint i = low; i < high; i++) {
+
+		if (stage != NULL) {
+			stage->inc();
+		}
 
 		buf_page_t*	bpage;
 
@@ -1382,6 +1391,9 @@ must be buf_page_in_file(bpage)
 @param[in]	flush_type	BUF_FLUSH_LRU or BUF_FLUSH_LIST
 @param[in]	n_to_flush	number of pages to flush
 @param[in,out]	count		number of pages flushed
+@param[in,out]	stage		performance schema accounting object, used by
+ALTER TABLE. If not NULL, then stage->inc() will be called for each page we
+attempt to flush.
 @return TRUE if buf_pool mutex was released during this function.
 This does not guarantee that some pages were written as well.
 Number of pages written are incremented to the count. */
@@ -1391,7 +1403,8 @@ buf_flush_page_and_try_neighbors(
 	buf_page_t*		bpage,
 	buf_flush_t		flush_type,
 	ulint			n_to_flush,
-	ulint*			count)
+	ulint*			count,
+	ut_stage_alter_t*	stage = NULL)
 {
 #ifdef UNIV_DEBUG
 	buf_pool_t*	buf_pool = buf_pool_from_bpage(bpage);
@@ -1419,7 +1432,7 @@ buf_flush_page_and_try_neighbors(
 
 		/* Try to flush also all the neighbors */
 		*count += buf_flush_try_neighbors(
-			page_id, flush_type, *count, n_to_flush);
+			page_id, flush_type, *count, n_to_flush, stage);
 
 		buf_pool_mutex_enter(buf_pool);
 		flushed = TRUE;
@@ -1629,6 +1642,9 @@ The calling thread is not allowed to own any latches on pages!
 not guaranteed that the actual number is that big, though)
 @param[in]	lsn_limit	all blocks whose oldest_modification is smaller
 than this should be flushed (if their number does not exceed min_n)
+@param[in,out]	stage		performance schema accounting object, used by
+ALTER TABLE. If not NULL, then stage->inc() will be called for each page we
+attempt to flush.
 @return number of blocks for which the write request was queued;
 ULINT_UNDEFINED if there was a flush of the same type already
 running */
@@ -1637,7 +1653,8 @@ ulint
 buf_do_flush_list_batch(
 	buf_pool_t*		buf_pool,
 	ulint			min_n,
-	lsn_t			lsn_limit)
+	lsn_t			lsn_limit,
+	ut_stage_alter_t*	stage)
 {
 	ulint		count = 0;
 	ulint		scanned = 0;
@@ -1673,7 +1690,7 @@ buf_do_flush_list_batch(
 		bool flushed =
 #endif /* UNIV_DEBUG */
 		buf_flush_page_and_try_neighbors(
-			bpage, BUF_FLUSH_LIST, min_n, &count);
+			bpage, BUF_FLUSH_LIST, min_n, &count, stage);
 
 		buf_flush_list_mutex_enter(buf_pool);
 
@@ -1720,6 +1737,9 @@ not guaranteed that the actual number is that big, though)
 @param[in]	lsn_limit	in the case of BUF_FLUSH_LIST all blocks whose
 oldest_modification is smaller than this should be flushed (if their number
 does not exceed min_n), otherwise ignored
+@param[in,out]	stage		performance schema accounting object, used by
+ALTER TABLE. If not NULL, then stage->inc() will be called for each page we
+attempt to flush.
 @return number of blocks for which the write request was queued */
 static
 ulint
@@ -1727,7 +1747,8 @@ buf_flush_batch(
 	buf_pool_t*		buf_pool,
 	buf_flush_t		flush_type,
 	ulint			min_n,
-	lsn_t			lsn_limit)
+	lsn_t			lsn_limit,
+	ut_stage_alter_t*	stage)
 {
 	ut_ad(flush_type == BUF_FLUSH_LRU || flush_type == BUF_FLUSH_LIST);
 
@@ -1749,7 +1770,8 @@ buf_flush_batch(
 		count = buf_do_LRU_batch(buf_pool, min_n);
 		break;
 	case BUF_FLUSH_LIST:
-		count = buf_do_flush_list_batch(buf_pool, min_n, lsn_limit);
+		count = buf_do_flush_list_batch(buf_pool, min_n, lsn_limit,
+						stage);
 		break;
 	default:
 		ut_error;
@@ -1889,6 +1911,9 @@ oldest_modification is smaller than this should be flushed (if their number
 does not exceed min_n), otherwise ignored
 @param[out]	n_processed	the number of pages which were processed is
 passed back to caller. Ignored if NULL
+@param[in,out]	stage		performance schema accounting object, used by
+ALTER TABLE. If not NULL, then stage->inc() will be called for each page we
+attempt to flush.
 @retval true	if a batch was queued successfully.
 @retval false	if another batch of same type was already running. */
 bool
@@ -1897,7 +1922,8 @@ buf_flush_do_batch(
 	buf_flush_t		type,
 	ulint			min_n,
 	lsn_t			lsn_limit,
-	ulint*			n_processed)
+	ulint*			n_processed,
+	ut_stage_alter_t*	stage /* = NULL */)
 {
 	ut_ad(type == BUF_FLUSH_LRU || type == BUF_FLUSH_LIST);
 
@@ -1909,7 +1935,8 @@ buf_flush_do_batch(
 		return(false);
 	}
 
-	ulint	page_count = buf_flush_batch(buf_pool, type, min_n, lsn_limit);
+	ulint	page_count = buf_flush_batch(buf_pool, type, min_n, lsn_limit,
+					     stage);
 
 	buf_flush_end(buf_pool, type);
 
@@ -1980,6 +2007,10 @@ oldest_modification is smaller than this should be flushed (if their number
 does not exceed min_n), otherwise ignored
 @param[out]	n_processed	the number of pages which were processed is
 passed back to caller. Ignored if NULL.
+@param[in,out]	stage		performance schema accounting object, used by
+ALTER TABLE. If not NULL, then stage->begin_phase_flush() will be called
+initially, specifying the number of pages to be attempted to be flushed and
+subsequently, stage->inc() will be called for each page we attempt to flush.
 @return true if a batch was queued successfully for each buffer pool
 instance. false if another batch of same type was already running in
 at least one of the buffer pool instance */
@@ -1987,7 +2018,8 @@ bool
 buf_flush_lists(
 	ulint			min_n,
 	lsn_t			lsn_limit,
-	ulint*			n_processed)
+	ulint*			n_processed,
+	ut_stage_alter_t*	stage /* = NULL */)
 {
 	ulint		i;
 	ulint		n_flushed = 0;
@@ -1995,6 +2027,33 @@ buf_flush_lists(
 
 	if (n_processed) {
 		*n_processed = 0;
+	}
+
+	if (stage != NULL) {
+		ulint	pages_to_flush = 0;
+
+		/* Estimate how many pages are we going to flush from all
+		buffer pool instances. */
+		for (i = 0; i < srv_buf_pool_instances; i++) {
+			buf_pool_t*	buf_pool = buf_pool_from_array(i);
+
+			buf_pool_mutex_enter(buf_pool);
+			buf_flush_list_mutex_enter(buf_pool);
+
+			pages_to_flush += UT_LIST_GET_LEN(buf_pool->flush_list);
+
+			buf_flush_list_mutex_exit(buf_pool);
+			buf_pool_mutex_exit(buf_pool);
+
+			if (pages_to_flush > min_n) {
+				break;
+			}
+		}
+
+		/* We will not flush more than 'min_n' pages. */
+		pages_to_flush = std::min(min_n, pages_to_flush);
+
+		stage->begin_phase_flush(pages_to_flush);
 	}
 
 	if (min_n != ULINT_MAX) {
@@ -2017,7 +2076,8 @@ buf_flush_lists(
 					BUF_FLUSH_LIST,
 					min_n,
 					lsn_limit,
-					&page_count)) {
+					&page_count,
+					stage)) {
 			/* We have two choices here. If lsn_limit was
 			specified then skipping an instance of buffer
 			pool means we cannot guarantee that all pages

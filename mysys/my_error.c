@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,12 +14,14 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "mysys_priv.h"
+#include "my_sys.h"
 #include "mysys_err.h"
 #include <m_string.h>
 #include <stdarg.h>
 #include <m_ctype.h>
 #include "my_base.h"
 #include "my_handler_errors.h"
+#include "my_thread_local.h"
 
 /* Max length of a error message. Should be kept in sync with MYSQL_ERRMSG_SIZE. */
 #define ERRMSGSIZE      (512)
@@ -40,12 +42,14 @@
 
 /*
   Message texts are registered into a linked list of 'my_err_head' structs.
-  Each struct contains (1.) an array of pointers to C character strings with
-  '\0' termination, (2.) the error number for the first message in the array
-  (array index 0) and (3.) the error number for the last message in the array
-  (array index (last - first)).
-  The array may contain gaps with NULL pointers and pointers to empty strings.
-  Both kinds of gaps will be translated to "Unknown error %d.", if my_error()
+  Each struct contains
+  (1.) a pointer to a function that returns C character strings with '\0'
+       termination
+  (2.) the error number for the first message in the array (array index 0)
+  (3.) the error number for the last message in the array
+       (array index (last - first)).
+  The function may return NULL pointers and pointers to empty strings.
+  Both kinds will be translated to "Unknown error %d.", if my_error()
   is called with a respective error number.
   The list of header structs is sorted in increasing order of error numbers.
   Negative error numbers are allowed. Overlap of error numbers is not allowed.
@@ -54,10 +58,10 @@
 static struct my_err_head
 {
   struct my_err_head    *meh_next;         /* chain link */
-  const char**          (*get_errmsgs) (); /* returns error message format */
+  const char*           (*get_errmsg) (int); /* returns error message format */
   int                   meh_first;       /* error number matching array slot 0 */
   int                   meh_last;          /* error number matching last slot */
-} my_errmsgs_globerrs = {NULL, get_global_errmsgs, EE_ERROR_FIRST, EE_ERROR_LAST};
+} my_errmsgs_globerrs = {NULL, get_global_errmsg, EE_ERROR_FIRST, EE_ERROR_LAST};
 
 static struct my_err_head *my_errmsgs_list= &my_errmsgs_globerrs;
 
@@ -167,7 +171,7 @@ const char *my_get_err_msg(int nr)
     we return NULL.
   */
   if (!(format= (meh_p && (nr >= meh_p->meh_first)) ?
-                meh_p->get_errmsgs()[nr - meh_p->meh_first] : NULL) ||
+                meh_p->get_errmsg(nr) : NULL) ||
       !*format)
     return NULL;
 
@@ -282,22 +286,22 @@ void my_message(uint error, const char *str, myf MyFlags)
 
   @description
 
-    The pointer array is expected to contain addresses to NUL-terminated
-    C character strings. The array contains (last - first + 1) pointers.
+    The function is expected to return addresses to NUL-terminated
+    C character strings.
     NULL pointers and empty strings ("") are allowed. These will be mapped to
     "Unknown error" when my_error() is called with a matching error number.
     This function registers the error numbers 'first' to 'last'.
     No overlapping with previously registered error numbers is allowed.
 
-  @param   errmsgs  array of pointers to error messages
-  @param   first    error number of first message in the array
-  @param   last     error number of last message in the array
+  @param   get_errmsg  function that returns error messages
+  @param   first       error number of first message in the array
+  @param   last        error number of last message in the array
 
   @retval  0        OK
   @retval  != 0     Error
 */
 
-int my_error_register(const char** (*get_errmsgs) (), int first, int last)
+int my_error_register(const char* (*get_errmsg) (int), int first, int last)
 {
   struct my_err_head *meh_p;
   struct my_err_head **search_meh_pp;
@@ -307,7 +311,7 @@ int my_error_register(const char** (*get_errmsgs) (), int first, int last)
                                                 sizeof(struct my_err_head),
                                                 MYF(MY_WME))))
     return 1;
-  meh_p->get_errmsgs= get_errmsgs;
+  meh_p->get_errmsg= get_errmsg;
   meh_p->meh_first= first;
   meh_p->meh_last= last;
 
@@ -343,22 +347,19 @@ int my_error_register(const char** (*get_errmsgs) (), int first, int last)
     These must have been previously registered by my_error_register().
     'first' and 'last' must exactly match the registration.
     If a matching registration is present, the header is removed from the
-    list and the pointer to the error messages pointers array is returned.
-    (The messages themselves are not released here as they may be static.)
-    Otherwise, NULL is returned.
+    list.
 
   @param   first     error number of first message
   @param   last      error number of last message
 
-  @retval  NULL      Error, no such number range registered.
-  @retval  non-NULL  OK, returns address of error messages pointers array.
+  @retval  TRUE      Error, no such number range registered.
+  @retval  FALSE     OK
 */
 
-const char **my_error_unregister(int first, int last)
+my_bool my_error_unregister(int first, int last)
 {
   struct my_err_head    *meh_p;
   struct my_err_head    **search_meh_pp;
-  const char            **errmsgs;
 
   /* Search for the registration in the list. */
   for (search_meh_pp= &my_errmsgs_list;
@@ -370,17 +371,16 @@ const char **my_error_unregister(int first, int last)
       break;
   }
   if (! *search_meh_pp)
-    return NULL;
+    return TRUE;
 
   /* Remove header from the chain. */
   meh_p= *search_meh_pp;
   *search_meh_pp= meh_p->meh_next;
 
-  /* Save the return value and free the header. */
-  errmsgs= meh_p->get_errmsgs();
+  /* Free the header. */
   my_free(meh_p);
-  
-  return errmsgs;
+
+  return FALSE;
 }
 
 

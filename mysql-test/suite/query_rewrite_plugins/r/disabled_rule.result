@@ -1,0 +1,44 @@
+#
+# Test of disabled rules ('N' in enabled column.)
+#
+CREATE TABLE t1 ( c1 VARCHAR(10), c2 VARCHAR(10) );
+INSERT INTO t1 VALUES ( 'abc', 'def' ), ( 'ghi', 'klm' ), ( 'nop', 'qrs' );
+CREATE TABLE t2 ( c1 VARCHAR(10) );
+INSERT INTO t2 VALUES ( 'abc' ), ( 'klm' );
+# Query rewrite plugin was installed.
+INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement, enabled )
+VALUES ( 'SELECT * FROM test.t2',
+'SELECT * FROM test.t1 JOIN test.t2 ON test.t1.c1 = test.t2.c1', 'N'
+         );
+# Check that the rewrite rule is not executed.
+SELECT * FROM test.t2;
+c1
+abc
+klm
+# Check that the rule is indeed disabled.
+SELECT pattern, replacement, enabled FROM query_rewrite.rewrite_rules;
+pattern	replacement	enabled
+SELECT * FROM test.t2	SELECT * FROM test.t1 JOIN test.t2 ON test.t1.c1 = test.t2.c1	N
+# Enable the previously disabled rule.
+UPDATE query_rewrite.rewrite_rules
+SET enabled = 'Y'
+WHERE pattern = 'SELECT * FROM test.t2';
+CALL query_rewrite.flush_rewrite_rules();
+# Verify that the rewrite rule is enabled.
+SELECT * FROM test.t2;
+c1	c2	c1
+abc	def	abc
+Warnings:
+Note	1105	Query 'SELECT * FROM test.t2' rewritten to 'SELECT * FROM test.t1 JOIN test.t2 ON test.t1.c1 = test.t2.c1' by plugin: Rewriter.
+# Disable via UPDATE...
+UPDATE query_rewrite.rewrite_rules
+SET enabled = 'N'
+WHERE pattern = 'SELECT * FROM test.t2';
+CALL query_rewrite.flush_rewrite_rules();
+# Verify that the rewrite rule is disabled again.
+SELECT * FROM test.t2;
+c1
+abc
+klm
+DROP TABLE t1, t2;
+# Query rewrite plugin was uninstalled.

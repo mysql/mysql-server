@@ -13,30 +13,23 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "rpl_mi.h"
 #include "rpl_rli.h"
-#include "rpl_msr.h"
-#include "rpl_mts_submode.h"
-#include "sql_base.h"                        // close_thread_tables
-#include <my_dir.h>    // For MY_STAT
-#include "log_event.h" // Format_description_log_event, Log_event,
-                       // FORMAT_DESCRIPTION_LOG_EVENT, ROTATE_EVENT,
-                       // PREFIX_SQL_LOAD
-#include "rpl_slave.h"
-#include "rpl_utility.h"
-#include "transaction.h"
-#include "sql_parse.h"                          // end_trans, ROLLBACK
-#include "rpl_slave.h"
-#include "rpl_rli_pdb.h"
-#include "rpl_info_factory.h"
-#include "rpl_slave_commit_order_manager.h"
-#include <mysql/plugin.h>
-#include <mysql/service_thd_wait.h>
-#include "strfunc.h"
+
+#include "my_dir.h"                // MY_STAT
+#include "log_event.h"             // Log_event
+#include "rpl_group_replication.h" // set_group_replication_retrieved_certifi...
+#include "rpl_info_factory.h"      // Rpl_info_factory
+#include "rpl_mi.h"                // Master_info
+#include "rpl_msr.h"               // msr_map
+#include "rpl_rli_pdb.h"           // Slave_worker
+#include "sql_base.h"              // close_thread_tables
+#include "strfunc.h"               // strconvert
+#include "transaction.h"           // trans_commit_stmt
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
 
+#include <algorithm>
 using std::min;
 using std::max;
 
@@ -118,7 +111,8 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
    reported_unsafe_warning(false), rli_description_event(NULL),
    commit_order_mngr(NULL),
    sql_delay(0), sql_delay_end(0), m_flags(0), row_stmt_start_timestamp(0),
-   long_find_row_note_printed(false), error_on_rli_init_info(false)
+   long_find_row_note_printed(false), error_on_rli_init_info(false),
+   thd_tx_priority(0)
 {
   DBUG_ENTER("Relay_log_info::Relay_log_info");
 
@@ -874,6 +868,29 @@ improper_arguments: %d  timed_out: %d",
   DBUG_RETURN( error ? error : event_count );
 }
 
+int Relay_log_info::wait_for_gtid_set(THD* thd, String* gtid,
+                                      longlong timeout)
+{
+  DBUG_ENTER("Relay_log_info::wait_for_gtid_set(thd, String, timeout)");
+
+  DBUG_PRINT("info", ("Waiting for %s timeout %lld", gtid->c_ptr_safe(),
+             timeout));
+
+  Gtid_set wait_gtid_set(global_sid_map);
+  global_sid_lock->rdlock();
+
+  if (wait_gtid_set.add_gtid_text(gtid->c_ptr_safe()) != RETURN_STATUS_OK)
+  {
+    global_sid_lock->unlock();
+    DBUG_PRINT("exit",("improper gtid argument"));
+    DBUG_RETURN(-2);
+
+  }
+  global_sid_lock->unlock();
+
+  DBUG_RETURN(wait_for_gtid_set(thd, &wait_gtid_set, timeout));
+}
+
 /*
   TODO: This is a duplicated code that needs to be simplified.
   This will be done while developing all possible sync options.
@@ -881,7 +898,7 @@ improper_arguments: %d  timed_out: %d",
 
   /Alfranio
 */
-int Relay_log_info::wait_for_gtid_set(THD* thd, String* gtid,
+int Relay_log_info::wait_for_gtid_set(THD* thd, const Gtid_set* wait_gtid_set,
                                       longlong timeout)
 {
   int event_count = 0;
@@ -889,13 +906,10 @@ int Relay_log_info::wait_for_gtid_set(THD* thd, String* gtid,
   int error=0;
   struct timespec abstime; // for timeout checking
   PSI_stage_info old_stage;
-  DBUG_ENTER("Relay_log_info::wait_for_gtid_set");
+  DBUG_ENTER("Relay_log_info::wait_for_gtid_set(thd, gtid_set, timeout)");
 
   if (!inited)
     DBUG_RETURN(-2);
-
-  DBUG_PRINT("info", ("Waiting for %s timeout %lld", gtid->c_ptr_safe(),
-             timeout));
 
   set_timespec(&abstime, timeout);
   mysql_mutex_lock(&data_lock);
@@ -916,14 +930,6 @@ int Relay_log_info::wait_for_gtid_set(THD* thd, String* gtid,
      slave_running briefly switches between 1/0/1.
   */
   init_abort_pos_wait= abort_pos_wait;
-  Gtid_set wait_gtid_set(global_sid_map);
-  global_sid_lock->rdlock();
-  if (wait_gtid_set.add_gtid_text(gtid->c_ptr_safe()) != RETURN_STATUS_OK)
-  { 
-    global_sid_lock->unlock();
-    goto err;
-  }
-  global_sid_lock->unlock();
 
   /* The "compare and wait" main loop */
   while (!thd->killed &&
@@ -942,8 +948,8 @@ int Relay_log_info::wait_for_gtid_set(THD* thd, String* gtid,
 
     DBUG_PRINT("info", ("Waiting for '%s'. is_subset: %d and "
                         "!is_intersection_nonempty: %d",
-      gtid->c_ptr_safe(), wait_gtid_set.is_subset(executed_gtids),
-      !owned_gtids->is_intersection_nonempty(&wait_gtid_set)));
+      wait_gtid_set->to_string(), wait_gtid_set->is_subset(executed_gtids),
+      !owned_gtids->is_intersection_nonempty(wait_gtid_set)));
     executed_gtids->dbug_print("gtid_executed:");
     owned_gtids->dbug_print("owned_gtids:");
 
@@ -951,8 +957,8 @@ int Relay_log_info::wait_for_gtid_set(THD* thd, String* gtid,
       Since commit is performed after log to binary log, we must also
       check if any GTID of wait_gtid_set is not yet committed.
     */
-    if (wait_gtid_set.is_subset(executed_gtids) &&
-        !owned_gtids->is_intersection_nonempty(&wait_gtid_set))
+    if (wait_gtid_set->is_subset(executed_gtids) &&
+        !owned_gtids->is_intersection_nonempty(wait_gtid_set))
     {
       global_sid_lock->unlock();
       break;
@@ -1003,7 +1009,6 @@ int Relay_log_info::wait_for_gtid_set(THD* thd, String* gtid,
     DBUG_PRINT("info",("Testing if killed or SQL thread not running"));
   }
 
-err:
   thd->EXIT_COND(&old_stage);
   DBUG_PRINT("exit",("killed: %d  abort: %d  slave_running: %d \
 improper_arguments: %d  timed_out: %d",
@@ -1207,7 +1212,6 @@ int Relay_log_info::purge_relay_logs(THD *thd, bool just_reset,
   (const_cast<Gtid_set *>(get_gtid_set()))->clear();
   global_sid_lock->unlock();
 
-
   /* Save name of used relay log file */
   set_group_relay_log_name(relay_log.get_log_fname());
   set_event_relay_log_name(relay_log.get_log_fname());
@@ -1331,6 +1335,15 @@ bool Relay_log_info::is_until_satisfied(THD *thd, Log_event *ev)
     if (until_condition == UNTIL_MASTER_POS)
     {
       if (ev && ev->server_id == (uint32) ::server_id && !replicate_same_server_id)
+        DBUG_RETURN(false);
+      /*
+        Rotate events originating from the slave have server_id==0,
+        and their log_pos is relative to the slave, so in case their
+        log_pos is greater than the log_pos we are waiting for, they
+        can cause the slave to stop prematurely. So we ignore such
+        events.
+      */
+      if (ev && ev->server_id == 0)
         DBUG_RETURN(false);
       log_name= group_master_log_name;
       if (!ev || is_in_group() || !ev->common_header->log_pos)
@@ -1496,6 +1509,20 @@ bool Relay_log_info::is_until_satisfied(THD *thd, Log_event *ev)
     {
       DBUG_RETURN(false);
     }
+    break;
+
+  case UNTIL_SQL_VIEW_ID:
+    if (ev != NULL && ev->get_type_code() == binary_log::VIEW_CHANGE_EVENT)
+    {
+      View_change_log_event *view_event= (View_change_log_event *)ev;
+
+      if (until_view_id.compare(view_event->get_view_id()) == 0)
+      {
+        set_group_replication_retrieved_certification_info(view_event);
+        DBUG_RETURN(true);
+      }
+    }
+    DBUG_RETURN(false);
     break;
 
   case UNTIL_NONE:
@@ -2024,7 +2051,7 @@ a file name for --relay-log-index option.", opt_relaylog_index_name);
     gtid_set.dbug_print("set of GTIDs in relay log after initialization");
     global_sid_lock->unlock();
 #endif
-    if (!gtid_partial_trx.empty())
+    if (!gtid_partial_trx.is_empty())
     {
       /*
         The init_gtid_set has found an incomplete transaction in the relay log.

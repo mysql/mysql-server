@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,7 +22,11 @@ SET(MYSQLSERVICES_SOURCES
   my_plugin_log_service.c
   my_thread_scheduler_service.c
   mysql_string_service.c
-  mysql_malloc_service.c)
+  mysql_malloc_service.c
+  mysql_password_policy_service.c
+  parser_service.c
+  rpl_transaction_ctx_service.c
+  rpl_transaction_write_set_service.c)
 
 ADD_LIBRARY(mysqlservices ${MYSQLSERVICES_SOURCES})
 INSTALL(TARGETS mysqlservices DESTINATION ${INSTALL_LIBDIR} COMPONENT Development)

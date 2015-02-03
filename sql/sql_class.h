@@ -25,6 +25,8 @@
 #include "mysql_com.h"                    // Item_result
 #include "mysql_com_server.h"             // NET_SERVER
 #include "auth/sql_security_ctx.h"        // Security_context
+#include "derror.h"                       // ER_THD
+#include "discrete_interval.h"            // Discrete_interval
 #include "handler.h"                      // KEY_CREATE_INFO
 #include "opt_trace_context.h"            // Opt_trace_context
 #include "protocol.h"                     // Protocol_text
@@ -32,6 +34,7 @@
 #include "rpl_gtid.h"                     // Gtid_specification
 #include "session_tracker.h"              // Session_tracker
 #include "sql_alloc.h"                    // Sql_alloc
+#include "sql_digest_stream.h"            // sql_digest_state
 #include "sql_lex.h"                      // keytype
 #include "sql_locale.h"                   // MY_LOCALE
 #include "sql_profile.h"                  // PROFILING
@@ -53,6 +56,7 @@ struct st_thd_timer;
 typedef struct st_log_info LOG_INFO;
 typedef struct st_columndef MI_COLUMNDEF;
 typedef struct st_mysql_lex_string LEX_STRING;
+typedef struct user_conn USER_CONN;
 
 /**
   The meat of thd_proc_info(THD*, char*), a macro that packs the last
@@ -83,6 +87,8 @@ enum enum_delay_key_write { DELAY_KEY_WRITE_NONE, DELAY_KEY_WRITE_ON,
 enum enum_rbr_exec_mode { RBR_EXEC_MODE_STRICT,
                           RBR_EXEC_MODE_IDEMPOTENT,
                           RBR_EXEC_MODE_LAST_BIT };
+enum enum_transaction_write_set_hashing_algorithm { HASH_ALGORITHM_OFF= 0,
+                                                    HASH_ALGORITHM_MURMUR32= 1 };
 enum enum_slave_type_conversions { SLAVE_TYPE_CONVERSIONS_ALL_LOSSY,
                                    SLAVE_TYPE_CONVERSIONS_ALL_NON_LOSSY,
                                    SLAVE_TYPE_CONVERSIONS_ALL_UNSIGNED,
@@ -111,9 +117,6 @@ enum enum_binlog_format {
   BINLOG_FORMAT_ROW=   2, ///< row-based
   BINLOG_FORMAT_UNSPEC=3  ///< thd_binlog_format() returns it when binlog is closed
 };
-
-enum enum_mark_columns
-{ MARK_COLUMNS_NONE, MARK_COLUMNS_READ, MARK_COLUMNS_WRITE};
 
 /* Bits for different SQL modes modes (including ANSI mode) */
 #define MODE_REAL_AS_FLOAT              1
@@ -174,7 +177,6 @@ extern LEX_STRING EMPTY_STR;
 extern LEX_STRING NULL_STR;
 extern LEX_CSTRING EMPTY_CSTR;
 extern LEX_CSTRING NULL_CSTR;
-extern MYSQL_PLUGIN_IMPORT const char **errmesg;
 
 extern "C" LEX_CSTRING thd_query_unsafe(MYSQL_THD thd);
 extern "C" size_t thd_query_safe(MYSQL_THD thd, char *buf, size_t buflen);
@@ -374,14 +376,6 @@ typedef struct rpl_event_coordinates
 } LOG_POS_COORD;
 
 
-class LEX_COLUMN : public Sql_alloc
-{
-public:
-  String column;
-  uint rights;
-  LEX_COLUMN (const String& x,const  uint& y ): column (x),rights (y) {}
-};
-
 class MY_LOCALE;
 
 /**
@@ -492,6 +486,7 @@ typedef struct system_variables
   my_bool binlog_direct_non_trans_update;
   ulong binlog_row_image; 
   my_bool sql_log_bin;
+  ulong transaction_write_set_extraction;
   ulong completion_type;
   ulong query_cache_type;
   ulong tx_isolation;
@@ -691,9 +686,6 @@ mysqld_collation_get_by_name(const char *name,
 
 #ifdef MYSQL_SERVER
 
-void free_tmp_table(THD *thd, TABLE *entry);
-
-
 /* The following macro is to make init of Query_arena simpler */
 #ifndef DBUG_OFF
 #define INIT_ARENA_DBUG_INFO is_backup_arena= 0; is_reprepared= FALSE;
@@ -770,7 +762,6 @@ public:
   virtual void cleanup_stmt();
 };
 
-
 class Prepared_statement;
 
 /**
@@ -778,6 +769,7 @@ class Prepared_statement;
 
   Prepared statements in Prepared_statement_map have unique id
   (guaranteed by id assignment in Prepared_statement::Prepared_statement).
+
   Non-empty statement names are unique too: attempt to insert a new statement
   with duplicate name causes older statement to be deleted.
 
@@ -1409,14 +1401,26 @@ public:
     MARK_COLUMNS_NONE:  Means mark_used_colums is not set and no indicator to
                         handler of fields used is set
     MARK_COLUMNS_READ:  Means a bit in read set is set to inform handler
-                        that the field is to be read. If field list contains
-                        duplicates, then thd->dup_field is set to point
-                        to the last found duplicate.
+                        that the field is to be read. Update covering_keys
+                        and merge_keys too.
     MARK_COLUMNS_WRITE: Means a bit is set in write set to inform handler
                         that it needs to update this field in write_row
-                        and update_row.
+                        and update_row. If field list contains duplicates,
+                        then thd->dup_field is set to point to the last
+                        found duplicate.
+    MARK_COLUMNS_TEMP:  Mark bit in read set, but ignore key sets.
+                        Used by filesort().
   */
   enum enum_mark_columns mark_used_columns;
+  /**
+    Used by Item::check_column_privileges() to tell which privileges
+    to check for.
+    Set to ~0ULL before starting to resolve a statement.
+    Set to desired privilege mask before calling a resolver function that will
+    call Item::check_column_privileges().
+    After use, restore previous value as current value.
+  */
+  ulong want_privilege;
 
   LEX *lex;                                     // parse tree descriptor
 
@@ -1425,6 +1429,7 @@ private:
     The query associated with this statement.
   */
   LEX_CSTRING m_query_string;
+  String m_normalized_query;
 
   /**
     Currently selected catalog.
@@ -3069,6 +3074,21 @@ public:
   Diagnostics_area *get_parser_da()
   { return &m_parser_da; }
 
+
+  /**
+    Returns thread-local Diagnostics Area to be used by query rewrite plugins.
+    Query rewrite plugins use their own diagnostics area. The reason is that
+    they are invoked right before and right after parsing, and we don't want
+    conditions raised by plugins in either statement nor parser DA until we
+    know which type of statement we have parsed.
+
+    @note The diagnostics area is instantiated the first time it is asked for.
+  */
+  Diagnostics_area *get_query_rewrite_plugin_da()
+  {
+    return m_query_rewrite_plugin_da_ptr;
+  }  
+
   /**
     Push the given Diagnostics Area on top of the stack, making
     it the new first Diagnostics Area. Conditions in the new second
@@ -3286,19 +3306,257 @@ public:
   }
 
   /**
-    Return the statement or transaction group cache for this thread.
-    @param is_transactional if true, return the transaction group cache.
-    If false, return the statement group cache.
+    Return true if the statement/transaction cache is currently empty,
+    false otherwise.
+
+    @param is_transactional if true, check the transaction cache.
+    If false, check the statement cache.
   */
-  Group_cache *get_group_cache(bool is_transactional);
+  bool is_binlog_cache_empty(bool is_transactional);
 
   /**
-    If this thread owns a single GTID, then owned_gtid is set to that
-    group.  If this thread does not own any GTID at all,
-    owned_gtid.sidno==0.  If owned_gtid_set contains the set of owned
-    gtids, owned_gtid.sidno==-1.
+    The GTID of the currently owned transaction.
+
+    ==== Modes of ownership ====
+
+    The following modes of ownership are possible:
+
+    - owned_gtid.sidno==0: the thread does not own any transaction.
+
+    - owned_gtid.sidno==THD::OWNED_SIDNO_ANONYMOUS(==-2): the thread
+      owns an anonymous transaction
+
+    - owned_gtid.sidno>0 and owned_gtid.gno>0: the thread owns a GTID
+      transaction.
+
+    - (owned_gtid.sidno==THD::OWNED_SIDNO_GTID_SET(==-1): this is
+      currently not used.  It was reserved for the case where multiple
+      GTIDs are owned (using gtid_next_list).  This was one idea to
+      make GTIDs work with NDB: due to the epoch concept, multiple
+      transactions can be combined into one in NDB, and therefore a
+      single transaction on a slave can have multiple GTIDs.)
+
+    ==== Life cycle of ownership ====
+
+    Generally, transaction ownership starts when the transaction is
+    assigned its GTID and ends when the transaction commits or rolls
+    back.  On a master (GTID_NEXT=AUTOMATIC), the GTID is assigned
+    just before binlog flush; on a slave (GTID_NEXT=UUID:NUMBER or
+    GTID_NEXT=ANONYMOUS) it is assigned before starting the
+    transaction.
+
+    A new client always starts with owned_gtid.sidno=0.
+
+    Ownership can be acquired in the following ways:
+
+    A1. If GTID_NEXT = 'AUTOMATIC' and GTID_MODE = OFF/OFF_PERMISSIVE:
+        The thread acquires anonymous ownership in
+        gtid_state->generate_automatic_gtid called from
+        MYSQL_BIN_LOG::write_gtid.
+
+    A2. If GTID_NEXT = 'AUTOMATIC' and GTID_MODE = ON/ON_PERMISSIVE:
+        The thread generates the GTID and acquires ownership in
+        gtid_state->generate_automatic_gtid called from
+        MYSQL_BIN_LOG::write_gtid.
+
+    A3. If GTID_NEXT = 'UUID:NUMBER': The thread acquires ownership in
+        the following ways:
+
+        - In a client, the SET GTID_NEXT statement acquires ownership.
+
+        - The slave's analogy to a clients SET GTID_NEXT statement is
+          Gtid_log_event::do_apply_event.  So the slave acquires
+          ownership in this function.
+
+        Note: if the GTID UUID:NUMBER is already included in
+        GTID_EXECUTED, then the transaction must be skipped (the GTID
+        auto-skip feature).  Thus, ownership is *not* acquired in this
+        case and owned_gtid.sidno==0.
+
+    A4. If GTID_NEXT = 'ANONYMOUS':
+
+        - In a client, the SET GTID_NEXT statement acquires ownership.
+
+        - In a slave thread, Gtid_log_event::do_apply_event acquires
+          ownership.
+
+        - Contrary to the case of GTID_NEXT='UUID:NUMBER', it is
+          allowed to execute two transactions in sequence without
+          changing GTID_NEXT (cf. R1 and R2 below).  Both transactions
+          should be executed as anonymous transactions.  But ownership
+          is released when the first transaction commits.  Therefore,
+          when GTID_NEXT='ANONYMOUS', we also acquire anonymous
+          ownership when starting to execute a statement, in
+          gtid_reacquire_ownership_if_anonymous called from
+          gtid_pre_statement_checks (usually called from
+          mysql_execute_command).
+
+    A5. Slave applier threads start in a special mode, having
+        GTID_NEXT='NOT_YET_DETERMINED'.  This mode cannot be set in a
+        regular client.  When GTID_NEXT=NOT_YET_DETERMINED, the slave
+        thread is postponing the decision of the value of GTID_NEXT
+        until it has more information.  There are three cases:
+
+        - If the first transaction of the relay log has a
+          Gtid_log_event, then it will set GTID_NEXT=GTID:NUMBER and
+          acquire GTID ownership in Gtid_log_event::do_apply_event.
+
+        - If the first transaction of the relay log has a
+          Anonymous_gtid_log_event, then it will set
+          GTID_NEXT=ANONYMOUS and acquire anonymous ownership in
+          Gtid_log_event::do_apply_event.
+
+        - If the relay log was received from a pre-5.7.6 master with
+          GTID_MODE=OFF (or a pre-5.6 master), then there are neither
+          Gtid_log_events nor Anonymous_log_events in the relay log.
+          In this case, the slave sets GTID_NEXT=ANONYMOUS and
+          acquires anonymous ownership when executing a
+          Query_log_event (Query_log_event::do_apply_event calls
+          mysql_parse which calls gtid_pre_statement_checks which
+          calls gtid_reacquire_ownership_if_anonymous).
+
+    Ownership is released in the following ways:
+
+    R1. A thread that holds GTID ownership releases ownership at
+        transaction commit or rollback.  If GTID_NEXT=AUTOMATIC, all
+        is fine. If GTID_NEXT=UUID:NUMBER, the UUID:NUMBER cannot be
+        used for another transaction, since only one transaction can
+        have any given GTID.  To avoid the user mistake of forgetting
+        to set back GTID_NEXT, on commit we set
+        thd->variables.gtid_next.type=UNDEFINED_GROUP.  Then, any
+        statement that user tries to execute other than SET GTID_NEXT
+        will generate an error.
+
+    R2. A thread that holds anonymous ownership releases ownership at
+        transaction commit or rollback.  In this case there is no harm
+        in leaving GTID_NEXT='ANONYMOUS', so
+        thd->variables.gtid_next.type will remain ANONYMOUS_GROUP and
+        not UNDEFINED_GROUP.
+
+    There are statements that generate multiple transactions in the
+    binary log. This includes the following:
+
+    M1. DROP TABLE that is used with multiple tables, and the tables
+        belong to more than one of the following groups: non-temporary
+        table, temporary transactional table, temporary
+        non-transactional table.  DROP TABLE is split into one
+        transaction for each of these groups of tables.
+
+    M2. DROP DATABASE that fails e.g. because rmdir fails. Then a
+        single DROP TABLE is generated, which lists all tables that
+        were dropped before the failure happened. But if the list of
+        tables is big, and grows over a limit, the statement will be
+        split into multiple statements.
+
+    M3. CREATE TABLE ... SELECT that is logged in row format.  Then
+        the server generates a single CREATE statement, followed by a
+        BEGIN ... row events ... COMMIT transaction.
+
+    M4. A statement that updates both transactional and
+        non-transactional tables in the same statement, and is logged
+        in row format.  Then it generates one transaction for the
+        non-transactional row updates, followed by one transaction for
+        the transactional row updates.
+
+    M5. CALL is executed as multiple transactions and logged as
+        multiple transactions.
+
+    The general rules for multi-transaction statements are:
+
+    - If GTID_NEXT=AUTOMATIC and GTID_MODE=ON, one GTID should be
+      generated for each transaction within the statement. Therefore,
+      ownership must be released after each commit so that a new GTID
+      can be generated by the next transaction. Typically
+      mysql_bin_log.commit() is called to achieve this. (Note that
+      some of these statements are currently disallowed when
+      GTID_MODE=ON.)
+
+    - If GTID_NEXT=AUTOMATIC and GTID_MODE=OFF, one
+      Anonymous_gtid_log_event should be generated for each
+      transaction within the statement. Similar to the case above, we
+      call mysql_bin_log.commit() and release ownership between
+      transactions within the statement.
+
+      This works for all the special cases M1-M5 except M4.  When a
+      statement writes both non-transactional and transactional
+      updates to the binary log, both the transaction cache and the
+      statement cache are flushed within the same call to
+      flush_thread_caches(THD) from within the binary log group commit
+      code.  At that point we cannot use mysql_bin_log.commit().
+      Instead we release ownership using direct calls to
+      gtid_state->release_anonymous_ownership() and
+      thd->clear_owned_gtids() from binlog_cache_mngr::flush.
+
+    - If GTID_NEXT=ANONYMOUS, anonymous ownership must be *preserved*
+      between transactions within the statement, to prevent that a
+      concurrent SET GTID_MODE=ON makes it impossible to log the
+      statement. To avoid that ownership is released if
+      mysql_bin_log.commit() is called, we set
+      thd->is_commit_in_middle_of_statement before calling
+      mysql_bin_log.commit.  Note that we must set this flag only if
+      GTID_NEXT=ANONYMOUS, not if the transaction is anonymous when
+      GTID_NEXT=AUTOMATIC and GTID_MODE=OFF.
+
+      This works for all the special cases M1-M5 except M4.  When a
+      statement writes non-transactional updates in the middle of a
+      transaction, but keeps some transactional updates in the
+      transaction cache, then it is not easy to know at the time of
+      calling mysql_bin_log.commit() whether anonymous ownership needs
+      to be preserved or not.  Instead, we directly check if the
+      transaction cache is nonempty before releasing anonymous
+      ownership inside Gtid_state::update_gtids_impl.
+
+    - If GTID_NEXT='UUID:NUMBER', it is impossible to log a
+      multi-transaction statement, since each GTID can only be used by
+      one transaction. Therefore, an error must be generated in this
+      case.  Errors are generated in different ways for the different
+      statement types:
+
+      - DROP TABLE: we can detect the situation before it happens,
+        since the table type is known once the tables are opened. So
+        we generate an error before even executing the statement.
+
+      - DROP DATABASE: we can't detect the situation until it is too
+        late; the tables have already been dropped and we cannot log
+        anything meaningful.  So we don't log at all.
+
+      - CREATE TABLE ... SELECT: this is not allowed when
+        enforce_gtid_consistency is ON; the statement will be
+        forbidden in is_ddl_gtid_compatible.
+
+      - Statements that update both transactional and
+        non-transactional tables are disallowed when GTID_MODE=ON, so
+        this normally does not happen. However, it can happen if the
+        slave uses a different engine type than the master, so that a
+        statement that updates InnoDB+InnoDB on master updates
+        InnoDB+MyISAM on slave.  In this case the statement will be
+        forbidden in is_dml_gtid_compatible and will not be allowed to
+        execute.
+
+      - CALL: the second statement will generate an error because
+        GTID_NEXT is 'undefined'.  Note that this situation can only
+        happen if user does it on purpose: A CALL on master is logged
+        as multiple statements, so a slave never executes CALL with
+        GTID_NEXT='UUID:NUMBER'.
+
+    Finally, ownership release is suppressed in one more corner case:
+
+    C1. Administration statements including OPTIMIZE TABLE, REPAIR
+        TABLE, or ANALYZE TABLE are written to the binary log even if
+        they fail.  This means that the thread first calls
+        trans_rollack, and then writes the statement to the binlog.
+        Rollback normally releases ownership.  But ownership must be
+        kept until writing the binlog.  The solution is that these
+        statements set thd->skip_gtid_rollback=true before calling
+        trans_rollback, and Gtid_state::update_on_rollback does not
+        release ownership if the flag is set.
+
+    @todo It would probably be better to encapsulate this more, maybe
+    use Gtid_specification instead of Gtid.
   */
   Gtid owned_gtid;
+  static const int OWNED_SIDNO_GTID_SET= -1;
+  static const int OWNED_SIDNO_ANONYMOUS= -2;
 
   /**
     For convenience, this contains the SID component of the GTID
@@ -3306,12 +3564,14 @@ public:
   */
   rpl_sid owned_sid;
 
+#ifdef HAVE_GTID_NEXT_LIST
   /**
     If this thread owns a set of GTIDs (i.e., GTID_NEXT_LIST != NULL),
     then this member variable contains the subset of those GTIDs that
     are owned by this thread.
   */
   Gtid_set owned_gtid_set;
+#endif
 
   /*
    Replication related context.
@@ -3323,7 +3583,7 @@ public:
 
   void clear_owned_gtids()
   {
-    if (owned_gtid.sidno == -1)
+    if (owned_gtid.sidno == OWNED_SIDNO_GTID_SET)
     {
 #ifdef HAVE_GTID_NEXT_LIST
       owned_gtid_set.clear();
@@ -3331,8 +3591,9 @@ public:
       DBUG_ASSERT(0);
 #endif
     }
-    owned_gtid.sidno= 0;
+    owned_gtid.clear();
     owned_sid.clear();
+    owned_gtid.dbug_print(NULL, "set owned_gtid in clear_owned_gtids");
   }
 
   /*
@@ -3345,6 +3606,17 @@ public:
     When this flag is set, a call to gtid_rollback() will do nothing.
   */
   bool skip_gtid_rollback;
+  /*
+    There are some statements (like DROP DATABASE that fails on rmdir
+    and gets rewritten to multiple DROP TABLE statements) that may
+    call trans_commit_stmt() before it has written all statements to
+    the binlog.  When using GTID_NEXT = ANONYMOUS, such statements
+    should not release ownership of the anonymous transaction until
+    all statements have been written to the binlog.  To prevent that
+    update_gtid_impl releases ownership, such statements must set this
+    flag.
+  */
+  bool is_commit_in_middle_of_statement;
 
   const LEX_CSTRING &db() const
   { return m_db; }
@@ -3567,6 +3839,25 @@ public:
   }
 
   /**
+    The current query in normalized form. The format is intended to be
+    identical to the digest text of performance_schema, but not limited in
+    size. In this case the parse tree is traversed as opposed to a (limited)
+    token buffer. The string is allocated by this Statement and will be
+    available until the next call to this function or this object is deleted.
+
+    @note We have no protection against out-of-memory errors as this function
+    relies on the Item::print() interface which does not propagate errors.
+
+    @return The current query in normalized form.
+  */
+  const String normalized_query()
+  {
+    m_normalized_query.mem_free();
+    lex->unit->print(&m_normalized_query, QT_NORMALIZED_FORMAT);
+    return m_normalized_query;
+  }
+
+  /**
     Assign a new value to thd->m_query_string.
     Protected with the LOCK_thd_query mutex.
   */
@@ -3724,6 +4015,9 @@ private:
   MEM_ROOT main_mem_root;
   Diagnostics_area main_da;
   Diagnostics_area m_parser_da;              /**< cf. get_parser_da() */
+  Diagnostics_area m_query_rewrite_plugin_da;
+  Diagnostics_area *m_query_rewrite_plugin_da_ptr;
+
   Diagnostics_area *m_stmt_da;
 
   /**
@@ -4083,7 +4377,6 @@ public:
   bool send_data(List<Item> &items);
 };
 
-
 typedef Mem_root_array<Item*, true> Func_ptr_array;
 
 /**
@@ -4251,6 +4544,7 @@ public:
     table.str= internal_table_name;
     table.length=1;
   }
+  // True if we can tell from syntax that this is an unnamed derived table.
   bool is_derived_table() const { return MY_TEST(sel); }
   inline void change_db(const char *db_name)
   {

@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -37,6 +37,7 @@
 #include "sql_show.h"   // append_identifier
 #include "sp_head.h"    // struct set_var_base
 #include "rpl_slave.h"  // SLAVE_SQL, SLAVE_IO
+#include "mysqld.h"     // opt_log_backward_compatible_user_definitions
 
 
 /**
@@ -97,7 +98,73 @@ bool append_str(String *str, bool comma, const char *key, const char *val)
   return comma;
 }
 
+void rewrite_ssl_properties(LEX *lex, String *rlb)
+{
+  if (lex->ssl_type != SSL_TYPE_NOT_SPECIFIED)
+  {
+    rlb->append(STRING_WITH_LEN(" REQUIRE"));
+    switch (lex->ssl_type)
+    {
+    case SSL_TYPE_SPECIFIED:
+      if (lex->x509_subject)
+      {
+        rlb->append(STRING_WITH_LEN(" SUBJECT '"));
+        rlb->append(lex->x509_subject);
+        rlb->append(STRING_WITH_LEN("'"));
+      }
+      if (lex->x509_issuer)
+      {
+        rlb->append(STRING_WITH_LEN(" ISSUER '"));
+        rlb->append(lex->x509_issuer);
+        rlb->append(STRING_WITH_LEN("'"));
+      }
+      if (lex->ssl_cipher)
+      {
+        rlb->append(STRING_WITH_LEN(" CIPHER '"));
+        rlb->append(lex->ssl_cipher);
+        rlb->append(STRING_WITH_LEN("'"));
+      }
+      break;
+    case SSL_TYPE_X509:
+      rlb->append(STRING_WITH_LEN(" X509"));
+      break;
+    case SSL_TYPE_ANY:
+      rlb->append(STRING_WITH_LEN(" SSL"));
+      break;
+    case SSL_TYPE_NOT_SPECIFIED:
+      /* fall-thru */
+    case SSL_TYPE_NONE:
+      rlb->append(STRING_WITH_LEN(" NONE"));
+      break;
+    }
+  }
+}
 
+void rewrite_user_resources(LEX *lex, String *rlb)
+{
+  if (lex->mqh.specified_limits || (lex->grant & GRANT_ACL))
+  {
+    rlb->append(STRING_WITH_LEN(" WITH"));
+    if (lex->grant & GRANT_ACL)
+      rlb->append(STRING_WITH_LEN(" GRANT OPTION"));
+
+    append_int(rlb, false, STRING_WITH_LEN(" MAX_QUERIES_PER_HOUR "),
+               lex->mqh.questions,
+               lex->mqh.specified_limits & USER_RESOURCES::QUERIES_PER_HOUR);
+
+    append_int(rlb, false, STRING_WITH_LEN(" MAX_UPDATES_PER_HOUR "),
+               lex->mqh.updates,
+               lex->mqh.specified_limits & USER_RESOURCES::UPDATES_PER_HOUR);
+
+    append_int(rlb, false, STRING_WITH_LEN(" MAX_CONNECTIONS_PER_HOUR "),
+               lex->mqh.conn_per_hour,
+               lex->mqh.specified_limits & USER_RESOURCES::CONNECTIONS_PER_HOUR);
+
+    append_int(rlb, false, STRING_WITH_LEN(" MAX_USER_CONNECTIONS "),
+               lex->mqh.user_conn,
+               lex->mqh.specified_limits & USER_RESOURCES::USER_CONNECTIONS);
+  }
+}
 /**
   Rewrite a GRANT statement.
 
@@ -105,7 +172,7 @@ bool append_str(String *str, bool comma, const char *key, const char *val)
   @param rlb      An empty String object to put the rewritten query in.
 */
 
-static void mysql_rewrite_grant(THD *thd, String *rlb)
+void mysql_rewrite_grant(THD *thd, String *rlb)
 {
   LEX        *lex= thd->lex;
   TABLE_LIST *first_table= (TABLE_LIST*) lex->select_lex->table_list.first;
@@ -206,73 +273,16 @@ static void mysql_rewrite_grant(THD *thd, String *rlb)
     {
       if ((user_name= get_current_user(thd, tmp_user_name)))
       {
-        append_user(thd, rlb, user_name, comma, true);
+        if (opt_log_backward_compatible_user_definitions)
+          append_user(thd, rlb, user_name, comma, true);
+        else
+          append_user_new(thd, rlb, user_name, comma);
         comma= TRUE;
       }
     }
   }
-
-  if (lex->ssl_type != SSL_TYPE_NOT_SPECIFIED)
-  {
-    rlb->append(STRING_WITH_LEN(" REQUIRE"));
-    switch (lex->ssl_type)
-    {
-    case SSL_TYPE_SPECIFIED:
-      if (lex->x509_subject)
-      {
-        rlb->append(STRING_WITH_LEN(" SUBJECT '"));
-        rlb->append(lex->x509_subject);
-        rlb->append(STRING_WITH_LEN("'"));
-      }
-      if (lex->x509_issuer)
-      {
-        rlb->append(STRING_WITH_LEN(" ISSUER '"));
-        rlb->append(lex->x509_issuer);
-        rlb->append(STRING_WITH_LEN("'"));
-      }
-      if (lex->ssl_cipher)
-      {
-        rlb->append(STRING_WITH_LEN(" CIPHER '"));
-        rlb->append(lex->ssl_cipher);
-        rlb->append(STRING_WITH_LEN("'"));
-      }
-      break;
-    case SSL_TYPE_X509:
-      rlb->append(STRING_WITH_LEN(" X509"));
-      break;
-    case SSL_TYPE_ANY:
-      rlb->append(STRING_WITH_LEN(" SSL"));
-      break;
-    case SSL_TYPE_NOT_SPECIFIED:
-      /* fall-thru */
-    case SSL_TYPE_NONE:
-      rlb->append(STRING_WITH_LEN(" NONE"));
-      break;
-    }
-  }
-
-  if (lex->mqh.specified_limits || (lex->grant & GRANT_ACL))
-  {
-    rlb->append(STRING_WITH_LEN(" WITH"));
-    if (lex->grant & GRANT_ACL)
-      rlb->append(STRING_WITH_LEN(" GRANT OPTION"));
-
-    append_int(rlb, false, STRING_WITH_LEN(" MAX_QUERIES_PER_HOUR "),
-               lex->mqh.questions,
-               lex->mqh.specified_limits & USER_RESOURCES::QUERIES_PER_HOUR);
-
-    append_int(rlb, false, STRING_WITH_LEN(" MAX_UPDATES_PER_HOUR "),
-               lex->mqh.updates,
-               lex->mqh.specified_limits & USER_RESOURCES::UPDATES_PER_HOUR);
-
-    append_int(rlb, false, STRING_WITH_LEN(" MAX_CONNECTIONS_PER_HOUR "),
-               lex->mqh.conn_per_hour,
-               lex->mqh.specified_limits & USER_RESOURCES::CONNECTIONS_PER_HOUR);
-
-    append_int(rlb, false, STRING_WITH_LEN(" MAX_USER_CONNECTIONS "),
-               lex->mqh.user_conn,
-               lex->mqh.specified_limits & USER_RESOURCES::USER_CONNECTIONS);
-  }
+  rewrite_ssl_properties(lex, rlb);
+  rewrite_user_resources(lex, rlb);
 }
 
 
@@ -303,32 +313,58 @@ static void mysql_rewrite_set(THD *thd, String *rlb)
   }
 }
 
-
 /**
-  Rewrite CREATE USER statement.
+  Rewrite CREATE/ALTER USER statement.
 
   @param thd      The THD to rewrite for.
   @param rlb      An empty String object to put the rewritten query in.
 */
 
-static void mysql_rewrite_create_user(THD *thd, String *rlb)
+void mysql_rewrite_create_alter_user(THD *thd, String *rlb)
 {
   LEX                      *lex= thd->lex;
   LEX_USER                 *user_name, *tmp_user_name;
   List_iterator <LEX_USER>  user_list(lex->users_list);
   bool                      comma= FALSE;
 
-  rlb->append(STRING_WITH_LEN("CREATE USER "));
+  if (thd->lex->sql_command == SQLCOM_CREATE_USER ||
+      thd->lex->sql_command == SQLCOM_SHOW_CREATE_USER)
+    rlb->append(STRING_WITH_LEN("CREATE USER "));
+  else
+    rlb->append(STRING_WITH_LEN("ALTER USER "));
+
   while ((tmp_user_name= user_list++))
   {
     if ((user_name= get_current_user(thd, tmp_user_name)))
     {
-      append_user(thd, rlb, user_name, comma, TRUE);
+      if (opt_log_backward_compatible_user_definitions)
+        append_user(thd, rlb, user_name, comma, true);
+      else
+        append_user_new(thd, rlb, user_name, comma);
       comma= TRUE;
     }
   }
-}
 
+  rewrite_ssl_properties(lex, rlb);
+  rewrite_user_resources(lex, rlb);
+
+  /* rewrite password expired */
+  if (lex->alter_password.update_password_expired_column)
+    rlb->append(STRING_WITH_LEN(" PASSWORD EXPIRE"));
+  else if (lex->alter_password.expire_after_days)
+  {
+    append_int(rlb, false, STRING_WITH_LEN(" PASSWORD EXPIRE INTERVAL "),
+               lex->alter_password.expire_after_days, TRUE);
+    rlb->append(STRING_WITH_LEN(" DAY"));
+  }
+  else if (lex->alter_password.use_default_password_lifetime)
+  {
+    if (!opt_log_backward_compatible_user_definitions)
+      rlb->append(STRING_WITH_LEN(" PASSWORD EXPIRE DEFAULT"));
+  }
+  else
+    rlb->append(STRING_WITH_LEN(" PASSWORD EXPIRE NEVER"));
+}
 
 /**
   Rewrite a CHANGE MASTER statement.
@@ -663,7 +699,9 @@ void mysql_rewrite_query(THD *thd)
     {
     case SQLCOM_GRANT:         mysql_rewrite_grant(thd, rlb);         break;
     case SQLCOM_SET_OPTION:    mysql_rewrite_set(thd, rlb);           break;
-    case SQLCOM_CREATE_USER:   mysql_rewrite_create_user(thd, rlb);   break;
+    case SQLCOM_CREATE_USER:
+    case SQLCOM_ALTER_USER:
+                        mysql_rewrite_create_alter_user(thd, rlb);    break;
     case SQLCOM_CHANGE_MASTER: mysql_rewrite_change_master(thd, rlb); break;
     case SQLCOM_SLAVE_START:   mysql_rewrite_start_slave(thd, rlb);   break;
     case SQLCOM_CREATE_SERVER: mysql_rewrite_create_server(thd, rlb); break;

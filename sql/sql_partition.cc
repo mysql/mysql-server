@@ -45,28 +45,24 @@
 
 /* Some general useful functions */
 
-#define MYSQL_LEX 1
 #include "sql_partition.h"
-#include "key.h"                            // key_restore
-#include "sql_parse.h"                      // parse_sql
-#include "sql_cache.h"                      // query_cache_invalidate3
-#include "lock.h"                           // mysql_lock_remove
-#include "sql_show.h"                       // append_identifier
-#include <errno.h>
-#include <m_ctype.h>
-#include "my_md5.h"
-#include "transaction.h"
-#include "debug_sync.h"
 
-#include "sql_base.h"                   // close_all_tables_for_name
-#include "sql_table.h"                  // build_table_filename,
-                                        // build_table_shadow_filename,
-                                        // table_to_filename
-                                        // mysql_*_alter_copy_data
+#include "hash.h"                       // HASH
+#include "debug_sync.h"                 // DEBUG_SYNC
+#include "item.h"                       // enum_monotoncity_info
+#include "key.h"                        // key_restore
+#include "lock.h"                       // mysql_lock_remove
+#include "log.h"                        // sql_print_warning
 #include "opt_range.h"                  // store_key_image_to_rec
 #include "sql_analyse.h"                // append_escaped
 #include "sql_alter.h"                  // Alter_table_ctx
-#include "log.h"
+#include "sql_base.h"                   // wait_while_table_is_used
+#include "sql_cache.h"                  // query_cache
+#include "sql_class.h"                  // THD
+#include "sql_parse.h"                  // parse_sql
+#include "sql_show.h"                   // append_identifier
+#include "sql_table.h"                  // build_table_filename
+#include "table.h"                      // TABLE_SHARE
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
@@ -1658,6 +1654,7 @@ bool fix_partition_func(THD *thd, TABLE *table,
   bool result= TRUE;
   partition_info *part_info= table->part_info;
   enum_mark_columns save_mark_used_columns= thd->mark_used_columns;
+  const ulong save_want_privilege= thd->want_privilege;
   DBUG_ENTER("fix_partition_func");
 
   if (part_info->fixed)
@@ -1665,7 +1662,7 @@ bool fix_partition_func(THD *thd, TABLE *table,
     DBUG_RETURN(FALSE);
   }
   thd->mark_used_columns= MARK_COLUMNS_NONE;
-  DBUG_PRINT("info", ("thd->mark_used_columns: %d", thd->mark_used_columns));
+  thd->want_privilege= 0;
 
   if (!is_create_table_ind ||
        thd->lex->sql_command != SQLCOM_CREATE_TABLE)
@@ -1821,6 +1818,7 @@ bool fix_partition_func(THD *thd, TABLE *table,
   result= FALSE;
 end:
   thd->mark_used_columns= save_mark_used_columns;
+  thd->want_privilege= save_want_privilege;
   DBUG_PRINT("info", ("thd->mark_used_columns: %d", thd->mark_used_columns));
   DBUG_RETURN(result);
 }

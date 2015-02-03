@@ -28,7 +28,9 @@
 #ifndef RPL_TRX_BOUNDARY_PARSER_H
 #define RPL_TRX_BOUNDARY_PARSER_H
 
-#include "log_event.h"                          /* Format_description_... */
+#include "my_global.h"
+
+class Format_description_log_event;
 
 /**
   @class Transaction_boundary_parser

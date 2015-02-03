@@ -27,6 +27,7 @@
 #include "pfs_account.h"
 #include "pfs_instr.h"
 #include "pfs_program.h"
+#include "field.h"
 
 int PFS_host_row::make_row(PFS_host *pfs)
 {

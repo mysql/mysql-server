@@ -110,6 +110,9 @@ EOF
 
 -- exec $MYSQL -e "UPDATE mysql.user SET plugin = 'mysql_native_password'"
 
+--echo Run mysql_upgrade once
+--exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
+
 -- echo # Stop server
 -- source include/shutdown_mysqld.inc
 

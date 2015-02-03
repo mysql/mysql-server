@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1707,7 +1707,7 @@ static void unescape(FILE *file,char *pos,uint length)
                               length*2+1, MYF(MY_WME))))
     die(EX_MYSQLERR, "Couldn't allocate memory");
 
-  mysql_real_escape_string(&mysql_connection, tmp, pos, length);
+  mysql_real_escape_string_quote(&mysql_connection, tmp, pos, length, '\'');
   fputc('\'', file);
   fputs(tmp, file);
   fputc('\'', file);
@@ -2194,8 +2194,8 @@ static uint dump_events_for_db(char *db)
   DBUG_ENTER("dump_events_for_db");
   DBUG_PRINT("enter", ("db: '%s'", db));
 
-  mysql_real_escape_string(mysql, db_name_buff, db, (ulong)strlen(db));
-
+  mysql_real_escape_string_quote(mysql, db_name_buff,
+                                 db, (ulong)strlen(db), '\'');
   /* nice comments */
   print_comment(sql_file, 0,
                 "\n--\n-- Dumping events for database '%s'\n--\n", db);
@@ -2406,8 +2406,8 @@ static uint dump_routines_for_db(char *db)
   DBUG_ENTER("dump_routines_for_db");
   DBUG_PRINT("enter", ("db: '%s'", db));
 
-  mysql_real_escape_string(mysql, db_name_buff, db, (ulong)strlen(db));
-
+  mysql_real_escape_string_quote(mysql, db_name_buff,
+                                 db, (ulong)strlen(db), '\'');
   /* nice comments */
   print_comment(sql_file, 0,
                 "\n--\n-- Dumping routines for database '%s'\n--\n", db);
@@ -3764,9 +3764,10 @@ static void dump_table(char *table, char *db)
                 {
                   dynstr_append_checked(&extended_row,"'");
                   extended_row.length +=
-                  mysql_real_escape_string(&mysql_connection,
-                                           &extended_row.str[extended_row.length],
-                                           row[i],length);
+                  mysql_real_escape_string_quote(&mysql_connection,
+                                         &extended_row.str[extended_row.length],
+                                         row[i],length,
+                                         '\'');
                   extended_row.str[extended_row.length]='\0';
                   dynstr_append_checked(&extended_row,"'");
                 }
@@ -3999,7 +4000,7 @@ static int dump_tablespaces_for_tables(char *db, char **table_names, int tables)
   int i;
   char name_buff[NAME_LEN*2+3];
 
-  mysql_real_escape_string(mysql, name_buff, db, (ulong)strlen(db));
+  mysql_real_escape_string_quote(mysql, name_buff, db, (ulong)strlen(db), '\'');
 
   init_dynamic_string_checked(&where, " AND TABLESPACE_NAME IN ("
                       "SELECT DISTINCT TABLESPACE_NAME FROM"
@@ -4011,8 +4012,8 @@ static int dump_tablespaces_for_tables(char *db, char **table_names, int tables)
 
   for (i=0 ; i<tables ; i++)
   {
-    mysql_real_escape_string(mysql, name_buff,
-                             table_names[i], (ulong)strlen(table_names[i]));
+    mysql_real_escape_string_quote(mysql, name_buff,
+                           table_names[i], (ulong)strlen(table_names[i]), '\'');
 
     dynstr_append_checked(&where, "'");
     dynstr_append_checked(&where, name_buff);
@@ -4042,8 +4043,8 @@ static int dump_tablespaces_for_databases(char** databases)
   for (i=0 ; databases[i]!=NULL ; i++)
   {
     char db_name_buff[NAME_LEN*2+3];
-    mysql_real_escape_string(mysql, db_name_buff,
-                             databases[i], (ulong)strlen(databases[i]));
+    mysql_real_escape_string_quote(mysql, db_name_buff,
+                               databases[i], (ulong)strlen(databases[i]), '\'');
     dynstr_append_checked(&where, "'");
     dynstr_append_checked(&where, db_name_buff);
     dynstr_append_checked(&where, "',");

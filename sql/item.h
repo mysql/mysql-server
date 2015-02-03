@@ -21,6 +21,8 @@
 #include "sql_array.h"   // Bounds_checked_array
 #include "trigger_def.h" // enum_trigger_variable_type
 #include "table_trigger_field_support.h" // Table_trigger_field_support
+#include "mysql/service_parser.h"
+
 
 class user_var_entry;
 
@@ -154,6 +156,24 @@ public:
       default: return "UNKNOWN";
     }
   }
+};
+
+
+/**
+  Class used as argument to Item::walk() together with mark_field_in_map()
+*/
+class Mark_field
+{
+public:
+  Mark_field(TABLE *table, enum_mark_columns mark) :
+  table(table), mark(mark)
+  {}
+  Mark_field(enum_mark_columns mark) :
+  table(NULL), mark(mark)
+  {}
+
+  TABLE *const table;
+  const enum_mark_columns mark;
 };
 
 /*************************************************************************/
@@ -435,6 +455,8 @@ struct Name_resolution_context: Sql_alloc
     resolved in this context (the context of an outer select)
   */
   Name_resolution_context *outer_context;
+  /// Link to next name res context with the same query block as the base
+  Name_resolution_context *next_context;
 
   /*
     List of tables used to resolve the items of this context.  Usually these
@@ -491,9 +513,9 @@ struct Name_resolution_context: Sql_alloc
   Security_context *security_ctx;
 
   Name_resolution_context()
-    :outer_context(0), table_list(0), select_lex(0),
-    error_processor_data(0),
-    security_ctx(0)
+    :outer_context(NULL), next_context(NULL),
+    table_list(NULL), select_lex(NULL),
+    error_processor_data(NULL), security_ctx(NULL)
     {}
 
   void init()
@@ -595,6 +617,38 @@ typedef enum monotonicity_info
    MONOTONIC_STRICT_INCREASING,/* F() is unary and (x < y) => (F(x) <  F(y)) */
    MONOTONIC_STRICT_INCREASING_NOT_NULL  /* But only for valid/real x and y */
 } enum_monotonicity_info;
+
+
+/**
+   A type for SQL-like 3-valued Booleans: true/false/unknown.
+*/
+class Bool3
+{
+public:
+  /// @returns an instance set to "FALSE"
+  static const Bool3 false3() { return Bool3(v_FALSE); }
+  /// @returns an instance set to "UNKNOWN"
+  static const Bool3 unknown3() { return Bool3(v_UNKNOWN); }
+  /// @returns an instance set to "TRUE"
+  static const Bool3 true3() { return Bool3(v_TRUE); }
+
+  bool is_true() const { return m_val == v_TRUE; }
+  bool is_unknown() const { return m_val == v_UNKNOWN; }
+  bool is_false() const { return m_val == v_FALSE; }
+
+private:
+  enum value { v_FALSE, v_UNKNOWN, v_TRUE };
+  /// This is private; instead, use false3()/etc.
+  Bool3(value v) : m_val(v) {}
+
+  value m_val;
+  /*
+    No operator to convert Bool3 to bool (or int) - intentionally: how
+    would you map UNKNOWN3 to true/false?
+    It is because we want to block such conversions that Bool3 is a class
+    instead of a plain enum.
+  */
+};
 
 /*************************************************************************/
 
@@ -702,11 +756,20 @@ public:
 
   enum traverse_order { POSTFIX, PREFIX };
 
+  /**
+    @todo
+    -# Move this away from the Item class. It is a property of the
+    visitor in what direction the traversal is done, not of the visitee.
+
+    -# Make this two booleans instead. There are two orthogonal flags here.
+  */
   enum enum_walk
   {
     WALK_PREFIX=   0x01,
     WALK_POSTFIX=  0x02,
-    WALK_SUBQUERY= 0x04
+    WALK_SUBQUERY= 0x04,
+    WALK_SUBQUERY_PREFIX= 0x05,
+    WALK_SUBQUERY_POSTFIX= 0x06
   };
   
   /* Reuse size, only used by SP local variable assignment, otherwize 0 */
@@ -1497,6 +1560,7 @@ public:
       - to generate a view definition query (SELECT-statement);
       - to generate a SQL-query for EXPLAIN EXTENDED;
       - to generate a SQL-query to be shown in INFORMATION_SCHEMA;
+      - to generate a SQL-query that looks like a prepared statement for query_rewrite
       - debug.
 
     For more information about view definition query, INFORMATION_SCHEMA
@@ -1677,6 +1741,9 @@ public:
   */
   virtual bool add_field_to_set_processor(uchar * arg) { return false; }
 
+  /// A processor to handle the select lex visitor framework.
+  virtual bool visitor_processor(uchar *arg);
+
   /**
     Item::walk function. Set bit in table->cond_set for all fields of
     all tables that are referred to by the Item.
@@ -1695,7 +1762,8 @@ public:
   virtual bool change_context_processor(uchar *context) { return false; }
   virtual bool reset_query_id_processor(uchar *query_id_arg) { return false; }
   virtual bool find_item_processor(uchar *arg) { return this == (void *) arg; }
-  virtual bool register_field_in_read_map(uchar *arg) { return false; }
+  virtual bool mark_field_in_map(uchar *arg) { return false; }
+  virtual bool check_column_privileges(uchar *arg) { return false; }
   virtual bool inform_item_in_cond_of_tab(uchar *join_tab_index) {return false;}
   /**
      Clean up after removing the item from the item tree.
@@ -2594,8 +2662,9 @@ public:
   bool add_field_to_cond_set_processor(uchar *unused);
   bool remove_column_from_bitmap(uchar * arg);
   bool find_item_in_field_list_processor(uchar *arg);
-  bool register_field_in_read_map(uchar *arg);
-  bool check_partition_func_processor(uchar *int_arg) {return false;}
+  bool mark_field_in_map(uchar *arg);
+  bool check_column_privileges(uchar *arg);
+  bool check_partition_func_processor(uchar *int_arg) { return false; }
   void cleanup();
   Item_equal *find_item_equal(COND_EQUAL *cond_equal);
   bool subst_argument_checker(uchar **arg);
@@ -2747,7 +2816,7 @@ public:
 
   virtual inline void print(String *str, enum_query_type query_type)
   {
-    str->append(STRING_WITH_LEN("NULL"));
+    str->append(query_type == QT_NORMALIZED_FORMAT ? "?" : "NULL");
   }
 
   Item *safe_charset_converter(const CHARSET_INFO *tocs);
@@ -3780,9 +3849,11 @@ public:
   }
   bool walk(Item_processor processor, enum_walk walk, uchar *arg)
   {
-    return ((walk & WALK_PREFIX) && (this->*processor)(arg)) ||
-           (*ref)->walk(processor, walk, arg) ||
-           ((walk & WALK_POSTFIX) && (this->*processor)(arg));
+    return
+      ((walk & WALK_PREFIX) && (this->*processor)(arg)) ||
+      // For having clauses 'ref' will consistently =NULL.
+      (ref != NULL ? (*ref)->walk(processor, walk, arg) :false) ||
+      ((walk & WALK_POSTFIX) && (this->*processor)(arg));
   }
   virtual Item* transform(Item_transformer, uchar *arg);
   virtual Item* compile(Item_analyzer analyzer, uchar **arg_p,
@@ -3897,9 +3968,10 @@ public:
   virtual Ref_Type ref_type() const { return DIRECT_REF; }
 };
 
-/*
-  Class for view fields, the same as Item_direct_ref, but call fix_fields
-  of reference if it is not called yet
+/**
+  Class for fields from derived tables and views.
+  The same as Item_direct_ref, but call fix_fields() of reference if
+  not called yet.
 */
 class Item_direct_view_ref :public Item_direct_ref
 {
@@ -3908,15 +3980,20 @@ public:
                        Item **item,
                        const char *alias_name_arg,
                        const char *table_name_arg,
-                       const char *field_name_arg)
+                       const char *field_name_arg,
+                       TABLE_LIST *tl)
     : Item_direct_ref(context_arg, item, alias_name_arg, field_name_arg)
   {
     orig_table_name= table_name_arg;
+    cached_table= tl;
   }
 
   /* Constructor need to process subselect with temporary tables (see Item) */
   Item_direct_view_ref(THD *thd, Item_direct_ref *item)
-    :Item_direct_ref(thd, item) {}
+    :Item_direct_ref(thd, item)
+  {
+    cached_table= item->cached_table;
+  }
 
   /*
     We share one underlying Item_field, so we have to disable
@@ -3937,6 +4014,8 @@ public:
     return item;
   }
   virtual Ref_Type ref_type() const { return VIEW_REF; }
+
+  virtual bool check_column_privileges(uchar *arg);
 };
 
 

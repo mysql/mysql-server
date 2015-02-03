@@ -26,6 +26,7 @@
 #include "table_file_summary_by_event_name.h"
 #include "pfs_global.h"
 #include "pfs_visitor.h"
+#include "field.h"
 
 THR_LOCK table_file_summary_by_event_name::m_table_lock;
 

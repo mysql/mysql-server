@@ -73,6 +73,7 @@ if ($ignore_gtids_on_sync)
 
 if ($_sync_using_gtids)
 {
+  --source include/assert_gtid_mode_on.inc
   --let $slave_param= Retrieved_Gtid_Set
   --let $slave_param_value= $_saved_gtids
   --source include/wait_for_slave_param.inc

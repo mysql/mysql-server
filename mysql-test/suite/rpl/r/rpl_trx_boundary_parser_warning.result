@@ -5,7 +5,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection master]
 [connection slave]
 call mtr.add_suppression("An unexpected event sequence was detected by the IO thread");
-call mtr.add_suppression("GTID_LOG_EVENT is not expected");
+call mtr.add_suppression("GTID_LOG_EVENT .* is not expected in an event stream");
 call mtr.add_suppression("QUERY.* is not expected in an event stream");
 include/stop_slave.inc
 CHANGE MASTER TO MASTER_AUTO_POSITION= 0;
@@ -113,7 +113,6 @@ slave-relay-bin.000002	#	Query	#	#	COMMIT
 # Case 1: GTID_LOG_EVENT is not expected in an event stream after a GTID_LOG_EVENT.
 #
 # Cleaning up and reseting the slave
-include/sync_slave_io_with_master.inc
 include/stop_slave.inc
 # Adding debug point 'pause_on_queuing_event' to @@GLOBAL.debug
 START SLAVE IO_THREAD;
@@ -133,13 +132,12 @@ include/sync_slave_io_with_master.inc
 include/show_relaylog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000005	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
-Found the expected warning log line: GTID_LOG_EVENT is not expected in an event stream after a GTID_LOG_EVENT.
+include/assert_grep.inc [Case 1 found the expected warning line in the error log.]
 
 #
 # Case 2: GTID_LOG_EVENT is not expected in an event stream in the middle of a DDL.
 #
 # Cleaning up and reseting the slave
-include/sync_slave_io_with_master.inc
 include/stop_slave.inc
 # Adding debug point 'pause_on_queuing_event' to @@GLOBAL.debug
 START SLAVE IO_THREAD;
@@ -159,13 +157,12 @@ include/sync_slave_io_with_master.inc
 include/show_relaylog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000005	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
-Found the expected warning log line: GTID_LOG_EVENT is not expected in an event stream in the middle of a DDL.
+include/assert_grep.inc [Case 2 found the expected warning line in the error log.]
 
 #
 # Case 3: GTID_LOG_EVENT is not expected in an event stream in the middle of a DML.
 #
 # Cleaning up and reseting the slave
-include/sync_slave_io_with_master.inc
 include/stop_slave.inc
 # Adding debug point 'pause_on_queuing_event' to @@GLOBAL.debug
 START SLAVE IO_THREAD;
@@ -185,13 +182,12 @@ include/sync_slave_io_with_master.inc
 include/show_relaylog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000005	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
-Found the expected warning log line: GTID_LOG_EVENT is not expected in an event stream in the middle of a DML.
+include/assert_grep.inc [Case 3 found the expected warning line in the error log.]
 
 #
 # Case 4: QUERY(BEGIN) is not expected in an event stream in the middle of a DDL.
 #
 # Cleaning up and reseting the slave
-include/sync_slave_io_with_master.inc
 include/stop_slave.inc
 # Adding debug point 'pause_on_queuing_event' to @@GLOBAL.debug
 START SLAVE IO_THREAD;
@@ -211,13 +207,12 @@ include/sync_slave_io_with_master.inc
 include/show_relaylog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000005	#	Query	#	#	BEGIN
-Found the expected warning log line: QUERY(BEGIN) is not expected in an event stream in the middle of a DDL.
+include/assert_grep.inc [Case 4 found the expected warning line in the error log.]
 
 #
 # Case 5: QUERY(BEGIN) is not expected in an event stream in the middle of a DML.
 #
 # Cleaning up and reseting the slave
-include/sync_slave_io_with_master.inc
 include/stop_slave.inc
 # Adding debug point 'pause_on_queuing_event' to @@GLOBAL.debug
 START SLAVE IO_THREAD;
@@ -237,13 +232,12 @@ include/sync_slave_io_with_master.inc
 include/show_relaylog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000005	#	Query	#	#	BEGIN
-Found the expected warning log line: QUERY(BEGIN) is not expected in an event stream in the middle of a DML.
+include/assert_grep.inc [Case 5 found the expected warning line in the error log.]
 
 #
 # Case 6.a: QUERY(COMMIT or ROLLBACK) or XID_LOG_EVENT is not expected in an event stream outside a transaction.
 #
 # Cleaning up and reseting the slave
-include/sync_slave_io_with_master.inc
 include/stop_slave.inc
 # Adding debug point 'pause_on_queuing_event' to @@GLOBAL.debug
 START SLAVE IO_THREAD;
@@ -263,13 +257,12 @@ include/sync_slave_io_with_master.inc
 include/show_relaylog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000005	#	Xid	#	#	COMMIT /* XID */
-Found the expected warning log line: QUERY(COMMIT or ROLLBACK) or XID_LOG_EVENT is not expected in an event stream outside a transaction.
+include/assert_grep.inc [Case 6.a found the expected warning line in the error log.]
 
 #
 # Case 6.b: QUERY(COMMIT or ROLLBACK) or XID_LOG_EVENT is not expected in an event stream outside a transaction.
 #
 # Cleaning up and reseting the slave
-include/sync_slave_io_with_master.inc
 include/stop_slave.inc
 # Adding debug point 'pause_on_queuing_event' to @@GLOBAL.debug
 START SLAVE IO_THREAD;
@@ -289,13 +282,12 @@ include/sync_slave_io_with_master.inc
 include/show_relaylog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000005	#	Query	#	#	COMMIT
-Found the expected warning log line: QUERY(COMMIT or ROLLBACK) or XID_LOG_EVENT is not expected in an event stream outside a transaction.
+include/assert_grep.inc [Case 6.b found the expected warning line in the error log.]
 
 #
 # Case 7.a: QUERY(COMMIT or ROLLBACK) or XID_LOG_EVENT is not expected in an event stream after a GTID_LOG_EVENT.
 #
 # Cleaning up and reseting the slave
-include/sync_slave_io_with_master.inc
 include/stop_slave.inc
 # Adding debug point 'pause_on_queuing_event' to @@GLOBAL.debug
 START SLAVE IO_THREAD;
@@ -315,13 +307,12 @@ include/sync_slave_io_with_master.inc
 include/show_relaylog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000005	#	Xid	#	#	COMMIT /* XID */
-Found the expected warning log line: QUERY(COMMIT or ROLLBACK) or XID_LOG_EVENT is not expected in an event stream after a GTID_LOG_EVENT.
+include/assert_grep.inc [Case 7.a found the expected warning line in the error log.]
 
 #
 # Case 7.b: QUERY(COMMIT or ROLLBACK) or XID_LOG_EVENT is not expected in an event stream after a GTID_LOG_EVENT.
 #
 # Cleaning up and reseting the slave
-include/sync_slave_io_with_master.inc
 include/stop_slave.inc
 # Adding debug point 'pause_on_queuing_event' to @@GLOBAL.debug
 START SLAVE IO_THREAD;
@@ -341,13 +332,12 @@ include/sync_slave_io_with_master.inc
 include/show_relaylog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000005	#	Query	#	#	COMMIT
-Found the expected warning log line: QUERY(COMMIT or ROLLBACK) or XID_LOG_EVENT is not expected in an event stream after a GTID_LOG_EVENT.
+include/assert_grep.inc [Case 7.b found the expected warning line in the error log.]
 
 #
 # Case 8.a: QUERY(COMMIT or ROLLBACK) or XID_LOG_EVENT is not expected in an event stream in the middle of a DDL.
 #
 # Cleaning up and reseting the slave
-include/sync_slave_io_with_master.inc
 include/stop_slave.inc
 # Adding debug point 'pause_on_queuing_event' to @@GLOBAL.debug
 START SLAVE IO_THREAD;
@@ -367,13 +357,12 @@ include/sync_slave_io_with_master.inc
 include/show_relaylog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000005	#	Xid	#	#	COMMIT /* XID */
-Found the expected warning log line: QUERY(COMMIT or ROLLBACK) or XID_LOG_EVENT is not expected in an event stream in the middle of a DDL.
+include/assert_grep.inc [Case 8.a found the expected warning line in the error log.]
 
 #
 # Case 8.b: QUERY(COMMIT or ROLLBACK) or XID_LOG_EVENT is not expected in an event stream in the middle of a DDL.
 #
 # Cleaning up and reseting the slave
-include/sync_slave_io_with_master.inc
 include/stop_slave.inc
 # Adding debug point 'pause_on_queuing_event' to @@GLOBAL.debug
 START SLAVE IO_THREAD;
@@ -393,7 +382,7 @@ include/sync_slave_io_with_master.inc
 include/show_relaylog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000005	#	Query	#	#	COMMIT
-Found the expected warning log line: QUERY(COMMIT or ROLLBACK) or XID_LOG_EVENT is not expected in an event stream in the middle of a DDL.
+include/assert_grep.inc [Case 8.b found the expected warning line in the error log.]
 
 #
 # Prepare the slave to correctly replicate again after the test case
@@ -403,11 +392,10 @@ include/rpl_start_server.inc [server_number=2]
 [connection slave]
 include/stop_slave.inc
 Warnings:
-Note	1970	Replication thread(s) for channel '' are already stopped.
+Note	3084	Replication thread(s) for channel '' are already stopped.
 DROP TABLE IF EXISTS t1, t2;
 RESET MASTER;
 RESET SLAVE;
-CHANGE MASTER TO MASTER_AUTO_POSITION= 1;
 include/start_slave.inc
 [connection master]
 DROP TABLE t1, t2;

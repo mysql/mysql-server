@@ -48,9 +48,12 @@
 #include "rpl_info_handler.h"            // INFO_REPOSITORY_FILE
 #include "rpl_mi.h"                      // Master_info
 #include "rpl_msr.h"                     // msr_map
+#include "rpl_mts_submode.h"             // MTS_PARALLEL_TYPE_DB_NAME
+#include "rpl_rli.h"                     // Relay_log_info
 #include "rpl_slave.h"                   // SLAVE_THD_TYPE
 #include "socket_connection.h"           // MY_BIND_ALL_ADDRESSES
 #include "sp_head.h"                     // SP_PSI_STATEMENT_INFO_COUNT
+#include "sql_parse.h"                   // killall_non_super_threads
 #include "sql_show.h"                    // opt_ignore_db_dirs
 #include "sql_tmp_table.h"               // internal_tmp_disk_storage_engine
 #include "sql_time.h"                    // global_date_format
@@ -62,15 +65,6 @@
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
 
 TYPELIB bool_typelib={ array_elements(bool_values)-1, "", bool_values, 0 };
-
-/*
-  This forward declaration is needed because including sql_base.h
-  causes further includes.  [TODO] Eliminate this forward declaration
-  and include a file with the prototype instead.
-*/
-extern void close_thread_tables(THD *thd);
-
-extern void killall_non_super_threads(THD *thd);
 
 static bool update_buffer_size(THD *thd, KEY_CACHE *key_cache,
                                ptrdiff_t offset, ulonglong new_value)
@@ -1026,7 +1020,7 @@ static bool repository_check(sys_var *self, THD *thd, set_var *var, SLAVE_THD_TY
   mysql_mutex_lock(&LOCK_msr_map);
 
   /* Repository conversion not possible, when multiple channels exist */
-  if (msr_map.get_num_instances() > 1)
+  if (msr_map.get_num_instances(true) > 1)
   {
       msg= "Repository conversion is possible when only default channel exists";
       my_error(ER_CHANGE_RPL_INFO_REPOSITORY_FAILURE, MYF(0), msg);
@@ -1708,6 +1702,55 @@ static Sys_var_mybool Sys_locked_in_memory(
 static Sys_var_mybool Sys_log_bin(
        "log_bin", "Whether the binary log is enabled",
        READ_ONLY GLOBAL_VAR(opt_bin_log), NO_CMD_LINE, DEFAULT(FALSE));
+
+static bool transaction_write_set_check(sys_var *self, THD *thd, set_var *var)
+{
+  if (var->type == OPT_GLOBAL &&
+      global_system_variables.binlog_format != BINLOG_FORMAT_ROW)
+  {
+    my_error(ER_PREVENTS_VARIABLE_WITHOUT_RBR, MYF(0), var->var->name.str);
+    return true;
+  }
+
+  if (var->type == OPT_SESSION &&
+      thd->variables.binlog_format != BINLOG_FORMAT_ROW)
+  {
+    my_error(ER_PREVENTS_VARIABLE_WITHOUT_RBR, MYF(0), var->var->name.str);
+    return true;
+  }
+  /*
+    if in a stored function/trigger, it's too late to change
+  */
+  if (thd->in_sub_stmt)
+  {
+    my_error(ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION, MYF(0),
+             var->var->name.str);
+    return true;
+  }
+  /*
+    Make the session variable 'transaction_write_set_extraction' read-only inside a transaction.
+  */
+  if (thd->in_active_multi_stmt_transaction())
+  {
+    my_error(ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION, MYF(0),
+             var->var->name.str);
+    return true;
+  }
+  return false;
+}
+
+static const char *transaction_write_set_hashing_algorithms[]=
+       {"OFF", "MURMUR32", 0};
+
+static Sys_var_enum Sys_extract_write_set(
+       "transaction_write_set_extraction",
+       "This option is used to let the server know when to"
+       "extract the write set which will be used for various purposes. ",
+       SESSION_VAR(transaction_write_set_extraction), CMD_LINE(OPT_ARG),
+       transaction_write_set_hashing_algorithms,
+       DEFAULT(HASH_ALGORITHM_OFF), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+       ON_CHECK(transaction_write_set_check),
+       ON_UPDATE(NULL));
 
 static Sys_var_ulong Sys_rpl_stop_slave_timeout(
        "rpl_stop_slave_timeout",
@@ -2453,7 +2496,8 @@ static const char *optimizer_switch_names[]=
   "block_nested_loop", "batched_key_access",
   "materialization", "semijoin", "loosescan", "firstmatch",
   "subquery_materialization_cost_based",
-  "use_index_extensions", "condition_fanout_filter", "default", NullS
+  "use_index_extensions", "condition_fanout_filter", "derived_merge",
+  "default", NullS
 };
 static Sys_var_flagset Sys_optimizer_switch(
        "optimizer_switch",
@@ -2463,8 +2507,9 @@ static Sys_var_flagset Sys_optimizer_switch(
        "index_condition_pushdown, mrr, mrr_cost_based"
        ", materialization, semijoin, loosescan, firstmatch,"
        " subquery_materialization_cost_based"
-       ", block_nested_loop, batched_key_access, use_index_extensions, "
-       "condition_fanout_filter} and val is one of {on, off, default}",
+       ", block_nested_loop, batched_key_access, use_index_extensions,"
+       " condition_fanout_filter, derived_merge} and val is one of "
+       "{on, off, default}",
        SESSION_VAR(optimizer_switch), CMD_LINE(REQUIRED_ARG),
        optimizer_switch_names, DEFAULT(OPTIMIZER_SWITCH_DEFAULT),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(NULL), ON_UPDATE(NULL));
@@ -2810,7 +2855,7 @@ static Sys_var_ulong Sys_trans_alloc_block_size(
        "transaction_alloc_block_size",
        "Allocation block size for transactions to be stored in binary log",
        SESSION_VAR(trans_alloc_block_size), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(1024, ULONG_MAX), DEFAULT(QUERY_ALLOC_BLOCK_SIZE),
+       VALID_RANGE(1024, 128 * 1024 * 1024), DEFAULT(QUERY_ALLOC_BLOCK_SIZE),
        BLOCK_SIZE(1024), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(fix_trans_mem_root));
 
@@ -2818,7 +2863,7 @@ static Sys_var_ulong Sys_trans_prealloc_size(
        "transaction_prealloc_size",
        "Persistent buffer for transactions to be stored in binary log",
        SESSION_VAR(trans_prealloc_size), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(1024, ULONG_MAX), DEFAULT(TRANS_ALLOC_PREALLOC_SIZE),
+       VALID_RANGE(1024, 128 * 1024 * 1024), DEFAULT(TRANS_ALLOC_PREALLOC_SIZE),
        BLOCK_SIZE(1024), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(fix_trans_mem_root));
 
@@ -3257,6 +3302,24 @@ export sql_mode_t expand_sql_mode(sql_mode_t sql_mode)
   if (sql_mode & MODE_TRADITIONAL)
     sql_mode|= (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES |
                 MODE_NO_AUTO_CREATE_USER | MODE_NO_ENGINE_SUBSTITUTION);
+
+  if (sql_mode & MODE_NO_AUTO_CREATE_USER)
+  {
+    THD *thd= current_thd;
+    if (thd)
+    {
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
+                          ER_WARN_DEPRECATED_SQLMODE,
+                          ER(ER_WARN_DEPRECATED_SQLMODE),
+                          "NO_AUTO_CREATE_USER");
+    }
+    else
+    {
+      sql_print_warning("'NO_AUTO_CREATE_USER' mode is deprecated. "
+                        "It will be made read-only in a future release.");
+    }
+  }
+
   return sql_mode;
 }
 static bool check_sql_mode(sys_var *self, THD *thd, set_var *var)
@@ -4502,13 +4565,7 @@ static bool check_slave_skip_counter(sys_var *self, THD *thd, set_var *var)
   /* slave_skip_counter becomes per channel in multisource replication*/
   mysql_mutex_lock(&LOCK_msr_map);
 
-  if (is_any_slave_channel_running(SLAVE_SQL))
-  {
-    my_message(ER_SLAVE_SQL_THREAD_MUST_STOP,
-               ER(ER_SLAVE_SQL_THREAD_MUST_STOP), MYF(0));
-    result= true;
-  }
-  if (gtid_mode == 3)
+  if (gtid_mode == GTID_MODE_ON)
   {
     my_message(ER_SQL_SLAVE_SKIP_COUNTER_NOT_SETTABLE_IN_GTID_MODE,
                ER(ER_SQL_SLAVE_SKIP_COUNTER_NOT_SETTABLE_IN_GTID_MODE),
@@ -4519,52 +4576,14 @@ static bool check_slave_skip_counter(sys_var *self, THD *thd, set_var *var)
   mysql_mutex_unlock(&LOCK_msr_map);
   return result;
 }
-static bool fix_slave_skip_counter(sys_var *self, THD *thd, enum_var_type type)
-{
-  Master_info *mi;
 
-  /* set for all replication channels in multisource replication */
-
-  /*
-   To understand the below two unlock statments, please see comments in
-    fix_slave_net_timeout function above
-   */
-  mysql_mutex_unlock(&LOCK_sql_slave_skip_counter);
-  mysql_mutex_unlock(&LOCK_global_system_variables);
-  mysql_mutex_lock(&LOCK_msr_map);
-
-  for (mi_map::iterator it = msr_map.begin(); it!=msr_map.end(); it++)
-  {
-    mi= it->second;
-    if (mi != NULL)
-    {
-      mysql_mutex_lock(&mi->rli->run_lock);
-      /*
-       The following test should normally never be true as we test this
-       in the check function;  To be safe against multiple
-       SQL_SLAVE_SKIP_COUNTER request, we do the check anyway
-      */
-      if (!mi->rli->slave_running)
-      {
-        mysql_mutex_lock(&mi->rli->data_lock);
-        mi->rli->slave_skip_counter= sql_slave_skip_counter;
-        mysql_mutex_unlock(&mi->rli->data_lock);
-      }
-      mysql_mutex_unlock(&mi->rli->run_lock);
-    }
-  }
-  mysql_mutex_unlock(&LOCK_msr_map);
-  mysql_mutex_lock(&LOCK_global_system_variables);
-  mysql_mutex_lock(&LOCK_sql_slave_skip_counter);
-  return 0;
-}
 static PolyLock_mutex PLock_sql_slave_skip_counter(&LOCK_sql_slave_skip_counter);
 static Sys_var_uint Sys_slave_skip_counter(
        "sql_slave_skip_counter", "sql_slave_skip_counter",
        GLOBAL_VAR(sql_slave_skip_counter), NO_CMD_LINE,
        VALID_RANGE(0, UINT_MAX), DEFAULT(0), BLOCK_SIZE(1),
        &PLock_sql_slave_skip_counter, NOT_IN_BINLOG,
-       ON_CHECK(check_slave_skip_counter), ON_UPDATE(fix_slave_skip_counter));
+       ON_CHECK(check_slave_skip_counter));
 
 static Sys_var_charptr Sys_slave_skip_errors(
        "slave_skip_errors", "Tells the slave thread to continue "
@@ -4684,13 +4703,11 @@ static bool check_locale(sys_var *self, THD *thd, set_var *var)
 
   var->save_result.ptr= locale;
 
-  if (!locale->errmsgs->errmsgs)
+  if (!locale->errmsgs->is_loaded())
   {
     mysql_mutex_lock(&LOCK_error_messages);
-    if (!locale->errmsgs->errmsgs &&
-        read_texts(ERRMSG_FILE, locale->errmsgs->language,
-                   locale->errmsgs->errmsgs,
-                   ER_ERROR_LAST - ER_ERROR_FIRST + 1))
+    if (!locale->errmsgs->is_loaded() &&
+        locale->errmsgs->read_texts())
     {
       push_warning_printf(thd, Sql_condition::SL_WARNING, ER_UNKNOWN_ERROR,
                           "Can't process error message file for locale '%s'",
@@ -4932,14 +4949,19 @@ static bool check_gtid_next(sys_var *self, THD *thd, set_var *var)
 #endif
   }
   // check that we don't own a GTID
-  else if(thd->owned_gtid.sidno != 0)
+  else if (thd->owned_gtid.sidno != 0 &&
+           thd->owned_gtid.sidno != THD::OWNED_SIDNO_ANONYMOUS)
   {
     char buf[Gtid::MAX_TEXT_LENGTH + 1];
 #ifndef DBUG_OFF
     DBUG_ASSERT(thd->owned_gtid.sidno > 0);
     global_sid_lock->wrlock();
-    DBUG_ASSERT(gtid_state->get_owned_gtids()->
-                thread_owns_anything(thd->thread_id()));
+    if (thd->owned_gtid.sidno == THD::OWNED_SIDNO_ANONYMOUS)
+      DBUG_ASSERT(!gtid_state->get_owned_gtids()->
+                  thread_owns_anything(thd->thread_id()));
+    else
+      DBUG_ASSERT(gtid_state->get_owned_gtids()->
+                  thread_owns_anything(thd->thread_id()));
 #else
     global_sid_lock->rdlock();
 #endif
@@ -4954,10 +4976,13 @@ static bool check_gtid_next(sys_var *self, THD *thd, set_var *var)
 
 static bool update_gtid_next(sys_var *self, THD *thd, enum_var_type type)
 {
+  DBUG_ENTER("update_gtid_next");
   DBUG_ASSERT(type == OPT_SESSION);
-  if (thd->variables.gtid_next.type == GTID_GROUP)
-    return gtid_acquire_ownership_single(thd) != 0 ? true : false;
-  return false;
+  if (thd->variables.gtid_next.type == GTID_GROUP ||
+      thd->variables.gtid_next.type == ANONYMOUS_GROUP)
+    if (gtid_acquire_ownership_single(thd) != 0)
+      DBUG_RETURN(true);
+  DBUG_RETURN(false);
 }
 
 #ifdef HAVE_GTID_NEXT_LIST
@@ -5287,6 +5312,13 @@ static Sys_var_mybool Sys_offline_mode(
        GLOBAL_VAR(offline_mode), CMD_LINE(OPT_ARG), DEFAULT(FALSE),
        &PLock_offline_mode, NOT_IN_BINLOG,
        ON_CHECK(0), ON_UPDATE(handle_offline_mode));
+
+static Sys_var_mybool Sys_log_backward_compatible_user_definitions(
+       "log_backward_compatible_user_definitions",
+       "Controls logging of CREATE/ALTER/GRANT user statements "
+       "in replication binlogs, general query logs and audit logs.",
+       GLOBAL_VAR(opt_log_backward_compatible_user_definitions),
+       CMD_LINE(OPT_ARG), DEFAULT(FALSE));
 
 static Sys_var_mybool Sys_avoid_temporal_upgrade(
        "avoid_temporal_upgrade",

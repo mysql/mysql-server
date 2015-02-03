@@ -23,13 +23,16 @@
 #include "item_func.h"
 
 #include "my_bit.h"              // my_count_bits
+#include "auth_common.h"         // check_password_strength
 #include "binlog.h"              // mysql_bin_log
 #include "debug_sync.h"          // DEBUG_SYNC
 #include "item_cmpfunc.h"        // get_datetime_value
 #include "item_strfunc.h"        // Item_func_geohash
+#include <mysql/service_thd_wait.h>
 #include "parse_tree_helpers.h"  // PT_item_list
 #include "rpl_mi.h"              // Master_info
 #include "rpl_msr.h"             // msr_map
+#include "rpl_rli.h"             // Relay_log_info
 #include "sp.h"                  // sp_find_routine
 #include "sp_head.h"             // sp_name
 #include "sql_class.h"           // THD
@@ -2484,8 +2487,8 @@ double Item_func_latlongfromgeohash::val_real()
 
   if (input_value->length() == 0)
   {
-    my_error(ER_WRONG_VALUE_FOR_TYPE, MYF(0), "geohash", input_value->c_ptr(),
-             func_name());
+    my_error(ER_WRONG_VALUE_FOR_TYPE, MYF(0), "geohash",
+             input_value->c_ptr_safe(), func_name());
     return error_real();
   }
 
@@ -2494,8 +2497,8 @@ double Item_func_latlongfromgeohash::val_real()
   if (decode_geohash(input_value, upper_latitude, lower_latitude,
                      upper_longitude, lower_longitude, &latitude, &longitude))
   {
-    my_error(ER_WRONG_VALUE_FOR_TYPE, MYF(0), "geohash", input_value->c_ptr(),
-             func_name());
+    my_error(ER_WRONG_VALUE_FOR_TYPE, MYF(0), "geohash",
+             input_value->c_ptr_safe(), func_name());
     return error_real();
   }
 
@@ -3787,7 +3790,7 @@ longlong Item_func_validate_password_strength::val_int()
   String *field= args[0]->val_str(&value);
   if ((null_value= args[0]->null_value))
     return 0;
-  return (check_password_strength(field));
+  return (my_calculate_password_strength(field->ptr()));
 }
 
 
@@ -5741,26 +5744,6 @@ Item_func_set_user_var::fix_length_and_dec()
                            args[0]->collation.collation);
   }
   unsigned_flag= args[0]->unsigned_flag;
-}
-
-
-/*
-  Mark field in read_map
-
-  NOTES
-    This is used by filesort to register used fields in a a temporary
-    column read set or to register used fields in a view
-*/
-
-bool Item_func_set_user_var::register_field_in_read_map(uchar *arg)
-{
-  if (result_field)
-  {
-    TABLE *table= (TABLE *) arg;
-    if (result_field->table == table || !table)
-      bitmap_set_bit(result_field->table->read_set, result_field->field_index);
-  }
-  return 0;
 }
 
 
@@ -7974,7 +7957,8 @@ Item_func_sp::init_result_field(THD *thd)
   
   share= dummy_table->s;
   dummy_table->alias = "";
-  dummy_table->maybe_null = maybe_null;
+  if (maybe_null)
+    dummy_table->set_nullable();
   dummy_table->in_use= thd;
   dummy_table->copy_blobs= TRUE;
   share->table_cache_key = empty_name;

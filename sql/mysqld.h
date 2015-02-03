@@ -22,6 +22,8 @@
 #include "mysql_com.h"                     /* SERVER_VERSION_LENGTH */
 #include "my_atomic.h"                     /* my_atomic_add64 */
 #include "sql_cmd.h"                       /* SQLCOM_END */
+#include "my_thread_local.h"               /* my_get_thread_local */
+#include "my_thread.h"                     /* my_thread_attr_t */
 
 class THD;
 struct handlerton;
@@ -72,7 +74,6 @@ typedef Bitmap<((MAX_INDEXES+7)/8*8)> key_map; /* Used for finding keys */
 
 #define SPECIAL_NO_NEW_FUNC	2		/* Skip new functions */
 #define SPECIAL_SKIP_SHOW_DB    4               /* Don't allow 'show db' */
-#define SPECIAL_ENGLISH        32		/* English error messages */
 #define SPECIAL_NO_RESOLVE     64		/* Don't use gethostname */
 #define SPECIAL_NO_HOST_CACHE	512		/* Don't cache hosts */
 #define SPECIAL_SHORT_LOG_FORMAT 1024
@@ -122,7 +123,7 @@ extern bool opt_skip_name_resolve;
 extern bool opt_ignore_builtin_innodb;
 extern my_bool opt_character_set_client_handshake;
 extern MYSQL_PLUGIN_IMPORT bool volatile abort_loop;
-extern my_bool opt_bootstrap;
+extern my_bool opt_bootstrap, opt_initialize;
 extern my_bool opt_safe_user_create;
 extern my_bool opt_safe_show_db, opt_local_infile, opt_myisam_use_mmap;
 extern my_bool opt_slave_compressed_protocol, use_temp_pool;
@@ -171,6 +172,7 @@ extern ulong tc_log_page_waits;
 extern my_bool relay_log_purge, opt_innodb_safe_binlog, opt_innodb;
 extern my_bool relay_log_recovery;
 extern my_bool offline_mode;
+extern my_bool opt_log_backward_compatible_user_definitions;
 extern uint test_flags,select_errors,ha_open_options;
 extern uint protocol_version, mysqld_port, dropping_tables;
 extern ulong delay_key_write_options;
@@ -274,7 +276,6 @@ extern MYSQL_PLUGIN_IMPORT MY_TMPDIR mysql_tmpdir_list;
 extern const char *show_comp_option_name[];
 extern const char *first_keyword, *binary_keyword;
 extern MYSQL_PLUGIN_IMPORT const char  *my_localhost;
-extern MYSQL_PLUGIN_IMPORT const char **errmesg;			/* Error messages */
 extern const char *myisam_recover_options_str;
 extern const char *in_left_expr_name, *in_additional_cond, *in_having_cond;
 extern SHOW_VAR status_vars[];
@@ -461,7 +462,7 @@ extern PSI_cond_key key_commit_order_manager_cond;
 extern PSI_thread_key key_thread_bootstrap,
   key_thread_handle_manager, key_thread_main,
   key_thread_one_connection, key_thread_signal_hand,
-  key_thread_compress_gtid_table;
+  key_thread_compress_gtid_table, key_thread_parser_service;
 
 #ifdef HAVE_MY_TIMER
 extern PSI_thread_key key_thread_timer_notifier;
@@ -611,6 +612,7 @@ extern PSI_memory_key key_memory_Quick_ranges;
 extern PSI_memory_key key_memory_File_query_log_name;
 extern PSI_memory_key key_memory_Table_trigger_dispatcher;
 extern PSI_memory_key key_memory_show_slave_status_io_gtid_set;
+extern PSI_memory_key key_memory_write_set_extraction;
 #ifdef HAVE_MY_TIMER
 extern PSI_memory_key key_memory_thd_timer;
 #endif
@@ -755,6 +757,16 @@ void init_com_statement_info();
 #ifndef _WIN32
 extern my_thread_t signal_thread;
 #endif
+
+#ifndef EMBEDDED_LIBRARY
+typedef enum ssl_artifacts_status
+{
+  SSL_ARTIFACTS_NOT_FOUND= 0,
+  SSL_ARTIFACTS_VIA_OPTIONS,
+  SSL_ARTIFACTS_AUTO_DETECTED
+} ssl_artifacts_status;
+
+#endif /* EMBEDDED_LIBRARY */
 
 #ifdef HAVE_OPENSSL
 extern struct st_VioSSLFd * ssl_acceptor_fd;
@@ -904,7 +916,12 @@ enum enum_query_type
   /// Print in charset of Item::print() argument (typically thd->charset()).
   QT_TO_ARGUMENT_CHARSET= (1 << 5),
   /// Print identifiers in compact format, omitting schema names.
-  QT_COMPACT_FORMAT= (1 << 6)
+  QT_COMPACT_FORMAT= (1 << 6),
+  /**
+    Change all Item_basic_constant to ? (used by query rewrite to compute
+    digest.)
+  */
+  QT_NORMALIZED_FORMAT= (1 << 7)
 };
 
 /* query_id */
@@ -939,9 +956,6 @@ static inline THD *_current_thd(void)
 #endif
 #define current_thd _current_thd()
 
-#define ER_DEFAULT(X) my_default_lc_messages->errmsgs->errmsgs[(X) - ER_ERROR_FIRST]
-#define ER_THD(thd,X) ((thd)->variables.lc_messages->errmsgs->errmsgs[(X) - \
-                       ER_ERROR_FIRST])
 #define ER(X)         ER_THD(current_thd,X)
 
 #endif /* MYSQLD_INCLUDED */

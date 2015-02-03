@@ -1,4 +1,4 @@
--- Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+-- Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License as published by
@@ -157,7 +157,6 @@ ALTER TABLE user
   MODIFY User char(16) NOT NULL default '',
   ENGINE=MyISAM, CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin;
 ALTER TABLE user
-  MODIFY Password char(41) character set latin1 collate latin1_bin NOT NULL default '',
   MODIFY Select_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
   MODIFY Insert_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
   MODIFY Update_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
@@ -666,6 +665,52 @@ ALTER TABLE ndb_binlog_index
   DROP PRIMARY KEY,
   ADD PRIMARY KEY(epoch, orig_server_id, orig_epoch);
 
+--
+-- Check for accounts with old pre-4.1 passwords and issue a warning
+--
+
+-- SCRAMBLED_PASSWORD_CHAR_LENGTH_323 = 16
+SET @deprecated_pwds=(SELECT COUNT(*) FROM mysql.user WHERE LENGTH(password) = 16);
+
+-- signal the deprecation error
+DROP PROCEDURE IF EXISTS mysql.warn_pre41_pwd;
+CREATE PROCEDURE mysql.warn_pre41_pwd() SIGNAL SQLSTATE '01000' SET MESSAGE_TEXT='Pre-4.1 password hash found. It is deprecated and will be removed in a future release. Please upgrade it to a new format.';
+SET @cmd='call mysql.warn_pre41_pwd()';
+SET @str=IF(@deprecated_pwds > 0, @cmd, 'SET @dummy=0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+-- Get warnings (if any)
+SHOW WARNINGS;
+DROP PREPARE stmt;
+DROP PROCEDURE mysql.warn_pre41_pwd;
+
+--
+-- Add timestamp and expiry columns
+--
+
+ALTER TABLE user ADD password_last_changed timestamp NULL;
+UPDATE user SET password_last_changed = CURRENT_TIMESTAMP WHERE plugin in ('mysql_native_password','sha256_password') and password_last_changed is NULL;
+
+ALTER TABLE user ADD password_lifetime smallint unsigned NULL;
+
+--
+-- Drop password column
+--
+
+SET @have_password= (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = 'mysql'
+                    AND TABLE_NAME='user'
+                    AND column_name='password');
+SET @str=IF(@have_password <> 0, "UPDATE user SET authentication_string = password where LENGTH(password) > 0 and plugin = 'mysql_native_password'", "SET @dummy = 0");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+SET @str=IF(@have_password <> 0, "ALTER TABLE user DROP password", "SET @dummy = 0");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+-- Fix plugin column value
+UPDATE user SET plugin=IF((length(authentication_string) = 41) OR (length(authentication_string) = 0), 'mysql_native_password', '') WHERE plugin = '';
+
 # Activate the new, possible modified privilege tables
 # This should not be needed, but gives us some extra testing that the above
 # changes was correct
@@ -708,25 +753,6 @@ SET @str=IF(@have_innodb <> 0, "ALTER TABLE innodb_index_stats STATS_PERSISTENT=
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
-
---
--- Check for accounts with old pre-4.1 passwords and issue a warning
---
-
--- SCRAMBLED_PASSWORD_CHAR_LENGTH_323 = 16
-SET @deprecated_pwds=(SELECT COUNT(*) FROM mysql.user WHERE LENGTH(password) = 16);
-
--- signal the deprecation error
-DROP PROCEDURE IF EXISTS mysql.warn_pre41_pwd;
-CREATE PROCEDURE mysql.warn_pre41_pwd() SIGNAL SQLSTATE '01000' SET MESSAGE_TEXT='Pre-4.1 password hash found. It is deprecated and will be removed in a future release. Please upgrade it to a new format.';
-SET @cmd='call mysql.warn_pre41_pwd()';
-SET @str=IF(@deprecated_pwds > 0, @cmd, 'SET @dummy=0');
-PREPARE stmt FROM @str;
-EXECUTE stmt;
--- Get warnings (if any)
-SHOW WARNINGS;
-DROP PREPARE stmt;
-DROP PROCEDURE mysql.warn_pre41_pwd;
 
 #
 # ndb_binlog_index table
@@ -787,11 +813,3 @@ ALTER TABLE time_zone_name ENGINE=InnoDB STATS_PERSISTENT=0;
 ALTER TABLE time_zone_transition ENGINE=InnoDB STATS_PERSISTENT=0;
 ALTER TABLE time_zone_transition_type ENGINE=InnoDB STATS_PERSISTENT=0;
 
---
--- Add timestamp and expiry columns
---
-
-ALTER TABLE user ADD password_last_changed timestamp NULL;
-UPDATE user SET password_last_changed = CURRENT_TIMESTAMP WHERE plugin in ('mysql_native_password','sha256_password') and password_last_changed is NULL;
-
-ALTER TABLE user ADD password_lifetime smallint unsigned NULL;

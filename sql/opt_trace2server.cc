@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,9 +24,11 @@
 */
 
 #include "opt_trace.h"
-#include "sql_show.h"  // schema_table_stored_record()
-#include "sql_parse.h" // sql_command_flags
-#include "sp_head.h"   // for sp_head
+
+#include "auth_common.h" // check_table_access
+#include "sql_show.h"    // schema_table_stored_record
+#include "sql_parse.h"   // sql_command_flags
+#include "sp_head.h"     // sp_head
 
 #ifdef OPTIMIZER_TRACE
 
@@ -457,7 +459,7 @@ void opt_trace_disable_if_no_tables_access(THD *thd, TABLE_LIST *tbl)
       Anonymous derived tables (as in
       "SELECT ... FROM (SELECT ...)") don't have their grant.privilege set.
     */
-    if (!t->is_anonymous_derived_table())
+    if (!t->is_derived())
     {
       const GRANT_INFO backup_grant_info= t->grant;
       Security_context * const backup_table_sctx= t->security_ctx;
@@ -472,7 +474,7 @@ void opt_trace_disable_if_no_tables_access(THD *thd, TABLE_LIST *tbl)
       bool rc=
         check_table_access(thd, SELECT_ACL, t, false, 1, true) || // (1)
         ((t->grant.privilege & SELECT_ACL) == 0); // (2)
-      if (t->view)
+      if (t->is_view())
       {
         /*
           It's a view which has already been opened: we are executing a

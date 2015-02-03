@@ -27,6 +27,7 @@
 #include "debug_sync.h"               // DEBUG_SYNC
 #include "discover.h"                 // writefrm
 #include "log.h"                      // sql_print_error
+#include "log_event.h"                // Write_rows_log_event
 #include "probes_mysql.h"             // MYSQL_HANDLER_WRLOCK_START
 #include "opt_costconstantcache.h"    // reload_optimizer_cost_constants
 #include "rpl_handler.h"              // RUN_HOOK
@@ -36,6 +37,7 @@
 #include "sql_table.h"                // build_table_filename
 #include "transaction.h"              // trans_commit_implicit
 #include "trigger_def.h"              // TRG_EXT
+#include "rpl_write_set_handler.h"    // add_pke
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
@@ -594,9 +596,9 @@ handler *get_ha_partition(partition_info *part_info)
 static const char **handler_errmsgs;
 
 C_MODE_START
-static const char **get_handler_errmsgs()
+static const char *get_handler_errmsg(int nr)
 {
-  return handler_errmsgs;
+  return handler_errmsgs[nr - HA_ERR_FIRST];
 }
 C_MODE_END
 
@@ -676,27 +678,7 @@ int ha_init_errors(void)
   SETMSG(HA_ERR_FTS_TOO_MANY_WORDS_IN_PHRASE,  "Too many words in a FTS phrase or proximity search");
   SETMSG(HA_ERR_TABLE_CORRUPT,		ER_DEFAULT(ER_TABLE_CORRUPT));
   /* Register the error messages for use with my_error(). */
-  return my_error_register(get_handler_errmsgs, HA_ERR_FIRST, HA_ERR_LAST);
-}
-
-
-/**
-  Unregister handler error messages.
-
-  @retval
-    0           OK
-  @retval
-    !=0         Error
-*/
-static int ha_finish_errors(void)
-{
-  const char    **errmsgs;
-
-  /* Allocate a pointer array for the error message strings. */
-  if (! (errmsgs= my_error_unregister(HA_ERR_FIRST, HA_ERR_LAST)))
-    return 1;
-  my_free(errmsgs);
-  return 0;
+  return my_error_register(get_handler_errmsg, HA_ERR_FIRST, HA_ERR_LAST);
 }
 
 
@@ -924,21 +906,11 @@ int ha_init()
   DBUG_RETURN(error);
 }
 
-int ha_end()
+void ha_end()
 {
-  int error= 0;
-  DBUG_ENTER("ha_end");
-
-
-  /* 
-    This should be eventualy based  on the graceful shutdown flag.
-    So if flag is equal to HA_PANIC_CLOSE, the deallocate
-    the errors.
-  */
-  if (ha_finish_errors())
-    error= 1;
-
-  DBUG_RETURN(error);
+  // Unregister handler error messages.
+  my_error_unregister(HA_ERR_FIRST, HA_ERR_LAST);
+  my_free(handler_errmsgs);
 }
 
 static my_bool dropdb_handlerton(THD *unused1, plugin_ref plugin,
@@ -1363,6 +1335,8 @@ void trans_register_ha(THD *thd, bool all, handlerton *ht_arg,
     thd->m_transaction_psi= MYSQL_START_TRANSACTION(&thd->m_transaction_state,
                                          xid, trxid, thd->tx_isolation,
                                          thd->tx_read_only, autocommit);
+    DEBUG_SYNC(thd, "after_set_transaction_psi_before_set_transaction_gtid");
+    gtid_set_performance_schema_values(thd);
   }
 #endif
   DBUG_VOID_RETURN;
@@ -1560,7 +1534,7 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock)
   */
   if ((!opt_bin_log || (thd->slave_thread && !opt_log_slave_updates)) &&
       (all || !thd->in_multi_stmt_transaction_mode()) &&
-      !thd->owned_gtid.is_null() && !thd->is_operating_gtid_table)
+      thd->owned_gtid.sidno > 0 && !thd->is_operating_gtid_table)
   {
     error= gtid_state->save(thd);
     need_clear_owned_gtid= true;
@@ -7203,6 +7177,36 @@ int binlog_log_row(TABLE* table,
 
   if (check_table_binlog_row_based(thd, table))
   {
+    if (thd->variables.transaction_write_set_extraction != HASH_ALGORITHM_OFF)
+    {
+      bitmap_set_all(table->read_set);
+      if (before_record && after_record)
+      {
+        size_t length= table->s->reclength;
+        uchar* temp_image=(uchar*) my_malloc(PSI_NOT_INSTRUMENTED,
+                                             length,
+                                             MYF(MY_WME));
+        if (!temp_image)
+        {
+          sql_print_error("Out of memory on transaction write set extraction");
+          return 1;
+        }
+        add_pke(table, thd);
+
+        memcpy(temp_image, table->record[0],(size_t) table->s->reclength);
+        memcpy(table->record[0],table->record[1],(size_t) table->s->reclength);
+
+        add_pke(table, thd);
+
+        memcpy(table->record[0], temp_image, (size_t) table->s->reclength);
+
+        my_free(temp_image);
+      }
+      else
+      {
+        add_pke(table, thd);
+      }
+    }
     DBUG_DUMP("read_set 10", (uchar*) table->read_set->bitmap,
               (table->s->fields + 7) / 8);
 

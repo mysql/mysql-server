@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,8 +16,10 @@
 
 
 #include "mysys_priv.h"
+#include "my_sys.h"
 #include "mysys_err.h"
 #include <my_dir.h>
+#include "my_thread_local.h"
 
 #ifdef _WIN32
 typedef int MY_MODE;
@@ -89,7 +91,7 @@ my_bool my_chmod(const char *filename, ulong PermFlags, myf my_flags)
 
   file_perm= get_file_perm(PermFlags);
 #ifdef _WIN32
-  ret_val= _chmod(filename, file_perm); 
+  ret_val= _chmod(filename, file_perm);
 #else
   ret_val= chmod(filename, file_perm);
 #endif

@@ -126,7 +126,7 @@ public:
      update(COPY_INFO::UPDATE_OPERATION,
             update_fields,
             update_values),
-     insert_into_view(table_list_par && table_list_par->view != 0)
+     insert_into_view(table_list_par && table_list_par->is_view())
   {
     DBUG_ASSERT(target_or_source_columns != NULL);
     DBUG_ASSERT(target_columns == target_or_source_columns ||

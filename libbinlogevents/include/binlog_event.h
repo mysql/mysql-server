@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -87,20 +87,6 @@
 #define BINLOG_VERSION    4
 
 /*
-  G_COMMIT_TS is left defined but won't be used anymore, being superceded by
-  G_COMMIT_TS2.
-  Old master event may have Q_COMMIT_TS status variable/value
-  but that info will not be used by slave applier.
-*/
-#define G_COMMIT_TS   1 /* single logical timestamp introduced by 5.7.2 */
-/*
-  Status variable stores two logical timestamps when the transaction
-  entered the commit phase. They wll be used to apply transactions in parallel
-  on the slave.
-*/
-#define G_COMMIT_TS2  2 /* two logical timestamps introduced by 7.5.6 */
-
-/*
   Constants used by Query_event.
 */
 
@@ -117,10 +103,6 @@
    mts_accessed_dbs status.
 */
 #define OVER_MAX_DBS_IN_EVENT_MTS 254
-
-/* total size of two transaction logical timestamps in the status vars in bytes */
-#define COMMIT_SEQ_LEN  16
-#define COMMIT_SEQ_LEN_OLD 8
 
 /**
   Max number of possible extra bytes in a replication event compared to a
@@ -336,6 +318,10 @@ enum Log_event_type
   ANONYMOUS_GTID_LOG_EVENT= 34,
 
   PREVIOUS_GTIDS_LOG_EVENT= 35,
+
+  TRANSACTION_CONTEXT_EVENT= 36,
+
+  VIEW_CHANGE_EVENT= 37,
 
   /**
     Add new events here - right above this comment!
@@ -660,6 +646,7 @@ public:
 
   explicit Log_event_header(Log_event_type type_code_arg= ENUM_END_EVENT)
     : type_code(type_code_arg),
+      data_written(0),
       log_pos(0),
       flags(0)
   {
@@ -793,7 +780,9 @@ public:
     INCIDENT_HEADER_LEN= 2,
     HEARTBEAT_HEADER_LEN= 0,
     IGNORABLE_HEADER_LEN= 0,
-    ROWS_HEADER_LEN_V2= 10
+    ROWS_HEADER_LEN_V2= 10,
+    TRANSACTION_CONTEXT_HEADER_LEN= 18,
+    VIEW_CHANGE_HEADER_LEN= 52
   }; // end enum_post_header_length
 protected:
   /**

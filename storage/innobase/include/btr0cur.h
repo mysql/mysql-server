@@ -267,8 +267,10 @@ btr_cur_open_at_index_side_with_no_latch_func(
 		f,i,c,lv,__FILE__,__LINE__,m)
 
 /**********************************************************************//**
-Positions a cursor at a randomly chosen position within a B-tree. */
-void
+Positions a cursor at a randomly chosen position within a B-tree.
+@return true if the index is available and we have put the cursor, false
+if the index is unavailable */
+bool
 btr_cur_open_at_rnd_pos_func(
 /*=========================*/
 	dict_index_t*	index,		/*!< in: index */
@@ -632,8 +634,10 @@ The estimates are stored in the array index->stat_n_diff_key_vals[] (indexed
 index->stat_n_sample_sizes[].
 If innodb_stats_method is nulls_ignored, we also record the number of
 non-null values for each prefix and stored the estimates in
-array index->stat_n_non_null_key_vals. */
-void
+array index->stat_n_non_null_key_vals.
+@return true if the index is available and we get the estimated numbers,
+false if the index is unavailable. */
+bool
 btr_estimate_number_of_different_key_vals(
 /*======================================*/
 	dict_index_t*	index);	/*!< in: index */

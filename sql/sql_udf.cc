@@ -28,10 +28,9 @@
 */
 
 #include "sql_base.h"                           // close_mysql_tables
-#include "sql_parse.h"                        // check_identifier_name
+#include "sql_parse.h"                        // check_string_char_length
 #include "sql_table.h"                        // write_bin_log
 #include "records.h"          // init_read_record, end_read_record
-#include "my_thread.h"
 #include "lock.h"                               // MYSQL_LOCK_IGNORE_TIMEOUT
 #include "log.h"
 #include "sql_plugin.h"                         // check_valid_path
@@ -175,7 +174,7 @@ void udf_init()
 
   tables.init_one_table(db, sizeof(db)-1, "func", 4, "func", TL_READ);
 
-  if (open_and_lock_tables(new_thd, &tables, FALSE, MYSQL_LOCK_IGNORE_TIMEOUT))
+  if (open_and_lock_tables(new_thd, &tables, MYSQL_LOCK_IGNORE_TIMEOUT))
   {
     DBUG_PRINT("error",("Can't open udf table"));
     sql_print_error("Can't open the mysql.func table. Please "

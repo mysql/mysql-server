@@ -8,6 +8,8 @@ flush privileges;
 create table t1 (a int, b datetime);
 create table t2 (c int, d datetime);
 grant all privileges on test.* to mysqltest_1@localhost;
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 show grants for current_user();
 Grants for mysqltest_1@localhost
 GRANT USAGE ON *.* TO 'mysqltest_1'@'localhost'
@@ -64,6 +66,8 @@ drop table t1, t2;
 create table t1 (a int, b datetime);
 insert into t1 values (1, 20010101000000), (2, 20020101000000);
 grant all privileges on test.* to mysqltest_1@localhost;
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 create view v1 as select a, convert_tz(b, 'UTC', 'Europe/Moscow') as lb from t1;
 select * from v1;
 a	lb

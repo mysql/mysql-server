@@ -44,34 +44,50 @@ if ($rpl_debug)
   --echo ---- Enable reconnect ----
 }
 
---let $_rpl_server_number= $rpl_server_number
-
---dec $_rpl_server_number
-if (!$_rpl_server_number)
+if ($rpl_server_number == 1)
 {
   --let $rpl_connection_name= default
   --source include/rpl_connection.inc
   --enable_reconnect
 
-  --let $rpl_connection_name= master
-  --source include/rpl_connection.inc
-  --enable_reconnect
+  if ($_have_default_connections)
+  {
+    --let $rpl_connection_name= master
+    --source include/rpl_connection.inc
+    --enable_reconnect
 
-  --let $rpl_connection_name= master1
-  --source include/rpl_connection.inc
-  --enable_reconnect
+    --let $rpl_connection_name= master1
+    --source include/rpl_connection.inc
+    --enable_reconnect
+
+    if ($rpl_group_replication)
+    {
+      --let $rpl_connection_name= server_1
+      --source include/rpl_connection.inc
+      --enable_reconnect
+    }
+  }
 }
 
---dec $_rpl_server_number
-if (!$_rpl_server_number)
+if ($rpl_server_number == 2)
 {
-  --let $rpl_connection_name= slave
-  --source include/rpl_connection.inc
-  --enable_reconnect
+  if ($_have_default_connections)
+  {
+    --let $rpl_connection_name= slave
+    --source include/rpl_connection.inc
+    --enable_reconnect
 
-  --let $rpl_connection_name= slave1
-  --source include/rpl_connection.inc
-  --enable_reconnect
+    --let $rpl_connection_name= slave1
+    --source include/rpl_connection.inc
+    --enable_reconnect
+
+    if ($rpl_group_replication)
+    {
+      --let $rpl_connection_name= server_2
+      --source include/rpl_connection.inc
+      --enable_reconnect
+    }
+  }
 }
 
 --let $rpl_connection_name= server_$rpl_server_number
@@ -94,37 +110,57 @@ if ($rpl_debug)
 
 --let $_rpl_server_number= $rpl_server_number
 
---dec $_rpl_server_number
-if (!$_rpl_server_number)
+if ($rpl_server_number == 1)
 {
   --let $rpl_connection_name= default
   --source include/rpl_connection.inc
   --source include/wait_until_connected_again.inc
   --disable_reconnect
 
-  --let $rpl_connection_name= master
-  --source include/rpl_connection.inc
-  --source include/wait_until_connected_again.inc
-  --disable_reconnect
+  if ($_have_default_connections)
+  {
+    --let $rpl_connection_name= master
+    --source include/rpl_connection.inc
+    --source include/wait_until_connected_again.inc
+    --disable_reconnect
 
-  --let $rpl_connection_name= master1
-  --source include/rpl_connection.inc
-  --source include/wait_until_connected_again.inc
-  --disable_reconnect
+    --let $rpl_connection_name= master1
+    --source include/rpl_connection.inc
+    --source include/wait_until_connected_again.inc
+    --disable_reconnect
+
+    if ($rpl_group_replication)
+    {
+      --let $rpl_connection_name= server_1
+      --source include/rpl_connection.inc
+      --source include/wait_until_connected_again.inc
+      --disable_reconnect
+    }
+  }
 }
 
---dec $_rpl_server_number
-if (!$_rpl_server_number)
+if ($rpl_server_number == 2)
 {
-  --let $rpl_connection_name= slave
-  --source include/rpl_connection.inc
-  --source include/wait_until_connected_again.inc
-  --disable_reconnect
+  if ($_have_default_connections)
+  {
+    --let $rpl_connection_name= slave
+    --source include/rpl_connection.inc
+    --source include/wait_until_connected_again.inc
+    --disable_reconnect
 
-  --let $rpl_connection_name= slave1
-  --source include/rpl_connection.inc
-  --source include/wait_until_connected_again.inc
-  --disable_reconnect
+    --let $rpl_connection_name= slave1
+    --source include/rpl_connection.inc
+    --source include/wait_until_connected_again.inc
+    --disable_reconnect
+
+    if ($rpl_group_replication)
+    {
+      --let $rpl_connection_name= server_2
+      --source include/rpl_connection.inc
+      --source include/wait_until_connected_again.inc
+      --disable_reconnect
+    }
+  }
 }
 
 --let $rpl_connection_name= server_$rpl_server_number

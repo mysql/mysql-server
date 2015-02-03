@@ -287,7 +287,8 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
   LEX *lex= thd->lex;
   int result_code;
   bool gtid_rollback_must_be_skipped=
-    ((thd->variables.gtid_next.type == GTID_GROUP) &&
+    ((thd->variables.gtid_next.type == GTID_GROUP ||
+      thd->variables.gtid_next.type == ANONYMOUS_GROUP) &&
     (!thd->skip_gtid_rollback));
   DBUG_ENTER("mysql_admin_table");
 
@@ -313,11 +314,13 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
     table->table= NULL;
 
   /*
-    If this statement goes to binlog and GTID_NEXT was set to a GTID_GROUP
-    (like SQL thread do when applying statements from the relay log of a
-    master server with GTIDs enabled) we have to avoid losing the ownership of
-    the GTID_GROUP by some trans_rollback_stmt() when processing individual
-    tables.
+    This statement will be written to the binary log even if it fails.
+    But a failing statement calls trans_rollback_stmt which calls
+    gtid_state->update_on_rollback, which releases GTID ownership.
+    And GTID ownership must be held when the statement is being
+    written to the binary log.  Therefore, we set this flag before
+    executing the statement. The flag tells
+    gtid_state->update_on_rollback to skip releasing ownership.
   */
   if (gtid_rollback_must_be_skipped)
     thd->skip_gtid_rollback= true;
@@ -380,7 +383,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
         open_error= open_temporary_tables(thd, table);
 
         if (!open_error)
-          open_error= open_and_lock_tables(thd, table, TRUE, 0);
+          open_error= open_and_lock_tables(thd, table, 0);
 
         thd->pop_diagnostics_area();
         if (tmp_da.is_error())
@@ -404,9 +407,19 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
         open_error= open_temporary_tables(thd, table);
 
         if (!open_error)
-          open_error= open_and_lock_tables(thd, table, TRUE, 0);
+          open_error= open_and_lock_tables(thd, table, 0);
       }
 
+      /*
+        Views are always treated as materialized views, including creation
+        of temporary table descriptor.
+      */
+      if (!open_error && table->is_view())
+      {
+        open_error= table->resolve_derived(thd, false);
+        if (!open_error)
+          open_error= table->setup_materialized_derived(thd);
+      }
       table->next_global= save_next_global;
       table->next_local= save_next_local;
       thd->open_options&= ~extra_open_options;
@@ -513,7 +526,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
         push_warning(thd, Sql_condition::SL_WARNING,
                      ER_CHECK_NO_SUCH_TABLE, ER(ER_CHECK_NO_SUCH_TABLE));
       /* if it was a view will check md5 sum */
-      if (table->view &&
+      if (table->is_view() &&
           view_checksum(thd, table) == HA_ADMIN_WRONG_CHECKSUM)
         push_warning(thd, Sql_condition::SL_WARNING,
                      ER_VIEW_CHECKSUM, ER(ER_VIEW_CHECKSUM));
@@ -526,7 +539,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       goto send_result;
     }
 
-    if (table->view)
+    if (table->is_view())
     {
       DBUG_PRINT("admin", ("calling view_operator_func"));
       result_code= (*view_operator_func)(thd, table);

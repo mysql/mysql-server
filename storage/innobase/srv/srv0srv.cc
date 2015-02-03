@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -37,6 +37,12 @@ The database server main program
 
 Created 10/8/1995 Heikki Tuuri
 *******************************************************/
+
+#include "my_global.h"
+#include "my_thread.h"
+
+#include "mysql/psi/mysql_stage.h"
+#include "mysql/psi/psi.h"
 
 #include "ha_prototypes.h"
 
@@ -563,6 +569,47 @@ static const ulint	SRV_PURGE_SLOT	= 1;
 
 /** Slot index in the srv_sys->sys_threads array for the master thread. */
 static const ulint	SRV_MASTER_SLOT = 0;
+
+#ifdef HAVE_PSI_STAGE_INTERFACE
+/** Performance schema stage event for monitoring ALTER TABLE progress
+everything after flush log_make_checkpoint_at(). */
+PSI_stage_info	srv_stage_alter_table_end
+	= {0, "alter table (end)", PSI_FLAG_STAGE_PROGRESS};
+
+/** Performance schema stage event for monitoring ALTER TABLE progress
+log_make_checkpoint_at(). */
+PSI_stage_info	srv_stage_alter_table_flush
+	= {0, "alter table (flush)", PSI_FLAG_STAGE_PROGRESS};
+
+/** Performance schema stage event for monitoring ALTER TABLE progress
+row_merge_insert_index_tuples(). */
+PSI_stage_info	srv_stage_alter_table_insert
+	= {0, "alter table (insert)", PSI_FLAG_STAGE_PROGRESS};
+
+/** Performance schema stage event for monitoring ALTER TABLE progress
+row_log_apply(). */
+PSI_stage_info	srv_stage_alter_table_log_index
+	= {0, "alter table (log apply index)", PSI_FLAG_STAGE_PROGRESS};
+
+/** Performance schema stage event for monitoring ALTER TABLE progress
+row_log_table_apply(). */
+PSI_stage_info	srv_stage_alter_table_log_table
+	= {0, "alter table (log apply table)", PSI_FLAG_STAGE_PROGRESS};
+
+/** Performance schema stage event for monitoring ALTER TABLE progress
+row_merge_sort(). */
+PSI_stage_info	srv_stage_alter_table_merge_sort
+	= {0, "alter table (merge sort)", PSI_FLAG_STAGE_PROGRESS};
+
+/** Performance schema stage event for monitoring ALTER TABLE progress
+row_merge_read_clustered_index(). */
+PSI_stage_info	srv_stage_alter_table_read_pk_internal_sort
+	= {0, "alter table (read PK and internal sort)", PSI_FLAG_STAGE_PROGRESS};
+
+/** Performance schema stage event for monitoring buffer pool load progress. */
+PSI_stage_info	srv_stage_buffer_pool_load
+	= {0, "buffer pool load", PSI_FLAG_STAGE_PROGRESS};
+#endif /* HAVE_PSI_STAGE_INTERFACE */
 
 /*********************************************************************//**
 Prints counters for work done by srv_master_thread. */

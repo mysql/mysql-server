@@ -31,6 +31,7 @@
 #include "lock.h"                            // mysql_lock_abort_for_thread
 #include "mysqld_thd_manager.h"              // Global_THD_manager
 #include "parse_tree_nodes.h"                // PT_select_var
+#include "rpl_filter.h"                      // binlog_filter
 #include "rpl_rli.h"                         // Relay_log_info
 #include "rpl_rli_pdb.h"                     // Slave_worker
 #include "sp_cache.h"                        // sp_cache_clear
@@ -1087,6 +1088,7 @@ void Open_tables_state::reset_open_tables_state()
 THD::THD(bool enable_plugins)
   :Query_arena(&main_mem_root, STMT_CONVENTIONAL_EXECUTION),
    mark_used_columns(MARK_COLUMNS_READ),
+   want_privilege(0),
    lex(&main_lex),
    m_query_string(NULL_CSTR),
    m_db(NULL_CSTR),
@@ -1135,9 +1137,15 @@ THD::THD(bool enable_plugins)
    debug_sync_control(0),
 #endif /* defined(ENABLED_DEBUG_SYNC) */
    m_enable_plugins(enable_plugins),
+#ifdef HAVE_GTID_NEXT_LIST
    owned_gtid_set(global_sid_map),
+#endif
+   skip_gtid_rollback(false),
+   is_commit_in_middle_of_statement(false),
    main_da(false),
    m_parser_da(false),
+   m_query_rewrite_plugin_da(false),
+   m_query_rewrite_plugin_da_ptr(&m_query_rewrite_plugin_da),
    m_stmt_da(&main_da)
 {
   mdl_context.init(this);
@@ -1211,7 +1219,6 @@ THD::THD(bool enable_plugins)
   slave_net = 0;
   set_command(COM_CONNECT);
   *scramble= '\0';
-  skip_gtid_rollback= false;
 
   /* Call to init() below requires fully initialized Open_tables_state. */
   reset_open_tables_state();
@@ -1586,9 +1593,9 @@ void THD::init(void)
   session_tracker.init(this->charset());
   session_tracker.enable(this);
 
-  owned_gtid.sidno= 0;
-  owned_gtid.gno= 0;
+  owned_gtid.clear();
   owned_sid.clear();
+  owned_gtid.dbug_print(NULL, "set owned_gtid (clear) in THD::init");
 }
 
 
@@ -1878,6 +1885,7 @@ THD::~THD()
 #endif
 
   free_root(&main_mem_root, MYF(0));
+  
   DBUG_VOID_RETURN;
 }
 
@@ -4336,11 +4344,9 @@ void THD::get_definer(LEX_USER *definer)
   {
     definer->user= m_invoker_user;
     definer->host= m_invoker_host;
-    definer->password.str= NULL;
-    definer->password.length= 0;
     definer->plugin.str= (char *) "";
     definer->plugin.length= 0;
-    definer->auth.str=  (char *) "";
+    definer->auth.str=  NULL;
     definer->auth.length= 0;
   }
   else

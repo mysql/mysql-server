@@ -89,7 +89,6 @@ SET(SQL_EMBEDDED_SOURCES
   ../sql/rpl_gtid_specification.cc
   ../sql/rpl_gtid_state.cc
   ../sql/rpl_gtid_owned.cc
-  ../sql/rpl_gtid_cache.cc
   ../sql/rpl_gtid_execution.cc
   ../sql/rpl_gtid_mutex_cond_array.cc
   ../sql/rpl_gtid_persist.cc
@@ -103,6 +102,7 @@ INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
 ADD_COMPILE_FLAGS(
   ../sql/item_geofunc.cc
   ../sql/item_geofunc_relchecks.cc
+  ../sql/item_geofunc_relchecks_bgwrap.cc
   ../sql/item_geofunc_setops.cc
   ../sql/auth/sql_authorization.cc
   ../sql/auth/sql_authentication.cc
@@ -118,6 +118,7 @@ IF(HAVE_NO_UNUSED_TYPEDEFS)
   ADD_COMPILE_FLAGS(
     ../sql/item_geofunc.cc
     ../sql/item_geofunc_relchecks.cc
+    ../sql/item_geofunc_relchecks_bgwrap.cc
     ../sql/item_geofunc_setops.cc
     COMPILE_FLAGS "-Wno-unused-local-typedefs"
   )

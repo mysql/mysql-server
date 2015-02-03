@@ -8,7 +8,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 # Stop slave and install plugin.
 #
 include/stop_slave.inc
-INSTALL PLUGIN replication_observers_example SONAME 'replication_observers_example_plugin.so';
+include/install_replication_observers_example.inc
 #
 # Cause a reset slave notification.
 #
@@ -28,36 +28,29 @@ include/sync_slave_sql_with_master.inc
 # Stop slave and uninstall plugin.
 #
 include/stop_slave.inc
-UNINSTALL PLUGIN replication_observers_example;
+include/uninstall_replication_observers_example.inc
 #
 # Verify that all relay hooks were called.
 #
 Matching lines are:
 replication_observers_example_plugin:binlog_relay_after_reset_slave'
-
-Occurrences of the replication_observers_example_plugin:binlog_relay_after_reset_slave in the input file : 1
+Occurrences of 'replication_observers_example_plugin:binlog_relay_after_reset_slave' in the input file: 1
 Matching lines are:
 replication_observers_example_plugin:binlog_relay_thread_start'
-
-Occurrences of the replication_observers_example_plugin:binlog_relay_thread_start in the input file : 1
+Occurrences of 'replication_observers_example_plugin:binlog_relay_thread_start' in the input file: 1
 Matching lines are:
 replication_observers_example_plugin:binlog_relay_before_request_transmit'
-
-Occurrences of the replication_observers_example_plugin:binlog_relay_before_request_transmit in the input file : 1
+Occurrences of 'replication_observers_example_plugin:binlog_relay_before_request_transmit' in the input file: 1
 Matching lines are:
 replication_observers_example_plugin:binlog_relay_after_read_event'
-
-Occurrences of the replication_observers_example_plugin:binlog_relay_after_read_event in the input file : 1
+Occurrences of 'replication_observers_example_plugin:binlog_relay_after_read_event' in the input file: 1
 Matching lines are:
 replication_observers_example_plugin:binlog_relay_after_queue_event'
-
-Occurrences of the replication_observers_example_plugin:binlog_relay_after_queue_event in the input file : 1
+Occurrences of 'replication_observers_example_plugin:binlog_relay_after_queue_event' in the input file: 1
 Matching lines are:
-replication_observers_example_plugin:binlog_relay_consumer_thread_stop'
-
-Occurrences of the replication_observers_example_plugin:binlog_relay_consumer_thread_stop in the input file : 1
+replication_observers_example_plugin:binlog_relay_applier_stop'
+Occurrences of 'replication_observers_example_plugin:binlog_relay_applier_stop' in the input file: 1
 Matching lines are:
 replication_observers_example_plugin:binlog_relay_thread_stop'
-
-Occurrences of the replication_observers_example_plugin:binlog_relay_thread_stop in the input file : 1
+Occurrences of 'replication_observers_example_plugin:binlog_relay_thread_stop' in the input file: 1
 include/rpl_end.inc

@@ -37,8 +37,6 @@ if (!$restart_at)
 ###
 --disable_query_log
 --echo # Cleaning up and reseting the slave
---source include/rpl_connection_master.inc
---source include/sync_slave_io_with_master.inc
 --source include/rpl_connection_slave.inc
 --source include/stop_slave.inc
 --disable_warnings
@@ -69,7 +67,7 @@ RESET SLAVE;
 START SLAVE IO_THREAD;
 # We always start counting by the second event, skipping slave's FD
 --let $event_counter= 2
---let $master_pos= 120
+--let $master_pos= 122
 # Disabling query log during queue event counting
 --disable_query_log
 ###

@@ -18,9 +18,11 @@
 
 #include "my_global.h"
 
+#include "my_base.h"                            // ha_storage_media
 #include "my_compare.h"                         // portable_sizeof_char_ptr
 #include "my_time.h"                            // MYSQL_TIME_NOTE_TRUNCATED
 #include "binary_log_funcs.h"                   // my_time_binary_length
+#include "handler.h"                            // column_format_type
 #include "mysqld.h"                             // system_charset_info
 #include "mysqld_error.h"                       // ER_*
 #include "sql_error.h"                          // Sql_condition
@@ -32,7 +34,6 @@ class Create_field;
 class Protocol;
 class Relay_log_info;
 class Send_field;
-
 
 /*
 
@@ -1055,7 +1056,7 @@ public:
   { m_count_cuted_fields_saved= count_cuted_fields; }
 
   bool maybe_null(void) const
-  { return real_maybe_null() || table->maybe_null; }
+  { return real_maybe_null() || table->is_nullable(); }
 
   /// @return true if this field is NULL-able, false otherwise.
   bool real_maybe_null(void) const

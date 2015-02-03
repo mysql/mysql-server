@@ -1,7 +1,7 @@
 #ifndef SQL_PARTITION_INCLUDED
 #define SQL_PARTITION_INCLUDED
 
-/* Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,21 +16,25 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "sql_list.h"                           /* List */
-#include "table.h"                              /* TABLE_LIST */
+#include "my_global.h"
 
 class Alter_info;
 class Alter_table_ctx;
 class Field;
+class Item;
 class String;
 class handler;
 class partition_info;
+class THD;
+struct handlerton;
 struct TABLE;
 struct TABLE_LIST;
+typedef struct charset_info_st CHARSET_INFO;
 typedef struct st_bitmap MY_BITMAP;
 typedef struct st_ha_create_information HA_CREATE_INFO;
 typedef struct st_key KEY;
 typedef struct st_key_range key_range;
+template <class T> class List;
 
 /* Flags for partition handlers */
 #define HA_CAN_PARTITION       (1 << 0) /* Partition support */

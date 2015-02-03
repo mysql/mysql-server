@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,8 +16,9 @@
 #ifndef RPL_INFO_FILE_H
 #define RPL_INFO_FILE_H
 
-#include <my_global.h>
-#include "rpl_info_handler.h"
+#include "my_global.h"
+#include "my_sys.h"              // IO_CACHE
+#include "rpl_info_handler.h"    // Rpl_info_handler
 
 class Rpl_info_factory;
 

@@ -72,87 +72,139 @@ if ($rpl_debug)
   --echo \$rpl_sync_chain = '$rpl_sync_chain' \$rpl_only_running_threads= $rpl_only_running_threads
 }
 
-if (!$rpl_server_count_length)
+if (!$rpl_group_replication)
 {
-  --die \$rpl_server_count_length is not set. Did you call rpl_init.inc?
+  if (!$rpl_server_count_length)
+  {
+    --die \$rpl_server_count_length is not set. Did you call rpl_init.inc?
+  }
 }
-
 
 --let $_rpl_i= 1
 --let $_rpl_connect= 0
-while ($_rpl_i) {
-  # $rpl_sync_chain consists of a sequence of sync chains. Each sync
-  # chain has the form:
-  #
-  #   <space><server1_1><server1_2>...<server1_N>
-  #
-  # So the space character indicates that a new sync chain starts.
-  --let $_rpl_server= `SELECT TRIM(SUBSTR('$rpl_sync_chain', 1 + ($_rpl_i - 1) * $rpl_server_count_length, $rpl_server_count_length))`
+if(!$rpl_group_replication)
+{
+  while ($_rpl_i) {
+    # $rpl_sync_chain consists of a sequence of sync chains. Each sync
+    # chain has the form:
+    #
+    #   <space><server1_1><server1_2>...<server1_N>
+    #
+    # So the space character indicates that a new sync chain starts.
+    --let $_rpl_server= `SELECT TRIM(SUBSTR('$rpl_sync_chain', 1 + ($_rpl_i - 1) * $rpl_server_count_length, $rpl_server_count_length))`
 
-  if ($_rpl_server)
-  {
-    if ($rpl_debug)
+    if ($_rpl_server)
     {
-      --echo [sync server_$_rpl_prev_server -> server_$_rpl_server]
-    }
-    if ($rpl_only_running_threads)
-    {
-      --connection server_$_rpl_server
-      --let $_rpl_slave_io_running= query_get_value(SHOW SLAVE STATUS, Slave_IO_Running, 1)
-      --let $_rpl_slave_sql_running= query_get_value(SHOW SLAVE STATUS, Slave_SQL_Running, 1)
       if ($rpl_debug)
       {
-        --echo Sync IO: $_rpl_slave_io_running; Sync SQL: $_rpl_slave_sql_running
+        --echo [sync server_$_rpl_prev_server -> server_$_rpl_server]
       }
-      if ($_rpl_slave_io_running != No)
+      if ($rpl_only_running_threads)
+      {
+        --connection server_$_rpl_server
+        --let $_rpl_slave_io_running= query_get_value(SHOW SLAVE STATUS, Slave_IO_Running, 1)
+        --let $_rpl_slave_sql_running= query_get_value(SHOW SLAVE STATUS, Slave_SQL_Running, 1)
+        if ($rpl_debug)
+        {
+          --echo Sync IO: $_rpl_slave_io_running; Sync SQL: $_rpl_slave_sql_running
+        }
+        if ($_rpl_slave_io_running != No)
+        {
+          --connection server_$_rpl_prev_server
+          --let $sync_slave_connection= server_$_rpl_server
+          if ($_rpl_slave_sql_running != No)
+          {
+            --source include/sync_slave_sql_with_master.inc
+          }
+          if ($_rpl_slave_sql_running == No)
+          {
+            --source include/sync_slave_io_with_master.inc
+          }
+        }
+        if ($_rpl_slave_io_running == No)
+        {
+          if ($_rpl_slave_sql_running != No)
+          {
+            --source include/sync_slave_sql_with_io.inc
+          }
+        }
+      }
+      if (!$rpl_only_running_threads)
       {
         --connection server_$_rpl_prev_server
+        --let $saved_value= $sync_slave_connection
         --let $sync_slave_connection= server_$_rpl_server
-        if ($_rpl_slave_sql_running != No)
-        {
-          --source include/sync_slave_sql_with_master.inc
-        }
-        if ($_rpl_slave_sql_running == No)
-        {
-          --source include/sync_slave_io_with_master.inc
-        }
-      }
-      if ($_rpl_slave_io_running == No)
-      {
-        if ($_rpl_slave_sql_running != No)
-        {
-          --source include/sync_slave_sql_with_io.inc
-        }
+        --source include/sync_slave_sql_with_master.inc
+        --let $sync_slave_connection= $saved_value
       }
     }
-    if (!$rpl_only_running_threads)
-    {
-      --connection server_$_rpl_prev_server
-      --let $saved_value= $sync_slave_connection
-      --let $sync_slave_connection= server_$_rpl_server
-      --source include/sync_slave_sql_with_master.inc
-      --let $sync_slave_connection= $saved_value
-    }
-  }
 
   # This happens at the beginning of a new sync subchain and at the
   # end of the full sync chain.
-  if (!$_rpl_server)
-  {
-    --inc $_rpl_i
-    --let $_rpl_server= `SELECT TRIM(SUBSTR('$rpl_sync_chain', 1 + ($_rpl_i - 1) * $rpl_server_count_length, $rpl_server_count_length))`
-
     if (!$_rpl_server)
     {
-      # terminate loop
-      --let $_rpl_i= -1
-    }
-  }
+      --inc $_rpl_i
+      --let $_rpl_server= `SELECT TRIM(SUBSTR('$rpl_sync_chain', 1 + ($_rpl_i - 1) * $rpl_server_count_length, $rpl_server_count_length))`
 
-  --let $_rpl_prev_server= $_rpl_server
-  --inc $_rpl_i
+      if (!$_rpl_server)
+      {
+        # terminate loop
+        --let $_rpl_i= -1
+      }
+    }
+
+    --let $_rpl_prev_server= $_rpl_server
+    --inc $_rpl_i
+  }
 }
 
+if ($rpl_group_replication)
+{
+  --let $_rpl_old_con= $CURRENT_CONNECTION
+  --let $_rpl_server= $rpl_server_count
+
+  while ($_rpl_server)
+  {
+    --let $rpl_connection_name= server_$_rpl_server
+    --source include/rpl_connection.inc
+
+    if ($biggest_gtid_executed == '')
+    {
+      --let $biggest_gtid_executed= `SELECT @@GLOBAL.GTID_EXECUTED`
+      --let $biggest_gtid_executed_server= server_$_rpl_server
+    }
+
+    --let $gtid_executed= `SELECT @@GLOBAL.GTID_EXECUTED`
+    --let $diff_between_gtid= `SELECT GTID_SUBTRACT('$gtid_executed', '$biggest_gtid_executed')`
+    if ($diff_between_gtid != '')
+    {
+      --let $biggest_gtid_executed= $gtid_executed
+      --let $biggest_gtid_executed_server= server_$_rpl_server
+    }
+    --dec $_rpl_server
+  }
+
+  --let $_rpl_server= $rpl_server_count
+  while ($_rpl_server)
+  {
+    --let $rpl_connection_name=server_$_rpl_server
+    --source include/rpl_connection.inc
+    --let $_member_id= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+    --let $_member_state= `SELECT member_state FROM performance_schema.replication_group_members group_members WHERE group_members.channel_name="group_replication_applier" AND group_members.member_id="$_member_id"`
+    if ($_member_state == "ONLINE")
+    {
+      --let $rpl_connection_name= $biggest_gtid_executed_server
+      --source include/rpl_connection.inc
+      --let $sync_slave_connection= server_$_rpl_server
+      if ($sync_slave_connection != $biggest_gtid_executed_server)
+      {
+        --source include/sync_slave_sql_with_master.inc
+      }
+    }
+    --dec $_rpl_server
+  }
+  --connection $_rpl_old_con
+}
 
 --let $include_filename= rpl_sync.inc
 --source include/end_include_file.inc

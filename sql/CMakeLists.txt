@@ -67,6 +67,7 @@ SET(SQL_SHARED_SOURCES
   auth/sql_user_table.cc
   auth/sql_user.cc
   auth/password.c
+  auth/password_policy_service.cc
   auth/sql_security_ctx.cc
   bootstrap.cc
   conn_handler/connection_handler_manager.cc 
@@ -92,6 +93,7 @@ SET(SQL_SHARED_SOURCES
   item_func.cc
   item_geofunc.cc
   item_geofunc_relchecks.cc
+  item_geofunc_relchecks_bgwrap.cc
   item_geofunc_setops.cc
   item_row.cc 
   item_strfunc.cc
@@ -123,11 +125,18 @@ SET(SQL_SHARED_SOURCES
   parse_tree_items.cc
   parse_tree_node_base.cc
   parse_tree_nodes.cc
+  select_lex_visitor.cc
+  parser_service.cc
   partition_info.cc
   procedure.cc 
   protocol.cc
   records.cc
+  rpl_group_replication.cc
   rpl_handler.cc
+  rpl_transaction_ctx.cc
+  rpl_transaction_write_set_ctx.cc
+  rpl_write_set_handler.cc
+  rules_table_service.cc
   session_tracker.cc
   set_var.cc 
   sp.cc
@@ -145,6 +154,7 @@ SET(SQL_SHARED_SOURCES
   sql_audit.cc
   sql_base.cc 
   sql_bootstrap.cc
+  sql_initialize.cc
   sql_cache.cc
   sql_class.cc
   sql_connect.cc
@@ -176,6 +186,7 @@ SET(SQL_SHARED_SOURCES
   sql_plugin.cc
   sql_prepare.cc
   sql_profile.cc
+  sql_query_rewrite.cc
   sql_reload.cc
   sql_rename.cc
   sql_resolver.cc
@@ -260,6 +271,7 @@ INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
 ADD_COMPILE_FLAGS(
   item_geofunc.cc
   item_geofunc_relchecks.cc
+  item_geofunc_relchecks_bgwrap.cc
   item_geofunc_setops.cc
   auth/sql_authorization.cc
   auth/sql_authentication.cc
@@ -275,6 +287,7 @@ IF(HAVE_NO_UNUSED_TYPEDEFS)
   ADD_COMPILE_FLAGS(
     item_geofunc.cc
     item_geofunc_relchecks.cc
+    item_geofunc_relchecks_bgwrap.cc
     item_geofunc_setops.cc
     COMPILE_FLAGS "-Wno-unused-local-typedefs"
   )
@@ -306,6 +319,7 @@ RECOMPILE_FOR_EMBEDDED)
 ADD_LIBRARY(sql STATIC ${SQL_SOURCE})
 ADD_DEPENDENCIES(sql GenServerSource)
 ADD_DEPENDENCIES(sql GenDigestServerSource)
+ADD_DEPENDENCIES(sql GenBootstrapPriv)
 DTRACE_INSTRUMENT(sql)
 TARGET_LINK_LIBRARIES(sql ${MYSQLD_STATIC_PLUGIN_LIBS} 
   mysys mysys_ssl dbug strings vio regex binlogevents_static
@@ -323,8 +337,7 @@ ENDIF()
 
 SET (BINLOG_SOURCE rpl_gtid_misc.cc
                    rpl_gtid_sid_map.cc rpl_gtid_set.cc rpl_gtid_specification.cc
-                   rpl_gtid_state.cc rpl_gtid_owned.cc rpl_gtid_cache.cc
-                   rpl_gtid_execution.cc
+                   rpl_gtid_state.cc rpl_gtid_owned.cc rpl_gtid_execution.cc
                    rpl_gtid_mutex_cond_array.cc rpl_gtid_persist.cc
                    log_event.cc log_event_old.cc binlog.cc sql_binlog.cc
                    rpl_filter.cc rpl_record.cc rpl_record_old.cc
@@ -345,7 +358,7 @@ SET (SLAVE_SOURCE rpl_slave.cc rpl_reporting.cc rpl_mi.cc rpl_rli.cc
                   rpl_info_factory.cc rpl_info_table_access.cc dynamic_ids.cc
                   rpl_rli_pdb.cc rpl_info_dummy.cc rpl_mts_submode.cc
                   rpl_slave_commit_order_manager.cc rpl_msr.cc
-                  rpl_trx_boundary_parser.cc)
+                  rpl_trx_boundary_parser.cc rpl_channel_service_interface.cc)
 ADD_LIBRARY(slave ${SLAVE_SOURCE})
 ADD_DEPENDENCIES(slave GenError)
 
@@ -406,7 +419,7 @@ IF(NOT WITHOUT_DYNAMIC_PLUGINS)
     # incremental appears to crash from time to time,if used with /DEF option
     SET_TARGET_PROPERTIES(mysqld PROPERTIES LINK_FLAGS "${mysqld_link_flags} /DEF:mysqld.def /INCREMENTAL:NO")
 
-    FOREACH (CORELIB sql mysys mysys_ssl dbug strings binlogevents_static)
+    FOREACH (CORELIB sql binlog slave mysys mysys_ssl dbug strings binlogevents_static)
       GET_TARGET_PROPERTY(LOC ${CORELIB} LOCATION)
       FILE(TO_NATIVE_PATH ${LOC} LOC)
       SET (LIB_LOCATIONS ${LIB_LOCATIONS} ${LOC}) 
@@ -461,6 +474,7 @@ ELSE()
     PDB_DESTINATION ${INSTALL_SBINDIR}/debug
     RENAME mysqld-debug)
 ENDIF()
+
 
 # Handle out-of-source build from source package with possibly broken 
 # bison. Copy bison output to from source to build directory, if not already 
@@ -555,36 +569,38 @@ IF(NOT CMAKE_CROSSCOMPILING)
   ENDIF()
 ENDIF()
 IF(WIN32 AND MYSQLD_EXECUTABLE)
-  CONFIGURE_FILE(
-    ${CMAKE_SOURCE_DIR}/cmake/create_initial_db.cmake.in
-    ${CMAKE_CURRENT_BINARY_DIR}/create_initial_db.cmake
-    @ONLY
-  )
-  
-  IF(MSVC_IDE OR CMAKE_GENERATOR MATCHES "Xcode")
-    SET (CONFIG_PARAM -DCONFIG=${CMAKE_CFG_INTDIR})
-  ENDIF()
-  MAKE_DIRECTORY(${CMAKE_CURRENT_BINARY_DIR}/data)
-  # Copy db.opt into data/test/
-  SET(DBOPT_FILE ${CMAKE_CURRENT_SOURCE_DIR}/db.opt ) 
-  INSTALL(FILES ${DBOPT_FILE} DESTINATION data/test COMPONENT DataFiles)
-
   ADD_CUSTOM_COMMAND(
-     OUTPUT initdb.dep
-     COMMAND ${CMAKE_COMMAND}
-     ${CONFIG_PARAM} -P ${CMAKE_CURRENT_BINARY_DIR}/create_initial_db.cmake
-     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/data
+     OUTPUT data
+     COMMAND "${CMAKE_COMMAND}" -E remove_directory
+       ${CMAKE_CURRENT_BINARY_DIR}/data
+     COMMAND "${MYSQLD_EXECUTABLE}"
+       --no-defaults
+       --console
+       --lc-messages-dir=${CMAKE_CURRENT_BINARY_DIR}/share
+       --datadir=${CMAKE_CURRENT_BINARY_DIR}/data
+       --default-storage-engine=MyISAM
+       --default-tmp-storage-engine=MyISAM
+       --loose-skip-auto_generate_certs
+       --loose-skip-sha256_password_auto_generate_rsa_keys
+       --initialize-insecure
+       --log_syslog=0
+       --skip-ssl
+     COMMAND "${CMAKE_COMMAND}" -E make_directory
+       ${CMAKE_CURRENT_BINARY_DIR}/data/test
+     COMMAND "${CMAKE_COMMAND}" -E remove
+       ${CMAKE_CURRENT_BINARY_DIR}/data/mysql/db.opt
+     COMMAND "${CMAKE_COMMAND}" -E remove
+       ${CMAKE_CURRENT_BINARY_DIR}/data/performance_schema/db.opt
+     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
      DEPENDS mysqld
   )
-  ADD_CUSTOM_TARGET(initial_database  
+  ADD_CUSTOM_TARGET(initial_database
     ALL
-    DEPENDS  initdb.dep
+    DEPENDS  data
   )
   INSTALL(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/data
-    DESTINATION . 
-    COMPONENT DataFiles
-    PATTERN "initdb.dep" EXCLUDE
-    PATTERN "bootstrap.sql" EXCLUDE)
+    DESTINATION .
+    COMPONENT DataFiles)
 ELSE()
   # Not windows or cross compiling, just install an empty directory
   INSTALL(FILES ${DUMMY_FILE} DESTINATION data/mysql COMPONENT DataFiles)

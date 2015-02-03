@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -678,14 +678,24 @@ static inline void set_timespec_nsec(struct timespec *abstime, ulonglong nsec)
 {
 #ifndef _WIN32
   ulonglong now= my_getsystime() + (nsec / 100);
-  abstime->tv_sec=   now / 10000000ULL;
+  ulonglong tv_sec= now / 10000000ULL;
+#if SIZEOF_TIME_T < SIZEOF_LONG_LONG
+  /* Ensure that the number of seconds don't overflow. */
+  tv_sec= MY_MIN(tv_sec, ((ulonglong)INT_MAX32));
+#endif
+  abstime->tv_sec=  (time_t)tv_sec;
   abstime->tv_nsec= (now % 10000000ULL) * 100 + (nsec % 100);
-#else
+#else /* !_WIN32 */
+  ulonglong max_timeout_msec= (nsec / 1000000);
   union ft64 tv;
   GetSystemTimeAsFileTime(&tv.ft);
   abstime->tv.i64= tv.i64 + (__int64)(nsec / 100);
-  abstime->max_timeout_msec= (long)(nsec / 1000000);
+#if SIZEOF_LONG < SIZEOF_LONG_LONG
+  /* Ensure that the msec value doesn't overflow. */
+  max_timeout_msec= MY_MIN(max_timeout_msec, ((ulonglong)INT_MAX32));
 #endif
+  abstime->max_timeout_msec= (long)max_timeout_msec;
+#endif /* !_WIN32 */
 }
 
 static inline void set_timespec(struct timespec *abstime, ulonglong sec)
@@ -741,5 +751,11 @@ static inline ulonglong diff_timespec(struct timespec *ts1, struct timespec *ts2
 #define USER_RWX        USER_READ | USER_WRITE | USER_EXECUTE
 #define GROUP_RWX       GROUP_READ | GROUP_WRITE | GROUP_EXECUTE
 #define OTHERS_RWX      OTHERS_READ | OTHERS_WRITE | OTHERS_EXECUTE
+
+/* Defaults */
+#define DEFAULT_SSL_CA_CERT     "ca.pem"
+#define DEFAULT_SSL_CA_KEY      "ca-key.pem"
+#define DEFAULT_SSL_SERVER_CERT "server-cert.pem"
+#define DEFAULT_SSL_SERVER_KEY  "server-key.pem"
 
 #endif  // MY_GLOBAL_INCLUDED

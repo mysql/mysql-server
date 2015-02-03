@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,8 +16,7 @@
 #ifndef RPL_RECORD_H
 #define RPL_RECORD_H
 
-#include <rpl_reporting.h>
-#include "my_global.h"                          /* uchar */
+#include "my_global.h"
 
 class Relay_log_info;
 struct TABLE;

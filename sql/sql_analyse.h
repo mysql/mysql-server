@@ -19,11 +19,12 @@
 
 /* Analyse database */
 
-#include "procedure.h"                          /* Procedure */
-#include "sql_class.h"                          /* select_send */
+#include "my_global.h"
 #include "my_tree.h"          // TREE
+#include "sql_class.h"        // select_send
 
-class select_result;
+class Item_proc;
+
 
 #define my_thd_charset	default_charset_info
 
