@@ -151,6 +151,7 @@ connection slave;
 # Remove the bad binlog and clear error status on slave.
 STOP SLAVE;
 RESET SLAVE;
+RESET MASTER;
 --connection master
 RESET MASTER;
 

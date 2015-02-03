@@ -2,6 +2,8 @@
 # only GLOBAL
 #
 SELECT @@GLOBAL.simplified_binlog_gtid_recovery;
+SELECT COUNT(@@GLOBAL.simplified_binlog_gtid_recovery);
+SELECT COUNT(@@simplified_binlog_gtid_recovery);
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SELECT @@SESSION.simplified_binlog_gtid_recovery;
 SHOW GLOBAL VARIABLES LIKE 'simplified_binlog_gtid_recovery';

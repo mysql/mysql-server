@@ -1493,6 +1493,15 @@ convert_error_code_to_mysql(
 		return(HA_ERR_TO_BIG_ROW);
 	}
 
+
+	case DB_TOO_BIG_FOR_REDO:
+		my_printf_error(ER_TOO_BIG_ROWSIZE, "%s" , MYF(0),
+				"The size of BLOB/TEXT data inserted"
+				" in one transaction is greater than"
+				" 10% of redo log size. Increase the"
+				" redo log size using innodb_log_file_size.");
+		return(HA_ERR_TO_BIG_ROW);
+
 	case DB_TOO_BIG_INDEX_COL:
 		my_error(ER_INDEX_COLUMN_TOO_LONG, MYF(0),
 			 DICT_MAX_FIELD_LEN_BY_FORMAT_FLAG(flags));
@@ -13410,10 +13419,8 @@ ha_innobase::cmp_ref(
 			len1 = innobase_read_from_2_little_endian(ref1);
 			len2 = innobase_read_from_2_little_endian(ref2);
 
-			ref1 += 2;
-			ref2 += 2;
 			result = ((Field_blob*) field)->cmp(
-				ref1, len1, ref2, len2);
+				ref1 + 2, len1, ref2 + 2, len2);
 		} else {
 			result = field->key_cmp(ref1, ref2);
 		}

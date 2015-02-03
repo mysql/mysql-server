@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2009, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted
@@ -2638,13 +2638,18 @@ try_again:
 	ret = os_file_pread(file, buf, n, offset);
 
 	if ((ulint) ret == n) {
-
 		return(TRUE);
+	} else if (ret == -1) {
+                ib_logf(IB_LOG_LEVEL_ERROR,
+			"Error in system call pread(). The operating"
+			" system error number is %lu.",(ulint) errno);
+        } else {
+		/* Partial read occured */
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Tried to read " ULINTPF " bytes at offset "
+			UINT64PF ". Was only able to read %ld.",
+			n, offset, (lint) ret);
 	}
-
-	ib_logf(IB_LOG_LEVEL_ERROR,
-		"Tried to read " ULINTPF " bytes at offset " UINT64PF ". "
-		"Was only able to read %ld.", n, offset, (lint) ret);
 #endif /* __WIN__ */
 #ifdef __WIN__
 error_handling:
@@ -2765,8 +2770,17 @@ try_again:
 	ret = os_file_pread(file, buf, n, offset);
 
 	if ((ulint) ret == n) {
-
 		return(TRUE);
+	} else if (ret == -1) {
+                ib_logf(IB_LOG_LEVEL_ERROR,
+			"Error in system call pread(). The operating"
+			" system error number is %lu.",(ulint) errno);
+        } else {
+		/* Partial read occured */
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Tried to read " ULINTPF " bytes at offset "
+			UINT64PF ". Was only able to read %ld.",
+			n, offset, (lint) ret);
 	}
 #endif /* __WIN__ */
 #ifdef __WIN__
@@ -2967,18 +2981,26 @@ retry:
 
 		ut_print_timestamp(stderr);
 
-		fprintf(stderr,
-			" InnoDB: Error: Write to file %s failed"
-			" at offset " UINT64PF ".\n"
-			"InnoDB: %lu bytes should have been written,"
-			" only %ld were written.\n"
-			"InnoDB: Operating system error number %lu.\n"
-			"InnoDB: Check that your OS and file system"
-			" support files of this size.\n"
-			"InnoDB: Check also that the disk is not full"
-			" or a disk quota exceeded.\n",
-			name, offset, n, (lint) ret,
-			(ulint) errno);
+		if(ret == -1) {
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Failure of system call pwrite(). Operating"
+				" system error number is %lu.",
+				(ulint) errno);
+		} else {
+			fprintf(stderr,
+				" InnoDB: Error: Write to file %s failed"
+				" at offset " UINT64PF ".\n"
+				"InnoDB: %lu bytes should have been written,"
+				" only %ld were written.\n"
+				"InnoDB: Operating system error number %lu.\n"
+				"InnoDB: Check that your OS and file system"
+				" support files of this size.\n"
+				"InnoDB: Check also that the disk is not full"
+				" or a disk quota exceeded.\n",
+				name, offset, n, (lint) ret,
+				(ulint) errno);
+		}
+
 		if (strerror(errno) != NULL) {
 			fprintf(stderr,
 				"InnoDB: Error number %d means '%s'.\n",

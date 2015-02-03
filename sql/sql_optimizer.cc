@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2060,8 +2060,9 @@ static Item *eliminate_item_equal(Item *cond, COND_EQUAL *upper_levels,
         As noted in Item_equal::get_subst_item(), subquery materialization
         does not have this problem.
       */
-      if (!sj_is_materialize_strategy(
-            item_field->field->table->reginfo.join_tab->get_sj_strategy()))
+      JOIN_TAB *const tab= item_field->field->table->reginfo.join_tab;
+
+      if (!(tab && sj_is_materialize_strategy(tab->get_sj_strategy())))
       {
         Item_field *item_match;
         Item_equal_iterator li(*item_equal);
@@ -8946,6 +8947,7 @@ create_distinct_group(THD *thd, Ref_ptr_array ref_pointer_array,
           additional hidden field for grouping because later it will be
           converted to a LONG field. Original field will remain of the
           BIT type and will be returned to a client.
+          @note setup_ref_array() needs to account for the extra space.
         */
         Item_field *new_item= new Item_field(thd, (Item_field*)item);
         int el= all_fields.elements;

@@ -484,7 +484,7 @@ my_bool opt_master_verify_checksum= 0;
 my_bool opt_slave_sql_verify_checksum= 1;
 const char *binlog_format_names[]= {"MIXED", "STATEMENT", "ROW", NullS};
 my_bool enforce_gtid_consistency;
-my_bool simplified_binlog_gtid_recovery;
+my_bool binlog_gtid_simple_recovery;
 ulong binlog_error_action;
 const char *binlog_error_action_list[]= {"IGNORE_ERROR", "ABORT_SERVER", NullS};
 ulong gtid_mode;
@@ -8406,6 +8406,9 @@ mysqld_get_one_option(int optid,
   case OPT_BINLOGGING_IMPOSSIBLE_MODE:
     WARN_DEPRECATED(NULL, "--binlogging_impossible_mode",
                     "'--binlog_error_action'");
+  case OPT_SIMPLIFIED_BINLOG_GTID_RECOVERY:
+    WARN_DEPRECATED(NULL, "--simplified_binlog_gtid_recovery",
+                    "'--binlog_gtid_simple_recovery'");
 #include <sslopt-case.h>
 #ifndef EMBEDDED_LIBRARY
   case 'V':

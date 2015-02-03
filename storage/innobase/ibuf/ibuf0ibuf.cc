@@ -3885,7 +3885,7 @@ check_watch:
 	{
 		buf_page_t*	bpage;
 		buf_pool_t*	buf_pool = buf_pool_get(space, page_no);
-		bpage = buf_page_hash_get(buf_pool, space, page_no);
+		bpage = buf_page_get_also_watch(buf_pool, space, page_no);
 
 		if (UNIV_LIKELY_NULL(bpage)) {
 			/* A buffer pool watch has been set or the
