@@ -5623,12 +5623,12 @@ void TABLE::mark_column_used(THD *thd, Field *field,
     }
     if (get_fields_in_item_tree)
       field->flags|= GET_FIXED_FIELDS_FLAG;
-    /*
-      As non-persistent generated columns are calculated on the fly, they
-      needs to be stored (written, even for read-only statements) to the
-      field in order to be used, so set the generated field for write here if
-      1) this procedure is called for a read-only operation (SELECT), and
-      2) the generated column is not phycically stored in the table
+   /*
+     As vitual generated columns are calculated on the fly, they
+     needs to be updated (written, even for read-only statements) to the
+     field in order to be used, so set the generated field for write here.
+     Moreover, in order to evaluate the value of virtual generated column,
+     the base columns are also needed to be read.
     */
     if(field->gcol_info && !field->stored_in_db)
     {
@@ -5664,7 +5664,6 @@ void TABLE::mark_column_used(THD *thd, Field *field,
     bitmap_set_bit(read_set, field->field_index);
     if(field->gcol_info && !field->stored_in_db)
     {
-      bitmap_fast_test_and_set(write_set, field->field_index);
       Mark_field mark_fld(MARK_COLUMNS_TEMP);
       field->gcol_info->expr_item->walk(&Item::mark_field_in_map,
                          Item::WALK_PREFIX, (uchar *)&mark_fld);

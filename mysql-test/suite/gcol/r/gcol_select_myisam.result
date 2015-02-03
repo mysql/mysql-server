@@ -6,6 +6,7 @@ DROP TRIGGER IF EXISTS trg1;
 DROP TRIGGER IF EXISTS trg2;
 set sql_warnings = 0;
 SET @@session.default_storage_engine = 'MyISAM';
+SET optimizer_switch='derived_merge=off';
 create table t1 (a int,
 b int generated always as (-a) virtual,
 c int generated always as (-a) stored,
@@ -128,9 +129,10 @@ a	b	c
 NULL	NULL	NULL
 explain select * from (select a,b,c from t1) as t11;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1`
+Note	1003	/* select#1 */ select `t11`.`a` AS `a`,`t11`.`b` AS `b`,`t11`.`c` AS `c` from (/* select#2 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1`) `t11`
 ###
 ### Using aggregate functions with/without DISTINCT
 ###
@@ -443,6 +445,7 @@ ORDER BY alias1.col_time_key, alias1.col_datetime_key, alias1.pk ASC;
 field1	field2
 NULL	0
 DROP TABLE A,C;
+SET optimizer_switch='derived_merge=default';
 DROP VIEW  IF EXISTS v1,v2;
 DROP TABLE IF EXISTS t1,t2,t3;
 DROP PROCEDURE IF EXISTS p1;

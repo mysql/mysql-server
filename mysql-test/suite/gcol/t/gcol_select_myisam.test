@@ -34,6 +34,7 @@
 ##### Storage engine to be tested
 # Set the session storage engine
 eval SET @@session.default_storage_engine = 'MyISAM';
+eval SET optimizer_switch='derived_merge=off';
 
 ##### Workarounds for known open engine specific bugs
 #     none
@@ -47,4 +48,5 @@ eval SET @@session.default_storage_engine = 'MyISAM';
 
 #------------------------------------------------------------------------------#
 # Cleanup
+eval SET optimizer_switch='derived_merge=default';
 --source suite/gcol/inc/gcol_cleanup.inc
