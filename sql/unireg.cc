@@ -685,7 +685,7 @@ static bool pack_header(uchar *forminfo, enum legacy_db_type table_type,
   size_t length;
   uint int_count, int_length, no_empty, int_parts;
   uint time_stamp_pos,null_fields;
-  size_t reclength, totlength, n_length, com_length;
+  size_t reclength, totlength, n_length, com_length, gcol_info_length;
   DBUG_ENTER("pack_header");
 
   if (create_fields.elements > MAX_FIELDS)
@@ -696,8 +696,8 @@ static bool pack_header(uchar *forminfo, enum legacy_db_type table_type,
 
   totlength= 0L;
   reclength= data_offset;
-  no_empty=int_count=int_parts=int_length=time_stamp_pos=null_fields=
-    com_length=0;
+  no_empty=int_count=int_parts=int_length=time_stamp_pos=null_fields=0;
+  com_length=gcol_info_length=0;
   n_length=2L;
 
 	/* Check fields */
@@ -713,6 +713,27 @@ static bool pack_header(uchar *forminfo, enum legacy_db_type table_type,
                                 ER_TOO_LONG_FIELD_COMMENT,
                                 (char *) field->field_name))
       DBUG_RETURN(true);
+    if (field->gcol_info)
+    {
+      uint tmp_len= system_charset_info->cset->charpos(system_charset_info,
+                                                       field->gcol_info->expr_str.str,
+                                                       field->gcol_info->expr_str.str +
+                                                       field->gcol_info->expr_str.length,
+                                                       GENERATED_COLUMN_EXPRESSION_MAXLEN);
+
+      if (tmp_len < field->gcol_info->expr_str.length)
+      {
+        my_error(ER_WRONG_STRING_LENGTH, MYF(0),
+                 field->gcol_info->expr_str.str,"GENERATED COLUMN EXPRESSION",
+                 (uint) GENERATED_COLUMN_EXPRESSION_MAXLEN);
+        DBUG_RETURN(1);
+      }
+      /*
+        Sum up the length of the expression string and mandatory header bytes
+        to the total length.
+      */
+      gcol_info_length+= field->gcol_info->expr_str.length+(uint)FRM_GCOL_HEADER_SIZE;
+    }
     totlength+= field->length;
     com_length+= field->comment.length;
     if (MTYP_TYPENR(field->unireg_check) == Field::NOEMPTY ||
@@ -732,7 +753,14 @@ static bool pack_header(uchar *forminfo, enum legacy_db_type table_type,
       time_stamp_pos= (uint) field->offset+ (uint) data_offset + 1;
     length=field->pack_length;
     /* Ensure we don't have any bugs when generating offsets */
-    DBUG_ASSERT(reclength == field->offset + data_offset);
+    /**
+      Because the virtual generated columns are not stored physically,
+      they are put at the tail of record. The details can be checked
+      in mysql_prepare_create_table. So the offset is messed up by
+      vitual generated columns. The original assert is not correct
+      any more.
+      DBUG_ASSERT(reclength == field->offset + data_offset);
+     */
     if (field->offset + data_offset + length > reclength)
       reclength= field->offset + data_offset + length;
     n_length+= strlen(field->field_name) + 1;
@@ -798,8 +826,9 @@ static bool pack_header(uchar *forminfo, enum legacy_db_type table_type,
   }
   /* Hack to avoid bugs with small static rows in MySQL */
   reclength= max<size_t>(file->min_record_length(table_options), reclength);
-  if (info_length+(ulong) create_fields.elements*FCOMP+288+
-      n_length+int_length+com_length > 65535L || int_count > 255)
+  if (info_length + (ulong) create_fields.elements * FCOMP + 288 +
+      n_length + int_length + com_length + gcol_info_length > 65535L ||
+      int_count > 255)
   {
     my_message(ER_TOO_MANY_FIELDS, ER(ER_TOO_MANY_FIELDS), MYF(0));
     DBUG_RETURN(1);
@@ -807,7 +836,7 @@ static bool pack_header(uchar *forminfo, enum legacy_db_type table_type,
 
   memset(forminfo, 0, 288);
   length=(info_length+create_fields.elements*FCOMP+288+n_length+int_length+
-	  com_length);
+	  com_length + gcol_info_length);
   int2store(forminfo, static_cast<uint16>(length));
   forminfo[256] = (uint8) screens;
   int2store(forminfo+258,create_fields.elements);
@@ -824,7 +853,8 @@ static bool pack_header(uchar *forminfo, enum legacy_db_type table_type,
   int2store(forminfo+280,22);			/* Rows needed */
   int2store(forminfo+282,null_fields);
   int2store(forminfo+284, static_cast<uint16>(com_length));
-  /* Up to forminfo+288 is free to use for additional information */
+  int2store(forminfo+286,gcol_info_length);
+  /* forminfo+288 is free to use for additional information */
   DBUG_RETURN(0);
 } /* pack_header */
 
@@ -863,7 +893,7 @@ static bool pack_fields(File file, List<Create_field> &create_fields,
                         ulong data_offset)
 {
   uint i;
-  uint int_count;
+  uint int_count, gcol_info_length=0;
   size_t comment_length= 0;
   uchar buff[MAX_FIELD_WIDTH];
   Create_field *field;
@@ -901,6 +931,11 @@ static bool pack_fields(File file, List<Create_field> &create_fields,
     else
     {
       buff[11]= buff[14]= 0;			// Numerical
+    }
+    if (field->gcol_info)
+    {
+      gcol_info_length+= field->gcol_info->expr_str.length;
+      buff[10]|= (uchar)Field::GENERATED_FIELD;
     }
     int2store(buff+15, static_cast<uint16>(field->comment.length));
     comment_length+= field->comment.length;
@@ -994,6 +1029,36 @@ static bool pack_fields(File file, List<Create_field> &create_fields,
         if (mysql_file_write(file, (uchar*) field->comment.str,
                              field->comment.length, MYF_RW))
 	  DBUG_RETURN(1);
+    }
+  }
+  if (gcol_info_length)
+  {
+    it.rewind();
+    int_count=0;
+    while ((field=it++))
+    {
+      /*
+        Pack each virtual field as follows:
+        byte 1      = 1 (always 1 to allow for future extensions)
+        byte 2,3    = expression length
+        byte 4      = flags, as of now:
+                        0 - no flags
+                        1 - field is physically stored
+        byte 5-...  = generated column expression (text data)
+      */
+      if (field->gcol_info && field->gcol_info->expr_str.length)
+      {
+        buff[0]= (uchar)1;
+        int2store(buff + 1, field->gcol_info->expr_str.length);
+        buff[3]= (uchar) field->stored_in_db;
+        if (my_write(file, buff, FRM_GCOL_HEADER_SIZE, MYF_RW))
+          DBUG_RETURN(1);
+        if (my_write(file,
+                     (uchar*) field->gcol_info->expr_str.str,
+                     field->gcol_info->expr_str.length,
+                     MYF_RW))
+          DBUG_RETURN(1);
+      }
     }
   }
   DBUG_RETURN(0);

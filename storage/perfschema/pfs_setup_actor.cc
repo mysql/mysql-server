@@ -27,21 +27,12 @@
 #include "pfs_setup_actor.h"
 #include "pfs_account.h"
 #include "pfs_global.h"
+#include "pfs_buffer_container.h"
 
 /**
   @addtogroup Performance_schema_buffers
   @{
 */
-
-/** Size of the setup_actor instances array. @sa setup_actor_array */
-ulong setup_actor_max;
-
-/**
-  Setup_actor instances array.
-  @sa setup_actor_max
-*/
-
-PFS_setup_actor *setup_actor_array= NULL;
 
 /** Hash table for setup_actor records. */
 LF_HASH setup_actor_hash;
@@ -55,27 +46,13 @@ static bool setup_actor_hash_inited= false;
 */
 int init_setup_actor(const PFS_global_param *param)
 {
-  setup_actor_max= param->m_setup_actor_sizing;
-
-  setup_actor_array= NULL;
-
-  if (setup_actor_max > 0)
-  {
-    setup_actor_array= PFS_MALLOC_ARRAY(setup_actor_max, PFS_setup_actor,
-                                         MYF(MY_ZEROFILL));
-    if (unlikely(setup_actor_array == NULL))
-      return 1;
-  }
-
-  return 0;
+  return global_setup_actor_container.init(param->m_setup_actor_sizing);
 }
 
 /** Cleanup all the setup actor buffers. */
 void cleanup_setup_actor(void)
 {
-  pfs_free(setup_actor_array);
-  setup_actor_array= NULL;
-  setup_actor_max= 0;
+  global_setup_actor_container.cleanup();
 }
 
 C_MODE_START
@@ -99,13 +76,13 @@ C_MODE_END
   Initialize the setup actor hash.
   @return 0 on success
 */
-int init_setup_actor_hash(void)
+int init_setup_actor_hash(const PFS_global_param *param)
 {
-  if ((! setup_actor_hash_inited) && (setup_actor_max > 0))
+  if ((! setup_actor_hash_inited) && (param->m_setup_actor_sizing != 0))
   {
     lf_hash_init(&setup_actor_hash, sizeof(PFS_setup_actor*), LF_HASH_UNIQUE,
                  0, 0, setup_actor_hash_get_key, &my_charset_bin);
-    setup_actor_hash.size= setup_actor_max;
+    /* setup_actor_hash.size= param->m_setup_actor_sizing; */
     setup_actor_hash_inited= true;
   }
   return 0;
@@ -159,11 +136,6 @@ static void set_setup_actor_key(PFS_setup_actor_key *key,
 int insert_setup_actor(const String *user, const String *host, const String *role,
                        bool enabled)
 {
-  static PFS_ALIGNED PFS_cacheline_uint32 monotonic;
-
-  if (setup_actor_max == 0)
-    return HA_ERR_RECORD_FILE_FULL;
-
   PFS_thread *thread= PFS_thread::get_current_thread();
   if (unlikely(thread == NULL))
     return HA_ERR_OUT_OF_MEM;
@@ -172,45 +144,38 @@ int insert_setup_actor(const String *user, const String *host, const String *rol
   if (unlikely(pins == NULL))
     return HA_ERR_OUT_OF_MEM;
 
-  uint index;
-  uint attempts= 0;
   PFS_setup_actor *pfs;
   pfs_dirty_state dirty_state;
 
-  while (++attempts <= setup_actor_max)
+  pfs= global_setup_actor_container.allocate(& dirty_state);
+  if (pfs != NULL)
   {
-    /* See create_mutex() */
-    index= PFS_atomic::add_u32(& monotonic.m_u32, 1) % setup_actor_max;
-    pfs= setup_actor_array + index;
+    set_setup_actor_key(&pfs->m_key,
+                        user->ptr(), user->length(),
+                        host->ptr(), host->length(),
+                        role->ptr(), role->length());
+    pfs->m_username= &pfs->m_key.m_hash_key[0];
+    pfs->m_username_length= user->length();
+    pfs->m_hostname= pfs->m_username + pfs->m_username_length + 1;
+    pfs->m_hostname_length= host->length();
+    pfs->m_rolename= pfs->m_hostname + pfs->m_hostname_length + 1;
+    pfs->m_rolename_length= role->length();
+    pfs->m_enabled= enabled;
 
-    if (pfs->m_lock.free_to_dirty(& dirty_state))
+    int res;
+    pfs->m_lock.dirty_to_allocated(& dirty_state);
+    res= lf_hash_insert(&setup_actor_hash, pins, &pfs);
+    if (likely(res == 0))
     {
-      set_setup_actor_key(&pfs->m_key,
-                          user->ptr(), user->length(),
-                          host->ptr(), host->length(),
-                          role->ptr(), role->length());
-      pfs->m_username= &pfs->m_key.m_hash_key[0];
-      pfs->m_username_length= user->length();
-      pfs->m_hostname= pfs->m_username + pfs->m_username_length + 1;
-      pfs->m_hostname_length= host->length();
-      pfs->m_rolename= pfs->m_hostname + pfs->m_hostname_length + 1;
-      pfs->m_rolename_length= role->length();
-      pfs->m_enabled= enabled;
-
-      int res;
-      pfs->m_lock.dirty_to_allocated(& dirty_state);
-      res= lf_hash_insert(&setup_actor_hash, pins, &pfs);
-      if (likely(res == 0))
-      {
-        update_setup_actors_derived_flags();
-        return 0;
-      }
-
-      pfs->m_lock.allocated_to_free();
-      if (res > 0)
-        return HA_ERR_FOUND_DUPP_KEY;
-      return HA_ERR_OUT_OF_MEM;
+      update_setup_actors_derived_flags();
+      return 0;
     }
+
+    global_setup_actor_container.deallocate(pfs);
+
+    if (res > 0)
+      return HA_ERR_FOUND_DUPP_KEY;
+    return HA_ERR_OUT_OF_MEM;
   }
 
   return HA_ERR_RECORD_FILE_FULL;
@@ -240,7 +205,7 @@ int delete_setup_actor(const String *user, const String *host, const String *rol
   {
     PFS_setup_actor *pfs= *entry;
     lf_hash_delete(&setup_actor_hash, pins, key.m_hash_key, key.m_key_length);
-    pfs->m_lock.allocated_to_free();
+    global_setup_actor_container.deallocate(pfs);
   }
 
   lf_hash_search_unpin(pins);
@@ -249,6 +214,26 @@ int delete_setup_actor(const String *user, const String *host, const String *rol
 
   return 0;
 }
+
+class Proc_reset_setup_actor
+  : public PFS_buffer_processor<PFS_setup_actor>
+{
+public:
+  Proc_reset_setup_actor(LF_PINS* pins)
+    : m_pins(pins)
+  {}
+
+  virtual void operator()(PFS_setup_actor *pfs)
+  {
+    lf_hash_delete(&setup_actor_hash, m_pins,
+                   pfs->m_key.m_hash_key, pfs->m_key.m_key_length);
+
+    global_setup_actor_container.deallocate(pfs);
+  }
+
+private:
+  LF_PINS* m_pins;
+};
 
 int reset_setup_actor()
 {
@@ -260,18 +245,9 @@ int reset_setup_actor()
   if (unlikely(pins == NULL))
     return HA_ERR_OUT_OF_MEM;
 
-  PFS_setup_actor *pfs= setup_actor_array;
-  PFS_setup_actor *pfs_last= setup_actor_array + setup_actor_max;
-
-  for ( ; pfs < pfs_last; pfs++)
-  {
-    if (pfs->m_lock.is_populated())
-    {
-      lf_hash_delete(&setup_actor_hash, pins,
-                     pfs->m_key.m_hash_key, pfs->m_key.m_key_length);
-      pfs->m_lock.allocated_to_free();
-    }
-  }
+  Proc_reset_setup_actor proc(pins);
+  // FIXME: delete helper instead
+  global_setup_actor_container.apply(proc);
 
   update_setup_actors_derived_flags();
 

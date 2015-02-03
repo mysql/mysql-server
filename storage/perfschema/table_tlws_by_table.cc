@@ -26,6 +26,7 @@
 #include "table_tlws_by_table.h"
 #include "pfs_global.h"
 #include "pfs_visitor.h"
+#include "pfs_buffer_container.h"
 #include "field.h"
 
 THR_LOCK table_tlws_by_table::m_table_lock;
@@ -410,7 +411,7 @@ table_tlws_by_table::delete_all_rows(void)
 ha_rows
 table_tlws_by_table::get_row_count(void)
 {
-  return table_share_max;
+  return global_table_share_container.get_row_count();
 }
 
 table_tlws_by_table::table_tlws_by_table()
@@ -432,20 +433,23 @@ int table_tlws_by_table::rnd_init(bool scan)
 
 int table_tlws_by_table::rnd_next(void)
 {
-  PFS_table_share *table_share;
+  PFS_table_share *pfs;
 
-  for (m_pos.set_at(&m_next_pos);
-       m_pos.m_index < table_share_max;
-       m_pos.m_index++)
+  m_pos.set_at(&m_next_pos);
+  PFS_table_share_iterator it= global_table_share_container.iterate(m_pos.m_index);
+  do
   {
-    table_share= &table_share_array[m_pos.m_index];
-    if (table_share->m_lock.is_populated() && table_share->m_enabled)
+    pfs= it.scan_next(& m_pos.m_index);
+    if (pfs != NULL)
     {
-      make_row(table_share);
-      m_next_pos.set_after(&m_pos);
-      return 0;
+      if (pfs->m_enabled)
+      {
+        make_row(pfs);
+        m_next_pos.set_after(&m_pos);
+        return 0;
+      }
     }
-  }
+  } while (pfs != NULL);
 
   return HA_ERR_END_OF_FILE;
 }
@@ -453,15 +457,18 @@ int table_tlws_by_table::rnd_next(void)
 int
 table_tlws_by_table::rnd_pos(const void *pos)
 {
-  PFS_table_share *table_share;
+  PFS_table_share *pfs;
 
   set_position(pos);
 
-  table_share= &table_share_array[m_pos.m_index];
-  if (table_share->m_lock.is_populated() && table_share->m_enabled)
+  pfs= global_table_share_container.get(m_pos.m_index);
+  if (pfs != NULL)
   {
-    make_row(table_share);
-    return 0;
+    if (pfs->m_enabled)
+    {
+      make_row(pfs);
+      return 0;
+    }
   }
 
   return HA_ERR_RECORD_DELETED;

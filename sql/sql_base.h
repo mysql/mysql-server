@@ -698,5 +698,6 @@ private:
   enum_set_select_behavior m_set_select_behavior;
 };
 
+void update_indexed_column_map(TABLE *table, MY_BITMAP *read_set);
 
 #endif /* SQL_BASE_INCLUDED */

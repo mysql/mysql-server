@@ -273,6 +273,33 @@ create table VAR_SAMP(a int);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'VAR_SAMP(a int)' at line 1
 create table VAR_SAMP (a int);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'VAR_SAMP (a int)' at line 1
+#
+# Test "UNIQUE KEY" and "UNIQUE" "KEY" grammar ambiguity
+#
+CREATE TABLE t1 (i INT KEY);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) NOT NULL,
+  PRIMARY KEY (`i`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+CREATE TABLE t2 (i INT UNIQUE);
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `i` int(11) DEFAULT NULL,
+  UNIQUE KEY `i` (`i`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+CREATE TABLE t3 (i INT UNIQUE KEY);
+# Should output "UNIQUE KEY `i` (`i`)" only:
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `i` int(11) DEFAULT NULL,
+  UNIQUE KEY `i` (`i`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+DROP TABLE t1, t2, t3;
+#
 DROP TABLE IF EXISTS table_25930_a;
 DROP TABLE IF EXISTS table_25930_b;
 SET SQL_MODE = 'ANSI_QUOTES';

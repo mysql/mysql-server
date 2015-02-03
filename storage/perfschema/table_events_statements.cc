@@ -28,6 +28,7 @@
 #include "sp_head.h" /* TYPE_ENUM_FUNCTION, ... */
 #include "table_helper.h"
 #include "my_md5.h"
+#include "pfs_buffer_container.h"
 
 THR_LOCK table_events_statements_current::m_table_lock;
 
@@ -661,39 +662,36 @@ int table_events_statements_current::rnd_next(void)
 {
   PFS_thread *pfs_thread;
   PFS_events_statements *statement;
+  bool has_more_thread= true;
 
   for (m_pos.set_at(&m_next_pos);
-       m_pos.m_index_1 < thread_max;
+       has_more_thread;
        m_pos.next_thread())
   {
-    pfs_thread= &thread_array[m_pos.m_index_1];
-
-    if (! pfs_thread->m_lock.is_populated())
+    pfs_thread= global_thread_container.get(m_pos.m_index_1, & has_more_thread);
+    if (pfs_thread != NULL)
     {
-      /* This thread does not exist */
-      continue;
+      uint safe_events_statements_count= pfs_thread->m_events_statements_count;
+
+      if (safe_events_statements_count == 0)
+      {
+        /* Display the last top level statement, when completed */
+        if (m_pos.m_index_2 >= 1)
+          continue;
+      }
+      else
+      {
+        /* Display all pending statements, when in progress */
+        if (m_pos.m_index_2 >= safe_events_statements_count)
+          continue;
+      }
+
+      statement= &pfs_thread->m_statement_stack[m_pos.m_index_2];
+
+      make_row(pfs_thread, statement);
+      m_next_pos.set_after(&m_pos);
+      return 0;
     }
-
-    uint safe_events_statements_count= pfs_thread->m_events_statements_count;
-
-    if (safe_events_statements_count == 0)
-    {
-      /* Display the last top level statement, when completed */
-      if (m_pos.m_index_2 >= 1)
-        continue;
-    }
-    else
-    {
-      /* Display all pending statements, when in progress */
-      if (m_pos.m_index_2 >= safe_events_statements_count)
-        continue;
-    }
-
-    statement= &pfs_thread->m_statement_stack[m_pos.m_index_2];
-
-    make_row(pfs_thread, statement);
-    m_next_pos.set_after(&m_pos);
-    return 0;
   }
 
   return HA_ERR_END_OF_FILE;
@@ -705,36 +703,37 @@ int table_events_statements_current::rnd_pos(const void *pos)
   PFS_events_statements *statement;
 
   set_position(pos);
-  DBUG_ASSERT(m_pos.m_index_1 < thread_max);
-  pfs_thread= &thread_array[m_pos.m_index_1];
 
-  if (! pfs_thread->m_lock.is_populated())
-    return HA_ERR_RECORD_DELETED;
-
-  uint safe_events_statements_count= pfs_thread->m_events_statements_count;
-
-  if (safe_events_statements_count == 0)
+  pfs_thread= global_thread_container.get(m_pos.m_index_1);
+  if (pfs_thread != NULL)
   {
-    /* Display the last top level statement, when completed */
-    if (m_pos.m_index_2 >= 1)
-      return HA_ERR_RECORD_DELETED;
+    uint safe_events_statements_count= pfs_thread->m_events_statements_count;
+
+    if (safe_events_statements_count == 0)
+    {
+      /* Display the last top level statement, when completed */
+      if (m_pos.m_index_2 >= 1)
+        return HA_ERR_RECORD_DELETED;
+    }
+    else
+    {
+      /* Display all pending statements, when in progress */
+      if (m_pos.m_index_2 >= safe_events_statements_count)
+        return HA_ERR_RECORD_DELETED;
+    }
+
+    DBUG_ASSERT(m_pos.m_index_2 < statement_stack_max);
+
+    statement= &pfs_thread->m_statement_stack[m_pos.m_index_2];
+
+    if (statement->m_class != NULL)
+    {
+      make_row(pfs_thread, statement);
+      return 0;
+    }
   }
-  else
-  {
-    /* Display all pending statements, when in progress */
-    if (m_pos.m_index_2 >= safe_events_statements_count)
-      return HA_ERR_RECORD_DELETED;
-  }
 
-  DBUG_ASSERT(m_pos.m_index_2 < statement_stack_max);
-
-  statement= &pfs_thread->m_statement_stack[m_pos.m_index_2];
-
-  if (statement->m_class == NULL)
-    return HA_ERR_RECORD_DELETED;
-
-  make_row(pfs_thread, statement);
-  return 0;
+  return HA_ERR_RECORD_DELETED;
 }
 
 void table_events_statements_current::make_row(PFS_thread *pfs_thread,
@@ -771,7 +770,7 @@ int table_events_statements_current::delete_all_rows(void)
 ha_rows
 table_events_statements_current::get_row_count(void)
 {
-  return thread_max * statement_stack_max;
+  return global_thread_container.get_row_count() * statement_stack_max;
 }
 
 PFS_engine_table* table_events_statements_history::create(void)
@@ -800,43 +799,40 @@ int table_events_statements_history::rnd_next(void)
 {
   PFS_thread *pfs_thread;
   PFS_events_statements *statement;
+  bool has_more_thread= true;
 
   if (events_statements_history_per_thread == 0)
     return HA_ERR_END_OF_FILE;
 
   for (m_pos.set_at(&m_next_pos);
-       m_pos.m_index_1 < thread_max;
+       has_more_thread;
        m_pos.next_thread())
   {
-    pfs_thread= &thread_array[m_pos.m_index_1];
-
-    if (! pfs_thread->m_lock.is_populated())
+    pfs_thread= global_thread_container.get(m_pos.m_index_1, & has_more_thread);
+    if (pfs_thread != NULL)
     {
-      /* This thread does not exist */
-      continue;
-    }
+      if (m_pos.m_index_2 >= events_statements_history_per_thread)
+      {
+        /* This thread does not have more (full) history */
+        continue;
+      }
 
-    if (m_pos.m_index_2 >= events_statements_history_per_thread)
-    {
-      /* This thread does not have more (full) history */
-      continue;
-    }
+      if ( ! pfs_thread->m_statements_history_full &&
+          (m_pos.m_index_2 >= pfs_thread->m_statements_history_index))
+      {
+        /* This thread does not have more (not full) history */
+        continue;
+      }
 
-    if ( ! pfs_thread->m_statements_history_full &&
-        (m_pos.m_index_2 >= pfs_thread->m_statements_history_index))
-    {
-      /* This thread does not have more (not full) history */
-      continue;
-    }
+      statement= &pfs_thread->m_statements_history[m_pos.m_index_2];
 
-    statement= &pfs_thread->m_statements_history[m_pos.m_index_2];
-
-    if (statement->m_class != NULL)
-    {
-      make_row(pfs_thread, statement);
-      /* Next iteration, look for the next history in this thread */
-      m_next_pos.set_after(&m_pos);
-      return 0;
+      if (statement->m_class != NULL)
+      {
+        make_row(pfs_thread, statement);
+        /* Next iteration, look for the next history in this thread */
+        m_next_pos.set_after(&m_pos);
+        return 0;
+      }
     }
   }
 
@@ -850,11 +846,9 @@ int table_events_statements_history::rnd_pos(const void *pos)
 
   DBUG_ASSERT(events_statements_history_per_thread != 0);
   set_position(pos);
-  DBUG_ASSERT(m_pos.m_index_1 < thread_max);
-  pfs_thread= &thread_array[m_pos.m_index_1];
 
-  if (! pfs_thread->m_lock.is_populated())
-    return HA_ERR_RECORD_DELETED;
+  pfs_thread= global_thread_container.get(m_pos.m_index_1);
+  if (pfs_thread != NULL)
 
   DBUG_ASSERT(m_pos.m_index_2 < events_statements_history_per_thread);
 
@@ -863,12 +857,13 @@ int table_events_statements_history::rnd_pos(const void *pos)
     return HA_ERR_RECORD_DELETED;
 
   statement= &pfs_thread->m_statements_history[m_pos.m_index_2];
+  if (statement->m_class != NULL)
+  {
+    make_row(pfs_thread, statement);
+    return 0;
+  }
 
-  if (statement->m_class == NULL)
-    return HA_ERR_RECORD_DELETED;
-
-  make_row(pfs_thread, statement);
-  return 0;
+  return HA_ERR_RECORD_DELETED;
 }
 
 void table_events_statements_history::make_row(PFS_thread *pfs_thread,
@@ -902,7 +897,7 @@ int table_events_statements_history::delete_all_rows(void)
 ha_rows
 table_events_statements_history::get_row_count(void)
 {
-  return events_statements_history_per_thread * thread_max;
+  return events_statements_history_per_thread * global_thread_container.get_row_count();
 }
 
 PFS_engine_table* table_events_statements_history_long::create(void)

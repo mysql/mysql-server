@@ -2866,6 +2866,7 @@ public:
   LEX_USER *grant_user;
   LEX_ALTER alter_password;
   THD *thd;
+  Generated_column *gcol_info;
 
   /* maintain a list of used plugins for this LEX */
   typedef Prealloced_array<plugin_ref,
@@ -2971,6 +2972,14 @@ public:
     syntax error back.
   */
   bool expr_allows_subselect;
+  /*
+    A special command "PARSE_VCOL_EXPR" is defined for the parser
+    to translate an expression statement of a generated column
+    (stored in the *.frm file as a string) into an Item object.
+    The following flag is used to prevent other applications to use
+    this command.
+  */
+  bool parse_gcol_expr;
 
   enum SSL_type ssl_type;			/* defined in violite.h */
   enum enum_duplicates duplicates;

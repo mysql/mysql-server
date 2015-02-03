@@ -7451,19 +7451,25 @@ bool Item_func_match::fix_fields(THD *thd, Item **ref)
     return TRUE;
   }
   table_ref= ((Item_field *)item)->table_ref;
-  if (!(table_ref->table->file->ha_table_flags() & HA_CAN_FULLTEXT))
-  {
-    my_error(ER_TABLE_CANT_HANDLE_FT, MYF(0));
-    return 1;
-  }
 
   /*
     Here we make an assumption that if the engine supports
     fulltext extension(HA_CAN_FULLTEXT_EXT flag) then table
     can have FTS_DOC_ID column. Atm this is the only way
     to distinguish MyISAM and InnoDB engines.
+    Generally table_ref should be available, but in case of
+    a generated column's generation expression it's not. Thus
+    we use field's table, at this moment it's already available.
   */
-  TABLE *const table= table_ref->table;
+  TABLE *const table= table_ref ?
+    table_ref->table :
+    ((Item_field *)item)->field->table;
+
+  if (!(table->file->ha_table_flags() & HA_CAN_FULLTEXT))
+  {
+    my_error(ER_TABLE_CANT_HANDLE_FT, MYF(0));
+    return 1;
+  }
 
   if ((table->file->ha_table_flags() & HA_CAN_FULLTEXT_EXT))
   {

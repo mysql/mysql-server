@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -15,6 +15,7 @@
 
 #include "my_global.h"
 #include "cursor_by_thread_connect_attr.h"
+#include "pfs_buffer_container.h"
 
 ha_rows
 cursor_by_thread_connect_attr::get_row_count(void)
@@ -25,7 +26,8 @@ cursor_by_thread_connect_attr::get_row_count(void)
     so abusing session_connect_attrs_size_per_thread
     (which is a number of bytes, not attributes)
   */
-  return thread_max * session_connect_attrs_size_per_thread;
+  return global_thread_container.get_row_count() *
+    session_connect_attrs_size_per_thread;
 }
 
 cursor_by_thread_connect_attr::cursor_by_thread_connect_attr(
@@ -36,14 +38,14 @@ cursor_by_thread_connect_attr::cursor_by_thread_connect_attr(
 int cursor_by_thread_connect_attr::rnd_next(void)
 {
   PFS_thread *thread;
+  bool has_more_thread= true;
 
   for (m_pos.set_at(&m_next_pos);
-       m_pos.has_more_thread();
+       has_more_thread;
        m_pos.next_thread())
   {
-    thread= &thread_array[m_pos.m_index_1];
-
-    if (thread->m_lock.is_populated())
+    thread= global_thread_container.get(m_pos.m_index_1, & has_more_thread);
+    if (thread != NULL)
     {
       make_row(thread, m_pos.m_index_2);
       if (m_row_exists)
@@ -53,6 +55,7 @@ int cursor_by_thread_connect_attr::rnd_next(void)
       }
     }
   }
+
   return HA_ERR_END_OF_FILE;
 }
 
@@ -62,15 +65,14 @@ int cursor_by_thread_connect_attr::rnd_pos(const void *pos)
   PFS_thread *thread;
 
   set_position(pos);
-  DBUG_ASSERT(m_pos.m_index_1 < thread_max);
 
-  thread= &thread_array[m_pos.m_index_1];
-  if (!thread->m_lock.is_populated())
-    return HA_ERR_RECORD_DELETED;
-
-  make_row(thread, m_pos.m_index_2);
-  if (m_row_exists)
-    return 0;
+  thread= global_thread_container.get(m_pos.m_index_1);
+  if (thread != NULL)
+  {
+    make_row(thread, m_pos.m_index_2);
+    if (m_row_exists)
+      return 0;
+  }
 
   return HA_ERR_RECORD_DELETED;
 }

@@ -2334,6 +2334,7 @@ ha_innobase::ha_innobase(
 			  | HA_CAN_RTREEKEYS
 			  | HA_HAS_RECORDS
 			  | HA_NO_READ_LOCAL_LOCK
+			  | HA_GENERATED_COLUMNS
 			  | HA_ATTACHABLE_TRX_COMPATIBLE
 		  ),
 	m_start_of_scan(),
@@ -6820,7 +6821,7 @@ calc_row_difference(
 	ulint		n_changed = 0;
 	dfield_t	dfield;
 	dict_index_t*	clust_index;
-	uint		i;
+  uint            i;
 	ibool		changes_fts_column = FALSE;
 	ibool		changes_fts_doc_col = FALSE;
 	trx_t*          trx = thd_to_trx(thd);
@@ -6836,6 +6837,12 @@ calc_row_difference(
 
 	for (i = 0; i < n_fields; i++) {
 		field = table->field[i];
+                /*
+                  Don't bother processing fields that aren't supposed to be
+                  stored.
+                */
+		if (!field->stored_in_db)
+		  continue;
 
 		o_ptr = (const byte*) old_row + get_field_offset(table, field);
 		n_ptr = (const byte*) new_row + get_field_offset(table, field);
@@ -8640,6 +8647,8 @@ create_table_check_doc_id_col(
 		ulint		unsigned_type;
 
 		field = form->field[i];
+		if (!field->stored_in_db)
+		  continue;
 
 		col_type = get_innobase_type_from_mysql_type(
 			&unsigned_type, field);

@@ -1,0 +1,301 @@
+SET @@session.default_storage_engine = 'MyISAM';
+#
+# Section 1. Wrong column definition options
+#            - NULL
+#            - DEFAULT <value>
+#            - AUTO_INCREMENT
+# NOT NULL
+create table t1 (a int, b int generated always as (a+1) virtual not null);
+insert into t1(a) values(null);
+ERROR 23000: Column 'b' cannot be null
+insert into t1(a) values(1);
+select * from t1;
+a	b
+1	2
+drop table t1;
+create table t1 (a int, b int generated always as (a+1) stored not null);
+insert into t1(a) values(null);
+ERROR 23000: Column 'b' cannot be null
+insert into t1(a) values(1);
+select * from t1;
+a	b
+1	2
+drop table t1;
+create table t1 (a int);
+alter table t1 add column b int generated always as (a+1) virtual not null;
+drop table t1;
+# NULL  
+create table t1 (a int, b int generated always as (a+1) virtual null);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'null)' at line 1
+create table t1 (a int);
+alter table t1 add column b int generated always as (a+1) virtual null;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'null' at line 1
+drop table t1;
+# Added columns mixed with virtual GC and other columns  
+create table t1 (a int);
+alter table t1 add column (b int generated always as (a+1) virtual, c int);
+alter table t1 add column (d int, e int generated always as (a+1) virtual);
+alter table t1 add column (f int generated always as (a+1) virtual, g int as(5) stored);
+alter table t1 add column (h int generated always as (a+1) virtual, i int as(5) virtual);
+drop table t1;
+# DEFAULT
+create table t1 (a int, b int generated always as (a+1) virtual default 0);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'default 0)' at line 1
+create table t1 (a int);
+alter table t1 add column b int generated always as (a+1) virtual default 0;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'default 0' at line 1
+drop table t1;
+# AUTO_INCREMENT
+create table t1 (a int, b int generated always as (a+1) virtual AUTO_INCREMENT);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'AUTO_INCREMENT)' at line 1
+create table t1 (a int);
+alter table t1 add column b int generated always as (a+1) virtual AUTO_INCREMENT;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'AUTO_INCREMENT' at line 1
+drop table t1;
+# [PRIMARY] KEY
+create table t1 (a int, b int generated always as (a+1) virtual key);
+ERROR HY000: Key/Index cannot be defined on a virtual generated column.
+create table t1 (a int, b int generated always as (a+1) stored key);
+insert into t1 (a) values (3),(1),(2);
+select * from t1;
+a	b
+3	4
+1	2
+2	3
+drop table t1;
+create table t1 (a int, b int generated always as (a+1) virtual primary key);
+ERROR HY000: Key/Index cannot be defined on a virtual generated column.
+create table t1 (a int, b int generated always as (a+1) stored primary key);
+insert into t1 (a) values (3),(1),(2);
+select * from t1;
+a	b
+3	4
+1	2
+2	3
+drop table t1;
+create table t1 (a int);
+alter table t1 add column b int generated always as (a+1) virtual key;
+ERROR HY000: Key/Index cannot be defined on a virtual generated column.
+alter table t1 add column b int generated always as (a+1) stored key;
+alter table t1 add column c int generated always as (a+2) virtual primary key;
+ERROR HY000: Key/Index cannot be defined on a virtual generated column.
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) GENERATED ALWAYS AS (a+1) STORED NOT NULL,
+  PRIMARY KEY (`b`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+alter table t1 add column c int generated always as (a+2) stored primary key;
+ERROR 42000: Multiple primary key defined
+drop table t1;
+# Section 2. Other column definition options
+#            - COMMENT
+#            - REFERENCES (only syntax testing here)
+#            - STORED (only systax testing here)
+create table t1 (a int, b int generated always as (a % 2) virtual comment 'my comment');
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) GENERATED ALWAYS AS (a % 2) VIRTUAL COMMENT 'my comment'
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+describe t1;
+Field	Type	Null	Key	Default	Extra
+a	int(11)	YES		NULL	
+b	int(11)	YES		NULL	VIRTUAL GENERATED
+drop table t1;
+create table t1 (a int, b int generated always as (a % 2) virtual);
+alter table t1 modify b int generated always as (a % 2) virtual comment 'my comment';
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) GENERATED ALWAYS AS (a % 2) VIRTUAL COMMENT 'my comment'
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+describe t1;
+Field	Type	Null	Key	Default	Extra
+a	int(11)	YES		NULL	
+b	int(11)	YES		NULL	VIRTUAL GENERATED
+insert into t1 (a) values (1);
+select * from t1;
+a	b
+1	1
+insert into t1 values (2,default);
+select a,b from t1;
+a	b
+1	1
+2	0
+create table t2 like t1;
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) GENERATED ALWAYS AS (a % 2) VIRTUAL COMMENT 'my comment'
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+describe t2;
+Field	Type	Null	Key	Default	Extra
+a	int(11)	YES		NULL	
+b	int(11)	YES		NULL	VIRTUAL GENERATED
+insert into t2 (a) values (1);
+select * from t2;
+a	b
+1	1
+insert into t2 values (2,default);
+select a,b from t2;
+a	b
+1	1
+2	0
+drop table t2;
+drop table t1;
+create table t1 (a int, b int generated always as (a % 2) stored);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) GENERATED ALWAYS AS (a % 2) STORED
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+describe t1;
+Field	Type	Null	Key	Default	Extra
+a	int(11)	YES		NULL	
+b	int(11)	YES		NULL	STORED GENERATED
+insert into t1 (a) values (1);
+select * from t1;
+a	b
+1	1
+insert into t1 values (2,default);
+select a,b from t1;
+a	b
+1	1
+2	0
+drop table t1;
+create table t2 (a int);
+create table t1 (a int, b int generated always as (a % 2) stored references t2(a));
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) GENERATED ALWAYS AS (a % 2) STORED
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
+create table t1 (a int, b int generated always as (a % 2) virtual);
+alter table t1 modify b int generated always as (a % 2) stored references t2(a);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'references t2(a)' at line 1
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) GENERATED ALWAYS AS (a % 2) VIRTUAL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
+drop table t2;
+FK options
+create table t1(a int,  b int as (a % 2), c int as (a) stored);
+create table t2 (a int);
+alter table t1 add constraint foreign key fk(d) references t2(a);
+ERROR 42000: Key column 'd' doesn't exist in table
+alter table t1 add constraint foreign key fk(b) references t2(a);
+ERROR HY000: Key/Index cannot be defined on a virtual generated column.
+alter table t1 add constraint foreign key fk(c) references t2(a) on delete set null;
+ERROR HY000: Cannot define foreign key with ON DELETE SET NULL clause on a generated column.
+alter table t1 add constraint foreign key fk(c) references t2(a) on update set null;
+ERROR HY000: Cannot define foreign key with ON UPDATE SET NULL clause on a generated column.
+alter table t1 add constraint foreign key fk(c) references t2(a) on update cascade;
+ERROR HY000: Cannot define foreign key with ON UPDATE CASCADE clause on a generated column.
+drop table t1;
+drop table t2;
+Generated alwasy is optional
+create table t1 (a int, b int as (a % 2) virtual);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) GENERATED ALWAYS AS (a % 2) VIRTUAL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+describe t1;
+Field	Type	Null	Key	Default	Extra
+a	int(11)	YES		NULL	
+b	int(11)	YES		NULL	VIRTUAL GENERATED
+drop table t1;
+create table t1 (a int, b int as (a % 2) stored);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) GENERATED ALWAYS AS (a % 2) STORED
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+describe t1;
+Field	Type	Null	Key	Default	Extra
+a	int(11)	YES		NULL	
+b	int(11)	YES		NULL	STORED GENERATED
+drop table t1;
+Default should be non-stored column
+create table t1 (a int, b int as (a % 2));
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) GENERATED ALWAYS AS (a % 2) VIRTUAL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+describe t1;
+Field	Type	Null	Key	Default	Extra
+a	int(11)	YES		NULL	
+b	int(11)	YES		NULL	VIRTUAL GENERATED
+drop table t1;
+Expression can be constant 
+create table t1 (a int, b int as (5 * 2));
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) GENERATED ALWAYS AS (5 * 2) VIRTUAL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+describe t1;
+Field	Type	Null	Key	Default	Extra
+a	int(11)	YES		NULL	
+b	int(11)	YES		NULL	VIRTUAL GENERATED
+drop table t1;
+Test generated columns referencing other generated columns
+create table t1 (a int unique, b int generated always as(-a) virtual, c int generated always as (b + 1) virtual);
+insert into t1 (a) values (1), (2);
+select * from t1;
+a	b	c
+1	-1	0
+2	-2	-1
+insert into t1(a) values (1) on duplicate key update a=3;
+select * from t1;
+a	b	c
+2	-2	-1
+3	-3	-2
+update t1 set a=4 where a=2;
+select * from t1;
+a	b	c
+3	-3	-2
+4	-4	-3
+drop table t1;
+create table t1 (a int, b int generated always as(-b) virtual, c int generated always as (b + 1) virtual);
+ERROR HY000: Generated column can refer only to generated columns defined prior to it.
+create table t1 (a int, b int generated always as(-c) virtual, c int generated always as (b + 1) virtual);
+ERROR HY000: Generated column can refer only to generated columns defined prior to it.
+CREATE TABLE t1 (pk INTEGER AUTO_INCREMENT, col_int_nokey INTEGER GENERATED ALWAYS AS (pk + col_int_key) STORED, col_int_key INTEGER, PRIMARY KEY (pk));
+ERROR HY000: Stored generated column 'col_int_nokey' cannot refer auto-increment column.
+# Bug#20339347: FAIL TO USE CREATE ....SELECT STATEMENT TO CREATE A NEW TABLE
+create table t1 (a int, b int generated always as(-a) virtual, c int generated always as (b + 1) stored);
+insert into t1(a) values(1),(2);
+create table tt as select * from t1;
+select * from t1;
+a	b	c
+1	-1	0
+2	-2	-1
+select * from tt;
+a	b	c
+1	-1	0
+2	-2	-1
+drop table t1,tt;
+DROP VIEW  IF EXISTS v1,v2;
+DROP TABLE IF EXISTS t1,t2,t3;
+DROP PROCEDURE IF EXISTS p1;
+DROP FUNCTION IF EXISTS f1;
+DROP TRIGGER IF EXISTS trg1;
+DROP TRIGGER IF EXISTS trg2;
+set sql_warnings = 0;

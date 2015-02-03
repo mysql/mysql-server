@@ -277,6 +277,11 @@ enum enum_alter_inplace_result {
 */
 #define HA_ATTACHABLE_TRX_COMPATIBLE  (1LL << 45)
 
+/**
+  Handler supports Generated Columns
+*/
+#define HA_GENERATED_COLUMNS            (1LL << 45)
+
 
 /* bits in index_flags(index_number) for what you can do with index */
 #define HA_READ_NEXT            1       /* TODO really use this flag */
@@ -1044,37 +1049,37 @@ public:
      attribute has really changed we might choose to set flag
      pessimistically, for example, relying on parser output only.
   */
-  typedef ulong HA_ALTER_FLAGS;
+  typedef ulonglong HA_ALTER_FLAGS;
 
   // Add non-unique, non-primary index
-  static const HA_ALTER_FLAGS ADD_INDEX                  = 1L << 0;
+  static const HA_ALTER_FLAGS ADD_INDEX                  = 1ULL << 0;
 
   // Drop non-unique, non-primary index
-  static const HA_ALTER_FLAGS DROP_INDEX                 = 1L << 1;
+  static const HA_ALTER_FLAGS DROP_INDEX                 = 1ULL << 1;
 
   // Add unique, non-primary index
-  static const HA_ALTER_FLAGS ADD_UNIQUE_INDEX           = 1L << 2;
+  static const HA_ALTER_FLAGS ADD_UNIQUE_INDEX           = 1ULL << 2;
 
   // Drop unique, non-primary index
-  static const HA_ALTER_FLAGS DROP_UNIQUE_INDEX          = 1L << 3;
+  static const HA_ALTER_FLAGS DROP_UNIQUE_INDEX          = 1ULL << 3;
 
   // Add primary index
-  static const HA_ALTER_FLAGS ADD_PK_INDEX               = 1L << 4;
+  static const HA_ALTER_FLAGS ADD_PK_INDEX               = 1ULL << 4;
 
   // Drop primary index
-  static const HA_ALTER_FLAGS DROP_PK_INDEX              = 1L << 5;
+  static const HA_ALTER_FLAGS DROP_PK_INDEX              = 1ULL << 5;
 
   // Add column
-  static const HA_ALTER_FLAGS ADD_COLUMN                 = 1L << 6;
+  static const HA_ALTER_FLAGS ADD_COLUMN                 = 1ULL << 6;
 
   // Drop column
-  static const HA_ALTER_FLAGS DROP_COLUMN                = 1L << 7;
+  static const HA_ALTER_FLAGS DROP_COLUMN                = 1ULL << 7;
 
   // Rename column
-  static const HA_ALTER_FLAGS ALTER_COLUMN_NAME          = 1L << 8;
+  static const HA_ALTER_FLAGS ALTER_COLUMN_NAME          = 1ULL << 8;
 
   // Change column datatype
-  static const HA_ALTER_FLAGS ALTER_COLUMN_TYPE          = 1L << 9;
+  static const HA_ALTER_FLAGS ALTER_COLUMN_TYPE          = 1ULL << 9;
 
   /**
     Change column datatype in such way that new type has compatible
@@ -1082,61 +1087,61 @@ public:
     possible to perform change by only updating data dictionary
     without changing table rows.
   */
-  static const HA_ALTER_FLAGS ALTER_COLUMN_EQUAL_PACK_LENGTH = 1L << 10;
+  static const HA_ALTER_FLAGS ALTER_COLUMN_EQUAL_PACK_LENGTH = 1ULL << 10;
 
   // Reorder column
-  static const HA_ALTER_FLAGS ALTER_COLUMN_ORDER         = 1L << 11;
+  static const HA_ALTER_FLAGS ALTER_COLUMN_ORDER         = 1ULL << 11;
 
   // Change column from NOT NULL to NULL
-  static const HA_ALTER_FLAGS ALTER_COLUMN_NULLABLE      = 1L << 12;
+  static const HA_ALTER_FLAGS ALTER_COLUMN_NULLABLE      = 1ULL << 12;
 
   // Change column from NULL to NOT NULL
-  static const HA_ALTER_FLAGS ALTER_COLUMN_NOT_NULLABLE  = 1L << 13;
+  static const HA_ALTER_FLAGS ALTER_COLUMN_NOT_NULLABLE  = 1ULL << 13;
 
   // Set or remove default column value
-  static const HA_ALTER_FLAGS ALTER_COLUMN_DEFAULT       = 1L << 14;
+  static const HA_ALTER_FLAGS ALTER_COLUMN_DEFAULT       = 1ULL << 14;
 
   // Add foreign key
-  static const HA_ALTER_FLAGS ADD_FOREIGN_KEY            = 1L << 15;
+  static const HA_ALTER_FLAGS ADD_FOREIGN_KEY            = 1ULL << 15;
 
   // Drop foreign key
-  static const HA_ALTER_FLAGS DROP_FOREIGN_KEY           = 1L << 16;
+  static const HA_ALTER_FLAGS DROP_FOREIGN_KEY           = 1ULL << 16;
 
   // table_options changed, see HA_CREATE_INFO::used_fields for details.
-  static const HA_ALTER_FLAGS CHANGE_CREATE_OPTION       = 1L << 17;
+  static const HA_ALTER_FLAGS CHANGE_CREATE_OPTION       = 1ULL << 17;
 
   // Table is renamed
-  static const HA_ALTER_FLAGS ALTER_RENAME               = 1L << 18;
+  static const HA_ALTER_FLAGS ALTER_RENAME               = 1ULL << 18;
 
   // Change the storage type of column 
-  static const HA_ALTER_FLAGS ALTER_COLUMN_STORAGE_TYPE = 1L << 19;
+  static const HA_ALTER_FLAGS ALTER_COLUMN_STORAGE_TYPE = 1ULL << 19;
 
   // Change the column format of column
-  static const HA_ALTER_FLAGS ALTER_COLUMN_COLUMN_FORMAT = 1L << 20;
+  static const HA_ALTER_FLAGS ALTER_COLUMN_COLUMN_FORMAT = 1ULL << 20;
 
   // Add partition
-  static const HA_ALTER_FLAGS ADD_PARTITION              = 1L << 21;
+  static const HA_ALTER_FLAGS ADD_PARTITION              = 1ULL << 21;
 
   // Drop partition
-  static const HA_ALTER_FLAGS DROP_PARTITION             = 1L << 22;
+  static const HA_ALTER_FLAGS DROP_PARTITION             = 1ULL << 22;
 
   // Changing partition options
-  static const HA_ALTER_FLAGS ALTER_PARTITION            = 1L << 23;
+  static const HA_ALTER_FLAGS ALTER_PARTITION            = 1ULL << 23;
 
   // Coalesce partition
-  static const HA_ALTER_FLAGS COALESCE_PARTITION         = 1L << 24;
+  static const HA_ALTER_FLAGS COALESCE_PARTITION         = 1ULL << 24;
 
   // Reorganize partition ... into
-  static const HA_ALTER_FLAGS REORGANIZE_PARTITION       = 1L << 25;
+  static const HA_ALTER_FLAGS REORGANIZE_PARTITION       = 1ULL << 25;
 
   // Reorganize partition
-  static const HA_ALTER_FLAGS ALTER_TABLE_REORG          = 1L << 26;
+  static const HA_ALTER_FLAGS ALTER_TABLE_REORG          = 1ULL << 26;
 
   // Remove partitioning
-  static const HA_ALTER_FLAGS ALTER_REMOVE_PARTITIONING  = 1L << 27;
+  static const HA_ALTER_FLAGS ALTER_REMOVE_PARTITIONING  = 1ULL << 27;
 
   // Partition operation with ALL keyword
-  static const HA_ALTER_FLAGS ALTER_ALL_PARTITION        = 1L << 28;
+  static const HA_ALTER_FLAGS ALTER_ALL_PARTITION        = 1ULL << 28;
 
   /**
     Rename index. Note that we set this flag only if there are no other
@@ -1144,17 +1149,19 @@ public:
     detect renaming of indexes which is done by dropping index and then
     re-creating index with identical definition under different name.
   */
-  static const HA_ALTER_FLAGS RENAME_INDEX               = 1L << 29;
+  static const HA_ALTER_FLAGS RENAME_INDEX               = 1ULL << 29;
 
   /**
     Recreate the table for ALTER TABLE FORCE, ALTER TABLE ENGINE
     and OPTIMIZE TABLE operations.
   */
-  static const HA_ALTER_FLAGS RECREATE_TABLE             = 1L << 30;
+  static const HA_ALTER_FLAGS RECREATE_TABLE             = 1ULL << 30;
 
   // Add spatial index
-  static const HA_ALTER_FLAGS ADD_SPATIAL_INDEX          = 1L << 31;
+  static const HA_ALTER_FLAGS ADD_SPATIAL_INDEX          = 1ULL << 31;
 
+  // Alter generated column
+  static const HA_ALTER_FLAGS HA_ALTER_STORED_GCOL       = 1ULL << 32;
   /**
     Create options (like MAX_ROWS) for the new version of table.
 

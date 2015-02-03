@@ -1,5 +1,6 @@
 # Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
 #
+#
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; version 2 of the License.
@@ -39,6 +40,8 @@ cursor_by_user.h
 pfs.h
 pfs_account.h
 pfs_atomic.h
+pfs_buffer_container.h
+pfs_builtin_memory.h
 pfs_column_types.h
 pfs_column_values.h
 pfs_con_slice.h
@@ -145,6 +148,8 @@ ha_perfschema.cc
 pfs.cc
 pfs_account.cc
 pfs_autosize.cc
+pfs_buffer_container.cc
+pfs_builtin_memory.cc
 pfs_check.cc
 pfs_column_values.cc
 pfs_con_slice.cc

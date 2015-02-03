@@ -1329,6 +1329,9 @@ static bool print_default_clause(THD *thd, Field *field, String *def_value,
      !((thd->variables.sql_mode & (MODE_MYSQL323 | MODE_MYSQL40))
        && has_now_default));
 
+  if (field->gcol_info)
+    return false;
+
   def_value->length(0);
   if (has_default)
   {
@@ -1515,6 +1518,20 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
          field_type == MYSQL_TYPE_TIMESTAMP))
       type.append(" /* 5.5 binary format */");
     packet->append(type.ptr(), type.length(), system_charset_info);
+
+    if (field->gcol_info)
+    {
+      packet->append(STRING_WITH_LEN(" GENERATED ALWAYS"));
+      packet->append(STRING_WITH_LEN(" AS ("));
+      packet->append(field->gcol_info->expr_str.str,
+                     field->gcol_info->expr_str.length,
+                     system_charset_info);
+      packet->append(STRING_WITH_LEN(")"));
+      if (field->stored_in_db)
+        packet->append(STRING_WITH_LEN(" STORED"));
+      else
+        packet->append(STRING_WITH_LEN(" VIRTUAL"));
+    }
 
     if (field->has_charset() && 
         !(thd->variables.sql_mode & (MODE_MYSQL323 | MODE_MYSQL40)))
@@ -4141,6 +4158,7 @@ static int fill_schema_table_from_frm(THD *thd, TABLE_LIST *tables,
       table_list.set_view_query((LEX*) share->is_view);
       res= schema_table->process_table(thd, &table_list, table,
                                        res, db_name, table_name);
+      closefrm(&tbl, 0);
       free_root(&tbl.mem_root, MYF(0));
       my_free((void *) tbl.alias);
     }
@@ -5072,6 +5090,20 @@ static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
                                             cs);
     if (print_on_update_clause(field, &type, true))
       table->field[IS_COLUMNS_EXTRA]->store(type.ptr(), type.length(), cs);
+    if (field->gcol_info)
+    {
+      if (field->stored_in_db)
+        table->field[IS_COLUMNS_EXTRA]->
+          store(STRING_WITH_LEN("STORED GENERATED"), cs);
+      else
+        table->field[IS_COLUMNS_EXTRA]->
+          store(STRING_WITH_LEN("VIRTUAL GENERATED"), cs);
+      table->field[IS_COLUMNS_GENERATION_EXPRESSION]->
+        store(field->gcol_info->expr_str.str,field->gcol_info->expr_str.length,
+              cs);
+    }
+    else
+      table->field[IS_COLUMNS_GENERATION_EXPRESSION]->set_null();
     table->field[IS_COLUMNS_COLUMN_COMMENT]->store(field->comment.str,
                                                    field->comment.length, cs);
     if (schema_table_store_record(thd, table))
@@ -5374,6 +5406,8 @@ bool store_schema_params(THD *thd, TABLE *table, TABLE *proc_table,
                         field_def->interval, "");
 
       field->table= &tbl;
+      field->gcol_info= field_def->gcol_info;
+      field->stored_in_db= field_def->stored_in_db;
       tbl.in_use= thd;
       store_column_type(thd, table, field, cs, IS_PARAMETERS_DATA_TYPE);
       if (schema_table_store_record(thd, table))
@@ -5434,6 +5468,8 @@ bool store_schema_params(THD *thd, TABLE *table, TABLE *proc_table,
                         field_def->interval, spvar->name.str);
 
       field->table= &tbl;
+      field->gcol_info= field_def->gcol_info;
+      field->stored_in_db= field_def->stored_in_db;
       tbl.in_use= thd;
       store_column_type(thd, table, field, cs, IS_PARAMETERS_DATA_TYPE);
       if (schema_table_store_record(thd, table))
@@ -5534,6 +5570,8 @@ bool store_schema_proc(THD *thd, TABLE *table, TABLE *proc_table,
                             field_def->interval, "");
 
           field->table= &tbl;
+          field->gcol_info= field_def->gcol_info;
+          field->stored_in_db= field_def->stored_in_db;
           tbl.in_use= thd;
           store_column_type(thd, table, field, cs, IS_ROUTINES_DATA_TYPE);
           free_table_share(&share);
@@ -7856,6 +7894,8 @@ ST_FIELD_INFO columns_fields_info[]=
   {"PRIVILEGES", 80, MYSQL_TYPE_STRING, 0, 0, "Privileges", OPEN_FRM_ONLY},
   {"COLUMN_COMMENT", COLUMN_COMMENT_MAXLEN, MYSQL_TYPE_STRING, 0, 0, 
    "Comment", OPEN_FRM_ONLY},
+  {"GENERATION_EXPRESSION", GENERATED_COLUMN_EXPRESSION_MAXLEN, MYSQL_TYPE_STRING,
+   0, 0, "Generation expression", OPEN_FRM_ONLY},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0, SKIP_OPEN_TABLE}
 };
 

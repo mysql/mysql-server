@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -27,6 +27,7 @@
 #include "pfs_instr.h"
 #include "pfs_digest.h"
 #include "pfs_global.h"
+#include "pfs_builtin_memory.h"
 #include "table_helper.h"
 #include "sql_lex.h"
 #include "sql_signal.h"
@@ -72,7 +73,8 @@ int init_digest(const PFS_global_param *param)
     return 0;
 
   statements_digest_stat_array=
-    PFS_MALLOC_ARRAY(digest_max, PFS_statements_digest_stat,
+    PFS_MALLOC_ARRAY(& builtin_memory_digest,
+                     digest_max, PFS_statements_digest_stat,
                      MYF(MY_ZEROFILL));
   if (unlikely(statements_digest_stat_array == NULL))
     return 1;
@@ -88,8 +90,9 @@ int init_digest(const PFS_global_param *param)
 /** Cleanup table EVENTS_STATEMENTS_SUMMARY_BY_DIGEST. */
 void cleanup_digest(void)
 {
-  /*  Free memory allocated to statements_digest_stat_array. */
-  pfs_free(statements_digest_stat_array);
+  PFS_FREE_ARRAY(& builtin_memory_digest,
+                 digest_max, PFS_statements_digest_stat,
+                 statements_digest_stat_array);
   statements_digest_stat_array= NULL;
 }
 
@@ -115,14 +118,13 @@ C_MODE_END
   Initialize the digest hash.
   @return 0 on success
 */
-int init_digest_hash(void)
+int init_digest_hash(const PFS_global_param *param)
 {
-  if ((! digest_hash_inited) && (digest_max > 0))
+  if ((! digest_hash_inited) && (param->m_digest_sizing != 0))
   {
     lf_hash_init(&digest_hash, sizeof(PFS_statements_digest_stat*),
                  LF_HASH_UNIQUE, 0, 0, digest_hash_get_key,
                  &my_charset_bin);
-    digest_hash.size= digest_max;
     digest_hash_inited= true;
   }
   return 0;

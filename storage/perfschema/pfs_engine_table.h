@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -378,6 +378,13 @@ struct PFS_simple_index
 
   /**
     Set this index at a given position.
+    @param index an index
+  */
+  void set_at(uint index)
+  { m_index= index; }
+
+  /**
+    Set this index at a given position.
     @param other a position
   */
   void set_at(const struct PFS_simple_index *other)
@@ -411,6 +418,15 @@ struct PFS_double_index
   PFS_double_index(uint index_1, uint index_2)
     : m_index_1(index_1), m_index_2(index_2)
   {}
+
+  /**
+    Set this index at a given position.
+  */
+  void set_at(uint index_1, uint index_2)
+  {
+    m_index_1= index_1;
+    m_index_2= index_2;
+  }
 
   /**
     Set this index at a given position.
@@ -452,6 +468,16 @@ struct PFS_triple_index
   PFS_triple_index(uint index_1, uint index_2, uint index_3)
     : m_index_1(index_1), m_index_2(index_2), m_index_3(index_3)
   {}
+
+  /**
+    Set this index at a given position.
+  */
+  void set_at(uint index_1, uint index_2, uint index_3)
+  {
+    m_index_1= index_1;
+    m_index_2= index_2;
+    m_index_3= index_3;
+  }
 
   /**
     Set this index at a given position.

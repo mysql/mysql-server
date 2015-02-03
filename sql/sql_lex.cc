@@ -481,6 +481,7 @@ void LEX::reset()
   is_set_password_sql= false;
   mark_broken(false);
   max_statement_time= 0;
+  parse_gcol_expr= false;
 }
 
 

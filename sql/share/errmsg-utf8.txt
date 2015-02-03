@@ -7381,6 +7381,30 @@ ER_RUN_HOOK_ERROR
 ER_TRANSACTION_ROLLBACK_DURING_COMMIT
   eng "Plugin instructed the server to rollback the current transaction."
 
+ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED
+  eng "Expression of generated column '%s' contains a disallowed function."
+
+ER_KEY_BASED_ON_GENERATED_COLUMN
+  eng "Key/Index cannot be defined on a virtual generated column."
+
+ER_WRONG_FK_OPTION_FOR_GENERATED_COLUMN
+  eng "Cannot define foreign key with %s clause on a generated column."
+
+ER_NON_DEFAULT_VALUE_FOR_GENERATED_COLUMN
+  eng "The value specified for generated column '%s' in table '%s' is not allowed."
+
+ER_UNSUPPORTED_ACTION_ON_GENERATED_COLUMN
+  eng "'%s' is not supported for generated columns."
+
+ER_GENERATED_COLUMN_NON_PRIOR
+  eng "Generated column can refer only to generated columns defined prior to it."
+
+ER_DEPENDENT_BY_GENERATED_COLUMN
+  eng "Column '%s' has a generated column dependency."
+
+ER_GENERATED_COLUMN_REF_AUTO_INC,
+  eng "Stored generated column '%s' cannot refer auto-increment column."
+
 #
 #  End of 5.7 error messages.
 #

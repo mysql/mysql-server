@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -94,7 +94,7 @@ private:
 
 int init_user(const PFS_global_param *param);
 void cleanup_user(void);
-int init_user_hash(void);
+int init_user_hash(const PFS_global_param *param);
 void cleanup_user_hash(void);
 
 PFS_user *
@@ -105,14 +105,7 @@ PFS_user *sanitize_user(PFS_user *unsafe);
 void purge_all_user(void);
 
 
-/* For iterators and show status. */
-
-extern ulong user_max;
-extern ulong user_lost;
-
-/* Exposing the data directly, for iterators. */
-
-extern PFS_user *user_array;
+/* For show status. */
 
 extern LF_HASH user_hash;
 

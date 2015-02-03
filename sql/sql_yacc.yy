@@ -459,10 +459,10 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %lex-param { class THD *YYTHD }
 %pure-parser                                    /* We have threads */
 /*
-  Currently there are 160 shift/reduce conflicts.
+  Currently there are 159 shift/reduce conflicts.
   We should not introduce new conflicts any more.
 */
-%expect 160
+%expect 159
 
 /*
    Comments for TOKENS.
@@ -492,6 +492,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  ALGORITHM_SYM
 %token  ALL                           /* SQL-2003-R */
 %token  ALTER                         /* SQL-2003-R */
+%token  ALWAYS_SYM
 %token  ANALYSE_SYM
 %token  ANALYZE_SYM
 %token  AND_AND_SYM                   /* OPERATOR */
@@ -676,6 +677,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  FUNCTION_SYM                  /* SQL-2003-R */
 %token  GE
 %token  GENERAL
+%token  GENERATED
 %token  GROUP_REPLICATION
 %token  GEOMETRYCOLLECTION
 %token  GEOMETRY_SYM
@@ -868,6 +870,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  PAGE_SYM
 %token  PARAM_MARKER
 %token  PARSER_SYM
+%token  PARSE_GCOL_EXPR_SYM
 %token  PARTIAL                       /* SQL-2003-N */
 %token  PARTITION_SYM                 /* SQL-2003-R */
 %token  PARTITIONS_SYM
@@ -1015,6 +1018,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  STD_SYM
 %token  STOP_SYM
 %token  STORAGE_SYM
+%token  STORED_SYM
 %token  STRAIGHT_JOIN
 %token  STRING_SYM
 %token  SUBCLASS_ORIGIN_SYM           /* SQL-2003-N */
@@ -1095,6 +1099,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  VARYING                       /* SQL-2003-R */
 %token  VAR_SAMP_SYM
 %token  VIEW_SYM                      /* SQL-2003-N */
+%token  VIRTUAL_SYM
 %token  WAIT_SYM
 %token  WARNINGS
 %token  WEEK_SYM
@@ -1117,6 +1122,12 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  YEAR_MONTH_SYM
 %token  YEAR_SYM                      /* SQL-2003-R */
 %token  ZEROFILL
+
+/*
+  Resolve column attribute ambiguity -- force precedence of "UNIQUE KEY" against
+  simple "UNIQUE" and "KEY" attributes:
+*/
+%right UNIQUE_SYM KEY_SYM
 
 %left   JOIN_SYM INNER_SYM STRAIGHT_JOIN CROSS LEFT RIGHT
 /* A dummy token to force the priority of table_ref production in a join. */
@@ -1170,7 +1181,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
         opt_natural_language_mode opt_query_expansion
         opt_ev_status opt_ev_on_completion ev_on_completion opt_ev_comment
         ev_alter_on_schedule_completion opt_ev_rename_to opt_ev_sql_stmt
-        trg_action_time trg_event
+        trg_action_time trg_event field_def
 
 /*
   Bit field of MYSQL_START_TRANS_OPT_* flags.
@@ -1620,6 +1631,7 @@ statement:
         | lock
         | optimize
         | keycache
+        | parse_gcol_expr
         | partition_entry
         | preload
         | prepare
@@ -6258,8 +6270,9 @@ field_spec:
             lex->default_value= lex->on_update_value= 0;
             lex->comment=null_lex_str;
             lex->charset=NULL;
+            lex->gcol_info= 0;
           }
-          type opt_attribute
+          field_def
           {
             LEX *lex=Lex;
             if (add_field_to_list(lex->thd, &$1, (enum enum_field_types) $3,
@@ -6267,8 +6280,99 @@ field_spec:
                                   lex->default_value, lex->on_update_value,
                                   &lex->comment,
                                   lex->change,&lex->interval_list,lex->charset,
-                                  lex->uint_geom_type))
+                                  lex->uint_geom_type,
+                                  lex->gcol_info))
               MYSQL_YYABORT;
+          }
+        ;
+
+field_def:
+          type opt_attribute {}
+        | type opt_generated_always AS '(' generated_column_func ')' opt_stored_attribute opt_gcol_attribute_list
+          {
+            $$= $1;
+            Lex->gcol_info->set_field_type((enum enum_field_types) $$);
+          }
+        ;
+
+opt_generated_always:
+          /* empty */
+        | GENERATED ALWAYS_SYM
+        ;
+
+opt_gcol_attribute_list:
+          /* empty */
+        | gcol_attribute_list
+        ;
+
+gcol_attribute_list:
+          gcol_attribute_list gcol_attribute
+        | gcol_attribute
+        ;
+
+gcol_attribute:
+          UNIQUE_SYM
+          {
+            LEX *lex=Lex;
+            lex->type|= UNIQUE_FLAG; 
+            lex->alter_info.flags|= Alter_inplace_info::ADD_INDEX;
+          }
+        | UNIQUE_SYM KEY_SYM
+          {
+            LEX *lex=Lex;
+            lex->type|= UNIQUE_KEY_FLAG; 
+            lex->alter_info.flags|= Alter_inplace_info::ADD_INDEX; 
+          }
+        | COMMENT_SYM TEXT_STRING_sys { Lex->comment= $2; }
+        | not NULL_SYM { Lex->type|= NOT_NULL_FLAG; }
+        | opt_primary KEY_SYM
+          {
+            LEX *lex=Lex;
+            lex->type|= PRI_KEY_FLAG | NOT_NULL_FLAG;
+            lex->alter_info.flags|= Alter_info::ALTER_ADD_INDEX;
+          }
+        ;
+
+opt_stored_attribute:
+          /* empty */
+        | VIRTUAL_SYM
+        | STORED_SYM
+          {
+            Lex->gcol_info->set_field_stored(TRUE);
+          }
+        ;
+
+parse_gcol_expr:
+          PARSE_GCOL_EXPR_SYM '(' generated_column_func ')'
+          {
+            /* 
+              "PARSE_GCOL_EXPR" can only be used by the SQL server
+              when reading a '*.frm' file.
+              Prevent the end user from invoking this command.
+            */
+            if (!Lex->parse_gcol_expr)
+            {
+              my_message(ER_SYNTAX_ERROR, ER(ER_SYNTAX_ERROR), MYF(0));
+              MYSQL_YYABORT;
+            }
+          }
+        ;
+
+generated_column_func:
+          expr
+          {
+            Lex->gcol_info= new Generated_column();
+            if (!Lex->gcol_info)
+            {
+              mem_alloc_error(sizeof(Generated_column));
+              MYSQL_YYABORT;
+            }
+            ITEMIZE($1, &$1);
+            uint expr_len= (uint)@1.cpp.length();
+            Lex->gcol_info->expr_str.str=
+              (char* ) sql_memdup(@1.cpp.start, expr_len);
+            Lex->gcol_info->expr_str.length= expr_len;
+            Lex->gcol_info->expr_item= $1;
           }
         ;
 
@@ -7892,6 +7996,10 @@ alter_list_item:
           add_column column_def opt_place
           {
             Lex->create_last_non_select_table= Lex->last_table();
+            if (Lex->gcol_info && Lex->gcol_info->get_field_stored())
+              Lex->alter_info.flags|= Alter_info::ALTER_STORED_GCOLUMN;
+            else if (Lex->gcol_info)
+              Lex->alter_info.flags|= Alter_info::ALTER_VIRTUAL_GCOLUMN;
           }
         | ADD key_def
           {
@@ -7902,6 +8010,10 @@ alter_list_item:
           {
             Lex->alter_info.flags|= Alter_info::ALTER_ADD_COLUMN |
                                     Alter_info::ALTER_ADD_INDEX;
+            if (Lex->gcol_info && Lex->gcol_info->get_field_stored())
+              Lex->alter_info.flags|= Alter_info::ALTER_STORED_GCOLUMN;
+            else if (Lex->gcol_info)
+              Lex->alter_info.flags|= Alter_info::ALTER_VIRTUAL_GCOLUMN;
           }
         | CHANGE opt_column field_ident
           {
@@ -7912,6 +8024,10 @@ alter_list_item:
           field_spec opt_place
           {
             Lex->create_last_non_select_table= Lex->last_table();
+            if (Lex->gcol_info && Lex->gcol_info->get_field_stored())
+              Lex->alter_info.flags|= Alter_info::ALTER_STORED_GCOLUMN;
+            else if (Lex->gcol_info)
+              Lex->alter_info.flags|= Alter_info::ALTER_VIRTUAL_GCOLUMN;
           }
         | MODIFY_SYM opt_column field_ident
           {
@@ -7921,8 +8037,9 @@ alter_list_item:
             lex->comment=null_lex_str;
             lex->charset= NULL;
             lex->alter_info.flags|= Alter_info::ALTER_CHANGE_COLUMN;
+            lex->gcol_info= 0;
           }
-          type opt_attribute
+          field_def
           {
             LEX *lex=Lex;
             if (add_field_to_list(lex->thd,&$3,
@@ -7931,8 +8048,13 @@ alter_list_item:
                                   lex->default_value, lex->on_update_value,
                                   &lex->comment,
                                   $3.str, &lex->interval_list, lex->charset,
-                                  lex->uint_geom_type))
+                                  lex->uint_geom_type,
+                                  lex->gcol_info))
               MYSQL_YYABORT;
+            if (Lex->gcol_info && Lex->gcol_info->get_field_stored())
+              Lex->alter_info.flags|= Alter_info::ALTER_STORED_GCOLUMN;
+            else if (Lex->gcol_info)
+              Lex->alter_info.flags|= Alter_info::ALTER_VIRTUAL_GCOLUMN;
           }
           opt_place
           {
@@ -12988,6 +13110,7 @@ user:
 keyword:
           keyword_sp            {}
         | ASCII_SYM             {}
+        | ALWAYS_SYM            {}
         | BACKUP_SYM            {}
         | BEGIN_SYM             {}
         | BYTE_SYM              {}
@@ -14866,6 +14989,7 @@ sf_tail:
             lex->length= lex->dec= NULL;
             lex->interval_list.empty();
             lex->type= 0;
+            lex->gcol_info= 0;
           }
           type_with_opt_collate /* $10 */
           { /* $11 */
