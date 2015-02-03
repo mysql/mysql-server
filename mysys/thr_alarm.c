@@ -254,7 +254,7 @@ void thr_end_alarm(thr_alarm_t *alarmed)
   {
     if ((ALARM*) queue_element(&alarm_queue,i) == alarm_data)
     {
-      queue_remove(&alarm_queue,i),MYF(0);
+      queue_remove(&alarm_queue,i);
       if (alarm_data->malloced)
 	my_free(alarm_data);
       found++;

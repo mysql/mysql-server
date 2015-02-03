@@ -2605,18 +2605,20 @@ void Integer::Decode(Source& source)
 void Integer::Decode(const byte* input, unsigned int inputLen, Signedness s)
 {
     unsigned int idx(0);
-    byte b = input[idx++];
+    byte b = 0; 
+    if (inputLen>0)
+        b = input[idx];   // peek
     sign_  = ((s==SIGNED) && (b & 0x80)) ? NEGATIVE : POSITIVE;
 
     while (inputLen>0 && (sign_==POSITIVE ? b==0 : b==0xff))
     {
-        inputLen--;
-        b = input[idx++];
+        idx++;   // skip
+        if (--inputLen>0)
+            b = input[idx];  // peek
     }
 
     reg_.CleanNew(RoundupSize(BytesToWords(inputLen)));
 
-    --idx;
     for (unsigned int i=inputLen; i > 0; i--)
     {
         b = input[idx++];
