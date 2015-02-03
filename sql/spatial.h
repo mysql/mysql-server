@@ -2684,6 +2684,12 @@ void Gis_wkb_vector<T>::set_ptr(void *ptr, size_t len)
 template <typename T>
 void Gis_wkb_vector<T>::clear()
 {
+  if (!m_geo_vect)
+  {
+    DBUG_ASSERT(m_ptr == NULL);
+    return;
+  }
+
   DBUG_ASSERT(m_geo_vect && get_geotype() != Geometry::wkb_polygon);
   // Keep the component vector because this object can be reused again.
   const void *ptr= get_ptr();
