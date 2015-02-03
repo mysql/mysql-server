@@ -38,9 +38,9 @@ public:
   bool is_running();
   int set_retrieved_certification_info(View_change_log_event *view_change_event);
   bool get_connection_status_info(GROUP_REPLICATION_CONNECTION_STATUS_INFO *info);
-  bool get_group_members_info(uint index, GROUP_REPLICATION_GROUP_MEMBERS_INFO *info);
+  bool get_group_members_info(unsigned int index, GROUP_REPLICATION_GROUP_MEMBERS_INFO *info);
   bool get_group_member_stats_info(GROUP_REPLICATION_GROUP_MEMBER_STATS_INFO* info);
-  uint get_members_number_info();
+  unsigned int get_members_number_info();
 
 private:
   std::string plugin_name;
@@ -62,9 +62,9 @@ bool is_group_replication_running();
 int set_group_replication_retrieved_certification_info(View_change_log_event *view_change_event);
 
 bool get_group_replication_connection_status_info(GROUP_REPLICATION_CONNECTION_STATUS_INFO *info);
-bool get_group_replication_group_members_info(uint index, GROUP_REPLICATION_GROUP_MEMBERS_INFO *info);
+bool get_group_replication_group_members_info(unsigned int index, GROUP_REPLICATION_GROUP_MEMBERS_INFO *info);
 bool get_group_replication_group_member_stats_info(GROUP_REPLICATION_GROUP_MEMBER_STATS_INFO* info);
-uint get_group_replication_members_number_info();
+unsigned int get_group_replication_members_number_info();
 
 
 #endif /* RPL_GROUP_REPLICATION_INCLUDED */
