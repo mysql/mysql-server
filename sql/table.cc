@@ -5665,9 +5665,9 @@ void TABLE::mark_column_used(THD *thd, Field *field,
     if(field->gcol_info && !field->stored_in_db)
     {
       bitmap_fast_test_and_set(write_set, field->field_index);
-      Mark_field mark_read_field(MARK_COLUMNS_READ);
+      Mark_field mark_fld(MARK_COLUMNS_TEMP);
       field->gcol_info->expr_item->walk(&Item::mark_field_in_map,
-                         Item::WALK_PREFIX, (uchar *)&mark_read_field);
+                         Item::WALK_PREFIX, (uchar *)&mark_fld);
     }
     break;
   }
@@ -6258,11 +6258,6 @@ void TABLE::mark_columns_needed_for_insert()
   Stored columns are needed because their values will be stored.
   Virtual columns are needed because their values must be checked against
   constraints and might be referenced by latter generated columns.
-
-  - Fill read_map with base columns for all virtual generated columns.
-  This has no technical reason, but is required because the function that
-  evaluates generated functions asserts that base columns are in the read_map.
-  covering_keys and merge_keys are adjusted according to read_map.
 */
 
 void TABLE::mark_generated_columns(bool is_update)
@@ -6279,27 +6274,31 @@ void TABLE::mark_generated_columns(bool is_update)
     MY_BITMAP dependent_fields;
     my_bitmap_map bitbuf[bitmap_buffer_size(MAX_FIELDS) / sizeof(my_bitmap_map)];
     bitmap_init(&dependent_fields, bitbuf, s->fields, 0);
-    bitmap_clear_all(&dependent_fields);
 
     for (vfield_ptr= vfield; *vfield_ptr; vfield_ptr++)
     {
       tmp_vfield= *vfield_ptr;
       DBUG_ASSERT(tmp_vfield->gcol_info && tmp_vfield->gcol_info->expr_item);
-      tmp_vfield->gcol_info->expr_item->walk(&Item::register_field_in_bitmap, 
-                              Item::WALK_PREFIX, (uchar *) &dependent_fields);
+      Mark_field mark_fld(MARK_COLUMNS_TEMP);
+      MY_BITMAP *save_old_read_set= read_set;
+      bitmap_clear_all(&dependent_fields);
+      read_set= &dependent_fields;
+      tmp_vfield->gcol_info->expr_item->walk(&Item::mark_field_in_map, 
+                              Item::WALK_PREFIX, (uchar *) &mark_fld);
 
       /**
-        If the stored GC depends on any of the write-column, make it writable.
-        For virtual GC, mark it writable anyway.
+        If the GC depends on any of the write-column, make it writable.
       */
-      if (!tmp_vfield->stored_in_db ||
-          bitmap_is_overlapping(&dependent_fields, write_set))
+      if (bitmap_is_overlapping(read_set, write_set))
       {
+        read_set= save_old_read_set;
         // The GC needs to be updated
         tmp_vfield->table->mark_column_used(in_use, tmp_vfield,
                                             MARK_COLUMNS_WRITE);
         bitmap_updated= TRUE;
       }
+      else
+        read_set= save_old_read_set;
     }
   }
   else //Insert will mark all GCs
@@ -6332,16 +6331,23 @@ bool TABLE::is_field_dependent_on_generated_columns(uint field_index)
   my_bitmap_map bitbuf[bitmap_buffer_size(MAX_FIELDS) / sizeof(my_bitmap_map)];
   bitmap_init(&dependent_fields, bitbuf, s->fields, 0);
   bitmap_clear_all(&dependent_fields);
+  MY_BITMAP *save_old_read_set= read_set;
+  read_set= &dependent_fields;
 
   for (vfield_ptr= vfield; *vfield_ptr; vfield_ptr++)
   {
     tmp_vfield= *vfield_ptr;
     DBUG_ASSERT(tmp_vfield->gcol_info && tmp_vfield->gcol_info->expr_item);
-    tmp_vfield->gcol_info->expr_item->walk(&Item::register_field_in_bitmap,
-                                           Item::WALK_PREFIX, (uchar *) &dependent_fields);
-    if (bitmap_is_set(&dependent_fields, field_index))
+    Mark_field mark_fld(MARK_COLUMNS_TEMP);
+    tmp_vfield->gcol_info->expr_item->walk(&Item::mark_field_in_map, 
+                                           Item::WALK_PREFIX, (uchar *) &mark_fld);
+    if (bitmap_is_set(read_set, field_index))
+    {
+      read_set= save_old_read_set;
       return true;
+    }
   }
+  read_set= save_old_read_set;
   return false;
 }
 
