@@ -25,6 +25,7 @@
 #include "pfs_column_values.h"
 #include "table_md_locks.h"
 #include "pfs_global.h"
+#include "pfs_buffer_container.h"
 #include "field.h"
 
 THR_LOCK table_metadata_locks::m_table_lock;
@@ -110,7 +111,7 @@ PFS_engine_table* table_metadata_locks::create(void)
 ha_rows
 table_metadata_locks::get_row_count(void)
 {
-  return metadata_lock_max;
+  return global_mdl_container.get_row_count();
 }
 
 table_metadata_locks::table_metadata_locks()
@@ -128,17 +129,14 @@ int table_metadata_locks::rnd_next(void)
 {
   PFS_metadata_lock *pfs;
 
-  for (m_pos.set_at(&m_next_pos);
-       m_pos.m_index < metadata_lock_max;
-       m_pos.next())
+  m_pos.set_at(&m_next_pos);
+  PFS_mdl_iterator it= global_mdl_container.iterate(m_pos.m_index);
+  pfs= it.scan_next(& m_pos.m_index);
+  if (pfs != NULL)
   {
-    pfs= &metadata_lock_array[m_pos.m_index];
-    if (pfs->m_lock.is_populated())
-    {
-      make_row(pfs);
-      m_next_pos.set_after(&m_pos);
-      return 0;
-    }
+    make_row(pfs);
+    m_next_pos.set_after(&m_pos);
+    return 0;
   }
 
   return HA_ERR_END_OF_FILE;
@@ -149,9 +147,9 @@ int table_metadata_locks::rnd_pos(const void *pos)
   PFS_metadata_lock *pfs;
 
   set_position(pos);
-  DBUG_ASSERT(m_pos.m_index < metadata_lock_max);
-  pfs= &metadata_lock_array[m_pos.m_index];
-  if (pfs->m_lock.is_populated())
+
+  pfs= global_mdl_container.get(m_pos.m_index);
+  if (pfs != NULL)
   {
     make_row(pfs);
     return 0;

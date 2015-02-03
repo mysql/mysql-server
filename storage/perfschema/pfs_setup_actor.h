@@ -73,7 +73,7 @@ struct PFS_ALIGNED PFS_setup_actor
 
 int init_setup_actor(const PFS_global_param *param);
 void cleanup_setup_actor(void);
-int init_setup_actor_hash(void);
+int init_setup_actor_hash(const PFS_global_param *param);
 void cleanup_setup_actor_hash(void);
 
 int insert_setup_actor(const String *user, const String *host,
@@ -91,13 +91,7 @@ void lookup_setup_actor(PFS_thread *thread,
 /** Update derived flags for all setup_actors. */
 int update_setup_actors_derived_flags();
 
-/* For iterators and show status. */
-
-extern ulong setup_actor_max;
-
-/* Exposing the data directly, for iterators. */
-
-extern PFS_setup_actor *setup_actor_array;
+/* For show status. */
 
 extern LF_HASH setup_actor_hash;
 

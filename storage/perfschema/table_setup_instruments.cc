@@ -21,6 +21,7 @@
 #include "my_global.h"
 #include "my_thread.h"
 #include "pfs_instr_class.h"
+#include "pfs_builtin_memory.h"
 #include "pfs_instr.h"
 #include "pfs_column_types.h"
 #include "pfs_column_values.h"
@@ -98,6 +99,7 @@ void table_setup_instruments::reset_position(void)
 int table_setup_instruments::rnd_next(void)
 {
   PFS_instr_class *instr_class= NULL;
+  PFS_builtin_memory_class *pfs_builtin;
 
   /* Do not advertise hard coded instruments when disabled. */
   if (! pfs_initialized)
@@ -142,6 +144,13 @@ int table_setup_instruments::rnd_next(void)
     case pos_setup_instruments::VIEW_IDLE:
       instr_class= find_idle_class(m_pos.m_index_2);
       break;
+    case pos_setup_instruments::VIEW_BUILTIN_MEMORY:
+      pfs_builtin= find_builtin_memory_class(m_pos.m_index_2);
+      if (pfs_builtin != NULL)
+        instr_class= & pfs_builtin->m_class;
+      else
+        instr_class= NULL;
+      break;
     case pos_setup_instruments::VIEW_MEMORY:
       instr_class= find_memory_class(m_pos.m_index_2);
       break;
@@ -163,6 +172,7 @@ int table_setup_instruments::rnd_next(void)
 int table_setup_instruments::rnd_pos(const void *pos)
 {
   PFS_instr_class *instr_class= NULL;
+  PFS_builtin_memory_class *pfs_builtin;
 
   /* Do not advertise hard coded instruments when disabled. */
   if (! pfs_initialized)
@@ -204,6 +214,13 @@ int table_setup_instruments::rnd_pos(const void *pos)
     break;
   case pos_setup_instruments::VIEW_IDLE:
     instr_class= find_idle_class(m_pos.m_index_2);
+    break;
+  case pos_setup_instruments::VIEW_BUILTIN_MEMORY:
+    pfs_builtin= find_builtin_memory_class(m_pos.m_index_2);
+    if (pfs_builtin != NULL)
+      instr_class= & pfs_builtin->m_class;
+    else
+      instr_class= NULL;
     break;
   case pos_setup_instruments::VIEW_MEMORY:
     instr_class= find_memory_class(m_pos.m_index_2);
@@ -325,6 +342,7 @@ int table_setup_instruments::update_row_values(TABLE *table,
     case pos_setup_instruments::VIEW_IDLE:
       /* No flag to update. */
       break;
+    case pos_setup_instruments::VIEW_BUILTIN_MEMORY:
     case pos_setup_instruments::VIEW_MEMORY:
       /* No flag to update. */
       break;

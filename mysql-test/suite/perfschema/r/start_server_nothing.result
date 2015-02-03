@@ -181,13 +181,77 @@ performance_schema_session_connect_attrs_size	0
 performance_schema_setup_actors_size	0
 performance_schema_setup_objects_size	0
 performance_schema_users_size	0
-select * from performance_schema.setup_instruments;
+select * from performance_schema.setup_instruments
+order by name;
 NAME	ENABLED	TIMED
-wait/io/table/sql/handler	YES	YES
-wait/lock/table/sql/handler	YES	YES
-transaction	YES	YES
 idle	YES	YES
+memory/performance_schema/accounts	YES	NO
+memory/performance_schema/cond_class	YES	NO
+memory/performance_schema/cond_instances	YES	NO
+memory/performance_schema/events_stages_history	YES	NO
+memory/performance_schema/events_stages_history_long	YES	NO
+memory/performance_schema/events_stages_summary_by_account_by_event_name	YES	NO
+memory/performance_schema/events_stages_summary_by_host_by_event_name	YES	NO
+memory/performance_schema/events_stages_summary_by_thread_by_event_name	YES	NO
+memory/performance_schema/events_stages_summary_by_user_by_event_name	YES	NO
+memory/performance_schema/events_stages_summary_global_by_event_name	YES	NO
+memory/performance_schema/events_statements_current	YES	NO
+memory/performance_schema/events_statements_history	YES	NO
+memory/performance_schema/events_statements_history_long	YES	NO
+memory/performance_schema/events_statements_summary_by_account_by_event_name	YES	NO
+memory/performance_schema/events_statements_summary_by_digest	YES	NO
+memory/performance_schema/events_statements_summary_by_host_by_event_name	YES	NO
+memory/performance_schema/events_statements_summary_by_program	YES	NO
+memory/performance_schema/events_statements_summary_by_thread_by_event_name	YES	NO
+memory/performance_schema/events_statements_summary_by_user_by_event_name	YES	NO
+memory/performance_schema/events_statements_summary_global_by_event_name	YES	NO
+memory/performance_schema/events_transactions_history	YES	NO
+memory/performance_schema/events_transactions_history_long	YES	NO
+memory/performance_schema/events_transactions_summary_by_account_by_event_name	YES	NO
+memory/performance_schema/events_transactions_summary_by_host_by_event_name	YES	NO
+memory/performance_schema/events_transactions_summary_by_thread_by_event_name	YES	NO
+memory/performance_schema/events_transactions_summary_by_user_by_event_name	YES	NO
+memory/performance_schema/events_waits_history	YES	NO
+memory/performance_schema/events_waits_history_long	YES	NO
+memory/performance_schema/events_waits_summary_by_account_by_event_name	YES	NO
+memory/performance_schema/events_waits_summary_by_host_by_event_name	YES	NO
+memory/performance_schema/events_waits_summary_by_thread_by_event_name	YES	NO
+memory/performance_schema/events_waits_summary_by_user_by_event_name	YES	NO
+memory/performance_schema/file_class	YES	NO
+memory/performance_schema/file_handle	YES	NO
+memory/performance_schema/file_instances	YES	NO
+memory/performance_schema/hosts	YES	NO
+memory/performance_schema/memory_class	YES	NO
+memory/performance_schema/memory_summary_by_account_by_event_name	YES	NO
+memory/performance_schema/memory_summary_by_host_by_event_name	YES	NO
+memory/performance_schema/memory_summary_by_thread_by_event_name	YES	NO
+memory/performance_schema/memory_summary_by_user_by_event_name	YES	NO
+memory/performance_schema/memory_summary_global_by_event_name	YES	NO
+memory/performance_schema/metadata_locks	YES	NO
+memory/performance_schema/mutex_class	YES	NO
+memory/performance_schema/mutex_instances	YES	NO
+memory/performance_schema/prepared_statements_instances	YES	NO
+memory/performance_schema/rwlock_class	YES	NO
+memory/performance_schema/rwlock_instances	YES	NO
+memory/performance_schema/scalable_buffer	YES	NO
+memory/performance_schema/session_connect_attrs	YES	NO
+memory/performance_schema/setup_actors	YES	NO
+memory/performance_schema/setup_objects	YES	NO
+memory/performance_schema/socket_class	YES	NO
+memory/performance_schema/socket_instances	YES	NO
+memory/performance_schema/stage_class	YES	NO
+memory/performance_schema/statement_class	YES	NO
+memory/performance_schema/table_handles	YES	NO
+memory/performance_schema/table_io_waits_summary_by_index_usage	YES	NO
+memory/performance_schema/table_lock_waits_summary_by_table	YES	NO
+memory/performance_schema/table_shares	YES	NO
+memory/performance_schema/threads	YES	NO
+memory/performance_schema/thread_class	YES	NO
+memory/performance_schema/users	YES	NO
+transaction	YES	YES
+wait/io/table/sql/handler	YES	YES
 wait/lock/metadata/sql/mdl	YES	YES
+wait/lock/table/sql/handler	YES	YES
 select TIMER_NAME from performance_schema.performance_timers;
 TIMER_NAME
 CYCLE

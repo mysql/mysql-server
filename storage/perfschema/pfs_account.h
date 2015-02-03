@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,11 +24,13 @@
 #include "pfs_lock.h"
 #include "lf.h"
 #include "pfs_con_slice.h"
+#include "mysql_com.h" /* USERNAME_LENGTH */
 
 struct PFS_global_param;
 struct PFS_user;
 struct PFS_host;
 struct PFS_thread;
+struct PFS_memory_stat_delta;
 
 /**
   @addtogroup Performance_schema_buffers
@@ -102,7 +104,7 @@ private:
 
 int init_account(const PFS_global_param *param);
 void cleanup_account(void);
-int init_account_hash(void);
+int init_account_hash(const PFS_global_param *param);
 void cleanup_account_hash(void);
 
 PFS_account *
@@ -115,14 +117,7 @@ void purge_all_account(void);
 
 void update_accounts_derived_flags(PFS_thread *thread);
 
-/* For iterators and show status. */
-
-extern ulong account_max;
-extern ulong account_lost;
-
-/* Exposing the data directly, for iterators. */
-
-extern PFS_account *account_array;
+/* For show status. */
 
 extern LF_HASH account_hash;
 

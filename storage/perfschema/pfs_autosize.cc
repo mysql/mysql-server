@@ -30,44 +30,9 @@
 using std::min;
 using std::max;
 
-static const ulong fixed_mutex_instances= 500;
-static const ulong fixed_rwlock_instances= 200;
-static const ulong fixed_cond_instances= 50;
-static const ulong fixed_file_instances= 200;
-static const ulong fixed_socket_instances= 10;
-static const ulong fixed_thread_instances= 50;
-
-static const ulong mutex_per_connection= 5;
-static const ulong rwlock_per_connection= 1;
-static const ulong cond_per_connection= 2;
-static const ulong file_per_connection= 0;
-static const ulong socket_per_connection= 1;
-static const ulong thread_per_connection= 1;
-
-static const ulong mutex_per_handle= 0;
-static const ulong rwlock_per_handle= 0;
-static const ulong cond_per_handle= 0;
-static const ulong file_per_handle= 0;
-static const ulong socket_per_handle= 0;
-static const ulong thread_per_handle= 0;
-
-static const ulong mutex_per_share= 5;
-static const ulong rwlock_per_share= 4;
-static const ulong cond_per_share= 1;
-static const ulong file_per_share= 3;
-static const ulong socket_per_share= 0;
-static const ulong thread_per_share= 0;
-
 /** Performance schema sizing heuristics. */
 struct PFS_sizing_data
 {
-  /** Default value for @c PFS_param.m_account_sizing. */
-  ulong m_account_sizing;
-  /** Default value for @c PFS_param.m_user_sizing. */
-  ulong m_user_sizing;
-  /** Default value for @c PFS_param.m_host_sizing. */
-  ulong m_host_sizing;
-
   /** Default value for @c PFS_param.m_events_waits_history_sizing. */
   ulong m_events_waits_history_sizing;
   /** Default value for @c PFS_param.m_events_waits_history_long_sizing. */
@@ -88,98 +53,37 @@ struct PFS_sizing_data
   ulong m_digest_sizing;
   /** Default value for @c PFS_param.m_session_connect_attrs_sizing. */
   ulong m_session_connect_attrs_sizing;
-
-  /**
-    Minimum number of tables to keep statistics for.
-    On small deployments, all the tables can fit into the table definition cache,
-    and this value can be 0.
-    On big deployments, the table definition cache is only a subset of all the tables
-    in the database, which are accounted for here.
-  */
-  ulong m_min_number_of_tables;
-
-  /**
-    Load factor for 'volatile' objects (mutexes, table handles, ...).
-    Instrumented objects that:
-    - use little memory
-    - are created/destroyed very frequently
-    should be stored in a low density (mostly empty) memory buffer,
-    to optimize for speed.
-  */
-  float m_load_factor_volatile;
-  /**
-    Load factor for 'normal' objects (files).
-    Instrumented objects that:
-    - use a medium amount of memory
-    - are created/destroyed
-    should be stored in a medium density memory buffer,
-    as a trade off between space and speed.
-  */
-  float m_load_factor_normal;
-  /**
-    Load factor for 'static' objects (table shares).
-    Instrumented objects that:
-    - use a lot of memory
-    - are created/destroyed very rarely
-    can be stored in a high density (mostly packed) memory buffer,
-    to optimize for space.
-  */
-  float m_load_factor_static;
 };
 
 PFS_sizing_data small_data=
 {
-  /* Account / user / host */
-  10, 5, 20,
   /* History sizes */
   5, 100, 5, 100, 5, 100, 5, 100,
   /* Digests */
   1000,
   /* Session connect attrs. */
-  512,
-  /* Min tables */
-  200,
-  /* Load factors */
-  0.90f, 0.90f, 0.90f
+  512
 };
 
 PFS_sizing_data medium_data=
 {
-  /* Account / user / host */
-  100, 100, 100,
   /* History sizes */
   10, 1000, 10, 1000, 10, 1000, 10, 1000,
   /* Digests */
   5000,
   /* Session connect attrs. */
-  512,
-  /* Min tables */
-  500,
-  /* Load factors */
-  0.70f, 0.80f, 0.90f
+  512
 };
 
 PFS_sizing_data large_data=
 {
-  /* Account / user / host */
-  100, 100, 100,
   /* History sizes */
   10, 10000, 10, 10000, 10, 10000, 10, 10000,
   /* Digests */
   10000,
   /* Session connect attrs. */
-  512,
-  /* Min tables */
-  10000,
-  /* Load factors */
-  0.50f, 0.65f, 0.80f
+  512
 };
-
-static inline ulong apply_load_factor(ulong raw_value, float factor)
-{
-  float value = ((float) raw_value) / factor;
-  return (ulong) ceil(value);
-}
 
 PFS_sizing_data *estimate_hints(PFS_global_param *param)
 {
@@ -205,62 +109,6 @@ PFS_sizing_data *estimate_hints(PFS_global_param *param)
 
 static void apply_heuristic(PFS_global_param *p, PFS_sizing_data *h)
 {
-  ulong count;
-  ulong con = p->m_hints.m_max_connections;
-  ulong handle = p->m_hints.m_table_open_cache;
-  ulong share = p->m_hints.m_table_definition_cache;
-  ulong file = p->m_hints.m_open_files_limit;
-
-  if (p->m_prepared_stmt_sizing < 0)
-  {
-    count= p->m_hints.m_max_prepared_stmt_count;
-
-    p->m_prepared_stmt_sizing= apply_load_factor(count,
-                                                 h->m_load_factor_volatile);
-  }
-
-  if (p->m_table_sizing < 0)
-  {
-    count= handle;
-
-    p->m_table_sizing= apply_load_factor(count, h->m_load_factor_volatile);
-  }
-
-  if (p->m_table_share_sizing < 0)
-  {
-    count= share;
-
-    count= max<ulong>(count, h->m_min_number_of_tables);
-    p->m_table_share_sizing= apply_load_factor(count, h->m_load_factor_static);
-  }
-
-  if (p->m_table_lock_stat_sizing < 0)
-  {
-    /* By default, 1 table lock stat per table share. */
-    p->m_table_lock_stat_sizing= p->m_table_share_sizing;
-  }
-
-  if (p->m_index_stat_sizing < 0)
-  {
-    /* By default, 10 index stat per table share. */
-    p->m_index_stat_sizing= 10 * p->m_table_share_sizing;
-  }
-
-  if (p->m_account_sizing < 0)
-  {
-    p->m_account_sizing= h->m_account_sizing;
-  }
-
-  if (p->m_user_sizing < 0)
-  {
-    p->m_user_sizing= h->m_user_sizing;
-  }
-
-  if (p->m_host_sizing < 0)
-  {
-    p->m_host_sizing= h->m_host_sizing;
-  }
-
   if (p->m_events_waits_history_sizing < 0)
   {
     p->m_events_waits_history_sizing= h->m_events_waits_history_sizing;
@@ -309,73 +157,6 @@ static void apply_heuristic(PFS_global_param *p, PFS_sizing_data *h)
   if (p->m_session_connect_attrs_sizing < 0)
   {
     p->m_session_connect_attrs_sizing= h->m_session_connect_attrs_sizing;
-  }
-
-  if (p->m_mutex_sizing < 0)
-  {
-    count= fixed_mutex_instances
-      + con * mutex_per_connection
-      + handle * mutex_per_handle
-      + share * mutex_per_share;
-
-    p->m_mutex_sizing= apply_load_factor(count, h->m_load_factor_volatile);
-  }
-
-  if (p->m_rwlock_sizing < 0)
-  {
-    count= fixed_rwlock_instances
-      + con * rwlock_per_connection
-      + handle * rwlock_per_handle
-      + share * rwlock_per_share;
-
-    p->m_rwlock_sizing= apply_load_factor(count, h->m_load_factor_volatile);
-  }
-
-  if (p->m_cond_sizing < 0)
-  {
-    ulong count;
-    count= fixed_cond_instances
-      + con * cond_per_connection
-      + handle * cond_per_handle
-      + share * cond_per_share;
-
-    p->m_cond_sizing= apply_load_factor(count, h->m_load_factor_volatile);
-  }
-
-  if (p->m_file_sizing < 0)
-  {
-    count= fixed_file_instances
-      + con * file_per_connection
-      + handle * file_per_handle
-      + share * file_per_share;
-
-    count= max<ulong>(count, file);
-    p->m_file_sizing= apply_load_factor(count, h->m_load_factor_normal);
-  }
-
-  if (p->m_socket_sizing < 0)
-  {
-    count= fixed_socket_instances
-      + con * socket_per_connection
-      + handle * socket_per_handle
-      + share * socket_per_share;
-
-    p->m_socket_sizing= apply_load_factor(count, h->m_load_factor_volatile);
-  }
-
-  if (p->m_thread_sizing < 0)
-  {
-    count= fixed_thread_instances
-      + con * thread_per_connection
-      + handle * thread_per_handle
-      + share * thread_per_share;
-
-    p->m_thread_sizing= apply_load_factor(count, h->m_load_factor_volatile);
-  }
-
-  if (p->m_metadata_lock_sizing < 0)
-  {
-    p->m_metadata_lock_sizing= 10000;
   }
 }
 
@@ -452,12 +233,6 @@ void pfs_automated_sizing(PFS_global_param *param)
   heuristic= estimate_hints(param);
   apply_heuristic(param, heuristic);
 
-  DBUG_ASSERT(param->m_account_sizing >= 0);
-  DBUG_ASSERT(param->m_digest_sizing >= 0);
-  DBUG_ASSERT(param->m_prepared_stmt_sizing >= 0);
-  DBUG_ASSERT(param->m_host_sizing >= 0);
-  DBUG_ASSERT(param->m_user_sizing >= 0);
-
   DBUG_ASSERT(param->m_events_waits_history_sizing >= 0);
   DBUG_ASSERT(param->m_events_waits_history_long_sizing >= 0);
   DBUG_ASSERT(param->m_events_stages_history_sizing >= 0);
@@ -467,17 +242,5 @@ void pfs_automated_sizing(PFS_global_param *param)
   DBUG_ASSERT(param->m_events_transactions_history_sizing >= 0);
   DBUG_ASSERT(param->m_events_transactions_history_long_sizing >= 0);
   DBUG_ASSERT(param->m_session_connect_attrs_sizing >= 0);
-
-  DBUG_ASSERT(param->m_mutex_sizing >= 0);
-  DBUG_ASSERT(param->m_rwlock_sizing >= 0);
-  DBUG_ASSERT(param->m_cond_sizing >= 0);
-  DBUG_ASSERT(param->m_file_sizing >= 0);
-  DBUG_ASSERT(param->m_socket_sizing >= 0);
-  DBUG_ASSERT(param->m_thread_sizing >= 0);
-  DBUG_ASSERT(param->m_table_sizing >= 0);
-  DBUG_ASSERT(param->m_table_share_sizing >= 0);
-  DBUG_ASSERT(param->m_table_lock_stat_sizing >= 0);
-  DBUG_ASSERT(param->m_index_stat_sizing >= 0);
-  DBUG_ASSERT(param->m_metadata_lock_sizing >= 0);
 }
 

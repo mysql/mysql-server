@@ -3854,8 +3854,6 @@ void pfs_end_mutex_wait_v1(PSI_mutex_locker* locker, int rc)
 
     DBUG_ASSERT(index <= wait_class_max);
     DBUG_ASSERT(sanitize_thread(thread) != NULL);
-    DBUG_ASSERT(event_name_array >= thread_instr_class_waits_array_start);
-    DBUG_ASSERT(event_name_array < thread_instr_class_waits_array_end);
 
     if (flags & STATE_FLAG_TIMED)
     {

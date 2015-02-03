@@ -609,7 +609,7 @@ The following options may be given as the first argument:
  (Defaults to on; use --skip-performance-schema to disable.)
  --performance-schema-accounts-size=# 
  Maximum number of instrumented user@host accounts. Use 0
- to disable, -1 for automated sizing.
+ to disable, -1 for automated scaling.
  --performance-schema-consumer-events-stages-current 
  Default startup value for the events_stages_current
  consumer.
@@ -688,7 +688,7 @@ The following options may be given as the first argument:
  to disable, -1 for automated sizing.
  --performance-schema-hosts-size=# 
  Maximum number of instrumented hosts. Use 0 to disable,
- -1 for automated sizing.
+ -1 for automated scaling.
  --performance-schema-instrument[=name] 
  Default startup value for a performance schema
  instrument.
@@ -696,43 +696,43 @@ The following options may be given as the first argument:
  Maximum number of condition instruments.
  --performance-schema-max-cond-instances=# 
  Maximum number of instrumented condition objects. Use 0
- to disable, -1 for automated sizing.
+ to disable, -1 for automated scaling.
  --performance-schema-max-file-classes=# 
  Maximum number of file instruments.
  --performance-schema-max-file-handles=# 
  Maximum number of opened instrumented files.
  --performance-schema-max-file-instances=# 
  Maximum number of instrumented files. Use 0 to disable,
- -1 for automated sizing.
+ -1 for automated scaling.
  --performance-schema-max-index-stat=# 
  Maximum number of index statistics for instrumented
- tables. Use 0 to disable, -1 for automated sizing.
+ tables. Use 0 to disable, -1 for automated scaling.
  --performance-schema-max-memory-classes=# 
  Maximum number of memory pool instruments.
  --performance-schema-max-metadata-locks=# 
  Maximum number of metadata locks. Use 0 to disable, -1
- for automated sizing.
+ for automated scaling.
  --performance-schema-max-mutex-classes=# 
  Maximum number of mutex instruments.
  --performance-schema-max-mutex-instances=# 
  Maximum number of instrumented MUTEX objects. Use 0 to
- disable, -1 for automated sizing.
+ disable, -1 for automated scaling.
  --performance-schema-max-prepared-statements-instances=# 
  Maximum number of instrumented prepared statements. Use 0
- to disable, -1 for automated sizing.
+ to disable, -1 for automated scaling.
  --performance-schema-max-program-instances=# 
  Maximum number of instrumented programs. Use 0 to
- disable, -1 for automated sizing.
+ disable, -1 for automated scaling.
  --performance-schema-max-rwlock-classes=# 
  Maximum number of rwlock instruments.
  --performance-schema-max-rwlock-instances=# 
  Maximum number of instrumented RWLOCK objects. Use 0 to
- disable, -1 for automated sizing.
+ disable, -1 for automated scaling.
  --performance-schema-max-socket-classes=# 
  Maximum number of socket instruments.
  --performance-schema-max-socket-instances=# 
  Maximum number of opened instrumented sockets. Use 0 to
- disable, -1 for automated sizing.
+ disable, -1 for automated scaling.
  --performance-schema-max-stage-classes=# 
  Maximum number of stage instruments.
  --performance-schema-max-statement-classes=# 
@@ -741,28 +741,30 @@ The following options may be given as the first argument:
  Number of rows per thread in EVENTS_STATEMENTS_CURRENT.
  --performance-schema-max-table-handles=# 
  Maximum number of opened instrumented tables. Use 0 to
- disable, -1 for automated sizing.
+ disable, -1 for automated scaling.
  --performance-schema-max-table-instances=# 
  Maximum number of instrumented tables. Use 0 to disable,
- -1 for automated sizing.
+ -1 for automated scaling.
  --performance-schema-max-table-lock-stat=# 
  Maximum number of lock statistics for instrumented
- tables. Use 0 to disable, -1 for automated sizing.
+ tables. Use 0 to disable, -1 for automated scaling.
  --performance-schema-max-thread-classes=# 
  Maximum number of thread instruments.
  --performance-schema-max-thread-instances=# 
  Maximum number of instrumented threads. Use 0 to disable,
- -1 for automated sizing.
+ -1 for automated scaling.
  --performance-schema-session-connect-attrs-size=# 
  Size of session attribute string buffer per thread. Use 0
  to disable, -1 for automated sizing.
  --performance-schema-setup-actors-size=# 
- Maximum number of rows in SETUP_ACTORS.
+ Maximum number of rows in SETUP_ACTORS. Use 0 to disable,
+ -1 for automated scaling.
  --performance-schema-setup-objects-size=# 
- Maximum number of rows in SETUP_OBJECTS.
+ Maximum number of rows in SETUP_OBJECTS. Use 0 to
+ disable, -1 for automated scaling.
  --performance-schema-users-size=# 
  Maximum number of instrumented users. Use 0 to disable,
- -1 for automated sizing.
+ -1 for automated scaling.
  --pid-file=name     Pid file used by safe_mysqld
  --plugin-dir=name   Directory for plugins
  --plugin-load=name  Optional semicolon-separated list of plugins to load,
@@ -1345,7 +1347,7 @@ performance-schema-max-metadata-locks -1
 performance-schema-max-mutex-classes 200
 performance-schema-max-mutex-instances -1
 performance-schema-max-prepared-statements-instances -1
-performance-schema-max-program-instances 5000
+performance-schema-max-program-instances -1
 performance-schema-max-rwlock-classes 40
 performance-schema-max-rwlock-instances -1
 performance-schema-max-socket-classes 10
@@ -1359,8 +1361,8 @@ performance-schema-max-table-lock-stat -1
 performance-schema-max-thread-classes 50
 performance-schema-max-thread-instances -1
 performance-schema-session-connect-attrs-size -1
-performance-schema-setup-actors-size 100
-performance-schema-setup-objects-size 100
+performance-schema-setup-actors-size -1
+performance-schema-setup-objects-size -1
 performance-schema-users-size -1
 port ####
 port-open-timeout 0

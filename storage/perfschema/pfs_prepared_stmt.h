@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -27,9 +27,6 @@
 #include "pfs_program.h"
 
 #define PS_NAME_LENGTH NAME_LEN
-
-extern ulong prepared_stmt_max;
-extern ulong prepared_stmt_lost;
 
 struct PFS_ALIGNED PFS_prepared_stmt : public PFS_instr
 {
@@ -76,8 +73,6 @@ struct PFS_ALIGNED PFS_prepared_stmt : public PFS_instr
   /** Reset data for this record. */
   void reset_data();
 };
-
-extern PFS_prepared_stmt *prepared_stmt_array;
 
 int init_prepared_stmt(const PFS_global_param *param);
 void cleanup_prepared_stmt(void);
