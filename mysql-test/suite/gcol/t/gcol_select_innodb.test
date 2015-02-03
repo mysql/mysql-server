@@ -35,6 +35,7 @@
 # Set the session storage engine
 --source include/have_innodb.inc
 eval SET @@session.default_storage_engine = 'InnoDB';
+eval SET optimizer_switch='derived_merge=off';
 
 ##### Workarounds for known open engine specific bugs
 #     none
@@ -48,4 +49,5 @@ eval SET @@session.default_storage_engine = 'InnoDB';
 
 #------------------------------------------------------------------------------#
 # Cleanup
+eval SET optimizer_switch='derived_merge=default';
 --source suite/gcol/inc/gcol_cleanup.inc
