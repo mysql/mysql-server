@@ -26,6 +26,7 @@
 #include "pfs_events_transactions.h"
 #include "pfs_timer.h"
 #include "table_helper.h"
+#include "pfs_buffer_container.h"
 #include "field.h"
 #include "xa.h"
 
@@ -470,24 +471,20 @@ int table_events_transactions_current::rnd_next(void)
 {
   PFS_thread *pfs_thread;
   PFS_events_transactions *transaction;
+  bool has_more_thread= true;
 
   for (m_pos.set_at(&m_next_pos);
-       m_pos.m_index < thread_max;
+       has_more_thread;
        m_pos.next())
   {
-    pfs_thread= &thread_array[m_pos.m_index];
-
-    if (!pfs_thread->m_lock.is_populated())
+    pfs_thread= global_thread_container.get(m_pos.m_index, & has_more_thread);
+    if (pfs_thread != NULL)
     {
-      /* This thread does not exist */
-      continue;
+      transaction= &pfs_thread->m_transaction_current;
+      make_row(transaction);
+      m_next_pos.set_after(&m_pos);
+      return 0;
     }
-
-    transaction= &pfs_thread->m_transaction_current;
-
-    make_row(transaction);
-    m_next_pos.set_after(&m_pos);
-    return 0;
   }
 
   return HA_ERR_END_OF_FILE;
@@ -499,19 +496,19 @@ int table_events_transactions_current::rnd_pos(const void *pos)
   PFS_events_transactions *transaction;
 
   set_position(pos);
-  DBUG_ASSERT(m_pos.m_index < thread_max);
-  pfs_thread= &thread_array[m_pos.m_index];
 
-  if (!pfs_thread->m_lock.is_populated())
-    return HA_ERR_RECORD_DELETED;
+  pfs_thread= global_thread_container.get(m_pos.m_index);
+  if (pfs_thread != NULL)
+  {
+    transaction= &pfs_thread->m_transaction_current;
+    if (transaction->m_class != NULL)
+    {
+      make_row(transaction);
+      return 0;
+    }
+  }
 
-  transaction= &pfs_thread->m_transaction_current;
-
-  if (transaction->m_class == NULL)
-    return HA_ERR_RECORD_DELETED;
-
-  make_row(transaction);
-  return 0;
+  return HA_ERR_RECORD_DELETED;
 }
 
 int table_events_transactions_current::delete_all_rows(void)
@@ -523,7 +520,7 @@ int table_events_transactions_current::delete_all_rows(void)
 ha_rows
 table_events_transactions_current::get_row_count(void)
 {
-  return thread_max;
+  return global_thread_container.get_row_count();
 }
 
 PFS_engine_table* table_events_transactions_history::create(void)
@@ -552,43 +549,39 @@ int table_events_transactions_history::rnd_next(void)
 {
   PFS_thread *pfs_thread;
   PFS_events_transactions *transaction;
+  bool has_more_thread= true;
 
   if (events_transactions_history_per_thread == 0)
     return HA_ERR_END_OF_FILE;
 
   for (m_pos.set_at(&m_next_pos);
-       m_pos.m_index_1 < thread_max;
+       has_more_thread;
        m_pos.next_thread())
   {
-    pfs_thread= &thread_array[m_pos.m_index_1];
-
-    if (! pfs_thread->m_lock.is_populated())
+    pfs_thread= global_thread_container.get(m_pos.m_index_1, & has_more_thread);
+    if (pfs_thread != NULL)
     {
-      /* This thread does not exist */
-      continue;
-    }
+      if (m_pos.m_index_2 >= events_transactions_history_per_thread)
+      {
+        /* This thread does not have more (full) history */
+        continue;
+      }
 
-    if (m_pos.m_index_2 >= events_transactions_history_per_thread)
-    {
-      /* This thread does not have more (full) history */
-      continue;
-    }
+      if ( ! pfs_thread->m_transactions_history_full &&
+          (m_pos.m_index_2 >= pfs_thread->m_transactions_history_index))
+      {
+        /* This thread does not have more (not full) history */
+        continue;
+      }
 
-    if ( ! pfs_thread->m_transactions_history_full &&
-        (m_pos.m_index_2 >= pfs_thread->m_transactions_history_index))
-    {
-      /* This thread does not have more (not full) history */
-      continue;
-    }
-
-    transaction= &pfs_thread->m_transactions_history[m_pos.m_index_2];
-
-    if (transaction->m_class != NULL)
-    {
-      make_row(transaction);
-      /* Next iteration, look for the next history in this thread */
-      m_next_pos.set_after(&m_pos);
-      return 0;
+      transaction= &pfs_thread->m_transactions_history[m_pos.m_index_2];
+      if (transaction->m_class != NULL)
+      {
+        make_row(transaction);
+        /* Next iteration, look for the next history in this thread */
+        m_next_pos.set_after(&m_pos);
+        return 0;
+      }
     }
   }
 
@@ -602,25 +595,25 @@ int table_events_transactions_history::rnd_pos(const void *pos)
 
   DBUG_ASSERT(events_transactions_history_per_thread != 0);
   set_position(pos);
-  DBUG_ASSERT(m_pos.m_index_1 < thread_max);
-  pfs_thread= &thread_array[m_pos.m_index_1];
-
-  if (! pfs_thread->m_lock.is_populated())
-    return HA_ERR_RECORD_DELETED;
 
   DBUG_ASSERT(m_pos.m_index_2 < events_transactions_history_per_thread);
 
-  if ( ! pfs_thread->m_transactions_history_full &&
-      (m_pos.m_index_2 >= pfs_thread->m_transactions_history_index))
-    return HA_ERR_RECORD_DELETED;
+  pfs_thread= global_thread_container.get(m_pos.m_index_1);
+  if (pfs_thread != NULL)
+  {
+    if ( ! pfs_thread->m_transactions_history_full &&
+        (m_pos.m_index_2 >= pfs_thread->m_transactions_history_index))
+      return HA_ERR_RECORD_DELETED;
 
-  transaction= &pfs_thread->m_transactions_history[m_pos.m_index_2];
+    transaction= &pfs_thread->m_transactions_history[m_pos.m_index_2];
+    if (transaction->m_class != NULL)
+    {
+      make_row(transaction);
+      return 0;
+    }
+  }
 
-  if (transaction->m_class == NULL)
-    return HA_ERR_RECORD_DELETED;
-
-  make_row(transaction);
-  return 0;
+  return HA_ERR_RECORD_DELETED;
 }
 
 int table_events_transactions_history::delete_all_rows(void)
@@ -632,7 +625,7 @@ int table_events_transactions_history::delete_all_rows(void)
 ha_rows
 table_events_transactions_history::get_row_count(void)
 {
-  return events_transactions_history_per_thread * thread_max;
+  return events_transactions_history_per_thread * global_thread_container.get_row_count();
 }
 
 PFS_engine_table* table_events_transactions_history_long::create(void)

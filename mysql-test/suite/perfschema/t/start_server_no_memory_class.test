@@ -8,8 +8,15 @@
 # Expect no classes
 show variables like "performance_schema_max_memory_classes";
 
+# Expect builtin memory classes
+select name from performance_schema.setup_instruments
+  where name like "memory/performance_schema/%"
+  order by name;
+
+# Expect no memory classes
 select count(*) from performance_schema.setup_instruments
-  where name like "memory/%";
+  where name like "memory/%"
+    and name not like "memory/performance_schema/%";
 
 # We lost all the classes
 select variable_value > 0 from information_schema.global_status

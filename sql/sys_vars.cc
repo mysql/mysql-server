@@ -278,7 +278,7 @@ static Sys_var_long Sys_pfs_events_waits_history_long_size(
          " Use 0 to disable, -1 for automated sizing.",
        READ_ONLY GLOBAL_VAR(pfs_param.m_events_waits_history_long_sizing),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(-1, 1024*1024),
-       DEFAULT(-1),
+       DEFAULT(PFS_AUTOSIZE_VALUE),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
 static Sys_var_long Sys_pfs_events_waits_history_size(
@@ -287,7 +287,7 @@ static Sys_var_long Sys_pfs_events_waits_history_size(
          " Use 0 to disable, -1 for automated sizing.",
        READ_ONLY GLOBAL_VAR(pfs_param.m_events_waits_history_sizing),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(-1, 1024),
-       DEFAULT(-1),
+       DEFAULT(PFS_AUTOSIZE_VALUE),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
 static Sys_var_ulong Sys_pfs_max_cond_classes(
@@ -301,28 +301,28 @@ static Sys_var_ulong Sys_pfs_max_cond_classes(
 static Sys_var_long Sys_pfs_max_cond_instances(
        "performance_schema_max_cond_instances",
        "Maximum number of instrumented condition objects."
-         " Use 0 to disable, -1 for automated sizing.",
+         " Use 0 to disable, -1 for automated scaling.",
        READ_ONLY GLOBAL_VAR(pfs_param.m_cond_sizing),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(-1, 1024*1024),
-       DEFAULT(-1),
+       DEFAULT(PFS_AUTOSCALE_VALUE),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
 static Sys_var_long Sys_pfs_max_program_instances(
        "performance_schema_max_program_instances",
        "Maximum number of instrumented programs."
-         " Use 0 to disable, -1 for automated sizing.",
+         " Use 0 to disable, -1 for automated scaling.",
        READ_ONLY GLOBAL_VAR(pfs_param.m_program_sizing),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(-1, 1024*1024),
-       DEFAULT(5000),
+       DEFAULT(PFS_AUTOSCALE_VALUE),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
 static Sys_var_long Sys_pfs_max_prepared_stmt_instances(
        "performance_schema_max_prepared_statements_instances",
        "Maximum number of instrumented prepared statements."
-         " Use 0 to disable, -1 for automated sizing.",
+         " Use 0 to disable, -1 for automated scaling.",
        READ_ONLY GLOBAL_VAR(pfs_param.m_prepared_stmt_sizing),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(-1, 1024*1024),
-       DEFAULT(-1),
+       DEFAULT(PFS_AUTOSCALE_VALUE),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
 static Sys_var_ulong Sys_pfs_max_file_classes(
@@ -344,19 +344,19 @@ static Sys_var_ulong Sys_pfs_max_file_handles(
 static Sys_var_long Sys_pfs_max_file_instances(
        "performance_schema_max_file_instances",
        "Maximum number of instrumented files."
-         " Use 0 to disable, -1 for automated sizing.",
+         " Use 0 to disable, -1 for automated scaling.",
        READ_ONLY GLOBAL_VAR(pfs_param.m_file_sizing),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(-1, 1024*1024),
-       DEFAULT(-1),
+       DEFAULT(PFS_AUTOSCALE_VALUE),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
 static Sys_var_long Sys_pfs_max_sockets(
        "performance_schema_max_socket_instances",
        "Maximum number of opened instrumented sockets."
-         " Use 0 to disable, -1 for automated sizing.",
+         " Use 0 to disable, -1 for automated scaling.",
        READ_ONLY GLOBAL_VAR(pfs_param.m_socket_sizing),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(-1, 1024*1024),
-       DEFAULT(-1),
+       DEFAULT(PFS_AUTOSCALE_VALUE),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
 static Sys_var_ulong Sys_pfs_max_socket_classes(
@@ -378,10 +378,10 @@ static Sys_var_ulong Sys_pfs_max_mutex_classes(
 static Sys_var_long Sys_pfs_max_mutex_instances(
        "performance_schema_max_mutex_instances",
        "Maximum number of instrumented MUTEX objects."
-         " Use 0 to disable, -1 for automated sizing.",
+         " Use 0 to disable, -1 for automated scaling.",
        READ_ONLY GLOBAL_VAR(pfs_param.m_mutex_sizing),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(-1, 100*1024*1024),
-       DEFAULT(-1),
+       DEFAULT(PFS_AUTOSCALE_VALUE),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
 static Sys_var_ulong Sys_pfs_max_rwlock_classes(
@@ -395,46 +395,46 @@ static Sys_var_ulong Sys_pfs_max_rwlock_classes(
 static Sys_var_long Sys_pfs_max_rwlock_instances(
        "performance_schema_max_rwlock_instances",
        "Maximum number of instrumented RWLOCK objects."
-         " Use 0 to disable, -1 for automated sizing.",
+         " Use 0 to disable, -1 for automated scaling.",
        READ_ONLY GLOBAL_VAR(pfs_param.m_rwlock_sizing),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(-1, 100*1024*1024),
-       DEFAULT(-1),
+       DEFAULT(PFS_AUTOSCALE_VALUE),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
 static Sys_var_long Sys_pfs_max_table_handles(
        "performance_schema_max_table_handles",
        "Maximum number of opened instrumented tables."
-         " Use 0 to disable, -1 for automated sizing.",
+         " Use 0 to disable, -1 for automated scaling.",
        READ_ONLY GLOBAL_VAR(pfs_param.m_table_sizing),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(-1, 1024*1024),
-       DEFAULT(-1),
+       DEFAULT(PFS_AUTOSCALE_VALUE),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
 static Sys_var_long Sys_pfs_max_table_instances(
        "performance_schema_max_table_instances",
        "Maximum number of instrumented tables."
-         " Use 0 to disable, -1 for automated sizing.",
+         " Use 0 to disable, -1 for automated scaling.",
        READ_ONLY GLOBAL_VAR(pfs_param.m_table_share_sizing),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(-1, 1024*1024),
-       DEFAULT(-1),
+       DEFAULT(PFS_AUTOSCALE_VALUE),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
 static Sys_var_long Sys_pfs_max_table_lock_stat(
        "performance_schema_max_table_lock_stat",
        "Maximum number of lock statistics for instrumented tables."
-         " Use 0 to disable, -1 for automated sizing.",
+         " Use 0 to disable, -1 for automated scaling.",
        READ_ONLY GLOBAL_VAR(pfs_param.m_table_lock_stat_sizing),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(-1, 1024*1024),
-       DEFAULT(-1),
+       DEFAULT(PFS_AUTOSCALE_VALUE),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
 static Sys_var_long Sys_pfs_max_index_stat(
        "performance_schema_max_index_stat",
        "Maximum number of index statistics for instrumented tables."
-         " Use 0 to disable, -1 for automated sizing.",
+         " Use 0 to disable, -1 for automated scaling.",
        READ_ONLY GLOBAL_VAR(pfs_param.m_index_stat_sizing),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(-1, 1024*1024),
-       DEFAULT(-1),
+       DEFAULT(PFS_AUTOSCALE_VALUE),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
 static Sys_var_ulong Sys_pfs_max_thread_classes(
@@ -448,53 +448,55 @@ static Sys_var_ulong Sys_pfs_max_thread_classes(
 static Sys_var_long Sys_pfs_max_thread_instances(
        "performance_schema_max_thread_instances",
        "Maximum number of instrumented threads."
-         " Use 0 to disable, -1 for automated sizing.",
+         " Use 0 to disable, -1 for automated scaling.",
        READ_ONLY GLOBAL_VAR(pfs_param.m_thread_sizing),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(-1, 1024*1024),
-       DEFAULT(-1),
+       DEFAULT(PFS_AUTOSCALE_VALUE),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
-static Sys_var_ulong Sys_pfs_setup_actors_size(
+static Sys_var_long Sys_pfs_setup_actors_size(
        "performance_schema_setup_actors_size",
-       "Maximum number of rows in SETUP_ACTORS.",
+       "Maximum number of rows in SETUP_ACTORS."
+         " Use 0 to disable, -1 for automated scaling.",
        READ_ONLY GLOBAL_VAR(pfs_param.m_setup_actor_sizing),
-       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 1024),
-       DEFAULT(PFS_MAX_SETUP_ACTOR),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(-1, 1024*1024),
+       DEFAULT(PFS_AUTOSCALE_VALUE),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
-static Sys_var_ulong Sys_pfs_setup_objects_size(
+static Sys_var_long Sys_pfs_setup_objects_size(
        "performance_schema_setup_objects_size",
-       "Maximum number of rows in SETUP_OBJECTS.",
+       "Maximum number of rows in SETUP_OBJECTS."
+         " Use 0 to disable, -1 for automated scaling.",
        READ_ONLY GLOBAL_VAR(pfs_param.m_setup_object_sizing),
-       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 1024*1024),
-       DEFAULT(PFS_MAX_SETUP_OBJECT),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(-1, 1024*1024),
+       DEFAULT(PFS_AUTOSCALE_VALUE),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
 static Sys_var_long Sys_pfs_accounts_size(
        "performance_schema_accounts_size",
        "Maximum number of instrumented user@host accounts."
-         " Use 0 to disable, -1 for automated sizing.",
+         " Use 0 to disable, -1 for automated scaling.",
        READ_ONLY GLOBAL_VAR(pfs_param.m_account_sizing),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(-1, 1024*1024),
-       DEFAULT(-1),
+       DEFAULT(PFS_AUTOSCALE_VALUE),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
 static Sys_var_long Sys_pfs_hosts_size(
        "performance_schema_hosts_size",
        "Maximum number of instrumented hosts."
-         " Use 0 to disable, -1 for automated sizing.",
+         " Use 0 to disable, -1 for automated scaling.",
        READ_ONLY GLOBAL_VAR(pfs_param.m_host_sizing),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(-1, 1024*1024),
-       DEFAULT(-1),
+       DEFAULT(PFS_AUTOSCALE_VALUE),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
 static Sys_var_long Sys_pfs_users_size(
        "performance_schema_users_size",
        "Maximum number of instrumented users."
-         " Use 0 to disable, -1 for automated sizing.",
+         " Use 0 to disable, -1 for automated scaling.",
        READ_ONLY GLOBAL_VAR(pfs_param.m_user_sizing),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(-1, 1024*1024),
-       DEFAULT(-1),
+       DEFAULT(PFS_AUTOSCALE_VALUE),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
 static Sys_var_ulong Sys_pfs_max_stage_classes(
@@ -511,7 +513,7 @@ static Sys_var_long Sys_pfs_events_stages_history_long_size(
          " Use 0 to disable, -1 for automated sizing.",
        READ_ONLY GLOBAL_VAR(pfs_param.m_events_stages_history_long_sizing),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(-1, 1024*1024),
-       DEFAULT(-1),
+       DEFAULT(PFS_AUTOSIZE_VALUE),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
 static Sys_var_long Sys_pfs_events_stages_history_size(
@@ -520,7 +522,7 @@ static Sys_var_long Sys_pfs_events_stages_history_size(
          " Use 0 to disable, -1 for automated sizing.",
        READ_ONLY GLOBAL_VAR(pfs_param.m_events_stages_history_sizing),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(-1, 1024),
-       DEFAULT(-1),
+       DEFAULT(PFS_AUTOSIZE_VALUE),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
 /**
@@ -549,7 +551,7 @@ static Sys_var_long Sys_pfs_events_statements_history_long_size(
          " Use 0 to disable, -1 for automated sizing.",
        READ_ONLY GLOBAL_VAR(pfs_param.m_events_statements_history_long_sizing),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(-1, 1024*1024),
-       DEFAULT(-1),
+       DEFAULT(PFS_AUTOSIZE_VALUE),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
 static Sys_var_long Sys_pfs_events_statements_history_size(
@@ -558,7 +560,7 @@ static Sys_var_long Sys_pfs_events_statements_history_size(
          " Use 0 to disable, -1 for automated sizing.",
        READ_ONLY GLOBAL_VAR(pfs_param.m_events_statements_history_sizing),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(-1, 1024),
-       DEFAULT(-1),
+       DEFAULT(PFS_AUTOSIZE_VALUE),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
 static Sys_var_ulong Sys_pfs_statement_stack_size(
@@ -583,7 +585,7 @@ static Sys_var_long Sys_pfs_digest_size(
          " Use 0 to disable, -1 for automated sizing.",
        READ_ONLY GLOBAL_VAR(pfs_param.m_digest_sizing),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(-1, 1024 * 1024),
-       DEFAULT(-1),
+       DEFAULT(PFS_AUTOSIZE_VALUE),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
 static Sys_var_long Sys_pfs_events_transactions_history_long_size(
@@ -592,7 +594,7 @@ static Sys_var_long Sys_pfs_events_transactions_history_long_size(
          " Use 0 to disable, -1 for automated sizing.",
        READ_ONLY GLOBAL_VAR(pfs_param.m_events_transactions_history_long_sizing),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(-1, 1024*1024),
-       DEFAULT(-1),
+       DEFAULT(PFS_AUTOSIZE_VALUE),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
 static Sys_var_long Sys_pfs_events_transactions_history_size(
@@ -601,7 +603,7 @@ static Sys_var_long Sys_pfs_events_transactions_history_size(
          " Use 0 to disable, -1 for automated sizing.",
        READ_ONLY GLOBAL_VAR(pfs_param.m_events_transactions_history_sizing),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(-1, 1024),
-       DEFAULT(-1),
+       DEFAULT(PFS_AUTOSIZE_VALUE),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
 static Sys_var_long Sys_pfs_connect_attrs_size(
@@ -610,16 +612,16 @@ static Sys_var_long Sys_pfs_connect_attrs_size(
          " Use 0 to disable, -1 for automated sizing.",
        READ_ONLY GLOBAL_VAR(pfs_param.m_session_connect_attrs_sizing),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(-1, 1024 * 1024),
-       DEFAULT(-1),
+       DEFAULT(PFS_AUTOSIZE_VALUE),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
 static Sys_var_long Sys_pfs_max_metadata_locks(
        "performance_schema_max_metadata_locks",
        "Maximum number of metadata locks."
-         " Use 0 to disable, -1 for automated sizing.",
+         " Use 0 to disable, -1 for automated scaling.",
        READ_ONLY GLOBAL_VAR(pfs_param.m_metadata_lock_sizing),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(-1, 100*1024*1024),
-       DEFAULT(-1),
+       DEFAULT(PFS_AUTOSCALE_VALUE),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
 #endif /* EMBEDDED_LIBRARY */
