@@ -168,7 +168,7 @@ SELECT TABLE_NAME,COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
 }
 
 --echo # check the user account
-SELECT user, host, plugin, LENGTH(password), LENGTH(authentication_string)
+SELECT user, host, plugin, LENGTH(authentication_string)
   FROM mysql.user;
 
 CREATE DATABASE test;
@@ -237,7 +237,7 @@ SELECT TABLE_NAME,COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
 }
 
 --echo # check the user account
-SELECT user, host, plugin, LENGTH(password), LENGTH(authentication_string)
+SELECT user, host, plugin, LENGTH(authentication_string)
   FROM mysql.user;
 
 --echo # check the result of running --init-file

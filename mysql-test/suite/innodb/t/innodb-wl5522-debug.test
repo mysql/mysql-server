@@ -646,141 +646,37 @@ do 'include/innodb-util.inc';
 ib_restore_tablespaces("test_wl5522", "t1");
 EOF
 
-SET SESSION debug="+d,ib_import_OOM_1";
 
---replace_regex /'.*t1.cfg'/'t1.cfg'/
+let DBUG_CRASH_POINT = ib_import_OOM_1;
+--source ../include/wl5522_oom.inc
 
---error ER_OUT_OF_RESOURCES
-ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
+let DBUG_CRASH_POINT = ib_import_OOM_2;
+--source ../include/wl5522_oom.inc
 
-SET SESSION debug="-d,ib_import_OOM_1";
+let DBUG_CRASH_POINT = ib_import_OOM_4;
+--source ../include/wl5522_oom.inc
 
-DROP TABLE test_wl5522.t1;
+let DBUG_CRASH_POINT = ib_import_OOM_5;
+--source ../include/wl5522_oom.inc
 
+let DBUG_CRASH_POINT = ib_import_OOM_6;
+--source ../include/wl5522_oom.inc
 
-perl;
-do 'include/innodb-util.inc';
-ib_unlink_tablespace("test_wl5522", "t1");
-EOF
+let DBUG_CRASH_POINT = ib_import_OOM_7;
+--source ../include/wl5522_oom.inc
 
+let DBUG_CRASH_POINT = ib_import_OOM_8;
+--source ../include/wl5522_oom.inc
 
-CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
-INSERT INTO test_wl5522.t1 VALUES (1);
+let DBUG_CRASH_POINT = ib_import_OOM_9;
+--source ../include/wl5522_oom.inc
 
-ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
+let DBUG_CRASH_POINT = ib_import_OOM_10;
+--source ../include/wl5522_oom.inc
 
---error ER_TABLESPACE_DISCARDED
-SELECT COUNT(*) FROM test_wl5522.t1;
+let DBUG_CRASH_POINT = ib_import_OOM_15;
+--source ../include/wl5522_oom.inc
 
-# Restore files
-perl;
-do 'include/innodb-util.inc';
-ib_restore_tablespaces("test_wl5522", "t1");
-EOF
-
-SET SESSION debug="+d,ib_import_OOM_2";
-
---replace_regex /'.*t1.cfg'/'t1.cfg'/
-
---error ER_OUT_OF_RESOURCES
-ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
-
-SET SESSION debug="-d,ib_import_OOM_2";
-
-DROP TABLE test_wl5522.t1;
-
-
-perl;
-do 'include/innodb-util.inc';
-ib_unlink_tablespace("test_wl5522", "t1");
-EOF
-
-
-CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
-INSERT INTO test_wl5522.t1 VALUES (1);
-
-ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
-
---error ER_TABLESPACE_DISCARDED
-SELECT COUNT(*) FROM test_wl5522.t1;
-
-# Restore files
-perl;
-do 'include/innodb-util.inc';
-ib_restore_tablespaces("test_wl5522", "t1");
-EOF
-
-SET SESSION debug="+d,ib_import_OOM_4";
-
---replace_regex /'.*t1.cfg'/'t1.cfg'/
-
---error ER_OUT_OF_RESOURCES
-ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
-
-SET SESSION debug="-d,ib_import_OOM_4";
-
-DROP TABLE test_wl5522.t1;
-
-
-perl;
-do 'include/innodb-util.inc';
-ib_unlink_tablespace("test_wl5522", "t1");
-EOF
-
-
-CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
-INSERT INTO test_wl5522.t1 VALUES (1);
-
-ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
-
---error ER_TABLESPACE_DISCARDED
-SELECT COUNT(*) FROM test_wl5522.t1;
-
-# Restore files
-perl;
-do 'include/innodb-util.inc';
-ib_restore_tablespaces("test_wl5522", "t1");
-EOF
-
-SET SESSION debug="+d,ib_import_OOM_5";
-
---replace_regex /'.*t1.cfg'/'t1.cfg'/
-
---error ER_OUT_OF_RESOURCES
-ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
-
-SET SESSION debug="-d,ib_import_OOM_5";
-
-DROP TABLE test_wl5522.t1;
-
-
-perl;
-do 'include/innodb-util.inc';
-ib_unlink_tablespace("test_wl5522", "t1");
-EOF
-
-CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
-INSERT INTO test_wl5522.t1 VALUES (1);
-
-ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
-
---error ER_TABLESPACE_DISCARDED
-SELECT COUNT(*) FROM test_wl5522.t1;
-
-# Restore files
-perl;
-do 'include/innodb-util.inc';
-ib_restore_tablespaces("test_wl5522", "t1");
-EOF
-
-SET SESSION debug="+d,ib_import_OOM_6";
-
---replace_regex /'.*t1.cfg'/'t1.cfg'/
-
---error ER_OUT_OF_RESOURCES
-ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
-
-SET SESSION debug="-d,ib_import_OOM_6";
 
 DROP TABLE test_wl5522.t1;
 
@@ -789,125 +685,6 @@ do 'include/innodb-util.inc';
 ib_unlink_tablespace("test_wl5522", "t1");
 EOF
 
-CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
-INSERT INTO test_wl5522.t1 VALUES (1);
-
-ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
-
---error ER_TABLESPACE_DISCARDED
-SELECT COUNT(*) FROM test_wl5522.t1;
-
-# Restore files
-perl;
-do 'include/innodb-util.inc';
-ib_restore_tablespaces("test_wl5522", "t1");
-EOF
-
-SET SESSION debug="+d,ib_import_OOM_7";
-
---replace_regex /'.*t1.cfg'/'t1.cfg'/
-
---error ER_OUT_OF_RESOURCES
-ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
-
-SET SESSION debug="-d,ib_import_OOM_7";
-
-DROP TABLE test_wl5522.t1;
-
-perl;
-do 'include/innodb-util.inc';
-ib_unlink_tablespace("test_wl5522", "t1");
-EOF
-
-CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
-INSERT INTO test_wl5522.t1 VALUES (1);
-
-ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
-
---error ER_TABLESPACE_DISCARDED
-SELECT COUNT(*) FROM test_wl5522.t1;
-
-# Restore files
-perl;
-do 'include/innodb-util.inc';
-ib_restore_tablespaces("test_wl5522", "t1");
-EOF
-
-SET SESSION debug="+d,ib_import_OOM_8";
-
---replace_regex /'.*t1.cfg'/'t1.cfg'/
-
---error ER_OUT_OF_RESOURCES
-ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
-
-SET SESSION debug="-d,ib_import_OOM_8";
-
-DROP TABLE test_wl5522.t1;
-
-perl;
-do 'include/innodb-util.inc';
-ib_unlink_tablespace("test_wl5522", "t1");
-EOF
-
-CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
-INSERT INTO test_wl5522.t1 VALUES (1);
-
-ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
-
---error ER_TABLESPACE_DISCARDED
-SELECT COUNT(*) FROM test_wl5522.t1;
-
-# Restore files
-perl;
-do 'include/innodb-util.inc';
-ib_restore_tablespaces("test_wl5522", "t1");
-EOF
-
-SET SESSION debug="+d,ib_import_OOM_9";
-
---replace_regex /'.*t1.cfg'/'t1.cfg'/
-
---error ER_OUT_OF_RESOURCES
-ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
-
-SET SESSION debug="-d,ib_import_OOM_9";
-
-DROP TABLE test_wl5522.t1;
-
-perl;
-do 'include/innodb-util.inc';
-ib_unlink_tablespace("test_wl5522", "t1");
-EOF
-
-CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
-INSERT INTO test_wl5522.t1 VALUES (1);
-
-ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
-
---error ER_TABLESPACE_DISCARDED
-SELECT COUNT(*) FROM test_wl5522.t1;
-
-# Restore files
-perl;
-do 'include/innodb-util.inc';
-ib_restore_tablespaces("test_wl5522", "t1");
-EOF
-
-SET SESSION debug="+d,ib_import_OOM_10";
-
---replace_regex /'.*t1.cfg'/'t1.cfg'/
-
---error ER_OUT_OF_RESOURCES
-ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
-
-SET SESSION debug="-d,ib_import_OOM_10";
-
-DROP TABLE test_wl5522.t1;
-
-perl;
-do 'include/innodb-util.inc';
-ib_unlink_tablespace("test_wl5522", "t1");
-EOF
 
 ####
 # Test handling of internal failure error

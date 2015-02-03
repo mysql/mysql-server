@@ -1115,6 +1115,8 @@ bool mysql_prepare_update(THD *thd, const TABLE_LIST *update_table_ref,
     DBUG_RETURN(true);
 
   thd->want_privilege= SELECT_ACL;
+  enum enum_mark_columns mark_used_columns_saved= thd->mark_used_columns;
+  thd->mark_used_columns= MARK_COLUMNS_READ;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   table_list->set_want_privilege(SELECT_ACL);
 #endif
@@ -1162,6 +1164,8 @@ bool mysql_prepare_update(THD *thd, const TABLE_LIST *update_table_ref,
 
   if (setup_fields(thd, Ref_ptr_array(), lex->value_list, SELECT_ACL, 0, 0))
     DBUG_RETURN(true);                          /* purecov: inspected */
+
+  thd->mark_used_columns= mark_used_columns_saved;
 
   if (setup_ftfuncs(select))
     DBUG_RETURN(true);                          /* purecov: inspected */
