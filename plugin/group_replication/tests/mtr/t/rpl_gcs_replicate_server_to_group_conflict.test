@@ -132,7 +132,7 @@ SET @@GLOBAL.DEBUG= @debug_saved;
 SET DEBUG_SYNC= 'now SIGNAL signal.resume_after_set_snapshot_version_on_transaction_context_log_event';
 
 # ER_TRANSACTION_ROLLBACK_DURING_COMMIT, ER_ERROR_DURING_ROLLBACK
---let $slave_sql_errno= 1985, 1181
+--let $slave_sql_errno= 3101, 1181
 --source include/wait_for_slave_sql_error.inc
 
 SET DEBUG_SYNC= 'RESET';

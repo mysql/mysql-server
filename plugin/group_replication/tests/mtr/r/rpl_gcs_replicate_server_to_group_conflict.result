@@ -72,7 +72,7 @@ include/rpl_sync.inc
 #     replication connection.
 SET @@GLOBAL.DEBUG= @debug_saved;
 SET DEBUG_SYNC= 'now SIGNAL signal.resume_after_set_snapshot_version_on_transaction_context_log_event';
-include/wait_for_slave_sql_error.inc [errno=1985, 1181]
+include/wait_for_slave_sql_error.inc [errno=3101, 1181]
 SET DEBUG_SYNC= 'RESET';
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("Slave SQL for channel '': Error in Xid_log_event: Commit could not be completed, 'Got error 149 during ROLLBACK', Error_code:.*");
