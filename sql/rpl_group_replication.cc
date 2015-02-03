@@ -221,7 +221,8 @@ uint get_group_replication_members_number_info()
 
 
 /*
-  Server access methods
+  Server methods exported to plugin through
+  include/mysql/group_replication_priv.h
 */
 
 bool is_server_engine_ready()
