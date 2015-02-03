@@ -20,21 +20,6 @@
 
 using std::string;
 
-enum enum_applier_status
-map_node_applier_state_to_member_applier_status(Member_applier_state
-                                                                applier_status)
-{
-  switch(applier_status)
-  {
-    case 1:  // APPLIER_STATE_ON
-      return APPLIER_STATE_RUNNING;
-    case 2:  // APPLIER_STATE_OFF
-      return APPLIER_STATE_STOP;
-    default: // APPLIER_ERROR
-      return APPLIER_STATE_ERROR;
-  }
-}
-
 enum enum_member_state
 map_protocol_node_state_to_server_member_state
                    (Cluster_member_info::Cluster_member_status protocol_status)

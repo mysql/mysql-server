@@ -104,10 +104,6 @@ static bool init_cluster_sidno();
 
 static bool server_engine_initialized();
 
-enum enum_applier_status
-map_node_applier_state_to_member_applier_status(Member_applier_state
-                                                              applier_status);
-
 /*
   Auxiliary public functions.
 */

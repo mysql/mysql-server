@@ -19,14 +19,15 @@
 --eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
 
 # Checking the performance Schema output for the replication_connection_status table.
+# Channel only exists after start Group Replication.
 --let $group_name= query_get_value(SELECT Group_Name from performance_schema.replication_connection_status, Group_Name, 1)
 --let $assert_text= The value of group name should be $group_replication_group_name
---let $assert_cond= "$group_name" = "$group_replication_group_name"
+--let $assert_cond= "$group_name" = "No such row"
 --source include/assert.inc
 
 --let $service_state= query_get_value(SELECT Service_state from performance_schema.replication_connection_status, Service_state, 1)
 --let $assert_text= The value of service state before GCS start should be OFF
---let $assert_cond= "$service_state" = "OFF"
+--let $assert_cond= "$service_state" = "No such row"
 --source include/assert.inc
 
 # Start GCS replication

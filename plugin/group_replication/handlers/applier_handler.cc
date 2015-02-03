@@ -55,7 +55,8 @@ Applier_handler::initialize_repositories(bool reset_logs,
 
   channel_interface.set_stop_wait_timeout(plugin_shutdown_timeout);
 
-  error= channel_interface.initialize_channel(NULL, 0, NULL, NULL,
+  error= channel_interface.initialize_channel(const_cast<char*>("<NULL>"),
+                                              0, NULL, NULL,
                                               GCS_APPLIER_THREAD_PRIORITY,
                                               false, 0, true);
 
