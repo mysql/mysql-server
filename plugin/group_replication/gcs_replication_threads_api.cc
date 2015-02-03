@@ -185,7 +185,7 @@ bool Replication_thread_api::is_own_event_applier(my_thread_id id)
   DBUG_ENTER("Replication_thread_api::is_own_event_channel");
 
   bool result= false;
-  long* thread_ids= NULL;
+  unsigned long* thread_ids= NULL;
 
   //Fetch all applier thread ids for this channel
   int number_appliers= channel_get_appliers_thread_id(interface_channel,
@@ -205,7 +205,7 @@ bool Replication_thread_api::is_own_event_applier(my_thread_id id)
   {
     for (int i = 0; i < number_appliers; i++)
     {
-      long thread_id= thread_ids[i];
+      unsigned long thread_id= thread_ids[i];
       if (thread_id == id)
       {
         result= true;
