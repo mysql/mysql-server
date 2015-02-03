@@ -268,16 +268,13 @@ public:
   // WITHOUT VALIDATION was not given
   bool                          with_validation;
 
-  void                          *se_blob;
-
   Alter_info() :
     flags(0),
     keys_onoff(LEAVE_AS_IS),
     num_parts(0),
     requested_algorithm(ALTER_TABLE_ALGORITHM_DEFAULT),
     requested_lock(ALTER_TABLE_LOCK_DEFAULT),
-    with_validation(true),
-    se_blob(NULL)
+    with_validation(true)
   {}
 
   void reset()
