@@ -9,7 +9,7 @@ INSERT INTO t1 (a, b) VALUES (4, '4');
 INSERT INTO t1 (a, b) VALUES (5, '5');
 start transaction;
 INSERT INTO t1 (a, b) VALUES (6, REPEAT('a', 20*1024*1024));
-ERROR 42000: Row size too large (> ####). Changing some columns to TEXT or BLOB or using ROW_FORMAT=DYNAMIC or ROW_FORMAT=COMPRESSED may help. In current row format, BLOB prefix of 768 bytes is stored inline.
+ERROR 42000: The size of BLOB/TEXT data inserted in one transaction is greater than 10% of redo log size. Increase the redo log size using innodb_log_file_size.
 # Connection default:
 # Quick shutdown and restart server
 # Connection default:

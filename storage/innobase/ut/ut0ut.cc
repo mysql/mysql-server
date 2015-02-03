@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -822,6 +822,8 @@ ut_strerr(
 		return("Temp file write failure");
 	case DB_FTS_TOO_MANY_WORDS_IN_PHRASE:
 		return("Too many words in a FTS phrase or proximity search");
+	case DB_TOO_BIG_FOR_REDO:
+		return("BLOB record length is greater than 10%% of redo log");
 
 	/* do not add default: in order to produce a warning if new code
 	is added to the enum but not added here */

@@ -2953,6 +2953,7 @@ int main(int argc, char** argv)
     exit(1);
   }
 
+  umask(((~my_umask) & 0666));
   /* Check for argument conflicts and do any post-processing */
   if (args_post_process() == ERROR_STOP)
     exit(1);

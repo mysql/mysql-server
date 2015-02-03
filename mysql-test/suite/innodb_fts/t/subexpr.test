@@ -1,0 +1,58 @@
+--source include/have_innodb.inc
+
+--echo #
+--echo # Bug #20028323 INNODB FULLTEXT BOOLEAN SEARCH INCORRECTLY HANDLES
+--echo # PARENTHESES
+--echo #
+
+CREATE TABLE t1 (
+    f1 INT NOT NULL AUTO_INCREMENT,
+    f2 TEXT NOT NULL,
+    PRIMARY KEY (f1),
+    FULLTEXT (f2)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+INSERT INTO t1 (f2) VALUES
+('Pumpkin soup with cheese bread'),
+('Yellow chicken curry'),
+('Fresh green vegetables with garlic');
+
+SELECT * FROM t1 WHERE MATCH(f2) AGAINST('+pumpkin' IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH(f2) AGAINST('+cheese' IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH(f2) AGAINST('+(pumpkin cheese)' IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH(f2)
+  AGAINST('+pumpkin +(souffle)' IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH(f2)
+  AGAINST('+pumpkin +(souffle tart)' IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH(f2)
+  AGAINST('+pumpkin +(>souffle <tart)' IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH(f2)
+  AGAINST('+pumpkin +(souffle tart)' IN BOOLEAN MODE);
+
+INSERT INTO t1 (f2) VALUES
+('This row contains only souffle'),
+('This row contains only tart'),
+('This row contains only pumpkin'),
+('This row contains only cheese'),
+('This row contains pumpkin and souffle'),
+('This row contains pumpkin and tart'),
+('This row contains pumpkin and cheese'),
+('This row contains both souffle and tart'),
+('This row contains both souffle and cheese'),
+('This row contains both tart and cheese'),
+('This row contains all three souffle, pumpkin and  tart'),
+('This row contains all four cheese, souffle, pumpkin and  tart');
+
+SELECT * FROM t1 WHERE MATCH(f2) AGAINST('+pumpkin' IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH(f2) AGAINST('+cheese' IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH(f2) AGAINST('+(pumpkin cheese)' IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH(f2)
+  AGAINST('+pumpkin +(souffle)' IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH(f2)
+  AGAINST('+pumpkin +(souffle tart)' IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH(f2)
+  AGAINST('+pumpkin +(>souffle <tart)' IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH(f2)
+  AGAINST('+pumpkin +(souffle tart)' IN BOOLEAN MODE);
+
+DROP TABLE t1;

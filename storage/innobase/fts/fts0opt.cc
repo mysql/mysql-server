@@ -2577,8 +2577,6 @@ fts_optimize_add_table(
 		return;
 	}
 
-	ut_ad(table->cached && table->fts != NULL);
-
 	/* Make sure table with FTS index cannot be evicted */
 	if (table->can_be_evicted) {
 		dict_table_move_from_lru_to_non_lru(table);

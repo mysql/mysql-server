@@ -149,5 +149,58 @@ SET PASSWORD FOR 'bug13586336'@'localhost' = OLD_PASSWORD('a');
 --exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
 DROP USER 'bug13586336'@'localhost';
 
+--echo #
+--echo # Bug #20023823 BACKPORT THE FIX FOR MYSQL_INSTALL_DB/MYSQL_UPGRADE
+--echo #               ON NON-EMPTY PLUGIN COLUMN
+--echo #
+
+--echo # Creating user with empty plugin and empty password
+--echo # plugin should be changed to mysql_native_password after the update
+
+CREATE USER B20023823_empty@localhost;
+GRANT ALL PRIVILEGES on *.* TO B20023823_empty@localhost;
+update mysql.user set plugin='' WHERE user='B20023823_empty'
+                                and host='localhost';
+flush privileges;
+--echo # Creating user with default plugin, i.e. mysql_native_password
+--echo # this plugin should not be changed during the upgrade
+
+CREATE USER B20023823_def@localhost IDENTIFIED BY 'test';
+
+--echo # Creating user with 41 bytes hash pass (default) and setting its plugin
+--echo # to empty string. Plugin should be set to mysql_native_password
+--echo # after the upgrade is finished
+
+CREATE USER B20023823_41hash@localhost IDENTIFIED WITH mysql_native_password;
+set session old_passwords=0;
+set password for B20023823_41hash@localhost = password('test');
+update mysql.user set plugin='' WHERE user='B20023823_41hash'
+                                      and host='localhost';
+flush privileges;
+
+--echo # Creating user with 16 bytes hash pass and setting its plugin
+--echo # to empty string. Plugin should be set to mysql_old_password
+--echo # after the upgrade is finished
+
+CREATE USER B20023823_16hash@localhost identified with mysql_old_password;
+set session old_passwords=1;
+set password for B20023823_16hash@localhost = password('test');
+update mysql.user set plugin='' WHERE user='B20023823_16hash'
+                                and host='localhost';
+flush privileges;
+SELECT user, plugin from mysql.user;
+
+--echo # repair the user's plugin
+--exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
+
+--echo # expect non-empty
+SELECT user, plugin from mysql.user;
+
+--echo # cleanup
+DROP USER B20023823_empty@localhost;
+DROP USER B20023823_def@localhost;
+DROP USER B20023823_41hash@localhost;
+DROP USER B20023823_16hash@localhost;
+
 --echo
 --echo End of tests

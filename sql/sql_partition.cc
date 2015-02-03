@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -4644,6 +4644,27 @@ error:
 
 
 /**
+  Set part_state for all partitions to given state.
+
+  @param tab_part_info  partition_info holding all partitions.
+  @param part_state     Which state to set for the named partitions.
+*/
+
+void set_all_part_state(partition_info *tab_part_info,
+                        enum partition_state part_state)
+{
+  uint part_count= 0;
+  List_iterator<partition_element> part_it(tab_part_info->partitions);
+
+  do
+  {
+    partition_element *part_elem= part_it++;
+    part_elem->part_state= part_state;
+  } while (++part_count < tab_part_info->num_parts);
+}
+
+
+/**
   Sets which partitions to be used in the command.
 
   @param alter_info     Alter_info pointer holding partition names and flags.
@@ -4687,13 +4708,7 @@ bool set_part_state(Alter_info *alter_info, partition_info *tab_part_info,
       !(alter_info->flags & Alter_info::ALTER_ALL_PARTITION))
   {
     /* Not all given partitions found, revert and return failure */
-    part_it.rewind();
-    part_count= 0;
-    do
-    {
-      partition_element *part_elem= part_it++;
-      part_elem->part_state= PART_NORMAL;
-    } while (++part_count < tab_part_info->num_parts);
+    set_all_part_state(tab_part_info, PART_NORMAL);
     return true;
   }
   return false;

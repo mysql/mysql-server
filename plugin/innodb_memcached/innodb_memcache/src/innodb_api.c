@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -1208,17 +1208,11 @@ innodb_api_set_tpl(
 							value_len,
 							table);
 		} else {
-			err = ib_cb_col_set_value(
+			err = innodb_api_setup_field_value(
 				tpl,
 				meta_info->extra_col_info[col_to_set].field_id,
-				value, value_len, need_cpy);
-
-			if (table) {
-				handler_rec_setup_str(
-					table,
-					col_info[col_to_set].field_id,
-					value, value_len);
-			}
+				&meta_info->extra_col_info[col_to_set],
+				(char*)value, value_len, table, need_cpy);
 		}
 	} else {
 		err = innodb_api_setup_field_value(
@@ -1599,6 +1593,7 @@ innodb_api_arithmetic(
 	/* If the return message is not success or record not found, just
 	exit */
 	if (err != DB_SUCCESS && err != DB_RECORD_NOT_FOUND) {
+		*out_result = 0;
 		goto func_exit;
 	}
 
@@ -1640,10 +1635,24 @@ innodb_api_arithmetic(
 		}
 
 		before_len = result.extra_col_value[column_used].value_len;
-		before_val = result.extra_col_value[column_used].value_str;
+		if (result.extra_col_value[column_used].is_str) {
+			before_val = result.extra_col_value[column_used].value_str;
+			if (before_val) {
+				value = strtoull(before_val, &end_ptr, 10);
+			}
+		} else {
+			value = result.extra_col_value[column_used].value_int;
+		}
 	} else {
 		before_len = result.col_value[MCI_COL_VALUE].value_len;
-		before_val = result.col_value[MCI_COL_VALUE].value_str;
+		if (result.col_value[MCI_COL_VALUE].is_str) {
+			before_val = result.col_value[MCI_COL_VALUE].value_str;
+			if (before_val) {
+				value = strtoull(before_val, &end_ptr, 10);
+			}
+		} else {
+			value = result.col_value[MCI_COL_VALUE].value_int;
+		}
 		column_used = UPDATE_ALL_VAL_COL;
 	}
 
@@ -1653,10 +1662,6 @@ innodb_api_arithmetic(
 	}
 
 	errno = 0;
-
-	if (before_val) {
-		value = strtoull(before_val, &end_ptr, 10);
-	}
 
 	if (errno == ERANGE) {
 		ret = ENGINE_EINVAL;

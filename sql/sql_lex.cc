@@ -2252,6 +2252,28 @@ bool st_select_lex::setup_ref_array(THD *thd, uint order_group_num)
   // find_order_in_list() may need some extra space, so multiply by two.
   order_group_num*= 2;
 
+  // create_distinct_group() may need some extra space
+  const bool select_distinct= MY_TEST(options & SELECT_DISTINCT);
+  if (select_distinct)
+  {
+    uint bitcount= 0;
+    Item *item;
+    List_iterator<Item> li(item_list);
+    while ((item= li++))
+    {
+      /*
+        Same test as in create_distinct_group, when it pushes new items to the
+        end of ref_pointer_array. An extra test for 'fixed' which, at this
+        stage, will be true only for columns inserted for a '*' wildcard.
+      */
+      if (item->fixed &&
+          item->type() == Item::FIELD_ITEM &&
+          item->field_type() == MYSQL_TYPE_BIT)
+        ++bitcount;
+    }
+    order_group_num+= bitcount;
+  }
+
   /*
     We have to create array in prepared statement memory if it is
     prepared statement
@@ -2275,22 +2297,13 @@ bool st_select_lex::setup_ref_array(THD *thd, uint order_group_num)
   if (!ref_pointer_array.is_null())
   {
     /*
-      The Query may have been permanently transformed by removal of
-      ORDER BY or GROUP BY. Memory has already been allocated, but by
-      reducing the size of ref_pointer_array a tight bound is
-      maintained by Bounds_checked_array
-    */
-    if (ref_pointer_array.size() > n_elems)
-      ref_pointer_array.resize(n_elems);
-
-    /*
       We need to take 'n_sum_items' into account when allocating the array,
       and this may actually increase during the optimization phase due to
       MIN/MAX rewrite in Item_in_subselect::single_value_transformer.
       In the usual case we can reuse the array from the prepare phase.
       If we need a bigger array, we must allocate a new one.
      */
-    if (ref_pointer_array.size() == n_elems)
+    if (ref_pointer_array.size() >= n_elems)
       return false;
   }
   Item **array= static_cast<Item**>(arena->alloc(sizeof(Item*) * n_elems));

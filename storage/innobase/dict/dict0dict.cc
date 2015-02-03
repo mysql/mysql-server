@@ -2423,10 +2423,10 @@ too_big:
 			dict_mem_index_free(new_index);
 			dict_mem_index_free(index);
 			return(DB_TOO_BIG_RECORD);
-		} else {
-
+		} else if (current_thd != NULL) {
+			/* Avoid the warning to be printed
+			during recovery. */
 			ib_warn_row_too_big(table);
-
 		}
 	}
 
