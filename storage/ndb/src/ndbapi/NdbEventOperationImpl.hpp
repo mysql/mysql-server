@@ -853,6 +853,11 @@ private:
   void discard_events_from_bucket(Gci_container* bucket);
 
   Uint16 find_sub_data_stream_number(Uint16 sub_data_stream);
+  void crash_on_invalid_SUB_GCP_COMPLETE_REP(const Gci_container* bucket,
+                                      const SubGcpCompleteRep * const rep,
+                                      Uint32 replen,
+                                      Uint32 remcnt,
+                                      Uint32 repcnt) const;
 public:
   void set_total_buckets(Uint32);
 };

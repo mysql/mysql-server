@@ -2136,21 +2136,63 @@ newbucket:
   return bucket;
 }
 
-static
 void
-crash_on_invalid_SUB_GCP_COMPLETE_REP(const Gci_container* bucket,
+NdbEventBuffer::crash_on_invalid_SUB_GCP_COMPLETE_REP(const Gci_container* bucket,
 				      const SubGcpCompleteRep * const rep,
-				      Uint32 buckets)
+                                      Uint32 replen,
+                                      Uint32 remcnt,
+                                      Uint32 repcnt) const
 {
-  Uint32 old_cnt = bucket->m_gcp_complete_rep_count;
-  
   ndbout_c("INVALID SUB_GCP_COMPLETE_REP");
-  ndbout_c("gci_hi: %u", rep->gci_hi);
-  ndbout_c("gci_lo: %u", rep->gci_lo);
-  ndbout_c("sender: %x", rep->senderRef);
-  ndbout_c("count: %d", rep->gcp_complete_rep_count);
-  ndbout_c("bucket count: %u", old_cnt);
-  ndbout_c("total buckets: %u", buckets);
+  // SubGcpCompleteRep
+  ndbout_c("signal length: %u", replen);
+  ndbout_c("gci: %u/%u", rep->gci_hi, rep->gci_lo);
+  ndbout_c("senderRef: x%x", rep->senderRef);
+  ndbout_c("count: %u", rep->gcp_complete_rep_count);
+  ndbout_c("flags: x%x", rep->flags);
+  if (rep->flags & rep->ON_DISK) ndbout_c("\tON_DISK");
+  if (rep->flags & rep->IN_MEMORY) ndbout_c("\tIN_MEMORY");
+  if (rep->flags & rep->MISSING_DATA) ndbout_c("\tMISSING_DATA");
+  if (rep->flags & rep->ADD_CNT) ndbout_c("\tADD_CNT %u", rep->flags>>16);
+  if (rep->flags & rep->SUB_CNT) ndbout_c("\tSUB_CNT %u", rep->flags>>16);
+  if (rep->flags & rep->SUB_DATA_STREAMS_IN_SIGNAL) 
+  {
+    ndbout_c("\tSUB_DATA_STREAMS_IN_SIGNAL");
+    // Expected signal size with two stream id per word
+    const Uint32 explen = rep->SignalLength + (rep->gcp_complete_rep_count + 1)/2;
+    if (replen != explen)
+    {
+      ndbout_c("ERROR: Signal length %d words does not match expected %d! Corrupt signal?", replen, explen);
+    }
+    // Protect against corrupt signal length, max signal size is 25 words
+    if (replen > 25) replen = 25;
+    if (replen > rep->SignalLength)
+    {
+      const int words = replen - rep->SignalLength;
+      for (int i=0; i < words; i++)
+      {
+        ndbout_c("\t\t%04x\t%04x", Uint32(rep->sub_data_streams[i]), Uint32(rep->sub_data_streams[i]>>16));
+      }
+    }
+  }
+  ndbout_c("remaining count: %u", remcnt);
+  ndbout_c("report count (without duplicates): %u", repcnt);
+  // Gci_container
+  ndbout_c("bucket gci: %u/%u", Uint32(bucket->m_gci>>32), Uint32(bucket->m_gci));
+  ndbout_c("bucket state: x%x", bucket->m_state);
+  if (bucket->m_state & bucket->GC_COMPLETE) ndbout_c("\tGC_COMPLETE");
+  if (bucket->m_state & bucket->GC_INCONSISTENT) ndbout_c("\tGC_INCONSISTENT");
+  if (bucket->m_state & bucket->GC_CHANGE_CNT) ndbout_c("\tGC_CHANGE_CNT");
+  if (bucket->m_state & bucket->GC_OUT_OF_MEMORY) ndbout_c("\tGC_OUT_OF_MEMORY");
+  ndbout_c("bucket remain count: %u", bucket->m_gcp_complete_rep_count);
+  ndbout_c("total buckets: %u", m_total_buckets);
+  ndbout_c("startup hack: %u", m_startup_hack);
+  for (int i=0; i < MAX_SUB_DATA_STREAMS; i++)
+  {
+    Uint16 id = m_sub_data_streams[i];
+    if (id == 0) continue;
+    ndbout_c("stream: idx %u, id %04x, counted %d", i, id, bucket->m_gcp_complete_rep_sub_data_streams.get(i));
+  }
   abort();
 }
 
@@ -2417,7 +2459,7 @@ NdbEventBuffer::execSUB_GCP_COMPLETE_REP(const SubGcpCompleteRep * const rep,
   //assert(old_cnt >= cnt);
   if (unlikely(! (old_cnt >= cnt)))
   {
-    crash_on_invalid_SUB_GCP_COMPLETE_REP(bucket, rep, m_total_buckets);
+    crash_on_invalid_SUB_GCP_COMPLETE_REP(bucket, rep, len, old_cnt, cnt);
   }
   bucket->m_gcp_complete_rep_count = old_cnt - cnt;
   
