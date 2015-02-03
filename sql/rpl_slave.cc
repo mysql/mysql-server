@@ -4135,12 +4135,13 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
       that are not replayed, so we keep falling behind).
 
       If it is an artificial event, or a relay log event (IO thread generated
-      event) or ev->when is set to 0, or a FD from master, we don't update the
-      last_master_timestamp.
+      event) or ev->when is set to 0, or a FD from master, or a heartbeat
+      event with server_id '0' then  we don't update the last_master_timestamp.
     */
     if (!(rli->is_parallel_exec() ||
           ev->is_artificial_event() || ev->is_relay_log_event() ||
-          (ev->when.tv_sec == 0) || ev->get_type_code() == FORMAT_DESCRIPTION_EVENT))
+          ev->when.tv_sec == 0 || ev->get_type_code() == FORMAT_DESCRIPTION_EVENT ||
+          ev->server_id == 0))
     {
       rli->last_master_timestamp= ev->when.tv_sec + (time_t) ev->exec_time;
       DBUG_ASSERT(rli->last_master_timestamp >= 0);
@@ -4226,6 +4227,15 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
     {
       DBUG_ASSERT(*ptr_ev == ev); // event remains to belong to Coordinator
 
+      DBUG_EXECUTE_IF("dbug.calculate_sbm_after_previous_gtid_log_event",
+                    {
+                      if (ev->get_type_code() == PREVIOUS_GTIDS_LOG_EVENT)
+                      {
+                        const char act[]= "now signal signal.reached wait_for signal.done_sbm_calculation";
+                        DBUG_ASSERT(opt_debug_sync_timeout > 0);
+                        DBUG_ASSERT(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
+                      }
+                    };);
       /*
         Format_description_log_event should not be deleted because it will be
         used to read info about the relay log's format; it will be deleted when
@@ -4550,6 +4560,11 @@ connected:
                       DBUG_ASSERT(opt_debug_sync_timeout > 0);
                       DBUG_ASSERT(!debug_sync_set_action(thd, 
                                                          STRING_WITH_LEN(act)));
+                    };);
+    DBUG_EXECUTE_IF("dbug.calculate_sbm_after_previous_gtid_log_event",
+                    {
+                      /* Fake that thread started 3 mints ago */
+                      thd->start_time.tv_sec-=180;
                     };);
   mysql_mutex_lock(&mi->run_lock);
   mi->slave_running= MYSQL_SLAVE_RUN_CONNECT;
@@ -6901,11 +6916,6 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
 
   case PREVIOUS_GTIDS_LOG_EVENT:
   {
-    if (gtid_mode == 0)
-    {
-      error= ER_FOUND_GTID_EVENT_WHEN_GTID_MODE_IS_OFF;
-      goto err;
-    }
     /*
       This event does not have any meaning for the slave and
       was just sent to show the slave the master is making
@@ -6952,6 +6962,23 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
     inc_pos= event_len;
   break;
   }
+
+  /*
+    Simulate an unknown ignorable log event by rewriting the write_rows log
+    event and previous_gtids log event before writing them in relay log.
+  */
+  DBUG_EXECUTE_IF("simulate_unknown_ignorable_log_event",
+    if (event_type == WRITE_ROWS_EVENT ||
+        event_type == PREVIOUS_GTIDS_LOG_EVENT)
+    {
+      char *event_buf= const_cast<char*>(buf);
+      /* Overwrite the log event type with an unknown type. */
+      event_buf[EVENT_TYPE_OFFSET]= ENUM_END_EVENT + 1;
+      /* Set LOG_EVENT_IGNORABLE_F for the log event. */
+      int2store(event_buf + FLAGS_OFFSET,
+                uint2korr(event_buf + FLAGS_OFFSET) | LOG_EVENT_IGNORABLE_F);
+    }
+  );
 
   /*
      If this event is originating from this server, don't queue it.

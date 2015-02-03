@@ -405,5 +405,102 @@ Warning: Using a password on the command line interface can be insecure.
 mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
 DROP USER 'bug13586336'@'localhost';
+#
+# Bug #20023823 BACKPORT THE FIX FOR MYSQL_INSTALL_DB/MYSQL_UPGRADE
+#               ON NON-EMPTY PLUGIN COLUMN
+#
+# Creating user with empty plugin and empty password
+# plugin should be changed to mysql_native_password after the update
+CREATE USER B20023823_empty@localhost;
+GRANT ALL PRIVILEGES on *.* TO B20023823_empty@localhost;
+update mysql.user set plugin='' WHERE user='B20023823_empty'
+                                and host='localhost';
+flush privileges;
+# Creating user with default plugin, i.e. mysql_native_password
+# this plugin should not be changed during the upgrade
+CREATE USER B20023823_def@localhost IDENTIFIED BY 'test';
+# Creating user with 41 bytes hash pass (default) and setting its plugin
+# to empty string. Plugin should be set to mysql_native_password
+# after the upgrade is finished
+CREATE USER B20023823_41hash@localhost IDENTIFIED WITH mysql_native_password;
+set session old_passwords=0;
+set password for B20023823_41hash@localhost = password('test');
+update mysql.user set plugin='' WHERE user='B20023823_41hash'
+                                      and host='localhost';
+flush privileges;
+# Creating user with 16 bytes hash pass and setting its plugin
+# to empty string. Plugin should be set to mysql_old_password
+# after the upgrade is finished
+CREATE USER B20023823_16hash@localhost identified with mysql_old_password;
+set session old_passwords=1;
+set password for B20023823_16hash@localhost = password('test');
+Warnings:
+Warning	1287	'pre-4.1 password hash' is deprecated and will be removed in a future release. Please use post-4.1 password hash instead
+update mysql.user set plugin='' WHERE user='B20023823_16hash'
+                                and host='localhost';
+flush privileges;
+SELECT user, plugin from mysql.user;
+user	plugin
+root	mysql_native_password
+root	mysql_native_password
+root	mysql_native_password
+root	mysql_native_password
+B20023823_empty	
+B20023823_def	mysql_native_password
+B20023823_41hash	
+B20023823_16hash	
+# repair the user's plugin
+Warning: Using a password on the command line interface can be insecure.
+Warning: Using a password on the command line interface can be insecure.
+mysql.columns_priv                                 OK
+mysql.db                                           OK
+mysql.event                                        OK
+mysql.func                                         OK
+mysql.general_log                                  OK
+mysql.help_category                                OK
+mysql.help_keyword                                 OK
+mysql.help_relation                                OK
+mysql.help_topic                                   OK
+mysql.innodb_index_stats                           OK
+mysql.innodb_table_stats                           OK
+mysql.ndb_binlog_index                             OK
+mysql.plugin                                       OK
+mysql.proc                                         OK
+mysql.procs_priv                                   OK
+mysql.proxies_priv                                 OK
+mysql.servers                                      OK
+mysql.slave_master_info                            OK
+mysql.slave_relay_log_info                         OK
+mysql.slave_worker_info                            OK
+mysql.slow_log                                     OK
+mysql.tables_priv                                  OK
+mysql.time_zone                                    OK
+mysql.time_zone_leap_second                        OK
+mysql.time_zone_name                               OK
+mysql.time_zone_transition                         OK
+mysql.time_zone_transition_type                    OK
+mysql.user                                         OK
+Warning: Using a password on the command line interface can be insecure.
+Warning	1642	Pre-4.1 password hash found. It is deprecated and will be removed in a future release. Please upgrade it to a new format.
+Warning: Using a password on the command line interface can be insecure.
+Warning: Using a password on the command line interface can be insecure.
+mtr.global_suppressions                            OK
+mtr.test_suppressions                              OK
+# expect non-empty
+SELECT user, plugin from mysql.user;
+user	plugin
+root	mysql_native_password
+root	mysql_native_password
+root	mysql_native_password
+root	mysql_native_password
+B20023823_empty	mysql_native_password
+B20023823_def	mysql_native_password
+B20023823_41hash	mysql_native_password
+B20023823_16hash	mysql_old_password
+# cleanup
+DROP USER B20023823_empty@localhost;
+DROP USER B20023823_def@localhost;
+DROP USER B20023823_41hash@localhost;
+DROP USER B20023823_16hash@localhost;
 
 End of tests

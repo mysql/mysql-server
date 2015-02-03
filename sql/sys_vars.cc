@@ -4281,8 +4281,8 @@ static Sys_var_mybool Sys_enforce_gtid_consistency(
        );
 #endif
 
-static Sys_var_mybool Sys_simplified_binlog_gtid_recovery(
-       "simplified_binlog_gtid_recovery",
+static Sys_var_mybool Sys_binlog_gtid_simple_recovery(
+       "binlog_gtid_simple_recovery",
        "If this option is enabled, the server does not scan more than one "
        "binary log for every iteration when initializing GTID sets on server "
        "restart. Enabling this option is very useful when restarting a server "
@@ -4291,10 +4291,17 @@ static Sys_var_mybool Sys_simplified_binlog_gtid_recovery(
        "GLOBAL.GTID_PURGED cannot be initialized correctly if binary log(s) "
        "with GTID events were generated before binary log(s) without GTID "
        "events, for example if gtid_mode is disabled when the server has "
-       "already generated binary log(s) with GTID events and not purged "
-       "them. ",
-       READ_ONLY GLOBAL_VAR(simplified_binlog_gtid_recovery),
+       "already generated binary log(s) with GTID events and not purged them.",
+       READ_ONLY GLOBAL_VAR(binlog_gtid_simple_recovery),
        CMD_LINE(OPT_ARG), DEFAULT(FALSE));
+
+static Sys_var_mybool Sys_simplified_binlog_gtid_recovery(
+       "simplified_binlog_gtid_recovery",
+       "Alias for @@binlog_gtid_simple_recovery. Deprecated",
+       READ_ONLY GLOBAL_VAR(binlog_gtid_simple_recovery),
+       CMD_LINE(OPT_ARG, OPT_SIMPLIFIED_BINLOG_GTID_RECOVERY),
+       DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
+       ON_UPDATE(0), DEPRECATED("'@@binlog_gtid_simple_recovery'"));
 
 static Sys_var_ulong Sys_sp_cache_size(
        "stored_program_cache",
