@@ -43,8 +43,9 @@ struct st_row_group_members {
   uint channel_name_length;
   char member_id[UUID_LENGTH];
   uint member_id_length;
-  char member_address[HOSTNAME_LENGTH];
-  uint member_address_length;
+  char member_host[HOSTNAME_LENGTH];
+  uint member_host_length;
+  uint member_port;
   enum_member_state member_state;
 };
 

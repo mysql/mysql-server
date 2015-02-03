@@ -38,7 +38,8 @@ typedef struct st_group_replication_group_members_info
 {
   char* channel_name;
   char* member_id;
-  char* member_address;
+  char* member_host;
+  unsigned int member_port;
   enum enum_member_state member_state;
 } GROUP_REPLICATION_GROUP_MEMBERS_INFO;
 
