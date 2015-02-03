@@ -44,10 +44,10 @@ ERROR HY000: You must SET PASSWORD before executing this statement
 SET PASSWORD='';
 # Check the count of columns in mysql
 # check the user account
-SELECT user, host, plugin, LENGTH(password), LENGTH(authentication_string)
+SELECT user, host, plugin, LENGTH(authentication_string)
 FROM mysql.user;
-user	host	plugin	LENGTH(password)	LENGTH(authentication_string)
-root	localhost	mysql_native_password	0	0
+user	host	plugin	LENGTH(authentication_string)
+root	localhost	mysql_native_password	0
 CREATE DATABASE test;
 # shut server down
 # Server is down
@@ -69,10 +69,10 @@ SELECT 1;
 # Check the count of columns in mysql
 # Take out the extra t1 column
 # check the user account
-SELECT user, host, plugin, LENGTH(password), LENGTH(authentication_string)
+SELECT user, host, plugin, LENGTH(authentication_string)
 FROM mysql.user;
-user	host	plugin	LENGTH(password)	LENGTH(authentication_string)
-root	localhost	mysql_native_password	0	0
+user	host	plugin	LENGTH(authentication_string)
+root	localhost	mysql_native_password	0
 # check the result of running --init-file
 SELECT a FROM t1 ORDER BY a;
 a

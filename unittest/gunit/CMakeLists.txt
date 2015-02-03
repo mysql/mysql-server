@@ -255,6 +255,7 @@ SET(TESTS
   filesort_buffer
   filesort_compare
   inplace_vector
+  key
   like_range
   mdl
   my_bitmap

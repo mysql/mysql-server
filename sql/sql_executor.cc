@@ -2723,25 +2723,6 @@ void QEP_TAB::pick_table_access_method(const JOIN_TAB *join_tab)
   ASSERT_BEST_REF_IN_JOIN_ORDER(join());
   DBUG_ASSERT(join_tab == join()->best_ref[idx()]);
   DBUG_ASSERT(table());
-
-  /**
-    Set up modified access function for children of pushed joins.
-  */
-  const TABLE *pushed_root= table()->file->root_of_pushed_join();
-  if (pushed_root && pushed_root != table())
-  {
-    /**
-      Is child of a pushed join operation:
-      Replace access functions with its linked counterpart.
-      ... Which is effectively a NOOP as the row is already fetched 
-      together with the root of the linked operation.
-     */
-    DBUG_ASSERT(type() != JT_REF_OR_NULL);
-    read_first_record= join_read_linked_first;
-    read_record.read_record= join_read_linked_next;
-    return;
-  }
-
   DBUG_ASSERT(read_first_record == NULL);
   // Only some access methods support reversed access:
   DBUG_ASSERT(!join_tab->reversed_access || type() == JT_REF ||
@@ -2799,6 +2780,39 @@ void QEP_TAB::pick_table_access_method(const JOIN_TAB *join_tab)
   }
 }
 
+
+/**
+  Install the appropriate 'linked' access method functions
+  if this part of the join have been converted to pushed join.
+*/
+
+void QEP_TAB::set_pushed_table_access_method(void)
+{
+  DBUG_ENTER("set_pushed_table_access_method");
+  DBUG_ASSERT(table());
+
+  /**
+    Setup modified access function for children of pushed joins.
+  */
+  const TABLE *pushed_root= table()->file->root_of_pushed_join();
+  if (pushed_root && pushed_root != table())
+  {
+    /**
+      Is child of a pushed join operation:
+      Replace access functions with its linked counterpart.
+      ... Which is effectively a NOOP as the row is already fetched
+      together with the root of the linked operation.
+     */
+    DBUG_PRINT("info", ("Modifying table access method for '%s'",
+                        table()->s->table_name.str));
+    DBUG_ASSERT(type() != JT_REF_OR_NULL);
+    read_first_record= join_read_linked_first;
+    read_record.read_record= join_read_linked_next;
+    // Use the default unlock_row function
+    read_record.unlock_row = rr_unlock_row;
+  }
+  DBUG_VOID_RETURN;
+}
 
 /*****************************************************************************
   DESCRIPTION

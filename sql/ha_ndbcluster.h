@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -228,7 +228,7 @@ public:
   void set_part_info(partition_info *part_info, bool early);
   ulong index_flags(uint idx, uint part, bool all_parts) const;
   virtual const key_map *keys_to_use_for_scanning() { return &btree_keys; }
-  bool primary_key_is_clustered();
+  bool primary_key_is_clustered() const;
   uint max_supported_record_length() const;
   uint max_supported_keys() const;
   uint max_supported_key_parts() const;

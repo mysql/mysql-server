@@ -93,6 +93,7 @@ SET(SQL_SHARED_SOURCES
   item_func.cc
   item_geofunc.cc
   item_geofunc_relchecks.cc
+  item_geofunc_relchecks_bgwrap.cc
   item_geofunc_setops.cc
   item_row.cc 
   item_strfunc.cc
@@ -270,6 +271,7 @@ INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
 ADD_COMPILE_FLAGS(
   item_geofunc.cc
   item_geofunc_relchecks.cc
+  item_geofunc_relchecks_bgwrap.cc
   item_geofunc_setops.cc
   auth/sql_authorization.cc
   auth/sql_authentication.cc
@@ -285,6 +287,7 @@ IF(HAVE_NO_UNUSED_TYPEDEFS)
   ADD_COMPILE_FLAGS(
     item_geofunc.cc
     item_geofunc_relchecks.cc
+    item_geofunc_relchecks_bgwrap.cc
     item_geofunc_setops.cc
     COMPILE_FLAGS "-Wno-unused-local-typedefs"
   )

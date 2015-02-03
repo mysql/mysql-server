@@ -85,7 +85,7 @@ SELECT TABLE_NAME,COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
 }
 
 --echo # check the user account
-SELECT user, host, plugin, LENGTH(password), LENGTH(authentication_string) > 0
+SELECT user, host, plugin, LENGTH(authentication_string) > 0
   FROM mysql.user;
 
 CREATE DATABASE test;
