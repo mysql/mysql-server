@@ -204,7 +204,8 @@ bool channel_is_active(const char* channel, enum_channel_thread_types type);
     @retval <=0  the channel does no exists, or the applier is not present
     @retval >0 the number of applier ids returned.
 */
-int channel_get_appliers_thread_id(const char* channel, long** appliers_id);
+int channel_get_appliers_thread_id(const char* channel,
+                                   unsigned long** appliers_id);
 
 /**
   Returns last GNO from applier from a given UUID.
