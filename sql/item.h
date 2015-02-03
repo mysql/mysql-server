@@ -1817,10 +1817,6 @@ public:
 
   virtual Item* equality_substitution_transformer(uchar *arg) { return this; }
 
-  /**
-    Mark field in bitmap supplied as *arg
-  */
-  virtual bool register_field_in_bitmap(uchar *arg) { return 0; }
   /*
     Check if a partition function is allowed
     SYNOPSIS
@@ -2697,10 +2693,6 @@ public:
   bool add_field_to_cond_set_processor(uchar *unused);
   bool remove_column_from_bitmap(uchar * arg);
   bool find_item_in_field_list_processor(uchar *arg);
-  /**
-    Mark field in bitmap supplied as *arg
-  */
-  bool register_field_in_bitmap(uchar *arg);
   /**
     @param int_arg It has two kinds of uses. One is used for passing the
     field index before calling. The other is as a carrier to return the
