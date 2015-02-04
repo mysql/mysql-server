@@ -1,3 +1,4 @@
+--source include/have_innodb.inc
 --source include/have_partition.inc
 --source include/have_innodb_16k.inc
 
@@ -22,6 +23,11 @@ INSERT INTO t1 VALUES (1,2,1+12), (2,2,2+15), (2,2,2+18), (1,2,3+21);
 --echo # More index matching rows for index_merge_intersect: N+4, N+5
 INSERT INTO t1 VALUES (2,2,1+24);
 INSERT INTO t1 VALUES (2,1,1+27);
+CREATE TABLE t2 (a int primary key) ENGINE = InnoDB;
+INSERT INTO t2 VALUES (0), (1), (2), (3), (4), (5), (6), (7), (8), (9);
+INSERT INTO t1 SELECT 1, 1, 97 FROM t2 LIMIT 10;
+INSERT INTO t1 SELECT 2, 1, 98 FROM t2 LIMIT 4;
+INSERT INTO t1 SELECT 1, 2, 99 FROM t2 LIMIT 4;
 ANALYZE TABLE t1;
 
 SET @old_opt_switch = @@session.optimizer_switch;
@@ -72,10 +78,7 @@ SELECT a,b,c FROM t1 WHERE b = 2 AND a = 2 AND  c > 0 AND c < 100;
 EXPLAIN SELECT a,b,c FROM t1 WHERE b = 2 AND a = 2 AND  c > 0 AND c < 100;
 
 --echo # Adding more fillers to get index_merge_union
-INSERT INTO t1 VALUES (1,1,1+30), (1,1,1+33), (1,1,1+36), (1,1,1+39),
-(1,1,1+42), (1,1,1+45), (1,1,1+48), (1,1,1+51), (1,1,1+54), (1,1,1+57),
-(1,1,1+60), (1,1,1+63), (1,1,1+66), (1,1,1+69), (1,1,1+72), (1,1,1+75),
-(1,1,1+78);
+INSERT INTO t1 SELECT 1, 1, 97 FROM t2, t2 t3 LIMIT 27;
 ANALYZE TABLE t1;
 SET SESSION optimizer_switch="index_merge_union=on";
 EXPLAIN SELECT a,b,c FROM t1 WHERE (b = 2 OR a = 2) AND  c > 0 AND c < 100;
@@ -126,8 +129,7 @@ SELECT a,b,c FROM t1 WHERE (b = 2 OR a = 2) AND  c > 0 AND c < 100;
 EXPLAIN SELECT a,b,c FROM t1 WHERE (b = 2 OR a = 2) AND  c > 0 AND c < 100;
 
 --echo Insert a few more rows to trigger sort_union
-INSERT INTO t1 VALUES (1,1,1+81), (1,1,1+84), (1,1,1+87), (1,1,1+90),
-(1,1,1+93);
+INSERT INTO t1 SELECT 1, 1, 97 FROM t2, t2 t3 LIMIT 48;
 ANALYZE TABLE t1;
 SET SESSION optimizer_switch="index_merge_sort_union=on";
 EXPLAIN SELECT a,b,c FROM t1 WHERE (b >= 2 OR a >= 2) AND  c > 0 AND c < 100;
@@ -143,4 +145,4 @@ SELECT a,b,c FROM t1 WHERE (b >= 2 OR a >= 2) AND  c > 0 AND c < 100;
 EXPLAIN SELECT a,b,c FROM t1 WHERE (b >= 2 OR a >= 2) AND  c > 0 AND c < 100;
 
 SET @@session.optimizer_switch = @old_opt_switch;
-DROP TABLE t1;
+DROP TABLE t1, t2;

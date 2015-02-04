@@ -42,6 +42,8 @@ struct TABLE_LIST;
 typedef struct st_hash HASH;
 typedef struct st_key_cache KEY_CACHE;
 typedef struct xid_t XID;
+class partition_info;
+class Partition_handler;
 typedef my_bool (*qc_engine_callback)(THD *thd, char *table_key,
                                       uint key_length,
                                       ulonglong *engine_data);
@@ -296,39 +298,6 @@ enum enum_alter_inplace_result {
 */
 #define HA_KEY_SCAN_NOT_ROR     128 
 #define HA_DO_INDEX_COND_PUSHDOWN  256 /* Supports Index Condition Pushdown */
-
-
-
-/**
-  bits in alter_table_flags:
-
-  HA_PARTITION_FUNCTION_SUPPORTED indicates that the function is
-  supported at all.
-  HA_FAST_CHANGE_PARTITION means that optimised variants of the changes
-  exists but they are not necessarily done online.
-
-  HA_ONLINE_DOUBLE_WRITE means that the handler supports writing to both
-  the new partition and to the old partitions when updating through the
-  old partitioning schema while performing a change of the partitioning.
-  This means that we can support updating of the table while performing
-  the copy phase of the change. For no lock at all also a double write
-  from new to old must exist and this is not required when this flag is
-  set.
-  This is actually removed even before it was introduced the first time.
-  The new idea is that handlers will handle the lock level already in
-  store_lock for ALTER TABLE partitions.
-
-  HA_PARTITION_ONE_PHASE is a flag that can be set by handlers that take
-  care of changing the partitions online and in one phase. Thus all phases
-  needed to handle the change are implemented inside the storage engine.
-  The storage engine must also support auto-discovery since the frm file
-  is changed as part of the change and this change must be controlled by
-  the storage engine. A typical engine to support this is NDB (through
-  WL #2498).
-*/
-#define HA_PARTITION_FUNCTION_SUPPORTED         (1L << 0)
-#define HA_FAST_CHANGE_PARTITION                (1L << 1)
-#define HA_PARTITION_ONE_PHASE                  (1L << 2)
 
 /* operations for disable/enable indexes */
 #define HA_KEY_SWITCH_NONUNIQ      0
@@ -774,8 +743,14 @@ struct handlerton
    */
    bool (*flush_logs)(handlerton *hton, bool binlog_group_flush);
    bool (*show_status)(handlerton *hton, THD *thd, stat_print_fn *print, enum ha_stat_type stat);
+   /*
+     The flag values are defined in sql_partition.h.
+     If this function is set, then it implies that the handler supports
+     partitioned tables.
+     If this function exists, then handler::get_partition_handler must also be
+     implemented.
+   */
    uint (*partition_flags)();
-   uint (*alter_table_flags)(uint flags);
    int (*alter_tablespace)(handlerton *hton, THD *thd, st_alter_tablespace *ts_info);
    int (*fill_is_table)(handlerton *hton, THD *thd, TABLE_LIST *tables, 
                         class Item *cond, 
@@ -913,27 +888,9 @@ struct handlerton
 enum enum_tx_isolation { ISO_READ_UNCOMMITTED, ISO_READ_COMMITTED,
 			 ISO_REPEATABLE_READ, ISO_SERIALIZABLE};
 
-
-typedef struct {
-  ulonglong data_file_length;
-  ulonglong max_data_file_length;
-  ulonglong index_file_length;
-  ulonglong delete_length;
-  ha_rows records;
-  ulong mean_rec_length;
-  ulong create_time;
-  ulong check_time;
-  ulong update_time;
-  ulonglong check_sum;
-} PARTITION_STATS;
-
 #define UNDEF_NODEGROUP 65535
 class Item;
 struct st_table_log_memory_entry;
-
-class partition_info;
-
-struct st_partition_iter;
 
 enum enum_ha_unused { HA_CHOICE_UNDEF, HA_CHOICE_NO, HA_CHOICE_YES };
 
@@ -1775,7 +1732,20 @@ public:
   {}
 };
 
-uint calculate_key_len(TABLE *, uint, const uchar *, key_part_map);
+/**
+  Calculates length of key.
+
+  Given a key index and a map of key parts return length of buffer used by key
+  parts.
+
+  @param  table        Table containing the key
+  @param  key          Key index
+  @param  keypart_map  which key parts that is used
+
+  @return Length of used key parts.
+*/
+uint calculate_key_len(TABLE *table, uint key,
+                       key_part_map keypart_map);
 /*
   bitmap with first N+1 bits set
   (keypart_map for a key prefix of [0..N] keyparts)
@@ -1949,6 +1919,7 @@ public:
 
 class handler :public Sql_alloc
 {
+  friend class Partition_handler;
 public:
   typedef ulonglong Table_flags;
 protected:
@@ -2160,6 +2131,7 @@ public:
     DBUG_ASSERT(m_lock_type == F_UNLCK);
     DBUG_ASSERT(inited == NONE);
   }
+  /* TODO: reorganize the methods and have proper public/protected/private qualifiers!!! */
   virtual handler *clone(const char *name, MEM_ROOT *mem_root);
   /** This is called after create to allow us to set up cached variables */
   void init()
@@ -2236,15 +2208,6 @@ public:
 
   int ha_create_handler_files(const char *name, const char *old_name,
                               int action_flag, HA_CREATE_INFO *info);
-
-  int ha_change_partitions(HA_CREATE_INFO *create_info,
-                           const char *path,
-                           ulonglong * const copied,
-                           ulonglong * const deleted,
-                           const uchar *pack_frm_data,
-                           size_t pack_frm_len);
-  int ha_drop_partitions(const char *path);
-  int ha_rename_partitions(const char *path);
 
   void adjust_next_insert_id_after_explicit_value(ulonglong nr);
   int update_auto_increment();
@@ -2601,7 +2564,7 @@ protected:
                              key_part_map keypart_map,
                              enum ha_rkey_function find_flag)
   {
-    uint key_len= calculate_key_len(table, active_index, key, keypart_map);
+    uint key_len= calculate_key_len(table, active_index, keypart_map);
     return  index_read(buf, key, key_len, find_flag);
   }
   /**
@@ -2637,7 +2600,7 @@ protected:
   virtual int index_read_last_map(uchar * buf, const uchar * key,
                                   key_part_map keypart_map)
   {
-    uint key_len= calculate_key_len(table, active_index, key, keypart_map);
+    uint key_len= calculate_key_len(table, active_index, keypart_map);
     return index_read_last(buf, key, key_len);
   }
 public:
@@ -2696,8 +2659,6 @@ public:
   */
   virtual void position(const uchar *record)=0;
   virtual int info(uint)=0; // see my_base.h for full description
-  virtual void get_dynamic_partition_info(PARTITION_STATS *stat_info,
-                                          uint part_id);
   virtual uint32 calculate_key_hash_value(Field **field_array)
   { DBUG_ASSERT(0); return 0; }
   virtual int extra(enum ha_extra_function operation)
@@ -2847,27 +2808,6 @@ public:
   */
   virtual const char **bas_ext() const =0;
 
-  virtual int get_default_no_partitions(HA_CREATE_INFO *info) { return 1;}
-  virtual void set_auto_partitions(partition_info *part_info) { return; }
-
-  /**
-    Get number of partitions for table in SE
-
-    @param name normalized path(same as open) to the table
-
-    @param[out] no_parts Number of partitions
-
-    @retval false for success
-    @retval true for failure, for example table didn't exist in engine
-  */
-  virtual bool get_no_parts(const char *name,
-                            uint *no_parts)
-  {
-    *no_parts= 0;
-    return 0;
-  }
-  virtual void set_part_info(partition_info *part_info, bool early) {return;}
-
   virtual ulong index_flags(uint idx, uint part, bool all_parts) const =0;
 
   uint max_record_length() const
@@ -2899,7 +2839,7 @@ public:
   virtual uint min_record_length(uint options) const { return 1; }
 
   virtual bool low_byte_first() const { return 1; }
-  virtual uint checksum() const { return 0; }
+  virtual ha_checksum checksum() const { return 0; }
   virtual bool is_crashed() const  { return 0; }
   virtual bool auto_repair() const { return 0; }
 
@@ -3361,12 +3301,6 @@ public:
     but we don't have a primary key
   */
   virtual void use_hidden_primary_key();
-  virtual uint alter_table_flags(uint flags)
-  {
-    if (ht->alter_table_flags)
-      return ht->alter_table_flags(flags);
-    return 0;
-  }
 
 protected:
   /* Service methods for use by storage engines. */
@@ -3395,7 +3329,7 @@ protected:
   virtual int delete_table(const char *name);
 private:
   /* Private helpers */
-  inline void mark_trx_read_write();
+  void mark_trx_read_write();
   /*
     Low-level primitives for storage engines.  These should be
     overridden by the storage engine class. To call these methods, use
@@ -3415,6 +3349,27 @@ private:
   */
   virtual int rnd_init(bool scan)= 0;
   virtual int rnd_end() { return 0; }
+  /**
+    Write a row.
+
+    write_row() inserts a row. buf is a byte array of data, normally
+    record[0].
+
+    You can use the field information to extract the data from the native byte
+    array type.
+
+    Example of this would be:
+    for (Field **field=table->field ; *field ; field++)
+    {
+      ...
+    }
+
+    @param buf  Buffer to write from.
+
+    @return Operation status.
+      @retval    0  Success.
+      @retval != 0  Error code.
+  */
   virtual int write_row(uchar *buf __attribute__((unused)))
   {
     return HA_ERR_WRONG_COMMAND;
@@ -3564,17 +3519,6 @@ public:
                                    int action_flag, HA_CREATE_INFO *info)
   { return FALSE; }
 
-  virtual int change_partitions(HA_CREATE_INFO *create_info,
-                                const char *path,
-                                ulonglong * const copied,
-                                ulonglong * const deleted,
-                                const uchar *pack_frm_data,
-                                size_t pack_frm_len)
-  { return HA_ERR_WRONG_COMMAND; }
-  virtual int drop_partitions(const char *path)
-  { return HA_ERR_WRONG_COMMAND; }
-  virtual int rename_partitions(const char *path)
-  { return HA_ERR_WRONG_COMMAND; }
   virtual bool set_ha_share_ref(Handler_share **arg_ha_share)
   {
     DBUG_ASSERT(!ha_share);
@@ -3585,6 +3529,10 @@ public:
     return false;
   }
   int get_lock_type() const { return m_lock_type; }
+  /* This must be implemented if the handlerton's partition_flags() is set. */
+  virtual Partition_handler *get_partition_handler()
+  { return NULL; }
+
 protected:
   Handler_share *get_ha_share_ptr();
   void set_ha_share_ptr(Handler_share *arg_ha_share);
@@ -3708,7 +3656,17 @@ extern ulong total_ha, total_ha_2pc;
 /* lookups */
 handlerton *ha_default_handlerton(THD *thd);
 handlerton *ha_default_temp_handlerton(THD *thd);
-plugin_ref ha_resolve_by_name(THD *thd, const LEX_STRING *name, 
+/**
+  Resolve handlerton plugin by name, without checking for "DEFAULT" or
+  HTON_NOT_USER_SELECTABLE.
+
+  @param thd  Thread context.
+  @param name Plugin name.
+
+  @return plugin or NULL if not found.
+*/
+plugin_ref ha_resolve_by_name_raw(THD *thd, const LEX_CSTRING &name);
+plugin_ref ha_resolve_by_name(THD *thd, const LEX_STRING *name,
                               bool is_temp_table);
 plugin_ref ha_lock_engine(THD *thd, const handlerton *hton);
 handlerton *ha_resolve_by_legacy_type(THD *thd, enum legacy_db_type db_type);
@@ -3734,6 +3692,11 @@ static inline bool ha_storage_engine_is_enabled(const handlerton *db_type)
 {
   return (db_type && db_type->create) ?
          (db_type->state == SHOW_OPTION_YES) : FALSE;
+}
+
+static inline bool is_ha_partition_handlerton(const handlerton *db_type)
+{
+  return (db_type->db_type == DB_TYPE_PARTITION_DB);
 }
 
 /* basic stuff */

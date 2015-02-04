@@ -116,6 +116,7 @@
 #include "opt_statistics.h"      // guess_rec_per_key
 #include "opt_trace.h"           // Opt_trace_array
 #include "partition_info.h"      // partition_info
+#include "sql_partition.h"       // HA_USE_AUTO_PARTITION
 #include "sql_base.h"            // free_io_cache
 #include "sql_class.h"           // THD
 #include "sql_opt_exec_shared.h" // QEP_shared_owner
@@ -3046,7 +3047,6 @@ free_mem:
 /****************************************************************************
  * Partition pruning module
  ****************************************************************************/
-#ifdef WITH_PARTITION_STORAGE_ENGINE
 
 /*
   PartitionPruningModule
@@ -4329,7 +4329,6 @@ static void dbug_print_singlepoint_range(SEL_ARG **start, uint num)
 /****************************************************************************
  * Partition pruning code ends
  ****************************************************************************/
-#endif
 
 
 /*

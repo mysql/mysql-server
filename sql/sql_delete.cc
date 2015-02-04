@@ -92,7 +92,6 @@ bool mysql_delete(THD *thd, ha_rows limit)
   QEP_TAB_standalone qep_tab_st;
   QEP_TAB &qep_tab= qep_tab_st.as_QEP_TAB();
 
-#ifdef WITH_PARTITION_STORAGE_ENGINE
   /*
     Non delete tables are pruned in SELECT_LEX::prepare,
     only the delete table needs this.
@@ -119,7 +118,6 @@ bool mysql_delete(THD *thd, ha_rows limit)
     my_ok(thd, 0);
     DBUG_RETURN(0);
   }
-#endif
 
   if (lock_tables(thd, table_list, thd->lex->table_count, 0))
     DBUG_RETURN(true);
@@ -239,7 +237,6 @@ bool mysql_delete(THD *thd, ha_rows limit)
   table->quick_keys.clear_all();		// Can't use 'only index'
   table->possible_quick_keys.clear_all();
 
-#ifdef WITH_PARTITION_STORAGE_ENGINE
   /* Prune a second time to be able to prune on subqueries in WHERE clause. */
   if (prune_partitions(thd, table, conds))
     DBUG_RETURN(true);
@@ -257,7 +254,6 @@ bool mysql_delete(THD *thd, ha_rows limit)
     my_ok(thd, 0);
     DBUG_RETURN(0);
   }
-#endif
 
   error= 0;
   qep_tab.set_table(table);

@@ -131,6 +131,7 @@
 #include "socket_connection.h"          // Mysqld_socket_listener
 #include "mysqld_thd_manager.h"         // Global_THD_manager
 #include "my_getopt.h"
+#include "partitioning/partition_handler.h" // partitioning_init
 #include "item_cmpfunc.h"               // arg_cmp_func
 #include "item_strfunc.h"               // Item_func_uuid
 
@@ -348,7 +349,6 @@ my_bool old_mode;
 */
 handlerton *heap_hton;
 handlerton *myisam_hton;
-handlerton *partition_hton;
 handlerton *innodb_hton;
 
 uint opt_server_id_bits= 0;
@@ -3809,6 +3809,7 @@ static int init_server_components()
     all things are initialized so that unireg_abort() doesn't fail
   */
   mdl_init();
+  partitioning_init();
   if (table_def_init() | hostname_cache_init(host_cache_size))
     unireg_abort(1);
 
@@ -8447,7 +8448,7 @@ PSI_file_key key_file_binlog, key_file_binlog_index, key_file_casetest,
   key_file_dbopt, key_file_des_key_file, key_file_ERRMSG, key_select_to_file,
   key_file_fileparser, key_file_frm, key_file_global_ddl_log, key_file_load,
   key_file_loadfile, key_file_log_event_data, key_file_log_event_info,
-  key_file_master_info, key_file_misc, key_file_partition,
+  key_file_master_info, key_file_misc, key_file_partition_ddl_log,
   key_file_pid, key_file_relay_log_info, key_file_send_file, key_file_tclog,
   key_file_trg, key_file_trn, key_file_init;
 PSI_file_key key_file_general_log, key_file_slow_log;
@@ -8474,7 +8475,7 @@ static PSI_file_info all_server_files[]=
   { &key_file_log_event_info, "log_event_info", 0},
   { &key_file_master_info, "master_info", 0},
   { &key_file_misc, "misc", 0},
-  { &key_file_partition, "partition", 0},
+  { &key_file_partition_ddl_log, "partition_ddl_log", 0},
   { &key_file_pid, "pid", 0},
   { &key_file_general_log, "query_log", 0},
   { &key_file_relay_log_info, "relay_log_info", 0},
@@ -8776,11 +8777,6 @@ PSI_memory_key key_memory_Event_scheduler_scheduler_param;
 PSI_memory_key key_memory_Owned_gtids_sidno_to_hash;
 PSI_memory_key key_memory_Mutex_cond_array_Mutex_cond;
 PSI_memory_key key_memory_TABLE_RULE_ENT;
-PSI_memory_key key_memory_partition_file;
-PSI_memory_key key_memory_partition_engine_array;
-PSI_memory_key key_memory_ha_partition_PART_NAME_DEF;
-PSI_memory_key key_memory_ha_partition_part_ids;
-PSI_memory_key key_memory_ha_partition_ordered_rec_buffer;
 PSI_memory_key key_memory_Rpl_info_table;
 PSI_memory_key key_memory_Rpl_info_file_buffer;
 PSI_memory_key key_memory_db_worker_hash_entry;
@@ -8923,11 +8919,6 @@ static PSI_memory_info all_server_memory[]=
   { &key_memory_Sid_map_Node, "Sid_map::Node", 0},
   { &key_memory_Mutex_cond_array_Mutex_cond, "Mutex_cond_array::Mutex_cond", 0},
   { &key_memory_TABLE_RULE_ENT, "TABLE_RULE_ENT", 0},
-  { &key_memory_partition_file, "ha_partition::file", 0},
-  { &key_memory_partition_engine_array, "ha_partition::engine_array", 0},
-  { &key_memory_ha_partition_PART_NAME_DEF, "ha_partition::PART_NAME_DEF", 0},
-  { &key_memory_ha_partition_part_ids, "ha_partition::part_ids", 0},
-  { &key_memory_ha_partition_ordered_rec_buffer, "ha_partition::ordered_rec_buffer", 0},
 
   { &key_memory_Rpl_info_table, "Rpl_info_table", 0},
   { &key_memory_Rpl_info_file_buffer, "Rpl_info_file::buffer", 0},

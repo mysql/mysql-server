@@ -7405,6 +7405,9 @@ ER_DEPENDENT_BY_GENERATED_COLUMN
 ER_GENERATED_COLUMN_REF_AUTO_INC,
   eng "Stored generated column '%s' cannot refer auto-increment column."
 
+ER_FEATURE_NOT_AVAILABLE
+  eng "The '%-.64s' feature is not available; you need to remove '%-.64s' or use MySQL built with '%-.64s'"
+
 #
 #  End of 5.7 error messages.
 #

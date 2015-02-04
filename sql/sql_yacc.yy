@@ -35,7 +35,8 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #define Select Lex->current_select()
 #include "sql_parse.h"                        /* comp_*_creator */
 #include "sql_table.h"                        /* primary_key_name */
-#include "sql_partition.h"  /* mem_alloc_error, partition_info, HASH_PARTITION */
+#include "partition_info.h"                   /* partition_info */
+#include "sql_partition.h"                    /* mem_alloc_error */
 #include "auth_common.h"                      /* *_ACL */
 #include "password.h"       /* my_make_scrambled_password_323, my_make_scrambled_password */
 #include "sql_class.h"      /* Key_part_spec, enum_filetype */
@@ -5091,7 +5092,7 @@ opt_partitioning:
         ;
 
 partitioning:
-          PARTITION_SYM have_partitioning
+          PARTITION_SYM
           {
             LEX *lex= Lex;
             lex->part_info= new partition_info();
@@ -5106,25 +5107,6 @@ partitioning:
             }
           }
           partition
-        ;
-
-have_partitioning:
-          /* empty */
-          {
-#ifdef WITH_PARTITION_STORAGE_ENGINE
-            LEX_CSTRING partition_name= { STRING_WITH_LEN("partition") };
-            if (!plugin_is_ready(partition_name, MYSQL_STORAGE_ENGINE_PLUGIN))
-            {
-              my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0),
-                      "--skip-partition");
-              MYSQL_YYABORT;
-            }
-#else
-            my_error(ER_FEATURE_DISABLED, MYF(0), "partitioning",
-                    "--with-plugin-partition");
-            MYSQL_YYABORT;
-#endif
-          }
         ;
 
 partition_entry:
@@ -7823,7 +7805,7 @@ alter_commands:
           }
         | reorg_partition_rule
         | EXCHANGE_SYM PARTITION_SYM alt_part_name_item
-          WITH TABLE_SYM table_ident have_partitioning opt_validation
+          WITH TABLE_SYM table_ident opt_validation
           {
             THD *thd= YYTHD;
             LEX *lex= thd->lex;
@@ -7848,7 +7830,7 @@ alter_commands:
             if (lex->m_sql_cmd == NULL)
               MYSQL_YYABORT;
           }
-        | DISCARD PARTITION_SYM have_partitioning all_or_alt_part_name_list
+        | DISCARD PARTITION_SYM all_or_alt_part_name_list
           TABLESPACE
           {
             Lex->m_sql_cmd= new (YYTHD->mem_root)
@@ -7857,7 +7839,7 @@ alter_commands:
             if (Lex->m_sql_cmd == NULL)
               MYSQL_YYABORT;
           }
-        | IMPORT PARTITION_SYM have_partitioning all_or_alt_part_name_list
+        | IMPORT PARTITION_SYM all_or_alt_part_name_list
           TABLESPACE
           {
             Lex->m_sql_cmd= new (YYTHD->mem_root)
@@ -7878,7 +7860,7 @@ opt_validation:
 	    ;
 
 remove_partitioning:
-          REMOVE_SYM PARTITIONING_SYM have_partitioning
+          REMOVE_SYM PARTITIONING_SYM
           {
             Lex->alter_info.flags|= Alter_info::ALTER_REMOVE_PARTITIONING;
           }
@@ -8821,7 +8803,7 @@ preload_keys_parts:
         ;
 
 adm_partition:
-          PARTITION_SYM have_partitioning
+          PARTITION_SYM
           {
             Lex->alter_info.flags|= Alter_info::ALTER_ADMIN_PARTITION;
           }
@@ -10328,7 +10310,7 @@ opt_use_partition:
         ;
 
 use_partition:
-          PARTITION_SYM '(' using_list ')' have_partitioning
+          PARTITION_SYM '(' using_list ')'
           {
             $$= $3;
           }

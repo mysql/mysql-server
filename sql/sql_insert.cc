@@ -38,9 +38,7 @@
 #include "table_trigger_dispatcher.h" // Table_trigger_dispatcher
 #include "transaction.h"              // trans_commit_stmt
 #include "sql_resolver.h"             // validate_gc_assignment
-#ifdef WITH_PARTITION_STORAGE_ENGINE
 #include "partition_info.h"           // partition_info
-#endif
 
 static bool check_view_insertability(THD *thd, TABLE_LIST *view,
                                      const TABLE_LIST *insert_table_ref);
@@ -367,13 +365,11 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   Name_resolution_context *context;
   Name_resolution_context_state ctx_state;
   Item *unused_conds= 0;
-#ifdef WITH_PARTITION_STORAGE_ENGINE
   uint num_partitions= 0;
   enum partition_info::enum_can_prune can_prune_partitions=
                                                   partition_info::PRUNE_NO;
   MY_BITMAP used_partitions;
   bool prune_needs_default_values;
-#endif /* WITH_PARITITION_STORAGE_ENGINE */
 
   SELECT_LEX *const select_lex= thd->lex->select_lex;
 
@@ -433,7 +429,6 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   DBUG_ASSERT(table_list->next_local == 0);
   context->resolve_in_table_list_only(table_list);
 
-#ifdef WITH_PARTITION_STORAGE_ENGINE
   if (!is_locked && insert_table->part_info)
   {
     if (insert_table->part_info->can_prune_insert(thd,
@@ -470,7 +465,6 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
         can_prune_partitions= partition_info::PRUNE_NO;
     }
   }
-#endif /* WITH_PARTITION_STORAGE_ENGINE */
 
   while ((values= its++))
   {
@@ -483,7 +477,6 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     if (setup_fields(thd, Ref_ptr_array(), *values, SELECT_ACL, 0, 0))
       goto exit_without_my_ok;
 
-#ifdef WITH_PARTITION_STORAGE_ENGINE
     /*
       To make it possible to increase concurrency on table level locking
       engines such as MyISAM, we check pruning for each row until we will use
@@ -511,7 +504,6 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
           can_prune_partitions= partition_info::PRUNE_NO;
       }
     }
-#endif /* WITH_PARTITION_STORAGE_ENGINE */
   }
   insert_table->auto_increment_field_not_null= false;
   its.rewind ();
@@ -526,7 +518,6 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
                          NULL, false, 0);
   DEBUG_SYNC(thd, "planned_single_insert");
 
-#ifdef WITH_PARTITION_STORAGE_ENGINE
   if (can_prune_partitions != partition_info::PRUNE_NO)
   {
     /*
@@ -546,7 +537,6 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     bitmap_intersect(&insert_table->part_info->lock_partitions,
                      &used_partitions);
   }
-#endif /* WITH_PARTITION_STORAGE_ENGINE */
 
   // Lock the tables now if not locked already.
   if (!is_locked &&
@@ -718,6 +708,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     user
   */
   {
+    /* TODO: Only call this if insert_table->found_next_number_field.*/
     insert_table->file->ha_release_auto_increment();
     /*
       Make sure 'end_bulk_insert()' is called regardless of current error

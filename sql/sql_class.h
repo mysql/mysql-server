@@ -2635,9 +2635,7 @@ public:
 
   Locked_tables_list locked_tables_list;
 
-#ifdef WITH_PARTITION_STORAGE_ENGINE
   partition_info *work_part_info;
-#endif
 
 #ifndef EMBEDDED_LIBRARY
   /**
@@ -4064,7 +4062,6 @@ public:
   Session_tracker session_tracker;
   Session_sysvar_resource_manager session_sysvar_res_mgr;
 };
-
 
 /**
   A simple holder for the Prepared Statement Query_arena instance in THD.
