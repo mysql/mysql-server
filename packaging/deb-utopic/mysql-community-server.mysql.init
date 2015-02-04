@@ -73,6 +73,7 @@ case "$1" in
 	else
 		MYSQLRUN=/var/run/mysqld
 		MYSQLDATA=/var/lib/mysql
+		MYSQLFILES=/var/lib/mysql-files
 		MYSQLLOG=/var/log/mysql
 
 		if [ ! -d ${MYSQLDATA} -a ! -L ${MYSQLDATA} ];
@@ -82,7 +83,14 @@ case "$1" in
 			chmod 750 ${MYSQLDATA}
 		fi
 
-		if [ ! "$(ls -A ${MYSQLDATA})" ];
+		if [ ! -d ${MYSQLFILES} -a ! -L ${MYSQLFILES} ];
+		then
+			mkdir ${MYSQLFILES}
+			chown mysql:mysql ${MYSQLFILES}
+			chmod 770 ${MYSQLFILES}
+		fi
+
+		if [ ! "$(ls -A ${MYSQLDATA})" ] && [ -d ${MYSQLFILES} ];
 		then
 			mysql_install_db --user=mysql --mysqld-file=/usr/sbin/mysqld --datadir=${MYSQLDATA} --insecure > /dev/null
 		fi

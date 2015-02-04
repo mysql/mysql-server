@@ -665,7 +665,7 @@ drop table bug29807;
 create table bug29807 (a int);
 drop table bug29807;
 --disable_query_log
-call mtr.add_suppression("InnoDB: Table .test...bug29807. does not exist in the InnoDB internal");
+call mtr.add_suppression("InnoDB: Table .*test.*bug29807.* does not exist in the InnoDB internal");
 call mtr.add_suppression("InnoDB: Cannot open table test/bug29807 from");
 --enable_query_log
 

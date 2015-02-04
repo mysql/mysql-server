@@ -58,11 +58,8 @@
 #include "event_parse_data.h"               // Event_parse_data
 #endif
 
-#ifdef WITH_PARTITION_STORAGE_ENGINE
-#include "ha_partition.h"                   // PKW_HASH
-#include "partition_element.h"              // partition_element
 #include "partition_info.h"                 // partition_info
-#endif
+#include "partitioning/partition_handler.h" // Partition_handler
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
@@ -129,13 +126,11 @@ static TYPELIB grant_types = { sizeof(grant_names)/sizeof(char **),
 static void store_key_options(THD *thd, String *packet, TABLE *table,
                               KEY *key_info);
 
-#ifdef WITH_PARTITION_STORAGE_ENGINE
 static void get_cs_converted_string_value(THD *thd,
                                           String *input_str,
                                           String *output_str,
                                           const CHARSET_INFO *cs,
                                           bool use_hex);
-#endif
 
 static void
 append_algorithm(TABLE_LIST *table, String *buff);
@@ -1425,9 +1420,7 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
   handler *file= table->file;
   TABLE_SHARE *share= table->s;
   HA_CREATE_INFO create_info;
-#ifdef WITH_PARTITION_STORAGE_ENGINE
   bool show_table_options= FALSE;
-#endif /* WITH_PARTITION_STORAGE_ENGINE */
   bool foreign_db_mode=  (thd->variables.sql_mode & (MODE_POSTGRESQL |
                                                      MODE_ORACLE |
                                                      MODE_MSSQL |
@@ -1693,9 +1686,7 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
   packet->append(STRING_WITH_LEN("\n)"));
   if (!(thd->variables.sql_mode & MODE_NO_TABLE_OPTIONS) && !foreign_db_mode)
   {
-#ifdef WITH_PARTITION_STORAGE_ENGINE
     show_table_options= TRUE;
-#endif /* WITH_PARTITION_STORAGE_ENGINE */
 
     /* TABLESPACE and STORAGE */
     if (share->tablespace ||
@@ -1727,15 +1718,19 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
         packet->append(STRING_WITH_LEN(" TYPE="));
       else
         packet->append(STRING_WITH_LEN(" ENGINE="));
-#ifdef WITH_PARTITION_STORAGE_ENGINE
-    if (table->part_info)
-      packet->append(ha_resolve_storage_engine_name(
-                        table->part_info->default_engine_type));
-    else
-      packet->append(file->table_type());
-#else
-      packet->append(file->table_type());
-#endif
+      /*
+        TODO: Replace this if with the else branch. Not done yet since
+        NDB handlerton says "ndbcluster" and ha_ndbcluster says "NDBCLUSTER".
+      */
+      if (table->part_info)
+      {
+        packet->append(ha_resolve_storage_engine_name(
+                       table->part_info->default_engine_type));
+      }
+      else
+      {
+        packet->append(file->table_type());
+      }
     }
 
     /*
@@ -1852,10 +1847,10 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
     append_directory(thd, packet, "DATA",  create_info.data_file_name);
     append_directory(thd, packet, "INDEX", create_info.index_file_name);
   }
-#ifdef WITH_PARTITION_STORAGE_ENGINE
   {
     if (table->part_info &&
-        !((table->s->db_type()->partition_flags() & HA_USE_AUTO_PARTITION) &&
+        !(table->s->db_type()->partition_flags &&
+	  (table->s->db_type()->partition_flags() & HA_USE_AUTO_PARTITION) &&
           table->part_info->is_auto_partitioned))
     {
       /*
@@ -1880,7 +1875,6 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       }
     }
   }
-#endif
   tmp_restore_column_map(table->read_set, old_map);
   DBUG_RETURN(error);
 }
@@ -2154,8 +2148,8 @@ public:
     LEX_CSTRING inspect_sctx_host_or_ip= inspect_sctx->host_or_ip();
 
     if ((!inspect_thd->vio_ok() && !inspect_thd->system_thread) ||
-        (m_user &&
-         (!inspect_sctx_user.str || strcmp(inspect_sctx_user.str, m_user))))
+        (m_user && (inspect_thd->system_thread || !inspect_sctx_user.str ||
+                    strcmp(inspect_sctx_user.str, m_user))))
       return;
 
     thread_info *thd_info= new thread_info;
@@ -2333,8 +2327,8 @@ public:
         NullS : client_priv_user;
 
     if ((!inspect_thd->vio_ok() && !inspect_thd->system_thread) ||
-        (user &&
-         (!inspect_sctx_user.str || strcmp(inspect_sctx_user.str, user))))
+        (user && (inspect_thd->system_thread || !inspect_sctx_user.str ||
+                  strcmp(inspect_sctx_user.str, user))))
       return;
 
     TABLE *table= m_tables->table;
@@ -4607,9 +4601,7 @@ static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
     TABLE_SHARE *share= show_table->s;
     handler *file= show_table->file;
     handlerton *tmp_db_type= share->db_type();
-#ifdef WITH_PARTITION_STORAGE_ENGINE
     bool is_partitioned= FALSE;
-#endif
 
     if (share->tmp_table == SYSTEM_TMP_TABLE)
       table->field[3]->store(STRING_WITH_LEN("SYSTEM VIEW"), cs);
@@ -4627,14 +4619,11 @@ static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
 
     /* Collect table info from the table share */
 
-#ifdef WITH_PARTITION_STORAGE_ENGINE
-    if (share->db_type() == partition_hton &&
-        share->partition_info_str_len)
+    if (share->partition_info_str_len)
     {
       tmp_db_type= share->default_part_db_type;
       is_partitioned= TRUE;
     }
-#endif
 
     tmp_buff= (char *) ha_resolve_storage_engine_name(tmp_db_type);
     table->field[4]->store(tmp_buff, strlen(tmp_buff), cs);
@@ -4701,10 +4690,8 @@ static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
       ptr= longlong10_to_str(share->key_block_size, ptr, 10);
     }
 
-#ifdef WITH_PARTITION_STORAGE_ENGINE
     if (is_partitioned)
       ptr= my_stpcpy(ptr, " partitioned");
-#endif
 
     table->field[19]->store(option_buff+1,
                             (ptr == option_buff ? 0 : 
@@ -6241,7 +6228,6 @@ static int get_schema_key_column_usage_record(THD *thd,
 }
 
 
-#ifdef WITH_PARTITION_STORAGE_ENGINE
 static void collect_partition_expr(THD *thd, List<char> &field_list,
                                    String *str)
 {
@@ -6317,9 +6303,32 @@ static void store_schema_partitions_record(THD *thd, TABLE *schema_table,
 {
   TABLE* table= schema_table;
   CHARSET_INFO *cs= system_charset_info;
-  PARTITION_STATS stat_info;
+  ha_statistics stat_info;
+  ha_checksum check_sum = 0;
   MYSQL_TIME time;
-  file->get_dynamic_partition_info(&stat_info, part_id);
+  Partition_handler *part_handler= file->get_partition_handler();
+
+
+  if (!part_handler)
+  {
+    /* Not a partitioned table, get the stats from the full table! */
+    file->info(HA_STATUS_CONST | HA_STATUS_TIME | HA_STATUS_VARIABLE |
+               HA_STATUS_NO_LOCK);
+    stat_info.records=              file->stats.records;
+    stat_info.mean_rec_length=      file->stats.mean_rec_length;
+    stat_info.data_file_length=     file->stats.data_file_length;
+    stat_info.max_data_file_length= file->stats.max_data_file_length;
+    stat_info.index_file_length=    file->stats.index_file_length;
+    stat_info.delete_length=        file->stats.delete_length;
+    stat_info.create_time=          file->stats.create_time;
+    stat_info.update_time=          file->stats.update_time;
+    stat_info.check_time=           file->stats.check_time;
+    if (file->ha_table_flags() & (ulong) HA_HAS_CHECKSUM)
+      check_sum= file->checksum();
+  }
+  else
+    part_handler->get_dynamic_partition_info(&stat_info, &check_sum, part_id);
+
   table->field[0]->store(STRING_WITH_LEN("def"), cs);
   table->field[12]->store((longlong) stat_info.records, TRUE);
   table->field[13]->store((longlong) stat_info.mean_rec_length, TRUE);
@@ -6354,7 +6363,7 @@ static void store_schema_partitions_record(THD *thd, TABLE *schema_table,
   }
   if (file->ha_table_flags() & (ulong) HA_HAS_CHECKSUM)
   {
-    table->field[21]->store((longlong) stat_info.check_sum, TRUE);
+    table->field[21]->store((longlong) check_sum, TRUE);
     table->field[21]->set_notnull();
   }
   if (part_elem)
@@ -6666,7 +6675,6 @@ static int get_schema_partitions_record(THD *thd, TABLE_LIST *tables,
   }
   DBUG_RETURN(0);
 }
-#endif /* WITH_PARTITION_STORAGE_ENGINE */
 
 
 #ifndef EMBEDDED_LIBRARY
@@ -8507,11 +8515,9 @@ ST_SCHEMA_TABLE schema_tables[]=
 #endif
   {"PARAMETERS", parameters_fields_info, create_schema_table,
    fill_schema_proc, 0, 0, -1, -1, 0, 0},
-#ifdef WITH_PARTITION_STORAGE_ENGINE
   {"PARTITIONS", partitions_fields_info, create_schema_table,
    get_all_tables, 0, get_schema_partitions_record, 1, 2, 0,
    OPTIMIZE_I_S_TABLE|OPEN_TABLE_ONLY},
-#endif
   {"PLUGINS", plugin_fields_info, create_schema_table,
    fill_plugins, make_old_format, 0, -1, -1, 0, 0},
   {"PROCESSLIST", processlist_fields_info, create_schema_table,
@@ -8874,7 +8880,6 @@ void initialize_information_schema_acl()
                                                 &is_internal_schema_access);
 }
 
-#ifdef WITH_PARTITION_STORAGE_ENGINE
 /*
   Convert a string in character set in column character set format
   to utf8 character set if possible, the utf8 character set string
@@ -8966,4 +8971,3 @@ static void get_cs_converted_string_value(THD *thd,
   }
   return;
 }
-#endif

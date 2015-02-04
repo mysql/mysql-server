@@ -1074,13 +1074,11 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   if (share->frm_version == FRM_VER_TRUE_VARCHAR -1 && head[33] == 5)
     share->frm_version= FRM_VER_TRUE_VARCHAR;
 
-#ifdef WITH_PARTITION_STORAGE_ENGINE
   if (*(head+61) &&
       !(share->default_part_db_type= 
         ha_checktype(thd, (enum legacy_db_type) (uint) *(head+61), 1, 0)))
     goto err;
   DBUG_PRINT("info", ("default_part_db_type = %u", head[61]));
-#endif
   legacy_db_type= (enum legacy_db_type) (uint) *(head+3);
   DBUG_ASSERT(share->db_plugin == NULL);
   /*
@@ -1329,32 +1327,27 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
                             str_db_type_length, next_chunk + 2,
                             ha_legacy_type(share->db_type())));
       }
-#ifdef WITH_PARTITION_STORAGE_ENGINE
-      else if (str_db_type_length == 9 &&
+      else if (!tmp_plugin && str_db_type_length == 9 &&
                !strncmp((char *) next_chunk + 2, "partition", 9))
       {
-        /*
-          Use partition handler
-          tmp_plugin is locked with a local lock.
-          we unlock the old value of share->db_plugin before
-          replacing it with a globally locked version of tmp_plugin
-        */
         /* Check if the partitioning engine is ready */
-        LEX_CSTRING name_cstr= {name.str, name.length};
-        if (!plugin_is_ready(name_cstr, MYSQL_STORAGE_ENGINE_PLUGIN))
+        if (!ha_checktype(thd, DB_TYPE_PARTITION_DB, true, false))
         {
           error= 8;
-          my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0),
-                   "--skip-partition");
+          my_error(ER_FEATURE_NOT_AVAILABLE, MYF(0), "partitioning",
+                   "--skip-partition", "-DWITH_PARTITION_STORAGE_ENGINE=1");
           goto err;
         }
-        plugin_unlock(NULL, share->db_plugin);
-        share->db_plugin= ha_lock_engine(NULL, partition_hton);
+	/*
+          Partition engine is ready, share->db_plugin must already contain a
+          properly locked reference to it.
+        */
+	DBUG_ASSERT(is_ha_partition_handlerton(plugin_data<handlerton*>(
+                                                 share->db_plugin)));
         DBUG_PRINT("info", ("setting dbtype to '%.*s' (%d)",
                             str_db_type_length, next_chunk + 2,
                             ha_legacy_type(share->db_type())));
       }
-#endif
       else if (!tmp_plugin)
       {
         /* purecov: begin inspected */
@@ -1369,7 +1362,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
     if (next_chunk + 5 < buff_end)
     {
       uint32 partition_info_str_len = uint4korr(next_chunk);
-#ifdef WITH_PARTITION_STORAGE_ENGINE
       if ((share->partition_info_buffer_size=
              share->partition_info_str_len= partition_info_str_len))
       {
@@ -1380,13 +1372,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
           goto err;
         }
       }
-#else
-      if (partition_info_str_len)
-      {
-        DBUG_PRINT("info", ("WITH_PARTITION_STORAGE_ENGINE is not defined"));
-        goto err;
-      }
-#endif
       next_chunk+= 5 + partition_info_str_len;
     }
 #if MYSQL_VERSION_ID < 50200
@@ -1406,9 +1391,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
     if (share->mysql_version >= 50110 && next_chunk < buff_end)
     {
       /* New auto_partitioned indicator introduced in 5.1.11 */
-#ifdef WITH_PARTITION_STORAGE_ENGINE
       share->auto_partitioned= *next_chunk;
-#endif
       next_chunk++;
     }
     keyinfo= share->key_info;
@@ -2625,7 +2608,6 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
     }
   }
 
-#ifdef WITH_PARTITION_STORAGE_ENGINE
   if (share->partition_info_str_len && outparam->file)
   {
   /*
@@ -2690,7 +2672,6 @@ partititon_err:
       goto err;
     }
   }
-#endif
   /* Check generated columns against table's storage engine. */
   if (share->vfields && outparam->file &&
       !(outparam->file->ha_table_flags() & HA_GENERATED_COLUMNS))
@@ -2842,10 +2823,8 @@ partititon_err:
   if (! error_reported)
     open_table_error(share, error, my_errno, 0);
   delete outparam->file;
-#ifdef WITH_PARTITION_STORAGE_ENGINE
   if (outparam->part_info)
     free_items(outparam->part_info->item_free_list);
-#endif
   outparam->file= 0;				// For easier error checking
   outparam->db_stat=0;
   free_root(&outparam->mem_root, MYF(0));
@@ -2885,7 +2864,6 @@ int closefrm(TABLE *table, bool free_share)
   }
   delete table->file;
   table->file= 0;				/* For easier errorchecking */
-#ifdef WITH_PARTITION_STORAGE_ENGINE
   if (table->part_info)
   {
     /* Allocated through table->mem_root, freed below */
@@ -2893,7 +2871,6 @@ int closefrm(TABLE *table, bool free_share)
     table->part_info->item_free_list= 0;
     table->part_info= 0;
   }
-#endif
   if (free_share)
   {
     if (table->s->tmp_table == NO_TMP_TABLE)
@@ -3573,30 +3550,6 @@ char *get_field(MEM_ROOT *mem, Field *field)
   return to;
 }
 
-/*
-  DESCRIPTION
-    given a buffer with a key value, and a map of keyparts
-    that are present in this value, returns the length of the value
-*/
-uint calculate_key_len(TABLE *table, uint key, const uchar *buf,
-                       key_part_map keypart_map)
-{
-  /* works only with key prefixes */
-  DBUG_ASSERT(((keypart_map + 1) & keypart_map) == 0);
-
-  KEY *key_info= table->key_info + key;
-  KEY_PART_INFO *key_part= key_info->key_part;
-  KEY_PART_INFO *end_key_part= key_part + actual_key_parts(key_info);
-  uint length= 0;
-
-  while (key_part < end_key_part && keypart_map)
-  {
-    length+= key_part->store_length;
-    keypart_map >>= 1;
-    key_part++;
-  }
-  return length;
-}
 
 /**
   Check if database name is valid

@@ -26,6 +26,7 @@
 #include "sql_plugin.h"                // plugin_unlock_list
 #include "sql_show.h"                  // append_identifier
 #include "sql_table.h"                 // primary_key_name
+#include "sql_insert.h"                // Sql_cmd_insert_base
 
 
 static int lex_one_token(YYSTYPE *yylval, THD *thd);
@@ -430,8 +431,18 @@ void LEX::reset()
   m_current_select= NULL;
   all_selects_list= NULL;
   load_set_str_list.empty();
-  value_list.empty();
-  update_list.empty();
+
+  bulk_insert_row_cnt= 0;
+
+  load_update_list.empty();
+  load_value_list.empty();
+
+  call_value_list.empty();
+
+  purge_value_list.empty();
+
+  kill_value_list.empty();
+
   set_var_list.empty();
   param_list.empty();
   view_list.empty();
@@ -445,7 +456,6 @@ void LEX::reset()
   insert_table= NULL;
   leaf_tables_insert= NULL;
   parsing_options.reset();
-  empty_field_list_on_rset= false;
   length= 0;
   part_info= NULL;
   duplicates= DUP_ERROR;
@@ -2927,7 +2937,6 @@ void TABLE_LIST::print(THD *thd, String *str, enum_query_type query_type) const
         append_identifier(thd, str, table_name, table_name_length);
         cmp_name= table_name;
       }
-#ifdef WITH_PARTITION_STORAGE_ENGINE
       if (partition_names && partition_names->elements)
       {
         int i, num_parts= partition_names->elements;
@@ -2942,7 +2951,6 @@ void TABLE_LIST::print(THD *thd, String *str, enum_query_type query_type) const
         }
         str->append(')');
       }
-#endif /* WITH_PARTITION_STORAGE_ENGINE */
     }
     if (my_strcasecmp(table_alias_charset, cmp_name, alias))
     {
@@ -4545,9 +4553,6 @@ bool Query_options::save_to(Parse_context *pc)
   A routine used by the parser to decide whether we are specifying a full
   partitioning or if only partitions to add or to split.
 
-  @note  This needs to be outside of WITH_PARTITION_STORAGE_ENGINE since it
-  is used from the sql parser that doesn't have any ifdef's
-
   @retval  TRUE    Yes, it is part of a management partition command
   @retval  FALSE          No, not a management partition command
 */
@@ -4573,7 +4578,8 @@ bool LEX::accept(Select_lex_visitor *visitor)
     return true;
   if (sql_command == SQLCOM_INSERT)
   {
-    List_iterator<Item> it(*insert_list);
+    List_iterator<Item> it(
+        static_cast<Sql_cmd_insert_base *>(m_sql_cmd)->insert_value_list);
     Item *end= NULL;
     for (Item *item= it++; item != end; item= it++)
       if (walk_item(item, visitor))

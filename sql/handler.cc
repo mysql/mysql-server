@@ -37,6 +37,7 @@
 #include "sql_table.h"                // build_table_filename
 #include "transaction.h"              // trans_commit_implicit
 #include "trigger_def.h"              // TRG_EXT
+#include "sql_select.h"               // actual_key_parts
 #include "rpl_write_set_handler.h"    // add_pke
 
 #include "pfs_file_provider.h"
@@ -47,10 +48,6 @@
 
 #include <pfs_transaction_provider.h>
 #include <mysql/psi/mysql_transaction.h>
-
-#ifdef WITH_PARTITION_STORAGE_ENGINE
-#include "ha_partition.h"
-#endif
 
 #include <list>
 
@@ -423,6 +420,20 @@ handlerton *ha_default_temp_handlerton(THD *thd)
 }
 
 
+/**
+  Resolve handlerton plugin by name, without checking for "DEFAULT" or
+  HTON_NOT_USER_SELECTABLE.
+
+  @param thd  Thread context.
+  @param name Plugin name.
+
+  @return plugin or NULL if not found.
+*/
+plugin_ref ha_resolve_by_name_raw(THD *thd, const LEX_CSTRING &name)
+{
+  return plugin_lock_by_name(thd, name, MYSQL_STORAGE_ENGINE_PLUGIN);
+}
+
 /** @brief
   Return the storage engine handlerton for the supplied name
   
@@ -449,8 +460,7 @@ redo:
       ha_default_plugin(thd) : ha_default_temp_plugin(thd);
 
   LEX_CSTRING cstring_name= {name->str, name->length};
-  if ((plugin= my_plugin_lock_by_name(thd, cstring_name,
-                                      MYSQL_STORAGE_ENGINE_PLUGIN)))
+  if ((plugin= ha_resolve_by_name_raw(thd, cstring_name)))
   {
     handlerton *hton= plugin_data<handlerton*>(plugin);
     if (!(hton->flags & HTON_NOT_USER_SELECTABLE))
@@ -566,31 +576,6 @@ handler *get_new_handler(TABLE_SHARE *share, MEM_ROOT *alloc,
   */
   DBUG_RETURN(get_new_handler(share, alloc, ha_default_handlerton(current_thd)));
 }
-
-
-#ifdef WITH_PARTITION_STORAGE_ENGINE
-handler *get_ha_partition(partition_info *part_info)
-{
-  ha_partition *partition;
-  DBUG_ENTER("get_ha_partition");
-  if ((partition= new ha_partition(partition_hton, part_info)))
-  {
-    if (partition->initialize_partition(current_thd->mem_root))
-    {
-      delete partition;
-      partition= 0;
-    }
-    else
-      partition->init();
-  }
-  else
-  {
-    my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), 
-             static_cast<int>(sizeof(ha_partition)));
-  }
-  DBUG_RETURN(((handler*) partition));
-}
-#endif
 
 
 static const char **handler_errmsgs;
@@ -849,11 +834,8 @@ int ha_initialize_handlerton(st_plugin_int *plugin)
   case DB_TYPE_MYISAM:
     myisam_hton= hton;
     break;
-  case DB_TYPE_PARTITION_DB:
-    partition_hton= hton;
-    break;
   case DB_TYPE_INNODB:
-    innodb_hton = hton;
+    innodb_hton= hton;
     break;
   default:
     break;
@@ -3185,14 +3167,14 @@ int handler::update_auto_increment()
       if ((auto_inc_intervals_count == 0) && (estimation_rows_to_insert > 0))
         nb_desired_values= estimation_rows_to_insert;
       else if ((auto_inc_intervals_count == 0) &&
-               (thd->lex->many_values.elements > 0))
+               (thd->lex->bulk_insert_row_cnt > 0))
       {
         /*
           For multi-row inserts, if the bulk inserts cannot be started, the
           handler::estimation_rows_to_insert will not be set. But we still
           want to reserve the autoinc values.
         */
-        nb_desired_values= thd->lex->many_values.elements;
+        nb_desired_values= thd->lex->bulk_insert_row_cnt;
       }
       else /* go with the increasing defaults */
       {
@@ -3413,6 +3395,7 @@ void handler::ha_release_auto_increment()
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK ||
               (!next_insert_id && !insert_id_for_cur_row));
+  DEBUG_SYNC(ha_thd(), "release_auto_increment");
   release_auto_increment();
   insert_id_for_cur_row= 0;
   auto_inc_interval_for_cur_row.replace(0, 0, 0);
@@ -3656,13 +3639,7 @@ void handler::print_error(int error, myf errflag)
     break;
   case HA_ERR_SE_OUT_OF_MEMORY:
     my_error(ER_ENGINE_OUT_OF_MEMORY, errflag,
-#ifdef WITH_PARTITION_STORAGE_ENGINE
-             table->part_info ? ha_resolve_storage_engine_name
-             (table->part_info->default_engine_type) :
              table->file->table_type());
-#else
-             table->file->table_type());
-#endif
     DBUG_VOID_RETURN;
   case HA_ERR_WRONG_COMMAND:
     textno=ER_ILLEGAL_HA;
@@ -4132,7 +4109,6 @@ int handler::ha_check(THD *thd, HA_CHECK_OPT *check_opt)
   if it is started.
 */
 
-inline
 void
 handler::mark_trx_read_write()
 {
@@ -4565,66 +4541,6 @@ handler::ha_create_handler_files(const char *name, const char *old_name,
 
 
 /**
-  Change partitions: public interface.
-
-  @sa handler::change_partitions()
-*/
-
-int
-handler::ha_change_partitions(HA_CREATE_INFO *create_info,
-                     const char *path,
-                     ulonglong * const copied,
-                     ulonglong * const deleted,
-                     const uchar *pack_frm_data,
-                     size_t pack_frm_len)
-{
-  /*
-    Must have at least RDLCK or be a TMP table. Read lock is needed to read
-    from current partitions and write lock will be taken on new partitions.
-  */
-  DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
-              m_lock_type != F_UNLCK);
-  mark_trx_read_write();
-
-  return change_partitions(create_info, path, copied, deleted,
-                           pack_frm_data, pack_frm_len);
-}
-
-
-/**
-  Drop partitions: public interface.
-
-  @sa handler::drop_partitions()
-*/
-
-int
-handler::ha_drop_partitions(const char *path)
-{
-  DBUG_ASSERT(!table->db_stat);
-
-  mark_trx_read_write();
-
-  return drop_partitions(path);
-}
-
-
-/**
-  Rename partitions: public interface.
-
-  @sa handler::rename_partitions()
-*/
-
-int
-handler::ha_rename_partitions(const char *path)
-{
-  DBUG_ASSERT(!table->db_stat);
-  mark_trx_read_write();
-
-  return rename_partitions(path);
-}
-
-
-/**
   Tell the storage engine that it is allowed to "disable transaction" in the
   handler. It is a hint that ACID is not required - it is used in NDB for
   ALTER TABLE, for example, when data are copied to temporary table.
@@ -4702,28 +4618,6 @@ int handler::index_next_same(uchar *buf, const uchar *key, uint keylen)
   }
   DBUG_RETURN(error);
 }
-
-
-void handler::get_dynamic_partition_info(PARTITION_STATS *stat_info,
-                                         uint part_id)
-{
-  info(HA_STATUS_CONST | HA_STATUS_TIME | HA_STATUS_VARIABLE |
-       HA_STATUS_NO_LOCK);
-  stat_info->records=              stats.records;
-  stat_info->mean_rec_length=      stats.mean_rec_length;
-  stat_info->data_file_length=     stats.data_file_length;
-  stat_info->max_data_file_length= stats.max_data_file_length;
-  stat_info->index_file_length=    stats.index_file_length;
-  stat_info->delete_length=        stats.delete_length;
-  stat_info->create_time=          static_cast<ulong>(stats.create_time);
-  stat_info->update_time=          stats.update_time;
-  stat_info->check_time=           stats.check_time;
-  stat_info->check_sum=            0;
-  if (table_flags() & (ulong) HA_HAS_CHECKSUM)
-    stat_info->check_sum= checksum();
-  return;
-}
-
 
 /****************************************************************************
 ** Some general functions that isn't in the handler class
@@ -7062,6 +6956,27 @@ int handler::index_read_idx_map(uchar * buf, uint index, const uchar * key,
     error1= index_end();
   }
   return error ?  error : error1;
+}
+
+
+uint calculate_key_len(TABLE *table, uint key,
+                       key_part_map keypart_map)
+{
+  /* works only with key prefixes */
+  DBUG_ASSERT(((keypart_map + 1) & keypart_map) == 0);
+
+  KEY *key_info= table->key_info + key;
+  KEY_PART_INFO *key_part= key_info->key_part;
+  KEY_PART_INFO *end_key_part= key_part + actual_key_parts(key_info);
+  uint length= 0;
+
+  while (key_part < end_key_part && keypart_map)
+  {
+    length+= key_part->store_length;
+    keypart_map >>= 1;
+    key_part++;
+  }
+  return length;
 }
 
 

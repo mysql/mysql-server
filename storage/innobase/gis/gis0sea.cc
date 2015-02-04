@@ -111,7 +111,7 @@ rtr_pcur_getnext_from_path(
 
 	my_latch_mode = BTR_LATCH_MODE_WITHOUT_FLAGS(latch_mode);
 
-	for_delete = latch_mode & BTR_DELETE_MARK;
+	for_delete = latch_mode & BTR_RTREE_DELETE_MARK;
 	for_undo_ins = latch_mode & BTR_RTREE_UNDO_INS;
 
 	/* There should be no insert coming to this function. Only
@@ -558,7 +558,7 @@ rtr_pcur_open_low(
 
 	btr_pcur_init(cursor);
 
-	for_delete = latch_mode & BTR_DELETE_MARK;
+	for_delete = latch_mode & BTR_RTREE_DELETE_MARK;
 	for_undo_ins = latch_mode & BTR_RTREE_UNDO_INS;
 
 	cursor->latch_mode = BTR_LATCH_MODE_WITHOUT_FLAGS(latch_mode);
@@ -608,7 +608,7 @@ rtr_pcur_open_low(
 		&& (for_delete || for_undo_ins))) {
 
 		if (rec_get_deleted_flag(rec, dict_table_is_comp(index->table))
-                    && for_delete) {
+		    && for_delete) {
 			btr_cursor->rtr_info->fd_del = true;
 			btr_cursor->low_match = 0;
 		}

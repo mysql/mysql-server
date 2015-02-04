@@ -38,9 +38,10 @@
 #include "sql_view.h"                 // check_key_in_view
 #include "table.h"                    // TABLE
 #include "table_trigger_dispatcher.h" // Table_trigger_dispatcher
-#ifdef WITH_PARTITION_STORAGE_ENGINE
 #include "sql_partition.h"            // partition_key_modified
-#endif
+#include "sql_prepare.h"              // select_like_stmt_cmd_test
+#include "probes_mysql.h"             // MYSQL_UPDATE_START
+#include "sql_parse.h"                // all_tables_not_ok
 
 /**
    True if the table's input and output record buffers are comparable using
@@ -293,7 +294,8 @@ bool mysql_update(THD *thd,
   table->possible_quick_keys.clear_all();
 
   key_map covering_keys_for_cond;
-  if (mysql_prepare_update(thd, update_table_ref, &covering_keys_for_cond))
+  if (mysql_prepare_update(thd, update_table_ref, &covering_keys_for_cond,
+                           values))
     DBUG_RETURN(1);
 
   Item *conds;
@@ -329,7 +331,6 @@ bool mysql_update(THD *thd,
   QEP_TAB_standalone qep_tab_st;
   QEP_TAB &qep_tab= qep_tab_st.as_QEP_TAB();
 
-#ifdef WITH_PARTITION_STORAGE_ENGINE
   if (table->part_info)
   {
     if (prune_partitions(thd, table, conds))
@@ -355,7 +356,6 @@ bool mysql_update(THD *thd,
       DBUG_RETURN(0);
     }
   }
-#endif
   if (lock_tables(thd, table_list, thd->lex->table_count, 0))
     DBUG_RETURN(1);
 
@@ -429,7 +429,6 @@ bool mysql_update(THD *thd,
     }
   }
 
-#ifdef WITH_PARTITION_STORAGE_ENGINE
   /*
     Also try a second time after locking, to prune when subqueries and
     stored programs can be evaluated.
@@ -452,7 +451,6 @@ bool mysql_update(THD *thd,
       DBUG_RETURN(0);
     }
   }
-#endif
   // Initialize the cost model that will be used for this table
   table->init_cost_model(thd->cost_model());
 
@@ -552,9 +550,7 @@ bool mysql_update(THD *thd,
                            qep_tab.quick()->is_keys_used(table->write_set));
   }
 
-#ifdef WITH_PARTITION_STORAGE_ENGINE
   used_key_is_modified|= partition_key_modified(table, table->write_set);
-#endif
 
   using_filesort= order && (need_sort||used_key_is_modified);
 
@@ -1096,7 +1092,8 @@ exit_without_my_ok:
   @return false if success, true if error
 */
 bool mysql_prepare_update(THD *thd, const TABLE_LIST *update_table_ref,
-                          key_map *covering_keys_for_cond)
+                          key_map *covering_keys_for_cond,
+                          List<Item> &update_value_list)
 {
   List<Item> all_fields;
   LEX *const lex= thd->lex;
@@ -1104,7 +1101,7 @@ bool mysql_prepare_update(THD *thd, const TABLE_LIST *update_table_ref,
   TABLE_LIST *const table_list= select->get_table_list();
   DBUG_ENTER("mysql_prepare_update");
 
-  DBUG_ASSERT(select->item_list.elements == lex->value_list.elements);
+  DBUG_ASSERT(select->item_list.elements == update_value_list.elements);
 
   lex->allow_sum_func= 0;
 
@@ -1162,7 +1159,8 @@ bool mysql_prepare_update(THD *thd, const TABLE_LIST *update_table_ref,
 
   table_list->set_want_privilege(SELECT_ACL);
 
-  if (setup_fields(thd, Ref_ptr_array(), lex->value_list, SELECT_ACL, 0, 0))
+  if (setup_fields(thd, Ref_ptr_array(), update_value_list,
+                   SELECT_ACL, 0, 0))
     DBUG_RETURN(true);                          /* purecov: inspected */
 
   thd->mark_used_columns= mark_used_columns_saved;
@@ -1242,10 +1240,7 @@ bool unsafe_key_update(TABLE_LIST *leaves, table_map tables_for_update)
       bool primkey_clustered= (table1->file->primary_key_is_clustered() &&
                                table1->s->primary_key != MAX_KEY);
 
-      bool table_partitioned= false;
-#ifdef WITH_PARTITION_STORAGE_ENGINE
-      table_partitioned= (table1->part_info != NULL);
-#endif
+      bool table_partitioned= (table1->part_info != NULL);
 
       if (!table_partitioned && !primkey_clustered)
         continue;
@@ -1259,7 +1254,6 @@ bool unsafe_key_update(TABLE_LIST *leaves, table_map tables_for_update)
         TABLE *table2= tl2->table;
         if (tl2->map() & tables_for_update && table1->s == table2->s)
         {
-#ifdef WITH_PARTITION_STORAGE_ENGINE
           // A table is updated through two aliases
           if (table_partitioned &&
               (partition_key_modified(table1, table1->write_set) ||
@@ -1273,7 +1267,6 @@ bool unsafe_key_update(TABLE_LIST *leaves, table_map tables_for_update)
                                          : tl2->alias);
             return true;
           }
-#endif
 
           if (primkey_clustered)
           {
@@ -1400,7 +1393,7 @@ static bool multi_update_check_table_access(THD *thd, TABLE_LIST *table,
     TRUE  Error
 */
 
-int mysql_multi_update_prepare(THD *thd)
+int Sql_cmd_update::mysql_multi_update_prepare(THD *thd)
 {
   LEX *lex= thd->lex;
   SELECT_LEX *select= lex->select_lex;
@@ -1411,12 +1404,12 @@ int mysql_multi_update_prepare(THD *thd)
   bool original_multiupdate= (thd->lex->sql_command == SQLCOM_UPDATE_MULTI);
   DBUG_ENTER("mysql_multi_update_prepare");
 
-  DBUG_ASSERT(select->item_list.elements == lex->value_list.elements);
+  DBUG_ASSERT(select->item_list.elements == update_value_list.elements);
 
   Prepare_error_tracker tracker(thd);
 
   /* following need for prepared statements, to run next time multi-update */
-  thd->lex->sql_command= SQLCOM_UPDATE_MULTI;
+  sql_command= thd->lex->sql_command= SQLCOM_UPDATE_MULTI;
 
   /*
     Open tables and create derived ones, but do not lock and fill them yet.
@@ -1561,7 +1554,7 @@ int mysql_multi_update_prepare(THD *thd)
   */
   if (thd->stmt_arena->is_stmt_prepare())
   {
-    if (setup_fields(thd, Ref_ptr_array(), lex->value_list, SELECT_ACL,
+    if (setup_fields(thd, Ref_ptr_array(), update_value_list, SELECT_ACL,
                      NULL, false))
       DBUG_RETURN(true);
   }
@@ -2738,4 +2731,226 @@ bool multi_update::send_eof()
   ::my_ok(thd, (thd->client_capabilities & CLIENT_FOUND_ROWS) ? found : updated,
           id, buff);
   DBUG_RETURN(FALSE);
+}
+
+
+/**
+  Try to execute UPDATE as single-table UPDATE
+
+  If the UPDATE statement can be executed as a single-table UPDATE,
+  the do it. Otherwise defer its execution for the further
+  execute_multi_table_update() call outside this function and set
+  switch_to_multitable to "true".
+
+  @param thd                            Current THD.
+  @param [out] switch_to_multitable     True if the UPDATE statement can't
+                                        be evaluated as single-table.
+                                        Note: undefined if the function
+                                        returns "true".
+
+  @return true on error
+  @return false otherwise.
+*/
+bool Sql_cmd_update::try_single_table_update(THD *thd,
+                                             bool *switch_to_multitable)
+{
+  LEX *const lex= thd->lex;
+  SELECT_LEX *const select_lex= lex->select_lex;
+  SELECT_LEX_UNIT *const unit= lex->unit;
+  TABLE_LIST *const first_table= select_lex->get_table_list();
+  TABLE_LIST *const all_tables= first_table;
+
+  if (update_precheck(thd, all_tables))
+    return true;
+
+  /*
+    UPDATE IGNORE can be unsafe. We therefore use row based
+    logging if mixed or row based logging is available.
+    TODO: Check if the order of the output of the select statement is
+    deterministic. Waiting for BUG#42415
+  */
+  if (lex->is_ignore())
+    lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_UPDATE_IGNORE);
+
+  DBUG_ASSERT(select_lex->offset_limit == 0);
+  unit->set_limit(select_lex);
+  MYSQL_UPDATE_START(const_cast<char*>(thd->query().str));
+
+  // Need to open to check for multi-update
+  if (open_tables_for_query(thd, all_tables, 0) ||
+      mysql_update_prepare_table(thd, select_lex) ||
+      run_before_dml_hook(thd))
+    return true;
+
+  if (!all_tables->is_multiple_tables())
+  {
+    /* Push ignore / strict error handler */
+    Ignore_error_handler ignore_handler;
+    Strict_error_handler strict_handler;
+    if (thd->lex->is_ignore())
+      thd->push_internal_handler(&ignore_handler);
+    else if (thd->is_strict_mode())
+      thd->push_internal_handler(&strict_handler);
+
+    ha_rows found= 0, updated= 0;
+    const bool res= mysql_update(thd, select_lex->item_list,
+                                 update_value_list,
+                                 unit->select_limit_cnt,
+                                 lex->duplicates,
+                                 &found, &updated);
+
+    /* Pop ignore / strict error handler */
+    if (thd->lex->is_ignore() || thd->is_strict_mode())
+      thd->pop_internal_handler();
+    MYSQL_UPDATE_DONE(res, found, updated);
+    if (res)
+      return true;
+    else
+    {
+      *switch_to_multitable= false;
+      return false;
+    }
+  }
+  else
+  {
+    DBUG_ASSERT(all_tables->is_view());
+    DBUG_PRINT("info", ("Switch to multi-update"));
+    if (!thd->in_sub_stmt)
+      thd->query_plan.set_query_plan(SQLCOM_UPDATE_MULTI, lex,
+                                     !thd->stmt_arena->is_conventional());
+    MYSQL_UPDATE_DONE(true, 0, 0);
+    *switch_to_multitable= true;
+    return false;
+  }
+}
+
+
+bool Sql_cmd_update::execute_multi_table_update(THD *thd)
+{
+  bool res= false;
+  LEX *const lex= thd->lex;
+  SELECT_LEX *const select_lex= lex->select_lex;
+  TABLE_LIST *const first_table= select_lex->get_table_list();
+  TABLE_LIST *const all_tables= first_table;
+
+#ifdef HAVE_REPLICATION
+  /* have table map for update for multi-update statement (BUG#37051) */
+  /*
+    Save the thd->table_map_for_update value as a result of the
+    Query_log_event::do_apply_event() function call --
+    the mysql_multi_update_prepare() function will reset it below.
+  */
+  const bool have_table_map_for_update= thd->table_map_for_update;
+#endif
+
+  res= mysql_multi_update_prepare(thd);
+
+#ifdef HAVE_REPLICATION
+  /* Check slave filtering rules */
+  if (unlikely(thd->slave_thread && !have_table_map_for_update))
+  {
+    if (all_tables_not_ok(thd, all_tables))
+    {
+      if (res!= 0)
+      {
+        res= 0;             /* don't care of prev failure  */
+        thd->clear_error(); /* filters are of highest prior */
+      }
+      /* we warn the slave SQL thread */
+      my_error(ER_SLAVE_IGNORED_TABLE, MYF(0));
+      return res;
+    }
+    if (res)
+      return res;
+  }
+  else
+  {
+#endif /* HAVE_REPLICATION */
+    if (res)
+      return res;
+    if (opt_readonly &&
+        !(thd->security_context()->check_access(SUPER_ACL)) &&
+        some_non_temp_table_to_be_updated(thd, all_tables))
+    {
+      my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--read-only");
+      return res;
+    }
+#ifdef HAVE_REPLICATION
+  }  /* unlikely */
+#endif
+  {
+    /* Push ignore / strict error handler */
+    Ignore_error_handler ignore_handler;
+    Strict_error_handler strict_handler;
+    if (thd->lex->is_ignore())
+      thd->push_internal_handler(&ignore_handler);
+    else if (thd->is_strict_mode())
+      thd->push_internal_handler(&strict_handler);
+
+    multi_update *result_obj;
+    MYSQL_MULTI_UPDATE_START(const_cast<char*>(thd->query().str));
+    res= mysql_multi_update(thd,
+                            &select_lex->item_list,
+                            &update_value_list,
+                            lex->duplicates,
+                            select_lex,
+                            &result_obj);
+
+    /* Pop ignore / strict error handler */
+    if (thd->lex->is_ignore() || thd->is_strict_mode())
+      thd->pop_internal_handler();
+
+    if (result_obj)
+    {
+      MYSQL_MULTI_UPDATE_DONE(res, result_obj->num_found(),
+                              result_obj->num_updated());
+      res= FALSE; /* Ignore errors here */
+      delete result_obj;
+    }
+    else
+    {
+      MYSQL_MULTI_UPDATE_DONE(1, 0, 0);
+    }
+  }
+  return res;
+}
+
+
+bool Sql_cmd_update::execute(THD *thd)
+{
+  if (thd->lex->sql_command == SQLCOM_UPDATE_MULTI)
+  {
+    return multi_update_precheck(thd, thd->lex->select_lex->get_table_list()) ||
+           execute_multi_table_update(thd);
+  }
+
+  bool switch_to_multitable;
+  if (try_single_table_update(thd, &switch_to_multitable))
+    return true;
+  if (switch_to_multitable)
+  {
+    sql_command= SQLCOM_UPDATE_MULTI;
+    return execute_multi_table_update(thd);
+  }
+  return false;
+}
+
+
+bool Sql_cmd_update::prepared_statement_test(THD *thd)
+{
+  DBUG_ASSERT(thd->lex->query_tables == thd->lex->select_lex->get_table_list());
+  if (thd->lex->sql_command == SQLCOM_UPDATE)
+  {
+    int res= mysql_test_update(thd);
+    /* mysql_test_update returns 2 if we need to switch to multi-update */
+    if (res == 2)
+      return select_like_stmt_cmd_test(thd, this, OPTION_SETUP_TABLES_DONE);
+    else
+      return MY_TEST(res);
+  }
+  else
+  {
+    return multi_update_precheck(thd, thd->lex->query_tables) ||
+           select_like_stmt_cmd_test(thd, this, OPTION_SETUP_TABLES_DONE);
+  }
 }

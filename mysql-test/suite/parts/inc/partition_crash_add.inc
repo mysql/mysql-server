@@ -22,12 +22,3 @@ SET SESSION debug="-d,crash_add_partition_6";
 SET SESSION debug="+d,crash_add_partition_7";
 --source suite/parts/inc/partition_crash.inc
 SET SESSION debug="-d,crash_add_partition_7";
-SET SESSION debug="+d,crash_add_partition_8";
---source suite/parts/inc/partition_crash.inc
-SET SESSION debug="-d,crash_add_partition_8";
-SET SESSION debug="+d,crash_add_partition_9";
---source suite/parts/inc/partition_crash.inc
-SET SESSION debug="-d,crash_add_partition_9";
-SET SESSION debug="+d,crash_add_partition_10";
---source suite/parts/inc/partition_crash.inc
-SET SESSION debug="-d,crash_add_partition_10";

@@ -34,8 +34,7 @@ Alter_info::Alter_info(const Alter_info &rhs, MEM_ROOT *mem_root)
   num_parts(rhs.num_parts),
   requested_algorithm(rhs.requested_algorithm),
   requested_lock(rhs.requested_lock),
-  with_validation(rhs.with_validation),
-  se_blob(rhs.se_blob)
+  with_validation(rhs.with_validation)
 {
   /*
     Make deep copies of used objects.

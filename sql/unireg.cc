@@ -26,9 +26,9 @@
 
 #include "unireg.h"
 #include "table.h"
-#include "sql_class.h"
-#include "partition_info.h"
-#include "sql_table.h"
+#include "sql_class.h"                        // THD, Internal_error_handler
+#include "partition_info.h"                   // partition_info
+#include "sql_table.h"                        // validate_comment_length   
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
@@ -119,9 +119,7 @@ bool mysql_create_frm(THD *thd, const char *file_name,
   uchar fileinfo[64],forminfo[288],*keybuff, *forminfo_p= forminfo;
   uchar *screen_buff= NULL;
   char buff[128];
-#ifdef WITH_PARTITION_STORAGE_ENGINE
   partition_info *part_info= thd->work_part_info;
-#endif
   Pack_header_error_handler pack_header_error_handler;
   int error;
   const uint format_section_header_size= 8;
@@ -182,12 +180,10 @@ bool mysql_create_frm(THD *thd, const char *file_name,
       => Total 6 byte
   */
   create_info->extra_size+= 6;
-#ifdef WITH_PARTITION_STORAGE_ENGINE
   if (part_info)
   {
     create_info->extra_size+= part_info->part_info_len;
   }
-#endif
 
   for (i= 0; i < keys; i++)
   {
@@ -287,13 +283,11 @@ bool mysql_create_frm(THD *thd, const char *file_name,
                                 (create_info->min_rows == 1) && (keys == 0));
   int2store(fileinfo+28,key_info_length);
 
-#ifdef WITH_PARTITION_STORAGE_ENGINE
   if (part_info)
   {
     fileinfo[61]= (uchar) ha_legacy_type(part_info->default_engine_type);
     DBUG_PRINT("info", ("part_db_type = %d", fileinfo[61]));
   }
-#endif
   int2store(fileinfo+59,db_file->extra_rec_buf_length());
 
   if (mysql_file_pwrite(file, fileinfo, 64, 0L, MYF_RW) ||
@@ -320,7 +314,6 @@ bool mysql_create_frm(THD *thd, const char *file_name,
                str_db_type.length, MYF(MY_NABP)))
     goto err;
 
-#ifdef WITH_PARTITION_STORAGE_ENGINE
   if (part_info)
   {
     char auto_partitioned= part_info->is_auto_partitioned ? 1 : 0;
@@ -332,7 +325,6 @@ bool mysql_create_frm(THD *thd, const char *file_name,
       goto err;
   }
   else
-#endif
   {
     memset(buff, 0, 6);
     if (mysql_file_write(file, (uchar*) buff, 6, MYF_RW))
