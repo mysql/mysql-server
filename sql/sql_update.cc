@@ -1346,15 +1346,14 @@ static bool multi_update_check_table_access(THD *thd, TABLE_LIST *table,
                 (!table->is_updatable() &&
                  !(table->map() & tables_for_update)));
 
+    Internal_error_handler_holder<View_error_handler, TABLE_LIST>
+      view_handler(thd, true, table->merge_underlying_list);
     for (TABLE_LIST *tbl= table->merge_underlying_list; tbl;
          tbl= tbl->next_local)
     {
       if (multi_update_check_table_access(thd, tbl, tables_for_update,
                                           updatable, &view_updated))
-      {
-        tbl->hide_view_error(thd);
         return true;
-      }
     }
     table->set_want_privilege(
       view_updated ? UPDATE_ACL | SELECT_ACL: SELECT_ACL);
