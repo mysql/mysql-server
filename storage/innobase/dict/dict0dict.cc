@@ -893,8 +893,21 @@ dict_index_get_nth_field_pos(
 
 	n_fields = dict_index_get_n_fields(index);
 
+	/* Are we looking for a MBR (Minimum Bound Box) field of
+	a spatial index */
+	bool	is_mbr_fld = (n == 0 && dict_index_is_spatial(index2));
+
 	for (pos = 0; pos < n_fields; pos++) {
 		field = dict_index_get_nth_field(index, pos);
+
+		/* The first field of a spatial index is a transformed
+		MBR (Minimum Bound Box) field made out of original column,
+		so its field->col still points to original cluster index
+		col, but the actual content is different. So we cannot
+		consider them equal if neither of them is MBR field */
+		if (pos == 0 && dict_index_is_spatial(index) && !is_mbr_fld) {
+			continue;
+		}
 
 		if (field->col == field2->col
 		    && (field->prefix_len == 0
