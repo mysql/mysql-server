@@ -12273,12 +12273,24 @@ ib_warn_row_too_big(const dict_table_t*	table)
 
 	THD*	thd = current_thd;
 
-	push_warning_printf(
-		thd, MYSQL_ERROR::WARN_LEVEL_WARN, HA_ERR_TO_BIG_ROW,
-		"Row size too large (> %lu). Changing some columns to TEXT"
-		" or BLOB %smay help. In current row format, BLOB prefix of"
-		" %d bytes is stored inline.", free_space
-		, prefix ? "or using ROW_FORMAT=DYNAMIC or"
-		" ROW_FORMAT=COMPRESSED ": ""
-		, prefix ? DICT_MAX_FIXED_COL_LEN : 0);
+	if (thd) {
+		push_warning_printf(
+			thd, MYSQL_ERROR::WARN_LEVEL_WARN, HA_ERR_TO_BIG_ROW,
+			"Row size too large (> %lu). Changing some columns to TEXT"
+			" or BLOB %smay help. In current row format, BLOB prefix of"
+			" %d bytes is stored inline.", free_space
+			, prefix ? "or using ROW_FORMAT=DYNAMIC or"
+			" ROW_FORMAT=COMPRESSED ": ""
+			, prefix ? DICT_MAX_FIXED_COL_LEN : 0);
+	} else {
+		/* Note that we can't use push_warning_printf here because
+		e.g. purge thread has no thd */
+		sql_print_warning(
+			"Row size too large (> %lu). Changing some columns to TEXT"
+			" or BLOB %smay help. In current row format, BLOB prefix of"
+			" %d bytes is stored inline.", free_space
+			, prefix ? "or using ROW_FORMAT=DYNAMIC or"
+			" ROW_FORMAT=COMPRESSED ": ""
+			, prefix ? DICT_MAX_FIXED_COL_LEN : 0);
+	}
 }
