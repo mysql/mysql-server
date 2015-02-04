@@ -304,6 +304,20 @@ bool partition_info::can_prune_insert(THD* thd,
       DBUG_RETURN(false);
   }
 
+  /*
+    Can't prune partitions over generated columns, as their values are
+    calculated much later.
+  */
+  if (table->vfield)
+  {
+    Field **fld;
+    for (fld= table->vfield; *fld; fld++)
+    {
+      if (bitmap_is_set(&full_part_field_set, (*fld)->field_index))
+        DBUG_RETURN(false);
+    }
+  }
+
   if (table->found_next_number_field)
   {
     /*

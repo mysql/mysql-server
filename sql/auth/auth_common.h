@@ -191,7 +191,6 @@ enum mysql_user_table_field
 {
   MYSQL_USER_FIELD_HOST= 0,
   MYSQL_USER_FIELD_USER,
-  MYSQL_USER_FIELD_PASSWORD,
   MYSQL_USER_FIELD_SELECT_PRIV,
   MYSQL_USER_FIELD_INSERT_PRIV,
   MYSQL_USER_FIELD_UPDATE_PRIV,
@@ -253,23 +252,39 @@ extern my_bool validate_user_plugins;
 
 int set_default_auth_plugin(char *plugin_name, size_t plugin_name_length);
 int acl_authenticate(THD *thd, size_t com_change_user_pkt_len);
-int check_password_strength(String *password);
-int check_password_policy(String *password);
 bool acl_check_host(const char *host, const char *ip);
+
+/*
+  User Attributes are the once which are defined during CREATE/ALTER/GRANT
+  statement. These attributes are divided into following catagories.
+*/
+
+#define DEFAULT_AUTH_ATTR       1    /* update defaults auth */
+#define PLUGIN_ATTR             2    /* update plugin, authentication_string */
+#define SSL_ATTR                4    /* ex: SUBJECT,CIPHER.. */
+#define RESOURCE_ATTR           8    /* ex: MAX_QUERIES_PER_HOUR.. */
+#define PASSWORD_EXPIRE_ATTR    16   /* update password expire col */
+#define ACCESS_RIGHTS_ATTR      32   /* update privileges */
+
+/* rewrite CREATE/ALTER/GRANT user */
+void mysql_rewrite_create_alter_user(THD *thd, String *rlb);
+void mysql_rewrite_grant(THD *thd, String *rlb);
 
 /* sql_user */
 void append_user(THD *thd, String *str, LEX_USER *user,
                  bool comma, bool ident);
+void append_user_new(THD *thd, String *str, LEX_USER *user, bool comma);
 int check_change_password(THD *thd, const char *host, const char *user,
                           const char *password, size_t password_len);
 bool change_password(THD *thd, const char *host, const char *user,
                      char *password);
 bool mysql_create_user(THD *thd, List <LEX_USER> &list);
+bool mysql_alter_user(THD *thd, List <LEX_USER> &list);
 bool mysql_drop_user(THD *thd, List <LEX_USER> &list);
 bool mysql_rename_user(THD *thd, List <LEX_USER> &list);
-bool mysql_user_password_expire(THD *thd, List <LEX_USER> &list);
-int digest_password(THD *thd, LEX_USER *user_record);
 
+bool update_auth_str(THD *thd, LEX_USER *Str);
+bool set_and_validate_user_attributes(THD *thd, LEX_USER *Str, ulong &what_to_set);
 
 /* sql_auth_cache */
 int wild_case_compare(CHARSET_INFO *cs, const char *str,const char *wildstr);
@@ -320,6 +335,7 @@ ulong get_column_grant(THD *thd, GRANT_INFO *grant,
                        const char *db_name, const char *table_name,
                        const char *field_name);
 bool mysql_show_grants(THD *thd, LEX_USER *user);
+bool mysql_show_create_user(THD *thd, LEX_USER *user);
 bool mysql_revoke_all(THD *thd, List <LEX_USER> &list);
 bool sp_revoke_privileges(THD *thd, const char *sp_db, const char *sp_name,
                           bool is_proc);

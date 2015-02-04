@@ -195,6 +195,8 @@ WARNING: NULL values of the 'db_collation' column ('mysql.proc' table) have been
 #   TRIGGER privilege on given table
 #
 GRANT USAGE ON *.* TO 'user3'@'%';
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 GRANT ALL PRIVILEGES ON `roelt`.`test2` TO 'user3'@'%';
 Run mysql_upgrade with all privileges on a user
 mysql.columns_priv                                 OK

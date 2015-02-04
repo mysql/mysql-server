@@ -26,6 +26,7 @@
 #include "table_ets_by_thread_by_event_name.h"
 #include "pfs_global.h"
 #include "pfs_visitor.h"
+#include "pfs_buffer_container.h"
 #include "field.h"
 
 THR_LOCK table_ets_by_thread_by_event_name::m_table_lock;
@@ -154,7 +155,7 @@ table_ets_by_thread_by_event_name::delete_all_rows(void)
 ha_rows
 table_ets_by_thread_by_event_name::get_row_count(void)
 {
-  return thread_max * transaction_class_max;
+  return global_thread_container.get_row_count() * transaction_class_max;
 }
 
 table_ets_by_thread_by_event_name::table_ets_by_thread_by_event_name()
@@ -178,18 +179,14 @@ int table_ets_by_thread_by_event_name::rnd_next(void)
 {
   PFS_thread *thread;
   PFS_transaction_class *transaction_class;
+  bool has_more_thread= true;
 
   for (m_pos.set_at(&m_next_pos);
-       m_pos.has_more_thread();
+       has_more_thread;
        m_pos.next_thread())
   {
-    thread= &thread_array[m_pos.m_index_1];
-
-    /*
-      Important note: the thread scan is the outer loop (index 1),
-      to minimize the number of calls to atomic operations.
-    */
-    if (thread->m_lock.is_populated())
+    thread= global_thread_container.get(m_pos.m_index_1, & has_more_thread);
+    if (thread != NULL)
     {
       transaction_class= find_transaction_class(m_pos.m_index_2);
       if (transaction_class)
@@ -211,17 +208,16 @@ table_ets_by_thread_by_event_name::rnd_pos(const void *pos)
   PFS_transaction_class *transaction_class;
 
   set_position(pos);
-  DBUG_ASSERT(m_pos.m_index_1 < thread_max);
 
-  thread= &thread_array[m_pos.m_index_1];
-  if (! thread->m_lock.is_populated())
-    return HA_ERR_RECORD_DELETED;
-
-  transaction_class= find_transaction_class(m_pos.m_index_2);
-  if (transaction_class)
+  thread= global_thread_container.get(m_pos.m_index_1);
+  if (thread != NULL)
   {
-    make_row(thread, transaction_class);
-    return 0;
+    transaction_class= find_transaction_class(m_pos.m_index_2);
+    if (transaction_class)
+    {
+      make_row(thread, transaction_class);
+      return 0;
+    }
   }
 
   return HA_ERR_RECORD_DELETED;

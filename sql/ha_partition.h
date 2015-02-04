@@ -1023,7 +1023,7 @@ public:
     Primary key is clustered can only be true if all underlying handlers have
     this feature.
   */
-  virtual bool primary_key_is_clustered()
+  virtual bool primary_key_is_clustered() const
   { return m_pkey_is_clustered; }
 
   /*

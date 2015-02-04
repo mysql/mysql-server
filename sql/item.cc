@@ -1047,7 +1047,6 @@ bool Item_field::mark_field_in_map(uchar *arg)
   return false;
 }
 
-
 /**
   Check privileges of base table column
 */

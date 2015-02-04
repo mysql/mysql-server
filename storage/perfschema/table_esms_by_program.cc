@@ -29,6 +29,7 @@
 #include "pfs_visitor.h"
 #include "pfs_program.h"
 #include "table_esms_by_program.h"
+#include "pfs_buffer_container.h"
 #include "field.h"
 
 THR_LOCK table_esms_by_program::m_table_lock;
@@ -232,7 +233,7 @@ table_esms_by_program::delete_all_rows(void)
 ha_rows
 table_esms_by_program::get_row_count(void)
 {
-  return program_max;
+  return global_program_container.get_row_count();
 }
 
 table_esms_by_program::table_esms_by_program()
@@ -248,22 +249,16 @@ void table_esms_by_program::reset_position(void)
 
 int table_esms_by_program::rnd_next(void)
 {
-  PFS_program* program;
+  PFS_program* pfs;
 
-  if (program_array == NULL)
-    return HA_ERR_END_OF_FILE;
-
-  for (m_pos.set_at(&m_next_pos);
-       m_pos.m_index < program_max;
-       m_pos.next())
+  m_pos.set_at(&m_next_pos);
+  PFS_program_iterator it= global_program_container.iterate(m_pos.m_index);
+  pfs= it.scan_next(& m_pos.m_index);
+  if (pfs != NULL)
   {
-    program= &program_array[m_pos.m_index];
-    if (program->m_lock.is_populated())
-    {
-      make_row(program);
-      m_next_pos.set_after(&m_pos);
-      return 0;
-    }
+    make_row(pfs);
+    m_next_pos.set_after(&m_pos);
+    return 0;
   }
 
   return HA_ERR_END_OF_FILE;
@@ -272,17 +267,14 @@ int table_esms_by_program::rnd_next(void)
 int
 table_esms_by_program::rnd_pos(const void *pos)
 {
-  PFS_program* program;
-
-  if (program_array == NULL)
-    return HA_ERR_END_OF_FILE;
+  PFS_program* pfs;
 
   set_position(pos);
-  program= &program_array[m_pos.m_index];
 
-  if (program->m_lock.is_populated())
+  pfs= global_program_container.get(m_pos.m_index);
+  if (pfs != NULL)
   {
-    make_row(program);
+    make_row(pfs);
     return 0;
   }
 

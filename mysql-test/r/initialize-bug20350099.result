@@ -18,10 +18,10 @@ ERROR HY000: You must SET PASSWORD before executing this statement
 SET PASSWORD='';
 # Check the count of columns in mysql
 # check the user account
-SELECT user, host, plugin, LENGTH(password), LENGTH(authentication_string)
+SELECT user, host, plugin, LENGTH(authentication_string)
 FROM mysql.user;
-user	host	plugin	LENGTH(password)	LENGTH(authentication_string)
-root	localhost	mysql_native_password	0	0
+user	host	plugin	LENGTH(authentication_string)
+root	localhost	mysql_native_password	0
 # shut server down
 # Server is down
 # close the test connection

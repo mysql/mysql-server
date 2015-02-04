@@ -16,12 +16,15 @@
 #include "rpl_utility.h"
 
 #ifndef MYSQL_CLIENT
-#include "rpl_rli.h"
-#include "sql_tmp_table.h"               // tmp tables
-#include "rpl_rli.h"
-#include "log_event.h"
-#include "binary_log_types.h"
+
+#include "binlog_event.h"                // checksum_crv32
 #include "template_utils.h"              // delete_container_pointers
+#include "field.h"                       // Field
+#include "log.h"                         // sql_print_error
+#include "log_event.h"                   // Log_event
+#include "rpl_rli.h"                     // Relay_log_info
+#include "sql_class.h"                   // THD
+#include "sql_tmp_table.h"               // create_virtual_tmp_table
 
 #include <algorithm>
 

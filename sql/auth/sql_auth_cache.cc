@@ -1159,8 +1159,6 @@ public:
   Binary form is stored in user.salt.
   
   @param acl_user The object where to store the salt
-  @param password The password hash containing the salt
-  @param password_len The length of the password hash
    
   Despite the name of the function it is used when loading ACLs from disk
   to store the password hash in the ACL_USER object.
@@ -1174,36 +1172,24 @@ public:
     @retval true Hash is of wrong length or format
 */
 
-bool set_user_salt(ACL_USER *acl_user,
-                   const char *password, size_t password_len)
+bool set_user_salt(ACL_USER *acl_user)
 {
   bool result= false;
-  /* Using old password protocol */
-  if (password_len == SCRAMBLED_PASSWORD_CHAR_LENGTH)
-  {
-    get_salt_from_password(acl_user->salt, password);
-    acl_user->salt_len= SCRAMBLE_LENGTH;
-  }
-  else if (password_len == 0 || password == NULL)
-  {
-    /* This account doesn't use a password */
-    acl_user->salt_len= 0;
-  }
-  else if (acl_user->plugin.str == native_password_plugin_name.str)
-  {
-    /* Unexpected format of the hash; login will probably be impossible */
-    result= true;
-  }
+  plugin_ref plugin= NULL;
 
-  /*
-    Since we're changing the password for the user we need to reset the
-    expiration flag.
-  */
-  acl_user->password_expired= false;
-  
+  plugin= my_plugin_lock_by_name(0, acl_user->plugin,
+                                 MYSQL_AUTHENTICATION_PLUGIN);
+  if (plugin)
+  {
+    st_mysql_auth *auth= (st_mysql_auth *) plugin_decl(plugin)->info;
+    result=  auth->set_salt(acl_user->auth_string.str,
+                            acl_user->auth_string.length,
+                            acl_user->salt,
+                            &acl_user->salt_len);
+    plugin_unlock(0, plugin);
+  }
   return result;
 }
-
 
 /**
   Iterate over the user records and check for irregularities.
@@ -1354,9 +1340,6 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
   my_bool return_val= TRUE;
   bool check_no_resolve= specialflag & SPECIAL_NO_RESOLVE;
   char tmp_name[NAME_LEN+1];
-  int password_length;
-  char *password;
-  size_t password_len;
   sql_mode_t old_sql_mode= thd->variables.sql_mode;
   bool password_expired= false;
   bool super_users_with_empty_plugin= false;
@@ -1410,16 +1393,23 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
       continue;
     }
 
-    /* Read legacy password */
-    password= get_field(&global_acl_memory,
-                        table->field[MYSQL_USER_FIELD_PASSWORD]);
-    password_len= password ? strlen(password) : 0;
-    user.auth_string.str= password ? password : const_cast<char*>("");
-    user.auth_string.length= password_len;
+    /* Read password from authentication_string field */
+    if (table->s->fields > MYSQL_USER_FIELD_AUTHENTICATION_STRING)
+      user.auth_string.str= get_field(&global_acl_memory,
+                        table->field[MYSQL_USER_FIELD_AUTHENTICATION_STRING]);
+    else
+    {
+      sql_print_error("Fatal error: mysql.user table is damaged. "
+                      "Please run mysql_upgrade.");
+      goto end;
+    }
+    if(user.auth_string.str)
+      user.auth_string.length= strlen(user.auth_string.str);
 
     {
       uint next_field;
-      user.access= get_access(table,3,&next_field) & GLOBAL_ACLS;
+      user.access= get_access(table, MYSQL_USER_FIELD_SELECT_PRIV,
+                              &next_field) & GLOBAL_ACLS;
       /*
         if it is pre 5.0.1 privilege table then map CREATE privilege on
         CREATE VIEW & SHOW VIEW privileges
@@ -1540,21 +1530,6 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
                 user.plugin.str= tmpstr;
                 user.plugin.length= strlen(tmpstr);
               }
-            if (user.auth_string.length &&
-                user.plugin.str != native_password_plugin_name.str)
-            {
-              sql_print_warning("'user' entry '%s@%s' has both a password "
-                                "and an authentication plugin specified. The "
-                                "password will be ignored.",
-                                user.user ? user.user : "",
-                                user.host.get_host() ? user.host.get_host() : "");
-            }
-            user.auth_string.str=
-              get_field(&global_acl_memory,
-                        table->field[MYSQL_USER_FIELD_AUTHENTICATION_STRING]);
-            if (!user.auth_string.str)
-              user.auth_string.str= const_cast<char*>("");
-            user.auth_string.length= strlen(user.auth_string.str);
           }
           else /* skip the user if plugin value is NULL */
 	  {
@@ -1567,6 +1542,25 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
 			      user.host.get_host() ? user.host.get_host() : "");
 	    continue;
 	  }
+        }
+
+        /* Validate the hash string. */
+        plugin_ref plugin= NULL;
+        plugin= my_plugin_lock_by_name(0, user.plugin,
+                                       MYSQL_AUTHENTICATION_PLUGIN);
+        if (plugin)
+        {
+          st_mysql_auth *auth= (st_mysql_auth *) plugin_decl(plugin)->info;
+          if (auth->validate_authentication_string((char*)user.auth_string.str,
+                                                   user.auth_string.length))
+          {
+            sql_print_warning("Found invalid password for user: '%s@%s'; "
+                              "Ignoring user", user.user ? user.user : "",
+                              user.host.get_host() ? user.host.get_host() : "");
+            plugin_unlock(0, plugin);
+            continue;
+          }
+          plugin_unlock(0, plugin);
         }
 
         if (table->s->fields > MYSQL_USER_FIELD_PASSWORD_EXPIRED)
@@ -1643,18 +1637,8 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
         if (user.access & PROCESS_ACL)
           user.access|= SUPER_ACL | EXECUTE_ACL;
       }
-      /*
-         Transform hex to octets and adjust the format.
-       */
-      if (set_user_salt(&user, password, password_len))
-      {
-        sql_print_warning("Found invalid password for user: '%s@%s'; "
-                          "Ignoring user", user.user ? user.user : "",
-                          user.host.get_host() ? user.host.get_host() : "");
-        continue;
-      }
 
-      /* set_user_salt resets expiration flag so restore it */
+      set_user_salt(&user);
       user.password_expired= password_expired;
 
       acl_users->push_back(user);
@@ -1683,21 +1667,6 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
                       "section from the MySQL manual");
   }
 
-  /* Legacy password integrity checks ----------------------------------------*/
-  { 
-    password_length= table->field[MYSQL_USER_FIELD_PASSWORD]->field_length /
-      table->field[MYSQL_USER_FIELD_PASSWORD]->charset()->mbmaxlen;
-    if (password_length < SCRAMBLED_PASSWORD_CHAR_LENGTH)
-    {
-      sql_print_error("Fatal error: mysql.user table is damaged or in "
-                      "unsupported pre-4.1 format.");
-      goto end;
-    }
-  
-    DBUG_PRINT("info",("user table fields: %d, password length: %d",
-               table->s->fields, password_length));
-  } /* End legacy password integrity checks ----------------------------------*/
-  
   /*
     Prepare reading from the mysql.db table
   */
@@ -2367,7 +2336,6 @@ end:
 
 
 void acl_update_user(const char *user, const char *host,
-                     const char *password, size_t password_len,
                      enum SSL_type ssl_type,
                      const char *ssl_cipher,
                      const char *x509_issuer,
@@ -2376,7 +2344,8 @@ void acl_update_user(const char *user, const char *host,
                      ulong privileges,
                      const LEX_CSTRING &plugin,
                      const LEX_CSTRING &auth,
-		     MYSQL_TIME password_change_time)
+		     MYSQL_TIME password_change_time,
+                     LEX_ALTER password_life)
 {
   DBUG_ENTER("acl_update_user");
   mysql_mutex_assert_owner(&acl_cache->lock);
@@ -2398,10 +2367,18 @@ void acl_update_user(const char *user, const char *host,
           if (!auth_plugin_is_built_in(acl_user->plugin.str))
             acl_user->plugin.str= strmake_root(&global_acl_memory,
                                                plugin.str, plugin.length);
-          acl_user->auth_string.str= auth.str ?
-            strmake_root(&global_acl_memory, auth.str,
-                         auth.length) : const_cast<char*>("");
-          acl_user->auth_string.length= auth.length;
+          /* Update auth string only when specified in ALTER/GRANT */
+          if (auth.str)
+          {
+            if (auth.length == 0)
+              acl_user->auth_string.str= const_cast<char*>("");
+            else
+              acl_user->auth_string.str= strmake_root(&global_acl_memory,
+                              auth.str, auth.length);
+            acl_user->auth_string.length= auth.length;
+            set_user_salt(acl_user);
+            acl_user->password_last_changed= password_change_time;
+          }
         }
         acl_user->access=privileges;
         if (mqh->specified_limits & USER_RESOURCES::QUERIES_PER_HOUR)
@@ -2422,20 +2399,17 @@ void acl_update_user(const char *user, const char *host,
           acl_user->x509_subject= (x509_subject ?
                                    strdup_root(&global_acl_memory, x509_subject) : 0);
         }
-  
-        if (password)
+        /* update details related to password lifetime, password expiry */
+        acl_user->password_expired= password_life.update_password_expired_column;
+        if (!password_life.update_password_expired_column)
         {
-          /*
-            We just assert the hash is valid here since it's already
-            checked in replace_user_table().
-          */
-          int hash_not_ok= set_user_salt(acl_user, password, password_len);
-
-          DBUG_ASSERT(hash_not_ok == 0);
-          /* dummy addition to fool the compiler */
-          password_len+= hash_not_ok;
-
-	  acl_user->password_last_changed= password_change_time;
+          if (!password_life.use_default_password_lifetime)
+          {
+            acl_user->password_lifetime= password_life.expire_after_days;
+            acl_user->use_default_password_lifetime= false;
+          }
+          else
+            acl_user->use_default_password_lifetime= true;
         }
         /* search complete: */
         break;
@@ -2447,7 +2421,6 @@ void acl_update_user(const char *user, const char *host,
 
 
 void acl_insert_user(const char *user, const char *host,
-                     const char *password, size_t password_len,
                      enum SSL_type ssl_type,
                      const char *ssl_cipher,
                      const char *x509_issuer,
@@ -2456,11 +2429,11 @@ void acl_insert_user(const char *user, const char *host,
                      ulong privileges,
                      const LEX_CSTRING &plugin,
                      const LEX_CSTRING &auth,
-		     MYSQL_TIME password_change_time)
+		     MYSQL_TIME password_change_time,
+                     LEX_ALTER password_life)
 {
   DBUG_ENTER("acl_insert_user");
   ACL_USER acl_user;
-  int hash_not_ok;
 
   mysql_mutex_assert_owner(&acl_cache->lock);
   /*
@@ -2507,18 +2480,13 @@ void acl_insert_user(const char *user, const char *host,
     x509_issuer ? strdup_root(&global_acl_memory, x509_issuer) : 0;
   acl_user.x509_subject=
     x509_subject ? strdup_root(&global_acl_memory, x509_subject) : 0;
-  /*
-    During create user we can never specify a value for password expiry days field.
-  */
-  acl_user.use_default_password_lifetime= true;
-
+  /* update details related to password lifetime, password expiry */
+  acl_user.password_expired= password_life.update_password_expired_column;
+  acl_user.password_lifetime= password_life.expire_after_days;
+  acl_user.use_default_password_lifetime= password_life.use_default_password_lifetime;
   acl_user.password_last_changed= password_change_time;
 
-  hash_not_ok= set_user_salt(&acl_user, password, password_len);
-  DBUG_ASSERT(hash_not_ok == 0);
-  /* dummy addition to fool the compiler */
-  password_len+= hash_not_ok;
-  
+  set_user_salt(&acl_user);
 
   acl_users->push_back(acl_user);
   if (acl_user.host.check_allow_all_hosts())

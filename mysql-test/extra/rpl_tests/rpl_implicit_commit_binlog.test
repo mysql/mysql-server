@@ -220,7 +220,7 @@ while ($ddl_cases >= 1)
   }
   if ($ddl_cases == 31)
   {
-    let $cmd= SET PASSWORD FOR 'user'@'localhost' = PASSWORD('newpass');
+    let $cmd= SET PASSWORD FOR 'user'@'localhost' = 'newpass';
     #
     # In NDB (RBR mode), the commit event is the 14th event
     # in the binary log:

@@ -805,7 +805,7 @@ Item_singlerow_subselect::Item_singlerow_subselect(st_select_lex *select_lex)
 {
   DBUG_ENTER("Item_singlerow_subselect::Item_singlerow_subselect");
   init(select_lex, new select_singlerow_subselect(this));
-  maybe_null= 1;
+  maybe_null= 1; // if the subquery is empty, value is NULL
   max_columns= UINT_MAX;
   DBUG_VOID_RETURN;
 }

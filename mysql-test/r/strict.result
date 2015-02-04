@@ -1,5 +1,7 @@
 set @org_mode=@@sql_mode;
 set @@sql_mode='ansi,traditional';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 select @@sql_mode;
 @@sql_mode
 REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,ANSI,STRICT_TRANS_TABLES,STRICT_ALL_TABLES,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
@@ -52,6 +54,8 @@ ERROR 22007: Incorrect date value: '2004-2-30' for column 'col1' at row 1
 set @@sql_mode='STRICT_ALL_TABLES,ALLOW_INVALID_DATES';
 INSERT INTO t1 VALUES ('2004-2-30');
 set @@sql_mode='ansi,traditional';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 INSERT IGNORE INTO t1 VALUES('2004-02-29'),('2004-13-15'),('0000-00-00');
 Warnings:
 Warning	1265	Data truncated for column 'col1' at row 2
@@ -125,6 +129,8 @@ col1
 2003-02-31
 drop table t1;
 set @@sql_mode='ansi,traditional';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1 (col1 datetime);
 INSERT INTO t1 VALUES('2004-10-31 15:30:00'),('2004-02-29 15:30:00');
 INSERT INTO t1 VALUES('0000-10-31 15:30:00');
@@ -200,6 +206,8 @@ Warning	1264	Out of range value for column 'col1' at row 1
 INSERT INTO t1 VALUES('0000-00-00 00:00:00');
 ERROR 22007: Incorrect datetime value: '0000-00-00 00:00:00' for column 'col1' at row 1
 set @@sql_mode='ansi,traditional';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT * FROM t1;
 col1
 2004-10-31 15:30:00
@@ -363,6 +371,8 @@ Warnings:
 Warning	1365	Division by 0
 Warning	1365	Division by 0
 set @@sql_mode='ansi,traditional';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT MOD(col1,0) FROM t1 WHERE col1 > 0 LIMIT 2;
 MOD(col1,0)
 NULL
@@ -386,6 +396,8 @@ Warning	1365	Division by 0
 set @@sql_mode='ansi';
 INSERT INTO t1 values (1/0,1/0);
 set @@sql_mode='ansi,traditional';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 INSERT IGNORE INTO t1 VALUES('-129','-1'),('128','256');
 Warnings:
 Warning	1264	Out of range value for column 'col1' at row 1
@@ -1054,6 +1066,8 @@ col1	col2
 99	
 DROP TABLE t1;
 set sql_mode='traditional';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 create table t1 (charcol char(255), varcharcol varchar(255),
 binarycol binary(255), varbinarycol varbinary(255), tinytextcol tinytext,
 tinyblobcol tinyblob);
@@ -1073,6 +1087,8 @@ select * from t1;
 charcol	varcharcol	binarycol	varbinarycol	tinytextcol	tinyblobcol
 drop table t1;
 set sql_mode='traditional';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 create table t1 (col1 datetime);
 insert into t1 values(STR_TO_DATE('31.10.2004 15.30 abc','%d.%m.%Y %H.%i'));
 ERROR 22007: Truncated incorrect datetime value: '31.10.2004 15.30 abc'
@@ -1108,6 +1124,8 @@ NULL
 2004-12-12 11:22:33
 2004-12-12 10:22:59
 set sql_mode='traditional';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 select count(*) from t1 where STR_TO_DATE('2004.12.12 10:22:61','%Y.%m.%d %T') IS NULL;
 count(*)
 7
@@ -1163,6 +1181,8 @@ Warning	1264	Out of range value for column 'col2' at row 1
 Warning	1264	Out of range value for column 'col3' at row 1
 drop table t1;
 set sql_mode='traditional';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 create table t1 (col1 date);
 insert ignore into t1 values ('0000-00-00');
 Warnings:
@@ -1215,6 +1235,8 @@ drop procedure t1;
 drop table t1;
 set sql_mode=@org_mode;
 SET @@sql_mode = 'traditional';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1 (i int not null);
 INSERT INTO t1 VALUES ();
 ERROR HY000: Field 'i' doesn't have a default value
@@ -1256,11 +1278,15 @@ Warnings:
 Warning	1364	Field 'i' doesn't have a default value
 DROP TABLE t1;
 set @@sql_mode='traditional';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 create table t1(a varchar(65537));
 ERROR 42000: Column length too big for column 'a' (max = 65535); use BLOB or TEXT instead
 create table t1(a varbinary(65537));
 ERROR 42000: Column length too big for column 'a' (max = 65535); use BLOB or TEXT instead
 set @@sql_mode='traditional';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 create table t1(a int, b date not null);
 alter table t1 modify a bigint unsigned not null;
 show create table t1;
@@ -1271,6 +1297,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 set @@sql_mode='traditional';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 create table t1 (d date);
 insert into t1 values ('2000-10-00');
 ERROR 22007: Incorrect date value: '2000-10-00' for column 'd' at row 1
@@ -1284,6 +1312,8 @@ d
 2000-10-01
 drop table t1;
 set @@sql_mode='traditional';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 create table t1(a int, b timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
 alter table t1 add primary key(a);
 show create table t1;
@@ -1305,6 +1335,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 set @@sql_mode='traditional';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 create table t1(a bit(2));
 insert into t1 values(b'101');
 ERROR 22001: Data too long for column 'a' at row 1
@@ -1312,6 +1344,8 @@ select * from t1;
 a
 drop table t1;
 set sql_mode='traditional';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 create table t1 (date date not null);
 create table t2 select date from t1;
 show create table t2;
@@ -1322,6 +1356,8 @@ t2	CREATE TABLE `t2` (
 drop table t2,t1;
 set @@sql_mode= @org_mode;
 set @@sql_mode='traditional';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 create table t1 (i int)
 comment '123456789*123456789*123456789*123456789*123456789*
          123456789*123456789*123456789*123456789*123456789*
@@ -1469,6 +1505,8 @@ t3	CREATE TABLE `t3` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 COMMENT='כקבהחןכקבהחןכקבהחןכקבהחןכקבהחןכקבהחןכקבהחןכקבהחןכקבהחןכקבהחן'
 DROP TABLE t3;
 set sql_mode= 'traditional';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 create table t1(col1 tinyint, col2 tinyint unsigned, 
 col3 smallint, col4 smallint unsigned,
 col5 mediumint, col6 mediumint unsigned,
@@ -1496,6 +1534,8 @@ insert into t1(col10) values('+');
 ERROR HY000: Incorrect integer value: '+' for column 'col10' at row 1
 drop table t1;
 set sql_mode='traditional';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 create table t1(a year);
 insert into t1 values ('-');
 ERROR HY000: Incorrect integer value: '-' for column 'a' at row 1
@@ -1509,6 +1549,8 @@ insert into t1 values ('2E3x');
 ERROR 01000: Data truncated for column 'a' at row 1
 drop table t1;
 set sql_mode='traditional';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 create table t1 (f1 set('a','a'));
 ERROR HY000: Column 'f1' has duplicated value 'a' in SET
 create table t1 (f1 enum('a','a'));
@@ -1714,6 +1756,8 @@ SET sql_mode=@org_mode;
 # BUG#11744940 - TRADITIONAL MODE: CAST ALLOWS INVALID VALUE
 #
 SET sql_mode='traditional';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1 (col1 char(3));
 INSERT INTO t1 VALUES(1000);
 ERROR 22001: Data too long for column 'col1' at row 1
@@ -1737,6 +1781,8 @@ SET sql_mode=@org_mode;
 # BUG#11744941 - TRADITIONAL MODE: BIGINT RANGE NOT CORRECTLY DELIMITED 
 #
 SET sql_mode='traditional';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1 (col1 bigint) engine=innodb;
 INSERT INTO t1 values(-9223372036854775808);
 INSERT INTO t1 VALUES(-9223372036854775809);

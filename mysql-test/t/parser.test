@@ -373,6 +373,24 @@ create table VAR_SAMP(a int);
 --error ER_PARSE_ERROR
 create table VAR_SAMP (a int);
 
+--echo #
+--echo # Test "UNIQUE KEY" and "UNIQUE" "KEY" grammar ambiguity
+--echo #
+
+CREATE TABLE t1 (i INT KEY);
+SHOW CREATE TABLE t1;
+
+CREATE TABLE t2 (i INT UNIQUE);
+SHOW CREATE TABLE t2;
+
+CREATE TABLE t3 (i INT UNIQUE KEY);
+--echo # Should output "UNIQUE KEY `i` (`i`)" only:
+SHOW CREATE TABLE t3;
+
+DROP TABLE t1, t2, t3;
+
+--echo #
+
 #
 # Bug#25930 (CREATE TABLE x SELECT ... parses columns wrong when ran with
 #            ANSI_QUOTES mode)

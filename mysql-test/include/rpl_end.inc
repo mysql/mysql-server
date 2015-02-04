@@ -117,7 +117,7 @@ if ($rpl_group_replication)
     --source include/rpl_connection.inc
 
     --let $_group_replication_member_state= `SELECT SERVICE_STATE FROM performance_schema.replication_connection_status connection_status WHERE connection_status.group_name="$group_replication_group_name"`
-    if ($_group_replication_member_state != 'OFF')
+    if ($_group_replication_member_state == 'ON')
     {
       --source include/stop_group_replication.inc
     }

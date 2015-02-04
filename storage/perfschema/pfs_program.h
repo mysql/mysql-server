@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -27,8 +27,6 @@
 #define PROGRAM_HASH_KEY_LENGTH sizeof(enum_object_type) + COL_OBJECT_NAME_SIZE + 1 + COL_OBJECT_SCHEMA_SIZE + 1
 
 extern LF_HASH program_hash;
-extern ulong program_max;
-extern ulong program_lost;
 
 /**
   Hash key for a program.
@@ -73,11 +71,9 @@ struct PFS_ALIGNED PFS_program : public PFS_instr
   void reset_data();
 };
 
-extern PFS_program *program_array;
-
 int init_program(const PFS_global_param *param);
 void cleanup_program(void);
-int init_program_hash(void);
+int init_program_hash(const PFS_global_param *param);
 void cleanup_program_hash(void);
 
 void reset_esms_by_program();

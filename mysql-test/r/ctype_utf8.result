@@ -1742,6 +1742,8 @@ NULL
 Warnings:
 Warning	1300	Invalid utf8 character string: 'FF8F'
 set sql_mode=traditional;
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 select char(0xff,0x8f using utf8);
 char(0xff,0x8f using utf8)
 NULL
@@ -1926,6 +1928,8 @@ i
 н1234567890
 DROP TABLE t1, t2;
 set sql_mode=traditional;
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 select hex(char(0xFF using utf8));
 hex(char(0xFF using utf8))
 NULL

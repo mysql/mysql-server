@@ -476,6 +476,8 @@ DROP DATABASE IF EXISTS mysqltest_db1;
 CREATE DATABASE mysqltest_db1;
 USE mysqltest_db1;
 GRANT ALL ON mysqltest_db1.* TO mysqltest_u1@localhost;
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 CREATE TABLE t1 (
 a1 int,
 a2 int

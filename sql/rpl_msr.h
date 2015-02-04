@@ -247,17 +247,15 @@ public:
   /**
     Returns if a channel name is one of the reserved group replication names
 
-    @param channel the channel name to test
+    @param channel    the channel name to test
+    @param is_applier compare only with applier name
 
     @return
       @retval      true   the name is a reserved name
       @retval      false  non reserved name
   */
-  inline bool is_group_replication_channel_name(const char* channel)
-  {
-    return !strcmp(channel, group_replication_channel_names[0]) ||
-           !strcmp(channel, group_replication_channel_names[1]);
-  }
+  bool is_group_replication_channel_name(const char* channel,
+                                         bool is_applier= false);
 
   /**
      Forward iterators to initiate traversing of a map.

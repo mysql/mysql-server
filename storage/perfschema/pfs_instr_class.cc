@@ -22,6 +22,7 @@
 #include "my_sys.h"
 #include "table.h"
 #include "pfs_instr_class.h"
+#include "pfs_builtin_memory.h"
 #include "pfs_instr.h"
 #include "pfs_global.h"
 #include "pfs_timer.h"
@@ -29,6 +30,7 @@
 #include "pfs_setup_object.h"
 #include "pfs_atomic.h"
 #include "pfs_program.h"
+#include "pfs_buffer_container.h"
 #include "mysql/psi/mysql_thread.h"
 #include "lf.h"
 
@@ -101,22 +103,6 @@ ulong stage_class_lost= 0;
 ulong statement_class_max= 0;
 /** Number of statement class lost. @sa statement_class_array */
 ulong statement_class_lost= 0;
-/** Size of the table share array. @sa table_share_array */
-ulong table_share_max= 0;
-/** Number of table share lost. @sa table_share_array */
-ulong table_share_lost= 0;
-/** Size of the table stat array. @sa table_share_lock_stat_array */
-ulong table_share_lock_stat_max= 0;
-/** Number of table stat lost. @sa table_share_lock_stat_array */
-ulong table_share_lock_stat_lost= 0;
-/** boolean value to indicate if stat array is full. @sa table_share_lock_stat_full */
-ulong table_share_lock_stat_full= false;
-/** Size of the index stat array. @sa table_share_index_stat_array */
-ulong table_share_index_stat_max= 0;
-/** Number of index stat lost. @sa table_share_index_stat_array */
-ulong table_share_index_stat_lost= 0;
-/** boolean value to indicate if stat array is full. @sa table_share_index_stat_full */
-ulong table_share_index_stat_full= false;
 /** Size of the socket class array. @sa socket_class_array */
 ulong socket_class_max= 0;
 /** Number of socket class lost. @sa socket_class_array */
@@ -147,28 +133,6 @@ static uint32 thread_class_dirty_count= 0;
 static uint32 thread_class_allocated_count= 0;
 
 static PFS_thread_class *thread_class_array= NULL;
-
-/**
-  Table instance array.
-  @sa table_share_max
-  @sa table_share_lost
-  @sa table_share_hash
-*/
-PFS_table_share *table_share_array= NULL;
-
-/**
-  Table statistics instance array.
-  @sa table_share_lock_stat_max
-  @sa table_share_lock_stat_lost
-*/
-PFS_table_share_lock *table_share_lock_stat_array= NULL;
-
-/**
-  Index statistics instance array.
-  @sa table_share_index_stat_max
-  @sa table_share_index_stat_lost
-*/
-PFS_table_share_index *table_share_index_stat_array= NULL;
 
 PFS_ALIGNED PFS_single_stat global_idle_stat;
 PFS_ALIGNED PFS_table_io_stat global_table_io_stat;
@@ -204,7 +168,6 @@ enum_timer_name *class_timers[] =
   Hash index for instrumented table shares.
   This index is searched by table fully qualified name (@c PFS_table_share_key),
   and points to instrumented table shares (@c PFS_table_share).
-  @sa table_share_array
   @sa PFS_table_share_key
   @sa PFS_table_share
   @sa table_share_hash_get_key
@@ -320,7 +283,8 @@ int init_sync_class(uint mutex_class_sizing,
 
   if (mutex_class_max > 0)
   {
-    mutex_class_array= PFS_MALLOC_ARRAY(mutex_class_max, PFS_mutex_class,
+    mutex_class_array= PFS_MALLOC_ARRAY(& builtin_memory_mutex_class,
+                                        mutex_class_max, PFS_mutex_class,
                                         MYF(MY_ZEROFILL));
     if (unlikely(mutex_class_array == NULL))
       return 1;
@@ -328,7 +292,8 @@ int init_sync_class(uint mutex_class_sizing,
 
   if (rwlock_class_max > 0)
   {
-    rwlock_class_array= PFS_MALLOC_ARRAY(rwlock_class_max, PFS_rwlock_class,
+    rwlock_class_array= PFS_MALLOC_ARRAY(& builtin_memory_rwlock_class,
+                                         rwlock_class_max, PFS_rwlock_class,
                                          MYF(MY_ZEROFILL));
     if (unlikely(rwlock_class_array == NULL))
       return 1;
@@ -336,7 +301,8 @@ int init_sync_class(uint mutex_class_sizing,
 
   if (cond_class_max > 0)
   {
-    cond_class_array= PFS_MALLOC_ARRAY(cond_class_max, PFS_cond_class,
+    cond_class_array= PFS_MALLOC_ARRAY(& builtin_memory_cond_class,
+                                       cond_class_max, PFS_cond_class,
                                        MYF(MY_ZEROFILL));
     if (unlikely(cond_class_array == NULL))
       return 1;
@@ -348,13 +314,21 @@ int init_sync_class(uint mutex_class_sizing,
 /** Cleanup the instrument synch class buffers. */
 void cleanup_sync_class(void)
 {
-  pfs_free(mutex_class_array);
+  PFS_FREE_ARRAY(& builtin_memory_mutex_class,
+                 mutex_class_max, PFS_mutex_class,
+                 mutex_class_array);
   mutex_class_array= NULL;
   mutex_class_dirty_count= mutex_class_allocated_count= mutex_class_max= 0;
-  pfs_free(rwlock_class_array);
+
+  PFS_FREE_ARRAY(& builtin_memory_rwlock_class,
+                 rwlock_class_max, PFS_rwlock_class,
+                 rwlock_class_array);
   rwlock_class_array= NULL;
   rwlock_class_dirty_count= rwlock_class_allocated_count= rwlock_class_max= 0;
-  pfs_free(cond_class_array);
+
+  PFS_FREE_ARRAY(& builtin_memory_cond_class,
+                 cond_class_max, PFS_cond_class,
+                 cond_class_array);
   cond_class_array= NULL;
   cond_class_dirty_count= cond_class_allocated_count= cond_class_max= 0;
 }
@@ -373,7 +347,8 @@ int init_thread_class(uint thread_class_sizing)
 
   if (thread_class_max > 0)
   {
-    thread_class_array= PFS_MALLOC_ARRAY(thread_class_max, PFS_thread_class,
+    thread_class_array= PFS_MALLOC_ARRAY(& builtin_memory_thread_class,
+                                         thread_class_max, PFS_thread_class,
                                          MYF(MY_ZEROFILL));
     if (unlikely(thread_class_array == NULL))
       result= 1;
@@ -387,7 +362,9 @@ int init_thread_class(uint thread_class_sizing)
 /** Cleanup the thread class buffers. */
 void cleanup_thread_class(void)
 {
-  pfs_free(thread_class_array);
+  PFS_FREE_ARRAY(& builtin_memory_thread_class,
+                 thread_class_max, PFS_thread_class,
+                 thread_class_array);
   thread_class_array= NULL;
   thread_class_dirty_count= thread_class_allocated_count= 0;
   thread_class_max= 0;
@@ -400,29 +377,16 @@ void cleanup_thread_class(void)
 */
 int init_table_share(uint table_share_sizing)
 {
-  int result= 0;
-  table_share_max= table_share_sizing;
-  table_share_lost= 0;
+  if (global_table_share_container.init(table_share_sizing))
+    return 1;
 
-  if (table_share_max > 0)
-  {
-    table_share_array= PFS_MALLOC_ARRAY(table_share_max, PFS_table_share,
-                                        MYF(MY_ZEROFILL));
-    if (unlikely(table_share_array == NULL))
-      result= 1;
-  }
-  else
-    table_share_array= NULL;
-
-  return result;
+  return 0;
 }
 
 /** Cleanup the table share buffers. */
 void cleanup_table_share(void)
 {
-  pfs_free(table_share_array);
-  table_share_array= NULL;
-  table_share_max= 0;
+  global_table_share_container.cleanup();
 }
 
 C_MODE_START
@@ -444,13 +408,12 @@ static uchar *table_share_hash_get_key(const uchar *entry, size_t *length,
 C_MODE_END
 
 /** Initialize the table share hash table. */
-int init_table_share_hash(void)
+int init_table_share_hash(const PFS_global_param *param)
 {
-  if ((! table_share_hash_inited) && (table_share_max > 0))
+  if ((! table_share_hash_inited) && (param->m_table_share_sizing != 0))
   {
     lf_hash_init(&table_share_hash, sizeof(PFS_table_share*), LF_HASH_UNIQUE,
                  0, 0, table_share_hash_get_key, &my_charset_bin);
-    table_share_hash.size= table_share_max;
     table_share_hash_inited= true;
   }
   return 0;
@@ -724,22 +687,10 @@ void PFS_table_share::refresh_setup_object_flags(PFS_thread *thread)
 */
 int init_table_share_lock_stat(uint table_stat_sizing)
 {
-  int result= 0;
-  table_share_lock_stat_max= table_stat_sizing;
-  table_share_lock_stat_lost= 0;
+  if (global_table_share_lock_container.init(table_stat_sizing))
+    return 1;
 
-  if (table_share_lock_stat_max > 0)
-  {
-    table_share_lock_stat_array= PFS_MALLOC_ARRAY(table_share_lock_stat_max,
-                                       PFS_table_share_lock,
-                                       MYF(MY_ZEROFILL));
-    if (unlikely(table_share_lock_stat_array == NULL))
-      result= 1;
-  }
-  else
-    table_share_lock_stat_array= NULL;
-
-  return result;
+  return 0;
 }
 
 /**
@@ -749,60 +700,35 @@ int init_table_share_lock_stat(uint table_stat_sizing)
 PFS_table_share_lock*
 create_table_share_lock_stat()
 {
-  if (table_share_lock_stat_array == NULL || table_share_lock_stat_max == 0)
-  {
-    table_share_lock_stat_lost++;
-    return NULL;
-  }
- 
   PFS_table_share_lock *pfs= NULL;
-  static uint PFS_ALIGNED table_stat_monotonic_index= 0;
-  ulong index= 0;
-  ulong attempts= 0;
   pfs_dirty_state dirty_state;
 
-  if(table_share_lock_stat_full)
-  {
-    table_share_lock_stat_lost++;
-    return NULL;
-  }
-
   /* Create a new record in table stat array. */
-  while (++attempts <= table_share_lock_stat_max)
+  pfs= global_table_share_lock_container.allocate(& dirty_state);
+  if (pfs != NULL)
   {
-    index= PFS_atomic::add_u32(& table_stat_monotonic_index, 1) % table_share_lock_stat_max;
-    pfs= table_share_lock_stat_array + index;
+    /* Reset the stats. */
+    pfs->m_stat.reset();
 
-    if (pfs->m_lock.free_to_dirty(& dirty_state))
-    {
-      /* Reset the stats. */
-      pfs->m_stat.reset();
-
-      /* Use this stat buffer. */
-      pfs->m_lock.dirty_to_allocated(& dirty_state);
-      return pfs;
-    }
+    /* Use this stat buffer. */
+    pfs->m_lock.dirty_to_allocated(& dirty_state);
   }
-  table_share_lock_stat_lost++;
-  table_share_lock_stat_full= true;
-  return NULL;
+
+  return pfs;
 }
 
 /** Release a table share lock instrumentation. */
 void release_table_share_lock_stat(PFS_table_share_lock *pfs)
 {
   pfs->m_owner= NULL;
-  pfs->m_lock.allocated_to_free();
-  table_share_lock_stat_full= false;
+  global_table_share_lock_container.deallocate(pfs);
   return;
 }
 
 /** Cleanup the table stat buffers. */
 void cleanup_table_share_lock_stat(void)
 {
-  pfs_free(table_share_lock_stat_array);
-  table_share_lock_stat_array= NULL;
-  table_share_lock_stat_max= 0;
+  global_table_share_lock_container.cleanup();
 }
 
 /**
@@ -812,22 +738,10 @@ void cleanup_table_share_lock_stat(void)
 */
 int init_table_share_index_stat(uint index_stat_sizing)
 {
-  int result= 0;
-  table_share_index_stat_max= index_stat_sizing;
-  table_share_index_stat_lost= 0;
+  if (global_table_share_index_container.init(index_stat_sizing))
+    return 1;
 
-  if (table_share_index_stat_max > 0)
-  {
-    table_share_index_stat_array= PFS_MALLOC_ARRAY(table_share_index_stat_max,
-                                       PFS_table_share_index,
-                                       MYF(MY_ZEROFILL));
-    if (unlikely(table_share_index_stat_array == NULL))
-      result= 1;
-  }
-  else
-    table_share_index_stat_array= NULL;
-
-  return result;
+  return 0;
 }
 
 /**
@@ -839,74 +753,50 @@ create_table_share_index_stat(const TABLE_SHARE *server_share, uint server_index
 {
   DBUG_ASSERT((server_share != NULL) || (server_index == MAX_INDEXES));
 
-  if (table_share_index_stat_array == NULL || table_share_index_stat_max == 0)
-  {
-    table_share_index_stat_lost++;
-    return NULL;
-  }
- 
   PFS_table_share_index *pfs= NULL;
-  static uint PFS_ALIGNED index_stat_monotonic_index= 0;
-  ulong index= 0;
-  ulong attempts= 0;
   pfs_dirty_state dirty_state;
 
-  if(table_share_index_stat_full)
-  {
-    table_share_index_stat_lost++;
-    return NULL;
-  }
-
   /* Create a new record in index stat array. */
-  while (++attempts <= table_share_index_stat_max)
+  pfs= global_table_share_index_container.allocate(& dirty_state);
+  if (pfs != NULL)
   {
-    index= PFS_atomic::add_u32(& index_stat_monotonic_index, 1) % table_share_index_stat_max;
-    pfs= table_share_index_stat_array + index;
-
-    if (pfs->m_lock.free_to_dirty(& dirty_state))
+    if (server_index == MAX_INDEXES)
     {
-      if (server_index == MAX_INDEXES)
-      {
-        pfs->m_key.m_name_length= 0;
-      }
-      else
-      {
-        KEY *key_info= server_share->key_info + server_index;
-        size_t len= strlen(key_info->name);
-
-        memcpy(pfs->m_key.m_name, key_info->name, len);
-        pfs->m_key.m_name_length= len;
-      }
-
-      /* Reset the stats. */
-      pfs->m_stat.reset();
-
-      /* Use this stat buffer. */
-      pfs->m_lock.dirty_to_allocated(& dirty_state);
-      return pfs;
+      pfs->m_key.m_name_length= 0;
     }
+    else
+    {
+      KEY *key_info= server_share->key_info + server_index;
+      size_t len= strlen(key_info->name);
+
+      memcpy(pfs->m_key.m_name, key_info->name, len);
+      pfs->m_key.m_name_length= len;
+    }
+
+    /* Reset the stats. */
+    pfs->m_stat.reset();
+
+    /* Use this stat buffer. */
+    pfs->m_lock.dirty_to_allocated(& dirty_state);
   }
-  table_share_index_stat_lost++;
-  table_share_index_stat_full= true;
-  return NULL;
+
+  return pfs;
 }
 
 /** Release a table share index instrumentation. */
 void release_table_share_index_stat(PFS_table_share_index *pfs)
 {
   pfs->m_owner= NULL;
-  pfs->m_lock.allocated_to_free();
-  table_share_index_stat_full= false;
+  global_table_share_index_container.deallocate(pfs);
   return;
 }
 
 /** Cleanup the table stat buffers. */
 void cleanup_table_share_index_stat(void)
 {
-  pfs_free(table_share_index_stat_array);
-  table_share_index_stat_array= NULL;
-  table_share_index_stat_max= 0;
+  global_table_share_index_container.cleanup();
 }
+
 /**
   Initialize the file class buffer.
   @param file_class_sizing            max number of file class
@@ -921,7 +811,8 @@ int init_file_class(uint file_class_sizing)
 
   if (file_class_max > 0)
   {
-    file_class_array= PFS_MALLOC_ARRAY(file_class_max, PFS_file_class,
+    file_class_array= PFS_MALLOC_ARRAY(& builtin_memory_file_class,
+                                       file_class_max, PFS_file_class,
                                        MYF(MY_ZEROFILL));
     if (unlikely(file_class_array == NULL))
       return 1;
@@ -935,7 +826,9 @@ int init_file_class(uint file_class_sizing)
 /** Cleanup the file class buffers. */
 void cleanup_file_class(void)
 {
-  pfs_free(file_class_array);
+  PFS_FREE_ARRAY(& builtin_memory_file_class,
+                 file_class_max, PFS_file_class,
+                 file_class_array);
   file_class_array= NULL;
   file_class_dirty_count= file_class_allocated_count= 0;
   file_class_max= 0;
@@ -955,7 +848,8 @@ int init_stage_class(uint stage_class_sizing)
 
   if (stage_class_max > 0)
   {
-    stage_class_array= PFS_MALLOC_ARRAY(stage_class_max, PFS_stage_class,
+    stage_class_array= PFS_MALLOC_ARRAY(& builtin_memory_stage_class,
+                                        stage_class_max, PFS_stage_class,
                                         MYF(MY_ZEROFILL));
     if (unlikely(stage_class_array == NULL))
       return 1;
@@ -969,7 +863,9 @@ int init_stage_class(uint stage_class_sizing)
 /** Cleanup the stage class buffers. */
 void cleanup_stage_class(void)
 {
-  pfs_free(stage_class_array);
+  PFS_FREE_ARRAY(& builtin_memory_stage_class,
+                 stage_class_max, PFS_stage_class,
+                 stage_class_array);
   stage_class_array= NULL;
   stage_class_dirty_count= stage_class_allocated_count= 0;
   stage_class_max= 0;
@@ -989,7 +885,8 @@ int init_statement_class(uint statement_class_sizing)
 
   if (statement_class_max > 0)
   {
-    statement_class_array= PFS_MALLOC_ARRAY(statement_class_max, PFS_statement_class,
+    statement_class_array= PFS_MALLOC_ARRAY(& builtin_memory_statement_class,
+                                            statement_class_max, PFS_statement_class,
                                             MYF(MY_ZEROFILL));
     if (unlikely(statement_class_array == NULL))
       return 1;
@@ -1003,7 +900,9 @@ int init_statement_class(uint statement_class_sizing)
 /** Cleanup the statement class buffers. */
 void cleanup_statement_class(void)
 {
-  pfs_free(statement_class_array);
+  PFS_FREE_ARRAY(& builtin_memory_statement_class,
+                 statement_class_max, PFS_statement_class,
+                 statement_class_array);
   statement_class_array= NULL;
   statement_class_dirty_count= statement_class_allocated_count= 0;
   statement_class_max= 0;
@@ -1023,7 +922,8 @@ int init_socket_class(uint socket_class_sizing)
 
   if (socket_class_max > 0)
   {
-    socket_class_array= PFS_MALLOC_ARRAY(socket_class_max, PFS_socket_class,
+    socket_class_array= PFS_MALLOC_ARRAY(& builtin_memory_socket_class,
+                                         socket_class_max, PFS_socket_class,
                                          MYF(MY_ZEROFILL));
     if (unlikely(socket_class_array == NULL))
       return 1;
@@ -1037,7 +937,9 @@ int init_socket_class(uint socket_class_sizing)
 /** Cleanup the socket class buffers. */
 void cleanup_socket_class(void)
 {
-  pfs_free(socket_class_array);
+  PFS_FREE_ARRAY(& builtin_memory_socket_class,
+                 socket_class_max, PFS_socket_class,
+                 socket_class_array);
   socket_class_array= NULL;
   socket_class_dirty_count= socket_class_allocated_count= 0;
   socket_class_max= 0;
@@ -1057,7 +959,8 @@ int init_memory_class(uint memory_class_sizing)
 
   if (memory_class_max > 0)
   {
-    memory_class_array= PFS_MALLOC_ARRAY(memory_class_max, PFS_memory_class,
+    memory_class_array= PFS_MALLOC_ARRAY(& builtin_memory_memory_class,
+                                         memory_class_max, PFS_memory_class,
                                          MYF(MY_ZEROFILL));
     if (unlikely(memory_class_array == NULL))
       return 1;
@@ -1071,7 +974,9 @@ int init_memory_class(uint memory_class_sizing)
 /** Cleanup the memory class buffers. */
 void cleanup_memory_class(void)
 {
-  pfs_free(memory_class_array);
+  PFS_FREE_ARRAY(& builtin_memory_memory_class,
+                 memory_class_max, PFS_memory_class,
+                 memory_class_array);
   memory_class_array= NULL;
   memory_class_dirty_count= memory_class_allocated_count= 0;
   memory_class_max= 0;
@@ -1781,15 +1686,13 @@ PFS_table_share* find_or_create_table_share(PFS_thread *thread,
                                             bool temporary,
                                             const TABLE_SHARE *share)
 {
-  static PFS_ALIGNED PFS_cacheline_uint32 monotonic;
-
   /* See comments in register_mutex_class */
   PFS_table_share_key key;
 
   LF_PINS *pins= get_table_share_hash_pins(thread);
   if (unlikely(pins == NULL))
   {
-    table_share_lost++;
+    global_table_share_container.m_lost++;
     return NULL;
   }
 
@@ -1807,8 +1710,6 @@ PFS_table_share* find_or_create_table_share(PFS_thread *thread,
   const uint retry_max= 3;
   bool enabled= true;
   bool timed= true;
-  uint index;
-  uint attempts= 0;
   PFS_table_share *pfs;
   pfs_dirty_state dirty_state;
 
@@ -1852,55 +1753,48 @@ search:
     */
   }
 
-  while (++attempts <= table_share_max)
+  pfs= global_table_share_container.allocate(& dirty_state);
+  if (pfs != NULL)
   {
-    /* See create_mutex() */
-    index= PFS_atomic::add_u32(& monotonic.m_u32, 1) % table_share_max;
-    pfs= table_share_array + index;
+    pfs->m_key= key;
+    pfs->m_schema_name= &pfs->m_key.m_hash_key[1];
+    pfs->m_schema_name_length= schema_name_length;
+    pfs->m_table_name= &pfs->m_key.m_hash_key[schema_name_length + 2];
+    pfs->m_table_name_length= table_name_length;
+    pfs->m_enabled= enabled;
+    pfs->m_timed= timed;
+    pfs->init_refcount();
+    pfs->destroy_lock_stat();
+    pfs->destroy_index_stats();
+    pfs->m_key_count= share->keys;
 
-    if (pfs->m_lock.free_to_dirty(& dirty_state))
+    int res;
+    pfs->m_lock.dirty_to_allocated(& dirty_state);
+    res= lf_hash_insert(&table_share_hash, pins, &pfs);
+    if (likely(res == 0))
     {
-      pfs->m_key= key;
-      pfs->m_schema_name= &pfs->m_key.m_hash_key[1];
-      pfs->m_schema_name_length= schema_name_length;
-      pfs->m_table_name= &pfs->m_key.m_hash_key[schema_name_length + 2];
-      pfs->m_table_name_length= table_name_length;
-      pfs->m_enabled= enabled;
-      pfs->m_timed= timed;
-      pfs->init_refcount();
-      pfs->destroy_lock_stat();
-      pfs->destroy_index_stats();
-      pfs->m_key_count= share->keys;
-
-      int res;
-      pfs->m_lock.dirty_to_allocated(& dirty_state);
-      res= lf_hash_insert(&table_share_hash, pins, &pfs);
-      if (likely(res == 0))
-      {
-        return pfs;
-      }
-
-      pfs->m_lock.allocated_to_free();
-
-      if (res > 0)
-      {
-        /* Duplicate insert by another thread */
-        if (++retry_count > retry_max)
-        {
-          /* Avoid infinite loops */
-          table_share_lost++;
-          return NULL;
-        }
-        goto search;
-      }
-
-      /* OOM in lf_hash_insert */
-      table_share_lost++;
-      return NULL;
+      return pfs;
     }
+
+    global_table_share_container.deallocate(pfs);
+
+    if (res > 0)
+    {
+      /* Duplicate insert by another thread */
+      if (++retry_count > retry_max)
+      {
+        /* Avoid infinite loops */
+        global_table_share_container.m_lost++;
+        return NULL;
+      }
+      goto search;
+    }
+
+    /* OOM in lf_hash_insert */
+    global_table_share_container.m_lost++;
+    return NULL;
   }
 
-  table_share_lost++;
   return NULL;
 }
 
@@ -2036,7 +1930,7 @@ void drop_table_share(PFS_thread *thread,
 */
 PFS_table_share *sanitize_table_share(PFS_table_share *unsafe)
 {
-  SANITIZE_ARRAY_BODY(PFS_table_share, table_share_array, table_share_max, unsafe);
+  return global_table_share_container.sanitize(unsafe);
 }
 
 /** Reset the wait statistics per instrument class. */
@@ -2070,28 +1964,50 @@ void reset_socket_class_io(void)
     pfs->m_socket_stat.m_io_stat.reset();
 }
 
+class Proc_table_share_derived_flags
+  : public PFS_buffer_processor<PFS_table_share>
+{
+public:
+  Proc_table_share_derived_flags(PFS_thread *thread)
+    : m_thread(thread)
+  {}
+
+  virtual void operator()(PFS_table_share *pfs)
+  {
+    pfs->refresh_setup_object_flags(m_thread);
+  }
+
+private:
+  PFS_thread* m_thread;
+};
+
 void update_table_share_derived_flags(PFS_thread *thread)
 {
-  PFS_table_share *pfs= table_share_array;
-  PFS_table_share *pfs_last= table_share_array + table_share_max;
-
-  for ( ; pfs < pfs_last; pfs++)
-  {
-    if (pfs->m_lock.is_populated())
-      pfs->refresh_setup_object_flags(thread);
-  }
+  Proc_table_share_derived_flags proc(thread);
+  global_table_share_container.apply(proc);
 }
+
+class Proc_program_share_derived_flags
+  : public PFS_buffer_processor<PFS_program>
+{
+public:
+  Proc_program_share_derived_flags(PFS_thread *thread)
+    : m_thread(thread)
+  {}
+
+  virtual void operator()(PFS_program *pfs)
+  {
+    pfs->refresh_setup_object_flags(m_thread);
+  }
+
+private:
+  PFS_thread* m_thread;
+};
 
 void update_program_share_derived_flags(PFS_thread *thread)
 {
-  PFS_program *pfs= program_array;
-  PFS_program *pfs_last= program_array + program_max;
-
-  for (; pfs < pfs_last ; pfs++)
-  {
-    if (pfs->m_lock.is_populated())
-      pfs->refresh_setup_object_flags(thread);
-  }
+  Proc_program_share_derived_flags proc(thread);
+  global_program_container.apply(proc);
 }
 
 /** @} */

@@ -22,6 +22,7 @@
 #include "rpl_handler.h"                    // RUN_HOOK
 #include "rpl_mi.h"                         // Master_info
 #include "rpl_rli.h"                        // Relay_log_info
+#include "rpl_rli_pdb.h"                    // Slave_worker
 #include "rpl_slave_commit_order_manager.h" // Commit_order_manager
 #include "rpl_trx_boundary_parser.h"        // Transaction_boundary_parser
 #include "sql_class.h"                      // THD
@@ -126,9 +127,12 @@ private:
   Helper class to perform a thread excursion.
 
   This class is used to temporarily switch to another session (THD
-  structure). It will set up the PSI structures and other "globals"
-  correctly (e.g., thread-specific variables) so that the POSIX thread
-  looks exactly like the session attached to.
+  structure). It will set up thread specific "globals" correctly
+  so that the POSIX thread looks exactly like the session attached to.
+  However, PSI_thread info is not touched as it is required to show
+  the actual physial view in PFS instrumentation i.e., it should
+  depict as the real thread doing the work instead of thread it switched
+  to.
 
   On destruction, the original session (which is supplied to the
   constructor) will be re-attached automatically. For example, with
@@ -151,16 +155,10 @@ class Thread_excursion
 public:
   Thread_excursion(THD *thd)
     : m_original_thd(thd)
-#ifdef HAVE_PSI_THREAD_INTERFACE
-    , m_saved_psi(PSI_THREAD_CALL(get_thread)())
-#endif /* HAVE_PSI_THREAD_INTERFACE */
   {
   }
 
   ~Thread_excursion() {
-#ifdef HAVE_PSI_THREAD_INTERFACE
-    PSI_THREAD_CALL(set_thread)(m_saved_psi);
-#endif /* HAVE_PSI_THREAD_INTERFACE */
 #ifndef EMBEDDED_LIBRARY
     if (unlikely(setup_thread_globals(m_original_thd)))
       DBUG_ASSERT(0);                           // Out of memory?!
@@ -225,16 +223,10 @@ private:
    */
   int attach_to(THD *thd)
   {
-#ifdef HAVE_PSI_THREAD_INTERFACE
-    PSI_THREAD_CALL(set_thread)(thd_get_psi(thd));
-#endif /* HAVE_PSI_THREAD_INTERFACE */
 #ifndef EMBEDDED_LIBRARY
     if (DBUG_EVALUATE_IF("simulate_session_attach_error", 1, 0)
         || unlikely(setup_thread_globals(thd)))
     {
-#ifdef HAVE_PSI_THREAD_INTERFACE
-      PSI_THREAD_CALL(set_thread)(m_saved_psi);
-#endif /* HAVE_PSI_THREAD_INTERFACE */
       /*
         Indirectly uses pthread_setspecific, which can only return
         ENOMEM or EINVAL. Since store_globals are using correct keys,
@@ -266,7 +258,6 @@ exit0:
   }
 
   THD *m_original_thd;
-  PSI_thread *m_saved_psi;
 };
 
 

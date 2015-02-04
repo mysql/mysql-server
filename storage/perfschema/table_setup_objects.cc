@@ -27,6 +27,7 @@
 #include "table_setup_objects.h"
 #include "table_helper.h"
 #include "pfs_global.h"
+#include "pfs_buffer_container.h"
 #include "field.h"
 
 THR_LOCK table_setup_objects::m_table_lock;
@@ -172,7 +173,7 @@ int table_setup_objects::delete_all_rows(void)
 
 ha_rows table_setup_objects::get_row_count(void)
 {
-  return setup_object_count();
+  return global_setup_object_container.get_row_count();
 }
 
 table_setup_objects::table_setup_objects()
@@ -190,17 +191,14 @@ int table_setup_objects::rnd_next(void)
 {
   PFS_setup_object *pfs;
 
-  for (m_pos.set_at(&m_next_pos);
-       m_pos.m_index < setup_object_max;
-       m_pos.next())
+  m_pos.set_at(&m_next_pos);
+  PFS_setup_object_iterator it= global_setup_object_container.iterate(m_pos.m_index);
+  pfs= it.scan_next(& m_pos.m_index);
+  if (pfs != NULL)
   {
-    pfs= &setup_object_array[m_pos.m_index];
-    if (pfs->m_lock.is_populated())
-    {
-      make_row(pfs);
-      m_next_pos.set_after(&m_pos);
-      return 0;
-    }
+    make_row(pfs);
+    m_next_pos.set_after(&m_pos);
+    return 0;
   }
 
   return HA_ERR_END_OF_FILE;
@@ -212,9 +210,8 @@ int table_setup_objects::rnd_pos(const void *pos)
 
   set_position(pos);
 
-  DBUG_ASSERT(m_pos.m_index < setup_object_max);
-  pfs= &setup_object_array[m_pos.m_index];
-  if (pfs->m_lock.is_populated())
+  pfs= global_setup_object_container.get(m_pos.m_index);
+  if (pfs != NULL)
   {
     make_row(pfs);
     return 0;

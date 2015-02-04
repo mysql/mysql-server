@@ -277,6 +277,11 @@ enum enum_alter_inplace_result {
 */
 #define HA_ATTACHABLE_TRX_COMPATIBLE  (1LL << 45)
 
+/**
+  Handler supports Generated Columns
+*/
+#define HA_GENERATED_COLUMNS            (1LL << 45)
+
 
 /* bits in index_flags(index_number) for what you can do with index */
 #define HA_READ_NEXT            1       /* TODO really use this flag */
@@ -355,7 +360,7 @@ enum enum_alter_inplace_result {
 #define HA_OPEN_KEYFILE		1
 #define HA_OPEN_RNDFILE		2
 #define HA_GET_INDEX		4
-#define HA_GET_INFO		8	/* do a ha_info() after open */
+#define HA_GET_INFO		8	/* do a handler::info() after open */
 #define HA_READ_ONLY		16	/* File opened as readonly */
 /* Try readonly if can't open with read and write */
 #define HA_TRY_READ_ONLY	32
@@ -1044,37 +1049,37 @@ public:
      attribute has really changed we might choose to set flag
      pessimistically, for example, relying on parser output only.
   */
-  typedef ulong HA_ALTER_FLAGS;
+  typedef ulonglong HA_ALTER_FLAGS;
 
   // Add non-unique, non-primary index
-  static const HA_ALTER_FLAGS ADD_INDEX                  = 1L << 0;
+  static const HA_ALTER_FLAGS ADD_INDEX                  = 1ULL << 0;
 
   // Drop non-unique, non-primary index
-  static const HA_ALTER_FLAGS DROP_INDEX                 = 1L << 1;
+  static const HA_ALTER_FLAGS DROP_INDEX                 = 1ULL << 1;
 
   // Add unique, non-primary index
-  static const HA_ALTER_FLAGS ADD_UNIQUE_INDEX           = 1L << 2;
+  static const HA_ALTER_FLAGS ADD_UNIQUE_INDEX           = 1ULL << 2;
 
   // Drop unique, non-primary index
-  static const HA_ALTER_FLAGS DROP_UNIQUE_INDEX          = 1L << 3;
+  static const HA_ALTER_FLAGS DROP_UNIQUE_INDEX          = 1ULL << 3;
 
   // Add primary index
-  static const HA_ALTER_FLAGS ADD_PK_INDEX               = 1L << 4;
+  static const HA_ALTER_FLAGS ADD_PK_INDEX               = 1ULL << 4;
 
   // Drop primary index
-  static const HA_ALTER_FLAGS DROP_PK_INDEX              = 1L << 5;
+  static const HA_ALTER_FLAGS DROP_PK_INDEX              = 1ULL << 5;
 
   // Add column
-  static const HA_ALTER_FLAGS ADD_COLUMN                 = 1L << 6;
+  static const HA_ALTER_FLAGS ADD_COLUMN                 = 1ULL << 6;
 
   // Drop column
-  static const HA_ALTER_FLAGS DROP_COLUMN                = 1L << 7;
+  static const HA_ALTER_FLAGS DROP_COLUMN                = 1ULL << 7;
 
   // Rename column
-  static const HA_ALTER_FLAGS ALTER_COLUMN_NAME          = 1L << 8;
+  static const HA_ALTER_FLAGS ALTER_COLUMN_NAME          = 1ULL << 8;
 
   // Change column datatype
-  static const HA_ALTER_FLAGS ALTER_COLUMN_TYPE          = 1L << 9;
+  static const HA_ALTER_FLAGS ALTER_COLUMN_TYPE          = 1ULL << 9;
 
   /**
     Change column datatype in such way that new type has compatible
@@ -1082,61 +1087,61 @@ public:
     possible to perform change by only updating data dictionary
     without changing table rows.
   */
-  static const HA_ALTER_FLAGS ALTER_COLUMN_EQUAL_PACK_LENGTH = 1L << 10;
+  static const HA_ALTER_FLAGS ALTER_COLUMN_EQUAL_PACK_LENGTH = 1ULL << 10;
 
   // Reorder column
-  static const HA_ALTER_FLAGS ALTER_COLUMN_ORDER         = 1L << 11;
+  static const HA_ALTER_FLAGS ALTER_COLUMN_ORDER         = 1ULL << 11;
 
   // Change column from NOT NULL to NULL
-  static const HA_ALTER_FLAGS ALTER_COLUMN_NULLABLE      = 1L << 12;
+  static const HA_ALTER_FLAGS ALTER_COLUMN_NULLABLE      = 1ULL << 12;
 
   // Change column from NULL to NOT NULL
-  static const HA_ALTER_FLAGS ALTER_COLUMN_NOT_NULLABLE  = 1L << 13;
+  static const HA_ALTER_FLAGS ALTER_COLUMN_NOT_NULLABLE  = 1ULL << 13;
 
   // Set or remove default column value
-  static const HA_ALTER_FLAGS ALTER_COLUMN_DEFAULT       = 1L << 14;
+  static const HA_ALTER_FLAGS ALTER_COLUMN_DEFAULT       = 1ULL << 14;
 
   // Add foreign key
-  static const HA_ALTER_FLAGS ADD_FOREIGN_KEY            = 1L << 15;
+  static const HA_ALTER_FLAGS ADD_FOREIGN_KEY            = 1ULL << 15;
 
   // Drop foreign key
-  static const HA_ALTER_FLAGS DROP_FOREIGN_KEY           = 1L << 16;
+  static const HA_ALTER_FLAGS DROP_FOREIGN_KEY           = 1ULL << 16;
 
   // table_options changed, see HA_CREATE_INFO::used_fields for details.
-  static const HA_ALTER_FLAGS CHANGE_CREATE_OPTION       = 1L << 17;
+  static const HA_ALTER_FLAGS CHANGE_CREATE_OPTION       = 1ULL << 17;
 
   // Table is renamed
-  static const HA_ALTER_FLAGS ALTER_RENAME               = 1L << 18;
+  static const HA_ALTER_FLAGS ALTER_RENAME               = 1ULL << 18;
 
   // Change the storage type of column 
-  static const HA_ALTER_FLAGS ALTER_COLUMN_STORAGE_TYPE = 1L << 19;
+  static const HA_ALTER_FLAGS ALTER_COLUMN_STORAGE_TYPE = 1ULL << 19;
 
   // Change the column format of column
-  static const HA_ALTER_FLAGS ALTER_COLUMN_COLUMN_FORMAT = 1L << 20;
+  static const HA_ALTER_FLAGS ALTER_COLUMN_COLUMN_FORMAT = 1ULL << 20;
 
   // Add partition
-  static const HA_ALTER_FLAGS ADD_PARTITION              = 1L << 21;
+  static const HA_ALTER_FLAGS ADD_PARTITION              = 1ULL << 21;
 
   // Drop partition
-  static const HA_ALTER_FLAGS DROP_PARTITION             = 1L << 22;
+  static const HA_ALTER_FLAGS DROP_PARTITION             = 1ULL << 22;
 
   // Changing partition options
-  static const HA_ALTER_FLAGS ALTER_PARTITION            = 1L << 23;
+  static const HA_ALTER_FLAGS ALTER_PARTITION            = 1ULL << 23;
 
   // Coalesce partition
-  static const HA_ALTER_FLAGS COALESCE_PARTITION         = 1L << 24;
+  static const HA_ALTER_FLAGS COALESCE_PARTITION         = 1ULL << 24;
 
   // Reorganize partition ... into
-  static const HA_ALTER_FLAGS REORGANIZE_PARTITION       = 1L << 25;
+  static const HA_ALTER_FLAGS REORGANIZE_PARTITION       = 1ULL << 25;
 
   // Reorganize partition
-  static const HA_ALTER_FLAGS ALTER_TABLE_REORG          = 1L << 26;
+  static const HA_ALTER_FLAGS ALTER_TABLE_REORG          = 1ULL << 26;
 
   // Remove partitioning
-  static const HA_ALTER_FLAGS ALTER_REMOVE_PARTITIONING  = 1L << 27;
+  static const HA_ALTER_FLAGS ALTER_REMOVE_PARTITIONING  = 1ULL << 27;
 
   // Partition operation with ALL keyword
-  static const HA_ALTER_FLAGS ALTER_ALL_PARTITION        = 1L << 28;
+  static const HA_ALTER_FLAGS ALTER_ALL_PARTITION        = 1ULL << 28;
 
   /**
     Rename index. Note that we set this flag only if there are no other
@@ -1144,17 +1149,19 @@ public:
     detect renaming of indexes which is done by dropping index and then
     re-creating index with identical definition under different name.
   */
-  static const HA_ALTER_FLAGS RENAME_INDEX               = 1L << 29;
+  static const HA_ALTER_FLAGS RENAME_INDEX               = 1ULL << 29;
 
   /**
     Recreate the table for ALTER TABLE FORCE, ALTER TABLE ENGINE
     and OPTIMIZE TABLE operations.
   */
-  static const HA_ALTER_FLAGS RECREATE_TABLE             = 1L << 30;
+  static const HA_ALTER_FLAGS RECREATE_TABLE             = 1ULL << 30;
 
   // Add spatial index
-  static const HA_ALTER_FLAGS ADD_SPATIAL_INDEX          = 1L << 31;
+  static const HA_ALTER_FLAGS ADD_SPATIAL_INDEX          = 1ULL << 31;
 
+  // Alter generated column
+  static const HA_ALTER_FLAGS HA_ALTER_STORED_GCOL       = 1ULL << 32;
   /**
     Create options (like MAX_ROWS) for the new version of table.
 
@@ -1749,13 +1756,22 @@ public:
   /*
     number of buffer bytes that native mrr implementation needs,
   */
-  uint mrr_length_per_rec; 
+  uint mrr_length_per_rec;
+
+  /**
+    Estimate for how much of the table that is availabe in a memory
+    buffer. Valid range is [0..1]. If it has the special value
+    IN_MEMORY_ESTIMATE_UNKNOWN (defined in structs.h), it means that
+    the storage engine has not supplied any value for it.
+  */
+  double table_in_mem_estimate;
 
   ha_statistics():
     data_file_length(0), max_data_file_length(0),
     index_file_length(0), delete_length(0), auto_increment_value(0),
     records(0), deleted(0), mean_rec_length(0), create_time(0),
-    check_time(0), update_time(0), block_size(0)
+    check_time(0), update_time(0), block_size(0),
+    table_in_mem_estimate(IN_MEMORY_ESTIMATE_UNKNOWN)
   {}
 };
 
@@ -2354,6 +2370,48 @@ public:
   */
   virtual longlong get_memory_buffer_size() const { return -1; }
 
+  /**
+    Return an estimate of how much of the table that is currently stored
+    in main memory.
+
+    This estimate should be the fraction of the table that currently
+    is available in a main memory buffer. The estimate should be in the
+    range from 0.0 (nothing in memory) to 1.0 (entire table in memory).
+
+    @return The fraction of the table in main memory buffer
+  */
+
+  double table_in_memory_estimate() const;
+
+  /**
+    Return an estimate of how much of the index that is currently stored
+    in main memory.
+
+    This estimate should be the fraction of the index that currently
+    is available in a main memory buffer. The estimate should be in the
+    range from 0.0 (nothing in memory) to 1.0 (entire index in memory).
+
+    @param keyno the index to get an estimate for
+
+    @return The fraction of the index in main memory buffer
+  */
+
+  double index_in_memory_estimate(uint keyno) const;
+
+private:
+  /**
+    Make a guestimate for how much of a table or index is in a memory
+    buffer in the case where the storage engine has not provided any
+    estimate for this.
+
+    @param table_index_size size of the table or index
+
+    @return The fraction of the table or index in main memory buffer
+  */
+
+  double estimate_in_memory_buffer(ulonglong table_index_size) const;
+
+public:
   virtual ha_rows multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
                                               void *seq_init_param, 
                                               uint n_ranges, uint *bufsz,
@@ -2918,12 +2976,15 @@ public:
   }
 
 
- /*
-   @retval TRUE   Primary key (if there is one) is clustered
-                  key covering all fields
-   @retval FALSE  otherwise
+ /**
+   Check if the primary key is clustered or not.
+
+   @retval true  Primary key (if there is one) is a clustered
+                 key covering all fields
+   @retval false otherwise
  */
- virtual bool primary_key_is_clustered() { return FALSE; }
+
+ virtual bool primary_key_is_clustered() const { return false; }
  virtual int cmp_ref(const uchar *ref1, const uchar *ref2)
  {
    return memcmp(ref1, ref2, ref_length);

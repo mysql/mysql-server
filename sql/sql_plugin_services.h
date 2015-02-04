@@ -73,6 +73,12 @@ static struct mysql_malloc_service_st mysql_malloc_handler=
   my_strndup
 };
 
+
+static struct mysql_password_policy_service_st mysql_password_policy_handler= {
+  my_validate_password_policy,
+  my_calculate_password_strength
+};
+
 static struct mysql_parser_service_st parser_handler=
 {
   mysql_parser_current_session,
@@ -110,6 +116,7 @@ static struct st_service_ref list_of_services[]=
   { "mysql_string_service",
     VERSION_mysql_string, &mysql_string_handler },
   { "mysql_malloc_service", VERSION_mysql_malloc, &mysql_malloc_handler },
+  { "mysql_password_policy_service", VERSION_mysql_password_policy, &mysql_password_policy_handler },
   { "mysql_parser_service", VERSION_parser, &parser_handler },
   { "rpl_transaction_ctx_service",
     VERSION_rpl_transaction_ctx_service, &rpl_transaction_ctx_handler },

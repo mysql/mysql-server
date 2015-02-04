@@ -460,6 +460,9 @@ bool mysql_update(THD *thd,
   table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
 
   table->mark_columns_needed_for_update();
+  if (table->vfield &&
+      validate_gc_assignment(thd, &fields, &values, table))
+    DBUG_RETURN(0);
 
   error= 0;
   qep_tab.set_table(table);
@@ -1112,6 +1115,8 @@ bool mysql_prepare_update(THD *thd, const TABLE_LIST *update_table_ref,
     DBUG_RETURN(true);
 
   thd->want_privilege= SELECT_ACL;
+  enum enum_mark_columns mark_used_columns_saved= thd->mark_used_columns;
+  thd->mark_used_columns= MARK_COLUMNS_READ;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   table_list->set_want_privilege(SELECT_ACL);
 #endif
@@ -1159,6 +1164,8 @@ bool mysql_prepare_update(THD *thd, const TABLE_LIST *update_table_ref,
 
   if (setup_fields(thd, Ref_ptr_array(), lex->value_list, SELECT_ACL, 0, 0))
     DBUG_RETURN(true);                          /* purecov: inspected */
+
+  thd->mark_used_columns= mark_used_columns_saved;
 
   if (setup_ftfuncs(select))
     DBUG_RETURN(true);                          /* purecov: inspected */
@@ -2047,6 +2054,9 @@ multi_update::initialize_tables(JOIN *join)
     }
     table->mark_columns_needed_for_update();
 
+    if (table->vfield &&
+        validate_gc_assignment(thd, fields, values, table))
+      DBUG_RETURN(0);
     /*
       enable uncacheable flag if we update a view with check option
       and check option has a subselect, otherwise, the check option

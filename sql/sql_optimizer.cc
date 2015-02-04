@@ -638,27 +638,32 @@ JOIN::optimize()
   if (make_tmp_tables_info())
     DBUG_RETURN(1);
 
-  // At this stage, we have fully set QEP_TABs; JOIN_TABs are unaccessible.
+  // At this stage, we have fully set QEP_TABs; JOIN_TABs are unaccessible,
+  // pushed joins(see below) are still allowed to change the QEP_TABs
 
-  if (!plan_is_const())
+  /*
+    Push joins to handlerton(s)
+
+    The handlerton(s) will inspect the QEP through the
+    AQP (Abstract Query Plan) and extract from it whatever
+    it might implement of pushed execution.
+
+    It is the responsibility of the handler:
+     - to store any information it need for later
+       execution of pushed queries.
+     - to call appropriate AQP functions which modifies the
+       QEP to use the special 'linked' read functions
+       for those parts of the join which have been pushed.
+
+    Currently pushed joins are only implemented by NDB.
+
+    It only make sense to try pushing if > 1 non-const tables.
+  */
+  if (!plan_is_single_table() && !plan_is_const())
   {
-    /**
-     * Push joins to handler(s) whenever possible.
-     * The handlers will inspect the QEP through the
-     * AQP (Abstract Query Plan), and extract from it
-     * whatewer it might implement of pushed execution.
-     * It is the responsibility if the handler to store any
-     * information it need for later execution of pushed queries.
-     *
-     * Currently pushed joins are only implemented by NDB.
-     * It only make sense to try pushing if > 1 non-const tables.
-     */
-    if (!plan_is_single_table() && !plan_is_const())
-    {
-      const AQP::Join_plan plan(this);
-      if (ha_make_pushed_joins(thd, &plan))
-        DBUG_RETURN(1);
-    }
+    const AQP::Join_plan plan(this);
+    if (ha_make_pushed_joins(thd, &plan))
+      DBUG_RETURN(1);
   }
 
   // Update last_query_cost to reflect actual need of filesort.
