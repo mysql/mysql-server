@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2015, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -118,10 +118,15 @@ to find proper rec to undo insert.*/
 free the pages of externally stored fields. */
 #define BTR_MODIFY_EXTERNAL	262144
 
+/** Try to delete mark the record at the searched position when the
+record is in spatial index */
+#define BTR_RTREE_DELETE_MARK	524288
+
 #define BTR_LATCH_MODE_WITHOUT_FLAGS(latch_mode)	\
 	((latch_mode) & ~(BTR_INSERT			\
 			  | BTR_DELETE_MARK		\
 			  | BTR_RTREE_UNDO_INS		\
+			  | BTR_RTREE_DELETE_MARK	\
 			  | BTR_DELETE			\
 			  | BTR_ESTIMATE		\
 			  | BTR_IGNORE_SEC_UNIQUE	\
