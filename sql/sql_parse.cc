@@ -6277,9 +6277,7 @@ push_new_name_resolution_context(Parse_context *pc,
   on_context->select_lex= pc->select;
   on_context->next_context= pc->select->first_context;
   pc->select->first_context= on_context;
-  // Save join nest's context in right_op, to find it later in view merging.
-  DBUG_ASSERT(right_op->context_of_embedding == NULL);
-  right_op->context_of_embedding= on_context;
+
   return thd->lex->push_context(on_context);
 }
 
