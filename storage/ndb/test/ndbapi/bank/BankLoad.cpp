@@ -1,5 +1,5 @@
-/* Copyright (c) 2003-2007 MySQL AB
-
+/*
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -334,7 +334,7 @@ int Bank::loadGl(){
     }
       
   }
-  check = pTrans->execute(Commit);
+  check = pTrans->execute(Commit, AbortOnError);
   if( check == -1 ) {
     NDB_ERR(pTrans->getNdbError());
     m_ndb.closeTransaction(pTrans);
@@ -384,7 +384,7 @@ int Bank::getBalanceForAccountType(const Uint32 accountType,
     return NDBT_FAILED;
   }
 
-  check = pScanTrans->execute(NoCommit);
+  check = pScanTrans->execute(NoCommit, AbortOnError);
   if( check == -1 ) {
     NDB_ERR(pScanTrans->getNdbError());
     m_ndb.closeTransaction(pScanTrans);
@@ -465,7 +465,7 @@ int Bank::loadAccountType(){
       return NDBT_FAILED;
     }
   }
-  check = pTrans->execute(Commit);
+  check = pTrans->execute(Commit, AbortOnError);
   if( check == -1 ) {
     NDB_ERR(pTrans->getNdbError());
     m_ndb.closeTransaction(pTrans);
@@ -566,7 +566,7 @@ int Bank::loadAccount (int numAccounts){
       return NDBT_FAILED;
     }
   }
-  check = pTrans->execute(Commit);
+  check = pTrans->execute(Commit, AbortOnError);
   if( check == -1 ) {
     NDB_ERR(pTrans->getNdbError());
     m_ndb.closeTransaction(pTrans);
