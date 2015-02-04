@@ -973,6 +973,7 @@ Slave_worker *map_db_to_worker(const char *dbname, Relay_log_info *rli,
         mysql_cond_wait(&rli->slave_worker_hash_cond, &rli->slave_worker_hash_lock);
       } while (entry->usage != 0 && !thd->killed);
 
+      mysql_mutex_unlock(&rli->slave_worker_hash_lock);
       thd->EXIT_COND(&old_stage);
       if (thd->killed)
       {
@@ -1799,6 +1800,7 @@ bool Slave_worker::worker_sleep(ulong seconds)
       break;
   }
 
+  mysql_mutex_unlock(lock);
   info_thd->EXIT_COND(NULL);
   return ret;
 }
@@ -2159,6 +2161,7 @@ bool append_item_to_jobs(slave_job_item *job_item,
     thd->ENTER_COND(&rli->pending_jobs_cond, &rli->pending_jobs_lock,
                     &stage_slave_waiting_worker_to_free_events, &old_stage);
     mysql_cond_wait(&rli->pending_jobs_cond, &rli->pending_jobs_lock);
+    mysql_mutex_unlock(&rli->pending_jobs_lock);
     thd->EXIT_COND(&old_stage);
     if (thd->killed)
       return true;
@@ -2219,6 +2222,7 @@ bool append_item_to_jobs(slave_job_item *job_item,
     worker->jobs.waited_overfill++;
     rli->mts_wq_overfill_cnt++;
     mysql_cond_wait(&worker->jobs_cond, &worker->jobs_lock);
+    mysql_mutex_unlock(&worker->jobs_lock);
     thd->EXIT_COND(&old_stage);
 
     mysql_mutex_lock(&worker->jobs_lock);
@@ -2373,6 +2377,7 @@ struct slave_job_item* pop_jobs_item(Slave_worker *worker, Slave_job_item *job_i
                                &stage_slave_waiting_event_from_coordinator,
                                &old_stage);
       mysql_cond_wait(&worker->jobs_cond, &worker->jobs_lock);
+      mysql_mutex_unlock(&worker->jobs_lock);
       thd->EXIT_COND(&old_stage);
       mysql_mutex_lock(&worker->jobs_lock);
     }
