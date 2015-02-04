@@ -4553,58 +4553,6 @@ bool TABLE_LIST::prepare_replace_filter(THD *thd)
 
 
 /**
-  Hide errors which show view underlying table information. 
-  There are currently two mechanisms at work that handle errors for views,
-  this one and a more general mechanism based on an Internal_error_handler,
-  see Show_create_error_handler. The latter handles errors encountered during
-  execution of SHOW CREATE VIEW, while the machanism using this method is
-  handles SELECT from views. The two methods should not clash.
-
-  @param[in,out]  thd     thread handler
-
-  @pre This method can be called only if there is an error.
-*/
-
-void TABLE_LIST::hide_view_error(THD *thd)
-{
-  // HOTFIX: overcome problem introduced in STRICT worklog
-  //if (thd->killed || thd->get_internal_handler())
-  if (thd->killed || thd->lex->sql_command == SQLCOM_SHOW_CREATE)
-    return;
-  /* Hide "Unknown column" or "Unknown function" error */
-  DBUG_ASSERT(thd->is_error());
-
-  switch (thd->get_stmt_da()->mysql_errno()) {
-    case ER_BAD_FIELD_ERROR:
-    case ER_SP_DOES_NOT_EXIST:
-    // ER_FUNC_INEXISTENT_NAME_COLLISION cannot happen here.
-    case ER_PROCACCESS_DENIED_ERROR:
-    case ER_COLUMNACCESS_DENIED_ERROR:
-    case ER_TABLEACCESS_DENIED_ERROR:
-    // ER_TABLE_NOT_LOCKED cannot happen here.
-    case ER_NO_SUCH_TABLE:
-    {
-      TABLE_LIST *top= top_table();
-      thd->clear_error();
-      my_error(ER_VIEW_INVALID, MYF(0),
-               top->view_db.str, top->view_name.str);
-      break;
-    }
-
-    case ER_NO_DEFAULT_FOR_FIELD:
-    {
-      TABLE_LIST *top= top_table();
-      thd->clear_error();
-      // TODO: make correct error message
-      my_error(ER_NO_DEFAULT_FOR_VIEW_FIELD, MYF(0),
-               top->view_db.str, top->view_name.str);
-      break;
-    }
-  }
-}
-
-
-/**
   Cleanup items belonged to view fields translation table
 */
 

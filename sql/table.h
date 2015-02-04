@@ -1715,9 +1715,6 @@ struct TABLE_LIST
   /// Allocate a buffer for inserted column values
   bool set_insert_values(MEM_ROOT *mem_root);
 
-  /// Replace specific error with a more general view-oriented error
-  void hide_view_error(THD *thd);
-
   TABLE_LIST *first_leaf_for_name_resolution();
   TABLE_LIST *last_leaf_for_name_resolution();
   bool is_leaf_for_name_resolution() const;
