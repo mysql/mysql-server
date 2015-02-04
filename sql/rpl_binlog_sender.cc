@@ -490,7 +490,7 @@ int Binlog_sender::wait_new_events(my_off_t log_pos)
       ret= wait_without_heartbeat();
   }
 
-  mysql_bin_log.unlock_binlog_end_pos();
+  /* it releases the lock set in ENTER_COND */
   m_thd->EXIT_COND(&old_stage);
   return ret;
 }

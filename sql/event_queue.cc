@@ -732,10 +732,9 @@ Event_queue::cond_wait(THD *thd, struct timespec *abstime, const PSI_stage_info 
   waiting_on_cond= FALSE;
 
   /*
-    Need to unlock before exit_cond, so we need to relock.
-    Not the best thing to do but we need to obey cond_wait()
+    This will free the lock so we need to relock. Not the best thing to
+    do but we need to obey cond_wait()
   */
-  unlock_data(src_func, src_line);
   thd->exit_cond(NULL, src_func, src_file, src_line);
   lock_data(src_func, src_line);
 
