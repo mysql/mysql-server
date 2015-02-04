@@ -30,14 +30,14 @@ working MySQL or MariaDB with Tokutek patches, and with the TokuDB storage
 engine, called `make.mysql.bash`.  This script will download copies of the
 needed source code from github and build everything.
 
-To build MySQL 5.5.40 with TokuDB 7.5.3:
+To build MySQL 5.5.41 with TokuDB 7.5.5:
 ```sh
-scripts/make.mysql.bash --mysqlbuild=mysql-5.5.40-tokudb-7.5.3-linux-x86_64
+scripts/make.mysql.bash --mysqlbuild=mysql-5.5.41-tokudb-7.5.5-linux-x86_64
 ```
 
-To build MariaDB 5.5.40 with TokuDB 7.5.3:
+To build MariaDB 5.5.41 with TokuDB 7.5.5:
 ```sh
-scripts/make.mysql.bash --mysqlbuild=mariadb-5.5.40-tokudb-7.5.3-linux-x86_64
+scripts/make.mysql.bash --mysqlbuild=mariadb-5.5.41-tokudb-7.5.5-linux-x86_64
 ```
 
 Before you start, make sure you have a C++11-compatible compiler (GCC >=
@@ -59,6 +59,7 @@ repositories, run this:
 scripts/make.mysql.debug.env.bash
 ```
 
+We use gcc from devtoolset-1.1 on CentOS 5.9 for builds.
 
 Contribute
 ----------

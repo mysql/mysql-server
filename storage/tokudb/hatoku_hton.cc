@@ -777,7 +777,7 @@ extern "C" enum durability_properties thd_get_durability_property(const MYSQL_TH
 #endif
 
 // Determine if an fsync is used when a transaction is committed.  
-static bool tokudb_fsync_on_commit(THD *thd, tokudb_trx_data *trx, DB_TXN *txn) {
+static bool tokudb_sync_on_commit(THD *thd, tokudb_trx_data *trx, DB_TXN *txn) {
 #if MYSQL_VERSION_ID >= 50600
     // Check the client durability property which is set during 2PC
     if (thd_get_durability_property(thd) == HA_IGNORE_DURABILITY)
@@ -788,6 +788,8 @@ static bool tokudb_fsync_on_commit(THD *thd, tokudb_trx_data *trx, DB_TXN *txn) 
     if (txn->is_prepared(txn) && mysql_bin_log.is_open())
         return false;
 #endif
+    if (tokudb_fsync_log_period > 0)
+        return false;
     return THDVAR(thd, commit_sync) != 0;
 }
 
@@ -798,7 +800,7 @@ static int tokudb_commit(handlerton * hton, THD * thd, bool all) {
     DB_TXN **txn = all ? &trx->all : &trx->stmt;
     DB_TXN *this_txn = *txn;
     if (this_txn) {
-        uint32_t syncflag = tokudb_fsync_on_commit(thd, trx, this_txn) ? 0 : DB_TXN_NOSYNC;
+        uint32_t syncflag = tokudb_sync_on_commit(thd, trx, this_txn) ? 0 : DB_TXN_NOSYNC;
         if (tokudb_debug & TOKUDB_DEBUG_TXN) {
             TOKUDB_TRACE("commit trx %u txn %p syncflag %u", all, this_txn, syncflag);
         }
@@ -849,6 +851,13 @@ static int tokudb_rollback(handlerton * hton, THD * thd, bool all) {
 }
 
 #if TOKU_INCLUDE_XA
+static bool tokudb_sync_on_prepare(void) {
+    // skip sync of log if fsync log period > 0
+    if (tokudb_fsync_log_period > 0)
+        return false;
+    else 
+        return true;
+}   
 
 static int tokudb_xa_prepare(handlerton* hton, THD* thd, bool all) {
     TOKUDB_DBUG_ENTER("");
@@ -863,6 +872,7 @@ static int tokudb_xa_prepare(handlerton* hton, THD* thd, bool all) {
     tokudb_trx_data *trx = (tokudb_trx_data *) thd_get_ha_data(thd, hton);
     DB_TXN* txn = all ? trx->all : trx->stmt;
     if (txn) {
+        uint32_t syncflag = tokudb_sync_on_prepare() ? 0 : DB_TXN_NOSYNC;
         if (tokudb_debug & TOKUDB_DEBUG_TXN) {
             TOKUDB_TRACE("doing txn prepare:%d:%p", all, txn);
         }
@@ -871,7 +881,7 @@ static int tokudb_xa_prepare(handlerton* hton, THD* thd, bool all) {
         thd_get_xid(thd, (MYSQL_XID*) &thd_xid);
         // test hook to induce a crash on a debug build
         DBUG_EXECUTE_IF("tokudb_crash_prepare_before", DBUG_SUICIDE(););
-        r = txn->xa_prepare(txn, &thd_xid);
+        r = txn->xa_prepare(txn, &thd_xid, syncflag);
         // test hook to induce a crash on a debug build
         DBUG_EXECUTE_IF("tokudb_crash_prepare_after", DBUG_SUICIDE(););
     } 

@@ -7154,12 +7154,15 @@ To rename the table, make sure no transactions touch the table.", from, to);
 double ha_tokudb::scan_time() {
     TOKUDB_HANDLER_DBUG_ENTER("");
     double ret_val = (double)stats.records / 3;
+    if (tokudb_debug & TOKUDB_DEBUG_RETURN) {
+        TOKUDB_HANDLER_TRACE("return %" PRIu64 " %f", (uint64_t) stats.records, ret_val);
+    }
     DBUG_RETURN(ret_val);
 }
 
 double ha_tokudb::keyread_time(uint index, uint ranges, ha_rows rows)
 {
-    TOKUDB_HANDLER_DBUG_ENTER("");
+    TOKUDB_HANDLER_DBUG_ENTER("%u %u %" PRIu64, index, ranges, (uint64_t) rows);
     double ret_val;
     if (index == primary_key || key_is_clustering(&table->key_info[index])) {
         ret_val = read_time(index, ranges, rows);
@@ -7177,6 +7180,9 @@ double ha_tokudb::keyread_time(uint index, uint ranges, ha_rows rows)
                             (table->key_info[index].key_length +
                              ref_length) + 1);
     ret_val = (rows + keys_per_block - 1)/ keys_per_block;
+    if (tokudb_debug & TOKUDB_DEBUG_RETURN) {
+        TOKUDB_HANDLER_TRACE("return %f", ret_val);
+    }
     DBUG_RETURN(ret_val);
 }
 
@@ -7197,7 +7203,7 @@ double ha_tokudb::read_time(
     ha_rows rows
     )
 {
-    TOKUDB_HANDLER_DBUG_ENTER("");
+    TOKUDB_HANDLER_DBUG_ENTER("%u %u %" PRIu64, index, ranges, (uint64_t) rows);
     double total_scan;
     double ret_val; 
     bool is_primary = (index == primary_key);
@@ -7239,12 +7245,18 @@ double ha_tokudb::read_time(
     ret_val = is_clustering ? ret_val + 0.00001 : ret_val;
     
 cleanup:
+    if (tokudb_debug & TOKUDB_DEBUG_RETURN) {
+        TOKUDB_HANDLER_TRACE("return %f", ret_val);
+    }
     DBUG_RETURN(ret_val);
 }
 
 double ha_tokudb::index_only_read_time(uint keynr, double records) {
-    TOKUDB_HANDLER_DBUG_ENTER("");
+    TOKUDB_HANDLER_DBUG_ENTER("%u %f", keynr, records);
     double ret_val = keyread_time(keynr, 1, (ha_rows)records);
+    if (tokudb_debug & TOKUDB_DEBUG_RETURN) {
+        TOKUDB_HANDLER_TRACE("return %f", ret_val);
+    }
     DBUG_RETURN(ret_val);
 }
 
@@ -7319,7 +7331,7 @@ ha_rows ha_tokudb::records_in_range(uint keynr, key_range* start_key, key_range*
 
 cleanup:
     if (tokudb_debug & TOKUDB_DEBUG_RETURN) {
-        TOKUDB_HANDLER_TRACE("%" PRIu64 " %" PRIu64, (uint64_t) ret_val, rows);
+        TOKUDB_HANDLER_TRACE("return %" PRIu64 " %" PRIu64, (uint64_t) ret_val, rows);
     }
     DBUG_RETURN(ret_val);
 }
