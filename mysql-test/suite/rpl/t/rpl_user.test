@@ -82,7 +82,7 @@ disconnect must_change_con_slave;
 connect(must_change_con_master,localhost,must_change2,aha);
 connection must_change_con_master;
 --echo # setting a password unlocks it
-SET PASSWORD = PASSWORD('aha2');
+SET PASSWORD = 'aha2';
 connection master;
 disconnect must_change_con_master;
 

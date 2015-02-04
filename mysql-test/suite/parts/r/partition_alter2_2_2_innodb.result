@@ -208,6 +208,8 @@ COMMIT;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
 SET @@session.sql_mode = 'traditional';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @max_row_div2 + @max_row_div4 - @max_row_div4 + 1 INTO @exp_inserted_rows;
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT IF(f_int1 = @max_row_div2,f_int1 / 0,f_int1),f_int1,
@@ -667,6 +669,8 @@ COMMIT;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
 SET @@session.sql_mode = 'traditional';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @max_row_div2 + @max_row_div4 - @max_row_div4 + 1 INTO @exp_inserted_rows;
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT IF(f_int1 = @max_row_div2,f_int1 / 0,f_int1),f_int1,
@@ -1141,6 +1145,8 @@ COMMIT;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
 SET @@session.sql_mode = 'traditional';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @max_row_div2 + @max_row_div4 - @max_row_div4 + 1 INTO @exp_inserted_rows;
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT IF(f_int1 = @max_row_div2,f_int1 / 0,f_int1),f_int1,
@@ -1611,6 +1617,8 @@ COMMIT;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
 SET @@session.sql_mode = 'traditional';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @max_row_div2 + @max_row_div4 - @max_row_div4 + 1 INTO @exp_inserted_rows;
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT IF(f_int1 = @max_row_div2,f_int1 / 0,f_int1),f_int1,
@@ -2079,6 +2087,8 @@ COMMIT;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
 SET @@session.sql_mode = 'traditional';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @max_row_div2 + @max_row_div4 - @max_row_div4 + 1 INTO @exp_inserted_rows;
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT IF(f_int1 = @max_row_div2,f_int1 / 0,f_int1),f_int1,
@@ -2558,6 +2568,8 @@ COMMIT;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
 SET @@session.sql_mode = 'traditional';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @max_row_div2 + @max_row_div4 - @max_row_div4 + 1 INTO @exp_inserted_rows;
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT IF(f_int1 = @max_row_div2,f_int1 / 0,f_int1),f_int1,
@@ -3037,6 +3049,8 @@ COMMIT;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
 SET @@session.sql_mode = 'traditional';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @max_row_div2 + @max_row_div4 - @max_row_div4 + 1 INTO @exp_inserted_rows;
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT IF(f_int1 = @max_row_div2,f_int1 / 0,f_int1),f_int1,
@@ -3504,6 +3518,8 @@ COMMIT;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
 SET @@session.sql_mode = 'traditional';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @max_row_div2 + @max_row_div4 - @max_row_div4 + 1 INTO @exp_inserted_rows;
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT IF(f_int1 = @max_row_div2,f_int1 / 0,f_int1),f_int1,
@@ -4001,6 +4017,8 @@ COMMIT;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
 SET @@session.sql_mode = 'traditional';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @max_row_div2 + @max_row_div4 - @max_row_div4 + 1 INTO @exp_inserted_rows;
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT IF(f_int1 = @max_row_div2,f_int1 / 0,f_int1),f_int1,
@@ -4496,6 +4514,8 @@ COMMIT;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
 SET @@session.sql_mode = 'traditional';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @max_row_div2 + @max_row_div4 - @max_row_div4 + 1 INTO @exp_inserted_rows;
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT IF(f_int1 = @max_row_div2,f_int1 / 0,f_int1),f_int1,
@@ -5006,6 +5026,8 @@ COMMIT;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
 SET @@session.sql_mode = 'traditional';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @max_row_div2 + @max_row_div4 - @max_row_div4 + 1 INTO @exp_inserted_rows;
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT IF(f_int1 = @max_row_div2,f_int1 / 0,f_int1),f_int1,
@@ -5512,6 +5534,8 @@ COMMIT;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
 SET @@session.sql_mode = 'traditional';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @max_row_div2 + @max_row_div4 - @max_row_div4 + 1 INTO @exp_inserted_rows;
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT IF(f_int1 = @max_row_div2,f_int1 / 0,f_int1),f_int1,
@@ -6016,6 +6040,8 @@ COMMIT;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
 SET @@session.sql_mode = 'traditional';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @max_row_div2 + @max_row_div4 - @max_row_div4 + 1 INTO @exp_inserted_rows;
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT IF(f_int1 = @max_row_div2,f_int1 / 0,f_int1),f_int1,
@@ -6531,6 +6557,8 @@ COMMIT;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
 SET @@session.sql_mode = 'traditional';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @max_row_div2 + @max_row_div4 - @max_row_div4 + 1 INTO @exp_inserted_rows;
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT IF(f_int1 = @max_row_div2,f_int1 / 0,f_int1),f_int1,
@@ -7046,6 +7074,8 @@ COMMIT;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
 SET @@session.sql_mode = 'traditional';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @max_row_div2 + @max_row_div4 - @max_row_div4 + 1 INTO @exp_inserted_rows;
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT IF(f_int1 = @max_row_div2,f_int1 / 0,f_int1),f_int1,
@@ -7549,6 +7579,8 @@ COMMIT;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
 SET @@session.sql_mode = 'traditional';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @max_row_div2 + @max_row_div4 - @max_row_div4 + 1 INTO @exp_inserted_rows;
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT IF(f_int1 = @max_row_div2,f_int1 / 0,f_int1),f_int1,
@@ -8045,6 +8077,8 @@ COMMIT;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
 SET @@session.sql_mode = 'traditional';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @max_row_div2 + @max_row_div4 - @max_row_div4 + 1 INTO @exp_inserted_rows;
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT IF(f_int1 = @max_row_div2,f_int1 / 0,f_int1),f_int1,
@@ -8540,6 +8574,8 @@ COMMIT;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
 SET @@session.sql_mode = 'traditional';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @max_row_div2 + @max_row_div4 - @max_row_div4 + 1 INTO @exp_inserted_rows;
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT IF(f_int1 = @max_row_div2,f_int1 / 0,f_int1),f_int1,
@@ -9050,6 +9086,8 @@ COMMIT;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
 SET @@session.sql_mode = 'traditional';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @max_row_div2 + @max_row_div4 - @max_row_div4 + 1 INTO @exp_inserted_rows;
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT IF(f_int1 = @max_row_div2,f_int1 / 0,f_int1),f_int1,
@@ -9556,6 +9594,8 @@ COMMIT;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
 SET @@session.sql_mode = 'traditional';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @max_row_div2 + @max_row_div4 - @max_row_div4 + 1 INTO @exp_inserted_rows;
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT IF(f_int1 = @max_row_div2,f_int1 / 0,f_int1),f_int1,
@@ -10060,6 +10100,8 @@ COMMIT;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
 SET @@session.sql_mode = 'traditional';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @max_row_div2 + @max_row_div4 - @max_row_div4 + 1 INTO @exp_inserted_rows;
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT IF(f_int1 = @max_row_div2,f_int1 / 0,f_int1),f_int1,
@@ -10575,6 +10617,8 @@ COMMIT;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
 SET @@session.sql_mode = 'traditional';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @max_row_div2 + @max_row_div4 - @max_row_div4 + 1 INTO @exp_inserted_rows;
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT IF(f_int1 = @max_row_div2,f_int1 / 0,f_int1),f_int1,
@@ -11090,6 +11134,8 @@ COMMIT;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
 SET @@session.sql_mode = 'traditional';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @max_row_div2 + @max_row_div4 - @max_row_div4 + 1 INTO @exp_inserted_rows;
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT IF(f_int1 = @max_row_div2,f_int1 / 0,f_int1),f_int1,
@@ -11593,6 +11639,8 @@ COMMIT;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
 SET @@session.sql_mode = 'traditional';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @max_row_div2 + @max_row_div4 - @max_row_div4 + 1 INTO @exp_inserted_rows;
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT IF(f_int1 = @max_row_div2,f_int1 / 0,f_int1),f_int1,
@@ -12106,6 +12154,8 @@ COMMIT;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
 SET @@session.sql_mode = 'traditional';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @max_row_div2 + @max_row_div4 - @max_row_div4 + 1 INTO @exp_inserted_rows;
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT IF(f_int1 = @max_row_div2,f_int1 / 0,f_int1),f_int1,
@@ -12617,6 +12667,8 @@ COMMIT;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
 SET @@session.sql_mode = 'traditional';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @max_row_div2 + @max_row_div4 - @max_row_div4 + 1 INTO @exp_inserted_rows;
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT IF(f_int1 = @max_row_div2,f_int1 / 0,f_int1),f_int1,
@@ -13143,6 +13195,8 @@ COMMIT;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
 SET @@session.sql_mode = 'traditional';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @max_row_div2 + @max_row_div4 - @max_row_div4 + 1 INTO @exp_inserted_rows;
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT IF(f_int1 = @max_row_div2,f_int1 / 0,f_int1),f_int1,
@@ -13665,6 +13719,8 @@ COMMIT;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
 SET @@session.sql_mode = 'traditional';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @max_row_div2 + @max_row_div4 - @max_row_div4 + 1 INTO @exp_inserted_rows;
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT IF(f_int1 = @max_row_div2,f_int1 / 0,f_int1),f_int1,
@@ -14185,6 +14241,8 @@ COMMIT;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
 SET @@session.sql_mode = 'traditional';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @max_row_div2 + @max_row_div4 - @max_row_div4 + 1 INTO @exp_inserted_rows;
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT IF(f_int1 = @max_row_div2,f_int1 / 0,f_int1),f_int1,
@@ -14716,6 +14774,8 @@ COMMIT;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
 SET @@session.sql_mode = 'traditional';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @max_row_div2 + @max_row_div4 - @max_row_div4 + 1 INTO @exp_inserted_rows;
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT IF(f_int1 = @max_row_div2,f_int1 / 0,f_int1),f_int1,
@@ -15247,6 +15307,8 @@ COMMIT;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
 SET @@session.sql_mode = 'traditional';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @max_row_div2 + @max_row_div4 - @max_row_div4 + 1 INTO @exp_inserted_rows;
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT IF(f_int1 = @max_row_div2,f_int1 / 0,f_int1),f_int1,
@@ -15766,6 +15828,8 @@ COMMIT;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
 SET @@session.sql_mode = 'traditional';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @max_row_div2 + @max_row_div4 - @max_row_div4 + 1 INTO @exp_inserted_rows;
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT IF(f_int1 = @max_row_div2,f_int1 / 0,f_int1),f_int1,
@@ -16278,6 +16342,8 @@ COMMIT;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
 SET @@session.sql_mode = 'traditional';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @max_row_div2 + @max_row_div4 - @max_row_div4 + 1 INTO @exp_inserted_rows;
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT IF(f_int1 = @max_row_div2,f_int1 / 0,f_int1),f_int1,
@@ -16789,6 +16855,8 @@ COMMIT;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
 SET @@session.sql_mode = 'traditional';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @max_row_div2 + @max_row_div4 - @max_row_div4 + 1 INTO @exp_inserted_rows;
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT IF(f_int1 = @max_row_div2,f_int1 / 0,f_int1),f_int1,
@@ -17315,6 +17383,8 @@ COMMIT;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
 SET @@session.sql_mode = 'traditional';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @max_row_div2 + @max_row_div4 - @max_row_div4 + 1 INTO @exp_inserted_rows;
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT IF(f_int1 = @max_row_div2,f_int1 / 0,f_int1),f_int1,
@@ -17837,6 +17907,8 @@ COMMIT;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
 SET @@session.sql_mode = 'traditional';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @max_row_div2 + @max_row_div4 - @max_row_div4 + 1 INTO @exp_inserted_rows;
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT IF(f_int1 = @max_row_div2,f_int1 / 0,f_int1),f_int1,
@@ -18357,6 +18429,8 @@ COMMIT;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
 SET @@session.sql_mode = 'traditional';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @max_row_div2 + @max_row_div4 - @max_row_div4 + 1 INTO @exp_inserted_rows;
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT IF(f_int1 = @max_row_div2,f_int1 / 0,f_int1),f_int1,
@@ -18888,6 +18962,8 @@ COMMIT;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
 SET @@session.sql_mode = 'traditional';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @max_row_div2 + @max_row_div4 - @max_row_div4 + 1 INTO @exp_inserted_rows;
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT IF(f_int1 = @max_row_div2,f_int1 / 0,f_int1),f_int1,
@@ -19419,6 +19495,8 @@ COMMIT;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
 SET @@session.sql_mode = 'traditional';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @max_row_div2 + @max_row_div4 - @max_row_div4 + 1 INTO @exp_inserted_rows;
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT IF(f_int1 = @max_row_div2,f_int1 / 0,f_int1),f_int1,
@@ -19938,6 +20016,8 @@ COMMIT;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
 SET @@session.sql_mode = 'traditional';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @max_row_div2 + @max_row_div4 - @max_row_div4 + 1 INTO @exp_inserted_rows;
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT IF(f_int1 = @max_row_div2,f_int1 / 0,f_int1),f_int1,

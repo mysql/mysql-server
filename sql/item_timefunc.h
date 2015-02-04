@@ -485,6 +485,18 @@ public:
                                                 args[0]->datetime_precision());
   }
   bool val_timeval(struct timeval *tm);
+  bool check_gcol_func_processor(uchar *int_arg) 
+  {
+    /*
+      TODO: Allow UNIX_TIMESTAMP called with an argument to be a part
+      of the expression for a generated column
+    */
+    DBUG_ENTER("Item_func_unix_timestamp::check_gcol_func_processor");
+    DBUG_PRINT("info",
+      ("check_gcol_func_processor returns TRUE: unsupported function"));
+    DBUG_RETURN(TRUE);
+  }
+
 };
 
 
@@ -1120,6 +1132,13 @@ public:
     DBUG_ASSERT(fixed == 1);
     return cached_time.val_str(&str_value);
   }
+  bool check_gcol_func_processor(uchar *int_arg) 
+  {
+    DBUG_ENTER("Item_func_curtime::check_gcol_func_processor");
+    DBUG_PRINT("info",
+      ("check_gcol_func_processor returns TRUE: unsupported function"));
+    DBUG_RETURN(TRUE);
+  }
 };
 
 
@@ -1177,6 +1196,13 @@ public:
     DBUG_ASSERT(fixed == 1);
     return cached_time.val_str(&str_value);
   }
+  bool check_gcol_func_processor(uchar *int_arg) 
+  {
+    DBUG_ENTER("Item_func_curdate::check_gcol_func_processor");
+    DBUG_PRINT("info",
+      ("check_gcol_func_processor returns TRUE: unsupported function"));
+    DBUG_RETURN(TRUE);
+  }
 };
 
 
@@ -1233,6 +1259,13 @@ public:
   {
     DBUG_ASSERT(fixed == 1);
     return cached_time.val_str(&str_value);
+  }
+  bool check_gcol_func_processor(uchar *int_arg) 
+  {
+    DBUG_ENTER("Item_func_now::check_gcol_func_processor");
+    DBUG_PRINT("info",
+      ("check_gcol_func_processor returns TRUE: unsupported function"));
+    DBUG_RETURN(TRUE);
   }
 };
 

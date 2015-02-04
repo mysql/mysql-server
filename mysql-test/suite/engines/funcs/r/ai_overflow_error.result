@@ -1,5 +1,7 @@
 DROP TABLE IF EXISTS t1;
 SET SQL_MODE='TRADITIONAL';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1(c1 TINYINT   AUTO_INCREMENT NOT NULL KEY );
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -18,6 +20,8 @@ SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1(c1 SMALLINT   AUTO_INCREMENT NOT NULL KEY );
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -36,6 +40,8 @@ SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1(c1 MEDIUMINT   AUTO_INCREMENT NOT NULL KEY );
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -54,6 +60,8 @@ SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1(c1 INT   AUTO_INCREMENT NOT NULL KEY );
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -72,6 +80,8 @@ SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1(c1 INTEGER   AUTO_INCREMENT NOT NULL KEY );
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -90,6 +100,8 @@ SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1(c1 BIGINT   AUTO_INCREMENT NOT NULL KEY );
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -108,6 +120,8 @@ SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1(c1 TINYINT   AUTO_INCREMENT NOT NULL KEY );
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -126,6 +140,8 @@ SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1(c1 SMALLINT   AUTO_INCREMENT NOT NULL KEY );
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -144,6 +160,8 @@ SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1(c1 MEDIUMINT   AUTO_INCREMENT NOT NULL KEY );
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -162,6 +180,8 @@ SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1(c1 INT   AUTO_INCREMENT NOT NULL KEY );
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -180,6 +200,8 @@ SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1(c1 INTEGER   AUTO_INCREMENT NOT NULL KEY );
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -198,6 +220,8 @@ SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1(c1 BIGINT   AUTO_INCREMENT NOT NULL KEY );
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -216,6 +240,8 @@ SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1(c1 TINYINT   AUTO_INCREMENT NULL UNIQUE KEY );
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -234,6 +260,8 @@ SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1(c1 SMALLINT   AUTO_INCREMENT NULL UNIQUE KEY );
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -252,6 +280,8 @@ SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1(c1 MEDIUMINT   AUTO_INCREMENT NULL UNIQUE KEY );
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -270,6 +300,8 @@ SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1(c1 INT   AUTO_INCREMENT NULL UNIQUE KEY );
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -288,6 +320,8 @@ SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1(c1 INTEGER   AUTO_INCREMENT NULL UNIQUE KEY );
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -306,6 +340,8 @@ SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1(c1 BIGINT   AUTO_INCREMENT NULL UNIQUE KEY );
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -324,6 +360,8 @@ SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1(c1 TINYINT   AUTO_INCREMENT NOT NULL UNIQUE KEY );
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -342,6 +380,8 @@ SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1(c1 SMALLINT   AUTO_INCREMENT NOT NULL UNIQUE KEY );
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -360,6 +400,8 @@ SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1(c1 MEDIUMINT   AUTO_INCREMENT NOT NULL UNIQUE KEY );
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -378,6 +420,8 @@ SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1(c1 INT   AUTO_INCREMENT NOT NULL UNIQUE KEY );
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -396,6 +440,8 @@ SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1(c1 INTEGER   AUTO_INCREMENT NOT NULL UNIQUE KEY );
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -414,6 +460,8 @@ SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1(c1 BIGINT   AUTO_INCREMENT NOT NULL UNIQUE KEY );
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -432,6 +480,8 @@ SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1(c1 TINYINT   AUTO_INCREMENT NOT NULL PRIMARY KEY );
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -450,6 +500,8 @@ SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1(c1 SMALLINT   AUTO_INCREMENT NOT NULL PRIMARY KEY );
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -468,6 +520,8 @@ SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1(c1 MEDIUMINT   AUTO_INCREMENT NOT NULL PRIMARY KEY );
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -486,6 +540,8 @@ SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1(c1 INT   AUTO_INCREMENT NOT NULL PRIMARY KEY );
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -504,6 +560,8 @@ SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1(c1 INTEGER   AUTO_INCREMENT NOT NULL PRIMARY KEY );
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -522,6 +580,8 @@ SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1(c1 BIGINT   AUTO_INCREMENT NOT NULL PRIMARY KEY );
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -540,6 +600,8 @@ SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1(c1 TINYINT UNSIGNED AUTO_INCREMENT NOT NULL KEY );
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -558,6 +620,8 @@ SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1(c1 SMALLINT UNSIGNED AUTO_INCREMENT NOT NULL KEY );
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -576,6 +640,8 @@ SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1(c1 MEDIUMINT UNSIGNED AUTO_INCREMENT NOT NULL KEY );
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -594,6 +660,8 @@ SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1(c1 INT UNSIGNED AUTO_INCREMENT NOT NULL KEY );
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -612,6 +680,8 @@ SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1(c1 INTEGER UNSIGNED AUTO_INCREMENT NOT NULL KEY );
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -630,6 +700,8 @@ SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1(c1 BIGINT UNSIGNED AUTO_INCREMENT NOT NULL KEY );
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -648,6 +720,8 @@ SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1(c1 TINYINT UNSIGNED AUTO_INCREMENT NOT NULL KEY );
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -666,6 +740,8 @@ SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1(c1 SMALLINT UNSIGNED AUTO_INCREMENT NOT NULL KEY );
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -684,6 +760,8 @@ SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1(c1 MEDIUMINT UNSIGNED AUTO_INCREMENT NOT NULL KEY );
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -702,6 +780,8 @@ SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1(c1 INT UNSIGNED AUTO_INCREMENT NOT NULL KEY );
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -720,6 +800,8 @@ SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1(c1 INTEGER UNSIGNED AUTO_INCREMENT NOT NULL KEY );
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -738,6 +820,8 @@ SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1(c1 BIGINT UNSIGNED AUTO_INCREMENT NOT NULL KEY );
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -756,6 +840,8 @@ SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1(c1 TINYINT UNSIGNED AUTO_INCREMENT NULL UNIQUE KEY );
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -774,6 +860,8 @@ SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1(c1 SMALLINT UNSIGNED AUTO_INCREMENT NULL UNIQUE KEY );
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -792,6 +880,8 @@ SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1(c1 MEDIUMINT UNSIGNED AUTO_INCREMENT NULL UNIQUE KEY );
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -810,6 +900,8 @@ SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1(c1 INT UNSIGNED AUTO_INCREMENT NULL UNIQUE KEY );
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -828,6 +920,8 @@ SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1(c1 INTEGER UNSIGNED AUTO_INCREMENT NULL UNIQUE KEY );
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -846,6 +940,8 @@ SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1(c1 BIGINT UNSIGNED AUTO_INCREMENT NULL UNIQUE KEY );
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -864,6 +960,8 @@ SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1(c1 TINYINT UNSIGNED AUTO_INCREMENT NOT NULL UNIQUE KEY );
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -882,6 +980,8 @@ SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1(c1 SMALLINT UNSIGNED AUTO_INCREMENT NOT NULL UNIQUE KEY );
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -900,6 +1000,8 @@ SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1(c1 MEDIUMINT UNSIGNED AUTO_INCREMENT NOT NULL UNIQUE KEY );
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -918,6 +1020,8 @@ SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1(c1 INT UNSIGNED AUTO_INCREMENT NOT NULL UNIQUE KEY );
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -936,6 +1040,8 @@ SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1(c1 INTEGER UNSIGNED AUTO_INCREMENT NOT NULL UNIQUE KEY );
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -954,6 +1060,8 @@ SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1(c1 BIGINT UNSIGNED AUTO_INCREMENT NOT NULL UNIQUE KEY );
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -972,6 +1080,8 @@ SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1(c1 TINYINT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY );
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -990,6 +1100,8 @@ SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1(c1 SMALLINT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY );
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -1008,6 +1120,8 @@ SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1(c1 MEDIUMINT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY );
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -1026,6 +1140,8 @@ SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1(c1 INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY );
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -1044,6 +1160,8 @@ SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1(c1 INTEGER UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY );
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -1062,6 +1180,8 @@ SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1(c1 BIGINT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY );
 SHOW CREATE TABLE t1;
 Table	Create Table

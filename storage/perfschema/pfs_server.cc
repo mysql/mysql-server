@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@
 #include "pfs.h"
 #include "pfs_global.h"
 #include "pfs_instr_class.h"
+#include "pfs_builtin_memory.h"
 #include "pfs_instr.h"
 #include "pfs_events_waits.h"
 #include "pfs_events_stages.h"
@@ -56,6 +57,8 @@ void cleanup_instrument_config(void);
 void pre_initialize_performance_schema()
 {
   pfs_initialized= false;
+
+  init_all_builtin_memory_class();
 
   PFS_table_stat::g_reset_template.reset();
   global_idle_stat.reset();
@@ -107,22 +110,22 @@ initialize_performance_schema(PFS_global_param *param)
         param->m_events_statements_history_long_sizing) ||
       init_events_transactions_history_long(
         param->m_events_transactions_history_long_sizing) ||
-      init_file_hash() ||
-      init_table_share_hash() ||
+      init_file_hash(param) ||
+      init_table_share_hash(param) ||
       init_setup_actor(param) ||
-      init_setup_actor_hash() ||
+      init_setup_actor_hash(param) ||
       init_setup_object(param) ||
-      init_setup_object_hash() ||
+      init_setup_object_hash(param) ||
       init_host(param) ||
-      init_host_hash() ||
+      init_host_hash(param) ||
       init_user(param) ||
-      init_user_hash() ||
+      init_user_hash(param) ||
       init_account(param) ||
-      init_account_hash() ||
+      init_account_hash(param) ||
       init_digest(param) ||
-      init_digest_hash() ||
+      init_digest_hash(param) ||
       init_program(param) ||
-      init_program_hash() ||
+      init_program_hash(param) ||
       init_prepared_stmt(param))
   {
     /*
@@ -229,6 +232,7 @@ static void cleanup_performance_schema(void)
     will return PSI_NOT_INSTRUMENTED
   */
   cleanup_program();
+  cleanup_prepared_stmt();
   cleanup_sync_class();
   cleanup_thread_class();
   cleanup_table_share();

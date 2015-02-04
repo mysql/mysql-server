@@ -86,7 +86,7 @@ get_connection_status_info(GROUP_REPLICATION_CONNECTION_STATUS_INFO *info)
 
 bool
 Group_replication_handler::
-get_group_members_info(uint index, GROUP_REPLICATION_GROUP_MEMBERS_INFO *info)
+get_group_members_info(unsigned int index, GROUP_REPLICATION_GROUP_MEMBERS_INFO *info)
 {
   if (plugin_handle)
     return plugin_handle->get_group_members_info(index, info);
@@ -102,7 +102,7 @@ get_group_member_stats_info(GROUP_REPLICATION_GROUP_MEMBER_STATS_INFO *info)
   return true;
 }
 
-uint Group_replication_handler::get_members_number_info()
+unsigned int Group_replication_handler::get_members_number_info()
 {
   if (plugin_handle)
     return plugin_handle->get_members_number_info();
@@ -198,7 +198,7 @@ bool get_group_replication_connection_status_info(GROUP_REPLICATION_CONNECTION_S
   return true;
 }
 
-bool get_group_replication_group_members_info(uint index, GROUP_REPLICATION_GROUP_MEMBERS_INFO *info)
+bool get_group_replication_group_members_info(unsigned int index, GROUP_REPLICATION_GROUP_MEMBERS_INFO *info)
 {
   if (group_replication_handler)
     return group_replication_handler->get_group_members_info(index, info);
@@ -212,7 +212,7 @@ bool get_group_replication_group_member_stats_info(GROUP_REPLICATION_GROUP_MEMBE
   return true;
 }
 
-uint get_group_replication_members_number_info()
+unsigned int get_group_replication_members_number_info()
 {
   if (group_replication_handler)
     return group_replication_handler->get_members_number_info();
@@ -221,7 +221,8 @@ uint get_group_replication_members_number_info()
 
 
 /*
-  Server access methods
+  Server methods exported to plugin through
+  include/mysql/group_replication_priv.h
 */
 
 bool is_server_engine_ready()

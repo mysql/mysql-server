@@ -96,7 +96,8 @@ bool add_field_to_list(THD *thd, LEX_STRING *field_name, enum enum_field_types t
 		       LEX_STRING *comment,
 		       char *change, List<String> *interval_list,
 		       const CHARSET_INFO *cs,
-		       uint uint_geom_type);
+		       uint uint_geom_type,
+                       Generated_column *gcol_info);
 void add_to_list(SQL_I_List<ORDER> &list, ORDER *order);
 void add_join_on(TABLE_LIST *b,Item *expr);
 void add_join_natural(TABLE_LIST *a,TABLE_LIST *b,List<String> *using_fields,

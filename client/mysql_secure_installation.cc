@@ -441,10 +441,10 @@ my_bool mysql_set_password(MYSQL *mysql, char *password)
   size_t password_len= strlen(password);
   char *query, *end;
   query= (char *)my_malloc(PSI_NOT_INSTRUMENTED, password_len+50, MYF(MY_WME));
-  end= my_stpmov(query, "SET PASSWORD= PASSWORD('");
+  end= my_stpmov(query, "SET PASSWORD=");
+  *end++ = '\'';
   end+= mysql_real_escape_string_quote(mysql, end, password, password_len, '\'');
   *end++ = '\'';
-  *end++ = ')';
   if (mysql_real_query(mysql, query, (unsigned int) (end - query)))
   {
     my_free(query);
@@ -542,18 +542,17 @@ static void set_root_password(int plugin_set)
     if ((!plugin_set) || (reply == (int) 'y' || reply == (int) 'Y'))
     {
       char *query= NULL, *end;
-      int tmp= sizeof("SET PASSWORD=PASSWORD(") + 3;
+      int tmp= sizeof("SET PASSWORD=") + 3;
       /*
 	query string needs memory which is atleast the length of initial part
 	of query plus twice the size of variable being appended.
       */
       query= (char *)my_malloc(PSI_NOT_INSTRUMENTED,
 	                       (pass_length*2 + tmp)*sizeof(char), MYF(MY_WME));
-      end= my_stpcpy(query, "SET PASSWORD=PASSWORD(");
+      end= my_stpcpy(query, "SET PASSWORD=");
       *end++ = '\'';
       end+= mysql_real_escape_string_quote(&mysql, end, password1, pass_length, '\'');
       *end++ = '\'';
-      *end++ = ')';
       my_free(password1);
       my_free(password2);
       password1= NULL;

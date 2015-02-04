@@ -319,7 +319,7 @@ int table2myisam(TABLE *table_arg, MI_KEYDEF **keydef_out,
   record= table_arg->record[0];
   recpos= 0;
   recinfo_pos= recinfo;
-  while (recpos < (uint) share->reclength)
+  while (recpos < (uint) share->stored_rec_length)
   {
     Field **field, *found= 0;
     minpos= share->reclength;
@@ -647,6 +647,7 @@ ha_myisam::ha_myisam(handlerton *hton, TABLE_SHARE *table_arg)
                   HA_FILE_BASED | HA_CAN_GEOMETRY | HA_NO_TRANSACTIONS |
                   HA_CAN_BIT_FIELD | HA_CAN_RTREEKEYS |
                   HA_HAS_RECORDS | HA_STATS_RECORDS_IS_EXACT | HA_CAN_REPAIR |
+                  HA_GENERATED_COLUMNS | 
                   HA_ATTACHABLE_TRX_COMPATIBLE),
    can_enable_indexes(1)
 {}

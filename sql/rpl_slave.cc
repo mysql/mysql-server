@@ -25,48 +25,40 @@
 */
 
 #ifdef HAVE_REPLICATION
-#include "my_global.h"
 #include "rpl_slave.h"
+
+#include "my_bitmap.h"                         // MY_BITMAP
+#include "my_thread_local.h"                   // thread_local_key_t
+#include "mysql.h"                             // MYSQL
+#include "sql_common.h"                        // end_server
 #include "auth_common.h"                       // any_db
+#include "debug_sync.h"                        // DEBUG_SYNC
+#include "dynamic_ids.h"                       // Server_ids
+#include "log.h"                               // sql_print_error
+#include "log_event.h"                         // Rotate_log_event
+#include "mysqld.h"                            // ER
+#include "mysqld_thd_manager.h"                // Global_THD_manager
+#include "rpl_constants.h"                     // BINLOG_FLAGS_INFO_SIZE
+#include "rpl_handler.h"                       // RUN_HOOK
+#include "rpl_info_factory.h"                  // Rpl_info_factory
+#include "rpl_msr.h"                           // Multisource_info
+#include "rpl_rli.h"                           // Relay_log_info
+#include "rpl_rli_pdb.h"                       // Slave_worker
+#include "rpl_slave_commit_order_manager.h"    // Commit_order_manager
+#include "sql_class.h"                         // THD
 #include "sql_parse.h"                         // execute_init_command
-#include "sql_table.h"                         // mysql_rm_table
-#include "rpl_mi.h"
-#include "rpl_rli.h"
-#include "rpl_filter.h"
-#include "rpl_info_factory.h"
-#include "transaction.h"
-#include <my_dir.h>
-#include <sql_common.h>
-#include <errmsg.h>
-#include <mysqld_error.h>
-#include <mysys_err.h>
-#include "rpl_handler.h"
-#include "rpl_info_dummy.h"
-#include <signal.h>
-#include <mysql.h>
-#include <myisam.h>
-#include "rpl_constants.h"
+#include "sql_plugin.h"                        // opt_plugin_dir_ptr
+#include "transaction.h"                       // trans_begin
+#include "tztime.h"                            // Time_zone
 
-#include "sql_base.h"                           // close_thread_tables
-#include "tztime.h"                             // struct Time_zone
-#include "log_event.h"                          // Rotate_log_event,
-                                                // Create_file_log_event,
-                                                // Format_description_log_event
-#include "dynamic_ids.h"
-#include "rpl_rli_pdb.h"
-
-#include "rpl_tblmap.h"
-#include "debug_sync.h"
-#include "rpl_mts_submode.h"
-#include "mysqld_thd_manager.h"                 // Global_THD_manager
-#include "rpl_slave_commit_order_manager.h"
-#include "sql_plugin.h"                         // opt_plugin_dir_ptr
+// Sic: Must be after mysqld.h to get the right ER macro.
+#include "errmsg.h"                            // CR_*
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
 
+#include <signal.h>
 #include <algorithm>
-#include "rpl_msr.h"         /* Multisource replication */
 
 using std::min;
 using std::max;

@@ -17,9 +17,14 @@
 --let $assert_cond= "$member_id" = "No such row"
 --source include/assert.inc
 
---let $member_address= query_get_value(SELECT Member_Address from performance_schema.replication_group_members, Member_Address, 1)
---let $assert_text= The value of member_address should be empty
---let $assert_cond= "$member_address" = "No such row"
+--let $member_host= query_get_value(SELECT Member_Host from performance_schema.replication_group_members, Member_Host, 1)
+--let $assert_text= The value of member_host should be empty
+--let $assert_cond= "$member_host" = "No such row"
+--source include/assert.inc
+
+--let $member_port= query_get_value(SELECT Member_Port from performance_schema.replication_group_members, Member_Port, 1)
+--let $assert_text= The value of member_port should be empty
+--let $assert_cond= "$member_port" = "No such row"
 --source include/assert.inc
 
 --let $member_state= query_get_value(SELECT Member_State from performance_schema.replication_group_members, Member_State, 1)

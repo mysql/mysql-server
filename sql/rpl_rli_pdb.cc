@@ -13,13 +13,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "rpl_rli_pdb.h"
-#include "rpl_slave.h"
-#include "sql_string.h"
-#include <hash.h>
-#include "rpl_mts_submode.h"
-#include "rpl_slave_commit_order_manager.h"
+
+#include "rpl_slave_commit_order_manager.h" // Commit_order_manager
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"

@@ -26,6 +26,7 @@
 #include "table_table_handles.h"
 #include "pfs_global.h"
 #include "pfs_stat.h"
+#include "pfs_buffer_container.h"
 #include "field.h"
 
 THR_LOCK table_table_handles::m_table_lock;
@@ -102,7 +103,7 @@ table_table_handles::create(void)
 ha_rows
 table_table_handles::get_row_count(void)
 {
-  return table_max;
+  return global_table_container.get_row_count();
 }
 
 table_table_handles::table_table_handles()
@@ -123,19 +124,16 @@ int table_table_handles::rnd_init(bool scan)
 
 int table_table_handles::rnd_next(void)
 {
-  PFS_table *table;
+  PFS_table *pfs;
 
-  for (m_pos.set_at(&m_next_pos);
-       m_pos.m_index < table_max;
-       m_pos.m_index++)
+  m_pos.set_at(&m_next_pos);
+  PFS_table_iterator it= global_table_container.iterate(m_pos.m_index);
+  pfs= it.scan_next(& m_pos.m_index);
+  if (pfs != NULL)
   {
-    table= &table_array[m_pos.m_index];
-    if (table->m_lock.is_populated())
-    {
-      make_row(table);
-      m_next_pos.set_after(&m_pos);
-      return 0;
-    }
+    make_row(pfs);
+    m_next_pos.set_after(&m_pos);
+    return 0;
   }
 
   return HA_ERR_END_OF_FILE;
@@ -144,14 +142,14 @@ int table_table_handles::rnd_next(void)
 int
 table_table_handles::rnd_pos(const void *pos)
 {
-  PFS_table *table;
+  PFS_table *pfs;
 
   set_position(pos);
 
-  table= &table_array[m_pos.m_index];
-  if (table->m_lock.is_populated())
+  pfs= global_table_container.get(m_pos.m_index);
+  if (pfs != NULL)
   {
-    make_row(table);
+    make_row(pfs);
     return 0;
   }
 

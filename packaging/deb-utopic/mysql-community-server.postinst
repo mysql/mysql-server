@@ -49,7 +49,7 @@ case "$1" in
 				chmod 700 ${SQL}
 				cat << EOF > ${SQL}
 USE mysql;
-UPDATE user SET password=PASSWORD("${PASSWD}") WHERE user='root';
+UPDATE user SET authentication_string=PASSWORD("${PASSWD}") WHERE user='root';
 FLUSH PRIVILEGES;
 EOF
 				mysqld --basedir=/usr --bootstrap --user=mysql --skip-grant-tables < $SQL

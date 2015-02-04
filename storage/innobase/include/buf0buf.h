@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -98,6 +98,10 @@ extern	volatile ulint	buf_withdraw_clock; /*!< the clock is incremented
 					every time a pointer to a page may
 					become obsolete */
 
+#ifdef UNIV_DEBUG
+extern my_bool	buf_disable_resize_buffer_pool_debug; /*!< if TRUE, resizing
+					buffer pool is not allowed. */
+#endif /* UNIV_DEBUG */
 #else /* !UNIV_HOTBACKUP */
 extern buf_block_t*	back_block1;	/*!< first block, for --apply-log */
 extern buf_block_t*	back_block2;	/*!< second block, for page reorganize */

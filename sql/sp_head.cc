@@ -523,6 +523,8 @@ Field *sp_head::create_result_field(size_t field_max_length,
                  m_return_field_def.interval,
                  field_name ? field_name : (const char *) m_name.str);
 
+  field->gcol_info= m_return_field_def.gcol_info;
+  field->stored_in_db= m_return_field_def.stored_in_db;
   if (field)
     field->init(table);
 

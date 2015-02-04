@@ -19,14 +19,13 @@
 
 #ifdef HAVE_REPLICATION
 
-#include "sql_string.h"
-#include "rpl_rli.h"
-#include <my_sys.h>
-#include <my_bitmap.h>
-#include "rpl_slave.h"
-#include "prealloced_array.h"
-#include "log_event.h"
+#include "my_global.h"
+#include "my_bitmap.h"         // MY_BITMAP
+#include "prealloced_array.h"  // Prealloced_array
+#include "log_event.h"         // Format_description_log_event
 #include "rpl_mts_submode.h"   // enum_mts_parallel_type
+#include "rpl_rli.h"           // Relay_log_info
+#include "rpl_slave.h"         // MTS_WORKER_UNDEF
 
 #ifndef DBUG_OFF
 extern ulong w_rr;

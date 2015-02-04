@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,19 +16,26 @@
 #ifndef RPL_RECORD_OLD_H
 #define RPL_RECORD_OLD_H
 
-#include "log_event.h"                          /* Log_event_type */
+#include "my_global.h"
 
 #ifndef MYSQL_CLIENT
+struct TABLE;
+typedef struct st_bitmap MY_BITMAP;
+
 size_t pack_row_old(TABLE *table, MY_BITMAP const* cols,
                     uchar *row_data, const uchar *record);
 
 #ifdef HAVE_REPLICATION
+#include "binlog_event.h"   // Log_event_type
+
+class Relay_log_info;
+
 int unpack_row_old(Relay_log_info *rli,
                    TABLE *table, uint const colcnt, uchar *record,
                    uchar const *row, MY_BITMAP const *cols,
                    uchar const **row_end, ulong *master_reclength,
                    MY_BITMAP* const rw_set,
-                   Log_event_type const event_type);
+                   binary_log::Log_event_type const event_type);
 #endif
 #endif
 #endif

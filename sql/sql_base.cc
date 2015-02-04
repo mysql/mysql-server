@@ -7907,6 +7907,7 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
   Field_iterator_table_ref it_1, it_2;
   Natural_join_column *nj_col_1, *nj_col_2;
   bool first_outer_loop= TRUE;
+  List<Field> fields;
   /*
     Leaf table references to which new natural join columns are added
     if the leaves are != NULL.
@@ -8010,6 +8011,8 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
       Field *field_2= nj_col_2->field();
       Item_ident *item_ident_1, *item_ident_2;
       Item_func_eq *eq_cond;
+      fields.push_back(field_1);
+      fields.push_back(field_2);
 
       if (!item_1 || !item_2)
         DBUG_RETURN(true);                      // Out of memory.
@@ -8101,6 +8104,7 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
         ++(*found_using_fields);
     }
   }
+
   if (leaf_1)
     leaf_1->is_join_columns_complete= TRUE;
 
@@ -8838,7 +8842,6 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
 ** Returns : 1 if some field has wrong type
 ******************************************************************************/
 
-
 /*
   Fill fields with given items.
 
@@ -8865,6 +8868,9 @@ fill_record(THD * thd, List<Item> &fields, List<Item> &values,
   Item *value, *fld;
   Item_field *field;
   TABLE *table= 0;
+  TABLE *tbl_set[MAX_TABLES];
+  uint tab_count= 0;
+  table_map used_table_map= 0;
   DBUG_ENTER("fill_record");
   DBUG_ASSERT(fields.elements == values.elements);
   /*
@@ -8910,6 +8916,20 @@ fill_record(THD * thd, List<Item> &fields, List<Item> &values,
     bitmap_set_bit(table->fields_set_during_insert, rfield->field_index);
     if (insert_into_fields_bitmap)
       bitmap_set_bit(insert_into_fields_bitmap, rfield->field_index);
+    // Record the distinct table so that update the generate columns
+    if (table->pos_in_table_list &&
+        !(used_table_map & table->pos_in_table_list->map()))
+    {
+      used_table_map|= table->pos_in_table_list->map();
+      tbl_set[tab_count++]= table;
+    }
+  }
+  /* Update generated fields*/
+  for (uint i= 0; i < tab_count; i++)
+  {
+    table= tbl_set[i];
+    if (table->vfield && update_generated_write_fields(table))
+      goto err;
   }
   DBUG_RETURN(thd->is_error());
 err:
@@ -9090,6 +9110,14 @@ fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
       rc= fill_record(thd, fields, values, NULL, NULL) ||
           table->triggers->process_triggers(thd, event, TRG_ACTION_BEFORE, true);
     }
+    /* 
+      Re-calculate generated fields to cater for cases when base columns are 
+      updated by the triggers.
+    */
+    DBUG_ASSERT(table->pos_in_table_list &&
+                !table->pos_in_table_list->is_view());
+    if (!rc && table->vfield)
+        rc= update_generated_write_fields(table);
 
     table->triggers->disable_fields_temporary_nullability();
 
@@ -9130,6 +9158,9 @@ fill_record(THD *thd, Field **ptr, List<Item> &values,
   List_iterator_fast<Item> v(values);
   Item *value;
   TABLE *table= 0;
+  TABLE *tbl_set[MAX_TABLES];
+  uint tab_count= 0;
+  table_map used_table_map= 0;
   DBUG_ENTER("fill_record");
 
   Field *field;
@@ -9165,7 +9196,22 @@ fill_record(THD *thd, Field **ptr, List<Item> &values,
       bitmap_set_bit(table->fields_set_during_insert, field->field_index);
     if (insert_into_fields_bitmap)
       bitmap_set_bit(insert_into_fields_bitmap, field->field_index);
+    // Record the distinct table so that update the generate columns
+    if (table->pos_in_table_list &&
+        !(used_table_map & table->pos_in_table_list->map()))
+    {
+      used_table_map|= table->pos_in_table_list->map();
+      tbl_set[tab_count++]= table;
+    }
   }
+  /* Update generated fields*/
+  for (uint i= 0; i < tab_count; i++)
+  {
+    table= tbl_set[i];
+    if (table->vfield && update_generated_write_fields(table))
+      goto err;
+  }
+
   DBUG_ASSERT(thd->is_error() || !v++);      // No extra value!
   DBUG_RETURN(thd->is_error());
 
@@ -9228,6 +9274,16 @@ fill_record_n_invoke_before_triggers(THD *thd, Field **ptr,
       rc= call_before_insert_triggers(thd, table, event,
                                       &insert_into_fields_bitmap);
 
+    /* 
+      Re-calculate generated fields to cater for cases when base columns are 
+      updated by the triggers.
+    */
+    if (!rc && *ptr)
+    {
+      TABLE *table= (*ptr)->table;
+      if (table->vfield)
+        rc= update_generated_write_fields(table);
+    }
     bitmap_free(&insert_into_fields_bitmap);
     table->triggers->disable_fields_temporary_nullability();
   }

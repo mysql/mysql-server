@@ -1,4 +1,4 @@
-/*  Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2010, 2015 Oracle and/or its affiliates. All rights reserved.
 
     This program is free software; you can redistribute it and/or
     modify it under the terms of the GNU General Public License as
@@ -100,11 +100,43 @@ static int two_questions(MYSQL_PLUGIN_VIO *vio, MYSQL_SERVER_AUTH_INFO *info)
   return strcmp((const char *) pkt, "yes, of course") ? CR_ERROR : CR_OK;
 }
 
+int generate_auth_string_hash(char *outbuf, unsigned int *buflen,
+                              const char *inbuf, unsigned int inbuflen)
+{
+  /*
+    if buffer specified by server is smaller than the buffer given
+    by plugin then return error
+  */
+  if (*buflen < inbuflen)
+    return 1;
+  strncpy(outbuf, inbuf, inbuflen);
+  *buflen= strlen(inbuf);
+  return 0;
+}
+
+int validate_auth_string_hash(char* const inbuf  __attribute__((unused)),
+                              unsigned int buflen  __attribute__((unused)))
+{
+  return 0;
+}
+
+int set_salt(const char* password __attribute__((unused)),
+             unsigned int password_len __attribute__((unused)),
+             unsigned char* salt __attribute__((unused)),
+             unsigned char* salt_len)
+{
+  *salt_len= 0;
+  return 0;
+}
+
 static struct st_mysql_auth two_handler=
 {
   MYSQL_AUTHENTICATION_INTERFACE_VERSION,
   "dialog", /* requires dialog client plugin */
-  two_questions
+  two_questions,
+  generate_auth_string_hash,
+  validate_auth_string_hash,
+  set_salt
 };
 
 /* dialog demo where the number of questions is not known in advance */
@@ -141,7 +173,10 @@ static struct st_mysql_auth three_handler=
 {
   MYSQL_AUTHENTICATION_INTERFACE_VERSION,
   "dialog", /* requires dialog client plugin */
-  three_attempts 
+  three_attempts,
+  generate_auth_string_hash,
+  validate_auth_string_hash,
+  set_salt
 };
 
 mysql_declare_plugin(dialog)
@@ -154,7 +189,7 @@ mysql_declare_plugin(dialog)
   PLUGIN_LICENSE_GPL,
   NULL,
   NULL,
-  0x0100,
+  0x0101,
   NULL,
   NULL,
   NULL,
@@ -169,7 +204,7 @@ mysql_declare_plugin(dialog)
   PLUGIN_LICENSE_GPL,
   NULL,
   NULL,
-  0x0100,
+  0x0101,
   NULL,
   NULL,
   NULL,

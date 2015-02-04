@@ -3,6 +3,8 @@ CREATE TABLE privtest_db.t1 (a INT);
 CREATE TABLE privtest_db.t2 (a INT);
 INSERT INTO privtest_db.t2 VALUES (1), (2), (3);
 GRANT USAGE ON *.* TO 'privtest'@'localhost';
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 GRANT SELECT ON privtest_db.t2 TO 'privtest'@'localhost';
 USE privtest_db;
 EXPLAIN INSERT INTO t1 VALUES (10);

@@ -35,9 +35,9 @@ static const char *initialization_cmds[] =
   NULL
 };
 
-#define INSERT_USER_CMD_NATIVE "INSERT INTO user VALUES('localhost', 'root', PASSWORD('%s'), 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', '', '', '', '', 0, 0, 0, 0, @@default_authentication_plugin, '', 'Y', CURRENT_TIMESTAMP, NULL);\n"
-#define INSERT_USER_CMD_SHA256 "INSERT INTO user VALUES('localhost', 'root', '', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', '', '', '', '', 0, 0, 0, 0, @@default_authentication_plugin, PASSWORD('%s'), 'Y', CURRENT_TIMESTAMP, NULL);\n"
-#define INSERT_USER_CMD_INSECURE "INSERT INTO user VALUES('localhost', 'root', '', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', '', '', '', '', 0, 0, 0, 0, @@default_authentication_plugin, '', 'N', CURRENT_TIMESTAMP, NULL);\n"
+#define INSERT_USER_CMD_NATIVE "INSERT INTO user VALUES('localhost', 'root', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', '', '', '', '', 0, 0, 0, 0, @@default_authentication_plugin, PASSWORD('%s'), 'Y', CURRENT_TIMESTAMP, NULL);\n"
+#define INSERT_USER_CMD_SHA256 "INSERT INTO user VALUES('localhost', 'root', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', '', '', '', '', 0, 0, 0, 0, @@default_authentication_plugin, PASSWORD('%s'), 'Y', CURRENT_TIMESTAMP, NULL);\n"
+#define INSERT_USER_CMD_INSECURE "INSERT INTO user VALUES('localhost', 'root', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', '', '', '', '', 0, 0, 0, 0, @@default_authentication_plugin, '', 'N', CURRENT_TIMESTAMP, NULL);\n"
 #define GENERATED_PASSWORD_LENGTH 12
 
 #define SET_OLD_PASSWORDS "SET @@old_passwords=%d"

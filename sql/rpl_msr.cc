@@ -162,6 +162,17 @@ bool Multisource_info::delete_mi(const char* channel_name)
 }
 
 
+bool Multisource_info::is_group_replication_channel_name(const char* channel,
+                                                         bool is_applier)
+{
+  if (is_applier)
+    return !strcmp(channel, group_replication_channel_names[0]);
+  else
+    return !strcmp(channel, group_replication_channel_names[0]) ||
+           !strcmp(channel, group_replication_channel_names[1]);
+}
+
+
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 
 bool Multisource_info::add_mi_to_rpl_pfs_mi(Master_info *mi)

@@ -19,14 +19,14 @@
 #ifdef HAVE_REPLICATION
 
 #include "my_global.h"
-#include "binlog_event.h"     // enum_binlog_checksum_alg
-#include "rpl_info.h"               // Rpl_info
+#include "binlog_event.h"            // enum_binlog_checksum_alg
+#include "log_event.h"               // Format_description_log_event
+#include "rpl_gtid.h"                // Gtid
+#include "rpl_info.h"                // Rpl_info
 #include "rpl_trx_boundary_parser.h" // Transaction_boundary_parser
 
 typedef struct st_mysql MYSQL;
 class Rpl_info_factory;
-
-using binary_log::enum_binlog_checksum_alg;
 
 #define DEFAULT_CONNECT_RETRY 60
 
@@ -274,7 +274,7 @@ public:
     Initialized to novalue, then set to the queried from master
     @@global.binlog_checksum and deactivated once FD has been received.
   */
-  enum_binlog_checksum_alg checksum_alg_before_fd;
+  binary_log::enum_binlog_checksum_alg checksum_alg_before_fd;
   ulong retry_count;
   char master_uuid[UUID_LENGTH+1];
   char bind_addr[HOSTNAME_LENGTH+1];
