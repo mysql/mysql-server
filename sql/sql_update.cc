@@ -38,9 +38,7 @@
 #include "sql_view.h"                 // check_key_in_view
 #include "table.h"                    // TABLE
 #include "table_trigger_dispatcher.h" // Table_trigger_dispatcher
-#ifdef WITH_PARTITION_STORAGE_ENGINE
 #include "sql_partition.h"            // partition_key_modified
-#endif
 
 /**
    True if the table's input and output record buffers are comparable using
@@ -329,7 +327,6 @@ bool mysql_update(THD *thd,
   QEP_TAB_standalone qep_tab_st;
   QEP_TAB &qep_tab= qep_tab_st.as_QEP_TAB();
 
-#ifdef WITH_PARTITION_STORAGE_ENGINE
   if (table->part_info)
   {
     if (prune_partitions(thd, table, conds))
@@ -355,7 +352,6 @@ bool mysql_update(THD *thd,
       DBUG_RETURN(0);
     }
   }
-#endif
   if (lock_tables(thd, table_list, thd->lex->table_count, 0))
     DBUG_RETURN(1);
 
@@ -429,7 +425,6 @@ bool mysql_update(THD *thd,
     }
   }
 
-#ifdef WITH_PARTITION_STORAGE_ENGINE
   /*
     Also try a second time after locking, to prune when subqueries and
     stored programs can be evaluated.
@@ -452,7 +447,6 @@ bool mysql_update(THD *thd,
       DBUG_RETURN(0);
     }
   }
-#endif
   // Initialize the cost model that will be used for this table
   table->init_cost_model(thd->cost_model());
 
@@ -552,9 +546,7 @@ bool mysql_update(THD *thd,
                            qep_tab.quick()->is_keys_used(table->write_set));
   }
 
-#ifdef WITH_PARTITION_STORAGE_ENGINE
   used_key_is_modified|= partition_key_modified(table, table->write_set);
-#endif
 
   using_filesort= order && (need_sort||used_key_is_modified);
 
@@ -1242,10 +1234,7 @@ bool unsafe_key_update(TABLE_LIST *leaves, table_map tables_for_update)
       bool primkey_clustered= (table1->file->primary_key_is_clustered() &&
                                table1->s->primary_key != MAX_KEY);
 
-      bool table_partitioned= false;
-#ifdef WITH_PARTITION_STORAGE_ENGINE
-      table_partitioned= (table1->part_info != NULL);
-#endif
+      bool table_partitioned= (table1->part_info != NULL);
 
       if (!table_partitioned && !primkey_clustered)
         continue;
@@ -1259,7 +1248,6 @@ bool unsafe_key_update(TABLE_LIST *leaves, table_map tables_for_update)
         TABLE *table2= tl2->table;
         if (tl2->map() & tables_for_update && table1->s == table2->s)
         {
-#ifdef WITH_PARTITION_STORAGE_ENGINE
           // A table is updated through two aliases
           if (table_partitioned &&
               (partition_key_modified(table1, table1->write_set) ||
@@ -1273,7 +1261,6 @@ bool unsafe_key_update(TABLE_LIST *leaves, table_map tables_for_update)
                                          : tl2->alias);
             return true;
           }
-#endif
 
           if (primkey_clustered)
           {

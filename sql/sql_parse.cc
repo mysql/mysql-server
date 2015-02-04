@@ -2099,9 +2099,7 @@ mysql_execute_command(THD *thd)
     }
   }
 
-#ifdef WITH_PARTITION_STORAGE_ENGINE
   thd->work_part_info= 0;
-#endif
 
   DBUG_ASSERT(thd->get_transaction()->is_empty(Transaction_ctx::STMT) ||
               thd->in_sub_stmt);
@@ -2700,7 +2698,6 @@ case SQLCOM_PREPARE:
       create_info.table_charset= 0;
     }
 
-#ifdef WITH_PARTITION_STORAGE_ENGINE
     {
       partition_info *part_info= thd->lex->part_info;
       if (part_info && !(part_info= thd->lex->part_info->get_clone()))
@@ -2710,7 +2707,6 @@ case SQLCOM_PREPARE:
       }
       thd->work_part_info= part_info;
     }
-#endif
 
     if (select_lex->item_list.elements)		// With select
     {
@@ -5930,9 +5926,7 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
   */
   table_list.link_in_list(ptr, &ptr->next_local);
   ptr->next_name_resolution_table= NULL;
-#ifdef WITH_PARTITION_STORAGE_ENGINE
   ptr->partition_names= partition_names;
-#endif /* WITH_PARTITION_STORAGE_ENGINE */
   /* Link table in global list (all used tables) */
   lex->add_to_query_tables(ptr);
 

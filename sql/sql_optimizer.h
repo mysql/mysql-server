@@ -722,9 +722,7 @@ private:
   */
   void replace_item_field(const char* field_name, Item* new_item);
 
-#ifdef WITH_PARTITION_STORAGE_ENGINE
   bool prune_table_partitions();
-#endif
 
 private:
   void set_prefix_tables();

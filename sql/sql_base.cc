@@ -28,9 +28,11 @@
 #include "auth_common.h" // *_ACL, check_grant_all_columns,
                          // check_column_grant_in_table_ref,
                          // get_column_grant
-#include "sql_partition.h"               // ALTER_PARTITION_PARAM_TYPE
+#include "sql_derived.h" // mysql_derived_prepare,
+                         // mysql_handle_derived,
+                         // mysql_derived_filling
 #include "sql_handler.h" // mysql_ha_flush
-#include "sql_partition.h"                      // ALTER_PARTITION_PARAM_TYPE
+#include "partition_info.h"                     // partition_info
 #include "log_event.h"                          // Query_log_event
 #include "sql_select.h"
 #include "sp_head.h"
@@ -3466,7 +3468,6 @@ table_found:
   table_list->set_updatable(); // It is not derived table nor non-updatable VIEW
   table_list->table= table;
 
-#ifdef WITH_PARTITION_STORAGE_ENGINE
   if (table->part_info)
   {
     /* Set all [named] partitions as used. */
@@ -3479,7 +3480,6 @@ table_found:
     my_error(ER_PARTITION_CLAUSE_ON_NONPARTITIONED, MYF(0));
     DBUG_RETURN(true);
   }
-#endif
 
   table->init(thd, table_list);
 
@@ -6699,7 +6699,6 @@ bool open_temporary_table(THD *thd, TABLE_LIST *tl)
     DBUG_RETURN(FALSE);
   }
 
-#ifdef WITH_PARTITION_STORAGE_ENGINE
   if (tl->partition_names)
   {
     /* Partitioned temporary tables is not supported. */
@@ -6707,7 +6706,6 @@ bool open_temporary_table(THD *thd, TABLE_LIST *tl)
     my_error(ER_PARTITION_CLAUSE_ON_NONPARTITIONED, MYF(0));
     DBUG_RETURN(true);
   }
-#endif
 
   if (table->query_id)
   {

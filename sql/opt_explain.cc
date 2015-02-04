@@ -832,11 +832,9 @@ bool Explain_union_result::explain_extra()
 
 bool Explain_table_base::explain_partitions()
 {
-#ifdef WITH_PARTITION_STORAGE_ENGINE
   if (table->part_info)
     return make_used_partitions_str(table->part_info,
                                     &fmt->entry()->col_partitions);
-#endif
   return false;
 }
 
