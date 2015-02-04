@@ -3491,6 +3491,12 @@ bool sp_grant_privileges(THD *thd, const char *sp_db, const char *sp_name,
   thd->lex->ssl_type= SSL_TYPE_NOT_SPECIFIED;
   thd->lex->ssl_cipher= thd->lex->x509_subject= thd->lex->x509_issuer= 0;
   memset(&thd->lex->mqh, 0, sizeof(thd->lex->mqh));
+  /* set default values */
+  thd->lex->alter_password.update_password_expired_column= false;
+  thd->lex->alter_password.use_default_password_lifetime= true;
+  thd->lex->alter_password.expire_after_days= 0;
+
+  combo->alter_status= thd->lex->alter_password;
 
   /*
     Only care about whether the operation failed or succeeded
