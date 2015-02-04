@@ -109,19 +109,14 @@ static handler *partition_create_handler(handlerton *hton,
 static uint partition_flags();
 
 
+static PSI_memory_key key_memory_ha_partition_file;
+static PSI_memory_key key_memory_ha_partition_engine_array;
+static PSI_memory_key key_memory_ha_partition_part_ids;
 #ifdef HAVE_PSI_INTERFACE
-PSI_memory_key key_memory_ha_partition_file;
-PSI_memory_key key_memory_ha_partition_engine_array;
-PSI_memory_key key_memory_ha_partition_PART_NAME_DEF;
-PSI_memory_key key_memory_ha_partition_part_ids;
-PSI_memory_key key_memory_ha_partition_ordered_rec_buffer;
 static PSI_memory_info all_partition_memory[]=
 { { &key_memory_ha_partition_file, "ha_partition::file", 0},
   { &key_memory_ha_partition_engine_array, "ha_partition::engine_array", 0},
-  { &key_memory_ha_partition_PART_NAME_DEF, "ha_partition::PART_NAME_DEF", 0},
-  { &key_memory_ha_partition_part_ids, "ha_partition::part_ids", 0},
-  { &key_memory_ha_partition_ordered_rec_buffer,
-    "ha_partition::ordered_rec_buffer", 0} };
+  { &key_memory_ha_partition_part_ids, "ha_partition::part_ids", 0} };
 
 PSI_file_key key_file_ha_partition_par;
 static PSI_file_info all_partition_file[]=
