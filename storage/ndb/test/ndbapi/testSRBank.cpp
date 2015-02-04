@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -163,24 +163,6 @@ runBankSrValidator(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
-#if 0
-int runBankSum(NDBT_Context* ctx, NDBT_Step* step){
-  Bank bank(ctx->m_cluster_connection);
-  int wait = 2000; // Max ms between each sum of accounts
-  int yield = 1; // Loops before bank returns 
-  int result = NDBT_OK;
-
-  while (ctx->isTestStopped() == false) 
-  {
-    if (bank.performSumAccounts(wait, yield) != NDBT_OK){
-      ndbout << "bank.performSumAccounts FAILED" << endl;
-      result = NDBT_FAILED;
-    }
-  }
-  return result ;
-}
-#endif
-
 int runBankSum(NDBT_Context* ctx, NDBT_Step* step)
 {
   int wait = 2000; // Max ms between each sum of accounts
@@ -228,12 +210,32 @@ runMixRestart(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+/**
+ * Verify Bank consisteny after load has been stopped.
+ * Then, unconditionaly drop the Bank-DB
+ */
 int 
-runDropBank(NDBT_Context* ctx, NDBT_Step* step){
+runVerifyAndDropBank(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int wait = 0;
+  int yield = 1;
+  int result = NDBT_OK;
   Bank bank(ctx->m_cluster_connection);
+
+  if (bank.performSumAccounts(wait, yield) == NDBT_FAILED)
+  {
+    ndbout << "runVerifyAndDropBank: bank.performSumAccounts FAILED" << endl;
+    result = NDBT_FAILED;
+  }
+  if (bank.performValidateAllGLs() == NDBT_FAILED)
+  {
+    ndbout << "runVerifyAndDropBank: bank.performValidateAllGLs FAILED" << endl;
+    result = NDBT_FAILED;
+  }
+
   if (bank.dropBank() != NDBT_OK)
     return NDBT_FAILED;
-  return NDBT_OK;
+  return result;
 }
 
 
@@ -250,9 +252,10 @@ TESTCASE("SR",
   STEP(runBankTimer);
   STEPS(runBankTransactions, 10);
   STEP(runBankGL);
+  STEP(runBankSum);
   STEP(runBankSrValidator);
   STEP(runMixRestart);
-  FINALIZER(runDropBank);
+  FINALIZER(runVerifyAndDropBank);
 }
 TESTCASE("NR", 
 	 " Test that a consistent bank is restored after graceful shutdown\n"
@@ -266,8 +269,9 @@ TESTCASE("NR",
   STEP(runBankTimer);
   STEPS(runBankTransactions, 10);
   STEP(runBankGL);
+  STEP(runBankSum);
   STEP(runMixRestart);
-  FINALIZER(runDropBank);
+  FINALIZER(runVerifyAndDropBank);
 }
 TESTCASE("Mix", 
 	 " Test that a consistent bank is restored after graceful shutdown\n"
@@ -284,7 +288,7 @@ TESTCASE("Mix",
   STEP(runBankSum);
   STEP(runMixRestart);
   STEP(runBankSrValidator);
-  FINALIZER(runDropBank);
+  FINALIZER(runVerifyAndDropBank);
 }
 NDBT_TESTSUITE_END(testSRBank);
 
