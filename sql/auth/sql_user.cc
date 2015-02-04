@@ -1703,6 +1703,9 @@ bool mysql_alter_user(THD *thd, List <LEX_USER> &list)
       continue;
     }
 
+    /* copy password expire attributes to individual lex user */
+    user_from->alter_status= thd->lex->alter_password;
+
     /*
       Check if the user's authentication method supports expiration only
       if PASSWORD EXPIRE attribute is specified

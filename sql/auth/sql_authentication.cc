@@ -2417,8 +2417,11 @@ int set_native_salt(const char* password, unsigned int password_len,
     *salt_len= 0;
   else
   {
-    get_salt_from_password(salt, password);
-    *salt_len= SCRAMBLE_LENGTH;
+    if (password_len == SCRAMBLED_PASSWORD_CHAR_LENGTH)
+    {
+      get_salt_from_password(salt, password);
+      *salt_len= SCRAMBLE_LENGTH;
+    }
   }
   return 0;
 }
