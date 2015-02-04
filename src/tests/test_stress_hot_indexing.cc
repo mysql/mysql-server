@@ -211,7 +211,7 @@ cleanup:
     gid_count++;
     uint32_t *hi_gid_count_p = cast_to_typeof(hi_gid_count_p) hi_gid;  // make gcc --happy about -Wstrict-aliasing
     *hi_gid_count_p = gid_count;
-    int rr = hi_txn->prepare(hi_txn, hi_gid);
+    int rr = hi_txn->prepare(hi_txn, hi_gid, 0);
     CKERR(rr);
     if (r || (random() % 2)) {
         rr = hi_txn->abort(hi_txn);

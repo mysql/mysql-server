@@ -302,7 +302,7 @@ int toku_txn_abort_with_lsn(struct tokutxn *txn, LSN oplsn,
 
 int toku_txn_discard_txn(struct tokutxn *txn);
 
-void toku_txn_prepare_txn (struct tokutxn *txn, TOKU_XA_XID *xid);
+void toku_txn_prepare_txn (struct tokutxn *txn, TOKU_XA_XID *xid, int nosync);
 // Effect: Do the internal work of preparing a transaction (does not log the prepare record).
 
 void toku_txn_get_prepared_xa_xid(struct tokutxn *txn, TOKU_XA_XID *xa_xid);

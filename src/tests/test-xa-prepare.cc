@@ -125,7 +125,7 @@ static void setup_env_and_prepare (DB_ENV **envp, const char *envdir, bool commi
 		     .gtrid_length = 8,
 		     .bqual_length = 9};
     for (int i=0; i<8+9; i++) x.data[i] = 42+i;
-    CKERR(txn->xa_prepare(txn, &x));
+    CKERR(txn->xa_prepare(txn, &x, 0));
     if (commit)
 	CKERR(txn->commit(txn, 0));
 }

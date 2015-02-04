@@ -572,7 +572,7 @@ static void print_db_txn_struct (void) {
     STRUCT_SETUP(DB_TXN, abort,       "int (*%s) (DB_TXN *)");
     STRUCT_SETUP(DB_TXN, api_internal,"void *%s");
     STRUCT_SETUP(DB_TXN, commit,      "int (*%s) (DB_TXN*, uint32_t)");
-    STRUCT_SETUP(DB_TXN, prepare,     "int (*%s) (DB_TXN*, uint8_t gid[DB_GID_SIZE])");
+    STRUCT_SETUP(DB_TXN, prepare,     "int (*%s) (DB_TXN*, uint8_t gid[DB_GID_SIZE], uint32_t flags)");
     STRUCT_SETUP(DB_TXN, discard,     "int (*%s) (DB_TXN*, uint32_t)");
     STRUCT_SETUP(DB_TXN, id,          "uint32_t (*%s) (DB_TXN *)");
     STRUCT_SETUP(DB_TXN, mgrp,        "DB_ENV *%s /* In TokuFT, mgrp is a DB_ENV, not a DB_TXNMGR */");
@@ -581,7 +581,7 @@ static void print_db_txn_struct (void) {
 	"int (*txn_stat)(DB_TXN *, struct txn_stat **)", 
 	"int (*commit_with_progress)(DB_TXN*, uint32_t, TXN_PROGRESS_POLL_FUNCTION, void*)",
 	"int (*abort_with_progress)(DB_TXN*, TXN_PROGRESS_POLL_FUNCTION, void*)",
-	"int (*xa_prepare) (DB_TXN*, TOKU_XA_XID *)",
+	"int (*xa_prepare) (DB_TXN*, TOKU_XA_XID *, uint32_t flags)",
         "uint64_t (*id64) (DB_TXN*)",
         "void (*set_client_id)(DB_TXN *, uint64_t client_id)",
         "uint64_t (*get_client_id)(DB_TXN *)",

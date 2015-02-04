@@ -138,7 +138,7 @@ static void create_prepared_txn(void) {
     for (int i = 0; i < 8+9; i++) {
         xid.data[i] = i;
     }
-    r = txn->xa_prepare(txn, &xid);
+    r = txn->xa_prepare(txn, &xid, 0);
     CKERR(r);
 
     // discard the txn so that we can close the env and run xa recovery later

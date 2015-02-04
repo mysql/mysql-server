@@ -147,7 +147,7 @@ static void setup_env_and_prepare (DB_ENV **envp, const char *envdir) {
 	uint8_t gid[DB_GID_SIZE];
 	memset(gid, 0, DB_GID_SIZE);
 	gid[0]='a'+tnum;
-	CKERR(txn->prepare(txn, gid));
+	CKERR(txn->prepare(txn, gid, 0));
 	// Drop txn on the ground, since we will commit or abort it after recovery
 	if (tnum==0) {
 	    //printf("commit %d\n", tnum);
