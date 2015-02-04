@@ -2073,13 +2073,6 @@ struct TABLE_LIST
   const char *db, *table_name, *alias;
   char *schema_table_name;
   char *option;                /* Used by cache index  */
-  /**
-     Context which should be used to resolve identifiers contained in the ON
-     condition of the embedding join nest.
-     @todo When name resolution contexts are created after parsing, we should
-     be able to store this in the embedding join nest instead.
-  */
-  Name_resolution_context *context_of_embedding;
 
 private:
   /**
