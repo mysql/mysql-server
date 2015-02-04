@@ -2154,8 +2154,8 @@ public:
     LEX_CSTRING inspect_sctx_host_or_ip= inspect_sctx->host_or_ip();
 
     if ((!inspect_thd->vio_ok() && !inspect_thd->system_thread) ||
-        (m_user &&
-         (!inspect_sctx_user.str || strcmp(inspect_sctx_user.str, m_user))))
+        (m_user && (inspect_thd->system_thread || !inspect_sctx_user.str ||
+                    strcmp(inspect_sctx_user.str, m_user))))
       return;
 
     thread_info *thd_info= new thread_info;
@@ -2333,8 +2333,8 @@ public:
         NullS : client_priv_user;
 
     if ((!inspect_thd->vio_ok() && !inspect_thd->system_thread) ||
-        (user &&
-         (!inspect_sctx_user.str || strcmp(inspect_sctx_user.str, user))))
+        (user && (inspect_thd->system_thread || !inspect_sctx_user.str ||
+                  strcmp(inspect_sctx_user.str, user))))
       return;
 
     TABLE *table= m_tables->table;
