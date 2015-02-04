@@ -1,0 +1,9 @@
+-- source include/have_innodb.inc
+
+# MDEV-7055: MySQL#74664 - InnoDB: Failing assertion: len <= col->len || col->mtype == 5 || (col->len == 0 && col->mtype == 1) in file rem0rec.cc line 845
+DROP DATABASE test;CREATE DATABASE test;USE test;
+set character_set_connection=ucs2;
+create TABLE t1 engine=innodb select if(0=0,'Y','N');
+insert INTO t1 values(date_format('2001-01-01','%W'));
+select * from t1;
+drop table t1;
