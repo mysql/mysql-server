@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -45,7 +45,6 @@
 #include "sql_optimizer.h"       // JOIN
 #include "sql_tmp_table.h"       // tmp tables
 #include "debug_sync.h"          // DEBUG_SYNC
-#include "abstract_query_plan.h" // AQP
 
 #include <algorithm>
 using std::max;
@@ -2257,6 +2256,8 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
       break;					/* purecov: deadcode */
     }
 
+    qep_tab->pick_table_access_method(tab);
+
     // Materialize derived tables prior to accessing them.
     if (tab->table_ref->uses_materialization())
       qep_tab->materialize_table= join_materialize_derived;
@@ -2264,40 +2265,6 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
     if (qep_tab->sj_mat_exec())
       qep_tab->materialize_table= join_materialize_semijoin;
   }
-
-  /**
-   * Push joins to handler(s) whenever possible.
-   * The handlers will inspect the QEP through the
-   * AQP (Abstract Query Plan), and extract from it
-   * whatewer it might implement of pushed execution.
-   * It is the responsibility if the handler to store any
-   * information it need for later execution of pushed queries.
-   *
-   * Currently pushed joins are only implemented by NDB.
-   * It only make sense to try pushing if > 1 non-const tables.
-   */
-  if (!join->plan_is_single_table() && !join->plan_is_const())
-  {
-    const AQP::Join_plan plan(join);
-    if (ha_make_pushed_joins(join->thd, &plan))
-      DBUG_RETURN(1);
-  }
-
-  // Must be done after ha_make_pushed_join() since pick_table_access_method
-  // uses the potential pushed_root potentially created by that function
-  for (uint i= join->const_tables; i < join->tables; i++)
-  {
-    QEP_TAB *const qep_tab= &join->qep_tab[i];
-
-    if (!qep_tab->position())
-      continue;
-
-    JOIN_TAB *const tab= join->best_ref[i];
-
-    qep_tab->pick_table_access_method(tab);
-
-  }
-
 
   DBUG_RETURN(FALSE);
 }
