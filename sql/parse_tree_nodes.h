@@ -2353,7 +2353,8 @@ class PT_delete : public PT_statement
 
 public:
   // single-table DELETE node constructor:
-  PT_delete(int opt_delete_options_arg,
+  PT_delete(MEM_ROOT *mem_root,
+            int opt_delete_options_arg,
             Table_ident *table_ident_arg,
             List<String> *opt_use_partition_arg,
             Item *opt_where_clause_arg,
@@ -2367,7 +2368,7 @@ public:
     opt_order_clause(opt_order_clause_arg),
     opt_delete_limit_clause(opt_delete_limit_clause_arg)
   {
-    table_list= Mem_root_array_YY<Table_ident *>(); // init with zeroes
+    table_list.init(mem_root);
   }
 
   // multi-table DELETE node constructor:
