@@ -5604,7 +5604,9 @@ longlong Item_func_sleep::val_int()
   mysql_cond_init(key_item_func_sleep_cond, &cond);
   mysql_mutex_lock(&LOCK_item_func_sleep);
 
-  thd->ENTER_COND(&cond, &LOCK_item_func_sleep, &stage_user_sleep, NULL);
+  THD_STAGE_INFO(thd, stage_user_sleep);
+  thd->mysys_var->current_mutex= &LOCK_item_func_sleep;
+  thd->mysys_var->current_cond=  &cond;
 
   error= 0;
   thd_wait_begin(thd, THD_WAIT_SLEEP);
@@ -5617,7 +5619,10 @@ longlong Item_func_sleep::val_int()
   }
   thd_wait_end(thd);
   mysql_mutex_unlock(&LOCK_item_func_sleep);
-  thd->EXIT_COND(NULL);
+  mysql_mutex_lock(&thd->mysys_var->mutex);
+  thd->mysys_var->current_mutex= 0;
+  thd->mysys_var->current_cond=  0;
+  mysql_mutex_unlock(&thd->mysys_var->mutex);
 
   mysql_cond_destroy(&cond);
 

@@ -423,7 +423,8 @@ struct Query_cache_wait_state
     m_func(func), m_file(file), m_line(line)
   {
     if (m_thd)
-      m_thd->enter_stage(&stage_waiting_for_query_cache_lock,
+      set_thd_stage_info(m_thd,
+                         &stage_waiting_for_query_cache_lock,
                          &m_old_stage,
                          m_func, m_file, m_line);
   }
@@ -431,7 +432,7 @@ struct Query_cache_wait_state
   ~Query_cache_wait_state()
   {
     if (m_thd)
-      m_thd->enter_stage(&m_old_stage, NULL, m_func, m_file, m_line);
+      set_thd_stage_info(m_thd, &m_old_stage, NULL, m_func, m_file, m_line);
   }
 };
 
