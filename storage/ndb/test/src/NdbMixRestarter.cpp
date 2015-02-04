@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2007, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -70,7 +70,6 @@ NdbMixRestarter::restart_cluster(NDBT_Context* ctx,
       NdbSleep_MilliSleep(100);
     }
 
-    CHECK(ctx->isTestStopped() == false);
     ndbout << " -- startAll" << endl;
     CHECK(startAll() == 0);
 
@@ -91,7 +90,6 @@ NdbMixRestarter::restart_cluster(NDBT_Context* ctx,
 
       ndbout << " -- Validating complete " << endl;
     }
-    CHECK(ctx->isTestStopped() == false);    
     ctx->setProperty(NMR_SR, NdbMixRestarter::SR_RUNNING);
 
   } while(0);
@@ -215,7 +213,7 @@ NdbMixRestarter::runPeriod(NDBT_Context* ctx,
     return NDBT_FAILED;
 
   Uint32 stop = (Uint32)time(0) + period;
-  while (!ctx->isTestStopped() && (time(0) < stop))
+  while (!ctx->isTestStopped() && ((Uint32)time(0) < stop))
   {
     if (dostep(ctx, step))
     {
