@@ -2370,7 +2370,7 @@ acl_authenticate(THD *thd, size_t com_change_user_pkt_len)
 int generate_native_password(char *outbuf, unsigned int *buflen,
                              const char *inbuf, unsigned int inbuflen)
 {
-  if (my_validate_password_policy(inbuf))
+  if (my_validate_password_policy(inbuf, inbuflen))
     return 1;
   /* for empty passwords */
   if (inbuflen == 0)
@@ -2430,7 +2430,7 @@ int set_native_salt(const char* password, unsigned int password_len,
 int generate_sha256_password(char *outbuf, unsigned int *buflen,
                              const char *inbuf, unsigned int inbuflen)
 {
-  if (my_validate_password_policy(inbuf))
+  if (my_validate_password_policy(inbuf, inbuflen))
     return 1;
   if (inbuflen == 0)
   {

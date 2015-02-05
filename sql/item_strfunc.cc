@@ -2750,7 +2750,7 @@ String *Item_func_password::val_str_ascii(String *str)
     res= make_empty_result();
 
   /* we treat NULLs as equal to empty string when calling the plugin */
-  my_validate_password_policy(res->ptr());
+  my_validate_password_policy(res->ptr(), res->length());
 
   null_value= 0;
   if (args[0]->null_value)  // PASSWORD(NULL) returns ''
@@ -2774,7 +2774,7 @@ char *Item_func_password::
 {
   String *password_str= new (thd->mem_root)String(password, thd->variables.
                                                     character_set_client);
-  my_validate_password_policy(password_str->ptr());
+  my_validate_password_policy(password_str->ptr(), password_str->length());
 
   char *buff= NULL;
   if (thd->variables.old_passwords == 0)
