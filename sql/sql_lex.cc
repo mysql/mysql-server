@@ -4578,12 +4578,15 @@ bool LEX::accept(Select_lex_visitor *visitor)
     return true;
   if (sql_command == SQLCOM_INSERT)
   {
-    List_iterator<Item> it(
-        static_cast<Sql_cmd_insert_base *>(m_sql_cmd)->insert_value_list);
-    Item *end= NULL;
-    for (Item *item= it++; item != end; item= it++)
-      if (walk_item(item, visitor))
-        return true;
+    List_iterator<List_item> row_it(
+        static_cast<Sql_cmd_insert_base *>(m_sql_cmd)->insert_many_values);
+    for (List_item *row= row_it++; row != NULL; row= row_it++)
+    {
+      List_iterator<Item> col_it(*row);
+      for (Item *item= col_it++; item != NULL; item= col_it++)
+        if (walk_item(item, visitor))
+          return true;
+    }
   }
   return false;
 }
