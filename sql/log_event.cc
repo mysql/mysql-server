@@ -13584,6 +13584,10 @@ void View_change_log_event::print(FILE *file,
 
  int View_change_log_event::do_apply_event(Relay_log_info const *rli)
  {
+   if(written_to_binlog)
+     return 0;
+
+   written_to_binlog= true;
    return mysql_bin_log.write_event_into_log_file(this);
  }
 
@@ -13603,6 +13607,7 @@ bool View_change_log_event::write_data_header(IO_CACHE* file){
   memcpy(buf, view_id, ENCODED_VIEW_ID_MAX_LEN);
   int8store(buf + ENCODED_SEQ_NUMBER_OFFSET, seq_number);
   int4store(buf + ENCODED_CERT_INFO_SIZE_OFFSET, certification_info.size());
+  buf[ENCODED_WRITTEN_FLAG_OFFSET]= written_to_binlog;
   DBUG_RETURN(wrapper_my_b_safe_write(file,(const uchar *) buf,
                                       Binary_log_event::VIEW_CHANGE_HEADER_LEN));
 }
