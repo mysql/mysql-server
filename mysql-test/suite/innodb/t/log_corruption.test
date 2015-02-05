@@ -9,7 +9,7 @@ let newdir= $MYSQLTEST_VARDIR/tmp/innodb-log-debug;
 --mkdir $newdir
 let SEARCH_FILE = $newdir/my_restart.err;
 --exec unzip $MYSQL_TEST_DIR/suite/innodb/t/log_corruption.zip -d $newdir > $SEARCH_FILE
-let $args=--no-defaults --datadir=$newdir --loose-console > $SEARCH_FILE 2>&1 ;
+let $args=--no-defaults --datadir=$newdir --secure-file-priv="" --loose-console > $SEARCH_FILE 2>&1 ;
 # On Windows, the server seems to return 0 when an InnoDB assertion fails.
 --error 0,1
 --exec $MYSQLD $args

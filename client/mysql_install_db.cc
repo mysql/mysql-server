@@ -303,9 +303,12 @@ struct Sql_user
 
     flush_priv << "FLUSH PRIVILEGES;\n";
 
-    set_passcmd << "ALTER USER '" << escape_string(user) << "'@'"
-                << escape_string(host) << "' IDENTIFIED BY '"
-                << escape_string(password) << "';\n";
+    if (password_expired)
+    {
+      set_passcmd << "ALTER USER '" << escape_string(user) << "'@'"
+                  << escape_string(host) << "' IDENTIFIED BY '"
+                  << escape_string(password) << "' PASSWORD EXPIRE;\n";
+    }
     cmdstr->append(ss.str()).append(flush_priv.str()).append(set_passcmd.str());
   }
 

@@ -441,7 +441,6 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
         result_code= HA_ADMIN_FAILED;
         goto send_result;
       }
-#ifdef WITH_PARTITION_STORAGE_ENGINE
       if (table->table)
       {
         /*
@@ -482,7 +481,6 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
           }
         }
       }
-#endif
     }
     DBUG_PRINT("admin", ("table: 0x%lx", (long) table->table));
 

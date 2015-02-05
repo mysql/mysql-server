@@ -2355,6 +2355,8 @@ public:
       ft_handler->please->close_search(ft_handler);
       delete hints;
     }
+    if (table_ref)
+      table_ref->table->no_keyread= false;
     ft_handler= NULL;
     concat_ws= NULL;
     table_ref= NULL;           // required by Item_func_match::eq()

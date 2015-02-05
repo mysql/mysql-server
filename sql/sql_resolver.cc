@@ -463,7 +463,6 @@ bool SELECT_LEX::apply_local_transforms(THD *thd, bool prune)
 
   fix_prepare_information(thd);
 
-#ifdef WITH_PARTITION_STORAGE_ENGINE
   /*
     Prune partitions for all query blocks after query block merging, if
     pruning is wanted.
@@ -482,7 +481,6 @@ bool SELECT_LEX::apply_local_transforms(THD *thd, bool prune)
         DBUG_RETURN(true); /* purecov: inspected */
     }
   }
-#endif
 
   DBUG_RETURN(false);
 }
@@ -673,16 +671,15 @@ bool st_select_lex::check_view_privileges(THD *thd,
                                           ulong want_privilege_next)
 {
   ulong want_privilege= want_privilege_first;
+  Internal_error_handler_holder<View_error_handler, TABLE_LIST>
+    view_handler(thd, true, leaf_tables);
 
   for (TABLE_LIST *tl= leaf_tables; tl; tl= tl->next_leaf)
   {
     for (TABLE_LIST *ref= tl; ref->referencing_view; ref= ref->referencing_view)
     {
       if (check_single_table_access(thd, want_privilege, ref, false))
-      {
-        tl->hide_view_error(thd);
         return true;
-      }
     }
     want_privilege= want_privilege_next;
   }
@@ -762,10 +759,8 @@ bool st_select_lex::setup_tables(THD *thd, TABLE_LIST *tables,
     tr->reset();
     if (tr->process_index_hints(table))
       DBUG_RETURN(true);
-#ifdef WITH_PARTITION_STORAGE_ENGINE
     if (table->part_info)     // Count number of partitioned tables
       partitioned_table_count++;
-#endif
   }
  
   DBUG_RETURN(false);

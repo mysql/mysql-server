@@ -1,0 +1,8 @@
+#-----------------------------------------------------------------------
+# Test 2 : Restarting mysqld with :
+#          --secure-file-priv=MYSQLTEST_VARDIR/mysqld.1/Data
+# Restart completed.
+# Search for : Insecure configuration for --secure-file-priv: Data
+#              directory is accessible through --secure-file-priv.
+#              Consider choosing a different directory.
+#-----------------------------------------------------------------------

@@ -6776,8 +6776,13 @@ bool MYSQL_BIN_LOG::do_write_cache(IO_CACHE *cache, Binlog_event_writer *writer)
   uchar *buf= cache->read_pos;
   uint32 buf_len= my_b_bytes_in_cache(cache);
   uint32 event_len= 0;
+  uchar header[LOG_EVENT_HEADER_LEN];
+  uint32 header_len= 0;
 
-  // Each iteration of this loop processes one event from the IO_CACHE.
+  /*
+    Each iteration of this loop processes all or a part of
+    1) an event header or 2) an event body from the IO_CACHE.
+  */
   while (true)
   {
     /**
@@ -6807,74 +6812,38 @@ bool MYSQL_BIN_LOG::do_write_cache(IO_CACHE *cache, Binlog_event_writer *writer)
           and truncate the binlog.  /Sven
         */
         DBUG_ASSERT(my_b_tell(cache) == expected_total_len);
-
+        /* Arrive the end of the cache */
         DBUG_RETURN(false);
       }
     }
 
-    // We are so close to end of buf that the event header is split
-    // over two bufs: copy and paste the two parts of the event
-    // header into a buf and process that separately.
-    if (buf_len < LOG_EVENT_HEADER_LEN)
+    /* Write event header into binlog */
+    if (event_len == 0)
     {
-      // Length of first and second half of the header.
-      uint32 first_half_len= buf_len;
-      uint32 second_half_len= LOG_EVENT_HEADER_LEN - first_half_len;
+      /* data in the buf may be smaller than header size.*/
+      uint32 header_incr =
+        std::min<uint32>(LOG_EVENT_HEADER_LEN - header_len, buf_len);
 
-      // Copy first half of header into this buffer.
-      uchar header[LOG_EVENT_HEADER_LEN];
-      memcpy(header, buf, first_half_len);
-      buf_len= 0;
+      memcpy(header + header_len, buf, header_incr);
+      header_len += header_incr;
+      buf += header_incr;
+      buf_len -= header_incr;
 
-      // Read next page from disk.
-      if (read_cache_page(cache, &buf, &buf_len) ||
-          buf_len < second_half_len)
+      if (header_len == LOG_EVENT_HEADER_LEN)
       {
-        /**
-          @todo: this can happen in case of disk corruption in the
-          IO_CACHE.  We may have written a half transaction (even half
-          event) to the binlog.  We should rollback the transaction
-          and truncate the binlog.  /Sven
-        */
-        DBUG_ASSERT(0);
+        // Flush event header.
+        uchar *header_p= header;
+        if (writer->write_event_part(&header_p, &header_len, &event_len))
+          DBUG_RETURN(true);
+        DBUG_ASSERT(header_len == 0);
       }
-
-      // Copy second half of header and step buffer positions.
-      memcpy(header + first_half_len, buf, second_half_len);
-      buf += second_half_len;
-      buf_len -= second_half_len;
-
-      // Flush event header.
-      uchar *header_p= header;
-      uint32 header_len= LOG_EVENT_HEADER_LEN;
-      if (writer->write_event_part(&header_p, &header_len, &event_len))
-        DBUG_RETURN(true);
-      DBUG_ASSERT(header_len == 0);
     }
-
-    /// Event spans multiple pages: flush the page and go to next.
-    while (event_len > buf_len)
+    else
     {
-      // Flush this part of event.
+      /* Write all or part of the event body to binlog */
       if (writer->write_event_part(&buf, &buf_len, &event_len))
         DBUG_RETURN(true);
-
-      // Read next page from disk.
-      if (read_cache_page(cache, &buf, &buf_len) || buf_len == 0)
-      {
-        /**
-          @todo: this can happen in case of disk corruption in the
-          IO_CACHE.  We may have written a half transaction (even half
-          event) to the binlog.  We should rollback the transaction
-          and truncate the binlog.  /Sven
-        */
-        DBUG_ASSERT(0);
-      }
     }
-
-    // Write last part of the event to disk.
-    if (writer->write_event_part(&buf, &buf_len, &event_len))
-      DBUG_RETURN(true);
   }
 }
 

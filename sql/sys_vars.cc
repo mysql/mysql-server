@@ -2979,7 +2979,7 @@ static Sys_var_charptr Sys_secure_file_priv(
        "Limit LOAD DATA, SELECT ... OUTFILE, and LOAD_FILE() to files "
        "within specified directory",
        READ_ONLY GLOBAL_VAR(opt_secure_file_priv),
-       CMD_LINE(REQUIRED_ARG), IN_FS_CHARSET, DEFAULT(0));
+       CMD_LINE(REQUIRED_ARG), IN_FS_CHARSET, DEFAULT(DEFAULT_SECURE_FILE_PRIV_DIR));
 
 static bool fix_server_id(sys_var *self, THD *thd, enum_var_type type)
 {

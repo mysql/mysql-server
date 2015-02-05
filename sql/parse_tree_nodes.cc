@@ -16,6 +16,9 @@
 #include "parse_tree_nodes.h"
 
 #include "sp_instr.h"       // sp_instr_set
+#include "sql_delete.h"     // Sql_cmd_delete_multi, Sql_cmd_delete
+#include "sql_insert.h"     // Sql_cmd_insert...
+
 
 bool PT_group::contextualize(Parse_context *pc)
 {
@@ -506,4 +509,454 @@ bool PT_option_value_no_option_type_password::contextualize(Parse_context *pc)
     return true;
 
   return false;
+}
+
+
+/*
+  Given a table in the source list, find a correspondent table in the
+  table references list.
+
+  @param src Source table to match.
+  @param ref Table references list.
+
+  @remark The source table list (tables listed before the FROM clause
+  or tables listed in the FROM clause before the USING clause) may
+  contain table names or aliases that must match unambiguously one,
+  and only one, table in the target table list (table references list,
+  after FROM/USING clause).
+
+  @return Matching table, NULL otherwise.
+*/
+
+static TABLE_LIST *multi_delete_table_match(TABLE_LIST *tbl, TABLE_LIST *tables)
+{
+  TABLE_LIST *match= NULL;
+  DBUG_ENTER("multi_delete_table_match");
+
+  for (TABLE_LIST *elem= tables; elem; elem= elem->next_local)
+  {
+    int cmp;
+
+    if (tbl->is_fqtn && elem->is_alias)
+      continue; /* no match */
+    if (tbl->is_fqtn && elem->is_fqtn)
+      cmp= my_strcasecmp(table_alias_charset, tbl->table_name, elem->table_name) ||
+           strcmp(tbl->db, elem->db);
+    else if (elem->is_alias)
+      cmp= my_strcasecmp(table_alias_charset, tbl->alias, elem->alias);
+    else
+      cmp= my_strcasecmp(table_alias_charset, tbl->table_name, elem->table_name) ||
+           strcmp(tbl->db, elem->db);
+
+    if (cmp)
+      continue;
+
+    if (match)
+    {
+      my_error(ER_NONUNIQ_TABLE, MYF(0), elem->alias);
+      DBUG_RETURN(NULL);
+    }
+
+    match= elem;
+  }
+
+  if (!match)
+    my_error(ER_UNKNOWN_TABLE, MYF(0), tbl->table_name, "MULTI DELETE");
+
+  DBUG_RETURN(match);
+}
+
+
+/**
+  Link tables in auxilary table list of multi-delete with corresponding
+  elements in main table list, and set proper locks for them.
+
+  @param pc   Parse context
+
+  @retval
+    FALSE   success
+  @retval
+    TRUE    error
+*/
+
+static bool multi_delete_set_locks_and_link_aux_tables(Parse_context *pc)
+{
+  LEX * const lex= pc->thd->lex;
+  TABLE_LIST *tables= pc->select->table_list.first;
+  TABLE_LIST *target_tbl;
+  DBUG_ENTER("multi_delete_set_locks_and_link_aux_tables");
+
+  for (target_tbl= lex->auxiliary_table_list.first;
+       target_tbl; target_tbl= target_tbl->next_local)
+  {
+    /* All tables in aux_tables must be found in FROM PART */
+    TABLE_LIST *walk= multi_delete_table_match(target_tbl, tables);
+    if (!walk)
+      DBUG_RETURN(TRUE);
+    if (!walk->is_derived())
+    {
+      target_tbl->table_name= walk->table_name;
+      target_tbl->table_name_length= walk->table_name_length;
+    }
+    walk->updating= target_tbl->updating;
+    walk->lock_type= target_tbl->lock_type;
+    /* We can assume that tables to be deleted from are locked for write. */
+    DBUG_ASSERT(walk->lock_type >= TL_WRITE_ALLOW_WRITE);
+    walk->mdl_request.set_type(mdl_type_for_dml(walk->lock_type));
+    target_tbl->correspondent_table= walk;	// Remember corresponding table
+  }
+  DBUG_RETURN(FALSE);
+}
+
+
+bool PT_delete::add_table(Parse_context *pc, Table_ident *table)
+{
+  const ulong table_opts= is_multitable() ? TL_OPTION_UPDATING | TL_OPTION_ALIAS
+                                          : TL_OPTION_UPDATING;
+  const thr_lock_type lock_type=
+    (opt_delete_options & DELETE_LOW_PRIORITY) ? TL_WRITE_LOW_PRIORITY
+                                               : TL_WRITE_DEFAULT;
+  const enum_mdl_type mdl_type=
+    (opt_delete_options & DELETE_LOW_PRIORITY) ? MDL_SHARED_WRITE_LOW_PRIO
+                                               : MDL_SHARED_WRITE;
+   return !pc->select->add_table_to_list(pc->thd, table, NULL, table_opts,
+                                         lock_type, mdl_type, NULL,
+                                         opt_use_partition);
+}
+
+bool PT_delete::contextualize(Parse_context *pc)
+{
+  if (super::contextualize(pc))
+    return true;
+
+  LEX * const lex= pc->thd->lex;
+
+  lex->sql_command= is_multitable() ? SQLCOM_DELETE_MULTI : SQLCOM_DELETE;
+  lex->set_ignore(MY_TEST(opt_delete_options & DELETE_IGNORE));
+  lex->select_lex->init_order();
+  if (opt_delete_options & DELETE_QUICK)
+    pc->select->add_base_options(OPTION_QUICK);
+
+  if (is_multitable())
+  {
+    for (Table_ident **i= table_list.begin(); i != table_list.end(); ++i)
+    {
+      if (add_table(pc, *i))
+        return true;
+    }
+  }
+  else if (add_table(pc, table_ident))
+    return true;
+
+  if (is_multitable())
+    mysql_init_multi_delete(lex);
+  else
+    pc->select->top_join_list.push_back(pc->select->get_table_list());
+
+  Yacc_state * const yyps= &pc->thd->m_parser_state->m_yacc;
+  yyps->m_lock_type= TL_READ_DEFAULT;
+  yyps->m_mdl_type= MDL_SHARED_READ;
+
+  if (is_multitable() && join_table_list->contextualize(pc))
+    return true;
+
+  if (opt_where_clause != NULL &&
+      opt_where_clause->itemize(pc, &opt_where_clause))
+    return true;
+  pc->select->set_where_cond(opt_where_clause);
+
+  if (opt_order_clause != NULL && opt_order_clause->contextualize(pc))
+    return true;
+
+  DBUG_ASSERT(pc->select->select_limit == NULL);
+  if (opt_delete_limit_clause != NULL)
+  {
+    if (opt_delete_limit_clause->itemize(pc, &opt_delete_limit_clause))
+      return true;
+    pc->select->select_limit= opt_delete_limit_clause;
+    lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_LIMIT);
+    pc->select->explicit_limit= 1;
+  }
+
+  if (is_multitable() && multi_delete_set_locks_and_link_aux_tables(pc))
+    return true;
+  return false;
+}
+
+
+Sql_cmd *PT_delete::make_cmd(THD *thd)
+{
+  Parse_context pc(thd, thd->lex->current_select());
+  if (contextualize(&pc))
+    return NULL;
+  if (is_multitable())
+    return new (thd->mem_root) Sql_cmd_delete_multi;
+  else
+    return new (thd->mem_root) Sql_cmd_delete;
+}
+
+
+bool PT_update::contextualize(Parse_context *pc)
+{
+  if (super::contextualize(pc))
+    return true;
+
+  LEX *lex= pc->thd->lex;
+  lex->sql_command= SQLCOM_UPDATE;
+  lex->duplicates= DUP_ERROR;
+
+  lex->set_ignore(opt_ignore);
+  if (join_table_list->contextualize(pc))
+    return true;
+  pc->select->parsing_place= CTX_UPDATE_VALUE_LIST;
+
+  if (column_list->contextualize(pc) ||
+      value_list->contextualize(pc))
+  {
+    return true;
+  }
+  pc->select->item_list= column_list->value;
+
+  // Ensure we're resetting parsing context of the right select
+  DBUG_ASSERT(pc->select->parsing_place == CTX_UPDATE_VALUE_LIST);
+  pc->select->parsing_place= CTX_NONE;
+  if (lex->select_lex->table_list.elements > 1)
+    lex->sql_command= SQLCOM_UPDATE_MULTI;
+  else if (lex->select_lex->get_table_list()->is_derived())
+  {
+    /* it is single table update and it is update of derived table */
+    my_error(ER_NON_UPDATABLE_TABLE, MYF(0),
+             lex->select_lex->get_table_list()->alias, "UPDATE");
+    return true;
+  }
+
+  /*
+    In case of multi-update setting write lock for all tables may
+    be too pessimistic. We will decrease lock level if possible in
+    mysql_multi_update().
+  */
+  pc->select->set_lock_for_tables(opt_low_priority);
+
+  if (opt_where_clause != NULL &&
+      opt_where_clause->itemize(pc, &opt_where_clause))
+  {
+    return true;
+  }
+  pc->select->set_where_cond(opt_where_clause);
+
+  if (opt_order_clause != NULL && opt_order_clause->contextualize(pc))
+    return true;
+
+  DBUG_ASSERT(pc->select->select_limit == NULL);
+  if (opt_limit_clause != NULL)
+  {
+    if (opt_limit_clause->itemize(pc, &opt_limit_clause))
+      return true;
+    pc->select->select_limit= opt_limit_clause;
+    lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_LIMIT);
+    pc->select->explicit_limit= 1;
+  }
+  return false;
+}
+
+
+Sql_cmd *PT_update::make_cmd(THD *thd)
+{
+  Parse_context pc(thd, thd->lex->current_select());
+  if (contextualize(&pc))
+    return NULL;
+  sql_cmd.update_value_list= value_list->value;
+  sql_cmd.sql_command= thd->lex->sql_command;
+
+  return &sql_cmd;
+}
+
+
+bool PT_create_select::contextualize(Parse_context *pc)
+{
+  if (super::contextualize(pc))
+    return true;
+
+  LEX *lex= pc->thd->lex;
+  if (lex->sql_command == SQLCOM_INSERT)
+    lex->sql_command= SQLCOM_INSERT_SELECT;
+  else if (lex->sql_command == SQLCOM_REPLACE)
+    lex->sql_command= SQLCOM_REPLACE_SELECT;
+  /*
+    The following work only with the local list, the global list
+    is created correctly in this case
+  */
+  DBUG_ASSERT(pc->select == lex->current_select());
+  SQL_I_List<TABLE_LIST> save_list;
+  pc->select->table_list.save_and_clear(&save_list);
+  pc->select->parsing_place= CTX_SELECT_LIST;
+
+  if (options.query_spec_options & SELECT_HIGH_PRIORITY)
+  {
+    Yacc_state *yyps= &pc->thd->m_parser_state->m_yacc;
+    yyps->m_lock_type= TL_READ_HIGH_PRIORITY;
+    yyps->m_mdl_type= MDL_SHARED_READ;
+  }
+  if (options.save_to(pc))
+    return true;
+
+  if (item_list->contextualize(pc))
+    return true;
+
+  // Ensure we're resetting parsing context of the right select
+  DBUG_ASSERT(pc->select->parsing_place == CTX_SELECT_LIST);
+  pc->select->parsing_place= CTX_NONE;
+
+  if (table_expression->contextualize(pc))
+    return true;
+  /*
+    The following work only with the local list, the global list
+    is created correctly in this case
+  */
+  pc->select->table_list.push_front(&save_list);
+
+  return false;
+}
+
+
+bool PT_insert_values_list::contextualize(Parse_context *pc)
+{
+  if (super::contextualize(pc))
+    return true;
+  List_iterator<List_item> it1(many_values);
+  List<Item> *item_list;
+  while ((item_list= it1++))
+  {
+    List_iterator<Item> it2(*item_list);
+    Item *item;
+    while ((item= it2++))
+    {
+      if (item->itemize(pc, &item))
+        return true;
+      it2.replace(item);
+    }
+  }
+
+  return false;
+}
+
+
+bool PT_insert_query_expression::contextualize(Parse_context *pc)
+{
+  if (super::contextualize(pc) || create_select->contextualize(pc))
+    return true;
+
+  pc->select->set_braces(braces);
+
+  if (opt_union != NULL && opt_union->contextualize(pc))
+    return true;
+
+  return false;
+}
+
+
+bool PT_insert::contextualize(Parse_context *pc)
+{
+  if (super::contextualize(pc))
+    return true;
+
+  LEX *lex= pc->thd->lex;
+  if (is_replace)
+  {
+    lex->sql_command = SQLCOM_REPLACE;
+    lex->duplicates= DUP_REPLACE;
+  }
+  else
+  {
+    lex->sql_command= SQLCOM_INSERT;
+    lex->duplicates= DUP_ERROR;
+    lex->set_ignore(ignore);
+  }
+
+  Yacc_state *yyps= &pc->thd->m_parser_state->m_yacc;
+  if (!pc->select->add_table_to_list(pc->thd, table_ident, NULL,
+                                     TL_OPTION_UPDATING,
+                                     yyps->m_lock_type,
+                                     yyps->m_mdl_type,
+                                     NULL,
+                                     opt_use_partition))
+  {
+    return true;
+  }
+  pc->select->set_lock_for_tables(lock_option);
+
+  DBUG_ASSERT(lex->current_select() == lex->select_lex);
+
+  if (column_list->contextualize(pc))
+    return true;
+
+  if (has_select())
+  {
+    if (insert_query_expression->contextualize(pc))
+      return true;
+    lex->bulk_insert_row_cnt= 0;
+  }
+  else
+  {
+    if (row_value_list->contextualize(pc))
+      return true;
+    lex->bulk_insert_row_cnt= row_value_list->get_many_values().elements;
+  }
+
+
+  if (opt_on_duplicate_column_list != NULL)
+  {
+    DBUG_ASSERT(!is_replace);
+    DBUG_ASSERT(opt_on_duplicate_value_list != NULL &&
+                opt_on_duplicate_value_list->elements() ==
+                  opt_on_duplicate_column_list->elements());
+
+    lex->duplicates= DUP_UPDATE;
+    TABLE_LIST *first_table= lex->select_lex->table_list.first;
+    /* Fix lock for ON DUPLICATE KEY UPDATE */
+    if (first_table->lock_type == TL_WRITE_CONCURRENT_DEFAULT)
+      first_table->lock_type= TL_WRITE_DEFAULT;
+
+    pc->select->parsing_place= CTX_UPDATE_VALUE_LIST;
+
+    if (opt_on_duplicate_column_list->contextualize(pc) ||
+        opt_on_duplicate_value_list->contextualize(pc))
+      return true;
+
+    // Ensure we're resetting parsing context of the right select
+    DBUG_ASSERT(pc->select->parsing_place == CTX_UPDATE_VALUE_LIST);
+    pc->select->parsing_place= CTX_NONE;
+  }
+
+  return false;
+}
+
+
+Sql_cmd *PT_insert::make_cmd(THD *thd)
+{
+  Parse_context pc(thd, thd->lex->current_select());
+  if (contextualize(&pc))
+    return NULL;
+
+  Sql_cmd_insert_base *sql_cmd;
+  if (has_select())
+    sql_cmd= new (thd->mem_root) Sql_cmd_insert_select(is_replace,
+                                                       thd->lex->duplicates);
+  else
+    sql_cmd= new (thd->mem_root) Sql_cmd_insert(is_replace, thd->lex->duplicates);
+  if (sql_cmd == NULL)
+    return NULL;
+
+  if (!has_select())
+    sql_cmd->insert_many_values= row_value_list->get_many_values();
+
+  sql_cmd->insert_field_list= column_list->value;
+  if (opt_on_duplicate_column_list != NULL)
+  {
+    DBUG_ASSERT(!is_replace);
+    sql_cmd->insert_update_list= opt_on_duplicate_column_list->value;
+    sql_cmd->insert_value_list= opt_on_duplicate_value_list->value;
+  }
+
+  return sql_cmd;
 }

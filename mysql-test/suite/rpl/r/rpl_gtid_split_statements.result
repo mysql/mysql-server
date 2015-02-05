@@ -335,25 +335,25 @@ SET GTID_NEXT = 'AUTOMATIC';
 # db3: no table.
 DROP DATABASE db3;
 include/sync_slave_io_with_master.inc
-include/wait_for_slave_sql_error.inc [errno=3090]
+include/wait_for_slave_sql_error.inc [errno=3091]
 include/include/rpl_skip_to_end_of_relay_log.inc
 [connection master]
 # db6: one table.
 DROP DATABASE db6;
 include/sync_slave_io_with_master.inc
-include/wait_for_slave_sql_error.inc [errno=3090]
+include/wait_for_slave_sql_error.inc [errno=3091]
 include/include/rpl_skip_to_end_of_relay_log.inc
 [connection master]
 # db9: many tables with long names.
 DROP DATABASE db9;
 include/sync_slave_io_with_master.inc
-include/wait_for_slave_sql_error.inc [errno=3090]
+include/wait_for_slave_sql_error.inc [errno=3091]
 include/include/rpl_skip_to_end_of_relay_log.inc
 [connection master]
 # db12: not a database, but directory exists.
 DROP DATABASE db12;
 include/sync_slave_io_with_master.inc
-include/wait_for_slave_sql_error.inc [errno=3090]
+include/wait_for_slave_sql_error.inc [errno=3091]
 include/include/rpl_skip_to_end_of_relay_log.inc
 [connection master]
 # db15: not a database (on slave).
