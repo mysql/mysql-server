@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -35,14 +35,6 @@ typedef struct st_mysql_show_var SHOW_VAR;
 typedef struct st_schema_table ST_SCHEMA_TABLE;
 struct TABLE;
 typedef struct system_status_var STATUS_VAR;
-
-#ifndef MCP_WL1735
-typedef struct st_lookup_field_values
-{
-  LEX_STRING db_value, table_value;
-  bool wild_db_value, wild_table_value;
-} LOOKUP_FIELD_VALUES;
-#endif
 
 enum find_files_result {
   FIND_FILES_OK,
