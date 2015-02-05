@@ -7488,7 +7488,10 @@ bool Item_func_match::fix_fields(THD *thd, Item **ref)
       is made later by JOIN::fts_index_access() function.
     */
     else
+    {
       table->no_keyread= true;
+      cleanup_table_ref= true;
+    }
   }
   else
   {
