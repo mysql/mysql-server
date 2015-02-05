@@ -1156,19 +1156,11 @@ error:
     TRUE              error, error message is set in THD
 */
 
-static bool mysql_test_insert(Prepared_statement *stmt,
-                              TABLE_LIST *table_list,
-                              List<Item> &fields,
-                              List<List_item> &values_list,
-                              List<Item> &update_fields,
-                              List<Item> &update_values,
-                              enum_duplicates duplic)
+bool Sql_cmd_insert::mysql_test_insert(THD *thd, TABLE_LIST *table_list)
 {
-  THD *thd= stmt->thd;
-  List_iterator_fast<List_item> its(values_list);
+  List_iterator_fast<List_item> its(insert_many_values);
   List_item *values;
   DBUG_ENTER("mysql_test_insert");
-  DBUG_ASSERT(stmt->is_stmt_prepare());
 
   TABLE_LIST *insert_table_ref= 0;
 
@@ -1191,7 +1183,6 @@ static bool mysql_test_insert(Prepared_statement *stmt,
   {
     uint value_count;
     ulong counter= 0;
-    Item *unused_conds= 0;
 
     if (table_list->table)
     {
@@ -1199,9 +1190,7 @@ static bool mysql_test_insert(Prepared_statement *stmt,
       table_list->table->insert_values=(uchar *)1;
     }
 
-    if (mysql_prepare_insert(thd, table_list, &insert_table_ref,
-                             fields, values, update_fields, update_values,
-                             duplic, &unused_conds, FALSE, FALSE))
+    if (mysql_prepare_insert(thd, table_list, &insert_table_ref, values, FALSE))
 
       goto error;
 
@@ -1231,8 +1220,7 @@ error:
 /**
   Validate UPDATE statement.
 
-  @param stmt               prepared statement
-  @param tables             list of tables used in this query
+  @param thd                current thread
 
   @todo
     - here we should send types of placeholders to the client.
@@ -1245,14 +1233,12 @@ error:
     2                 convert to multi_update
 */
 
-static int mysql_test_update(Prepared_statement *stmt)
+int Sql_cmd_update::mysql_test_update(THD *thd)
 {
   DBUG_ENTER("mysql_test_update");
 
-  THD        *const thd= stmt->thd;
-  SELECT_LEX *const select= stmt->lex->select_lex;
+  SELECT_LEX *const select= thd->lex->select_lex;
   TABLE_LIST *const table_list= select->get_table_list();
-  DBUG_ASSERT(thd->lex == stmt->lex);
 
   if (update_precheck(thd, table_list))
     DBUG_RETURN(1);
@@ -1288,7 +1274,8 @@ static int mysql_test_update(Prepared_statement *stmt)
   TABLE_LIST *const update_table_ref= table_list->updatable_base_table();
 
   key_map covering_keys_for_cond;
-  if (mysql_prepare_update(thd, update_table_ref, &covering_keys_for_cond))
+  if (mysql_prepare_update(thd, update_table_ref, &covering_keys_for_cond,
+                           update_value_list))
     DBUG_RETURN(1);
 
   /* TODO: here we should send types of placeholders to the client. */
@@ -1299,7 +1286,7 @@ static int mysql_test_update(Prepared_statement *stmt)
 /**
   Validate DELETE statement.
 
-  @param stmt               prepared statement
+  @param thd               current thread
 
   @retval
     FALSE             success
@@ -1307,14 +1294,14 @@ static int mysql_test_update(Prepared_statement *stmt)
     TRUE              error, error message is set in THD
 */
 
-static bool mysql_test_delete(Prepared_statement *stmt)
+bool Sql_cmd_delete::prepared_statement_test(THD *thd)
 {
-  DBUG_ENTER("mysql_test_delete");
+  DBUG_ENTER("Sql_cmd_delete::prepare_test");
 
-  THD        *const thd= stmt->thd;
-  SELECT_LEX *const select= stmt->lex->select_lex;
+  SELECT_LEX *const select= thd->lex->select_lex;
 
-  DBUG_ASSERT(stmt->is_stmt_prepare());
+  DBUG_ASSERT(thd->lex->query_tables ==
+              thd->lex->select_lex->get_table_list());
   TABLE_LIST *const table_list= select->get_table_list();
 
   if (delete_precheck(thd, table_list))
@@ -1528,6 +1515,48 @@ static bool mysql_test_call_fields(Prepared_statement *stmt,
   Check internal SELECT of the prepared command.
 
   @param stmt                      prepared statement
+  @param thd                       current thread
+  @param setup_tables_done_option  options to be passed to LEX::unit->prepare()
+
+  @note
+    This function won't directly open tables used in select. They should
+    be opened either by calling function (and in this case you probably
+    should use select_like_stmt_test_with_open()) or by
+    "specific_prepare" call (like this happens in case of multi-update).
+
+  @retval
+    FALSE                success
+  @retval
+    TRUE                 error, error message is set in THD
+*/
+
+bool select_like_stmt_cmd_test(THD *thd,
+                               Sql_cmd_dml *cmd,
+                               ulong setup_tables_done_option)
+{
+  DBUG_ENTER("select_like_stmt_test");
+  LEX *lex= thd->lex;
+
+  lex->select_lex->context.resolve_in_select_list= true;
+
+  if (cmd != NULL && cmd->prepare(thd))
+    DBUG_RETURN(TRUE);
+
+  thd->lex->used_tables= 0;                        // Updated by setup_fields
+
+  /* Calls SELECT_LEX::prepare */
+  const bool ret= lex->unit->prepare(thd, 0, setup_tables_done_option, 0);
+  DBUG_RETURN(ret);
+}
+
+
+/**
+  Check internal SELECT of the prepared command.
+
+  @note Old version. Will be replaced with select_like_stmt_cmd_test() after
+        the parser refactoring.
+
+  @param stmt                      prepared statement
   @param specific_prepare          function of command specific prepare
   @param setup_tables_done_option  options to be passed to LEX::unit->prepare()
 
@@ -1563,14 +1592,15 @@ static bool select_like_stmt_test(Prepared_statement *stmt,
   DBUG_RETURN(ret);
 }
 
+
 /**
   Check internal SELECT of the prepared command (with opening of used
   tables).
 
-  @param stmt                      prepared statement
+  @param thd                       current thread
   @param tables                    list of tables to be opened
                                    before calling specific_prepare function
-  @param specific_prepare          function of command specific prepare
+  @param cmd                       Sql_cmd to call Sql_cmd::prepare()
   @param setup_tables_done_option  options to be passed to LEX::unit->prepare()
 
   @retval
@@ -1580,19 +1610,17 @@ static bool select_like_stmt_test(Prepared_statement *stmt,
 */
 
 static bool
-select_like_stmt_test_with_open(Prepared_statement *stmt,
-                                TABLE_LIST *tables,
-                                int (*specific_prepare)(THD *thd),
-                                ulong setup_tables_done_option)
+select_like_stmt_cmd_test_with_open(THD *thd,
+                                    TABLE_LIST *tables,
+                                    Sql_cmd_dml *cmd,
+                                    ulong setup_tables_done_option)
 {
   DBUG_ENTER("select_like_stmt_test_with_open");
-  DBUG_ASSERT(stmt->is_stmt_prepare());
 
-  if (open_tables_for_query(stmt->thd, tables, MYSQL_OPEN_FORCE_SHARED_MDL))
+  if (open_tables_for_query(thd, tables, MYSQL_OPEN_FORCE_SHARED_MDL))
     DBUG_RETURN(true);
 
-  if (select_like_stmt_test(stmt, specific_prepare,
-                            setup_tables_done_option))
+  if (select_like_stmt_cmd_test(thd, cmd, setup_tables_done_option))
     DBUG_RETURN(true);
 
   DBUG_RETURN(false);
@@ -1707,48 +1735,10 @@ err:
 }
 
 
-/*
-  Validate and prepare for execution a multi update statement.
-
-  @param stmt               prepared statement
-  @param tables             list of tables used in this query
-  @param converted          converted to multi-update from usual update
-
-  @retval
-    FALSE             success
-  @retval
-    TRUE              error, error message is set in THD
-*/
-
-static bool mysql_test_multiupdate(Prepared_statement *stmt,
-                                  TABLE_LIST *tables,
-                                  bool converted)
-{
-  /* if we switched from normal update, rights are checked */
-  if (!converted && multi_update_precheck(stmt->thd, tables))
-    return TRUE;
-
-  return select_like_stmt_test(stmt, &mysql_multi_update_prepare,
-                               OPTION_SETUP_TABLES_DONE);
-}
-
-
-/**
-  Wrapper for mysql_multi_delete_prepare() function which makes
-  it compatible with select_like_stmt_test_with_open().
-*/
-
-static int mysql_multi_delete_prepare_tester(THD *thd)
-{
-  uint table_count;
-  return mysql_multi_delete_prepare(thd, &table_count);
-}
-
-
 /**
   Validate and prepare for execution a multi delete statement.
 
-  @param stmt               prepared statement
+  @param thd                current thread
   @param tables             list of tables used in this query
 
   @retval
@@ -1757,21 +1747,22 @@ static int mysql_multi_delete_prepare_tester(THD *thd)
     TRUE              error, error message in THD is set.
 */
 
-static bool mysql_test_multidelete(Prepared_statement *stmt,
-                                  TABLE_LIST *tables)
+bool Sql_cmd_delete_multi::prepared_statement_test(THD *thd)
 {
-  stmt->thd->lex->set_current_select(stmt->thd->lex->select_lex);
-  if (add_item_to_list(stmt->thd, new Item_null()))
+  LEX *lex= thd->lex;
+  TABLE_LIST * const tables= lex->query_tables;
+  lex->set_current_select(lex->select_lex);
+  if (add_item_to_list(thd, new Item_null()))
   {
     my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), 0);
     return true;
   }
 
-  if (multi_delete_precheck(stmt->thd, tables))
+  if (multi_delete_precheck(thd, tables))
     return true;
-  if (select_like_stmt_test_with_open(stmt, tables,
-                                      &mysql_multi_delete_prepare_tester,
-                                      OPTION_SETUP_TABLES_DONE))
+  if (select_like_stmt_cmd_test_with_open(thd, tables,
+                                          this,
+                                          OPTION_SETUP_TABLES_DONE))
     return true;
 
   return false;
@@ -1789,7 +1780,7 @@ static bool mysql_test_multidelete(Prepared_statement *stmt,
     uses local tables lists.
 */
 
-static int mysql_insert_select_prepare_tester(THD *thd)
+bool Sql_cmd_insert_select::prepare(THD *thd)
 {
   SELECT_LEX *const first_select= thd->lex->select_lex;
   TABLE_LIST *const second_table= first_select->table_list.first->next_local;
@@ -1806,8 +1797,7 @@ static int mysql_insert_select_prepare_tester(THD *thd)
 /**
   Validate and prepare for execution INSERT ... SELECT statement.
 
-  @param stmt               prepared statement
-  @param tables             list of tables used in this query
+  @param thd         current thread
 
   @retval
     FALSE             success
@@ -1815,11 +1805,11 @@ static int mysql_insert_select_prepare_tester(THD *thd)
     TRUE              error, error message is set in THD
 */
 
-static bool mysql_test_insert_select(Prepared_statement *stmt,
-                                     TABLE_LIST *tables)
+bool Sql_cmd_insert_select::prepared_statement_test(THD *thd)
 {
+  TABLE_LIST * const tables= thd->lex->query_tables;
   int res;
-  LEX *lex= stmt->lex;
+  LEX *lex= thd->lex;
   TABLE_LIST *first_local_table;
 
   if (tables->table)
@@ -1828,18 +1818,18 @@ static bool mysql_test_insert_select(Prepared_statement *stmt,
     tables->table->insert_values=(uchar *)1;
   }
 
-  if (insert_precheck(stmt->thd, tables))
+  if (insert_precheck(thd, tables))
     return 1;
 
-  /* store it, because mysql_insert_select_prepare_tester change it */
+  /* store it, because Sql_cmd_insert_select::prepare() change it */
   first_local_table= lex->select_lex->table_list.first;
   DBUG_ASSERT(first_local_table != 0);
 
   res=
-    select_like_stmt_test_with_open(stmt, tables,
-                                    &mysql_insert_select_prepare_tester,
-                                    OPTION_SETUP_TABLES_DONE);
-  /* revert changes  made by mysql_insert_select_prepare_tester */
+    select_like_stmt_cmd_test_with_open(thd, tables,
+                                        this,
+                                        OPTION_SETUP_TABLES_DONE);
+  /* revert changes  made by Sql_cmd_insert_select::prepare() */
   lex->select_lex->table_list.first= first_local_table;
   return res;
 }
@@ -1866,6 +1856,7 @@ static bool check_prepared_statement(Prepared_statement *stmt)
 {
   THD *thd= stmt->thd;
   LEX *lex= stmt->lex;
+  DBUG_ASSERT(lex == thd->lex); // set_n_backup_active_arena() guarantees that
   SELECT_LEX *select_lex= lex->select_lex;
   enum enum_sql_command sql_command= lex->sql_command;
   int res= 0;
@@ -1912,28 +1903,17 @@ static bool check_prepared_statement(Prepared_statement *stmt)
   }
 
   switch (sql_command) {
-  case SQLCOM_REPLACE:
   case SQLCOM_INSERT:
-    res= mysql_test_insert(stmt, tables, lex->field_list,
-                           lex->many_values,
-                           lex->update_list, lex->value_list,
-                           lex->duplicates);
-    break;
-
+  case SQLCOM_INSERT_SELECT:
+  case SQLCOM_REPLACE:
+  case SQLCOM_REPLACE_SELECT:
   case SQLCOM_UPDATE:
-    DBUG_ASSERT(tables == select_lex->get_table_list());
-    res= mysql_test_update(stmt);
-    /* mysql_test_update returns 2 if we need to switch to multi-update */
-    if (res != 2)
-      break;
-
   case SQLCOM_UPDATE_MULTI:
-    res= mysql_test_multiupdate(stmt, tables, res == 2);
-    break;
-
   case SQLCOM_DELETE:
-    DBUG_ASSERT(tables == select_lex->get_table_list());
-    res= mysql_test_delete(stmt);
+  case SQLCOM_DELETE_MULTI:
+    DBUG_ASSERT(thd->lex == stmt->lex);
+    res=
+      static_cast<Sql_cmd_dml *>(lex->m_sql_cmd)->prepared_statement_test(thd);
     break;
   /* The following allow WHERE clause, so they must be tested like SELECT */
   case SQLCOM_SHOW_DATABASES:
@@ -1971,23 +1951,14 @@ static bool check_prepared_statement(Prepared_statement *stmt)
     res= mysql_test_create_view(stmt);
     break;
   case SQLCOM_DO:
-    res= mysql_test_do_fields(stmt, tables, lex->insert_list);
+    res= mysql_test_do_fields(stmt, tables, lex->do_insert_list);
     break;
 
   case SQLCOM_CALL:
-    res= mysql_test_call_fields(stmt, tables, &lex->value_list);
+    res= mysql_test_call_fields(stmt, tables, &lex->call_value_list);
     break;
   case SQLCOM_SET_OPTION:
     res= mysql_test_set_fields(stmt, tables, &lex->var_list);
-    break;
-
-  case SQLCOM_DELETE_MULTI:
-    res= mysql_test_multidelete(stmt, tables);
-    break;
-
-  case SQLCOM_INSERT_SELECT:
-  case SQLCOM_REPLACE_SELECT:
-    res= mysql_test_insert_select(stmt, tables);
     break;
 
     /*
@@ -2372,11 +2343,9 @@ void reinit_stmt_before_use(THD *thd, LEX *lex)
   */
   lex->thd= thd;
 
-  if (lex->empty_field_list_on_rset)
-  {
-    lex->empty_field_list_on_rset= 0;
-    lex->field_list.empty();
-  }
+  if (lex->m_sql_cmd != NULL)
+    lex->m_sql_cmd->cleanup(thd);
+
   for (; sl; sl= sl->next_select_in_list())
   {
     if (!sl->first_execution)

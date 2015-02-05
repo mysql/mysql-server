@@ -1678,8 +1678,8 @@ bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *view_ref,
        sl;
        sl= sl->next_select_in_list())
   {
-    sl->context.error_processor= &view_error_processor;
-    sl->context.error_processor_data= (void *)view_ref;
+    sl->context.view_error_handler= true;
+    sl->context.view_error_handler_arg= view_ref;
   }
 
   view_select->linkage= DERIVED_TABLE_TYPE;

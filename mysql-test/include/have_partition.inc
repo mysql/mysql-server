@@ -1,4 +1,4 @@
-disable_query_log;
---require r/true.require
-SELECT (plugin_status = 'ACTIVE') AS `TRUE` FROM information_schema.plugins WHERE plugin_name LIKE 'partition%';
-enable_query_log;
+if (`SELECT COUNT(*) = 0 FROM information_schema.plugins WHERE plugin_name = 'partition' AND plugin_status = 'ACTIVE'`)
+{
+  --skip The generic partitioning engine ha_partition is not active!
+}

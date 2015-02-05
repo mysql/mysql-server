@@ -33,6 +33,8 @@
 #include "sql_view.h"                 // check_key_in_view
 #include "table_trigger_dispatcher.h" // Table_trigger_dispatcher
 #include "uniques.h"                  // Unique
+#include "probes_mysql.h"
+#include "auth_common.h"
 
 
 /**
@@ -43,7 +45,7 @@
   end of dispatch_command().
 */
 
-bool mysql_delete(THD *thd, ha_rows limit)
+bool Sql_cmd_delete::mysql_delete(THD *thd, ha_rows limit)
 {
   DBUG_ENTER("mysql_delete");
 
@@ -92,7 +94,6 @@ bool mysql_delete(THD *thd, ha_rows limit)
   QEP_TAB_standalone qep_tab_st;
   QEP_TAB &qep_tab= qep_tab_st.as_QEP_TAB();
 
-#ifdef WITH_PARTITION_STORAGE_ENGINE
   /*
     Non delete tables are pruned in SELECT_LEX::prepare,
     only the delete table needs this.
@@ -119,7 +120,6 @@ bool mysql_delete(THD *thd, ha_rows limit)
     my_ok(thd, 0);
     DBUG_RETURN(0);
   }
-#endif
 
   if (lock_tables(thd, table_list, thd->lex->table_count, 0))
     DBUG_RETURN(true);
@@ -239,7 +239,6 @@ bool mysql_delete(THD *thd, ha_rows limit)
   table->quick_keys.clear_all();		// Can't use 'only index'
   table->possible_quick_keys.clear_all();
 
-#ifdef WITH_PARTITION_STORAGE_ENGINE
   /* Prune a second time to be able to prune on subqueries in WHERE clause. */
   if (prune_partitions(thd, table, conds))
     DBUG_RETURN(true);
@@ -257,7 +256,6 @@ bool mysql_delete(THD *thd, ha_rows limit)
     my_ok(thd, 0);
     DBUG_RETURN(0);
   }
-#endif
 
   error= 0;
   qep_tab.set_table(table);
@@ -593,7 +591,7 @@ exit_without_my_ok:
   @return false if success, true if error
 */
 
-bool mysql_prepare_delete(THD *thd)
+bool Sql_cmd_delete::mysql_prepare_delete(THD *thd)
 {
   DBUG_ENTER("mysql_prepare_delete");
 
@@ -708,7 +706,8 @@ extern "C" int refpos_order_cmp(const void* arg, const void *a,const void *b)
   @retval true  - error.
 */
 
-int mysql_multi_delete_prepare(THD *thd, uint *table_count)
+int Sql_cmd_delete_multi::mysql_multi_delete_prepare(THD *thd,
+                                                     uint *table_count)
 {
   DBUG_ENTER("mysql_multi_delete_prepare");
 
@@ -1320,4 +1319,115 @@ bool multi_delete::send_eof()
     ::my_ok(thd, deleted);
   }
   return 0;
+}
+
+
+bool Sql_cmd_delete::execute(THD *thd)
+{
+  DBUG_ASSERT(thd->lex->sql_command == SQLCOM_DELETE);
+
+  LEX *const lex= thd->lex;
+  SELECT_LEX *const select_lex= lex->select_lex;
+  SELECT_LEX_UNIT *const unit= lex->unit;
+  TABLE_LIST *const first_table= select_lex->get_table_list();
+  TABLE_LIST *const all_tables= first_table;
+
+  if (delete_precheck(thd, all_tables))
+    return true;
+  DBUG_ASSERT(select_lex->offset_limit == 0);
+  unit->set_limit(select_lex);
+
+  /* Push ignore / strict error handler */
+  Ignore_error_handler ignore_handler;
+  Strict_error_handler strict_handler;
+  if (thd->lex->is_ignore())
+    thd->push_internal_handler(&ignore_handler);
+  else if (thd->is_strict_mode())
+    thd->push_internal_handler(&strict_handler);
+
+  MYSQL_DELETE_START(const_cast<char*>(thd->query().str));
+  bool res = mysql_delete(thd, unit->select_limit_cnt);
+  MYSQL_DELETE_DONE(res, (ulong) thd->get_row_count_func());
+
+  /* Pop ignore / strict error handler */
+  if (thd->lex->is_ignore() || thd->is_strict_mode())
+    thd->pop_internal_handler();
+
+  return res;
+}
+
+
+bool Sql_cmd_delete_multi::execute(THD *thd)
+{
+  DBUG_ASSERT(thd->lex->sql_command == SQLCOM_DELETE_MULTI);
+
+  bool res= false;
+  LEX *const lex= thd->lex;
+  SELECT_LEX *const select_lex= lex->select_lex;
+  TABLE_LIST *const first_table= select_lex->get_table_list();
+  TABLE_LIST *const all_tables= first_table;
+
+  TABLE_LIST *aux_tables= thd->lex->auxiliary_table_list.first;
+  uint del_table_count;
+  multi_delete *del_result;
+
+  if (multi_delete_precheck(thd, all_tables))
+    return true;
+
+  /* condition will be TRUE on SP re-excuting */
+  if (select_lex->item_list.elements != 0)
+    select_lex->item_list.empty();
+  if (add_item_to_list(thd, new Item_null()))
+    return true;
+
+  THD_STAGE_INFO(thd, stage_init);
+  if ((res= open_tables_for_query(thd, all_tables, 0)))
+    return true;
+
+  if (run_before_dml_hook(thd))
+    return true;
+
+  MYSQL_MULTI_DELETE_START(const_cast<char*>(thd->query().str));
+  if (mysql_multi_delete_prepare(thd, &del_table_count))
+  {
+    MYSQL_MULTI_DELETE_DONE(1, 0);
+    return true;
+  }
+
+  if (!thd->is_fatal_error &&
+      (del_result= new multi_delete(aux_tables, del_table_count)))
+  {
+    DBUG_ASSERT(select_lex->having_cond() == NULL &&
+                !select_lex->order_list.elements &&
+                !select_lex->group_list.elements);
+
+    Ignore_error_handler ignore_handler;
+    Strict_error_handler strict_handler;
+    if (thd->lex->is_ignore())
+      thd->push_internal_handler(&ignore_handler);
+    else if (thd->is_strict_mode())
+      thd->push_internal_handler(&strict_handler);
+
+    res= handle_query(thd, lex, del_result,
+                      SELECT_NO_JOIN_CACHE |
+                      SELECT_NO_UNLOCK |
+                      OPTION_SETUP_TABLES_DONE,
+                      OPTION_BUFFER_RESULT);
+
+    if (thd->lex->is_ignore() || thd->is_strict_mode())
+      thd->pop_internal_handler();
+
+    if (res)
+      del_result->abort_result_set();
+
+    MYSQL_MULTI_DELETE_DONE(res, del_result->num_deleted());
+    delete del_result;
+  }
+  else
+  {
+    res= true;                                // Error
+    MYSQL_MULTI_DELETE_DONE(1, 0);
+  }
+
+  return res;
 }

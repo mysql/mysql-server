@@ -5,7 +5,7 @@ call mtr.add_suppression('InnoDB: Unable to lock');
 # Execution of mysql_install_db ends..............
 SELECT user FROM mysql.user;
 ERROR HY000: You must SET PASSWORD before executing this statement
-set password=password('abc');
+set password='abc';
 SELECT user,host,plugin FROM mysql.user WHERE password_expired='n';
 user	host	plugin
 root	localhost	mysql_native_password
@@ -21,7 +21,7 @@ mtr
 mysql
 performance_schema
 test
-set password=password('');
+set password='';
 select count(*) from mysql.user;
 count(*)
 2
@@ -30,7 +30,7 @@ count(*)
 # Execution of mysql_install_db ends..............
 SELECT user FROM mysql.user;
 ERROR HY000: You must SET PASSWORD before executing this statement
-set password=password('abc');
+set password='abc';
 SELECT user,host,plugin FROM mysql.user WHERE password_expired='n';
 user	host	plugin
 root	localhost	mysql_native_password
@@ -46,7 +46,7 @@ mtr
 mysql
 performance_schema
 test
-set password=password('');
+set password='';
 # with --insecure where the file MYSQL_TMP_DIR/.mysql_secret is not there. Start server and try to login with root credentials
 # Execution of mysql_install_db starts............
 # Execution of mysql_install_db ends..............
@@ -65,7 +65,7 @@ mtr
 mysql
 performance_schema
 test
-set password=password('');
+set password='';
 # Check the behavior of the option --admin-user
 # Execution of mysql_install_db starts............
 # Execution of mysql_install_db ends..............
@@ -84,12 +84,12 @@ mtr
 mysql
 performance_schema
 test
-set password=password('');
+set password='';
 # Execution of mysql_install_db starts............
 # Execution of mysql_install_db ends..............
 SELECT user FROM mysql.user;
 ERROR HY000: You must SET PASSWORD before executing this statement
-set password=password('abc');
+set password='abc';
 SELECT user,host,plugin FROM mysql.user WHERE password_expired='n';
 user	host	plugin
 test_user	localhost	mysql_native_password
@@ -105,7 +105,7 @@ mtr
 mysql
 performance_schema
 test
-set password=password('');
+set password='';
 # Check the behavior of the option --login-path when passed with --login-file
 # Execution of mysql_install_db starts............
 # Execution of mysql_install_db ends..............
@@ -124,7 +124,7 @@ mtr
 mysql
 performance_schema
 test
-set password=password('');
+set password='';
 # Check the behavior when login-path is not passed, but only --login-file
 # Execution of mysql_install_db starts............
 # Execution of mysql_install_db ends..............
@@ -143,7 +143,7 @@ mtr
 mysql
 performance_schema
 test
-set password=password('');
+set password='';
 # Check the behavior of the option --admin-user
 # Execution of mysql_install_db starts............
 # Execution of mysql_install_db ends..............
@@ -162,13 +162,13 @@ mtr
 mysql
 performance_schema
 test
-set password=password('');
+set password='';
 # Now without the option --insecure
 # Execution of mysql_install_db starts............
 # Execution of mysql_install_db ends..............
 SELECT user FROM mysql.user;
 ERROR HY000: You must SET PASSWORD before executing this statement
-set password=password('abc');
+set password='abc';
 SELECT user,host,plugin FROM mysql.user WHERE password_expired='n';
 user	host	plugin
 test_user	localhost	mysql_native_password
@@ -184,13 +184,13 @@ mtr
 mysql
 performance_schema
 test
-set password=password('');
+set password='';
 # Check the behavior of the option --admin-host
 # Execution of mysql_install_db starts............
 # Execution of mysql_install_db ends..............
 SELECT user FROM mysql.user;
 ERROR HY000: You must SET PASSWORD before executing this statement
-set password=password('abc');
+set password='abc';
 SELECT user,host,plugin FROM mysql.user WHERE password_expired='n';
 user	host	plugin
 root	127.0.0.1	mysql_native_password
@@ -206,7 +206,7 @@ mtr
 mysql
 performance_schema
 test
-set password=password('');
+set password='';
 # Execution of mysql_install_db starts............
 # Execution of mysql_install_db ends..............
 SELECT user,host,plugin FROM mysql.user WHERE password_expired='n';
@@ -224,7 +224,7 @@ mtr
 mysql
 performance_schema
 test
-set password=password('');
+set password='';
 # Check the behavior of the option --admin-host when passed along with --admin-path
 # Execution of mysql_install_db starts............
 # Execution of mysql_install_db ends..............
@@ -243,14 +243,14 @@ mtr
 mysql
 performance_schema
 test
-set password=password('');
+set password='';
 # Check the behavior of the option --admin-require-ssl when no value is passed with the option
 # Execution of mysql_install_db starts............
 # Execution of mysql_install_db ends..............
 ERROR 28000: Access denied for user 'root'@'localhost' (using password: YES)
 SELECT user FROM mysql.user;
 ERROR HY000: You must SET PASSWORD before executing this statement
-set password=password('abc');
+set password='abc';
 SELECT user,host,plugin FROM mysql.user WHERE password_expired='n';
 user	host	plugin
 root	localhost	mysql_native_password
@@ -266,7 +266,7 @@ mtr
 mysql
 performance_schema
 test
-set password=password('');
+set password='';
 # Execution of mysql_install_db starts............
 # Execution of mysql_install_db ends..............
 ERROR 28000: Access denied for user 'root'@'localhost' (using password: NO)
@@ -285,14 +285,14 @@ mtr
 mysql
 performance_schema
 test
-set password=password('');
+set password='';
 # Check the behavior of the option --admin-require-ssl when ON is passed with the option
 # Execution of mysql_install_db starts............
 # Execution of mysql_install_db ends..............
 ERROR 28000: Access denied for user 'root'@'localhost' (using password: YES)
 SELECT user FROM mysql.user;
 ERROR HY000: You must SET PASSWORD before executing this statement
-set password=password('abc');
+set password='abc';
 SELECT user,host,plugin FROM mysql.user WHERE password_expired='n';
 user	host	plugin
 root	localhost	mysql_native_password
@@ -308,7 +308,7 @@ mtr
 mysql
 performance_schema
 test
-set password=password('');
+set password='';
 # Execution of mysql_install_db starts............
 # Execution of mysql_install_db ends..............
 ERROR 28000: Access denied for user 'root'@'localhost' (using password: NO)
@@ -327,13 +327,13 @@ mtr
 mysql
 performance_schema
 test
-set password=password('');
+set password='';
 # Check the behavior of the option --admin-require-ssl when OFF is passed with the option
 # Execution of mysql_install_db starts............
 # Execution of mysql_install_db ends..............
 SELECT user FROM mysql.user;
 ERROR HY000: You must SET PASSWORD before executing this statement
-set password=password('abc');
+set password='abc';
 SELECT user,host,plugin FROM mysql.user WHERE password_expired='n';
 user	host	plugin
 root	localhost	mysql_native_password
@@ -349,7 +349,7 @@ mtr
 mysql
 performance_schema
 test
-set password=password('');
+set password='';
 # Execution of mysql_install_db starts............
 # Execution of mysql_install_db ends..............
 SELECT user,host,plugin FROM mysql.user WHERE password_expired='n';
@@ -367,13 +367,13 @@ mtr
 mysql
 performance_schema
 test
-set password=password('');
+set password='';
 # Check the behavior of the option --admin-require-ssl when invalid value is passed with the option
 # Execution of mysql_install_db starts............
 # Execution of mysql_install_db ends..............
 SELECT user FROM mysql.user;
 ERROR HY000: You must SET PASSWORD before executing this statement
-set password=password('abc');
+set password='abc';
 SELECT user,host,plugin FROM mysql.user WHERE password_expired='n';
 user	host	plugin
 root	localhost	mysql_native_password
@@ -389,7 +389,7 @@ mtr
 mysql
 performance_schema
 test
-set password=password('');
+set password='';
 # Execution of mysql_install_db starts............
 # Execution of mysql_install_db ends..............
 SELECT user,host,plugin FROM mysql.user WHERE password_expired='n';
@@ -407,13 +407,13 @@ mtr
 mysql
 performance_schema
 test
-set password=password('');
+set password='';
 # Invoke mysql_install_db with --random-password-file=<valid path of file> where the file at specified path does not exist 
 # Execution of mysql_install_db starts............
 # Execution of mysql_install_db ends..............
 SELECT user FROM mysql.user;
 ERROR HY000: You must SET PASSWORD before executing this statement
-set password=password('abc');
+set password='abc';
 SELECT user,host,plugin FROM mysql.user WHERE password_expired='n';
 user	host	plugin
 root	localhost	mysql_native_password
@@ -429,13 +429,13 @@ mtr
 mysql
 performance_schema
 test
-set password=password('');
+set password='';
 # Below case is, when --random-password-file already exists
 # Execution of mysql_install_db starts............
 # Execution of mysql_install_db ends..............
 SELECT user FROM mysql.user;
 ERROR HY000: You must SET PASSWORD before executing this statement
-set password=password('abc');
+set password='abc';
 SELECT user,host,plugin FROM mysql.user WHERE password_expired='n';
 user	host	plugin
 root	localhost	mysql_native_password
@@ -451,7 +451,7 @@ mtr
 mysql
 performance_schema
 test
-set password=password('');
+set password='';
 # Execution of mysql_install_db starts............
 # Execution of mysql_install_db ends..............
 SELECT user,host,plugin FROM mysql.user WHERE password_expired='n';
@@ -469,6 +469,6 @@ mtr
 mysql
 performance_schema
 test
-set password=password('');
+set password='';
 # Reset mtr state 
 "execution finished............

@@ -1983,15 +1983,12 @@ CREATE VIEW v6 AS SELECT f2() FROM t3;
 drop function f1;
 CHECK TABLE v1, v2, v3, v4, v5, v6;
 Table	Op	Msg_type	Msg_text
-test.v1	check	Error	FUNCTION test.f1 does not exist
 test.v1	check	Error	View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 test.v1	check	status	Operation failed
 test.v2	check	status	OK
-test.v3	check	Error	FUNCTION test.f1 does not exist
 test.v3	check	Error	View 'test.v3' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 test.v3	check	status	Operation failed
 test.v4	check	status	OK
-test.v5	check	Error	FUNCTION test.f1 does not exist
 test.v5	check	Error	View 'test.v5' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 test.v5	check	status	Operation failed
 test.v6	check	status	OK

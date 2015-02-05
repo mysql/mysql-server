@@ -128,6 +128,7 @@ SET(SQL_SHARED_SOURCES
   select_lex_visitor.cc
   parser_service.cc
   partition_info.cc
+  partitioning/partition_handler.cc
   procedure.cc 
   protocol.cc
   records.cc
@@ -312,9 +313,6 @@ ENDIF()
 IF(HAVE_MY_TIMER)
   SET(SQL_SOURCE ${SQL_SOURCE} sql_timer.cc)
 ENDIF()
-
-MYSQL_ADD_PLUGIN(partition ha_partition.cc STORAGE_ENGINE DEFAULT STATIC_ONLY
-RECOMPILE_FOR_EMBEDDED)
 
 ADD_LIBRARY(sql STATIC ${SQL_SOURCE})
 ADD_DEPENDENCIES(sql GenServerSource)

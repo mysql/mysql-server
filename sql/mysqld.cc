@@ -131,6 +131,7 @@
 #include "socket_connection.h"          // Mysqld_socket_listener
 #include "mysqld_thd_manager.h"         // Global_THD_manager
 #include "my_getopt.h"
+#include "partitioning/partition_handler.h" // partitioning_init
 #include "item_cmpfunc.h"               // arg_cmp_func
 #include "item_strfunc.h"               // Item_func_uuid
 
@@ -348,7 +349,6 @@ my_bool old_mode;
 */
 handlerton *heap_hton;
 handlerton *myisam_hton;
-handlerton *partition_hton;
 handlerton *innodb_hton;
 
 uint opt_server_id_bits= 0;
@@ -3809,6 +3809,7 @@ static int init_server_components()
     all things are initialized so that unireg_abort() doesn't fail
   */
   mdl_init();
+  partitioning_init();
   if (table_def_init() | hostname_cache_init(host_cache_size))
     unireg_abort(1);
 
@@ -7757,14 +7758,17 @@ bool is_secure_file_path(char *path)
   char buff1[FN_REFLEN], buff2[FN_REFLEN];
   size_t opt_secure_file_priv_len;
   /*
-    All paths are secure if opt_secure_file_path is 0
+    All paths are secure if opt_secure_file_priv is 0
   */
-  if (!opt_secure_file_priv)
+  if (!opt_secure_file_priv || !opt_secure_file_priv[0])
     return TRUE;
 
   opt_secure_file_priv_len= strlen(opt_secure_file_priv);
 
   if (strlen(path) >= FN_REFLEN)
+    return FALSE;
+
+  if (!my_strcasecmp(system_charset_info, opt_secure_file_priv, "NULL"))
     return FALSE;
 
   if (my_realpath(buff1, path, 0))
@@ -7798,6 +7802,136 @@ bool is_secure_file_path(char *path)
   return TRUE;
 }
 
+
+/**
+  check_secure_file_priv_path : Checks path specified through
+  --secure-file-priv and raises warning in following cases:
+  1. If path is empty string or NULL and mysqld is not running
+     with --bootstrap mode.
+  2. If path can access data directory
+  3. If path points to a directory which is accessible by
+     all OS users (non-Windows build only)
+
+  It throws error in following cases:
+
+  1. If path normalization fails
+  2. If it can not get stats of the directory
+
+  @params NONE
+
+  Assumptions :
+  1. Data directory path has been normalized
+  2. opt_secure_file_priv has been normalized unless it is set
+     to "NULL".
+
+  @returns Status of validation
+    @retval true : Validation is successful with/without warnings
+    @retval false : Validation failed. Error is raised.
+*/
+
+bool check_secure_file_priv_path()
+{
+  char datadir_buffer[FN_REFLEN+1]={0};
+  size_t opt_datadir_len= 0;
+  size_t opt_secure_file_priv_len= 0;
+  bool warn= false;
+  bool case_insensitive_fs;
+#ifndef _WIN32
+  MY_STAT dir_stat;
+#endif
+
+  if (!opt_secure_file_priv)
+  {
+    if (opt_bootstrap)
+    {
+      /*
+        Do not impose --secure-file-priv restriction
+        in --bootstrap mode
+      */
+      sql_print_information("Ignoring --secure-file-priv value as server is "
+                            "running with --initialize(-insecure) or "
+                            "--bootstrap.");
+    }
+    else
+    {
+      sql_print_warning("Insecure configuration for --secure-file-priv: "
+                        "Current value does not restrict location of generated "
+                        "files. Consider setting it to a valid, "
+                        "non-empty path.");
+    }
+    return true;
+  }
+
+  /*
+    Setting --secure-file-priv to NULL would disable
+    reading/writing from/to file
+  */
+  if(!my_strcasecmp(system_charset_info, opt_secure_file_priv, "NULL"))
+  {
+    sql_print_information("--secure-file-priv is set to NULL. "
+                          "Operations related to importing and exporting "
+                          "data are disabled");
+    return true;
+  }
+
+  /*
+    Check if --secure-file-priv can access data directory
+  */
+  opt_secure_file_priv_len= strlen(opt_secure_file_priv);
+
+  /*
+    Adds dir seperator at the end.
+    This is required in subsequent comparison
+  */
+  convert_dirname(datadir_buffer, mysql_unpacked_real_data_home, NullS);
+  opt_datadir_len= strlen(datadir_buffer);
+
+  case_insensitive_fs=
+    (test_if_case_insensitive(mysql_unpacked_real_data_home) == 1);
+
+  if (!case_insensitive_fs)
+  {
+    if (!strncmp(datadir_buffer, opt_secure_file_priv,
+          opt_datadir_len < opt_secure_file_priv_len ?
+          opt_datadir_len : opt_secure_file_priv_len))
+      warn= true;
+  }
+  else
+  {
+    if (!files_charset_info->coll->strnncoll(files_charset_info,
+          (uchar *) datadir_buffer,
+          opt_datadir_len,
+          (uchar *) opt_secure_file_priv,
+          opt_secure_file_priv_len,
+          TRUE))
+      warn= true;
+  }
+
+
+  if (warn)
+    sql_print_warning("Insecure configuration for --secure-file-priv: "
+                      "Data directory is accessible through "
+                      "--secure-file-priv. Consider choosing a different "
+                      "directory.");
+
+#ifndef _WIN32
+  /*
+     Check for --secure-file-priv directory's permission
+  */
+  if (!(my_stat(opt_secure_file_priv, &dir_stat, MYF(0))))
+  {
+    sql_print_error("Failed to get stat for directory pointed out "
+                    "by --secure-file-priv");
+    return false;
+  }
+
+  if (dir_stat.st_mode & S_IRWXO)
+    sql_print_warning("Insecure configuration for --secure-file-priv: "
+                      "Location is accessible to all OS users. "
+                      "Consider choosing a different directory.");
+#endif
+  return true;
+}
 
 static int fix_paths(void)
 {
@@ -7858,24 +7992,33 @@ static int fix_paths(void)
   /*
     Convert the secure-file-priv option to system format, allowing
     a quick strcmp to check if read or write is in an allowed dir
-   */
-  if (opt_secure_file_priv)
+  */
+  if ((*opt_secure_file_priv == 0) || opt_bootstrap)
+    opt_secure_file_priv= NULL;
+
+  if (opt_secure_file_priv && strlen(opt_secure_file_priv) > FN_REFLEN)
   {
-    if (*opt_secure_file_priv == 0)
-      opt_secure_file_priv= NULL;
-    else
-    {
-      if (strlen(opt_secure_file_priv) >= FN_REFLEN)
-        opt_secure_file_priv[FN_REFLEN-1]= '\0';
+    sql_print_warning("Value for --secure-file-priv is longer than maximum "
+                      "limit of %d", FN_REFLEN-1);
+    return 1;
+  }
+
+  memset(buff, 0, sizeof(buff));
+  if (opt_secure_file_priv &&
+      my_strcasecmp(system_charset_info, opt_secure_file_priv, "NULL"))
+  {
       if (my_realpath(buff, opt_secure_file_priv, 0))
       {
-        sql_print_warning("Failed to normalize the argument for --secure-file-priv.");
+        sql_print_warning("Failed to normalize the argument "
+                          "for --secure-file-priv.");
         return 1;
       }
       convert_dirname(secure_file_real_path, buff, NullS);
       opt_secure_file_priv= secure_file_real_path;
-    }
   }
+
+  if (!check_secure_file_priv_path())
+    return 1;
 
   return 0;
 }
@@ -8305,7 +8448,7 @@ PSI_file_key key_file_binlog, key_file_binlog_index, key_file_casetest,
   key_file_dbopt, key_file_des_key_file, key_file_ERRMSG, key_select_to_file,
   key_file_fileparser, key_file_frm, key_file_global_ddl_log, key_file_load,
   key_file_loadfile, key_file_log_event_data, key_file_log_event_info,
-  key_file_master_info, key_file_misc, key_file_partition,
+  key_file_master_info, key_file_misc, key_file_partition_ddl_log,
   key_file_pid, key_file_relay_log_info, key_file_send_file, key_file_tclog,
   key_file_trg, key_file_trn, key_file_init;
 PSI_file_key key_file_general_log, key_file_slow_log;
@@ -8332,7 +8475,7 @@ static PSI_file_info all_server_files[]=
   { &key_file_log_event_info, "log_event_info", 0},
   { &key_file_master_info, "master_info", 0},
   { &key_file_misc, "misc", 0},
-  { &key_file_partition, "partition", 0},
+  { &key_file_partition_ddl_log, "partition_ddl_log", 0},
   { &key_file_pid, "pid", 0},
   { &key_file_general_log, "query_log", 0},
   { &key_file_relay_log_info, "relay_log_info", 0},
@@ -8634,11 +8777,6 @@ PSI_memory_key key_memory_Event_scheduler_scheduler_param;
 PSI_memory_key key_memory_Owned_gtids_sidno_to_hash;
 PSI_memory_key key_memory_Mutex_cond_array_Mutex_cond;
 PSI_memory_key key_memory_TABLE_RULE_ENT;
-PSI_memory_key key_memory_partition_file;
-PSI_memory_key key_memory_partition_engine_array;
-PSI_memory_key key_memory_ha_partition_PART_NAME_DEF;
-PSI_memory_key key_memory_ha_partition_part_ids;
-PSI_memory_key key_memory_ha_partition_ordered_rec_buffer;
 PSI_memory_key key_memory_Rpl_info_table;
 PSI_memory_key key_memory_Rpl_info_file_buffer;
 PSI_memory_key key_memory_db_worker_hash_entry;
@@ -8781,11 +8919,6 @@ static PSI_memory_info all_server_memory[]=
   { &key_memory_Sid_map_Node, "Sid_map::Node", 0},
   { &key_memory_Mutex_cond_array_Mutex_cond, "Mutex_cond_array::Mutex_cond", 0},
   { &key_memory_TABLE_RULE_ENT, "TABLE_RULE_ENT", 0},
-  { &key_memory_partition_file, "ha_partition::file", 0},
-  { &key_memory_partition_engine_array, "ha_partition::engine_array", 0},
-  { &key_memory_ha_partition_PART_NAME_DEF, "ha_partition::PART_NAME_DEF", 0},
-  { &key_memory_ha_partition_part_ids, "ha_partition::part_ids", 0},
-  { &key_memory_ha_partition_ordered_rec_buffer, "ha_partition::ordered_rec_buffer", 0},
 
   { &key_memory_Rpl_info_table, "Rpl_info_table", 0},
   { &key_memory_Rpl_info_file_buffer, "Rpl_info_file::buffer", 0},

@@ -1237,7 +1237,6 @@ THD::THD(bool enable_plugins)
   slave_thread = 0;
   memset(&variables, 0, sizeof(variables));
   m_thread_id= Global_THD_manager::reserved_thread_id;
-  one_shot_set= 0;
   file_id = 0;
   query_id= 0;
   query_name_consts= 0;
@@ -4580,3 +4579,32 @@ void THD::Query_plan::set_query_plan(enum_sql_command sql_cmd,
   is_ps= ps;
   mysql_mutex_unlock(&thd->LOCK_query_plan);
 }
+
+
+/**
+  Push an error message into MySQL diagnostic area with line
+  and position information.
+
+  This function provides semantic action implementers with a way
+  to push the famous "You have a syntax error near..." error
+  message into the diagnostic area, which is normally produced only if
+  a parse error is discovered internally by the Bison generated
+  parser.
+
+  @note Parse-time only function!
+
+  @param thd            YYTHD
+  @param location       YYSTYPE object: error position
+  @param s              error message: NULL default means ER(ER_SYNTAX_ERROR)
+*/
+
+void THD::parse_error_at(const YYLTYPE &location, const char *s)
+{
+  uint lineno= location.raw.start ?
+    m_parser_state->m_lip.get_lineno(location.raw.start) : 1;
+  const char *pos= location.raw.start ? location.raw.start : "";
+  ErrConvString err(pos, variables.character_set_client);
+  my_printf_error(ER_PARSE_ERROR,  ER(ER_PARSE_ERROR), MYF(0),
+                  s ? s : ER(ER_SYNTAX_ERROR), err.ptr(), lineno);
+}
+

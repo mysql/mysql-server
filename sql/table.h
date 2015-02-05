@@ -683,14 +683,12 @@ struct TABLE_SHARE
   /* Name of the tablespace used for this table */
   char *tablespace;
 
-#ifdef WITH_PARTITION_STORAGE_ENGINE
   /* filled in when reading from frm */
   bool auto_partitioned;
   char *partition_info_str;
   uint  partition_info_str_len;
   uint  partition_info_buffer_size;
   handlerton *default_part_db_type;
-#endif
 
   /**
     Cache the checked structure of this table.
@@ -1239,11 +1237,9 @@ public:
   Blob_mem_storage *blob_storage;
   GRANT_INFO grant;
   Filesort_info sort;
-#ifdef WITH_PARTITION_STORAGE_ENGINE
   partition_info *part_info;            /* Partition related information */
   /* If true, all partitions have been pruned away */
   bool all_partitions_pruned_away;
-#endif
   MDL_ticket *mdl_ticket;
 
 private:
@@ -1718,9 +1714,6 @@ struct TABLE_LIST
 
   /// Allocate a buffer for inserted column values
   bool set_insert_values(MEM_ROOT *mem_root);
-
-  /// Replace specific error with a more general view-oriented error
-  void hide_view_error(THD *thd);
 
   TABLE_LIST *first_leaf_for_name_resolution();
   TABLE_LIST *last_leaf_for_name_resolution();
@@ -2364,10 +2357,8 @@ public:
   /// if true, EXPLAIN can't explain view due to insufficient rights.
   bool view_no_explain;
 
-#ifdef WITH_PARTITION_STORAGE_ENGINE
   /* List to carry partition names from PARTITION (...) clause in statement */
   List<String> *partition_names;
-#endif /* WITH_PARTITION_STORAGE_ENGINE */
 
   /// Set table number
   void set_tableno(uint tableno)
