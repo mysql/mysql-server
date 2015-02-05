@@ -640,7 +640,17 @@ void Certifier::get_certification_info(std::map<std::string, std::string> *cert_
       it != certification_info.end(); ++it)
   {
     std::string key= it->first;
-    std::string value= it->second->encode();
+
+    size_t len= it->second->get_encoded_length();
+    uchar* buf= (uchar *)my_malloc(
+#ifdef HAVE_PSI_MEMORY_INTERFACE
+                                   PSI_NOT_INSTRUMENTED,
+#endif
+                                   len, MYF(0));
+    it->second->encode(buf);
+    std::string value(reinterpret_cast<const char*>(buf), len);
+    my_free(buf);
+
     (*cert_info).insert(std::pair<std::string, std::string>(key, value));
   }
   *sequence_number= next_seqno;
