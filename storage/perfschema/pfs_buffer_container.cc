@@ -360,6 +360,9 @@ PFS_host_container global_host_container(& host_allocator);
 int PFS_thread_allocator::alloc_array(PFS_thread_array *array, size_t size)
 {
   PFS_thread *pfs;
+  PFS_events_statements *pfs_stmt;
+  unsigned char *pfs_tokens;
+
   size_t index;
   size_t waits_sizing= size * wait_class_max;
   size_t stages_sizing= size * stage_class_max;
@@ -373,6 +376,11 @@ int PFS_thread_allocator::alloc_array(PFS_thread_array *array, size_t size)
   size_t statements_stack_sizing= size * statement_stack_max;
   size_t transactions_history_sizing= size * events_transactions_history_per_thread;
   size_t session_connect_attrs_sizing= size * session_connect_attrs_size_per_thread;
+
+  size_t current_sqltext_sizing= size * pfs_max_sqltext * statement_stack_max;
+  size_t history_sqltext_sizing= size * pfs_max_sqltext * events_statements_history_per_thread;
+  size_t current_digest_tokens_sizing= size * pfs_max_digest_length * statement_stack_max;
+  size_t history_digest_tokens_sizing= size * pfs_max_digest_length * events_statements_history_per_thread;
 
   array->m_ptr= NULL;
   array->m_full= true;
@@ -388,6 +396,11 @@ int PFS_thread_allocator::alloc_array(PFS_thread_array *array, size_t size)
   array->m_statements_stack_array= NULL;
   array->m_transactions_history_array= NULL;
   array->m_session_connect_attrs_array= NULL;
+
+  array->m_current_stmts_text_array= NULL;
+  array->m_current_stmts_digest_token_array= NULL;
+  array->m_history_stmts_text_array= NULL;
+  array->m_history_stmts_digest_token_array= NULL;
 
   if (size > 0)
   {
@@ -512,6 +525,42 @@ int PFS_thread_allocator::alloc_array(PFS_thread_array *array, size_t size)
       return 1;
   }
 
+  if (current_sqltext_sizing > 0)
+  {
+    array->m_current_stmts_text_array=
+      (char *)pfs_malloc(& builtin_memory_thread_statements_stack_sqltext,
+                         current_sqltext_sizing, MYF(MY_ZEROFILL));
+    if (unlikely(array->m_current_stmts_text_array == NULL))
+      return 1;
+  }
+
+  if (history_sqltext_sizing > 0)
+  {
+    array->m_history_stmts_text_array=
+      (char *)pfs_malloc(& builtin_memory_thread_statements_history_sqltext,
+                         history_sqltext_sizing, MYF(MY_ZEROFILL));
+    if (unlikely(array->m_history_stmts_text_array == NULL))
+      return 1;
+  }
+
+  if (current_digest_tokens_sizing > 0)
+  {
+    array->m_current_stmts_digest_token_array=
+      (unsigned char *)pfs_malloc(& builtin_memory_thread_statements_stack_tokens,
+                                  current_digest_tokens_sizing, MYF(MY_ZEROFILL));
+    if (unlikely(array->m_current_stmts_digest_token_array == NULL))
+      return 1;
+  }
+
+  if (history_digest_tokens_sizing > 0)
+  {
+    array->m_history_stmts_digest_token_array=
+      (unsigned char *)pfs_malloc(& builtin_memory_thread_statements_history_tokens,
+                                  history_digest_tokens_sizing, MYF(MY_ZEROFILL));
+    if (unlikely(array->m_history_stmts_digest_token_array == NULL))
+      return 1;
+  }
+
   for (index= 0; index < size; index++)
   {
     pfs= & array->m_ptr[index];
@@ -541,6 +590,26 @@ int PFS_thread_allocator::alloc_array(PFS_thread_array *array, size_t size)
       & array->m_session_connect_attrs_array[index * session_connect_attrs_size_per_thread];
   }
 
+  for (index= 0; index < statements_stack_sizing; index++)
+  {
+    pfs_stmt= & array->m_statements_stack_array[index];
+
+    pfs_stmt->m_sqltext= & array->m_current_stmts_text_array[index * pfs_max_sqltext];
+
+    pfs_tokens= & array->m_current_stmts_digest_token_array[index * pfs_max_digest_length];
+    pfs_stmt->m_digest_storage.reset(pfs_tokens, pfs_max_digest_length);
+  }
+
+  for (index= 0; index < statements_history_sizing; index++)
+  {
+    pfs_stmt= & array->m_statements_history_array[index];
+
+    pfs_stmt->m_sqltext= & array->m_history_stmts_text_array[index * pfs_max_sqltext];
+
+    pfs_tokens= & array->m_history_stmts_digest_token_array[index * pfs_max_digest_length];
+    pfs_stmt->m_digest_storage.reset(pfs_tokens, pfs_max_digest_length);
+  }
+
   array->m_full= false;
   return 0;
 }
@@ -559,6 +628,11 @@ void PFS_thread_allocator::free_array(PFS_thread_array *array, size_t size)
   size_t statements_stack_sizing= size * statement_stack_max;
   size_t transactions_history_sizing= size * events_transactions_history_per_thread;
   size_t session_connect_attrs_sizing= size * session_connect_attrs_size_per_thread;
+
+  size_t current_sqltext_sizing= size * pfs_max_sqltext * statement_stack_max;
+  size_t history_sqltext_sizing= size * pfs_max_sqltext * events_statements_history_per_thread;
+  size_t current_digest_tokens_sizing= size * pfs_max_digest_length * statement_stack_max;
+  size_t history_digest_tokens_sizing= size * pfs_max_digest_length * events_statements_history_per_thread;
 
   PFS_FREE_ARRAY(& builtin_memory_thread,
                  size, PFS_thread, array->m_ptr);
@@ -619,6 +693,26 @@ void PFS_thread_allocator::free_array(PFS_thread_array *array, size_t size)
            session_connect_attrs_sizing,
            array->m_session_connect_attrs_array);
   array->m_session_connect_attrs_array= NULL;
+
+  pfs_free(& builtin_memory_thread_statements_stack_sqltext,
+           current_sqltext_sizing,
+           array->m_current_stmts_text_array);
+  array->m_current_stmts_text_array= NULL;
+
+  pfs_free(& builtin_memory_thread_statements_history_sqltext,
+           history_sqltext_sizing,
+          array->m_history_stmts_text_array);
+  array->m_history_stmts_text_array= NULL;
+
+  pfs_free(& builtin_memory_thread_statements_stack_tokens,
+           current_digest_tokens_sizing,
+           array->m_current_stmts_digest_token_array);
+  array->m_current_stmts_digest_token_array= NULL;
+
+  pfs_free(& builtin_memory_thread_statements_history_tokens,
+           history_digest_tokens_sizing,
+           array->m_history_stmts_digest_token_array);
+  array->m_history_stmts_digest_token_array= NULL;
 }
 
 PFS_thread_allocator thread_allocator;

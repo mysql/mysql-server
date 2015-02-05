@@ -5057,8 +5057,8 @@ void pfs_set_statement_text_v1(PSI_statement_locker *locker,
   {
     PFS_events_statements *pfs= reinterpret_cast<PFS_events_statements*> (state->m_statement);
     DBUG_ASSERT(pfs != NULL);
-    if (text_len > sizeof (pfs->m_sqltext))
-      text_len= sizeof(pfs->m_sqltext);
+    if (text_len > pfs_max_sqltext)
+      text_len= pfs_max_sqltext;
     if (text_len)
       memcpy(pfs->m_sqltext, text, text_len);
     pfs->m_sqltext_length= text_len;

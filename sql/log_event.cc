@@ -51,6 +51,16 @@ slave_ignored_err_throttle(window_size,
                            " replicate-*-table rules\" got suppressed.");
 #endif /* MYSQL_CLIENT */
 
+#include <base64.h>
+#include <my_bitmap.h>
+#include <map>
+#include "rpl_utility.h"
+/* This is necessary for the List manipuation */
+#include "sql_list.h"                           /* I_List */
+#include "hash.h"
+#include "sql_digest.h"
+#include "rpl_gtid.h"
+
 PSI_memory_key key_memory_log_event;
 PSI_memory_key key_memory_Incident_log_event_message;
 PSI_memory_key key_memory_Rows_query_log_event_rows_query;
@@ -4702,6 +4712,8 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
         THD_STAGE_INFO(thd, stage_starting);
         MYSQL_SET_STATEMENT_TEXT(thd->m_statement_psi, thd->query().str,
                                  thd->query().length);
+        if (thd->m_digest != NULL)
+          thd->m_digest->reset(thd->m_token_array, max_digest_length);
 
         mysql_parse(thd, &parser_state);
         /* Finalize server status flags after executing a statement. */

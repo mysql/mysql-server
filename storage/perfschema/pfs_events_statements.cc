@@ -46,6 +46,8 @@ PFS_ALIGNED bool events_statements_history_long_full= false;
 PFS_ALIGNED PFS_cacheline_uint32 events_statements_history_long_index;
 /** EVENTS_STATEMENTS_HISTORY_LONG circular buffer. */
 PFS_ALIGNED PFS_events_statements *events_statements_history_long_array= NULL;
+static unsigned char *h_long_stmts_digest_token_array= NULL;
+static char *h_long_stmts_text_array= NULL;
 
 /**
   Initialize table EVENTS_STATEMENTS_HISTORY_LONG.
@@ -53,6 +55,7 @@ PFS_ALIGNED PFS_events_statements *events_statements_history_long_array= NULL;
 */
 int init_events_statements_history_long(uint events_statements_history_long_sizing)
 {
+  uint index;
   events_statements_history_long_size= events_statements_history_long_sizing;
   events_statements_history_long_full= false;
   PFS_atomic::store_u32(&events_statements_history_long_index.m_u32, 0);
@@ -64,23 +67,93 @@ int init_events_statements_history_long(uint events_statements_history_long_sizi
     PFS_MALLOC_ARRAY(& builtin_memory_statements_history_long,
                      events_statements_history_long_size, PFS_events_statements,
                      MYF(MY_ZEROFILL));
+  if (events_statements_history_long_array == NULL)
+   {
+     cleanup_events_statements_history_long();
+     return 1;
+   }
 
-  return (events_statements_history_long_array ? 0 : 1);
+  if (pfs_max_digest_length > 0)
+  {
+    h_long_stmts_digest_token_array=
+      PFS_MALLOC_ARRAY(& builtin_memory_statements_history_long_tokens,
+                       events_statements_history_long_size * pfs_max_digest_length,
+                       unsigned char, MYF(MY_ZEROFILL));
+    if (h_long_stmts_digest_token_array == NULL)
+    {
+      cleanup_events_statements_history_long();
+      return 1;
+    }
+  }
+
+  if (pfs_max_sqltext > 0)
+  {
+    h_long_stmts_text_array=
+      PFS_MALLOC_ARRAY(& builtin_memory_statements_history_long_sqltext,
+                       events_statements_history_long_size * pfs_max_sqltext,
+                       char, MYF(MY_ZEROFILL));
+    if (h_long_stmts_text_array == NULL)
+    {
+      cleanup_events_statements_history_long();
+      return 1;
+    }
+  }
+
+  for (index= 0; index < events_statements_history_long_size; index++)
+  {
+    events_statements_history_long_array[index].m_digest_storage.reset(h_long_stmts_digest_token_array
+                                                                       + index * pfs_max_digest_length, pfs_max_digest_length);
+
+    events_statements_history_long_array[index].m_sqltext= h_long_stmts_text_array + index * pfs_max_sqltext;
+  }
+  
+  return 0;
 }
 
 /** Cleanup table EVENTS_STATEMENTS_HISTORY_LONG. */
 void cleanup_events_statements_history_long(void)
 {
   PFS_FREE_ARRAY(& builtin_memory_statements_history_long,
-                 events_statements_history_long_size, PFS_events_statements,
+                 events_statements_history_long_size,
+                 PFS_events_statements,
                  events_statements_history_long_array);
+
+  PFS_FREE_ARRAY(& builtin_memory_statements_history_long_tokens,
+                 events_statements_history_long_size * pfs_max_digest_length,
+                 unsigned char,
+                 h_long_stmts_digest_token_array);
+
+  PFS_FREE_ARRAY(& builtin_memory_statements_history_long_sqltext,
+                 events_statements_history_long_size * pfs_max_sqltext,
+                 char,
+                 h_long_stmts_text_array);
+
   events_statements_history_long_array= NULL;
+  h_long_stmts_digest_token_array= NULL;
+  h_long_stmts_text_array= NULL;
 }
 
 static inline void copy_events_statements(PFS_events_statements *dest,
-                                      const PFS_events_statements *source)
+                                          const PFS_events_statements *source)
 {
-  memcpy(dest, source, sizeof(PFS_events_statements));
+  /* Copy all attributes except SQL TEXT and DIGEST */
+  memcpy(dest, source, my_offsetof(PFS_events_statements, m_sqltext));
+
+  /* Copy SQL TEXT */
+  int sqltext_length= source->m_sqltext_length;
+
+  if (sqltext_length > 0)
+  {
+    memcpy(dest->m_sqltext, source->m_sqltext, sqltext_length);
+    dest->m_sqltext_length= sqltext_length;
+  }
+  else
+  {
+    dest->m_sqltext_length= 0;
+  }
+
+  /* Copy DIGEST */
+  dest->m_digest_storage.copy(& source->m_digest_storage);
 }
 
 /**

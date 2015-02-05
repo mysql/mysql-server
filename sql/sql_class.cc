@@ -1320,6 +1320,14 @@ THD::THD(bool enable_plugins)
 #ifndef DBUG_OFF
   gis_debug= 0;
 #endif
+
+  m_token_array= NULL;
+  if (max_digest_length > 0)
+  {
+    m_token_array= (unsigned char*) my_malloc(PSI_INSTRUMENT_ME,
+                                              max_digest_length,
+                                              MYF(MY_WME));
+  }
 }
 
 
@@ -1941,7 +1949,11 @@ THD::~THD()
 #endif
 
   free_root(&main_mem_root, MYF(0));
-  
+
+  if (m_token_array != NULL)
+  {
+    my_free(m_token_array);
+  }
   DBUG_VOID_RETURN;
 }
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
 #include "m_ctype.h"
 
 struct sql_digest_storage;
+int MAX_DIGEST_STORAGE_SIZE;
 
 volatile bool ready_to_exit= false;
 
