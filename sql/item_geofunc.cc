@@ -4480,13 +4480,6 @@ double Item_func_distance::val_real()
   DBUG_ENTER("Item_func_distance::val_real");
   DBUG_ASSERT(fixed == 1);
 
-  if ((arg_count != 2 && arg_count != 3) ||
-      (arg_count == 3 && !is_spherical_equatorial))
-  {
-    my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
-    DBUG_RETURN(error_real());
-  }
-
   String *res1= args[0]->val_str(&tmp_value1);
   String *res2= args[1]->val_str(&tmp_value2);
   Geometry_buffer buffer1, buffer2;
@@ -4594,7 +4587,7 @@ double Item_func_distance::val_real()
      */
     BG_geometry_collection bggc1, bggc2;
     bool initialized= false, isdone2= false, all_normalized= false;
-    double min_distance= DBL_MAX, dist;
+    double min_distance= DBL_MAX, dist= 0.0;
     String gcstr1, gcstr2;
     Geometry_buffer buf1, buf2;
     const Geometry *g11, *g22;
