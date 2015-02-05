@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -204,6 +204,16 @@ fsp_is_system_temporary(
 bool
 fsp_is_checksum_disabled(
 	ulint	space_id);
+
+#ifdef UNIV_DEBUG
+/** Skip some of the sanity checks that are time consuming even in debug mode
+and can affect frequent verification runs that are done to ensure stability of
+the product.
+@return true if check should be skipped for given space. */
+bool
+fsp_skip_sanity_check(
+	ulint	space_id);
+#endif /* UNIV_DEBUG */
 
 #endif /* !UNIV_INNOCHECKSUM */
 

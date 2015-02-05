@@ -2590,3 +2590,38 @@ SELECT cs FROM test1.v1_multi;
 ERROR HY000: View 'test1.v1_multi' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 DROP USER user1@localhost;
 DROP DATABASE test1;
+#
+# Bug#20032855 STRICT MODE REVEALS UNDERLYING PRIVILEGE ERROR
+#
+CREATE DATABASE test1;
+CREATE USER 'user1'@'localhost';
+CREATE TABLE test1.t1 (cn CHAR(1), cs CHAR(1), ci CHAR(1), cu CHAR(1), cus CHAR(1));
+GRANT SELECT(cs,cus) ON test1.t1 TO user1@localhost;
+GRANT INSERT(ci) ON test1.t1 TO user1@localhost;
+GRANT UPDATE(cu,cus) ON test1.t1 TO user1@localhost;
+CREATE SQL SECURITY INVOKER VIEW test1.v1_all AS
+SELECT * FROM test1.t1;
+GRANT SELECT,INSERT,UPDATE,DELETE ON test1.v1_all TO user1@localhost;
+FLUSH PRIVILEGES;
+connect  con1,localhost,user1,,;
+SET sql_mode='STRICT_ALL_TABLES';
+UPDATE test1.v1_all SET cn='x';
+ERROR HY000: View 'test1.v1_all' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+SHOW WARNINGS;
+Level	Code	Message
+Error	1356	View 'test1.v1_all' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+SET sql_mode='';
+UPDATE test1.v1_all SET cn='x';
+ERROR HY000: View 'test1.v1_all' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+SHOW WARNINGS;
+Level	Code	Message
+Error	1356	View 'test1.v1_all' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+UPDATE IGNORE test1.v1_all SET cn='x';
+ERROR HY000: View 'test1.v1_all' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+SHOW WARNINGS;
+Level	Code	Message
+Error	1356	View 'test1.v1_all' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+connection default;
+disconnect con1;
+DROP USER 'user1'@'localhost';
+DROP DATABASE test1;

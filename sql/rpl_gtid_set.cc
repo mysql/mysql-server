@@ -1421,21 +1421,6 @@ void Gtid_set::encode(uchar *buf) const
 }
 
 
-std::string Gtid_set::encode() const
-{
-  DBUG_ENTER("std::string Gtid_set::encode()");
-
-  size_t len= get_encoded_length();
-  uchar* buf= (uchar *)my_malloc(key_memory_Gtid_set_to_string,
-                                 len, MYF(MY_WME));
-  encode(buf);
-  std::string result(reinterpret_cast<const char*>(buf), len);
-  my_free(buf);
-
-  DBUG_RETURN(result);
-}
-
-
 enum_return_status Gtid_set::add_gtid_encoding(const uchar *encoded,
                                                size_t length,
                                                size_t *actual_length)

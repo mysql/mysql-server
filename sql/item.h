@@ -429,10 +429,6 @@ struct Hybrid_type_traits_integer: public Hybrid_type_traits
 };
 
 
-void dummy_error_processor(THD *thd, void *data);
-
-void view_error_processor(THD *thd, void *data);
-
 /*
   Instances of Name_resolution_context store the information necesary for
   name resolution of Items and other context analysis of a query made in
@@ -493,8 +489,8 @@ struct Name_resolution_context: Sql_alloc
     hide underlying tables in errors about views (i.e. it substitute some
     errors for views)
   */
-  void (*error_processor)(THD *, void *);
-  void *error_processor_data;
+  bool view_error_handler;
+  TABLE_LIST *view_error_handler_arg;
 
   /**
     When TRUE, items are resolved in this context against
@@ -515,13 +511,13 @@ struct Name_resolution_context: Sql_alloc
   Name_resolution_context()
     :outer_context(NULL), next_context(NULL),
     table_list(NULL), select_lex(NULL),
-    error_processor_data(NULL), security_ctx(NULL)
+    view_error_handler_arg(NULL), security_ctx(NULL)
     {}
 
   void init()
   {
     resolve_in_select_list= FALSE;
-    error_processor= &dummy_error_processor;
+    view_error_handler= false;
     first_name_resolution_table= NULL;
     last_name_resolution_table= NULL;
   }
@@ -530,11 +526,6 @@ struct Name_resolution_context: Sql_alloc
   {
     table_list= first_name_resolution_table= tables;
     resolve_in_select_list= FALSE;
-  }
-
-  void process_error(THD *thd)
-  {
-    (*error_processor)(thd, error_processor_data);
   }
 };
 
@@ -4875,7 +4866,11 @@ public:
     with_subselect|= item->has_subquery();
     with_stored_program|= item->has_stored_program();
     if (item->type() == FIELD_ITEM)
+    {
       cached_field= ((Item_field *)item)->field;
+      if (((Item_field *)item)->table_ref)
+        used_table_map= ((Item_field *)item)->table_ref->map();
+    }
     return 0;
   };
   enum Type type() const { return CACHE_ITEM; }

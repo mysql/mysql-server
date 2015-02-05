@@ -116,6 +116,48 @@ bool Ignore_error_handler::handle_condition(THD *thd,
   return false;
 }
 
+bool View_error_handler::handle_condition(
+                                THD *thd,
+                                uint sql_errno,
+                                const char *,
+                                Sql_condition::enum_severity_level *level,
+                                const char *message)
+{
+  /*
+    Error will be handled by Show_create_error_handler for
+    SHOW CREATE statements.
+  */
+  if (thd->lex->sql_command == SQLCOM_SHOW_CREATE)
+    return false;
+
+  switch (sql_errno)
+  {
+    case ER_BAD_FIELD_ERROR:
+    case ER_SP_DOES_NOT_EXIST:
+    // ER_FUNC_INEXISTENT_NAME_COLLISION cannot happen here.
+    case ER_PROCACCESS_DENIED_ERROR:
+    case ER_COLUMNACCESS_DENIED_ERROR:
+    case ER_TABLEACCESS_DENIED_ERROR:
+    // ER_TABLE_NOT_LOCKED cannot happen here.
+    case ER_NO_SUCH_TABLE:
+    {
+      TABLE_LIST *top= m_top_view->top_table();
+      my_error(ER_VIEW_INVALID, MYF(0),
+               top->view_db.str, top->view_name.str);
+      return true;
+    }
+
+    case ER_NO_DEFAULT_FOR_FIELD:
+    {
+      TABLE_LIST *top= m_top_view->top_table();
+      // TODO: make correct error message
+      my_error(ER_NO_DEFAULT_FOR_VIEW_FIELD, MYF(0),
+               top->view_db.str, top->view_name.str);
+      return true;
+    }
+  }
+  return false;
+}
 
 /**
   Implementation of STRICT mode.

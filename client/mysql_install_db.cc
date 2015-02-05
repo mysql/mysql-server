@@ -303,9 +303,12 @@ struct Sql_user
 
     flush_priv << "FLUSH PRIVILEGES;\n";
 
-    set_passcmd << "ALTER USER '" << escape_string(user) << "'@'"
-                << escape_string(host) << "' IDENTIFIED BY '"
-                << escape_string(password) << "';\n";
+    if (password_expired)
+    {
+      set_passcmd << "ALTER USER '" << escape_string(user) << "'@'"
+                  << escape_string(host) << "' IDENTIFIED BY '"
+                  << escape_string(password) << "' PASSWORD EXPIRE;\n";
+    }
     cmdstr->append(ss.str()).append(flush_priv.str()).append(set_passcmd.str());
   }
 
@@ -1525,7 +1528,8 @@ int main(int argc,char *argv[])
     info << "Creating data directory "
          << data_directory << endl;
     mode_t old_mask= umask(0);
-    if (mkdir(data_directory.to_str().c_str(), S_IRWXU|S_IRWXG) != 0)
+    if (my_mkdir(data_directory.to_str().c_str(),
+                 S_IRWXU | S_IRGRP | S_IXGRP, MYF(MY_WME)))
     {
       error << "Failed to create the data directory '"
             << data_directory << "'" << endl;

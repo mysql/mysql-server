@@ -1057,11 +1057,13 @@ bool Item_field::check_column_privileges(uchar *arg)
 
   THD *thd= (THD *)arg;
 
+  Internal_error_handler_holder<View_error_handler, TABLE_LIST>
+    view_handler(thd, context->view_error_handler,
+                 context->view_error_handler_arg);
   if (check_column_grant_in_table_ref(thd, cached_table,
                                       field_name, strlen(field_name),
                                       thd->want_privilege))
   {
-    context->process_error(thd);
     return true;
   }
 #endif
@@ -1079,11 +1081,14 @@ bool Item_direct_view_ref::check_column_privileges(uchar *arg)
 
   THD *thd= (THD *)arg;
 
+  Internal_error_handler_holder<View_error_handler, TABLE_LIST>
+    view_handler(thd, context->view_error_handler,
+                 context->view_error_handler_arg);
+
   if (check_column_grant_in_table_ref(thd, cached_table,
                                       field_name, strlen(field_name),
                                       thd->want_privilege))
   {
-    context->process_error(thd);
     return true;
   }
 #endif
@@ -5521,6 +5526,10 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
   Field *from_field= (Field *)not_found_field;
   bool outer_fixed= false;
 
+  Internal_error_handler_holder<View_error_handler, TABLE_LIST>
+    view_handler(thd, context->view_error_handler,
+                 context->view_error_handler_arg);
+
   if (!field)					// If field is not checked
   {
     /*
@@ -5723,7 +5732,6 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
   return false;
 
 error:
-  context->process_error(thd);
   return true;
 }
 
@@ -7428,6 +7436,10 @@ bool Item_ref::fix_fields(THD *thd, Item **reference)
   DBUG_ASSERT(fixed == 0);
   SELECT_LEX *current_sel= thd->lex->current_select();
 
+  Internal_error_handler_holder<View_error_handler, TABLE_LIST>
+    view_handler(thd, context->view_error_handler,
+                 context->view_error_handler_arg);
+
   if (!ref || ref == not_found_item)
   {
     if (!(ref= resolve_ref_in_select_and_group(thd, this,
@@ -7652,7 +7664,6 @@ bool Item_ref::fix_fields(THD *thd, Item **reference)
   return FALSE;
 
 error:
-  context->process_error(thd);
   return TRUE;
 }
 
@@ -8245,6 +8256,9 @@ bool Item_default_value::fix_fields(THD *thd, Item **items)
   Field *def_field;
   DBUG_ASSERT(fixed == 0);
 
+  Internal_error_handler_holder<View_error_handler, TABLE_LIST>
+    view_handler(thd, context->view_error_handler,
+                 context->view_error_handler_arg);
   if (!arg)
   {
     fixed= 1;
@@ -8281,7 +8295,6 @@ bool Item_default_value::fix_fields(THD *thd, Item **items)
   return FALSE;
 
 error:
-  context->process_error(thd);
   return TRUE;
 }
 
@@ -8314,7 +8327,7 @@ Item_default_value::save_in_field(Field *field_arg, bool no_conversions)
         return TYPE_ERR_BAD_VALUE;
       }
 
-      if (context->error_processor == &view_error_processor)
+      if (context->view_error_handler)
       {
         TABLE_LIST *view= cached_table->top_table();
         push_warning_printf(field_arg->table->in_use,
@@ -9850,29 +9863,6 @@ void Item_result_field::cleanup()
   Item::cleanup();
   result_field= 0;
   DBUG_VOID_RETURN;
-}
-
-/**
-  Dummy error processor used by default by Name_resolution_context.
-
-  @note
-    do nothing
-*/
-
-void dummy_error_processor(THD *thd, void *data)
-{}
-
-/**
-  Wrapper of hide_view_error call for Name_resolution_context error
-  processor.
-
-  @note
-    hide view underlying tables details in error messages
-*/
-
-void view_error_processor(THD *thd, void *data)
-{
-  ((TABLE_LIST *)data)->hide_view_error(thd);
 }
 
 

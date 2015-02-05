@@ -11449,7 +11449,7 @@ delete_stmt:
           opt_order_clause
           opt_simple_limit
           {
-            $$= NEW_PTN PT_delete($2, $4, $5, $6, $7, $8);
+            $$= NEW_PTN PT_delete(YYTHD->mem_root, $2, $4, $5, $6, $7, $8);
           }
         | DELETE_SYM
           opt_delete_options

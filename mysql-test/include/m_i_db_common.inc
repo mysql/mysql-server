@@ -2,7 +2,7 @@ connect (conn_root,$adminhost,$adminuser,$passwd,,,,$sslstate);
 if ($passwd != ""){
   --error 1820
   SELECT user FROM mysql.user;
-  set password=password('abc');
+  set password='abc';
 }
 # Below two statement should show 1
 SELECT user,host,plugin FROM mysql.user WHERE password_expired='n';
@@ -13,4 +13,4 @@ GRANT ALL ON *.* TO 'u1'@'localhost';
 show databases;
 
 # Reset database password to blank
-set password=password('');
+set password='';

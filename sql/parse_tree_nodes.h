@@ -1973,7 +1973,7 @@ public:
     LEX *lex= pc->thd->lex;
     lex->set_uncacheable(pc->select, UNCACHEABLE_SIDEEFFECT);
     if (!(lex->exchange= new sql_exchange(file_name, 0)) ||
-        !(lex->result= new select_export(lex->exchange)))
+        !(lex->result= new Query_result_export(lex->exchange)))
       return true;
 
     lex->exchange->cs= charset;
@@ -2006,7 +2006,7 @@ public:
       lex->set_uncacheable(pc->select, UNCACHEABLE_SIDEEFFECT);
       if (!(lex->exchange= new sql_exchange(file_name, 1)))
         return true;
-      if (!(lex->result= new select_dump(lex->exchange)))
+      if (!(lex->result= new Query_result_dump(lex->exchange)))
         return true;
     }
     return false;
@@ -2095,7 +2095,7 @@ public:
     if (lex->describe)
       return false;
 
-    select_dumpvar *dumpvar= new (pc->mem_root) select_dumpvar;
+    Query_dumpvar *dumpvar= new (pc->mem_root) Query_dumpvar;
     if (dumpvar == NULL)
       return true;
 
@@ -2353,7 +2353,8 @@ class PT_delete : public PT_statement
 
 public:
   // single-table DELETE node constructor:
-  PT_delete(int opt_delete_options_arg,
+  PT_delete(MEM_ROOT *mem_root,
+            int opt_delete_options_arg,
             Table_ident *table_ident_arg,
             List<String> *opt_use_partition_arg,
             Item *opt_where_clause_arg,
@@ -2367,7 +2368,7 @@ public:
     opt_order_clause(opt_order_clause_arg),
     opt_delete_limit_clause(opt_delete_limit_clause_arg)
   {
-    table_list= Mem_root_array_YY<Table_ident *>(); // init with zeroes
+    table_list.init(mem_root);
   }
 
   // multi-table DELETE node constructor:
