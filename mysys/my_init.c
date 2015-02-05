@@ -97,15 +97,15 @@ my_bool my_init()
   set_crt_report_leaks();
 #endif
 
-  my_umask= 0660;                       /* Default umask for new files */
-  my_umask_dir= 0700;                   /* Default umask for new directories */
+  my_umask= 0640;                       /* Default umask for new files */
+  my_umask_dir= 0750;                   /* Default umask for new directories */
 
   /* Default creation of new files */
   if ((str= getenv("UMASK")) != 0)
-    my_umask= (int) (atoi_octal(str) | 0600);
+    my_umask= (int) (atoi_octal(str) | 0640);
   /* Default creation of new dir's */
   if ((str= getenv("UMASK_DIR")) != 0)
-    my_umask_dir= (int) (atoi_octal(str) | 0700);
+    my_umask_dir= (int) (atoi_octal(str) | 0750);
 
   instrumented_stdin.m_file= stdin;
   instrumented_stdin.m_psi= NULL;       /* not yet instrumented */
