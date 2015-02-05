@@ -16,12 +16,12 @@
 #ifndef SQL_UPDATE_INCLUDED
 #define SQL_UPDATE_INCLUDED
 
-#include "sql_data_change.h" // enum_duplicates
-#include "sql_class.h"       // select_result_interceptor
+#include "sql_class.h"       // Query_result_interceptor
 #include "sql_cmd_dml.h"     // Sql_cmd_dml
+#include "sql_data_change.h" // enum_duplicates
 
 class Item;
-class multi_update;
+class Query_result_update;
 struct TABLE_LIST;
 
 typedef class st_select_lex SELECT_LEX;
@@ -38,11 +38,11 @@ bool mysql_multi_update(THD *thd,
                         List<Item> *fields, List<Item> *values,
                         enum enum_duplicates handle_duplicates,
                         SELECT_LEX *select_lex,
-                        multi_update **result);
+                        Query_result_update **result);
 bool records_are_comparable(const TABLE *table);
 bool compare_records(const TABLE *table);
 
-class multi_update :public select_result_interceptor
+class Query_result_update :public Query_result_interceptor
 {
   TABLE_LIST *all_tables; /* query/update command tables */
   TABLE_LIST *leaves;     /* list of leves of join table tree */
@@ -74,22 +74,22 @@ class multi_update :public select_result_interceptor
      _updated_ table in the multiple table update statement, a COPY_INFO
      pointer is present at the table's position in this array.
 
-     The array is allocated and populated during multi_update::prepare(). The
-     position that each table is assigned is also given here and is stored in
-     the member TABLE::pos_in_table_list::shared. However, this is a publicly
+     The array is allocated and populated during Query_result_update::prepare().
+     The position that each table is assigned is also given here and is stored
+     in the member TABLE::pos_in_table_list::shared. However, this is a publicly
      available field, so nothing can be trusted about its integrity.
 
-     This member is NULL when the multi_update is created.
+     This member is NULL when the Query_result_update is created.
 
-     @see multi_update::prepare
+     @see Query_result_update::prepare
   */
   COPY_INFO **update_operations;
 
 public:
-  multi_update(TABLE_LIST *ut, TABLE_LIST *leaves_list,
-	       List<Item> *fields, List<Item> *values,
-	       enum_duplicates handle_duplicates);
-  ~multi_update();
+  Query_result_update(TABLE_LIST *ut, TABLE_LIST *leaves_list,
+                      List<Item> *fields, List<Item> *values,
+                      enum_duplicates handle_duplicates);
+  ~Query_result_update();
   virtual bool need_explain_interceptor() const { return true; }
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   bool send_data(List<Item> &items);
