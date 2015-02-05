@@ -132,11 +132,11 @@ extern char * my_strdup(PSI_memory_key key, const char *from, myf_t flags);
 extern char * my_strndup(PSI_memory_key key, const char *from, size_t length, myf_t flags);
 #include <mysql/service_mysql_password_policy.h>
 extern struct mysql_password_policy_service_st {
-int (*my_validate_password_policy_func)(const char *);
-int (*my_calculate_password_strength_func)(const char *);
+int (*my_validate_password_policy_func)(const char *, unsigned int);
+int (*my_calculate_password_strength_func)(const char *, unsigned int);
 } *mysql_password_policy_service;
-int my_validate_password_policy(const char *);
-int my_calculate_password_strength(const char *);
+int my_validate_password_policy(const char *, unsigned int);
+int my_calculate_password_strength(const char *, unsigned int);
 #include <mysql/service_parser.h>
 #include "my_md5_size.h"
 #include <mysql/mysql_lex_string.h>
