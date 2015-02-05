@@ -1036,10 +1036,11 @@ protected:
 };
 
 
-class Create_func_distance : public Create_func_arg2
+class Create_func_distance : public Create_native_func
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1, Item *arg2);
+  virtual Item *create_native(THD *thd, LEX_STRING name,
+                              PT_item_list *item_list);
 
   static Create_func_distance s_singleton;
 
@@ -1049,10 +1050,11 @@ protected:
 };
 
 
-class Create_func_distance_sphere : public Create_func_arg2
+class Create_func_distance_sphere : public Create_native_func
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1, Item *arg2);
+  virtual Item *create_native(THD *thd, LEX_STRING name,
+                              PT_item_list *item_list);
 
   static Create_func_distance_sphere s_singleton;
 
@@ -1065,10 +1067,11 @@ protected:
 class Create_func_distance_deprecated : public Create_func_distance
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1, Item *arg2)
+  virtual Item *create_native(THD *thd, LEX_STRING name,
+                              PT_item_list *item_list)
   {
     push_deprecated_warn(thd, "DISTANCE", "ST_DISTANCE");
-    return Create_func_distance::create(thd, arg1, arg2);
+    return Create_func_distance::create_native(thd, name, item_list);
   }
 
   static Create_func_distance_deprecated s_singleton;
@@ -4600,19 +4603,39 @@ Create_func_disjoint::create(THD *thd, Item *arg1, Item *arg2)
 
 Create_func_distance Create_func_distance::s_singleton;
 
-Item*
-Create_func_distance::create(THD *thd, Item *arg1, Item *arg2)
+Item *
+Create_func_distance::create_native(THD *thd, LEX_STRING name,
+                                    PT_item_list *item_list)
 {
-  return new (thd->mem_root) Item_func_distance(POS(), arg1, arg2, false);
+  int arg_count= 0;
+
+  if (item_list != NULL)
+    arg_count= item_list->elements();
+  if (arg_count != 2)
+  {
+    my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
+    return NULL;
+  }
+  return new (thd->mem_root) Item_func_distance(POS(), item_list, false);
 }
 
 
 Create_func_distance_sphere Create_func_distance_sphere::s_singleton;
 
-Item*
-Create_func_distance_sphere::create(THD *thd, Item *arg1, Item *arg2)
+Item *
+Create_func_distance_sphere::create_native(THD *thd, LEX_STRING name,
+                                           PT_item_list *item_list)
 {
-  return new (thd->mem_root) Item_func_distance(POS(), arg1, arg2, true);
+  int arg_count= 0;
+
+  if (item_list != NULL)
+    arg_count= item_list->elements();
+  if (arg_count < 2 || arg_count > 3)
+  {
+    my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
+    return NULL;
+  }
+  return new (thd->mem_root) Item_func_distance(POS(), item_list, true);
 }
 
 

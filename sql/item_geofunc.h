@@ -1062,8 +1062,8 @@ public:
   template <typename Coordsys>
   double bg_distance(const Geometry *g1, const Geometry *g2, bool *isdone);
 
-  Item_func_distance(const POS &pos, Item *a, Item *b, bool isspherical)
-    : Item_real_func(pos, a, b), is_spherical_equatorial(isspherical),
+  Item_func_distance(const POS &pos, PT_item_list *ilist, bool isspherical)
+    : Item_real_func(pos, ilist), is_spherical_equatorial(isspherical),
       earth_radius(6370986.0)                   /* Default earth radius. */
   {
     /*
