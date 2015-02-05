@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2892,7 +2892,6 @@ void calc_sum_of_all_status(STATUS_VAR *to)
 /* This is only used internally, but we need it here as a forward reference */
 extern ST_SCHEMA_TABLE schema_tables[];
 
-#ifdef MCP_WL1735
 /**
   Condition pushdown used for INFORMATION_SCHEMA / SHOW queries.
   This structure is to implement an optimization when
@@ -2926,7 +2925,6 @@ typedef struct st_lookup_field_values
   */
   bool wild_table_value;
 } LOOKUP_FIELD_VALUES;
-#endif
 
 
 /*
