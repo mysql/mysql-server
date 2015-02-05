@@ -18,7 +18,7 @@
 #include "sql_parse.h"                        // mysql_execute_command
 #include "sql_tmp_table.h"                   // tmp tables
 #include "debug_sync.h"
-#include "sql_union.h"                       // select_union
+#include "sql_union.h"                       // Query_result_union
 
 /****************************************************************************
   Declarations.
@@ -34,7 +34,7 @@
 class Materialized_cursor: public Server_side_cursor
 {
   MEM_ROOT main_mem_root;
-  /* A fake unit to supply to select_send when fetching */
+  /* A fake unit to supply to Query_result_send when fetching */
   SELECT_LEX_UNIT fake_unit;
   TABLE *table;
   List<Item> item_list;
@@ -42,7 +42,7 @@ class Materialized_cursor: public Server_side_cursor
   ulong fetch_count;
   bool is_rnd_inited;
 public:
-  Materialized_cursor(select_result *result, TABLE *table);
+  Materialized_cursor(Query_result *result, TABLE *table);
 
   int send_result_set_metadata(THD *thd, List<Item> &send_result_set_metadata);
   virtual bool is_open() const { return table != 0; }
@@ -54,7 +54,7 @@ public:
 
 
 /**
-  Select_materialize -- a mediator between a cursor query and the
+  Query_result_materialize -- a mediator between a cursor query and the
   protocol. In case we were not able to open a non-materialzed
   cursor, it creates an internal temporary HEAP table, and insert
   all rows into it. When the table reaches max_heap_table_size,
@@ -62,12 +62,12 @@ public:
   create a Materialized_cursor.
 */
 
-class Select_materialize: public select_union
+class Query_result_materialize: public Query_result_union
 {
-  select_result *result; /**< the result object of the caller (PS or SP) */
+  Query_result *result; /**< the result object of the caller (PS or SP) */
 public:
   Materialized_cursor *materialized_cursor;
-  Select_materialize(select_result *result_arg)
+  Query_result_materialize(Query_result *result_arg)
     :result(result_arg), materialized_cursor(0) {}
   virtual bool send_result_set_metadata(List<Item> &list, uint flags);
 };
@@ -91,16 +91,17 @@ public:
   @retval true -- an error, 'pcursor' has been left intact.
 */
 
-bool mysql_open_cursor(THD *thd, select_result *result,
+bool mysql_open_cursor(THD *thd, Query_result *result,
                        Server_side_cursor **pcursor)
 {
   sql_digest_state *parent_digest;
   PSI_statement_locker *parent_locker;
-  select_result *save_result;
-  Select_materialize *result_materialize;
+  Query_result *save_result;
+  Query_result_materialize *result_materialize;
   LEX *lex= thd->lex;
 
-  if (! (result_materialize= new (thd->mem_root) Select_materialize(result)))
+  if (! (result_materialize=
+           new (thd->mem_root) Query_result_materialize(result)))
     return true;
 
   save_result= lex->result;
@@ -133,7 +134,7 @@ bool mysql_open_cursor(THD *thd, select_result *result,
     - successful completion of mysql_execute_command without
       a cursor: rc is 0, result_materialize->materialized_cursor is NULL.
       This is possible if some command writes directly to the
-      network, bypassing select_result mechanism. An example of
+      network, bypassing Query_result mechanism. An example of
       such command is SHOW VARIABLES or SHOW STATUS.
   */
   if (rc)
@@ -206,7 +207,7 @@ void Server_side_cursor::operator delete(void *ptr, size_t size)
  Materialized_cursor
 ****************************************************************************/
 
-Materialized_cursor::Materialized_cursor(select_result *result_arg,
+Materialized_cursor::Materialized_cursor(Query_result *result_arg,
                                          TABLE *table_arg)
   :Server_side_cursor(&table_arg->mem_root, result_arg),
   fake_unit(CTX_NONE),
@@ -386,10 +387,11 @@ Materialized_cursor::~Materialized_cursor()
 
 
 /***************************************************************************
- Select_materialize
+ Query_result_materialize
 ****************************************************************************/
 
-bool Select_materialize::send_result_set_metadata(List<Item> &list, uint flags)
+bool Query_result_materialize::send_result_set_metadata(List<Item> &list,
+                                                        uint flags)
 {
   DBUG_ASSERT(table == 0);
   /*

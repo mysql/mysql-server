@@ -21,7 +21,7 @@
 
 #include "my_global.h"
 #include "my_tree.h"          // TREE
-#include "sql_class.h"        // select_send
+#include "sql_class.h"        // Query_result_send
 
 class Item_proc;
 
@@ -68,7 +68,7 @@ int compare_ulonglong2(void* cmp_arg __attribute__((unused)),
 		       const ulonglong *s, const ulonglong *t);
 int compare_decimal2(int* len, const char *s, const char *t);
 void free_string(String*);
-class select_analyse;
+class Query_result_analyse;
 
 class field_info :public Sql_alloc
 {
@@ -78,10 +78,10 @@ protected:
   my_bool found;
   TREE	  tree;
   Item	  *item;
-  select_analyse *pc;
+  Query_result_analyse *pc;
 
 public:
-  field_info(Item* a, select_analyse* b)
+  field_info(Item* a, Query_result_analyse* b)
   : treemem(0), tree_elements(0), empty(0),
     nulls(0), min_length(0), max_length(0), room_in_tree(1),
     found(0),item(a), pc(b) {};
@@ -95,7 +95,7 @@ public:
   virtual String *std(String*, ha_rows) = 0;
   virtual tree_walk_action collect_enum() = 0;
   virtual uint decimals() { return 0; }
-  friend  class select_analyse;
+  friend  class Query_result_analyse;
 };
 
 
@@ -115,7 +115,7 @@ class field_str :public field_info
   EV_NUM_INFO ev_num_info;
 
 public:
-  field_str(Item* a, select_analyse* b) :field_info(a,b), 
+  field_str(Item* a, Query_result_analyse* b) :field_info(a,b),
     min_arg("",default_charset_info),
     max_arg("",default_charset_info), sum(0),
     must_be_blob(0), was_zero_fill(0),
@@ -158,7 +158,7 @@ class field_decimal :public field_info
   int cur_sum;
   int bin_size;
 public:
-  field_decimal(Item* a, select_analyse* b) :field_info(a,b)
+  field_decimal(Item* a, Query_result_analyse* b) :field_info(a,b)
   {
     bin_size= my_decimal_get_binary_size(a->max_length, a->decimals);
     init_tree(&tree, 0, 0, bin_size, (qsort_cmp2)compare_decimal2,
@@ -187,7 +187,7 @@ class field_real: public field_info
   uint	 max_notzero_dec_len;
 
 public:
-  field_real(Item* a, select_analyse* b) :field_info(a,b),
+  field_real(Item* a, Query_result_analyse* b) :field_info(a,b),
     min_arg(0), max_arg(0),  sum(0), sum_sqr(0), max_notzero_dec_len(0)
     { init_tree(&tree, 0, 0, sizeof(double),
 		(qsort_cmp2) compare_double2, 0, NULL, NULL); }
@@ -241,7 +241,7 @@ class field_longlong: public field_info
   longlong sum, sum_sqr;
 
 public:
-  field_longlong(Item* a, select_analyse* b) :field_info(a,b), 
+  field_longlong(Item* a, Query_result_analyse* b) :field_info(a,b),
     min_arg(0), max_arg(0), sum(0), sum_sqr(0)
     { init_tree(&tree, 0, 0, sizeof(longlong),
 		(qsort_cmp2) compare_longlong2, 0, NULL, NULL); }
@@ -286,7 +286,7 @@ class field_ulonglong: public field_info
   ulonglong sum, sum_sqr;
 
 public:
-  field_ulonglong(Item* a, select_analyse * b) :field_info(a,b),
+  field_ulonglong(Item* a, Query_result_analyse * b) :field_info(a,b),
     min_arg(0), max_arg(0), sum(0),sum_sqr(0)
     { init_tree(&tree, 0, 0, sizeof(ulonglong),
 		(qsort_cmp2) compare_ulonglong2, 0, NULL, NULL); }
@@ -328,9 +328,9 @@ public:
   Interceptor class to form SELECT ... PROCEDURE ANALYSE() output rows
 */
 
-class select_analyse : public select_send
+class Query_result_analyse : public Query_result_send
 {
-  select_result *result; //< real output stream
+  Query_result *result; //< real output stream
   
   Item_proc    *func_items[10]; //< items for output metadata and column data
   List<Item>   result_fields; //< same as func_items but capable for send_data()
@@ -344,13 +344,13 @@ public:
   const uint max_treemem; //< maximum amount of memory to allocate per column
 
 public:
-  select_analyse(select_result *result, const Proc_analyse_params *params)
+  Query_result_analyse(Query_result *result, const Proc_analyse_params *params)
   : result(result), f_info(NULL), f_end(NULL), rows(0), output_str_length(0),
     max_tree_elements(params->max_tree_elements),
     max_treemem(params->max_treemem)
   {}
 
-  ~select_analyse() { cleanup(); }
+  ~Query_result_analyse() { cleanup(); }
 
   virtual void cleanup();
   virtual uint field_count(List<Item> &) const

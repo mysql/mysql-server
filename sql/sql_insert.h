@@ -16,9 +16,9 @@
 #ifndef SQL_INSERT_INCLUDED
 #define SQL_INSERT_INCLUDED
 
-#include "sql_data_change.h"      // enum_duplicates
-#include "sql_class.h"            // select_result_interceptor
+#include "sql_class.h"            // Query_result_interceptor
 #include "sql_cmd_dml.h"          // Sql_cmd_dml
+#include "sql_data_change.h"      // enum_duplicates
 
 struct TABLE_LIST;
 typedef List<Item> List_item;
@@ -31,7 +31,8 @@ int write_record(THD *thd, TABLE *table,
 bool validate_default_values_of_unset_fields(THD *thd, TABLE *table);
 bool mysql_insert_select_prepare(THD *thd);
 
-class select_insert :public select_result_interceptor {
+class Query_result_insert :public Query_result_interceptor
+{
 public:
   TABLE_LIST *table_list;
   TABLE *table;
@@ -52,7 +53,7 @@ public:
   bool insert_into_view;
 
   /**
-     Creates a select_insert for routing a result set to an existing
+     Creates a Query_result_insert for routing a result set to an existing
      table.
 
      @param table_list_par   The table reference for the destination table.
@@ -68,7 +69,7 @@ public:
      @todo This constructor takes 8 arguments, 6 of which are used to
      immediately construct a COPY_INFO object. Obviously the constructor
      should take the COPY_INFO object as argument instead. Also, some
-     select_insert members initialized here are totally redundant, as they are
+     Query_result_insert members initialized here are totally redundant, as they are
      found inside the COPY_INFO.
 
      The target_columns and target_or_source_columns arguments are set by
@@ -97,13 +98,13 @@ public:
      target_columns is columns1, if not empty then 'info' must manage defaults
      of other columns than columns1.
   */
-  select_insert(TABLE_LIST *table_list_par,
-                TABLE *table_par,
-                List<Item> *target_columns,
-                List<Item> *target_or_source_columns,
-                List<Item> *update_fields,
-                List<Item> *update_values,
-                enum_duplicates duplic)
+  Query_result_insert(TABLE_LIST *table_list_par,
+                      TABLE *table_par,
+                      List<Item> *target_columns,
+                      List<Item> *target_or_source_columns,
+                      List<Item> *update_fields,
+                      List<Item> *update_values,
+                      enum_duplicates duplic)
     :table_list(table_list_par),
      table(table_par),
      fields(target_or_source_columns),
@@ -126,7 +127,7 @@ public:
 
 
 public:
-  ~select_insert();
+  ~Query_result_insert();
   virtual bool need_explain_interceptor() const { return true; }
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   virtual int prepare2(void);
@@ -135,7 +136,7 @@ public:
   void send_error(uint errcode,const char *err);
   bool send_eof();
   virtual void abort_result_set();
-  /* not implemented: select_insert is never re-used in prepared statements */
+  /* not implemented: Query_result_insert is never re-used in prepared statements */
   void cleanup();
 };
 
@@ -145,7 +146,7 @@ public:
    line with good programming practices and the inheritance should be broken
    up.
 */
-class select_create: public select_insert {
+class Query_result_create: public Query_result_insert {
   TABLE_LIST *create_table;
   HA_CREATE_INFO *create_info;
   TABLE_LIST *select_tables;
@@ -156,18 +157,19 @@ class select_create: public select_insert {
   /* m_lock or thd->extra_lock */
   MYSQL_LOCK **m_plock;
 public:
-  select_create (TABLE_LIST *table_arg,
-		 HA_CREATE_INFO *create_info_par,
-                 Alter_info *alter_info_arg,
-		 List<Item> &select_fields,enum_duplicates duplic,
-                 TABLE_LIST *select_tables_arg)
-    :select_insert (NULL, // table_list_par
-                    NULL, // table_par
-                    NULL, // target_columns
-                    &select_fields,
-                    NULL, // update_fields
-                    NULL, // update_values
-                    duplic),
+  Query_result_create(TABLE_LIST *table_arg,
+                      HA_CREATE_INFO *create_info_par,
+                      Alter_info *alter_info_arg,
+                      List<Item> &select_fields,
+                      enum_duplicates duplic,
+                      TABLE_LIST *select_tables_arg)
+    :Query_result_insert (NULL, // table_list_par
+                          NULL, // table_par
+                          NULL, // target_columns
+                          &select_fields,
+                          NULL, // update_fields
+                          NULL, // update_values
+                          duplic),
      create_table(table_arg),
      create_info(create_info_par),
      select_tables(select_tables_arg),
