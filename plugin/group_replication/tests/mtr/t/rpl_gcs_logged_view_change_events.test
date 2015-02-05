@@ -1,0 +1,57 @@
+# Group replication test that asserts that servers only write their own view
+# change log events.
+# For this, in a two server group several view changes are executed, and then
+# a third server joins. We verify that from all the View Change Log Events
+# generated, the joiner only writes the one it queued.
+#
+
+--source include/have_group_replication_plugin.inc
+--let $group_replication_group_name= 9de0c256-ae8d-40cb-9e8f-40d17324d04c
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_server_count= 3
+--source include/master-slave.inc
+
+--echo #
+--echo # Setup a new group with two servers.
+--echo #
+
+--connection server1
+--echo server1
+--source include/start_group_replication.inc
+
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+
+--connection server2
+--echo server2
+--source include/start_group_replication.inc
+
+--echo #
+--echo # Make server 2 leave and enter generating view change events
+--echo #
+
+--connection server2
+--echo server2
+--source include/stop_group_replication.inc
+--source include/start_group_replication.inc
+--source include/stop_group_replication.inc
+--source include/start_group_replication.inc
+
+--echo #
+--echo # Make server 3 join and see it only has one view event in the binlog
+--echo #
+
+--connection server3
+--echo server3
+--source include/start_group_replication.inc
+
+--let $event_sequence= !Gtid_transaction # !Gtid_transaction # View_change
+--source include/assert_binlog_events.inc
+
+--echo #
+--echo # Cleaning up
+--echo #
+
+DROP TABLE t1;
+
+--source include/rpl_end.inc

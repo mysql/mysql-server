@@ -1,0 +1,33 @@
+include/master-slave.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+#
+# Setup a new group with two servers.
+#
+server1
+include/start_group_replication.inc
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+server2
+include/start_group_replication.inc
+#
+# Make server 2 leave and enter generating view change events
+#
+server2
+include/stop_group_replication.inc
+include/start_group_replication.inc
+include/stop_group_replication.inc
+include/start_group_replication.inc
+#
+# Make server 3 join and see it only has one view event in the binlog
+#
+server3
+include/start_group_replication.inc
+include/assert_binlog_events.inc [!Gtid_transaction # !Gtid_transaction # View_change]
+#
+# Cleaning up
+#
+DROP TABLE t1;
+include/rpl_end.inc
