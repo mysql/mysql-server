@@ -37,6 +37,7 @@ set @@session.gtid_owned = 1;
 set @@session.gtid_next = 'anonymous';
 select @@session.gtid_owned;
 select @@global.gtid_owned;
+ROLLBACK;
 
 set @@session.gtid_next = 'automatic';
 select @@session.gtid_owned;

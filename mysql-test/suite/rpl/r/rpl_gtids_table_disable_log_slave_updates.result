@@ -40,11 +40,10 @@ INSERT INTO t2 VALUES(2);
 # Verify that store gtids SLAVE_UUID:1-2 into gtid_executed table,
 # which is also compressed on binlog rotation.
 #
-SET @debug_save= @@GLOBAL.DEBUG;
-SET @@GLOBAL.DEBUG= '+d,compress_gtid_table';
+SET @old_compression_period= @@GLOBAL.GTID_EXECUTED_COMPRESSION_PERIOD;
+SET @@GLOBAL.GTID_EXECUTED_COMPRESSION_PERIOD= 1;
 FLUSH LOGS;
-SET DEBUG_SYNC='now WAIT_FOR complete_compression';
-SET GLOBAL DEBUG= @debug_save;
+SET @@GLOBAL.GTID_EXECUTED_COMPRESSION_PERIOD= @old_compression_period;
 SELECT * FROM mysql.gtid_executed where source_uuid="MASTER_UUID";
 source_uuid	interval_start	interval_end
 MASTER_UUID	1	4
@@ -56,7 +55,7 @@ SLAVE_UUID	1	2
 # logs if binlog is enabled and log_slave_updates is disabled.
 #
 PURGE BINARY LOGS TO 'slave-bin.000002';
-include/assert.inc [purged gtids SLAVE_UUID:1-2]
+include/assert.inc [purged gtids SLAVE_UUID:1-2,MASTER_UUID:1-4]
 #
 # Verify that we can get the correct set from 'gtid_executed' table
 # when executing a big transaction that exceeds the max size of the

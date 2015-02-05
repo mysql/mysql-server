@@ -217,7 +217,7 @@ The following options may be given as the first argument:
  In JSON output ("EXPLAIN FORMAT=JSON" and optimizer
  trace), if variable is set to 1, repeats the structure's
  key (if it has one) near the closing bracket
- --enforce-gtid-consistency 
+ --enforce-gtid-consistency[=name] 
  Prevents execution of statements that would be impossible
  to log in a transactionally safe manner. Currently, the
  disallowed statements include CREATE TEMPORARY TABLE
@@ -277,8 +277,22 @@ The following options may be given as the first argument:
  gtid_executed_compression_period transactions, as a
  special case, if variable is 0, the thread never wakes up
  to compress the gtid_executed table.
- --gtid-mode=name    Whether Global Transaction Identifiers (GTIDs) are
- enabled. Can be ON or OFF.
+ --gtid-mode=name    Controls whether Global Transaction Identifiers (GTIDs)
+ are enabled. Can be OFF, OFF_PERMISSIVE, ON_PERMISSIVE,
+ or ON. OFF means that no transaction has a GTID.
+ OFF_PERMISSIVE means that new transactions (committed in
+ a client session using GTID_NEXT='AUTOMATIC') are not
+ assigned any GTID, and replicated transactions are
+ allowed to have or not have a GTID. ON_PERMISSIVE means
+ that new transactions are assigned a GTID, and replicated
+ transactions are allowed to have or not have a GTID. ON
+ means that all transactions have a GTID. ON is required
+ on a master before any slave can use
+ MASTER_AUTO_POSITION=1. To safely switch from OFF to ON,
+ first set all servers to OFF_PERMISSIVE, then set all
+ servers to ON_PERMISSIVE, then wait for all transactions
+ without a GTID to be replicated and executed on all
+ servers, and finally set all servers to GTID_MODE = ON.
  -?, --help          Display this help and exit.
  --host-cache-size=# How many host names should be cached to avoid resolving.
  --ignore-builtin-innodb 

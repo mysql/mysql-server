@@ -391,16 +391,10 @@ ulong binlog_checksum_options;
 my_bool opt_master_verify_checksum= 0;
 my_bool opt_slave_sql_verify_checksum= 1;
 const char *binlog_format_names[]= {"MIXED", "STATEMENT", "ROW", NullS};
-my_bool enforce_gtid_consistency;
 my_bool binlog_gtid_simple_recovery;
 ulong binlog_error_action;
 const char *binlog_error_action_list[]= {"IGNORE_ERROR", "ABORT_SERVER", NullS};
-ulong gtid_mode;
 uint gtid_executed_compression_period= 0;
-const char *gtid_mode_names[]=
-{"OFF", "UPGRADE_STEP_1", "UPGRADE_STEP_2", "ON", NullS};
-TYPELIB gtid_mode_typelib=
-{ array_elements(gtid_mode_names) - 1, "", gtid_mode_names, NULL };
 
 #ifdef HAVE_INITGROUPS
 volatile sig_atomic_t calling_initgroups= 0; /**< Used in SIGSEGV handler. */
@@ -1333,7 +1327,8 @@ void gtid_server_cleanup()
 bool gtid_server_init()
 {
   bool res=
-    (!(global_sid_lock= new Checkable_rwlock) ||
+    (!(global_sid_lock= new Checkable_rwlock(key_rwlock_global_sid_lock)) ||
+     !(gtid_mode_lock= new Checkable_rwlock(key_rwlock_gtid_mode_lock)) ||
      !(global_sid_map= new Sid_map(global_sid_lock)) ||
      !(gtid_state= new Gtid_state(global_sid_lock, global_sid_map))||
      !(gtid_table_persistor= new Gtid_table_persistor()));
@@ -4211,21 +4206,19 @@ a file name for --log-bin-index option", opt_binlog_index_name);
     unireg_abort(1);
   }
 
-  if (gtid_mode >= 1 && opt_bootstrap)
+  /// @todo: this looks suspicious, revisit this /sven
+  enum_gtid_mode gtid_mode= get_gtid_mode(GTID_MODE_LOCK_NONE);
+  if (gtid_mode != GTID_MODE_OFF && opt_bootstrap)
   {
     sql_print_warning("Bootstrap mode disables GTIDs. Bootstrap mode "
     "should only be used by mysql_install_db which initializes the MySQL "
     "data directory and creates system tables.");
-    gtid_mode= 0;
+    _gtid_mode= GTID_MODE_OFF;
   }
-  if (gtid_mode >= 2 && !enforce_gtid_consistency)
+  if (gtid_mode == GTID_MODE_ON &&
+      _gtid_consistency_mode != GTID_CONSISTENCY_MODE_ON)
   {
-    sql_print_error("--gtid-mode=ON or UPGRADE_STEP_1 requires --enforce-gtid-consistency");
-    unireg_abort(1);
-  }
-  if (gtid_mode == 1 || gtid_mode == 2)
-  {
-    sql_print_error("--gtid-mode=UPGRADE_STEP_1 or --gtid-mode=UPGRADE_STEP_2 are not yet supported");
+    sql_print_error("GTID_MODE = ON requires ENFORCE_GTID_CONSISTENCY = ON.");
     unireg_abort(1);
   }
 
@@ -4634,30 +4627,36 @@ int mysqld_main(int argc, char **argv)
   {
     if (init_server_auto_options())
     {
-      sql_print_error("Initialzation of the server's UUID failed because it could"
+      sql_print_error("Initialization of the server's UUID failed because it could"
                       " not be read from the auto.cnf file. If this is a new"
                       " server, the initialization failed because it was not"
                       " possible to generate a new UUID.");
       unireg_abort(1);
     }
 
-    Gtid_set *executed_gtids=
-      const_cast<Gtid_set *>(gtid_state->get_executed_gtids());
-    Gtid_set *lost_gtids=
-      const_cast<Gtid_set *>(gtid_state->get_lost_gtids());
+    /*
+      Add server_uuid to the sid_map.  This must be done after
+      server_uuid has been initialized in init_server_auto_options and
+      after the binary log (and sid_map file) has been initialized in
+      init_server_components().
+
+      No error message is needed: init_sid_map() prints a message.
+
+      Strictly speaking, this is not currently needed when
+      opt_bin_log==0, since the variables that gtid_state->init
+      initializes are not currently used in that case.  But we call it
+      regardless to avoid possible future bugs if gtid_state ever
+      needs to do anything else.
+    */
+    global_sid_lock->rdlock();
+    int ret= gtid_state->init();
+    global_sid_lock->unlock();
+    // Initialize executed_gtids from mysql.gtid_executed table.
+    if (gtid_state->read_gtid_executed_from_table() == -1)
+      unireg_abort(1);
+
     if (opt_bin_log)
     {
-      /*
-        Add server_uuid to the sid_map.  This must be done after
-        server_uuid has been initialized in init_server_auto_options and
-        after the binary log (and sid_map file) has been initialized in
-        init_server_components().
-
-        No error message is needed: init_sid_map() prints a message.
-      */
-      global_sid_lock->rdlock();
-      int ret= gtid_state->init();
-      global_sid_lock->unlock();
       if (ret)
         unireg_abort(1);
 
@@ -4665,32 +4664,36 @@ int mysqld_main(int argc, char **argv)
         Initialize GLOBAL.GTID_EXECUTED and GLOBAL.GTID_PURGED from
         gtid_executed table and binlog files during server startup.
       */
-      Gtid_set purged_gtids_binlog(global_sid_map, global_sid_lock);
-      Gtid_set logged_gtids_binlog(global_sid_map, global_sid_lock);
-      Gtid_set unsaved_gtids_in_table(global_sid_map, global_sid_lock);
+      Gtid_set *executed_gtids=
+        const_cast<Gtid_set *>(gtid_state->get_executed_gtids());
+      Gtid_set *lost_gtids=
+        const_cast<Gtid_set *>(gtid_state->get_lost_gtids());
       Gtid_set *gtids_only_in_table=
         const_cast<Gtid_set *>(gtid_state->get_gtids_only_in_table());
       Gtid_set *previous_gtids_logged=
         const_cast<Gtid_set *>(gtid_state->get_previous_gtids_logged());
 
-      if (mysql_bin_log.init_gtid_sets(&logged_gtids_binlog,
-                                       &purged_gtids_binlog,
+      Gtid_set purged_gtids_from_binlog(global_sid_map, global_sid_lock);
+      Gtid_set gtids_in_binlog(global_sid_map, global_sid_lock);
+      Gtid_set gtids_in_binlog_not_in_table(global_sid_map, global_sid_lock);
+
+      if (mysql_bin_log.init_gtid_sets(&gtids_in_binlog,
+                                       &purged_gtids_from_binlog,
                                        opt_master_verify_checksum,
                                        true/*true=need lock*/,
                                        NULL/*trx_parser*/,
                                        NULL/*gtid_partial_trx*/,
-                                       true/*is_server_starting*/) ||
-          gtid_state->fetch_gtids(executed_gtids) == -1)
+                                       true/*is_server_starting*/))
         unireg_abort(1);
 
       global_sid_lock->wrlock();
 
-      if (!logged_gtids_binlog.is_empty() &&
-          !logged_gtids_binlog.is_subset(executed_gtids))
+      if (!gtids_in_binlog.is_empty() &&
+          !gtids_in_binlog.is_subset(executed_gtids))
       {
-        unsaved_gtids_in_table.add_gtid_set(&logged_gtids_binlog);
+        gtids_in_binlog_not_in_table.add_gtid_set(&gtids_in_binlog);
         if (!executed_gtids->is_empty())
-          unsaved_gtids_in_table.remove_gtid_set(executed_gtids);
+          gtids_in_binlog_not_in_table.remove_gtid_set(executed_gtids);
         /*
           Save unsaved GTIDs into gtid_executed table, in the following
           four cases:
@@ -4705,37 +4708,38 @@ int mysqld_main(int argc, char **argv)
                gtid_executed table and executed_gtids during recovery
                from the crash.
         */
-        if (gtid_state->save(&unsaved_gtids_in_table) == -1)
+        if (gtid_state->save(&gtids_in_binlog_not_in_table) == -1)
         {
           global_sid_lock->unlock();
           unireg_abort(1);
         }
-        executed_gtids->add_gtid_set(&unsaved_gtids_in_table);
+        executed_gtids->add_gtid_set(&gtids_in_binlog_not_in_table);
       }
 
-      /* gtids_only_in_table= executed_gtids - logged_gtids_binlog */
+      /* gtids_only_in_table= executed_gtids - gtids_in_binlog */
       if (gtids_only_in_table->add_gtid_set(executed_gtids) !=
           RETURN_STATUS_OK)
       {
         global_sid_lock->unlock();
         unireg_abort(1);
       }
-      gtids_only_in_table->remove_gtid_set(&logged_gtids_binlog);
+      gtids_only_in_table->remove_gtid_set(&gtids_in_binlog);
       /*
         lost_gtids = executed_gtids -
-                     (logged_gtids_binlog - purged_gtids_binlog)
-                   = gtids_only_in_table + purged_gtids_binlog;
+                     (gtids_in_binlog - purged_gtids_from_binlog)
+                   = gtids_only_in_table + purged_gtids_from_binlog;
       */
       DBUG_ASSERT(lost_gtids->is_empty());
       if (lost_gtids->add_gtid_set(gtids_only_in_table) != RETURN_STATUS_OK ||
-          lost_gtids->add_gtid_set(&purged_gtids_binlog) != RETURN_STATUS_OK)
+          lost_gtids->add_gtid_set(&purged_gtids_from_binlog) !=
+          RETURN_STATUS_OK)
       {
         global_sid_lock->unlock();
         unireg_abort(1);
       }
 
       /* Prepare previous_gtids_logged for next binlog */
-      if (previous_gtids_logged->add_gtid_set(&logged_gtids_binlog) !=
+      if (previous_gtids_logged->add_gtid_set(&gtids_in_binlog) !=
           RETURN_STATUS_OK)
       {
         global_sid_lock->unlock();
@@ -4750,7 +4754,7 @@ int mysqld_main(int argc, char **argv)
 
         /Alfranio
       */
-      Previous_gtids_log_event prev_gtids_ev(&logged_gtids_binlog);
+      Previous_gtids_log_event prev_gtids_ev(&gtids_in_binlog);
 
       global_sid_lock->unlock();
 
@@ -4768,15 +4772,6 @@ int mysqld_main(int argc, char **argv)
       mysql_bin_log.update_binlog_end_pos();
 
       (void) RUN_HOOK(server_state, after_engine_recovery, (NULL));
-    }
-    else if (gtid_mode > GTID_MODE_OFF)
-    {
-      /*
-        If gtid_mode is enabled and binlog is disabled, initialize
-        executed_gtids from gtid_executed table.
-      */
-      if (gtid_state->fetch_gtids(executed_gtids) == -1)
-        unireg_abort(1);
     }
   }
 
@@ -4917,8 +4912,7 @@ int mysqld_main(int argc, char **argv)
 #endif
   start_handle_manager();
 
-  if (gtid_mode > GTID_MODE_UPGRADE_STEP_1)
-    create_compress_gtid_table_thread();
+  create_compress_gtid_table_thread();
 
   sql_print_information(ER_DEFAULT(ER_STARTUP),
                         my_progname,
@@ -4966,19 +4960,19 @@ int mysqld_main(int argc, char **argv)
 
   DBUG_PRINT("info", ("No longer listening for incoming connections"));
 
-  if (gtid_mode > GTID_MODE_UPGRADE_STEP_1)
-  {
-    terminate_compress_gtid_table_thread();
-    /*
-      Save set of GTIDs of the last binlog into gtid_executed table
-      on server shutdown.
-    */
+  terminate_compress_gtid_table_thread();
+  /*
+    Save set of GTIDs of the last binlog into gtid_executed table
+    on server shutdown.
+  */
+  if (opt_bin_log)
     if (gtid_state->save_gtids_of_last_binlog_into_table(false))
-      sql_print_warning("Failed to save set of GTIDs of the last binlog "
-                        "into gtid_executed table on server shutdown, "
-                        "so we save it into gtid_executed table and "
-                        "executed_gtids during next server startup.");
-  }
+      sql_print_warning("Failed to save the set of Global Transaction "
+                        "Identifiers of the last binary log into the "
+                        "mysql.gtid_executed table while the server was "
+                        "shutting down. The next server restart will make "
+                        "another attempt to save Global Transaction "
+                        "Identifiers into the table.");
 
 #ifndef _WIN32
   mysql_mutex_lock(&LOCK_socket_listener_active);
@@ -6125,7 +6119,37 @@ static int show_slave_rows_last_search_algorithm_used(THD *thd, SHOW_VAR *var, c
 
   return 0;
 }
+
+static int show_ongoing_automatic_gtid_violating_transaction_count(
+  THD *thd, SHOW_VAR *var, char *buf)
+{
+  var->type= SHOW_CHAR;
+  var->value= buf;
+  sprintf(buf, "%d",
+          gtid_state->get_automatic_gtid_violating_transaction_count());
+  return 0;
+}
+
+static int show_ongoing_anonymous_gtid_violating_transaction_count(
+  THD *thd, SHOW_VAR *var, char *buf)
+{
+  var->type= SHOW_CHAR;
+  var->value= buf;
+  sprintf(buf, "%d",
+          gtid_state->get_anonymous_gtid_violating_transaction_count());
+  return 0;
+}
+
 #endif
+
+static int show_ongoing_anonymous_transaction_count(
+  THD *thd, SHOW_VAR *var, char *buf)
+{
+  var->type= SHOW_CHAR;
+  var->value= buf;
+  sprintf(buf, "%d", gtid_state->get_anonymous_ownership_count());
+  return 0;
+}
 
 #endif /* HAVE_REPLICATION */
 
@@ -6527,6 +6551,15 @@ SHOW_VAR status_vars[]= {
 #ifndef EMBEDDED_LIBRARY
   {"Aborted_connects",         (char*) &show_aborted_connects,  SHOW_FUNC},
 #endif
+#ifdef HAVE_REPLICATION
+#ifndef DBUG_OFF
+  {"Ongoing_anonymous_gtid_violating_transaction_count",(char*) &show_ongoing_anonymous_gtid_violating_transaction_count, SHOW_FUNC},
+#endif//!DBUG_OFF
+  {"Ongoing_anonymous_transaction_count",(char*) &show_ongoing_anonymous_transaction_count, SHOW_FUNC},
+#ifndef DBUG_OFF
+  {"Ongoing_automatic_gtid_violating_transaction_count",(char*) &show_ongoing_automatic_gtid_violating_transaction_count, SHOW_FUNC},
+#endif//!DBUG_OFF
+#endif//HAVE_REPLICATION
   {"Binlog_cache_disk_use",    (char*) &binlog_cache_disk_use,  SHOW_LONG},
   {"Binlog_cache_use",         (char*) &binlog_cache_use,       SHOW_LONG},
   {"Binlog_stmt_cache_disk_use",(char*) &binlog_stmt_cache_disk_use,  SHOW_LONG},
@@ -7373,6 +7406,15 @@ pfs_error:
   case OPT_SHOW_OLD_TEMPORALS:
     push_deprecated_warn_no_replacement(NULL, "show_old_temporals");
     break;
+  case OPT_ENFORCE_GTID_CONSISTENCY:
+  {
+    const char *wrong_value=
+      fixup_enforce_gtid_consistency_command_line(argument);
+    if (wrong_value != NULL)
+      sql_print_warning("option 'enforce-gtid-consistency': value '%s' "
+                        "was not recognized. Setting enforce-gtid-consistency "
+                        "to OFF.", wrong_value);
+  }
   }
   return 0;
 }
@@ -8313,7 +8355,8 @@ static PSI_mutex_info all_server_mutexes[]=
 PSI_rwlock_key key_rwlock_LOCK_grant, key_rwlock_LOCK_logger,
   key_rwlock_LOCK_sys_init_connect, key_rwlock_LOCK_sys_init_slave,
   key_rwlock_LOCK_system_variables_hash, key_rwlock_query_cache_query_lock,
-  key_rwlock_global_sid_lock, key_rwlock_proxy_users;
+  key_rwlock_global_sid_lock, key_rwlock_gtid_mode_lock,
+  key_rwlock_proxy_users;
 
 PSI_rwlock_key key_rwlock_Trans_delegate_lock;
 PSI_rwlock_key key_rwlock_Server_state_delegate_lock;
@@ -8339,6 +8382,7 @@ static PSI_rwlock_info all_server_rwlocks[]=
   { &key_rwlock_LOCK_system_variables_hash, "LOCK_system_variables_hash", PSI_FLAG_GLOBAL},
   { &key_rwlock_query_cache_query_lock, "Query_cache_query::lock", 0},
   { &key_rwlock_global_sid_lock, "gtid_commit_rollback", PSI_FLAG_GLOBAL},
+  { &key_rwlock_gtid_mode_lock, "gtid_mode_lock", PSI_FLAG_GLOBAL},
   { &key_rwlock_Trans_delegate_lock, "Trans_delegate::lock", PSI_FLAG_GLOBAL},
   { &key_rwlock_Server_state_delegate_lock, "Server_state_delegate::lock", PSI_FLAG_GLOBAL},
   { &key_rwlock_Binlog_storage_delegate_lock, "Binlog_storage_delegate::lock", PSI_FLAG_GLOBAL},

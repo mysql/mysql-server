@@ -740,8 +740,12 @@ public:
           thd->owned_gtid.sidno == THD::OWNED_SIDNO_ANONYMOUS)
       {
         thd->clear_owned_gtids();
+        global_sid_lock->rdlock();
+        gtid_state->release_anonymous_ownership();
+        global_sid_lock->unlock();
       }
     }
+    DEBUG_SYNC(thd, "after_flush_stm_cache_before_flush_trx_cache");
     if (int error= trx_cache.flush(thd, &trx_bytes, wrote_xid))
       return error;
     *bytes_written= stmt_bytes + trx_bytes;
@@ -1242,7 +1246,7 @@ int MYSQL_BIN_LOG::gtid_end_transaction(THD *thd)
   }
   else if (thd->owned_gtid.sidno == THD::OWNED_SIDNO_ANONYMOUS)
   {
-    thd->clear_owned_gtids();
+    gtid_state->update_on_commit(thd);
   }
   DBUG_RETURN(0);
 }
@@ -5415,7 +5419,7 @@ int MYSQL_BIN_LOG::purge_logs(const char *to_log,
   }
 
   // Update gtid_state->lost_gtids
-  if (gtid_mode > 0 && !is_relay_log)
+  if (!is_relay_log)
   {
     global_sid_lock->wrlock();
     error= init_gtid_sets(NULL,
@@ -6062,7 +6066,7 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log, Format_description_log_even
   flush_io_cache(&log_file);
   DEBUG_SYNC(current_thd, "after_rotate_event_appended");
 
-  if (!is_relay_log && gtid_mode > GTID_MODE_UPGRADE_STEP_1)
+  if (!is_relay_log)
   {
     /* Save set of GTIDs of the last binlog into table on binlog rotation */
     if ((error= gtid_state->save_gtids_of_last_binlog_into_table(true)))
@@ -7465,11 +7469,37 @@ int MYSQL_BIN_LOG::prepare(THD *thd, bool all)
 TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all)
 {
   DBUG_ENTER("MYSQL_BIN_LOG::commit");
+  DBUG_PRINT("info", ("query='%s'",
+                      thd == current_thd ? thd->query().str : NULL));
+  TC_LOG::enum_result ret= write_binlog_and_commit_engine(thd, all);
 
+  // In some cases, flush_binlog_and_commit_engine may never call
+  // update_gtids_impl.  So we do it here.
+  if (thd->pending_gtid_state_update)
+  {
+    DBUG_PRINT("info", ("write_binlog_and_commit_engine did not call gtid_state->update_on_[commit|rollback]."));
+    switch (ret)
+    {
+    case RESULT_SUCCESS:
+      gtid_state->update_on_commit(thd);
+      break;
+    case RESULT_ABORTED:
+    case RESULT_INCONSISTENT:
+      gtid_state->update_on_rollback(thd);
+      break;
+    }
+  }
+
+  DBUG_RETURN(ret);
+}
+
+TC_LOG::enum_result MYSQL_BIN_LOG::write_binlog_and_commit_engine(THD *thd,
+                                                                  bool all)
+{
+  DBUG_ENTER("MYSQL_BIN_LOG::write_binlog_and_commit_engine");
   binlog_cache_mngr *cache_mngr= thd_get_cache_mngr(thd);
   Transaction_ctx *trn_ctx= thd->get_transaction();
   my_xid xid= trn_ctx->xid_state()->get_xid()->get_my_xid();
-  int error= RESULT_SUCCESS;
   bool stuff_logged= false;
 
   DBUG_PRINT("enter", ("thd: 0x%llx, all: %s, xid: %llu, cache_mngr: 0x%llx",
@@ -7549,7 +7579,7 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all)
      - We are in a transaction and a full transaction is committed.
     Otherwise, we accumulate the changes.
   */
-  if (!error && !cache_mngr->trx_cache.is_binlog_empty() &&
+  if (!cache_mngr->trx_cache.is_binlog_empty() &&
       ending_trans(thd, all))
   {
     const bool real_trans=
@@ -7588,11 +7618,6 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all)
   */
   if (!all)
     cache_mngr->trx_cache.set_prev_position(MY_OFF_T_UNDEF);
-
-  DBUG_PRINT("debug", ("error: %d", error));
-
-  if (error)
-    DBUG_RETURN(RESULT_ABORTED);
 
   /*
     Now all the events are written to the caches, so we will commit
@@ -7638,7 +7663,7 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all)
       DBUG_RETURN(RESULT_INCONSISTENT);
   }
 
-  DBUG_RETURN(error ? RESULT_INCONSISTENT : RESULT_SUCCESS);
+  DBUG_RETURN(RESULT_SUCCESS);
 }
 
 
@@ -9320,6 +9345,20 @@ int THD::decide_logging_format(TABLE_LIST *tables)
         if (lex->is_stmt_unsafe() || lex->is_stmt_row_injection()
             || (flags_write_all_set & HA_BINLOG_STMT_CAPABLE) == 0)
         {
+#ifndef DBUG_OFF
+          int flags= lex->get_stmt_unsafe_flags();
+          DBUG_PRINT("info", ("setting row format for unsafe statement"));
+          for (int i= 0; i < Query_tables_list::BINLOG_STMT_UNSAFE_COUNT; i++)
+          {
+            if (flags & (1 << i))
+              DBUG_PRINT("info", ("unsafe reason: %s",
+                                  ER(Query_tables_list::binlog_stmt_unsafe_errcode[i])));
+          }
+          DBUG_PRINT("info", ("is_row_injection=%d",
+                              lex->is_stmt_row_injection()));
+          DBUG_PRINT("info", ("stmt_capable=%llu",
+                              (flags_write_all_set & HA_BINLOG_STMT_CAPABLE)));
+#endif
           /* log in row format! */
           set_current_stmt_binlog_format_row_if_mixed();
         }
@@ -9350,7 +9389,7 @@ int THD::decide_logging_format(TABLE_LIST *tables)
       clear_binlog_local_stmt_filter();
     }
 
-    if (!error && enforce_gtid_consistency &&
+    if (!error &&
         !is_dml_gtid_compatible(write_to_some_transactional_table,
                                 write_to_some_non_transactional_table,
                                 write_all_non_transactional_are_tmp_tables))
@@ -9446,11 +9485,137 @@ int THD::decide_logging_format(TABLE_LIST *tables)
                         binlog_filter->db_ok(m_db.str)));
 #endif
 
+  DEBUG_SYNC(current_thd, "end_decide_logging_format");
+
   DBUG_RETURN(0);
 }
 
 
-bool THD::is_ddl_gtid_compatible() const
+/**
+  Given that a possible violation of gtid consistency has happened,
+  checks if gtid-inconsistencies are forbidden by the current value of
+  ENFORCE_GTID_CONSISTENCY and GTID_MODE. If forbidden, generates
+  error or warning accordingly.
+
+  @param thd The thread that has issued the GTID-violating statement.
+
+  @param error_code The error code to use, if error or warning is to
+  be generated.
+
+  @param handle_error If the GTID-violation is going to generate an
+  error, generate an error if handle_error is true. Skip the error if
+  handle_error is false.
+
+  @param handle_nonerror If the GTID-violation is not going to
+  generate an error (i.e. either it generates a warning or is silent),
+  increase the counter of GTID-violating transactions if
+  handle_nonerror is true.  Also, if the GTID-violation is going to
+  generate a warning, generate the warning if handle_nonerror is true.
+  Skip increasing counter and skip generating a warning if
+  handle_nonerror is false.
+
+  The reason we have the handle_error and handle_nonerror paramters is
+  that GTID-violation errors for DDL must be generated before the
+  implicit commit, whereas warnings and counter increments must happen
+  after the implicit commit; so there are two calls to this function.
+
+  @retval false Error was generated.
+  @retval true No error was generated (possibly a warning was generated).
+*/
+static bool handle_gtid_consistency_violation(THD *thd, int error_code,
+                                              bool handle_error,
+                                              bool handle_nonerror)
+{
+  DBUG_ENTER("handle_gtid_consistency_violation");
+
+  enum_group_type gtid_next_type= thd->variables.gtid_next.type;
+  global_sid_lock->rdlock();
+  enum_gtid_consistency_mode gtid_consistency_mode=
+    get_gtid_consistency_mode();
+  enum_gtid_mode gtid_mode= get_gtid_mode(GTID_MODE_LOCK_SID);
+
+  DBUG_PRINT("info", ("handle_error=%d handle_nonerror=%d "
+                      "gtid_next.type=%d gtid_mode=%s "
+                      "gtid_consistency_mode=%d error=%d query=%s",
+                      handle_error,
+                      handle_nonerror,
+                      gtid_next_type,
+                      get_gtid_mode_string(gtid_mode),
+                      gtid_consistency_mode,
+                      error_code,
+                      thd->query().str));
+
+  /*
+    GTID violations should generate error if:
+    - GTID_MODE=ON or ON_PERMISSIVE and GTID_NEXT='AUTOMATIC' (since the
+      transaction is expected to commit using a GTID), or
+    - GTID_NEXT='UUID:NUMBER' (since the transaction is expected to
+      commit usinga GTID), or
+    - ENFORCE_GTID_CONSISTENCY=ON.
+  */
+  if ((gtid_next_type == AUTOMATIC_GROUP &&
+       gtid_mode >= GTID_MODE_ON_PERMISSIVE) ||
+      gtid_next_type == GTID_GROUP ||
+      gtid_consistency_mode == GTID_CONSISTENCY_MODE_ON)
+  {
+    global_sid_lock->unlock();
+    if (handle_error)
+      my_error(error_code, MYF(0));
+    DBUG_RETURN(false);
+  }
+  else
+  {
+    /*
+      If we are not generating an error, we must increase the counter
+      of GTID-violating transactions.  This will prevent a concurrent
+      client from executing a SET GTID_MODE or SET
+      ENFORCE_GTID_CONSISTENCY statement that would be incompatible
+      with this transaction.
+
+      If the transaction had already been accounted as a gtid violating
+      transaction, then don't increment the counters, just issue the
+      warning below. This prevents calling
+      begin_automatic_gtid_violating_transaction or
+      begin_anonymous_gtid_violating_transaction multiple times for the
+      same transaction, which would make the counter go out of sync.
+    */
+    if (handle_nonerror && !thd->has_gtid_consistency_violation)
+    {
+      if (gtid_next_type == AUTOMATIC_GROUP)
+        gtid_state->begin_automatic_gtid_violating_transaction();
+      else
+      {
+        DBUG_ASSERT(gtid_next_type == ANONYMOUS_GROUP);
+        gtid_state->begin_anonymous_gtid_violating_transaction();
+      }
+
+      /*
+        If a transaction generates multiple GTID violation conditions,
+        it must still only update the counters once.  Hence we use
+        this per-thread flag to keep track of whether the thread has a
+        consistency or not.  This function must only be called if the
+        transaction does not already have a GTID violation.
+      */
+      thd->has_gtid_consistency_violation= true;
+    }
+
+    global_sid_lock->unlock();
+
+    // Generate warning if ENFORCE_GTID_CONSISTENCY = WARN.
+    if (handle_nonerror && gtid_consistency_mode == GTID_CONSISTENCY_MODE_WARN)
+    {
+      // Need to print to log so that replication admin knows when users
+      // have adjusted their workloads.
+      sql_print_warning("%s", ER(error_code));
+      // Need to print to client so that users can adjust their workload.
+      push_warning(thd, Sql_condition::SL_WARNING, error_code, ER(error_code));
+    }
+    DBUG_RETURN(true);
+  }
+}
+
+
+bool THD::is_ddl_gtid_compatible(bool handle_error, bool handle_nonerror)
 {
   DBUG_ENTER("THD::is_ddl_gtid_compatible");
 
@@ -9458,6 +9623,15 @@ bool THD::is_ddl_gtid_compatible() const
   // doable by SUPER), then no problem, we can execute any statement.
   if ((variables.option_bits & OPTION_BIN_LOG) == 0)
     DBUG_RETURN(true);
+
+  DBUG_PRINT("info",
+             ("SQLCOM_CREATE:%d CREATE-TMP:%d SELECT:%d SQLCOM_DROP:%d DROP-TMP:%d trx:%d",
+              lex->sql_command == SQLCOM_CREATE_TABLE,
+              lex->create_info.options & HA_LEX_CREATE_TMP_TABLE,
+              lex->select_lex->item_list.elements,
+              lex->sql_command == SQLCOM_DROP_TABLE,
+              lex->drop_temporary,
+              in_multi_stmt_transaction_mode()));
 
   if (lex->sql_command == SQLCOM_CREATE_TABLE &&
       !(lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) &&
@@ -9470,12 +9644,13 @@ bool THD::is_ddl_gtid_compatible() const
       and then written to the slave's binary log as two separate
       transactions with the same GTID.
     */
-    my_error(ER_GTID_UNSAFE_CREATE_SELECT, MYF(0));
-    DBUG_RETURN(false);
+    bool ret= handle_gtid_consistency_violation(
+      this, ER_GTID_UNSAFE_CREATE_SELECT, handle_error, handle_nonerror);
+    DBUG_RETURN(ret);
   }
-  if ((lex->sql_command == SQLCOM_CREATE_TABLE &&
-       (lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) != 0) ||
-      (lex->sql_command == SQLCOM_DROP_TABLE && lex->drop_temporary))
+  else if ((lex->sql_command == SQLCOM_CREATE_TABLE &&
+            (lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) != 0) ||
+           (lex->sql_command == SQLCOM_DROP_TABLE && lex->drop_temporary))
   {
     /*
       [CREATE|DROP] TEMPORARY TABLE is unsafe to execute
@@ -9485,9 +9660,10 @@ bool THD::is_ddl_gtid_compatible() const
     */
     if (in_multi_stmt_transaction_mode())
     {
-      my_error(ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION,
-               MYF(0));
-      DBUG_RETURN(false);
+      bool ret= handle_gtid_consistency_violation(
+        this, ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION,
+        handle_error, handle_nonerror);
+      DBUG_RETURN(ret);
     }
   }
   DBUG_RETURN(true);
@@ -9495,9 +9671,9 @@ bool THD::is_ddl_gtid_compatible() const
 
 
 bool
-THD::is_dml_gtid_compatible(bool transactional_table,
-                            bool non_transactional_table,
-                            bool non_transactional_tmp_tables) const
+THD::is_dml_gtid_compatible(bool some_transactional_table,
+                            bool some_non_transactional_table,
+                            bool non_transactional_tables_are_tmp)
 {
   DBUG_ENTER("THD::is_dml_gtid_compatible(bool, bool, bool)");
 
@@ -9523,13 +9699,24 @@ THD::is_dml_gtid_compatible(bool transactional_table,
     old tests that were not written with the restrictions of GTIDs in
     mind.
   */
-  if (non_transactional_table &&
-      (transactional_table || trans_has_updated_trans_table(this)) &&
-      !(non_transactional_tmp_tables && is_current_stmt_binlog_format_row()) &&
+  DBUG_PRINT("info", ("some_non_transactional_table=%d "
+                      "some_transactional_table=%d "
+                      "trans_has_updated_trans_table=%d "
+                      "non_transactional_tables_are_tmp=%d "
+                      "is_current_stmt_binlog_format_row=%d",
+                      some_non_transactional_table,
+                      some_transactional_table,
+                      trans_has_updated_trans_table(this),
+                      non_transactional_tables_are_tmp,
+                      is_current_stmt_binlog_format_row()));
+  if (some_non_transactional_table &&
+      (some_transactional_table || trans_has_updated_trans_table(this)) &&
+      !(non_transactional_tables_are_tmp &&
+        is_current_stmt_binlog_format_row()) &&
       !DBUG_EVALUATE_IF("allow_gtid_unsafe_non_transactional_updates", 1, 0))
   {
-    my_error(ER_GTID_UNSAFE_NON_TRANSACTIONAL_TABLE, MYF(0));
-    DBUG_RETURN(false);
+    DBUG_RETURN(handle_gtid_consistency_violation(
+      this, ER_GTID_UNSAFE_NON_TRANSACTIONAL_TABLE, true, true));
   }
 
   DBUG_RETURN(true);

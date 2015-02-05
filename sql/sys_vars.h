@@ -35,6 +35,10 @@
 #include "strfunc.h"              // find_type
 #include "sys_vars_shared.h"      // throw_bounds_warning
 #include "tztime.h"               // Time_zone
+#include "binlog.h"               // mysql_bin_log
+#include "rpl_rli.h"              // sql_slave_skip_counter
+#include "rpl_msr.h"              // msr_map
+#include "rpl_group_replication.h"// is_group_replication_running
 
 
 /*
@@ -426,6 +430,264 @@ public:
   }
   void global_save_default(THD *thd, set_var *var)
   { var->save_result.ulonglong_value= option.def_value; }
+};
+
+
+/**
+  A variant of enum where:
+  - Each value may have multiple enum-like aliases.
+  - Instances of the class can specify different default values for
+    the cases:
+    - User specifies the command-line option without a value (i.e.,
+      --option, not --option=value).
+    - User does not specify a command-line option at all.
+
+  This exists mainly to allow extending a variable that once was
+  boolean in a GA version, into an enumeration type.  Booleans accept
+  multiple aliases (0=off=false, 1=on=true), but Sys_var_enum does
+  not, so we could not use Sys_var_enum without breaking backward
+  compatibility.  Moreover, booleans default to false if option is not
+  given, and true if option is given without value.
+
+  This is *incompatible* with boolean in the following sense:
+  'SELECT @@variable' returns 0 or 1 for a boolean, whereas this class
+  (similar to enum) returns the textual form. (Note that both boolean,
+  enum, and this class return the textual form in SHOW VARIABLES and
+  SELECT * FROM information_schema.variables).
+
+  See enforce_gtid_consistency for an example of how this can be used.
+*/
+class Sys_var_multi_enum : public sys_var
+{
+public:
+  struct ALIAS
+  {
+    const char *alias;
+    uint number;
+  };
+
+  /**
+    Class specific parameters:
+
+    @param aliases_arg Array of ALIASes, indicating which textual
+    values map to which number.  Should be terminated with an ALIAS
+    having member variable alias set to NULL.  The first
+    `value_count_arg' elements must map to 0, 1, etc; these will be
+    used when the value is displayed.  Remaining elements may appear
+    in arbitrary order.
+
+    @param value_count_arg The number of allowed integer values.
+
+    @param def_val The default value if no command line option is
+    given. This must be a valid index into the aliases_arg array, but
+    it does not have to be less than value_count.  The corresponding
+    alias will be used in mysqld --help to show the default value.
+
+    @param command_line_no_value The default value if a command line
+    option is given without a value ('--command-line-option' without
+    '=VALUE').  This must be less than value_count_arg.
+  */
+  Sys_var_multi_enum(const char *name_arg,
+          const char *comment, int flag_args, ptrdiff_t off, size_t size,
+          CMD_LINE getopt,
+          const ALIAS aliases_arg[], uint value_count_arg,
+          uint def_val, uint command_line_no_value_arg, PolyLock *lock=0,
+          enum binlog_status_enum binlog_status_arg=VARIABLE_NOT_IN_BINLOG,
+          on_check_function on_check_func=0,
+          on_update_function on_update_func=0,
+          const char *substitute=0,
+          int parse_flag= PARSE_NORMAL)
+    : sys_var(&all_sys_vars, name_arg, comment, flag_args, off, getopt.id,
+              getopt.arg_type, SHOW_CHAR, def_val, lock,
+              binlog_status_arg, on_check_func,
+              on_update_func, substitute, parse_flag),
+    value_count(value_count_arg),
+    aliases(aliases_arg),
+    command_line_no_value(command_line_no_value_arg)
+  {
+    for (alias_count= 0; aliases[alias_count].alias; alias_count++)
+      DBUG_ASSERT(aliases[alias_count].number < value_count);
+    DBUG_ASSERT(def_val < alias_count);
+
+    option.var_type= GET_STR;
+    option.value= &command_line_value;
+    option.def_value= (intptr)aliases[def_val].alias;
+
+    global_var(ulong)= aliases[def_val].number;
+
+    DBUG_ASSERT(getopt.arg_type == OPT_ARG || getopt.id == -1);
+    DBUG_ASSERT(size == sizeof(ulong));
+  }
+
+  /**
+    Return the numeric value for a given alias string, or -1 if the
+    string is not a valid alias.
+  */
+  int find_value(const char *text)
+  {
+    for (uint i= 0; aliases[i].alias != NULL; i++)
+      if (my_strcasecmp(system_charset_info, aliases[i].alias, text) == 0)
+        return aliases[i].number;
+    return -1;
+  }
+
+  /**
+    Because of limitations in the command-line parsing library, the
+    value given on the command-line cannot be automatically copied to
+    the global value.  Instead, inheritants of this class should call
+    this function from mysqld.cc:mysqld_get_one_option.
+
+    @param value_str Pointer to the value specified on the command
+    line (as in --option=VALUE).
+
+    @retval NULL Success.
+
+    @retval non-NULL Pointer to the invalid string that was used as
+    argument.
+  */
+  const char *fixup_command_line(const char *value_str)
+  {
+    DBUG_ENTER("Sys_var_multi_enum::fixup_command_line");
+    char *end= NULL;
+    long value;
+
+    // User passed --option (not --option=value).
+    if (value_str == NULL)
+    {
+      value= command_line_no_value;
+      goto end;
+    }
+
+    // Get textual value.
+    value= find_value(value_str);
+    if (value != -1)
+      goto end;
+
+    // Get numeric value.
+    value= strtol(value_str, &end, 10);
+    // found a number and nothing else?
+    if (end > value_str && *end == '\0')
+      // value is in range?
+      if (value >= 0 && (longlong)value < (longlong)value_count)
+        goto end;
+
+    // Not a valid value.
+    DBUG_RETURN(value_str);
+
+end:
+    global_var(ulong)= value;
+    DBUG_RETURN(NULL);
+  }
+
+  bool do_check(THD *thd, set_var *var)
+  {
+    DBUG_ENTER("Sys_var_multi_enum::do_check");
+    char buff[STRING_BUFFER_USUAL_SIZE];
+    String str(buff, sizeof(buff), system_charset_info), *res;
+    if (var->value->result_type() == STRING_RESULT)
+    {
+      res= var->value->val_str(&str);
+      if (!res)
+        DBUG_RETURN(true);
+      int value= find_value(res->ptr());
+      if (value == -1)
+        DBUG_RETURN(true);
+      var->save_result.ulonglong_value= (uint)value;
+    }
+    else
+    {
+      longlong value= var->value->val_int();
+      if (value < 0 || value >= (longlong)value_count)
+        DBUG_RETURN(true);
+      else
+        var->save_result.ulonglong_value= value;
+    }
+
+    DBUG_RETURN(false);
+  }
+  bool check_update_type(Item_result type)
+  { return type != INT_RESULT && type != STRING_RESULT; }
+  bool session_update(THD *thd, set_var *var)
+  {
+    DBUG_ENTER("Sys_var_multi_enum::session_update");
+    DBUG_ASSERT(0);
+    /*
+    Currently not used: uncomment if this class is used as a base for
+    a session variable.
+
+    session_var(thd, ulong)=
+      static_cast<ulong>(var->save_result.ulonglong_value);
+    */
+    DBUG_RETURN(false);
+  }
+  bool global_update(THD *thd, set_var *var)
+  {
+    DBUG_ENTER("Sys_var_multi_enum::global_update");
+    DBUG_ASSERT(0);
+    /*
+    Currently not used: uncomment if this some inheriting class does
+    not override..
+
+    ulong val=
+      static_cast<ulong>(var->save_result.ulonglong_value);
+    global_var(ulong)= val;
+    */
+    DBUG_RETURN(false);
+  }
+  void session_save_default(THD *thd, set_var *var)
+  {
+    DBUG_ENTER("Sys_var_multi_enum::session_save_default");
+    DBUG_ASSERT(0);
+    /*
+    Currently not used: uncomment if this class is used as a base for
+    a session variable.
+
+    int value= find_value((char *)option.def_value);
+    DBUG_ASSERT(value != -1);
+    var->save_result.ulonglong_value= value;
+    */
+    DBUG_VOID_RETURN;
+  }
+  void global_save_default(THD *thd, set_var *var)
+  {
+    DBUG_ENTER("Sys_var_multi_enum::global_save_default");
+    int value= find_value((char *)option.def_value);
+    DBUG_ASSERT(value != -1);
+    var->save_result.ulonglong_value= value;
+    DBUG_VOID_RETURN;
+  }
+
+  uchar *session_value_ptr(THD *thd, LEX_STRING *base)
+  {
+    DBUG_ENTER("Sys_var_multi_enum::session_value_ptr");
+    DBUG_ASSERT(0);
+    /*
+    Currently not used: uncomment if this class is used as a base for
+    a session variable.
+
+    DBUG_RETURN((uchar*)aliases[session_var(thd, ulong)].alias);
+    */
+    DBUG_RETURN(0);
+  }
+  uchar *global_value_ptr(THD *thd, LEX_STRING *base)
+  {
+    DBUG_ENTER("Sys_var_multi_enum::global_value_ptr");
+    DBUG_RETURN((uchar*)aliases[global_var(ulong)].alias);
+  }
+private:
+  /// The number of allowed numeric values.
+  const uint value_count;
+  /// Array of all textual aliases.
+  const ALIAS *aliases;
+  /// The number of elements of aliases (computed in the constructor).
+  uint alias_count;
+
+  /**
+    Pointer to the value set by the command line (set by the command
+    line parser, copied to the global value in fixup_command_line()).
+  */
+  const char *command_line_value;
+  uint command_line_no_value;
 };
 
 /**
@@ -1881,12 +2143,12 @@ public:
 
 
 /**
-  Class for variables that store values of type Gtid_specification.
+  Class for gtid_next.
 */
-class Sys_var_gtid_specification: public sys_var
+class Sys_var_gtid_next: public sys_var
 {
 public:
-  Sys_var_gtid_specification(const char *name_arg,
+  Sys_var_gtid_next(const char *name_arg,
           const char *comment, int flag_args, ptrdiff_t off, size_t size,
           CMD_LINE getopt,
           const char *def_val,
@@ -1905,50 +2167,57 @@ public:
   }
   bool session_update(THD *thd, set_var *var)
   {
-    DBUG_ENTER("Sys_var_gtid::session_update");
+    DBUG_ENTER("Sys_var_gtid_next::session_update");
+    char buf[Gtid::MAX_TEXT_LENGTH + 1];
+    // Get the value
+    String str(buf, sizeof(buf), &my_charset_latin1);
+    char* res= NULL;
+    if (!var->value)
+    {
+      // set session gtid_next= default
+      DBUG_ASSERT(var->save_result.string_value.str);
+      DBUG_ASSERT(var->save_result.string_value.length);
+      res= var->save_result.string_value.str;
+    }
+    else if (var->value->val_str(&str))
+      res= var->value->val_str(&str)->c_ptr_safe();
+    if (!res)
+    {
+      my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), name.str, "NULL");
+      DBUG_RETURN(true);
+    }
     global_sid_lock->rdlock();
-    bool ret= (((Gtid_specification *)session_var_ptr(thd))->
-               parse(global_sid_map,
-                     var->save_result.string_value.str) != 0);
-    global_sid_lock->unlock();
+    Gtid_specification spec;
+    if (spec.parse(global_sid_map, res) != RETURN_STATUS_OK)
+    {
+      global_sid_lock->unlock();
+      DBUG_RETURN(true);
+    }
+
+    bool ret= set_gtid_next(thd, spec);
+    // set_gtid_next releases global_sid_lock
     DBUG_RETURN(ret);
   }
   bool global_update(THD *thd, set_var *var)
   { DBUG_ASSERT(FALSE); return true; }
   void session_save_default(THD *thd, set_var *var)
   {
-    DBUG_ENTER("Sys_var_gtid::session_save_default");
-    char *ptr= (char*)(intptr)option.def_value;
+    DBUG_ENTER("Sys_var_gtid_next::session_save_default");
+    char* ptr= (char*)(intptr)option.def_value;
     var->save_result.string_value.str= ptr;
     var->save_result.string_value.length= ptr ? strlen(ptr) : 0;
+    thd->variables.gtid_next.set_automatic();
     DBUG_VOID_RETURN;
   }
   void global_save_default(THD *thd, set_var *var)
   { DBUG_ASSERT(FALSE); }
   bool do_check(THD *thd, set_var *var)
-  {
-    DBUG_ENTER("Sys_var_gtid::do_check");
-    char buf[Gtid_specification::MAX_TEXT_LENGTH + 1];
-    String str(buf, sizeof(buf), &my_charset_latin1);
-    String *res= var->value->val_str(&str);
-    if (!res)
-      DBUG_RETURN(true);
-    var->save_result.string_value.str= thd->strmake(res->c_ptr_safe(), res->length());
-    if (!var->save_result.string_value.str)
-    {
-      my_error(ER_OUT_OF_RESOURCES, MYF(0)); // thd->strmake failed
-      DBUG_RETURN(true);
-    }
-    var->save_result.string_value.length= res->length();
-    bool ret= Gtid_specification::is_valid(res->c_ptr_safe()) ? false : true;
-    DBUG_PRINT("info", ("ret=%d", ret));
-    DBUG_RETURN(ret);
-  }
+  { return false; }
   bool check_update_type(Item_result type)
   { return type != STRING_RESULT; }
   uchar *session_value_ptr(THD *thd, LEX_STRING *base)
   {
-    DBUG_ENTER("Sys_var_gtid::session_value_ptr");
+    DBUG_ENTER("Sys_var_gtid_next::session_value_ptr");
     char buf[Gtid_specification::MAX_TEXT_LENGTH + 1];
     global_sid_lock->rdlock();
     ((Gtid_specification *)session_var_ptr(thd))->
@@ -2292,10 +2561,14 @@ public:
   {
     DBUG_ENTER("Sys_var_gtid_owned::session_value_ptr");
     char *buf= NULL;
-    if (thd->owned_gtid.sidno == 0 ||
-        thd->owned_gtid.sidno == THD::OWNED_SIDNO_ANONYMOUS)
+    if (thd->owned_gtid.sidno == 0)
       DBUG_RETURN((uchar *)thd->mem_strdup(""));
-    if (thd->owned_gtid.sidno == THD::OWNED_SIDNO_GTID_SET)
+    else if (thd->owned_gtid.sidno == THD::OWNED_SIDNO_ANONYMOUS)
+    {
+      DBUG_ASSERT(gtid_state->get_anonymous_ownership_count() > 0);
+      DBUG_RETURN((uchar *)thd->mem_strdup("ANONYMOUS"));
+    }
+    else if (thd->owned_gtid.sidno == THD::OWNED_SIDNO_GTID_SET)
     {
 #ifdef HAVE_GTID_NEXT_LIST
       buf= (char *)thd->alloc(thd->owned_gtid_set.get_string_length() + 1);
@@ -2334,6 +2607,331 @@ public:
       my_error(ER_OUT_OF_RESOURCES, MYF(0)); // thd->alloc faile
     global_sid_lock->unlock();
     DBUG_RETURN((uchar *)buf);
+  }
+};
+
+#ifdef HAVE_REPLICATION
+class Sys_var_gtid_mode : public Sys_var_enum
+{
+public:
+  Sys_var_gtid_mode(const char *name_arg,
+                    const char *comment,
+                    int flag_args,
+                    ptrdiff_t off,
+                    size_t size,
+                    CMD_LINE getopt,
+                    const char *values[],
+                    uint def_val,
+                    PolyLock *lock=0,
+                    enum binlog_status_enum binlog_status_arg=VARIABLE_NOT_IN_BINLOG,
+                    on_check_function on_check_func=0) :
+                      Sys_var_enum(name_arg, comment, flag_args, off, size,
+                                   getopt, values, def_val, lock, binlog_status_arg,
+                                   on_check_func)
+  { }
+
+  bool global_update(THD *thd, set_var *var)
+  {
+    DBUG_ENTER("Sys_var_gtid_mode::global_update");
+    bool ret= true;
+
+    /*
+      Hold lock_log so that:
+      - other transactions are not flushed while gtid_mode is changed;
+      - gtid_mode is not changed while some other thread is rotating
+        the binlog.
+
+      Hold lock_msr_map so that:
+      - gtid_mode is not changed during the execution of some
+        replication command; particularly CHANGE MASTER. CHANGE MASTER
+        checks if GTID_MODE is compatible with AUTO_POSITION, and
+        later it actually updates the in-memory structure for
+        AUTO_POSITION.  If gtid_mode was changed between these calls,
+        auto_position could be set incompatible with gtid_mode.
+
+      Hold global_sid_lock.wrlock so that:
+      - other transactions cannot acquire ownership of any gtid.
+
+      Hold gtid_mode_lock so that all places that don't want to hold
+      any of the other locks, but want to read gtid_mode, don't need
+      to take the other locks.
+    */
+    gtid_mode_lock->wrlock();
+    mysql_mutex_lock(&LOCK_msr_map);
+    mysql_mutex_lock(mysql_bin_log.get_log_lock());
+    global_sid_lock->wrlock();
+    int lock_count= 4;
+
+    enum_gtid_mode new_gtid_mode=
+      (enum_gtid_mode)var->save_result.ulonglong_value;
+    enum_gtid_mode old_gtid_mode= get_gtid_mode(GTID_MODE_LOCK_SID);
+    DBUG_ASSERT(new_gtid_mode <= GTID_MODE_ON);
+
+    DBUG_PRINT("info", ("old_gtid_mode=%d new_gtid_mode=%d",
+                        old_gtid_mode, new_gtid_mode));
+
+    if (new_gtid_mode == old_gtid_mode)
+      goto end;
+
+    // Can only change one step at a time.
+    if (abs((int)new_gtid_mode - (int)old_gtid_mode) > 1)
+    {
+      my_error(ER_GTID_MODE_CAN_ONLY_CHANGE_ONE_STEP_AT_A_TIME, MYF(0));
+      goto err;
+    }
+
+    // Not allowed with slave_sql_skip_counter
+    DBUG_PRINT("info", ("sql_slave_skip_counter=%d", sql_slave_skip_counter));
+    if (new_gtid_mode == GTID_MODE_ON && sql_slave_skip_counter > 0)
+    {
+      my_error(ER_CANT_SET_GTID_MODE, MYF(0), "ON",
+               "@@GLOBAL.SQL_SLAVE_SKIP_COUNTER is greater than zero");
+      goto err;
+    }
+
+    // Cannot set OFF when some channel uses AUTO_POSITION.
+    if (new_gtid_mode == GTID_MODE_OFF)
+    {
+      for (mi_map::iterator it= msr_map.begin(); it!= msr_map.end(); it++)
+      {
+        Master_info *mi= it->second;
+        DBUG_PRINT("info", ("auto_position for channel '%s' is %d",
+                            mi->get_channel(), mi->is_auto_position()));
+        if (mi != NULL && mi->is_auto_position())
+        {
+          char buf[512];
+          sprintf(buf, "replication channel '%.192s' is configured "
+                  "in AUTO_POSITION mode. Execute "
+                  "CHANGE MASTER TO MASTER_AUTO_POSITION = 0 "
+                  "FOR CHANNEL '%.192s' before you set "
+                  "@@GLOBAL.GTID_MODE = OFF.",
+                  mi->get_channel(), mi->get_channel());
+          my_error(ER_CANT_SET_GTID_MODE, MYF(0), "OFF", buf);
+          goto err;
+        }
+      }
+    }
+
+    // Can't set GTID_MODE != ON when group replication is enabled.
+    if (is_group_replication_running())
+    {
+      DBUG_ASSERT(old_gtid_mode == GTID_MODE_ON);
+      DBUG_ASSERT(new_gtid_mode == GTID_MODE_ON_PERMISSIVE);
+      my_error(ER_CANT_SET_GTID_MODE, MYF(0),
+               get_gtid_mode_string(new_gtid_mode),
+               "group replication requires @@GLOBAL.GTID_MODE=ON");
+      goto err;
+    }
+
+    // Compatible with ongoing transactions.
+    DBUG_PRINT("info", ("anonymous_ownership_count=%d owned_gtids->is_empty=%d",
+                        gtid_state->get_anonymous_ownership_count(),
+                        gtid_state->get_owned_gtids()->is_empty()));
+    gtid_state->get_owned_gtids()->dbug_print("global owned_gtids");
+    if (new_gtid_mode == GTID_MODE_ON &&
+        gtid_state->get_anonymous_ownership_count() > 0)
+    {
+      my_error(ER_CANT_SET_GTID_MODE, MYF(0), "ON",
+               "there are ongoing, anonymous transactions. Before "
+               "setting @@GLOBAL.GTID_MODE = ON, wait until "
+               "SHOW STATUS LIKE 'ANONYMOUS_TRANSACTION_COUNT' "
+               "shows zero on all servers. Then wait for all "
+               "existing, anonymous transactions to replicate to "
+               "all slaves, and then execute "
+               "SET @@GLOBAL.GTID_MODE = ON on all servers. "
+               "See the Manual for details");
+      goto err;
+    }
+
+    if (new_gtid_mode == GTID_MODE_OFF &&
+        !gtid_state->get_owned_gtids()->is_empty())
+    {
+      my_error(ER_CANT_SET_GTID_MODE, MYF(0), "OFF",
+               "there are ongoing transactions that have a GTID. "
+               "Before you set @@GLOBAL.GTID_MODE = OFF, wait "
+               "until SELECT @@GLOBAL.GTID_OWNED is empty on all "
+               "servers. Then wait for all GTID-transactions to "
+               "replicate to all servers, and then execute "
+               "SET @@GLOBAL.GTID_MODE = OFF on all servers. "
+               "See the Manual for details");
+      goto err;
+    }
+
+    // Compatible with ongoing GTID-violating transactions
+    DBUG_PRINT("info", ("automatic_gtid_violating_transaction_count=%d",
+                        gtid_state->get_automatic_gtid_violating_transaction_count()));
+    if (new_gtid_mode >= GTID_MODE_ON_PERMISSIVE &&
+        gtid_state->get_automatic_gtid_violating_transaction_count() > 0)
+    {
+      my_error(ER_CANT_SET_GTID_MODE, MYF(0), "ON_PERMISSIVE",
+               "there are ongoing transactions that use "
+               "GTID_NEXT = 'AUTOMATIC', which violate GTID "
+               "consistency. Adjust your workload to be "
+               "GTID-consistent before setting "
+               "@@GLOBAL.GTID_MODE = ON_PERMISSIVE. "
+               "See the Manual for "
+               "@@GLOBAL.ENFORCE_GTID_CONSISTENCY for details");
+      goto err;
+    }
+
+    // Compatible with ENFORCE_GTID_CONSISTENCY.
+    if (new_gtid_mode == GTID_MODE_ON &&
+        get_gtid_consistency_mode() != GTID_CONSISTENCY_MODE_ON)
+    {
+      my_error(ER_CANT_SET_GTID_MODE, MYF(0), "ON",
+               "ENFORCE_GTID_CONSISTENCY is not ON");
+      goto err;
+    }
+
+    // Can't set GTID_MODE=OFF with ongoing calls to
+    // WAIT_FOR_EXECUTED_GTID_SET or
+    // WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS.
+    DBUG_PRINT("info", ("gtid_wait_count=%d", gtid_state->get_gtid_wait_count() > 0));
+    if (new_gtid_mode == GTID_MODE_OFF &&
+        gtid_state->get_gtid_wait_count() > 0)
+    {
+      my_error(ER_CANT_SET_GTID_MODE, MYF(0), "OFF",
+               "there are ongoing calls to "
+               "WAIT_FOR_EXECUTED_GTID_SET or "
+               "WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS. Before you set "
+               "@@GLOBAL.GTID_MODE = OFF, ensure that no other "
+               "client is waiting for GTID-transactions to be "
+               "committed");
+      goto err;
+    }
+
+    // Update the mode
+    global_var(ulong)= new_gtid_mode;
+    global_sid_lock->unlock();
+    lock_count= 3;
+
+    // Generate note in log
+    sql_print_information("Changed GTID_MODE from %s to %s.",
+                          gtid_mode_names[old_gtid_mode],
+                          gtid_mode_names[new_gtid_mode]);
+
+    // Rotate
+    {
+      bool dont_care= false;
+      if (mysql_bin_log.rotate(true, &dont_care))
+        goto err;
+    }
+
+end:
+    ret= false;
+err:
+    DBUG_ASSERT(lock_count >= 0);
+    DBUG_ASSERT(lock_count <= 4);
+    if (lock_count == 4)
+      global_sid_lock->unlock();
+    mysql_mutex_unlock(mysql_bin_log.get_log_lock());
+    mysql_mutex_unlock(&LOCK_msr_map);
+    gtid_mode_lock->unlock();
+    DBUG_RETURN(ret);
+  }
+};
+
+#endif /* HAVE_REPLICATION */
+
+
+class Sys_var_enforce_gtid_consistency : public Sys_var_multi_enum
+{
+public:
+  Sys_var_enforce_gtid_consistency(
+    const char *name_arg,
+    const char *comment,
+    int flag_args,
+    ptrdiff_t off,
+    size_t size,
+    CMD_LINE getopt,
+    const ALIAS aliases[],
+    const uint value_count,
+    uint def_val,
+    uint command_line_no_value,
+    PolyLock *lock=0,
+    enum binlog_status_enum binlog_status_arg=VARIABLE_NOT_IN_BINLOG,
+    on_check_function on_check_func=0) :
+  Sys_var_multi_enum(name_arg, comment, flag_args, off, size, getopt,
+               aliases, value_count, def_val, command_line_no_value,
+               lock, binlog_status_arg, on_check_func)
+  { }
+
+  bool global_update(THD *thd, set_var *var)
+  {
+    DBUG_ENTER("Sys_var_enforce_gtid_consistency::global_update");
+    bool ret= true;
+
+    /*
+      Hold global_sid_lock.wrlock so that other transactions cannot
+      acquire ownership of any gtid.
+    */
+    global_sid_lock->wrlock();
+
+    DBUG_PRINT("info", ("var->save_result.ulonglong_value=%llu",
+                        var->save_result.ulonglong_value));
+    enum_gtid_consistency_mode new_mode=
+      (enum_gtid_consistency_mode)var->save_result.ulonglong_value;
+    enum_gtid_consistency_mode old_mode= get_gtid_consistency_mode();
+    enum_gtid_mode gtid_mode= get_gtid_mode(GTID_MODE_LOCK_SID);
+
+    DBUG_ASSERT(new_mode <= GTID_CONSISTENCY_MODE_WARN);
+
+    DBUG_PRINT("info", ("old enforce_gtid_consistency=%d "
+                        "new enforce_gtid_consistency=%d "
+                        "gtid_mode=%d ",
+                        old_mode, new_mode, gtid_mode));
+
+    if (new_mode == old_mode)
+      goto end;
+
+    // Can't turn off GTID-consistency when GTID_MODE=ON.
+    if (new_mode != GTID_CONSISTENCY_MODE_ON && gtid_mode == GTID_MODE_ON)
+    {
+      my_error(ER_GTID_MODE_ON_REQUIRES_ENFORCE_GTID_CONSISTENCY_ON, MYF(0));
+      goto err;
+    }
+    // If there are ongoing GTID-violating transactions, and we are
+    // moving from OFF->ON, WARN->ON, or OFF->WARN, generate warning
+    // or error accordingly.
+    if (new_mode == GTID_CONSISTENCY_MODE_ON ||
+        (old_mode == GTID_CONSISTENCY_MODE_OFF &&
+         new_mode == GTID_CONSISTENCY_MODE_WARN))
+    {
+      DBUG_PRINT("info",
+                 ("automatic_gtid_violating_transaction_count=%d "
+                  "anonymous_gtid_violating_transaction_count=%d",
+                  gtid_state->get_automatic_gtid_violating_transaction_count(),
+                  gtid_state->get_anonymous_gtid_violating_transaction_count()));
+      if (gtid_state->get_automatic_gtid_violating_transaction_count() > 0 ||
+          gtid_state->get_anonymous_gtid_violating_transaction_count() > 0)
+      {
+        if (new_mode == GTID_CONSISTENCY_MODE_ON)
+        {
+          my_error(ER_CANT_SET_ENFORCE_GTID_CONSISTENCY_ON_WITH_ONGOING_GTID_VIOLATING_TRANSACTIONS, MYF(0));
+          goto err;
+        }
+        else
+        {
+          push_warning_printf(thd, Sql_condition::SL_WARNING,
+                              ER_SET_ENFORCE_GTID_CONSISTENCY_WARN_WITH_ONGOING_GTID_VIOLATING_TRANSACTIONS,
+                              "%s", ER(ER_SET_ENFORCE_GTID_CONSISTENCY_WARN_WITH_ONGOING_GTID_VIOLATING_TRANSACTIONS));
+        }
+      }
+    }
+
+    // Update the mode
+    global_var(ulong)= new_mode;
+
+    // Generate note in log
+    sql_print_information("Changed ENFORCE_GTID_CONSISTENCY from %s to %s.",
+                          get_gtid_consistency_mode_string(old_mode),
+                          get_gtid_consistency_mode_string(new_mode));
+
+end:
+    ret= false;
+err:
+    global_sid_lock->unlock();
+    DBUG_RETURN(ret);
   }
 };
 

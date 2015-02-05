@@ -682,6 +682,7 @@ public:
   int open_binlog(const char *opt_name);
   void close();
   enum_result commit(THD *thd, bool all);
+  enum_result write_binlog_and_commit_engine(THD *thd, bool all);
   int rollback(THD *thd, bool all);
   int prepare(THD *thd, bool all);
   int recover(IO_CACHE *log, Format_description_log_event *fdle,

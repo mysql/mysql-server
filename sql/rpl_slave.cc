@@ -436,6 +436,25 @@ int init_slave()
     }
   }
 
+  if (get_gtid_mode(GTID_MODE_LOCK_MSR_MAP) == GTID_MODE_OFF)
+  {
+    for (mi_map::iterator it= msr_map.begin(); it != msr_map.end(); it++)
+    {
+      Master_info *mi= it->second;
+      if (mi != NULL && mi->is_auto_position())
+      {
+        sql_print_warning("Detected misconfiguration: replication channel "
+                          "'%.192s' was configured with AUTO_POSITION = 1, "
+                          "but the server was started with --gtid-mode=off. "
+                          "Either reconfigure replication using "
+                          "CHANGE MASTER TO MASTER_AUTO_POSITION = 0 "
+                          "FOR CHANNEL '%.192s', or change GTID_MODE to some "
+                          "value other than OFF, before starting the slave "
+                          "receiver thread.",
+                          mi->get_channel(), mi->get_channel());
+      }
+    }
+  }
 
   /*
     Loop through the msr_map and start slave threads for each channel.
@@ -1737,6 +1756,12 @@ int start_slave_threads(bool need_lock_slave, bool wait_for_start,
     DBUG_RETURN(error);
   }
 
+  if (mi->is_auto_position() && (thread_mask & SLAVE_IO) &&
+      get_gtid_mode(GTID_MODE_LOCK_NONE) == GTID_MODE_OFF)
+  {
+    DBUG_RETURN(ER_CANT_USE_AUTO_POSITION_WITH_GTID_MODE_OFF);
+  }
+
   if (need_lock_slave)
   {
     lock_io = &mi->run_lock;
@@ -2854,6 +2879,8 @@ when it try to get the value of TIME_ZONE global variable from master.";
 
   if (DBUG_EVALUATE_IF("simulate_slave_unaware_gtid", 0, 1))
   {
+    enum_gtid_mode master_gtid_mode= GTID_MODE_OFF;
+    enum_gtid_mode slave_gtid_mode= get_gtid_mode(GTID_MODE_LOCK_NONE);
     switch (io_thread_init_command(mi, "SELECT @@GLOBAL.GTID_MODE",
                                    ER_UNKNOWN_SYSTEM_VARIABLE,
                                    &master_res, &master_row))
@@ -2862,39 +2889,46 @@ when it try to get the value of TIME_ZONE global variable from master.";
       DBUG_RETURN(2);
     case COMMAND_STATUS_ALLOWED_ERROR:
       // master is old and does not have @@GLOBAL.GTID_MODE
-      mi->master_gtid_mode= 0;
+      master_gtid_mode= GTID_MODE_OFF;
       break;
     case COMMAND_STATUS_OK:
-      int typelib_index= find_type(master_row[0], &gtid_mode_typelib, 1);
+    {
+      bool error= false;
+      const char *master_gtid_mode_string= master_row[0];
+      DBUG_EXECUTE_IF("simulate_master_has_unknown_gtid_mode",
+                      { master_gtid_mode_string= "Krakel Spektakel"; });
+      master_gtid_mode= get_gtid_mode(master_gtid_mode_string, &error);
       mysql_free_result(master_res);
-      if (typelib_index == 0)
+      if (error)
       {
         mi->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
                    "The slave IO thread stops because the master has "
                    "an unknown @@GLOBAL.GTID_MODE.");
         DBUG_RETURN(1);
       }
-      mi->master_gtid_mode= typelib_index - 1;
       break;
     }
-    if (mi->master_gtid_mode > gtid_mode + 1 ||
-        gtid_mode > mi->master_gtid_mode + 1)
+    }
+    if ((slave_gtid_mode == GTID_MODE_OFF &&
+         master_gtid_mode >= GTID_MODE_ON_PERMISSIVE) ||
+        (slave_gtid_mode == GTID_MODE_ON &&
+         master_gtid_mode <= GTID_MODE_OFF_PERMISSIVE))
     {
       mi->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
-                 "The slave IO thread stops because the master has "
-                 "@@GLOBAL.GTID_MODE %s and this server has "
-                 "@@GLOBAL.GTID_MODE %s",
-                 gtid_mode_names[mi->master_gtid_mode],
-                 gtid_mode_names[gtid_mode]);
+                 "The replication receiver thread cannot start because "
+                 "the master has GTID_MODE = %.192s and this server has "
+                 "GTID_MODE = %.192s.",
+                 get_gtid_mode_string(master_gtid_mode),
+                 get_gtid_mode_string(slave_gtid_mode));
       DBUG_RETURN(1);
     }
-    if (mi->is_auto_position() && mi->master_gtid_mode != 3)
+    if (mi->is_auto_position() && master_gtid_mode != GTID_MODE_ON)
     {
       mi->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
-                 "The slave IO thread stops because the master has "
-                 "@@GLOBAL.GTID_MODE %s and we are trying to connect "
-                 "using MASTER_AUTO_POSITION.",
-                 gtid_mode_names[mi->master_gtid_mode]);
+                 "The replication receiver thread cannot start in "
+                 "AUTO_POSITION mode: the master has GTID_MODE = %.192s "
+                 "instead of ON.",
+                 get_gtid_mode_string(master_gtid_mode));
       DBUG_RETURN(1);
     }
   }
@@ -7469,6 +7503,7 @@ static int queue_old_event(Master_info *mi, const char *buf,
 
 int queue_event(Master_info* mi,const char* buf, ulong event_len)
 {
+  bool reported_error= false;
   int error= 0;
   String error_msg;
   ulong inc_pos= 0;
@@ -7843,21 +7878,13 @@ int queue_event(Master_info* mi,const char* buf, ulong event_len)
 
        TODO: handling `when' for SHOW SLAVE STATUS' snds behind
     */
-    if ((memcmp(const_cast<char *>(mi->get_master_log_name()),
-                hb.get_log_ident(), hb.get_ident_len())
-         && mi->get_master_log_name() != NULL)
-        || ((mi->get_master_log_pos() != hb.common_header->log_pos
-        && gtid_mode == 0) ||
-            /*
-              When Gtid mode is on only monotocity can be claimed.
-              Todo: enhance HB event with the skipped events size
-              and to convert HB.pos  == MI.pos to HB.pos - HB.skip_size == MI.pos
-            */
-            (mi->get_master_log_pos() > hb.common_header->log_pos)))
+    if (memcmp(const_cast<char *>(mi->get_master_log_name()),
+               hb.get_log_ident(), hb.get_ident_len())
+        || (mi->get_master_log_pos() > hb.common_header->log_pos))
     {
       /* missed events of heartbeat from the past */
       error= ER_SLAVE_HEARTBEAT_FAILURE;
-      error_msg.append(STRING_WITH_LEN("heartbeat is not compatible with local info;"));
+      error_msg.append(STRING_WITH_LEN("heartbeat is not compatible with local info; "));
       error_msg.append(STRING_WITH_LEN("the event's data: log_file_name "));
       error_msg.append(hb.get_log_ident(), strlen(hb.get_log_ident()));
       error_msg.append(STRING_WITH_LEN(" log_pos "));
@@ -7893,13 +7920,29 @@ int queue_event(Master_info* mi,const char* buf, ulong event_len)
 
   case binary_log::GTID_LOG_EVENT:
   {
-    if (gtid_mode == 0)
+    global_sid_lock->rdlock();
+    /*
+      This can happen if the master uses GTID_MODE=OFF_PERMISSIVE, and
+      sends GTID events to the slave. A possible scenario is that user
+      does not follow the upgrade procedure for GTIDs, and creates a
+      topology like A->B->C, where A uses GTID_MODE=ON_PERMISSIVE, B
+      uses GTID_MODE=OFF_PERMISSIVE, and C uses GTID_MODE=OFF.  Each
+      connection is allowed, but the master A will generate GTID
+      transactions which will be sent through B to C.  Then C will hit
+      this error.
+    */
+    if (get_gtid_mode(GTID_MODE_LOCK_SID) == GTID_MODE_OFF)
     {
-      error= ER_FOUND_GTID_EVENT_WHEN_GTID_MODE_IS_OFF;
+      global_sid_lock->unlock();
+      error= ER_CANT_REPLICATE_GTID_WITH_GTID_MODE_OFF;
+      reported_error= true;
+      mi->report(ERROR_LEVEL, ER_CANT_REPLICATE_GTID_WITH_GTID_MODE_OFF,
+                 ER(ER_CANT_REPLICATE_GTID_WITH_GTID_MODE_OFF),
+                 mi->get_master_log_name(), mi->get_master_log_pos());
       goto err;
     }
-    global_sid_lock->rdlock();
-    Gtid_log_event gtid_ev(buf, checksum_alg != binary_log::BINLOG_CHECKSUM_ALG_OFF ?
+    Gtid_log_event gtid_ev(buf,
+                           checksum_alg != binary_log::BINLOG_CHECKSUM_ALG_OFF ?
                            event_len - BINLOG_CHECKSUM_LEN : event_len,
                            mi->get_mi_description_event());
     gtid.sidno= gtid_ev.get_sidno(false);
@@ -7912,6 +7955,43 @@ int queue_event(Master_info* mi,const char* buf, ulong event_len)
   break;
 
   case binary_log::ANONYMOUS_GTID_LOG_EVENT:
+    /*
+      This cannot normally happen, because the master has a check that
+      prevents it from sending anonymous events when auto_position is
+      enabled.  However, the master could be something else than
+      mysqld, which could contain bugs that we have no control over.
+      So we need this check on the slave to be sure that whoever is on
+      the other side of the protocol does not break the protocol.
+    */
+    if (mi->is_auto_position())
+    {
+      error= ER_CANT_REPLICATE_ANONYMOUS_WITH_AUTO_POSITION;
+      reported_error= true;
+      mi->report(ERROR_LEVEL, ER_CANT_REPLICATE_ANONYMOUS_WITH_AUTO_POSITION,
+                 ER(ER_CANT_REPLICATE_ANONYMOUS_WITH_AUTO_POSITION),
+                 mi->get_master_log_name(), mi->get_master_log_pos());
+      goto err;
+    }
+    /*
+      This can happen if the master uses GTID_MODE=ON_PERMISSIVE, and
+      sends an anonymous event to the slave. A possible scenario is
+      that user does not follow the upgrade procedure for GTIDs, and
+      creates a topology like A->B->C, where A uses
+      GTID_MODE=OFF_PERMISSIVE, B uses GTID_MODE=ON_PERMISSIVE, and C
+      uses GTID_MODE=ON.  Each connection is allowed, but the master A
+      will generate anonymous transactions which will be sent through
+      B to C.  Then C will hit this error.
+    */
+    else if (get_gtid_mode(GTID_MODE_LOCK_NONE) == GTID_MODE_ON)
+    {
+      error= ER_CANT_REPLICATE_ANONYMOUS_WITH_GTID_MODE_ON;
+      reported_error= true;
+      mi->report(ERROR_LEVEL, ER_CANT_REPLICATE_ANONYMOUS_WITH_GTID_MODE_ON,
+                 ER(ER_CANT_REPLICATE_ANONYMOUS_WITH_GTID_MODE_ON),
+                 mi->get_master_log_name(), mi->get_master_log_pos());
+      goto err;
+    }
+    /* fall through */
 
   default:
     inc_pos= event_len;
@@ -8057,7 +8137,7 @@ err:
   if (unlock_data_lock)
     mysql_mutex_unlock(&mi->data_lock);
   DBUG_PRINT("info", ("error: %d", error));
-  if (error)
+  if (error && !reported_error)
     mi->report(ERROR_LEVEL, error, ER(error), 
                (error == ER_SLAVE_RELAY_LOG_WRITE_FAILURE)?
                "could not queue event from master" :
@@ -10262,12 +10342,19 @@ int change_master(THD* thd, Master_info* mi, LEX_MASTER_INFO* lex_mi,
     }
   }
 
-  /* CHANGE MASTER TO MASTER_AUTO_POSITION = 1 requires GTID_MODE = ON */
-  if (lex_mi->auto_position == LEX_MASTER_INFO::LEX_MI_ENABLE && gtid_mode != 3)
+  /* CHANGE MASTER TO MASTER_AUTO_POSITION = 1 requires GTID_MODE != OFF */
+  if (lex_mi->auto_position == LEX_MASTER_INFO::LEX_MI_ENABLE &&
+      /*
+        We hold lock_msr_map for the duration of the CHANGE MASTER.
+        This is important since it prevents that a concurrent
+        connection changes to GTID_MODE=OFF between this check and the
+        point where AUTO_POSITION is stored in the table and in mi.
+      */
+      get_gtid_mode(GTID_MODE_LOCK_MSR_MAP) == GTID_MODE_OFF)
   {
-    error= ER_AUTO_POSITION_REQUIRES_GTID_MODE_ON;
-    my_message(ER_AUTO_POSITION_REQUIRES_GTID_MODE_ON,
-               ER(ER_AUTO_POSITION_REQUIRES_GTID_MODE_ON), MYF(0));
+    error= ER_AUTO_POSITION_REQUIRES_GTID_MODE_NOT_OFF;
+    my_message(ER_AUTO_POSITION_REQUIRES_GTID_MODE_NOT_OFF,
+               ER(ER_AUTO_POSITION_REQUIRES_GTID_MODE_NOT_OFF), MYF(0));
     goto err;
   }
 

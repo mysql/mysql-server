@@ -1197,6 +1197,8 @@ THD::THD(bool enable_plugins)
 #endif
    skip_gtid_rollback(false),
    is_commit_in_middle_of_statement(false),
+   has_gtid_consistency_violation(false),
+   pending_gtid_state_update(false),
    main_da(false),
    m_parser_da(false),
    m_query_rewrite_plugin_da(false),
@@ -2291,8 +2293,13 @@ void THD::cleanup_after_query()
     binlog_accessed_db_names= NULL;
     m_trans_fixed_log_file= NULL;
 
-    if (gtid_mode > 0)
-      gtid_post_statement_checks(this);
+    /*
+      Strictly speaking this is only needed when GTID_MODE!=OFF.
+      However, we can only read gtid_mode while holding
+      global_sid_lock.  And gtid_post_statement_checks is very cheap,
+      so no point in calling it conditionally.
+    */
+    gtid_post_statement_checks(this);
 #ifndef EMBEDDED_LIBRARY
     /*
       Clean possible unused INSERT_ID events by current statement.

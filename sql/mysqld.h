@@ -94,6 +94,7 @@ int init_common_variables();
 void my_init_signals();
 bool gtid_server_init();
 void gtid_server_cleanup();
+const char *fixup_enforce_gtid_consistency_command_line(char *value_arg);
 
 extern "C" MYSQL_PLUGIN_IMPORT CHARSET_INFO *system_charset_info;
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *files_charset_info ;
@@ -238,7 +239,6 @@ extern ulong binlog_checksum_options;
 extern const char *binlog_checksum_type_names[];
 extern my_bool opt_master_verify_checksum;
 extern my_bool opt_slave_sql_verify_checksum;
-extern my_bool enforce_gtid_consistency;
 extern uint gtid_executed_compression_period;
 extern my_bool binlog_gtid_simple_recovery;
 extern ulong binlog_error_action;
@@ -250,20 +250,6 @@ enum enum_binlog_error_action
   ABORT_SERVER= 1
 };
 extern const char *binlog_error_action_list[];
-enum enum_gtid_mode
-{
-  /// Support only anonymous groups, not GTIDs.
-  GTID_MODE_OFF= 0,
-  /// Support both GTIDs and anonymous groups; generate anonymous groups.
-  GTID_MODE_UPGRADE_STEP_1= 1,
-  /// Support both GTIDs and anonymous groups; generate GTIDs.
-  GTID_MODE_UPGRADE_STEP_2= 2,
-  /// Support only GTIDs, not anonymous groups.
-  GTID_MODE_ON= 3
-};
-extern ulong gtid_mode;
-extern const char *gtid_mode_names[];
-extern TYPELIB gtid_mode_typelib;
 
 extern ulong stored_program_cache_size;
 extern ulong back_log;
@@ -432,7 +418,7 @@ extern PSI_mutex_key key_mutex_slave_worker_hash;
 extern PSI_rwlock_key key_rwlock_LOCK_grant, key_rwlock_LOCK_logger,
   key_rwlock_LOCK_sys_init_connect, key_rwlock_LOCK_sys_init_slave,
   key_rwlock_LOCK_system_variables_hash, key_rwlock_query_cache_query_lock,
-  key_rwlock_global_sid_lock;
+  key_rwlock_global_sid_lock, key_rwlock_gtid_mode_lock;
 
 extern PSI_cond_key key_PAGE_cond, key_COND_active, key_COND_pool;
 extern PSI_cond_key key_BINLOG_update_cond,
@@ -886,7 +872,8 @@ enum options_mysqld
   OPT_MDL_HASH_INSTANCES,
   OPT_SKIP_INNODB,
   OPT_AVOID_TEMPORAL_UPGRADE,
-  OPT_SHOW_OLD_TEMPORALS
+  OPT_SHOW_OLD_TEMPORALS,
+  OPT_ENFORCE_GTID_CONSISTENCY
 };
 
 

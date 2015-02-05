@@ -2296,6 +2296,8 @@ mysql_execute_command(THD *thd)
     thd->mdl_context.release_transactional_locks();
   }
 
+  DEBUG_SYNC(thd, "after_implicit_pre_commit");
+
   if (gtid_pre_statement_post_implicit_commit_checks(thd))
     DBUG_RETURN(-1);
 
@@ -6522,6 +6524,7 @@ bool parse_sql(THD *thd,
                Parser_state *parser_state,
                Object_creation_ctx *creation_ctx)
 {
+  DBUG_ENTER("parse_sql");
   bool ret_value;
   DBUG_ASSERT(thd->m_parser_state == NULL);
   // TODO fix to allow parsing gcol exprs after main query.
@@ -6670,7 +6673,7 @@ bool parse_sql(THD *thd,
   }
 
   MYSQL_QUERY_PARSE_DONE(ret_value);
-  return ret_value;
+  DBUG_RETURN(ret_value);
 }
 
 /**

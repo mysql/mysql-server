@@ -1,5 +1,10 @@
 --source include/not_embedded.inc
---source include/not_gtid_enabled.inc
+
+# The test changes GTID_EXECUTED, which currently cannot be cleared
+# when the binary log is off, due to BUG#19706455.  So the only way to
+# reset server state is to restart. (Without restart, the test fails
+# if run twice in sequence.)
+--source include/force_restart.inc
 
 SET @start_global_value = @@global.gtid_purged;
 SELECT @start_global_value;
@@ -17,13 +22,25 @@ select * from information_schema.global_variables where variable_name='gtid_purg
 select * from information_schema.session_variables where variable_name='gtid_purged';
 --enable_warnings
 
-#
-# Try to write when GTID_MODE= OFF.
-#
---error ER_CANT_SET_GTID_PURGED_WHEN_GTID_MODE_IS_OFF
-SET @@global.gtid_purged= '11111111-1111-1111-1111-111111111111:2';
+--error ER_WRONG_VALUE_FOR_VAR
+set @@global.gtid_purged = NULL;
+select @@global.gtid_purged;
+
+--error ER_NO_DEFAULT
+set @@global.gtid_purged = default;
 select @@global.gtid_purged;
 
 #
-# See rpl_gtid_purged.test for a comprehensive test case.
+# Allowed to write (regardless of GTID_MODE).
+#
+SET @@global.gtid_purged= '11111111-1111-1111-1111-111111111111:1-2';
+SELECT @@global.gtid_purged;
+
+# Not allowed to write when GTID_EXECUTED!='';
+--error ER_CANT_SET_GTID_PURGED_WHEN_GTID_EXECUTED_IS_NOT_EMPTY
+SET @@global.gtid_purged= '11111111-1111-1111-1111-111111111111:3';
+SELECT @@global.gtid_purged;
+
+#
+# See rpl_gtid_purged_maintained.test for a comprehensive test case.
 #

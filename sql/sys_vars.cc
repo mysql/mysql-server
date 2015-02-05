@@ -764,25 +764,7 @@ static bool check_has_super(sys_var *self, THD *thd, set_var *var)
   return false;
 }
 
-#if defined(HAVE_GTID_NEXT_LIST) || defined(NON_DISABLED_GTID) || defined(HAVE_REPLICATION)
-static bool check_top_level_stmt(sys_var *self, THD *thd, set_var *var)
-{
-  if (thd->in_sub_stmt)
-  {
-    my_error(ER_VARIABLE_NOT_SETTABLE_IN_SF_OR_TRIGGER, MYF(0), var->var->name.str);
-    return true;
-  }
-  return false;
-}
-
-static bool check_top_level_stmt_and_super(sys_var *self, THD *thd, set_var *var)
-{
-  return (check_has_super(self, thd, var) ||
-          check_top_level_stmt(self, thd, var));
-}
-#endif
-
-static bool check_outside_transaction(sys_var *self, THD *thd, set_var *var)
+static bool check_outside_trx(sys_var *self, THD *thd, set_var *var)
 {
   if (thd->in_active_multi_stmt_transaction())
   {
@@ -791,9 +773,25 @@ static bool check_outside_transaction(sys_var *self, THD *thd, set_var *var)
   }
   return false;
 }
-#if defined(HAVE_GTID_NEXT_LIST) || defined(HAVE_REPLICATION)
-static bool check_outside_sp(sys_var *self, THD *thd, set_var *var)
+
+static bool check_super_outside_trx_outside_sf(sys_var *self, THD *thd, set_var *var)
 {
+  if (thd->in_sub_stmt)
+  {
+    my_error(ER_VARIABLE_NOT_SETTABLE_IN_SF_OR_TRIGGER, MYF(0), var->var->name.str);
+    return true;
+  }
+  if (check_outside_trx(self, thd, var))
+    return true;
+  if (self->scope() != sys_var::GLOBAL)
+    return check_has_super(self, thd, var);
+  return false;
+}
+
+static bool check_super_outside_trx_outside_sf_outside_sp(sys_var *self, THD *thd, set_var *var)
+{
+  if (check_super_outside_trx_outside_sf(self, thd, var))
+    return true;
   if (thd->lex->sphead)
   {
     my_error(ER_VARIABLE_NOT_SETTABLE_IN_SP, MYF(0), var->var->name.str);
@@ -801,7 +799,6 @@ static bool check_outside_sp(sys_var *self, THD *thd, set_var *var)
   }
   return false;
 }
-#endif
 
 static bool binlog_format_check(sys_var *self, THD *thd, set_var *var)
 {
@@ -935,7 +932,7 @@ static Sys_var_enum Sys_session_track_gtids(
        "(Default: OFF).",
        SESSION_VAR(session_track_gtids), CMD_LINE(REQUIRED_ARG),
        session_track_gtids_names, DEFAULT(OFF),
-       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_outside_transaction),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_outside_trx),
        ON_UPDATE(on_session_track_gtids_update));
 
 static bool binlog_direct_check(sys_var *self, THD *thd, set_var *var)
@@ -4562,21 +4559,21 @@ static Sys_var_uint Sys_slave_net_timeout(
 
 static bool check_slave_skip_counter(sys_var *self, THD *thd, set_var *var)
 {
-  bool result= false;
-
-  /* slave_skip_counter becomes per channel in multisource replication*/
-  mysql_mutex_lock(&LOCK_msr_map);
-
-  if (gtid_mode == GTID_MODE_ON)
+  /*
+    @todo: move this check into the set function and hold the lock on
+    gtid_mode_lock until the operation has completed, so that we are
+    sure a concurrent connection does not change gtid_mode between
+    check and fix.
+  */
+  if (get_gtid_mode(GTID_MODE_LOCK_NONE) == GTID_MODE_ON)
   {
     my_message(ER_SQL_SLAVE_SKIP_COUNTER_NOT_SETTABLE_IN_GTID_MODE,
                ER(ER_SQL_SLAVE_SKIP_COUNTER_NOT_SETTABLE_IN_GTID_MODE),
                MYF(0));
-    result= true;
+    return true;
   }
 
-  mysql_mutex_unlock(&LOCK_msr_map);
-  return result;
+  return false;
 }
 
 static PolyLock_mutex PLock_sql_slave_skip_counter(&LOCK_sql_slave_skip_counter);
@@ -4762,46 +4759,32 @@ static Sys_var_charptr Sys_ignore_db_dirs(
        NO_CMD_LINE,
        IN_FS_CHARSET, DEFAULT(0));
 
-/*
-  This code is not being used but we will keep it as it may be
-  useful if we decide to keeep enforce_gtid_consistency.
-*/
-#ifdef NON_DISABLED_GTID
-static bool check_enforce_gtid_consistency(
-  sys_var *self, THD *thd, set_var *var)
+const Sys_var_multi_enum::ALIAS enforce_gtid_consistency_aliases[]=
 {
-  DBUG_ENTER("check_enforce_gtid_consistency");
-
-  my_error(ER_NOT_SUPPORTED_YET, MYF(0),
-           "ENFORCE_GTID_CONSISTENCY");
-  DBUG_RETURN(true);
-
-  if (check_top_level_stmt_and_super(self, thd, var) ||
-      check_outside_transaction(self, thd, var))
-    DBUG_RETURN(true);
-  if (gtid_mode >= 2 && var->value->val_int() == 0)
-  {
-    my_error(ER_GTID_MODE_2_OR_3_REQUIRES_ENFORCE_GTID_CONSISTENCY_ON, MYF(0));
-    DBUG_RETURN(true);
-  }
-  DBUG_RETURN(false);
-}
-#endif
-
-static Sys_var_mybool Sys_enforce_gtid_consistency(
+  { "OFF", 0 },
+  { "ON", 1 },
+  { "WARN", 2 },
+  { "FALSE", 0 },
+  { "TRUE", 1 },
+  { NULL, 0 }
+};
+static Sys_var_enforce_gtid_consistency Sys_enforce_gtid_consistency(
        "enforce_gtid_consistency",
        "Prevents execution of statements that would be impossible to log "
        "in a transactionally safe manner. Currently, the disallowed "
        "statements include CREATE TEMPORARY TABLE inside transactions, "
        "all updates to non-transactional tables, and CREATE TABLE ... SELECT.",
-       READ_ONLY GLOBAL_VAR(enforce_gtid_consistency),
-       CMD_LINE(OPT_ARG), DEFAULT(FALSE),
-       NO_MUTEX_GUARD, NOT_IN_BINLOG
-#ifdef NON_DISABLED_GTID
-       , ON_CHECK(check_enforce_gtid_consistency));
-#else
-       );
-#endif
+       GLOBAL_VAR(_gtid_consistency_mode),
+       CMD_LINE(OPT_ARG, OPT_ENFORCE_GTID_CONSISTENCY),
+       enforce_gtid_consistency_aliases, 3,
+       DEFAULT(3/*position of "FALSE" in enforce_gtid_consistency_aliases*/),
+       DEFAULT(GTID_CONSISTENCY_MODE_ON),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG,
+       ON_CHECK(check_super_outside_trx_outside_sf_outside_sp));
+const char *fixup_enforce_gtid_consistency_command_line(char *value_arg)
+{
+  return Sys_enforce_gtid_consistency.fixup_command_line(value_arg);
+}
 
 static Sys_var_mybool Sys_binlog_gtid_simple_recovery(
        "binlog_gtid_simple_recovery",
@@ -4883,119 +4866,21 @@ static Sys_var_mybool Sys_pseudo_slave_mode(
 
 
 #ifdef HAVE_REPLICATION
-static bool check_gtid_next(sys_var *self, THD *thd, set_var *var)
-{
-  DBUG_ENTER("check_gtid_next");
-
-  // Note: we also check in sql_yacc.yy:set_system_variable that the
-  // SET GTID_NEXT statement does not invoke a stored function.
-
-  DBUG_PRINT("info", ("thd->in_sub_stmt=%d", thd->in_sub_stmt));
-
-  // GTID_NEXT must be set by SUPER in a top-level statement
-  if (check_top_level_stmt_and_super(self, thd, var))
-    DBUG_RETURN(true);
-
-  // check compatibility with GTID_NEXT
-  const Gtid_set *gtid_next_list= thd->get_gtid_next_list_const();
-
-  // Inside a transaction, GTID_NEXT is read-only if GTID_NEXT_LIST is
-  // NULL.
-  if (thd->in_active_multi_stmt_transaction() && gtid_next_list == NULL)
-  {
-    my_error(ER_CANT_CHANGE_GTID_NEXT_IN_TRANSACTION_WHEN_GTID_NEXT_LIST_IS_NULL, MYF(0));
-    DBUG_RETURN(true);
-  }
-
-  // Read specification
-  Gtid_specification spec;
-  global_sid_lock->rdlock();
-  if (spec.parse(global_sid_map, var->save_result.string_value.str) !=
-      RETURN_STATUS_OK)
-  {
-    // fail on out of memory
-    global_sid_lock->unlock();
-    DBUG_RETURN(true);
-  }
-  global_sid_lock->unlock();
-
-  // check compatibility with GTID_MODE
-  if (gtid_mode == 0 && spec.type == GTID_GROUP)
-    my_error(ER_CANT_SET_GTID_NEXT_TO_GTID_WHEN_GTID_MODE_IS_OFF, MYF(0));
-  if (gtid_mode == 3 && spec.type == ANONYMOUS_GROUP)
-    my_error(ER_CANT_SET_GTID_NEXT_TO_ANONYMOUS_WHEN_GTID_MODE_IS_ON, MYF(0));
-
-  if (gtid_next_list != NULL)
-  {
-#ifdef HAVE_GTID_NEXT_LIST
-    // If GTID_NEXT==SID:GNO, then SID:GNO must be listed in GTID_NEXT_LIST
-    if (spec.type == GTID_GROUP && !gtid_next_list->contains_gtid(spec.gtid))
-    {
-      char buf[Gtid_specification::MAX_TEXT_LENGTH + 1];
-      global_sid_lock->rdlock();
-      spec.gtid.to_string(global_sid_map, buf);
-      global_sid_lock->unlock();
-      my_error(ER_GTID_NEXT_IS_NOT_IN_GTID_NEXT_LIST, MYF(0), buf);
-      DBUG_RETURN(true);
-    }
-
-    // GTID_NEXT cannot be "AUTOMATIC" when GTID_NEXT_LIST != NULL.
-    if (spec.type == AUTOMATIC_GROUP)
-    {
-      my_error(ER_GTID_NEXT_CANT_BE_AUTOMATIC_IF_GTID_NEXT_LIST_IS_NON_NULL,
-               MYF(0));
-      DBUG_RETURN(true);
-    }
-#else
-    DBUG_ASSERT(0);
-#endif
-  }
-  // check that we don't own a GTID
-  else if (thd->owned_gtid.sidno != 0 &&
-           thd->owned_gtid.sidno != THD::OWNED_SIDNO_ANONYMOUS)
-  {
-    char buf[Gtid::MAX_TEXT_LENGTH + 1];
-#ifndef DBUG_OFF
-    DBUG_ASSERT(thd->owned_gtid.sidno > 0);
-    global_sid_lock->wrlock();
-    if (thd->owned_gtid.sidno == THD::OWNED_SIDNO_ANONYMOUS)
-      DBUG_ASSERT(!gtid_state->get_owned_gtids()->
-                  thread_owns_anything(thd->thread_id()));
-    else
-      DBUG_ASSERT(gtid_state->get_owned_gtids()->
-                  thread_owns_anything(thd->thread_id()));
-#else
-    global_sid_lock->rdlock();
-#endif
-    thd->owned_gtid.to_string(global_sid_map, buf);
-    global_sid_lock->unlock();
-    my_error(ER_CANT_SET_GTID_NEXT_WHEN_OWNING_GTID, MYF(0), buf);
-    DBUG_RETURN(true);
-  }
-
-  DBUG_RETURN(false);
-}
-
-static bool update_gtid_next(sys_var *self, THD *thd, enum_var_type type)
-{
-  DBUG_ENTER("update_gtid_next");
-  DBUG_ASSERT(type == OPT_SESSION);
-  if (thd->variables.gtid_next.type == GTID_GROUP ||
-      thd->variables.gtid_next.type == ANONYMOUS_GROUP)
-    if (gtid_acquire_ownership_single(thd) != 0)
-      DBUG_RETURN(true);
-  DBUG_RETURN(false);
-}
-
 #ifdef HAVE_GTID_NEXT_LIST
 static bool check_gtid_next_list(sys_var *self, THD *thd, set_var *var)
 {
   DBUG_ENTER("check_gtid_next_list");
   my_error(ER_NOT_SUPPORTED_YET, MYF(0), "GTID_NEXT_LIST");
-  if (check_top_level_stmt_and_super(self, thd, var) ||
-      check_outside_transaction(self, thd, var))
+  if (check_super_outside_trx_outside_sf_outside_sp(self, thd, var))
     DBUG_RETURN(true);
-  if (gtid_mode == 0 && var->save_result.string_value.str != NULL)
+  /*
+    @todo: move this check into the set function and hold the lock on
+    gtid_mode_lock until the operation has completed, so that we are
+    sure a concurrent connection does not change gtid_mode between
+    check and fix - if we ever implement this variable.
+  */
+  if (get_gtid_mode(GTID_MODE_LOCK_NONE) == GTID_MODE_OFF &&
+      var->save_result.string_value.str != NULL)
     my_error(ER_CANT_SET_GTID_NEXT_LIST_TO_NON_NULL_WHEN_GTID_MODE_IS_OFF,
              MYF(0));
   DBUG_RETURN(false);
@@ -5020,15 +4905,15 @@ static Sys_var_gtid_set Sys_gtid_next_list(
        ON_UPDATE(update_gtid_next_list)
 );
 export sys_var *Sys_gtid_next_list_ptr= &Sys_gtid_next_list;
-#endif
+#endif //HAVE_GTID_NEXT_LIST
 
-static Sys_var_gtid_specification Sys_gtid_next(
+static Sys_var_gtid_next Sys_gtid_next(
        "gtid_next",
-       "Specified the Global Transaction Identifier for the following "
-       "re-executed statement.",
+       "Specifies the Global Transaction Identifier for the following "
+       "transaction.",
        SESSION_ONLY(gtid_next), NO_CMD_LINE,
        DEFAULT("AUTOMATIC"), NO_MUTEX_GUARD,
-       NOT_IN_BINLOG, ON_CHECK(check_gtid_next), ON_UPDATE(update_gtid_next));
+       NOT_IN_BINLOG, ON_CHECK(check_super_outside_trx_outside_sf));
 export sys_var *Sys_gtid_next_ptr= &Sys_gtid_next;
 
 static Sys_var_gtid_executed Sys_gtid_executed(
@@ -5041,16 +4926,9 @@ static bool check_gtid_purged(sys_var *self, THD *thd, set_var *var)
 {
   DBUG_ENTER("check_gtid_purged");
 
-  if (!var->value || check_top_level_stmt(self, thd, var) ||
-      check_outside_transaction(self, thd, var) ||
-      check_outside_sp(self, thd, var))
+  if (!var->value ||
+      check_super_outside_trx_outside_sf_outside_sp(self, thd, var))
     DBUG_RETURN(true);
-
-  if (0 == gtid_mode)
-  {
-    my_error(ER_CANT_SET_GTID_PURGED_WHEN_GTID_MODE_IS_OFF, MYF(0));
-    DBUG_RETURN(true);
-  }
 
   if (var->value->result_type() != STRING_RESULT ||
       !var->save_result.string_value.str)
@@ -5118,90 +4996,26 @@ static Sys_var_gtid_owned Sys_gtid_owned(
        "The global variable lists all GTIDs owned by all threads. "
        "The session variable lists all GTIDs owned by the current thread.");
 
-/*
-  This code is not being used but we will keep it as it may be
-  useful when we improve the code around Sys_gtid_mode.
-*/
-#ifdef NON_DISABLED_GTID
-static bool check_gtid_mode(sys_var *self, THD *thd, set_var *var)
-{
-  DBUG_ENTER("check_gtid_mode");
-
-  my_error(ER_NOT_SUPPORTED_YET, MYF(0), "GTID_MODE");
-  DBUG_RETURN(true);
-
-  if (check_top_level_stmt_and_super(self, thd, var) ||
-      check_outside_transaction(self, thd, var))
-    DBUG_RETURN(true);
-  uint new_gtid_mode= var->value->val_int();
-  if (abs((long)(new_gtid_mode - gtid_mode)) > 1)
-  {
-    my_error(ER_GTID_MODE_CAN_ONLY_CHANGE_ONE_STEP_AT_A_TIME, MYF(0));
-    DBUG_RETURN(true);
-  }
-  if (new_gtid_mode >= 1)
-  {
-    if (!opt_bin_log || !opt_log_slave_updates)
-    {
-      my_error(ER_GTID_MODE_REQUIRES_BINLOG, MYF(0));
-      DBUG_RETURN(false);
-    }
-  }
-  if (new_gtid_mode >= 2)
-  {
-    /*
-    if (new_gtid_mode == 3 &&
-        (there are un-processed anonymous transactions in relay log ||
-         there is a client executing an anonymous transaction))
-    {
-      my_error(ER_CANT_SET_GTID_MODE_3_WITH_UNPROCESSED_ANONYMOUS_GROUPS,
-               MYF(0));
-      DBUG_RETURN(true);
-    }
-    */
-    if (!enforce_gtid_consistency)
-    {
-      //my_error(ER_GTID_MODE_2_OR_3_REQUIRES_ENFORCE_GTID_CONSISTENCY), MYF(0));
-      DBUG_RETURN(true);
-    }
-  }
-  else
-  {
-    /*
-    if (new_gtid_mode == 0 &&
-        (there are un-processed GTIDs in relay log ||
-         there is a client executing a GTID transaction))
-    {
-      my_error(ER_CANT_SET_GTID_MODE_0_WITH_UNPROCESSED_GTID_GROUPS, MYF(0));
-      DBUG_RETURN(true);
-    }
-    */
-  }
-  DBUG_RETURN(false);
-}
-#endif
-
-static Sys_var_enum Sys_gtid_mode(
+static Sys_var_gtid_mode Sys_gtid_mode(
        "gtid_mode",
-       /*
-       "Whether Global Transaction Identifiers (GTIDs) are enabled: OFF, "
-       "UPGRADE_STEP_1, UPGRADE_STEP_2, or ON. OFF means GTIDs are not "
-       "supported at all, ON means GTIDs are supported by all servers in "
-       "the replication topology. To safely switch from OFF to ON, first "
-       "set all servers to UPGRADE_STEP_1, then set all servers to "
-       "UPGRADE_STEP_2, then wait for all anonymous transactions to "
-       "be re-executed on all servers, and finally set all servers to ON.",
-       */
-       "Whether Global Transaction Identifiers (GTIDs) are enabled. Can be "
-       "ON or OFF.",
-       READ_ONLY GLOBAL_VAR(gtid_mode), CMD_LINE(REQUIRED_ARG),
-       gtid_mode_names, DEFAULT(GTID_MODE_OFF),
-       NO_MUTEX_GUARD, NOT_IN_BINLOG
-#ifdef NON_DISABLED_GTID
-       , ON_CHECK(check_gtid_mode));
-#else
-       );
-#endif
+       "Controls whether Global Transaction Identifiers (GTIDs) are "
+       "enabled. Can be OFF, OFF_PERMISSIVE, ON_PERMISSIVE, or ON. OFF "
+       "means that no transaction has a GTID. OFF_PERMISSIVE means that "
+       "new transactions (committed in a client session using "
+       "GTID_NEXT='AUTOMATIC') are not assigned any GTID, and "
+       "replicated transactions are allowed to have or not have a "
+       "GTID. ON_PERMISSIVE means that new transactions are assigned a "
+       "GTID, and replicated transactions are allowed to have or not "
+       "have a GTID. ON means that all transactions have a GTID. "
+       "ON is required on a master before any slave can use "
+       "MASTER_AUTO_POSITION=1. To safely switch from OFF to ON, first "
+       "set all servers to OFF_PERMISSIVE, then set all servers to "
+       "ON_PERMISSIVE, then wait for all transactions without a GTID to "
+       "be replicated and executed on all servers, and finally set all "
+       "servers to GTID_MODE = ON.",
+       GLOBAL_VAR(_gtid_mode), CMD_LINE(REQUIRED_ARG), gtid_mode_names,
+       DEFAULT(GTID_MODE_OFF), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+       ON_CHECK(check_super_outside_trx_outside_sf_outside_sp));
 
 #endif // HAVE_REPLICATION
 
