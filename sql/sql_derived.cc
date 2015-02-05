@@ -28,9 +28,8 @@
 #include "sql_view.h"                         // check_duplicate_names
 #include "auth_common.h"                      // SELECT_ACL
 #include "sql_tmp_table.h"                    // Tmp tables
-#include "sql_union.h"                        // Query_result_union
+#include "sql_union.h"                        // select_union
 #include "opt_trace.h"                        // opt_trace_disable_etc
-
 
 /**
   Resolve a derived table or view reference, including recursively resolving
@@ -60,7 +59,7 @@ bool TABLE_LIST::resolve_derived(THD *thd, bool apply_semijoin)
     DBUG_ASSERT(sl->context.outer_context == NULL);
   }
 #endif
-  if (!(derived_result= new (thd->mem_root) Query_result_union))
+  if (!(derived_result= new (thd->mem_root) select_union))
     DBUG_RETURN(true);
 
   /*
@@ -264,7 +263,7 @@ bool TABLE_LIST::create_derived(THD *thd)
     DBUG_RETURN(false);
   }
   /* create tmp table */
-  Query_result_union *result= (Query_result_union*)unit->query_result();
+  select_union *result= (select_union*)unit->query_result();
 
   if (instantiate_tmp_table(table, table->key_info,
                             result->tmp_table_param.start_recinfo,

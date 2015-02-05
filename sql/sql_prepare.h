@@ -368,11 +368,11 @@ private:
   A result class used to send cursor rows using the binary protocol.
 */
 
-class Query_fetch_protocol_binary: public Query_result_send
+class Select_fetch_protocol_binary: public select_send
 {
   Protocol_binary protocol;
 public:
-  Query_fetch_protocol_binary(THD *thd);
+  Select_fetch_protocol_binary(THD *thd);
   virtual bool send_result_set_metadata(List<Item> &list, uint flags);
   virtual bool send_data(List<Item> &items);
   virtual bool send_eof();
@@ -424,7 +424,7 @@ public:
   PSI_prepared_stmt* m_prepared_stmt;
 
 private:
-  Query_fetch_protocol_binary result;
+  Select_fetch_protocol_binary result;
   uint flags;
   bool with_log;
   LEX_CSTRING m_name; /* name for named prepared statements */

@@ -524,7 +524,7 @@ private:
   Explain_format &operator=(Explain_format &); // undefined
 
 protected:
-  Query_result *output; ///< output resulting data there
+  select_result *output; ///< output resulting data there
 
 public:
   Explain_format() : output(NULL) {}
@@ -549,7 +549,7 @@ public:
     @retval false       OK
     @retval true        Error
   */
-  virtual bool send_headers(Query_result *result)
+  virtual bool send_headers(select_result *result)
   {
     output= result;
     return false;

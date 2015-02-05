@@ -482,6 +482,10 @@ given at all. */
 */
 #define HA_CREATE_USED_STATS_SAMPLE_PAGES (1L << 24)
 
+/**
+   This is set whenever a 'TABLESPACE=...' phrase is used on CREATE TABLE
+*/
+#define HA_CREATE_USED_TABLESPACE       (1L << 25)
 
 /*
   This is master database for most of system tables. However there
@@ -560,11 +564,22 @@ class st_alter_tablespace : public Sql_alloc
   ulonglong initial_size;
   ulonglong autoextend_size;
   ulonglong max_size;
+  ulonglong file_block_size;
   uint nodegroup_id;
   handlerton *storage_engine;
   bool wait_until_completed;
   const char *ts_comment;
   enum tablespace_access_mode ts_access_mode;
+  bool is_tablespace_command()
+  {
+    return ts_cmd_type == CREATE_TABLESPACE      ||
+            ts_cmd_type == ALTER_TABLESPACE       ||
+            ts_cmd_type == DROP_TABLESPACE        ||
+            ts_cmd_type == CHANGE_FILE_TABLESPACE ||
+            ts_cmd_type == ALTER_ACCESS_MODE_TABLESPACE;
+  }
+
+  /** Default constructor */
   st_alter_tablespace()
   {
     tablespace_name= NULL;
@@ -573,13 +588,14 @@ class st_alter_tablespace : public Sql_alloc
     data_file_name= NULL;
     undo_file_name= NULL;
     redo_file_name= NULL;
-    extent_size= 1024*1024;        //Default 1 MByte
-    undo_buffer_size= 8*1024*1024; //Default 8 MByte
-    redo_buffer_size= 8*1024*1024; //Default 8 MByte
-    initial_size= 128*1024*1024;   //Default 128 MByte
-    autoextend_size= 0;            //No autoextension as default
-    max_size= 0;                   //Max size == initial size => no extension
+    extent_size= 1024*1024;        // Default 1 MByte
+    undo_buffer_size= 8*1024*1024; // Default 8 MByte
+    redo_buffer_size= 8*1024*1024; // Default 8 MByte
+    initial_size= 128*1024*1024;   // Default 128 MByte
+    autoextend_size= 0;            // No autoextension as default
+    max_size= 0;                   // Max size == initial size => no extension
     storage_engine= NULL;
+    file_block_size= 0;            // 0=default or must be a valid Page Size
     nodegroup_id= UNDEF_NODEGROUP;
     wait_until_completed= TRUE;
     ts_comment= NULL;
@@ -884,9 +900,21 @@ struct handlerton
 
 #define HTON_SUPPORTS_FOREIGN_KEYS   (1 << 11)
 
-
 enum enum_tx_isolation { ISO_READ_UNCOMMITTED, ISO_READ_COMMITTED,
 			 ISO_REPEATABLE_READ, ISO_SERIALIZABLE};
+
+typedef struct {
+  ulonglong data_file_length;
+  ulonglong max_data_file_length;
+  ulonglong index_file_length;
+  ulonglong delete_length;
+  ha_rows records;
+  ulong mean_rec_length;
+  ulong create_time;
+  ulong check_time;
+  ulong update_time;
+  ulonglong check_sum;
+} PARTITION_STATS;
 
 #define UNDEF_NODEGROUP 65535
 class Item;

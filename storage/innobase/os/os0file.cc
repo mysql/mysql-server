@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2009, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted
@@ -1052,12 +1052,14 @@ os_file_create_simple_func(
 		ut_a(!read_only_mode);
 
 		/* Create subdirs along the path if needed  */
-		*success = os_file_create_subdirs_if_needed(name);
+		dberr_t	err = os_file_create_subdirs_if_needed(name);
 
-		if (!*success) {
+		if (err != DB_SUCCESS) {
 
 			ib::error() << "Unable to create subdirectories '"
 				<< name << "'";
+
+			*success = false;
 
 			return(OS_FILE_CLOSED);
 		}
@@ -1140,12 +1142,14 @@ os_file_create_simple_func(
 
 		/* Create subdirs along the path if needed  */
 
-		*success = os_file_create_subdirs_if_needed(name);
+		dberr_t	err = os_file_create_subdirs_if_needed(name);
 
-		if (!*success) {
+		if (err != DB_SUCCESS) {
 
 			ib::error() << "Unable to create subdirectories '"
 				<< name << "'";
+
+			*success = false;
 
 			return(OS_FILE_CLOSED);
 		}
@@ -3186,7 +3190,7 @@ os_file_dirname(
 /****************************************************************//**
 Creates all missing subdirectories along the given path.
 @return true if call succeeded, false otherwise */
-bool
+dberr_t
 os_file_create_subdirs_if_needed(
 /*=============================*/
 	const char*	path)	/*!< in: path name */
@@ -3196,18 +3200,22 @@ os_file_create_subdirs_if_needed(
 		ib::error() << "read only mode set. Can't create"
 			" subdirectories '" << path << "'";
 
-		return(false);
+		return(DB_READ_ONLY);
 
 	}
 
 	char*	subdir = os_file_dirname(path);
+
+	if (strlen(path) - strlen(subdir) == 1) {
+		return(DB_WRONG_FILE_NAME);
+	}
 
 	if (strlen(subdir) == 1
 	    && (*subdir == OS_PATH_SEPARATOR || *subdir == '.')) {
 		/* subdir is root or cwd, nothing to do */
 		ut_free(subdir);
 
-		return(true);
+		return(DB_SUCCESS);
 	}
 
 	/* Test if subdir exists */
@@ -3218,12 +3226,12 @@ os_file_create_subdirs_if_needed(
 	if (success && !subdir_exists) {
 
 		/* subdir does not exist, create it */
-		success = os_file_create_subdirs_if_needed(subdir);
+		dberr_t	err = os_file_create_subdirs_if_needed(subdir);
 
-		if (!success) {
+		if (err != DB_SUCCESS) {
 			ut_free(subdir);
 
-			return(false);
+			return(err);
 		}
 
 		success = os_file_create_directory(subdir, false);
@@ -3231,7 +3239,7 @@ os_file_create_subdirs_if_needed(
 
 	ut_free(subdir);
 
-	return(success);
+	return(success ? DB_SUCCESS : DB_ERROR);
 }
 
 #ifndef UNIV_HOTBACKUP

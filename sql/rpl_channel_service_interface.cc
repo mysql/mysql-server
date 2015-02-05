@@ -457,12 +457,11 @@ int channel_get_appliers_thread_id(const char* channel,
           (unsigned long*) my_malloc(PSI_NOT_INSTRUMENTED,
                                      num_workers * sizeof(unsigned long),
                                      MYF(MY_WME));
-      unsigned long *appliers_id_pointer= *appliers_id;
 
-      for (int i= 0; i < num_workers; i++, appliers_id_pointer++)
+      for (int i = 0; i < num_workers; i++)
       {
         mysql_mutex_lock(&mi->rli->workers.at(i)->info_thd_lock);
-        *appliers_id_pointer= mi->rli->workers.at(i)->info_thd->thread_id();
+        *appliers_id[i]= mi->rli->workers.at(i)->info_thd->thread_id();
         mysql_mutex_unlock(&mi->rli->workers.at(i)->info_thd_lock);
       }
 

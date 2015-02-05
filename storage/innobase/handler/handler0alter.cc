@@ -352,9 +352,10 @@ innobase_need_rebuild(
 	    == Alter_inplace_info::CHANGE_CREATE_OPTION
 	    && !(ha_alter_info->create_info->used_fields
 		 & (HA_CREATE_USED_ROW_FORMAT
-		    | HA_CREATE_USED_KEY_BLOCK_SIZE))) {
+		    | HA_CREATE_USED_KEY_BLOCK_SIZE
+		    | HA_CREATE_USED_TABLESPACE))) {
 		/* Any other CHANGE_CREATE_OPTION than changing
-		ROW_FORMAT or KEY_BLOCK_SIZE can be done
+		ROW_FORMAT, KEY_BLOCK_SIZE or TABLESPACE can be done
 		without rebuilding the table. */
 		return(false);
 	}
@@ -3081,6 +3082,18 @@ prepare_inplace_alter_table_dict(
 			goto new_clustered_failed;
 		}
 
+		/* Use the old tablespace unless the tablespace
+		is changing. */
+		if (DICT_TF_HAS_SHARED_SPACE(user_table->flags)
+		    && (0 == strcmp(ha_alter_info->create_info->tablespace,
+				    user_table->tablespace))) {
+			space_id = user_table->space;
+		} else if (target_is_shared_space(ha_alter_info->create_info)) {
+			space_id = fil_space_get_id_by_name(
+				ha_alter_info->create_info->tablespace);
+			ut_a(space_id != ULINT_UNDEFINED);
+		}
+
 		/* The initial space id 0 may be overridden later if this
 		table is going to be a file_per_table tablespace. */
 		ctx->new_table = dict_mem_table_create(
@@ -3866,7 +3879,7 @@ ha_innobase::prepare_inplace_alter_table(
 	dict_foreign_t**add_fk = NULL;	/*!< Foreign key constraints to drop */
 	ulint		n_add_fk;	/*!< Number of foreign keys to drop */
 	dict_table_t*	indexed_table;	/*!< Table where indexes are created */
-	mem_heap_t*     heap;
+	mem_heap_t*	heap;
 	const char**	col_names;
 	int		error;
 	ulint		max_col_len;
@@ -3923,18 +3936,45 @@ ha_innobase::prepare_inplace_alter_table(
 	/* ALTER TABLE will not implicitly move a table from a single-table
 	tablespace to the system tablespace when innodb_file_per_table=OFF.
 	But it will implicitly move a table from the system tablespace to a
-	single-table tablespace if innodb_file_per_table = ON. */
+	single-table tablespace if innodb_file_per_table = ON.
+	Tables found in a general tablespace will stay there unless ALTER
+	TABLE contains another TABLESPACE=name.  If that is found it will
+	explicitly move a table to the named tablespace.
+	So if you specify TABLESPACE=`innodb_system` a table can be moved
+	into the system tablespace from either a general or file-per-table
+	tablespace. But from then on, it is labeled as using a shared space
+	(the create options have tablespace=='innodb_system' and the
+	SHARED_SPACE flag is set in the table flags) so it can no longer be
+	implicitly moved to a file-per-table tablespace. */
 	bool	in_system_space = is_system_tablespace(indexed_table->space);
-	bool	is_file_per_table = !in_system_space;
+	bool	is_file_per_table = !in_system_space
+			&& !DICT_TF_HAS_SHARED_SPACE(indexed_table->flags);
+#ifdef UNIV_DEBUG
+	bool	in_general_space = !in_system_space
+			&& DICT_TF_HAS_SHARED_SPACE(indexed_table->flags);
+
+	/* The table being altered can only be in a system tablespace,
+	or its own file-per-table tablespace, or a general tablespace. */
+	ut_ad(1 == in_system_space + is_file_per_table + in_general_space);
+#endif /* UNIV_DEBUG */
+
+	/* Determine the target tablespace type */
+	bool	needs_shared_space = target_is_shared_space(
+		ha_alter_info->create_info);
 	bool	needs_file_per_table =
 		/* Already file_per_table and staying that way */
-		is_file_per_table
+		(!needs_shared_space && is_file_per_table)
+		/* Explicitly set to file_per_table */
+		|| target_is_file_per_table(ha_alter_info->create_info)
 		/* Moving from the system tablespace to file-per-table */
-		|| (in_system_space && srv_file_per_table);
+		|| (!needs_shared_space
+		    && in_system_space
+		    && srv_file_per_table);
 
 	create_table_info_t	info(m_user_thd,
 				     altered_table,
 				     ha_alter_info->create_info,
+				     NULL,
 				     NULL,
 				     NULL,
 				     NULL,

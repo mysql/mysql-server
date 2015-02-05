@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -50,6 +50,8 @@ fsp_flags_is_compressed(
 	return(FSP_FLAGS_GET_ZIP_SSIZE(flags) != 0);
 }
 
+#define ACTUAL_SSIZE(ssize)	(0 == ssize ? UNIV_PAGE_SSIZE_ORIG : ssize)
+
 /** Determine if two tablespaces are equivalent or compatible.
 @param[in]	flags1	First tablespace flags
 @param[in]	flags2	Second tablespace flags
@@ -66,7 +68,22 @@ fsp_flags_are_equal(
 		return(false);
 	}
 
-	return(flags1 == flags2);
+	if (!fsp_is_shared_tablespace(flags1) || !fsp_is_shared_tablespace(flags2)) {
+		/* At least one of these is a single-table tablespaces so all
+		flags must match. */
+		return(flags1 == flags2);
+	}
+
+	/* Both are shared tablespaces which can contain all formats.
+	But they must have the same logical and physical page size.
+	Once InnoDB can support multiple page sizes together,
+	the logical page size will not matter. */
+	ulint zip_ssize1 = ACTUAL_SSIZE(FSP_FLAGS_GET_ZIP_SSIZE(flags1));
+	ulint zip_ssize2 = ACTUAL_SSIZE(FSP_FLAGS_GET_ZIP_SSIZE(flags2));
+	ulint page_ssize1 = ACTUAL_SSIZE(FSP_FLAGS_GET_PAGE_SSIZE(flags1));
+	ulint page_ssize2 = ACTUAL_SSIZE(FSP_FLAGS_GET_PAGE_SSIZE(flags2));
+
+	return(zip_ssize1 == zip_ssize2 && page_ssize1 == page_ssize2);
 }
 
 /** Convert a page size, which is a power of 2, to an ssize, which is
@@ -161,14 +178,21 @@ fsp_flags_set_page_size(
 @param[in]	page_size	page sizes in bytes and compression flag.
 @param[in]	atomic_blobs	Used by Dynammic and Compressed.
 @param[in]	has_data_dir	This tablespace is in a remote location.
+@param[in]	is_shared	This tablespace can be shared by many tables.
+@param[in]	is_temporary	This tablespace is temporary.
 @return tablespace flags after initialization */
 UNIV_INLINE
 ulint
 fsp_flags_init(
 	const page_size_t&	page_size,
 	bool			atomic_blobs,
-	bool			has_data_dir)
+	bool			has_data_dir,
+	bool			is_shared,
+	bool			is_temporary)
 {
+	ut_ad(page_size.physical() <= page_size.logical());
+	ut_ad(!page_size.is_compressed() || atomic_blobs);
+
 	/* Page size should be a power of two between UNIV_PAGE_SIZE_MIN
 	and UNIV_PAGE_SIZE, but zip_size may be 0 if not compressed. */
 	ulint flags = fsp_flags_set_page_size(0, page_size);
@@ -184,6 +208,18 @@ fsp_flags_init(
 
 	if (has_data_dir) {
 		flags |= FSP_FLAGS_MASK_DATA_DIR;
+	}
+
+	/* Shared tablespaces can hold all row formats, so we only mark the
+	POST_ANTELOPE and ATOMIC_BLOB bits if it is compressed. */
+	if (is_shared) {
+		ut_ad(!has_data_dir);
+		flags |= FSP_FLAGS_MASK_SHARED;
+	}
+
+	if (is_temporary) {
+		ut_ad(!has_data_dir);
+		flags |= FSP_FLAGS_MASK_TEMPORARY;
 	}
 
 	return(flags);

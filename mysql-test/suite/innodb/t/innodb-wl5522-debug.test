@@ -1249,7 +1249,6 @@ call mtr.add_suppression("\\[ERROR\\] InnoDB: IO Error: while reading index meta
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Operating system error number 2 in a file operation.");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: The error means the system cannot find the path specified.");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Unsupported tablespace format");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Tablespace open failed for `test_wl5522`.`t1`, ignored.");
 --enable_query_log
 
 #cleanup

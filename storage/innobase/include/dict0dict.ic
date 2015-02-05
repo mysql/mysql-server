@@ -30,6 +30,7 @@ Created 1/8/1996 Heikki Tuuri
 #include "fsp0fsp.h"
 #include "srv0srv.h"
 #include "sync0rw.h"
+#include "fsp0sysspace.h"
 
 /*********************************************************************//**
 Gets the minimum number of bytes per character.
@@ -551,6 +552,8 @@ dict_tf_is_valid(
 	bool	compact = DICT_TF_GET_COMPACT(flags);
 	ulint	zip_ssize = DICT_TF_GET_ZIP_SSIZE(flags);
 	bool	atomic_blobs = DICT_TF_HAS_ATOMIC_BLOBS(flags);
+	bool	data_dir = DICT_TF_HAS_DATA_DIR(flags);
+	bool	shared_space = DICT_TF_HAS_SHARED_SPACE(flags);
 	ulint	unused = DICT_TF_GET_UNUSED(flags);
 
 	/* Make sure there are no bits that we do not know about. */
@@ -589,8 +592,10 @@ dict_tf_is_valid(
 		}
 	}
 
-	/* CREATE TABLE ... DATA DIRECTORY is supported for any row format,
-	so the DATA_DIR flag is compatible with all other table flags. */
+	/* HAS_DATA_DIR and SHARED_SPACE are mutually exclusive. */
+	if (data_dir && shared_space) {
+		return(false);
+	}
 
 	return(true);
 }
@@ -611,6 +616,12 @@ dict_tf2_is_valid(
 	}
 
 	if ((flags2 & DICT_TF2_UNUSED_BIT_MASK) != 0) {
+		return(false);
+	}
+
+	bool	file_per_table = ((flags2 & DICT_TF2_USE_FILE_PER_TABLE) != 0);
+	bool	shared_space = DICT_TF_HAS_SHARED_SPACE(flags);
+	if (file_per_table && shared_space) {
 		return(false);
 	}
 
@@ -752,14 +763,16 @@ dict_table_get_format(
 @param[in,out]	flags,		Pointer to a 4 byte Table Flags
 @param[in]	format		File Format
 @param[in]	zip_ssize	Zip Shift Size
-@param[in]	use_data_dir	Table uses DATA DIRECTORY */
+@param[in]	use_data_dir	Table uses DATA DIRECTORY
+@param[in]	shared_space	Table uses a General Shared Tablespace */
 UNIV_INLINE
 void
 dict_tf_set(
 	ulint*		flags,
 	rec_format_t	format,
 	ulint		zip_ssize,
-	bool		use_data_dir)
+	bool		use_data_dir,
+	bool		shared_space)
 {
 	switch (format) {
 	case REC_FORMAT_REDUNDANT:
@@ -785,20 +798,26 @@ dict_tf_set(
 	if (use_data_dir) {
 		*flags |= (1 << DICT_TF_POS_DATA_DIR);
 	}
+
+	if (shared_space) {
+		*flags |= (1 << DICT_TF_POS_SHARED_SPACE);
+	}
 }
 
 /** Initialize a dict_table_t::flags pointer.
 @param[in]	compact,	Table uses Compact or greater
 @param[in]	zip_ssize	Zip Shift Size (log 2 minus 9)
 @param[in]	atomic_blobs	Table uses Compressed or Dynamic
-@param[in]	data_dir	Table uses DATA DIRECTORY */
+@param[in]	data_dir	Table uses DATA DIRECTORY
+@param[in]	shared_space	Table uses a General Shared Tablespace */
 UNIV_INLINE
 ulint
 dict_tf_init(
 	bool		compact,
 	ulint		zip_ssize,
 	bool		atomic_blobs,
-	bool		data_dir)
+	bool		data_dir,
+	bool		shared_space)
 {
 	ulint	flags = 0;
 
@@ -816,6 +835,10 @@ dict_tf_init(
 
 	if (data_dir) {
 		flags |= (1 << DICT_TF_POS_DATA_DIR);
+	}
+
+	if (shared_space) {
+		flags |= (1 << DICT_TF_POS_SHARED_SPACE);
 	}
 
 	ut_ad(dict_tf_is_valid(flags));
@@ -849,7 +872,10 @@ dict_sys_tables_type_to_tf(
 	/* ZIP_SSIZE, ATOMIC_BLOBS & DATA_DIR are the same. */
 	flags |= type & (DICT_TF_MASK_ZIP_SSIZE
 			 | DICT_TF_MASK_ATOMIC_BLOBS
-			 | DICT_TF_MASK_DATA_DIR);
+			 | DICT_TF_MASK_DATA_DIR
+			 | DICT_TF_MASK_SHARED_SPACE);
+
+	ut_ad(!DICT_TF_GET_ZIP_SSIZE(flags) || DICT_TF_HAS_ATOMIC_BLOBS(flags));
 
 	return(flags);
 }
@@ -880,7 +906,8 @@ dict_tf_to_sys_tables_type(
 	/* ZIP_SSIZE, ATOMIC_BLOBS & DATA_DIR are the same. */
 	type |= flags & (DICT_TF_MASK_ZIP_SSIZE
 			 | DICT_TF_MASK_ATOMIC_BLOBS
-			 | DICT_TF_MASK_DATA_DIR);
+			 | DICT_TF_MASK_DATA_DIR
+			 | DICT_TF_MASK_SHARED_SPACE);
 
 	return(type);
 }
@@ -1537,8 +1564,8 @@ A patch was added to v3.23.52 which initializes the MIX_LEN field to 0.
 Since file-per-table tablespaces were added in 4.1, any SYS_TABLES
 record with a non-zero space ID will have a reliable MIX_LEN field.
 However, this test does not use flags2 from SYS_TABLES.MIX_LEN.  Instead,
-assume that if the tablespace is not a predefined system tablespace it
-must be file-per-table.
+assume that if the tablespace is not a predefined system tablespace and it
+is not a general shared tablespace, then it must be file-per-table.
 Also, during ALTER TABLE, the DICT_TF2_USE_FILE_PER_TABLE flag may not be
 set on one of the file-per-table tablespaces.
 This test cannot be done on a table in the process of being created
@@ -1550,7 +1577,17 @@ bool
 dict_table_is_file_per_table(
 	const dict_table_t*	table)	/*!< in: table to check */
 {
-	return(!is_system_tablespace(table->space));
+	bool is_file_per_table =
+		!is_system_tablespace(table->space)
+		&& !DICT_TF_HAS_SHARED_SPACE(table->flags);
+
+	/* If the table is file-per-table and it is not redundant, then
+	it should have the flags2 bit for DICT_TF2_USE_FILE_PER_TABLE. */
+	ut_ad(!is_file_per_table
+	      || !DICT_TF_GET_COMPACT(table->flags)
+	      || DICT_TF2_FLAG_IS_SET(table, DICT_TF2_USE_FILE_PER_TABLE));
+
+	return(is_file_per_table );
 }
 
 /**********************************************************************//**

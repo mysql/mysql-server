@@ -592,6 +592,34 @@ innobase_index_name_is_reserved(
 						be created. */
 	__attribute__((warn_unused_result));
 
+extern const char reserved_file_per_table_space_name[];
+
+/** Check if the explicit tablespace targeted is file_per_table.
+@param[in]	create_info	Metadata for the table to create.
+@return true if the table is intended to use a file_per_table tablespace. */
+UNIV_INLINE
+bool
+target_is_file_per_table(
+	const HA_CREATE_INFO*	create_info)
+{
+	return(create_info->tablespace != NULL
+	       && (0 == strcmp(create_info->tablespace,
+			       reserved_file_per_table_space_name)));
+}
+
+/** Check if table will be put in an existing shared general tablespace.
+@param[in]	create_info	Metadata for the table to create.
+@return true if the table will use an existing shared general tablespace. */
+UNIV_INLINE
+bool
+target_is_shared_space(
+	const HA_CREATE_INFO*	create_info)
+{
+	return(create_info->tablespace != NULL
+	       && (0 != strcmp(create_info->tablespace,
+			       reserved_file_per_table_space_name)));
+}
+
 /** Parse hint for table and its indexes, and update the information
 in dictionary.
 @param[in]	thd		Connection thread
@@ -618,6 +646,7 @@ public:
 		char*		table_name,
 		char*		temp_path,
 		char*		remote_path,
+		char*		tablespace,
 		bool		file_per_table)
 	:m_thd(thd),
 	m_form(form),
@@ -625,8 +654,13 @@ public:
 	m_table_name(table_name),
 	m_temp_path(temp_path),
 	m_remote_path(remote_path),
+	m_tablespace(tablespace),
 	m_file_per_table(file_per_table)
 	{
+		/* Note whether this table will be created using a shared,
+		general or system tablespace. */
+		m_use_shared_space = target_is_shared_space(m_create_info);
+
 		/* DATA DIRECTORY must have m_file_per_table but cannot be
 		used with TEMPORARY tables. */
 		m_use_data_dir =
@@ -634,10 +668,13 @@ public:
 			&& ((m_create_info->data_file_name != NULL)
 			&& !(m_create_info->options & HA_LEX_CREATE_TMP_TABLE));
 	}
+
 	/** Create the internal innodb table. */
 	int create_table();
+
 	/** Update the internal data dictionary. */
 	int create_table_update_dict();
+
 	/** Validates the create options. Checks that the options
 	KEY_BLOCK_SIZE, ROW_FORMAT, DATA DIRECTORY, TEMPORARY & TABLESPACE
 	are compatible with each other and other settings.
@@ -647,29 +684,41 @@ public:
 	ER_ILLEGAL_HA_CREATE_OPTION, not its built-in message.
 	@return NULL if valid, string name of bad option if not. */
 	const char* create_options_are_invalid();
+
 	/** Validate DATA DIRECTORY option. */
 	bool create_option_data_directory_is_valid();
+
+	/** Validate TABLESPACE option. */
+	bool create_option_tablespace_is_valid();
+
 	/** Parses the table name into normal name and either temp path or
 	remote path if needed.*/
 	int parse_table_name(const char*	name);
+
 	/** Prepare to create a table. */
 	int prepare_create_table(const char*		name);
 	void allocate_trx();
+
 	/** Determines InnoDB table flags.
 	If strict_mode=OFF, this will adjust the flags to what should be assumed.
 	@retval true if successful, false if error */
 	bool innobase_table_flags();
+
 	/** Set flags and append '/' to remote path if necessary. */
 	void set_remote_path_flags();
+
 	/** Get table flags. */
 	ulint flags() const
 	{ return(m_flags); }
+
 	/** Get table flags2. */
 	ulint flags2() const
 	{ return(m_flags2); }
+
 	/** Get trx. */
 	trx_t* trx() const
 	{ return(m_trx); }
+
 	/** Return table name. */
 	const char* table_name() const
 	{ return(m_table_name); }
@@ -699,14 +748,19 @@ public:
 private:
 	/** Create the internal innodb table definition. */
 	int create_table_def();
+
 	/** Connection thread handle. */
 	THD*		m_thd;
+
 	/** InnoDB transaction handle. */
 	trx_t*		m_trx;
+
 	/** Information on table columns and indexes. */
 	const TABLE*	m_form;
+
 	/** Create options. */
 	HA_CREATE_INFO*	m_create_info;
+
 	/** Table name */
 	char*		m_table_name;
 	/** If this is a table explicitly created by the user with the
@@ -715,14 +769,25 @@ private:
 	(no .ibd extension in the path, though).
 	Otherwise this is a zero length-string */
 	char*		m_temp_path;
+
 	/** Remote path (DATA DIRECTORY) or zero length-string */
 	char*		m_remote_path;
+
+	/** Tablespace name or zero length-string. */
+	char*		m_tablespace;
+
 	/** Using file per table. */
 	bool		m_file_per_table;
+
 	/** Using DATA DIRECTORY */
 	bool		m_use_data_dir;
+
+	/** Using a Shared General Tablespace */
+	bool		m_use_shared_space;
+
 	/** Table flags */
 	ulint		m_flags;
+
 	/** Table flags2 */
 	ulint		m_flags2;
 };

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -575,13 +575,17 @@ fsp_flags_are_equal(
 @param[in]	page_size	page sizes in bytes and compression flag.
 @param[in]	atomic_blobs	Used by Dynammic and Compressed.
 @param[in]	has_data_dir	This tablespace is in a remote location.
+@param[in]	is_shared	This tablespace can be shared by many tables.
+@param[in]	is_temporary	This tablespace is temporary.
 @return tablespace flags after initialization */
 UNIV_INLINE
 ulint
 fsp_flags_init(
 	const page_size_t&	page_size,
 	bool			atomic_blobs,
-	bool			has_data_dir);
+	bool			has_data_dir,
+	bool			is_shared,
+	bool			is_temporary);
 
 /** Convert a 32 bit integer tablespace flags to the 32 bit table flags.
 This can only be done for a tablespace that was built as a file-per-table

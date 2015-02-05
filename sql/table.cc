@@ -35,6 +35,7 @@
 #include "sql_plugin.h"                  // plugin_unlock
 #include "sql_select.h"                  // actual_key_parts
 #include "sql_table.h"                   // build_table_filename
+#include "sql_tablespace.h"              // check_tablespace_name())
 #include "sql_view.h"                    // view_type
 #include "strfunc.h"                     // unhex_type2
 #include "table_cache.h"                 // table_cache_manager
@@ -1013,6 +1014,201 @@ end:
 }
 
 
+/**
+  When reading the tablespace name from the .FRM file, the tablespace name
+  is validated. If the name is invalid, it is ignored. The function used to
+  validate the name, 'check_tablespace_name()', emits errors. In the context
+  of reading .FRM files, the errors must be ignored. This error handler makes
+  sure this is done.
+*/
+
+class Tablespace_name_error_handler : public Internal_error_handler
+{
+public:
+  bool handle_condition(THD *thd,
+                        uint sql_errno,
+                        const char* sqlstate,
+                        Sql_condition::enum_severity_level *level,
+                        const char* msg)
+  {
+    if (sql_errno == ER_WRONG_TABLESPACE_NAME ||
+        sql_errno == ER_TOO_LONG_IDENT)
+      return true;
+    return false;
+  }
+};
+
+
+const char *get_tablespace_name(THD *thd, const TABLE_LIST *table)
+{
+  // Prepare the path to the .FRM file and open the file
+  char path[FN_REFLEN + 1];           //< Path to .FRM file
+  build_table_filename(path, sizeof(path) - 1,
+                       table->db, table->table_name, reg_ext, 0);
+
+  // First, we open the file, and return upon failure. No need to close
+  // the file in this case.
+  File file= mysql_file_open(key_file_frm, path, O_RDONLY | O_SHARE, MYF(0));
+  if (file < 0)
+    return NULL;
+
+  // Next, we read the header and do some basic verification of the
+  // header fields.
+  uchar head[64];
+  if (mysql_file_read(file, head, sizeof(head), MYF(MY_NABP)) ||
+      head[0] != (uchar) 254 || head[1] != 1                  ||
+      !(head[2] == FRM_VER || head[2] == FRM_VER + 1 ||
+        (head[2] >= FRM_VER + 3 && head[2] <= FRM_VER + 4)))
+  {
+    // Upon failure, return NULL, but here, we have to close the file first.
+    mysql_file_close(file, MYF(MY_WME));
+    return NULL;
+  }
+
+  // Then, check that we have an extra data segment and a proper form position.
+  const ulong pos= get_form_pos(file, head);   //< Position of form info
+  const uint n_length= uint4korr(head + 55);   //< Length of extra segment
+  if (n_length == 0 || pos == 0)
+  {
+    // If failing, return NULL, but here, we have to close the file first.
+    mysql_file_close(file, MYF(MY_WME));
+    return NULL;
+  }
+
+  // Now, we are done with the basic verification. The outline of the
+  // processing below is as follows:
+  //
+  // 1. Scan the key information buffer to determine how many keys
+  //    that will have an associated parser name represented in the
+  //    extra segment (see below).
+  // 2. Read the form information, allocate a buffer for the extra
+  //    data segment and read it into the buffer.
+  // 3. Get the length of various elements and advance the reading
+  //    position accordingly.
+  // 4. Loop over the full text key fields that have parser names
+  //    stored in the extra segment.
+  // 5. Finally, read the tablespace name from the format section.
+
+  // Read the number of keys. Needed to advance read position correctly
+  const uint key_info_length= uint2korr(head + 28);
+  uint n_keys= 0;
+  uchar *disk_buff= NULL;
+  mysql_file_seek(file, uint2korr(head + 6), MY_SEEK_SET, MYF(0));
+  if (!read_string(file, &disk_buff, key_info_length))
+  {
+    if (disk_buff[0] & 0x80)
+      n_keys= (disk_buff[1] << 7) | (disk_buff[0] & 0x7f);
+    else
+      n_keys= disk_buff[0];
+  }
+
+  // Get the FRM version, needed to interpret key fields correctly
+  const uint new_frm_ver= (head[2] - FRM_VER);
+
+  // Number of key fields with parser name in the extra segment, this is
+  // the relevant key information in this context (see below).
+  uint n_keys_parser= 0;
+
+  // Position to read from
+  uchar *strpos= disk_buff + 6;
+
+  // Find which keys have a parser name in the extra segment. Loop over
+  // all keys, get the flags, and interpret them according to the .FRM
+  // version present
+  for (uint i= 0; i < n_keys; i++)
+  {
+    uint user_defined_key_parts= 0;
+    // First, get the key information. Here, we only care about the
+    // flags (needed to increment n_keys_parser) and the number of
+    // user defined key parts (needed to advance read position).
+    if (new_frm_ver >= 3)
+    {
+      if (HA_USES_PARSER & uint2korr(strpos))
+        n_keys_parser++;
+      user_defined_key_parts= strpos[4];
+      strpos+= 8;
+    }
+    else
+    {
+      if (HA_USES_PARSER & strpos[0])
+        n_keys_parser++;
+      user_defined_key_parts= strpos[3];
+      strpos+= 4;
+    }
+
+    // Advance read position correctly
+    if (new_frm_ver >= 1)
+      strpos+= 9 * user_defined_key_parts;
+    else
+      strpos+= 7 * user_defined_key_parts;
+  }
+
+  // Read the form information, allocate and read the extra segment.
+  mysql_file_seek(file, pos, MY_SEEK_SET,MYF(0));
+  uchar forminfo[288];
+  uchar *extra_segment_buff= static_cast<uchar*>(
+          my_malloc(key_memory_frm_extra_segment_buff,
+                    n_length, MYF(MY_WME)));
+  const uint reclength= uint2korr(head + 16);
+  const uint record_offset= uint2korr(head + 6) +
+          ((uint2korr(head + 14) == 0xffff ?
+            uint4korr(head + 47) : uint2korr(head + 14)));
+  char *tablespace_name= NULL;        //< Tablespace name to be returned
+  if (!mysql_file_read(file, forminfo, sizeof(forminfo), MYF(MY_NABP)) &&
+      extra_segment_buff &&
+      !mysql_file_pread(file, extra_segment_buff, n_length,
+                        record_offset + reclength, MYF(MY_NABP)))
+  {
+    uchar *next_chunk= extra_segment_buff;                //< Read pos
+    const uchar *buff_end= extra_segment_buff + n_length; //< Buffer end
+
+    next_chunk+= uint2korr(next_chunk) + 2;   // Connect string
+    if (next_chunk + 2 < buff_end)
+      next_chunk+= uint2korr(next_chunk) + 2; // DB type
+    if (next_chunk + 5 < buff_end)
+      next_chunk+= 5 + uint4korr(next_chunk); // Partitioning
+    if (uint4korr(head + 51) >= 50110 && next_chunk < buff_end)
+      next_chunk++;                           // Auto_partitioned
+
+    // Read parser names for full text keys (this is why we needed to
+    // get the key information above)
+    for (uint i= 0; i < n_keys_parser; i++)
+      if (next_chunk < buff_end)
+        next_chunk+= strlen(reinterpret_cast<char*>(next_chunk)) + 1;
+
+    if (forminfo[46] == static_cast<uchar>(255) &&
+        (next_chunk + 2 < buff_end))
+      next_chunk+= 2 + uint2korr(next_chunk); // Long table comment
+
+    // At last we got to the point where the tablespace name is located
+    const uint format_section_header_size= 8;
+    if (next_chunk + format_section_header_size < buff_end)
+    {
+      const uint format_section_length= uint2korr(next_chunk);
+      if (next_chunk + format_section_length <= buff_end)
+      {
+        tablespace_name= thd->mem_strdup((char*)next_chunk +
+                format_section_header_size);
+        if (strlen(tablespace_name) > 0)
+        {
+          Tablespace_name_error_handler error_handler;
+          thd->push_internal_handler(&error_handler);
+          if (check_tablespace_name(tablespace_name) != IDENT_NAME_OK)
+            tablespace_name= NULL; // Allocated memory is implicitly freed.
+          thd->pop_internal_handler();
+        }
+      }
+    }
+  }
+
+  // Free the dynamically allocated buffers and close the .FRM file
+  my_free(extra_segment_buff);
+  my_free(disk_buff);
+  mysql_file_close(file, MYF(MY_WME));
+
+  return tablespace_name;
+}
+
 /*
   Read data from a binary .frm file from MySQL 3.23 - 5.0 into TABLE_SHARE
 
@@ -1471,11 +1667,19 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
       const char *tablespace=
         (const char*)next_chunk + format_section_header_size;
       const size_t tablespace_length= strlen(tablespace);
-      if (tablespace_length &&
+      share->tablespace= NULL;
+      if (tablespace_length)
+      {
+        Tablespace_name_error_handler error_handler;
+        thd->push_internal_handler(&error_handler);
+        enum_ident_name_check name_check= check_tablespace_name(tablespace);
+        thd->pop_internal_handler();
+        if (name_check == IDENT_NAME_OK &&
           !(share->tablespace= strmake_root(&share->mem_root,
                                             tablespace, tablespace_length+1)))
-      {
-        goto err;
+        {
+          goto err;
+        }
       }
       DBUG_PRINT("info", ("tablespace: '%s'",
                           share->tablespace ? share->tablespace : "<null>"));
