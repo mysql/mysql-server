@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2009, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted
@@ -1029,7 +1029,7 @@ os_file_make_data_dir_path(
 /****************************************************************//**
 Creates all missing subdirectories along the given path.
 @return TRUE if call succeeded FALSE otherwise */
-bool
+dberr_t
 os_file_create_subdirs_if_needed(
 /*=============================*/
 	const char*	path);	/*!< in: path name */

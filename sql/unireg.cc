@@ -248,7 +248,20 @@ bool mysql_create_frm(THD *thd, const char *file_name,
     table and column properties
   */
   if (create_info->tablespace)
+  {
     tablespace_length= strlen(create_info->tablespace);
+    /*
+      Make sure we have at least an IX lock on the tablespace name,
+      unless this is a temporary table. For temporary tables, the
+      tablespace name is not IX locked.
+    */
+    if (tablespace_length > 0 &&
+        !(create_info->options & HA_LEX_CREATE_TMP_TABLE))
+      DBUG_ASSERT(thd->mdl_context.owns_equal_or_stronger_lock(
+                                     MDL_key::TABLESPACE, "",
+                                     create_info->tablespace,
+                                     MDL_INTENTION_EXCLUSIVE));
+  }
   format_section_length=
     format_section_header_size +
     tablespace_length + 1 +

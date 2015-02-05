@@ -637,6 +637,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  FAULTS_SYM
 %token  FETCH_SYM                     /* SQL-2003-R */
 %token  FILE_SYM
+%token  FILE_BLOCK_SIZE_SYM
 %token  FILTER_SYM
 %token  FIRST_SYM                     /* SQL-2003-N */
 %token  FIXED_SYM
@@ -1012,7 +1013,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  SWITCHES_SYM
 %token  SYSDATE
 %token  TABLES
-%token  TABLESPACE
+%token  TABLESPACE_SYM
 %token  TABLE_REF_PRIORITY
 %token  TABLE_SYM                     /* SQL-2003-R */
 %token  TABLE_CHECKSUM_SYM
@@ -2319,7 +2320,7 @@ create:
           {
             Lex->alter_tablespace_info->ts_cmd_type= CREATE_LOGFILE_GROUP;
           }
-        | CREATE TABLESPACE tablespace_info
+        | CREATE TABLESPACE_SYM tablespace_info
           {
             Lex->alter_tablespace_info->ts_cmd_type= CREATE_TABLESPACE;
           }
@@ -4606,14 +4607,14 @@ trg_event:
 /*
   This part of the parser contains common code for all TABLESPACE
   commands.
-  CREATE TABLESPACE name ...
-  ALTER TABLESPACE name CHANGE DATAFILE ...
-  ALTER TABLESPACE name ADD DATAFILE ...
-  ALTER TABLESPACE name access_mode
+  CREATE TABLESPACE_SYM name ...
+  ALTER TABLESPACE_SYM name CHANGE DATAFILE ...
+  ALTER TABLESPACE_SYM name ADD DATAFILE ...
+  ALTER TABLESPACE_SYM name access_mode
   CREATE LOGFILE GROUP_SYM name ...
   ALTER LOGFILE GROUP_SYM name ADD UNDOFILE ..
   ALTER LOGFILE GROUP_SYM name ADD REDOFILE ..
-  DROP TABLESPACE name
+  DROP TABLESPACE_SYM name
   DROP LOGFILE GROUP_SYM name
 */
 change_tablespace_access:
@@ -4712,6 +4713,7 @@ tablespace_option:
         | opt_ts_engine
         | ts_wait
         | opt_ts_comment
+        | opt_ts_file_block_size
         ;
 
 alter_tablespace_option_list:
@@ -4923,6 +4925,20 @@ opt_ts_engine:
               MYSQL_YYABORT;
             }
             lex->alter_tablespace_info->storage_engine= $4;
+          }
+        ;
+
+opt_ts_file_block_size:
+          FILE_BLOCK_SIZE_SYM opt_equal size_number
+          {
+            LEX *lex= Lex;
+            if (lex->alter_tablespace_info->file_block_size != 0)
+            {
+              my_error(ER_FILEGROUP_OPTION_ONLY_ONCE,MYF(0),
+                       "FILE_BLOCK_SIZE");
+              MYSQL_YYABORT;
+            }
+            lex->alter_tablespace_info->file_block_size= $3;
           }
         ;
 
@@ -5741,7 +5757,7 @@ opt_part_option_list:
        ;
 
 opt_part_option:
-          TABLESPACE opt_equal ident_or_text
+          TABLESPACE_SYM opt_equal ident_or_text
           { Lex->part_info->curr_part_elem->tablespace_name= $3.str; }
         | opt_storage ENGINE_SYM opt_equal storage_engines
           {
@@ -6013,8 +6029,11 @@ create_table_option:
             Lex->create_info.index_file_name= $4.str;
             Lex->create_info.used_fields|= HA_CREATE_USED_INDEXDIR;
           }
-        | TABLESPACE ident
-          {Lex->create_info.tablespace= $2.str;}
+        | TABLESPACE_SYM opt_equal ident
+          {
+            Lex->create_info.tablespace= $3.str;
+            Lex->create_info.used_fields|= HA_CREATE_USED_TABLESPACE;
+          }
         | STORAGE_SYM DISK_SYM
           {Lex->create_info.storage_media= HA_SM_DISK;}
         | STORAGE_SYM MEMORY_SYM
@@ -7513,7 +7532,7 @@ alter:
             */
             Lex->sql_command= SQLCOM_ALTER_EVENT;
           }
-        | ALTER TABLESPACE alter_tablespace_info
+        | ALTER TABLESPACE_SYM alter_tablespace_info
           {
             LEX *lex= Lex;
             lex->alter_tablespace_info->ts_cmd_type= ALTER_TABLESPACE;
@@ -7523,12 +7542,12 @@ alter:
             LEX *lex= Lex;
             lex->alter_tablespace_info->ts_cmd_type= ALTER_LOGFILE_GROUP;
           }
-        | ALTER TABLESPACE change_tablespace_info
+        | ALTER TABLESPACE_SYM change_tablespace_info
           {
             LEX *lex= Lex;
             lex->alter_tablespace_info->ts_cmd_type= CHANGE_FILE_TABLESPACE;
           }
-        | ALTER TABLESPACE change_tablespace_access
+        | ALTER TABLESPACE_SYM change_tablespace_access
           {
             LEX *lex= Lex;
             lex->alter_tablespace_info->ts_cmd_type= ALTER_ACCESS_MODE_TABLESPACE;
@@ -7695,7 +7714,7 @@ ident_or_empty:
 
 alter_commands:
           /* empty */
-        | DISCARD TABLESPACE
+        | DISCARD TABLESPACE_SYM
           {
             Lex->m_sql_cmd= new (YYTHD->mem_root)
               Sql_cmd_discard_import_tablespace(
@@ -7703,7 +7722,7 @@ alter_commands:
             if (Lex->m_sql_cmd == NULL)
               MYSQL_YYABORT;
           }
-        | IMPORT TABLESPACE
+        | IMPORT TABLESPACE_SYM
           {
             Lex->m_sql_cmd= new (YYTHD->mem_root)
               Sql_cmd_discard_import_tablespace(
@@ -7835,7 +7854,7 @@ alter_commands:
               MYSQL_YYABORT;
           }
         | DISCARD PARTITION_SYM all_or_alt_part_name_list
-          TABLESPACE
+          TABLESPACE_SYM
           {
             Lex->m_sql_cmd= new (YYTHD->mem_root)
               Sql_cmd_discard_import_tablespace(
@@ -7844,7 +7863,7 @@ alter_commands:
               MYSQL_YYABORT;
           }
         | IMPORT PARTITION_SYM all_or_alt_part_name_list
-          TABLESPACE
+          TABLESPACE_SYM
           {
             Lex->m_sql_cmd= new (YYTHD->mem_root)
               Sql_cmd_discard_import_tablespace(
@@ -11065,7 +11084,7 @@ drop:
             lex->drop_if_exists= $3;
             lex->spname= $4;
           }
-        | DROP TABLESPACE tablespace_name drop_ts_options_list
+        | DROP TABLESPACE_SYM tablespace_name drop_ts_options_list
           {
             LEX *lex= Lex;
             lex->alter_tablespace_info->ts_cmd_type= DROP_TABLESPACE;
@@ -11121,7 +11140,7 @@ if_exists:
 
 opt_temporary:
           /* empty */ { $$= 0; }
-        | TEMPORARY { $$= 1; }
+        | TEMPORARY   { $$= 1; }
         ;
 
 drop_ts_options_list:
@@ -13223,6 +13242,7 @@ keyword_sp:
         | ENABLE_SYM               {}
         | FULL                     {}
         | FILE_SYM                 {}
+        | FILE_BLOCK_SIZE_SYM      {}
         | FILTER_SYM               {}
         | FIRST_SYM                {}
         | FIXED_SYM                {}
@@ -13414,7 +13434,7 @@ keyword_sp:
         | TABLE_NAME_SYM           {}
         | TABLES                   {}
         | TABLE_CHECKSUM_SYM       {}
-        | TABLESPACE               {}
+        | TABLESPACE_SYM           {}
         | TEMPORARY                {}
         | TEMPTABLE_SYM            {}
         | TEXT_SYM                 {}
@@ -14045,7 +14065,7 @@ object_privilege:
         | CREATE USER             { Lex->grant |= CREATE_USER_ACL; }
         | EVENT_SYM               { Lex->grant |= EVENT_ACL;}
         | TRIGGER_SYM             { Lex->grant |= TRIGGER_ACL; }
-        | CREATE TABLESPACE       { Lex->grant |= CREATE_TABLESPACE_ACL; }
+        | CREATE TABLESPACE_SYM   { Lex->grant |= CREATE_TABLESPACE_ACL; }
         ;
 
 opt_and:

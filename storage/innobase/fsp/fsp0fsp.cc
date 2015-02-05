@@ -213,9 +213,13 @@ fsp_flags_to_dict_tf(
 	ulint	zip_ssize	= FSP_FLAGS_GET_ZIP_SSIZE(fsp_flags);
 	bool	atomic_blobs	= FSP_FLAGS_HAS_ATOMIC_BLOBS(fsp_flags);
 	bool	data_dir	= FSP_FLAGS_HAS_DATA_DIR(fsp_flags);
+	bool	shared_space	= FSP_FLAGS_GET_SHARED(fsp_flags);
+	/* FSP_FLAGS_GET_TEMPORARY(fsp_flags) does not have an equivalent
+	flag position in the table flags. But it would go into flags2 if
+	any code is created where that is needed. */
 
 	ulint	flags = dict_tf_init(post_antelope | compact, zip_ssize,
-				     atomic_blobs, data_dir);
+				     atomic_blobs, data_dir, shared_space);
 
 	return(flags);
 }
@@ -231,10 +235,13 @@ bool
 fsp_flags_is_valid(
 	ulint	flags)
 {
-	ulint	post_antelope = FSP_FLAGS_GET_POST_ANTELOPE(flags);
+	bool	post_antelope = FSP_FLAGS_GET_POST_ANTELOPE(flags);
 	ulint	zip_ssize = FSP_FLAGS_GET_ZIP_SSIZE(flags);
-	ulint	atomic_blobs = FSP_FLAGS_HAS_ATOMIC_BLOBS(flags);
+	bool	atomic_blobs = FSP_FLAGS_HAS_ATOMIC_BLOBS(flags);
 	ulint	page_ssize = FSP_FLAGS_GET_PAGE_SSIZE(flags);
+	bool	has_data_dir = FSP_FLAGS_HAS_DATA_DIR(flags);
+	bool	is_shared = FSP_FLAGS_GET_SHARED(flags);
+	bool	is_temp = FSP_FLAGS_GET_TEMPORARY(flags);
 	ulint	unused = FSP_FLAGS_GET_UNUSED(flags);
 
 	DBUG_EXECUTE_IF("fsp_flags_is_valid_failure", return(false););
@@ -272,21 +279,25 @@ fsp_flags_is_valid(
 		return(false);
 	}
 
+	/* Only single-table tablespaces use the DATA DIRECTORY clause.
+	It is not compatible with the TABLESPACE clause.  Nor is it
+	compatible with the TEMPORARY clause. */
+	if (has_data_dir && (is_shared || is_temp)) {
+		return(false);
+	}
+
 #if UNIV_FORMAT_MAX != UNIV_FORMAT_B
 # error UNIV_FORMAT_MAX != UNIV_FORMAT_B, Add more validations.
 #endif
-#if FSP_FLAGS_POS_UNUSED != 11
+#if FSP_FLAGS_POS_UNUSED != 13
 # error You have added a new FSP_FLAG without adding a validation check.
 #endif
-
-	/* The DATA_DIR field can be used for any row type so there is
-	nothing here to validate. */
 
 	return(true);
 }
 
 /** Check if tablespace is system temporary.
-@param[in]	space_id	verify is checksum is enabled for given space.
+@param[in]	space_id	Tablespace ID
 @return true if tablespace is system temporary. */
 bool
 fsp_is_system_temporary(
@@ -296,13 +307,26 @@ fsp_is_system_temporary(
 }
 
 /** Check if checksum is disabled for the given space.
-@param[in]	space_id	verify is checksum is enabled for given space.
+@param[in]	space_id	Tablespace ID
 @return true if checksum is disabled for given space. */
 bool
 fsp_is_checksum_disabled(
 	ulint	space_id)
 {
 	return(fsp_is_system_temporary(space_id));
+}
+
+/** Check if tablespace is file-per-table.
+@param[in]	space_id	Tablespace ID
+@param[in]	fsp_flags	Tablespace Flags
+@return true if tablespace is file-per-table. */
+bool
+fsp_is_file_per_table(
+	ulint	space_id,
+	ulint	fsp_flags)
+{
+	return(!is_system_tablespace(space_id)
+		&& !fsp_is_shared_tablespace(fsp_flags));
 }
 
 #ifdef UNIV_DEBUG

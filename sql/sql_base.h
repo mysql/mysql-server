@@ -174,7 +174,7 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type update,
 #define MYSQL_LOCK_IGNORE_TIMEOUT               0x0800
 /**
   When acquiring "strong" (SNW, SNRW, X) metadata locks on tables to
-  be open do not acquire global and schema-scope IX locks.
+  be open do not acquire global, tablespace-scope and schema-scope IX locks.
 */
 #define MYSQL_OPEN_SKIP_SCOPED_MDL_LOCK         0x1000
 /**

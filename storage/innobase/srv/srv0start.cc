@@ -121,6 +121,8 @@ incomplete transactions */
 bool	srv_startup_is_before_trx_rollback_phase = false;
 /** TRUE if the server is being started */
 bool	srv_is_being_started = false;
+/** TRUE if SYS_TABLESPACES is available for lookups */
+bool	srv_sys_tablespaces_open = false;
 /** TRUE if the server was successfully started */
 ibool	srv_was_started = FALSE;
 /** TRUE if innobase_start_or_create_for_mysql() has been called */
@@ -658,7 +660,8 @@ srv_undo_tablespace_open(
 		fil_set_max_space_id_if_bigger(space_id);
 
 		/* Set the compressed page size to 0 (non-compressed) */
-		flags = fsp_flags_init(univ_page_size, false, false);
+		flags = fsp_flags_init(
+			univ_page_size, false, false, false, false);
 		space = fil_space_create(
 			name, space_id, flags, FIL_TYPE_TABLESPACE);
 
@@ -1120,7 +1123,7 @@ srv_open_tmp_tablespace(
 		ut_a(temp_space_id != ULINT_UNDEFINED);
 		ut_a(tmp_space->space_id() == temp_space_id);
 
-		/* Open this shared temp tablesapce in the fil_system so that
+		/* Open this shared temp tablespace in the fil_system so that
 		it stays open until shutdown. */
 		if (fil_space_open(tmp_space->name())) {
 
@@ -2111,6 +2114,15 @@ files_checked:
 		recv_recovery_from_checkpoint_finish();
 
 		if (srv_force_recovery < SRV_FORCE_NO_IBUF_MERGE) {
+			/* Open or Create SYS_TABLESPACES and SYS_DATAFILES
+			so that tablespace names and other metadata can be
+			found. */
+			err = dict_create_or_check_sys_tablespace();
+			if (err != DB_SUCCESS) {
+				return(srv_init_abort(err));
+			}
+			srv_sys_tablespaces_open = true;
+
 			/* The following call is necessary for the insert
 			buffer to work with multiple tablespaces. We must
 			know the mapping between space id's and .ibd file
@@ -2124,24 +2136,18 @@ files_checked:
 			every table in the InnoDB data dictionary that has
 			an .ibd file.
 
-			We also determine the maximum tablespace id used. */
+			We also determine the maximum tablespace id used.
 
-			/* Before searching the dictionary for tablespaces,
-			make sure SYS_TABLESPACES and SYS_DATAFILES are
-			available. */
-			err = dict_create_or_check_sys_tablespace();
-			if (err != DB_SUCCESS) {
-				return(srv_init_abort(err));
-			}
-
-			/* This flag indicates that when a tablespace is opened,
-			we also read the header page and validate the contents
-			to the data dictionary. This is time consuming, especially
-			for databases with lots of ibd files.  So only do it after
-			a crash and not forcing recovery.  Open rw transactions
-			at this point is not a good reason to validate. */
+			The 'validate' flag indicates that when a tablespace
+			is opened, we also read the header page and validate
+			the contents to the data dictionary. This is time
+			consuming, especially for databases with lots of ibd
+			files.  So only do it after a crash and not forcing
+			recovery.  Open rw transactions at this point is not
+			a good reason to validate. */
 			bool validate = recv_needed_recovery
 				&& srv_force_recovery == 0;
+
 			dict_check_tablespaces_and_store_max_id(validate);
 		}
 
@@ -2334,6 +2340,7 @@ files_checked:
 	if (err != DB_SUCCESS) {
 		return(srv_init_abort(err));
 	}
+	srv_sys_tablespaces_open = true;
 
 	srv_is_being_started = false;
 
@@ -2377,6 +2384,10 @@ files_checked:
 
 	/* wake main loop of page cleaner up */
 	os_event_set(buf_flush_event);
+
+	/* Be sure the data dictionary has the correct detail about the
+	system tablespace. */
+	srv_sys_space.replace_in_dictionary();
 
 	sum_of_data_file_sizes = srv_sys_space.get_sum_of_sizes();
 	ut_a(sum_of_new_sizes != ULINT_UNDEFINED);

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -166,6 +166,15 @@ Try to read it from the fil_system first, then from SYS_DATAFILES.
 @param[in]	dict_mutex_own	true if dict_sys->mutex is owned already */
 void
 dict_get_and_save_data_dir_path(
+	dict_table_t*	table,
+	bool		dict_mutex_own);
+
+/** Make sure the tablespace name is saved in dict_table_t if needed.
+Try to read it from the file dictionary first, then from SYS_TABLESPACES.
+@param[in]	table		Table object
+@param[in]	dict_mutex_own)	true if dict_sys->mutex is owned already */
+void
+dict_get_and_save_space_name(
 	dict_table_t*	table,
 	bool		dict_mutex_own);
 
@@ -369,7 +378,7 @@ dict_update_filepath(
 the given space_id using an independent transaction.
 @param[in]	space_id	Tablespace ID
 @param[in]	name		Tablespace name
-@param[in]	filepath,	First filepath
+@param[in]	filepath	First filepath
 @param[in]	fsp_flags	Tablespace flags
 @return DB_SUCCESS if OK, dberr_t if the insert failed */
 dberr_t
@@ -378,6 +387,16 @@ dict_replace_tablespace_and_filepath(
 	const char*	name,
 	const char*	filepath,
 	ulint		fsp_flags);
+
+/** Add another filepath to the Data Dictionary for the given space_id
+using an independent transaction.
+@param[in]	space_id	Tablespace ID
+@param[in]	filepath	First filepath
+@return DB_SUCCESS if OK, dberr_t if the insert failed */
+dberr_t
+dict_add_filepath(
+	ulint		space_id,
+	const char*	filepath);
 
 #ifndef UNIV_NONINL
 #include "dict0load.ic"

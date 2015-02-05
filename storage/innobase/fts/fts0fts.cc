@@ -1935,11 +1935,16 @@ fts_create_one_index_table(
 
 	fts_get_table_name(fts_table, table_name);
 
-	if (srv_file_per_table) {
-		flags2 = DICT_TF2_USE_FILE_PER_TABLE;
-	}
+	/* Use the file_per_table setting from the main file */
+	flags2 = fts_table->table->flags2
+		 & DICT_TF2_USE_FILE_PER_TABLE;
 
 	new_table = dict_mem_table_create(table_name, 0, 5, 1, flags2);
+
+	if (DICT_TF_HAS_SHARED_SPACE(fts_table->table->flags)) {
+		new_table->tablespace = mem_heap_strdup(
+			heap, fts_table->table->tablespace);
+	}
 
 	field = dict_index_get_nth_field(index, 0);
 	charset = fts_get_charset(field->col->prtype);

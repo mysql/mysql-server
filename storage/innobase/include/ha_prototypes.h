@@ -101,6 +101,16 @@ innobase_quote_identifier(
 	trx_t*		trx,
 	const char*	id);
 
+/** Quote an standard SQL identifier like tablespace, index or column name.
+Return the string as an std:string object.
+@param[in]	trx	InnoDB transaction, or NULL
+@param[in]	id	identifier to quote
+@return a std::string with id properly quoted. */
+std::string
+innobase_quote_identifier(
+	trx_t*		trx,
+	const char*	id);
+
 /*****************************************************************//**
 Convert a table name to the MySQL system_charset_info (UTF-8).
 @return pointer to the end of buf */

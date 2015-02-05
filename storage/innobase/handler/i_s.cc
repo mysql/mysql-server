@@ -6343,6 +6343,15 @@ static ST_FIELD_INFO	innodb_sys_tables_fields_info[] =
 	 STRUCT_FLD(old_name,		""),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
+#define SYS_TABLES_SPACE_TYPE	8
+	{STRUCT_FLD(field_name,		"SPACE_TYPE"),
+	 STRUCT_FLD(field_length,	10),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_MAYBE_NULL),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
 	END_OF_ST_FIELD_INFO
 };
 
@@ -6365,6 +6374,7 @@ i_s_dict_fill_sys_tables(
 	const page_size_t&	page_size = dict_tf_get_page_size(table->flags);
 	const char*		file_format;
 	const char*		row_format;
+	const char*		space_type;
 
 	file_format = trx_sys_file_format_id_to_name(atomic_blobs);
 	if (!compact) {
@@ -6375,6 +6385,14 @@ i_s_dict_fill_sys_tables(
 		row_format = "Compressed";
 	} else {
 		row_format = "Dynamic";
+	}
+
+	if (is_system_tablespace(table->space)) {
+		space_type = "System";
+	} else if (DICT_TF_HAS_SHARED_SPACE(table->flags)) {
+		space_type = "General";
+	} else {
+		space_type = "Single";
 	}
 
 	DBUG_ENTER("i_s_dict_fill_sys_tables");
@@ -6399,6 +6417,8 @@ i_s_dict_fill_sys_tables(
 				page_size.is_compressed()
 				? page_size.physical()
 				: 0)));
+
+	OK(field_store_string(fields[SYS_TABLES_SPACE_TYPE], space_type));
 
 	OK(schema_table_store_record(thd, table_to_fill));
 
@@ -8086,6 +8106,15 @@ static ST_FIELD_INFO	innodb_sys_tablespaces_fields_info[] =
 	 STRUCT_FLD(old_name,		""),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
+#define SYS_TABLESPACES_SPACE_TYPE	7
+	{STRUCT_FLD(field_name,		"SPACE_TYPE"),
+	 STRUCT_FLD(field_length,	10),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_MAYBE_NULL),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
 	END_OF_ST_FIELD_INFO
 
 };
@@ -8104,21 +8133,36 @@ i_s_dict_fill_sys_tablespaces(
 	ulint		flags,		/*!< in: tablespace flags */
 	TABLE*		table_to_fill)	/*!< in/out: fill this table */
 {
-	Field**			fields;
-	ulint			atomic_blobs = FSP_FLAGS_HAS_ATOMIC_BLOBS(flags);
+	Field**		fields;
+	ulint		atomic_blobs = FSP_FLAGS_HAS_ATOMIC_BLOBS(flags);
+	bool		is_compressed = FSP_FLAGS_GET_ZIP_SSIZE(flags);
+	const char*	file_format;
+	const char*	row_format;
 	const page_size_t	page_size(flags);
-	const char*		file_format;
-	const char*		row_format;
+	const char*	space_type;
 
 	DBUG_ENTER("i_s_dict_fill_sys_tablespaces");
 
 	file_format = trx_sys_file_format_id_to_name(atomic_blobs);
-	if (!atomic_blobs) {
+	if (is_system_tablespace(space)) {
 		row_format = "Compact or Redundant";
-	} else if DICT_TF_GET_ZIP_SSIZE(flags) {
+	} else if (fsp_is_shared_tablespace(flags) && !is_compressed) {
+		file_format = "Any";
+		row_format = "Any";
+	} else if (is_compressed) {
 		row_format = "Compressed";
-	} else {
+	} else if (atomic_blobs) {
 		row_format = "Dynamic";
+	} else {
+		row_format = "Compact or Redundant";
+	}
+
+	if (is_system_tablespace(space)) {
+		space_type = "System";
+	} else if (fsp_is_shared_tablespace(flags)) {
+		space_type = "General";
+	} else  {
+		space_type = "Single";
 	}
 
 	fields = table_to_fill->field;
@@ -8144,6 +8188,9 @@ i_s_dict_fill_sys_tablespaces(
 				page_size.is_compressed()
 				? page_size.physical()
 				: 0)));
+
+	OK(field_store_string(fields[SYS_TABLESPACES_SPACE_TYPE],
+			      space_type));
 
 	OK(schema_table_store_record(thd, table_to_fill));
 

@@ -6,6 +6,9 @@
 --source include/have_innodb.inc
 --source include/no_valgrind_without_big.inc
 
+# Do a clean shutdown and restart so that the redo log is cleaned up from previous tests.
+--source include/restart_mysqld.inc
+
 # Create table with R-tree index.
 create table t1 (c1 int, c2 geometry not null, spatial index (c2))engine=innodb;
 

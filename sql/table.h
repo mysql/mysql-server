@@ -41,7 +41,7 @@ class ACL_internal_schema_access;
 class ACL_internal_table_access;
 class Table_cache_element;
 class Table_trigger_dispatcher;
-class Query_result_union;
+class select_union;
 class Temp_table_param;
 class Index_hint;
 struct Name_resolution_context;
@@ -2066,6 +2066,11 @@ struct TABLE_LIST
   /* link in a global list of all queries tables */
   TABLE_LIST *next_global, **prev_global;
   const char *db, *table_name, *alias;
+  /*
+    Target tablespace name: When creating or altering tables, this
+    member points to the tablespace_name in the HA_CREATE_INFO struct.
+  */
+  LEX_CSTRING target_tablespace_name;
   char *schema_table_name;
   char *option;                /* Used by cache index  */
 
@@ -2130,10 +2135,10 @@ public:
   TABLE        *table;                          /* opened table */
   Table_id table_id; /* table id (from binlog) for opened table */
   /*
-    Query_result for derived table to pass it from table creation to table
+    select_result for derived table to pass it from table creation to table
     filling procedure
   */
-  Query_result_union  *derived_result;
+  select_union  *derived_result;
   /*
     Reference from aux_tables to local list entry of main select of
     multi-delete statement:
@@ -2710,6 +2715,41 @@ void init_tmp_table_share(THD *thd, TABLE_SHARE *share, const char *key,
                           size_t key_length,
                           const char *table_name, const char *path);
 void free_table_share(TABLE_SHARE *share);
+
+
+/**
+  Get the tablespace name from within an .FRM file.
+
+  This function will open the .FRM file for the given TABLE_LIST element
+  and find the tablespace name, if present.
+
+  @note The function does *not* consider errors. If the file is not present,
+        this does not raise an error. The reason is that this function will
+        be used for tables that may not exist, e.g. in the context of
+        'DROP TABLE IF EXISTS', which does not care whether the table
+        exists or not. If an error occurs, the function will return NULL.
+
+  @note The return value is a char pointer to the tablespace name. The
+        string is allocated in the memory root of the thd, and will be
+        freed implicitly.
+
+  @note When the tablespace name is written, there is no distinction between
+        a tablespace name which is empty, and the NULL string pointer. Thus,
+        when reading the name, we will always return a string of length 0 or
+        more, unless there is an error, in which case we will return NULL.
+
+  @note If the tablespace name is invalid, the name will be ignored, and the
+        function will return NULL.
+
+  @param thd    Thread context
+  @param table  Table for which to get the tablespace name
+
+  @return Pointer to string holding a valid tablespace name. If an error
+          occurs, the function returns NULL.
+ */
+
+const char *get_tablespace_name(THD *thd, const TABLE_LIST *table);
+
 int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags);
 void open_table_error(TABLE_SHARE *share, int error, int db_errno, int errarg);
 void update_create_info_from_table(HA_CREATE_INFO *info, TABLE *form);

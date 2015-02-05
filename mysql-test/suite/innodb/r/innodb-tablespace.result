@@ -103,6 +103,7 @@ SELECT name,file_format,row_format
 FROM information_schema.innodb_sys_tablespaces
 ORDER BY name;
 name	file_format	row_format
+innodb_system	Antelope	Compact or Redundant
 mysql/engine_cost	Antelope	Compact or Redundant
 mysql/gtid_executed	Antelope	Compact or Redundant
 mysql/help_category	Antelope	Compact or Redundant
@@ -139,6 +140,7 @@ SELECT name,file_format,row_format
 FROM information_schema.innodb_sys_tablespaces
 ORDER BY name;
 name	file_format	row_format
+innodb_system	Antelope	Compact or Redundant
 mysql/engine_cost	Antelope	Compact or Redundant
 mysql/gtid_executed	Antelope	Compact or Redundant
 mysql/help_category	Antelope	Compact or Redundant
@@ -185,6 +187,7 @@ SELECT name,file_format,row_format
 FROM information_schema.innodb_sys_tablespaces
 ORDER BY name;
 name	file_format	row_format
+innodb_system	Antelope	Compact or Redundant
 mysql/engine_cost	Antelope	Compact or Redundant
 mysql/gtid_executed	Antelope	Compact or Redundant
 mysql/help_category	Antelope	Compact or Redundant
@@ -231,6 +234,7 @@ SELECT name,file_format,row_format
 FROM information_schema.innodb_sys_tablespaces
 ORDER BY name;
 name	file_format	row_format
+innodb_system	Antelope	Compact or Redundant
 mysql/engine_cost	Antelope	Compact or Redundant
 mysql/gtid_executed	Antelope	Compact or Redundant
 mysql/help_category	Antelope	Compact or Redundant
@@ -278,6 +282,7 @@ SELECT name,file_format,row_format
 FROM information_schema.innodb_sys_tablespaces
 ORDER BY name;
 name	file_format	row_format
+innodb_system	Antelope	Compact or Redundant
 mysql/engine_cost	Antelope	Compact or Redundant
 mysql/gtid_executed	Antelope	Compact or Redundant
 mysql/help_category	Antelope	Compact or Redundant
@@ -325,6 +330,7 @@ SELECT name,file_format,row_format
 FROM information_schema.innodb_sys_tablespaces
 ORDER BY name;
 name	file_format	row_format
+innodb_system	Antelope	Compact or Redundant
 mysql/engine_cost	Antelope	Compact or Redundant
 mysql/gtid_executed	Antelope	Compact or Redundant
 mysql/help_category	Antelope	Compact or Redundant
@@ -368,6 +374,7 @@ SELECT name,file_format,row_format
 FROM information_schema.innodb_sys_tablespaces
 ORDER BY name;
 name	file_format	row_format
+innodb_system	Antelope	Compact or Redundant
 mysql/engine_cost	Antelope	Compact or Redundant
 mysql/gtid_executed	Antelope	Compact or Redundant
 mysql/help_category	Antelope	Compact or Redundant
@@ -544,6 +551,7 @@ SELECT name,file_format,row_format
 FROM information_schema.innodb_sys_tablespaces
 ORDER BY name;
 name	file_format	row_format
+innodb_system	Antelope	Compact or Redundant
 mysql/engine_cost	Antelope	Compact or Redundant
 mysql/gtid_executed	Antelope	Compact or Redundant
 mysql/help_category	Antelope	Compact or Redundant
@@ -614,6 +622,7 @@ SELECT name,file_format,row_format
 FROM information_schema.innodb_sys_tablespaces
 ORDER BY name;
 name	file_format	row_format
+innodb_system	Antelope	Compact or Redundant
 mysql/engine_cost	Antelope	Compact or Redundant
 mysql/gtid_executed	Antelope	Compact or Redundant
 mysql/help_category	Antelope	Compact or Redundant
@@ -683,6 +692,7 @@ SELECT name,file_format,row_format
 FROM information_schema.innodb_sys_tablespaces
 ORDER BY name;
 name	file_format	row_format
+innodb_system	Antelope	Compact or Redundant
 mysql/engine_cost	Antelope	Compact or Redundant
 mysql/gtid_executed	Antelope	Compact or Redundant
 mysql/help_category	Antelope	Compact or Redundant
@@ -756,6 +766,7 @@ SELECT name,file_format,row_format
 FROM information_schema.innodb_sys_tablespaces
 ORDER BY name;
 name	file_format	row_format
+innodb_system	Antelope	Compact or Redundant
 mysql/engine_cost	Antelope	Compact or Redundant
 mysql/gtid_executed	Antelope	Compact or Redundant
 mysql/help_category	Antelope	Compact or Redundant

@@ -662,6 +662,10 @@ int ha_init_errors(void)
   SETMSG(HA_ERR_INNODB_FORCED_RECOVERY,	ER_DEFAULT(ER_INNODB_FORCED_RECOVERY));
   SETMSG(HA_ERR_FTS_TOO_MANY_WORDS_IN_PHRASE,  "Too many words in a FTS phrase or proximity search");
   SETMSG(HA_ERR_TABLE_CORRUPT,		ER_DEFAULT(ER_TABLE_CORRUPT));
+  SETMSG(HA_ERR_TABLESPACE_MISSING,	ER_DEFAULT(ER_TABLESPACE_MISSING));
+  SETMSG(HA_ERR_TABLESPACE_IS_NOT_EMPTY,	ER_DEFAULT(ER_TABLESPACE_IS_NOT_EMPTY));
+  SETMSG(HA_ERR_WRONG_FILE_NAME,		ER_DEFAULT(ER_WRONG_FILE_NAME));
+  SETMSG(HA_ERR_NOT_ALLOWED_COMMAND,		ER_DEFAULT(ER_NOT_ALLOWED_COMMAND));
   /* Register the error messages for use with my_error(). */
   return my_error_register(get_handler_errmsg, HA_ERR_FIRST, HA_ERR_LAST);
 }
@@ -3771,17 +3775,26 @@ void handler::print_error(int error, myf errflag)
   {
     char errbuf[MYSYS_STRERROR_SIZE];
     my_snprintf(errbuf, MYSYS_STRERROR_SIZE, "`%s`.`%s`", table_share->db.str,
-                table_share->table_name.str);
+    table_share->table_name.str);
     my_error(ER_TABLESPACE_MISSING, errflag, errbuf, error);
     DBUG_VOID_RETURN;
   }
+  case HA_ERR_TABLESPACE_IS_NOT_EMPTY:
+    my_error(ER_TABLESPACE_IS_NOT_EMPTY, errflag, table_share->db.str,
+             table_share->table_name.str);
+    DBUG_VOID_RETURN;
+  case HA_ERR_WRONG_FILE_NAME:
+    my_error(ER_WRONG_FILE_NAME, errflag, table_share->table_name.str);
+    DBUG_VOID_RETURN;
+  case HA_ERR_NOT_ALLOWED_COMMAND:
+    textno=ER_NOT_ALLOWED_COMMAND;
+    break;
   default:
     {
       /* The error was "unknown" to this function.
 	 Ask handler if it has got a message for this error */
-      bool temporary= FALSE;
       String str;
-      temporary= get_error_message(error, &str);
+      bool temporary= get_error_message(error, &str);
       if (!str.is_empty())
       {
 	const char* engine= table_type();
