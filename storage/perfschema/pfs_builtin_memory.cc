@@ -53,7 +53,11 @@ PFS_builtin_memory_class builtin_memory_thread_memory;
 PFS_builtin_memory_class builtin_memory_thread_waits_history;
 PFS_builtin_memory_class builtin_memory_thread_stages_history;
 PFS_builtin_memory_class builtin_memory_thread_statements_history;
+PFS_builtin_memory_class builtin_memory_thread_statements_history_tokens;
+PFS_builtin_memory_class builtin_memory_thread_statements_history_sqltext;
 PFS_builtin_memory_class builtin_memory_thread_statements_stack;
+PFS_builtin_memory_class builtin_memory_thread_statements_stack_tokens;
+PFS_builtin_memory_class builtin_memory_thread_statements_stack_sqltext;
 PFS_builtin_memory_class builtin_memory_thread_transaction_history;
 PFS_builtin_memory_class builtin_memory_thread_session_connect_attrs;
 
@@ -78,9 +82,12 @@ PFS_builtin_memory_class builtin_memory_setup_actor;
 PFS_builtin_memory_class builtin_memory_setup_object;
 
 PFS_builtin_memory_class builtin_memory_digest;
+PFS_builtin_memory_class builtin_memory_digest_tokens;
 
 PFS_builtin_memory_class builtin_memory_stages_history_long;
 PFS_builtin_memory_class builtin_memory_statements_history_long;
+PFS_builtin_memory_class builtin_memory_statements_history_long_tokens;
+PFS_builtin_memory_class builtin_memory_statements_history_long_sqltext;
 PFS_builtin_memory_class builtin_memory_transactions_history_long;
 PFS_builtin_memory_class builtin_memory_waits_history_long;
 
@@ -178,8 +185,16 @@ void init_all_builtin_memory_class()
                              "memory/performance_schema/events_stages_history");
   init_builtin_memory_class( & builtin_memory_thread_statements_history,
                              "memory/performance_schema/events_statements_history");
+  init_builtin_memory_class( & builtin_memory_thread_statements_history_tokens,
+                             "memory/performance_schema/events_statements_history.tokens");
+  init_builtin_memory_class( & builtin_memory_thread_statements_history_sqltext,
+                             "memory/performance_schema/events_statements_history.sqltext");
   init_builtin_memory_class( & builtin_memory_thread_statements_stack,
                              "memory/performance_schema/events_statements_current");
+  init_builtin_memory_class( & builtin_memory_thread_statements_stack_tokens,
+                             "memory/performance_schema/events_statements_current.tokens");
+  init_builtin_memory_class( & builtin_memory_thread_statements_stack_sqltext,
+                             "memory/performance_schema/events_statements_current.sqltext");
   init_builtin_memory_class( & builtin_memory_thread_transaction_history,
                              "memory/performance_schema/events_transactions_history");
   init_builtin_memory_class( & builtin_memory_thread_session_connect_attrs,
@@ -224,11 +239,17 @@ void init_all_builtin_memory_class()
 
   init_builtin_memory_class( & builtin_memory_digest,
                              "memory/performance_schema/events_statements_summary_by_digest");
+  init_builtin_memory_class( & builtin_memory_digest_tokens,
+                             "memory/performance_schema/events_statements_summary_by_digest.tokens");
 
   init_builtin_memory_class( & builtin_memory_stages_history_long,
                              "memory/performance_schema/events_stages_history_long");
   init_builtin_memory_class( & builtin_memory_statements_history_long,
                              "memory/performance_schema/events_statements_history_long");
+  init_builtin_memory_class( & builtin_memory_statements_history_long_tokens,
+                             "memory/performance_schema/events_statements_history_long.tokens");
+  init_builtin_memory_class( & builtin_memory_statements_history_long_sqltext,
+                             "memory/performance_schema/events_statements_history_long.sqltext");
   init_builtin_memory_class( & builtin_memory_transactions_history_long,
                              "memory/performance_schema/events_transactions_history_long");
   init_builtin_memory_class( & builtin_memory_waits_history_long,
@@ -290,7 +311,11 @@ static PFS_builtin_memory_class* all_builtin_memory[]=
   & builtin_memory_thread_waits_history,
   & builtin_memory_thread_stages_history,
   & builtin_memory_thread_statements_history,
+  & builtin_memory_thread_statements_history_tokens,
+  & builtin_memory_thread_statements_history_sqltext,
   & builtin_memory_thread_statements_stack,
+  & builtin_memory_thread_statements_stack_tokens,
+  & builtin_memory_thread_statements_stack_sqltext,
   & builtin_memory_thread_transaction_history,
   & builtin_memory_thread_session_connect_attrs,
 
@@ -315,9 +340,12 @@ static PFS_builtin_memory_class* all_builtin_memory[]=
   & builtin_memory_setup_object,
 
   & builtin_memory_digest,
+  & builtin_memory_digest_tokens,
 
   & builtin_memory_stages_history_long,
   & builtin_memory_statements_history_long,
+  & builtin_memory_statements_history_long_tokens,
+  & builtin_memory_statements_history_long_sqltext,
   & builtin_memory_transactions_history_long,
   & builtin_memory_waits_history_long,
 

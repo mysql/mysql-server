@@ -236,6 +236,9 @@ struct PFS_global_param
 
   long m_metadata_lock_sizing;
 
+  ulong m_max_digest_length;
+  ulong m_max_sql_text_length;
+
   /** Sizing hints, for auto tuning. */
   PFS_sizing_hints m_hints;
 };

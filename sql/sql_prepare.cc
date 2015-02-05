@@ -3203,6 +3203,8 @@ bool Prepared_statement::prepare(const char *packet, size_t packet_len)
   Query_arena *old_stmt_arena;
   sql_digest_state *parent_digest= thd->m_digest;
   PSI_statement_locker *parent_locker= thd->m_statement_psi;
+  unsigned char *token_array= NULL;
+
   DBUG_ENTER("Prepared_statement::prepare");
   /*
     If this is an SQLCOM_PREPARE, we also increase Com_prepare_sql.
@@ -3232,6 +3234,11 @@ bool Prepared_statement::prepare(const char *packet, size_t packet_len)
     DBUG_RETURN(TRUE);
   }
 
+  if (max_digest_length > 0)
+  {
+    token_array= (unsigned char*) thd->alloc(max_digest_length);
+  }
+
   old_stmt_arena= thd->stmt_arena;
   thd->stmt_arena= this;
 
@@ -3254,7 +3261,7 @@ bool Prepared_statement::prepare(const char *packet, size_t packet_len)
   thd->m_statement_psi= NULL;
 
   sql_digest_state digest;
-  digest.reset();
+  digest.reset(token_array, max_digest_length);
   thd->m_digest= &digest;
 
   enable_digest_if_any_plugin_needs_it(thd, &parser_state);

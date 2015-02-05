@@ -15,7 +15,7 @@ CREATE TABLE t1 ( a VARCHAR(10) );
 SET @pattern1 =
   'SELECT * FROM test.t1 WHERE a = "digest_collision.test" ' ||
    repeat ( 'UNION SELECT * FROM test.t1 WHERE a = "digest_collision.test"',
-            100 );
+            120 );
 
 SET @pattern2 = concat ( @pattern1, 'UNION SELECT 1' );
 

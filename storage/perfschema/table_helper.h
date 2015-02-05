@@ -135,9 +135,7 @@ struct PFS_digest_row
   /** Length in bytes of @c m_digest. */
   uint m_digest_length;
   /** Column DIGEST_TEXT. */
-  char m_digest_text[COL_DIGEST_TEXT_SIZE];
-  /** Length in bytes of @c m_digest_text. */
-  uint m_digest_text_length;
+  String m_digest_text;
 
   /** Build a row from a memory buffer. */
   int make_row(PFS_statements_digest_stat*);

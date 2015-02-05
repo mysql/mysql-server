@@ -2300,6 +2300,8 @@ public:
   PSI_stage_progress *m_stage_progress_psi;
   /** Current statement digest. */
   sql_digest_state *m_digest;
+  /** Current statement digest token array. */
+  unsigned char *m_token_array;
   /** Top level statement digest. */
   sql_digest_state m_digest_state;
 

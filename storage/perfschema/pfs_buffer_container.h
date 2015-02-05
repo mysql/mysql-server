@@ -1153,6 +1153,11 @@ public:
   PFS_events_statements *m_statements_stack_array;
   PFS_events_transactions *m_transactions_history_array;
   char *m_session_connect_attrs_array;
+
+  char *m_current_stmts_text_array;
+  char *m_history_stmts_text_array;
+  unsigned char *m_current_stmts_digest_token_array;
+  unsigned char *m_history_stmts_digest_token_array;
 };
 
 class PFS_thread_allocator

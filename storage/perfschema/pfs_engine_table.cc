@@ -1294,7 +1294,7 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       break;
     case 106:
       name= "events_statements_history_long.memory";
-      size= events_statements_history_long_size * sizeof(PFS_events_statements);
+      size= events_statements_history_long_size * (sizeof(PFS_events_statements));
       total_memory+= size;
       break;
     case 107:
@@ -1411,7 +1411,7 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       break;
     case 133:
       name= "events_statements_summary_by_digest.memory";
-      size= digest_max * sizeof(PFS_statements_digest_stat);
+      size= digest_max * (sizeof(PFS_statements_digest_stat));
       total_memory+= size;
       break;
     case 134:
@@ -1736,11 +1736,102 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       size= global_table_share_index_container.get_memory();
       total_memory+= size;
       break;
+    case 207:
+      name= "(history_long_statements_digest_token_array).count";
+      size= events_statements_history_long_size;
+      break;
+    case 208:
+      name= "(history_long_statements_digest_token_array).size";
+      size= pfs_max_digest_length;
+      break;
+    case 209:
+      name= "(history_long_statements_digest_token_array).memory";
+      size= events_statements_history_long_size * pfs_max_digest_length;
+      total_memory+= size;
+      break;
+    case 210:
+      name= "(history_statements_digest_token_array).count";
+      size= global_thread_container.get_row_count() * events_statements_history_per_thread;
+      break;
+    case 211:
+      name= "(history_statements_digest_token_array).size";
+      size= pfs_max_digest_length;
+      break;
+    case 212:
+      name= "(history_statements_digest_token_array).memory";
+      size= global_thread_container.get_row_count() * events_statements_history_per_thread * pfs_max_digest_length;
+      total_memory+= size;
+      break;
+    case 213:
+      name= "(current_statements_digest_token_array).count";
+      size= global_thread_container.get_row_count() * statement_stack_max;
+      break;
+    case 214:
+      name= "(current_statements_digest_token_array).size";
+      size= pfs_max_digest_length;
+      break;
+    case 215:
+      name= "(current_statements_digest_token_array).memory";
+      size= global_thread_container.get_row_count() * statement_stack_max * pfs_max_digest_length;
+      total_memory+= size;
+      break;
+    case 216:
+      name= "(history_long_statements_text_array).count";
+      size= events_statements_history_long_size;
+      break;
+    case 217:
+      name= "(history_long_statements_text_array).size";
+      size= pfs_max_sqltext;
+      break;
+    case 218:
+      name= "(history_long_statements_text_array).memory";
+      size= events_statements_history_long_size * pfs_max_sqltext;
+      total_memory+= size;
+      break;
+    case 219:
+      name= "(history_statements_text_array).count";
+      size= global_thread_container.get_row_count() * events_statements_history_per_thread;
+      break;
+    case 220:
+      name= "(history_statements_text_array).size";
+      size= pfs_max_sqltext;
+      break;
+    case 221:
+      name= "(history_statements_text_array).memory";
+      size= global_thread_container.get_row_count() * events_statements_history_per_thread * pfs_max_sqltext;
+      total_memory+= size;
+      break;
+    case 222:
+      name= "(current_statements_text_array).count";
+      size= global_thread_container.get_row_count() * statement_stack_max;
+      break;
+    case 223:
+      name= "(current_statements_text_array).size";
+      size= pfs_max_sqltext;
+      break;
+    case 224:
+      name= "(current_statements_text_array).memory";
+      size= global_thread_container.get_row_count() * statement_stack_max * pfs_max_sqltext;
+      total_memory+= size;
+      break;
+    case 225:
+      name= "(statements_digest_token_array).count";
+      size= digest_max;
+      break;
+    case 226:
+      name= "(statements_digest_token_array).size";
+      size= pfs_max_digest_length;
+      break;
+    case 227:
+      name= "(statements_digest_token_array).memory";
+      size= digest_max * pfs_max_digest_length;
+      total_memory+= size;
+      break;
     /*
       This case must be last,
       for aggregation in total_memory.
     */
-    case 207:
+    case 228:
       name= "performance_schema.memory";
       size= total_memory;
       break;

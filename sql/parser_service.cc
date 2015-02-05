@@ -270,6 +270,7 @@ int mysql_parser_parse(MYSQL_THD thd, const MYSQL_LEX_STRING query,
 
   parser_state.m_input.m_compute_digest= true;
   thd->m_digest= &thd->m_digest_state;
+  thd->m_digest->reset(thd->m_token_array, max_digest_length);
 
   if (is_prepared)
   {
