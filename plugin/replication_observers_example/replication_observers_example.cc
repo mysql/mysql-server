@@ -512,10 +512,15 @@ int validate_plugin_server_requirements(Trans_param *param)
   if (tcle->is_valid())
   {
     Gtid_set *snapshot_version= tcle->get_snapshot_version();
+    size_t snapshot_version_len= snapshot_version->get_encoded_length();
+    uchar* snapshot_version_buf= (uchar *)my_malloc(PSI_NOT_INSTRUMENTED,
+                                                    snapshot_version_len, MYF(0));
+    snapshot_version->encode(snapshot_version_buf);
     my_plugin_log_message(&plugin_info_ptr,
                           MY_INFORMATION_LEVEL,
                           "snapshot version is '%s'",
-                          snapshot_version->encode().c_str());
+                          snapshot_version_buf);
+    my_free(snapshot_version_buf);
     success++;
   }
   else
