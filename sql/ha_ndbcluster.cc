@@ -39,6 +39,7 @@
 #include "ndb_global_schema_lock.h"
 #include "ndb_global_schema_lock_guard.h"
 #include "abstract_query_plan.h"
+#include "partition_info.h"
 #include "ndb_dist_priv_util.h"
 #include "ha_ndb_index_stat.h"
 
@@ -337,12 +338,11 @@ static handler *ndbcluster_create_handler(handlerton *hton,
 static uint
 ndbcluster_partition_flags()
 {
-  return (HA_CAN_PARTITION | HA_CAN_UPDATE_PARTITION_KEY |
+  return (HA_CAN_UPDATE_PARTITION_KEY |
           HA_CAN_PARTITION_UNIQUE | HA_USE_AUTO_PARTITION);
 }
 
-static uint
-ndbcluster_alter_table_flags(uint flags)
+uint ha_ndbcluster::alter_flags(uint flags) const
 {
   const uint f=
     HA_PARTITION_FUNCTION_SUPPORTED |
@@ -7245,12 +7245,12 @@ int ha_ndbcluster::info(uint flag)
 }
 
 
-void ha_ndbcluster::get_dynamic_partition_info(PARTITION_STATS *stat_info,
+void ha_ndbcluster::get_dynamic_partition_info(ha_statistics *stat_info,
+                                               ha_checksum *check_sum,
                                                uint part_id)
 {
   DBUG_PRINT("info", ("ha_ndbcluster::get_dynamic_partition_info"));
 
-  memset(stat_info, 0, sizeof(PARTITION_STATS));
   int error = 0;
   THD *thd = table->in_use;
 
@@ -12342,7 +12342,6 @@ int ndbcluster_init(void* p)
     h->show_status=      ndbcluster_show_status;    /* Show status */
     h->alter_tablespace= ndbcluster_alter_tablespace;    /* Show status */
     h->partition_flags=  ndbcluster_partition_flags; /* Partition flags */
-    h->alter_table_flags=ndbcluster_alter_table_flags; /* Alter table flags */
 #if MYSQL_VERSION_ID >= 50501
     h->fill_is_table=    ndbcluster_fill_is_table;
 #else
@@ -15898,7 +15897,7 @@ ndbcluster_show_status(handlerton *hton, THD* thd, stat_print_fn *stat_print,
 }
 
 
-int ha_ndbcluster::get_default_no_partitions(HA_CREATE_INFO *create_info)
+int ha_ndbcluster::get_default_num_partitions(HA_CREATE_INFO *create_info)
 {
   if (unlikely(g_ndb_cluster_connection->get_no_ready() <= 0))
   {
@@ -17505,13 +17504,13 @@ ndberror2:
 }
 
 
-bool ha_ndbcluster::get_no_parts(const char *name, uint *no_parts)
+bool ha_ndbcluster::get_num_parts(const char *name, uint *num_parts)
 {
   THD *thd= current_thd;
   Ndb *ndb;
   NDBDICT *dict;
   int err= 0;
-  DBUG_ENTER("ha_ndbcluster::get_no_parts");
+  DBUG_ENTER("ha_ndbcluster::get_num_parts");
 
   set_dbname(name);
   set_tabname(name);
@@ -17527,7 +17526,7 @@ bool ha_ndbcluster::get_no_parts(const char *name, uint *no_parts)
     Ndb_table_guard ndbtab_g(dict= ndb->getDictionary(), m_tabname);
     if (!ndbtab_g.get_table())
       ERR_BREAK(dict->getNdbError(), err);
-    *no_parts= ndbtab_g.get_table()->getFragmentCount();
+    *num_parts= ndbtab_g.get_table()->getFragmentCount();
     DBUG_RETURN(FALSE);
   }
 

@@ -35,6 +35,7 @@
 #include "rpl_rli.h"             // Relay_log_info
 #include "sp.h"                  // sp_find_routine
 #include "sp_head.h"             // sp_name
+#include "sql_base.h"            // Internal_error_handler_holder
 #include "sql_class.h"           // THD
 #include "sql_optimizer.h"       // JOIN
 #include "sql_parse.h"           // check_stack_overrun
@@ -7947,11 +7948,13 @@ Item_func_sp::init_result_field(THD *thd)
   DBUG_ASSERT(m_sp == NULL);
   DBUG_ASSERT(sp_result_field == NULL);
 
+  Internal_error_handler_holder<View_error_handler, TABLE_LIST>
+    view_handler(thd, context->view_error_handler,
+                 context->view_error_handler_arg);
   if (!(m_sp= sp_find_routine(thd, SP_TYPE_FUNCTION, m_name,
                                &thd->sp_func_cache, TRUE)))
   {
     my_missing_function_error (m_name->m_name, m_name->m_qname.str);
-    context->process_error(thd);
     DBUG_RETURN(TRUE);
   }
 
@@ -8045,13 +8048,15 @@ bool
 Item_func_sp::execute()
 {
   THD *thd= current_thd;
-  
+
+  Internal_error_handler_holder<View_error_handler, TABLE_LIST>
+    view_handler(thd, context->view_error_handler,
+                 context->view_error_handler_arg);
   /* Execute function and store the return value in the field. */
 
   if (execute_impl(thd))
   {
     null_value= 1;
-    context->process_error(thd);
     if (thd->killed)
       thd->send_kill_message();
     return TRUE;
@@ -8230,7 +8235,7 @@ Item_func_sp::fix_fields(THD *thd, Item **ref)
   DBUG_ASSERT(fixed == 0);
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-  /* 
+  /*
     Checking privileges to execute the function while creating view and
     executing the function of select.
    */
@@ -8246,13 +8251,17 @@ Item_func_sp::fix_fields(THD *thd, Item **ref)
     /*
       Check whether user has execute privilege or not
      */
+
+    Internal_error_handler_holder<View_error_handler, TABLE_LIST>
+      view_handler(thd, context->view_error_handler,
+                   context->view_error_handler_arg);
+
     res= check_routine_access(thd, EXECUTE_ACL, m_name->m_db.str,
                               m_name->m_name.str, 0, FALSE);
     thd->set_security_context(save_security_ctx);
 
     if (res)
     {
-      context->process_error(thd);
       DBUG_RETURN(res);
     }
   }

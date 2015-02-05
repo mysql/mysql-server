@@ -5940,20 +5940,6 @@ row_search_check_if_query_cache_permitted(
 	dict_table_t*	table;
 	ibool		ret	= FALSE;
 
-	/* Disable query cache altogether for all tables if recovered XA
-	transactions in prepared state exist. This is because we do not
-	restore the table locks for those transactions and we may wrongly
-	set ret=TRUE above if "lock_table_get_n_locks(table) == 0". See
-	"Bug#14658648 XA ROLLBACK (DISTRIBUTED DATABASE) NOT WORKING WITH
-	QUERY CACHE ENABLED".
-	Read trx_sys->n_prepared_recovered_trx without mutex protection,
-	not possible to end up with a torn read since n_prepared_recovered_trx
-	is word size. */
-	if (trx_sys->n_prepared_recovered_trx > 0) {
-
-		return(FALSE);
-	}
-
 	table = dict_table_open_on_name(
 		norm_name, FALSE, FALSE, DICT_ERR_IGNORE_NONE);
 

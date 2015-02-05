@@ -18,20 +18,11 @@
 
 #include "sql_data_change.h"      // enum_duplicates
 #include "sql_class.h"            // select_result_interceptor
+#include "sql_cmd_dml.h"          // Sql_cmd_dml
 
 struct TABLE_LIST;
 typedef List<Item> List_item;
 
-bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
-                          TABLE_LIST **insert_table_ref,
-                          List<Item> &fields, List_item *values,
-                          List<Item> &update_fields,
-                          List<Item> &update_values, enum_duplicates duplic,
-                          Item **where, bool select_insert,
-                          bool check_fields);
-bool mysql_insert(THD *thd,TABLE_LIST *table,List<Item> &fields,
-                  List<List_item> &values, List<Item> &update_fields,
-                  List<Item> &update_values, enum_duplicates flag);
 int check_that_all_fields_are_given_values(THD *thd, TABLE *entry,
                                            TABLE_LIST *table_list);
 void prepare_triggers_for_insert_stmt(TABLE *table);
@@ -195,6 +186,102 @@ public:
   const THD *get_thd(void) { return thd; }
   const HA_CREATE_INFO *get_create_info() { return create_info; };
   int prepare2(void);
+};
+
+
+class Sql_cmd_insert_base : public Sql_cmd_dml
+{
+  /*
+    field_list was created for view and should be removed before PS/SP
+    rexecuton
+  */
+  bool empty_field_list_on_rset;
+
+protected:
+  const bool is_replace;
+
+public:
+  List<Item>          insert_field_list;
+  List<Item>          insert_value_list;
+  List<Item>          insert_update_list;
+  List<List_item>     insert_many_values; // TODO: move to Sql_cmd_insert
+
+  const enum_duplicates duplicates;
+
+  explicit
+  Sql_cmd_insert_base(bool is_replace_arg, enum_duplicates duplicates_arg)
+  : empty_field_list_on_rset(false),
+    is_replace(is_replace_arg),
+    duplicates(duplicates_arg)
+  {}
+
+  virtual void cleanup(THD *thd)
+  {
+    if (empty_field_list_on_rset)
+    {
+      empty_field_list_on_rset= false;
+      insert_field_list.empty();
+    }
+  }
+
+
+protected:
+  bool mysql_prepare_insert(THD *thd,
+                            TABLE_LIST *table_list,
+                            TABLE_LIST **insert_table_ref,
+                            List_item *values,
+                            bool select_insert);
+  bool insert_precheck(THD *thd, TABLE_LIST *tables);
+  bool mysql_prepare_insert_check_table(THD *thd,
+                                        TABLE_LIST *table_list,
+                                        List<Item> &fields,
+                                        bool select_insert);
+};
+
+
+class Sql_cmd_insert : public Sql_cmd_insert_base
+{
+public:
+  explicit
+  Sql_cmd_insert(bool is_replace_arg, enum_duplicates duplicates_arg)
+  : Sql_cmd_insert_base(is_replace_arg, duplicates_arg)
+  {}
+
+  virtual enum_sql_command sql_command_code() const
+  {
+    return is_replace ?  SQLCOM_REPLACE : SQLCOM_INSERT;
+  }
+
+  virtual bool execute(THD *thd);
+  virtual bool prepared_statement_test(THD *thd);
+  virtual bool prepare(THD *thd) { return false; }
+
+private:
+  bool mysql_insert(THD *thd,TABLE_LIST *table);
+
+  bool mysql_test_insert(THD *thd, TABLE_LIST *table_list);
+};
+
+
+class Sql_cmd_insert_select : public Sql_cmd_insert_base
+{
+public:
+  explicit
+  Sql_cmd_insert_select(bool is_replace_arg, enum_duplicates duplicates_arg)
+  : Sql_cmd_insert_base(is_replace_arg, duplicates_arg)
+  {}
+
+  virtual enum_sql_command sql_command_code() const
+  {
+    return is_replace ? SQLCOM_REPLACE_SELECT : SQLCOM_INSERT_SELECT;
+  }
+
+  virtual bool execute(THD *thd);
+  virtual bool prepared_statement_test(THD *thd);
+  virtual bool prepare(THD *thd);
+
+protected:
+  bool mysql_insert_select_prepare(THD *thd);
 };
 
 #endif /* SQL_INSERT_INCLUDED */

@@ -2765,7 +2765,8 @@ row_ins_sec_index_entry_low(
 
 		mtr.set_log_mode(MTR_LOG_NO_REDO);
 	} else if (!dict_index_is_spatial(index)) {
-		/* Enable insert buffering if not temp-table */
+		/* Enable insert buffering if it's neither temp-table
+		nor spatial index. */
 		search_mode |= BTR_INSERT;
 	}
 

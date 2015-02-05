@@ -146,6 +146,17 @@ public:
   */
   virtual bool execute(THD *thd) = 0;
 
+  /**
+    Command-specific reinitialization before execution of prepared statement
+
+    @see reinit_stmt_before_use()
+
+    @node Currently this function is overloaded for INSERT/REPLACE stmts only.
+
+    @param thd  Current THD.
+  */
+  virtual void cleanup(THD *thd) {}
+
 protected:
   Sql_cmd()
   {}
