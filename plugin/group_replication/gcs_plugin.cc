@@ -673,7 +673,7 @@ static int check_if_server_properly_configured()
   //Struct that holds startup and runtime GCS requirements
   Trans_context_info startup_pre_reqs;
 
-  get_server_startup_prerequirements(startup_pre_reqs);
+  get_server_startup_prerequirements(startup_pre_reqs, true);
 
   if(!startup_pre_reqs.binlog_enabled)
   {
