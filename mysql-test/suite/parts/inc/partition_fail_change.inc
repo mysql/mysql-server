@@ -20,21 +20,3 @@ SET SESSION debug="-d,fail_change_partition_5";
 SET SESSION debug="+d,fail_change_partition_6";
 --source suite/parts/inc/partition_fail.inc
 SET SESSION debug="-d,fail_change_partition_6";
-SET SESSION debug="+d,fail_change_partition_7";
---source suite/parts/inc/partition_fail.inc
-SET SESSION debug="-d,fail_change_partition_7";
-SET SESSION debug="+d,fail_change_partition_8";
---source suite/parts/inc/partition_fail.inc
-SET SESSION debug="-d,fail_change_partition_8";
-SET SESSION debug="+d,fail_change_partition_9";
---source suite/parts/inc/partition_fail.inc
-SET SESSION debug="-d,fail_change_partition_9";
-SET SESSION debug="+d,fail_change_partition_10";
---source suite/parts/inc/partition_fail.inc
-SET SESSION debug="-d,fail_change_partition_10";
-SET SESSION debug="+d,fail_change_partition_11";
---source suite/parts/inc/partition_fail.inc
-SET SESSION debug="-d,fail_change_partition_11";
-SET SESSION debug="+d,fail_change_partition_12";
---source suite/parts/inc/partition_fail.inc
-SET SESSION debug="-d,fail_change_partition_12";

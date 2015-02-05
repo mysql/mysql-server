@@ -155,6 +155,8 @@ struct ha_innobase_inplace_ctx : public inplace_alter_handler_ctx
 	const char*	tmp_name;
 	/** whether the order of the clustered index is unchanged */
 	bool		skip_pk_sort;
+	/** ALTER TABLE stage progress recorder */
+	ut_stage_alter_t* m_stage;
 
 	ha_innobase_inplace_ctx(row_prebuilt_t*& prebuilt_arg,
 				dict_index_t** drop_arg,
@@ -189,7 +191,8 @@ struct ha_innobase_inplace_ctx : public inplace_alter_handler_ctx
 			 autoinc_col_min_value_arg, autoinc_col_max_value_arg),
 		max_autoinc (0),
 		tmp_name (0),
-		skip_pk_sort(false)
+		skip_pk_sort(false),
+		m_stage(NULL)
 	{
 #ifdef UNIV_DEBUG
 		for (ulint i = 0; i < num_to_add_index; i++) {
@@ -205,6 +208,7 @@ struct ha_innobase_inplace_ctx : public inplace_alter_handler_ctx
 
 	~ha_innobase_inplace_ctx()
 	{
+		UT_DELETE(m_stage);
 		mem_heap_free(heap);
 	}
 
@@ -4540,20 +4544,14 @@ ok_exit:
 	DBUG_ASSERT(ctx->trx);
 	DBUG_ASSERT(ctx->prebuilt == m_prebuilt);
 
-	dict_index_t*		pk;
-	ut_stage_alter_t*	stage;
+	dict_index_t*	pk = dict_table_get_first_index(m_prebuilt->table);
+	ut_ad(pk != NULL);
 
-	stage = static_cast<ut_stage_alter_t*>(
-		ha_alter_info->alter_info->se_blob);
 	/* For partitioned tables this could be already allocated from a
 	previous partition invocation. For normal tables this is NULL. */
-	UT_DELETE(stage);
+	UT_DELETE(ctx->m_stage);
 
-	pk = dict_table_get_first_index(m_prebuilt->table);
-	ut_ad(pk != NULL);
-	stage = UT_NEW_NOKEY(ut_stage_alter_t(pk));
-
-	ha_alter_info->alter_info->se_blob = stage;
+	ctx->m_stage = UT_NEW_NOKEY(ut_stage_alter_t(pk));
 
 	if (m_prebuilt->table->ibd_file_missing
 	    || dict_table_is_discarded(m_prebuilt->table)) {
@@ -4571,7 +4569,8 @@ ok_exit:
 		ctx->online,
 		ctx->add_index, ctx->add_key_numbers, ctx->num_to_add_index,
 		altered_table, ctx->add_cols, ctx->col_map,
-		ctx->add_autoinc, ctx->sequence, ctx->skip_pk_sort, stage);
+		ctx->add_autoinc, ctx->sequence, ctx->skip_pk_sort,
+		ctx->m_stage);
 
 #ifndef DBUG_OFF
 oom:
@@ -4579,7 +4578,8 @@ oom:
 	if (error == DB_SUCCESS && ctx->online && ctx->need_rebuild()) {
 		DEBUG_SYNC_C("row_log_table_apply1_before");
 		error = row_log_table_apply(
-			ctx->thr, m_prebuilt->table, altered_table, stage);
+			ctx->thr, m_prebuilt->table, altered_table,
+			ctx->m_stage);
 	}
 
 	DEBUG_SYNC_C("inplace_after_index_build");
@@ -5659,8 +5659,8 @@ commit_try_rebuild(
 
 		error = row_log_table_apply(
 			ctx->thr, user_table, altered_table,
-			static_cast<ut_stage_alter_t*>(
-				ha_alter_info->alter_info->se_blob));
+			static_cast<ha_innobase_inplace_ctx*>(
+				ha_alter_info->handler_ctx)->m_stage);
 
 		ulint	err_key = thr_get_trx(ctx->thr)->error_key_num;
 
@@ -6226,11 +6226,8 @@ ha_innobase::commit_inplace_alter_table(
 
 	DEBUG_SYNC_C("innodb_commit_inplace_alter_table_wait");
 
-	ut_stage_alter_t*	stage = static_cast<ut_stage_alter_t*>(
-		ha_alter_info->alter_info->se_blob);
-
-	if (stage != NULL) {
-		stage->begin_phase_end();
+	if (ctx0 != NULL && ctx0->m_stage != NULL) {
+		ctx0->m_stage->begin_phase_end();
 	}
 
 	if (!commit) {
@@ -6240,8 +6237,6 @@ ha_innobase::commit_inplace_alter_table(
 		method if commit=true. */
 		const bool	ret = rollback_inplace_alter_table(
 			ha_alter_info, table, m_prebuilt);
-		UT_DELETE(stage);
-		ha_alter_info->alter_info->se_blob = NULL;
 		DBUG_RETURN(ret);
 	}
 
@@ -6249,8 +6244,6 @@ ha_innobase::commit_inplace_alter_table(
 		DBUG_ASSERT(!ctx0);
 		MONITOR_ATOMIC_DEC(MONITOR_PENDING_ALTER_TABLE);
 		ha_alter_info->group_commit_ctx = NULL;
-		UT_DELETE(stage);
-		ha_alter_info->alter_info->se_blob = NULL;
 		DBUG_RETURN(false);
 	}
 
@@ -6307,8 +6300,6 @@ ha_innobase::commit_inplace_alter_table(
 		if (error != DB_SUCCESS) {
 			my_error_innodb(
 				error, table_share->table_name.str, 0);
-			UT_DELETE(stage);
-			ha_alter_info->alter_info->se_blob = NULL;
 			DBUG_RETURN(true);
 		}
 	}
@@ -6655,8 +6646,6 @@ foreign_fail:
 
 		row_mysql_unlock_data_dictionary(trx);
 		trx_free_for_mysql(trx);
-		UT_DELETE(stage);
-		ha_alter_info->alter_info->se_blob = NULL;
 		DBUG_RETURN(true);
 	}
 
@@ -6833,8 +6822,6 @@ foreign_fail:
 #endif /* DBUG_OFF */
 
 	MONITOR_ATOMIC_DEC(MONITOR_PENDING_ALTER_TABLE);
-	UT_DELETE(stage);
-	ha_alter_info->alter_info->se_blob = NULL;
 	DBUG_RETURN(false);
 }
 

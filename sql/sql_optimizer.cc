@@ -254,14 +254,12 @@ JOIN::optimize()
     }
   }
 
-#ifdef WITH_PARTITION_STORAGE_ENGINE
   if (select_lex->partitioned_table_count && prune_table_partitions())
   {
     error= 1;
     DBUG_PRINT("error", ("Error from prune_partitions"));
     DBUG_RETURN(1);
   }
-#endif
 
   /* 
      Try to optimize count(*), min() and max() to const fields if
@@ -2184,8 +2182,6 @@ fix_ICP:
 }
 
 
-#ifdef WITH_PARTITION_STORAGE_ENGINE
-
 /**
   Prune partitions for all tables of a join (query block).
 
@@ -2219,8 +2215,6 @@ bool JOIN::prune_table_partitions()
 
   return false;
 }
-
-#endif
 
 
 /**
@@ -4975,11 +4969,7 @@ bool JOIN::extract_const_tables()
     TABLE_LIST *const tl= tab->table_ref;
     enum enum_const_table_extraction extract_method= extract_const_table;
 
-#ifdef WITH_PARTITION_STORAGE_ENGINE
     const bool all_partitions_pruned_away= table->all_partitions_pruned_away;
-#else
-    const bool all_partitions_pruned_away= false;
-#endif
 
     if (tl->outer_join_nest())
     {

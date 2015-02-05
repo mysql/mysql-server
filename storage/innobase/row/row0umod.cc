@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -450,7 +450,7 @@ row_undo_mod_del_mark_or_remove_sec_low(
 	if (dict_index_is_spatial(index)) {
 		if (mode & BTR_MODIFY_LEAF) {
 			btr_cur->thr = thr;
-			mode |= BTR_DELETE_MARK;
+			mode |= BTR_RTREE_DELETE_MARK;
 		}
 		mode |= BTR_RTREE_UNDO_INS;
 	}

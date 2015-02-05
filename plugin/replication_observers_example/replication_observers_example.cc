@@ -192,6 +192,9 @@ int trans_before_dml(Trans_param *param, int& out_val)
 {
   trans_before_dml_call++;
 
+  DBUG_EXECUTE_IF("cause_failure_in_before_dml_hook",
+                  out_val= 1;);
+
   return 0;
 }
 

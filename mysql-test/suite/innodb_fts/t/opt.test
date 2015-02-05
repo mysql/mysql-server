@@ -923,3 +923,31 @@ DROP TABLE t1;
 CREATE TABLE t1 (f1 CHAR(1), FULLTEXT KEY (f1));
 SELECT 1 FROM t1 NATURAL JOIN t1 a GROUP BY MATCH(t1.f1) AGAINST ("1") DESC;
 DROP TABLE t1;
+
+
+--echo #
+--echo # Bug#20261601 ASSERTION FAILED: !FIRST_QEP_TAB->TABLE()->NO_KEYREAD
+--echo #
+
+CREATE TABLE t1(a INT PRIMARY KEY);
+INSERT INTO t1 VALUES(1),(2);
+--error ER_FT_MATCHING_KEY_NOT_FOUND
+SELECT (SELECT MATCH(`a`)AGAINST('1') FROM t1) FROM t1;
+SELECT 1, a IN (SELECT a FROM t1) FROM t1;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#20442572 ASSERTION `!FIRST_QEP_TAB->TABLE()->NO_KEYREAD' FAILED.
+--echo # Bug#75688 Assertion `!first_qep_tab->table()->no_keyread' failed.
+--echo #
+
+CREATE TABLE t1(a INT,b POINT NOT NULL,KEY(a));
+
+HANDLER t1 OPEN;
+--error ER_FT_MATCHING_KEY_NOT_FOUND
+select * from t1 where MATCH a,b AGAINST('"Now sUPPort"' IN BOOLEAN MODE);
+prepare stmt1 from "truncate t1";
+SELECT a IN(SELECT a FROM t1)FROM t1;
+
+deallocate prepare stmt1;
+DROP TABLE t1;

@@ -4933,13 +4933,7 @@ int Query_log_event::do_update_pos(Relay_log_info *rli)
     after a SET ONE_SHOT, because SET ONE_SHOT should not be separated
     from its following updating query.
   */
-  int ret= 0;
-  if (thd->one_shot_set)
-  {
-    rli->inc_event_relay_log_pos();
-  }
-  else
-    ret= Log_event::do_update_pos(rli);
+  int ret= Log_event::do_update_pos(rli);
 
   DBUG_EXECUTE_IF("crash_after_commit_and_update_pos",
        if (!strcmp("COMMIT", query))

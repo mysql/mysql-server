@@ -246,6 +246,11 @@ INSERT INTO global_suppressions VALUES
  */
  ("CA certificate .* is self signed"),
 
+ /*
+   Warnings related to --secure-file-priv
+ */
+ ("Insecure configuration for --secure-file-priv:*"),
+
  ("THE_LAST_SUPPRESSION")||
 
 
