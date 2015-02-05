@@ -471,10 +471,14 @@ public:
     uint monotonic_max;
     uint current_page_count;
     uint page_logical_size;
-    uint new_page_count;
-    uint new_page_index;
     value_type *pfs;
     array_type *array;
+    array_type *old_array;
+
+    void *addr;
+    void * volatile * typed_addr;
+    void *ptr;
+    void *old_ptr;
 
     /*
       1: Try to find an available record within the existing pages
@@ -488,8 +492,17 @@ public:
 
       while (monotonic < monotonic_max)
       {
+        /*
+          Scan in the [0 .. current_page_count - 1] range,
+          in parallel with m_monotonic (see below)
+        */
         index= monotonic % current_page_count;
-        array= m_pages[index];
+
+        /* Atomic Load, array= m_pages[index] */
+        addr= & m_pages[index];
+        typed_addr= static_cast<void * volatile *>(addr);
+        ptr= my_atomic_loadptr(typed_addr);
+        array= static_cast<array_type *>(ptr);
 
         if (array != NULL)
         {
@@ -501,26 +514,42 @@ public:
           }
         }
 
+        /*
+          Parallel scans collaborate to increase
+          the common monotonic scan counter.
+
+          Note that when all the existing page are full,
+          one thread will eventually add a new page,
+          and cause m_max_page_index to increase,
+          which fools all the modulo logic for scans already in progress,
+          because the monotonic counter is not folded to the same place
+          (sometime modulo N, sometime modulo N+1).
+
+          This is actually ok: since all the pages are full anyway,
+          there is nothing to miss, so better increase the monotonic
+          counter faster and then move on to the detection of new pages,
+          in part 2: below.
+        */
         monotonic= PFS_atomic::add_u32(& m_monotonic.m_u32, 1);
       };
     }
 
     /*
-      2: Try to add a new page
+      2: Try to add a new page, beyond the m_max_page_index limit
     */
     while (current_page_count < m_max_page_count)
     {
-      new_page_count= current_page_count + 1;
+      /* Peek for pages added by collaborating threads */
 
-      if (PFS_atomic::cas_u32(& m_max_page_index.m_u32,
-                              & current_page_count,
-                              new_page_count))
+      /* (2-a) Atomic Load, array= m_pages[current_page_count] */
+      addr= & m_pages[current_page_count];
+      typed_addr= static_cast<void * volatile *>(addr);
+      ptr= my_atomic_loadptr(typed_addr);
+      array= static_cast<array_type *>(ptr);
+
+      if (array == NULL)
       {
-        /* This thread gets to create a new page. */
-        new_page_index= current_page_count;
-        DBUG_ASSERT(m_pages[new_page_index] == NULL);
-
-        /* Allocate a new page */
+        /* (2-b) Found no page, allocate a new one */
         array= new array_type();
         builtin_memory_scalable_buffer.count_alloc(sizeof (array_type));
 
@@ -534,22 +563,41 @@ public:
           return NULL;
         }
 
-        m_pages[new_page_index]= array;
-      }
-      else
-      {
-        /* A concurrent thread inserted a new page, use it. */
-        new_page_index= current_page_count - 1;
-        array= m_pages[new_page_index];
+        /* (2-c) Atomic CAS, array <==> (m_pages[current_page_count] if NULL)  */
+        old_ptr= NULL;
+        ptr= array;
+        if (my_atomic_casptr(typed_addr, & old_ptr, ptr))
+        {
+          /* CAS: Ok */
+
+          /* Advertise the new page */
+          PFS_atomic::add_u32(& m_max_page_index.m_u32, 1);
+        }
+        else
+        {
+          /* CAS: Race condition with another thread */
+
+          old_array= static_cast<array_type *>(old_ptr);
+
+          /* Delete the page */
+          m_allocator->free_array(array, PAGE_SIZE);
+          delete array;
+          builtin_memory_scalable_buffer.count_free(sizeof (array_type));
+
+          /* Use the new page added concurrently instead */
+          array= old_array;
+        }
       }
 
       DBUG_ASSERT(array != NULL);
-      page_logical_size= get_page_logical_size(new_page_index);
+      page_logical_size= get_page_logical_size(current_page_count);
       pfs= array->allocate(dirty_state, page_logical_size);
       if (pfs != NULL)
       {
         return pfs;
       }
+
+      current_page_count++;
     }
 
     m_lost++;

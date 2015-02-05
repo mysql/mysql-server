@@ -4866,7 +4866,11 @@ public:
     with_subselect|= item->has_subquery();
     with_stored_program|= item->has_stored_program();
     if (item->type() == FIELD_ITEM)
+    {
       cached_field= ((Item_field *)item)->field;
+      if (((Item_field *)item)->table_ref)
+        used_table_map= ((Item_field *)item)->table_ref->map();
+    }
     return 0;
   };
   enum Type type() const { return CACHE_ITEM; }
