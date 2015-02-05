@@ -30,7 +30,6 @@
 #endif
 
 #include <list>
-#include <string>
 
 using binary_log::Uuid;
 /**
@@ -1463,10 +1462,6 @@ public:
     Encodes this Gtid_set as a binary string.
   */
   void encode(uchar *buf) const;
-  /**
-    Encodes this Gtid_set as a binary string using std::string.
-  */
-  std::string encode() const;
   /**
     Returns the length of this Gtid_set when encoded using the
     encode() function.
