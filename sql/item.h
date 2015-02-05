@@ -4868,8 +4868,8 @@ public:
     if (item->type() == FIELD_ITEM)
     {
       cached_field= ((Item_field *)item)->field;
-      if (cached_field->table)
-        used_table_map= cached_field->table->map;
+      if (((Item_field *)item)->table_ref)
+        used_table_map= ((Item_field *)item)->table_ref->map();
     }
     return 0;
   };
