@@ -201,9 +201,35 @@ protected:
   const bool is_replace;
 
 public:
+  /**
+    Field list to insert/replace
+
+    One of two things:
+    1. For the INSERT/REPLACE ... (col1, ... colN) VALUES ... syntax
+       this is a list of col1, ..., colN fields.
+    2. For the INSERT/REPLACE ... SET col1=x1, ... colM=xM syntax extension
+       this is a list of col1, ... colM fields as well.
+  */
   List<Item>          insert_field_list;
+  /**
+    ON DUPLICATE KEY UPDATE data value list
+  */
   List<Item>          insert_value_list;
+  /**
+    ON DUPLICATE KEY UPDATE field list
+  */
   List<Item>          insert_update_list;
+  /**
+    Row data to insert/replace
+
+    One of two things:
+    1. For the INSERT/REPLACE ... VALUES (row1), (row2), ... (rowN) syntax
+       the list contains N List_item lists: one List_item per row.
+    2. For the INSERT/REPLACE ... SET col1=x1, ... colM=xM syntax extension
+       this list contains only 1 List_item of M data values: this way we
+       emulate this syntax:
+         INSERT/REPLACE ... (col1, ... colM) VALUE (x1, ..., xM);
+  */
   List<List_item>     insert_many_values; // TODO: move to Sql_cmd_insert
 
   const enum_duplicates duplicates;
