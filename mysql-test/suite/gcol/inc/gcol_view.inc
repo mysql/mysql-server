@@ -28,16 +28,19 @@ select d,e from v1;
 select is_updatable from information_schema.views where table_name='v1';
 
 # view with different algorithms (explain output differs)
-explain extended select d,e from v1;
+--replace_column 10 X
+explain select d,e from v1;
 create algorithm=temptable view v2 (d,e) as select abs(b), abs(c) from t1;
 show create view v2;
 select d,e from v2;
-explain extended select d,e from v2;
+--replace_column 10 X
+explain select d,e from v2;
 
 # VIEW on VIEW test
 create view v3 (d,e) as select d*2, e*2 from v1;
 select * from v3;
-explain extended select * from v3;
+--replace_column 10 X
+explain select * from v3;
 
 drop view v1,v2,v3;
 drop table t1;
@@ -51,11 +54,13 @@ create table t1 (a int not null,
 insert into t1 (a) values (1), (2), (3), (1), (2), (3);
 create view v1 as select distinct b from t1;
 select * from v1;
+--replace_column 10 X
 explain select * from v1;
 select * from t1;
 drop view v1;
 create view v1 as select distinct c from t1;
 select * from v1;
+--replace_column 10 X
 explain select * from v1;
 select * from t1;
 drop view v1;
@@ -70,10 +75,12 @@ create table t1 (a int not null,
 insert into t1 (a) values (1), (2), (3), (4);
 create view v1 as select b+1 from t1 order by 1 desc limit 2;
 select * from v1;
+--replace_column 10 X
 explain select * from v1;
 drop view v1;
 create view v1 as select c+1 from t1 order by 1 desc limit 2;
 select * from v1;
+--replace_column 10 X
 explain select * from v1;
 drop view v1;
 drop table t1;
