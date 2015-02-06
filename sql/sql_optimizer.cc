@@ -455,6 +455,9 @@ JOIN::optimize()
 
   if (make_join_select(this, where_cond))
   {
+    if (thd->is_error())
+      DBUG_RETURN(1);
+
     zero_result_cause=
       "Impossible WHERE noticed after reading const tables";
     goto setup_subq_exit;
@@ -8743,6 +8746,9 @@ static bool make_join_select(JOIN *join, Item *cond)
   if (const_cond != NULL)
   {
     const bool const_cond_result= const_cond->val_int() != 0;
+    if (thd->is_error())
+      DBUG_RETURN(true);
+
     Opt_trace_object trace_const_cond(trace);
     trace_const_cond.add("condition_on_constant_tables", const_cond)
                     .add("condition_value", const_cond_result);
