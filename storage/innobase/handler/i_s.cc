@@ -4017,7 +4017,11 @@ i_s_fts_config_fill(
 	user_table = dict_table_open_on_name(
 		fts_internal_tbl_name, FALSE, FALSE, DICT_ERR_IGNORE_NONE);
 
-	if (!user_table || !dict_table_has_fts_index(user_table)) {
+	if (!user_table) {
+		DBUG_RETURN(0);
+	} else if (!dict_table_has_fts_index(user_table)) {
+		dict_table_close(user_table, FALSE, FALSE);
+
 		DBUG_RETURN(0);
 	}
 
