@@ -28,6 +28,7 @@
 #include <set>
 #include <rapidjson/document.h>
 
+
 /**
    We have to hold result buffers in functions that return a GEOMETRY string,
    because such a function's result geometry's buffer is directly used and
@@ -409,6 +410,40 @@ public:
   const char *func_name() const { return "st_envelope"; }
   String *val_str(String *);
   Field::geometry_type get_geometry_type() const;
+};
+
+class Item_func_make_envelope: public Item_geometry_func
+{
+public:
+  Item_func_make_envelope(const POS &pos, Item *a, Item *b)
+    : Item_geometry_func(pos, a, b) {}
+  const char *func_name() const { return "st_makeenvelope"; }
+  String *val_str(String *);
+  Field::geometry_type get_geometry_type() const;
+};
+
+class Item_func_validate: public Item_geometry_func
+{
+  String arg_val;
+public:
+  Item_func_validate(const POS &pos, Item *a): Item_geometry_func(pos, a) {}
+  const char *func_name() const { return "st_validate"; }
+  String *val_str(String *);
+};
+
+class Item_func_simplify: public Item_geometry_func
+{
+  BG_result_buf_mgr bg_resbuf_mgr;
+  String arg_val;
+  template <typename Coordsys>
+  int simplify_basic(Geometry *geom, double max_dist, String *str,
+                     Gis_geometry_collection *gc= NULL,
+                     String *gcbuf= NULL);
+public:
+  Item_func_simplify(const POS &pos, Item *a, Item *b)
+    : Item_geometry_func(pos, a, b) {}
+  const char *func_name() const { return "st_simplify"; }
+  String *val_str(String *);
 };
 
 class Item_func_point: public Item_geometry_func
@@ -860,6 +895,16 @@ public:
   void fix_length_and_dec() { maybe_null= 1; }
 };
 
+class Item_func_isvalid: public Item_bool_func
+{
+public:
+  Item_func_isvalid(const POS &pos, Item *a): Item_bool_func(pos, a) {}
+  longlong val_int();
+  optimize_type select_optimize() const { return OPTIMIZE_NONE; }
+  const char *func_name() const { return "st_isvalid"; }
+  void fix_length_and_dec() { maybe_null= 0; }
+};
+
 class Item_func_dimension: public Item_int_func
 {
   String value;
@@ -979,14 +1024,15 @@ public:
 
 class Item_func_distance: public Item_real_func
 {
+  // Default earth radius in meters.
+  bool is_spherical_equatorial;
+  double earth_radius;
   String tmp_value1;
   String tmp_value2;
   Gcalc_heap collector;
   Gcalc_function func;
   Gcalc_scan_iterator scan_it;
 
-  template <typename Coordsys>
-  double bg_distance(const Geometry *g1, const Geometry *g2, bool *isdone);
   template <typename Coordsys>
   double distance_point_geometry(const Geometry *g1, const Geometry *g2,
                                  bool *isdone);
@@ -1007,9 +1053,18 @@ class Item_func_distance: public Item_real_func
   double distance_multipolygon_geometry(const Geometry *g1, const Geometry *g2,
                                         bool *isdone);
 
+  double distance_point_geometry_spherical(const Geometry *g1,
+                                           const Geometry *g2);
+  double distance_multipoint_geometry_spherical(const Geometry *g1,
+                                                const Geometry *g2);
 public:
-  Item_func_distance(const POS &pos, Item *a, Item *b)
-    : Item_real_func(pos, a, b)
+  double bg_distance_spherical(const Geometry *g1, const Geometry *g2);
+  template <typename Coordsys>
+  double bg_distance(const Geometry *g1, const Geometry *g2, bool *isdone);
+
+  Item_func_distance(const POS &pos, PT_item_list *ilist, bool isspherical)
+    : Item_real_func(pos, ilist), is_spherical_equatorial(isspherical),
+      earth_radius(6370986.0)                   /* Default earth radius. */
   {
     /*
       Either operand can be an empty geometry collection, and it's meaningless
@@ -1025,7 +1080,10 @@ public:
   }
 
   double val_real();
-  const char *func_name() const { return "st_distance"; }
+  const char *func_name() const
+  {
+    return is_spherical_equatorial ? "st_distance_sphere" : "st_distance";
+  }
 };
 
 

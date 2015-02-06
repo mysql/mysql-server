@@ -2443,12 +2443,10 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, Item* cond)
 /*****************************************************************************
   Status functions
 *****************************************************************************/
-
-// TODO: allocator based on my_malloc.
-typedef std::vector<st_mysql_show_var> Status_var_array;
-static Status_var_array all_status_vars(0);
-
-static bool status_vars_inited= 0;
+Status_var_array all_status_vars(0);
+bool status_vars_inited= 0;
+/* Version counter, protected by LOCK_STATUS. */
+ulonglong status_var_array_version= 0;
 
 static inline int show_var_cmp(const SHOW_VAR *var1, const SHOW_VAR *var2)
 {
@@ -2479,7 +2477,7 @@ static inline bool is_show_undef(const st_mysql_show_var &var)
 */
 static void shrink_var_array(Status_var_array *array)
 {
-  // remove_if maintains order for the elements that are *not* removed.
+  /* remove_if maintains order for the elements that are *not* removed */
   array->erase(std::remove_if(array->begin(), array->end(), is_show_undef),
                array->end());
   if (array->empty())
@@ -2505,11 +2503,12 @@ static void shrink_var_array(Status_var_array *array)
 
     The last entry of the all_status_vars[] should always be {0,0,SHOW_UNDEF}
 */
-int add_status_vars(SHOW_VAR *list)
+int add_status_vars(const SHOW_VAR *list)
 {
   Mutex_lock lock(status_vars_inited ? &LOCK_status : NULL);
 
-  try {
+  try
+  {
     while (list->name)
       all_status_vars.push_back(*list++);
   }
@@ -2522,7 +2521,8 @@ int add_status_vars(SHOW_VAR *list)
 
   if (status_vars_inited)
     std::sort(all_status_vars.begin(), all_status_vars.end(), Show_var_cmp());
-
+  
+  status_var_array_version++;
   return 0;
 }
 
@@ -2538,6 +2538,7 @@ void init_status_vars()
 {
   status_vars_inited=1;
   std::sort(all_status_vars.begin(), all_status_vars.end(), Show_var_cmp());
+  status_var_array_version++;
 }
 
 void reset_status_vars()
@@ -2553,6 +2554,14 @@ void reset_status_vars()
 }
 
 /*
+  Current version of the all_status_vars.
+*/
+ulonglong get_status_vars_version(void)
+{
+  return (status_var_array_version);
+}
+
+/*
   catch-all cleanup function, cleans up everything no matter what
 
   DESCRIPTION
@@ -2564,6 +2573,7 @@ void reset_status_vars()
 void free_status_vars()
 {
   Status_var_array().swap(all_status_vars);
+  status_var_array_version++;
 }
 
 /**
@@ -2644,6 +2654,7 @@ void remove_status_vars(SHOW_VAR *list)
         all_status_vars[c].type= SHOW_UNDEF;
     }
     shrink_var_array(&all_status_vars);
+    status_var_array_version++;
     mysql_mutex_unlock(&LOCK_status);
   }
   else
@@ -2660,6 +2671,7 @@ void remove_status_vars(SHOW_VAR *list)
       }
     }
     shrink_var_array(&all_status_vars);
+    status_var_array_version++;
   }
 }
 
@@ -2669,7 +2681,6 @@ inline void make_upper(char *buf)
     *buf= my_toupper(system_charset_info, *buf);
 }
 
-
 /**
   @brief Returns the value of a system or a status variable.
 
@@ -2677,7 +2688,7 @@ inline void make_upper(char *buf)
   @param variable   [IN]    Details of the variable.
   @param value_type [IN]    Variable type.
   @param show_type  [IN]    Variable show type.
-  @pramm charset    [OUT]   Character set of the value.
+  @param charset    [OUT]   Character set of the value.
   @param buff       [INOUT] Buffer to store the value.
                             (Needs to have enough memory
 			     to hold the value of variable.)
@@ -2686,15 +2697,13 @@ inline void make_upper(char *buf)
   @return                   Pointer to the value buffer.
 */
 
-const char* get_one_variable(THD *thd, SHOW_VAR *variable,
+const char* get_one_variable(THD *thd, const SHOW_VAR *variable,
                              enum_var_type value_type, SHOW_TYPE show_type,
                              system_status_var *status_var,
                              const CHARSET_INFO **charset, char *buff,
                              size_t *length)
 {
-  const char *value= variable->value;
-  const char *pos= buff;
-  const char *end= buff;
+  const char *value;
 
   if (show_type == SHOW_SYS)
   {
@@ -2703,127 +2712,133 @@ const char* get_one_variable(THD *thd, SHOW_VAR *variable,
     null_lex_str.length= 0;
     sys_var *var= ((sys_var *) variable->value);
     show_type= var->show_type();
-    value= (char*) var->value_ptr(thd, value_type, &null_lex_str);
+    value= (char*) var->value_ptr(current_thd, thd, value_type, &null_lex_str);
     *charset= var->charset(thd);
   }
+  else
+  {
+    value= variable->value;
+  }
 
-  pos= end= buff;
+  const char *pos= buff;
+  const char *end= buff;
+
   /*
-    note that value may be == buff. All SHOW_xxx code below
-    should still work in this case
+    Note that value may == buff. All SHOW_xxx code below should still work.
   */
-  switch (show_type) {
-  case SHOW_DOUBLE_STATUS:
-    value= ((char *) status_var + (ulong) value);
-    /* fallthrough */
-
-  case SHOW_DOUBLE:
-    /* 6 is the default precision for '%f' in sprintf() */
-    end= buff + my_fcvt(*(double *) value, 6, buff, NULL);
-    break;
-
-  case SHOW_LONG_STATUS:
-    value= ((char *) status_var + (ulong) value);
-    /* fallthrough */
-
-  case SHOW_LONG:
-  // the difference lies in refresh_status()
-  case SHOW_LONG_NOFLUSH:
-    end= int10_to_str(*(long*) value, buff, 10);
-    break;
-
-  case SHOW_SIGNED_LONG:
-    end= int10_to_str(*(long*) value, buff, -10);
-    break;
-
-  case SHOW_LONGLONG_STATUS:
-    value= ((char *) status_var + (ulong) value);
-    /* fallthrough */
-
-  case SHOW_LONGLONG:
-    end= longlong10_to_str(*(longlong*) value, buff, 10);
-    break;
-
-  case SHOW_HA_ROWS:
-    end= longlong10_to_str((longlong) *(ha_rows*) value, buff, 10);
-    break;
-
-  case SHOW_BOOL:
-    end= my_stpcpy(buff, *(bool*) value ? "ON" : "OFF");
-    break;
-
-  case SHOW_MY_BOOL:
-    end= my_stpcpy(buff, *(my_bool*) value ? "ON" : "OFF");
-    break;
-
-  case SHOW_INT:
-    end= int10_to_str((long) *(uint32*) value, buff, 10);
-    break;
-
-  case SHOW_HAVE:
+  switch (show_type)
   {
-    SHOW_COMP_OPTION tmp= *(SHOW_COMP_OPTION*) value;
-    pos= show_comp_option_name[(int) tmp];
-    end= strend(pos);
-    break;
+    case SHOW_DOUBLE_STATUS:
+      value= ((char *) status_var + (ulong) value);
+      /* fall through */
+
+    case SHOW_DOUBLE:
+      /* 6 is the default precision for '%f' in sprintf() */
+      end= buff + my_fcvt(*(double *) value, 6, buff, NULL);
+      break;
+
+    case SHOW_LONG_STATUS:
+      value= ((char *) status_var + (ulong) value);
+      /* fall through */
+
+    case SHOW_LONG:
+     /* the difference lies in refresh_status() */
+    case SHOW_LONG_NOFLUSH:
+      end= int10_to_str(*(long*) value, buff, 10);
+      break;
+
+    case SHOW_SIGNED_LONG:
+      end= int10_to_str(*(long*) value, buff, -10);
+      break;
+
+    case SHOW_LONGLONG_STATUS:
+      value= ((char *) status_var + (ulong) value);
+      /* fall through */
+
+    case SHOW_LONGLONG:
+      end= longlong10_to_str(*(longlong*) value, buff, 10);
+      break;
+
+    case SHOW_HA_ROWS:
+      end= longlong10_to_str((longlong) *(ha_rows*) value, buff, 10);
+      break;
+
+    case SHOW_BOOL:
+      end= my_stpcpy(buff, *(bool*) value ? "ON" : "OFF");
+      break;
+
+    case SHOW_MY_BOOL:
+      end= my_stpcpy(buff, *(my_bool*) value ? "ON" : "OFF");
+      break;
+
+    case SHOW_INT:
+      end= int10_to_str((long) *(uint32*) value, buff, 10);
+      break;
+
+    case SHOW_HAVE:
+    {
+      SHOW_COMP_OPTION tmp= *(SHOW_COMP_OPTION*) value;
+      pos= show_comp_option_name[(int) tmp];
+      end= strend(pos);
+      break;
+    }
+
+    case SHOW_CHAR:
+    {
+      if (!(pos= value))
+        pos= "";
+      end= strend(pos);
+      break;
+    }
+
+    case SHOW_CHAR_PTR:
+    {
+      if (!(pos= *(char**) value))
+        pos= "";
+
+      DBUG_EXECUTE_IF("alter_server_version_str",
+            if (!my_strcasecmp(system_charset_info, variable->name, "version"))
+            {
+              pos= "some-other-version";
+            });
+
+      end= strend(pos);
+      break;
+    }
+
+    case SHOW_LEX_STRING:
+    {
+      LEX_STRING *ls=(LEX_STRING*)value;
+      if (!(pos= ls->str))
+        end= pos= "";
+      else
+        end= pos + ls->length;
+      break;
+    }
+
+    case SHOW_KEY_CACHE_LONG:
+      value= (char*) dflt_key_cache + (ulong)value;
+      end= int10_to_str(*(long*) value, buff, 10);
+      break;
+
+    case SHOW_KEY_CACHE_LONGLONG:
+      value= (char*) dflt_key_cache + (ulong)value;
+      end= longlong10_to_str(*(longlong*) value, buff, 10);
+      break;
+
+    case SHOW_UNDEF:
+      break;                /* Return empty string */
+
+    case SHOW_SYS:          /* Cannot happen */
+
+    default:
+      DBUG_ASSERT(0);
+      break;
   }
 
-  case SHOW_CHAR:
-  {
-    if (!(pos= value))
-      pos= "";
-    end= strend(pos);
-    break;
-  }
-
-  case SHOW_CHAR_PTR:
-  {
-    if (!(pos= *(char**) value))
-      pos= "";
-
-    DBUG_EXECUTE_IF("alter_server_version_str",
-                    if (!my_strcasecmp(system_charset_info,
-                                       variable->name, "version")) {
-                      pos= "some-other-version";
-                    });
-
-    end= strend(pos);
-    break;
-  }
-
-  case SHOW_LEX_STRING:
-  {
-    LEX_STRING *ls=(LEX_STRING*)value;
-    if (!(pos= ls->str))
-      end= pos= "";
-    else
-      end= pos + ls->length;
-    break;
-  }
-
-  case SHOW_KEY_CACHE_LONG:
-    value= (char*) dflt_key_cache + (ulong)value;
-    end= int10_to_str(*(long*) value, buff, 10);
-    break;
-
-  case SHOW_KEY_CACHE_LONGLONG:
-    value= (char*) dflt_key_cache + (ulong)value;
-    end= longlong10_to_str(*(longlong*) value, buff, 10);
-    break;
-
-  case SHOW_UNDEF:
-    break;                                      // Return empty string
-
-  case SHOW_SYS:                                // Cannot happen
-
-  default:
-    DBUG_ASSERT(0);
-    break;
-  }
   *length= (size_t) (end - pos);
   return pos;
 }
-
 
 static bool show_status_array(THD *thd, const char *wild,
                               SHOW_VAR *variables,
@@ -2837,7 +2852,7 @@ static bool show_status_array(THD *thd, const char *wild,
   char * const buff= buffer.data;
   char *prefix_end;
   /* the variable name should not be longer than 64 characters */
-  char name_buffer[64];
+  char name_buffer[SHOW_VAR_MAX_NAME_LEN];
   size_t len;
   SHOW_VAR tmp, *var;
   Item *partial_cond= 0;
@@ -2853,7 +2868,7 @@ static bool show_status_array(THD *thd, const char *wild,
   prefix_end=my_stpnmov(name_buffer, prefix, sizeof(name_buffer)-1);
   if (*prefix)
     *prefix_end++= '_';
-  len=name_buffer + sizeof(name_buffer) - prefix_end;
+  len= (int)(name_buffer + sizeof(name_buffer) - prefix_end);
   partial_cond= make_cond_for_info_schema(cond, tl);
 
   for (; variables->name; variables++)
@@ -2920,7 +2935,7 @@ public:
   virtual void operator()(THD *thd)
   {
     STATUS_VAR* stat = &(thd->status_var);
-    add_to_status(m_stat_var, stat);
+    add_to_status(m_stat_var, stat, true);
   }
 private:
   /* Status of all threads are summed into this. */
@@ -6881,23 +6896,98 @@ int fill_open_tables(THD *thd, TABLE_LIST *tables, Item *cond)
   DBUG_RETURN(0);
 }
 
+/**
+  Issue a deprecation warning for SELECT commands for status and system variables.
+*/
+void push_select_warning(THD *thd, enum enum_var_type option_type, bool status)
+{
+  const char *old_name;
+  const char *new_name;
+  if (option_type == OPT_GLOBAL)
+  {
+    old_name= (status ? "INFORMATION_SCHEMA.GLOBAL_STATUS" : "INFORMATION_SCHEMA.GLOBAL_VARIABLES");
+    new_name= (status ? "performance_schema.global_status" : "performance_schema.global_variables");
+  }
+  else
+  {
+    old_name= (status ? "INFORMATION_SCHEMA.SESSION_STATUS" : "INFORMATION_SCHEMA.SESSION_VARIABLES");
+    new_name= (status ? "performance_schema.session_status" : "performance_schema.session_variables");
+  }
+
+  push_warning_printf(thd, Sql_condition::SL_WARNING,
+                      ER_WARN_DEPRECATED_SYNTAX,
+                      ER_THD(thd, ER_WARN_DEPRECATED_SYNTAX),
+                      old_name, new_name);
+}
+
+/**
+  Issue a deprecation warning for SHOW commands with a WHERE clause.
+*/
+void push_show_where_warning(THD *thd, enum enum_var_type option_type, bool status)
+{
+  const char *old_name;
+  const char *new_name;
+  if (option_type == OPT_GLOBAL)
+  {
+    old_name= (status ? "SHOW GLOBAL STATUS WHERE" : "SHOW GLOBAL VARIABLES WHERE");
+    new_name= (status ? "performance_schema.global_status" : "performance_schema.global_variables");
+  }
+  else
+  {
+    old_name= (status ? "SHOW SESSION STATUS WHERE" : "SHOW SESSION VARIABLES WHERE");
+    new_name= (status ? "performance_schema.session_status" : "performance_schema.session_variables");
+  }
+
+  push_warning_printf(thd, Sql_condition::SL_WARNING,
+                      ER_WARN_DEPRECATED_SYNTAX,
+                      ER_THD(thd, ER_WARN_DEPRECATED_SYNTAX),
+                      old_name, new_name);
+}
 
 int fill_variables(THD *thd, TABLE_LIST *tables, Item *cond)
 {
   DBUG_ENTER("fill_variables");
-  SHOW_VAR *sys_var_array;
+  Show_var_array sys_var_array(PSI_INSTRUMENT_ME);
   int res= 0;
+
   LEX *lex= thd->lex;
   const char *wild= lex->wild ? lex->wild->ptr() : NullS;
   enum enum_schema_tables schema_table_idx=
     get_schema_table_idx(tables->schema_table);
-  enum enum_var_type option_type= OPT_SESSION;
+  enum enum_var_type option_type;
   bool upper_case_names= (schema_table_idx != SCH_VARIABLES);
   bool sorted_vars= (schema_table_idx == SCH_VARIABLES);
 
-  if (lex->option_type == OPT_GLOBAL ||
-      schema_table_idx == SCH_GLOBAL_VARIABLES)
+  if (schema_table_idx == SCH_VARIABLES)
+  {
+    option_type= lex->option_type;
+  }
+  else if (schema_table_idx == SCH_GLOBAL_VARIABLES)
+  {
     option_type= OPT_GLOBAL;
+  }
+  else
+  {
+    DBUG_ASSERT(schema_table_idx == SCH_SESSION_VARIABLES);
+    option_type= OPT_SESSION;
+  }
+
+#ifndef EMBEDDED_LIBRARY
+  /* Issue deprecation warning. */
+  if (lex->sql_command == SQLCOM_SHOW_VARIABLES)
+  {
+    if (cond != NULL)
+    {
+      push_show_where_warning(thd, option_type, false);
+    }
+  }
+  else
+  {
+    push_select_warning(thd, option_type, false);
+  }
+  if (!show_compatibility_56)
+    DBUG_RETURN(res);
+#endif /* EMBEDDED_LIBRARY */
 
   /*
     Lock LOCK_plugin_delete to avoid deletion of any plugins while creating
@@ -6907,10 +6997,10 @@ int fill_variables(THD *thd, TABLE_LIST *tables, Item *cond)
   // Lock LOCK_system_variables_hash to prepare SHOW_VARs array.
   mysql_rwlock_rdlock(&LOCK_system_variables_hash);
   DEBUG_SYNC(thd, "acquired_LOCK_system_variables_hash");
-  sys_var_array= enumerate_sys_vars(thd, sorted_vars, option_type);
+  enumerate_sys_vars(thd, &sys_var_array, sorted_vars, option_type, false);
   mysql_rwlock_unlock(&LOCK_system_variables_hash);
 
-  res= show_status_array(thd, wild, sys_var_array, option_type, NULL, "",
+  res= show_status_array(thd, wild, sys_var_array.begin(), option_type, NULL, "",
                          tables, upper_case_names, cond);
 
   mysql_mutex_unlock(&LOCK_plugin_delete);
@@ -6924,6 +7014,7 @@ int fill_status(THD *thd, TABLE_LIST *tables, Item *cond)
   LEX *lex= thd->lex;
   const char *wild= lex->wild ? lex->wild->ptr() : NullS;
   int res= 0;
+
   STATUS_VAR *tmp1, tmp;
   enum enum_schema_tables schema_table_idx=
     get_schema_table_idx(tables->schema_table);
@@ -6949,6 +7040,23 @@ int fill_status(THD *thd, TABLE_LIST *tables, Item *cond)
     tmp1= &thd->status_var;
   }
 
+#ifndef EMBEDDED_LIBRARY
+  /* Issue deprecation warning. */
+  if (lex->sql_command == SQLCOM_SHOW_STATUS)
+  {
+    if (cond != NULL)
+    {
+      push_show_where_warning(thd, option_type, true);
+    }
+  }
+  else
+  {
+    push_select_warning(thd, option_type, true);
+  }
+  if (!show_compatibility_56)
+    DBUG_RETURN(res);
+#endif /* EMBEDDED_LIBRARY */
+
   /*
     Avoid recursive acquisition of LOCK_status in cases when WHERE clause
     represented by "cond" contains subquery on I_S.SESSION/GLOBAL_STATUS.
@@ -6967,6 +7075,7 @@ int fill_status(THD *thd, TABLE_LIST *tables, Item *cond)
 
   if (thd->fill_status_recursion_level-- == 1) 
     mysql_mutex_unlock(&LOCK_status);
+
   DBUG_RETURN(res);
 }
 

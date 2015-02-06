@@ -24,6 +24,8 @@ select * from information_schema.session_variables where variable_name='enforce_
 # test all settable values
 #
 
+--disable_warnings
+
 set global enforce_gtid_consistency= 1;
 select @@global.enforce_gtid_consistency;
 show variables like 'enforce_gtid_consistency';
@@ -71,6 +73,8 @@ select @@global.enforce_gtid_consistency;
 show variables like 'enforce_gtid_consistency';
 select variable_value from information_schema.global_variables
   where variable_name= 'enforce_gtid_consistency';
+
+--enable_warnings
 
 --error ER_GLOBAL_VARIABLE
 set session enforce_gtid_consistency= 1;

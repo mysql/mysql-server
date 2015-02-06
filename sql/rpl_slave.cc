@@ -2260,7 +2260,7 @@ static int get_master_uuid(MYSQL *mysql, Master_info *mi)
                                                        STRING_WITH_LEN(act)));
                   };);
   if (!mysql_real_query(mysql,
-                        STRING_WITH_LEN("SHOW VARIABLES LIKE 'SERVER_UUID'")) &&
+                        STRING_WITH_LEN("SHOW GLOBAL VARIABLES LIKE 'SERVER_UUID'")) &&
       (master_res= mysql_store_result(mysql)) &&
       (master_row= mysql_fetch_row(master_res)))
   {
@@ -2533,7 +2533,7 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
     are equal (which can result from a simple copy of master's datadir to slave,
     thus copying some my.cnf), replication will work but all events will be
     skipped.
-    Do not die if SHOW VARIABLES LIKE 'SERVER_ID' fails on master (very old
+    Do not die if SHOW GLOBAL VARIABLES LIKE 'SERVER_ID' fails on master (very old
     master?).
     Note: we could have put a @@SERVER_ID in the previous SELECT
     UNIX_TIMESTAMP() instead, but this would not have worked on 3.23 masters.
@@ -2550,7 +2550,7 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
   master_res= NULL;
   master_row= NULL;
   if (!mysql_real_query(mysql,
-                        STRING_WITH_LEN("SHOW VARIABLES LIKE 'SERVER_ID'")) &&
+                        STRING_WITH_LEN("SHOW GLOBAL VARIABLES LIKE 'SERVER_ID'")) &&
       (master_res= mysql_store_result(mysql)) &&
       (master_row= mysql_fetch_row(master_res)))
   {
@@ -9231,7 +9231,7 @@ bool rpl_master_erroneous_autoinc(THD *thd)
 }
 
 /**
-  a copy of active_mi->rli->slave_skip_counter, for showing in SHOW VARIABLES,
+  a copy of active_mi->rli->slave_skip_counter, for showing in SHOW GLOBAL VARIABLES,
   INFORMATION_SCHEMA.GLOBAL_VARIABLES and @@sql_slave_skip_counter without
   taking all the mutexes needed to access active_mi->rli->slave_skip_counter
   properly.

@@ -104,6 +104,17 @@
 
 #include "table_uvar_by_thread.h"
 
+#include "table_status_by_account.h"
+#include "table_status_by_host.h"
+#include "table_status_by_thread.h"
+#include "table_status_by_user.h"
+#include "table_global_status.h"
+#include "table_session_status.h"
+
+#include "table_variables_by_thread.h"
+#include "table_global_variables.h"
+#include "table_session_variables.h"
+
 /* For show status */
 #include "pfs_column_values.h"
 #include "pfs_instr_class.h"
@@ -121,6 +132,98 @@
   @addtogroup Performance_schema_engine
   @{
 */
+
+bool PFS_table_context::initialize(void)
+{
+  if (m_restore)
+  {
+    /* Restore context from TLS. */
+    PFS_table_context *context= static_cast<PFS_table_context *>(my_get_thread_local(m_thr_key));
+    DBUG_ASSERT(context != NULL);
+    
+    if(context)
+    {
+      m_last_version= context->m_current_version;
+      m_map= context->m_map;
+      DBUG_ASSERT(m_map_size == context->m_map_size);
+      m_map_size= context->m_map_size;
+      m_word_size= context->m_word_size;
+    }
+  }
+  else
+  {
+    /* Check that TLS is not in use. */
+    PFS_table_context *context= static_cast<PFS_table_context *>(my_get_thread_local(m_thr_key));
+    //DBUG_ASSERT(context == NULL);
+    
+    context= this;
+
+    /* Initialize a new context, store in TLS. */
+    m_last_version= m_current_version;
+    m_map= NULL;
+    m_word_size= sizeof(ulong) * 8;
+
+    /* Allocate a bitmap to record which threads are materialized. */
+    if (m_map_size > 0)
+    {
+      THD *thd= current_thd;
+      ulong words= m_map_size / m_word_size + (m_map_size % m_word_size > 0);
+      m_map= (ulong *)thd->mem_calloc(words * m_word_size);
+    }
+
+    /* Write to TLS. */
+    my_set_thread_local(m_thr_key, static_cast<void *>(context));
+  }
+
+  m_initialized= (m_map_size > 0) ? (m_map != NULL) : true;
+
+  return m_initialized;
+}
+
+/* Constructor for global or single thread tables, map size = 0.  */
+PFS_table_context::PFS_table_context(ulonglong current_version, bool restore, thread_local_key_t key) :
+                   m_thr_key(key), m_current_version(current_version), m_last_version(0),
+                   m_map(NULL), m_map_size(0), m_word_size(sizeof(ulong)),
+                   m_restore(restore), m_initialized(false), m_last_item(0)
+{
+  initialize();
+}
+
+/* Constructor for by-thread or aggregate tables, map size = max thread/user/host/account. */
+PFS_table_context::PFS_table_context(ulonglong current_version, ulong map_size, bool restore, thread_local_key_t key) :
+                   m_thr_key(key), m_current_version(current_version), m_last_version(0),
+                   m_map(NULL), m_map_size(map_size), m_word_size(sizeof(ulong)),
+                   m_restore(restore), m_initialized(false), m_last_item(0)
+{
+  initialize();
+}
+
+PFS_table_context::~PFS_table_context(void)
+{
+  /* Clear TLS after final use. */ // TODO: How is that determined?
+//  if (m_restore)
+//  {
+//    my_set_thread_local(m_thr_key, NULL);
+//  }
+}
+
+void PFS_table_context::set_item(ulong n)
+{
+  if (n == m_last_item)
+    return;
+  ulong word= n / m_word_size;
+  ulong bit= n % m_word_size;
+  m_map[word] |= (1 << bit);
+  m_last_item= n;
+}
+
+bool PFS_table_context::is_item_set(ulong n)
+{
+  ulong word= n / m_word_size;
+  ulong bit= n % m_word_size;
+  return (m_map[word] & (1 << bit));
+}
+
 
 static PFS_engine_table_share *all_shares[]=
 {
@@ -212,6 +315,17 @@ static PFS_engine_table_share *all_shares[]=
   &table_prepared_stmt_instances::m_share,
 
   &table_uvar_by_thread::m_share,
+  &table_status_by_account::m_share,
+  &table_status_by_host::m_share,
+  &table_status_by_thread::m_share,
+  &table_status_by_user::m_share,
+  &table_global_status::m_share,
+  &table_session_status::m_share,
+
+  &table_variables_by_thread::m_share,
+  &table_global_variables::m_share,
+  &table_session_variables::m_share,
+
   NULL
 };
 
@@ -1294,7 +1408,7 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       break;
     case 106:
       name= "events_statements_history_long.memory";
-      size= events_statements_history_long_size * sizeof(PFS_events_statements);
+      size= events_statements_history_long_size * (sizeof(PFS_events_statements));
       total_memory+= size;
       break;
     case 107:
@@ -1411,7 +1525,7 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       break;
     case 133:
       name= "events_statements_summary_by_digest.memory";
-      size= digest_max * sizeof(PFS_statements_digest_stat);
+      size= digest_max * (sizeof(PFS_statements_digest_stat));
       total_memory+= size;
       break;
     case 134:
@@ -1736,11 +1850,102 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       size= global_table_share_index_container.get_memory();
       total_memory+= size;
       break;
+    case 207:
+      name= "(history_long_statements_digest_token_array).count";
+      size= events_statements_history_long_size;
+      break;
+    case 208:
+      name= "(history_long_statements_digest_token_array).size";
+      size= pfs_max_digest_length;
+      break;
+    case 209:
+      name= "(history_long_statements_digest_token_array).memory";
+      size= events_statements_history_long_size * pfs_max_digest_length;
+      total_memory+= size;
+      break;
+    case 210:
+      name= "(history_statements_digest_token_array).count";
+      size= global_thread_container.get_row_count() * events_statements_history_per_thread;
+      break;
+    case 211:
+      name= "(history_statements_digest_token_array).size";
+      size= pfs_max_digest_length;
+      break;
+    case 212:
+      name= "(history_statements_digest_token_array).memory";
+      size= global_thread_container.get_row_count() * events_statements_history_per_thread * pfs_max_digest_length;
+      total_memory+= size;
+      break;
+    case 213:
+      name= "(current_statements_digest_token_array).count";
+      size= global_thread_container.get_row_count() * statement_stack_max;
+      break;
+    case 214:
+      name= "(current_statements_digest_token_array).size";
+      size= pfs_max_digest_length;
+      break;
+    case 215:
+      name= "(current_statements_digest_token_array).memory";
+      size= global_thread_container.get_row_count() * statement_stack_max * pfs_max_digest_length;
+      total_memory+= size;
+      break;
+    case 216:
+      name= "(history_long_statements_text_array).count";
+      size= events_statements_history_long_size;
+      break;
+    case 217:
+      name= "(history_long_statements_text_array).size";
+      size= pfs_max_sqltext;
+      break;
+    case 218:
+      name= "(history_long_statements_text_array).memory";
+      size= events_statements_history_long_size * pfs_max_sqltext;
+      total_memory+= size;
+      break;
+    case 219:
+      name= "(history_statements_text_array).count";
+      size= global_thread_container.get_row_count() * events_statements_history_per_thread;
+      break;
+    case 220:
+      name= "(history_statements_text_array).size";
+      size= pfs_max_sqltext;
+      break;
+    case 221:
+      name= "(history_statements_text_array).memory";
+      size= global_thread_container.get_row_count() * events_statements_history_per_thread * pfs_max_sqltext;
+      total_memory+= size;
+      break;
+    case 222:
+      name= "(current_statements_text_array).count";
+      size= global_thread_container.get_row_count() * statement_stack_max;
+      break;
+    case 223:
+      name= "(current_statements_text_array).size";
+      size= pfs_max_sqltext;
+      break;
+    case 224:
+      name= "(current_statements_text_array).memory";
+      size= global_thread_container.get_row_count() * statement_stack_max * pfs_max_sqltext;
+      total_memory+= size;
+      break;
+    case 225:
+      name= "(statements_digest_token_array).count";
+      size= digest_max;
+      break;
+    case 226:
+      name= "(statements_digest_token_array).size";
+      size= pfs_max_digest_length;
+      break;
+    case 227:
+      name= "(statements_digest_token_array).memory";
+      size= digest_max * pfs_max_digest_length;
+      total_memory+= size;
+      break;
     /*
       This case must be last,
       for aggregation in total_memory.
     */
-    case 207:
+    case 228:
       name= "performance_schema.memory";
       size= total_memory;
       break;
@@ -1749,7 +1954,7 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       break;
     }
 
-    buflen= longlong10_to_str(size, buf, 10) - buf;
+    buflen= (uint)(longlong10_to_str(size, buf, 10) - buf);
     if (print(thd,
               PERFORMANCE_SCHEMA_str.str, PERFORMANCE_SCHEMA_str.length,
               name, strlen(name),

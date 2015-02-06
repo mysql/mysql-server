@@ -294,9 +294,11 @@ public:
   SHOW_TYPE show_type();
   uchar* real_value_ptr(THD *thd, enum_var_type type);
   TYPELIB* plugin_var_typelib(void);
-  uchar* do_value_ptr(THD *thd, enum_var_type type, LEX_STRING *base);
-  uchar* session_value_ptr(THD *thd, LEX_STRING *base)
-  { return do_value_ptr(thd, OPT_SESSION, base); }
+  uchar* do_value_ptr(THD *running_thd, THD *target_thd, enum_var_type type, LEX_STRING *base);
+  uchar* do_value_ptr(THD *thd, enum_var_type type, LEX_STRING *base)
+  { return do_value_ptr(thd, thd, type, base); }
+  uchar* session_value_ptr(THD *running_thd, THD *target_thd, LEX_STRING *base)
+  { return do_value_ptr(running_thd, target_thd, OPT_SESSION, base); }
   uchar* global_value_ptr(THD *thd, LEX_STRING *base)
   { return do_value_ptr(thd, OPT_GLOBAL, base); }
   bool do_check(THD *thd, set_var *var);
@@ -2898,7 +2900,12 @@ static uchar *intern_sys_var_ptr(THD* thd, int offset, bool global_lock)
   */
   if (!thd->variables.dynamic_variables_ptr ||
       (uint)offset > thd->variables.dynamic_variables_head)
-    alloc_and_copy_thd_dynamic_variables(thd, global_lock);
+  {
+    if (current_thd == thd) /* TODO WL#6629: Supported for current_thd only. */
+      alloc_and_copy_thd_dynamic_variables(thd, global_lock);
+    else
+      return (uchar*) global_system_variables.dynamic_variables_ptr + offset;
+  }
 
   return (uchar*)thd->variables.dynamic_variables_ptr + offset;
 }
@@ -3296,17 +3303,17 @@ TYPELIB* sys_var_pluginvar::plugin_var_typelib(void)
 }
 
 
-uchar* sys_var_pluginvar::do_value_ptr(THD *thd, enum_var_type type,
+uchar* sys_var_pluginvar::do_value_ptr(THD *running_thd, THD *target_thd, enum_var_type type,
                                        LEX_STRING *base)
 {
   uchar* result;
 
-  result= real_value_ptr(thd, type);
+  result= real_value_ptr(target_thd, type);
 
   if ((plugin_var->flags & PLUGIN_VAR_TYPEMASK) == PLUGIN_VAR_ENUM)
     result= (uchar*) get_type(plugin_var_typelib(), *(ulong*)result);
   else if ((plugin_var->flags & PLUGIN_VAR_TYPEMASK) == PLUGIN_VAR_SET)
-    result= (uchar*) set_to_string(thd, 0, *(ulonglong*) result,
+    result= (uchar*) set_to_string(running_thd, 0, *(ulonglong*) result,
                                    plugin_var_typelib()->type_names);
   return result;
 }

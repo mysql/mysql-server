@@ -575,6 +575,7 @@ typedef struct system_variables
 
 typedef struct system_status_var
 {
+  /* IMPORTANT! See first_system_status_var definition below. */
   ulonglong created_tmp_disk_tables;
   ulonglong created_tmp_tables;
   ulonglong ha_commit_count;
@@ -615,7 +616,7 @@ typedef struct system_status_var
   ulonglong filesort_range_count;
   ulonglong filesort_rows;
   ulonglong filesort_scan_count;
-  /* Prepared statements and binary protocol */
+  /* Prepared statements and binary protocol. */
   ulonglong com_stmt_prepare;
   ulonglong com_stmt_reprepare;
   ulonglong com_stmt_execute;
@@ -631,19 +632,16 @@ typedef struct system_status_var
   ulonglong max_statement_time_set;
   ulonglong max_statement_time_set_failed;
 
-  /*
-    Number of statements sent from the client
-  */
+  /* Number of statements sent from the client. */
   ulonglong questions;
 
   ulong com_other;
   ulong com_stat[(uint) SQLCOM_END];
 
   /*
-    IMPORTANT!
-    SEE last_system_status_var DEFINITION BELOW.
-    Below 'last_system_status_var' are all variables that cannot be handled
-    automatically by add_to_status()/add_diff_to_status().
+    IMPORTANT! See last_system_status_var definition below. Variables after
+    'last_system_status_var' cannot be handled automatically by add_to_status()
+    and add_diff_to_status().
   */
   double last_query_cost;
   ulonglong last_query_partial_plans;
@@ -651,12 +649,23 @@ typedef struct system_status_var
 } STATUS_VAR;
 
 /*
-  This is used for 'SHOW STATUS'. It must be updated to the last ulong
-  variable in system_status_var which is makes sens to add to the global
-  counter
+  This must reference the LAST ulonglong variable in system_status_var that is
+  used as a global counter. It marks the end of a contiguous block of counters
+  that can be iteratively totaled. See add_to_status().
 */
+#define LAST_STATUS_VAR questions
 
-#define last_system_status_var questions
+/*
+  This must reference the FIRST ulonglong variable in system_status_var that is
+  used as a global counter. It marks the start of a contiguous block of counters
+  that can be iteratively totaled.
+*/
+#define FIRST_STATUS_VAR created_tmp_disk_tables
+
+/* Number of contiguous global status variables. */
+const int COUNT_GLOBAL_STATUS_VARS= ((offsetof(STATUS_VAR, LAST_STATUS_VAR) -
+                                      offsetof(STATUS_VAR, FIRST_STATUS_VAR)) /
+                                      sizeof(ulonglong)) + 1;
 
 /**
   Get collation by name, send error to client on failure.
@@ -1542,6 +1551,12 @@ public:
   mysql_mutex_t LOCK_thd_query;
 
   /**
+    Protects THD::variables while being updated. This should be taken inside
+    of LOCK_thd_data and outside of LOCK_global_system_variables.
+  */
+  mysql_mutex_t LOCK_thd_sysvar;
+
+  /**
     Protects query plan (SELECT/UPDATE/DELETE's) from being freed/changed
     while another thread explains it. Following structures are protected by
     this mutex:
@@ -1561,7 +1576,7 @@ public:
     All explain code assumes that this mutex is already taken.
   */
   mysql_mutex_t LOCK_query_plan;
-
+    
   /** All prepared statements of this connection. */
   Prepared_statement_map stmt_map;
   /*
@@ -2300,6 +2315,8 @@ public:
   PSI_stage_progress *m_stage_progress_psi;
   /** Current statement digest. */
   sql_digest_state *m_digest;
+  /** Current statement digest token array. */
+  unsigned char *m_token_array;
   /** Top level statement digest. */
   sql_digest_state m_digest_state;
 
@@ -4966,10 +4983,11 @@ public:
 */
 #define CF_SKIP_QUESTIONS       (1U << 1)
 
-void add_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var);
-
 void add_diff_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var,
                         STATUS_VAR *dec_var);
+
+
+void add_to_status(STATUS_VAR *to_var, const STATUS_VAR *from_var, bool add_com_vars);
 
 /* Inline functions */
 

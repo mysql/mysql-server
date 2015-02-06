@@ -2,10 +2,12 @@
 
 -- source include/have_innodb.inc
 
+--disable_warnings
 if (`select count(*)=0 from information_schema.global_variables where variable_name = 'INNODB_TRX_RSEG_N_SLOTS_DEBUG'`)
 {
   --skip Test requires InnoDB built with UNIV_DEBUG definition.
 }
+--enable_warnings
 
 # Don't test under valgrind, undo slots of the previous test might exist still
 # and cause unstable result.

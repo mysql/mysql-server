@@ -732,6 +732,7 @@ ACL_USER *decoy_user(const LEX_STRING &username,
   user->password_last_changed.time_type= MYSQL_TIMESTAMP_ERROR;
   user->password_lifetime= 0;
   user->use_default_password_lifetime= true;
+  user->account_locked= false;
 
   /*
     For now the common default account is used. Improvements might involve
@@ -2240,6 +2241,20 @@ acl_authenticate(THD *thd, size_t com_change_user_pkt_len)
       inc_host_errors(mpvio.ip, &errors);
       if (!thd->is_error())
         login_failed_error(&mpvio, thd->password);
+      DBUG_RETURN(1);
+    }
+
+    /*
+      Check whether the account has been locked.
+    */
+    if (unlikely(mpvio.acl_user->account_locked))
+    {
+      locked_account_connection_count++;
+
+      my_error(ER_ACCOUNT_HAS_BEEN_LOCKED, MYF(0),
+               mpvio.acl_user->user, mpvio.auth_info.host_or_ip);
+      sql_print_information(ER(ER_ACCOUNT_HAS_BEEN_LOCKED),
+                            mpvio.acl_user->user, mpvio.auth_info.host_or_ip);
       DBUG_RETURN(1);
     }
 

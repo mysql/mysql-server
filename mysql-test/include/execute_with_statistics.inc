@@ -23,6 +23,8 @@ SHOW STATUS LIKE 'Last_query_cost';
 
 FLUSH STATUS;
 eval $query;
+--disable_warnings
 SELECT SUM(variable_value) AS Total_handler_reads
    FROM information_schema.session_status
    WHERE variable_name LIKE 'Handler_read%';
+--enable_warnings

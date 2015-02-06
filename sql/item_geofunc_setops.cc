@@ -114,8 +114,8 @@ public:
   typedef typename Geom_types::Multipoint Multipoint;
   typedef typename Geom_types::Multilinestring Multilinestring;
   typedef typename Geom_types::Multipolygon Multipolygon;
-  typedef typename Geom_types::Coord_type Coord_type;
-  typedef typename Geom_types::Coordsys Coordsys;
+  typedef typename Geom_types::Coordinate_type Coord_type;
+  typedef typename Geom_types::Coordinate_system Coordsys;
   typedef Item_func_spatial_rel Ifsr;
   typedef Item_func_spatial_operation Ifso;
   typedef std::set<Point, bgpt_lt> Point_set;
@@ -1099,8 +1099,8 @@ Geometry *Item_func_spatial_operation::
 intersection_operation(Geometry *g1, Geometry *g2,
                        String *result, bool *pdone)
 {
-  typedef typename Geom_types::Coord_type Coord_type;
-  typedef typename Geom_types::Coordsys Coordsys;
+  typedef typename Geom_types::Coordinate_type Coord_type;
+  typedef typename Geom_types::Coordinate_system Coordsys;
 
   BG_setop_wrapper<Geom_types> wrap(this);
   Geometry *retgeo= NULL;
@@ -1241,7 +1241,9 @@ intersection_operation(Geometry *g1, Geometry *g2,
   default:
     break;
   }
-  null_value= wrap.get_null_value();
+
+  if (!null_value)
+    null_value= wrap.get_null_value();
   return retgeo;
 }
 
@@ -1262,8 +1264,8 @@ template <typename Geom_types>
 Geometry *Item_func_spatial_operation::
 union_operation(Geometry *g1, Geometry *g2, String *result, bool *pdone)
 {
-  typedef typename Geom_types::Coord_type Coord_type;
-  typedef typename Geom_types::Coordsys Coordsys;
+  typedef typename Geom_types::Coordinate_type Coord_type;
+  typedef typename Geom_types::Coordinate_system Coordsys;
 
   BG_setop_wrapper<Geom_types> wrap(this);
   Geometry *retgeo= NULL;
@@ -1398,7 +1400,9 @@ union_operation(Geometry *g1, Geometry *g2, String *result, bool *pdone)
   default:
     break;
   }
-  null_value= wrap.get_null_value();
+
+  if (!null_value)
+    null_value= wrap.get_null_value();
   return retgeo;
 }
 
@@ -1581,7 +1585,9 @@ difference_operation(Geometry *g1, Geometry *g2, String *result, bool *pdone)
   default:
     break;
   }
-  null_value= wrap.get_null_value();
+
+  if (!null_value)
+    null_value= wrap.get_null_value();
   return retgeo;
 }
 
@@ -1602,8 +1608,8 @@ template <typename Geom_types>
 Geometry *Item_func_spatial_operation::
 symdifference_operation(Geometry *g1, Geometry *g2, String *result, bool *pdone)
 {
-  typedef typename Geom_types::Coord_type Coord_type;
-  typedef typename Geom_types::Coordsys Coordsys;
+  typedef typename Geom_types::Coordinate_type Coord_type;
+  typedef typename Geom_types::Coordinate_system Coordsys;
 
   BG_setop_wrapper<Geom_types> wrap(this);
   Geometry *retgeo= NULL;
@@ -1663,7 +1669,7 @@ symdifference_operation(Geometry *g1, Geometry *g2, String *result, bool *pdone)
   if (do_geocol_setop)
     retgeo= geometry_collection_set_operation<Coord_type,
       Coordsys>(g1, g2, result, pdone);
-  else
+  else if (!null_value)
     null_value= wrap.get_null_value();
   return retgeo;
 }

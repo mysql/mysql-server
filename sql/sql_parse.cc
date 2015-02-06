@@ -55,6 +55,49 @@
 #include "sql_table.h"        // mysql_create_table
 #include "sql_tablespace.h"   // mysql_alter_tablespace
 #include "sql_test.h"         // mysql_print_status
+#include "sql_select.h"       // handle_query
+#include "sql_load.h"         // mysql_load
+#include "sql_servers.h"      // create_servers, alter_servers,
+                              // drop_servers, servers_reload
+#include "sql_handler.h"      // mysql_ha_open, mysql_ha_close,
+                              // mysql_ha_read
+#include "sql_binlog.h"       // mysql_client_binlog_statement
+#include "sql_do.h"           // mysql_do
+#include "sql_help.h"         // mysqld_help
+#include "rpl_constants.h"    // Incident, INCIDENT_LOST_EVENTS
+#include "log_event.h"
+#include "rpl_slave.h"
+#include "rpl_master.h"
+#include "rpl_msr.h"        /* Multisource replication */
+#include "rpl_filter.h"
+#include <m_ctype.h>
+#include <myisam.h>
+#include <my_dir.h>
+#include <dur_prop.h>
+#include "rpl_handler.h"
+
+#include "sp_head.h"
+#include "sp.h"
+#include "sp_cache.h"
+#include "events.h"
+#include "sql_trigger.h"      // mysql_create_or_drop_trigger
+#include "transaction.h"
+#include "xa.h"
+#include "sql_audit.h"
+#include "sql_prepare.h"
+#include "debug_sync.h"
+#include "probes_mysql.h"
+#include "set_var.h"
+#include "opt_trace.h"
+#include "mysql/psi/mysql_statement.h"
+#include "opt_explain.h"
+#include "sql_rewrite.h"
+#include "sql_analyse.h"
+#include "table_cache.h" // table_cache_manager
+#include "sql_timer.h"   // thd_timer_set, thd_timer_reset
+#include "sp_rcontext.h"
+#include "parse_location.h"
+#include "sql_digest.h"
 #include "sql_timer.h"        // thd_timer_set
 #include "sql_trigger.h"      // add_table_for_trigger
 #include "sql_update.h"       // mysql_update
@@ -1175,7 +1218,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   {
     DBUG_ASSERT(thd->m_digest == NULL);
     thd->m_digest= & thd->m_digest_state;
-    thd->m_digest->reset();
+    thd->m_digest->reset(thd->m_token_array, max_digest_length);
 
     if (alloc_query(thd, packet, packet_length))
       break;					// fatal error is set
@@ -4420,6 +4463,7 @@ end_with_restore_list:
 
       if (user->uses_identified_by_clause &&
           !thd->lex->mqh.specified_limits &&
+          !user->alter_status.update_account_locked_column &&
           !user->alter_status.update_password_expired_column &&
           !user->alter_status.expire_after_days &&
           user->alter_status.use_default_password_lifetime &&
@@ -6247,6 +6291,8 @@ void get_default_definer(THD *thd, LEX_USER *definer)
   definer->alter_status.update_password_expired_column= false;
   definer->alter_status.use_default_password_lifetime= true;
   definer->alter_status.expire_after_days= 0;
+  definer->alter_status.update_account_locked_column= false;
+  definer->alter_status.account_locked= false;
 }
 
 
@@ -6311,12 +6357,8 @@ LEX_USER *get_current_user(THD *thd, LEX_USER *user)
       default_definer->plugin.length= user->plugin.length;
       default_definer->auth.str= user->auth.str;
       default_definer->auth.length= user->auth.length;
-      default_definer->alter_status.update_password_expired_column=
-        user->alter_status.update_password_expired_column;
-      default_definer->alter_status.use_default_password_lifetime=
-	user->alter_status.use_default_password_lifetime;
-      default_definer->alter_status.expire_after_days=
-        user->alter_status.expire_after_days;
+      default_definer->alter_status= user->alter_status;
+
       return default_definer;
     }
   }
@@ -6547,8 +6589,6 @@ bool parse_sql(THD *thd,
 
   if (thd->m_digest != NULL)
   {
-    thd->m_digest->reset();
-
     /* Start Digest */
     parser_state->m_digest_psi= MYSQL_DIGEST_START(thd->m_statement_psi);
 

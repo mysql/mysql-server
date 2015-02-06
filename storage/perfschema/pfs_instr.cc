@@ -56,6 +56,8 @@ ulong events_stages_history_per_thread= 0;
 /** Number of EVENTS_STATEMENTS_HISTORY records per thread. */
 ulong events_statements_history_per_thread= 0;
 uint statement_stack_max= 0;
+uint pfs_max_digest_length= 0;
+uint pfs_max_sqltext= 0;
 /** Number of locker lost. @sa LOCKER_STACK_SIZE. */
 ulong locker_lost= 0;
 /** Number of statements lost. @sa STATEMENT_STACK_SIZE. */
@@ -102,6 +104,9 @@ int init_instruments(const PFS_global_param *param)
   file_handle_full= false;
   file_handle_lost= 0;
 
+  pfs_max_digest_length= param->m_max_digest_length;
+  pfs_max_sqltext= param->m_max_sql_text_length;
+
   events_waits_history_per_thread= param->m_events_waits_history_sizing;
 
   events_stages_history_per_thread= param->m_events_stages_history_sizing;
@@ -116,6 +121,7 @@ int init_instruments(const PFS_global_param *param)
   session_connect_attrs_lost= 0;
 
   file_handle_array= NULL;
+
   thread_internal_id_counter.m_u64= 0;
 
   if (global_mutex_container.init(param->m_mutex_sizing))
@@ -1526,6 +1532,41 @@ void aggregate_all_memory(bool alive,
   }
 }
 
+void aggregate_thread_status(PFS_thread *thread,
+                             PFS_account *safe_account,
+                             PFS_user *safe_user,
+                             PFS_host *safe_host)
+{
+  THD *thd= thread->m_thd;
+
+  if (thd == NULL)
+    return;
+
+  if (likely(safe_account != NULL))
+  {
+    safe_account->aggregate_status_stats(&thd->status_var);
+    return;
+  }
+
+  if (safe_user != NULL)
+  {
+    safe_user->aggregate_status_stats(&thd->status_var);
+  }
+
+  if (safe_host != NULL)
+  {
+    safe_host->aggregate_status_stats(&thd->status_var);
+  }
+#if 0
+  else 
+  {
+    /* TODO: Requires LOCK_status. global_status_var updated by server on THD disconnect. */
+    add_to_status(&global_status_var, &thd->status_var, false);
+  }
+#endif
+  return;
+}
+
 void aggregate_thread_stats(PFS_thread *thread,
                             PFS_account *safe_account,
                             PFS_user *safe_user,
@@ -1534,14 +1575,17 @@ void aggregate_thread_stats(PFS_thread *thread,
   if (likely(safe_account != NULL))
   {
     safe_account->m_disconnected_count++;
-    return;
   }
 
   if (safe_user != NULL)
+  {
     safe_user->m_disconnected_count++;
+  }
 
   if (safe_host != NULL)
+  {
     safe_host->m_disconnected_count++;
+  }
 
   /* There is no global table for connections statistics. */
   return;
@@ -1570,6 +1614,9 @@ void aggregate_thread(PFS_thread *thread,
 #ifdef HAVE_PSI_MEMORY_INTERFACE
   aggregate_thread_memory(false, thread, safe_account, safe_user, safe_host);
 #endif
+
+  if (!show_compatibility_56)
+    aggregate_thread_status(thread, safe_account, safe_user, safe_host);
 
   aggregate_thread_stats(thread, safe_account, safe_user, safe_host);
 }

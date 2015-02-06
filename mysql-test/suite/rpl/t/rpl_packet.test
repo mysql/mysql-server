@@ -57,7 +57,9 @@ INSERT INTO `t1`(`f1`) VALUES ('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 eval select count(*) from `$db`.`t1` /* must be 1 */;
 
 SHOW STATUS LIKE 'Slave_running';
+--disable_warnings
 select * from information_schema.session_status where variable_name= 'SLAVE_RUNNING';
+--enable_warnings
 connection master;
 eval drop database $db;
 --source include/sync_slave_sql_with_master.inc

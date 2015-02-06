@@ -37,6 +37,7 @@ SET @innodb_thread_sleep_delay_orig = @@innodb_thread_sleep_delay;
 
 SET @innodb_thread_concurrency_orig = @@innodb_thread_concurrency;
 
+--disable_warnings
 SET @innodb_rows_deleted_orig = (SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_deleted');
 SET @innodb_rows_inserted_orig = (SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_inserted');
 SET @innodb_rows_updated_orig = (SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_updated');
@@ -45,6 +46,7 @@ SET @innodb_row_lock_current_waits_orig = (SELECT variable_value FROM informatio
 SET @innodb_row_lock_time_orig = (SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_row_lock_time');
 SET @innodb_row_lock_time_max_orig = (SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_row_lock_time_max');
 SET @innodb_row_lock_time_avg_orig = (SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_row_lock_time_avg');
+--enable_warnings
 -- enable_query_log
 
 --disable_warnings
@@ -1391,6 +1393,7 @@ drop table t1;
 
 # Test for testable InnoDB status variables. This test
 # uses previous ones(pages_created, rows_deleted, ...).
+--disable_warnings
 --replace_result 1535 {checked_valid} 1536 {checked_valid} 3071 {checked_valid} 3072 {checked_valid} 6144 {checked_valid}
 SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_buffer_pool_pages_total';
 --replace_result 4096 {checked_valid} 8192 {checked_valid} 16384 {checked_valid}
@@ -1398,13 +1401,16 @@ SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable
 SELECT variable_value - @innodb_rows_deleted_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_deleted';
 SELECT variable_value - @innodb_rows_inserted_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_inserted';
 SELECT variable_value - @innodb_rows_updated_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_updated';
+--enable_warnings
 
 # Test for row locks InnoDB status variables.
+--disable_warnings
 SELECT variable_value - @innodb_row_lock_waits_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_row_lock_waits';
 SELECT variable_value - @innodb_row_lock_current_waits_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_row_lock_current_waits';
 SELECT variable_value - @innodb_row_lock_time_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_row_lock_time';
 SELECT variable_value - @innodb_row_lock_time_max_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_row_lock_time_max';
 SELECT variable_value - @innodb_row_lock_time_avg_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_row_lock_time_avg';
+--enable_warnings
 
 # Test for innodb_sync_spin_loops variable
 SET @innodb_sync_spin_loops_orig = @@innodb_sync_spin_loops;

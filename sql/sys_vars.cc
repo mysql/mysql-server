@@ -624,6 +624,14 @@ static Sys_var_long Sys_pfs_max_metadata_locks(
        DEFAULT(PFS_AUTOSCALE_VALUE),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
+static Sys_var_long Sys_pfs_max_sql_text_length(
+       "performance_schema_max_sql_text_length",
+       "Maximum length of displayed sql text.",
+       READ_ONLY GLOBAL_VAR(pfs_param.m_max_sql_text_length),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 1024 * 1024),
+       DEFAULT(1024),
+       BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
+
 #endif /* EMBEDDED_LIBRARY */
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
 
@@ -2168,6 +2176,21 @@ static Sys_var_ulong Sys_max_connect_errors(
        VALID_RANGE(1, ULONG_MAX), DEFAULT(100),
        BLOCK_SIZE(1));
 
+static Sys_var_long Sys_max_digest_length(
+       "max_digest_length",
+       "Maximum length considered for digest text.",
+       READ_ONLY GLOBAL_VAR(max_digest_length),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 1024 * 1024),
+       DEFAULT(1024),
+       BLOCK_SIZE(1),
+       NO_MUTEX_GUARD,
+       NOT_IN_BINLOG,
+       ON_CHECK(0),
+       ON_UPDATE(0),
+       NULL,
+       /* max_digest_length is used as a sizing hint by the performance schema. */
+       sys_var::PARSE_EARLY);
+
 static bool check_max_delayed_threads(sys_var *self, THD *thd, set_var *var)
 {
   return var->type != OPT_GLOBAL &&
@@ -2432,6 +2455,13 @@ static Sys_var_mybool Sys_new_mode(
 static Sys_var_mybool Sys_old_mode(
        "old", "Use compatible behavior",
        READ_ONLY GLOBAL_VAR(old_mode), CMD_LINE(OPT_ARG), DEFAULT(FALSE));
+
+#ifndef EMBEDDED_LIBRARY
+static Sys_var_mybool Sys_show_compatibility_56(
+       "show_compatibility_56",
+       "SHOW commands / INFORMATION_SCHEMA tables compatible with MySQL 5.6",
+       GLOBAL_VAR(show_compatibility_56), CMD_LINE(OPT_ARG), DEFAULT(TRUE));
+#endif /* EMBEDDED_LIBRARY */
 
 static Sys_var_mybool Sys_old_alter_table(
        "old_alter_table", "Use old, non-optimized alter table",

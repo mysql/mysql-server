@@ -473,6 +473,8 @@ The following options may be given as the first argument:
  INSERT DELAYED statements. If set to zero INSERT DELAYED
  will be not used. This variable is deprecated along with
  INSERT DELAYED.
+ --max-digest-length=# 
+ Maximum length considered for digest text.
  --max-error-count=# Max number of errors/warnings to store for a statement
  --max-heap-table-size=# 
  Don't allow creation of heap tables bigger than this
@@ -739,6 +741,8 @@ The following options may be given as the first argument:
  --performance-schema-max-socket-instances=# 
  Maximum number of opened instrumented sockets. Use 0 to
  disable, -1 for automated scaling.
+ --performance-schema-max-sql-text-length=# 
+ Maximum length of displayed sql text.
  --performance-schema-max-stage-classes=# 
  Maximum number of stage instruments.
  --performance-schema-max-statement-classes=# 
@@ -948,6 +952,10 @@ The following options may be given as the first argument:
  --shared-memory     Enable the shared memory
  --shared-memory-base-name=name 
  Base name of shared memory
+ --show-compatibility-56 
+ SHOW commands / INFORMATION_SCHEMA tables compatible with
+ MySQL 5.6
+ (Defaults to on; use --skip-show-compatibility-56 to disable.)
  --show-old-temporals 
  When this option is enabled, the pre-5.6.4 temporal types
  will be marked in the 'SHOW CREATE TABLE' and
@@ -1275,6 +1283,7 @@ max-binlog-stmt-cache-size 18446744073709547520
 max-connect-errors 100
 max-connections 151
 max-delayed-threads 20
+max-digest-length 1024
 max-error-count 64
 max-heap-table-size 16777216
 max-join-size 18446744073709551615
@@ -1364,6 +1373,7 @@ performance-schema-max-rwlock-classes 40
 performance-schema-max-rwlock-instances -1
 performance-schema-max-socket-classes 10
 performance-schema-max-socket-instances -1
+performance-schema-max-sql-text-length 1024
 performance-schema-max-stage-classes 150
 performance-schema-max-statement-classes 191
 performance-schema-max-statement-stack 10
@@ -1414,6 +1424,7 @@ session-track-state-change FALSE
 session-track-system-variables time_zone,autocommit,character_set_client,character_set_results,character_set_connection
 shared-memory FALSE
 shared-memory-base-name MYSQL
+show-compatibility-56 TRUE
 show-old-temporals FALSE
 show-slave-auth-info FALSE
 skip-grant-tables TRUE
