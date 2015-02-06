@@ -90,6 +90,8 @@ insert into t3 select * from t4;
 insert into t4 select * from t3;
 insert into t3 select * from t4;
 
+ANALYZE TABLE t1,t2,t3;
+
 explain select distinct t1.a from t1,t3 where t1.a=t3.a;
 
 # This query uses the "not used in distinct" optimization (search for
