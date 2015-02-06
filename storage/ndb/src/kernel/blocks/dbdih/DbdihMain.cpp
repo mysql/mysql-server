@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -4346,7 +4346,7 @@ void Dbdih::execSTART_TOREQ(Signal* signal)
     TakeOverRecordPtr takeOverPtr;
     
     c_takeOverPool.seize(takeOverPtr);
-    c_activeTakeOverList.addFirst(takeOverPtr);
+    c_masterActiveTakeOverList.addFirst(takeOverPtr);
     takeOverPtr.p->toStartingNode = req.startingNodeId;
     takeOverPtr.p->m_senderRef = req.senderRef;
     takeOverPtr.p->m_senderData = req.senderData;
@@ -8687,7 +8687,7 @@ void Dbdih::releaseTakeOver(TakeOverRecordPtr takeOverPtr,
 
   if (from_master)
   {
-    c_activeTakeOverList.remove(takeOverPtr);
+    c_masterActiveTakeOverList.remove(takeOverPtr);
   }
   c_takeOverPool.release(takeOverPtr);
 }//Dbdih::releaseTakeOver()
@@ -9410,8 +9410,8 @@ void Dbdih::failedNodeSynchHandling(Signal* signal,
 bool
 Dbdih::findTakeOver(Ptr<TakeOverRecord> & ptr, Uint32 failedNodeId)
 {
-  for (c_activeTakeOverList.first(ptr); !ptr.isNull(); 
-       c_activeTakeOverList.next(ptr))
+  for (c_masterActiveTakeOverList.first(ptr); !ptr.isNull(); 
+       c_masterActiveTakeOverList.next(ptr))
   {
     jam();
     if (ptr.p->toStartingNode == failedNodeId)
@@ -19212,13 +19212,13 @@ void Dbdih::allNodesLcpCompletedLab(Signal* signal)
      * Check for any "completed" TO
      */
     TakeOverRecordPtr takeOverPtr;
-    for (c_activeTakeOverList.first(takeOverPtr); !takeOverPtr.isNull();)
+    for (c_masterActiveTakeOverList.first(takeOverPtr); !takeOverPtr.isNull();)
     {
       jam();
 
       // move to next, since takeOverPtr might be release below
       TakeOverRecordPtr nextPtr = takeOverPtr;
-      c_activeTakeOverList.next(nextPtr);
+      c_masterActiveTakeOverList.next(nextPtr);
 
       Ptr<NodeRecord> nodePtr;
       nodePtr.i = takeOverPtr.p->toStartingNode;
@@ -23453,7 +23453,7 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
     if (signal->getLength() == 1)
     {
       infoEvent("Starting dump all active take-over");
-      c_activeTakeOverList.first(ptr);
+      c_masterActiveTakeOverList.first(ptr);
     }
 
     if (ptr.i == RNIL)
@@ -23462,7 +23462,7 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
       return;
     }
 
-    c_activeTakeOverList.getPtr(ptr);
+    c_masterActiveTakeOverList.getPtr(ptr);
     infoEvent("TakeOverPtr(%u) starting: %u flags: 0x%x ref: 0x%x, data: %u",
               ptr.i,
               ptr.p->toStartingNode,
@@ -23476,7 +23476,7 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
               ptr.p->toCurrentTabref, ptr.p->toCurrentFragid,
               ptr.p->toCopyNode, ptr.p->maxPage);
     
-    c_activeTakeOverList.next(ptr);
+    c_masterActiveTakeOverList.next(ptr);
     signal->theData[0] = arg;
     signal->theData[1] = ptr.i;
   }
