@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -525,7 +525,8 @@ dberr_t
 row_drop_database_for_mysql(
 /*========================*/
 	const char*	name,	/*!< in: database name which ends to '/' */
-	trx_t*		trx)	/*!< in: transaction handle */
+	trx_t*		trx,	/*!< in: transaction handle */
+	ulint*		found)	/*!< out: Number of dropped tables/partitions */
 	__attribute__((nonnull));
 /*********************************************************************//**
 Renames a table for MySQL.
@@ -538,6 +539,19 @@ row_rename_table_for_mysql(
 	trx_t*		trx,		/*!< in/out: transaction */
 	bool		commit)		/*!< in: whether to commit trx */
 	__attribute__((nonnull, warn_unused_result));
+
+/** Renames a partitioned table for MySQL.
+@param[in]	old_name	Old table name.
+@param[in]	new_name	New table name.
+@param[in,out]	trx		Transaction.
+@return error code or DB_SUCCESS */
+dberr_t
+row_rename_partitions_for_mysql(
+	const char*	old_name,
+	const char*	new_name,
+	trx_t*		trx)
+	__attribute__((nonnull, warn_unused_result));
+
 /*********************************************************************//**
 Scans an index for either COOUNT(*) or CHECK TABLE.
 If CHECK TABLE; Checks that the index contains entries in an ascending order,
@@ -652,10 +666,6 @@ struct row_prebuilt_t {
 					an SQL statement: we may have to set
 					an intention lock on the table,
 					create a consistent read view etc. */
-	unsigned	mysql_has_locked:1;/*!< this is set TRUE when MySQL
-					calls external_lock on this handle
-					with a lock flag, and set FALSE when
-					with the F_UNLOCK flag */
 	unsigned	clust_index_was_generated:1;
 					/*!< if the user did not define a
 					primary key in MySQL, then Innobase

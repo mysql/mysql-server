@@ -12,7 +12,7 @@ partition by range columns(a,b,c)
 ( partition p0 values less than ('a','b','c'));
 insert into t1 values ('a', NULL, 'd');
 analyze table t1;
-explain partitions select * from t1 where a = 'a' AND c = 'd';
+explain select * from t1 where a = 'a' AND c = 'd';
 select * from t1 where a = 'a' AND c = 'd';
 drop table t1;
 

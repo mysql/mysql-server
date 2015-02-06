@@ -1,5 +1,5 @@
 # ==== Purpose ====
-# 
+#
 # Ensure that the server is running with binlogging on
 #
 # ==== Usage ====

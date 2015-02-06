@@ -1091,6 +1091,22 @@ char *thd_security_context(THD *thd, char *buffer, size_t length,
 
 
 /**
+  Returns the partition_info working copy.
+  Used to see if a table should be created with partitioning.
+
+  @param thd thread context
+
+  @return Pointer to the working copy of partition_info or NULL.
+*/
+
+extern "C"
+partition_info *thd_get_work_part_info(THD *thd)
+{
+  return thd->work_part_info;
+}
+
+
+/**
   Implementation of Drop_table_error_handler::handle_condition().
   The reason in having this implementation is to silence technical low-level
   warnings during DROP TABLE operation. Currently we don't want to expose

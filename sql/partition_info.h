@@ -412,6 +412,7 @@ public:
   partition_info *get_clone();
   bool set_named_partition_bitmap(const char *part_name, size_t length);
   bool set_partition_bitmaps(TABLE_LIST *table_list);
+  bool set_read_partitions(List<String> *partition_names);
   /* Answers the question if subpartitioning is used for a certain table */
   inline bool is_sub_partitioned() const
   {
@@ -520,7 +521,6 @@ private:
                                        uint start_no);
   char *create_default_subpartition_name(uint subpart_no,
                                          const char *part_name);
-  bool prune_partition_bitmaps(TABLE_LIST *table_list);
   bool add_named_partition(const char *part_name, size_t length);
   bool is_fields_in_part_expr(List<Item> &fields);
   bool is_full_part_expr_in_fields(List<Item> &fields);

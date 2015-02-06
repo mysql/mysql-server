@@ -8477,7 +8477,8 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
       DBUG_RETURN(true);
     }
     if (partition_changed &&
-        !table->file->ht->partition_flags &&
+        (!table->file->ht->partition_flags ||
+         (table->file->ht->partition_flags() & HA_CANNOT_PARTITION_FK)) &&
         !table->file->can_switch_engines())
     {
       /*

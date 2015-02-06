@@ -30,7 +30,7 @@ if (`SELECT CONCAT('--plugin-dir=', REPLACE(@@plugin_dir, '\\\\', '/')) != '$PAR
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
 
-let $have_innodb_native_partitioning= 0;
+let $have_innodb_native_partitioning= 1;
 if ($have_innodb_native_partitioning)
 {
   --echo # InnoDB supports native partitioning and is required by the test.

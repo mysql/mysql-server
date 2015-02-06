@@ -17,40 +17,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "sql_partition.h"      /* part_id_range, partition_element */
 #include "partitioning/partition_handler.h"  /* Partition_handler */
-
-class ha_partition;
-
-class ha_generic_partition_handler : public Partition_handler
-{
-private:
-  ha_partition *m_ha_partition;
-public:
-  ha_generic_partition_handler(ha_partition *ha_partition_arg)
-    : m_ha_partition(ha_partition_arg)
-  {}
-  ~ha_generic_partition_handler() {}
-
-  void set_part_info(partition_info *part_info, bool early);
-  bool initialize_partition(MEM_ROOT *mem_root);
-  void get_dynamic_partition_info(ha_statistics *stat_info,
-                                  ha_checksum *check_sum,
-                                  uint part_id);
-  uint alter_flags(uint flags __attribute__((unused))) const
-  {
-    return (HA_PARTITION_FUNCTION_SUPPORTED |
-            HA_FAST_CHANGE_PARTITION);
-  }
-
-private:
-  virtual handler *get_handler();
-  virtual int truncate_partition_low();
-  virtual int change_partitions_low(HA_CREATE_INFO *create_info,
-                                    const char *path,
-                                    ulonglong * const copied,
-                                    ulonglong * const deleted);
-};
 
 
 /** class where to save partitions Handler_share's */
@@ -78,11 +45,12 @@ public:
   bool init(uint num_parts);
 };
 
-class ha_partition : public Partition_helper
+class ha_partition :
+	public handler,
+	public Partition_helper,
+	public Partition_handler
 {
-  friend class ha_generic_partition_handler;
 private:
-  ha_generic_partition_handler m_part_handler;
   /* Data for the partition handler */
   int  m_mode;                          // Open mode
   uint m_open_test_lock;                // Open test_if_locked
@@ -91,7 +59,6 @@ private:
   plugin_ref *m_engine_array;           // Array of types of the handlers
   handler **m_file;                     // Array of references to handler inst.
   uint m_file_tot_parts;                // Debug
-  uchar *m_rec0;                        // table->record[0]
   /*
     Since the partition handler is a handler on top of other handlers, it
     is necessary to keep information about what the underlying handler
@@ -187,7 +154,7 @@ public:
     -------------------------------------------------------------------------
     MODULE create/delete handler object
     -------------------------------------------------------------------------
-    Object create/delete methode. The normal called when a table object
+    Object create/delete method. The normal called when a table object
     exists. There is also a method to create the handler object with only
     partition information. This is used from mysql_create_table when the
     table is to be created and the engine type is deduced to be the
@@ -228,6 +195,16 @@ public:
                                    const char *old_name, int action_flag,
                                    HA_CREATE_INFO *create_info);
   virtual void update_create_info(HA_CREATE_INFO *create_info);
+  int change_partitions_low(HA_CREATE_INFO *create_info,
+                            const char *path,
+                            ulonglong * const copied,
+                            ulonglong * const deleted)
+  {
+    return Partition_helper::change_partitions(create_info,
+                                               path,
+                                               copied,
+                                               deleted);
+  }
 private:
   bool get_num_parts(const char *name, uint *num_parts)
   {
@@ -362,6 +339,18 @@ public:
     start_bulk_insert and end_bulk_insert is called before and after a
     number of calls to write_row.
   */
+  int write_row(uchar *buf)
+  {
+    return Partition_helper::ph_write_row(buf);
+  }
+  int update_row(const uchar *old_data, uchar *new_data)
+  {
+    return Partition_helper::ph_update_row(old_data, new_data);
+  }
+  int delete_row(const uchar *buf)
+  {
+    return Partition_helper::ph_delete_row(buf);
+  }
   virtual int delete_all_rows(void);
   virtual int truncate();
   virtual void start_bulk_insert(ha_rows rows);
@@ -379,7 +368,7 @@ public:
     @remark This method is a partitioning-specific hook
             and thus not a member of the general SE API.
   */
-  int truncate_partition();
+  int truncate_partition_low();
 
   virtual bool is_ignorable_error(int error)
   {
@@ -388,6 +377,157 @@ public:
         error == HA_ERR_NOT_IN_LOCK_PARTITIONS)
       return true;
     return false;
+  }
+
+
+  /*
+    -------------------------------------------------------------------------
+    MODULE full table scan
+    -------------------------------------------------------------------------
+    This module is used for the most basic access method for any table
+    handler. This is to fetch all data through a full table scan. No
+    indexes are needed to implement this part.
+    It contains one method to start the scan (rnd_init) that can also be
+    called multiple times (typical in a nested loop join). Then proceeding
+    to the next record (rnd_next) and closing the scan (rnd_end).
+    To remember a record for later access there is a method (position)
+    and there is a method used to retrieve the record based on the stored
+    position.
+    The position can be a file position, a primary key, a ROWID dependent
+    on the handler below.
+    -------------------------------------------------------------------------
+  */
+  /*
+    unlike index_init(), rnd_init() can be called two times
+    without rnd_end() in between (it only makes sense if scan=1).
+    then the second call should prepare for the new table scan
+    (e.g if rnd_init allocates the cursor, second call should
+    position it to the start of the table, no need to deallocate
+    and allocate it again
+  */
+  int rnd_init(bool scan)
+  {
+    return Partition_helper::ph_rnd_init(scan);
+  }
+  int rnd_end()
+  {
+    return Partition_helper::ph_rnd_end();
+  }
+  int rnd_next(uchar *buf)
+  {
+    return Partition_helper::ph_rnd_next(buf);
+  }
+  int rnd_pos(uchar *buf, uchar *pos)
+  {
+    return Partition_helper::ph_rnd_pos(buf, pos);
+  }
+  int rnd_pos_by_record(uchar *record)
+  {
+    return Partition_helper::ph_rnd_pos_by_record(record);
+  }
+  void position(const uchar *record)
+  {
+    return Partition_helper::ph_position(record);
+  }
+
+  /*
+    -------------------------------------------------------------------------
+    MODULE index scan
+    -------------------------------------------------------------------------
+    This part of the handler interface is used to perform access through
+    indexes. The interface is defined as a scan interface but the handler
+    can also use key lookup if the index is a unique index or a primary
+    key index.
+    Index scans are mostly useful for SELECT queries but are an important
+    part also of UPDATE, DELETE, REPLACE and CREATE TABLE table AS SELECT
+    and so forth.
+    Naturally an index is needed for an index scan and indexes can either
+    be ordered, hash based. Some ordered indexes can return data in order
+    but not necessarily all of them.
+    There are many flags that define the behavior of indexes in the
+    various handlers. These methods are found in the optimizer module.
+    -------------------------------------------------------------------------
+
+    index_read is called to start a scan of an index. The find_flag defines
+    the semantics of the scan. These flags are defined in
+    include/my_base.h
+    index_read_idx is the same but also initializes index before calling doing
+    the same thing as index_read. Thus it is similar to index_init followed
+    by index_read. This is also how we implement it.
+
+    index_read/index_read_idx does also return the first row. Thus for
+    key lookups, the index_read will be the only call to the handler in
+    the index scan.
+
+    index_init initializes an index before using it and index_end does
+    any end processing needed.
+  */
+  int index_read_map(uchar *buf,
+                     const uchar *key,
+                     key_part_map keypart_map,
+                     enum ha_rkey_function find_flag)
+  {
+    return Partition_helper::ph_index_read_map(buf,
+                                               key,
+                                               keypart_map,
+                                               find_flag);
+  }
+  virtual int index_init(uint idx, bool sorted)
+  {
+    return Partition_helper::ph_index_init(idx, sorted);
+  }
+  virtual int index_end()
+  {
+    return Partition_helper::ph_index_end();
+  }
+
+  /**
+    @breif
+    Positions an index cursor to the index specified in the hanlde. Fetches the
+    row if available. If the key value is null, begin at first key of the
+    index.
+  */
+  int index_read_idx_map(uchar *buf,
+                         uint index,
+                         const uchar *key,
+                         key_part_map keypart_map,
+                         enum ha_rkey_function find_flag)
+  {
+    return Partition_helper::ph_index_read_idx_map(buf,
+                                                   index,
+                                                   key,
+                                                   keypart_map,
+                                                   find_flag);
+  }
+  /*
+    These methods are used to jump to next or previous entry in the index
+    scan. There are also methods to jump to first and last entry.
+  */
+  int index_next(uchar *buf)
+  {
+    return Partition_helper::ph_index_next(buf);
+  }
+  int index_prev(uchar *buf)
+  {
+    return Partition_helper::ph_index_prev(buf);
+  }
+  int index_first(uchar *buf)
+  {
+    return Partition_helper::ph_index_first(buf);
+  }
+  int index_last(uchar *buf)
+  {
+    return Partition_helper::ph_index_last(buf);
+  }
+  int index_next_same(uchar *buf, const uchar *key, uint keylen)
+  {
+    return Partition_helper::ph_index_next_same(buf, key, keylen);
+  }
+  int index_read_last_map(uchar *buf,
+                          const uchar *key,
+                          key_part_map keypart_map)
+  {
+    return Partition_helper::ph_index_read_last_map(buf, key, keypart_map);
   }
 
   /*
@@ -406,6 +546,20 @@ public:
     virtual int read_multi_range_next(KEY_MULTI_RANGE **found_range_p);
   */
 
+  int read_range_first(const key_range *start_key,
+                       const key_range *end_key,
+                       bool eq_range,
+                       bool sorted)
+  {
+    return Partition_helper::ph_read_range_first(start_key,
+                                                 end_key,
+                                                 eq_range,
+                                                 sorted);
+  }
+  int read_range_next()
+  {
+    return Partition_helper::ph_read_range_next();
+  }
 public:
   /*
     -------------------------------------------------------------------------
@@ -505,6 +659,12 @@ public:
   */
   virtual uint8 table_cache_type();
   virtual int records(ha_rows *num_rows);
+
+  /* Calculate hash value for PARTITION BY KEY tables. */
+  uint32 calculate_key_hash_value(Field **field_array)
+  {
+    return ph_calculate_key_hash_value(field_array);
+  }
 
   /*
     -------------------------------------------------------------------------
@@ -820,6 +980,10 @@ public:
                                   ulonglong nb_desired_values,
                                   ulonglong *first_value,
                                   ulonglong *nb_reserved_values);
+  void release_auto_increment()
+  {
+    Partition_helper::ph_release_auto_increment();
+  }
   /** Release the auto increment for all underlying partitions. */
   void release_auto_increment_all_parts();
 
@@ -940,10 +1104,10 @@ public:
     virtual int dump(THD* thd, int fd = -1);
     virtual int net_read_dump(NET* net);
   */
-  /*
-    Using Partition_helper default instead:
-    virtual ha_checksum checksum() const;
-  */
+  ha_checksum checksum() const
+  {
+    return Partition_helper::ph_checksum();
+  }
   /* Enabled keycache for performance reasons, WL#4571 */
     virtual int assign_to_keycache(THD* thd, HA_CHECK_OPT *check_opt);
     virtual int preload_keys(THD* thd, HA_CHECK_OPT* check_opt);
@@ -974,13 +1138,26 @@ public:
     -------------------------------------------------------------------------
     MODULE partitioning specific handler API
     -------------------------------------------------------------------------
-    get_partition_handler returns the ha_generic_partition_handler which
-    gives access to the partitioning specific functions for the handler.
   */
+  handler *get_handler()
+  {
+    return static_cast<handler*>(this);
+  }
   Partition_handler *get_partition_handler()
   {
-    return &m_part_handler;
+    return static_cast<Partition_handler*>(this);
   }
+  void set_part_info(partition_info *part_info, bool early)
+  {
+    Partition_helper::set_part_info_low(part_info, early);
+    DBUG_ASSERT(early || !m_file_tot_parts || m_file_tot_parts == m_tot_parts);
+  }
+  uint alter_flags(uint flags __attribute__((unused))) const
+  {
+    return (HA_PARTITION_FUNCTION_SUPPORTED |
+            HA_FAST_CHANGE_PARTITION);
+  }
+
 private:
   /* private support functions for Partition_helper: */
   int write_row_in_part(uint part_id, uchar *buf);
@@ -989,9 +1166,15 @@ private:
   int rnd_init_in_part(uint part_id, bool table_scan);
   int rnd_next_in_part(uint part_id, uchar *buf);
   int rnd_end_in_part(uint part_id, bool scan);
-  void position_in_part(uchar *ref, const uchar *record);
+  void position_in_last_part(uchar *ref, const uchar *record);
   int rnd_pos_in_part(uint part_id, uchar *buf, uchar *pos);
-  int rnd_pos_by_record_in_part(uint part_id, uchar *record);
+  int rnd_pos_by_record_in_last_part(uchar *row)
+  {
+    /*
+      Not much overhead to use default function. This avoids out-of-sync code.
+    */
+    return handler::rnd_pos_by_record(row);
+  }
   int index_init_in_part(uint part, uint keynr, bool sorted);
   int index_end_in_part(uint part);
   int index_last_in_part(uint part, uchar *buf);
@@ -1026,6 +1209,30 @@ private:
   int read_range_next_in_part(uint part, uchar *buf);
   ha_checksum checksum_in_part(uint part_id) const;
   int initialize_auto_increment(bool no_lock);
+  /*
+    Access methods to protected areas in handler to avoid adding
+    friend class Partition_helper in class handler.
+  */
+  THD *get_thd() const
+  {
+    return ha_thd();
+  }
+  TABLE *get_table() const
+  {
+    return table;
+  }
+  bool get_eq_range() const
+  {
+    return eq_range;
+  }
+  void set_eq_range(bool eq_range_arg)
+  {
+    eq_range= eq_range_arg;
+  }
+  void set_range_key_part(KEY_PART_INFO *key_part)
+  {
+    range_key_part= key_part;
+  }
 };
 
 #endif /* HA_PARTITION_INCLUDED */

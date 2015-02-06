@@ -299,7 +299,7 @@ bool partition_default_handling(TABLE *table, partition_info *part_info,
   the partition ids of the old and the new record.
 
   SYNOPSIS
-    get_part_for_update()
+    get_parts_for_update()
     old_data                Buffer of old record
     new_data                Buffer of new record
     rec0                    Reference to table->record[0]
@@ -327,18 +327,17 @@ int get_parts_for_update(const uchar *old_data, uchar *new_data,
   error= part_info->get_partition_id(part_info, old_part_id,
                                      &old_func_value);
   set_field_ptr(part_field_array, rec0, old_data);
-  if (unlikely(error))                             // Should never happen
+  if (unlikely(error))
   {
-    DBUG_ASSERT(0);
+    part_info->err_value= old_func_value;
     DBUG_RETURN(error);
   }
+  if (unlikely((error= part_info->get_partition_id(part_info,
+                                                   new_part_id,
+                                                   new_func_value))))
   {
-    if (unlikely((error= part_info->get_partition_id(part_info,
-                                                     new_part_id,
-                                                     new_func_value))))
-    {
-      DBUG_RETURN(error);
-    }
+    part_info->err_value= *new_func_value;
+    DBUG_RETURN(error);
   }
   DBUG_RETURN(0);
 }
@@ -377,6 +376,7 @@ int get_part_for_delete(const uchar *buf, const uchar *rec0,
     if (unlikely((error= part_info->get_partition_id(part_info, part_id,
                                                      &func_value))))
     {
+      part_info->err_value= func_value;
       DBUG_RETURN(error);
     }
     DBUG_PRINT("info", ("Delete from partition %d", *part_id));
@@ -389,6 +389,7 @@ int get_part_for_delete(const uchar *buf, const uchar *rec0,
     set_field_ptr(part_field_array, rec0, buf);
     if (unlikely(error))
     {
+      part_info->err_value= func_value;
       DBUG_RETURN(error);
     }
     DBUG_PRINT("info", ("Delete from partition %d (path2)", *part_id));
@@ -4027,6 +4028,7 @@ bool verify_data_with_partition(TABLE *table, TABLE *part_table,
     if ((error= part_info->get_partition_id(part_info, &found_part_id,
                                             &func_value)))
     {
+      part_info->err_value= func_value;
       part_table->file->print_error(error, MYF(0));
       break;
     }

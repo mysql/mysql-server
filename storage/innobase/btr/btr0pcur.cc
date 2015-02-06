@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -60,7 +60,7 @@ btr_pcur_reset(
 /*===========*/
 	btr_pcur_t*	cursor)	/*!< in, out: persistent cursor */
 {
-	ut_free(cursor->old_rec_buf);
+	btr_pcur_free(cursor);
 	cursor->old_rec_buf = NULL;
 	cursor->btr_cur.index = NULL;
 	cursor->btr_cur.page_cur.rec = NULL;
@@ -82,7 +82,7 @@ btr_pcur_free_for_mysql(
 	DBUG_ENTER("btr_pcur_free_for_mysql");
 	DBUG_PRINT("btr_pcur_free_for_mysql", ("pcur: %p", cursor));
 
-	btr_pcur_reset(cursor);
+	btr_pcur_free(cursor);
 	ut_free(cursor);
 	DBUG_VOID_RETURN;
 }

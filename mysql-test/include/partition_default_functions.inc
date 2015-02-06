@@ -15,25 +15,20 @@ FLUSH STATUS;
 SET TIMESTAMP = 1234567890;
 INSERT INTO t3 (a) VALUES (NULL);
 --source include/get_handler_status_counts.inc
---echo # 4 locks (1 table, 1 partition lock/unlock)
 }
 FLUSH STATUS;
 SET TIMESTAMP = 1234567891;
 INSERT INTO t3 VALUES ();
 --source include/get_handler_status_counts.inc
---echo # 4 locks (1 table, 1 partition lock/unlock)
 FLUSH STATUS;
 INSERT INTO t3 (a) VALUES ('2011-01-01 00:00:00');
 --source include/get_handler_status_counts.inc
---echo # 4 locks (1 table, 1 partition lock/unlock)
 FLUSH STATUS;
 INSERT INTO t3 (a) VALUES ('2011-01-01 00:00:01');
 --source include/get_handler_status_counts.inc
---echo # 4 locks (1 table, 1 partition lock/unlock)
 FLUSH STATUS;
 INSERT INTO t3 (a) VALUES ('2011-01-01 00:00:02'), ('2011-01-01 00:00:03');
 --source include/get_handler_status_counts.inc
---echo # 6 locks (1 table, 2 partition lock/unlock)
 --echo # 2 writes
 FLUSH STATUS;
 SET TIMESTAMP = 1234567892;
@@ -42,14 +37,12 @@ ON DUPLICATE KEY UPDATE b = "DUP_KEY";
 --source include/get_handler_status_counts.inc
 if ($default_update)
 {
---echo # 8 locks (1 table, 3 partition lock/unlock) 
 --echo # No pruning due to DEFAULT function on partitioning column
 --echo # 1 read_key + 1 delete + 2 write (1 failed + 1 ok)
 --echo # 1 delete + 1 write due to moved to different partition
 }
 if (!$default_update)
 {
---echo # 4 locks (1 table, 1 partition lock/unlock) 
 --echo # 1 read_key + 1 update (same partition)
 --echo # 1 (failed) write
 }
@@ -57,7 +50,6 @@ FLUSH STATUS;
 INSERT INTO t3 (a) VALUES ('2011-01-01 00:00:01')
 ON DUPLICATE KEY UPDATE a = '2011-01-01 00:00:05', b = "DUP_KEY2";
 --source include/get_handler_status_counts.inc
---echo # 8 locks (1 table, 3 partition lock/unlock)
 --echo # No pruning due to updating partitioning field.
 --echo # 1 read_key + 1 delete + 2 write (1 failed + 1 ok)
 --echo # 1 delete + 1 write due to moved to different partition
@@ -67,7 +59,6 @@ UPDATE t3 SET b = 'Updated' WHERE a = '2011-01-01 00:00:02';
 --source include/get_handler_status_counts.inc
 if ($default_update)
 {
---echo # 8 locks (1 table, 3 partition lock/unlock) 
 --echo # No pruning due to DEFAULT function on partitioning column
 --echo # 2 read_key + 1 read_rnd (1 read_key due to index lookup,
 --echo # 1 read_rnd + 1 read_key due to positioning before update)
@@ -76,18 +67,15 @@ if ($default_update)
 }
 if (!$default_update)
 {
---echo # 4 locks (1 table, 1 partition lock/unlock) 
 --echo # 1 read_key + 1 update (same partition)
 --echo # 1 (failed) write
 }
 FLUSH STATUS;
 REPLACE INTO t3 VALUES ('2011-01-01 00:00:04', 'Replace1');
 --source include/get_handler_status_counts.inc
---echo # 4 locks (1 table, 1 partition lock/unlock)
 FLUSH STATUS;
 REPLACE INTO t3 VALUES ('2011-01-01 00:00:04', 'Replace2');
 --source include/get_handler_status_counts.inc
---echo # 4 locks (1 table, 1 partition lock/unlock)
 --echo # 1 read_key + 1 update + 1 failed write
 
 --echo #
@@ -98,12 +86,10 @@ FLUSH STATUS;
 SET TIMESTAMP = 1234567894;
 REPLACE INTO t3 (b) VALUES ('Replace3');
 --source include/get_handler_status_counts.inc
---echo # 4 locks (1 table, 1 partition lock/unlock)
 FLUSH STATUS;
 SET TIMESTAMP = 1234567894;
 REPLACE INTO t3 (b) VALUES ('Replace4');
 --source include/get_handler_status_counts.inc
---echo # 4 locks (1 table, 1 partition lock/unlock)
 --echo # 1 read_key + 1 update + 1 failed write
 --sorted_result
 SELECT * FROM t3;

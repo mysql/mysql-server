@@ -23,6 +23,7 @@
 #include "my_base.h"              // ha_rows.
 #include "handler.h"              // Handler_share
 #include "sql_partition.h"        // part_id_range
+#include "mysqld_error.h"         // ER_ILLEGAL_HA
 #include "priority_queue.h"
 #include "key.h"                  // key_rec_cmp
 #include <vector>
@@ -157,7 +158,16 @@ public:
       @retval true  Failure.
   */
   bool populate_partition_name_hash(partition_info *part_info);
+  /** Get partition name.
+
+  @param part_id  Partition id (for subpartitioned table only subpartition
+                  names will be returned.)
+
+  @return partition name or NULL if error.
+  */
+  const char *get_partition_name(size_t part_id) const;
 private:
+  const uchar **partition_names;
   /**
     Insert [sub]partition name into  partition_name_hash
     @param name        Partition name.
@@ -190,6 +200,7 @@ public:
 
     @param[out] stat_info  Statistics struct to fill in.
     @param[out] check_sum  Check sum value to fill in if supported.
+    @param[in]  part_id    Partition to report for.
 
     @note stat_info and check_sum are initialized by caller.
     check_sum is only expected to be updated if HA_HAS_CHECKSUM.
@@ -238,7 +249,7 @@ public:
     @param early      True if called when part_info only created and parsed,
                       but not setup, checked or fixed.
   */
-  virtual void set_part_info(partition_info *part_info, bool early) {return;}
+  virtual void set_part_info(partition_info *part_info, bool early) = 0;
   /**
     Initialize partition.
 
@@ -299,6 +310,7 @@ public:
     handler *file= get_handler();
     if (!file)
     {
+      my_error(ER_ILLEGAL_HA, MYF(0), create_info->alias);
       return HA_ERR_WRONG_COMMAND;
     }
     DBUG_ASSERT(file->table_share->tmp_table != NO_TMP_TABLE ||
@@ -350,7 +362,10 @@ private:
                                     const char *path,
                                     ulonglong * const copied,
                                     ulonglong * const deleted)
-  { return HA_ERR_WRONG_COMMAND; }
+  {
+    my_error(ER_ILLEGAL_HA, MYF(0), create_info->alias);
+    return HA_ERR_WRONG_COMMAND;
+  }
   /**
     Return the table handler.
 
@@ -399,20 +414,17 @@ struct Key_rec_less
   It also implements a cache for the auto increment value and check/repair for
   rows in wrong partition.
 
-  It needs to virtual inherit the handler class, so it can be used by engines
-  by multiple inheritance without duplicating the base handler class.
-
   How to use it:
   Inherit it and implement:
   - *_in_part() functions for row operations.
   - prepare_for_new_partitions(), create_new_partition(), close_new_partitions()
     write_row_in_new_part() for handling 'fast' alter partition.
 */
-class Partition_helper : virtual public handler
+class Partition_helper : public Sql_alloc
 {
   typedef Priority_queue<uchar *, std::vector<uchar*>, Key_rec_less> Prio_queue;
 public:
-  Partition_helper(handlerton *hton, TABLE_SHARE *table_arg);
+  Partition_helper(handler *main_handler);
   ~Partition_helper();
 
   /**
@@ -421,48 +433,112 @@ public:
     To be called from Partition_handler.
 
     @param  part_info  Partition info to use.
+    @param  early      True if called when part_info only created and parsed,
+                       but not setup, checked or fixed.
   */
-  virtual void set_part_info(partition_info *part_info, bool early);
+  virtual void set_part_info_low(partition_info *part_info, bool early);
+  /**
+    Initialize variables used before the table is opened.
 
-  /*
+    @param mem_root  Memory root to allocate things from (not yet used).
+
+    @return Operation status.
+      @retval false success.
+      @retval true  failure.
+  */
+  inline bool init_partitioning(MEM_ROOT *mem_root)
+  {
+#ifndef DBUG_OFF
+    m_key_not_found_partitions.bitmap= NULL;
+#endif
+    return false;
+  }
+
+
+  /**
     INSERT/UPDATE/DELETE functions.
     @see handler.h
-  */
-
-  int write_row(uchar *buf);
-  int update_row(const uchar *old_data, uchar *new_data);
-  int delete_row(const uchar *buf);
-
-  /*
-    Auto increment functions.
-  */
-
-  /** Release unused auto increment values. */
-  void release_auto_increment();
-
-  /*
-    Support function for KEY partitioning.
+    @{
   */
 
   /**
-    Calculate key hash value from an null terminated array of fields.
+    Insert a row to the partitioned table.
 
-    @param field_array  Fields to use.
+    @param buf The row in MySQL Row Format.
 
-    @return Hash value.
+    @return Operation status.
+      @retval    0 Success
+      @retval != 0 Error code
   */
-  uint32 calculate_key_hash_value(Field **field_array);
+  int ph_write_row(uchar *buf);
+  /**
+    Update an existing row in the partitioned table.
 
+    Yes, update_row() does what you expect, it updates a row. old_data will
+    have the previous row record in it, while new_data will have the newest
+    data in it.
+    Keep in mind that the server can do updates based on ordering if an
+    ORDER BY clause was used. Consecutive ordering is not guaranteed.
+
+    If the new record belongs to a different partition than the old record
+    then it will be inserted into the new partition and deleted from the old.
+
+    new_data is always record[0]
+    old_data is always record[1]
+
+    @param old_data  The old record in MySQL Row Format.
+    @param new_data  The new record in MySQL Row Format.
+
+    @return Operation status.
+      @retval    0 Success
+      @retval != 0 Error code
+  */
+  int ph_update_row(const uchar *old_data, uchar *new_data);
+  /**
+    Delete an existing row in the partitioned table.
+
+    This will delete a row. buf will contain a copy of the row to be deleted.
+    The server will call this right after the current row has been read
+    (from either a previous rnd_xxx() or index_xxx() call).
+    If you keep a pointer to the last row or can access a primary key it will
+    make doing the deletion quite a bit easier.
+    Keep in mind that the server does no guarantee consecutive deletions.
+    ORDER BY clauses can be used.
+
+    buf is either record[0] or record[1]
+
+    @param buf  The record in MySQL Row Format.
+
+    @return Operation status.
+      @retval    0 Success
+      @retval != 0 Error code
+  */
+  int ph_delete_row(const uchar *buf);
+
+  /** @} */
+
+  /** Release unused auto increment values. */
+  void ph_release_auto_increment();
+  /**
+    Calculate key hash value from an null terminated array of fields.
+    Support function for KEY partitioning.
+
+    @param field_array   An array of the fields in KEY partitioning
+
+    @return hash_value calculated
+
+    @note Uses the hash function on the character set of the field.
+    Integer and floating point fields use the binary character set by default.
+  */
+  static uint32 ph_calculate_key_hash_value(Field **field_array);
   /** Get checksum for table.
     @return Checksum or 0 if not supported (which also may be a correct checksum!).
   */
-  ha_checksum checksum() const;
+  ha_checksum ph_checksum() const;
 
-  /* General handler methods with partitioning. */
-  /*
-    -------------------------------------------------------------------------
+  /**
     MODULE full table scan
-    -------------------------------------------------------------------------
+
     This module is used for the most basic access method for any table
     handler. This is to fetch all data through a full table scan. No
     indexes are needed to implement this part.
@@ -474,28 +550,29 @@ public:
     position.
     The position can be a file position, a primary key, a ROWID dependent
     on the handler below.
-    -------------------------------------------------------------------------
-  */
-  /*
+
     unlike index_init(), rnd_init() can be called two times
     without rnd_end() in between (it only makes sense if scan=1).
     then the second call should prepare for the new table scan
     (e.g if rnd_init allocates the cursor, second call should
     position it to the start of the table, no need to deallocate
-    and allocate it again
+    and allocate it again.
+    @see handler.h
+    @{
   */
 
-  int rnd_init(bool scan);
-  int rnd_end();
-  int rnd_next(uchar *buf);
-  void position(const uchar *record);
-  int rnd_pos(uchar *buf, uchar *pos);
-  int rnd_pos_by_record(uchar *record);
+  int ph_rnd_init(bool scan);
+  int ph_rnd_end();
+  int ph_rnd_next(uchar *buf);
+  void ph_position(const uchar *record);
+  int ph_rnd_pos(uchar *buf, uchar *pos);
+  int ph_rnd_pos_by_record(uchar *record);
 
-  /*
-    -------------------------------------------------------------------------
+  /** @} */
+
+  /**
     MODULE index scan
-    -------------------------------------------------------------------------
+
     This part of the handler interface is used to perform access through
     indexes. The interface is defined as a scan interface but the handler
     can also use key lookup if the index is a unique index or a primary
@@ -523,50 +600,54 @@ public:
 
     index_init initializes an index before using it and index_end does
     any end processing needed.
+    @{
   */
 
-  int index_init_setup(uint key_nr, bool sorted);
-  int index_init(uint key_nr, bool sorted);
-  int index_end();
+  int ph_index_init_setup(uint key_nr, bool sorted);
+  int ph_index_init(uint key_nr, bool sorted);
+  int ph_index_end();
   /*
     These methods are used to jump to next or previous entry in the index
     scan. There are also methods to jump to first and last entry.
   */
-  int index_first(uchar *buf);
-  int index_last(uchar *buf);
-  int index_next(uchar *buf);
-  int index_next_same(uchar *buf, const uchar *key, uint keylen);
-  int index_prev(uchar *buf);
-  int index_read_map(uchar *buf,
-                     const uchar *key,
-                     key_part_map keypart_map,
-                     enum ha_rkey_function find_flag);
-  int index_read_last_map(uchar *buf,
-                          const uchar *key,
-                          key_part_map keypart_map);
-  int index_read_idx_map(uchar *buf,
-                         uint index,
-                         const uchar *key,
-                         key_part_map keypart_map,
-                         enum ha_rkey_function find_flag);
-  int read_range_first(const key_range *start_key,
-                       const key_range *end_key,
-                       bool eq_range_arg,
-                       bool sorted);
-  int read_range_next();
+  int ph_index_first(uchar *buf);
+  int ph_index_last(uchar *buf);
+  int ph_index_next(uchar *buf);
+  int ph_index_next_same(uchar *buf, const uchar *key, uint keylen);
+  int ph_index_prev(uchar *buf);
+  int ph_index_read_map(uchar *buf,
+                        const uchar *key,
+                        key_part_map keypart_map,
+                        enum ha_rkey_function find_flag);
+  int ph_index_read_last_map(uchar *buf,
+                             const uchar *key,
+                             key_part_map keypart_map);
+  int ph_index_read_idx_map(uchar *buf,
+                            uint index,
+                            const uchar *key,
+                            key_part_map keypart_map,
+                            enum ha_rkey_function find_flag);
+  int ph_read_range_first(const key_range *start_key,
+                          const key_range *end_key,
+                          bool eq_range_arg,
+                          bool sorted);
+  int ph_read_range_next();
+  /** @} */
 
-  /*
+  /**
     Functions matching Partition_handler API.
+    @{
   */
 
   /**
     Get statistics from a specific partition.
     @param[out] stat_info  Area to report values into.
+    @param[out] check_sum  Check sum of partition.
     @param[in]  part_id    Partition to report from.
   */
-  virtual void get_dynamic_partition_info(ha_statistics *stat_info,
-                                          ha_checksum *check_sum,
-                                          uint part_id);
+  virtual void get_dynamic_partition_info_low(ha_statistics *stat_info,
+                                              ha_checksum *check_sum,
+                                              uint part_id);
 
   /**
     Implement the partition changes defined by ALTER TABLE of partitions.
@@ -595,24 +676,15 @@ public:
                                 const char *path,
                                 ulonglong * const copied,
                                 ulonglong * const deleted);
+  /** @} */
 
 protected:
   /* Common helper functions to be used by inheriting engines. */
 
   /*
-    Initializing/open/close functions.
+    open/close functions.
   */
 
-  /**
-    Initialize variables used before the table is opened.
-
-    @param mem_root  Memory root to allocate things from (not yet used).
-
-    @return Operation status.
-      @retval false success.
-      @retval true  failure.
-  */
-  bool init_partitioning(MEM_ROOT *mem_root);
   /**
     Set m_part_share, Allocate internal bitmaps etc. used by open tables.
 
@@ -639,7 +711,7 @@ protected:
     if (m_auto_increment_safe_stmt_log_lock)
       return;
     DBUG_ASSERT(!m_auto_increment_lock);
-    if(table_share->tmp_table == NO_TMP_TABLE)
+    if(m_table->s->tmp_table == NO_TMP_TABLE)
     {
       m_auto_increment_lock= true;
       m_part_share->lock_auto_inc();
@@ -678,13 +750,12 @@ protected:
                                       ulonglong *nb_reserved_values);
 
   /**
-    Set table->read_set taking partitioning expressions into account.
-  */
-  void set_partition_read_set(bool rnd_init);
-  /**
     Initialize the record priority queue used for sorted index scans.
+    @return Operation status.
+      @retval    0   Success.
+      @retval != 0   Error code.
   */
-  bool init_record_priority_queue();
+  int init_record_priority_queue();
   /**
     Destroy the record priority queue used for sorted index scans.
   */
@@ -696,7 +767,7 @@ protected:
   /** Print partitioning specific error.
     @param error   Error code.
     @param errflag Error flag.
-    @return false if error is printed, else true.
+    @return false if error is printed else true.
   */
   bool print_partition_error(int error, myf errflag);
   /**
@@ -726,26 +797,47 @@ protected:
   /**
     Check/fix misplaced rows.
 
-    @param read_part_id  Partition to check/fix.
-    @param repair        If true, move misplaced rows to correct partition.
+    @param part_id  Partition to check/fix.
+    @param repair   If true, move misplaced rows to correct partition.
 
     @return Operation status.
       @retval    0  Success
       @retval != 0  Error
   */
   int check_misplaced_rows(uint part_id, bool repair);
+  /**
+    Set used partitions bitmap from Alter_info.
+
+    @return false if success else true.
+  */
+  bool set_altered_partitions();
 
 private:
   enum partition_index_scan_type
   {
-    partition_index_read= 1,
-    partition_index_first,
-    partition_index_first_unordered,
-    partition_index_last,
-    partition_index_read_last,
-    partition_read_range,
-    partition_no_index_scan
+    PARTITION_INDEX_READ= 1,
+    PARTITION_INDEX_FIRST,
+    PARTITION_INDEX_FIRST_UNORDERED,
+    PARTITION_INDEX_LAST,
+    PARTITION_INDEX_READ_LAST,
+    PARTITION_READ_RANGE,
+    PARTITION_NO_INDEX_SCAN
   };
+
+  /** handler to use (ha_partition, ha_innopart etc.) */
+  handler *m_handler;
+  /** Convenience pointer to table from m_handler (i.e. m_handler->table). */
+  TABLE *m_table;
+
+  /*
+    Access methods to protected areas in handler to avoid adding
+    friend class Partition_helper in class handler.
+  */
+  virtual THD *get_thd() const = 0;
+  virtual TABLE *get_table() const = 0;
+  virtual bool get_eq_range() const = 0;
+  virtual void set_eq_range(bool eq_range) = 0;
+  virtual void set_range_key_part(KEY_PART_INFO *key_part) = 0;
 
   /*
     Implementation of per partition operation by instantiated engine.
@@ -764,8 +856,7 @@ private:
       @retval    0  Success.
       @retval != 0  Error code.
   */
-  virtual int write_row_in_part(uint part_id, uchar *buf)
-  { DBUG_ASSERT(0); return HA_ERR_WRONG_COMMAND; }
+  virtual int write_row_in_part(uint part_id, uchar *buf) = 0;
   /**
     Update a row in the specified partition.
 
@@ -781,8 +872,7 @@ private:
   */
   virtual int update_row_in_part(uint new_part_id,
                                  const uchar *old_data,
-                                 uchar *new_data)
-  { DBUG_ASSERT(0); return HA_ERR_WRONG_COMMAND; }
+                                 uchar *new_data) = 0;
   /**
     Delete an existing row in the specified partition.
 
@@ -795,8 +885,7 @@ private:
       @retval    0  Success.
       @retval != 0  Error code.
   */
-  virtual int delete_row_in_part(uint part_id, const uchar *buf)
-  { DBUG_ASSERT(0); return HA_ERR_WRONG_COMMAND; }
+  virtual int delete_row_in_part(uint part_id, const uchar *buf) = 0;
   /**
     Initialize the shared auto increment value.
 
@@ -804,8 +893,7 @@ private:
 
     Also sets stats.auto_increment_value.
   */
-  virtual int initialize_auto_increment(bool no_lock)
-  { DBUG_ASSERT(0); return HA_ERR_WRONG_COMMAND; }
+  virtual int initialize_auto_increment(bool no_lock) = 0;
   /** Release auto_increment in all underlying partitions. */
   virtual void release_auto_increment_all_parts() {}
   /** Save or persist the current max auto increment. */
@@ -815,46 +903,41 @@ private:
 
     @see class handler.
   */
-  virtual int rnd_init_in_part(uint part_id, bool table_scan)
-  { DBUG_ASSERT(0); return HA_ERR_WRONG_COMMAND; }
-  virtual int rnd_next_in_part(uint part_id, uchar *buf)
-  { DBUG_ASSERT(0); return HA_ERR_WRONG_COMMAND; }
-  virtual int rnd_end_in_part(uint part_id, bool scan)
-  { DBUG_ASSERT(0); return HA_ERR_WRONG_COMMAND; }
-  virtual void position_in_part(uchar *ref, const uchar *row)
-  { DBUG_ASSERT(0); }
+  virtual int rnd_init_in_part(uint part_id, bool table_scan) = 0;
+  virtual int rnd_next_in_part(uint part_id, uchar *buf) = 0;
+  virtual int rnd_end_in_part(uint part_id, bool scan) = 0;
+  virtual void position_in_last_part(uchar *ref, const uchar *row) = 0;
+  /* If ph_rnd_pos is used then this needs to be implemented! */
   virtual int rnd_pos_in_part(uint part_id, uchar *buf, uchar *pos)
   { DBUG_ASSERT(0); return HA_ERR_WRONG_COMMAND; }
-  virtual int rnd_pos_by_record_in_part(uint part_id, uchar *row)
-  { DBUG_ASSERT(0); return HA_ERR_WRONG_COMMAND; }
+  virtual int rnd_pos_by_record_in_last_part(uchar *row)
+  {
+    /*
+      Not much overhead to use default function. This avoids out-of-sync code.
+    */
+    return m_handler->rnd_pos_by_record(row);
+  }
   virtual int index_init_in_part(uint part, uint keynr, bool sorted)
   { DBUG_ASSERT(0); return HA_ERR_WRONG_COMMAND; }
   virtual int index_end_in_part(uint part)
   { DBUG_ASSERT(0); return HA_ERR_WRONG_COMMAND; }
-  virtual int index_first_in_part(uint part, uchar *buf)
-  { DBUG_ASSERT(0); return HA_ERR_WRONG_COMMAND; }
-  virtual int index_last_in_part(uint part, uchar *buf)
-  { DBUG_ASSERT(0); return HA_ERR_WRONG_COMMAND; }
-  virtual int index_prev_in_part(uint part, uchar *buf)
-  { DBUG_ASSERT(0); return HA_ERR_WRONG_COMMAND; }
-  virtual int index_next_in_part(uint part, uchar *buf)
-  { DBUG_ASSERT(0); return HA_ERR_WRONG_COMMAND; }
+  virtual int index_first_in_part(uint part, uchar *buf) = 0;
+  virtual int index_last_in_part(uint part, uchar *buf) = 0;
+  virtual int index_prev_in_part(uint part, uchar *buf) = 0;
+  virtual int index_next_in_part(uint part, uchar *buf) = 0;
   virtual int index_next_same_in_part(uint part,
                                       uchar *buf,
                                       const uchar *key,
-                                      uint length)
-  { DBUG_ASSERT(0); return HA_ERR_WRONG_COMMAND; }
+                                      uint length) = 0;
   virtual int index_read_map_in_part(uint part,
                                      uchar *buf,
                                      const uchar *key,
                                      key_part_map keypart_map,
-                                     enum ha_rkey_function find_flag)
-  { DBUG_ASSERT(0); return HA_ERR_WRONG_COMMAND; }
+                                     enum ha_rkey_function find_flag) = 0;
   virtual int index_read_last_map_in_part(uint part,
                                           uchar *buf,
                                           const uchar *key,
-                                          key_part_map keypart_map)
-  { DBUG_ASSERT(0); return HA_ERR_WRONG_COMMAND; }
+                                          key_part_map keypart_map) = 0;
   /**
     Do read_range_first in the specified partition.
     If buf is set, then copy the result there instead of table->record[0].
@@ -864,21 +947,18 @@ private:
                                        const key_range *start_key,
                                        const key_range *end_key,
                                        bool eq_range,
-                                       bool sorted)
-  { DBUG_ASSERT(0); return HA_ERR_WRONG_COMMAND; }
+                                       bool sorted) = 0;
   /**
     Do read_range_next in the specified partition.
     If buf is set, then copy the result there instead of table->record[0].
   */
-  virtual int read_range_next_in_part(uint part, uchar *buf)
-  { DBUG_ASSERT(0); return HA_ERR_WRONG_COMMAND; }
+  virtual int read_range_next_in_part(uint part, uchar *buf) = 0;
   virtual int index_read_idx_map_in_part(uint part,
                                          uchar *buf,
                                          uint index,
                                          const uchar *key,
                                          key_part_map keypart_map,
-                                         enum ha_rkey_function find_flag)
-  { return HA_ERR_WRONG_COMMAND; }
+                                         enum ha_rkey_function find_flag) = 0;
   /**
     Initialize engine specific resources for the record priority queue
     used duing ordered index reads for multiple partitions.
@@ -887,12 +967,12 @@ private:
                        (number of set bits in m_part_info->read_partitions).
 
     @return Operation status.
-      @retval    0  Success.
-      @retval != 0  Error code.
+      @retval    0   Success.
+      @retval != 0   Error code.
   */
-  virtual bool init_record_priority_queue_for_parts(uint used_parts)
+  virtual int init_record_priority_queue_for_parts(uint used_parts)
   {
-    return false;
+    return 0;
   }
   /**
     Destroy and release engine specific resources used by the record
@@ -959,8 +1039,7 @@ private:
       @retval    0  Success.
       @retval != 0  Error code.
   */
-  virtual int write_row_in_new_part(uint new_part)
-  { DBUG_ASSERT(0); return HA_ERR_WRONG_COMMAND; }
+  virtual int write_row_in_new_part(uint new_part) = 0;
 
   /* Internal helper functions*/
   /**
@@ -1122,11 +1201,17 @@ private:
   virtual int copy_partitions(ulonglong * const copied,
                               ulonglong * const deleted);
 
-  /*
-    These could be private as well, but easier to expose them for others to use.
+  /**
+    Set table->read_set taking partitioning expressions into account.
   */
-public:
-  /* All internal partitioning data!*/
+  void set_partition_read_set();
+
+  /*
+    These could be private as well,
+    but easier to expose them to derived classes to use.
+  */
+protected:
+  /** All internal partitioning data! @{ */
   /** Tables partitioning info (same as table->part_info) */
   partition_info *m_part_info;
   /** Is primary key clustered. */
@@ -1170,13 +1255,21 @@ public:
     sort by rowid as secondary sort key if equal first key.
   */
   KEY *m_curr_key_info[3];
-  /** Is Index Condition Pushdown currently in use. */
-  bool m_icp_in_use;
-  /** Need to sort by ref (rowid) too. */
-  bool m_sec_sort_by_rowid;
+  enum enum_using_ref {
+    /** handler::ref is not copied to the PQ. */
+    REF_NOT_USED= 0,
+    /**
+      handler::ref is copied to the PQ but does not need to be used in sorting.
+    */
+    REF_STORED_IN_PQ,
+    /** handler::ref is copied to the PQ and must be used during sorting. */
+    REF_USED_FOR_SORT};
+  /** How handler::ref is used in the priority queue. */
+  enum_using_ref m_ref_usage;
   /** Set if previous index_* call returned HA_ERR_KEY_NOT_FOUND. */
   bool m_key_not_found;
   /** Partitions that returned HA_ERR_KEY_NOT_FOUND. */
   MY_BITMAP m_key_not_found_partitions;
+  /** @} */
 };
 #endif /* PARTITION_HANDLER_INCLUDED */
