@@ -55,6 +55,10 @@ template <class T> class List;
   of the same handlerton/engine.
 */
 #define HA_CAN_EXCHANGE_PARTITION (1 << 4)
+/**
+  The handler can not use FOREIGN KEYS with partitioning
+*/
+#define HA_CANNOT_PARTITION_FK (1 << 5)
 
 #define NORMAL_PART_NAME 0
 #define TEMP_PART_NAME 1

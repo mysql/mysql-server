@@ -1,5 +1,5 @@
 #
-# Simple test for the erroneos statements using the 
+# Simple test for the erroneos statements using the
 # partition storage engine
 #
 -- source include/have_partition.inc
@@ -775,7 +775,7 @@ CREATE TABLE t1 (id INT, purchased DATE)
 PARTITION BY RANGE(YEAR(purchased))
 SUBPARTITION BY HASH(TO_DAYS(purchased))
 (PARTITION p0 VALUES LESS THAN MAXVALUE
-  DATA DIRECTORY = '/tmp/not-existing' 
+  DATA DIRECTORY = '/tmp/not-existing'
   INDEX DIRECTORY = '/tmp/not-existing');
 --replace_result MyISAM <curr_engine> InnoDB <curr_engine>
 SHOW CREATE TABLE t1;
@@ -785,7 +785,7 @@ PARTITION BY RANGE(YEAR(purchased))
 SUBPARTITION BY HASH(TO_DAYS(purchased)) SUBPARTITIONS 2
 (PARTITION p0 VALUES LESS THAN MAXVALUE
  (SUBPARTITION sp0
-   DATA DIRECTORY = '/tmp/not-existing' 
+   DATA DIRECTORY = '/tmp/not-existing'
    INDEX DIRECTORY = '/tmp/not-existing',
   SUBPARTITION sp1));
 --replace_result MyISAM <curr_engine> InnoDB <curr_engine>
@@ -794,7 +794,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (id INT, purchased DATE)
 PARTITION BY RANGE(YEAR(purchased))
 (PARTITION p0 VALUES LESS THAN MAXVALUE
-  DATA DIRECTORY = '/tmp/not-existing' 
+  DATA DIRECTORY = '/tmp/not-existing'
   INDEX DIRECTORY = '/tmp/not-existing');
 --replace_result MyISAM <curr_engine> InnoDB <curr_engine>
 SHOW CREATE TABLE t1;
@@ -1268,11 +1268,11 @@ partitions 2
 (partition x1 values less than (4) tablespace ts1,
  partition x2 values less than (8) tablespace ts2);
 
-# 
+#
 # Partition by range, no values less than definition
-# 
+#
 --error ER_PARTITION_REQUIRES_VALUES_ERROR
-CREATE TABLE t1 ( 
+CREATE TABLE t1 (
 a int not null,
 b int not null,
 c int not null,
@@ -1280,7 +1280,7 @@ primary key(a,b))
 partition by range (a)
 partitions 2
 (partition x1 values less than (4),
- partition x2); 
+ partition x2);
 
 #
 # Partition by range, no values in definition allowed
@@ -1423,18 +1423,18 @@ subpartition by hash (a+b)
 #
 # Subpartition by list => error
 #
---error ER_PARSE_ERROR 
+--error ER_PARSE_ERROR
 CREATE TABLE t1 (
 a int not null,
 b int not null,
 c int not null,
 primary key (a,b))
-partition by key (a) 
+partition by key (a)
 subpartition by list (a+b)
 ( partition x1
   ( subpartition x11,
     subpartition x12),
-   partition x2 
+   partition x2
    ( subpartition x21,
      subpartition x22)
 );
@@ -1479,7 +1479,7 @@ b int not null,
 c int not null,
 primary key(a,b))
 partition by list (3+4)
-partitions 2 
+partitions 2
 (partition x1 values in (4) tablespace ts1,
  partition x2 values in (8) tablespace ts2);
 
@@ -1497,9 +1497,9 @@ partitions 2
 (partition x1 values in (4) tablespace ts1,
  partition x2 values in (8) tablespace ts2);
 
-# 
+#
 # Partition by list, no values in definition
-# 
+#
 --error ER_PARTITION_REQUIRES_VALUES_ERROR
 CREATE TABLE t1 (
 a int not null,
@@ -1993,7 +1993,7 @@ DROP TABLE old;
 
 --echo #
 --echo # Bug #56709: Memory leaks at running the 5.1 test suite
---echo # 
+--echo #
 
 CREATE TABLE t1 (a TIMESTAMP NOT NULL PRIMARY KEY);
 
@@ -2053,3 +2053,42 @@ WHERE TABLE_NAME = 't1' AND TABLE_SCHEMA = 'test';
 
 DROP TABLE t1;
 SET sql_mode = default;
+
+--echo #
+--echo # Test for increased coverage of misplaced record handling.
+--echo #
+CREATE TABLE t1 (a int)
+PARTITION BY LIST (a)
+(PARTITION p1 VALUES IN (1),
+ PARTITION p3 VALUES IN (3,5),
+ PARTITION p6 VALUES IN (6,7));
+
+--echo # Intentionally insert illegal rows into p1.
+CREATE TABLE t2 LIKE t1;
+ALTER TABLE t2 REMOVE PARTITIONING;
+INSERT INTO t2 VALUES (2),(3),(4),(6);
+ALTER TABLE t1 EXCHANGE PARTITION p1 WITH TABLE t2 WITHOUT VALIDATION;
+
+--echo # These should fail gracefully (WHERE used to not trigger pruning!)
+CALL mtr.add_suppression(" corrupted: row in wrong partition: ");
+--error ER_NO_PARTITION_FOR_GIVEN_VALUE
+INSERT INTO t1 VALUES (2);
+--error ER_ROW_DOES_NOT_MATCH_GIVEN_PARTITION_SET
+INSERT INTO t1 PARTITION (p1) VALUES (3);
+--error ER_NO_PARTITION_FOR_GIVEN_VALUE
+UPDATE t1 SET a = 3 WHERE (a % 3) != 0;
+--error ER_NO_PARTITION_FOR_GIVEN_VALUE
+UPDATE t1 PARTITION (p1) SET a = 3 WHERE (a % 3) != 0;
+--error ER_ROW_DOES_NOT_MATCH_GIVEN_PARTITION_SET
+UPDATE t1 PARTITION (p1) SET a = 5 WHERE (a % 3) = 0;
+--error ER_NO_PARTITION_FOR_GIVEN_VALUE
+UPDATE t1 PARTITION (p1) SET a = 3 WHERE (a % 5) > 3;
+--error ER_ROW_IN_WRONG_PARTITION
+UPDATE t1 PARTITION (p1,p6) SET a = 7 WHERE (a % 7) > 5;
+--error ER_ROW_DOES_NOT_MATCH_GIVEN_PARTITION_SET
+DELETE FROM t1 PARTITION (p1) WHERE (a % 7) > 2;
+--error ER_ROW_IN_WRONG_PARTITION
+DELETE FROM t1 PARTITION (p1,p6) WHERE (a % 7) > 5;
+--error ER_NO_PARTITION_FOR_GIVEN_VALUE
+DELETE FROM t1 WHERE a > 0;
+DROP TABLE t1, t2;

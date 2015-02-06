@@ -3388,6 +3388,23 @@ dict_index_build_internal_fts(
 }
 /*====================== FOREIGN KEY PROCESSING ========================*/
 
+/** Check whether the dict_table_t is a partition.
+A partitioned table on the SQL level is composed of InnoDB tables,
+where each InnoDB table is a [sub]partition including its secondary indexes
+which belongs to the partition.
+@param[in]	table	Table to check.
+@return true if the dict_table_t is a partition else false. */
+UNIV_INLINE
+bool
+dict_table_is_partition(
+	const dict_table_t*	table)
+{
+	/* Check both P and p on all platforms in case it was moved to/from
+	WIN. */
+	return(strstr(table->name.m_name, "#p#")
+	       || strstr(table->name.m_name, "#P#"));
+}
+
 /*********************************************************************//**
 Checks if a table is referenced by foreign keys.
 @return TRUE if table is referenced by a foreign key */
@@ -4682,6 +4699,23 @@ col_loop1:
 		return(DB_CANNOT_ADD_CONSTRAINT);
 	}
 
+	/* Don't allow foreign keys on partitioned tables yet. */
+	ptr1 = dict_scan_to(ptr, "PARTITION");
+	if (ptr1) {
+		ptr1 = dict_accept(cs, ptr1, "PARTITION", &success);
+		if (success && my_isspace(cs, *ptr1)) {
+			ptr2 = dict_accept(cs, ptr1, "BY", &success);
+			if (success) {
+				my_error(ER_FOREIGN_KEY_ON_PARTITIONED,MYF(0));
+				return(DB_CANNOT_ADD_CONSTRAINT);
+			}
+		}
+	}
+	if (dict_table_is_partition(table)) {
+		my_error(ER_FOREIGN_KEY_ON_PARTITIONED,MYF(0));
+		return(DB_CANNOT_ADD_CONSTRAINT);
+	}
+
 	/* Let us create a constraint struct */
 
 	foreign = dict_mem_foreign_create();
@@ -4754,6 +4788,14 @@ col_loop1:
 			start_of_latest_foreign, ptr);
 		mutex_exit(&dict_foreign_err_mutex);
 
+		return(DB_CANNOT_ADD_CONSTRAINT);
+	}
+
+	/* Don't allow foreign keys on partitioned tables yet. */
+	if (referenced_table && dict_table_is_partition(referenced_table)) {
+		/* How could one make a referenced table to be a partition? */
+		ut_ad(0);
+		my_error(ER_FOREIGN_KEY_ON_PARTITIONED,MYF(0));
 		return(DB_CANNOT_ADD_CONSTRAINT);
 	}
 

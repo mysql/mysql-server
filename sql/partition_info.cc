@@ -158,19 +158,20 @@ bool partition_info::set_named_partition_bitmap(const char *part_name,
     @param table_list  Table list pointing to table to prune.
 
   @return Operation status
-    @retval true  Failure
     @retval false Success
+    @retval true  Failure
 */
-bool partition_info::prune_partition_bitmaps(TABLE_LIST *table_list)
+bool partition_info::set_read_partitions(List<String> *partition_names)
 {
-  List_iterator<String> partition_names_it(*(table_list->partition_names));
-  uint num_names= table_list->partition_names->elements;
-  uint i= 0;
-  DBUG_ENTER("partition_info::prune_partition_bitmaps");
-
-  if (num_names < 1)
+  DBUG_ENTER("partition_info::set_read_partitions");
+  if (!partition_names || !partition_names->elements)
+  {
     DBUG_RETURN(true);
+  }
 
+  uint num_names= partition_names->elements;
+  List_iterator<String> partition_names_it(*partition_names);
+  uint i= 0;
   /*
     TODO: When adding support for FK in partitioned tables, the referenced
     table must probably lock all partitions for read, and also write depending
@@ -229,7 +230,7 @@ bool partition_info::set_partition_bitmaps(TABLE_LIST *table_list)
         my_error(ER_PARTITION_CLAUSE_ON_NONPARTITIONED, MYF(0));
         DBUG_RETURN(true);
     }
-    if (prune_partition_bitmaps(table_list))
+    if (set_read_partitions(table_list->partition_names))
       DBUG_RETURN(TRUE);
   }
   else

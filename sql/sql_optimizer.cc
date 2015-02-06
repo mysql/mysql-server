@@ -455,6 +455,9 @@ JOIN::optimize()
 
   if (make_join_select(this, where_cond))
   {
+    if (thd->is_error())
+      DBUG_RETURN(1);
+
     zero_result_cause=
       "Impossible WHERE noticed after reading const tables";
     goto setup_subq_exit;
@@ -8743,6 +8746,9 @@ static bool make_join_select(JOIN *join, Item *cond)
   if (const_cond != NULL)
   {
     const bool const_cond_result= const_cond->val_int() != 0;
+    if (thd->is_error())
+      DBUG_RETURN(true);
+
     Opt_trace_object trace_const_cond(trace);
     trace_const_cond.add("condition_on_constant_tables", const_cond)
                     .add("condition_value", const_cond_result);
@@ -8948,75 +8954,58 @@ static bool make_join_select(JOIN *join, Item *cond)
 
             if (recheck_reason == LOW_LIMIT)
             {
-              /*
-                When optimizing for ORDER BY ... LIMIT, only indexes
-                that give correct ordering are of interest. The block
-                below removes all other indexes from usable_keys so
-                the range optimizer (see test_quick_select() below)
-                does not consider them.
-              */
-              for (uint idx= 0; idx < tab->table()->s->keys; idx++)
-              {
-                /*
-                  No need to check if indexes that we're not allowed
-                  to use can provide required ordering.
-                */
-                if (!usable_keys.is_set(idx))
-                  continue;
+              int read_direction= 0;
 
-                const int read_direction=
-                  test_if_order_by_key(join->order, tab->table(), idx);
-                if (read_direction == 0)
+              /*
+                If the current plan is to use range, then check if the
+                already selected index provides the order dictated by the
+                ORDER BY clause.
+              */
+              if (tab->quick() && tab->quick()->index != MAX_KEY)
+              {
+                const uint ref_key= tab->quick()->index;
+
+                read_direction= test_if_order_by_key(join->order,
+                                                     tab->table(), ref_key);
+                /*
+                  If the index provides order there is no need to recheck
+                  index usage; we already know from the former call to
+                  test_quick_select() that a range scan on the chosen
+                  index is cheapest. Note that previous calls to
+                  test_quick_select() did not take order direction
+                  (ASC/DESC) into account, so in case of DESC ordering
+                  we still need to recheck.
+                */
+                if ((read_direction == 1) ||
+                    (read_direction == -1 && tab->quick()->reverse_sorted()))
                 {
-                  // The index cannot provide required ordering
-                  usable_keys.clear_bit(idx);
-                  continue;
+                  recheck_reason= DONT_RECHECK;
                 }
-
-                /*
-                  Currently, only ASC ordered indexes are availabe,
-                  which means that if ordering can be achieved by
-                  reading the index in forward direction, then we have
-                  ORDER BY... ASC. Likewise, if ordering can be
-                  achieved by reading the index in backward direction,
-                  then we have ORDER BY ... DESC.
-
-                  Furthermore, if correct order can be achieved by
-                  reading one index in either forward or backward
-                  direction, then all other applicable indexes will
-                  need to be read in the same direction (so no reason
-                  to check that read_direction is the same for all
-                  applicable indexes).
-
-                  If DESC/mixed ordered indexes will be possible in
-                  the future, the implied connection between index
-                  read direction and ASC/DESC ordering will no longer
-                  hold.
-                */
-                interesting_order= (read_direction == -1 ? ORDER::ORDER_DESC :
-                                                           ORDER::ORDER_ASC);
               }
-
-              if (usable_keys.is_clear_all())
-                recheck_reason= DONT_RECHECK; // No usable keys
-
-              /*
-                If the current plan is to use a range access on an
-                index that provides the order dictated by the ORDER BY
-                clause there is no need to recheck index usage; we
-                already know from the former call to
-                test_quick_select() that a range scan on the chosen
-                index is cheapest. Note that previous calls to
-                test_quick_select() did not take order direction
-                (ASC/DESC) into account, so in case of DESC ordering
-                we still need to recheck.
-              */
-              if (tab->quick() && (tab->quick()->index != MAX_KEY) &&
-                  usable_keys.is_set(tab->quick()->index) &&
-                  (interesting_order != ORDER::ORDER_DESC ||
-                   tab->quick()->reverse_sorted()))
+              if (recheck_reason != DONT_RECHECK)
               {
-                recheck_reason= DONT_RECHECK;
+                int best_key= -1;
+                ha_rows select_limit= join->unit->select_limit_cnt;
+
+                /* Use index specified in FORCE INDEX FOR ORDER BY, if any. */
+                if (tab->table()->force_index)
+                  usable_keys.intersect(tab->table()->keys_in_use_for_order_by);
+
+                /* Do a cost based search on the indexes that give sort order */
+                test_if_cheaper_ordering(tab, join->order, tab->table(),
+                                         usable_keys, -1, select_limit,
+                                         &best_key, &read_direction,
+                                         &select_limit);
+                if (best_key < 0)
+                  recheck_reason= DONT_RECHECK; // No usable keys
+                else
+                {
+                  // Only usable_key is the best_key chosen
+                  usable_keys.clear_all();
+                  usable_keys.set_bit(best_key);
+                  interesting_order= (read_direction == -1 ? ORDER::ORDER_DESC :
+                                      ORDER::ORDER_ASC);
+                }
               }
             }
 

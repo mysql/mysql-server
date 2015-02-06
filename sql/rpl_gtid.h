@@ -309,7 +309,7 @@ enum enum_gtid_mode_lock
   /// global_sid_lock held.
   GTID_MODE_LOCK_SID,
   /// LOCK_msr_map held.
-  GTID_MODE_LOCK_MSR_MAP,
+  GTID_MODE_LOCK_MSR_MAP
 /*
   Currently, no function that calls get_gtid_mode needs
   this. Uncomment this, and uncomment the case in get_gtid_mode, if it
@@ -440,8 +440,8 @@ class Checkable_rwlock
 public:
   /// Initialize this Checkable_rwlock.
   Checkable_rwlock(
-#ifdef MYSQL_SERVER
-                   PSI_rwlock_key psi_key
+#if defined(HAVE_PSI_INTERFACE)
+                   PSI_rwlock_key psi_key= 0
 #endif
                    )
   {
@@ -451,7 +451,7 @@ public:
 #else
     is_write_lock= false;
 #endif
-#ifdef MYSQL_SERVER
+#if defined(HAVE_PSI_INTERFACE)
     mysql_rwlock_init(psi_key, &rwlock);
 #else
     mysql_rwlock_init(0, &rwlock);
@@ -1082,8 +1082,11 @@ public:
     @param free_intervals_mutex_key Performance_schema instrumentation
     key to use for the free_intervals mutex.
   */
-  Gtid_set(Sid_map *sid_map, Checkable_rwlock *sid_lock= NULL,
-           PSI_mutex_key free_intervals_mutex_key= 0);
+  Gtid_set(Sid_map *sid_map, Checkable_rwlock *sid_lock= NULL
+#ifdef HAVE_PSI_INTERFACE
+           ,PSI_mutex_key free_intervals_mutex_key= 0
+#endif
+          );
   /**
     Constructs a new Gtid_set that contains the groups in the given string, in the same format as add_gtid_text(char *).
 
@@ -1103,11 +1106,18 @@ public:
     there will be a short period when the lock is not held at all.
   */
   Gtid_set(Sid_map *sid_map, const char *text, enum_return_status *status,
-           Checkable_rwlock *sid_lock= NULL,
-           PSI_mutex_key free_intervals_mutex_key= 0);
+           Checkable_rwlock *sid_lock= NULL
+#ifdef HAVE_PSI_INTERFACE
+           ,PSI_mutex_key free_intervals_mutex_key= 0
+#endif
+          );
 private:
   /// Worker for the constructor.
-  void init(PSI_mutex_key free_intervals_mutex_key);
+  void init(
+#ifdef HAVE_PSI_INTERFACE
+            PSI_mutex_key free_intervals_mutex_key
+#endif
+           );
 public:
   /// Destroy this Gtid_set.
   ~Gtid_set();
@@ -2322,7 +2332,9 @@ public:
 class Gtid_state
 {
 public:
+#ifdef HAVE_PSI_INTERFACE
   static PSI_mutex_key key_gtid_executed_free_intervals_mutex;
+#endif
   /**
     Constructs a new Gtid_state object.
 
@@ -2335,7 +2347,11 @@ public:
     sid_map(_sid_map),
     sid_locks(sid_lock),
     lost_gtids(sid_map, sid_lock),
-    executed_gtids(sid_map, sid_lock, key_gtid_executed_free_intervals_mutex),
+    executed_gtids(sid_map, sid_lock
+#ifdef HAVE_PSI_INTERFACE
+                   ,key_gtid_executed_free_intervals_mutex
+#endif
+                  ),
     gtids_only_in_table(sid_map, sid_lock),
     previous_gtids_logged(sid_map, sid_lock),
     owned_gtids(sid_lock) {}

@@ -1,3 +1,19 @@
+# InnoDB supports native partitioning and is required by the test.
+CREATE TABLE t1 (a int)
+ENGINE = InnoDB
+PARTITION BY HASH (a) PARTITIONS 2;
+INSERT INTO t1 VALUES (1);
+SELECT * FROM t1;
+a
+1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY HASH (a)
+PARTITIONS 2 */
+DROP TABLE t1;
 # MyISAM requires ha_partition to support partitioning.
 CREATE TABLE t1 (a int)
 ENGINE = MyISAM

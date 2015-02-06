@@ -969,6 +969,19 @@ send_result_message:
         table->table= 0;                        // For query cache
         query_cache.invalidate(thd, table, FALSE);
       }
+      else
+      {
+        /*
+          Reset which partitions that should be processed
+          if ALTER TABLE t ANALYZE/CHECK/.. PARTITION ..
+          CACHE INDEX/LOAD INDEX for specified partitions
+        */
+        if (table->table->part_info &&
+            lex->alter_info.flags & Alter_info::ALTER_ADMIN_PARTITION)
+        {
+          set_all_part_state(table->table->part_info, PART_NORMAL);
+        }
+      }
     }
     /* Error path, a admin command failed. */
     if (thd->transaction_rollback_request)

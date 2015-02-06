@@ -7405,9 +7405,6 @@ ER_DEPENDENT_BY_GENERATED_COLUMN
 ER_GENERATED_COLUMN_REF_AUTO_INC,
   eng "Stored generated column '%s' cannot refer auto-increment column."
 
-ER_FEATURE_NOT_AVAILABLE
-  eng "The '%-.64s' feature is not available; you need to remove '%-.64s' or use MySQL built with '%-.64s'"
-
 ER_CANT_SET_GTID_MODE
   eng "SET @@GLOBAL.GTID_MODE = %-.64s is not allowed because %-.384s."
 
@@ -7432,6 +7429,9 @@ ER_SET_ENFORCE_GTID_CONSISTENCY_WARN_WITH_ONGOING_GTID_VIOLATING_TRANSACTIONS
 ER_ACCOUNT_HAS_BEEN_LOCKED
   eng "Access denied for user '%-.48s'@'%-.64s'. Account is locked."
   pol "Odmowa dostępu dla użytkownika '%-.48s'@'%-.64s'. Konto zablokowane."
+
+ER_FEATURE_NOT_AVAILABLE
+  eng "The '%-.64s' feature is not available; you need to remove '%-.64s' or use MySQL built with '%-.64s'"
 
 #
 #  End of 5.7 error messages.

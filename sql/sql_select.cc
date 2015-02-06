@@ -3898,6 +3898,7 @@ test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER *order, TABLE *table,
   bool group= join && join->grouped && order == join->group_list;
   double refkey_rows_estimate= static_cast<double>(table->quick_condition_rows);
   const bool has_limit= (select_limit != HA_POS_ERROR);
+  const join_type cur_access_method= tab ? tab->type() : JT_ALL;
 
   /*
     If not used with LIMIT, only use keys if the whole query can be
@@ -3938,7 +3939,7 @@ test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER *order, TABLE *table,
     Calculate the selectivity of the ref_key for REF_ACCESS. For
     RANGE_ACCESS we use table->quick_condition_rows.
   */
-  if (ref_key >= 0 && tab->type() == JT_REF)
+  if (ref_key >= 0 && cur_access_method == JT_REF)
   {
     if (table->quick_keys.is_set(ref_key))
       refkey_rows_estimate= static_cast<double>(table->quick_rows[ref_key]);
@@ -4057,8 +4058,16 @@ test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER *order, TABLE *table,
         const Cost_estimate table_scan_time= table->file->table_scan_cost();
         const double index_scan_time= select_limit / rec_per_key *
           min<double>(rec_per_key, table_scan_time.total_cost());
-        if ((ref_key < 0 && is_covering) || 
-            (ref_key < 0 && (group || table->force_index)) ||
+
+        /*
+          Switch to index that gives order if its scan time is smaller than
+          read_time of current chosen access method. In addition, if the
+          current chosen access method is index scan or table scan, always
+          switch to the index that gives order when it is covering or when
+          force index or group by is present.
+        */
+        if (((cur_access_method == JT_ALL || cur_access_method == JT_INDEX_SCAN)
+             && (is_covering || group || table->force_index)) ||
             index_scan_time < read_time)
         {
           ha_rows quick_records= table_records;
