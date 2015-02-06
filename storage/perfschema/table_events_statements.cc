@@ -331,9 +331,8 @@ void table_events_statements_common::make_row_part_1(PFS_events_statements *stat
   m_row.m_name= klass->m_name;
   m_row.m_name_length= klass->m_name_length;
 
-  m_row.m_sqltext_length= statement->m_sqltext_length;
-  if (m_row.m_sqltext_length > 0)
-    memcpy(m_row.m_sqltext, statement->m_sqltext, m_row.m_sqltext_length);
+  m_row.m_sqltext.length(0);
+  m_row.m_sqltext.append(statement->m_sqltext, statement->m_sqltext_length);
 
   m_row.m_current_schema_name_length= statement->m_current_schema_name_length;
   if (m_row.m_current_schema_name_length > 0)
@@ -396,33 +395,25 @@ void table_events_statements_common::make_row_part_2(const sql_digest_storage *d
   /*
     Filling up statement digest information.
   */
-  int safe_byte_count= digest->m_byte_count;
+  uint safe_byte_count= digest->m_byte_count;
   if (safe_byte_count > 0 &&
-      safe_byte_count <= MAX_DIGEST_STORAGE_SIZE)
+      safe_byte_count <= pfs_max_digest_length)
   {
-    bool truncated;
-    PFS_digest_key md5;
-    compute_digest_md5(digest, md5.m_md5);
-
     /* Generate the DIGEST string from the MD5 digest  */
-    MD5_HASH_TO_STRING(md5.m_md5,
+    MD5_HASH_TO_STRING(digest->m_md5,
                        m_row.m_digest.m_digest);
     m_row.m_digest.m_digest_length= MD5_HASH_TO_STRING_LENGTH;
 
     /* Generate the DIGEST_TEXT string from the token array */
-    compute_digest_text(digest,
-                        m_row.m_digest.m_digest_text,
-                        sizeof(m_row.m_digest.m_digest_text),
-                        & truncated);
-    m_row.m_digest.m_digest_text_length= strlen(m_row.m_digest.m_digest_text);
+    compute_digest_text(digest, &m_row.m_digest.m_digest_text);
 
-    if (m_row.m_digest.m_digest_text_length == 0)
+    if (m_row.m_digest.m_digest_text.length() == 0)
       m_row.m_digest.m_digest_length= 0;
   }
   else
   {
     m_row.m_digest.m_digest_length= 0;
-    m_row.m_digest.m_digest_text_length= 0;
+    m_row.m_digest.m_digest_text.length(0);
   }
 
   return;
@@ -494,8 +485,8 @@ int table_events_statements_common::read_row_values(TABLE *table,
           f->set_null();
         break;
       case 9: /* SQL_TEXT */
-        if (m_row.m_sqltext_length)
-          set_field_longtext_utf8(f, m_row.m_sqltext, m_row.m_sqltext_length);
+        if (m_row.m_sqltext.length())
+          set_field_longtext_utf8(f, m_row.m_sqltext.ptr(), m_row.m_sqltext.length());
         else
           f->set_null();
         break;
@@ -507,9 +498,9 @@ int table_events_statements_common::read_row_values(TABLE *table,
           f->set_null();
         break;
       case 11: /* DIGEST_TEXT */
-        if (m_row.m_digest.m_digest_text_length > 0)
-           set_field_longtext_utf8(f, m_row.m_digest.m_digest_text,
-                                   m_row.m_digest.m_digest_text_length);
+        if (m_row.m_digest.m_digest_text.length() > 0)
+           set_field_longtext_utf8(f, m_row.m_digest.m_digest_text.ptr(),
+                                   m_row.m_digest.m_digest_text.length());
         else
           f->set_null();
         break;
@@ -743,7 +734,7 @@ void table_events_statements_current::make_row(PFS_thread *pfs_thread,
   pfs_optimistic_state lock;
   pfs_optimistic_state stmt_lock;
 
-  digest.reset();
+  digest.reset(m_token_array, MAX_DIGEST_STORAGE_SIZE);
   /* Protect this reader against thread termination. */
   pfs_thread->m_lock.begin_optimistic_lock(&lock);
   /* Protect this reader against writing on statement information. */
@@ -872,7 +863,7 @@ void table_events_statements_history::make_row(PFS_thread *pfs_thread,
   sql_digest_storage digest;
   pfs_optimistic_state lock;
 
-  digest.reset();
+  digest.reset(m_token_array, MAX_DIGEST_STORAGE_SIZE);
   /* Protect this reader against thread termination. */
   pfs_thread->m_lock.begin_optimistic_lock(&lock);
 
@@ -982,7 +973,7 @@ void table_events_statements_history_long::make_row(PFS_events_statements *state
 {
   sql_digest_storage digest;
 
-  digest.reset();
+  digest.reset(m_token_array, MAX_DIGEST_STORAGE_SIZE);
   table_events_statements_common::make_row_part_1(statement, &digest);
 
   table_events_statements_common::make_row_part_2(&digest);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -970,10 +970,40 @@ static int show_func_example(MYSQL_THD thd, struct st_mysql_show_var *var,
   return 0;
 }
 
+struct example_vars_t
+{
+	ulong  var1;
+	double var2;
+	char   var3[64];
+  bool   var4;
+  bool   var5;
+  ulong  var6;
+};
+
+example_vars_t example_vars= {100, 20.01, "three hundred", true, 0, 8250};
+
+static st_mysql_show_var show_status_example[]=
+{
+  {"var1", (char *)&example_vars.var1, SHOW_LONG, SHOW_SCOPE_GLOBAL},
+  {"var2", (char *)&example_vars.var2, SHOW_DOUBLE, SHOW_SCOPE_GLOBAL},
+  {0,0,SHOW_UNDEF, SHOW_SCOPE_UNDEF} // null terminator required
+};
+
+static struct st_mysql_show_var show_array_example[]=
+{
+  {"array", (char *)show_status_example, SHOW_ARRAY, SHOW_SCOPE_GLOBAL},
+  {"var3", (char *)&example_vars.var3, SHOW_CHAR, SHOW_SCOPE_GLOBAL},
+  {"var4", (char *)&example_vars.var4, SHOW_BOOL, SHOW_SCOPE_GLOBAL},
+  {0,0,SHOW_UNDEF, SHOW_SCOPE_UNDEF}
+};
+
 static struct st_mysql_show_var func_status[]=
 {
-  {"example_func_example",  (char *)show_func_example, SHOW_FUNC},
-  {0,0,SHOW_UNDEF}
+  {"example_func_example", (char *)show_func_example, SHOW_FUNC, SHOW_SCOPE_GLOBAL},
+  {"example_status_var5", (char *)&example_vars.var5, SHOW_BOOL, SHOW_SCOPE_GLOBAL},
+  {"example_status_var6", (char *)&example_vars.var6, SHOW_LONG, SHOW_SCOPE_GLOBAL},
+  {"example_status",  (char *)show_array_example, SHOW_ARRAY, SHOW_SCOPE_GLOBAL},
+  {0,0,SHOW_UNDEF, SHOW_SCOPE_UNDEF}
 };
 
 mysql_declare_plugin(example)

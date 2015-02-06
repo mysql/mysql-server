@@ -23,8 +23,10 @@ drop database if exists mysqltest;
 SHOW GLOBAL STATUS LIKE 'ndb\_%';
 --replace_column 2 #
 --sorted_result
+--disable_warnings
 SHOW GLOBAL VARIABLES WHERE Variable_name LIKE 'ndb\_%' and 
                             Variable_name NOT LIKE 'ndb_dbg\_%';
+--enable_warnings
 
 #
 # Create a normal table with primary key

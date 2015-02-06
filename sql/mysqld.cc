@@ -322,6 +322,14 @@ my_thread_handle shutdown_thr_handle;
 #endif
 uint host_cache_size;
 ulong log_error_verbosity= 3; // have a non-zero value during early start-up
+
+#if MYSQL_VERSION_ID >= 50800
+#error "show_compatibility_56 is to be removed in MySQL 5.8"
+#else
+/* Default value TRUE for the EMBEDDED_LIBRARY */
+my_bool show_compatibility_56= TRUE;
+#endif /* MYSQL_VERSION_ID >= 50800 */
+
 #if defined(_WIN32) && !defined(EMBEDDED_LIBRARY)
 ulong slow_start_timeout;
 #endif
@@ -391,16 +399,10 @@ ulong binlog_checksum_options;
 my_bool opt_master_verify_checksum= 0;
 my_bool opt_slave_sql_verify_checksum= 1;
 const char *binlog_format_names[]= {"MIXED", "STATEMENT", "ROW", NullS};
-my_bool enforce_gtid_consistency;
 my_bool binlog_gtid_simple_recovery;
 ulong binlog_error_action;
 const char *binlog_error_action_list[]= {"IGNORE_ERROR", "ABORT_SERVER", NullS};
-ulong gtid_mode;
 uint gtid_executed_compression_period= 0;
-const char *gtid_mode_names[]=
-{"OFF", "UPGRADE_STEP_1", "UPGRADE_STEP_2", "ON", NullS};
-TYPELIB gtid_mode_typelib=
-{ array_elements(gtid_mode_names) - 1, "", gtid_mode_names, NULL };
 
 #ifdef HAVE_INITGROUPS
 volatile sig_atomic_t calling_initgroups= 0; /**< Used in SIGSEGV handler. */
@@ -456,11 +458,13 @@ ulong specialflag=0;
 ulong binlog_cache_use= 0, binlog_cache_disk_use= 0;
 ulong binlog_stmt_cache_use= 0, binlog_stmt_cache_disk_use= 0;
 ulong max_connections, max_connect_errors;
+ulong max_digest_length= 0;
 ulong rpl_stop_slave_timeout= LONG_TIMEOUT;
 my_bool log_bin_use_v1_row_events= 0;
 bool thread_cache_size_specified= false;
 bool host_cache_size_specified= false;
 bool table_definition_cache_specified= false;
+ulong locked_account_connection_count= 0;
 
 /**
   Limit of the total number of prepared statements in the server.
@@ -1322,6 +1326,11 @@ void gtid_server_cleanup()
     delete gtid_table_persistor;
     gtid_table_persistor= NULL;
   }
+  if (gtid_mode_lock)
+  {
+    delete gtid_mode_lock;
+    gtid_mode_lock= NULL;
+  }
 }
 
 /**
@@ -1333,7 +1342,8 @@ void gtid_server_cleanup()
 bool gtid_server_init()
 {
   bool res=
-    (!(global_sid_lock= new Checkable_rwlock) ||
+    (!(global_sid_lock= new Checkable_rwlock(key_rwlock_global_sid_lock)) ||
+     !(gtid_mode_lock= new Checkable_rwlock(key_rwlock_gtid_mode_lock)) ||
      !(global_sid_map= new Sid_map(global_sid_lock)) ||
      !(gtid_state= new Gtid_state(global_sid_lock, global_sid_map))||
      !(gtid_table_persistor= new Gtid_table_persistor()));
@@ -2418,153 +2428,153 @@ static bool init_global_datetime_format(timestamp_type format_type,
 }
 
 SHOW_VAR com_status_vars[]= {
-  {"admin_commands",       (char*) offsetof(STATUS_VAR, com_other), SHOW_LONG_STATUS},
-  {"assign_to_keycache",   (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_ASSIGN_TO_KEYCACHE]), SHOW_LONG_STATUS},
-  {"alter_db",             (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_ALTER_DB]), SHOW_LONG_STATUS},
-  {"alter_db_upgrade",     (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_ALTER_DB_UPGRADE]), SHOW_LONG_STATUS},
-  {"alter_event",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_ALTER_EVENT]), SHOW_LONG_STATUS},
-  {"alter_function",       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_ALTER_FUNCTION]), SHOW_LONG_STATUS},
-  {"alter_procedure",      (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_ALTER_PROCEDURE]), SHOW_LONG_STATUS},
-  {"alter_server",         (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_ALTER_SERVER]), SHOW_LONG_STATUS},
-  {"alter_table",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_ALTER_TABLE]), SHOW_LONG_STATUS},
-  {"alter_tablespace",     (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_ALTER_TABLESPACE]), SHOW_LONG_STATUS},
-  {"alter_user",           (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_ALTER_USER]), SHOW_LONG_STATUS},
-  {"analyze",              (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_ANALYZE]), SHOW_LONG_STATUS},
-  {"begin",                (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_BEGIN]), SHOW_LONG_STATUS},
-  {"binlog",               (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_BINLOG_BASE64_EVENT]), SHOW_LONG_STATUS},
-  {"call_procedure",       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_CALL]), SHOW_LONG_STATUS},
-  {"change_db",            (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_CHANGE_DB]), SHOW_LONG_STATUS},
-  {"change_master",        (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_CHANGE_MASTER]), SHOW_LONG_STATUS},
-  {"change_repl_filter",   (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_CHANGE_REPLICATION_FILTER]), SHOW_LONG_STATUS},
-  {"check",                (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_CHECK]), SHOW_LONG_STATUS},
-  {"checksum",             (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_CHECKSUM]), SHOW_LONG_STATUS},
-  {"commit",               (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_COMMIT]), SHOW_LONG_STATUS},
-  {"create_db",            (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_CREATE_DB]), SHOW_LONG_STATUS},
-  {"create_event",         (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_CREATE_EVENT]), SHOW_LONG_STATUS},
-  {"create_function",      (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_CREATE_SPFUNCTION]), SHOW_LONG_STATUS},
-  {"create_index",         (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_CREATE_INDEX]), SHOW_LONG_STATUS},
-  {"create_procedure",     (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_CREATE_PROCEDURE]), SHOW_LONG_STATUS},
-  {"create_server",        (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_CREATE_SERVER]), SHOW_LONG_STATUS},
-  {"create_table",         (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_CREATE_TABLE]), SHOW_LONG_STATUS},
-  {"create_trigger",       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_CREATE_TRIGGER]), SHOW_LONG_STATUS},
-  {"create_udf",           (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_CREATE_FUNCTION]), SHOW_LONG_STATUS},
-  {"create_user",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_CREATE_USER]), SHOW_LONG_STATUS},
-  {"create_view",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_CREATE_VIEW]), SHOW_LONG_STATUS},
-  {"dealloc_sql",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_DEALLOCATE_PREPARE]), SHOW_LONG_STATUS},
-  {"delete",               (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_DELETE]), SHOW_LONG_STATUS},
-  {"delete_multi",         (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_DELETE_MULTI]), SHOW_LONG_STATUS},
-  {"do",                   (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_DO]), SHOW_LONG_STATUS},
-  {"drop_db",              (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_DROP_DB]), SHOW_LONG_STATUS},
-  {"drop_event",           (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_DROP_EVENT]), SHOW_LONG_STATUS},
-  {"drop_function",        (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_DROP_FUNCTION]), SHOW_LONG_STATUS},
-  {"drop_index",           (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_DROP_INDEX]), SHOW_LONG_STATUS},
-  {"drop_procedure",       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_DROP_PROCEDURE]), SHOW_LONG_STATUS},
-  {"drop_server",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_DROP_SERVER]), SHOW_LONG_STATUS},
-  {"drop_table",           (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_DROP_TABLE]), SHOW_LONG_STATUS},
-  {"drop_trigger",         (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_DROP_TRIGGER]), SHOW_LONG_STATUS},
-  {"drop_user",            (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_DROP_USER]), SHOW_LONG_STATUS},
-  {"drop_view",            (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_DROP_VIEW]), SHOW_LONG_STATUS},
-  {"empty_query",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_EMPTY_QUERY]), SHOW_LONG_STATUS},
-  {"execute_sql",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_EXECUTE]), SHOW_LONG_STATUS},
-  {"explain_other",        (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_EXPLAIN_OTHER]), SHOW_LONG_STATUS},
-  {"flush",                (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_FLUSH]), SHOW_LONG_STATUS},
-  {"get_diagnostics",      (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_GET_DIAGNOSTICS]), SHOW_LONG_STATUS},
-  {"grant",                (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_GRANT]), SHOW_LONG_STATUS},
-  {"ha_close",             (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_HA_CLOSE]), SHOW_LONG_STATUS},
-  {"ha_open",              (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_HA_OPEN]), SHOW_LONG_STATUS},
-  {"ha_read",              (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_HA_READ]), SHOW_LONG_STATUS},
-  {"help",                 (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_HELP]), SHOW_LONG_STATUS},
-  {"insert",               (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_INSERT]), SHOW_LONG_STATUS},
-  {"insert_select",        (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_INSERT_SELECT]), SHOW_LONG_STATUS},
-  {"install_plugin",       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_INSTALL_PLUGIN]), SHOW_LONG_STATUS},
-  {"kill",                 (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_KILL]), SHOW_LONG_STATUS},
-  {"load",                 (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_LOAD]), SHOW_LONG_STATUS},
-  {"lock_tables",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_LOCK_TABLES]), SHOW_LONG_STATUS},
-  {"optimize",             (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_OPTIMIZE]), SHOW_LONG_STATUS},
-  {"preload_keys",         (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_PRELOAD_KEYS]), SHOW_LONG_STATUS},
-  {"prepare_sql",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_PREPARE]), SHOW_LONG_STATUS},
-  {"purge",                (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_PURGE]), SHOW_LONG_STATUS},
-  {"purge_before_date",    (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_PURGE_BEFORE]), SHOW_LONG_STATUS},
-  {"release_savepoint",    (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_RELEASE_SAVEPOINT]), SHOW_LONG_STATUS},
-  {"rename_table",         (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_RENAME_TABLE]), SHOW_LONG_STATUS},
-  {"rename_user",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_RENAME_USER]), SHOW_LONG_STATUS},
-  {"repair",               (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_REPAIR]), SHOW_LONG_STATUS},
-  {"replace",              (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_REPLACE]), SHOW_LONG_STATUS},
-  {"replace_select",       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_REPLACE_SELECT]), SHOW_LONG_STATUS},
-  {"reset",                (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_RESET]), SHOW_LONG_STATUS},
-  {"resignal",             (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_RESIGNAL]), SHOW_LONG_STATUS},
-  {"revoke",               (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_REVOKE]), SHOW_LONG_STATUS},
-  {"revoke_all",           (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_REVOKE_ALL]), SHOW_LONG_STATUS},
-  {"rollback",             (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_ROLLBACK]), SHOW_LONG_STATUS},
-  {"rollback_to_savepoint",(char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_ROLLBACK_TO_SAVEPOINT]), SHOW_LONG_STATUS},
-  {"savepoint",            (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SAVEPOINT]), SHOW_LONG_STATUS},
-  {"select",               (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SELECT]), SHOW_LONG_STATUS},
-  {"set_option",           (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SET_OPTION]), SHOW_LONG_STATUS},
-  {"signal",               (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SIGNAL]), SHOW_LONG_STATUS},
-  {"show_binlog_events",   (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_BINLOG_EVENTS]), SHOW_LONG_STATUS},
-  {"show_binlogs",         (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_BINLOGS]), SHOW_LONG_STATUS},
-  {"show_charsets",        (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_CHARSETS]), SHOW_LONG_STATUS},
-  {"show_collations",      (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_COLLATIONS]), SHOW_LONG_STATUS},
-  {"show_create_db",       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_CREATE_DB]), SHOW_LONG_STATUS},
-  {"show_create_event",    (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_CREATE_EVENT]), SHOW_LONG_STATUS},
-  {"show_create_func",     (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_CREATE_FUNC]), SHOW_LONG_STATUS},
-  {"show_create_proc",     (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_CREATE_PROC]), SHOW_LONG_STATUS},
-  {"show_create_table",    (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_CREATE]), SHOW_LONG_STATUS},
-  {"show_create_trigger",  (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_CREATE_TRIGGER]), SHOW_LONG_STATUS},
-  {"show_databases",       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_DATABASES]), SHOW_LONG_STATUS},
-  {"show_engine_logs",     (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_ENGINE_LOGS]), SHOW_LONG_STATUS},
-  {"show_engine_mutex",    (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_ENGINE_MUTEX]), SHOW_LONG_STATUS},
-  {"show_engine_status",   (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_ENGINE_STATUS]), SHOW_LONG_STATUS},
-  {"show_events",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_EVENTS]), SHOW_LONG_STATUS},
-  {"show_errors",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_ERRORS]), SHOW_LONG_STATUS},
-  {"show_fields",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_FIELDS]), SHOW_LONG_STATUS},
-  {"show_function_code",   (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_FUNC_CODE]), SHOW_LONG_STATUS},
-  {"show_function_status", (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_STATUS_FUNC]), SHOW_LONG_STATUS},
-  {"show_grants",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_GRANTS]), SHOW_LONG_STATUS},
-  {"show_keys",            (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_KEYS]), SHOW_LONG_STATUS},
-  {"show_master_status",   (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_MASTER_STAT]), SHOW_LONG_STATUS},
-  {"show_open_tables",     (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_OPEN_TABLES]), SHOW_LONG_STATUS},
-  {"show_plugins",         (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_PLUGINS]), SHOW_LONG_STATUS},
-  {"show_privileges",      (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_PRIVILEGES]), SHOW_LONG_STATUS},
-  {"show_procedure_code",  (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_PROC_CODE]), SHOW_LONG_STATUS},
-  {"show_procedure_status",(char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_STATUS_PROC]), SHOW_LONG_STATUS},
-  {"show_processlist",     (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_PROCESSLIST]), SHOW_LONG_STATUS},
-  {"show_profile",         (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_PROFILE]), SHOW_LONG_STATUS},
-  {"show_profiles",        (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_PROFILES]), SHOW_LONG_STATUS},
-  {"show_relaylog_events", (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_RELAYLOG_EVENTS]), SHOW_LONG_STATUS},
-  {"show_slave_hosts",     (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_SLAVE_HOSTS]), SHOW_LONG_STATUS},
-  {"show_slave_status",    (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_SLAVE_STAT]), SHOW_LONG_STATUS},
-  {"show_status",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_STATUS]), SHOW_LONG_STATUS},
-  {"show_storage_engines", (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_STORAGE_ENGINES]), SHOW_LONG_STATUS},
-  {"show_table_status",    (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_TABLE_STATUS]), SHOW_LONG_STATUS},
-  {"show_tables",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_TABLES]), SHOW_LONG_STATUS},
-  {"show_triggers",        (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_TRIGGERS]), SHOW_LONG_STATUS},
-  {"show_variables",       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_VARIABLES]), SHOW_LONG_STATUS},
-  {"show_warnings",        (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_WARNS]), SHOW_LONG_STATUS},
-  {"slave_start",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SLAVE_START]), SHOW_LONG_STATUS},
-  {"slave_stop",           (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SLAVE_STOP]), SHOW_LONG_STATUS},
-  {"group_replication_start", (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_START_GROUP_REPLICATION]), SHOW_LONG_STATUS},
-  {"group_replication_stop",  (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_STOP_GROUP_REPLICATION]), SHOW_LONG_STATUS},
-  {"stmt_close",           (char*) offsetof(STATUS_VAR, com_stmt_close), SHOW_LONG_STATUS},
-  {"stmt_execute",         (char*) offsetof(STATUS_VAR, com_stmt_execute), SHOW_LONG_STATUS},
-  {"stmt_fetch",           (char*) offsetof(STATUS_VAR, com_stmt_fetch), SHOW_LONG_STATUS},
-  {"stmt_prepare",         (char*) offsetof(STATUS_VAR, com_stmt_prepare), SHOW_LONG_STATUS},
-  {"stmt_reprepare",       (char*) offsetof(STATUS_VAR, com_stmt_reprepare), SHOW_LONG_STATUS},
-  {"stmt_reset",           (char*) offsetof(STATUS_VAR, com_stmt_reset), SHOW_LONG_STATUS},
-  {"stmt_send_long_data",  (char*) offsetof(STATUS_VAR, com_stmt_send_long_data), SHOW_LONG_STATUS},
-  {"truncate",             (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_TRUNCATE]), SHOW_LONG_STATUS},
-  {"uninstall_plugin",     (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_UNINSTALL_PLUGIN]), SHOW_LONG_STATUS},
-  {"unlock_tables",        (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_UNLOCK_TABLES]), SHOW_LONG_STATUS},
-  {"update",               (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_UPDATE]), SHOW_LONG_STATUS},
-  {"update_multi",         (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_UPDATE_MULTI]), SHOW_LONG_STATUS},
-  {"xa_commit",            (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_XA_COMMIT]),SHOW_LONG_STATUS},
-  {"xa_end",               (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_XA_END]),SHOW_LONG_STATUS},
-  {"xa_prepare",           (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_XA_PREPARE]),SHOW_LONG_STATUS},
-  {"xa_recover",           (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_XA_RECOVER]),SHOW_LONG_STATUS},
-  {"xa_rollback",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_XA_ROLLBACK]),SHOW_LONG_STATUS},
-  {"xa_start",             (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_XA_START]),SHOW_LONG_STATUS},
-  {"show_create_user",     (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_CREATE_USER]),SHOW_LONG_STATUS},
-  {NullS, NullS, SHOW_LONG}
+  {"admin_commands",       (char*) offsetof(STATUS_VAR, com_other),                                          SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"assign_to_keycache",   (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_ASSIGN_TO_KEYCACHE]),         SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"alter_db",             (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_ALTER_DB]),                   SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"alter_db_upgrade",     (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_ALTER_DB_UPGRADE]),           SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"alter_event",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_ALTER_EVENT]),                SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"alter_function",       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_ALTER_FUNCTION]),             SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"alter_procedure",      (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_ALTER_PROCEDURE]),            SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"alter_server",         (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_ALTER_SERVER]),               SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"alter_table",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_ALTER_TABLE]),                SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"alter_tablespace",     (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_ALTER_TABLESPACE]),           SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"alter_user",           (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_ALTER_USER]),                 SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"analyze",              (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_ANALYZE]),                    SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"begin",                (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_BEGIN]),                      SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"binlog",               (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_BINLOG_BASE64_EVENT]),        SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"call_procedure",       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_CALL]),                       SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"change_db",            (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_CHANGE_DB]),                  SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"change_master",        (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_CHANGE_MASTER]),              SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"change_repl_filter",   (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_CHANGE_REPLICATION_FILTER]),  SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"check",                (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_CHECK]),                      SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"checksum",             (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_CHECKSUM]),                   SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"commit",               (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_COMMIT]),                     SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"create_db",            (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_CREATE_DB]),                  SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"create_event",         (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_CREATE_EVENT]),               SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"create_function",      (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_CREATE_SPFUNCTION]),          SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"create_index",         (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_CREATE_INDEX]),               SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"create_procedure",     (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_CREATE_PROCEDURE]),           SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"create_server",        (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_CREATE_SERVER]),              SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"create_table",         (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_CREATE_TABLE]),               SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"create_trigger",       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_CREATE_TRIGGER]),             SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"create_udf",           (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_CREATE_FUNCTION]),            SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"create_user",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_CREATE_USER]),                SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"create_view",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_CREATE_VIEW]),                SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"dealloc_sql",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_DEALLOCATE_PREPARE]),         SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"delete",               (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_DELETE]),                     SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"delete_multi",         (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_DELETE_MULTI]),               SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"do",                   (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_DO]),                         SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"drop_db",              (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_DROP_DB]),                    SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"drop_event",           (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_DROP_EVENT]),                 SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"drop_function",        (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_DROP_FUNCTION]),              SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"drop_index",           (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_DROP_INDEX]),                 SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"drop_procedure",       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_DROP_PROCEDURE]),             SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"drop_server",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_DROP_SERVER]),                SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"drop_table",           (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_DROP_TABLE]),                 SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"drop_trigger",         (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_DROP_TRIGGER]),               SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"drop_user",            (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_DROP_USER]),                  SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"drop_view",            (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_DROP_VIEW]),                  SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"empty_query",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_EMPTY_QUERY]),                SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"execute_sql",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_EXECUTE]),                    SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"explain_other",        (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_EXPLAIN_OTHER]),              SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"flush",                (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_FLUSH]),                      SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"get_diagnostics",      (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_GET_DIAGNOSTICS]),            SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"grant",                (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_GRANT]),                      SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"ha_close",             (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_HA_CLOSE]),                   SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"ha_open",              (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_HA_OPEN]),                    SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"ha_read",              (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_HA_READ]),                    SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"help",                 (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_HELP]),                       SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"insert",               (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_INSERT]),                     SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"insert_select",        (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_INSERT_SELECT]),              SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"install_plugin",       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_INSTALL_PLUGIN]),             SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"kill",                 (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_KILL]),                       SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"load",                 (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_LOAD]),                       SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"lock_tables",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_LOCK_TABLES]),                SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"optimize",             (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_OPTIMIZE]),                   SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"preload_keys",         (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_PRELOAD_KEYS]),               SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"prepare_sql",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_PREPARE]),                    SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"purge",                (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_PURGE]),                      SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"purge_before_date",    (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_PURGE_BEFORE]),               SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"release_savepoint",    (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_RELEASE_SAVEPOINT]),          SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"rename_table",         (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_RENAME_TABLE]),               SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"rename_user",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_RENAME_USER]),                SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"repair",               (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_REPAIR]),                     SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"replace",              (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_REPLACE]),                    SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"replace_select",       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_REPLACE_SELECT]),             SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"reset",                (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_RESET]),                      SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"resignal",             (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_RESIGNAL]),                   SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"revoke",               (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_REVOKE]),                     SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"revoke_all",           (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_REVOKE_ALL]),                 SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"rollback",             (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_ROLLBACK]),                   SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"rollback_to_savepoint",(char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_ROLLBACK_TO_SAVEPOINT]),      SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"savepoint",            (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SAVEPOINT]),                  SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"select",               (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SELECT]),                     SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"set_option",           (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SET_OPTION]),                 SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"signal",               (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SIGNAL]),                     SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"show_binlog_events",   (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_BINLOG_EVENTS]),         SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"show_binlogs",         (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_BINLOGS]),               SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"show_charsets",        (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_CHARSETS]),              SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"show_collations",      (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_COLLATIONS]),            SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"show_create_db",       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_CREATE_DB]),             SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"show_create_event",    (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_CREATE_EVENT]),          SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"show_create_func",     (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_CREATE_FUNC]),           SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"show_create_proc",     (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_CREATE_PROC]),           SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"show_create_table",    (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_CREATE]),                SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"show_create_trigger",  (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_CREATE_TRIGGER]),        SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"show_databases",       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_DATABASES]),             SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"show_engine_logs",     (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_ENGINE_LOGS]),           SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"show_engine_mutex",    (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_ENGINE_MUTEX]),          SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"show_engine_status",   (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_ENGINE_STATUS]),         SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"show_events",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_EVENTS]),                SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"show_errors",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_ERRORS]),                SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"show_fields",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_FIELDS]),                SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"show_function_code",   (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_FUNC_CODE]),             SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"show_function_status", (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_STATUS_FUNC]),           SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"show_grants",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_GRANTS]),                SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"show_keys",            (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_KEYS]),                  SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"show_master_status",   (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_MASTER_STAT]),           SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"show_open_tables",     (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_OPEN_TABLES]),           SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"show_plugins",         (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_PLUGINS]),               SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"show_privileges",      (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_PRIVILEGES]),            SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"show_procedure_code",  (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_PROC_CODE]),             SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"show_procedure_status",(char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_STATUS_PROC]),           SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"show_processlist",     (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_PROCESSLIST]),           SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"show_profile",         (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_PROFILE]),               SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"show_profiles",        (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_PROFILES]),              SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"show_relaylog_events", (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_RELAYLOG_EVENTS]),       SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"show_slave_hosts",     (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_SLAVE_HOSTS]),           SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"show_slave_status",    (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_SLAVE_STAT]),            SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"show_status",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_STATUS]),                SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"show_storage_engines", (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_STORAGE_ENGINES]),       SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"show_table_status",    (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_TABLE_STATUS]),          SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"show_tables",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_TABLES]),                SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"show_triggers",        (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_TRIGGERS]),              SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"show_variables",       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_VARIABLES]),             SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"show_warnings",        (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_WARNS]),                 SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"show_create_user",     (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_CREATE_USER]),           SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"slave_start",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SLAVE_START]),                SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"slave_stop",           (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SLAVE_STOP]),                 SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"group_replication_start", (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_START_GROUP_REPLICATION]), SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"group_replication_stop",  (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_STOP_GROUP_REPLICATION]),  SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"stmt_execute",         (char*) offsetof(STATUS_VAR, com_stmt_execute),                                   SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"stmt_close",           (char*) offsetof(STATUS_VAR, com_stmt_close),                                     SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"stmt_fetch",           (char*) offsetof(STATUS_VAR, com_stmt_fetch),                                     SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"stmt_prepare",         (char*) offsetof(STATUS_VAR, com_stmt_prepare),                                   SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"stmt_reprepare",       (char*) offsetof(STATUS_VAR, com_stmt_reprepare),                                 SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"stmt_reset",           (char*) offsetof(STATUS_VAR, com_stmt_reset),                                     SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"stmt_send_long_data",  (char*) offsetof(STATUS_VAR, com_stmt_send_long_data),                            SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"truncate",             (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_TRUNCATE]),                   SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"uninstall_plugin",     (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_UNINSTALL_PLUGIN]),           SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"unlock_tables",        (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_UNLOCK_TABLES]),              SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"update",               (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_UPDATE]),                     SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"update_multi",         (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_UPDATE_MULTI]),               SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"xa_commit",            (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_XA_COMMIT]),                  SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"xa_end",               (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_XA_END]),                     SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"xa_prepare",           (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_XA_PREPARE]),                 SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"xa_recover",           (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_XA_RECOVER]),                 SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"xa_rollback",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_XA_ROLLBACK]),                SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"xa_start",             (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_XA_START]),                   SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {NullS, NullS, SHOW_LONG, SHOW_SCOPE_ALL}
 };
 
 
@@ -4211,21 +4221,19 @@ a file name for --log-bin-index option", opt_binlog_index_name);
     unireg_abort(1);
   }
 
-  if (gtid_mode >= 1 && opt_bootstrap)
+  /// @todo: this looks suspicious, revisit this /sven
+  enum_gtid_mode gtid_mode= get_gtid_mode(GTID_MODE_LOCK_NONE);
+  if (gtid_mode != GTID_MODE_OFF && opt_bootstrap)
   {
     sql_print_warning("Bootstrap mode disables GTIDs. Bootstrap mode "
     "should only be used by mysql_install_db which initializes the MySQL "
     "data directory and creates system tables.");
-    gtid_mode= 0;
+    _gtid_mode= GTID_MODE_OFF;
   }
-  if (gtid_mode >= 2 && !enforce_gtid_consistency)
+  if (gtid_mode == GTID_MODE_ON &&
+      _gtid_consistency_mode != GTID_CONSISTENCY_MODE_ON)
   {
-    sql_print_error("--gtid-mode=ON or UPGRADE_STEP_1 requires --enforce-gtid-consistency");
-    unireg_abort(1);
-  }
-  if (gtid_mode == 1 || gtid_mode == 2)
-  {
-    sql_print_error("--gtid-mode=UPGRADE_STEP_1 or --gtid-mode=UPGRADE_STEP_2 are not yet supported");
+    sql_print_error("GTID_MODE = ON requires ENFORCE_GTID_CONSISTENCY = ON.");
     unireg_abort(1);
   }
 
@@ -4441,6 +4449,8 @@ int mysqld_main(int argc, char **argv)
       pfs_param.m_hints.m_max_connections= max_connections;
       pfs_param.m_hints.m_open_files_limit= requested_open_files;
       pfs_param.m_hints.m_max_prepared_stmt_count= max_prepared_stmt_count;
+      /* the performance schema digest size is the same as the SQL layer */
+      pfs_param.m_max_digest_length= max_digest_length;
       PSI_hook= initialize_performance_schema(&pfs_param);
       if (PSI_hook == NULL)
       {
@@ -4634,30 +4644,36 @@ int mysqld_main(int argc, char **argv)
   {
     if (init_server_auto_options())
     {
-      sql_print_error("Initialzation of the server's UUID failed because it could"
+      sql_print_error("Initialization of the server's UUID failed because it could"
                       " not be read from the auto.cnf file. If this is a new"
                       " server, the initialization failed because it was not"
                       " possible to generate a new UUID.");
       unireg_abort(1);
     }
 
-    Gtid_set *executed_gtids=
-      const_cast<Gtid_set *>(gtid_state->get_executed_gtids());
-    Gtid_set *lost_gtids=
-      const_cast<Gtid_set *>(gtid_state->get_lost_gtids());
+    /*
+      Add server_uuid to the sid_map.  This must be done after
+      server_uuid has been initialized in init_server_auto_options and
+      after the binary log (and sid_map file) has been initialized in
+      init_server_components().
+
+      No error message is needed: init_sid_map() prints a message.
+
+      Strictly speaking, this is not currently needed when
+      opt_bin_log==0, since the variables that gtid_state->init
+      initializes are not currently used in that case.  But we call it
+      regardless to avoid possible future bugs if gtid_state ever
+      needs to do anything else.
+    */
+    global_sid_lock->rdlock();
+    int ret= gtid_state->init();
+    global_sid_lock->unlock();
+    // Initialize executed_gtids from mysql.gtid_executed table.
+    if (gtid_state->read_gtid_executed_from_table() == -1)
+      unireg_abort(1);
+
     if (opt_bin_log)
     {
-      /*
-        Add server_uuid to the sid_map.  This must be done after
-        server_uuid has been initialized in init_server_auto_options and
-        after the binary log (and sid_map file) has been initialized in
-        init_server_components().
-
-        No error message is needed: init_sid_map() prints a message.
-      */
-      global_sid_lock->rdlock();
-      int ret= gtid_state->init();
-      global_sid_lock->unlock();
       if (ret)
         unireg_abort(1);
 
@@ -4665,32 +4681,36 @@ int mysqld_main(int argc, char **argv)
         Initialize GLOBAL.GTID_EXECUTED and GLOBAL.GTID_PURGED from
         gtid_executed table and binlog files during server startup.
       */
-      Gtid_set purged_gtids_binlog(global_sid_map, global_sid_lock);
-      Gtid_set logged_gtids_binlog(global_sid_map, global_sid_lock);
-      Gtid_set unsaved_gtids_in_table(global_sid_map, global_sid_lock);
+      Gtid_set *executed_gtids=
+        const_cast<Gtid_set *>(gtid_state->get_executed_gtids());
+      Gtid_set *lost_gtids=
+        const_cast<Gtid_set *>(gtid_state->get_lost_gtids());
       Gtid_set *gtids_only_in_table=
         const_cast<Gtid_set *>(gtid_state->get_gtids_only_in_table());
       Gtid_set *previous_gtids_logged=
         const_cast<Gtid_set *>(gtid_state->get_previous_gtids_logged());
 
-      if (mysql_bin_log.init_gtid_sets(&logged_gtids_binlog,
-                                       &purged_gtids_binlog,
+      Gtid_set purged_gtids_from_binlog(global_sid_map, global_sid_lock);
+      Gtid_set gtids_in_binlog(global_sid_map, global_sid_lock);
+      Gtid_set gtids_in_binlog_not_in_table(global_sid_map, global_sid_lock);
+
+      if (mysql_bin_log.init_gtid_sets(&gtids_in_binlog,
+                                       &purged_gtids_from_binlog,
                                        opt_master_verify_checksum,
                                        true/*true=need lock*/,
                                        NULL/*trx_parser*/,
                                        NULL/*gtid_partial_trx*/,
-                                       true/*is_server_starting*/) ||
-          gtid_state->fetch_gtids(executed_gtids) == -1)
+                                       true/*is_server_starting*/))
         unireg_abort(1);
 
       global_sid_lock->wrlock();
 
-      if (!logged_gtids_binlog.is_empty() &&
-          !logged_gtids_binlog.is_subset(executed_gtids))
+      if (!gtids_in_binlog.is_empty() &&
+          !gtids_in_binlog.is_subset(executed_gtids))
       {
-        unsaved_gtids_in_table.add_gtid_set(&logged_gtids_binlog);
+        gtids_in_binlog_not_in_table.add_gtid_set(&gtids_in_binlog);
         if (!executed_gtids->is_empty())
-          unsaved_gtids_in_table.remove_gtid_set(executed_gtids);
+          gtids_in_binlog_not_in_table.remove_gtid_set(executed_gtids);
         /*
           Save unsaved GTIDs into gtid_executed table, in the following
           four cases:
@@ -4705,37 +4725,38 @@ int mysqld_main(int argc, char **argv)
                gtid_executed table and executed_gtids during recovery
                from the crash.
         */
-        if (gtid_state->save(&unsaved_gtids_in_table) == -1)
+        if (gtid_state->save(&gtids_in_binlog_not_in_table) == -1)
         {
           global_sid_lock->unlock();
           unireg_abort(1);
         }
-        executed_gtids->add_gtid_set(&unsaved_gtids_in_table);
+        executed_gtids->add_gtid_set(&gtids_in_binlog_not_in_table);
       }
 
-      /* gtids_only_in_table= executed_gtids - logged_gtids_binlog */
+      /* gtids_only_in_table= executed_gtids - gtids_in_binlog */
       if (gtids_only_in_table->add_gtid_set(executed_gtids) !=
           RETURN_STATUS_OK)
       {
         global_sid_lock->unlock();
         unireg_abort(1);
       }
-      gtids_only_in_table->remove_gtid_set(&logged_gtids_binlog);
+      gtids_only_in_table->remove_gtid_set(&gtids_in_binlog);
       /*
         lost_gtids = executed_gtids -
-                     (logged_gtids_binlog - purged_gtids_binlog)
-                   = gtids_only_in_table + purged_gtids_binlog;
+                     (gtids_in_binlog - purged_gtids_from_binlog)
+                   = gtids_only_in_table + purged_gtids_from_binlog;
       */
       DBUG_ASSERT(lost_gtids->is_empty());
       if (lost_gtids->add_gtid_set(gtids_only_in_table) != RETURN_STATUS_OK ||
-          lost_gtids->add_gtid_set(&purged_gtids_binlog) != RETURN_STATUS_OK)
+          lost_gtids->add_gtid_set(&purged_gtids_from_binlog) !=
+          RETURN_STATUS_OK)
       {
         global_sid_lock->unlock();
         unireg_abort(1);
       }
 
       /* Prepare previous_gtids_logged for next binlog */
-      if (previous_gtids_logged->add_gtid_set(&logged_gtids_binlog) !=
+      if (previous_gtids_logged->add_gtid_set(&gtids_in_binlog) !=
           RETURN_STATUS_OK)
       {
         global_sid_lock->unlock();
@@ -4750,7 +4771,7 @@ int mysqld_main(int argc, char **argv)
 
         /Alfranio
       */
-      Previous_gtids_log_event prev_gtids_ev(&logged_gtids_binlog);
+      Previous_gtids_log_event prev_gtids_ev(&gtids_in_binlog);
 
       global_sid_lock->unlock();
 
@@ -4768,15 +4789,6 @@ int mysqld_main(int argc, char **argv)
       mysql_bin_log.update_binlog_end_pos();
 
       (void) RUN_HOOK(server_state, after_engine_recovery, (NULL));
-    }
-    else if (gtid_mode > GTID_MODE_OFF)
-    {
-      /*
-        If gtid_mode is enabled and binlog is disabled, initialize
-        executed_gtids from gtid_executed table.
-      */
-      if (gtid_state->fetch_gtids(executed_gtids) == -1)
-        unireg_abort(1);
     }
   }
 
@@ -4917,8 +4929,7 @@ int mysqld_main(int argc, char **argv)
 #endif
   start_handle_manager();
 
-  if (gtid_mode > GTID_MODE_UPGRADE_STEP_1)
-    create_compress_gtid_table_thread();
+  create_compress_gtid_table_thread();
 
   sql_print_information(ER_DEFAULT(ER_STARTUP),
                         my_progname,
@@ -4966,19 +4977,19 @@ int mysqld_main(int argc, char **argv)
 
   DBUG_PRINT("info", ("No longer listening for incoming connections"));
 
-  if (gtid_mode > GTID_MODE_UPGRADE_STEP_1)
-  {
-    terminate_compress_gtid_table_thread();
-    /*
-      Save set of GTIDs of the last binlog into gtid_executed table
-      on server shutdown.
-    */
+  terminate_compress_gtid_table_thread();
+  /*
+    Save set of GTIDs of the last binlog into gtid_executed table
+    on server shutdown.
+  */
+  if (opt_bin_log)
     if (gtid_state->save_gtids_of_last_binlog_into_table(false))
-      sql_print_warning("Failed to save set of GTIDs of the last binlog "
-                        "into gtid_executed table on server shutdown, "
-                        "so we save it into gtid_executed table and "
-                        "executed_gtids during next server startup.");
-  }
+      sql_print_warning("Failed to save the set of Global Transaction "
+                        "Identifiers of the last binary log into the "
+                        "mysql.gtid_executed table while the server was "
+                        "shutting down. The next server restart will make "
+                        "another attempt to save Global Transaction "
+                        "Identifiers into the table.");
 
 #ifndef _WIN32
   mysql_mutex_lock(&LOCK_socket_listener_active);
@@ -6125,7 +6136,37 @@ static int show_slave_rows_last_search_algorithm_used(THD *thd, SHOW_VAR *var, c
 
   return 0;
 }
+
+static int show_ongoing_automatic_gtid_violating_transaction_count(
+  THD *thd, SHOW_VAR *var, char *buf)
+{
+  var->type= SHOW_CHAR;
+  var->value= buf;
+  sprintf(buf, "%d",
+          gtid_state->get_automatic_gtid_violating_transaction_count());
+  return 0;
+}
+
+static int show_ongoing_anonymous_gtid_violating_transaction_count(
+  THD *thd, SHOW_VAR *var, char *buf)
+{
+  var->type= SHOW_CHAR;
+  var->value= buf;
+  sprintf(buf, "%d",
+          gtid_state->get_anonymous_gtid_violating_transaction_count());
+  return 0;
+}
+
 #endif
+
+static int show_ongoing_anonymous_transaction_count(
+  THD *thd, SHOW_VAR *var, char *buf)
+{
+  var->type= SHOW_CHAR;
+  var->value= buf;
+  sprintf(buf, "%d", gtid_state->get_anonymous_ownership_count());
+  return 0;
+}
 
 #endif /* HAVE_REPLICATION */
 
@@ -6523,160 +6564,172 @@ show_ssl_get_server_not_after(THD *thd, SHOW_VAR *var, char *buff)
 */
 
 SHOW_VAR status_vars[]= {
-  {"Aborted_clients",          (char*) &aborted_threads,        SHOW_LONG},
+  {"Aborted_clients",          (char*) &aborted_threads,                              SHOW_LONG,               SHOW_SCOPE_GLOBAL},
 #ifndef EMBEDDED_LIBRARY
-  {"Aborted_connects",         (char*) &show_aborted_connects,  SHOW_FUNC},
+  {"Aborted_connects",         (char*) &show_aborted_connects,                        SHOW_FUNC,               SHOW_SCOPE_GLOBAL},
 #endif
-  {"Binlog_cache_disk_use",    (char*) &binlog_cache_disk_use,  SHOW_LONG},
-  {"Binlog_cache_use",         (char*) &binlog_cache_use,       SHOW_LONG},
-  {"Binlog_stmt_cache_disk_use",(char*) &binlog_stmt_cache_disk_use,  SHOW_LONG},
-  {"Binlog_stmt_cache_use",    (char*) &binlog_stmt_cache_use,       SHOW_LONG},
-  {"Bytes_received",           (char*) offsetof(STATUS_VAR, bytes_received), SHOW_LONGLONG_STATUS},
-  {"Bytes_sent",               (char*) offsetof(STATUS_VAR, bytes_sent), SHOW_LONGLONG_STATUS},
-  {"Com",                      (char*) com_status_vars, SHOW_ARRAY},
-  {"Compression",              (char*) &show_net_compression, SHOW_FUNC},
-  {"Connections",              (char*) &show_thread_id_count, SHOW_FUNC},
-#ifndef EMBEDDED_LIBRARY
-  {"Connection_errors_accept",   (char*) &show_connection_errors_accept, SHOW_FUNC},
-  {"Connection_errors_internal", (char*) &connection_errors_internal, SHOW_LONG},
-  {"Connection_errors_max_connections", (char*) &show_connection_errors_max_connection, SHOW_FUNC},
-  {"Connection_errors_peer_address", (char*) &connection_errors_peer_addr, SHOW_LONG},
-  {"Connection_errors_select",   (char*) &show_connection_errors_select, SHOW_FUNC},
-  {"Connection_errors_tcpwrap",  (char*) &show_connection_errors_tcpwrap, SHOW_FUNC},
-#endif
-  {"Created_tmp_disk_tables",  (char*) offsetof(STATUS_VAR, created_tmp_disk_tables), SHOW_LONGLONG_STATUS},
-  {"Created_tmp_files",        (char*) &my_tmp_file_created, SHOW_LONG},
-  {"Created_tmp_tables",       (char*) offsetof(STATUS_VAR, created_tmp_tables), SHOW_LONGLONG_STATUS},
-  {"Delayed_errors",           (char*) &delayed_insert_errors,  SHOW_LONG},
-  {"Delayed_insert_threads",   (char*) &delayed_insert_threads, SHOW_LONG_NOFLUSH},
-  {"Delayed_writes",           (char*) &delayed_insert_writes,  SHOW_LONG},
-  {"Flush_commands",           (char*) &refresh_version,        SHOW_LONG_NOFLUSH},
-  {"Handler_commit",           (char*) offsetof(STATUS_VAR, ha_commit_count), SHOW_LONGLONG_STATUS},
-  {"Handler_delete",           (char*) offsetof(STATUS_VAR, ha_delete_count), SHOW_LONGLONG_STATUS},
-  {"Handler_discover",         (char*) offsetof(STATUS_VAR, ha_discover_count), SHOW_LONGLONG_STATUS},
-  {"Handler_external_lock",    (char*) offsetof(STATUS_VAR, ha_external_lock_count), SHOW_LONGLONG_STATUS},
-  {"Handler_mrr_init",         (char*) offsetof(STATUS_VAR, ha_multi_range_read_init_count),  SHOW_LONGLONG_STATUS},
-  {"Handler_prepare",          (char*) offsetof(STATUS_VAR, ha_prepare_count),  SHOW_LONGLONG_STATUS},
-  {"Handler_read_first",       (char*) offsetof(STATUS_VAR, ha_read_first_count), SHOW_LONGLONG_STATUS},
-  {"Handler_read_key",         (char*) offsetof(STATUS_VAR, ha_read_key_count), SHOW_LONGLONG_STATUS},
-  {"Handler_read_last",        (char*) offsetof(STATUS_VAR, ha_read_last_count), SHOW_LONGLONG_STATUS},
-  {"Handler_read_next",        (char*) offsetof(STATUS_VAR, ha_read_next_count), SHOW_LONGLONG_STATUS},
-  {"Handler_read_prev",        (char*) offsetof(STATUS_VAR, ha_read_prev_count), SHOW_LONGLONG_STATUS},
-  {"Handler_read_rnd",         (char*) offsetof(STATUS_VAR, ha_read_rnd_count), SHOW_LONGLONG_STATUS},
-  {"Handler_read_rnd_next",    (char*) offsetof(STATUS_VAR, ha_read_rnd_next_count), SHOW_LONGLONG_STATUS},
-  {"Handler_rollback",         (char*) offsetof(STATUS_VAR, ha_rollback_count), SHOW_LONGLONG_STATUS},
-  {"Handler_savepoint",        (char*) offsetof(STATUS_VAR, ha_savepoint_count), SHOW_LONGLONG_STATUS},
-  {"Handler_savepoint_rollback",(char*) offsetof(STATUS_VAR, ha_savepoint_rollback_count), SHOW_LONGLONG_STATUS},
-  {"Handler_update",           (char*) offsetof(STATUS_VAR, ha_update_count), SHOW_LONGLONG_STATUS},
-  {"Handler_write",            (char*) offsetof(STATUS_VAR, ha_write_count), SHOW_LONGLONG_STATUS},
-  {"Key_blocks_not_flushed",   (char*) offsetof(KEY_CACHE, global_blocks_changed), SHOW_KEY_CACHE_LONG},
-  {"Key_blocks_unused",        (char*) offsetof(KEY_CACHE, blocks_unused), SHOW_KEY_CACHE_LONG},
-  {"Key_blocks_used",          (char*) offsetof(KEY_CACHE, blocks_used), SHOW_KEY_CACHE_LONG},
-  {"Key_read_requests",        (char*) offsetof(KEY_CACHE, global_cache_r_requests), SHOW_KEY_CACHE_LONGLONG},
-  {"Key_reads",                (char*) offsetof(KEY_CACHE, global_cache_read), SHOW_KEY_CACHE_LONGLONG},
-  {"Key_write_requests",       (char*) offsetof(KEY_CACHE, global_cache_w_requests), SHOW_KEY_CACHE_LONGLONG},
-  {"Key_writes",               (char*) offsetof(KEY_CACHE, global_cache_write), SHOW_KEY_CACHE_LONGLONG},
-  {"Last_query_cost",          (char*) offsetof(STATUS_VAR, last_query_cost), SHOW_DOUBLE_STATUS},
-  {"Last_query_partial_plans", (char*) offsetof(STATUS_VAR, last_query_partial_plans), SHOW_LONGLONG_STATUS},
-  {"Max_statement_time_exceeded",   (char*) offsetof(STATUS_VAR, max_statement_time_exceeded), SHOW_LONG_STATUS},
-  {"Max_statement_time_set",        (char*) offsetof(STATUS_VAR, max_statement_time_set), SHOW_LONG_STATUS},
-  {"Max_statement_time_set_failed", (char*) offsetof(STATUS_VAR, max_statement_time_set_failed), SHOW_LONG_STATUS},
-  {"Max_used_connections",     (char*) &Connection_handler_manager::max_used_connections, SHOW_LONG},
-  {"Max_used_connections_time",(char*) &show_max_used_connections_time, SHOW_FUNC},
-  {"Not_flushed_delayed_rows", (char*) &delayed_rows_in_use,    SHOW_LONG_NOFLUSH},
-  {"Open_files",               (char*) &my_file_opened,         SHOW_LONG_NOFLUSH},
-  {"Open_streams",             (char*) &my_stream_opened,       SHOW_LONG_NOFLUSH},
-  {"Open_table_definitions",   (char*) &show_table_definitions, SHOW_FUNC},
-  {"Open_tables",              (char*) &show_open_tables,       SHOW_FUNC},
-  {"Opened_files",             (char*) &my_file_total_opened, SHOW_LONG_NOFLUSH},
-  {"Opened_tables",            (char*) offsetof(STATUS_VAR, opened_tables), SHOW_LONGLONG_STATUS},
-  {"Opened_table_definitions", (char*) offsetof(STATUS_VAR, opened_shares), SHOW_LONGLONG_STATUS},
-  {"Prepared_stmt_count",      (char*) &show_prepared_stmt_count, SHOW_FUNC},
-  {"Qcache_free_blocks",       (char*) &query_cache.free_memory_blocks, SHOW_LONG_NOFLUSH},
-  {"Qcache_free_memory",       (char*) &query_cache.free_memory, SHOW_LONG_NOFLUSH},
-  {"Qcache_hits",              (char*) &query_cache.hits,       SHOW_LONG},
-  {"Qcache_inserts",           (char*) &query_cache.inserts,    SHOW_LONG},
-  {"Qcache_lowmem_prunes",     (char*) &query_cache.lowmem_prunes, SHOW_LONG},
-  {"Qcache_not_cached",        (char*) &query_cache.refused,    SHOW_LONG},
-  {"Qcache_queries_in_cache",  (char*) &query_cache.queries_in_cache, SHOW_LONG_NOFLUSH},
-  {"Qcache_total_blocks",      (char*) &query_cache.total_blocks, SHOW_LONG_NOFLUSH},
-  {"Queries",                  (char*) &show_queries,            SHOW_FUNC},
-  {"Questions",                (char*) offsetof(STATUS_VAR, questions), SHOW_LONGLONG_STATUS},
-  {"Select_full_join",         (char*) offsetof(STATUS_VAR, select_full_join_count), SHOW_LONGLONG_STATUS},
-  {"Select_full_range_join",   (char*) offsetof(STATUS_VAR, select_full_range_join_count), SHOW_LONGLONG_STATUS},
-  {"Select_range",             (char*) offsetof(STATUS_VAR, select_range_count), SHOW_LONGLONG_STATUS},
-  {"Select_range_check",       (char*) offsetof(STATUS_VAR, select_range_check_count), SHOW_LONGLONG_STATUS},
-  {"Select_scan",	       (char*) offsetof(STATUS_VAR, select_scan_count), SHOW_LONGLONG_STATUS},
-  {"Slave_open_temp_tables",   (char*) &slave_open_temp_tables, SHOW_INT},
 #ifdef HAVE_REPLICATION
-  {"Slave_retried_transactions",(char*) &show_slave_retried_trans, SHOW_FUNC},
-  {"Slave_heartbeat_period",   (char*) &show_heartbeat_period, SHOW_FUNC},
-  {"Slave_received_heartbeats",(char*) &show_slave_received_heartbeats, SHOW_FUNC},
-  {"Slave_last_heartbeat",     (char*) &show_slave_last_heartbeat, SHOW_FUNC},
 #ifndef DBUG_OFF
-  {"Slave_rows_last_search_algorithm_used",(char*) &show_slave_rows_last_search_algorithm_used, SHOW_FUNC},
+  {"Ongoing_anonymous_gtid_violating_transaction_count",(char*) &show_ongoing_anonymous_gtid_violating_transaction_count, SHOW_FUNC, SHOW_SCOPE_GLOBAL},
+#endif//!DBUG_OFF
+  {"Ongoing_anonymous_transaction_count",(char*) &show_ongoing_anonymous_transaction_count, SHOW_FUNC, SHOW_SCOPE_GLOBAL},
+#ifndef DBUG_OFF
+  {"Ongoing_automatic_gtid_violating_transaction_count",(char*) &show_ongoing_automatic_gtid_violating_transaction_count, SHOW_FUNC, SHOW_SCOPE_GLOBAL},
+#endif//!DBUG_OFF
+#endif//HAVE_REPLICATION
+  {"Binlog_cache_disk_use",    (char*) &binlog_cache_disk_use,                        SHOW_LONG,               SHOW_SCOPE_GLOBAL},
+  {"Binlog_cache_use",         (char*) &binlog_cache_use,                             SHOW_LONG,               SHOW_SCOPE_GLOBAL},
+  {"Binlog_stmt_cache_disk_use",(char*) &binlog_stmt_cache_disk_use,                  SHOW_LONG,               SHOW_SCOPE_GLOBAL},
+  {"Binlog_stmt_cache_use",    (char*) &binlog_stmt_cache_use,                        SHOW_LONG,               SHOW_SCOPE_GLOBAL},
+  {"Bytes_received",           (char*) offsetof(STATUS_VAR, bytes_received),          SHOW_LONGLONG_STATUS,    SHOW_SCOPE_ALL},
+  {"Bytes_sent",               (char*) offsetof(STATUS_VAR, bytes_sent),              SHOW_LONGLONG_STATUS,    SHOW_SCOPE_ALL},
+  {"Com",                      (char*) com_status_vars,                               SHOW_ARRAY,              SHOW_SCOPE_ALL},
+  {"Compression",              (char*) &show_net_compression,                         SHOW_FUNC,               SHOW_SCOPE_SESSION},
+  {"Connections",              (char*) &show_thread_id_count,                         SHOW_FUNC,               SHOW_SCOPE_GLOBAL},
+#ifndef EMBEDDED_LIBRARY
+  {"Connection_errors_accept",   (char*) &show_connection_errors_accept,              SHOW_FUNC,               SHOW_SCOPE_GLOBAL},
+  {"Connection_errors_internal", (char*) &connection_errors_internal,                 SHOW_LONG,               SHOW_SCOPE_GLOBAL},
+  {"Connection_errors_max_connections",   (char*) &show_connection_errors_max_connection, SHOW_FUNC,           SHOW_SCOPE_GLOBAL},
+  {"Connection_errors_peer_address", (char*) &connection_errors_peer_addr,            SHOW_LONG,               SHOW_SCOPE_GLOBAL},
+  {"Connection_errors_select",   (char*) &show_connection_errors_select,              SHOW_FUNC,               SHOW_SCOPE_GLOBAL},
+  {"Connection_errors_tcpwrap",  (char*) &show_connection_errors_tcpwrap,             SHOW_FUNC,               SHOW_SCOPE_GLOBAL},
 #endif
-  {"Slave_running",            (char*) &show_slave_running,     SHOW_FUNC},
+  {"Created_tmp_disk_tables",  (char*) offsetof(STATUS_VAR, created_tmp_disk_tables), SHOW_LONGLONG_STATUS,    SHOW_SCOPE_ALL},
+  {"Created_tmp_files",        (char*) &my_tmp_file_created,                          SHOW_LONG,               SHOW_SCOPE_GLOBAL},
+  {"Created_tmp_tables",       (char*) offsetof(STATUS_VAR, created_tmp_tables),      SHOW_LONGLONG_STATUS,    SHOW_SCOPE_ALL},
+  {"Delayed_errors",           (char*) &delayed_insert_errors,                        SHOW_LONG,               SHOW_SCOPE_GLOBAL},
+  {"Delayed_insert_threads",   (char*) &delayed_insert_threads,                       SHOW_LONG_NOFLUSH,       SHOW_SCOPE_GLOBAL},
+  {"Delayed_writes",           (char*) &delayed_insert_writes,                        SHOW_LONG,               SHOW_SCOPE_GLOBAL},
+  {"Flush_commands",           (char*) &refresh_version,                              SHOW_LONG_NOFLUSH,       SHOW_SCOPE_GLOBAL},
+  {"Handler_commit",           (char*) offsetof(STATUS_VAR, ha_commit_count),         SHOW_LONGLONG_STATUS,    SHOW_SCOPE_ALL},
+  {"Handler_delete",           (char*) offsetof(STATUS_VAR, ha_delete_count),         SHOW_LONGLONG_STATUS,    SHOW_SCOPE_ALL},
+  {"Handler_discover",         (char*) offsetof(STATUS_VAR, ha_discover_count),       SHOW_LONGLONG_STATUS,    SHOW_SCOPE_ALL},
+  {"Handler_external_lock",    (char*) offsetof(STATUS_VAR, ha_external_lock_count),  SHOW_LONGLONG_STATUS,    SHOW_SCOPE_ALL},
+  {"Handler_mrr_init",         (char*) offsetof(STATUS_VAR, ha_multi_range_read_init_count), SHOW_LONGLONG_STATUS, SHOW_SCOPE_ALL},
+  {"Handler_prepare",          (char*) offsetof(STATUS_VAR, ha_prepare_count),        SHOW_LONGLONG_STATUS,    SHOW_SCOPE_ALL},
+  {"Handler_read_first",       (char*) offsetof(STATUS_VAR, ha_read_first_count),     SHOW_LONGLONG_STATUS,    SHOW_SCOPE_ALL},
+  {"Handler_read_key",         (char*) offsetof(STATUS_VAR, ha_read_key_count),       SHOW_LONGLONG_STATUS,    SHOW_SCOPE_ALL},
+  {"Handler_read_last",        (char*) offsetof(STATUS_VAR, ha_read_last_count),      SHOW_LONGLONG_STATUS,    SHOW_SCOPE_ALL},
+  {"Handler_read_next",        (char*) offsetof(STATUS_VAR, ha_read_next_count),      SHOW_LONGLONG_STATUS,    SHOW_SCOPE_ALL},
+  {"Handler_read_prev",        (char*) offsetof(STATUS_VAR, ha_read_prev_count),      SHOW_LONGLONG_STATUS,    SHOW_SCOPE_ALL},
+  {"Handler_read_rnd",         (char*) offsetof(STATUS_VAR, ha_read_rnd_count),       SHOW_LONGLONG_STATUS,    SHOW_SCOPE_ALL},
+  {"Handler_read_rnd_next",    (char*) offsetof(STATUS_VAR, ha_read_rnd_next_count),  SHOW_LONGLONG_STATUS,    SHOW_SCOPE_ALL},
+  {"Handler_rollback",         (char*) offsetof(STATUS_VAR, ha_rollback_count),       SHOW_LONGLONG_STATUS,    SHOW_SCOPE_ALL},
+  {"Handler_savepoint",        (char*) offsetof(STATUS_VAR, ha_savepoint_count),      SHOW_LONGLONG_STATUS,    SHOW_SCOPE_ALL},
+  {"Handler_savepoint_rollback",(char*) offsetof(STATUS_VAR, ha_savepoint_rollback_count), SHOW_LONGLONG_STATUS, SHOW_SCOPE_ALL},
+  {"Handler_update",           (char*) offsetof(STATUS_VAR, ha_update_count),         SHOW_LONGLONG_STATUS,    SHOW_SCOPE_ALL},
+  {"Handler_write",            (char*) offsetof(STATUS_VAR, ha_write_count),          SHOW_LONGLONG_STATUS,    SHOW_SCOPE_ALL},
+  {"Key_blocks_not_flushed",   (char*) offsetof(KEY_CACHE, global_blocks_changed),    SHOW_KEY_CACHE_LONG,     SHOW_SCOPE_GLOBAL},
+  {"Key_blocks_unused",        (char*) offsetof(KEY_CACHE, blocks_unused),            SHOW_KEY_CACHE_LONG,     SHOW_SCOPE_GLOBAL},
+  {"Key_blocks_used",          (char*) offsetof(KEY_CACHE, blocks_used),              SHOW_KEY_CACHE_LONG,     SHOW_SCOPE_GLOBAL},
+  {"Key_read_requests",        (char*) offsetof(KEY_CACHE, global_cache_r_requests),  SHOW_KEY_CACHE_LONGLONG, SHOW_SCOPE_GLOBAL},
+  {"Key_reads",                (char*) offsetof(KEY_CACHE, global_cache_read),        SHOW_KEY_CACHE_LONGLONG, SHOW_SCOPE_GLOBAL},
+  {"Key_write_requests",       (char*) offsetof(KEY_CACHE, global_cache_w_requests),  SHOW_KEY_CACHE_LONGLONG, SHOW_SCOPE_GLOBAL},
+  {"Key_writes",               (char*) offsetof(KEY_CACHE, global_cache_write),       SHOW_KEY_CACHE_LONGLONG, SHOW_SCOPE_GLOBAL},
+  {"Last_query_cost",          (char*) offsetof(STATUS_VAR, last_query_cost),         SHOW_DOUBLE_STATUS,      SHOW_SCOPE_SESSION},
+  {"Last_query_partial_plans", (char*) offsetof(STATUS_VAR, last_query_partial_plans),SHOW_LONGLONG_STATUS,    SHOW_SCOPE_SESSION},
+#ifndef EMBEDDED_LIBRARY
+  {"Locked_connects",          (char*) &locked_account_connection_count,              SHOW_LONG,               SHOW_SCOPE_GLOBAL},
+#endif
+  {"Max_statement_time_exceeded",   (char*) offsetof(STATUS_VAR, max_statement_time_exceeded),   SHOW_LONGLONG_STATUS, SHOW_SCOPE_ALL},
+  {"Max_statement_time_set",        (char*) offsetof(STATUS_VAR, max_statement_time_set),        SHOW_LONGLONG_STATUS, SHOW_SCOPE_ALL},
+  {"Max_statement_time_set_failed", (char*) offsetof(STATUS_VAR, max_statement_time_set_failed), SHOW_LONGLONG_STATUS, SHOW_SCOPE_ALL},
+  {"Max_used_connections",     (char*) &Connection_handler_manager::max_used_connections,        SHOW_LONG,        SHOW_SCOPE_GLOBAL},
+  {"Max_used_connections_time",(char*) &show_max_used_connections_time,               SHOW_FUNC,               SHOW_SCOPE_GLOBAL},
+  {"Not_flushed_delayed_rows", (char*) &delayed_rows_in_use,                          SHOW_LONG_NOFLUSH,       SHOW_SCOPE_GLOBAL},
+  {"Open_files",               (char*) &my_file_opened,                               SHOW_LONG_NOFLUSH,       SHOW_SCOPE_GLOBAL},
+  {"Open_streams",             (char*) &my_stream_opened,                             SHOW_LONG_NOFLUSH,       SHOW_SCOPE_GLOBAL},
+  {"Open_table_definitions",   (char*) &show_table_definitions,                       SHOW_FUNC,               SHOW_SCOPE_GLOBAL},
+  {"Open_tables",              (char*) &show_open_tables,                             SHOW_FUNC,               SHOW_SCOPE_ALL},
+  {"Opened_files",             (char*) &my_file_total_opened,                         SHOW_LONG_NOFLUSH,       SHOW_SCOPE_GLOBAL},
+  {"Opened_tables",            (char*) offsetof(STATUS_VAR, opened_tables),           SHOW_LONGLONG_STATUS,    SHOW_SCOPE_ALL},
+  {"Opened_table_definitions", (char*) offsetof(STATUS_VAR, opened_shares),           SHOW_LONGLONG_STATUS,    SHOW_SCOPE_ALL},
+  {"Prepared_stmt_count",      (char*) &show_prepared_stmt_count,                     SHOW_FUNC,               SHOW_SCOPE_GLOBAL},
+  {"Qcache_free_blocks",       (char*) &query_cache.free_memory_blocks,               SHOW_LONG_NOFLUSH,       SHOW_SCOPE_GLOBAL},
+  {"Qcache_free_memory",       (char*) &query_cache.free_memory,                      SHOW_LONG_NOFLUSH,       SHOW_SCOPE_GLOBAL},
+  {"Qcache_hits",              (char*) &query_cache.hits,                             SHOW_LONG,               SHOW_SCOPE_GLOBAL},
+  {"Qcache_inserts",           (char*) &query_cache.inserts,                          SHOW_LONG,               SHOW_SCOPE_GLOBAL},
+  {"Qcache_lowmem_prunes",     (char*) &query_cache.lowmem_prunes,                    SHOW_LONG,               SHOW_SCOPE_GLOBAL},
+  {"Qcache_not_cached",        (char*) &query_cache.refused,                          SHOW_LONG,               SHOW_SCOPE_GLOBAL},
+  {"Qcache_queries_in_cache",  (char*) &query_cache.queries_in_cache,                 SHOW_LONG_NOFLUSH,       SHOW_SCOPE_GLOBAL},
+  {"Qcache_total_blocks",      (char*) &query_cache.total_blocks,                     SHOW_LONG_NOFLUSH,       SHOW_SCOPE_GLOBAL},
+  {"Queries",                  (char*) &show_queries,                                 SHOW_FUNC,               SHOW_SCOPE_ALL},
+  {"Questions",                (char*) offsetof(STATUS_VAR, questions),               SHOW_LONGLONG_STATUS,    SHOW_SCOPE_ALL},
+  {"Select_full_join",         (char*) offsetof(STATUS_VAR, select_full_join_count),  SHOW_LONGLONG_STATUS,    SHOW_SCOPE_ALL},
+  {"Select_full_range_join",   (char*) offsetof(STATUS_VAR, select_full_range_join_count), SHOW_LONGLONG_STATUS, SHOW_SCOPE_ALL},
+  {"Select_range",             (char*) offsetof(STATUS_VAR, select_range_count),       SHOW_LONGLONG_STATUS,   SHOW_SCOPE_ALL},
+  {"Select_range_check",       (char*) offsetof(STATUS_VAR, select_range_check_count), SHOW_LONGLONG_STATUS,   SHOW_SCOPE_ALL},
+  {"Select_scan",	       (char*) offsetof(STATUS_VAR, select_scan_count),              SHOW_LONGLONG_STATUS,   SHOW_SCOPE_ALL},
+  {"Slave_open_temp_tables",   (char*) &slave_open_temp_tables,                        SHOW_INT,               SHOW_SCOPE_GLOBAL},
+#ifdef HAVE_REPLICATION
+  {"Slave_retried_transactions",(char*) &show_slave_retried_trans,                     SHOW_FUNC,              SHOW_SCOPE_GLOBAL},
+  {"Slave_heartbeat_period",   (char*) &show_heartbeat_period,                         SHOW_FUNC,              SHOW_SCOPE_GLOBAL},
+  {"Slave_received_heartbeats",(char*) &show_slave_received_heartbeats,                SHOW_FUNC,              SHOW_SCOPE_GLOBAL},
+  {"Slave_last_heartbeat",     (char*) &show_slave_last_heartbeat,                     SHOW_FUNC,              SHOW_SCOPE_GLOBAL},
+#ifndef DBUG_OFF
+  {"Slave_rows_last_search_algorithm_used",(char*) &show_slave_rows_last_search_algorithm_used, SHOW_FUNC,     SHOW_SCOPE_GLOBAL},
+#endif
+  {"Slave_running",            (char*) &show_slave_running,                            SHOW_FUNC,              SHOW_SCOPE_GLOBAL},
 #endif
 #ifndef EMBEDDED_LIBRARY
-  {"Slow_launch_threads",      (char*) &Per_thread_connection_handler::slow_launch_threads, SHOW_LONG},
+  {"Slow_launch_threads",      (char*) &Per_thread_connection_handler::slow_launch_threads, SHOW_LONG,         SHOW_SCOPE_ALL},
 #endif
-  {"Slow_queries",             (char*) offsetof(STATUS_VAR, long_query_count), SHOW_LONGLONG_STATUS},
-  {"Sort_merge_passes",        (char*) offsetof(STATUS_VAR, filesort_merge_passes), SHOW_LONGLONG_STATUS},
-  {"Sort_range",               (char*) offsetof(STATUS_VAR, filesort_range_count), SHOW_LONGLONG_STATUS},
-  {"Sort_rows",                (char*) offsetof(STATUS_VAR, filesort_rows), SHOW_LONGLONG_STATUS},
-  {"Sort_scan",                (char*) offsetof(STATUS_VAR, filesort_scan_count), SHOW_LONGLONG_STATUS},
+  {"Slow_queries",             (char*) offsetof(STATUS_VAR, long_query_count),         SHOW_LONGLONG_STATUS,   SHOW_SCOPE_ALL},
+  {"Sort_merge_passes",        (char*) offsetof(STATUS_VAR, filesort_merge_passes),    SHOW_LONGLONG_STATUS,   SHOW_SCOPE_ALL},
+  {"Sort_range",               (char*) offsetof(STATUS_VAR, filesort_range_count),     SHOW_LONGLONG_STATUS,   SHOW_SCOPE_ALL},
+  {"Sort_rows",                (char*) offsetof(STATUS_VAR, filesort_rows),            SHOW_LONGLONG_STATUS,   SHOW_SCOPE_ALL},
+  {"Sort_scan",                (char*) offsetof(STATUS_VAR, filesort_scan_count),      SHOW_LONGLONG_STATUS,   SHOW_SCOPE_ALL},
 #ifdef HAVE_OPENSSL
 #ifndef EMBEDDED_LIBRARY
-  {"Ssl_accept_renegotiates",  (char*) &show_ssl_ctx_sess_accept_renegotiate, SHOW_FUNC},
-  {"Ssl_accepts",              (char*) &show_ssl_ctx_sess_accept, SHOW_FUNC},
-  {"Ssl_callback_cache_hits",  (char*) &show_ssl_ctx_sess_cb_hits, SHOW_FUNC},
-  {"Ssl_cipher",               (char*) &show_ssl_get_cipher, SHOW_FUNC},
-  {"Ssl_cipher_list",          (char*) &show_ssl_get_cipher_list, SHOW_FUNC},
-  {"Ssl_client_connects",      (char*) &show_ssl_ctx_sess_connect, SHOW_FUNC},
-  {"Ssl_connect_renegotiates", (char*) &show_ssl_ctx_sess_connect_renegotiate, SHOW_FUNC},
-  {"Ssl_ctx_verify_depth",     (char*) &show_ssl_ctx_get_verify_depth, SHOW_FUNC},
-  {"Ssl_ctx_verify_mode",      (char*) &show_ssl_ctx_get_verify_mode, SHOW_FUNC},
-  {"Ssl_default_timeout",      (char*) &show_ssl_get_default_timeout, SHOW_FUNC},
-  {"Ssl_finished_accepts",     (char*) &show_ssl_ctx_sess_accept_good, SHOW_FUNC},
-  {"Ssl_finished_connects",    (char*) &show_ssl_ctx_sess_connect_good, SHOW_FUNC},
-  {"Ssl_session_cache_hits",   (char*) &show_ssl_ctx_sess_hits, SHOW_FUNC},
-  {"Ssl_session_cache_misses", (char*) &show_ssl_ctx_sess_misses, SHOW_FUNC},
-  {"Ssl_session_cache_mode",   (char*) &show_ssl_ctx_get_session_cache_mode, SHOW_FUNC},
-  {"Ssl_session_cache_overflows", (char*) &show_ssl_ctx_sess_cache_full, SHOW_FUNC},
-  {"Ssl_session_cache_size",   (char*) &show_ssl_ctx_sess_get_cache_size, SHOW_FUNC},
-  {"Ssl_session_cache_timeouts", (char*) &show_ssl_ctx_sess_timeouts, SHOW_FUNC},
-  {"Ssl_sessions_reused",      (char*) &show_ssl_session_reused, SHOW_FUNC},
-  {"Ssl_used_session_cache_entries",(char*) &show_ssl_ctx_sess_number, SHOW_FUNC},
-  {"Ssl_verify_depth",         (char*) &show_ssl_get_verify_depth, SHOW_FUNC},
-  {"Ssl_verify_mode",          (char*) &show_ssl_get_verify_mode, SHOW_FUNC},
-  {"Ssl_version",              (char*) &show_ssl_get_version, SHOW_FUNC},
-  {"Ssl_server_not_before",    (char*) &show_ssl_get_server_not_before, SHOW_FUNC},
-  {"Ssl_server_not_after",     (char*) &show_ssl_get_server_not_after, SHOW_FUNC},
+  {"Ssl_accept_renegotiates",  (char*) &show_ssl_ctx_sess_accept_renegotiate,          SHOW_FUNC,              SHOW_SCOPE_GLOBAL},
+  {"Ssl_accepts",              (char*) &show_ssl_ctx_sess_accept,                      SHOW_FUNC,              SHOW_SCOPE_GLOBAL},
+  {"Ssl_callback_cache_hits",  (char*) &show_ssl_ctx_sess_cb_hits,                     SHOW_FUNC,              SHOW_SCOPE_GLOBAL},
+  {"Ssl_cipher",               (char*) &show_ssl_get_cipher,                           SHOW_FUNC,              SHOW_SCOPE_ALL},
+  {"Ssl_cipher_list",          (char*) &show_ssl_get_cipher_list,                      SHOW_FUNC,              SHOW_SCOPE_ALL},
+  {"Ssl_client_connects",      (char*) &show_ssl_ctx_sess_connect,                     SHOW_FUNC,              SHOW_SCOPE_GLOBAL},
+  {"Ssl_connect_renegotiates", (char*) &show_ssl_ctx_sess_connect_renegotiate,         SHOW_FUNC,              SHOW_SCOPE_GLOBAL},
+  {"Ssl_ctx_verify_depth",     (char*) &show_ssl_ctx_get_verify_depth,                 SHOW_FUNC,              SHOW_SCOPE_GLOBAL},
+  {"Ssl_ctx_verify_mode",      (char*) &show_ssl_ctx_get_verify_mode,                  SHOW_FUNC,              SHOW_SCOPE_GLOBAL},
+  {"Ssl_default_timeout",      (char*) &show_ssl_get_default_timeout,                  SHOW_FUNC,              SHOW_SCOPE_ALL},
+  {"Ssl_finished_accepts",     (char*) &show_ssl_ctx_sess_accept_good,                 SHOW_FUNC,              SHOW_SCOPE_GLOBAL},
+  {"Ssl_finished_connects",    (char*) &show_ssl_ctx_sess_connect_good,                SHOW_FUNC,              SHOW_SCOPE_GLOBAL},
+  {"Ssl_session_cache_hits",   (char*) &show_ssl_ctx_sess_hits,                        SHOW_FUNC,              SHOW_SCOPE_GLOBAL},
+  {"Ssl_session_cache_misses", (char*) &show_ssl_ctx_sess_misses,                      SHOW_FUNC,              SHOW_SCOPE_GLOBAL},
+  {"Ssl_session_cache_mode",   (char*) &show_ssl_ctx_get_session_cache_mode,           SHOW_FUNC,              SHOW_SCOPE_GLOBAL},
+  {"Ssl_session_cache_overflows", (char*) &show_ssl_ctx_sess_cache_full,               SHOW_FUNC,              SHOW_SCOPE_GLOBAL},
+  {"Ssl_session_cache_size",   (char*) &show_ssl_ctx_sess_get_cache_size,              SHOW_FUNC,              SHOW_SCOPE_GLOBAL},
+  {"Ssl_session_cache_timeouts", (char*) &show_ssl_ctx_sess_timeouts,                  SHOW_FUNC,              SHOW_SCOPE_GLOBAL},
+  {"Ssl_sessions_reused",      (char*) &show_ssl_session_reused,                       SHOW_FUNC,              SHOW_SCOPE_ALL},
+  {"Ssl_used_session_cache_entries",(char*) &show_ssl_ctx_sess_number,                 SHOW_FUNC,              SHOW_SCOPE_GLOBAL},
+  {"Ssl_verify_depth",         (char*) &show_ssl_get_verify_depth,                     SHOW_FUNC,              SHOW_SCOPE_ALL},
+  {"Ssl_verify_mode",          (char*) &show_ssl_get_verify_mode,                      SHOW_FUNC,              SHOW_SCOPE_ALL},
+  {"Ssl_version",              (char*) &show_ssl_get_version,                          SHOW_FUNC,              SHOW_SCOPE_ALL},
+  {"Ssl_server_not_before",    (char*) &show_ssl_get_server_not_before,                SHOW_FUNC,              SHOW_SCOPE_ALL},
+  {"Ssl_server_not_after",     (char*) &show_ssl_get_server_not_after,                 SHOW_FUNC,              SHOW_SCOPE_ALL},
 #ifndef HAVE_YASSL
-  {"Rsa_public_key",           (char*) &show_rsa_public_key, SHOW_FUNC},
+  {"Rsa_public_key",           (char*) &show_rsa_public_key,                           SHOW_FUNC,              SHOW_SCOPE_GLOBAL},
 #endif
 #endif
 #endif /* HAVE_OPENSSL */
-  {"Table_locks_immediate",    (char*) &locks_immediate,        SHOW_LONG},
-  {"Table_locks_waited",       (char*) &locks_waited,           SHOW_LONG},
-  {"Table_open_cache_hits",    (char*) offsetof(STATUS_VAR, table_open_cache_hits), SHOW_LONGLONG_STATUS},
-  {"Table_open_cache_misses",  (char*) offsetof(STATUS_VAR, table_open_cache_misses), SHOW_LONGLONG_STATUS},
-  {"Table_open_cache_overflows",(char*) offsetof(STATUS_VAR, table_open_cache_overflows), SHOW_LONGLONG_STATUS},
-  {"Tc_log_max_pages_used",    (char*) &tc_log_max_pages_used,  SHOW_LONG},
-  {"Tc_log_page_size",         (char*) &tc_log_page_size,       SHOW_LONG_NOFLUSH},
-  {"Tc_log_page_waits",        (char*) &tc_log_page_waits,      SHOW_LONG},
+  {"Table_locks_immediate",    (char*) &locks_immediate,                               SHOW_LONG,              SHOW_SCOPE_GLOBAL},
+  {"Table_locks_waited",       (char*) &locks_waited,                                  SHOW_LONG,              SHOW_SCOPE_GLOBAL},
+  {"Table_open_cache_hits",    (char*) offsetof(STATUS_VAR, table_open_cache_hits),    SHOW_LONGLONG_STATUS,   SHOW_SCOPE_ALL},
+  {"Table_open_cache_misses",  (char*) offsetof(STATUS_VAR, table_open_cache_misses),  SHOW_LONGLONG_STATUS,   SHOW_SCOPE_ALL},
+  {"Table_open_cache_overflows",(char*) offsetof(STATUS_VAR, table_open_cache_overflows), SHOW_LONGLONG_STATUS,SHOW_SCOPE_ALL},
+  {"Tc_log_max_pages_used",    (char*) &tc_log_max_pages_used,                         SHOW_LONG,              SHOW_SCOPE_GLOBAL},
+  {"Tc_log_page_size",         (char*) &tc_log_page_size,                              SHOW_LONG_NOFLUSH,      SHOW_SCOPE_GLOBAL},
+  {"Tc_log_page_waits",        (char*) &tc_log_page_waits,                             SHOW_LONG,              SHOW_SCOPE_GLOBAL},
 #ifndef EMBEDDED_LIBRARY
-  {"Threads_cached",           (char*) &Per_thread_connection_handler::blocked_pthread_count, SHOW_LONG_NOFLUSH},
+  {"Threads_cached",           (char*) &Per_thread_connection_handler::blocked_pthread_count, SHOW_LONG_NOFLUSH, SHOW_SCOPE_GLOBAL},
 #endif
-  {"Threads_connected",        (char*) &Connection_handler_manager::connection_count, SHOW_INT},
-  {"Threads_created",          (char*) &show_num_thread_created,   SHOW_FUNC},
-  {"Threads_running",          (char*) &show_num_thread_running,   SHOW_FUNC},
-  {"Uptime",                   (char*) &show_starttime,         SHOW_FUNC},
+  {"Threads_connected",        (char*) &Connection_handler_manager::connection_count,  SHOW_INT,               SHOW_SCOPE_GLOBAL},
+  {"Threads_created",          (char*) &show_num_thread_created,                       SHOW_FUNC,              SHOW_SCOPE_GLOBAL},
+  {"Threads_running",          (char*) &show_num_thread_running,                       SHOW_FUNC,              SHOW_SCOPE_GLOBAL},
+  {"Uptime",                   (char*) &show_starttime,                                SHOW_FUNC,              SHOW_SCOPE_GLOBAL},
 #ifdef ENABLED_PROFILING
-  {"Uptime_since_flush_status",(char*) &show_flushstatustime,   SHOW_FUNC},
+  {"Uptime_since_flush_status",(char*) &show_flushstatustime,                          SHOW_FUNC,              SHOW_SCOPE_GLOBAL},
 #endif
-  {NullS, NullS, SHOW_LONG}
+  {NullS, NullS, SHOW_LONG, SHOW_SCOPE_ALL}
 };
 
 void add_terminator(vector<my_option> *options)
@@ -7373,6 +7426,15 @@ pfs_error:
   case OPT_SHOW_OLD_TEMPORALS:
     push_deprecated_warn_no_replacement(NULL, "show_old_temporals");
     break;
+  case OPT_ENFORCE_GTID_CONSISTENCY:
+  {
+    const char *wrong_value=
+      fixup_enforce_gtid_consistency_command_line(argument);
+    if (wrong_value != NULL)
+      sql_print_warning("option 'enforce-gtid-consistency': value '%s' "
+                        "was not recognized. Setting enforce-gtid-consistency "
+                        "to OFF.", wrong_value);
+  }
   }
   return 0;
 }
@@ -8124,18 +8186,53 @@ static void delete_pid_file(myf flags)
 #endif /* EMBEDDED_LIBRARY */
 
 
-/** Clear most status variables. */
+/**
+  Reset status for all threads.
+*/
+class Reset_thd_status : public Do_THD_Impl
+{
+public:
+  Reset_thd_status(STATUS_VAR *global_status) : m_global_status(global_status) { }
+  virtual void operator()(THD *thd)
+  {
+    /* Add thread's status variabes to global status. */
+    add_to_status(m_global_status, &thd->status_var, true);
+    /* Reset thread's status variables. */
+    memset(&thd->status_var, 0, sizeof(thd->status_var));
+  }
+private:
+  STATUS_VAR* m_global_status;
+};
+
+/**
+  Reset global and session status variables.
+*/
 void refresh_status(THD *thd)
 {
   mysql_mutex_lock(&LOCK_status);
 
-  /* Add thread's status variabes to global status */
-  add_to_status(&global_status_var, &thd->status_var);
+  if (show_compatibility_56)
+  {
+    /* Add thread's status variables to global status. */
+    add_to_status(&global_status_var, &thd->status_var, true);
 
-  /* Reset thread's status variables */
-  memset(&thd->status_var, 0, sizeof(thd->status_var));
+    /* Reset current thread's status variables. */
+    memset(&thd->status_var, 0, sizeof(thd->status_var));
+  }
+  else
+  {
+    /* For all threads, add status to global status and then reset. */
+    Reset_thd_status reset_thd_status(&global_status_var);
+    Global_THD_manager::get_instance()->do_for_all_thd_copy(&reset_thd_status);
+#ifndef EMBEDDED_LIBRARY
+#ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
+    /* Reset aggregated status counters. */
+    reset_pfs_status_stats();
+#endif
+#endif
+  }
 
-  /* Reset some global variables */
+  /* Reset some global variables. */
   reset_status_vars();
 
   /* Reset the counters of all key caches (default and named). */
@@ -8178,6 +8275,7 @@ PSI_mutex_key key_BINLOG_LOCK_sync_queue;
 PSI_mutex_key key_BINLOG_LOCK_xids;
 PSI_mutex_key
   key_hash_filo_lock, key_LOCK_msr_map,
+  Gtid_state::key_gtid_executed_free_intervals_mutex,
   key_LOCK_crypt, key_LOCK_error_log,
   key_LOCK_gdl, key_LOCK_global_system_variables,
   key_LOCK_manager,
@@ -8186,6 +8284,7 @@ PSI_mutex_key
   key_LOCK_sql_slave_skip_counter,
   key_LOCK_slave_net_timeout,
   key_LOCK_system_variables_hash, key_LOCK_table_share, key_LOCK_thd_data,
+  key_LOCK_thd_sysvar,
   key_LOCK_user_conn, key_LOCK_uuid_generator, key_LOG_LOCK_log,
   key_master_info_data_lock, key_master_info_run_lock,
   key_master_info_sleep_lock, key_master_info_thd_lock,
@@ -8252,6 +8351,7 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_RELAYLOG_LOCK_xids, "MYSQL_RELAY_LOG::LOCK_xids", 0},
   { &key_hash_filo_lock, "hash_filo::lock", 0},
   { &key_LOCK_msr_map, "LOCK_msr_map", PSI_FLAG_GLOBAL},
+  { &Gtid_state::key_gtid_executed_free_intervals_mutex, "Gtid_state::gtid_executed::free_intervals_mutex", 0 },
   { &key_LOCK_crypt, "LOCK_crypt", PSI_FLAG_GLOBAL},
   { &key_LOCK_error_log, "LOCK_error_log", PSI_FLAG_GLOBAL},
   { &key_LOCK_gdl, "LOCK_gdl", PSI_FLAG_GLOBAL},
@@ -8273,6 +8373,7 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_LOCK_table_share, "LOCK_table_share", PSI_FLAG_GLOBAL},
   { &key_LOCK_thd_data, "THD::LOCK_thd_data", 0},
   { &key_LOCK_thd_query, "THD::LOCK_thd_query", 0},
+  { &key_LOCK_thd_sysvar, "THD::LOCK_thd_sysvar", 0},
   { &key_LOCK_user_conn, "LOCK_user_conn", PSI_FLAG_GLOBAL},
   { &key_LOCK_uuid_generator, "LOCK_uuid_generator", PSI_FLAG_GLOBAL},
   { &key_LOCK_sql_rand, "LOCK_sql_rand", PSI_FLAG_GLOBAL},
@@ -8313,7 +8414,8 @@ static PSI_mutex_info all_server_mutexes[]=
 PSI_rwlock_key key_rwlock_LOCK_grant, key_rwlock_LOCK_logger,
   key_rwlock_LOCK_sys_init_connect, key_rwlock_LOCK_sys_init_slave,
   key_rwlock_LOCK_system_variables_hash, key_rwlock_query_cache_query_lock,
-  key_rwlock_global_sid_lock, key_rwlock_proxy_users;
+  key_rwlock_global_sid_lock, key_rwlock_gtid_mode_lock,
+  key_rwlock_proxy_users;
 
 PSI_rwlock_key key_rwlock_Trans_delegate_lock;
 PSI_rwlock_key key_rwlock_Server_state_delegate_lock;
@@ -8339,6 +8441,7 @@ static PSI_rwlock_info all_server_rwlocks[]=
   { &key_rwlock_LOCK_system_variables_hash, "LOCK_system_variables_hash", PSI_FLAG_GLOBAL},
   { &key_rwlock_query_cache_query_lock, "Query_cache_query::lock", 0},
   { &key_rwlock_global_sid_lock, "gtid_commit_rollback", PSI_FLAG_GLOBAL},
+  { &key_rwlock_gtid_mode_lock, "gtid_mode_lock", PSI_FLAG_GLOBAL},
   { &key_rwlock_Trans_delegate_lock, "Trans_delegate::lock", PSI_FLAG_GLOBAL},
   { &key_rwlock_Server_state_delegate_lock, "Server_state_delegate::lock", PSI_FLAG_GLOBAL},
   { &key_rwlock_Binlog_storage_delegate_lock, "Binlog_storage_delegate::lock", PSI_FLAG_GLOBAL},

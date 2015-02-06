@@ -782,7 +782,7 @@ public:
     IGNORABLE_HEADER_LEN= 0,
     ROWS_HEADER_LEN_V2= 10,
     TRANSACTION_CONTEXT_HEADER_LEN= 18,
-    VIEW_CHANGE_HEADER_LEN= 52
+    VIEW_CHANGE_HEADER_LEN= 53
   }; // end enum_post_header_length
 protected:
   /**

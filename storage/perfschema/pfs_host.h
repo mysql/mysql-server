@@ -75,6 +75,7 @@ public:
   void aggregate_statements(void);
   void aggregate_transactions(void);
   void aggregate_memory(bool alive);
+  void aggregate_status(void);
   void aggregate_stats(void);
   void release(void);
 

@@ -157,7 +157,9 @@ set @@global.concurrent_insert = 0;
 # NOTE!! this test must come first! It's testing that the --event-scheduler
 # option with no argument in events_bugs-master.opt turns the scheduler on.
 
+--disable_warnings
 select * from information_schema.global_variables where variable_name like 'event_scheduler';
+--enable_warnings
 # Check that the event_scheduler is really running
 --source include/running_event_scheduler.inc
 

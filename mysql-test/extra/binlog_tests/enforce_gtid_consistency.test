@@ -1,0 +1,160 @@
+# ==== Purpose ====
+#
+# Test that GTID-consistency violations generate warnings or errors,
+# or pass with success, as expected.
+#
+# Generally, the following statement types are considered to be GTID
+# consistency violations:
+#
+#  1. DML statements that mix non-transactional updates with
+#     transactional updates. (Exception: non-transactional *temporary*
+#     tables do not count, in case the statement is logged in row
+#     format.)
+#
+#  2. Transactions that use non-transactional tables after having used
+#     transactional tables. (Exception: non-transactional *temporary*
+#     tables do not count, in case the statement is logged in row
+#     format.)
+#
+#  3. CREATE TABLE ... SELECT.
+#
+#  4. CREATE TEMPORARY TABLE or DROP TEMPORARY TABLE within a
+#     transaction
+#
+# A GTID-violating statement can pass with success, generate a
+# warning, or generate an error, according to the following rules:
+#
+#  1. If ENFORCE_GTID_CONSISTENCY=ON, or GTID_NEXT='UUID:NUMBER', or
+#     (GTID_NEXT='AUTOMATIC' and GTID_MODE=ON or ON_PERMISSIVE),
+#     generate an error.
+#
+#  2. Otherwise, if ENFORCE_GTID_CONSISTENCY=WARN, generate a warning.
+#
+#  3. Otherwise, statement should pass without warning or error.
+#
+# ==== Implementation ====
+#
+# Iterate over all values of enforce_gtid_consistency.
+# Iterate over all values of gtid_mode.
+# For each gtid_next in automatic, anonymus, and GTID:
+#   source $test_specification
+#
+# $test_specification must be set by the caller to one of:
+# - extra/binlog/enforce_gtid_consistency_temporary.test
+# - extra/binlog/enforce_gtid_consistency_create_select.test
+# - extra/binlog/enforce_gtid_consistency_trx_nontrx.test
+#
+# Each of
+# extra/binlog/enforce_gtid_consistency_[temporary|create_select|trx_nontrx].test
+# contains a number of specific test scenarios. Each test scenario has
+# a statement that will be tested. For some scenarios, the expectation
+# is that the statement violates GTID consistency, for other scenarios
+# the expectation is that the statement does not violate GTID
+# consistency.  Each scenario sources
+# extra/binlog_tests/enforce_gtid_consistency_statement.inc to execute
+# the statement and verify that the outcome is as expected.
+#
+# ==== References ====
+#
+# WL#3584: Global Transaction Identifiers
+# - Created the test.
+# WL#7083: GTIDs: set gtid_mode=ON online
+# - Rewrote the test to improve coverage and test new logic for
+#   enforce_gtid_consistency.
+
+# This test uses ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT
+# and ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT, which are
+# only define in debug mode.
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+
+--source include/have_myisam.inc
+--source include/have_innodb.inc
+--let $rpl_gtid_utils= 1
+--let $rpl_server_count= 1
+--let $rpl_topology= none
+--source include/rpl_init.inc
+
+--connection server_1
+
+# Disable warnings from binlog_format-unsafe statements, since they
+# confuses the logic for checking that a GTID-violation warning was
+# generated.
+--let $binlog_format= `SELECT @@SESSION.BINLOG_FORMAT`
+--let $binlog_direct_non_transactional_updates= `SELECT @@SESSION.BINLOG_DIRECT_NON_TRANSACTIONAL_UPDATES`
+SET @old_sql_notes= @@GLOBAL.SQL_NOTES;
+SET GLOBAL SQL_NOTES= 0;
+SET SESSION SQL_NOTES= 0;
+
+CALL mtr.add_suppression('Statement violates GTID consistency:');
+CALL mtr.add_suppression('Unsafe statement written to the binary log');
+
+--let $gtid_next_mask_mode= 1
+--let $gtid_next_connection= default
+
+--let $statement_connection= default
+--let $auxiliary_connection= server_1_1
+
+--connection $statement_connection
+
+# Foreach enforce_gtid_consistency = 0, 1, 2.
+--let $enforce_gtid_consistency= 0
+while ($enforce_gtid_consistency < 3)
+{
+  eval SET GLOBAL ENFORCE_GTID_CONSISTENCY = $enforce_gtid_consistency;
+  --let $enforce_gtid_consistency_text= `SELECT SUBSTRING_INDEX(SUBSTRING_INDEX('OFF,ERROR,WARN', ',', $enforce_gtid_consistency + 1), ',', -1)`
+
+  # Foreach gtid_mode = [3,] 2, 1, 0.
+  # 3 is only used when enforce_gtid_consistency=1.
+  SET GLOBAL GTID_MODE = OFF_PERMISSIVE;
+  SET GLOBAL GTID_MODE = ON_PERMISSIVE;
+  if ($enforce_gtid_consistency != 1)
+  {
+    --let $gtid_mode= 2
+  }
+  if ($enforce_gtid_consistency == 1)
+  {
+    --let $gtid_mode= 3
+    SET GLOBAL GTID_MODE = ON;
+  }
+  while ($gtid_mode >= 0)
+  {
+    eval SET GLOBAL GTID_MODE = $gtid_mode;
+    --let $gtid_mode_text= `SELECT SUBSTRING_INDEX(SUBSTRING_INDEX('OFF,OFF_PERMISSIVE,ON_PERMISSIVE,ON', ',', $gtid_mode + 1), ',', -1)`
+
+    --echo ######## ENFORCE_GTID_CONSISTENCY=$enforce_gtid_consistency_text GTID_MODE=$gtid_mode_text GTID_NEXT=AUTOMATIC ########
+    --let $gtid_next= AUTOMATIC
+    --let $violation_result= $enforce_gtid_consistency
+    if ($gtid_mode >= 2)
+    {
+      --let $violation_result= 1
+    }
+    --source $test_file
+
+    if ($gtid_mode < 3)
+    {
+      --echo ######## ENFORCE_GTID_CONSISTENCY=$enforce_gtid_consistency_text GTID_MODE=$gtid_mode_text GTID_NEXT=ANONYMOUS ########
+      --let $gtid_next= ANONYMOUS
+      --let $violation_result= $enforce_gtid_consistency
+      --source $test_file
+    }
+    if ($gtid_mode > 0)
+    {
+      --echo ######## ENFORCE_GTID_CONSISTENCY=$enforce_gtid_consistency_text GTID_MODE=$gtid_mode_text GTID_NEXT=GTID ########
+      --let $gtid_next= GTID
+      --let $violation_result= 1
+      --source $test_file
+    }
+
+    --dec $gtid_mode
+  }
+
+  --inc $enforce_gtid_consistency
+}
+
+--connection server_1
+
+SET GLOBAL ENFORCE_GTID_CONSISTENCY = OFF;
+SET GLOBAL SQL_NOTES = @old_sql_notes;
+
+--source include/rpl_end.inc

@@ -117,6 +117,9 @@ while ($_rpl_server)
   --echo **** SHOW PROCESSLIST on $CURRENT_CONNECTION ****
   SHOW PROCESSLIST;
   --echo
+  --echo **** SELECT * FROM performance_schema.threads ****
+  SELECT * FROM performance_schema.threads;
+  --echo
   --echo **** SHOW BINARY LOGS on $CURRENT_CONNECTION ****
   SHOW BINARY LOGS;
   --echo
@@ -135,6 +138,9 @@ while ($_rpl_server)
   --echo
   --echo **** slave_master_info on $CURRENT_CONNECTION ****
   SELECT * FROM mysql.slave_master_info;
+  --echo
+  --echo **** mysql.gtid_executed on $CURRENT_CONNECTION ****
+  SELECT * FROM mysql.gtid_executed;
 
   --let $_rpl_is_first_server= 0
   --dec $_rpl_server

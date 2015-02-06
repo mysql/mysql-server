@@ -1197,6 +1197,8 @@ THD::THD(bool enable_plugins)
 #endif
    skip_gtid_rollback(false),
    is_commit_in_middle_of_statement(false),
+   has_gtid_consistency_violation(false),
+   pending_gtid_state_update(false),
    main_da(false),
    m_parser_da(false),
    m_query_rewrite_plugin_da(false),
@@ -1263,6 +1265,7 @@ THD::THD(bool enable_plugins)
   active_vio = 0;
   mysql_mutex_init(key_LOCK_thd_data, &LOCK_thd_data, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_thd_query, &LOCK_thd_query, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_LOCK_thd_sysvar, &LOCK_thd_sysvar, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_query_plan, &LOCK_query_plan, MY_MUTEX_INIT_FAST);
 
   /* Variables with default values */
@@ -1318,6 +1321,14 @@ THD::THD(bool enable_plugins)
 #ifndef DBUG_OFF
   gis_debug= 0;
 #endif
+
+  m_token_array= NULL;
+  if (max_digest_length > 0)
+  {
+    m_token_array= (unsigned char*) my_malloc(PSI_INSTRUMENT_ME,
+                                              max_digest_length,
+                                              MYF(MY_WME));
+  }
 }
 
 
@@ -1706,7 +1717,7 @@ void THD::set_new_thread_id()
 void THD::cleanup_connection(void)
 {
   mysql_mutex_lock(&LOCK_status);
-  add_to_status(&global_status_var, &status_var);
+  add_to_status(&global_status_var, &status_var, true);
   mysql_mutex_unlock(&LOCK_status);
 
   cleanup();
@@ -1838,7 +1849,7 @@ void THD::release_resources()
   Global_THD_manager::get_instance()->release_thread_id(m_thread_id);
 
   mysql_mutex_lock(&LOCK_status);
-  add_to_status(&global_status_var, &status_var);
+  add_to_status(&global_status_var, &status_var, true);
   mysql_mutex_unlock(&LOCK_status);
 
   /* Ensure that no one is using THD */
@@ -1919,6 +1930,7 @@ THD::~THD()
   mysql_mutex_destroy(&LOCK_query_plan);
   mysql_mutex_destroy(&LOCK_thd_data);
   mysql_mutex_destroy(&LOCK_thd_query);
+  mysql_mutex_destroy(&LOCK_thd_sysvar);
 #ifndef DBUG_OFF
   dbug_sentry= THD_SENTRY_GONE;
 #endif
@@ -1939,7 +1951,11 @@ THD::~THD()
 #endif
 
   free_root(&main_mem_root, MYF(0));
-  
+
+  if (m_token_array != NULL)
+  {
+    my_free(m_token_array);
+  }
   DBUG_VOID_RETURN;
 }
 
@@ -1951,6 +1967,7 @@ THD::~THD()
    add_to_status()
    to_var       add to this array
    from_var     from this array
+   add_com_vars if true, then add COM variables
 
   NOTES
     This function assumes that all variables are longlong/ulonglong.
@@ -1958,21 +1975,24 @@ THD::~THD()
     the other variables after the while loop
 */
 
-void add_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var)
+void add_to_status(STATUS_VAR *to_var, const STATUS_VAR *from_var, bool add_com_vars)
 {
   int        c;
   ulonglong *end= (ulonglong*) ((uchar*) to_var +
-                                offsetof(STATUS_VAR, last_system_status_var) +
+                                offsetof(STATUS_VAR, LAST_STATUS_VAR) +
                                 sizeof(ulonglong));
   ulonglong *to= (ulonglong*) to_var, *from= (ulonglong*) from_var;
 
   while (to != end)
     *(to++)+= *(from++);
 
-  to_var->com_other+= from_var->com_other;
+  if (add_com_vars)
+  {
+    to_var->com_other+= from_var->com_other;
 
-  for (c= 0; c< SQLCOM_END; c++)
-    to_var->com_stat[(uint) c] += from_var->com_stat[(uint) c];
+    for (c= 0; c< SQLCOM_END; c++)
+      to_var->com_stat[(uint) c] += from_var->com_stat[(uint) c];
+  }
 }
 
 /*
@@ -1992,9 +2012,8 @@ void add_diff_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var,
                         STATUS_VAR *dec_var)
 {
   int        c;
-  ulonglong *end= (ulonglong*) ((uchar*) to_var + offsetof(STATUS_VAR,
-                                                           last_system_status_var) +
-                                sizeof(ulonglong));
+  ulonglong *end= (ulonglong*) ((uchar*) to_var + offsetof(STATUS_VAR, LAST_STATUS_VAR) +
+                                                  sizeof(ulonglong));
   ulonglong *to= (ulonglong*) to_var,
             *from= (ulonglong*) from_var,
             *dec= (ulonglong*) dec_var;
@@ -2291,8 +2310,13 @@ void THD::cleanup_after_query()
     binlog_accessed_db_names= NULL;
     m_trans_fixed_log_file= NULL;
 
-    if (gtid_mode > 0)
-      gtid_post_statement_checks(this);
+    /*
+      Strictly speaking this is only needed when GTID_MODE!=OFF.
+      However, we can only read gtid_mode while holding
+      global_sid_lock.  And gtid_post_statement_checks is very cheap,
+      so no point in calling it conditionally.
+    */
+    gtid_post_statement_checks(this);
 #ifndef EMBEDDED_LIBRARY
     /*
       Clean possible unused INSERT_ID events by current statement.

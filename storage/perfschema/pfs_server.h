@@ -236,6 +236,9 @@ struct PFS_global_param
 
   long m_metadata_lock_sizing;
 
+  ulong m_max_digest_length;
+  ulong m_max_sql_text_length;
+
   /** Sizing hints, for auto tuning. */
   PFS_sizing_hints m_hints;
 };
@@ -276,6 +279,11 @@ void pfs_automated_sizing(PFS_global_param *param);
 void initialize_performance_schema_acl(bool bootstrap);
 
 void check_performance_schema();
+
+/**
+  Reset the aggregated status counter stats.
+*/
+void reset_pfs_status_stats();
 
 /**
   Initialize the dynamic array holding individual instrument settings collected

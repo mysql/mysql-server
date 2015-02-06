@@ -19,5 +19,5 @@ SELECT @@performance_schema_consumer_events_stages_current;
 ERROR HY000: Unknown system variable 'performance_schema_consumer_events_stages_current'
 SET @@performance_schema_consumer_events_stages_current=0;
 ERROR HY000: Unknown system variable 'performance_schema_consumer_events_stages_current'
-SHOW VARIABLES LIKE "performance_schema_consumer%";
+SHOW GLOBAL VARIABLES LIKE "performance_schema_consumer%";
 Variable_name	Value

@@ -95,7 +95,16 @@ select * from performance_schema.replication_applier_configuration;
 select * from performance_schema.replication_applier_status;
 select * from performance_schema.replication_applier_status_by_coordinator;
 select * from performance_schema.replication_applier_status_by_worker;
-show variables like "performance_schema%";
+select * from performance_schema.global_status;
+select * from performance_schema.status_by_thread;
+select * from performance_schema.status_by_user;
+select * from performance_schema.status_by_host;
+select * from performance_schema.status_by_account;
+select * from performance_schema.session_status;
+select * from performance_schema.global_variables;
+select * from performance_schema.variables_by_thread;
+select * from performance_schema.session_variables;
+show global variables like "performance_schema%";
 Variable_name	Value
 performance_schema	ON
 performance_schema_accounts_size	100
@@ -125,6 +134,7 @@ performance_schema_max_rwlock_classes	40
 performance_schema_max_rwlock_instances	5000
 performance_schema_max_socket_classes	10
 performance_schema_max_socket_instances	1000
+performance_schema_max_sql_text_length	1024
 performance_schema_max_stage_classes	150
 performance_schema_max_statement_classes	191
 performance_schema_max_statement_stack	10
@@ -138,10 +148,10 @@ performance_schema_setup_actors_size	100
 performance_schema_setup_objects_size	100
 performance_schema_users_size	100
 show engine PERFORMANCE_SCHEMA status;
-show status like "performance_schema%";
+show global status like "performance_schema%";
 CREATE DATABASE db;
 USE db;
-show variables like "performance_schema_max_prepared_statements_instances";
+show global variables like "performance_schema_max_prepared_statements_instances";
 Variable_name	Value
 performance_schema_max_prepared_statements_instances	0
 select count(*) from performance_schema.prepared_statements_instances;
@@ -157,7 +167,7 @@ PREPARE st2 FROM @s;
 PREPARE st3 FROM 'INSERT INTO t1 SELECT * FROM t1 WHERE a<=?';
 PREPARE st4 FROM
 '(SELECT a FROM t1) UNION (SELECT a+10 FROM t1) ORDER BY RAND()*0+a';
-show status like "%performance_schema_prepared_statements_lost%";
+show global status like "%performance_schema_prepared_statements_lost%";
 Variable_name	Value
 Performance_schema_prepared_statements_lost	4
 SET @a = 3;
@@ -186,7 +196,7 @@ a
 42
 80
 90
-show status like "%performance_schema_prepared_statements_lost%";
+show global status like "%performance_schema_prepared_statements_lost%";
 Variable_name	Value
 Performance_schema_prepared_statements_lost	4
 DEALLOCATE PREPARE st1;
@@ -194,11 +204,11 @@ DEALLOCATE PREPARE st2;
 DEALLOCATE PREPARE st3;
 DEALLOCATE PREPARE st4;
 DROP TABLE t1;
-show status like "%performance_schema_prepared_statements_lost%";
+show global status like "%performance_schema_prepared_statements_lost%";
 Variable_name	Value
 Performance_schema_prepared_statements_lost	4
 flush status;
-show status like "%performance_schema_prepared_statements_lost%";
+show global status like "%performance_schema_prepared_statements_lost%";
 Variable_name	Value
 Performance_schema_prepared_statements_lost	0
 DROP DATABASE db;

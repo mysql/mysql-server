@@ -51,19 +51,19 @@ Show that we logged stuff at all:
 ------ from file ------
 SELECT TRIM(LEADING '\t' FROM MID(argument,LOCATE('Query',argument)+5)) FROM test_log WHERE argument LIKE '%AS %';
 TRIM(LEADING '\t' FROM MID(argument,LOCATE('Query',argument)+5))
-CREATE USER 'test_user1'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' PASSWORD EXPIRE DEFAULT
-CREATE USER 'test_user3'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' REQUIRE SSL PASSWORD EXPIRE DEFAULT
-ALTER USER 'test_user3'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' REQUIRE X509 WITH MAX_QUERIES_PER_HOUR 1 MAX_UPDATES_PER_HOUR 2 MAX_CONNECTIONS_PER_HOUR 3 MAX_USER_CONNECTIONS 4 PASSWORD EXPIRE DEFAULT
-CREATE USER 'test_user2'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' PASSWORD EXPIRE DEFAULT
-ALTER USER 'test_user4'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' PASSWORD EXPIRE DEFAULT
+CREATE USER 'test_user1'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
+CREATE USER 'test_user3'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' REQUIRE SSL PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
+ALTER USER 'test_user3'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' REQUIRE X509 WITH MAX_QUERIES_PER_HOUR 1 MAX_UPDATES_PER_HOUR 2 MAX_CONNECTIONS_PER_HOUR 3 MAX_USER_CONNECTIONS 4 PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
+CREATE USER 'test_user2'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
+ALTER USER 'test_user4'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
 ------ from table ------
 SELECT argument FROM mysql.general_log WHERE argument LIKE '%AS %';
 argument
-CREATE USER 'test_user1'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' PASSWORD EXPIRE DEFAULT
-CREATE USER 'test_user3'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' REQUIRE SSL PASSWORD EXPIRE DEFAULT
-ALTER USER 'test_user3'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' REQUIRE X509 WITH MAX_QUERIES_PER_HOUR 1 MAX_UPDATES_PER_HOUR 2 MAX_CONNECTIONS_PER_HOUR 3 MAX_USER_CONNECTIONS 4 PASSWORD EXPIRE DEFAULT
-CREATE USER 'test_user2'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' PASSWORD EXPIRE DEFAULT
-ALTER USER 'test_user4'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' PASSWORD EXPIRE DEFAULT
+CREATE USER 'test_user1'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
+CREATE USER 'test_user3'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' REQUIRE SSL PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
+ALTER USER 'test_user3'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' REQUIRE X509 WITH MAX_QUERIES_PER_HOUR 1 MAX_UPDATES_PER_HOUR 2 MAX_CONNECTIONS_PER_HOUR 3 MAX_USER_CONNECTIONS 4 PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
+CREATE USER 'test_user2'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
+ALTER USER 'test_user4'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
 ------ done ------
 ------ rewrite ------
 SELECT argument FROM mysql.general_log WHERE argument LIKE CONCAT('set ','character set %');

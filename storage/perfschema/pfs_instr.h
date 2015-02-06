@@ -54,7 +54,7 @@ class THD;
 
 extern PFS_single_stat *thread_instr_class_waits_array_start;
 extern PFS_single_stat *thread_instr_class_waits_array_end;
-
+extern my_bool show_compatibility_56;
 
 /**
   @addtogroup Performance_schema_buffers
@@ -323,6 +323,10 @@ struct PFS_ALIGNED PFS_metadata_lock : public PFS_instr
 
 /** Max size of the statements stack. */
 extern uint statement_stack_max;
+/** Max size of the digests token array. */
+extern uint pfs_max_digest_length;
+/** Max size of SQL TEXT. */
+extern uint pfs_max_sqltext;
 
 /** Instrumented thread implementation. @see PSI_thread. */
 struct PFS_ALIGNED PFS_thread : PFS_connection_slice
@@ -671,6 +675,11 @@ void aggregate_thread_transactions(PFS_thread *thread,
                                    PFS_host *safe_host);
 
 void aggregate_thread_memory(bool alive, PFS_thread *thread,
+                             PFS_account *safe_account,
+                             PFS_user *safe_user,
+                             PFS_host *safe_host);
+
+void aggregate_thread_status(PFS_thread *thread,
                              PFS_account *safe_account,
                              PFS_user *safe_user,
                              PFS_host *safe_host);

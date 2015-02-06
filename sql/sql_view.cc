@@ -1366,6 +1366,9 @@ bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *view_ref,
   thd->variables.sql_mode&= ~(MODE_PIPES_AS_CONCAT | MODE_ANSI_QUOTES |
                               MODE_IGNORE_SPACE | MODE_NO_BACKSLASH_ESCAPES);
 
+  if (thd->m_digest != NULL)
+    thd->m_digest->reset(thd->m_token_array, max_digest_length);
+
   // Parse the query text of the view
   result= parse_sql(thd, &parser_state, view_ref->view_creation_ctx);
 

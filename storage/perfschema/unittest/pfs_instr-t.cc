@@ -22,6 +22,8 @@
 #include <pfs_buffer_container.h>
 #include <tap.h>
 
+#include "stub_global_status_var.h"
+
 #include <memory.h>
 
 void test_no_instruments()
