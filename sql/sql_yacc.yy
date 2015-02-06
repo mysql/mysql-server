@@ -460,6 +460,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 
 %token  ABORT_SYM                     /* INTERNAL (used in lex) */
 %token  ACCESSIBLE_SYM
+%token  ACCOUNT_SYM
 %token  ACTION                        /* SQL-2003-N */
 %token  ADD                           /* SQL-2003-R */
 %token  ADDDATE_SYM                   /* MYSQL-FUNC */
@@ -1326,7 +1327,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
         part_column_list
         server_options_list server_option
         definer_opt no_definer definer get_diagnostics
-        alter_user_command
+        alter_user_command password_expire
         group_replication
 END_OF_INPUT
 
@@ -2310,7 +2311,7 @@ create:
           view_or_trigger_or_sp_or_event
           {}
         | CREATE USER clear_privileges grant_list require_clause
-                      connect_options password_expire_options
+                      connect_options opt_account_lock_password_expire_options
           {
             Lex->sql_command = SQLCOM_CREATE_USER;
           }
@@ -2571,7 +2572,7 @@ ev_sql_stmt_inner:
         ;
 
 clear_privileges:
-          /* Nothing */
+          clear_password_expire_options
           {
            LEX *lex=Lex;
            lex->users_list.empty();
@@ -2581,10 +2582,19 @@ clear_privileges:
            lex->select_lex->db= NULL;
            lex->ssl_type= SSL_TYPE_NOT_SPECIFIED;
            lex->ssl_cipher= lex->x509_subject= lex->x509_issuer= 0;
+           lex->alter_password.update_account_locked_column= false;
+           lex->alter_password.account_locked= false;
+           memset(&(lex->mqh), 0, sizeof(lex->mqh));
+         }
+        ;
+
+clear_password_expire_options:
+         /* Nothing */
+         {
+           LEX *lex=Lex;
            lex->alter_password.update_password_expired_column= false;
            lex->alter_password.use_default_password_lifetime= true;
            lex->alter_password.expire_after_days= 0;
-           memset(&(lex->mqh), 0, sizeof(lex->mqh));
          }
         ;
 
@@ -7532,7 +7542,7 @@ alter:
               new (YYTHD->mem_root) Sql_cmd_alter_server(&Lex->server_options);
           }
         | alter_user_command grant_list require_clause
-          connect_options password_expire_options
+          connect_options opt_account_lock_password_expire_options
         | alter_user_command user_func IDENTIFIED_SYM BY TEXT_STRING
           {
             $2->auth.str= $5.str;
@@ -7549,40 +7559,57 @@ alter_user_command:
           }
         ;
 
-password_expire_options:
+opt_account_lock_password_expire_options:
           /* empty */ {}
-        | PASSWORD EXPIRE_SYM
+        | opt_account_lock_password_expire_option_list
+        ;
+
+opt_account_lock_password_expire_option_list:
+          opt_account_lock_password_expire_option
+        | opt_account_lock_password_expire_option_list opt_account_lock_password_expire_option
+        ;
+
+opt_account_lock_password_expire_option:
+          ACCOUNT_SYM UNLOCK_SYM
+          {
+            LEX *lex=Lex;
+            lex->alter_password.update_account_locked_column= true;
+            lex->alter_password.account_locked= false;
+          }
+        | ACCOUNT_SYM LOCK_SYM
+          {
+            LEX *lex=Lex;
+            lex->alter_password.update_account_locked_column= true;
+            lex->alter_password.account_locked= true;
+          }
+        | password_expire
           {
             LEX *lex=Lex;
             lex->alter_password.update_password_expired_column= true;
           }
-        | PASSWORD EXPIRE_SYM INTERVAL_SYM real_ulong_num DAY_SYM
+        | password_expire INTERVAL_SYM real_ulong_num DAY_SYM
           {
-            if ($4 == 0 || $4 > UINT_MAX16)
+            LEX *lex=Lex;
+            if ($3 == 0 || $3 > UINT_MAX16)
             {
               char buf[MAX_BIGINT_WIDTH + 1];
-              my_snprintf(buf, sizeof(buf), "%lu", $4);
+              my_snprintf(buf, sizeof(buf), "%lu", $3);
               my_error(ER_WRONG_VALUE, MYF(0), "DAY", buf);
               MYSQL_YYABORT;
             }
-            LEX *lex=Lex;
-            lex->alter_password.update_password_expired_column= false;
-            lex->alter_password.expire_after_days= $4;
+            lex->alter_password.expire_after_days= $3;
             lex->alter_password.use_default_password_lifetime= false;
           }
-        | PASSWORD EXPIRE_SYM NEVER_SYM
+        | password_expire NEVER_SYM
           {
             LEX *lex=Lex;
-            lex->alter_password.update_password_expired_column= false;
-            lex->alter_password.expire_after_days= 0;
             lex->alter_password.use_default_password_lifetime= false;
           }
-        | PASSWORD EXPIRE_SYM DEFAULT
-          {
-            LEX *lex=Lex;
-            lex->alter_password.update_password_expired_column= false;
-            lex->alter_password.use_default_password_lifetime= true;
-          }
+        | password_expire DEFAULT
+        ;
+
+password_expire:
+          PASSWORD EXPIRE_SYM clear_password_expire_options {}
         ;
 
 connect_options:
@@ -13042,6 +13069,7 @@ user:
 /* Keyword that we allow for identifiers (except SP labels) */
 keyword:
           keyword_sp            {}
+        | ACCOUNT_SYM           {}
         | ASCII_SYM             {}
         | ALWAYS_SYM            {}
         | BACKUP_SYM            {}

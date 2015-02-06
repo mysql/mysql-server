@@ -464,6 +464,7 @@ my_bool log_bin_use_v1_row_events= 0;
 bool thread_cache_size_specified= false;
 bool host_cache_size_specified= false;
 bool table_definition_cache_specified= false;
+ulong locked_account_connection_count= 0;
 
 /**
   Limit of the total number of prepared statements in the server.
@@ -6627,6 +6628,9 @@ SHOW_VAR status_vars[]= {
   {"Key_writes",               (char*) offsetof(KEY_CACHE, global_cache_write),       SHOW_KEY_CACHE_LONGLONG, SHOW_SCOPE_GLOBAL},
   {"Last_query_cost",          (char*) offsetof(STATUS_VAR, last_query_cost),         SHOW_DOUBLE_STATUS,      SHOW_SCOPE_SESSION},
   {"Last_query_partial_plans", (char*) offsetof(STATUS_VAR, last_query_partial_plans),SHOW_LONGLONG_STATUS,    SHOW_SCOPE_SESSION},
+#ifndef EMBEDDED_LIBRARY
+  {"Locked_connects",          (char*) &locked_account_connection_count, SHOW_LONG },
+#endif
   {"Max_statement_time_exceeded",   (char*) offsetof(STATUS_VAR, max_statement_time_exceeded),   SHOW_LONGLONG_STATUS, SHOW_SCOPE_ALL},
   {"Max_statement_time_set",        (char*) offsetof(STATUS_VAR, max_statement_time_set),        SHOW_LONGLONG_STATUS, SHOW_SCOPE_ALL},
   {"Max_statement_time_set_failed", (char*) offsetof(STATUS_VAR, max_statement_time_set_failed), SHOW_LONGLONG_STATUS, SHOW_SCOPE_ALL},

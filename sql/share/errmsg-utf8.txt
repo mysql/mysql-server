@@ -7429,6 +7429,10 @@ ER_CANT_SET_ENFORCE_GTID_CONSISTENCY_ON_WITH_ONGOING_GTID_VIOLATING_TRANSACTIONS
 ER_SET_ENFORCE_GTID_CONSISTENCY_WARN_WITH_ONGOING_GTID_VIOLATING_TRANSACTIONS
   eng "There are ongoing transactions that violate GTID consistency."
 
+ER_ACCOUNT_HAS_BEEN_LOCKED
+  eng "Access denied for user '%-.48s'@'%-.64s'. Account is locked."
+  pol "Odmowa dostępu dla użytkownika '%-.48s'@'%-.64s'. Konto zablokowane."
+
 #
 #  End of 5.7 error messages.
 #

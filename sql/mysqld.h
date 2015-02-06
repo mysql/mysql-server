@@ -243,6 +243,7 @@ extern my_bool opt_slave_sql_verify_checksum;
 extern uint gtid_executed_compression_period;
 extern my_bool binlog_gtid_simple_recovery;
 extern ulong binlog_error_action;
+extern ulong locked_account_connection_count;
 enum enum_binlog_error_action
 {
   /// Ignore the error and let server continue without binlogging
