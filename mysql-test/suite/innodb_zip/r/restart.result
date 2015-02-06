@@ -147,9 +147,9 @@ t6_restart	CREATE TABLE `t6_restart` (
   PRIMARY KEY (`c1`)
 ) ENGINE=InnoDB AUTO_INCREMENT=17 DEFAULT CHARSET=latin1 ROW_FORMAT=COMPRESSED
 /*!50100 PARTITION BY HASH (c1)
-(PARTITION p0 DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir' ENGINE = InnoDB,
- PARTITION p1 DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir' ENGINE = InnoDB,
- PARTITION p2 DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir' ENGINE = InnoDB) */
+(PARTITION p0 DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir/' ENGINE = InnoDB,
+ PARTITION p1 DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir/' ENGINE = InnoDB,
+ PARTITION p2 DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir/' ENGINE = InnoDB) */
 SELECT count(*) FROM t6_restart;
 count(*)
 16
@@ -185,11 +185,11 @@ t7_restart	CREATE TABLE `t7_restart` (
 /*!50100 PARTITION BY RANGE (c1)
 SUBPARTITION BY HASH (c1)
 (PARTITION p0 VALUES LESS THAN (10)
- (SUBPARTITION s0 DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir' ENGINE = InnoDB,
-  SUBPARTITION s1 DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir' ENGINE = InnoDB),
+ (SUBPARTITION s0 DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir/' ENGINE = InnoDB,
+  SUBPARTITION s1 DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir/' ENGINE = InnoDB),
  PARTITION p1 VALUES LESS THAN MAXVALUE
- (SUBPARTITION s2 DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir' ENGINE = InnoDB,
-  SUBPARTITION s3 DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir' ENGINE = InnoDB)) */
+ (SUBPARTITION s2 DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir/' ENGINE = InnoDB,
+  SUBPARTITION s3 DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir/' ENGINE = InnoDB)) */
 SELECT count(*) FROM t7_restart;
 count(*)
 16
@@ -261,13 +261,11 @@ t6_restart#p#p0.isl
 t6_restart#p#p1.isl
 t6_restart#p#p2.isl
 t6_restart.frm
-t6_restart.par
 t7_restart#p#p0#sp#s0.isl
 t7_restart#p#p0#sp#s1.isl
 t7_restart#p#p1#sp#s2.isl
 t7_restart#p#p1#sp#s3.isl
 t7_restart.frm
-t7_restart.par
 ---- MYSQL_TMP_DIR/alt_dir
 test
 ---- MYSQL_TMP_DIR/alt_dir/test
@@ -536,13 +534,11 @@ t6_restart#p#p0.isl
 t6_restart#p#p1.isl
 t6_restart#p#p2.isl
 t6_restart.frm
-t6_restart.par
 t7_restart#p#p0#sp#s0.isl
 t7_restart#p#p0#sp#s1.isl
 t7_restart#p#p1#sp#s2.isl
 t7_restart#p#p1#sp#s3.isl
 t7_restart.frm
-t7_restart.par
 ---- MYSQL_TMP_DIR/alt_dir/test
 t5_restart.ibd
 t5_restart.ibd.bak
@@ -639,13 +635,11 @@ t6_restart#p#p0.isl
 t6_restart#p#p1.isl
 t6_restart#p#p2.isl
 t6_restart.frm
-t6_restart.par
 t7_restart#p#p0#sp#s0.isl
 t7_restart#p#p0#sp#s1.isl
 t7_restart#p#p1#sp#s2.isl
 t7_restart#p#p1#sp#s3.isl
 t7_restart.frm
-t7_restart.par
 ---- MYSQL_TMP_DIR/alt_dir/test
 t5_restart.ibd
 t6_restart#p#p0.ibd
@@ -736,13 +730,11 @@ t66_restart#p#p0.isl
 t66_restart#p#p1.isl
 t66_restart#p#p2.isl
 t66_restart.frm
-t66_restart.par
 t77_restart#p#p0#sp#s0.isl
 t77_restart#p#p0#sp#s1.isl
 t77_restart#p#p1#sp#s2.isl
 t77_restart#p#p1#sp#s3.isl
 t77_restart.frm
-t77_restart.par
 ---- MYSQL_TMP_DIR/alt_dir/test
 t55_restart.ibd
 t66_restart#p#p0.ibd
@@ -840,13 +832,11 @@ t66_restart#p#p0.isl
 t66_restart#p#p1.isl
 t66_restart#p#p2.isl
 t66_restart.frm
-t66_restart.par
 t77_restart#p#p0#sp#s0.isl
 t77_restart#p#p0#sp#s1.isl
 t77_restart#p#p1#sp#s2.isl
 t77_restart#p#p1#sp#s3.isl
 t77_restart.frm
-t77_restart.par
 ---- MYSQL_TMP_DIR/alt_dir/test
 t55_restart.ibd
 t66_restart#p#p0.ibd
@@ -870,13 +860,11 @@ t66_restart#p#p0.isl
 t66_restart#p#p1.isl
 t66_restart#p#p2.isl
 t66_restart.frm
-t66_restart.par
 t77_restart#p#p0#sp#s0.isl
 t77_restart#p#p0#sp#s1.isl
 t77_restart#p#p1#sp#s2.isl
 t77_restart#p#p1#sp#s3.isl
 t77_restart.frm
-t77_restart.par
 ---- MYSQL_TMP_DIR/alt_dir/test
 ---- MYSQL_TMP_DIR/new_dir/test
 t4_restart.ibd
@@ -987,13 +975,11 @@ t66_restart#p#p0.isl
 t66_restart#p#p1.isl
 t66_restart#p#p2.isl
 t66_restart.frm
-t66_restart.par
 t77_restart#p#p0#sp#s0.isl
 t77_restart#p#p0#sp#s1.isl
 t77_restart#p#p1#sp#s2.isl
 t77_restart#p#p1#sp#s3.isl
 t77_restart.frm
-t77_restart.par
 ---- MYSQL_TMP_DIR/new_dir/test
 t4_restart.ibd
 t55_restart.ibd
@@ -1017,13 +1003,11 @@ t66_restart#p#p0.ibd
 t66_restart#p#p1.ibd
 t66_restart#p#p2.ibd
 t66_restart.frm
-t66_restart.par
 t77_restart#p#p0#sp#s0.ibd
 t77_restart#p#p0#sp#s1.ibd
 t77_restart#p#p1#sp#s2.ibd
 t77_restart#p#p1#sp#s3.ibd
 t77_restart.frm
-t77_restart.par
 ---- MYSQL_TMP_DIR/new_dir/test
 #
 # Start the server and check tablespaces.

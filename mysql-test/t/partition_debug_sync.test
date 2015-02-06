@@ -183,11 +183,6 @@ connection default;
 reap;
 SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 't1';
 
-# TODO: Move this to wl#6035/partition_debug_sync_innodb.test
-# It will fall back to 'old' innodb auto inc locking and timeout
-# unless we have wl#6035, same as before wl#4807.
-if (0)
-{
 --echo #
 --echo # Test with INSERT SELECT
 --echo #
@@ -231,8 +226,6 @@ connection default;
 --echo # Reaping: INSERT INTO t1 SELECT * FROM t2;
 reap;
 SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 't1';
-DROP TABLE t2;
-}
 
 disconnect con1;
-DROP TABLE t1;
+DROP TABLE t1, t2;

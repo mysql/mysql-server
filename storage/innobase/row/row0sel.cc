@@ -3640,6 +3640,35 @@ row_sel_copy_cached_field_for_mysql(
 	ut_memcpy(buf, cache, len);
 }
 
+/** Copy used fields from cached row.
+Copy cache record field by field, don't touch fields that
+are not covered by current key.
+@param[out]	buf		Where to copy the MySQL row.
+@param[in]	cached_rec	What to copy (in MySQL row format).
+@param[in]	prebuilt	prebuilt struct. */
+void
+row_sel_copy_cached_fields_for_mysql(
+	byte*		buf,
+	const byte*	cached_rec,
+	row_prebuilt_t*	prebuilt)
+{
+	const mysql_row_templ_t*templ;
+	ulint			i;
+	for (i = 0; i < prebuilt->n_template; i++) {
+		templ = prebuilt->mysql_template + i;
+		row_sel_copy_cached_field_for_mysql(
+			buf, cached_rec, templ);
+		/* Copy NULL bit of the current field from cached_rec
+		to buf */
+		if (templ->mysql_null_bit_mask) {
+			buf[templ->mysql_null_byte_offset]
+				^= (buf[templ->mysql_null_byte_offset]
+				    ^ cached_rec[templ->mysql_null_byte_offset])
+				& (byte) templ->mysql_null_bit_mask;
+		}
+	}
+}
+
 /********************************************************************//**
 Pops a cached row for MySQL from the fetch cache. */
 UNIV_INLINE
@@ -3651,7 +3680,6 @@ row_sel_dequeue_cached_row_for_mysql(
 	row_prebuilt_t*	prebuilt)	/*!< in: prebuilt struct */
 {
 	ulint			i;
-	const mysql_row_templ_t*templ;
 	const byte*		cached_rec;
 	ut_ad(prebuilt->n_fetch_cached > 0);
 	ut_ad(prebuilt->mysql_prefix_len <= prebuilt->mysql_row_len);
@@ -3661,22 +3689,7 @@ row_sel_dequeue_cached_row_for_mysql(
 	cached_rec = prebuilt->fetch_cache[prebuilt->fetch_cache_first];
 
 	if (UNIV_UNLIKELY(prebuilt->keep_other_fields_on_keyread)) {
-		/* Copy cache record field by field, don't touch fields that
-		are not covered by current key */
-
-		for (i = 0; i < prebuilt->n_template; i++) {
-			templ = prebuilt->mysql_template + i;
-			row_sel_copy_cached_field_for_mysql(
-				buf, cached_rec, templ);
-			/* Copy NULL bit of the current field from cached_rec
-			to buf */
-			if (templ->mysql_null_bit_mask) {
-				buf[templ->mysql_null_byte_offset]
-					^= (buf[templ->mysql_null_byte_offset]
-					    ^ cached_rec[templ->mysql_null_byte_offset])
-					& (byte) templ->mysql_null_bit_mask;
-			}
-		}
+		row_sel_copy_cached_fields_for_mysql(buf, cached_rec, prebuilt);
 	} else if (prebuilt->mysql_prefix_len > 63) {
 		/* The record is long. Copy it field by field, in case
 		there are some long VARCHAR column of which only a

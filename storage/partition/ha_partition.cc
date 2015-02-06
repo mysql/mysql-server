@@ -56,8 +56,6 @@
 #define MYSQL_SERVER 1
 #include "sql_parse.h"                          // append_file_to_dir
 #include "partition_info.h"                  // partition_info
-#include "sql_partition.h"                   // part_id_range
-#include "partitioning/partition_handler.h"  // Partition_helper
 #include "ha_partition.h"
 #include "sql_table.h"                        // tablename_to_filename
 #include "key.h"                             // key_rec_cmp, field_unpack
@@ -262,11 +260,14 @@ static handler *partition_create_handler(handlerton *hton,
   HA_CAN_EXCHANGE_PARTITION:
   Set if the handler can exchange a partition with a non-partitioned table
   of the same handlerton/engine.
+
+  HA_CANNOT_PARTITION_FK:
+  Set if the handler does not support foreign keys on partitioned tables.
 */
 
 static uint partition_flags()
 {
-  return HA_CAN_EXCHANGE_PARTITION;
+  return HA_CAN_EXCHANGE_PARTITION | HA_CANNOT_PARTITION_FK;
 }
 
 const uint32 ha_partition::NO_CURRENT_PART_ID= NOT_A_PARTITION_ID;
@@ -283,9 +284,8 @@ const uint32 ha_partition::NO_CURRENT_PART_ID= NOT_A_PARTITION_ID;
 */
 
 ha_partition::ha_partition(handlerton *hton, TABLE_SHARE *share)
-  :handler(hton, share),
-  Partition_helper(hton, share),
-  m_part_handler(this)
+  : handler(hton, share),
+  Partition_helper(this)
 {
   DBUG_ENTER("ha_partition::ha_partition(table)");
   init_handler_variables();
@@ -309,9 +309,8 @@ ha_partition::ha_partition(handlerton *hton, TABLE_SHARE *share,
                            partition_info *part_info_arg,
                            ha_partition *clone_arg,
                            MEM_ROOT *clone_mem_root_arg)
-  :handler(hton, share),
-  Partition_helper(hton, share),
-  m_part_handler(this)
+  : handler(hton, share),
+  Partition_helper(this)
 {
   DBUG_ENTER("ha_partition::ha_partition(clone)");
   init_handler_variables();
@@ -1909,6 +1908,7 @@ bool ha_partition::new_handlers_from_part_info(MEM_ROOT *mem_root)
   m_file_tot_parts= m_tot_parts;
   memset(m_file, 0, alloc_len);
   DBUG_ASSERT(m_part_info->num_parts > 0);
+  DBUG_ASSERT(m_part_info->num_parts == m_part_info->partitions.elements);
 
   i= 0;
   part_count= 0;
@@ -2001,6 +2001,7 @@ bool ha_partition::read_par_file(const char *name)
     goto err2;
   m_tot_parts= uint4korr((file_buffer) + PAR_NUM_PARTS_OFFSET);
   DBUG_PRINT("info", ("No of parts = %u", m_tot_parts));
+  DBUG_ASSERT(!m_file_tot_parts || m_file_tot_parts == m_tot_parts);
   tot_partition_words= (m_tot_parts + PAR_WORD_SIZE - 1) / PAR_WORD_SIZE;
 
   tot_name_len_offset= file_buffer + PAR_ENGINES_OFFSET +
@@ -2330,11 +2331,11 @@ int ha_partition::open(const char *name, int mode, uint test_if_locked)
   }
   unlock_shared_ha_data();
 
-  m_rec0= table->record[0];
   if (open_partitioning(part_share))
   {
     goto err;
   }
+  DBUG_ASSERT(!m_file_tot_parts || m_file_tot_parts == m_tot_parts);
   if (!m_part_ids_sorted_by_num_of_records)
   {
     if (!(m_part_ids_sorted_by_num_of_records=
@@ -3095,7 +3096,7 @@ int ha_partition::truncate()
   ALTER TABLE t TRUNCATE PARTITION ...
 */
 
-int ha_partition::truncate_partition()
+int ha_partition::truncate_partition_low()
 {
   int error= 0;
   List_iterator<partition_element> part_it(m_part_info->partitions);
@@ -3381,7 +3382,7 @@ int ha_partition::rnd_next_in_part(uint part_id, uchar *buf)
   Partition_helper::return_top_record()).
 */
 
-void ha_partition::position_in_part(uchar *ref, const uchar *record)
+void ha_partition::position_in_last_part(uchar *ref, const uchar *record)
 {
   handler *file= m_file[m_last_part];
   file->position(record);
@@ -3414,26 +3415,6 @@ void ha_partition::position_in_part(uchar *ref, const uchar *record)
 int ha_partition::rnd_pos_in_part(uint part_id, uchar *buf, uchar *pos)
 {
   return m_file[part_id]->ha_rnd_pos(buf, pos);
-}
-
-
-/**
-  Read row from partition using position using given record to find.
-
-  this works as position()+rnd_pos() functions, but does some extra work,
-  calculating m_last_part - the partition to where the 'record' should go.
-
-  @param part_id  Partition to read from.
-  @param record   Current record in MySQL Row Format.
-
-  @return Operation status.
-    @retval    0  Success
-    @retval != 0  Error code
-*/
-
-int ha_partition::rnd_pos_by_record_in_part(uint part_id, uchar *record)
-{
-  return handler::rnd_pos_by_record(record);
 }
 
 
@@ -4592,7 +4573,7 @@ int ha_partition::extra(enum ha_extra_function operation)
     /* If not PK is set as secondary sort, do secondary sort by rowid/ref. */
     if (!m_curr_key_info[1])
     {
-      m_sec_sort_by_rowid= true;
+      m_ref_usage= Partition_helper::REF_USED_FOR_SORT;
       m_queue->m_fun= key_and_ref_cmp;
     }
     break;
@@ -5640,7 +5621,7 @@ int ha_partition::cmp_ref(const uchar *ref1, const uchar *ref2)
   DBUG_ENTER("ha_partition::cmp_ref");
 
   cmp = m_file[0]->cmp_ref((ref1 + PARTITION_BYTES_IN_POS),
-			   (ref2 + PARTITION_BYTES_IN_POS));
+                           (ref2 + PARTITION_BYTES_IN_POS));
   if (cmp)
     DBUG_RETURN(cmp);
 
@@ -5698,9 +5679,7 @@ Item *ha_partition::idx_cond_push(uint keyno, Item* idx_cond)
   DBUG_ENTER("ha_partition::idx_cond_push");
   DBUG_EXECUTE("where", print_where(idx_cond, "cond", QT_ORDINARY););
   DBUG_PRINT("info", ("keyno: %u, active_index: %u", keyno, active_index));
-  DBUG_ASSERT(!m_icp_in_use);
-
-  m_icp_in_use= true;
+  DBUG_ASSERT(pushed_idx_cond == NULL);
 
   for (i= m_part_info->get_first_used_partition();
        i < m_tot_parts;
@@ -5729,7 +5708,6 @@ Item *ha_partition::idx_cond_push(uint keyno, Item* idx_cond)
       DBUG_RETURN(idx_cond);
     }
   }
-  DBUG_ASSERT(pushed_idx_cond == NULL);
   DBUG_ASSERT(pushed_idx_cond_keyno == MAX_KEY);
   pushed_idx_cond= idx_cond;
   pushed_idx_cond_keyno= keyno;
@@ -5743,8 +5721,6 @@ void ha_partition::cancel_pushed_idx_cond()
 {
   uint i;
   DBUG_ENTER("ha_partition::cancel_pushed_idx_cond");
-  if (!m_icp_in_use)
-    DBUG_VOID_RETURN;
   if (pushed_idx_cond)
   {
     for (i= m_part_info->get_first_used_partition();
@@ -5754,10 +5730,9 @@ void ha_partition::cancel_pushed_idx_cond()
       m_file[i]->cancel_pushed_idx_cond();
     }
     pushed_idx_cond= NULL;
+    pushed_idx_cond_keyno= MAX_KEY;
   }
 
-  pushed_idx_cond_keyno= MAX_KEY;
-  m_icp_in_use= false;
   DBUG_VOID_RETURN;
 }
 
@@ -6133,52 +6108,6 @@ int ha_partition::check_for_upgrade(HA_CHECK_OPT *check_opt)
   }
 
   DBUG_RETURN(error);
-}
-
-void ha_generic_partition_handler::set_part_info(partition_info *part_info,
-                                                 bool early)
-{
-  DBUG_ASSERT(m_ha_partition);
-  DBUG_ASSERT(!m_ha_partition->m_part_info ||
-              part_info == m_ha_partition->m_part_info);
-  return m_ha_partition->set_part_info(part_info, early);
-}
-
-bool ha_generic_partition_handler::initialize_partition(MEM_ROOT *mem_root)
-{
-  DBUG_ASSERT(m_ha_partition);
-  return m_ha_partition->initialize_partition(mem_root);
-}
-
-int ha_generic_partition_handler::change_partitions_low(
-                      HA_CREATE_INFO *create_info,
-                      const char *path,
-                      ulonglong * const copied,
-                      ulonglong * const deleted)
-{
-  DBUG_ASSERT(m_ha_partition);
-  return m_ha_partition->change_partitions(create_info, path, copied, deleted);
-}
-
-int ha_generic_partition_handler::truncate_partition_low()
-{
-  DBUG_ASSERT(m_ha_partition);
-  return m_ha_partition->truncate_partition();
-}
-
-void ha_generic_partition_handler::get_dynamic_partition_info(
-                                         ha_statistics *stat_info,
-                                         ha_checksum *check_sum,
-                                         uint part_id)
-{
-  DBUG_ASSERT(m_ha_partition);
-  m_ha_partition->get_dynamic_partition_info(stat_info, check_sum, part_id);
-}
-
-handler *ha_generic_partition_handler::get_handler()
-{
-  DBUG_ASSERT(m_ha_partition);
-  return m_ha_partition;
 }
 
 

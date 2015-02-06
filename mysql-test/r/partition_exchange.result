@@ -1515,7 +1515,7 @@ a	b
 163	163
 164	164
 200	Two hundred, end of values
-call mtr.add_suppression("Cannot find index PRIMARY in InnoDB index translation table.");
+call mtr.add_suppression("Cannot find index .PRIMARY. in InnoDB index translation table.");
 ALTER TABLE tsp REBUILD PARTITION p1;
 Got one of the listed errors
 ALTER TABLE tsp REORGANIZE PARTITION p1 INTO

@@ -112,6 +112,9 @@ enum_tx_isolation thd_get_trx_isolation(const THD* thd);
 #include "i_s.h"
 #include "sync0sync.h"
 
+/* for ha_innopart, Native InnoDB Partitioning. */
+#include "ha_innopart.h"
+
 /** to protect innobase_open_files */
 static mysql_mutex_t innobase_share_mutex;
 /** to force correct commit order in binlog */
@@ -159,7 +162,7 @@ static char*	innobase_reset_all_monitor_counter	= NULL;
 /* The highest file format being used in the database. The value can be
 set by user, however, it will be adjusted to the newer file format if
 a table of such format is created/opened. */
-static char*	innobase_file_format_max		= NULL;
+char*	innobase_file_format_max		= NULL;
 
 static char*	innobase_file_flush_method		= NULL;
 
@@ -177,7 +180,7 @@ static my_bool	innobase_use_checksums			= TRUE;
 static my_bool	innobase_locks_unsafe_for_binlog	= FALSE;
 static my_bool	innobase_rollback_on_timeout		= FALSE;
 static my_bool	innobase_create_status_file		= FALSE;
-static my_bool	innobase_stats_on_metadata		= TRUE;
+my_bool	innobase_stats_on_metadata		= TRUE;
 static my_bool	innobase_large_prefix			= FALSE;
 static my_bool	innodb_optimize_fulltext_only		= FALSE;
 
@@ -404,15 +407,6 @@ static PSI_file_info	all_innodb_files[] = {
 };
 # endif /* UNIV_PFS_IO */
 #endif /* HAVE_PSI_INTERFACE */
-
-/** Always normalize table name to lower case on Windows */
-#ifdef _WIN32
-#define normalize_table_name(norm_name, name)           \
-	normalize_table_name_low(norm_name, name, TRUE)
-#else
-#define normalize_table_name(norm_name, name)           \
-	normalize_table_name_low(norm_name, name, FALSE)
-#endif /* _WIN32 */
 
 /** Set up InnoDB API callback function array */
 ib_cb_t innodb_api_cb[] = {
@@ -964,14 +958,6 @@ innobase_show_status(
 	stat_print_fn*		stat_print,
 	enum ha_stat_type	stat_type);
 
-/*****************************************************************//**
-Commits a transaction in an InnoDB database. */
-static
-void
-innobase_commit_low(
-/*================*/
-	trx_t*	trx);	/*!< in: transaction handle */
-
 /****************************************************************//**
 Parse and enable InnoDB monitor counters during server startup.
 User can enable monitor counters/groups by specifying
@@ -982,22 +968,6 @@ void
 innodb_enable_monitor_at_startup(
 /*=============================*/
 	char*	str);	/*!< in: monitor counter enable list */
-
-/*********************************************************************
-Normalizes a table name string. A normalized name consists of the
-database name catenated to '/' and table name. An example:
-test/mytable. On Windows normalization puts both the database name and the
-table name always to lower case if "set_lower_case" is set to TRUE. */
-static
-void
-normalize_table_name_low(
-/*=====================*/
-	char*           norm_name,      /* out: normalized name as a
-					null-terminated string */
-	const char*     name,           /* in: table name string */
-	ibool           set_lower_case); /* in: TRUE if we want to set
-					 name to lower case */
-
 
 /***********************************************************************
 Store doc_id value into FTS_DOC_ID field */
@@ -1050,6 +1020,24 @@ innobase_create_handler(
 	TABLE_SHARE*	table,
 	MEM_ROOT*	mem_root)
 {
+	/* If the table:
+	1) have type InnoDB (not the generic partition handlerton)
+	2) have partitioning defined
+	Then return the native partitioning handler ha_innopart
+	else return normal ha_innobase handler. */
+	if (table
+	    && table->db_type() == innodb_hton_ptr // 1)
+	    && table->partition_info_str           // 2)
+	    && table->partition_info_str_len) {    // 2)
+		ha_innopart* file = new (mem_root) ha_innopart(hton, table);
+		if (file && file->init_partitioning(mem_root))
+		{
+			delete file;
+			return(NULL);
+		}
+		return(file);
+	}
+
 	return(new (mem_root) ha_innobase(hton, table));
 }
 
@@ -1366,7 +1354,6 @@ thd_to_innodb_session(
 @param[in,out]	thd	MySQL thread handler.
 @return reference to transaction pointer */
 __attribute__((warn_unused_result))
-static inline
 trx_t*&
 thd_to_trx(
 	THD*	thd)
@@ -1423,7 +1410,7 @@ Call this function when mysqld passes control to the client. That is to
 avoid deadlocks on the adaptive hash S-latch possibly held by thd. For more
 documentation, see handler.cc.
 @return 0 */
-static
+inline
 int
 innobase_release_temporary_latches(
 /*===============================*/
@@ -1451,7 +1438,7 @@ Increments innobase_active_counter and every INNOBASE_WAKE_INTERVALth
 time calls srv_active_wake_master_thread. This function should be used
 when a single database operation may introduce a small need for
 server utility activity, like checkpointing. */
-static inline
+inline
 void
 innobase_active_small(void)
 /*=======================*/
@@ -1468,7 +1455,7 @@ Converts an InnoDB error code to a MySQL error code and also tells to MySQL
 about a possible transaction rollback inside InnoDB caused by a lock wait
 timeout or a deadlock.
 @return MySQL error code */
-static
+inline
 int
 convert_error_code_to_mysql(
 /*========================*/
@@ -2338,7 +2325,8 @@ ha_innobase::ha_innobase(
 			  | HA_ATTACHABLE_TRX_COMPATIBLE
 		  ),
 	m_start_of_scan(),
-	m_num_write_row()
+	m_num_write_row(),
+        m_mysql_has_locked()
 {}
 
 /*********************************************************************//**
@@ -2353,7 +2341,6 @@ ha_innobase::~ha_innobase()
 Updates the user_thd field in a handle and also allocates a new InnoDB
 transaction handle if needed, and updates the transaction fields in the
 m_prebuilt struct. */
-inline
 void
 ha_innobase::update_thd(
 /*====================*/
@@ -2751,7 +2738,6 @@ trx_is_strict(
 /**************************************************************//**
 Resets some fields of a m_prebuilt struct. The template is used in fast
 retrieval of just those column values MySQL needs in its processing. */
-inline
 void
 ha_innobase::reset_template(void)
 /*=============================*/
@@ -2907,6 +2893,12 @@ static bool innobase_is_supported_system_table(const char *db,
 	return false;
 }
 
+/** Return partitioning flags. */
+static uint innobase_partition_flags()
+{
+	return(HA_CAN_EXCHANGE_PARTITION | HA_CANNOT_PARTITION_FK);
+}
+
 
 /*********************************************************************//**
 Opens an InnoDB database.
@@ -2948,6 +2940,7 @@ innobase_init(
 	innobase_hton->create = innobase_create_handler;
 	innobase_hton->drop_database = innobase_drop_database;
 	innobase_hton->panic = innobase_end;
+	innobase_hton->partition_flags= innobase_partition_flags;
 
 	innobase_hton->start_consistent_snapshot =
 		innobase_start_trx_and_assign_read_view;
@@ -3502,7 +3495,6 @@ innobase_flush_logs(
 
 /*****************************************************************//**
 Commits a transaction in an InnoDB database. */
-static
 void
 innobase_commit_low(
 /*================*/
@@ -4128,16 +4120,28 @@ handler::Table_flags
 ha_innobase::table_flags() const
 /*============================*/
 {
+	THD*			thd = ha_thd();
+	handler::Table_flags	flags = m_int_table_flags;
+
+	/* If querying the table flags when no table_share is given,
+	then we must check if the table to be created/checked is partitioned.
+	*/
+	if (table_share == NULL && thd_get_work_part_info(thd) != NULL) {
+		/* Currently ha_innopart does not support
+		all InnoDB features such as GEOMETRY, FULLTEXT etc. */
+		flags &= ~(HA_INNOPART_DISABLED_TABLE_FLAGS);
+	}
+
 	/* Need to use tx_isolation here since table flags is (also)
 	called before prebuilt is inited. */
 
-	ulong const	tx_isolation = thd_tx_isolation(ha_thd());
+	ulong const	tx_isolation = thd_tx_isolation(thd);
 
 	if (tx_isolation <= ISO_READ_COMMITTED) {
-		return(m_int_table_flags);
+		return(flags);
 	}
 
-	return(m_int_table_flags | HA_BINLOG_STMT_CAPABLE);
+	return(flags | HA_BINLOG_STMT_CAPABLE);
 }
 
 /****************************************************************//**
@@ -4290,20 +4294,19 @@ ha_innobase::primary_key_is_clustered() const
 	return(true);
 }
 
-/*****************************************************************//**
-Normalizes a table name string. A normalized name consists of the
-database name catenated to '/' and table name. Example: test/mytable.
+/** Normalizes a table name string.
+A normalized name consists of the database name catenated to '/' and
+table name. Example: test/mytable.
 On Windows normalization puts both the database name and the
-table name always to lower case if "set_lower_case" is set to TRUE. */
-static
+table name always to lower case if "set_lower_case" is set to TRUE.
+@param[out]	norm_name	Normalized name, null-terminated.
+@param[in]	name		Name to normalize.
+@param[in]	set_lower_case	True if we also should fold to lower case. */
 void
-normalize_table_name_low(
-/*=====================*/
-	char*		norm_name,	/*!< out: normalized name as a
-					null-terminated string */
-	const char*	name,		/*!< in: table name string */
-	ibool		set_lower_case)	/*!< in: TRUE if we want to set name
-					to lower case */
+create_table_info_t::normalize_table_name_low(
+	char*		norm_name,
+	const char*	name,
+	ibool		set_lower_case)
 {
 	char*	name_ptr;
 	ulint	name_len;
@@ -4410,7 +4413,8 @@ test_normalize_table_name_low()
 		       " testing \"%s\", expected \"%s\"... ",
 		       test_data[i][0], test_data[i][1]);
 
-		normalize_table_name_low(norm_name, test_data[i][0], FALSE);
+		create_table_info_t::normalize_table_name_low(
+			norm_name, test_data[i][0], FALSE);
 
 		if (strcmp(norm_name, test_data[i][1]) == 0) {
 			printf("ok\n");
@@ -4483,19 +4487,16 @@ test_ut_format_name()
 }
 #endif /* !DBUG_OFF */
 
-
-/*******************************************************************//**
+/** Match index columns between MySQL and InnoDB.
 This function checks whether the index column information
 is consistent between KEY info from mysql and that from innodb index.
-@return TRUE if all column types match. */
-static
-ibool
+@param[in]	key_info	Index info from mysql
+@param[in]	index_info	Index info from InnoDB
+@return true if all column types match. */
+bool
 innobase_match_index_columns(
-/*=========================*/
-	const KEY*		key_info,	/*!< in: Index info
-						from mysql */
-	const dict_index_t*	index_info)	/*!< in: Index info
-						from InnoDB */
+	const KEY*		key_info,
+	const dict_index_t*	index_info)
 {
 	const KEY_PART_INFO*	key_part;
 	const KEY_PART_INFO*	key_end;
@@ -4849,8 +4850,6 @@ ha_innobase::open(
 	char			norm_name[FN_REFLEN];
 	THD*			thd;
 	char*			is_part = NULL;
-	ibool			par_case_name_set = FALSE;
-	char			par_case_name[FN_REFLEN];
 	dict_err_ignore_t	ignore_err = DICT_ERR_IGNORE_NONE;
 
 	DBUG_ENTER("ha_innobase::open");
@@ -4932,6 +4931,12 @@ ha_innobase::open(
 
 	if (NULL == ib_table) {
 		if (is_part) {
+			/* TODO: remove this, since it should be be handled
+			either in upgrading or in ha_innopart instead.
+			Currently old .frm files will still create
+			ha_partition based tables with one ha_innobase handler
+			per partition. */
+
 			/* MySQL partition engine hard codes the file name
 			separator as "#P#". The text case is fixed even if
 			lower_case_table_names is set to 1 or 2. This is true
@@ -4950,6 +4955,8 @@ ha_innobase::open(
 			check the existence of table name without lower
 			case in the system table. */
 			if (innobase_get_lower_case_table_names() == 1) {
+				bool	par_case_name_set = false;
+				char	par_case_name[FN_REFLEN];
 
 				if (!par_case_name_set) {
 #ifndef _WIN32
@@ -4963,8 +4970,10 @@ ha_innobase::open(
 					whether there exists table name in
 					system table whose name is
 					not being normalized to lower case */
-					normalize_table_name_low(
-						par_case_name, name, FALSE);
+					create_table_info_t::
+						normalize_table_name_low(
+							par_case_name,
+							name, FALSE);
 #endif
 					par_case_name_set = TRUE;
 				}
@@ -5254,7 +5263,7 @@ ha_innobase::clone(
 {
 	DBUG_ENTER("ha_innobase::clone");
 
-	ha_innobase*	new_handler = static_cast<ha_innobase*>(
+	ha_innobase*	new_handler = dynamic_cast<ha_innobase*>(
 		handler::clone(name, mem_root));
 
 	if (new_handler != NULL) {
@@ -7437,7 +7446,6 @@ ha_innobase::index_end(void)
 /*********************************************************************//**
 Converts a search mode flag understood by MySQL to a flag understood
 by InnoDB. */
-static inline
 page_cur_mode_t
 convert_search_mode_to_innobase(
 /*============================*/
@@ -8952,7 +8960,7 @@ error_ret:
 
 /*****************************************************************//**
 Creates an index in an InnoDB database. */
-static
+inline
 int
 create_index(
 /*=========*/
@@ -9140,7 +9148,7 @@ found:
 /*****************************************************************//**
 Creates an index to an InnoDB table when the user has defined no
 primary index. */
-static
+inline
 int
 create_clustered_index_when_no_primary(
 /*===================================*/
@@ -9215,7 +9223,8 @@ create_table_info_t::create_option_data_directory_is_valid()
 {
 	bool		is_valid = true;
 
-	ut_ad(m_create_info->data_file_name);
+	ut_ad(m_create_info->data_file_name
+	      && m_create_info->data_file_name[0] != '\0');
 
 	/* Use DATA DIRECTORY only with file-per-table. */
 	if (!m_file_per_table) {
@@ -9240,7 +9249,7 @@ create_table_info_t::create_option_data_directory_is_valid()
 	return(is_valid);
 }
 
-/** Validates the create options. Checks that the options KEY_BLOCK_SIZE,
+/** Validate the create options. Check that the options KEY_BLOCK_SIZE,
 ROW_FORMAT, DATA DIRECTORY & TEMPORARY are compatible with
 each other and other settings.  These CREATE OPTIONS are not validated
 here unless innodb_strict_mode is on. With strict mode, this function
@@ -9390,6 +9399,7 @@ create_table_info_t::create_options_are_invalid()
 	}
 
 	if (m_create_info->data_file_name
+	    && m_create_info->data_file_name[0] != '\0'
 	    && !create_option_data_directory_is_valid()) {
 		ret = "DATA DIRECTORY";
 	}
@@ -9507,7 +9517,8 @@ create_table_info_t::parse_table_name(
 	and set the remote path.  In the case of;
 	  CREATE TEMPORARY TABLE ... DATA DIRECTORY={path} ... ;
 	we ignore the DATA DIRECTORY. */
-	if (m_create_info->data_file_name) {
+	if (m_create_info->data_file_name
+	    && m_create_info->data_file_name[0] != '\0') {
 		if (!create_option_data_directory_is_valid()) {
 			push_warning_printf(
 				m_thd, Sql_condition::SL_WARNING,
@@ -10727,7 +10738,43 @@ ha_innobase::delete_table(
 		norm_name, trx, thd_sql_command(thd) == SQLCOM_DROP_DB,
 		true, handler);
 
+	if (err == DB_TABLE_NOT_FOUND) {
+		/* Test to drop all tables which matches db/tablename + '#'.
+		Only partitions can have '#' as non-first character in
+		the table name!
 
+		Temporary table names always start with '#', partitions are
+		the only 'tables' that can have '#' after the first character
+		and table name must have length > 0. User tables cannot have
+		'#' since it would be translated to @0023. Therefor this should
+		only match partitions. */
+		uint len = (uint) strlen(norm_name);
+		ulint num_partitions;
+		ut_a(len < FN_REFLEN);
+		norm_name[len] = '#';
+		norm_name[len + 1] = 0;
+		err = row_drop_database_for_mysql(norm_name, trx,
+			&num_partitions);
+		norm_name[len] = 0;
+		if (num_partitions == 0
+		    && !row_is_mysql_tmp_table_name(norm_name)) {
+			table_name_t tbl_name;
+			tbl_name.m_name = norm_name;
+			ib::error() << "Table " << tbl_name <<
+				" does not exist in the InnoDB"
+				" internal data dictionary though MySQL is"
+				" trying to drop it. Have you copied the .frm"
+				" file of the table to the MySQL database"
+				" directory from another database? "
+				<< TROUBLESHOOTING_MSG;
+		}
+		if (num_partitions == 0) {
+			err = DB_TABLE_NOT_FOUND;
+		}
+	}
+
+	/* TODO: remove this when the conversion tool from ha_partition to
+	native innodb partitioning is completed */
 	if (err == DB_TABLE_NOT_FOUND
 	    && innobase_get_lower_case_table_names() == 1) {
 #ifdef _WIN32
@@ -10750,7 +10797,7 @@ ha_innobase::delete_table(
 			whether there exists table name in
 			system table whose name is
 			not being normalized to lower case */
-			normalize_table_name_low(
+			create_table_info_t::normalize_table_name_low(
 				par_case_name, name, FALSE);
 #endif /* _WIN32 */
 			err = row_drop_table_for_mysql(
@@ -10842,7 +10889,8 @@ innobase_drop_database(
 	/* We are doing a DDL operation. */
 	++trx->will_lock;
 
-	row_drop_database_for_mysql(namebuf, trx);
+	ulint dummy;
+	row_drop_database_for_mysql(namebuf, trx, &dummy);
 
 	my_free(namebuf);
 
@@ -10860,7 +10908,7 @@ innobase_drop_database(
 /*********************************************************************//**
 Renames an InnoDB table.
 @return DB_SUCCESS or error code */
-static __attribute__((warn_unused_result))
+inline __attribute__((warn_unused_result))
 dberr_t
 innobase_rename_table(
 /*==================*/
@@ -10898,6 +10946,26 @@ innobase_rename_table(
 
 	error = row_rename_table_for_mysql(norm_from, norm_to, trx, TRUE);
 
+	if (error == DB_TABLE_NOT_FOUND) {
+		/* May be partitioned table, which consists of partitions
+		named table_name#P#partition_name[#SP#subpartition_name].
+
+		We are doing a DDL operation. */
+		++trx->will_lock;
+		trx_set_dict_operation(trx, TRX_DICT_OP_INDEX);
+		trx_start_if_not_started(trx, true);
+		error = row_rename_partitions_for_mysql(norm_from, norm_to,
+							trx);
+		if (error == DB_TABLE_NOT_FOUND) {
+			ib::error() << "Table " << ut_get_name(trx, norm_from)
+				<< " does not exist in the InnoDB internal"
+				" data dictionary though MySQL is trying to"
+				" rename the table. Have you copied the .frm"
+				" file of the table to the MySQL database"
+				" directory from another database? "
+				<< TROUBLESHOOTING_MSG;
+		}
+	}
 	if (error != DB_SUCCESS) {
 		if (error == DB_TABLE_NOT_FOUND
 		    && innobase_get_lower_case_table_names() == 1) {
@@ -10921,7 +10989,7 @@ innobase_rename_table(
 				whether there exists table name in
 				system table whose name is
 				not being normalized to lower case */
-				normalize_table_name_low(
+				create_table_info_t::normalize_table_name_low(
 					par_case_name, from, FALSE);
 #endif /* _WIN32 */
 				trx_start_if_not_started(trx, true);
@@ -11518,7 +11586,6 @@ innobase_get_mysql_key_number_for_index(
 Calculate Record Per Key value. Need to exclude the NULL value if
 innodb_stats_method is set to "nulls_ignored"
 @return estimated record per key value */
-static
 rec_per_key_t
 innodb_rec_per_key(
 /*===============*/
@@ -12856,7 +12923,7 @@ ha_innobase::start_stmt(
 	reset_template();
 
 	if (dict_table_is_temporary(m_prebuilt->table)
-	    && m_prebuilt->mysql_has_locked
+	    && m_mysql_has_locked
 	    && m_prebuilt->select_lock_type == LOCK_NONE) {
 		dberr_t error;
 
@@ -12878,7 +12945,7 @@ ha_innobase::start_stmt(
 		}
 	}
 
-	if (!m_prebuilt->mysql_has_locked) {
+	if (!m_mysql_has_locked) {
 		/* This handle is for a temporary table created inside
 		this same LOCK TABLES; since MySQL does NOT call external_lock
 		in this case, we must use x-row locks inside InnoDB to be
@@ -13144,7 +13211,7 @@ ha_innobase::external_lock(
 		}
 
 		trx->n_mysql_tables_in_use++;
-		m_prebuilt->mysql_has_locked = TRUE;
+		m_mysql_has_locked = true;
 
 		if (!trx_is_started(trx)
 		    && (m_prebuilt->select_lock_type != LOCK_NONE
@@ -13171,7 +13238,7 @@ ha_innobase::external_lock(
 	/* MySQL is releasing a table lock */
 
 	trx->n_mysql_tables_in_use--;
-	m_prebuilt->mysql_has_locked = FALSE;
+	m_mysql_has_locked = false;
 
 	innobase_srv_conc_force_exit_innodb(trx);
 
