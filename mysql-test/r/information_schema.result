@@ -716,6 +716,7 @@ authentication_string	select,insert,update,references
 password_expired	select,insert,update,references
 password_last_changed	select,insert,update,references
 password_lifetime	select,insert,update,references
+account_locked	select,insert,update,references
 use test;
 create function sub1(i int) returns int
 return i+1;
