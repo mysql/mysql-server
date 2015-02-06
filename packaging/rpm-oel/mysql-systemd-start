@@ -22,7 +22,7 @@ install_db () {
     datadir=$(get_option mysqld datadir "/var/lib/mysql")
 
     # Restore log, dir, perms and SELinux contexts
-    [ -d "$datadir" ] || install -d -m 0755 -omysql -gmysql "$datadir" || exit 1
+    [ -d "$datadir" ] || install -d -m 0750 -omysql -gmysql "$datadir" || exit 1
     log=/var/log/mysqld.log
     [ -e $log ] || touch $log
     chmod 0640 $log

@@ -6,21 +6,23 @@
 --source ../include/start_server_common.inc
 
 # Expect classes
-show variables like "performance_schema_max_cond_classes";
+show global variables like "performance_schema_max_cond_classes";
 
 select count(*) > 0 from performance_schema.setup_instruments
   where name like "wait/synch/cond/%";
 
 # Expect no class lost
-show status like "performance_schema_cond_classes_lost";
+show global status like "performance_schema_cond_classes_lost";
 
 # Expect no instances
-show variables like "performance_schema_max_cond_instances";
+show global variables like "performance_schema_max_cond_instances";
 
 select count(*) from performance_schema.cond_instances;
 
 # Expect instances lost
+--disable_warnings
 select variable_value > 0 from information_schema.global_status
   where variable_name like 'PERFORMANCE_SCHEMA_COND_INSTANCES_LOST';
+--enable_warnings
 
 

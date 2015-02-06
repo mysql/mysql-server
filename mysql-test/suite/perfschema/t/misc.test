@@ -189,7 +189,7 @@ DROP TABLE t_60905;
 # Bug#71278 NUMBER OF ROWS IN PERFORMANCE SCHEMA TABLES
 #
 
-show variables like "performance_schema_max_thread_instances";
+show global variables like "performance_schema_max_thread_instances";
 explain select * from performance_schema.threads;
 
 #

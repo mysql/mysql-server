@@ -1380,6 +1380,11 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
     */
     user.can_authenticate= true;
 
+    /*
+      Account is unlocked by default.
+    */
+    user.account_locked= false;
+
     user.host.update_hostname(get_field(&global_acl_memory,
                                         table->field[MYSQL_USER_FIELD_HOST]));
     user.user= get_field(&global_acl_memory,
@@ -1582,6 +1587,17 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
               continue;
             }
             password_expired= true;
+          }
+        }
+
+        if (table->s->fields > MYSQL_USER_FIELD_ACCOUNT_LOCKED)
+        {
+          char *locked = get_field(&global_acl_memory,
+                               table->field[MYSQL_USER_FIELD_ACCOUNT_LOCKED]);
+
+          if (locked && (*locked == 'Y' || *locked == 'y'))
+          {
+            user.account_locked= true;
           }
         }
 
@@ -2411,6 +2427,12 @@ void acl_update_user(const char *user, const char *host,
           else
             acl_user->use_default_password_lifetime= true;
         }
+
+        if (password_life.update_account_locked_column)
+        {
+          acl_user->account_locked = password_life.account_locked;
+        }
+
         /* search complete: */
         break;
       }
@@ -2485,6 +2507,7 @@ void acl_insert_user(const char *user, const char *host,
   acl_user.password_lifetime= password_life.expire_after_days;
   acl_user.use_default_password_lifetime= password_life.use_default_password_lifetime;
   acl_user.password_last_changed= password_change_time;
+  acl_user.account_locked= password_life.account_locked;
 
   set_user_salt(&acl_user);
 

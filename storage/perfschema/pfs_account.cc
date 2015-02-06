@@ -249,6 +249,7 @@ void PFS_account::aggregate(bool alive, PFS_user *safe_user, PFS_host *safe_host
   aggregate_statements(safe_user, safe_host);
   aggregate_transactions(safe_user, safe_host);
   aggregate_memory(alive, safe_user, safe_host);
+  aggregate_status(safe_user, safe_host);
   aggregate_stats(safe_user, safe_host);
 }
 
@@ -511,6 +512,54 @@ void PFS_account::aggregate_memory(bool alive, PFS_user *safe_user, PFS_host *sa
   aggregate_all_memory(alive,
                        write_instr_class_memory_stats(),
                        global_instr_class_memory_array);
+  return;
+}
+
+void PFS_account::aggregate_status(PFS_user *safe_user, PFS_host *safe_host)
+{
+  if (likely(safe_user != NULL && safe_host != NULL))
+  {
+    /*
+      Aggregate STATUS_BY_ACCOUNT to:
+      - STATUS_BY_USER
+      - STATUS_BY_HOST
+    */
+    safe_user->m_status_stats.aggregate(& m_status_stats);
+    safe_host->m_status_stats.aggregate(& m_status_stats);
+    m_status_stats.reset();
+    return;
+  }
+
+  if (safe_user != NULL)
+  {
+    /*
+      Aggregate STATUS_BY_ACCOUNT to:
+      - STATUS_BY_USER
+      - GLOBAL_STATUS
+    */
+    safe_user->m_status_stats.aggregate(& m_status_stats);
+    m_status_stats.aggregate_to(& global_status_var);
+    m_status_stats.reset();
+    return;
+  }
+
+  if (safe_host != NULL)
+  {
+    /*
+      Aggregate STATUS_BY_ACCOUNT to:
+      - STATUS_BY_HOST
+    */
+    safe_host->m_status_stats.aggregate(& m_status_stats);
+    m_status_stats.reset();
+    return;
+  }
+
+  /*
+    Aggregate STATUS_BY_ACCOUNT to:
+    - GLOBAL_STATUS
+  */
+  m_status_stats.aggregate_to(& global_status_var);
+  m_status_stats.reset();
   return;
 }
 

@@ -682,7 +682,7 @@ rm -r $(readlink var) var
 
 %post server
 datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n 's/--datadir=//p')
-/bin/chmod 0755 "$datadir" >/dev/null 2>&1 || :
+/bin/chmod 0750 "$datadir" >/dev/null 2>&1 || :
 /bin/touch /var/log/mysqld.log >/dev/null 2>&1 || :
 %if 0%{?systemd}
 %systemd_post mysqld.service
@@ -753,6 +753,7 @@ fi
 %attr(644, root, root) %{_mandir}/man1/replace.1*
 %attr(644, root, root) %{_mandir}/man1/resolve_stack_dump.1*
 %attr(644, root, root) %{_mandir}/man1/resolveip.1*
+%attr(644, root, root) %{_mandir}/man1/mysql_ssl_rsa_setup.1*
 
 %config(noreplace) %{_sysconfdir}/my.cnf
 %dir %{_sysconfdir}/my.cnf.d

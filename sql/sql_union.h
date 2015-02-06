@@ -17,25 +17,23 @@
 #define SQL_UNION_INCLUDED
 
 #include "my_global.h"          // ulong
-#include "sql_class.h"          // select_result_interceptor
+#include "sql_class.h"          // Query_result_interceptor
 
-class THD;
-class select_result;
 struct LEX;
 
 typedef class st_select_lex_unit SELECT_LEX_UNIT;
 
-class select_union :public select_result_interceptor
+class Query_result_union :public Query_result_interceptor
 {
   Temp_table_param tmp_table_param;
 public:
   TABLE *table;
 
-  select_union() :table(0) {}
+  Query_result_union() :table(0) {}
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   /**
     Do prepare() and prepare2() if they have been postponed until
-    column type information is computed (used by select_union_direct).
+    column type information is computed (used by Query_result_union_direct).
 
     @param types Column types
 

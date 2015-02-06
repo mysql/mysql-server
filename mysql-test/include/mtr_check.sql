@@ -97,7 +97,7 @@ BEGIN
   -- Dump all created procedures, there should be none
   SELECT * FROM INFORMATION_SCHEMA.ROUTINES;
 
-  SHOW STATUS LIKE 'slave_open_temp_tables';
+  SHOW GLOBAL STATUS LIKE 'slave_open_temp_tables';
 
   -- Checksum system tables to make sure they have been properly
   -- restored after test

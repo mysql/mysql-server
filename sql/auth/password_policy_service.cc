@@ -33,19 +33,20 @@ LEX_CSTRING validate_password_plugin= {
 
   @param password        password which needs to be validated against the
                          defined policies
+  @param password_len    length of password
 
   @retval 0 ok
   @retval 1 ERROR;
 */
 
-int my_validate_password_policy(const char *password)
+int my_validate_password_policy(const char *password, unsigned int password_len)
 {
   plugin_ref plugin;
   String password_str;
 
   if (password)
   {
-    String tmp_str(password, strlen(password), &my_charset_utf8_bin);
+    String tmp_str(password, password_len, &my_charset_utf8_bin);
     password_str= tmp_str;
   }
   plugin= my_plugin_lock_by_name(0, validate_password_plugin,
@@ -68,14 +69,14 @@ int my_validate_password_policy(const char *password)
 
 
 /* called when new user is created or exsisting password is changed */
-int my_calculate_password_strength(const char *password)
+int my_calculate_password_strength(const char *password, unsigned int password_len)
 {
   int res= 0;
   DBUG_ASSERT(password != NULL);
 
   String password_str;
   if (password)
-    password_str.set(password, strlen(password), &my_charset_utf8_bin);
+    password_str.set(password, password_len, &my_charset_utf8_bin);
   plugin_ref plugin= my_plugin_lock_by_name(0, validate_password_plugin,
                                             MYSQL_VALIDATE_PASSWORD_PLUGIN);
   if (plugin)

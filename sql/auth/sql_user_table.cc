@@ -667,6 +667,29 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
     }
   }
 
+  if (what_to_replace & ACCOUNT_LOCK_ATTR)
+  {
+    if (!old_row_exists ||
+        (old_row_exists && combo->alter_status.update_account_locked_column))
+    {
+      if (table->s->fields > MYSQL_USER_FIELD_ACCOUNT_LOCKED)
+      {
+        /*
+          Update the field for a new row and for the row that exists and the
+          update was enforced (ACCOUNT [UNLOCK|LOCK]).
+        */
+        table->field[MYSQL_USER_FIELD_ACCOUNT_LOCKED]->
+                      store(combo->alter_status.account_locked ? "Y" : "N", 1,
+                            system_charset_info);
+      }
+      else
+      {
+        my_error(ER_BAD_FIELD_ERROR, MYF(0), "account_locked", "mysql.user");
+        goto end;
+      }
+    }
+  }
+
   if (old_row_exists)
   {   
     /*

@@ -67,6 +67,7 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #include "opt_explain_traditional.h"
 #include "opt_explain_json.h"
 #include "rpl_slave.h"                       // Sql_cmd_change_repl_filter
+#include "sql_show_status.h"                 // build_show_session_status, ...
 #include "parse_location.h"
 #include "parse_tree_helpers.h"
 #include "lex_token.h"
@@ -459,6 +460,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 
 %token  ABORT_SYM                     /* INTERNAL (used in lex) */
 %token  ACCESSIBLE_SYM
+%token  ACCOUNT_SYM
 %token  ACTION                        /* SQL-2003-N */
 %token  ADD                           /* SQL-2003-R */
 %token  ADDDATE_SYM                   /* MYSQL-FUNC */
@@ -1325,7 +1327,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
         part_column_list
         server_options_list server_option
         definer_opt no_definer definer get_diagnostics
-        alter_user_command
+        alter_user_command password_expire
         group_replication
 END_OF_INPUT
 
@@ -2309,7 +2311,7 @@ create:
           view_or_trigger_or_sp_or_event
           {}
         | CREATE USER clear_privileges grant_list require_clause
-                      connect_options password_expire_options
+                      connect_options opt_account_lock_password_expire_options
           {
             Lex->sql_command = SQLCOM_CREATE_USER;
           }
@@ -2570,7 +2572,7 @@ ev_sql_stmt_inner:
         ;
 
 clear_privileges:
-          /* Nothing */
+          clear_password_expire_options
           {
            LEX *lex=Lex;
            lex->users_list.empty();
@@ -2580,10 +2582,19 @@ clear_privileges:
            lex->select_lex->db= NULL;
            lex->ssl_type= SSL_TYPE_NOT_SPECIFIED;
            lex->ssl_cipher= lex->x509_subject= lex->x509_issuer= 0;
+           lex->alter_password.update_account_locked_column= false;
+           lex->alter_password.account_locked= false;
+           memset(&(lex->mqh), 0, sizeof(lex->mqh));
+         }
+        ;
+
+clear_password_expire_options:
+         /* Nothing */
+         {
+           LEX *lex=Lex;
            lex->alter_password.update_password_expired_column= false;
            lex->alter_password.use_default_password_lifetime= true;
            lex->alter_password.expire_after_days= 0;
-           memset(&(lex->mqh), 0, sizeof(lex->mqh));
          }
         ;
 
@@ -7531,7 +7542,7 @@ alter:
               new (YYTHD->mem_root) Sql_cmd_alter_server(&Lex->server_options);
           }
         | alter_user_command grant_list require_clause
-          connect_options password_expire_options
+          connect_options opt_account_lock_password_expire_options
         | alter_user_command user_func IDENTIFIED_SYM BY TEXT_STRING
           {
             $2->auth.str= $5.str;
@@ -7548,40 +7559,57 @@ alter_user_command:
           }
         ;
 
-password_expire_options:
+opt_account_lock_password_expire_options:
           /* empty */ {}
-        | PASSWORD EXPIRE_SYM
+        | opt_account_lock_password_expire_option_list
+        ;
+
+opt_account_lock_password_expire_option_list:
+          opt_account_lock_password_expire_option
+        | opt_account_lock_password_expire_option_list opt_account_lock_password_expire_option
+        ;
+
+opt_account_lock_password_expire_option:
+          ACCOUNT_SYM UNLOCK_SYM
+          {
+            LEX *lex=Lex;
+            lex->alter_password.update_account_locked_column= true;
+            lex->alter_password.account_locked= false;
+          }
+        | ACCOUNT_SYM LOCK_SYM
+          {
+            LEX *lex=Lex;
+            lex->alter_password.update_account_locked_column= true;
+            lex->alter_password.account_locked= true;
+          }
+        | password_expire
           {
             LEX *lex=Lex;
             lex->alter_password.update_password_expired_column= true;
           }
-        | PASSWORD EXPIRE_SYM INTERVAL_SYM real_ulong_num DAY_SYM
+        | password_expire INTERVAL_SYM real_ulong_num DAY_SYM
           {
-            if ($4 == 0 || $4 > UINT_MAX16)
+            LEX *lex=Lex;
+            if ($3 == 0 || $3 > UINT_MAX16)
             {
               char buf[MAX_BIGINT_WIDTH + 1];
-              my_snprintf(buf, sizeof(buf), "%lu", $4);
+              my_snprintf(buf, sizeof(buf), "%lu", $3);
               my_error(ER_WRONG_VALUE, MYF(0), "DAY", buf);
               MYSQL_YYABORT;
             }
-            LEX *lex=Lex;
-            lex->alter_password.update_password_expired_column= false;
-            lex->alter_password.expire_after_days= $4;
+            lex->alter_password.expire_after_days= $3;
             lex->alter_password.use_default_password_lifetime= false;
           }
-        | PASSWORD EXPIRE_SYM NEVER_SYM
+        | password_expire NEVER_SYM
           {
             LEX *lex=Lex;
-            lex->alter_password.update_password_expired_column= false;
-            lex->alter_password.expire_after_days= 0;
             lex->alter_password.use_default_password_lifetime= false;
           }
-        | PASSWORD EXPIRE_SYM DEFAULT
-          {
-            LEX *lex=Lex;
-            lex->alter_password.update_password_expired_column= false;
-            lex->alter_password.use_default_password_lifetime= true;
-          }
+        | password_expire DEFAULT
+        ;
+
+password_expire:
+          PASSWORD EXPIRE_SYM clear_password_expire_options {}
         ;
 
 connect_options:
@@ -11586,14 +11614,14 @@ show:
         ;
 
 show_param:
-           DATABASES wild_and_where
+           DATABASES opt_wild_or_where
            {
              LEX *lex= Lex;
              lex->sql_command= SQLCOM_SHOW_DATABASES;
              if (prepare_schema_table(YYTHD, lex, 0, SCH_SCHEMATA))
                MYSQL_YYABORT;
            }
-         | opt_full TABLES opt_db wild_and_where
+         | opt_full TABLES opt_db opt_wild_or_where
            {
              LEX *lex= Lex;
              lex->sql_command= SQLCOM_SHOW_TABLES;
@@ -11601,7 +11629,7 @@ show_param:
              if (prepare_schema_table(YYTHD, lex, 0, SCH_TABLE_NAMES))
                MYSQL_YYABORT;
            }
-         | opt_full TRIGGERS_SYM opt_db wild_and_where
+         | opt_full TRIGGERS_SYM opt_db opt_wild_or_where
            {
              LEX *lex= Lex;
              lex->sql_command= SQLCOM_SHOW_TRIGGERS;
@@ -11609,7 +11637,7 @@ show_param:
              if (prepare_schema_table(YYTHD, lex, 0, SCH_TRIGGERS))
                MYSQL_YYABORT;
            }
-         | EVENTS_SYM opt_db wild_and_where
+         | EVENTS_SYM opt_db opt_wild_or_where
            {
              LEX *lex= Lex;
              lex->sql_command= SQLCOM_SHOW_EVENTS;
@@ -11617,7 +11645,7 @@ show_param:
              if (prepare_schema_table(YYTHD, lex, 0, SCH_EVENTS))
                MYSQL_YYABORT;
            }
-         | TABLE_SYM STATUS_SYM opt_db wild_and_where
+         | TABLE_SYM STATUS_SYM opt_db opt_wild_or_where
            {
              LEX *lex= Lex;
              lex->sql_command= SQLCOM_SHOW_TABLE_STATUS;
@@ -11625,7 +11653,7 @@ show_param:
              if (prepare_schema_table(YYTHD, lex, 0, SCH_TABLES))
                MYSQL_YYABORT;
            }
-        | OPEN_SYM TABLES opt_db wild_and_where
+        | OPEN_SYM TABLES opt_db opt_wild_or_where
           {
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_SHOW_OPEN_TABLES;
@@ -11644,7 +11672,7 @@ show_param:
           { Lex->create_info.db_type= $2; }
         | ENGINE_SYM ALL show_engine_param
           { Lex->create_info.db_type= NULL; }
-        | opt_full COLUMNS from_or_in table_ident opt_db wild_and_where
+        | opt_full COLUMNS from_or_in table_ident opt_db opt_wild_or_where
           {
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_SHOW_FIELDS;
@@ -11756,32 +11784,92 @@ show_param:
             if (prepare_schema_table(YYTHD, lex, NULL, SCH_PROFILES) != 0)
               YYABORT;
           }
-        | opt_var_type STATUS_SYM wild_and_where
+        | opt_var_type STATUS_SYM opt_wild_or_where
           {
-            LEX *lex= Lex;
+            THD *thd= YYTHD;
+            LEX *lex= thd->lex;
             lex->sql_command= SQLCOM_SHOW_STATUS;
-            lex->option_type= $1;
-            if (prepare_schema_table(YYTHD, lex, 0, SCH_STATUS))
-              MYSQL_YYABORT;
+            if (show_compatibility_56)
+            {
+              /* 5.6, DEPRECATED */
+              lex->option_type= $1;
+              if (prepare_schema_table(YYTHD, lex, 0, SCH_STATUS))
+                MYSQL_YYABORT;
+            }
+            else
+            {
+              if (Select->where_cond() != NULL)
+              {
+                /*
+                  The syntax SHOW ... WHERE <expression>
+                  is not supported with SHOW_COMPATIBILITY_56 = OFF.
+                */
+                my_error(ER_WRONG_USAGE, MYF(0), "SHOW STATUS", "WHERE");
+                MYSQL_YYABORT;
+              }
+
+              if ($1 == OPT_SESSION)
+              {
+                /* 5.7, SUPPORTED */
+                if (build_show_session_status(@$, thd, lex->wild) == NULL)
+                  MYSQL_YYABORT;
+              }
+              else
+              {
+                /* 5.7, SUPPORTED */
+                if (build_show_global_status(@$, thd, lex->wild) == NULL)
+                  MYSQL_YYABORT;
+              }
+            }
           }
         | opt_full PROCESSLIST_SYM
           { Lex->sql_command= SQLCOM_SHOW_PROCESSLIST;}
-        | opt_var_type  VARIABLES wild_and_where
+        | opt_var_type VARIABLES opt_wild_or_where
           {
-            LEX *lex= Lex;
+            THD *thd= YYTHD;
+            LEX *lex= thd->lex;
             lex->sql_command= SQLCOM_SHOW_VARIABLES;
-            lex->option_type= $1;
-            if (prepare_schema_table(YYTHD, lex, 0, SCH_VARIABLES))
-              MYSQL_YYABORT;
+            if (show_compatibility_56)
+            {
+              /* 5.6, DEPRECATED */
+              lex->option_type= $1;
+              if (prepare_schema_table(YYTHD, lex, 0, SCH_VARIABLES))
+                MYSQL_YYABORT;
+            }
+            else
+            {
+              if (Select->where_cond() != NULL)
+              {
+                /*
+                  The syntax SHOW ... WHERE <expression>
+                  is not supported with SHOW_COMPATIBILITY_56 = OFF.
+                */
+                my_error(ER_WRONG_USAGE, MYF(0), "SHOW VARIABLES", "WHERE");
+                MYSQL_YYABORT;
+              }
+
+              if ($1 == OPT_SESSION)
+              {
+                /* 5.7, SUPPORTED */
+                if (build_show_session_variables(@$, thd, lex->wild) == NULL)
+                  MYSQL_YYABORT;
+              }
+              else
+              {
+                /* 5.7, SUPPORTED */
+                if (build_show_global_variables(@$, thd, lex->wild) == NULL)
+                  MYSQL_YYABORT;
+              }
+            }
           }
-        | charset wild_and_where
+        | charset opt_wild_or_where
           {
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_SHOW_CHARSETS;
             if (prepare_schema_table(YYTHD, lex, 0, SCH_CHARSETS))
               MYSQL_YYABORT;
           }
-        | COLLATION_SYM wild_and_where
+        | COLLATION_SYM opt_wild_or_where
           {
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_SHOW_COLLATIONS;
@@ -11856,14 +11944,14 @@ show_param:
             lex->sql_command= SQLCOM_SHOW_CREATE_TRIGGER;
             lex->spname= $3;
           }
-        | PROCEDURE_SYM STATUS_SYM wild_and_where
+        | PROCEDURE_SYM STATUS_SYM opt_wild_or_where
           {
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_SHOW_STATUS_PROC;
             if (prepare_schema_table(YYTHD, lex, 0, SCH_PROCEDURES))
               MYSQL_YYABORT;
           }
-        | FUNCTION_SYM STATUS_SYM wild_and_where
+        | FUNCTION_SYM STATUS_SYM opt_wild_or_where
           {
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_SHOW_STATUS_FUNC;
@@ -11936,7 +12024,7 @@ binlog_from:
         | FROM ulonglong_num { Lex->mi.pos = $2; }
         ;
 
-wild_and_where:
+opt_wild_or_where:
           /* empty */
         | LIKE TEXT_STRING_sys
           {
@@ -12981,6 +13069,7 @@ user:
 /* Keyword that we allow for identifiers (except SP labels) */
 keyword:
           keyword_sp            {}
+        | ACCOUNT_SYM           {}
         | ASCII_SYM             {}
         | ALWAYS_SYM            {}
         | BACKUP_SYM            {}

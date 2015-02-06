@@ -248,9 +248,7 @@ bool mysql_show_create_user(THD *thd, LEX_USER *user_name)
   TABLE_LIST tables;
   TABLE *table;
   uchar user_key[MAX_KEY_LENGTH];
-  bool password_expired_column;
-  bool default_password_lifetime;
-  uint16 expire_after_days;
+  LEX_ALTER alter_info;
 
   DBUG_ENTER("mysql_show_create_user");
 
@@ -376,14 +374,12 @@ bool mysql_show_create_user(THD *thd, LEX_USER *user_name)
   lex->x509_issuer= const_cast<char*>(acl_user->x509_issuer);
   lex->x509_subject= const_cast<char*>(acl_user->x509_subject);
 
-  password_expired_column= lex->alter_password.update_password_expired_column;
-  default_password_lifetime= lex->alter_password.use_default_password_lifetime;
-  expire_after_days= lex->alter_password.expire_after_days;
+  alter_info= lex->alter_password;
 
   lex->alter_password.update_password_expired_column= acl_user->password_expired;
   lex->alter_password.use_default_password_lifetime= acl_user->use_default_password_lifetime;
   lex->alter_password.expire_after_days= acl_user->password_lifetime;
-
+  lex->alter_password.account_locked = acl_user->account_locked;
 
   /* send the metadata to client */
   field=new Item_string("",0,&my_charset_latin1);
@@ -417,9 +413,7 @@ err:
   lex->x509_issuer= x509_issuer;
   lex->x509_subject= x509_subject;
 
-  lex->alter_password.update_password_expired_column= password_expired_column;
-  lex->alter_password.use_default_password_lifetime= default_password_lifetime;
-  lex->alter_password.expire_after_days= expire_after_days;
+  lex->alter_password= alter_info;
 
   mysql_mutex_unlock(&acl_cache->lock);
   close_acl_tables(thd);
@@ -536,6 +530,10 @@ bool set_and_validate_user_attributes(THD *thd, LEX_USER *Str, ulong &what_to_se
       !Str->alter_status.use_default_password_lifetime ||
       Str->alter_status.expire_after_days)
     what_to_set|= PASSWORD_EXPIRE_ATTR;
+
+  /* update account lock attribute */
+  if (Str->alter_status.update_account_locked_column)
+    what_to_set|= ACCOUNT_LOCK_ATTR;
 
   if (user_exists)
   {
@@ -753,6 +751,8 @@ bool change_password(THD *thd, const char *host, const char *user,
   thd->lex->alter_password.update_password_expired_column= false;
   thd->lex->alter_password.use_default_password_lifetime= true;
   thd->lex->alter_password.expire_after_days= 0;
+  thd->lex->alter_password.update_account_locked_column= false;
+  thd->lex->alter_password.account_locked= false;
 
   /*
     When @@log-backward-compatible-user-definitions variable is ON
@@ -1694,15 +1694,6 @@ bool mysql_alter_user(THD *thd, List <LEX_USER> &list)
       continue;
     }
 
-    if (!acl_user->user)
-    {
-      result= true;
-      is_anonymous_user= true;
-      append_user(thd, &wrong_users, user_from, wrong_users.length() > 0,
-                  false);
-      continue;
-    }
-
     /* copy password expire attributes to individual lex user */
     user_from->alter_status= thd->lex->alter_password;
 
@@ -1723,6 +1714,18 @@ bool mysql_alter_user(THD *thd, List <LEX_USER> &list)
       result= true;
       continue;
     }
+
+    if (!acl_user->user && 
+        (what_to_alter & PASSWORD_EXPIRE_ATTR) &&
+        user_from->alter_status.update_password_expired_column)
+    {
+      result = true;
+      is_anonymous_user = true;
+      append_user(thd, &wrong_users, user_from, wrong_users.length() > 0,
+        false);
+      continue;
+    }
+
     /* update the mysql.user table */
     if (replace_user_table(thd, table, user_from, 0, 0, 1,
                            what_to_alter))

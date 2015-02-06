@@ -54,6 +54,7 @@ select COUNT_STAR, OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INDEX_NAME
   order by OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INDEX_NAME;
 
 # Expect INDEX_STAT lost, we have room for 1 out of 2
+--disable_warnings
 select variable_value > 0 from information_schema.global_status
   where variable_name like 'PERFORMANCE_SCHEMA_INDEX_STAT_LOST';
 
@@ -62,7 +63,7 @@ FLUSH STATUS;
 
 select variable_value from information_schema.global_status
   where variable_name like 'PERFORMANCE_SCHEMA_INDEX_STAT_LOST';
-
+--enable_warnings
 
 
 create table db1.t2 (a int, b char(10) default 'default',
@@ -106,8 +107,10 @@ select COUNT_STAR, OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INDEX_NAME
   order by OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INDEX_NAME;
 
 # Expect INDEX_STAT lost
+--disable_warnings
 select variable_value > 0 from information_schema.global_status
   where variable_name like 'PERFORMANCE_SCHEMA_INDEX_STAT_LOST';
+--enable_warnings
 
 FLUSH STATUS;
 
@@ -158,8 +161,10 @@ select COUNT_STAR, OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INDEX_NAME
   order by OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INDEX_NAME;
 
 # Do not expect lost counter in INDEX_STAT 
+--disable_warnings
 select variable_value from information_schema.global_status
   where variable_name like 'PERFORMANCE_SCHEMA_INDEX_STAT_LOST';
+--enable_warnings
 
 ###########
 # Cleanup.

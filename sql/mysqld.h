@@ -94,6 +94,7 @@ int init_common_variables();
 void my_init_signals();
 bool gtid_server_init();
 void gtid_server_cleanup();
+const char *fixup_enforce_gtid_consistency_command_line(char *value_arg);
 
 extern "C" MYSQL_PLUGIN_IMPORT CHARSET_INFO *system_charset_info;
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *files_charset_info ;
@@ -212,6 +213,7 @@ extern ulong slow_launch_time;
 extern ulong table_cache_size, table_def_size;
 extern ulong table_cache_size_per_instance, table_cache_instances;
 extern MYSQL_PLUGIN_IMPORT ulong max_connections;
+extern ulong max_digest_length;
 extern ulong max_connect_errors, connect_timeout;
 extern my_bool opt_slave_allow_batching;
 extern my_bool allow_slave_start;
@@ -238,10 +240,10 @@ extern ulong binlog_checksum_options;
 extern const char *binlog_checksum_type_names[];
 extern my_bool opt_master_verify_checksum;
 extern my_bool opt_slave_sql_verify_checksum;
-extern my_bool enforce_gtid_consistency;
 extern uint gtid_executed_compression_period;
 extern my_bool binlog_gtid_simple_recovery;
 extern ulong binlog_error_action;
+extern ulong locked_account_connection_count;
 enum enum_binlog_error_action
 {
   /// Ignore the error and let server continue without binlogging
@@ -250,20 +252,6 @@ enum enum_binlog_error_action
   ABORT_SERVER= 1
 };
 extern const char *binlog_error_action_list[];
-enum enum_gtid_mode
-{
-  /// Support only anonymous groups, not GTIDs.
-  GTID_MODE_OFF= 0,
-  /// Support both GTIDs and anonymous groups; generate anonymous groups.
-  GTID_MODE_UPGRADE_STEP_1= 1,
-  /// Support both GTIDs and anonymous groups; generate GTIDs.
-  GTID_MODE_UPGRADE_STEP_2= 2,
-  /// Support only GTIDs, not anonymous groups.
-  GTID_MODE_ON= 3
-};
-extern ulong gtid_mode;
-extern const char *gtid_mode_names[];
-extern TYPELIB gtid_mode_typelib;
 
 extern ulong stored_program_cache_size;
 extern ulong back_log;
@@ -319,6 +307,10 @@ extern char *opt_log_syslog_facility;
 /** The size of the host_cache. */
 extern uint host_cache_size;
 extern ulong log_error_verbosity;
+
+/** System variable show_compatibility_56. */
+extern my_bool show_compatibility_56;
+
 extern LEX_CSTRING sql_statement_names[(uint) SQLCOM_END + 1];
 
 /*
@@ -390,7 +382,7 @@ extern PSI_mutex_key
   key_LOCK_server_started, key_LOCK_status,
   key_LOCK_sql_slave_skip_counter,
   key_LOCK_slave_net_timeout,
-  key_LOCK_table_share, key_LOCK_thd_data,
+  key_LOCK_table_share, key_LOCK_thd_data, key_LOCK_thd_sysvar,
   key_LOCK_user_conn, key_LOCK_uuid_generator, key_LOG_LOCK_log,
   key_master_info_data_lock, key_master_info_run_lock,
   key_master_info_sleep_lock, key_master_info_thd_lock,
@@ -432,7 +424,7 @@ extern PSI_mutex_key key_mutex_slave_worker_hash;
 extern PSI_rwlock_key key_rwlock_LOCK_grant, key_rwlock_LOCK_logger,
   key_rwlock_LOCK_sys_init_connect, key_rwlock_LOCK_sys_init_slave,
   key_rwlock_LOCK_system_variables_hash, key_rwlock_query_cache_query_lock,
-  key_rwlock_global_sid_lock;
+  key_rwlock_global_sid_lock, key_rwlock_gtid_mode_lock;
 
 extern PSI_cond_key key_PAGE_cond, key_COND_active, key_COND_pool;
 extern PSI_cond_key key_BINLOG_update_cond,
@@ -886,7 +878,8 @@ enum options_mysqld
   OPT_MDL_HASH_INSTANCES,
   OPT_SKIP_INNODB,
   OPT_AVOID_TEMPORAL_UPGRADE,
-  OPT_SHOW_OLD_TEMPORALS
+  OPT_SHOW_OLD_TEMPORALS,
+  OPT_ENFORCE_GTID_CONSISTENCY
 };
 
 

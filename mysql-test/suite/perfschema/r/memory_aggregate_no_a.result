@@ -6,7 +6,7 @@ Warnings:
 Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 Warnings:
 Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-show status like "performance_schema_memory_classes_lost";
+show global status like "performance_schema_memory_classes_lost";
 Variable_name	Value
 Performance_schema_memory_classes_lost	0
 "================== Step 1 =================="

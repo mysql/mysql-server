@@ -67,6 +67,24 @@ void pre_initialize_performance_schema()
 
   if (my_create_thread_local_key(&THR_PFS, destroy_pfs_thread))
     return;
+  if (my_create_thread_local_key(&THR_PFS_VG, NULL))  // global_variables
+    return;
+  if (my_create_thread_local_key(&THR_PFS_SV, NULL))  // session_variables
+    return;
+  if (my_create_thread_local_key(&THR_PFS_VBT, NULL)) // variables_by_thread
+    return;
+  if (my_create_thread_local_key(&THR_PFS_SG, NULL))  // global_status
+    return;
+  if (my_create_thread_local_key(&THR_PFS_SS, NULL))  // session_status
+    return;
+  if (my_create_thread_local_key(&THR_PFS_SBT, NULL)) // status_by_thread
+    return;
+  if (my_create_thread_local_key(&THR_PFS_SBU, NULL)) // status_by_user
+    return;
+  if (my_create_thread_local_key(&THR_PFS_SBH, NULL)) // status_by_host
+    return;
+  if (my_create_thread_local_key(&THR_PFS_SBA, NULL)) // status_by_account
+    return;
 
   THR_PFS_initialized= true;
 }
@@ -76,7 +94,7 @@ initialize_performance_schema(PFS_global_param *param)
 {
   pfs_automated_sizing(param);
 
-  if (! param->m_enabled)
+  if (!param->m_enabled || !THR_PFS_initialized)
   {
     /*
       The performance schema is disabled in the startup command line.
@@ -282,7 +300,27 @@ void shutdown_performance_schema(void)
   if (THR_PFS_initialized)
   {
     my_set_thread_local(THR_PFS, NULL);
+    my_set_thread_local(THR_PFS_VG, NULL);  // global_variables
+    my_set_thread_local(THR_PFS_SV, NULL);  // session_variables
+    my_set_thread_local(THR_PFS_VBT, NULL); // variables_by_thread
+    my_set_thread_local(THR_PFS_SG, NULL);  // global_status
+    my_set_thread_local(THR_PFS_SS, NULL);  // session_status
+    my_set_thread_local(THR_PFS_SBT, NULL); // status_by_thread
+    my_set_thread_local(THR_PFS_SBU, NULL); // status_by_user
+    my_set_thread_local(THR_PFS_SBH, NULL); // status_by_host
+    my_set_thread_local(THR_PFS_SBA, NULL); // status_by_account
+    
     my_delete_thread_local_key(THR_PFS);
+    my_delete_thread_local_key(THR_PFS_VG);
+    my_delete_thread_local_key(THR_PFS_SV);
+    my_delete_thread_local_key(THR_PFS_VBT);
+    my_delete_thread_local_key(THR_PFS_SG);
+    my_delete_thread_local_key(THR_PFS_SS);
+    my_delete_thread_local_key(THR_PFS_SBT);
+    my_delete_thread_local_key(THR_PFS_SBU);
+    my_delete_thread_local_key(THR_PFS_SBH);
+    my_delete_thread_local_key(THR_PFS_SBA);
+
     THR_PFS_initialized= false;
   }
 }

@@ -95,7 +95,16 @@ select * from performance_schema.replication_applier_configuration;
 select * from performance_schema.replication_applier_status;
 select * from performance_schema.replication_applier_status_by_coordinator;
 select * from performance_schema.replication_applier_status_by_worker;
-show variables like "performance_schema%";
+select * from performance_schema.global_status;
+select * from performance_schema.status_by_thread;
+select * from performance_schema.status_by_user;
+select * from performance_schema.status_by_host;
+select * from performance_schema.status_by_account;
+select * from performance_schema.session_status;
+select * from performance_schema.global_variables;
+select * from performance_schema.variables_by_thread;
+select * from performance_schema.session_variables;
+show global variables like "performance_schema%";
 Variable_name	Value
 performance_schema	ON
 performance_schema_accounts_size	0
@@ -125,6 +134,7 @@ performance_schema_max_rwlock_classes	0
 performance_schema_max_rwlock_instances	0
 performance_schema_max_socket_classes	0
 performance_schema_max_socket_instances	0
+performance_schema_max_sql_text_length	1024
 performance_schema_max_stage_classes	0
 performance_schema_max_statement_classes	0
 performance_schema_max_statement_stack	1
@@ -138,8 +148,8 @@ performance_schema_setup_actors_size	0
 performance_schema_setup_objects_size	0
 performance_schema_users_size	0
 show engine PERFORMANCE_SCHEMA status;
-show status like "performance_schema%";
-show variables like "performance_schema%";
+show global status like "performance_schema%";
+show global variables like "performance_schema%";
 Variable_name	Value
 performance_schema	ON
 performance_schema_accounts_size	0
@@ -169,6 +179,7 @@ performance_schema_max_rwlock_classes	0
 performance_schema_max_rwlock_instances	0
 performance_schema_max_socket_classes	0
 performance_schema_max_socket_instances	0
+performance_schema_max_sql_text_length	1024
 performance_schema_max_stage_classes	0
 performance_schema_max_statement_classes	0
 performance_schema_max_statement_stack	1
@@ -196,10 +207,17 @@ memory/performance_schema/events_stages_summary_by_thread_by_event_name	YES	NO
 memory/performance_schema/events_stages_summary_by_user_by_event_name	YES	NO
 memory/performance_schema/events_stages_summary_global_by_event_name	YES	NO
 memory/performance_schema/events_statements_current	YES	NO
+memory/performance_schema/events_statements_current.sqltext	YES	NO
+memory/performance_schema/events_statements_current.tokens	YES	NO
 memory/performance_schema/events_statements_history	YES	NO
+memory/performance_schema/events_statements_history.sqltext	YES	NO
+memory/performance_schema/events_statements_history.tokens	YES	NO
 memory/performance_schema/events_statements_history_long	YES	NO
+memory/performance_schema/events_statements_history_long.sqltext	YES	NO
+memory/performance_schema/events_statements_history_long.tokens	YES	NO
 memory/performance_schema/events_statements_summary_by_account_by_event_name	YES	NO
 memory/performance_schema/events_statements_summary_by_digest	YES	NO
+memory/performance_schema/events_statements_summary_by_digest.tokens	YES	NO
 memory/performance_schema/events_statements_summary_by_host_by_event_name	YES	NO
 memory/performance_schema/events_statements_summary_by_program	YES	NO
 memory/performance_schema/events_statements_summary_by_thread_by_event_name	YES	NO

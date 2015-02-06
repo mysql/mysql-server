@@ -291,7 +291,10 @@ void table_esms_by_account_by_event_name
   m_row.m_event_name.make_row(klass);
 
   PFS_connection_statement_visitor visitor(klass);
-  PFS_connection_iterator::visit_account(account, true, & visitor);
+  PFS_connection_iterator::visit_account(account,
+                                         true,  /* threads */
+                                         false, /* THDs */
+                                         & visitor);
 
   if (! account->m_lock.end_optimistic_lock(&lock))
     return;

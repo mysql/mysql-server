@@ -25,10 +25,12 @@
   my_validate_password_policy()    - function to validate password
                                      based on defined policy
   const char*                        buffer holding the password value
+  unsigned int                       buffer length
 
   my_calculate_password_strength() - function to calculate strength
                                      of the password based on the policies defined.
   const char*                        buffer holding the password value
+  unsigned int                       buffer length
 
   Both the service function returns 0 on SUCCESS and 1 incase input password does not
   match against the policy rules defined.
@@ -39,21 +41,21 @@ extern "C" {
 #endif
 
 extern struct mysql_password_policy_service_st {
-  int (*my_validate_password_policy_func)(const char *);
-  int (*my_calculate_password_strength_func)(const char *);
+  int (*my_validate_password_policy_func)(const char *, unsigned int);
+  int (*my_calculate_password_strength_func)(const char *, unsigned int);
 } *mysql_password_policy_service;
 
 #ifdef MYSQL_DYNAMIC_PLUGIN
 
-#define my_validate_password_policy(buffer) \
-  mysql_password_policy_service->my_validate_password_policy_func(buffer)
-#define my_calculate_password_strength(buffer) \
-  mysql_password_policy_service->my_calculate_password_strength_func(buffer)
+#define my_validate_password_policy(buffer, length) \
+  mysql_password_policy_service->my_validate_password_policy_func(buffer, length)
+#define my_calculate_password_strength(buffer, length) \
+  mysql_password_policy_service->my_calculate_password_strength_func(buffer, length)
 
 #else
 
-int my_validate_password_policy(const char *);
-int my_calculate_password_strength(const char *);
+int my_validate_password_policy(const char *, unsigned int);
+int my_calculate_password_strength(const char *, unsigned int);
 
 #endif
 

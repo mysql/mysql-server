@@ -34,14 +34,14 @@
 ** store records in temporary table for UNION
 ***************************************************************************/
 
-int select_union::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
+int Query_result_union::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
 {
   unit= u;
   return 0;
 }
 
 
-bool select_union::send_data(List<Item> &values)
+bool Query_result_union::send_data(List<Item> &values)
 {
   int error= 0;
   if (unit->offset_limit_cnt)
@@ -72,13 +72,13 @@ bool select_union::send_data(List<Item> &values)
 }
 
 
-bool select_union::send_eof()
+bool Query_result_union::send_eof()
 {
   return false;
 }
 
 
-bool select_union::flush()
+bool Query_result_union::flush()
 {
   int error;
   if ((error=table->file->extra(HA_EXTRA_NO_CACHE)))
@@ -90,7 +90,7 @@ bool select_union::flush()
 }
 
 /**
-  Create a temporary table to store the result of select_union.
+  Create a temporary table to store the result of Query_result_union.
 
   @param thd                thread handle
   @param column_types       a list of items used to define columns of the
@@ -108,11 +108,13 @@ bool select_union::flush()
   @returns false if table created, true if error
 */
 
-bool
-select_union::create_result_table(THD *thd_arg, List<Item> *column_types,
-                                  bool is_union_distinct, ulonglong options,
-                                  const char *table_alias,
-                                  bool bit_fields_as_long, bool create_table)
+bool Query_result_union::create_result_table(THD *thd_arg,
+                                             List<Item> *column_types,
+                                             bool is_union_distinct,
+                                             ulonglong options,
+                                             const char *table_alias,
+                                             bool bit_fields_as_long,
+                                             bool create_table)
 {
   DBUG_ASSERT(table == 0);
   tmp_table_param= Temp_table_param();
@@ -143,7 +145,7 @@ select_union::create_result_table(THD *thd_arg, List<Item> *column_types,
   tables of JOIN - exec_tmp_table_[1 | 2].
 */
 
-void select_union::cleanup()
+void Query_result_union::cleanup()
 {
   if (!table)
     return;
@@ -157,22 +159,22 @@ void select_union::cleanup()
 
 
 /**
-  UNION result that is passed directly to the receiving select_result
+  UNION result that is passed directly to the receiving Query_result
   without filling a temporary table.
 
-  Function calls are forwarded to the wrapped select_result, but some
+  Function calls are forwarded to the wrapped Query_result, but some
   functions are expected to be called only once for each query, so
   they are only executed for the first SELECT in the union (except
   for send_eof(), which is executed only for the last SELECT).
 
-  This select_result is used when a UNION is not DISTINCT and doesn't
+  This Query_result is used when a UNION is not DISTINCT and doesn't
   have a global ORDER BY clause. @see st_select_lex_unit::prepare().
 */
-class select_union_direct :public select_union
+class Query_result_union_direct :public Query_result_union
 {
 private:
   /// Result object that receives all rows
-  select_result *result;
+  Query_result *result;
   /// The last SELECT_LEX of the union
   SELECT_LEX *last_select_lex;
 
@@ -186,19 +188,19 @@ private:
 
   /// Number of rows offset
   ha_rows offset;
-  /// Number of rows limit + offset, @see select_union_direct::send_data()
+  /// Number of rows limit + offset, @see Query_result_union_direct::send_data()
   ha_rows limit;
 
 public:
-  select_union_direct(select_result *result, SELECT_LEX *last_select_lex)
+  Query_result_union_direct(Query_result *result, SELECT_LEX *last_select_lex)
     :result(result), last_select_lex(last_select_lex),
     done_send_result_set_metadata(false), done_initialize_tables(false),
     limit_found_rows(0)
   {}
-  bool change_query_result(select_result *new_result);
+  bool change_query_result(Query_result *new_result);
   uint field_count(List<Item> &fields) const
   {
-    // Only called for top-level select_results, usually select_send
+    // Only called for top-level Query_results, usually Query_result_send
     DBUG_ASSERT(false); /* purecov: inspected */
     return 0; /* purecov: inspected */
   }
@@ -214,7 +216,7 @@ public:
   bool flush() { return false; }
   bool check_simple_select() const
   {
-    // Only called for top-level select_results, usually select_send
+    // Only called for top-level Query_results, usually Query_result_send
     DBUG_ASSERT(false); /* purecov: inspected */
     return false; /* purecov: inspected */
   }
@@ -226,7 +228,7 @@ public:
   void set_thd(THD *thd_arg)
   {
     /*
-      Only called for top-level select_results, usually select_send,
+      Only called for top-level Query_results, usually Query_result_send,
       and for the results of subquery engines
       (select_<something>_subselect).
     */
@@ -234,7 +236,7 @@ public:
   }
   void reset_offset_limit_cnt()
   {
-    // EXPLAIN should never output to a select_union_direct
+    // EXPLAIN should never output to a Query_result_union_direct
     DBUG_ASSERT(false); /* purecov: inspected */
   }
   void begin_dataset()
@@ -253,14 +255,14 @@ public:
   @retval FALSE Success
   @retval TRUE  Error
 */
-bool select_union_direct::change_query_result(select_result *new_result)
+bool Query_result_union_direct::change_query_result(Query_result *new_result)
 {
   result= new_result;
   return (result->prepare(unit->types, unit) || result->prepare2());
 }
 
 
-bool select_union_direct::postponed_prepare(List<Item> &types)
+bool Query_result_union_direct::postponed_prepare(List<Item> &types)
 {
   if (result != NULL)
     return (result->prepare(types, unit) || result->prepare2());
@@ -269,7 +271,8 @@ bool select_union_direct::postponed_prepare(List<Item> &types)
 }
 
 
-bool select_union_direct::send_result_set_metadata(List<Item> &list, uint flags)
+bool Query_result_union_direct::send_result_set_metadata(List<Item> &list,
+                                                         uint flags)
 {
   if (done_send_result_set_metadata)
     return false;
@@ -291,7 +294,7 @@ bool select_union_direct::send_result_set_metadata(List<Item> &list, uint flags)
 }
 
 
-bool select_union_direct::send_data(List<Item> &items)
+bool Query_result_union_direct::send_data(List<Item> &items)
 {
   if (!limit)
     return false;
@@ -310,7 +313,7 @@ bool select_union_direct::send_data(List<Item> &items)
 }
 
 
-bool select_union_direct::initialize_tables (JOIN *join)
+bool Query_result_union_direct::initialize_tables (JOIN *join)
 {
   if (done_initialize_tables)
     return false;
@@ -320,7 +323,7 @@ bool select_union_direct::initialize_tables (JOIN *join)
 }
 
 
-bool select_union_direct::send_eof()
+bool Query_result_union_direct::send_eof()
 {
   // Reset for each SELECT_LEX, so accumulate here
   limit_found_rows+= thd->limit_found_rows -
@@ -425,7 +428,7 @@ bool st_select_lex_unit::prepare_fake_select_lex(THD *thd_arg)
 
   @returns false if success, true if error
  */
-bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
+bool st_select_lex_unit::prepare(THD *thd_arg, Query_result *sel_result,
                                  ulonglong added_options,
                                  ulonglong removed_options)
 {
@@ -434,7 +437,7 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
   DBUG_ASSERT(!is_prepared());
 
   SELECT_LEX *lex_select_save= thd_arg->lex->current_select();
-  select_result *tmp_result;
+  Query_result *tmp_result;
   bool instantiate_tmp_table= false;
   bool status= false;          // Preparation error status
 
@@ -459,7 +462,8 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
       SELECT_LEX *last= first_select();
       while (last->next_select())
         last= last->next_select();
-      if (!(tmp_result= union_result= new select_union_direct(sel_result, last)))
+      if (!(tmp_result= union_result=
+              new Query_result_union_direct(sel_result, last)))
         goto err; /* purecov: inspected */
       mysql_mutex_lock(&thd->LOCK_query_plan);
       fake_select_lex= NULL;
@@ -468,7 +472,7 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
     }
     else
     {
-      if (!(tmp_result= union_result= new select_union()))
+      if (!(tmp_result= union_result= new Query_result_union()))
         goto err; /* purecov: inspected */
       instantiate_tmp_table= true;
     }
@@ -537,8 +541,8 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
   }
 
   /*
-    If the query is using select_union_direct, we have postponed
-    preparation of the underlying select_result until column types are known.
+    If the query is using Query_result_union_direct, we have postponed
+    preparation of the underlying Query_result until column types are known.
   */
   if (union_result != NULL && union_result->postponed_prepare(types))
     DBUG_RETURN(true);
@@ -684,7 +688,7 @@ bool st_select_lex_unit::optimize(THD *thd)
       tables are executed two times:
        - 1st time is a real evaluation to get the subquery value
        - 2nd time is to produce EXPLAIN output rows.
-      1st execution sets certain members (e.g. select_result) to perform
+      1st execution sets certain members (e.g. Query_result) to perform
       subquery execution rather than EXPLAIN line production. In order 
       to reset them back, we re-do all of the actions (yes it is ugly).
     */
@@ -996,9 +1000,9 @@ void st_select_lex_unit::reinit_exec_mechanism()
   @retval true  Error
 */
 
-bool st_select_lex_unit::change_query_result(
-                                       select_result_interceptor *new_result,
-                                       select_result_interceptor *old_result)
+bool
+st_select_lex_unit::change_query_result(Query_result_interceptor *new_result,
+                                        Query_result_interceptor *old_result)
 {
   for (SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())
   {

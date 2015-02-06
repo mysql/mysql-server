@@ -34,7 +34,7 @@
 #include "sp_cache.h"         // sp_cache_enforce_limit
 #include "sp_head.h"          // sp_head
 #include "sql_admin.h"        // mysql_assign_to_keycache
-#include "sql_analyse.h"      // select_analyse
+#include "sql_analyse.h"      // Query_result_analyse
 #include "sql_audit.h"        // MYSQL_AUDIT_NOTIFY_CONNECTION_CHANGE_USER
 #include "sql_base.h"         // find_temporary_table
 #include "sql_binlog.h"       // mysql_client_binlog_statement
@@ -45,7 +45,7 @@
 #include "sql_do.h"           // mysql_do
 #include "sql_handler.h"      // mysql_ha_rm_tables
 #include "sql_help.h"         // mysqld_help
-#include "sql_insert.h"       // select_create
+#include "sql_insert.h"       // Query_result_create
 #include "sql_load.h"         // mysql_load
 #include "sql_prepare.h"      // mysql_stmt_execute
 #include "sql_reload.h"       // reload_acl_and_cache
@@ -55,6 +55,49 @@
 #include "sql_table.h"        // mysql_create_table
 #include "sql_tablespace.h"   // mysql_alter_tablespace
 #include "sql_test.h"         // mysql_print_status
+#include "sql_select.h"       // handle_query
+#include "sql_load.h"         // mysql_load
+#include "sql_servers.h"      // create_servers, alter_servers,
+                              // drop_servers, servers_reload
+#include "sql_handler.h"      // mysql_ha_open, mysql_ha_close,
+                              // mysql_ha_read
+#include "sql_binlog.h"       // mysql_client_binlog_statement
+#include "sql_do.h"           // mysql_do
+#include "sql_help.h"         // mysqld_help
+#include "rpl_constants.h"    // Incident, INCIDENT_LOST_EVENTS
+#include "log_event.h"
+#include "rpl_slave.h"
+#include "rpl_master.h"
+#include "rpl_msr.h"        /* Multisource replication */
+#include "rpl_filter.h"
+#include <m_ctype.h>
+#include <myisam.h>
+#include <my_dir.h>
+#include <dur_prop.h>
+#include "rpl_handler.h"
+
+#include "sp_head.h"
+#include "sp.h"
+#include "sp_cache.h"
+#include "events.h"
+#include "sql_trigger.h"      // mysql_create_or_drop_trigger
+#include "transaction.h"
+#include "xa.h"
+#include "sql_audit.h"
+#include "sql_prepare.h"
+#include "debug_sync.h"
+#include "probes_mysql.h"
+#include "set_var.h"
+#include "opt_trace.h"
+#include "mysql/psi/mysql_statement.h"
+#include "opt_explain.h"
+#include "sql_rewrite.h"
+#include "sql_analyse.h"
+#include "table_cache.h" // table_cache_manager
+#include "sql_timer.h"   // thd_timer_set, thd_timer_reset
+#include "sp_rcontext.h"
+#include "parse_location.h"
+#include "sql_digest.h"
 #include "sql_timer.h"        // thd_timer_set
 #include "sql_trigger.h"      // add_table_for_trigger
 #include "sql_update.h"       // mysql_update
@@ -1175,7 +1218,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   {
     DBUG_ASSERT(thd->m_digest == NULL);
     thd->m_digest= & thd->m_digest_state;
-    thd->m_digest->reset();
+    thd->m_digest->reset(thd->m_token_array, max_digest_length);
 
     if (alloc_query(thd, packet, packet_length))
       break;					// fatal error is set
@@ -2296,6 +2339,8 @@ mysql_execute_command(THD *thd)
     thd->mdl_context.release_transactional_locks();
   }
 
+  DEBUG_SYNC(thd, "after_implicit_pre_commit");
+
   if (gtid_pre_statement_post_implicit_commit_checks(thd))
     DBUG_RETURN(-1);
 
@@ -2600,7 +2645,7 @@ case SQLCOM_PREPARE:
     TABLE_LIST *select_tables= lex->create_last_non_select_table->next_global;
 
     /*
-      Code below (especially in mysql_create_table() and select_create
+      Code below (especially in mysql_create_table() and Query_result_create
       methods) may modify HA_CREATE_INFO structure in LEX, so we have to
       use a copy of this structure to make execution prepared statement-
       safe. A shallow copy is enough as this code won't modify any memory
@@ -2667,7 +2712,7 @@ case SQLCOM_PREPARE:
 
     if (select_lex->item_list.elements)		// With select
     {
-      select_result *result;
+      Query_result *result;
 
       /*
         CREATE TABLE...IGNORE/REPLACE SELECT... can be unsafe, unless
@@ -2776,15 +2821,15 @@ case SQLCOM_PREPARE:
           }
 
         /*
-          select_create is currently not re-execution friendly and
+          Query_result_create is currently not re-execution friendly and
           needs to be created for every execution of a PS/SP.
         */
-        if ((result= new select_create(create_table,
-                                       &create_info,
-                                       &alter_info,
-                                       select_lex->item_list,
-                                       lex->duplicates,
-                                       select_tables)))
+        if ((result= new Query_result_create(create_table,
+                                             &create_info,
+                                             &alter_info,
+                                             select_lex->item_list,
+                                             lex->duplicates,
+                                             select_tables)))
         {
           Ignore_error_handler ignore_handler;
           Strict_error_handler strict_handler;
@@ -4418,6 +4463,7 @@ end_with_restore_list:
 
       if (user->uses_identified_by_clause &&
           !thd->lex->mqh.specified_limits &&
+          !user->alter_status.update_account_locked_column &&
           !user->alter_status.update_password_expired_column &&
           !user->alter_status.expire_after_days &&
           user->alter_status.use_default_password_lifetime &&
@@ -4622,27 +4668,27 @@ static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables)
     if (lex->is_explain())
     {
       /*
-        We always use select_send for EXPLAIN, even if it's an EXPLAIN
+        We always use Query_result_send for EXPLAIN, even if it's an EXPLAIN
         for SELECT ... INTO OUTFILE: a user application should be able
         to prepend EXPLAIN to any query and receive output for it,
         even if the query itself redirects the output.
       */
-      select_result *const result= new select_send;
+      Query_result *const result= new Query_result_send;
       if (!result)
         return true; /* purecov: inspected */
       res= handle_query(thd, lex, result, 0, 0);
     }
     else
     {
-      select_result *result= lex->result;
-      if (!result && !(result= new select_send()))
+      Query_result *result= lex->result;
+      if (!result && !(result= new Query_result_send()))
         return true;                            /* purecov: inspected */
-      select_result *save_result= result;
-      select_result *analyse_result= NULL;
+      Query_result *save_result= result;
+      Query_result *analyse_result= NULL;
       if (lex->proc_analyse)
       {
         if ((result= analyse_result=
-               new select_analyse(result, lex->proc_analyse)) == NULL)
+               new Query_result_analyse(result, lex->proc_analyse)) == NULL)
           return true;
       }
       res= handle_query(thd, lex, result, 0, 0);
@@ -6245,6 +6291,8 @@ void get_default_definer(THD *thd, LEX_USER *definer)
   definer->alter_status.update_password_expired_column= false;
   definer->alter_status.use_default_password_lifetime= true;
   definer->alter_status.expire_after_days= 0;
+  definer->alter_status.update_account_locked_column= false;
+  definer->alter_status.account_locked= false;
 }
 
 
@@ -6309,12 +6357,8 @@ LEX_USER *get_current_user(THD *thd, LEX_USER *user)
       default_definer->plugin.length= user->plugin.length;
       default_definer->auth.str= user->auth.str;
       default_definer->auth.length= user->auth.length;
-      default_definer->alter_status.update_password_expired_column=
-        user->alter_status.update_password_expired_column;
-      default_definer->alter_status.use_default_password_lifetime=
-	user->alter_status.use_default_password_lifetime;
-      default_definer->alter_status.expire_after_days=
-        user->alter_status.expire_after_days;
+      default_definer->alter_status= user->alter_status;
+
       return default_definer;
     }
   }
@@ -6522,6 +6566,7 @@ bool parse_sql(THD *thd,
                Parser_state *parser_state,
                Object_creation_ctx *creation_ctx)
 {
+  DBUG_ENTER("parse_sql");
   bool ret_value;
   DBUG_ASSERT(thd->m_parser_state == NULL);
   // TODO fix to allow parsing gcol exprs after main query.
@@ -6544,8 +6589,6 @@ bool parse_sql(THD *thd,
 
   if (thd->m_digest != NULL)
   {
-    thd->m_digest->reset();
-
     /* Start Digest */
     parser_state->m_digest_psi= MYSQL_DIGEST_START(thd->m_statement_psi);
 
@@ -6670,7 +6713,7 @@ bool parse_sql(THD *thd,
   }
 
   MYSQL_QUERY_PARSE_DONE(ret_value);
-  return ret_value;
+  DBUG_RETURN(ret_value);
 }
 
 /**

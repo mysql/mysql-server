@@ -19,10 +19,12 @@
 --source include/have_log_bin.inc
 --source include/have_gtid.inc
 
-call mtr.add_suppression("Failed to save set of GTIDs of the last binlog into "
-                         "gtid_executed table on server shutdown, so we save "
-                         "it into gtid_executed table and executed_gtids "
-                         "during next server startup.");
+call mtr.add_suppression("Failed to save the set of Global Transaction "
+                         "Identifiers of the last binary log into the "
+                         "mysql.gtid_executed table while the server was "
+                         "shutting down. The next server restart will make "
+                         "another attempt to save Global Transaction "
+                         "Identifiers into the table.");
 SET @debug_save= @@GLOBAL.DEBUG;
 --let $master_uuid= `SELECT @@GLOBAL.SERVER_UUID`
 CREATE TABLE t1 (a INT) ENGINE=InnoDB;

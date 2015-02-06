@@ -666,6 +666,14 @@ int Gtid_table_persistor::fetch_gtids(Gtid_set *gtid_set)
   while(!(err= table->file->ha_rnd_next(table->record[0])))
   {
     /* Store the gtid into the gtid_set */
+
+    /**
+      @todo:
+      - take only global_sid_lock->rdlock(), and take
+        gtid_state->sid_lock for each iteration.
+      - Add wrapper around Gtid_set::add_gno_interval and call that
+        instead.
+    */
     global_sid_lock->wrlock();
     if (gtid_set->add_gtid_text(encode_gtid_text(table).c_str()) !=
         RETURN_STATUS_OK)
