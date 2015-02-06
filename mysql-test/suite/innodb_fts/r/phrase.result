@@ -18,36 +18,36 @@ INSERT INTO articles (title,body) VALUES
 SET GLOBAL innodb_ft_aux_table="test/articles";
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHE;
 WORD	FIRST_DOC_ID	LAST_DOC_ID	DOC_COUNT	DOC_ID	POSITION
-database	2	11	10	2	11
-database	2	11	10	3	12
-database	2	11	10	4	11
-database	2	11	10	5	12
-database	2	11	10	6	13
-database	2	11	10	7	11
-database	2	11	10	8	12
-database	2	11	10	9	12
-database	2	11	10	10	11
-database	2	11	10	11	11
-good	2	11	10	2	6
-good	2	11	10	3	7
-good	2	11	10	4	6
-good	2	11	10	5	7
-good	2	11	10	6	8
-good	2	11	10	7	6
-good	2	11	10	8	7
-good	2	11	10	9	7
-good	2	11	10	10	6
-good	2	11	10	11	6
-mysql	2	11	10	2	0
-mysql	2	11	10	3	1
-mysql	2	11	10	4	0
-mysql	2	11	10	5	1
-mysql	2	11	10	6	2
-mysql	2	11	10	7	0
-mysql	2	11	10	8	0
-mysql	2	11	10	9	0
-mysql	2	11	10	10	0
-mysql	2	11	10	11	0
+database	1	10	10	1	11
+database	1	10	10	2	12
+database	1	10	10	3	11
+database	1	10	10	4	12
+database	1	10	10	5	13
+database	1	10	10	6	11
+database	1	10	10	7	12
+database	1	10	10	8	12
+database	1	10	10	9	11
+database	1	10	10	10	11
+good	1	10	10	1	6
+good	1	10	10	2	7
+good	1	10	10	3	6
+good	1	10	10	4	7
+good	1	10	10	5	8
+good	1	10	10	6	6
+good	1	10	10	7	7
+good	1	10	10	8	7
+good	1	10	10	9	6
+good	1	10	10	10	6
+mysql	1	10	10	1	0
+mysql	1	10	10	2	1
+mysql	1	10	10	3	0
+mysql	1	10	10	4	1
+mysql	1	10	10	5	2
+mysql	1	10	10	6	0
+mysql	1	10	10	7	0
+mysql	1	10	10	8	0
+mysql	1	10	10	9	0
+mysql	1	10	10	10	0
 SET GLOBAL innodb_ft_aux_table=default;
 SELECT * FROM articles;
 id	title	body
