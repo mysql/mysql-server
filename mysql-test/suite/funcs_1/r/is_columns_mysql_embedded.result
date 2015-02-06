@@ -243,6 +243,7 @@ def	mysql	time_zone_transition_type	Is_DST	4	0	NO	tinyint	NULL	NULL	3	0	NULL	NUL
 def	mysql	time_zone_transition_type	Offset	3	0	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)					
 def	mysql	time_zone_transition_type	Time_zone_id	1	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned	PRI				
 def	mysql	time_zone_transition_type	Transition_type_id	2	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned	PRI				
+def	mysql	user	account_locked	45	N	NO	enum	1	3	NULL	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')					
 def	mysql	user	Alter_priv	16	N	NO	enum	1	3	NULL	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')					
 def	mysql	user	Alter_routine_priv	27	N	NO	enum	1	3	NULL	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')					
 def	mysql	user	authentication_string	41	NULL	YES	text	65535	65535	NULL	NULL	NULL	utf8	utf8_bin	text					
@@ -643,4 +644,5 @@ NULL	mysql	user	max_user_connections	int	NULL	NULL	NULL	NULL	int(11) unsigned
 3.0000	mysql	user	password_expired	enum	1	3	utf8	utf8_general_ci	enum('N','Y')
 NULL	mysql	user	password_last_changed	timestamp	NULL	NULL	NULL	NULL	timestamp
 NULL	mysql	user	password_lifetime	smallint	NULL	NULL	NULL	NULL	smallint(5) unsigned
+3.0000	mysql	user	account_locked	enum	1	3	utf8	utf8_general_ci	enum('N','Y')
 SET sql_mode = default;

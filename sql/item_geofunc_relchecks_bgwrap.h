@@ -38,8 +38,8 @@ public:
   typedef typename Geom_types::Multipoint Multipoint;
   typedef typename Geom_types::Multilinestring Multilinestring;
   typedef typename Geom_types::Multipolygon Multipolygon;
-  typedef typename Geom_types::Coord_type Coord_type;
-  typedef typename Geom_types::Coordsys Coordsys;
+  typedef typename Geom_types::Coordinate_type Coord_type;
+  typedef typename Geom_types::Coordinate_system Coordsys;
 
   // For abbrievation.
   typedef Item_func_spatial_rel Ifsr;

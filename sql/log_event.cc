@@ -51,6 +51,16 @@ slave_ignored_err_throttle(window_size,
                            " replicate-*-table rules\" got suppressed.");
 #endif /* MYSQL_CLIENT */
 
+#include <base64.h>
+#include <my_bitmap.h>
+#include <map>
+#include "rpl_utility.h"
+/* This is necessary for the List manipuation */
+#include "sql_list.h"                           /* I_List */
+#include "hash.h"
+#include "sql_digest.h"
+#include "rpl_gtid.h"
+
 PSI_memory_key key_memory_log_event;
 PSI_memory_key key_memory_Incident_log_event_message;
 PSI_memory_key key_memory_Rows_query_log_event_rows_query;
@@ -4702,6 +4712,8 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
         THD_STAGE_INFO(thd, stage_starting);
         MYSQL_SET_STATEMENT_TEXT(thd->m_statement_psi, thd->query().str,
                                  thd->query().length);
+        if (thd->m_digest != NULL)
+          thd->m_digest->reset(thd->m_token_array, max_digest_length);
 
         mysql_parse(thd, &parser_state);
         /* Finalize server status flags after executing a statement. */
@@ -13001,7 +13013,7 @@ int Gtid_log_event::do_apply_event(Relay_log_info const *rli)
     this case the only sensible thing to do is to discard the
     truncated transaction and move on.
   */
-  if (thd->owned_gtid.sidno)
+  if (!thd->owned_gtid.is_empty())
   {
     /*
       Slave will execute this code if a previous Gtid_log_event was applied
@@ -13030,38 +13042,21 @@ int Gtid_log_event::do_apply_event(Relay_log_info const *rli)
     gtid_state->update_on_rollback(thd);
   }
 
-  if (spec.type == ANONYMOUS_GROUP)
+  global_sid_lock->rdlock();
+
+  // make sure that sid has been converted to sidno
+  if (spec.type == GTID_GROUP)
   {
-    if (gtid_mode == GTID_MODE_ON)
+    if (get_sidno(false) < 0)
     {
-      rli->report(ERROR_LEVEL,
-                  ER_CANT_SET_GTID_NEXT_TO_ANONYMOUS_WHEN_GTID_MODE_IS_ON,
-                  "%s",
-                  ER(ER_CANT_SET_GTID_NEXT_TO_ANONYMOUS_WHEN_GTID_MODE_IS_ON));
-      DBUG_RETURN(1);
-    }
-    thd->variables.gtid_next.set_anonymous();
-  }
-  else
-  {
-    if (gtid_mode == GTID_MODE_OFF)
-    {
-      rli->report(ERROR_LEVEL,
-                  ER_CANT_SET_GTID_NEXT_TO_GTID_WHEN_GTID_MODE_IS_OFF,
-                  "%s",
-                  ER(ER_CANT_SET_GTID_NEXT_TO_GTID_WHEN_GTID_MODE_IS_OFF));
-      DBUG_RETURN(1);
-    }
-    rpl_sidno sidno= get_sidno(true);
-    if (sidno < 0)
+      global_sid_lock->unlock();
       DBUG_RETURN(1); // out of memory
-
-    thd->variables.gtid_next.set(sidno, spec.gtid.gno);
-
-    DBUG_PRINT("info", ("setting gtid_next=%d:%lld",
-                        sidno, spec.gtid.gno));
+    }
   }
-  if (gtid_acquire_ownership_single(thd))
+
+  // set_gtid_next releases global_sid_lock
+  if (set_gtid_next(thd, spec))
+    // This can happen e.g. if gtid_mode is incompatible with spec.
     DBUG_RETURN(1);
 
   thd->set_currently_executing_gtid_for_slave_thread();
@@ -13584,6 +13579,10 @@ void View_change_log_event::print(FILE *file,
 
  int View_change_log_event::do_apply_event(Relay_log_info const *rli)
  {
+   if(written_to_binlog)
+     return 0;
+
+   written_to_binlog= true;
    return mysql_bin_log.write_event_into_log_file(this);
  }
 
@@ -13603,6 +13602,7 @@ bool View_change_log_event::write_data_header(IO_CACHE* file){
   memcpy(buf, view_id, ENCODED_VIEW_ID_MAX_LEN);
   int8store(buf + ENCODED_SEQ_NUMBER_OFFSET, seq_number);
   int4store(buf + ENCODED_CERT_INFO_SIZE_OFFSET, certification_info.size());
+  buf[ENCODED_WRITTEN_FLAG_OFFSET]= written_to_binlog;
   DBUG_RETURN(wrapper_my_b_safe_write(file,(const uchar *) buf,
                                       Binary_log_event::VIEW_CHANGE_HEADER_LEN));
 }

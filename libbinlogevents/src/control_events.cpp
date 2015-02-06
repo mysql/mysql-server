@@ -778,7 +778,7 @@ Transaction_context_event::~Transaction_context_event()
 
 View_change_event::View_change_event(char* raw_view_id)
 : Binary_log_event(VIEW_CHANGE_EVENT),
-  view_id(), seq_number(0), certification_info()
+  view_id(), seq_number(0), certification_info(), written_to_binlog(false)
 {
   memcpy(view_id, raw_view_id, strlen(raw_view_id));
 }
@@ -788,7 +788,7 @@ View_change_event(const char *buffer, unsigned int event_len,
                   const Format_description_event *description_event)
 : Binary_log_event(&buffer, description_event->binlog_version,
                    description_event->server_version),
-  view_id(), seq_number(0), certification_info()
+  view_id(), seq_number(0), certification_info(), written_to_binlog(false)
 {
   //buf is advanced in Binary_log_event constructor to point to
   //beginning of post-header
@@ -801,6 +801,8 @@ View_change_event(const char *buffer, unsigned int event_len,
   memcpy(&cert_info_len, data_header + ENCODED_CERT_INFO_SIZE_OFFSET,
          sizeof(cert_info_len));
   cert_info_len= le32toh(cert_info_len);
+
+  written_to_binlog= (int8_t) data_header[ENCODED_WRITTEN_FLAG_OFFSET];
 
   char *pos = (char*) data_header + VIEW_CHANGE_HEADER_LEN;
 

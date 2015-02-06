@@ -58,6 +58,8 @@ if (!$_tmp) {
   --disable_abort_on_error
 }
 
+--let $_include_file_indent= `SELECT REPEAT('.', $_include_file_depth - 1)`
+
 --let $_include_file_rpl_connection_name= `SELECT SUBSTRING_INDEX('$_include_file_connection', ',', 1)`
 --let $_include_file_connection= `SELECT SUBSTRING('$_include_file_connection', LENGTH('$_include_file_rpl_connection_name') + 2)`
 if (!$skip_restore_connection)
@@ -67,9 +69,7 @@ if (!$skip_restore_connection)
 }
 --let $skip_restore_connection= 0
 
-
 --dec $_include_file_depth
---let $_include_file_indent= `SELECT REPEAT('.', $_include_file_depth)`
 
 if ($rpl_debug)
 {

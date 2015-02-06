@@ -299,7 +299,7 @@ struct Sql_user
       ss << "'Y',";
     else
       ss << "'N',";
-    ss << "now(), NULL);\n";
+    ss << "now(), NULL, 'N');\n";
 
     flush_priv << "FLUSH PRIVILEGES;\n";
 

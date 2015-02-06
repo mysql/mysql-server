@@ -22,6 +22,7 @@
 #include "pfs_user.h"
 #include "pfs_visitor.h"
 #include "pfs_memory.h"
+#include "pfs_status.h"
 #include "field.h"
 
 THR_LOCK table_users::m_table_lock;
@@ -81,9 +82,15 @@ table_users::delete_all_rows(void)
   reset_events_statements_by_thread();
   reset_events_statements_by_account();
   reset_events_statements_by_user();
+  reset_events_transactions_by_thread();
+  reset_events_transactions_by_account();
+  reset_events_transactions_by_user();
   reset_memory_by_thread();
   reset_memory_by_account();
   reset_memory_by_user();
+  reset_status_by_thread();
+  reset_status_by_account();
+  reset_status_by_user();
   purge_all_account();
   purge_all_user();
   return 0;
@@ -105,7 +112,11 @@ void table_users::make_row(PFS_user *pfs)
     return;
 
   PFS_connection_stat_visitor visitor;
-  PFS_connection_iterator::visit_user(pfs, true, true, & visitor);
+  PFS_connection_iterator::visit_user(pfs,
+                                      true,  /* accounts */
+                                      true,  /* threads */
+                                      false, /* THDs */
+                                      & visitor);
 
   if (! pfs->m_lock.end_optimistic_lock(& lock))
     return;

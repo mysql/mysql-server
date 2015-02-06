@@ -160,8 +160,10 @@ select b, count(a), sum(a), avg(a), std(a), min(a),
 
 #
 # choose innodb to create tmp table
+--disable_warnings
 --replace_result INNODB TMP_TABLE_ENGINE MYISAM TMP_TABLE_ENGINE
 select sql_big_result * from information_schema.global_variables where variable_name like 'internal_tmp_disk_storage_engine';
+--enable_warnings
 
 #
 # union distinct and all

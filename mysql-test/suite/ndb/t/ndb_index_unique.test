@@ -577,10 +577,12 @@ EXPLAIN SELECT * FROM t1 WHERE i IN
  (SELECT t2.col_int_unique FROM t2) IS TRUE;
 
 # Remember 'row' conter when test started.
+--disable_warnings
 create temporary table row_counts_at_startup 
        select * 
        from information_schema.session_status
        WHERE variable_name LIKE 'NDB_API_READ_ROW_COUNT';
+--enable_warnings
 
 SELECT * FROM t1 WHERE i IN
  (SELECT t2.col_int_unique FROM t2) IS TRUE;
@@ -603,10 +605,12 @@ SELECT * FROM t1 WHERE i IN
 # Verify row counter at end:
 # Used to verify that correct hi/low limits was set for
 # the EQ_RANGE checking for col_int_unique NULL values
+--disable_warnings
 create temporary table row_counts_at_end
        select * 
        from information_schema.session_status
        WHERE variable_name LIKE 'NDB_API_READ_ROW_COUNT';
+--enable_warnings
 
 select row_counts_at_end.VARIABLE_NAME,
        row_counts_at_end.VARIABLE_VALUE - row_counts_at_startup.VARIABLE_VALUE 

@@ -27,6 +27,7 @@
 
 #include "stub_print_error.h"
 #include "stub_pfs_defaults.h"
+#include "stub_global_status_var.h"
 
 /* test helpers, to simulate the setup */
 

@@ -123,7 +123,7 @@ Success
 UPDATE performance_schema.setup_instruments SET enabled = 'YES';
 DROP TABLE t1;
 UPDATE performance_schema.setup_instruments SET enabled = 'YES', timed = 'YES';
-show status like "performance_schema%";
+show global status like "performance_schema%";
 Variable_name	Value
 Performance_schema_accounts_lost	0
 Performance_schema_cond_classes_lost	0

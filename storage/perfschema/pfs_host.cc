@@ -209,6 +209,7 @@ void PFS_host::aggregate(bool alive)
   aggregate_statements();
   aggregate_transactions();
   aggregate_memory(alive);
+  aggregate_status();
   aggregate_stats();
 }
 
@@ -269,6 +270,16 @@ void PFS_host::aggregate_memory(bool alive)
   aggregate_all_memory(alive,
                        write_instr_class_memory_stats(),
                        global_instr_class_memory_array);
+}
+
+void PFS_host::aggregate_status()
+{
+  /*
+    Aggregate STATUS_BY_HOST to:
+    - GLOBAL_STATUS
+  */
+  m_status_stats.aggregate_to(& global_status_var);
+  m_status_stats.reset();
 }
 
 void PFS_host::aggregate_stats()

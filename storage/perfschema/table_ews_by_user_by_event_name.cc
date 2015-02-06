@@ -249,7 +249,11 @@ void table_ews_by_user_by_event_name
   m_row.m_event_name.make_row(klass);
 
   PFS_connection_wait_visitor visitor(klass);
-  PFS_connection_iterator::visit_user(user, true, true, & visitor);
+  PFS_connection_iterator::visit_user(user,
+                                      true,  /* accounts */
+                                      true,  /* threads */
+                                      false, /* THDs */
+                                      & visitor);
 
   if (! user->m_lock.end_optimistic_lock(&lock))
     return;

@@ -4,7 +4,9 @@
 -- source include/not_embedded.inc
 -- source include/not_threadpool.inc
 
+--disable_warnings
 SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE variable_name LIKE '%offline_mode%';
+--enable_warnings
 # Save the global value to be used to restore the original value.
 SET @global_saved_tmp =  @@global.offline_mode;
 
@@ -32,7 +34,9 @@ SELECT COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST;
 SHOW STATUS LIKE 'threads_connected';
 
 --connect(conu1,localhost,user1)
+--disable_warnings
 SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE variable_name LIKE '%offline_mode%';
+--enable_warnings
 
 --connection default
 SELECT COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST;

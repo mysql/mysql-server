@@ -21,7 +21,6 @@
   Statement Digest data structures (declarations).
 */
 
-#include "my_md5.h"
 #include "pfs_column_types.h"
 #include "lf.h"
 #include "pfs_stat.h"
@@ -59,7 +58,7 @@ struct PFS_ALIGNED PFS_statements_digest_stat
   ulonglong m_last_seen;
 
   /** Reset data for this record. */
-  void reset_data();
+  void reset_data(unsigned char* token_array, uint length);
   /** Reset data and remove index for this record. */
   void reset_index(PFS_thread *thread);
 };
@@ -82,3 +81,4 @@ extern PFS_statements_digest_stat *statements_digest_stat_array;
 extern LF_HASH digest_hash;
 
 #endif
+	

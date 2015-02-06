@@ -26,6 +26,8 @@ class JOIN;
 class sp_name;
 typedef class st_select_lex SELECT_LEX;
 typedef struct system_status_var STATUS_VAR;
+// TODO: allocator based on my_malloc.
+typedef std::vector<st_mysql_show_var> Status_var_array;
 
 enum find_files_result {
   FIND_FILES_OK,
@@ -177,13 +179,16 @@ char *make_backup_log_name(char *buff, const char *name, const char* log_ext);
 void calc_sum_of_all_status(STATUS_VAR *to);
 void append_definer(THD *thd, String *buffer, const LEX_CSTRING &definer_user,
                     const LEX_CSTRING &definer_host);
-int add_status_vars(SHOW_VAR *list);
+int add_status_vars(const SHOW_VAR *list);
+DYNAMIC_ARRAY *get_status_vars();
+
 void remove_status_vars(SHOW_VAR *list);
 void init_status_vars();
 void free_status_vars();
 bool get_status_var(THD *thd, SHOW_VAR *list, const char *name,
                     char * const buff, enum_var_type var_type, size_t *length);
 void reset_status_vars();
+ulonglong get_status_vars_version(void);
 bool show_create_trigger(THD *thd, const sp_name *trg_name);
 void view_store_options(THD *thd, TABLE_LIST *table, String *buff);
 
@@ -200,7 +205,7 @@ bool get_schema_tables_result(JOIN *join,
                               enum enum_schema_table_state executed_place);
 enum enum_schema_tables get_schema_table_idx(ST_SCHEMA_TABLE *schema_table);
 
-const char* get_one_variable(THD *thd, SHOW_VAR *variable,
+const char* get_one_variable(THD *thd, const SHOW_VAR *variable,
                              enum_var_type value_type, SHOW_TYPE show_type,
                              system_status_var *status_var,
                              const CHARSET_INFO **charset, char *buff,
