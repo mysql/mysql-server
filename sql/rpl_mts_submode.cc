@@ -142,6 +142,7 @@ Mts_submode_database::wait_for_workers_to_finish(Relay_log_info *rli,
                     entry, entry->usage, w_entry->id));
       } while (entry->usage != 0 && !thd->killed);
       entry->worker= w_entry; // restoring last association, needed only for assert
+      mysql_mutex_unlock(&rli->slave_worker_hash_lock);
       thd->EXIT_COND(&old_stage);
       ret++;
     }
@@ -486,6 +487,7 @@ wait_for_last_committed_trx(Relay_log_info* rli,
     while ((!rli->info_thd->killed && !is_error) &&
            !clock_leq(last_committed_arg, estimate_lwm_timestamp()));
     my_atomic_store64(&min_waited_timestamp, SEQ_UNINIT);  // reset waiting flag
+    mysql_mutex_unlock(&rli->mts_gaq_LOCK);
     thd->EXIT_COND(&old_stage);
     set_timespec_nsec(&ts[1], 0);
     my_atomic_add64(&rli->mts_total_wait_overlap, diff_timespec(&ts[1], &ts[0]));

@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1851,6 +1851,7 @@ MDL_wait::timed_wait(MDL_context_owner *owner, struct timespec *abs_timeout,
   }
   result= m_wait_status;
 
+  mysql_mutex_unlock(&m_LOCK_wait_status);
   owner->EXIT_COND(& old_stage);
 
   return result;

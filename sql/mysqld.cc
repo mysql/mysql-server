@@ -94,6 +94,7 @@
 #include "log.h"
 #include "binlog.h"
 #include "rpl_rli.h"     // Relay_log_info
+#include "replication.h" // thd_enter_cond
 
 #include "my_default.h"
 
@@ -1078,15 +1079,15 @@ public:
                    post_kill_notification, (killing_thd));
     if (killing_thd->mysys_var)
     {
-      mysql_mutex_lock(&killing_thd->mysys_var->mutex);
+      mysql_mutex_lock(&killing_thd->LOCK_current_cond);
       killing_thd->mysys_var->abort= 1;
-      if (killing_thd->mysys_var->current_cond)
+      if (killing_thd->current_cond)
       {
-        mysql_mutex_lock(killing_thd->mysys_var->current_mutex);
-        mysql_cond_broadcast(killing_thd->mysys_var->current_cond);
-        mysql_mutex_unlock(killing_thd->mysys_var->current_mutex);
+        mysql_mutex_lock(killing_thd->current_mutex);
+        mysql_cond_broadcast(killing_thd->current_cond);
+        mysql_mutex_unlock(killing_thd->current_mutex);
       }
-      mysql_mutex_unlock(&killing_thd->mysys_var->mutex);
+      mysql_mutex_unlock(&killing_thd->LOCK_current_cond);
     }
     mysql_mutex_unlock(&killing_thd->LOCK_thd_data);
   }
@@ -3878,7 +3879,8 @@ static int init_server_components()
   else
     log_error_file_ptr= const_cast<char*>("stderr");
 
-  proc_info_hook= set_thd_stage_info;
+  enter_cond_hook= thd_enter_cond;
+  exit_cond_hook= thd_exit_cond;
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
   /*
@@ -8296,7 +8298,7 @@ PSI_mutex_key
   key_structure_guard_mutex, key_TABLE_SHARE_LOCK_ha_data,
   key_LOCK_error_messages,
   key_LOCK_log_throttle_qni, key_LOCK_query_plan, key_LOCK_thd_query,
-  key_LOCK_cost_const;
+  key_LOCK_cost_const, key_LOCK_current_cond;
 PSI_mutex_key key_RELAYLOG_LOCK_commit;
 PSI_mutex_key key_RELAYLOG_LOCK_commit_queue;
 PSI_mutex_key key_RELAYLOG_LOCK_done;
@@ -8397,6 +8399,7 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_LOCK_log_throttle_qni, "LOCK_log_throttle_qni", PSI_FLAG_GLOBAL},
   { &key_gtid_ensure_index_mutex, "Gtid_state", PSI_FLAG_GLOBAL},
   { &key_LOCK_query_plan, "THD::LOCK_query_plan", 0},
+  { &key_LOCK_current_cond, "THD::LOCK_current_cond", 0},
   { &key_mts_temp_table_LOCK, "key_mts_temp_table_LOCK", 0},
   { &key_LOCK_compress_gtid_table, "LOCK_compress_gtid_table", PSI_FLAG_GLOBAL},
   { &key_mts_gaq_LOCK, "key_mts_gaq_LOCK", 0},
