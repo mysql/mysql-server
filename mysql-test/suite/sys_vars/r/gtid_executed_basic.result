@@ -23,3 +23,7 @@ GTID_EXECUTED
 select @@global.gtid_executed;
 @@global.gtid_executed
 
+set @@global.gtid_executed = '';
+ERROR HY000: Variable 'gtid_executed' is a read only variable
+set @@session.gtid_executed = '';
+ERROR HY000: Variable 'gtid_executed' is a read only variable

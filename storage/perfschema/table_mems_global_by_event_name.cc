@@ -221,10 +221,11 @@ void table_mems_global_by_event_name::make_row(PFS_memory_class *klass)
   m_row.m_event_name.make_row(klass);
 
   PFS_connection_memory_visitor visitor(klass);
-  PFS_connection_iterator::visit_global(true /* hosts */,
-                                        false /* users */,
-                                        true /* accounts */,
-                                        true /* threads */,
+  PFS_connection_iterator::visit_global(true,  /* hosts */
+                                        false, /* users */
+                                        true,  /* accounts */
+                                        true,  /* threads */
+                                        false, /* THDs */
                                         &visitor);
 
   m_row.m_stat.set(& visitor.m_stat);

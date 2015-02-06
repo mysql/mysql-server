@@ -1,5 +1,6 @@
 include/rpl_init.inc [topology=none]
 ==== Configure ====
+SET GLOBAL ENFORCE_GTID_CONSISTENCY = ON;
 CREATE FUNCTION fix_gtid(str VARCHAR(100)) RETURNS VARCHAR (100)
 RETURN REPLACE(REPLACE(IFNULL(str, 'NULL'),
 @@GLOBAL.SERVER_UUID, 'SERVER_UUID'),
@@ -95,7 +96,7 @@ SET SESSION GTID_NEXT = 'AUTOMATIC';
 - history=none current=AUTOMATIC
 [END] INSERT INTO t1 VALUES (2);
 - history=ANONYMOUS current=ANONYMOUS
-include/rpl_set_gtid_mode.inc
+include/rpl_set_gtid_mode.inc [ON on servers 1]
 ---- Case 3: Specify GTID prior to transaction ----
 * BEGIN ... ROLLBACK
 - history=none current=none
@@ -180,4 +181,6 @@ SET SESSION GTID_NEXT = 'AUTOMATIC';
 DROP TABLE t1;
 DROP FUNCTION fix_gtid;
 DROP FUNCTION show_gtid;
+include/rpl_set_gtid_mode.inc [OFF on servers 1]
+SET GLOBAL ENFORCE_GTID_CONSISTENCY = OFF;
 include/rpl_end.inc

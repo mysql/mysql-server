@@ -91,7 +91,7 @@ When one supplies long data for a placeholder:
 #include "set_var.h"            // set_var_base
 #include "sp.h"                 // Sroutine_hash_entry
 #include "sp_cache.h"           // sp_cache_enforce_limit
-#include "sql_analyse.h"        // select_analyse
+#include "sql_analyse.h"        // Query_result_analyse
 #include "sql_base.h"           // open_tables_for_query, open_temporary_table
 #include "sql_cursor.h"         // Server_side_cursor
 #include "sql_db.h"             // mysql_change_db
@@ -1346,10 +1346,10 @@ static int mysql_test_select(Prepared_statement *stmt,
   if (select_precheck(thd, lex, tables, lex->select_lex->table_list.first))
     goto error;
 
-  if (!lex->result && !(lex->result= new (stmt->mem_root) select_send))
+  if (!lex->result && !(lex->result= new (stmt->mem_root) Query_result_send))
   {
     my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), 
-             static_cast<int>(sizeof(select_send)));
+             static_cast<int>(sizeof(Query_result_send)));
     goto error;
   }
 
@@ -1367,15 +1367,15 @@ static int mysql_test_select(Prepared_statement *stmt,
     goto error;
   if (!lex->describe && !stmt->is_sql_prepare())
   {
-    select_result *result= lex->result;
-    select_result *analyse_result= NULL;
+    Query_result *result= lex->result;
+    Query_result *analyse_result= NULL;
     if (lex->proc_analyse)
     {
       /*
         We need proper output recordset metadata for SELECT ... PROCEDURE ANALUSE()
       */
       if ((result= analyse_result=
-             new select_analyse(result, lex->proc_analyse)) == NULL)
+             new Query_result_analyse(result, lex->proc_analyse)) == NULL)
         goto error; // OOM
     }
 
@@ -2876,11 +2876,12 @@ void mysql_stmt_get_longdata(THD *thd, char *packet, size_t packet_length)
  Select_fetch_protocol_binary
 ****************************************************************************/
 
-Select_fetch_protocol_binary::Select_fetch_protocol_binary(THD *thd_arg)
+Query_fetch_protocol_binary::Query_fetch_protocol_binary(THD *thd_arg)
   :protocol(thd_arg)
 {}
 
-bool Select_fetch_protocol_binary::send_result_set_metadata(List<Item> &list, uint flags)
+bool Query_fetch_protocol_binary::send_result_set_metadata(List<Item> &list,
+                                                           uint flags)
 {
   bool rc;
   Protocol *save_protocol= thd->protocol;
@@ -2892,13 +2893,13 @@ bool Select_fetch_protocol_binary::send_result_set_metadata(List<Item> &list, ui
     a cursor.
   */
   thd->protocol= &protocol;
-  rc= select_send::send_result_set_metadata(list, flags);
+  rc= Query_result_send::send_result_set_metadata(list, flags);
   thd->protocol= save_protocol;
 
   return rc;
 }
 
-bool Select_fetch_protocol_binary::send_eof()
+bool Query_fetch_protocol_binary::send_eof()
 {
   /*
     Don't send EOF if we're in error condition (which implies we've already
@@ -2912,14 +2913,13 @@ bool Select_fetch_protocol_binary::send_eof()
 }
 
 
-bool
-Select_fetch_protocol_binary::send_data(List<Item> &fields)
+bool Query_fetch_protocol_binary::send_data(List<Item> &fields)
 {
   Protocol *save_protocol= thd->protocol;
   bool rc;
 
   thd->protocol= &protocol;
-  rc= select_send::send_data(fields);
+  rc= Query_result_send::send_data(fields);
   thd->protocol= save_protocol;
   return rc;
 }
@@ -3203,6 +3203,8 @@ bool Prepared_statement::prepare(const char *packet, size_t packet_len)
   Query_arena *old_stmt_arena;
   sql_digest_state *parent_digest= thd->m_digest;
   PSI_statement_locker *parent_locker= thd->m_statement_psi;
+  unsigned char *token_array= NULL;
+
   DBUG_ENTER("Prepared_statement::prepare");
   /*
     If this is an SQLCOM_PREPARE, we also increase Com_prepare_sql.
@@ -3232,6 +3234,11 @@ bool Prepared_statement::prepare(const char *packet, size_t packet_len)
     DBUG_RETURN(TRUE);
   }
 
+  if (max_digest_length > 0)
+  {
+    token_array= (unsigned char*) thd->alloc(max_digest_length);
+  }
+
   old_stmt_arena= thd->stmt_arena;
   thd->stmt_arena= this;
 
@@ -3254,7 +3261,7 @@ bool Prepared_statement::prepare(const char *packet, size_t packet_len)
   thd->m_statement_psi= NULL;
 
   sql_digest_state digest;
-  digest.reset();
+  digest.reset(token_array, max_digest_length);
   thd->m_digest= &digest;
 
   enable_digest_if_any_plugin_needs_it(thd, &parser_state);

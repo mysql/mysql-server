@@ -51,7 +51,7 @@ fi
 
 # Create data directory if needed
 
-[ -d "$mydatadir"       ] || mkdir -p -m 755 "$mydatadir" || exit 1
+[ -d "$mydatadir"       ] || mkdir -p -m 750 "$mydatadir" || exit 1
 
 # Set the data directory to the right user/group
 

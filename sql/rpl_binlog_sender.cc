@@ -82,10 +82,18 @@ void Binlog_sender::init()
     DBUG_VOID_RETURN;
   }
 
-  if (m_using_gtid_protocol && gtid_mode != GTID_MODE_ON)
+  if (m_using_gtid_protocol)
   {
-    set_fatal_error("Request to dump GTID when @@GLOBAL_.GTID_MODE <> ON.");
-    DBUG_VOID_RETURN;
+    enum_gtid_mode gtid_mode= get_gtid_mode(GTID_MODE_LOCK_NONE);
+    if (gtid_mode != GTID_MODE_ON)
+    {
+      char buf[MYSQL_ERRMSG_SIZE];
+      sprintf(buf, "The replication sender thread cannot start in "
+              "AUTO_POSITION mode: this server has GTID_MODE = %.192s "
+              "instead of ON.", get_gtid_mode_string(gtid_mode));
+      set_fatal_error(buf);
+      DBUG_VOID_RETURN;
+    }
   }
 
   if (check_start_file())
@@ -366,10 +374,13 @@ int Binlog_sender::send_events(IO_CACHE *log_cache, my_off_t end_pos)
                             &event_ptr, &event_len)))
       DBUG_RETURN(1);
 
+    Log_event_type event_type= (Log_event_type)event_ptr[EVENT_TYPE_OFFSET];
+    if (unlikely(check_event_type(event_type, log_file, log_pos)))
+      DBUG_RETURN(1);
+
     DBUG_EXECUTE_IF("dump_thread_wait_before_send_xid",
                     {
-                      if ((Log_event_type) event_ptr[LOG_EVENT_OFFSET] ==
-                           binary_log::XID_EVENT)
+                      if (event_type == binary_log::XID_EVENT)
                       {
                         net_flush(&thd->net);
                         const char act[]=
@@ -394,8 +405,7 @@ int Binlog_sender::send_events(IO_CACHE *log_cache, my_off_t end_pos)
     {
       exclude_group_end_pos= log_pos;
       DBUG_PRINT("info", ("Event of type %s is skipped",
-                          Log_event::get_type_str(
-                            (Log_event_type)event_ptr[LOG_EVENT_OFFSET])));
+                          Log_event::get_type_str(event_type)));
     }
     else
     {
@@ -439,6 +449,71 @@ int Binlog_sender::send_events(IO_CACHE *log_cache, my_off_t end_pos)
       DBUG_RETURN(1);
   }
   DBUG_RETURN(0);
+}
+
+
+bool Binlog_sender::check_event_type(Log_event_type type,
+                                     const char *log_file, my_off_t log_pos)
+{
+  if (type == binary_log::ANONYMOUS_GTID_LOG_EVENT)
+  {
+    /*
+      Normally, there will not be any anonymous events when
+      auto_position is enabled, since both the master and the slave
+      refuse to connect if the master is not using GTID_MODE=ON.
+      However, if the master changes GTID_MODE after the connection
+      was initialized, or if the slave requests to replicate
+      transactions that appear before the last anonymous event, then
+      this can happen. Then we generate this error to prevent sending
+      anonymous transactions to the slave.
+    */
+    if (m_using_gtid_protocol)
+    {
+      DBUG_EXECUTE_IF("skip_sender_anon_autoposition_error",
+                      {
+                        return false;
+                      };);
+      char buf[MYSQL_ERRMSG_SIZE];
+      sprintf(buf, ER(ER_CANT_REPLICATE_ANONYMOUS_WITH_AUTO_POSITION),
+              log_file, log_pos);
+      set_fatal_error(buf);
+      return true;
+    }
+    /*
+      Normally, there will not be any anonymous events when master has
+      GTID_MODE=ON, since anonymous events are not generated when
+      GTID_MODE=ON.  However, this can happen if the master changes
+      GTID_MODE to ON when the slave has not yet replicated all
+      anonymous transactions.
+    */
+    else if (get_gtid_mode(GTID_MODE_LOCK_NONE) == GTID_MODE_ON)
+    {
+      char buf[MYSQL_ERRMSG_SIZE];
+      sprintf(buf, ER(ER_CANT_REPLICATE_ANONYMOUS_WITH_GTID_MODE_ON),
+              log_file, log_pos);
+      set_fatal_error(buf);
+      return true;
+    }
+  }
+  else if (type == binary_log::GTID_LOG_EVENT)
+  {
+    /*
+      Normally, there will not be any GTID events when master has
+      GTID_MODE=OFF, since GTID events are not generated when
+      GTID_MODE=OFF.  However, this can happen if the master changes
+      GTID_MODE to OFF when the slave has not yet replicated all GTID
+      transactions.
+    */
+    if (get_gtid_mode(GTID_MODE_LOCK_NONE) == GTID_MODE_OFF)
+    {
+      char buf[MYSQL_ERRMSG_SIZE];
+      sprintf(buf, ER(ER_CANT_REPLICATE_GTID_WITH_GTID_MODE_OFF),
+              log_file, log_pos);
+      set_fatal_error(buf);
+      return true;
+    }
+  }
+  return false;
 }
 
 

@@ -842,7 +842,7 @@ drop prepare dump_waits_current;
 drop prepare dump_waits_history_long;
 delete from performance_schema.setup_objects
 where object_schema='mtr';
-show status like "performance_schema%";
+show global status like "performance_schema%";
 Variable_name	Value
 Performance_schema_accounts_lost	0
 Performance_schema_cond_classes_lost	0

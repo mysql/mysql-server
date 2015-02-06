@@ -688,6 +688,9 @@ Gtid_set::remove_gno_intervals(rpl_sidno sidno,
 
 enum_return_status Gtid_set::add_gtid_set(const Gtid_set *other)
 {
+  /*
+    @todo refactor this and remove_gtid_set to avoid duplicated code
+  */
   DBUG_ENTER("Gtid_set::add_gtid_set(const Gtid_set *)");
   if (sid_lock != NULL)
     sid_lock->assert_some_wrlock();
@@ -702,6 +705,9 @@ enum_return_status Gtid_set::add_gtid_set(const Gtid_set *other)
   else
   {
     Sid_map *other_sid_map= other->sid_map;
+    Checkable_rwlock *other_sid_lock= other->sid_lock;
+    if (other_sid_lock != NULL)
+      other_sid_lock->assert_some_wrlock();
     for (rpl_sidno other_sidno= 1; other_sidno <= max_other_sidno;
          other_sidno++)
     {
@@ -737,15 +743,10 @@ void Gtid_set::remove_gtid_set(const Gtid_set *other)
   }
   else
   {
-    /*
-      This code is not being used but we will keep it as it may be
-      useful to optimize gtids by avoiding sharing mappings from
-      sid to sidno. For instance, the IO Thread and the SQL Thread
-      may have different mappings in the future.
-    */
-    DBUG_ASSERT(0); /*NOTREACHED*/
-#ifdef NON_DISABLED_GTID
     Sid_map *other_sid_map= other->sid_map;
+    Checkable_rwlock *other_sid_lock= other->sid_lock;
+    if (other_sid_lock != NULL)
+      other_sid_lock->assert_some_wrlock();
     for (rpl_sidno other_sidno= 1; other_sidno <= max_other_sidno;
          other_sidno++)
     {
@@ -758,7 +759,6 @@ void Gtid_set::remove_gtid_set(const Gtid_set *other)
           remove_gno_intervals(this_sidno, other_ivit, &lock);
       }
     }
-#endif
   }
   DBUG_VOID_RETURN;
 }
@@ -1418,21 +1418,6 @@ void Gtid_set::encode(uchar *buf) const
   int8store(n_sids_p, n_sids);
   DBUG_ASSERT(buf - n_sids_p == (int)get_encoded_length());
   DBUG_VOID_RETURN;
-}
-
-
-std::string Gtid_set::encode() const
-{
-  DBUG_ENTER("std::string Gtid_set::encode()");
-
-  size_t len= get_encoded_length();
-  uchar* buf= (uchar *)my_malloc(key_memory_Gtid_set_to_string,
-                                 len, MYF(MY_WME));
-  encode(buf);
-  std::string result(reinterpret_cast<const char*>(buf), len);
-  my_free(buf);
-
-  DBUG_RETURN(result);
 }
 
 

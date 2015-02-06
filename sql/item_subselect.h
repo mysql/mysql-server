@@ -23,8 +23,8 @@
 class st_select_lex;
 class st_select_lex_unit;
 class JOIN;
-class select_result_interceptor;
-class select_subselect;
+class Query_result_interceptor;
+class Query_result_subquery;
 class subselect_engine;
 class subselect_hash_sj_engine;
 class Item_bool_func2;
@@ -114,9 +114,9 @@ public:
   /*
     We need this method, because some compilers do not allow 'this'
     pointer in constructor initialization list, but we need to pass a pointer
-    to subselect Item class to select_result_interceptor's constructor.
+    to subselect Item class to Query_result_interceptor's constructor.
   */
-  void init(st_select_lex *select, select_subselect *result);
+  void init(st_select_lex *select, Query_result_subquery *result);
 
   ~Item_subselect();
   virtual void cleanup();
@@ -175,7 +175,7 @@ public:
 
   const char *func_name() const { DBUG_ASSERT(0); return "subselect"; }
 
-  friend class select_result_interceptor;
+  friend class Query_result_interceptor;
   friend class Item_in_optimizer;
   friend bool Item_field::fix_fields(THD *, Item **);
   friend int  Item_field::fix_outer_field(THD *, Field **, Item **);
@@ -253,7 +253,7 @@ public:
   */
   st_select_lex* invalidate_and_restore_select_lex();
 
-  friend class select_singlerow_subselect;
+  friend class Query_result_scalar_subquery;
 };
 
 /* used in static ALL/ANY optimization */
@@ -357,7 +357,7 @@ public:
   void fix_length_and_dec();
   virtual void print(String *str, enum_query_type query_type);
 
-  friend class select_exists_subselect;
+  friend class Query_result_exists_subquery;
   friend class subselect_indexsubquery_engine;
 };
 
@@ -549,7 +549,7 @@ public:
 class subselect_engine: public Sql_alloc
 {
 protected:
-  select_result_interceptor *result; /* results storage class */
+  Query_result_interceptor *result; /* results storage class */
   Item_subselect *item; /* item, that use this engine */
   enum Item_result res_type; /* type of results */
   enum_field_types res_field_type; /* column type of the results */
@@ -560,7 +560,7 @@ public:
                          UNION_ENGINE, UNIQUESUBQUERY_ENGINE,
                          INDEXSUBQUERY_ENGINE, HASH_SJ_ENGINE};
 
-  subselect_engine(Item_subselect *si, select_result_interceptor *res)
+  subselect_engine(Item_subselect *si, Query_result_interceptor *res)
     :result(res), item(si), res_type(STRING_RESULT),
     res_field_type(MYSQL_TYPE_VAR_STRING), maybe_null(false)
   {}
@@ -582,7 +582,7 @@ public:
 
     DESCRIPTION
       Execute the engine. The result of execution is subquery value that is
-      either captured by previously set up select_result-based 'sink' or
+      either captured by previously set up Query_result-based 'sink' or
       stored somewhere by the exec() method itself.
 
     RETURN
@@ -601,7 +601,7 @@ public:
   static table_map calc_const_tables(TABLE_LIST *);
   virtual void print(String *str, enum_query_type query_type)= 0;
   virtual bool change_query_result(Item_subselect *si,
-                                   select_subselect *result)= 0;
+                                   Query_result_subquery *result)= 0;
   virtual bool no_tables() const = 0;
   virtual enum_engine_type engine_type() const { return ABSTRACT_ENGINE; }
 #ifndef DBUG_OFF
@@ -623,7 +623,7 @@ private:
   st_select_lex *select_lex; /* corresponding select_lex */
 public:
   subselect_single_select_engine(st_select_lex *select,
-				 select_result_interceptor *result,
+				 Query_result_interceptor *result,
 				 Item_subselect *item);
   virtual void cleanup();
   virtual bool prepare();
@@ -635,7 +635,7 @@ public:
   virtual table_map upper_select_const_tables() const;
   virtual void print (String *str, enum_query_type query_type);
   virtual bool change_query_result(Item_subselect *si,
-                                   select_subselect *result);
+                                   Query_result_subquery *result);
   virtual bool no_tables() const;
   virtual bool may_be_null() const;
   virtual enum_engine_type engine_type() const { return SINGLE_SELECT_ENGINE; }
@@ -649,7 +649,7 @@ class subselect_union_engine: public subselect_engine
 {
 public:
   subselect_union_engine(st_select_lex_unit *u,
-			 select_result_interceptor *result,
+			 Query_result_interceptor *result,
 			 Item_subselect *item);
   virtual void cleanup();
   virtual bool prepare();
@@ -661,7 +661,7 @@ public:
   virtual table_map upper_select_const_tables() const;
   virtual void print (String *str, enum_query_type query_type);
   virtual bool change_query_result(Item_subselect *si,
-                                   select_subselect *result);
+                                   Query_result_subquery *result);
   virtual bool no_tables() const;
   virtual enum_engine_type engine_type() const { return UNION_ENGINE; }
 
@@ -739,7 +739,7 @@ public:
   virtual void exclude();
   virtual table_map upper_select_const_tables() const { return 0; }
   virtual bool change_query_result(Item_subselect *si,
-                                   select_subselect *result);
+                                   Query_result_subquery *result);
   virtual bool no_tables() const;
   bool scan_table();
   void copy_ref_key(bool *require_scan, bool *convert_error);

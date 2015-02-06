@@ -716,6 +716,7 @@ authentication_string	select,insert,update,references
 password_expired	select,insert,update,references
 password_last_changed	select,insert,update,references
 password_lifetime	select,insert,update,references
+account_locked	select,insert,update,references
 use test;
 create function sub1(i int) returns int
 return i+1;
@@ -1720,6 +1721,7 @@ drop table if exists t1;drop table if exists t1;
 drop table if exists t1;drop table if exists t1;
 drop table if exists t1;drop table if exists
 Warnings:
+Warning	1287	'INFORMATION_SCHEMA.GLOBAL_VARIABLES' is deprecated and will be removed in a future release. Please use performance_schema.global_variables instead
 Warning	1406	Data too long for column 'VARIABLE_VALUE' at row 1
 set global init_connect="";
 create table t0 select * from information_schema.global_status where VARIABLE_NAME='COM_SELECT';

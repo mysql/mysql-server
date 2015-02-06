@@ -16,8 +16,8 @@
 #ifndef SQL_DELETE_INCLUDED
 #define SQL_DELETE_INCLUDED
 
-#include "my_base.h"   // ha_rows
-#include "sql_class.h" // select_result_interceptor
+#include "my_base.h"     // ha_rows
+#include "sql_class.h"   // Query_result_interceptor
 #include "sql_cmd_dml.h" // Sql_cmd_dml
 
 class THD;
@@ -28,7 +28,7 @@ bool mysql_prepare_delete(THD *thd);
 bool mysql_delete(THD *thd, ha_rows rows);
 int mysql_multi_delete_prepare(THD *thd, uint *table_count);
 
-class multi_delete :public select_result_interceptor
+class Query_result_delete :public Query_result_interceptor
 {
   TABLE_LIST *delete_tables;
   /// Pointers to temporary files used for delayed deletion of rows
@@ -57,8 +57,8 @@ class multi_delete :public select_result_interceptor
   bool error_handled;
 
 public:
-  multi_delete(TABLE_LIST *dt, uint num_of_tables);
-  ~multi_delete();
+  Query_result_delete(TABLE_LIST *dt, uint num_of_tables);
+  ~Query_result_delete();
   virtual bool need_explain_interceptor() const { return true; }
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   bool send_data(List<Item> &items);

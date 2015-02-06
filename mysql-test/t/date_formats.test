@@ -7,6 +7,7 @@
 drop table if exists t1;
 --enable_warnings
 
+--disable_warnings
 SELECT variable_name, variable_value
 FROM information_schema.global_variables
 WHERE variable_name IN ('date_format', 'datetime_format', 'time_format')
@@ -16,6 +17,7 @@ SELECT variable_name, variable_value
 FROM information_schema.session_variables
 WHERE variable_name IN ('date_format', 'datetime_format', 'time_format')
 ORDER BY variable_name;
+--enable_warnings
 
 #
 # The following tests will work only when we at some point will enable

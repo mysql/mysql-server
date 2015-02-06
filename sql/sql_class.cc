@@ -1197,6 +1197,8 @@ THD::THD(bool enable_plugins)
 #endif
    skip_gtid_rollback(false),
    is_commit_in_middle_of_statement(false),
+   has_gtid_consistency_violation(false),
+   pending_gtid_state_update(false),
    main_da(false),
    m_parser_da(false),
    m_query_rewrite_plugin_da(false),
@@ -1263,6 +1265,7 @@ THD::THD(bool enable_plugins)
   active_vio = 0;
   mysql_mutex_init(key_LOCK_thd_data, &LOCK_thd_data, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_thd_query, &LOCK_thd_query, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_LOCK_thd_sysvar, &LOCK_thd_sysvar, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_query_plan, &LOCK_query_plan, MY_MUTEX_INIT_FAST);
 
   /* Variables with default values */
@@ -1318,6 +1321,14 @@ THD::THD(bool enable_plugins)
 #ifndef DBUG_OFF
   gis_debug= 0;
 #endif
+
+  m_token_array= NULL;
+  if (max_digest_length > 0)
+  {
+    m_token_array= (unsigned char*) my_malloc(PSI_INSTRUMENT_ME,
+                                              max_digest_length,
+                                              MYF(MY_WME));
+  }
 }
 
 
@@ -1706,7 +1717,7 @@ void THD::set_new_thread_id()
 void THD::cleanup_connection(void)
 {
   mysql_mutex_lock(&LOCK_status);
-  add_to_status(&global_status_var, &status_var);
+  add_to_status(&global_status_var, &status_var, true);
   mysql_mutex_unlock(&LOCK_status);
 
   cleanup();
@@ -1838,7 +1849,7 @@ void THD::release_resources()
   Global_THD_manager::get_instance()->release_thread_id(m_thread_id);
 
   mysql_mutex_lock(&LOCK_status);
-  add_to_status(&global_status_var, &status_var);
+  add_to_status(&global_status_var, &status_var, true);
   mysql_mutex_unlock(&LOCK_status);
 
   /* Ensure that no one is using THD */
@@ -1919,6 +1930,7 @@ THD::~THD()
   mysql_mutex_destroy(&LOCK_query_plan);
   mysql_mutex_destroy(&LOCK_thd_data);
   mysql_mutex_destroy(&LOCK_thd_query);
+  mysql_mutex_destroy(&LOCK_thd_sysvar);
 #ifndef DBUG_OFF
   dbug_sentry= THD_SENTRY_GONE;
 #endif
@@ -1939,7 +1951,11 @@ THD::~THD()
 #endif
 
   free_root(&main_mem_root, MYF(0));
-  
+
+  if (m_token_array != NULL)
+  {
+    my_free(m_token_array);
+  }
   DBUG_VOID_RETURN;
 }
 
@@ -1951,6 +1967,7 @@ THD::~THD()
    add_to_status()
    to_var       add to this array
    from_var     from this array
+   add_com_vars if true, then add COM variables
 
   NOTES
     This function assumes that all variables are longlong/ulonglong.
@@ -1958,21 +1975,24 @@ THD::~THD()
     the other variables after the while loop
 */
 
-void add_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var)
+void add_to_status(STATUS_VAR *to_var, const STATUS_VAR *from_var, bool add_com_vars)
 {
   int        c;
   ulonglong *end= (ulonglong*) ((uchar*) to_var +
-                                offsetof(STATUS_VAR, last_system_status_var) +
+                                offsetof(STATUS_VAR, LAST_STATUS_VAR) +
                                 sizeof(ulonglong));
   ulonglong *to= (ulonglong*) to_var, *from= (ulonglong*) from_var;
 
   while (to != end)
     *(to++)+= *(from++);
 
-  to_var->com_other+= from_var->com_other;
+  if (add_com_vars)
+  {
+    to_var->com_other+= from_var->com_other;
 
-  for (c= 0; c< SQLCOM_END; c++)
-    to_var->com_stat[(uint) c] += from_var->com_stat[(uint) c];
+    for (c= 0; c< SQLCOM_END; c++)
+      to_var->com_stat[(uint) c] += from_var->com_stat[(uint) c];
+  }
 }
 
 /*
@@ -1992,9 +2012,8 @@ void add_diff_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var,
                         STATUS_VAR *dec_var)
 {
   int        c;
-  ulonglong *end= (ulonglong*) ((uchar*) to_var + offsetof(STATUS_VAR,
-                                                           last_system_status_var) +
-                                sizeof(ulonglong));
+  ulonglong *end= (ulonglong*) ((uchar*) to_var + offsetof(STATUS_VAR, LAST_STATUS_VAR) +
+                                                  sizeof(ulonglong));
   ulonglong *to= (ulonglong*) to_var,
             *from= (ulonglong*) from_var,
             *dec= (ulonglong*) dec_var;
@@ -2291,8 +2310,13 @@ void THD::cleanup_after_query()
     binlog_accessed_db_names= NULL;
     m_trans_fixed_log_file= NULL;
 
-    if (gtid_mode > 0)
-      gtid_post_statement_checks(this);
+    /*
+      Strictly speaking this is only needed when GTID_MODE!=OFF.
+      However, we can only read gtid_mode while holding
+      global_sid_lock.  And gtid_post_statement_checks is very cheap,
+      so no point in calling it conditionally.
+    */
+    gtid_post_statement_checks(this);
 #ifndef EMBEDDED_LIBRARY
     /*
       Clean possible unused INSERT_ID events by current statement.
@@ -2520,7 +2544,7 @@ void THD::add_changed_table(const char *key, long key_length)
 }
 
 
-int THD::send_explain_fields(select_result *result)
+int THD::send_explain_fields(Query_result *result)
 {
   List<Item> field_list;
   Item *item;
@@ -2647,29 +2671,6 @@ void THD::rollback_item_tree_changes()
 ** Functions to provide a interface to select results
 *****************************************************************************/
 
-select_result::select_result():
-  thd(current_thd), unit(NULL), estimated_rowcount(0)
-{
-}
-
-void select_result::send_error(uint errcode,const char *err)
-{
-  my_message(errcode, err, MYF(0));
-}
-
-
-void select_result::cleanup()
-{
-  /* do nothing */
-}
-
-bool select_result::check_simple_select() const
-{
-  my_error(ER_SP_BAD_CURSOR_QUERY, MYF(0));
-  return TRUE;
-}
-
-
 static const String default_line_term("\n",default_charset_info);
 static const String default_escaped("\\",default_charset_info);
 static const String default_field_term("\t",default_charset_info);
@@ -2697,7 +2698,7 @@ bool sql_exchange::escaped_given(void)
 }
 
 
-bool select_send::send_result_set_metadata(List<Item> &list, uint flags)
+bool Query_result_send::send_result_set_metadata(List<Item> &list, uint flags)
 {
   bool res;
   if (!(res= thd->protocol->send_result_set_metadata(&list, flags)))
@@ -2705,9 +2706,9 @@ bool select_send::send_result_set_metadata(List<Item> &list, uint flags)
   return res;
 }
 
-void select_send::abort_result_set()
+void Query_result_send::abort_result_set()
 {
-  DBUG_ENTER("select_send::abort_result_set");
+  DBUG_ENTER("Query_result_send::abort_result_set");
 
   if (is_result_set_started && thd->sp_runtime_ctx)
   {
@@ -2726,23 +2727,12 @@ void select_send::abort_result_set()
 }
 
 
-/** 
-  Cleanup an instance of this class for re-use
-  at next execution of a prepared statement/
-  stored procedure statement.
-*/
-
-void select_send::cleanup()
-{
-  is_result_set_started= FALSE;
-}
-
 /* Send data to client. Returns 0 if ok */
 
-bool select_send::send_data(List<Item> &items)
+bool Query_result_send::send_data(List<Item> &items)
 {
   Protocol *protocol= thd->protocol;
-  DBUG_ENTER("select_send::send_data");
+  DBUG_ENTER("Query_result_send::send_data");
 
   if (unit->offset_limit_cnt)
   {						// using limit offset,count
@@ -2772,7 +2762,7 @@ bool select_send::send_data(List<Item> &items)
   DBUG_RETURN(0);
 }
 
-bool select_send::send_eof()
+bool Query_result_send::send_eof()
 {
   /* 
     We may be passing the control from mysqld to the client: release the
@@ -2797,7 +2787,7 @@ bool select_send::send_eof()
   Handling writing to file
 ************************************************************************/
 
-void select_to_file::send_error(uint errcode,const char *err)
+void Query_result_to_file::send_error(uint errcode,const char *err)
 {
   my_message(errcode, err, MYF(0));
   if (file > 0)
@@ -2811,7 +2801,7 @@ void select_to_file::send_error(uint errcode,const char *err)
 }
 
 
-bool select_to_file::send_eof()
+bool Query_result_to_file::send_eof()
 {
   int error= MY_TEST(end_io_cache(&cache));
   if (mysql_file_close(file, MYF(MY_WME)) || thd->is_error())
@@ -2826,7 +2816,7 @@ bool select_to_file::send_eof()
 }
 
 
-void select_to_file::cleanup()
+void Query_result_to_file::cleanup()
 {
   /* In case of error send_eof() may be not called: close the file here. */
   if (file >= 0)
@@ -2840,7 +2830,7 @@ void select_to_file::cleanup()
 }
 
 
-select_to_file::~select_to_file()
+Query_result_to_file::~Query_result_to_file()
 {
   if (file >= 0)
   {					// This only happens in case of error
@@ -2853,12 +2843,6 @@ select_to_file::~select_to_file()
 /***************************************************************************
 ** Export of select to textfile
 ***************************************************************************/
-
-select_export::~select_export()
-{
-  thd->set_sent_row_count(row_count);
-}
-
 
 /*
   Create file with IO cache
@@ -2924,8 +2908,7 @@ static File create_file(THD *thd, char *path, sql_exchange *exchange,
 }
 
 
-int
-select_export::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
+int Query_result_export::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
 {
   bool blob_flag=0;
   bool string_results= FALSE, non_string_results= FALSE;
@@ -3027,10 +3010,10 @@ select_export::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
                           (int) (uchar) (x) == line_sep_char  || \
                           !(x))
 
-bool select_export::send_data(List<Item> &items)
+bool Query_result_export::send_data(List<Item> &items)
 {
 
-  DBUG_ENTER("select_export::send_data");
+  DBUG_ENTER("Query_result_export::send_data");
   char buff[MAX_FIELD_WIDTH],null_buff[2],space[MAX_FIELD_WIDTH];
   char cvt_buff[MAX_FIELD_WIDTH];
   String cvt_str(cvt_buff, sizeof(cvt_buff), write_cs);
@@ -3357,27 +3340,26 @@ err:
 
 
 /***************************************************************************
-** Dump  of select to a binary file
+** Dump of query to a binary file
 ***************************************************************************/
 
 
-int
-select_dump::prepare(List<Item> &list __attribute__((unused)),
-		     SELECT_LEX_UNIT *u)
+int Query_result_dump::prepare(List<Item> &list __attribute__((unused)),
+                               SELECT_LEX_UNIT *u)
 {
   unit= u;
   return (int) ((file= create_file(thd, path, exchange, &cache)) < 0);
 }
 
 
-bool select_dump::send_data(List<Item> &items)
+bool Query_result_dump::send_data(List<Item> &items)
 {
   List_iterator_fast<Item> li(items);
   char buff[MAX_FIELD_WIDTH];
   String tmp(buff,sizeof(buff),&my_charset_bin),*res;
   tmp.length(0);
   Item *item;
-  DBUG_ENTER("select_dump::send_data");
+  DBUG_ENTER("Query_result_dump::send_data");
 
   if (unit->offset_limit_cnt)
   {						// using limit offset,count
@@ -3411,17 +3393,11 @@ err:
 }
 
 
-select_subselect::select_subselect(Item_subselect *item_arg)
-{
-  item= item_arg;
-}
-
-
 /***************************************************************************
   Dump of select to variables
 ***************************************************************************/
 
-int select_dumpvar::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
+int Query_dumpvar::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
 {
   unit= u;
 
@@ -3436,16 +3412,10 @@ int select_dumpvar::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
 }
 
 
-bool select_dumpvar::check_simple_select() const
+bool Query_dumpvar::check_simple_select() const
 {
   my_error(ER_SP_BAD_CURSOR_SELECT, MYF(0));
   return TRUE;
-}
-
-
-void select_dumpvar::cleanup()
-{
-  row_count= 0;
 }
 
 
@@ -3684,13 +3654,13 @@ Prepared_statement_map::~Prepared_statement_map()
 }
 
 
-bool select_dumpvar::send_data(List<Item> &items)
+bool Query_dumpvar::send_data(List<Item> &items)
 {
   List_iterator_fast<PT_select_var> var_li(var_list);
   List_iterator<Item> it(items);
   Item *item;
   PT_select_var *mv;
-  DBUG_ENTER("select_dumpvar::send_data");
+  DBUG_ENTER("Query_dumpvar::send_data");
 
   if (unit->offset_limit_cnt)
   {						// using limit offset,count
@@ -3730,7 +3700,7 @@ bool select_dumpvar::send_data(List<Item> &items)
   DBUG_RETURN(thd->is_error());
 }
 
-bool select_dumpvar::send_eof()
+bool Query_dumpvar::send_eof()
 {
   if (! row_count)
     push_warning(thd, Sql_condition::SL_WARNING,

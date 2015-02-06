@@ -91,6 +91,7 @@ SELECT @@GLOBAL.table_open_cache;
 #################################################################
 # Check if the value in GLOBAL Table matches value in variable  #
 #################################################################
+--disable_warnings
 SELECT @@GLOBAL.table_open_cache = VARIABLE_VALUE
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
 WHERE VARIABLE_NAME='table_open_cache';
@@ -102,6 +103,7 @@ SELECT COUNT(@@GLOBAL.table_open_cache);
 SELECT COUNT(VARIABLE_VALUE)
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
 WHERE VARIABLE_NAME='table_open_cache';
+--enable_warnings
 --echo 1 Expected
 
 
@@ -172,10 +174,12 @@ select 1 from tab1;
 select 1 from tab2;
 --echo 1 Expected
 
+--disable_warnings
 set @opened_tables = (select variable_value from information_schema.session_status where variable_name ='Opened_tables');
 set @open_cache_hits = (select variable_value from information_schema.session_status where variable_name ='Table_open_cache_hits');
 set @open_cache_miss = (select variable_value from information_schema.session_status where variable_name ='Table_open_cache_misses');
 set @open_cache_overflow = (select variable_value from information_schema.session_status where variable_name ='Table_open_cache_overflows');
+--enable_warnings
 
 --echo # table_open_cache hit 1
 select 1 from tab1;
@@ -185,6 +189,7 @@ select 1 from tab1;
 select 1 from tab2;
 --echo 1 Expected
 
+--disable_warnings
 select (select variable_value from information_schema.session_status where variable_name ='Opened_tables') = @opened_tables;
 --echo 1 Expected
 select (select variable_value from information_schema.session_status where variable_name ='Table_open_cache_hits') = @open_cache_hits + 2;
@@ -192,12 +197,14 @@ select (select variable_value from information_schema.session_status where varia
 select (select variable_value from information_schema.session_status where variable_name ='Table_open_cache_misses') = @open_cache_miss;
 --echo 1 Expected
 select (select variable_value from information_schema.session_status where variable_name ='Table_open_cache_overflows') = @open_cache_overflow;
+--enable_warnings
 --echo 1 Expected
 
 --echo # open third table
 select 1 from tab3;
 --echo 1 Expected
 
+--disable_warnings
 select (select variable_value from information_schema.session_status where variable_name ='Opened_tables') = @opened_tables + 1;
 --echo 1 Expected
 select (select variable_value from information_schema.session_status where variable_name ='Table_open_cache_hits') = @open_cache_hits + 2;
@@ -205,27 +212,33 @@ select (select variable_value from information_schema.session_status where varia
 select (select variable_value from information_schema.session_status where variable_name ='Table_open_cache_misses') = @open_cache_miss + 1;
 --echo 1 Expected
 select (select variable_value from information_schema.session_status where variable_name ='Table_open_cache_overflows') = @open_cache_overflow + 1;
+--enable_warnings
 --echo 1 Expected
 
 flush status;
 
+--disable_warnings
 set @global_opened_tables = (select variable_value from information_schema.global_status where variable_name ='Opened_tables');
 set @global_open_cache_hits = (select variable_value from information_schema.global_status where variable_name ='Table_open_cache_hits');
 set @global_open_cache_miss = (select variable_value from information_schema.global_status where variable_name ='Table_open_cache_misses');
 set @global_open_cache_overflow = (select variable_value from information_schema.global_status where variable_name ='Table_open_cache_overflows');
+--enable_warnings
 
 
 --echo # opening table 2 from another client session
 connect (con1,localhost,root,,);
 
+--disable_warnings
 set @opened_tables = (select variable_value from information_schema.session_status where variable_name ='Opened_tables');
 set @open_cache_hits = (select variable_value from information_schema.session_status where variable_name ='Table_open_cache_hits');
 set @open_cache_miss = (select variable_value from information_schema.session_status where variable_name ='Table_open_cache_misses');
 set @open_cache_overflow = (select variable_value from information_schema.session_status where variable_name ='Table_open_cache_overflows');
+--enable_warnings
 
 select 1 from tab2;
 --echo 1 Expected
 
+--disable_warnings
 select (select variable_value from information_schema.session_status where variable_name ='Opened_tables') = @opened_tables;
 --echo 1 Expected
 
@@ -236,12 +249,14 @@ select (select variable_value from information_schema.session_status where varia
 --echo 1 Expected
 
 select (select variable_value from information_schema.session_status where variable_name ='Table_open_cache_overflows') = @open_cache_overflow;
+--enable_warnings
 --echo 1 Expected
 
 flush status;
 
 connection default;
 
+--disable_warnings
 select (select variable_value from information_schema.global_status where variable_name ='Opened_tables') = @global_opened_tables;
 --echo 1 Expected
 
@@ -252,6 +267,7 @@ select (select variable_value from information_schema.global_status where variab
 --echo 1 Expected
 
 select (select variable_value from information_schema.global_status where variable_name ='Table_open_cache_overflows') = @global_open_cache_overflow;
+--enable_warnings
 --echo 1 Expected
 
 
@@ -260,6 +276,7 @@ connection con1;
 select 1 from tab1;
 --echo 1 Expected
 
+--disable_warnings
 select (select variable_value from information_schema.session_status where variable_name ='Opened_tables') = @opened_tables + 1;
 --echo 1 Expected
 
@@ -270,10 +287,12 @@ select (select variable_value from information_schema.session_status where varia
 --echo 1 Expected
 
 select (select variable_value from information_schema.session_status where variable_name ='Table_open_cache_overflows') = @open_cache_overflow + 1;
+--enable_warnings
 
 flush status;
 connection default;
 
+--disable_warnings
 select (select variable_value from information_schema.global_status where variable_name ='Opened_tables') = @global_opened_tables + 1;
 --echo 1 Expected
 
@@ -284,6 +303,7 @@ select (select variable_value from information_schema.global_status where variab
 --echo 1 Expected
 
 select (select variable_value from information_schema.global_status where variable_name ='Table_open_cache_overflows') = @global_open_cache_overflow + 1;
+--enable_warnings
 --echo 1 Expected
 
 disconnect con1;

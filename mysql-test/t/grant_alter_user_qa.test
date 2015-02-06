@@ -1,8 +1,9 @@
+###############################################################################################################################
 #Testing CREATE/ALTER/GRANT USER new syntax and New variable "log-backward-compatible-user-definitions" default value "OFF"
 #Test for WL#6409
 #created:2014-12-15
 #Author: Lalit Choudhary
-############################################
+###############################################################################################################################
 
 --source include/not_embedded.inc
 # Save the initial number of concurrent sessions
@@ -882,11 +883,23 @@ reset master;
 --enable_query_log
 
 CREATE USER u1 IDENTIFIED WITH 'mysql_native_password' BY 'azundris1';
-CREATE USER user8@localhost IDENTIFIED WITH 'mysql_native_password' AS 'auth_string';
+CREATE USER user8@localhost IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF';
+CREATE USER user1@localhost IDENTIFIED WITH 'sha256_password' REQUIRE SSL;
+CREATE USER user11@localhost IDENTIFIED WITH 'mysql_native_password' PASSWORD EXPIRE NEVER ACCOUNT LOCK;
+CREATE USER user12@localhost IDENTIFIED WITH 'sha256_password' PASSWORD EXPIRE NEVER;
+
 CREATE USER u2@localhost IDENTIFIED BY 'meow';
-CREATE USER user1@localhost IDENTIFIED WITH 'sha256_password';
-CREATE USER u10@localhost IDENTIFIED WITH 'sha256_password' REQUIRE CIPHER "DHE-RSA-AES256-SHA" AND SUBJECT "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client" ISSUER "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA";
+CREATE USER u10@localhost IDENTIFIED WITH 'sha256_password' REQUIRE CIPHER "DHE-RSA-AES256-SHA" AND SUBJECT "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client" ISSUER "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA" WITH MAX_QUERIES_PER_HOUR 2 MAX_USER_CONNECTIONS 2;
 ALTER USER u10@localhost IDENTIFIED WITH 'mysql_native_password' AS 'auth_string' REQUIRE SSL;
+ALTER USER user11@localhost IDENTIFIED WITH 'sha256_password' REQUIRE  CIPHER "DHE-RSA-AES256-SHA" AND SUBJECT  "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client" ISSUER  "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA" PASSWORD EXPIRE  DEFAULT ACCOUNT UNLOCK;
+ALTER USER user12@localhost IDENTIFIED WITH 'mysql_native_password' AS  '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' ACCOUNT UNLOCK PASSWORD  EXPIRE INTERVAL 90 DAY;
+CREATE USER user13@localhost IDENTIFIED BY 'auth_string' ACCOUNT UNLOCK;
+ALTER USER user13@localhost WITH MAX_QUERIES_PER_HOUR 22 MAX_USER_CONNECTIONS 4 ACCOUNT LOCK PASSWORD EXPIRE NEVER;
+CREATE USER user14@localhost IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' ACCOUNT LOCK;
+CREATE USER user15@localhost IDENTIFIED WITH 'mysql_native_password' BY 'azundris1' PASSWORD EXPIRE NEVER ACCOUNT UNLOCK;
+ALTER USER user15@localhost PASSWORD EXPIRE DEFAULT ACCOUNT LOCK;
+CREATE USER user16@localhost IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' ACCOUNT LOCK PASSWORD EXPIRE NEVER;
+ALTER USER user16@localhost PASSWORD EXPIRE INTERVAL 10 DAY ACCOUNT LOCK;
 --connect(con1, localhost, u1, 'azundris1')
 SELECT USER();
 ALTER USER USER() IDENTIFIED BY 'new-auth';
@@ -902,8 +915,7 @@ GRANT SELECT ON mysql.user TO user8@localhost IDENTIFIED BY PASSWORD '*67092806A
 source include/show_binlog_events.inc;
 
 # cleanup
-DROP USER 'user1'@'localhost',user8@localhost,user10@localhost,'u10'@'localhost',u1, 'u2'@'localhost', 'u3'@'localhost';
-
+DROP USER 'user1'@'localhost',user8@localhost,user10@localhost,user11@localhost,user12@localhost,user13@localhost,user14@localhost,user15@localhost,user16@localhost,'u10'@'localhost',u1, 'u2'@'localhost', 'u3'@'localhost';
 
 # make sure we start with a clean slate. log_tables.test says this is OK.
 TRUNCATE TABLE mysql.general_log;
@@ -920,11 +932,23 @@ SET GLOBAL log_output =       'FILE,TABLE';
 SET GLOBAL general_log=       'ON';
 
 CREATE USER u1 IDENTIFIED WITH 'mysql_native_password' BY 'azundris1';
+CREATE USER user8@localhost IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF';
+CREATE USER user1@localhost IDENTIFIED WITH 'sha256_password' REQUIRE SSL;
+CREATE USER user11@localhost IDENTIFIED WITH 'mysql_native_password' PASSWORD EXPIRE NEVER ACCOUNT LOCK;
+CREATE USER user12@localhost IDENTIFIED WITH 'sha256_password' PASSWORD EXPIRE NEVER;
+
 CREATE USER u2@localhost IDENTIFIED BY 'meow';
-CREATE USER user8@localhost IDENTIFIED WITH 'mysql_native_password' AS 'auth_string';
-CREATE USER user1@localhost IDENTIFIED WITH 'sha256_password';
-CREATE USER u10@localhost IDENTIFIED WITH 'sha256_password' REQUIRE CIPHER "DHE-RSA-AES256-SHA" AND SUBJECT "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client" ISSUER "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA";
+CREATE USER u10@localhost IDENTIFIED WITH 'sha256_password' REQUIRE CIPHER "DHE-RSA-AES256-SHA" AND SUBJECT "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client" ISSUER "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA" WITH MAX_QUERIES_PER_HOUR 2 MAX_USER_CONNECTIONS 2;
 ALTER USER u10@localhost IDENTIFIED WITH 'mysql_native_password' AS 'auth_string' REQUIRE SSL;
+ALTER USER user11@localhost IDENTIFIED WITH 'sha256_password' REQUIRE  CIPHER "DHE-RSA-AES256-SHA" AND SUBJECT  "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client" ISSUER  "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA" PASSWORD EXPIRE  DEFAULT ACCOUNT UNLOCK;
+ALTER USER user12@localhost IDENTIFIED WITH 'mysql_native_password' AS  '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' ACCOUNT UNLOCK PASSWORD  EXPIRE INTERVAL 90 DAY;
+CREATE USER user13@localhost IDENTIFIED BY 'auth_string' ACCOUNT UNLOCK;
+ALTER USER user13@localhost WITH MAX_QUERIES_PER_HOUR 22 MAX_USER_CONNECTIONS 4 ACCOUNT LOCK PASSWORD EXPIRE NEVER;
+CREATE USER user14@localhost IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' ACCOUNT LOCK;
+CREATE USER user15@localhost IDENTIFIED WITH 'mysql_native_password' BY 'azundris1' PASSWORD EXPIRE NEVER ACCOUNT UNLOCK;
+ALTER USER user15@localhost PASSWORD EXPIRE DEFAULT ACCOUNT LOCK;
+CREATE USER user16@localhost IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' ACCOUNT LOCK PASSWORD EXPIRE NEVER;
+ALTER USER user16@localhost PASSWORD EXPIRE INTERVAL 10 DAY ACCOUNT LOCK;
 --connect(con1, localhost, u1, 'azundris1')
 SELECT USER();
 ALTER USER USER() IDENTIFIED BY 'new-auth';
@@ -950,7 +974,7 @@ SELECT argument FROM mysql.general_log WHERE argument LIKE 'GRANT %';
 --echo ------ done ------
 
 # cleanup
-DROP USER 'user1'@'localhost',user8@localhost,user10@localhost,'u10'@'localhost',u1, 'u2'@'localhost', 'u3'@'localhost';
+DROP USER 'user1'@'localhost',user8@localhost,user10@localhost,user11@localhost,user12@localhost,user13@localhost,user14@localhost,user15@localhost,user16@localhost,'u10'@'localhost',u1, 'u2'@'localhost', 'u3'@'localhost';
 
 --remove_file $MYSQLTEST_VARDIR/log/log_backward_compatible_user_definitions_OFF.log
 
@@ -993,11 +1017,23 @@ reset master;
 --enable_query_log
 
 CREATE USER u1 IDENTIFIED WITH 'mysql_native_password' BY 'azundris1';
-CREATE USER user8@localhost IDENTIFIED WITH 'mysql_native_password' AS 'auth_string';
+CREATE USER user8@localhost IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF';
+CREATE USER user1@localhost IDENTIFIED WITH 'sha256_password' REQUIRE SSL;
+CREATE USER user11@localhost IDENTIFIED WITH 'mysql_native_password' PASSWORD EXPIRE NEVER ACCOUNT LOCK;
+CREATE USER user12@localhost IDENTIFIED WITH 'sha256_password' PASSWORD EXPIRE NEVER;
+
 CREATE USER u2@localhost IDENTIFIED BY 'meow';
-CREATE USER user1@localhost IDENTIFIED WITH 'sha256_password';
-CREATE USER u10@localhost IDENTIFIED WITH 'sha256_password' REQUIRE CIPHER "DHE-RSA-AES256-SHA" AND SUBJECT "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client" ISSUER "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA";
+CREATE USER u10@localhost IDENTIFIED WITH 'sha256_password' REQUIRE CIPHER "DHE-RSA-AES256-SHA" AND SUBJECT "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client" ISSUER "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA" WITH MAX_QUERIES_PER_HOUR 2 MAX_USER_CONNECTIONS 2;
 ALTER USER u10@localhost IDENTIFIED WITH 'mysql_native_password' AS 'auth_string' REQUIRE SSL;
+ALTER USER user11@localhost IDENTIFIED WITH 'sha256_password' REQUIRE  CIPHER "DHE-RSA-AES256-SHA" AND SUBJECT  "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client" ISSUER  "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA" PASSWORD EXPIRE  DEFAULT ACCOUNT UNLOCK;
+ALTER USER user12@localhost IDENTIFIED WITH 'mysql_native_password' AS  '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' ACCOUNT UNLOCK PASSWORD  EXPIRE INTERVAL 90 DAY;
+CREATE USER user13@localhost IDENTIFIED BY 'auth_string' ACCOUNT UNLOCK;
+ALTER USER user13@localhost WITH MAX_QUERIES_PER_HOUR 22 MAX_USER_CONNECTIONS 4 ACCOUNT LOCK PASSWORD EXPIRE NEVER;
+CREATE USER user14@localhost IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' ACCOUNT LOCK;
+CREATE USER user15@localhost IDENTIFIED WITH 'mysql_native_password' BY 'azundris1' PASSWORD EXPIRE NEVER ACCOUNT UNLOCK;
+ALTER USER user15@localhost PASSWORD EXPIRE DEFAULT ACCOUNT LOCK;
+CREATE USER user16@localhost IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' ACCOUNT LOCK PASSWORD EXPIRE NEVER;
+ALTER USER user16@localhost PASSWORD EXPIRE INTERVAL 10 DAY ACCOUNT LOCK;
 
 --connect(con1, localhost, u1, 'azundris1')
 SELECT USER();
@@ -1014,7 +1050,7 @@ GRANT SELECT ON mysql.user TO user8@localhost IDENTIFIED BY PASSWORD '*67092806A
 source include/show_binlog_events.inc;
 
 # cleanup
-DROP USER 'user1'@'localhost',user8@localhost,user10@localhost,'u10'@'localhost',u1, 'u2'@'localhost', 'u3'@'localhost';
+DROP USER 'user1'@'localhost',user8@localhost,user10@localhost,user11@localhost,user12@localhost,user13@localhost,user14@localhost,user15@localhost,user16@localhost,'u10'@'localhost',u1, 'u2'@'localhost', 'u3'@'localhost';
 
 # make sure we start with a clean slate. log_tables.test says this is OK.
 TRUNCATE TABLE mysql.general_log;
@@ -1031,12 +1067,23 @@ SET GLOBAL log_output =       'FILE,TABLE';
 SET GLOBAL general_log=       'ON';
 
 CREATE USER u1 IDENTIFIED WITH 'mysql_native_password' BY 'azundris1';
-CREATE USER user8@localhost IDENTIFIED WITH 'mysql_native_password' AS 'auth_string';
-CREATE USER user1@localhost IDENTIFIED WITH 'sha256_password';
-CREATE USER u2@localhost IDENTIFIED BY 'meow';
-CREATE USER u10@localhost IDENTIFIED WITH 'sha256_password' REQUIRE CIPHER "DHE-RSA-AES256-SHA" AND SUBJECT "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client" ISSUER "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA";
-ALTER USER u10@localhost IDENTIFIED WITH 'mysql_native_password' AS 'auth_string' REQUIRE SSL;
+CREATE USER user8@localhost IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF';
+CREATE USER user1@localhost IDENTIFIED WITH 'sha256_password' REQUIRE SSL;
+CREATE USER user11@localhost IDENTIFIED WITH 'mysql_native_password' PASSWORD EXPIRE NEVER ACCOUNT LOCK;
+CREATE USER user12@localhost IDENTIFIED WITH 'sha256_password' PASSWORD EXPIRE NEVER;
 
+CREATE USER u2@localhost IDENTIFIED BY 'meow';
+CREATE USER u10@localhost IDENTIFIED WITH 'sha256_password' REQUIRE CIPHER "DHE-RSA-AES256-SHA" AND SUBJECT "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client" ISSUER "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA" WITH MAX_QUERIES_PER_HOUR 2 MAX_USER_CONNECTIONS 2;
+ALTER USER u10@localhost IDENTIFIED WITH 'mysql_native_password' AS 'auth_string' REQUIRE SSL;
+ALTER USER user11@localhost IDENTIFIED WITH 'sha256_password' REQUIRE  CIPHER "DHE-RSA-AES256-SHA" AND SUBJECT  "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client" ISSUER  "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA" PASSWORD EXPIRE  DEFAULT ACCOUNT UNLOCK;
+ALTER USER user12@localhost IDENTIFIED WITH 'mysql_native_password' AS  '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' ACCOUNT UNLOCK PASSWORD  EXPIRE INTERVAL 90 DAY;
+CREATE USER user13@localhost IDENTIFIED BY 'auth_string' ACCOUNT UNLOCK;
+ALTER USER user13@localhost WITH MAX_QUERIES_PER_HOUR 22 MAX_USER_CONNECTIONS 4 ACCOUNT LOCK PASSWORD EXPIRE NEVER;
+CREATE USER user14@localhost IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' ACCOUNT LOCK;
+CREATE USER user15@localhost IDENTIFIED WITH 'mysql_native_password' BY 'azundris1' PASSWORD EXPIRE NEVER ACCOUNT UNLOCK;
+ALTER USER user15@localhost PASSWORD EXPIRE DEFAULT ACCOUNT LOCK;
+CREATE USER user16@localhost IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' ACCOUNT LOCK PASSWORD EXPIRE NEVER;
+ALTER USER user16@localhost PASSWORD EXPIRE INTERVAL 10 DAY ACCOUNT LOCK;
 --connect(con1, localhost, u1, 'azundris1')
 SELECT USER();
 ALTER USER USER() IDENTIFIED BY 'new-auth';
@@ -1061,7 +1108,7 @@ SELECT argument FROM mysql.general_log WHERE argument LIKE 'GRANT %';
 --echo ------ done ------
 
 # cleanup
-DROP USER 'user1'@'localhost',user8@localhost,user10@localhost,'u10'@'localhost',u1, 'u2'@'localhost', 'u3'@'localhost';
+DROP USER 'user1'@'localhost',user8@localhost,user10@localhost,user11@localhost,user12@localhost,user13@localhost,user14@localhost,user15@localhost,user16@localhost,'u10'@'localhost',u1, 'u2'@'localhost', 'u3'@'localhost';
 
 --remove_file $MYSQLTEST_VARDIR/log/log_backward_compatible_user_definitions_ON.log
 

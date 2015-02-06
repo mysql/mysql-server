@@ -35,10 +35,12 @@ eval $query;
 let $cost=
  query_get_value(SHOW STATUS LIKE 'Last_query_cost', Value, 1);
 
+--disable_warnings
 let $reads=
 `select sum(variable_value)
    from information_schema.session_status
    where VARIABLE_NAME like 'Handler_read%'`;
+--enable_warnings
 
 #echo Cost: $cost, Handler_reads: $reads;
 

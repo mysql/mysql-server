@@ -15,4 +15,4 @@ SELECT @@performance_schema_consumer_events_stages_current;
 --error ER_UNKNOWN_SYSTEM_VARIABLE
 SET @@performance_schema_consumer_events_stages_current=0;
 
-SHOW VARIABLES LIKE "performance_schema_consumer%";
+SHOW GLOBAL VARIABLES LIKE "performance_schema_consumer%";

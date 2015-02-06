@@ -1,7 +1,13 @@
 --source include/not_embedded.inc
+--source include/not_gtid_enabled.inc
+
+# default value
 
 SET @start_global_value = @@global.gtid_mode;
 SELECT @start_global_value;
+
+SET @start_enforce_gtid_consistency= @@global.enforce_gtid_consistency;
+SET @@global.enforce_gtid_consistency = ON;
 
 #
 # exists as global only
@@ -17,13 +23,94 @@ select * from information_schema.session_variables where variable_name='gtid_mod
 --enable_warnings
 
 #
-# show that it isn't writable now.
+# show that it is settable and can only change at most one step at a time
 #
---error ER_INCORRECT_GLOBAL_LOCAL_VAR
-set global gtid_mode = "ON";
+set global gtid_mode = OFF;
+--error ER_GTID_MODE_CAN_ONLY_CHANGE_ONE_STEP_AT_A_TIME
+set global gtid_mode = ON_PERMISSIVE;
+--error ER_GTID_MODE_CAN_ONLY_CHANGE_ONE_STEP_AT_A_TIME
+set global gtid_mode = ON;
+
+set global gtid_mode = OFF_PERMISSIVE;
+set global gtid_mode = OFF_PERMISSIVE;
+--error ER_GTID_MODE_CAN_ONLY_CHANGE_ONE_STEP_AT_A_TIME
+set global gtid_mode = ON;
+
+set global gtid_mode = ON_PERMISSIVE;
+set global gtid_mode = ON_PERMISSIVE;
+--error ER_GTID_MODE_CAN_ONLY_CHANGE_ONE_STEP_AT_A_TIME
+set global gtid_mode = OFF;
+
+set global gtid_mode = ON;
+set global gtid_mode = ON;
+--error ER_GTID_MODE_CAN_ONLY_CHANGE_ONE_STEP_AT_A_TIME
+set global gtid_mode = OFF;
+--error ER_GTID_MODE_CAN_ONLY_CHANGE_ONE_STEP_AT_A_TIME
+set global gtid_mode = OFF_PERMISSIVE;
+
+set global gtid_mode = ON_PERMISSIVE;
+set global gtid_mode = OFF_PERMISSIVE;
+set global gtid_mode = OFF;
+
+--error ER_WRONG_VALUE_FOR_VAR
+set global gtid_mode = NULL;
 select @@global.gtid_mode;
---error ER_INCORRECT_GLOBAL_LOCAL_VAR
-set session gtid_mode = 1;
+
+set global gtid_mode = default;
+select @@global.gtid_mode;
+
+set global gtid_mode = OFF_PERMISSIVE;
+set global gtid_mode = default;
+select @@global.gtid_mode;
+
+set global gtid_mode = OFF_PERMISSIVE;
+set global gtid_mode = ON_PERMISSIVE;
+--error ER_GTID_MODE_CAN_ONLY_CHANGE_ONE_STEP_AT_A_TIME
+set global gtid_mode = default;
+select @@global.gtid_mode;
+
+set global gtid_mode = ON;
+--error ER_GTID_MODE_CAN_ONLY_CHANGE_ONE_STEP_AT_A_TIME
+set global gtid_mode = default;
+select @@global.gtid_mode;
+
+--error ER_GLOBAL_VARIABLE
+set session gtid_mode = ON;
+
+# can't set ON when sql_slave_skip_counter > 0
+set global gtid_mode = on_permissive;
+set global sql_slave_skip_counter = 1;
+--error ER_CANT_SET_GTID_MODE
+set global gtid_mode = on;
+set global sql_slave_skip_counter = 0;
+set global gtid_mode = on;
+
+# can set everything except ON when enforce_gtid_consistency!=ON
+set global gtid_mode = on_permissive;
+SET @@global.enforce_gtid_consistency = OFF;
+
+set global gtid_mode = off_permissive;
+set global gtid_mode = off;
+set global gtid_mode = off_permissive;
+set global gtid_mode = on_permissive;
+--error ER_CANT_SET_GTID_MODE
+set global gtid_mode = on;
+
+SET @@global.enforce_gtid_consistency = WARN;
+
+set global gtid_mode = off_permissive;
+set global gtid_mode = off;
+set global gtid_mode = off_permissive;
+set global gtid_mode = on_permissive;
+--error ER_CANT_SET_GTID_MODE
+set global gtid_mode = on;
+
+# Set back to default
+set global gtid_mode = ON_PERMISSIVE;
+set global gtid_mode = Off_Permissive;
+set global gtid_mode = off;
+
+SET @@global.enforce_gtid_consistency = @start_enforce_gtid_consistency;
 
 #
 # See rpl_gtid_mode.test for a comprehensive test case.

@@ -233,6 +233,7 @@ enum mysql_user_table_field
   MYSQL_USER_FIELD_PASSWORD_EXPIRED,
   MYSQL_USER_FIELD_PASSWORD_LAST_CHANGED,
   MYSQL_USER_FIELD_PASSWORD_LIFETIME,
+  MYSQL_USER_FIELD_ACCOUNT_LOCKED,
   MYSQL_USER_FIELD_COUNT
 };
 
@@ -265,6 +266,7 @@ bool acl_check_host(const char *host, const char *ip);
 #define RESOURCE_ATTR           8    /* ex: MAX_QUERIES_PER_HOUR.. */
 #define PASSWORD_EXPIRE_ATTR    16   /* update password expire col */
 #define ACCESS_RIGHTS_ATTR      32   /* update privileges */
+#define ACCOUNT_LOCK_ATTR       64   /* update account lock status */
 
 /* rewrite CREATE/ALTER/GRANT user */
 void mysql_rewrite_create_alter_user(THD *thd, String *rlb);

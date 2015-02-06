@@ -106,7 +106,7 @@ object_schema	object_name	index_name	count_fetch	count_insert	count_update	count
 test	t_60905	i	2	0	0	1
 test	t_60905	NULL	5	5	0	1
 DROP TABLE t_60905;
-show variables like "performance_schema_max_thread_instances";
+show global variables like "performance_schema_max_thread_instances";
 Variable_name	Value
 performance_schema_max_thread_instances	200
 explain select * from performance_schema.threads;
