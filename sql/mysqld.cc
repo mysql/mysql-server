@@ -6629,7 +6629,7 @@ SHOW_VAR status_vars[]= {
   {"Last_query_cost",          (char*) offsetof(STATUS_VAR, last_query_cost),         SHOW_DOUBLE_STATUS,      SHOW_SCOPE_SESSION},
   {"Last_query_partial_plans", (char*) offsetof(STATUS_VAR, last_query_partial_plans),SHOW_LONGLONG_STATUS,    SHOW_SCOPE_SESSION},
 #ifndef EMBEDDED_LIBRARY
-  {"Locked_connects",          (char*) &locked_account_connection_count, SHOW_LONG },
+  {"Locked_connects",          (char*) &locked_account_connection_count,              SHOW_LONG,               SHOW_SCOPE_GLOBAL},
 #endif
   {"Max_statement_time_exceeded",   (char*) offsetof(STATUS_VAR, max_statement_time_exceeded),   SHOW_LONGLONG_STATUS, SHOW_SCOPE_ALL},
   {"Max_statement_time_set",        (char*) offsetof(STATUS_VAR, max_statement_time_set),        SHOW_LONGLONG_STATUS, SHOW_SCOPE_ALL},
