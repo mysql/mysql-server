@@ -1343,8 +1343,16 @@ void gtid_server_cleanup()
 bool gtid_server_init()
 {
   bool res=
-    (!(global_sid_lock= new Checkable_rwlock(key_rwlock_global_sid_lock)) ||
-     !(gtid_mode_lock= new Checkable_rwlock(key_rwlock_gtid_mode_lock)) ||
+    (!(global_sid_lock= new Checkable_rwlock(
+#ifdef HAVE_PSI_INTERFACE
+                                             key_rwlock_global_sid_lock
+#endif
+                                            )) ||
+     !(gtid_mode_lock= new Checkable_rwlock(
+#ifdef HAVE_PSI_INTERFACE
+                                            key_rwlock_gtid_mode_lock
+#endif
+                                           )) ||
      !(global_sid_map= new Sid_map(global_sid_lock)) ||
      !(gtid_state= new Gtid_state(global_sid_lock, global_sid_map))||
      !(gtid_table_persistor= new Gtid_table_persistor()));
