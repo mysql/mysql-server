@@ -7724,6 +7724,7 @@ MYSQL_BIN_LOG::process_flush_stage_queue(my_off_t *total_bytes_var,
                                          bool *rotate_var,
                                          THD **out_queue_var)
 {
+  DBUG_ENTER("MYSQL_BIN_LOG::process_flush_stage_queue");
   #ifndef DBUG_OFF
   // number of flushes per group.
   int no_flushes= 0;
@@ -7768,7 +7769,7 @@ MYSQL_BIN_LOG::process_flush_stage_queue(my_off_t *total_bytes_var,
   DBUG_PRINT("info",("no_flushes:= %d", no_flushes));
   no_flushes= 0;
 #endif
-  return flush_error;
+  DBUG_RETURN(flush_error);
 }
 
 /**
@@ -7802,6 +7803,8 @@ void MYSQL_BIN_LOG::update_max_committed(THD *thd)
   session in @c first. If there were an error in the flushing part of
   the ordered commit, the error code is passed in and all the threads
   are marked accordingly (but not committed).
+
+  It will also add the GTIDs of the transactions to gtid_executed.
 
   @see MYSQL_BIN_LOG::ordered_commit
 
@@ -7852,6 +7855,13 @@ MYSQL_BIN_LOG::process_commit_stage_queue(THD *thd, THD *first)
                            head->commit_error,
                            YESNO(head->get_transaction()->m_flags.pending)));
     }
+
+    /* Handle the GTID of the thread */
+    if (head->commit_error == THD::CE_NONE)
+      gtid_state->update_on_commit(head);
+    else
+      gtid_state->update_on_rollback(head);
+
     /*
       Decrement the prepared XID counter after storage engine commit.
       We also need decrement the prepared XID when encountering a
@@ -8022,6 +8032,8 @@ MYSQL_BIN_LOG::sync_binlog_file(bool force)
 int
 MYSQL_BIN_LOG::finish_commit(THD *thd)
 {
+  DBUG_ENTER("MYSQL_BIN_LOG::finish_commit");
+  DEBUG_SYNC(thd, "reached_finish_commit");
   if (thd->get_transaction()->sequence_number != SEQ_UNINIT)
     update_max_committed(thd);
   if (thd->get_transaction()->m_flags.commit_low)
@@ -8056,19 +8068,37 @@ MYSQL_BIN_LOG::finish_commit(THD *thd)
     dec_prep_xids(thd);
 
   /*
-    Gtid is added to gtid_state.executed_gtids and removed from owned_gtids
-    on update_on_commit().
+    If the ordered commit didn't updated the GTIDs for this thd yet
+    at process_commit_stage_queue (i.e. --binlog-order-commits=0)
+    the thd still has the ownership of a GTID and we must handle it.
   */
-  if (thd->commit_error == THD::CE_NONE)
-    gtid_state->update_on_commit(thd);
-  else
-    gtid_state->update_on_rollback(thd);
+  if (!thd->owned_gtid.is_empty())
+  {
+    /*
+      Gtid is added to gtid_state.executed_gtids and removed from owned_gtids
+      on update_on_commit().
+    */
+    if (thd->commit_error == THD::CE_NONE)
+    {
+      gtid_state->update_on_commit(thd);
+    }
+    else
+      gtid_state->update_on_rollback(thd);
+  }
+
+  DBUG_EXECUTE_IF("leaving_finish_commit",
+                  {
+                    const char act[]=
+                      "now SIGNAL signal_leaving_finish_commit";
+                    DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                                                       STRING_WITH_LEN(act)));
+                  };);
 
   DBUG_ASSERT(thd->commit_error || !thd->get_transaction()->m_flags.run_hooks);
   DBUG_ASSERT(!thd_get_cache_mngr(thd)->dbug_any_finalized());
   DBUG_PRINT("return", ("Thread ID: %u, commit_error: %d",
                         thd->thread_id(), thd->commit_error));
-  return thd->commit_error;
+  DBUG_RETURN(thd->commit_error);
 }
 
 /**
@@ -8327,6 +8357,21 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
     if (flush_error == 0)
       flush_error= call_after_sync_hook(commit_queue);
 
+    /*
+      process_commit_stage_queue will call update_on_commit or
+      update_on_rollback for the GTID owned by each thd in the queue.
+
+      This will be done this way to guarantee that GTIDs are added to
+      gtid_executed in order, to avoid creating unnecessary temporary
+      gaps and keep gtid_executed as a single interval at all times.
+
+      If we allow each thread to call update_on_commit only when they
+      are at finish_commit, the GTID order cannot be guaranteed and
+      temporary gaps may appear in gtid_executed. When this happen,
+      the server would have to add and remove intervals from the
+      Gtid_set, and adding and removing intervals requires a mutex,
+      which would reduce performance.
+    */
     process_commit_stage_queue(thd, commit_queue);
     mysql_mutex_unlock(&LOCK_commit);
     /*

@@ -55,26 +55,28 @@ const Gtid_set::String_format Gtid_set::commented_string_format=
 };
 
 
-Gtid_set::Gtid_set(Sid_map *_sid_map, Checkable_rwlock *_sid_lock)
+Gtid_set::Gtid_set(Sid_map *_sid_map, Checkable_rwlock *_sid_lock,
+                   PSI_mutex_key free_intervals_mutex_key)
   : sid_lock(_sid_lock), sid_map(_sid_map),
     m_intervals(key_memory_Gtid_set_Interval_chunk)
 {
-  init();
+  init(free_intervals_mutex_key);
 }
 
 
 Gtid_set::Gtid_set(Sid_map *_sid_map, const char *text,
-                   enum_return_status *status, Checkable_rwlock *_sid_lock)
+                   enum_return_status *status, Checkable_rwlock *_sid_lock,
+                   PSI_mutex_key free_intervals_mutex_key)
   : sid_lock(_sid_lock), sid_map(_sid_map),
     m_intervals(key_memory_Gtid_set_Interval_chunk)
 {
   DBUG_ASSERT(_sid_map != NULL);
-  init();
+  init(free_intervals_mutex_key);
   *status= add_gtid_text(text);
 }
 
 
-void Gtid_set::init()
+void Gtid_set::init(PSI_mutex_key free_intervals_mutex_key)
 {
   DBUG_ENTER("Gtid_set::init");
   cached_string_length= -1;
@@ -82,7 +84,7 @@ void Gtid_set::init()
   chunks= NULL;
   free_intervals= NULL;
   if (sid_lock)
-    mysql_mutex_init(0, &free_intervals_mutex, NULL);
+    mysql_mutex_init(free_intervals_mutex_key, &free_intervals_mutex, NULL);
 #ifndef DBUG_OFF
   n_chunks= 0;
 #endif
