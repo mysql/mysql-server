@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1744,23 +1744,11 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
   }
 
 #ifdef ERROR_INSERT
-  if (arg == 9000 || arg == 9002)
-  {
-    // Migrated to TRPMAN
-    sendSignal(TRPMAN_REF, GSN_DUMP_STATE_ORD, signal, signal->getLength(),JBB);
-  }
-  if (arg == 9001)
-  {
-    // Migrated to TRPMAN
-    sendSignal(TRPMAN_REF, GSN_DUMP_STATE_ORD, signal, signal->getLength(),JBB);
-  }
-
   if (arg == 9004 && signal->getLength() == 2)
   {
     SET_ERROR_INSERT_VALUE(9004);
 
-    // Migrated to TRPMAN
-    sendSignal(TRPMAN_REF, GSN_DUMP_STATE_ORD, signal, signal->getLength(),JBB);
+    /* Actual handling of dump code moved to TRPMAN */
   }
 #endif
 
@@ -1787,41 +1775,6 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
     ndbrequire(handle.done());
   }
 #endif
-#endif
-
-#ifdef ERROR_INSERT
-  /* <Target NodeId> dump 9992 <NodeId list>
-   * On Target NodeId, block receiving signals from NodeId list
-   *
-   * <Target NodeId> dump 9993 <NodeId list>
-   * On Target NodeId, resume receiving signals from NodeId list
-   *
-   * <Target NodeId> dump 9991
-   * On Target NodeId, resume receiving signals from any blocked node
-   *
-   *
-   * See also code in QMGR for blocking receive from nodes based
-   * on HB roles.
-   *
-   */
-  if((arg == 9993) ||  /* Unblock recv from nodeid */
-     (arg == 9992))    /* Block recv from nodeid */
-  {
-    // Migrated to TRPMAN
-    sendSignal(TRPMAN_REF, GSN_DUMP_STATE_ORD, signal, signal->getLength(),JBB);
-  }
-
-  if (arg == 9990) /* Block recv from all ndbd matching pattern */
-  {
-    // Migrated to TRPMAN
-    sendSignal(TRPMAN_REF, GSN_DUMP_STATE_ORD, signal, signal->getLength(),JBB);
-  }
-
-  if (arg == 9991) /* Unblock recv from all blocked */
-  {
-    // Migrated to TRPMAN
-    sendSignal(TRPMAN_REF, GSN_DUMP_STATE_ORD, signal, signal->getLength(),JBB);
-  }
 #endif
 
   if (arg == 9999)
