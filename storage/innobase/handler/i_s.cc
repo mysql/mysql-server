@@ -4011,12 +4011,12 @@ i_s_fts_config_fill(
 	user_table = dict_table_open_on_name(
 		fts_internal_tbl_name, FALSE, FALSE, DICT_ERR_IGNORE_NONE);
 
-	if (!user_table || !dict_table_has_fts_index(user_table)) {
+	if (!user_table) {
 		DBUG_RETURN(0);
 	}
 
 	trx = trx_allocate_for_background();
-	trx->op_info = "Select for FTS CONFIG TABLE";
+	trx->op_info = "Select for FTS DELETE TABLE";
 
 	FTS_INIT_FTS_TABLE(&fts_table, "CONFIG", FTS_COMMON_TABLE, user_table);
 

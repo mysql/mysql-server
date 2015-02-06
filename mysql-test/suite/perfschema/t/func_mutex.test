@@ -130,5 +130,5 @@ DROP TABLE t1;
 UPDATE performance_schema.setup_instruments SET enabled = 'YES', timed = 'YES';
 
 # In case of failure, will indicate the root cause
-show status like "performance_schema%";
+show global status like "performance_schema%";
 

@@ -105,7 +105,7 @@ if ($wait_timeout)
 let $wait_timeout= 0;
 while ($wait_counter)
 {
-   let $current_sessions= query_get_value(SHOW STATUS LIKE 'Threads_connected', Value, 1);
+   let $current_sessions= query_get_value(SHOW GLOBAL STATUS LIKE 'Threads_connected', Value, 1);
    let $success= `SELECT $current_sessions <= $count_sessions`;
    if ($success)
    {

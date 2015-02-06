@@ -2421,6 +2421,137 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
+--
+-- TABLE VARIABLES_BY_THREAD
+--
+
+SET @cmd="CREATE TABLE performance_schema.variables_by_thread("
+  "THREAD_ID BIGINT unsigned not null,"
+  "VARIABLE_NAME VARCHAR(64) not null,"
+  "VARIABLE_VALUE VARCHAR(1024)"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE GLOBAL_VARIABLES
+--
+
+SET @cmd="CREATE TABLE performance_schema.global_variables("
+  "VARIABLE_NAME VARCHAR(64) not null,"
+  "VARIABLE_VALUE VARCHAR(1024)"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE SESSION_VARIABLES
+--
+
+SET @cmd="CREATE TABLE performance_schema.session_variables("
+  "VARIABLE_NAME VARCHAR(64) not null,"
+  "VARIABLE_VALUE VARCHAR(1024)"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE STATUS_BY_THREAD
+--
+
+SET @cmd="CREATE TABLE performance_schema.status_by_thread("
+  "THREAD_ID BIGINT unsigned not null,"
+  "VARIABLE_NAME VARCHAR(64) not null,"
+  "VARIABLE_VALUE VARCHAR(1024)"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE STATUS_BY_USER
+--
+
+SET @cmd="CREATE TABLE performance_schema.status_by_user("
+  "USER CHAR(16) collate utf8_bin default null,"
+  "VARIABLE_NAME VARCHAR(64) not null,"
+  "VARIABLE_VALUE VARCHAR(1024)"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE STATUS_BY_HOST
+--
+
+SET @cmd="CREATE TABLE performance_schema.status_by_host("
+  "HOST CHAR(60) collate utf8_bin default null,"
+  "VARIABLE_NAME VARCHAR(64) not null,"
+  "VARIABLE_VALUE VARCHAR(1024)"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE STATUS_BY_ACCOUNT
+--
+
+SET @cmd="CREATE TABLE performance_schema.status_by_account("
+  "USER CHAR(16) collate utf8_bin default null,"
+  "HOST CHAR(60) collate utf8_bin default null,"
+  "VARIABLE_NAME VARCHAR(64) not null,"
+  "VARIABLE_VALUE VARCHAR(1024)"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE GLOBAL_STATUS
+--
+
+SET @cmd="CREATE TABLE performance_schema.global_status("
+  "VARIABLE_NAME VARCHAR(64) not null,"
+  "VARIABLE_VALUE VARCHAR(1024)"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE SESSION_STATUS
+--
+
+SET @cmd="CREATE TABLE performance_schema.session_status("
+  "VARIABLE_NAME VARCHAR(64) not null,"
+  "VARIABLE_VALUE VARCHAR(1024)"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
 
 CREATE TABLE IF NOT EXISTS proxies_priv (Host char(60) binary DEFAULT '' NOT NULL, User char(16) binary DEFAULT '' NOT NULL, Proxied_host char(60) binary DEFAULT '' NOT NULL, Proxied_user char(16) binary DEFAULT '' NOT NULL, With_grant BOOL DEFAULT 0 NOT NULL, Grantor char(77) DEFAULT '' NOT NULL, Timestamp timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, PRIMARY KEY Host (Host,User,Proxied_host,Proxied_user), KEY Grantor (Grantor) ) engine=MyISAM CHARACTER SET utf8 COLLATE utf8_bin comment='User proxy privileges';
 

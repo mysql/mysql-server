@@ -310,7 +310,6 @@ extern "C" void *handle_connection(void *arg)
     ERR_remove_state(0);
 
     thd_manager->remove_thd(thd);
-    delete thd;
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
     /*
@@ -318,6 +317,8 @@ extern "C" void *handle_connection(void *arg)
     */
     PSI_THREAD_CALL(delete_current_thread)();
 #endif
+
+    delete thd;
 
     if (abort_loop) // Server is shutting down so end the pthread.
       break;

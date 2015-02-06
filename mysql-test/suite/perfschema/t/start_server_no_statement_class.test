@@ -6,14 +6,16 @@
 --source ../include/start_server_common.inc
 
 # Expect no classes
-show variables like "performance_schema_max_statement_classes";
+show global variables like "performance_schema_max_statement_classes";
 
 select count(*) from performance_schema.setup_instruments
   where name like "statement/%";
 
 # We lost all the classes
+--disable_warnings
 select variable_value > 0 from information_schema.global_status
   where variable_name like 'PERFORMANCE_SCHEMA_STATEMENT_CLASSES_LOST';
+--enable_warnings
 
 # Expect no statements
 select count(*) from performance_schema.events_statements_current;

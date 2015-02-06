@@ -1,0 +1,19 @@
+# Tests for PERFORMANCE_SCHEMA
+
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+
+-- error ER_DBACCESS_DENIED_ERROR
+alter table performance_schema.status_by_host
+  add column foo integer;
+
+truncate table performance_schema.status_by_host;
+
+-- error ER_DBACCESS_DENIED_ERROR
+ALTER TABLE performance_schema.status_by_host
+  ADD INDEX test_index(VARIABLE_NAME);
+
+-- error ER_DBACCESS_DENIED_ERROR
+CREATE UNIQUE INDEX test_index
+  ON performance_schema.status_by_host(VARIABLE_NAME);
+

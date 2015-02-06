@@ -36,6 +36,12 @@ set global example_enum_var= e1;
 show status like 'example%';
 Variable_name	Value
 example_func_example	enum_var is 0, ulong_var is 500, double_var is 8.500000, really
+example_status_array_var1	100
+example_status_array_var2	20.010000
+example_status_var3	three hundred
+example_status_var4	ON
+example_status_var5	OFF
+example_status_var6	8250
 show variables like 'example%';
 Variable_name	Value
 example_double_thdvar	8.500000
@@ -189,6 +195,7 @@ connection con1;
 COUNT(*)
 #
 Warnings:
+#	1287	'INFORMATION_SCHEMA.GLOBAL_VARIABLES' is deprecated and will be removed in a future release. Please use performance_schema.global_variables instead
 #	1287	'@@global.sql_log_bin' is deprecated and will be removed in a future release. Please use the constant 1 (since @@global.sql_log_bin is always equal to 1) instead
 SET DEBUG_SYNC='RESET';
 connection default;
@@ -212,6 +219,7 @@ connection default;
 COUNT(*)
 #
 Warnings:
+#	1287	'INFORMATION_SCHEMA.GLOBAL_VARIABLES' is deprecated and will be removed in a future release. Please use performance_schema.global_variables instead
 #	1639	debug sync point wait timed out
 #	1287	'@@global.sql_log_bin' is deprecated and will be removed in a future release. Please use the constant 1 (since @@global.sql_log_bin is always equal to 1) instead
 disconnect con2;
@@ -229,6 +237,7 @@ connection con1;
 COUNT(*)
 #
 Warnings:
+#	1287	'INFORMATION_SCHEMA.GLOBAL_VARIABLES' is deprecated and will be removed in a future release. Please use performance_schema.global_variables instead
 #	1287	'@@global.sql_log_bin' is deprecated and will be removed in a future release. Please use the constant 1 (since @@global.sql_log_bin is always equal to 1) instead
 connection con2;
 connection default;

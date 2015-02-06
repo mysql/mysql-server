@@ -111,15 +111,19 @@ while($i)
            $i*10+6,$i*10+7,$i*10+8,$i*10+9;
 
   # Get the execute count before DELETE
+--disable_warnings
   let $before= `select VARIABLE_VALUE from information_schema.session_status
                   where variable_name like 'NDB_EXECUTE_COUNT'`;
+--enable_warnings
 
   # Run the query
   eval delete from t3 where a in ($in);
 
   # Check that execute count after DELETE is not greater than 3
+--disable_warnings
   let $after= `select VARIABLE_VALUE from information_schema.session_status
                  where variable_name like 'NDB_EXECUTE_COUNT'`;
+--enable_warnings
   if (!`select $after-$before <= 3`)
   {
     echo before: $before;

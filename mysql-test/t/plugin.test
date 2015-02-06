@@ -203,8 +203,10 @@ SET DEBUG_SYNC='acquired_LOCK_plugin SIGNAL cont_show_vars';
 
 connection con1;
 # Without fix, reap will hang.
+#--disable_warnings # Don't mask warnings
 --replace_column 1 #
 --reap;
+#--enable_warnings
 SET DEBUG_SYNC='RESET';
 
 connection default;
@@ -238,8 +240,10 @@ connection con1;
 --reap;
 
 connection default;
+#--disable_warnings # Don't mask warnings
 --replace_column 1 #
 --reap;
+#--enable_warnings
 disconnect con2;
 
 --echo # Case 18008907_3: Testing Concurrent "Show Variables" and "Plugin Uninstall" operations.
@@ -266,8 +270,10 @@ let $wait_condition= SELECT count(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST
 SET DEBUG_SYNC='now SIGNAL go';
 
 connection con1;
+#--disable_warnings # Don't mask warnings
 --replace_column 1 #
 --reap
+#--enable_warnings
 
 connection con2;
 --reap

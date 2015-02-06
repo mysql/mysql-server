@@ -626,25 +626,33 @@ public:
     m_length= 0;
   }
 
-  void make_row(const char* str, uint length);
+  void make_row(const char* str, size_t length);
 
-  char m_str[64];
+  char m_str[NAME_CHAR_LEN+1];
   uint m_length;
 };
 
 struct PFS_variable_value_row
 {
+  void make_row(const char* str, size_t length);
+
+  char m_str[1024];
+  uint m_length;
+};
+
+struct PFS_user_variable_value_row
+{
 public:
-  PFS_variable_value_row()
+  PFS_user_variable_value_row()
     : m_value(NULL), m_value_length(0)
   {}
 
-  PFS_variable_value_row(const PFS_variable_value_row& rhs)
+  PFS_user_variable_value_row(const PFS_user_variable_value_row& rhs)
   {
     make_row(rhs.m_value, rhs.m_value_length);
   }
 
-  ~PFS_variable_value_row()
+  ~PFS_user_variable_value_row()
   {
     clear();
   }
