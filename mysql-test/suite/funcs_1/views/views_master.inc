@@ -3889,7 +3889,7 @@ ALTER TABLE t1 CHANGE COLUMN f4 f4x CHAR(5);
 INSERT INTO t1 SET f1 = 0, f4x = 'ABC', report = 't1 1';
 --error ER_VIEW_INVALID
 INSERT INTO v1 SET f1 = 0, f4  = 'ABC', report = 'v1 1';
---error ER_BAD_FIELD_ERROR
+--error ER_VIEW_INVALID
 INSERT INTO v1 SET f1 = 0, f4x = 'ABC', report = 'v1 1a';
 --error ER_VIEW_INVALID
 INSERT INTO v1 SET f1 = 0, report = 'v1 1b';

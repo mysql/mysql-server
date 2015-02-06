@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -409,16 +409,16 @@ Opt_trace_struct& Opt_trace_struct::do_add_hex(const char *key, uint64 val)
 }
 
 
-Opt_trace_struct& Opt_trace_struct::do_add_utf8_table(const TABLE *tab)
+Opt_trace_struct& Opt_trace_struct::do_add_utf8_table(const TABLE_LIST *tl)
 {
-  TABLE_LIST * const tl= tab->pos_in_table_list;
   if (tl != NULL)
   {
     StringBuffer<32> str;
-    tl->print(tab->in_use, &str, enum_query_type(QT_TO_SYSTEM_CHARSET |
-                                                 QT_SHOW_SELECT_NUMBER |
-                                                 QT_NO_DEFAULT_DB |
-                                                 QT_DERIVED_TABLE_ONLY_ALIAS));
+    tl->print(current_thd, &str,
+              enum_query_type(QT_TO_SYSTEM_CHARSET |
+                              QT_SHOW_SELECT_NUMBER |
+                              QT_NO_DEFAULT_DB |
+                              QT_DERIVED_TABLE_ONLY_ALIAS));
     return do_add("table", str.ptr(), str.length(), true);
   }
   return *this;

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -431,8 +431,10 @@ row_purge_remove_sec_if_poss_leaf(
 		index->is_committed(). */
 		ut_ad(!dict_index_is_online_ddl(index));
 
-		/* Change buffering is disabled for temporary tables. */
-		mode = (dict_table_is_temporary(index->table))
+		/* Change buffering is disabled for temporary tables
+		and spatial index. */
+		mode = (dict_table_is_temporary(index->table)
+			|| dict_index_is_spatial(index))
 			? BTR_MODIFY_LEAF
 			: BTR_MODIFY_LEAF | BTR_DELETE;
 	}

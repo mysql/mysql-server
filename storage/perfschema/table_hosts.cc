@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -14,7 +14,7 @@
   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "my_global.h"
-#include "my_pthread.h"
+#include "my_thread.h"
 #include "table_hosts.h"
 #include "pfs_instr_class.h"
 #include "pfs_instr.h"
@@ -22,6 +22,8 @@
 #include "pfs_host.h"
 #include "pfs_visitor.h"
 #include "pfs_memory.h"
+#include "pfs_status.h"
+#include "field.h"
 
 THR_LOCK table_hosts::m_table_lock;
 
@@ -80,9 +82,15 @@ table_hosts::delete_all_rows(void)
   reset_events_statements_by_thread();
   reset_events_statements_by_account();
   reset_events_statements_by_host();
+  reset_events_transactions_by_thread();
+  reset_events_transactions_by_account();
+  reset_events_transactions_by_host();
   reset_memory_by_thread();
   reset_memory_by_account();
   reset_memory_by_host();
+  reset_status_by_thread();
+  reset_status_by_account();
+  reset_status_by_host();
   purge_all_account();
   purge_all_host();
   return 0;
@@ -104,7 +112,11 @@ void table_hosts::make_row(PFS_host *pfs)
     return;
 
   PFS_connection_stat_visitor visitor;
-  PFS_connection_iterator::visit_host(pfs, true, true, & visitor);
+  PFS_connection_iterator::visit_host(pfs,
+                                      true,  /* accounts */
+                                      true,  /* threads */
+                                      false, /* THDs */
+                                      & visitor);
 
   if (! pfs->m_lock.end_optimistic_lock(& lock))
     return;

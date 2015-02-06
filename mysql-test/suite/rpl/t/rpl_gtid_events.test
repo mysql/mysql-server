@@ -1,0 +1,246 @@
+# ==== Purpose ====
+#
+# Verify that GTID events are always generated:
+# - Every binary and relay log must begin with a Previous_gtids_log_event,
+#   regardless of GTID_MODE.
+# - Every transaction must begin with an Anonymous_gtid event if GTID_MODE=OFF.
+# - Every transaction must begin with a Gtid event if GTID_MODE=ON.
+#
+# ==== Implementation ====
+#
+# 1. Generate a binary log and verify that it contains anonymous
+#    events/gtid events.
+#
+# 2. Rotate binary logs in all possible ways:
+#    - RESET MASTER
+#    - FLUSH BINARY LOGS
+#    - Grow over the binlog size limit
+#    - Restart master server
+#
+# 3. Rotate relay logs in all possible ways:
+#    - Master rotates its binary log in one of the above ways.
+#    - Restart the receiver thread
+#    - FLUSH RELAY LOGS
+#    - Grow over the relay log size limit
+#    - Restart the slave server
+#
+# ==== References ====
+#
+# WL#7592: GTIDs: generate Gtid_log_event and Previous_gtids_log_event always
+# - Test created in this worklog.
+
+# No need to run test in more than one binlog_format.
+--source include/have_binlog_format_statement.inc
+--source include/master-slave.inc
+
+--echo ==== Initialize ====
+
+--let $gtid_event= Gtid
+if (!$gtid_mode_on)
+{
+  --let $gtid_event= Anonymous_Gtid
+}
+
+--echo ==== Test presence of transaction events ====
+
+--source include/save_binlog_position.inc
+CREATE TABLE t1 (a VARCHAR(10000));
+
+--let $dont_print_pattern= 1
+--let $event_sequence= $gtid_event # !Q(CREATE.*)
+--source include/assert_binlog_events.inc
+--let $dont_print_pattern= 0
+
+--source include/save_binlog_position.inc
+INSERT INTO t1 VALUES ('1');
+
+--let $dont_print_pattern= 1
+--let $event_sequence= $gtid_event # !Begin # !Q(INSERT.*) # !Commit
+--source include/assert_binlog_events.inc
+--let $dont_print_pattern= 0
+
+--echo ==== Generate new binary logs in many ways ====
+
+--echo ---- RESET MASTER ----
+
+# RESET MASTER is with a running slave has undefined consequences.
+--connection slave
+--source include/stop_slave.inc
+RESET SLAVE;
+RESET MASTER;
+
+--connection master
+RESET MASTER;
+INSERT INTO t1 VALUES ('2');
+
+--connection slave
+# Do not start the applier threads since that would purge processed relay logs.
+--source include/start_slave_io.inc
+--connection master
+
+--echo ---- FLUSH LOGS ----
+
+FLUSH LOGS;
+INSERT INTO t1 VALUES ('3');
+
+--echo ---- Grow over the limit ----
+
+--let $old_max_binlog_size= `SELECT @@GLOBAL.MAX_BINLOG_SIZE`
+SET @@GLOBAL.MAX_BINLOG_SIZE= 4096;
+--let $long_text= `SELECT REPEAT('a', 4096)`
+--replace_result $long_text <LONG_TEXT>
+eval INSERT INTO t1 VALUES ('$long_text');
+eval SET @@GLOBAL.MAX_BINLOG_SIZE= $old_max_binlog_size;
+eval INSERT INTO t1 VALUES ('4');
+
+--echo ---- Restart server ----
+
+--source include/sync_slave_io_with_master.inc
+--source include/stop_slave_io.inc
+--connection master
+--let $rpl_server_number= 1
+--source include/rpl_restart_server.inc
+INSERT INTO t1 VALUES ('5');
+
+--echo ==== Generate new relay logs in many ways ====
+
+--echo ---- Reconnect receiver thread ----
+
+--source include/save_master_pos.inc
+--connection slave
+--source include/start_slave_io.inc
+--source include/sync_slave_io.inc
+# At this point, the slave running without GTID auto positioning will
+# produce one relaylog file more than the slave running with GTID and auto
+# positioning.
+#
+# This happens because the slave based on master positions will reconnect
+# asking for the last known good position (at master-bin.000003) and will
+# read the master rotating to master-bin.000004 and will rotate the relaylog.
+#
+# The slave based on GTIDs and AUTO_POSITION will ask for the transaction
+# which GTID event is at master-bin.000004, so it will not read the master's
+# rotate event to master-bin.000004.
+#
+# So, to make both configurations to have the same amount of relaylog files,
+# we will generate a FLUSH RELAY LOG only if GTID AUTO_POSITION is enabled.
+
+--let $is_auto_position_enabled= query_get_value(SHOW SLAVE STATUS, Auto_Position, 1)
+if ($is_auto_position_enabled)
+{
+  --disable_query_log
+  FLUSH RELAY LOGS;
+  --enable_query_log
+}
+--source include/stop_slave_io.inc
+# Needed in the 'grow over the limit' case below.  We don't want to
+# disturb that case by reconnecting the receiver thread, so we set the
+# variable here.
+--let $old_max_relay_log_size= `SELECT @@GLOBAL.MAX_RELAY_LOG_SIZE`
+SET @@GLOBAL.MAX_RELAY_LOG_SIZE= 4096;
+--source include/start_slave_io.inc
+
+--connection master
+INSERT INTO t1 VALUES ('6');
+--source include/sync_slave_io_with_master.inc
+--connection master
+
+--echo ---- FLUSH RELAY LOGS ----
+
+--connection slave
+FLUSH RELAY LOGS;
+
+--connection master
+INSERT INTO t1 VALUES ('7');
+--source include/sync_slave_io_with_master.inc
+--connection master
+
+--echo ---- Grow over the limit ----
+
+--replace_result $long_text <LONG_TEXT>
+eval INSERT INTO t1 VALUES ('$long_text');
+INSERT INTO t1 VALUES ('8');
+--source include/sync_slave_io_with_master.inc
+--connection master
+
+--echo ---- Restart slave server ----
+
+--let $rpl_server_number= 2
+--source include/rpl_restart_server.inc
+
+--connection slave
+--source include/start_slave_io.inc
+
+--connection master
+INSERT INTO t1 VALUES ('9');
+--source include/sync_slave_io_with_master.inc
+--connection master
+
+--echo ==== Test that binary logs contain Previous_gtids ====
+
+--connection master
+
+# Parameters for assert_binlog_events.
+--let $binlog_position=
+--let $binlog_file=
+--let $include_header_events= 1
+
+# Table to store binlog filenames.
+--connection master
+SET SQL_LOG_BIN= 0;
+CREATE TEMPORARY TABLE binlogs
+  (id INT PRIMARY KEY AUTO_INCREMENT, filename VARCHAR(512));
+--let $index_file= `SELECT @@GLOBAL.LOG_BIN_INDEX`
+--let $table= binlogs
+--source include/rpl_read_binlog_index_into_table.inc
+
+# Verify that each binlog contains the events.
+--let $count= `SELECT COUNT(*) FROM binlogs`
+--let $i= 0
+while ($i < $count)
+{
+  --let $binlog_file= `SELECT filename FROM binlogs LIMIT $i, 1`
+  --echo $binlog_file
+  --let $event_sequence= Format_desc # Previous_gtids(.|#)*
+  --source include/assert_binlog_events.inc
+  --inc $i
+}
+DROP TEMPORARY TABLE binlogs;
+SET SQL_LOG_BIN= 1;
+
+--echo ==== Test that relay logs contain Previous_gtids ====
+
+--connection slave
+
+# Parameter for assert_binlog_events.
+--let $relay_log= 1
+
+SET SQL_LOG_BIN= 0;
+CREATE TEMPORARY TABLE relay_logs
+  (id INT PRIMARY KEY AUTO_INCREMENT, filename VARCHAR(512));
+--let $index_file= `SELECT @@GLOBAL.RELAY_LOG_INDEX`
+--let $table= relay_logs
+--source include/rpl_read_binlog_index_into_table.inc
+
+# Verify that each binlog contains the events.
+--let $count= `SELECT COUNT(*) FROM relay_logs`
+--let $i= 0
+while ($i < $count)
+{
+  --let $binlog_file= `SELECT filename FROM relay_logs LIMIT $i, 1`
+  --let $event_sequence= Format_desc # Previous_gtids(.|#)*
+  --source include/assert_binlog_events.inc
+
+  --inc $i
+}
+DROP TEMPORARY TABLE relay_logs;
+SET SQL_LOG_BIN= 1;
+
+--echo ==== Clean up ====
+
+--source include/start_slave_sql.inc
+
+--connection master
+DROP TABLE t1;
+
+--source include/rpl_end.inc

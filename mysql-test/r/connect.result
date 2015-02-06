@@ -38,8 +38,10 @@ connect(localhost,root,z,test2,MASTER_PORT,MASTER_SOCKET);
 ERROR 28000: Access denied for user 'root'@'localhost' (using password: YES)
 connect(localhost,root,z,test,MASTER_PORT,MASTER_SOCKET);
 ERROR 28000: Access denied for user 'root'@'localhost' (using password: YES)
-grant ALL on *.* to test@localhost identified by "gambling";
-grant ALL on *.* to test@127.0.0.1 identified by "gambling";
+create user test@localhost identified by "gambling";
+grant ALL on *.* to test@localhost;
+create user test@127.0.0.1 identified by "gambling";
+grant ALL on *.* to test@127.0.0.1;
 show tables;
 Tables_in_mysql
 columns_priv
@@ -101,7 +103,7 @@ drop table t1;
 # -- Bug#33507: Event scheduler creates more threads than max_connections
 # -- which results in user lockout.
 
-GRANT USAGE ON *.* TO mysqltest_u1@localhost;
+CREATE USER mysqltest_u1@localhost;
 
 SET GLOBAL max_connections = 3;
 SET GLOBAL event_scheduler = ON;
@@ -246,7 +248,7 @@ ERROR HY000: You must SET PASSWORD before executing this statement
 CALL test_t1(last_t1() + 1);
 ERROR HY000: You must SET PASSWORD before executing this statement
 # setting a password unlocks it
-SET PASSWORD = PASSWORD('aha2');
+ALTER USER must_change@localhost IDENTIFIED BY 'aha2';
 # must not throw an error
 SELECT USER();
 USER()
@@ -273,7 +275,7 @@ CALL test_t1(last_t1() + 1);
 ERROR HY000: You must SET PASSWORD before executing this statement
 # setting a password with a user name is ok if it exactly matches the
 # authenticated user.
-SET PASSWORD FOR must_change@localhost = PASSWORD('aha3');
+ALTER USER must_change@localhost IDENTIFIED BY 'aha3';
 SELECT USER();
 USER()
 must_change@localhost
@@ -282,7 +284,7 @@ last_t1()
 4
 CALL test_t1(last_t1() + 1);
 # setting a password for the current user works
-SET PASSWORD FOR CURRENT_USER() = PASSWORD('aha3');
+ALTER USER must_change@localhost IDENTIFIED BY 'aha3';
 SELECT USER();
 USER()
 must_change@localhost
@@ -299,10 +301,10 @@ password_expired
 Y
 SELECT USER();
 ERROR HY000: You must SET PASSWORD before executing this statement
-SET PASSWORD = PASSWORD('aha4');
+ALTER USER must_change@localhost IDENTIFIED BY 'aha4';
 # try a valid+invalid user combo
 ALTER USER
-invalid_user@localhost PASSWORD EXPIRE,
+invalid_user@localhost,
 must_change@localhost PASSWORD EXPIRE;
 ERROR HY000: Operation ALTER USER failed for 'invalid_user'@'localhost'
 SELECT password_expired FROM mysql.user
@@ -311,7 +313,7 @@ password_expired
 Y
 SELECT USER();
 ERROR HY000: You must SET PASSWORD before executing this statement
-SET PASSWORD = PASSWORD('aha5');
+ALTER USER must_change@localhost IDENTIFIED BY 'aha5';
 SELECT USER();
 USER()
 must_change@localhost

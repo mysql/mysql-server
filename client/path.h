@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,15 +16,8 @@
 */
 #ifndef PATH_UTIL_INCLUDED
 #define PATH_UTIL_INCLUDED
-#include <dirent.h>
-#include <pwd.h>
-#include "my_dir.h"
 #include <string>
 #include <ostream>
-
-#define PATH_SEPARATOR "/"
-#define PATH_SEPARATOR_C '/'
-#define MAX_PATH_LENGTH 512
 
 /**
   A helper class for handling file paths. The class can handle the memory
@@ -44,8 +37,6 @@ public:
   Path(const Path &p);
 
   bool getcwd();
-
-  bool validate_filename();
 
   void trim();
 
@@ -67,6 +58,8 @@ public:
 
   bool qpath(const std::string &qp);
 
+  bool normalize_path();
+
   bool is_qualified_path();
 
   bool exists();
@@ -74,8 +67,9 @@ public:
   const std::string to_str();
 
   bool empty();
-  
+#ifndef _WIN32
   void get_homedir();
+#endif
 
   friend std::ostream &operator<<(std::ostream &op, const Path &p);
 private:

@@ -1,5 +1,7 @@
 DROP TABLE IF EXISTS table_11733 ;
 grant CREATE, SELECT, DROP on *.* to test@localhost;
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 set global read_only=0;
 create table table_11733 (a int) engine=InnoDb;
 BEGIN;
@@ -17,6 +19,8 @@ set global read_only=0;
 drop table table_11733 ;
 drop user test@localhost;
 GRANT CREATE, SELECT, DROP ON *.* TO test@localhost;
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 CREATE TABLE t1(a INT) ENGINE=INNODB;
 INSERT INTO t1 VALUES (0), (1);
 SET GLOBAL read_only=1;

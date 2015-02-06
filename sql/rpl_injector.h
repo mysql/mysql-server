@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,17 +16,15 @@
 #ifndef INJECTOR_H
 #define INJECTOR_H
 
-/* Pull in 'byte', 'my_off_t', and 'uint32' */
-#include <my_global.h>
-#include <my_bitmap.h>
-
-#include "rpl_constants.h"
-#include "table.h"                              /* TABLE */
+#include "my_global.h"
+#include "table.h"          // TABLE
+#include "control_events.h" // enum_incidents
 
 /* Forward declarations */
 class handler;
 class MYSQL_BIN_LOG;
-struct TABLE;
+class THD;
+typedef struct st_bitmap MY_BITMAP;
 
 
 /*
@@ -382,7 +380,8 @@ public:
      */
     void new_trans(THD *, transaction *);
 
-    int record_incident(THD*, Incident incident, LEX_STRING const message);
+    int record_incident(THD*, binary_log::Incident_event::enum_incident incident,
+                        LEX_STRING const message);
 
 private:
     explicit injector();

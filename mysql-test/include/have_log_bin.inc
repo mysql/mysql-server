@@ -6,7 +6,7 @@
 #
 # source include/have_log_bin.inc;
 
---let $_have_log_bin= query_get_value(SHOW VARIABLES LIKE 'log_bin', Value, 1)
+--let $_have_log_bin= query_get_value(SHOW GLOBAL VARIABLES LIKE 'log_bin', Value, 1)
 if ($_have_log_bin != ON)
 {
   --skip Test requires --log-bin

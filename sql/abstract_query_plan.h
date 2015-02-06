@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,13 +18,13 @@
 #ifndef ABSTRACT_QUERY_PLAN_H_INCLUDED
 #define ABSTRACT_QUERY_PLAN_H_INCLUDED
 
+#include "my_global.h"      // uint
+#include "item_cmpfunc.h"   // Item_equal_iterator
+
 struct TABLE;
 class JOIN;
 class Item;
 class Item_field;
-class Item_equal_iterator;
-
-#include "sql_list.h"
 
 /**
   Abstract query plan (AQP) is an interface for examining certain aspects of 
@@ -45,6 +45,11 @@ class Item_equal_iterator;
   execution plan that may be executed in the engine rather than in mysqld. By 
   using the AQP rather than the mysqld internals directly, the coupling between
   the engine and mysqld is reduced.
+
+  The AQP also provides functions which allows the storage engine
+  to change the query execution plan for the part of the join which
+  it will handle. Thus be aware that although the QEP_TAB*'s are const
+  they may be modified.
 */
 namespace AQP
 {
@@ -200,6 +205,12 @@ namespace AQP
     const Table_access* get_firstmatch_last_skipped() const;
 
     bool filesort_before_join() const;
+
+    /**
+       Change the query plan for this part of the join to use
+       the pushed functions
+    */
+    void set_pushed_table_access_method() const;
 
   private:
 

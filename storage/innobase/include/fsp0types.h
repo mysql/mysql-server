@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -42,11 +42,23 @@ fseg_alloc_free_page) */
 /* @} */
 
 #endif /* !UNIV_INNOCHECKSUM */
-/** File space extent size (one megabyte) in pages */
-#define	FSP_EXTENT_SIZE		(1048576U / UNIV_PAGE_SIZE)
+/** File space extent size in pages
+page size | file space extent size
+----------+-----------------------
+   4 KiB  | 256 pages = 1 MiB
+   8 KiB  | 128 pages = 1 MiB
+  16 KiB  |  64 pages = 1 MiB
+  32 KiB  |  64 pages = 2 MiB
+  64 KiB  |  64 pages = 4 MiB
+*/
+#define FSP_EXTENT_SIZE         ((UNIV_PAGE_SIZE <= (16384) ?	\
+				(1048576 / UNIV_PAGE_SIZE) :	\
+				((UNIV_PAGE_SIZE <= (32768)) ?	\
+				(2097152 / UNIV_PAGE_SIZE) :	\
+				(4194304 / UNIV_PAGE_SIZE))))
 
-/** File space extent size (one megabyte) in pages for MAX page size */
-#define	FSP_EXTENT_SIZE_MAX	(1048576 / UNIV_PAGE_SIZE_MAX)
+/** File space extent size (four megabyte) in pages for MAX page size */
+#define	FSP_EXTENT_SIZE_MAX	(4194304 / UNIV_PAGE_SIZE_MAX)
 
 /** File space extent size (one megabyte) in pages for MIN page size */
 #define	FSP_EXTENT_SIZE_MIN	(1048576 / UNIV_PAGE_SIZE_MIN)
@@ -192,6 +204,16 @@ fsp_is_system_temporary(
 bool
 fsp_is_checksum_disabled(
 	ulint	space_id);
+
+#ifdef UNIV_DEBUG
+/** Skip some of the sanity checks that are time consuming even in debug mode
+and can affect frequent verification runs that are done to ensure stability of
+the product.
+@return true if check should be skipped for given space. */
+bool
+fsp_skip_sanity_check(
+	ulint	space_id);
+#endif /* UNIV_DEBUG */
 
 #endif /* !UNIV_INNOCHECKSUM */
 

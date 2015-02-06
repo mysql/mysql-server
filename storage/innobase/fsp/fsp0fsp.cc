@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -304,6 +304,22 @@ fsp_is_checksum_disabled(
 {
 	return(fsp_is_system_temporary(space_id));
 }
+
+#ifdef UNIV_DEBUG
+
+/** Skip some of the sanity checks that are time consuming even in debug mode
+and can affect frequent verification runs that are done to ensure stability of
+the product.
+@return true if check should be skipped for given space. */
+bool
+fsp_skip_sanity_check(
+	ulint	space_id)
+{
+	return(srv_skip_temp_table_checks_debug
+	       && fsp_is_system_temporary(space_id));
+}
+
+#endif /* UNIV_DEBUG */
 
 /**********************************************************************//**
 Gets a descriptor bit of a page.
@@ -673,7 +689,10 @@ fsp_init_file_page_low(
 	page_t*		page	= buf_block_get_frame(block);
 	page_zip_des_t*	page_zip= buf_block_get_page_zip(block);
 
-	memset(page, 0, UNIV_PAGE_SIZE);
+	if (!fsp_is_system_temporary(block->page.id.space())) {
+		memset(page, 0, UNIV_PAGE_SIZE);
+	}
+
 	mach_write_to_4(page + FIL_PAGE_OFFSET, block->page.id.page_no());
 	mach_write_to_4(page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID,
 			block->page.id.space());
@@ -2822,7 +2841,7 @@ fsp_reserve_free_pages(
 	ulint	n_used;
 
 	ut_a(!is_system_tablespace(space->id));
-	ut_a(size < FSP_EXTENT_SIZE / 2);
+	ut_a(size < FSP_EXTENT_SIZE);
 
 	descr = xdes_get_descriptor_with_space_hdr(
 		space_header, space->id, 0, mtr);
@@ -2892,7 +2911,7 @@ try_again:
 	size = mach_read_from_4(space_header + FSP_SIZE);
 	ut_ad(size == space->size_in_header);
 
-	if (alloc_type != FSP_BLOB && size < FSP_EXTENT_SIZE / 2) {
+	if (alloc_type != FSP_BLOB && size < FSP_EXTENT_SIZE) {
 		/* Use different rules for small single-table tablespaces */
 		*n_reserved = 0;
 		return(fsp_reserve_free_pages(space, space_header, size, mtr));
@@ -2909,7 +2928,12 @@ try_again:
 	some of them will contain extent descriptor pages, and therefore
 	will not be free extents */
 
-	n_free_up = (size - free_limit) / FSP_EXTENT_SIZE;
+	if (size >= free_limit) {
+		n_free_up = (size - free_limit) / FSP_EXTENT_SIZE;
+	} else {
+		ut_ad(alloc_type == FSP_BLOB);
+		n_free_up = 0;
+	}
 
 	if (n_free_up > 0) {
 		n_free_up--;
@@ -3004,6 +3028,7 @@ fsp_get_available_space_in_free_extents(
 	some of them will contain extent descriptor pages, and therefore
 	will not be free extents */
 
+	ut_ad(size >= free_limit);
 	n_free_up = (size - free_limit) / FSP_EXTENT_SIZE;
 
 	if (n_free_up > 0) {

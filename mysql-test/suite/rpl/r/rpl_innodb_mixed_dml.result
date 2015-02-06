@@ -482,73 +482,75 @@ SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
 
 ******************** CREATE USER ********************
 CREATE USER 'user_test_rpl'@'localhost' IDENTIFIED BY PASSWORD '*1111111111111111111111111111111111111111';
+Warnings:
+Warning	1287	'IDENTIFIED BY PASSWORD' is deprecated and will be removed in a future release. Please use IDENTIFIED WITH <plugin> AS <hash> instead
 ==========MASTER==========
-SELECT host, user, password, select_priv FROM mysql.user WHERE user LIKE 'user_test_rpl%';
-host	user	password	select_priv
+SELECT host, user, authentication_string, select_priv FROM mysql.user WHERE user LIKE 'user_test_rpl%';
+host	user	authentication_string	select_priv
 localhost	user_test_rpl	*1111111111111111111111111111111111111111	N
 ==========SLAVE===========
 USE test_rpl;
-SELECT host, user, password, select_priv FROM mysql.user WHERE user LIKE 'user_test_rpl%';
-host	user	password	select_priv
+SELECT host, user, authentication_string, select_priv FROM mysql.user WHERE user LIKE 'user_test_rpl%';
+host	user	authentication_string	select_priv
 localhost	user_test_rpl	*1111111111111111111111111111111111111111	N
 
 ******************** GRANT ********************
 GRANT SELECT ON *.* TO 'user_test_rpl'@'localhost';
 ==========MASTER==========
-SELECT host, user, password, select_priv FROM mysql.user WHERE user LIKE 'user_test_rpl%';
-host	user	password	select_priv
+SELECT host, user, authentication_string, select_priv FROM mysql.user WHERE user LIKE 'user_test_rpl%';
+host	user	authentication_string	select_priv
 localhost	user_test_rpl	*1111111111111111111111111111111111111111	Y
 ==========SLAVE===========
 USE test_rpl;
-SELECT host, user, password, select_priv FROM mysql.user WHERE user LIKE 'user_test_rpl%';
-host	user	password	select_priv
+SELECT host, user, authentication_string, select_priv FROM mysql.user WHERE user LIKE 'user_test_rpl%';
+host	user	authentication_string	select_priv
 localhost	user_test_rpl	*1111111111111111111111111111111111111111	Y
 
 ******************** REVOKE ********************
 REVOKE SELECT ON *.* FROM 'user_test_rpl'@'localhost';
 ==========MASTER==========
-SELECT host, user, password, select_priv FROM mysql.user WHERE user LIKE 'user_test_rpl%';
-host	user	password	select_priv
+SELECT host, user, authentication_string, select_priv FROM mysql.user WHERE user LIKE 'user_test_rpl%';
+host	user	authentication_string	select_priv
 localhost	user_test_rpl	*1111111111111111111111111111111111111111	N
 ==========SLAVE===========
 USE test_rpl;
-SELECT host, user, password, select_priv FROM mysql.user WHERE user LIKE 'user_test_rpl%';
-host	user	password	select_priv
+SELECT host, user, authentication_string, select_priv FROM mysql.user WHERE user LIKE 'user_test_rpl%';
+host	user	authentication_string	select_priv
 localhost	user_test_rpl	*1111111111111111111111111111111111111111	N
 
 ******************** SET PASSWORD ********************
 SET PASSWORD FOR 'user_test_rpl'@'localhost' = '*0000000000000000000000000000000000000000';
 ==========MASTER==========
-SELECT host, user, password, select_priv FROM mysql.user WHERE user LIKE 'user_test_rpl%';
-host	user	password	select_priv
-localhost	user_test_rpl	*0000000000000000000000000000000000000000	N
+SELECT host, user, authentication_string, select_priv FROM mysql.user WHERE user LIKE 'user_test_rpl%';
+host	user	authentication_string	select_priv
+localhost	user_test_rpl	*A38FBE0EB6B1C58EA7C5AAAE654E921DC6CD0007	N
 ==========SLAVE===========
 USE test_rpl;
-SELECT host, user, password, select_priv FROM mysql.user WHERE user LIKE 'user_test_rpl%';
-host	user	password	select_priv
-localhost	user_test_rpl	*0000000000000000000000000000000000000000	N
+SELECT host, user, authentication_string, select_priv FROM mysql.user WHERE user LIKE 'user_test_rpl%';
+host	user	authentication_string	select_priv
+localhost	user_test_rpl	*A38FBE0EB6B1C58EA7C5AAAE654E921DC6CD0007	N
 
 ******************** RENAME USER ********************
 RENAME USER 'user_test_rpl'@'localhost' TO 'user_test_rpl_2'@'localhost';
 ==========MASTER==========
-SELECT host, user, password, select_priv FROM mysql.user WHERE user LIKE 'user_test_rpl%';
-host	user	password	select_priv
-localhost	user_test_rpl_2	*0000000000000000000000000000000000000000	N
+SELECT host, user, authentication_string, select_priv FROM mysql.user WHERE user LIKE 'user_test_rpl%';
+host	user	authentication_string	select_priv
+localhost	user_test_rpl_2	*A38FBE0EB6B1C58EA7C5AAAE654E921DC6CD0007	N
 ==========SLAVE===========
 USE test_rpl;
-SELECT host, user, password, select_priv FROM mysql.user WHERE user LIKE 'user_test_rpl%';
-host	user	password	select_priv
-localhost	user_test_rpl_2	*0000000000000000000000000000000000000000	N
+SELECT host, user, authentication_string, select_priv FROM mysql.user WHERE user LIKE 'user_test_rpl%';
+host	user	authentication_string	select_priv
+localhost	user_test_rpl_2	*A38FBE0EB6B1C58EA7C5AAAE654E921DC6CD0007	N
 
 ******************** DROP USER ********************
 DROP USER 'user_test_rpl_2'@'localhost';
 ==========MASTER==========
-SELECT host, user, password, select_priv FROM mysql.user WHERE user LIKE 'user_test_rpl%';
-host	user	password	select_priv
+SELECT host, user, authentication_string, select_priv FROM mysql.user WHERE user LIKE 'user_test_rpl%';
+host	user	authentication_string	select_priv
 ==========SLAVE===========
 USE test_rpl;
-SELECT host, user, password, select_priv FROM mysql.user WHERE user LIKE 'user_test_rpl%';
-host	user	password	select_priv
+SELECT host, user, authentication_string, select_priv FROM mysql.user WHERE user LIKE 'user_test_rpl%';
+host	user	authentication_string	select_priv
 INSERT INTO t1 VALUES(100, 'test');
 
 ******************** ANALYZE ********************
@@ -1010,10 +1012,10 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test_rpl`; DELETE FROM t2
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
-master-bin.000001	#	Query	#	#	use `test_rpl`; CREATE USER 'user_test_rpl'@'localhost' IDENTIFIED BY PASSWORD '*1111111111111111111111111111111111111111'
+master-bin.000001	#	Query	#	#	use `test_rpl`; CREATE USER 'user_test_rpl'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*1111111111111111111111111111111111111111' PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
 master-bin.000001	#	Query	#	#	use `test_rpl`; GRANT SELECT ON *.* TO 'user_test_rpl'@'localhost'
 master-bin.000001	#	Query	#	#	use `test_rpl`; REVOKE SELECT ON *.* FROM 'user_test_rpl'@'localhost'
-master-bin.000001	#	Query	#	#	use `test_rpl`; SET PASSWORD FOR 'user_test_rpl'@'localhost'='*0000000000000000000000000000000000000000'
+master-bin.000001	#	Query	#	#	use `test_rpl`; ALTER USER 'user_test_rpl'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*A38FBE0EB6B1C58EA7C5AAAE654E921DC6CD0007'
 master-bin.000001	#	Query	#	#	use `test_rpl`; RENAME USER 'user_test_rpl'@'localhost' TO 'user_test_rpl_2'@'localhost'
 master-bin.000001	#	Query	#	#	use `test_rpl`; DROP USER 'user_test_rpl_2'@'localhost'
 master-bin.000001	#	Query	#	#	BEGIN

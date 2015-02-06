@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -17,8 +17,8 @@
 
 #include "rpl_gtid.h"
 
-#include "my_sys.h"
-#include "sql_class.h"
+#include "mysqld_error.h"     // ER_*
+#include "sql_class.h"        // THD
 
 
 Mutex_cond_array::Mutex_cond_array(Checkable_rwlock *_global_lock)

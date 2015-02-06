@@ -1,7 +1,7 @@
 #ifndef ITEM_INCLUDED
 #define ITEM_INCLUDED
 
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,24 +16,19 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include "field.h"       // Derivation
+#include "parse_tree_node_base.h" // Parse_tree_node
+#include "sql_array.h"   // Bounds_checked_array
+#include "trigger_def.h" // enum_trigger_variable_type
+#include "table_trigger_field_support.h" // Table_trigger_field_support
+#include "mysql/service_parser.h"
 
-#include "sql_const.h"                 /* RAND_TABLE_BIT, MAX_FIELD_NAME */
-#include "thr_malloc.h"                         /* sql_calloc */
-#include "field.h"                              /* Derivation */
-#include "sql_array.h"
-#include "table_trigger_field_support.h"  // Table_trigger_field_support
-#include "parse_tree_node_base.h"
-#include "my_time.h"                      // timestamp_type
 
-#include <algorithm>                    // std::max
-
-class Protocol;
-struct TABLE_LIST;
-void item_init(void);			/* Init item functions */
-class Item_field;
 class user_var_entry;
 
 typedef Bounds_checked_array<Item*> Ref_ptr_array;
+
+void item_init(void);			/* Init item functions */
 
 /**
   Default condition filtering (selectivity) values used by
@@ -46,7 +41,7 @@ typedef Bounds_checked_array<Item*> Ref_ptr_array;
 */
 #define COND_FILTER_ALLPASS 1.0f
 /// Filtering effect for equalities: col1 = col2
-#define COND_FILTER_EQUALITY 0.0050f
+#define COND_FILTER_EQUALITY 0.1f
 /// Filtering effect for inequalities: col1 > col2
 #define COND_FILTER_INEQUALITY 0.3333f
 /// Filtering effect for between: col1 BETWEEN a AND b
@@ -161,6 +156,24 @@ public:
       default: return "UNKNOWN";
     }
   }
+};
+
+
+/**
+  Class used as argument to Item::walk() together with mark_field_in_map()
+*/
+class Mark_field
+{
+public:
+  Mark_field(TABLE *table, enum_mark_columns mark) :
+  table(table), mark(mark)
+  {}
+  Mark_field(enum_mark_columns mark) :
+  table(NULL), mark(mark)
+  {}
+
+  TABLE *const table;
+  const enum_mark_columns mark;
 };
 
 /*************************************************************************/
@@ -416,10 +429,6 @@ struct Hybrid_type_traits_integer: public Hybrid_type_traits
 };
 
 
-void dummy_error_processor(THD *thd, void *data);
-
-void view_error_processor(THD *thd, void *data);
-
 /*
   Instances of Name_resolution_context store the information necesary for
   name resolution of Items and other context analysis of a query made in
@@ -442,6 +451,8 @@ struct Name_resolution_context: Sql_alloc
     resolved in this context (the context of an outer select)
   */
   Name_resolution_context *outer_context;
+  /// Link to next name res context with the same query block as the base
+  Name_resolution_context *next_context;
 
   /*
     List of tables used to resolve the items of this context.  Usually these
@@ -478,8 +489,8 @@ struct Name_resolution_context: Sql_alloc
     hide underlying tables in errors about views (i.e. it substitute some
     errors for views)
   */
-  void (*error_processor)(THD *, void *);
-  void *error_processor_data;
+  bool view_error_handler;
+  TABLE_LIST *view_error_handler_arg;
 
   /**
     When TRUE, items are resolved in this context against
@@ -498,15 +509,15 @@ struct Name_resolution_context: Sql_alloc
   Security_context *security_ctx;
 
   Name_resolution_context()
-    :outer_context(0), table_list(0), select_lex(0),
-    error_processor_data(0),
-    security_ctx(0)
+    :outer_context(NULL), next_context(NULL),
+    table_list(NULL), select_lex(NULL),
+    view_error_handler_arg(NULL), security_ctx(NULL)
     {}
 
   void init()
   {
     resolve_in_select_list= FALSE;
-    error_processor= &dummy_error_processor;
+    view_error_handler= false;
     first_name_resolution_table= NULL;
     last_name_resolution_table= NULL;
   }
@@ -515,11 +526,6 @@ struct Name_resolution_context: Sql_alloc
   {
     table_list= first_name_resolution_table= tables;
     resolve_in_select_list= FALSE;
-  }
-
-  void process_error(THD *thd)
-  {
-    (*error_processor)(thd, error_processor_data);
   }
 };
 
@@ -602,6 +608,40 @@ typedef enum monotonicity_info
    MONOTONIC_STRICT_INCREASING,/* F() is unary and (x < y) => (F(x) <  F(y)) */
    MONOTONIC_STRICT_INCREASING_NOT_NULL  /* But only for valid/real x and y */
 } enum_monotonicity_info;
+
+/* This enum is used to return invalid refer by GC */
+enum invalid_ref_by_gc {REF_INVALID_GC, REF_INVALID_AUTO_INC};
+
+/**
+   A type for SQL-like 3-valued Booleans: true/false/unknown.
+*/
+class Bool3
+{
+public:
+  /// @returns an instance set to "FALSE"
+  static const Bool3 false3() { return Bool3(v_FALSE); }
+  /// @returns an instance set to "UNKNOWN"
+  static const Bool3 unknown3() { return Bool3(v_UNKNOWN); }
+  /// @returns an instance set to "TRUE"
+  static const Bool3 true3() { return Bool3(v_TRUE); }
+
+  bool is_true() const { return m_val == v_TRUE; }
+  bool is_unknown() const { return m_val == v_UNKNOWN; }
+  bool is_false() const { return m_val == v_FALSE; }
+
+private:
+  enum value { v_FALSE, v_UNKNOWN, v_TRUE };
+  /// This is private; instead, use false3()/etc.
+  Bool3(value v) : m_val(v) {}
+
+  value m_val;
+  /*
+    No operator to convert Bool3 to bool (or int) - intentionally: how
+    would you map UNKNOWN3 to true/false?
+    It is because we want to block such conversions that Bool3 is a class
+    instead of a plain enum.
+  */
+};
 
 /*************************************************************************/
 
@@ -709,11 +749,20 @@ public:
 
   enum traverse_order { POSTFIX, PREFIX };
 
+  /**
+    @todo
+    -# Move this away from the Item class. It is a property of the
+    visitor in what direction the traversal is done, not of the visitee.
+
+    -# Make this two booleans instead. There are two orthogonal flags here.
+  */
   enum enum_walk
   {
     WALK_PREFIX=   0x01,
     WALK_POSTFIX=  0x02,
-    WALK_SUBQUERY= 0x04
+    WALK_SUBQUERY= 0x04,
+    WALK_SUBQUERY_PREFIX= 0x05,
+    WALK_SUBQUERY_POSTFIX= 0x06
   };
   
   /* Reuse size, only used by SP local variable assignment, otherwize 0 */
@@ -1504,6 +1553,7 @@ public:
       - to generate a view definition query (SELECT-statement);
       - to generate a SQL-query for EXPLAIN EXTENDED;
       - to generate a SQL-query to be shown in INFORMATION_SCHEMA;
+      - to generate a SQL-query that looks like a prepared statement for query_rewrite
       - debug.
 
     For more information about view definition query, INFORMATION_SCHEMA
@@ -1684,6 +1734,9 @@ public:
   */
   virtual bool add_field_to_set_processor(uchar * arg) { return false; }
 
+  /// A processor to handle the select lex visitor framework.
+  virtual bool visitor_processor(uchar *arg);
+
   /**
     Item::walk function. Set bit in table->cond_set for all fields of
     all tables that are referred to by the Item.
@@ -1702,7 +1755,8 @@ public:
   virtual bool change_context_processor(uchar *context) { return false; }
   virtual bool reset_query_id_processor(uchar *query_id_arg) { return false; }
   virtual bool find_item_processor(uchar *arg) { return this == (void *) arg; }
-  virtual bool register_field_in_read_map(uchar *arg) { return false; }
+  virtual bool mark_field_in_map(uchar *arg) { return false; }
+  virtual bool check_column_privileges(uchar *arg) { return false; }
   virtual bool inform_item_in_cond_of_tab(uchar *join_tab_index) {return false;}
   /**
      Clean up after removing the item from the item tree.
@@ -1841,6 +1895,34 @@ public:
   {
     return FALSE;
   }
+
+ /**
+   @brief  check_gcol_func_processor
+     Check if an expression/function is allowed for a virtual column
+
+   @param int_arg It is only used for Item_field
+
+   @return
+     TRUE                           Function not accepted
+   @return
+     FALSE                          Function accepted
+  */
+  virtual bool check_gcol_func_processor(uchar *int_arg) 
+  {
+    DBUG_ENTER("Item::check_gcol_func_processor");
+    DBUG_PRINT("info",
+      ("check_gcol_func_processor returns TRUE: unsupported function"));
+    DBUG_RETURN(TRUE);
+  }
+
+  /**
+    @brief  update_indexed_column_map
+    Update columns map for index.
+
+    @param int_arg It's useless 
+    @return  false successfully update 
+    */
+  virtual bool update_indexed_column_map(uchar *int_arg) { return false; }
 
   /*
     For SP local variable returns pointer to Item representing its
@@ -2029,6 +2111,7 @@ public:
 
   void set_used_tables(table_map map) { used_table_map= map; }
   table_map used_tables() const { return used_table_map; }
+  bool check_gcol_func_processor(uchar *int_arg) { return false;}
   /* to prevent drop fixed flag (no need parent cleanup call) */
   void cleanup()
   {
@@ -2601,8 +2684,34 @@ public:
   bool add_field_to_cond_set_processor(uchar *unused);
   bool remove_column_from_bitmap(uchar * arg);
   bool find_item_in_field_list_processor(uchar *arg);
-  bool register_field_in_read_map(uchar *arg);
-  bool check_partition_func_processor(uchar *int_arg) {return false;}
+  /**
+    @param int_arg It has two kinds of uses. One is used for passing the
+    field index before calling. The other is as a carrier to return the
+    error code.
+  */
+  bool check_gcol_func_processor(uchar *int_arg)
+  {
+    int *args= (int *)int_arg;
+    int fld_idx= args[0];
+    // Don't allow GC to refer itself or another GC that is defined after it.
+    if (field && field->gcol_info && field->field_index >= fld_idx)
+    {
+      args[1]= REF_INVALID_GC;
+      return true;
+    }
+    // Auto-increment field can't be referenced by stored generated columns
+    if (field->flags & AUTO_INCREMENT_FLAG &&  
+          field->table->field[fld_idx]->stored_in_db)
+    {
+      args[1]= REF_INVALID_AUTO_INC;
+      return true;
+    }
+
+    return false;
+  }
+  bool mark_field_in_map(uchar *arg);
+  bool check_column_privileges(uchar *arg);
+  bool check_partition_func_processor(uchar *int_arg) { return false; }
   void cleanup();
   Item_equal *find_item_equal(COND_EQUAL *cond_equal);
   bool subst_argument_checker(uchar **arg);
@@ -2754,7 +2863,7 @@ public:
 
   virtual inline void print(String *str, enum_query_type query_type)
   {
-    str->append(STRING_WITH_LEN("NULL"));
+    str->append(query_type == QT_NORMALIZED_FORMAT ? "?" : "NULL");
   }
 
   Item *safe_charset_converter(const CHARSET_INFO *tocs);
@@ -2789,6 +2898,13 @@ public:
   bool check_partition_func_processor(uchar *int_arg) {return true;}
   enum_field_types field_type() const { return fld_type; }
   Item_result result_type() const { return res_type; }
+  bool check_gcol_func_processor(uchar *int_arg)
+  {
+    DBUG_PRINT("info",
+      ("check_gcol_func_processor returns TRUE: unsupported function"));
+    DBUG_PRINT("info", ("  Item name: %s", full_name()));
+    return TRUE;
+  }
 };  
 
 /* Item represents one placeholder ('?') of prepared statement */
@@ -3031,6 +3147,7 @@ public:
   { return (uint)(max_length - MY_TEST(value < 0)); }
   bool eq(const Item *, bool binary_cmp) const;
   bool check_partition_func_processor(uchar *bool_arg) { return false;}
+  bool check_gcol_func_processor(uchar *int_arg) { return false;}
 };
 
 
@@ -3117,7 +3234,7 @@ public:
   virtual void print(String *str, enum_query_type query_type);
   Item_num *neg ();
   uint decimal_precision() const { return max_length; }
-  bool check_partition_func_processor(uchar *bool_arg) { return false;}
+  bool check_gcol_func_processor(uchar *int_arg) { return false;}
 };
 
 
@@ -3496,6 +3613,13 @@ public:
   }
 
   bool check_partition_func_processor(uchar *int_arg) {return true;}
+  bool check_gcol_func_processor(uchar *int_arg) 
+  {
+    DBUG_ENTER("Item_static_string_func::check_gcol_func_processor");
+    DBUG_PRINT("info",
+      ("check_gcol_func_processor returns TRUE: unsupported function"));
+    DBUG_RETURN(TRUE);
+  }
 };
 
 
@@ -3658,6 +3782,7 @@ public:
     also to make printing of items inherited from Item_sum uniform.
   */
   virtual const char *func_name() const= 0;
+  bool check_gcol_func_processor(uchar *int_arg) { return FALSE;}
 };
 
 
@@ -3787,9 +3912,11 @@ public:
   }
   bool walk(Item_processor processor, enum_walk walk, uchar *arg)
   {
-    return ((walk & WALK_PREFIX) && (this->*processor)(arg)) ||
-           (*ref)->walk(processor, walk, arg) ||
-           ((walk & WALK_POSTFIX) && (this->*processor)(arg));
+    return
+      ((walk & WALK_PREFIX) && (this->*processor)(arg)) ||
+      // For having clauses 'ref' will consistently =NULL.
+      (ref != NULL ? (*ref)->walk(processor, walk, arg) :false) ||
+      ((walk & WALK_POSTFIX) && (this->*processor)(arg));
   }
   virtual Item* transform(Item_transformer, uchar *arg);
   virtual Item* compile(Item_analyzer analyzer, uchar **arg_p,
@@ -3904,9 +4031,10 @@ public:
   virtual Ref_Type ref_type() const { return DIRECT_REF; }
 };
 
-/*
-  Class for view fields, the same as Item_direct_ref, but call fix_fields
-  of reference if it is not called yet
+/**
+  Class for fields from derived tables and views.
+  The same as Item_direct_ref, but call fix_fields() of reference if
+  not called yet.
 */
 class Item_direct_view_ref :public Item_direct_ref
 {
@@ -3915,15 +4043,20 @@ public:
                        Item **item,
                        const char *alias_name_arg,
                        const char *table_name_arg,
-                       const char *field_name_arg)
+                       const char *field_name_arg,
+                       TABLE_LIST *tl)
     : Item_direct_ref(context_arg, item, alias_name_arg, field_name_arg)
   {
     orig_table_name= table_name_arg;
+    cached_table= tl;
   }
 
   /* Constructor need to process subselect with temporary tables (see Item) */
   Item_direct_view_ref(THD *thd, Item_direct_ref *item)
-    :Item_direct_ref(thd, item) {}
+    :Item_direct_ref(thd, item)
+  {
+    cached_table= item->cached_table;
+  }
 
   /*
     We share one underlying Item_field, so we have to disable
@@ -3944,6 +4077,8 @@ public:
     return item;
   }
   virtual Ref_Type ref_type() const { return VIEW_REF; }
+
+  virtual bool check_column_privileges(uchar *arg);
 };
 
 
@@ -4166,22 +4301,6 @@ public:
   }
 };
 
-
-#ifdef MYSQL_SERVER
-#include "gstream.h"
-#include "spatial.h"
-#include "item_sum.h"
-#include "set_var.h"                            /* enum_var_type */
-#include "item_func.h"
-#include "item_row.h"
-#include "item_cmpfunc.h"
-#include "item_strfunc.h"
-#include "item_geofunc.h"
-#include "item_timefunc.h"
-#include "item_subselect.h"
-#include "item_xmlfunc.h"
-#include "item_create.h"
-#endif
 
 /**
   Base class to implement typed value caching Item classes
@@ -4579,6 +4698,13 @@ public:
            arg->walk(processor, walk, args) ||
            ((walk & WALK_POSTFIX) && (this->*processor)(args));
   }
+  bool check_gcol_func_processor(uchar *int_arg) 
+  {
+    DBUG_ENTER("Item_insert_value::check_gcol_func_processor");
+    DBUG_PRINT("info",
+      ("check_gcol_func_processor returns TRUE: unsupported function"));
+    DBUG_RETURN(TRUE);
+  }
 };
 
 
@@ -4740,7 +4866,11 @@ public:
     with_subselect|= item->has_subquery();
     with_stored_program|= item->has_stored_program();
     if (item->type() == FIELD_ITEM)
+    {
       cached_field= ((Item_field *)item)->field;
+      if (((Item_field *)item)->table_ref)
+        used_table_map= ((Item_field *)item)->table_ref->map();
+    }
     return 0;
   };
   enum Type type() const { return CACHE_ITEM; }
@@ -4782,6 +4912,7 @@ public:
   bool walk (Item_processor processor, enum_walk walk, uchar *arg);
   virtual void clear() { null_value= TRUE; value_cached= FALSE; }
   bool is_null() { return value_cached ? null_value : example->is_null(); }
+  bool check_gcol_func_processor(uchar *int_arg) { return true;}
   Item_result result_type() const
   {
     if (!example)

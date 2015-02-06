@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,6 +27,7 @@
 #include <sys/stat.h>
 #include <signal.h>
 #include <time.h>
+#include "my_thread_local.h"
 #ifdef	 HAVE_PWD_H
 #include <pwd.h>
 #endif
@@ -40,7 +41,7 @@
 #include <sys/un.h>
 #endif
 #if !defined(_WIN32)
-#include <my_pthread.h>				/* because of signal()	*/
+#include <my_thread.h>				/* because of signal()	*/
 #endif
 #ifndef INADDR_NONE
 #define INADDR_NONE	-1
@@ -768,6 +769,7 @@ mysql_list_tables(MYSQL *mysql, const char *wild)
 MYSQL_FIELD *cli_list_fields(MYSQL *mysql)
 {
   MYSQL_DATA *query;
+  MYSQL_FIELD *result;
 
   MYSQL_TRACE_STAGE(mysql, WAIT_FOR_FIELD_DEF);
   query= cli_read_rows(mysql,(MYSQL_FIELD*) 0, 
@@ -778,8 +780,10 @@ MYSQL_FIELD *cli_list_fields(MYSQL *mysql)
     return NULL;
 
   mysql->field_count= (uint) query->rows;
-  return unpack_fields(mysql, query->data,&mysql->field_alloc,
-		       mysql->field_count, 1, mysql->server_capabilities);
+  result= unpack_fields(mysql, query->data,&mysql->field_alloc,
+                        mysql->field_count, 1, mysql->server_capabilities);
+  free_rows(query);
+  return result;
 }
 
 
@@ -1146,13 +1150,84 @@ mysql_escape_string(char *to,const char *from,ulong length)
   return (uint) escape_string_for_mysql(default_charset_info, to, 0, from, length);
 }
 
+/**
+  Escapes special characters in a string for use in an SQL statement.
+
+  Escapes special characters in the unescaped string, taking into account
+  the current character set and sql mode of the connection so that is safe
+  to place the string in a mysql_query(). This function must be used for
+  binary data.
+
+  This function does not work correctly when NO_BACKSLASH_ESCAPES sql mode
+  is used and string quote in the SQL statement is different than '\''.
+
+  @deprecated This function should not be used.
+              Use mysql_real_escape_string_quote instead.
+
+  @see mysql_real_escape_string_quote
+
+  @param mysql  [in]  MySQL connection structure.
+  @param to     [out] Escaped string output buffer.
+  @param from   [in]  String to escape.
+  @param length [in]  String to escape length.
+
+  @return Result value.
+    @retval != (ulong)-1 Succeeded. Number of bytes written to the output
+                         buffer without the '\0' character.
+    @retval (ulong)-1    Failed. Use mysql_error() to get error message.
+*/
+
 ulong STDCALL
 mysql_real_escape_string(MYSQL *mysql, char *to,const char *from,
-			 ulong length)
+                         ulong length)
 {
   if (mysql->server_status & SERVER_STATUS_NO_BACKSLASH_ESCAPES)
-    return (uint) escape_quotes_for_mysql(mysql->charset, to, 0, from, length);
-  return (uint) escape_string_for_mysql(mysql->charset, to, 0, from, length);
+  {
+    DBUG_PRINT("error",
+               ("NO_BACKSLASH_ESCAPES sql mode requires usage of the "
+                "mysql_real_escape_string_quote function"));
+    set_mysql_extended_error(mysql, CR_INSECURE_API_ERR, unknown_sqlstate,
+                             ER(CR_INSECURE_API_ERR),
+                             "mysql_real_escape_string",
+                             "mysql_real_escape_string_quote");
+    return (ulong)-1;
+  }
+
+  return (uint)mysql_real_escape_string_quote(mysql, to, from, length, '\'');
+}
+
+/**
+  Escapes special characters in a string for use in an SQL statement.
+
+  Escapes special characters in the unescaped string, taking into account
+  the current character set and sql mode of the connection so that is safe
+  to place the string in a mysql_query(). This function must be used for
+  binary data.
+
+  This function should be used for escaping identifiers and string parameters.
+
+  @param mysql  [in]  MySQL connection structure.
+  @param to     [out] Escaped string output buffer.
+  @param from   [in]  String to escape.
+  @param length [in]  String to escape length.
+  @param quote  [in]  String quoting character used in an SQL statement. This
+                      should be one of '\'', '"' or '`' depending on the
+                      parameter quoting applied in the SQL statement.
+
+  @return Result value.
+    @retval != (ulong)-1 Succeeded. Number of bytes written to the output
+                         buffer without the '\0' character.
+    @retval (ulong)-1    Failed.
+*/
+
+ulong STDCALL
+mysql_real_escape_string_quote(MYSQL *mysql, char *to, const char *from,
+                               ulong length, char quote)
+{
+  if (mysql->server_status & SERVER_STATUS_NO_BACKSLASH_ESCAPES)
+    return (uint)escape_quotes_for_mysql(mysql->charset, to, 0,
+                                         from, length, quote);
+  return (uint)escape_string_for_mysql(mysql->charset, to, 0, from, length);
 }
 
 void STDCALL
@@ -1406,6 +1481,8 @@ my_bool cli_read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt)
     /* skip parameters data: we don't support it yet */
     if (!(cli_read_metadata(mysql, param_count, 7)))
       DBUG_RETURN(1);
+    /* free memory allocated by cli_read_metadata() for parameters data */
+    free_root(&mysql->field_alloc, MYF(0));
   }
 
   if (field_count != 0)
@@ -2047,18 +2124,20 @@ static my_bool execute(MYSQL_STMT *stmt, char *packet, ulong length)
                                     (uchar*) packet, length, 1, stmt) ||
                (*mysql->methods->read_query_result)(mysql));
 
-  if (mysql->server_status & SERVER_STATUS_CURSOR_EXISTS)
-     mysql->server_status&= ~SERVER_STATUS_CURSOR_EXISTS;
-
-  if (!res && (stmt->flags & CURSOR_TYPE_READ_ONLY) &&
-      (mysql->server_capabilities & CLIENT_DEPRECATE_EOF))
+  if ((mysql->server_capabilities & CLIENT_DEPRECATE_EOF))
   {
-    /*
-      if server responds with a cursor then COM_STMT_EXECUTE response format
-      will be <Metadata><OK>. Hence read the OK packet to get the server status
-    */
-    if (packet_error == cli_safe_read_with_ok(mysql, 1, NULL))
-      DBUG_RETURN(1);
+    if (mysql->server_status & SERVER_STATUS_CURSOR_EXISTS)
+      mysql->server_status&= ~SERVER_STATUS_CURSOR_EXISTS;
+
+    if (!res && (stmt->flags & CURSOR_TYPE_READ_ONLY))
+    {
+      /*
+        if server responds with a cursor then COM_STMT_EXECUTE response format
+        will be <Metadata><OK>. Hence read the OK packet to get the server status
+        */
+      if (packet_error == cli_safe_read_with_ok(mysql, 1, NULL))
+        DBUG_RETURN(1);
+    }
   }
 
   stmt->affected_rows= mysql->affected_rows;

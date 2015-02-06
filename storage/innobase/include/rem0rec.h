@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -165,6 +165,21 @@ rec_get_n_fields(
 	const rec_t*		rec,	/*!< in: physical record */
 	const dict_index_t*	index)	/*!< in: record descriptor */
 	__attribute__((warn_unused_result));
+
+/** Confirms the n_fields of the entry is sane with comparing the other
+record in the same page specified
+@param[in]	index	index
+@param[in]	rec	record of the same page
+@param[in]	entry	index entry
+@return	true if n_fields is sane */
+UNIV_INLINE
+bool
+rec_n_fields_is_sane(
+	dict_index_t*	index,
+	const rec_t*	rec,
+	const dtuple_t*	entry)
+	__attribute__((warn_unused_result));
+
 /******************************************************//**
 The following function is used to get the number of records owned by the
 previous directory record.
@@ -1090,7 +1105,7 @@ are given in one byte (resp. two byte) format. */
 
 /* The data size of record must be smaller than this because we reserve
 two upmost bits in a two byte offset for special purposes */
-#define REC_MAX_DATA_SIZE	(16 * 1024)
+#define REC_MAX_DATA_SIZE	16384
 
 #ifndef UNIV_NONINL
 #include "rem0rec.ic"

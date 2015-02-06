@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,16 +17,18 @@
 
 #include "my_global.h"                // NO_EMBEDDED_ACCESS_CHECKS
 #include "sql_trigger.h"
+
+#include "auth_common.h"              // check_table_access
 #include "sp.h"                       // sp_add_to_query_tables()
 #include "sql_base.h"                 // find_temporary_table()
 #include "sql_table.h"                // build_table_filename()
                                       // write_bin_log()
 #include "sql_handler.h"              // mysql_ha_rm_tables()
 #include "sp_cache.h"                 // sp_invalidate_cache()
-#include "sql_parse.h"                // check_table_access()
 #include "trigger_loader.h"           // Trigger_loader
 #include "table_trigger_dispatcher.h" // Table_trigger_dispatcher
 #include "binlog.h"
+#include "sp_head.h"                  // sp_name
 
 #include "mysql/psi/mysql_sp.h"
 

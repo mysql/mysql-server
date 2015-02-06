@@ -1,0 +1,40 @@
+# Tests for PERFORMANCE_SCHEMA
+
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+
+--disable_result_log
+select * from performance_schema.variables_by_thread
+  where variable_name like 'autocommit%' limit 1;
+
+select * from performance_schema.variables_by_thread
+  where variable_name='FOO';
+--enable_result_log
+
+--error ER_TABLEACCESS_DENIED_ERROR
+insert into performance_schema.variables_by_thread
+  set thread_id=1, variable_name='FOO', variable_value='BAR';
+
+--error ER_TABLEACCESS_DENIED_ERROR
+update performance_schema.variables_by_thread
+  set variable_name='FOO', variable_value='BAR';
+
+--error ER_TABLEACCESS_DENIED_ERROR
+update performance_schema.variables_by_thread
+  set variable_name='FOO' where thread_id=0;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+delete from performance_schema.variables_by_thread
+  where thread_id=1;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+delete from performance_schema.variables_by_thread;
+
+-- error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.variables_by_thread READ;
+UNLOCK TABLES;
+
+-- error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.variables_by_thread WRITE;
+UNLOCK TABLES;
+

@@ -1,8 +1,9 @@
 -- source include/not_ndb_default.inc
+--source include/not_group_replication_plugin.inc
 -- source include/have_binlog_format_row.inc
 --source include/not_gtid_enabled.inc
--- source include/master-slave.inc
 --source include/not_mts_slave_parallel_workers.inc
+--source include/master-slave.inc
 
 ##############################################################################
 # The test is dependent on binlog positions. The test is divided into two
@@ -16,13 +17,12 @@
 connection master;
 CREATE TABLE t1(n INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
 INSERT INTO t1 VALUES (1),(2),(3),(4);
-# Save master log position for query DROP TABLE t1
+# Save master log position before query DROP TABLE t1
 let $master_pos_drop_t1= query_get_value(SHOW MASTER STATUS, Position, 1);
+let $master_log_file= query_get_value(SHOW MASTER STATUS, File, 1);
 DROP TABLE t1;
 # Save master log position for query DROP TABLE t1
 save_master_pos;
-let $master_pos_drop_t1= query_get_value(SHOW BINLOG EVENTS, Pos, 7);
-let $master_log_file= query_get_value(SHOW BINLOG EVENTS, Log_name, 7);
 
 # Save master log position for query CREATE TABLE t2
 let $master_pos_create_t2= query_get_value(SHOW MASTER STATUS, Position, 1);
@@ -50,10 +50,8 @@ eval CHANGE MASTER TO MASTER_USER='root', MASTER_CONNECT_RETRY=1, MASTER_HOST='1
 # Try to replicate all queries until drop of t1
 
 connection slave;
-echo START SLAVE UNTIL MASTER_LOG_FILE='$master_log_file', MASTER_LOG_POS=master_pos_drop_t1;
---disable_query_log
+--replace_result $master_pos_drop_t1 master_pos_drop_t1
 eval START SLAVE UNTIL MASTER_LOG_FILE='$master_log_file', MASTER_LOG_POS=$master_pos_drop_t1;
---enable_query_log
 --source include/wait_for_slave_sql_to_stop.inc
 
 # Here table should be still not deleted

@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,11 +16,25 @@
 #ifndef RPL_HANDLER_H
 #define RPL_HANDLER_H
 
-#include "rpl_gtid.h"
-#include "rpl_mi.h"
-#include "rpl_rli.h"
-#include "sql_plugin.h"
-#include "replication.h"
+#include "my_global.h"
+#include "my_sys.h"                        // free_root
+#include "mysql/psi/mysql_thread.h"        // mysql_rwlock_t
+#include "mysqld.h"                        // key_memory_delegate
+#include "sql_list.h"                      // List
+#include "sql_plugin_ref.h"                // plugin_ref
+
+#include <list>
+
+class Master_info;
+class String;
+struct Binlog_relay_IO_observer;
+struct Binlog_relay_IO_param;
+struct Binlog_storage_observer;
+struct Binlog_transmit_observer;
+struct Server_state_observer;
+struct Trans_observer;
+struct Trans_table_info;
+
 
 class Observer_info {
 public:
@@ -28,18 +42,14 @@ public:
   st_plugin_int *plugin_int;
   plugin_ref plugin;
 
-  Observer_info(void *ob, st_plugin_int *p)
-    :observer(ob), plugin_int(p)
-  {
-    plugin= plugin_int_to_ref(plugin_int);
-  }
+  Observer_info(void *ob, st_plugin_int *p);
 };
 
 class Delegate {
 public:
   typedef List<Observer_info> Observer_info_list;
   typedef List_iterator<Observer_info> Observer_info_iterator;
-  
+
   int add_observer(void *observer, st_plugin_int *plugin)
   {
     int ret= FALSE;
@@ -61,7 +71,7 @@ public:
     unlock();
     return ret;
   }
-  
+
   int remove_observer(void *observer, st_plugin_int *plugin)
   {
     int ret= FALSE;
@@ -168,14 +178,19 @@ public:
   {}
 
   typedef Trans_observer Observer;
+
+  int before_dml(THD *thd, int& result);
   int before_commit(THD *thd, bool all,
                     IO_CACHE *trx_cache_log,
                     IO_CACHE *stmt_cache_log,
-                    ulonglong cache_log_max_size,
-                    std::list<uint32> *pke_write_set);
+                    ulonglong cache_log_max_size);
   int before_rollback(THD *thd, bool all);
   int after_commit(THD *thd, bool all);
   int after_rollback(THD *thd, bool all);
+private:
+  void prepare_table_info(THD* thd,
+                          Trans_table_info*& table_info_list,
+                          uint& number_of_tables);
 };
 
 #ifdef HAVE_PSI_INTERFACE
@@ -277,7 +292,7 @@ public:
   typedef Binlog_relay_IO_observer Observer;
   int thread_start(THD *thd, Master_info *mi);
   int thread_stop(THD *thd, Master_info *mi);
-  int consumer_thread_stop(THD *thd, Master_info *mi, bool aborted);
+  int applier_stop(THD *thd, Master_info *mi, bool aborted);
   int before_request_transmit(THD *thd, Master_info *mi, ushort flags);
   int after_read_event(THD *thd, Master_info *mi,
                        const char *packet, ulong len,

@@ -1,7 +1,7 @@
 #ifndef THR_MUTEX_INCLUDED
 #define THR_MUTEX_INCLUDED
 
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -33,12 +33,36 @@
        See include/mysql/psi/mysql_thread.h
 */
 
+#include <my_global.h>
+#include "my_thread.h"
+
+C_MODE_START
+
 #ifdef _WIN32
 typedef CRITICAL_SECTION native_mutex_t;
 typedef int native_mutexattr_t;
 #else
 typedef pthread_mutex_t native_mutex_t;
 typedef pthread_mutexattr_t native_mutexattr_t;
+#endif
+
+/* Define mutex types, see my_thr_init.c */
+#define MY_MUTEX_INIT_SLOW   NULL
+
+/* Can be set in /usr/include/pthread.h */
+#ifdef PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP
+extern native_mutexattr_t my_fast_mutexattr;
+#define MY_MUTEX_INIT_FAST &my_fast_mutexattr
+#else
+#define MY_MUTEX_INIT_FAST   NULL
+#endif
+
+/* Can be set in /usr/include/pthread.h */
+#ifdef PTHREAD_ERRORCHECK_MUTEX_INITIALIZER_NP
+extern native_mutexattr_t my_errorcheck_mutexattr;
+#define MY_MUTEX_INIT_ERRCHK &my_errorcheck_mutexattr
+#else
+#define MY_MUTEX_INIT_ERRCHK   NULL
 #endif
 
 static inline int native_mutex_init(native_mutex_t *mutex,
@@ -108,7 +132,7 @@ typedef struct st_safe_mutex_t
   native_mutex_t global, mutex;
   const char *file;
   uint line, count;
-  pthread_t thread;
+  my_thread_t thread;
 } my_mutex_t;
 
 void safe_mutex_global_init();
@@ -121,13 +145,13 @@ int safe_mutex_destroy(my_mutex_t *mp, const char *file, uint line);
 static inline void safe_mutex_assert_owner(const my_mutex_t *mp)
 {
   DBUG_ASSERT(mp->count > 0 &&
-              pthread_equal(pthread_self(), mp->thread));
+              my_thread_equal(my_thread_self(), mp->thread));
 }
 
 static inline void safe_mutex_assert_not_owner(const my_mutex_t *mp)
 {
   DBUG_ASSERT(!mp->count ||
-              !pthread_equal(pthread_self(), mp->thread));
+              !my_thread_equal(my_thread_self(), mp->thread));
 }
 
 #elif defined(MY_PTHREAD_FASTMUTEX)
@@ -220,5 +244,7 @@ static inline int my_mutex_destroy(my_mutex_t *mp
   return native_mutex_destroy(mp);
 #endif
 }
+
+C_MODE_END
 
 #endif /* THR_MUTEX_INCLUDED */

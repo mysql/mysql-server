@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -1040,6 +1040,50 @@ struct PFS_memory_stat
     stat2->m_free_size_capacity+= m_free_size_capacity;
   }
 
+  void count_builtin_alloc(size_t size)
+  {
+    m_used= true;
+
+    m_alloc_count++;
+    m_free_count_capacity++;
+    m_alloc_size+= size;
+    m_free_size_capacity+= size;
+
+    if (m_alloc_count_capacity >= 1)
+    {
+      m_alloc_count_capacity--;
+    }
+
+    if (m_alloc_size_capacity >= size)
+    {
+      m_alloc_size_capacity-= size;
+    }
+
+    return;
+  }
+
+  void count_builtin_free(size_t size)
+  {
+    m_used= true;
+
+    m_free_count++;
+    m_alloc_count_capacity++;
+    m_free_size+= size;
+    m_alloc_size_capacity+= size;
+
+    if (m_free_count_capacity >= 1)
+    {
+      m_free_count_capacity--;
+    }
+
+    if (m_free_size_capacity >= size)
+    {
+      m_free_size_capacity-= size;
+    }
+
+    return;
+  }
+
   inline PFS_memory_stat_delta *count_alloc(size_t size,
                                             PFS_memory_stat_delta *delta)
   {
@@ -1249,6 +1293,8 @@ struct PFS_memory_stat
     return delta_buffer;
   }
 };
+
+#define PFS_MEMORY_STAT_INITIALIZER { false, 0, 0, 0, 0, 0, 0, 0, 0}
 
 /** Connections statistics. */
 struct PFS_connection_stat

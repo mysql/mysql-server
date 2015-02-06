@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,6 +21,9 @@
 #include <pfs_transaction_provider.h>
 #include <mysql/psi/mysql_transaction.h>
 #include "rpl_context.h"
+#include "sql_class.h"
+#include "log.h"
+#include "binlog.h"
 
 /**
   Check if we have a condition where the transaction state must
@@ -150,9 +153,13 @@ bool trans_begin(THD *thd, uint flags)
   */
 #ifdef HAVE_PSI_TRANSACTION_INTERFACE
   if (thd->m_transaction_psi == NULL)
+  {
     thd->m_transaction_psi= MYSQL_START_TRANSACTION(&thd->m_transaction_state,
                                                  NULL, NULL, thd->tx_isolation,
                                                  thd->tx_read_only, false);
+    DEBUG_SYNC(thd, "after_set_transaction_psi_before_set_transaction_gtid");
+    gtid_set_performance_schema_values(thd);
+  }
 #endif
 
   DBUG_RETURN(MY_TEST(res));
@@ -191,9 +198,13 @@ bool trans_commit(THD *thd)
     SERVER_STATUS_IN_TRANS may be set again while calling
     ha_commit_trans(...) Consequently, we need to reset it back,
     much like we are doing before calling ha_commit_trans(...).
+
+    We would really only need to do this when gtid_mode=on.  However,
+    checking gtid_mode requires holding a lock, which is costly.  So
+    we clear the bit unconditionally.  This has no side effects since
+    if gtid_mode=off the bit is already cleared.
   */
-  if (gtid_mode > GTID_MODE_UPGRADE_STEP_1)
-    thd->server_status&= ~SERVER_STATUS_IN_TRANS;
+  thd->server_status&= ~SERVER_STATUS_IN_TRANS;
   thd->variables.option_bits&= ~OPTION_BEGIN;
   thd->get_transaction()->reset_unsafe_rollback_flags(Transaction_ctx::SESSION);
   thd->lex->start_transaction_opt= 0;
@@ -483,6 +494,15 @@ bool trans_savepoint(THD *thd, LEX_STRING name)
   if (!(thd->in_multi_stmt_transaction_mode() || thd->in_sub_stmt) ||
       !opt_using_transactions)
     DBUG_RETURN(FALSE);
+
+  if (thd->variables.transaction_write_set_extraction != HASH_ALGORITHM_OFF)
+  {
+    // is_fatal_errror is needed to avoid stored procedures to skip the error.
+    thd->is_fatal_error= 1;
+    my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0),
+             "--transaction-write-set-extraction!=OFF");
+    DBUG_RETURN(true);
+  }
 
   if (thd->get_transaction()->xid_state()->check_has_uncommitted_xa())
     DBUG_RETURN(true);

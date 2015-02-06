@@ -182,6 +182,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=ENGINE DEFAULT CHARSET=latin1
 drop table t1;
 set session sql_mode='traditional';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 select 1e10/0e0;
 1e10/0e0
 NULL
@@ -782,6 +784,8 @@ select 0.07 * 0.07;
 0.07 * 0.07
 0.0049
 set sql_mode='traditional';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 select 1E-500 = 0;
 1E-500 = 0
 1
@@ -796,6 +800,8 @@ NULL
 Warnings:
 Warning	1365	Division by 0
 set sql_mode='ansi,traditional';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE Sow6_2f (col1 NUMERIC(4,2));
 INSERT INTO Sow6_2f VALUES (10.55);
 INSERT INTO Sow6_2f VALUES (10.5555);
@@ -871,6 +877,8 @@ select abs(NULL);
 abs(NULL)
 NULL
 set @@sql_mode='traditional';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 create table t1( d1 decimal(18) unsigned, d2 decimal(20) unsigned, d3 decimal (22) unsigned);
 insert into t1 values(1,-1,-1);
 ERROR 22003: Out of range value for column 'd2' at row 1

@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,23 +21,21 @@
 
 */
 
-/*
-  It is necessary to include set_var.h instead of item.h because there
-  are dependencies on include order for set_var.h and item.h. This
-  will be resolved later.
-*/
-#include "sql_class.h"                          // set_var.h: THD
-#include "set_var.h"
-#include "sql_select.h"
-#include "opt_trace.h"
-#include "sql_parse.h"                          // check_stack_overrun
-#include "sql_derived.h"                        // mysql_derived_create, ...
-#include "debug_sync.h"
-#include "sql_test.h"
-#include "sql_join_buffer.h"                    // JOIN_CACHE
-#include "sql_optimizer.h"                      // JOIN
-#include "opt_explain_format.h"
-#include "parse_tree_nodes.h"
+#include "item_subselect.h"
+
+#include "debug_sync.h"          // DEBUG_SYNC
+#include "item_sum.h"            // Item_sum_max
+#include "opt_trace.h"           // OPT_TRACE_TRANSFORM
+#include "parse_tree_nodes.h"    // PT_subselect
+#include "sql_class.h"           // THD
+#include "sql_derived.h"         // mysql_derived_create
+#include "sql_join_buffer.h"     // JOIN_CACHE
+#include "sql_lex.h"             // st_select_lex
+#include "sql_optimizer.h"       // JOIN
+#include "sql_parse.h"           // check_stack_overrun
+#include "sql_test.h"            // print_where
+#include "sql_tmp_table.h"       // free_tmp_table
+#include "sql_union.h"           // Query_result_union
 
 Item_subselect::Item_subselect():
   Item_result_field(), value_assigned(0), traced_before(false),
@@ -48,7 +46,7 @@ Item_subselect::Item_subselect():
   with_subselect= 1;
   reset();
   /*
-    Item value is NULL if select_result_interceptor didn't change this value
+    Item value is NULL if Query_result_interceptor didn't change this value
     (i.e. some rows will be found returned)
   */
   null_value= TRUE;
@@ -64,7 +62,7 @@ Item_subselect::Item_subselect(const POS &pos):
   with_subselect= 1;
   reset();
   /*
-    Item value is NULL if select_result_interceptor didn't change this value
+    Item value is NULL if Query_result_interceptor didn't change this value
     (i.e. some rows will be found returned)
   */
   null_value= TRUE;
@@ -72,7 +70,7 @@ Item_subselect::Item_subselect(const POS &pos):
 
 
 void Item_subselect::init(st_select_lex *select_lex,
-			  select_subselect *result)
+			  Query_result_subquery *result)
 {
   /*
     Please see Item_singlerow_subselect::invalidate_and_restore_select_lex(),
@@ -437,10 +435,10 @@ err:
   JOINs may be nested. Walk nested joins recursively to apply the
   processor.
 */
-bool Item_subselect::walk_join_condition(List<TABLE_LIST> *tables,
-                                         Item_processor processor,
-                                         enum_walk walk,
-                                         uchar *arg)
+static bool walk_join_condition(List<TABLE_LIST> *tables,
+                                Item_processor processor,
+                                Item::enum_walk walk,
+                                uchar *arg)
 {
   TABLE_LIST *table;
   List_iterator<TABLE_LIST> li(*tables);
@@ -765,12 +763,49 @@ void Item_subselect::print(String *str, enum_query_type query_type)
 }
 
 
+/* Single value subselect interface class */
+class Query_result_scalar_subquery :public Query_result_subquery
+{
+public:
+  Query_result_scalar_subquery(Item_subselect *item_arg)
+    :Query_result_subquery(item_arg)
+  {}
+  bool send_data(List<Item> &items);
+};
+
+
+bool Query_result_scalar_subquery::send_data(List<Item> &items)
+{
+  DBUG_ENTER("Query_result_scalar_subquery::send_data");
+  Item_singlerow_subselect *it= (Item_singlerow_subselect *)item;
+  if (it->assigned())
+  {
+    my_message(ER_SUBQUERY_NO_1_ROW, ER(ER_SUBQUERY_NO_1_ROW), MYF(0));
+    DBUG_RETURN(true);
+  }
+  if (unit->offset_limit_cnt)
+  {				          // Using limit offset,count
+    unit->offset_limit_cnt--;
+    DBUG_RETURN(false);
+  }
+  List_iterator_fast<Item> li(items);
+  Item *val_item;
+  for (uint i= 0; (val_item= li++); i++)
+    it->store(i, val_item);
+  if (thd->is_error())
+    DBUG_RETURN(true);
+
+  it->assigned(true);
+  DBUG_RETURN(false);
+}
+
+
 Item_singlerow_subselect::Item_singlerow_subselect(st_select_lex *select_lex)
   :Item_subselect(), value(0), no_rows(false)
 {
   DBUG_ENTER("Item_singlerow_subselect::Item_singlerow_subselect");
-  init(select_lex, new select_singlerow_subselect(this));
-  maybe_null= 1;
+  init(select_lex, new Query_result_scalar_subquery(this));
+  maybe_null= 1; // if the subquery is empty, value is NULL
   max_columns= UINT_MAX;
   DBUG_VOID_RETURN;
 }
@@ -795,6 +830,180 @@ Item_singlerow_subselect::invalidate_and_restore_select_lex()
   DBUG_RETURN(result);
 }
 
+/* used in independent ALL/ANY optimisation */
+class Query_result_max_min_subquery :public Query_result_subquery
+{
+  Item_cache *cache;
+  bool (Query_result_max_min_subquery::*op)();
+  bool fmax;
+  /**
+    If ignoring NULLs, comparisons will skip NULL values. If not
+    ignoring NULLs, the first (if any) NULL value discovered will be
+    returned as the maximum/minimum value.
+  */
+  bool ignore_nulls;
+public:
+  Query_result_max_min_subquery(Item_subselect *item_arg, bool mx,
+                                bool ignore_nulls)
+    :Query_result_subquery(item_arg), cache(0), fmax(mx),
+     ignore_nulls(ignore_nulls)
+  {}
+  void cleanup();
+  bool send_data(List<Item> &items);
+private:
+  bool cmp_real();
+  bool cmp_int();
+  bool cmp_decimal();
+  bool cmp_str();
+};
+
+
+void Query_result_max_min_subquery::cleanup()
+{
+  DBUG_ENTER("Query_result_max_min_subquery::cleanup");
+  cache= 0;
+  DBUG_VOID_RETURN;
+}
+
+
+bool Query_result_max_min_subquery::send_data(List<Item> &items)
+{
+  DBUG_ENTER("Query_result_max_min_subquery::send_data");
+  Item_maxmin_subselect *it= (Item_maxmin_subselect *)item;
+  List_iterator_fast<Item> li(items);
+  Item *val_item= li++;
+  it->register_value();
+  if (it->assigned())
+  {
+    cache->store(val_item);
+    if ((this->*op)())
+      it->store(0, cache);
+  }
+  else
+  {
+    if (!cache)
+    {
+      cache= Item_cache::get_cache(val_item);
+      switch (val_item->result_type())
+      {
+      case REAL_RESULT:
+	op= &Query_result_max_min_subquery::cmp_real;
+	break;
+      case INT_RESULT:
+	op= &Query_result_max_min_subquery::cmp_int;
+	break;
+      case STRING_RESULT:
+	op= &Query_result_max_min_subquery::cmp_str;
+	break;
+      case DECIMAL_RESULT:
+        op= &Query_result_max_min_subquery::cmp_decimal;
+        break;
+      case ROW_RESULT:
+        // This case should never be choosen
+	DBUG_ASSERT(0);
+	op= 0;
+      }
+    }
+    cache->store(val_item);
+    it->store(0, cache);
+  }
+  it->assigned(true);
+  DBUG_RETURN(0);
+}
+
+/**
+  Compare two floating point numbers for MAX or MIN.
+
+  Compare two numbers and decide if the number should be cached as the
+  maximum/minimum number seen this far. If fmax==true, this is a
+  comparison for MAX, otherwise it is a comparison for MIN.
+
+  val1 is the new numer to compare against the current
+  maximum/minimum. val2 is the current maximum/minimum.
+
+  ignore_nulls is used to control behavior when comparing with a NULL
+  value. If ignore_nulls==false, the behavior is to store the first
+  NULL value discovered (i.e, return true, that it is larger than the
+  current maximum) and never replace it. If ignore_nulls==true, NULL
+  values are not stored. ANY subqueries use ignore_nulls==true, ALL
+  subqueries use ignore_nulls==false.
+
+  @retval true if the new number should be the new maximum/minimum.
+  @retval false if the maximum/minimum should stay unchanged.
+ */
+bool Query_result_max_min_subquery::cmp_real()
+{
+  Item *maxmin= ((Item_singlerow_subselect *)item)->element_index(0);
+  double val1= cache->val_real(), val2= maxmin->val_real();
+  /*
+    If we're ignoring NULLs and the current maximum/minimum is NULL
+    (must have been placed there as the first value iterated over) and
+    the new value is not NULL, return true so that a new, non-NULL
+    maximum/minimum is set. Otherwise, return false to keep the
+    current non-NULL maximum/minimum.
+
+    If we're not ignoring NULLs and the current maximum/minimum is not
+    NULL, return true to store NULL. Otherwise, return false to keep
+    the NULL we've already got.
+  */
+  if (cache->null_value || maxmin->null_value)
+    return (ignore_nulls) ? !(cache->null_value) : !(maxmin->null_value);
+  return (fmax) ? (val1 > val2) : (val1 < val2);
+}
+
+/**
+  Compare two integer numbers for MAX or MIN.
+
+  @see Query_result_max_min_subquery::cmp_real()
+*/
+bool Query_result_max_min_subquery::cmp_int()
+{
+  Item *maxmin= ((Item_singlerow_subselect *)item)->element_index(0);
+  longlong val1= cache->val_int(), val2= maxmin->val_int();
+  if (cache->null_value || maxmin->null_value)
+    return (ignore_nulls) ? !(cache->null_value) : !(maxmin->null_value);
+  return (fmax) ? (val1 > val2) : (val1 < val2);
+}
+
+/**
+  Compare two decimal numbers for MAX or MIN.
+
+  @see Query_result_max_min_subquery::cmp_real()
+*/
+bool Query_result_max_min_subquery::cmp_decimal()
+{
+  Item *maxmin= ((Item_singlerow_subselect *)item)->element_index(0);
+  my_decimal cval, *cvalue= cache->val_decimal(&cval);
+  my_decimal mval, *mvalue= maxmin->val_decimal(&mval);
+  if (cache->null_value || maxmin->null_value)
+    return (ignore_nulls) ? !(cache->null_value) : !(maxmin->null_value);
+  return (fmax) 
+    ? (my_decimal_cmp(cvalue,mvalue) > 0)
+    : (my_decimal_cmp(cvalue,mvalue) < 0);
+}
+
+/**
+  Compare two strings for MAX or MIN.
+
+  @see Query_result_max_min_subquery::cmp_real()
+*/
+bool Query_result_max_min_subquery::cmp_str()
+{
+  String *val1, *val2, buf1, buf2;
+  Item *maxmin= ((Item_singlerow_subselect *)item)->element_index(0);
+  /*
+    as far as both operand is Item_cache buf1 & buf2 will not be used,
+    but added for safety
+  */
+  val1= cache->val_str(&buf1);
+  val2= maxmin->val_str(&buf1);
+  if (cache->null_value || maxmin->null_value)
+    return (ignore_nulls) ? !(cache->null_value) : !(maxmin->null_value);
+  return (fmax) 
+    ? (sortcmp(val1, val2, cache->collation.collation) > 0)
+    : (sortcmp(val1, val2, cache->collation.collation) < 0);
+}
+
 Item_maxmin_subselect::Item_maxmin_subselect(THD *thd_param,
                                              Item_subselect *parent,
                                              st_select_lex *select_lex,
@@ -804,8 +1013,8 @@ Item_maxmin_subselect::Item_maxmin_subselect(THD *thd_param,
 {
   DBUG_ENTER("Item_maxmin_subselect::Item_maxmin_subselect");
   max= max_arg;
-  init(select_lex, new select_max_min_finder_subselect(this, max_arg,
-                                                       ignore_nulls));
+  init(select_lex, new Query_result_max_min_subquery(this, max_arg,
+                                                     ignore_nulls));
   max_columns= 1;
   maybe_null= 1;
   max_columns= 1;
@@ -1107,12 +1316,43 @@ bool Item_singlerow_subselect::val_bool()
 }
 
 
+/* EXISTS subselect interface class */
+class Query_result_exists_subquery :public Query_result_subquery
+{
+public:
+  Query_result_exists_subquery(Item_subselect *item_arg)
+    :Query_result_subquery(item_arg){}
+  bool send_data(List<Item> &items);
+};
+
+
+bool Query_result_exists_subquery::send_data(List<Item> &items)
+{
+  DBUG_ENTER("Query_result_exists_subquery::send_data");
+  Item_exists_subselect *it= (Item_exists_subselect *)item;
+  if (unit->offset_limit_cnt)
+  {				          // Using limit offset,count
+    unit->offset_limit_cnt--;
+    DBUG_RETURN(0);
+  }
+  /*
+    A subquery may be evaluated 1) by executing the JOIN 2) by optimized
+    functions (index_subquery, subquery materialization).
+    It's only in (1) that we get here when we find a row. In (2) "value" is
+    set elsewhere.
+  */
+  it->value= 1;
+  it->assigned(true);
+  DBUG_RETURN(0);
+}
+
+
 Item_exists_subselect::Item_exists_subselect(st_select_lex *select):
   Item_subselect(), value(FALSE), exec_method(EXEC_UNSPECIFIED),
      sj_convert_priority(0), embedding_join_nest(NULL)
 {
   DBUG_ENTER("Item_exists_subselect::Item_exists_subselect");
-  init(select, new select_exists_subselect(this));
+  init(select, new Query_result_exists_subquery(this));
   max_columns= UINT_MAX;
   null_value= FALSE; //can't be NULL
   maybe_null= 0; //can't be NULL
@@ -1148,7 +1388,7 @@ Item_in_subselect::Item_in_subselect(Item * left_exp,
   in2exists_info(NULL), pushed_cond_guards(NULL), upper_item(NULL)
 {
   DBUG_ENTER("Item_in_subselect::Item_in_subselect");
-  init(select, new select_exists_subselect(this));
+  init(select, new Query_result_exists_subquery(this));
   max_columns= UINT_MAX;
   maybe_null= 1;
   reset();
@@ -1182,7 +1422,7 @@ bool Item_in_subselect::itemize(Parse_context *pc, Item **res)
       pt_subselect->contextualize(pc))
     return true;
   SELECT_LEX *select_lex= pt_subselect->value;
-  init(select_lex, new select_exists_subselect(this));
+  init(select_lex, new Query_result_exists_subquery(this));
   if (test_limit())
     return true;
   return false;
@@ -1197,7 +1437,7 @@ Item_allany_subselect::Item_allany_subselect(Item * left_exp,
   DBUG_ENTER("Item_allany_subselect::Item_allany_subselect");
   left_expr= left_exp;
   func= func_creator(all_arg);
-  init(select, new select_exists_subselect(this));
+  init(select, new Query_result_exists_subquery(this));
   max_columns= 1;
   abort_on_null= 0;
   reset();
@@ -2538,8 +2778,8 @@ void Item_allany_subselect::print(String *str, enum_query_type query_type)
 void subselect_engine::set_thd_for_result()
 {
   /*
-    select_result's constructor sets neither select_result::thd nor
-    select_result::unit.
+    Query_result's constructor sets neither Query_result::thd nor
+    Query_result::unit.
   */
   if (result)
     result->set_thd(item->unit->thd);
@@ -2548,7 +2788,7 @@ void subselect_engine::set_thd_for_result()
 
 subselect_single_select_engine::
 subselect_single_select_engine(st_select_lex *select,
-			       select_result_interceptor *result_arg,
+			       Query_result_interceptor *result_arg,
 			       Item_subselect *item_arg)
   :subselect_engine(item_arg, result_arg), select_lex(select)
 {
@@ -2575,7 +2815,7 @@ void subselect_union_engine::cleanup()
 
 
 subselect_union_engine::subselect_union_engine(st_select_lex_unit *u,
-					       select_result_interceptor *result_arg,
+					       Query_result_interceptor *result_arg,
 					       Item_subselect *item_arg)
   :subselect_engine(item_arg, result_arg)
 {
@@ -3046,14 +3286,13 @@ bool subselect_indexsubquery_engine::exec()
 
   if (tl && tl->uses_materialization() && !tab->materialized)
   {
-    bool err= mysql_handle_single_derived(table->in_use->lex, tl,
-                                          mysql_derived_create) ||
-              mysql_handle_single_derived(table->in_use->lex, tl,
-                                          mysql_derived_materialize);
-    err|= mysql_handle_single_derived(table->in_use->lex, tl,
-                                      mysql_derived_cleanup);
+    THD *const thd= table->in_use;
+    bool err= tl->create_derived(thd);
+    if (!err)
+      err= tl->materialize_derived(thd);
+    err|= tl->cleanup_derived();
     if (err)
-      DBUG_RETURN(1);
+      DBUG_RETURN(true);
 
     tab->materialized= true;
   }
@@ -3318,7 +3557,7 @@ void subselect_indexsubquery_engine::print(String *str,
   change query result object of engine.
 
   @param si		new subselect Item
-  @param res		new select_result object
+  @param res		new Query_result object
 
   @retval
     FALSE OK
@@ -3326,8 +3565,9 @@ void subselect_indexsubquery_engine::print(String *str,
     TRUE  error
 */
 
-bool subselect_single_select_engine::change_query_result(Item_subselect *si,
-                                                         select_subselect *res)
+bool
+subselect_single_select_engine::change_query_result(Item_subselect *si,
+                                                    Query_result_subquery *res)
 {
   item= si;
   result= res;
@@ -3339,7 +3579,7 @@ bool subselect_single_select_engine::change_query_result(Item_subselect *si,
   change query result object of engine.
 
   @param si		new subselect Item
-  @param res		new select_result object
+  @param res		new Query_result object
 
   @retval
     FALSE OK
@@ -3348,7 +3588,7 @@ bool subselect_single_select_engine::change_query_result(Item_subselect *si,
 */
 
 bool subselect_union_engine::change_query_result(Item_subselect *si,
-                                                 select_subselect *res)
+                                                 Query_result_subquery *res)
 {
   item= si;
   int rc= unit->change_query_result(res, result);
@@ -3361,7 +3601,7 @@ bool subselect_union_engine::change_query_result(Item_subselect *si,
   change query result emulation, never should be called.
 
   @param si		new subselect Item
-  @param res		new select_result object
+  @param res		new Query_result object
 
   @retval
     FALSE OK
@@ -3370,7 +3610,7 @@ bool subselect_union_engine::change_query_result(Item_subselect *si,
 */
 
 bool subselect_indexsubquery_engine::change_query_result(Item_subselect *si,
-                                                   select_subselect *res)
+                                                   Query_result_subquery *res)
 {
   DBUG_ASSERT(0);
   return TRUE;
@@ -3475,7 +3715,7 @@ bool subselect_indexsubquery_engine::no_tables() const
 bool subselect_hash_sj_engine::setup(List<Item> *tmp_columns)
 {
   /* The result sink where we will materialize the subquery result. */
-  select_union  *tmp_result_sink;
+  Query_result_union   *tmp_result_sink;
   /* The table into which the subquery is materialized. */
   TABLE         *tmp_table;
   KEY           *tmp_key; /* The only index on the temporary table. */
@@ -3492,7 +3732,7 @@ bool subselect_hash_sj_engine::setup(List<Item> *tmp_columns)
     result stream in a temporary table. The temporary table itself is
     managed (created/filled/etc) internally by the interceptor.
   */
-  if (!(tmp_result_sink= new select_union))
+  if (!(tmp_result_sink= new Query_result_union))
     DBUG_RETURN(TRUE);
   THD * const thd= item->unit->thd;
   if (tmp_result_sink->create_result_table(
@@ -3591,7 +3831,7 @@ bool subselect_hash_sj_engine::setup(List<Item> *tmp_columns)
     Item_func_eq *eq_cond; 
     /* Item for the corresponding field from the materialized temp table. */
     Item_field *right_col_item;
-    Field *field= tmp_table->field[part_no];
+    Field *field= tmp_table->visible_field_ptr()[part_no];
     const bool nullable= field->real_maybe_null();
     tmp_tab->ref().items[part_no]= item_in->left_expr->element_index(part_no);
 
@@ -3798,6 +4038,7 @@ err:
       is UNKNOWN. Do as if searching with all triggered conditions disabled:
       this would surely find a row. The caller will translate this to UNKNOWN.
     */
+    DBUG_ASSERT(item_in->left_expr->element_index(0)->maybe_null);
     DBUG_ASSERT(item_in->left_expr->cols() == 1);
     item_in->value= true;
     DBUG_RETURN(false);

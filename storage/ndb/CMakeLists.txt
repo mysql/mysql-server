@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -340,9 +340,5 @@ IF(WITH_NDBAPI_EXAMPLES)
   MESSAGE(STATUS "Building the NdbApi example programs")
   ADD_SUBDIRECTORY(ndbapi-examples)
 ENDIF()
-
-IF(WITHOUT_PARTITION_STORAGE_ENGINE)
-  MESSAGE(FATAL_ERROR "NDBCLUSTER can't be compiled without PARTITION")
-ENDIF(WITHOUT_PARTITION_STORAGE_ENGINE)
 
 ADD_SUBDIRECTORY(wix)

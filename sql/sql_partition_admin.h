@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,103 +16,11 @@
 #ifndef SQL_PARTITION_ADMIN_H
 #define SQL_PARTITION_ADMIN_H
 
-#ifndef WITH_PARTITION_STORAGE_ENGINE
-
-/**
-  Stub class that returns a error if the partition storage engine is
-  not supported.
-*/
-class Sql_cmd_partition_unsupported : public Sql_cmd
-{
-public:
-  Sql_cmd_partition_unsupported()
-  {}
-
-  ~Sql_cmd_partition_unsupported()
-  {}
-
-  /* Override SQLCOM_*, since it is an ALTER command */
-  virtual enum_sql_command sql_command_code() const
-  {
-    return SQLCOM_ALTER_TABLE;
-  }
-
-  bool execute(THD *thd);
-};
-
-
-class Sql_cmd_alter_table_exchange_partition :
-  public Sql_cmd_partition_unsupported
-{
-public:
-  Sql_cmd_alter_table_exchange_partition()
-  {}
-
-  ~Sql_cmd_alter_table_exchange_partition()
-  {}
-};
-
-
-class  Sql_cmd_alter_table_analyze_partition :
-  public Sql_cmd_partition_unsupported
-{
-public:
-  Sql_cmd_alter_table_analyze_partition()
-  {}
-
-  ~Sql_cmd_alter_table_analyze_partition()
-  {}
-};
-
-
-class Sql_cmd_alter_table_check_partition :
-  public Sql_cmd_partition_unsupported
-{
-public:
-  Sql_cmd_alter_table_check_partition()
-  {}
-
-  ~Sql_cmd_alter_table_check_partition()
-  {}
-};
-
-
-class Sql_cmd_alter_table_optimize_partition :
-  public Sql_cmd_partition_unsupported
-{
-public:
-  Sql_cmd_alter_table_optimize_partition()
-  {}
-
-  ~Sql_cmd_alter_table_optimize_partition()
-  {}
-};
-
-
-class Sql_cmd_alter_table_repair_partition :
-  public Sql_cmd_partition_unsupported
-{
-public:
-  Sql_cmd_alter_table_repair_partition()
-  {}
-
-  ~Sql_cmd_alter_table_repair_partition()
-  {}
-};
-
-
-class Sql_cmd_alter_table_truncate_partition :
-  public Sql_cmd_partition_unsupported
-{
-public:
-  Sql_cmd_alter_table_truncate_partition()
-  {}
-
-  ~Sql_cmd_alter_table_truncate_partition()
-  {}
-};
-
-#else
+#include "my_global.h"
+#include "sql_cmd.h"                   // Sql_cmd
+#include "sql_alter.h"                 // Sql_cmd_alter_table
+#include "sql_admin.h"                 // Sql_cmd_analyze_table
+#include "sql_truncate.h"              // Sql_cmd_truncate_table
 
 /**
   Class that represents the ALTER TABLE t1 EXCHANGE PARTITION p
@@ -266,5 +174,4 @@ public:
   }
 };
 
-#endif /* WITH_PARTITION_STORAGE_ENGINE */
 #endif /* SQL_PARTITION_ADMIN_H */

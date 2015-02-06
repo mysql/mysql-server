@@ -16,12 +16,15 @@ FLUSH LOGS;
 ==== Remote with to-last-log stop-never connection-server-id=0 ====
 
 ---- to-last-log stop-never connection-server-id ----
+include/mysqlbinlog.inc
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
-SET TIMESTAMP=1925024400/*!*/;
-SET @@session.pseudo_thread_id=999999999/*!*/;
+# [empty]
+SET @@SESSION.GTID_NEXT= '#'/*!*/;
+SET TIMESTAMP=#/*!*/;
+SET @@session.pseudo_thread_id=#/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
 SET @@session.sql_mode=1075839008/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
@@ -32,38 +35,46 @@ SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
 use `test`/*!*/;
-SET TIMESTAMP=1925024400/*!*/;
+SET TIMESTAMP=#/*!*/;
 INSERT INTO t1 VALUES(1)
 /*!*/;
 COMMIT/*!*/;
-SET TIMESTAMP=1956560400/*!*/;
+SET @@SESSION.GTID_NEXT= '#'/*!*/;
+SET TIMESTAMP=#/*!*/;
 BEGIN
 /*!*/;
-SET TIMESTAMP=1956560400/*!*/;
+SET TIMESTAMP=#/*!*/;
 INSERT INTO t1 VALUES(2)
 /*!*/;
 COMMIT/*!*/;
-SET TIMESTAMP=1988182800/*!*/;
+SET @@SESSION.GTID_NEXT= '#'/*!*/;
+SET TIMESTAMP=#/*!*/;
 BEGIN
 /*!*/;
-SET TIMESTAMP=1988182800/*!*/;
+SET TIMESTAMP=#/*!*/;
 INSERT INTO t1 VALUES(3)
 /*!*/;
 COMMIT/*!*/;
-SET TIMESTAMP=2019718800/*!*/;
+SET @@SESSION.GTID_NEXT= '#' /* added by mysqlbinlog */ /*!*/;
+# [empty]
+SET @@SESSION.GTID_NEXT= '#'/*!*/;
+SET TIMESTAMP=#/*!*/;
 BEGIN
 /*!*/;
-SET TIMESTAMP=2019718800/*!*/;
+SET TIMESTAMP=#/*!*/;
 INSERT INTO t1 VALUES(4)
 /*!*/;
 COMMIT/*!*/;
-SET TIMESTAMP=2051254800/*!*/;
+SET @@SESSION.GTID_NEXT= '#'/*!*/;
+SET TIMESTAMP=#/*!*/;
 BEGIN
 /*!*/;
-SET TIMESTAMP=2051254800/*!*/;
+SET TIMESTAMP=#/*!*/;
 INSERT INTO t1 VALUES(5)
 /*!*/;
 COMMIT/*!*/;
+SET @@SESSION.GTID_NEXT= '#' /* added by mysqlbinlog */ /*!*/;
+# [empty]
 DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
@@ -73,12 +84,15 @@ ROLLBACK /* added by mysqlbinlog */;
 ==== Remote with connection-server-id= (value other than 0) ====
 
 ---- to-last-log  connection-server-id ----
+include/mysqlbinlog.inc
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
-SET TIMESTAMP=1925024400/*!*/;
-SET @@session.pseudo_thread_id=999999999/*!*/;
+# [empty]
+SET @@SESSION.GTID_NEXT= '#'/*!*/;
+SET TIMESTAMP=#/*!*/;
+SET @@session.pseudo_thread_id=#/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
 SET @@session.sql_mode=1075839008/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
@@ -89,38 +103,46 @@ SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
 use `test`/*!*/;
-SET TIMESTAMP=1925024400/*!*/;
+SET TIMESTAMP=#/*!*/;
 INSERT INTO t1 VALUES(1)
 /*!*/;
 COMMIT/*!*/;
-SET TIMESTAMP=1956560400/*!*/;
+SET @@SESSION.GTID_NEXT= '#'/*!*/;
+SET TIMESTAMP=#/*!*/;
 BEGIN
 /*!*/;
-SET TIMESTAMP=1956560400/*!*/;
+SET TIMESTAMP=#/*!*/;
 INSERT INTO t1 VALUES(2)
 /*!*/;
 COMMIT/*!*/;
-SET TIMESTAMP=1988182800/*!*/;
+SET @@SESSION.GTID_NEXT= '#'/*!*/;
+SET TIMESTAMP=#/*!*/;
 BEGIN
 /*!*/;
-SET TIMESTAMP=1988182800/*!*/;
+SET TIMESTAMP=#/*!*/;
 INSERT INTO t1 VALUES(3)
 /*!*/;
 COMMIT/*!*/;
-SET TIMESTAMP=2019718800/*!*/;
+SET @@SESSION.GTID_NEXT= '#' /* added by mysqlbinlog */ /*!*/;
+# [empty]
+SET @@SESSION.GTID_NEXT= '#'/*!*/;
+SET TIMESTAMP=#/*!*/;
 BEGIN
 /*!*/;
-SET TIMESTAMP=2019718800/*!*/;
+SET TIMESTAMP=#/*!*/;
 INSERT INTO t1 VALUES(4)
 /*!*/;
 COMMIT/*!*/;
-SET TIMESTAMP=2051254800/*!*/;
+SET @@SESSION.GTID_NEXT= '#'/*!*/;
+SET TIMESTAMP=#/*!*/;
 BEGIN
 /*!*/;
-SET TIMESTAMP=2051254800/*!*/;
+SET TIMESTAMP=#/*!*/;
 INSERT INTO t1 VALUES(5)
 /*!*/;
 COMMIT/*!*/;
+SET @@SESSION.GTID_NEXT= '#' /* added by mysqlbinlog */ /*!*/;
+# [empty]
 DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;

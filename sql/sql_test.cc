@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -176,7 +176,7 @@ void print_keyuse_array(Opt_trace_context *trace,
                        keyuse.optimize, keyuse.used_tables,
                        (ulong)keyuse.ref_table_rows, keyuse.keypart_map));
     Opt_trace_object(trace).
-      add_utf8_table(keyuse.table_ref->table).
+      add_utf8_table(keyuse.table_ref).
       add_utf8("field", (keyuse.keypart == FT_KEYPART) ? "<fulltext>" :
                keyuse.table_ref->table->key_info[keyuse.key].
                key_part[keyuse.keypart].field->field_name).

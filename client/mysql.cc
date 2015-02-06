@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1315,7 +1315,7 @@ int main(int argc,char *argv[])
 
   put_info(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000"), INFO_INFO);
 
-  if (!status.batch && !quick && !opt_html && !opt_xml)
+  if (!status.batch && !quick)
   {
     init_dynamic_string(&histignore_buffer, "*IDENTIFIED*:*PASSWORD*",
                         1024, 1024);
@@ -1411,8 +1411,7 @@ void mysql_end(int sig)
 
   mysql_close(&mysql);
 #ifdef HAVE_READLINE
-  if (!status.batch && !quick && !opt_html && !opt_xml &&
-      histfile && histfile[0])
+  if (!status.batch && !quick && histfile && histfile[0])
   {
     /* write-history */
     if (verbose)
@@ -5530,6 +5529,9 @@ static const char* construct_prompt()
       case 'c':
 	add_int_to_prompt(++prompt_counter);
 	break;
+      case 'C':
+        add_int_to_prompt(mysql_thread_id(&mysql));
+        break;
       case 'v':
 	if (connected)
 	  processed_prompt.append(mysql_get_server_info(&mysql));

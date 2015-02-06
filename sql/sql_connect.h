@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,8 +20,66 @@
 
 class THD;
 typedef struct st_lex_user LEX_USER;
-typedef struct user_conn USER_CONN;
-typedef struct user_resources USER_RESOURCES;
+
+/*
+  This structure specifies the maximum amount of resources which
+  can be consumed by each account. Zero value of a member means
+  there is no limit.
+*/
+typedef struct user_resources {
+  /* Maximum number of queries/statements per hour. */
+  uint questions;
+  /*
+     Maximum number of updating statements per hour (which statements are
+     updating is defined by sql_command_flags array).
+  */
+  uint updates;
+  /* Maximum number of connections established per hour. */
+  uint conn_per_hour;
+  /* Maximum number of concurrent connections. */
+  uint user_conn;
+  /*
+     Values of this enum and specified_limits member are used by the
+     parser to store which user limits were specified in GRANT statement.
+  */
+  enum {QUERIES_PER_HOUR= 1, UPDATES_PER_HOUR= 2, CONNECTIONS_PER_HOUR= 4,
+        USER_CONNECTIONS= 8};
+  uint specified_limits;
+} USER_RESOURCES;
+
+
+/*
+  This structure is used for counting resources consumed and for checking
+  them against specified user limits.
+*/
+typedef struct user_conn {
+  /*
+     Pointer to user+host key (pair separated by '\0') defining the entity
+     for which resources are counted (By default it is user account thus
+     priv_user/priv_host pair is used. If --old-style-user-limits option
+     is enabled, resources are counted for each user+host separately).
+  */
+  char *user;
+  /* Pointer to host part of the key. */
+  char *host;
+  /**
+     The moment of time when per hour counters were reset last time
+     (i.e. start of "hour" for conn_per_hour, updates, questions counters).
+  */
+  ulonglong reset_utime;
+  /* Total length of the key. */
+  size_t len;
+  /* Current amount of concurrent connections for this account. */
+  uint connections;
+  /*
+     Current number of connections per hour, number of updating statements
+     per hour and total number of statements per hour for this account.
+  */
+  uint conn_per_hour, updates, questions;
+  /* Maximum amount of resources which account is allowed to consume. */
+  USER_RESOURCES user_resources;
+} USER_CONN;
+
 
 void init_max_user_conn(void);
 void free_max_user_conn(void);

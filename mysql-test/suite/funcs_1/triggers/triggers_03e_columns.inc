@@ -25,13 +25,13 @@ let $message= ####### Testcase for column privileges of triggers: #######;
         eval create table t2 (f1 char(20)) engine= $engine_type;
 
 	create User test_yesprivs@localhost;
-	set password for test_yesprivs@localhost = password('PWD');
+	set password for test_yesprivs@localhost = 'PWD';
 	revoke ALL PRIVILEGES, GRANT OPTION FROM test_yesprivs@localhost;
 	grant TRIGGER on priv_db.* to test_yesprivs@localhost;
 	show grants for test_yesprivs@localhost;
 
         create User test_noprivs@localhost;
-        set password for test_noprivs@localhost = password('PWD');
+        set password for test_noprivs@localhost = 'PWD';
         revoke ALL PRIVILEGES, GRANT OPTION FROM test_noprivs@localhost;
         grant SELECT,UPDATE on priv_db.* to test_noprivs@localhost;
         show grants for test_noprivs@localhost;

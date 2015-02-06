@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,6 +28,7 @@ class sp_head;
 class sp_printable;
 class set_var_base;
 class Cost_estimate;
+class Item;
 
 /**
    @file
@@ -707,7 +708,7 @@ public:
      Helper to put the database/table name in an object.
      @param  tab  TABLE* pointer
   */
-  Opt_trace_struct& add_utf8_table(const TABLE *tab)
+  Opt_trace_struct& add_utf8_table(const TABLE_LIST *tab)
   {
     if (likely(!started))
       return *this;
@@ -811,7 +812,7 @@ private:
   Opt_trace_struct& do_add(const char *key, double value);
   Opt_trace_struct& do_add_hex(const char *key, uint64 value);
   Opt_trace_struct& do_add_null(const char *key);
-  Opt_trace_struct& do_add_utf8_table(const TABLE *tab);
+  Opt_trace_struct& do_add_utf8_table(const TABLE_LIST *tab);
   Opt_trace_struct& do_add(const char *key, const Cost_estimate &value);
 
   Opt_trace_struct(const Opt_trace_struct&);            ///< not defined
@@ -1163,7 +1164,7 @@ public:
   Opt_trace_object& add(const char *key, const Cost_estimate &cost)
   { return *this; }
   Opt_trace_object& add_hex(const char *key, uint64 value) { return *this; }
-  Opt_trace_object& add_utf8_table(const TABLE *tab) { return *this; }
+  Opt_trace_object& add_utf8_table(const TABLE_LIST *tab) { return *this; }
   Opt_trace_object& add_select_number(uint select_number) { return *this; }
   void end() {}
 };
@@ -1193,7 +1194,7 @@ public:
   Opt_trace_array& add(ulonglong value) { return *this; }
   Opt_trace_array& add(double value) { return *this; }
   Opt_trace_array& add_hex(uint64 value) { return *this; }
-  Opt_trace_array& add_utf8_table(TABLE *tab) { return *this; }
+  Opt_trace_array& add_utf8_table(const TABLE_LIST *tab) { return *this; }
   Opt_trace_array& add_select_number(uint select_number) { return *this; }
   void end() {}
 };

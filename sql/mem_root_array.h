@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -43,36 +43,21 @@
           __has_trivial_destructor is supported by some (but not all)
           compilers we use.
 */
-template<typename Element_type, bool has_trivial_destructor>
-class Mem_root_array
+template<typename Element_type, bool has_trivial_destructor = true>
+class Mem_root_array_YY
 {
 public:
   /// Convenience typedef, same typedef name as std::vector
   typedef Element_type value_type;
 
-  /**
-    Empty container constructor.
-    Constructs an empty container, with no elements.
-  */
-  explicit Mem_root_array(MEM_ROOT *root)
-    : m_root(root), m_array(NULL), m_size(0), m_capacity(0)
+  void init(MEM_ROOT *root)
   {
-    DBUG_ASSERT(m_root != NULL);
-  }
+    DBUG_ASSERT(root != NULL);
 
-  /**
-    Fill constructor.
-    Constructs a container with n elements. Each element is a copy of val.
-  */
-  Mem_root_array(MEM_ROOT *root, size_t n, const value_type &val= value_type())
-    : m_root(root), m_array(NULL), m_size(0), m_capacity(0)
-  {
-    resize(n, val);
-  }
-
-  ~Mem_root_array()
-  {
-    clear();
+    m_root= root;
+    m_array= NULL;
+    m_size= 0;
+    m_capacity= 0;
   }
 
   /**
@@ -257,6 +242,36 @@ private:
   size_t          m_size;
   size_t          m_capacity;
 
+  // No CTOR/DTOR for this class!
+  // Mem_root_array_YY(const Mem_root_array_YY&);
+  // Mem_root_array_YY &operator=(const Mem_root_array_YY&);
+};
+
+
+template<typename Element_type, bool has_trivial_destructor = true>
+class Mem_root_array : public Mem_root_array_YY<Element_type,
+                                                has_trivial_destructor>
+{
+  typedef Mem_root_array_YY<Element_type, has_trivial_destructor> super;
+public:
+  /// Convenience typedef, same typedef name as std::vector
+  typedef Element_type value_type;
+
+  explicit Mem_root_array(MEM_ROOT *root)
+  {
+    super::init(root);
+  }
+  Mem_root_array(MEM_ROOT *root, size_t n, const value_type &val= value_type())
+  {
+    super::init(root);
+    super::resize(n, val);
+  }
+
+  ~Mem_root_array()
+  {
+    super::clear();
+  }
+private:
   // Not (yet) implemented.
   Mem_root_array(const Mem_root_array&);
   Mem_root_array &operator=(const Mem_root_array&);

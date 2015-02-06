@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -183,7 +183,13 @@ int MBR::within(const MBR *mbr) const
   17
 */
 
-#define MAX_DIGITS_IN_DOUBLE 30
+/*
+  This used to be 30 but there was a test case which produces a double value
+  string of 34 chars instead of a scientific notation string.
+  A bug was filed to fix my_gcvt and before it's fixed we define this to
+  50 to be large enough.
+*/
+#define MAX_DIGITS_IN_DOUBLE 50
 
 
 /**
@@ -317,27 +323,30 @@ Geometry *Geometry::create_by_typeid(Geometry_buffer *buffer, int type_id)
   rest of the GIS code assumes the internal WKB data being always little endian.
 
   @param buffer The place where the Geometry object is constructed on.
-  @param data is a byte string with srid prepending a wkb encoded byte string,
-  which is called a GEOMETRY byte string and which is the inner storage format
-  of all geometries in MySQL.
+  @param data is a byte string with an optional srid prepending a WKB format
+  byte string, which is called a GEOMETRY byte string and which is the inner
+  storage format of all geometries in MySQL.
   @param data_len number of bytes of the byte string refered by data.
+  @param has_srid whether data argument starts with an srid or not.
+  By default it's true, if false, data starts with WKB header, and caller
+  is responsible to specify an srid to this object later.
   @return Constructed geometry object.
  */
 Geometry *Geometry::construct(Geometry_buffer *buffer,
-                              const char *data, uint32 data_len)
+                              const char *data, uint32 data_len, bool has_srid)
 {
   uint32 geom_type;
   Geometry *result;
   wkbByteOrder bo;
   String wkb_le;
-
+  uint32 srid_sz= has_srid ? SRID_SIZE : 0;
   // Check the GEOMETRY byte string is valid, which would at least have an
   // SRID, a WKB header, and 4 more bytes for object count or Point
   // coordinate.
-  if (data_len < SRID_SIZE + WKB_HEADER_SIZE + 4)
+  if (data_len < srid_sz + WKB_HEADER_SIZE + 4)
     return NULL;
 
-  bo= ::get_byte_order(data + SRID_SIZE);
+  bo= ::get_byte_order(data + srid_sz);
 
   if (bo != Geometry::wkb_ndr)
   {
@@ -352,16 +361,16 @@ Geometry *Geometry::construct(Geometry_buffer *buffer,
   }
 
   /* + 1 to skip the byte order (stored in position SRID_SIZE). */
-  geom_type= uint4korr(data + SRID_SIZE + 1);
+  geom_type= uint4korr(data + srid_sz + 1);
   if (geom_type < wkb_first || geom_type > wkb_last ||
       !(result= create_by_typeid(buffer, (int) geom_type)))
     return NULL;
 
   uint32 srid= uint4korr(data);
   result->set_srid(srid);
-  result->set_data_ptr(data + SRID_SIZE + WKB_HEADER_SIZE,
-                       data_len - SRID_SIZE - WKB_HEADER_SIZE);
-  result->has_geom_header_space(true);
+  result->set_data_ptr(data + srid_sz + WKB_HEADER_SIZE,
+                       data_len - srid_sz - WKB_HEADER_SIZE);
+  result->has_geom_header_space(has_srid);
   if (result->get_geotype() == wkb_polygon)
     result->polygon_is_wkb_form(true);
 
@@ -629,6 +638,8 @@ wkb_scanner(const char *wkb, uint32 *len, uint32 geotype, bool has_hdr,
     q= wkb + WKB_HEADER_SIZE;
     *len-= WKB_HEADER_SIZE;
     handler->on_wkb_start(get_byte_order(wkb), gt, q, *len, true);
+    if (!handler->continue_scan())
+      return NULL;
   }
   else
   {
@@ -636,6 +647,8 @@ wkb_scanner(const char *wkb, uint32 *len, uint32 geotype, bool has_hdr,
     q= wkb;
     gt= static_cast<Geometry::wkbType>(geotype);
     handler->on_wkb_start(Geometry::wkb_ndr, gt, q, *len, false);
+    if (!handler->continue_scan())
+      return NULL;
   }
 
   if (gt != Geometry::wkb_point)
@@ -656,6 +669,8 @@ wkb_scanner(const char *wkb, uint32 *len, uint32 geotype, bool has_hdr,
     *len-= POINT_DATA_SIZE;
     done= true;
     handler->on_wkb_end(q);
+    if (!handler->continue_scan())
+      return NULL;
     break;
   case Geometry::wkb_linestring:
     comp_type= Geometry::wkb_point;
@@ -692,6 +707,8 @@ wkb_scanner(const char *wkb, uint32 *len, uint32 geotype, bool has_hdr,
         return NULL;
     }
     handler->on_wkb_end(q);
+    if (!handler->continue_scan())
+      return NULL;
   }
 
   return q;
@@ -755,6 +772,17 @@ int Geometry::create_from_opresult(Geometry_buffer *g_buf,
   res->q_append((char) wkb_ndr);
   res->q_append(geom_type);
   return obj->init_from_opresult(res, rr.result(), rr.length());
+}
+
+
+bool Geometry::envelope(MBR *mbr) const
+{
+  wkb_parser wkb(get_cptr(), get_cptr() + get_nbytes());
+
+  if (get_mbr(mbr, &wkb))
+    return true;
+
+  return false;
 }
 
 

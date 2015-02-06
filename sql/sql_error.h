@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,13 +17,13 @@
 #define SQL_ERROR_H
 
 #include "sql_list.h"
-#include "m_string.h" /* LEX_STRING */
 #include "sql_string.h"                        /* String */
 #include "sql_plist.h" /* I_P_List */
 #include "mysql_com.h" /* MYSQL_ERRMSG_SIZE */
 
 class THD;
 class my_decimal;
+typedef struct st_mysql_lex_string LEX_STRING;
 
 ///////////////////////////////////////////////////////////////////////////
 

@@ -1,5 +1,6 @@
 # Testing table creations for row-based replication.
 
+--source include/not_group_replication_plugin.inc
 --source include/have_binlog_format_row.inc
 --source include/master-slave.inc
 --source include/have_innodb.inc

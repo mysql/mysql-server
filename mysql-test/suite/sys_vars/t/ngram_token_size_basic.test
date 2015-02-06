@@ -1,0 +1,53 @@
+
+#
+#  2014-11-05 - Added
+#
+
+--source include/have_ngram.inc
+--source include/not_embedded.inc
+
+#
+# show the global and session values;
+#
+call mtr.add_suppression("option 'ngram-token-size': signed value 0");
+call mtr.add_suppression("option 'ngram-token-size': signed value -1");
+call mtr.add_suppression("option 'ngram-token-size': signed value 11");
+
+select @@global.ngram_token_size;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.ngram_token_size;
+show global variables like 'ngram_token_size';
+show session variables like 'ngram_token_size';
+--disable_warnings
+select * from information_schema.global_variables where variable_name='ngram_token_size';
+select * from information_schema.session_variables where variable_name='ngram_token_size';
+--enable_warnings
+
+# show it's read-only
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set global ngram_token_size = 3;
+
+# Valid values are from 1 to 10
+# ngram_token_size = 1 if we try to set ngram_token_size <= 0
+let $restart_parameters = restart: --ngram_token_size=0;
+-- source include/restart_mysqld.inc
+--disable_warnings
+select * from information_schema.global_variables where variable_name='ngram_token_size';
+--enable_warnings
+let $restart_parameters = restart: --ngram_token_size=-1;
+-- source include/restart_mysqld.inc
+--disable_warnings
+select * from information_schema.global_variables where variable_name='ngram_token_size';
+--enable_warnings
+# ngram_token_size = 10 if we try to set ngram_token_size >= 10
+let $restart_parameters = restart: --ngram_token_size=11;
+-- source include/restart_mysqld.inc
+--disable_warnings
+select * from information_schema.global_variables where variable_name='ngram_token_size';
+--enable_warnings
+# Boundry value 10
+let $restart_parameters = restart: --ngram_token_size=10;
+-- source include/restart_mysqld.inc
+--disable_warnings
+select * from information_schema.global_variables where variable_name='ngram_token_size';
+--enable_warnings

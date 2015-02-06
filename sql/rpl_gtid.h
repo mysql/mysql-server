@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -19,15 +19,20 @@
 #ifndef RPL_GTID_H_INCLUDED
 #define RPL_GTID_H_INCLUDED
 
-#include <m_string.h>
-#include <mysqld_error.h>
-#include <my_global.h>
-#ifdef MYSQL_SERVER
-#include <mysqld.h>
-#endif
-#include "prealloced_array.h"
-#include <list>
+#include "my_global.h"
+#include "hash.h"               // HASH
+#include "my_atomic.h"          // my_atomic_add32
+#include "prealloced_array.h"   // Prealloced_array
+#include "control_events.h"     // binary_log::Uuid
 
+#ifdef MYSQL_SERVER
+#include "mysqld.h"             // key_rwlock_global_sid_lock
+#endif
+
+#include <list>
+#include "atomic_class.h"
+
+using binary_log::Uuid;
 /**
   Report an error from code that can be linked into either the server
   or mysqlbinlog.  There is no common error reporting mechanism, so we
@@ -45,10 +50,6 @@
 #define BINLOG_ERROR(MYSQLBINLOG_ERROR, SERVER_ERROR) my_error SERVER_ERROR
 #endif
 
-
-#include "hash.h"
-#include "lf.h"
-#include "my_atomic.h"
 
 extern PSI_memory_key key_memory_Gtid_set_to_string;
 extern PSI_memory_key key_memory_Owned_gtids_to_string;
@@ -84,10 +85,9 @@ class THD;
 
 
 /// Type of SIDNO (source ID number, first component of GTID)
-typedef int32 rpl_sidno;
+typedef int rpl_sidno;
 /// Type for GNO (group number, second component of GTID)
-typedef int64 rpl_gno;
-/// Type of binlog_pos (positions in binary log)
+typedef long long int rpl_gno;
 typedef int64 rpl_binlog_pos;
 
 
@@ -205,6 +205,192 @@ extern void check_return_status(enum_return_status status,
 /// Does a DBUG_PRINT and returns RETURN_STATUS_UNREPORTED_ERROR.
 #define RETURN_UNREPORTED_ERROR RETURN_STATUS(RETURN_STATUS_UNREPORTED_ERROR)
 
+/**
+  enum to map the result of Uuid::parse to the above Macros
+*/
+inline enum_return_status map_macro_enum(int status)
+{
+  DBUG_ENTER("map status error with the return value of uuid::parse_method");
+  if (status == 0)
+   RETURN_OK;
+  else
+   RETURN_UNREPORTED_ERROR;
+}
+
+
+/// Possible values for @@GLOBAL.GTID_MODE.
+enum enum_gtid_mode
+{
+  /**
+    New transactions are anonymous. Replicated transactions must be
+    anonymous; replicated GTID-transactions generate an error.
+  */
+  GTID_MODE_OFF= 0,
+  /**
+    New transactions are anonyomus. Replicated transactions can be
+    either anonymous or GTID-transactions.
+  */
+  GTID_MODE_OFF_PERMISSIVE= 1,
+  /**
+    New transactions are GTID-transactions. Replicated transactions
+    can be either anonymous or GTID-transactions.
+  */
+  GTID_MODE_ON_PERMISSIVE= 2,
+  /**
+    New transactions are GTID-transactions. Replicated transactions
+    must be GTID-transactions; replicated anonymous transactions
+    generate an error.
+  */
+  GTID_MODE_ON= 3
+};
+/**
+  The gtid_mode.
+
+  Please do not access this directly - use the getters and setters
+  defined below.
+
+  It is ulong rather than enum_gtid_mode because of how sys_vars are
+  updated.
+*/
+extern ulong _gtid_mode;
+/**
+  Strings holding the enumeration values for gtid_mode. Use
+  get_gtid_mode_string instead of accessing this directly.
+*/
+extern const char *gtid_mode_names[];
+/**
+  'Typelib' for the mode names. Use get_gtid_mode_string instead
+  of accessing this directly.
+*/
+extern TYPELIB gtid_mode_typelib;
+
+/**
+  Return the given string GTID_MODE as an enumeration value.
+
+  @param string The string to decode.
+
+  @param[OUT] error If the string does not represent a valid
+  GTID_MODE, this is set to true, otherwise it is left untouched.
+
+  @return The GTID_MODE.
+*/
+inline enum_gtid_mode get_gtid_mode(const char *string, bool *error)
+{
+  int ret= find_type(string, &gtid_mode_typelib, 1);
+  if (ret == 0)
+  {
+    *error= true;
+    return GTID_MODE_OFF;
+  }
+  else
+    return (enum_gtid_mode)(ret - 1);
+}
+/// Return the given GTID_MODE as a string.
+inline const char *get_gtid_mode_string(enum_gtid_mode gtid_mode_arg)
+{
+  return gtid_mode_names[gtid_mode_arg];
+}
+
+/**
+  Locks needed to access gtid_mode.
+
+  When writing, all these locks must be held (for the rwlocks, the
+  wrlock must be held).
+
+  When reading, one of them must be held (for the wrlocks, the rdlock
+  suffices).
+*/
+enum enum_gtid_mode_lock
+{
+  /// No lock held.
+  GTID_MODE_LOCK_NONE,
+  /// The specific gtid_mode_lock is held.
+  GTID_MODE_LOCK_GTID_MODE,
+  /// global_sid_lock held.
+  GTID_MODE_LOCK_SID,
+  /// LOCK_msr_map held.
+  GTID_MODE_LOCK_MSR_MAP,
+/*
+  Currently, no function that calls get_gtid_mode needs
+  this. Uncomment this, and uncomment the case in get_gtid_mode, if it
+  is ever needed.
+
+  /// mysql_bin_log.get_log_lock() held.
+  GTID_MODE_LOCK_LOG
+*/
+};
+/**
+  Return the current GTID_MODE as an enumeration value.
+
+  This variable can be read while holding any one of the locks
+  enumerated in enum_gtid_mode_lock (see above).
+
+  When the variable is updated by a SET GTID_MODE statement, all these
+  locks will be taken (the wrlock on global_sid_map).
+
+  To avoid the mistake of reading the GTID_MODE with no lock, the
+  caller has to pass the lock type as a parameter.  The function will
+  assert that the corresponding lock is held.  If no lock is held, it
+  will acquire and release global_sid_lock.rdlock.
+
+  @param have_lock The lock type held by the caller.
+*/
+enum_gtid_mode get_gtid_mode(enum_gtid_mode_lock have_lock);
+
+#ifndef DBUG_OFF
+/**
+  Return the current GTID_MODE as a string. Used only for debugging.
+
+  @param need_lock Pass this parameter to get_gtid_mode(bool).
+*/
+inline const char *get_gtid_mode_string(enum_gtid_mode_lock have_lock)
+{
+  return get_gtid_mode_string(get_gtid_mode(have_lock));
+}
+#endif // ifndef DBUG_OFF
+
+
+/**
+  Possible values for ENFORCE_GTID_CONSISTENCY.
+*/
+enum enum_gtid_consistency_mode
+{
+  GTID_CONSISTENCY_MODE_OFF= 0,
+  GTID_CONSISTENCY_MODE_ON= 1,
+  GTID_CONSISTENCY_MODE_WARN= 2
+};
+/**
+  Strings holding the enumeration values for
+  gtid_consistency_mode_names.  Use get_gtid_consistency_mode_string
+  instead of accessing this directly.
+*/
+extern const char *gtid_consistency_mode_names[];
+/**
+  Current value for ENFORCE_GTID_CONSISTENCY.
+  Don't use this directly; use get_gtid_consistency_mode.
+*/
+extern ulong _gtid_consistency_mode;
+/**
+  Return the current value of ENFORCE_GTID_CONSISTENCY.
+
+  Caller must hold global_sid_lock.rdlock.
+*/
+enum_gtid_consistency_mode get_gtid_consistency_mode();
+/// Return the given GTID_CONSISTENCY_MODE as a string.
+inline const char *get_gtid_consistency_mode_string(enum_gtid_consistency_mode mode)
+{
+  return gtid_consistency_mode_names[(int)mode];
+}
+/**
+  Return the current value of ENFORCE_GTID_CONSISTENCY as a string.
+
+  Caller must hold global_sid_lock.rdlock.
+*/
+inline const char *get_gtid_consistency_mode_string()
+{
+  return get_gtid_consistency_mode_string(get_gtid_consistency_mode());
+}
+
 
 /// The maximum value of GNO
 const rpl_gno MAX_GNO= LLONG_MAX;
@@ -232,79 +418,6 @@ rpl_gno parse_gno(const char **s);
 */
 int format_gno(char *s, rpl_gno gno);
 
-
-/**
-  Represents a UUID.
-
-  This is a POD.  It has to be a POD because it is a member of
-  Sid_map::Node which is stored in HASH.
-*/
-struct Uuid
-{
-  /**
-    Stores the UUID represented by a string on the form
-    XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX in this object.
-    @return RETURN_STATUS_OK or RETURN_STATUS_UNREPORTED_ERROR.
-  */
-  enum_return_status parse(const char *string);
-  /// Set to all zeros.
-  void clear() { memset(bytes, 0, BYTE_LENGTH); }
-  /// Copies the given 16-byte data to this UUID.
-  void copy_from(const uchar *data) { memcpy(bytes, data, BYTE_LENGTH); }
-  /// Copies the given UUID object to this UUID.
-  void copy_from(const Uuid &data) { copy_from(data.bytes); }
-  /// Copies the given UUID object to this UUID.
-  void copy_to(uchar *data) const { memcpy(data, bytes, BYTE_LENGTH); }
-  /// Returns true if this UUID is equal the given UUID.
-  bool equals(const Uuid &other) const
-  { return memcmp(bytes, other.bytes, BYTE_LENGTH) == 0; }
-  /**
-    Generates a 36+1 character long representation of this UUID object
-    in the given string buffer.
-
-    @retval 36 - the length of the resulting string.
-  */
-  size_t to_string(char *buf) const;
-  /// Convert the given binary buffer to a UUID
-  static size_t to_string(const uchar* bytes_arg, char *buf);
-#ifndef DBUG_OFF
-  /// Debugging only: Print this Uuid to stdout.
-  void print() const
-  {
-    char buf[TEXT_LENGTH + 1];
-    to_string(buf);
-    printf("%s\n", buf);
-  }
-#endif
-  /// Print this Uuid to the trace file if debug is enabled; no-op otherwise.
-  void dbug_print(const char *text= "") const
-  {
-#ifndef DBUG_OFF
-    char buf[TEXT_LENGTH + 1];
-    to_string(buf);
-    DBUG_PRINT("info", ("%s%s%s", text, *text ? ": " : "", buf));
-#endif
-  }
-  /**
-    Return true if parse() would return succeed, but don't actually
-    store the result anywhere.
-  */
-  static bool is_valid(const char *string);
-  /// The number of bytes in the textual representation of a Uuid.
-  static const size_t TEXT_LENGTH= 36;
-  /// The number of bytes in the data of a Uuid.
-  static const size_t BYTE_LENGTH= 16;
-  /// The number of bits in the data of a Uuid.
-  static const size_t BIT_LENGTH= 128;
-  /// The data for this Uuid.
-  uchar bytes[BYTE_LENGTH];
-private:
-  static const int NUMBER_OF_SECTIONS= 5;
-  static const int bytes_per_section[NUMBER_OF_SECTIONS];
-  static const int hex_to_byte[256];
-};
-
-
 typedef Uuid rpl_sid;
 
 
@@ -326,15 +439,20 @@ class Checkable_rwlock
 {
 public:
   /// Initialize this Checkable_rwlock.
-  Checkable_rwlock()
+  Checkable_rwlock(
+#ifdef MYSQL_SERVER
+                   PSI_rwlock_key psi_key
+#endif
+                   )
   {
 #ifndef DBUG_OFF
     lock_state= 0;
+    dbug_trace= true;
 #else
     is_write_lock= false;
 #endif
 #ifdef MYSQL_SERVER
-    mysql_rwlock_init(key_rwlock_global_sid_lock, &rwlock);
+    mysql_rwlock_init(psi_key, &rwlock);
 #else
     mysql_rwlock_init(0, &rwlock);
 #endif
@@ -351,6 +469,8 @@ public:
     mysql_rwlock_rdlock(&rwlock);
     assert_no_wrlock();
 #ifndef DBUG_OFF
+    if (dbug_trace)
+      DBUG_PRINT("info", ("%p.rdlock()", this));
     my_atomic_add32(&lock_state, 1);
 #endif
   }
@@ -360,6 +480,8 @@ public:
     mysql_rwlock_wrlock(&rwlock);
     assert_no_lock();
 #ifndef DBUG_OFF
+    if (dbug_trace)
+      DBUG_PRINT("info", ("%p.wrlock()", this));
     my_atomic_store32(&lock_state, -1);
 #else
     is_write_lock= true;
@@ -370,6 +492,8 @@ public:
   {
     assert_some_lock();
 #ifndef DBUG_OFF
+    if (dbug_trace)
+      DBUG_PRINT("info", ("%p.unlock()", this));
     int val= my_atomic_load32(&lock_state);
     if (val > 0)
       my_atomic_add32(&lock_state, -1);
@@ -415,8 +539,12 @@ public:
   inline void assert_no_lock() const
   { DBUG_ASSERT(get_state() == 0); }
 
-private:
 #ifndef DBUG_OFF
+
+  /// If enabled, print any lock/unlock operations to the DBUG trace.
+  bool dbug_trace;
+
+private:
   /**
     The state of the lock:
     0 - not locked
@@ -429,8 +557,12 @@ private:
   {
     return my_atomic_load32(const_cast<volatile int32*>(&lock_state));
   }
+
 #else
+
+private:
   bool is_write_lock;
+
 #endif
   /// The rwlock.
   mysql_rwlock_t rwlock;
@@ -439,6 +571,10 @@ private:
 
 /// Protects Gtid_state.  See comment above gtid_state for details.
 extern Checkable_rwlock *global_sid_lock;
+
+/// One of the locks that protects GTID_MODE.  See
+/// get_gtid_mode(enum_gtid_mode_lock).
+extern Checkable_rwlock *gtid_mode_lock;
 
 
 /**
@@ -505,7 +641,7 @@ public:
     if (sid_lock != NULL)
       sid_lock->assert_some_lock();
     Node *node= (Node *)my_hash_search(&_sid_to_sidno, sid.bytes,
-                                       rpl_sid::BYTE_LENGTH);
+                                       binary_log::Uuid::BYTE_LENGTH);
     if (node == NULL)
       return 0;
     return node->sidno;
@@ -513,8 +649,10 @@ public:
   /**
     Get the SID for a given SIDNO.
 
-    An assertion is raised if the caller does not hold a lock on
-    sid_lock, or if the SIDNO is not valid.
+    Raises an assertion if the SIDNO is not valid.
+
+    If need_lock is true, acquires sid_lock->rdlock; otherwise asserts
+    that it is held already.
 
     @param sidno The SIDNO.
     @retval NULL The SIDNO does not exist in this map.
@@ -523,12 +661,20 @@ public:
     even after this Sid_map is modified, but not if this Sid_map is
     destroyed.
   */
-  const rpl_sid &sidno_to_sid(rpl_sidno sidno) const
+  const rpl_sid &sidno_to_sid(rpl_sidno sidno, bool need_lock= false) const
   {
     if (sid_lock != NULL)
-      sid_lock->assert_some_lock();
+    {
+      if (need_lock)
+        sid_lock->rdlock();
+      else
+        sid_lock->assert_some_lock();
+    }
     DBUG_ASSERT(sidno >= 1 && sidno <= get_max_sidno());
-    return (_sidno_to_sid[sidno - 1])->sid;
+    const rpl_sid &ret= (_sidno_to_sid[sidno - 1])->sid;
+    if (sid_lock != NULL && need_lock)
+      sid_lock->unlock();
+    return ret;
   }
   /**
     Return the n'th smallest sidno, in the order of the SID's UUID.
@@ -556,6 +702,9 @@ public:
       sid_lock->assert_some_lock();
     return static_cast<rpl_sidno>(_sidno_to_sid.size());
   }
+
+  /// Return the sid_lock.
+  Checkable_rwlock *get_sid_lock() const { return sid_lock; }
 
 private:
   /// Node pointed to by both the hash and the array.
@@ -800,6 +949,8 @@ struct Gtid_interval
 
 
 /**
+  TODO: Move this structure to libbinlogevents/include/control_events.h
+        when we start using C++11.
   Holds information about a GTID: the sidno and the gno.
 
   This is a POD. It has to be a POD because it is part of
@@ -815,17 +966,32 @@ struct Gtid
 
   /// Set both components to 0.
   void clear() { sidno= 0; gno= 0; }
-  // Set both components to input values.
-  void set(rpl_sidno sno, rpl_gno gtidno) { sidno= sno; gno= gtidno; }
-  // check if both components are zero or not.
-  bool empty() const { return (sidno == 0) && (gno == 0); }
-  bool is_null() const
-  { return sidno == 0; }
+  /// Set both components to the given, positive values.
+  void set(rpl_sidno sidno_arg, rpl_gno gno_arg)
+  {
+    DBUG_ASSERT(sidno_arg > 0);
+    DBUG_ASSERT(gno_arg > 0);
+    sidno= sidno_arg;
+    gno= gno_arg;
+  }
+  /**
+    Return true if sidno is zero (and assert that gno is zero too in
+    this case).
+  */
+  bool is_empty() const
+  {
+    // check that gno is not set inconsistently
+    if (sidno <= 0)
+      DBUG_ASSERT(gno == 0);
+    else
+      DBUG_ASSERT(gno > 0);
+    return sidno == 0;
+  }
   /**
     The maximal length of the textual representation of a SID, not
     including the terminating '\0'.
   */
-  static const int MAX_TEXT_LENGTH= Uuid::TEXT_LENGTH + 1 + MAX_GNO_TEXT_LENGTH;
+  static const int MAX_TEXT_LENGTH= binary_log::Uuid::TEXT_LENGTH + 1 + MAX_GNO_TEXT_LENGTH;
   /**
     Return true if parse() would succeed, but don't store the
     result anywhere.
@@ -844,9 +1010,10 @@ struct Gtid
     @param sid_map sid_map to use when converting sidno to a SID.
     @param[out] buf Buffer to store the Gtid in (normally
     MAX_TEXT_LENGTH+1 bytes long).
+    @param need_lock If true, the function will acquire sid_map->sid_lock; otherwise it will assert that the lock is held.
     @return Length of the string, not counting '\0'.
   */
-  int to_string(const Sid_map *sid_map, char *buf) const;
+  int to_string(const Sid_map *sid_map, char *buf, bool need_lock= false) const;
   /// Returns true if this Gtid has the same sid and gno as 'other'.
   bool equals(const Gtid &other) const
   { return sidno == other.sidno && gno == other.gno; }
@@ -868,11 +1035,12 @@ struct Gtid
   }
 #endif
   /// Print this Gtid to the trace file if debug is enabled; no-op otherwise.
-  void dbug_print(const Sid_map *sid_map, const char *text= "") const
+  void dbug_print(const Sid_map *sid_map, const char *text= "",
+                  bool need_lock= false) const
   {
 #ifndef DBUG_OFF
     char buf[MAX_TEXT_LENGTH + 1];
-    to_string(sid_map, buf);
+    to_string(sid_map, buf, need_lock);
     DBUG_PRINT("info", ("%s%s%s", text, *text ? ": " : "", buf));
 #endif
   }
@@ -918,8 +1086,8 @@ public:
 
     @param sid_map The Sid_map to use for SIDs.
     @param text The text to parse.
-    @param status Will be set GS_SUCCESS or GS_ERROR_PARSE or
-    GS_ERROR_OUT_OF_MEMORY.
+    @param status Will be set to RETURN_STATUS_OK on success or
+    RETURN_STATUS_REPORTED_ERROR on error.
     @param sid_lock Read/write lock to protect changes in the number
     of SIDs with. This may be NULL if such changes do not need to be
     protected.
@@ -1052,7 +1220,7 @@ public:
     of bytes used by the encoding (which may be less than 'length').
     If this is NULL, an error is generated if the encoding is shorter
     than the given 'length'.
-    @return GS_SUCCESS or GS_ERROR_PARSE or GS_ERROR_OUT_OF_MEMORY
+    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
   enum_return_status add_gtid_encoding(const uchar *encoded, size_t length,
                                        size_t *actual_length= NULL);
@@ -1061,6 +1229,8 @@ public:
   /// Return true iff the given GTID exists in this set.
   bool contains_gtid(const Gtid &gtid) const
   { return contains_gtid(gtid.sidno, gtid.gno); }
+  // Get last gno or 0 if this set is empty.
+  rpl_gno get_last_gno(rpl_sidno sidno) const;
   /// Returns the maximal sidno that this Gtid_set currently has space for.
   rpl_sidno get_max_sidno() const
   {
@@ -1083,6 +1253,11 @@ public:
   enum_return_status ensure_sidno(rpl_sidno sidno);
   /// Returns true if this Gtid_set is a subset of the other Gtid_set.
   bool is_subset(const Gtid_set *super) const;
+  /// Returns true if this Gtid_set is a non equal subset of the other Gtid_set.
+  bool is_subset_not_equals(const Gtid_set *super) const
+  {
+    return (is_subset(super) && !equals(super));
+  }
 
   /**
     Returns true if this Gtid_set is a subset of the given gtid_set
@@ -1506,10 +1681,6 @@ private:
   /// The default number of intervals in an Interval_chunk.
   static const int CHUNK_GROW_SIZE= 8;
 
-/*
-  Functions sidno_equals() and equals() are only used by unitests
-*/
-#ifdef NON_DISABLED_UNITTEST_GTID
   /**
     Return true if the given sidno of this Gtid_set contains the same
     intervals as the given sidno of the other Gtid_set.
@@ -1523,7 +1694,6 @@ private:
                     const Gtid_set *other, rpl_sidno other_sidno) const;
   /// Returns true if this Gtid_set is equal to the other Gtid_set.
   bool equals(const Gtid_set *other) const;
-#endif
 
   /// Return the number of intervals for the given sidno.
   int get_n_intervals(rpl_sidno sidno) const
@@ -1940,7 +2110,7 @@ public:
     {
       HASH *hash= get_hash(sidno);
       if (hash->records > 0)
-        ret+= rpl_sid::TEXT_LENGTH +
+        ret+= binary_log::Uuid::TEXT_LENGTH +
           hash->records * (1 + MAX_GNO_TEXT_LENGTH +
                            1 + MAX_THREAD_ID_TEXT_LENGTH);
     }
@@ -2246,16 +2416,230 @@ public:
     @param thd Thread for which owned groups are updated.
   */
   void update_on_rollback(THD *thd);
-#endif // ifndef MYSQL_CLIENT
+
   /**
-    Allocates a GNO for an automatically numbered group.
+    Acquire anonymous ownership.
+
+    The caller must hold either sid_lock.rdlock or
+    sid_lock.wrlock. (The caller must have taken the lock and checked
+    that gtid_mode!=ON before calling this function, or else the
+    gtid_mode could have changed to ON by a concurrent SET GTID_MODE.)
+  */
+  void acquire_anonymous_ownership()
+  {
+    DBUG_ENTER("Gtid_state::acquire_anonymous_ownership");
+    sid_lock->assert_some_lock();
+    DBUG_ASSERT(get_gtid_mode(GTID_MODE_LOCK_SID) != GTID_MODE_ON);
+#ifndef DBUG_OFF
+    int32 old_value=
+#endif
+      anonymous_gtid_count.atomic_add(1);
+    DBUG_PRINT("info", ("anonymous_gtid_count increased to %d", old_value + 1));
+    DBUG_ASSERT(old_value >= 0);
+    DBUG_VOID_RETURN;
+  }
+
+  /// Release anonymous ownership.
+  void release_anonymous_ownership()
+  {
+    DBUG_ENTER("Gtid_state::release_anonymous_ownership");
+    sid_lock->assert_some_lock();
+    DBUG_ASSERT(get_gtid_mode(GTID_MODE_LOCK_SID) != GTID_MODE_ON);
+#ifndef DBUG_OFF
+    int32 old_value=
+#endif
+      anonymous_gtid_count.atomic_add(-1);
+    DBUG_PRINT("info", ("anonymous_gtid_count decreased to %d", old_value - 1));
+    DBUG_ASSERT(old_value >= 1);
+    DBUG_VOID_RETURN;
+  }
+
+  /// Return the number of clients that hold anonymous ownership.
+  int32 get_anonymous_ownership_count()
+  {
+    return anonymous_gtid_count.atomic_get();
+  }
+
+  /**
+    Increase the global counter when starting a GTID-violating
+    transaction having GTID_NEXT=AUTOMATIC.
+  */
+  void begin_automatic_gtid_violating_transaction()
+  {
+    DBUG_ENTER("Gtid_state::begin_automatic_gtid_violating_transaction");
+    DBUG_ASSERT(get_gtid_mode(GTID_MODE_LOCK_SID) <= GTID_MODE_OFF_PERMISSIVE);
+    DBUG_ASSERT(get_gtid_consistency_mode() != GTID_CONSISTENCY_MODE_ON);
+#ifndef DBUG_OFF
+    int32 old_value=
+#endif
+      automatic_gtid_violation_count.atomic_add(1);
+    DBUG_PRINT("info", ("ongoing_automatic_gtid_violating_transaction_count increased to %d", old_value + 1));
+    DBUG_ASSERT(old_value >= 0);
+    DBUG_VOID_RETURN;
+  }
+
+  /**
+    Decrease the global counter when ending a GTID-violating
+    transaction having GTID_NEXT=AUTOMATIC.
+  */
+  void end_automatic_gtid_violating_transaction()
+  {
+    DBUG_ENTER("Gtid_state::end_automatic_gtid_violating_transaction");
+#ifndef DBUG_OFF
+    global_sid_lock->rdlock();
+    DBUG_ASSERT(get_gtid_mode(GTID_MODE_LOCK_SID) <= GTID_MODE_OFF_PERMISSIVE);
+    DBUG_ASSERT(get_gtid_consistency_mode() != GTID_CONSISTENCY_MODE_ON);
+    global_sid_lock->unlock();
+    int32 old_value=
+#endif
+      automatic_gtid_violation_count.atomic_add(-1);
+    DBUG_PRINT("info", ("ongoing_automatic_gtid_violating_transaction_count decreased to %d", old_value - 1));
+    DBUG_ASSERT(old_value >= 1);
+    DBUG_VOID_RETURN;
+  }
+
+  /**
+    Return the number of ongoing GTID-violating transactions having
+    GTID_NEXT=AUTOMATIC.
+  */
+  int32 get_automatic_gtid_violating_transaction_count()
+  {
+    return automatic_gtid_violation_count.atomic_get();
+  }
+
+  /**
+    Increase the global counter when starting a GTID-violating
+    transaction having GTID_NEXT=ANONYMOUS.
+  */
+  void begin_anonymous_gtid_violating_transaction()
+  {
+    DBUG_ENTER("Gtid_state::begin_anonymous_gtid_violating_transaction");
+    DBUG_ASSERT(get_gtid_mode(GTID_MODE_LOCK_SID) != GTID_MODE_ON);
+    DBUG_ASSERT(get_gtid_consistency_mode() != GTID_CONSISTENCY_MODE_ON);
+#ifndef DBUG_OFF
+    int32 old_value=
+#endif
+      anonymous_gtid_violation_count.atomic_add(1);
+    DBUG_PRINT("info", ("ongoing_anonymous_gtid_violating_transaction_count increased to %d", old_value + 1));
+    DBUG_ASSERT(old_value >= 0);
+    DBUG_VOID_RETURN;
+  }
+
+  /**
+    Decrease the global counter when ending a GTID-violating
+    transaction having GTID_NEXT=ANONYMOUS.
+  */
+  void end_anonymous_gtid_violating_transaction()
+  {
+    DBUG_ENTER("Gtid_state::end_anonymous_gtid_violating_transaction");
+#ifndef DBUG_OFF
+    global_sid_lock->rdlock();
+    DBUG_ASSERT(get_gtid_mode(GTID_MODE_LOCK_SID) != GTID_MODE_ON);
+    DBUG_ASSERT(get_gtid_consistency_mode() != GTID_CONSISTENCY_MODE_ON);
+    global_sid_lock->unlock();
+    int32 old_value=
+#endif
+      anonymous_gtid_violation_count.atomic_add(-1);
+    DBUG_PRINT("info", ("ongoing_anonymous_gtid_violating_transaction_count decreased to %d", old_value - 1));
+    DBUG_ASSERT(old_value >= 1);
+    DBUG_VOID_RETURN;
+  }
+
+  void end_gtid_violating_transaction(THD *thd);
+
+  /**
+    Return the number of ongoing GTID-violating transactions having
+    GTID_NEXT=AUTOMATIC.
+  */
+  int32 get_anonymous_gtid_violating_transaction_count()
+  {
+    return anonymous_gtid_violation_count.atomic_get();
+  }
+
+  /**
+    Increase the global counter when starting a call to
+    WAIT_FOR_EXECUTED_GTID_SET or WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS.
+  */
+  void begin_gtid_wait(enum_gtid_mode_lock gtid_mode_lock)
+  {
+    DBUG_ENTER("Gtid_state::begin_gtid_wait");
+    DBUG_ASSERT(get_gtid_mode(gtid_mode_lock) != GTID_MODE_OFF);
+#ifndef DBUG_OFF
+    int32 old_value=
+#endif
+      gtid_wait_count.atomic_add(1);
+    DBUG_PRINT("info",
+               ("gtid_wait_count changed from %d to %d",
+                old_value, old_value + 1));
+    DBUG_ASSERT(old_value >= 0);
+    DBUG_VOID_RETURN;
+  }
+
+  /**
+    Decrease the global counter when ending a call to
+    WAIT_FOR_EXECUTED_GTID_SET or WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS.
+  */
+  void end_gtid_wait()
+  {
+    DBUG_ENTER("Gtid_state::end_gtid_wait");
+    DBUG_ASSERT(get_gtid_mode(GTID_MODE_LOCK_NONE) != GTID_MODE_OFF);
+#ifndef DBUG_OFF
+    int32 old_value=
+#endif
+      gtid_wait_count.atomic_add(-1);
+    DBUG_PRINT("info",
+               ("gtid_wait_count changed from %d to %d",
+                old_value, old_value - 1));
+    DBUG_ASSERT(old_value >= 1);
+    DBUG_VOID_RETURN;
+  }
+
+  /**
+    Return the number of clients that have an ongoing call to
+    WAIT_FOR_EXECUTED_GTID_SET or WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS.
+  */
+  int32 get_gtid_wait_count()
+  {
+    return gtid_wait_count.atomic_get();
+  }
+
+#endif // ifndef MYSQL_CLIENT
+private:
+  /**
+    Computes the next available GNO.
+
+    @param sidno The GTID's SIDNO.
+
+    @retval -1 The range of GNOs was exhausted (i.e., more than 1<<63-1
+    GTIDs with the same UUID have been generated).
+    @retval >0 The GNO for the GTID.
+  */
+  rpl_gno get_automatic_gno(rpl_sidno sidno) const;
+public:
+  /**
+    Return the last executed GNO for a given SIDNO, e.g.
+    for the following set: UUID:1-10, UUID:12, UUID:15-20
+    20 will be returned.
 
     @param sidno The group's SIDNO.
 
-    @retval negative the numeric value of GS_ERROR_OUT_OF_MEMORY
-    @retval other The GNO for the group.
+    @retval The GNO or 0 if set is empty.
   */
-  rpl_gno get_automatic_gno(rpl_sidno sidno) const;
+  rpl_gno get_last_executed_gno(rpl_sidno sidno) const;
+  /**
+    Generates the GTID (or ANONYMOUS, if GTID_MODE = OFF or
+    OFF_PERMISSIVE) for the THD, and acquires ownership.
+
+    @param THD The thread.
+    @param specified_sidno Externaly generated sidno.
+    @param specified_gno   Externaly generated gno.
+
+    @return RETURN_STATUS_OK or RETURN_STATUS_ERROR. Error can happen
+    in case of out of memory or if the range of GNOs was exhausted.
+  */
+  enum_return_status generate_automatic_gtid(THD *thd,
+                                             rpl_sidno specified_sidno= 0,
+                                             rpl_gno specified_gno= 0);
   /// Locks a mutex for the given SIDNO.
   void lock_sidno(rpl_sidno sidno) { sid_locks.lock(sidno); }
   /// Unlocks a mutex for the given SIDNO.
@@ -2475,8 +2859,6 @@ public:
     Fetch gtids from gtid_executed table and store them into
     gtid_executed set.
 
-    @param[out]  gtid_set store gtids fetched from the gtid_executed table.
-
     @retval
       0    OK
     @retval
@@ -2484,7 +2866,7 @@ public:
     @retval
       -1   Error
   */
-  int fetch_gtids(Gtid_set *gtid_set);
+  int read_gtid_executed_from_table();
   /**
     Compress the gtid_executed table, read each row by the PK(sid, gno_start)
     in increasing order, compress the first consecutive gtids range
@@ -2515,10 +2897,13 @@ private:
 
     This will:
 
-    - release ownership of all GTIDs owned by the THD;
-    - add all GTIDs in the Group_cache to executed_gtids is only done if the
-      is_commit flag is set.
-    - send a broadcast on the condition variable for every sidno for
+    - Release ownership of all GTIDs owned by the THD. This removes
+      the GTID from Owned_gtids and clears the ownership status in the
+      THD object.
+    - Add the owned GTID to executed_gtids if the is_commit flag is
+      set.
+    - Decrease counters of GTID-violating transactions.
+    - Send a broadcast on the condition variable for every sidno for
       which we released ownership.
 
     @param[in] thd - Thread for which owned groups are updated.
@@ -2554,6 +2939,16 @@ private:
   /// The SIDNO for this server.
   rpl_sidno server_sidno;
 
+  /// The number of anonymous transactions owned by any client.
+  Atomic_int32 anonymous_gtid_count;
+  /// The number of GTID-violating transactions that use GTID_NEXT=AUTOMATIC.
+  Atomic_int32 automatic_gtid_violation_count;
+  /// The number of GTID-violating transactions that use GTID_NEXT=AUTOMATIC.
+  Atomic_int32 anonymous_gtid_violation_count;
+  /// The number of clients that are executing
+  /// WAIT_FOR_EXECUTED_GTID_SET or WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS.
+  Atomic_int32 gtid_wait_count;
+
   /// Used by unit tests that need to access private members.
 #ifdef FRIEND_OF_GTID_STATE
   friend FRIEND_OF_GTID_STATE;
@@ -2561,21 +2956,26 @@ private:
 };
 
 
-/// Global state of GTIDs.
-extern Gtid_state *gtid_state;
-
-
 /**
-  Enumeration of group types.
+  Enumeration of group types formed inside a transactions.
+  The structure of a group is as follows:
+  @verbatim
+  Group {
+        SID (16 byte UUID):         The source identifier for the group
+        GNO (8 byte unsigned int):  The group number for the group
+        COMMIT_FLAG (boolean):      True if this is the last group of the
+                                    transaction
+        }
+  @endverbatim
 */
 enum enum_group_type
 {
   /**
     Specifies that the GTID has not been generated yet; it will be
     generated on commit.  It will depend on the GTID_MODE: if
-    GTID_MODE<=UPGRADE_STEP_1, then the transaction will be anonymous;
-    if GTID_MODE>=UPGRADE_STEP_2, then the transaction will be
-    assigned a new GTID.
+    GTID_MODE<=OFF_PERMISSIVE, then the transaction will be anonymous;
+    if GTID_MODE>=ON_PERMISSIVE, then the transaction will be assigned
+    a new GTID.
 
     This is the default value: thd->variables.gtid_next has this state
     when GTID_NEXT="AUTOMATIC".
@@ -2601,13 +3001,7 @@ enum enum_group_type
     This is the state of any transaction generated on a pre-GTID
     server, or on a server with GTID_MODE==OFF.
   */
-  ANONYMOUS_GROUP,
-  /**
-    Specifies that the GTID specification could not be parsed.  In
-    generate_automatic_gno() it is also used to specify that the GTID
-    has not yet been generated.  This is only used internally.
-  */
-  INVALID_GROUP,
+ANONYMOUS_GROUP,
   /**
     GTID_NEXT is set to this state after a transaction with
     GTID_NEXT=='UUID:NUMBER' is committed.
@@ -2623,12 +3017,13 @@ enum enum_group_type
     transactional updates, a single mixed statement would generate two
     different transactions.
 
-    Problematic case: If a transaction updates two transactional
-    tables on the master, but one of the tables is non-transactional
-    on the slave (uses a different engine on slave vs master), then
-    the transaction would be split into two transactions on the slave.
-    That would make it impossible to assign GTIDs correctly on the
-    slave, as GTIDs must be unique.
+    Problematic case: Consider a transaction, Tx1, that updates two
+    transactional tables on the master, t1 and t2. Then slave (s1) later
+    replays Tx1. However, t2 is a non-transactional table at s1. As such, s1
+    will report an error because it cannot split Tx1 into two different
+    transactions. Had no error been reported, then Tx1 would be split into Tx1
+    and Tx2, potentially causing severe harm in case some form of fail-over
+    procedure is later engaged by s1.
 
     To detect this case on the slave and generate an appropriate error
     message rather than causing an inconsistency in the GTID state, we
@@ -2641,17 +3036,17 @@ enum enum_group_type
     next transaction.
   */
   UNDEFINED_GROUP,
-  /**
+  /*
     GTID_NEXT is set to this state by the slave applier thread when it
     reads a Format_description_log_event that does not originate from
     this server.
 
     Background: when the slave applier thread reads a relay log that
     comes from a pre-GTID master, it must preserve the transactions as
-    anonymous transactions, even if GTID_MODE>=UPGRADE_STEP2.  This
+    anonymous transactions, even if GTID_MODE>=ON_PERMISSIVE.  This
     may happen, e.g., if the relay log was received when master and
     slave had GTID_MODE=OFF or when master and slave were old, and the
-    relay log is applied when slave has GTID_MODE>=UPGRADE_STEP_2.
+    relay log is applied when slave has GTID_MODE>=ON_PERMISSIVE.
 
     So the slave thread should set GTID_NEXT=ANONYMOUS for the next
     transaction when it starts to process an old binary log.  However,
@@ -2659,16 +3054,18 @@ enum enum_group_type
     until it sees the first transaction.  If the first transaction
     begins with a Gtid_log_event, we have the GTID there; if it begins
     with query_log_event, row events, etc, then this is an old binary
-    log.  So at the time the binary log begins, we just set
+log.  So at the time the binary log begins, we just set
     GTID_NEXT=NOT_YET_DETERMINED_GROUP.  If it remains
     NOT_YET_DETERMINED when the next transaction begins,
     gtid_pre_statement_checks will automatically turn it into an
     anonymous transaction.  If a Gtid_log_event comes across before
-    the next transaction starts, then the Gtid_log_event will just
-    set GTID_NEXT='UUID:NUMBER' accordingly.
+    the next transaction starts, then the Gtid_log_event will just set
+    GTID_NEXT='UUID:NUMBER' accordingly.
   */
   NOT_YET_DETERMINED_GROUP
 };
+/// Global state of GTIDs.
+extern Gtid_state *gtid_state;
 
 
 /**
@@ -2689,7 +3086,10 @@ struct Gtid_specification
   Gtid gtid;
   /// Set the type to GTID_GROUP and SID, GNO to the given values.
   void set(rpl_sidno sidno, rpl_gno gno)
-  { type= GTID_GROUP; gtid.sidno= sidno; gtid.gno= gno; }
+  {
+    gtid.set(sidno, gno);
+    type= GTID_GROUP;
+  }
   /// Set the type to GTID_GROUP and SID, GNO to the given Gtid.
   void set(const Gtid &gtid_param) { set(gtid_param.sidno, gtid_param.gno); }
   /// Set the type to AUTOMATIC_GROUP.
@@ -2707,14 +3107,12 @@ struct Gtid_specification
   {
     type= NOT_YET_DETERMINED_GROUP;
   }
-  /// Set to undefined if the current type is GTID_GROUP.
+  /// Set to undefined. Must only be called if the type is GTID_GROUP.
   void set_undefined()
   {
-    if (type == GTID_GROUP)
-      type= UNDEFINED_GROUP;
+    DBUG_ASSERT(type == GTID_GROUP);
+    type= UNDEFINED_GROUP;
   }
-  /// Set the type to GTID_GROUP and SID, GNO to 0, 0.
-  void clear() { set(0, 0); }
   /// Return true if this Gtid_specification is equal to 'other'.
   bool equals(const Gtid_specification &other) const
   {
@@ -2735,24 +3133,21 @@ struct Gtid_specification
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
   enum_return_status parse(Sid_map *sid_map, const char *text);
-  /**
-    Returns the type of the group, if the given string is a valid Gtid_specification; INVALID otherwise.
-  */
-  static enum_group_type get_type(const char *text);
   /// Returns true if the given string is a valid Gtid_specification.
-  static bool is_valid(const char *text)
-  { return Gtid_specification::get_type(text) != INVALID_GROUP; }
+  static bool is_valid(const char *text);
 #endif
-  static const int MAX_TEXT_LENGTH= Uuid::TEXT_LENGTH + 1 + MAX_GNO_TEXT_LENGTH;
+  static const int MAX_TEXT_LENGTH= Gtid::MAX_TEXT_LENGTH;
   /**
     Writes this Gtid_specification to the given string buffer.
 
     @param sid_map Sid_map to use if the type of this
     Gtid_specification is GTID_GROUP.
     @param buf[out] The buffer
+    @param need_lock If true, will acquire global_sid_lock.rdlock when
+    reading the sid_map.
     @retval The number of characters written.
   */
-  int to_string(const Sid_map *sid_map, char *buf) const;
+  int to_string(const Sid_map *sid_map, char *buf, bool need_lock= false) const;
   /**
     Writes this Gtid_specification to the given string buffer.
 
@@ -2777,11 +3172,11 @@ struct Gtid_specification
     Print this Gtid_specificatoin to the trace file if debug is
     enabled; no-op otherwise.
   */
-  void dbug_print(const char *text= "") const
+  void dbug_print(const char *text= "", bool need_lock= false) const
   {
 #ifndef DBUG_OFF
     char buf[MAX_TEXT_LENGTH + 1];
-    to_string(global_sid_map, buf);
+    to_string(global_sid_map, buf, need_lock);
     DBUG_PRINT("info", ("%s%s%s", text, *text ? ": " : "", buf));
 #endif
   }
@@ -2809,226 +3204,6 @@ struct Cached_group
 
 
 /**
-  Represents a group cache: either the statement group cache or the
-  transaction group cache.
-*/
-class Group_cache
-{
-public:
-  /// Constructs a new Group_cache.
-  Group_cache();
-  /// Deletes a Group_cache.
-  ~Group_cache();
-  /// Removes all groups from this cache.
-  void clear();
-  /// Return the number of groups in this group cache.
-  inline int get_n_groups() const { return static_cast<int>(m_groups.size()); }
-  /// Return true iff the group cache contains zero groups.
-  inline bool is_empty() const { return get_n_groups() == 0; }
-  /**
-    Adds a group to this Group_cache.  The group should
-    already have been written to the stmt or trx cache.  The SIDNO and
-    GNO fields are taken from @@SESSION.GTID_NEXT.
-
-    @param thd The THD object from which we read session variables.
-    @param binlog_length Length of group in binary log.
-    @retval EXTEND_EXISTING_GROUP The last existing group had the same GTID
-    and has been extended to include this group too.
-    @retval APPEND_NEW_GROUP The group has been appended to this cache.
-    @retval ERROR An error (out of memory) occurred.
-    The error has been reported.
-  */
-  enum enum_add_group_status
-  {
-    EXTEND_EXISTING_GROUP, APPEND_NEW_GROUP, ERROR_GROUP
-  };
-#ifndef MYSQL_CLIENT
-  enum_add_group_status
-    add_logged_group(const THD *thd, my_off_t binlog_offset);
-#endif // ifndef MYSQL_CLIENT
-#ifdef NON_DISABLED_GTID
-  /**
-    Adds an empty group with the given (SIDNO, GNO) to this cache.
-
-    @param gtid The GTID of the group.
-
-    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
-  */
-  enum_add_group_status add_empty_group(const Gtid &gtid);
-#endif // ifdef NON_DISABLED_GTID
-#ifndef MYSQL_CLIENT
-  /**
-    Write all gtids in this cache to the global Gtid_state.
-    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
-  */
-  enum_return_status write_to_gtid_state() const;
-  /**
-    Generates GNO for all groups that are committed for the first time
-    in this Group_cache.
-
-    This acquires ownership of all groups.  After this call, this
-    Group_cache does not contain any Cached_groups that have
-    type==GTID_GROUP and gno<=0.
-
-    @param thd The THD that this Gtid_state belongs to.
-    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR
-  */
-  enum_return_status generate_automatic_gno(THD *thd);
-#endif // ifndef MYSQL_CLIENT
-  /**
-    Return true if this Group_cache contains the given GTID.
-
-    @param gtid The Gtid to check.
-    @retval true The group exists in this cache.
-    @retval false The group does not exist in this cache.
-  */
-  bool contains_gtid(const Gtid &gtid) const;
-  /**
-    Add all GTIDs that exist in this Group_cache to the given Gtid_set.
-
-    @param gs The Gtid_set to which groups are added.
-    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
-  */
-  enum_return_status get_gtids(Gtid_set *gs) const;
-
-#ifndef DBUG_OFF
-  /**
-    Debug only: store a textual representation of this Group_cache in
-    the given buffer and return the length.
-  */
-  size_t to_string(const Sid_map *sm, char *buf) const
-  {
-    int n_groups= get_n_groups();
-    char *s= buf;
-
-    s += sprintf(s, "%d groups = {\n", n_groups);
-    for (int i= 0; i < n_groups; i++)
-    {
-      Cached_group *group= get_unsafe_pointer(i);
-      char uuid[Uuid::TEXT_LENGTH + 1]= "[]";
-      if (group->spec.gtid.sidno)
-        sm->sidno_to_sid(group->spec.gtid.sidno).to_string(uuid);
-      s += sprintf(s, "  %s:%lld [offset %lld] %s\n",
-                   uuid, group->spec.gtid.gno, group->binlog_offset,
-                   group->spec.type == GTID_GROUP ? "GTID" :
-                   group->spec.type == ANONYMOUS_GROUP ? "ANONYMOUS" :
-                   group->spec.type == AUTOMATIC_GROUP ? "AUTOMATIC" :
-                   "INVALID-GROUP-TYPE");
-    }
-    sprintf(s, "}\n");
-    return s - buf;
-  }
-  /**
-    Debug only: return an upper bound on the length of the string
-    generated by to_string(). The actual length may be shorter.
-  */
-  size_t get_max_string_length() const
-  {
-    return (2 + Uuid::TEXT_LENGTH + 1 + MAX_GNO_TEXT_LENGTH + 4 + 2 +
-            40 + 10 + 21 + 1 + 100/*margin*/) * get_n_groups() + 100/*margin*/;
-  }
-  /**
-    Debug only: generate a textual representation of this Group_cache
-    and store in a newly allocated string. Return the string, or NULL
-    on out of memory.
-  */
-  char *to_string(const Sid_map *sm) const
-  {
-    char *str= (char *)my_malloc(key_memory_Group_cache_to_string,
-                                 get_max_string_length(), MYF(MY_WME));
-    if (str)
-      to_string(sm, str);
-    return str;
-  }
-  /// Debug only: print this Group_cache to stdout.
-  void print(const Sid_map *sm) const
-  {
-    char *str= to_string(sm);
-    printf("%s\n", str);
-    my_free(str);
-  }
-#endif
-  /**
-    Print this Gtid_cache to the trace file if debug is enabled; no-op
-    otherwise.
-  */
-  void dbug_print(const Sid_map *sid_map, const char *text= "") const
-  {
-#ifndef DBUG_OFF
-    char *str= to_string(sid_map);
-    DBUG_PRINT("info", ("%s%s%s", text, *text ? ": " : "", str));
-    my_free(str);
-#endif
-  }
-
-  /**
-    Returns a pointer to the given group.  The pointer is only valid
-    until the next time a group is added or removed.
-
-    @param index Index of the element: 0 <= index < get_n_groups().
-  */
-  inline Cached_group *get_unsafe_pointer(int index) const
-  {
-    DBUG_ASSERT(index >= 0 && index < get_n_groups());
-    return const_cast<Cached_group*>(&m_groups[index]);
-  }
-
-private:
-  /// List of all groups in this cache, of type Cached_group.
-  Prealloced_array<Cached_group, 8, true> m_groups;
-
-  /**
-    Return a pointer to the last group, or NULL if this Group_cache is
-    empty.
-  */
-  Cached_group *get_last_group()
-  {
-    int n_groups= get_n_groups();
-    return n_groups == 0 ? NULL : get_unsafe_pointer(n_groups - 1);
-  }
-
-  /**
-    Allocate space for one more group and return a pointer to it, or
-    NULL on error.
-  */
-  Cached_group *allocate_group()
-  {
-    if (m_groups.push_back(Cached_group()))
-    {
-      BINLOG_ERROR(("Out of memory."), (ER_OUT_OF_RESOURCES, MYF(0)));
-      return NULL;
-    }
-    return &m_groups.back();
-  }
-
-  /**
-    Adds the given group to this group cache, or merges it with the
-    last existing group in the cache if they are compatible.
-
-    @param group The group to add.
-    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
-  */
-  enum_return_status add_group(const Cached_group *group);
-  /**
-    Prepare the cache to be written to the group log.
-
-    @todo The group log is not yet implemented. /Sven
-
-    @param trx_group_cache @see write_to_log.
-    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
-  */
-  enum_return_status
-    write_to_log_prepare(Group_cache *trx_group_cache,
-                         rpl_binlog_pos offset_after_last_statement,
-                         Cached_group **last_non_empty_group);
-
-  /// Used by unit tests that need to access private members.
-#ifdef FRIEND_OF_GROUP_CACHE
-  friend FRIEND_OF_GROUP_CACHE;
-#endif
-};
-
-/**
   Indicates if a statement should be skipped or not. Used as return
   value from gtid_before_statement.
 */
@@ -3051,10 +3226,10 @@ enum enum_gtid_statement_status
   Perform GTID-related checks before executing a statement:
 
   - Check that the current statement does not contradict
-    enforce_gtid_consistency
+    enforce_gtid_consistency.
 
   - Check that there is no implicit commit in a transaction when
-    GTID_NEXT==UUID:NUMBER
+    GTID_NEXT==UUID:NUMBER.
 
   - Change thd->variables.gtid_next.type to ANONYMOUS_GROUP if it is
     currently NOT_YET_DETERMINED_GROUP.
@@ -3077,6 +3252,27 @@ enum enum_gtid_statement_status
 enum_gtid_statement_status gtid_pre_statement_checks(THD *thd);
 
 /**
+  Perform GTID-related checks before executing a statement, but after
+  executing an implicit commit before the statement, if any:
+
+  If gtid_next=anonymous, but the thread does not hold anonymous
+  ownership, then acquire anonymous ownership. (Do this only if this
+  is not an 'innocent' statement, i.e., SET/SHOW/DO/SELECT that does
+  not invoke a stored function.)
+
+  It is important that this is done after the implicit commit, because
+  the implicit commit may release anonymous ownership.
+
+  @param thd THD object for the session
+
+  @retval false Success.
+
+  @retval true Error. Error can happen if GTID_MODE=ON.  The error has
+  been reported by (a function called by) this function.
+*/
+bool gtid_pre_statement_post_implicit_commit_checks(THD *thd);
+
+/**
   Check if the current statement terminates a transaction, and if so
   set GTID_NEXT.type to UNDEFINED_GROUP.
 
@@ -3084,10 +3280,62 @@ enum_gtid_statement_status gtid_pre_statement_checks(THD *thd);
 */
 void gtid_post_statement_checks(THD *thd);
 
-int gtid_acquire_ownership_single(THD *thd);
+/**
+  Acquire ownership of the given Gtid_specification.
+
+  The Gtid_specification must be of type GTID_GROUP or ANONYMOUS_GROUP.
+
+  The caller must hold global_sid_lock (normally the rdlock).  The
+  lock may be termporarily released and acquired again. In the end,
+  the lock will be released, so the caller should *not* release the
+  lock.
+
+  The function will try to acquire ownership of the GTID and update
+  both THD::gtid_next, Gtid_state::owned_gtids, and
+  THD::owned_gtid/THD::owned_sid.
+
+  @param thd The thread that acquires ownership.
+
+  @param spec The Gtid_specification.
+
+  @retval false Success: either we have acquired ownership of the
+  GTID, or it is already included in GTID_EXECUTED and will be
+  skipped.
+
+  @retval true Failure; the thread was killed or an error occurred.
+  The error has been reported using my_error.
+*/
+bool set_gtid_next(THD *thd, const Gtid_specification &spec);
 #ifdef HAVE_GTID_NEXT_LIST
 int gtid_acquire_ownership_multiple(THD *thd);
 #endif
+
+/**
+  Return sidno for a given sid, see Sid_map::add_sid() for details.
+*/
+rpl_sidno get_sidno_from_global_sid_map(rpl_sid sid);
+
+/**
+  Return last gno for a given sidno, see
+  Gtid_state::get_last_executed_gno() for details.
+*/
+rpl_gno get_last_executed_gno(rpl_sidno sidno);
+
+void gtid_set_performance_schema_values(const THD *thd);
+
+/**
+  If gtid_next=ANONYMOUS or NOT_YET_DETERMINED, but the thread does
+  not hold anonymous ownership, acquire anonymous ownership.
+
+  @param thd Thread.
+
+  @retval true Error (can happen if gtid_mode=ON and
+  gtid_next=anonymous). The error has already been reported using
+  my_error.
+
+  @retval false Success.
+*/
+bool gtid_reacquire_ownership_if_anonymous(THD *thd);
 
 #endif // ifndef MYSQL_CLIENT
 

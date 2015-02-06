@@ -4,6 +4,7 @@
 # Purpose: To test changes to mysqlbinlog for row based bin logs #
 # We are using .opt file since we need small binlog size         #
 ##################################################################
+--source include/not_group_replication_plugin.inc
 --source include/not_gtid_enabled.inc
 --source include/big_test.inc
 # Include Section
@@ -11,9 +12,9 @@
 -- source include/have_binlog_format_row.inc
 # Embedded server doesn't support binlogging
 -- source include/not_embedded.inc
--- source include/master-slave.inc
 # This test requires the cp932 charset compiled in
 -- source include/have_cp932.inc
+-- source include/master-slave.inc
 
 # Setup Section
 # we need this for getting fixed timestamps inside of this test
@@ -164,7 +165,8 @@ remove_file $MYSQLTEST_VARDIR/tmp/master.sql;
 --disable_query_log ONCE
 select "--- Test 2 position test --" as "";
 let $MYSQLD_DATADIR= `select @@datadir;`;
---exec $MYSQL_BINLOG --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --start-position=$position --stop-position=$stop_position $MYSQLD_DATADIR/master-bin.000001
+--let $mysqlbinlog_parameters= --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --start-position=$position --stop-position=$stop_position $MYSQLD_DATADIR/master-bin.000001
+--source include/mysqlbinlog.inc
 
 # These are tests for remote binlog.
 # They should return the same as previous test.
@@ -173,8 +175,8 @@ let $MYSQLD_DATADIR= `select @@datadir;`;
 select "--- Test 3 First Remote test --" as "";
 
 # This is broken now
---replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
---exec $MYSQL_BINLOG --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --stop-position=$stop_position --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000001
+--let $mysqlbinlog_parameters= --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --stop-position=$stop_position --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000001
+--source include/mysqlbinlog.inc
 
 --disable_query_log ONCE
 select "--- Test 4 Second Remote test --" as "";
@@ -245,21 +247,22 @@ connection master;
 
 --disable_query_log ONCE
 select "--- Test 5 LOAD DATA --" as "";
---replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
---exec $MYSQL_BINLOG --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --stop-position=$binlog_start_pos --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000002
+--let $mysqlbinlog_parameters= --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --stop-position=$binlog_start_pos --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000002
+--source include/mysqlbinlog.inc
 
 # Bug#7853 (mysqlbinlog does not accept input from stdin)
 
 --disable_query_log ONCE
 select "--- Test 6 reading stdin --" as "";
 let $MYSQLD_DATADIR= `select @@datadir;`;
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
---exec $MYSQL_BINLOG --short-form --stop-position=$stop_position1 - < $MYSQLD_DATADIR/master-bin.000001
+--let $mysqlbinlog_parameters= --short-form --stop-position=$stop_position1 - < $MYSQLD_DATADIR/master-bin.000001
+--source include/mysqlbinlog.inc
 
 --disable_query_log ONCE
 select "--- Test 7 reading stdin w/position --" as "";
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
---exec $MYSQL_BINLOG --short-form --start-position=$position --stop-position=$stop_position - < $MYSQLD_DATADIR/master-bin.000001
+--let $mysqlbinlog_parameters= --short-form --start-position=$position --stop-position=$stop_position - < $MYSQLD_DATADIR/master-bin.000001
+--source include/mysqlbinlog.inc
        
 # Bug#16217 (mysql client did not know how not switch its internal charset)
 --disable_query_log ONCE

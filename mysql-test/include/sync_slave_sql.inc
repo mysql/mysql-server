@@ -15,6 +15,7 @@
 # [--let $slave_timeout= X]
 # [--let $use_gtids= 1]
 # [--let $wait_for_executed_gtid_set= 1]
+# [--let $ignore_gtids_on_sync= 1]
 # --source include/sync_slave.inc
 #
 # Parameters:
@@ -84,7 +85,8 @@ if ($ignore_gtids_on_sync)
 
 if ($_sync_with_gtids)
 {
-  if($wait_for_executed_gtid_set)
+  --source include/assert_gtid_mode_on.inc
+  if ($wait_for_executed_gtid_set)
   {
     if ($rpl_debug)
     {
@@ -92,7 +94,7 @@ if ($_sync_with_gtids)
     }
     --let $_sss_result= `SELECT -WAIT_FOR_EXECUTED_GTID_SET('$_saved_gtids', $_sss_slave_timeout)`
   }
-  if(!$wait_for_executed_gtid_set)
+  if (!$wait_for_executed_gtid_set)
   {
     if ($rpl_debug)
     {

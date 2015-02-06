@@ -80,7 +80,9 @@ DROP TABLE t1,t2,t3;
 
 # Step 6: Combine binlog_file1, binlog_file2, binlog_file3 and generate
 # a .sql file.
---exec $MYSQL_BINLOG --force-if-open $datadir/$binlog_file1 $datadir/$binlog_file2  $datadir/$binlog_file3 > $MYSQLTEST_VARDIR/tmp/concat_three_files.sql
+--exec $MYSQL_BINLOG --force-if-open $datadir/$binlog_file1 > $MYSQLTEST_VARDIR/tmp/concat_three_files.sql
+--exec $MYSQL_BINLOG --force-if-open --skip-gtids $datadir/$binlog_file2 >> $MYSQLTEST_VARDIR/tmp/concat_three_files.sql
+--exec $MYSQL_BINLOG --force-if-open $datadir/$binlog_file3 >> $MYSQLTEST_VARDIR/tmp/concat_three_files.sql
 
 # Execute reset master, so that when we are applying gtid transactions,
 # they should not skipped.

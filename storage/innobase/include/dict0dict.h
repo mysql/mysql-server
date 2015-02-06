@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -1077,6 +1077,22 @@ dict_index_get_n_unique_in_tree(
 	const dict_index_t*	index)	/*!< in: an internal representation
 					of index (in the dictionary cache) */
 	__attribute__((nonnull, warn_unused_result));
+
+/** The number of fields in the nonleaf page of spatial index, except
+the page no field. */
+#define DICT_INDEX_SPATIAL_NODEPTR_SIZE	1
+/**
+Gets the number of fields on nonleaf page level in the internal representation
+of an index which uniquely determine the position of an index entry in the
+index, if we also take multiversioning into account. Note, it doesn't
+include page no field.
+@param[in]	index	index
+@return number of fields */
+UNIV_INLINE
+ulint
+dict_index_get_n_unique_in_tree_nonleaf(
+	const dict_index_t*	index)
+	__attribute__((nonnull, warn_unused_result));
 /********************************************************************//**
 Gets the number of user-defined ordering fields in the index. In the internal
 representation we add the row id to the ordering fields to make all indexes
@@ -1724,6 +1740,22 @@ ibool
 dict_set_corrupted_by_space(
 /*========================*/
 	ulint		space_id);	/*!< in: space ID */
+
+/** Sets merge_threshold in the SYS_INDEXES
+@param[in,out]	index		index
+@param[in]	merge_threshold	value to set */
+void
+dict_index_set_merge_threshold(
+	dict_index_t*	index,
+	ulint		merge_threshold);
+
+#ifdef UNIV_DEBUG
+/** Sets merge_threshold for all indexes in dictionary cache for debug.
+@param[in]	merge_threshold_all	value to set for all indexes */
+void
+dict_set_merge_threshold_all_debug(
+	uint	merge_threshold_all);
+#endif /* UNIV_DEBUG */
 
 /** Validate the table flags.
 @param[in]	flags	Table flags

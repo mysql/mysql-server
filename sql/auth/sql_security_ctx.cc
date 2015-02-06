@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; version 2 of the License.
@@ -14,6 +14,7 @@
 
 #include "sql_security_ctx.h"
 #include "auth_common.h"
+#include "sql_class.h"
 
 void Security_context::init()
 {

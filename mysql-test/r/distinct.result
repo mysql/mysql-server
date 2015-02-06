@@ -1002,6 +1002,8 @@ a INT,
 b INT NOT NULL
 );
 INSERT INTO t1 VALUES (1,2), (3,3);
+SET @save_optimizer_switch= @@optimizer_switch;
+SET @@SESSION.optimizer_switch="derived_merge=off";
 
 EXPLAIN SELECT DISTINCT subselect.b
 FROM t1 LEFT JOIN 
@@ -1023,6 +1025,7 @@ ON t1.a = subselect.b
 b
 NULL
 3
+SET @@SESSION.optimizer_switch= @save_optimizer_switch;
 DROP TABLE t1;
 #
 # BUG#13538387: WRONG RESULT ON SELECT DISTINCT + LEFT JOIN + 
@@ -1767,11 +1770,10 @@ min(b)
 1
 explain select distinct min(b) from (SELECT t1.* FROM t1 left join t2 on 1) AS derived group by a order by min(c);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	#	4	100.00	Using temporary; Using filesort
-2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	#	4	100.00	NULL
-2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	#	1	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	#	4	100.00	Using temporary; Using filesort
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	#	1	100.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select distinct min(`derived`.`b`) AS `min(b)` from (/* select#2 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` left join `test`.`t2` on(1) where 1) `derived` group by `derived`.`a` order by min(`derived`.`c`)
+Note	1003	/* select#1 */ select distinct min(`test`.`t1`.`b`) AS `min(b)` from `test`.`t1` left join `test`.`t2` on(1) where 1 group by `test`.`t1`.`a` order by min(`test`.`t1`.`c`)
 Insert rows in different order:
 delete from t1;
 insert into t1 values(200,1,1),(100,1,2),(400,2,2),(300,2,1);

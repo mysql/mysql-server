@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -103,8 +103,6 @@
 
 #define READ_RECORD_BUFFER	(uint) (IO_SIZE*8) /* Pointer_buffer_size */
 #define DISK_BUFFER_SIZE	(uint) (IO_SIZE*16) /* Size of diskbuffer */
-
-#define FRM_VER_TRUE_VARCHAR (FRM_VER+4) /* 10 */
 
 /***************************************************************************
   Configuration parameters
@@ -295,7 +293,8 @@
 #define OPTIMIZER_SWITCH_SUBQ_MAT_COST_BASED       (1ULL << 14)
 #define OPTIMIZER_SWITCH_USE_INDEX_EXTENSIONS      (1ULL << 15)
 #define OPTIMIZER_SWITCH_COND_FANOUT_FILTER        (1ULL << 16)
-#define OPTIMIZER_SWITCH_LAST                      (1ULL << 17)
+#define OPTIMIZER_SWITCH_DERIVED_MERGE             (1ULL << 17)
+#define OPTIMIZER_SWITCH_LAST                      (1ULL << 18)
 
 #define OPTIMIZER_SWITCH_DEFAULT (OPTIMIZER_SWITCH_INDEX_MERGE | \
                                   OPTIMIZER_SWITCH_INDEX_MERGE_UNION | \
@@ -312,6 +311,12 @@
                                   OPTIMIZER_SWITCH_FIRSTMATCH | \
                                   OPTIMIZER_SWITCH_SUBQ_MAT_COST_BASED | \
                                   OPTIMIZER_SWITCH_USE_INDEX_EXTENSIONS | \
-                                  OPTIMIZER_SWITCH_COND_FANOUT_FILTER)
+                                  OPTIMIZER_SWITCH_COND_FANOUT_FILTER | \
+                                  OPTIMIZER_SWITCH_DERIVED_MERGE)
+
+enum SHOW_COMP_OPTION { SHOW_OPTION_YES, SHOW_OPTION_NO, SHOW_OPTION_DISABLED};
+
+enum enum_mark_columns
+{ MARK_COLUMNS_NONE, MARK_COLUMNS_READ, MARK_COLUMNS_WRITE, MARK_COLUMNS_TEMP};
 
 #endif /* SQL_CONST_INCLUDED */

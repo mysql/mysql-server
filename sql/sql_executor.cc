@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,22 +24,19 @@
   @{
 */
 
-#include "sql_select.h"
 #include "sql_executor.h"
-#include "sql_optimizer.h"
-#include "sql_join_buffer.h"
-#include "opt_trace.h"
-#include "sql_test.h"
-#include "sql_base.h"
-#include "key.h"
-#include "sql_derived.h"
-#include "sql_show.h"
-#include "filesort.h"
-#include "sql_tmp_table.h"
-#include "records.h"          // rr_sequential
-#include "opt_explain_format.h" // Explain_format_flags
-#include "debug_sync.h"
-#include "log.h"
+
+#include "debug_sync.h"       // DEBUG_SYNC
+#include "item_sum.h"         // Item_sum
+#include "key.h"              // key_cmp
+#include "log.h"              // sql_print_error
+#include "opt_trace.h"        // Opt_trace_object
+#include "sql_base.h"         // fill_record
+#include "sql_derived.h"      // mysql_derived_materialize
+#include "sql_join_buffer.h"  // st_cache_field
+#include "sql_optimizer.h"    // JOIN
+#include "sql_show.h"         // get_schema_tables_result
+#include "sql_tmp_table.h"    // create_tmp_table
 
 #include <algorithm>
 using std::max;
@@ -127,7 +124,7 @@ JOIN::exec()
   if (prepare_result())
     DBUG_VOID_RETURN;
 
-  select_result *const query_result= select_lex->query_result();
+  Query_result *const query_result= select_lex->query_result();
 
   if (!tables_list && (tables || !select_lex->with_sum_func))
   {                                           // Only test of functions
@@ -612,12 +609,12 @@ end_sj_materialize(JOIN *join, QEP_TAB *qep_tab, bool end_of_records)
       if (item->is_null())
         DBUG_RETURN(NESTED_LOOP_OK);
     }
-    fill_record(thd, table->field, sjm->sj_nest->nested_join->sj_inner_exprs,
-                (table->hash_field ?
-                    &table->hash_field_bitmap : NULL), NULL);
+    fill_record(thd, table->visible_field_ptr(),
+                sjm->sj_nest->nested_join->sj_inner_exprs,
+                NULL, NULL);
     if (thd->is_error())
       DBUG_RETURN(NESTED_LOOP_ERROR); /* purecov: inspected */
-    if (!check_unique_constraint(table, 0))
+    if (!check_unique_constraint(table))
       DBUG_RETURN(NESTED_LOOP_OK);
     if ((error= table->file->ha_write_row(table->record[0])))
     {
@@ -1364,10 +1361,11 @@ int do_sj_dups_weedout(THD *thd, SJ_TMP_TABLE *sjtbl)
     }
   }
 
-  uchar *ptr= sjtbl->tmp_table->record[0] + 1;
+  uchar *ptr= sjtbl->tmp_table->visible_field_ptr()[0]->ptr;
   // Put the rowids tuple into table->record[0]:
   // 1. Store the length 
-  if (((Field_varstring*)(sjtbl->tmp_table->field[0]))->length_bytes == 1)
+  if (((Field_varstring*)(sjtbl->tmp_table->visible_field_ptr()[0]))->
+                          length_bytes == 1)
   {
     *ptr= (uchar)(sjtbl->rowid_len + sjtbl->null_bytes);
     ptr++;
@@ -1390,7 +1388,7 @@ int do_sj_dups_weedout(THD *thd, SJ_TMP_TABLE *sjtbl)
   for (uint i=0; tab != tab_end; tab++, i++)
   {
     handler *h= tab->qep_tab->table()->file;
-    if (tab->qep_tab->table()->maybe_null &&
+    if (tab->qep_tab->table()->is_nullable() &&
         tab->qep_tab->table()->null_row)
     {
       /* It's a NULL-complemented row */
@@ -1404,7 +1402,7 @@ int do_sj_dups_weedout(THD *thd, SJ_TMP_TABLE *sjtbl)
     }
   }
 
-  if (!check_unique_constraint(sjtbl->tmp_table, 0))
+  if (!check_unique_constraint(sjtbl->tmp_table))
       DBUG_RETURN(1);
   error= sjtbl->tmp_table->file->ha_write_row(sjtbl->tmp_table->record[0]);
   if (error)
@@ -1880,8 +1878,6 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
     if ((table->null_row= (tab->join_cond()->val_int() == 0)))
       mark_as_null_row(table);  
   }
-  if (!table->null_row)
-    table->maybe_null=0;
 
   /* Check appearance of new constant items in Item_equal objects */
   JOIN *const join= tab->join();
@@ -2338,7 +2334,7 @@ join_init_quick_read_record(QEP_TAB *tab)
 
   Opt_trace_object wrapper(trace);
   Opt_trace_object trace_table(trace, "rows_estimation_per_outer_row");
-  trace_table.add_utf8_table(tab->table());
+  trace_table.add_utf8_table(tab->table_ref);
 #endif
 
   /* 
@@ -2452,9 +2448,8 @@ int join_materialize_derived(QEP_TAB *tab)
   if (derived->materializable_is_const()) // Has been materialized by optimizer
     return NESTED_LOOP_OK;
 
-  bool res= mysql_handle_single_derived(thd->lex,
-                                        derived, &mysql_derived_materialize);
-  res|= mysql_handle_single_derived(thd->lex, derived, &mysql_derived_cleanup);
+  bool res= derived->materialize_derived(thd);
+  res|= derived->cleanup_derived();
   DEBUG_SYNC(thd, "after_materialize_derived");
   return res ? NESTED_LOOP_ERROR : NESTED_LOOP_OK;
 }
@@ -2728,25 +2723,6 @@ void QEP_TAB::pick_table_access_method(const JOIN_TAB *join_tab)
   ASSERT_BEST_REF_IN_JOIN_ORDER(join());
   DBUG_ASSERT(join_tab == join()->best_ref[idx()]);
   DBUG_ASSERT(table());
-
-  /**
-    Set up modified access function for children of pushed joins.
-  */
-  const TABLE *pushed_root= table()->file->root_of_pushed_join();
-  if (pushed_root && pushed_root != table())
-  {
-    /**
-      Is child of a pushed join operation:
-      Replace access functions with its linked counterpart.
-      ... Which is effectively a NOOP as the row is already fetched 
-      together with the root of the linked operation.
-     */
-    DBUG_ASSERT(type() != JT_REF_OR_NULL);
-    read_first_record= join_read_linked_first;
-    read_record.read_record= join_read_linked_next;
-    return;
-  }
-
   DBUG_ASSERT(read_first_record == NULL);
   // Only some access methods support reversed access:
   DBUG_ASSERT(!join_tab->reversed_access || type() == JT_REF ||
@@ -2804,6 +2780,39 @@ void QEP_TAB::pick_table_access_method(const JOIN_TAB *join_tab)
   }
 }
 
+
+/**
+  Install the appropriate 'linked' access method functions
+  if this part of the join have been converted to pushed join.
+*/
+
+void QEP_TAB::set_pushed_table_access_method(void)
+{
+  DBUG_ENTER("set_pushed_table_access_method");
+  DBUG_ASSERT(table());
+
+  /**
+    Setup modified access function for children of pushed joins.
+  */
+  const TABLE *pushed_root= table()->file->root_of_pushed_join();
+  if (pushed_root && pushed_root != table())
+  {
+    /**
+      Is child of a pushed join operation:
+      Replace access functions with its linked counterpart.
+      ... Which is effectively a NOOP as the row is already fetched
+      together with the root of the linked operation.
+     */
+    DBUG_PRINT("info", ("Modifying table access method for '%s'",
+                        table()->s->table_name.str));
+    DBUG_ASSERT(type() != JT_REF_OR_NULL);
+    read_first_record= join_read_linked_first;
+    read_record.read_record= join_read_linked_next;
+    // Use the default unlock_row function
+    read_record.unlock_row = rr_unlock_row;
+  }
+  DBUG_VOID_RETURN;
+}
 
 /*****************************************************************************
   DESCRIPTION
@@ -3099,15 +3108,14 @@ bool group_rec_cmp(ORDER *group, uchar *rec0, uchar *rec1)
     false records are the same
 */
 
-bool table_rec_cmp(TABLE *table, int hidden_field_count)
+bool table_rec_cmp(TABLE *table)
 {
   my_ptrdiff_t diff= table->record[1] - table->record[0];
+  Field **fields= table->visible_field_ptr();
 
-  int field_count= table->s->fields - 1;
-
-  for (int i= hidden_field_count; i < field_count ; i++)
+  for (uint i= 0; i < table->visible_field_count() ; i++)
   {
-    Field *field= table->field[i];
+    Field *field= fields[i];
     if (cmp_field_value(field, diff))
       return true;
   }
@@ -3179,13 +3187,14 @@ ulonglong unique_hash_group(ORDER *group)
 }
 
 
-/* Generate hash for unique_constraint according to fields list */
+/* Generate hash for unique_constraint for all visible fields of a table */
 
-ulonglong unique_hash_fields(Field **fields, int start, int field_count)
+ulonglong unique_hash_fields(TABLE *table)
 {
   ulonglong crc= 0;
+  Field **fields= table->visible_field_ptr();
 
-  for (int i= start; i < field_count ; i++)
+  for (uint i=0 ; i < table->visible_field_count() ; i++)
     unique_hash(fields[i], &crc);
 
   return crc;
@@ -3209,7 +3218,7 @@ ulonglong unique_hash_fields(Field **fields, int start, int field_count)
     true  record wasn't found
 */
 
-bool check_unique_constraint(TABLE *table, int hidden_field_count)
+bool check_unique_constraint(TABLE *table)
 {
   ulonglong hash;
 
@@ -3222,7 +3231,7 @@ bool check_unique_constraint(TABLE *table, int hidden_field_count)
   if (table->group)
     hash= unique_hash_group(table->group);
   else
-    hash= unique_hash_fields(table->field, hidden_field_count, table->s->fields - 1);
+    hash= unique_hash_fields(table);
   table->hash_field->store(hash, true);
   int res= table->file->ha_index_read_map(table->record[1],
                                           (uchar*)table->hash_field->ptr,
@@ -3232,7 +3241,7 @@ bool check_unique_constraint(TABLE *table, int hidden_field_count)
   {
     // Check whether records are the same.
     if (!(table->distinct ?
-          table_rec_cmp(table, hidden_field_count) :
+          table_rec_cmp(table) :
           group_rec_cmp(table->group, table->record[0], table->record[1])))
       return false; // skip it
     res= table->file->ha_index_next_same(table->record[1],
@@ -3267,7 +3276,7 @@ end_write(JOIN *join, QEP_TAB *const qep_tab, bool end_of_records)
       int error;
       join->found_records++;
 
-      if (!check_unique_constraint(table, tmp_tbl->hidden_field_count))
+      if (!check_unique_constraint(table))
         goto end; // skip it
 
       if ((error=table->file->ha_write_row(table->record[0])))
@@ -3333,7 +3342,7 @@ end_update(JOIN *join, QEP_TAB *const qep_tab, bool end_of_records)
     */
     if (copy_funcs(tmp_tbl->items_to_copy, join->thd))
       DBUG_RETURN(NESTED_LOOP_ERROR);           /* purecov: inspected */
-    if (!check_unique_constraint(table, tmp_tbl->hidden_field_count))
+    if (!check_unique_constraint(table))
       group_found= true;
   }
   else

@@ -53,10 +53,10 @@ SET @@global.old_passwords=0;
 
 SET @@session.old_passwords=0;
 
-select (select Password from mysql.user where User='Tanjotuser1' and Host='localhost')=password('abc');
+select (select authentication_string from mysql.user where User='Tanjotuser1' and Host='localhost')=password('abc');
 --echo 1 Expected
 
-select (select Password from mysql.user where User='Tanjotuser2' and Host='127.0.0.1')=password('abc');
+select (select authentication_string from mysql.user where User='Tanjotuser2' and Host='127.0.0.1')=password('abc');
 --echo 1 Expected
 
 # Verifying the client connection using the same mysql_native_password
@@ -151,8 +151,8 @@ SET @@global.old_passwords=2;
 
 SET @@session.old_passwords=2;
 
-SET PASSWORD FOR 'Tanjotuser1'@'localhost'=PASSWORD('abc');
-SET PASSWORD FOR 'Tanjotuser2'@'127.0.0.1'=PASSWORD('abc');
+SET PASSWORD FOR 'Tanjotuser1'@'localhost'='abc';
+SET PASSWORD FOR 'Tanjotuser2'@'127.0.0.1'='abc';
 
 # Verifying the client connection using the same sha256_password plugin and NULL password
 
@@ -285,8 +285,8 @@ SET @@global.old_passwords=2;
 
 SET @@session.old_passwords=2;
 
-SET PASSWORD FOR 'Tanjotuser1'@'localhost'=PASSWORD('aaaaaaaaaabbbbbbbbbbccccccccccddddddddddeeeeeeeeeeaaaaaaaaaannnnnnnnnnaaaaaaaaaahhhhhhhhhh1111111111gggggggggg2222222222');
-SET PASSWORD FOR 'Tanjotuser2'@'127.0.0.1'=PASSWORD('aaaaaaaaaabbbbbbbbbbccccccccccddddddddddeeeeeeeeeeaaaaaaaaaannnnnnnnnnaaaaaaaaaahhhhhhhhhh1111111111gggggggggg2222222222');
+SET PASSWORD FOR 'Tanjotuser1'@'localhost'='aaaaaaaaaabbbbbbbbbbccccccccccddddddddddeeeeeeeeeeaaaaaaaaaannnnnnnnnnaaaaaaaaaahhhhhhhhhh1111111111gggggggggg2222222222';
+SET PASSWORD FOR 'Tanjotuser2'@'127.0.0.1'='aaaaaaaaaabbbbbbbbbbccccccccccddddddddddeeeeeeeeeeaaaaaaaaaannnnnnnnnnaaaaaaaaaahhhhhhhhhh1111111111gggggggggg2222222222';
 
 
 # Verifying the client connection using the same sha256_password plugin and correct password
@@ -412,8 +412,8 @@ SET @@global.old_passwords=2;
 
 SET @@session.old_passwords=2;
 
-SET PASSWORD FOR 'Tanjotuser1'@'localhost'=PASSWORD('');
-SET PASSWORD FOR 'Tanjotuser2'@'127.0.0.1'=PASSWORD('');
+SET PASSWORD FOR 'Tanjotuser1'@'localhost'='';
+SET PASSWORD FOR 'Tanjotuser2'@'127.0.0.1'='';
 
 
 # Verifying the client connection using the null password 
@@ -526,8 +526,8 @@ CREATE USER 'Tanjotuser2'@'127.0.0.1' IDENTIFIED WITH 'sha256_password';
 SET @@global.old_passwords=2;
 SET @@session.old_passwords=2;
 
-SET PASSWORD FOR 'Tanjotuser1'@'localhost'=PASSWORD('abc');
-SET PASSWORD FOR 'Tanjotuser2'@'127.0.0.1'=PASSWORD('abc');
+SET PASSWORD FOR 'Tanjotuser1'@'localhost'='abc';
+SET PASSWORD FOR 'Tanjotuser2'@'127.0.0.1'='abc';
 
 GRANT ALL ON *.* TO 'Tanjotuser1'@'localhost';
 GRANT ALL ON *.* TO 'Tanjotuser2'@'127.0.0.1';
@@ -556,7 +556,7 @@ DROP USER 'Tanjotuser2'@'127.0.0.1';
 
 let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 --exec echo "wait" > $restart_file
---shutdown_server 10
+--shutdown_server 
 --source include/wait_until_disconnected.inc
 -- exec echo "restart:--default-authentication-plugin=mysql_native_password  " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 -- enable_reconnect
@@ -575,7 +575,7 @@ CREATE USER 'Tanjotuser3'@'localhost' IDENTIFIED WITH 'sha256_password';
 
 set @@session.old_passwords=2;
 
-set password for 'Tanjotuser3'@'localhost' =password('abc');
+set password for 'Tanjotuser3'@'localhost' ='abc';
 
 Grant all on *.* to 'Tanjotuser3'@'localhost';
 
@@ -629,7 +629,7 @@ DROP USER 'Tanjotuser3'@'localhost';
 
 let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 --exec echo "wait" > $restart_file
---shutdown_server 10
+--shutdown_server 
 --source include/wait_until_disconnected.inc
 -- exec echo "restart:--default-authentication-plugin=sha256_password  " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 -- enable_reconnect
@@ -642,7 +642,7 @@ CREATE USER 'Tanjotuser2'@'localhost' IDENTIFIED WITH 'mysql_native_password';
 
 set @@session.old_passwords=0;
 
-set password for 'Tanjotuser2'@'localhost' =password('abc');
+set password for 'Tanjotuser2'@'localhost' ='abc';
 
 Grant all on *.* to 'Tanjotuser2'@'localhost';
 

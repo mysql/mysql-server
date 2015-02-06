@@ -707,7 +707,9 @@ DROP TABLE ten, t1, t2, t3, t4, t5;
 # Bug 18172819 CRASH ON DSMRR_IMPL::CHOOSE_MRR_IMPL IN SQL/HANDLER.CC 
 #
 set @big_tables_save= @@big_tables;
+set @optimizer_switch_save=@@optimizer_switch;
 set big_tables=ON;
+set optimizer_switch='derived_merge=off';
 SELECT @@big_tables;
 @@big_tables
 1
@@ -729,7 +731,7 @@ WHERE d1.c1 IN ( SELECT c1 FROM t2 )
 AND d1.c1 IS NULL
 ORDER BY d1.i1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	4	const	2	50.00	Using index condition; Using where; Using filesort
+1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	4	const	2	50.00	Using where; Using filesort
 3	DEPENDENT SUBQUERY	t2	NULL	index_subquery	c1	c1	4	func	1	100.00	Using index
 2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
@@ -743,6 +745,7 @@ ORDER BY d1.i1;
 i1	c1
 DROP TABLE t1, t2;
 set big_tables=@big_tables_save;
+set optimizer_switch=@optimizer_switch_save;
 #
 # Bug#41029 "MRR: SELECT FOR UPDATE fails to lock gaps (InnoDB table)"
 #

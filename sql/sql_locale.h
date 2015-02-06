@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,13 +16,8 @@
 #ifndef SQL_LOCALE_INCLUDED
 #define SQL_LOCALE_INCLUDED
 
-typedef struct my_locale_errmsgs
-{
-  const char *language;
-  const char **errmsgs;
-} MY_LOCALE_ERRMSGS;
-
 #include "my_global.h"                          /* uint */
+#include "derror.h"                             /* MY_LOCALE_ERRMSGS */
 
 typedef struct st_typelib TYPELIB;
 

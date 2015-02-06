@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -556,10 +556,10 @@ void
 handler_error(int signum){
   // only let one thread run shutdown
   static bool handling_error = false;
-  static pthread_t thread_id; // Valid when handling_error is true
+  static my_thread_t thread_id; // Valid when handling_error is true
 
   if (handling_error &&
-      pthread_equal(thread_id, pthread_self()))
+      my_thread_equal(thread_id, my_thread_self()))
   {
     // Shutdown thread received signal
 #ifndef NDB_WIN32
@@ -573,7 +573,7 @@ handler_error(int signum){
     while(true)
       NdbSleep_MilliSleep(10);
 
-  thread_id = pthread_self();
+  thread_id = my_thread_self();
   handling_error = true;
 
   g_eventLogger->info("Received signal %d. Running error handler.", signum);

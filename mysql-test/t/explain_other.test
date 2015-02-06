@@ -262,6 +262,8 @@ let $query= SELECT * FROM t1 UNION ALL SELECT * FROM t1 ORDER BY
 --source include/explain_other.inc
 
 --echo Ensure materialized derived still has plans after materialization
+set @optimizer_switch_saved= @@optimizer_switch;
+set optimizer_switch='derived_merge=off';
 let $point= after_materialize_derived;
 let $format= traditional;
 let $query= SELECT * FROM (SELECT * FROM t1) tt;
@@ -269,6 +271,7 @@ let $query= SELECT * FROM (SELECT * FROM t1) tt;
 
 let $format= json;
 --source include/explain_other.inc
+set optimizer_switch= @optimizer_switch_saved;
 
 --echo WHERE subqueries, neither parent query nor subquery has plan
 let $point= before_set_plan;

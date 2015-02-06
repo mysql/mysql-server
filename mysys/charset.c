@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,11 +14,13 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "mysys_priv.h"
+#include "my_sys.h"
 #include "mysys_err.h"
 #include <m_ctype.h>
 #include <m_string.h>
 #include <my_dir.h>
 #include <my_xml.h>
+#include "mysql/psi/mysql_file.h"
 
 /*
   The code below implements this functionality:
@@ -481,8 +483,8 @@ void add_compiled_collation(CHARSET_INFO *cs)
 }
 
 
-static my_pthread_once_t charsets_initialized= MY_PTHREAD_ONCE_INIT;
-static my_pthread_once_t charsets_template= MY_PTHREAD_ONCE_INIT;
+static my_thread_once_t charsets_initialized= MY_THREAD_ONCE_INIT;
+static my_thread_once_t charsets_template= MY_THREAD_ONCE_INIT;
 
 static void init_available_charsets(void)
 {
@@ -534,7 +536,7 @@ uint get_collation_number(const char *name)
 {
   uint id;
   char alias[64];
-  my_pthread_once(&charsets_initialized, init_available_charsets);
+  my_thread_once(&charsets_initialized, init_available_charsets);
   if ((id= get_collation_number_internal(name)))
     return id;
   if ((name= get_collation_name_alias(name, alias, sizeof(alias))))
@@ -572,7 +574,7 @@ get_charset_name_alias(const char *name)
 uint get_charset_number(const char *charset_name, uint cs_flags)
 {
   uint id;
-  my_pthread_once(&charsets_initialized, init_available_charsets);
+  my_thread_once(&charsets_initialized, init_available_charsets);
   if ((id= get_charset_number_internal(charset_name, cs_flags)))
     return id;
   if ((charset_name= get_charset_name_alias(charset_name)))
@@ -583,7 +585,7 @@ uint get_charset_number(const char *charset_name, uint cs_flags)
 
 const char *get_charset_name(uint charset_number)
 {
-  my_pthread_once(&charsets_initialized, init_available_charsets);
+  my_thread_once(&charsets_initialized, init_available_charsets);
 
   if (charset_number < array_elements(all_charsets))
   {
@@ -654,7 +656,7 @@ CHARSET_INFO *get_charset(uint cs_number, myf flags)
   if (cs_number == default_charset_info->number)
     return default_charset_info;
 
-  my_pthread_once(&charsets_initialized, init_available_charsets);
+  my_thread_once(&charsets_initialized, init_available_charsets);
  
   if (cs_number >= array_elements(all_charsets)) 
     return NULL;
@@ -689,7 +691,7 @@ my_collation_get_by_name(MY_CHARSET_LOADER *loader,
 {
   uint cs_number;
   CHARSET_INFO *cs;
-  my_pthread_once(&charsets_initialized, init_available_charsets);
+  my_thread_once(&charsets_initialized, init_available_charsets);
 
   cs_number= get_collation_number(name);
   my_charset_loader_init_mysys(loader);
@@ -731,7 +733,7 @@ my_charset_get_by_name(MY_CHARSET_LOADER *loader,
   DBUG_ENTER("get_charset_by_csname");
   DBUG_PRINT("enter",("name: '%s'", cs_name));
 
-  my_pthread_once(&charsets_initialized, init_available_charsets);
+  my_thread_once(&charsets_initialized, init_available_charsets);
 
   cs_number= get_charset_number(cs_name, cs_flags);
   cs= cs_number ? get_internal_charset(loader, cs_number, flags) : NULL;
@@ -970,11 +972,12 @@ CHARSET_INFO *fs_character_set()
     to_length           Length of destination buffer, or 0
     from                The string to escape
     length              The length of the string to escape
+    quote               The quote the buffer will be escaped against
 
   DESCRIPTION
-    This escapes the contents of a string by doubling up any apostrophes that
-    it contains. This is used when the NO_BACKSLASH_ESCAPES SQL_MODE is in
-    effect on the server.
+    This escapes the contents of a string by doubling up any character
+    specified by the quote parameter. This is used when the
+    NO_BACKSLASH_ESCAPES SQL_MODE is in effect on the server.
 
   NOTE
     To be consistent with escape_string_for_mysql(), to_length may be 0 to
@@ -987,7 +990,7 @@ CHARSET_INFO *fs_character_set()
 
 size_t escape_quotes_for_mysql(CHARSET_INFO *charset_info,
                                char *to, size_t to_length,
-                               const char *from, size_t length)
+                               const char *from, size_t length, char quote)
 {
   const char *to_start= to;
   const char *end, *to_end=to_start + (to_length ? to_length-1 : 2*length);
@@ -1013,15 +1016,15 @@ size_t escape_quotes_for_mysql(CHARSET_INFO *charset_info,
       turned into a multi-byte character by the addition of an escaping
       character, because we are only escaping the ' character with itself.
      */
-    if (*from == '\'')
+    if (*from == quote)
     {
       if (to + 2 > to_end)
       {
         overflow= TRUE;
         break;
       }
-      *to++= '\'';
-      *to++= '\'';
+      *to++= quote;
+      *to++= quote;
     }
     else
     {

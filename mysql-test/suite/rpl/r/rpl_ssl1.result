@@ -5,6 +5,8 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection master]
 SET SQL_LOG_BIN= 0;
 grant replication slave on *.* to replssl@localhost require ssl;
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 SET SQL_LOG_BIN= 1;
 create table t1 (t int);
 include/sync_slave_sql_with_master.inc

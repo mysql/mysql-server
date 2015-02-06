@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -34,6 +34,8 @@ Created 2011-05-26 Marko Makela
 #include "dict0types.h"
 #include "trx0types.h"
 #include "que0types.h"
+
+class ut_stage_alter_t;
 
 /******************************************************//**
 Allocate the row log for an index and flag the index
@@ -188,12 +190,16 @@ row_log_table_blob_alloc(
 @param[in]	thr		query graph
 @param[in]	old_table	old table
 @param[in,out]	table		MySQL table (for reporting duplicates)
+@param[in,out]	stage		performance schema accounting object, used by
+ALTER TABLE. stage->begin_phase_log_table() will be called initially and then
+stage->inc() will be called for each block of log that is applied.
 @return DB_SUCCESS, or error code on failure */
 dberr_t
 row_log_table_apply(
 	que_thr_t*		thr,
 	dict_table_t*		old_table,
-	struct TABLE*		table)
+	struct TABLE*		table,
+	ut_stage_alter_t*	stage)
 __attribute__((warn_unused_result));
 
 /******************************************************//**
@@ -206,18 +212,33 @@ row_log_get_max_trx(
 	dict_index_t*	index)	/*!< in: index, must be locked */
 	__attribute__((nonnull, warn_unused_result));
 
-/******************************************************//**
-Merge the row log to the index upon completing index creation.
+/** Apply the row log to the index upon completing index creation.
+@param[in]	trx	transaction (for checking if the operation was
+interrupted)
+@param[in,out]	index	secondary index
+@param[in,out]	table	MySQL table (for reporting duplicates)
+@param[in,out]	stage	performance schema accounting object, used by
+ALTER TABLE. stage->begin_phase_log_index() will be called initially and then
+stage->inc() will be called for each block of log that is applied.
 @return DB_SUCCESS, or error code on failure */
 dberr_t
 row_log_apply(
-/*==========*/
-	trx_t*		trx,	/*!< in: transaction (for checking if
-				the operation was interrupted) */
-	dict_index_t*	index,	/*!< in/out: secondary index */
-	struct TABLE*	table)	/*!< in/out: MySQL table
-				(for reporting duplicates) */
-	__attribute__((nonnull, warn_unused_result));
+	const trx_t*		trx,
+	dict_index_t*		index,
+	struct TABLE*		table,
+	ut_stage_alter_t*	stage)
+	__attribute__((warn_unused_result));
+
+#ifdef HAVE_PSI_STAGE_INTERFACE
+/** Estimate how much work is to be done by the log apply phase
+of an ALTER TABLE for this index.
+@param[in]	index	index whose log to assess
+@return work to be done by log-apply in abstract units
+*/
+ulint
+row_log_estimate_work(
+	const dict_index_t*	index);
+#endif /* HAVE_PSI_STAGE_INTERFACE */
 
 #ifndef UNIV_NONINL
 #include "row0log.ic"

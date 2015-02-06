@@ -7,11 +7,7 @@
 -- source include/master-slave.inc
 -- source include/have_plugin_auth.inc
 
---let $offset_of_query_event= 1
-if (`SELECT @@GLOBAL.GTID_MODE != 'OFF'`)
-{
-  --let $offset_of_query_event= 2
-}
+--let $offset_of_query_event= 2
 
 #
 # BUG#59708: 'CREATE USER ... IDENTIFIED WITH ..' statement is
@@ -25,7 +21,7 @@ if (`SELECT @@GLOBAL.GTID_MODE != 'OFF'`)
 --let $binlog_file= query_get_value("SHOW MASTER STATUS", File, 1)
 --let $assert_text= Logged query must match the one issued.
 
---let $query= CREATE USER 'b59708_user1'@'%' IDENTIFIED WITH 'test_plugin_server' AS 'CN=analyst, OU=division1, O=oracle, C=US'
+--let $query= CREATE USER 'b59708_user1'@'%' IDENTIFIED WITH 'test_plugin_server' AS 'CN=analyst, OU=division1, O=oracle, C=US' PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
 --let $binlog_position= query_get_value("SHOW MASTER STATUS", Position, 1)
 --eval $query
 --let $logged_query= query_get_value(SHOW BINLOG EVENTS IN "$binlog_file" FROM $binlog_position, Info, $offset_of_query_event)
@@ -47,7 +43,7 @@ if (`SELECT @@GLOBAL.GTID_MODE != 'OFF'`)
 -- connection master
 
 ## testing with escaped characters
---let $query= CREATE USER 'b59708_user\''@'localhost\'' IDENTIFIED WITH 'test_plugin_server' AS '\'CN=analyst, OU=division1, O=oracle, C=US'
+--let $query= CREATE USER 'b59708_user\''@'localhost\'' IDENTIFIED WITH 'test_plugin_server' AS '\'CN=analyst, OU=division1, O=oracle, C=US' PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
 --let $binlog_position= query_get_value("SHOW MASTER STATUS", Position, 1)
 --eval $query
 --let $logged_query= query_get_value(SHOW BINLOG EVENTS IN "$binlog_file" FROM $binlog_position, Info, $offset_of_query_event)

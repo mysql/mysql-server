@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,14 +20,11 @@
 #error "Don't include this C++ header file from a non-C++ file!"
 #endif
 
-#include "m_string.h"
+#include "my_global.h"
+#include "prealloced_array.h"   // Prealloced_array
 #ifdef MYSQL_SERVER
-#include "table.h"                              /* TABLE_LIST */
+#include "table.h"              // TABLE_LIST
 #endif
-#include "mysql_com.h"
-#include <hash.h>
-#include "prealloced_array.h"
-
 
 class Relay_log_info;
 class Log_event;
@@ -429,36 +426,6 @@ struct RPL_TABLE_LIST
   TABLE *m_conv_table;
 };
 
-
-/* Anonymous namespace for template functions/classes */
-namespace {
-
-  /*
-    Smart pointer that will automatically call my_afree (a macro) when
-    the pointer goes out of scope.  This is used so that I do not have
-    to remember to call my_afree() before each return.  There is no
-    overhead associated with this, since all functions are inline.
-
-    I (Matz) would prefer to use the free function as a template
-    parameter, but that is not possible when the "function" is a
-    macro.
-  */
-  template <class Obj>
-  class auto_afree_ptr
-  {
-    Obj* m_ptr;
-  public:
-    auto_afree_ptr(Obj* ptr) : m_ptr(ptr) { }
-    ~auto_afree_ptr() { if (m_ptr) my_afree(m_ptr); }
-    void assign(Obj* ptr) {
-      /* Only to be called if it hasn't been given a value before. */
-      DBUG_ASSERT(m_ptr == NULL);
-      m_ptr= ptr;
-    }
-    Obj* get() { return m_ptr; }
-  };
-
-} // namespace
 
 class Deferred_log_events
 {

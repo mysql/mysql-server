@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,16 +16,17 @@
 #ifndef RPL_FILTER_H
 #define RPL_FILTER_H
 
-#include "my_global.h"                          /* uint */
-#include "mysql.h"
-#include "sql_list.h"                           /* I_List */
-#include "hash.h"                               /* HASH */
-#include "prealloced_array.h"
-#include "sql_cmd.h"                            /* Sql_cmd */
-#include "mysqld.h"                             /* options_mysqld */
+#include "my_global.h"
+#include "hash.h"                               // HASH
+#include "mysqld.h"                             // options_mysqld
+#include "prealloced_array.h"                   // Prealloced_arrray
+#include "sql_cmd.h"                            // Sql_cmd
+#include "sql_list.h"                           // I_List
 
+class Item;
 class String;
 struct TABLE_LIST;
+
 
 typedef struct st_table_rule_ent
 {

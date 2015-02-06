@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@
 
 #include <my_sys.h>
 #include "string_service.h"
+#include "mysql/service_mysql_string.h"
 /* key_memory_string_iterator */
 #include "mysqld.h"
 PSI_memory_key key_memory_string_iterator;

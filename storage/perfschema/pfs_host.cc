@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -27,23 +27,12 @@
 #include "pfs_host.h"
 #include "pfs_global.h"
 #include "pfs_instr_class.h"
+#include "pfs_buffer_container.h"
 
 /**
   @addtogroup Performance_schema_buffers
   @{
 */
-
-ulong host_max= 0;
-ulong host_lost= 0;
-bool host_full;
-
-PFS_host *host_array= NULL;
-
-static PFS_single_stat *host_instr_class_waits_array= NULL;
-static PFS_stage_stat *host_instr_class_stages_array= NULL;
-static PFS_statement_stat *host_instr_class_statements_array= NULL;
-static PFS_transaction_stat *host_instr_class_transactions_array= NULL;
-static PFS_memory_stat *host_instr_class_memory_array= NULL;
 
 LF_HASH host_hash;
 static bool host_hash_inited= false;
@@ -55,85 +44,8 @@ static bool host_hash_inited= false;
 */
 int init_host(const PFS_global_param *param)
 {
-  uint index;
-
-  host_max= param->m_host_sizing;
-  host_lost= 0;
-  host_full= false;
-
-  host_array= NULL;
-  host_instr_class_waits_array= NULL;
-  host_instr_class_stages_array= NULL;
-  host_instr_class_statements_array= NULL;
-  host_instr_class_transactions_array= NULL;
-  host_instr_class_memory_array= NULL;
-  uint waits_sizing= host_max * wait_class_max;
-  uint stages_sizing= host_max * stage_class_max;
-  uint statements_sizing= host_max * statement_class_max;
-  uint transactions_sizing= host_max * transaction_class_max;
-  uint memory_sizing= host_max * memory_class_max;
-
-  if (host_max > 0)
-  {
-    host_array= PFS_MALLOC_ARRAY(host_max, PFS_host,
-                                 MYF(MY_ZEROFILL));
-    if (unlikely(host_array == NULL))
-      return 1;
-  }
-
-  if (waits_sizing > 0)
-  {
-    host_instr_class_waits_array=
-      PFS_connection_slice::alloc_waits_slice(waits_sizing);
-    if (unlikely(host_instr_class_waits_array == NULL))
-      return 1;
-  }
-
-  if (stages_sizing > 0)
-  {
-    host_instr_class_stages_array=
-      PFS_connection_slice::alloc_stages_slice(stages_sizing);
-    if (unlikely(host_instr_class_stages_array == NULL))
-      return 1;
-  }
-
-  if (statements_sizing > 0)
-  {
-    host_instr_class_statements_array=
-      PFS_connection_slice::alloc_statements_slice(statements_sizing);
-    if (unlikely(host_instr_class_statements_array == NULL))
-      return 1;
-  }
-
-  if (transactions_sizing > 0)
-  {
-    host_instr_class_transactions_array=
-      PFS_connection_slice::alloc_transactions_slice(transactions_sizing);
-    if (unlikely(host_instr_class_transactions_array == NULL))
-      return 1;
-  }
-
-  if (memory_sizing > 0)
-  {
-    host_instr_class_memory_array=
-      PFS_connection_slice::alloc_memory_slice(memory_sizing);
-    if (unlikely(host_instr_class_memory_array == NULL))
-      return 1;
-  }
-
-  for (index= 0; index < host_max; index++)
-  {
-    host_array[index].set_instr_class_waits_stats(
-      &host_instr_class_waits_array[index * wait_class_max]);
-    host_array[index].set_instr_class_stages_stats(
-      &host_instr_class_stages_array[index * stage_class_max]);
-    host_array[index].set_instr_class_statements_stats(
-      &host_instr_class_statements_array[index * statement_class_max]);
-    host_array[index].set_instr_class_transactions_stats(
-      &host_instr_class_transactions_array[index * transaction_class_max]);
-    host_array[index].set_instr_class_memory_stats(
-      &host_instr_class_memory_array[index * memory_class_max]);
-  }
+  if (global_host_container.init(param->m_host_sizing))
+    return 1;
 
   return 0;
 }
@@ -141,19 +53,7 @@ int init_host(const PFS_global_param *param)
 /** Cleanup all the host buffers. */
 void cleanup_host(void)
 {
-  pfs_free(host_array);
-  host_array= NULL;
-  pfs_free(host_instr_class_waits_array);
-  host_instr_class_waits_array= NULL;
-  pfs_free(host_instr_class_stages_array);
-  host_instr_class_stages_array= NULL;
-  pfs_free(host_instr_class_statements_array);
-  host_instr_class_statements_array= NULL;
-  pfs_free(host_instr_class_transactions_array);
-  host_instr_class_transactions_array= NULL;
-  pfs_free(host_instr_class_memory_array);
-  host_instr_class_memory_array= NULL;
-  host_max= 0;
+  global_host_container.cleanup();
 }
 
 C_MODE_START
@@ -177,13 +77,12 @@ C_MODE_END
   Initialize the host hash.
   @return 0 on success
 */
-int init_host_hash(void)
+int init_host_hash(const PFS_global_param *param)
 {
-  if ((! host_hash_inited) && (host_max > 0))
+  if ((! host_hash_inited) && (param->m_host_sizing != 0))
   {
     lf_hash_init(&host_hash, sizeof(PFS_host*), LF_HASH_UNIQUE,
                  0, 0, host_hash_get_key, &my_charset_bin);
-    host_hash.size= host_max;
     host_hash_inited= true;
   }
   return 0;
@@ -234,7 +133,7 @@ PFS_host *find_or_create_host(PFS_thread *thread,
   LF_PINS *pins= get_host_hash_pins(thread);
   if (unlikely(pins == NULL))
   {
-    host_lost++;
+    global_host_container.m_lost++;
     return NULL;
   }
 
@@ -245,8 +144,6 @@ PFS_host *find_or_create_host(PFS_thread *thread,
   PFS_host *pfs;
   uint retry_count= 0;
   const uint retry_max= 3;
-  uint index;
-  uint attempts= 0;
   pfs_dirty_state dirty_state;
 
 search:
@@ -264,57 +161,44 @@ search:
 
   lf_hash_search_unpin(pins);
 
-  if (host_full)
+  pfs= global_host_container.allocate(& dirty_state);
+  if (pfs != NULL)
   {
-    host_lost++;
+    pfs->m_key= key;
+    if (hostname_length > 0)
+      pfs->m_hostname= &pfs->m_key.m_hash_key[0];
+    else
+      pfs->m_hostname= NULL;
+    pfs->m_hostname_length= hostname_length;
+
+    pfs->init_refcount();
+    pfs->reset_stats();
+    pfs->m_disconnected_count= 0;
+
+    int res;
+    pfs->m_lock.dirty_to_allocated(& dirty_state);
+    res= lf_hash_insert(&host_hash, pins, &pfs);
+    if (likely(res == 0))
+    {
+      return pfs;
+    }
+
+    global_host_container.deallocate(pfs);
+
+    if (res > 0)
+    {
+      if (++retry_count > retry_max)
+      {
+        global_host_container.m_lost++;
+        return NULL;
+      }
+      goto search;
+    }
+
+    global_host_container.m_lost++;
     return NULL;
   }
 
-  while (++attempts <= host_max)
-  {
-    index= PFS_atomic::add_u32(& monotonic.m_u32, 1) % host_max;
-    pfs= host_array + index;
-
-    if (pfs->m_lock.free_to_dirty(& dirty_state))
-    {
-      pfs->m_key= key;
-      if (hostname_length > 0)
-        pfs->m_hostname= &pfs->m_key.m_hash_key[0];
-      else
-        pfs->m_hostname= NULL;
-      pfs->m_hostname_length= hostname_length;
-
-      pfs->init_refcount();
-      pfs->reset_stats();
-      pfs->m_disconnected_count= 0;
-
-      int res;
-      pfs->m_lock.dirty_to_allocated(& dirty_state);
-      res= lf_hash_insert(&host_hash, pins, &pfs);
-      if (likely(res == 0))
-      {
-        return pfs;
-      }
-
-      pfs->m_lock.allocated_to_free();
-
-      if (res > 0)
-      {
-        if (++retry_count > retry_max)
-        {
-          host_lost++;
-          return NULL;
-        }
-        goto search;
-      }
-
-      host_lost++;
-      return NULL;
-    }
-  }
-
-  host_lost++;
-  host_full= true;
   return NULL;
 }
 
@@ -325,6 +209,7 @@ void PFS_host::aggregate(bool alive)
   aggregate_statements();
   aggregate_transactions();
   aggregate_memory(alive);
+  aggregate_status();
   aggregate_stats();
 }
 
@@ -387,6 +272,16 @@ void PFS_host::aggregate_memory(bool alive)
                        global_instr_class_memory_array);
 }
 
+void PFS_host::aggregate_status()
+{
+  /*
+    Aggregate STATUS_BY_HOST to:
+    - GLOBAL_STATUS
+  */
+  m_status_stats.aggregate_to(& global_status_var);
+  m_status_stats.reset();
+}
+
 void PFS_host::aggregate_stats()
 {
   /* No parent to aggregate to, clean the stats */
@@ -415,10 +310,7 @@ void PFS_host::carry_memory_stat_delta(PFS_memory_stat_delta *delta, uint index)
 
 PFS_host *sanitize_host(PFS_host *unsafe)
 {
-  if ((&host_array[0] <= unsafe) &&
-      (unsafe < &host_array[host_max]))
-    return unsafe;
-  return NULL;
+  return global_host_container.sanitize(unsafe);
 }
 
 void purge_host(PFS_thread *thread, PFS_host *host)
@@ -439,13 +331,31 @@ void purge_host(PFS_thread *thread, PFS_host *host)
       lf_hash_delete(&host_hash, pins,
                      host->m_key.m_hash_key, host->m_key.m_key_length);
       host->aggregate(false);
-      host->m_lock.allocated_to_free();
-      host_full= false;
+      global_host_container.deallocate(host);
     }
   }
 
   lf_hash_search_unpin(pins);
 }
+
+class Proc_purge_host
+  : public PFS_buffer_processor<PFS_host>
+{
+public:
+  Proc_purge_host(PFS_thread *thread)
+    : m_thread(thread)
+  {}
+
+  virtual void operator()(PFS_host *pfs)
+  {
+    pfs->aggregate(true);
+    if (pfs->get_refcount() == 0)
+      purge_host(m_thread, pfs);
+  }
+
+private:
+  PFS_thread *m_thread;
+};
 
 /** Purge non connected hosts, reset stats of connected hosts. */
 void purge_all_host(void)
@@ -454,18 +364,8 @@ void purge_all_host(void)
   if (unlikely(thread == NULL))
     return;
 
-  PFS_host *pfs= host_array;
-  PFS_host *pfs_last= host_array + host_max;
-
-  for ( ; pfs < pfs_last; pfs++)
-  {
-    if (pfs->m_lock.is_populated())
-    {
-      pfs->aggregate(true);
-      if (pfs->get_refcount() == 0)
-        purge_host(thread, pfs);
-    }
-  }
+  Proc_purge_host proc(thread);
+  global_host_container.apply(proc);
 }
 
 /** @} */

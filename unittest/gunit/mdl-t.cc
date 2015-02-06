@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -37,11 +37,11 @@
   Mock thd_wait_begin/end functions
 */
 
-extern "C" void thd_wait_begin(MYSQL_THD thd, int wait_type)
+extern "C" void thd_wait_begin(THD *thd, int wait_type)
 {
 }
 
-extern "C" void thd_wait_end(MYSQL_THD thd)
+extern "C" void thd_wait_end(THD *thd)
 {
 }
 

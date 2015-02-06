@@ -1,5 +1,5 @@
 /* QQ: TODO multi-pinbox */
-/* Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -99,6 +99,7 @@
 #include <my_sys.h>
 #include <mysys_priv.h>
 #include <lf.h>
+#include "my_thread_local.h"
 
 #define LF_PINBOX_MAX_PINS 65536
 

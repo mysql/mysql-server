@@ -333,7 +333,6 @@ select count(*) as one from t300;
 --echo *** Cleanup  ***
 connection master;
 DROP TABLE t300;
---source include/sync_slave_sql_with_master.inc
 
 # END of Test Case
 

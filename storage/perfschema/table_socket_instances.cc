@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -19,12 +19,14 @@
 */
 
 #include "my_global.h"
-#include "my_pthread.h"
+#include "my_thread.h"
 #include "pfs_instr.h"
 #include "pfs_column_types.h"
 #include "pfs_column_values.h"
 #include "table_socket_instances.h"
 #include "pfs_global.h"
+#include "pfs_buffer_container.h"
+#include "field.h"
 
 THR_LOCK table_socket_instances::m_table_lock;
 
@@ -94,7 +96,7 @@ PFS_engine_table* table_socket_instances::create(void)
 ha_rows
 table_socket_instances::get_row_count(void)
 {
-  return socket_max;
+  return global_socket_container.get_row_count();
 }
 
 table_socket_instances::table_socket_instances()
@@ -112,17 +114,14 @@ int table_socket_instances::rnd_next(void)
 {
   PFS_socket *pfs;
 
-  for (m_pos.set_at(&m_next_pos);
-       m_pos.m_index < socket_max;
-       m_pos.next())
+  m_pos.set_at(&m_next_pos);
+  PFS_socket_iterator it= global_socket_container.iterate(m_pos.m_index);
+  pfs= it.scan_next(& m_pos.m_index);
+  if (pfs != NULL)
   {
-    pfs= &socket_array[m_pos.m_index];
-    if (pfs->m_lock.is_populated())
-    {
-      make_row(pfs);
-      m_next_pos.set_after(&m_pos);
-      return 0;
-    }
+    make_row(pfs);
+    m_next_pos.set_after(&m_pos);
+    return 0;
   }
 
   return HA_ERR_END_OF_FILE;
@@ -133,14 +132,15 @@ int table_socket_instances::rnd_pos(const void *pos)
   PFS_socket *pfs;
 
   set_position(pos);
-  DBUG_ASSERT(m_pos.m_index < socket_max);
-  pfs= &socket_array[m_pos.m_index];
 
-  if (! pfs->m_lock.is_populated())
-    return HA_ERR_RECORD_DELETED;
+  pfs= global_socket_container.get(m_pos.m_index);
+  if (pfs != NULL)
+  {
+    make_row(pfs);
+    return 0;
+  }
 
-  make_row(pfs);
-  return 0;
+  return HA_ERR_RECORD_DELETED;
 }
 
 void table_socket_instances::make_row(PFS_socket *pfs)

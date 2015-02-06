@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,17 +20,23 @@
 #include "my_dbug.h"                   // DBUG_ENTER
 #include "my_sys.h"                    // strmake_root
 #include "xa.h"                        // XID_STATE
-#include "table.h"                     // CHANGED_TABLE_LIST
 #include "my_alloc.h"                  // MEM_ROOT
 #include "thr_malloc.h"                // init_sql_alloc
 #include "sql_cache.h"                 // query_cache
 #include "mdl.h"                       // MDL_savepoint
+#include "handler.h"                   // handlerton
+#include "rpl_transaction_ctx.h"       // Rpl_transaction_ctx
+#include "rpl_transaction_write_set_ctx.h" // Transaction_write_set_ctx
 
 class THD;
 
-class Ha_trx_info;
+typedef struct st_changed_table_list
+{
+  struct	st_changed_table_list *next;
+  char		*key;
+  uint32        key_length;
+} CHANGED_TABLE_LIST;
 
-#define FLAGSTR(V,F) ((V)&(F)?#F" ":"")
 
 /**
   Either statement transaction or normal transaction - related
@@ -365,7 +371,7 @@ public:
   }
 
   Transaction_ctx();
-  ~Transaction_ctx()
+  virtual ~Transaction_ctx()
   {
     free_root(&m_mem_root, MYF(0));
   }
@@ -376,6 +382,8 @@ public:
     m_changed_tables= NULL;
     m_savepoints= NULL;
     m_xid_state.cleanup();
+    m_rpl_transaction_ctx.cleanup();
+    m_transaction_write_set_ctx.clear_write_set();
     free_root(&m_mem_root,MYF(MY_KEEP_PREALLOC));
     DBUG_VOID_RETURN;
   }
@@ -569,6 +577,31 @@ private:
     else
       return true;
   }
+
+public:
+  Rpl_transaction_ctx *get_rpl_transaction_ctx()
+  {
+    return &m_rpl_transaction_ctx;
+  }
+
+  const Rpl_transaction_ctx *get_rpl_transaction_ctx() const
+  {
+    return &m_rpl_transaction_ctx;
+  }
+
+  Rpl_transaction_write_set_ctx *get_transaction_write_set_ctx()
+  {
+    return &m_transaction_write_set_ctx;
+  }
+
+  const Rpl_transaction_write_set_ctx *get_transaction_write_set_ctx() const
+  {
+    return &m_transaction_write_set_ctx;
+  }
+
+private:
+  Rpl_transaction_ctx m_rpl_transaction_ctx;
+  Rpl_transaction_write_set_ctx m_transaction_write_set_ctx;
 };
 
 #endif

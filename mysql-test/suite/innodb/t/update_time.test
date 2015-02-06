@@ -1,0 +1,79 @@
+###################################################################
+-- echo #
+-- echo # Test that INFORMATION_SCHEMA.TABLES.UPDATE_TIME is filled
+-- echo # correctly for InnoDB tables.
+-- echo #
+
+-- source include/have_innodb.inc
+-- source include/have_innodb_max_16k.inc
+# restart does not work with embedded
+-- source include/not_embedded.inc
+
+CREATE TABLE t (a INT) ENGINE=INNODB;
+
+SELECT update_time FROM information_schema.tables WHERE table_name = 't';
+
+INSERT INTO t VALUES (1);
+
+SELECT COUNT(*) FROM information_schema.tables WHERE table_name = 't'
+AND update_time IS NOT NULL;
+
+-- echo # We cant deterministically check that the saved value is correct, but
+-- echo # at least we check that it is a timestamp not older than 2 minutes.
+-- echo # Usually update_time and NOW() are equal below, but on heavily loaded
+-- echo # machines NOW() could be younger.
+SELECT COUNT(*) FROM information_schema.tables WHERE table_name = 't'
+AND TIMESTAMPDIFF(SECOND, update_time, NOW()) < 120;
+
+CREATE TABLE big (a TEXT) ENGINE=INNODB;
+
+SELECT COUNT(*) FROM information_schema.innodb_buffer_page
+WHERE table_name = '`test`.`t`';
+
+# evict table 't' by inserting as much data as the BP size itself
+-- echo # INSERT lots of data in table 'big': begin
+-- disable_query_log
+BEGIN;
+-- let $i = 10240
+while ($i)
+{
+	INSERT INTO big VALUES (REPEAT('a', 1024));
+	dec $i;
+}
+COMMIT;
+-- enable_query_log
+-- echo # INSERT lots of data in table 'big': end
+
+# confirm that table 't' has been evicted
+SELECT COUNT(*) FROM information_schema.innodb_buffer_page
+WHERE table_name = '`test`.`t`';
+
+# The result from this query will change once update_time becomes persistent
+# (WL#6917).
+SELECT COUNT(*) FROM information_schema.tables WHERE table_name = 't'
+AND update_time IS NOT NULL;
+
+DROP TABLE big;
+
+-- echo # Test the behavior after restart with a prepared XA transaction
+
+XA START 'xatrx';
+INSERT INTO t VALUES (5);
+XA END 'xatrx';
+XA PREPARE 'xatrx';
+
+CONNECT (con1,localhost,root,,);
+CONNECTION con1;
+
+call mtr.add_suppression("Found 1 prepared XA transactions");
+
+--source include/kill_and_restart_mysqld.inc
+
+SELECT update_time FROM information_schema.tables WHERE table_name = 't';
+
+XA COMMIT 'xatrx';
+
+SELECT COUNT(*) FROM information_schema.tables WHERE table_name = 't'
+AND update_time IS NOT NULL;
+
+DROP TABLE t;

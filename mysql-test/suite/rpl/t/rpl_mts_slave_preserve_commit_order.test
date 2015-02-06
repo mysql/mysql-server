@@ -1,6 +1,6 @@
 # This test check if the option slave-preserve-commit order
 # preserves the commit order with slave binlog enabled.
-
+--source include/not_group_replication_plugin.inc
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
 --source include/master-slave.inc

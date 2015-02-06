@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,12 +15,13 @@
 
 #include "sql_help.h"
 #include "sql_table.h"                          // primary_key_name
-#include "sql_base.h"               // REPORT_ALL_ERRORS, setup_tables
-#include "opt_range.h"              // test_quick_select
+#include "sql_base.h"               // REPORT_ALL_ERRORS
+#include "opt_range.h"              // SQL_SELECT
 #include "opt_trace.h"              // Opt_trace_object
 #include "records.h"          // init_read_record, end_read_record
 #include "debug_sync.h"
 #include "sql_executor.h"                       // QEP_TAB
+#include "item_cmpfunc.h"           // Item_func_like
 
 struct st_find_field
 {
@@ -97,8 +98,9 @@ static bool init_fields(THD *thd, TABLE_LIST *tables,
                                       "mysql", find_fields->table_name,
                                       find_fields->field_name);
     if (!(find_fields->field= find_field_in_tables(thd, field, tables, NULL,
-						   0, REPORT_ALL_ERRORS, 1,
-                                                   TRUE)))
+						   0, REPORT_ALL_ERRORS,
+                                                   false, // No priv checking
+                                                   true)))
       DBUG_RETURN(1);
     bitmap_set_bit(find_fields->field->table->read_set,
                    find_fields->field->field_index);
@@ -657,7 +659,6 @@ bool mysqld_help(THD *thd, const char *mask)
 {
   Protocol *protocol= thd->protocol;
   st_find_field used_fields[array_elements(init_used_fields)];
-  TABLE_LIST *leaves= 0;
   TABLE_LIST tables[4];
   List<String> topics_list, categories_list, subcategories_list;
   String name, description, example;
@@ -665,6 +666,7 @@ bool mysqld_help(THD *thd, const char *mask)
   size_t mlen= strlen(mask);
   size_t i;
   MEM_ROOT *mem_root= thd->mem_root;
+  SELECT_LEX *const select_lex= thd->lex->select_lex;
   DBUG_ENTER("mysqld_help");
 
   tables[0].init_one_table(C_STRING_WITH_LEN("mysql"),
@@ -696,11 +698,9 @@ bool mysqld_help(THD *thd, const char *mask)
     Init tables and fields to be usable from items
     tables do not contain VIEWs => we can pass 0 as conds
   */
-  thd->lex->select_lex->context.table_list=
-    thd->lex->select_lex->context.first_name_resolution_table= &tables[0];
-  if (setup_tables(thd, &thd->lex->select_lex->context,
-                   &thd->lex->select_lex->top_join_list,
-                   tables, &leaves, FALSE))
+  select_lex->context.table_list=
+    select_lex->context.first_name_resolution_table= &tables[0];
+  if (select_lex->setup_tables(thd, tables, false))
     goto error;
   memcpy((char*) used_fields, (char*) init_used_fields, sizeof(used_fields));
   if (init_fields(thd, tables, used_fields, array_elements(used_fields)))

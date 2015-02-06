@@ -1,0 +1,393 @@
+include/rpl_init.inc [topology=none]
+==== Initialize ====
+SET GLOBAL ENFORCE_GTID_CONSISTENCY = ON;
+CREATE TABLE statements (
+id INT PRIMARY KEY AUTO_INCREMENT,
+comment VARCHAR(100) NOT NULL,
+connection INT,
+statement VARCHAR(1000),
+gtid_next VARCHAR(100) NOT NULL,
+gtid_owned VARCHAR(100) NOT NULL,
+anonymous_count INT NOT NULL,
+sync_point VARCHAR(100) NOT NULL,
+error VARCHAR(100) NOT NULL
+) ENGINE = InnoDB;
+INSERT INTO statements
+(comment, connection, statement, gtid_next, gtid_owned, anonymous_count,
+sync_point, error)
+VALUES
+#comment
+#con statement                       gtid_next    gtid_owned count sync error
+('Nothing should be owned by default.',
+1, '',                              'AUTOMATIC', '',          0,  '',  ''),
+('Set gtid_next (automatic->anonymous) acquires ownership.',
+1, 'SET GTID_NEXT="ANONYMOUS"',     'ANONYMOUS', 'ANONYMOUS', 1,  '',  ''),
+('Implicit commit releases ownership.',
+1, 'CREATE TABLE t1 (a INT)',       'ANONYMOUS', '',          0,  '',  ''),
+('Implicitly committing statement re-acquires ownership.',
+1, 'CREATE TABLE t2 (a INT)',       '',          '',          1,  '->before_execute_sql_command',  ''),
+('Implicitly committing statement releases ownership at the end.',
+1, '#CREATE TABLE t2 (a INT)',      'ANONYMOUS', '',          0,  'before_execute_sql_command->',  ''),
+('Set gtid_next (anonymous->anonymous) acquires ownership.',
+1, 'SET GTID_NEXT="ANONYMOUS"',     'ANONYMOUS', 'ANONYMOUS', 1,  '',  ''),
+('Nothing special happens with ownership while inside a transaction.',
+1, 'BEGIN',                         'ANONYMOUS', 'ANONYMOUS', 1,  '',  ''),
+('',
+1, 'INSERT INTO t1 VALUES (1)',     'ANONYMOUS', 'ANONYMOUS', 1,  '',  ''),
+('Commit releases ownership.',
+1, 'COMMIT',                        'ANONYMOUS', '',          0,  '',  ''),
+('Begin acquires ownership.',
+1, 'BEGIN',                         'ANONYMOUS', 'ANONYMOUS', 1,  '',  ''),
+('Commit releases ownership even if nothing executed.',
+1, 'COMMIT',                        'ANONYMOUS', '',          0,  '',  ''),
+('Rollback releases ownership.',
+1, 'BEGIN',                         'ANONYMOUS', 'ANONYMOUS', 1,  '',  ''),
+('',
+1, 'ROLLBACK',                      'ANONYMOUS', '',          0,  '',  ''),
+('Implicit commit in transaction releases ownership.',
+1, 'BEGIN',                         'ANONYMOUS', 'ANONYMOUS', 1,  '',  ''),
+('',
+1, 'INSERT INTO t1 VALUES (1)',     'ANONYMOUS', 'ANONYMOUS', 1,  '',  ''),
+('',
+1, 'DROP TABLE t2',                 'ANONYMOUS', '',          0,  '->after_implicit_pre_commit', ''),
+('',
+1, '#DROP TABLE t2',                'ANONYMOUS', '',          0,  'after_implicit_pre_commit->', ''),
+('Autocommit transaction acquires ownership.',
+1, 'INSERT INTO t1 VALUES (1)',     '',          '',          1,  '->before_execute_sql_command', ''),
+('Autocommit transaction releases ownership at end.',
+1, '#INSERT INTO t1 VALUES (1)',    'ANONYMOUS', '',          0,  'before_execute_sql_command->', ''),
+('SET does not acquire ownership.',
+1, 'SET AUTOCOMMIT = 0',            'ANONYMOUS', '',          0,  '',  ''),
+('Non-autocommitted DML acquires ownership.',
+1, 'INSERT INTO t1 VALUES (1)',     'ANONYMOUS', 'ANONYMOUS', 1,  '',  ''),
+('',
+1, 'INSERT INTO t1 VALUES (1)',     'ANONYMOUS', 'ANONYMOUS', 1,  '',  ''),
+('',
+1, 'ROLLBACK',                      'ANONYMOUS', '',          0,  '',  ''),
+('Client disconnect releases ownership.',
+1, 'BEGIN',                         'ANONYMOUS', 'ANONYMOUS', 1,  '',  ''),
+('',
+1, 'reconnect',                     'AUTOMATIC', '',          0,  '',  ''),
+('Ongoing_anonymous_transaction_count > 1 when there are concurrent transactions.',
+1, 'SET GTID_NEXT="ANONYMOUS"',     'ANONYMOUS', 'ANONYMOUS', 1,  '',  ''),
+('',
+2, '',                              'AUTOMATIC', '',          1,  '',  ''),
+('',
+2, 'SET GTID_NEXT="ANONYMOUS"',     'ANONYMOUS', 'ANONYMOUS', 2,  '',  ''),
+('',
+3, '',                              'AUTOMATIC', '',          2,  '',  ''),
+('',
+3, 'SET GTID_NEXT="ANONYMOUS"',     'ANONYMOUS', 'ANONYMOUS', 3,  '',  ''),
+('',
+2, 'reconnect',                     'AUTOMATIC', '',          2,  '',  ''),
+('',
+1, 'COMMIT',                        'ANONYMOUS', '',          1,  '',  ''),
+('',
+3, 'ROLLBACK',                      'ANONYMOUS', '',          0,  '',  ''),
+('Set gtid_next (anonymous->automatic) works.',
+1, 'SET GTID_NEXT="AUTOMATIC"',     'AUTOMATIC', '',          0,  '',  ''),
+('Set gtid_next (automatic->automatic) works.',
+1, 'SET GTID_NEXT="AUTOMATIC"',     'AUTOMATIC', '',          0,  '',  ''),
+('Can set gtid_mode!=on when Ongoing_anonymous_transaction_count > 0.',
+2, 'SET GTID_NEXT="ANONYMOUS"',     'ANONYMOUS', 'ANONYMOUS', 1,  '',  ''),
+('',
+1, 'SET GLOBAL GTID_MODE="OFF_PERMISSIVE"','AUTOMATIC', '',   1,  '',  ''),
+('',
+1, 'SET GLOBAL GTID_MODE="ON_PERMISSIVE"', 'AUTOMATIC', '',   1,  '',  ''),
+('',
+1, 'SET GLOBAL GTID_MODE="ON_PERMISSIVE"', 'AUTOMATIC', '',   1,  '',  ''),
+('',
+1, 'SET GLOBAL GTID_MODE="OFF_PERMISSIVE"','AUTOMATIC', '',   1,  '',  ''),
+('',
+1, 'SET GLOBAL GTID_MODE="OFF_PERMISSIVE"','AUTOMATIC', '',   1,  '',  ''),
+('',
+1, 'SET GLOBAL GTID_MODE="OFF"',    'AUTOMATIC', '',          1,  '',  ''),
+('',
+1, 'SET GLOBAL GTID_MODE="OFF"',    'AUTOMATIC', '',          1,  '',  ''),
+('',
+2, 'ROLLBACK',                      'ANONYMOUS', '',          0,  '',  '');
+==== Test ====
+---- Comment ----
+# Statement 0:
+[connection server_1_1]
+include/assert.inc [GTID_NEXT should be 'AUTOMATIC']
+include/assert.inc [GTID_OWNED should be '']
+include/assert.inc [ONGOING_ANONYMOUS_TRANSACTION_COUNT should be 0]
+---- Comment ----
+# Statement 1:
+[connection server_1_1]
+SET GTID_NEXT="ANONYMOUS";
+include/assert.inc [GTID_NEXT should be 'ANONYMOUS']
+include/assert.inc [GTID_OWNED should be 'ANONYMOUS']
+include/assert.inc [ONGOING_ANONYMOUS_TRANSACTION_COUNT should be 1]
+---- Comment ----
+# Statement 2:
+[connection server_1_1]
+CREATE TABLE t1 (a INT);
+include/assert.inc [GTID_NEXT should be 'ANONYMOUS']
+include/assert.inc [GTID_OWNED should be '']
+include/assert.inc [ONGOING_ANONYMOUS_TRANSACTION_COUNT should be 0]
+---- Comment ----
+# Statement 3:
+[connection server_1_1]
+[START] CREATE TABLE t2 (a INT);
+include/assert.inc [ONGOING_ANONYMOUS_TRANSACTION_COUNT should be 1]
+---- Comment ----
+# Statement 4:
+[connection server_1_1]
+[END] #CREATE TABLE t2 (a INT);
+include/assert.inc [ONGOING_ANONYMOUS_TRANSACTION_COUNT should be 0]
+---- Comment ----
+# Statement 5:
+[connection server_1_1]
+SET GTID_NEXT="ANONYMOUS";
+include/assert.inc [GTID_NEXT should be 'ANONYMOUS']
+include/assert.inc [GTID_OWNED should be 'ANONYMOUS']
+include/assert.inc [ONGOING_ANONYMOUS_TRANSACTION_COUNT should be 1]
+---- Comment ----
+# Statement 6:
+[connection server_1_1]
+BEGIN;
+include/assert.inc [GTID_NEXT should be 'ANONYMOUS']
+include/assert.inc [GTID_OWNED should be 'ANONYMOUS']
+include/assert.inc [ONGOING_ANONYMOUS_TRANSACTION_COUNT should be 1]
+# Statement 7:
+[connection server_1_1]
+INSERT INTO t1 VALUES (1);
+include/assert.inc [GTID_NEXT should be 'ANONYMOUS']
+include/assert.inc [GTID_OWNED should be 'ANONYMOUS']
+include/assert.inc [ONGOING_ANONYMOUS_TRANSACTION_COUNT should be 1]
+---- Comment ----
+# Statement 8:
+[connection server_1_1]
+COMMIT;
+include/assert.inc [GTID_NEXT should be 'ANONYMOUS']
+include/assert.inc [GTID_OWNED should be '']
+include/assert.inc [ONGOING_ANONYMOUS_TRANSACTION_COUNT should be 0]
+---- Comment ----
+# Statement 9:
+[connection server_1_1]
+BEGIN;
+include/assert.inc [GTID_NEXT should be 'ANONYMOUS']
+include/assert.inc [GTID_OWNED should be 'ANONYMOUS']
+include/assert.inc [ONGOING_ANONYMOUS_TRANSACTION_COUNT should be 1]
+---- Comment ----
+# Statement 10:
+[connection server_1_1]
+COMMIT;
+include/assert.inc [GTID_NEXT should be 'ANONYMOUS']
+include/assert.inc [GTID_OWNED should be '']
+include/assert.inc [ONGOING_ANONYMOUS_TRANSACTION_COUNT should be 0]
+---- Comment ----
+# Statement 11:
+[connection server_1_1]
+BEGIN;
+include/assert.inc [GTID_NEXT should be 'ANONYMOUS']
+include/assert.inc [GTID_OWNED should be 'ANONYMOUS']
+include/assert.inc [ONGOING_ANONYMOUS_TRANSACTION_COUNT should be 1]
+# Statement 12:
+[connection server_1_1]
+ROLLBACK;
+include/assert.inc [GTID_NEXT should be 'ANONYMOUS']
+include/assert.inc [GTID_OWNED should be '']
+include/assert.inc [ONGOING_ANONYMOUS_TRANSACTION_COUNT should be 0]
+---- Comment ----
+# Statement 13:
+[connection server_1_1]
+BEGIN;
+include/assert.inc [GTID_NEXT should be 'ANONYMOUS']
+include/assert.inc [GTID_OWNED should be 'ANONYMOUS']
+include/assert.inc [ONGOING_ANONYMOUS_TRANSACTION_COUNT should be 1]
+# Statement 14:
+[connection server_1_1]
+INSERT INTO t1 VALUES (1);
+include/assert.inc [GTID_NEXT should be 'ANONYMOUS']
+include/assert.inc [GTID_OWNED should be 'ANONYMOUS']
+include/assert.inc [ONGOING_ANONYMOUS_TRANSACTION_COUNT should be 1]
+# Statement 15:
+[connection server_1_1]
+[START] DROP TABLE t2;
+include/assert.inc [ONGOING_ANONYMOUS_TRANSACTION_COUNT should be 0]
+# Statement 16:
+[connection server_1_1]
+[END] #DROP TABLE t2;
+include/assert.inc [ONGOING_ANONYMOUS_TRANSACTION_COUNT should be 0]
+---- Comment ----
+# Statement 17:
+[connection server_1_1]
+[START] INSERT INTO t1 VALUES (1);
+include/assert.inc [ONGOING_ANONYMOUS_TRANSACTION_COUNT should be 1]
+---- Comment ----
+# Statement 18:
+[connection server_1_1]
+[END] #INSERT INTO t1 VALUES (1);
+include/assert.inc [ONGOING_ANONYMOUS_TRANSACTION_COUNT should be 0]
+---- Comment ----
+# Statement 19:
+[connection server_1_1]
+SET AUTOCOMMIT = 0;
+include/assert.inc [GTID_NEXT should be 'ANONYMOUS']
+include/assert.inc [GTID_OWNED should be '']
+include/assert.inc [ONGOING_ANONYMOUS_TRANSACTION_COUNT should be 0]
+---- Comment ----
+# Statement 20:
+[connection server_1_1]
+INSERT INTO t1 VALUES (1);
+include/assert.inc [GTID_NEXT should be 'ANONYMOUS']
+include/assert.inc [GTID_OWNED should be 'ANONYMOUS']
+include/assert.inc [ONGOING_ANONYMOUS_TRANSACTION_COUNT should be 1]
+# Statement 21:
+[connection server_1_1]
+INSERT INTO t1 VALUES (1);
+include/assert.inc [GTID_NEXT should be 'ANONYMOUS']
+include/assert.inc [GTID_OWNED should be 'ANONYMOUS']
+include/assert.inc [ONGOING_ANONYMOUS_TRANSACTION_COUNT should be 1]
+# Statement 22:
+[connection server_1_1]
+ROLLBACK;
+include/assert.inc [GTID_NEXT should be 'ANONYMOUS']
+include/assert.inc [GTID_OWNED should be '']
+include/assert.inc [ONGOING_ANONYMOUS_TRANSACTION_COUNT should be 0]
+---- Comment ----
+# Statement 23:
+[connection server_1_1]
+BEGIN;
+include/assert.inc [GTID_NEXT should be 'ANONYMOUS']
+include/assert.inc [GTID_OWNED should be 'ANONYMOUS']
+include/assert.inc [ONGOING_ANONYMOUS_TRANSACTION_COUNT should be 1]
+# Statement 24:
+[connection server_1_1]
+include/rpl_connect.inc [creating server_1_1]
+include/assert.inc [ONGOING_ANONYMOUS_TRANSACTION_COUNT should be 0]
+---- Comment ----
+# Statement 25:
+[connection server_1_1]
+SET GTID_NEXT="ANONYMOUS";
+include/assert.inc [GTID_NEXT should be 'ANONYMOUS']
+include/assert.inc [GTID_OWNED should be 'ANONYMOUS']
+include/assert.inc [ONGOING_ANONYMOUS_TRANSACTION_COUNT should be 1]
+# Statement 26:
+[connection server_1_2]
+include/assert.inc [GTID_NEXT should be 'AUTOMATIC']
+include/assert.inc [GTID_OWNED should be '']
+include/assert.inc [ONGOING_ANONYMOUS_TRANSACTION_COUNT should be 1]
+# Statement 27:
+[connection server_1_2]
+SET GTID_NEXT="ANONYMOUS";
+include/assert.inc [GTID_NEXT should be 'ANONYMOUS']
+include/assert.inc [GTID_OWNED should be 'ANONYMOUS']
+include/assert.inc [ONGOING_ANONYMOUS_TRANSACTION_COUNT should be 2]
+# Statement 28:
+[connection server_1_3]
+include/assert.inc [GTID_NEXT should be 'AUTOMATIC']
+include/assert.inc [GTID_OWNED should be '']
+include/assert.inc [ONGOING_ANONYMOUS_TRANSACTION_COUNT should be 2]
+# Statement 29:
+[connection server_1_3]
+SET GTID_NEXT="ANONYMOUS";
+include/assert.inc [GTID_NEXT should be 'ANONYMOUS']
+include/assert.inc [GTID_OWNED should be 'ANONYMOUS']
+include/assert.inc [ONGOING_ANONYMOUS_TRANSACTION_COUNT should be 3]
+# Statement 30:
+[connection server_1_2]
+include/rpl_connect.inc [creating server_1_2]
+include/assert.inc [ONGOING_ANONYMOUS_TRANSACTION_COUNT should be 2]
+# Statement 31:
+[connection server_1_1]
+COMMIT;
+include/assert.inc [GTID_NEXT should be 'ANONYMOUS']
+include/assert.inc [GTID_OWNED should be '']
+include/assert.inc [ONGOING_ANONYMOUS_TRANSACTION_COUNT should be 1]
+# Statement 32:
+[connection server_1_3]
+ROLLBACK;
+include/assert.inc [GTID_NEXT should be 'ANONYMOUS']
+include/assert.inc [GTID_OWNED should be '']
+include/assert.inc [ONGOING_ANONYMOUS_TRANSACTION_COUNT should be 0]
+---- Comment ----
+# Statement 33:
+[connection server_1_1]
+SET GTID_NEXT="AUTOMATIC";
+include/assert.inc [GTID_NEXT should be 'AUTOMATIC']
+include/assert.inc [GTID_OWNED should be '']
+include/assert.inc [ONGOING_ANONYMOUS_TRANSACTION_COUNT should be 0]
+---- Comment ----
+# Statement 34:
+[connection server_1_1]
+SET GTID_NEXT="AUTOMATIC";
+include/assert.inc [GTID_NEXT should be 'AUTOMATIC']
+include/assert.inc [GTID_OWNED should be '']
+include/assert.inc [ONGOING_ANONYMOUS_TRANSACTION_COUNT should be 0]
+---- Comment ----
+# Statement 35:
+[connection server_1_2]
+SET GTID_NEXT="ANONYMOUS";
+include/assert.inc [GTID_NEXT should be 'ANONYMOUS']
+include/assert.inc [GTID_OWNED should be 'ANONYMOUS']
+include/assert.inc [ONGOING_ANONYMOUS_TRANSACTION_COUNT should be 1]
+# Statement 36:
+[connection server_1_1]
+SET GLOBAL GTID_MODE="OFF_PERMISSIVE";
+include/assert.inc [GTID_NEXT should be 'AUTOMATIC']
+include/assert.inc [GTID_OWNED should be '']
+include/assert.inc [ONGOING_ANONYMOUS_TRANSACTION_COUNT should be 1]
+# Statement 37:
+[connection server_1_1]
+SET GLOBAL GTID_MODE="ON_PERMISSIVE";
+include/assert.inc [GTID_NEXT should be 'AUTOMATIC']
+include/assert.inc [GTID_OWNED should be '']
+include/assert.inc [ONGOING_ANONYMOUS_TRANSACTION_COUNT should be 1]
+# Statement 38:
+[connection server_1_1]
+SET GLOBAL GTID_MODE="ON_PERMISSIVE";
+include/assert.inc [GTID_NEXT should be 'AUTOMATIC']
+include/assert.inc [GTID_OWNED should be '']
+include/assert.inc [ONGOING_ANONYMOUS_TRANSACTION_COUNT should be 1]
+# Statement 39:
+[connection server_1_1]
+SET GLOBAL GTID_MODE="OFF_PERMISSIVE";
+include/assert.inc [GTID_NEXT should be 'AUTOMATIC']
+include/assert.inc [GTID_OWNED should be '']
+include/assert.inc [ONGOING_ANONYMOUS_TRANSACTION_COUNT should be 1]
+# Statement 40:
+[connection server_1_1]
+SET GLOBAL GTID_MODE="OFF_PERMISSIVE";
+include/assert.inc [GTID_NEXT should be 'AUTOMATIC']
+include/assert.inc [GTID_OWNED should be '']
+include/assert.inc [ONGOING_ANONYMOUS_TRANSACTION_COUNT should be 1]
+# Statement 41:
+[connection server_1_1]
+SET GLOBAL GTID_MODE="OFF";
+include/assert.inc [GTID_NEXT should be 'AUTOMATIC']
+include/assert.inc [GTID_OWNED should be '']
+include/assert.inc [ONGOING_ANONYMOUS_TRANSACTION_COUNT should be 1]
+# Statement 42:
+[connection server_1_1]
+SET GLOBAL GTID_MODE="OFF";
+include/assert.inc [GTID_NEXT should be 'AUTOMATIC']
+include/assert.inc [GTID_OWNED should be '']
+include/assert.inc [ONGOING_ANONYMOUS_TRANSACTION_COUNT should be 1]
+# Statement 43:
+[connection server_1_2]
+ROLLBACK;
+include/assert.inc [GTID_NEXT should be 'ANONYMOUS']
+include/assert.inc [GTID_OWNED should be '']
+include/assert.inc [ONGOING_ANONYMOUS_TRANSACTION_COUNT should be 0]
+SET GTID_NEXT = 'ANONYMOUS';
+SET GLOBAL GTID_MODE = 'OFF_PERMISSIVE';
+SET GLOBAL GTID_MODE = 'ON_PERMISSIVE';
+ROLLBACK;
+SET GLOBAL GTID_MODE = 'ON';
+SELECT @@GLOBAL.GTID_MODE;
+@@GLOBAL.GTID_MODE
+ON
+SET GTID_NEXT = 'ANONYMOUS';
+ERROR HY000: @@SESSION.GTID_NEXT cannot be set to ANONYMOUS when @@GLOBAL.GTID_MODE = ON.
+==== Clean up ====
+SET GLOBAL GTID_MODE = 'ON_PERMISSIVE';
+SET GLOBAL GTID_MODE = 'OFF_PERMISSIVE';
+SET GLOBAL GTID_MODE = 'OFF';
+DROP TABLE statements;
+DROP TABLE t1;
+SET GLOBAL ENFORCE_GTID_CONSISTENCY = OFF;
+include/rpl_end.inc

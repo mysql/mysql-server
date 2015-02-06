@@ -10,8 +10,8 @@ DROP USER ddicttestuser1@'localhost';
 DROP USER ddicttestuser2@'localhost';
 CREATE USER ddicttestuser1@'localhost';
 CREATE USER ddicttestuser2@'localhost';
-SET PASSWORD FOR ddicttestuser1@'localhost' = PASSWORD('ddictpass');
-SET PASSWORD FOR ddicttestuser2@'localhost' = PASSWORD('ddictpass');
+SET PASSWORD FOR ddicttestuser1@'localhost' = 'ddictpass';
+SET PASSWORD FOR ddicttestuser2@'localhost' = 'ddictpass';
 ####################################################################################
 1.2 Establish connection con100 (user=ddicttestuser1 with no PROCESS privilege):
 ####################################################################################
@@ -132,7 +132,7 @@ GRANT INSERT,UPDATE ON processlist TO current_user;
 ERROR 42000: Access denied for user 'ddicttestuser1'@'localhost' to database 'information_schema'
 SHOW GRANTS;
 Grants for ddicttestuser1@localhost
-GRANT USAGE ON *.* TO 'ddicttestuser1'@'localhost' IDENTIFIED BY PASSWORD
+GRANT USAGE ON *.* TO 'ddicttestuser1'@'localhost'
 CREATE INDEX i_processlist ON processlist (user);
 ERROR 42000: Access denied for user 'ddicttestuser1'@'localhost' to database 'information_schema'
 DROP TABLE processlist;
@@ -158,6 +158,8 @@ ERROR 42000: Access denied for user 'ddicttestuser1'@'localhost' to database 'in
 connection default (user=root)
 ####################################################################################
 GRANT PROCESS ON *.* TO ddicttestuser1@'localhost' IDENTIFIED BY 'ddictpass';
+Warnings:
+Warning	1287	Using GRANT statement to modify existing user's properties other than privileges is deprecated and will be removed in future release. Use ALTER USER statement for this operation.
 ####################################################################################
 4.1 Existing connection con100 (ddicttestuser1)
 The user ddicttestuser1 has the PROCESS privilege, but the connection was
@@ -166,7 +168,7 @@ SHOW/SELECT shows only the processes (1) of the user.
 ####################################################################################
 SHOW GRANTS;
 Grants for ddicttestuser1@localhost
-GRANT PROCESS ON *.* TO 'ddicttestuser1'@'localhost' IDENTIFIED BY PASSWORD
+GRANT PROCESS ON *.* TO 'ddicttestuser1'@'localhost'
 SHOW processlist;
 Id	User	Host	db	Command	Time	State	Info
 ID	ddicttestuser1	HOST_NAME	information_schema	Query	TIME	starting	SHOW processlist
@@ -179,7 +181,7 @@ SHOW/SELECT shows all processes/threads.
 ####################################################################################
 SHOW GRANTS;
 Grants for ddicttestuser1@localhost
-GRANT PROCESS ON *.* TO 'ddicttestuser1'@'localhost' IDENTIFIED BY PASSWORD
+GRANT PROCESS ON *.* TO 'ddicttestuser1'@'localhost'
 SHOW processlist;
 Id	User	Host	db	Command	Time	State	Info
 ID	ddicttestuser1	HOST_NAME	information_schema	Query	TIME	starting	SHOW processlist
@@ -195,6 +197,8 @@ ID	root	HOST_NAME	information_schema	Sleep	TIME		NULL
 connection default (user=root)
 ####################################################################################
 GRANT PROCESS ON *.* TO ''@'localhost';
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 ####################################################################################
 5.1 Establish connection (anonymous1,localhost,'',,information_schema)
 anonymous user with PROCESS privilege
@@ -227,7 +231,7 @@ ddicttestuser1 are visible.
 ####################################################################################
 SHOW GRANTS;
 Grants for ddicttestuser1@localhost
-GRANT USAGE ON *.* TO 'ddicttestuser1'@'localhost' IDENTIFIED BY PASSWORD
+GRANT USAGE ON *.* TO 'ddicttestuser1'@'localhost'
 SHOW processlist;
 Id	User	Host	db	Command	Time	State	Info
 ID	ddicttestuser1	HOST_NAME	information_schema	Query	TIME	starting	SHOW processlist
@@ -266,7 +270,7 @@ Only the processes of ddicttestuser1 user are visible.
 ####################################################################################
 SHOW GRANTS FOR 'ddicttestuser1'@'localhost';
 Grants for ddicttestuser1@localhost
-GRANT SUPER ON *.* TO 'ddicttestuser1'@'localhost' IDENTIFIED BY PASSWORD '*22DA61451703738F203CDB9DB041ACBA1F4760B1'
+GRANT SUPER ON *.* TO 'ddicttestuser1'@'localhost'
 SHOW processlist;
 Id	User	Host	db	Command	Time	State	Info
 ID	ddicttestuser1	HOST_NAME	information_schema	Query	TIME	starting	SHOW processlist
@@ -291,7 +295,7 @@ Only the processes of ddicttestuser1 are visible.
 ####################################################################################
 SHOW GRANTS FOR 'ddicttestuser1'@'localhost';
 Grants for ddicttestuser1@localhost
-GRANT USAGE ON *.* TO 'ddicttestuser1'@'localhost' IDENTIFIED BY PASSWORD
+GRANT USAGE ON *.* TO 'ddicttestuser1'@'localhost'
 SHOW processlist;
 Id	User	Host	db	Command	Time	State	Info
 ID	ddicttestuser1	HOST_NAME	information_schema	Query	TIME	starting	SHOW processlist
@@ -317,7 +321,7 @@ Try to grant PROCESS privilege to user ddicttestuser2 without having it.
 ####################################################################################
 SHOW GRANTS FOR 'ddicttestuser1'@'localhost';
 Grants for ddicttestuser1@localhost
-GRANT SUPER ON *.* TO 'ddicttestuser1'@'localhost' IDENTIFIED BY PASSWORD '*22DA61451703738F203CDB9DB041ACBA1F4760B1' WITH GRANT OPTION
+GRANT SUPER ON *.* TO 'ddicttestuser1'@'localhost' WITH GRANT OPTION
 GRANT PROCESS ON *.* TO 'ddicttestuser2'@'localhost';
 ERROR 28000: Access denied for user 'ddicttestuser1'@'localhost' (using password: YES)
 ####################################################################################
@@ -331,7 +335,7 @@ Grant PROCESS privilege to user ddicttestuser2
 ####################################################################################
 SHOW GRANTS FOR 'ddicttestuser1'@'localhost';
 Grants for ddicttestuser1@localhost
-GRANT PROCESS, SUPER ON *.* TO 'ddicttestuser1'@'localhost' IDENTIFIED BY PASSWORD '*22DA61451703738F203CDB9DB041ACBA1F4760B1' WITH GRANT OPTION
+GRANT PROCESS, SUPER ON *.* TO 'ddicttestuser1'@'localhost' WITH GRANT OPTION
 GRANT PROCESS ON *.* TO 'ddicttestuser2'@'localhost';
 ####################################################################################
 10.4 New connection con200 (ddicttestuser2 with PROCESS privilege)
@@ -339,7 +343,7 @@ ddicttestuser2 has now the PROCESS privilege and sees all connections
 ####################################################################################
 SHOW GRANTS FOR 'ddicttestuser2'@'localhost';
 Grants for ddicttestuser2@localhost
-GRANT PROCESS ON *.* TO 'ddicttestuser2'@'localhost' IDENTIFIED BY PASSWORD
+GRANT PROCESS ON *.* TO 'ddicttestuser2'@'localhost'
 SHOW processlist;
 Id	User	Host	db	Command	Time	State	Info
 ID		HOST_NAME	information_schema	Sleep	TIME		NULL
@@ -377,7 +381,7 @@ ddicttestuser2 has no more the PROCESS privilege and can only see own connects
 ####################################################################################
 SHOW GRANTS;
 Grants for ddicttestuser2@localhost
-GRANT USAGE ON *.* TO 'ddicttestuser2'@'localhost' IDENTIFIED BY PASSWORD
+GRANT USAGE ON *.* TO 'ddicttestuser2'@'localhost'
 SHOW processlist;
 Id	User	Host	db	Command	Time	State	Info
 ID	ddicttestuser2	HOST_NAME	information_schema	Query	TIME	starting	SHOW processlist
@@ -398,7 +402,7 @@ He is also unable to GRANT the PROCESS privilege to ddicttestuser2
 ####################################################################################
 SHOW GRANTS FOR 'ddicttestuser1'@'localhost';
 Grants for ddicttestuser1@localhost
-GRANT USAGE ON *.* TO 'ddicttestuser1'@'localhost' IDENTIFIED BY PASSWORD
+GRANT USAGE ON *.* TO 'ddicttestuser1'@'localhost'
 GRANT PROCESS ON *.* TO 'ddicttestuser2'@'localhost';
 ERROR 28000: Access denied for user 'ddicttestuser1'@'localhost' (using password: YES)
 SHOW processlist;
@@ -435,7 +439,7 @@ Therefore the missing SELECT privilege does not affect SELECTs on PROCESSLIST.
 ####################################################################################
 SHOW GRANTS FOR 'ddicttestuser1'@'localhost';
 Grants for ddicttestuser1@localhost
-GRANT USAGE ON *.* TO 'ddicttestuser1'@'localhost' IDENTIFIED BY PASSWORD
+GRANT USAGE ON *.* TO 'ddicttestuser1'@'localhost'
 SHOW processlist;
 Id	User	Host	db	Command	Time	State	Info
 ID	ddicttestuser1	HOST_NAME	information_schema	Query	TIME	starting	SHOW processlist

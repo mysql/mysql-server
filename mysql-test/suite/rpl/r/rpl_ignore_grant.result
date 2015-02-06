@@ -10,6 +10,8 @@ delete from mysql.user where user=_binary'rpl_ignore_grant';
 delete from mysql.db where user=_binary'rpl_ignore_grant';
 flush privileges;
 grant select on *.* to rpl_ignore_grant@localhost;
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 grant drop on test.* to rpl_ignore_grant@localhost;
 show grants for rpl_ignore_grant@localhost;
 Grants for rpl_ignore_grant@localhost
@@ -24,9 +26,11 @@ select count(*) from mysql.db where user=_binary'rpl_ignore_grant';
 count(*)
 0
 grant select on *.* to rpl_ignore_grant@localhost;
-set password for rpl_ignore_grant@localhost=password("does it work?");
-select password<>_binary'' from mysql.user where user=_binary'rpl_ignore_grant';
-password<>_binary''
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
+set password for rpl_ignore_grant@localhost="does it work?";
+select authentication_string<>_binary'' from mysql.user where user=_binary'rpl_ignore_grant';
+authentication_string<>_binary''
 0
 delete from mysql.user where user=_binary'rpl_ignore_grant';
 delete from mysql.db where user=_binary'rpl_ignore_grant';

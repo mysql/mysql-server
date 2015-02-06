@@ -18,14 +18,15 @@ perl;
   # their paths may vary:
   @skipvars=qw/basedir open-files-limit general-log-file plugin-dir
                pid-file slow-query-log-file
-               datadir slave-load-tmpdir tmpdir socket table-definition-cache table-open-cache/;
+               datadir slave-load-tmpdir tmpdir socket table-definition-cache table-open-cache
+               secure-file-priv/;
                
   # Variables which we don't want to display in result file since
   # they depend on type of build
   @build_specific=qw/auto-generate-certs/;
 
   # Plugins which may or may not be there:
-  @plugins=qw/innodb ndb ndbinfo archive blackhole federated partition ndbcluster debug temp-pool ssl des-key-file
+  @plugins=qw/innodb ngram mecab ndb ndbinfo archive blackhole federated partition ndbcluster debug temp-pool ssl des-key-file
               thread-concurrency super-large-pages mutex-deadlock-detector null-audit
               sha256-password-private-key-path sha256-password-public-key-path
               sha256-password-auto-generate-rsa-keys/;

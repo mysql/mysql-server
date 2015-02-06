@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -19,7 +19,7 @@
 
 bool pfs_initialized= false;
 
-void *pfs_malloc(size_t size, myf flags)
+void *pfs_malloc(PFS_builtin_memory_class *klass, size_t size, myf flags)
 {
   void *ptr= malloc(size);
   if (ptr && (flags & MY_ZEROFILL))
@@ -27,7 +27,7 @@ void *pfs_malloc(size_t size, myf flags)
   return ptr;
 }
 
-void pfs_free(void *ptr)
+void pfs_free(PFS_builtin_memory_class *, size_t, void *ptr)
 {
   if (ptr != NULL)
     free(ptr);

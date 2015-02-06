@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -35,11 +35,6 @@ struct pos_connect_attr_by_thread_by_attr
   pos_connect_attr_by_thread_by_attr()
     : PFS_double_index(0, 0)
   {}
-
-  inline bool has_more_thread(void)
-  {
-    return (m_index_1 < thread_max);
-  }
 
   inline void next_thread(void)
   {

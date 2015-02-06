@@ -1,7 +1,7 @@
 #ifndef ITEM_FUNC_INCLUDED
 #define ITEM_FUNC_INCLUDED
 
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,6 +16,13 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include "my_global.h"
+#include "item.h"       // Item_result_field
+#include "my_decimal.h" // string2my_decimal
+#include "set_var.h"    // enum_var_type
+#include "sql_udf.h"    // udf_handler
+
+class PT_item_list;
 
 /* Function items used by mysql */
 
@@ -719,6 +726,7 @@ public:
   void fix_length_and_dec();
   bool fix_fields(THD *thd, Item **ref);
   longlong val_int() { DBUG_ASSERT(fixed == 1); return value; }
+  bool check_gcol_func_processor(uchar *int_arg) { return TRUE;}
 };
 
 
@@ -792,6 +800,7 @@ public:
 
   void result_precision();
   bool check_partition_func_processor(uchar *int_arg) {return false;}
+  bool check_gcol_func_processor(uchar *int_arg) { return false;}
 };
 
 
@@ -837,6 +846,7 @@ public:
   my_decimal *decimal_op(my_decimal *);
   void result_precision();
   bool check_partition_func_processor(uchar *int_arg) {return false;}
+  bool check_gcol_func_processor(uchar *int_arg) { return false;}
 };
 
 
@@ -871,6 +881,7 @@ public:
   }
 
   bool check_partition_func_processor(uchar *int_arg) {return false;}
+  bool check_gcol_func_processor(uchar *int_arg) { return false;}
 };
 
 
@@ -887,6 +898,7 @@ public:
   void result_precision();
   void fix_length_and_dec();
   bool check_partition_func_processor(uchar *int_arg) {return false;}
+  bool check_gcol_func_processor(uchar *int_arg) { return false;}
 };
 
 
@@ -905,6 +917,7 @@ public:
   void fix_num_length_and_dec();
   uint decimal_precision() const { return args[0]->decimal_precision(); }
   bool check_partition_func_processor(uchar *int_arg) {return false;}
+  bool check_gcol_func_processor(uchar *int_arg) { return false;}
 };
 
 
@@ -918,6 +931,7 @@ public:
   const char *func_name() const { return "abs"; }
   void fix_length_and_dec();
   bool check_partition_func_processor(uchar *int_arg) {return false;}
+  bool check_gcol_func_processor(uchar *int_arg) { return false;}
 };
 
 
@@ -1170,6 +1184,7 @@ public:
   double real_op();
   my_decimal *decimal_op(my_decimal *);
   bool check_partition_func_processor(uchar *int_arg) {return false;}
+  bool check_gcol_func_processor(uchar *int_arg) { return false;}
 };
 
 
@@ -1183,6 +1198,7 @@ public:
   double real_op();
   my_decimal *decimal_op(my_decimal *);
   bool check_partition_func_processor(uchar *int_arg) {return false;}
+  bool check_gcol_func_processor(uchar *int_arg) { return false;}
 };
 
 /* This handles round and truncate */
@@ -1601,6 +1617,13 @@ public:
     if (arg_count)
       max_length= args[0]->max_length;
   }
+  bool check_gcol_func_processor(uchar *int_arg) 
+  {
+    DBUG_ENTER("Item_func_last_insert_id::check_gcol_func_processor");
+    DBUG_PRINT("info",
+      ("check_gcol_func_processor returns TRUE: unsupported function"));
+    DBUG_RETURN(TRUE);
+  }
 };
 
 
@@ -1617,6 +1640,13 @@ public:
   const char *func_name() const { return "benchmark"; }
   void fix_length_and_dec() { max_length=1; maybe_null= true; }
   virtual void print(String *str, enum_query_type query_type);
+  bool check_gcol_func_processor(uchar *int_arg) 
+  {
+    DBUG_ENTER("Item_func_last_insert_id::check_gcol_func_processor");
+    DBUG_PRINT("info",
+      ("check_gcol_func_processor returns TRUE: unsupported function"));
+    DBUG_RETURN(TRUE);
+  }
 };
 
 
@@ -1873,6 +1903,14 @@ class Item_func_get_lock :public Item_int_func
   longlong val_int();
   const char *func_name() const { return "get_lock"; }
   void fix_length_and_dec() { max_length=1; maybe_null=1;}
+  bool check_gcol_func_processor(uchar *int_arg) 
+  {
+    DBUG_ENTER("Item_func_get_lock::check_gcol_func_processor");
+    DBUG_PRINT("info",
+      ("check_gcol_func_processor returns TRUE: unsupported function"));
+    DBUG_RETURN(TRUE);
+  }
+  virtual uint decimal_precision() const { return max_length; }
 };
 
 class Item_func_release_lock :public Item_int_func
@@ -1887,6 +1925,14 @@ public:
   longlong val_int();
   const char *func_name() const { return "release_lock"; }
   void fix_length_and_dec() { max_length=1; maybe_null=1;}
+  bool check_gcol_func_processor(uchar *int_arg) 
+  {
+    DBUG_ENTER("Item_func_release_lock::check_gcol_func_processor");
+    DBUG_PRINT("info",
+      ("check_gcol_func_processor returns TRUE: unsupported function"));
+    DBUG_RETURN(TRUE);
+  }
+  virtual uint decimal_precision() const { return max_length; }
 };
 
 class Item_func_release_all_locks :public Item_int_func
@@ -1900,6 +1946,13 @@ public:
   longlong val_int();
   const char *func_name() const { return "release_all_locks"; }
   void fix_length_and_dec() { unsigned_flag= TRUE; }
+  bool check_gcol_func_processor(uchar *int_arg) 
+  {
+    DBUG_ENTER("Item_func_release_lock::check_gcol_func_processor");
+    DBUG_PRINT("info",
+      ("check_gcol_func_processor returns TRUE: unsupported function"));
+    DBUG_RETURN(TRUE);
+  }
 };
 
 /* replication functions */
@@ -1923,6 +1976,13 @@ public:
   longlong val_int();
   const char *func_name() const { return "master_pos_wait"; }
   void fix_length_and_dec() { max_length=21; maybe_null=1;}
+  bool check_gcol_func_processor(uchar *int_arg) 
+  {
+    DBUG_ENTER("Item_func_master_pos_wait::check_gcol_func_processor");
+    DBUG_PRINT("info",
+      ("check_gcol_func_processor returns TRUE: unsupported function"));
+    DBUG_RETURN(TRUE);
+  }
 };
 
 /**
@@ -2006,6 +2066,7 @@ public:
   {
     return get_time_from_non_temporal(ltime);
   }
+  bool check_gcol_func_processor(uchar *int_arg) { return TRUE;}
 };
 
 
@@ -2106,7 +2167,6 @@ public:
   void save_org_in_field(Field *field)
   { save_in_field(field, true, false); }
 
-  bool register_field_in_read_map(uchar *arg);
   bool set_entry(THD *thd, bool create_if_not_exists);
   void cleanup();
 };
@@ -2247,8 +2307,6 @@ public:
 };
 
 
-/* for fulltext search */
-#include <ft_global.h>
 class JOIN;
 
 class Item_func_match :public Item_real_func
@@ -2259,6 +2317,7 @@ public:
   Item *against;
   uint key, flags;
   bool join_key;
+  bool cleanup_table_ref;
   DTCollation cmp_collation;
   FT_INFO *ft_handler;
   TABLE_LIST *table_ref;
@@ -2282,7 +2341,8 @@ public:
   */
   Item_func_match(const POS &pos, PT_item_list *a, Item *against_arg, uint b):
     Item_real_func(pos, a), against(against_arg), key(0), flags(b),
-    join_key(false), ft_handler(NULL), table_ref(NULL),
+    join_key(false), cleanup_table_ref(false),
+    ft_handler(NULL), table_ref(NULL),
     master(NULL), concat_ws(NULL), hints(NULL), simple_expression(false)
   {}
   
@@ -2297,6 +2357,8 @@ public:
       ft_handler->please->close_search(ft_handler);
       delete hints;
     }
+    if (cleanup_table_ref && table_ref)
+      table_ref->table->no_keyread= false;
     ft_handler= NULL;
     concat_ws= NULL;
     table_ref= NULL;           // required by Item_func_match::eq()
@@ -2316,6 +2378,14 @@ public:
 
   bool fix_index();
   void init_search();
+  bool check_gcol_func_processor(uchar *int_arg) 
+  {
+    /* TODO: consider adding in support for the MATCH-based generated columns */
+    DBUG_ENTER("Item_func_match::check_gcol_func_processor");
+    DBUG_PRINT("info",
+      ("check_gcol_func_processor returns TRUE: unsupported function"));
+    DBUG_RETURN(TRUE);
+  }
 
   /**
      Get number of matching rows from FT handler.
@@ -2539,6 +2609,13 @@ public:
   longlong val_int();
   const char *func_name() const { return "is_free_lock"; }
   void fix_length_and_dec() { max_length= 1; maybe_null= TRUE;}
+  bool check_gcol_func_processor(uchar *int_arg) 
+  {
+    DBUG_ENTER("Item_func_last_insert_id::check_gcol_func_processor");
+    DBUG_PRINT("info",
+      ("check_gcol_func_processor returns TRUE: unsupported function"));
+    DBUG_RETURN(TRUE);
+  }
 };
 
 class Item_func_is_used_lock :public Item_int_func
@@ -2553,6 +2630,13 @@ public:
   longlong val_int();
   const char *func_name() const { return "is_used_lock"; }
   void fix_length_and_dec() { unsigned_flag= TRUE; maybe_null= TRUE; }
+  bool check_gcol_func_processor(uchar *int_arg) 
+  {
+    DBUG_ENTER("Item_func_last_insert_id::check_gcol_func_processor");
+    DBUG_PRINT("info",
+      ("check_gcol_func_processor returns TRUE: unsupported function"));
+    DBUG_RETURN(TRUE);
+  }
 };
 
 /* For type casts */
@@ -2577,6 +2661,13 @@ public:
   longlong val_int();
   const char *func_name() const { return "row_count"; }
   void fix_length_and_dec() { decimals= 0; maybe_null=0; }
+  bool check_gcol_func_processor(uchar *int_arg) 
+  {
+    DBUG_ENTER("Item_func_row_count::check_gcol_func_processor");
+    DBUG_PRINT("info",
+      ("check_gcol_func_processor returns TRUE: unsupported function"));
+    DBUG_RETURN(TRUE);
+  }
 };
 
 
@@ -2723,6 +2814,13 @@ public:
   longlong val_int();
   const char *func_name() const { return "found_rows"; }
   void fix_length_and_dec() { decimals= 0; maybe_null=0; }
+  bool check_gcol_func_processor(uchar *int_arg) 
+  {
+    DBUG_ENTER("Item_func_found_rows::check_gcol_func_processor");
+    DBUG_PRINT("info",
+      ("check_gcol_func_processor returns TRUE: unsupported function"));
+    DBUG_RETURN(TRUE);
+  }
 };
 
 
@@ -2740,6 +2838,13 @@ public:
   void fix_length_and_dec()
   { max_length= 21; unsigned_flag=1; }
   bool check_partition_func_processor(uchar *int_arg) {return false;}
+  bool check_gcol_func_processor(uchar *int_arg) 
+  {
+    DBUG_ENTER("Item_func_found_rows::check_gcol_func_processor");
+    DBUG_PRINT("info",
+      ("check_gcol_func_processor returns TRUE: unsupported function"));
+    DBUG_RETURN(TRUE);
+  }
 };
 
 

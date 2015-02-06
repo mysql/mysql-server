@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -1547,8 +1547,8 @@ typedef void (*create_file_v1_t)(PSI_file_key key, const char *name,
   @param arg the thread start routine argument
 */
 typedef int (*spawn_thread_v1_t)(PSI_thread_key key,
-                                 pthread_t *thread,
-                                 const pthread_attr_t *attr,
+                                 my_thread_handle *thread,
+                                 const my_thread_attr_t *attr,
                                  void *(*start_routine)(void*), void *arg);
 
 /**

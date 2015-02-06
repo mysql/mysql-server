@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -19,7 +19,7 @@
 */
 
 #include "my_global.h"
-#include "my_pthread.h"
+#include "my_thread.h"
 #include "pfs_instr_class.h"
 #include "pfs_column_types.h"
 #include "pfs_column_values.h"
@@ -29,6 +29,8 @@
 #include "pfs_visitor.h"
 #include "pfs_prepared_stmt.h"
 #include "table_prepared_stmt_instances.h"
+#include "pfs_buffer_container.h"
+#include "field.h"
 
 THR_LOCK table_prepared_stmt_instances::m_table_lock;
 
@@ -246,7 +248,7 @@ table_prepared_stmt_instances::delete_all_rows(void)
 ha_rows
 table_prepared_stmt_instances::get_row_count(void)
 {
-  return prepared_stmt_max;
+  return global_prepared_stmt_container.get_row_count();
 }
 
 table_prepared_stmt_instances::table_prepared_stmt_instances()
@@ -262,22 +264,16 @@ void table_prepared_stmt_instances::reset_position(void)
 
 int table_prepared_stmt_instances::rnd_next(void)
 {
-  PFS_prepared_stmt* prepared_stmt;
+  PFS_prepared_stmt* pfs;
 
-  if (prepared_stmt_array == NULL)
-    return HA_ERR_END_OF_FILE;
-
-  for (m_pos.set_at(&m_next_pos);
-       m_pos.m_index < prepared_stmt_max;
-       m_pos.next())
+  m_pos.set_at(&m_next_pos);
+  PFS_prepared_stmt_iterator it= global_prepared_stmt_container.iterate(m_pos.m_index);
+  pfs= it.scan_next(& m_pos.m_index);
+  if (pfs != NULL)
   {
-    prepared_stmt= &prepared_stmt_array[m_pos.m_index];
-    if (prepared_stmt->m_lock.is_populated())
-    {
-      make_row(prepared_stmt);
-      m_next_pos.set_after(&m_pos);
-      return 0;
-    }
+    make_row(pfs);
+    m_next_pos.set_after(&m_pos);
+    return 0;
   }
 
   return HA_ERR_END_OF_FILE;
@@ -286,17 +282,14 @@ int table_prepared_stmt_instances::rnd_next(void)
 int
 table_prepared_stmt_instances::rnd_pos(const void *pos)
 {
-  PFS_prepared_stmt* prepared_stmt;
-
-  if (prepared_stmt_array == NULL)
-    return HA_ERR_END_OF_FILE;
+  PFS_prepared_stmt* pfs;
 
   set_position(pos);
-  prepared_stmt= &prepared_stmt_array[m_pos.m_index];
 
-  if (prepared_stmt->m_lock.is_populated())
+  pfs= global_prepared_stmt_container.get(m_pos.m_index);
+  if (pfs != NULL)
   {
-    make_row(prepared_stmt);
+    make_row(pfs);
     return 0;
   }
 

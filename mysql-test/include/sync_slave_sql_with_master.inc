@@ -15,7 +15,8 @@
 # [--let $slave_timeout= NUMBER]
 # [--let $rpl_debug= 1]
 # [--let $wait_for_executed_gtid_set= 1]
-# --source include/sync_slave_io_with_master.inc
+# [--let $ignore_gtids_on_sync= 1]
+# --source include/sync_slave_sql_with_master.inc
 #
 # Must be called on the master. Will change connection to the slave.
 #
@@ -59,6 +60,14 @@
 if ($sync_slave_connection)
 {
   --let $rpl_connection_name= $sync_slave_connection
+}
+
+# Assert that source and destination connections are not the same.
+if ($rpl_connection_name == $CURRENT_CONNECTION)
+{
+  --echo Trying to sync '$CURRENT_CONNECTION' with '$rpl_connection_name' which are the same server!
+  --echo Please double check your test case.
+  --die
 }
 --source include/rpl_connection.inc
 

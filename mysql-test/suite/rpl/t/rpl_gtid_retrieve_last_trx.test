@@ -1,0 +1,131 @@
+#
+# ==== Purpose ====
+#
+# This test ensures that a fully retrieved transaction will not be asked to be
+# retrieved again by the IO thread.
+#
+# The test first creates a transactional table and add some data on it. Then,
+# it issues a "RESET MASTER" on the slave to make the slave to clean its
+# GTID_EXECUTED, but the Retrieved_Gtid_Set is kept untouched.
+# A restart in the IO thread with this situation should not make the IO thread
+# to retrieve the last received transaction again. The test case test this by
+# verifying the table consistency after syncing the slave SQL thread.
+#
+# The second part of the test repeats the above procedure making the last
+# transaction to be retrieved by IO thread to be a DDL (without XID or
+# QUERY(COMMIT) events to mark its end).
+#
+# The third part of the test repeats the first part procedure by inserting
+# data into a non-transactional table.
+#
+# ==== Related Bugs and Worklogs ====
+#
+# BUG#17943188: SHOW SLAVE STATUS/RETRIEVED_GTID_SET MAY HAVE PARTIAL TRX OR
+#               MISS COMPLETE TRX
+# BUG#18629623: INCONSISTENT DATA IN GTID (RESET MASTER, STOP SLAVE, START
+#               SLAVE)
+#
+--source include/not_group_replication_plugin.inc
+--source include/have_gtid.inc
+--source include/have_innodb.inc
+--source include/have_myisam.inc
+--source include/master-slave.inc
+
+# Get the master UUID to filter displayed data
+--let $master_uuid= `SELECT @@GLOBAL.SERVER_UUID`
+
+#
+# First part
+#
+
+# Put some data into master, finishing with a DML
+CREATE TABLE t1 (c1 INT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+
+# Sync slave with master
+--source include/sync_slave_sql_with_master.inc
+
+# Clean GTIDs on slave, so if a already retrieved transaction be asked
+# again to the master, the transaction will be applied again, generating
+# data inconsistency.
+RESET MASTER;
+
+# Restart the slave threads
+--source include/stop_slave.inc
+--source include/start_slave.inc
+
+# Make sure the SQL thread is synced before checking consistency
+--source include/rpl_connection_master.inc
+--let $ignore_gtids_on_sync= 1
+--source include/sync_slave_sql_with_master.inc
+
+# Check t1 consistency
+--source include/rpl_connection_master.inc
+--let $diff_tables= master:t1, slave:t1
+--source include/diff_tables.inc
+
+#
+# Second part
+#
+
+# Now finishing with a DDL (no XID or QUERY(COMMIT) at the end of trx)
+CREATE TABLE t2 (c1 INT) ENGINE=MyISAM;
+
+# Sync slave with master
+--source include/sync_slave_sql_with_master.inc
+
+# Clean GTIDs on slave, so if a already retrieved transaction be asked
+# again to the master, the transaction will be applied again, generating
+# data inconsistency.
+RESET MASTER;
+
+# Restart the slave threads
+--source include/stop_slave.inc
+--source include/start_slave.inc
+
+# Make sure the SQL thread is synced without errors
+--source include/rpl_connection_master.inc
+--let $ignore_gtids_on_sync= 1
+--source include/sync_slave_sql_with_master.inc
+
+# Put some data into master into a non-trx table, finishing with a DML
+--source include/rpl_connection_master.inc
+INSERT INTO t2 VALUES (1);
+
+# Sync slave with master
+--let $ignore_gtids_on_sync= 1
+--source include/sync_slave_sql_with_master.inc
+
+# Clean GTIDs on slave, so if a already retrieved transaction be asked
+# again to the master, the transaction will be applied again, generating
+# data inconsistency.
+RESET MASTER;
+
+# Restart the slave threads
+--source include/stop_slave.inc
+--source include/start_slave.inc
+
+# Make sure the SQL thread is synced before checking consistency
+--source include/rpl_connection_master.inc
+--let $ignore_gtids_on_sync= 1
+--source include/sync_slave_sql_with_master.inc
+
+# Check t1 consistency
+--source include/rpl_connection_master.inc
+--let $diff_tables= master:t2, slave:t2
+--source include/diff_tables.inc
+
+#
+# Cleanup
+#
+
+# Save slave Retrieved_Gtid_Set to add it as slave's GTID_PURGED
+--source include/rpl_connection_slave.inc
+--let $slave_gtid_purged= query_get_value(SHOW SLAVE STATUS, Retrieved_Gtid_Set, 1)
+RESET MASTER;
+--replace_result $master_uuid MASTER_UUID
+--eval SET @@GLOBAL.GTID_PURGED='$slave_gtid_purged'
+
+--source include/rpl_connection_master.inc
+DROP TABLE t1, t2;
+--source include/rpl_end.inc

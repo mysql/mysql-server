@@ -113,8 +113,8 @@ DROP USER ddicttestuser1@'localhost';
 DROP USER ddicttestuser2@'localhost';
 CREATE USER ddicttestuser1@'localhost';
 CREATE USER ddicttestuser2@'localhost';
-SET PASSWORD FOR ddicttestuser1@'localhost' = PASSWORD('ddictpass');
-SET PASSWORD FOR ddicttestuser2@'localhost' = PASSWORD('ddictpass');
+SET PASSWORD FOR ddicttestuser1@'localhost' = 'ddictpass';
+SET PASSWORD FOR ddicttestuser2@'localhost' = 'ddictpass';
 
 --echo ####################################################################################
 --echo 1.2 Establish connection con100 (user=ddicttestuser1 with no PROCESS privilege):

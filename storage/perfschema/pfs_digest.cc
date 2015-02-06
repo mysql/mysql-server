@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -27,6 +27,7 @@
 #include "pfs_instr.h"
 #include "pfs_digest.h"
 #include "pfs_global.h"
+#include "pfs_builtin_memory.h"
 #include "table_helper.h"
 #include "sql_lex.h"
 #include "sql_signal.h"
@@ -39,6 +40,7 @@ ulong digest_lost= 0;
 
 /** EVENTS_STATEMENTS_HISTORY_LONG circular buffer. */
 PFS_statements_digest_stat *statements_digest_stat_array= NULL;
+static unsigned char *statements_digest_token_array= NULL;
 /** Consumer flag for table EVENTS_STATEMENTS_SUMMARY_BY_DIGEST. */
 bool flag_statements_digest= true;
 /**
@@ -72,14 +74,36 @@ int init_digest(const PFS_global_param *param)
     return 0;
 
   statements_digest_stat_array=
-    PFS_MALLOC_ARRAY(digest_max, PFS_statements_digest_stat,
+    PFS_MALLOC_ARRAY(& builtin_memory_digest,
+                     digest_max,
+                     PFS_statements_digest_stat,
                      MYF(MY_ZEROFILL));
+
   if (unlikely(statements_digest_stat_array == NULL))
+  {
+    cleanup_digest();
     return 1;
+  }
+
+  if (pfs_max_digest_length > 0)
+  {
+    statements_digest_token_array=
+      PFS_MALLOC_ARRAY(& builtin_memory_digest_tokens,
+                       digest_max * pfs_max_digest_length,
+                       unsigned char,
+                       MYF(MY_ZEROFILL));
+
+    if (unlikely(statements_digest_token_array == NULL))
+    {
+      cleanup_digest();
+      return 1;
+    }
+  }
 
   for (index= 0; index < digest_max; index++)
   {
-    statements_digest_stat_array[index].reset_data();
+    statements_digest_stat_array[index].reset_data(statements_digest_token_array
+                                                   + index * pfs_max_digest_length, pfs_max_digest_length);
   }
 
   return 0;
@@ -88,9 +112,18 @@ int init_digest(const PFS_global_param *param)
 /** Cleanup table EVENTS_STATEMENTS_SUMMARY_BY_DIGEST. */
 void cleanup_digest(void)
 {
-  /*  Free memory allocated to statements_digest_stat_array. */
-  pfs_free(statements_digest_stat_array);
+  PFS_FREE_ARRAY(& builtin_memory_digest,
+                 digest_max,
+                 PFS_statements_digest_stat,
+                 statements_digest_stat_array);
+
+  PFS_FREE_ARRAY(& builtin_memory_digest_tokens,
+                 digest_max * pfs_max_digest_length,
+                 unsigned char,
+                 statements_digest_token_array);
+
   statements_digest_stat_array= NULL;
+  statements_digest_token_array= NULL;
 }
 
 C_MODE_START
@@ -115,14 +148,13 @@ C_MODE_END
   Initialize the digest hash.
   @return 0 on success
 */
-int init_digest_hash(void)
+int init_digest_hash(const PFS_global_param *param)
 {
-  if ((! digest_hash_inited) && (digest_max > 0))
+  if ((! digest_hash_inited) && (param->m_digest_sizing != 0))
   {
     lf_hash_init(&digest_hash, sizeof(PFS_statements_digest_stat*),
                  LF_HASH_UNIQUE, 0, 0, digest_hash_get_key,
                  &my_charset_bin);
-    digest_hash.size= digest_max;
     digest_hash_inited= true;
   }
   return 0;
@@ -175,6 +207,7 @@ find_or_create_digest(PFS_thread *thread,
   memset(& hash_key, 0, sizeof(hash_key));
   /* Compute MD5 Hash of the tokens received. */
   compute_digest_md5(digest_storage, hash_key.m_md5);
+  memcpy((void*)& digest_storage->m_md5, &hash_key.m_md5, MD5_HASH_SIZE);
   /* Add the current schema to the key */
   hash_key.m_schema_name_length= schema_name_length;
   if (schema_name_length > 0)
@@ -292,9 +325,9 @@ void purge_digest(PFS_thread* thread, PFS_digest_key *hash_key)
   return;
 }
 
-void PFS_statements_digest_stat::reset_data()
+void PFS_statements_digest_stat::reset_data(unsigned char *token_array, uint length)
 {
-  m_digest_storage.reset();
+  m_digest_storage.reset(token_array, length);
   m_stat.reset();
   m_first_seen= 0;
   m_last_seen= 0;
@@ -324,7 +357,7 @@ void reset_esms_by_digest()
   for (index= 0; index < digest_max; index++)
   {
     statements_digest_stat_array[index].reset_index(thread);
-    statements_digest_stat_array[index].reset_data();
+    statements_digest_stat_array[index].reset_data(statements_digest_token_array + index * pfs_max_digest_length, pfs_max_digest_length);
   }
 
   /*

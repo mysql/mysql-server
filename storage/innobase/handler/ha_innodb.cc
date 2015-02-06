@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2015, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, Percona Inc.
 Copyright (c) 2012, Facebook Inc.
@@ -48,6 +48,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <sql_show.h>
 #include <sql_table.h>
 #include <my_check_opt.h>
+#include <mysql/service_thd_alloc.h>
+#include <mysql/service_thd_wait.h>
 
 /* Include necessary InnoDB headers */
 #include "api0api.h"
@@ -450,7 +452,6 @@ ib_cb_t innodb_api_cb[] = {
 	(ib_cb_t) ib_col_get_name,
 	(ib_cb_t) ib_table_truncate,
 	(ib_cb_t) ib_cursor_open_index_using_name,
-	(ib_cb_t) ib_close_thd,
 	(ib_cb_t) ib_cfg_get_cfg,
 	(ib_cb_t) ib_cursor_set_memcached_sync,
 	(ib_cb_t) ib_cursor_set_cluster_access,
@@ -537,10 +538,6 @@ static MYSQL_THDVAR_BOOL(strict_mode, PLUGIN_VAR_OPCMDARG,
   "Use strict mode when evaluating create options.",
   NULL, NULL, FALSE);
 
-static MYSQL_THDVAR_BOOL(create_intrinsic, PLUGIN_VAR_OPCMDARG,
-  "If set then \"CREATE TEMPORARY TABLE\" will create intrinsic tables.",
-  NULL, NULL, FALSE);
-
 static MYSQL_THDVAR_BOOL(ft_enable_stopword, PLUGIN_VAR_OPCMDARG,
   "Create FTS index with stopword.",
   NULL, NULL,
@@ -555,126 +552,122 @@ static MYSQL_THDVAR_STR(ft_user_stopword_table,
   "User supplied stopword table name, effective in the session level.",
   innodb_stopword_table_validate, NULL, NULL);
 
-static MYSQL_THDVAR_BOOL(optimize_point_storage, PLUGIN_VAR_OPCMDARG,
-  "Optimize POINT storage as fixed length, rather than variable length"
-  " (disabled by default)", NULL, NULL, FALSE);
-
 static SHOW_VAR innodb_status_variables[]= {
   {"buffer_pool_dump_status",
-  (char*) &export_vars.innodb_buffer_pool_dump_status,	  SHOW_CHAR},
+  (char*) &export_vars.innodb_buffer_pool_dump_status,	  SHOW_CHAR, SHOW_SCOPE_GLOBAL},
   {"buffer_pool_load_status",
-  (char*) &export_vars.innodb_buffer_pool_load_status,	  SHOW_CHAR},
+  (char*) &export_vars.innodb_buffer_pool_load_status,	  SHOW_CHAR, SHOW_SCOPE_GLOBAL},
   {"buffer_pool_resize_status",
-  (char*) &export_vars.innodb_buffer_pool_resize_status,  SHOW_CHAR},
+  (char*) &export_vars.innodb_buffer_pool_resize_status,  SHOW_CHAR, SHOW_SCOPE_GLOBAL},
   {"buffer_pool_pages_data",
-  (char*) &export_vars.innodb_buffer_pool_pages_data,	  SHOW_LONG},
+  (char*) &export_vars.innodb_buffer_pool_pages_data,	  SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"buffer_pool_bytes_data",
-  (char*) &export_vars.innodb_buffer_pool_bytes_data,	  SHOW_LONG},
+  (char*) &export_vars.innodb_buffer_pool_bytes_data,	  SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"buffer_pool_pages_dirty",
-  (char*) &export_vars.innodb_buffer_pool_pages_dirty,	  SHOW_LONG},
+  (char*) &export_vars.innodb_buffer_pool_pages_dirty,	  SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"buffer_pool_bytes_dirty",
-  (char*) &export_vars.innodb_buffer_pool_bytes_dirty,	  SHOW_LONG},
+  (char*) &export_vars.innodb_buffer_pool_bytes_dirty,	  SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"buffer_pool_pages_flushed",
-  (char*) &export_vars.innodb_buffer_pool_pages_flushed,  SHOW_LONG},
+  (char*) &export_vars.innodb_buffer_pool_pages_flushed,  SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"buffer_pool_pages_free",
-  (char*) &export_vars.innodb_buffer_pool_pages_free,	  SHOW_LONG},
+  (char*) &export_vars.innodb_buffer_pool_pages_free,	  SHOW_LONG, SHOW_SCOPE_GLOBAL},
 #ifdef UNIV_DEBUG
   {"buffer_pool_pages_latched",
-  (char*) &export_vars.innodb_buffer_pool_pages_latched,  SHOW_LONG},
+  (char*) &export_vars.innodb_buffer_pool_pages_latched,  SHOW_LONG, SHOW_SCOPE_GLOBAL},
 #endif /* UNIV_DEBUG */
   {"buffer_pool_pages_misc",
-  (char*) &export_vars.innodb_buffer_pool_pages_misc,	  SHOW_LONG},
+  (char*) &export_vars.innodb_buffer_pool_pages_misc,	  SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"buffer_pool_pages_total",
-  (char*) &export_vars.innodb_buffer_pool_pages_total,	  SHOW_LONG},
+  (char*) &export_vars.innodb_buffer_pool_pages_total,	  SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"buffer_pool_read_ahead_rnd",
-  (char*) &export_vars.innodb_buffer_pool_read_ahead_rnd, SHOW_LONG},
+  (char*) &export_vars.innodb_buffer_pool_read_ahead_rnd, SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"buffer_pool_read_ahead",
-  (char*) &export_vars.innodb_buffer_pool_read_ahead,	  SHOW_LONG},
+  (char*) &export_vars.innodb_buffer_pool_read_ahead,	  SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"buffer_pool_read_ahead_evicted",
-  (char*) &export_vars.innodb_buffer_pool_read_ahead_evicted, SHOW_LONG},
+  (char*) &export_vars.innodb_buffer_pool_read_ahead_evicted, SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"buffer_pool_read_requests",
-  (char*) &export_vars.innodb_buffer_pool_read_requests,  SHOW_LONG},
+  (char*) &export_vars.innodb_buffer_pool_read_requests,  SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"buffer_pool_reads",
-  (char*) &export_vars.innodb_buffer_pool_reads,	  SHOW_LONG},
+  (char*) &export_vars.innodb_buffer_pool_reads,	  SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"buffer_pool_wait_free",
-  (char*) &export_vars.innodb_buffer_pool_wait_free,	  SHOW_LONG},
+  (char*) &export_vars.innodb_buffer_pool_wait_free,	  SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"buffer_pool_write_requests",
-  (char*) &export_vars.innodb_buffer_pool_write_requests, SHOW_LONG},
+  (char*) &export_vars.innodb_buffer_pool_write_requests, SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"data_fsyncs",
-  (char*) &export_vars.innodb_data_fsyncs,		  SHOW_LONG},
+  (char*) &export_vars.innodb_data_fsyncs,		  SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"data_pending_fsyncs",
-  (char*) &export_vars.innodb_data_pending_fsyncs,	  SHOW_LONG},
+  (char*) &export_vars.innodb_data_pending_fsyncs,	  SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"data_pending_reads",
-  (char*) &export_vars.innodb_data_pending_reads,	  SHOW_LONG},
+  (char*) &export_vars.innodb_data_pending_reads,	  SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"data_pending_writes",
-  (char*) &export_vars.innodb_data_pending_writes,	  SHOW_LONG},
+  (char*) &export_vars.innodb_data_pending_writes,	  SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"data_read",
-  (char*) &export_vars.innodb_data_read,		  SHOW_LONG},
+  (char*) &export_vars.innodb_data_read,		  SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"data_reads",
-  (char*) &export_vars.innodb_data_reads,		  SHOW_LONG},
+  (char*) &export_vars.innodb_data_reads,		  SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"data_writes",
-  (char*) &export_vars.innodb_data_writes,		  SHOW_LONG},
+  (char*) &export_vars.innodb_data_writes,		  SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"data_written",
-  (char*) &export_vars.innodb_data_written,		  SHOW_LONG},
+  (char*) &export_vars.innodb_data_written,		  SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"dblwr_pages_written",
-  (char*) &export_vars.innodb_dblwr_pages_written,	  SHOW_LONG},
+  (char*) &export_vars.innodb_dblwr_pages_written,	  SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"dblwr_writes",
-  (char*) &export_vars.innodb_dblwr_writes,		  SHOW_LONG},
+  (char*) &export_vars.innodb_dblwr_writes,		  SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"log_waits",
-  (char*) &export_vars.innodb_log_waits,		  SHOW_LONG},
+  (char*) &export_vars.innodb_log_waits,		  SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"log_write_requests",
-  (char*) &export_vars.innodb_log_write_requests,	  SHOW_LONG},
+  (char*) &export_vars.innodb_log_write_requests,	  SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"log_writes",
-  (char*) &export_vars.innodb_log_writes,		  SHOW_LONG},
+  (char*) &export_vars.innodb_log_writes,		  SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"os_log_fsyncs",
-  (char*) &export_vars.innodb_os_log_fsyncs,		  SHOW_LONG},
+  (char*) &export_vars.innodb_os_log_fsyncs,		  SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"os_log_pending_fsyncs",
-  (char*) &export_vars.innodb_os_log_pending_fsyncs,	  SHOW_LONG},
+  (char*) &export_vars.innodb_os_log_pending_fsyncs,	  SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"os_log_pending_writes",
-  (char*) &export_vars.innodb_os_log_pending_writes,	  SHOW_LONG},
+  (char*) &export_vars.innodb_os_log_pending_writes,	  SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"os_log_written",
-  (char*) &export_vars.innodb_os_log_written,		  SHOW_LONGLONG},
+  (char*) &export_vars.innodb_os_log_written,		  SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
   {"page_size",
-  (char*) &export_vars.innodb_page_size,		  SHOW_LONG},
+  (char*) &export_vars.innodb_page_size,		  SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"pages_created",
-  (char*) &export_vars.innodb_pages_created,		  SHOW_LONG},
+  (char*) &export_vars.innodb_pages_created,		  SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"pages_read",
-  (char*) &export_vars.innodb_pages_read,		  SHOW_LONG},
+  (char*) &export_vars.innodb_pages_read,		  SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"pages_written",
-  (char*) &export_vars.innodb_pages_written,		  SHOW_LONG},
+  (char*) &export_vars.innodb_pages_written,		  SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"row_lock_current_waits",
-  (char*) &export_vars.innodb_row_lock_current_waits,	  SHOW_LONG},
+  (char*) &export_vars.innodb_row_lock_current_waits,	  SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"row_lock_time",
-  (char*) &export_vars.innodb_row_lock_time,		  SHOW_LONGLONG},
+  (char*) &export_vars.innodb_row_lock_time,		  SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
   {"row_lock_time_avg",
-  (char*) &export_vars.innodb_row_lock_time_avg,	  SHOW_LONG},
+  (char*) &export_vars.innodb_row_lock_time_avg,	  SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"row_lock_time_max",
-  (char*) &export_vars.innodb_row_lock_time_max,	  SHOW_LONG},
+  (char*) &export_vars.innodb_row_lock_time_max,	  SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"row_lock_waits",
-  (char*) &export_vars.innodb_row_lock_waits,		  SHOW_LONG},
+  (char*) &export_vars.innodb_row_lock_waits,		  SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"rows_deleted",
-  (char*) &export_vars.innodb_rows_deleted,		  SHOW_LONG},
+  (char*) &export_vars.innodb_rows_deleted,		  SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"rows_inserted",
-  (char*) &export_vars.innodb_rows_inserted,		  SHOW_LONG},
+  (char*) &export_vars.innodb_rows_inserted,		  SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"rows_read",
-  (char*) &export_vars.innodb_rows_read,		  SHOW_LONG},
+  (char*) &export_vars.innodb_rows_read,		  SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"rows_updated",
-  (char*) &export_vars.innodb_rows_updated,		  SHOW_LONG},
+  (char*) &export_vars.innodb_rows_updated,		  SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"num_open_files",
-  (char*) &export_vars.innodb_num_open_files,		  SHOW_LONG},
+  (char*) &export_vars.innodb_num_open_files,		  SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"truncated_status_writes",
-  (char*) &export_vars.innodb_truncated_status_writes,	  SHOW_LONG},
+  (char*) &export_vars.innodb_truncated_status_writes,	  SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"available_undo_logs",
-  (char*) &export_vars.innodb_available_undo_logs,        SHOW_LONG},
+  (char*) &export_vars.innodb_available_undo_logs,        SHOW_LONG, SHOW_SCOPE_GLOBAL},
 #ifdef UNIV_DEBUG
   {"purge_trx_id_age",
-  (char*) &export_vars.innodb_purge_trx_id_age,           SHOW_LONG},
+  (char*) &export_vars.innodb_purge_trx_id_age,           SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"purge_view_trx_id_age",
-  (char*) &export_vars.innodb_purge_view_trx_id_age,      SHOW_LONG},
+  (char*) &export_vars.innodb_purge_view_trx_id_age,      SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"ahi_drop_lookups",
-  (char*) &export_vars.innodb_ahi_drop_lookups,           SHOW_LONG},
+  (char*) &export_vars.innodb_ahi_drop_lookups,           SHOW_LONG, SHOW_SCOPE_GLOBAL},
 #endif /* UNIV_DEBUG */
-  {NullS, NullS, SHOW_LONG}
+  {NullS, NullS, SHOW_LONG, SHOW_SCOPE_GLOBAL}
 };
 
 /************************************************************************//**
@@ -1309,28 +1302,6 @@ thd_is_select(
 	return(thd_sql_command(thd) == SQLCOM_SELECT);
 }
 
-/** Returns true if the thread is executing CREATE TABLE statement.
-@param[in]	thd	the current thread context
-@retval true if thread is executing CREATE TABLE. */
-static
-inline
-bool
-thd_is_create_table(const THD*	thd)
-{
-	return(thd_sql_command(thd) == SQLCOM_CREATE_TABLE);
-}
-
-/** Returns true if the thread is executing CREATE INDEX statement.
-@param[in]	thd	the current thread context
-@retval true if thread is executing CREATE INDEX. */
-static
-inline
-bool
-thd_is_create_index(const THD*	thd)
-{
-	return(thd_sql_command(thd) == SQLCOM_CREATE_INDEX);
-}
-
 /******************************************************************//**
 Returns true if the thread supports XA,
 global value of innodb_supports_xa if thd is NULL.
@@ -1369,17 +1340,6 @@ thd_set_lock_wait_time(
 	if (thd) {
 		thd_storage_lock_wait(thd, value);
 	}
-}
-
-/** Get status of create intrinsic.
-@param[in]	thd	thread handle, or NULL to query
-			the global innodb_create_intrinsic.
-@return true if create intrinsic is set. */
-bool
-thd_create_intrinsic(
-	THD*	thd)
-{
-	return(THDVAR(thd, create_intrinsic));
 }
 
 /** Obtain the private handler of InnoDB session specific data.
@@ -1436,16 +1396,6 @@ thd_is_ins_sel_stmt(THD* user_thd)
 	Use of AHI is blocked if statement is insert .... select statement. */
 	innodb_session_t*	innodb_priv = thd_to_innodb_session(user_thd);
 	return (innodb_priv->count_register_table_handler() > 0 ? true : false);
-}
-
-/** Return the optimize_point_storage for current connection.
-@param[in]	thd	the thd of current connection
-@return the optimize_point_storage */
-bool
-thd_optimize_point_storage(
-	THD*	thd)
-{
-	return(THDVAR(thd, optimize_point_storage));
 }
 
 /** Add the table handler to thread cache.
@@ -1636,14 +1586,17 @@ convert_error_code_to_mysql(
 
 	case DB_TOO_BIG_RECORD: {
 		/* If prefix is true then a 768-byte prefix is stored
-		locally for BLOB fields. Refer to dict_table_get_format() */
+		locally for BLOB fields. Refer to dict_table_get_format().
+		We limit max record size to 16k for 64k page size. */
 		bool prefix = (dict_tf_get_format(flags) == UNIV_FORMAT_A);
 		my_printf_error(ER_TOO_BIG_ROWSIZE,
 			"Row size too large (> %lu). Changing some columns"
 			" to TEXT or BLOB %smay help. In current row"
 			" format, BLOB prefix of %d bytes is stored inline.",
 			MYF(0),
-			page_get_free_space_of_empty(flags &
+			srv_page_size == UNIV_PAGE_SIZE_MAX
+			? REC_MAX_DATA_SIZE - 1
+			: page_get_free_space_of_empty(flags &
 				DICT_TF_COMPACT) / 2,
 			prefix
 			? "or using ROW_FORMAT=DYNAMIC or"
@@ -2216,12 +2169,6 @@ innobase_trx_allocate(
 
 	innobase_trx_init(thd, trx);
 
-#ifdef UNIV_DEBUG
-	if (thd_trx_is_dd_trx(thd)) {
-		trx->is_dd_trx = true;
-	}
-#endif /* UNIV_DEBUG */
-
 	DBUG_RETURN(trx);
 }
 
@@ -2242,6 +2189,11 @@ check_trx_exists(
 
 	if (trx == NULL) {
 		trx = innobase_trx_allocate(thd);
+
+		/* User trx can be forced to rollback,
+		so we unset the disable flag. */
+		ut_ad(trx->in_innodb & TRX_FORCE_ROLLBACK_DISABLE);
+		trx->in_innodb &= TRX_FORCE_ROLLBACK_MASK;
 	} else {
 		ut_a(trx->magic_n == TRX_MAGIC_N);
 
@@ -2382,6 +2334,7 @@ ha_innobase::ha_innobase(
 			  | HA_CAN_RTREEKEYS
 			  | HA_HAS_RECORDS
 			  | HA_NO_READ_LOCAL_LOCK
+			  | HA_GENERATED_COLUMNS
 			  | HA_ATTACHABLE_TRX_COMPATIBLE
 		  ),
 	m_start_of_scan(),
@@ -2916,8 +2869,8 @@ innobase_init_abort()
 This function checks if the given db.tablename is a system table
 supported by Innodb and is used as an initializer for the data member
 is_supported_system_table of InnoDB storage engine handlerton.
-Currently we support only help and time_zone system tables in InnoDB.
-Please don't add any SE-specific system tables here.
+Currently we support only plugin, servers,  help- and time_zone- related
+system tables in InnoDB. Please don't add any SE-specific system tables here.
 
 @param db				database name to check.
 @param table_name			table name to check.
@@ -2933,6 +2886,8 @@ static bool innobase_is_supported_system_table(const char *db,
 							"help_category",
 							"help_relation",
 							"help_keyword",
+							"plugin",
+							"servers",
 							"time_zone",
 							"time_zone_leap_second",
 							"time_zone_name",
@@ -4136,24 +4091,6 @@ innobase_kill_connection(
 	DBUG_VOID_RETURN;
 }
 
-/*****************************************************************//**
-Frees a possible InnoDB trx object associated with the current THD.
-@return 0 or error number */
-int
-innobase_close_thd(
-/*===============*/
-	THD*		thd)	/*!< in: handle to the MySQL thread of the user
-				whose resources should be free'd */
-{
-	trx_t*	trx = thd_to_trx(thd);
-
-	if (trx == NULL) {
-		return(0);
-	}
-
-	return(innobase_close_connection(innodb_hton_ptr, thd));
-}
-
 /*************************************************************************//**
 ** InnoDB database tables
 *****************************************************************************/
@@ -4347,8 +4284,8 @@ Determines if the primary key is clustered index.
 @return true */
 
 bool
-ha_innobase::primary_key_is_clustered()
-/*===================================*/
+ha_innobase::primary_key_is_clustered() const
+/*=========================================*/
 {
 	return(true);
 }
@@ -4590,12 +4527,9 @@ innobase_match_index_columns(
 		ulint	mtype = innodb_idx_fld->col->mtype;
 
 		/* Need to translate to InnoDB column type before
-		comparison.
-		We assume optimize_point_storage is TRUE first,
-		since we don't need to know how it was set when the original
-		table was created before. We would do a double check later. */
+		comparison. */
 		col_type = get_innobase_type_from_mysql_type(
-				&is_unsigned, key_part->field, true);
+			&is_unsigned, key_part->field);
 
 		/* Ignore InnoDB specific system columns. */
 		while (mtype == DATA_SYS) {
@@ -4607,13 +4541,29 @@ innobase_match_index_columns(
 		}
 
 		if (col_type != mtype) {
-			/* Double check for POINT here, we will treat
-			DATA_POINT the same as DATA_VAR_POINT.
-			Besides, point from 5.6 would be stored as
-			DATA_GEOMETRY, which is a special case. */
-			if (DATA_POINT_MTYPE(col_type)
-			    && !(DATA_POINT_MTYPE(mtype)
-				 || mtype == DATA_GEOMETRY)) {
+			/* If the col_type we get from mysql type is a geometry
+			data type, we should check if mtype is a legacy type
+			from 5.6, either upgraded to DATA_GEOMETRY or not.
+			This is indeed not an accurate check, but should be
+			safe, since DATA_BLOB would be upgraded once we create
+			spatial index on it and we intend to use DATA_GEOMETRY
+			for legacy GIS data types which are of var-length. */
+			switch (col_type) {
+			case DATA_POINT:
+			case DATA_VAR_POINT:
+				if (DATA_POINT_MTYPE(mtype)
+				    || mtype == DATA_GEOMETRY
+				    || mtype == DATA_BLOB) {
+					break;
+				}
+				/* Fall through */
+			case DATA_GEOMETRY:
+				if (mtype == DATA_BLOB) {
+					break;
+				}
+				/* Fall through */
+			default:
+				/* Column type mismatches */
 				DBUG_RETURN(false);
 			}
 		}
@@ -5280,6 +5230,11 @@ table_opened:
 				static_cast<st_mysql_ftparser *>(
 					plugin_decl(parser)->info);
 
+			index->is_ngram = strncmp(
+				plugin_name(parser)->str,
+				FTS_NGRAM_PARSER_NAME,
+				plugin_name(parser)->length) == 0;
+
 			DBUG_EXECUTE_IF("fts_instrument_use_default_parser",
 				index->parser = &fts_default_parser;);
 		}
@@ -5569,14 +5524,11 @@ VARCHAR and the new true VARCHAR in >= 5.0.3 by the 'prtype'.
 @param[out]	unsigned_flag	DATA_UNSIGNED if an 'unsigned type'; at least
 ENUM and SET, and unsigned integer types are 'unsigned types'
 @param[in]	f		MySQL Field
-@param[in]	optimize_point_storage
-				true if we want to optimize POINT storage
 @return DATA_BINARY, DATA_VARCHAR, ... */
 ulint
 get_innobase_type_from_mysql_type(
-	ulint*		unsigned_flag,
-	const void*	f,
-	bool		optimize_point_storage)
+	ulint*			unsigned_flag,
+	const void*		f)
 {
 	const class Field* field = reinterpret_cast<const class Field*>(f);
 
@@ -5667,16 +5619,7 @@ get_innobase_type_from_mysql_type(
 	case MYSQL_TYPE_DECIMAL:
 		return(DATA_DECIMAL);
 	case MYSQL_TYPE_GEOMETRY:
-		switch (field->get_geometry_type()) {
-		case Field::GEOM_POINT:
-			/* When we want to optimize the storage,
-			we use fixed length type DATA_POINT,
-			otherwise DATA_VAR_POINT */
-			return(optimize_point_storage ?
-				DATA_POINT : DATA_VAR_POINT);
-		default:
-			return(DATA_GEOMETRY);
-		}
+		return(DATA_GEOMETRY);
 	case MYSQL_TYPE_TINY_BLOB:
 	case MYSQL_TYPE_MEDIUM_BLOB:
 	case MYSQL_TYPE_BLOB:
@@ -6132,6 +6075,8 @@ build_template_field(
 	if (templ->mysql_type == DATA_MYSQL_TRUE_VARCHAR) {
 		templ->mysql_length_bytes = (ulint)
 			(((Field_varstring*) field)->length_bytes);
+	} else {
+		templ->mysql_length_bytes = 0;
 	}
 
 	templ->charset = dtype_get_charset_coll(col->prtype);
@@ -6460,7 +6405,8 @@ ha_innobase::innobase_lock_autoinc(void)
 	dberr_t		error = DB_SUCCESS;
 	long		lock_mode = innobase_autoinc_lock_mode;
 
-	ut_ad(!srv_read_only_mode || dict_table_is_intrinsic(m_prebuilt->table));
+	ut_ad(!srv_read_only_mode
+	      || dict_table_is_intrinsic(m_prebuilt->table));
 
 	if (dict_table_is_intrinsic(m_prebuilt->table)) {
 		/* Intrinsic table are not shared accorss connection
@@ -6539,6 +6485,30 @@ ha_innobase::innobase_set_max_autoinc(
 	return(error);
 }
 
+/** Write Row interface optimized for intrinisc table.
+@param[in]	record	a row in MySQL format.
+@return 0 on success or error code */
+int
+ha_innobase::intrinsic_table_write_row(uchar* record)
+{
+	dberr_t		err;
+
+	/* No auto-increment support for intrinsic table. */
+	ut_ad(!(table->next_number_field && record == table->record[0]));
+
+	if (m_prebuilt->mysql_template == NULL
+	    || m_prebuilt->template_type != ROW_MYSQL_WHOLE_ROW) {
+		/* Build the template used in converting quickly between
+		the two database formats */
+		build_template(true);
+	}
+
+	err = row_insert_for_mysql((byte*) record, m_prebuilt);
+
+	return(convert_error_code_to_mysql(
+		err, m_prebuilt->table->flags, m_user_thd));
+}
+
 /********************************************************************//**
 Stores a row in an InnoDB database, to the table specified in this
 handle.
@@ -6553,10 +6523,15 @@ ha_innobase::write_row(
 	ulint		sql_command;
 	int		error_result = 0;
 	bool		auto_inc_used = false;
-	trx_t*		trx = thd_to_trx(m_user_thd);
-	TrxInInnoDB	trx_in_innodb(trx);
 
 	DBUG_ENTER("ha_innobase::write_row");
+
+	if (dict_table_is_intrinsic(m_prebuilt->table)) {
+		DBUG_RETURN(intrinsic_table_write_row(record));
+	}
+
+	trx_t*		trx = thd_to_trx(m_user_thd);
+	TrxInInnoDB	trx_in_innodb(trx);
 
 	if (trx_in_innodb.is_aborted()) {
 
@@ -6564,7 +6539,7 @@ ha_innobase::write_row(
 	}
 
 	/* Step-1: Validation checks before we commence write_row operation. */
-	if (srv_read_only_mode && !dict_table_is_intrinsic(m_prebuilt->table)) {
+	if (srv_read_only_mode) {
 		ib_senderrf(ha_thd(), IB_LOG_LEVEL_WARN, ER_READ_ONLY_MODE);
 		DBUG_RETURN(HA_ERR_TABLE_READONLY);
 	} else if (m_prebuilt->trx != trx) {
@@ -6846,7 +6821,7 @@ calc_row_difference(
 	ulint		n_changed = 0;
 	dfield_t	dfield;
 	dict_index_t*	clust_index;
-	uint		i;
+  uint            i;
 	ibool		changes_fts_column = FALSE;
 	ibool		changes_fts_doc_col = FALSE;
 	trx_t*          trx = thd_to_trx(thd);
@@ -6862,6 +6837,12 @@ calc_row_difference(
 
 	for (i = 0; i < n_fields; i++) {
 		field = table->field[i];
+                /*
+                  Don't bother processing fields that aren't supposed to be
+                  stored.
+                */
+		if (!field->stored_in_db)
+		  continue;
 
 		o_ptr = (const byte*) old_row + get_field_offset(table, field);
 		n_ptr = (const byte*) new_row + get_field_offset(table, field);
@@ -6958,18 +6939,6 @@ calc_row_difference(
 			}
 
 			if (n_len != UNIV_SQL_NULL) {
-				if (n_len != DATA_POINT_LEN
-				    && DATA_POINT_MTYPE(col_type)) {
-					/* The same with insert, we should
-					do a data checking for POINT.
-					If new data length is different and
-					not null, it must be wrong.
-					See row_ins_index_entry_set_vals. */
-					ut_ad(o_len == DATA_POINT_LEN
-					      || o_len == UNIV_SQL_NULL);
-					return(DB_CANT_CREATE_GEOMETRY_OBJECT);
-				}
-
 				dict_col_copy_type(prebuilt->table->cols + i,
 						   dfield_get_type(&dfield));
 
@@ -8671,9 +8640,6 @@ create_table_check_doc_id_col(
 					ULINT_UNDEFINED if column is of the
 					wrong type/name/size */
 {
-	bool		optimize_point_storage
-			= thd_optimize_point_storage(trx->mysql_thd);
-
 	for (ulint i = 0; i < form->s->fields; i++) {
 		const Field*	field;
 		ulint		col_type;
@@ -8681,9 +8647,11 @@ create_table_check_doc_id_col(
 		ulint		unsigned_type;
 
 		field = form->field[i];
+		if (!field->stored_in_db)
+		  continue;
 
 		col_type = get_innobase_type_from_mysql_type(
-			&unsigned_type, field, optimize_point_storage);
+			&unsigned_type, field);
 
 		col_len = field->pack_length();
 
@@ -8738,7 +8706,6 @@ create_table_info_t::create_table_def()
 	ulint		doc_id_col = 0;
 	ibool		has_doc_id_col = FALSE;
 	mem_heap_t*	heap;
-	bool		optimize_point_storage = true;
 
 	DBUG_ENTER("create_table_def");
 	DBUG_PRINT("enter", ("table_name: %s", m_table_name));
@@ -8806,8 +8773,6 @@ create_table_info_t::create_table_def()
 	}
 	heap = mem_heap_create(1000);
 
-	optimize_point_storage = thd_optimize_point_storage(m_trx->mysql_thd);
-
 	for (i = 0; i < n_cols; i++) {
 		Field*	field = m_form->field[i];
 
@@ -8831,7 +8796,7 @@ create_table_info_t::create_table_def()
 		}
 
 		col_type = get_innobase_type_from_mysql_type(
-			&unsigned_type, field, optimize_point_storage);
+			&unsigned_type, field);
 
 		if (!col_type) {
 			push_warning_printf(
@@ -9003,7 +8968,6 @@ create_index(
 	const KEY*	key;
 	ulint		ind_type;
 	ulint*		field_lengths;
-	bool		optimize_point_storage = true;
 
 	DBUG_ENTER("create_index");
 
@@ -9078,8 +9042,6 @@ create_index(
 		index->disable_ahi = true;
 	}
 
-	optimize_point_storage = thd_optimize_point_storage(trx->mysql_thd);
-
 	for (ulint i = 0; i < key->user_defined_key_parts; i++) {
 		KEY_PART_INFO*	key_part = key->key_part + i;
 		ulint		prefix_len;
@@ -9120,7 +9082,7 @@ found:
 		}
 
 		col_type = get_innobase_type_from_mysql_type(
-			&is_unsigned, key_part->field, optimize_point_storage);
+			&is_unsigned, key_part->field);
 
 		if (DATA_LARGE_MTYPE(col_type)
 		    || (key_part->length < field->pack_length()
@@ -9441,6 +9403,21 @@ create_table_info_t::create_options_are_invalid()
 		ret = "INDEX DIRECTORY";
 	}
 
+	/* Don't support compressed table when page size > 16k. */
+	if ((has_key_block_size || row_format == ROW_TYPE_COMPRESSED)
+	    && UNIV_PAGE_SIZE > UNIV_PAGE_SIZE_DEF) {
+		push_warning(m_thd, Sql_condition::SL_WARNING,
+			     ER_ILLEGAL_HA_CREATE_OPTION,
+			     "InnoDB: Cannot create a COMPRESSED table"
+			     " when innodb_page_size > 16k.");
+
+		if (has_key_block_size) {
+			ret = "KEY_BLOCK_SIZE";
+		} else {
+			ret = "ROW_TYPE";
+		}
+	}
+
 	return(ret);
 }
 
@@ -9599,7 +9576,8 @@ create_table_info_t::innobase_table_flags()
 			}
 		} else if (key->flags & HA_SPATIAL) {
 			if (m_create_info->options & HA_LEX_CREATE_TMP_TABLE
-			    && THDVAR(m_thd, create_intrinsic)
+			    && m_create_info->options
+			       & HA_LEX_CREATE_INTERNAL_TMP_TABLE
 			    && !m_file_per_table) {
 				my_error(ER_TABLE_CANT_HANDLE_SPKEYS, MYF(0));
 				DBUG_RETURN(false);
@@ -9757,6 +9735,17 @@ index_bad:
 		break;
 	}
 
+	/* Don't support compressed table when page size > 16k. */
+	if (zip_allowed && zip_ssize && UNIV_PAGE_SIZE > UNIV_PAGE_SIZE_DEF) {
+		push_warning(m_thd, Sql_condition::SL_WARNING,
+			     ER_ILLEGAL_HA_CREATE_OPTION,
+			     "InnoDB: Cannot create a COMPRESSED table"
+			     " when innodb_page_size > 16k."
+			     " Assuming ROW_FORMAT=COMPACT.");
+		zip_allowed = FALSE;
+	}
+
+	/* Set the table flags */
 	if (!zip_allowed) {
 		zip_ssize = 0;
 	}
@@ -9768,16 +9757,9 @@ index_bad:
 	if (m_create_info->options & HA_LEX_CREATE_TMP_TABLE) {
 		m_flags2 |= DICT_TF2_TEMPORARY;
 
-		const bool	use_intrinsic
-			= THDVAR(m_thd, create_intrinsic)
-			&& (thd_is_create_table(m_thd)
-			    || thd_is_create_index(m_thd));
-
-		/* Intrinsic tables reside only in the shared
-		temporary tablespace. */
-		if ((use_intrinsic
-		     || m_create_info->options
-			& HA_LEX_CREATE_INTERNAL_TMP_TABLE)
+		/* Intrinsic tables reside only in the shared temporary
+		tablespace. */
+		if ((m_create_info->options & HA_LEX_CREATE_INTERNAL_TMP_TABLE)
 		    && !m_file_per_table) {
 			m_flags2 |= DICT_TF2_INTRINSIC;
 		}
@@ -9816,6 +9798,175 @@ table_is_noncompressed_temporary(
 	bool is_temp = create_info->options & HA_LEX_CREATE_TMP_TABLE;
 
 	return(is_temp && !is_compressed);
+}
+
+/** Parse MERGE_THRESHOLD value from the string.
+@param[in]	thd	connection
+@param[in]	str	string which might include 'MERGE_THRESHOLD='
+@return	value parsed. 0 means not found or invalid value. */
+static
+ulint
+innobase_parse_merge_threshold(
+	THD*		thd,
+	const char*	str)
+{
+	static const char*	label = "MERGE_THRESHOLD=";
+	static const size_t	label_len = strlen(label);
+	const char*		pos = str;
+
+	pos = strstr(str, label);
+
+	if (pos == NULL) {
+		return(0);
+	}
+
+	pos += label_len;
+
+	lint	ret = atoi(pos);
+
+	if (ret > 0 && ret <= 50) {
+		return(static_cast<ulint>(ret));
+	}
+
+	push_warning_printf(
+		thd, Sql_condition::SL_WARNING,
+		ER_ILLEGAL_HA_CREATE_OPTION,
+		"InnoDB: Invalid value for MERGE_THRESHOLD in the CREATE TABLE"
+		" statement. The value is ignored.");
+
+	return(0);
+}
+
+/** Parse hint for table and its indexes, and update the information
+in dictionary.
+@param[in]	thd		connection
+@param[in,out]	table		target table
+@param[in]	table_share	table definition */
+void
+innobase_parse_hint_from_comment(
+	THD*			thd,
+	dict_table_t*		table,
+	const TABLE_SHARE*	table_share)
+{
+	ulint	merge_threshold_table;
+	ulint	merge_threshold_index[MAX_KEY];
+	bool	is_found[MAX_KEY];
+
+	if (table_share->comment.str != NULL) {
+		merge_threshold_table
+			= innobase_parse_merge_threshold(
+				thd, table_share->comment.str);
+	} else {
+		merge_threshold_table = DICT_INDEX_MERGE_THRESHOLD_DEFAULT;
+	}
+
+	if (merge_threshold_table == 0) {
+		merge_threshold_table = DICT_INDEX_MERGE_THRESHOLD_DEFAULT;
+	}
+
+	for (uint i = 0; i < table_share->keys; i++) {
+		KEY*	key_info = &table_share->key_info[i];
+
+		ut_ad(i < sizeof(merge_threshold_index)
+			  / sizeof(merge_threshold_index[0]));
+
+		if (key_info->flags & HA_USES_COMMENT
+		    && key_info->comment.str != NULL) {
+			merge_threshold_index[i]
+				= innobase_parse_merge_threshold(
+					thd, key_info->comment.str);
+		} else {
+			merge_threshold_index[i] = merge_threshold_table;
+		}
+
+		if (merge_threshold_index[i] == 0) {
+			merge_threshold_index[i] = merge_threshold_table;
+		}
+	}
+
+	/* update SYS_INDEX table */
+	if (!dict_table_is_temporary(table)) {
+		for (uint i = 0; i < table_share->keys; i++) {
+			is_found[i] = false;
+		}
+
+		for (dict_index_t* index = UT_LIST_GET_FIRST(table->indexes);
+		     index != NULL;
+		     index = UT_LIST_GET_NEXT(indexes, index)) {
+
+			if (dict_index_is_auto_gen_clust(index)) {
+
+				/* GEN_CLUST_INDEX should use
+				merge_threshold_table */
+				dict_index_set_merge_threshold(
+					index, merge_threshold_table);
+				continue;
+			}
+
+			for (uint i = 0; i < table_share->keys; i++) {
+				if (is_found[i]) {
+					continue;
+				}
+
+				KEY*	key_info = &table_share->key_info[i];
+
+				if (innobase_strcasecmp(
+					index->name, key_info->name) == 0) {
+
+					dict_index_set_merge_threshold(
+						index,
+						merge_threshold_index[i]);
+					is_found[i] = true;
+					break;
+				}
+			}
+		}
+	}
+
+	for (uint i = 0; i < table_share->keys; i++) {
+		is_found[i] = false;
+	}
+
+	/* update in memory */
+	for (dict_index_t* index = UT_LIST_GET_FIRST(table->indexes);
+	     index != NULL;
+	     index = UT_LIST_GET_NEXT(indexes, index)) {
+
+		if (dict_index_is_auto_gen_clust(index)) {
+
+			/* GEN_CLUST_INDEX should use merge_threshold_table */
+
+			/* x-lock index is needed to exclude concurrent
+			pessimistic tree operations */
+			rw_lock_x_lock(dict_index_get_lock(index));
+			index->merge_threshold = merge_threshold_table;
+			rw_lock_x_unlock(dict_index_get_lock(index));
+
+			continue;
+		}
+
+		for (uint i = 0; i < table_share->keys; i++) {
+			if (is_found[i]) {
+				continue;
+			}
+
+			KEY*	key_info = &table_share->key_info[i];
+
+			if (innobase_strcasecmp(
+				index->name, key_info->name) == 0) {
+
+				/* x-lock index is needed to exclude concurrent
+				pessimistic tree operations */
+				rw_lock_x_lock(dict_index_get_lock(index));
+				index->merge_threshold
+					= merge_threshold_index[i];
+				rw_lock_x_unlock(dict_index_get_lock(index));
+				is_found[i] = true;
+
+				break;
+			}
+		}
+	}
 }
 
 /** Prepare to create a new table to an InnoDB database.
@@ -10157,6 +10308,8 @@ create_table_info_t::create_table_update_dict()
 	}
 
 	dict_table_close(innobase_table, FALSE, FALSE);
+
+	innobase_parse_hint_from_comment(m_thd, innobase_table, m_form->s);
 
 	DBUG_RETURN(0);
 }
@@ -12078,6 +12231,7 @@ ha_innobase::check(
 			os_atomic_increment_ulint(
 				&srv_fatal_semaphore_wait_threshold,
 				SRV_SEMAPHORE_WAIT_EXTENSION);
+
 			bool valid = btr_validate_index(
 					index, m_prebuilt->trx, false);
 
@@ -12175,10 +12329,7 @@ ha_innobase::check(
 		if (index == dict_table_get_first_index(m_prebuilt->table)) {
 			n_rows_in_table = n_rows;
 		} else if (!(index->type & DICT_FTS)
-			   && (n_rows != n_rows_in_table)
-			/* GIS_FIXME: Will address the transient count
-			mistmatch for R-Tree in WL #7740 */
-			   && !dict_index_is_spatial(index)) {
+			   && (n_rows != n_rows_in_table)) {
 			push_warning_printf(
 				thd, Sql_condition::SL_WARNING,
 				ER_NOT_KEYFILE,
@@ -13004,6 +13155,11 @@ ha_innobase::external_lock(
 
 		TrxInInnoDB::begin_stmt(trx);
 
+#ifdef UNIV_DEBUG
+		if (thd_trx_is_dd_trx(thd)) {
+			trx->is_dd_trx = true;
+		}
+#endif /* UNIV_DEBUG */
 		DBUG_RETURN(0);
 	} else {
 
@@ -14623,6 +14779,20 @@ innodb_buffer_pool_size_update(
 		return;
 	}
 
+#ifdef UNIV_DEBUG
+	if (buf_disable_resize_buffer_pool_debug == TRUE) {
+		push_warning_printf(thd, Sql_condition::SL_WARNING,
+			ER_WRONG_ARGUMENTS,
+			"Cannot update innodb_buffer_pool_size,"
+			" because innodb_disable_resize_buffer_pool_debug"
+			" is set.");
+		ib::warn() << "Cannot update innodb_buffer_pool_size,"
+			" because innodb_disable_resize_buffer_pool_debug"
+			" is set.";
+		return;
+	}
+#endif /* UNIV_DEBUG */
+
 	buf_pool_mutex_enter_all();
 	if (srv_buf_pool_old_size != srv_buf_pool_size) {
 		buf_pool_mutex_exit_all();
@@ -15634,6 +15804,7 @@ show_innodb_vars(
 	innodb_export_status();
 	var->type = SHOW_ARRAY;
 	var->value = (char*) &innodb_status_variables;
+  var->scope = SHOW_SCOPE_GLOBAL;
 
 	return(0);
 }
@@ -15751,6 +15922,8 @@ static my_bool	innodb_purge_run_now = TRUE;
 static my_bool	innodb_purge_stop_now = TRUE;
 static my_bool	innodb_log_checkpoint_now = TRUE;
 static my_bool	innodb_buf_flush_list_now = TRUE;
+static uint	innodb_merge_threshold_set_all_debug
+	= DICT_INDEX_MERGE_THRESHOLD_DEFAULT;
 
 /****************************************************************//**
 Set the purge state to RUN. If purge is disabled then it
@@ -15847,6 +16020,26 @@ buf_flush_list_now_set(
 		buf_flush_lists(ULINT_MAX, LSN_MAX, NULL);
 		buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
 	}
+}
+
+/** Override current MERGE_THRESHOLD setting for all indexes at dictionary
+now.
+@param[in]	thd	thread handle
+@param[in]	var	pointer to system variable
+@param[out]	var_ptr	where the formal string goes
+@param[in]	save	immediate result from check function */
+static
+void
+innodb_merge_threshold_set_all_debug_update(
+	THD*				thd,
+	struct st_mysql_sys_var*	var,
+	void*				var_ptr,
+	const void*			save)
+{
+	innodb_merge_threshold_set_all_debug
+		= (*static_cast<const uint*>(save));
+	dict_set_merge_threshold_all_debug(
+		innodb_merge_threshold_set_all_debug);
 }
 #endif /* UNIV_DEBUG */
 
@@ -16085,8 +16278,8 @@ innodb_status_output_update(
 }
 
 static SHOW_VAR innodb_status_variables_export[]= {
-	{"Innodb", (char*) &show_innodb_vars, SHOW_FUNC},
-	{NullS, NullS, SHOW_LONG}
+	{"Innodb", (char*) &show_innodb_vars, SHOW_FUNC, SHOW_SCOPE_GLOBAL},
+	{NullS, NullS, SHOW_LONG, SHOW_SCOPE_GLOBAL}
 };
 
 static struct st_mysql_storage_engine innobase_storage_engine=
@@ -16169,6 +16362,14 @@ static MYSQL_SYSVAR_BOOL(buf_flush_list_now, innodb_buf_flush_list_now,
   PLUGIN_VAR_OPCMDARG,
   "Force dirty page flush now",
   NULL, buf_flush_list_now_set, FALSE);
+
+static MYSQL_SYSVAR_UINT(merge_threshold_set_all_debug,
+  innodb_merge_threshold_set_all_debug,
+  PLUGIN_VAR_RQCMDARG,
+  "Override current MERGE_THRESHOLD setting for all indexes at dictionary"
+  " cache by the specified value dynamically, at the time.",
+  NULL, innodb_merge_threshold_set_all_debug_update,
+  DICT_INDEX_MERGE_THRESHOLD_DEFAULT, 1, 50, 0);
 #endif /* UNIV_DEBUG */
 
 static MYSQL_SYSVAR_ULONG(purge_batch_size, srv_purge_batch_size,
@@ -16610,7 +16811,7 @@ static MYSQL_SYSVAR_ULONG(page_size, srv_page_size,
 static MYSQL_SYSVAR_LONG(log_buffer_size, innobase_log_buffer_size,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "The size of the buffer which InnoDB uses to write log to the log files on disk.",
-  NULL, NULL, 8*1024*1024L, 256*1024L, LONG_MAX, 1024);
+  NULL, NULL, 16*1024*1024L, 256*1024L, LONG_MAX, 1024);
 
 static MYSQL_SYSVAR_LONGLONG(log_file_size, innobase_log_file_size,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
@@ -16926,6 +17127,11 @@ static MYSQL_SYSVAR_ULONG(saved_page_number_debug,
   srv_saved_page_number_debug, PLUGIN_VAR_OPCMDARG,
   "An InnoDB page number.",
   NULL, innodb_save_page_no, 0, 0, UINT_MAX32, 0);
+
+static MYSQL_SYSVAR_BOOL(disable_resize_buffer_pool_debug,
+  buf_disable_resize_buffer_pool_debug, PLUGIN_VAR_NOCMDARG,
+  "Disable resizing buffer pool to make assertion code not expensive.",
+  NULL, NULL, TRUE);
 #endif /* UNIV_DEBUG */
 
 static struct st_mysql_sys_var* innobase_system_variables[]= {
@@ -17021,7 +17227,6 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(replication_delay),
   MYSQL_SYSVAR(status_file),
   MYSQL_SYSVAR(strict_mode),
-  MYSQL_SYSVAR(create_intrinsic),
   MYSQL_SYSVAR(support_xa),
   MYSQL_SYSVAR(sort_buffer_size),
   MYSQL_SYSVAR(online_alter_log_max_size),
@@ -17057,6 +17262,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(purge_stop_now),
   MYSQL_SYSVAR(log_checkpoint_now),
   MYSQL_SYSVAR(buf_flush_list_now),
+  MYSQL_SYSVAR(merge_threshold_set_all_debug),
 #endif /* UNIV_DEBUG */
 #if defined UNIV_DEBUG || defined UNIV_PERF_DEBUG
   MYSQL_SYSVAR(page_hash_locks),
@@ -17076,13 +17282,13 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(sync_array_size),
   MYSQL_SYSVAR(compression_failure_threshold_pct),
   MYSQL_SYSVAR(compression_pad_pct_max),
-  MYSQL_SYSVAR(optimize_point_storage),
 #ifdef UNIV_DEBUG
   MYSQL_SYSVAR(trx_rseg_n_slots_debug),
   MYSQL_SYSVAR(limit_optimistic_insert_debug),
   MYSQL_SYSVAR(trx_purge_view_update_only_debug),
   MYSQL_SYSVAR(fil_make_page_dirty_debug),
   MYSQL_SYSVAR(saved_page_number_debug),
+  MYSQL_SYSVAR(disable_resize_buffer_pool_debug),
 #endif /* UNIV_DEBUG */
   NULL
 };
@@ -17311,6 +17517,7 @@ ib_senderrf(
 		str = static_cast<char*>(malloc(size));
 	}
 	if (str == NULL) {
+		va_end(args);
 		return;	/* Watch for Out-Of-Memory */
 	}
 	str[size - 1] = 0x0;
@@ -17319,12 +17526,14 @@ ib_senderrf(
 	int	ret;
 	ret = vasprintf(&str, format, args);
 	if (ret < 0) {
+		va_end(args);
 		return;	/* Watch for Out-Of-Memory */
 	}
 #else
 	/* Use a fixed length string. */
 	str = static_cast<char*>(malloc(BUFSIZ));
 	if (str == NULL) {
+		va_end(args);
 		return;	/* Watch for Out-Of-Memory */
 	}
 	my_vsnprintf(str, BUFSIZ, format, args);
@@ -17398,6 +17607,7 @@ ib_errf(
 		str = static_cast<char*>(malloc(size));
 	}
 	if (str == NULL) {
+		va_end(args);
 		return;	/* Watch for Out-Of-Memory */
 	}
 	str[size - 1] = 0x0;
@@ -17406,12 +17616,14 @@ ib_errf(
 	int	ret;
 	ret = vasprintf(&str, format, args);
 	if (ret < 0) {
+		va_end(args);
 		return;	/* Watch for Out-Of-Memory */
 	}
 #else
 	/* Use a fixed length string. */
 	str = static_cast<char*>(malloc(BUFSIZ));
 	if (str == NULL) {
+		va_end(args);
 		return;	/* Watch for Out-Of-Memory */
 	}
 	my_vsnprintf(str, BUFSIZ, format, args);

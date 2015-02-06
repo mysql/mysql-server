@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -929,20 +929,21 @@ cmp_rec_rec_with_match(
 			break;
 		}
 
+		/* If this is comparing non-leaf node record on Rtree,
+		then avoid comparing node-ptr field.*/
+		if (dict_index_is_spatial(index)
+		    && cur_field == DICT_INDEX_SPATIAL_NODEPTR_SIZE
+		    && (!page_is_leaf(page_align(rec1))
+			|| !page_is_leaf(page_align(rec2)))) {
+			break;
+		}
+
 		if (dict_index_is_ibuf(index)) {
 			/* This is for the insert buffer B-tree. */
 			mtype = DATA_BINARY;
 			prtype = 0;
 		} else {
 			const dict_col_t*	col;
-
-			/* This is comparing non-leaf node record, skip
-			the page no compare */
-			if (cur_field >= dict_index_get_n_fields(index)
-			    && dict_index_is_spatial(index)) {
-				cur_field--;
-				goto order_resolved;
-			}
 
 			col	= dict_index_get_nth_col(index, cur_field);
 

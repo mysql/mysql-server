@@ -54,7 +54,7 @@ set session optimizer_switch="foobar";
 --echo # Bug#59894 set optimizer_switch to e or d causes invalid
 --echo # memory writes/valgrind warnings
 --echo
-set global optimizer_switch = 'd'; # means default
+set global optimizer_switch = 'def'; # means default
 --error ER_WRONG_VALUE_FOR_VAR
 set global optimizer_switch = 'e';
 

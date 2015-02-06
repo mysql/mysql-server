@@ -20,9 +20,22 @@ GTID_OWNED
 select * from information_schema.session_variables where variable_name='gtid_owned';
 VARIABLE_NAME	VARIABLE_VALUE
 GTID_OWNED	
+set @@global.gtid_owned = 1;
+ERROR HY000: Variable 'gtid_owned' is a read only variable
+set @@session.gtid_owned = 1;
+ERROR HY000: Variable 'gtid_owned' is a read only variable
+set @@session.gtid_next = 'anonymous';
+select @@session.gtid_owned;
+@@session.gtid_owned
+ANONYMOUS
 select @@global.gtid_owned;
 @@global.gtid_owned
 
+ROLLBACK;
+set @@session.gtid_next = 'automatic';
 select @@session.gtid_owned;
 @@session.gtid_owned
+
+select @@global.gtid_owned;
+@@global.gtid_owned
 

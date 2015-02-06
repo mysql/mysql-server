@@ -32,20 +32,20 @@ CREATE TABLE     t1(f1 INT, f2 INT, f3 INT, f4 INT);
 CREATE PROCEDURE proc_rewrite_1() INSERT INTO test.t1 VALUES ("hocus pocus");
 CREATE FUNCTION  func_rewrite_1(i INT) RETURNS INT DETERMINISTIC RETURN i+1;
 
-GRANT SELECT(f2), INSERT(f3), INDEX, UPDATE(f1,f3, f2, f4), ALTER on test.t1 TO
-  test_user1 IDENTIFIED BY 'azundris1';
-GRANT ALL ON PROCEDURE test.proc_rewrite_1 TO test_user1
-      IDENTIFIED BY 'meow';
-GRANT EXECUTE ON FUNCTION test.func_rewrite_1 TO test_user1
-      IDENTIFIED BY 'meow';
-GRANT USAGE ON TABLE test.* TO test_user3@localhost IDENTIFIED BY 'meow'
-      REQUIRE SSL;
-GRANT SELECT,USAGE ON test.* TO test_user3@localhost IDENTIFIED BY 'meow'
+CREATE USER test_user1 IDENTIFIED BY 'azundris1';
+GRANT SELECT(f2), INSERT(f3), INDEX, UPDATE(f1,f3, f2, f4), ALTER on
+      test.t1 TO test_user1;
+GRANT ALL ON PROCEDURE test.proc_rewrite_1 TO test_user1;
+GRANT EXECUTE ON FUNCTION test.func_rewrite_1 TO test_user1;
+
+CREATE USER test_user3@localhost IDENTIFIED BY 'meow' REQUIRE SSL;
+GRANT SELECT,USAGE ON test.* TO test_user3@localhost;
+ALTER USER test_user3@localhost IDENTIFIED BY 'meow'
       REQUIRE X509 WITH
       MAX_QUERIES_PER_HOUR 1 MAX_UPDATES_PER_HOUR 2
       MAX_CONNECTIONS_PER_HOUR 3 MAX_USER_CONNECTIONS 4;
-GRANT SELECT ON test.* TO test_user3@localhost IDENTIFIED BY 'maus'
-      REQUIRE NONE WITH GRANT OPTION;
+GRANT USAGE ON test.* TO test_user3@localhost WITH GRANT OPTION;
+ALTER USER test_user3@localhost REQUIRE NONE;
 
 DROP PROCEDURE proc_rewrite_1;
 DROP FUNCTION  func_rewrite_1;
@@ -61,7 +61,7 @@ CHANGE MASTER TO MASTER_PASSWORD='azundris3';
 
 # 1.1.1.4
 CREATE USER 'test_user4'@'localhost';
-SET PASSWORD FOR 'test_user4'@'localhost' = PASSWORD('azundris4');
+ALTER USER 'test_user4'@'localhost' IDENTIFIED BY 'azundris4';
 
 # clean-up
 SET GLOBAL general_log=       'OFF';
@@ -87,9 +87,9 @@ SELECT argument FROM mysql.general_log WHERE argument LIKE CONCAT('%azun','dris%
 
 --echo Show that we logged stuff at all:
 --echo ------ from file ------
-SELECT TRIM(LEADING '\t' FROM MID(argument,LOCATE('Query',argument)+5)) FROM test_log WHERE argument LIKE '%PASSWORD %';
+SELECT TRIM(LEADING '\t' FROM MID(argument,LOCATE('Query',argument)+5)) FROM test_log WHERE argument LIKE '%AS %';
 --echo ------ from table ------
-SELECT argument FROM mysql.general_log WHERE argument LIKE '%PASSWORD %';
+SELECT argument FROM mysql.general_log WHERE argument LIKE '%AS %';
 --echo ------ done ------
 
 --echo ------ rewrite ------
@@ -99,7 +99,7 @@ SELECT argument FROM mysql.general_log WHERE argument LIKE 'GRANT %';
 --echo ------ done ------ see log_tables.test for more proof! :)
 
 # Sanity check -- prove we log the correct hash.  Must return one row.
-SELECT argument FROM mysql.general_log WHERE argument LIKE 'GRANT SELECT%' AND argument LIKE CONCAT('%', PASSWORD('azundris1'), '%');
+SELECT argument FROM mysql.general_log WHERE argument LIKE 'GRANT SELECT%' AND argument LIKE CONCAT('%AS %');
 
 --echo Bug#13958454 -- show we print SET @a:=5, but SELECT (@a:=5)
 # We need the () in EXPLAIN extended, for (@e:=80)+5.
@@ -148,3 +148,8 @@ DROP TABLE test_log;
 SET GLOBAL general_log_file=  @old_general_log_file;
 SET GLOBAL general_log=       @old_general_log;
 SET GLOBAL log_output=        @old_log_output;
+
+--echo
+--echo End of 5.7 tests!
+--echo
+

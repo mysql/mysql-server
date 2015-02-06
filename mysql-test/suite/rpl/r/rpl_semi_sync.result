@@ -155,7 +155,7 @@ Variable_name	Value
 Rpl_semi_sync_master_no_tx	0
 show status like 'Rpl_semi_sync_master_yes_tx';
 Variable_name	Value
-Rpl_semi_sync_master_yes_tx	14
+Rpl_semi_sync_master_yes_tx	15
 show status like 'Rpl_semi_sync_master_clients';
 Variable_name	Value
 Rpl_semi_sync_master_clients	1
@@ -170,7 +170,7 @@ Variable_name	Value
 Rpl_semi_sync_master_no_tx	1
 show status like 'Rpl_semi_sync_master_yes_tx';
 Variable_name	Value
-Rpl_semi_sync_master_yes_tx	14
+Rpl_semi_sync_master_yes_tx	15
 insert into t1 values (100);
 [ master status should be OFF ]
 show status like 'Rpl_semi_sync_master_status';
@@ -181,7 +181,7 @@ Variable_name	Value
 Rpl_semi_sync_master_no_tx	12
 show status like 'Rpl_semi_sync_master_yes_tx';
 Variable_name	Value
-Rpl_semi_sync_master_yes_tx	14
+Rpl_semi_sync_master_yes_tx	15
 #
 # Test semi-sync status on master will be ON again when slave catches up
 #
@@ -214,7 +214,7 @@ Variable_name	Value
 Rpl_semi_sync_master_no_tx	12
 show status like 'Rpl_semi_sync_master_yes_tx';
 Variable_name	Value
-Rpl_semi_sync_master_yes_tx	14
+Rpl_semi_sync_master_yes_tx	15
 show status like 'Rpl_semi_sync_master_clients';
 Variable_name	Value
 Rpl_semi_sync_master_clients	1
@@ -234,7 +234,7 @@ Variable_name	Value
 Rpl_semi_sync_master_no_tx	12
 SHOW STATUS LIKE 'Rpl_semi_sync_master_yes_tx';
 Variable_name	Value
-Rpl_semi_sync_master_yes_tx	15
+Rpl_semi_sync_master_yes_tx	16
 FLUSH NO_WRITE_TO_BINLOG STATUS;
 [ Semi-sync master status variables after FLUSH STATUS ]
 SHOW STATUS LIKE 'Rpl_semi_sync_master_no_tx';
@@ -322,10 +322,14 @@ Rpl_semi_sync_master_yes_tx	3
 include/rpl_reset.inc
 set sql_log_bin=0;
 grant replication slave on *.* to rpl@127.0.0.1 identified by 'rpl';
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 flush privileges;
 set sql_log_bin=1;
 [ on slave ]
 grant replication slave on *.* to rpl@127.0.0.1 identified by 'rpl';
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 flush privileges;
 change master to master_user='rpl',master_password='rpl';
 Warnings:

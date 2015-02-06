@@ -1,0 +1,15 @@
+# This test checks the basic functionality of the Group Replication
+# commands introduced to control the plugin
+
+--source include/have_log_bin.inc
+--source include/not_group_replication_plugin.inc
+
+# Start Group Replication without the plugin loaded
+# It shall give a configuration error.
+--error ER_GROUP_REPLICATION_CONFIGURATION
+START GROUP_REPLICATION;
+
+# Stop Group Replication without the plugin loaded
+# It shall give a configuration error.
+--error ER_GROUP_REPLICATION_CONFIGURATION
+STOP GROUP_REPLICATION;

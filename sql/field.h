@@ -1,7 +1,7 @@
 #ifndef FIELD_INCLUDED
 #define FIELD_INCLUDED
 
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,14 +16,24 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "mysqld.h"                             /* system_charset_info */
-#include "table.h"                              /* TABLE */
-#include "sql_string.h"                         /* String */
-#include "my_decimal.h"                         /* my_decimal */
-#include "sql_error.h"                          /* Sql_condition */
-#include "mysql_version.h"                      /* FRM_VER */
-#include "mysqld_error.h"
-#include "my_time.h"                            /* my_time_binary_length */
+#include "my_global.h"
+
+#include "my_base.h"                            // ha_storage_media
+#include "my_compare.h"                         // portable_sizeof_char_ptr
+#include "my_time.h"                            // MYSQL_TIME_NOTE_TRUNCATED
+#include "binary_log_funcs.h"                   // my_time_binary_length
+#include "handler.h"                            // column_format_type
+#include "mysqld.h"                             // system_charset_info
+#include "mysqld_error.h"                       // ER_*
+#include "sql_error.h"                          // Sql_condition
+#include "sql_string.h"                         // String
+#include "table.h"                              // TABLE
+#include "mysql_version.h"                      // FRM_VER
+
+class Create_field;
+class Protocol;
+class Relay_log_info;
+class Send_field;
 
 /*
 
@@ -75,12 +85,6 @@ Field (abstract)
             +--Field_datetimef
 */
 
-
-class Send_field;
-class Protocol;
-class Create_field;
-class Relay_log_info;
-class Field;
 
 enum enum_check_fields
 {
@@ -164,6 +168,8 @@ enum type_conversion_status
 
 #define my_charset_numeric      my_charset_latin1
 #define MY_REPERTOIRE_NUMERIC   MY_REPERTOIRE_ASCII
+
+#define FRM_VER_TRUE_VARCHAR (FRM_VER+4) /* 10 */
 
 struct st_cache_field;
 type_conversion_status field_conv(Field *to,Field *from);
@@ -458,6 +464,59 @@ void copy_integer(uchar *to, size_t to_length,
 }
 
 
+/**
+  This class is used for recording the information of
+  generated column. It will be created during define a
+  generated column or the table is opened.
+
+  If one field contains such an object, it means the field
+  is a genereated one.
+*/
+class Generated_column: public Sql_alloc
+{
+public:
+  Item *expr_item;
+  LEX_STRING expr_str;
+  /* It's used to free the items created in parsing generated expression */
+  Item *item_free_list;
+  List<Field> base_columns_list;
+  Generated_column() 
+  : expr_item(0), item_free_list(0),
+    field_type(MYSQL_TYPE_LONG),
+    stored_in_db(FALSE)
+  {
+    expr_str.str= NULL;
+    expr_str.length= 0;
+  };
+  ~Generated_column() {}
+  enum_field_types get_real_type() const
+  {
+    return field_type;
+  }
+
+  void set_field_type(enum_field_types fld_type)
+  {
+    field_type= fld_type;
+  }
+
+  bool get_field_stored() const
+  {
+    return stored_in_db;
+  }
+  void set_field_stored(bool stored)
+  {
+    stored_in_db= stored;
+  }
+private:
+  /*
+    The following data is only updated by the parser and read
+    when a Create_field object is created/initialized.
+  */
+  enum_field_types field_type;   /* Real field type*/
+  bool stored_in_db;             /* Indication that the field is 
+                                    phisically stored in the database*/
+};
+
 class Field
 {
   Field(const Item &);				/* Prevent use of these */
@@ -550,7 +609,8 @@ public:
   enum utype  { NONE,DATE,SHIELD,NOEMPTY,CASEUP,PNR,BGNR,PGNR,YES,NO,REL,
 		CHECK,EMPTY,UNKNOWN_FIELD,CASEDN,NEXT_NUMBER,INTERVAL_FIELD,
                 BIT_FIELD, TIMESTAMP_OLD_FIELD, CAPITALIZE, BLOB_FIELD,
-                TIMESTAMP_DN_FIELD, TIMESTAMP_UN_FIELD, TIMESTAMP_DNUN_FIELD};
+                TIMESTAMP_DN_FIELD, TIMESTAMP_UN_FIELD, TIMESTAMP_DNUN_FIELD,
+                GENERATED_FIELD= 128 };
   enum geometry_type
   {
     GEOM_GEOMETRY = 0, GEOM_POINT = 1, GEOM_LINESTRING = 2, GEOM_POLYGON = 3,
@@ -591,6 +651,15 @@ private:
   unsigned int m_warnings_pushed;
 
 public:
+  /* Generated column data */
+  Generated_column *gcol_info;
+  /*
+    Indication that the field is phycically stored in tables 
+    rather than just generated on SQL queries.
+    As of now, FALSE can only be set for virtual generated columns.
+  */
+  bool stored_in_db;
+
   Field(uchar *ptr_arg,uint32 length_arg,uchar *null_ptr_arg,
         uchar null_bit_arg, utype unireg_check_arg,
         const char *field_name_arg);
@@ -1050,7 +1119,7 @@ public:
   { m_count_cuted_fields_saved= count_cuted_fields; }
 
   bool maybe_null(void) const
-  { return real_maybe_null() || table->maybe_null; }
+  { return real_maybe_null() || table->is_nullable(); }
 
   /// @return true if this field is NULL-able, false otherwise.
   bool real_maybe_null(void) const
@@ -4035,6 +4104,16 @@ public:
 
   uint8 row,col,sc_length,interval_id;	// For rea_create_table
   uint	offset,pack_flag;
+
+  /* Generated column expression information */
+  Generated_column *gcol_info;
+  /*
+    Indication that the field is phycically stored in tables 
+    rather than just generated on SQL queries.
+    As of now, FALSE can only be set for virtual generated columns.
+  */
+  bool stored_in_db;
+
   Create_field() :after(NULL) {}
   Create_field(Field *field, Field *orig_field);
   /* Used to make a clone of this object for ALTER/CREATE TABLE */
@@ -4052,7 +4131,8 @@ public:
             const char *length, const char *decimals, uint type_modifier,
             Item *default_value, Item *on_update_value, LEX_STRING *comment,
             const char *change, List<String> *interval_list,
-            const CHARSET_INFO *cs, uint uint_geom_type);
+            const CHARSET_INFO *cs, uint uint_geom_type,
+            Generated_column *gcol_info= NULL);
 
   ha_storage_media field_storage_type() const
   {

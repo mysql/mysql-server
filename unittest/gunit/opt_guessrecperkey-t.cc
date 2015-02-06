@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,11 +18,11 @@
 #include "my_config.h"
 #include <gtest/gtest.h>
 
-#include "fake_key.h"                             // Fake_KEY
 #include "fake_table.h"                           // Fake_TABLE
+#include "fake_key.h"                             // Fake_KEY
 #include "test_utils.h"
 
-#include "structs.h"                              // KEY
+#include "key.h"                                  // KEY
 #include "opt_statistics.h"                       // guess_rec_per_key
 
 namespace guessrecperkey_unittest {

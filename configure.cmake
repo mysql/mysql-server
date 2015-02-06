@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -457,6 +457,7 @@ CHECK_FUNCTION_EXISTS (sleep HAVE_SLEEP)
 CHECK_FUNCTION_EXISTS (stpcpy HAVE_STPCPY)
 CHECK_FUNCTION_EXISTS (stpncpy HAVE_STPNCPY)
 CHECK_FUNCTION_EXISTS (strlcpy HAVE_STRLCPY)
+CHECK_FUNCTION_EXISTS (strndup HAVE_STRNDUP) # Used by libbinlogevents
 CHECK_FUNCTION_EXISTS (strnlen HAVE_STRNLEN)
 CHECK_FUNCTION_EXISTS (strlcat HAVE_STRLCAT)
 CHECK_FUNCTION_EXISTS (strsignal HAVE_STRSIGNAL)
@@ -816,4 +817,6 @@ CHECK_CXX_SOURCE_COMPILES(
   }
   " HAVE_IMPLICIT_DEPENDENT_NAME_TYPING)
 
-SET(CMAKE_EXTRA_INCLUDE_FILES) 
+SET(CMAKE_EXTRA_INCLUDE_FILES)
+
+CHECK_FUNCTION_EXISTS(chown HAVE_CHOWN)

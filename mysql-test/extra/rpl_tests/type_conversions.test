@@ -4,6 +4,12 @@
 # transitivity of conversions since the implementation is not using a
 # transitivity strategy. Instead we do an exhaustive testing.
 
+# Using begin_include_file/end_include_file to prevent output from all
+# the rpl_sync_slave_sql_with_master, etc.
+--let $include_silent= 1
+--source include/begin_include_file.inc
+--let $include_silent= 0
+
 disable_query_log;
 connection slave;
 --let $conv = `select @@slave_type_conversions`
@@ -136,8 +142,8 @@ source extra/rpl_tests/check_type.inc;
 
 let $source_type  = GEOMETRY;
 let $target_type  = BLOB;
-let $source_value = PointFromText('POINT(10 10)');
-let $target_value = PointFromText('POINT(10 10)');
+let $source_value = ST_PointFromText('POINT(10 10)');
+let $target_value = ST_PointFromText('POINT(10 10)');
 let $can_convert  = 0;
 source extra/rpl_tests/check_type.inc;
 
@@ -150,8 +156,8 @@ source extra/rpl_tests/check_type.inc;
 
 let $source_type  = GEOMETRY;
 let $target_type  = GEOMETRY;
-let $source_value = PointFromText('POINT(10 10)');
-let $target_value = PointFromText('POINT(10 10)');
+let $source_value = ST_PointFromText('POINT(10 10)');
+let $target_value = ST_PointFromText('POINT(10 10)');
 let $can_convert  = 1;
 source extra/rpl_tests/check_type.inc;
 
@@ -875,6 +881,7 @@ let $target_value= b'11111';
 let $can_convert = $if_is_lossy;
 source extra/rpl_tests/check_type.inc;
 
-
 --source include/rpl_reset.inc
-enable_query_log;
+
+
+--source include/end_include_file.inc

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,15 +27,19 @@
 #include "sql_table.h"      // build_table_filename,
                             // tablename_to_filename,
                             // filename_to_tablename
-#include "sql_partition.h"  // HA_CAN_*, partition_info, part_id_range
+#include "sql_partition.h"  // HA_CAN_*, part_id_range
+#include "partition_info.h" // partition_info
 #include "sql_base.h"       // close_cached_tables
 #include "discover.h"       // readfrm
 #include "auth_common.h"    // wild_case_compare
 #include "transaction.h"
+#include "item_cmpfunc.h"   // Item_func_like
 #include "sql_test.h"       // print_where
 #include "key.h"            // key_restore
 #include "rpl_constants.h"  // Transid in Binlog
 #include "rpl_slave.h"      // Silent retry definition
+#include "log_event.h"      // my_strmov_quoted_identifier
+#include "log.h"            // sql_print_error
 
 #include "sql_show.h"       // init_fill_schema_files_row,
                             // schema_table_store_record

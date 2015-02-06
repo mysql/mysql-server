@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -49,6 +49,7 @@
 
 #include "key.h"                                // key_cmp_if_same
 #include "sql_select.h"
+#include "item_sum.h"                           // Item_sum
 
 static bool find_key_for_maxmin(bool max_fl, TABLE_REF *ref,
                                 Item_field *item_field, Item *cond,
@@ -431,11 +432,20 @@ int opt_sum_query(THD *thd,
             DBUG_RETURN(error);
           }
 
+          DBUG_ASSERT(table->read_set == &table->def_read_set);
+          DBUG_ASSERT(bitmap_is_clear_all(&table->tmp_set));
+          table->read_set= &table->tmp_set;
+          // Set bits for user-defined parts of key
+          table->mark_columns_used_by_index_no_reset(ref.key, table->read_set);
+          // Set bits for the column that we need (may be in PK part)
+          bitmap_set_bit(table->read_set, item_field->field->field_index);
           error= is_max ?
                  get_index_max_value(table, &ref, range_fl) :
                  get_index_min_value(table, &ref, item_field, range_fl,
                                      prefix_len);
 
+          table->read_set= &table->def_read_set;
+          bitmap_clear_all(&table->tmp_set);
           /* Verify that the read tuple indeed matches the search key */
 	  if (!error && reckey_in_range(is_max, &ref, item_field, 
 			                conds, range_fl, prefix_len))

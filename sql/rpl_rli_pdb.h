@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,12 +19,13 @@
 
 #ifdef HAVE_REPLICATION
 
-#include "sql_string.h"
-#include "rpl_rli.h"
-#include <my_sys.h>
-#include <my_bitmap.h>
-#include "rpl_slave.h"
-#include "prealloced_array.h"
+#include "my_global.h"
+#include "my_bitmap.h"         // MY_BITMAP
+#include "prealloced_array.h"  // Prealloced_array
+#include "log_event.h"         // Format_description_log_event
+#include "rpl_mts_submode.h"   // enum_mts_parallel_type
+#include "rpl_rli.h"           // Relay_log_info
+#include "rpl_slave.h"         // MTS_WORKER_UNDEF
 
 #ifndef DBUG_OFF
 extern ulong w_rr;
@@ -581,6 +582,10 @@ TABLE* mts_move_temp_table_to_entry(TABLE*, THD*, db_worker_hash_entry*);
 TABLE* mts_move_temp_tables_to_thd(THD*, TABLE*);
 // Auxiliary function
 TABLE* mts_move_temp_tables_to_thd(THD*, TABLE*, enum_mts_parallel_type);
+
+bool append_item_to_jobs(slave_job_item *job_item,
+                         Slave_worker *w, Relay_log_info *rli);
+Slave_job_item* de_queue(Slave_jobs_queue *jobs, Slave_job_item *ret);
 
 #endif // HAVE_REPLICATION
 #endif

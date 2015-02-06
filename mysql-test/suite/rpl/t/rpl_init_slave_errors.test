@@ -58,7 +58,9 @@ start slave;
 --let $show_slave_sql_error= 1
 --source include/wait_for_slave_sql_error.inc
 
+SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("Failed during slave.* thread initialization");
+SET SESSION sql_log_bin= 1;
 
 # Bug#11765758 - 58754
 # above tests part logics make sure the IO thread is down to allow 
