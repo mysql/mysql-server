@@ -1856,6 +1856,9 @@ private:
   TakeOverRecordPtr c_mainTakeOverPtr;
   TakeOverRecordPtr c_activeThreadTakeOverPtr;
 
+  /* List used in takeover handling in master part. */
+  DLList<TakeOverRecord> c_masterActiveTakeOverList;
+
 
 //-----------------------------------------------------
 // TakeOver Record specific methods, starting node part

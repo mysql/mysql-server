@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -49,11 +49,11 @@ void Dbdih::initData()
   c_takeOverPool.setSize(max_takeover_threads);
   {
     Ptr<TakeOverRecord> ptr;
-    while (c_activeTakeOverList.seizeFirst(ptr))
+    while (c_masterActiveTakeOverList.seizeFirst(ptr))
     {
       new (ptr.p) TakeOverRecord;
     }
-    while (c_activeTakeOverList.first(ptr))
+    while (c_masterActiveTakeOverList.first(ptr))
     {
       releaseTakeOver(ptr, true);
     }
@@ -139,6 +139,7 @@ Dbdih::Dbdih(Block_context& ctx):
   c_queued_for_commit_takeover_list(c_takeOverPool),
   c_active_copy_threads_list(c_takeOverPool),
   c_completed_copy_threads_list(c_takeOverPool),
+  c_masterActiveTakeOverList(c_takeOverPool),
   c_waitGCPProxyList(waitGCPProxyPool),
   c_waitGCPMasterList(waitGCPMasterPool),
   c_waitEpochMasterList(waitGCPMasterPool)
