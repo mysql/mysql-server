@@ -3389,7 +3389,7 @@ fts_fetch_doc_from_rec(
 		doc->charset = get_doc->index_cache->charset;
 
 		/* Null Field */
-		if (doc->text.f_len == UNIV_SQL_NULL) {
+		if (doc->text.f_len == UNIV_SQL_NULL || doc->text.f_len == 0) {
 			continue;
 		}
 
