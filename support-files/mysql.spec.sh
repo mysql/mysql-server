@@ -1176,7 +1176,7 @@ echo "====="                                     >> $STATUS_HISTORY
 /sbin/ldconfig
 
 # ----------------------------------------------------------------------------
-%files -n MySQL-test%{product_suffix} -f release/support-files/plugins-testonly.files
+%files -n MySQL-test%{product_suffix}
 %defattr(-, root, root, 0755)
 %if %{defined license_files_server}
 %doc %{license_files_server}
