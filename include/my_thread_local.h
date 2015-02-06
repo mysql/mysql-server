@@ -83,7 +83,6 @@ struct st_my_thread_var
   int volatile abort;
   struct st_my_thread_var *next,**prev;
   void *opt_info;
-  void  *stack_ends_here;
 #ifndef DBUG_OFF
   void *dbug;
 #endif
