@@ -30,6 +30,7 @@
 
 static HASH system_variable_hash;
 static PolyLock_mutex PLock_global_system_variables(&LOCK_global_system_variables);
+ulonglong system_variable_hash_version= 0;
 
 /**
   Return variable name and length for hashing of variables.
@@ -183,8 +184,19 @@ bool sys_var::update(THD *thd, set_var *var)
   }
   else
   {
+    bool locked= false;
+    if (!show_compatibility_56)
+    {
+      /* Block reads from other threads. */
+      mysql_mutex_lock(&thd->LOCK_thd_sysvar);
+      locked= true;
+    }
+  
     bool ret= session_update(thd, var) ||
       (on_update && on_update(this, thd, OPT_SESSION));
+  
+    if (locked)
+      mysql_mutex_unlock(&thd->LOCK_thd_sysvar);
 
     if ((!ret) &&
         thd->session_tracker.get_tracker(SESSION_SYSVARS_TRACKER)->is_enabled())
@@ -196,9 +208,9 @@ bool sys_var::update(THD *thd, set_var *var)
   }
 }
 
-uchar *sys_var::session_value_ptr(THD *thd, LEX_STRING *base)
+uchar *sys_var::session_value_ptr(THD *running_thd, THD *target_thd, LEX_STRING *base)
 {
-  return session_var_ptr(thd);
+  return session_var_ptr(target_thd);
 }
 
 uchar *sys_var::global_value_ptr(THD *thd, LEX_STRING *base)
@@ -241,16 +253,21 @@ bool sys_var::check(THD *thd, set_var *var)
   return false;
 }
 
-uchar *sys_var::value_ptr(THD *thd, enum_var_type type, LEX_STRING *base)
+uchar *sys_var::value_ptr(THD *running_thd, THD *target_thd, enum_var_type type, LEX_STRING *base)
 {
   if (type == OPT_GLOBAL || scope() == GLOBAL)
   {
     mysql_mutex_assert_owner(&LOCK_global_system_variables);
     AutoRLock lock(guard);
-    return global_value_ptr(thd, base);
+    return global_value_ptr(running_thd, base);
   }
   else
-    return session_value_ptr(thd, base);
+    return session_value_ptr(running_thd, target_thd, base);
+}
+
+uchar *sys_var::value_ptr(THD *thd, enum_var_type type, LEX_STRING *base)
+{
+  return value_ptr(thd, thd, type, base);
 }
 
 bool sys_var::set_default(THD *thd, set_var* var)
@@ -418,6 +435,9 @@ int mysql_add_sys_var_chain(sys_var *first)
       goto error;
     }
   }
+
+  /* Update system_variable_hash version. */
+  system_variable_hash_version++;
   return 0;
 
 error:
@@ -448,66 +468,116 @@ int mysql_del_sys_var_chain(sys_var *first)
   for (sys_var *var= first; var; var= var->next)
     result|= my_hash_delete(&system_variable_hash, (uchar*) var);
 
+  /* Update system_variable_hash version. */
+  system_variable_hash_version++;
+
   return result;
 }
 
-
-static int show_cmp(SHOW_VAR *a, SHOW_VAR *b)
+/*
+  Comparison function for std::sort.
+  @param a  SHOW_VAR element
+  @param b  SHOW_VAR element
+  
+  @retval
+    True if a < b.
+  @retval
+    False if a >= b.
+*/
+static int show_cmp(const void *a, const void *b)
 {
-  return strcmp(a->name, b->name);
+  return strcmp(((SHOW_VAR *)a)->name, ((SHOW_VAR *)b)->name);
 }
 
+/*
+  Number of records in the system_variable_hash.
+  Requires lock on LOCK_system_variables_hash.
+*/
+ulong get_system_variable_hash_records(void)
+{
+  return (system_variable_hash.records);
+}
+
+/*
+  Current version of the system_variable_hash.
+  Requires lock on LOCK_system_variables_hash.
+*/
+ulonglong get_system_variable_hash_version(void)
+{
+  return (system_variable_hash_version);
+}
 
 /**
   Constructs an array of system variables for display to the user.
 
-  @param thd       current thread
-  @param sorted    If TRUE, the system variables should be sorted
-  @param type      OPT_GLOBAL or OPT_SESSION for SHOW GLOBAL|SESSION VARIABLES
-
-  @retval
-    pointer     Array of SHOW_VAR elements for display
-  @retval
-    NULL        FAILURE
+  @param thd            Current thread
+  @param show_var_array Prealloced_array of SHOW_VAR elements for display 
+  @param sort           If TRUE, the system variables should be sorted
+  @param query_scope    OPT_GLOBAL or OPT_SESSION for SHOW GLOBAL|SESSION VARIABLES
+  @param strict         Use strict scope checking
+  @retval               True on error, false otherwise
 */
-
-SHOW_VAR* enumerate_sys_vars(THD *thd, bool sorted, enum enum_var_type type)
+bool enumerate_sys_vars(THD *thd, Show_var_array *show_var_array,
+                        bool sort,
+                        enum enum_var_type query_scope,
+                        bool strict)
 {
-  int count= system_variable_hash.records, i;
-  int size= sizeof(SHOW_VAR) * (count + 1);
-  SHOW_VAR *result= (SHOW_VAR*) thd->alloc(size);
+  DBUG_ASSERT(show_var_array != NULL);
+  DBUG_ASSERT(query_scope == OPT_SESSION || query_scope == OPT_GLOBAL);
+  int count= system_variable_hash.records;
+  
+  /* Resize array if necessary. */
+  if (show_var_array->reserve(count+1))
+    return true;
 
-  if (result)
+  if (show_var_array)
   {
-    SHOW_VAR *show= result;
-
-    for (i= 0; i < count; i++)
+    for (int i= 0; i < count; i++)
     {
-      sys_var *var= (sys_var*) my_hash_element(&system_variable_hash, i);
+      sys_var *sysvar= (sys_var*) my_hash_element(&system_variable_hash, i);
 
-      // don't show session-only variables in SHOW GLOBAL VARIABLES
-      if (type == OPT_GLOBAL && var->check_type(type))
+      if (strict)
+      {
+        /*
+          Strict scope match (5.7). Success if this is a:
+            - global query and the variable scope is GLOBAL or SESSION, OR
+            - session query and the variable scope is SESSION or ONLY_SESSION.
+        */
+        if (!sysvar->check_scope(query_scope))
+          continue;
+      }
+      else
+      {
+        /*
+          Non-strict scope match (5.6). Success if this is a:
+            - global query and the variable scope is GLOBAL or SESSION, OR
+            - session query and the variable scope is GLOBAL, SESSION or ONLY_SESSION.
+        */
+        if (query_scope == OPT_GLOBAL && !sysvar->check_scope(query_scope))
+          continue;
+      }
+
+      /* Don't show non-visible variables. */
+      if (sysvar->not_visible())
         continue;
 
-      /* don't show non-visible variables */
-      if (var->not_visible())
-        continue;
-
-      show->name= var->name.str;
-      show->value= (char*) var;
-      show->type= SHOW_SYS;
-      show++;
+      SHOW_VAR show_var;
+      show_var.name=  sysvar->name.str;
+      show_var.value= (char*)sysvar;
+      show_var.type=  SHOW_SYS;
+      show_var.scope= SHOW_SCOPE_UNDEF; /* not used for sys vars */
+      show_var_array->push_back(show_var);
     }
 
-    /* sort into order */
-    if (sorted)
-      my_qsort(result, show-result, sizeof(SHOW_VAR),
-               (qsort_cmp) show_cmp);
+    if (sort)
+      std::qsort(show_var_array->begin(), show_var_array->size(),
+                 show_var_array->element_size(), show_cmp);
 
-    /* make last element empty */
-    memset(show, 0, sizeof(SHOW_VAR));
+    /* Make last element empty. */
+    show_var_array->push_back(st_mysql_show_var());
   }
-  return result;
+  
+  return false;
 }
 
 /**
@@ -639,7 +709,7 @@ int set_var::check(THD *thd)
     my_error(ER_INCORRECT_GLOBAL_LOCAL_VAR, MYF(0), var->name.str, "read only");
     DBUG_RETURN(-1);
   }
-  if (var->check_type(type))
+  if (!var->check_scope(type))
   {
     int err= type == OPT_GLOBAL ? ER_LOCAL_VARIABLE : ER_GLOBAL_VARIABLE;
     my_error(err, MYF(0), var->name.str);
@@ -678,7 +748,7 @@ int set_var::check(THD *thd)
 */
 int set_var::light_check(THD *thd)
 {
-  if (var->check_type(type))
+  if (!var->check_scope(type))
   {
     int err= type == OPT_GLOBAL ? ER_LOCAL_VARIABLE : ER_GLOBAL_VARIABLE;
     my_error(err, MYF(0), var->name);

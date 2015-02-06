@@ -148,6 +148,7 @@ SELECT @@session.transaction_prealloc_size;
 ####################################################################
 
 
+--disable_warnings
 SELECT @@global.transaction_prealloc_size = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
 WHERE VARIABLE_NAME='transaction_prealloc_size';
@@ -160,7 +161,7 @@ WHERE VARIABLE_NAME='transaction_prealloc_size';
 SELECT @@session.transaction_prealloc_size = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
 WHERE VARIABLE_NAME='transaction_prealloc_size';
-
+--enable_warnings
 
 
 

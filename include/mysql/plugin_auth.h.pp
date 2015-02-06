@@ -16,10 +16,17 @@ enum enum_mysql_show_type
   SHOW_CHAR, SHOW_CHAR_PTR,
   SHOW_ARRAY, SHOW_FUNC, SHOW_DOUBLE
 };
-struct st_mysql_show_var {
+enum enum_mysql_show_scope
+{
+  SHOW_SCOPE_UNDEF,
+  SHOW_SCOPE_GLOBAL
+};
+struct st_mysql_show_var
+{
   const char *name;
   char *value;
   enum enum_mysql_show_type type;
+  enum enum_mysql_show_scope scope;
 };
 typedef int (*mysql_show_var_func)(void*, struct st_mysql_show_var*, char *);
 struct st_mysql_sys_var;

@@ -1,0 +1,120 @@
+################### suite/perfschema/t/show_coverage.test ######################
+#                                                                              #
+# Testcases to increase DGCOV coverage of the status and system variable       #
+# implementation in the Performance Schema.                                    #
+#                                                                              #
+################################################################################
+--source include/have_perfschema.inc
+--source include/not_embedded.inc
+--source ../include/no_protocol.inc
+
+select @@global.show_compatibility_56 into @show_compatibility_56_save;
+--echo
+--echo ================================================================================
+--echo SHOW_COMPATIBILITY_56 = ON
+--echo ================================================================================
+set global show_compatibility_56 = ON;
+
+--echo
+--echo # TEST 1
+--echo # Handling of SHOW STATUS/VARIABLES...WHERE, expect ERR_WARN_DEPRECATED_SYNTAX
+--echo #
+SHOW GLOBAL STATUS WHERE VARIABLE_NAME LIKE "foo";
+--echo
+SHOW SESSION STATUS WHERE VARIABLE_NAME LIKE "foo";
+--echo
+SHOW GLOBAL VARIABLES WHERE VARIABLE_NAME LIKE "foo";
+--echo
+SHOW SESSION VARIABLES WHERE VARIABLE_NAME LIKE "foo";
+
+--echo
+--echo # TEST 2
+--echo # CREATE..SELECT -- Expect correct ERR_WARN_DEPRECATED_SYNTAX
+--echo #
+USE test;
+CREATE TABLE t0 SELECT * FROM information_schema.global_status WHERE variable_name = 'COM_SELECT';
+DROP TABLE t0;
+
+--echo
+--echo ================================================================================
+--echo SHOW_COMPATIBILITY_56 = OFF
+--echo ================================================================================
+set global show_compatibility_56 = OFF;
+--echo
+--echo # TEST 3
+--echo # Select status and system variable tables using ORDER BY to exercise the
+--echo # rnd_pos() method
+--echo #
+use performance_schema;
+--disable_result_log
+select * from global_variables order by variable_name;
+select * from variables_by_thread order by variable_name;
+select * from session_variables order by variable_name;
+select * from global_status order by variable_name;
+select * from session_status order by variable_name;
+select * from status_by_thread order by variable_name;
+select * from status_by_user order by variable_name;
+select * from status_by_host order by variable_name;
+select * from status_by_account order by variable_name;
+--enable_result_log
+
+--echo
+--echo # TEST 4
+--echo # Handling of SHOW STATUS/VARIABLES...WHERE, expect usage error.
+--echo #
+--error ER_WRONG_USAGE
+SHOW SESSION STATUS WHERE VARIABLE_NAME LIKE "foo";
+--echo
+--error ER_WRONG_USAGE
+SHOW SESSION STATUS WHERE VARIABLE_NAME LIKE "foo";
+--echo
+--error ER_WRONG_USAGE
+SHOW GLOBAL VARIABLES WHERE VARIABLE_NAME LIKE "foo";
+--echo
+--error ER_WRONG_USAGE
+SHOW SESSION VARIABLES WHERE VARIABLE_NAME LIKE "foo";
+
+--echo
+--echo # TEST 5
+--echo # Confirm FLUSH STATUS resets counters for all threads.
+--echo #
+--echo
+--echo # Create a new connection
+--connect(con1, localhost, root,,)
+--echo
+--echo # Record thread id
+let $thread_id= `SELECT THREAD_ID FROM performance_schema.threads WHERE PROCESSLIST_ID = CONNECTION_ID()`;
+--echo
+--echo # Increase bytes_received for new connection
+USE test;
+SHOW TABLES;
+--connection default
+USE performance_schema;
+--disable_query_log
+eval SELECT $thread_id INTO @thread_id;
+--enable_query_log
+
+--echo
+--echo # Record bytes_received for other connection
+SELECT variable_value FROM status_by_thread
+  WHERE variable_name = "bytes_received" and thread_id = @thread_id INTO @bytes_before;
+--echo
+--echo # Reset status counters
+FLUSH STATUS;
+--echo
+--echo # Record bytes_received after reset
+SELECT variable_value FROM status_by_thread
+  WHERE variable_name = "bytes_received" and thread_id = @thread_id INTO @bytes_after;
+--echo
+--echo # Expect bytes_before > bytes_after
+SELECT @bytes_before > @bytes_after;
+--echo
+--echo # Expect bytes_after is zero
+SELECT @bytes_after;
+
+disconnect con1;
+
+--echo
+--echo # CLEANUP
+set @@global.show_compatibility_56 = @show_compatibility_56_save;
+

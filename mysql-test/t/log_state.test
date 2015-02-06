@@ -21,9 +21,11 @@ SET @old_slow_query_log_file= @@global.slow_query_log_file;
 set global general_log= OFF;
 truncate table mysql.general_log;
 truncate table mysql.slow_log;
+--disable_warnings
 show global variables
 where Variable_name = 'log' or Variable_name = 'log_slow_queries' or
 Variable_name = 'general_log' or Variable_name = 'slow_query_log';
+--enable_warnings
 flush logs;
 set global general_log= ON;
 create table t1(f1 int);
@@ -35,9 +37,11 @@ drop table t1;
 select * from mysql.general_log;
 set global general_log= ON;
 flush logs;
+--disable_warnings
 show global variables
 where Variable_name = 'log' or Variable_name = 'log_slow_queries' or
 Variable_name = 'general_log' or Variable_name = 'slow_query_log';
+--enable_warnings
 
 --echo # Establish connection con1 (user=root)
 connect (con1,localhost,root,,);
@@ -66,9 +70,11 @@ select sleep(@long_query_time + 1);
 select * from mysql.slow_log where sql_text NOT LIKE '%slow_log%';
 --echo # Switch to connection default
 connection default;
+--disable_warnings
 show global variables
 where Variable_name = 'log' or Variable_name = 'log_slow_queries' or
 Variable_name = 'general_log' or Variable_name = 'slow_query_log';
+--enable_warnings
 
 set global general_log= ON;
 set global general_log= OFF;
@@ -88,9 +94,11 @@ truncate table mysql.general_log;
 --replace_column 1 TIMESTAMP 2 USER_HOST 3 #
 select * from mysql.general_log;
 set global general_log= ON;
+--disable_warnings
 show global variables
 where Variable_name = 'log' or Variable_name = 'log_slow_queries' or
 Variable_name = 'general_log' or Variable_name = 'slow_query_log';
+--enable_warnings
 
 --replace_column 2 #
 show variables like 'general_log_file';

@@ -403,8 +403,10 @@ void table_ews_global_by_event_name
   PFS_connection_wait_visitor visitor(klass);
   PFS_connection_iterator::visit_global(false, /* hosts */
                                         false, /* users */
-                                        false, /* accts */
-                                        true,  /* threads */ &visitor);
+                                        false, /* accounts */
+                                        true,  /* threads */
+                                        false, /* THDs */
+                                        &visitor);
   get_normalizer(klass);
   m_row.m_stat.set(m_normalizer, &visitor.m_stat);
   m_row_exists= true;
@@ -418,8 +420,9 @@ void table_ews_global_by_event_name
   PFS_connection_wait_visitor visitor(klass);
   PFS_connection_iterator::visit_global(false, /* hosts */
                                         true,  /* users */
-                                        true,  /* accts */
+                                        true,  /* accounts */
                                         true,  /* threads */
+                                        false, /* THDs */
                                         &visitor);
   get_normalizer(klass);
   m_row.m_stat.set(m_normalizer, &visitor.m_stat);

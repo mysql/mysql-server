@@ -76,6 +76,7 @@ SELECT count(VARIABLE_VALUE) FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARI
 count(VARIABLE_VALUE)
 1
 Warnings:
+Warning	1287	'INFORMATION_SCHEMA.GLOBAL_VARIABLES' is deprecated and will be removed in a future release. Please use performance_schema.global_variables instead
 Warning	1287	'@@global.sql_log_bin' is deprecated and will be removed in a future release. Please use the constant 1 (since @@global.sql_log_bin is always equal to 1) instead
 '#----------------------FN_DYNVARS_156_07------------------------#'
 SELECT IF(@@session.sql_log_bin, "ON", "OFF") = VARIABLE_VALUE 

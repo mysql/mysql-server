@@ -1299,6 +1299,16 @@ static inline int mysql_mutex_lock(...)
 */
 
 thread_local_key_t THR_PFS;
+thread_local_key_t THR_PFS_VG;   // global_variables
+thread_local_key_t THR_PFS_SV;   // session_variables
+thread_local_key_t THR_PFS_VBT;  // variables_by_thread
+thread_local_key_t THR_PFS_SG;   // global_status
+thread_local_key_t THR_PFS_SS;   // session_status
+thread_local_key_t THR_PFS_SBT;  // status_by_thread
+thread_local_key_t THR_PFS_SBU;  // status_by_user
+thread_local_key_t THR_PFS_SBH;  // status_by_host
+thread_local_key_t THR_PFS_SBA;  // status_by_account
+
 bool THR_PFS_initialized= false;
 
 static inline PFS_thread*

@@ -6844,7 +6844,7 @@ void Item_func_get_system_var::fix_length_and_dec()
   maybe_null= TRUE;
   max_length= 0;
 
-  if (var->check_type(var_type))
+  if (!var->check_scope(var_type))
   {
     if (var_type != OPT_DEFAULT)
     {

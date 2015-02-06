@@ -281,6 +281,11 @@ void initialize_performance_schema_acl(bool bootstrap);
 void check_performance_schema();
 
 /**
+  Reset the aggregated status counter stats.
+*/
+void reset_pfs_status_stats();
+
+/**
   Initialize the dynamic array holding individual instrument settings collected
   from the server configuration options.
 */

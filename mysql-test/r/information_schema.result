@@ -1720,6 +1720,7 @@ drop table if exists t1;drop table if exists t1;
 drop table if exists t1;drop table if exists t1;
 drop table if exists t1;drop table if exists
 Warnings:
+Warning	1287	'INFORMATION_SCHEMA.GLOBAL_VARIABLES' is deprecated and will be removed in a future release. Please use performance_schema.global_variables instead
 Warning	1406	Data too long for column 'VARIABLE_VALUE' at row 1
 set global init_connect="";
 create table t0 select * from information_schema.global_status where VARIABLE_NAME='COM_SELECT';

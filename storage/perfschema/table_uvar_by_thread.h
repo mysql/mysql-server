@@ -46,7 +46,7 @@ public:
   {}
 
   PFS_variable_name_row m_name;
-  PFS_variable_value_row m_value;
+  PFS_user_variable_value_row m_value;
 };
 
 class User_variables
@@ -104,7 +104,7 @@ struct row_uvar_by_thread
   /** Column VARIABLE_NAME. */
   const PFS_variable_name_row *m_variable_name;
   /** Column VARIABLE_VALUE. */
-  const PFS_variable_value_row *m_variable_value;
+  const PFS_user_variable_value_row *m_variable_value;
 };
 
 /**

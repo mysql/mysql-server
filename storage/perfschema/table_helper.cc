@@ -776,7 +776,18 @@ void set_field_xa_state(Field *f, enum_xa_transaction_state xa_state)
   }
 }
 
-void PFS_variable_name_row::make_row(const char* str, uint length)
+void PFS_variable_name_row::make_row(const char* str, size_t length)
+{
+  DBUG_ASSERT(length <= sizeof(m_str));
+  DBUG_ASSERT(length <= NAME_CHAR_LEN);
+  
+  m_length= MY_MIN(length, NAME_CHAR_LEN); /* enforce max name length */
+  if (m_length > 0)
+    memcpy(m_str, str, length);
+  m_str[m_length]= '\0';
+}
+
+void PFS_variable_value_row::make_row(const char* str, size_t length)
 {
   DBUG_ASSERT(length <= sizeof(m_str));
   if (length > 0)
@@ -786,14 +797,14 @@ void PFS_variable_name_row::make_row(const char* str, uint length)
   m_length= length;
 }
 
-void PFS_variable_value_row::clear()
+void PFS_user_variable_value_row::clear()
 {
   my_free(m_value);
   m_value= NULL;
   m_value_length= 0;
 }
 
-void PFS_variable_value_row::make_row(const char* val, size_t length)
+void PFS_user_variable_value_row::make_row(const char* val, size_t length)
 {
   if (length > 0)
   {

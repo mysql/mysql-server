@@ -21,6 +21,7 @@
 #include "pfs_user.h"
 #include "pfs_host.h"
 #include "pfs_account.h"
+#include "mysqld_thd_manager.h"
 #include "pfs_buffer_container.h"
 
 /**
@@ -33,12 +34,30 @@
   @{
 */
 
+class All_THD_visitor_adapter : public Do_THD_Impl
+{
+public:
+  All_THD_visitor_adapter(PFS_connection_visitor *visitor)
+    : m_visitor(visitor)
+  {}
+
+  virtual void operator()(THD *thd)
+  {
+    m_visitor->visit_THD(thd);
+  }
+
+private:
+  PFS_connection_visitor *m_visitor;
+};
+
 /** Connection iterator */
 void PFS_connection_iterator::visit_global(bool with_hosts, bool with_users,
                                            bool with_accounts, bool with_threads,
+                                           bool with_THDs,
                                            PFS_connection_visitor *visitor)
 {
   DBUG_ASSERT(visitor != NULL);
+  DBUG_ASSERT(! with_threads || ! with_THDs);
 
   visitor->visit_global();
 
@@ -78,6 +97,7 @@ void PFS_connection_iterator::visit_global(bool with_hosts, bool with_users,
     }
   }
 
+
   if (with_threads)
   {
     PFS_thread_iterator it= global_thread_container.iterate();
@@ -89,13 +109,47 @@ void PFS_connection_iterator::visit_global(bool with_hosts, bool with_users,
       pfs= it.scan_next();
     }
   }
+
+  if (with_THDs)
+  {
+    All_THD_visitor_adapter adapter(visitor);
+    Global_THD_manager::get_instance()->do_for_all_thd(& adapter);
+  }
 }
+
+bool match_host(THD *thd, PFS_host *host)
+{
+  const LEX_CSTRING thd_host= thd->m_main_security_ctx.host();
+  return ((thd_host.length > 0) &&
+          (host->m_hostname_length == thd_host.length) &&
+          (strncmp(host->m_hostname, thd_host.str, host->m_hostname_length) == 0));
+}
+
+class All_host_THD_visitor_adapter : public Do_THD_Impl
+{
+public:
+  All_host_THD_visitor_adapter(PFS_connection_visitor *visitor, PFS_host *host)
+    : m_visitor(visitor), m_host(host)
+  {}
+
+  virtual void operator()(THD *thd)
+  {
+    if (match_host(thd, m_host))
+      m_visitor->visit_THD(thd);
+  }
+
+private:
+  PFS_connection_visitor *m_visitor;
+  PFS_host *m_host;
+};
 
 void PFS_connection_iterator::visit_host(PFS_host *host,
                                          bool with_accounts, bool with_threads,
+                                         bool with_THDs,
                                          PFS_connection_visitor *visitor)
 {
   DBUG_ASSERT(visitor != NULL);
+  DBUG_ASSERT(! with_threads || ! with_THDs);
 
   visitor->visit_host(host);
 
@@ -136,13 +190,47 @@ void PFS_connection_iterator::visit_host(PFS_host *host,
       pfs= it.scan_next();
     }
   }
+
+  if (with_THDs)
+  {
+    All_host_THD_visitor_adapter adapter(visitor, host);
+    Global_THD_manager::get_instance()->do_for_all_thd(& adapter);
+  }
 }
+
+bool match_user(THD *thd, PFS_user *user)
+{
+  const LEX_CSTRING thd_user= thd->m_main_security_ctx.user();
+  return ((thd_user.length > 0) &&
+          (user->m_username_length == thd_user.length) &&
+          (strncmp(user->m_username, thd_user.str, user->m_username_length) == 0));
+}
+
+class All_user_THD_visitor_adapter : public Do_THD_Impl
+{
+public:
+  All_user_THD_visitor_adapter(PFS_connection_visitor *visitor, PFS_user *user)
+    : m_visitor(visitor), m_user(user)
+  {}
+
+  virtual void operator()(THD *thd)
+  {
+    if (match_user(thd, m_user))
+      m_visitor->visit_THD(thd);
+  }
+
+private:
+  PFS_connection_visitor *m_visitor;
+  PFS_user *m_user;
+};
 
 void PFS_connection_iterator::visit_user(PFS_user *user,
                                          bool with_accounts, bool with_threads,
+                                         bool with_THDs,
                                          PFS_connection_visitor *visitor)
 {
   DBUG_ASSERT(visitor != NULL);
+  DBUG_ASSERT(! with_threads || ! with_THDs);
 
   visitor->visit_user(user);
 
@@ -183,13 +271,50 @@ void PFS_connection_iterator::visit_user(PFS_user *user,
       pfs= it.scan_next();
     }
   }
+
+  if (with_THDs)
+  {
+    All_user_THD_visitor_adapter adapter(visitor, user);
+    Global_THD_manager::get_instance()->do_for_all_thd(& adapter);
+  }
 }
 
+bool match_account(THD *thd, PFS_account *account)
+{
+  const LEX_CSTRING thd_host= thd->m_main_security_ctx.host();
+  const LEX_CSTRING thd_user= thd->m_main_security_ctx.user();
+  return ((account->m_hostname_length == thd_host.length) &&
+          (account->m_username_length > 0) &&
+          (account->m_username_length == thd_user.length) &&
+          (strncmp(account->m_hostname, thd_host.str, account->m_hostname_length) == 0) &&
+          (strncmp(account->m_username, thd_user.str, account->m_username_length) == 0));
+}
+
+class All_account_THD_visitor_adapter : public Do_THD_Impl
+{
+public:
+  All_account_THD_visitor_adapter(PFS_connection_visitor *visitor, PFS_account *account)
+    : m_visitor(visitor), m_account(account)
+  {}
+
+  virtual void operator()(THD *thd)
+  {
+    if (match_account(thd, m_account))
+      m_visitor->visit_THD(thd);
+  }
+
+private:
+  PFS_connection_visitor *m_visitor;
+  PFS_account *m_account;
+};
+
 void PFS_connection_iterator::visit_account(PFS_account *account,
-                                              bool with_threads,
-                                              PFS_connection_visitor *visitor)
+                                            bool with_threads,
+                                            bool with_THDs,
+                                            PFS_connection_visitor *visitor)
 {
   DBUG_ASSERT(visitor != NULL);
+  DBUG_ASSERT(! with_threads || ! with_THDs);
 
   visitor->visit_account(account);
 
@@ -207,6 +332,19 @@ void PFS_connection_iterator::visit_account(PFS_account *account,
       pfs= it.scan_next();
     }
   }
+
+  if (with_THDs)
+  {
+    All_account_THD_visitor_adapter adapter(visitor, account);
+    Global_THD_manager::get_instance()->do_for_all_thd(& adapter);
+  }
+}
+
+void PFS_connection_iterator::visit_THD(THD *thd,
+                                        PFS_connection_visitor *visitor)
+{
+  DBUG_ASSERT(visitor != NULL);
+  visitor->visit_THD(thd);
 }
 
 void PFS_instance_iterator::visit_all(PFS_instance_visitor *visitor)
@@ -1194,9 +1332,51 @@ void PFS_connection_memory_visitor::visit_thread(PFS_thread *pfs)
   }
 }
 
-PFS_instance_wait_visitor::PFS_instance_wait_visitor()
+
+PFS_connection_status_visitor::
+PFS_connection_status_visitor(STATUS_VAR *status_vars) : m_status_vars(status_vars)
+{
+  memset(m_status_vars, 0, sizeof(STATUS_VAR));
+}
+
+PFS_connection_status_visitor::~PFS_connection_status_visitor()
+{}
+
+/** Aggregate from global status. */
+void PFS_connection_status_visitor::visit_global()
+{
+   /* NOTE: Requires lock on LOCK_status. */
+   mysql_mutex_assert_owner(&LOCK_status);
+   add_to_status(m_status_vars, &global_status_var, false);
+}
+
+void PFS_connection_status_visitor::visit_host(PFS_host *pfs)
+{
+  pfs->m_status_stats.aggregate_to(m_status_vars);
+}
+
+void PFS_connection_status_visitor::visit_user(PFS_user *pfs)
+{
+  pfs->m_status_stats.aggregate_to(m_status_vars);
+}
+
+void PFS_connection_status_visitor::visit_account(PFS_account *pfs)
+{
+  pfs->m_status_stats.aggregate_to(m_status_vars);
+}
+
+void PFS_connection_status_visitor::visit_thread(PFS_thread *pfs)
 {
 }
+
+void PFS_connection_status_visitor::visit_THD(THD *thd)
+{
+  add_to_status(m_status_vars, &thd->status_var, false);
+}
+
+
+PFS_instance_wait_visitor::PFS_instance_wait_visitor()
+{}
 
 PFS_instance_wait_visitor::~PFS_instance_wait_visitor()
 {}

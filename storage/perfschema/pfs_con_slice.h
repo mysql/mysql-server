@@ -21,8 +21,10 @@
   Performance schema connection slice (declarations).
 */
 
+#include "sql_class.h"
 #include "pfs_lock.h"
 #include "lf.h"
+#include "pfs_status.h"
 
 struct PFS_single_stat;
 struct PFS_stage_stat;
@@ -49,6 +51,7 @@ struct PFS_connection_slice
     m_has_statements_stats= false;
     m_has_transactions_stats= false;
     m_has_memory_stats= false;
+    reset_status_stats();
   }
 
   /** Reset all wait statistics. */
@@ -61,6 +64,11 @@ struct PFS_connection_slice
   void reset_transactions_stats();
   /** Reset all memory statistics. */
   void rebase_memory_stats();
+  /** Reset all status variable statistics. */
+  void reset_status_stats()
+  {
+    m_status_stats.reset();
+  }
 
   void set_instr_class_waits_stats(PFS_single_stat *array)
   {
@@ -223,6 +231,18 @@ private:
     Immutable, safe to use without internal lock.
   */
   PFS_memory_stat *m_instr_class_memory_stats;
+
+public:
+
+  void aggregate_status_stats(const STATUS_VAR *status_vars)
+  {
+    m_status_stats.aggregate_from(status_vars);
+  }
+
+  /**
+    Aggregated status variables.
+  */
+  PFS_status_stats m_status_stats;
 };
 
 /** @} */

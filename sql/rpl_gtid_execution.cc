@@ -634,7 +634,9 @@ void gtid_post_statement_checks(THD *thd)
        (sql_command == SQLCOM_SET_OPTION && thd->lex->is_set_password_sql) ||
        sql_command == SQLCOM_COMMIT ||
        sql_command == SQLCOM_ROLLBACK))
+  {
     thd->variables.gtid_next.set_undefined();
+  }
 
   DBUG_VOID_RETURN;
 }

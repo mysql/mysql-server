@@ -67,6 +67,7 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #include "opt_explain_traditional.h"
 #include "opt_explain_json.h"
 #include "rpl_slave.h"                       // Sql_cmd_change_repl_filter
+#include "sql_show_status.h"                 // build_show_session_status, ...
 #include "parse_location.h"
 #include "parse_tree_helpers.h"
 #include "lex_token.h"
@@ -11586,14 +11587,14 @@ show:
         ;
 
 show_param:
-           DATABASES wild_and_where
+           DATABASES opt_wild_or_where
            {
              LEX *lex= Lex;
              lex->sql_command= SQLCOM_SHOW_DATABASES;
              if (prepare_schema_table(YYTHD, lex, 0, SCH_SCHEMATA))
                MYSQL_YYABORT;
            }
-         | opt_full TABLES opt_db wild_and_where
+         | opt_full TABLES opt_db opt_wild_or_where
            {
              LEX *lex= Lex;
              lex->sql_command= SQLCOM_SHOW_TABLES;
@@ -11601,7 +11602,7 @@ show_param:
              if (prepare_schema_table(YYTHD, lex, 0, SCH_TABLE_NAMES))
                MYSQL_YYABORT;
            }
-         | opt_full TRIGGERS_SYM opt_db wild_and_where
+         | opt_full TRIGGERS_SYM opt_db opt_wild_or_where
            {
              LEX *lex= Lex;
              lex->sql_command= SQLCOM_SHOW_TRIGGERS;
@@ -11609,7 +11610,7 @@ show_param:
              if (prepare_schema_table(YYTHD, lex, 0, SCH_TRIGGERS))
                MYSQL_YYABORT;
            }
-         | EVENTS_SYM opt_db wild_and_where
+         | EVENTS_SYM opt_db opt_wild_or_where
            {
              LEX *lex= Lex;
              lex->sql_command= SQLCOM_SHOW_EVENTS;
@@ -11617,7 +11618,7 @@ show_param:
              if (prepare_schema_table(YYTHD, lex, 0, SCH_EVENTS))
                MYSQL_YYABORT;
            }
-         | TABLE_SYM STATUS_SYM opt_db wild_and_where
+         | TABLE_SYM STATUS_SYM opt_db opt_wild_or_where
            {
              LEX *lex= Lex;
              lex->sql_command= SQLCOM_SHOW_TABLE_STATUS;
@@ -11625,7 +11626,7 @@ show_param:
              if (prepare_schema_table(YYTHD, lex, 0, SCH_TABLES))
                MYSQL_YYABORT;
            }
-        | OPEN_SYM TABLES opt_db wild_and_where
+        | OPEN_SYM TABLES opt_db opt_wild_or_where
           {
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_SHOW_OPEN_TABLES;
@@ -11644,7 +11645,7 @@ show_param:
           { Lex->create_info.db_type= $2; }
         | ENGINE_SYM ALL show_engine_param
           { Lex->create_info.db_type= NULL; }
-        | opt_full COLUMNS from_or_in table_ident opt_db wild_and_where
+        | opt_full COLUMNS from_or_in table_ident opt_db opt_wild_or_where
           {
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_SHOW_FIELDS;
@@ -11756,32 +11757,92 @@ show_param:
             if (prepare_schema_table(YYTHD, lex, NULL, SCH_PROFILES) != 0)
               YYABORT;
           }
-        | opt_var_type STATUS_SYM wild_and_where
+        | opt_var_type STATUS_SYM opt_wild_or_where
           {
-            LEX *lex= Lex;
+            THD *thd= YYTHD;
+            LEX *lex= thd->lex;
             lex->sql_command= SQLCOM_SHOW_STATUS;
-            lex->option_type= $1;
-            if (prepare_schema_table(YYTHD, lex, 0, SCH_STATUS))
-              MYSQL_YYABORT;
+            if (show_compatibility_56)
+            {
+              /* 5.6, DEPRECATED */
+              lex->option_type= $1;
+              if (prepare_schema_table(YYTHD, lex, 0, SCH_STATUS))
+                MYSQL_YYABORT;
+            }
+            else
+            {
+              if (Select->where_cond() != NULL)
+              {
+                /*
+                  The syntax SHOW ... WHERE <expression>
+                  is not supported with SHOW_COMPATIBILITY_56 = OFF.
+                */
+                my_error(ER_WRONG_USAGE, MYF(0), "SHOW STATUS", "WHERE");
+                MYSQL_YYABORT;
+              }
+
+              if ($1 == OPT_SESSION)
+              {
+                /* 5.7, SUPPORTED */
+                if (build_show_session_status(@$, thd, lex->wild) == NULL)
+                  MYSQL_YYABORT;
+              }
+              else
+              {
+                /* 5.7, SUPPORTED */
+                if (build_show_global_status(@$, thd, lex->wild) == NULL)
+                  MYSQL_YYABORT;
+              }
+            }
           }
         | opt_full PROCESSLIST_SYM
           { Lex->sql_command= SQLCOM_SHOW_PROCESSLIST;}
-        | opt_var_type  VARIABLES wild_and_where
+        | opt_var_type VARIABLES opt_wild_or_where
           {
-            LEX *lex= Lex;
+            THD *thd= YYTHD;
+            LEX *lex= thd->lex;
             lex->sql_command= SQLCOM_SHOW_VARIABLES;
-            lex->option_type= $1;
-            if (prepare_schema_table(YYTHD, lex, 0, SCH_VARIABLES))
-              MYSQL_YYABORT;
+            if (show_compatibility_56)
+            {
+              /* 5.6, DEPRECATED */
+              lex->option_type= $1;
+              if (prepare_schema_table(YYTHD, lex, 0, SCH_VARIABLES))
+                MYSQL_YYABORT;
+            }
+            else
+            {
+              if (Select->where_cond() != NULL)
+              {
+                /*
+                  The syntax SHOW ... WHERE <expression>
+                  is not supported with SHOW_COMPATIBILITY_56 = OFF.
+                */
+                my_error(ER_WRONG_USAGE, MYF(0), "SHOW VARIABLES", "WHERE");
+                MYSQL_YYABORT;
+              }
+
+              if ($1 == OPT_SESSION)
+              {
+                /* 5.7, SUPPORTED */
+                if (build_show_session_variables(@$, thd, lex->wild) == NULL)
+                  MYSQL_YYABORT;
+              }
+              else
+              {
+                /* 5.7, SUPPORTED */
+                if (build_show_global_variables(@$, thd, lex->wild) == NULL)
+                  MYSQL_YYABORT;
+              }
+            }
           }
-        | charset wild_and_where
+        | charset opt_wild_or_where
           {
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_SHOW_CHARSETS;
             if (prepare_schema_table(YYTHD, lex, 0, SCH_CHARSETS))
               MYSQL_YYABORT;
           }
-        | COLLATION_SYM wild_and_where
+        | COLLATION_SYM opt_wild_or_where
           {
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_SHOW_COLLATIONS;
@@ -11856,14 +11917,14 @@ show_param:
             lex->sql_command= SQLCOM_SHOW_CREATE_TRIGGER;
             lex->spname= $3;
           }
-        | PROCEDURE_SYM STATUS_SYM wild_and_where
+        | PROCEDURE_SYM STATUS_SYM opt_wild_or_where
           {
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_SHOW_STATUS_PROC;
             if (prepare_schema_table(YYTHD, lex, 0, SCH_PROCEDURES))
               MYSQL_YYABORT;
           }
-        | FUNCTION_SYM STATUS_SYM wild_and_where
+        | FUNCTION_SYM STATUS_SYM opt_wild_or_where
           {
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_SHOW_STATUS_FUNC;
@@ -11936,7 +11997,7 @@ binlog_from:
         | FROM ulonglong_num { Lex->mi.pos = $2; }
         ;
 
-wild_and_where:
+opt_wild_or_where:
           /* empty */
         | LIKE TEXT_STRING_sys
           {

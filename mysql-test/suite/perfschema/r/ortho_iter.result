@@ -185,7 +185,7 @@ close pfs_cursor;
 signal sqlstate '01000' set message_text='Done', mysql_errno=12000;
 end
 $
-show variables like "performance_schema%";
+show global variables like "performance_schema%";
 Variable_name	Value
 performance_schema	ON
 performance_schema_accounts_size	100
