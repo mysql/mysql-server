@@ -74,6 +74,7 @@ bool Commit_order_manager::wait_for_its_turn(Slave_worker *worker,
     while (queue_front() != worker->id)
       mysql_cond_wait(cond, &m_mutex);
 
+    mysql_mutex_unlock(&m_mutex);
     thd->EXIT_COND(&old_stage);
 
     m_workers[worker->id].status= OCS_SIGNAL;

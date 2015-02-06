@@ -1728,6 +1728,25 @@ public:
   uint dbug_sentry; // watch out for memory corruption
 #endif
   struct st_my_thread_var *mysys_var;
+  /**
+    Mutex protecting access to current_mutex and current_cond.
+  */
+  mysql_mutex_t LOCK_current_cond;
+  /**
+    The mutex used with current_cond.
+    @see current_cond
+  */
+  mysql_mutex_t * volatile current_mutex;
+  /**
+    Pointer to the condition variable the thread owning this THD
+    is currently waiting for. If the thread is not waiting, the
+    value is NULL. Set by THD::enter_cond().
+
+    If this thread is killed (shutdown or KILL stmt), another
+    thread will broadcast on this condition variable so that the
+    thread can be unstuck.
+  */
+  mysql_cond_t * volatile current_cond;
 
 private:
   /**
@@ -2755,46 +2774,40 @@ public:
 
   // Begin implementation of MDL_context_owner interface.
 
-  inline void
-  enter_cond(mysql_cond_t *cond, mysql_mutex_t* mutex,
-             const PSI_stage_info *stage, PSI_stage_info *old_stage,
-             const char *src_function, const char *src_file,
-             int src_line)
+  void enter_cond(mysql_cond_t *cond, mysql_mutex_t* mutex,
+                  const PSI_stage_info *stage, PSI_stage_info *old_stage,
+                  const char *src_function, const char *src_file,
+                  int src_line)
   {
     DBUG_ENTER("THD::enter_cond");
     mysql_mutex_assert_owner(mutex);
-    DBUG_PRINT("debug", ("thd: 0x%llx, mysys_var: 0x%llx, current_mutex: 0x%llx -> 0x%llx",
-                         (ulonglong) this,
-                         (ulonglong) mysys_var,
-                         (ulonglong) mysys_var->current_mutex,
-                         (ulonglong) mutex));
-    mysys_var->current_mutex = mutex;
-    mysys_var->current_cond = cond;
+    /*
+      Sic: We don't lock LOCK_current_cond here.
+      If we did, we could end up in deadlock with THD::awake()
+      which locks current_mutex while LOCK_current_cond is locked.
+    */
+    current_mutex= mutex;
+    current_cond= cond;
     enter_stage(stage, old_stage, src_function, src_file, src_line);
     DBUG_VOID_RETURN;
   }
-  inline void exit_cond(const PSI_stage_info *stage,
-                        const char *src_function, const char *src_file,
-                        int src_line)
+
+  void exit_cond(const PSI_stage_info *stage,
+                 const char *src_function, const char *src_file,
+                 int src_line)
   {
     DBUG_ENTER("THD::exit_cond");
     /*
-      Putting the mutex unlock in thd->exit_cond() ensures that
-      mysys_var->current_mutex is always unlocked _before_ mysys_var->mutex is
+      current_mutex must be unlocked _before_ LOCK_current_cond is
       locked (if that would not be the case, you'll get a deadlock if someone
       does a THD::awake() on you).
     */
-    DBUG_PRINT("debug", ("thd: 0x%llx, mysys_var: 0x%llx, current_mutex: 0x%llx -> 0x%llx",
-                         (ulonglong) this,
-                         (ulonglong) mysys_var,
-                         (ulonglong) mysys_var->current_mutex,
-                         0ULL));
-    mysql_mutex_unlock(mysys_var->current_mutex);
-    mysql_mutex_lock(&mysys_var->mutex);
-    mysys_var->current_mutex = 0;
-    mysys_var->current_cond = 0;
+    mysql_mutex_assert_not_owner(current_mutex);
+    mysql_mutex_lock(&LOCK_current_cond);
+    current_mutex= NULL;
+    current_cond= NULL;
+    mysql_mutex_unlock(&LOCK_current_cond);
     enter_stage(stage, NULL, src_function, src_file, src_line);
-    mysql_mutex_unlock(&mysys_var->mutex);
     DBUG_VOID_RETURN;
   }
 

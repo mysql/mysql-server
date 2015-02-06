@@ -2108,9 +2108,10 @@ static const char *thread_state_info(THD *tmp)
   else
 #endif
   {
+    Mutex_lock lock(&tmp->LOCK_current_cond);
     if (tmp->proc_info)
       return tmp->proc_info;
-    else if (tmp->mysys_var && tmp->mysys_var->current_cond)
+    else if (tmp->current_cond)
       return "Waiting on cond";
     else
       return NULL;
@@ -2195,9 +2196,6 @@ public:
     if (db)
       thd_info->db= m_client_thd->mem_strdup(db);
 
-    if (inspect_thd->mysys_var)
-      mysql_mutex_lock(&inspect_thd->mysys_var->mutex);
-
     /* COMMAND */
     if (inspect_thd->killed == THD::KILL_CONNECTION)
       thd_info->proc_info= "Killed";
@@ -2205,9 +2203,6 @@ public:
 
     /* STATE */
     thd_info->state_info= thread_state_info(inspect_thd);
-
-    if (inspect_thd->mysys_var)
-      mysql_mutex_unlock(&inspect_thd->mysys_var->mutex);
 
     mysql_mutex_unlock(&inspect_thd->LOCK_thd_data);
 
@@ -2378,9 +2373,6 @@ public:
       table->field[3]->set_notnull();
     }
 
-    if (inspect_thd->mysys_var)
-      mysql_mutex_lock(&inspect_thd->mysys_var->mutex);
-
     /* COMMAND */
     if (inspect_thd->killed == THD::KILL_CONNECTION)
     {
@@ -2399,9 +2391,6 @@ public:
       table->field[6]->store(val, strlen(val), system_charset_info);
       table->field[6]->set_notnull();
     }
-
-    if (inspect_thd->mysys_var)
-      mysql_mutex_unlock(&inspect_thd->mysys_var->mutex);
 
     mysql_mutex_unlock(&inspect_thd->LOCK_thd_data);
 

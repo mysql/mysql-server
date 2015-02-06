@@ -7068,6 +7068,7 @@ int MYSQL_BIN_LOG::wait_for_update_relay_log(THD* thd, const struct timespec *ti
   else
     ret= mysql_cond_timedwait(&update_cond, &LOCK_log,
                               const_cast<struct timespec *>(timeout));
+  mysql_mutex_unlock(&LOCK_log);
   thd->EXIT_COND(&old_stage);
 
   DBUG_RETURN(ret);

@@ -1,5 +1,5 @@
 /* Copyright (C) 2007 Google Inc.
-   Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -854,8 +854,7 @@ int ReplSemiSyncMaster::commitTrx(const char* trx_wait_binlog_name,
     else
       rpl_semi_sync_master_no_transactions++;
 
-    /* The lock held will be released by thd_exit_cond, so no need to
-       call unlock() here */
+    unlock();
     THD_EXIT_COND(NULL, & old_stage);
   }
 

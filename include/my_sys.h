@@ -220,8 +220,25 @@ extern void (*local_message_hook)(enum loglevel ll,
 extern uint my_file_limit;
 extern ulong my_thread_stack_size;
 
-extern void (*proc_info_hook)(void *, const PSI_stage_info *, PSI_stage_info *,
-                              const char *, const char *, const unsigned int);
+/*
+  Hooks for reporting execution stage information. The server implementation
+  of these will also set THD::current_cond/current_mutex.
+  By having hooks, we avoid direct dependencies on server code.
+*/
+extern void (*enter_cond_hook)(void *opaque_thd,
+                               mysql_cond_t *cond,
+                               mysql_mutex_t *mutex,
+                               const PSI_stage_info *stage,
+                               PSI_stage_info *old_stage,
+                               const char *src_function,
+                               const char *src_file,
+                               int src_line);
+
+extern void (*exit_cond_hook)(void *opaque_thd,
+                              const PSI_stage_info *stage,
+                              const char *src_function,
+                              const char *src_file,
+                              int src_line);
 
 /* charsets */
 #define MY_ALL_CHARSETS_SIZE 2048

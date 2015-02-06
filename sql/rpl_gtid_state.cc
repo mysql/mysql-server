@@ -612,6 +612,8 @@ int Gtid_state::wait_for_gtid(THD *thd, const Gtid &gtid, struct timespec* timeo
     error= sid_locks.wait(thd, gtid.sidno, timeout);
   else
     sid_locks.wait(thd, gtid.sidno);
+  // Can't call sid_locks.unlock() as that requires global_sid_lock.
+  mysql_mutex_unlock(thd->current_mutex);
   thd->EXIT_COND(&old_stage);
   DBUG_RETURN(error);
 }

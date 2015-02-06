@@ -1,6 +1,6 @@
 #ifndef MDL_H
 #define MDL_H
-/* Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -60,8 +60,8 @@ public:
   /**
     Enter a condition wait.
     For @c enter_cond() / @c exit_cond() to work the mutex must be held before
-    @c enter_cond(); this mutex is then released by @c exit_cond().
-    Usage must be: lock mutex; enter_cond(); your code; exit_cond().
+    @c enter_cond(); this mutex must then be released before @c exit_cond().
+    Usage must be: lock mutex; enter_cond(); your code; unlock mutex; exit_cond().
     @param cond the condition to wait on
     @param mutex the associated mutex
     @param [in] stage the stage to enter, or NULL
