@@ -17,23 +17,23 @@ insert into t1 values (1, POINT(3.1,3.1));
 insert into t1 values (1, POINT(5,5));
 
 # Select by R-tree index.
-set @g1 = GeomFromText('Polygon((0 0,0 3,3 3,3 0,0 0))');
-explain select astext(t1.g) from t1 where Within(t1.g, @g1);
-select astext(t1.g) from t1 where Within(t1.g, @g1);
+set @g1 = ST_GeomFromText('Polygon((0 0,0 3,3 3,3 0,0 0))');
+explain select ST_astext(t1.g) from t1 where MBRWithin(t1.g, @g1);
+select ST_astext(t1.g) from t1 where MBRWithin(t1.g, @g1);
 
 # Delete values.
-set @g1 = GeomFromText('Polygon((0 0,0 3,3 3,3 0,0 0))');
-delete from t1 where Within(t1.g, @g1);
+set @g1 = ST_GeomFromText('Polygon((0 0,0 3,3 3,3 0,0 0))');
+delete from t1 where MBRWithin(t1.g, @g1);
 check table t1;
 
-select astext(t1.g) from t1;
+select ST_astext(t1.g) from t1;
 
 # Update values.
-set @g1 = GeomFromText('Polygon((5 5,5 5,5 5,5 5,5 5))');
-update t1 set g = POINT(2,2) where Within(t1.g, @g1);
+set @g1 = ST_GeomFromText('Polygon((5 5,5 5,5 5,5 5,5 5))');
+update t1 set g = POINT(2,2) where MBRWithin(t1.g, @g1);
 check table t1;
 
-select astext(t1.g) from t1;
+select ST_astext(t1.g) from t1;
 
 # Show index.
 --replace_column 7 #
@@ -46,58 +46,50 @@ drop table t1;
 create table t1 (name VARCHAR(100), square GEOMETRY not null, spatial index (square))engine=innodb;
 
 
-INSERT INTO t1 VALUES("small",  GeomFromText('POLYGON (( 0 0, 0 1, 1 1, 1 0, 0 0))'));
-INSERT INTO t1 VALUES("big",    GeomFromText('POLYGON (( 0 0, 0 3, 3 3, 3 0, 0 0))'));
+INSERT INTO t1 VALUES("small",  ST_GeomFromText('POLYGON (( 0 0, 0 1, 1 1, 1 0, 0 0))'));
+INSERT INTO t1 VALUES("big",    ST_GeomFromText('POLYGON (( 0 0, 0 3, 3 3, 3 0, 0 0))'));
 
-INSERT INTO t1 VALUES("up",     GeomFromText('POLYGON (( 0 1, 0 3, 2 3, 2 1, 0 1))'));
-INSERT INTO t1 VALUES("up2",    GeomFromText('POLYGON (( 0 2, 0 4, 2 4, 2 2, 0 2))'));
-INSERT INTO t1 VALUES("up3",    GeomFromText('POLYGON (( 0 3, 0 5, 2 5, 2 3, 0 3))'));
+INSERT INTO t1 VALUES("up",     ST_GeomFromText('POLYGON (( 0 1, 0 3, 2 3, 2 1, 0 1))'));
+INSERT INTO t1 VALUES("up2",    ST_GeomFromText('POLYGON (( 0 2, 0 4, 2 4, 2 2, 0 2))'));
+INSERT INTO t1 VALUES("up3",    ST_GeomFromText('POLYGON (( 0 3, 0 5, 2 5, 2 3, 0 3))'));
 
-INSERT INTO t1 VALUES("down",   GeomFromText('POLYGON (( 0 -1, 0  1, 2  1, 2 -1, 0 -1))'));
-INSERT INTO t1 VALUES("down2",  GeomFromText('POLYGON (( 0 -2, 0  0, 2  0, 2 -2, 0 -2))'));
-INSERT INTO t1 VALUES("down3",  GeomFromText('POLYGON (( 0 -3, 0 -1, 2 -1, 2 -3, 0 -3))'));
+INSERT INTO t1 VALUES("down",   ST_GeomFromText('POLYGON (( 0 -1, 0  1, 2  1, 2 -1, 0 -1))'));
+INSERT INTO t1 VALUES("down2",  ST_GeomFromText('POLYGON (( 0 -2, 0  0, 2  0, 2 -2, 0 -2))'));
+INSERT INTO t1 VALUES("down3",  ST_GeomFromText('POLYGON (( 0 -3, 0 -1, 2 -1, 2 -3, 0 -3))'));
 
-INSERT INTO t1 VALUES("right",  GeomFromText('POLYGON (( 1 0, 1 2, 3 2, 3 0, 1 0))'));
-INSERT INTO t1 VALUES("right2", GeomFromText('POLYGON (( 2 0, 2 2, 4 2, 4 0, 2 0))'));
-INSERT INTO t1 VALUES("right3", GeomFromText('POLYGON (( 3 0, 3 2, 5 2, 5 0, 3 0))'));
+INSERT INTO t1 VALUES("right",  ST_GeomFromText('POLYGON (( 1 0, 1 2, 3 2, 3 0, 1 0))'));
+INSERT INTO t1 VALUES("right2", ST_GeomFromText('POLYGON (( 2 0, 2 2, 4 2, 4 0, 2 0))'));
+INSERT INTO t1 VALUES("right3", ST_GeomFromText('POLYGON (( 3 0, 3 2, 5 2, 5 0, 3 0))'));
 
-INSERT INTO t1 VALUES("left",   GeomFromText('POLYGON (( -1 0, -1 2,  1 2,  1 0, -1 0))'));
-INSERT INTO t1 VALUES("left2",  GeomFromText('POLYGON (( -2 0, -2 2,  0 2,  0 0, -2 0))'));
-INSERT INTO t1 VALUES("left3",  GeomFromText('POLYGON (( -3 0, -3 2, -1 2, -1 0, -3 0))'));
+INSERT INTO t1 VALUES("left",   ST_GeomFromText('POLYGON (( -1 0, -1 2,  1 2,  1 0, -1 0))'));
+INSERT INTO t1 VALUES("left2",  ST_GeomFromText('POLYGON (( -2 0, -2 2,  0 2,  0 0, -2 0))'));
+INSERT INTO t1 VALUES("left3",  ST_GeomFromText('POLYGON (( -3 0, -3 2, -1 2, -1 0, -3 0))'));
 
-SET @p = GeomFromText('POLYGON (( 0 0, 0 2, 2 2, 2 0, 0 0))');
-SELECT name, AsText(square) from t1 where MBRContains(@p, square);
-SELECT name, AsText(square) from t1 where MBRDisjoint(@p, square);
-SELECT name, AsText(square) from t1 where MBREqual(@p, square);
-SELECT name, AsText(square) from t1 where MBRIntersects(@p, square);
-SELECT name, AsText(square) from t1 where MBROverlaps(@p, square);
-SELECT name, AsText(square) from t1 where MBRTouches(@p, square);
-SELECT name, AsText(square) from t1 where MBRWithin(@p, square);
+SET @p = ST_GeomFromText('POLYGON (( 0 0, 0 2, 2 2, 2 0, 0 0))');
+SELECT name, ST_AsText(square) from t1 where MBRContains(@p, square);
+SELECT name, ST_AsText(square) from t1 where MBRDisjoint(@p, square);
+SELECT name, ST_AsText(square) from t1 where MBREquals(@p, square);
+SELECT name, ST_AsText(square) from t1 where MBRIntersects(@p, square);
+SELECT name, ST_AsText(square) from t1 where MBROverlaps(@p, square);
+SELECT name, ST_AsText(square) from t1 where MBRTouches(@p, square);
+SELECT name, ST_AsText(square) from t1 where MBRWithin(@p, square);
 
-SELECT name, AsText(square) from t1 where Contains(@p, square);
-SELECT name, AsText(square) from t1 where Disjoint(@p, square);
-SELECT name, AsText(square) from t1 where Equals(@p, square);
-SELECT name, AsText(square) from t1 where Intersects(@p, square);
-SELECT name, AsText(square) from t1 where Overlaps(@p, square);
-SELECT name, AsText(square) from t1 where Touches(@p, square);
-SELECT name, AsText(square) from t1 where Within(@p, square);
+# MBROverlaps needs a few more tests, with point and line dimensions
 
-# Overlaps needs a few more tests, with point and line dimensions
+SET @vert1   = ST_GeomFromText('POLYGON ((0 -2, 0 2, 0 -2))');
+SET @horiz1  = ST_GeomFromText('POLYGON ((-2 0, 2 0, -2 0))');
+SET @horiz2 = ST_GeomFromText('POLYGON ((-1 0, 3 0, -1 0))');
+SET @horiz3 = ST_GeomFromText('POLYGON ((2 0, 3 0, 2 0))');
+SET @point1 = ST_GeomFromText('POLYGON ((0 0))');
+SET @point2 = ST_GeomFromText('POLYGON ((-2 0))');
 
-SET @vert1   = GeomFromText('POLYGON ((0 -2, 0 2, 0 -2))');
-SET @horiz1  = GeomFromText('POLYGON ((-2 0, 2 0, -2 0))');
-SET @horiz2 = GeomFromText('POLYGON ((-1 0, 3 0, -1 0))');
-SET @horiz3 = GeomFromText('POLYGON ((2 0, 3 0, 2 0))');
-SET @point1 = GeomFromText('POLYGON ((0 0))');
-SET @point2 = GeomFromText('POLYGON ((-2 0))');
-
-SELECT GROUP_CONCAT(a1.name ORDER BY a1.name) AS overlaps FROM t1 a1 WHERE Overlaps(a1.square, @vert1) GROUP BY a1.name;
-SELECT GROUP_CONCAT(a1.name ORDER BY a1.name) AS overlaps FROM t1 a1 WHERE Overlaps(a1.square, @horiz1) GROUP BY a1.name;
-SELECT Overlaps(@horiz1, @vert1) FROM DUAL;
-SELECT Overlaps(@horiz1, @horiz2) FROM DUAL;
-SELECT Overlaps(@horiz1, @horiz3) FROM DUAL;
-SELECT Overlaps(@horiz1, @point1) FROM DUAL;
-SELECT Overlaps(@horiz1, @point2) FROM DUAL;
+SELECT GROUP_CONCAT(a1.name ORDER BY a1.name) AS MBRoverlaps FROM t1 a1 WHERE MBROverlaps(a1.square, @vert1) GROUP BY a1.name;
+SELECT GROUP_CONCAT(a1.name ORDER BY a1.name) AS MBRoverlaps FROM t1 a1 WHERE MBROverlaps(a1.square, @horiz1) GROUP BY a1.name;
+SELECT MBROverlaps(@horiz1, @vert1) FROM DUAL;
+SELECT MBROverlaps(@horiz1, @horiz2) FROM DUAL;
+SELECT MBROverlaps(@horiz1, @horiz3) FROM DUAL;
+SELECT MBROverlaps(@horiz1, @point1) FROM DUAL;
+SELECT MBROverlaps(@horiz1, @point2) FROM DUAL;
 
 DROP TABLE t1;
 
@@ -137,23 +129,23 @@ insert into t1 values (4, "444", POINT(3.1,3.1));
 insert into t1 values (5, "555", POINT(5,5));
 
 # Select by R-tree index.
-set @g1 = GeomFromText('Polygon((0 0,0 3,3 3,3 0,0 0))');
-explain select astext(t1.g) from t1 where Within(t1.g, @g1);
-select astext(t1.g) from t1 where Within(t1.g, @g1);
+set @g1 = ST_GeomFromText('Polygon((0 0,0 3,3 3,3 0,0 0))');
+explain select ST_astext(t1.g) from t1 where MBRWithin(t1.g, @g1);
+select ST_astext(t1.g) from t1 where MBRWithin(t1.g, @g1);
 
 # Delete values.
-set @g1 = GeomFromText('Polygon((0 0,0 3,3 3,3 0,0 0))');
-delete from t1 where Within(t1.g, @g1);
+set @g1 = ST_GeomFromText('Polygon((0 0,0 3,3 3,3 0,0 0))');
+delete from t1 where MBRWithin(t1.g, @g1);
 check table t1;
 
-select astext(t1.g) from t1;
+select ST_astext(t1.g) from t1;
 
 # Update values.
-set @g1 = GeomFromText('Polygon((5 5,5 5,5 5,5 5,5 5))');
-update t1 set g = POINT(2,2) where Within(t1.g, @g1);
+set @g1 = ST_GeomFromText('Polygon((5 5,5 5,5 5,5 5,5 5))');
+update t1 set g = POINT(2,2) where MBRWithin(t1.g, @g1);
 check table t1;
 
-select astext(t1.g) from t1;
+select ST_astext(t1.g) from t1;
 
 # Show index.
 --replace_column 7 #
@@ -169,41 +161,41 @@ CREATE TABLE `t1` (
   SPATIAL KEY `way` (`way`)
 ) ENGINE=InnoDB;
 
-INSERT INTO t1 SET way = GeomFromText('POINT(1 1)');
-INSERT INTO t1 SET way = GeomFromText('POINT(1 2)');
-INSERT INTO t1 SET way = GeomFromText('POINT(1 3)');
-INSERT INTO t1 SET way = GeomFromText('POINT(1 4)');
-INSERT INTO t1 SET way = GeomFromText('POINT(1 5)');
-INSERT INTO t1 SET way = GeomFromText('POINT(2 1)');
-INSERT INTO t1 SET way = GeomFromText('POINT(2 2)');
-INSERT INTO t1 SET way = GeomFromText('POINT(2 3)');
-INSERT INTO t1 SET way = GeomFromText('POINT(2 4)');
-INSERT INTO t1 SET way = GeomFromText('POINT(2 5)');
-INSERT INTO t1 SET way = GeomFromText('POINT(3 1)');
-INSERT INTO t1 SET way = GeomFromText('POINT(3 2)');
-INSERT INTO t1 SET way = GeomFromText('POINT(3 3)');
-INSERT INTO t1 SET way = GeomFromText('POINT(3 4)');
-INSERT INTO t1 SET way = GeomFromText('POINT(3 5)');
-INSERT INTO t1 SET way = GeomFromText('POINT(4 1)');
-INSERT INTO t1 SET way = GeomFromText('POINT(4 2)');
-INSERT INTO t1 SET way = GeomFromText('POINT(4 3)');
-INSERT INTO t1 SET way = GeomFromText('POINT(4 4)');
-INSERT INTO t1 SET way = GeomFromText('POINT(4 5)');
-INSERT INTO t1 SET way = GeomFromText('POINT(5 1)');
-INSERT INTO t1 SET way = GeomFromText('POINT(5 2)');
-INSERT INTO t1 SET way = GeomFromText('POINT(5 3)');
-INSERT INTO t1 SET way = GeomFromText('POINT(5 4)');
-INSERT INTO t1 SET way = GeomFromText('POINT(5 5)');
+INSERT INTO t1 SET way = ST_GeomFromText('POINT(1 1)');
+INSERT INTO t1 SET way = ST_GeomFromText('POINT(1 2)');
+INSERT INTO t1 SET way = ST_GeomFromText('POINT(1 3)');
+INSERT INTO t1 SET way = ST_GeomFromText('POINT(1 4)');
+INSERT INTO t1 SET way = ST_GeomFromText('POINT(1 5)');
+INSERT INTO t1 SET way = ST_GeomFromText('POINT(2 1)');
+INSERT INTO t1 SET way = ST_GeomFromText('POINT(2 2)');
+INSERT INTO t1 SET way = ST_GeomFromText('POINT(2 3)');
+INSERT INTO t1 SET way = ST_GeomFromText('POINT(2 4)');
+INSERT INTO t1 SET way = ST_GeomFromText('POINT(2 5)');
+INSERT INTO t1 SET way = ST_GeomFromText('POINT(3 1)');
+INSERT INTO t1 SET way = ST_GeomFromText('POINT(3 2)');
+INSERT INTO t1 SET way = ST_GeomFromText('POINT(3 3)');
+INSERT INTO t1 SET way = ST_GeomFromText('POINT(3 4)');
+INSERT INTO t1 SET way = ST_GeomFromText('POINT(3 5)');
+INSERT INTO t1 SET way = ST_GeomFromText('POINT(4 1)');
+INSERT INTO t1 SET way = ST_GeomFromText('POINT(4 2)');
+INSERT INTO t1 SET way = ST_GeomFromText('POINT(4 3)');
+INSERT INTO t1 SET way = ST_GeomFromText('POINT(4 4)');
+INSERT INTO t1 SET way = ST_GeomFromText('POINT(4 5)');
+INSERT INTO t1 SET way = ST_GeomFromText('POINT(5 1)');
+INSERT INTO t1 SET way = ST_GeomFromText('POINT(5 2)');
+INSERT INTO t1 SET way = ST_GeomFromText('POINT(5 3)');
+INSERT INTO t1 SET way = ST_GeomFromText('POINT(5 4)');
+INSERT INTO t1 SET way = ST_GeomFromText('POINT(5 5)');
 
 SELECT COUNT(*)
   FROM t1
- WHERE ST_CONTAINS(GeomFromText('POLYGON((2 2,4 2, 4 4, 2 4, 2 2))'),way);
+ WHERE ST_CONTAINS(ST_GeomFromText('POLYGON((2 2,4 2, 4 4, 2 4, 2 2))'),way);
 
 OPTIMIZE TABLE t1;
 
 SELECT COUNT(*)
   FROM t1
- WHERE ST_CONTAINS(GeomFromText('POLYGON((2 2,4 2, 4 4, 2 4, 2 2))'),way);
+ WHERE ST_CONTAINS(ST_GeomFromText('POLYGON((2 2,4 2, 4 4, 2 4, 2 2))'),way);
 
 
 DROP TABLE t1;

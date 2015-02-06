@@ -1,6 +1,6 @@
 #ifndef SQL_TRUNCATE_INCLUDED
 #define SQL_TRUNCATE_INCLUDED
-/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,13 +15,17 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include "my_global.h"
+#include "sql_cmd_dml.h"          // Sql_cmd_dml
+
+class MDL_ticket;
 class THD;
 struct TABLE_LIST;
 
 /**
   Sql_cmd_truncate_table represents the TRUNCATE statement.
 */
-class Sql_cmd_truncate_table : public Sql_cmd
+class Sql_cmd_truncate_table : public Sql_cmd_dml
 {
 private:
   /* Set if a lock must be downgraded after truncate is done. */
@@ -48,6 +52,10 @@ public:
   {
     return SQLCOM_TRUNCATE;
   }
+
+  virtual bool prepared_statement_test(THD *) { return false; }
+  virtual bool prepare(THD *) { return false; }
+  virtual void cleanup(THD *) {}
 
 protected:
   enum truncate_result{

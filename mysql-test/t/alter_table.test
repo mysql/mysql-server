@@ -1578,7 +1578,7 @@ ALTER TABLE func ENGINE=csv;
 --error ER_UNSUPPORTED_ENGINE
 ALTER TABLE event ENGINE=merge;
 --error ER_UNSUPPORTED_ENGINE
-ALTER TABLE servers ENGINE=innodb;
+ALTER TABLE servers ENGINE=merge;
 --error ER_UNSUPPORTED_ENGINE
 ALTER TABLE procs_priv ENGINE=memory;
 --error ER_UNSUPPORTED_ENGINE
@@ -1600,7 +1600,7 @@ CREATE TABLE func (dummy int) ENGINE=csv;
 --error ER_UNSUPPORTED_ENGINE
 CREATE TABLE event (dummy int) ENGINE=merge;
 --error ER_UNSUPPORTED_ENGINE
-CREATE TABLE servers (dummy int) ENGINE=innodb;
+CREATE TABLE servers (dummy int) ENGINE=merge;
 --error ER_UNSUPPORTED_ENGINE
 CREATE TABLE procs_priv (dummy int) ENGINE=memory;
 --error ER_UNSUPPORTED_ENGINE
@@ -2122,3 +2122,460 @@ DROP TABLE t1;
 SET GLOBAL innodb_file_format= @old_innodb_file_format;
 SET GLOBAL innodb_large_prefix= @old_innodb_large_prefix;
 SET sql_mode= @orig_sql_mode;
+
+--echo # BUG#17246318 - ALTER TABLE SHOULD NOT ALLOW CREATION OF TABLES
+--echo #                WITH BOTH 5.5 AND 5.6 TEMPORALS
+--echo #
+
+--echo # BUG 18985760 -"FAST" ALTER TABLE CHANGE ON ENUM COLUMN 
+--echo #                TRIGGERS FULL TABLE REBUILD.
+--echo # Test for the case where 'avoid_temporal_upgrade' is set
+--echo # to the DEFAULT value(OFF).
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+--copy_file std_data/55_temporal.frm $MYSQLD_DATADIR/test/t1.frm
+--copy_file std_data/55_temporal.MYD $MYSQLD_DATADIR/test/t1.MYD
+--copy_file std_data/55_temporal.MYI $MYSQLD_DATADIR/test/t1.MYI
+
+ALTER TABLE t1 ENGINE= INNODB;
+
+--echo #ALTER operations using INPLACE algorithm is disallowed
+--echo #since the table contains old temporal type.
+
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t1 ADD COLUMN fld4 TIMESTAMP DEFAULT '201211111',
+ALGORITHM= INPLACE;
+
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t1 ADD COLUMN fld4 TIMESTAMP FIRST, ALGORITHM= INPLACE;
+
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t1 ADD COLUMN fld4 TIMESTAMP DEFAULT '201211111' AFTER f_timestamp,
+ALGORITHM= INPLACE;
+
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t1 CHANGE COLUMN f_time fld4 TIMESTAMP, ALGORITHM= INPLACE;
+
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t1 MODIFY f_datetime TIME, ALGORITHM= INPLACE;
+
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t1 ADD INDEX index1(f_datetime), ALGORITHM= INPLACE;
+
+--echo #ALTER operations using COPY algorithm is allowed
+--echo #when the table contains old temporal type.
+
+--echo #Note: Timestamp encoding remains the same for the non-fractional part
+--echo #even in the 5.6 format. Hence there is no change in the display before
+--echo #and after upgrade.
+
+--echo #ADD COLUMN upgrades the old temporal type.
+#Setup table having old temporal type.
+CREATE TABLE t2 LIKE t1;
+INSERT INTO t2 VALUES ('22:22:22','2011-11-21 22:22:22','2011-11-21 22:22:22');
+
+SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
+       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
+ALTER TABLE t2 ADD COLUMN fld4 TIMESTAMP DEFAULT '201211111', ALGORITHM= COPY;
+SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
+       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
+DROP TABLE t2;
+
+--echo #ADD COLUMN FIRST upgrades the old temporal type.
+#Setup table having old temporal type.
+CREATE TABLE t2 LIKE t1;
+INSERT INTO t2 VALUES ('22:22:22','2011-11-21 22:22:22','2011-11-21 22:22:22');
+
+SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
+       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
+ALTER TABLE t2 ADD COLUMN fld4 TIMESTAMP FIRST, ALGORITHM= COPY;
+SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
+       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
+DROP TABLE t2;
+
+--echo #ADD COLUMN AFTER upgrades the old temporal type.
+#Setup table having old temporal type.
+CREATE TABLE t2 LIKE t1;
+INSERT INTO t2 VALUES ('22:22:22','2011-11-21 22:22:22','2011-11-21 22:22:22');
+
+SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
+       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
+ALTER TABLE t2 ADD COLUMN fld4 TIMESTAMP DEFAULT '201211111' AFTER f_timestamp,
+ALGORITHM= COPY;
+SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
+       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
+DROP TABLE t2;
+
+--echo #CHANGE COLUMN upgrades the old temporal type.
+#Setup table having old temporal type.
+CREATE TABLE t2 LIKE t1;
+INSERT INTO t2 VALUES ('22:22:22','2011-11-21 22:22:22','2011-11-21 22:22:22');
+
+SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
+       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
+ALTER TABLE t2 CHANGE COLUMN f_timestamp fld4 TIMESTAMP, ALGORITHM= COPY;
+SELECT f_time, f_datetime, fld4, HEX(WEIGHT_STRING(f_time)),
+       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(fld4)) FROM t2;
+DROP TABLE t2;
+
+--echo #MODIFY COLUMN upgrades the old temporal type.
+#Setup table having old temporal type.
+CREATE TABLE t2 LIKE t1;
+INSERT INTO t2 VALUES ('22:22:22','2011-11-21 22:22:22','2011-11-21 22:22:22');
+
+SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
+       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
+ALTER TABLE t2 MODIFY f_timestamp TIME, ALGORITHM= COPY;
+SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
+       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
+DROP TABLE t2;
+
+--echo #ADD INDEX upgrades the old temporal type.
+#Setup table having old temporal type.
+CREATE TABLE t2 LIKE t1;
+INSERT INTO t2 VALUES ('22:22:22','2011-11-21 22:22:22','2011-11-21 22:22:22');
+
+SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
+       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
+ALTER TABLE t2 ADD INDEX index1(f_timestamp), ALGORITHM= COPY;
+SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
+       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
+DROP TABLE t2;
+
+--echo #ALTER operations using DEFAULT algorithm is allowed
+--echo #when the table contains old temporal type.
+
+--echo #ADD COLUMN upgrades the old temporal type.
+#Setup table having old temporal type.
+CREATE TABLE t2 LIKE t1;
+INSERT INTO t2 VALUES ('22:22:22','2011-11-21 22:22:22','2011-11-21 22:22:22');
+
+SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
+       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
+ALTER TABLE t2 ADD COLUMN fld4 TIMESTAMP DEFAULT '201211111', ALGORITHM= DEFAULT;
+SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
+       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
+DROP TABLE t2;
+
+--echo #ADD COLUMN FIRST upgrades the old temporal type.
+#Setup table having old temporal type.
+CREATE TABLE t2 LIKE t1;
+INSERT INTO t2 VALUES ('22:22:22','2011-11-21 22:22:22','2011-11-21 22:22:22');
+
+SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
+       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
+ALTER TABLE t2 ADD COLUMN fld4 TIMESTAMP FIRST, ALGORITHM= DEFAULT;
+SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
+       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
+DROP TABLE t2;
+
+--echo #ADD COLUMN AFTER upgrades the old temporal type.
+#Setup table having old temporal type.
+CREATE TABLE t2 LIKE t1;
+INSERT INTO t2 VALUES ('22:22:22','2011-11-21 22:22:22','2011-11-21 22:22:22');
+
+SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
+       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
+ALTER TABLE t2 ADD COLUMN fld4 TIMESTAMP DEFAULT '201211111' AFTER f_timestamp,
+ALGORITHM= DEFAULT;
+SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
+       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
+DROP TABLE t2;
+
+--echo #CHANGE COLUMN upgrades the old temporal type.
+#Setup table having old temporal type.
+CREATE TABLE t2 LIKE t1;
+INSERT INTO t2 VALUES ('22:22:22','2011-11-21 22:22:22','2011-11-21 22:22:22');
+
+SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
+       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
+ALTER TABLE t2 CHANGE COLUMN f_timestamp fld4 DATETIME, ALGORITHM= DEFAULT;
+SELECT f_time, f_datetime, fld4, HEX(WEIGHT_STRING(f_time)),
+       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(fld4)) FROM t2;
+DROP TABLE t2;
+
+--echo #MODIFY COLUMN upgrades the old temporal type.
+#Setup table having old temporal type.
+CREATE TABLE t2 LIKE t1;
+INSERT INTO t2 VALUES ('22:22:22','2011-11-21 22:22:22','2011-11-21 22:22:22');
+
+SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
+       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
+ALTER TABLE t2 MODIFY f_timestamp TIME, ALGORITHM= DEFAULT;
+SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
+       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
+DROP TABLE t2;
+
+--echo #ADD INDEX upgrades the old temporal type.
+#Setup table having old temporal type.
+CREATE TABLE t2 LIKE t1;
+INSERT INTO t2 VALUES ('22:22:22','2011-11-21 22:22:22','2011-11-21 22:22:22');
+
+SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
+       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
+ALTER TABLE t2 ADD INDEX index1(f_timestamp), ALGORITHM= DEFAULT;
+SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
+       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
+DROP TABLE t2;
+
+--echo #ALTER TABLE FORCE upgrades the old temporal types.
+#Setup table having old temporal type.
+CREATE TABLE t2 LIKE t1;
+INSERT INTO t2 VALUES ('22:22:22','2011-11-21 22:22:22','2011-11-21 22:22:22');
+
+SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
+              HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
+ALTER TABLE t2 FORCE;
+SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
+              HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
+DROP TABLE t2;
+
+--echo #Examples where the NOT NULL/NULL FLAG and DEFAULT values are retained
+--echo #after upgrade.
+CREATE TABLE t2 LIKE t1;
+INSERT INTO t2 VALUES ('22:22:22','2011-11-21 22:22:22','2011-11-21 22:22:22');
+
+--echo #Before upgrade.
+SHOW CREATE TABLE t2;
+ALTER TABLE t2 ADD COLUMN fld4 TIMESTAMP DEFAULT '201211111', ALGORITHM= COPY;
+--echo #After upgrade.
+SHOW CREATE TABLE t2;
+
+--echo #Examples of the Alter operation which does not upgrade
+--echo #the temporal formats. 
+
+SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
+       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t1;
+
+ALTER TABLE t1 DROP COLUMN f_timestamp;
+SELECT f_time, f_datetime, HEX(WEIGHT_STRING(f_time)),
+       HEX(WEIGHT_STRING(f_datetime)) FROM t1;
+
+RENAME TABLE t1 to t3;
+SELECT f_time, f_datetime, HEX(WEIGHT_STRING(f_time)),
+              HEX(WEIGHT_STRING(f_datetime)) FROM t3;
+
+--echo #Once the old temporal type is upgraded to new temporal type,
+--echo #ADD/CHANGE COLUMN, ADD INDEX operations succeed using INPLACE
+--echo #ALGORITHM.
+
+ALTER TABLE t2 ADD COLUMN fld5 INT, ALGORITHM= INPLACE;
+
+ALTER TABLE t2 ADD INDEX index2(fld5), ALGORITHM= INPLACE;
+
+ALTER TABLE t2 CHANGE fld5 fld6 INT, ALGORITHM= INPLACE;
+
+ALTER TABLE t2 MODIFY fld6 INT, ALGORITHM= INPLACE;
+
+--echo #Cleanup
+DROP TABLE t2, t3;
+
+
+--echo #
+--echo # BUG 18985760 -"FAST" ALTER TABLE CHANGE ON ENUM COLUMN 
+--echo #                TRIGGERS FULL TABLE REBUILD.
+--echo #   
+
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+--copy_file std_data/55_temporal.frm $MYSQLD_DATADIR/test/t1.frm
+--copy_file std_data/55_temporal.MYD $MYSQLD_DATADIR/test/t1.MYD
+--copy_file std_data/55_temporal.MYI $MYSQLD_DATADIR/test/t1.MYI
+
+--echo # To support INPLACE ALTER table operations later in the test.
+ALTER TABLE t1 ENGINE= INNODB;
+
+--echo #Test cases with the global variable 'avoid_temporal_upgrade'
+--echo #enabled.
+
+SET @save_avoid_temporal_upgrade= @@global.avoid_temporal_upgrade;
+SET GLOBAL avoid_temporal_upgrade= ON;
+
+--echo #ALTER operations using INPLACE algorithm are allowed
+--echo #when the table contains old temporal type since
+--echo #the global variable 'avoid_temporal_upgrade' is
+--echo #enabled. The old temporal types are not upgraded. 
+
+CREATE TABLE t2 LIKE t1;
+INSERT INTO t2 VALUES ('22:22:22','2011-11-21 22:22:22','2011-11-21 22:22:22');
+
+SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
+       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
+ALTER TABLE t2 ADD COLUMN fld4 TIMESTAMP DEFAULT '201211111', ALGORITHM= INPLACE;
+SELECT f_time, f_datetime, f_timestamp, fld4, HEX(WEIGHT_STRING(f_time)),
+       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)),
+       HEX(WEIGHT_STRING(fld4)) FROM t2;
+
+SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
+       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
+ALTER TABLE t2 ADD COLUMN fld5 TIME DEFAULT '101010' FIRST, ALGORITHM= INPLACE;
+SELECT f_time, f_datetime, f_timestamp, fld5, HEX(WEIGHT_STRING(f_time)),
+       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)),
+       HEX(WEIGHT_STRING(fld5)) FROM t2;
+
+SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
+       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
+ALTER TABLE t2 ADD COLUMN fld6 TIMESTAMP DEFAULT '201211111' AFTER f_timestamp,
+ALGORITHM= INPLACE;
+SELECT f_time, f_datetime, f_timestamp, fld6, HEX(WEIGHT_STRING(f_time)),
+       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)),
+       HEX(WEIGHT_STRING(fld6)) FROM t2;
+
+SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
+       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
+ALTER TABLE t2 ADD INDEX index1(f_datetime), ALGORITHM= INPLACE;
+SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
+       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
+DROP TABLE t2;
+
+--echo #ALTER operations using COPY algorithm are allowed
+--echo #when the table contains old temporal type and 
+--echo #does not upgrade the old temporal types.
+
+--echo #ADD COLUMN does not upgrade the old temporal type.
+#Setup table having old temporal type.
+CREATE TABLE t2 LIKE t1;
+INSERT INTO t2 VALUES ('22:22:22','2011-11-21 22:22:22','2011-11-21 22:22:22');
+
+SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
+       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
+ALTER TABLE t2 ADD COLUMN fld4 TIMESTAMP DEFAULT '201211111', ALGORITHM= COPY;
+SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
+       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
+
+--echo #ADD COLUMN FIRST does not upgrade the old temporal type.
+SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
+       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
+ALTER TABLE t2 ADD COLUMN fld5 TIMESTAMP FIRST, ALGORITHM= COPY;
+SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
+       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
+
+--echo #ADD COLUMN AFTER does not upgrade the old temporal type.
+SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
+       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
+ALTER TABLE t2 ADD COLUMN fld6 TIMESTAMP DEFAULT '201211111' AFTER f_timestamp,
+ALGORITHM= COPY;
+SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
+       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
+
+--echo #CHANGE COLUMN upgrades the old temporal type only for the column which
+--echo #is changed.
+#Setup table having old temporal type.
+SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
+       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
+ALTER TABLE t2 CHANGE COLUMN f_datetime fld7 DATETIME, ALGORITHM= COPY;
+SELECT f_time, fld7, f_timestamp, HEX(WEIGHT_STRING(f_time)),
+              HEX(WEIGHT_STRING(fld7)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
+
+--echo #MODIFY COLUMN upgrades the old temporal type only for the column
+--echo #modified.
+SELECT f_time, fld7, f_timestamp, HEX(WEIGHT_STRING(f_time)),
+       HEX(WEIGHT_STRING(fld7)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
+ALTER TABLE t2 MODIFY f_timestamp DATETIME, ALGORITHM= COPY;
+SELECT f_time, fld7, f_timestamp, HEX(WEIGHT_STRING(f_time)),
+       HEX(WEIGHT_STRING(fld7)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
+
+--echo #ADD INDEX does not upgrade the old temporal type.
+#Setup table having old temporal type.
+SELECT f_time, fld7, f_timestamp, HEX(WEIGHT_STRING(f_time)),
+       HEX(WEIGHT_STRING(fld7)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
+ALTER TABLE t2 ADD INDEX index1(f_time), ALGORITHM= COPY;
+SELECT f_time, fld7, f_timestamp, HEX(WEIGHT_STRING(f_time)),
+       HEX(WEIGHT_STRING(fld7)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
+DROP TABLE t2;
+
+--echo #ALTER operations using DEFAULT algorithm are allowed
+--echo #when the table contains old temporal type and does not
+--echo #upgrade the old temporal types.
+
+--echo #ADD COLUMN does not upgrade the old temporal type.
+#Setup table having old temporal type.
+CREATE TABLE t2 LIKE t1;
+INSERT INTO t2 VALUES ('22:22:22','2011-11-21 22:22:22','2011-11-21 22:22:22');
+
+SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
+       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
+ALTER TABLE t2 ADD COLUMN fld4 TIMESTAMP DEFAULT '201211111', ALGORITHM= DEFAULT;
+SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
+       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
+
+--echo #ADD COLUMN FIRST does not upgrade the old temporal type.
+SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
+       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
+ALTER TABLE t2 ADD COLUMN fld5 TIMESTAMP FIRST, ALGORITHM= DEFAULT;
+SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
+       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
+
+--echo #ADD COLUMN AFTER does not upgrade the old temporal type.
+SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
+       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
+ALTER TABLE t2 ADD COLUMN fld6 TIMESTAMP DEFAULT '201211111' AFTER f_timestamp,
+ALGORITHM= DEFAULT;
+SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
+       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
+
+--echo #CHANGE COLUMN upgrades the old temporal type only for the column which
+--echo #is changed.
+SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
+       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
+ALTER TABLE t2 CHANGE COLUMN f_datetime fld7 DATETIME, ALGORITHM= DEFAULT;
+SELECT f_time, fld7, f_timestamp, HEX(WEIGHT_STRING(f_time)),
+       HEX(WEIGHT_STRING(fld7)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
+
+--echo #MODIFY COLUMN upgrades the old temporal type only for the column
+--echo #modified.
+SELECT f_time, fld7, f_timestamp, HEX(WEIGHT_STRING(f_time)),
+       HEX(WEIGHT_STRING(fld7)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
+ALTER TABLE t2 MODIFY f_timestamp DATETIME, ALGORITHM= DEFAULT;
+SELECT f_time, fld7, f_timestamp, HEX(WEIGHT_STRING(f_time)),
+       HEX(WEIGHT_STRING(fld7)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
+
+--echo #ADD INDEX does not upgrade the old temporal type.
+SELECT f_time, fld7, f_timestamp, HEX(WEIGHT_STRING(f_time)),
+       HEX(WEIGHT_STRING(fld7)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
+ALTER TABLE t2 ADD INDEX index1(f_time), ALGORITHM= DEFAULT;
+SELECT f_time, fld7, f_timestamp, HEX(WEIGHT_STRING(f_time)),
+       HEX(WEIGHT_STRING(fld7)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
+DROP TABLE t2;
+
+--echo #ALTER TABLE FORCE does not upgrade the old temporal types.
+#Setup table having old temporal type.
+CREATE TABLE t2 LIKE t1;
+INSERT INTO t2 VALUES ('22:22:22','2011-11-21 22:22:22','2011-11-21 22:22:22');
+
+SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
+       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
+ALTER TABLE t2 FORCE;
+SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
+       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
+DROP TABLE t2;
+
+SET @@global.avoid_temporal_upgrade= @save_avoid_temporal_upgrade;
+
+--echo #Test cases with the session variable 'show_old_temporals'
+--echo #enabled.
+
+--echo #Setup
+CREATE TABLE t2(fld1 time, fld2 datetime, fld3 timestamp);
+SET @save_show_old_temporals= @@session.show_old_temporals;
+SET SESSION show_old_temporals= ON;
+
+--echo #Displays a comment to indicate that the columns are of 5.5
+--echo #binary format
+SHOW CREATE TABLE t1;
+SELECT COLUMN_TYPE FROM information_schema.columns WHERE table_name='t1';
+
+--echo #Since the temporal types are in new format, no comment is 
+--echo #displayed
+SHOW CREATE TABLE t2;
+SELECT COLUMN_TYPE FROM information_schema.columns WHERE table_name='t2';
+
+--echo #Does not display the comment for table with old temporal types 
+--echo #since the session variable 'show_old_temporals' is OFF.
+SET SESSION show_old_temporals= OFF;
+SHOW CREATE TABLE t1;
+SELECT COLUMN_TYPE FROM information_schema.columns WHERE table_name='t1';
+
+--echo #Cleanup
+SET @@session.show_old_temporals= @save_show_old_temporals;
+DROP TABLE t1, t2;

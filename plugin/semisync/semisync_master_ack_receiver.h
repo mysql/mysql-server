@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,7 +18,7 @@
 
 #include <vector>
 #include "my_global.h"
-#include "my_pthread.h"
+#include "my_thread.h"
 #include "sql_class.h"
 
 /**
@@ -114,7 +114,7 @@ private:
   typedef Slave_vector::iterator Slave_vector_it;
   Slave_vector m_slaves;
 
-  pthread_t m_pid;
+  my_thread_handle m_pid;
 
 /* Declare them private, so no one can copy the object. */
   Ack_receiver(const Ack_receiver &ack_receiver);

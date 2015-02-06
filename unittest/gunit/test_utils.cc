@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
 #include "rpl_handler.h"                        // delegates_init()
 #include "mysqld_thd_manager.h"                 // Global_THD_manager
 #include "opt_costconstantcache.h"              // optimizer cost constant cache
+#include "log.h"                                // query_logger
 
 namespace my_testing {
 
@@ -40,11 +41,13 @@ extern "C" void test_error_handler_hook(uint err, const char *str, myf MyFlags)
   EXPECT_EQ(expected_error, err) << str;
 }
 
+char *secure_file_priv_arg;
 void setup_server_for_unit_tests()
 {
   static char *my_name= strdup(my_progname);
-  char *argv[] = { my_name, 0 };
-  set_remaining_args(1, argv);
+  secure_file_priv_arg= strdup("--secure-file-priv=NULL");
+  char *argv[] = { my_name, secure_file_priv_arg, 0 };
+  set_remaining_args(2, argv);
   mysql_mutex_init(key_LOCK_error_log, &LOCK_error_log, MY_MUTEX_INIT_FAST);
   system_charset_info= &my_charset_utf8_general_ci;
   sys_var_init();
@@ -69,6 +72,7 @@ void teardown_server_for_unit_tests()
   mysql_mutex_destroy(&LOCK_error_log);
   query_logger.cleanup();
   delete_optimizer_cost_module();
+  free(secure_file_priv_arg);
 }
 
 void Server_initializer::set_expected_error(uint val)
@@ -124,8 +128,7 @@ bool Mock_error_handler::handle_condition(THD *thd,
                                           uint sql_errno,
                                           const char* sqlstate,
                                           Sql_condition::enum_severity_level *level,
-                                          const char* msg,
-                                          Sql_condition ** cond_hdl)
+                                          const char* msg)
 {
   EXPECT_EQ(m_expected_error, sql_errno);
   ++m_handle_called;

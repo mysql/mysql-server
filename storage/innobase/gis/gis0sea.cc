@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -111,7 +111,7 @@ rtr_pcur_getnext_from_path(
 
 	my_latch_mode = BTR_LATCH_MODE_WITHOUT_FLAGS(latch_mode);
 
-	for_delete = latch_mode & BTR_DELETE_MARK;
+	for_delete = latch_mode & BTR_RTREE_DELETE_MARK;
 	for_undo_ins = latch_mode & BTR_RTREE_UNDO_INS;
 
 	/* There should be no insert coming to this function. Only
@@ -558,7 +558,7 @@ rtr_pcur_open_low(
 
 	btr_pcur_init(cursor);
 
-	for_delete = latch_mode & BTR_DELETE_MARK;
+	for_delete = latch_mode & BTR_RTREE_DELETE_MARK;
 	for_undo_ins = latch_mode & BTR_RTREE_UNDO_INS;
 
 	cursor->latch_mode = BTR_LATCH_MODE_WITHOUT_FLAGS(latch_mode);
@@ -608,7 +608,7 @@ rtr_pcur_open_low(
 		&& (for_delete || for_undo_ins))) {
 
 		if (rec_get_deleted_flag(rec, dict_table_is_comp(index->table))
-                    && for_delete) {
+		    && for_delete) {
 			btr_cursor->rtr_info->fd_del = true;
 			btr_cursor->low_match = 0;
 		}
@@ -688,6 +688,7 @@ rtr_page_get_father_node_ptr_func(
 	ulint		level;
 	ulint		page_no;
 	dict_index_t*	index;
+	rtr_mbr_t	mbr;
 
 	page_no = btr_cur_get_block(cursor)->page.id.page_no();
 	index = btr_cur_get_index(cursor);
@@ -702,15 +703,14 @@ rtr_page_get_father_node_ptr_func(
 
 	user_rec = btr_cur_get_rec(cursor);
 	ut_a(page_rec_is_user_rec(user_rec));
-	tuple = dict_index_build_node_ptr(
-			index, user_rec, page_no, heap, level);
 
-#ifdef UNIV_DEBUG
-	rtr_mbr_t	mbr;
 	offsets = rec_get_offsets(user_rec, index, offsets,
 				  ULINT_UNDEFINED, &heap);
 	rtr_get_mbr_from_rec(user_rec, offsets, &mbr);
-#endif
+
+	tuple = rtr_index_build_node_ptr(
+			index, &mbr, user_rec, page_no, heap, level);
+
 	if (sea_cur && !sea_cur->rtr_info) {
 		sea_cur = NULL;
 	}
@@ -886,7 +886,7 @@ get_parent:
 
 				ib::info() << "InnoDB: Corruption of a"
 					" spatial index " << index->name
-					<< " of table " << index->table_name;
+					<< " of table " << index->table->name;
 				break;
 			}
 			r_cursor = rtr_get_parent_cursor(btr_cur, level, false);

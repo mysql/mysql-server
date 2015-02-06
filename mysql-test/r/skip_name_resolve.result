@@ -1,4 +1,6 @@
 GRANT ALL ON test.* TO mysqltest_1@'127.0.0.1/255.255.255.255';
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 SHOW GRANTS FOR mysqltest_1@'127.0.0.1/255.255.255.255';
 Grants for mysqltest_1@127.0.0.1/255.255.255.255
 GRANT USAGE ON *.* TO 'mysqltest_1'@'127.0.0.1/255.255.255.255'

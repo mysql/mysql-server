@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -207,6 +207,13 @@ static my_bool print_win_error_msg(DWORD error, my_bool verbose)
 }
 #endif
 
+
+static const char *get_handler_error_message(int nr)
+{
+  return handler_error_messages[nr - HA_ERR_FIRST];
+}
+
+
 /*
   Register handler error messages for usage with my_error()
 
@@ -215,12 +222,7 @@ static my_bool print_win_error_msg(DWORD error, my_bool verbose)
     will ignore calls to register already registered error numbers.
 */
 
-static const char **get_handler_error_messages()
-{
-  return handler_error_messages;
-}
-
-void my_handler_error_register(void)
+void my_handler_error_register()
 {
   /*
     If you got compilation error here about compile_time_assert array, check
@@ -230,7 +232,7 @@ void my_handler_error_register(void)
   */
   compile_time_assert(HA_ERR_FIRST + array_elements(handler_error_messages) ==
                       HA_ERR_LAST + 1);
-  my_error_register(get_handler_error_messages, HA_ERR_FIRST,
+  my_error_register(get_handler_error_message, HA_ERR_FIRST,
                     HA_ERR_FIRST+ array_elements(handler_error_messages)-1);
 }
 

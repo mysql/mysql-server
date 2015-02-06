@@ -7,14 +7,25 @@
   #include <abstractions/nameservice>
   #include <abstractions/user-tmp>
 
+# Allow system resource access
+  /sys/devices/system/cpu/ r,
+  capability sys_resource,
+  capability dac_override,
+  capability setuid,
+  capability setgid,
+
 # Allow config access
   /etc/mysql/conf.d/ r,
   /etc/mysql/conf.d/*.cnf r,
   /etc/mysql/*.cnf r,
 
-# Allow pid and socket file access
+# Allow pid, socket, socket lock file access
+  /var/run/mysqld/mysqld.pid rw,
+  /var/run/mysqld/mysqld.sock rw,
+  /var/run/mysqld/mysqld.sock.lock rw,
   /run/mysqld/mysqld.pid rw,
-  /run/mysqld/mysqld.sock w,
+  /run/mysqld/mysqld.sock rw,
+  /run/mysqld/mysqld.sock.lock rw,
 
 # Allow read/ write to /tmp
   /tmp/ r,
@@ -35,6 +46,10 @@
 # Allow data dir access
   /var/lib/mysql/ r,
   /var/lib/mysql/** rwk,
+
+# Allow data files dir access
+  /var/lib/mysql-files/ r,
+  /var/lib/mysql-files/** rwk,
 
 # Allow log file access
   /var/log/mysql/ r,

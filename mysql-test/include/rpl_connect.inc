@@ -11,6 +11,7 @@
 #
 # --let $rpl_connection_name= <connection_name>
 # --let $rpl_server_number= <server_number>
+# [--let $rpl_set_gtid_next_anonymous_in_new_connection= 1]
 # [--let $rpl_debug= 1]
 # --source include/rpl_connect.inc
 #
@@ -20,6 +21,9 @@
 #
 #   $rpl_server_number
 #     The number of the server to connect to.
+#
+#   $rpl_set_gtid_next_anonymous_in_new_connection
+#     Executes SET GTID_NEXT = 'ANONYMOUS' in the new connection.
 #
 #   $rpl_debug
 #     See include/rpl_init.inc
@@ -53,6 +57,25 @@ if ($rpl_debug)
 }
 --connect ($rpl_connection_name,127.0.0.1,root,,test,$_rpl_port,)
 
+# When debug trace is enabled, this makes it easy to map debug trace
+# thread id's to mysqltest connection names, since it prints
+# mysqltests' connection name printed to the trace.
+
+# Take a backup since rpl_connection.inc clears $rpl_connection_name.
+--let $_rc_rpl_connection_name= $rpl_connection_name
+
+--source include/rpl_connection.inc
+--let $unused= `SELECT "This is mysqltest's connection '$CURRENT_CONNECTION'"`
+
+if ($rpl_set_gtid_next_anonymous_in_new_connection)
+{
+  if ($rpl_debug)
+  {
+    --echo # $_rc_rpl_connection_name> SET @@SESSION.GTID_NEXT = 'ANONYMOUS';
+  }
+  --disable_query_log
+  SET @@SESSION.GTID_NEXT = 'ANONYMOUS';
+}
 
 --let $include_filename= rpl_connect.inc
 --source include/end_include_file.inc

@@ -1817,9 +1817,9 @@ DROP TABLE t1;
 # Bug#13988413 CRASH/ASSERTION AFTER INVALID MEMORY READ 
 #              IN MY_USECONDS_TO_STR
 #
-DO contains(1, if(0, coalesce(NULL), now()));
+DO MBRContains(1, if(0, coalesce(NULL), now()));
 Warnings:
-Error	1923	Invalid GIS data provided to function mbrcontains.
+Error	3037	Invalid GIS data provided to function mbrcontains.
 CREATE TABLE t1 AS SELECT IF(0, coalesce(NULL), now(0)) + 0;
 SHOW CREATE TABLE t1;
 Table	Create Table

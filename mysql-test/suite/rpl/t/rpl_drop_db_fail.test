@@ -1,0 +1,34 @@
+###############################################################################
+# Bug#20041860: SLAVE ERROR WHEN DROP DATABASE
+#
+# Test:
+# =====
+# Create two databases such that one database has a dependency over the other
+# database and try to drop the database which has a dependency. This should
+# not cause slave to break.
+###############################################################################
+--source include/not_group_replication_plugin.inc
+--source include/master-slave.inc
+
+connection master;
+CREATE DATABASE IF NOT EXISTS db1;
+CREATE DATABASE IF NOT EXISTS db2;
+
+use db1;
+CREATE TABLE a(id INT);
+CREATE VIEW v AS SELECT * FROM a;
+CREATE TABLE table_father(id INT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(20)) ENGINE=INNODB;
+--source include/sync_slave_sql_with_master.inc
+
+connection master;
+use db2;
+CREATE TABLE table_child(id INT PRIMARY KEY, info VARCHAR(20), father_id INT) ENGINE=INNODB;
+ALTER TABLE table_child ADD CONSTRAINT aaa FOREIGN KEY (father_id) REFERENCES db1.table_father(id);
+
+--error ER_ROW_IS_REFERENCED
+DROP DATABASE db1;
+DROP DATABASE db2;
+--source include/sync_slave_sql_with_master.inc
+--connection master
+DROP DATABASE db1;
+--source include/rpl_end.inc

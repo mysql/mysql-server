@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -15,7 +15,7 @@
 
 
 #include "my_global.h"
-#include "my_pthread.h"
+#include "my_thread.h"
 #include "pfs_con_slice.h"
 #include "pfs_stat.h"
 #include "pfs_global.h"
@@ -30,101 +30,6 @@
   @addtogroup Performance_schema_buffers
   @{
 */
-
-PFS_single_stat *
-PFS_connection_slice::alloc_waits_slice(uint sizing)
-{
-  PFS_single_stat *slice= NULL;
-  uint index;
-
-  if (sizing > 0)
-  {
-    slice= PFS_MALLOC_ARRAY(sizing, PFS_single_stat, MYF(MY_ZEROFILL));
-    if (unlikely(slice == NULL))
-      return NULL;
-
-    for (index= 0; index < sizing; index++)
-      slice[index].reset();
-  }
-
-  return slice;
-}
-
-PFS_stage_stat *
-PFS_connection_slice::alloc_stages_slice(uint sizing)
-{
-  PFS_stage_stat *slice= NULL;
-  uint index;
-
-  if (sizing > 0)
-  {
-    slice= PFS_MALLOC_ARRAY(sizing, PFS_stage_stat, MYF(MY_ZEROFILL));
-    if (unlikely(slice == NULL))
-      return NULL;
-
-    for (index= 0; index < sizing; index++)
-      slice[index].reset();
-  }
-
-  return slice;
-}
-
-PFS_statement_stat *
-PFS_connection_slice::alloc_statements_slice(uint sizing)
-{
-  PFS_statement_stat *slice= NULL;
-  uint index;
-
-  if (sizing > 0)
-  {
-    slice= PFS_MALLOC_ARRAY(sizing, PFS_statement_stat, MYF(MY_ZEROFILL));
-    if (unlikely(slice == NULL))
-      return NULL;
-
-    for (index= 0; index < sizing; index++)
-      slice[index].reset();
-  }
-
-  return slice;
-}
-
-PFS_transaction_stat *
-PFS_connection_slice::alloc_transactions_slice(uint sizing)
-{
-  PFS_transaction_stat *slice= NULL;
-  uint index;
-
-  if (sizing > 0)
-  {
-    slice= PFS_MALLOC_ARRAY(sizing, PFS_transaction_stat, MYF(MY_ZEROFILL));
-    if (unlikely(slice == NULL))
-      return NULL;
-
-    for (index= 0; index < sizing; index++)
-      slice[index].reset();
-  }
-
-  return slice;
-}
-
-PFS_memory_stat *
-PFS_connection_slice::alloc_memory_slice(uint sizing)
-{
-  PFS_memory_stat *slice= NULL;
-  uint index;
-
-  if (sizing > 0)
-  {
-    slice= PFS_MALLOC_ARRAY(sizing, PFS_memory_stat, MYF(MY_ZEROFILL));
-    if (unlikely(slice == NULL))
-      return NULL;
-
-    for (index= 0; index < sizing; index++)
-      slice[index].reset();
-  }
-
-  return slice;
-}
 
 void PFS_connection_slice::reset_waits_stats()
 {

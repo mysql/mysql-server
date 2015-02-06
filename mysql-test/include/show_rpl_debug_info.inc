@@ -83,24 +83,42 @@ while ($_rpl_server)
   SHOW WARNINGS;
   --echo
   --echo **** SELECT replication-related variables on $CURRENT_CONNECTION ****
-  query_vertical SELECT NOW(), @@SERVER_ID, @@SERVER_UUID, @@PORT;
+  query_vertical
+  SELECT NOW(), @@SERVER_ID, @@SERVER_UUID, @@PORT;
   --echo
   --echo **** GTID_* on $CURRENT_CONNECTION ****
   query_vertical
-  SELECT @@GLOBAL.GTID_EXECUTED, @@GLOBAL.GTID_PURGED, @@GLOBAL.GTID_OWNED, @@SESSION.GTID_EXECUTED, @@SESSION.GTID_OWNED;
+  SELECT @@GLOBAL.GTID_MODE, @@GLOBAL.GTID_EXECUTED, @@GLOBAL.GTID_PURGED, @@GLOBAL.GTID_OWNED, @@SESSION.GTID_EXECUTED, @@SESSION.GTID_OWNED;
   --echo
   --echo **** SHOW SLAVE STATUS on $CURRENT_CONNECTION ****
-  --echo **** In multisource replication, information on all channels ****
-  query_vertical SHOW SLAVE STATUS;
+  query_vertical
+   SHOW SLAVE STATUS;
+  --echo
+  --echo **** replication_connection_status on $CURRENT_CONNECTION ****
+  query_vertical
+  SELECT * FROM performance_schema.replication_connection_status;
+  --echo
+  --echo **** replication_execute_status_by_worker on $CURRENT_CONNECTION ****
+  query_vertical
+  SELECT * FROM performance_schema.replication_execute_status_by_worker;
+  --echo
+  --echo **** replication_execute_status_by_coordinator on $CURRENT_CONNECTION ****
+  query_vertical
+  SELECT * FROM performance_schema.replication_execute_status_by_coordinator;
   --echo
   --echo **** SHOW MASTER STATUS on $CURRENT_CONNECTION ****
-  query_vertical SHOW MASTER STATUS;
+  query_vertical
+  SHOW MASTER STATUS;
   --echo
   --echo **** SHOW SLAVE HOSTS on $CURRENT_CONNECTION ****
-  query_vertical SHOW SLAVE HOSTS;
+  query_vertical
+  SHOW SLAVE HOSTS;
   --echo
   --echo **** SHOW PROCESSLIST on $CURRENT_CONNECTION ****
   SHOW PROCESSLIST;
+  --echo
+  --echo **** SELECT * FROM performance_schema.threads ****
+  SELECT * FROM performance_schema.threads;
   --echo
   --echo **** SHOW BINARY LOGS on $CURRENT_CONNECTION ****
   SHOW BINARY LOGS;
@@ -120,6 +138,9 @@ while ($_rpl_server)
   --echo
   --echo **** slave_master_info on $CURRENT_CONNECTION ****
   SELECT * FROM mysql.slave_master_info;
+  --echo
+  --echo **** mysql.gtid_executed on $CURRENT_CONNECTION ****
+  SELECT * FROM mysql.gtid_executed;
 
   --let $_rpl_is_first_server= 0
   --dec $_rpl_server
@@ -134,6 +155,7 @@ while ($_rpl_server)
   }
 }
 
+--echo rpl_topology= $rpl_topology
 --echo rand_seed: '$rand_seed' _rand_state: '$_rand_state'
 --echo extra debug info if any: '$extra_debug_info'
 --echo rpl_topology=$rpl_topology

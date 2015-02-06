@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -70,7 +70,7 @@ int
 SafeMutex::lock_impl()
 {
   int ret;
-  pthread_t self = pthread_self();
+  my_thread_t self = my_thread_self();
   assert(self != 0);
   while (1) {
     if (m_level == 0) {
@@ -118,7 +118,7 @@ int
 SafeMutex::unlock_impl()
 {
   int ret;
-  pthread_t self = pthread_self();
+  my_thread_t self = my_thread_self();
   assert(self != 0);
   if (m_owner != self)
     return err(ErrOwner, __LINE__);

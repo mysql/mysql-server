@@ -1,0 +1,11 @@
+include/rpl_init.inc [topology=none]
+CREATE TABLE t1 (a INT);
+SET @@SESSION.DEBUG_SYNC = 'update_gtid_state_before_global_sid_lock SIGNAL before_global_sid_lock WAIT_FOR have_gtid_mode_lock';
+SET @@SESSION.DEBUG_SYNC = 'update_gtid_state_after_global_sid_lock SIGNAL have_global_sid_lock';
+SET @@SESSION.GTID_NEXT= 'ANONYMOUS';
+INSERT INTO t1 VALUES (1);
+SET @@SESSION.DEBUG_SYNC = 'now WAIT_FOR before_global_sid_lock';
+SET @@SESSION.DEBUG_SYNC= 'after_log_file_name_initialized SIGNAL have_gtid_mode_lock WAIT_FOR have_global_sid_lock';
+SET @@GLOBAL.GTID_MODE = OFF_PERMISSIVE;
+SET @@GLOBAL.GTID_MODE = OFF;
+DROP TABLE t1;

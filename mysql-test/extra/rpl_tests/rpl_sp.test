@@ -620,8 +620,8 @@ show function status like '%mysqltestbug36570%';
 connection master;
 flush logs;
 let $MYSQLD_DATADIR= `select @@datadir`;
---replace_regex s/$MYSQL_TEST_DIR/MYSQL_TEST_DIR/ s/TIMESTAMP=[0-9]*/TIMESTAMP=t/ s/SET @@SESSION.GTID_NEXT= .*;/SET @@SESSION.GTID_NEXT= 'GTID';/ s/GROUPS: .*:(.*,.*) /GROUPS: GTID:(X,X)/
---exec $MYSQL_BINLOG --short-form $MYSQLD_DATADIR/master-bin.000001
+--let $mysqlbinlog_parameters= --short-form $MYSQLD_DATADIR/master-bin.000001
+--source include/mysqlbinlog.inc
 use test;
 drop procedure mysqltestbug36570_p1;
 drop procedure ` mysqltestbug36570_p2`;

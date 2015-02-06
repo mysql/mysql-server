@@ -34,7 +34,7 @@
 #include "rsa.h"
 
 
-#define YASSL_VERSION "2.3.5"
+#define YASSL_VERSION "2.3.7"
 
 
 #if defined(__cplusplus)
@@ -237,6 +237,8 @@ long         SSL_get_verify_result(SSL*);
 
 typedef int (*VerifyCallback)(int, X509_STORE_CTX*);
 typedef int (*pem_password_cb)(char*, int, int, void*);
+int default_password_callback(char * buffer, int size_arg, int rwflag,
+                              void * u);
 
 void SSL_CTX_set_verify(SSL_CTX*, int, VerifyCallback verify_callback);
 int  SSL_CTX_load_verify_locations(SSL_CTX*, const char*, const char*);
@@ -390,7 +392,7 @@ char* SSL_alert_type_string_long(int);
 char* SSL_alert_desc_string_long(int);
 char* SSL_state_string_long(SSL*);
 
-
+X509* PEM_read_X509(FILE *fp, X509 *x, pem_password_cb cb, void *u);
 /* EVP stuff, des and md5, different file? */
 typedef char EVP_MD;
 

@@ -9,15 +9,6 @@ SET @old_innodb_flush_log_at_trx_commit= @@global.innodb_flush_log_at_trx_commit
 SET @@global.innodb_flush_log_at_trx_commit= 0;
 SET @@session.binlog_direct_non_transactional_updates= FALSE;
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
-call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
-create table t1(n int);
-stop slave;
-include/wait_for_slave_to_stop.inc
-start slave;
-stop slave io_thread;
-start slave io_thread;
-include/wait_for_slave_to_start.inc
-drop table t1;
 create table t1i(n int primary key) engine=innodb;
 create table t2m(n int primary key) engine=myisam;
 begin;
@@ -84,5 +75,7 @@ RESET SLAVE;
 RESET MASTER;
 SET @@global.innodb_flush_log_at_trx_commit= @old_innodb_flush_log_at_trx_commit;
 call mtr.add_suppression("Slave SQL.*Request to stop slave SQL Thread received while applying a group that has non-transactional changes; waiting for completion of the group");
+call mtr.add_suppression("Unsafe statement.*. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.*");
+call mtr.add_suppression("Unsafe statement.*. Statement is unsafe because it uses a system function that may return a different value on the slave.*");
 SET @@global.innodb_flush_log_at_trx_commit= @old_innodb_flush_log_at_trx_commit;
 include/rpl_end.inc

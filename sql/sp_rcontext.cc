@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -587,23 +587,23 @@ bool sp_cursor::fetch(THD *thd, List<sp_variable> *vars)
 
 
 ///////////////////////////////////////////////////////////////////////////
-// sp_cursor::Select_fetch_into_spvars implementation.
+// sp_cursor::Query_fetch_into_spvars implementation.
 ///////////////////////////////////////////////////////////////////////////
 
 
-int sp_cursor::Select_fetch_into_spvars::prepare(List<Item> &fields,
-                                                 SELECT_LEX_UNIT *u)
+int sp_cursor::Query_fetch_into_spvars::prepare(List<Item> &fields,
+                                                SELECT_LEX_UNIT *u)
 {
   /*
     Cache the number of columns in the result set in order to easily
     return an error if column count does not match value count.
   */
   field_count= fields.elements;
-  return select_result_interceptor::prepare(fields, u);
+  return Query_result_interceptor::prepare(fields, u);
 }
 
 
-bool sp_cursor::Select_fetch_into_spvars::send_data(List<Item> &items)
+bool sp_cursor::Query_fetch_into_spvars::send_data(List<Item> &items)
 {
   List_iterator_fast<sp_variable> spvar_iter(*spvar_list);
   List_iterator_fast<Item> item_iter(items);

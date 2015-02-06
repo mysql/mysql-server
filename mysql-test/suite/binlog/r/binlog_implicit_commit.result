@@ -4,6 +4,7 @@ RESET MASTER;
 SET AUTOCOMMIT = 0;
 INSERT INTO t1 VALUES (1);
 include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 SET AUTOCOMMIT = 1;
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
@@ -16,6 +17,7 @@ SET AUTOCOMMIT = 0;
 BEGIN;
 INSERT INTO t1 VALUES (2);
 include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 SET AUTOCOMMIT = 1;
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
@@ -61,10 +63,13 @@ SET AUTOCOMMIT = 1;
 BEGIN;
 INSERT INTO t1 VALUES (2);
 include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 SET AUTOCOMMIT = 1;
 include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 INSERT INTO t1 VALUES (3);
 include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 COMMIT;
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
@@ -77,18 +82,23 @@ RESET MASTER;
 SET AUTOCOMMIT = 0;
 INSERT INTO t1 VALUES (1);
 include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 SET AUTOCOMMIT = 0;
 include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 COMMIT;
 RESET MASTER;
 SET AUTOCOMMIT = 0;
 BEGIN;
 INSERT INTO t1 VALUES (2);
 include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 SET AUTOCOMMIT = 0;
 include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 INSERT INTO t1 VALUES (3);
 include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 COMMIT;
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
@@ -117,10 +127,13 @@ SET AUTOCOMMIT = 1;
 BEGIN;
 INSERT INTO t1 VALUES (2);
 include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 SET AUTOCOMMIT = 0;
 include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 INSERT INTO t1 VALUES (3);
 include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 COMMIT;
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
@@ -134,6 +147,7 @@ RESET MASTER;
 SET AUTOCOMMIT = 0;
 INSERT INTO t1 VALUES (1);
 include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 SET AUTOCOMMIT = 1;
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
@@ -147,6 +161,7 @@ SET AUTOCOMMIT = 0;
 BEGIN;
 INSERT INTO t1 VALUES (2);
 include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 SET AUTOCOMMIT = 1;
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
@@ -199,10 +214,13 @@ SET AUTOCOMMIT = 1;
 BEGIN;
 INSERT INTO t1 VALUES (2);
 include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 SET AUTOCOMMIT = 1;
 include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 INSERT INTO t1 VALUES (3);
 include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 COMMIT;
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
@@ -217,18 +235,23 @@ RESET MASTER;
 SET AUTOCOMMIT = 0;
 INSERT INTO t1 VALUES (1);
 include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 SET AUTOCOMMIT = 0;
 include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 COMMIT;
 RESET MASTER;
 SET AUTOCOMMIT = 0;
 BEGIN;
 INSERT INTO t1 VALUES (2);
 include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 SET AUTOCOMMIT = 0;
 include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 INSERT INTO t1 VALUES (3);
 include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 COMMIT;
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
@@ -261,10 +284,13 @@ SET AUTOCOMMIT = 1;
 BEGIN;
 INSERT INTO t1 VALUES (2);
 include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 SET AUTOCOMMIT = 0;
 include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 INSERT INTO t1 VALUES (3);
 include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 COMMIT;
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
@@ -279,6 +305,7 @@ RESET MASTER;
 SET AUTOCOMMIT = 0;
 INSERT INTO t1 VALUES (1);
 include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 LOCK TABLES t1 WRITE;
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info

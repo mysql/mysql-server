@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,14 +14,16 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "rpl_filter.h"
-#include "hash.h"                               // my_hash_free
-#include "table.h"                              // TABLE_LIST
-#include "item.h"
-#include "auth_common.h"                // for SUPER_ACL
-#include "rpl_slave.h"                  // for SLAVE_SQL and thread_mask
-#include "rpl_mi.h"                     // for Master_info
-#include "template_utils.h"
-#include "rpl_msr.h"
+
+#include "auth_common.h"                // SUPER_ACL
+#include "item.h"                       // Item
+#include "rpl_mi.h"                     // Master_info
+#include "rpl_msr.h"                    // msr_map
+#include "rpl_rli.h"                    // Relay_log_info
+#include "rpl_slave.h"                  // SLAVE_SQL
+#include "table.h"                      // TABLE_LIST
+#include "template_utils.h"             // my_free_container_pointers
+
 
 #define TABLE_RULE_HASH_SIZE   16
 extern PSI_memory_key key_memory_array_buffer;

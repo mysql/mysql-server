@@ -1560,5 +1560,22 @@ DROP TABLE t1;
 set global internal_tmp_disk_storage_engine = @saved_engine;
 set @@max_heap_table_size= @save_heap_size;
 
+--echo #
+--echo # Bug#19805761 ASSERTION FAILURE IN SUBSELECT_HASH_SJ_ENGINE::EXEC WITH SUBQUERY IN LEFT ARGUME
+--echo #
+
+CREATE TABLE t1(a INT) ENGINE=INNODB;
+INSERT INTO t1 VALUES(1);
+CREATE TABLE t2 LIKE t1;
+ANALYZE TABLE t1,t2;
+
+let $query=
+SELECT (SELECT 1,2 FROM t2) NOT IN (SELECT 1,2 FROM t1) FROM t1;
+
+eval EXPLAIN $query;
+eval $query;
+
+DROP TABLE t1,t2;
+
 set @@optimizer_switch=@old_opt_switch;
 SET sql_mode = default;

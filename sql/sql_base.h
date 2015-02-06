@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,7 +17,6 @@
 #define SQL_BASE_INCLUDED
 
 #include "sql_class.h"                          /* enum_mark_columns */
-#include "mysqld.h"                             /* key_map */
 
 class Item_ident;
 struct Name_resolution_context;
@@ -239,7 +238,7 @@ bool insert_fields(THD *thd, Name_resolution_context *context,
 		   const char *db_name, const char *table_name,
                    List_iterator<Item> *it, bool any_privileges);
 bool setup_fields(THD *thd, Ref_ptr_array ref_pointer_array,
-                  List<Item> &item, enum_mark_columns mark_used_columns,
+                  List<Item> &item, ulong privilege,
                   List<Item> *sum_func_list, bool allow_sum_func);
 bool fill_record(THD * thd, List<Item> &fields, List<Item> &values,
                  MY_BITMAP *bitmap, MY_BITMAP *insert_into_fields_bitmap);
@@ -252,13 +251,13 @@ Field *
 find_field_in_tables(THD *thd, Item_ident *item,
                      TABLE_LIST *first_table, TABLE_LIST *last_table,
                      Item **ref, find_item_error_report_type report_error,
-                     bool check_privileges, bool register_tree_change);
+                     ulong want_privilege, bool register_tree_change);
 Field *
 find_field_in_table_ref(THD *thd, TABLE_LIST *table_list,
                         const char *name, size_t length,
                         const char *item_name, const char *db_name,
                         const char *table_name, Item **ref,
-                        bool check_privileges, bool allow_rowid,
+                        ulong want_privilege, bool allow_rowid,
                         uint *cached_field_index_ptr,
                         bool register_tree_change, TABLE_LIST **actual_table);
 Field *
@@ -269,17 +268,9 @@ find_field_in_table_sef(TABLE *table, const char *name);
 Item ** find_item_in_list(Item *item, List<Item> &items, uint *counter,
                           find_item_error_report_type report_error,
                           enum_resolution_type *resolution);
-bool setup_tables(THD *thd, Name_resolution_context *context,
-                  List<TABLE_LIST> *from_clause, TABLE_LIST *tables,
-                  TABLE_LIST **leaves, bool select_insert);
-bool setup_tables_and_check_access(THD *thd,
-                                   Name_resolution_context *context,
-                                   List<TABLE_LIST> *from_clause,
-                                   TABLE_LIST *tables,
-                                   TABLE_LIST **leaves,
-                                   bool select_insert,
-                                   ulong want_access_first,
-                                   ulong want_access);
+bool setup_natural_join_row_types(THD *thd,
+                                  List<TABLE_LIST> *from_clause,
+                                  Name_resolution_context *context);
 bool wait_while_table_is_used(THD *thd, TABLE *table,
                               enum ha_extra_function function);
 
@@ -290,20 +281,20 @@ void update_non_unique_table_error(TABLE_LIST *update,
                                    TABLE_LIST *duplicate);
 int setup_ftfuncs(SELECT_LEX* select);
 int init_ftfuncs(THD *thd, SELECT_LEX* select);
+int run_before_dml_hook(THD *thd);
 bool lock_table_names(THD *thd, TABLE_LIST *table_list,
                       TABLE_LIST *table_list_end, ulong lock_wait_timeout,
                       uint flags);
 bool open_tables(THD *thd, TABLE_LIST **tables, uint *counter, uint flags,
                  Prelocking_strategy *prelocking_strategy);
 /* open_and_lock_tables with optional derived handling */
-bool open_and_lock_tables(THD *thd, TABLE_LIST *tables,
-                          bool derived, uint flags,
+bool open_and_lock_tables(THD *thd, TABLE_LIST *tables, uint flags,
                           Prelocking_strategy *prelocking_strategy);
-/* simple open_and_lock_tables without derived handling for single table */
+/* simple open_and_lock_tables for single table */
 TABLE *open_n_lock_single_table(THD *thd, TABLE_LIST *table_l,
                                 thr_lock_type lock_type, uint flags,
                                 Prelocking_strategy *prelocking_strategy);
-bool open_normal_and_derived_tables(THD *thd, TABLE_LIST *tables, uint flags);
+bool open_tables_for_query(THD *thd, TABLE_LIST *tables, uint flags);
 bool lock_tables(THD *thd, TABLE_LIST *tables, uint counter, uint flags);
 void free_io_cache(TABLE *entry);
 void intern_close_table(TABLE *entry);
@@ -367,26 +358,6 @@ extern HASH table_def_cache;
   @param tableno      table number
 */
 
-
-inline void setup_table_map(TABLE *table, TABLE_LIST *table_list, uint tableno)
-{
-  table->const_table= 0;
-  table->null_row= 0;
-  table->status= STATUS_GARBAGE | STATUS_NOT_FOUND;
-  table->maybe_null= table_list->outer_join;
-  TABLE_LIST *embedding= table_list->embedding;
-  while (!table->maybe_null && embedding)
-  {
-    table->maybe_null= embedding->outer_join;
-    embedding= embedding->embedding;
-  }
-  table_list->set_tableno(tableno);
-  table->force_index= table_list->force_index;
-  table->force_index_order= table->force_index_group= 0;
-  table->covering_keys= table->s->keys_for_keyread;
-  table->merge_keys.clear_all();
-}
-
 inline TABLE_LIST *find_table_in_global_list(TABLE_LIST *table,
                                              const char *db_name,
                                              const char *table_name)
@@ -403,21 +374,6 @@ inline TABLE_LIST *find_table_in_local_list(TABLE_LIST *table,
                             db_name, table_name);
 }
 
-
-inline bool setup_fields_with_no_wrap(THD *thd, Ref_ptr_array ref_pointer_array,
-                                      List<Item> &item,
-                                      enum_mark_columns mark_used_columns,
-                                      List<Item> *sum_func_list,
-                                      bool allow_sum_func)
-{
-  bool res;
-  DBUG_ASSERT(thd->lex->select_lex != NULL);
-  thd->lex->select_lex->no_wrap_view_item= true;
-  res= setup_fields(thd, ref_pointer_array, item, mark_used_columns,
-                    sum_func_list, allow_sum_func);
-  thd->lex->select_lex->no_wrap_view_item= false;
-  return res;
-}
 
 /**
   An abstract class for a strategy specifying how the prelocking
@@ -514,13 +470,11 @@ inline TABLE *open_n_lock_single_table(THD *thd, TABLE_LIST *table_l,
 
 
 /* open_and_lock_tables with derived handling */
-inline bool open_and_lock_tables(THD *thd, TABLE_LIST *tables,
-                                 bool derived, uint flags)
+inline bool open_and_lock_tables(THD *thd, TABLE_LIST *tables, uint flags)
 {
   DML_prelocking_strategy prelocking_strategy;
 
-  return open_and_lock_tables(thd, tables, derived, flags,
-                              &prelocking_strategy);
+  return open_and_lock_tables(thd, tables, flags, &prelocking_strategy);
 }
 
 
@@ -625,7 +579,7 @@ private:
 
 inline bool is_temporary_table(TABLE_LIST *tl)
 {
-  if (tl->view || tl->schema_table)
+  if (tl->is_view() || tl->schema_table)
     return FALSE;
 
   if (!tl->table)
@@ -642,6 +596,70 @@ inline bool is_temporary_table(TABLE_LIST *tl)
   return tl->table->s->tmp_table != NO_TMP_TABLE;
 }
 
+/**
+  A simple holder for Internal_error_handler.
+  The class utilizes RAII technique to not forget to pop the handler.
+
+  @tparam Error_handler      Internal_error_handler to instantiate.
+  @tparam Error_handler_arg  Type of the error handler ctor argument.
+*/
+template<typename Error_handler, typename Error_handler_arg>
+class Internal_error_handler_holder
+{
+  THD *m_thd;
+  bool m_activate;
+  Error_handler m_error_handler;
+
+public:
+  Internal_error_handler_holder(THD *thd, bool activate,
+                                Error_handler_arg *arg)
+    : m_thd(thd), m_activate(activate), m_error_handler(arg)
+  {
+    if (activate)
+      thd->push_internal_handler(&m_error_handler);
+  }
+
+
+  ~Internal_error_handler_holder()
+  {
+    if (m_activate)
+      m_thd->pop_internal_handler();
+  }
+};
+
+/**
+   An Internal_error_handler that suppresses errors regarding views'
+   underlying tables that occur during privilege checking. It hides errors which
+   show view underlying table information.
+   This happens in the cases when
+
+   - A view's underlying table (e.g. referenced in its SELECT list) does not
+     exist or columns of underlying table are altered. There should not be an
+     error as no attempt was made to access it per se.
+
+   - Access is denied for some table, column, function or stored procedure
+     such as mentioned above. This error gets raised automatically, since we
+     can't untangle its access checking from that of the view itself.
+
+    There are currently two mechanisms at work that handle errors for views
+    based on an Internal_error_handler. This one and another one is
+    Show_create_error_handler. The latter handles errors encountered during
+    execution of SHOW CREATE VIEW, while this mechanism using this method is
+    handles SELECT from views. The two methods should not clash.
+
+*/
+class View_error_handler : public Internal_error_handler
+{
+  TABLE_LIST *m_top_view;
+
+public:
+  View_error_handler(TABLE_LIST *top_view) :
+  m_top_view(top_view)
+  {}
+  virtual bool handle_condition(THD *thd, uint sql_errno, const char *,
+                                Sql_condition::enum_severity_level *level,
+                                const char *message);
+};
 
 /**
   This internal handler is used to trap ER_NO_SUCH_TABLE.
@@ -654,26 +672,41 @@ public:
     : m_handled_errors(0), m_unhandled_errors(0)
   {}
 
-  bool handle_condition(THD *thd,
-                        uint sql_errno,
-                        const char* sqlstate,
-                        Sql_condition::enum_severity_level *level,
-                        const char* msg,
-                        Sql_condition ** cond_hdl);
+  virtual bool handle_condition(THD *thd,
+                                uint sql_errno,
+                                const char* sqlstate,
+                                Sql_condition::enum_severity_level *level,
+                                const char* msg)
+  {
+    if (sql_errno == ER_NO_SUCH_TABLE)
+    {
+      m_handled_errors++;
+      return true;
+    }
+
+    m_unhandled_errors++;
+    return false;
+  }
 
   /**
-    Returns TRUE if one or more ER_NO_SUCH_TABLE errors have been
-    trapped and no other errors have been seen. FALSE otherwise.
+    Returns true if one or more ER_NO_SUCH_TABLE errors have been
+    trapped and no other errors have been seen. false otherwise.
   */
-  bool safely_trapped_errors();
+  bool safely_trapped_errors() const
+  {
+    /*
+      If m_unhandled_errors != 0, something else, unanticipated, happened,
+      so the error is not trapped but returned to the caller.
+      Multiple ER_NO_SUCH_TABLE can be raised in case of views.
+    */
+    return ((m_handled_errors > 0) && (m_unhandled_errors == 0));
+  }
 
 private:
   int m_handled_errors;
   int m_unhandled_errors;
 };
 
-#include "pfs_table_provider.h"
-#include "mysql/psi/mysql_table.h"
 
 /**
   This internal handler implements downgrade from SL_ERROR to SL_WARNING
@@ -683,12 +716,11 @@ private:
 class Ignore_error_handler : public Internal_error_handler
 {
 public:
-  bool handle_condition(THD *thd,
-                        uint sql_errno,
-                        const char* sqlstate,
-                        Sql_condition::enum_severity_level *level,
-                        const char* msg,
-                        Sql_condition ** cond_hdl);
+  virtual bool handle_condition(THD *thd,
+                                uint sql_errno,
+                                const char* sqlstate,
+                                Sql_condition::enum_severity_level *level,
+                                const char* msg);
 };
 
 /**
@@ -700,7 +732,6 @@ public:
 class Strict_error_handler : public Internal_error_handler
 {
 public:
-
   enum enum_set_select_behavior
   {
     DISABLE_SET_SELECT_STRICT_ERROR_HANDLER,
@@ -715,12 +746,11 @@ public:
     : m_set_select_behavior(param)
   {}
 
-  bool handle_condition(THD *thd,
-                        uint sql_errno,
-                        const char* sqlstate,
-                        Sql_condition::enum_severity_level *level,
-                        const char* msg,
-                        Sql_condition ** cond_hdl);
+  virtual bool handle_condition(THD *thd,
+                                uint sql_errno,
+                                const char* sqlstate,
+                                Sql_condition::enum_severity_level *level,
+                                const char* msg);
 
 private:
   /*
@@ -732,5 +762,6 @@ private:
   enum_set_select_behavior m_set_select_behavior;
 };
 
+void update_indexed_column_map(TABLE *table, MY_BITMAP *read_set);
 
 #endif /* SQL_BASE_INCLUDED */

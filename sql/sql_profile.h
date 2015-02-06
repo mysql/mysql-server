@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -43,12 +43,15 @@ int make_profile_table_for_show(THD *thd, ST_SCHEMA_TABLE *schema_table);
 
 
 #if defined(ENABLED_PROFILING)
-#include "m_string.h"  /* LEX_STRING */
+#include "mysql/mysql_lex_string.h"         // LEX_STRING
+typedef struct st_mysql_lex_string LEX_STRING;
 
 #ifdef HAVE_SYS_RESOURCE_H
 #include <sys/resource.h>
 #endif
 
+#include "mysql/psi/psi_memory.h"
+#include "mysql/service_mysql_alloc.h"
 extern PSI_memory_key key_memory_queue_item;
 
 class PROF_MEASUREMENT;

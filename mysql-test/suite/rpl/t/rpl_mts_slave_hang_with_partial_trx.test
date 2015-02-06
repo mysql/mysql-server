@@ -29,6 +29,7 @@
 # that all data was correctly applied on slave.
 #
 
+--source include/not_group_replication_plugin.inc
 # This test case uses a debug point based on RBR
 --source include/have_binlog_format_row.inc
 --source include/have_debug.inc

@@ -6,6 +6,7 @@
 # flags at the place where there actually is data, so the test should
 # fail.
 
+-- source include/not_group_replication_plugin.inc
 -- source include/have_binlog_format_row.inc
 -- source include/have_debug.inc
 -- source include/master-slave.inc

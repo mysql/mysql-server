@@ -403,6 +403,8 @@ max(t)
 2004-02-01 00:00:00
 drop table t1;
 set sql_mode='maxdb';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 create table t1 (a timestamp, b timestamp);
 show create table t1;
 Table	Create Table

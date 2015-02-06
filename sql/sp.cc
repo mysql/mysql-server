@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,24 +15,23 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "sql_base.h"                           // close_thread_tables
-#include "sql_parse.h"                          // parse_sql
-#include "key.h"                                // key_copy
-#include "sql_show.h"             // append_definer, append_identifier
-#include "sql_db.h" // get_default_db_collation, mysql_opt_change_db,
-                    // mysql_change_db, check_db_dir_existence,
-                    // load_db_opt_by_name
-#include "sql_table.h"                          // write_bin_log
-#include "auth_common.h"                        // SUPER_ACL
-#include "sp_head.h"
-#include "sp_cache.h"
-#include "lock.h"                               // lock_object_name
 #include "sp.h"
-#include "mysql/psi/mysql_sp.h"
-#include "log.h"
-#include "binlog.h"
 
-#include <my_user.h>
+#include "my_user.h"      // parse_user
+#include "mysql/psi/mysql_sp.h"
+#include "binlog.h"       // mysql_bin_log
+#include "item_timefunc.h"// Item_func_now_local
+#include "key.h"          // key_copy
+#include "lock.h"         // lock_object_name
+#include "log.h"          // sql_print_warning
+#include "log_event.h"    // append_query_string
+#include "sp_cache.h"     // sp_cache_invalidate
+#include "sp_head.h"      // Stored_program_creation_ctx
+#include "sql_base.h"     // close_thread_tables
+#include "sql_db.h"       // get_default_db_collation
+#include "sql_parse.h"    // parse_sql
+#include "sql_show.h"     // append_identifier
+#include "sql_table.h"    // write_bin_log
 
 /* Used in error handling only */
 #define SP_TYPE_STRING(LP) \
@@ -707,33 +706,22 @@ db_find_routine(THD *thd, enum_sp_type type, sp_name *name, sp_head **sphp)
   Silence DEPRECATED SYNTAX warnings when loading a stored procedure
   into the cache.
 */
-struct Silence_deprecated_warning : public Internal_error_handler
+class Silence_deprecated_warning : public Internal_error_handler
 {
 public:
   virtual bool handle_condition(THD *thd,
                                 uint sql_errno,
                                 const char* sqlstate,
                                 Sql_condition::enum_severity_level *level,
-                                const char* msg,
-                                Sql_condition ** cond_hdl);
+                                const char* msg)
+  {
+    if (sql_errno == ER_WARN_DEPRECATED_SYNTAX &&
+        (*level) == Sql_condition::SL_WARNING)
+      return true;
+
+    return false;
+  }
 };
-
-bool
-Silence_deprecated_warning::handle_condition(
-  THD *,
-  uint sql_errno,
-  const char*,
-  Sql_condition::enum_severity_level *level,
-  const char*,
-  Sql_condition ** cond_hdl)
-{
-  *cond_hdl= NULL;
-  if (sql_errno == ER_WARN_DEPRECATED_SYNTAX &&
-      (*level) == Sql_condition::SL_WARNING)
-    return TRUE;
-
-  return FALSE;
-}
 
 
 /**
@@ -815,30 +803,21 @@ public:
                                 uint sql_errno,
                                 const char* sqlstate,
                                 Sql_condition::enum_severity_level *level,
-                                const char* message,
-                                Sql_condition ** cond_hdl);
+                                const char* message)
+  {
+    if (sql_errno == ER_BAD_DB_ERROR)
+    {
+      m_error_caught= true;
+      return true;
+    }
+    return false;
+  }
 
   bool error_caught() const { return m_error_caught; }
 
 private:
   bool m_error_caught;
 };
-
-bool
-Bad_db_error_handler::handle_condition(THD *thd,
-                                       uint sql_errno,
-                                       const char* sqlstate,
-                                       Sql_condition::enum_severity_level *level,
-                                       const char* message,
-                                       Sql_condition ** cond_hdl)
-{
-  if (sql_errno == ER_BAD_DB_ERROR)
-  {
-    m_error_caught= true;
-    return true;
-  }
-  return false;
-}
 
 
 static int
@@ -1488,12 +1467,11 @@ err:
 class Lock_db_routines_error_handler : public Internal_error_handler
 {
 public:
-  bool handle_condition(THD *thd,
-                        uint sql_errno,
-                        const char* sqlstate,
-                        Sql_condition::enum_severity_level *level,
-                        const char* msg,
-                        Sql_condition ** cond_hdl)
+  virtual bool handle_condition(THD *thd,
+                                uint sql_errno,
+                                const char* sqlstate,
+                                Sql_condition::enum_severity_level *level,
+                                const char* msg)
   {
     if (sql_errno == ER_NO_SUCH_TABLE ||
         sql_errno == ER_CANNOT_LOAD_FROM_TABLE_V2 ||
@@ -1559,6 +1537,14 @@ bool lock_db_routines(THD *thd, const char *db)
     {
       char *sp_name= get_field(thd->mem_root,
                                table->field[MYSQL_PROC_FIELD_NAME]);
+      if (sp_name == NULL)
+      {
+        table->file->ha_index_end();
+        my_error(ER_SP_WRONG_NAME, MYF(0), "");
+        close_nontrans_system_tables(thd, &open_tables_state_backup);
+        DBUG_RETURN(true);
+      }
+
       longlong sp_type= table->field[MYSQL_PROC_MYSQL_TYPE]->val_int();
       MDL_request *mdl_request= new (thd->mem_root) MDL_request;
       MDL_REQUEST_INIT(mdl_request,

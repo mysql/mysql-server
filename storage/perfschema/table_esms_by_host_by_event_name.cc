@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -19,7 +19,7 @@
 */
 
 #include "my_global.h"
-#include "my_pthread.h"
+#include "my_thread.h"
 #include "pfs_instr_class.h"
 #include "pfs_column_types.h"
 #include "pfs_column_values.h"
@@ -27,6 +27,8 @@
 #include "pfs_global.h"
 #include "pfs_account.h"
 #include "pfs_visitor.h"
+#include "pfs_buffer_container.h"
+#include "field.h"
 
 THR_LOCK table_esms_by_host_by_event_name::m_table_lock;
 
@@ -201,7 +203,7 @@ table_esms_by_host_by_event_name::delete_all_rows(void)
 ha_rows
 table_esms_by_host_by_event_name::get_row_count(void)
 {
-  return host_max * statement_class_max;
+  return global_host_container.get_row_count() * statement_class_max;
 }
 
 table_esms_by_host_by_event_name::table_esms_by_host_by_event_name()
@@ -225,13 +227,14 @@ int table_esms_by_host_by_event_name::rnd_next(void)
 {
   PFS_host *host;
   PFS_statement_class *statement_class;
+  bool has_more_host= true;
 
   for (m_pos.set_at(&m_next_pos);
-       m_pos.has_more_host();
+       has_more_host;
        m_pos.next_host())
   {
-    host= &host_array[m_pos.m_index_1];
-    if (host->m_lock.is_populated())
+    host= global_host_container.get(m_pos.m_index_1, & has_more_host);
+    if (host != NULL)
     {
       statement_class= find_statement_class(m_pos.m_index_2);
       if (statement_class)
@@ -253,17 +256,16 @@ table_esms_by_host_by_event_name::rnd_pos(const void *pos)
   PFS_statement_class *statement_class;
 
   set_position(pos);
-  DBUG_ASSERT(m_pos.m_index_1 < host_max);
 
-  host= &host_array[m_pos.m_index_1];
-  if (! host->m_lock.is_populated())
-    return HA_ERR_RECORD_DELETED;
-
-  statement_class= find_statement_class(m_pos.m_index_2);
-  if (statement_class)
+  host= global_host_container.get(m_pos.m_index_1);
+  if (host != NULL)
   {
-    make_row(host, statement_class);
-    return 0;
+    statement_class= find_statement_class(m_pos.m_index_2);
+    if (statement_class)
+    {
+      make_row(host, statement_class);
+      return 0;
+    }
   }
 
   return HA_ERR_RECORD_DELETED;
@@ -286,7 +288,11 @@ void table_esms_by_host_by_event_name
   m_row.m_event_name.make_row(klass);
 
   PFS_connection_statement_visitor visitor(klass);
-  PFS_connection_iterator::visit_host(host, true, true, & visitor);
+  PFS_connection_iterator::visit_host(host,
+                                      true,  /* accounts */
+                                      true,  /* threads */
+                                      false, /* THDs */
+                                      & visitor);
 
   if (! host->m_lock.end_optimistic_lock(&lock))
     return;

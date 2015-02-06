@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -19,13 +19,16 @@
 */
 
 #include "my_global.h"
-#include "my_pthread.h"
+#include "my_thread.h"
 #include "table_events_transactions.h"
 #include "pfs_instr_class.h"
 #include "pfs_instr.h"
 #include "pfs_events_transactions.h"
 #include "pfs_timer.h"
 #include "table_helper.h"
+#include "pfs_buffer_container.h"
+#include "field.h"
+#include "xa.h"
 
 THR_LOCK table_events_transactions_current::m_table_lock;
 
@@ -239,24 +242,32 @@ void table_events_transactions_common::make_row(PFS_events_transactions *transac
   if (m_row.m_source_length > sizeof(m_row.m_source))
     m_row.m_source_length= sizeof(m_row.m_source);
 
-  if (transaction->m_gtid_set)
-  {
-    /* A GTID consists of the SIDNO (source id) and GNO (transaction number).
-       The SIDNO is used internally. It maps to a UUID, here called SID.
-    */
-    rpl_sid *sid= &transaction->m_sid;
+  /* A GTID consists of the SID (source id) and GNO (transaction number).
+     The SID is stored in transaction->m_sid and the GNO is stored in
+     transaction->m_gtid_spec.gno.
 
-    /* The Gtid_specification contains the SIDNO, GNO and TYPE. Given a SID,
-       it can generate the textual representation of the GTID. Without
-       the SID, the Gtid_spec would first have to map the SIDNO to the SID,
-       which requires locking the global SID map. Fortunately, mapping
-       from SIDNO to SID was already done at the time of logging.
-    */
-    Gtid_specification *gtid_spec= &transaction->m_gtid_spec;
-    m_row.m_gtid_length= gtid_spec->to_string(sid, m_row.m_gtid);
-  }
-  else
-    m_row.m_gtid_length= 0;
+     On a master, the GTID is assigned when the transaction commit.
+     On a slave, the GTID is assigned before the transaction starts.
+     If GTID_MODE = OFF, all transactions have the special GTID
+     'ANONYMOUS'.
+
+     Therefore, a transaction can be in three different states wrt GTIDs:
+     - Before the GTID has been assigned, the state is 'AUTOMATIC'.
+       On a master, this is the state until the transaction commits.
+       On a slave, this state does not appear.
+     - If GTID_MODE = ON, and a GTID is assigned, the GTID is a string
+       of the form 'UUID:NUMBER'.
+     - If GTID_MODE = OFF, and a GTID is assigned, the GTID is a string
+       of the form 'ANONYMOUS'.
+
+     The Gtid_specification contains the GNO, as well as a type code
+     that specifies which of the three modes is currently in effect.
+     Given a SID, it can generate the textual representation of the
+     GTID.
+  */
+  rpl_sid *sid= &transaction->m_sid;
+  Gtid_specification *gtid_spec= &transaction->m_gtid_spec;
+  m_row.m_gtid_length= gtid_spec->to_string(sid, m_row.m_gtid);
 
   m_row.m_xid= transaction->m_xid;
   m_row.m_isolation_level= transaction->m_isolation_level;
@@ -357,10 +368,7 @@ int table_events_transactions_common::read_row_values(TABLE *table,
           f->set_null();
         break;
       case 6: /* GTID */
-        if (m_row.m_gtid_length == 0)
-          f->set_null();
-        else
-          set_field_varchar_utf8(f, m_row.m_gtid, m_row.m_gtid_length);
+        set_field_varchar_utf8(f, m_row.m_gtid, m_row.m_gtid_length);
         break;
       case 7: /* XID */
         if (!m_row.m_xa || m_row.m_xid.is_null())
@@ -463,24 +471,20 @@ int table_events_transactions_current::rnd_next(void)
 {
   PFS_thread *pfs_thread;
   PFS_events_transactions *transaction;
+  bool has_more_thread= true;
 
   for (m_pos.set_at(&m_next_pos);
-       m_pos.m_index < thread_max;
+       has_more_thread;
        m_pos.next())
   {
-    pfs_thread= &thread_array[m_pos.m_index];
-
-    if (!pfs_thread->m_lock.is_populated())
+    pfs_thread= global_thread_container.get(m_pos.m_index, & has_more_thread);
+    if (pfs_thread != NULL)
     {
-      /* This thread does not exist */
-      continue;
+      transaction= &pfs_thread->m_transaction_current;
+      make_row(transaction);
+      m_next_pos.set_after(&m_pos);
+      return 0;
     }
-
-    transaction= &pfs_thread->m_transaction_current;
-
-    make_row(transaction);
-    m_next_pos.set_after(&m_pos);
-    return 0;
   }
 
   return HA_ERR_END_OF_FILE;
@@ -492,19 +496,19 @@ int table_events_transactions_current::rnd_pos(const void *pos)
   PFS_events_transactions *transaction;
 
   set_position(pos);
-  DBUG_ASSERT(m_pos.m_index < thread_max);
-  pfs_thread= &thread_array[m_pos.m_index];
 
-  if (!pfs_thread->m_lock.is_populated())
-    return HA_ERR_RECORD_DELETED;
+  pfs_thread= global_thread_container.get(m_pos.m_index);
+  if (pfs_thread != NULL)
+  {
+    transaction= &pfs_thread->m_transaction_current;
+    if (transaction->m_class != NULL)
+    {
+      make_row(transaction);
+      return 0;
+    }
+  }
 
-  transaction= &pfs_thread->m_transaction_current;
-
-  if (transaction->m_class == NULL)
-    return HA_ERR_RECORD_DELETED;
-
-  make_row(transaction);
-  return 0;
+  return HA_ERR_RECORD_DELETED;
 }
 
 int table_events_transactions_current::delete_all_rows(void)
@@ -516,7 +520,7 @@ int table_events_transactions_current::delete_all_rows(void)
 ha_rows
 table_events_transactions_current::get_row_count(void)
 {
-  return thread_max;
+  return global_thread_container.get_row_count();
 }
 
 PFS_engine_table* table_events_transactions_history::create(void)
@@ -545,43 +549,39 @@ int table_events_transactions_history::rnd_next(void)
 {
   PFS_thread *pfs_thread;
   PFS_events_transactions *transaction;
+  bool has_more_thread= true;
 
   if (events_transactions_history_per_thread == 0)
     return HA_ERR_END_OF_FILE;
 
   for (m_pos.set_at(&m_next_pos);
-       m_pos.m_index_1 < thread_max;
+       has_more_thread;
        m_pos.next_thread())
   {
-    pfs_thread= &thread_array[m_pos.m_index_1];
-
-    if (! pfs_thread->m_lock.is_populated())
+    pfs_thread= global_thread_container.get(m_pos.m_index_1, & has_more_thread);
+    if (pfs_thread != NULL)
     {
-      /* This thread does not exist */
-      continue;
-    }
+      if (m_pos.m_index_2 >= events_transactions_history_per_thread)
+      {
+        /* This thread does not have more (full) history */
+        continue;
+      }
 
-    if (m_pos.m_index_2 >= events_transactions_history_per_thread)
-    {
-      /* This thread does not have more (full) history */
-      continue;
-    }
+      if ( ! pfs_thread->m_transactions_history_full &&
+          (m_pos.m_index_2 >= pfs_thread->m_transactions_history_index))
+      {
+        /* This thread does not have more (not full) history */
+        continue;
+      }
 
-    if ( ! pfs_thread->m_transactions_history_full &&
-        (m_pos.m_index_2 >= pfs_thread->m_transactions_history_index))
-    {
-      /* This thread does not have more (not full) history */
-      continue;
-    }
-
-    transaction= &pfs_thread->m_transactions_history[m_pos.m_index_2];
-
-    if (transaction->m_class != NULL)
-    {
-      make_row(transaction);
-      /* Next iteration, look for the next history in this thread */
-      m_next_pos.set_after(&m_pos);
-      return 0;
+      transaction= &pfs_thread->m_transactions_history[m_pos.m_index_2];
+      if (transaction->m_class != NULL)
+      {
+        make_row(transaction);
+        /* Next iteration, look for the next history in this thread */
+        m_next_pos.set_after(&m_pos);
+        return 0;
+      }
     }
   }
 
@@ -595,25 +595,25 @@ int table_events_transactions_history::rnd_pos(const void *pos)
 
   DBUG_ASSERT(events_transactions_history_per_thread != 0);
   set_position(pos);
-  DBUG_ASSERT(m_pos.m_index_1 < thread_max);
-  pfs_thread= &thread_array[m_pos.m_index_1];
-
-  if (! pfs_thread->m_lock.is_populated())
-    return HA_ERR_RECORD_DELETED;
 
   DBUG_ASSERT(m_pos.m_index_2 < events_transactions_history_per_thread);
 
-  if ( ! pfs_thread->m_transactions_history_full &&
-      (m_pos.m_index_2 >= pfs_thread->m_transactions_history_index))
-    return HA_ERR_RECORD_DELETED;
+  pfs_thread= global_thread_container.get(m_pos.m_index_1);
+  if (pfs_thread != NULL)
+  {
+    if ( ! pfs_thread->m_transactions_history_full &&
+        (m_pos.m_index_2 >= pfs_thread->m_transactions_history_index))
+      return HA_ERR_RECORD_DELETED;
 
-  transaction= &pfs_thread->m_transactions_history[m_pos.m_index_2];
+    transaction= &pfs_thread->m_transactions_history[m_pos.m_index_2];
+    if (transaction->m_class != NULL)
+    {
+      make_row(transaction);
+      return 0;
+    }
+  }
 
-  if (transaction->m_class == NULL)
-    return HA_ERR_RECORD_DELETED;
-
-  make_row(transaction);
-  return 0;
+  return HA_ERR_RECORD_DELETED;
 }
 
 int table_events_transactions_history::delete_all_rows(void)
@@ -625,7 +625,7 @@ int table_events_transactions_history::delete_all_rows(void)
 ha_rows
 table_events_transactions_history::get_row_count(void)
 {
-  return events_transactions_history_per_thread * thread_max;
+  return events_transactions_history_per_thread * global_thread_container.get_row_count();
 }
 
 PFS_engine_table* table_events_transactions_history_long::create(void)

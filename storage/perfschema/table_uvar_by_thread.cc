@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -19,13 +19,14 @@
 */
 
 #include "my_global.h"
-#include "my_pthread.h"
+#include "my_thread.h"
 #include "pfs_instr_class.h"
 #include "pfs_column_types.h"
 #include "pfs_column_values.h"
 #include "table_uvar_by_thread.h"
 #include "pfs_global.h"
 #include "pfs_visitor.h"
+#include "pfs_buffer_container.h"
 
 /* Iteration on THD from the sql layer. */
 #include "sql_class.h"
@@ -177,7 +178,7 @@ table_uvar_by_thread::get_row_count(void)
     will still evaluate relative table sizes correctly
     when deciding a join order.
   */
-  return thread_max * 10;
+  return global_thread_container.get_row_count() * 10;
 }
 
 table_uvar_by_thread::table_uvar_by_thread()
@@ -194,21 +195,24 @@ void table_uvar_by_thread::reset_position(void)
 int table_uvar_by_thread::rnd_next(void)
 {
   PFS_thread *thread;
+  bool has_more_thread= true;
 
   for (m_pos.set_at(&m_next_pos);
-       m_pos.has_more_thread();
+       has_more_thread;
        m_pos.next_thread())
   {
-    thread= &thread_array[m_pos.m_index_1];
-
-    if (materialize(thread) == 0)
+    thread= global_thread_container.get(m_pos.m_index_1, & has_more_thread);
+    if (thread != NULL)
     {
-      const User_variable *uvar= m_THD_cache.get(m_pos.m_index_2);
-      if (uvar != NULL)
+      if (materialize(thread) == 0)
       {
-        make_row(thread, uvar);
-        m_next_pos.set_after(&m_pos);
-        return 0;
+        const User_variable *uvar= m_THD_cache.get(m_pos.m_index_2);
+        if (uvar != NULL)
+        {
+          make_row(thread, uvar);
+          m_next_pos.set_after(&m_pos);
+          return 0;
+        }
       }
     }
   }
@@ -222,17 +226,18 @@ table_uvar_by_thread::rnd_pos(const void *pos)
   PFS_thread *thread;
 
   set_position(pos);
-  DBUG_ASSERT(m_pos.m_index_1 < thread_max);
 
-  thread= &thread_array[m_pos.m_index_1];
-
-  if (materialize(thread) == 0)
+  thread= global_thread_container.get(m_pos.m_index_1);
+  if (thread != NULL)
   {
-    const User_variable *uvar= m_THD_cache.get(m_pos.m_index_2);
-    if (uvar != NULL)
+    if (materialize(thread) == 0)
     {
-      make_row(thread, uvar);
-      return 0;
+      const User_variable *uvar= m_THD_cache.get(m_pos.m_index_2);
+      if (uvar != NULL)
+      {
+        make_row(thread, uvar);
+        return 0;
+      }
     }
   }
 

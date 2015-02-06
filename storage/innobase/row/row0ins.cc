@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -2362,13 +2362,20 @@ row_ins_clust_index_entry_low(
 			page_get_infimum_rec(page));
 
 		ut_ad(page_rec_is_supremum(first_rec)
-		      || rec_get_n_fields(first_rec, index)
-		      == dtuple_get_n_fields(entry));
+		      || rec_n_fields_is_sane(index, first_rec, entry));
 	}
 #endif
 
-	if (n_uniq && (cursor->up_match >= n_uniq
-		       || cursor->low_match >= n_uniq)) {
+	/* Allowing duplicates in clustered index is currently enabled
+	only for intrinsic table and caller understand the limited
+	operation that can be done in this case. */
+	ut_ad(!index->allow_duplicates
+	      || (index->allow_duplicates
+		  && dict_table_is_intrinsic(index->table)));
+
+	if (!index->allow_duplicates
+	    && n_uniq
+	    && (cursor->up_match >= n_uniq || cursor->low_match >= n_uniq)) {
 
 		if (flags
 		    == (BTR_CREATE_FLAG | BTR_NO_LOCKING_FLAG
@@ -2409,10 +2416,10 @@ err_exit:
 		goto func_exit;
 	}
 
-	/* Modifying existing entry is avoided for intrinsic table considering
-	the frequency and if something fails rollback is not possible given that
-	there is no UNDO log. */
-	if (row_ins_must_modify_rec(cursor)) {
+	/* Note: Allowing duplicates would qualify for modification of
+	an existing record as the new entry is exactly same as old entry.
+	Avoid this check if allow duplicates is enabled. */
+	if (!index->allow_duplicates && row_ins_must_modify_rec(cursor)) {
 		/* There is already an index entry with a long enough common
 		prefix, we must convert the insert into a modify of an
 		existing record */
@@ -2758,7 +2765,8 @@ row_ins_sec_index_entry_low(
 
 		mtr.set_log_mode(MTR_LOG_NO_REDO);
 	} else if (!dict_index_is_spatial(index)) {
-		/* Enable insert buffering if not temp-table */
+		/* Enable insert buffering if it's neither temp-table
+		nor spatial index. */
 		search_mode |= BTR_INSERT;
 	}
 
@@ -2818,6 +2826,11 @@ row_ins_sec_index_entry_low(
 				&cursor, 0, __FILE__, __LINE__, &mtr);
 			mode = BTR_MODIFY_TREE;
 		}
+
+		DBUG_EXECUTE_IF(
+			"rtree_test_check_count", {
+			goto func_exit;});
+
 	} else {
 		if (dict_table_is_intrinsic(index->table)) {
 			btr_cur_search_to_nth_level_with_no_latch(
@@ -2846,8 +2859,7 @@ row_ins_sec_index_entry_low(
 			page_get_infimum_rec(page));
 
 		ut_ad(page_rec_is_supremum(first_rec)
-		      || rec_get_n_fields(first_rec, index)
-		      == dtuple_get_n_fields(entry));
+		      || rec_n_fields_is_sane(index, first_rec, entry));
 	}
 #endif
 
@@ -3362,19 +3374,6 @@ row_ins_index_entry_set_vals(
 					dfield_get_data(row_field)));
 
 			ut_ad(!dfield_is_ext(row_field));
-		}
-
-		/* Since DATA_POINT is of fixed length, and no other geometry
-		data would be of length less than POINT, if we get data
-		longer than DATA_POINT_LEN, there must be an error,
-		unless it's a field of length 0 resulting from ADD COLUMN.
-		Currently, server doesn't do geometry data type checking,
-		we should do this for POINT specially. */
-		if (DATA_POINT_MTYPE(row_field->type.mtype)
-		    && !(len == DATA_POINT_LEN
-			 || len == 0
-			 || len == UNIV_SQL_NULL)) {
-			return (DB_CANT_CREATE_GEOMETRY_OBJECT);
 		}
 
 		/* Handle spatial index. For the first field, replace

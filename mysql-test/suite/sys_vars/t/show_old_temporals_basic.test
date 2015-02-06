@@ -1,0 +1,69 @@
+#
+# Show the session value;
+#
+SELECT @@session.show_old_temporals;
+SHOW SESSION VARIABLES LIKE 'show_old_temporals';
+--disable_warnings
+SELECT * FROM information_schema.session_variables WHERE variable_name='show_old_temporals';
+--enable_warnings
+
+--echo #Also can be set as a global variable.
+SELECT @@global.show_old_temporals;
+SHOW GLOBAL VARIABLES LIKE 'show_old_temporals';
+--disable_warnings
+SELECT * FROM information_schema.global_variables WHERE variable_name='show_old_temporals';
+--enable_warnings
+
+--echo #Test setting the variable to various values.
+--echo #Boolean values.
+SET SESSION show_old_temporals= ON;
+SELECT @@session.show_old_temporals;
+
+SET SESSION show_old_temporals= OFF;
+SELECT @@session.show_old_temporals;
+
+SET SESSION show_old_temporals= 1;
+SELECT @@session.show_old_temporals;
+
+SET SESSION show_old_temporals= 0;
+SELECT @@session.show_old_temporals;
+
+--echo #Test for DEFAULT value.
+SET SESSION show_old_temporals= DEFAULT;
+SELECT @@session.show_old_temporals;
+
+--echo #Test for invalid value.
+--error ER_WRONG_VALUE_FOR_VAR
+SET SESSION show_old_temporals= 2;
+
+--echo #Test for setting the session variable
+--echo #using different syntax.
+SET show_old_temporals= 1;
+
+--echo #Fetches the current session value for the variable.
+SELECT @@show_old_temporals;
+
+--echo #cleanup
+SET SESSION show_old_temporals= DEFAULT;
+
+--echo #Test setting the global value of the variable.
+--echo #Boolean values.
+SET GLOBAL show_old_temporals= ON;
+SELECT @@global.show_old_temporals;
+
+SET GLOBAL show_old_temporals= OFF;
+SELECT @@global.show_old_temporals;
+
+SET GLOBAL show_old_temporals= 1;
+SELECT @@global.show_old_temporals;
+
+SET GLOBAL show_old_temporals= 0;
+SELECT @@session.show_old_temporals;
+
+--echo #Test for DEFAULT value.
+SET GLOBAL show_old_temporals= DEFAULT;
+SELECT @@global.show_old_temporals;
+
+--echo #Test for invalid value.
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL show_old_temporals= 2;

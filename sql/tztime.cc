@@ -148,6 +148,11 @@ static my_bool prepare_tz_info(TIME_ZONE_INFO *sp, MEM_ROOT *storage);
 
 #if defined(TZINFO2SQL)
 
+#ifdef ABBR_ARE_USED
+static const char* const MAGIC_STRING_FOR_INVALID_ZONEINFO_FILE=
+  "Local time zone must be set--see zic manual page";
+#endif
+
 /*
   Load time zone description from zoneinfo (TZinfo) file.
 
@@ -216,7 +221,22 @@ tz_load(const char *name, TIME_ZONE_INFO *sp, MEM_ROOT *storage)
         ttisstdcnt +                            /* ttisstds */
         ttisgmtcnt)                             /* ttisgmts */
       return 1;
+
 #ifdef ABBR_ARE_USED
+    size_t start_of_zone_abbrev= sizeof(struct tzhead) +
+      sp->timecnt * 4 +                       /* ats */
+      sp->timecnt +                           /* types */
+      sp->typecnt * (4 + 2);                  /* ttinfos */
+
+    /*
+      Check that timezone file doesn't contain junk timezone data.
+    */
+    if (!memcmp(u.buf + start_of_zone_abbrev,
+                MAGIC_STRING_FOR_INVALID_ZONEINFO_FILE,
+                std::min(sizeof(MAGIC_STRING_FOR_INVALID_ZONEINFO_FILE) - 1,
+                         sp->charcnt)))
+        return true;
+
     size_t abbrs_buf_len= sp->charcnt+1;
 #endif
 
@@ -2408,7 +2428,12 @@ print_tz_as_sql(const char* tz_name, const TIME_ZONE_INFO *sp)
 (Time_zone_id, Transition_type_id, Offset, Is_DST, Abbreviation) VALUES\n");
 
   for (i= 0; i < sp->typecnt; i++)
-    printf("%s(@time_zone_id, %u, %ld, %d, '%s')\n", (i == 0 ? " " : ","), i,
+    /*
+      Since the column time_zone_transition_type.Abbreviation
+      is declared as CHAR(8) we have to limit the number of characters
+      for the column abbreviation in the next output by 8 chars.
+    */
+    printf("%s(@time_zone_id, %u, %ld, %d, '%.8s')\n", (i == 0 ? " " : ","), i,
            sp->ttis[i].tt_gmtoff, sp->ttis[i].tt_isdst,
            sp->chars + sp->ttis[i].tt_abbrind);
   printf(";\n");
@@ -2575,12 +2600,12 @@ main(int argc, char **argv)
     }
     else
     {
-      printf("START TRANSACTION;\n");
       if (tz_load(argv[1], &tz_info, &tz_storage))
       {
         fprintf(stderr, "Problems with zoneinfo file '%s'\n", argv[2]);
         return 1;
       }
+      printf("START TRANSACTION;\n");
       print_tz_as_sql(argv[2], &tz_info);
       printf("COMMIT;\n");
     }

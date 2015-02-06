@@ -96,9 +96,9 @@ perl;
   my $redirection_type= $ENV{'_WRTF_APPEND'} ? '>>' : '>';
   $mysql .= " --port=$server_port --socket=$server_socket";
   my $outfile = $ENV{'_WRTF_OUTPUT_FILE'};
-  open MYSQL, "| $mysql $redirection_type $outfile" or die "Failed to open MYSQL pipe: '$mysql > $outfile'";
-  print MYSQL $stmt, ';' or die "Error printing statement to MYSQL pipe: $!";
-  close MYSQL or $ENV{'_WRTF_ALLOW_ERROR'} or die "Error closing MYSQL pipe: $!";
+  open MYSQL, "| $mysql $redirection_type $outfile" or die "Error $? opening MYSQL pipe '| $mysql > $outfile': $!";
+  print MYSQL $stmt, ';' or die "Error $? printing statement '$stmt' to MYSQL pipe '| $mysql > $outfile': $!";
+  close MYSQL or $ENV{'_WRTF_ALLOW_ERROR'} or die "Error $? closing MYSQL pipe '| $mysql > $outfile' reading '$stmt': $!";
 EOF
 
 --let $include_filename= write_result_to_file.inc [$write_result_msg]

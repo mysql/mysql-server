@@ -85,8 +85,8 @@ connect(con4,127.0.0.1,Tanjotuser2," ",,);
 connection default;
 
 
-SET PASSWORD FOR 'Tanjotuser1'@'localhost'=PASSWORD('abc');
-SET PASSWORD FOR 'Tanjotuser2'@'127.0.0.1'=PASSWORD('abc');
+SET PASSWORD FOR 'Tanjotuser1'@'localhost'='abc';
+SET PASSWORD FOR 'Tanjotuser2'@'127.0.0.1'='abc';
 
 # Validating the old_passwords value from the created users.
 
@@ -265,8 +265,8 @@ CREATE USER 'Tanjotuser2'@'127.0.0.1' IDENTIFIED WITH 'mysql_native_password';
 
 SET @@session.old_passwords=0;
 
-SET PASSWORD FOR 'Tanjotuser1'@'localhost'=PASSWORD('$$$$$$$$$$^^^^^^^^^^&&&&&&&&&&**********((((((((((##########!!!!!!!!!!@@@@@@@@@@          @@@@@@@@@@__________');
-SET PASSWORD FOR 'Tanjotuser2'@'127.0.0.1'=PASSWORD('$$$$$$$$$$^^^^^^^^^^&&&&&&&&&&**********((((((((((##########!!!!!!!!!!@@@@@@@@@@          @@@@@@@@@@__________');
+SET PASSWORD FOR 'Tanjotuser1'@'localhost'='$$$$$$$$$$^^^^^^^^^^&&&&&&&&&&**********((((((((((##########!!!!!!!!!!@@@@@@@@@@          @@@@@@@@@@__________';
+SET PASSWORD FOR 'Tanjotuser2'@'127.0.0.1'='$$$$$$$$$$^^^^^^^^^^&&&&&&&&&&**********((((((((((##########!!!!!!!!!!@@@@@@@@@@          @@@@@@@@@@__________';
 
 
 # Verifying the client access denied passing null password
@@ -345,7 +345,7 @@ DROP USER 'Tanjotuser2'@'127.0.0.1';
 
 let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 --exec echo "wait" > $restart_file
---shutdown_server 10
+--shutdown_server 
 --source include/wait_until_disconnected.inc
 -- exec echo "restart:--default-authentication-plugin=sha256_password  " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 -- enable_reconnect
@@ -403,8 +403,8 @@ connection default;
 
 SET @@session.old_passwords=0;
 
-SET PASSWORD FOR 'Tanjotuser1'@'localhost'=PASSWORD('abc');
-SET PASSWORD FOR 'Tanjotuser2'@'127.0.0.1'=PASSWORD('abc');
+SET PASSWORD FOR 'Tanjotuser1'@'localhost'='abc';
+SET PASSWORD FOR 'Tanjotuser2'@'127.0.0.1'='abc';
 
 
 # Validating the old_passwords value from the created users.
@@ -636,8 +636,8 @@ CREATE USER 'Tanjotuser2'@'127.0.0.1' IDENTIFIED WITH 'mysql_native_password';
 
 SET @@session.old_passwords=0;
 
-SET PASSWORD FOR 'Tanjotuser1'@'localhost'=PASSWORD('$$$$$$$$$$^^^^^^^^^^&&&&&&&&&&**********((((((((((##########!!!!!!!!!!@@@@@@@@@@          @@@@@@@@@@__________');
-SET PASSWORD FOR 'Tanjotuser2'@'127.0.0.1'=PASSWORD('$$$$$$$$$$^^^^^^^^^^&&&&&&&&&&**********((((((((((##########!!!!!!!!!!@@@@@@@@@@          @@@@@@@@@@__________');
+SET PASSWORD FOR 'Tanjotuser1'@'localhost'='$$$$$$$$$$^^^^^^^^^^&&&&&&&&&&**********((((((((((##########!!!!!!!!!!@@@@@@@@@@          @@@@@@@@@@__________';
+SET PASSWORD FOR 'Tanjotuser2'@'127.0.0.1'='$$$$$$$$$$^^^^^^^^^^&&&&&&&&&&**********((((((((((##########!!!!!!!!!!@@@@@@@@@@          @@@@@@@@@@__________';
 
 
 connection default;

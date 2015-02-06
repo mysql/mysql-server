@@ -41,7 +41,7 @@ WHERE city.Country=country.Code AND
 country.Name LIKE 'L%' AND city.Population > 100000;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	country	NULL	ALL	NULL	NULL	NULL	NULL	239	11.11	Using where
-1	SIMPLE	city	NULL	ALL	NULL	NULL	NULL	NULL	4079	0.17	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	city	NULL	ALL	NULL	NULL	NULL	NULL	4079	3.33	Using where; Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	/* select#1 */ select `world`.`city`.`Name` AS `Name`,`world`.`country`.`Name` AS `Name` from `world`.`city` join `world`.`country` where ((`world`.`city`.`Country` = `world`.`country`.`Code`) and (`world`.`country`.`Name` like 'L%') and (`world`.`city`.`Population` > 100000))
 SELECT city.Name, country.Name FROM city,country
@@ -72,8 +72,8 @@ city.Name LIKE 'L%' AND country.Population > 3000000 AND
 countrylanguage.Percentage > 50;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	country	NULL	ALL	NULL	NULL	NULL	NULL	239	33.33	Using where
-1	SIMPLE	countrylanguage	NULL	ALL	NULL	NULL	NULL	NULL	984	0.17	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	city	NULL	ALL	NULL	NULL	NULL	NULL	4079	0.06	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	countrylanguage	NULL	ALL	NULL	NULL	NULL	NULL	984	3.33	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	city	NULL	ALL	NULL	NULL	NULL	NULL	4079	1.11	Using where; Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	/* select#1 */ select `world`.`city`.`Name` AS `Name`,`world`.`country`.`Name` AS `Name`,`world`.`countrylanguage`.`Language` AS `Language` from `world`.`city` join `world`.`country` join `world`.`countrylanguage` where ((`world`.`countrylanguage`.`Country` = `world`.`country`.`Code`) and (`world`.`city`.`Country` = `world`.`country`.`Code`) and (`world`.`city`.`Name` like 'L%') and (`world`.`country`.`Population` > 3000000) and (`world`.`countrylanguage`.`Percentage` > 50))
 SELECT city.Name, country.Name, countrylanguage.Language
@@ -233,7 +233,7 @@ WHERE city.Country=country.Code AND
 country.Name LIKE 'L%' AND city.Population > 100000;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	country	NULL	ALL	NULL	NULL	NULL	NULL	239	11.11	Using where
-1	SIMPLE	city	NULL	ALL	NULL	NULL	NULL	NULL	4079	0.17	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	city	NULL	ALL	NULL	NULL	NULL	NULL	4079	3.33	Using where; Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	/* select#1 */ select `world`.`city`.`Name` AS `Name`,`world`.`country`.`Name` AS `Name` from `world`.`city` join `world`.`country` where ((`world`.`city`.`Country` = `world`.`country`.`Code`) and (`world`.`country`.`Name` like 'L%') and (`world`.`city`.`Population` > 100000))
 SELECT city.Name, country.Name FROM city,country
@@ -264,8 +264,8 @@ city.Name LIKE 'L%' AND country.Population > 3000000 AND
 countrylanguage.Percentage > 50;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	country	NULL	ALL	NULL	NULL	NULL	NULL	239	33.33	Using where
-1	SIMPLE	countrylanguage	NULL	ALL	NULL	NULL	NULL	NULL	984	0.17	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	city	NULL	ALL	NULL	NULL	NULL	NULL	4079	0.06	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	countrylanguage	NULL	ALL	NULL	NULL	NULL	NULL	984	3.33	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	city	NULL	ALL	NULL	NULL	NULL	NULL	4079	1.11	Using where; Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	/* select#1 */ select `world`.`city`.`Name` AS `Name`,`world`.`country`.`Name` AS `Name`,`world`.`countrylanguage`.`Language` AS `Language` from `world`.`city` join `world`.`country` join `world`.`countrylanguage` where ((`world`.`countrylanguage`.`Country` = `world`.`country`.`Code`) and (`world`.`city`.`Country` = `world`.`country`.`Code`) and (`world`.`city`.`Name` like 'L%') and (`world`.`country`.`Population` > 3000000) and (`world`.`countrylanguage`.`Percentage` > 50))
 SELECT city.Name, country.Name, countrylanguage.Language
@@ -1650,9 +1650,9 @@ SELECT COUNT(*) FROM t1,t2,t3
 WHERE t1.a=t2.a AND t2.a=t3.a AND
 t1.b IS NULL AND t2.b IS NULL AND t3.b IS NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	16384	0.50	Using where
-1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.a	1	5.00	Using where; Using join buffer (Batched Key Access (unique))
-1	SIMPLE	t3	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.a	1	5.00	Using where; Using join buffer (Batched Key Access (unique))
+1	SIMPLE	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	16384	10.00	Using where
+1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.a	1	10.00	Using where; Using join buffer (Batched Key Access (unique))
+1	SIMPLE	t3	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.a	1	10.00	Using where; Using join buffer (Batched Key Access (unique))
 Warnings:
 Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` join `test`.`t2` join `test`.`t3` where ((`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t3`.`a` = `test`.`t1`.`a`) and isnull(`test`.`t1`.`b`) and isnull(`test`.`t2`.`b`) and isnull(`test`.`t3`.`b`))
 SELECT COUNT(*) FROM t1,t2,t3
@@ -1821,7 +1821,7 @@ select t1.id1  from t1 join t2 on t1.id1=t2.id1
 where t1.d=3 and t2.id2 > 200 order by t1.id1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	idx1	idx1	5	const	4	100.00	Using index; Using temporary; Using filesort
-1	SIMPLE	t2	NULL	ALL	idx2	NULL	NULL	NULL	12	2.78	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	idx2	NULL	NULL	NULL	12	3.33	Using where; Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`id1` AS `id1` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`id1` = `test`.`t1`.`id1`) and (`test`.`t1`.`d` = 3) and (`test`.`t2`.`id2` > 200)) order by `test`.`t1`.`id1`
 select t1.id1  from t1 join t2 on t1.id1=t2.id1 

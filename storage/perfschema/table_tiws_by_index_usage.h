@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -47,7 +47,7 @@ struct row_tiws_by_index_usage
 /**
   Position of a cursor on
   PERFORMANCE_SCHEMA.TABLE_IO_WAIT_SUMMARY_BY_INDEX.
-  Index 1 on table_share_array (0 based)
+  Index 1 on global_table_share_container (0 based)
   Index 2 on index (0 based)
 */
 struct pos_tiws_by_index_usage : public PFS_double_index
@@ -60,11 +60,6 @@ struct pos_tiws_by_index_usage : public PFS_double_index
   {
     m_index_1= 0;
     m_index_2= 0;
-  }
-
-  inline bool has_more_table(void)
-  {
-    return (m_index_1 < table_share_max);
   }
 
   inline void next_table(void)

@@ -1,7 +1,7 @@
 #ifndef ITEM_TIMEFUNC_INCLUDED
 #define ITEM_TIMEFUNC_INCLUDED
 
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,6 +18,8 @@
 
 
 /* Function items used by mysql */
+
+#include "item_strfunc.h"  // Item_str_func
 
 #include <algorithm>
 
@@ -483,6 +485,18 @@ public:
                                                 args[0]->datetime_precision());
   }
   bool val_timeval(struct timeval *tm);
+  bool check_gcol_func_processor(uchar *int_arg) 
+  {
+    /*
+      TODO: Allow UNIX_TIMESTAMP called with an argument to be a part
+      of the expression for a generated column
+    */
+    DBUG_ENTER("Item_func_unix_timestamp::check_gcol_func_processor");
+    DBUG_PRINT("info",
+      ("check_gcol_func_processor returns TRUE: unsupported function"));
+    DBUG_RETURN(TRUE);
+  }
+
 };
 
 
@@ -1118,6 +1132,13 @@ public:
     DBUG_ASSERT(fixed == 1);
     return cached_time.val_str(&str_value);
   }
+  bool check_gcol_func_processor(uchar *int_arg) 
+  {
+    DBUG_ENTER("Item_func_curtime::check_gcol_func_processor");
+    DBUG_PRINT("info",
+      ("check_gcol_func_processor returns TRUE: unsupported function"));
+    DBUG_RETURN(TRUE);
+  }
 };
 
 
@@ -1175,6 +1196,13 @@ public:
     DBUG_ASSERT(fixed == 1);
     return cached_time.val_str(&str_value);
   }
+  bool check_gcol_func_processor(uchar *int_arg) 
+  {
+    DBUG_ENTER("Item_func_curdate::check_gcol_func_processor");
+    DBUG_PRINT("info",
+      ("check_gcol_func_processor returns TRUE: unsupported function"));
+    DBUG_RETURN(TRUE);
+  }
 };
 
 
@@ -1231,6 +1259,13 @@ public:
   {
     DBUG_ASSERT(fixed == 1);
     return cached_time.val_str(&str_value);
+  }
+  bool check_gcol_func_processor(uchar *int_arg) 
+  {
+    DBUG_ENTER("Item_func_now::check_gcol_func_processor");
+    DBUG_PRINT("info",
+      ("check_gcol_func_processor returns TRUE: unsupported function"));
+    DBUG_RETURN(TRUE);
   }
 };
 

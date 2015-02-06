@@ -7,6 +7,8 @@
  * Copyright (C) 1995-2005 Jean-loup Gailly.
  * For conditions of distribution and use, see copyright notice in zlib.h
  *
+ * This file was modified by Oracle on 2015-01-23.
+ * Modifications copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
  */
 
 /* @(#) $Id$ */
@@ -15,6 +17,8 @@
 
 #include <stdio.h>
 #include <string.h>
+#include "my_thread_local.h"
+#include "mysql/psi/mysql_file.h"
 
 static int const gz_magic[2] = {0x1f, 0x8b}; /* gzip magic header */
 static int const az_magic[3] = {0xfe, 0x03, 0x01}; /* az magic header */

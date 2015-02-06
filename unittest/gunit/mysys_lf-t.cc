@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -42,7 +42,7 @@ int with_my_thread_init=0;
 /*
   pin allocator - alloc and release an element in a loop
 */
-pthread_handler_t test_lf_pinbox(void *arg)
+extern "C" void *test_lf_pinbox(void *arg)
 {
   int m= *(int *)arg;
   LF_PINS *pins;
@@ -77,7 +77,7 @@ typedef union {
   void *not_used;
 } TLA;
 
-pthread_handler_t test_lf_alloc(void *arg)
+extern "C" void *test_lf_alloc(void *arg)
 {
   int    m= (*(int *)arg)/2;
   int32 x,y= 0;
@@ -122,7 +122,7 @@ pthread_handler_t test_lf_alloc(void *arg)
 }
 
 const int N_TLH= 1000;
-pthread_handler_t test_lf_hash(void *arg)
+extern "C" void *test_lf_hash(void *arg)
 {
   int    m= (*(int *)arg)/(2*N_TLH);
   int32 x,y,z,sum= 0, ins= 0;
@@ -203,14 +203,16 @@ TEST(Mysys, LockFree)
 {
   mysql_mutex_init(0, &mutex, 0);
   mysql_cond_init(0, &cond);
-  pthread_attr_init(&thr_attr);
+  my_thread_attr_init(&thr_attr);
+#ifndef _WIN32
   pthread_attr_setdetachstate(&thr_attr, PTHREAD_CREATE_DETACHED);
- 
+#endif
+
   do_tests();
 
   mysql_mutex_destroy(&mutex);
   mysql_cond_destroy(&cond);
-  pthread_attr_destroy(&thr_attr);
+  my_thread_attr_destroy(&thr_attr);
 }
 
 

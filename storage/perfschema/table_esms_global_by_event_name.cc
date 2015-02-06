@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -19,7 +19,7 @@
 */
 
 #include "my_global.h"
-#include "my_pthread.h"
+#include "my_thread.h"
 #include "pfs_instr_class.h"
 #include "pfs_column_types.h"
 #include "pfs_column_values.h"
@@ -28,6 +28,7 @@
 #include "pfs_instr.h"
 #include "pfs_timer.h"
 #include "pfs_visitor.h"
+#include "field.h"
 
 THR_LOCK table_esms_global_by_event_name::m_table_lock;
 
@@ -271,9 +272,12 @@ void table_esms_global_by_event_name
   m_row.m_event_name.make_row(klass);
 
   PFS_connection_statement_visitor visitor(klass);
-  PFS_connection_iterator::visit_global(true, /* hosts */
+  PFS_connection_iterator::visit_global(true,  /* hosts */
                                         false, /* users */
-                                        true, true, & visitor);
+                                        true,  /* accounts */
+                                        true,  /* threads */
+                                        false, /* THDs */
+                                        & visitor);
 
   m_row.m_stat.set(m_normalizer, & visitor.m_stat);
   m_row_exists= true;

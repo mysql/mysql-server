@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,9 +14,14 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "rpl_mts_submode.h"
-#include "rpl_rli_pdb.h"
-#include "rpl_slave.h"
-#include "rpl_slave_commit_order_manager.h"
+
+#include "hash.h"                           // HASH
+#include "log_event.h"                      // Query_log_event
+#include "rpl_rli.h"                        // Relay_log_info
+#include "rpl_rli_pdb.h"                    // db_worker_hash_entry
+#include "rpl_slave_commit_order_manager.h" // Commit_order_manager
+#include "sql_class.h"                      // THD
+
 
 /**
  Does necessary arrangement before scheduling next event.
@@ -531,14 +536,8 @@ Mts_submode_logical_clock::schedule_next_event(Relay_log_info* rli,
   */
   switch (ev->get_type_code())
   {
-  case QUERY_EVENT:
-    ptr_group->sequence_number= sequence_number=
-      static_cast<Query_log_event*>(ev)->sequence_number;
-    ptr_group->last_committed= last_committed=
-      static_cast<Query_log_event*>(ev)->last_committed;
-    break;
-
-  case GTID_LOG_EVENT:
+  case binary_log::GTID_LOG_EVENT:
+  case binary_log::ANONYMOUS_GTID_LOG_EVENT:
     // TODO: control continuity
     ptr_group->sequence_number= sequence_number=
       static_cast<Gtid_log_event*>(ev)->sequence_number;
@@ -560,16 +559,22 @@ Mts_submode_logical_clock::schedule_next_event(Relay_log_info* rli,
       /*
         Either master is old, or the current group of events is malformed.
         In either case execution is allowed in effectively sequential mode, and warned.
+
+        View_change_log_event is expected not to have sequence_number,
+        thence the exception.
       */
-      sql_print_warning("Either event (relay log name:position) (%s:%llu) "
-                        "is from an old master therefore is not tagged "
-                        "with logical timestamps, or the current group of "
-                        "events miss a proper group header event. Execution is "
-                        "proceeded, but it is recommended to make sure "
-                        "replication is resumed from a valid start group "
-                        "position.",
-                        rli->get_event_relay_log_name(),
-                        rli->get_event_relay_log_pos());
+      if (ev->get_type_code() != binary_log::VIEW_CHANGE_EVENT)
+      {
+        sql_print_warning("Either event (relay log name:position) (%s:%llu) "
+                          "is from an old master therefore is not tagged "
+                          "with logical timestamps, or the current group of "
+                          "events miss a proper group header event. Execution is "
+                          "proceeded, but it is recommended to make sure "
+                          "replication is resumed from a valid start group "
+                          "position.",
+                          rli->get_event_relay_log_name(),
+                          rli->get_event_relay_log_pos());
+      }
     }
     first_event= false;
   }
@@ -861,14 +866,14 @@ Mts_submode_logical_clock::get_least_occupied_worker(Relay_log_info *rli,
   if (rli->last_assigned_worker)
   {
     worker= rli->last_assigned_worker;
-    DBUG_ASSERT(ev->get_type_code() != USER_VAR_EVENT || worker->id == 0 ||
+    DBUG_ASSERT(ev->get_type_code() != binary_log::USER_VAR_EVENT || worker->id == 0 ||
                 rli->curr_group_seen_begin || rli->curr_group_seen_gtid);
   }
   else
   {
     worker= get_free_worker(rli);
 
-    DBUG_ASSERT(ev->get_type_code() != USER_VAR_EVENT ||
+    DBUG_ASSERT(ev->get_type_code() != binary_log::USER_VAR_EVENT ||
                 rli->curr_group_seen_begin || rli->curr_group_seen_gtid);
 
     if (worker == NULL)
@@ -909,7 +914,7 @@ Mts_submode_logical_clock::get_least_occupied_worker(Relay_log_info *rli,
   // stopped.
   DBUG_ASSERT(worker != NULL || thd->killed);
   /* The master my have send  db partition info. make sure we never use them*/
-  if (ev->get_type_code() == QUERY_EVENT)
+  if (ev->get_type_code() == binary_log::QUERY_EVENT)
     static_cast<Query_log_event*>(ev)->mts_accessed_dbs= 0;
 
   DBUG_RETURN(worker);

@@ -1,6 +1,5 @@
 #Creating the spatial Geometry object
 USE test;
-DROP TABLE IF EXISTS gis_geometrycollection;
 CREATE TABLE gis_geometrycollection (fid INTEGER NOT NULL PRIMARY KEY, g GEOMETRYCOLLECTION);
 SET @star_elem_vertical= 'POLYGON((5 0,15 25,25 0,15 5,5 0))';
 SET @star_elem_horizontal= 'POLYGON((25 0,0 15,30 15,22 10,25 0))';
@@ -23,999 +22,411 @@ SET @star_collection_elems='GEOMETRYCOLLECTION(MULTIPOLYGON(((5 0,15 25,25 0,15 
 SET @star_collection_multilinestr='GEOMETRYCOLLECTION(MULTIPOLYGON(((5 0,15 25,25 0,15 5,5 0)),((25 0,0 15,30 15,22 10,25 0))),POLYGON((5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5,5 0)),MULTILINESTRING((25 0,0 15,15 30,0 5)),LINESTRING(15 25,15 10),MULTIPOINT(5 0,25 0),POINT(15 25))';
 #INSERT base star
 INSERT INTO gis_geometrycollection VALUES
-(100,GeomFromText(@star)),
-(101,GeomFromText(@star_elem_vertical)),
-(102,GeomFromText(@star_elem_horizontal)),
-(103,GeomFromText(@star_of_elems)),
-(104,GeomFromText(@star_top)),
-(105,GeomFromText(@star_center)),
-(106,GeomFromText(@star_bottom_left)),
-(107,GeomFromText(@star_bottom_right)),
-(108,GeomFromText(@star_bottom_points)),
-(109,GeomFromText(@star_all_points)),
-(110,GeomFromText(@star_line_horizontal)),
-(111,GeomFromText(@star_line_vertical)),
-(112,GeomFromText(@star_top_to_center)),
-(113,GeomFromText(@star_lines_near_horizontal)),
-(114,GeomFromText(@star_lines_near_vertical)),
-(115,GeomFromText(@star_collection_elems)),
-(116,GeomFromText(@star_collection_multilinestr));
+(100,ST_GEOMFROMTEXT(@star)),
+(101,ST_GEOMFROMTEXT(@star_elem_vertical)),
+(102,ST_GEOMFROMTEXT(@star_elem_horizontal)),
+(103,ST_GEOMFROMTEXT(@star_of_elems)),
+(104,ST_GEOMFROMTEXT(@star_top)),
+(105,ST_GEOMFROMTEXT(@star_center)),
+(106,ST_GEOMFROMTEXT(@star_bottom_left)),
+(107,ST_GEOMFROMTEXT(@star_bottom_right)),
+(108,ST_GEOMFROMTEXT(@star_bottom_points)),
+(109,ST_GEOMFROMTEXT(@star_all_points)),
+(110,ST_GEOMFROMTEXT(@star_line_horizontal)),
+(111,ST_GEOMFROMTEXT(@star_line_vertical)),
+(112,ST_GEOMFROMTEXT(@star_top_to_center)),
+(113,ST_GEOMFROMTEXT(@star_lines_near_horizontal)),
+(114,ST_GEOMFROMTEXT(@star_lines_near_vertical)),
+(115,ST_GEOMFROMTEXT(@star_collection_elems)),
+(116,ST_GEOMFROMTEXT(@star_collection_multilinestr));
 #Checking the integrity of the above create/insert statements 
 #17 rows. 
-SELECT count(astext(g) != 'NULL') FROM gis_geometrycollection;
-count(astext(g) != 'NULL')
+SELECT count(ST_ASTEXT(g) != 'NULL') FROM gis_geometrycollection;
+count(ST_ASTEXT(g) != 'NULL')
 17
 #====================================================================================
-# ConvexHull(geometry)
+# ST_CONVEXHULL(geometry)
 #====================================================================================
 #------------------------------------------------------------------------------------
 # point
 #------------------------------------------------------------------------------------
-SELECT AsText(ConvexHull(GeomFromText(@star_center)));
-AsText(ConvexHull(GeomFromText(@star_center)))
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT(@star_center)));
+ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT(@star_center)))
 POINT(15 10)
-SELECT AsText(ConvexHull(GeomFromText(@star_top)));
-AsText(ConvexHull(GeomFromText(@star_top)))
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT(@star_top)));
+ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT(@star_top)))
 POINT(15 25)
-SELECT AsText(ConvexHull(ST_GeomFromText('POINT(-0 0)')));
-AsText(ConvexHull(ST_GeomFromText('POINT(-0 0)')))
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('POINT(-0 0)')));
+ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('POINT(-0 0)')))
 POINT(0 0)
-SELECT AsText(ConvexHull(GeomFromText('POINT(2.34 -2.34)')));
-AsText(ConvexHull(GeomFromText('POINT(2.34 -2.34)')))
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('POINT(2.34 -2.34)')));
+ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('POINT(2.34 -2.34)')))
 POINT(2.34 -2.34)
-SELECT AsText(ConvexHull(GeomFromText('POINT(1e308 -1e308)')));
-AsText(ConvexHull(GeomFromText('POINT(1e308 -1e308)')))
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('POINT(1e308 -1e308)')));
+ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('POINT(1e308 -1e308)')))
 POINT(1e308 -1e308)
-SELECT AsText(ConvexHull(GeomFromText('POINT(-0.0000 0.000001)')));
-AsText(ConvexHull(GeomFromText('POINT(-0.0000 0.000001)')))
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('POINT(-0.0000 0.000001)')));
+ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('POINT(-0.0000 0.000001)')))
 POINT(0 0.000001)
-SELECT AsText(ConvexHull(g)) FROM gis_geometrycollection WHERE fid=105;
-AsText(ConvexHull(g))
+SELECT ST_ASTEXT(ST_CONVEXHULL(g)) FROM gis_geometrycollection WHERE fid=105;
+ST_ASTEXT(ST_CONVEXHULL(g))
 POINT(15 10)
 #------------------------------------------------------------------------------------
 # multipoint
 #------------------------------------------------------------------------------------
-SELECT AsText(ConvexHull(GeomFromText(@star_all_points)));
-AsText(ConvexHull(GeomFromText(@star_all_points)))
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT(@star_all_points)));
+ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT(@star_all_points)))
 POLYGON((5 0,25 0,15 25,5 0))
-SELECT AsText(ConvexHull(GeomFromText(@star_bottom_points)));
-AsText(ConvexHull(GeomFromText(@star_bottom_points)))
-LINESTRING(5 0,25 0,5 0)
-SELECT AsText(ConvexHull(GeomFromText('MULTIPOINT(0 0,0 0,0 0,0 0)')));
-AsText(ConvexHull(GeomFromText('MULTIPOINT(0 0,0 0,0 0,0 0)')))
-LINESTRING(0 0,0 0,0 0)
-SELECT AsText(ConvexHull(GeomFromText('MULTIPOINT(0 0,0 5,5 5,5 0,0 0)')));
-AsText(ConvexHull(GeomFromText('MULTIPOINT(0 0,0 5,5 5,5 0,0 0)')))
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT(@star_bottom_points)));
+ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT(@star_bottom_points)))
+LINESTRING(5 0,25 0)
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('MULTIPOINT(0 0,0 0,0 0,0 0)')));
+ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('MULTIPOINT(0 0,0 0,0 0,0 0)')))
+LINESTRING(0 0,0 0)
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('MULTIPOINT(0 0,0 5,5 5,5 0,0 0)')));
+ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('MULTIPOINT(0 0,0 5,5 5,5 0,0 0)')))
 POLYGON((0 0,5 0,5 5,0 5,0 0))
-SELECT AsText(ConvexHull(GeomFromText('MULTIPOINT(1 -1,1000 -1000,0.0001 0.000)')));
-AsText(ConvexHull(GeomFromText('MULTIPOINT(1 -1,1000 -1000,0.0001 0.000)')))
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('MULTIPOINT(1 -1,1000 -1000,0.0001 0.000)')));
+ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('MULTIPOINT(1 -1,1000 -1000,0.0001 0.000)')))
 POLYGON((0.0001 0,1 -1,1000 -1000,0.0001 0))
-SELECT AsText(Convexhull(GeomFromText('MULTIPOINT(5 -3,0 2,5 7,10 2,10 0,10 -2)')));
-AsText(Convexhull(GeomFromText('MULTIPOINT(5 -3,0 2,5 7,10 2,10 0,10 -2)')))
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('MULTIPOINT(5 -3,0 2,5 7,10 2,10 0,10 -2)')));
+ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('MULTIPOINT(5 -3,0 2,5 7,10 2,10 0,10 -2)')))
 POLYGON((0 2,5 -3,10 -2,10 2,5 7,0 2))
-SELECT AsText(ConvexHull(GeomFromText('MULTIPOINT(5 0,0 5,5 10,10 5,10 -5)')));
-AsText(ConvexHull(GeomFromText('MULTIPOINT(5 0,0 5,5 10,10 5,10 -5)')))
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('MULTIPOINT(5 0,0 5,5 10,10 5,10 -5)')));
+ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('MULTIPOINT(5 0,0 5,5 10,10 5,10 -5)')))
 POLYGON((0 5,10 -5,10 5,5 10,0 5))
-SELECT AsText(ConvexHull(GeomFromText('MULTIPOINT(2 -5,2 5,8 5,8 2,8 0)')));
-AsText(ConvexHull(GeomFromText('MULTIPOINT(2 -5,2 5,8 5,8 2,8 0)')))
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('MULTIPOINT(2 -5,2 5,8 5,8 2,8 0)')));
+ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('MULTIPOINT(2 -5,2 5,8 5,8 2,8 0)')))
 POLYGON((2 -5,8 0,8 5,2 5,2 -5))
-Select AsText(ConvexHull(GeomFromText('MULTIPOINT(5 0,25 0,15 10,15 25)')));
-AsText(ConvexHull(GeomFromText('MULTIPOINT(5 0,25 0,15 10,15 25)')))
+Select ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('MULTIPOINT(5 0,25 0,15 10,15 25)')));
+ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('MULTIPOINT(5 0,25 0,15 10,15 25)')))
 POLYGON((5 0,25 0,15 25,5 0))
-SELECT AsText(ConvexHull(g)) FROM gis_geometrycollection WHERE fid=108;
-AsText(ConvexHull(g))
-LINESTRING(5 0,25 0,5 0)
+SELECT ST_ASTEXT(ST_CONVEXHULL(g)) FROM gis_geometrycollection WHERE fid=108;
+ST_ASTEXT(ST_CONVEXHULL(g))
+LINESTRING(5 0,25 0)
 #------------------------------------------------------------------------------------
 # linestring
 #------------------------------------------------------------------------------------
-SELECT AsText(ConvexHull(GeomFromText(@star_top_to_center)));
-AsText(ConvexHull(GeomFromText(@star_top_to_center)))
-LINESTRING(15 10,15 25,15 10)
-SELECT AsText(ConvexHull(GeomFromText(@star_line_horizontal)));
-AsText(ConvexHull(GeomFromText(@star_line_horizontal)))
-LINESTRING(10 15,20 15,10 15)
-SELECT AsText(ConvexHull(GeomFromText('LINESTRING(0 0,-0.00 0,0.0 0)')));
-AsText(ConvexHull(GeomFromText('LINESTRING(0 0,-0.00 0,0.0 0)')))
-LINESTRING(0 0,0 0,0 0)
-SELECT AsText(ConvexHull(GeomFromText('LINESTRING(0 0,0 5,5 5,5 0,0 0)')));
-AsText(ConvexHull(GeomFromText('LINESTRING(0 0,0 5,5 5,5 0,0 0)')))
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT(@star_top_to_center)));
+ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT(@star_top_to_center)))
+LINESTRING(15 10,15 25)
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT(@star_line_horizontal)));
+ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT(@star_line_horizontal)))
+LINESTRING(10 15,20 15)
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('LINESTRING(0 0,-0.00 0,0.0 0)')));
+ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('LINESTRING(0 0,-0.00 0,0.0 0)')))
+LINESTRING(0 0,0 0)
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('LINESTRING(0 0,0 5,5 5,5 0,0 0)')));
+ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('LINESTRING(0 0,0 5,5 5,5 0,0 0)')))
 POLYGON((0 0,5 0,5 5,0 5,0 0))
-SELECT AsText(ConvexHull(GeomFromText('LINESTRING(1 -1,1000 -1000,0.0001 0.000)')));
-AsText(ConvexHull(GeomFromText('LINESTRING(1 -1,1000 -1000,0.0001 0.000)')))
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('LINESTRING(1 -1,1000 -1000,0.0001 0.000)')));
+ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('LINESTRING(1 -1,1000 -1000,0.0001 0.000)')))
 POLYGON((0.0001 0,1 -1,1000 -1000,0.0001 0))
-SELECT AsText(ConvexHull(g)) FROM gis_geometrycollection WHERE fid=110;
-AsText(ConvexHull(g))
-LINESTRING(10 15,20 15,10 15)
+SELECT ST_ASTEXT(ST_CONVEXHULL(g)) FROM gis_geometrycollection WHERE fid=110;
+ST_ASTEXT(ST_CONVEXHULL(g))
+LINESTRING(10 15,20 15)
 #------------------------------------------------------------------------------------
 # multilinestring
 #------------------------------------------------------------------------------------
-SELECT AsText(ConvexHull(GeomFromText(@star_lines_near_vertical)));
-AsText(ConvexHull(GeomFromText(@star_lines_near_vertical)))
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT(@star_lines_near_vertical)));
+ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT(@star_lines_near_vertical)))
 POLYGON((0 5,15 25,0 25,0 5))
-SELECT AsText(ConvexHull(GeomFromText(@star_lines_near_horizontal)));
-AsText(ConvexHull(GeomFromText(@star_lines_near_horizontal)))
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT(@star_lines_near_horizontal)));
+ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT(@star_lines_near_horizontal)))
 POLYGON((0 5,25 0,15 30,0 15,0 5))
-SELECT AsText(ConvexHull(GeomFromText('MULTILINESTRING((0 0,-0.00 0),(0.0 0))')));
-AsText(ConvexHull(GeomFromText('MULTILINESTRING((0 0,-0.00 0),(0.0 0))')))
-LINESTRING(0 0,0 0,0 0)
-SELECT AsText(ConvexHull(GeomFromText('MULTILINESTRING((0 0,0 5,5 5,5 0,0 0))')));
-AsText(ConvexHull(GeomFromText('MULTILINESTRING((0 0,0 5,5 5,5 0,0 0))')))
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,-0.00 0),(0.0 0))')));
+ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,-0.00 0),(0.0 0))')))
+LINESTRING(0 0,0 0)
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,0 5,5 5,5 0,0 0))')));
+ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,0 5,5 5,5 0,0 0))')))
 POLYGON((0 0,5 0,5 5,0 5,0 0))
-SELECT AsText(ConvexHull(GeomFromText('MULTILINESTRING((0 10,10 0),(10 0,0 0),(0 0,10 10))')));
-AsText(ConvexHull(GeomFromText('MULTILINESTRING((0 10,10 0),(10 0,0 0),(0 0,10 10))')))
-LINESTRING(0 0,0 10,10 10,10 0,0 0)
-SELECT AsText(ConvexHull(GeomFromText('MULTILINESTRING((1 -1,1000 -1000,0.0001 0.000))')));
-AsText(ConvexHull(GeomFromText('MULTILINESTRING((1 -1,1000 -1000,0.0001 0.000))')))
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('MULTILINESTRING((0 10,10 0),(10 0,0 0),(0 0,10 10))')));
+ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('MULTILINESTRING((0 10,10 0),(10 0,0 0),(0 0,10 10))')))
+LINESTRING(0 0,0 10)
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('MULTILINESTRING((1 -1,1000 -1000,0.0001 0.000))')));
+ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('MULTILINESTRING((1 -1,1000 -1000,0.0001 0.000))')))
 POLYGON((0.0001 0,1 -1,1000 -1000,0.0001 0))
-SELECT AsText(ConvexHull(GeomFromText('MULTILINESTRING((4 7,1 0,1 7),(4 9,8 6,9 4))')));
-AsText(ConvexHull(GeomFromText('MULTILINESTRING((4 7,1 0,1 7),(4 9,8 6,9 4))')))
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('MULTILINESTRING((4 7,1 0,1 7),(4 9,8 6,9 4))')));
+ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('MULTILINESTRING((4 7,1 0,1 7),(4 9,8 6,9 4))')))
 POLYGON((1 0,9 4,8 6,4 9,1 7,1 0))
-SELECT AsText(ConvexHull(g)) FROM gis_geometrycollection WHERE fid=114;
-AsText(ConvexHull(g))
+SELECT ST_ASTEXT(ST_CONVEXHULL(g)) FROM gis_geometrycollection WHERE fid=114;
+ST_ASTEXT(ST_CONVEXHULL(g))
 POLYGON((0 5,15 25,0 25,0 5))
 #------------------------------------------------------------------------------------
 # polygon
 #------------------------------------------------------------------------------------
-SELECT AsText(ConvexHull(GeomFromText(@star)));
-AsText(ConvexHull(GeomFromText(@star)))
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT(@star)));
+ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT(@star)))
 POLYGON((0 15,5 0,25 0,30 15,15 25,0 15))
-SELECT AsText(ConvexHull(GeomFromText(@star_elem_vertical)));
-AsText(ConvexHull(GeomFromText(@star_elem_vertical)))
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT(@star_elem_vertical)));
+ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT(@star_elem_vertical)))
 POLYGON((5 0,25 0,15 25,5 0))
-SELECT AsText(ConvexHull(GeomFromText('POLYGON((0 0,0 5,5 5))')));
-AsText(ConvexHull(GeomFromText('POLYGON((0 0,0 5,5 5))')))
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('POLYGON((0 0,0 5,5 5))')));
+ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('POLYGON((0 0,0 5,5 5))')))
 POLYGON((0 0,5 5,0 5,0 0))
-SELECT AsText(ConvexHull(GeomFromText('POLYGON((5 2,5 5,2 8,5 2))')));
-AsText(ConvexHull(GeomFromText('POLYGON((5 2,5 5,2 8,5 2))')))
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('POLYGON((5 2,5 5,2 8,5 2))')));
+ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('POLYGON((5 2,5 5,2 8,5 2))')))
 POLYGON((2 8,5 2,5 5,2 8))
-Select AsText(ConvexHull(GeomFromText('POLYGON((5 0,15 25,25 0,15 5,5 0))')));
-AsText(ConvexHull(GeomFromText('POLYGON((5 0,15 25,25 0,15 5,5 0))')))
+Select ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('POLYGON((5 0,15 25,25 0,15 5,5 0))')));
+ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('POLYGON((5 0,15 25,25 0,15 5,5 0))')))
 POLYGON((5 0,25 0,15 25,5 0))
-SELECT AsText(ConvexHull(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0))')));
-AsText(ConvexHull(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0))')))
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))')));
+ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))')))
 POLYGON((0 0,10 0,10 10,0 10,0 0))
-SELECT AsText(ConvexHull(GeomFromText('POLYGON((10 10,10 0,0 20,0 10,10 10))')));
-AsText(ConvexHull(GeomFromText('POLYGON((10 10,10 0,0 20,0 10,10 10))')))
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('POLYGON((10 10,10 0,0 20,0 10,10 10))')));
+ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('POLYGON((10 10,10 0,0 20,0 10,10 10))')))
 POLYGON((0 10,10 0,10 10,0 20,0 10))
-SELECT AsText(Convexhull(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0,-10 0,-10 -10,0 -10))')));
-AsText(Convexhull(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0,-10 0,-10 -10,0 -10))')))
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0,-10 0,-10 -10,0 -10))')));
+ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0,-10 0,-10 -10,0 -10))')))
 POLYGON((-10 -10,0 -10,10 0,10 10,0 10,-10 0,-10 -10))
-SELECT AsText(ConvexHull(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4))')));
-AsText(ConvexHull(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4))')))
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4))')));
+ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4))')))
 POLYGON((0 0,10 0,10 10,0 10,0 0))
-SELECT AsText(ConvexHull(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0))')));
-AsText(ConvexHull(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0))')))
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0))')));
+ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0))')))
 POLYGON((0 0,10 0,10 10,0 10,0 0))
-SELECT AsText(ConvexHull(GeomFromText('POLYGON((4 4,4 6,6 6,6 4,4 4),(0 0,0 10,10 10,10 0,0 0))')));
-AsText(ConvexHull(GeomFromText('POLYGON((4 4,4 6,6 6,6 4,4 4),(0 0,0 10,10 10,10 0,0 0))')))
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('POLYGON((4 4,4 6,6 6,6 4,4 4),(0 0,0 10,10 10,10 0,0 0))')));
+ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('POLYGON((4 4,4 6,6 6,6 4,4 4),(0 0,0 10,10 10,10 0,0 0))')))
 POLYGON((4 4,6 4,6 6,4 6,4 4))
-SELECT AsText(ConvexHull(GeomFromText('POLYGON((4 4,4 6,6 6,6 4,4 4),(8 8,8 10,10 10,10 8,8 8))')));
-AsText(ConvexHull(GeomFromText('POLYGON((4 4,4 6,6 6,6 4,4 4),(8 8,8 10,10 10,10 8,8 8))')))
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('POLYGON((4 4,4 6,6 6,6 4,4 4),(8 8,8 10,10 10,10 8,8 8))')));
+ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('POLYGON((4 4,4 6,6 6,6 4,4 4),(8 8,8 10,10 10,10 8,8 8))')))
 POLYGON((4 4,6 4,6 6,4 6,4 4))
-SELECT AsText(ConvexHull(g)) FROM gis_geometrycollection WHERE fid=100;
-AsText(ConvexHull(g))
+SELECT ST_ASTEXT(ST_CONVEXHULL(g)) FROM gis_geometrycollection WHERE fid=100;
+ST_ASTEXT(ST_CONVEXHULL(g))
 POLYGON((0 15,5 0,25 0,30 15,15 25,0 15))
 #------------------------------------------------------------------------------------
 # multipolygon
 #------------------------------------------------------------------------------------
-SELECT AsText(ConvexHull(GeomFromText(@star_of_elems)));
-AsText(ConvexHull(GeomFromText(@star_of_elems)))
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT(@star_of_elems)));
+ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT(@star_of_elems)))
 POLYGON((0 15,5 0,25 0,30 15,15 25,0 15))
-SELECT AsText(ConvexHull(GeomFromText('MULTIPOLYGON(((0 0,0 5,5 5)))')));
-AsText(ConvexHull(GeomFromText('MULTIPOLYGON(((0 0,0 5,5 5)))')))
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 5,5 5)))')));
+ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 5,5 5)))')))
 POLYGON((0 0,5 5,0 5,0 0))
-SELECT AsText(ConvexHull(GeomFromText('MULTIPOLYGON(((0 10,10 0,0 0)),((0 0,10 10,10 0)))')));
-AsText(ConvexHull(GeomFromText('MULTIPOLYGON(((0 10,10 0,0 0)),((0 0,10 10,10 0)))')))
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 10,10 0,0 0)),((0 0,10 10,10 0)))')));
+ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 10,10 0,0 0)),((0 0,10 10,10 0)))')))
 POLYGON((0 0,10 0,10 10,0 10,0 0))
-Select AsText(ConvexHull(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0)),((4 4,4 6,6 6,6 4,4 4)))')));
-AsText(ConvexHull(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0)),((4 4,4 6,6 6,6 4,4 4)))')))
+Select ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0)),((4 4,4 6,6 6,6 4,4 4)))')));
+ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0)),((4 4,4 6,6 6,6 4,4 4)))')))
 POLYGON((0 0,10 0,10 10,0 10,0 0))
-SELECT AsText(ConvexHull(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10)),((10 10,10 15,15 15,10 10)))')));
-AsText(ConvexHull(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10)),((10 10,10 15,15 15,10 10)))')))
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10)),((10 10,10 15,15 15,10 10)))')));
+ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10)),((10 10,10 15,15 15,10 10)))')))
 POLYGON((0 0,15 15,10 15,0 10,0 0))
-SELECT AsText(ConvexHull(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0)),((4 4,4 6,6 6,6 4)))')));
-AsText(ConvexHull(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0)),((4 4,4 6,6 6,6 4)))')))
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0)),((4 4,4 6,6 6,6 4)))')));
+ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0)),((4 4,4 6,6 6,6 4)))')))
 POLYGON((0 0,10 0,10 10,0 10,0 0))
-SELECT AsText(ConvexHull(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4)))')));
-AsText(ConvexHull(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4)))')))
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4)))')));
+ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4)))')))
 POLYGON((0 0,10 0,10 10,0 10,0 0))
-SELECT AsText(ConvexHull(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0)))')));
-AsText(ConvexHull(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0)))')))
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0)))')));
+ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0)))')))
 POLYGON((0 0,10 0,10 10,0 10,0 0))
-SELECT AsText(ConvexHull(GeomFromText('MULTIPOLYGON(((4 4,4 6,6 6,6 4,4 4),(0 0,0 10,10 10,10 0,0 0)))')));
-AsText(ConvexHull(GeomFromText('MULTIPOLYGON(((4 4,4 6,6 6,6 4,4 4),(0 0,0 10,10 10,10 0,0 0)))')))
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('MULTIPOLYGON(((4 4,4 6,6 6,6 4,4 4),(0 0,0 10,10 10,10 0,0 0)))')));
+ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('MULTIPOLYGON(((4 4,4 6,6 6,6 4,4 4),(0 0,0 10,10 10,10 0,0 0)))')))
 POLYGON((4 4,6 4,6 6,4 6,4 4))
-SELECT AsText(ConvexHull(GeomFromText('MULTIPOLYGON(((4 4,4 6,6 6,6 4,4 4),(8 8,8 10,10 10,10 8,8 8)))')));
-AsText(ConvexHull(GeomFromText('MULTIPOLYGON(((4 4,4 6,6 6,6 4,4 4),(8 8,8 10,10 10,10 8,8 8)))')))
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('MULTIPOLYGON(((4 4,4 6,6 6,6 4,4 4),(8 8,8 10,10 10,10 8,8 8)))')));
+ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('MULTIPOLYGON(((4 4,4 6,6 6,6 4,4 4),(8 8,8 10,10 10,10 8,8 8)))')))
 POLYGON((4 4,6 4,6 6,4 6,4 4))
-SELECT AsText(ConvexHull(GeomFromText('MULTIPOLYGON(((10 10,10 0,5 10,10 10)),((0 10,0 20,5 10,0 10)))')));
-AsText(ConvexHull(GeomFromText('MULTIPOLYGON(((10 10,10 0,5 10,10 10)),((0 10,0 20,5 10,0 10)))')))
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('MULTIPOLYGON(((10 10,10 0,5 10,10 10)),((0 10,0 20,5 10,0 10)))')));
+ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('MULTIPOLYGON(((10 10,10 0,5 10,10 10)),((0 10,0 20,5 10,0 10)))')))
 POLYGON((0 10,10 0,10 10,0 20,0 10))
-SELECT AsText(ConvexHull(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0)),((0 0,0 10,10 10,10 0,0 0)))')));
-AsText(ConvexHull(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0)),((0 0,0 10,10 10,10 0,0 0)))')))
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0)),'
+                                                            '((0 0,0 10,10 10,10 0,0 0)))')));
+ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0)),'
+                                                            '((0 0,0 10,10 10,10 0,0 0)))')))
 POLYGON((0 0,10 0,10 10,0 10,0 0))
-SELECT AsText(ConvexHull(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0)),((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6)))')));
-AsText(ConvexHull(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0)),((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6)))')))
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0)),'
+                                                            '((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6)))')));
+ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0)),'
+                                                            '((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6)))')))
 POLYGON((0 0,10 0,10 10,0 10,0 0))
-SELECT AsText(ConvexHull(g)) FROM gis_geometrycollection WHERE fid=103;
-AsText(ConvexHull(g))
-POLYGON((0 15,5 0,25 0,30 15,15 25,0 15))
 #------------------------------------------------------------------------------------
 # geometrycollection
 #------------------------------------------------------------------------------------
-SELECT AsText(ConvexHull(GeomFromText(@star_collection_elems)));
-AsText(ConvexHull(GeomFromText(@star_collection_elems)))
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT(@star_collection_elems)));
+ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT(@star_collection_elems)))
 POLYGON((0 15,5 0,25 0,30 15,15 25,0 15))
-SELECT AsText(ConvexHull(GeomFromText(@star_collection_multilinestr)));
-AsText(ConvexHull(GeomFromText(@star_collection_multilinestr)))
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT(@star_collection_multilinestr)));
+ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT(@star_collection_multilinestr)))
 POLYGON((0 5,5 0,25 0,30 15,15 30,0 15,0 5))
-SELECT AsText(ConvexHull(GeomFromText('GEOMETRYCOLLECTION()')));
-AsText(ConvexHull(GeomFromText('GEOMETRYCOLLECTION()')))
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION()')));
+ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION()')))
 NULL
-SELECT AsText(ConvexHull(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())')));
-AsText(ConvexHull(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())')))
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())')));
+ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())')))
 NULL
-SELECT AsText(ConvexHull(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION()))')));
-AsText(ConvexHull(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION()))')))
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION()))')));
+ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION()))')))
 NULL
-SELECT AsText(ConvexHull(GeomFromText('GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10))')));
-AsText(ConvexHull(GeomFromText('GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10))')))
-LINESTRING(0 0,10 10,0 0)
-SELECT AsText(ConvexHull(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10)))')));
-AsText(ConvexHull(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10)))')))
-LINESTRING(0 0,10 10,0 0)
-SELECT AsText(ConvexHull(GeomFromText('GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10)))')));
-AsText(ConvexHull(GeomFromText('GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10)))')))
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10))')));
+ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10))')))
+LINESTRING(0 0,10 10)
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10)))')));
+ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10)))')))
+LINESTRING(0 0,10 10)
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),'
+                                                                  'MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10)))')));
+ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),'
+                                                                  'MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10)))')))
 POLYGON((0 0,10 0,15 15,10 15,0 10,0 0))
-SELECT AsText(ConvexHull(GeomFromText('GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10),LINESTRING(1 1,2 2,3 3),MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10)))')));
-AsText(ConvexHull(GeomFromText('GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10),LINESTRING(1 1,2 2,3 3),MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10)))')))
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(10 10),'
+                                                                  'MULTIPOINT(0 0,10 10),'
+                                                                  'LINESTRING(1 1,2 2,3 3),'
+                                                                  'MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10)))')));
+ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(10 10),'
+                                                                  'MULTIPOINT(0 0,10 10),'
+                                                                  'LINESTRING(1 1,2 2,3 3
 POLYGON((0 0,10 0,15 15,10 15,0 10,0 0))
-SELECT AsText(ConvexHull(GeomFromText('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0)))')));
-AsText(ConvexHull(GeomFromText('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0)))')))
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0)))')));
+ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0)))')))
 POLYGON((0 0,10 0,10 10,0 10,0 0))
-SELECT AsText(ConvexHull(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0)))))')));
-AsText(ConvexHull(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0)))))')))
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0)))))')));
+ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0)))))')))
 POLYGON((0 0,10 0,10 10,0 10,0 0))
-SELECT AsText(ConvexHull(GeomFromText('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0)),POLYGON((0 0,10 0,10 -10,0 -10,0 0)))')));
-AsText(ConvexHull(GeomFromText('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0)),POLYGON((0 0,10 0,10 -10,0 -10,0 0)))')))
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0)),POLYGON((0 0,10 0,10 -10,0 -10,0 0)))')));
+ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0)),POLYGON((0 0,10 0,10 -10,0 -10,0 0)))')))
 POLYGON((0 -10,10 -10,10 10,0 10,0 -10))
-SELECT AsText(ConvexHull(GeomFromText('GEOMETRYCOLLECTION(LINESTRING(0 0,0 10,10 10,10 0,0 0),LINESTRING(0 0,10 0,10 -10,0 -10,0 0))')));
-AsText(ConvexHull(GeomFromText('GEOMETRYCOLLECTION(LINESTRING(0 0,0 10,10 10,10 0,0 0),LINESTRING(0 0,10 0,10 -10,0 -10,0 0))')))
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(0 0,0 10,10 10,10 0,0 0),LINESTRING(0 0,10 0,10 -10,0 -10,0 0))')));
+ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(0 0,0 10,10 10,10 0,0 0),LINESTRING(0 0,10 0,10 -10,0 -10,0 0))')))
 POLYGON((0 -10,10 -10,10 10,0 10,0 -10))
-SELECT AsText(ConvexHull(GeomFromText('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4)),MULTIPOLYGON(((0 0,0 10,10 10,10 0)),((10 10,10 15,15 15,15 10,10 10))))')));
-AsText(ConvexHull(GeomFromText('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4)),MULTIPOLYGON(((0 0,0 10,10 10,10 0)),((10 10,10 15,15 15,15 10,10 10))))')))
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4)),'
+                                                                  'MULTIPOLYGON(((0 0,0 10,10 10,10 0)),((10 10,10 15,15 15,15 10,10 10))))')));
+ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4)),'
+                                                                  'MULTIPOLYGON(((0 0,0 10,10 10,10 0)),((10 10,10 15,15 15,15 10,10 10))))'
 POLYGON((0 0,10 0,15 10,15 15,10 15,0 10,0 0))
-SELECT AsText(ConvexHull(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(),POLYGON((0 0,0 10,10 10,10 0,0 0)))')));
-AsText(ConvexHull(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(),POLYGON((0 0,0 10,10 10,10 0,0 0)))')))
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(),POLYGON((0 0,0 10,10 10,10 0,0 0)))')));
+ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(),POLYGON((0 0,0 10,10 10,10 0,0 0)))')))
 POLYGON((0 0,10 0,10 10,0 10,0 0))
-SELECT AsText(ConvexHull(GeomFromText('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0)),GEOMETRYCOLLECTION())')));
-AsText(ConvexHull(GeomFromText('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0)),GEOMETRYCOLLECTION())')))
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0)),GEOMETRYCOLLECTION())')));
+ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0)),GEOMETRYCOLLECTION())')))
 POLYGON((0 0,10 0,10 10,0 10,0 0))
-SELECT AsText(ConvexHull(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10)),GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10))))')));
-AsText(ConvexHull(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10)),GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10))))')))
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),'
+                                                                                     'MULTIPOINT(0 0,10 10)),'
+                                                                  'GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),'
+                                                                                     'MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10))))')));
+ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),'
+                                                                                     'MULTIPOINT(0 0,10 10)),'
+                                                  
 POLYGON((0 0,10 0,15 15,10 15,0 10,0 0))
-SELECT AsText(ConvexHull(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10)),GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10))),GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4)),MULTIPOLYGON(((0 0,0 10,10 10,10 0)),((10 10,10 15,15 15,15 10,10 10)))))')));
-AsText(ConvexHull(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10)),GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10))),GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),'
+                                                                                     'MULTIPOINT(0 0,10 10)),'
+                                                                  'GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),'
+                                                                                     'MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10))),'
+                                                                  'GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4)),'
+                                                                                     'MULTIPOLYGON(((0 0,0 10,10 10,10 0)),'
+                                                                                                  '((10 10,10 15,15 15,15 10,10 10)))))')));
+ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),'
+                                                                                     'MULTIPOINT(0 0,10 10)),'
+                                                  
 POLYGON((0 0,10 0,15 10,15 15,10 15,0 10,0 0))
-SELECT AsText(ConvexHull(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10)),GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10))),GEOMETRYCOLLECTION(GEOMETRYCOLLECTION()))')));
-AsText(ConvexHull(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10)),GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10))),GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),'
+                                                                                     'MULTIPOINT(0 0,10 10)),'
+                                                                  'GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),'
+                                                                                     'MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10))),'
+                                                                  'GEOMETRYCOLLECTION(GEOMETRYCOLLECTION()))')));
+ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),'
+                                                                                     'MULTIPOINT(0 0,10 10)),'
+                                                  
 POLYGON((0 0,10 0,15 15,10 15,0 10,0 0))
-SELECT AsText(ConvexHull(g)) FROM gis_geometrycollection WHERE fid=115;
-AsText(ConvexHull(g))
+SELECT ST_ASTEXT(ST_CONVEXHULL(g)) FROM gis_geometrycollection WHERE fid=115;
+ST_ASTEXT(ST_CONVEXHULL(g))
 POLYGON((0 15,5 0,25 0,30 15,15 25,0 15))
 #====================================================================================
-# ST_ConvexHull(geometry)
+# ST_CONVEXHULL(geometry) with different SRID values
 #====================================================================================
-#------------------------------------------------------------------------------------
-# point
-#------------------------------------------------------------------------------------
-SELECT AsText(ST_ConvexHull(GeomFromText(@star_center)));
-AsText(ST_ConvexHull(GeomFromText(@star_center)))
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT(@star_center,-1024)));
+ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT(@star_center,-1024)))
 POINT(15 10)
-SELECT AsText(ST_ConvexHull(GeomFromText(@star_top)));
-AsText(ST_ConvexHull(GeomFromText(@star_top)))
-POINT(15 25)
-SELECT AsText(ST_ConvexHull(ST_GeomFromText('POINT(-0 0)')));
-AsText(ST_ConvexHull(ST_GeomFromText('POINT(-0 0)')))
-POINT(0 0)
-SELECT AsText(ST_ConvexHull(GeomFromText('POINT(2.34 -2.34)')));
-AsText(ST_ConvexHull(GeomFromText('POINT(2.34 -2.34)')))
-POINT(2.34 -2.34)
-SELECT AsText(ST_ConvexHull(GeomFromText('POINT(1e308 -1e308)')));
-AsText(ST_ConvexHull(GeomFromText('POINT(1e308 -1e308)')))
-POINT(1e308 -1e308)
-SELECT AsText(ST_ConvexHull(GeomFromText('POINT(-0.0000 0.000001)')));
-AsText(ST_ConvexHull(GeomFromText('POINT(-0.0000 0.000001)')))
-POINT(0 0.000001)
-SELECT AsText(ST_ConvexHull(g)) FROM gis_geometrycollection WHERE fid=105;
-AsText(ST_ConvexHull(g))
-POINT(15 10)
-#------------------------------------------------------------------------------------
-# multipoint
-#------------------------------------------------------------------------------------
-SELECT AsText(ST_ConvexHull(GeomFromText(@star_all_points)));
-AsText(ST_ConvexHull(GeomFromText(@star_all_points)))
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT(@star_all_points,-1)));
+ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT(@star_all_points,-1)))
 POLYGON((5 0,25 0,15 25,5 0))
-SELECT AsText(ST_ConvexHull(GeomFromText(@star_bottom_points)));
-AsText(ST_ConvexHull(GeomFromText(@star_bottom_points)))
-LINESTRING(5 0,25 0,5 0)
-SELECT AsText(ST_ConvexHull(GeomFromText('MULTIPOINT(0 0,0 0,0 0,0 0)')));
-AsText(ST_ConvexHull(GeomFromText('MULTIPOINT(0 0,0 0,0 0,0 0)')))
-LINESTRING(0 0,0 0,0 0)
-SELECT AsText(ST_ConvexHull(GeomFromText('MULTIPOINT(0 0,0 5,5 5,5 0,0 0)')));
-AsText(ST_ConvexHull(GeomFromText('MULTIPOINT(0 0,0 5,5 5,5 0,0 0)')))
-POLYGON((0 0,5 0,5 5,0 5,0 0))
-SELECT AsText(ST_ConvexHull(GeomFromText('MULTIPOINT(1 -1,1000 -1000,0.0001 0.000)')));
-AsText(ST_ConvexHull(GeomFromText('MULTIPOINT(1 -1,1000 -1000,0.0001 0.000)')))
-POLYGON((0.0001 0,1 -1,1000 -1000,0.0001 0))
-SELECT AsText(ST_ConvexHull(GeomFromText('MULTIPOINT(5 -3,0 2,5 7,10 2,10 0,10 -2)')));
-AsText(ST_ConvexHull(GeomFromText('MULTIPOINT(5 -3,0 2,5 7,10 2,10 0,10 -2)')))
-POLYGON((0 2,5 -3,10 -2,10 2,5 7,0 2))
-SELECT AsText(ST_ConvexHull(GeomFromText('MULTIPOINT(5 0,0 5,5 10,10 5,10 -5)')));
-AsText(ST_ConvexHull(GeomFromText('MULTIPOINT(5 0,0 5,5 10,10 5,10 -5)')))
-POLYGON((0 5,10 -5,10 5,5 10,0 5))
-SELECT AsText(ST_ConvexHull(GeomFromText('MULTIPOINT(2 -5,2 5,8 5,8 2,8 0)')));
-AsText(ST_ConvexHull(GeomFromText('MULTIPOINT(2 -5,2 5,8 5,8 2,8 0)')))
-POLYGON((2 -5,8 0,8 5,2 5,2 -5))
-Select AsText(ST_ConvexHull(GeomFromText('MULTIPOINT(5 0,25 0,15 10,15 25)')));
-AsText(ST_ConvexHull(GeomFromText('MULTIPOINT(5 0,25 0,15 10,15 25)')))
-POLYGON((5 0,25 0,15 25,5 0))
-SELECT AsText(ST_ConvexHull(g)) FROM gis_geometrycollection WHERE fid=108;
-AsText(ST_ConvexHull(g))
-LINESTRING(5 0,25 0,5 0)
-#------------------------------------------------------------------------------------
-# linestring
-#------------------------------------------------------------------------------------
-SELECT AsText(ST_ConvexHull(GeomFromText(@star_top_to_center)));
-AsText(ST_ConvexHull(GeomFromText(@star_top_to_center)))
-LINESTRING(15 10,15 25,15 10)
-SELECT AsText(ST_ConvexHull(GeomFromText(@star_line_horizontal)));
-AsText(ST_ConvexHull(GeomFromText(@star_line_horizontal)))
-LINESTRING(10 15,20 15,10 15)
-SELECT AsText(ST_ConvexHull(GeomFromText('LINESTRING(0 0,-0.00 0,0.0 0)')));
-AsText(ST_ConvexHull(GeomFromText('LINESTRING(0 0,-0.00 0,0.0 0)')))
-LINESTRING(0 0,0 0,0 0)
-SELECT AsText(ST_ConvexHull(GeomFromText('LINESTRING(0 0,0 5,5 5,5 0,0 0)')));
-AsText(ST_ConvexHull(GeomFromText('LINESTRING(0 0,0 5,5 5,5 0,0 0)')))
-POLYGON((0 0,5 0,5 5,0 5,0 0))
-SELECT AsText(ST_ConvexHull(GeomFromText('LINESTRING(1 -1,1000 -1000,0.0001 0.000)')));
-AsText(ST_ConvexHull(GeomFromText('LINESTRING(1 -1,1000 -1000,0.0001 0.000)')))
-POLYGON((0.0001 0,1 -1,1000 -1000,0.0001 0))
-SELECT AsText(ST_ConvexHull(g)) FROM gis_geometrycollection WHERE fid=110;
-AsText(ST_ConvexHull(g))
-LINESTRING(10 15,20 15,10 15)
-#------------------------------------------------------------------------------------
-# multilinestring
-#------------------------------------------------------------------------------------
-SELECT AsText(ST_ConvexHull(GeomFromText(@star_lines_near_vertical)));
-AsText(ST_ConvexHull(GeomFromText(@star_lines_near_vertical)))
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT(@star_top_to_center,0)));
+ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT(@star_top_to_center,0)))
+LINESTRING(15 10,15 25)
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT(@star_lines_near_vertical,1000)));
+ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT(@star_lines_near_vertical,1000)))
 POLYGON((0 5,15 25,0 25,0 5))
-SELECT AsText(ST_ConvexHull(GeomFromText(@star_lines_near_horizontal)));
-AsText(ST_ConvexHull(GeomFromText(@star_lines_near_horizontal)))
-POLYGON((0 5,25 0,15 30,0 15,0 5))
-SELECT AsText(ST_ConvexHull(GeomFromText('MULTILINESTRING((0 0,-0.00 0),(0.0 0))')));
-AsText(ST_ConvexHull(GeomFromText('MULTILINESTRING((0 0,-0.00 0),(0.0 0))')))
-LINESTRING(0 0,0 0,0 0)
-SELECT AsText(ST_ConvexHull(GeomFromText('MULTILINESTRING((0 0,0 5,5 5,5 0,0 0))')));
-AsText(ST_ConvexHull(GeomFromText('MULTILINESTRING((0 0,0 5,5 5,5 0,0 0))')))
-POLYGON((0 0,5 0,5 5,0 5,0 0))
-SELECT AsText(ST_ConvexHull(GeomFromText('MULTILINESTRING((0 10,10 0),(10 0,0 0),(0 0,10 10))')));
-AsText(ST_ConvexHull(GeomFromText('MULTILINESTRING((0 10,10 0),(10 0,0 0),(0 0,10 10))')))
-LINESTRING(0 0,0 10,10 10,10 0,0 0)
-SELECT AsText(ST_ConvexHull(GeomFromText('MULTILINESTRING((1 -1,1000 -1000,0.0001 0.000))')));
-AsText(ST_ConvexHull(GeomFromText('MULTILINESTRING((1 -1,1000 -1000,0.0001 0.000))')))
-POLYGON((0.0001 0,1 -1,1000 -1000,0.0001 0))
-SELECT AsText(ST_ConvexHull(GeomFromText('MULTILINESTRING((4 7,1 0,1 7),(4 9,8 6,9 4))')));
-AsText(ST_ConvexHull(GeomFromText('MULTILINESTRING((4 7,1 0,1 7),(4 9,8 6,9 4))')))
-POLYGON((1 0,9 4,8 6,4 9,1 7,1 0))
-SELECT AsText(ST_ConvexHull(g)) FROM gis_geometrycollection WHERE fid=114;
-AsText(ST_ConvexHull(g))
-POLYGON((0 5,15 25,0 25,0 5))
-#------------------------------------------------------------------------------------
-# polygon
-#------------------------------------------------------------------------------------
-SELECT AsText(ST_ConvexHull(GeomFromText(@star)));
-AsText(ST_ConvexHull(GeomFromText(@star)))
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT(@star,123456789)));
+ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT(@star,123456789)))
 POLYGON((0 15,5 0,25 0,30 15,15 25,0 15))
-SELECT AsText(ST_ConvexHull(GeomFromText(@star_elem_vertical)));
-AsText(ST_ConvexHull(GeomFromText(@star_elem_vertical)))
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT(@star_elem_vertical,4294967295)));
+ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT(@star_elem_vertical,4294967295)))
 POLYGON((5 0,25 0,15 25,5 0))
-SELECT AsText(ST_ConvexHull(GeomFromText('POLYGON((0 0,0 5,5 5))')));
-AsText(ST_ConvexHull(GeomFromText('POLYGON((0 0,0 5,5 5))')))
-POLYGON((0 0,5 5,0 5,0 0))
-SELECT AsText(ST_ConvexHull(GeomFromText('POLYGON((5 2,5 5,2 8,5 2))')));
-AsText(ST_ConvexHull(GeomFromText('POLYGON((5 2,5 5,2 8,5 2))')))
-POLYGON((2 8,5 2,5 5,2 8))
-Select AsText(ST_ConvexHull(GeomFromText('POLYGON((5 0,15 25,25 0,15 5,5 0))')));
-AsText(ST_ConvexHull(GeomFromText('POLYGON((5 0,15 25,25 0,15 5,5 0))')))
-POLYGON((5 0,25 0,15 25,5 0))
-SELECT AsText(ST_ConvexHull(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0))')));
-AsText(ST_ConvexHull(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0))')))
-POLYGON((0 0,10 0,10 10,0 10,0 0))
-SELECT AsText(ST_ConvexHull(GeomFromText('POLYGON((10 10,10 0,0 20,0 10,10 10))')));
-AsText(ST_ConvexHull(GeomFromText('POLYGON((10 10,10 0,0 20,0 10,10 10))')))
-POLYGON((0 10,10 0,10 10,0 20,0 10))
-SELECT AsText(ST_ConvexHull(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0,-10 0,-10 -10,0 -10))')));
-AsText(ST_ConvexHull(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0,-10 0,-10 -10,0 -10))')))
-POLYGON((-10 -10,0 -10,10 0,10 10,0 10,-10 0,-10 -10))
-SELECT AsText(ST_ConvexHull(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4))')));
-AsText(ST_ConvexHull(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4))')))
-POLYGON((0 0,10 0,10 10,0 10,0 0))
-SELECT AsText(ST_ConvexHull(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0))')));
-AsText(ST_ConvexHull(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0))')))
-POLYGON((0 0,10 0,10 10,0 10,0 0))
-SELECT AsText(ST_ConvexHull(GeomFromText('POLYGON((4 4,4 6,6 6,6 4,4 4),(0 0,0 10,10 10,10 0,0 0))')));
-AsText(ST_ConvexHull(GeomFromText('POLYGON((4 4,4 6,6 6,6 4,4 4),(0 0,0 10,10 10,10 0,0 0))')))
-POLYGON((4 4,6 4,6 6,4 6,4 4))
-SELECT AsText(ST_ConvexHull(GeomFromText('POLYGON((4 4,4 6,6 6,6 4,4 4),(8 8,8 10,10 10,10 8,8 8))')));
-AsText(ST_ConvexHull(GeomFromText('POLYGON((4 4,4 6,6 6,6 4,4 4),(8 8,8 10,10 10,10 8,8 8))')))
-POLYGON((4 4,6 4,6 6,4 6,4 4))
-SELECT AsText(ST_ConvexHull(g)) FROM gis_geometrycollection WHERE fid=100;
-AsText(ST_ConvexHull(g))
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT(@star_of_elems,4294967296)));
+ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT(@star_of_elems,4294967296)))
 POLYGON((0 15,5 0,25 0,30 15,15 25,0 15))
-#------------------------------------------------------------------------------------
-# multipolygon
-#------------------------------------------------------------------------------------
-SELECT AsText(ST_ConvexHull(GeomFromText(@star_of_elems)));
-AsText(ST_ConvexHull(GeomFromText(@star_of_elems)))
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT(@star_collection_elems,4294967295000)));
+ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT(@star_collection_elems,4294967295000)))
 POLYGON((0 15,5 0,25 0,30 15,15 25,0 15))
-SELECT AsText(ST_ConvexHull(GeomFromText('MULTIPOLYGON(((0 0,0 5,5 5)))')));
-AsText(ST_ConvexHull(GeomFromText('MULTIPOLYGON(((0 0,0 5,5 5)))')))
-POLYGON((0 0,5 5,0 5,0 0))
-SELECT AsText(ST_ConvexHull(GeomFromText('MULTIPOLYGON(((0 10,10 0,0 0)),((0 0,10 10,10 0)))')));
-AsText(ST_ConvexHull(GeomFromText('MULTIPOLYGON(((0 10,10 0,0 0)),((0 0,10 10,10 0)))')))
-POLYGON((0 0,10 0,10 10,0 10,0 0))
-Select AsText(ST_ConvexHull(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0)),((4 4,4 6,6 6,6 4,4 4)))')));
-AsText(ST_ConvexHull(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0)),((4 4,4 6,6 6,6 4,4 4)))')))
-POLYGON((0 0,10 0,10 10,0 10,0 0))
-SELECT AsText(ST_ConvexHull(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10)),((10 10,10 15,15 15,10 10)))')));
-AsText(ST_ConvexHull(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10)),((10 10,10 15,15 15,10 10)))')))
-POLYGON((0 0,15 15,10 15,0 10,0 0))
-SELECT AsText(ST_ConvexHull(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0)),((4 4,4 6,6 6,6 4)))')));
-AsText(ST_ConvexHull(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0)),((4 4,4 6,6 6,6 4)))')))
-POLYGON((0 0,10 0,10 10,0 10,0 0))
-SELECT AsText(ST_ConvexHull(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4)))')));
-AsText(ST_ConvexHull(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4)))')))
-POLYGON((0 0,10 0,10 10,0 10,0 0))
-SELECT AsText(ST_ConvexHull(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0)))')));
-AsText(ST_ConvexHull(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0)))')))
-POLYGON((0 0,10 0,10 10,0 10,0 0))
-SELECT AsText(ST_ConvexHull(GeomFromText('MULTIPOLYGON(((4 4,4 6,6 6,6 4,4 4),(0 0,0 10,10 10,10 0,0 0)))')));
-AsText(ST_ConvexHull(GeomFromText('MULTIPOLYGON(((4 4,4 6,6 6,6 4,4 4),(0 0,0 10,10 10,10 0,0 0)))')))
-POLYGON((4 4,6 4,6 6,4 6,4 4))
-SELECT AsText(ST_ConvexHull(GeomFromText('MULTIPOLYGON(((4 4,4 6,6 6,6 4,4 4),(8 8,8 10,10 10,10 8,8 8)))')));
-AsText(ST_ConvexHull(GeomFromText('MULTIPOLYGON(((4 4,4 6,6 6,6 4,4 4),(8 8,8 10,10 10,10 8,8 8)))')))
-POLYGON((4 4,6 4,6 6,4 6,4 4))
-SELECT AsText(ST_ConvexHull(GeomFromText('MULTIPOLYGON(((10 10,10 0,5 10,10 10)),((0 10,0 20,5 10,0 10)))')));
-AsText(ST_ConvexHull(GeomFromText('MULTIPOLYGON(((10 10,10 0,5 10,10 10)),((0 10,0 20,5 10,0 10)))')))
-POLYGON((0 10,10 0,10 10,0 20,0 10))
-SELECT AsText(ST_ConvexHull(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0)),((0 0,0 10,10 10,10 0,0 0)))')));
-AsText(ST_ConvexHull(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0)),((0 0,0 10,10 10,10 0,0 0)))')))
-POLYGON((0 0,10 0,10 10,0 10,0 0))
-SELECT AsText(ST_ConvexHull(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0)),((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6)))')));
-AsText(ST_ConvexHull(GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0)),((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6)))')))
-POLYGON((0 0,10 0,10 10,0 10,0 0))
-#------------------------------------------------------------------------------------
-# geometrycollection
-#------------------------------------------------------------------------------------
-SELECT AsText(ST_ConvexHull(GeomFromText(@star_collection_elems)));
-AsText(ST_ConvexHull(GeomFromText(@star_collection_elems)))
-POLYGON((0 15,5 0,25 0,30 15,15 25,0 15))
-SELECT AsText(ST_ConvexHull(GeomFromText(@star_collection_multilinestr)));
-AsText(ST_ConvexHull(GeomFromText(@star_collection_multilinestr)))
-POLYGON((0 5,5 0,25 0,30 15,15 30,0 15,0 5))
-SELECT AsText(ST_ConvexHull(GeomFromText('GEOMETRYCOLLECTION()')));
-AsText(ST_ConvexHull(GeomFromText('GEOMETRYCOLLECTION()')))
-NULL
-SELECT AsText(ST_ConvexHull(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())')));
-AsText(ST_ConvexHull(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())')))
-NULL
-SELECT AsText(ST_ConvexHull(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION()))')));
-AsText(ST_ConvexHull(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION()))')))
-NULL
-SELECT AsText(ST_ConvexHull(GeomFromText('GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10))')));
-AsText(ST_ConvexHull(GeomFromText('GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10))')))
-LINESTRING(0 0,10 10,0 0)
-SELECT AsText(ST_ConvexHull(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10)))')));
-AsText(ST_ConvexHull(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10)))')))
-LINESTRING(0 0,10 10,0 0)
-SELECT AsText(ST_ConvexHull(GeomFromText('GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10)))')));
-AsText(ST_ConvexHull(GeomFromText('GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10)))')))
-POLYGON((0 0,10 0,15 15,10 15,0 10,0 0))
-SELECT AsText(ST_ConvexHull(GeomFromText('GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10),LINESTRING(1 1,2 2,3 3),MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10)))')));
-AsText(ST_ConvexHull(GeomFromText('GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10),LINESTRING(1 1,2 2,3 3),MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10)))')))
-POLYGON((0 0,10 0,15 15,10 15,0 10,0 0))
-SELECT AsText(ST_ConvexHull(GeomFromText('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0)))')));
-AsText(ST_ConvexHull(GeomFromText('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0)))')))
-POLYGON((0 0,10 0,10 10,0 10,0 0))
-SELECT AsText(ST_ConvexHull(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0)))))')));
-AsText(ST_ConvexHull(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0)))))')))
-POLYGON((0 0,10 0,10 10,0 10,0 0))
-SELECT AsText(ST_ConvexHull(GeomFromText('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0)),POLYGON((0 0,10 0,10 -10,0 -10,0 0)))')));
-AsText(ST_ConvexHull(GeomFromText('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0)),POLYGON((0 0,10 0,10 -10,0 -10,0 0)))')))
-POLYGON((0 -10,10 -10,10 10,0 10,0 -10))
-SELECT AsText(ST_ConvexHull(GeomFromText('GEOMETRYCOLLECTION(LINESTRING(0 0,0 10,10 10,10 0,0 0),LINESTRING(0 0,10 0,10 -10,0 -10,0 0))')));
-AsText(ST_ConvexHull(GeomFromText('GEOMETRYCOLLECTION(LINESTRING(0 0,0 10,10 10,10 0,0 0),LINESTRING(0 0,10 0,10 -10,0 -10,0 0))')))
-POLYGON((0 -10,10 -10,10 10,0 10,0 -10))
-SELECT AsText(ST_ConvexHull(GeomFromText('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4)),MULTIPOLYGON(((0 0,0 10,10 10,10 0)),((10 10,10 15,15 15,15 10,10 10))))')));
-AsText(ST_ConvexHull(GeomFromText('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4)),MULTIPOLYGON(((0 0,0 10,10 10,10 0)),((10 10,10 15,15 15,15 10,10 10))))')))
-POLYGON((0 0,10 0,15 10,15 15,10 15,0 10,0 0))
-SELECT AsText(ST_ConvexHull(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(),POLYGON((0 0,0 10,10 10,10 0,0 0)))')));
-AsText(ST_ConvexHull(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(),POLYGON((0 0,0 10,10 10,10 0,0 0)))')))
-POLYGON((0 0,10 0,10 10,0 10,0 0))
-SELECT AsText(ST_ConvexHull(GeomFromText('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0)),GEOMETRYCOLLECTION())')));
-AsText(ST_ConvexHull(GeomFromText('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0)),GEOMETRYCOLLECTION())')))
-POLYGON((0 0,10 0,10 10,0 10,0 0))
-SELECT AsText(ST_ConvexHull(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10)),GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10))))')));
-AsText(ST_ConvexHull(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10)),GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10))))')))
-POLYGON((0 0,10 0,15 15,10 15,0 10,0 0))
-SELECT AsText(ST_ConvexHull(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10)),GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10))),GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4)),MULTIPOLYGON(((0 0,0 10,10 10,10 0)),((10 10,10 15,15 15,15 10,10 10)))))')));
-AsText(ST_ConvexHull(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10)),GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10))),GEOMETRYCOLLECTION(POLYGON((0 0,0 10,
-POLYGON((0 0,10 0,15 10,15 15,10 15,0 10,0 0))
-SELECT AsText(ST_ConvexHull(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10)),GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10))),GEOMETRYCOLLECTION(GEOMETRYCOLLECTION()))')));
-AsText(ST_ConvexHull(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10)),GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10))),GEOMETRYCOLLECTION(GEOMETRYCOLLECTION
-POLYGON((0 0,10 0,15 15,10 15,0 10,0 0))
-SELECT AsText(ST_ConvexHull(g)) FROM gis_geometrycollection WHERE fid=115;
-AsText(ST_ConvexHull(g))
-POLYGON((0 15,5 0,25 0,30 15,15 25,0 15))
-#====================================================================================
-# ConvexHull(geometry), WKB data
-#====================================================================================
-#------------------------------------------------------------------------------------
-# point
-#------------------------------------------------------------------------------------
-SELECT AsText(ConvexHull(GeomFromWKB(0x010100000000000000000000000000000000000000)));
-AsText(ConvexHull(GeomFromWKB(0x010100000000000000000000000000000000000000)))
-POINT(0 0)
-SELECT AsText(ConvexHull(GeomFromWKB(0x01010000005CA0B4B32784B1498F3ACA087E5E1B4A)));
-AsText(ConvexHull(GeomFromWKB(0x01010000005CA0B4B32784B1498F3ACA087E5E1B4A)))
-POINT(1e47 1e49)
-SELECT AsText(ConvexHull(GeomFromWKB(0x0000000001BFF3AE147AE147AE0000000000000000)));
-AsText(ConvexHull(GeomFromWKB(0x0000000001BFF3AE147AE147AE0000000000000000)))
-POINT(-1.23 0)
-SELECT AsText(ConvexHull(GeomFromWKB(0x0000000001FFE1CCF385EBC8A00000000000000000)));
-AsText(ConvexHull(GeomFromWKB(0x0000000001FFE1CCF385EBC8A00000000000000000)))
-POINT(-1e308 0)
-#------------------------------------------------------------------------------------
-# multipoint
-#------------------------------------------------------------------------------------
-SELECT AsText(ConvexHull(GeomFromWKB(0x01040000000300000001010000000000000000000000000000000000000001010000001EA7E8482EFFF43F00000000000000000101000000000000000000F03F000000000000F03F)));
-AsText(ConvexHull(GeomFromWKB(0x01040000000300000001010000000000000000000000000000000000000001010000001EA7E8482EFFF43F00000000000000000101000000000000000000F03F000000000000F03F)))
-POLYGON((0 0,1.3123 0,1 1,0 0))
-SELECT AsText(ConvexHull(GeomFromWKB(0x010400000003000000010100000048E17A14AE47F5BF000000000000000001010000000000000000000000B0726891ED7CBFBF0101000000000000007E842E410000000000002240)));
-AsText(ConvexHull(GeomFromWKB(0x010400000003000000010100000048E17A14AE47F5BF000000000000000001010000000000000000000000B0726891ED7CBFBF0101000000000000007E842E410000000000002240)))
-POLYGON((-1.33 0,0 -0.123,999999 9,-1.33 0))
-SELECT AsText(ConvexHull(GeomFromWKB(0x00000000040000000300000000010000000000000000000000000000000000000000014024000000000000402400000000000000000000013FF428F5C28F5C293FFFAE147AE147AE)));
-AsText(ConvexHull(GeomFromWKB(0x00000000040000000300000000010000000000000000000000000000000000000000014024000000000000402400000000000000000000013FF428F5C28F5C293FFFAE147AE147AE)))
-POLYGON((0 0,10 10,1.26 1.98,0 0))
-SELECT AsText(ConvexHull(GeomFromWKB(0x0000000004000000030000000001000000000000000000000000000000000000000001402400000000000040240000000000000000000001408F400000000000408F400000000000)));
-AsText(ConvexHull(GeomFromWKB(0x0000000004000000030000000001000000000000000000000000000000000000000001402400000000000040240000000000000000000001408F400000000000408F400000000000)))
-LINESTRING(0 0,1000 1000,0 0)
-#------------------------------------------------------------------------------------
-# linestring
-#------------------------------------------------------------------------------------
-SELECT AsText(ConvexHull(GeomFromWKB(0x010200000002000000EB73B515FBCBF1BF2B8716D9CEF7F13FF7C77BD5CA84BF3FDD2406819543CBBF)));
-AsText(ConvexHull(GeomFromWKB(0x010200000002000000EB73B515FBCBF1BF2B8716D9CEF7F13FF7C77BD5CA84BF3FDD2406819543CBBF)))
-LINESTRING(-1.1123 1.123,0.12312 -0.213,-1.1123 1.123)
-SELECT AsText(ConvexHull(GeomFromWKB(0x010200000003000000EB73B515FBCBF1BF2B8716D9CEF7F13F1B695743B8179E47EA8CA039593E294621D7E6FAE031F445350332B7F4AD5445)));
-AsText(ConvexHull(GeomFromWKB(0x010200000003000000EB73B515FBCBF1BF2B8716D9CEF7F13F1B695743B8179E47EA8CA039593E294621D7E6FAE031F445350332B7F4AD5445)))
-POLYGON((-1.1123 1.123,1e37 1e30,1e29 1e26,-1.1123 1.123))
-SELECT AsText(ConvexHull(GeomFromWKB(0x000000000200000003000000000000000000000000000000000000000000000000402400000000000040240000000000000000000000000000)));
-AsText(ConvexHull(GeomFromWKB(0x000000000200000003000000000000000000000000000000000000000000000000402400000000000040240000000000000000000000000000)))
-POLYGON((0 0,10 0,0 10,0 0))
-SELECT AsText(ConvexHull(GeomFromWKB(0x00000000020000000300000000000000003FE3D70A3D70A3D73FCB4395810624DDC024000000000000BFE224DD2F1A9FBE0000000000000000)));
-AsText(ConvexHull(GeomFromWKB(0x00000000020000000300000000000000003FE3D70A3D70A3D73FCB4395810624DDC024000000000000BFE224DD2F1A9FBE0000000000000000)))
-POLYGON((-0.567 0,0.213 -10,0 0.62,-0.567 0))
-#------------------------------------------------------------------------------------
-# multilinestring
-#------------------------------------------------------------------------------------
-SELECT AsText(ConvexHull(GeomFromWKB(0x01050000000100000001020000000200000000000000000000000000000000002440000000000000F0BFD7A3703D0AD70140)));
-AsText(ConvexHull(GeomFromWKB(0x01050000000100000001020000000200000000000000000000000000000000002440000000000000F0BFD7A3703D0AD70140)))
-LINESTRING(-1 2.23,0 10,-1 2.23)
-SELECT AsText(ConvexHull(GeomFromWKB(0x01050000000200000001020000000200000000000000000000000000000000002440000000000000F0BFD7A3703D0AD70140010200000003000000000000000000000000000000000000000000000000001440000000000000144000000000000024400000000000002440)));
-AsText(ConvexHull(GeomFromWKB(0x01050000000200000001020000000200000000000000000000000000000000002440000000000000F0BFD7A3703D0AD70140010200000003000000000000000000000000000000000000000000000000001440000000000000144000000000000024400000000000002440)))
-POLYGON((-1 2.23,0 0,10 10,0 10,-1 2.23))
-SELECT AsText(ConvexHull(GeomFromWKB(0x000000000500000002000000000200000003000000000000000000000000000000000000000000000000402400000000000040240000000000000000000000000000000000000200000003000000000000000000000000000000000000000000000000402400000000000040240000000000000000000000000000)));
-AsText(ConvexHull(GeomFromWKB(0x0000000005000000020000000002000000030000000000000000000000000000000000000000000000004024000000000000402400000000000000000000000000000000000002000000030000000000000000000000000000000000000000000000004024000000000000402400000
-POLYGON((0 0,10 0,0 10,0 0))
-SELECT AsText(ConvexHull(GeomFromWKB(0x0000000005000000020000000002000000020000000000000000000000000000000040240000000000004024000000000000000000000200000002408F400000000000408F40000000000040C388000000000040C3880000000000)));
-AsText(ConvexHull(GeomFromWKB(0x0000000005000000020000000002000000020000000000000000000000000000000040240000000000004024000000000000000000000200000002408F400000000000408F40000000000040C388000000000040C3880000000000)))
-LINESTRING(0 0,10000 10000,0 0)
-#------------------------------------------------------------------------------------
-# polygon
-#------------------------------------------------------------------------------------
-SELECT AsText(ConvexHull(GeomFromWKB(0x0103000000010000000400000000000000000000000000000000000000000000000000244000000000000000000000000000002440000000000000244000000000000000000000000000000000)));
-AsText(ConvexHull(GeomFromWKB(0x0103000000010000000400000000000000000000000000000000000000000000000000244000000000000000000000000000002440000000000000244000000000000000000000000000000000)))
-POLYGON((0 0,10 0,10 10,0 0))
-SELECT AsText(ConvexHull(GeomFromWKB(0x01030000000200000004000000000000000000000000000000000000000000000000002440000000000000000000000000000024400000000000002440000000000000000000000000000000000400000000000000000000400000000000000040000000000000004000000000000010400000000000001040000000000000104000000000000000400000000000000040)));
-AsText(ConvexHull(GeomFromWKB(0x0103000000020000000400000000000000000000000000000000000000000000000000244000000000000000000000000000002440000000000000244000000000000000000000000000000000040000000000000000000040000000000000004000000000000000400000000000001
-POLYGON((0 0,10 0,10 10,0 0))
-SELECT AsText(ConvexHull(GeomFromWKB(0x0000000003000000010000000400000000000000000000000000000000402400000000000000000000000000004024000000000000402400000000000000000000000000000000000000000000)));
-AsText(ConvexHull(GeomFromWKB(0x0000000003000000010000000400000000000000000000000000000000402400000000000000000000000000004024000000000000402400000000000000000000000000000000000000000000)))
-POLYGON((0 0,10 0,10 10,0 0))
-SELECT AsText(ConvexHull(GeomFromWKB(0x00000000030000000200000004000000000000000000000000000000004024000000000000000000000000000040240000000000004024000000000000000000000000000000000000000000000000000440000000000000004000000000000000400000000000000040100000000000004010000000000000401000000000000040000000000000004000000000000000)));
-AsText(ConvexHull(GeomFromWKB(0x0000000003000000020000000400000000000000000000000000000000402400000000000000000000000000004024000000000000402400000000000000000000000000000000000000000000000000044000000000000000400000000000000040000000000000004010000000000
-POLYGON((0 0,10 0,10 10,0 0))
-#------------------------------------------------------------------------------------
-# multipolygon
-#------------------------------------------------------------------------------------
-SELECT AsText(ConvexHull(GeomFromWKB(0x0106000000010000000103000000010000000400000000000000000000000000000000000000000000000000244000000000000000000000000000002440000000000000244000000000000000000000000000000000)));
-AsText(ConvexHull(GeomFromWKB(0x0106000000010000000103000000010000000400000000000000000000000000000000000000000000000000244000000000000000000000000000002440000000000000244000000000000000000000000000000000)))
-POLYGON((0 0,10 0,10 10,0 0))
-SELECT AsText(ConvexHull(GeomFromWKB(0x01060000000100000001030000000200000004000000000000000000000000000000000000000000000000002440000000000000000000000000000024400000000000002440000000000000000000000000000000000400000000000000000000400000000000000040000000000000004000000000000010400000000000001040000000000000104000000000000000400000000000000040)));
-AsText(ConvexHull(GeomFromWKB(0x0106000000010000000103000000020000000400000000000000000000000000000000000000000000000000244000000000000000000000000000002440000000000000244000000000000000000000000000000000040000000000000000000040000000000000004000000000000
-POLYGON((0 0,10 0,10 10,0 0))
-SELECT AsText(ConvexHull(GeomFromWKB(0x0000000006000000010000000003000000010000000400000000000000000000000000000000402400000000000000000000000000004024000000000000402400000000000000000000000000000000000000000000)));
-AsText(ConvexHull(GeomFromWKB(0x0000000006000000010000000003000000010000000400000000000000000000000000000000402400000000000000000000000000004024000000000000402400000000000000000000000000000000000000000000)))
-POLYGON((0 0,10 0,10 10,0 0))
-SELECT AsText(ConvexHull(GeomFromWKB(0x00000000060000000100000000030000000200000004000000000000000000000000000000004024000000000000000000000000000040240000000000004024000000000000000000000000000000000000000000000000000440000000000000004000000000000000400000000000000040100000000000004010000000000000401000000000000040000000000000004000000000000000)));
-AsText(ConvexHull(GeomFromWKB(0x0000000006000000010000000003000000020000000400000000000000000000000000000000402400000000000000000000000000004024000000000000402400000000000000000000000000000000000000000000000000044000000000000000400000000000000040000000000
-POLYGON((0 0,10 0,10 10,0 0))
-#------------------------------------------------------------------------------------
-# geometrycollection
-#------------------------------------------------------------------------------------
-SELECT AsText(ConvexHull(GeomFromWKB(0x010700000002000000010100000000000000000024400000000000002440010200000002000000000000000000F03F000000000000F03F00000000000000400000000000000040)));
-AsText(ConvexHull(GeomFromWKB(0x010700000002000000010100000000000000000024400000000000002440010200000002000000000000000000F03F000000000000F03F00000000000000400000000000000040)))
-LINESTRING(1 1,10 10,1 1)
-SELECT AsText(ConvexHull(GeomFromWKB(0x0107000000010000000103000000010000000400000000000000000000000000000000000000000000000000000000000000000024400000000000002440000000000000244000000000000000000000000000000000)));
-AsText(ConvexHull(GeomFromWKB(0x0107000000010000000103000000010000000400000000000000000000000000000000000000000000000000000000000000000024400000000000002440000000000000244000000000000000000000000000000000)))
-POLYGON((0 0,10 10,0 10,0 0))
-SELECT AsText(ConvexHull(GeomFromWKB(0x0000000007000000020000000001402400000000000040240000000000000000000002000000023FF00000000000003FF000000000000040000000000000004000000000000000)));
-AsText(ConvexHull(GeomFromWKB(0x0000000007000000020000000001402400000000000040240000000000000000000002000000023FF00000000000003FF000000000000040000000000000004000000000000000)))
-LINESTRING(1 1,10 10,1 1)
-SELECT AsText(ConvexHull(GeomFromWKB(0x0000000007000000010000000003000000010000000400000000000000000000000000000000000000000000000040240000000000004024000000000000402400000000000000000000000000000000000000000000)));
-AsText(ConvexHull(GeomFromWKB(0x0000000007000000010000000003000000010000000400000000000000000000000000000000000000000000000040240000000000004024000000000000402400000000000000000000000000000000000000000000)))
-POLYGON((0 0,10 10,0 10,0 0))
-#====================================================================================
-# ST_ConvexHull(geometry), WKB data
-#====================================================================================
-#------------------------------------------------------------------------------------
-# point
-#------------------------------------------------------------------------------------
-SELECT AsText(ST_ConvexHull(GeomFromWKB(0x010100000000000000000000000000000000000000)));
-AsText(ST_ConvexHull(GeomFromWKB(0x010100000000000000000000000000000000000000)))
-POINT(0 0)
-SELECT AsText(ST_ConvexHull(GeomFromWKB(0x01010000005CA0B4B32784B1498F3ACA087E5E1B4A)));
-AsText(ST_ConvexHull(GeomFromWKB(0x01010000005CA0B4B32784B1498F3ACA087E5E1B4A)))
-POINT(1e47 1e49)
-SELECT AsText(ST_ConvexHull(GeomFromWKB(0x0000000001BFF3AE147AE147AE0000000000000000)));
-AsText(ST_ConvexHull(GeomFromWKB(0x0000000001BFF3AE147AE147AE0000000000000000)))
-POINT(-1.23 0)
-SELECT AsText(ST_ConvexHull(GeomFromWKB(0x0000000001FFE1CCF385EBC8A00000000000000000)));
-AsText(ST_ConvexHull(GeomFromWKB(0x0000000001FFE1CCF385EBC8A00000000000000000)))
-POINT(-1e308 0)
-#------------------------------------------------------------------------------------
-# multipoint
-#------------------------------------------------------------------------------------
-SELECT AsText(ST_ConvexHull(GeomFromWKB(0x01040000000300000001010000000000000000000000000000000000000001010000001EA7E8482EFFF43F00000000000000000101000000000000000000F03F000000000000F03F)));
-AsText(ST_ConvexHull(GeomFromWKB(0x01040000000300000001010000000000000000000000000000000000000001010000001EA7E8482EFFF43F00000000000000000101000000000000000000F03F000000000000F03F)))
-POLYGON((0 0,1.3123 0,1 1,0 0))
-SELECT AsText(ST_ConvexHull(GeomFromWKB(0x010400000003000000010100000048E17A14AE47F5BF000000000000000001010000000000000000000000B0726891ED7CBFBF0101000000000000007E842E410000000000002240)));
-AsText(ST_ConvexHull(GeomFromWKB(0x010400000003000000010100000048E17A14AE47F5BF000000000000000001010000000000000000000000B0726891ED7CBFBF0101000000000000007E842E410000000000002240)))
-POLYGON((-1.33 0,0 -0.123,999999 9,-1.33 0))
-SELECT AsText(ST_ConvexHull(GeomFromWKB(0x00000000040000000300000000010000000000000000000000000000000000000000014024000000000000402400000000000000000000013FF428F5C28F5C293FFFAE147AE147AE)));
-AsText(ST_ConvexHull(GeomFromWKB(0x00000000040000000300000000010000000000000000000000000000000000000000014024000000000000402400000000000000000000013FF428F5C28F5C293FFFAE147AE147AE)))
-POLYGON((0 0,10 10,1.26 1.98,0 0))
-SELECT AsText(ST_ConvexHull(GeomFromWKB(0x0000000004000000030000000001000000000000000000000000000000000000000001402400000000000040240000000000000000000001408F400000000000408F400000000000)));
-AsText(ST_ConvexHull(GeomFromWKB(0x0000000004000000030000000001000000000000000000000000000000000000000001402400000000000040240000000000000000000001408F400000000000408F400000000000)))
-LINESTRING(0 0,1000 1000,0 0)
-#------------------------------------------------------------------------------------
-# linestring
-#------------------------------------------------------------------------------------
-SELECT AsText(ST_ConvexHull(GeomFromWKB(0x010200000002000000EB73B515FBCBF1BF2B8716D9CEF7F13FF7C77BD5CA84BF3FDD2406819543CBBF)));
-AsText(ST_ConvexHull(GeomFromWKB(0x010200000002000000EB73B515FBCBF1BF2B8716D9CEF7F13FF7C77BD5CA84BF3FDD2406819543CBBF)))
-LINESTRING(-1.1123 1.123,0.12312 -0.213,-1.1123 1.123)
-SELECT AsText(ST_ConvexHull(GeomFromWKB(0x010200000003000000EB73B515FBCBF1BF2B8716D9CEF7F13F1B695743B8179E47EA8CA039593E294621D7E6FAE031F445350332B7F4AD5445)));
-AsText(ST_ConvexHull(GeomFromWKB(0x010200000003000000EB73B515FBCBF1BF2B8716D9CEF7F13F1B695743B8179E47EA8CA039593E294621D7E6FAE031F445350332B7F4AD5445)))
-POLYGON((-1.1123 1.123,1e37 1e30,1e29 1e26,-1.1123 1.123))
-SELECT AsText(ST_ConvexHull(GeomFromWKB(0x000000000200000003000000000000000000000000000000000000000000000000402400000000000040240000000000000000000000000000)));
-AsText(ST_ConvexHull(GeomFromWKB(0x000000000200000003000000000000000000000000000000000000000000000000402400000000000040240000000000000000000000000000)))
-POLYGON((0 0,10 0,0 10,0 0))
-SELECT AsText(ST_ConvexHull(GeomFromWKB(0x00000000020000000300000000000000003FE3D70A3D70A3D73FCB4395810624DDC024000000000000BFE224DD2F1A9FBE0000000000000000)));
-AsText(ST_ConvexHull(GeomFromWKB(0x00000000020000000300000000000000003FE3D70A3D70A3D73FCB4395810624DDC024000000000000BFE224DD2F1A9FBE0000000000000000)))
-POLYGON((-0.567 0,0.213 -10,0 0.62,-0.567 0))
-#------------------------------------------------------------------------------------
-# multilinestring
-#------------------------------------------------------------------------------------
-SELECT AsText(ST_ConvexHull(GeomFromWKB(0x01050000000100000001020000000200000000000000000000000000000000002440000000000000F0BFD7A3703D0AD70140)));
-AsText(ST_ConvexHull(GeomFromWKB(0x01050000000100000001020000000200000000000000000000000000000000002440000000000000F0BFD7A3703D0AD70140)))
-LINESTRING(-1 2.23,0 10,-1 2.23)
-SELECT AsText(ST_ConvexHull(GeomFromWKB(0x01050000000200000001020000000200000000000000000000000000000000002440000000000000F0BFD7A3703D0AD70140010200000003000000000000000000000000000000000000000000000000001440000000000000144000000000000024400000000000002440)));
-AsText(ST_ConvexHull(GeomFromWKB(0x01050000000200000001020000000200000000000000000000000000000000002440000000000000F0BFD7A3703D0AD70140010200000003000000000000000000000000000000000000000000000000001440000000000000144000000000000024400000000000002440)))
-POLYGON((-1 2.23,0 0,10 10,0 10,-1 2.23))
-SELECT AsText(ST_ConvexHull(GeomFromWKB(0x000000000500000002000000000200000003000000000000000000000000000000000000000000000000402400000000000040240000000000000000000000000000000000000200000003000000000000000000000000000000000000000000000000402400000000000040240000000000000000000000000000)));
-AsText(ST_ConvexHull(GeomFromWKB(0x0000000005000000020000000002000000030000000000000000000000000000000000000000000000004024000000000000402400000000000000000000000000000000000002000000030000000000000000000000000000000000000000000000004024000000000000402400
-POLYGON((0 0,10 0,0 10,0 0))
-SELECT AsText(ST_ConvexHull(GeomFromWKB(0x0000000005000000020000000002000000020000000000000000000000000000000040240000000000004024000000000000000000000200000002408F400000000000408F40000000000040C388000000000040C3880000000000)));
-AsText(ST_ConvexHull(GeomFromWKB(0x0000000005000000020000000002000000020000000000000000000000000000000040240000000000004024000000000000000000000200000002408F400000000000408F40000000000040C388000000000040C3880000000000)))
-LINESTRING(0 0,10000 10000,0 0)
-#------------------------------------------------------------------------------------
-# polygon
-#------------------------------------------------------------------------------------
-SELECT AsText(ST_ConvexHull(GeomFromWKB(0x0103000000010000000400000000000000000000000000000000000000000000000000244000000000000000000000000000002440000000000000244000000000000000000000000000000000)));
-AsText(ST_ConvexHull(GeomFromWKB(0x0103000000010000000400000000000000000000000000000000000000000000000000244000000000000000000000000000002440000000000000244000000000000000000000000000000000)))
-POLYGON((0 0,10 0,10 10,0 0))
-SELECT AsText(ST_ConvexHull(GeomFromWKB(0x01030000000200000004000000000000000000000000000000000000000000000000002440000000000000000000000000000024400000000000002440000000000000000000000000000000000400000000000000000000400000000000000040000000000000004000000000000010400000000000001040000000000000104000000000000000400000000000000040)));
-AsText(ST_ConvexHull(GeomFromWKB(0x0103000000020000000400000000000000000000000000000000000000000000000000244000000000000000000000000000002440000000000000244000000000000000000000000000000000040000000000000000000040000000000000004000000000000000400000000000
-POLYGON((0 0,10 0,10 10,0 0))
-SELECT AsText(ST_ConvexHull(GeomFromWKB(0x0000000003000000010000000400000000000000000000000000000000402400000000000000000000000000004024000000000000402400000000000000000000000000000000000000000000)));
-AsText(ST_ConvexHull(GeomFromWKB(0x0000000003000000010000000400000000000000000000000000000000402400000000000000000000000000004024000000000000402400000000000000000000000000000000000000000000)))
-POLYGON((0 0,10 0,10 10,0 0))
-SELECT AsText(ST_ConvexHull(GeomFromWKB(0x00000000030000000200000004000000000000000000000000000000004024000000000000000000000000000040240000000000004024000000000000000000000000000000000000000000000000000440000000000000004000000000000000400000000000000040100000000000004010000000000000401000000000000040000000000000004000000000000000)));
-AsText(ST_ConvexHull(GeomFromWKB(0x0000000003000000020000000400000000000000000000000000000000402400000000000000000000000000004024000000000000402400000000000000000000000000000000000000000000000000044000000000000000400000000000000040000000000000004010000000
-POLYGON((0 0,10 0,10 10,0 0))
-#------------------------------------------------------------------------------------
-# multipolygon
-#------------------------------------------------------------------------------------
-SELECT AsText(ST_ConvexHull(GeomFromWKB(0x0106000000010000000103000000010000000400000000000000000000000000000000000000000000000000244000000000000000000000000000002440000000000000244000000000000000000000000000000000)));
-AsText(ST_ConvexHull(GeomFromWKB(0x0106000000010000000103000000010000000400000000000000000000000000000000000000000000000000244000000000000000000000000000002440000000000000244000000000000000000000000000000000)))
-POLYGON((0 0,10 0,10 10,0 0))
-SELECT AsText(ST_ConvexHull(GeomFromWKB(0x01060000000100000001030000000200000004000000000000000000000000000000000000000000000000002440000000000000000000000000000024400000000000002440000000000000000000000000000000000400000000000000000000400000000000000040000000000000004000000000000010400000000000001040000000000000104000000000000000400000000000000040)));
-AsText(ST_ConvexHull(GeomFromWKB(0x0106000000010000000103000000020000000400000000000000000000000000000000000000000000000000244000000000000000000000000000002440000000000000244000000000000000000000000000000000040000000000000000000040000000000000004000000000
-POLYGON((0 0,10 0,10 10,0 0))
-SELECT AsText(ST_ConvexHull(GeomFromWKB(0x0000000006000000010000000003000000010000000400000000000000000000000000000000402400000000000000000000000000004024000000000000402400000000000000000000000000000000000000000000)));
-AsText(ST_ConvexHull(GeomFromWKB(0x0000000006000000010000000003000000010000000400000000000000000000000000000000402400000000000000000000000000004024000000000000402400000000000000000000000000000000000000000000)))
-POLYGON((0 0,10 0,10 10,0 0))
-SELECT AsText(ST_ConvexHull(GeomFromWKB(0x00000000060000000100000000030000000200000004000000000000000000000000000000004024000000000000000000000000000040240000000000004024000000000000000000000000000000000000000000000000000440000000000000004000000000000000400000000000000040100000000000004010000000000000401000000000000040000000000000004000000000000000)));
-AsText(ST_ConvexHull(GeomFromWKB(0x0000000006000000010000000003000000020000000400000000000000000000000000000000402400000000000000000000000000004024000000000000402400000000000000000000000000000000000000000000000000044000000000000000400000000000000040000000
-POLYGON((0 0,10 0,10 10,0 0))
-#------------------------------------------------------------------------------------
-# geometrycollection
-#------------------------------------------------------------------------------------
-SELECT AsText(ST_ConvexHull(GeomFromWKB(0x010700000002000000010100000000000000000024400000000000002440010200000002000000000000000000F03F000000000000F03F00000000000000400000000000000040)));
-AsText(ST_ConvexHull(GeomFromWKB(0x010700000002000000010100000000000000000024400000000000002440010200000002000000000000000000F03F000000000000F03F00000000000000400000000000000040)))
-LINESTRING(1 1,10 10,1 1)
-SELECT AsText(ST_ConvexHull(GeomFromWKB(0x0107000000010000000103000000010000000400000000000000000000000000000000000000000000000000000000000000000024400000000000002440000000000000244000000000000000000000000000000000)));
-AsText(ST_ConvexHull(GeomFromWKB(0x0107000000010000000103000000010000000400000000000000000000000000000000000000000000000000000000000000000024400000000000002440000000000000244000000000000000000000000000000000)))
-POLYGON((0 0,10 10,0 10,0 0))
-SELECT AsText(ST_ConvexHull(GeomFromWKB(0x0000000007000000020000000001402400000000000040240000000000000000000002000000023FF00000000000003FF000000000000040000000000000004000000000000000)));
-AsText(ST_ConvexHull(GeomFromWKB(0x0000000007000000020000000001402400000000000040240000000000000000000002000000023FF00000000000003FF000000000000040000000000000004000000000000000)))
-LINESTRING(1 1,10 10,1 1)
-SELECT AsText(ST_ConvexHull(GeomFromWKB(0x0000000007000000010000000003000000010000000400000000000000000000000000000000000000000000000040240000000000004024000000000000402400000000000000000000000000000000000000000000)));
-AsText(ST_ConvexHull(GeomFromWKB(0x0000000007000000010000000003000000010000000400000000000000000000000000000000000000000000000040240000000000004024000000000000402400000000000000000000000000000000000000000000)))
-POLYGON((0 0,10 10,0 10,0 0))
-#====================================================================================
-# ConvexHull(geometry) with different SRID values
-#====================================================================================
-SELECT AsText(ConvexHull(GeomFromText(@star_center,-1024)));
-AsText(ConvexHull(GeomFromText(@star_center,-1024)))
-POINT(15 10)
-SELECT AsText(ConvexHull(GeomFromText(@star_all_points,-1)));
-AsText(ConvexHull(GeomFromText(@star_all_points,-1)))
-POLYGON((5 0,25 0,15 25,5 0))
-SELECT AsText(ConvexHull(GeomFromText(@star_top_to_center,0)));
-AsText(ConvexHull(GeomFromText(@star_top_to_center,0)))
-LINESTRING(15 10,15 25,15 10)
-SELECT AsText(ConvexHull(GeomFromText(@star_lines_near_vertical,1000)));
-AsText(ConvexHull(GeomFromText(@star_lines_near_vertical,1000)))
-POLYGON((0 5,15 25,0 25,0 5))
-SELECT AsText(ConvexHull(GeomFromText(@star,123456789)));
-AsText(ConvexHull(GeomFromText(@star,123456789)))
-POLYGON((0 15,5 0,25 0,30 15,15 25,0 15))
-SELECT AsText(ConvexHull(GeomFromText(@star_elem_vertical,4294967295)));
-AsText(ConvexHull(GeomFromText(@star_elem_vertical,4294967295)))
-POLYGON((5 0,25 0,15 25,5 0))
-SELECT AsText(ConvexHull(GeomFromText(@star_of_elems,4294967296)));
-AsText(ConvexHull(GeomFromText(@star_of_elems,4294967296)))
-POLYGON((0 15,5 0,25 0,30 15,15 25,0 15))
-SELECT AsText(ConvexHull(GeomFromText(@star_collection_elems,4294967295000)));
-AsText(ConvexHull(GeomFromText(@star_collection_elems,4294967295000)))
-POLYGON((0 15,5 0,25 0,30 15,15 25,0 15))
-#====================================================================================
-# ST_ConvexHull(geometry) with different SRID values
-#====================================================================================
-SELECT AsText(ST_ConvexHull(GeomFromText(@star_center,-1024)));
-AsText(ST_ConvexHull(GeomFromText(@star_center,-1024)))
-POINT(15 10)
-SELECT AsText(ST_ConvexHull(GeomFromText(@star_all_points,-1)));
-AsText(ST_ConvexHull(GeomFromText(@star_all_points,-1)))
-POLYGON((5 0,25 0,15 25,5 0))
-SELECT AsText(ST_ConvexHull(GeomFromText(@star_top_to_center,0)));
-AsText(ST_ConvexHull(GeomFromText(@star_top_to_center,0)))
-LINESTRING(15 10,15 25,15 10)
-SELECT AsText(ST_ConvexHull(GeomFromText(@star_lines_near_vertical,1000)));
-AsText(ST_ConvexHull(GeomFromText(@star_lines_near_vertical,1000)))
-POLYGON((0 5,15 25,0 25,0 5))
-SELECT AsText(ST_ConvexHull(GeomFromText(@star,123456789)));
-AsText(ST_ConvexHull(GeomFromText(@star,123456789)))
-POLYGON((0 15,5 0,25 0,30 15,15 25,0 15))
-SELECT AsText(ST_ConvexHull(GeomFromText(@star_elem_vertical,4294967295)));
-AsText(ST_ConvexHull(GeomFromText(@star_elem_vertical,4294967295)))
-POLYGON((5 0,25 0,15 25,5 0))
-SELECT AsText(ST_ConvexHull(GeomFromText(@star_of_elems,4294967296)));
-AsText(ST_ConvexHull(GeomFromText(@star_of_elems,4294967296)))
-POLYGON((0 15,5 0,25 0,30 15,15 25,0 15))
-SELECT AsText(ST_ConvexHull(GeomFromText(@star_collection_elems,4294967295000)));
-AsText(ST_ConvexHull(GeomFromText(@star_collection_elems,4294967295000)))
-POLYGON((0 15,5 0,25 0,30 15,15 25,0 15))
-#====================================================================================
-# ConvexHull(geometry) with different SRID values, WKB data
-#====================================================================================
-SELECT AsText(ConvexHull(GeomFromWKB(0x010100000000000000000000000000000000000000,-1024)));
-AsText(ConvexHull(GeomFromWKB(0x010100000000000000000000000000000000000000,-1024)))
-POINT(0 0)
-SELECT AsText(ConvexHull(GeomFromWKB(0x01010000005CA0B4B32784B1498F3ACA087E5E1B4A,-1)));
-AsText(ConvexHull(GeomFromWKB(0x01010000005CA0B4B32784B1498F3ACA087E5E1B4A,-1)))
-POINT(1e47 1e49)
-SELECT AsText(ConvexHull(GeomFromWKB(0x0000000001BFF3AE147AE147AE0000000000000000,0)));
-AsText(ConvexHull(GeomFromWKB(0x0000000001BFF3AE147AE147AE0000000000000000,0)))
-POINT(-1.23 0)
-SELECT AsText(ConvexHull(GeomFromWKB(0x0000000001FFE1CCF385EBC8A00000000000000000,100000)));
-AsText(ConvexHull(GeomFromWKB(0x0000000001FFE1CCF385EBC8A00000000000000000,100000)))
-POINT(-1e308 0)
-SELECT AsText(ConvexHull(GeomFromWKB(0x010200000002000000EB73B515FBCBF1BF2B8716D9CEF7F13FF7C77BD5CA84BF3FDD2406819543CBBF,4294967295)));
-AsText(ConvexHull(GeomFromWKB(0x010200000002000000EB73B515FBCBF1BF2B8716D9CEF7F13FF7C77BD5CA84BF3FDD2406819543CBBF,4294967295)))
-LINESTRING(-1.1123 1.123,0.12312 -0.213,-1.1123 1.123)
-SELECT AsText(ConvexHull(GeomFromWKB(0x0107000000010000000103000000010000000400000000000000000000000000000000000000000000000000000000000000000024400000000000002440000000000000244000000000000000000000000000000000,4294967296)));
-AsText(ConvexHull(GeomFromWKB(0x0107000000010000000103000000010000000400000000000000000000000000000000000000000000000000000000000000000024400000000000002440000000000000244000000000000000000000000000000000,4294967296)))
-POLYGON((0 0,10 10,0 10,0 0))
-SELECT AsText(ConvexHull(GeomFromWKB(0x0000000007000000010000000003000000010000000400000000000000000000000000000000000000000000000040240000000000004024000000000000402400000000000000000000000000000000000000000000,4294967295000)));
-AsText(ConvexHull(GeomFromWKB(0x0000000007000000010000000003000000010000000400000000000000000000000000000000000000000000000040240000000000004024000000000000402400000000000000000000000000000000000000000000,4294967295000)))
-POLYGON((0 0,10 10,0 10,0 0))
-#====================================================================================
-# ST_ConvexHull(geometry) with different SRID values, WKB data
-#====================================================================================
-SELECT AsText(ST_ConvexHull(GeomFromWKB(0x010100000000000000000000000000000000000000,-1024)));
-AsText(ST_ConvexHull(GeomFromWKB(0x010100000000000000000000000000000000000000,-1024)))
-POINT(0 0)
-SELECT AsText(ST_ConvexHull(GeomFromWKB(0x01010000005CA0B4B32784B1498F3ACA087E5E1B4A,-1)));
-AsText(ST_ConvexHull(GeomFromWKB(0x01010000005CA0B4B32784B1498F3ACA087E5E1B4A,-1)))
-POINT(1e47 1e49)
-SELECT AsText(ST_ConvexHull(GeomFromWKB(0x0000000001BFF3AE147AE147AE0000000000000000,0)));
-AsText(ST_ConvexHull(GeomFromWKB(0x0000000001BFF3AE147AE147AE0000000000000000,0)))
-POINT(-1.23 0)
-SELECT AsText(ST_ConvexHull(GeomFromWKB(0x0000000001FFE1CCF385EBC8A00000000000000000,100000)));
-AsText(ST_ConvexHull(GeomFromWKB(0x0000000001FFE1CCF385EBC8A00000000000000000,100000)))
-POINT(-1e308 0)
-SELECT AsText(ST_ConvexHull(GeomFromWKB(0x010200000002000000EB73B515FBCBF1BF2B8716D9CEF7F13FF7C77BD5CA84BF3FDD2406819543CBBF,4294967295)));
-AsText(ST_ConvexHull(GeomFromWKB(0x010200000002000000EB73B515FBCBF1BF2B8716D9CEF7F13FF7C77BD5CA84BF3FDD2406819543CBBF,4294967295)))
-LINESTRING(-1.1123 1.123,0.12312 -0.213,-1.1123 1.123)
-SELECT AsText(ST_ConvexHull(GeomFromWKB(0x0107000000010000000103000000010000000400000000000000000000000000000000000000000000000000000000000000000024400000000000002440000000000000244000000000000000000000000000000000,4294967296)));
-AsText(ST_ConvexHull(GeomFromWKB(0x0107000000010000000103000000010000000400000000000000000000000000000000000000000000000000000000000000000024400000000000002440000000000000244000000000000000000000000000000000,4294967296)))
-POLYGON((0 0,10 10,0 10,0 0))
-SELECT AsText(ST_ConvexHull(GeomFromWKB(0x0000000007000000010000000003000000010000000400000000000000000000000000000000000000000000000040240000000000004024000000000000402400000000000000000000000000000000000000000000,4294967295000)));
-AsText(ST_ConvexHull(GeomFromWKB(0x0000000007000000010000000003000000010000000400000000000000000000000000000000000000000000000040240000000000004024000000000000402400000000000000000000000000000000000000000000,4294967295000)))
-POLYGON((0 0,10 10,0 10,0 0))
 #====================================================================================
 # Invalid function calls
 #====================================================================================
-#---------------------------------------------------------------------------------------
-# ConvexHull()
-SELECT AsText(ConvexHull());
-ERROR 42000: Incorrect parameter count in the call to native function 'ConvexHull'
-SELECT AsText(ConvexHull(NULL));
-AsText(ConvexHull(NULL))
+SELECT ST_ASTEXT(ST_CONVEXHULL());
+ERROR 42000: Incorrect parameter count in the call to native function 'ST_CONVEXHULL'
+SELECT ST_ASTEXT(ST_CONVEXHULL(NULL));
+ST_ASTEXT(ST_CONVEXHULL(NULL))
 NULL
-SELECT AsText(ConvexHull(GeomFromText('POINT()')));
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('POINT()')));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT AsText(ConvexHull(GeomFromText('LINESTRING()')));
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('LINESTRING()')));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT AsText(ConvexHull(GeomFromText('POLYGON(())')));
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('POLYGON(())')));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT AsText(ConvexHull(GeomFromText('MULTIPOINT()')));
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('MULTIPOINT()')));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT AsText(ConvexHull(GeomFromText('MULTILINESTRING(())')));
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('MULTILINESTRING(())')));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT AsText(ConvexHull(GeomFromText('MULTIPOLYGON((()))')));
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('MULTIPOLYGON((()))')));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT AsText(ConvexHull(GeomFromText('POINT(a 0)')));
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('POINT(a 0)')));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT AsText(ConvexHull(GeomFromText('POINT(! 0)')));
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('POINT(! 0)')));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT AsText(ConvexHull(GeomFromText('POINT('!' 0)')));
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('POINT('!' 0)')));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0)')))' at line 1
-SELECT AsText(ConvexHull(GeomFromText('POINT(12,34 0)')));
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('POINT(12,34 0)')));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT AsText(ConvexHull(GeomFromText('LINESTRING(a 0,10 10)')));
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('LINESTRING(a 0,10 10)')));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT AsText(ConvexHull(GeomFromText('LINESTRING(0 0,! 10)')));
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('LINESTRING(0 0,! 10)')));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT AsText(ConvexHull(GeomFromText('LINESTRING('!' 0,10 10)')));
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('LINESTRING('!' 0,10 10)')));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10)')))' at line 1
-SELECT AsText(ConvexHull(GeomFromText('LINESTRING(12,34 0,10 10)')));
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('LINESTRING(12,34 0,10 10)')));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT AsText(ConvexHull(GeomFromText('POLYGON((a 0,10 10,10 0,0 0))')));
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('POLYGON((a 0,10 10,10 0,0 0))')));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT AsText(ConvexHull(GeomFromText('POLYGON((0 0,! 10,10 0,0 0))')));
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('POLYGON((0 0,! 10,10 0,0 0))')));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT AsText(ConvexHull(GeomFromText('POLYGON(('!' 0,10 10,10 0,0 0))')));
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('POLYGON(('!' 0,10 10,10 0,0 0))')));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10,10 0,0 0))')))' at line 1
-SELECT AsText(ConvexHull(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0))')));
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('POLYGON((12,34 0,10 10,10 0,0 0))')));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT AsText(ConvexHull(GeomFromText('POLYGON((0 0))')));
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('POLYGON((0 0))')));
 ERROR 22023: Invalid GIS data provided to function st_convex_hull.
-SELECT AsText(ConvexHull(GeomFromText('POLYGON((0 0,5 5))')));
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('POLYGON((0 0,5 5))')));
 ERROR 22023: Invalid GIS data provided to function st_convex_hull.
-SELECT AsText(ConvexHull(GeomFromText('POLYGON((0 0,5 5,10 10))')));
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('POLYGON((0 0,5 5,10 10))')));
 ERROR 22023: Invalid GIS data provided to function st_convex_hull.
-SELECT AsText(ConvexHull(GeomFromText('POLYGON((0 0,0 5,10 10),(0 0))')));
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('POLYGON((0 0,0 5,10 10),(0 0))')));
 ERROR 22023: Invalid GIS data provided to function st_convex_hull.
-SELECT AsText(ConvexHull(GeomFromText('MULTIPOLYGON(((0 0,5 5,10 10)),((10 10)))')));
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,5 5,10 10)),((10 10)))')));
 ERROR 22023: Invalid GIS data provided to function st_convex_hull.
-SELECT AsText(ConvexHull(GeomFromText('MULTIPOLYGON(((0 0,5 5,10 10)),((10 10))')));
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,5 5,10 10)),((10 10))')));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT AsText(ConvexHull(0x000000000200000000000000000000000000000000));
+SELECT ST_ASTEXT(ST_CONVEXHULL(0x000000000200000000000000000000000000000000));
 ERROR HY000: Geometry byte string must be little endian.
-SELECT AsText(ConvexHull(0x010100000001000000010100000000000000000000));
+SELECT ST_ASTEXT(ST_CONVEXHULL(0x010100000001000000010100000000000000000000));
 ERROR HY000: Geometry byte string must be little endian.
-SELECT AsText(ConvexHull(0x010100000002000000000000000000000000000000));
+SELECT ST_ASTEXT(ST_CONVEXHULL(0x010100000002000000000000000000000000000000));
 ERROR HY000: Geometry byte string must be little endian.
-SELECT AsText(ConvexHull(0x000000000600000001000000000200000002000000));
+SELECT ST_ASTEXT(ST_CONVEXHULL(0x000000000600000001000000000200000002000000));
 ERROR HY000: Geometry byte string must be little endian.
-SELECT AsText(ConvexHull(0x000000000200000001000000050000000000000000));
+SELECT ST_ASTEXT(ST_CONVEXHULL(0x000000000200000001000000050000000000000000));
 ERROR HY000: Geometry byte string must be little endian.
-SELECT AsText(ConvexHull(0x010300000002000000010300000002000000050000));
+SELECT ST_ASTEXT(ST_CONVEXHULL(0x010300000002000000010300000002000000050000));
 ERROR HY000: Geometry byte string must be little endian.
-SELECT AsText(ConvexHull(0x010400000002000000010100000000000000000000));
-ERROR HY000: Geometry byte string must be little endian.
-#---------------------------------------------------------------------------------------
-# ST_ConvexHull()
-SELECT AsText(ST_ConvexHull());
-ERROR 42000: Incorrect parameter count in the call to native function 'ST_ConvexHull'
-SELECT AsText(ST_ConvexHull(NULL));
-AsText(ST_ConvexHull(NULL))
-NULL
-SELECT AsText(ST_ConvexHull(GeomFromText('POINT()')));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT AsText(ST_ConvexHull(GeomFromText('LINESTRING()')));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT AsText(ST_ConvexHull(GeomFromText('POLYGON(())')));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT AsText(ST_ConvexHull(GeomFromText('MULTIPOINT()')));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT AsText(ST_ConvexHull(GeomFromText('MULTILINESTRING(())')));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT AsText(ST_ConvexHull(GeomFromText('MULTIPOLYGON((()))')));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT AsText(ST_ConvexHull(GeomFromText('POINT(a 0)')));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT AsText(ST_ConvexHull(GeomFromText('POINT(! 0)')));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT AsText(ST_ConvexHull(GeomFromText('POINT('!' 0)')));
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0)')))' at line 1
-SELECT AsText(ST_ConvexHull(GeomFromText('POINT(12,34 0)')));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT AsText(ST_ConvexHull(GeomFromText('LINESTRING(a 0,10 10)')));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT AsText(ST_ConvexHull(GeomFromText('LINESTRING(0 0,! 10)')));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT AsText(ST_ConvexHull(GeomFromText('LINESTRING('!' 0,10 10)')));
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10)')))' at line 1
-SELECT AsText(ST_ConvexHull(GeomFromText('LINESTRING(12,34 0,10 10)')));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT AsText(ST_ConvexHull(GeomFromText('POLYGON((a 0,10 10,10 0,0 0))')));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT AsText(ST_ConvexHull(GeomFromText('POLYGON((0 0,! 10,10 0,0 0))')));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT AsText(ST_ConvexHull(GeomFromText('POLYGON(('!' 0,10 10,10 0,0 0))')));
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10,10 0,0 0))')))' at line 1
-SELECT AsText(ST_ConvexHull(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0))')));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT AsText(ST_ConvexHull(GeomFromText('POLYGON((0 0))')));
-ERROR 22023: Invalid GIS data provided to function st_convex_hull.
-SELECT AsText(ST_ConvexHull(GeomFromText('POLYGON((0 0,5 5))')));
-ERROR 22023: Invalid GIS data provided to function st_convex_hull.
-SELECT AsText(ST_ConvexHull(GeomFromText('POLYGON((0 0,5 5,10 10))')));
-ERROR 22023: Invalid GIS data provided to function st_convex_hull.
-SELECT AsText(ST_ConvexHull(GeomFromText('POLYGON((0 0,0 5,10 10),(0 0))')));
-ERROR 22023: Invalid GIS data provided to function st_convex_hull.
-SELECT AsText(ST_ConvexHull(GeomFromText('MULTIPOLYGON(((0 0,5 5,10 10)),((10 10)))')));
-ERROR 22023: Invalid GIS data provided to function st_convex_hull.
-SELECT AsText(ST_ConvexHull(GeomFromText('MULTIPOLYGON(((0 0,5 5,10 10)),((10 10))')));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT AsText(ST_ConvexHull(0x000000000200000000000000000000000000000000));
-ERROR HY000: Geometry byte string must be little endian.
-SELECT AsText(ST_ConvexHull(0x010100000001000000010100000000000000000000));
-ERROR HY000: Geometry byte string must be little endian.
-SELECT AsText(ST_ConvexHull(0x010100000002000000000000000000000000000000));
-ERROR HY000: Geometry byte string must be little endian.
-SELECT AsText(ST_ConvexHull(0x000000000600000001000000000200000002000000));
-ERROR HY000: Geometry byte string must be little endian.
-SELECT AsText(ST_ConvexHull(0x000000000200000001000000050000000000000000));
-ERROR HY000: Geometry byte string must be little endian.
-SELECT AsText(ST_ConvexHull(0x010300000002000000010300000002000000050000));
-ERROR HY000: Geometry byte string must be little endian.
-SELECT AsText(ST_ConvexHull(0x010400000002000000010100000000000000000000));
+SELECT ST_ASTEXT(ST_CONVEXHULL(0x010400000002000000010100000000000000000000));
 ERROR HY000: Geometry byte string must be little endian.
 #clean up
-DROP TABLE IF EXISTS gis_geometrycollection;
+DROP TABLE gis_geometrycollection;

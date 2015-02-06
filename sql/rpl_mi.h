@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,15 +18,17 @@
 
 #ifdef HAVE_REPLICATION
 
-#include <my_global.h>
-
-#define DEFAULT_CONNECT_RETRY 60
-
-#include "rpl_rli.h"
-#include "my_sys.h"
+#include "my_global.h"
+#include "binlog_event.h"            // enum_binlog_checksum_alg
+#include "log_event.h"               // Format_description_log_event
+#include "rpl_gtid.h"                // Gtid
+#include "rpl_info.h"                // Rpl_info
+#include "rpl_trx_boundary_parser.h" // Transaction_boundary_parser
 
 typedef struct st_mysql MYSQL;
 class Rpl_info_factory;
+
+#define DEFAULT_CONNECT_RETRY 60
 
 /*****************************************************************************
   Replication IO Thread
@@ -272,12 +274,10 @@ public:
     Initialized to novalue, then set to the queried from master
     @@global.binlog_checksum and deactivated once FD has been received.
   */
-  uint8 checksum_alg_before_fd;
+  binary_log::enum_binlog_checksum_alg checksum_alg_before_fd;
   ulong retry_count;
   char master_uuid[UUID_LENGTH+1];
   char bind_addr[HOSTNAME_LENGTH+1];
-
-  ulong master_gtid_mode;
 
   int mi_init_info();
   void end_info();
@@ -401,6 +401,30 @@ private:
 
   Master_info(const Master_info& info);
   Master_info& operator=(const Master_info& info);
+
+  /*
+    Last GTID queued by IO thread. This may contain a GTID of non-fully
+    replicated transaction and will be used when the last event of the
+    transaction be queued to add the GTID to the Retrieved_Gtid_Set.
+  */
+  Gtid last_gtid_queued;
+public:
+  Gtid *get_last_gtid_queued() { return &last_gtid_queued; }
+  void set_last_gtid_queued(Gtid &gtid) { last_gtid_queued= gtid; }
+  void set_last_gtid_queued(rpl_sidno sno, rpl_gno gtidno)
+  {
+    last_gtid_queued.set(sno, gtidno);
+  }
+  void clear_last_gtid_queued() { last_gtid_queued.clear(); }
+
+  /*
+    This will be used to verify transactions boundaries of events sent by the
+    master server.
+    It will also be used to verify transactions boundaries on the relay log
+    while collecting the Retrieved_Gtid_Set to make sure of only adding GTIDs
+    of fully retrieved transactions.
+  */
+  Transaction_boundary_parser transaction_parser;
 };
 int change_master_server_id_cmp(ulong *id1, ulong *id2);
 

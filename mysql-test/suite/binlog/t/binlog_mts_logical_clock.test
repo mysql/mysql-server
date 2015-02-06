@@ -1,7 +1,6 @@
 #
 # The test verifies proper computation of logical timestamps in
 # few situations having GTID mode OFF.
-# Positive outcome is indicated by non-zero grep counts.
 #
 --source include/have_binlog_format_mixed.inc
 --source include/have_myisam.inc
@@ -10,28 +9,13 @@
 --source include/not_gtid_enabled.inc
 
 #
-# GTID mode non-specific tests are sourced.
+# Tests that are independent of GTID_MODE
 #
 --source extra/binlog_tests/logical_timestamping.inc
 
-#
-# GTID value sensitive tests are sourced.
-#
---source extra/binlog_tests/drop_tables_logical_timestamp.inc
-
---let GREP_PATTERN=last_committed=2	sequence_number=3
---source extra/rpl_tests/grep_pattern.inc
---echo Must be 2 occurences found
---let GREP_PATTERN=last_committed=0	sequence_number=0
---source extra/rpl_tests/grep_pattern.inc
-
-# And nothing in the log any more.
---echo *** All groups are found, no more tagged groups in the log
---let GREP_PATTERN=sequence_number=4
---source extra/rpl_tests/grep_pattern.inc
 
 #
-# GTID OFF requiring tests follow.
+# Tests that require GTID_MODE=OFF follow.
 #
 # Testing the mixed engine transaction logging.
 # There must be two groups per transaction in the binary log. Each group
@@ -79,21 +63,9 @@ START TRANSACTION;
   INSERT INTO t1 SET a=1;
   INSERT INTO tm SET a=2;
 COMMIT;
---exec $MYSQL_BINLOG --force-if-open $MYSQLD_DATADIR/master-bin.000001 > $events_file
---let GREP_PATTERN=last_committed=0	sequence_number=1
---source extra/rpl_tests/grep_pattern.inc
---let GREP_PATTERN=last_committed=1	sequence_number=2
---source extra/rpl_tests/grep_pattern.inc
-
---echo *** All groups are found, no more tagged groups in the log
---let GREP_PATTERN=sequence_number=3
---source extra/rpl_tests/grep_pattern.inc
-
---echo *** Printing queries (2)
---let GREP_PRINT_NOT_VERBOSE=0
---let GREP_PATTERN=INSERT
---source extra/rpl_tests/grep_pattern.inc
---let GREP_PRINT_NOT_VERBOSE=1
+--let $binlog_file= master-bin.000001
+--let $logical_timestamps= 0 1;1 2
+--source include/assert_logical_timestamps.inc
 
 RESET MASTER;
 # transaction that mixes transactional and nontransactional tables and rolls back
@@ -102,19 +74,8 @@ START TRANSACTION;
   INSERT INTO tm SET a=2;
 ROLLBACK;
 
---exec $MYSQL_BINLOG --force-if-open $MYSQLD_DATADIR/master-bin.000001 > $events_file
---let GREP_PATTERN=last_committed=0	sequence_number=1
---source extra/rpl_tests/grep_pattern.inc
-
---echo *** All (1) groups are found, no more tagged groups in the log
---let GREP_PATTERN=sequence_number=2
---source extra/rpl_tests/grep_pattern.inc
-
---echo *** Printing queries (1)
---let GREP_PRINT_NOT_VERBOSE=0
---let GREP_PATTERN=INSERT
---source extra/rpl_tests/grep_pattern.inc
---let GREP_PRINT_NOT_VERBOSE=1
+--let $logical_timestamps= 0 1
+--source include/assert_logical_timestamps.inc
 
 RESET MASTER;
 # One query gets logged to as multiple transactions, due to both mixed
@@ -122,45 +83,15 @@ RESET MASTER;
 
 CALL p1();
 
---exec $MYSQL_BINLOG --force-if-open $MYSQLD_DATADIR/master-bin.000001 > $events_file
---let GREP_PATTERN=last_committed=0	sequence_number=1
---source extra/rpl_tests/grep_pattern.inc
---let GREP_PATTERN=last_committed=1	sequence_number=2
---source extra/rpl_tests/grep_pattern.inc
---let GREP_PATTERN=last_committed=2	sequence_number=3
---source extra/rpl_tests/grep_pattern.inc
-
---echo *** All (3) groups are found, no more tagged groups in the log
---let GREP_PATTERN=sequence_number=4
---source extra/rpl_tests/grep_pattern.inc
-
---echo *** Printing queries (3)
---let GREP_PRINT_NOT_VERBOSE=0
---let GREP_PATTERN=INSERT
---source extra/rpl_tests/grep_pattern.inc
---let GREP_PRINT_NOT_VERBOSE=1
+--let $logical_timestamps= 0 1;1 2;2 3
+--source include/assert_logical_timestamps.inc
 
 RESET MASTER;
 # few regular transactions logged with one query
 CALL p2();
 
---exec $MYSQL_BINLOG --force-if-open $MYSQLD_DATADIR/master-bin.000001 > $events_file
---let GREP_PATTERN=last_committed=0	sequence_number=1
---source extra/rpl_tests/grep_pattern.inc
---let GREP_PATTERN=last_committed=1	sequence_number=2
---source extra/rpl_tests/grep_pattern.inc
---let GREP_PATTERN=last_committed=2	sequence_number=3
---source extra/rpl_tests/grep_pattern.inc
-
---echo *** All (3) groups are found, no more tagged groups in the log
---let GREP_PATTERN=sequence_number=4
---source extra/rpl_tests/grep_pattern.inc
-
---echo *** Printing queries (3)
---let GREP_PRINT_NOT_VERBOSE=0
---let GREP_PATTERN=INSERT
---source extra/rpl_tests/grep_pattern.inc
---let GREP_PRINT_NOT_VERBOSE=1
+--let $logical_timestamps= 0 1;1 2;2 3
+--source include/assert_logical_timestamps.inc
 
 DROP PROCEDURE p1;
 DROP PROCEDURE p2;

@@ -6,6 +6,8 @@ Note	####	Storing MySQL user name or password information in the master info rep
 ==== Create new replication user ====
 [on master]
 GRANT REPLICATION SLAVE ON *.* TO rpl@127.0.0.1 IDENTIFIED BY 'rpl';
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 [on slave]
 include/sync_slave_sql_with_master.inc
 include/stop_slave.inc

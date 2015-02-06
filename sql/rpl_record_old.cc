@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,9 +13,14 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "rpl_rli.h"
 #include "rpl_record_old.h"
-#include "log_event.h"                          // Log_event_type
+
+#include "my_bitmap.h"     // MY_BITMAP
+#include "field.h"         // Field
+#include "rpl_rli.h"       // Relay_log_info
+#include "table.h"         // TABLE
+
+using binary_log::Log_event_type;
 
 size_t
 pack_row_old(TABLE *table, MY_BITMAP const* cols,
@@ -169,7 +174,7 @@ unpack_row_old(Relay_log_info *rli,
                          (*field_ptr)->flags, mask,
                          (*field_ptr)->flags & mask));
 
-    if (event_type == WRITE_ROWS_EVENT &&
+    if (event_type == binary_log::WRITE_ROWS_EVENT &&
         ((*field_ptr)->flags & mask) == mask)
     {
       rli->report(ERROR_LEVEL, ER_NO_DEFAULT_FOR_FIELD,

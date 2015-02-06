@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -15,8 +15,15 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
    02110-1301 USA */
 
-#include "log.h"
 #include "rpl_table_access.h"
+
+#include "handler.h"     // ha_rollback_trans
+#include "log.h"         // sql_print_warning
+#include "sql_base.h"    // close_thread_tables
+#include "sql_class.h"   // THD
+#include "sql_lex.h"     // Query_tables_list
+#include "table.h"       // TABLE_LIST
+
 
 bool System_table_access::open_table(THD* thd, const LEX_STRING dbstr,
                                      const LEX_STRING tbstr,
@@ -149,7 +156,7 @@ void System_table_access::drop_thd(THD *thd)
   DBUG_ENTER("System_table_access::drop_thd");
 
   delete thd;
-  my_pthread_set_THR_THD(NULL);
+  my_thread_set_THR_THD(NULL);
 
   DBUG_VOID_RETURN;
 }

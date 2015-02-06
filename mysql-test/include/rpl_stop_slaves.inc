@@ -8,7 +8,7 @@
 #
 # [--let $rpl_only_running_threads= 1]
 # [--let $rpl_debug= 1]
-# [--let $rpl_timeout= NUMBER]
+# [--let $slave_timeout= NUMBER]
 # --source include/rpl_stop_slaves.inc
 #
 # Parameters:

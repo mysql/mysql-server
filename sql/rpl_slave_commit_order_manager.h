@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,11 +17,9 @@
 #define RPL_SLAVE_COMMIT_ORDER_MANAGER
 
 #include "my_global.h"
-#include "sql_class.h"
+#include "rpl_rli.h"          // is_slave_worker
+#include "sql_class.h"        // THD
 
-#include "handler.h"
-#include "rpl_rli.h"
-#include "rpl_rli_pdb.h"
 
 class Commit_order_manager
 {

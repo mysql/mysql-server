@@ -12,6 +12,8 @@
 # Avoid CrashReporter popup on Mac
 --source include/not_crashrep.inc
 
+--source include/have_innodb_max_16k.inc
+
 # In the test scenario, there can be orphaned .frm files.
 # These are expected.  So suppressing the associated warnings.
 call mtr.add_suppression("\\[ERROR\\] InnoDB: table .* does not exist "

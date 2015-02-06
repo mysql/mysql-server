@@ -16,12 +16,12 @@ select (select plugin from mysql.user where User='Tanjotuser2' and Host='127.0.0
 1 Expected
 SET @@global.old_passwords=0;
 SET @@session.old_passwords=0;
-select (select Password from mysql.user where User='Tanjotuser1' and Host='localhost')=password('abc');
-(select Password from mysql.user where User='Tanjotuser1' and Host='localhost')=password('abc')
+select (select authentication_string from mysql.user where User='Tanjotuser1' and Host='localhost')=password('abc');
+(select authentication_string from mysql.user where User='Tanjotuser1' and Host='localhost')=password('abc')
 1
 1 Expected
-select (select Password from mysql.user where User='Tanjotuser2' and Host='127.0.0.1')=password('abc');
-(select Password from mysql.user where User='Tanjotuser2' and Host='127.0.0.1')=password('abc')
+select (select authentication_string from mysql.user where User='Tanjotuser2' and Host='127.0.0.1')=password('abc');
+(select authentication_string from mysql.user where User='Tanjotuser2' and Host='127.0.0.1')=password('abc')
 1
 1 Expected
 ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: NO)
@@ -50,8 +50,8 @@ ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: Y
 ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: YES)
 SET @@global.old_passwords=2;
 SET @@session.old_passwords=2;
-SET PASSWORD FOR 'Tanjotuser1'@'localhost'=PASSWORD('abc');
-SET PASSWORD FOR 'Tanjotuser2'@'127.0.0.1'=PASSWORD('abc');
+SET PASSWORD FOR 'Tanjotuser1'@'localhost'='abc';
+SET PASSWORD FOR 'Tanjotuser2'@'127.0.0.1'='abc';
 ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: NO)
 ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: NO)
 ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: YES)
@@ -80,8 +80,8 @@ CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED WITH 'sha256_password';
 CREATE USER 'Tanjotuser2'@'127.0.0.1' IDENTIFIED WITH 'sha256_password';
 SET @@global.old_passwords=2;
 SET @@session.old_passwords=2;
-SET PASSWORD FOR 'Tanjotuser1'@'localhost'=PASSWORD('aaaaaaaaaabbbbbbbbbbccccccccccddddddddddeeeeeeeeeeaaaaaaaaaannnnnnnnnnaaaaaaaaaahhhhhhhhhh1111111111gggggggggg2222222222');
-SET PASSWORD FOR 'Tanjotuser2'@'127.0.0.1'=PASSWORD('aaaaaaaaaabbbbbbbbbbccccccccccddddddddddeeeeeeeeeeaaaaaaaaaannnnnnnnnnaaaaaaaaaahhhhhhhhhh1111111111gggggggggg2222222222');
+SET PASSWORD FOR 'Tanjotuser1'@'localhost'='aaaaaaaaaabbbbbbbbbbccccccccccddddddddddeeeeeeeeeeaaaaaaaaaannnnnnnnnnaaaaaaaaaahhhhhhhhhh1111111111gggggggggg2222222222';
+SET PASSWORD FOR 'Tanjotuser2'@'127.0.0.1'='aaaaaaaaaabbbbbbbbbbccccccccccddddddddddeeeeeeeeeeaaaaaaaaaannnnnnnnnnaaaaaaaaaahhhhhhhhhh1111111111gggggggggg2222222222';
 ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: NO)
 ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: NO)
 DROP USER 'Tanjotuser1'@'localhost';
@@ -112,8 +112,8 @@ CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED WITH 'sha256_password';
 CREATE USER 'Tanjotuser2'@'127.0.0.1' IDENTIFIED WITH 'sha256_password';
 SET @@global.old_passwords=2;
 SET @@session.old_passwords=2;
-SET PASSWORD FOR 'Tanjotuser1'@'localhost'=PASSWORD('');
-SET PASSWORD FOR 'Tanjotuser2'@'127.0.0.1'=PASSWORD('');
+SET PASSWORD FOR 'Tanjotuser1'@'localhost'='';
+SET PASSWORD FOR 'Tanjotuser2'@'127.0.0.1'='';
 ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: YES)
 ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: YES)
 ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: YES)
@@ -130,8 +130,8 @@ CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED WITH 'sha256_password';
 CREATE USER 'Tanjotuser2'@'127.0.0.1' IDENTIFIED WITH 'sha256_password';
 SET @@global.old_passwords=2;
 SET @@session.old_passwords=2;
-SET PASSWORD FOR 'Tanjotuser1'@'localhost'=PASSWORD('abc');
-SET PASSWORD FOR 'Tanjotuser2'@'127.0.0.1'=PASSWORD('abc');
+SET PASSWORD FOR 'Tanjotuser1'@'localhost'='abc';
+SET PASSWORD FOR 'Tanjotuser2'@'127.0.0.1'='abc';
 GRANT ALL ON *.* TO 'Tanjotuser1'@'localhost';
 GRANT ALL ON *.* TO 'Tanjotuser2'@'127.0.0.1';
 **** Client default_auth=sha_256_password and server default auth=native
@@ -158,7 +158,7 @@ Grant all on *.* to 'Tanjotuser1'@'localhost';
 Creating a user with SHA256_password plugin
 CREATE USER 'Tanjotuser3'@'localhost' IDENTIFIED WITH 'sha256_password';
 set @@session.old_passwords=2;
-set password for 'Tanjotuser3'@'localhost' =password('abc');
+set password for 'Tanjotuser3'@'localhost' ='abc';
 Grant all on *.* to 'Tanjotuser3'@'localhost';
 select (select plugin from mysql.user where User='Tanjotuser1' and Host='localhost')='mysql_native_password';
 (select plugin from mysql.user where User='Tanjotuser1' and Host='localhost')='mysql_native_password'
@@ -200,7 +200,7 @@ Starting the server with the default authentication sha256_password
 Creating a user with mysql_native_password plugin
 CREATE USER 'Tanjotuser2'@'localhost' IDENTIFIED WITH 'mysql_native_password';
 set @@session.old_passwords=0;
-set password for 'Tanjotuser2'@'localhost' =password('abc');
+set password for 'Tanjotuser2'@'localhost' ='abc';
 Grant all on *.* to 'Tanjotuser2'@'localhost';
 Creating a user with SHA256_password plugin
 CREATE USER 'Tanjotuser3'@'localhost' IDENTIFIED by 'abc';

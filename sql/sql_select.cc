@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -42,6 +42,7 @@
 #include "sql_optimizer.h"       // JOIN
 #include "sql_tmp_table.h"       // tmp tables
 #include "debug_sync.h"          // DEBUG_SYNC
+#include "item_sum.h"            // Item_sum
 
 #include <algorithm>
 using std::max;
@@ -90,7 +91,7 @@ uint find_shortest_key(TABLE *table, const key_map *usable_keys);
     contains one query block and no fake_select_lex separately.
     Such queries are executed with a more direct code path.
 */
-bool handle_query(THD *thd, LEX *lex, select_result *result,
+bool handle_query(THD *thd, LEX *lex, Query_result *result,
                   ulonglong added_options, ulonglong removed_options)
 {
   DBUG_ENTER("handle_query");
@@ -626,7 +627,7 @@ static bool setup_semijoin_dups_elimination(JOIN *join, uint no_jbuf_after)
             last_tab->qep_tab= tab_in_range;
             last_tab->rowid_offset= jt_rowid_offset;
             jt_rowid_offset += tab_in_range->table()->file->ref_length;
-            if (tab_in_range->table()->maybe_null)
+            if (tab_in_range->table()->is_nullable())
             {
               last_tab->null_byte= jt_null_bits / 8;
               last_tab->null_bit= jt_null_bits++;
@@ -882,10 +883,15 @@ bool JOIN::prepare_result()
   DBUG_ENTER("JOIN::prepare_result");
 
   error= 0;
-  /* Create result tables for materialized views. */
-  if (!zero_result_cause &&
-      select_lex->handle_derived(thd->lex, &mysql_derived_create))
-    goto err;
+  // Create result tables for materialized views/derived tables
+  if (select_lex->materialized_derived_table_count && !zero_result_cause)
+  {
+    for (TABLE_LIST *tl= select_lex->leaf_tables; tl; tl= tl->next_leaf)
+    {
+      if (tl->is_view_or_derived() && tl->create_derived(thd))
+        goto err;
+    }
+  }
 
   if (select_lex->query_result()->prepare2())
     goto err;
@@ -894,11 +900,11 @@ bool JOIN::prepare_result()
       get_schema_tables_result(this, PROCESSED_BY_JOIN_EXEC))
     goto err;
 
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 
 err:
   error= 1;
-  DBUG_RETURN(TRUE);
+  DBUG_RETURN(true);
 }
 
 
@@ -1046,7 +1052,7 @@ void calc_used_field_length(THD *thd,
   }
   if (null_fields || uneven_bit_fields)
     rec_length+= (table->s->null_fields + 7) / 8;
-  if (table->maybe_null)
+  if (table->is_nullable())
     rec_length+= sizeof(my_bool);
   if (blobs)
   {
@@ -1844,11 +1850,11 @@ void QEP_TAB::push_index_cond(const JOIN_TAB *join_tab,
   @return False if OK, True if error
 */
 
-bool JOIN::setup_materialized_table(JOIN_TAB *tab, uint tableno,
-                                    const POSITION *inner_pos,
-                                    POSITION *sjm_pos)
+bool JOIN::setup_semijoin_materialized_table(JOIN_TAB *tab, uint tableno,
+                                             const POSITION *inner_pos,
+                                             POSITION *sjm_pos)
 {
-  DBUG_ENTER("JOIN::setup_materialized_table");
+  DBUG_ENTER("JOIN::setup_semijoin_materialized_table");
   const TABLE_LIST *const emb_sj_nest= inner_pos->table->emb_sj_nest;
   Semijoin_mat_optimize *const sjm_opt= &emb_sj_nest->nested_join->sjm;
   Semijoin_mat_exec *const sjm_exec= tab->sj_mat_exec();
@@ -1858,7 +1864,8 @@ bool JOIN::setup_materialized_table(JOIN_TAB *tab, uint tableno,
               inner_pos->sj_strategy == SJ_OPT_MATERIALIZE_SCAN);
 
   /* 
-    Set up the table to write to, do as select_union::create_result_table does
+    Set up the table to write to, do as
+    Query_result_union::create_result_table does
   */
   sjm_exec->table_param= Temp_table_param();
   count_field_types(select_lex, &sjm_exec->table_param,
@@ -1911,7 +1918,8 @@ bool JOIN::setup_materialized_table(JOIN_TAB *tab, uint tableno,
 
   for (uint fieldno= 0; fieldno < field_count; fieldno++)
   {
-    if (!(sjm_opt->mat_fields[fieldno]= new Item_field(table->field[fieldno])))
+    if (!(sjm_opt->mat_fields[fieldno]=
+          new Item_field(table->visible_field_ptr()[fieldno])))
       DBUG_RETURN(true);
   }
 
@@ -2100,7 +2108,7 @@ make_join_readinfo(JOIN *join, uint no_jbuf_after)
     qep_tab->read_record.unlock_row= rr_unlock_row;
 
     Opt_trace_object trace_refine_table(trace);
-    trace_refine_table.add_utf8_table(table);
+    trace_refine_table.add_utf8_table(qep_tab->table_ref);
 
     if (qep_tab->do_loosescan())
     {
@@ -3237,23 +3245,23 @@ void JOIN::clear()
 
 
 /**
-  Change the select_result object of the query block.
+  Change the Query_result object of the query block.
 
   If old_result is not used, forward the call to the current
-  select_result in case it is a wrapper around old_result.
+  Query_result in case it is a wrapper around old_result.
 
-  Call prepare() and prepare2() on the new select_result if we decide
+  Call prepare() and prepare2() on the new Query_result if we decide
   to use it.
 
-  @param new_result New select_result object
-  @param old_result Old select_result object (NULL to force change)
+  @param new_result New Query_result object
+  @param old_result Old Query_result object (NULL to force change)
 
   @retval false Success
   @retval true  Error
 */
 
-bool SELECT_LEX::change_query_result(select_result_interceptor *new_result,
-                                     select_result_interceptor *old_result)
+bool SELECT_LEX::change_query_result(Query_result_interceptor *new_result,
+                                     Query_result_interceptor *old_result)
 {
   DBUG_ENTER("SELECT_LEX::change_query_result");
   if (old_result == NULL || query_result() == old_result)

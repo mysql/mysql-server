@@ -1,0 +1,49 @@
+#
+# Show the global value;
+#
+SELECT @@global.avoid_temporal_upgrade;
+SHOW GLOBAL VARIABLES LIKE 'avoid_temporal_upgrade';
+--disable_warnings
+SELECT * FROM information_schema.global_variables WHERE variable_name='avoid_temporal_upgrade';
+--enable_warnings
+
+--echo #It is not a session variable.
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.avoid_temporal_upgrade;
+SHOW SESSION VARIABLES LIKE 'avoid_temporal_upgrade';
+--disable_warnings
+SELECT * FROM information_schema.session_variables WHERE variable_name='avoid_temporal_upgrade';
+--enable_warnings
+--error ER_GLOBAL_VARIABLE
+SET SESSION avoid_temporal_upgrade= ON;
+
+--echo #Test setting the variable to various values.
+
+--echo #Boolean values.
+SET GLOBAL avoid_temporal_upgrade= ON;
+SELECT @@global.avoid_temporal_upgrade;
+
+SET GLOBAL avoid_temporal_upgrade= OFF;
+SELECT @@global.avoid_temporal_upgrade;
+
+SET GLOBAL avoid_temporal_upgrade= 1;
+SELECT @@global.avoid_temporal_upgrade;
+
+SET GLOBAL avoid_temporal_upgrade= 0;
+SELECT @@global.avoid_temporal_upgrade;
+
+--echo #Test for DEFAULT value.
+SET GLOBAL avoid_temporal_upgrade= DEFAULT;
+SELECT @@global.avoid_temporal_upgrade;
+
+--echo #Test for invalid value.
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL avoid_temporal_upgrade= 2;
+
+--echo #Test for invalid statement for setting the 
+--echo #global variable.
+--error ER_GLOBAL_VARIABLE
+SET avoid_temporal_upgrade= 1;
+
+--echo #Fetches the current global value for the variable.
+SELECT @@avoid_temporal_upgrade;

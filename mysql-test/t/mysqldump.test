@@ -10,6 +10,8 @@
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
 
+--source include/have_innodb_zip.inc
+
 disable_query_log;
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Table .*innodb_(table|index)_stats.* not found");
@@ -2526,7 +2528,7 @@ DROP DATABASE `a\\k`;
 CREATE DATABASE dump_gis;
 USE dump_gis;
 CREATE TABLE t1 (a GEOMETRY);
-INSERT INTO t1 VALUES(GeomFromText('LineString(1 1, 2 1, 2 2, 1 2, 1 1)'));
+INSERT INTO t1 VALUES(ST_GeomFromText('LineString(1 1, 2 1, 2 2, 1 2, 1 1)'));
 SELECT HEX(a) FROM t1;
 --exec $MYSQL_DUMP -necqt --compact --hex-blob dump_gis
 DROP DATABASE dump_gis;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,7 +17,6 @@
 #include "parse_tree_helpers.h"
 
 #include "sql_class.h"
-#include "set_var.h"
 #include "sp_head.h"
 #include "sp_instr.h"
 #include "auth/auth_common.h"
@@ -112,12 +111,12 @@ bool setup_select_in_parentheses(SELECT_LEX *sel)
 
 
 /**
-  @brief Push an error message into MySQL error stack with line
+  @brief Push an error message into MySQL diagnostic area with line
   and position information.
 
   This function provides semantic action implementers with a way
   to push the famous "You have a syntax error near..." error
-  message into the error stack, which is normally produced only if
+  message into the diagnostic area, which is normally produced only if
   a parse error is discovered internally by the Bison generated
   parser.
 */
@@ -131,7 +130,7 @@ void my_syntax_error(const char *s)
   if (!yytext)
     yytext= "";
 
-  /* Push an error into the error stack */
+  /* Push an error into the diagnostic area */
   ErrConvString err(yytext, thd->variables.character_set_client);
   my_printf_error(ER_PARSE_ERROR,  ER(ER_PARSE_ERROR), MYF(0), s,
                   err.ptr(), lip->yylineno);
@@ -324,7 +323,6 @@ void sp_create_assignment_lex(THD *thd, const char *option_ptr)
   /* Set new LEX as if we at start of set rule. */
   lex->sql_command= SQLCOM_SET_OPTION;
   lex->var_list.empty();
-  lex->one_shot_set= false;
   lex->autocommit= false;
 
   /*

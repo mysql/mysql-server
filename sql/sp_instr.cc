@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,6 +28,7 @@
 #include "transaction.h"  // trans_commit_stmt
 #include "prealloced_array.h"
 #include "binlog.h"
+#include "item_cmpfunc.h" // Item_func_eq
 
 #include <algorithm>
 #include <functional>
@@ -356,7 +357,7 @@ bool sp_lex_instr::reset_lex_and_exec_core(THD *thd,
                                UINT_MAX, false));
 
     if (!rc)
-      rc= open_and_lock_tables(thd, m_lex->query_tables, true, 0);
+      rc= open_and_lock_tables(thd, m_lex->query_tables, 0);
 
     if (!rc)
     {

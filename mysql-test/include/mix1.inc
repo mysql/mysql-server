@@ -202,14 +202,13 @@ DROP TABLE t1;
 #
 # Bug #28272: EXPLAIN for SELECT from an empty InnoDB table
 #
-
 CREATE TABLE t1 (
   a1 decimal(10,0) DEFAULT NULL,
   a2 blob,
   a3 time DEFAULT NULL,
   a4 blob,
   a5 char(175) DEFAULT NULL,
-  a6 timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  a6 timestamp NOT NULL DEFAULT '2000-01-01 01:01:01',
   a7 tinyblob,
   INDEX idx (a6,a7(239),a5)
 ) ENGINE=InnoDB;
@@ -549,6 +548,8 @@ drop table t1;
 #             for an InnoDB table
 #
 
+# Legacy queries below need to turn off ONLY_FULL_GROUP_BY and STRICT mode.
+SET sql_mode='NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1(
   id int AUTO_INCREMENT PRIMARY KEY,
   stat_id int NOT NULL,
@@ -607,7 +608,7 @@ ANALYZE TABLE t2;
 -- enable_query_log
 
 EXPLAIN SELECT COUNT(*) FROM t2 WHERE stat_id IN (1,3) AND acct_id=785;
-
+SET sql_mode=default;
 DROP TABLE t1,t2; 
 
 #
@@ -664,7 +665,7 @@ drop table bug29807;
 create table bug29807 (a int);
 drop table bug29807;
 --disable_query_log
-call mtr.add_suppression("InnoDB: Table .test...bug29807. does not exist in the InnoDB internal");
+call mtr.add_suppression("InnoDB: Table .*test.*bug29807.* does not exist in the InnoDB internal");
 call mtr.add_suppression("InnoDB: Cannot open table test/bug29807 from");
 --enable_query_log
 
@@ -687,9 +688,11 @@ INSERT INTO t2 VALUES (1);
 --echo switch to connection c2
 CONNECTION c2;
 SET AUTOCOMMIT=0;
+SET @old_lock_wait_timeout= @@lock_wait_timeout;
+SET lock_wait_timeout= 1;
 --error ER_LOCK_WAIT_TIMEOUT
 LOCK TABLES t1 READ, t2 READ;
-
+SET  @@lock_wait_timeout= @old_lock_wait_timeout;
 --echo switch to connection c1
 CONNECTION c1;
 COMMIT;
@@ -813,10 +816,14 @@ drop table t1,t2;
 #
 # Bug#17530: Incorrect key truncation on table creation caused server crash.
 #
+
+# Legacy queries below need to turn off ONLY_FULL_GROUP_BY and STRICT mode.
+SET sql_mode='NO_ENGINE_SUBSTITUTION';
 create table t1(f1 varchar(800) binary not null, key(f1))
   character set utf8 collate utf8_general_ci;
 insert into t1 values('aaa');
 drop table t1;
+SET sql_mode=default;
 
 
 #
@@ -992,11 +999,15 @@ DROP TABLE t1;
 #
 # Bug #28125: ERROR 2013 when adding index.
 #
+
+# Legacy queries below need to turn off ONLY_FULL_GROUP_BY and STRICT mode.
+SET sql_mode='NO_ENGINE_SUBSTITUTION';
 create table t1(a text) engine=innodb default charset=utf8; 
 insert into t1 values('aaa');
 alter table t1 add index(a(1024));
 show create table t1;
 drop table t1;
+SET sql_mode=default;
 
 #
 # Bug #28570: handler::index_read() is called with different find_flag when 
@@ -1016,7 +1027,7 @@ SELECT * FROM t1 WHERE b=20 FOR UPDATE;
 
 --connect (conn2, localhost, root,,test)
 
-# This statement gives a "failed: 1205: Lock wait timeout exceeded; try 
+# This statement gives a "failed: 1205: Lock wait timeout exceeded; try
 # restarting transaction" message when the bug is present.
 START TRANSACTION;
 SELECT * FROM t1 WHERE b=10 ORDER BY A FOR UPDATE;
@@ -1256,12 +1267,14 @@ DROP TABLE t1;
 --echo #
 --echo # Bug #36995: valgrind error in remove_const during subquery executions
 --echo #
-
 create table t1 (a bit(1) not null,b int) engine=myisam;
 create table t2 (c int) engine=innodb;
+# Legacy queries below need to turn off ONLY_FULL_GROUP_BY and STRICT mode.
+SET sql_mode='NO_ENGINE_SUBSTITUTION';
 explain
 select b from t1 where a not in (select b from t1,t2 group by a) group by a;
 DROP TABLE t1,t2;
+SET sql_mode=default;
 
 --echo End of 5.0 tests
 

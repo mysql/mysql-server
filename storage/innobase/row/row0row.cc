@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -33,6 +33,7 @@ Created 4/20/1996 Heikki Tuuri
 
 #include "data0type.h"
 #include "dict0dict.h"
+#include "dict0boot.h"
 #include "btr0btr.h"
 #include "mach0data.h"
 #include "trx0rseg.h"
@@ -517,7 +518,11 @@ row_rec_to_index_entry_low(
 
 	dtuple_set_n_fields_cmp(entry,
 				dict_index_get_n_unique_in_tree(index));
-	ut_ad(rec_len == dict_index_get_n_fields(index));
+	ut_ad(rec_len == dict_index_get_n_fields(index)
+	      /* a record for older SYS_INDEXES table
+	      (missing merge_threshold column) is acceptable. */
+	      || (index->table->id == DICT_INDEXES_ID
+		  && rec_len == dict_index_get_n_fields(index) - 1));
 
 	dict_index_copy_types(entry, index, rec_len);
 
@@ -898,7 +903,7 @@ row_search_index_entry(
 
 	switch (btr_pcur_get_btr_cur(pcur)->flag) {
 	case BTR_CUR_DELETE_REF:
-		ut_a(mode & BTR_DELETE);
+		ut_a(mode & BTR_DELETE && !dict_index_is_spatial(index));
 		return(ROW_NOT_DELETED_REF);
 
 	case BTR_CUR_DEL_MARK_IBUF:

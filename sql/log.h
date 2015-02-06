@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,8 +16,11 @@
 #ifndef LOG_H
 #define LOG_H
 
-#include "sql_class.h"
-#include "handler.h"                            /* my_xid */
+#include "my_global.h"
+#include "auth/sql_security_ctx.h"  // Security_context
+#include "handler.h"                // ha_commit_low
+
+typedef ulonglong my_xid;
 
 
 /**
@@ -1053,14 +1056,6 @@ public:
 
 
 extern Slow_log_throttle log_throttle_qni;
-
-enum enum_mts_parallel_type {
-  /* Parallel slave based on Database name */
-  MTS_PARALLEL_TYPE_DB_NAME= 0,
-  /* Parallel slave based on group information from Binlog group commit */
-  MTS_PARALLEL_TYPE_LOGICAL_CLOCK= 1
-};
-
 
 #endif // MYSQL_SERVER
 

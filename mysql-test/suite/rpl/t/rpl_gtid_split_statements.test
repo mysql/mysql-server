@@ -1,0 +1,2 @@
+--source include/have_gtid.inc
+--source extra/rpl_tests/rpl_split_statements.test

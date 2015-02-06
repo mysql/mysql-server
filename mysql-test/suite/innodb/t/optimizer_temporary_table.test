@@ -1,0 +1,52 @@
+#
+# WL#6737:  InnoDB: Enabling InnoDB temp-tables as default internal SE for
+#	    MySQL Optimizer
+#
+
+--source include/have_innodb.inc
+--source include/no_valgrind_without_big.inc
+--source include/not_embedded.inc
+
+# Optimizer plan are printed as part of the test-case and changing page
+# size will affect the optimizer plan numbers. so enable it only for 16K
+--source include/have_innodb_16k.inc
+
+
+################################################################################
+#
+# Workload will run following scenarios
+# 1. Execute different kind of queries using InnoDB as temp-tables
+#
+################################################################################
+
+#-----------------------------------------------------------------------------
+#
+# create test bed.
+#
+##--disable_query_log
+let $wl6737_auto_inc = auto_increment;
+--source suite/innodb/include/create_workload_itt.inc
+##--enable_query_log
+
+#-----------------------------------------------------------------------------
+#
+# Workload in non-read-only mode.
+#
+--source suite/innodb/include/query_workload_itt.inc
+
+#-----------------------------------------------------------------------------
+#
+# Workload in read-only mode.
+#
+let $restart_parameters = restart: --innodb-read-only --big-tables=1;
+--source include/restart_mysqld.inc
+
+--source suite/innodb/include/query_workload_itt.inc
+
+#-----------------------------------------------------------------------------
+#
+# remove test bed.
+#
+let $restart_parameters = restart;
+--source include/restart_mysqld.inc
+--source suite/innodb/include/drop_workload_itt.inc

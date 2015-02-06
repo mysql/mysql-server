@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -586,6 +586,12 @@ static void print_cost(char *buf, uint buf_len, double cost)
     my_snprintf(buf, buf_len, "%.14g", cost);
 }
 
+static void print_filtered(char *buf, uint buf_len, double filtered)
+{
+  my_snprintf(buf, buf_len, "%.2f", filtered);
+}
+
+
 bool table_base_ctx::format_body(Opt_trace_context *json, Opt_trace_object *obj)
 {
   StringBuffer<64> buff;
@@ -623,7 +629,11 @@ bool table_base_ctx::format_body(Opt_trace_context *json, Opt_trace_object *obj)
     obj->add(K_PREFIX_ROWS, col_prefix_rows.value);
 
   if (!col_filtered.is_empty())
-    obj->add(K_FILTERED, col_filtered.value);
+  {
+    char buf[32];                         // 32 is enough for digits of a double
+    print_filtered(buf, sizeof(buf), col_filtered.value);
+    obj->add_utf8(K_FILTERED, buf);
+  }
 
   if (!col_extra.is_empty())
   {
@@ -2036,7 +2046,7 @@ bool Explain_format_JSON::end_context(enum_parsing_context ctx)
 }
 
 
-bool Explain_format_JSON::send_headers(select_result *result)
+bool Explain_format_JSON::send_headers(Query_result *result)
 {
   output= result;
   if (Explain_format::send_headers(result))

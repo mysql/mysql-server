@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,6 +15,8 @@
 
 #include "mysys_priv.h"
 #include "mysys_err.h"
+#include "my_sys.h"
+#include "my_thread_local.h"
 
 const char *globerrs[GLOBERRS]=
 {
@@ -53,10 +55,6 @@ const char *globerrs[GLOBERRS]=
   "Can't seek in file '%s' (Errcode: %d - %s)"
 };
 
-void init_glob_errs(void)
-{
-  /* This is now done statically. */
-}
 
 /*
  We cannot call my_error/my_printf_error here in this function.
@@ -87,7 +85,7 @@ void wait_for_free_space(const char *filename, int errors)
   (void) sleep(MY_WAIT_FOR_USER_TO_FIX_PANIC);
 }
 
-const char **get_global_errmsgs()
+const char *get_global_errmsg(int nr)
 {
-  return globerrs;
+  return globerrs[nr - EE_ERROR_FIRST];
 }

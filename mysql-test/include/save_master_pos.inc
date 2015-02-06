@@ -38,6 +38,7 @@ if ($rpl_multi_source)
 }
 if ($use_gtids)
 {
+  --source include/assert_gtid_mode_on.inc
   --let $_saved_gtids= `SELECT @@global.gtid_executed`
   if ($rpl_debug)
   {

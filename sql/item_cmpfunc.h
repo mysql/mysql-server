@@ -1,7 +1,7 @@
 #ifndef ITEM_CMPFUNC_INCLUDED
 #define ITEM_CMPFUNC_INCLUDED
 
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,15 +19,16 @@
 
 /* compare and test functions */
 
-#include "thr_malloc.h"                         /* sql_calloc */
-#include "item_func.h"             /* Item_int_func, Item_bool_func */
-#include "my_regex.h"
-#include "mem_root_array.h"
-#include "template_utils.h"
+#include "mem_root_array.h"  // Mem_root_array
+#include "my_regex.h"        // my_regex_t
+#include "item_func.h"       // Item_int_func
+#include "item_row.h"        // Item_row
+#include "template_utils.h"  // down_cast
 
-extern Item_result item_cmp_type(Item_result a,Item_result b);
 class Item_bool_func2;
 class Arg_comparator;
+class Item_sum_hybrid;
+class Item_row;
 
 typedef int (Arg_comparator::*arg_cmp_func)();
 

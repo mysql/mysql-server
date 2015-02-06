@@ -724,7 +724,7 @@ void *create_embedded_thd(int client_flag)
   thd->set_time();
   thd->init_for_queries();
   thd->client_capabilities= client_flag;
-  thd->real_id= pthread_self();
+  thd->real_id= my_thread_self();
 
   thd->reset_db(NULL_CSTR);
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -760,7 +760,6 @@ emb_transfer_connect_attrs(MYSQL *mysql)
     send_client_connect_attrs(mysql, buf);
     net_field_length_ll(&ptr);
     PSI_THREAD_CALL(set_thread_connect_attrs)((char *) ptr, length, thd->charset());
-    my_afree(buf);
   }
 #endif
 }
@@ -860,14 +859,12 @@ int check_embedded_connection(MYSQL *mysql, const char *db)
     x_free(thd->security_context()->user().str);
     goto err;
   }
-  my_afree(buf);
   return 0;
 err:
   strmake(net->last_error, thd->main_da.message(), sizeof(net->last_error)-1);
   memcpy(net->sqlstate,
          mysql_errno_to_sqlstate(thd->main_da.sql_errno()),
          sizeof(net->sqlstate)-1);
-  my_afree(buf);
   return 1;
 }
 #endif

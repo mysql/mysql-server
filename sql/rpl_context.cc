@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -15,11 +15,16 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
    02110-1301 USA */
 
-#include "sql_class.h"
 #include "rpl_context.h"
 
-Session_consistency_gtids_ctx::Session_consistency_gtids_ctx() : m_sid_map(NULL),
-        m_gtid_set(NULL), m_listener(NULL) { }
+#include "rpl_gtid.h"         // Gtid_set
+#include "sql_class.h"        // THD
+
+
+Session_consistency_gtids_ctx::Session_consistency_gtids_ctx() :
+  m_sid_map(NULL), m_gtid_set(NULL), m_listener(NULL),
+  m_curr_session_track_gtids(OFF)
+{ }
 
 Session_consistency_gtids_ctx::~Session_consistency_gtids_ctx()
 {
@@ -38,7 +43,10 @@ Session_consistency_gtids_ctx::~Session_consistency_gtids_ctx()
 
 inline bool Session_consistency_gtids_ctx::shall_collect(const THD* thd)
 {
-  return  gtid_mode == GTID_MODE_ON &&
+  return  /* Do not track OWN_GTID if session does not own a
+             (non-anonymous) GTID. */
+          (thd->owned_gtid.sidno > 0 ||
+           m_curr_session_track_gtids == ALL_GTIDS) &&
           /* if there is no listener/tracker, then there is no reason to collect */
           m_listener != NULL &&
           /* ROLLBACK statements may end up calling trans_commit_stmt */
@@ -78,7 +86,6 @@ bool Session_consistency_gtids_ctx::notify_after_gtid_executed_update(const THD 
 {
   DBUG_ENTER("Rpl_consistency_ctx::notify_after_gtid_executed_update");
   DBUG_ASSERT(thd);
-  DBUG_ASSERT(gtid_mode == GTID_MODE_ON);
   bool res= false;
 
   if (!shall_collect(thd))
@@ -86,12 +93,14 @@ bool Session_consistency_gtids_ctx::notify_after_gtid_executed_update(const THD 
 
   if (m_curr_session_track_gtids == OWN_GTID)
   {
+    DBUG_ASSERT(get_gtid_mode(GTID_MODE_LOCK_SID) != GTID_MODE_OFF);
+    DBUG_ASSERT(thd->owned_gtid.sidno > 0);
     const Gtid& gtid= thd->owned_gtid;
     if (gtid.sidno == -1) // we need to add thd->owned_gtid_set
     {
       /* Caller must only call this function if the set was not empty. */
-      DBUG_ASSERT(!thd->owned_gtid_set.is_empty());
 #ifdef HAVE_GTID_NEXT_LIST
+      DBUG_ASSERT(!thd->owned_gtid_set.is_empty());
       res= m_gtid_set->add_gtid_set(&thd->owned_gtid_set) != RETURN_STATUS_OK;
 #else
       DBUG_ASSERT(0);
@@ -125,8 +134,6 @@ bool Session_consistency_gtids_ctx::notify_after_response_packet(const THD *thd)
 {
   int res= false;
   DBUG_ENTER("Rpl_consistency_ctx::notify_after_response_packet");
-  if (gtid_mode != GTID_MODE_ON)
-    DBUG_RETURN(res);
 
   if (m_gtid_set && !m_gtid_set->is_empty())
     m_gtid_set->clear();

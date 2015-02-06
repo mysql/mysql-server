@@ -22,8 +22,10 @@ let $TABLENAME= t1;
 
 --enable_connect_log
 
-GRANT ALL PRIVILEGES ON test.* TO test_user_1 IDENTIFIED BY 'testpw';
-GRANT ALL PRIVILEGES ON test.* TO test_user_2 IDENTIFIED BY 'testpw';
+CREATE USER test_user_1 IDENTIFIED BY 'testpw';
+CREATE USER test_user_2 IDENTIFIED BY 'testpw';
+GRANT ALL PRIVILEGES ON test.* TO test_user_1;
+GRANT ALL PRIVILEGES ON test.* TO test_user_2;
 
 connect (session1, localhost, test_user_1,'testpw',test);
 UPDATE t1 PARTITION (`p0-29`) SET b='p0-29-upd-1' WHERE a BETWEEN 0 AND 9;

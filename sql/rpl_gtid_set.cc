@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -17,15 +17,11 @@
 
 #include "rpl_gtid.h"
 
-#include <ctype.h>
-#include <algorithm>
-#include "my_dbug.h"
-#include "mysqld_error.h"
-#include <algorithm>
-#include <my_stacktrace.h>
+#include "my_stacktrace.h"       // my_safe_printf_stderr
+#include "mysqld_error.h"        // ER_*
 
 #ifndef MYSQL_CLIENT
-#include "log.h"
+#include "log.h"                 // sql_print_warning
 #endif
 
 
@@ -526,7 +522,7 @@ enum_return_status Gtid_set::add_gtid_text(const char *text, bool *anonymous)
         DBUG_PRINT("info", ("expected UUID; found garbage '%.80s' at char %d in '%s'", s, (int)(s - text), text));
         goto parse_error;
       }
-      s += rpl_sid::TEXT_LENGTH;
+      s += binary_log::Uuid::TEXT_LENGTH;
       rpl_sidno sidno= sid_map->add_sid(sid);
       if (sidno <= 0)
       {
@@ -622,7 +618,7 @@ bool Gtid_set::is_valid(const char *text)
     // Parse SID.
     if (!rpl_sid::is_valid(s))
       DBUG_RETURN(false);
-    s += rpl_sid::TEXT_LENGTH;
+    s += binary_log::Uuid::TEXT_LENGTH;
     SKIP_WHITESPACE();
 
     // Iterate over intervals.
@@ -692,6 +688,9 @@ Gtid_set::remove_gno_intervals(rpl_sidno sidno,
 
 enum_return_status Gtid_set::add_gtid_set(const Gtid_set *other)
 {
+  /*
+    @todo refactor this and remove_gtid_set to avoid duplicated code
+  */
   DBUG_ENTER("Gtid_set::add_gtid_set(const Gtid_set *)");
   if (sid_lock != NULL)
     sid_lock->assert_some_wrlock();
@@ -706,6 +705,9 @@ enum_return_status Gtid_set::add_gtid_set(const Gtid_set *other)
   else
   {
     Sid_map *other_sid_map= other->sid_map;
+    Checkable_rwlock *other_sid_lock= other->sid_lock;
+    if (other_sid_lock != NULL)
+      other_sid_lock->assert_some_wrlock();
     for (rpl_sidno other_sidno= 1; other_sidno <= max_other_sidno;
          other_sidno++)
     {
@@ -741,15 +743,10 @@ void Gtid_set::remove_gtid_set(const Gtid_set *other)
   }
   else
   {
-    /*
-      This code is not being used but we will keep it as it may be
-      useful to optimize gtids by avoiding sharing mappings from
-      sid to sidno. For instance, the IO Thread and the SQL Thread
-      may have different mappings in the future.
-    */
-    DBUG_ASSERT(0); /*NOTREACHED*/
-#ifdef NON_DISABLED_GTID
     Sid_map *other_sid_map= other->sid_map;
+    Checkable_rwlock *other_sid_lock= other->sid_lock;
+    if (other_sid_lock != NULL)
+      other_sid_lock->assert_some_wrlock();
     for (rpl_sidno other_sidno= 1; other_sidno <= max_other_sidno;
          other_sidno++)
     {
@@ -762,7 +759,6 @@ void Gtid_set::remove_gtid_set(const Gtid_set *other)
           remove_gno_intervals(this_sidno, other_ivit, &lock);
       }
     }
-#endif
   }
   DBUG_VOID_RETURN;
 }
@@ -787,6 +783,29 @@ bool Gtid_set::contains_gtid(rpl_sidno sidno, rpl_gno gno) const
     ivit.next();
   }
   DBUG_RETURN(false);
+}
+
+rpl_gno Gtid_set::get_last_gno(rpl_sidno sidno) const
+{
+  DBUG_ENTER("Gtid_set::get_last_gno");
+  rpl_gno gno= 0;
+
+  if (sid_lock != NULL)
+    sid_lock->assert_some_lock();
+
+  if (sidno > get_max_sidno())
+    DBUG_RETURN(gno);
+
+  Const_interval_iterator ivit(this, sidno);
+  const Gtid_set::Interval *iv= ivit.get();
+  while(iv != NULL)
+  {
+    gno= iv->end-1;
+    ivit.next();
+    iv= ivit.get();
+  }
+
+  DBUG_RETURN(gno);
 }
 
 int Gtid_set::to_string(char **buf_arg, const Gtid_set::String_format *sf_arg) const
@@ -964,7 +983,7 @@ int Gtid_set::get_string_length(const Gtid_set::String_format *sf) const
       if (n_sids > 0)
         cached_string_length+=
           total_interval_length +
-          n_sids * (rpl_sid::TEXT_LENGTH + sf->sid_gno_separator_length) +
+          n_sids * (binary_log::Uuid::TEXT_LENGTH + sf->sid_gno_separator_length) +
           (n_sids - 1) * sf->gno_sid_separator_length +
           (n_intervals - n_sids) * sf->gno_gno_separator_length +
           n_long_intervals * sf->gno_start_end_separator_length;
@@ -974,10 +993,6 @@ int Gtid_set::get_string_length(const Gtid_set::String_format *sf) const
   return cached_string_length;
 }
 
-/*
-  Functions sidno_equals() and equals() are only used by unitests
-*/
-#ifdef NON_DISABLED_UNITTEST_GTID
 bool Gtid_set::sidno_equals(rpl_sidno sidno, const Gtid_set *other,
                             rpl_sidno other_sidno) const
 {
@@ -1069,7 +1084,6 @@ bool Gtid_set::equals(const Gtid_set *other) const
   DBUG_ASSERT(0); // not reached
   DBUG_RETURN(true);
 }
-#endif
 
 
 bool Gtid_set::is_interval_subset(Const_interval_iterator *sub,
@@ -1378,7 +1392,7 @@ void Gtid_set::encode(uchar *buf) const
       n_sids++;
       // store SID
       sid_map->sidno_to_sid(sidno).copy_to(buf);
-      buf+= rpl_sid::BYTE_LENGTH;
+      buf+= binary_log::Uuid::BYTE_LENGTH;
       // make place for number of intervals
       uint64 n_intervals= 0;
       uchar *n_intervals_p= buf;

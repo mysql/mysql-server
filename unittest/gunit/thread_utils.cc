@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,37 +22,11 @@
 
 namespace thread {
 
-/*
-  On windows we need an open handle to the thread in order to join it.
-  The three instances of Notification are used as follows:
-  - The main thread starts sub-thread, waits for m_thread_started.
-  - The main thread picks up the thread id, and does OpenThread to get a handle.
-  - The main thread tells the sub-thread that it can continue
-      (notifies m_thread_continue)
-  - The main thread waits until the sub-thread is actually running
-    (waits for m_thread_running) before destroying all objects.
-
-  All this is to work around a bug in pthread_create() in mysys/my_winthread,
-  which closes the thread handle (it has nowhere to store it).
-  When we later call pthread_join() we try to re-open a handle.
-  This will fail if the thread has already finished, and then the join will fail.
- */
-class Thread_start_arg
-{
-public:
-  Thread_start_arg(Thread *thread) : m_thread(thread) {}
-
-  Notification m_thread_started;
-  Notification m_thread_continue;
-  Notification m_thread_running;
-  Thread *m_thread;
-};
-
 namespace {
 extern "C"
 void *thread_start_routine(void *arg)
 {
-  Thread_start_arg *start_arg= (Thread_start_arg*) arg;
+  Thread *start_arg= (Thread*) arg;
   Thread::run_wrapper(start_arg);
   return NULL;
 }
@@ -67,84 +41,39 @@ void assert_false(int arg, int line)
 
 }  // namespace
 
-Thread::~Thread()
-{
-#ifdef _WIN32
-  if (m_thread_handle != NULL)
-    CloseHandle(m_thread_handle);
-#endif
-}
-
 
 int Thread::start()
 {
-  Thread_start_arg start_arg(this);
   const int retval=
-    pthread_create(&m_thread_id, NULL, thread_start_routine, &start_arg);
+    my_thread_create(&m_thread_handle, NULL, thread_start_routine, this);
   if (retval != 0)
   {
     ADD_FAILURE() << " could not start thread, errno: " << errno;
     return retval;
   }
 
-  start_arg.m_thread_started.wait_for_notification();
-#ifdef _WIN32
-  m_thread_handle= OpenThread(SYNCHRONIZE, FALSE, m_thread_id);
-  if (m_thread_handle == NULL)
-  {
-    DWORD lasterror= GetLastError();
-    ADD_FAILURE()
-      << " could not open thread id " << m_thread_id
-      << " GetLastError: " << lasterror
-      ;
-  }
-#endif
-  start_arg.m_thread_continue.notify();
-  start_arg.m_thread_running.wait_for_notification();
   return retval;
 }
 
 
-#ifdef _WIN32
 void Thread::join()
 {
-  DWORD ret= WaitForSingleObject(m_thread_handle, INFINITE);
-  if (ret != WAIT_OBJECT_0)
-  {
-    DWORD lasterror= GetLastError();
-    ADD_FAILURE()
-      << " could not join thread id " << m_thread_id
-      << " handle " << m_thread_handle
-      << " GetLastError: " << lasterror
-      ;
-  }
-  CloseHandle(m_thread_handle);
-  m_thread_handle= NULL;
-}
-#else
-void Thread::join()
-{
-  const int failed= pthread_join(m_thread_id, NULL);
+  const int failed= my_thread_join(&m_thread_handle, NULL);
   if (failed)
   {
     ADD_FAILURE()
-      << " could not join thread id " << m_thread_id
+      << " could not join thread id " << m_thread_handle.thread
       << " failed: " << failed << " errno: " << errno
       ;
   }
 }
-#endif
 
 
-void Thread::run_wrapper(Thread_start_arg *start_arg)
+void Thread::run_wrapper(Thread *start_arg)
 {
   const my_bool error= my_thread_init();
   ASSERT_FALSE(error);
-  Thread *thread= start_arg->m_thread;
-  start_arg->m_thread_started.notify();
-  start_arg->m_thread_continue.wait_for_notification();
-  start_arg->m_thread_running.notify();
-  thread->run();
+  start_arg->run();
   my_thread_end();
 }
 

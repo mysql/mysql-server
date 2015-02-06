@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -524,7 +524,7 @@ private:
   Explain_format &operator=(Explain_format &); // undefined
 
 protected:
-  select_result *output; ///< output resulting data there
+  Query_result *output; ///< output resulting data there
 
 public:
   Explain_format() : output(NULL) {}
@@ -549,7 +549,7 @@ public:
     @retval false       OK
     @retval true        Error
   */
-  virtual bool send_headers(select_result *result)
+  virtual bool send_headers(Query_result *result)
   {
     output= result;
     return false;

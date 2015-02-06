@@ -1532,6 +1532,8 @@ DELETE FROM t2;
 ###################################################################
 
 SET sql_mode = 'traditional';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 
 #------------------------------------------------------------------
 # Checking INSERT INTO ... VALUES ...

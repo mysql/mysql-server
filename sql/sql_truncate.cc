@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,6 +13,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include "sql_truncate.h"
+
 #include "debug_sync.h"  // DEBUG_SYNC
 #include "table.h"       // TABLE, FOREIGN_KEY_INFO
 #include "sql_class.h"   // THD
@@ -22,7 +24,6 @@
 #include "lock.h"        // MYSQL_OPEN_* flags
 #include "auth_common.h" // DROP_ACL
 #include "sql_parse.h"   // check_one_table_access()
-#include "sql_truncate.h"
 #include "sql_show.h"    //append_identifier()
 
 
@@ -231,7 +232,7 @@ Sql_cmd_truncate_table::handler_truncate(THD *thd, TABLE_LIST *table_ref,
   }
 
   /* Open the table as it will handle some required preparations. */
-  if (open_and_lock_tables(thd, table_ref, FALSE, flags))
+  if (open_and_lock_tables(thd, table_ref, flags))
     DBUG_RETURN(TRUNCATE_FAILED_SKIP_BINLOG);
 
   /* Whether to truncate regardless of foreign keys. */
@@ -282,6 +283,12 @@ static bool recreate_temporary_table(THD *thd, TABLE *table)
   memset(&create_info, 0, sizeof(create_info));
 
   table->file->info(HA_STATUS_AUTO | HA_STATUS_NO_LOCK);
+
+  /*
+    If LOCK TABLES list is not empty and contains this table
+    then unlock the table and remove it from this list.
+  */
+  mysql_lock_remove(thd, thd->lock, table);
 
   /* Don't free share. */
   close_temporary_table(thd, table, FALSE, FALSE);

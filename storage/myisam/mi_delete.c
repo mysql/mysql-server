@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -195,7 +195,6 @@ static int _mi_ck_real_delete(MI_INFO *info, MI_KEYDEF *keyinfo,
     }
   }
 err:
-  my_afree((uchar*) root_buff);
   DBUG_PRINT("exit",("Return: %d",error));
   DBUG_RETURN(error);
 } /* _mi_ck_real_delete */
@@ -384,12 +383,10 @@ static int d_search(MI_INFO *info, MI_KEYDEF *keyinfo,
   {
     DBUG_DUMP("page",(uchar*) anc_buff,mi_getint(anc_buff));
   }
-  my_afree((uchar*) leaf_buff);
   DBUG_PRINT("exit",("Return: %d",ret_value));
   DBUG_RETURN(ret_value);
 
 err:
-  my_afree((uchar*) leaf_buff);
   DBUG_PRINT("exit",("Error: %d",my_errno));
   DBUG_RETURN (-1);
 } /* d_search */
@@ -456,7 +453,6 @@ static int del(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key,
       if (_mi_write_keypage(info,keyinfo,leaf_page,DFLT_INIT_HITS,leaf_buff))
 	goto err;
     }
-    my_afree((uchar*) next_buff);
     DBUG_RETURN(ret_value);
   }
 

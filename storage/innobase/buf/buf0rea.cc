@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -24,7 +24,7 @@ Created 11/5/1995 Heikki Tuuri
 *******************************************************/
 
 #include "ha_prototypes.h"
-#include <mysql/plugin.h>
+#include <mysql/service_thd_wait.h>
 
 #include "buf0rea.h"
 #include "fil0fil.h"

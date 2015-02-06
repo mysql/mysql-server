@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -25,6 +25,7 @@
 #include <my_dir.h>
 
 #include <mysql/plugin.h>
+#include "mysql/psi/mysql_file.h"
 
 /*
   First, if you want to understand storage engines you should look at 

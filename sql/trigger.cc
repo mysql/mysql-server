@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -40,25 +40,22 @@
 class Deprecated_trigger_syntax_handler : public Internal_error_handler
 {
 private:
-
   char m_message[MYSQL_ERRMSG_SIZE];
   LEX_STRING *m_trigger_name;
 
 public:
-
   Deprecated_trigger_syntax_handler() : m_trigger_name(NULL) {}
 
   virtual bool handle_condition(THD *thd,
                                 uint sql_errno,
                                 const char *sqlstate,
                                 Sql_condition::enum_severity_level *level,
-                                const char *message,
-                                Sql_condition **cond_hdl)
+                                const char *message)
   {
     if (sql_errno != EE_OUTOFMEMORY &&
         sql_errno != ER_OUT_OF_RESOURCES)
     {
-      if(thd->lex->spname)
+      if (thd->lex->spname)
         m_trigger_name= &thd->lex->spname->m_name;
       if (m_trigger_name)
         my_snprintf(m_message, sizeof(m_message),

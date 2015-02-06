@@ -20,7 +20,13 @@ if (!$engine_type)
   let $engine_type=`SELECT @@default_storage_engine`;
 }
 
-connection master;
+if ($rpl_debug)
+{
+  --echo source_type=$source_type target_type=$target_type source_value=$source_value target_value=$target_value can_convert=$can_convert engine_type=$engine_type
+  SELECT @@GLOBAL.SLAVE_TYPE_CONVERSIONS;
+}
+
+--source include/rpl_connection_master.inc
 disable_warnings;
 DROP TABLE IF EXISTS t1;
 enable_warnings;
@@ -28,13 +34,13 @@ eval CREATE TABLE t1(
   pk INT NOT NULL PRIMARY KEY,
   a $source_type
 ) ENGINE=$engine_type;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 eval ALTER TABLE t1 MODIFY a $target_type;
 
-connection master;
+--source include/rpl_connection_master.inc
 eval INSERT INTO t1 VALUES(1, $source_value);
 if ($can_convert) {
-  sync_slave_with_master;
+  --source include/sync_slave_sql_with_master.inc
   eval SELECT a = $target_value into @compare FROM t1;
   eval INSERT INTO type_conversions SET
        Source = "$source_type",
@@ -48,7 +54,7 @@ if ($can_convert) {
    WHERE TestNo = LAST_INSERT_ID();
 }
 if (!$can_convert) {
-  connection slave;
+  --source include/rpl_connection_slave.inc
   wait_for_slave_to_stop;
   let $error = query_get_value("SHOW SLAVE STATUS", Last_SQL_Error, 1);
   eval INSERT INTO type_conversions SET

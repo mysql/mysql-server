@@ -2,7 +2,7 @@
 #define OPT_STATISTICS_INCLUDED
 
 /*
-   Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,9 +18,10 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "my_global.h"                          // uint
-#include "structs.h"                            // rec_per_key_t, KEY
 
 struct TABLE;
+typedef float rec_per_key_t;
+typedef struct st_key KEY;
 
 /**
   Guesstimate for "records per key" when index statistics is not available.

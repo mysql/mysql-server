@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2009, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -53,6 +53,7 @@ Created 12/9/1995 Heikki Tuuri
 #include "trx0roll.h"
 #include "srv0mon.h"
 #include "sync0sync.h"
+#include "ut0stage.h"
 
 /*
 General philosophy of InnoDB redo-logs:
@@ -85,8 +86,11 @@ log_t*	log_sys	= NULL;
 
 /* These control how often we print warnings if the last checkpoint is too
 old */
-ibool	log_has_printed_chkp_warning = FALSE;
+bool	log_has_printed_chkp_warning = false;
 time_t	log_last_warning_time;
+
+bool	log_has_printed_chkp_margine_warning = false;
+time_t	log_last_margine_warning_time;
 
 /* A margin for free space in the log buffer before a log entry is catenated */
 #define LOG_BUF_WRITE_MARGIN	(4 * OS_FILE_LOG_BLOCK_SIZE)
@@ -232,6 +236,64 @@ log_buffer_extend(
 
 	ib::info() << "innodb_log_buffer_size was extended to "
 		<< LOG_BUFFER_SIZE << ".";
+}
+
+/** Check margin not to overwrite transaction log from the last checkpoint.
+If would estimate the log write to exceed the log_group_capacity,
+waits for the checkpoint is done enough.
+@param[in]	len	length of the data to be written */
+
+void
+log_margin_checkpoint_age(
+	ulint	len)
+{
+	ulint	margin = len * 2;
+
+	ut_ad(log_mutex_own());
+
+	if (margin > log_sys->log_group_capacity) {
+		/* return with warning output to avoid deadlock */
+		if (!log_has_printed_chkp_margine_warning
+		    || difftime(time(NULL),
+				log_last_margine_warning_time) > 15) {
+			log_has_printed_chkp_margine_warning = true;
+			log_last_margine_warning_time = time(NULL);
+
+			ib::error() << "The transaction log files are too"
+				" small for the single transaction log (size="
+				<< len << "). So, the last checkpoint age"
+				" might exceed the log group capacity "
+				<< log_sys->log_group_capacity << ".";
+		}
+
+		return;
+	}
+
+	while (log_sys->lsn - log_sys->last_checkpoint_lsn + margin
+	       > log_sys->log_group_capacity) {
+		/* The log write of 'len' might overwrite the transaction log
+		after the last checkpoint. Makes checkpoint. */
+
+		bool	flushed_enough = false;
+
+		if (log_sys->lsn - log_buf_pool_get_oldest_modification()
+		    + margin
+		    <= log_sys->log_group_capacity) {
+			flushed_enough = true;
+		}
+
+		log_sys->check_flush_or_checkpoint = true;
+		log_mutex_exit();
+
+		if (!flushed_enough) {
+			os_thread_sleep(100000);
+		}
+		log_checkpoint(true, false);
+
+		log_mutex_enter();
+	}
+
+	return;
 }
 
 /** Open the log for log_write_low. The log must be closed with log_close.
@@ -405,7 +467,7 @@ log_close(void)
 		if (!log_has_printed_chkp_warning
 		    || difftime(time(NULL), log_last_warning_time) > 15) {
 
-			log_has_printed_chkp_warning = TRUE;
+			log_has_printed_chkp_warning = true;
 			log_last_warning_time = time(NULL);
 
 			ib::error() << "The age of the last checkpoint is "
@@ -1340,15 +1402,17 @@ NOTE: this function may only be called if the calling thread owns no
 synchronization objects!
 @param[in]	new_oldest	try to advance oldest_modified_lsn at least to
 this lsn
+@param[in,out]	stage		performance schema accounting object, used by
+ALTER TABLE. It is passed to buf_flush_lists() for accounting.
 @return false if there was a flush batch of the same type running,
 which means that we could not start this flush batch */
 static
 bool
 log_preflush_pool_modified_pages(
-	lsn_t			new_oldest)
+	lsn_t			new_oldest,
+	ut_stage_alter_t*	stage = NULL)
 {
 	bool	success;
-	ulint	n_pages;
 
 	if (recv_recovery_on) {
 		/* If the recovery is running, we must first apply all
@@ -1363,19 +1427,33 @@ log_preflush_pool_modified_pages(
 		recv_apply_hashed_log_recs(TRUE);
 	}
 
-	success = buf_flush_lists(ULINT_MAX, new_oldest, &n_pages);
+	if (new_oldest == LSN_MAX
+	    || !buf_page_cleaner_is_active
+	    || srv_is_being_started) {
 
-	buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
+		ulint	n_pages;
 
-	if (!success) {
-		MONITOR_INC(MONITOR_FLUSH_SYNC_WAITS);
+		success = buf_flush_lists(ULINT_MAX, new_oldest, &n_pages,
+					  stage);
+
+		buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
+
+		if (!success) {
+			MONITOR_INC(MONITOR_FLUSH_SYNC_WAITS);
+		}
+
+		MONITOR_INC_VALUE_CUMULATIVE(
+			MONITOR_FLUSH_SYNC_TOTAL_PAGE,
+			MONITOR_FLUSH_SYNC_COUNT,
+			MONITOR_FLUSH_SYNC_PAGES,
+			n_pages);
+	} else {
+		/* better to wait for flushed by page cleaner */
+
+		buf_flush_wait_flushed(new_oldest);
+
+		success = true;
 	}
-
-	MONITOR_INC_VALUE_CUMULATIVE(
-		MONITOR_FLUSH_SYNC_TOTAL_PAGE,
-		MONITOR_FLUSH_SYNC_COUNT,
-		MONITOR_FLUSH_SYNC_PAGES,
-		n_pages);
 
 	return(success);
 }
@@ -1784,15 +1862,19 @@ log_checkpoint(
 @param[in]	lsn		the log sequence number, or LSN_MAX
 for the latest LSN
 @param[in]	write_always	force a write even if no log
-has been generated since the latest checkpoint */
+has been generated since the latest checkpoint
+@param[in,out]	stage		performance schema accounting object, used by
+ALTER TABLE. It is passed to log_preflush_pool_modified_pages() for
+accounting. */
 void
 log_make_checkpoint_at(
 	lsn_t			lsn,
-	bool			write_always)
+	bool			write_always,
+	ut_stage_alter_t*	stage /* = NULL */)
 {
 	/* Preflush pages synchronously */
 
-	while (!log_preflush_pool_modified_pages(lsn)) {
+	while (!log_preflush_pool_modified_pages(lsn, stage)) {
 		/* Flush as much as we can */
 	}
 
@@ -1835,7 +1917,7 @@ loop:
 	if (age > log->max_modified_age_sync) {
 
 		/* A flush is urgent: we have to do a synchronous preflush */
-		advance = 2 * (age - log->max_modified_age_sync);
+		advance = age - log->max_modified_age_sync;
 	}
 
 	checkpoint_age = log->lsn - log->last_checkpoint_lsn;

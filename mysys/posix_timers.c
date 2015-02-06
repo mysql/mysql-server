@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,7 +15,7 @@
 
 
 #include "my_global.h"
-#include "my_pthread.h"     /* my_thread_init, my_thread_end */
+#include "my_thread.h"      /* my_thread_init, my_thread_end */
 #include "my_sys.h"         /* my_message_local */
 #include "my_timer.h"       /* my_timer_t */
 
@@ -35,18 +35,15 @@
 /* Timer thread ID (TID). */
 static pid_t timer_notify_thread_id;
 
-/* Timer thread object. */
-static pthread_t timer_notify_thread;
-
 #elif defined(HAVE_SIGEV_PORT)
 #include <port.h>
 
 int port_id= -1;
 
-/* Timer thread object. */
-static pthread_t timer_notify_thread;
 #endif
 
+/* Timer thread object. */
+static my_thread_handle timer_notify_thread;
 
 #if defined(HAVE_SIGEV_THREAD_ID)
 /**
@@ -175,10 +172,10 @@ void
 my_timer_deinitialize(void)
 {
   /* Kill helper thread. */
-  pthread_kill(timer_notify_thread, MY_TIMER_KILL_SIGNO);
+  pthread_kill(timer_notify_thread.thread, MY_TIMER_KILL_SIGNO);
 
   /* Wait for helper thread termination. */
-  pthread_join(timer_notify_thread, NULL);
+  my_thread_join(&timer_notify_thread, NULL);
 }
 
 
@@ -298,7 +295,7 @@ my_timer_deinitialize(void)
   close(port_id);
 
   /* Wait for helper thread termination. */
-  pthread_join(timer_notify_thread, NULL);
+  my_thread_join(&timer_notify_thread, NULL);
 }
 
 

@@ -230,7 +230,7 @@ EXPLAIN SELECT c1, i1, max(i2) FROM t2
 WHERE (c1 = 'C' OR ( c1 = 'F' AND i1 < 35)) AND ( i2 = 17 )
 GROUP BY c1,i1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	range	k2	k2	5	NULL	ROWS	0.56	Using where; Using index
+1	SIMPLE	t2	NULL	range	k2	k2	5	NULL	ROWS	10.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`c1` AS `c1`,`test`.`t2`.`i1` AS `i1`,max(`test`.`t2`.`i2`) AS `max(i2)` from `test`.`t2` where ((`test`.`t2`.`i2` = 17) and ((`test`.`t2`.`c1` = 'C') or ((`test`.`t2`.`c1` = 'F') and (`test`.`t2`.`i1` < 35)))) group by `test`.`t2`.`c1`,`test`.`t2`.`i1`
 SELECT c1, i1, max(i2) FROM t2
@@ -247,7 +247,7 @@ EXPLAIN SELECT c1, i1, max(i2) FROM t2
 WHERE (((c1 = 'C' AND i1 < 40) OR ( c1 = 'F' AND i1 < 35)) AND ( i2 = 17 ))
 GROUP BY c1,i1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	range	k2	k2	5	NULL	ROWS	0.56	Using where; Using index
+1	SIMPLE	t2	NULL	range	k2	k2	5	NULL	ROWS	10.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`c1` AS `c1`,`test`.`t2`.`i1` AS `i1`,max(`test`.`t2`.`i2`) AS `max(i2)` from `test`.`t2` where ((`test`.`t2`.`i2` = 17) and (((`test`.`t2`.`c1` = 'C') and (`test`.`t2`.`i1` < 40)) or ((`test`.`t2`.`c1` = 'F') and (`test`.`t2`.`i1` < 35)))) group by `test`.`t2`.`c1`,`test`.`t2`.`i1`
 SELECT c1, i1, max(i2) FROM t2 
@@ -264,7 +264,7 @@ EXPLAIN SELECT c1, i1, max(i2) FROM t2
 WHERE ((c1 = 'C' AND i1 < 40) OR ( c1 = 'F' AND i1 < 35) OR ( i2 = 17 ))
 GROUP BY c1,i1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	index	k2	k2	9	NULL	ROWS	11.30	Using where; Using index
+1	SIMPLE	t2	NULL	index	k2	k2	9	NULL	ROWS	19.72	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`c1` AS `c1`,`test`.`t2`.`i1` AS `i1`,max(`test`.`t2`.`i2`) AS `max(i2)` from `test`.`t2` where (((`test`.`t2`.`c1` = 'C') and (`test`.`t2`.`i1` < 40)) or ((`test`.`t2`.`c1` = 'F') and (`test`.`t2`.`i1` < 35)) or (`test`.`t2`.`i2` = 17)) group by `test`.`t2`.`c1`,`test`.`t2`.`i1`
 SELECT c1, i1, max(i2) FROM t2 

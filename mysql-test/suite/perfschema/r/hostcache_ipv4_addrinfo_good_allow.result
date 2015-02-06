@@ -24,6 +24,8 @@ User	Host
 select `User`, `Host` from mysql.`user` where `user` like 'santa.claus.%';
 User	Host
 grant select on test.* to 'root'@'santa.claus.ipv4.example.com';
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 select "Con1 is alive";
 Con1 is alive
 Con1 is alive

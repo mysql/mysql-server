@@ -1,18 +1,3 @@
-# Copyright (c) 2007, 2014, Oracle and/or its affiliates. All rights reserved.
-#
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
-
 # Default values that applies to all MySQL Servers
 [mysqld]
 open-files-limit=           1024
@@ -29,7 +14,7 @@ sort_buffer_size=           256K
 max_heap_table_size=        1M
 
 loose-innodb_data_file_path=      ibdata1:10M:autoextend
-loose-innodb_buffer_pool_size=    8M
+loose-innodb_buffer_pool_size=    24M
 loose-innodb_lru_scan_depth=      100
 loose-innodb_write_io_threads=    2
 loose-innodb_read_io_threads=     2
@@ -59,8 +44,13 @@ loose-performance-schema-max-cond-instances=1000
 loose-performance-schema-max-file-instances=10000
 loose-performance-schema-max-socket-instances=1000
 loose-performance-schema-max-table-instances=500
+loose-performance-schema-max-table-lock-stat=500
+loose-performance-schema-max-index-stat=5000
 loose-performance-schema-max-table-handles=1000
 loose-performance-schema-max-prepared-statements-instances=100
+loose-performance-schema-max-program-instances=5000
+loose-performance-schema-setup-actors-size=100
+loose-performance-schema-setup-objects-size=100
 
 loose-performance-schema-events-waits-history-size=10
 loose-performance-schema-events-waits-history-long-size=10000
@@ -72,6 +62,7 @@ loose-performance-schema-events-transactions-history-size=10
 loose-performance-schema-events-transactions-history-long-size=1000
 loose-performance-schema-max-thread-instances=200
 loose-performance-schema-session-connect-attrs-size=2048
+loose-performance-schema-max-metadata-locks=10000
 
 # Enable everything, for maximun code exposure during testing
 
@@ -93,3 +84,6 @@ loose-performance-schema-consumer-global-instrumentation=ON
 loose-performance-schema-consumer-thread-instrumentation=ON
 
 binlog-direct-non-transactional-updates
+
+loose-show-compatibility-56=ON
+

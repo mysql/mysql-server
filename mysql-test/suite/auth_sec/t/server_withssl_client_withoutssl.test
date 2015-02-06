@@ -55,7 +55,7 @@ CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED WITH 'mysql_native_password';
 
 set @@session.old_passwords=0;
 
-set password for 'Tanjotuser1'@'localhost' = password('abc');
+set password for 'Tanjotuser1'@'localhost' = 'abc';
 
 
 # Trying connecting the client with the mysql_native_password user with out the SSL credentials.
@@ -120,7 +120,7 @@ CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED WITH 'sha256_password';
 
 set @@session.old_passwords=2;
 
-set password for 'Tanjotuser1'@'localhost' = password('abc');
+set password for 'Tanjotuser1'@'localhost' = 'abc';
 
 
 # Trying connecting the client with the sha256_password user with out the SSL credentials.
@@ -181,7 +181,7 @@ DROP USER 'Tanjotuser1'@'localhost';
 
 let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 --exec echo "wait" > $restart_file
---shutdown_server 10
+--shutdown_server 
 --source include/wait_until_disconnected.inc
 -- exec echo "restart:--default-authentication-plugin=sha256_password  " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 -- enable_reconnect
@@ -203,7 +203,7 @@ CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED WITH 'mysql_native_password';
 
 set @@session.old_passwords=0;
 
-set password for 'Tanjotuser1'@'localhost' = password('abc');
+set password for 'Tanjotuser1'@'localhost' = 'abc';
 
 
 # Trying connecting the client with the mysql_native_password user with out the SSL credentials.
@@ -268,7 +268,7 @@ CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED WITH 'sha256_password';
 
 set @@session.old_passwords=2;
 
-set password for 'Tanjotuser1'@'localhost' = password('abc');
+set password for 'Tanjotuser1'@'localhost' = 'abc';
 
 GRANT ALL on *.* to 'Tanjotuser1'@'localhost';
 

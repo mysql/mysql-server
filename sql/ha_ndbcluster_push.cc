@@ -266,7 +266,6 @@ NdbQuery* ndb_pushed_join::make_query_instance(
     {
       extendedParams[i].~NdbQueryParamValue();
     }
-    my_afree(extendedParams);
   }
   DBUG_RETURN(query);
 }

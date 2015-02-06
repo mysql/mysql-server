@@ -28,6 +28,12 @@ The following options may be given as the first argument:
  --automatic-sp-privileges 
  Creating and dropping stored procedures alters ACLs
  (Defaults to on; use --skip-automatic-sp-privileges to disable.)
+ --avoid-temporal-upgrade 
+ When this option is enabled, the pre-5.6.4 temporal types
+ are not upgraded to the new format for ALTER TABLE
+ requests ADD/CHANGE/MODIFY COLUMN, ADD INDEX or FORCE
+ operation. This variable is deprecated and will be
+ removed in a future release.
  --back-log=#        The number of outstanding connection requests MySQL can
  have. This comes into play when the main MySQL thread
  gets very many connection requests in a very short time
@@ -211,7 +217,7 @@ The following options may be given as the first argument:
  In JSON output ("EXPLAIN FORMAT=JSON" and optimizer
  trace), if variable is set to 1, repeats the structure's
  key (if it has one) near the closing bracket
- --enforce-gtid-consistency 
+ --enforce-gtid-consistency[=name] 
  Prevents execution of statements that would be impossible
  to log in a transactionally safe manner. Currently, the
  disallowed statements include CREATE TEMPORARY TABLE
@@ -271,8 +277,22 @@ The following options may be given as the first argument:
  gtid_executed_compression_period transactions, as a
  special case, if variable is 0, the thread never wakes up
  to compress the gtid_executed table.
- --gtid-mode=name    Whether Global Transaction Identifiers (GTIDs) are
- enabled. Can be ON or OFF.
+ --gtid-mode=name    Controls whether Global Transaction Identifiers (GTIDs)
+ are enabled. Can be OFF, OFF_PERMISSIVE, ON_PERMISSIVE,
+ or ON. OFF means that no transaction has a GTID.
+ OFF_PERMISSIVE means that new transactions (committed in
+ a client session using GTID_NEXT='AUTOMATIC') are not
+ assigned any GTID, and replicated transactions are
+ allowed to have or not have a GTID. ON_PERMISSIVE means
+ that new transactions are assigned a GTID, and replicated
+ transactions are allowed to have or not have a GTID. ON
+ means that all transactions have a GTID. ON is required
+ on a master before any slave can use
+ MASTER_AUTO_POSITION=1. To safely switch from OFF to ON,
+ first set all servers to OFF_PERMISSIVE, then set all
+ servers to ON_PERMISSIVE, then wait for all transactions
+ without a GTID to be replicated and executed on all
+ servers, and finally set all servers to GTID_MODE = ON.
  -?, --help          Display this help and exit.
  --host-cache-size=# How many host names should be cached to avoid resolving.
  --ignore-builtin-innodb 
@@ -286,6 +306,11 @@ The following options may be given as the first argument:
  --init-file=name    Read SQL commands from this file at startup
  --init-slave=name   Command(s) that are executed by a slave server each time
  the SQL thread starts
+ --initialize        Create the default database and exit. Create a super user
+ with a random expired password and store it into the log.
+ --initialize-insecure 
+ Create the default database and exit. Create a super user
+ with empty password.
  --interactive-timeout=# 
  The number of seconds the server waits for activity on an
  interactive connection before closing it
@@ -324,6 +349,9 @@ The following options may be given as the first argument:
  --lock-wait-timeout=# 
  Timeout in seconds to wait for a lock before returning an
  error.
+ --log-backward-compatible-user-definitions 
+ Controls logging of CREATE/ALTER/GRANT user statements in
+ replication binlogs, general query logs and audit logs.
  --log-bin[=name]    Log update queries in binary format. Optional (but
  strongly recommended to avoid replication problems if
  server's hostname changes) argument should be the chosen
@@ -454,6 +482,8 @@ The following options may be given as the first argument:
  INSERT DELAYED statements. If set to zero INSERT DELAYED
  will be not used. This variable is deprecated along with
  INSERT DELAYED.
+ --max-digest-length=# 
+ Maximum length considered for digest text.
  --max-error-count=# Max number of errors/warnings to store for a statement
  --max-heap-table-size=# 
  Don't allow creation of heap tables bigger than this
@@ -570,8 +600,8 @@ The following options may be given as the first argument:
  mrr_cost_based, materialization, semijoin, loosescan,
  firstmatch, subquery_materialization_cost_based,
  block_nested_loop, batched_key_access,
- use_index_extensions, condition_fanout_filter} and val is
- one of {on, off, default}
+ use_index_extensions, condition_fanout_filter,
+ derived_merge} and val is one of {on, off, default}
  --optimizer-trace=name 
  Controls tracing of the Optimizer:
  optimizer_trace=option=val[,option=val...], where option
@@ -595,7 +625,7 @@ The following options may be given as the first argument:
  (Defaults to on; use --skip-performance-schema to disable.)
  --performance-schema-accounts-size=# 
  Maximum number of instrumented user@host accounts. Use 0
- to disable, -1 for automated sizing.
+ to disable, -1 for automated scaling.
  --performance-schema-consumer-events-stages-current 
  Default startup value for the events_stages_current
  consumer.
@@ -674,7 +704,7 @@ The following options may be given as the first argument:
  to disable, -1 for automated sizing.
  --performance-schema-hosts-size=# 
  Maximum number of instrumented hosts. Use 0 to disable,
- -1 for automated sizing.
+ -1 for automated scaling.
  --performance-schema-instrument[=name] 
  Default startup value for a performance schema
  instrument.
@@ -682,43 +712,45 @@ The following options may be given as the first argument:
  Maximum number of condition instruments.
  --performance-schema-max-cond-instances=# 
  Maximum number of instrumented condition objects. Use 0
- to disable, -1 for automated sizing.
+ to disable, -1 for automated scaling.
  --performance-schema-max-file-classes=# 
  Maximum number of file instruments.
  --performance-schema-max-file-handles=# 
  Maximum number of opened instrumented files.
  --performance-schema-max-file-instances=# 
  Maximum number of instrumented files. Use 0 to disable,
- -1 for automated sizing.
+ -1 for automated scaling.
  --performance-schema-max-index-stat=# 
  Maximum number of index statistics for instrumented
- tables. Use 0 to disable, -1 for automated sizing.
+ tables. Use 0 to disable, -1 for automated scaling.
  --performance-schema-max-memory-classes=# 
  Maximum number of memory pool instruments.
  --performance-schema-max-metadata-locks=# 
  Maximum number of metadata locks. Use 0 to disable, -1
- for automated sizing.
+ for automated scaling.
  --performance-schema-max-mutex-classes=# 
  Maximum number of mutex instruments.
  --performance-schema-max-mutex-instances=# 
  Maximum number of instrumented MUTEX objects. Use 0 to
- disable, -1 for automated sizing.
+ disable, -1 for automated scaling.
  --performance-schema-max-prepared-statements-instances=# 
  Maximum number of instrumented prepared statements. Use 0
- to disable, -1 for automated sizing.
+ to disable, -1 for automated scaling.
  --performance-schema-max-program-instances=# 
  Maximum number of instrumented programs. Use 0 to
- disable, -1 for automated sizing.
+ disable, -1 for automated scaling.
  --performance-schema-max-rwlock-classes=# 
  Maximum number of rwlock instruments.
  --performance-schema-max-rwlock-instances=# 
  Maximum number of instrumented RWLOCK objects. Use 0 to
- disable, -1 for automated sizing.
+ disable, -1 for automated scaling.
  --performance-schema-max-socket-classes=# 
  Maximum number of socket instruments.
  --performance-schema-max-socket-instances=# 
  Maximum number of opened instrumented sockets. Use 0 to
- disable, -1 for automated sizing.
+ disable, -1 for automated scaling.
+ --performance-schema-max-sql-text-length=# 
+ Maximum length of displayed sql text.
  --performance-schema-max-stage-classes=# 
  Maximum number of stage instruments.
  --performance-schema-max-statement-classes=# 
@@ -727,28 +759,30 @@ The following options may be given as the first argument:
  Number of rows per thread in EVENTS_STATEMENTS_CURRENT.
  --performance-schema-max-table-handles=# 
  Maximum number of opened instrumented tables. Use 0 to
- disable, -1 for automated sizing.
+ disable, -1 for automated scaling.
  --performance-schema-max-table-instances=# 
  Maximum number of instrumented tables. Use 0 to disable,
- -1 for automated sizing.
+ -1 for automated scaling.
  --performance-schema-max-table-lock-stat=# 
  Maximum number of lock statistics for instrumented
- tables. Use 0 to disable, -1 for automated sizing.
+ tables. Use 0 to disable, -1 for automated scaling.
  --performance-schema-max-thread-classes=# 
  Maximum number of thread instruments.
  --performance-schema-max-thread-instances=# 
  Maximum number of instrumented threads. Use 0 to disable,
- -1 for automated sizing.
+ -1 for automated scaling.
  --performance-schema-session-connect-attrs-size=# 
  Size of session attribute string buffer per thread. Use 0
  to disable, -1 for automated sizing.
  --performance-schema-setup-actors-size=# 
- Maximum number of rows in SETUP_ACTORS.
+ Maximum number of rows in SETUP_ACTORS. Use 0 to disable,
+ -1 for automated scaling.
  --performance-schema-setup-objects-size=# 
- Maximum number of rows in SETUP_OBJECTS.
+ Maximum number of rows in SETUP_OBJECTS. Use 0 to
+ disable, -1 for automated scaling.
  --performance-schema-users-size=# 
  Maximum number of instrumented users. Use 0 to disable,
- -1 for automated sizing.
+ -1 for automated scaling.
  --pid-file=name     Pid file used by safe_mysqld
  --plugin-dir=name   Directory for plugins
  --plugin-load=name  Optional semicolon-separated list of plugins to load,
@@ -923,6 +957,16 @@ The following options may be given as the first argument:
  Track changes to the 'session state'.
  --session-track-system-variables=name 
  Track changes in registered system variables.
+ --show-compatibility-56 
+ SHOW commands / INFORMATION_SCHEMA tables compatible with
+ MySQL 5.6
+ (Defaults to on; use --skip-show-compatibility-56 to disable.)
+ --show-old-temporals 
+ When this option is enabled, the pre-5.6.4 temporal types
+ will be marked in the 'SHOW CREATE TABLE' and
+ 'INFORMATION_SCHEMA.COLUMNS' table as a comment in
+ COLUMN_TYPE field. This variable is deprecated and will
+ be removed in a future release.
  --show-slave-auth-info 
  Show user and password in SHOW SLAVE HOSTS on this
  master.
@@ -1089,6 +1133,9 @@ The following options may be given as the first argument:
  --transaction-read-only 
  Default transaction access mode. True if transactions are
  read-only.
+ --transaction-write-set-extraction[=name] 
+ This option is used to let the server know when toextract
+ the write set which will be used for various purposes. 
  --updatable-views-with-limit=name 
  YES = Don't issue an error message (warning only) if a
  VIEW without presence of a key of the underlying table is
@@ -1113,6 +1160,7 @@ auto-increment-increment 1
 auto-increment-offset 1
 autocommit TRUE
 automatic-sp-privileges TRUE
+avoid-temporal-upgrade FALSE
 back-log 80
 big-tables FALSE
 bind-address *
@@ -1182,8 +1230,10 @@ ignore-builtin-innodb FALSE
 init-connect 
 init-file (No default value)
 init-slave 
+initialize FALSE
+initialize-insecure FALSE
 interactive-timeout 28800
-internal-tmp-disk-storage-engine MYISAM
+internal-tmp-disk-storage-engine INNODB
 join-buffer-size 262144
 keep-files-on-create FALSE
 key-buffer-size 8388608
@@ -1197,6 +1247,7 @@ lc-messages-dir MYSQL_SHAREDIR/
 lc-time-names en_US
 local-infile TRUE
 lock-wait-timeout 31536000
+log-backward-compatible-user-definitions FALSE
 log-bin (No default value)
 log-bin-index (No default value)
 log-bin-trust-function-creators FALSE
@@ -1235,6 +1286,7 @@ max-binlog-stmt-cache-size 18446744073709547520
 max-connect-errors 100
 max-connections 151
 max-delayed-threads 20
+max-digest-length 1024
 max-error-count 64
 max-heap-table-size 16777216
 max-join-size 18446744073709551615
@@ -1273,7 +1325,7 @@ old-passwords 0
 old-style-user-limits FALSE
 optimizer-prune-level 1
 optimizer-search-depth 62
-optimizer-switch index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on
+optimizer-switch index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on
 optimizer-trace 
 optimizer-trace-features greedy_search=on,range_optimizer=on,dynamic_range=on,repeated_subselect=on
 optimizer-trace-limit 1
@@ -1318,13 +1370,14 @@ performance-schema-max-metadata-locks -1
 performance-schema-max-mutex-classes 200
 performance-schema-max-mutex-instances -1
 performance-schema-max-prepared-statements-instances -1
-performance-schema-max-program-instances 5000
+performance-schema-max-program-instances -1
 performance-schema-max-rwlock-classes 40
 performance-schema-max-rwlock-instances -1
 performance-schema-max-socket-classes 10
 performance-schema-max-socket-instances -1
+performance-schema-max-sql-text-length 1024
 performance-schema-max-stage-classes 150
-performance-schema-max-statement-classes 188
+performance-schema-max-statement-classes 191
 performance-schema-max-statement-stack 10
 performance-schema-max-table-handles -1
 performance-schema-max-table-instances -1
@@ -1332,8 +1385,8 @@ performance-schema-max-table-lock-stat -1
 performance-schema-max-thread-classes 50
 performance-schema-max-thread-instances -1
 performance-schema-session-connect-attrs-size -1
-performance-schema-setup-actors-size 100
-performance-schema-setup-objects-size 100
+performance-schema-setup-actors-size -1
+performance-schema-setup-objects-size -1
 performance-schema-users-size -1
 port ####
 port-open-timeout 0
@@ -1365,13 +1418,14 @@ report-user (No default value)
 rpl-stop-slave-timeout 31536000
 safe-user-create FALSE
 secure-auth TRUE
-secure-file-priv (No default value)
 server-id 0
 server-id-bits 32
 session-track-gtids OFF
 session-track-schema TRUE
 session-track-state-change FALSE
 session-track-system-variables time_zone,autocommit,character_set_client,character_set_results,character_set_connection
+show-compatibility-56 TRUE
+show-old-temporals FALSE
 show-slave-auth-info FALSE
 skip-grant-tables TRUE
 skip-name-resolve FALSE
@@ -1418,6 +1472,7 @@ transaction-alloc-block-size 8192
 transaction-isolation REPEATABLE-READ
 transaction-prealloc-size 4096
 transaction-read-only FALSE
+transaction-write-set-extraction OFF
 updatable-views-with-limit YES
 validate-user-plugins TRUE
 verbose TRUE

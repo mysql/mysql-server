@@ -43,7 +43,7 @@
 #
 # This part verifies the splittable DROP TABLE behavior in client sessions by
 # creating three tables (one regular and two temporary), setting session
-# GTID_NEXT to an specific GTID and then trying to issue an DROP TABLE
+# GTID_NEXT to a specific GTID and then trying to issue a DROP TABLE
 # statement containing the combinations of at least two tables.
 #
 # As DROP statements with both regular and temporary tables or with
@@ -260,7 +260,10 @@ DROP TEMPORARY TABLE IF EXISTS temp_ignore, temp_trans_t1;
 # with the same storage engine.
 #
 --source include/rpl_connection_master.inc
+SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("InnoDB: Error: table .* does not exist in the InnoDB internal");
+SET SESSION sql_log_bin= 1;
+
 CREATE DATABASE test2;
 CREATE DATABASE test3;
 
@@ -327,9 +330,8 @@ CREATE TEMPORARY TABLE temp_non_trans_t2 (c1 INT) ENGINE=MyISAM;
 --source include/wait_show_condition.inc
 
 # Now we verify slave_open_temp_tables, it should be '0'
---let $var_value= query_get_value(SHOW STATUS LIKE 'Slave_open_temp_tables', Value, 1)
 --let $assert_text= Slave_open_temp_tables should be 0
---let $assert_cond= $var_value = 0
+--let $assert_cond= [SHOW STATUS LIKE "Slave_open_temp_tables", Value, 1] = 0
 --source include/assert.inc
 
 # Cleanup replication

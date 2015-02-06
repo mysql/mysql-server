@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -54,7 +54,7 @@ class THD;
 
 extern PFS_single_stat *thread_instr_class_waits_array_start;
 extern PFS_single_stat *thread_instr_class_waits_array_end;
-
+extern my_bool show_compatibility_56;
 
 /**
   @addtogroup Performance_schema_buffers
@@ -323,6 +323,10 @@ struct PFS_ALIGNED PFS_metadata_lock : public PFS_instr
 
 /** Max size of the statements stack. */
 extern uint statement_stack_max;
+/** Max size of the digests token array. */
+extern uint pfs_max_digest_length;
+/** Max size of SQL TEXT. */
+extern uint pfs_max_sqltext;
 
 /** Instrumented thread implementation. @see PSI_thread. */
 struct PFS_ALIGNED PFS_thread : PFS_connection_slice
@@ -558,7 +562,7 @@ PFS_metadata_lock *sanitize_metadata_lock(PFS_metadata_lock *unsafe);
 
 int init_instruments(const PFS_global_param *param);
 void cleanup_instruments();
-int init_file_hash();
+int init_file_hash(const PFS_global_param *param);
 void cleanup_file_hash();
 PFS_mutex* create_mutex(PFS_mutex_class *mutex_class, const void *identity);
 void destroy_mutex(PFS_mutex *pfs);
@@ -598,22 +602,8 @@ void destroy_metadata_lock(PFS_metadata_lock *pfs);
 
 /* For iterators and show status. */
 
-extern ulong mutex_max;
-extern ulong mutex_lost;
-extern ulong rwlock_max;
-extern ulong rwlock_lost;
-extern ulong cond_max;
-extern ulong cond_lost;
-extern ulong thread_max;
-extern ulong thread_lost;
-extern ulong file_max;
-extern ulong file_lost;
 extern long file_handle_max;
 extern ulong file_handle_lost;
-extern ulong table_max;
-extern ulong table_lost;
-extern ulong socket_max;
-extern ulong socket_lost;
 extern ulong events_waits_history_per_thread;
 extern ulong events_stages_history_per_thread;
 extern ulong events_statements_history_per_thread;
@@ -622,20 +612,10 @@ extern ulong locker_lost;
 extern ulong statement_lost;
 extern ulong session_connect_attrs_lost;
 extern ulong session_connect_attrs_size_per_thread;
-extern ulong metadata_lock_max;
-extern ulong metadata_lock_lost;
 
 /* Exposing the data directly, for iterators. */
 
-extern PFS_mutex *mutex_array;
-extern PFS_rwlock *rwlock_array;
-extern PFS_cond *cond_array;
-extern PFS_thread *thread_array;
-extern PFS_file *file_array;
 extern PFS_file **file_handle_array;
-extern PFS_table *table_array;
-extern PFS_socket *socket_array;
-extern PFS_metadata_lock *metadata_lock_array;
 
 void reset_events_waits_by_instance();
 void reset_file_instance_io();
@@ -695,6 +675,11 @@ void aggregate_thread_transactions(PFS_thread *thread,
                                    PFS_host *safe_host);
 
 void aggregate_thread_memory(bool alive, PFS_thread *thread,
+                             PFS_account *safe_account,
+                             PFS_user *safe_user,
+                             PFS_host *safe_host);
+
+void aggregate_thread_status(PFS_thread *thread,
                              PFS_account *safe_account,
                              PFS_user *safe_user,
                              PFS_host *safe_host);

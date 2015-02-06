@@ -409,30 +409,38 @@ flush status;
 --echo # 1. Read-only statement: SELECT
 --echo #
 select * from t1;
+--disable_warnings
 call p_verify_status_increment(1, 0, 1, 0);
 commit;
 call p_verify_status_increment(1, 0, 1, 0);
+--enable_warnings
 
 --echo # 2. Read-write statement: INSERT, insert 1 row. 
 --echo #
 insert into t1 (a) values (1);
+--disable_warnings
 call p_verify_status_increment(2, 2, 2, 2);
 commit;
 call p_verify_status_increment(2, 2, 2, 2);
+--enable_warnings
 
 --echo # 3. Read-write statement: UPDATE, update 1 row. 
 --echo #
 update t1 set a=2;
+--disable_warnings
 call p_verify_status_increment(2, 2, 2, 2);
 commit;
 call p_verify_status_increment(2, 2, 2, 2);
+--enable_warnings
 
 --echo # 4. Read-write statement: UPDATE, update 0 rows, 1 row matches WHERE 
 --echo #
 update t1 set a=2;
+--disable_warnings
 call p_verify_status_increment(2, 2, 1, 0);
 commit;
 call p_verify_status_increment(2, 2, 1, 0);
+--enable_warnings
 
 --echo # 5. Read-write statement: UPDATE, update 0 rows, 0 rows match WHERE 
 --echo #
@@ -444,23 +452,29 @@ call p_verify_status_increment(2, 2, 1, 0);
 --echo # transaction in InnoDB and nothing is written to the binary log.
 --echo #
 update t1 set a=3 where a=1;
+--disable_warnings
 call p_verify_status_increment(2, 0, 1, 0);
 commit;
 call p_verify_status_increment(2, 0, 1, 0);
+--enable_warnings
 
 --echo # 6. Read-write statement: DELETE, delete 0 rows. 
 --echo #
 delete from t1 where a=1;
+--disable_warnings
 call p_verify_status_increment(2, 0, 1, 0);
 commit;
 call p_verify_status_increment(2, 0, 1, 0);
+--enable_warnings
 
 --echo # 7. Read-write statement: DELETE, delete 1 row. 
 --echo #
 delete from t1 where a=2;
+--disable_warnings
 call p_verify_status_increment(2, 2, 2, 2);
 commit;
 call p_verify_status_increment(2, 2, 2, 2);
+--enable_warnings
 
 --echo # 8. Read-write statement: unqualified DELETE
 --echo #
@@ -472,53 +486,67 @@ call p_verify_status_increment(2, 2, 2, 2);
 --echo # Since there are no rows, nothing is written to the binary log.
 --echo # Thus we have just one read-only transaction in InnoDB.
 delete from t1;
+--disable_warnings
 call p_verify_status_increment(2, 2, 1, 0);
 commit;
 call p_verify_status_increment(2, 2, 1, 0);
+--enable_warnings
 
 --echo # 9. Read-write statement: REPLACE, change 1 row. 
 --echo #
 replace t1 set a=1;
+--disable_warnings
 call p_verify_status_increment(2, 2, 2, 2);
 commit;
 call p_verify_status_increment(2, 2, 2, 2);
+--enable_warnings
 
 --echo # 10. Read-write statement: REPLACE, change 0 rows. 
 --echo #
 replace t1 set a=1;
+--disable_warnings
 call p_verify_status_increment(2, 2, 1, 0);
 commit;
 call p_verify_status_increment(2, 2, 1, 0);
+--enable_warnings
 
 --echo # 11. Read-write statement: IODKU, change 1 row. 
 --echo #
 insert t1 set a=1 on duplicate key update a=a+1;
+--disable_warnings
 call p_verify_status_increment(2, 2, 2, 2);
 select * from t1;
 call p_verify_status_increment(1, 0, 1, 0);
 commit;
 call p_verify_status_increment(2, 2, 2, 2);
+--enable_warnings
 
 --echo # 12. Read-write statement: IODKU, change 0 rows. 
 --echo #
 insert t1 set a=2 on duplicate key update a=2;
+--disable_warnings
 call p_verify_status_increment(2, 2, 1, 0);
 commit;
 call p_verify_status_increment(2, 2, 1, 0);
+--enable_warnings
 
 --echo # 13. Read-write statement: INSERT IGNORE, change 0 rows. 
 --echo #
 insert ignore t1 set a=2;
+--disable_warnings
 call p_verify_status_increment(2, 2, 1, 0);
 commit;
 call p_verify_status_increment(2, 2, 1, 0);
+--enable_warnings
 
 --echo # 14. Read-write statement: INSERT IGNORE, change 1 row. 
 --echo #
 insert ignore t1 set a=1;
+--disable_warnings
 call p_verify_status_increment(2, 2, 2, 2);
 commit;
 call p_verify_status_increment(2, 2, 2, 2);
+--enable_warnings
 --echo # 15. Read-write statement: UPDATE IGNORE, change 0 rows. 
 --echo #
 --disable_warnings
@@ -527,26 +555,34 @@ update ignore t1 set a=2 where a=1;
 if (`select @@binlog_format = 'STATEMENT'`)
 {
   --disable_query_log
+  --disable_warnings
   call p_verify_status_increment(2, 2, 1, 0);
+  --enable_warnings
   --enable_query_log
 }
 if (`select @@binlog_format != 'STATEMENT'`)
 {
   --disable_query_log
+  --disable_warnings
   call p_verify_status_increment(1, 0, 1, 0);
+  --enable_warnings
   --enable_query_log
 }
 commit;
 if (`select @@binlog_format = 'STATEMENT'`)
 {
   --disable_query_log
+  --disable_warnings
   call p_verify_status_increment(2, 2, 1, 0);
+  --enable_warnings
   --enable_query_log
 }
 if (`select @@binlog_format != 'STATEMENT'`)
 {
   --disable_query_log
+  --disable_warnings
   call p_verify_status_increment(1, 0, 1, 0);
+  --enable_warnings
   --enable_query_log
 }
 --echo #
@@ -562,7 +598,9 @@ begin
   return 2;
 end|
 delimiter ;|
+--disable_warnings
 call p_verify_status_increment(0, 0, 0, 0);
+--enable_warnings
 
 --echo # 16. A function changes non-trans-table.
 --echo #
@@ -571,9 +609,11 @@ call p_verify_status_increment(0, 0, 0, 0);
 --echo # the binary log. 
 --echo #
 select f1();
+--disable_warnings
 call p_verify_status_increment(1, 0, 1, 0);
 commit;
 call p_verify_status_increment(1, 0, 1, 0);
+--enable_warnings
 
 --echo # 17. Read-only statement, a function changes non-trans-table.
 --echo #
@@ -584,9 +624,11 @@ call p_verify_status_increment(1, 0, 1, 0);
 --disable_warnings
 select f1() from t1;
 --enable_warnings
+--disable_warnings
 call p_verify_status_increment(2, 0, 2, 0);
 commit;
 call p_verify_status_increment(2, 0, 2, 0);
+--enable_warnings
 
 --echo # 18. Read-write statement: UPDATE, change 0 (transactional) rows. 
 --echo #
@@ -595,9 +637,11 @@ select count(*) from t2;
 update t1 set a=2 where a=f1()+10;
 --enable_warnings
 select count(*) from t2;
+--disable_warnings
 call p_verify_status_increment(2, 0, 2, 0);
 commit;
 call p_verify_status_increment(2, 0, 2, 0);
+--enable_warnings
 --echo #
 --echo # Replace the non-transactional table with a temporary
 --echo # transactional table. Demonstrate that a change to a temporary
@@ -607,41 +651,51 @@ call p_verify_status_increment(2, 0, 2, 0);
 drop table t2;
 set sql_mode=no_engine_substitution;
 create temporary table t2 (a int);
+--disable_warnings
 call p_verify_status_increment(1, 0, 0, 0);
+--enable_warnings
 set sql_mode=default;
 --echo # 19. A function changes temp-trans-table.
 --echo #
 select f1();
 --echo # Two commits because a binary log record is written
+--disable_warnings
 call p_verify_status_increment(2, 0, 1, 0);
 commit;
 call p_verify_status_increment(2, 0, 1, 0);
+--enable_warnings
 
 --echo # 20. Read-only statement, a function changes non-trans-table.
 --echo #
 select f1() from t1;
 --echo # Two commits because a binary log record is written
+--disable_warnings
 call p_verify_status_increment(2, 0, 1, 0);
 commit;
 call p_verify_status_increment(2, 0, 1, 0);
+--enable_warnings
 
 --echo # 21. Read-write statement: UPDATE, change 0 (transactional) rows. 
 --echo #
 --disable_warnings
 update t1 set a=2 where a=f1()+10;
 --enable_warnings
+--disable_warnings
 call p_verify_status_increment(2, 0, 1, 0);
 commit;
 call p_verify_status_increment(2, 0, 1, 0);
+--enable_warnings
 
 --echo # 22. DDL: ALTER TEMPORARY TABLE, should not cause a 2pc
 --echo #
 alter table t2 add column b int default 5;
 --echo # A commit is done internally by ALTER. 
+--disable_warnings
 call p_verify_status_increment(2, 0, 2, 0);
 commit;
 --echo # There is nothing left to commit
 call p_verify_status_increment(0, 0, 0, 0);
+--enable_warnings
 
 --echo # 23. DDL: RENAME TEMPORARY TABLE, does not start a transaction
 --echo
@@ -650,53 +704,70 @@ call p_verify_status_increment(0, 0, 0, 0);
 --echo # 24. DDL: TRUNCATE TEMPORARY TABLE
 --echo
 truncate table t2;
+--disable_warnings
 call p_verify_status_increment(4, 0, 4, 0);
 commit;
 --echo # There is nothing left to commit
 call p_verify_status_increment(0, 0, 0, 0);
+--enable_warnings
 
 --echo # 25. Read-write statement: unqualified DELETE 
 --echo
 delete from t2;
+--disable_warnings
 call p_verify_status_increment(2, 0, 1, 0);
 commit;
 --echo # There is nothing left to commit
 call p_verify_status_increment(2, 0, 1, 0);
+--enable_warnings
 
 --echo # 25. DDL: DROP TEMPORARY TABLE, does not start a transaction
 --echo #
 drop temporary table t2;
+--disable_warnings
 call p_verify_status_increment(1, 0, 1, 0);
 commit;
 call p_verify_status_increment(1, 0, 1, 0);
+--enable_warnings
 
 --echo # 26. Verify that SET AUTOCOMMIT issues an implicit commit
 --echo #
 insert t1 set a=3;
+--disable_warnings
 call p_verify_status_increment(2, 2, 2, 2);
 set autocommit=1;
 call p_verify_status_increment(2, 2, 2, 2);
+--enable_warnings
 rollback;
 select a from t1 where a=3;
+--disable_warnings
 call p_verify_status_increment(1, 0, 1, 0);
+--enable_warnings
 delete from t1 where a=3;
+--disable_warnings
 call p_verify_status_increment(2, 2, 2, 2);
 commit;
 call p_verify_status_increment(0, 0, 0, 0);
+--enable_warnings
 set autocommit=0;
+--disable_warnings
 call p_verify_status_increment(0, 0, 0, 0);
 insert t1 set a=3;
 call p_verify_status_increment(2, 2, 2, 2);
+--enable_warnings
 --echo # Sic: not actually changing the value of autocommit
 set autocommit=0;
+--disable_warnings
 call p_verify_status_increment(0, 0, 0, 0);
 rollback;
 select a from t1 where a=3;
 call p_verify_status_increment(1, 0, 1, 0);
+--enable_warnings
 
 --echo # 27. Savepoint management
 --echo #
 insert t1 set a=3;
+--disable_warnings
 call p_verify_status_increment(2, 2, 2, 2);
 savepoint a;
 call p_verify_status_increment(1, 0, 1, 0);
@@ -709,21 +780,26 @@ select a from t1 where a=3;
 call p_verify_status_increment(1, 0, 1, 0);
 commit;
 call p_verify_status_increment(1, 0, 1, 0);
+--enable_warnings
 
 --echo # 28. Read-write statement: DO
 --echo #
 create table t2 (a int);
+--disable_warnings
 call p_verify_status_increment(0, 0, 0, 0);
 do (select f1() from t1 where a=2);
 call p_verify_status_increment(2, 2, 2, 2);
 commit;
 call p_verify_status_increment(2, 2, 2, 2);
+--enable_warnings
 
 --echo # 29. Read-write statement: MULTI-DELETE
 --echo # 
 delete t1, t2 from t1 join t2 on (t1.a=t2.a) where t1.a=2;
 commit;
+--disable_warnings
 call p_verify_status_increment(4, 4, 4, 4);
+--enable_warnings
 
 --echo # 30. Read-write statement: INSERT-SELECT, MULTI-UPDATE, REPLACE-SELECT
 --echo # 
@@ -733,7 +809,9 @@ commit;
 replace into t2 select a from t1;
 --enable_warnings
 commit;
+--disable_warnings
 call p_verify_status_increment(8, 8, 8, 8);
+--enable_warnings
 #
 # Multi-update is one of the few remaining statements that still
 # locks the tables at prepare step (and hence starts the transaction.
@@ -744,13 +822,16 @@ call p_verify_status_increment(8, 8, 8, 8);
 update t1, t2 set t1.a=4, t2.a=8 where t1.a=t2.a and t1.a=1;
 --enable_ps_protocol
 commit;
+--disable_warnings
 call p_verify_status_increment(4, 4, 4, 4);
+--enable_warnings
 
 --echo # 31. DDL: various DDL with transactional tables
 --echo #
 --echo # Sic: no table is created.
 create table if not exists t2 (a int) select 6 union select 7;
 --echo # No table are locked before existing t2 is found, so nothing to commit.
+--disable_warnings
 call p_verify_status_increment(0, 0, 0, 0);
 create table t3 select a from t2;
 call p_verify_status_increment(2, 0, 4, 4);
@@ -775,6 +856,7 @@ commit;
 call p_verify_status_increment(0, 0, 0, 0);
 drop view v1;
 call p_verify_status_increment(0, 0, 0, 0);
+--enable_warnings
 
 --echo #
 --echo # Cleanup

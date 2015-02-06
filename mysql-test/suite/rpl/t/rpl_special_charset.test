@@ -1,0 +1,26 @@
+################################################################################
+# Bug#19855907 IO THREAD AUTHENTICATION ISSUE WITH SOME CHARACTER SETS
+# Problem: IO thread fails to connect to master if servers are configured with
+#  special character sets like utf16, utf32, ucs2.
+#
+# Analysis: MySQL server does not support few special character sets like
+#  utf16,utf32 and ucs2 as "client's character set"(eg: utf16,utf32, ucs2).
+#  When IO thread is trying to connect to Master, it sets server's character
+#  set as client's character set. When Slave server is started with these
+#  special character sets, IO thread (a connection to Master) fails because
+#  of the above said reason.
+#
+# Fix: If server's character set is not supported as client's character set,
+#  then set default's client character set(latin1) as client's character set.
+###############################################################################
+--source include/not_group_replication_plugin.inc
+--source include/master-slave.inc
+CREATE TABLE t1(i VARCHAR(20));
+INSERT INTO t1 VALUES (0xFFFF);
+--sync_slave_with_master
+--let diff_tables=master:t1, slave:t1
+--source include/diff_tables.inc
+# Cleanup
+--connection master
+DROP TABLE t1;
+--source include/rpl_end.inc

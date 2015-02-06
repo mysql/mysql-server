@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -640,7 +640,7 @@ bool Explain::prepare_columns()
   Explain class main function
 
   This function:
-    a) allocates a select_send object (if no one pre-allocated available),
+    a) allocates a Query_result_send object (if no one pre-allocated available),
     b) calculates and sends whole EXPLAIN data.
 
   @return false if success, true if error
@@ -832,11 +832,9 @@ bool Explain_union_result::explain_extra()
 
 bool Explain_table_base::explain_partitions()
 {
-#ifdef WITH_PARTITION_STORAGE_ENGINE
-  if (!table->pos_in_table_list->derived && table->part_info)
+  if (table->part_info)
     return make_used_partitions_str(table->part_info,
                                     &fmt->entry()->col_partitions);
-#endif
   return false;
 }
 
@@ -1154,7 +1152,7 @@ bool Explain_join::explain_modify_flags()
          at;
          at= at->next_local)
     {
-      if (at->correspondent_table->updatable &&
+      if (at->correspondent_table->is_updatable() &&
           at->correspondent_table->updatable_base_table()->table == table)
       {
         fmt->entry()->mod_type= MT_DELETE;
@@ -1372,7 +1370,7 @@ bool Explain_join::explain_qep_tab(size_t tabnum)
 
 bool Explain_join::explain_table_name()
 {
-  if (table->pos_in_table_list->derived && !fmt->is_hierarchical())
+  if (table->pos_in_table_list->is_view_or_derived() && !fmt->is_hierarchical())
   {
     /* Derived table name generation */
     char table_name_buffer[NAME_LEN];
@@ -1685,7 +1683,7 @@ bool Explain_join::explain_extra()
         TABLE *prev_table= join->qep_tab[tab->firstmatch_return].table();
         if (prev_table->pos_in_table_list->query_block_id() &&
             !fmt->is_hierarchical() &&
-            prev_table->pos_in_table_list->derived)
+            prev_table->pos_in_table_list->is_derived())
         {
           char namebuf[NAME_LEN];
           /* Derived table name generation */
@@ -1950,7 +1948,7 @@ static bool check_acl_for_explain(const TABLE_LIST *table_list)
 {
   for (const TABLE_LIST *tbl= table_list; tbl; tbl= tbl->next_global)
   {
-    if (tbl->view && tbl->view_no_explain)
+    if (tbl->is_view() && tbl->view_no_explain)
     {
       my_message(ER_VIEW_NO_EXPLAIN, ER(ER_VIEW_NO_EXPLAIN), MYF(0));
       return true;
@@ -1981,7 +1979,7 @@ bool explain_single_table_modification(THD *ethd,
                                        SELECT_LEX *select)
 {
   DBUG_ENTER("explain_single_table_modification");
-  select_send result;
+  Query_result_send result;
   const THD *const query_thd= select->master_unit()->thd;
   const bool other= (query_thd != ethd);
   bool ret;
@@ -1990,12 +1988,12 @@ bool explain_single_table_modification(THD *ethd,
     Prepare the self-allocated result object
 
     For queries with top-level JOIN the caller provides pre-allocated
-    select_send object. Then that JOIN object prepares the select_send
-    object calling result->prepare() in SELECT_LEX::prepare(),
+    Query_result_send object. Then that JOIN object prepares the
+    Query_result_send object calling result->prepare() in SELECT_LEX::prepare(),
     result->initalize_tables() in JOIN::optimize() and result->prepare2()
     in JOIN::exec().
     However without the presence of the top-level JOIN we have to
-    prepare/initialize select_send object manually.
+    prepare/initialize Query_result_send object manually.
   */
   List<Item> dummy;
   if (result.prepare(dummy, ethd->lex->unit) ||
@@ -2164,15 +2162,15 @@ explain_query_specification(THD *ethd, SELECT_LEX *select_lex,
   Send to the client a QEP data set for any DML statement that has a QEP
   represented completely by JOIN object(s).
 
-  This function uses a specific select_result object for sending explain
+  This function uses a specific Query_result object for sending explain
   output to the client.
 
-  When explaining own query, the existing select_result object (found
+  When explaining own query, the existing Query_result object (found
   in outermost SELECT_LEX_UNIT or SELECT_LEX) is used. However, if the
-  select_result is unsuitable for explanation (need_explain_interceptor()
-  returns true), wrap the select_result inside an explain_send object.
+  Query_result is unsuitable for explanation (need_explain_interceptor()
+  returns true), wrap the Query_result inside an Query_result_explain object.
 
-  When explaining other query, create a select_send object and prepare it
+  When explaining other query, create a Query_result_send object and prepare it
   as if it was a regular SELECT query.
 
   @note see explain_single_table_modification() for single-table
@@ -2180,7 +2178,7 @@ explain_query_specification(THD *ethd, SELECT_LEX *select_lex,
 
   @note Unlike handle_query(), explain_query() calls abort_result_set()
         itself in the case of failure (OOM etc.) since it may use
-        an internally created select_result object that has to be deleted
+        an internally created Query_result object that has to be deleted
         before exiting the function.
 
   @param ethd    THD of the explaining session
@@ -2196,17 +2194,17 @@ bool explain_query(THD *ethd, SELECT_LEX_UNIT *unit)
   const THD *const query_thd= unit->thd; // THD of query to be explained
   const bool other= (ethd != query_thd);
 
-  select_result *explain_result= NULL;
+  Query_result *explain_result= NULL;
 
   if (!other)
     explain_result= unit->query_result() ?
                     unit->query_result() : unit->first_select()->query_result();
 
-  explain_send explain_wrapper(unit, explain_result);
+  Query_result_explain explain_wrapper(unit, explain_result);
 
   if (other)  
   {
-    if (!((explain_result= new select_send)))
+    if (!((explain_result= new Query_result_send)))
       return true; /* purecov: inspected */
     List<Item> dummy;
     if (explain_result->prepare(dummy, ethd->lex->unit) ||

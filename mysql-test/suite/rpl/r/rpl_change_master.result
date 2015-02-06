@@ -138,6 +138,8 @@ include/rpl_reset.inc
 include/assert.inc [Password length is 32]
 SET SQL_LOG_BIN=0;
 GRANT REPLICATION SLAVE ON *.* TO rpl@127.0.0.1 IDENTIFIED BY '012345678901234567890123456789ab';
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 SET SQL_LOG_BIN=1;
 include/stop_slave.inc
 CHANGE MASTER TO MASTER_HOST='127.0.0.1', master_user='rpl', master_password='012345678901234567890123456789ab';

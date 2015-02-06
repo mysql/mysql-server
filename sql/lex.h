@@ -1,7 +1,7 @@
 #ifndef LEX_INCLUDED
 #define LEX_INCLUDED
 
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -58,6 +58,7 @@ static SYMBOL symbols[] = {
   { ">>",                       SYM(SHIFT_RIGHT)},
   { "<=>",                      SYM(EQUAL_SYM)},
   { "ACCESSIBLE",               SYM(ACCESSIBLE_SYM)},
+  { "ACCOUNT",                  SYM(ACCOUNT_SYM)},
   { "ACTION",                   SYM(ACTION)},
   { "ADD",                      SYM(ADD)},
   { "AFTER",                    SYM(AFTER_SYM)},
@@ -66,6 +67,7 @@ static SYMBOL symbols[] = {
   { "ALL",                      SYM(ALL)},
   { "ALGORITHM",                SYM(ALGORITHM_SYM)},
   { "ALTER",                    SYM(ALTER)},
+  { "ALWAYS",                   SYM(ALWAYS_SYM)},
   { "ANALYSE",                  SYM(ANALYSE_SYM)}, // this one is for PROCEDURE ANALYSE
   { "ANALYZE",                  SYM(ANALYZE_SYM)}, // this one is for ANALYZE TABLE etc
   { "AND",                      SYM(AND_SYM)},
@@ -242,10 +244,12 @@ static SYMBOL symbols[] = {
   { "FULLTEXT",                 SYM(FULLTEXT_SYM)},
   { "FUNCTION",                 SYM(FUNCTION_SYM)},
   { "GENERAL",                  SYM(GENERAL)},
+  { "GROUP_REPLICATION",        SYM(GROUP_REPLICATION)},
   { "GEOMETRY",                 SYM(GEOMETRY_SYM)},
   { "GEOMETRYCOLLECTION",       SYM(GEOMETRYCOLLECTION)},
   { "GET_FORMAT",               SYM(GET_FORMAT)},
   { "GET",                      SYM(GET_SYM)},
+  { "GENERATED",                SYM(GENERATED)},
   { "GLOBAL",                   SYM(GLOBAL_SYM)},
   { "GRANT",                    SYM(GRANT)},
   { "GRANTS",                   SYM(GRANTS)},
@@ -423,6 +427,7 @@ static SYMBOL symbols[] = {
   { "PACK_KEYS",                SYM(PACK_KEYS_SYM)},
   { "PARSER",                   SYM(PARSER_SYM)},
   { "PAGE",                     SYM(PAGE_SYM)},
+  { "PARSE_GCOL_EXPR",          SYM(PARSE_GCOL_EXPR_SYM)},
   { "PARTIAL",                  SYM(PARTIAL)},
   { "PARTITION",                SYM(PARTITION_SYM)},
   { "PARTITIONING",             SYM(PARTITIONING_SYM)},
@@ -574,6 +579,7 @@ static SYMBOL symbols[] = {
   { "STATUS",                   SYM(STATUS_SYM)},
   { "STOP",                     SYM(STOP_SYM)},
   { "STORAGE",                  SYM(STORAGE_SYM)},
+  { "STORED",                   SYM(STORED_SYM)},
   { "STRAIGHT_JOIN",            SYM(STRAIGHT_JOIN)},
   { "STRING",                   SYM(STRING_SYM)},
   { "SUBCLASS_ORIGIN",          SYM(SUBCLASS_ORIGIN_SYM)},
@@ -651,6 +657,7 @@ static SYMBOL symbols[] = {
   { "WHERE",                    SYM(WHERE)},
   { "WHILE",                    SYM(WHILE_SYM)},
   { "VIEW",                     SYM(VIEW_SYM)},
+  { "VIRTUAL",                  SYM(VIRTUAL_SYM)},
   { "WITH",                     SYM(WITH)},
   { "WITHOUT",                  SYM(WITHOUT_SYM)},
   { "WORK",                     SYM(WORK_SYM)},

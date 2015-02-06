@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -28,17 +28,8 @@
 #include "pfs_prepared_stmt.h"
 #include "pfs_global.h"
 #include "sql_string.h"
+#include "pfs_buffer_container.h"
 #include <string.h>
-
-/** PREPARED_STATEMENTS_INSTANCE. */
-PFS_prepared_stmt *prepared_stmt_array= NULL;
-
-/** Max size of the prepared stmt array. */
-ulong prepared_stmt_max= 0;
-/** Number of prepared statement instances lost. */
-ulong prepared_stmt_lost= 0;
-/** True when prepared stmt array is full. */
-bool prepared_stmt_full;
 
 /**
   Initialize table PREPARED_STATEMENTS_INSTANCE.
@@ -46,40 +37,17 @@ bool prepared_stmt_full;
 */
 int init_prepared_stmt(const PFS_global_param *param)
 {
-  /*
-    Allocate memory for prepared_stmt_array based on
-    performance_schema_max_prepared_stmt_instances value.
-  */
-  prepared_stmt_max= param->m_prepared_stmt_sizing;
-  prepared_stmt_lost= 0;
-  prepared_stmt_full= false;
-
-  if (prepared_stmt_max == 0)
-    return 0;
-
-  prepared_stmt_array=
-    PFS_MALLOC_ARRAY(prepared_stmt_max, PFS_prepared_stmt,
-                     MYF(MY_ZEROFILL));
-  if (unlikely(prepared_stmt_array == NULL))
+  if (global_prepared_stmt_container.init(param->m_prepared_stmt_sizing))
     return 1;
 
-  PFS_prepared_stmt *pfs= prepared_stmt_array;
-  PFS_prepared_stmt *pfs_last= prepared_stmt_array + prepared_stmt_max;
-
-  for (; pfs < pfs_last ; pfs++)
-  {
-    pfs->reset_data();
-  }
-
+  reset_prepared_stmt_instances();
   return 0;
 }
 
 /** Cleanup table PREPARED_STATEMENTS_INSTANCE. */
 void cleanup_prepared_stmt(void)
 {
-  /*  Free memory allocated to prepared_stmt_array. */
-  pfs_free(prepared_stmt_array);
-  prepared_stmt_array= NULL;
+  global_prepared_stmt_container.cleanup();
 }
 
 void PFS_prepared_stmt::reset_data()
@@ -89,19 +57,14 @@ void PFS_prepared_stmt::reset_data()
   m_execute_stat.reset();
 }
 
+static void fct_reset_prepared_stmt_instances(PFS_prepared_stmt *pfs)
+{
+  pfs->reset_data();
+}
+
 void reset_prepared_stmt_instances()
 {
-  if (prepared_stmt_array == NULL)
-    return;
-
-  PFS_prepared_stmt *pfs= prepared_stmt_array;
-  PFS_prepared_stmt *pfs_last= prepared_stmt_array + prepared_stmt_max;
-
-  /* Reset statistics in prepared_stmt_array. */
-  for (; pfs < pfs_last ; pfs++)
-  {
-    pfs->reset_data();
-  }
+  global_prepared_stmt_container.apply_all(fct_reset_prepared_stmt_instances);
 }
 
 PFS_prepared_stmt*
@@ -111,91 +74,65 @@ create_prepared_stmt(void *identity,
                      const char* stmt_name, uint stmt_name_length,
                      const char* sqltext, uint sqltext_length)
 {
-  if (prepared_stmt_array == NULL || prepared_stmt_max == 0)
-  {
-    prepared_stmt_lost++;
-    return NULL;
-  }
-
   PFS_prepared_stmt *pfs= NULL;
-  static uint PFS_ALIGNED prepared_stmt_monotonic_index= 0;
-  ulong index= 0;
-  ulong attempts= 0;
   pfs_dirty_state dirty_state;
 
-  if(prepared_stmt_full)
-  {
-    prepared_stmt_lost++;
-    return NULL;
-  }
-
   /* Create a new record in prepared stmt stat array. */
-  while (++attempts <= prepared_stmt_max)
+  pfs= global_prepared_stmt_container.allocate(& dirty_state);
+  if (pfs != NULL)
   {
-    index= PFS_atomic::add_u32(& prepared_stmt_monotonic_index, 1) % prepared_stmt_max;
-    pfs= prepared_stmt_array + index;
-
-    if (pfs->m_lock.is_free())
+    /* Reset the stats. */
+    pfs->reset_data();
+    /* Do the assignments. */
+    pfs->m_identity= identity;
+    strncpy(pfs->m_sqltext, sqltext, sqltext_length);
+    pfs->m_sqltext_length= sqltext_length;
+    if (stmt_name != NULL)
     {
-      if (pfs->m_lock.free_to_dirty(& dirty_state))
-      {
-        /* Reset the stats. */
-        pfs->reset_data();
-        /* Do the assignments. */
-        pfs->m_identity= identity;
-        strncpy(pfs->m_sqltext, sqltext, sqltext_length);
-        pfs->m_sqltext_length= sqltext_length;
-        if (stmt_name != NULL)
-        {
-          pfs->m_stmt_name_length= stmt_name_length;
-          if (pfs->m_stmt_name_length > PS_NAME_LENGTH)
-            pfs->m_stmt_name_length= PS_NAME_LENGTH;
-          strncpy(pfs->m_stmt_name, stmt_name, pfs->m_stmt_name_length);
-        }
-        else
-          pfs->m_stmt_name_length= 0;
-
-        pfs->m_stmt_id= stmt_id;
-        pfs->m_owner_thread_id= thread->m_thread_internal_id;
-
-        /* If this statement prepare is called from a SP. */
-        if (pfs_program)
-        {
-          pfs->m_owner_object_type= pfs_program->m_type;
-          strncpy(pfs->m_owner_object_schema, pfs_program->m_schema_name, pfs_program->m_schema_name_length);
-          pfs->m_owner_object_schema_length= pfs_program->m_schema_name_length;
-          strncpy(pfs->m_owner_object_name, pfs_program->m_object_name, pfs_program->m_object_name_length);
-          pfs->m_owner_object_name_length= pfs_program->m_object_name_length;
-        }
-        else
-        {
-          pfs->m_owner_object_type= NO_OBJECT_TYPE;
-          pfs->m_owner_object_schema_length= 0;
-          pfs->m_owner_object_name_length= 0;
-        }
-
-        if (pfs_stmt)
-        {
-          if (pfs_program)
-            pfs->m_owner_event_id= pfs_stmt->m_nesting_event_id;
-          else
-            pfs->m_owner_event_id= pfs_stmt->m_event_id;
-        }
-
-        /* Insert this record. */
-        pfs->m_lock.dirty_to_allocated(& dirty_state);
-        return pfs;
-      }
+      pfs->m_stmt_name_length= stmt_name_length;
+      if (pfs->m_stmt_name_length > PS_NAME_LENGTH)
+        pfs->m_stmt_name_length= PS_NAME_LENGTH;
+      strncpy(pfs->m_stmt_name, stmt_name, pfs->m_stmt_name_length);
     }
+    else
+      pfs->m_stmt_name_length= 0;
+
+    pfs->m_stmt_id= stmt_id;
+    pfs->m_owner_thread_id= thread->m_thread_internal_id;
+
+    /* If this statement prepare is called from a SP. */
+    if (pfs_program)
+    {
+      pfs->m_owner_object_type= pfs_program->m_type;
+      strncpy(pfs->m_owner_object_schema, pfs_program->m_schema_name, pfs_program->m_schema_name_length);
+      pfs->m_owner_object_schema_length= pfs_program->m_schema_name_length;
+      strncpy(pfs->m_owner_object_name, pfs_program->m_object_name, pfs_program->m_object_name_length);
+      pfs->m_owner_object_name_length= pfs_program->m_object_name_length;
+    }
+    else
+    {
+      pfs->m_owner_object_type= NO_OBJECT_TYPE;
+      pfs->m_owner_object_schema_length= 0;
+      pfs->m_owner_object_name_length= 0;
+    }
+
+    if (pfs_stmt)
+    {
+      if (pfs_program)
+        pfs->m_owner_event_id= pfs_stmt->m_nesting_event_id;
+      else
+        pfs->m_owner_event_id= pfs_stmt->m_event_id;
+    }
+
+    /* Insert this record. */
+    pfs->m_lock.dirty_to_allocated(& dirty_state);
   }
-  prepared_stmt_lost++;
-  prepared_stmt_full= true;
-  return NULL;
+
+  return pfs;
 }
 
-void delete_prepared_stmt(PFS_prepared_stmt *pfs_ps)
+void delete_prepared_stmt(PFS_prepared_stmt *pfs)
 {
-  pfs_ps->m_lock.allocated_to_free();
-  prepared_stmt_full= false;
+  global_prepared_stmt_container.deallocate(pfs);
   return;
 }
