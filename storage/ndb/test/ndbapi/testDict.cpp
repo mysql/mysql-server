@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -738,6 +738,13 @@ int runUseTableUntilStopped2(NDBT_Context* ctx, NDBT_Step* step){
   const NdbDictionary::Table* pTab = ctx->getTab();
   const NdbDictionary::Table* pTab2 = 
     NDBT_Table::discoverTableFromDb(pNdb, pTab->getName());
+
+  if (pTab2 == NULL) {
+    g_err << "Table: " << pTab->getName() 
+          << ", not 'discovered' on line " << __LINE__
+          << endl;
+    return NDBT_FAILED;
+  }
   HugoTransactions hugoTrans(*pTab2);
 
   int i = 0;
@@ -790,6 +797,12 @@ int runUseTableUntilStopped3(NDBT_Context* ctx, NDBT_Step* step){
   const NdbDictionary::Table* pTab = ctx->getTab();
   const NdbDictionary::Table* pTab2 =
     NDBT_Table::discoverTableFromDb(pNdb, pTab->getName());
+  if (pTab2 == NULL) {
+    g_err << "Table : " << pTab->getName() 
+          << ", not 'discovered' on line " << __LINE__
+          << endl;
+    return NDBT_FAILED;
+  }
   HugoTransactions hugoTrans(*pTab2);
 
   int i = 0;
@@ -1858,7 +1871,9 @@ runTableAddAttrs(NDBT_Context* ctx, NDBT_Step* step){
     }
 
     {
-      HugoTransactions afterTrans(* dict->getTable(pTabName.c_str()));
+      const NdbDictionary::Table* pTab = dict->getTable(pTabName.c_str());
+      CHECK2(pTab != NULL, "Table not found");
+      HugoTransactions afterTrans(*pTab);
 
       ndbout << "delete...";
       if (afterTrans.clearTable(pNdb) != 0)
@@ -1973,6 +1988,7 @@ runTableAddAttrsDuring(NDBT_Context* ctx, NDBT_Step* step){
 
       dict->invalidateTable(myTab.getName());
       const NdbDictionary::Table * newTab = dict->getTable(myTab.getName());
+      CHECK2(newTab != NULL, "'newTab' not found");
       HugoTransactions hugoTrans(* newTab);
       hugoTrans.scanUpdateRecords(pNdb, records);
     }
@@ -2766,12 +2782,28 @@ runBug21755(NDBT_Context* ctx, NDBT_Step* step)
   }
 
   {
-    HugoTransactions t0 (*pDic->getTable(pTab0.getName()));
+    const NdbDictionary::Table* pTab = pDic->getTable(pTab0.getName());
+    if (pTab == NULL) {
+      g_err << "Table 'pTab0': " << pTab0.getName()
+            << ", not found on line " << __LINE__
+            <<", error: " << pDic->getNdbError()
+            << endl;
+      return NDBT_FAILED;
+    }
+    HugoTransactions t0 (*pTab);
     t0.loadTable(pNdb, 1000);
   }
 
   {
-    HugoTransactions t1 (*pDic->getTable(pTab1.getName()));
+    const NdbDictionary::Table* pTab = pDic->getTable(pTab1.getName());
+    if (pTab == NULL) {
+      g_err << "Table 'pTab1': " << pTab1.getName()
+            << ", not found on line " << __LINE__
+            <<", error: " << pDic->getNdbError()
+            << endl;
+      return NDBT_FAILED;
+    }
+    HugoTransactions t1 (*pTab);
     t1.loadTable(pNdb, 1000);
   }
   
@@ -3245,6 +3277,13 @@ RandSchemaOp::create_table(Ndb* ndb)
 
   ndbout_c("create table %s",  pTab.getName());
   const NdbDictionary::Table* tab2 = pDict->getTable(pTab.getName());
+  if (tab2 == NULL) {
+    g_err << "Table : " << pTab.getName()
+          << ", not found on line " << __LINE__
+          <<", error: " << pDict->getNdbError()
+          << endl;
+    return NDBT_FAILED;
+  }
   HugoTransactions trans(*tab2);
   trans.loadTable(ndb, 1000);
 
@@ -3464,6 +3503,14 @@ RandSchemaOp::validate(Ndb* ndb)
     {
       const NdbDictionary::Table* tab2 = 
         pDict->getTable(m_objects[i]->m_name.c_str());
+
+      if (tab2 == NULL) {
+        g_err << "Table: " << m_objects[i]->m_name.c_str()
+              << ", not found on line " << __LINE__
+              <<", error: " << pDict->getNdbError()
+              << endl;
+        return NDBT_FAILED;
+      }
       HugoTransactions trans(*tab2);
       trans.scanUpdateRecords(ndb, 1000);
       trans.clearTable(ndb);
@@ -5616,9 +5663,11 @@ static int
 st_load_table(ST_Con& c, ST_Tab& tab, int rows = 1000)
 {
   g_info << tab.name << ": load data rows:" << rows << endl;
-  require(tab.tab_r != 0);
-  HugoTransactions ht(*tab.tab_r);
-  chk1(ht.loadTable(c.ndb, rows) == 0);
+  chk1(tab.tab_r != NULL);
+  {
+    HugoTransactions ht(*tab.tab_r);
+    chk1(ht.loadTable(c.ndb, rows) == 0);
+  }
   return 0;
 err:
   return -1;
@@ -7709,7 +7758,9 @@ runTableAddPartition(NDBT_Context* ctx, NDBT_Step* step){
 
 #if 1
     // Load table
-    HugoTransactions beforeTrans(*ctx->getTab());
+    const NdbDictionary::Table* pTab;
+    CHECK((pTab = ctx->getTab()) != NULL);
+    HugoTransactions beforeTrans(*pTab);
     if (beforeTrans.loadTable(pNdb, records) != 0){
       return NDBT_FAILED;
     }
@@ -8095,6 +8146,7 @@ runBug46585(NDBT_Context* ctx, NDBT_Step* step)
   {
     const NdbDictionary::Table * org = pDic->getTable(tab.getName());
     {
+      CHECK(org != NULL);
       HugoTransactions trans(* org);
       CHECK2(trans.loadTable(pNdb, records) == 0,
            "load table failed");
@@ -8198,6 +8250,7 @@ runBug46585(NDBT_Context* ctx, NDBT_Step* step)
     pDic->invalidateTable(tab.getName());
     {
       const NdbDictionary::Table * alteredP = pDic->getTable(tab.getName());
+      CHECK(alteredP != NULL);
       HugoTransactions trans(* alteredP);
 
       int cnt;
