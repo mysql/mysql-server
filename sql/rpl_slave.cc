@@ -1710,8 +1710,9 @@ int start_slave_thread(
       */
       if (!thd->killed)
         mysql_cond_wait(start_cond, cond_lock);
+      mysql_mutex_unlock(cond_lock);
       thd->EXIT_COND(& saved_stage);
-      mysql_mutex_lock(cond_lock); // re-acquire it as exit_cond() released
+      mysql_mutex_lock(cond_lock); // re-acquire it
       if (thd->killed)
       {
         if (start_lock)
@@ -3023,6 +3024,7 @@ static bool wait_for_relay_log_space(Relay_log_info* rli)
     rli->ignore_log_space_limit= false;
   }
 
+  mysql_mutex_unlock(&rli->log_space_lock);
   thd->EXIT_COND(&old_stage);
   DBUG_RETURN(slave_killed);
 }
@@ -3965,7 +3967,7 @@ static inline bool slave_sleep(THD *thd, time_t seconds,
       break;
   }
 
-  /* Implicitly unlocks the mutex. */
+  mysql_mutex_unlock(lock);
   thd->EXIT_COND(NULL);
 
   return ret;
@@ -6588,6 +6590,7 @@ void slave_stop_workers(Relay_log_info *rli, bool *mts_inited)
       thd->ENTER_COND(&w->jobs_cond, &w->jobs_lock,
                       &stage_slave_waiting_workers_to_exit, &old_stage);
       mysql_cond_wait(&w->jobs_cond, &w->jobs_lock);
+      mysql_mutex_unlock(&w->jobs_lock);
       thd->EXIT_COND(&old_stage);
       mysql_mutex_lock(&w->jobs_lock);
     }

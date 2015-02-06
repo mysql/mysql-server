@@ -759,6 +759,7 @@ extern "C" void *compress_gtid_table(void *p_thd)
     while(!(should_compress || terminate_compress_thread))
       mysql_cond_wait(&COND_compress_gtid_table, &LOCK_compress_gtid_table);
     should_compress= false;
+    mysql_mutex_unlock(&LOCK_compress_gtid_table);
     THD_EXIT_COND(thd, NULL);
 
     if (terminate_compress_thread)

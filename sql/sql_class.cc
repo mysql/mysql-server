@@ -876,23 +876,29 @@ void THD::enter_stage(const PSI_stage_info *new_stage,
 }
 
 extern "C"
-void thd_enter_cond(MYSQL_THD thd, mysql_cond_t *cond, mysql_mutex_t *mutex,
-                    const PSI_stage_info *stage, PSI_stage_info *old_stage)
+void thd_enter_cond(void *opaque_thd, mysql_cond_t *cond, mysql_mutex_t *mutex,
+                    const PSI_stage_info *stage, PSI_stage_info *old_stage,
+                    const char *src_function, const char *src_file,
+                    int src_line)
 {
+  THD *thd= static_cast<THD*>(opaque_thd);
   if (!thd)
     thd= current_thd;
 
-  return thd->ENTER_COND(cond, mutex, stage, old_stage);
+  return thd->enter_cond(cond, mutex, stage, old_stage,
+                         src_function, src_file, src_line);
 }
 
 extern "C"
-void thd_exit_cond(MYSQL_THD thd, const PSI_stage_info *stage)
+void thd_exit_cond(void *opaque_thd, const PSI_stage_info *stage,
+                   const char *src_function, const char *src_file,
+                   int src_line)
 {
+  THD *thd= static_cast<THD*>(opaque_thd);
   if (!thd)
     thd= current_thd;
 
-  thd->EXIT_COND(stage);
-  return;
+  thd->exit_cond(stage, src_function, src_file, src_line);
 }
 
 extern "C"
@@ -1152,6 +1158,8 @@ THD::THD(bool enable_plugins)
    mysql(NULL),
 #endif
    query_plan(this),
+   current_mutex(NULL),
+   current_cond(NULL),
    in_sub_stmt(0),
    fill_status_recursion_level(0),
    binlog_row_event_extra_data(NULL),
@@ -1267,6 +1275,8 @@ THD::THD(bool enable_plugins)
   mysql_mutex_init(key_LOCK_thd_query, &LOCK_thd_query, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_thd_sysvar, &LOCK_thd_sysvar, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_query_plan, &LOCK_query_plan, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_LOCK_current_cond, &LOCK_current_cond,
+                   MY_MUTEX_INIT_FAST);
 
   /* Variables with default values */
   proc_info="login";
@@ -1931,6 +1941,7 @@ THD::~THD()
   mysql_mutex_destroy(&LOCK_thd_data);
   mysql_mutex_destroy(&LOCK_thd_query);
   mysql_mutex_destroy(&LOCK_thd_sysvar);
+  mysql_mutex_destroy(&LOCK_current_cond);
 #ifndef DBUG_OFF
   dbug_sentry= THD_SENTRY_GONE;
 #endif
@@ -2110,7 +2121,7 @@ void THD::awake(THD::killed_state state_to_set)
   /* Broadcast a condition to kick the target if it is waiting on it. */
   if (mysys_var)
   {
-    mysql_mutex_lock(&mysys_var->mutex);
+    mysql_mutex_lock(&LOCK_current_cond);
     if (!system_thread)		// Don't abort locks
       mysys_var->abort=1;
     /*
@@ -2137,7 +2148,7 @@ void THD::awake(THD::killed_state state_to_set)
       However, there is still a small chance of failure on platforms with
       instruction or memory write reordering.
     */
-    if (mysys_var->current_cond && mysys_var->current_mutex)
+    if (current_cond && current_mutex)
     {
       DBUG_EXECUTE_IF("before_dump_thread_acquires_current_mutex",
                       {
@@ -2146,11 +2157,11 @@ void THD::awake(THD::killed_state state_to_set)
                       DBUG_ASSERT(!debug_sync_set_action(current_thd,
                                                          STRING_WITH_LEN(act)));
                       };);
-      mysql_mutex_lock(mysys_var->current_mutex);
-      mysql_cond_broadcast(mysys_var->current_cond);
-      mysql_mutex_unlock(mysys_var->current_mutex);
+      mysql_mutex_lock(current_mutex);
+      mysql_cond_broadcast(current_cond);
+      mysql_mutex_unlock(current_mutex);
     }
-    mysql_mutex_unlock(&mysys_var->mutex);
+    mysql_mutex_unlock(&LOCK_current_cond);
   }
   DBUG_VOID_RETURN;
 }
