@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -319,7 +319,7 @@ class Lgman;
 #define ZFILE_CHANGE_PROBLEM_IN_LOG_ERROR 1220
 #define ZTEMPORARY_REDO_LOG_FAILURE 1221
 #define ZNO_FREE_MARKER_RECORDS_ERROR 1222
-#define ZNODE_SHUTDOWN_IN_PROGESS 1223
+#define ZNODE_SHUTDOWN_IN_PROGRESS 1223
 #define ZTOO_MANY_FRAGMENTS 1224
 #define ZTABLE_NOT_DEFINED 1225
 #define ZDROP_TABLE_IN_PROGRESS 1226

@@ -4913,7 +4913,7 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
       ((op == ZREAD || op == ZREAD_EX) && !getAllowRead()))
   {
     releaseSections(handle);
-    earlyKeyReqAbort(signal, lqhKeyReq, isLongReq, ZNODE_SHUTDOWN_IN_PROGESS);
+    earlyKeyReqAbort(signal, lqhKeyReq, isLongReq, ZNODE_SHUTDOWN_IN_PROGRESS);
     return;
   }
 
