@@ -441,7 +441,7 @@ public:
   /// Initialize this Checkable_rwlock.
   Checkable_rwlock(
 #if defined(HAVE_PSI_INTERFACE)
-                   PSI_rwlock_key psi_key
+                   PSI_rwlock_key psi_key= 0
 #endif
                    )
   {
