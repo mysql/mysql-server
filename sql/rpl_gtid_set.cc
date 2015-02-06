@@ -55,28 +55,46 @@ const Gtid_set::String_format Gtid_set::commented_string_format=
 };
 
 
-Gtid_set::Gtid_set(Sid_map *_sid_map, Checkable_rwlock *_sid_lock,
-                   PSI_mutex_key free_intervals_mutex_key)
+Gtid_set::Gtid_set(Sid_map *_sid_map, Checkable_rwlock *_sid_lock
+#ifdef HAVE_PSI_INTERFACE
+                   ,PSI_mutex_key free_intervals_mutex_key
+#endif
+                  )
   : sid_lock(_sid_lock), sid_map(_sid_map),
     m_intervals(key_memory_Gtid_set_Interval_chunk)
 {
-  init(free_intervals_mutex_key);
+  init(
+#ifdef HAVE_PSI_INTERFACE
+       free_intervals_mutex_key
+#endif
+      );
 }
 
 
 Gtid_set::Gtid_set(Sid_map *_sid_map, const char *text,
-                   enum_return_status *status, Checkable_rwlock *_sid_lock,
-                   PSI_mutex_key free_intervals_mutex_key)
+                   enum_return_status *status, Checkable_rwlock *_sid_lock
+#ifdef HAVE_PSI_INTERFACE
+                   ,PSI_mutex_key free_intervals_mutex_key
+#endif
+                  )
   : sid_lock(_sid_lock), sid_map(_sid_map),
     m_intervals(key_memory_Gtid_set_Interval_chunk)
 {
   DBUG_ASSERT(_sid_map != NULL);
-  init(free_intervals_mutex_key);
+  init(
+#ifdef HAVE_PSI_INTERFACE
+       free_intervals_mutex_key
+#endif
+      );
   *status= add_gtid_text(text);
 }
 
 
-void Gtid_set::init(PSI_mutex_key free_intervals_mutex_key)
+void Gtid_set::init(
+#ifdef HAVE_PSI_INTERFACE
+                    PSI_mutex_key free_intervals_mutex_key
+#endif
+                   )
 {
   DBUG_ENTER("Gtid_set::init");
   cached_string_length= -1;
