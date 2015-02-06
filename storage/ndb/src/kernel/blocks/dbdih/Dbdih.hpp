@@ -90,12 +90,6 @@
 #define ZWRONG_START_NODE_ERROR 303
 #define ZNO_REPLICA_FOUND_ERROR 304
 
-// --------------------------------------
-// Codes from LQH
-// --------------------------------------
-#define ZNODE_FAILURE_ERROR 400
-
-
 /*#########*/
 /* PHASES  */
 /*#########*/
