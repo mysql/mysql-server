@@ -70,18 +70,17 @@
 # 9. Binary logs with corrupted GTIDs are generated simulating a crash
 #    while writing such information into the binary log.
 ################################################################################
---disable_warnings
 --source include/not_embedded.inc
 --source include/not_windows.inc
 --source include/have_debug.inc
 --source include/have_gtid.inc
 --source include/master-slave.inc
 
+--disable_warnings
 call mtr.add_suppression("Recovery from master pos .*");
 call mtr.add_suppression("Error in Log_event::read_log_event()");
 call mtr.add_suppression("Failed to read information on Previous GTIDs.");
 call mtr.add_suppression("Error reading GTIDs from binary log");
-
 --enable_warnings
 
 CREATE TABLE t1(id INTEGER) ENGINE= Innodb;
