@@ -1325,6 +1325,11 @@ void gtid_server_cleanup()
     delete gtid_table_persistor;
     gtid_table_persistor= NULL;
   }
+  if (gtid_mode_lock)
+  {
+    delete gtid_mode_lock;
+    gtid_mode_lock= NULL;
+  }
 }
 
 /**
