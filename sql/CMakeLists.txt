@@ -261,6 +261,10 @@ SET(SQL_SOURCE
   sql_client.cc
   )
 
+IF(NOT WIN32)
+  LIST(APPEND SQL_SOURCE mysqld_daemon.cc)
+ENDIF()
+
 IF(WIN32)
   LIST(APPEND SQL_SOURCE
               named_pipe.cc

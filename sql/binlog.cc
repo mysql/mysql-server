@@ -212,7 +212,7 @@ public:
                             "session thread during the group commit phase. "
                             "Data consistency between master and slave can "
                             "be guaranteed after server restarts.\n");
-      _exit(EXIT_FAILURE);
+      _exit(MYSQLD_FAILURE_EXIT);
     }
   }
 
@@ -3052,7 +3052,7 @@ err:
              "file system is read only while opening the binlog. Aborting the "
              "server");
     thd->protocol->end_statement();
-    _exit(EXIT_FAILURE);
+    _exit(MYSQLD_FAILURE_EXIT);
   }
   else
     sql_print_error("Could not open %s for logging (error %d). "
@@ -4447,7 +4447,7 @@ err:
              "file system is read only while opening the binlog. Aborting the "
              "server");
     thd->protocol->end_statement();
-    _exit(EXIT_FAILURE);
+    _exit(MYSQLD_FAILURE_EXIT);
   }
   else
     sql_print_error("Could not use %s for logging (error %d). "
@@ -6154,7 +6154,7 @@ end:
                "file system is read only while rotating the binlog. Aborting "
                "the server");
       thd->protocol->end_statement();
-      _exit(EXIT_FAILURE);
+      _exit(MYSQLD_FAILURE_EXIT);
     }
     else
       sql_print_error("Could not open %s for logging (error %d). "
