@@ -62,7 +62,7 @@ tokudbengine=tokudb-engine
 tokudbengine_tree=master
 ftindex=ft-index
 ftindex_tree=master
-backup=backup-community
+backup=tokudb-backup-plugin
 backup_tree=master
 cc=gcc
 cxx=g++
@@ -119,9 +119,9 @@ if [ $? != 0 ] ; then exit 1; fi
 ln -s ../../$tokudbengine/storage/tokudb tokudb
 if [ $? != 0 ] ; then exit 1; fi
 popd
-pushd $mysql_tree
+pushd $mysql_tree/plugin
 if [ $? != 0 ] ; then exit 1; fi
-ln -s ../$backup/backup toku_backup
+ln -s ../../$backup $backup
 if [ $? != 0 ] ; then exit 1; fi
 popd
 pushd $mysql_tree/scripts
