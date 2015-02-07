@@ -33,6 +33,7 @@ Created 10/21/1995 Heikki Tuuri
 *******************************************************/
 
 #include "ha_prototypes.h"
+#include "sql_const.h"
 
 #include "os0file.h"
 
@@ -582,7 +583,7 @@ os_file_handle_error_cond_exit(
 			ib::error() << "Cannot continue operation.";
 			fflush(stderr);
 			ut_d(innodb_calling_exit = true);
-			exit(3);
+			exit(MYSQLD_FAILURE_EXIT);
 		}
 	}
 

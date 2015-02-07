@@ -19,11 +19,11 @@
 
 #include "my_stacktrace.h"       // my_safe_printf_stderr
 #include "mysqld_error.h"        // ER_*
+#include "sql_const.h"
 
 #ifndef MYSQL_CLIENT
 #include "log.h"                 // sql_print_warning
 #endif
-
 
 PSI_memory_key key_memory_Gtid_set_to_string;
 PSI_memory_key key_memory_Gtid_set_Interval_chunk;
@@ -250,7 +250,7 @@ void Gtid_set::create_new_chunk(int size)
     my_safe_print_system_time();
     my_safe_printf_stderr("%s", "[Fatal] Out of memory while allocating "
                           "a new chunk of intervals for storing GTIDs.\n");
-    _exit(EXIT_FAILURE);
+    _exit(MYSQLD_FAILURE_EXIT);
   }
   // store the chunk in the list of chunks
   new_chunk->next= chunks;

@@ -14,6 +14,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "mysqld.h"
+#include "mysqld_daemon.h"
 
 #include <vector>
 #include <algorithm>
@@ -24,6 +25,9 @@
 
 #include <fenv.h>
 #include <signal.h>
+#ifdef HAVE_SYS_WAIT_H
+#include <sys/wait.h>
+#endif
 #ifdef HAVE_PWD_H
 #include <pwd.h>
 #endif
@@ -269,6 +273,8 @@ PSI_statement_info stmt_info_rpl;
 static bool lower_case_table_names_used= 0;
 #if !defined(_WIN32) && !defined(EMBEDDED_LIBRARY)
 static bool socket_listener_active= false;
+static int pipe_write_fd= -1;
+static my_bool opt_daemonize= 0;
 #endif
 static my_bool opt_debugging= 0, opt_external_locking= 0, opt_console= 0;
 static my_bool opt_short_log_format= 0;
@@ -1265,6 +1271,11 @@ extern "C" void unireg_abort(int exit_code)
     my_thread_join(&signal_thread_id, NULL);
   }
   signal_thread_id.thread= 0;
+
+  if (opt_daemonize)
+  {
+    mysqld::runtime::signal_parent(pipe_write_fd,0);
+  }
 #endif
 
   clean_up(!opt_help && (exit_code || !opt_bootstrap)); /* purecov: inspected */
@@ -1274,6 +1285,8 @@ extern "C" void unireg_abort(int exit_code)
 
 static void mysqld_exit(int exit_code)
 {
+  DBUG_ASSERT(exit_code >= MYSQLD_SUCCESS_EXIT
+              && exit_code <= MYSQLD_FAILURE_EXIT);
   log_syslog_exit();
   mysql_audit_finalize();
   delete_optimizer_cost_module();
@@ -1613,7 +1626,7 @@ static struct passwd *check_user(const char *user)
     if (!opt_bootstrap && !opt_help)
     {
       sql_print_error("Fatal error: Please read \"Security\" section of the manual to find out how to run mysqld as root!\n");
-      unireg_abort(1);
+      unireg_abort(MYSQLD_ABORT_EXIT);
     }
     return NULL;
   }
@@ -1636,7 +1649,7 @@ static struct passwd *check_user(const char *user)
 
 err:
   sql_print_error("Fatal error: Can't change to run as user '%s' ;  Please check that the user exists!\n",user);
-  unireg_abort(1);
+  unireg_abort(MYSQLD_ABORT_EXIT);
 
 #ifdef PR_SET_DUMPABLE
   if (test_flags & TEST_CORE_ON_SIGNAL)
@@ -1667,12 +1680,12 @@ static void set_user(const char *user, struct passwd *user_info_arg)
   if (setgid(user_info_arg->pw_gid) == -1)
   {
     sql_print_error("setgid: %s", strerror(errno));
-    unireg_abort(1);
+    unireg_abort(MYSQLD_ABORT_EXIT);
   }
   if (setuid(user_info_arg->pw_uid) == -1)
   {
     sql_print_error("setuid: %s", strerror(errno));
-    unireg_abort(1);
+    unireg_abort(MYSQLD_ABORT_EXIT);
   }
   /* purecov: end */
 }
@@ -1684,12 +1697,12 @@ static void set_effective_user(struct passwd *user_info_arg)
   if (setregid((gid_t)-1, user_info_arg->pw_gid) == -1)
   {
     sql_print_error("setregid: %s", strerror(errno));
-    unireg_abort(1);
+    unireg_abort(MYSQLD_ABORT_EXIT);
   }
   if (setreuid((uid_t)-1, user_info_arg->pw_uid) == -1)
   {
     sql_print_error("setreuid: %s", strerror(errno));
-    unireg_abort(1);
+    unireg_abort(MYSQLD_ABORT_EXIT);
   }
 }
 
@@ -1700,7 +1713,7 @@ static void set_root(const char *path)
   if (chroot(path) == -1)
   {
     sql_print_error("chroot: %s", strerror(errno));
-    unireg_abort(1);
+    unireg_abort(MYSQLD_ABORT_EXIT);
   }
   my_setwd("/", MYF(0));
 }
@@ -1871,7 +1884,7 @@ void setup_conn_event_handler_threads()
       !opt_enable_shared_memory && !opt_enable_named_pipe)
   {
     sql_print_error("TCP/IP, --shared-memory, or --named-pipe should be configured on NT OS");
-    unireg_abort(1);        // Will not return
+    unireg_abort(MYSQLD_ABORT_EXIT);        // Will not return
   }
 
   mysql_mutex_lock(&LOCK_handler_count);
@@ -2170,7 +2183,7 @@ static void start_signal_handler()
   {
     sql_print_error("Can't create interrupt-thread (error %d, errno: %d)",
                     error, errno);
-    exit(1);
+    exit(MYSQLD_ABORT_EXIT);
   }
   mysql_cond_wait(&COND_start_signal_handler, &LOCK_start_signal_handler);
   mysql_mutex_unlock(&LOCK_start_signal_handler);
@@ -2886,7 +2899,7 @@ int init_common_variables()
 
 #ifndef EMBEDDED_LIBRARY
   if (opt_help && !opt_verbose)
-    unireg_abort(0);
+    unireg_abort(MYSQLD_SUCCESS_EXIT);
 #endif /*!EMBEDDED_LIBRARY*/
 
   DBUG_PRINT("info",("%s  Ver %s for %s on %s\n",my_progname,
@@ -3830,7 +3843,7 @@ static int init_server_components()
   mdl_init();
   partitioning_init();
   if (table_def_init() | hostname_cache_init(host_cache_size))
-    unireg_abort(1);
+    unireg_abort(MYSQLD_ABORT_EXIT);
 
 #ifdef HAVE_MY_TIMER
   if (my_timer_initialize())
@@ -3912,7 +3925,7 @@ static int init_server_components()
   if (transaction_cache_init())
   {
     sql_print_error("Out of memory");
-    unireg_abort(1);
+    unireg_abort(MYSQLD_ABORT_EXIT);
   }
 
   /*
@@ -3920,7 +3933,7 @@ static int init_server_components()
     been reported in the function
   */
   if (delegates_init())
-    unireg_abort(1);
+    unireg_abort(MYSQLD_ABORT_EXIT);
 
   /* need to configure logging before initializing storage engines */
   if (opt_log_slave_updates && !opt_bin_log)
@@ -3944,7 +3957,7 @@ static int init_server_components()
       sql_print_error("using --replicate-same-server-id in conjunction with \
 --log-slave-updates is impossible, it would lead to infinite loops in this \
 server.");
-      unireg_abort(1);
+      unireg_abort(MYSQLD_ABORT_EXIT);
     }
     else
       sql_print_warning("using --replicate-same-server-id in conjunction with \
@@ -3961,7 +3974,7 @@ will be ignored as the --log-bin option is not defined.");
   {
     sql_print_error("server-id configured is too large to represent with"
                     "server-id-bits configured.");
-    unireg_abort(1);
+    unireg_abort(MYSQLD_ABORT_EXIT);
   }
 #endif
 
@@ -3974,7 +3987,7 @@ will be ignored as the --log-bin option is not defined.");
     {
       sql_print_error("Path '%s' is a directory name, please specify \
 a file name for --log-bin option", opt_bin_logname);
-      unireg_abort(1);
+      unireg_abort(MYSQLD_ABORT_EXIT);
     }
 
     /* Reports an error and aborts, if the --log-bin-index's path
@@ -3985,7 +3998,7 @@ a file name for --log-bin option", opt_bin_logname);
     {
       sql_print_error("Path '%s' is a directory name, please specify \
 a file name for --log-bin-index option", opt_binlog_index_name);
-      unireg_abort(1);
+      unireg_abort(MYSQLD_ABORT_EXIT);
     }
 
     char buf[FN_REFLEN];
@@ -4014,7 +4027,7 @@ a file name for --log-bin-index option", opt_binlog_index_name);
     }
     if (mysql_bin_log.open_index_file(opt_binlog_index_name, ln, TRUE))
     {
-      unireg_abort(1);
+      unireg_abort(MYSQLD_ABORT_EXIT);
     }
   }
 
@@ -4038,7 +4051,7 @@ a file name for --log-bin-index option", opt_binlog_index_name);
                       " out of memory or path names too long"
                       " (path name exceeds " STRINGIFY_ARG(FN_REFLEN)
                       " or file name exceeds " STRINGIFY_ARG(FN_LEN) ").");
-      unireg_abort(1);
+      unireg_abort(MYSQLD_ABORT_EXIT);
     }
   }
 
@@ -4066,7 +4079,7 @@ a file name for --log-bin-index option", opt_binlog_index_name);
                       " out of memory or path names too long"
                       " (path name exceeds " STRINGIFY_ARG(FN_REFLEN)
                       " or file name exceeds " STRINGIFY_ARG(FN_LEN) ").");
-      unireg_abort(1);
+      unireg_abort(MYSQLD_ABORT_EXIT);
     }
   }
 #endif /* !EMBEDDED_LIBRARY */
@@ -4084,7 +4097,7 @@ a file name for --log-bin-index option", opt_binlog_index_name);
   if (gtid_server_init())
   {
     sql_print_error("Failed to initialize GTID structures.");
-    unireg_abort(1);
+    unireg_abort(MYSQLD_ABORT_EXIT);
   }
 
   if (plugin_init(&remaining_argc, remaining_argv,
@@ -4092,7 +4105,7 @@ a file name for --log-bin-index option", opt_binlog_index_name);
                   (opt_help ? PLUGIN_INIT_SKIP_INITIALIZATION : 0)))
   {
     sql_print_error("Failed to initialize plugins.");
-    unireg_abort(1);
+    unireg_abort(MYSQLD_ABORT_EXIT);
   }
   plugins_are_initialized= TRUE;  /* Don't separate from init function */
 
@@ -4112,7 +4125,7 @@ a file name for --log-bin-index option", opt_binlog_index_name);
 	            "duplicate values or invalid values.");
     if (tmp_str)
       my_free(tmp_str);
-    unireg_abort(1);
+    unireg_abort(MYSQLD_ABORT_EXIT);
   }
   if (tmp_str)
     my_free(tmp_str);
@@ -4132,7 +4145,7 @@ a file name for --log-bin-index option", opt_binlog_index_name);
 
     if ((ho_error= handle_options(&remaining_argc, &remaining_argv, no_opts,
                                   mysqld_get_one_option)))
-      unireg_abort(ho_error);
+      unireg_abort(MYSQLD_ABORT_EXIT);
     /* Add back the program name handle_options removes */
     remaining_argc++;
     remaining_argv--;
@@ -4144,25 +4157,26 @@ a file name for --log-bin-index option", opt_binlog_index_name);
                        remaining_argv[1]);
       my_message_local(INFORMATION_LEVEL, "Use --verbose --help to get a list "
                        "of available options!");
-      unireg_abort(1);
+      unireg_abort(MYSQLD_ABORT_EXIT);
+
     }
   }
 
   if (opt_help)
-    unireg_abort(0);
+    unireg_abort(MYSQLD_SUCCESS_EXIT);
 
   /* if the errmsg.sys is not loaded, terminate to maintain behaviour */
   if (!my_default_lc_messages->errmsgs->is_loaded())
   {
     sql_print_error("Unable to read errmsg.sys file");
-    unireg_abort(1);
+    unireg_abort(MYSQLD_ABORT_EXIT);
   }
 
   /* We have to initialize the storage engines before CSV logging */
   if (ha_init())
   {
     sql_print_error("Can't init databases");
-    unireg_abort(1);
+    unireg_abort(MYSQLD_ABORT_EXIT);
   }
 
   if (opt_bootstrap)
@@ -4204,10 +4218,10 @@ a file name for --log-bin-index option", opt_binlog_index_name);
   */
   if (initialize_storage_engine(default_storage_engine, "",
                                 &global_system_variables.table_plugin))
-    unireg_abort(1);
+    unireg_abort(MYSQLD_ABORT_EXIT);
   if (initialize_storage_engine(default_tmp_storage_engine, " temp",
                                 &global_system_variables.temp_table_plugin))
-    unireg_abort(1);
+    unireg_abort(MYSQLD_ABORT_EXIT);
 
   if (total_ha_2pc > 1 || (1 == total_ha_2pc && opt_bin_log))
   {
@@ -4222,13 +4236,13 @@ a file name for --log-bin-index option", opt_binlog_index_name);
   if (tc_log->open(opt_bin_log ? opt_bin_logname : opt_tc_log_file))
   {
     sql_print_error("Can't init tc log");
-    unireg_abort(1);
+    unireg_abort(MYSQLD_ABORT_EXIT);
   }
   (void)RUN_HOOK(server_state, before_recovery, (NULL));
 
   if (ha_recover(0))
   {
-    unireg_abort(1);
+    unireg_abort(MYSQLD_ABORT_EXIT);
   }
 
   /// @todo: this looks suspicious, revisit this /sven
@@ -4244,7 +4258,7 @@ a file name for --log-bin-index option", opt_binlog_index_name);
       _gtid_consistency_mode != GTID_CONSISTENCY_MODE_ON)
   {
     sql_print_error("GTID_MODE = ON requires ENFORCE_GTID_CONSISTENCY = ON.");
-    unireg_abort(1);
+    unireg_abort(MYSQLD_ABORT_EXIT);
   }
 
   if (opt_bin_log)
@@ -4265,7 +4279,7 @@ a file name for --log-bin-index option", opt_binlog_index_name);
                                   NULL))
     {
       mysql_mutex_unlock(log_lock);
-      unireg_abort(1);
+      unireg_abort(MYSQLD_ABORT_EXIT);
     }
     mysql_mutex_unlock(log_lock);
   }
@@ -4288,7 +4302,7 @@ a file name for --log-bin-index option", opt_binlog_index_name);
     if (setreuid((uid_t)-1, 0) == -1)
     {                        // this should never happen
       sql_print_error("setreuid: %s", strerror(errno));
-      unireg_abort(1);
+      unireg_abort(MYSQLD_ABORT_EXIT);
     }
     if (mlockall(MCL_CURRENT))
     {
@@ -4405,7 +4419,6 @@ int mysqld_main(int argc, char **argv)
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
   pre_initialize_performance_schema();
 #endif /*WITH_PERFSCHEMA_STORAGE_ENGINE */
-
   // For windows, my_init() is called from the win specific mysqld_main
   if (my_init())                 // init my_sys library & pthreads
   {
@@ -4428,9 +4441,6 @@ int mysqld_main(int argc, char **argv)
   /* Must be initialized early for comparison of options name */
   system_charset_info= &my_charset_utf8_general_ci;
 
-  init_sql_statement_names();
-  sys_var_init();
-
   int ho_error;
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
@@ -4442,6 +4452,40 @@ int mysqld_main(int argc, char **argv)
 
   ho_error= handle_early_options();
 
+#if !defined(_WIN32) && !defined(EMBEDDED_LIBARARY)
+
+  if (opt_bootstrap && opt_daemonize)
+  {
+    fprintf(stderr, "Bootstrap and daemon options are incompatible.\n");
+    exit(MYSQLD_ABORT_EXIT);
+  }
+
+  if (opt_daemonize && (isatty(STDOUT_FILENO) || isatty(STDERR_FILENO)))
+  {
+    fprintf(stderr, "Please set appopriate redirections for "
+                    "standard output and/or standard error in daemon mode.\n");
+    exit(MYSQLD_ABORT_EXIT);
+  }
+
+  if (opt_daemonize)
+  {
+    if (chdir("/") < 0)
+    {
+      fprintf(stderr, "Cannot change to root director: %s\n",
+                      strerror(errno));
+      exit(MYSQLD_ABORT_EXIT);
+    }
+
+    if ((pipe_write_fd= mysqld::runtime::mysqld_daemonize()) < 0)
+    {
+      fprintf(stderr, "mysqld_daemonize failed \n");
+      exit(MYSQLD_ABORT_EXIT);
+    }
+  }
+#endif
+
+  init_sql_statement_names();
+  sys_var_init();
   ulong requested_open_files;
   adjust_related_options(&requested_open_files);
 
@@ -4543,11 +4587,11 @@ int mysqld_main(int argc, char **argv)
       Not enough initializations for unireg_abort()
       Using exit() for windows.
     */
-    exit (ho_error);
+    exit (MYSQLD_ABORT_EXIT);
   }
 
   if (init_common_variables())
-    unireg_abort(1);        // Will do exit
+    unireg_abort(MYSQLD_ABORT_EXIT);        // Will do exit
 
   my_init_signals();
 
@@ -4599,7 +4643,7 @@ int mysqld_main(int argc, char **argv)
   if (my_setwd(mysql_real_data_home,MYF(MY_WME)) && !opt_help)
   {
     sql_print_error("failed to set datadir to %s", mysql_real_data_home);
-    unireg_abort(1);        /* purecov: inspected */
+    unireg_abort(MYSQLD_ABORT_EXIT);        /* purecov: inspected */
   }
 
 #ifndef _WIN32
@@ -4632,7 +4676,7 @@ int mysqld_main(int argc, char **argv)
     sql_print_error("You have enabled the binary log, but you haven't provided "
                     "the mandatory server-id. Please refer to the proper "
                     "server start-up parameters documentation");
-    unireg_abort(1);
+    unireg_abort(MYSQLD_ABORT_EXIT);
   }
 
   /* 
@@ -4644,7 +4688,7 @@ int mysqld_main(int argc, char **argv)
 #endif
 
   if (init_server_components())
-    unireg_abort(1);
+    unireg_abort(MYSQLD_ABORT_EXIT);
 
   /*
     Each server should have one UUID. We will create it automatically, if it
@@ -4658,7 +4702,7 @@ int mysqld_main(int argc, char **argv)
                       " not be read from the auto.cnf file. If this is a new"
                       " server, the initialization failed because it was not"
                       " possible to generate a new UUID.");
-      unireg_abort(1);
+      unireg_abort(MYSQLD_ABORT_EXIT);
     }
 
     /*
@@ -4685,7 +4729,7 @@ int mysqld_main(int argc, char **argv)
     if (opt_bin_log)
     {
       if (ret)
-        unireg_abort(1);
+        unireg_abort(MYSQLD_ABORT_EXIT);
 
       /*
         Initialize GLOBAL.GTID_EXECUTED and GLOBAL.GTID_PURGED from
@@ -4711,7 +4755,7 @@ int mysqld_main(int argc, char **argv)
                                        NULL/*trx_parser*/,
                                        NULL/*gtid_partial_trx*/,
                                        true/*is_server_starting*/))
-        unireg_abort(1);
+        unireg_abort(MYSQLD_ABORT_EXIT);
 
       global_sid_lock->wrlock();
 
@@ -4738,7 +4782,7 @@ int mysqld_main(int argc, char **argv)
         if (gtid_state->save(&gtids_in_binlog_not_in_table) == -1)
         {
           global_sid_lock->unlock();
-          unireg_abort(1);
+          unireg_abort(MYSQLD_ABORT_EXIT);
         }
         executed_gtids->add_gtid_set(&gtids_in_binlog_not_in_table);
       }
@@ -4748,7 +4792,7 @@ int mysqld_main(int argc, char **argv)
           RETURN_STATUS_OK)
       {
         global_sid_lock->unlock();
-        unireg_abort(1);
+        unireg_abort(MYSQLD_ABORT_EXIT);
       }
       gtids_only_in_table->remove_gtid_set(&gtids_in_binlog);
       /*
@@ -4762,7 +4806,7 @@ int mysqld_main(int argc, char **argv)
           RETURN_STATUS_OK)
       {
         global_sid_lock->unlock();
-        unireg_abort(1);
+        unireg_abort(MYSQLD_ABORT_EXIT);
       }
 
       /* Prepare previous_gtids_logged for next binlog */
@@ -4770,7 +4814,7 @@ int mysqld_main(int argc, char **argv)
           RETURN_STATUS_OK)
       {
         global_sid_lock->unlock();
-        unireg_abort(1);
+        unireg_abort(MYSQLD_ABORT_EXIT);
       }
 
       /*
@@ -4789,13 +4833,13 @@ int mysqld_main(int argc, char **argv)
         static_cast<enum_binlog_checksum_alg>(binlog_checksum_options);
 
       if (prev_gtids_ev.write(mysql_bin_log.get_log_file()))
-        unireg_abort(1);
+        unireg_abort(MYSQLD_ABORT_EXIT);
       mysql_bin_log.add_bytes_written(
         prev_gtids_ev.common_header->data_written);
 
       if (flush_io_cache(mysql_bin_log.get_log_file()) ||
           mysql_file_sync(mysql_bin_log.get_log_file()->file, MYF(MY_WME)))
-        unireg_abort(1);
+        unireg_abort(MYSQLD_ABORT_EXIT);
       mysql_bin_log.update_binlog_end_pos();
 
       (void) RUN_HOOK(server_state, after_engine_recovery, (NULL));
@@ -4803,15 +4847,15 @@ int mysqld_main(int argc, char **argv)
   }
 
   if (init_ssl())
-    unireg_abort(1);
+    unireg_abort(MYSQLD_ABORT_EXIT);
   if (network_init())
-    unireg_abort(1);
+    unireg_abort(MYSQLD_ABORT_EXIT);
 
 #ifdef _WIN32
   if (!opt_console)
   {
     if (reopen_fstreams(log_error_file, stdout, stderr))
-      unireg_abort(1);
+      unireg_abort(MYSQLD_ABORT_EXIT);
     setbuf(stderr, NULL);
     FreeConsole();        // Remove window
   }
@@ -4838,6 +4882,7 @@ int mysqld_main(int argc, char **argv)
   if (!opt_bootstrap)
     create_pid_file();
 
+
   /* Read the optimizer cost model configuration tables */
   if (!opt_bootstrap)
     reload_optimizer_cost_constants();
@@ -4858,7 +4903,7 @@ int mysqld_main(int argc, char **argv)
       delete mysqld_socket_acceptor;
       mysqld_socket_acceptor= NULL;
     }
-    exit(1);
+    exit(MYSQLD_ABORT_EXIT);
   }
 
   if (!opt_noacl)
@@ -4915,7 +4960,7 @@ int mysqld_main(int argc, char **argv)
   (void) RUN_HOOK(server_state, after_recovery, (NULL));
 
   if (Events::init(opt_noacl || opt_bootstrap))
-    unireg_abort(1);
+    unireg_abort(MYSQLD_ABORT_EXIT);
 
   if (opt_bootstrap)
   {
@@ -4926,12 +4971,12 @@ int mysqld_main(int argc, char **argv)
     mysql_mutex_unlock(&LOCK_server_started);
 
     int error= bootstrap(mysql_stdin);
-    unireg_abort(error ? 1 : 0);
+    unireg_abort(error ? MYSQLD_ABORT_EXIT : MYSQLD_SUCCESS_EXIT);
   }
   if (opt_init_file && *opt_init_file)
   {
     if (read_init_file(opt_init_file))
-      unireg_abort(1);
+      unireg_abort(MYSQLD_ABORT_EXIT);
   }
 
 #ifdef _WIN32
@@ -4982,9 +5027,12 @@ int mysqld_main(int argc, char **argv)
   // Make it possible for the signal handler to kill the listener.
   socket_listener_active= true;
   mysql_mutex_unlock(&LOCK_socket_listener_active);
+
+  if (opt_daemonize)
+    mysqld::runtime::signal_parent(pipe_write_fd,1);
+
   (void) mysqld_socket_acceptor->connection_event_loop();
 #endif /* _WIN32 */
-
   DBUG_PRINT("info", ("No longer listening for incoming connections"));
 
   terminate_compress_gtid_table_thread();
@@ -5034,7 +5082,7 @@ int mysqld_main(int argc, char **argv)
 #endif
 
   clean_up(1);
-  mysqld_exit(0);
+  mysqld_exit(MYSQLD_SUCCESS_EXIT);
 }
 
 
@@ -5491,6 +5539,10 @@ struct my_option my_long_early_options[]=
 {
   {"bootstrap", OPT_BOOTSTRAP, "Used by mysql installation scripts.", 0, 0, 0,
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+#if !defined(_WIN32) && !defined(EMBEDDED_LIBRARY)
+  {"daemonize", 0, "Run mysqld as sysv daemon", &opt_daemonize,
+    &opt_daemonize, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,0},
+#endif
   {"skip-grant-tables", 0,
    "Start without grant tables. This gives all users FULL ACCESS to all tables.",
    &opt_noacl, &opt_noacl, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
@@ -6814,7 +6866,7 @@ static void usage(void)
   if (!(default_charset_info= get_charset_by_csname(default_character_set_name,
                      MY_CS_PRIMARY,
                MYF(MY_WME))))
-    exit(1);
+    exit(MYSQLD_ABORT_EXIT);
   if (!default_collation_name)
     default_collation_name= (char*) default_charset_info->name;
   print_version();
@@ -7093,7 +7145,7 @@ mysqld_get_one_option(int optid,
 #ifndef EMBEDDED_LIBRARY
   case 'V':
     print_version();
-    exit(0);
+    exit(MYSQLD_SUCCESS_EXIT);
 #endif /*EMBEDDED_LIBRARY*/
   case 'W':
     push_deprecated_warn(NULL, "--log_warnings/-W", "'--log_error_verbosity'");
@@ -8161,7 +8213,7 @@ static void create_pid_file()
   }
   sql_print_error("Can't start server: can't create PID file: %s",
                   strerror(errno));
-  exit(1);
+  exit(MYSQLD_ABORT_EXIT);
 }
 
 
