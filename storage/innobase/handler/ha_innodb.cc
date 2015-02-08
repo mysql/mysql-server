@@ -245,9 +245,6 @@ static const char* innobase_change_buffering_values[IBUF_USE_COUNT] = {
 	"all"		/* IBUF_USE_ALL */
 };
 
-/* This prefix is reserved by InnoDB for use in internal tablespace names. */
-const char reserved_space_name_prefix[] = "innodb_";
-
 /* This tablespace name is reserved by InnoDB in order to explicitly
 create a file_per_table tablespace for the table. */
 const char reserved_file_per_table_space_name[] = "innodb_file_per_table";
@@ -9308,6 +9305,9 @@ validate_tablespace_name(
 {
 	int	err = 0;
 
+	/* This prefix is reserved by InnoDB for use in internal tablespace names. */
+	const char reserved_space_name_prefix[] = "innodb_";
+
 	/* The tablespace name cannot be a null string: "". */
 	if (0 == strlen(name)) {
 		my_error(ER_WRONG_TABLESPACE_NAME, MYF(0), name);
@@ -9315,8 +9315,9 @@ validate_tablespace_name(
 	}
 
 	/* The tablespace name cannot start with `innodb_`. */
-	if (0 == memcmp(name, reserved_space_name_prefix,
-			strlen(reserved_space_name_prefix))) {
+	if (strlen(name) >= sizeof(reserved_space_name_prefix) - 1
+	    && 0 == memcmp(name, reserved_space_name_prefix,
+			   sizeof(reserved_space_name_prefix) - 1)) {
 
 		/* Use a different message for reserved names */
 		if (0 == strcmp(name, reserved_file_per_table_space_name)
