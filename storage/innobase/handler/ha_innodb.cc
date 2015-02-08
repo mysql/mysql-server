@@ -246,7 +246,7 @@ static const char* innobase_change_buffering_values[IBUF_USE_COUNT] = {
 };
 
 /* This prefix is reserved by InnoDB for use in internal tablespace names. */
-static const char reserved_space_name_prefix[] = "innodb_";
+const char reserved_space_name_prefix[] = "innodb_";
 
 /* This tablespace name is reserved by InnoDB in order to explicitly
 create a file_per_table tablespace for the table. */
