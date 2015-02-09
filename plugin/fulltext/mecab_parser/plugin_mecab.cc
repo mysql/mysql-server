@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2015,  Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -331,8 +331,8 @@ static struct st_mysql_ftparser mecab_parser_descriptor =
 /* MeCab plugin status variables */
 static struct st_mysql_show_var mecab_status[] =
 {
-	{"mecab_charset", mecab_charset, SHOW_CHAR},
-	{0, 0, enum_mysql_show_type(0)}
+	{"mecab_charset", mecab_charset, SHOW_CHAR, SHOW_SCOPE_GLOBAL},
+	{0, 0, enum_mysql_show_type(0), SHOW_SCOPE_GLOBAL}
 };
 
 static MYSQL_SYSVAR_STR(rc_file, mecab_rc_file,
