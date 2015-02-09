@@ -51,8 +51,9 @@ int mysqld::runtime::mysqld_daemonize()
     close(pipe_fd[1]);
 
     // Wait for first child to fork successfully.
-    int rc, waitstatus;
-    while ((rc= waitpid(pid, &waitstatus, 0)) == -1 &&
+    int rc,status;
+    char waitstatus;
+    while ((rc= waitpid(pid, &status, 0)) == -1 &&
            errno == EINTR)
     {
       // Retry if errno is EINTR.
@@ -132,7 +133,7 @@ int mysqld::runtime::mysqld_daemonize()
   @note This function writes the status to write end of pipe.
   This notifies the parent which is block on read end of pipe.
 */
-void mysqld::runtime::signal_parent(int pipe_write_fd, int status)
+void mysqld::runtime::signal_parent(int pipe_write_fd, char status)
 {
   if (pipe_write_fd != -1)
   {
