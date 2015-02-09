@@ -151,7 +151,6 @@ fts_ast_term_set_wildcard(
 	fts_ast_node_t*	node);			/*!< in: term to change */
 /********************************************************************
 Set the proximity attribute of a text node. */
-
 void
 fts_ast_text_set_distance(
 /*======================*/
@@ -161,7 +160,6 @@ fts_ast_text_set_distance(
 /********************************************************************//**
 Free a fts_ast_node_t instance.
 @return next node to free */
-
 fts_ast_node_t*
 fts_ast_free_node(
 /*==============*/
@@ -200,7 +198,6 @@ fts_ast_state_free(
 /******************************************************************//**
 Traverse the AST - in-order traversal.
 @return DB_SUCCESS if all went well */
-
 dberr_t
 fts_ast_visit(
 /*==========*/
@@ -218,7 +215,6 @@ Process (nested) sub-expression, create a new result set to store the
 sub-expression result by processing nodes under current sub-expression
 list. Merge the sub-expression result with that of parent expression list.
 @return DB_SUCCESS if all went well */
-
 dberr_t
 fts_ast_visit_sub_exp(
 /*==================*/
@@ -228,7 +224,6 @@ fts_ast_visit_sub_exp(
 	__attribute__((nonnull, warn_unused_result));
 /********************************************************************
 Create a lex instance.*/
-
 fts_lexer_t*
 fts_lexer_create(
 /*=============*/
@@ -238,7 +233,6 @@ fts_lexer_create(
 	__attribute__((nonnull, malloc, warn_unused_result));
 /********************************************************************
 Free an fts_lexer_t instance.*/
-
 void
 fts_lexer_free(
 /*===========*/
@@ -252,7 +246,6 @@ has one more byte than len
 @param[in] str		pointer to string
 @param[in] len		length of the string
 @return ast string with NUL-terminator */
-
 fts_ast_string_t*
 fts_ast_string_create(
 	const byte*	str,
@@ -261,7 +254,6 @@ fts_ast_string_create(
 /**
 Free an ast string instance
 @param[in,out] ast_str		string to free */
-
 void
 fts_ast_string_free(
 	fts_ast_string_t*	ast_str);
@@ -271,7 +263,6 @@ Translate ast string of type FTS_AST_NUMB to unsigned long by strtoul
 @param[in] str		string to translate
 @param[in] base		the base
 @return translated number */
-
 ulint
 fts_ast_string_to_ul(
 	const fts_ast_string_t*	ast_str,
@@ -280,7 +271,6 @@ fts_ast_string_to_ul(
 /**
 Print the ast string
 @param[in] str		string to print */
-
 void
 fts_ast_string_print(
 	const fts_ast_string_t*	ast_str);
@@ -367,4 +357,12 @@ fts_ast_node_t*
 fts_ast_create_node_phrase_list(
 /*============================*/
 	void*		arg);			/*!< in: ast state */
+
+#ifdef UNIV_DEBUG
+const char*
+fts_ast_oper_name_get(fts_ast_oper_t	oper);
+const char*
+fts_ast_node_type_get(fts_ast_type_t	type);
+#endif /* UNIV_DEBUG */
+
 #endif /* INNOBASE_FSTS0AST_H */

@@ -105,6 +105,7 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
                              ALIGN_SIZE(sizeof(DYNAMIC_ARRAY)));
   
   if (my_init_dynamic_array(dir_entries_storage, sizeof(FILEINFO),
+                            NULL,               /* init_buffer */
                             ENTRIES_START_SIZE, ENTRIES_INCREMENT))
   {
     my_free(buffer);
@@ -139,7 +140,7 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
     else
       finfo.mystat= NULL;
 
-    if (push_dynamic(dir_entries_storage, (uchar*)&finfo))
+    if (insert_dynamic(dir_entries_storage, (uchar*)&finfo))
       goto error;
   }
 
@@ -166,7 +167,7 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
   if (MyFlags & (MY_FAE | MY_WME))
   {
     char errbuf[MYSYS_STRERROR_SIZE];
-    my_error(EE_DIR, MYF(ME_BELL+ME_WAITTANG), path,
+    my_error(EE_DIR, MYF(0), path,
              my_errno, my_strerror(errbuf, sizeof(errbuf), my_errno));
   }
   DBUG_RETURN((MY_DIR *) NULL);
@@ -248,6 +249,7 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
                              ALIGN_SIZE(sizeof(DYNAMIC_ARRAY)));
   
   if (my_init_dynamic_array(dir_entries_storage, sizeof(FILEINFO),
+                            NULL,               /* init_buffer */
                             ENTRIES_START_SIZE, ENTRIES_INCREMENT))
   {
     my_free(buffer);
@@ -303,7 +305,7 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
       else
         finfo.mystat= NULL;
 
-      if (push_dynamic(dir_entries_storage, (uchar*)&finfo))
+      if (insert_dynamic(dir_entries_storage, (uchar*)&finfo))
         goto error;
     }
     while (_findnext(handle,&find) == 0);
@@ -327,7 +329,7 @@ error:
   if (MyFlags & MY_FAE+MY_WME)
   {
     char errbuf[MYSYS_STRERROR_SIZE];
-    my_error(EE_DIR, MYF(ME_BELL+ME_WAITTANG), path,
+    my_error(EE_DIR, MYF(0), path,
              errno, my_strerror(errbuf, sizeof(errbuf), errno));
   }
   DBUG_RETURN((MY_DIR *) NULL);
@@ -381,7 +383,7 @@ error:
   if (my_flags & (MY_FAE+MY_WME))
   {
     char errbuf[MYSYS_STRERROR_SIZE];
-    my_error(EE_STAT, MYF(ME_BELL+ME_WAITTANG), path,
+    my_error(EE_STAT, MYF(0), path,
              my_errno, my_strerror(errbuf, sizeof(errbuf), my_errno));
     DBUG_RETURN((MY_STAT *) NULL);
   }

@@ -1,6 +1,6 @@
 include/master-slave.inc
 [connection master]
-call mtr.add_suppression("Slave I/O: The slave IO thread stops because the master has @@GLOBAL.GTID_MODE");
+call mtr.add_suppression("Slave I/O for channel '': The slave IO thread stops because the master has @@GLOBAL.GTID_MODE");
 call mtr.add_suppression("Error reading packet from server: Lost connection to MySQL");
 call mtr.add_suppression("Aborting");
 call mtr.add_suppression(".* Found a Gtid_log_event or Previous_gtids_log_event when @@GLOBAL.GTID_MODE = OFF.");

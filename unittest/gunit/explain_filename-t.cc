@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -98,87 +98,87 @@ void test_1(const char *in, const char *exp, enum_explain_filename_mode mode)
 TEST_F(PartitionTest, ExplainFilename)
 {
   test_1("test/t1.ibd",
-         "Database \"test\", Table \"t1.ibd\"",
+         "Database `test`, Table `t1.ibd`",
          EXPLAIN_ALL_VERBOSE);
 
   test_1("test/t1.ibd",
-         "\"test\".\"t1.ibd\"",
+         "`test`.`t1.ibd`",
          EXPLAIN_PARTITIONS_VERBOSE);
 
   test_1("test/t1.ibd",
-         "\"test\".\"t1.ibd\"",
+         "`test`.`t1.ibd`",
          EXPLAIN_PARTITIONS_AS_COMMENT);
 
   test_1("test/t1#TMP#",
-         "Database \"test\", Table \"t1#TMP#\"",
+         "Database `test`, Table `t1#TMP#`",
          EXPLAIN_ALL_VERBOSE);
 
   test_1("test/#sql-2882.ibd",
-         "Database \"test\", Table \"#sql-2882.ibd\"",
+         "Database `test`, Table `#sql-2882.ibd`",
          EXPLAIN_ALL_VERBOSE);
 
   test_1("test/t1#REN#",
-         "Database \"test\", Table \"t1#REN#\"",
+         "Database `test`, Table `t1#REN#`",
          EXPLAIN_ALL_VERBOSE);
 
   test_1("test/t1@0023REN@0023",
-         "Database \"test\", Table \"t1#REN#\"",
+         "Database `test`, Table `t1#REN#`",
          EXPLAIN_ALL_VERBOSE);
 
   test_1("test/t1#p#p1",
-         "Database \"test\", Table \"t1\", Partition \"p1\"",
+         "Database `test`, Table `t1`, Partition `p1`",
          EXPLAIN_ALL_VERBOSE);
 
   test_1("test/t1#P#p1",
-         "\"test\".\"t1\" /* Partition \"p1\" */",
+         "`test`.`t1` /* Partition `p1` */",
          EXPLAIN_PARTITIONS_AS_COMMENT);
 
   test_1("test/t1#P#p1@00231",
-         "\"test\".\"t1\" /* Partition \"p1#1\" */",
+         "`test`.`t1` /* Partition `p1#1` */",
          EXPLAIN_PARTITIONS_AS_COMMENT);
 
   test_1("test/t1#P#p1#SP#sp1",
-         "\"test\".\"t1\" /* Partition \"p1\", Subpartition \"sp1\" */",
+         "`test`.`t1` /* Partition `p1`, Subpartition `sp1` */",
          EXPLAIN_PARTITIONS_AS_COMMENT);
 
   test_1("test/t1#p1#SP#sp1",
-         "\"test\".\"t1#p1#SP#sp1\"",
+         "`test`.`t1#p1#SP#sp1`",
          EXPLAIN_PARTITIONS_AS_COMMENT);
 
   test_1("test/t1#p#p1@00232#SP#sp1@00231#REN#",
-         "\"test\".\"t1\" /* Renamed Partition \"p1#2\", Subpartition \"sp1#1\" */",
+         "`test`.`t1` /* Renamed Partition `p1#2`, Subpartition `sp1#1` */",
          EXPLAIN_PARTITIONS_AS_COMMENT);
 
   test_1("test/t1#p#p1#SP#sp1#TMP#",
-         "\"test\".\"t1\" /* Temporary Partition \"p1\", Subpartition \"sp1\" */",
+         "`test`.`t1` /* Temporary Partition `p1`, Subpartition `sp1` */",
          EXPLAIN_PARTITIONS_AS_COMMENT);
 
   test_1("test/#sql-t1#P#p1#SP#sp1#TMP#",
-         "\"test\".\"#sql-t1#P#p1#SP#sp1#TMP#\" /* Temporary Partition \"p1\", Subpartition \"sp1\" */",
+         "`test`.`#sql-t1#P#p1#SP#sp1#TMP#` /* Temporary Partition `p1`, Subpartition `sp1` */",
          EXPLAIN_PARTITIONS_AS_COMMENT);
 
   test_1("test/#sql-t1#P#p1#SP#sp1",
-         "\"test\".\"#sql-t1#P#p1#SP#sp1\" /* Partition \"p1\", Subpartition \"sp1\" */",
+         "`test`.`#sql-t1#P#p1#SP#sp1` /* Partition `p1`, Subpartition `sp1` */",
          EXPLAIN_PARTITIONS_AS_COMMENT);
 
   test_1("test/#sqlx-33",
-         "\"test\".\"#sqlx-33\"",
+         "`test`.`#sqlx-33`",
          EXPLAIN_PARTITIONS_AS_COMMENT);
 
   test_1("test/#mysql50#t",
-         "\"test\".\"#mysql50#t\"",
+         "`test`.`#mysql50#t`",
          EXPLAIN_PARTITIONS_AS_COMMENT);
 
   test_1("#mysql50#t",
-         "\"#mysql50#t\"",
+         "`#mysql50#t`",
          EXPLAIN_PARTITIONS_AS_COMMENT);
 
   test_1("@0023t",
-         "\"#t\"",
+         "`#t`",
          EXPLAIN_PARTITIONS_AS_COMMENT);
 
   test_1("test/t@0023",
-         "\"test\".\"t#\"",
+         "`test`.`t#`",
          EXPLAIN_PARTITIONS_AS_COMMENT);
 
   /*
@@ -186,7 +186,7 @@ TEST_F(PartitionTest, ExplainFilename)
     then it will not be converted to system_charset_info!
   */
   test_1("test/t@0023#",
-         "\"test\".\"t@0023#\"",
+         "`test`.`t@0023#`",
          EXPLAIN_PARTITIONS_AS_COMMENT);
 }
 

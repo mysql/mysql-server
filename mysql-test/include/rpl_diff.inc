@@ -8,6 +8,9 @@
 #
 # --let $rpl_diff_statement= SELECT * FROM t1 WHERE a < 100
 # [--let $rpl_diff_servers= <server1>,<server2>,...<serverN>]
+# [--let $rpl_diff_database= database]
+# [--let $rpl_skip_sync= 1]
+# [--let $rpl_only_running_threads= 1]
 # --source include/rpl_diff.inc
 #
 # Parameters:
@@ -28,6 +31,17 @@
 #     By default, the statement will be executed on the database
 #     'test'.  If $rpl_diff_database is set, the statement will be
 #     executed on the database named $rpl_diff_database instead.
+#
+#   $rpl_skip_sync
+#     By default, all slaves are synced using rpl_sync.inc. Set this
+#     option to 1 to disable this behavior (note that you must
+#     manually sync all servers in this case). Normally you want to
+#     sync, but you need to disable sync if you use multi-source.
+#
+#   $rpl_only_running_threads
+#     If one or both of the IO and SQL threads is stopped, sync and
+#     stop only the threads that are running.  See
+#     include/rpl_sync.inc and include/stop_slave.inc for details.
 
 
 --let $include_filename= rpl_diff.inc
@@ -41,7 +55,10 @@ if (!$rpl_diff_statement)
 
 
 # Sync.
---source include/rpl_sync.inc
+if (!$rpl_skip_sync)
+{
+  --source include/rpl_sync.inc
+}
 
 
 # Get database name.

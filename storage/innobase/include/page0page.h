@@ -191,7 +191,6 @@ page_get_max_trx_id(
 	const page_t*	page);	/*!< in: page */
 /*************************************************************//**
 Sets the max trx id field value. */
-
 void
 page_set_max_trx_id(
 /*================*/
@@ -262,7 +261,7 @@ page_header_get_offs(
 /*=================*/
 	const page_t*	page,	/*!< in: page */
 	ulint		field)	/*!< in: PAGE_FREE, ... */
-	__attribute__((nonnull, pure));
+	__attribute__((warn_unused_result));
 
 /*************************************************************//**
 Returns the pointer stored in the given header field, or NULL. */
@@ -316,7 +315,6 @@ page_get_supremum_offset(
 Returns the nth record of the record list.
 This is the inverse function of page_rec_get_n_recs_before().
 @return nth record */
-
 const rec_t*
 page_rec_get_nth_const(
 /*===================*/
@@ -378,7 +376,6 @@ Returns the number of records before the given record in chain.
 The number includes infimum and supremum records.
 This is the inverse function of page_rec_get_nth().
 @return number of records */
-
 ulint
 page_rec_get_n_recs_before(
 /*=======================*/
@@ -491,7 +488,6 @@ page_dir_calc_reserved_space(
 /***************************************************************//**
 Looks for the directory slot which owns the given record.
 @return the directory slot number */
-
 ulint
 page_dir_find_owner_slot(
 /*=====================*/
@@ -529,7 +525,7 @@ bool
 page_is_leaf(
 /*=========*/
 	const page_t*	page)	/*!< in: page */
-	__attribute__((nonnull, pure));
+	__attribute__((warn_unused_result));
 /************************************************************//**
 Determine whether the page is empty.
 @return true if the page is empty (PAGE_N_RECS = 0) */
@@ -538,7 +534,15 @@ bool
 page_is_empty(
 /*==========*/
 	const page_t*	page)	/*!< in: page */
-	__attribute__((nonnull, pure));
+	__attribute__((warn_unused_result));
+/** Determine whether a page is an index root page.
+@param[in]	page	page frame
+@return true if the page is a root page of an index */
+UNIV_INLINE
+bool
+page_is_root(
+	const page_t*	page)
+	__attribute__((warn_unused_result));
 /************************************************************//**
 Determine whether the page contains garbage.
 @return true if the page contains garbage (PAGE_GARBAGE is not 0) */
@@ -547,7 +551,7 @@ bool
 page_has_garbage(
 /*=============*/
 	const page_t*	page)	/*!< in: page */
-	__attribute__((nonnull, pure));
+	__attribute__((warn_unused_result));
 /************************************************************//**
 Gets the pointer to the next record on the page.
 @return pointer to next record */
@@ -647,7 +651,7 @@ ibool
 page_rec_is_user_rec(
 /*=================*/
 	const rec_t*	rec)	/*!< in: record */
-	__attribute__((const));
+	__attribute__((warn_unused_result));
 /************************************************************//**
 TRUE if the record is the supremum record on a page.
 @return TRUE if the supremum record */
@@ -656,7 +660,7 @@ ibool
 page_rec_is_supremum(
 /*=================*/
 	const rec_t*	rec)	/*!< in: record */
-	__attribute__((const));
+	__attribute__((warn_unused_result));
 
 /************************************************************//**
 TRUE if the record is the infimum record on a page.
@@ -666,7 +670,7 @@ ibool
 page_rec_is_infimum(
 /*================*/
 	const rec_t*	rec)	/*!< in: record */
-	__attribute__((const));
+	__attribute__((warn_unused_result));
 
 /************************************************************//**
 true if the record is the first user record on a page.
@@ -677,7 +681,7 @@ page_rec_is_first(
 /*==============*/
 	const rec_t*	rec,	/*!< in: record */
 	const page_t*	page)	/*!< in: page */
-	__attribute__((const));
+	__attribute__((warn_unused_result));
 
 /************************************************************//**
 true if the record is the second user record on a page.
@@ -688,7 +692,7 @@ page_rec_is_second(
 /*===============*/
 	const rec_t*	rec,	/*!< in: record */
 	const page_t*	page)	/*!< in: page */
-	__attribute__((const));
+	__attribute__((warn_unused_result));
 
 /************************************************************//**
 true if the record is the last user record on a page.
@@ -699,7 +703,7 @@ page_rec_is_last(
 /*=============*/
 	const rec_t*	rec,	/*!< in: record */
 	const page_t*	page)	/*!< in: page */
-	__attribute__((const));
+	__attribute__((warn_unused_result));
 
 /************************************************************//**
 true if the record is the second last user record on a page.
@@ -710,7 +714,7 @@ page_rec_is_second_last(
 /*====================*/
 	const rec_t*	rec,	/*!< in: record */
 	const page_t*	page)	/*!< in: page */
-	__attribute__((const));
+	__attribute__((warn_unused_result));
 
 /***************************************************************//**
 Looks for the record which owns the given record.
@@ -797,7 +801,6 @@ page_mem_alloc_free(
 /************************************************************//**
 Allocates a block of memory from the heap of an index page.
 @return pointer to start of allocated buffer, or NULL if allocation fails */
-
 byte*
 page_mem_alloc_heap(
 /*================*/
@@ -826,7 +829,6 @@ page_mem_free(
 /**********************************************************//**
 Create an uncompressed B-tree index page.
 @return pointer to the page */
-
 page_t*
 page_create(
 /*========*/
@@ -838,7 +840,6 @@ page_create(
 /**********************************************************//**
 Create a compressed B-tree index page.
 @return pointer to the page */
-
 page_t*
 page_create_zip(
 /*============*/
@@ -846,7 +847,7 @@ page_create_zip(
 						where the page is created */
 	dict_index_t*		index,		/*!< in: the index of the
 						page, or NULL when applying
-						TRUNCATE log 
+						TRUNCATE log
 						record during recovery */
 	ulint			level,		/*!< in: the B-tree level of
 						the page */
@@ -859,7 +860,6 @@ page_create_zip(
 						handle */
 /**********************************************************//**
 Empty a previously created B-tree index page. */
-
 void
 page_create_empty(
 /*==============*/
@@ -875,7 +875,6 @@ IMPORTANT: The caller will have to update IBUF_BITMAP_FREE
 if new_block is a compressed leaf page in a secondary index.
 This has to be done either within the same mini-transaction,
 or by invoking ibuf_reset_free_bits() before mtr_commit(). */
-
 void
 page_copy_rec_list_end_no_locks(
 /*============================*/
@@ -896,7 +895,6 @@ or by invoking ibuf_reset_free_bits() before mtr_commit().
 
 @return pointer to the original successor of the infimum record on
 new_page, or NULL on zip overflow (new_block will be decompressed) */
-
 rec_t*
 page_copy_rec_list_end(
 /*===================*/
@@ -918,7 +916,6 @@ or by invoking ibuf_reset_free_bits() before mtr_commit().
 
 @return pointer to the original predecessor of the supremum record on
 new_page, or NULL on zip overflow (new_block will be decompressed) */
-
 rec_t*
 page_copy_rec_list_start(
 /*=====================*/
@@ -931,7 +928,6 @@ page_copy_rec_list_start(
 /*************************************************************//**
 Deletes records from a page from a given record onward, including that record.
 The infimum and supremum records are not deleted. */
-
 void
 page_delete_rec_list_end(
 /*=====================*/
@@ -948,7 +944,6 @@ page_delete_rec_list_end(
 /*************************************************************//**
 Deletes records from page, up to the given record, NOT including
 that record. Infimum and supremum records are not deleted. */
-
 void
 page_delete_rec_list_start(
 /*=======================*/
@@ -968,7 +963,6 @@ or by invoking ibuf_reset_free_bits() before mtr_commit().
 
 @return TRUE on success; FALSE on compression failure (new_block will
 be decompressed) */
-
 ibool
 page_move_rec_list_end(
 /*===================*/
@@ -988,7 +982,6 @@ This has to be done either within the same mini-transaction,
 or by invoking ibuf_reset_free_bits() before mtr_commit().
 
 @return TRUE on success; FALSE on compression failure */
-
 ibool
 page_move_rec_list_start(
 /*=====================*/
@@ -1000,7 +993,6 @@ page_move_rec_list_start(
 	__attribute__((nonnull(1, 2, 4, 5)));
 /****************************************************************//**
 Splits a directory slot which owns too many records. */
-
 void
 page_dir_split_slot(
 /*================*/
@@ -1014,7 +1006,6 @@ Tries to balance the given directory slot with too few records
 with the upper neighbor, so that there are at least the minimum number
 of records owned by the slot; this may result in the merging of
 two slots. */
-
 void
 page_dir_balance_slot(
 /*==================*/
@@ -1025,7 +1016,6 @@ page_dir_balance_slot(
 /**********************************************************//**
 Parses a log record of a record list end or start deletion.
 @return end of log record or NULL */
-
 byte*
 page_parse_delete_rec_list(
 /*=======================*/
@@ -1042,7 +1032,6 @@ page_parse_delete_rec_list(
 @param[in,out]	block	buffer block, or NULL
 @param[in]	comp	nonzero=compact page format
 @param[in]	is_rtree whether it is rtree page */
-
 void
 page_parse_create(
 	buf_block_t*	block,
@@ -1052,7 +1041,6 @@ page_parse_create(
 /************************************************************//**
 Prints record contents including the data relevant only in
 the index page context. */
-
 void
 page_rec_print(
 /*===========*/
@@ -1062,7 +1050,6 @@ page_rec_print(
 /***************************************************************//**
 This is used to print the contents of the directory for
 debugging purposes. */
-
 void
 page_dir_print(
 /*===========*/
@@ -1071,7 +1058,6 @@ page_dir_print(
 /***************************************************************//**
 This is used to print the contents of the page record list for
 debugging purposes. */
-
 void
 page_print_list(
 /*============*/
@@ -1080,7 +1066,6 @@ page_print_list(
 	ulint		pr_n);	/*!< in: print n first and n last entries */
 /***************************************************************//**
 Prints the info in a page header. */
-
 void
 page_header_print(
 /*==============*/
@@ -1088,7 +1073,6 @@ page_header_print(
 /***************************************************************//**
 This is used to print the contents of the page for
 debugging purposes. */
-
 void
 page_print(
 /*=======*/
@@ -1105,7 +1089,6 @@ The following is used to validate a record on a page. This function
 differs from rec_validate as it can also check the n_owned field and
 the heap_no field.
 @return TRUE if ok */
-
 ibool
 page_rec_validate(
 /*==============*/
@@ -1116,7 +1099,6 @@ page_rec_validate(
 Checks that the first directory slot points to the infimum record and
 the last to the supremum. This function is intended to track if the
 bug fixed in 4.0.14 has caused corruption to users' databases. */
-
 void
 page_check_dir(
 /*===========*/
@@ -1127,7 +1109,6 @@ This function checks the consistency of an index page when we do not
 know the index. This is also resilient so that this should never crash
 even if the page is total garbage.
 @return TRUE if ok */
-
 ibool
 page_simple_validate_old(
 /*=====================*/
@@ -1137,7 +1118,6 @@ This function checks the consistency of an index page when we do not
 know the index. This is also resilient so that this should never crash
 even if the page is total garbage.
 @return TRUE if ok */
-
 ibool
 page_simple_validate_new(
 /*=====================*/
@@ -1145,7 +1125,6 @@ page_simple_validate_new(
 /***************************************************************//**
 This function checks the consistency of an index page.
 @return TRUE if ok */
-
 ibool
 page_validate(
 /*==========*/
@@ -1155,7 +1134,6 @@ page_validate(
 /***************************************************************//**
 Looks in the page record list for a record with the given heap number.
 @return record, NULL if not found */
-
 const rec_t*
 page_find_rec_with_heap_no(
 /*=======================*/
@@ -1165,7 +1143,6 @@ page_find_rec_with_heap_no(
 @param[in]	page	index tree leaf page
 @return the last record, not delete-marked
 @retval infimum record if all records are delete-marked */
-
 const rec_t*
 page_find_rec_max_not_deleted(
 	const page_t*	page);

@@ -7,7 +7,11 @@
 --echo #
 
 SELECT CHAR_LENGTH(DES_ENCRYPT(0, CHAR('1' USING ucs2)));
+--disable_ps_protocol
 SELECT CONVERT(DES_ENCRYPT(0, CHAR('1' USING ucs2)),UNSIGNED);
+--enable_ps_protocol
 
 SELECT CHAR_LENGTH(DES_DECRYPT(0xFF0DC9FC9537CA75F4, CHAR('1' USING ucs2)));
+--disable_ps_protocol
 SELECT CONVERT(DES_DECRYPT(0xFF0DC9FC9537CA75F4, CHAR('1' using ucs2)), UNSIGNED);
+--enable_ps_protocol

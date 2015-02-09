@@ -8,8 +8,10 @@ select @@global.shared_memory;
 select @@session.shared_memory;
 show global variables like 'shared_memory';
 show session variables like 'shared_memory';
+--disable_warnings
 select * from information_schema.global_variables where variable_name='shared_memory';
 select * from information_schema.session_variables where variable_name='shared_memory';
+--enable_warnings
 
 #
 # show that it's read-only

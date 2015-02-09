@@ -11,6 +11,7 @@
 # [--let $show_slave_io_error= 1]
 # [--let $slave_io_error_is_nonfatal= 1]
 # [--let $slave_io_error_replace= REGEX]
+# [--let $rpl_channel_name= NAME]
 # [--let $rpl_debug= 1]
 # [--let $slave_timeout= NUMBER]
 # --source include/wait_for_slave_io_error.inc
@@ -41,6 +42,9 @@
 #     If set, one or more regex patterns for replacing variable
 #     text in the error message. Syntax as --replace-regex
 #
+#   $rpl_channel_name
+#     See include/wait_for_slave_param.inc.
+#
 #   $slave_timeout
 #     See include/wait_for_slave_param.inc
 # 
@@ -59,15 +63,16 @@ let $slave_param_value= 0;
 source include/wait_for_slave_param.inc;
 let $slave_param_comparison= $old_slave_param_comparison;
 
-let $_wfsie_errno= query_get_value(SHOW SLAVE STATUS, Last_IO_Errno, 1);
+let $_wait_for_slave_io_errno= query_get_value($slave_param_statement, Last_IO_Errno, 1);
 
 if ($slave_io_errno == '')
 {
   --echo !!!ERROR IN TEST: you must set \$slave_io_errno before you source
-  --echo !!!wait_for_slave_io_error.inc. The error we got this time was '$_wfsie_errno',
+  --echo !!!wait_for_slave_io_error.inc. The error we got this time was '$_wait_for_slave_io_errno',
   --echo !!!so you probably want to add the following line to your test case:
-  --echo !!!  --let \$slave_io_errno= $_wfsie_errno
-  query_vertical SHOW SLAVE STATUS;
+  --echo !!!  --let \$slave_io_errno= $_wait_for_slave_io_errno
+  --vertical_results
+  eval $slave_param_statement;
   --die !!!ERROR IN TEST: you must set \$slave_io_errno before sourcing wait_for_slave_io_error.inc
 }
 
@@ -75,14 +80,14 @@ if ($slave_io_errno == '')
 --let $_slave_io_errno= `SELECT IF(LOCATE('#', '$slave_io_errno') != 0, SUBSTR('$slave_io_errno', 1, LOCATE('#', '$slave_io_errno') - 1), '$slave_io_errno')`
 if ($rpl_debug)
 {
-  --echo # debug: slave_io_errno='$slave_io_errno'; stripped from comments='$_slave_io_errno' wfsie_errno='$_wfsie_errno'
+  --echo # debug: slave_io_errno='$slave_io_errno'; stripped from comments='$_slave_io_errno' wait_for_slave_io_errno='$_wait_for_slave_io_errno'
 }
 
-if (`SELECT $_wfsie_errno NOT IN ($_slave_io_errno)`)
+if (`SELECT $_wait_for_slave_io_errno NOT IN ($_slave_io_errno)`)
 {
-  --echo **** Slave stopped with wrong error code: $_wfsie_errno (expected $slave_io_errno) ****
+  --echo **** Slave stopped with wrong error code: $_wait_for_slave_io_errno (expected $slave_io_errno) ****
   source include/show_rpl_debug_info.inc;
-  --echo **** Slave stopped with wrong error code: $_wfsie_errno (expected $slave_io_errno) ****
+  --echo **** Slave stopped with wrong error code: $_wait_for_slave_io_errno (expected $slave_io_errno) ****
   --die Slave stopped with wrong error code
 }
 

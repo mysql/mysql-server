@@ -131,7 +131,7 @@ Returns 0 on success.  */
 int
 rtree_key_cmp(
 /*==========*/
-	int		mode,	/*!< in: compare method. */
+	page_cur_mode_t	mode,	/*!< in: compare method. */
 	const uchar*	b,	/*!< in: first key. */
 	int		b_len,	/*!< in: first key len. */
 	const uchar*	a,	/*!< in: second key. */

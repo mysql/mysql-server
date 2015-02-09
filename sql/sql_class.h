@@ -19,10 +19,8 @@
 /* Classes in mysql */
 
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
-#ifdef MYSQL_SERVER
-#include "unireg.h"                    // REQUIRED: for other includes
-#endif
 #include "sql_const.h"
+#include "sql_lex.h"
 #include <mysql/plugin_audit.h>
 #include "rpl_tblmap.h"
 #include "mdl.h"
@@ -54,6 +52,9 @@
 #include "session_tracker.h"
 
 #include "transaction_info.h"
+#include <memory>
+
+#include "auth/sql_security_ctx.h"   // Security_context
 
 /**
   The meat of thd_proc_info(THD*, char*), a macro that packs the last
@@ -94,8 +95,6 @@ typedef struct st_log_info LOG_INFO;
 
 struct st_thd_timer;
 
-enum enum_ha_read_modes { RFIRST, RNEXT, RPREV, RLAST, RKEY, RNEXT_SAME };
-
 enum enum_delay_key_write { DELAY_KEY_WRITE_NONE, DELAY_KEY_WRITE_ON,
 			    DELAY_KEY_WRITE_ALL };
 enum enum_rbr_exec_mode { RBR_EXEC_MODE_STRICT,
@@ -125,7 +124,6 @@ enum enum_binlog_format {
 
 enum enum_mark_columns
 { MARK_COLUMNS_NONE, MARK_COLUMNS_READ, MARK_COLUMNS_WRITE};
-enum enum_filetype { FILETYPE_CSV, FILETYPE_XML };
 
 /* Bits for different SQL modes modes (including ANSI mode) */
 #define MODE_REAL_AS_FLOAT              1
@@ -166,7 +164,19 @@ enum enum_filetype { FILETYPE_CSV, FILETYPE_XML };
 #define MODE_NO_AUTO_CREATE_USER        (MODE_TRADITIONAL*2)
 #define MODE_HIGH_NOT_PRECEDENCE        (MODE_NO_AUTO_CREATE_USER*2)
 #define MODE_NO_ENGINE_SUBSTITUTION     (MODE_HIGH_NOT_PRECEDENCE*2)
-#define MODE_PAD_CHAR_TO_FULL_LENGTH    (ULL(1) << 31)
+#define MODE_PAD_CHAR_TO_FULL_LENGTH    (1ULL << 31)
+
+/*
+  Replication uses 8 bytes to store SQL_MODE in the binary log. The day you
+  use strictly more than 64 bits by adding one more define above, you should
+  contact the replication team because the replication code should then be
+  updated (to store more bytes on disk).
+
+  NOTE: When adding new SQL_MODE types, make sure to also add them to
+  the scripts used for creating the MySQL system tables
+  in scripts/mysql_system_tables.sql and scripts/mysql_system_tables_fix.sql
+
+*/
 
 extern char internal_table_name[2];
 extern char empty_c_string[1];
@@ -253,20 +263,19 @@ public:
 
 class Key :public Sql_alloc {
 public:
-  enum Keytype { PRIMARY, UNIQUE, MULTIPLE, FULLTEXT, SPATIAL, FOREIGN_KEY};
-  enum Keytype type;
+  keytype type;
   KEY_CREATE_INFO key_create_info;
   List<Key_part_spec> columns;
   LEX_STRING name;
   bool generated;
 
-  Key(enum Keytype type_par, const LEX_STRING &name_arg,
+  Key(keytype type_par, const LEX_STRING &name_arg,
       KEY_CREATE_INFO *key_info_arg,
       bool generated_arg, List<Key_part_spec> &cols)
     :type(type_par), key_create_info(*key_info_arg), columns(cols),
     name(name_arg), generated(generated_arg)
   {}
-  Key(enum Keytype type_par, const char *name_arg, size_t name_len_arg,
+  Key(keytype type_par, const char *name_arg, size_t name_len_arg,
       KEY_CREATE_INFO *key_info_arg, bool generated_arg,
       List<Key_part_spec> &cols)
     :type(type_par), key_create_info(*key_info_arg), columns(cols),
@@ -291,10 +300,6 @@ class Table_ident;
 
 class Foreign_key: public Key {
 public:
-  enum fk_match_opt { FK_MATCH_UNDEF, FK_MATCH_FULL,
-		      FK_MATCH_PARTIAL, FK_MATCH_SIMPLE};
-  enum fk_option { FK_OPTION_UNDEF, FK_OPTION_RESTRICT, FK_OPTION_CASCADE,
-		   FK_OPTION_SET_NULL, FK_OPTION_NO_ACTION, FK_OPTION_DEFAULT};
 
   LEX_CSTRING ref_db;
   LEX_CSTRING ref_table;
@@ -304,7 +309,7 @@ public:
 	      const LEX_CSTRING &ref_db_arg, const LEX_CSTRING &ref_table_arg,
               List<Key_part_spec> &ref_cols,
 	      uint delete_opt_arg, uint update_opt_arg, uint match_opt_arg)
-    :Key(FOREIGN_KEY, name_arg, &default_key_create_info, 0, cols),
+    :Key(KEYTYPE_FOREIGN, name_arg, &default_key_create_info, 0, cols),
     ref_db(ref_db_arg), ref_table(ref_table_arg), ref_columns(ref_cols),
     delete_opt(delete_opt_arg), update_opt(update_opt_arg),
     match_opt(match_opt_arg)
@@ -409,8 +414,6 @@ struct Query_cache_tls
 
   Query_cache_tls() :first_query_block(NULL) {}
 };
-
-#include "sql_lex.h"				/* Must be here */
 
 class select_result;
 class Time_zone;
@@ -749,14 +752,14 @@ public:
   { return state == STMT_CONVENTIONAL_EXECUTION; }
 
   inline void* alloc(size_t size) { return alloc_root(mem_root,size); }
-  inline void* calloc(size_t size)
+  inline void* mem_calloc(size_t size)
   {
     void *ptr;
     if ((ptr=alloc_root(mem_root,size)))
       memset(ptr, 0, size);
     return ptr;
   }
-  inline char *strdup(const char *str)
+  inline char *mem_strdup(const char *str)
   { return strdup_root(mem_root,str); }
   inline char *strmake(const char *str, size_t size)
   { return strmake_root(mem_root,str,size); }
@@ -826,71 +829,6 @@ private:
   HASH st_hash;
   HASH names_hash;
   Prepared_statement *m_last_found_statement;
-};
-
-/**
-  @class Security_context
-  @brief A set of THD members describing the current authenticated user.
-*/
-
-class Security_context {
-private:
-
-String host;
-String ip;
-String external_user;
-public:
-  Security_context() {}                       /* Remove gcc warning */
-  /*
-    host - host of the client
-    user - user of the client, set to NULL until the user has been read from
-    the connection
-    priv_user - The user privilege we are using. May be "" for anonymous user.
-    ip - client IP
-  */
-  char   *user;
-  char   priv_user[USERNAME_LENGTH];
-  char   proxy_user[USERNAME_LENGTH + MAX_HOSTNAME + 5];
-  /* The host privilege we are using */
-  char   priv_host[MAX_HOSTNAME];
-  /* points to host if host is available, otherwise points to ip */
-  const char *host_or_ip;
-  ulong master_access;                 /* Global privileges from mysql.user */
-  ulong db_access;                     /* Privileges for current db */
-  /*
-    This flag is set according to connecting user's context and not the
-    effective user.
-  */
-  bool password_expired;               /* password expiration flag */
-
-  void init();
-  void destroy();
-  void skip_grants();
-  inline char *priv_host_name()
-  {
-    return (*priv_host ? priv_host : (char *)"%");
-  }
-
-  bool set_user(char *user_arg);
-  String *get_host();
-  String *get_ip();
-  String *get_external_user();
-  void set_host(const char *p);
-  void set_ip(const char *p);
-  void set_external_user(const char *p);
-  void set_host(const char *str, size_t len);
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-  bool
-  change_security_context(THD *thd,
-                          const LEX_CSTRING &definer_user,
-                          const LEX_CSTRING &definer_host,
-                          LEX_STRING *db,
-                          Security_context **backup);
-
-  void
-  restore_security_context(THD *thd, Security_context *backup);
-#endif
-  bool user_matches(Security_context *);
 };
 
 
@@ -1645,8 +1583,11 @@ public:
     @see handle_slave_sql
   */
 
-  Security_context main_security_ctx;
-  Security_context *security_ctx;
+  Security_context m_main_security_ctx;
+  Security_context *m_security_ctx;
+
+  Security_context* security_context() const { return m_security_ctx; }
+  void set_security_context(Security_context *sctx) { m_security_ctx= sctx; }
 
   /*
     Points to info-string that we show in SHOW PROCESSLIST
@@ -2226,7 +2167,7 @@ public:
   inline void force_one_auto_inc_interval(ulonglong next_id)
   {
     auto_inc_intervals_forced.empty(); // in case of multiple SET INSERT_ID
-    auto_inc_intervals_forced.append(next_id, ULONGLONG_MAX, 0);
+    auto_inc_intervals_forced.append(next_id, ULLONG_MAX, 0);
   }
 
   /**
@@ -2451,6 +2392,18 @@ public:
     See comment above regarding tx_isolation.
   */
   bool              tx_read_only;
+  /*
+    Transaction cannot be rolled back must be given priority.
+    When two transactions conflict inside InnoDB, the one with
+    greater priority wins.
+  */
+  int tx_priority;
+  /*
+    All transactions executed by this thread will have high
+    priority mode, independent of tx_priority value.
+  */
+  int thd_tx_priority;
+
   enum_check_fields count_cuted_fields;
 
   // For user variables replication
@@ -3966,20 +3919,23 @@ public:
   /**
     Change wrapped select_result.
 
-    Replace the wrapped result object with new_result and call
+    Replace the wrapped query result object with new_result and call
     prepare() and prepare2() on new_result.
 
     This base class implementation doesn't wrap other select_results.
 
-    @param new_result The new result object to wrap around
+    @param new_result The new query result object to wrap around
 
     @retval false Success
     @retval true  Error
   */
-  virtual bool change_result(select_result *new_result)
+  virtual bool change_query_result(select_result *new_result)
   {
     return false;
   }
+  /// @return true if an interceptor object is needed for EXPLAIN
+  virtual bool need_explain_interceptor() const { return false; }
+
   virtual int prepare(List<Item> &list, SELECT_LEX_UNIT *u)
   {
     unit= u;
@@ -4229,6 +4185,7 @@ public:
 
 public:
   ~select_insert();
+  virtual bool need_explain_interceptor() const { return true; }
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   virtual int prepare2(void);
   bool send_data(List<Item> &items);
@@ -4444,7 +4401,7 @@ public:
 
   Function calls are forwarded to the wrapped select_result, but some
   functions are expected to be called only once for each query, so
-  they are only executed for the first SELECT in the union (execept
+  they are only executed for the first SELECT in the union (except
   for send_eof(), which is executed only for the last SELECT).
 
   This select_result is used when a UNION is not DISTINCT and doesn't
@@ -4477,7 +4434,7 @@ public:
     done_send_result_set_metadata(false), done_initialize_tables(false),
     limit_found_rows(0)
   {}
-  bool change_result(select_result *new_result);
+  bool change_query_result(select_result *new_result);
   uint field_count(List<Item> &fields) const
   {
     // Only called for top-level select_results, usually select_send
@@ -4584,27 +4541,6 @@ public:
 };
 
 
-/* Structs used when sorting */
-
-typedef struct st_sort_field {
-  Field *field;				/* Field to sort */
-  Item	*item;				/* Item if not sorting fields */
-  uint	 length;			/* Length of sort field */
-  uint   suffix_length;                 /* Length suffix (0-4) */
-  Item_result result_type;		/* Type of item */
-  bool reverse;				/* if descending sort */
-  bool need_strxnfrm;			/* If we have to use strxnfrm() */
-} SORT_FIELD;
-
-
-typedef struct st_sort_buffer {
-  uint index;					/* 0 or 1 */
-  uint sort_orders;
-  uint change_pos;				/* If sort-fields changed */
-  char **buff;
-  SORT_FIELD *sortorder;
-} SORT_BUFFER;
-
 /* Structure for db & table in sql_yacc */
 
 class Table_ident :public Sql_alloc
@@ -4688,7 +4624,7 @@ class user_var_entry
     or allocate a separate buffer.
     @param length - length of the value to be stored.
   */
-  bool realloc(size_t length);
+  bool mem_realloc(size_t length);
 
   /**
     Check if m_ptr point to an external buffer previously alloced by realloc().
@@ -4904,6 +4840,7 @@ class multi_delete :public select_result_interceptor
 public:
   multi_delete(TABLE_LIST *dt, uint num_of_tables);
   ~multi_delete();
+  virtual bool need_explain_interceptor() const { return true; }
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   bool send_data(List<Item> &items);
   bool initialize_tables (JOIN *join);
@@ -4971,6 +4908,7 @@ public:
 	       List<Item> *fields, List<Item> *values,
 	       enum_duplicates handle_duplicates);
   ~multi_update();
+  virtual bool need_explain_interceptor() const { return true; }
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   bool send_data(List<Item> &items);
   bool initialize_tables (JOIN *join);

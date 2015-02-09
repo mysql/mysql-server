@@ -56,6 +56,10 @@ The following options may be given as the first argument:
  --binlog-do-db=name Tells the master it should log updates for the specified
  database, and exclude all others not explicitly
  mentioned.
+ --binlog-error-action=name 
+ When statements cannot be written to the binary log due
+ to a fatal error, the server can either ignore the error
+ and let the master continue, or abort.
  --binlog-format=name 
  What form of binary logging the master will use: either
  ROW for row-based binary logging, STATEMENT for
@@ -78,6 +82,19 @@ The following options may be given as the first argument:
  be enqueued (as set using
  --binlog-group-commit-sync-delay), the commit procedure
  resumes.
+ --binlog-gtid-simple-recovery 
+ If this option is enabled, the server does not scan more
+ than one binary log for every iteration when initializing
+ GTID sets on server restart. Enabling this option is very
+ useful when restarting a server which has already
+ generated lots of binary logs without GTID events. Note:
+ If this option is enabled, GLOBAL.GTID_EXECUTED and
+ GLOBAL.GTID_PURGED cannot be initialized correctly if
+ binary log(s) with GTID events were generated before
+ binary log(s) without GTID events, for example if
+ gtid_mode is disabled when the server has already
+ generated binary log(s) with GTID events and not purged
+ them.
  --binlog-ignore-db=name 
  Tells the master that updates to the given database
  should not be logged to the binary log.
@@ -113,10 +130,6 @@ The following options may be given as the first argument:
  non-transactional engines for the binary log. If you
  often use statements updating a great number of rows, you
  can increase this to get more performance
- --binlogging-impossible-mode=name 
- On a fatal error when statements cannot be binlogged the
- behaviour can be ignore the error and let the master
- continue or abort the server. 
  --block-encryption-mode=name 
  mode for AES_ENCRYPT/AES_DECRYPT
  --bootstrap         Used by mysql installation scripts.
@@ -213,12 +226,6 @@ The following options may be given as the first argument:
  Enable the event scheduler. Possible values are ON, OFF,
  and DISABLED (keep the event scheduler completely
  deactivated, it cannot be activated run-time)
- --executed-gtids-compression-period[=#] 
- When binlog is disabled, a background thread wakes up to
- compress the gtid_executed table every
- executed_gtids_compression_period transactions, as a
- special case, if variable is 0, the thread never wakes up
- to compress the gtid_executed table.
  -T, --exit-info[=#] Used for debugging. Use at your own risk.
  --expire-logs-days=# 
  If non-zero, binary logs will be purged after
@@ -258,6 +265,12 @@ The following options may be given as the first argument:
  --group-concat-max-len=# 
  The maximum length of the result of function 
  GROUP_CONCAT()
+ --gtid-executed-compression-period[=#] 
+ When binlog is disabled, a background thread wakes up to
+ compress the gtid_executed table every
+ gtid_executed_compression_period transactions, as a
+ special case, if variable is 0, the thread never wakes up
+ to compress the gtid_executed table.
  --gtid-mode=name    Whether Global Transaction Identifiers (GTIDs) are
  enabled. Can be ON or OFF.
  -?, --help          Display this help and exit.
@@ -525,8 +538,8 @@ The following options may be given as the first argument:
  If this is not 0, then mysqld will use this value to
  reserve file descriptors to use with setrlimit(). If this
  value is 0 then mysqld will reserve max_connections*5 or
- max_connections + table_cache*2 (whichever is larger)
- number of file descriptors
+ max_connections + table_open_cache*2 (whichever is
+ larger) number of file descriptors
  --optimizer-prune-level=# 
  Controls the heuristic(s) applied during query
  optimization to prune less-promising partial plans from
@@ -669,6 +682,9 @@ The following options may be given as the first argument:
  --performance-schema-max-file-instances=# 
  Maximum number of instrumented files. Use 0 to disable,
  -1 for automated sizing.
+ --performance-schema-max-index-stat=# 
+ Maximum number of index statistics for instrumented
+ tables. Use 0 to disable, -1 for automated sizing.
  --performance-schema-max-memory-classes=# 
  Maximum number of memory pool instruments.
  --performance-schema-max-metadata-locks=# 
@@ -707,6 +723,9 @@ The following options may be given as the first argument:
  --performance-schema-max-table-instances=# 
  Maximum number of instrumented tables. Use 0 to disable,
  -1 for automated sizing.
+ --performance-schema-max-table-lock-stat=# 
+ Maximum number of lock statistics for instrumented
+ tables. Use 0 to disable, -1 for automated sizing.
  --performance-schema-max-thread-classes=# 
  Maximum number of thread instruments.
  --performance-schema-max-thread-instances=# 
@@ -732,7 +751,7 @@ The following options may be given as the first argument:
  Optional semicolon-separated list of plugins to load,
  where each plugin is identified as name=library, where
  name is the plugin name and library is the plugin library
- in plugin_dir. This option adds to the list speficied by
+ in plugin_dir. This option adds to the list specified by
  --plugin-load in an incremental way. Multiple
  --plugin-load-add are supported.
  -P, --port=#        Port number to use for connection or 0 to default to,
@@ -898,19 +917,6 @@ The following options may be given as the first argument:
  --show-slave-auth-info 
  Show user and password in SHOW SLAVE HOSTS on this
  master.
- --simplified-binlog-gtid-recovery 
- If this option is enabled, the server does not scan more
- than one binary log for every iteration when initializing
- GTID sets on server restart. Enabling this option is very
- useful when restarting a server which has already
- generated lots of binary logs without GTID events. Note:
- If this option is enabled, GLOBAL.GTID_EXECUTED and
- GLOBAL.GTID_PURGED cannot be initialized correctly if
- binary log(s) with GTID events were generated before
- binary log(s) without GTID events, for example if
- gtid_mode is disabled when the server has already
- generated binary log(s) with GTID events and not purged
- them. 
  --skip-grant-tables Start without grant tables. This gives all users FULL
  ACCESS to all tables.
  --skip-host-cache   Don't cache host names.
@@ -1109,16 +1115,17 @@ bind-address *
 binlog-cache-size 32768
 binlog-checksum CRC32
 binlog-direct-non-transactional-updates FALSE
+binlog-error-action IGNORE_ERROR
 binlog-format STATEMENT
 binlog-group-commit-sync-delay 0
 binlog-group-commit-sync-no-delay-count 0
+binlog-gtid-simple-recovery FALSE
 binlog-max-flush-queue-time 0
 binlog-order-commits TRUE
 binlog-row-event-max-size 8192
 binlog-row-image FULL
 binlog-rows-query-log-events FALSE
 binlog-stmt-cache-size 32768
-binlogging-impossible-mode IGNORE_ERROR
 block-encryption-mode aes-128-ecb
 bulk-insert-buffer-size 8388608
 character-set-client-handshake TRUE
@@ -1150,7 +1157,6 @@ end-markers-in-json FALSE
 enforce-gtid-consistency FALSE
 eq-range-index-dive-limit 200
 event-scheduler OFF
-executed-gtids-compression-period 1000
 expire-logs-days 0
 explicit-defaults-for-timestamp FALSE
 external-locking FALSE
@@ -1164,6 +1170,7 @@ ft-stopword-file (No default value)
 gdb FALSE
 general-log FALSE
 group-concat-max-len 1024
+gtid-executed-compression-period 1000
 gtid-mode OFF
 help TRUE
 host-cache-size 279
@@ -1299,6 +1306,7 @@ performance-schema-max-cond-instances -1
 performance-schema-max-file-classes 50
 performance-schema-max-file-handles 32768
 performance-schema-max-file-instances -1
+performance-schema-max-index-stat -1
 performance-schema-max-memory-classes 320
 performance-schema-max-metadata-locks -1
 performance-schema-max-mutex-classes 200
@@ -1310,10 +1318,11 @@ performance-schema-max-rwlock-instances -1
 performance-schema-max-socket-classes 10
 performance-schema-max-socket-instances -1
 performance-schema-max-stage-classes 150
-performance-schema-max-statement-classes 189
+performance-schema-max-statement-classes 188
 performance-schema-max-statement-stack 10
 performance-schema-max-table-handles -1
 performance-schema-max-table-instances -1
+performance-schema-max-table-lock-stat -1
 performance-schema-max-thread-classes 50
 performance-schema-max-thread-instances -1
 performance-schema-session-connect-attrs-size -1
@@ -1359,7 +1368,6 @@ session-track-system-variables time_zone,autocommit,character_set_client,charact
 shared-memory FALSE
 shared-memory-base-name MYSQL
 show-slave-auth-info FALSE
-simplified-binlog-gtid-recovery FALSE
 skip-grant-tables TRUE
 skip-name-resolve FALSE
 skip-networking FALSE

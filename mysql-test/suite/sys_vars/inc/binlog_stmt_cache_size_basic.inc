@@ -105,7 +105,9 @@ SET @@session.binlog_stmt_cache_size = 0;
 # Check if the value in GLOBAL Tables matches values in variable             #
 ##############################################################################
 
+--disable_warnings
 SELECT @@global.binlog_stmt_cache_size = VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='binlog_stmt_cache_size';
+--enable_warnings
 
 --echo '#---------------------FN_DYNVARS_006_07----------------------#'
 ################################################################### 

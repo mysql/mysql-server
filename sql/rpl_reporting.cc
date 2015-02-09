@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,7 +13,6 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "sql_priv.h"
 #include "rpl_reporting.h"
 #include "log.h" // sql_print_error, sql_print_warning,
                  // sql_print_information
@@ -166,8 +165,8 @@ Slave_reporting_capability::va_report(loglevel level, int err_code,
   mysql_mutex_unlock(&err_lock);
 
   /* If the msg string ends with '.', do not add a ',' it would be ugly */
-  report_function("Slave %s: %s%s Error_code: %d",
-                  m_thread_name, pbuff,
+  report_function("Slave %s%s: %s%s Error_code: %d",
+                  m_thread_name, get_for_channel_str(false), pbuff,
                   (curr_buff[0] && *(strend(curr_buff)-1) == '.') ? "" : ",",
                   err_code);
 #endif

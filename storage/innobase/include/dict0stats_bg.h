@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -45,7 +45,6 @@ background stats gathering thread. Only the table id is added to the
 list, so the table can be closed after being enqueued and it will be
 opened when needed. If the table does not exist later (has been DROPped),
 then it will be removed from the pool and skipped. */
-
 void
 dict_stats_recalc_pool_add(
 /*=======================*/
@@ -54,7 +53,6 @@ dict_stats_recalc_pool_add(
 /*****************************************************************//**
 Delete a given table from the auto recalc pool.
 dict_stats_recalc_pool_del() */
-
 void
 dict_stats_recalc_pool_del(
 /*=======================*/
@@ -89,7 +87,6 @@ The background stats thread is guaranteed not to start using the specified
 table after this function returns and before the caller unlocks the data
 dictionary because it sets the BG_STAT_IN_PROGRESS bit in table->stats_bg_flag
 under dict_sys->mutex. */
-
 void
 dict_stats_wait_bg_to_stop_using_table(
 /*===================================*/
@@ -99,7 +96,6 @@ dict_stats_wait_bg_to_stop_using_table(
 /*****************************************************************//**
 Initialize global variables needed for the operation of dict_stats_thread().
 Must be called before dict_stats_thread() is started. */
-
 void
 dict_stats_thread_init();
 /*====================*/
@@ -107,7 +103,6 @@ dict_stats_thread_init();
 /*****************************************************************//**
 Free resources allocated by dict_stats_thread_init(), must be called
 after dict_stats_thread() has exited. */
-
 void
 dict_stats_thread_deinit();
 /*======================*/

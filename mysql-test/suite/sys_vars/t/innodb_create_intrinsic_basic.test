@@ -18,8 +18,10 @@ select @@session.innodb_create_intrinsic in (0, 1);
 select @@session.innodb_create_intrinsic;
 show global variables like 'innodb_create_intrinsic';
 show session variables like 'innodb_create_intrinsic';
+--disable_warnings
 select * from information_schema.global_variables where variable_name='innodb_create_intrinsic';
 select * from information_schema.session_variables where variable_name='innodb_create_intrinsic';
+--enable_warnings
 
 #
 # show that it's writable
@@ -28,26 +30,34 @@ set global innodb_create_intrinsic='OFF';
 set session innodb_create_intrinsic='OFF';
 select @@global.innodb_create_intrinsic;
 select @@session.innodb_create_intrinsic;
+--disable_warnings
 select * from information_schema.global_variables where variable_name='innodb_create_intrinsic';
 select * from information_schema.session_variables where variable_name='innodb_create_intrinsic';
+--enable_warnings
 set @@global.innodb_create_intrinsic=1;
 set @@session.innodb_create_intrinsic=1;
 select @@global.innodb_create_intrinsic;
 select @@session.innodb_create_intrinsic;
+--disable_warnings
 select * from information_schema.global_variables where variable_name='innodb_create_intrinsic';
 select * from information_schema.session_variables where variable_name='innodb_create_intrinsic';
+--enable_warnings
 set global innodb_create_intrinsic=0;
 set session innodb_create_intrinsic=0;
 select @@global.innodb_create_intrinsic;
 select @@session.innodb_create_intrinsic;
+--disable_warnings
 select * from information_schema.global_variables where variable_name='innodb_create_intrinsic';
 select * from information_schema.session_variables where variable_name='innodb_create_intrinsic';
+--enable_warnings
 set @@global.innodb_create_intrinsic='ON';
 set @@session.innodb_create_intrinsic='ON';
 select @@global.innodb_create_intrinsic;
 select @@session.innodb_create_intrinsic;
+--disable_warnings
 select * from information_schema.global_variables where variable_name='innodb_create_intrinsic';
 select * from information_schema.session_variables where variable_name='innodb_create_intrinsic';
+--enable_warnings
 
 #
 # incorrect types
@@ -73,8 +83,10 @@ set global innodb_create_intrinsic=-3;
 set session innodb_create_intrinsic=-7;
 select @@global.innodb_create_intrinsic;
 select @@session.innodb_create_intrinsic;
+--disable_warnings
 select * from information_schema.global_variables where variable_name='innodb_create_intrinsic';
 select * from information_schema.session_variables where variable_name='innodb_create_intrinsic';
+--enable_warnings
 
 #
 # Cleanup

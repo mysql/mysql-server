@@ -19,13 +19,6 @@
 
 /* Function items used by mysql */
 
-#ifdef HAVE_IEEEFP_H
-extern "C"				/* Bug in BSDI include file */
-{
-#include <ieeefp.h>
-}
-#endif
-
 extern void reject_geometry_args(uint arg_count, Item **args,
                                  Item_result_field *me);
 
@@ -57,7 +50,8 @@ public:
 		  INTERVAL_FUNC, ISNOTNULLTEST_FUNC,
 		  SP_EQUALS_FUNC, SP_DISJOINT_FUNC,SP_INTERSECTS_FUNC,
 		  SP_TOUCHES_FUNC,SP_CROSSES_FUNC,SP_WITHIN_FUNC,
-		  SP_CONTAINS_FUNC,SP_OVERLAPS_FUNC,
+		  SP_CONTAINS_FUNC,SP_COVEREDBY_FUNC,SP_COVERS_FUNC,
+                  SP_OVERLAPS_FUNC,
 		  SP_STARTPOINT,SP_ENDPOINT,SP_EXTERIORRING,
 		  SP_POINTN,SP_GEOMETRYN,SP_INTERIORRINGN,
                   NOT_FUNC, NOT_ALL_FUNC,
@@ -346,7 +340,7 @@ public:
   {
     if ((unsigned_flag && !val_unsigned && value < 0) ||
         (!unsigned_flag && val_unsigned &&
-         (ulonglong) value > (ulonglong) LONGLONG_MAX))
+         (ulonglong) value > (ulonglong) LLONG_MAX))
       return raise_integer_overflow();
     return value;
   }
@@ -680,6 +674,12 @@ public:
   Item_int_func(Item *a,Item *b,Item *c) :Item_func(a,b,c)
   { collation.set_numeric(); fix_char_length(21); }
   Item_int_func(const POS &pos, Item *a,Item *b,Item *c) :Item_func(pos, a,b,c)
+  { collation.set_numeric(); fix_char_length(21); }
+
+  Item_int_func(Item *a, Item *b, Item *c, Item *d): Item_func(a,b,c,d)
+  { collation.set_numeric(); fix_char_length(21); }
+  Item_int_func(const POS &pos, Item *a, Item *b, Item *c, Item *d)
+    :Item_func(pos,a,b,c,d)
   { collation.set_numeric(); fix_char_length(21); }
 
   Item_int_func(List<Item> &list) :Item_func(list)
@@ -1915,6 +1915,9 @@ public:
   Item_master_pos_wait(const POS &pos, Item *a, Item *b, Item *c)
     :Item_int_func(pos, a, b, c)
   {}
+  Item_master_pos_wait(const POS &pos, Item *a, Item *b, Item *c, Item *d)
+    :Item_int_func(pos, a, b, c, d)
+  {}
 
   virtual bool itemize(Parse_context *pc, Item **res);
   longlong val_int();
@@ -1953,6 +1956,9 @@ public:
   Item_master_gtid_set_wait(const POS &pos, Item *a) :Item_int_func(pos, a) {}
   Item_master_gtid_set_wait(const POS &pos, Item *a, Item *b)
     :Item_int_func(pos, a, b)
+  {}
+  Item_master_gtid_set_wait(const POS &pos, Item *a, Item *b, Item *c)
+    :Item_int_func(pos, a, b, c)
   {}
 
   virtual bool itemize(Parse_context *pc, Item **res);

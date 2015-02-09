@@ -234,7 +234,7 @@ NULL
 # in connection plug_con
 SELECT @@LOCAL.external_user;
 @@LOCAL.external_user
-'plug'@'%'
+plug_dest
 # in connection default
 WL#5706 -- show the above got logged/rewritten correctly
 SELECT argument FROM mysql.general_log WHERE argument LIKE CONCAT('%IDENTIFIED ','WITH %');

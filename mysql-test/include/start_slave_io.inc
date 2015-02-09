@@ -9,11 +9,15 @@
 #
 # ==== Usage ====
 #
+# [--let $rpl_channel_name= NAME]
 # [--let $slave_timeout= NUMBER]
 # [--let $rpl_debug= 1]
 # --source include/start_slave_io.inc
 #
 # Parameters:
+#   $rpl_channel_name
+#     If this is not '', a FOR CHANNEL  '$rpl_channel_name' is added.
+#
 #   $slave_timeout
 #     See include/wait_for_slave_param.inc
 #
@@ -31,7 +35,15 @@ if (!$rpl_debug)
 }
 
 
-START SLAVE IO_THREAD;
+if ($rpl_channel_name != '')
+{
+  eval START SLAVE IO_THREAD FOR CHANNEL  '$rpl_channel_name';
+}
+if ($rpl_channel_name == '')
+{
+  START SLAVE IO_THREAD;
+}
+
 --source include/wait_for_slave_io_to_start.inc
 
 

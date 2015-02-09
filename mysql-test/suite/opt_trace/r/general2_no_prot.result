@@ -3417,15 +3417,6 @@ select 497, tmp.ID, NULL from (select 497 as ID, MAX(t3.DATA) as DATA      from 
         "steps": [
           {
             "expanded_query": "/* select#2 */ select 497 AS `ID`,max(`t3`.`DATA`) AS `DATA` from ((`t1` join `t2` on((`t1`.`OBJECTID` = `t2`.`ID`))) join `t3` on((`t1`.`OBJECTID` = `t3`.`ID`))) group by `t2`.`PARID` order by `DATA` desc"
-          },
-          {
-            "transformations_to_nested_joins": {
-              "transformations": [
-                "JOIN_condition_to_WHERE",
-                "parenthesis_removal"
-              ] /* transformations */,
-              "expanded_query": "/* select#2 */ select 497 AS `ID`,max(`t3`.`DATA`) AS `DATA` from `t1` join `t2` join `t3` where ((`t1`.`OBJECTID` = `t3`.`ID`) and (`t1`.`OBJECTID` = `t2`.`ID`)) group by `t2`.`PARID` order by `DATA` desc"
-            } /* transformations_to_nested_joins */
           }
         ] /* steps */
       } /* join_preparation */
@@ -3435,7 +3426,16 @@ select 497, tmp.ID, NULL from (select 497 as ID, MAX(t3.DATA) as DATA      from 
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select 497 AS `497`,`tmp`.`ID` AS `ID`,NULL AS `NULL` from (/* select#2 */ select 497 AS `ID`,max(`t3`.`DATA`) AS `DATA` from `t1` join `t2` join `t3` where ((`t1`.`OBJECTID` = `t3`.`ID`) and (`t1`.`OBJECTID` = `t2`.`ID`)) group by `t2`.`PARID` order by `DATA` desc) `tmp`"
+            "expanded_query": "/* select#1 */ select 497 AS `497`,`tmp`.`ID` AS `ID`,NULL AS `NULL` from (/* select#2 */ select 497 AS `ID`,max(`t3`.`DATA`) AS `DATA` from ((`t1` join `t2` on((`t1`.`OBJECTID` = `t2`.`ID`))) join `t3` on((`t1`.`OBJECTID` = `t3`.`ID`))) group by `t2`.`PARID` order by `DATA` desc) `tmp`"
+          },
+          {
+            "transformations_to_nested_joins": {
+              "transformations": [
+                "JOIN_condition_to_WHERE",
+                "parenthesis_removal"
+              ] /* transformations */,
+              "expanded_query": "/* select#2 */ select 497 AS `ID`,max(`t3`.`DATA`) AS `DATA` from `t1` join `t2` join `t3` where ((`t1`.`OBJECTID` = `t3`.`ID`) and (`t1`.`OBJECTID` = `t2`.`ID`)) group by `t2`.`PARID` order by `DATA` desc"
+            } /* transformations_to_nested_joins */
           }
         ] /* steps */
       } /* join_preparation */

@@ -21,7 +21,6 @@ IF(UNIX)
   CONFIGURE_FILE(mysql.spec.in ${CMAKE_CURRENT_BINARY_DIR}/${SPECFILENAME} @ONLY)
   FOREACH(fedfile my.cnf my_config.h mysql.init
           mysqld.service mysql-systemd-start mysql.conf
-          mysql-5.6.16-mysql-install.patch 
           filter-requires.sh filter-provides.sh)
     CONFIGURE_FILE(${fedfile} ${CMAKE_CURRENT_BINARY_DIR}/${fedfile} COPYONLY)
   ENDFOREACH()

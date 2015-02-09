@@ -19,9 +19,9 @@ include/stop_slave_io.inc
 RESET SLAVE;
 drop table t1;
 call mtr.add_suppression("Slave: Can't get stat of .*");
-call mtr.add_suppression("Slave SQL: .*Error .Can.t get stat of.* Error_code: 13");
-call mtr.add_suppression("Slave: File.* not found.*");
-call mtr.add_suppression("Slave SQL: .*Error .File.* not found.* Error_code: 29");
+call mtr.add_suppression("Slave SQL for channel '': .*Error .Can.t get stat of.* Error_code: 13");
+call mtr.add_suppression("Slave.*: File.* not found.*");
+call mtr.add_suppression("Slave.*: .*Error .File.* not found.* Error_code: 29");
 call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 SET @@GLOBAL.DEBUG = '';
 include/rpl_end.inc

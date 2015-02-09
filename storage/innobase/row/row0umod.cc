@@ -423,11 +423,10 @@ row_undo_mod_del_mark_or_remove_sec_low(
 		modify_leaf = true;
 	}
 
-	if (*index->name == TEMP_INDEX_PREFIX) {
-		/* The index->online_status may change if the
-		index->name starts with TEMP_INDEX_PREFIX (meaning
-		that the index is or was being created online). It is
-		protected by index->lock. */
+	if (!index->is_committed()) {
+		/* The index->online_status may change if the index is
+		or was being created online, but not committed yet. It
+		is protected by index->lock. */
 		if (mode == BTR_MODIFY_LEAF) {
 			mode = BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED;
 			mtr_s_lock(dict_index_get_lock(index), &mtr);
@@ -441,8 +440,8 @@ row_undo_mod_del_mark_or_remove_sec_low(
 		}
 	} else {
 		/* For secondary indexes,
-		index->online_status==ONLINE_INDEX_CREATION unless
-		index->name starts with TEMP_INDEX_PREFIX. */
+		index->online_status==ONLINE_INDEX_COMPLETE if
+		index->is_committed(). */
 		ut_ad(!dict_index_is_online_ddl(index));
 	}
 
@@ -505,10 +504,9 @@ row_undo_mod_del_mark_or_remove_sec_low(
 			rec_t*	rec = btr_pcur_get_rec(&pcur);
 			if (rec_get_deleted_flag(rec,
 						 dict_table_is_comp(index->table))) {
-				ib_logf(IB_LOG_LEVEL_ERROR,
-					"Record found in index %s is deleted marked"
-					" on rollback update.",
-					index->name);
+				ib::error() << "Record found in index "
+					<< index->name << " is deleted marked"
+					" on rollback update.";
 			}
 		}
 
@@ -614,11 +612,10 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 	mtr.set_named_space(index->space);
 	dict_disable_redo_if_temporary(index->table, &mtr);
 
-	if (*index->name == TEMP_INDEX_PREFIX) {
-		/* The index->online_status may change if the
-		index->name starts with TEMP_INDEX_PREFIX (meaning
-		that the index is or was being created online). It is
-		protected by index->lock. */
+	if (!index->is_committed()) {
+		/* The index->online_status may change if the index is
+		or was being created online, but not committed yet. It
+		is protected by index->lock. */
 		if (mode == BTR_MODIFY_LEAF) {
 			mode = BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED;
 			mtr_s_lock(dict_index_get_lock(index), &mtr);
@@ -632,12 +629,12 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 		}
 	} else {
 		/* For secondary indexes,
-		index->online_status==ONLINE_INDEX_CREATION unless
-		index->name starts with TEMP_INDEX_PREFIX. */
+		index->online_status==ONLINE_INDEX_COMPLETE if
+		index->is_committed(). */
 		ut_ad(!dict_index_is_online_ddl(index));
 	}
 
-	btr_pcur_get_btr_cur(&pcur)->thr = thr;
+	btr_cur->thr = thr;
 
 	search_result = row_search_index_entry(index, entry, mode,
 					       &pcur, &mtr);
@@ -653,7 +650,7 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 		flags BTR_INSERT, BTR_DELETE, or BTR_DELETE_MARK. */
 		ut_error;
 	case ROW_NOT_FOUND:
-		if (*index->name != TEMP_INDEX_PREFIX) {
+		if (index->is_committed()) {
 			/* During online secondary index creation, it
 			is possible that MySQL is waiting for a
 			meta-data lock upgrade before invoking
@@ -662,34 +659,20 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 			finished building the index, but it does not
 			yet exist in MySQL. In this case, we suppress
 			the printout to the error log. */
-			fputs("InnoDB: error in sec index entry del undo in\n"
-			      "InnoDB: ", stderr);
-			dict_index_name_print(stderr, trx, index);
-			fputs("\n"
-			      "InnoDB: tuple ", stderr);
-			dtuple_print(stderr, entry);
-			fputs("\n"
-			      "InnoDB: record ", stderr);
-			rec_print(stderr, btr_pcur_get_rec(&pcur), index);
-			putc('\n', stderr);
-			trx_print(stderr, trx, 0);
-			fputs("\n"
-			      "InnoDB: Submit a detailed bug report"
-			      " to http://bugs.mysql.com\n", stderr);
-
-			ib_logf(IB_LOG_LEVEL_WARN,
-				"Record in index %s was not found"
-				" on rollback, trying to insert",
-				index->name);
+			ib::warn() << "Record in index " << index->name
+				<< " of table " << index->table->name
+				<< " was not found on rollback, trying to"
+				" insert: " << *entry
+				<< " at: " << rec_index_print(
+					btr_cur_get_rec(btr_cur), index);
 		}
 
 		if (btr_cur->up_match >= dict_index_get_n_unique(index)
 		    || btr_cur->low_match >= dict_index_get_n_unique(index)) {
-			if (*index->name != TEMP_INDEX_PREFIX) {
-				ib_logf(IB_LOG_LEVEL_WARN,
-					"Record in index %s was not found on"
-					" rollback, and a duplicate exists",
-					index->name);
+			if (index->is_committed()) {
+				ib::warn() << "Record in index " << index->name
+					<< " was not found on rollback, and"
+					" a duplicate exists";
 			}
 			err = DB_DUPLICATE_KEY;
 			break;
@@ -1145,7 +1128,6 @@ row_undo_mod_parse_undo_rec(
 /***********************************************************//**
 Undoes a modify operation on a row of a table.
 @return DB_SUCCESS or error code */
-
 dberr_t
 row_undo_mod(
 /*=========*/

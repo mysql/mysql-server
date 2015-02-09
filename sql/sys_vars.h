@@ -33,6 +33,7 @@
 #include "tztime.h"     // my_tz_find, my_tz_SYSTEM, struct Time_zone
 #include "rpl_gtid.h"
 #include <ctype.h>
+#include "sql_class.h"
 
 /*
   a set of mostly trivial (as in f(X)=X) defines below to make system variable
@@ -579,8 +580,8 @@ public:
 protected:
   virtual uchar *session_value_ptr(THD *thd, LEX_STRING *base)
   {
-    return thd->security_ctx->proxy_user[0] ?
-      (uchar *) &(thd->security_ctx->proxy_user[0]) : NULL;
+    const char* proxy_user= thd->security_context()->proxy_user().str;
+    return proxy_user[0] ? (uchar *)proxy_user : NULL;
   }
 };
 
@@ -595,8 +596,9 @@ public:
 protected:
   virtual uchar *session_value_ptr(THD *thd, LEX_STRING *base)
   {
-    return thd->security_ctx->proxy_user[0] ?
-      (uchar *) &(thd->security_ctx->proxy_user[0]) : NULL;
+    LEX_CSTRING external_user= thd->security_context()->external_user();
+
+    return external_user.length ? (uchar *) external_user.str : NULL;
   }
 };
 
@@ -707,13 +709,13 @@ public:
   {
     char buf[256];
     DBUG_EXPLAIN(buf, sizeof(buf));
-    return (uchar*) thd->strdup(buf);
+    return (uchar*) thd->mem_strdup(buf);
   }
   uchar *global_value_ptr(THD *thd, LEX_STRING *base)
   {
     char buf[256];
     DBUG_EXPLAIN_INITIAL(buf, sizeof(buf));
-    return (uchar*) thd->strdup(buf);
+    return (uchar*) thd->mem_strdup(buf);
   }
   bool check_update_type(Item_result type)
   { return type != STRING_RESULT; }
@@ -1823,6 +1825,39 @@ public:
 
 
 /**
+  Class representing the sql_log_bin system variable for controlling
+  whether logging to the binary log is done.
+*/
+
+class Sys_var_sql_log_bin: public Sys_var_mybool
+{
+public:
+  Sys_var_sql_log_bin(const char *name_arg, const char *comment, int flag_args,
+                      ptrdiff_t off, size_t size, CMD_LINE getopt,
+                      my_bool def_val, PolyLock *lock,
+                      enum binlog_status_enum binlog_status_arg,
+                      on_check_function on_check_func,
+                      on_update_function on_update_func)
+    :Sys_var_mybool(name_arg, comment, flag_args, off, size, getopt,
+                    def_val, lock, binlog_status_arg, on_check_func,
+                    on_update_func)
+  {}
+
+  uchar *global_value_ptr(THD *thd, LEX_STRING *base)
+  {
+    /* Reading GLOBAL SQL_LOG_BIN produces a deprecation warning. */
+    if (base != NULL)
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
+                          ER_WARN_DEPRECATED_SYNTAX,
+                          ER(ER_WARN_DEPRECATED_SYNTAX),
+                          "@@global.sql_log_bin", "the constant 1 "
+                          "(since @@global.sql_log_bin is always equal to 1)");
+
+    return Sys_var_mybool::global_value_ptr(thd, base);
+  }
+};
+
+/**
    A class for @@global.binlog_checksum that has
    a specialized update method.
 */
@@ -1915,7 +1950,7 @@ public:
     ((Gtid_specification *)session_var_ptr(thd))->
       to_string(global_sid_map, buf);
     global_sid_lock->unlock();
-    char *ret= thd->strdup(buf);
+    char *ret= thd->mem_strdup(buf);
     DBUG_RETURN((uchar *)ret);
   }
   uchar *global_value_ptr(THD *thd, LEX_STRING *base)
@@ -2201,50 +2236,7 @@ public:
   void session_save_default(THD *thd, set_var *var)
   { DBUG_ASSERT(FALSE); }
 
-  bool global_update(THD *thd, set_var *var)
-  {
-    DBUG_ENTER("Sys_var_gtid_purged::global_update");
-#ifdef HAVE_REPLICATION
-    bool error= false;
-    int rotate_res= 0;
-
-    global_sid_lock->wrlock();
-    char *previous_gtid_executed= gtid_state->get_executed_gtids()->to_string();
-    char *previous_gtid_lost= gtid_state->get_lost_gtids()->to_string();
-    enum_return_status ret= gtid_state->add_lost_gtids(var->save_result.string_value.str);
-    char *current_gtid_executed= gtid_state->get_executed_gtids()->to_string();
-    char *current_gtid_lost= gtid_state->get_lost_gtids()->to_string();
-    global_sid_lock->unlock();
-    if (RETURN_STATUS_OK != ret)
-    {
-      error= true;
-      goto end;
-    }
-
-    // Log messages saying that GTID_PURGED and GTID_EXECUTED were changed.
-    sql_print_information(ER(ER_GTID_PURGED_WAS_CHANGED),
-                          previous_gtid_lost, current_gtid_lost);
-    sql_print_information(ER(ER_GTID_EXECUTED_WAS_CHANGED),
-                          previous_gtid_executed, current_gtid_executed);
-
-    // Rotate logs to have Previous_gtid_event on last binlog.
-    rotate_res= mysql_bin_log.rotate_and_purge(true);
-    if (rotate_res)
-    {
-      error= true;
-      goto end;
-    }
-
-end:
-    my_free(previous_gtid_executed);
-    my_free(previous_gtid_lost);
-    my_free(current_gtid_executed);
-    my_free(current_gtid_lost);
-    DBUG_RETURN(error);
-#else
-    DBUG_RETURN(true);
-#endif /* HAVE_REPLICATION */
-  }
+  bool global_update(THD *thd, set_var *var);
 
   void global_save_default(THD *thd, set_var *var)
   {
@@ -2318,7 +2310,7 @@ public:
     DBUG_ENTER("Sys_var_gtid_owned::session_value_ptr");
     char *buf= NULL;
     if (thd->owned_gtid.sidno == 0)
-      DBUG_RETURN((uchar *)thd->strdup(""));
+      DBUG_RETURN((uchar *)thd->mem_strdup(""));
     if (thd->owned_gtid.sidno == -1)
     {
 #ifdef HAVE_GTID_NEXT_LIST

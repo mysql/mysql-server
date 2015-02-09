@@ -94,22 +94,15 @@ C_MODE_START
 #define MY_THREADSAFE 2048      /* my_seek(): lock fd mutex */
 #define MY_SYNC       4096      /* my_copy(): sync dst file */
 
+#define MYF_RW MYF(MY_WME+MY_NABP)		/* For my_read & my_write */
+
 #define MY_CHECK_ERROR	1	/* Params to my_end; Check open-close */
 #define MY_GIVE_INFO	2	/* Give time info about process*/
 #define MY_DONT_FREE_DBUG 4     /* Do not call DBUG_END() in my_end() */
 
-#define ME_HIGHBYTE	8	/* Shift for colours */
-#define ME_NOCUR	1	/* Don't use curses message */
-#define ME_OLDWIN	2	/* Use old window */
-#define ME_BELL		4	/* Ring bell then printing message */
-#define ME_HOLDTANG	8	/* Don't delete last keys */
-#define ME_WAITTOT	16	/* Wait for errtime secs of for a action */
-#define ME_WAITTANG	32	/* Wait for a user action  */
-#define ME_NOREFRESH	64	/* Write the error message to error log */
-#define ME_NOINPUT	128	/* Dont use the input libary */
-#define ME_COLOUR1	((1 << ME_HIGHBYTE))	/* Possibly error-colours */
-#define ME_COLOUR2	((2 << ME_HIGHBYTE))
-#define ME_COLOUR3	((3 << ME_HIGHBYTE))
+/* Flags for my_error() */
+#define ME_BELL		4	/* DEPRECATED: Ring bell then printing message */
+#define ME_ERRORLOG	64	/* Write the error message to error log */
 #define ME_FATALERROR   1024    /* Fatal statement error */
 
 	/* Bits in last argument to fn_format */
@@ -440,9 +433,6 @@ typedef struct st_io_cache		/* Used when cacheing files */
     somewhere else
   */
   my_bool alloced_buffer;
-  /* Store the transaction's commit sequence number when the IO cache is used
-     to store transaction to be flushed to binary log. */
-  int64 commit_seq_no;
   /*
     Offset of the space allotted for commit sequence number from the beginning
     of the cache that will be used to update it when the transaction has
@@ -728,30 +718,37 @@ extern my_bool real_open_cached_file(IO_CACHE *cache);
 extern void close_cached_file(IO_CACHE *cache);
 File create_temp_file(char *to, const char *dir, const char *pfx,
 		      int mode, myf MyFlags);
-#define my_init_dynamic_array(A,B,C,D) init_dynamic_array2(A,B,NULL,C,D)
-#define my_init_dynamic_array_ci(A,B,C,D) init_dynamic_array2(A,B,NULL,C,D)
-#define my_init_dynamic_array2(A,B,C,D,E) init_dynamic_array2(A,B,C,D,E)
-extern my_bool init_dynamic_array2(DYNAMIC_ARRAY *array, uint element_size,
-                                   void *init_buffer, uint init_alloc,
-                                   uint alloc_increment);
+
+// Use Prealloced_array or std::vector or something similar in C++
+#if defined(__cplusplus)
+
+#define init_dynamic_array please_use_an_appropriately_typed_container
+#define my_init_dynamic_array please_use_an_appropriately_typed_container
+
+#else
+
+extern my_bool my_init_dynamic_array(DYNAMIC_ARRAY *array, uint element_size,
+                                     void *init_buffer, uint init_alloc,
+                                     uint alloc_increment);
 /* init_dynamic_array() function is deprecated */
 extern my_bool init_dynamic_array(DYNAMIC_ARRAY *array, uint element_size,
                                   uint init_alloc, uint alloc_increment);
+#define dynamic_element(array,array_index,type) \
+  ((type)((array)->buffer) +(array_index))
+
+#endif  /* __cplusplus */
+
+/* Some functions are still in use in C++, because HASH uses DYNAMIC_ARRAY */
 extern my_bool insert_dynamic(DYNAMIC_ARRAY *array, const void *element);
 extern void *alloc_dynamic(DYNAMIC_ARRAY *array);
 extern void *pop_dynamic(DYNAMIC_ARRAY*);
-extern my_bool set_dynamic(DYNAMIC_ARRAY *array, const void *element,
-                           uint array_index);
-extern my_bool allocate_dynamic(DYNAMIC_ARRAY *array, uint max_elements);
-extern void get_dynamic(DYNAMIC_ARRAY *array, void *element,
-                        uint array_index);
+extern void get_dynamic(DYNAMIC_ARRAY *array, void *element, uint array_index);
 extern void delete_dynamic(DYNAMIC_ARRAY *array);
-extern void delete_dynamic_element(DYNAMIC_ARRAY *array, uint array_index);
 extern void freeze_size(DYNAMIC_ARRAY *array);
-#define dynamic_array_ptr(array,array_index) ((array)->buffer+(array_index)*(array)->size_of_element)
-#define dynamic_element(array,array_index,type) ((type)((array)->buffer) +(array_index))
-#define push_dynamic(A,B) insert_dynamic((A),(B))
-#define reset_dynamic(array) ((array)->elements= 0)
+static inline void reset_dynamic(DYNAMIC_ARRAY *array)
+{
+  array->elements= 0;
+}
 
 extern my_bool init_dynamic_string(DYNAMIC_STRING *str, const char *init_str,
 				   size_t init_alloc,size_t alloc_increment);

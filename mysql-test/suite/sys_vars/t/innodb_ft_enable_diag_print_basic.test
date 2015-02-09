@@ -18,28 +18,38 @@ select @@global.innodb_ft_enable_diag_print;
 select @@session.innodb_ft_enable_diag_print;
 show global variables like 'innodb_ft_enable_diag_print';
 show session variables like 'innodb_ft_enable_diag_print';
+--disable_warnings
 select * from information_schema.global_variables where variable_name='innodb_ft_enable_diag_print';
 select * from information_schema.session_variables where variable_name='innodb_ft_enable_diag_print';
+--enable_warnings
 
 #
 # show that it's writable
 #
 set global innodb_ft_enable_diag_print='OFF';
 select @@global.innodb_ft_enable_diag_print;
+--disable_warnings
 select * from information_schema.global_variables where variable_name='innodb_ft_enable_diag_print';
 select * from information_schema.session_variables where variable_name='innodb_ft_enable_diag_print';
+--enable_warnings
 set @@global.innodb_ft_enable_diag_print=1;
 select @@global.innodb_ft_enable_diag_print;
+--disable_warnings
 select * from information_schema.global_variables where variable_name='innodb_ft_enable_diag_print';
 select * from information_schema.session_variables where variable_name='innodb_ft_enable_diag_print';
+--enable_warnings
 set global innodb_ft_enable_diag_print=0;
 select @@global.innodb_ft_enable_diag_print;
+--disable_warnings
 select * from information_schema.global_variables where variable_name='innodb_ft_enable_diag_print';
 select * from information_schema.session_variables where variable_name='innodb_ft_enable_diag_print';
+--enable_warnings
 set @@global.innodb_ft_enable_diag_print='ON';
 select @@global.innodb_ft_enable_diag_print;
+--disable_warnings
 select * from information_schema.global_variables where variable_name='innodb_ft_enable_diag_print';
 select * from information_schema.session_variables where variable_name='innodb_ft_enable_diag_print';
+--enable_warnings
 --error ER_GLOBAL_VARIABLE
 set session innodb_ft_enable_diag_print='OFF';
 --error ER_GLOBAL_VARIABLE
@@ -57,8 +67,10 @@ set global innodb_ft_enable_diag_print=2;
 --echo NOTE: The following should fail with ER_WRONG_VALUE_FOR_VAR (BUG#50643)
 set global innodb_ft_enable_diag_print=-3;
 select @@global.innodb_ft_enable_diag_print;
+--disable_warnings
 select * from information_schema.global_variables where variable_name='innodb_ft_enable_diag_print';
 select * from information_schema.session_variables where variable_name='innodb_ft_enable_diag_print';
+--enable_warnings
 --error ER_WRONG_VALUE_FOR_VAR
 set global innodb_ft_enable_diag_print='AUTO';
 

@@ -21,8 +21,6 @@
 */
 
 #include "records.h"
-#include "sql_priv.h"
-#include "records.h"
 #include "sql_list.h"
 #include "filesort.h"            // filesort_free_buffers
 #include "sql_class.h"                          // THD
@@ -585,7 +583,7 @@ static int rr_unpack_from_tempfile(READ_RECORD *info)
 {
   uchar *destination= info->rec_buf;
 #ifndef DBUG_OFF
-  size_t where= my_b_tell(info->io_cache);
+  my_off_t where= my_b_tell(info->io_cache);
 #endif
   if (Packed_addon_fields)
   {
@@ -662,7 +660,8 @@ static int rr_unpack_from_buffer(READ_RECORD *info)
   if (info->unpack_counter == info->table->sort.found_records)
     return -1;                      /* End of buffer */
 
-  uchar *record= info->table->sort.get_sorted_record(info->unpack_counter);
+  uchar *record= info->table->sort.get_sorted_record(
+    static_cast<uint>(info->unpack_counter));
   uchar *plen= record + info->table->sort.get_sort_length();
   info->table->sort.unpack_addon_fields<Packed_addon_fields>(plen);
   info->unpack_counter++;

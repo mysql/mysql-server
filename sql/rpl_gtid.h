@@ -207,7 +207,7 @@ extern void check_return_status(enum_return_status status,
 
 
 /// The maximum value of GNO
-const rpl_gno MAX_GNO= LONGLONG_MAX;
+const rpl_gno MAX_GNO= LLONG_MAX;
 /// The length of MAX_GNO when printed in decimal.
 const int MAX_GNO_TEXT_LENGTH= 19;
 /// The maximal possible length of thread_id when printed in decimal.
@@ -237,7 +237,7 @@ int format_gno(char *s, rpl_gno gno);
   Represents a UUID.
 
   This is a POD.  It has to be a POD because it is a member of
-  Sid_map::Node which is stored in both HASH and DYNAMIC_ARRAY.
+  Sid_map::Node which is stored in HASH.
 */
 struct Uuid
 {
@@ -1083,6 +1083,24 @@ public:
   enum_return_status ensure_sidno(rpl_sidno sidno);
   /// Returns true if this Gtid_set is a subset of the other Gtid_set.
   bool is_subset(const Gtid_set *super) const;
+
+  /**
+    Returns true if this Gtid_set is a subset of the given gtid_set
+    on the given superset_sidno and subset_sidno.
+
+    @param super          Gtid_set with which 'this'::gtid_set needs to be
+                           compared
+    @param superset_sidno The sidno that will be compared, relative to
+                           super->sid_map.
+    @param subset_sidno   The sidno that will be compared, relative to
+                           this->sid_map.
+    @return true          If 'this' Gtid_set is subset of given
+                           'super' Gtid_set.
+            false         If 'this' Gtid_set is *not* subset of given
+                           'super' Gtid_set.
+  */
+  bool is_subset_for_sid(const Gtid_set *super, rpl_sidno superset_sidno,
+                         rpl_sidno subset_sidno) const;
   /// Returns true if there is a least one element of this Gtid_set in
   /// the other Gtid_set.
   bool is_intersection_nonempty(const Gtid_set *other) const;
@@ -1806,7 +1824,7 @@ struct Gtid_set_or_null
   lock and then degrades it to a read lock again; there will be a
   short period when the lock is not held at all.
 
-  The internal representation is a DYNAMIC_ARRAY that maps SIDNO to
+  The internal representation is a dynamic array that maps SIDNO to
   HASH, where each HASH maps GNO to my_thread_id.
 */
 class Owned_gtids
@@ -2356,6 +2374,11 @@ public:
   const Owned_gtids *get_owned_gtids() const { return &owned_gtids; }
   /// Return the server's SID's SIDNO
   rpl_sidno get_server_sidno() const { return server_sidno; }
+  /// Return the server's SID
+  const rpl_sid &get_server_sid() const
+  {
+    return global_sid_map->sidno_to_sid(server_sidno);
+  }
 #ifndef DBUG_OFF
   /**
     Debug only: Returns an upper bound on the length of the string

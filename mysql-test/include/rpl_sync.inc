@@ -44,6 +44,18 @@
 --let $include_filename= rpl_sync.inc
 --source include/begin_include_file.inc
 
+#
+#@TODO: Ideally, just being in slave connection, we should have a way to sync
+# all the masters in one command, like below
+# --connection slave
+# --source include/rpl_sync.inc
+# For now, we disable rpl_sync.inc when multisource is used.
+#
+
+if ($rpl_multi_source)
+{
+  --die ERROR IN TEST: rpl_sync.inc cannot be used when $rpl_multi_source=1. If you use multi-source, you must manually sync all servers using sync_slave_sql_with_master.inc or equivalent.
+}
 
 # Compute $rpl_sync_chain if needed.  We could have done this in
 # rpl_change_topology.inc, but instead we do it here because that

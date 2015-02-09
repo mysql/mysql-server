@@ -41,6 +41,12 @@ if (!$_sss_slave_timeout)
   --let $_sss_slave_timeout= 300
 }
 
+--let $_sss_channel_param=
+if ($_saved_channel_name != '')
+{
+  --let $_sss_channel_param= , '$_saved_channel_name'
+}
+
 if ($rpl_debug)
 {
   --echo use_gtids='$use_gtids' ignore_gtids_on_sync='$ignore_gtids_on_sync' _saved_gtids='$_saved_gtids' _saved_file='$_saved_file' _saved_pos='$_saved_pos' timeout='$_sss_slave_timeout'
@@ -90,9 +96,9 @@ if ($_sync_with_gtids)
   {
     if ($rpl_debug)
     {
-      --echo debug: WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS('$_saved_gtids', $_sss_slave_timeout)
+      --echo debug: WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS('$_saved_gtids', $_sss_slave_timeout$_sss_channel_param)
     }
-    --let $_sss_result= `SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS('$_saved_gtids', $_sss_slave_timeout)`
+    --let $_sss_result= `SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS('$_saved_gtids', $_sss_slave_timeout$_sss_channel_param)`
   }
 }
 
@@ -100,9 +106,9 @@ if (!$_sync_with_gtids)
 {
   if ($rpl_debug)
   {
-    --echo debug: MASTER_POS_WAIT('$_saved_file', $_saved_pos, $_sss_slave_timeout)
+    --echo debug: MASTER_POS_WAIT('$_saved_file', $_saved_pos, $_sss_slave_timeout,$_sss_channel_param)
   }
-  --let $_sss_result= `SELECT MASTER_POS_WAIT('$_saved_file', $_saved_pos, $_sss_slave_timeout)`
+  --let $_sss_result= `SELECT MASTER_POS_WAIT('$_saved_file', $_saved_pos, $_sss_slave_timeout$_sss_channel_param)`
 }
 
 if ($_sss_result == '')

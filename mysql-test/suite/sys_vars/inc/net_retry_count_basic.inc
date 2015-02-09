@@ -139,20 +139,22 @@ SELECT @@session.net_retry_count;
 #   Check if the value in GLOBAL Table matches value in variable   #
 ####################################################################
 
-
+--disable_warnings
 SELECT @@global.net_retry_count = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
 WHERE VARIABLE_NAME='net_retry_count';
+--enable_warnings
 
 --echo '#------------------FN_DYNVARS_111_07-----------------------#'
 ####################################################################
 #  Check if the value in SESSION Table matches value in variable   #
 ####################################################################
 
+--disable_warnings
 SELECT @@session.net_retry_count = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
 WHERE VARIABLE_NAME='net_retry_count';
-
+--enable_warnings
 
 --echo '#------------------FN_DYNVARS_111_08-----------------------#'
 ####################################################################

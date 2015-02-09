@@ -62,7 +62,7 @@ where event_name like 'wait/io/table/%'
 and object_schema = 'test'
 and object_name =  'no_index_tab';
 SUM(NUMBER_OF_BYTES)
-101
+100
 truncate table performance_schema.events_waits_history_long;
 update performance_schema.setup_consumers set enabled='YES';
 select avg(a) from test.index_tab;
@@ -75,7 +75,7 @@ where event_name like 'wait/io/table/%'
 and object_schema = 'test'
 and object_name =  'index_tab';
 SUM(NUMBER_OF_BYTES)
-101
+100
 truncate table performance_schema.events_waits_history_long;
 update performance_schema.setup_consumers set enabled='YES';
 select 1 as my_column from test.no_index_tab where a = 50;
@@ -88,7 +88,7 @@ where event_name like 'wait/io/table/%'
 and object_schema = 'test'
 and object_name =  'no_index_tab';
 SUM(NUMBER_OF_BYTES)
-101
+100
 truncate table performance_schema.events_waits_history_long;
 update performance_schema.setup_consumers set enabled='YES';
 select 1 as my_column from test.index_tab where a = 50;
@@ -134,6 +134,7 @@ Performance_schema_file_classes_lost	0
 Performance_schema_file_handles_lost	0
 Performance_schema_file_instances_lost	0
 Performance_schema_hosts_lost	0
+Performance_schema_index_stat_lost	0
 Performance_schema_locker_lost	0
 Performance_schema_memory_classes_lost	0
 Performance_schema_metadata_lock_lost	0
@@ -151,6 +152,7 @@ Performance_schema_stage_classes_lost	0
 Performance_schema_statement_classes_lost	0
 Performance_schema_table_handles_lost	0
 Performance_schema_table_instances_lost	0
+Performance_schema_table_lock_stat_lost	0
 Performance_schema_thread_classes_lost	0
 Performance_schema_thread_instances_lost	0
 Performance_schema_users_lost	0

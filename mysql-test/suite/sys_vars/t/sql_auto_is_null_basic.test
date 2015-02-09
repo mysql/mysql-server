@@ -42,12 +42,14 @@ SELECT @@session.sql_auto_is_null;
 # Check if the value in session Table matches value in variable #
 #################################################################
 
+--disable_warnings
 SELECT IF(@@session.sql_auto_is_null, "ON", "OFF") = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
 WHERE VARIABLE_NAME='sql_auto_is_null';
 
 SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
 WHERE VARIABLE_NAME='sql_auto_is_null';
+--enable_warnings
 
 --echo '#---------------------BS_STVARS_044_05----------------------#'
 ################################################################################

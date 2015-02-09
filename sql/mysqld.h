@@ -74,6 +74,13 @@ typedef Bitmap<((MAX_INDEXES+7)/8*8)> key_map; /* Used for finding keys */
 #define TEST_DO_QUICK_LEAK_CHECK 4096   /**< Do Valgrind leak check for
                                            each command. */
 
+#define SPECIAL_NO_NEW_FUNC	2		/* Skip new functions */
+#define SPECIAL_SKIP_SHOW_DB    4               /* Don't allow 'show db' */
+#define SPECIAL_ENGLISH        32		/* English error messages */
+#define SPECIAL_NO_RESOLVE     64		/* Don't use gethostname */
+#define SPECIAL_NO_HOST_CACHE	512		/* Don't cache hosts */
+#define SPECIAL_SHORT_LOG_FORMAT 1024
+
 /* Function prototypes */
 #ifndef EMBEDDED_LIBRARY
 void kill_mysql(void);
@@ -181,7 +188,7 @@ extern const char *log_output_str;
 extern const char *log_backup_output_str;
 extern char *mysql_home_ptr, *pidfile_name_ptr;
 extern char *default_auth_plugin;
-extern volatile uint default_password_lifetime;
+extern uint default_password_lifetime;
 extern char *my_bind_addr_str;
 extern char glob_hostname[FN_REFLEN], mysql_home[FN_REFLEN];
 extern char pidfile_name[FN_REFLEN], system_time_zone[30], *opt_init_file;
@@ -234,17 +241,17 @@ extern const char *binlog_checksum_type_names[];
 extern my_bool opt_master_verify_checksum;
 extern my_bool opt_slave_sql_verify_checksum;
 extern my_bool enforce_gtid_consistency;
-extern uint executed_gtids_compression_period;
-extern my_bool simplified_binlog_gtid_recovery;
-extern ulong binlogging_impossible_mode;
-enum enum_binlogging_impossible_mode
+extern uint gtid_executed_compression_period;
+extern my_bool binlog_gtid_simple_recovery;
+extern ulong binlog_error_action;
+enum enum_binlog_error_action
 {
   /// Ignore the error and let server continue without binlogging
   IGNORE_ERROR= 0,
   /// Abort the server
   ABORT_SERVER= 1
 };
-extern const char *binlogging_impossible_err[];
+extern const char *binlog_error_action_list[];
 enum enum_gtid_mode
 {
   /// Support only anonymous groups, not GTIDs.
@@ -377,7 +384,7 @@ extern PSI_mutex_key key_BINLOG_LOCK_sync;
 extern PSI_mutex_key key_BINLOG_LOCK_sync_queue;
 extern PSI_mutex_key key_BINLOG_LOCK_xids;
 extern PSI_mutex_key
-  key_hash_filo_lock, key_LOCK_active_mi,
+  key_hash_filo_lock, key_LOCK_msr_map,
   key_LOCK_crypt, key_LOCK_error_log,
   key_LOCK_gdl, key_LOCK_global_system_variables,
   key_LOCK_lock_db, key_LOCK_logger, key_LOCK_manager,
@@ -411,13 +418,16 @@ extern PSI_mutex_key key_LOCK_sql_rand;
 extern PSI_mutex_key key_gtid_ensure_index_mutex;
 extern PSI_mutex_key key_mts_temp_table_LOCK;
 extern PSI_mutex_key key_LOCK_compress_gtid_table;
+extern PSI_mutex_key key_mts_gaq_LOCK;
 #ifdef HAVE_MY_TIMER
 extern PSI_mutex_key key_thd_timer_mutex;
 #endif
 extern PSI_mutex_key key_LOCK_offline_mode;
+extern PSI_mutex_key key_LOCK_default_password_lifetime;
 
 #ifdef HAVE_REPLICATION
 extern PSI_mutex_key key_commit_order_manager_mutex;
+extern PSI_mutex_key key_mutex_slave_worker_hash;
 #endif
 
 extern PSI_rwlock_key key_rwlock_LOCK_grant, key_rwlock_LOCK_logger,
@@ -435,7 +445,7 @@ extern PSI_cond_key key_BINLOG_update_cond,
   key_relay_log_info_data_cond, key_relay_log_info_log_space_cond,
   key_relay_log_info_start_cond, key_relay_log_info_stop_cond,
   key_relay_log_info_sleep_cond, key_cond_slave_parallel_pend_jobs,
-  key_cond_slave_parallel_worker,
+  key_cond_slave_parallel_worker, key_cond_mts_gaq,
   key_TABLE_SHARE_cond, key_user_level_lock_cond;
 extern PSI_cond_key key_BINLOG_COND_done;
 extern PSI_cond_key key_RELAYLOG_COND_done;
@@ -446,6 +456,7 @@ extern PSI_cond_key key_gtid_ensure_index_cond;
 extern PSI_cond_key key_COND_compress_gtid_table;
 
 #ifdef HAVE_REPLICATION
+extern PSI_cond_key key_cond_slave_worker_hash;
 extern PSI_cond_key key_commit_order_manager_cond;
 #endif
 extern PSI_thread_key key_thread_bootstrap,
@@ -583,7 +594,6 @@ extern PSI_memory_key key_memory_hash_index_key_buffer;
 extern PSI_memory_key key_memory_THD_handler_tables_hash;
 extern PSI_memory_key key_memory_JOIN_CACHE;
 extern PSI_memory_key key_memory_READ_INFO;
-extern PSI_memory_key key_memory_mysql_manager;
 extern PSI_memory_key key_memory_partition_syntax_buffer;
 extern PSI_memory_key key_memory_global_system_variables;
 extern PSI_memory_key key_memory_THD_variables;
@@ -602,6 +612,7 @@ extern PSI_memory_key key_memory_READ_RECORD_cache;
 extern PSI_memory_key key_memory_Quick_ranges;
 extern PSI_memory_key key_memory_File_query_log_name;
 extern PSI_memory_key key_memory_Table_trigger_dispatcher;
+extern PSI_memory_key key_memory_show_slave_status_io_gtid_set;
 #ifdef HAVE_MY_TIMER
 extern PSI_memory_key key_memory_thd_timer;
 #endif
@@ -718,6 +729,7 @@ extern PSI_stage_info stage_compressing_gtid_table;
 extern PSI_stage_info stage_suspending;
 #ifdef HAVE_REPLICATION
 extern PSI_stage_info stage_worker_waiting_for_its_turn_to_commit;
+extern PSI_stage_info stage_worker_waiting_for_commit_parent;
 #endif
 extern PSI_stage_info stage_starting;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
@@ -784,11 +796,11 @@ extern mysql_mutex_t
        LOCK_item_func_sleep, LOCK_status,
        LOCK_error_log, LOCK_uuid_generator,
        LOCK_crypt, LOCK_timezone,
-       LOCK_slave_list, LOCK_active_mi, LOCK_manager,
+       LOCK_slave_list, LOCK_msr_map, LOCK_manager,
        LOCK_global_system_variables, LOCK_user_conn, LOCK_log_throttle_qni,
        LOCK_prepared_stmt_count, LOCK_error_messages,
        LOCK_sql_slave_skip_counter, LOCK_slave_net_timeout,
-       LOCK_offline_mode;
+       LOCK_offline_mode, LOCK_default_password_lifetime;
 #ifdef HAVE_OPENSSL
 extern mysql_mutex_t LOCK_des_key_file;
 #endif
@@ -926,5 +938,10 @@ static inline THD *_current_thd(void)
 }
 #endif
 #define current_thd _current_thd()
+
+#define ER_DEFAULT(X) my_default_lc_messages->errmsgs->errmsgs[(X) - ER_ERROR_FIRST]
+#define ER_THD(thd,X) ((thd)->variables.lc_messages->errmsgs->errmsgs[(X) - \
+                       ER_ERROR_FIRST])
+#define ER(X)         ER_THD(current_thd,X)
 
 #endif /* MYSQLD_INCLUDED */

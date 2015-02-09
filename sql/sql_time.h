@@ -21,6 +21,7 @@
 #include "mysql_time.h"                         /* timestamp_type */
 #include "sql_error.h"                          /* Sql_condition */
 #include "structs.h"                            /* INTERVAL */
+#include "mysqld.h"                             /* current_thd */
 
 typedef enum enum_mysql_timestamp_type timestamp_type;
 typedef struct st_date_time_format DATE_TIME_FORMAT;

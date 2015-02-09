@@ -49,6 +49,7 @@ SET GLOBAL rpl_semi_sync_master_timeout = 10000000;
 --enable_result_log
 
 --source include/rpl_connection_master.inc
+--error 0,2013
 --reap
 --let $rpl_server_number=1
 --source include/rpl_start_server.inc

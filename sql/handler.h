@@ -35,6 +35,8 @@
 #include <ft_global.h>
 #include <keycache.h>
 
+#include "mysql/psi/psi.h"     /* PSI_table_locker_state */
+
 class Alter_info;
 typedef struct xid_t XID;
 
@@ -139,16 +141,16 @@ enum enum_alter_inplace_result {
 #define HA_NO_VARCHAR	       (1 << 27)
 #define HA_CAN_BIT_FIELD       (1 << 28) /* supports bit fields */
 #define HA_ANY_INDEX_MAY_BE_UNIQUE (1 << 30)
-#define HA_NO_COPY_ON_ALTER    (LL(1) << 31)
-#define HA_HAS_RECORDS	       (LL(1) << 32) /* records() gives exact count*/
+#define HA_NO_COPY_ON_ALTER    (1LL << 31)
+#define HA_HAS_RECORDS	       (1LL << 32) /* records() gives exact count*/
 /* Has it's own method of binlog logging */
-#define HA_HAS_OWN_BINLOGGING  (LL(1) << 33)
+#define HA_HAS_OWN_BINLOGGING  (1LL << 33)
 /*
   Engine is capable of row-format and statement-format logging,
   respectively
 */
-#define HA_BINLOG_ROW_CAPABLE  (LL(1) << 34)
-#define HA_BINLOG_STMT_CAPABLE (LL(1) << 35)
+#define HA_BINLOG_ROW_CAPABLE  (1LL << 34)
+#define HA_BINLOG_STMT_CAPABLE (1LL << 35)
 /*
     When a multiple key conflict happens in a REPLACE command mysql
     expects the conflicts to be reported in the ascending order of
@@ -171,13 +173,13 @@ enum enum_alter_inplace_result {
     This flag helps the underlying SE to inform the server that the keys are not
     ordered.
 */
-#define HA_DUPLICATE_KEY_NOT_IN_ORDER    (LL(1) << 36)
+#define HA_DUPLICATE_KEY_NOT_IN_ORDER    (1LL << 36)
 /*
   Engine supports REPAIR TABLE. Used by CHECK TABLE FOR UPGRADE if an
   incompatible table is detected. If this flag is set, CHECK TABLE FOR UPGRADE
   will report ER_TABLE_NEEDS_UPGRADE, otherwise ER_TABLE_NEED_REBUILD.
 */
-#define HA_CAN_REPAIR                    (LL(1) << 37)
+#define HA_CAN_REPAIR                    (1LL << 37)
 
 /*
   Set of all binlog flags. Currently only contain the capabilities
@@ -217,12 +219,12 @@ enum enum_alter_inplace_result {
   @note This optimization in combination with batching may be used to
         remove even more roundtrips.
 */
-#define HA_READ_BEFORE_WRITE_REMOVAL  (LL(1) << 38)
+#define HA_READ_BEFORE_WRITE_REMOVAL  (1LL << 38)
 
 /*
   Engine supports extended fulltext API
  */
-#define HA_CAN_FULLTEXT_EXT              (LL(1) << 39)
+#define HA_CAN_FULLTEXT_EXT              (1LL << 39)
 
 /*
   Storage engine doesn't synchronize result set with expected table contents.
@@ -230,24 +232,24 @@ enum enum_alter_inplace_result {
   the table when deciding whether to do a full table scan, index scan or hash
   scan while applying a row event.
  */
-#define HA_READ_OUT_OF_SYNC              (LL(1) << 40)
+#define HA_READ_OUT_OF_SYNC              (1LL << 40)
 
 /*
   Storage engine supports table export using the
   FLUSH TABLE <table_list> FOR EXPORT statement.
  */
-#define HA_CAN_EXPORT                 (LL(1) << 41)
+#define HA_CAN_EXPORT                 (1LL << 41)
 
 /*
   The handler don't want accesses to this table to 
   be const-table optimized
 */
-#define HA_BLOCK_CONST_TABLE          (LL(1) << 42)
+#define HA_BLOCK_CONST_TABLE          (1LL << 42)
 
 /*
   Handler supports FULLTEXT hints
 */
-#define HA_CAN_FULLTEXT_HINTS         (LL(1) << 43)
+#define HA_CAN_FULLTEXT_HINTS         (1LL << 43)
 
 /**
   Storage engine doesn't support LOCK TABLE ... READ LOCAL locks
@@ -255,7 +257,7 @@ enum enum_alter_inplace_result {
   them to LOCK TABLE ... READ locks, for example, because it doesn't
   use THR_LOCK locks at all.
 */
-#define HA_NO_READ_LOCAL_LOCK         (LL(1) << 44)
+#define HA_NO_READ_LOCAL_LOCK         (1LL << 44)
 
 /**
   A storage engine is compatible with the attachable transaction requirements
@@ -268,7 +270,7 @@ enum enum_alter_inplace_result {
     - or SE completely ignores THD::ha_data and close_connection like MyISAM
       does.
 */
-#define HA_ATTACHABLE_TRX_COMPATIBLE  (LL(1) << 45)
+#define HA_ATTACHABLE_TRX_COMPATIBLE  (1LL << 45)
 
 
 /* bits in index_flags(index_number) for what you can do with index */
@@ -393,6 +395,8 @@ static const uint MYSQL_START_TRANS_OPT_WITH_CONS_SNAPSHOT = 1;
 static const uint MYSQL_START_TRANS_OPT_READ_ONLY          = 2;
 // READ WRITE option
 static const uint MYSQL_START_TRANS_OPT_READ_WRITE         = 4;
+// HIGH PRIORITY option
+static const uint MYSQL_START_TRANS_OPT_HIGH_PRIORITY      = 8;
 
 enum legacy_db_type
 {
@@ -659,72 +663,6 @@ typedef bool (stat_print_fn)(THD *thd, const char *type, size_t type_len,
 enum ha_stat_type { HA_ENGINE_STATUS, HA_ENGINE_LOGS, HA_ENGINE_MUTEX };
 extern st_plugin_int *hton2plugin[MAX_HA];
 
-/* Transaction log maintains type definitions */
-enum log_status
-{
-  HA_LOG_STATUS_FREE= 0,      /* log is free and can be deleted */
-  HA_LOG_STATUS_INUSE= 1,     /* log can't be deleted because it is in use */
-  HA_LOG_STATUS_NOSUCHLOG= 2  /* no such log (can't be returned by
-                                the log iterator status) */
-};
-/*
-  Function for signaling that the log file changed its state from
-  LOG_STATUS_INUSE to LOG_STATUS_FREE
-
-  Now it do nothing, will be implemented as part of new transaction
-  log management for engines.
-  TODO: implement the function.
-*/
-void signal_log_not_needed(struct handlerton, char *log_file);
-/*
-  Data of transaction log iterator.
-*/
-struct handler_log_file_data {
-  LEX_STRING filename;
-  enum log_status status;
-};
-
-
-enum handler_iterator_type
-{
-  /* request of transaction log iterator */
-  HA_TRANSACTLOG_ITERATOR= 1
-};
-enum handler_create_iterator_result
-{
-  HA_ITERATOR_OK,          /* iterator created */
-  HA_ITERATOR_UNSUPPORTED, /* such type of iterator is not supported */
-  HA_ITERATOR_ERROR        /* error during iterator creation */
-};
-
-/*
-  Iterator structure. Can be used by handler/handlerton for different purposes.
-
-  Iterator should be created in the way to point "before" the first object
-  it iterate, so next() call move it to the first object or return !=0 if
-  there is nothing to iterate through.
-*/
-struct handler_iterator {
-  /*
-    Moves iterator to next record and return 0 or return !=0
-    if there is no records.
-    iterator_object will be filled by this function if next() returns 0.
-    Content of the iterator_object depend on iterator type.
-  */
-  int (*next)(struct handler_iterator *, void *iterator_object);
-  /*
-    Free resources allocated by iterator, after this call iterator
-    is not usable.
-  */
-  void (*destroy)(struct handler_iterator *);
-  /*
-    Pointer to buffer for the iterator to use.
-    Should be allocated by function which created the iterator and
-    destroied by freed by above "destroy" call
-  */
-  void *buffer;
-};
-
 class handler;
 /*
   handlerton is a singleton structure - one instance per storage engine -
@@ -815,7 +753,16 @@ struct handlerton
    void (*drop_database)(handlerton *hton, char* path);
    int (*panic)(handlerton *hton, enum ha_panic_function flag);
    int (*start_consistent_snapshot)(handlerton *hton, THD *thd);
-   bool (*flush_logs)(handlerton *hton);
+   /**
+     Flush the log(s) of storage engine(s).
+
+     @param hton Handlerton of storage engine.
+     @param binlog_group_flush true if we got invoked by binlog group
+     commit during flush stage, false in other cases.
+     @retval false Succeed
+     @retval true Error
+   */
+   bool (*flush_logs)(handlerton *hton, bool binlog_group_flush);
    bool (*show_status)(handlerton *hton, THD *thd, stat_print_fn *print, enum ha_stat_type stat);
    uint (*partition_flags)();
    uint (*alter_table_flags)(uint flags);
@@ -835,22 +782,6 @@ struct handlerton
                             const char *db, const char *table_name);
    int (*release_temporary_latches)(handlerton *hton, THD *thd);
 
-   /*
-     Get log status.
-     If log_status is null then the handler do not support transaction
-     log information (i.e. log iterator can't be created).
-     (see example of implementation in handler.cc, TRANS_LOG_MGM_EXAMPLE_CODE)
-
-   */
-   enum log_status (*get_log_status)(handlerton *hton, char *log);
-
-   /*
-     Iterators creator.
-     Presence of the pointer should be checked before using
-   */
-   enum handler_create_iterator_result
-     (*create_iterator)(handlerton *hton, enum handler_iterator_type type,
-                        struct handler_iterator *fill_this_in);
    int (*discover)(handlerton *hton, THD* thd, const char *db, 
                    const char *name,
                    uchar **frmblob, 
@@ -967,6 +898,10 @@ struct handlerton
 
 #define HTON_SUPPORTS_EXTENDED_KEYS  (1 << 10)
 
+// Engine support foreign key constraint.
+
+#define HTON_SUPPORTS_FOREIGN_KEYS   (1 << 11)
+
 
 enum enum_tx_isolation { ISO_READ_UNCOMMITTED, ISO_READ_COMMITTED,
 			 ISO_REPEATABLE_READ, ISO_SERIALIZABLE};
@@ -1025,7 +960,7 @@ typedef struct st_ha_create_information
     For ALTER TABLE defaults to ROW_TYPE_NOT_USED (means "keep the current").
 
     Can be changed either explicitly by the parser.
-    If nothing speficied inherits the value of the original table (if present).
+    If nothing specified inherits the value of the original table (if present).
   */
   enum row_type row_type;
   uint null_bits;                       /* NULL bits at start of record */
@@ -1804,7 +1739,7 @@ public:
   ha_rows records;
   ha_rows deleted;			/* Deleted records */
   ulong mean_rec_length;		/* physical reclength */
-  ulong create_time;			/* When table was created */
+  time_t create_time;			/* When table was created */
   ulong check_time;
   ulong update_time;
   uint block_size;			/* index block size */
@@ -2108,8 +2043,6 @@ public:
   PSI_table *m_psi;
 
 private:
-#ifdef HAVE_PSI_TABLE_INTERFACE
-
   /** Internal state of the batch instrumentation. */
   enum batch_mode_t
   {
@@ -2120,7 +2053,6 @@ private:
     /** Batch mode used, after first table io. */
     PSI_BATCH_MODE_STARTED
   };
-
   /**
     Batch mode state.
     @sa start_psi_batch_mode.
@@ -2145,7 +2077,6 @@ private:
     @sa end_psi_batch_mode.
   */
   PSI_table_locker_state m_psi_locker_state;
-#endif
 
 public:
   virtual void unbind_psi();
@@ -2194,11 +2125,9 @@ public:
     next_insert_id(0), insert_id_for_cur_row(0),
     auto_inc_intervals_count(0),
     m_psi(NULL),
-#ifdef HAVE_PSI_TABLE_INTERFACE
     m_psi_batch_mode(PSI_BATCH_MODE_NONE),
     m_psi_numrows(0),
     m_psi_locker(NULL),
-#endif
     m_lock_type(F_UNLCK), ha_share(NULL)
     {
       DBUG_PRINT("info",
@@ -2208,10 +2137,8 @@ public:
   virtual ~handler(void)
   {
     DBUG_ASSERT(m_psi == NULL);
-#ifdef HAVE_PSI_TABLE_INTERFACE
     DBUG_ASSERT(m_psi_batch_mode == PSI_BATCH_MODE_NONE);
     DBUG_ASSERT(m_psi_locker == NULL);
-#endif
     DBUG_ASSERT(m_lock_type == F_UNLCK);
     DBUG_ASSERT(inited == NONE);
   }
@@ -2244,9 +2171,6 @@ public:
   int ha_index_first(uchar * buf);
   int ha_index_last(uchar * buf);
   int ha_index_next_same(uchar *buf, const uchar *key, uint keylen);
-  int ha_index_read(uchar *buf, const uchar *key, uint key_len,
-                    enum ha_rkey_function find_flag);
-  int ha_index_read_last(uchar *buf, const uchar *key, uint key_len);
   int ha_reset();
   /* this is necessary in many places, e.g. in HANDLER command */
   int ha_index_or_rnd_end()
@@ -2280,7 +2204,6 @@ public:
                          uint *dup_key_found);
   int ha_delete_all_rows();
   int ha_truncate();
-  int ha_reset_auto_increment(ulonglong value);
   int ha_optimize(THD* thd, HA_CHECK_OPT* check_opt);
   int ha_analyze(THD* thd, HA_CHECK_OPT* check_opt);
   bool ha_check_and_repair(THD *thd);
@@ -2703,14 +2626,6 @@ public:
       return ha_rnd_pos(record, ref);
     }
   virtual int read_first_row(uchar *buf, uint primary_key);
-  /**
-    The following function is only needed for tables that may be temporary
-    tables during joins.
-  */
-  virtual int restart_rnd_next(uchar *buf, uchar *pos)
-    { return HA_ERR_WRONG_COMMAND; }
-  virtual int rnd_same(uchar *buf, uint inx)
-    { return HA_ERR_WRONG_COMMAND; }
   virtual ha_rows records_in_range(uint inx, key_range *min_key, key_range *max_key)
     { return (ha_rows) 10; }
   /*
@@ -3393,7 +3308,6 @@ public:
 protected:
   /* Service methods for use by storage engines. */
   void ha_statistic_increment(ulonglong SSV::*offset) const;
-  void **ha_data(THD *) const;
   THD *ha_thd(void) const;
 
   /**
@@ -3570,13 +3484,6 @@ public:
     @remark The table is locked in exclusive mode.
   */
   virtual int truncate()
-  { return HA_ERR_WRONG_COMMAND; }
-  /**
-    Reset the auto-increment counter to the given value, i.e. the next row
-    inserted will get the given value. HA_ERR_WRONG_COMMAND is returned by
-    storage engines that don't support this operation.
-  */
-  virtual int reset_auto_increment(ulonglong value)
   { return HA_ERR_WRONG_COMMAND; }
   virtual int optimize(THD* thd, HA_CHECK_OPT* check_opt)
   { return HA_ADMIN_NOT_IMPLEMENTED; }
@@ -3780,7 +3687,16 @@ TYPELIB* ha_known_exts();
 int ha_panic(enum ha_panic_function flag);
 void ha_close_connection(THD* thd);
 void ha_kill_connection(THD *thd);
-bool ha_flush_logs(handlerton *db_type);
+/**
+  Flush the log(s) of storage engine(s).
+
+  @param hton Handlerton of storage engine.
+  @param binlog_group_flush true if we got invoked by binlog group
+  commit during flush stage, false in other cases.
+  @retval false Succeed
+  @retval true Error
+*/
+bool ha_flush_logs(handlerton *db_type, bool binlog_group_flush= false);
 void ha_drop_database(char* path);
 int ha_create_table(THD *thd, const char *path,
                     const char *db, const char *table_name,
@@ -3809,7 +3725,6 @@ bool ha_check_if_supported_system_table(handlerton *hton, const char* db,
 /* key cache */
 extern "C" int ha_init_key_cache(const char *name, KEY_CACHE *key_cache);
 int ha_resize_key_cache(KEY_CACHE *key_cache);
-int ha_change_key_cache_param(KEY_CACHE *key_cache);
 int ha_change_key_cache(KEY_CACHE *old_key_cache, KEY_CACHE *new_key_cache);
 
 /* report to InnoDB that control passes to the client */

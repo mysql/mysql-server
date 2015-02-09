@@ -953,14 +953,6 @@ field4,field5,field6	{
         "steps": [
           {
             "expanded_query": "/* select#5 */ select `sq3_alias2`.`pk` AS `pk`,`sq3_alias2`.`col_int_nokey` AS `col_int_nokey`,`sq3_alias2`.`col_int_key` AS `col_int_key`,`sq3_alias2`.`col_date_key` AS `col_date_key`,`sq3_alias2`.`col_date_nokey` AS `col_date_nokey`,`sq3_alias2`.`col_time_key` AS `col_time_key`,`sq3_alias2`.`col_time_nokey` AS `col_time_nokey`,`sq3_alias2`.`col_datetime_key` AS `col_datetime_key`,`sq3_alias2`.`col_datetime_nokey` AS `col_datetime_nokey`,`sq3_alias2`.`col_varchar_key` AS `col_varchar_key`,`sq3_alias2`.`col_varchar_nokey` AS `col_varchar_nokey` from (`t5` `sq3_alias1` join `t4` `sq3_alias2`)"
-          },
-          {
-            "transformations_to_nested_joins": {
-              "transformations": [
-                "parenthesis_removal"
-              ] /* transformations */,
-              "expanded_query": "/* select#5 */ select `sq3_alias2`.`pk` AS `pk`,`sq3_alias2`.`col_int_nokey` AS `col_int_nokey`,`sq3_alias2`.`col_int_key` AS `col_int_key`,`sq3_alias2`.`col_date_key` AS `col_date_key`,`sq3_alias2`.`col_date_nokey` AS `col_date_nokey`,`sq3_alias2`.`col_time_key` AS `col_time_key`,`sq3_alias2`.`col_time_nokey` AS `col_time_nokey`,`sq3_alias2`.`col_datetime_key` AS `col_datetime_key`,`sq3_alias2`.`col_datetime_nokey` AS `col_datetime_nokey`,`sq3_alias2`.`col_varchar_key` AS `col_varchar_key`,`sq3_alias2`.`col_varchar_nokey` AS `col_varchar_nokey` from `t5` `sq3_alias1` join `t4` `sq3_alias2`"
-            } /* transformations_to_nested_joins */
           }
         ] /* steps */
       } /* join_preparation */
@@ -1033,7 +1025,7 @@ field4,field5,field6	{
             } /* join_preparation */
           },
           {
-            "expanded_query": "/* select#1 */ select `alias1`.`col_varchar_key` AS `field1`,`alias1`.`col_date_key` AS `field2`,(/* select#2 */ select min(`sq1_alias1`.`col_varchar_nokey`) AS `sq1_field1` from (`t1` `sq1_alias1` join (`t5` `sq1_alias2` left join `t5` `sq1_alias3` on((`sq1_alias3`.`col_varchar_nokey` = `sq1_alias2`.`col_varchar_key`))) on((`sq1_alias3`.`col_varchar_nokey` = `sq1_alias2`.`col_varchar_key`))) where exists(/* select#3 */ select `c_sq1_alias2`.`col_int_nokey` AS `c_sq1_field1` from (`t4` `c_sq1_alias2` left join `t3` `c_sq1_alias1` on((`c_sq1_alias2`.`col_int_nokey` = `c_sq1_alias1`.`pk`))) where (`c_sq1_alias2`.`col_varchar_key` = `sq1_alias2`.`col_varchar_nokey`))) AS `field3`,(/* select#4 */ select max(`sq2_alias1`.`pk`) AS `sq2_field1` from `t5` `sq2_alias1`) AS `field4`,`alias2`.`col_varchar_nokey` AS `field5`,`alias2`.`col_varchar_nokey` AS `field6` from ((`t4` `alias3` left join ((/* select#5 */ select `sq3_alias2`.`pk` AS `pk`,`sq3_alias2`.`col_int_nokey` AS `col_int_nokey`,`sq3_alias2`.`col_int_key` AS `col_int_key`,`sq3_alias2`.`col_date_key` AS `col_date_key`,`sq3_alias2`.`col_date_nokey` AS `col_date_nokey`,`sq3_alias2`.`col_time_key` AS `col_time_key`,`sq3_alias2`.`col_time_nokey` AS `col_time_nokey`,`sq3_alias2`.`col_datetime_key` AS `col_datetime_key`,`sq3_alias2`.`col_datetime_nokey` AS `col_datetime_nokey`,`sq3_alias2`.`col_varchar_key` AS `col_varchar_key`,`sq3_alias2`.`col_varchar_nokey` AS `col_varchar_nokey` from `t5` `sq3_alias1` join `t4` `sq3_alias2`)) `alias2` on((`alias3`.`col_varchar_key` = `alias2`.`col_varchar_key`))) left join `t5` `alias1` on((`alias3`.`col_int_key` = `alias2`.`pk`))) where (<in_optimizer>(`alias1`.`col_varchar_nokey`,<exists>(/* select#6 */ select `sq4_alias1`.`col_varchar_key` AS `sq4_field1` from (`t3` `sq4_alias1` join (`t3` `sq4_alias3` left join `t2` `sq4_alias2` on((`sq4_alias3`.`pk` = `sq4_alias2`.`col_int_key`))) on((`sq4_alias3`.`col_varchar_nokey` = `sq4_alias2`.`col_varchar_key`))) where ((`sq4_alias2`.`col_int_key` < `alias1`.`col_int_nokey`) and (`sq4_alias3`.`col_varchar_nokey` <> `alias1`.`col_varchar_key`) and (<cache>(`alias1`.`col_varchar_nokey`) = `sq4_alias1`.`col_varchar_key`)))) and (`alias1`.`col_int_key` <> 214)) group by `field1`,`field2`,`field3`,`field4`,`field5`,`field6`"
+            "expanded_query": "/* select#1 */ select `alias1`.`col_varchar_key` AS `field1`,`alias1`.`col_date_key` AS `field2`,(/* select#2 */ select min(`sq1_alias1`.`col_varchar_nokey`) AS `sq1_field1` from (`t1` `sq1_alias1` join (`t5` `sq1_alias2` left join `t5` `sq1_alias3` on((`sq1_alias3`.`col_varchar_nokey` = `sq1_alias2`.`col_varchar_key`))) on((`sq1_alias3`.`col_varchar_nokey` = `sq1_alias2`.`col_varchar_key`))) where exists(/* select#3 */ select `c_sq1_alias2`.`col_int_nokey` AS `c_sq1_field1` from (`t4` `c_sq1_alias2` left join `t3` `c_sq1_alias1` on((`c_sq1_alias2`.`col_int_nokey` = `c_sq1_alias1`.`pk`))) where (`c_sq1_alias2`.`col_varchar_key` = `sq1_alias2`.`col_varchar_nokey`))) AS `field3`,(/* select#4 */ select max(`sq2_alias1`.`pk`) AS `sq2_field1` from `t5` `sq2_alias1`) AS `field4`,`alias2`.`col_varchar_nokey` AS `field5`,`alias2`.`col_varchar_nokey` AS `field6` from ((`t4` `alias3` left join ((/* select#5 */ select `sq3_alias2`.`pk` AS `pk`,`sq3_alias2`.`col_int_nokey` AS `col_int_nokey`,`sq3_alias2`.`col_int_key` AS `col_int_key`,`sq3_alias2`.`col_date_key` AS `col_date_key`,`sq3_alias2`.`col_date_nokey` AS `col_date_nokey`,`sq3_alias2`.`col_time_key` AS `col_time_key`,`sq3_alias2`.`col_time_nokey` AS `col_time_nokey`,`sq3_alias2`.`col_datetime_key` AS `col_datetime_key`,`sq3_alias2`.`col_datetime_nokey` AS `col_datetime_nokey`,`sq3_alias2`.`col_varchar_key` AS `col_varchar_key`,`sq3_alias2`.`col_varchar_nokey` AS `col_varchar_nokey` from (`t5` `sq3_alias1` join `t4` `sq3_alias2`))) `alias2` on((`alias3`.`col_varchar_key` = `alias2`.`col_varchar_key`))) left join `t5` `alias1` on((`alias3`.`col_int_key` = `alias2`.`pk`))) where (<in_optimizer>(`alias1`.`col_varchar_nokey`,<exists>(/* select#6 */ select `sq4_alias1`.`col_varchar_key` AS `sq4_field1` from (`t3` `sq4_alias1` join (`t3` `sq4_alias3` left join `t2` `sq4_alias2` on((`sq4_alias3`.`pk` = `sq4_alias2`.`col_int_key`))) on((`sq4_alias3`.`col_varchar_nokey` = `sq4_alias2`.`col_varchar_key`))) where ((`sq4_alias2`.`col_int_key` < `alias1`.`col_int_nokey`) and (`sq4_alias3`.`col_varchar_nokey` <> `alias1`.`col_varchar_key`) and (<cache>(`alias1`.`col_varchar_nokey`) = `sq4_alias1`.`col_varchar_key`)))) and (`alias1`.`col_int_key` <> 214)) group by `field1`,`field2`,`field3`,`field4`,`field5`,`field6`"
           },
           {
             "transformations_to_nested_joins": {
@@ -1043,6 +1035,14 @@ field4,field5,field6	{
                 "parenthesis_removal"
               ] /* transformations */,
               "expanded_query": "/* select#6 */ select `sq4_alias1`.`col_varchar_key` AS `sq4_field1` from `t3` `sq4_alias1` join `t3` `sq4_alias3` join `t2` `sq4_alias2` where ((`sq4_alias2`.`col_int_key` < `alias1`.`col_int_nokey`) and (`sq4_alias3`.`col_varchar_nokey` <> `alias1`.`col_varchar_key`) and (<cache>(`alias1`.`col_varchar_nokey`) = `sq4_alias1`.`col_varchar_key`) and (`sq4_alias3`.`col_varchar_nokey` = `sq4_alias2`.`col_varchar_key`) and (`sq4_alias3`.`pk` = `sq4_alias2`.`col_int_key`))"
+            } /* transformations_to_nested_joins */
+          },
+          {
+            "transformations_to_nested_joins": {
+              "transformations": [
+                "parenthesis_removal"
+              ] /* transformations */,
+              "expanded_query": "/* select#5 */ select `sq3_alias2`.`pk` AS `pk`,`sq3_alias2`.`col_int_nokey` AS `col_int_nokey`,`sq3_alias2`.`col_int_key` AS `col_int_key`,`sq3_alias2`.`col_date_key` AS `col_date_key`,`sq3_alias2`.`col_date_nokey` AS `col_date_nokey`,`sq3_alias2`.`col_time_key` AS `col_time_key`,`sq3_alias2`.`col_time_nokey` AS `col_time_nokey`,`sq3_alias2`.`col_datetime_key` AS `col_datetime_key`,`sq3_alias2`.`col_datetime_nokey` AS `col_datetime_nokey`,`sq3_alias2`.`col_varchar_key` AS `col_varchar_key`,`sq3_alias2`.`col_varchar_nokey` AS `col_varchar_nokey` from `t5` `sq3_alias1` join `t4` `sq3_alias2`"
             } /* transformations_to_nested_joins */
           },
           {
@@ -1668,6 +1668,99 @@ field4,field5,field6	{
                             } /* join_optimization */
                           },
                           {
+                            "join_optimization": {
+                              "select#": 3,
+                              "steps": [
+                                {
+                                  "condition_processing": {
+                                    "condition": "WHERE",
+                                    "original_condition": "(`c_sq1_alias2`.`col_varchar_key` = `sq1_alias2`.`col_varchar_nokey`)",
+                                    "steps": [
+                                      {
+                                        "transformation": "equality_propagation",
+                                        "resulting_condition": "(`c_sq1_alias2`.`col_varchar_key` = `sq1_alias2`.`col_varchar_nokey`)"
+                                      },
+                                      {
+                                        "transformation": "constant_propagation",
+                                        "resulting_condition": "(`c_sq1_alias2`.`col_varchar_key` = `sq1_alias2`.`col_varchar_nokey`)"
+                                      },
+                                      {
+                                        "transformation": "trivial_condition_removal",
+                                        "resulting_condition": "(`c_sq1_alias2`.`col_varchar_key` = `sq1_alias2`.`col_varchar_nokey`)"
+                                      }
+                                    ] /* steps */
+                                  } /* condition_processing */
+                                },
+                                {
+                                  "table_dependencies": [
+                                    {
+                                      "table": "`t3` `c_sq1_alias1`",
+                                      "row_may_be_null": true,
+                                      "map_bit": 0,
+                                      "depends_on_map_bits": [
+                                        1
+                                      ] /* depends_on_map_bits */
+                                    },
+                                    {
+                                      "table": "`t4` `c_sq1_alias2`",
+                                      "row_may_be_null": false,
+                                      "map_bit": 1,
+                                      "depends_on_map_bits": [
+                                      ] /* depends_on_map_bits */
+                                    }
+                                  ] /* table_dependencies */
+                                },
+                                {
+                                  "ref_optimizer_key_uses": [
+                                    {
+                                      "table": "`t3` `c_sq1_alias1`",
+                                      "field": "pk",
+                                      "equals": "`c_sq1_alias2`.`col_int_nokey`",
+                                      "null_rejecting": true
+                                    },
+                                    {
+                                      "table": "`t4` `c_sq1_alias2`",
+                                      "field": "col_varchar_key",
+                                      "equals": "`sq1_alias2`.`col_varchar_nokey`",
+                                      "null_rejecting": true
+                                    }
+                                  ] /* ref_optimizer_key_uses */
+                                },
+                                {
+                                  "rows_estimation": [
+                                    {
+                                      "table": "`t3` `c_sq1_alias1`",
+                                      "rows": 1,
+                                      "cost": 1,
+                                      "table_type": "system",
+                                      "empty": true
+                                    },
+                                    {
+                                      "table": "`t4` `c_sq1_alias2`",
+                                      "rows": 1,
+                                      "cost": 1,
+                                      "table_type": "system",
+                                      "empty": false
+                                    }
+                                  ] /* rows_estimation */
+                                },
+                                {
+                                  "attaching_conditions_to_tables": {
+                                    "original_condition": "('g' = `sq1_alias2`.`col_varchar_nokey`)",
+                                    "attached_conditions_computation": [
+                                    ] /* attached_conditions_computation */,
+                                    "attached_conditions_summary": [
+                                    ] /* attached_conditions_summary */
+                                  } /* attaching_conditions_to_tables */
+                                },
+                                {
+                                  "refine_plan": [
+                                  ] /* refine_plan */
+                                }
+                              ] /* steps */
+                            } /* join_optimization */
+                          },
+                          {
                             "join_execution": {
                               "select#": 2,
                               "steps": [
@@ -1861,99 +1954,6 @@ field4,field5,field6	{
         "empty_result": {
           "cause": "no matching row in const table"
         } /* empty_result */
-      } /* join_optimization */
-    },
-    {
-      "join_optimization": {
-        "select#": 3,
-        "steps": [
-          {
-            "condition_processing": {
-              "condition": "WHERE",
-              "original_condition": "(`c_sq1_alias2`.`col_varchar_key` = `sq1_alias2`.`col_varchar_nokey`)",
-              "steps": [
-                {
-                  "transformation": "equality_propagation",
-                  "resulting_condition": "(`c_sq1_alias2`.`col_varchar_key` = `sq1_alias2`.`col_varchar_nokey`)"
-                },
-                {
-                  "transformation": "constant_propagation",
-                  "resulting_condition": "(`c_sq1_alias2`.`col_varchar_key` = `sq1_alias2`.`col_varchar_nokey`)"
-                },
-                {
-                  "transformation": "trivial_condition_removal",
-                  "resulting_condition": "(`c_sq1_alias2`.`col_varchar_key` = `sq1_alias2`.`col_varchar_nokey`)"
-                }
-              ] /* steps */
-            } /* condition_processing */
-          },
-          {
-            "table_dependencies": [
-              {
-                "table": "`t3` `c_sq1_alias1`",
-                "row_may_be_null": true,
-                "map_bit": 0,
-                "depends_on_map_bits": [
-                  1
-                ] /* depends_on_map_bits */
-              },
-              {
-                "table": "`t4` `c_sq1_alias2`",
-                "row_may_be_null": false,
-                "map_bit": 1,
-                "depends_on_map_bits": [
-                ] /* depends_on_map_bits */
-              }
-            ] /* table_dependencies */
-          },
-          {
-            "ref_optimizer_key_uses": [
-              {
-                "table": "`t3` `c_sq1_alias1`",
-                "field": "pk",
-                "equals": "`c_sq1_alias2`.`col_int_nokey`",
-                "null_rejecting": true
-              },
-              {
-                "table": "`t4` `c_sq1_alias2`",
-                "field": "col_varchar_key",
-                "equals": "`sq1_alias2`.`col_varchar_nokey`",
-                "null_rejecting": true
-              }
-            ] /* ref_optimizer_key_uses */
-          },
-          {
-            "rows_estimation": [
-              {
-                "table": "`t3` `c_sq1_alias1`",
-                "rows": 1,
-                "cost": 1,
-                "table_type": "system",
-                "empty": true
-              },
-              {
-                "table": "`t4` `c_sq1_alias2`",
-                "rows": 1,
-                "cost": 1,
-                "table_type": "system",
-                "empty": false
-              }
-            ] /* rows_estimation */
-          },
-          {
-            "attaching_conditions_to_tables": {
-              "original_condition": "('g' = `sq1_alias2`.`col_varchar_nokey`)",
-              "attached_conditions_computation": [
-              ] /* attached_conditions_computation */,
-              "attached_conditions_summary": [
-              ] /* attached_conditions_summary */
-            } /* attaching_conditions_to_tables */
-          },
-          {
-            "refine_plan": [
-            ] /* refine_plan */
-          }
-        ] /* steps */
       } /* join_optimization */
     },
     {

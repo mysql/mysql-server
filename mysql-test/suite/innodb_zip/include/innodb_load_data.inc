@@ -1,6 +1,4 @@
---echo ===============
---echo Load the data
---echo ===============
+--echo # Load the data
 
 SET @col_1 = repeat('a', 100);
 SET @col_2 = repeat('b', 100);

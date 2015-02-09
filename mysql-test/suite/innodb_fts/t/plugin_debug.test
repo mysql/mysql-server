@@ -1,0 +1,297 @@
+--source include/have_innodb.inc
+--source include/have_debug.inc
+--source include/have_simple_parser.inc
+
+# Install fts parser plugin
+--replace_regex /\.dll/.so/
+eval INSTALL PLUGIN simple_parser SONAME '$SIMPLE_PARSER';
+
+-- echo # Test Part 2: Create Index Test(CREATE TABLE WITH FULLTEXT INDEX)
+CREATE TABLE articles (
+	id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+	title VARCHAR(200),
+	body TEXT,
+	FULLTEXT (title, body) WITH PARSER simple_parser
+	) ENGINE=InnoDB;
+
+INSERT INTO articles (title, body) VALUES
+  ('MySQL Tutorial','DBMS stands for MySQL DataBase ...'),
+  ('How To Use MySQL Well','After you went through a ...'),
+  ('Optimizing MySQL','In this tutorial we will show ...'),
+  ('1001 MySQL Tricks','How to use full-text search engine'),
+  ('Go MySQL Tricks','How to use full text search engine');
+
+# Simple term search
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('mysql');
+
+# Test stopword and word len less than fts_min_token_size
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('will go');
+
+-- echo # Test plugin parser tokenizer difference
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('full-text');
+
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('full text');
+
+# No result here, we get '"mysql' 'database"' by simple parser
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('"mysql database"' IN BOOLEAN MODE);
+
+DROP TABLE articles;
+
+-- echo # Test Part 3: Row Merge Create Index Test(ALTER TABLE ADD FULLTEXT INDEX)
+CREATE TABLE articles (
+	id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+	title VARCHAR(200),
+	body TEXT
+	) ENGINE=InnoDB;
+
+INSERT INTO articles (title, body) VALUES
+  ('MySQL Tutorial','DBMS stands for MySQL DataBase ...'),
+  ('How To Use MySQL Well','After you went through a ...'),
+  ('Optimizing MySQL','In this tutorial we will show ...'),
+  ('1001 MySQL Tricks','How to use full-text search engine'),
+  ('Go MySQL Tricks','How to use full text search engine');
+
+# Create fulltext index
+ALTER TABLE articles ADD FULLTEXT INDEX (title, body) WITH PARSER simple_parser;
+
+# Simple term search
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('mysql');
+
+# Test stopword and word len less than fts_min_token_size
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('will go');
+
+-- echo # Test plugin parser tokenizer difference
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('full-text');
+
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('full text');
+
+# Test query expansion
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('full-text' WITH QUERY EXPANSION);
+
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('full text' WITH QUERY EXPANSION);
+
+# No result here, we get '"mysql' 'database"' by simple parser
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('"mysql database"' IN BOOLEAN MODE);
+
+DROP TABLE articles;
+-- echo # Test Part 3 END
+
+# Use default parser
+SET SESSION debug="+d,fts_instrument_use_default_parser";
+
+-- echo # Test Part 4: Create Index Test with Default/Internal Parser
+CREATE TABLE articles (
+	id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+	title VARCHAR(200),
+	body TEXT,
+	FULLTEXT (title, body) WITH PARSER simple_parser
+	) ENGINE=InnoDB;
+
+INSERT INTO articles (title, body) VALUES
+  ('MySQL Tutorial','DBMS stands for MySQL DataBase ...'),
+  ('How To Use MySQL Well','After you went through a ...'),
+  ('Optimizing MySQL','In this tutorial we will show ...'),
+  ('1001 MySQL Tricks','How to use full-text search engine'),
+  ('Go MySQL Tricks','How to use full text search engine');
+
+# Simple term search
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('mysql');
+
+# Test stopword and word len less than fts_min_token_size
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('will go');
+
+-- echo # Test plugin parser tokenizer difference
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('full-text');
+
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('full text');
+
+# Phrase search
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('"mysql database"' IN BOOLEAN MODE);
+
+DROP TABLE articles;
+
+# Disable query parse using plugin parser
+-- echo # Test Part 5: Row Merge Create Index Test with Default/Internal Parser
+CREATE TABLE articles (
+	id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+	title VARCHAR(200),
+	body TEXT
+	) ENGINE=InnoDB;
+
+INSERT INTO articles (title, body) VALUES
+  ('MySQL Tutorial','DBMS stands for MySQL DataBase ...'),
+  ('How To Use MySQL Well','After you went through a ...'),
+  ('Optimizing MySQL','In this tutorial we will show ...'),
+  ('1001 MySQL Tricks','How to use full-text search engine'),
+  ('Go MySQL Tricks','How to use full text search engine');
+
+# Create fulltext index
+ALTER TABLE articles ADD FULLTEXT INDEX (title, body) WITH PARSER simple_parser;
+
+# Simple term search
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('mysql');
+
+# Test stopword and word len less than fts_min_token_size
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('will go');
+
+-- echo # Test plugin parser tokenizer difference
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('full-text');
+
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('full text');
+
+# Phrase search
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('"mysql database"' IN BOOLEAN MODE);
+
+DROP TABLE articles;
+
+-- echo # Test Part 6: Test Query Parser with Default/Internal Parser
+let $innodb_ft_enable_diag_print_orig = `SELECT @@innodb_ft_enable_diag_print`;
+# Enable diag print to print query parse tree
+SET GLOBAL innodb_ft_enable_diag_print = 1;
+
+CREATE TABLE articles (
+	id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+	title VARCHAR(200),
+	body TEXT,
+	FULLTEXT (title, body) WITH PARSER simple_parser
+	) ENGINE=InnoDB;
+
+INSERT INTO articles (title, body) VALUES
+  ('MySQL Tutorial','DBMS stands for MySQL DataBase ...'),
+  ('MySQL Tutorial','DBMS stands for MySQL good one DataBase ...'),
+  ('How To Use MySQL Well','After you went through a ...'),
+  ('Optimizing MySQL','In this tutorial we will show ...'),
+  ('1001 MySQL Tricks','How to use full-text search engine');
+
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('+mysql -database' IN BOOLEAN MODE);
+
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('>mysql <database ~search' IN BOOLEAN MODE);
+
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('+(mysql database) -engine' IN BOOLEAN MODE);
+
+# The will be no result because of parsing error.
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('+(mysql database -engine' IN BOOLEAN MODE);
+
+# Test phrase match
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('"mysql"' IN BOOLEAN MODE);
+
+# Test stopword or word less than fts_min_token_size
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('"for mysql"' IN BOOLEAN MODE);
+
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('"mysql database"' IN BOOLEAN MODE);
+
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('"full text search"' IN BOOLEAN MODE);
+
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('"full text search engine"' IN BOOLEAN MODE);
+
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('+"dbms stands" -good' IN BOOLEAN MODE);
+
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('+("dbms stands") -good' IN BOOLEAN MODE);
+
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('+("dbms stands" search) -good' IN BOOLEAN MODE);
+
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('+("dbms stands" "full text") -good' IN BOOLEAN MODE);
+
+# Test proximity match
+# It will be treated as phrase match
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('("msyql database")@3' IN BOOLEAN MODE);
+
+DROP TABLE articles;
+
+SET NAMES utf8;
+
+-- echo # Test Part 7: Test Different Charset
+CREATE TABLE articles (
+	id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+	title VARCHAR(200),
+	body TEXT,
+	FULLTEXT (title, body) WITH PARSER simple_parser
+	) ENGINE=InnoDB DEFAULT CHARACTER SET gb2312 COLLATE gb2312_chinese_ci;
+
+INSERT INTO articles (title, body) VALUES
+  ('数据库 是 数据 的 结构化 集合','它 可以 是 任何 东西'),
+  ('从 简单 的 购物清单 到 画展','或 企业网络 中 的 海量信息'),
+  ('要 想 将 数据 添加 到 数据库','或 访问、处理 计算机 数据库 中 保存 的 数据'),
+  ('需要 使用 数据库 管理系统','计算机 是 处理 大量 数据 的 理想 工具');
+
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('数据库');
+
+# Test word len less than fts_min_token_size
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('数据');
+
+# Test wildcard
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('数据*');
+
+# Test operator
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('+数据库 -计算机');
+
+# Test phrase search
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('"计算机 数据库"' IN BOOLEAN MODE);
+
+DROP TABLE articles;
+
+eval SET GLOBAL innodb_ft_enable_diag_print = $innodb_ft_enable_diag_print_orig;
+
+# Disable use default parser
+SET SESSION debug="-d,fts_instrument_use_default_parser";
+
+-- echo # Test Part 9:# Abort the operation in dict_create_index_step
+# by setting return status of dict_create_index_tree_step() to DB_OUT_OF_MEMORY
+# # The newly create dict_index_t should be removed from fts cache
+
+CREATE TABLE articles (
+       id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+       title VARCHAR(200),
+       body TEXT,
+       FULLTEXT (title, body) WITH PARSER simple_parser
+) ENGINE=InnoDB;
+#
+SET SESSION debug="+d,ib_dict_create_index_tree_fail";
+--error ER_OUT_OF_RESOURCES
+CREATE FULLTEXT INDEX idx ON articles(body);
+SET SESSION debug="-d,ib_dict_create_index_tree_fail";
+#
+DROP TABLE articles;
+
+UNINSTALL PLUGIN simple_parser;

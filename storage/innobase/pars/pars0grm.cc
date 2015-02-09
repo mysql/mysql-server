@@ -294,7 +294,6 @@ que_node_t */
 #define YYSTYPE que_node_t*
 
 /* #define __STDC__ */
-
 int
 yylex(void);
 

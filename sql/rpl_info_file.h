@@ -17,7 +17,6 @@
 #define RPL_INFO_FILE_H
 
 #include <my_global.h>
-#include <sql_priv.h>
 #include "rpl_info_handler.h"
 
 class Rpl_info_factory;

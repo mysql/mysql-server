@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,10 +21,11 @@
   Functions for discover of frm file from handler
 */
 
-#include "sql_priv.h"
-#include "unireg.h"
 #include "discover.h"
+#include "mysqld.h"
+#include "table.h"
 #include <my_dir.h>
+#include "my_sys.h"
 
 /**
   Read the contents of a .frm file.
@@ -70,7 +71,7 @@ int readfrm(const char *name, uchar **frmdata, size_t *len)
   error= 2;
   if (mysql_file_fstat(file, &state, MYF(0)))
     goto err;
-  read_len= state.st_size;  
+  read_len= static_cast<size_t>(state.st_size);
 
   // Read whole frm file
   error= 3;

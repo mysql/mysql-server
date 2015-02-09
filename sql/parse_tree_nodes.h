@@ -81,6 +81,7 @@ public:
       them.
     */
     pc->select->select_n_where_fields+= child->select_n_where_fields;
+    pc->select->select_n_having_items+= child->select_n_having_items;
     value= query_expression_body->value;
     return false;
   }
@@ -474,7 +475,10 @@ public:
 
     select->parsing_place= CTX_SELECT_LIST;
 
-    select->set_query_block_options(thd, opt_query_spec_options, 0);
+    if (select->validate_base_options(thd->lex, opt_query_spec_options))
+      return true;
+    select->set_base_options(opt_query_spec_options);
+    DBUG_ASSERT(!(opt_query_spec_options & SELECT_MAX_STATEMENT_TIME));
     if (opt_query_spec_options & SELECT_HIGH_PRIORITY)
     {
       Yacc_state *yyps= &thd->m_parser_state->m_yacc;
@@ -1225,7 +1229,7 @@ public:
     {
       /*
         Not in trigger assigning value to new row,
-        and option_type preceeding local variable is illegal.
+        and option_type preceding local variable is illegal.
       */
       error(pc, pos);
       return true;
@@ -1485,6 +1489,27 @@ public:
     THD *thd= pc->thd;
     LEX *lex= thd->lex;
     set_var_password *var;
+
+    /*
+      In case of anonymous user, user->user is set to empty string with
+      length 0. But there might be case when user->user.str could be NULL.
+      For Ex: "set password for current_user() = password('xyz');".
+      In this case, set user information as of the current user.
+    */
+    if (!user->user.str)
+    {
+      LEX_CSTRING sctx_priv_user= thd->security_context()->priv_user();
+      DBUG_ASSERT(sctx_priv_user.str);
+      user->user.str= sctx_priv_user.str;
+      user->user.length= sctx_priv_user.length;
+    }
+    if (!user->host.str)
+    {
+      LEX_CSTRING sctx_priv_host= thd->security_context()->priv_host();
+      DBUG_ASSERT(sctx_priv_host.str);
+      user->host.str= (char *) sctx_priv_host.str;
+      user->host.length= sctx_priv_host.length;
+    }
 
     var= new set_var_password(user, const_cast<char *>(password));
     if (var == NULL)

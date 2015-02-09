@@ -372,7 +372,6 @@
 
 
 #define MYSQL_SERVER 1
-#include "sql_priv.h"
 #include "sql_servers.h"         // FOREIGN_SERVER, get_server_by_name
 #include "sql_class.h"           // SSV
 #include "sql_analyse.h"         // append_escaped
@@ -1686,6 +1685,14 @@ int ha_federated::close(void)
   
   results.clear();
   
+  /*
+    Check to verify wheather the connection is still alive or not.
+    FLUSH TABLES will quit the connection and if connection is broken,
+    it will reconnect again and quit silently.
+  */
+  if (mysql && !vio_is_connected(mysql->net.vio))
+     mysql->net.error= 2;
+
   /* Disconnect from mysql */
   mysql_close(mysql);
   mysql= NULL;
@@ -2261,7 +2268,10 @@ int ha_federated::delete_row(const uchar *buf)
   DBUG_ENTER("ha_federated::delete_row");
 
   delete_string.length(0);
-  delete_string.append(STRING_WITH_LEN("DELETE FROM "));
+  if (ignore_duplicates)
+    delete_string.append(STRING_WITH_LEN("DELETE IGNORE FROM "));
+  else
+    delete_string.append(STRING_WITH_LEN("DELETE FROM "));
   append_ident(&delete_string, share->table_name,
                share->table_name_length, ident_quote_char);
   delete_string.append(STRING_WITH_LEN(" WHERE "));
@@ -3014,7 +3024,37 @@ int ha_federated::delete_all_rows()
   query.length(0);
 
   query.set_charset(system_charset_info);
-  query.append(STRING_WITH_LEN("TRUNCATE "));
+  if (ignore_duplicates)
+    query.append(STRING_WITH_LEN("DELETE IGNORE FROM "));
+  else
+    query.append(STRING_WITH_LEN("DELETE FROM "));
+  append_ident(&query, share->table_name, share->table_name_length,
+               ident_quote_char);
+
+  if (real_query(query.ptr(), query.length()))
+  {
+    DBUG_RETURN(stash_remote_error());
+  }
+  stats.deleted+= stats.records;
+  stats.records= 0;
+  DBUG_RETURN(0);
+}
+
+
+/*
+  Used to manually truncate the table.
+*/
+
+int ha_federated::truncate()
+{
+  char query_buffer[FEDERATED_QUERY_BUFFER_SIZE];
+  String query(query_buffer, sizeof(query_buffer), &my_charset_bin);
+  DBUG_ENTER("ha_federated::truncate");
+
+  query.length(0);
+
+  query.set_charset(system_charset_info);
+  query.append(STRING_WITH_LEN("TRUNCATE TABLE "));
   append_ident(&query, share->table_name, share->table_name_length,
                ident_quote_char);
 
@@ -3028,16 +3068,6 @@ int ha_federated::delete_all_rows()
   stats.deleted+= stats.records;
   stats.records= 0;
   DBUG_RETURN(0);
-}
-
-
-/*
-  Used to manually truncate the table via a delete of all rows in a table.
-*/
-
-int ha_federated::truncate()
-{
-  return delete_all_rows();
 }
 
 

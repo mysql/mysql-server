@@ -590,7 +590,7 @@ void PFS_object_iterator::visit_all_tables(PFS_object_visitor *visitor)
   PFS_table_share *share_last= table_share_array + table_share_max;
   for ( ; share < share_last; share++)
   {
-    if (share->m_lock.is_populated())
+    if (share->m_lock.is_populated() && share->m_enabled)
     {
       visitor->visit_table_share(share);
     }
@@ -603,7 +603,9 @@ void PFS_object_iterator::visit_all_tables(PFS_object_visitor *visitor)
   {
     if (table->m_lock.is_populated())
     {
-      visitor->visit_table(table);
+      PFS_table_share *safe_share= sanitize_table_share(table->m_share);
+      if (safe_share != NULL && safe_share->m_enabled)
+        visitor->visit_table(table);
     }
   }
 }
@@ -612,6 +614,9 @@ void PFS_object_iterator::visit_tables(PFS_table_share *share,
                                        PFS_object_visitor *visitor)
 {
   DBUG_ASSERT(visitor != NULL);
+
+  if (!share->m_enabled)
+    return;
 
   visitor->visit_table_share(share);
 
@@ -632,6 +637,9 @@ void PFS_object_iterator::visit_table_indexes(PFS_table_share *share,
                                               PFS_object_visitor *visitor)
 {
   DBUG_ASSERT(visitor != NULL);
+
+  if(!share->m_enabled)
+    return;
 
   visitor->visit_table_share_index(share, index);
 
@@ -1193,7 +1201,7 @@ void PFS_object_wait_visitor::visit_global()
 void PFS_object_wait_visitor::visit_table_share(PFS_table_share *pfs)
 {
   uint safe_key_count= sanitize_index_count(pfs->m_key_count);
-  pfs->m_table_stat.sum(& m_stat, safe_key_count);
+  pfs->sum(& m_stat, safe_key_count);
 }
 
 void PFS_object_wait_visitor::visit_table(PFS_table *pfs)
@@ -1222,13 +1230,20 @@ void PFS_table_io_wait_visitor::visit_table_share(PFS_table_share *pfs)
   PFS_table_io_stat io_stat;
   uint safe_key_count= sanitize_index_count(pfs->m_key_count);
   uint index;
+  PFS_table_share_index *index_stat;
 
   /* Aggregate index stats */
   for (index= 0; index < safe_key_count; index++)
-    io_stat.aggregate(& pfs->m_table_stat.m_index_stat[index]);
+  {
+    index_stat= pfs->find_index_stat(index);
+    if (index_stat != NULL)
+      io_stat.aggregate(& index_stat->m_stat);
+  }
 
   /* Aggregate global stats */
-  io_stat.aggregate(& pfs->m_table_stat.m_index_stat[MAX_INDEXES]);
+  index_stat= pfs->find_index_stat(MAX_INDEXES);
+  if (index_stat != NULL)
+    io_stat.aggregate(& index_stat->m_stat);
 
   io_stat.sum(& m_stat);
 }
@@ -1266,13 +1281,20 @@ void PFS_table_io_stat_visitor::visit_table_share(PFS_table_share *pfs)
 {
   uint safe_key_count= sanitize_index_count(pfs->m_key_count);
   uint index;
+  PFS_table_share_index *index_stat;
 
   /* Aggregate index stats */
   for (index= 0; index < safe_key_count; index++)
-    m_stat.aggregate(& pfs->m_table_stat.m_index_stat[index]);
+  {
+    index_stat= pfs->find_index_stat(index);
+    if (index_stat != NULL)
+      m_stat.aggregate(& index_stat->m_stat);
+  }
 
   /* Aggregate global stats */
-  m_stat.aggregate(& pfs->m_table_stat.m_index_stat[MAX_INDEXES]);
+  index_stat= pfs->find_index_stat(MAX_INDEXES);
+  if (index_stat != NULL)
+    m_stat.aggregate(& index_stat->m_stat);
 }
 
 void PFS_table_io_stat_visitor::visit_table(PFS_table *pfs)
@@ -1303,7 +1325,11 @@ PFS_index_io_stat_visitor::~PFS_index_io_stat_visitor()
 
 void PFS_index_io_stat_visitor::visit_table_share_index(PFS_table_share *pfs, uint index)
 {
-  m_stat.aggregate(& pfs->m_table_stat.m_index_stat[index]);
+  PFS_table_share_index *index_stat;
+
+  index_stat= pfs->find_index_stat(index);
+  if (index_stat != NULL)
+    m_stat.aggregate(& index_stat->m_stat);
 }
 
 void PFS_index_io_stat_visitor::visit_table_index(PFS_table *pfs, uint index)
@@ -1326,7 +1352,7 @@ void PFS_table_lock_wait_visitor::visit_global()
 
 void PFS_table_lock_wait_visitor::visit_table_share(PFS_table_share *pfs)
 {
-  pfs->m_table_stat.sum_lock(& m_stat);
+  pfs->sum_lock(& m_stat);
 }
 
 void PFS_table_lock_wait_visitor::visit_table(PFS_table *pfs)
@@ -1344,7 +1370,11 @@ PFS_table_lock_stat_visitor::~PFS_table_lock_stat_visitor()
 
 void PFS_table_lock_stat_visitor::visit_table_share(PFS_table_share *pfs)
 {
-  m_stat.aggregate(& pfs->m_table_stat.m_lock_stat);
+  PFS_table_share_lock *lock_stat;
+
+  lock_stat= pfs->find_lock_stat();
+  if (lock_stat != NULL)
+    m_stat.aggregate(& lock_stat->m_stat);
 }
 
 void PFS_table_lock_stat_visitor::visit_table(PFS_table *pfs)

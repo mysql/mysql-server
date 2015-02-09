@@ -293,7 +293,7 @@ int table_tiws_by_index_usage::rnd_next(void)
        m_pos.next_table())
   {
     table_share= &table_share_array[m_pos.m_index_1];
-    if (table_share->m_lock.is_populated())
+    if (table_share->m_lock.is_populated() && table_share->m_enabled)
     {
       uint safe_key_count= sanitize_index_count(table_share->m_key_count);
       if (m_pos.m_index_2 < safe_key_count)
@@ -323,7 +323,7 @@ table_tiws_by_index_usage::rnd_pos(const void *pos)
   set_position(pos);
 
   table_share= &table_share_array[m_pos.m_index_1];
-  if (table_share->m_lock.is_populated())
+  if (table_share->m_lock.is_populated() && table_share->m_enabled)
   {
     uint safe_key_count= sanitize_index_count(table_share->m_key_count);
     if (m_pos.m_index_2 < safe_key_count)
@@ -341,21 +341,36 @@ table_tiws_by_index_usage::rnd_pos(const void *pos)
   return HA_ERR_RECORD_DELETED;
 }
 
-void table_tiws_by_index_usage::make_row(PFS_table_share *share, uint index)
+void table_tiws_by_index_usage::make_row(PFS_table_share *pfs_share,
+                                         uint index)
 {
+  PFS_table_share_index *pfs_index;
   pfs_optimistic_state lock;
+
+  DBUG_ASSERT(index <= MAX_INDEXES);
 
   m_row_exists= false;
 
-  share->m_lock.begin_optimistic_lock(&lock);
-
-  if (m_row.m_index.make_row(share, index))
-    return;
+  pfs_share->m_lock.begin_optimistic_lock(&lock);
 
   PFS_index_io_stat_visitor visitor;
-  PFS_object_iterator::visit_table_indexes(share, index, & visitor);
+  PFS_object_iterator::visit_table_indexes(pfs_share, index, & visitor);
 
-  if (! share->m_lock.end_optimistic_lock(&lock))
+  if (! visitor.m_stat.m_has_data)
+  {
+    pfs_index= pfs_share->find_index_stat(index);
+    if (pfs_index == NULL)
+      return;
+  }
+  else
+  {
+    pfs_index= pfs_share->find_index_stat(index);
+  }
+
+  if (m_row.m_index.make_row(pfs_share, pfs_index, index))
+    return;
+
+  if (! pfs_share->m_lock.end_optimistic_lock(&lock))
     return;
 
   m_row_exists= true;

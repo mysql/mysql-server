@@ -26,6 +26,48 @@
 class THD;
 class st_select_lex;
 
+// uncachable cause
+#define UNCACHEABLE_DEPENDENT   1
+#define UNCACHEABLE_RAND        2
+#define UNCACHEABLE_SIDEEFFECT	4
+/* For uncorrelated SELECT in an UNION with some correlated SELECTs */
+#define UNCACHEABLE_UNITED      8
+#define UNCACHEABLE_CHECKOPTION 16
+
+/**
+  Names for different query parse tree parts
+*/
+
+enum enum_parsing_context
+{
+  CTX_NONE= 0, ///< Empty value
+  CTX_MESSAGE, ///< "No tables used" messages etc.
+  CTX_TABLE, ///< for single-table UPDATE/DELETE/INSERT/REPLACE
+  CTX_SELECT_LIST, ///< SELECT (subquery), (subquery)...
+  CTX_UPDATE_VALUE_LIST, ///< UPDATE ... SET field=(subquery)...
+  CTX_JOIN,
+  CTX_QEP_TAB,
+  CTX_MATERIALIZATION,
+  CTX_DUPLICATES_WEEDOUT,
+  CTX_DERIVED, ///< "Derived" subquery
+  CTX_WHERE, ///< Subquery in WHERE clause item tree
+  CTX_ON,    ///< ON clause context
+  CTX_HAVING, ///< Subquery in HAVING clause item tree
+  CTX_ORDER_BY, ///< ORDER BY clause execution context
+  CTX_GROUP_BY, ///< GROUP BY clause execution context
+  CTX_SIMPLE_ORDER_BY, ///< ORDER BY clause execution context
+  CTX_SIMPLE_GROUP_BY, ///< GROUP BY clause execution context
+  CTX_DISTINCT, ///< DISTINCT clause execution context
+  CTX_SIMPLE_DISTINCT, ///< DISTINCT clause execution context
+  CTX_BUFFER_RESULT, ///< see SQL_BUFFER_RESULT in the manual
+  CTX_ORDER_BY_SQ, ///< Subquery in ORDER BY clause item tree
+  CTX_GROUP_BY_SQ, ///< Subquery in GROUP BY clause item tree
+  CTX_OPTIMIZED_AWAY_SUBQUERY, ///< Subquery executed once during optimization
+  CTX_UNION,
+  CTX_UNION_RESULT, ///< Pseudo-table context for UNION result
+  CTX_QUERY_SPEC ///< Inner SELECTs of UNION expression
+};
+
 /*
   Note: YYLTYPE doesn't overload a default constructor (as well an underlying
   Symbol_location).

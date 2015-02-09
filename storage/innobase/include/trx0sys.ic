@@ -47,7 +47,6 @@ typedef byte	trx_sysf_rseg_t;
 
 /*****************************************************************//**
 Writes the value of max_trx_id to the file based trx system header. */
-
 void
 trx_sys_flush_max_trx_id(void);
 /*==========================*/
@@ -77,7 +76,7 @@ trx_sys_get_nth_rseg(
 {
 	ut_ad(n < TRX_SYS_N_RSEGS);
 
-	/* If redo rseg is being requested and id falls in range of 
+	/* If redo rseg is being requested and id falls in range of
 	non-redo rseg that is from slot-1....slot-srv_tmp_undo_logs then
 	server is being upgraded from pre-5.7.2. In such case return
 	rseg from pending_purge_rseg_array array. */

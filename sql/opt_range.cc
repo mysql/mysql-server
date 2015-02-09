@@ -108,7 +108,6 @@
            subject and may omit some details.
 */
 
-#include "sql_priv.h"
 #include "key.h"        // is_key_used, key_copy, key_cmp, key_restore
 #include "sql_parse.h"                          // check_stack_overrun
 #include "sql_partition.h"    // get_part_id_func, PARTITION_ITERATOR,
@@ -123,6 +122,7 @@
 #include "opt_costmodel.h"
 #include "opt_statistics.h"   // guess_rec_per_key
 #include "uniques.h"
+#include "log.h"
 
 using std::min;
 using std::max;
@@ -1039,7 +1039,7 @@ static inline void print_tree(String *out,
                               const char *tree_name,
                               SEL_TREE *tree,
                               const RANGE_OPT_PARAM *param,
-                              const bool print_full);
+                              const bool print_full) __attribute__((unused));
 
 void append_range(String *out,
                   const KEY_PART_INFO *key_parts,
@@ -1815,7 +1815,7 @@ QUICK_ROR_INTERSECT_SELECT::~QUICK_ROR_INTERSECT_SELECT()
 
 QUICK_ROR_UNION_SELECT::QUICK_ROR_UNION_SELECT(THD *thd_param,
                                                TABLE *table)
-  : thd(thd_param), scans_inited(FALSE)
+  : queue(Quick_ror_union_less(this)), thd(thd_param), scans_inited(FALSE)
 {
   index= MAX_KEY;
   head= table;
@@ -1825,29 +1825,6 @@ QUICK_ROR_UNION_SELECT::QUICK_ROR_UNION_SELECT(THD *thd_param,
                  &alloc, thd->variables.range_alloc_block_size, 0);
   thd_param->mem_root= &alloc;
 }
-
-
-/*
-  Comparison function to be used QUICK_ROR_UNION_SELECT::queue priority
-  queue.
-
-  SYNPOSIS
-    QUICK_ROR_UNION_SELECT_queue_cmp()
-      arg   Pointer to QUICK_ROR_UNION_SELECT
-      val1  First merged select
-      val2  Second merged select
-*/
-
-C_MODE_START
-
-static int QUICK_ROR_UNION_SELECT_queue_cmp(void *arg, uchar *val1, uchar *val2)
-{
-  QUICK_ROR_UNION_SELECT *self= (QUICK_ROR_UNION_SELECT*)arg;
-  return self->head->file->cmp_ref(((QUICK_SELECT_I*)val1)->last_rowid,
-                                   ((QUICK_SELECT_I*)val2)->last_rowid);
-}
-
-C_MODE_END
 
 
 /*
@@ -1863,11 +1840,8 @@ C_MODE_END
 int QUICK_ROR_UNION_SELECT::init()
 {
   DBUG_ENTER("QUICK_ROR_UNION_SELECT::init");
-  if (init_queue(&queue, quick_selects.elements, 0,
-                 FALSE , QUICK_ROR_UNION_SELECT_queue_cmp,
-                 (void*) this))
+  if (queue.reserve(quick_selects.elements))
   {
-    memset(&queue, 0, sizeof(QUEUE));
     DBUG_RETURN(1);
   }
 
@@ -1904,7 +1878,7 @@ int QUICK_ROR_UNION_SELECT::reset()
     }
     scans_inited= TRUE;
   }
-  queue_remove_all(&queue);
+  queue.clear();
   /*
     Initialize scans for merged quick selects and put all merged quick
     selects into the queue.
@@ -1921,7 +1895,7 @@ int QUICK_ROR_UNION_SELECT::reset()
       DBUG_RETURN(error);
     }
     quick->save_last_pos();
-    queue_insert(&queue, (uchar*)quick);
+    queue.push(quick);
   }
 
   /* Prepare for ha_rnd_pos calls. */
@@ -1949,7 +1923,6 @@ QUICK_ROR_UNION_SELECT::push_quick_back(QUICK_SELECT_I *quick_sel_range)
 QUICK_ROR_UNION_SELECT::~QUICK_ROR_UNION_SELECT()
 {
   DBUG_ENTER("QUICK_ROR_UNION_SELECT::~QUICK_ROR_UNION_SELECT");
-  delete_queue(&queue);
   quick_selects.delete_elements();
   if (head->file->inited)
     head->file->ha_rnd_end();
@@ -2725,7 +2698,8 @@ int test_quick_select(THD *thd, key_map keys_to_use,
   ha_rows records= head->file->stats.records;
   if (!records)
     records++;					/* purecov: inspected */
-  double scan_time= cost_model->row_evaluate_cost(records) + 1;
+  double scan_time=
+    cost_model->row_evaluate_cost(static_cast<double>(records)) + 1;
   Cost_estimate cost_est= head->file->table_scan_cost();
   cost_est.add_io(1.1);
   cost_est.add_cpu(scan_time);
@@ -2738,7 +2712,8 @@ int test_quick_select(THD *thd, key_map keys_to_use,
   {
     cost_est.reset();
     // Force to use index
-    cost_est.add_io(head->cost_model()->io_block_read_cost(records) + 1);
+    cost_est.add_io(head->cost_model()->io_block_read_cost(
+      static_cast<double>(records)) + 1);
     cost_est.add_cpu(scan_time);
   }
   else if (cost_est.total_cost() <= head->cost_model()->io_block_read_cost(2.0) &&
@@ -2860,8 +2835,10 @@ int test_quick_select(THD *thd, key_map keys_to_use,
     {
       int key_for_use= find_shortest_key(head, &head->covering_keys);
       Cost_estimate key_read_time=
-        param.table->file->index_scan_cost(key_for_use, 1, records);
-      key_read_time.add_cpu(cost_model->row_evaluate_cost(records));
+        param.table->file->index_scan_cost(key_for_use, 1,
+                                           static_cast<double>(records));
+      key_read_time.add_cpu(cost_model->row_evaluate_cost(
+        static_cast<double>(records)));
 
       bool chosen= false;
       if (key_read_time < cost_est)
@@ -2896,7 +2873,7 @@ int test_quick_select(THD *thd, key_map keys_to_use,
           trace_range.add("impossible_range", true);
           records=0L;                      /* Return -1 from this function. */
           cost_est.reset();
-          cost_est.add_io(HA_POS_ERROR);
+          cost_est.add_io(static_cast<double>(HA_POS_ERROR));
           goto free_mem;
         }
         /*
@@ -4545,7 +4522,7 @@ TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param, SEL_IMERGE *imerge,
       scan. (it is done in QUICK_RANGE_SELECT::row_in_ranges)
     */
     const double rid_comp_cost=
-      cost_model->key_compare_cost(non_cpk_scan_records);
+      cost_model->key_compare_cost(static_cast<double>(non_cpk_scan_records));
     imerge_cost.add_cpu(rid_comp_cost);
     trace_best_disjunct.add("cost_of_mapping_rowid_in_non_clustered_pk_scan",
                             rid_comp_cost);
@@ -4661,7 +4638,7 @@ skip_to_ror_scan:
       /* Ok, we have index_only cost, now get full rows scan cost */
       scan_cost=
         param->table->file->read_cost(param->real_keynr[(*cur_child)->key_idx],
-                                      1, (*cur_child)->records);
+          1, static_cast<double>((*cur_child)->records));
       scan_cost.add_cpu(
             cost_model->row_evaluate_cost(rows2double((*cur_child)->records)));
     }
@@ -6994,7 +6971,7 @@ static bool save_value_and_handle_conversion(SEL_ARG **tree,
         value to store was higher than field::max_value if
            a) field has a value greater than 0, or
            b) if field is unsigned and has a negative value (which, when
-              cast to unsigned, means some value higher than LONGLONG_MAX).
+              cast to unsigned, means some value higher than LLONG_MAX).
       */
       if ((field->val_int() > 0) ||                              // a)
           (static_cast<Field_num*>(field)->unsigned_flag &&
@@ -7246,10 +7223,16 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
     if (maybe_null)
       max_str[0]= min_str[0]=0;
 
+    Item_func_like *like_func= static_cast<Item_func_like*>(param->cond);
+
+    // We can only optimize with LIKE if the escape string is known.
+    if (!like_func->escape_is_evaluated())
+      goto end;
+
     field_length-= maybe_null;
     like_error= my_like_range(field->charset(),
 			      res->ptr(), res->length(),
-			      ((Item_func_like*)(param->cond))->escape,
+			      like_func->escape,
 			      wild_one, wild_many,
 			      field_length,
 			      (char*) min_str+offset, (char*) max_str+offset,
@@ -10327,7 +10310,8 @@ QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
     quick->mrr_flags |= HA_MRR_NO_NULL_ENDPOINTS;
 
   quick->mrr_buf_size= thd->variables.read_rnd_buff_size;
-  if (table->file->multi_range_read_info(quick->index, 1, records,
+  if (table->file->multi_range_read_info(quick->index, 1,
+                                         static_cast<uint>(records),
                                          &quick->mrr_buf_size,
                                          &quick->mrr_flags, &cost))
     goto err;
@@ -10650,11 +10634,11 @@ int QUICK_ROR_UNION_SELECT::get_next()
   {
     do
     {
-      if (!queue.elements)
+      if (queue.empty())
         DBUG_RETURN(HA_ERR_END_OF_FILE);
       /* Ok, we have a queue with >= 1 scans */
 
-      quick= (QUICK_SELECT_I*)queue_top(&queue);
+      quick= queue.top();
       memcpy(cur_rowid, quick->last_rowid, rowid_length);
 
       /* put into queue rowid from the same stream as top element */
@@ -10662,12 +10646,12 @@ int QUICK_ROR_UNION_SELECT::get_next()
       {
         if (error != HA_ERR_END_OF_FILE)
           DBUG_RETURN(error);
-        queue_remove(&queue, 0);
+        queue.pop();
       }
       else
       {
         quick->save_last_pos();
-        queue_replaced(&queue);
+        queue.update_top();
       }
 
       if (!have_prev_rowid)
@@ -14386,6 +14370,7 @@ static inline void dbug_print_tree(const char *tree_name,
   print_tree(NULL, tree_name, tree, param, true);
 #endif
 }
+
 
 static inline void print_tree(String *out,
                               const char *tree_name,

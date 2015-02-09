@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2001, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2001, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -27,7 +27,6 @@ Created 2011-02-15 Jimmy Yang
 
 /********************************************************************
 Callback function to fetch the rows in an FTS INDEX record. */
-
 ibool
 fts_optimize_index_fetch_node(
 /*==========================*/

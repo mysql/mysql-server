@@ -6569,4 +6569,109 @@ eval EXPLAIN $query;
 eval $query;
 DROP TABLE t1,t2;
 
+--echo #
+--echo # Bug#18174394 BLOBS: CRASH AFTER UNINITIALIZED VALUES IN ITEM_FIELD::STR_RESULT
+--echo #
+## Fixed by the patch for
+## BUG#18447874: WRONG RESULT COMING FROM SEMI-JOIN
+## BUG#18223655: ASSERTION FAILED: (INT)IDX >= 0 && IDX < PARENT_JOIN->TABLES
+
+CREATE TABLE t1(d BLOB, b BLOB);
+INSERT INTO t1(d,b) VALUES ('aaaa',''),('bnbb','');
+
+--error ER_SUBQUERY_NO_1_ROW
+SELECT 1 FROM t1
+WHERE (SELECT b FROM t1) IN (SELECT (d>=1) FROM t1);
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#19779600: ASSERT FAILED IN REPLACE_SUBCONDITION WITH IN
+--echo #               PREDICATE INSIDE IN PREDICATE
+--echo #
+
+CREATE TABLE t(X INT) ENGINE=InnoDB;
+INSERT INTO t VALUES (1);
+ANALYZE TABLE t;
+
+let $query=SELECT 1 FROM t WHERE (1 IN (SELECT 1 FROM t)) IN (SELECT 1 FROM t);
+eval EXPLAIN $query;
+eval $query;
+
+DROP TABLE t;
+
+--echo #
+--echo # Bug#19465034 ASSERT ON SETUP_SEMIJOIN_DUPS_ELIMINATION IN SQL/SQL_SELECT.CC
+--echo #
+
+CREATE TABLE t1 (
+  pk INTEGER NOT NULL,
+  i1 INTEGER NOT NULL,
+  PRIMARY KEY (pk)
+) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES (1,1);
+
+CREATE TABLE t2 (
+  pk INTEGER NOT NULL,
+  c1 VARCHAR(1) NOT NULL,
+  PRIMARY KEY (pk),
+  KEY c1_key (c1)
+) ENGINE=InnoDB;
+
+INSERT INTO t2 VALUES (1,'j'),(2,'v'),(3,'c');
+
+CREATE TABLE t3 (
+  pk INTEGER NOT NULL,
+  c1 VARCHAR(1) NOT NULL,
+  PRIMARY KEY (pk),
+  KEY c1_key (c1)
+) ENGINE=InnoDB;
+
+INSERT INTO t3 VALUES (10,'v'),(11,'s');
+
+ANALYZE TABLE t1, t2, t3;
+
+let $query=
+SELECT *
+FROM t1 JOIN t2 ON t1.i1 >= t2.pk
+WHERE t2.c1 IN (
+  SELECT  t3.c1
+  FROM t3
+  WHERE t3.pk < 3
+);
+
+eval EXPLAIN $query;
+eval $query;
+
+DROP TABLE t1,t2,t3;
+
+--echo #
+--echo # Bug#19586047: CRASH IN ARG_COMPARATOR::SET_CMP_FUNC
+--echo #
+
+CREATE TABLE t1(x INT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+ANALYZE TABLE t1;
+
+let $query=SELECT 1 FROM t1 WHERE EXISTS(SELECT 1) IN (SELECT 1 FROM t1);
+eval EXPLAIN $query;
+eval $query;
+
+let $query=
+SELECT 1 FROM t1 WHERE (SELECT 1, 2 FROM t1) IN (SELECT 1, 2 FROM t1);
+eval EXPLAIN $query;
+eval $query;
+
+--echo # The next query is supposed to return zero rows. In some cases
+--echo # it returns one row, because of bug#19822406.
+
+let $query=
+SELECT 1 FROM t1 WHERE
+  (SELECT 1, 2 FROM t1 WHERE x = 2) IN (SELECT 1, 2 FROM t1);
+eval EXPLAIN $query;
+eval $query;
+
+DROP TABLE t1;
+
 # New tests go here.

@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,14 +20,16 @@
   Text .frm files management routines
 */
 
-#include "sql_priv.h"
 #include "parse_file.h"
-#include "unireg.h"                            // CREATE_MODE
 #include "sql_table.h"                        // build_table_filename
 #include <errno.h>
 #include <m_ctype.h>
 #include <my_sys.h>
 #include <my_dir.h>
+#include "mysqld.h"                           // reg_ext
+#include "mysqld_error.h"                     // ER_*
+#include "sql_const.h"                        // CREATE_MODE
+#include "sql_list.h"                         // List_iterator_fast
 
 /* from sql_db.cc */
 extern long mysql_rm_arc_files(THD *thd, MY_DIR *dirp, const char *org_path);
@@ -386,7 +388,8 @@ sql_parse_prepare(const LEX_STRING *file_name, MEM_ROOT *mem_root,
     DBUG_RETURN(0);
   }
 
-  if (!(buff= (char*) alloc_root(mem_root, stat_info.st_size+1)))
+  if (!(buff= (char*) alloc_root(mem_root,
+                                 static_cast<size_t>(stat_info.st_size)+1)))
   {
     DBUG_RETURN(0);
   }
@@ -397,7 +400,8 @@ sql_parse_prepare(const LEX_STRING *file_name, MEM_ROOT *mem_root,
     DBUG_RETURN(0);
   }
   
-  if ((len= mysql_file_read(file, (uchar *)buff, stat_info.st_size,
+  if ((len= mysql_file_read(file, (uchar *)buff,
+                            static_cast<size_t>(stat_info.st_size),
                             MYF(MY_WME))) == MY_FILE_ERROR)
   {
     mysql_file_close(file, MYF(MY_WME));

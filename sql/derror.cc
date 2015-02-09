@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,8 +21,6 @@
   Read language depeneded messagefile
 */
 
-#include "sql_priv.h"
-#include "unireg.h"
 #include "derror.h"
 #include "mysys_err.h"
 #include "mysqld.h"                             // lc_messages_dir
@@ -37,8 +35,8 @@ C_MODE_START
 static const char **get_server_errmsgs()
 {
   if (!current_thd)
-    return DEFAULT_ERRMSGS;
-  return CURRENT_THD_ERRMSGS;
+    return my_default_lc_messages->errmsgs->errmsgs;
+  return current_thd->variables.lc_messages->errmsgs->errmsgs;
 }
 C_MODE_END
 
@@ -80,7 +78,7 @@ bool init_errmessage(void)
     DBUG_RETURN(TRUE);
   }
 
-  DEFAULT_ERRMSGS= errmsgs;             /* Init global variable */
+  my_default_lc_messages->errmsgs->errmsgs= errmsgs; /* Init global variable */
   init_myfunc_errs();			/* Init myfunc messages */
   DBUG_RETURN(FALSE);
 }

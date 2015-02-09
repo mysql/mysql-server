@@ -86,8 +86,6 @@
 */
 
 #define MYSQL_SERVER 1
-#include "sql_priv.h"
-#include "unireg.h"
 #include "sql_cache.h"                          // query_cache_*
 #include "sql_show.h"                           // append_identifier
 #include "sql_table.h"                         // build_table_filename
@@ -1470,7 +1468,7 @@ void ha_myisammrg::update_create_info(HA_CREATE_INFO *create_info)
       {
         TABLE_LIST *ptr;
 
-        if (!(ptr= (TABLE_LIST *) thd->calloc(sizeof(TABLE_LIST))))
+        if (!(ptr= (TABLE_LIST *) thd->mem_calloc(sizeof(TABLE_LIST))))
           goto err;
 
         if (!(ptr->table_name= thd->strmake(child_table->table_name,

@@ -1,10 +1,13 @@
 --disable_warnings
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
+--enable_warnings
+
+--disable_warnings
 DROP TABLE IF EXISTS t2;
 --enable_warnings
 CREATE TABLE t2(c1 CHAR(50) NULL);
 CREATE UNIQUE INDEX i1 ON t2(c1);
 SHOW TABLES; 
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
  
  
  --replace_result $ENGINE ENGINE PAGE_CHECKSUM=0 ""
@@ -12,7 +15,6 @@ let $ENGINE=`select variable_value from information_schema.global_variables wher
 CREATE TABLE t2(c1 VARCHAR(50) NULL);
 CREATE UNIQUE INDEX i1 ON t2(c1);
 SHOW TABLES; 
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
  
  
  --replace_result $ENGINE ENGINE PAGE_CHECKSUM=0 ""
@@ -20,7 +22,6 @@ let $ENGINE=`select variable_value from information_schema.global_variables wher
 CREATE TABLE t2(c1 BINARY(50) NULL);
 CREATE UNIQUE INDEX i1 ON t2(c1);
 SHOW TABLES; 
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
  
  
  --replace_result $ENGINE ENGINE PAGE_CHECKSUM=0 ""
@@ -28,7 +29,6 @@ let $ENGINE=`select variable_value from information_schema.global_variables wher
 CREATE TABLE t2(c1 VARBINARY(50) NULL);
 CREATE UNIQUE INDEX i1 ON t2(c1);
 SHOW TABLES; 
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
  
  
  --replace_result $ENGINE ENGINE PAGE_CHECKSUM=0 ""
@@ -36,7 +36,6 @@ let $ENGINE=`select variable_value from information_schema.global_variables wher
 CREATE TABLE t2(c1 CHAR(50) NOT NULL);
 CREATE UNIQUE INDEX i1 ON t2(c1);
 SHOW TABLES; 
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
  
  
  --replace_result $ENGINE ENGINE PAGE_CHECKSUM=0 ""
@@ -44,7 +43,6 @@ let $ENGINE=`select variable_value from information_schema.global_variables wher
 CREATE TABLE t2(c1 VARCHAR(50) NOT NULL);
 CREATE UNIQUE INDEX i1 ON t2(c1);
 SHOW TABLES; 
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
  
  
  --replace_result $ENGINE ENGINE PAGE_CHECKSUM=0 ""
@@ -52,7 +50,6 @@ let $ENGINE=`select variable_value from information_schema.global_variables wher
 CREATE TABLE t2(c1 BINARY(50) NOT NULL);
 CREATE UNIQUE INDEX i1 ON t2(c1);
 SHOW TABLES; 
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
  
  
  --replace_result $ENGINE ENGINE PAGE_CHECKSUM=0 ""
@@ -60,7 +57,6 @@ let $ENGINE=`select variable_value from information_schema.global_variables wher
 CREATE TABLE t2(c1 VARBINARY(50) NOT NULL);
 CREATE UNIQUE INDEX i1 ON t2(c1);
 SHOW TABLES; 
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
  
  
  --replace_result $ENGINE ENGINE PAGE_CHECKSUM=0 ""

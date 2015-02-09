@@ -33,9 +33,7 @@
   currently running transactions etc will not be disrupted.
 */
 
-#include "sql_priv.h"
 #include "sql_servers.h"
-#include "unireg.h"
 #include "sql_base.h"                           // close_mysql_tables
 #include "records.h"          // init_read_record, end_read_record
 #include "hash_filo.h"

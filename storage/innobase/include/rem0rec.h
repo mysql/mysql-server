@@ -32,10 +32,8 @@ Created 5/30/1994 Heikki Tuuri
 #include "mtr0types.h"
 #include "page0types.h"
 #include "trx0types.h"
-#ifndef DBUG_OFF
-# include <ostream>
-# include <sstream>
-#endif /* !DBUG_OFF */
+#include <ostream>
+#include <sstream>
 
 /* Info bit denoting the predefined minimum record: this bit is set
 if and only if the record is the first user record on a non-leaf
@@ -90,7 +88,7 @@ significant bit denotes that the tail of a field is stored off-page. */
 
 /* Number of elements that should be initially allocated for the
 offsets[] array, first passed to rec_get_offsets() */
-#define REC_OFFS_NORMAL_SIZE	OFFS_IN_REC_NORMAL_SIZE	
+#define REC_OFFS_NORMAL_SIZE	OFFS_IN_REC_NORMAL_SIZE
 #define REC_OFFS_SMALL_SIZE	10
 
 /******************************************************//**
@@ -103,7 +101,7 @@ rec_get_next_ptr_const(
 /*===================*/
 	const rec_t*	rec,	/*!< in: physical record */
 	ulint		comp)	/*!< in: nonzero=compact page format */
-	__attribute__((nonnull, pure, warn_unused_result));
+	__attribute__((warn_unused_result));
 /******************************************************//**
 The following function is used to get the pointer of the next chained record
 on the same page.
@@ -114,7 +112,7 @@ rec_get_next_ptr(
 /*=============*/
 	rec_t*	rec,	/*!< in: physical record */
 	ulint	comp)	/*!< in: nonzero=compact page format */
-	__attribute__((nonnull, pure, warn_unused_result));
+	__attribute__((warn_unused_result));
 /******************************************************//**
 The following function is used to get the offset of the
 next chained record on the same page.
@@ -125,7 +123,7 @@ rec_get_next_offs(
 /*==============*/
 	const rec_t*	rec,	/*!< in: physical record */
 	ulint		comp)	/*!< in: nonzero=compact page format */
-	__attribute__((nonnull, pure, warn_unused_result));
+	__attribute__((warn_unused_result));
 /******************************************************//**
 The following function is used to set the next record offset field
 of an old-style record. */
@@ -155,7 +153,7 @@ ulint
 rec_get_n_fields_old(
 /*=================*/
 	const rec_t*	rec)	/*!< in: physical record */
-	__attribute__((nonnull, pure, warn_unused_result));
+	__attribute__((warn_unused_result));
 /******************************************************//**
 The following function is used to get the number of fields
 in a record.
@@ -166,7 +164,7 @@ rec_get_n_fields(
 /*=============*/
 	const rec_t*		rec,	/*!< in: physical record */
 	const dict_index_t*	index)	/*!< in: record descriptor */
-	__attribute__((nonnull, pure, warn_unused_result));
+	__attribute__((warn_unused_result));
 /******************************************************//**
 The following function is used to get the number of records owned by the
 previous directory record.
@@ -176,7 +174,7 @@ ulint
 rec_get_n_owned_old(
 /*================*/
 	const rec_t*	rec)	/*!< in: old-style physical record */
-	__attribute__((nonnull, pure, warn_unused_result));
+	__attribute__((warn_unused_result));
 /******************************************************//**
 The following function is used to set the number of owned records. */
 UNIV_INLINE
@@ -195,7 +193,7 @@ ulint
 rec_get_n_owned_new(
 /*================*/
 	const rec_t*	rec)	/*!< in: new-style physical record */
-	__attribute__((nonnull, pure, warn_unused_result));
+	__attribute__((warn_unused_result));
 /******************************************************//**
 The following function is used to set the number of owned records. */
 UNIV_INLINE
@@ -216,7 +214,7 @@ rec_get_info_bits(
 /*==============*/
 	const rec_t*	rec,	/*!< in: physical record */
 	ulint		comp)	/*!< in: nonzero=compact page format */
-	__attribute__((nonnull, pure, warn_unused_result));
+	__attribute__((warn_unused_result));
 /******************************************************//**
 The following function is used to set the info bits of a record. */
 UNIV_INLINE
@@ -243,7 +241,7 @@ ulint
 rec_get_status(
 /*===========*/
 	const rec_t*	rec)	/*!< in: physical record */
-	__attribute__((nonnull, pure, warn_unused_result));
+	__attribute__((warn_unused_result));
 
 /******************************************************//**
 The following function is used to set the status bits of a new-style record. */
@@ -265,7 +263,7 @@ rec_get_info_and_status_bits(
 /*=========================*/
 	const rec_t*	rec,	/*!< in: physical record */
 	ulint		comp)	/*!< in: nonzero=compact page format */
-	__attribute__((nonnull, pure, warn_unused_result));
+	__attribute__((warn_unused_result));
 /******************************************************//**
 The following function is used to set the info and status
 bits of a record.  (Only compact records have status bits.) */
@@ -286,7 +284,7 @@ rec_get_deleted_flag(
 /*=================*/
 	const rec_t*	rec,	/*!< in: physical record */
 	ulint		comp)	/*!< in: nonzero=compact page format */
-	__attribute__((nonnull, pure, warn_unused_result));
+	__attribute__((warn_unused_result));
 /******************************************************//**
 The following function is used to set the deleted bit. */
 UNIV_INLINE
@@ -314,7 +312,7 @@ ibool
 rec_get_node_ptr_flag(
 /*==================*/
 	const rec_t*	rec)	/*!< in: physical record */
-	__attribute__((nonnull, pure, warn_unused_result));
+	__attribute__((warn_unused_result));
 /******************************************************//**
 The following function is used to get the order number
 of an old-style record in the heap of the index page.
@@ -324,7 +322,7 @@ ulint
 rec_get_heap_no_old(
 /*================*/
 	const rec_t*	rec)	/*!< in: physical record */
-	__attribute__((nonnull, pure, warn_unused_result));
+	__attribute__((warn_unused_result));
 /******************************************************//**
 The following function is used to set the heap number
 field in an old-style record. */
@@ -344,7 +342,7 @@ ulint
 rec_get_heap_no_new(
 /*================*/
 	const rec_t*	rec)	/*!< in: physical record */
-	__attribute__((nonnull, pure, warn_unused_result));
+	__attribute__((warn_unused_result));
 /******************************************************//**
 The following function is used to set the heap number
 field in a new-style record. */
@@ -364,7 +362,7 @@ ibool
 rec_get_1byte_offs_flag(
 /*====================*/
 	const rec_t*	rec)	/*!< in: physical record */
-	__attribute__((nonnull, pure, warn_unused_result));
+	__attribute__((warn_unused_result));
 
 /******************************************************//**
 The following function is used to set the 1-byte offsets flag. */
@@ -387,7 +385,7 @@ rec_1_get_field_end_info(
 /*=====================*/
 	const rec_t*	rec,	/*!< in: record */
 	ulint		n)	/*!< in: field index */
-	__attribute__((nonnull, pure, warn_unused_result));
+	__attribute__((warn_unused_result));
 
 /******************************************************//**
 Returns the offset of nth field end if the record is stored in the 2-byte
@@ -401,7 +399,7 @@ rec_2_get_field_end_info(
 /*=====================*/
 	const rec_t*	rec,	/*!< in: record */
 	ulint		n)	/*!< in: field index */
-	__attribute__((nonnull, pure, warn_unused_result));
+	__attribute__((warn_unused_result));
 
 /******************************************************//**
 Returns nonzero if the field is stored off-page.
@@ -413,13 +411,12 @@ rec_2_is_field_extern(
 /*==================*/
 	const rec_t*	rec,	/*!< in: record */
 	ulint		n)	/*!< in: field index */
-	__attribute__((nonnull, pure, warn_unused_result));
+	__attribute__((warn_unused_result));
 
 /******************************************************//**
 Determine how many of the first n columns in a compact
 physical record are stored externally.
 @return number of externally stored columns */
-
 ulint
 rec_get_n_extern_new(
 /*=================*/
@@ -432,7 +429,6 @@ rec_get_n_extern_new(
 The following function determines the offsets to each field
 in the record.	It can reuse a previously allocated array.
 @return the new offsets */
-
 ulint*
 rec_get_offsets_func(
 /*=================*/
@@ -467,7 +463,6 @@ rec_get_offsets_func(
 /******************************************************//**
 The following function determines the offsets to each field
 in the record.  It can reuse a previously allocated array. */
-
 void
 rec_get_offsets_reverse(
 /*====================*/
@@ -514,7 +509,6 @@ rec_offs_make_valid(
 The following function is used to get the offset to the nth
 data field in an old-style record.
 @return offset to the field */
-
 ulint
 rec_get_nth_field_offs_old(
 /*=======================*/
@@ -536,7 +530,7 @@ rec_get_nth_field_size(
 /*===================*/
 	const rec_t*	rec,	/*!< in: record */
 	ulint		n)	/*!< in: index of the field */
-	__attribute__((nonnull, pure, warn_unused_result));
+	__attribute__((warn_unused_result));
 /************************************************************//**
 The following function is used to get an offset to the nth
 data field in a record.
@@ -561,7 +555,7 @@ ulint
 rec_offs_comp(
 /*==========*/
 	const ulint*	offsets)/*!< in: array returned by rec_get_offsets() */
-	__attribute__((nonnull, pure, warn_unused_result));
+	__attribute__((warn_unused_result));
 /******************************************************//**
 Determine if the offsets are for a record containing
 externally stored columns.
@@ -571,7 +565,7 @@ ulint
 rec_offs_any_extern(
 /*================*/
 	const ulint*	offsets)/*!< in: array returned by rec_get_offsets() */
-	__attribute__((nonnull, pure, warn_unused_result));
+	__attribute__((warn_unused_result));
 /******************************************************//**
 Determine if the offsets are for a record containing null BLOB pointers.
 @return first field containing a null BLOB pointer, or NULL if none found */
@@ -581,7 +575,7 @@ rec_offs_any_null_extern(
 /*=====================*/
 	const rec_t*	rec,		/*!< in: record */
 	const ulint*	offsets)	/*!< in: rec_get_offsets(rec) */
-	__attribute__((nonnull, pure, warn_unused_result));
+	__attribute__((warn_unused_result));
 /******************************************************//**
 Returns nonzero if the extern bit is set in nth field of rec.
 @return nonzero if externally stored */
@@ -591,7 +585,7 @@ rec_offs_nth_extern(
 /*================*/
 	const ulint*	offsets,/*!< in: array returned by rec_get_offsets() */
 	ulint		n)	/*!< in: nth field */
-	__attribute__((nonnull, pure, warn_unused_result));
+	__attribute__((warn_unused_result));
 
 /** Mark the nth field as externally stored.
 @param[in]	offsets		array returned by rec_get_offsets()
@@ -609,7 +603,7 @@ rec_offs_nth_sql_null(
 /*==================*/
 	const ulint*	offsets,/*!< in: array returned by rec_get_offsets() */
 	ulint		n)	/*!< in: nth field */
-	__attribute__((nonnull, pure, warn_unused_result));
+	__attribute__((warn_unused_result));
 /******************************************************//**
 Gets the physical size of a field.
 @return length of field */
@@ -619,7 +613,7 @@ rec_offs_nth_size(
 /*==============*/
 	const ulint*	offsets,/*!< in: array returned by rec_get_offsets() */
 	ulint		n)	/*!< in: nth field */
-	__attribute__((nonnull, pure, warn_unused_result));
+	__attribute__((warn_unused_result));
 
 /******************************************************//**
 Returns the number of extern bits set in a record.
@@ -629,7 +623,7 @@ ulint
 rec_offs_n_extern(
 /*==============*/
 	const ulint*	offsets)/*!< in: array returned by rec_get_offsets() */
-	__attribute__((nonnull, pure, warn_unused_result));
+	__attribute__((warn_unused_result));
 /***********************************************************//**
 This is used to modify the value of an already existing field in a record.
 The previous value must have exactly the same size as the new value. If len
@@ -661,7 +655,7 @@ ulint
 rec_get_data_size_old(
 /*==================*/
 	const rec_t*	rec)	/*!< in: physical record */
-	__attribute__((nonnull, pure, warn_unused_result));
+	__attribute__((warn_unused_result));
 /**********************************************************//**
 The following function returns the number of allocated elements
 for an array of offsets.
@@ -671,7 +665,7 @@ ulint
 rec_offs_get_n_alloc(
 /*=================*/
 	const ulint*	offsets)/*!< in: array for rec_get_offsets() */
-	__attribute__((nonnull, pure, warn_unused_result));
+	__attribute__((warn_unused_result));
 /**********************************************************//**
 The following function sets the number of allocated elements
 for an array of offsets. */
@@ -693,7 +687,7 @@ ulint
 rec_offs_n_fields(
 /*==============*/
 	const ulint*	offsets)/*!< in: array returned by rec_get_offsets() */
-	__attribute__((nonnull, pure, warn_unused_result));
+	__attribute__((warn_unused_result));
 /**********************************************************//**
 The following function returns the data size of a physical
 record, that is the sum of field lengths. SQL null fields
@@ -705,7 +699,7 @@ ulint
 rec_offs_data_size(
 /*===============*/
 	const ulint*	offsets)/*!< in: array returned by rec_get_offsets() */
-	__attribute__((nonnull, pure, warn_unused_result));
+	__attribute__((warn_unused_result));
 /**********************************************************//**
 Returns the total size of record minus data size of record.
 The value returned by the function is the distance from record
@@ -716,7 +710,7 @@ ulint
 rec_offs_extra_size(
 /*================*/
 	const ulint*	offsets)/*!< in: array returned by rec_get_offsets() */
-	__attribute__((nonnull, pure, warn_unused_result));
+	__attribute__((warn_unused_result));
 /**********************************************************//**
 Returns the total size of a physical record.
 @return size */
@@ -725,7 +719,7 @@ ulint
 rec_offs_size(
 /*==========*/
 	const ulint*	offsets)/*!< in: array returned by rec_get_offsets() */
-	__attribute__((nonnull, pure, warn_unused_result));
+	__attribute__((warn_unused_result));
 #ifdef UNIV_DEBUG
 /**********************************************************//**
 Returns a pointer to the start of the record.
@@ -736,7 +730,7 @@ rec_get_start(
 /*==========*/
 	const rec_t*	rec,	/*!< in: pointer to record */
 	const ulint*	offsets)/*!< in: array returned by rec_get_offsets() */
-	__attribute__((nonnull, pure, warn_unused_result));
+	__attribute__((warn_unused_result));
 /**********************************************************//**
 Returns a pointer to the end of the record.
 @return pointer to end */
@@ -746,7 +740,7 @@ rec_get_end(
 /*========*/
 	const rec_t*	rec,	/*!< in: pointer to record */
 	const ulint*	offsets)/*!< in: array returned by rec_get_offsets() */
-	__attribute__((nonnull, pure, warn_unused_result));
+	__attribute__((warn_unused_result));
 #else /* UNIV_DEBUG */
 # define rec_get_start(rec, offsets) ((rec) - rec_offs_extra_size(offsets))
 # define rec_get_end(rec, offsets) ((rec) + rec_offs_data_size(offsets))
@@ -766,7 +760,6 @@ rec_copy(
 /**********************************************************//**
 Determines the size of a data tuple prefix in a temporary file.
 @return total size */
-
 ulint
 rec_get_converted_size_temp(
 /*========================*/
@@ -779,7 +772,6 @@ rec_get_converted_size_temp(
 /******************************************************//**
 Determine the offset to each field in temporary file.
 @see rec_convert_dtuple_to_temp() */
-
 void
 rec_init_offsets_temp(
 /*==================*/
@@ -792,7 +784,6 @@ rec_init_offsets_temp(
 /*********************************************************//**
 Builds a temporary file record out of a data tuple.
 @see rec_init_offsets_temp() */
-
 void
 rec_convert_dtuple_to_temp(
 /*=======================*/
@@ -806,7 +797,6 @@ rec_convert_dtuple_to_temp(
 Copies the first n fields of a physical record to a new physical record in
 a buffer.
 @return own: copied record */
-
 rec_t*
 rec_copy_prefix_to_buf(
 /*===================*/
@@ -832,13 +822,12 @@ rec_fold(
 	ulint		n_fields,	/*!< in: number of complete
 					fields to fold */
 	index_id_t	tree_id)	/*!< in: index tree id */
-	__attribute__((nonnull, pure, warn_unused_result));
+	__attribute__((warn_unused_result));
 #endif /* !UNIV_HOTBACKUP */
 /*********************************************************//**
 Builds a physical record out of a data tuple and
 stores it into the given buffer.
 @return pointer to the origin of physical record */
-
 rec_t*
 rec_convert_dtuple_to_rec(
 /*======================*/
@@ -864,7 +853,6 @@ rec_get_converted_extra_size(
 /**********************************************************//**
 Determines the size of a data tuple prefix in ROW_FORMAT=COMPACT.
 @return total size */
-
 ulint
 rec_get_converted_size_comp_prefix(
 /*===============================*/
@@ -876,7 +864,6 @@ rec_get_converted_size_comp_prefix(
 /**********************************************************//**
 Determines the size of a data tuple in ROW_FORMAT=COMPACT.
 @return total size */
-
 ulint
 rec_get_converted_size_comp(
 /*========================*/
@@ -905,7 +892,6 @@ rec_get_converted_size(
 /**************************************************************//**
 Copies the first n fields of a physical record to a data tuple.
 The fields are copied to the memory heap. */
-
 void
 rec_copy_prefix_to_dtuple(
 /*======================*/
@@ -920,7 +906,6 @@ rec_copy_prefix_to_dtuple(
 /***************************************************************//**
 Validates the consistency of a physical record.
 @return TRUE if ok */
-
 ibool
 rec_validate(
 /*=========*/
@@ -929,7 +914,6 @@ rec_validate(
 	__attribute__((nonnull));
 /***************************************************************//**
 Prints an old-style physical record. */
-
 void
 rec_print_old(
 /*==========*/
@@ -940,7 +924,6 @@ rec_print_old(
 /***************************************************************//**
 Prints a physical record in ROW_FORMAT=COMPACT.  Ignores the
 record header. */
-
 void
 rec_print_comp(
 /*===========*/
@@ -950,7 +933,6 @@ rec_print_comp(
 	__attribute__((nonnull));
 /***************************************************************//**
 Prints a spatial index record. */
-
 void
 rec_print_mbr_rec(
 /*==========*/
@@ -960,7 +942,6 @@ rec_print_mbr_rec(
 	__attribute__((nonnull));
 /***************************************************************//**
 Prints a physical record. */
-
 void
 rec_print_new(
 /*==========*/
@@ -970,7 +951,6 @@ rec_print_new(
 	__attribute__((nonnull));
 /***************************************************************//**
 Prints a physical record. */
-
 void
 rec_print(
 /*======*/
@@ -979,19 +959,61 @@ rec_print(
 	const dict_index_t*	index)	/*!< in: record descriptor */
 	__attribute__((nonnull));
 
-# ifndef DBUG_OFF
-/***************************************************************//**
-Prints a physical record. */
-
+/** Pretty-print a record.
+@param[in,out]	o	output stream
+@param[in]	rec	physical record
+@param[in]	info	rec_get_info_bits(rec)
+@param[in]	offsets	rec_get_offsets(rec) */
 void
 rec_print(
-/*======*/
-	std::ostream&	o,	/*!< in/out: output stream */
-	const rec_t*	rec,	/*!< in: physical record */
-	ulint		info,	/*!< in: rec_get_info_bits(rec) */
-	const ulint*	offsets)/*!< in: array returned by rec_get_offsets() */
-	__attribute__((nonnull));
+	std::ostream&	o,
+	const rec_t*	rec,
+	ulint		info,
+	const ulint*	offsets);
 
+/** Wrapper for pretty-printing a record */
+struct rec_index_print
+{
+	/** Constructor */
+	rec_index_print(const rec_t* rec, const dict_index_t* index) :
+		m_rec(rec), m_index(index)
+	{}
+
+	/** Record */
+	const rec_t*		m_rec;
+	/** Index */
+	const dict_index_t*	m_index;
+};
+
+/** Display a record.
+@param[in,out]	o	output stream
+@param[in]	r	record to display
+@return	the output stream */
+std::ostream&
+operator<<(std::ostream& o, const rec_index_print& r);
+
+/** Wrapper for pretty-printing a record */
+struct rec_offsets_print
+{
+	/** Constructor */
+	rec_offsets_print(const rec_t* rec, const ulint* offsets) :
+		m_rec(rec), m_offsets(offsets)
+	{}
+
+	/** Record */
+	const rec_t*		m_rec;
+	/** Offsets to each field */
+	const ulint*		m_offsets;
+};
+
+/** Display a record.
+@param[in,out]	o	output stream
+@param[in]	r	record to display
+@return	the output stream */
+std::ostream&
+operator<<(std::ostream& o, const rec_offsets_print& r);
+
+# ifndef DBUG_OFF
 /** Pretty-printer of records and tuples */
 class rec_printer : public std::ostringstream {
 public:
@@ -1052,7 +1074,6 @@ private:
 /************************************************************//**
 Reads the DB_TRX_ID of a clustered index record.
 @return the value of DB_TRX_ID */
-
 trx_id_t
 rec_get_trx_id(
 /*===========*/

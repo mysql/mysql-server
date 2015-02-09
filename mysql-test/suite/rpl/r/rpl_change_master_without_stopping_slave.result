@@ -31,19 +31,19 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 CHANGE MASTER TO MASTER_AUTO_POSITION= 1;
-ERROR HY000: This operation cannot be performed with a running slave; run STOP SLAVE first
+ERROR HY000: This operation cannot be performed with a running replication threads; run STOP SLAVE FOR CHANNEL '' first
 CHANGE MASTER TO RELAY_LOG_FILE= 'RELAY_LOG_FILE';
-ERROR HY000: This operation cannot be performed with a running slave sql thread; run STOP SLAVE SQL_THREAD first
+ERROR HY000: This operation cannot be performed with a running slave sql thread; run STOP SLAVE SQL_THREAD FOR CHANNEL '' first.
 CHANGE MASTER TO RELAY_LOG_POS= RELAY_LOG_POS;
-ERROR HY000: This operation cannot be performed with a running slave sql thread; run STOP SLAVE SQL_THREAD first
+ERROR HY000: This operation cannot be performed with a running slave sql thread; run STOP SLAVE SQL_THREAD FOR CHANNEL '' first.
 CHANGE MASTER TO MASTER_DELAY= 10;
-ERROR HY000: This operation cannot be performed with a running slave sql thread; run STOP SLAVE SQL_THREAD first
+ERROR HY000: This operation cannot be performed with a running slave sql thread; run STOP SLAVE SQL_THREAD FOR CHANNEL '' first.
 CHANGE MASTER TO MASTER_RETRY_COUNT= 1, RELAY_LOG_FILE= 'RELAY_LOG_FILE';
-ERROR HY000: This operation cannot be performed with a running slave sql thread; run STOP SLAVE SQL_THREAD first
+ERROR HY000: This operation cannot be performed with a running slave sql thread; run STOP SLAVE SQL_THREAD FOR CHANNEL '' first.
 CHANGE MASTER TO MASTER_RETRY_COUNT= 1, RELAY_LOG_POS= RELAY_LOG_POS;
-ERROR HY000: This operation cannot be performed with a running slave sql thread; run STOP SLAVE SQL_THREAD first
+ERROR HY000: This operation cannot be performed with a running slave sql thread; run STOP SLAVE SQL_THREAD FOR CHANNEL '' first.
 CHANGE MASTER TO MASTER_RETRY_COUNT= 1, MASTER_DELAY=10;
-ERROR HY000: This operation cannot be performed with a running slave sql thread; run STOP SLAVE SQL_THREAD first
+ERROR HY000: This operation cannot be performed with a running slave sql thread; run STOP SLAVE SQL_THREAD FOR CHANNEL '' first.
 
 With applier stopped and receiver running, we should be able to change
 applier options. Setting receiver options should throw the correct error
@@ -55,51 +55,51 @@ CHANGE MASTER TO RELAY_LOG_FILE= 'RELAY_LOG_FILE';
 CHANGE MASTER TO RELAY_LOG_POS= RELAY_LOG_POS;
 CHANGE MASTER TO MASTER_DELAY= 10;
 CHANGE MASTER TO MASTER_AUTO_POSITION= 1;
-ERROR HY000: This operation cannot be performed with a running slave; run STOP SLAVE first
+ERROR HY000: This operation cannot be performed with a running replication threads; run STOP SLAVE FOR CHANNEL '' first
 CHANGE MASTER TO MASTER_HOST= 'localhost';
-ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first.
+ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD FOR CHANNEL '' first.
 CHANGE MASTER TO MASTER_USER= 'replssl';
-ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first.
+ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD FOR CHANNEL '' first.
 CHANGE MASTER TO  MASTER_PASSWORD= '';
-ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first.
-ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first.
+ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD FOR CHANNEL '' first.
+ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD FOR CHANNEL '' first.
 CHANGE MASTER TO MASTER_CONNECT_RETRY= 20;
-ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first.
+ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD FOR CHANNEL '' first.
 CHANGE MASTER TO MASTER_RETRY_COUNT= 1;
-ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first.
-ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first.
-ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first.
+ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD FOR CHANNEL '' first.
+ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD FOR CHANNEL '' first.
+ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD FOR CHANNEL '' first.
 CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD= 20;
-ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first.
+ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD FOR CHANNEL '' first.
 CHANGE MASTER TO MASTER_SSL= 1;
-ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first.
-ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first.
-ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first.
-ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first.
+ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD FOR CHANNEL '' first.
+ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD FOR CHANNEL '' first.
+ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD FOR CHANNEL '' first.
+ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD FOR CHANNEL '' first.
 CHANGE MASTER TO MASTER_SSL_VERIFY_SERVER_CERT= 1;
-ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first.
+ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD FOR CHANNEL '' first.
 CHANGE MASTER TO MASTER_DELAY=10, MASTER_HOST= 'localhost';
-ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first.
+ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD FOR CHANNEL '' first.
 CHANGE MASTER TO MASTER_DELAY=10, MASTER_USER= 'replssl';
-ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first.
+ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD FOR CHANNEL '' first.
 CHANGE MASTER TO MASTER_DELAY=10, MASTER_PASSWORD= '';
-ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first.
-ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first.
+ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD FOR CHANNEL '' first.
+ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD FOR CHANNEL '' first.
 CHANGE MASTER TO MASTER_DELAY=10, MASTER_CONNECT_RETRY= 20;
-ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first.
+ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD FOR CHANNEL '' first.
 CHANGE MASTER TO MASTER_DELAY=10, MASTER_RETRY_COUNT= 1;
-ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first.
-ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first.
-ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first.
+ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD FOR CHANNEL '' first.
+ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD FOR CHANNEL '' first.
+ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD FOR CHANNEL '' first.
 CHANGE MASTER TO MASTER_DELAY= 10, MASTER_HEARTBEAT_PERIOD= 20;
-ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first.
+ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD FOR CHANNEL '' first.
 CHANGE MASTER TO MASTER_DELAY=10, MASTER_SSL=1;
-ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first.
-ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first.
-ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first.
-ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first.
+ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD FOR CHANNEL '' first.
+ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD FOR CHANNEL '' first.
+ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD FOR CHANNEL '' first.
+ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD FOR CHANNEL '' first.
 CHANGE MASTER TO MASTER_DELAY= 10, MASTER_SSL_VERIFY_SERVER_CERT= 1;
-ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first.
+ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD FOR CHANNEL '' first.
 include/stop_slave.inc
 
 cleanup

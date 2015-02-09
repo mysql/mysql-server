@@ -33,9 +33,7 @@ Created 5/30/1994 Heikki Tuuri
 #include "mem0mem.h"
 #include "dict0types.h"
 
-#ifndef DBUG_OFF
-# include <ostream>
-#endif /* !DBUG_OFF */
+#include <ostream>
 
 /** Storage for overflow data in a big record, that is, a clustered
 index record which needs external storage of data fields */
@@ -305,7 +303,6 @@ dtuple_create(
 /*********************************************************************//**
 Sets number of fields used in a tuple. Normally this is set in
 dtuple_create, but if you want later to set it smaller, you can use this. */
-
 void
 dtuple_set_n_fields(
 /*================*/
@@ -349,7 +346,6 @@ dtuple_get_n_ext(
 @param[in] tuple2 second data tuple
 @return positive, 0, negative if tuple1 is greater, equal, less, than tuple2,
 respectively */
-
 int
 dtuple_coll_cmp(
 	const dtuple_t*	tuple1,
@@ -365,7 +361,7 @@ dtuple_fold(
 	const dtuple_t*	tuple,	/*!< in: the tuple */
 	ulint		n_fields,/*!< in: number of complete fields to fold */
 	index_id_t	tree_id)/*!< in: index tree id */
-	__attribute__((nonnull, pure, warn_unused_result));
+	__attribute__((warn_unused_result));
 /*******************************************************************//**
 Sets types of fields binary in a tuple. */
 UNIV_INLINE
@@ -387,7 +383,6 @@ dtuple_contains_null(
 /**********************************************************//**
 Checks that a data field is typed. Asserts an error if not.
 @return TRUE if ok */
-
 ibool
 dfield_check_typed(
 /*===============*/
@@ -396,7 +391,6 @@ dfield_check_typed(
 /**********************************************************//**
 Checks that a data tuple is typed. Asserts an error if not.
 @return TRUE if ok */
-
 ibool
 dtuple_check_typed(
 /*===============*/
@@ -405,7 +399,6 @@ dtuple_check_typed(
 /**********************************************************//**
 Checks that a data tuple is typed.
 @return TRUE if ok */
-
 ibool
 dtuple_check_typed_no_assert(
 /*=========================*/
@@ -416,7 +409,6 @@ dtuple_check_typed_no_assert(
 Validates the consistency of a tuple which must be complete, i.e,
 all fields must have been set.
 @return TRUE if ok */
-
 ibool
 dtuple_validate(
 /*============*/
@@ -425,7 +417,6 @@ dtuple_validate(
 #endif /* UNIV_DEBUG */
 /*************************************************************//**
 Pretty prints a dfield value according to its data type. */
-
 void
 dfield_print(
 /*=========*/
@@ -434,7 +425,6 @@ dfield_print(
 /*************************************************************//**
 Pretty prints a dfield value according to its data type. Also the hex string
 is printed if a string contains non-printable characters. */
-
 void
 dfield_print_also_hex(
 /*==================*/
@@ -442,34 +432,41 @@ dfield_print_also_hex(
 	__attribute__((nonnull));
 /**********************************************************//**
 The following function prints the contents of a tuple. */
-
 void
 dtuple_print(
 /*=========*/
 	FILE*		f,	/*!< in: output stream */
 	const dtuple_t*	tuple)	/*!< in: tuple */
 	__attribute__((nonnull));
-#ifndef DBUG_OFF
-/** Print the contents of a tuple.
-@param o output stream
-@param field array of data fields
-@param n number of data fields */
 
+/** Print the contents of a tuple.
+@param[out]	o	output stream
+@param[in]	field	array of data fields
+@param[in]	n	number of data fields */
 void
 dfield_print(
 	std::ostream&	o,
 	const dfield_t*	field,
 	ulint		n);
 /** Print the contents of a tuple.
-@param o output stream
-@param tuple data tuple */
-
+@param[out]	o	output stream
+@param[in]	tuple	data tuple */
 void
 dtuple_print(
-/*=========*/
 	std::ostream&	o,
 	const dtuple_t*	tuple);
-#endif /* DBUG_OFF */
+
+/** Print the contents of a tuple.
+@param[out]	o	output stream
+@param[in]	tuple	data tuple */
+inline
+std::ostream&
+operator<<(std::ostream& o, const dtuple_t& tuple)
+{
+	dtuple_print(o, &tuple);
+	return(o);
+}
+
 /**************************************************************//**
 Moves parts of long fields in entry to the big record vector so that
 the size of tuple drops below the maximum record size allowed in the
@@ -478,7 +475,6 @@ to determine uniquely the insertion place of the tuple in the index.
 @return own: created big record vector, NULL if we are not able to
 shorten the entry enough, i.e., if there are too many fixed-length or
 short fields in entry or the index is clustered */
-
 big_rec_t*
 dtuple_convert_big_rec(
 /*===================*/
@@ -492,7 +488,6 @@ dtuple_convert_big_rec(
 Puts back to entry the data stored in vector. Note that to ensure the
 fields in entry can accommodate the data, vector must have been created
 from entry with dtuple_convert_big_rec. */
-
 void
 dtuple_convert_back_big_rec(
 /*========================*/

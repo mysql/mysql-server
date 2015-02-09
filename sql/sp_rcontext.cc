@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,8 +13,7 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "sql_priv.h"
-#include "unireg.h"
+#include "my_global.h"
 #include "mysql.h"
 #include "sp.h"                                // sp_eval_expr
 #include "sql_cursor.h"
@@ -98,7 +97,7 @@ bool sp_rcontext::alloc_arrays(THD *thd)
     size_t n= m_root_parsing_ctx->get_num_case_exprs();
     m_case_expr_holders.reset(
       static_cast<Item_cache **> (
-        thd->calloc(n * sizeof (Item_cache*))),
+        thd->mem_calloc(n * sizeof (Item_cache*))),
       n);
   }
 

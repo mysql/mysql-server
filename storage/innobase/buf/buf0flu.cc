@@ -312,7 +312,6 @@ buf_flush_block_cmp(
 Initialize the red-black tree to speed up insertions into the flush_list
 during recovery process. Should be called at the start of recovery
 process before any page has been read/written. */
-
 void
 buf_flush_init_flush_rbt(void)
 /*==========================*/
@@ -338,7 +337,6 @@ buf_flush_init_flush_rbt(void)
 
 /********************************************************************//**
 Frees up the red-black tree. */
-
 void
 buf_flush_free_flush_rbt(void)
 /*==========================*/
@@ -365,7 +363,6 @@ buf_flush_free_flush_rbt(void)
 
 /********************************************************************//**
 Inserts a modified block into the flush list. */
-
 void
 buf_flush_insert_into_flush_list(
 /*=============================*/
@@ -424,7 +421,6 @@ buf_flush_insert_into_flush_list(
 Inserts a modified block into the flush list in the right sorted position.
 This function is used by recovery, because there the modifications do not
 necessarily come in the order of lsn's. */
-
 void
 buf_flush_insert_sorted_into_flush_list(
 /*====================================*/
@@ -518,7 +514,6 @@ buf_flush_insert_sorted_into_flush_list(
 Returns TRUE if the file page block is immediately suitable for replacement,
 i.e., the transition FILE_PAGE => NOT_USED allowed.
 @return TRUE if can replace immediately */
-
 ibool
 buf_flush_ready_for_replace(
 /*========================*/
@@ -548,7 +543,6 @@ buf_flush_ready_for_replace(
 /********************************************************************//**
 Returns true if the block is modified and ready for flushing.
 @return true if can flush immediately */
-
 bool
 buf_flush_ready_for_flush(
 /*======================*/
@@ -588,7 +582,6 @@ buf_flush_ready_for_flush(
 
 /********************************************************************//**
 Remove a block from the flush list of modified blocks. */
-
 void
 buf_flush_remove(
 /*=============*/
@@ -659,7 +652,6 @@ use the current list node (bpage) to do the list manipulation because
 the list pointers could have changed between the time that we copied
 the contents of bpage to the dpage and the flush list manipulation
 below. */
-
 void
 buf_flush_relocate_on_flush_list(
 /*=============================*/
@@ -726,7 +718,6 @@ buf_flush_relocate_on_flush_list(
 
 /********************************************************************//**
 Updates the flush system data structures when a write is completed. */
-
 void
 buf_flush_write_complete(
 /*=====================*/
@@ -777,7 +768,6 @@ buf_flush_update_zip_checksum(
 
 /********************************************************************//**
 Initializes a page for writing to the tablespace. */
-
 void
 buf_flush_init_for_writing(
 /*=======================*/
@@ -788,7 +778,6 @@ buf_flush_init_for_writing(
 	bool	skip_checksum)	/*!< in: if true, disable/skip checksum. */
 {
 	ib_uint32_t	checksum = BUF_NO_CHECKSUM_MAGIC;
-					/* silence bogus gcc warning */
 
 	ut_ad(page);
 
@@ -838,48 +827,47 @@ buf_flush_init_for_writing(
 	mach_write_to_8(page + UNIV_PAGE_SIZE - FIL_PAGE_END_LSN_OLD_CHKSUM,
 			newest_lsn);
 
-	if (!skip_checksum) {
-		/* Store the new formula checksum */
-
+	if (skip_checksum) {
+		mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM, checksum);
+	} else {
 		switch ((srv_checksum_algorithm_t) srv_checksum_algorithm) {
 		case SRV_CHECKSUM_ALGORITHM_CRC32:
 		case SRV_CHECKSUM_ALGORITHM_STRICT_CRC32:
 			checksum = buf_calc_page_crc32(page);
+			mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM,
+					checksum);
 			break;
 		case SRV_CHECKSUM_ALGORITHM_INNODB:
 		case SRV_CHECKSUM_ALGORITHM_STRICT_INNODB:
 			checksum = (ib_uint32_t) buf_calc_page_new_checksum(
 				page);
+			mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM,
+					checksum);
+			checksum = (ib_uint32_t) buf_calc_page_old_checksum(
+				page);
 			break;
 		case SRV_CHECKSUM_ALGORITHM_NONE:
 		case SRV_CHECKSUM_ALGORITHM_STRICT_NONE:
-			checksum = BUF_NO_CHECKSUM_MAGIC;
+			mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM,
+					checksum);
 			break;
 			/* no default so the compiler will emit a warning if
 			new enum is added and not handled here */
 		}
 	}
 
-	mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM, checksum);
+	/* With the InnoDB checksum, we overwrite the first 4 bytes of
+	the end lsn field to store the old formula checksum. Since it
+	depends also on the field FIL_PAGE_SPACE_OR_CHKSUM, it has to
+	be calculated after storing the new formula checksum.
 
-	/* We overwrite the first 4 bytes of the end lsn field to store
-	the old formula checksum. Since it depends also on the field
-	FIL_PAGE_SPACE_OR_CHKSUM, it has to be calculated after storing the
-	new formula checksum. */
-
-	if (srv_checksum_algorithm == SRV_CHECKSUM_ALGORITHM_STRICT_INNODB
-	    || srv_checksum_algorithm == SRV_CHECKSUM_ALGORITHM_INNODB) {
-
-		checksum = (ib_uint32_t) buf_calc_page_old_checksum(page);
-
-		/* In other cases we use the value assigned from above.
-		If CRC32 is used then it is faster to use that checksum
-		(calculated above) instead of calculating another one.
-		We can afford to store something other than
-		buf_calc_page_old_checksum() or BUF_NO_CHECKSUM_MAGIC in
-		this field because the file will not be readable by old
-		versions of MySQL/InnoDB anyway (older than MySQL 5.6.3) */
-	}
+	In other cases we write the same value to both fields.
+	If CRC32 is used then it is faster to use that checksum
+	(calculated above) instead of calculating another one.
+	We can afford to store something other than
+	buf_calc_page_old_checksum() or BUF_NO_CHECKSUM_MAGIC in
+	this field because the file will not be readable by old
+	versions of MySQL/InnoDB anyway (older than MySQL 5.6.3) */
 
 	mach_write_to_4(page + UNIV_PAGE_SIZE - FIL_PAGE_END_LSN_OLD_CHKSUM,
 			checksum);
@@ -1011,7 +999,6 @@ writes! NOTE: buf_pool->mutex and buf_page_get_mutex(bpage) must be
 held upon entering this function, and they will be released by this
 function if it returns true.
 @return TRUE if the page was flushed */
-
 ibool
 buf_flush_page(
 /*===========*/
@@ -1114,7 +1101,6 @@ NOTE: buf_pool->mutex and block->mutex must be held upon entering this
 function, and they will be released by this function after flushing.
 This is loosely based on buf_flush_batch() and buf_flush_page().
 @return TRUE if the page was flushed and the mutexes released */
-
 ibool
 buf_flush_page_try(
 /*===============*/
@@ -1354,26 +1340,24 @@ buf_flush_try_neighbors(
 	return(count);
 }
 
-/********************************************************************//**
-Check if the block is modified and ready for flushing. If the the block
-is ready to flush then flush the page and try o flush its neighbors.
-
+/** Check if the block is modified and ready for flushing.
+If the the block is ready to flush then flush the page and try o flush
+its neighbors.
+@param[in]	bpage		buffer control block,
+must be buf_page_in_file(bpage)
+@param[in]	flush_type	BUF_FLUSH_LRU or BUF_FLUSH_LIST
+@param[in]	n_to_flush	number of pages to flush
+@param[in,out]	count		number of pages flushed
 @return TRUE if buf_pool mutex was released during this function.
 This does not guarantee that some pages were written as well.
 Number of pages written are incremented to the count. */
 static
 bool
 buf_flush_page_and_try_neighbors(
-/*=============================*/
-	buf_page_t*	bpage,		/*!< in: buffer control block,
-					must be
-					buf_page_in_file(bpage) */
-	buf_flush_t	flush_type,	/*!< in: BUF_FLUSH_LRU
-					or BUF_FLUSH_LIST */
-	ulint		n_to_flush,	/*!< in: number of pages to
-					flush */
-	ulint*		count)		/*!< in/out: number of pages
-					flushed */
+	buf_page_t*		bpage,
+	buf_flush_t		flush_type,
+	ulint			n_to_flush,
+	ulint*			count)
 {
 #ifdef UNIV_DEBUG
 	buf_pool_t*	buf_pool = buf_pool_from_bpage(bpage);
@@ -1604,26 +1588,22 @@ buf_do_LRU_batch(
 	return(count);
 }
 
-/*******************************************************************//**
-This utility flushes dirty blocks from the end of the flush_list.
-the calling thread is not allowed to own any latches on pages!
+/** This utility flushes dirty blocks from the end of the flush_list.
+The calling thread is not allowed to own any latches on pages!
+@param[in]	buf_pool	buffer pool instance
+@param[in]	min_n		wished minimum mumber of blocks flushed (it is
+not guaranteed that the actual number is that big, though)
+@param[in]	lsn_limit	all blocks whose oldest_modification is smaller
+than this should be flushed (if their number does not exceed min_n)
 @return number of blocks for which the write request was queued;
 ULINT_UNDEFINED if there was a flush of the same type already
 running */
 static
 ulint
 buf_do_flush_list_batch(
-/*====================*/
-	buf_pool_t*	buf_pool,	/*!< in: buffer pool instance */
-	ulint		min_n,		/*!< in: wished minimum mumber
-					of blocks flushed (it is not
-					guaranteed that the actual
-					number is that big, though) */
-	lsn_t		lsn_limit)	/*!< all blocks whose
-					oldest_modification is smaller
-					than this should be flushed (if
-					their number does not exceed
-					min_n) */
+	buf_pool_t*		buf_pool,
+	ulint			min_n,
+	lsn_t			lsn_limit)
 {
 	ulint		count = 0;
 	ulint		scanned = 0;
@@ -1692,33 +1672,29 @@ buf_do_flush_list_batch(
 	return(count);
 }
 
-/*******************************************************************//**
-This utility flushes dirty blocks from the end of the LRU list or flush_list.
+/** This utility flushes dirty blocks from the end of the LRU list or
+flush_list.
 NOTE 1: in the case of an LRU flush the calling thread may own latches to
 pages: to avoid deadlocks, this function must be written so that it cannot
 end up waiting for these latches! NOTE 2: in the case of a flush list flush,
 the calling thread is not allowed to own any latches on pages!
+@param[in]	buf_pool	buffer pool instance
+@param[in]	flush_type	BUF_FLUSH_LRU or BUF_FLUSH_LIST; if
+BUF_FLUSH_LIST, then the caller must not own any latches on pages
+@param[in]	min_n		wished minimum mumber of blocks flushed (it is
+not guaranteed that the actual number is that big, though)
+@param[in]	lsn_limit	in the case of BUF_FLUSH_LIST all blocks whose
+oldest_modification is smaller than this should be flushed (if their number
+does not exceed min_n), otherwise ignored
 @return number of blocks for which the write request was queued */
 static
 ulint
 buf_flush_batch(
-/*============*/
-	buf_pool_t*	buf_pool,	/*!< in: buffer pool instance */
-	buf_flush_t	flush_type,	/*!< in: BUF_FLUSH_LRU or
-					BUF_FLUSH_LIST; if BUF_FLUSH_LIST,
-					then the caller must not own any
-					latches on pages */
-	ulint		min_n,		/*!< in: wished minimum mumber of blocks
-					flushed (it is not guaranteed that the
-					actual number is that big, though) */
-	lsn_t		lsn_limit)	/*!< in: in the case of BUF_FLUSH_LIST
-					all blocks whose oldest_modification is
-					smaller than this should be flushed
-					(if their number does not exceed
-					min_n), otherwise ignored */
+	buf_pool_t*		buf_pool,
+	buf_flush_t		flush_type,
+	ulint			min_n,
+	lsn_t			lsn_limit)
 {
-	ulint		count	= 0;
-
 	ut_ad(flush_type == BUF_FLUSH_LRU || flush_type == BUF_FLUSH_LIST);
 
 	{
@@ -1729,6 +1705,8 @@ buf_flush_batch(
 	}
 
 	buf_pool_mutex_enter(buf_pool);
+
+	ulint	count = 0;
 
 	/* Note: The buffer pool mutex is released and reacquired within
 	the flush functions. */
@@ -1838,7 +1816,6 @@ buf_flush_end(
 
 /******************************************************************//**
 Waits until a flush batch of the given type ends */
-
 void
 buf_flush_wait_batch_end(
 /*=====================*/
@@ -1880,20 +1857,17 @@ does not exceed min_n), otherwise ignored
 passed back to caller. Ignored if NULL
 @retval true	if a batch was queued successfully.
 @retval false	if another batch of same type was already running. */
-
 bool
 buf_flush_do_batch(
-	buf_pool_t*	buf_pool,
-	buf_flush_t	type,
-	ulint		min_n,
-	lsn_t		lsn_limit,
-	ulint*		n_processed)
+	buf_pool_t*		buf_pool,
+	buf_flush_t		type,
+	ulint			min_n,
+	lsn_t			lsn_limit,
+	ulint*			n_processed)
 {
-	ulint		page_count;
-
 	ut_ad(type == BUF_FLUSH_LRU || type == BUF_FLUSH_LIST);
 
-	if (n_processed) {
+	if (n_processed != NULL) {
 		*n_processed = 0;
 	}
 
@@ -1901,40 +1875,35 @@ buf_flush_do_batch(
 		return(false);
 	}
 
-	page_count = buf_flush_batch(buf_pool, type, min_n, lsn_limit);
+	ulint	page_count = buf_flush_batch(buf_pool, type, min_n, lsn_limit);
 
 	buf_flush_end(buf_pool, type);
 
-	if (n_processed) {
+	if (n_processed != NULL) {
 		*n_processed = page_count;
 	}
 
 	return(true);
 }
 
-/*******************************************************************//**
-This utility flushes dirty blocks from the end of the flush list of
-all buffer pool instances.
+/** This utility flushes dirty blocks from the end of the flush list of all
+buffer pool instances.
 NOTE: The calling thread is not allowed to own any latches on pages!
+@param[in]	min_n		wished minimum mumber of blocks flushed (it is
+not guaranteed that the actual number is that big, though)
+@param[in]	lsn_limit	in the case BUF_FLUSH_LIST all blocks whose
+oldest_modification is smaller than this should be flushed (if their number
+does not exceed min_n), otherwise ignored
+@param[out]	n_processed	the number of pages which were processed is
+passed back to caller. Ignored if NULL.
 @return true if a batch was queued successfully for each buffer pool
 instance. false if another batch of same type was already running in
 at least one of the buffer pool instance */
-
 bool
 buf_flush_lists(
-/*============*/
-	ulint		min_n,		/*!< in: wished minimum mumber of blocks
-					flushed (it is not guaranteed that the
-					actual number is that big, though) */
-	lsn_t		lsn_limit,	/*!< in the case BUF_FLUSH_LIST all
-					blocks whose oldest_modification is
-					smaller than this should be flushed
-					(if their number does not exceed
-					min_n), otherwise ignored */
-	ulint*		n_processed)	/*!< out: the number of pages
-					which were processed is passed
-					back to caller. Ignored if NULL */
-
+	ulint			min_n,
+	lsn_t			lsn_limit,
+	ulint*			n_processed)
 {
 	ulint		i;
 	ulint		n_flushed = 0;
@@ -2002,7 +1971,6 @@ they are unable to find a replaceable page at the tail of the LRU
 list i.e.: when the background LRU flushing in the page_cleaner thread
 is not fast enough to keep pace with the workload.
 @return true if success. */
-
 bool
 buf_flush_single_page_from_LRU(
 /*===========================*/
@@ -2142,7 +2110,6 @@ Clears up tail of the LRU lists:
 The depth to which we scan each buffer pool is controlled by dynamic
 config parameter innodb_LRU_scan_depth.
 @return total pages flushed */
-
 ulint
 buf_flush_LRU_lists(void)
 /*=====================*/
@@ -2163,7 +2130,6 @@ buf_flush_LRU_lists(void)
 
 /*********************************************************************//**
 Wait for any possible LRU flushes that are in progress to end. */
-
 void
 buf_flush_wait_LRU_batch_end(void)
 /*==============================*/
@@ -2401,7 +2367,6 @@ pc_sleep_if_needed(
 
 /******************************************************************//**
 Initialize page_cleaner. */
-
 void
 buf_flush_page_cleaner_init(void)
 /*=============================*/
@@ -2925,7 +2890,6 @@ DECLARE_THREAD(buf_flush_page_cleaner_worker)(
 Synchronously flush dirty blocks from the end of the flush list of all buffer
 pool instances.
 NOTE: The calling thread is not allowed to own any latches on pages! */
-
 void
 buf_flush_sync_all_buf_pools(void)
 /*==============================*/
@@ -3017,7 +2981,6 @@ buf_flush_validate_low(
 /******************************************************************//**
 Validates the flush list.
 @return TRUE if ok */
-
 ibool
 buf_flush_validate(
 /*===============*/
@@ -3041,7 +3004,6 @@ buf_flush_validate(
 Check if there are any dirty pages that belong to a space id in the flush
 list in a particular buffer pool.
 @return number of dirty pages present in a single buffer pool */
-
 ulint
 buf_pool_get_dirty_pages_count(
 /*===========================*/
@@ -3078,7 +3040,6 @@ buf_pool_get_dirty_pages_count(
 /******************************************************************//**
 Check if there are any dirty pages that belong to a space id in the flush list.
 @return number of dirty pages present in all the buffer pools */
-
 ulint
 buf_flush_get_dirty_pages_count(
 /*============================*/

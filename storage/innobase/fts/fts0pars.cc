@@ -1932,7 +1932,6 @@ ftserror(
 
 /********************************************************************
 Create a fts_lexer_t instance.*/
-
 fts_lexer_t*
 fts_lexer_create(
 /*=============*/
@@ -1983,7 +1982,6 @@ fts_lexer_free(
 
 /********************************************************************
 Call the appropaiate scanner.*/
-
 int
 fts_lexer(
 /*======*/

@@ -2191,3 +2191,21 @@ a1	a2
 2	2
 DROP TRIGGER t1_bu;
 DROP TABLE t1;
+SET @sql_mode_saved = @@sql_mode;
+SET sql_mode='';
+CREATE TABLE t1(a INT, b INT NOT NULL);
+INSERT INTO t1(a) VALUES (1);
+Warnings:
+Warning	1364	Field 'b' doesn't have a default value
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1364	Field 'b' doesn't have a default value
+CREATE TRIGGER t1_trg_after_del AFTER DELETE ON t1 FOR EACH ROW SET @a := 1;
+INSERT INTO t1(a) VALUES (1);
+Warnings:
+Warning	1364	Field 'b' doesn't have a default value
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1364	Field 'b' doesn't have a default value
+SET sql_mode = @sql_mode_saved;
+DROP TABLE t1;

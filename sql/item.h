@@ -17,10 +17,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
-#include "sql_priv.h"                /* STRING_BUFFER_USUAL_SIZE */
-#include "unireg.h"
 #include "sql_const.h"                 /* RAND_TABLE_BIT, MAX_FIELD_NAME */
-#include "unireg.h"                    // REQUIRED: for other includes
 #include "thr_malloc.h"                         /* sql_calloc */
 #include "field.h"                              /* Derivation */
 #include "sql_array.h"
@@ -987,7 +984,7 @@ public:
     RETURN
       The output range bound, which equal to the value of val_int()
         - If the value of the function is NULL then the bound is the 
-          smallest possible value of LONGLONG_MIN 
+          smallest possible value of LLONG_MIN 
   */
   virtual longlong val_int_endpoint(bool left_endp, bool *incl_endp)
   { DBUG_ASSERT(0); return 0; }
@@ -1293,7 +1290,7 @@ protected:
 
     @return The value val_int() should return.
   */
-  longlong error_int()
+  int error_int()
   {
     null_value= maybe_null;
     return 0;
@@ -3225,13 +3222,13 @@ public:
   longlong val_int()
   {
     DBUG_ASSERT(fixed == 1);
-    if (value <= (double) LONGLONG_MIN)
+    if (value <= (double) LLONG_MIN)
     {
-       return LONGLONG_MIN;
+       return LLONG_MIN;
     }
-    else if (value >= (double) (ulonglong) LONGLONG_MAX)
+    else if (value >= (double) (ulonglong) LLONG_MAX)
     {
-      return LONGLONG_MAX;
+      return LLONG_MAX;
     }
     return (longlong) rint(value);
   }
@@ -4173,6 +4170,7 @@ public:
 #include "gstream.h"
 #include "spatial.h"
 #include "item_sum.h"
+#include "set_var.h"                            /* enum_var_type */
 #include "item_func.h"
 #include "item_row.h"
 #include "item_cmpfunc.h"
@@ -4329,7 +4327,7 @@ public:
   }
   virtual longlong val_int()
   {
-    return null_value ? LL(0) : cached_value;
+    return null_value ? 0LL : cached_value;
   }
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   {

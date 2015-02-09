@@ -1,0 +1,69 @@
+#
+# Bug#19424075 	WRITE/SYNC REDO LOG BEFORE FLUSH THREAD CACHE TO BINLOG
+#
+# Verify that a transaction can not be recovered during server
+# recovery from a crash, which happened after flushing it to
+# InnoDB redo log and before flushing it to binary log. And
+# a transaction can be recovered during server recovery from
+# a crash, which happened after flushing it to binary log.
+#
+--source include/not_embedded.inc
+--source include/not_valgrind.inc
+--source include/have_log_bin.inc
+-- source include/have_debug.inc
+-- source include/have_innodb.inc
+
+CREATE TABLE t1(c1 INT) ENGINE= InnoDB;
+
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--echo # Crash right after flushing InnoDB redo log
+SET SESSION DEBUG="+d,crash_after_flush_engine_log";
+BEGIN;
+INSERT INTO t1 VALUES(1);
+# 2013 - CR_SERVER_LOST
+--error 2013
+COMMIT;
+--source include/wait_until_disconnected.inc
+
+--enable_reconnect
+--echo # Restart the master server
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+
+--echo #
+--echo # Verify that a transaction can not be recovered during server
+--echo # recovery from a crash, which happened after flushing it to
+--echo # InnoDB redo log and before flushing it to binary log.
+--echo #
+--let $assert_text= Table t1 must not contain 1
+--let $assert_cond= [SELECT count(*) FROM t1 WHERE c1=1] = 0
+--source include/assert.inc
+
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--echo # Crash right after flushing binary log
+SET SESSION DEBUG="+d,crash_after_flush_binlog";
+BEGIN;
+INSERT INTO t1 VALUES(2);
+# 2013 - CR_SERVER_LOST
+--error 2013
+COMMIT;
+--source include/wait_until_disconnected.inc
+
+--enable_reconnect
+--echo # Restart the master server
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+
+--echo #
+--echo # Verify that a transaction can be recovered during server
+--echo # recovery from a crash, which happened after flushing it
+--echo # to binary log.
+--echo #
+--let $assert_text= Table t1 must contain 2
+--let $assert_cond= [SELECT count(*) FROM t1 WHERE c1=2] = 1
+--source include/assert.inc
+
+# Cleanup
+DROP TABLE t1;

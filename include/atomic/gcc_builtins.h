@@ -66,12 +66,22 @@ static inline int64 my_atomic_fas64(int64 volatile *a, int64 v)
   return __sync_lock_test_and_set(a, v);
 }
 
+static inline void * my_atomic_fasptr(void * volatile *a, void * v)
+{
+  return __sync_lock_test_and_set(a, v);
+}
+
 static inline int32 my_atomic_load32(int32 volatile *a)
 {
   return __sync_fetch_and_or(a, 0);
 }
 
 static inline int64 my_atomic_load64(int64 volatile *a)
+{
+  return __sync_fetch_and_or(a, 0);
+}
+
+static inline void* my_atomic_loadptr(void * volatile *a)
 {
   return __sync_fetch_and_or(a, 0);
 }

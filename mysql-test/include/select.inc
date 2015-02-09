@@ -4339,3 +4339,20 @@ SELECT a, COUNT(*) FROM t1 WHERE 0;
 DROP TABLE t1;
 
 --echo # End of test BUG#13571700
+
+--echo #
+--echo # Bug #18766378: CRASH IN ITEM_SUM_BIT::RESET_FIELD
+--echo #
+CREATE TABLE t1(b int);
+CREATE TABLE t2(a int);
+INSERT INTO t1 VALUES (),();
+INSERT INTO t2 VALUES (),();
+SELECT
+( SELECT 1 FROM t1 GROUP BY a
+  HAVING avg(distinct 1) ORDER BY max(a)
+)
+FROM  t1, t2
+GROUP BY a;
+
+DROP TABLE t1,t2;
+echo # End of test BUG#18766378

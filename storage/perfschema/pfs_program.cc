@@ -349,7 +349,7 @@ void drop_program(PFS_thread *thread,
   return;
 }
 
-void PFS_program::referesh_setup_object_flags(PFS_thread *thread)
+void PFS_program::refresh_setup_object_flags(PFS_thread *thread)
 {
   lookup_setup_object(thread, m_type,
                       m_schema_name, m_schema_name_length,

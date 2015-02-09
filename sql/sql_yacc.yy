@@ -33,8 +33,6 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #define YYMAXDEPTH 3200                        /* Because of 64K stack */
 #define Lex (YYTHD->lex)
 #define Select Lex->current_select()
-#include "sql_priv.h"
-#include "unireg.h"                    // REQUIRED: for other includes
 #include "sql_parse.h"                        /* comp_*_creator */
 #include "sql_table.h"                        /* primary_key_name */
 #include "sql_partition.h"  /* mem_alloc_error, partition_info, HASH_PARTITION */
@@ -42,6 +40,9 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #include "password.h"       /* my_make_scrambled_password_323, my_make_scrambled_password */
 #include "sql_class.h"      /* Key_part_spec, enum_filetype */
 #include "rpl_slave.h"
+#include "rpl_msr.h"       /* multisource replication */
+#include "rpl_filter.h"
+#include "log_event.h"
 #include "lex_symbol.h"
 #include "item_create.h"
 #include "sp_head.h"
@@ -67,6 +68,7 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #include "rpl_slave.h"                       // Sql_cmd_change_repl_filter
 #include "parse_location.h"
 #include "parse_tree_helpers.h"
+#include "lex_token.h"
 
 /* this is to get the bison compilation windows warnings out */
 #ifdef _MSC_VER
@@ -381,7 +383,7 @@ static bool add_create_index_prepare (LEX *lex, Table_ident *table)
   return FALSE;
 }
 
-static bool add_create_index (LEX *lex, Key::Keytype type,
+static bool add_create_index (LEX *lex, keytype type,
                               const LEX_STRING &name,
                               KEY_CREATE_INFO *info= NULL, bool generated= 0)
 {
@@ -412,7 +414,7 @@ static bool add_create_index (LEX *lex, Key::Keytype type,
 bool match_authorized_user(Security_context *ctx, LEX_USER *user)
 {
   if(user->user.str && my_strcasecmp(system_charset_info,
-                                     ctx->priv_user,
+                                     ctx->priv_user().str,
                                      user->user.str) == 0)
   {
     /*
@@ -422,7 +424,7 @@ bool match_authorized_user(Security_context *ctx, LEX_USER *user)
     */
     if (user->host.str && my_strcasecmp(system_charset_info,
                                         user->host.str,
-                                        ctx->priv_host) == 0)
+                                        ctx->priv_host().str) == 0)
     {
       /* specified user exactly match the authorized user */
       return true;
@@ -531,6 +533,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  CHAIN_SYM                     /* SQL-2003-N */
 %token  CHANGE
 %token  CHANGED
+%token  CHANNEL_SYM
 %token  CHARSET
 %token  CHAR_SYM                      /* SQL-2003-R */
 %token  CHECKSUM_SYM
@@ -1004,7 +1007,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  STATS_PERSISTENT_SYM
 %token  STATS_SAMPLE_PAGES_SYM
 %token  STATUS_SYM
-%token  NONBLOCKING_SYM
 %token  STDDEV_SAMP_SYM               /* SQL-2003-N */
 %token  STD_SYM
 %token  STOP_SYM
@@ -1756,7 +1758,7 @@ change:
             DBUG_ASSERT(Lex->mi.repl_ignore_server_ids.empty());
             lex->mi.set_unspecified();
           }
-          master_defs
+          master_defs opt_channel
           {}
         | CHANGE REPLICATION FILTER_SYM
           {
@@ -2158,6 +2160,26 @@ master_file_def:
                                                Lex->mi.relay_log_pos);
           }
         ;
+
+opt_channel:
+         /*empty */
+       {
+         Lex->mi.channel= "";
+         Lex->mi.for_channel= false;
+       }
+     | FOR_SYM CHANNEL_SYM TEXT_STRING_sys_nonewline
+       {
+         /*
+           channel names are case insensitive. This means, even the results
+           displayed to the user are converted to lower cases.
+           system_charset_info is utf8_general_ci as required by channel name
+           restrictions
+         */
+         my_casedn_str(system_charset_info, $3.str);
+         Lex->mi.channel= $3.str;
+         Lex->mi.for_channel= true;
+       }
+    ;
 
 /* create a table */
 
@@ -6183,7 +6205,7 @@ key_def:
             if (key == NULL)
               MYSQL_YYABORT;
             lex->alter_info.key_list.push_back(key);
-            if (add_create_index (lex, Key::MULTIPLE, $1.str ? $1 : $4,
+            if (add_create_index (lex, KEYTYPE_MULTIPLE, $1.str ? $1 : $4,
                                   &default_key_create_info, 1))
               MYSQL_YYABORT;
             /* Only used for ALTER TABLE. Ignored otherwise. */
@@ -6646,7 +6668,8 @@ attribute:
         | DEFAULT now_or_signed_literal { Lex->default_value=$2; }
         | ON UPDATE_SYM now
           {
-            Item *item= new (YYTHD->mem_root) Item_func_now_local($3);
+            Item *item= new (YYTHD->mem_root)
+              Item_func_now_local(static_cast<uint8>($3));
             if (item == NULL)
               MYSQL_YYABORT;
             Lex->on_update_value= item;
@@ -6756,7 +6779,8 @@ now:
 now_or_signed_literal:
           now
           {
-            $$= new (YYTHD->mem_root) Item_func_now_local($1);
+            $$= new (YYTHD->mem_root)
+              Item_func_now_local(static_cast<uint8>($1));
             if ($$ == NULL)
               MYSQL_YYABORT;
           }
@@ -7014,32 +7038,32 @@ ref_list:
 
 opt_match_clause:
           /* empty */
-          { Lex->fk_match_option= Foreign_key::FK_MATCH_UNDEF; }
+          { Lex->fk_match_option= FK_MATCH_UNDEF; }
         | MATCH FULL
-          { Lex->fk_match_option= Foreign_key::FK_MATCH_FULL; }
+          { Lex->fk_match_option= FK_MATCH_FULL; }
         | MATCH PARTIAL
-          { Lex->fk_match_option= Foreign_key::FK_MATCH_PARTIAL; }
+          { Lex->fk_match_option= FK_MATCH_PARTIAL; }
         | MATCH SIMPLE_SYM
-          { Lex->fk_match_option= Foreign_key::FK_MATCH_SIMPLE; }
+          { Lex->fk_match_option= FK_MATCH_SIMPLE; }
         ;
 
 opt_on_update_delete:
           /* empty */
           {
             LEX *lex= Lex;
-            lex->fk_update_opt= Foreign_key::FK_OPTION_UNDEF;
-            lex->fk_delete_opt= Foreign_key::FK_OPTION_UNDEF;
+            lex->fk_update_opt= FK_OPTION_UNDEF;
+            lex->fk_delete_opt= FK_OPTION_UNDEF;
           }
         | ON UPDATE_SYM delete_option
           {
             LEX *lex= Lex;
             lex->fk_update_opt= $3;
-            lex->fk_delete_opt= Foreign_key::FK_OPTION_UNDEF;
+            lex->fk_delete_opt= FK_OPTION_UNDEF;
           }
         | ON DELETE_SYM delete_option
           {
             LEX *lex= Lex;
-            lex->fk_update_opt= Foreign_key::FK_OPTION_UNDEF;
+            lex->fk_update_opt= FK_OPTION_UNDEF;
             lex->fk_delete_opt= $3;
           }
         | ON UPDATE_SYM delete_option
@@ -7059,20 +7083,20 @@ opt_on_update_delete:
         ;
 
 delete_option:
-          RESTRICT      { $$= Foreign_key::FK_OPTION_RESTRICT; }
-        | CASCADE       { $$= Foreign_key::FK_OPTION_CASCADE; }
-        | SET NULL_SYM  { $$= Foreign_key::FK_OPTION_SET_NULL; }
-        | NO_SYM ACTION { $$= Foreign_key::FK_OPTION_NO_ACTION; }
-        | SET DEFAULT   { $$= Foreign_key::FK_OPTION_DEFAULT;  }
+          RESTRICT      { $$= FK_OPTION_RESTRICT; }
+        | CASCADE       { $$= FK_OPTION_CASCADE; }
+        | SET NULL_SYM  { $$= FK_OPTION_SET_NULL; }
+        | NO_SYM ACTION { $$= FK_OPTION_NO_ACTION; }
+        | SET DEFAULT   { $$= FK_OPTION_DEFAULT;  }
         ;
 
 normal_key_type:
-          key_or_index { $$= Key::MULTIPLE; }
+          key_or_index { $$= KEYTYPE_MULTIPLE; }
         ;
 
 constraint_key_type:
-          PRIMARY_SYM KEY_SYM { $$= Key::PRIMARY; }
-        | UNIQUE_SYM opt_key_or_index { $$= Key::UNIQUE; }
+          PRIMARY_SYM KEY_SYM { $$= KEYTYPE_PRIMARY; }
+        | UNIQUE_SYM opt_key_or_index { $$= KEYTYPE_UNIQUE; }
         ;
 
 key_or_index:
@@ -7092,18 +7116,18 @@ keys_or_index:
         ;
 
 opt_unique:
-          /* empty */  { $$= Key::MULTIPLE; }
-        | UNIQUE_SYM   { $$= Key::UNIQUE; }
+          /* empty */  { $$= KEYTYPE_MULTIPLE; }
+        | UNIQUE_SYM   { $$= KEYTYPE_UNIQUE; }
         ;
 
 fulltext:
-          FULLTEXT_SYM { $$= Key::FULLTEXT;}
+          FULLTEXT_SYM { $$= KEYTYPE_FULLTEXT;}
         ;
 
 spatial:
           SPATIAL_SYM
           {
-            $$= Key::SPATIAL;
+            $$= KEYTYPE_SPATIAL;
           }
         ;
 
@@ -7473,7 +7497,7 @@ opt_user_password_expiration:
               MYSQL_YYABORT;
             }
             $$.set_password_expire_flag= false;
-            $$.expire_after_days= $2;
+            $$.expire_after_days= static_cast<uint16>($2);
             $$.use_default_password_expiry= false;
           }
         | NEVER_SYM
@@ -8081,6 +8105,17 @@ opt_to:
         ;
 
 slave:
+        slave_start start_slave_opts{}
+      | STOP_SYM SLAVE opt_slave_thread_option_list opt_channel
+        {
+          LEX *lex=Lex;
+          lex->sql_command = SQLCOM_SLAVE_STOP;
+          lex->type = 0;
+          lex->slave_thd_opt= $3;
+        }
+      ;
+
+slave_start:
           START_SYM SLAVE opt_slave_thread_option_list
           {
             LEX *lex=Lex;
@@ -8092,6 +8127,9 @@ slave:
             lex->mi.set_unspecified();
             lex->slave_thd_opt= $3;
           }
+         ;
+
+start_slave_opts:
           slave_until
           slave_connection_opts
           {
@@ -8110,14 +8148,8 @@ slave:
               MYSQL_YYABORT;
             }
           }
-        | STOP_SYM SLAVE opt_slave_thread_option_list
-          {
-            LEX *lex=Lex;
-            lex->sql_command = SQLCOM_SLAVE_STOP;
-            lex->type = 0;
-            lex->slave_thd_opt= $3;
-          }
-        ;
+          opt_channel
+          ;
 
 start:
           START_SYM TRANSACTION_SYM opt_start_transaction_option_list
@@ -8251,7 +8283,11 @@ slave_thread_option:
         ;
 
 slave_until:
-          /*empty*/ {}
+          /*empty*/
+          {
+            LEX *lex= Lex;
+            lex->mi.slave_until= false;
+          }
         | UNTIL_SYM slave_until_opts
           {
             LEX *lex=Lex;
@@ -8273,6 +8309,7 @@ slave_until:
                           ER(ER_BAD_SLAVE_UNTIL_COND), MYF(0));
                MYSQL_YYABORT;
             }
+            lex->mi.slave_until= true;
           }
         ;
 
@@ -9359,7 +9396,7 @@ function_call_nonkeyword:
           }
         | CURTIME func_datetime_precision
           {
-            $$= NEW_PTN Item_func_curtime_local(@$, $2);
+            $$= NEW_PTN Item_func_curtime_local(@$, static_cast<uint8>($2));
           }
         | DATE_ADD_INTERVAL '(' expr ',' INTERVAL_SYM expr interval ')'
           %prec INTERVAL_SYM
@@ -9381,7 +9418,8 @@ function_call_nonkeyword:
           }
         | now
           {
-            $$= NEW_PTN PTI_function_call_nonkeyword_now(@$, $1);
+            $$= NEW_PTN PTI_function_call_nonkeyword_now(@$,
+              static_cast<uint8>($1));
           }
         | POSITION_SYM '(' bit_expr IN_SYM expr ')'
           {
@@ -9413,7 +9451,8 @@ function_call_nonkeyword:
           }
         | SYSDATE func_datetime_precision
           {
-            $$= NEW_PTN PTI_function_call_nonkeyword_sysdate(@$, $2);
+            $$= NEW_PTN PTI_function_call_nonkeyword_sysdate(@$,
+              static_cast<uint8>($2));
           }
         | TIMESTAMP_ADD '(' interval_time_stamp ',' expr ',' expr ')'
           {
@@ -9429,11 +9468,11 @@ function_call_nonkeyword:
           }
         | UTC_TIME_SYM func_datetime_precision
           {
-            $$= NEW_PTN Item_func_curtime_utc(@$, $2);
+            $$= NEW_PTN Item_func_curtime_utc(@$, static_cast<uint8>($2));
           }
         | UTC_TIMESTAMP_SYM func_datetime_precision
           {
-            $$= NEW_PTN Item_func_now_utc(@$, $2);
+            $$= NEW_PTN Item_func_now_utc(@$, static_cast<uint8>($2));
           }
         ;
 
@@ -10630,13 +10669,13 @@ opt_procedure_analyse_params:
           }
         | procedure_analyse_param
           {
-            $$.max_tree_elements= $1;
+            $$.max_tree_elements= static_cast<uint>($1);
             $$.max_treemem= Proc_analyse_params::default_max_treemem;
           }
         | procedure_analyse_param ',' procedure_analyse_param
           {
-            $$.max_tree_elements= $1;
-            $$.max_treemem= $3;
+            $$.max_tree_elements= static_cast<uint>($1);
+            $$.max_treemem= static_cast<uint>($3);
           }
         ;
 
@@ -11376,7 +11415,7 @@ opt_delete_options:
         ;
 
 opt_delete_option:
-          QUICK        { Select->options|= OPTION_QUICK; }
+          QUICK        { Select->add_base_options(OPTION_QUICK); }
         | LOW_PRIORITY
         {
           YYPS->m_lock_type= TL_WRITE_LOW_PRIORITY;
@@ -11573,7 +11612,7 @@ show_param:
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_SHOW_RELAYLOG_EVENTS;
           }
-          opt_limit_clause
+          opt_limit_clause opt_channel
           {
             if ($6 != NULL)
               CONTEXTUALIZE($6);
@@ -11729,11 +11768,7 @@ show_param:
           {
             Lex->sql_command = SQLCOM_SHOW_MASTER_STAT;
           }
-        | SLAVE STATUS_SYM NONBLOCKING_SYM
-          {
-            Lex->sql_command = SQLCOM_SHOW_SLAVE_STAT_NONBLOCKING;
-          }
-        | SLAVE STATUS_SYM
+        | SLAVE STATUS_SYM opt_channel
           {
             Lex->sql_command = SQLCOM_SHOW_SLAVE_STAT;
           }
@@ -12033,7 +12068,7 @@ flush_option:
           { Lex->type|= REFRESH_SLOW_LOG; }
         | BINARY LOGS_SYM
           { Lex->type|= REFRESH_BINARY_LOG; }
-        | RELAY LOGS_SYM
+        | RELAY LOGS_SYM opt_channel
           { Lex->type|= REFRESH_RELAY_LOG; }
         | QUERY_SYM CACHE_SYM
           { Lex->type|= REFRESH_QUERY_CACHE_FREE; }
@@ -12075,7 +12110,7 @@ reset_options:
 
 reset_option:
           SLAVE               { Lex->type|= REFRESH_SLAVE; }
-          slave_reset_options { }
+          slave_reset_options opt_channel
         | MASTER_SYM          { Lex->type|= REFRESH_MASTER; }
         | QUERY_SYM CACHE_SYM { Lex->type|= REFRESH_QUERY_CACHE;}
         ;
@@ -12434,9 +12469,16 @@ literal:
         | temporal_literal
         | NULL_SYM
           {
+            Lex_input_stream *lip= YYLIP;
+            /*
+              For the digest computation, in this context only,
+              NULL is considered a literal, hence reduced to '?'
+              REDUCE:
+                TOK_GENERIC_VALUE := NULL_SYM
+            */
+            lip->reduce_digest_token(TOK_GENERIC_VALUE, NULL_SYM);
             $$= NEW_PTN Item_null(@$);
-
-            YYLIP->next_state= MY_LEX_OPERATOR_OR_IDENT;
+            lip->next_state= MY_LEX_OPERATOR_OR_IDENT;
           }
         | FALSE_SYM
           {
@@ -12950,6 +12992,7 @@ keyword_sp:
         | CATALOG_NAME_SYM         {}
         | CHAIN_SYM                {}
         | CHANGED                  {}
+        | CHANNEL_SYM              {}
         | CIPHER_SYM               {}
         | CLIENT_SYM               {}
         | CLASS_ORIGIN_SYM         {}
@@ -13351,7 +13394,7 @@ opt_var_ident_type:
         | SESSION_SYM '.' { $$=OPT_SESSION; }
         ;
 
-// Option values with preceeding option_type.
+// Option values with preceding option_type.
 option_value_following_option_type:
           internal_variable_name equal set_expr_or_default
           {
@@ -13359,7 +13402,7 @@ option_value_following_option_type:
           }
         ;
 
-// Option values without preceeding option_type.
+// Option values without preceding option_type.
 option_value_no_option_type:
           internal_variable_name        /*$1*/
           equal                         /*$2*/

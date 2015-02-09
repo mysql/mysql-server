@@ -15,8 +15,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "sql_priv.h"
-#include "unireg.h"
 #include "sql_base.h"                           // close_thread_tables
 #include "sql_parse.h"                          // parse_sql
 #include "key.h"                                // key_copy
@@ -31,6 +29,8 @@
 #include "lock.h"                               // lock_object_name
 #include "sp.h"
 #include "mysql/psi/mysql_sp.h"
+#include "log.h"
+#include "binlog.h"
 
 #include <my_user.h>
 
@@ -1193,7 +1193,7 @@ bool sp_create_routine(THD *thd, sp_head *sp)
 	  goto done;
 	}
       }
-      if (!(thd->security_ctx->master_access & SUPER_ACL))
+      if (!(thd->security_context()->check_access(SUPER_ACL)))
       {
         my_error(ER_BINLOG_CREATE_ROUTINE_NEED_SUPER,MYF(0));
 	goto done;
@@ -2507,7 +2507,6 @@ uint sp_get_flags_for_command(LEX *lex)
   case SQLCOM_SHOW_PROC_CODE:
   case SQLCOM_SHOW_SLAVE_HOSTS:
   case SQLCOM_SHOW_SLAVE_STAT:
-  case SQLCOM_SHOW_SLAVE_STAT_NONBLOCKING:
   case SQLCOM_SHOW_STATUS:
   case SQLCOM_SHOW_STATUS_FUNC:
   case SQLCOM_SHOW_STATUS_PROC:
@@ -2644,7 +2643,7 @@ TABLE_LIST *sp_add_to_query_tables(THD *thd, LEX *lex,
                                    thr_lock_type locktype,
                                    enum_mdl_type mdl_type)
 {
-  TABLE_LIST *table= (TABLE_LIST *)thd->calloc(sizeof(TABLE_LIST));
+  TABLE_LIST *table= (TABLE_LIST *)thd->mem_calloc(sizeof(TABLE_LIST));
 
   if (!table)
     return NULL;
@@ -2653,7 +2652,7 @@ TABLE_LIST *sp_add_to_query_tables(THD *thd, LEX *lex,
   table->db= thd->strmake(db, table->db_length);
   table->table_name_length= strlen(name);
   table->table_name= thd->strmake(name, table->table_name_length);
-  table->alias= thd->strdup(name);
+  table->alias= thd->mem_strdup(name);
   table->lock_type= locktype;
   table->select_lex= lex->current_select();
   table->cacheable_table= 1;
@@ -2709,6 +2708,8 @@ Item *sp_prepare_func_item(THD* thd, Item **it_addr)
 bool sp_eval_expr(THD *thd, Field *result_field, Item **expr_item_ptr)
 {
   Item *expr_item;
+  Strict_error_handler strict_handler(Strict_error_handler::
+                                      ENABLE_SET_SELECT_STRICT_ERROR_HANDLER);
   enum_check_fields save_count_cuted_fields= thd->count_cuted_fields;
   unsigned int stmt_unsafe_rollback_flags=
     thd->get_transaction()->get_unsafe_rollback_flags(Transaction_ctx::STMT);
@@ -2729,10 +2730,20 @@ bool sp_eval_expr(THD *thd, Field *result_field, Item **expr_item_ptr)
   thd->count_cuted_fields= CHECK_FIELD_ERROR_FOR_NULL;
   thd->get_transaction()->reset_unsafe_rollback_flags(Transaction_ctx::STMT);
 
-  /* Save the value in the field. Convert the value if needed. */
-
+  /*
+    Variables declared within SP/SF with DECLARE keyword like
+      DECLARE var INTEGER;
+    will follow the rules of assignment corresponding to the data type column
+    in a table. So, STRICT mode gives error if an invalid value is assigned
+    to the variable here.
+  */
+  if (thd->is_strict_mode() && !thd->lex->is_ignore())
+    thd->push_internal_handler(&strict_handler);
+  // Save the value in the field. Convert the value if needed.
   expr_item->save_in_field(result_field, false);
 
+  if (thd->is_strict_mode() && !thd->lex->is_ignore())
+    thd->pop_internal_handler();
   thd->count_cuted_fields= save_count_cuted_fields;
   thd->get_transaction()->set_unsafe_rollback_flags(Transaction_ctx::STMT,
                                                     stmt_unsafe_rollback_flags);

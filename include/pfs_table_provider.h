@@ -50,7 +50,7 @@ void pfs_unbind_table_v1(PSI_table *table);
 PSI_table *
 pfs_rebind_table_v1(PSI_table_share *share, const void *identity, PSI_table *table);
 
-void pfs_close_table_v1(PSI_table *table);
+void pfs_close_table_v1(struct TABLE_SHARE *server_share, PSI_table *table);
 
 PSI_table_locker*
 pfs_start_table_io_wait_v1(PSI_table_locker_state *state,

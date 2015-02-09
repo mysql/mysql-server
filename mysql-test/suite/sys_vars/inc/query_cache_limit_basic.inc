@@ -115,6 +115,7 @@ SELECT @@query_cache_limit;
 # Check if the value in GLOBAL & SESSION Tables matches values in variable   #
 ##############################################################################
 
+--disable_warnings
 SELECT @@global.query_cache_limit = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
 WHERE VARIABLE_NAME='query_cache_limit';
@@ -122,6 +123,7 @@ WHERE VARIABLE_NAME='query_cache_limit';
 SELECT @@query_cache_limit = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
 WHERE VARIABLE_NAME='query_cache_limit';
+--enable_warnings
 
 
 --echo '#---------------------FN_DYNVARS_131_07----------------------#'

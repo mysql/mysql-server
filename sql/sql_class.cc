@@ -25,8 +25,6 @@
 
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "binlog.h"
-#include "sql_priv.h"
-#include "unireg.h"                    // REQUIRED: for other includes
 #include "sql_class.h"
 #include "sql_cache.h"                          // query_cache_abort
 #include "sql_base.h"                           // close_thread_tables
@@ -918,6 +916,25 @@ int thd_tx_is_read_only(const THD *thd)
 }
 
 extern "C"
+int thd_tx_priority(const THD* thd)
+{
+  return (thd->thd_tx_priority != 0
+          ? thd->thd_tx_priority
+          : thd->tx_priority);
+}
+
+extern "C"
+THD* thd_tx_arbitrate(THD *requestor, THD* holder)
+{
+ /* Should be different sessions. */
+ DBUG_ASSERT(holder != requestor);
+
+ return(thd_tx_priority(requestor) == thd_tx_priority(holder)
+	? requestor
+	: ((thd_tx_priority(requestor)
+	    > thd_tx_priority(holder)) ? holder : requestor));
+}
+
 int thd_tx_is_dd_trx(const THD *thd)
 {
   return (int) thd->is_attachable_transaction_active();
@@ -947,7 +964,7 @@ char *thd_security_context(THD *thd, char *buffer, size_t length,
                            size_t max_query_len)
 {
   String str(buffer, length, &my_charset_latin1);
-  Security_context *sctx= &thd->main_security_ctx;
+  Security_context *sctx= &thd->m_main_security_ctx;
   char header[256];
   size_t len;
   /*
@@ -967,22 +984,22 @@ char *thd_security_context(THD *thd, char *buffer, size_t length,
   str.length(0);
   str.append(header, len);
 
-  if (sctx->get_host()->length())
+  if (sctx->host().length)
   {
     str.append(' ');
-    str.append(sctx->get_host()->ptr());
+    str.append(sctx->host().str);
   }
 
-  if (sctx->get_ip()->length())
+  if (sctx->ip().length)
   {
     str.append(' ');
-    str.append(sctx->get_ip()->ptr());
+    str.append(sctx->ip().str);
   }
 
-  if (sctx->user)
+  if (sctx->user().str)
   {
     str.append(' ');
-    str.append(sctx->user);
+    str.append(sctx->user().str);
   }
 
   if (proc_info)
@@ -1165,8 +1182,7 @@ THD::THD(bool enable_plugins)
   thread_stack= 0;
   m_catalog.str= "std";
   m_catalog.length= 3;
-  main_security_ctx.init();
-  security_ctx= &main_security_ctx;
+  m_security_ctx= &m_main_security_ctx;
   no_errors= 0;
   password= 0;
   query_start_usec_used= 0;
@@ -1262,8 +1278,10 @@ THD::THD(bool enable_plugins)
   binlog_next_event_pos.file_name= NULL;
   binlog_next_event_pos.pos= 0;
 
+#ifdef HAVE_MY_TIMER
   timer= NULL;
   timer_cache= NULL;
+#endif
 #ifndef DBUG_OFF
   gis_debug= 0;
 #endif
@@ -1506,13 +1524,13 @@ void *thd_alloc(MYSQL_THD thd, size_t size)
 extern "C"
 void *thd_calloc(MYSQL_THD thd, size_t size)
 {
-  return thd->calloc(size);
+  return thd->mem_calloc(size);
 }
 
 extern "C"
 char *thd_strdup(MYSQL_THD thd, const char *str)
 {
-  return thd->strdup(str);
+  return thd->mem_strdup(str);
 }
 
 extern "C"
@@ -1595,6 +1613,8 @@ void THD::init(void)
                         TL_WRITE_CONCURRENT_INSERT);
   tx_isolation= (enum_tx_isolation) variables.tx_isolation;
   tx_read_only= variables.tx_read_only;
+  tx_priority= 0;
+  thd_tx_priority= 0;
   update_charset();
   reset_current_stmt_binlog_format_row();
   reset_binlog_local_stmt_filter();
@@ -1880,8 +1900,6 @@ THD::~THD()
 
   DBUG_ASSERT(!m_attachable_trx);
 
-  DBUG_PRINT("info", ("freeing security context"));
-  main_security_ctx.destroy();
   my_free(const_cast<char*>(m_db.str));
   m_db= NULL_CSTR;
   get_transaction()->free_memory(MYF(0));
@@ -3044,7 +3062,7 @@ bool select_export::send_data(List<Item> &items)
         ((uint64) res->length() / res->charset()->mbminlen + 1) *
         write_cs->mbmaxlen + 1;
       set_if_smaller(estimated_bytes, UINT_MAX32);
-      if (cvt_str.realloc((uint32) estimated_bytes))
+      if (cvt_str.mem_realloc((uint32) estimated_bytes))
       {
         my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), (uint32) estimated_bytes);
         goto err;
@@ -3397,19 +3415,22 @@ bool select_singlerow_subselect::send_data(List<Item> &items)
   if (it->assigned())
   {
     my_message(ER_SUBQUERY_NO_1_ROW, ER(ER_SUBQUERY_NO_1_ROW), MYF(0));
-    DBUG_RETURN(1);
+    DBUG_RETURN(true);
   }
   if (unit->offset_limit_cnt)
   {				          // Using limit offset,count
     unit->offset_limit_cnt--;
-    DBUG_RETURN(0);
+    DBUG_RETURN(false);
   }
   List_iterator_fast<Item> li(items);
   Item *val_item;
   for (uint i= 0; (val_item= li++); i++)
     it->store(i, val_item);
+  if (thd->is_error())
+    DBUG_RETURN(true);
+
   it->assigned(true);
-  DBUG_RETURN(0);
+  DBUG_RETURN(false);
 }
 
 
@@ -3931,213 +3952,6 @@ void thd_increment_bytes_received(size_t length)
 void THD::set_status_var_init()
 {
   memset(&status_var, 0, sizeof(status_var));
-}
-
-
-void Security_context::init()
-{
-  user= 0;
-  ip.set("", 0, system_charset_info);
-  host.set("", 0, system_charset_info);
-  external_user.set("", 0, system_charset_info);
-  host_or_ip= "connecting host";
-  priv_user[0]= priv_host[0]= proxy_user[0]= '\0';
-  master_access= 0;
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-  db_access= NO_ACCESS;
-#endif
-  password_expired= false; 
-}
-
-void Security_context::destroy()
-{
-  if (host.ptr() != my_localhost && host.length())
-  {
-    char *c= (char *) host.ptr();
-    host.set("", 0, system_charset_info);
-    my_free(c);
-  }
-
-  if (user)
-  {
-    my_free(user);
-    user= NULL;
-  }
-
-  if (external_user.length())
-  {
-    char *c= (char *) external_user.ptr();
-    external_user.set("", 0, system_charset_info);
-    my_free(c);
-  }
-  
-  if (ip.length())
-  {
-    char *c= (char *) ip.ptr();
-    ip.set("", 0, system_charset_info);
-    my_free(c);
-  }
-}
-
-
-void Security_context::skip_grants()
-{
-  /* privileges for the user are unknown everything is allowed */
-  host_or_ip= (char *)"";
-  master_access= ~NO_ACCESS;
-  *priv_user= *priv_host= '\0';
-}
-
-
-bool Security_context::set_user(char *user_arg)
-{
-  my_free(user);
-  user= my_strdup(key_memory_Security_context,
-                  user_arg, MYF(0));
-  return user == 0;
-}
-
-String *Security_context::get_host()
-{
-  return (&host);
-}
-
-String *Security_context::get_ip()
-{
-  return (&ip);
-}
-
-String *Security_context::get_external_user()
-{
-  return (&external_user);
-}
-
-void Security_context::set_host(const char *str)
-{
-  size_t len= str ? strlen(str) :  0;
-  host.set(str, len, system_charset_info);
-}
-
-void Security_context::set_ip(const char *str)
-{
-  size_t len= str ? strlen(str) :  0;
-  ip.set(str, len, system_charset_info);
-}
-
-void Security_context::set_external_user(const char *str)
-{
-  size_t len= str ? strlen(str) :  0;
-  external_user.set(str, len, system_charset_info);
-}
-
-void Security_context::set_host(const char * str, size_t len)
-{
-  host.set(str, len, system_charset_info);
-  host.c_ptr_quick();
-}
-
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-/**
-  Initialize this security context from the passed in credentials
-  and activate it in the current thread.
-
-  @param       thd
-  @param       definer_user
-  @param       definer_host
-  @param       db
-  @param[out]  backup  Save a pointer to the current security context
-                       in the thread. In case of success it points to the
-                       saved old context, otherwise it points to NULL.
-
-
-  During execution of a statement, multiple security contexts may
-  be needed:
-  - the security context of the authenticated user, used as the
-    default security context for all top-level statements
-  - in case of a view or a stored program, possibly the security
-    context of the definer of the routine, if the object is
-    defined with SQL SECURITY DEFINER option.
-
-  The currently "active" security context is parameterized in THD
-  member security_ctx. By default, after a connection is
-  established, this member points at the "main" security context
-  - the credentials of the authenticated user.
-
-  Later, if we would like to execute some sub-statement or a part
-  of a statement under credentials of a different user, e.g.
-  definer of a procedure, we authenticate this user in a local
-  instance of Security_context by means of this method (and
-  ultimately by means of acl_getroot), and make the
-  local instance active in the thread by re-setting
-  thd->security_ctx pointer.
-
-  Note, that the life cycle and memory management of the "main" and
-  temporary security contexts are different.
-  For the main security context, the memory for user/host/ip is
-  allocated on system heap, and the THD class frees this memory in
-  its destructor. The only case when contents of the main security
-  context may change during its life time is when someone issued
-  CHANGE USER command.
-  Memory management of a "temporary" security context is
-  responsibility of the module that creates it.
-
-  @retval TRUE  there is no user with the given credentials. The erro
-                is reported in the thread.
-  @retval FALSE success
-*/
-
-bool
-Security_context::
-change_security_context(THD *thd,
-                        const LEX_CSTRING &definer_user,
-                        const LEX_CSTRING &definer_host,
-                        LEX_STRING *db,
-                        Security_context **backup)
-{
-  bool needs_change;
-
-  DBUG_ENTER("Security_context::change_security_context");
-
-  DBUG_ASSERT(definer_user.str && definer_host.str);
-
-  *backup= NULL;
-  needs_change= (strcmp(definer_user.str, thd->security_ctx->priv_user) ||
-                 my_strcasecmp(system_charset_info, definer_host.str,
-                               thd->security_ctx->priv_host));
-  if (needs_change)
-  {
-    if (acl_getroot(this,
-                    const_cast<char*>(definer_user.str),
-                    const_cast<char*>(definer_host.str),
-                    const_cast<char*>(definer_host.str),
-                    db->str))
-    {
-      my_error(ER_NO_SUCH_USER, MYF(0), definer_user.str,
-               definer_host.str);
-      DBUG_RETURN(TRUE);
-    }
-    *backup= thd->security_ctx;
-    thd->security_ctx= this;
-  }
-
-  DBUG_RETURN(FALSE);
-}
-
-
-void
-Security_context::restore_security_context(THD *thd,
-                                           Security_context *backup)
-{
-  if (backup)
-    thd->security_ctx= backup;
-}
-#endif
-
-
-bool Security_context::user_matches(Security_context *them)
-{
-  return ((user != NULL) && (them->user != NULL) &&
-          !strcmp(user, them->user));
 }
 
 
@@ -4677,7 +4491,8 @@ void THD::inc_status_sort_rows(ha_rows count)
 {
   status_var.filesort_rows+= count;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
-  PSI_STATEMENT_CALL(inc_statement_sort_rows)(m_statement_psi, count);
+  PSI_STATEMENT_CALL(inc_statement_sort_rows)(m_statement_psi,
+                                              static_cast<ulong>(count));
 #endif
 }
 
@@ -4929,7 +4744,7 @@ void THD::time_out_user_resource_limits()
   DBUG_ENTER("time_out_user_resource_limits");
 
   /* If more than a hour since last check, reset resource checking */
-  if (check_time - m_user_connect->reset_utime >= LL(3600000000))
+  if (check_time - m_user_connect->reset_utime >= 3600000000LL)
   {
     m_user_connect->questions=1;
     m_user_connect->updates=0;

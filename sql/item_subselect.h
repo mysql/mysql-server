@@ -22,6 +22,7 @@ class st_select_lex;
 class st_select_lex_unit;
 class JOIN;
 class select_result_interceptor;
+class select_subselect;
 class subselect_engine;
 class subselect_hash_sj_engine;
 class Item_bool_func2;
@@ -56,10 +57,10 @@ public:
     Used inside Item_subselect::fix_fields() according to this scenario:
       > Item_subselect::fix_fields
         > engine->prepare
-          > child_join->prepare
+          > query_block->prepare
             (Here we realize we need to do the rewrite and set
              substitution= some new Item, eg. Item_in_optimizer )
-          < child_join->prepare
+          < query_block->prepare
         < engine->prepare
         *ref= substitution;
       < Item_subselect::fix_fields
@@ -111,8 +112,7 @@ public:
     pointer in constructor initialization list, but we need to pass a pointer
     to subselect Item class to select_result_interceptor's constructor.
   */
-  virtual void init (st_select_lex *select_lex,
-		     select_result_interceptor *result);
+  void init(st_select_lex *select, select_subselect *result);
 
   ~Item_subselect();
   virtual void cleanup();
@@ -120,7 +120,7 @@ public:
   {
     null_value= 1;
   }
-  virtual trans_res select_transformer(JOIN *join);
+  virtual trans_res select_transformer(st_select_lex *select) = 0;
   bool assigned() const { return value_assigned; }
   void assigned(bool a) { value_assigned= a; }
   enum Type type() const;
@@ -204,7 +204,7 @@ public:
   subs_type substype() { return SINGLEROW_SUBS; }
 
   virtual void reset();
-  trans_res select_transformer(JOIN *join);
+  trans_res select_transformer(st_select_lex *select);
   void store(uint i, Item* item);
   double val_real();
   longlong val_int ();
@@ -310,18 +310,19 @@ public:
   */
   TABLE_LIST *embedding_join_nest;
 
-  Item_exists_subselect(st_select_lex *select_lex);
+  Item_exists_subselect(SELECT_LEX *select);
 
   Item_exists_subselect()
     :Item_subselect(), value(false), exec_method(EXEC_UNSPECIFIED),
      sj_convert_priority(0), sj_chosen(false), embedding_join_nest(NULL)
   {}
+
   explicit Item_exists_subselect(const POS &pos)
     :super(pos), value(false), exec_method(EXEC_UNSPECIFIED),
      sj_convert_priority(0), sj_chosen(false), embedding_join_nest(NULL)
   {}
 
-  virtual trans_res select_transformer(JOIN *join)
+  virtual trans_res select_transformer(st_select_lex *select)
   {
     exec_method= EXEC_EXISTS;
     return RES_OK;
@@ -475,13 +476,14 @@ public:
     null_value= 0;
     was_null= 0;
   }
-  trans_res select_transformer(JOIN *join);
-  trans_res select_in_like_transformer(JOIN *join, Comp_creator *func);
-  trans_res single_value_transformer(JOIN *join, Comp_creator *func);
-  trans_res row_value_transformer(JOIN * join);
-  trans_res single_value_in_to_exists_transformer(JOIN * join,
+  trans_res select_transformer(st_select_lex *select);
+  trans_res select_in_like_transformer(st_select_lex *select,
+                                       Comp_creator *func);
+  trans_res single_value_transformer(st_select_lex *select, Comp_creator *func);
+  trans_res row_value_transformer(st_select_lex *select);
+  trans_res single_value_in_to_exists_transformer(st_select_lex *select,
                                                   Comp_creator *func);
-  trans_res row_value_in_to_exists_transformer(JOIN * join);
+  trans_res row_value_in_to_exists_transformer(st_select_lex *select);
   bool walk(Item_processor processor, enum_walk walk, uchar *arg);
   virtual bool exec();
   longlong val_int();
@@ -493,7 +495,7 @@ public:
   void top_level_item() { abort_on_null=1; }
   bool is_top_level_item() const { return abort_on_null; }
 
-  bool test_limit(st_select_lex_unit *unit);
+  bool test_limit();
   virtual void print(String *str, enum_query_type query_type);
   bool fix_fields(THD *thd, Item **ref);
   void fix_after_pullout(st_select_lex *parent_select,
@@ -504,7 +506,7 @@ public:
      Once the decision to use IN->EXISTS has been taken, performs some last
      steps of this transformation.
   */
-  bool finalize_exists_transform(SELECT_LEX *select_lex);
+  bool finalize_exists_transform(st_select_lex *select);
   /**
      Once the decision to use materialization has been taken, performs some
      last steps of this transformation.
@@ -528,11 +530,11 @@ public:
   bool all;
 
   Item_allany_subselect(Item * left_expr, chooser_compare_func_creator fc,
-                        st_select_lex *select_lex, bool all);
+                        st_select_lex *select, bool all);
 
   // only ALL subquery has upper not
   subs_type substype() { return all?ALL_SUBS:ANY_SUBS; }
-  trans_res select_transformer(JOIN *join);
+  trans_res select_transformer(st_select_lex *select);
   virtual void print(String *str, enum_query_type query_type);
 };
 
@@ -591,8 +593,8 @@ public:
   virtual table_map upper_select_const_tables() const = 0;
   static table_map calc_const_tables(TABLE_LIST *);
   virtual void print(String *str, enum_query_type query_type)= 0;
-  virtual bool change_result(Item_subselect *si,
-                             select_result_interceptor *result)= 0;
+  virtual bool change_query_result(Item_subselect *si,
+                                   select_subselect *result)= 0;
   virtual bool no_tables() const = 0;
   virtual enum_engine_type engine_type() const { return ABSTRACT_ENGINE; }
 #ifndef DBUG_OFF
@@ -611,9 +613,7 @@ protected:
 class subselect_single_select_engine: public subselect_engine
 {
 private:
-  bool prepared; /* simple subselect is prepared */
   st_select_lex *select_lex; /* corresponding select_lex */
-  JOIN * join; /* corresponding JOIN structure */
 public:
   subselect_single_select_engine(st_select_lex *select,
 				 select_result_interceptor *result,
@@ -627,8 +627,8 @@ public:
   virtual void exclude();
   virtual table_map upper_select_const_tables() const;
   virtual void print (String *str, enum_query_type query_type);
-  virtual bool change_result(Item_subselect *si,
-                             select_result_interceptor *result);
+  virtual bool change_query_result(Item_subselect *si,
+                                   select_subselect *result);
   virtual bool no_tables() const;
   virtual bool may_be_null() const;
   virtual enum_engine_type engine_type() const { return SINGLE_SELECT_ENGINE; }
@@ -653,8 +653,8 @@ public:
   virtual void exclude();
   virtual table_map upper_select_const_tables() const;
   virtual void print (String *str, enum_query_type query_type);
-  virtual bool change_result(Item_subselect *si,
-                             select_result_interceptor *result);
+  virtual bool change_query_result(Item_subselect *si,
+                                   select_subselect *result);
   virtual bool no_tables() const;
   virtual enum_engine_type engine_type() const { return UNION_ENGINE; }
 
@@ -731,8 +731,8 @@ public:
   virtual uint8 uncacheable() const { return UNCACHEABLE_DEPENDENT; }
   virtual void exclude();
   virtual table_map upper_select_const_tables() const { return 0; }
-  virtual bool change_result(Item_subselect *si,
-                             select_result_interceptor *result);
+  virtual bool change_query_result(Item_subselect *si,
+                                   select_subselect *result);
   virtual bool no_tables() const;
   bool scan_table();
   void copy_ref_key(bool *require_scan, bool *convert_error);
@@ -745,7 +745,7 @@ public:
 Item * all_any_subquery_creator(Item *left_expr,
                                 chooser_compare_func_creator cmp,
                                 bool all,
-                                SELECT_LEX *select_lex);
+                                st_select_lex *select);
 
 
 inline bool Item_subselect::is_uncacheable() const

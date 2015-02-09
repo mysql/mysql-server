@@ -15,10 +15,10 @@
 
 
 #if defined (_WIN32)
+#include "my_global.h"
 #include "my_pthread.h"     /* my_thread_init, my_thread_end */
 #include "my_sys.h"         /* my_message_local */
 #include "my_timer.h"       /* my_timer_t */
-#include <errno.h>
 #include <windows.h>        /* Timer Queue and IO completion port functions */
 
 #define  TIMER_EXPIRED    1
@@ -45,7 +45,7 @@ static void CALLBACK
 timer_callback_function(PVOID timer_data, BOOLEAN timer_or_wait_fired __attribute__((unused)))
 {
   my_timer_t *timer= (my_timer_t *)timer_data;
-  assert(timer != NULL);
+  DBUG_ASSERT(timer != NULL);
   PostQueuedCompletionStatus(io_compl_port, TIMER_EXPIRED, (ULONG_PTR)timer, 0);
 }
 
@@ -89,33 +89,60 @@ timer_notify_thread_func(void *arg __attribute__((unused)))
 
 
 /**
-  Cancel timer set.
+  Delete a timer.
 
-  @param timer Timer Object.
+  @param timer    Timer Object.
+  @param state    The state of the timer at the time of deletion, either
+                  signaled (0) or nonsignaled (1).
 
-  @return 0 On Success
-          1 On error.
+  @return  0 On Success
+          -1 On error.
 */
 static int
-cancel_timer(my_timer_t *timer)
+delete_timer(my_timer_t *timer, int *state)
 {
   int ret_val;
-  HANDLE id;
+  HANDLE id= timer->id;
+  int retry_count= 3;
 
-  assert(timer != 0);
-  assert(timer_queue != 0);
+  DBUG_ASSERT(timer != 0);
+  DBUG_ASSERT(timer_queue != 0);
 
-  if (timer->id)
+  if (state != NULL)
+    *state= 0;
+
+  if (id)
   {
-    id= timer->id;
-    timer->id= 0;
+    do {
+      ret_val= DeleteTimerQueueTimer(timer_queue, id, NULL);
 
-    ret_val= DeleteTimerQueueTimer(timer_queue, id, NULL);
+      if (ret_val != 0)
+      {
+        // Timer is not signalled yet.
+        if (state != NULL)
+          *state= 1;
 
-    // Timer deletion from queue failed and there are no outstanding callback
-    // functions for this timer.
-    if (ret_val == 0 && GetLastError() != ERROR_IO_PENDING)
-      return -1;
+        timer->id= 0;
+      }
+      else if (GetLastError() == ERROR_IO_PENDING)
+      {
+        // Timer is signalled but callback function is not called yet.
+        ret_val= 1;
+      }
+      else
+      {
+        /*
+          Timer deletion from queue failed and there are no outstanding
+          callback functions for this timer.
+        */
+        if (--retry_count == 0)
+        {
+          my_message_local(ERROR_LEVEL, "Failed to delete timer (errno= %d).",
+                           errno);
+          return -1;
+        }
+      }
+    } while (ret_val == 0);
   }
 
   return 0;
@@ -206,12 +233,11 @@ my_timer_deinitialize()
   @param  timer   Timer object.
 
   @return On success, 0.
-          On error, -1.
 */
 int
 my_timer_create(my_timer_t *timer)
 {
-  assert(timer_queue != 0);
+  DBUG_ASSERT(timer_queue != 0);
   timer->id= 0;
   return 0;
 }
@@ -229,9 +255,9 @@ my_timer_create(my_timer_t *timer)
 int
 my_timer_set(my_timer_t *timer, unsigned long time)
 {
-  assert(timer != NULL);
-  assert(timer->id == 0);
-  assert(timer_queue != 0);
+  DBUG_ASSERT(timer != NULL);
+  DBUG_ASSERT(timer->id == 0);
+  DBUG_ASSERT(timer_queue != 0);
 
   if (CreateTimerQueueTimer(&timer->id, timer_queue,
                             timer_callback_function, timer, time, 0,
@@ -247,24 +273,17 @@ my_timer_set(my_timer_t *timer, unsigned long time)
 
   @param  timer   Timer object.
   @param  state   The state of the timer at the time of cancellation, either
-                  signaled (false) or nonsignaled (true).
+                  signaled (0) or nonsignaled (1).
 
   @return On success, 0.
-          On error, 1. 
+          On error,  -1.
 */
 int
 my_timer_cancel(my_timer_t *timer, int *state)
 {
-  if (cancel_timer(timer) != 0)
-    return -1;
+  DBUG_ASSERT(state != NULL);
 
-  /**
-    Since timer is removed after expiration or cancellation, setting state to
-    0 to avoid reusing of timer.
-  */
-  *state= 0;
-
-  return 0;
+  return delete_timer(timer, state);
 }
 
 
@@ -276,6 +295,6 @@ my_timer_cancel(my_timer_t *timer, int *state)
 void
 my_timer_delete(my_timer_t *timer)
 {
-  cancel_timer(timer);
+  delete_timer(timer, NULL);
 }
 #endif

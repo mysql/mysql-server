@@ -37,7 +37,6 @@ struct dict_index_t;
 /********************************************************//**
 Writes 1, 2 or 4 bytes to a file page. Writes the corresponding log
 record to the mini-transaction log if mtr is not NULL. */
-
 void
 mlog_write_ulint(
 /*=============*/
@@ -49,7 +48,6 @@ mlog_write_ulint(
 /********************************************************//**
 Writes 8 bytes to a file page. Writes the corresponding log
 record to the mini-transaction log, only if mtr is not NULL */
-
 void
 mlog_write_ull(
 /*===========*/
@@ -59,7 +57,6 @@ mlog_write_ull(
 /********************************************************//**
 Writes a string to a file page buffered in the buffer pool. Writes the
 corresponding log record to the mini-transaction log. */
-
 void
 mlog_write_string(
 /*==============*/
@@ -70,7 +67,6 @@ mlog_write_string(
 /********************************************************//**
 Logs a write of a string to a file page buffered in the buffer pool.
 Writes the corresponding log record to the mini-transaction log. */
-
 void
 mlog_log_string(
 /*============*/
@@ -80,7 +76,6 @@ mlog_log_string(
 /********************************************************//**
 Writes initial part of a log record consisting of one-byte item
 type and four-byte space and page numbers. */
-
 void
 mlog_write_initial_log_record(
 /*==========================*/
@@ -109,7 +104,6 @@ mlog_catenate_ulint(
 	mlog_id_t	type);	/*!< in: MLOG_1BYTE, MLOG_2BYTES, MLOG_4BYTES */
 /********************************************************//**
 Catenates n bytes to the mtr log. */
-
 void
 mlog_catenate_string(
 /*=================*/
@@ -191,7 +185,6 @@ mlog_write_initial_log_record_fast(
 /********************************************************//**
 Parses an initial log record written by mlog_write_initial_log_record.
 @return parsed record end, NULL if not a complete record */
-
 byte*
 mlog_parse_initial_log_record(
 /*==========================*/
@@ -203,7 +196,6 @@ mlog_parse_initial_log_record(
 /********************************************************//**
 Parses a log record written by mlog_write_ulint or mlog_write_ull.
 @return parsed record end, NULL if not a complete record */
-
 byte*
 mlog_parse_nbytes(
 /*==============*/
@@ -216,7 +208,6 @@ mlog_parse_nbytes(
 /********************************************************//**
 Parses a log record written by mlog_write_string.
 @return parsed record end, NULL if not a complete record */
-
 byte*
 mlog_parse_string(
 /*==============*/
@@ -232,7 +223,6 @@ if needed, the field lengths of an index.  Reserves space
 for further log entries.  The log entry must be closed with
 mtr_close().
 @return buffer, NULL if log mode MTR_LOG_NONE */
-
 byte*
 mlog_open_and_write_index(
 /*======================*/
@@ -248,7 +238,6 @@ mlog_open_and_write_index(
 /********************************************************//**
 Parses a log record written by mlog_open_and_write_index.
 @return parsed record end, NULL if not a complete record */
-
 byte*
 mlog_parse_index(
 /*=============*/

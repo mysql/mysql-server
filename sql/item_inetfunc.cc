@@ -106,7 +106,7 @@ String* Item_func_inet_ntoa::val_str(String* str)
 
     Also return null if n > 255.255.255.255
   */
-  null_value= args[0]->null_value || n > (ulonglong) LL(4294967295);
+  null_value= args[0]->null_value || n > (ulonglong) 4294967295LL;
 
   if (null_value)
     return 0;                                   // Null value
@@ -402,7 +402,7 @@ static bool str_to_ipv6(const char *str, int str_length, in6_addr *ipv6_address)
         continue;
       }
 
-      if (!*p || ((p - str) >= str_length))
+      if (((p - str) >= str_length) || !*p)
       {
         DBUG_PRINT("error", ("str_to_ipv6(%.*s): invalid IPv6 address: "
                              "ending at ':'.", str_length, str));
@@ -502,7 +502,7 @@ static bool str_to_ipv6(const char *str, int str_length, in6_addr *ipv6_address)
 
     for (size_t i= 1; i <= bytes_to_move; ++i)
     {
-      ipv6_bytes_end[-i]= gap_ptr[bytes_to_move - i];
+      ipv6_bytes_end[-(static_cast<ssize_t>(i))]= gap_ptr[bytes_to_move - i];
       gap_ptr[bytes_to_move - i]= 0;
     }
 

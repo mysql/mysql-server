@@ -418,7 +418,7 @@ is the global server default. */
 #define HA_ERR_INDEX_FILE_FULL	136	/* No more room in file */
 #define HA_ERR_END_OF_FILE	137	/* end in next/prev/first/last */
 #define HA_ERR_UNSUPPORTED	138	/* unsupported extension used */
-#define HA_ERR_TO_BIG_ROW	139	/* Too big row */
+#define HA_ERR_TOO_BIG_ROW	139	/* Too big row */
 #define HA_WRONG_CREATE_OPTION	140	/* Wrong create option */
 #define HA_ERR_FOUND_DUPP_UNIQUE 141	/* Dupplicate unique on write */
 #define HA_ERR_UNKNOWN_CHARSET	 142	/* Can't open charset */
@@ -490,7 +490,8 @@ is the global server default. */
 #define HA_ERR_SE_OUT_OF_MEMORY   194    /* Out of memory in storage engine */
 #define HA_ERR_TABLE_CORRUPT      195    /* Table/Clustered index is corrupted. */
 #define HA_ERR_QUERY_INTERRUPTED  196
-#define HA_ERR_LAST               196    /* Copy of last error nr */
+#define HA_ERR_TABLESPACE_MISSING 197    /* Missing Tablespace */
+#define HA_ERR_LAST               197    /* Copy of last error nr */
 
 /* Number of different errors */
 #define HA_ERR_ERRORS            (HA_ERR_LAST - HA_ERR_FIRST + 1)
@@ -622,7 +623,7 @@ typedef my_off_t	ha_rows;
 #if SYSTEM_SIZEOF_OFF_T == 4
 #define MAX_FILE_SIZE	INT_MAX32
 #else
-#define MAX_FILE_SIZE	LONGLONG_MAX
+#define MAX_FILE_SIZE	LLONG_MAX
 #endif
 
 #define HA_VARCHAR_PACKLENGTH(field_length) ((field_length) < 256 ? 1 :2)

@@ -367,6 +367,7 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
             }
             else
             {                              /* Prefer longer keys */
+              DBUG_ASSERT(table->s->max_key_length > 0);
               cur_fanout=
                 ((double) tab->records() / (double) distinct_keys_est *
                  (1.0 +
@@ -738,7 +739,7 @@ Optimize_table_order::calculate_scan_cost(const JOIN_TAB *tab,
   double scan_and_filter_cost;
   TABLE *const table= tab->table();
   const Cost_model_server *const cost_model= join->cost_model();
-  *rows_after_filtering= tab->found_records;
+  *rows_after_filtering= static_cast<double>(tab->found_records);
 
   trace_access_scan->add("rows_to_scan", tab->found_records);
 
@@ -751,7 +752,8 @@ Optimize_table_order::calculate_scan_cost(const JOIN_TAB *tab,
   {
     const float const_cond_filter=
       calculate_condition_filter(tab, NULL, 0,
-                                 tab->found_records, !disable_jbuf);
+                                 static_cast<double>(tab->found_records),
+                                 !disable_jbuf);
 
     /*
       For high found_records values, multiplication by float may
@@ -762,7 +764,7 @@ Optimize_table_order::calculate_scan_cost(const JOIN_TAB *tab,
       rows2double(tab->found_records) * const_cond_filter;
   }
   else if (table->quick_condition_rows != tab->found_records)
-    *rows_after_filtering= table->quick_condition_rows;
+    *rows_after_filtering= static_cast<double>(table->quick_condition_rows);
   else if (found_condition)
   {
     /*
@@ -811,7 +813,8 @@ Optimize_table_order::calculate_scan_cost(const JOIN_TAB *tab,
     // Cost of scanning the table once
     Cost_estimate scan_cost;
     if (table->force_index && !best_ref)                        // index scan
-      scan_cost= table->file->read_cost(tab->ref().key, 1, tab->records());
+      scan_cost= table->file->read_cost(tab->ref().key, 1,
+                                        static_cast<double>(tab->records()));
     else
       scan_cost= table->file->table_scan_cost();                // table scan
     const double single_scan_read_cost= scan_cost.total_cost();
@@ -1002,7 +1005,7 @@ void Optimize_table_order::best_access_path(JOIN_TAB *tab,
       trace_access_scan.add_alnum("access_type", "scan");
 
     trace_access_scan.add("cost", tab->read_time +
-          cost_model->row_evaluate_cost(tab->found_records)).
+       cost_model->row_evaluate_cost(static_cast<double>(tab->found_records))).
       add("rows", tab->found_records).
       add("chosen", false).
       add_alnum("cause", "cost");
@@ -1092,11 +1095,12 @@ void Optimize_table_order::best_access_path(JOIN_TAB *tab,
         const float full_filter=
           calculate_condition_filter(tab, NULL,
                                      ~remaining_tables & ~excluded_tables,
-                                     tab->found_records,
+                                     static_cast<double>(tab->found_records),
                                      false);
         filter_effect=
-          std::min(1.0,
-                   tab->found_records * full_filter / rows_after_filtering);
+          static_cast<float>(std::min(1.0,
+                                      tab->found_records * full_filter /
+                                      rows_after_filtering));
       }
       best_ref=       NULL;
       best_uses_jbuf= !disable_jbuf;
@@ -1374,10 +1378,10 @@ float calculate_condition_filter(const JOIN_TAB *const tab,
       based on index statistics and guesstimates.
     */
     filter*=
-           tab->join()->where_cond->get_filtering_effect(tab->table_ref->map(),
-                                                         used_tables,
-                                                         &table->tmp_set,
-                                                         tab->records());
+      tab->join()->where_cond->get_filtering_effect(tab->table_ref->map(),
+                                                    used_tables,
+                                                    &table->tmp_set,
+                                          static_cast<double>(tab->records()));
   }
 
   /*
@@ -1387,7 +1391,7 @@ float calculate_condition_filter(const JOIN_TAB *const tab,
     number of rows output from a joined table is more than zero.
   */
   if ((filter * fanout) < 0.05f)
-    filter= 0.05f/fanout;
+    filter= 0.05f/static_cast<float>(fanout);
 
 cleanup:
   // Clear tmp_set so it can be used elsewhere
@@ -1803,7 +1807,8 @@ bool Optimize_table_order::choose_table_order()
 
   join->select_lex->reset_nj_counters();
 
-  const bool straight_join= MY_TEST(join->select_options & SELECT_STRAIGHT_JOIN);
+  const bool straight_join=
+    join->select_lex->active_options() & SELECT_STRAIGHT_JOIN;
   table_map join_tables;      ///< The tables involved in order selection
 
   if (emb_sjm_nest)

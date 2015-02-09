@@ -6,6 +6,43 @@
 --source include/have_debug.inc
 --source include/not_crashrep.inc
 
+--disable_query_log
+call mtr.add_suppression('InnoDB: cannot find a free slot for an undo log');
+call mtr.add_suppression('InnoDB: row_merge_rename_index_to_add failed with error 47');
+call mtr.add_suppression('InnoDB: Flagged corruption of `c[23]`');
+call mtr.add_suppression('InnoDB: Index `c[23]` .*is corrupted');
+--enable_query_log
+
+--echo #
+--echo # Bug#20015132 ALTER TABLE FAILS TO CHECK IF TABLE IS CORRUPTED
+--echo #
+
+CREATE TABLE t1(c1 INT PRIMARY KEY, c2 CHAR(1), c3 INT UNSIGNED) ENGINE=InnoDB;
+SET DEBUG='+d,ib_create_table_fail_too_many_trx';
+--error ER_TOO_MANY_CONCURRENT_TRXS
+ALTER TABLE t1 ADD INDEX (c2), ADD INDEX (c3);
+
+SET DEBUG='-d,ib_create_table_fail_too_many_trx';
+ALTER TABLE t1 ADD INDEX (c2), ADD INDEX (c3);
+# Flag the secondary indexes corrupted.
+SET DEBUG='+d,dict_set_index_corrupted';
+CHECK TABLE t1;
+
+# Ensure that the corruption is permanent.
+--source include/restart_mysqld.inc
+CHECK TABLE t1;
+ALTER TABLE t1 DROP INDEX c2;
+CHECK TABLE t1;
+# We refuse an ALTER TABLE that would modify the InnoDB data dictionary
+# while leaving some of the table corrupted.
+--error ER_CHECK_NO_SUCH_TABLE
+ALTER TABLE t1 ADD INDEX (c2,c3);
+# This will rebuild the table, uncorrupting all secondary indexes.
+ALTER TABLE t1 CHANGE c3 c3 INT NOT NULL;
+CHECK TABLE t1;
+ALTER TABLE t1 ADD INDEX (c2,c3);
+DROP TABLE t1;
+
 let $MYSQLD_DATADIR= `select @@datadir`;
 let datadir= `select @@datadir`;
 
@@ -70,8 +107,6 @@ DROP TABLE t1;
 CREATE TABLE t1 (f1 INT NOT NULL, f2 INT NOT NULL) ENGINE=InnoDB;
 ALTER TABLE t1 ADD PRIMARY KEY (f2, f1);
 DROP TABLE t1;
-
-call mtr.add_suppression("table 'test/");
 
 --echo # -- Scenario 2:
 --echo # Crash the server in ha_innobase::commit_inplace_alter_table()

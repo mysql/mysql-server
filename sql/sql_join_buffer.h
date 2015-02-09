@@ -465,7 +465,7 @@ public:
         prev_cache->next_cache= this;
     }
   virtual ~JOIN_CACHE() {}
-  void free()
+  void mem_free()
   {
     /*
       JOIN_CACHE doesn't support unlinking cache chain. This code is needed
