@@ -1207,6 +1207,7 @@ THD::THD(bool enable_plugins)
    derived_tables_processing(FALSE),
    sp_runtime_ctx(NULL),
    m_parser_state(NULL),
+   work_part_info(NULL),
 #ifndef EMBEDDED_LIBRARY
    // No need to instrument, highly unlikely to have that many plugins.
    audit_class_plugins(PSI_NOT_INSTRUMENTED),
