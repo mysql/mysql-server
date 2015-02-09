@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -89,12 +89,6 @@
 #define ZWRONG_FAILURE_NUMBER_ERROR 302
 #define ZWRONG_START_NODE_ERROR 303
 #define ZNO_REPLICA_FOUND_ERROR 304
-
-// --------------------------------------
-// Codes from LQH
-// --------------------------------------
-#define ZNODE_FAILURE_ERROR 400
-
 
 /*#########*/
 /* PHASES  */
