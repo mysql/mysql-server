@@ -7,7 +7,7 @@ call mtr.add_suppression('Slave can not handle replication events with the check
 call mtr.add_suppression('Replication event checksum verification failed');
 call mtr.add_suppression('Relay log write failure: could not queue event from master');
 call mtr.add_suppression('Event crc check failed! Most likely there is event corruption');
-call mtr.add_suppression('Slave SQL: Error initializing relay log position: I/O error reading event at position .*, Error_code: 1593');
+call mtr.add_suppression('Slave SQL for channel \'\': Error initializing relay log position: I/O error reading event at position .*, Error_code: 1593');
 call mtr.add_suppression('Master is configured to log replication events with checksum, but will not send such events to slaves that cannot process');
 set @master_save_binlog_checksum= @@global.binlog_checksum;
 set @save_master_verify_checksum =  @@global.master_verify_checksum;

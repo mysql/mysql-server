@@ -97,7 +97,7 @@ update t1 set b='Blah' where a=1 and d="1:1";
 --connection slave
 # Add suppressions to avoid MTR complaints...
 call mtr.add_suppression(".*missing info necessary for conflict detection.*");
-call mtr.add_suppression(".*Slave SQL: Could not execute.*rows event on table.*");
+call mtr.add_suppression(".*Slave SQL for channel '': Could not execute.*rows event on table.*");
 call mtr.add_suppression(".*error 1610.*");
 
 --echo Wait for slave to choke on that event.
