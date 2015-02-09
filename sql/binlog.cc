@@ -212,7 +212,7 @@ public:
                             "session thread during the group commit phase. "
                             "Data consistency between master and slave can "
                             "be guaranteed after server restarts.\n");
-      _exit(EXIT_FAILURE);
+      _exit(MYSQLD_FAILURE_EXIT);
     }
   }
 
@@ -3052,7 +3052,7 @@ err:
              "file system is read only while opening the binlog. Aborting the "
              "server");
     thd->protocol->end_statement();
-    _exit(EXIT_FAILURE);
+    _exit(MYSQLD_FAILURE_EXIT);
   }
   else
     sql_print_error("Could not open %s for logging (error %d). "
@@ -4447,7 +4447,7 @@ err:
              "file system is read only while opening the binlog. Aborting the "
              "server");
     thd->protocol->end_statement();
-    _exit(EXIT_FAILURE);
+    _exit(MYSQLD_FAILURE_EXIT);
   }
   else
     sql_print_error("Could not use %s for logging (error %d). "
@@ -6154,7 +6154,7 @@ end:
                "file system is read only while rotating the binlog. Aborting "
                "the server");
       thd->protocol->end_statement();
-      _exit(EXIT_FAILURE);
+      _exit(MYSQLD_FAILURE_EXIT);
     }
     else
       sql_print_error("Could not open %s for logging (error %d). "
@@ -8668,7 +8668,7 @@ void register_binlog_handler(THD *thd, bool trx)
       We only update the saved position if the old one was undefined,
       the reason is that there are some cases (e.g., for CREATE-SELECT)
       where the position is saved twice (e.g., both in
-      Query_result_create::prepare() and THD::binlog_write_table_map()), but
+      select_create::prepare() and THD::binlog_write_table_map()) , but
       we should use the first. This means that calls to this function
       can be used to start the statement before the first table map
       event, to include some extra events.

@@ -2533,6 +2533,7 @@ ha_innopart::create(
 	/** absolute path of table */
 	char		remote_path[FN_REFLEN];
 	char		partition_name[FN_REFLEN];
+	char		tablespace_name[NAME_LEN];
 	char*		table_name_end;
 	size_t		table_name_len;
 	char*		partition_name_start;
@@ -2552,6 +2553,7 @@ ha_innopart::create(
 				     table_name,
 				     temp_path,
 				     remote_path,
+				     tablespace_name,
 				     srv_file_per_table);
 
 	DBUG_ENTER("ha_innopart::create");

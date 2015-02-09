@@ -886,27 +886,31 @@ dict_tf_get_format(
 @param[in,out]	flags,		Pointer to a 4 byte Table Flags
 @param[in]	format,		File Format
 @param[in]	zip_ssize	Zip Shift Size
-@param[in]	use_data_dir	Table uses DATA DIRECTORY */
+@param[in]	use_data_dir	Table uses DATA DIRECTORY
+@param[in]	shared_space	Table uses a General Shared Tablespace */
 UNIV_INLINE
 void
 dict_tf_set(
 	ulint*		flags,
 	rec_format_t	format,
 	ulint		zip_ssize,
-	bool		use_data_dir);
+	bool		use_data_dir,
+	bool		shared_space);
 
 /** Initialize a dict_table_t::flags pointer.
 @param[in]	compact,	Table uses Compact or greater
 @param[in]	zip_ssize	Zip Shift Size (log 2 minus 9)
 @param[in]	atomic_blobs	Table uses Compressed or Dynamic
-@param[in]	data_dir	Table uses DATA DIRECTORY */
+@param[in]	data_dir	Table uses DATA DIRECTORY
+@param[in]	shared_space	Table uses a General Shared Tablespace */
 UNIV_INLINE
 ulint
 dict_tf_init(
 	bool		compact,
 	ulint		zip_ssize,
 	bool		atomic_blobs,
-	bool		data_dir);
+	bool		data_dir,
+	bool		shared_space);
 
 /** Convert a 32 bit integer table flags to the 32 bit FSP Flags.
 Fsp Flags are written into the tablespace header at the offset
@@ -919,10 +923,12 @@ dict_table_t::flags |     0     |    1    |     1      |    1
 fil_space_t::flags  |     0     |    0    |     1      |    1
 ==================================================================
 @param[in]	table_flags	dict_table_t::flags
+@param[in]	is_temp		whether the tablespace is temporary
 @return tablespace flags (fil_space_t::flags) */
 ulint
 dict_tf_to_fsp_flags(
-	ulint	table_flags)
+	ulint	table_flags,
+	bool	is_temp)
 	__attribute__((const));
 
 /** Extract the page size from table flags.
@@ -1911,6 +1917,13 @@ dict_table_get_index_on_first_col(
 	const dict_table_t*	table,		/*!< in: table */
 	ulint			col_index);	/*!< in: position of column
 						in table */
+
+/** Look for any dictionary objects that are found in the given tablespace.
+@param[in]	space	Tablespace ID to search for.
+@return true if tablespace is empty. */
+bool
+dict_tablespace_is_empty(
+	ulint	space_id);
 
 #endif /* !UNIV_HOTBACKUP */
 

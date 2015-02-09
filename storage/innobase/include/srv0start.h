@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -127,6 +127,8 @@ extern	lsn_t	srv_start_lsn;
 
 /** TRUE if the server is being started */
 extern	bool	srv_is_being_started;
+/** TRUE if SYS_TABLESPACES is available for lookups */
+extern	bool	srv_sys_tablespaces_open;
 /** TRUE if the server was successfully started */
 extern	ibool	srv_was_started;
 /** TRUE if the server is being started, before rolling back any

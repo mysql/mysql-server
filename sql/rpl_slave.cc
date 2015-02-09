@@ -1302,7 +1302,7 @@ static void init_slave_skip_errors()
   if (bitmap_init(&slave_error_mask,0,MAX_SLAVE_ERROR,0))
   {
     fprintf(stderr, "Badly out of memory, please check your system status\n");
-    exit(1);
+    exit(MYSQLD_ABORT_EXIT);
   }
   use_slave_mask = 1;
   DBUG_VOID_RETURN;

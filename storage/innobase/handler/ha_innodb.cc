@@ -245,6 +245,20 @@ static const char* innobase_change_buffering_values[IBUF_USE_COUNT] = {
 	"all"		/* IBUF_USE_ALL */
 };
 
+
+/* This tablespace name is reserved by InnoDB in order to explicitly
+create a file_per_table tablespace for the table. */
+const char reserved_file_per_table_space_name[] = "innodb_file_per_table";
+
+/* This tablespace name is reserved by InnoDB for the system tablespace
+which uses space_id 0 and stores extra types of system pages like UNDO
+and doublewrite. */
+const char reserved_system_space_name[] = "innodb_system";
+
+/* This tablespace name is reserved by InnoDB for the predefined temporary
+tablespace. */
+const char reserved_temporary_space_name[] = "innodb_temporary";
+
 /* Call back function array defined by MySQL and used to
 retrieve FTS results. */
 const struct _ft_vft ft_vft_result = {NULL,
@@ -887,6 +901,18 @@ innobase_rollback_by_xid(
 	handlerton*	hton,		/*!< in: InnoDB handlerton */
 	XID*		xid);		/*!< in: X/Open XA transaction
 					identification */
+
+/** This API handles CREATE, ALTER & DROP commands for InnoDB tablespaces.
+@param[in]	hton		Handlerton of InnoDB
+@param[in]	thd		Connection
+@param[in]	alter_info	Describies the command and how to do it.
+@return MySQL error code*/
+static
+int
+innobase_alter_tablespace(
+	handlerton*		hton,
+	THD*			thd,
+	st_alter_tablespace*	alter_info);
 
 /** Remove all tables in the named database inside InnoDB.
 @param[in]	hton	handlerton from InnoDB
@@ -1564,7 +1590,6 @@ convert_error_code_to_mysql(
 	case DB_TABLE_IS_BEING_USED:
 		return(HA_ERR_WRONG_COMMAND);
 
-	case DB_TABLESPACE_DELETED:
 	case DB_TABLE_NOT_FOUND:
 		return(HA_ERR_NO_SUCH_TABLE);
 
@@ -1630,12 +1655,16 @@ convert_error_code_to_mysql(
 		return(HA_ERR_OUT_OF_MEM);
 	case DB_TABLESPACE_EXISTS:
 		return(HA_ERR_TABLESPACE_EXISTS);
+	case DB_TABLESPACE_DELETED:
+		return(HA_ERR_TABLESPACE_MISSING);
 	case DB_IDENTIFIER_TOO_LONG:
 		return(HA_ERR_INTERNAL_ERROR);
 	case DB_TABLE_CORRUPT:
 		return(HA_ERR_TABLE_CORRUPT);
 	case DB_FTS_TOO_MANY_WORDS_IN_PHRASE:
 		return(HA_ERR_FTS_TOO_MANY_WORDS_IN_PHRASE);
+	case DB_WRONG_FILE_NAME:
+		return(HA_ERR_WRONG_FILE_NAME);
 	}
 }
 
@@ -2627,7 +2656,6 @@ and quote it.
 @param[in]	idlen	length of id, in bytes
 @param[in]	thd	MySQL connection thread, or NULL
 @return pointer to the end of buf */
-static
 char*
 innobase_convert_identifier(
 	char*		buf,
@@ -2938,6 +2966,7 @@ innobase_init(
 	innobase_hton->commit_by_xid = innobase_commit_by_xid;
 	innobase_hton->rollback_by_xid = innobase_rollback_by_xid;
 	innobase_hton->create = innobase_create_handler;
+	innobase_hton->alter_tablespace = innobase_alter_tablespace;
 	innobase_hton->drop_database = innobase_drop_database;
 	innobase_hton->panic = innobase_end;
 	innobase_hton->partition_flags= innobase_partition_flags;
@@ -3050,10 +3079,11 @@ innobase_init(
 	srv_sys_space.set_space_id(TRX_SYS_SPACE);
 
 	/* Create the filespace flags. */
-	ulint	fsp_flags = fsp_flags_init(univ_page_size, false, false);
+	ulint	fsp_flags = fsp_flags_init(
+		univ_page_size, false, false, false, false);
 	srv_sys_space.set_flags(fsp_flags);
 
-	srv_sys_space.set_name("innodb_system");
+	srv_sys_space.set_name(reserved_system_space_name);
 	srv_sys_space.set_path(srv_data_home);
 
 	/* Supports raw devices */
@@ -3071,11 +3101,12 @@ innobase_init(
 	/* We set the temporary tablspace id later, after recovery.
 	The temp tablespace doesn't support raw devices.
 	Set the name and path. */
-	srv_tmp_space.set_name("innodb_temporary");
+	srv_tmp_space.set_name(reserved_temporary_space_name);
 	srv_tmp_space.set_path(srv_data_home);
 
-	/* Create the filespace flags. */
-	fsp_flags = fsp_flags_init(univ_page_size, false, false);
+	/* Create the filespace flags with the temp flag set. */
+	fsp_flags = fsp_flags_init(
+		univ_page_size, false, false, false, true);
 	srv_tmp_space.set_flags(fsp_flags);
 
 	if (!srv_tmp_space.parse_params(innobase_temp_data_file_path, false)) {
@@ -8714,6 +8745,8 @@ create_table_info_t::create_table_def()
 	ulint		doc_id_col = 0;
 	ibool		has_doc_id_col = FALSE;
 	mem_heap_t*	heap;
+	ulint		space_id = 0;
+	ulint		actual_n_cols;
 
 	DBUG_ENTER("create_table_def");
 	DBUG_PRINT("enter", ("table_name: %s", m_table_name));
@@ -8749,23 +8782,24 @@ create_table_info_t::create_table_def()
 
 	/* For single-table tablespaces, we pass 0 as the space id, and then
 	determine the actual space id when the tablespace is created. */
+	if (DICT_TF_HAS_SHARED_SPACE(m_flags)) {
+		ut_ad(m_tablespace != NULL);
 
+		space_id = fil_space_get_id_by_name(m_tablespace);
+	}
+
+	/* Adjust the number of columns for the FTS hidden field */
+	actual_n_cols = n_cols;
+	if (m_flags2 & DICT_TF2_FTS && !has_doc_id_col) {
+		actual_n_cols += 1;
+	}
+
+	table = dict_mem_table_create(m_table_name, space_id,
+				      actual_n_cols, m_flags, m_flags2);
+
+	/* Set the hidden doc_id column. */
 	if (m_flags2 & DICT_TF2_FTS) {
-		/* Adjust for the FTS hidden field */
-		if (!has_doc_id_col) {
-			table = dict_mem_table_create(m_table_name, 0, n_cols + 1,
-						      m_flags, m_flags2);
-
-			/* Set the hidden doc_id column. */
-			table->fts->doc_col = n_cols;
-		} else {
-			table = dict_mem_table_create(m_table_name, 0, n_cols,
-						      m_flags, m_flags2);
-			table->fts->doc_col = doc_id_col;
-		}
-	} else {
-		table = dict_mem_table_create(m_table_name, 0, n_cols,
-					      m_flags, m_flags2);
+		table->fts->doc_col = has_doc_id_col ? doc_id_col : n_cols;
 	}
 
 	if (strlen(m_temp_path) != 0) {
@@ -8779,6 +8813,14 @@ create_table_info_t::create_table_def()
 	} else {
 		table->data_dir_path = NULL;
 	}
+
+	if (DICT_TF_HAS_SHARED_SPACE(m_flags)) {
+		ut_ad(strlen(m_tablespace));
+		table->tablespace = mem_heap_strdup(table->heap, m_tablespace);
+	} else {
+		table->tablespace = NULL;
+	}
+
 	heap = mem_heap_create(1000);
 
 	for (i = 0; i < n_cols; i++) {
@@ -9227,7 +9269,7 @@ create_table_info_t::create_option_data_directory_is_valid()
 	      && m_create_info->data_file_name[0] != '\0');
 
 	/* Use DATA DIRECTORY only with file-per-table. */
-	if (!m_file_per_table) {
+	if (!m_use_shared_space && !m_file_per_table) {
 		push_warning(
 			m_thd, Sql_condition::SL_WARNING,
 			ER_ILLEGAL_HA_CREATE_OPTION,
@@ -9246,11 +9288,198 @@ create_table_info_t::create_option_data_directory_is_valid()
 		is_valid = false;
 	}
 
+	/* We check for a DATA DIRECTORY mixed with TABLESPACE in
+	create_option_tablespace_is_valid(), no need to here. */
+
 	return(is_valid);
 }
 
+/** Validate the tablespace name provided for a tablespace DDL
+@param[in]	name		A proposed tablespace name
+@param[in]	for_table	Caller is putting a table here
+@return MySQL handler error code like HA_... */
+static
+int
+validate_tablespace_name(
+	const char*	name,
+	bool		for_table)
+{
+	int	err = 0;
+
+	/* This prefix is reserved by InnoDB for use in internal tablespace names. */
+	const char reserved_space_name_prefix[] = "innodb_";
+
+	/* The tablespace name cannot be a null string: "". */
+	if (0 == strlen(name)) {
+		my_error(ER_WRONG_TABLESPACE_NAME, MYF(0), name);
+		err = HA_WRONG_CREATE_OPTION;
+	}
+
+	/* The tablespace name cannot start with `innodb_`. */
+	if (strlen(name) >= sizeof(reserved_space_name_prefix) - 1
+	    && 0 == memcmp(name, reserved_space_name_prefix,
+			   sizeof(reserved_space_name_prefix) - 1)) {
+
+		/* Use a different message for reserved names */
+		if (0 == strcmp(name, reserved_file_per_table_space_name)
+		    || 0 == strcmp(name, reserved_system_space_name)
+		    || 0 == strcmp(name, reserved_temporary_space_name)) {
+			/* Allow these names if the caller is putting a
+			table into one of these by CREATE/ALTER TABLE */
+			if (!for_table) {
+				my_printf_error(
+					ER_WRONG_TABLESPACE_NAME,
+					"InnoDB: `%s` is a reserved"
+					" tablespace name.",
+					MYF(0), name);
+				err = HA_WRONG_CREATE_OPTION;
+			}
+		} else {
+			my_printf_error(ER_WRONG_TABLESPACE_NAME,
+					"InnoDB: A general tablespace"
+					" name cannot start with `%s`.",
+					MYF(0), reserved_space_name_prefix);
+			err = HA_WRONG_CREATE_OPTION;
+		}
+	}
+
+	/* The tablespace name cannot contain a '/'. */
+	if (memchr(name, '/', strlen(name)) != NULL) {
+		my_printf_error(ER_WRONG_TABLESPACE_NAME,
+			"InnoDB: A general tablespace name cannot"
+			" contain '/'.", MYF(0));
+		err = HA_WRONG_CREATE_OPTION;
+	}
+
+	return(err);
+}
+
+/** Validate TABLESPACE option.
+@return true if valid, false if not. */
+bool
+create_table_info_t::create_option_tablespace_is_valid()
+{
+	ut_ad(m_use_shared_space);
+
+	if (0 != validate_tablespace_name(m_create_info->tablespace, true)) {
+		return(false);
+	}
+
+	/* Look up the tablespace name in the fil_system. */
+	ulint space_id = fil_space_get_id_by_name(
+		m_create_info->tablespace);
+
+	if (space_id == ULINT_UNDEFINED) {
+		my_printf_error(ER_TABLESPACE_MISSING,
+			"InnoDB: A general tablespace named"
+			" `%s` cannot be found.", MYF(0),
+			m_create_info->tablespace);
+		return(false);
+	}
+
+	/* Cannot add a second table to a file-per-table tablespace. */
+	ulint	fsp_flags = fil_space_get_flags(space_id);
+	if (fsp_is_file_per_table(space_id, fsp_flags)) {
+		my_printf_error(ER_ILLEGAL_HA_CREATE_OPTION,
+			"InnoDB: Tablespace `%s` is file-per-table so no"
+			" other table can be added to it.", MYF(0),
+			m_create_info->tablespace);
+		return(false);
+	}
+
+	/* If TABLESPACE=innodb_file_per_table this function is not called
+	since target_is_shared_space() will return false.  Any other
+	tablespace is incompatible with the DATA DIRECTORY phrase.
+	On any ALTER TABLE that contains a DATA DIRECTORY, MySQL will issue
+	a warning like "<DATA DIRECTORY> option ignored." The check below is
+	needed for CREATE TABLE only. ALTER TABLE may be moving remote
+	file-per-table table to a general tablespace, in chich case the
+	create_info->data_file_name is not null. */
+	bool	is_create_table = (thd_sql_command(m_thd) == SQLCOM_CREATE_TABLE);
+	if (is_create_table
+	    && m_create_info->data_file_name != NULL
+	    && m_create_info->data_file_name[0] != '\0') {
+		my_printf_error(ER_ILLEGAL_HA_CREATE_OPTION,
+			"InnoDB: DATA DIRECTORY cannot be used"
+			" with a TABLESPACE assignment.", MYF(0));
+		return(false);
+	}
+
+	/* Temp tables only belong in temp tablespaces. */
+	if (m_create_info->options & HA_LEX_CREATE_TMP_TABLE) {
+		if (!FSP_FLAGS_GET_TEMPORARY(fsp_flags)) {
+			my_printf_error(ER_ILLEGAL_HA_CREATE_OPTION,
+				"InnoDB: Tablespace `%s` cannot contain"
+				" TEMPORARY tables.", MYF(0),
+				m_create_info->tablespace);
+			return(false);
+		}
+
+		/* Restrict Compressed Temporary General tablespaces. */
+		if (m_create_info->key_block_size
+		    || m_create_info->row_type == ROW_TYPE_COMPRESSED) {
+			my_printf_error(ER_ILLEGAL_HA_CREATE_OPTION,
+				"InnoDB: Temporary tablespace `%s` cannot"
+				" contain COMPRESSED tables.", MYF(0),
+				m_create_info->tablespace);
+			return(false);
+		}
+	} else if (FSP_FLAGS_GET_TEMPORARY(fsp_flags)) {
+		my_printf_error(ER_ILLEGAL_HA_CREATE_OPTION,
+			"InnoDB: Tablespace `%s` can only contain"
+			" TEMPORARY tables.", MYF(0),
+			m_create_info->tablespace);
+		return(false);
+	}
+
+	/* Make sure the physical page size of the table matches the
+	file block size of the tablespace. */
+	ulint	block_size_needed;
+	bool	table_is_compressed;
+	if (m_create_info->key_block_size) {
+		block_size_needed = m_create_info->key_block_size * 1024;
+		table_is_compressed = true;
+	} else if (m_create_info->row_type == ROW_TYPE_COMPRESSED) {
+		block_size_needed = ut_min(
+			UNIV_PAGE_SIZE / 2,
+			static_cast<ulint>(UNIV_ZIP_SIZE_MAX));
+		table_is_compressed = true;
+	} else {
+		block_size_needed = UNIV_PAGE_SIZE;
+		table_is_compressed = false;
+	}
+
+	const page_size_t	page_size(fsp_flags);
+
+	/* The compression code needs some work in order for a general
+	tablespace to contain both compressed and non-compressed tables
+	together in the same tablespace.  The problem seems to be that
+	each page is either compressed or not based on the fsp flags,
+	which is shared by all tables in that general tablespace. */
+	if (table_is_compressed && page_size.physical() == UNIV_PAGE_SIZE) {
+		my_printf_error(ER_ILLEGAL_HA_CREATE_OPTION,
+			"InnoDB: Tablespace `%s` cannot contain a"
+			" COMPRESSED table", MYF(0),
+			m_create_info->tablespace);
+		return(false);
+	}
+
+	if (block_size_needed != page_size.physical()) {
+		my_printf_error(ER_ILLEGAL_HA_CREATE_OPTION,
+			"InnoDB: Tablespace `%s` uses block size " ULINTPF
+			" and cannot contain a table with physical"
+			" page size " ULINTPF, MYF(0),
+			m_create_info->tablespace,
+			page_size.physical(),
+			block_size_needed);
+		return(false);
+	}
+
+	return(true);
+}
+
 /** Validate the create options. Check that the options KEY_BLOCK_SIZE,
-ROW_FORMAT, DATA DIRECTORY & TEMPORARY are compatible with
+ROW_FORMAT, DATA DIRECTORY, TEMPORARY & TABLESPACE are compatible with
 each other and other settings.  These CREATE OPTIONS are not validated
 here unless innodb_strict_mode is on. With strict mode, this function
 will report each problem it finds using a custom message with error
@@ -9268,8 +9497,17 @@ create_table_info_t::create_options_are_invalid()
 	ut_ad(m_thd != NULL);
 	ut_ad(m_create_info != NULL);
 
-	/* If innodb_strict_mode is not set don't do any validation. */
-	if (!(THDVAR(m_thd, strict_mode))) {
+	/* The TABLESPACE designation on a CREATE TABLE is not subject to
+	non-strict-mode.  If it is incorrect or is incompatible with other
+	options, then we will return an error. Make sure the tablespace exists
+	and is compatible with this table */
+	if (m_use_shared_space
+	    && !create_option_tablespace_is_valid()) {
+		return("TABLESPACE");
+	}
+
+	/* If innodb_strict_mode is not set don't do any more validation. */
+	if (!m_use_shared_space && !(THDVAR(m_thd, strict_mode))) {
 		return(NULL);
 	}
 
@@ -9298,6 +9536,11 @@ create_table_info_t::create_options_are_invalid()
 					m_create_info->key_block_size,
 					kbs_max);
 				ret = "KEY_BLOCK_SIZE";
+			}
+
+			/* The following checks do not appy to shared tablespaces */
+			if (m_use_shared_space) {
+				break;
 			}
 
 			/* Valid KEY_BLOCK_SIZE, check its dependencies. */
@@ -9334,43 +9577,47 @@ create_table_info_t::create_options_are_invalid()
 	other incompatibilities. */
 	switch (row_format) {
 	case ROW_TYPE_COMPRESSED:
-		if (!m_file_per_table) {
-			push_warning_printf(
-				m_thd, Sql_condition::SL_WARNING,
-				ER_ILLEGAL_HA_CREATE_OPTION,
-				"InnoDB: ROW_FORMAT=%s requires"
-				" innodb_file_per_table.",
-				get_row_format_name(row_format));
-			ret = "ROW_FORMAT";
-		}
-		if (srv_file_format < UNIV_FORMAT_B) {
-			push_warning_printf(
-				m_thd, Sql_condition::SL_WARNING,
-				ER_ILLEGAL_HA_CREATE_OPTION,
-				"InnoDB: ROW_FORMAT=%s requires"
-				" innodb_file_format > Antelope.",
-				get_row_format_name(row_format));
-			ret = "ROW_FORMAT";
+		if (!m_use_shared_space) {
+			if (!m_file_per_table) {
+				push_warning_printf(
+					m_thd, Sql_condition::SL_WARNING,
+					ER_ILLEGAL_HA_CREATE_OPTION,
+					"InnoDB: ROW_FORMAT=%s requires"
+					" innodb_file_per_table.",
+					get_row_format_name(row_format));
+				ret = "ROW_FORMAT";
+			}
+			if (srv_file_format < UNIV_FORMAT_B) {
+				push_warning_printf(
+					m_thd, Sql_condition::SL_WARNING,
+					ER_ILLEGAL_HA_CREATE_OPTION,
+					"InnoDB: ROW_FORMAT=%s requires"
+					" innodb_file_format > Antelope.",
+					get_row_format_name(row_format));
+				ret = "ROW_FORMAT";
+			}
 		}
 		break;
 	case ROW_TYPE_DYNAMIC:
-		if (!m_file_per_table && !is_temp) {
-			push_warning_printf(
-				m_thd, Sql_condition::SL_WARNING,
-				ER_ILLEGAL_HA_CREATE_OPTION,
-				"InnoDB: ROW_FORMAT=%s requires"
-				" innodb_file_per_table.",
-				get_row_format_name(row_format));
-			ret = "ROW_FORMAT";
-		}
-		if (srv_file_format < UNIV_FORMAT_B) {
-			push_warning_printf(
-				m_thd, Sql_condition::SL_WARNING,
-				ER_ILLEGAL_HA_CREATE_OPTION,
-				"InnoDB: ROW_FORMAT=%s requires"
-				" innodb_file_format > Antelope.",
-				get_row_format_name(row_format));
-			ret = "ROW_FORMAT";
+		if (!m_use_shared_space) {
+			if (!m_file_per_table && !is_temp) {
+				push_warning_printf(
+					m_thd, Sql_condition::SL_WARNING,
+					ER_ILLEGAL_HA_CREATE_OPTION,
+					"InnoDB: ROW_FORMAT=%s requires"
+					" innodb_file_per_table.",
+					get_row_format_name(row_format));
+				ret = "ROW_FORMAT";
+			}
+			if (srv_file_format < UNIV_FORMAT_B) {
+				push_warning_printf(
+					m_thd, Sql_condition::SL_WARNING,
+					ER_ILLEGAL_HA_CREATE_OPTION,
+					"InnoDB: ROW_FORMAT=%s requires"
+					" innodb_file_format > Antelope.",
+					get_row_format_name(row_format));
+				ret = "ROW_FORMAT";
+			}
 		}
 		/* fall through since dynamic also shuns KBS */
 	case ROW_TYPE_COMPACT:
@@ -9450,6 +9697,18 @@ ha_innobase::update_create_info(
 	if (m_prebuilt->table->data_dir_path) {
 		create_info->data_file_name = m_prebuilt->table->data_dir_path;
 	}
+
+	/* Update the TABLESPACE name from the Data Dictionary. */
+	dict_get_and_save_space_name(m_prebuilt->table, false);
+
+	/* Put this tablespace name into the create_info structure so that
+	SHOW CREATE TABLE will display TABLESPACE=name.  This also affects
+	an ALTER TABLE which must know the current TABLESPACE so that the
+	table will stay there. */
+	if (m_prebuilt->table->tablespace != NULL
+	    && create_info->tablespace == NULL) {
+		create_info->tablespace = m_prebuilt->table->tablespace;
+	}
 }
 
 /*****************************************************************//**
@@ -9505,17 +9764,21 @@ create_table_info_t::parse_table_name(
 	normalize_table_name(m_table_name, name);
 	m_temp_path[0] = '\0';
 	m_remote_path[0] = '\0';
+	m_tablespace[0] = '\0';
 
 	/* A full path is provided by the server for TEMPORARY tables not
 	targeted for a tablespace or when DATA DIRECTORY is given.
-	So these two are not compatible. */
-	if (m_create_info->options & HA_LEX_CREATE_TMP_TABLE) {
+	So these two are not compatible.  Likewise, DATA DIRECTORY is not
+	compatible with a TABLESPACE assignment. */
+	if ((m_create_info->options & HA_LEX_CREATE_TMP_TABLE)
+	    && !m_use_shared_space) {
 		strncpy(m_temp_path, name, FN_REFLEN - 1);
 	}
 
 	/* Make sure DATA DIRECTORY is compatible with other options
-	and set the remote path.  In the case of;
+	and set the remote path.  In the case of either;
 	  CREATE TEMPORARY TABLE ... DATA DIRECTORY={path} ... ;
+	  CREATE TABLE ... DATA DIRECTORY={path} TABLESPACE={name}... ;
 	we ignore the DATA DIRECTORY. */
 	if (m_create_info->data_file_name
 	    && m_create_info->data_file_name[0] != '\0') {
@@ -9540,11 +9803,21 @@ create_table_info_t::parse_table_name(
 			"INDEX DIRECTORY");
 	}
 
+	/* The TABLESPACE designation has already been validated by
+	create_option_tablespace_is_valid() irregardless of strict-mode.
+	So it only needs to be copied now. */
+	if (m_use_shared_space) {
+		strncpy(m_tablespace, m_create_info->tablespace,
+			NAME_LEN - 1);
+	}
+
 	DBUG_RETURN(0);
 }
 
 /** Determine InnoDB table flags.
 If strict_mode=OFF, this will adjust the flags to what should be assumed.
+However, if an existing general tablespace is being targeted, we will NOT
+assume anything or adjust these flags.
 @retval true if successful, false if error */
 bool
 create_table_info_t::innobase_table_flags()
@@ -9556,6 +9829,9 @@ create_table_info_t::innobase_table_flags()
 	ulint		zip_ssize = 0;
 	enum row_type	row_type;
 	rec_format_t	innodb_row_format = REC_FORMAT_COMPACT;
+
+	ut_ad(!(m_file_per_table && m_use_shared_space));
+
 	const ulint	zip_ssize_max =
 		ut_min(static_cast<ulint>(UNIV_PAGE_SSIZE_MAX),
 		       static_cast<ulint>(PAGE_ZIP_SSIZE_MAX));
@@ -9632,7 +9908,7 @@ index_bad:
 		}
 
 		/* Make sure compressed row format is allowed. */
-		if (!m_file_per_table) {
+		if (!m_file_per_table && !m_use_shared_space) {
 			push_warning(
 				m_thd, Sql_condition::SL_WARNING,
 				ER_ILLEGAL_HA_CREATE_OPTION,
@@ -9641,7 +9917,8 @@ index_bad:
 			zip_allowed = false;
 		}
 
-		if (file_format_allowed < UNIV_FORMAT_B) {
+		if (file_format_allowed < UNIV_FORMAT_B
+		    && !m_use_shared_space) {
 			push_warning(
 				m_thd, Sql_condition::SL_WARNING,
 				ER_ILLEGAL_HA_CREATE_OPTION,
@@ -9702,12 +9979,16 @@ index_bad:
 
 	case ROW_TYPE_COMPRESSED:
 	case ROW_TYPE_DYNAMIC:
-		/* Check for file_per_table only if
-		row_format = compressed (temp + non_temp table)
-		row_format = dynamic (non_temp table) */
-		if ((!m_file_per_table
-		     && (row_type == ROW_TYPE_COMPRESSED
-			 || (row_type == ROW_TYPE_DYNAMIC && !is_temp)))) {
+		/* ROW_FORMAT=COMPRESSED requires file_per_table and
+		file_format=Barracuda unless there is a target tablespace.
+		ROW_FORMAT=DYNAMIC requires file_per_table and
+		file_format=Barracuda unless there is a target tablespace or
+		it is a temp file */
+		if (!m_file_per_table
+		    && !m_use_shared_space
+		    && (row_type == ROW_TYPE_COMPRESSED
+		        || (row_type == ROW_TYPE_DYNAMIC
+		            && !is_temp))) {
 			push_warning_printf(
 				m_thd, Sql_condition::SL_WARNING,
 				ER_ILLEGAL_HA_CREATE_OPTION,
@@ -9715,7 +9996,8 @@ index_bad:
 				" innodb_file_per_table.",
 				get_row_format_name(row_type));
 
-		} else if (file_format_allowed == UNIV_FORMAT_A) {
+		} else if (file_format_allowed == UNIV_FORMAT_A
+			   && !m_use_shared_space) {
 			push_warning_printf(
 				m_thd, Sql_condition::SL_WARNING,
 				ER_ILLEGAL_HA_CREATE_OPTION,
@@ -9763,7 +10045,7 @@ index_bad:
 
 	/* Set the table flags */
 	dict_tf_set(&m_flags, innodb_row_format, zip_ssize,
-	            m_use_data_dir);
+	            m_use_data_dir, m_use_shared_space);
 
 	if (m_create_info->options & HA_LEX_CREATE_TMP_TABLE) {
 		m_flags2 |= DICT_TF2_TEMPORARY;
@@ -9777,6 +10059,7 @@ index_bad:
 	}
 
 	if (m_file_per_table) {
+		ut_ad(!m_use_shared_space);
 		m_flags2 |= DICT_TF2_USE_FILE_PER_TABLE;
 	}
 
@@ -10348,8 +10631,10 @@ ha_innobase::create(
 {
 	int		error;
 	char		norm_name[FN_REFLEN];	/* {database}/{tablename} */
-	char		temp_path[FN_REFLEN];	/* absolute path of temp frm */
-	char		remote_path[FN_REFLEN];	/* absolute path of table */
+	char		temp_path[FN_REFLEN];	/* Absolute path of temp frm */
+	char		remote_path[FN_REFLEN];	/* Absolute path of table */
+	char		tablespace[NAME_LEN];	/* Tablespace name identifier */
+	bool		needs_file_per_table;
 	trx_t*		trx;
 	DBUG_ENTER("ha_innobase::create");
 
@@ -10359,10 +10644,12 @@ ha_innobase::create(
 	table. So we read the current value here and make all further
 	decisions based on this.
 	Ignore the current innodb-file-per-table setting if we are
-	creating a temporary, non-compressed table. */
-	bool	needs_file_per_table =
-		srv_file_per_table
-		&& !table_is_noncompressed_temporary(create_info);
+	creating a temporary, non-compressed table or if the
+	TABLESPACE= phrase is using an existing shared tablespace. */
+	needs_file_per_table =
+		(srv_file_per_table || target_is_file_per_table(create_info))
+		&& !table_is_noncompressed_temporary(create_info)
+		&& !target_is_shared_space(create_info);
 
 	create_table_info_t	info(ha_thd(),
 				     form,
@@ -10370,6 +10657,7 @@ ha_innobase::create(
 				     norm_name,
 				     temp_path,
 				     remote_path,
+				     tablespace,
 				     needs_file_per_table);
 
 	/* Initialize the object and do some validation. */
@@ -10494,6 +10782,16 @@ ha_innobase::discard_or_import_tablespace(
 			dict_table->name.m_name);
 
 		DBUG_RETURN(HA_ERR_TABLE_NEEDS_UPGRADE);
+	}
+
+	if (DICT_TF_HAS_SHARED_SPACE(dict_table->flags)) {
+		my_printf_error(ER_NOT_ALLOWED_COMMAND,
+			"InnoDB: Cannot %s table `%s` because it is in"
+			" a general tablespace. It must be file-per-table.",
+			MYF(0), discard ? "discard" : "import",
+			dict_table->name.m_name);
+
+		DBUG_RETURN(HA_ERR_NOT_ALLOWED_COMMAND);
 	}
 
 	TrxInInnoDB	trx_in_innodb(m_prebuilt->trx);
@@ -10823,6 +11121,341 @@ ha_innobase::delete_table(
 	trx_free_for_mysql(trx);
 
 	DBUG_RETURN(convert_error_code_to_mysql(err, 0, NULL));
+}
+
+/** Validate the parameters in st_alter_tablespace
+before using them in InnoDB tablespace functions.
+@param[in]	thd		Connection
+@param[in]	alter_info	How to do the command.
+@return MySQL handler error code like HA_... */
+static
+int
+validate_create_tablespace_info(
+	THD*			thd,
+	st_alter_tablespace*	alter_info)
+{
+	ulint space_id;
+
+	/* The parser ensures that these fields are provided. */
+	ut_a(alter_info->tablespace_name);
+	ut_a(alter_info->data_file_name);
+
+	if (srv_read_only_mode) {
+		return(HA_ERR_TABLE_READONLY);
+	}
+
+	/* From this point forward, push a warning for each problem found
+	instead of returning immediately*/
+	int	err = validate_tablespace_name(
+			alter_info->tablespace_name, false);
+
+	/* Make sure the tablespace is not already open. */
+	space_id = fil_space_get_id_by_name(alter_info->tablespace_name);
+	if (space_id != ULINT_UNDEFINED) {
+		my_printf_error(ER_TABLESPACE_EXISTS,
+			"InnoDB: A tablespace named `%s` already exists.",
+			MYF(0), alter_info->tablespace_name);
+		err = HA_ERR_TABLESPACE_EXISTS;
+	}
+
+	if (alter_info->file_block_size) {
+		/* Check for a bad file block size. */
+		if (!ut_is_2pow(alter_info->file_block_size)
+		    || alter_info->file_block_size < UNIV_ZIP_SIZE_MIN
+		    || alter_info->file_block_size > UNIV_PAGE_SIZE_MAX) {
+			my_printf_error(ER_ILLEGAL_HA_CREATE_OPTION,
+				"InnoDB does not support"
+				" FILE_BLOCK_SIZE=%llu", MYF(0),
+				alter_info->file_block_size);
+			err = HA_WRONG_CREATE_OPTION;
+
+		/* Don't allow a file block size larger than UNIV_PAGE_SIZE. */
+		} else if (alter_info->file_block_size > UNIV_PAGE_SIZE) {
+			my_printf_error(ER_ILLEGAL_HA_CREATE_OPTION,
+				"InnoDB: Cannot create a tablespace with "
+				"FILE_BLOCK_SIZE=%llu because "
+				"INNODB_PAGE_SIZE=%lu.", MYF(0),
+				alter_info->file_block_size, UNIV_PAGE_SIZE);
+			err = HA_WRONG_CREATE_OPTION;
+
+		/* Don't allow a compressed tablespace when page size > 16k. */
+		} else if (UNIV_PAGE_SIZE > UNIV_PAGE_SIZE_DEF
+			   && alter_info->file_block_size != UNIV_PAGE_SIZE) {
+			my_printf_error(ER_ILLEGAL_HA_CREATE_OPTION,
+				"InnoDB: Cannot create a COMPRESSED tablespace"
+				" when innodb_page_size > 16k.", MYF(0));
+			err = HA_WRONG_CREATE_OPTION;
+		}
+	}
+
+	/* The ADD DATAFILE path in alter_info can have either / or \ as
+	a separator on Windows.  But it must end in '.ibd' and contain a
+	basename of at least 1 character before the .ibd extension. */
+	const char* basename = innobase_basename(alter_info->data_file_name);
+	ulint	flen = strlen(basename);
+	if (flen < 5 || memcmp(&basename[flen - 4], DOT_IBD, 5)) {
+		my_printf_error(ER_WRONG_FILE_NAME,
+			"InnoDB requires that ADD DATAFILE has a filename"
+			" ending in `%s`, the filename `%s` is invalid.",
+			MYF(0), DOT_IBD, alter_info->data_file_name);
+		err = HA_ERR_WRONG_FILE_NAME;
+	}
+
+	const char* colon = strchr(alter_info->data_file_name, ':');
+#ifdef _WIN32
+	/* Do not allow names like "C:name.ibd" because it specifies the
+	"C:" drive but allows a relative location. It should be "c:\".
+	If a single colon is used it must be the second byte.*/
+	const char* colon2 = (colon == NULL) ? NULL : strchr(&colon[1], ':');
+	if (colon2 != NULL
+	    || (colon != NULL
+	        && ((colon[1] != '/' && colon[1] != '\\')
+	            || colon != &alter_info->data_file_name[1]))) {
+#else
+	/* Do not allow a colon in the file name. */
+	if (colon != NULL) {
+#endif /* _WIN32 */
+		my_error(ER_WRONG_FILE_NAME, MYF(0),
+			 alter_info->data_file_name);
+		err = HA_ERR_WRONG_FILE_NAME;
+	}
+
+	return(err);
+}
+
+/** CREATE a tablespace.
+@param[in]	hton		Handlerton of InnoDB
+@param[in]	thd		Connection
+@param[in]	alter_info	How to do the command
+@return MySQL error code*/
+static
+int
+innobase_create_tablespace(
+	handlerton*		hton,
+	THD*			thd,
+	st_alter_tablespace*	alter_info)
+{
+	trx_t*		trx;
+	int		error;
+	Tablespace	tablespace;
+
+	DBUG_ENTER("innobase_create_tablespace");
+	DBUG_ASSERT(hton == innodb_hton_ptr);
+
+	/* Be sure the input parameters are valid before continuing. */
+	error = validate_create_tablespace_info(thd, alter_info);
+	if (error) {
+		DBUG_RETURN(error);
+	}
+
+	/* Create the tablespace object. */
+	tablespace.set_name(alter_info->tablespace_name);
+
+	dberr_t err = tablespace.add_datafile(alter_info->data_file_name);
+	if (err != DB_SUCCESS) {
+		DBUG_RETURN(convert_error_code_to_mysql(err, 0, NULL));
+	}
+
+	/* Get the transaction associated with the current thd and make
+	sure it will not block this DDL. */
+	trx_t*	parent_trx = check_trx_exists(thd);
+
+	/* In case MySQL calls this in the middle of a SELECT
+	query, release possible adaptive hash latch to avoid
+	deadlocks of threads */
+	trx_search_latch_release_if_reserved(parent_trx);
+
+	/* Allocate a new transaction for this DDL */
+	trx = innobase_trx_allocate(thd);
+	++trx->will_lock;
+
+	trx_start_if_not_started(trx, true);
+	row_mysql_lock_data_dictionary(trx);
+
+	/* In FSP_FLAGS, a zip_ssize of zero means that the tablespace
+	holds non-compresssed tables.  A non-zero zip_ssize means that
+	the general tablespace can ONLY contain compressed tables. */
+	ulint zip_size = static_cast<ulint>(alter_info->file_block_size);
+	ut_ad(zip_size <= UNIV_PAGE_SIZE_MAX);
+	if (zip_size == 0) {
+		zip_size = UNIV_PAGE_SIZE;
+	}
+	bool	zipped = (zip_size != UNIV_PAGE_SIZE);
+	page_size_t	page_size(zip_size, UNIV_PAGE_SIZE, zipped);
+	bool atomic_blobs = page_size.is_compressed();
+
+	/* Create the filespace flags */
+	ulint fsp_flags = fsp_flags_init(
+		page_size,	/* page sizes and a flag if compressed */
+		atomic_blobs,	/* needed only for compressed tables */
+		false,		/* This is not a file-per-table tablespace */
+		true,		/* This is a general shared tablespace */
+		false);		/* Temporary General Tablespaces not allowed */
+	tablespace.set_flags(fsp_flags);
+
+	err = dict_build_tablespace(&tablespace);
+	if (err != DB_SUCCESS) {
+		error = convert_error_code_to_mysql(err, 0, NULL);
+		trx_rollback_for_mysql(trx);
+		goto cleanup;
+	}
+
+	innobase_commit_low(trx);
+
+cleanup:
+	row_mysql_unlock_data_dictionary(trx);
+	trx_free_for_mysql(trx);
+
+	DBUG_RETURN(error);
+}
+
+/** DROP a tablespace.
+@param[in]	hton		Handlerton of InnoDB
+@param[in]	thd		Connection
+@param[in]	alter_info	How to do the command
+@return MySQL error code*/
+static
+int
+innobase_drop_tablespace(
+	handlerton*		hton,
+	THD*			thd,
+	st_alter_tablespace*	alter_info)
+{
+	trx_t*		trx;
+	dberr_t		err;
+	int		error = 0;
+	ulint		space_id;
+
+	DBUG_ENTER("innobase_drop_tablespace");
+	DBUG_ASSERT(hton == innodb_hton_ptr);
+
+	if (srv_read_only_mode) {
+		DBUG_RETURN(HA_ERR_TABLE_READONLY);
+	}
+
+	error = validate_tablespace_name(alter_info->tablespace_name, false);
+	if (error != 0) {
+		DBUG_RETURN(error);
+	}
+
+	/* Be sure that this tablespace is known and valid. */
+	space_id = fil_space_get_id_by_name(alter_info->tablespace_name);
+	if (space_id == ULINT_UNDEFINED) {
+		DBUG_RETURN(HA_ERR_TABLESPACE_MISSING);
+	}
+
+	/* The tablespace can only be dropped if it is empty. */
+	if (!dict_tablespace_is_empty(space_id)) {
+		DBUG_RETURN(HA_ERR_TABLESPACE_IS_NOT_EMPTY);
+	}
+
+	/* Get the transaction associated with the current thd and make sure
+	it will not block this DDL. */
+	trx_t*	parent_trx = check_trx_exists(thd);
+
+	/* In case MySQL calls this in the middle of a SELECT
+	query, release possible adaptive hash latch to avoid
+	deadlocks of threads */
+	trx_search_latch_release_if_reserved(parent_trx);
+
+	/* Allocate a new transaction for this DDL */
+	trx = innobase_trx_allocate(thd);
+	++trx->will_lock;
+
+	trx_start_if_not_started(trx, true);
+	row_mysql_lock_data_dictionary(trx);
+
+	/* Update SYS_TABLESPACES and SYS_DATAFILES */
+	err = dict_delete_tablespace_and_datafiles(space_id, trx);
+	if (err != DB_SUCCESS) {
+		ib::error() << "Unable to delete the dictionary entries"
+			" for tablespace `" << alter_info->tablespace_name
+			<< "`, Space ID " << space_id;
+		error = convert_error_code_to_mysql(err, 0, NULL);
+		trx_rollback_for_mysql(trx);
+		goto cleanup;
+	}
+
+	/* Delete the physical files, fil_space_t & fil_node_t entries. */
+	err = fil_delete_tablespace(space_id, BUF_REMOVE_FLUSH_NO_WRITE);
+	if (err != DB_SUCCESS) {
+		ib::error() << "Unable to delete the tablespace `"
+			<< alter_info->tablespace_name
+			<< "`, Space ID " << space_id;
+		error = convert_error_code_to_mysql(err, 0, NULL);
+		trx_rollback_for_mysql(trx);
+		goto cleanup;
+	}
+
+	innobase_commit_low(trx);
+
+cleanup:
+	row_mysql_unlock_data_dictionary(trx);
+	trx_free_for_mysql(trx);
+
+	DBUG_RETURN(error);
+}
+
+/** This API handles CREATE, ALTER & DROP commands for InnoDB tablespaces.
+@param[in]	hton		Handlerton of InnoDB
+@param[in]	thd		Connection
+@param[in]	alter_info	How to do the command
+@return MySQL error code*/
+static
+int
+innobase_alter_tablespace(
+	handlerton*		hton,
+	THD*			thd,
+	st_alter_tablespace*	alter_info)
+{
+	int		error;		/* return zero for success */
+	DBUG_ENTER("innobase_alter_tablespace");
+
+	switch (alter_info->ts_cmd_type) {
+	case CREATE_TABLESPACE:
+		error = innobase_create_tablespace(hton, thd, alter_info);
+		break;
+
+	case DROP_TABLESPACE:
+		error = innobase_drop_tablespace(hton, thd, alter_info);
+		break;
+
+	default:
+		error = HA_ADMIN_NOT_IMPLEMENTED;
+	}
+
+	if (error) {
+		/* These are the most common message params */
+		const char*	object_type = "TABLESPACE";
+		const char*	object = alter_info->tablespace_name;
+
+		/* Modify those params as needed. */
+		switch (alter_info->ts_cmd_type) {
+		case DROP_TABLESPACE:
+			ib_errf(thd, IB_LOG_LEVEL_ERROR,
+				ER_DROP_FILEGROUP_FAILED,
+				"%s %s", object_type, object);
+			break;
+		case CREATE_TABLESPACE:
+			ib_errf(thd, IB_LOG_LEVEL_ERROR,
+				ER_CREATE_FILEGROUP_FAILED,
+				"%s %s", object_type, object);
+			break;
+		case CREATE_LOGFILE_GROUP:
+			my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
+			innobase_hton_name, "LOGFILE GROUP");
+			break;
+		case ALTER_TABLESPACE:
+		case ALTER_ACCESS_MODE_TABLESPACE:
+		case DROP_LOGFILE_GROUP:
+		case ALTER_LOGFILE_GROUP:
+		case CHANGE_FILE_TABLESPACE:
+		case TS_CMD_NOT_DEFINED:
+			break;
+		}
+	}
+
+	DBUG_RETURN(error);
 }
 
 /** Remove all tables in the named database inside InnoDB.

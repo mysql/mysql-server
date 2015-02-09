@@ -3497,6 +3497,8 @@ bool sp_grant_privileges(THD *thd, const char *sp_db, const char *sp_name,
   thd->lex->alter_password.update_password_expired_column= false;
   thd->lex->alter_password.use_default_password_lifetime= true;
   thd->lex->alter_password.expire_after_days= 0;
+  thd->lex->alter_password.update_account_locked_column= false;
+  thd->lex->alter_password.account_locked= false;
 
   combo->alter_status= thd->lex->alter_password;
 

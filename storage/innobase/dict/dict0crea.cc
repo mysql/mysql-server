@@ -278,6 +278,70 @@ dict_build_table_def_step(
 	return(err);
 }
 
+/** Build a tablespace to store various objects.
+@param[in,out]	tablespace	Tablespace object describing what to build.
+@return DB_SUCCESS or error code. */
+dberr_t
+dict_build_tablespace(
+	Tablespace*	tablespace)
+{
+	dberr_t		err	= DB_SUCCESS;
+	mtr_t		mtr;
+	ulint		space = 0;
+
+	ut_ad(mutex_own(&dict_sys->mutex));
+	ut_ad(tablespace);
+
+	/* Get a new space id. */
+	dict_hdr_get_new_id(NULL, NULL, &space, NULL, false);
+	if (space == ULINT_UNDEFINED) {
+		return(DB_ERROR);
+	}
+	tablespace->set_space_id(space);
+
+	Datafile* datafile = tablespace->first_datafile();
+
+	/* We create a new generic empty tablespace.
+	We initially let it be 4 pages:
+	- page 0 is the fsp header and an extent descriptor page,
+	- page 1 is an ibuf bitmap page,
+	- page 2 is the first inode page,
+	- page 3 will contain the root of the clustered index of the
+	first table we create here. */
+
+	err = fil_ibd_create(
+		space,
+		tablespace->name(),
+		datafile->filepath(),
+		tablespace->flags(),
+		FIL_IBD_FILE_INITIAL_SIZE);
+	if (err != DB_SUCCESS) {
+		return(err);
+	}
+
+	/* Update SYS_TABLESPACES and SYS_DATAFILES */
+	err = dict_replace_tablespace_and_filepath(
+		tablespace->space_id(), tablespace->name(),
+		datafile->filepath(), tablespace->flags());
+	if (err != DB_SUCCESS) {
+		os_file_delete(innodb_data_file_key, datafile->filepath());
+		return(err);
+	}
+
+	mtr_start(&mtr);
+	mtr.set_named_space(space);
+
+	/* Once we allow temporary general tablespaces, we must do this;
+	mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO); */
+	ut_a(!FSP_FLAGS_GET_TEMPORARY(tablespace->flags()));
+
+	fsp_header_init(space, FIL_IBD_FILE_INITIAL_SIZE, &mtr);
+
+	mtr_commit(&mtr);
+
+	return(err);
+}
+
 /** Builds a tablespace to contain a table, using file-per-table=1.
 @param[in,out]	table	Table to build in its own tablespace.
 @return DB_SUCCESS or error code */
@@ -325,7 +389,7 @@ dict_build_tablespace_for_table(
 		/* Determine the tablespace flags. */
 		bool	is_temp = dict_table_is_temporary(table);
 		bool	has_data_dir = DICT_TF_HAS_DATA_DIR(table->flags);
-		ulint	fsp_flags = dict_tf_to_fsp_flags(table->flags);
+		ulint	fsp_flags = dict_tf_to_fsp_flags(table->flags, is_temp);
 
 		/* Determine the full filepath */
 		if (is_temp) {
@@ -359,7 +423,7 @@ dict_build_tablespace_for_table(
 
 		err = fil_ibd_create(
 			space, table->name.m_name, filepath, fsp_flags,
-			is_temp, FIL_IBD_FILE_INITIAL_SIZE);
+			FIL_IBD_FILE_INITIAL_SIZE);
 
 		ut_free(filepath);
 
@@ -379,7 +443,12 @@ dict_build_tablespace_for_table(
 		/* We do not need to build a tablespace for this table. It
 		is already built.  Just find the correct tablespace ID. */
 
-		if (dict_table_is_temporary(table)) {
+		if (DICT_TF_HAS_SHARED_SPACE(table->flags)) {
+			ut_ad(table->tablespace != NULL);
+
+			ut_ad(table->space == fil_space_get_id_by_name(
+				table->tablespace()));
+		} else if (dict_table_is_temporary(table)) {
 			/* Use the shared temporary tablespace.
 			Note: The temp tablespace supports all non-Compressed
 			row formats whereas the system tablespace only
@@ -396,7 +465,7 @@ dict_build_tablespace_for_table(
 						? REC_FORMAT_REDUNDANT
 						: REC_FORMAT_COMPACT;
 			ulint flags;
-			dict_tf_set(&flags, rec_format, 0, 0);
+			dict_tf_set(&flags, rec_format, 0, 0, 0);
 			table->flags = static_cast<unsigned int>(flags);
 		}
 
@@ -1995,8 +2064,6 @@ dict_replace_tablespace_in_dictionary(
 
 	pars_info_t*	info = pars_info_create();
 
-	ut_a(!is_system_tablespace(space_id));
-
 	pars_info_add_int4_literal(info, "space", space_id);
 
 	pars_info_add_str_literal(info, "name", name);
@@ -2031,6 +2098,89 @@ dict_replace_tablespace_in_dictionary(
 	trx->op_info = "";
 
 	return(error);
+}
+
+/** Add another datafile to the data dictionary for a given space_id.
+@param[in]	space	Tablespace ID
+@param[in]	path	Tablespace path
+@param[in,out]	trx	Transaction**
+@return error code or DB_SUCCESS */
+dberr_t
+dict_add_datafile_to_dictionary(
+	ulint		space_id,
+	const char*	path,
+	trx_t*		trx)
+{
+	dberr_t		error;
+
+	pars_info_t*	info = pars_info_create();
+
+	pars_info_add_int4_literal(info, "space", space_id);
+
+	pars_info_add_str_literal(info, "path", path);
+
+	error = que_eval_sql(info,
+			     "PROCEDURE P () IS\n"
+			     "BEGIN\n"
+			     "INSERT INTO SYS_DATAFILES VALUES"
+			     "(:space, :path);\n"
+			     "END;\n",
+			     FALSE, trx);
+
+	if (error != DB_SUCCESS) {
+		return(error);
+	}
+
+	trx->op_info = "committing datafile definition";
+	trx_commit(trx);
+
+	trx->op_info = "";
+
+	return(error);
+}
+
+/** Delete records from SYS_TABLESPACES and SYS_DATAFILES associated
+with a particular tablespace ID.
+@param[in]	space	Tablespace ID
+@param[in,out]	trx	Current transaction
+@return DB_SUCCESS if OK, dberr_t if the operation failed */
+
+dberr_t
+dict_delete_tablespace_and_datafiles(
+	ulint		space,
+	trx_t*		trx)
+{
+	dberr_t		err = DB_SUCCESS;
+
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
+#endif /* UNIV_SYNC_DEBUG */
+	ut_ad(mutex_own(&dict_sys->mutex));
+
+	trx->op_info = "delete tablespace and datafiles from dictionary";
+
+	pars_info_t*	info = pars_info_create();
+	ut_a(!is_system_tablespace(space));
+	pars_info_add_int4_literal(info, "space", space);
+
+	err = que_eval_sql(info,
+			   "PROCEDURE P () IS\n"
+			   "BEGIN\n"
+			   "DELETE FROM SYS_TABLESPACES\n"
+			   "WHERE SPACE = :space;\n"
+			   "DELETE FROM SYS_DATAFILES\n"
+			   "WHERE SPACE = :space;\n"
+			   "END;\n",
+			   FALSE, trx);
+
+	if (err != DB_SUCCESS) {
+		ib::warn() << "Could not delete space_id "
+			<< space << " from data dictionary";
+	}
+
+	trx->op_info = "";
+
+	return(err);
 }
 
 /** Assign a new table ID and put it into the table cache and the transaction.

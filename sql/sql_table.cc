@@ -59,6 +59,7 @@
 #include "partitioning/partition_handler.h" // Partition_handler
 #include "log.h"
 #include "binlog.h"
+#include "sql_tablespace.h"            // check_tablespace_name())
 #include "item_timefunc.h"             // Item_func_now_local
 
 #include "pfs_file_provider.h"
@@ -5434,7 +5435,6 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
   uint not_used;
   DBUG_ENTER("mysql_create_like_table");
 
-
   /*
     We the open source table to get its description in HA_CREATE_INFO
     and Alter_info objects. This also acquires a shared metadata lock
@@ -5451,6 +5451,36 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
   src_table->table->use_all_columns();
 
   DEBUG_SYNC(thd, "create_table_like_after_open");
+
+  /*
+    During open_tables(), the target tablespace name(s) for a table being
+    created or altered should be locked. However, for 'CREATE TABLE ... LIKE',
+    the source table is not being created, yet its tablespace name should be
+    locked since it is used as the target tablespace name for the table being
+    created. The  target tablespace name cannot be set before open_tables()
+    (which is how we handle this for e.g. CREATE TABLE ... TABLESPACE ...'),
+    since before open_tables(), the source table itself is not locked, which
+    means that a DDL operation may sneak in and change the tablespace of the
+    source table *after* we retrieved it from the .FRM file of the source
+    table, and *before* the source table itself is locked. Thus, we lock the
+    target tablespace here in a separate mdl lock acquisition phase after
+    open_tables(). Since the table is already opened (and locked), we retrieve
+    the tablespace name from the table share instead of reading it from the
+    .FRM file.
+  */
+  if (src_table->table->s->tablespace &&
+      strlen(src_table->table->s->tablespace) > 0)
+  {
+    DBUG_ASSERT(thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE,
+                  src_table->db, src_table->table_name, MDL_SHARED));
+    MDL_request tablespace_request;
+    MDL_REQUEST_INIT(&tablespace_request, MDL_key::TABLESPACE, "",
+                     src_table->table->s->tablespace, MDL_INTENTION_EXCLUSIVE,
+                     MDL_TRANSACTION);
+    if (thd->mdl_context.acquire_lock(&tablespace_request,
+                                      thd->variables.lock_wait_timeout))
+      DBUG_RETURN(true);
+  }
 
   /* Fill HA_CREATE_INFO and Alter_info with description of source table. */
   memset(&local_create_info, 0, sizeof(local_create_info));
@@ -5629,7 +5659,7 @@ int mysql_discard_or_import_tablespace(THD *thd,
    We set this flag so that ha_innobase::open and ::external_lock() do
    not complain when we lock the table
  */
-  thd->tablespace_op= TRUE;
+  thd->tablespace_op= true;
   /*
     Adjust values of table-level and metadata which was set in parser
     for the case general ALTER TABLE.
@@ -5685,7 +5715,7 @@ int mysql_discard_or_import_tablespace(THD *thd,
                                            MDL_EXCLUSIVE,
                                            thd->variables.lock_wait_timeout))
   {
-    thd->tablespace_op= FALSE;
+    thd->tablespace_op= false;
     DBUG_RETURN(-1);
   }
 
@@ -5718,7 +5748,7 @@ err:
     table_list->table->mdl_ticket->downgrade_lock(MDL_SHARED_NO_READ_WRITE);
   }
 
-  thd->tablespace_op=FALSE;
+  thd->tablespace_op= false;
 
   if (error == 0)
   {
@@ -7297,7 +7327,7 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
   if (!(used_fields & HA_CREATE_USED_STATS_AUTO_RECALC))
     create_info->stats_auto_recalc= table->s->stats_auto_recalc;
 
-  if (!create_info->tablespace)
+  if (!(used_fields & HA_CREATE_USED_TABLESPACE))
     create_info->tablespace= table->s->tablespace;
 
   if (create_info->storage_media == HA_SM_DEFAULT)
@@ -8266,6 +8296,24 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   }
 
   THD_STAGE_INFO(thd, stage_init);
+
+  /*
+    Assign target tablespace name to enable locking in lock_table_names().
+    Reject invalid names.
+  */
+  if (create_info->tablespace)
+  {
+    if (check_tablespace_name(create_info->tablespace) != IDENT_NAME_OK)
+      DBUG_RETURN(true);
+
+    if (!thd->make_lex_string(&table_list->target_tablespace_name,
+                              create_info->tablespace,
+                              strlen(create_info->tablespace), false))
+    {
+      my_error(ER_OUT_OF_RESOURCES, MYF(ME_FATALERROR));
+      DBUG_RETURN(true);
+    }
+  }
 
   /*
     Code below can handle only base tables so ensure that we won't open a view.

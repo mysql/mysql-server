@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -479,19 +479,22 @@ is the global server default. */
 #define HA_ERR_TABLE_IN_FK_CHECK  183    /* Table being used in foreign key check */
 #define HA_ERR_TABLESPACE_EXISTS  184    /* The tablespace existed in storage engine */
 #define HA_ERR_TOO_MANY_FIELDS    185    /* Table has too many columns */
-#define HA_ERR_ROW_IN_WRONG_PARTITION 186 /* Row in wrong partition */
-#define HA_ERR_INNODB_READ_ONLY   187    /* InnoDB is in read only mode. */
+#define HA_ERR_ROW_IN_WRONG_PARTITION  186  /* Row in wrong partition */
+#define HA_ERR_INNODB_READ_ONLY        187  /* InnoDB is in read only mode. */
 #define HA_ERR_FTS_EXCEED_RESULT_CACHE_LIMIT  188 /* FTS query exceeds result cache limit */
-#define HA_ERR_TEMP_FILE_WRITE_FAILURE	189	/* Temporary file write failure */
-#define HA_ERR_INNODB_FORCED_RECOVERY 190	/* Innodb is in force recovery mode */
-#define HA_ERR_FTS_TOO_MANY_WORDS_IN_PHRASE	191 /* Too many words in a phrase */
-#define HA_ERR_FK_DEPTH_EXCEEDED  192    /* FK cascade depth exceeded */
-#define HA_MISSING_CREATE_OPTION  193    /* Option Missing during Create */
-#define HA_ERR_SE_OUT_OF_MEMORY   194    /* Out of memory in storage engine */
-#define HA_ERR_TABLE_CORRUPT      195    /* Table/Clustered index is corrupted. */
-#define HA_ERR_QUERY_INTERRUPTED  196
-#define HA_ERR_TABLESPACE_MISSING 197    /* Missing Tablespace */
-#define HA_ERR_LAST               197    /* Copy of last error nr */
+#define HA_ERR_TEMP_FILE_WRITE_FAILURE 189  /* Temporary file write failure */
+#define HA_ERR_INNODB_FORCED_RECOVERY  190  /* Innodb is in force recovery mode */
+#define HA_ERR_FTS_TOO_MANY_WORDS_IN_PHRASE   191 /* Too many words in a phrase */
+#define HA_ERR_FK_DEPTH_EXCEEDED       192  /* FK cascade depth exceeded */
+#define HA_MISSING_CREATE_OPTION       193  /* Option Missing during Create */
+#define HA_ERR_SE_OUT_OF_MEMORY        194  /* Out of memory in storage engine */
+#define HA_ERR_TABLE_CORRUPT           195  /* Table/Clustered index is corrupted. */
+#define HA_ERR_QUERY_INTERRUPTED       196  /* The query was interrupted */
+#define HA_ERR_TABLESPACE_MISSING      197  /* Missing Tablespace */
+#define HA_ERR_TABLESPACE_IS_NOT_EMPTY 198  /* Tablespace is not empty */
+#define HA_ERR_WRONG_FILE_NAME         199  /* Invalid Filename */
+#define HA_ERR_NOT_ALLOWED_COMMAND     200  /* Operation is not allowed */
+#define HA_ERR_LAST                    200  /* Copy of last error nr */
 
 /* Number of different errors */
 #define HA_ERR_ERRORS            (HA_ERR_LAST - HA_ERR_FIRST + 1)

@@ -1207,6 +1207,7 @@ THD::THD(bool enable_plugins)
    derived_tables_processing(FALSE),
    sp_runtime_ctx(NULL),
    m_parser_state(NULL),
+   work_part_info(NULL),
 #ifndef EMBEDDED_LIBRARY
    // No need to instrument, highly unlikely to have that many plugins.
    audit_class_plugins(PSI_NOT_INSTRUMENTED),
@@ -1323,7 +1324,7 @@ THD::THD(bool enable_plugins)
   protocol_text.init(this);
   protocol_binary.init(this);
 
-  tablespace_op=FALSE;
+  tablespace_op= false;
   substitute_null_with_insert_id = FALSE;
 
   /*
@@ -2571,7 +2572,7 @@ void THD::add_changed_table(const char *key, long key_length)
 }
 
 
-int THD::send_explain_fields(Query_result *result)
+int THD::send_explain_fields(select_result *result)
 {
   List<Item> field_list;
   Item *item;
@@ -2698,6 +2699,29 @@ void THD::rollback_item_tree_changes()
 ** Functions to provide a interface to select results
 *****************************************************************************/
 
+select_result::select_result():
+  thd(current_thd), unit(NULL), estimated_rowcount(0)
+{
+}
+
+void select_result::send_error(uint errcode,const char *err)
+{
+  my_message(errcode, err, MYF(0));
+}
+
+
+void select_result::cleanup()
+{
+  /* do nothing */
+}
+
+bool select_result::check_simple_select() const
+{
+  my_error(ER_SP_BAD_CURSOR_QUERY, MYF(0));
+  return TRUE;
+}
+
+
 static const String default_line_term("\n",default_charset_info);
 static const String default_escaped("\\",default_charset_info);
 static const String default_field_term("\t",default_charset_info);
@@ -2725,7 +2749,7 @@ bool sql_exchange::escaped_given(void)
 }
 
 
-bool Query_result_send::send_result_set_metadata(List<Item> &list, uint flags)
+bool select_send::send_result_set_metadata(List<Item> &list, uint flags)
 {
   bool res;
   if (!(res= thd->protocol->send_result_set_metadata(&list, flags)))
@@ -2733,9 +2757,9 @@ bool Query_result_send::send_result_set_metadata(List<Item> &list, uint flags)
   return res;
 }
 
-void Query_result_send::abort_result_set()
+void select_send::abort_result_set()
 {
-  DBUG_ENTER("Query_result_send::abort_result_set");
+  DBUG_ENTER("select_send::abort_result_set");
 
   if (is_result_set_started && thd->sp_runtime_ctx)
   {
@@ -2754,12 +2778,23 @@ void Query_result_send::abort_result_set()
 }
 
 
+/** 
+  Cleanup an instance of this class for re-use
+  at next execution of a prepared statement/
+  stored procedure statement.
+*/
+
+void select_send::cleanup()
+{
+  is_result_set_started= FALSE;
+}
+
 /* Send data to client. Returns 0 if ok */
 
-bool Query_result_send::send_data(List<Item> &items)
+bool select_send::send_data(List<Item> &items)
 {
   Protocol *protocol= thd->protocol;
-  DBUG_ENTER("Query_result_send::send_data");
+  DBUG_ENTER("select_send::send_data");
 
   if (unit->offset_limit_cnt)
   {						// using limit offset,count
@@ -2789,7 +2824,7 @@ bool Query_result_send::send_data(List<Item> &items)
   DBUG_RETURN(0);
 }
 
-bool Query_result_send::send_eof()
+bool select_send::send_eof()
 {
   /* 
     We may be passing the control from mysqld to the client: release the
@@ -2814,7 +2849,7 @@ bool Query_result_send::send_eof()
   Handling writing to file
 ************************************************************************/
 
-void Query_result_to_file::send_error(uint errcode,const char *err)
+void select_to_file::send_error(uint errcode,const char *err)
 {
   my_message(errcode, err, MYF(0));
   if (file > 0)
@@ -2828,7 +2863,7 @@ void Query_result_to_file::send_error(uint errcode,const char *err)
 }
 
 
-bool Query_result_to_file::send_eof()
+bool select_to_file::send_eof()
 {
   int error= MY_TEST(end_io_cache(&cache));
   if (mysql_file_close(file, MYF(MY_WME)) || thd->is_error())
@@ -2843,7 +2878,7 @@ bool Query_result_to_file::send_eof()
 }
 
 
-void Query_result_to_file::cleanup()
+void select_to_file::cleanup()
 {
   /* In case of error send_eof() may be not called: close the file here. */
   if (file >= 0)
@@ -2857,7 +2892,7 @@ void Query_result_to_file::cleanup()
 }
 
 
-Query_result_to_file::~Query_result_to_file()
+select_to_file::~select_to_file()
 {
   if (file >= 0)
   {					// This only happens in case of error
@@ -2870,6 +2905,12 @@ Query_result_to_file::~Query_result_to_file()
 /***************************************************************************
 ** Export of select to textfile
 ***************************************************************************/
+
+select_export::~select_export()
+{
+  thd->set_sent_row_count(row_count);
+}
+
 
 /*
   Create file with IO cache
@@ -2935,7 +2976,8 @@ static File create_file(THD *thd, char *path, sql_exchange *exchange,
 }
 
 
-int Query_result_export::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
+int
+select_export::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
 {
   bool blob_flag=0;
   bool string_results= FALSE, non_string_results= FALSE;
@@ -3037,10 +3079,10 @@ int Query_result_export::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
                           (int) (uchar) (x) == line_sep_char  || \
                           !(x))
 
-bool Query_result_export::send_data(List<Item> &items)
+bool select_export::send_data(List<Item> &items)
 {
 
-  DBUG_ENTER("Query_result_export::send_data");
+  DBUG_ENTER("select_export::send_data");
   char buff[MAX_FIELD_WIDTH],null_buff[2],space[MAX_FIELD_WIDTH];
   char cvt_buff[MAX_FIELD_WIDTH];
   String cvt_str(cvt_buff, sizeof(cvt_buff), write_cs);
@@ -3367,26 +3409,27 @@ err:
 
 
 /***************************************************************************
-** Dump of query to a binary file
+** Dump  of select to a binary file
 ***************************************************************************/
 
 
-int Query_result_dump::prepare(List<Item> &list __attribute__((unused)),
-                               SELECT_LEX_UNIT *u)
+int
+select_dump::prepare(List<Item> &list __attribute__((unused)),
+		     SELECT_LEX_UNIT *u)
 {
   unit= u;
   return (int) ((file= create_file(thd, path, exchange, &cache)) < 0);
 }
 
 
-bool Query_result_dump::send_data(List<Item> &items)
+bool select_dump::send_data(List<Item> &items)
 {
   List_iterator_fast<Item> li(items);
   char buff[MAX_FIELD_WIDTH];
   String tmp(buff,sizeof(buff),&my_charset_bin),*res;
   tmp.length(0);
   Item *item;
-  DBUG_ENTER("Query_result_dump::send_data");
+  DBUG_ENTER("select_dump::send_data");
 
   if (unit->offset_limit_cnt)
   {						// using limit offset,count
@@ -3420,11 +3463,17 @@ err:
 }
 
 
+select_subselect::select_subselect(Item_subselect *item_arg)
+{
+  item= item_arg;
+}
+
+
 /***************************************************************************
   Dump of select to variables
 ***************************************************************************/
 
-int Query_dumpvar::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
+int select_dumpvar::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
 {
   unit= u;
 
@@ -3439,10 +3488,16 @@ int Query_dumpvar::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
 }
 
 
-bool Query_dumpvar::check_simple_select() const
+bool select_dumpvar::check_simple_select() const
 {
   my_error(ER_SP_BAD_CURSOR_SELECT, MYF(0));
   return TRUE;
+}
+
+
+void select_dumpvar::cleanup()
+{
+  row_count= 0;
 }
 
 
@@ -3681,13 +3736,13 @@ Prepared_statement_map::~Prepared_statement_map()
 }
 
 
-bool Query_dumpvar::send_data(List<Item> &items)
+bool select_dumpvar::send_data(List<Item> &items)
 {
   List_iterator_fast<PT_select_var> var_li(var_list);
   List_iterator<Item> it(items);
   Item *item;
   PT_select_var *mv;
-  DBUG_ENTER("Query_dumpvar::send_data");
+  DBUG_ENTER("select_dumpvar::send_data");
 
   if (unit->offset_limit_cnt)
   {						// using limit offset,count
@@ -3727,7 +3782,7 @@ bool Query_dumpvar::send_data(List<Item> &items)
   DBUG_RETURN(thd->is_error());
 }
 
-bool Query_dumpvar::send_eof()
+bool select_dumpvar::send_eof()
 {
   if (! row_count)
     push_warning(thd, Sql_condition::SL_WARNING,

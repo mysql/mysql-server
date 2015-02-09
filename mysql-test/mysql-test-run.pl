@@ -5453,6 +5453,11 @@ sub mysqld_arguments ($$$) {
       # We can get an empty argument when  we set environment variables to ""
       # (e.g plugin not found). Just skip it.
     }
+    elsif ($arg eq "--daemonize")
+    {
+      $mysqld->{'daemonize'}= 1;
+      mtr_add_arg($args, "%s", $arg);
+    }
     else
     {
       mtr_add_arg($args, "%s", $arg);
@@ -5577,6 +5582,8 @@ sub mysqld_start ($$) {
        host          => undef,
        shutdown      => sub { mysqld_stop($mysqld) },
        envs          => \@opt_mysqld_envs,
+       pid_file      => $mysqld->value('pid-file'),
+       daemon_mode   => $mysqld->{'daemonize'}
       );
     mtr_verbose("Started $mysqld->{proc}");
   }

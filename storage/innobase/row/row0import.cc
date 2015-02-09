@@ -3605,7 +3605,7 @@ row_import_for_mysql(
 
 	err = fil_ibd_open(
 		true, true, FIL_TYPE_IMPORT, table->space,
-		dict_tf_to_fsp_flags(table->flags),
+		dict_tf_to_fsp_flags(table->flags, false),
 		table->name.m_name, filepath);
 
 	DBUG_EXECUTE_IF("ib_import_open_tablespace_failure",
