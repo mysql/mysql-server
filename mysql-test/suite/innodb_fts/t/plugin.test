@@ -1,0 +1,215 @@
+--source include/have_innodb.inc
+--source include/have_simple_parser.inc
+# Restart is not supported in embedded
+--source include/not_embedded.inc
+
+# Install fts parser plugin
+--replace_regex /\.dll/.so/
+eval INSTALL PLUGIN simple_parser SONAME '$SIMPLE_PARSER';
+
+-- echo # Test Part 1: Grammar Test
+# Create a myisam table and alter it to innodb table
+CREATE TABLE articles (
+	id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+	title VARCHAR(200),
+	FULLTEXT (title) WITH PARSER simple_parser
+	) ENGINE=MyISAM;
+
+ALTER TABLE articles ENGINE=InnoDB;
+
+DROP TABLE articles;
+
+# Create a table having a full text index with parser
+CREATE TABLE articles (
+	id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+	title VARCHAR(200),
+	body TEXT,
+	comment TEXT,
+	FULLTEXT (title) WITH PARSER simple_parser
+	) ENGINE=InnoDB;
+
+# Alter table to add a full text index with parser
+ALTER TABLE articles ADD FULLTEXT INDEX (body) WITH PARSER simple_parser;
+
+# Create a full text index with parser
+CREATE FULLTEXT INDEX ft_index ON articles(comment) WITH PARSER simple_parser;
+
+DROP TABLE articles;
+
+-- echo # Test Part 2: Create Index Test(CREATE TABLE WITH FULLTEXT INDEX)
+CREATE TABLE articles (
+	id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+	title VARCHAR(200),
+	body TEXT,
+	FULLTEXT (title, body) WITH PARSER simple_parser
+	) ENGINE=InnoDB;
+
+INSERT INTO articles (title, body) VALUES
+  ('MySQL Tutorial','DBMS stands for MySQL DataBase ...'),
+  ('How To Use MySQL Well','After you went through a ...'),
+  ('Optimizing MySQL','In this tutorial we will show ...'),
+  ('1001 MySQL Tricks','How to use full-text search engine'),
+  ('Go MySQL Tricks','How to use full text search engine');
+
+# Simple term search
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('mysql');
+
+# Test stopword and word len less than fts_min_token_size
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('will go');
+
+-- echo # Test plugin parser tokenizer difference
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('full-text');
+
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('full text');
+
+# No result here, we get '"mysql' 'database"' by simple parser
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('"mysql database"' IN BOOLEAN MODE);
+
+DROP TABLE articles;
+
+-- echo # Test Part 3: Row Merge Create Index Test(ALTER TABLE ADD FULLTEXT INDEX)
+CREATE TABLE articles (
+	id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+	title VARCHAR(200),
+	body TEXT
+	) ENGINE=InnoDB;
+
+INSERT INTO articles (title, body) VALUES
+  ('MySQL Tutorial','DBMS stands for MySQL DataBase ...'),
+  ('How To Use MySQL Well','After you went through a ...'),
+  ('Optimizing MySQL','In this tutorial we will show ...'),
+  ('1001 MySQL Tricks','How to use full-text search engine'),
+  ('Go MySQL Tricks','How to use full text search engine');
+
+# Create fulltext index
+ALTER TABLE articles ADD FULLTEXT INDEX (title, body) WITH PARSER simple_parser;
+
+# Simple term search
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('mysql');
+
+# Test stopword and word len less than fts_min_token_size
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('will go');
+
+-- echo # Test plugin parser tokenizer difference
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('full-text');
+
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('full text');
+
+# Test query expansion
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('full-text' WITH QUERY EXPANSION);
+
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('full text' WITH QUERY EXPANSION);
+
+# No result here, we get '"mysql' 'database"' by simple parser
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('"mysql database"' IN BOOLEAN MODE);
+
+DROP TABLE articles;
+-- echo # Test Part 3 END
+
+-- echo # Test Part 4:crash on commit(before/after)
+CREATE TABLE articles (
+       id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+       title VARCHAR(200),
+       body TEXT,
+       FULLTEXT (title, body) WITH PARSER simple_parser
+) ENGINE=InnoDB;
+
+BEGIN;
+INSERT INTO articles (title, body) VALUES
+  ('MySQL Tutorial','DBMS stands for MySQL DataBase ...'),
+  ('How To Use MySQL Well','After you went through a ...'),
+  ('Optimizing MySQL','In this tutorial we will show ...'),
+  ('1001 MySQL Tricks','How to use full-text search engine'),
+  ('Go MySQL Tricks','How to use full text search engine');
+
+--source include/kill_and_restart_mysqld.inc
+
+SELECT COUNT(*) FROM articles;
+# Simple term search - no records expected
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('mysql');
+
+INSERT INTO articles (title, body) VALUES
+  ('MySQL Tutorial','DBMS stands for MySQL DataBase ...'),
+  ('How To Use MySQL Well','After you went through a ...'),
+  ('Optimizing MySQL','In this tutorial we will show ...'),
+  ('1001 MySQL Tricks','How to use full-text search engine'),
+  ('Go MySQL Tricks','How to use full text search engine');
+
+--source include/kill_and_restart_mysqld.inc
+
+# Simple term search - 4 records expected
+SELECT * FROM articles WHERE
+         MATCH(title, body) AGAINST('Tricks');
+SELECT COUNT(*) FROM articles;
+DROP TABLE articles;
+
+-- echo # Test Part 5: Test Uninstall Plugin After Index is Built
+# Note: this test should be the last one because we uninstall plugin
+CREATE TABLE articles (
+	id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+	title VARCHAR(200),
+	body TEXT,
+	FULLTEXT (title, body) WITH PARSER simple_parser
+	) ENGINE=InnoDB;
+
+# Uninstall plugin
+UNINSTALL PLUGIN simple_parser;
+
+-- error ER_PLUGIN_IS_NOT_LOADED
+INSERT INTO articles (title, body) VALUES
+  ('MySQL Tutorial','DBMS stands for MySQL DataBase ...');
+
+# Reinstall plugin
+--replace_regex /\.dll/.so/
+eval INSTALL PLUGIN simple_parser SONAME '$SIMPLE_PARSER';
+
+INSERT INTO articles (title, body) VALUES
+  ('MySQL Tutorial','DBMS stands for MySQL DataBase ...'),
+  ('How To Use MySQL Well','After you went through a ...'),
+  ('Optimizing MySQL','In this tutorial we will show ...'),
+  ('1001 MySQL Tricks','How to use full-text search engine'),
+  ('Go MySQL Tricks','How to use full text search engine');
+
+# Get warning here
+UNINSTALL PLUGIN simple_parser;
+
+# Simple term search
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('mysql');
+
+# Test stopword and word len less than fts_min_token_size
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('will go');
+
+-- echo # Test plugin parser tokenizer difference
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('full-text');
+
+SELECT * FROM articles WHERE
+	MATCH(title, body) AGAINST('full text');
+
+-- error ER_FUNCTION_NOT_DEFINED
+CREATE TABLE articles2 (
+	id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+	title VARCHAR(200),
+	body TEXT,
+	FULLTEXT (title, body) WITH PARSER simple_parser
+	) ENGINE=InnoDB;
+
+DROP TABLE articles;
+# Uninstall plugin
+-- error ER_SP_DOES_NOT_EXIST
+UNINSTALL PLUGIN simple_parser;

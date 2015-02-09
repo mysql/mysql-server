@@ -10,8 +10,10 @@ select @@global.innodb_force_recovery_crash;
 select @@session.innodb_force_recovery_crash;
 show global variables like 'innodb_force_recovery_crash';
 show session variables like 'innodb_force_recovery_crash';
+--disable_warnings
 select * from information_schema.global_variables where variable_name='innodb_force_recovery_crash';
 select * from information_schema.session_variables where variable_name='innodb_force_recovery_crash';
+--enable_warnings
 
 # show that it's read-only
 #

@@ -1,0 +1,200 @@
+INSTALL PLUGIN simple_parser SONAME 'mypluglib.so';
+# Test Part 1: Grammar Test
+CREATE TABLE articles (
+id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+title VARCHAR(200),
+FULLTEXT (title) WITH PARSER simple_parser
+) ENGINE=MyISAM;
+ALTER TABLE articles ENGINE=InnoDB;
+DROP TABLE articles;
+CREATE TABLE articles (
+id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+title VARCHAR(200),
+body TEXT,
+comment TEXT,
+FULLTEXT (title) WITH PARSER simple_parser
+) ENGINE=InnoDB;
+ALTER TABLE articles ADD FULLTEXT INDEX (body) WITH PARSER simple_parser;
+CREATE FULLTEXT INDEX ft_index ON articles(comment) WITH PARSER simple_parser;
+DROP TABLE articles;
+# Test Part 2: Create Index Test(CREATE TABLE WITH FULLTEXT INDEX)
+CREATE TABLE articles (
+id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+title VARCHAR(200),
+body TEXT,
+FULLTEXT (title, body) WITH PARSER simple_parser
+) ENGINE=InnoDB;
+INSERT INTO articles (title, body) VALUES
+('MySQL Tutorial','DBMS stands for MySQL DataBase ...'),
+('How To Use MySQL Well','After you went through a ...'),
+('Optimizing MySQL','In this tutorial we will show ...'),
+('1001 MySQL Tricks','How to use full-text search engine'),
+('Go MySQL Tricks','How to use full text search engine');
+SELECT * FROM articles WHERE
+MATCH(title, body) AGAINST('mysql');
+id	title	body
+1	MySQL Tutorial	DBMS stands for MySQL DataBase ...
+2	How To Use MySQL Well	After you went through a ...
+3	Optimizing MySQL	In this tutorial we will show ...
+4	1001 MySQL Tricks	How to use full-text search engine
+5	Go MySQL Tricks	How to use full text search engine
+SELECT * FROM articles WHERE
+MATCH(title, body) AGAINST('will go');
+id	title	body
+# Test plugin parser tokenizer difference
+SELECT * FROM articles WHERE
+MATCH(title, body) AGAINST('full-text');
+id	title	body
+4	1001 MySQL Tricks	How to use full-text search engine
+SELECT * FROM articles WHERE
+MATCH(title, body) AGAINST('full text');
+id	title	body
+5	Go MySQL Tricks	How to use full text search engine
+SELECT * FROM articles WHERE
+MATCH(title, body) AGAINST('"mysql database"' IN BOOLEAN MODE);
+id	title	body
+DROP TABLE articles;
+# Test Part 3: Row Merge Create Index Test(ALTER TABLE ADD FULLTEXT INDEX)
+CREATE TABLE articles (
+id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+title VARCHAR(200),
+body TEXT
+) ENGINE=InnoDB;
+INSERT INTO articles (title, body) VALUES
+('MySQL Tutorial','DBMS stands for MySQL DataBase ...'),
+('How To Use MySQL Well','After you went through a ...'),
+('Optimizing MySQL','In this tutorial we will show ...'),
+('1001 MySQL Tricks','How to use full-text search engine'),
+('Go MySQL Tricks','How to use full text search engine');
+ALTER TABLE articles ADD FULLTEXT INDEX (title, body) WITH PARSER simple_parser;
+Warnings:
+Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
+SELECT * FROM articles WHERE
+MATCH(title, body) AGAINST('mysql');
+id	title	body
+1	MySQL Tutorial	DBMS stands for MySQL DataBase ...
+2	How To Use MySQL Well	After you went through a ...
+3	Optimizing MySQL	In this tutorial we will show ...
+4	1001 MySQL Tricks	How to use full-text search engine
+5	Go MySQL Tricks	How to use full text search engine
+SELECT * FROM articles WHERE
+MATCH(title, body) AGAINST('will go');
+id	title	body
+# Test plugin parser tokenizer difference
+SELECT * FROM articles WHERE
+MATCH(title, body) AGAINST('full-text');
+id	title	body
+4	1001 MySQL Tricks	How to use full-text search engine
+SELECT * FROM articles WHERE
+MATCH(title, body) AGAINST('full text');
+id	title	body
+5	Go MySQL Tricks	How to use full text search engine
+SELECT * FROM articles WHERE
+MATCH(title, body) AGAINST('full-text' WITH QUERY EXPANSION);
+id	title	body
+4	1001 MySQL Tricks	How to use full-text search engine
+5	Go MySQL Tricks	How to use full text search engine
+2	How To Use MySQL Well	After you went through a ...
+1	MySQL Tutorial	DBMS stands for MySQL DataBase ...
+3	Optimizing MySQL	In this tutorial we will show ...
+SELECT * FROM articles WHERE
+MATCH(title, body) AGAINST('full text' WITH QUERY EXPANSION);
+id	title	body
+5	Go MySQL Tricks	How to use full text search engine
+4	1001 MySQL Tricks	How to use full-text search engine
+2	How To Use MySQL Well	After you went through a ...
+1	MySQL Tutorial	DBMS stands for MySQL DataBase ...
+3	Optimizing MySQL	In this tutorial we will show ...
+SELECT * FROM articles WHERE
+MATCH(title, body) AGAINST('"mysql database"' IN BOOLEAN MODE);
+id	title	body
+DROP TABLE articles;
+# Test Part 3 END
+# Test Part 4:crash on commit(before/after)
+CREATE TABLE articles (
+id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+title VARCHAR(200),
+body TEXT,
+FULLTEXT (title, body) WITH PARSER simple_parser
+) ENGINE=InnoDB;
+BEGIN;
+INSERT INTO articles (title, body) VALUES
+('MySQL Tutorial','DBMS stands for MySQL DataBase ...'),
+('How To Use MySQL Well','After you went through a ...'),
+('Optimizing MySQL','In this tutorial we will show ...'),
+('1001 MySQL Tricks','How to use full-text search engine'),
+('Go MySQL Tricks','How to use full text search engine');
+# Kill and restart
+SELECT COUNT(*) FROM articles;
+COUNT(*)
+0
+SELECT * FROM articles WHERE
+MATCH(title, body) AGAINST('mysql');
+id	title	body
+INSERT INTO articles (title, body) VALUES
+('MySQL Tutorial','DBMS stands for MySQL DataBase ...'),
+('How To Use MySQL Well','After you went through a ...'),
+('Optimizing MySQL','In this tutorial we will show ...'),
+('1001 MySQL Tricks','How to use full-text search engine'),
+('Go MySQL Tricks','How to use full text search engine');
+# Kill and restart
+SELECT * FROM articles WHERE
+MATCH(title, body) AGAINST('Tricks');
+id	title	body
+4	1001 MySQL Tricks	How to use full-text search engine
+5	Go MySQL Tricks	How to use full text search engine
+SELECT COUNT(*) FROM articles;
+COUNT(*)
+5
+DROP TABLE articles;
+# Test Part 5: Test Uninstall Plugin After Index is Built
+CREATE TABLE articles (
+id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+title VARCHAR(200),
+body TEXT,
+FULLTEXT (title, body) WITH PARSER simple_parser
+) ENGINE=InnoDB;
+UNINSTALL PLUGIN simple_parser;
+INSERT INTO articles (title, body) VALUES
+('MySQL Tutorial','DBMS stands for MySQL DataBase ...');
+ERROR HY000: Plugin 'simple_parser' is not loaded
+INSTALL PLUGIN simple_parser SONAME 'mypluglib.so';
+INSERT INTO articles (title, body) VALUES
+('MySQL Tutorial','DBMS stands for MySQL DataBase ...'),
+('How To Use MySQL Well','After you went through a ...'),
+('Optimizing MySQL','In this tutorial we will show ...'),
+('1001 MySQL Tricks','How to use full-text search engine'),
+('Go MySQL Tricks','How to use full text search engine');
+UNINSTALL PLUGIN simple_parser;
+Warnings:
+Warning	1620	Plugin is busy and will be uninstalled on shutdown
+SELECT * FROM articles WHERE
+MATCH(title, body) AGAINST('mysql');
+id	title	body
+1	MySQL Tutorial	DBMS stands for MySQL DataBase ...
+2	How To Use MySQL Well	After you went through a ...
+3	Optimizing MySQL	In this tutorial we will show ...
+4	1001 MySQL Tricks	How to use full-text search engine
+5	Go MySQL Tricks	How to use full text search engine
+SELECT * FROM articles WHERE
+MATCH(title, body) AGAINST('will go');
+id	title	body
+# Test plugin parser tokenizer difference
+SELECT * FROM articles WHERE
+MATCH(title, body) AGAINST('full-text');
+id	title	body
+4	1001 MySQL Tricks	How to use full-text search engine
+SELECT * FROM articles WHERE
+MATCH(title, body) AGAINST('full text');
+id	title	body
+5	Go MySQL Tricks	How to use full text search engine
+CREATE TABLE articles2 (
+id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+title VARCHAR(200),
+body TEXT,
+FULLTEXT (title, body) WITH PARSER simple_parser
+) ENGINE=InnoDB;
+ERROR HY000: Function 'simple_parser' is not defined
+DROP TABLE articles;
+UNINSTALL PLUGIN simple_parser;
+ERROR 42000: PLUGIN simple_parser does not exist

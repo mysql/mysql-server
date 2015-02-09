@@ -18,7 +18,9 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "sql_partition.h"      /* part_id_range, partition_element */
-#include "queues.h"             /* QUEUE */
+#include "priority_queue.h"
+#include "key.h"
+#include <vector>
 
 enum partition_keywords
 {
@@ -116,6 +118,30 @@ public:
 };
 
 
+/// Maps compare function to strict weak ordering required by Priority_queue.
+struct Key_rec_less
+{
+  typedef int (*key_compare_fun)(KEY**, uchar *, uchar *);
+  
+  explicit Key_rec_less(KEY **keys)
+    : m_keys(keys), m_fun(key_rec_cmp), m_max_at_top(false)
+  {
+  }
+
+  bool operator()(uchar *first, uchar *second)
+  {
+    const int cmpval= 
+      (*m_fun)(m_keys, first + m_rec_offset, second + m_rec_offset);
+    return m_max_at_top ? cmpval < 0 : cmpval > 0;
+  }
+
+  KEY **m_keys;
+  key_compare_fun m_fun;
+  uint m_rec_offset;
+  bool m_max_at_top;
+};
+
+
 class ha_partition :public handler
 {
 private:
@@ -157,7 +183,10 @@ private:
   uint m_rec_offset;
   uchar *m_rec0;                        // table->record[0]
   const uchar *m_err_rec;               // record which gave error
-  QUEUE m_queue;                        // Prio queue used by sorted read
+
+  Priority_queue<uchar *, std::vector<uchar*>, Key_rec_less>
+    m_queue;                        // Prio queue used by sorted read
+
   /*
     Since the partition handler is a handler on top of other handlers, it
     is necessary to keep information about what the underlying handler
@@ -775,10 +804,6 @@ public:
     NOTE: This cannot be cached since it can depend on TRANSACTION ISOLATION
     LEVEL which is dynamic, see bug#39084.
 
-    HA_READ_RND_SAME:
-    Not currently used. (Means that the handler supports the rnd_same() call)
-    (MyISAM, HEAP)
-
     HA_TABLE_SCAN_ON_INDEX:
     Used to avoid scanning full tables on an index. If this flag is set then
     the handler always has a primary key (hidden if not defined) and this
@@ -1058,7 +1083,6 @@ public:
                                   ulonglong *nb_reserved_values);
   virtual void release_auto_increment();
 private:
-  virtual int reset_auto_increment(ulonglong value);
   virtual void lock_auto_increment()
   {
     /* lock already taken */
@@ -1145,15 +1169,6 @@ public:
     uint keylen)
     { return NULL; }
     virtual int ft_read(uchar *buf) { return HA_ERR_WRONG_COMMAND; }
-  */
-
-  /*
-     -------------------------------------------------------------------------
-     MODULE restart full table scan at position (MyISAM)
-     -------------------------------------------------------------------------
-     The following method is only used by MyISAM when used as
-     temporary tables in a join.
-     virtual int restart_rnd_next(uchar *buf, uchar *pos);
   */
 
   /*

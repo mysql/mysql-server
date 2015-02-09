@@ -1,0 +1,1923 @@
+drop table if exists t1;
+CREATE TABLE t1 (
+id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+a VARCHAR(200),
+b TEXT
+) ENGINE = InnoDB;
+INSERT INTO t1 (a,b) VALUES
+('MySQL Tutorial','DBMS stands for DataBase ...')  ,
+('How To Use MySQL Well','After you went through a ...'),
+('Optimizing MySQL','In this tutorial we will show ...');
+ALTER TABLE t1 ADD FULLTEXT INDEX idx (a,b);
+Warnings:
+Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `a` varchar(200) DEFAULT NULL,
+  `b` text,
+  PRIMARY KEY (`id`),
+  FULLTEXT KEY `idx` (`a`,`b`)
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1
+INSERT INTO t1 (a,b) VALUES
+('1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+('MySQL vs. YourSQL','In the following database comparison ...'),
+('MySQL Security','When configured properly, MySQL ...');
+SELECT id FROM t1 WHERE MATCH (a,b)
+AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+id
+1
+3
+select id from t1 where MATCH(a,b) AGAINST("+support +collections" IN BOOLEAN MODE);
+id
+select id from t1 where MATCH(a,b) AGAINST("+search" IN BOOLEAN MODE);
+id
+select id from t1 where MATCH(a,b) AGAINST("+search +(support vector)" IN BOOLEAN MODE);
+id
+select id from t1 where MATCH(a,b) AGAINST("+search -(support vector)" IN BOOLEAN MODE);
+id
+select id, MATCH(a,b) AGAINST("support collections" IN BOOLEAN MODE) as x from t1;
+id	x
+1	0
+2	0
+3	0
+4	0
+5	0
+6	0
+select id, MATCH(a,b) AGAINST("collections support" IN BOOLEAN MODE) as x from t1;
+id	x
+1	0
+2	0
+3	0
+4	0
+5	0
+6	0
+select id from t1 where MATCH a,b AGAINST ("+call* +coll*" IN BOOLEAN MODE);
+id
+select id from t1 where MATCH a,b AGAINST ('"support now"' IN BOOLEAN MODE);
+id
+select id from t1 where MATCH a,b AGAINST ('"Now sUPPort"' IN BOOLEAN MODE);
+id
+select id from t1 where MATCH(a,b) AGAINST ("collections" WITH QUERY EXPANSION);
+id
+select id from t1 where MATCH(a,b) AGAINST ("indexes" WITH QUERY EXPANSION);
+id
+select id from t1 where MATCH(a,b) AGAINST ("indexes collections" WITH QUERY EXPANSION);
+id
+ALTER TABLE t1 DROP INDEX idx;
+CREATE FULLTEXT INDEX idx on t1 (a,b);
+SELECT id FROM t1 WHERE MATCH (a,b)
+AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+id
+1
+3
+select id from t1 where MATCH(a,b) AGAINST("+support +collections" IN BOOLEAN MODE);
+id
+select id from t1 where MATCH(a,b) AGAINST("+search" IN BOOLEAN MODE);
+id
+select id from t1 where MATCH(a,b) AGAINST("+search +(support vector)" IN BOOLEAN MODE);
+id
+select id from t1 where MATCH(a,b) AGAINST("+search -(support vector)" IN BOOLEAN MODE);
+id
+select id, MATCH(a,b) AGAINST("support collections" IN BOOLEAN MODE) as x from t1;
+id	x
+1	0
+2	0
+3	0
+4	0
+5	0
+6	0
+select id, MATCH(a,b) AGAINST("collections support" IN BOOLEAN MODE) as x from t1;
+id	x
+1	0
+2	0
+3	0
+4	0
+5	0
+6	0
+select id from t1 where MATCH a,b AGAINST ("+call* +coll*" IN BOOLEAN MODE);
+id
+select id from t1 where MATCH a,b AGAINST ('"support now"' IN BOOLEAN MODE);
+id
+select id from t1 where MATCH a,b AGAINST ('"Now sUPPort"' IN BOOLEAN MODE);
+id
+select id from t1 where MATCH(a,b) AGAINST ("collections" WITH QUERY EXPANSION);
+id
+select id from t1 where MATCH(a,b) AGAINST ("indexes" WITH QUERY EXPANSION);
+id
+select id from t1 where MATCH(a,b) AGAINST ("indexes collections" WITH QUERY EXPANSION);
+id
+INSERT INTO t1 (a,b) VALUES ('test query expansion','for database ...');
+INSERT INTO t1 (a,b) VALUES
+('test proximity search, test, proximity and phrase',
+'search, with proximity innodb');
+INSERT INTO t1 (a,b) VALUES
+('test proximity fts search, test, proximity and phrase',
+'search, with proximity innodb');
+INSERT INTO t1 (a,b) VALUES
+('test more proximity fts search, test, more proximity and phrase',
+'search, with proximity innodb');
+SELECT id FROM t1
+WHERE MATCH (a,b)
+AGAINST ('"proximity search"@2' IN BOOLEAN MODE);
+id
+8
+SELECT id FROM t1
+WHERE MATCH (a,b)
+AGAINST ('"proximity search"@1' IN BOOLEAN MODE);
+id
+SELECT id FROM t1
+WHERE MATCH (a,b)
+AGAINST ('"proximity search"@3' IN BOOLEAN MODE);
+id
+8
+9
+10
+SELECT id FROM t1
+WHERE MATCH (a,b)
+AGAINST ('"test proximity"@3' IN BOOLEAN MODE);
+id
+8
+9
+10
+SELECT id FROM t1
+WHERE MATCH (a,b)
+AGAINST ('"more test proximity"@3' IN BOOLEAN MODE);
+id
+10
+SELECT id FROM t1
+WHERE MATCH (a,b)
+AGAINST ('"more test proximity"@2' IN BOOLEAN MODE);
+id
+SELECT id FROM t1
+WHERE MATCH (a,b)
+AGAINST ('"more fts proximity"@02' IN BOOLEAN MODE);
+id
+DROP TABLE t1;
+CREATE TABLE t1 (
+id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+a VARCHAR(200),
+b TEXT
+) ENGINE = InnoDB;
+CREATE FULLTEXT INDEX idx on t1 (a,b);
+Warnings:
+Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
+INSERT INTO t1 (a,b) VALUES
+('MySQL Tutorial','DBMS stands for DataBase ...')  ,
+('How To Use MySQL Well','After you went through a ...'),
+('Optimizing MySQL','In this tutorial we will show ...');
+INSERT INTO t1 (a,b) VALUES
+('1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+('MySQL vs. YourSQL','In the following database comparison ...'),
+('MySQL Security','When configured properly, MySQL ...');
+SELECT id FROM t1 WHERE MATCH (a,b)
+AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+id
+1
+3
+SELECT id FROM t1 WHERE id = (SELECT MAX(id) FROM t1 WHERE MATCH (a,b)
+AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE));
+id
+3
+SELECT id FROM t1 WHERE id = (SELECT MIN(id) FROM t1 WHERE MATCH (a,b)
+AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE));
+id
+1
+SELECT id FROM t1 WHERE id = (SELECT MIN(id) FROM t1 WHERE MATCH (a,b)
+AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE)) OR id = 3 ;
+id
+1
+3
+SELECT id FROM t1 WHERE CONCAT(t1.a,t1.b) IN (
+SELECT CONCAT(a,b) FROM t1 AS t2 WHERE 
+MATCH (t2.a,t2.b) AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE)
+) OR t1.id = 3 ;
+id
+1
+3
+SELECT id FROM t1 WHERE CONCAT(t1.a,t1.b) IN (
+SELECT CONCAT(a,b) FROM t1 AS t2 
+WHERE MATCH (t2.a,t2.b) AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE) 
+AND t2.id != 3) ;
+id
+1
+SELECT id FROM t1 WHERE id IN (SELECT MIN(id) FROM t1 WHERE 
+MATCH (a,b) AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE)) OR id = 3 ;
+id
+1
+3
+SELECT id FROM t1 WHERE id NOT IN (SELECT MIN(id) FROM t1 
+WHERE MATCH (a,b) AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE)) ;
+id
+2
+3
+4
+5
+6
+SELECT id FROM t1 WHERE EXISTS (SELECT t2.id FROM t1 AS t2 WHERE 
+MATCH (t2.a,t2.b) AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE) 
+AND t1.id = t2.id) ;
+id
+1
+3
+SELECT id FROM t1 WHERE NOT EXISTS (SELECT t2.id FROM t1 AS t2 WHERE 
+MATCH (t2.a,t2.b) AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE) 
+AND t1.id = t2.id) ;
+id
+2
+4
+5
+6
+DROP TABLE t1;
+CREATE TABLE t1 (
+id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+a VARCHAR(200),
+b TEXT ,
+FULLTEXT (a,b)
+) ENGINE = InnoDB;
+INSERT INTO t1(a,b) VALUES('MySQL has now support', 'for full-text search'),
+('Full-text indexes', 'are called collections'),
+('Only MyISAM tables','support collections'),
+('Function MATCH ... AGAINST()','is used to do a search'),
+('Full-text search in MySQL', 'implements vector space model');
+SELECT id FROM t1 WHERE t1.id = (SELECT MAX(t2.id) FROM t1 AS t2 WHERE 
+MATCH(t2.a,t2.b) AGAINST("+support +collections" IN BOOLEAN MODE));
+id
+3
+SELECT id FROM t1 WHERE t1.id != (SELECT MIN(t2.id) FROM t1 AS t2 WHERE 
+MATCH(t2.a,t2.b) AGAINST("+search" IN BOOLEAN MODE));
+id
+2
+3
+4
+5
+SELECT id FROM t1 WHERE t1.id IN (SELECT t2.id FROM t1 AS t2 WHERE 
+MATCH (t2.a,t2.b) AGAINST ("+call* +coll*" IN BOOLEAN MODE));
+id
+2
+SELECT id FROM t1 WHERE EXISTS (SELECT id FROM t1 AS t2 WHERE 
+MATCH t2.a,t2.b AGAINST ('"Now sUPPort"' IN BOOLEAN MODE) AND t2.id=t1.id);
+id
+1
+INSERT INTO t1 (a,b) VALUES ('test query expansion','for database ...');
+INSERT INTO t1 (a,b) VALUES
+('test proximity search, test, proximity and phrase',
+'search, with proximity innodb');
+INSERT INTO t1 (a,b) VALUES
+('test proximity fts search, test, proximity and phrase',
+'search, with proximity innodb');
+INSERT INTO t1 (a,b) VALUES
+('test more proximity fts search, test, more proximity and phrase',
+'search, with proximity innodb');
+SELECT id FROM t1 WHERE t1.id = (SELECT MAX(t2.id) FROM t1 AS t2 WHERE
+MATCH(t2.a,t2.b) AGAINST ('"proximity search"@2' IN BOOLEAN MODE));
+id
+7
+SELECT id FROM t1 WHERE t1.id > (SELECT MIN(t2.id) FROM t1 AS t2 WHERE
+MATCH(t2.a,t2.b) AGAINST ('"proximity search"@2' IN BOOLEAN MODE));
+id
+8
+9
+SELECT id FROM t1 WHERE t1.id IN (SELECT t2.id FROM t1 AS t2 WHERE
+MATCH (t2.a,t2.b) AGAINST ('"proximity search"@2' IN BOOLEAN MODE));
+id
+7
+SELECT id FROM t1 WHERE EXISTS (SELECT id FROM t1 AS t2 WHERE
+MATCH t2.a,t2.b AGAINST ('"proximity search"@2' IN BOOLEAN MODE)
+AND t2.id=t1.id);
+id
+7
+SELECT id FROM t1 WHERE EXISTS (SELECT id FROM t1 AS t2 WHERE
+MATCH t2.a,t2.b AGAINST ('"more test proximity"@3' IN BOOLEAN MODE)
+AND t2.id=t1.id);
+id
+9
+SELECT id FROM t1 WHERE EXISTS (SELECT id FROM t1 AS t2 WHERE
+MATCH t2.a,t2.b AGAINST ('"more test proximity"@2' IN BOOLEAN MODE)
+AND t2.id=t1.id);
+id
+CREATE TABLE t2 ENGINE = InnoDB AS SELECT id FROM t1 WHERE
+MATCH a,b AGAINST ('support') ;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `id` int(10) unsigned NOT NULL DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SELECT id FROM t2;
+id
+1
+3
+DROP TABLE t2;
+CREATE TABLE t2 ENGINE = InnoDB AS SELECT id FROM t1 WHERE
+MATCH a,b AGAINST("+support +collections" IN BOOLEAN MODE);
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `id` int(10) unsigned NOT NULL DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SELECT id FROM t2;
+id
+3
+DROP TABLE t2;
+CREATE TABLE t2 ENGINE = InnoDB AS SELECT id FROM t1 WHERE
+MATCH a,b AGAINST ('"proximity search"@10' IN BOOLEAN MODE);
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `id` int(10) unsigned NOT NULL DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SELECT id FROM t2;
+id
+7
+8
+9
+DROP TABLE t2;
+DROP TABLE t1;
+CREATE TABLE t1 (
+id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+a VARCHAR(200),
+b TEXT
+) ENGINE = InnoDB;
+CREATE FULLTEXT INDEX idx on t1 (a,b);
+Warnings:
+Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
+INSERT INTO t1 (a,b) VALUES
+('MySQL from Tutorial','DBMS stands for DataBase ...');
+INSERT INTO t1 (a,b) VALUES
+('when To Use MySQL Well','After that you went through a ...');
+INSERT INTO t1 (a,b) VALUES
+('where will Optimizing MySQL','what In this tutorial we will show ...');
+INSERT INTO t1 (a,b) VALUES
+('1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+('MySQL vs. YourSQL','In the following database comparison ...'),
+('MySQL Security','When configured properly, MySQL null...');
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+106
+SELECT COUNT(*) FROM t1 WHERE a IS NULL;
+COUNT(*)
+100
+SELECT COUNT(*) FROM t1 WHERE b IS NOT NULL;
+COUNT(*)
+6
+SELECT id FROM t1
+WHERE MATCH (a,b)
+AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+id
+1
+103
+SELECT id FROM t1
+WHERE MATCH (a,b)
+AGAINST (NULL IN NATURAL LANGUAGE MODE);
+id
+SELECT id FROM t1
+WHERE MATCH (a,b)
+AGAINST (NULL WITH QUERY EXPANSION);
+id
+SELECT id FROM t1
+WHERE MATCH (a,b)
+AGAINST ('null' IN NATURAL LANGUAGE MODE);
+id
+106
+SELECT id FROM t1 WHERE MATCH (a,b)
+AGAINST ('+MySQL -YourSQL' IN BOOLEAN MODE);
+id
+106
+1
+52
+103
+104
+SELECT id FROM t1 WHERE MATCH (a,b)
+AGAINST ('+MySQL -YourSQL' IN BOOLEAN MODE) AND (a IS NOT NULL OR b IS NOT NULL);
+id
+106
+1
+52
+103
+104
+SELECT id FROM t1 WHERE MATCH (a,b)
+AGAINST ('+MySQL -YourSQL' IN BOOLEAN MODE) AND (a IS NULL AND b IS NOT NULL);
+id
+SELECT id FROM t1 WHERE MATCH (a,b)
+AGAINST ('DBMS Security' IN BOOLEAN MODE);
+id
+1
+106
+SELECT COUNT(*) FROM t1
+WHERE MATCH (a,b)
+AGAINST ('database' WITH QUERY EXPANSION);
+COUNT(*)
+6
+SELECT id FROM t1
+WHERE MATCH (a,b)
+AGAINST ('"following database"@10' IN BOOLEAN MODE);
+id
+105
+DROP TABLE t1;
+drop table if exists t50;
+set names utf8;
+"----------Test1---------"
+create table t50 (s1 varchar(60) character set utf8 collate utf8_bin) engine = innodb;
+create fulltext index i on t50 (s1);
+Warnings:
+Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
+insert into t50 values ('ABCDE'),('FGHIJ'),('KLMNO'),('VÐƷWİ');
+select * from t50 where match(s1) against ('VÐƷWİ');
+s1
+VÐƷWİ
+drop table t50;
+"----------Test2---------"
+create table t50 (s1 int unsigned primary key auto_increment, s2
+varchar(60) character set utf8) engine = innodb;
+create fulltext index i on t50 (s2);
+Warnings:
+Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
+insert into t50 (s2) values ('FGHIJ'),('KLMNO'),('VÐƷWİ'),('ABCDE');
+select * from t50 order by s2;
+s1	s2
+4	ABCDE
+1	FGHIJ
+2	KLMNO
+3	VÐƷWİ
+drop table t50;
+"----------Test3---------"
+create table t50 (id int unsigned primary key auto_increment, s2
+varchar(60) character set utf8) engine = innodb;
+create fulltext index i on t50 (s2);
+Warnings:
+Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
+insert into t50 (s2) values ('FGHIJ'),('KLMNO'),('VÐƷWİ'),('ABCDE');
+set @@autocommit=0;
+update t50 set s2 = lower(s2);
+update t50 set s2 = upper(s2);
+commit;
+select * from t50 where match(s2) against ('VÐƷWİ FGHIJ KLMNO ABCDE' in boolean mode);
+id	s2
+1	FGHIJ
+2	KLMNO
+3	VÐƷWI
+4	ABCDE
+select * from t50;
+id	s2
+1	FGHIJ
+2	KLMNO
+3	VÐƷWI
+4	ABCDE
+drop table t50;
+set @@autocommit=1;
+"----------Test4---------"
+create table t50 (id int unsigned primary key auto_increment, s2
+varchar(60) character set utf8) engine = innodb;
+create fulltext index i on t50 (s2);
+Warnings:
+Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
+insert into t50 (s2) values ('FGHIJ'),('KLMNO'),('VÐƷWİ'),('ABCD*');
+select * from t50 where match(s2) against ('abcd*' in natural language
+mode);
+id	s2
+4	ABCD*
+select * from t50 where match(s2) against ('abcd*' in boolean mode);
+id	s2
+4	ABCD*
+drop table t50;
+"----------Test5---------"
+create table t50 (s1 int, s2 varchar(200), fulltext key(s2)) engine = innodb;
+set @@autocommit=0;
+insert into t50 values (1,'Sunshine'),(2,'Lollipops');
+select * from t50 where match(s2) against('Rainbows');
+s1	s2
+rollback;
+select * from t50;
+s1	s2
+drop table t50;
+set @@autocommit=1;
+"----------Test6---------"
+CREATE TABLE t1 (
+id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+a VARCHAR(200),
+b TEXT
+) ENGINE = InnoDB;
+INSERT INTO t1 (a,b) VALUES
+('aab` MySQL Tutorial','DBMS stands for DataBase ...')  ,
+('aas How To Use MySQL Well','After you went through a ...'),
+('aac Optimizing MySQL','In this tutorial we will show ...');
+INSERT INTO t1 (a,b) VALUES
+('aac 1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+('aab MySQL vs. YourSQL','In the following database comparison ...'),
+('aaa MySQL Security','When configured properly, MySQL ...');
+ALTER TABLE t1 ADD FULLTEXT INDEX idx (a,b);
+Warnings:
+Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
+SELECT * FROM t1 ORDER BY MATCH(a,b) AGAINST ('aac') DESC;
+id	a	b
+3	aac Optimizing MySQL	In this tutorial we will show ...
+4	aac 1001 MySQL Tricks	1. Never run mysqld as root. 2. ...
+1	aab` MySQL Tutorial	DBMS stands for DataBase ...
+2	aas How To Use MySQL Well	After you went through a ...
+5	aab MySQL vs. YourSQL	In the following database comparison ...
+6	aaa MySQL Security	When configured properly, MySQL ...
+SELECT * FROM t1 ORDER BY MATCH(a,b) AGAINST ('aab') DESC;
+id	a	b
+1	aab` MySQL Tutorial	DBMS stands for DataBase ...
+5	aab MySQL vs. YourSQL	In the following database comparison ...
+2	aas How To Use MySQL Well	After you went through a ...
+3	aac Optimizing MySQL	In this tutorial we will show ...
+4	aac 1001 MySQL Tricks	1. Never run mysqld as root. 2. ...
+6	aaa MySQL Security	When configured properly, MySQL ...
+"----------Test7---------"
+select * from t1 where match(a,b) against ('aaa')
+union select * from t1 where match(a,b) against ('aab')
+union select * from t1 where match(a,b) against ('aac');
+id	a	b
+6	aaa MySQL Security	When configured properly, MySQL ...
+1	aab` MySQL Tutorial	DBMS stands for DataBase ...
+5	aab MySQL vs. YourSQL	In the following database comparison ...
+3	aac Optimizing MySQL	In this tutorial we will show ...
+4	aac 1001 MySQL Tricks	1. Never run mysqld as root. 2. ...
+select * from t1 where match(a,b) against ('aaa')
+or    match(a,b) against ('aab')
+or    match(a,b) against ('aac');
+id	a	b
+1	aab` MySQL Tutorial	DBMS stands for DataBase ...
+3	aac Optimizing MySQL	In this tutorial we will show ...
+4	aac 1001 MySQL Tricks	1. Never run mysqld as root. 2. ...
+5	aab MySQL vs. YourSQL	In the following database comparison ...
+6	aaa MySQL Security	When configured properly, MySQL ...
+DROP TABLE t1;
+"----------Test8---------"
+CREATE TABLE t1 (
+id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+a VARCHAR(200),
+b TEXT
+) ENGINE = InnoDB;
+INSERT INTO t1 (a,b) VALUES
+('MySQL Tutorial','DBMS stands for DataBase ... abcd')  ,
+('How To Use MySQL Well','After you went through a q ...abdd'),
+('Optimizing MySQL','In this tutorial we will show ...abed');
+ALTER TABLE t1 ADD FULLTEXT INDEX idx (a,b);
+Warnings:
+Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `a` varchar(200) DEFAULT NULL,
+  `b` text,
+  PRIMARY KEY (`id`),
+  FULLTEXT KEY `idx` (`a`,`b`)
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1
+INSERT INTO t1 (a,b) VALUES
+('1001 MySQL Tricks','1. Never run mysqld as root. 2. q ...'),
+('MySQL vs. YourSQL use','In the following database comparison ...'),
+('MySQL Security','When run configured properly, MySQL ...');
+SELECT * FROM t1 WHERE MATCH(a,b) AGAINST ('run');
+id	a	b
+4	1001 MySQL Tricks	1. Never run mysqld as root. 2. q ...
+6	MySQL Security	When run configured properly, MySQL ...
+SELECT * FROM t1 WHERE MATCH(a,b) AGAINST ('use');
+id	a	b
+2	How To Use MySQL Well	After you went through a q ...abdd
+5	MySQL vs. YourSQL use	In the following database comparison ...
+SELECT * FROM t1 WHERE MATCH(a,b) AGAINST ('went');
+id	a	b
+2	How To Use MySQL Well	After you went through a q ...abdd
+SELECT * FROM t1 WHERE MATCH(a,b) AGAINST ('run') AND NOT MATCH(a,b) AGAINST ('q');
+id	a	b
+4	1001 MySQL Tricks	1. Never run mysqld as root. 2. q ...
+6	MySQL Security	When run configured properly, MySQL ...
+SELECT * FROM t1 WHERE MATCH(a,b) AGAINST ('use') AND NOT MATCH(a,b) AGAINST ('q');
+id	a	b
+2	How To Use MySQL Well	After you went through a q ...abdd
+5	MySQL vs. YourSQL use	In the following database comparison ...
+SELECT * FROM t1 WHERE MATCH(a,b) AGAINST ('went') AND NOT MATCH(a,b) AGAINST ('q');
+id	a	b
+2	How To Use MySQL Well	After you went through a q ...abdd
+"----------Test9---------"
+CREATE TABLE t2 AS SELECT * FROM t1;
+ALTER TABLE t2 ENGINE=MYISAM;
+CREATE FULLTEXT INDEX i ON t2 (a,b);
+SET @x = (SELECT COUNT(*) FROM t1 WHERE MATCH(a,b) AGAINST ('run'));
+SET @x = @x + (SELECT COUNT(*) FROM t1 WHERE MATCH(a,b) AGAINST ('use'));
+SET @x = @x + (SELECT COUNT(*) FROM t1 WHERE MATCH(a,b) AGAINST ('went'));
+SET @x = @x + (SELECT COUNT(*) FROM t1 WHERE MATCH(a,b) AGAINST ('run'));
+SET @x2 = (SELECT COUNT(*) FROM t2 WHERE MATCH(a,b) AGAINST ('run'));
+SET @x2 = @x2 + (SELECT COUNT(*) FROM t2 WHERE MATCH(a,b) AGAINST ('use'));
+SET @x2 = @x2 + (SELECT COUNT(*) FROM t2 WHERE MATCH(a,b) AGAINST ('went'));
+SET @x2 = @x2 + (SELECT COUNT(*) FROM t2 WHERE MATCH(a,b) AGAINST ('run'));
+SELECT @x, @x2;
+@x	@x2
+7	0
+DROP TABLE t2;
+"----------Test10---------"
+CREATE TABLE t2 AS SELECT * FROM t1;
+ALTER TABLE t2 ENGINE=MYISAM;
+CREATE FULLTEXT INDEX i ON t2 (a,b);
+SELECT COUNT(*) FROM t2 WHERE MATCH(a,b) AGAINST ('abc*' IN BOOLEAN MODE);
+COUNT(*)
+1
+SELECT COUNT(*) FROM t1 WHERE MATCH(a,b) AGAINST ('abc*' IN BOOLEAN MODE);
+COUNT(*)
+1
+DROP TABLE t2;
+"----------Test11---------"
+CREATE TABLE t2 AS SELECT * FROM t1;
+ALTER TABLE t2 ENGINE = MYISAM;
+CREATE FULLTEXT INDEX i ON t2 (a,b);
+ALTER TABLE t2 ENGINE=InnoDB;
+SELECT * FROM t1 WHERE MATCH(a,b) AGAINST ('run');
+id	a	b
+4	1001 MySQL Tricks	1. Never run mysqld as root. 2. q ...
+6	MySQL Security	When run configured properly, MySQL ...
+SELECT COUNT(*) FROM t2 WHERE MATCH(a,b) AGAINST ('abc*' IN BOOLEAN MODE);
+COUNT(*)
+1
+DROP TABLE t2,t1;
+"----------Test13---------"
+set names utf8;
+CREATE TABLE t1 (s1 INT, s2 VARCHAR(200) CHARACTER SET UTF8 COLLATE UTF8_SPANISH_CI) ENGINE = InnoDB;
+CREATE FULLTEXT INDEX i ON t1 (s2);
+Warnings:
+Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
+INSERT INTO t1 VALUES (1,'aaCen'),(2,'aaCha'),(3,'aaCio'),(4,'aaçen'),(5,'aaçha'),(6,'aaçio');
+SELECT * FROM t1 WHERE MATCH(s2) AGAINST ('aach*' IN BOOLEAN MODE);
+s1	s2
+2	aaCha
+5	aaçha
+SELECT * FROM t1 WHERE MATCH(s2) AGAINST ('aaC*' IN BOOLEAN MODE);
+s1	s2
+1	aaCen
+2	aaCha
+3	aaCio
+4	aaçen
+5	aaçha
+6	aaçio
+DROP TABLE t1;
+"----------Test14---------"
+CREATE TABLE t1(s1 INT , s2 VARCHAR(100) CHARACTER SET sjis) ENGINE = InnoDB;
+CREATE FULLTEXT INDEX i ON t1 (s2);
+Warnings:
+Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
+INSERT INTO t1 VALUES (1,'ペペペ'),(2,'テテテ'),(3,'ルルル'),(4,'グググ');
+DROP TABLE t1;
+"----------Test15---------"
+CREATE TABLE t1 (s1 VARCHAR (60) CHARACTER SET UTF8 COLLATE UTF8_UNICODE_520_CI) ENGINE = MyISAM;
+CREATE FULLTEXT INDEX i ON t1 (s1);
+INSERT INTO t1 VALUES
+('a'),('b'),('c'),('d'),('ŁŁŁŁ'),('LLLL'),(NULL),('ŁŁŁŁ ŁŁŁŁ'),('LLLLLLLL');
+SELECT * FROM t1 WHERE MATCH(s1) AGAINST ('LLLL' COLLATE UTF8_UNICODE_520_CI);
+s1
+ŁŁŁŁ
+LLLL
+ŁŁŁŁ ŁŁŁŁ
+DROP TABLE if EXISTS t2;
+Warnings:
+Note	1051	Unknown table 'test.t2'
+CREATE TABLE t2 (s1 VARCHAR(60) CHARACTER SET UTF8 COLLATE UTF8_POLISH_CI) ENGINE = InnoDB;
+CREATE FULLTEXT INDEX i ON t2 ( s1);
+Warnings:
+Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
+INSERT INTO t2 VALUES
+('a'),('b'),('c'),('d'),('ŁŁŁŁ'),('LLLL'),(NULL),('ŁŁŁŁ ŁŁŁŁ'),('LLLLLLLL');
+SELECT * FROM t2 WHERE MATCH(s1) AGAINST ('LLLL' COLLATE UTF8_UNICODE_520_CI);
+s1
+LLLL
+DROP TABLE t1,t2;
+"----------Test16---------"
+CREATE TABLE t1 (s1 INT, s2 VARCHAR(50) CHARACTER SET UTF8) ENGINE = InnoDB;
+CREATE FULLTEXT INDEX i ON t1(s2);
+Warnings:
+Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
+INSERT INTO t1 VALUES (2, 'ğė Daśi      p          ');
+SELECT * FROM t1 WHERE MATCH(s2) AGAINST ('+p +"ğė Daśi*"' IN BOOLEAN MODE);
+s1	s2
+DROP TABLE t1;
+"----------Test19---------"
+CREATE TABLE t1 ( id INT , char_column VARCHAR(60) CHARACTER SET UTF8) ENGINE = InnoDB;
+INSERT INTO t1 VALUES (1,'İóëɠ');
+CREATE FULLTEXT INDEX i ON t1 (char_column);
+Warnings:
+Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
+SELECT * FROM t1 WHERE MATCH(char_column) AGAINST ('"İóëɠ"' IN BOOLEAN MODE);
+id	char_column
+1	İóëɠ
+DROP TABLE t1;
+"----------Test20---------"
+CREATE TABLE t1 ( id INT , char_column VARCHAR(60) CHARACTER SET UTF32, char_column2 VARCHAR(60) character set utf8) ENGINE = InnoDB;
+INSERT INTO t1 (char_column) VALUES ('abcde'),('fghij'),('klmno'),('qrstu');
+UPDATE t1 SET char_column2 = char_column;
+CREATE FULLTEXT INDEX i ON t1 (char_column2);
+Warnings:
+Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
+SELECT * FROM t1 WHERE MATCH(char_column) AGAINST ('abc*' IN BOOLEAN MODE);
+ERROR HY000: Can't find FULLTEXT index matching the column list
+DROP TABLE t1;
+"----------Test22---------"
+CREATE TABLE t1 ( id INT , char_column VARCHAR(60) CHARACTER SET UTF8) ENGINE = InnoDB;
+INSERT INTO t1 VALUES (1,'aaa'),(2,'bbb'),(3,'ccc');
+CREATE FULLTEXT INDEX i ON t1 (char_column);
+Warnings:
+Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
+HANDLER t1 OPEN;
+HANDLER t1 READ i = ('aaa');
+id	char_column
+DROP TABLE t1;
+"----------Test25---------"
+CREATE TABLE t1 ( id INT , char_column VARCHAR(60) CHARACTER SET UTF8 COLLATE UTF8_CROATIAN_CI) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1,'Ǉin'),(2,'ljin'),(3,'lmin'),(4,'ǇǇǇǇǇ');
+CREATE FULLTEXT INDEX i ON t1 (char_column);
+Warnings:
+Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
+SELECT count(*) FROM t1 WHERE MATCH (char_column) AGAINST ('lj*' IN BOOLEAN MODE);
+count(*)
+3
+DROP TABLE t1;
+"----------Test27---------"
+CREATE TABLE t1 (id INT,char_column VARCHAR(60)) ENGINE=InnoDB;
+SET @@autocommit=0;
+CREATE FULLTEXT INDEX i ON t1 (char_column);
+Warnings:
+Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
+INSERT INTO t1 values (1,'aaa');
+"restart server..."
+# Restart the server
+--source include/restart_mysqld.inc
+DELETE FROM t1 WHERE MATCH(char_column) AGAINST ('bbb')
+SET @@autocommit=1;
+DROP TABLE t1;
+"----------Test28---------"
+drop table if exists `fts_test`;
+Warnings:
+Note	1051	Unknown table 'test.fts_test'
+create table `fts_test`(`a` text,fulltext key(`a`))engine=innodb;
+set session autocommit=0;
+insert into `fts_test` values ('');
+savepoint `b`;
+savepoint `b`;
+set session autocommit=1;
+DROP TABLE fts_test;
+"----------Test29---------"
+CREATE TABLE articles (
+id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+title VARCHAR(200),
+body TEXT,
+FULLTEXT (title,body)
+) ENGINE=InnoDB;
+INSERT INTO articles (title,body) VALUES
+('MySQL Tutorial','DBMS stands for DataBase ...');
+start transaction;
+INSERT INTO articles (title,body) VALUES 
+('How To Use MySQL Well','After you went through a ...');
+savepoint `a1`;
+INSERT INTO articles (title,body) VALUES
+('Optimizing MySQL','In this tutorial we will show ...');
+savepoint `a2`;
+INSERT INTO articles (title,body) VALUES
+('1001 MySQL Tricks','1. Never run mysqld as root. 2. ...');
+savepoint `a3`;
+INSERT INTO articles (title,body) VALUES
+('MySQL vs. YourSQL','In the following database comparison ...');
+savepoint `a4`;
+SELECT * FROM articles
+WHERE MATCH (title,body)
+AGAINST ('Database' IN NATURAL LANGUAGE MODE);
+id	title	body
+1	MySQL Tutorial	DBMS stands for DataBase ...
+rollback to savepoint a3;
+select title, body from articles;
+title	body
+MySQL Tutorial	DBMS stands for DataBase ...
+How To Use MySQL Well	After you went through a ...
+Optimizing MySQL	In this tutorial we will show ...
+1001 MySQL Tricks	1. Never run mysqld as root. 2. ...
+INSERT INTO articles (title,body) VALUES
+('MySQL Security','When configured properly, MySQL ...');
+savepoint `a5`;
+select title, body from articles;
+title	body
+MySQL Tutorial	DBMS stands for DataBase ...
+How To Use MySQL Well	After you went through a ...
+Optimizing MySQL	In this tutorial we will show ...
+1001 MySQL Tricks	1. Never run mysqld as root. 2. ...
+MySQL Security	When configured properly, MySQL ...
+rollback to savepoint a2;
+select title, body from articles;
+title	body
+MySQL Tutorial	DBMS stands for DataBase ...
+How To Use MySQL Well	After you went through a ...
+Optimizing MySQL	In this tutorial we will show ...
+commit;
+SELECT * FROM articles
+WHERE MATCH (title,body)
+AGAINST ('Database' IN NATURAL LANGUAGE MODE);
+id	title	body
+1	MySQL Tutorial	DBMS stands for DataBase ...
+SELECT * FROM articles
+WHERE MATCH (title,body)
+AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+id	title	body
+1	MySQL Tutorial	DBMS stands for DataBase ...
+3	Optimizing MySQL	In this tutorial we will show ...
+DROP TABLE articles;
+"----------Test30---------"
+CREATE TABLE articles (
+id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+title VARCHAR(200),
+body TEXT,
+FULLTEXT (title,body)
+) ENGINE=InnoDB;
+INSERT INTO articles (title,body) VALUES
+('MySQL Tutorial','DBMS stands for DataBase ...');
+start transaction;
+INSERT INTO articles (title,body) VALUES 
+('How To Use MySQL Well','After you went through a ...');
+savepoint `a1`;
+INSERT INTO articles (title,body) VALUES
+('Optimizing MySQL','In this tutorial we will show ...');
+savepoint `a2`;
+INSERT INTO articles (title,body) VALUES
+('1001 MySQL Tricks','1. Never run mysqld as root. 2. ...');
+savepoint `a3`;
+INSERT INTO articles (title,body) VALUES
+('MySQL vs. YourSQL','In the following database comparison ...');
+savepoint `a4`;
+SELECT * FROM articles
+WHERE MATCH (title,body)
+AGAINST ('Database' IN NATURAL LANGUAGE MODE);
+id	title	body
+1	MySQL Tutorial	DBMS stands for DataBase ...
+rollback to savepoint a3;
+select title, body from articles;
+title	body
+MySQL Tutorial	DBMS stands for DataBase ...
+How To Use MySQL Well	After you went through a ...
+Optimizing MySQL	In this tutorial we will show ...
+1001 MySQL Tricks	1. Never run mysqld as root. 2. ...
+INSERT INTO articles (title,body) VALUES
+('MySQL Security','When configured properly, MySQL ...');
+savepoint `a5`;
+select title, body from articles;
+title	body
+MySQL Tutorial	DBMS stands for DataBase ...
+How To Use MySQL Well	After you went through a ...
+Optimizing MySQL	In this tutorial we will show ...
+1001 MySQL Tricks	1. Never run mysqld as root. 2. ...
+MySQL Security	When configured properly, MySQL ...
+rollback to savepoint a2;
+select title, body from articles;
+title	body
+MySQL Tutorial	DBMS stands for DataBase ...
+How To Use MySQL Well	After you went through a ...
+Optimizing MySQL	In this tutorial we will show ...
+rollback;
+SELECT * FROM articles
+WHERE MATCH (title,body)
+AGAINST ('Database' IN NATURAL LANGUAGE MODE);
+id	title	body
+1	MySQL Tutorial	DBMS stands for DataBase ...
+SELECT * FROM articles
+WHERE MATCH (title,body)
+AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+id	title	body
+1	MySQL Tutorial	DBMS stands for DataBase ...
+DROP TABLE articles;
+CREATE TABLE articles (
+id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+title VARCHAR(200),
+body TEXT,
+FULLTEXT (title,body)
+) ENGINE=InnoDB;
+INSERT INTO articles (title,body) VALUES
+('MySQL Tutorial','DBMS stands for DataBase ...')  ,
+('How To Use MySQL Well','After you went through a ...'),
+('Optimizing MySQL','In this tutorial we will show ...'),
+('1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+('MySQL vs. YourSQL','In the following database comparison ...'),
+('MySQL Security','When configured properly, MySQL ...');
+ANALYZE TABLE articles;
+SELECT *,  MATCH(title, body) AGAINST ('-database +MySQL' IN BOOLEAN MODE) AS score from articles;
+id	title	body	score
+1	MySQL Tutorial	DBMS stands for DataBase ...	0
+2	How To Use MySQL Well	After you went through a ...	0.000000001885928302414186
+3	Optimizing MySQL	In this tutorial we will show ...	0.000000001885928302414186
+4	1001 MySQL Tricks	1. Never run mysqld as root. 2. ...	0.000000001885928302414186
+5	MySQL vs. YourSQL	In the following database comparison ...	0
+6	MySQL Security	When configured properly, MySQL ...	0.000000003771856604828372
+SELECT *, MATCH(title, body) AGAINST ('+MySQL -database' IN BOOLEAN MODE) AS score  FROM articles;
+id	title	body	score
+1	MySQL Tutorial	DBMS stands for DataBase ...	0
+2	How To Use MySQL Well	After you went through a ...	0.000000001885928302414186
+3	Optimizing MySQL	In this tutorial we will show ...	0.000000001885928302414186
+4	1001 MySQL Tricks	1. Never run mysqld as root. 2. ...	0.000000001885928302414186
+5	MySQL vs. YourSQL	In the following database comparison ...	0
+6	MySQL Security	When configured properly, MySQL ...	0.000000003771856604828372
+SELECT * FROM articles where  MATCH(title, body) AGAINST ('MySQL - (database - tutorial)' IN BOOLEAN MODE);
+id	title	body
+6	MySQL Security	When configured properly, MySQL ...
+1	MySQL Tutorial	DBMS stands for DataBase ...
+2	How To Use MySQL Well	After you went through a ...
+3	Optimizing MySQL	In this tutorial we will show ...
+4	1001 MySQL Tricks	1. Never run mysqld as root. 2. ...
+SELECT * FROM articles where MATCH(title, body) AGAINST ('MySQL - (- tutorial database)' IN BOOLEAN MODE);
+id	title	body
+6	MySQL Security	When configured properly, MySQL ...
+1	MySQL Tutorial	DBMS stands for DataBase ...
+2	How To Use MySQL Well	After you went through a ...
+3	Optimizing MySQL	In this tutorial we will show ...
+4	1001 MySQL Tricks	1. Never run mysqld as root. 2. ...
+SELECT * FROM articles where MATCH(title, body) AGAINST ('MySQL - (- tutorial database) -Tricks' IN BOOLEAN MODE);
+id	title	body
+6	MySQL Security	When configured properly, MySQL ...
+1	MySQL Tutorial	DBMS stands for DataBase ...
+2	How To Use MySQL Well	After you went through a ...
+3	Optimizing MySQL	In this tutorial we will show ...
+SELECT * FROM articles where MATCH(title, body) AGAINST ('-Tricks MySQL - (- tutorial database)' IN BOOLEAN MODE);
+id	title	body
+6	MySQL Security	When configured properly, MySQL ...
+1	MySQL Tutorial	DBMS stands for DataBase ...
+2	How To Use MySQL Well	After you went through a ...
+3	Optimizing MySQL	In this tutorial we will show ...
+DROP TABLE articles;
+drop table if exists t1;
+Warnings:
+Note	1051	Unknown table 'test.t1'
+create table t1 (FTS_DOC_ID bigint unsigned auto_increment not null primary key,
+title varchar(200),body text,fulltext(title,body)) engine=innodb;
+insert into t1 set body='test';
+select * from t1 where match(title,body) against('%test');
+FTS_DOC_ID	title	body
+1	NULL	test
+select * from t1 where match(title,body) against('%');
+FTS_DOC_ID	title	body
+select * from t1 where match(title,body) against('%%%%');
+FTS_DOC_ID	title	body
+drop table t1;
+CREATE DATABASE `benu database`;
+USE `benu database`;
+CREATE TABLE t1 (
+id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+a VARCHAR(200),
+b TEXT
+) ENGINE = InnoDB;
+INSERT INTO t1 (a,b) VALUES
+('MySQL Tutorial','DBMS stands for DataBase ...')  ,
+('How To Use MySQL Well','After you went through a ...'),
+('Optimizing MySQL','In this tutorial we will show ...');
+ALTER TABLE t1 ADD FULLTEXT INDEX idx (a,b);
+Warnings:
+Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `a` varchar(200) DEFAULT NULL,
+  `b` text,
+  PRIMARY KEY (`id`),
+  FULLTEXT KEY `idx` (`a`,`b`)
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1
+INSERT INTO t1 (a,b) VALUES
+('1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+('MySQL vs. YourSQL','In the following database comparison ...'),
+('MySQL Security','When configured properly, MySQL ...');
+SELECT id FROM t1 WHERE MATCH (a,b)
+AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+id
+1
+3
+select id from t1 where MATCH(a,b) AGAINST("+support +collections" IN BOOLEAN MODE);
+id
+select id from t1 where MATCH(a,b) AGAINST("+search" IN BOOLEAN MODE);
+id
+select id from t1 where MATCH(a,b) AGAINST("+search +(support vector)" IN BOOLEAN MODE);
+id
+select id from t1 where MATCH(a,b) AGAINST("+search -(support vector)" IN BOOLEAN MODE);
+id
+select id, MATCH(a,b) AGAINST("support collections" IN BOOLEAN MODE) as x from t1;
+id	x
+1	0
+2	0
+3	0
+4	0
+5	0
+6	0
+select id, MATCH(a,b) AGAINST("collections support" IN BOOLEAN MODE) as x from t1;
+id	x
+1	0
+2	0
+3	0
+4	0
+5	0
+6	0
+select id from t1 where MATCH a,b AGAINST ("+call* +coll*" IN BOOLEAN MODE);
+id
+select id from t1 where MATCH a,b AGAINST ('"support now"' IN BOOLEAN MODE);
+id
+select id from t1 where MATCH a,b AGAINST ('"Now sUPPort"' IN BOOLEAN MODE);
+id
+DROP DATABASE `benu database`;
+USE test;
+CREATE TABLE `t21` (`a` text, `b` int not null,
+fulltext key (`a`), fulltext key (`a`)
+) ENGINE=INNODB DEFAULT CHARSET=LATIN1;
+Warnings:
+Warning	1831	Duplicate index 'a_2' defined on the table 'test.t21'. This is deprecated and will be disallowed in a future release.
+ALTER  TABLE `t21` ADD UNIQUE INDEX (`b`), ALGORITHM=INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: InnoDB presently supports one FULLTEXT index creation at a time. Try ALGORITHM=COPY.
+ALTER  TABLE `t21` ADD UNIQUE INDEX (`b`);
+DROP TABLE t21;
+CREATE TABLE `t21` (`a` text, `b` int not null,
+fulltext key (`a`)) ENGINE=INNODB DEFAULT CHARSET=LATIN1;
+ALTER  TABLE `t21` ADD UNIQUE INDEX (`b`);
+DROP TABLE t21;
+CREATE TABLE t1 (
+id INT NOT NULL,
+a VARCHAR(200),
+b TEXT
+) ENGINE = InnoDB;
+INSERT INTO t1 VALUES
+(1, 'MySQL Tutorial','DBMS stands for DataBase ...')  ,
+(2, 'How To Use MySQL Well','After you went through a ...'),
+(3, 'Optimizing MySQL','In this tutorial we will show ...');
+ALTER TABLE t1 ADD FULLTEXT INDEX idx (a,b);
+Warnings:
+Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
+ALTER  TABLE t1 ADD UNIQUE INDEX (`id`);
+SELECT id FROM t1 WHERE MATCH (a,b)
+AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+id
+1
+3
+select id from t1 where MATCH(a,b) AGAINST("+support +collections" IN BOOLEAN MODE);
+id
+select id from t1 where MATCH(a,b) AGAINST("+search" IN BOOLEAN MODE);
+id
+select id from t1 where MATCH(a,b) AGAINST("+search +(support vector)" IN BOOLEAN MODE);
+id
+select id from t1 where MATCH(a,b) AGAINST("+search -(support vector)" IN BOOLEAN MODE);
+id
+select id, MATCH(a,b) AGAINST("support collections" IN BOOLEAN MODE) as x from t1;
+id	x
+1	0
+2	0
+3	0
+DROP TABLE t1;
+CREATE TABLE t1 (
+id INT NOT NULL,
+a VARCHAR(200),
+b TEXT
+) ENGINE = InnoDB;
+INSERT INTO t1 VALUES
+(1, 'MySQL Tutorial','DBMS stands for DataBase ...')  ,
+(2, 'How To Use MySQL Well','After you went through a ...'),
+(3, 'Optimizing MySQL','In this tutorial we will show ...');
+ALTER  TABLE t1 ADD UNIQUE INDEX (`id`), ADD FULLTEXT INDEX idx (a,b);
+Warnings:
+Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
+SELECT id FROM t1 WHERE MATCH (a,b)
+AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+id
+1
+3
+select id from t1 where MATCH(a,b) AGAINST("+support +collections" IN BOOLEAN MODE);
+id
+select id from t1 where MATCH(a,b) AGAINST("+search" IN BOOLEAN MODE);
+id
+select id from t1 where MATCH(a,b) AGAINST("+search +(support vector)" IN BOOLEAN MODE);
+id
+select id from t1 where MATCH(a,b) AGAINST("+search -(support vector)" IN BOOLEAN MODE);
+id
+DROP TABLE t1;
+CREATE TABLE t1 (
+FTS_DOC_ID BIGINT UNSIGNED NOT NULL,
+a VARCHAR(200),
+b TEXT
+) ENGINE = InnoDB;
+INSERT INTO t1 VALUES
+(1, 'MySQL Tutorial','DBMS stands for DataBase ...')  ,
+(2, 'How To Use MySQL Well','After you went through a ...'),
+(3, 'Optimizing MySQL','In this tutorial we will show ...');
+ALTER TABLE t1 ADD FULLTEXT INDEX idx (a,b);
+ALTER  TABLE t1 ADD UNIQUE INDEX (`FTS_DOC_ID`);
+SELECT FTS_DOC_ID FROM t1 WHERE MATCH (a,b)
+AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+FTS_DOC_ID
+1
+3
+select FTS_DOC_ID from t1 where MATCH(a,b) AGAINST("+support +collections" IN BOOLEAN MODE);
+FTS_DOC_ID
+select FTS_DOC_ID from t1 where MATCH(a,b) AGAINST("+search" IN BOOLEAN MODE);
+FTS_DOC_ID
+select FTS_DOC_ID from t1 where MATCH(a,b) AGAINST("+search +(support vector)" IN BOOLEAN MODE);
+FTS_DOC_ID
+select FTS_DOC_ID from t1 where MATCH(a,b) AGAINST("+search -(support vector)" IN BOOLEAN MODE);
+FTS_DOC_ID
+select FTS_DOC_ID, MATCH(a,b) AGAINST("support collections" IN BOOLEAN MODE) as x from t1;
+FTS_DOC_ID	x
+1	0
+2	0
+3	0
+DROP TABLE t1;
+CREATE TABLE t1 (
+FTS_DOC_ID BIGINT UNSIGNED NOT NULL,
+a VARCHAR(200),
+b TEXT
+) ENGINE = InnoDB;
+INSERT INTO t1 VALUES
+(1, 'MySQL Tutorial','DBMS stands for DataBase ...')  ,
+(2, 'How To Use MySQL Well','After you went through a ...'),
+(3, 'Optimizing MySQL','In this tutorial we will show ...');
+ALTER TABLE t1 ADD FULLTEXT INDEX idx (a,b), ADD UNIQUE INDEX FTS_DOC_ID_INDEX (FTS_DOC_ID);
+SELECT FTS_DOC_ID FROM t1 WHERE MATCH (a,b)
+AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+FTS_DOC_ID
+1
+3
+select FTS_DOC_ID from t1 where MATCH(a,b) AGAINST("+support +collections" IN BOOLEAN MODE);
+FTS_DOC_ID
+select FTS_DOC_ID from t1 where MATCH(a,b) AGAINST("+search" IN BOOLEAN MODE);
+FTS_DOC_ID
+select FTS_DOC_ID from t1 where MATCH(a,b) AGAINST("+search +(support vector)" IN BOOLEAN MODE);
+FTS_DOC_ID
+select FTS_DOC_ID from t1 where MATCH(a,b) AGAINST("+search -(support vector)" IN BOOLEAN MODE);
+FTS_DOC_ID
+select FTS_DOC_ID, MATCH(a,b) AGAINST("support collections" IN BOOLEAN MODE) as x from t1;
+FTS_DOC_ID	x
+1	0
+2	0
+3	0
+DROP TABLE t1;
+CREATE TABLE t2 (`b` char(2),fulltext(`b`)) ENGINE=INNODB
+DEFAULT CHARSET=LATIN1;
+CREATE TABLE t3 LIKE t2;
+INSERT INTO `t2` VALUES();
+COMMIT WORK AND CHAIN;
+INSERT  INTO `t3` VALUES ();
+UPDATE  `t2` SET `b` = 'a';
+SAVEPOINT BATCH1;
+DROP TABLE t2;
+DROP TABLE t3;
+CREATE TABLE t1 (
+id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+a VARCHAR(200),
+b TEXT
+) ENGINE = InnoDB;
+INSERT INTO t1 (a,b) VALUES
+('MySQL Tutorial','DBMS stands for DataBase ...')  ,
+('How To Use MySQL Well','After you went through a ...'),
+('Optimizing MySQL','In this tutorial we will show ...');
+ALTER TABLE t1 ADD FULLTEXT INDEX idx (a,b);
+Warnings:
+Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
+COMMIT WORK AND CHAIN;
+INSERT INTO t1 (a,b) VALUES
+('1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+('MySQL vs. YourSQL','In the following database comparison ...'),
+('MySQL Security','When configured properly, MySQL ...');
+SAVEPOINT BATCH1;
+SELECT id FROM t1 WHERE MATCH (a,b)
+AGAINST ('MySQL' IN NATURAL LANGUAGE MODE);
+id
+1
+2
+3
+INSERT INTO t1 (a,b) VALUES
+('1002 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+('MySQL vs. YourSQL','In the following database comparison ...'),
+('MySQL Security','When configured properly, MySQL ...');
+ROLLBACK TO SAVEPOINT BATCH1;
+COMMIT;
+SELECT id FROM t1 WHERE MATCH (a,b)
+AGAINST ('MySQL' IN NATURAL LANGUAGE MODE);
+id
+6
+1
+2
+3
+4
+5
+DROP TABLE t1;
+CREATE TABLE `t` (`a` char(20) character set utf8 default null,
+fulltext key (`a`)) ENGINE=INNODB;
+INSERT INTO `t` VALUES ('a');
+INSERT INTO `t` VALUES ('aaa');
+SELECT MATCH(`a`) AGAINST (0x22dd22) FROM `t`;
+MATCH(`a`) AGAINST (0x22dd22)
+0
+0
+SELECT MATCH(`a`) AGAINST (0x2222) FROM `t`;
+MATCH(`a`) AGAINST (0x2222)
+0
+0
+SELECT MATCH(`a`) AGAINST (0x22) FROM `t`;
+MATCH(`a`) AGAINST (0x22)
+0
+0
+SELECT MATCH(`a`) AGAINST (0x2261616122) FROM `t`;
+MATCH(`a`) AGAINST (0x2261616122)
+0
+0.0906190574169159
+SELECT MATCH(`a`) AGAINST (0x2261dd6122) FROM `t`;
+MATCH(`a`) AGAINST (0x2261dd6122)
+0
+0
+SELECT MATCH(`a`) AGAINST (0x2261dd612222226122) FROM `t`;
+MATCH(`a`) AGAINST (0x2261dd612222226122)
+0
+0
+DROP TABLE t;
+CREATE TABLE t(a CHAR(1),FULLTEXT KEY(a)) ENGINE=INNODB;
+HANDLER t OPEN;
+HANDLER t READ a NEXT;
+a
+HANDLER t READ a PREV;
+a
+DROP TABLE t;
+CREATE TABLE `%`(a TEXT, FULLTEXT INDEX(a)) ENGINE=INNODB;
+CREATE TABLE `A B`(a TEXT, FULLTEXT INDEX(a)) ENGINE=INNODB;
+DROP TABLE `%`;
+DROP TABLE `A B`;
+CREATE TABLE `t-26`(a VARCHAR(10),FULLTEXT KEY(a)) ENGINE=INNODB;
+INSERT INTO `t-26` VALUES('117');
+DROP TABLE `t-26`;
+CREATE TABLE `t1` (
+`id` INTEGER UNSIGNED NOT NULL AUTO_INCREMENT,
+`content` TEXT NOT NULL,
+PRIMARY KEY (`id`),
+FULLTEXT INDEX `IDX_CONTEXT_FULLTEXT`(`content`)
+)
+ENGINE = InnoDB;
+insert into t1 (content)
+values
+('This is a story which has has a complicated phrase structure here in the
+middle'),
+('This is a story which doesn''t have that text'),
+('This is a story that has complicated the phrase structure');
+select * from t1
+where match(content) against('"complicated phrase structure"' in boolean
+mode);
+id	content
+1	This is a story which has has a complicated phrase structure here in the
+middle
+select * from t1
+where match(content) against('+"complicated phrase structure"' in boolean
+mode);
+id	content
+1	This is a story which has has a complicated phrase structure here in the
+middle
+select * from t1
+where match(content) against('"complicated the phrase structure"' in boolean
+mode);
+id	content
+3	This is a story that has complicated the phrase structure
+select * from t1 where match(content) against('+"this is a story which" +"complicated the phrase structure"' in boolean mode);
+id	content
+select * from t1 where match(content) against('"the complicated the phrase structure"' in boolean mode);
+id	content
+3	This is a story that has complicated the phrase structure
+select * from t1 where match(content) against('"complicated a phrase structure"' in boolean mode);
+id	content
+DROP TABLE t1;
+CREATE TABLE my (id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+c VARCHAR(32), FULLTEXT(c)) ENGINE = INNODB;
+INSERT INTO my (c) VALUES ('green-iguana');
+SELECT * FROM my WHERE MATCH(c) AGAINST ('green-iguana');
+id	c
+1	green-iguana
+DROP TABLE my;
+CREATE TABLE ift (
+`a` int(11) NOT NULL,
+`b` text,
+PRIMARY KEY (`a`),
+FULLTEXT KEY `b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO ift values (1, "skip");
+INSERT INTO ift values (2, "skip and networking");
+INSERT INTO ift values (3, "--skip-networking");
+INSERT INTO ift values (4, "-donot--skip-networking");
+SELECT * FROM ift WHERE MATCH (b) AGAINST ('--skip-networking');
+a	b
+2	skip and networking
+3	--skip-networking
+4	-donot--skip-networking
+1	skip
+SELECT * FROM ift WHERE MATCH (b) AGAINST ('skip-networking');
+a	b
+2	skip and networking
+3	--skip-networking
+4	-donot--skip-networking
+1	skip
+SELECT * FROM ift WHERE MATCH (b) AGAINST ('----');
+a	b
+SELECT * FROM ift WHERE MATCH (b) AGAINST ('-donot--skip-networking');
+a	b
+4	-donot--skip-networking
+2	skip and networking
+3	--skip-networking
+1	skip
+DROP TABLE ift;
+CREATE TABLE articles (
+id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+title VARCHAR(200),
+body TEXT,
+FULLTEXT (title,body)
+) ENGINE=InnoDB;
+INSERT INTO articles (title,body) VALUES
+('MySQL Tutorial','DBMS stands for DataBase ...')  ,
+('How To Use MySQL Well','After you went through a ...'),
+('Optimizing MySQL','In this tutorial we will show ...'),
+('1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+('MySQL vs. YourSQL','In the following database comparison ...'),
+('( that''s me )','When configured properly, MySQL ...');
+SELECT * FROM articles WHERE MATCH (title,body)
+AGAINST ('( yours''s* )' IN BOOLEAN MODE);
+id	title	body
+5	MySQL vs. YourSQL	In the following database comparison ...
+SELECT * FROM articles WHERE MATCH (title,body)
+AGAINST ('s*' IN BOOLEAN MODE);
+id	title	body
+1	MySQL Tutorial	DBMS stands for DataBase ...
+3	Optimizing MySQL	In this tutorial we will show ...
+SELECT * FROM articles WHERE MATCH (title,body)
+AGAINST ('stands\'] | * | show[@database' IN NATURAL LANGUAGE MODE);
+id	title	body
+1	MySQL Tutorial	DBMS stands for DataBase ...
+3	Optimizing MySQL	In this tutorial we will show ...
+5	MySQL vs. YourSQL	In the following database comparison ...
+DROP TABLE articles;
+CREATE TABLE t1(a TEXT CHARACTER SET LATIN1, FULLTEXT INDEX(a)) ENGINE=INNODB;
+SELECT * FROM t1 WHERE MATCH(a) AGAINST("*");
+ERROR 42000: syntax error, unexpected $end, expecting FTS_TERM or FTS_NUMB or '*'
+DROP TABLE t1;
+CREATE TABLE t1 (
+id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+a VARCHAR(200),
+FULLTEXT (a)
+) ENGINE= InnoDB;
+INSERT INTO t1 (a) VALUES
+('Do you know MySQL is a good database'),
+('How to build a good database'),
+('Do you know'),
+('Do you know MySQL'),
+('How to use MySQL'),
+('Do you feel good'),
+('MySQL is good'),
+('MySQL is good to know'),
+('What is database');
+SELECT * FROM t1 WHERE MATCH (a) AGAINST ('+"know mysql"' IN BOOLEAN MODE);
+id	a
+1	Do you know MySQL is a good database
+4	Do you know MySQL
+SELECT * FROM t1 WHERE MATCH (a) AGAINST ('+("know mysql")' IN BOOLEAN MODE);
+id	a
+1	Do you know MySQL is a good database
+4	Do you know MySQL
+SELECT * FROM t1 WHERE MATCH (a) AGAINST ('("know mysql" good)' IN BOOLEAN MODE);
+id	a
+1	Do you know MySQL is a good database
+4	Do you know MySQL
+2	How to build a good database
+6	Do you feel good
+7	MySQL is good
+8	MySQL is good to know
+SELECT * FROM t1 WHERE MATCH (a) AGAINST ('+("know mysql" good)' IN BOOLEAN MODE);
+id	a
+1	Do you know MySQL is a good database
+4	Do you know MySQL
+2	How to build a good database
+6	Do you feel good
+7	MySQL is good
+8	MySQL is good to know
+SELECT * FROM t1 WHERE MATCH (a) AGAINST ('(good "know mysql")' IN BOOLEAN MODE);
+id	a
+1	Do you know MySQL is a good database
+4	Do you know MySQL
+2	How to build a good database
+6	Do you feel good
+7	MySQL is good
+8	MySQL is good to know
+SELECT * FROM t1 WHERE MATCH (a) AGAINST ('+(good "know mysql")' IN BOOLEAN MODE);
+id	a
+1	Do you know MySQL is a good database
+4	Do you know MySQL
+2	How to build a good database
+6	Do you feel good
+7	MySQL is good
+8	MySQL is good to know
+SELECT * FROM t1 WHERE MATCH (a) AGAINST ('+("know mysql" "good database")' IN BOOLEAN MODE);
+id	a
+1	Do you know MySQL is a good database
+2	How to build a good database
+4	Do you know MySQL
+SELECT * FROM t1 WHERE MATCH (a) AGAINST ('+"know mysql" +"good database"' IN BOOLEAN MODE);
+id	a
+1	Do you know MySQL is a good database
+SELECT * FROM t1 WHERE MATCH (a) AGAINST ('+"know database"@4' IN BOOLEAN MODE);
+id	a
+SELECT * FROM t1 WHERE MATCH (a) AGAINST ('+"know database"@8' IN BOOLEAN MODE);
+id	a
+1	Do you know MySQL is a good database
+DROP TABLE t1;
+CREATE TABLE t1 (
+id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+a VARCHAR(200),
+FULLTEXT (a)
+) ENGINE= InnoDB;
+INSERT INTO t1 (a) VALUES
+('know mysql good database');
+SELECT * FROM t1 WHERE MATCH (a) AGAINST ('+"good database"' IN BOOLEAN MODE);
+id	a
+1	know mysql good database
+DROP TABLE t1;
+CREATE TABLE articles (
+id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+title VARCHAR(200),
+body TEXT,
+FULLTEXT (title,body)
+) ENGINE=InnoDB;
+INSERT INTO articles (title,body) VALUES ('Test Article','blah blah
+blah'),("Matt's Noise",'this is noisy'),('February Weather','It was terrible
+this year.'),('Peter Pan','Tis a kids story.'),('Test1','nada'),('Database
+database database','foo database database database'),('Database article
+title','body with lots of words.'),('myfulltext database', 'my test fulltext
+database');
+SELECT id, title, body FROM articles ORDER BY MATCH (title,body)  AGAINST ('database' IN BOOLEAN MODE) DESC;
+id	title	body
+6	Database
+database database	foo database database database
+8	myfulltext database	my test fulltext
+database
+7	Database article
+title	body with lots of words.
+1	Test Article	blah blah
+blah
+2	Matt's Noise	this is noisy
+3	February Weather	It was terrible
+this year.
+4	Peter Pan	Tis a kids story.
+5	Test1	nada
+DELETE from articles WHERE title like "myfulltext database";
+INSERT INTO articles (title,body) VALUES ('myfulltext database', 'my test fulltext database');
+SELECT id, title, body FROM articles ORDER BY MATCH (title,body)  AGAINST ('database' IN BOOLEAN MODE) DESC;
+id	title	body
+6	Database
+database database	foo database database database
+9	myfulltext database	my test fulltext database
+7	Database article
+title	body with lots of words.
+1	Test Article	blah blah
+blah
+2	Matt's Noise	this is noisy
+3	February Weather	It was terrible
+this year.
+4	Peter Pan	Tis a kids story.
+5	Test1	nada
+DELETE from articles WHERE title like "myfulltext database";
+INSERT INTO articles (title,body) VALUES ('myfulltext database', 'my test fulltext database');
+SELECT id, title, body FROM articles ORDER BY MATCH (title,body)  AGAINST ('database' IN BOOLEAN MODE) DESC;
+id	title	body
+6	Database
+database database	foo database database database
+10	myfulltext database	my test fulltext database
+7	Database article
+title	body with lots of words.
+1	Test Article	blah blah
+blah
+2	Matt's Noise	this is noisy
+3	February Weather	It was terrible
+this year.
+4	Peter Pan	Tis a kids story.
+5	Test1	nada
+DROP TABLE articles;
+CREATE TABLE t1(
+a TEXT CHARSET ujis COLLATE ujis_japanese_ci,
+b TEXT CHARSET utf8mb4 COLLATE utf8mb4_turkish_ci,
+c TEXT CHARSET eucjpms COLLATE eucjpms_bin,
+d TEXT CHARSET utf8mb4,
+FULLTEXT INDEX(a),
+FULLTEXT INDEX(b),
+FULLTEXT INDEX(c),
+FULLTEXT INDEX(d)
+) ENGINE = InnoDB;
+INSERT INTO t1 VALUES
+('myisam', 'myisam', 'myisam', 'myisam'),
+('innodb', 'innodb', 'innodb', 'innodb'),
+('innodb myisam', 'innodb myisam', 'innodb myisam', 'innodb myisam'),
+('memory', 'memory', 'memory', 'memory'),
+('archive', 'archive', 'archive', 'archive'),
+('federated', 'federated', 'federated', 'federated'),
+('storage engine innodb', 'storage engine innodb', 'storage engine innodb', 'storage engine innodb'),
+('storage engine myisam', 'storage engine myisam', 'storage engine myisam', 'storage engine myisam'),
+('innobase', 'innobase', 'innobase', 'innobase'),
+('myisam innodb', 'myisam innodb', 'myisam innodb', 'myisam innodb'),
+('innodb myisam engines', 'innodb myisam engines', 'innodb myisam engines', 'innodb myisam engines');
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"'));
+a
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT(0x00));
+a
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', '"'));
+a
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', ' ', '"'));
+a
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 0x00, '"'));
+a
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT(0x00, '"', 0x00, '"', 0x00));
+a
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', '&', 0x00, '"'));
+a
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 0x00, '&', '"'));
+a
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', '%', '"'));
+a
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', 0x00, '"'));
+a
+innodb
+innodb myisam
+storage engine innodb
+myisam innodb
+innodb myisam engines
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', 0x00, '"'));
+a
+innodb
+innodb myisam
+storage engine innodb
+myisam innodb
+innodb myisam engines
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT(0x00, '"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', 0x00, 0x00, 0x00, '"'));
+a
+innodb
+innodb myisam
+storage engine innodb
+myisam innodb
+innodb myisam engines
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT(0x00, '"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', 0x00, '$', 'm', 'y', 'i', 's', 'a', 'm', '%', 0x00, 0x00));
+a
+innodb myisam
+myisam innodb
+innodb myisam engines
+myisam
+innodb
+storage engine innodb
+storage engine myisam
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', '@', '$', 'm', 'y', 'i', 's', 'a', 'm', '%', 0x00, 0x00));
+a
+innodb myisam
+myisam innodb
+innodb myisam engines
+myisam
+innodb
+storage engine innodb
+storage engine myisam
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', '@', '$', 'm', 'y', 'i', 's', 'a', 'm', '%', 0x00, 0x00, '"'));
+a
+innodb myisam
+innodb myisam engines
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', '(', '$', 'm', 'y', 'i', 's', 'a', 'm', '%', ')'));
+a
+innodb myisam
+myisam innodb
+innodb myisam engines
+myisam
+innodb
+storage engine innodb
+storage engine myisam
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', ' ', 'm', 'y', 'i', 's', 'a', 'm'));
+a
+innodb myisam
+myisam innodb
+innodb myisam engines
+myisam
+innodb
+storage engine innodb
+storage engine myisam
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', ' ', 'm', 'y', 'i', 's', 'a', 'm', '"'));
+a
+innodb myisam
+innodb myisam engines
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', '@', '$', 'm', 'y', 'i', 's', 'a', 'm', '%', 0x00, 0x00, '"','@', '2') IN BOOLEAN MODE);
+a
+innodb myisam
+myisam innodb
+innodb myisam engines
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', ' ', '$', 'm', 'y', 'i', 's', 'a', 'm', '"','@', '4') IN BOOLEAN MODE);
+a
+innodb myisam
+myisam innodb
+innodb myisam engines
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT(0x00, '"', 'i', 'n', 'n', 'o', 'd', 'b', ' ', '$', 's', 't', 'o', 'r', 'a', 'g', 'e', '"','@', '4', 0x00) IN BOOLEAN MODE);
+ERROR 42000: syntax error, unexpected FTS_TERM, expecting FTS_NUMB
+SELECT b FROM t1 WHERE MATCH (b) AGAINST (CONCAT('"'));
+b
+SELECT b FROM t1 WHERE MATCH (b) AGAINST (CONCAT(0x00));
+b
+SELECT b FROM t1 WHERE MATCH (b) AGAINST (CONCAT('"', '"'));
+b
+SELECT b FROM t1 WHERE MATCH (b) AGAINST (CONCAT('"', ' ', '"'));
+b
+SELECT b FROM t1 WHERE MATCH (b) AGAINST (CONCAT('"', 0x00, '"'));
+b
+SELECT b FROM t1 WHERE MATCH (b) AGAINST (CONCAT(0x00, '"', 0x00, '"', 0x00));
+b
+SELECT b FROM t1 WHERE MATCH (b) AGAINST (CONCAT('"', '&', 0x00, '"'));
+b
+SELECT b FROM t1 WHERE MATCH (b) AGAINST (CONCAT('"', 0x00, '&', '"'));
+b
+SELECT b FROM t1 WHERE MATCH (b) AGAINST (CONCAT('"', '%', '"'));
+b
+SELECT b FROM t1 WHERE MATCH (b) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', 0x00, '"'));
+b
+innodb
+innodb myisam
+storage engine innodb
+myisam innodb
+innodb myisam engines
+SELECT b FROM t1 WHERE MATCH (b) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', 0x00, '"'));
+b
+innodb
+innodb myisam
+storage engine innodb
+myisam innodb
+innodb myisam engines
+SELECT b FROM t1 WHERE MATCH (b) AGAINST (CONCAT(0x00, '"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', 0x00, 0x00, 0x00, '"'));
+b
+innodb
+innodb myisam
+storage engine innodb
+myisam innodb
+innodb myisam engines
+SELECT b FROM t1 WHERE MATCH (b) AGAINST (CONCAT(0x00, '"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', 0x00, '$', 'm', 'y', 'i', 's', 'a', 'm', '%', 0x00, 0x00));
+b
+innodb myisam
+myisam innodb
+innodb myisam engines
+myisam
+innodb
+storage engine innodb
+storage engine myisam
+SELECT b FROM t1 WHERE MATCH (b) AGAINST (CONCAT('"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', '@', '$', 'm', 'y', 'i', 's', 'a', 'm', '%', 0x00, 0x00, '"','@', '2') IN BOOLEAN MODE);
+b
+innodb myisam
+myisam innodb
+innodb myisam engines
+SELECT b FROM t1 WHERE MATCH (b) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', ' ', '$', 'm', 'y', 'i', 's', 'a', 'm', '"','@', '4') IN BOOLEAN MODE);
+b
+innodb myisam
+myisam innodb
+innodb myisam engines
+SELECT b FROM t1 WHERE MATCH (b) AGAINST (CONCAT(0x00, '"', 'i', 'n', 'n', 'o', 'd', 'b', ' ', '$', 's', 't', 'o', 'r', 'a', 'g', 'e', '"','@', '4', 0x00) IN BOOLEAN MODE);
+ERROR 42000: syntax error, unexpected FTS_TERM, expecting FTS_NUMB
+SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT('"'));
+c
+SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT(0x00));
+c
+SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT('"', '"'));
+c
+SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT('"', ' ', '"'));
+c
+SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT('"', 0x00, '"'));
+c
+SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT(0x00, '"', 0x00, '"', 0x00));
+c
+SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT('"', '&', 0x00, '"'));
+c
+SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT('"', 0x00, '&', '"'));
+c
+SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT('"', '%', '"'));
+c
+SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', 0x00, '"'));
+c
+innodb
+innodb myisam
+storage engine innodb
+myisam innodb
+innodb myisam engines
+SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', 0x00, '"'));
+c
+innodb
+innodb myisam
+storage engine innodb
+myisam innodb
+innodb myisam engines
+SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT(0x00, '"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', 0x00, 0x00, 0x00, '"'));
+c
+innodb
+innodb myisam
+storage engine innodb
+myisam innodb
+innodb myisam engines
+SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT(0x00, '"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', 0x00, '$', 'm', 'y', 'i', 's', 'a', 'm', '%', 0x00, 0x00));
+c
+innodb myisam
+myisam innodb
+innodb myisam engines
+myisam
+innodb
+storage engine innodb
+storage engine myisam
+SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT('"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', '@', '$', 'm', 'y', 'i', 's', 'a', 'm', '%', 0x00, 0x00));
+c
+innodb myisam
+myisam innodb
+innodb myisam engines
+myisam
+innodb
+storage engine innodb
+storage engine myisam
+SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT('"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', '@', '$', 'm', 'y', 'i', 's', 'a', 'm', '%', 0x00, 0x00, '"'));
+c
+innodb myisam
+innodb myisam engines
+SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', '(', '$', 'm', 'y', 'i', 's', 'a', 'm', '%', ')'));
+c
+innodb myisam
+myisam innodb
+innodb myisam engines
+myisam
+innodb
+storage engine innodb
+storage engine myisam
+SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', ' ', 'm', 'y', 'i', 's', 'a', 'm'));
+c
+innodb myisam
+myisam innodb
+innodb myisam engines
+myisam
+innodb
+storage engine innodb
+storage engine myisam
+SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', ' ', 'm', 'y', 'i', 's', 'a', 'm', '"'));
+c
+innodb myisam
+innodb myisam engines
+SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT('"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', '@', '$', 'm', 'y', 'i', 's', 'a', 'm', '%', 0x00, 0x00, '"','@', '2') IN BOOLEAN MODE);
+c
+innodb myisam
+myisam innodb
+innodb myisam engines
+SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', ' ', '$', 'm', 'y', 'i', 's', 'a', 'm', '"','@', '4') IN BOOLEAN MODE);
+c
+innodb myisam
+myisam innodb
+innodb myisam engines
+SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT(0x00, '"', 'i', 'n', 'n', 'o', 'd', 'b', ' ', '$', 's', 't', 'o', 'r', 'a', 'g', 'e', '"','@', '4', 0x00) IN BOOLEAN MODE);
+ERROR 42000: syntax error, unexpected FTS_TERM, expecting FTS_NUMB
+ALTER TABLE t1 ENGINE = MyISAM;
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"'));
+a
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT(0x00));
+a
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', '"'));
+a
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', ' ', '"'));
+a
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 0x00, '"'));
+a
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT(0x00, '"', 0x00, '"', 0x00));
+a
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', '&', 0x00, '"'));
+a
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 0x00, '&', '"'));
+a
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', '%', '"'));
+a
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', 0x00, '"'));
+a
+innodb
+innodb myisam
+myisam innodb
+storage engine innodb
+innodb myisam engines
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', 0x00, '"'));
+a
+innodb
+innodb myisam
+myisam innodb
+storage engine innodb
+innodb myisam engines
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT(0x00, '"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', 0x00, 0x00, 0x00, '"'));
+a
+innodb
+innodb myisam
+myisam innodb
+storage engine innodb
+innodb myisam engines
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT(0x00, '"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', 0x00, '$', 'm', 'y', 'i', 's', 'a', 'm', '%', 0x00, 0x00));
+a
+innodb myisam
+myisam innodb
+innodb myisam engines
+myisam
+innodb
+storage engine innodb
+storage engine myisam
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', '@', '$', 'm', 'y', 'i', 's', 'a', 'm', '%', 0x00, 0x00));
+a
+innodb myisam
+myisam innodb
+innodb myisam engines
+myisam
+innodb
+storage engine innodb
+storage engine myisam
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', '@', '$', 'm', 'y', 'i', 's', 'a', 'm', '%', 0x00, 0x00, '"'));
+a
+innodb myisam
+myisam innodb
+innodb myisam engines
+myisam
+innodb
+storage engine innodb
+storage engine myisam
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', '(', '$', 'm', 'y', 'i', 's', 'a', 'm', '%', ')'));
+a
+innodb myisam
+myisam innodb
+innodb myisam engines
+myisam
+innodb
+storage engine innodb
+storage engine myisam
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', ' ', 'm', 'y', 'i', 's', 'a', 'm'));
+a
+innodb myisam
+myisam innodb
+innodb myisam engines
+myisam
+innodb
+storage engine innodb
+storage engine myisam
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', ' ', 'm', 'y', 'i', 's', 'a', 'm', '"'));
+a
+innodb myisam
+myisam innodb
+innodb myisam engines
+myisam
+innodb
+storage engine innodb
+storage engine myisam
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', '@', '$', 'm', 'y', 'i', 's', 'a', 'm', '%', 0x00, 0x00, '"','@', '2') IN BOOLEAN MODE);
+a
+innodb myisam
+innodb myisam engines
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', ' ', '$', 'm', 'y', 'i', 's', 'a', 'm', '"','@', '4') IN BOOLEAN MODE);
+a
+innodb myisam
+innodb myisam engines
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT(0x00, '"', 'i', 'n', 'n', 'o', 'd', 'b', ' ', '$', 's', 't', 'o', 'r', 'a', 'g', 'e', '"','@', '4', 0x00) IN BOOLEAN MODE);
+a
+DROP TABLE t1;
+CREATE TABLE t1 (
+id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+a VARCHAR(200),
+FULLTEXT (a)
+) ENGINE= InnoDB;
+INSERT INTO t1 (a) VALUES
+('know database'),('good database'), ('gmail email'), ('ghome windows');
+SELECT * FROM t1 WHERE MATCH (a) AGAINST ('g *' IN NATURAL LANGUAGE MODE);
+id	a
+2	good database
+3	gmail email
+4	ghome windows
+SELECT * FROM t1 WHERE MATCH (a) AGAINST ('g *' IN NATURAL LANGUAGE MODE WITH QUERY EXPANSION);
+id	a
+3	gmail email
+4	ghome windows
+2	good database
+1	know database
+SELECT * FROM t1 WHERE MATCH (a) AGAINST ('g * k *' IN NATURAL LANGUAGE MODE WITH QUERY EXPANSION);
+id	a
+1	know database
+3	gmail email
+4	ghome windows
+2	good database
+SELECT * FROM t1 WHERE MATCH (a) AGAINST ('g * k * d *' IN NATURAL LANGUAGE MODE WITH QUERY EXPANSION);
+id	a
+1	know database
+3	gmail email
+4	ghome windows
+2	good database
+SELECT * FROM t1 WHERE MATCH (a) AGAINST ('g * go *' IN NATURAL LANGUAGE MODE WITH QUERY EXPANSION);
+id	a
+2	good database
+3	gmail email
+4	ghome windows
+1	know database
+SELECT * FROM t1 WHERE MATCH (a) AGAINST ('g * good' IN NATURAL LANGUAGE MODE WITH QUERY EXPANSION);
+id	a
+2	good database
+3	gmail email
+4	ghome windows
+1	know database
+SELECT * FROM t1 WHERE MATCH (a) AGAINST ('gm * go *' IN NATURAL LANGUAGE MODE WITH QUERY EXPANSION);
+id	a
+3	gmail email
+2	good database
+1	know database
+SELECT * FROM t1 WHERE MATCH (a) AGAINST ('good *' IN NATURAL LANGUAGE MODE WITH QUERY EXPANSION);
+id	a
+2	good database
+1	know database
+SELECT * FROM t1 WHERE MATCH (a) AGAINST ('g* database' IN NATURAL LANGUAGE MODE WITH QUERY EXPANSION);
+id	a
+1	know database
+2	good database
+DROP TABLE t1;

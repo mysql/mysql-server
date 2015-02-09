@@ -61,9 +61,11 @@ SELECT COUNT(@@GLOBAL.innodb_adaptive_max_sleep_delay);
 --echo 1 Expected
 
 # Check if the value in GLOBAL table matches value in variable
+--disable_warnings
 SELECT VARIABLE_VALUE
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
 WHERE VARIABLE_NAME='innodb_adaptive_max_sleep_delay';
+--enable_warnings
 --echo 100 Expected
 
 # Check if accessing variable with and without GLOBAL point to same

@@ -959,6 +959,7 @@ public:
   bool basic_const_item() const { return true; }
   bool const_item() const { return true; }
   table_map used_tables() const { return (table_map) 0L; }
+  table_map not_null_tables() const { return used_tables(); }
   void cleanup()
   {
     // See Item_basic_const::cleanup()
@@ -1013,6 +1014,7 @@ public:
   bool basic_const_item() const { return true; }
   bool const_item() const { return true; }
   table_map used_tables() const { return (table_map) 0L; }
+  table_map not_null_tables() const { return used_tables(); }
   void cleanup()
   {
     // See Item_basic_const::cleanup()
@@ -1067,6 +1069,7 @@ public:
   bool basic_const_item() const { return true; }
   bool const_item() const { return true; }
   table_map used_tables() const { return (table_map) 0L; }
+  table_map not_null_tables() const { return used_tables(); }
   void cleanup()
   {
     // See Item_basic_const::cleanup()

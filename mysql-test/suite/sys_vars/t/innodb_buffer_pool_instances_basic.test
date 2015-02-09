@@ -53,17 +53,21 @@ SELECT COUNT(@@GLOBAL.innodb_buffer_pool_instances);
 # Check if the value in GLOBAL Table matches value in variable  #
 #################################################################
 
+--disable_warnings
 SELECT @@GLOBAL.innodb_buffer_pool_instances = VARIABLE_VALUE
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
 WHERE VARIABLE_NAME='innodb_buffer_pool_instances';
+--enable_warnings
 --echo 1 Expected
 
 SELECT COUNT(@@GLOBAL.innodb_buffer_pool_instances);
 --echo 1 Expected
 
+--disable_warnings
 SELECT COUNT(VARIABLE_VALUE)
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
 WHERE VARIABLE_NAME='innodb_buffer_pool_instances';
+--enable_warnings
 --echo 1 Expected
 
 

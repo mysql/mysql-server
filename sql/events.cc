@@ -14,8 +14,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "sql_priv.h"
-#include "unireg.h"
 #include "sql_parse.h"                          // check_access
 #include "sql_base.h"                           // close_mysql_tables
 #include "sql_show.h"                           // append_definer
@@ -32,6 +30,7 @@
 #include "sp_head.h" // for Stored_program_creation_ctx
 #include "set_var.h"
 #include "lock.h"   // lock_object_name
+#include "log.h"
 #include "mysql/psi/mysql_sp.h"
 
 /**
@@ -797,12 +796,29 @@ Events::fill_schema_events(THD *thd, TABLE_LIST *tables, Item * /* cond */)
   */
   if (thd->lex->sql_command == SQLCOM_SHOW_EVENTS)
   {
-    DBUG_ASSERT(thd->lex->select_lex->db);
-    if (!is_infoschema_db(thd->lex->select_lex->db) && // No events in I_S
-        check_access(thd, EVENT_ACL, thd->lex->select_lex->db,
-                     NULL, NULL, 0, 0))
-      DBUG_RETURN(1);
     db= thd->lex->select_lex->db;
+    DBUG_ASSERT(db != NULL);
+    /*
+      Nobody has EVENT_ACL for I_S and P_S,
+      even with a GRANT ALL to *.*,
+      because these schemas have additional ACL restrictions:
+      see ACL_internal_schema_registry.
+
+      Yet there are no events in I_S and P_S to hide either,
+      so this check voluntarily does not enforce ACL for
+      SHOW EVENTS in I_S or P_S,
+      to return an empty list instead of an access denied error.
+
+      This is more user friendly, in particular for tools.
+
+      EVENT_ACL is not fine grained enough to differentiate:
+      - creating / updating / deleting events
+      - viewing existing events
+    */
+    if (! is_infoschema_db(db) &&
+        ! is_perfschema_db(db) &&
+        check_access(thd, EVENT_ACL, db, NULL, NULL, 0, 0))
+      DBUG_RETURN(1);
   }
   ret= db_repository->fill_schema_events(thd, tables, db);
 
@@ -1136,15 +1152,15 @@ Events::load_events_from_db(THD *thd)
     Temporarily reset it to read-write.
   */
 
-  saved_master_access= thd->security_ctx->master_access;
-  thd->security_ctx->master_access |= SUPER_ACL;
+  saved_master_access= thd->security_context()->master_access();
+  thd->security_context()->set_master_access(saved_master_access | SUPER_ACL);
   bool save_tx_read_only= thd->tx_read_only;
   thd->tx_read_only= false;
 
   ret= db_repository->open_event_table(thd, TL_WRITE, &table);
 
   thd->tx_read_only= save_tx_read_only;
-  thd->security_ctx->master_access= saved_master_access;
+  thd->security_context()->set_master_access(saved_master_access);
 
   if (ret)
   {

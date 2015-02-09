@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2010, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2010, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -167,7 +167,6 @@ tokenized doc string. The index has three "fields":
 3) Word's position in original 'doc'.
 
 @return dict_index_t structure for the fts sort index */
-
 dict_index_t*
 row_merge_create_fts_sort_index(
 /*============================*/
@@ -184,7 +183,6 @@ row_merge_create_fts_sort_index(
 /********************************************************************//**
 Initialize FTS parallel sort structures.
 @return TRUE if all successful */
-
 ibool
 row_fts_psort_info_init(
 /*====================*/
@@ -205,7 +203,6 @@ row_fts_psort_info_init(
 /********************************************************************//**
 Clean up and deallocate FTS parallel sort structures, and close
 temparary merge sort files */
-
 void
 row_fts_psort_info_destroy(
 /*=======================*/
@@ -213,7 +210,6 @@ row_fts_psort_info_destroy(
 	fts_psort_t*	merge_info);	/*!< parallel merge info */
 /********************************************************************//**
 Free up merge buffers when merge sort is done */
-
 void
 row_fts_free_pll_merge_buf(
 /*=======================*/
@@ -222,14 +218,12 @@ row_fts_free_pll_merge_buf(
 /*********************************************************************//**
 Function performs parallel tokenization of the incoming doc strings.
 @return OS_THREAD_DUMMY_RETURN */
-
 os_thread_ret_t
 fts_parallel_tokenization(
 /*======================*/
 	void*		arg);		/*!< in: psort_info for the thread */
 /*********************************************************************//**
 Start the parallel tokenization and parallel merge sort */
-
 void
 row_fts_start_psort(
 /*================*/
@@ -237,14 +231,12 @@ row_fts_start_psort(
 /*********************************************************************//**
 Function performs the merge and insertion of the sorted records.
 @return OS_THREAD_DUMMY_RETURN */
-
 os_thread_ret_t
 fts_parallel_merge(
 /*===============*/
 	void*		arg);		/*!< in: parallel merge info */
 /*********************************************************************//**
 Kick off the parallel merge and insert thread */
-
 void
 row_fts_start_parallel_merge(
 /*=========================*/
@@ -252,7 +244,6 @@ row_fts_start_parallel_merge(
 /********************************************************************//**
 Read sorted FTS data files and insert data tuples to auxillary tables.
 @return DB_SUCCESS or error number */
-
 void
 row_fts_insert_tuple(
 /*=================*/
@@ -266,7 +257,6 @@ row_fts_insert_tuple(
 /********************************************************************//**
 Propagate a newly added record up one level in the selection tree
 @return parent where this value propagated to */
-
 int
 row_merge_fts_sel_propagate(
 /*========================*/
@@ -280,7 +270,6 @@ row_merge_fts_sel_propagate(
 Read sorted file containing index data tuples and insert these data
 tuples to the index
 @return DB_SUCCESS or error number */
-
 dberr_t
 row_fts_merge_insert(
 /*=================*/

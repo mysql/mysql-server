@@ -18,8 +18,6 @@
 /* create and drop of databases */
 
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
-#include "sql_priv.h"
-#include "unireg.h"
 #include "sql_db.h"
 #include "sql_cache.h"                   // query_cache_*
 #include "lock.h"                        // lock_schema_name
@@ -47,11 +45,10 @@
 #define MAX_DROP_TABLE_Q_LEN      1024
 
 #ifdef MCP_BUG44529
-const char *del_exts[]= {".frm", ".BAK", ".TMD", ".opt", ".OLD", NullS};
+const char *del_exts[]= {".frm", ".BAK", ".TMD", ".opt", ".OLD", ".cfg", NullS};
 #else
-const char *del_exts[]= {".frm", ".BAK", ".TMD", ".opt", ".OLD", ".ndb", NullS};
+const char *del_exts[]= {".frm", ".BAK", ".TMD", ".opt", ".OLD", ".cfg", ".ndb", NullS};
 #endif
-
 static TYPELIB deletable_extentions=
 {array_elements(del_exts)-1,"del_exts", del_exts, NULL};
 
@@ -1050,7 +1047,7 @@ exit:
     {
       LEX_CSTRING dummy= { C_STRING_WITH_LEN("") };
       dummy.length= dummy.length*1;
-      thd->session_tracker.get_tracker(CURRENT_SCHEMA_TRACKER)->mark_as_changed(&dummy);
+      thd->session_tracker.get_tracker(CURRENT_SCHEMA_TRACKER)->mark_as_changed(thd, &dummy);
     }
   }
   my_dirend(dirp);
@@ -1121,7 +1118,7 @@ static bool find_db_tables_and_rm_known_files(THD *thd, MY_DIR *dirp,
       /* Drop the table nicely */
       *extension= 0;			// Remove extension
       TABLE_LIST *table_list=(TABLE_LIST*)
-                              thd->calloc(sizeof(*table_list) + 
+                              thd->mem_calloc(sizeof(*table_list) + 
                                           strlen(db) + 1 +
                                           MYSQL50_TABLE_NAME_PREFIX_LENGTH + 
                                           strlen(file->name) + 1);
@@ -1366,7 +1363,7 @@ static void mysql_change_db_impl(THD *thd,
   /* 2. Update security context. */
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-  thd->security_ctx->db_access= new_db_access;
+  thd->security_context()->set_db_access(new_db_access);
 #endif
 
   /* 3. Update db-charset environment variables. */
@@ -1503,8 +1500,8 @@ bool mysql_change_db(THD *thd, const LEX_CSTRING &new_db_name,
   LEX_STRING new_db_file_name;
   LEX_CSTRING new_db_file_name_cstr;
 
-  Security_context *sctx= thd->security_ctx;
-  ulong db_access= sctx->db_access;
+  Security_context *sctx= thd->security_context();
+  ulong db_access= sctx->db_access();
   const CHARSET_INFO *db_default_cl;
 
   DBUG_ENTER("mysql_change_db");
@@ -1582,27 +1579,26 @@ bool mysql_change_db(THD *thd, const LEX_CSTRING &new_db_name,
   DBUG_PRINT("info",("Use database: %s", new_db_file_name.str));
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-  db_access=
-    test_all_bits(sctx->master_access, DB_ACLS) ?
+  db_access= sctx->check_access(DB_ACLS) ?
     DB_ACLS :
-    acl_get(sctx->get_host()->ptr(),
-            sctx->get_ip()->ptr(),
-            sctx->priv_user,
+    acl_get(sctx->host().str,
+            sctx->ip().str,
+            sctx->priv_user().str,
             new_db_file_name.str,
-            FALSE) | sctx->master_access;
+            false) | sctx->master_access();
 
   if (!force_switch &&
       !(db_access & DB_ACLS) &&
       check_grant_db(thd, new_db_file_name.str))
   {
     my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
-             sctx->priv_user,
-             sctx->priv_host,
+             sctx->priv_user().str,
+             sctx->priv_host().str,
              new_db_file_name.str);
     query_logger.general_log_print(thd, COM_INIT_DB,
                                    ER(ER_DBACCESS_DENIED_ERROR),
-                                   sctx->priv_user,
-                                   sctx->priv_host,
+                                   sctx->priv_user().str,
+                                   sctx->priv_host().str,
                                    new_db_file_name.str);
     my_free(new_db_file_name.str);
     DBUG_RETURN(TRUE);
@@ -1661,10 +1657,10 @@ done:
   {
     LEX_CSTRING dummy= { C_STRING_WITH_LEN("") };
     dummy.length= dummy.length*1;
-    thd->session_tracker.get_tracker(CURRENT_SCHEMA_TRACKER)->mark_as_changed(&dummy);
+    thd->session_tracker.get_tracker(CURRENT_SCHEMA_TRACKER)->mark_as_changed(thd, &dummy);
   }
   if (thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->is_enabled())
-    thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->mark_as_changed(NULL);
+    thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->mark_as_changed(thd, NULL);
   DBUG_RETURN(FALSE);
 }
 

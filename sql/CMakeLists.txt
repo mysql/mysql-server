@@ -66,6 +66,7 @@ SET(SQL_SHARED_SOURCES
   auth/sql_user_table.cc
   auth/sql_user.cc
   auth/password.c
+  auth/sql_security_ctx.cc
   bootstrap.cc
   conn_handler/connection_handler_manager.cc 
   datadict.cc
@@ -242,7 +243,6 @@ SET(SQL_SOURCE
   mysqld_thd_manager.cc
   signal_handler.cc
   sql_client.cc
-  rpl_slave_commit_order_manager.cc
   )
 
 IF(WIN32)
@@ -312,7 +312,7 @@ ENDIF()
 SET (BINLOG_SOURCE uuid.cc rpl_gtid_misc.cc
                    rpl_gtid_sid_map.cc rpl_gtid_set.cc rpl_gtid_specification.cc
                    rpl_gtid_state.cc rpl_gtid_owned.cc rpl_gtid_cache.cc
-                   rpl_slave_commit_order_manager.cc rpl_gtid_execution.cc
+                   rpl_gtid_execution.cc
                    rpl_gtid_mutex_cond_array.cc rpl_gtid_persist.cc
                    log_event.cc log_event_old.cc binlog.cc sql_binlog.cc
                    rpl_filter.cc rpl_record.cc rpl_record_old.cc
@@ -326,11 +326,11 @@ ADD_DEPENDENCIES(rpl GenError)
 ADD_LIBRARY(master ${MASTER_SOURCE})
 ADD_DEPENDENCIES(master GenError)
 SET (SLAVE_SOURCE rpl_slave.cc rpl_reporting.cc rpl_mi.cc rpl_rli.cc
-                  rpl_info_handler.cc rpl_info_file.cc
+		  rpl_info_handler.cc rpl_info_file.cc
                   rpl_info_table.cc rpl_info_values.cc rpl_info.cc
                   rpl_info_factory.cc rpl_info_table_access.cc dynamic_ids.cc
                   rpl_rli_pdb.cc rpl_info_dummy.cc rpl_mts_submode.cc
-                  rpl_slave_commit_order_manager.cc)
+                  rpl_slave_commit_order_manager.cc rpl_msr.cc)
 ADD_LIBRARY(slave ${SLAVE_SOURCE})
 ADD_DEPENDENCIES(slave GenError)
 
@@ -508,14 +508,15 @@ IF(WIN32 OR HAVE_DLOPEN AND NOT DISABLE_SHARED)
 ENDIF()
 
 FOREACH(tool glibtoolize libtoolize aclocal autoconf autoheader automake gtar 
- tar bzr)
+ tar git)
  STRING(TOUPPER ${tool}  TOOL)
  FIND_PROGRAM(${TOOL}_EXECUTABLE ${tool} DOC "path to the executable")
  MARK_AS_ADVANCED(${TOOL}_EXECUTABLE)
 ENDFOREACH()
 
 CONFIGURE_FILE(
-  ${CMAKE_SOURCE_DIR}/cmake/make_dist.cmake.in ${CMAKE_BINARY_DIR}/make_dist.cmake @ONLY)
+  ${CMAKE_SOURCE_DIR}/cmake/make_dist.cmake.in
+  ${CMAKE_BINARY_DIR}/make_dist.cmake @ONLY)
 
 ADD_CUSTOM_TARGET(dist 
   COMMAND ${CMAKE_COMMAND} -P ${CMAKE_BINARY_DIR}/make_dist.cmake
@@ -525,8 +526,7 @@ ADD_CUSTOM_TARGET(dist
 
 ADD_CUSTOM_TARGET(distclean
   COMMAND ${CMAKE_COMMAND} -E echo  WARNING: distclean target is not functional
-  COMMAND ${CMAKE_COMMAND} -E echo  Use 'bzr clean-tree' with --unknown and/or
-    --ignored parameter instead
+  COMMAND ${CMAKE_COMMAND} -E echo  Use 'git clean -fdx' instead
   VERBATIM
   )
 

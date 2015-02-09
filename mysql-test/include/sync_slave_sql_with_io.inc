@@ -5,6 +5,7 @@
 # ==== Usage ====
 #
 # [--let $use_gtids= 1]
+# [--let $rpl_channel_name= 1]
 # [--let $slave_timeout= NUMBER]
 # [--let $rpl_debug= 1]
 # --source include/sync_slave_sql_with_io.inc
@@ -13,6 +14,9 @@
 #
 #   $use_gtids
 #     If set, uses GTIDs instead of filename and offset for positions.
+#
+#   $rpl_channel_name
+#     See include/wait_for_slave_param.inc
 #
 #   $slave_timeout
 #     By default, the synchronization timeouts after 300 seconds. If

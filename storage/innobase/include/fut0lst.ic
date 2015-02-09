@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -105,17 +105,15 @@ flst_init(
 	flst_write_addr(base + FLST_LAST, fil_addr_null, mtr);
 }
 
-/********************************************************************//**
-Gets list length.
+/** Get the length of a list.
+@param[in]	base	base node
 @return length */
 UNIV_INLINE
 ulint
 flst_get_len(
-/*=========*/
-	const flst_base_node_t*	base,	/*!< in: pointer to base node */
-	mtr_t*			mtr)	/*!< in: mini-transaction handle */
+	const flst_base_node_t*	base)
 {
-	return(mtr_read_ulint(base + FLST_LEN, MLOG_4BYTES, mtr));
+	return(mach_read_from_4(base + FLST_LEN));
 }
 
 /********************************************************************//**

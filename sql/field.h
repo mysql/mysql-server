@@ -150,6 +150,12 @@ enum type_conversion_status
   TYPE_ERR_OOM
 };
 
+/*
+  Some defines for exit codes for ::is_equal class functions.
+*/
+#define IS_EQUAL_NO 0
+#define IS_EQUAL_YES 1
+#define IS_EQUAL_PACK_LENGTH 2
 
 #define STORAGE_TYPE_MASK 7
 #define COLUMN_FORMAT_MASK 7
@@ -1109,7 +1115,7 @@ public:
     'a_column BETWEEN date_const, date_const'.
   */
   virtual bool can_be_compared_as_longlong() const { return false; }
-  virtual void free() {}
+  virtual void mem_free() {}
   virtual Field *new_field(MEM_ROOT *root, TABLE *new_table,
                            bool keep_type);
   virtual Field *new_key_field(MEM_ROOT *root, TABLE *new_table,
@@ -3666,7 +3672,7 @@ public:
                               uint param_data, bool low_byte_first);
   uint packed_col_length(const uchar *col_ptr, uint length);
   uint max_packed_col_length();
-  void free() { value.free(); }
+  void mem_free() { value.mem_free(); }
   inline void clear_temporary() { memset(&value, 0, sizeof(value)); }
   friend type_conversion_status field_conv(Field *to,Field *from);
   bool has_charset(void) const
@@ -3801,18 +3807,18 @@ private:
 class Field_set :public Field_enum {
 public:
   Field_set(uchar *ptr_arg, uint32 len_arg, uchar *null_ptr_arg,
-	    uchar null_bit_arg,
-	    enum utype unireg_check_arg, const char *field_name_arg,
-	    uint32 packlength_arg,
-	    TYPELIB *typelib_arg, const CHARSET_INFO *charset_arg)
+            uchar null_bit_arg,
+            enum utype unireg_check_arg, const char *field_name_arg,
+            uint32 packlength_arg,
+            TYPELIB *typelib_arg, const CHARSET_INFO *charset_arg)
     :Field_enum(ptr_arg, len_arg, null_ptr_arg, null_bit_arg,
-		    unireg_check_arg, field_name_arg,
+                unireg_check_arg, field_name_arg,
                 packlength_arg,
                 typelib_arg,charset_arg),
-      empty_set_string("", 0, charset_arg)
-    {
-      flags= (flags & ~ENUM_FLAG) | SET_FLAG;
-    }
+     empty_set_string("", 0, charset_arg)
+  {
+    flags= (flags & ~ENUM_FLAG) | SET_FLAG;
+  }
   type_conversion_status store(const char *to, size_t length,
                                const CHARSET_INFO *charset);
   type_conversion_status store(double nr)
@@ -4167,8 +4173,7 @@ Field *make_field(TABLE_SHARE *share, uchar *ptr, size_t field_length,
 		  const CHARSET_INFO *cs,
 		  Field::geometry_type geom_type,
 		  Field::utype unireg_check,
-		  TYPELIB *interval, const char *field_name,
-		  MEM_ROOT *mem_root= NULL);
+		  TYPELIB *interval, const char *field_name);
 uint pack_length_to_packflag(uint type);
 enum_field_types get_blob_type_from_length(ulong length);
 size_t calc_pack_length(enum_field_types type, size_t length);

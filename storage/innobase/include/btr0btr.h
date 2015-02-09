@@ -138,7 +138,6 @@ free the pages of externally stored fields. */
 
 /**************************************************************//**
 Report that an index page is corrupted. */
-
 void
 btr_corruption_report(
 /*==================*/
@@ -160,7 +159,6 @@ btr_corruption_report(
 /**************************************************************//**
 Gets the root node of a tree and sx-latches it for segment access.
 @return root page, sx-latched */
-
 page_t*
 btr_root_get(
 /*=========*/
@@ -171,7 +169,6 @@ btr_root_get(
 /**************************************************************//**
 Checks and adjusts the root node of a tree during IMPORT TABLESPACE.
 @return error code, or DB_SUCCESS */
-
 dberr_t
 btr_root_adjust_on_import(
 /*======================*/
@@ -183,7 +180,6 @@ Gets the height of the B-tree (the level of the root, when the leaf
 level is assumed to be 0). The caller must hold an S or X latch on
 the index.
 @return tree height (level of the root) */
-
 ulint
 btr_height_get(
 /*===========*/
@@ -254,7 +250,7 @@ index_id_t
 btr_page_get_index_id(
 /*==================*/
 	const page_t*	page)	/*!< in: index page */
-	__attribute__((nonnull, pure, warn_unused_result));
+	__attribute__((warn_unused_result));
 #ifndef UNIV_HOTBACKUP
 /********************************************************//**
 Gets the node level field in an index page.
@@ -264,7 +260,7 @@ ulint
 btr_page_get_level_low(
 /*===================*/
 	const page_t*	page)	/*!< in: index page */
-	__attribute__((nonnull, pure, warn_unused_result));
+	__attribute__((warn_unused_result));
 #define btr_page_get_level(page, mtr) btr_page_get_level_low(page)
 /********************************************************//**
 Gets the next index page number.
@@ -310,46 +306,48 @@ btr_node_ptr_get_child_page_no(
 /*===========================*/
 	const rec_t*	rec,	/*!< in: node pointer record */
 	const ulint*	offsets)/*!< in: array returned by rec_get_offsets() */
-	__attribute__((nonnull, pure, warn_unused_result));
-/************************************************************//**
-Creates the root node for a new index tree.
-@return page number of the created root, FIL_NULL if did not succeed */
+	__attribute__((warn_unused_result));
 
+/** Create the root node for a new index tree.
+@param[in]	type			type of the index
+@param[in]	space			space where created
+@param[in]	page_size		page size
+@param[in]	index_id		index id
+@param[in]	index			index, or NULL when applying TRUNCATE
+log record during recovery
+@param[in]	btr_redo_create_info	used for applying TRUNCATE log
+@param[in]	mtr			mini-transaction handle
+record during recovery
+@return page number of the created root, FIL_NULL if did not succeed */
 ulint
 btr_create(
-/*=======*/
-	ulint			type,		/*!< in: type of the index */
-	ulint			space,		/*!< in: space where created */
+	ulint			type,
+	ulint			space,
 	const page_size_t&	page_size,
-	index_id_t		index_id,	/*!< in: index id */
-	dict_index_t*		index,		/*!< in: index, or NULL when
-						applying TRNCATE log 
-						record during recovery */
+	index_id_t		index_id,
+	dict_index_t*		index,
 	const btr_create_t*	btr_redo_create_info,
-						/*!< in: used for applying
-						TRUNCATE log record
-						during recovery */
-	mtr_t*			mtr);		/*!< in: mini-transaction
-						handle */
-
-/** Frees a B-tree except the root page. The root page MUST be freed after
-this by calling btr_free_root.
-@param[in] root_page_id id of the root page
-@param[in] logging_mode mtr logging mode */
-void
-btr_free_but_not_root(
-	const page_id_t&	root_page_id,
-	const page_size_t&	page_size,
-	mtr_log_t		logging_mode);
-
-/** Frees the B-tree root page. Other tree MUST already have been freed.
-@param[in] root_page_id id of the root page
-@param[in,out] mtr mini-transaction */
-void
-btr_free_root(
-	const page_id_t&	root_page_id,
-	const page_size_t&	page_size,
 	mtr_t*			mtr);
+
+/** Free a persistent index tree if it exists.
+@param[in]	page_id		root page id
+@param[in]	page_size	page size
+@param[in]	index_id	PAGE_INDEX_ID contents
+@param[in,out]	mtr		mini-transaction */
+void
+btr_free_if_exists(
+	const page_id_t&	page_id,
+	const page_size_t&	page_size,
+	index_id_t		index_id,
+	mtr_t*			mtr);
+
+/** Free an index tree in a temporary tablespace or during TRUNCATE TABLE.
+@param[in]	page_id		root page id
+@param[in]	page_size	page size */
+void
+btr_free(
+	const page_id_t&	page_id,
+	const page_size_t&	page_size);
 
 /*************************************************************//**
 Makes tree one level higher by splitting the root, and inserts
@@ -358,7 +356,6 @@ NOTE that the operation of this function must always succeed,
 we cannot reverse it: therefore enough free disk space must be
 guaranteed to be available before this function is called.
 @return inserted record */
-
 rec_t*
 btr_root_raise_and_insert(
 /*======================*/
@@ -385,7 +382,6 @@ IBUF_BITMAP_FREE is unaffected by reorganization.
 
 @retval true if the operation was successful
 @retval false if it is a compressed page, and recompression failed */
-
 bool
 btr_page_reorganize_low(
 /*====================*/
@@ -411,7 +407,6 @@ IBUF_BITMAP_FREE is unaffected by reorganization.
 
 @retval true if the operation was successful
 @retval false if it is a compressed page, and recompression failed */
-
 bool
 btr_page_reorganize(
 /*================*/
@@ -423,7 +418,6 @@ btr_page_reorganize(
 Decides if the page should be split at the convergence point of
 inserts converging to left.
 @return TRUE if split recommended */
-
 ibool
 btr_page_get_split_rec_to_left(
 /*===========================*/
@@ -436,7 +430,6 @@ btr_page_get_split_rec_to_left(
 Decides if the page should be split at the convergence point of
 inserts converging to right.
 @return TRUE if split recommended */
-
 ibool
 btr_page_get_split_rec_to_right(
 /*============================*/
@@ -455,7 +448,6 @@ free disk space (2 pages) must be guaranteed to be available before
 this function is called.
 
 @return inserted record */
-
 rec_t*
 btr_page_split_and_insert(
 /*======================*/
@@ -473,7 +465,6 @@ btr_page_split_and_insert(
 /*******************************************************//**
 Inserts a data tuple to a tree on a non-leaf level. It is assumed
 that mtr holds an x-latch on the tree. */
-
 void
 btr_insert_on_non_leaf_level_func(
 /*==============================*/
@@ -489,7 +480,6 @@ btr_insert_on_non_leaf_level_func(
 #endif /* !UNIV_HOTBACKUP */
 /****************************************************************//**
 Sets a record as the predefined minimum record. */
-
 void
 btr_set_min_rec_mark(
 /*=================*/
@@ -499,7 +489,6 @@ btr_set_min_rec_mark(
 #ifndef UNIV_HOTBACKUP
 /*************************************************************//**
 Deletes on the upper level the node pointer to a page. */
-
 void
 btr_node_ptr_delete(
 /*================*/
@@ -511,7 +500,6 @@ btr_node_ptr_delete(
 /************************************************************//**
 Checks that the node pointer to a page is appropriate.
 @return TRUE */
-
 ibool
 btr_check_node_ptr(
 /*===============*/
@@ -530,7 +518,6 @@ tree height. It is assumed that mtr holds an x-latch on the tree and on the
 page. If cursor is on the leaf level, mtr must also hold x-latches to
 the brothers, if they exist.
 @return TRUE on success */
-
 ibool
 btr_compress(
 /*=========*/
@@ -546,7 +533,6 @@ btr_compress(
 Discards a page from a B-tree. This is used to remove the last record from
 a B-tree page: the whole page must be removed at the same time. This cannot
 be used for the root page, which is allowed to be empty. */
-
 void
 btr_discard_page(
 /*=============*/
@@ -559,7 +545,6 @@ btr_discard_page(
 Parses the redo log record for setting an index record as the predefined
 minimum record.
 @return end of log record or NULL */
-
 byte*
 btr_parse_set_min_rec_mark(
 /*=======================*/
@@ -572,7 +557,6 @@ btr_parse_set_min_rec_mark(
 /***********************************************************//**
 Parses a redo log record of reorganizing a page.
 @return end of log record or NULL */
-
 byte*
 btr_parse_page_reorganize(
 /*======================*/
@@ -587,7 +571,6 @@ btr_parse_page_reorganize(
 /**************************************************************//**
 Gets the number of pages in a B-tree.
 @return number of pages, or ULINT_UNDEFINED if the index is unavailable */
-
 ulint
 btr_get_size(
 /*=========*/
@@ -603,7 +586,6 @@ that the caller has made the reservation for free extents!
 @retval block, rw_lock_x_lock_count(&block->lock) == 1 if allocation succeeded
 (init_mtr == mtr, or the page was not previously freed in mtr)
 @retval block (not allocated or initialized) otherwise */
-
 buf_block_t*
 btr_page_alloc(
 /*===========*/
@@ -622,7 +604,6 @@ btr_page_alloc(
 /**************************************************************//**
 Frees a file page used in an index tree. NOTE: cannot free field external
 storage pages because the page must contain info on its level. */
-
 void
 btr_page_free(
 /*==========*/
@@ -633,7 +614,6 @@ btr_page_free(
 /**************************************************************//**
 Creates a new index page (not the root, and also not
 used in page reorganization).  @see btr_page_empty(). */
-
 void
 btr_page_create(
 /*============*/
@@ -645,7 +625,6 @@ btr_page_create(
 /**************************************************************//**
 Frees a file page used in an index tree. Can be used also to BLOB
 external storage pages. */
-
 void
 btr_page_free_low(
 /*==============*/
@@ -657,7 +636,6 @@ btr_page_free_low(
 /**************************************************************//**
 Gets the root node of a tree and x- or s-latches it.
 @return root page, x- or s-latched */
-
 buf_block_t*
 btr_root_block_get(
 /*===============*/
@@ -669,7 +647,6 @@ btr_root_block_get(
 #ifdef UNIV_BTR_PRINT
 /*************************************************************//**
 Prints size info of a B-tree. */
-
 void
 btr_print_size(
 /*===========*/
@@ -677,7 +654,6 @@ btr_print_size(
 	__attribute__((nonnull));
 /**************************************************************//**
 Prints directories and other info of all nodes in the index. */
-
 void
 btr_print_index(
 /*============*/
@@ -690,7 +666,6 @@ btr_print_index(
 Checks the size and number of fields in a record based on the definition of
 the index.
 @return TRUE if ok */
-
 ibool
 btr_index_rec_validate(
 /*===================*/
@@ -703,7 +678,6 @@ btr_index_rec_validate(
 /**************************************************************//**
 Checks the consistency of an index tree.
 @return true if ok */
-
 bool
 btr_validate_index(
 /*===============*/

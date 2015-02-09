@@ -170,6 +170,12 @@ typedef struct st_db_worker_hash_entry db_worker_hash_entry;
 #define LINE_START_EMPTY	0x8
 #define ESCAPED_EMPTY		0x10
 
+/*
+   Do not decrease the value of BIN_LOG_HEADER_SIZE.
+   Do not even increase it before checking code.
+*/
+#define BIN_LOG_HEADER_SIZE    4U
+
 /*****************************************************************************
 
   old_sql_ex struct
@@ -301,10 +307,11 @@ struct sql_ex_info
 */
 #define OVER_MAX_DBS_IN_EVENT_MTS 254
 
-/* size of prepare and commit sequence numbers in the status vars in bytes */
-#define COMMIT_SEQ_LEN  8
+/* total size of two transaction logical timestamps in the status vars in bytes */
+#define COMMIT_SEQ_LEN  16
+#define COMMIT_SEQ_LEN_OLD 8
 
-/* 
+/*
   Max number of possible extra bytes in a replication event compared to a
   packet (i.e. a query) sent from client to master;
   First, an auxiliary log_event status vars estimation:
@@ -412,18 +419,27 @@ struct sql_ex_info
 #define Q_MICROSECONDS 13
 
 /*
-  Q_COMMIT_TS status variable stores the logical timestamp when the transaction
-  entered the commit phase. This wll be used to apply transactions in parallel
-  on the slave.
- */
-#define Q_COMMIT_TS 14
+  A old (unused now) code for Query_log_event status similar to G_COMMIT_TS.
+*/
+#define Q_COMMIT_TS  14
+/*
+  A code for Query_log_event status, similar to G_COMMIT_TS2.
+*/
+#define Q_COMMIT_TS2 15
 
 /*
-  G_COMMIT_TS status variable stores the logical timestamp when the transaction
-  entered the commit phase. This wll be used to apply transactions in parallel
+  G_COMMIT_TS is left defined but won't be used anymore, being superceded by
+  G_COMMIT_TS2.
+  Old master event may have Q_COMMIT_TS status variable/value
+  but that info will not be used by slave applier.
+*/
+#define G_COMMIT_TS   1 /* single logical timestamp introduced by 5.7.2 */
+/*
+  Status variable stores two logical timestamps when the transaction
+  entered the commit phase. They wll be used to apply transactions in parallel
   on the slave.
- */
-#define G_COMMIT_TS  1
+*/
+#define G_COMMIT_TS2  2 /* two logical timestamps introduced by 7.5.6 */
 
 /* Intvar event post-header */
 
@@ -640,7 +656,7 @@ struct sql_ex_info
 
 /* Shouldn't be defined before */
 #define EXPECTED_OPTIONS \
-  ((ULL(1) << 14) | (ULL(1) << 26) | (ULL(1) << 27) | (ULL(1) << 19))
+  ((1ULL << 14) | (1ULL << 26) | (1ULL << 27) | (1ULL << 19))
 
 #if OPTIONS_WRITTEN_TO_BIN_LOG != EXPECTED_OPTIONS
 #error OPTIONS_WRITTEN_TO_BIN_LOG must NOT change their values!
@@ -662,7 +678,15 @@ enum enum_binlog_checksum_alg {
 */
 #define BINLOG_CHECKSUM_LEN CHECKSUM_CRC32_SIGNATURE_LEN
 #define BINLOG_CHECKSUM_ALG_DESC_LEN 1  /* 1 byte checksum alg descriptor */
-#define SEQ_UNINIT -1LL
+/**
+   Uninitialized timestamp value (for either last committed or sequence number).
+   Often carries meaning of the minimum value in the logical timestamp domain.
+*/
+const int64 SEQ_UNINIT= 0;
+/**
+   Maximum value of binlog logical timestamp.
+*/
+const int64 SEQ_MAX_TIMESTAMP= LLONG_MAX;
 
 /**
   @enum Log_event_type
@@ -1432,13 +1456,7 @@ public:
   }
   Log_event(const char* buf, const Format_description_log_event
             *description_event);
-  virtual ~Log_event()
-  {
-    free_temp_buf();
-#if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
-    free_root(&m_event_mem_root, MYF(MY_KEEP_PREALLOC));
-#endif //!MYSQL_CLIENT && HAVE_REPLICATION
-  }
+  virtual ~Log_event() { free_temp_buf();}
   void register_temp_buf(char* buf) { temp_buf = buf; }
   void free_temp_buf()
   {
@@ -1472,6 +1490,11 @@ public:
   /**
      Is called from get_mts_execution_mode() to
 
+     @param  is_scheduler_dbname
+                   The current scheduler type.
+                   In case the db-name scheduler certain events
+                   can't be applied in parallel.
+
      @return TRUE  if the event needs applying with synchronization
                    agaist Workers, otherwise
              FALSE
@@ -1482,20 +1505,20 @@ public:
 
            todo: to mts-support Old master Load-data related events
   */
-  bool is_mts_sequential_exec()
+  bool is_mts_sequential_exec(bool is_scheduler_dbname)
   {
     return
+      ((get_type_code() == LOAD_EVENT         ||
+        get_type_code() == CREATE_FILE_EVENT  ||
+        get_type_code() == DELETE_FILE_EVENT  ||
+        get_type_code() == NEW_LOAD_EVENT     ||
+        get_type_code() == EXEC_LOAD_EVENT)    &&
+       is_scheduler_dbname)                      ||
       get_type_code() == START_EVENT_V3          ||
       get_type_code() == STOP_EVENT              ||
       get_type_code() == ROTATE_EVENT            ||
-      get_type_code() == LOAD_EVENT              ||
       get_type_code() == SLAVE_EVENT             ||
-      get_type_code() == CREATE_FILE_EVENT       ||
-      get_type_code() == DELETE_FILE_EVENT       ||
-      get_type_code() == NEW_LOAD_EVENT          ||
-      get_type_code() == EXEC_LOAD_EVENT         ||
       get_type_code() == FORMAT_DESCRIPTION_EVENT||
-
       get_type_code() == INCIDENT_EVENT;
   }
 
@@ -1534,22 +1557,72 @@ private:
      Coordinator concurrently with Workers and some to require synchronization
      with Workers (@c see wait_for_workers_to_finish) before to apply them.
 
+     @param slave_server_id   id of the server, extracted from event
+     @param mts_in_group      the being group parsing status, true
+                              means inside the group
+     @param  is_scheduler_dbname
+                              true when the current submode (scheduler)
+                              is of DB_NAME type.
+
      @retval EVENT_EXEC_PARALLEL  if event is executed by a Worker
      @retval EVENT_EXEC_ASYNC     if event is executed by Coordinator
      @retval EVENT_EXEC_SYNC      if event is executed by Coordinator
                                   with synchronization against the Workers
   */
   enum enum_mts_event_exec_mode get_mts_execution_mode(ulong slave_server_id,
-                                                   bool mts_in_group)
+                                                       bool mts_in_group,
+                                                       bool is_dbname_type)
   {
-    if ((get_type_code() == FORMAT_DESCRIPTION_EVENT &&
+    /*
+      Slave workers are unable to handle Format_description_log_event,
+      Rotate_log_event and Previous_gtids_log_event correctly.
+      However, when a transaction spans multiple relay logs, these
+      events occur in the middle of a transaction. The way we handle
+      this is by marking the events as 'ASYNC', meaning that the
+      coordinator thread will handle the events without stopping the
+      worker threads.
+
+      @todo Refactor this: make Log_event::get_slave_worker handle
+      transaction boundaries in a more robust way, so that it is able
+      to process Format_description_log_event, Rotate_log_event, and
+      Previous_gtids_log_event.  Then, when these events occur in the
+      middle of a transaction, make them part of the transaction so
+      that the worker that handles the transaction handles these
+      events too. /Sven
+    */
+    if (
+        /*
+          When a Format_description_log_event occurs in the middle of
+          a transaction, it either has the slave's server_id, or has
+          end_log_pos==0.
+
+          @todo This does not work when master and slave have the same
+          server_id and replicate-same-server-id is enabled, since
+          events that are not in the middle of a transaction will be
+          executed in ASYNC mode in that case.
+        */
+        (get_type_code() == FORMAT_DESCRIPTION_EVENT &&
          ((server_id == (uint32) ::server_id) || (log_pos == 0))) ||
+        /*
+          All Previous_gtids_log_events in the relay log are generated
+          by the slave. They don't have any meaning to the applier, so
+          they can always be ignored by the applier. So we can process
+          them asynchronously by the coordinator. It is also important
+          to not feed them to workers because that confuses
+          get_slave_worker.
+        */
+        (get_type_code() == PREVIOUS_GTIDS_LOG_EVENT) ||
+        /*
+          Rotate_log_event can occur in the middle of a transaction.
+          When this happens, either it is a Rotate event generated on
+          the slave which has the slave's server_id, or it is a Rotate
+          event that originates from a master but has end_log_pos==0.
+        */
         (get_type_code() == ROTATE_EVENT &&
          ((server_id == (uint32) ::server_id) ||
-          (log_pos == 0    /* very first fake Rotate (R_f) */
-           && mts_in_group /* ignored event turned into R_f at slave stop */))))
+          (log_pos == 0 && mts_in_group))))
       return EVENT_EXEC_ASYNC;
-    else if (is_mts_sequential_exec())
+    else if (is_mts_sequential_exec(is_dbname_type))
       return EVENT_EXEC_SYNC;
     else
       return EVENT_EXEC_PARALLEL;
@@ -1697,13 +1770,6 @@ public:
   }
 
   virtual int do_apply_event_worker(Slave_worker *w);
-
-  /*
-    Mem root whose scope is equalent to event's scope.
-    This mem_root will be initialized in constructor
-    Log_event() and freed in destructor ~Log_event().
-   */
-  MEM_ROOT m_event_mem_root;
 
 protected:
 
@@ -1946,7 +2012,7 @@ protected:
     <td>Q_SQL_MODE_CODE == 1</td>
     <td>8 byte bitfield</td>
     <td>The @c sql_mode variable.  See the section "SQL Modes" in the
-    MySQL manual, and see sql_priv.h for a list of the possible
+    MySQL manual, and see sql_class.h for a list of the possible
     flags. Currently (2007-10-04), the following flags are available:
     <pre>
     MODE_REAL_AS_FLOAT==0x1
@@ -2345,7 +2411,7 @@ public:
   bool is_valid() const { return query != 0; }
 
   /*
-    Returns number of bytes additionaly written to post header by derived
+    Returns number of bytes additionally written to post header by derived
     events (so far it is only Execute_load_query event).
   */
   virtual ulong get_post_header_size_for_derived() { return 0; }
@@ -2384,10 +2450,11 @@ public:        /* !!! Public in this patch to allow old usage */
       !native_strncasecmp(query, "ROLLBACK", 8);
   }
   /*
-    Prepare and commit sequence number. will be set to 0 if the event is not a
+    Commit parent and point. will be set to 0 if the event is not a
     transaction starter.
    */
-  int64 commit_seq_no;
+  int64 last_committed;
+  int64 sequence_number;
   /**
      Notice, DDL queries are logged without BEGIN/COMMIT parentheses
      and identification of such single-query group
@@ -2395,7 +2462,7 @@ public:        /* !!! Public in this patch to allow old usage */
   */
   bool starts_group() { return !strncmp(query, "BEGIN", q_len); }
   virtual bool ends_group()
-  {  
+  {
     return
       !strncmp(query, "COMMIT", q_len) ||
       (!native_strncasecmp(query, STRING_WITH_LEN("ROLLBACK"))
@@ -2781,14 +2848,14 @@ public:
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
 #endif
 
-  Start_log_event_v3(const char* buf,
+  Start_log_event_v3(const char* buf, uint event_len,
                      const Format_description_log_event* description_event);
   ~Start_log_event_v3() {}
   Log_event_type get_type_code() { return START_EVENT_V3;}
 #ifdef MYSQL_SERVER
   bool write(IO_CACHE* file);
 #endif
-  bool is_valid() const { return 1; }
+  bool is_valid() const { return server_version[0] != 0; }
   size_t get_data_size()
   {
     return START_V3_HEADER_LEN; //no variable-sized part
@@ -5091,7 +5158,8 @@ public:
     Prepare and commit sequence number. will be set to 0 if the event is not a
     transaction starter.
    */
-  int64 commit_seq_no;
+  int64 last_committed;
+  int64 sequence_number;
 #ifndef MYSQL_CLIENT
   /**
     Create a new event using the GTID from the given Gtid_specification,
@@ -5297,6 +5365,18 @@ public:
                 const Gtid_set::String_format *string_format) const;
   /// Add all GTIDs from this event to the given Gtid_set.
   int add_to_set(Gtid_set *gtid_set) const;
+  /*
+    Previous Gtid Log events should always be skipped
+    there is nothing to apply there, whether it is
+    relay log's (generated on Slave) or it is binary log's
+    (generated on Master, copied to slave as relay log).
+    Also, we should not increment slave_skip_counter
+    for this event, hence return EVENT_SKIP_IGNORE.
+   */
+  enum_skip_reason do_shall_skip(Relay_log_info *rli)
+  {
+    return EVENT_SKIP_IGNORE;
+  }
 
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
   int do_apply_event(Relay_log_info const *rli) { return 0; }

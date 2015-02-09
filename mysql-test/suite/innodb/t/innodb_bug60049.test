@@ -6,9 +6,9 @@
 -- source include/have_innodb.inc
 -- source include/have_innodb_16k.inc
 
-call mtr.add_suppression('\\[ERROR\\] InnoDB: Table "mysql"."innodb_(table|index)_stats" not found');
-
 -- disable_query_log
+call mtr.add_suppression('\\[ERROR\\] InnoDB: Table `mysql`.`innodb_(table|index)_stats` not found');
+
 let $create1 = query_get_value(SHOW CREATE TABLE mysql.innodb_table_stats, Create Table, 1);
 let $create2 = query_get_value(SHOW CREATE TABLE mysql.innodb_index_stats, Create Table, 1);
 DROP TABLE mysql.innodb_index_stats;

@@ -52,6 +52,14 @@ class Field;
 class Field_temporal_with_date_and_time;
 class Table_cache_element;
 
+#define store_record(A,B) memcpy((A)->B,(A)->record[0],(size_t) (A)->s->reclength)
+#define restore_record(A,B) memcpy((A)->record[0],(A)->B,(size_t) (A)->s->reclength)
+#define cmp_record(A,B) memcmp((A)->record[0],(A)->B,(size_t) (A)->s->reclength)
+#define empty_record(A) { \
+                          restore_record((A),s->default_values); \
+                          memset((A)->null_flags, 255, (A)->s->null_bytes);\
+                        }
+
 /*
   Used to identify NESTED_JOIN structures within a join (applicable to
   structures representing outer joins that have not been simplified away).
@@ -2533,6 +2541,19 @@ inline bool is_infoschema_db(const char *name)
 {
   return !my_strcasecmp(system_charset_info,
                         INFORMATION_SCHEMA_NAME.str, name);
+}
+
+inline bool is_perfschema_db(const char *name, size_t len)
+{
+  return (PERFORMANCE_SCHEMA_DB_NAME.length == len &&
+          !my_strcasecmp(system_charset_info,
+                         PERFORMANCE_SCHEMA_DB_NAME.str, name));
+}
+
+inline bool is_perfschema_db(const char *name)
+{
+  return !my_strcasecmp(system_charset_info,
+                        PERFORMANCE_SCHEMA_DB_NAME.str, name);
 }
 
 TYPELIB *typelib(MEM_ROOT *mem_root, List<String> &strings);

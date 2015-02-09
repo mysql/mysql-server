@@ -34,7 +34,6 @@ Created 2012-11-16 by Sunny Bains as srv/srv0space.cc
 /** Check if two tablespaces have common data file names.
 @param other_space	Tablespace to check against this.
 @return true if they have the same data filenames and paths */
-
 bool
 Tablespace::intersection(
 	const Tablespace*	other_space)
@@ -55,7 +54,6 @@ Tablespace::intersection(
 }
 
 /** Frees the memory allocated by the SysTablespace object. */
-
 void
 Tablespace::shutdown()
 {
@@ -70,9 +68,8 @@ Tablespace::shutdown()
 	m_space_id = ULINT_UNDEFINED;
 }
 
-/**
+/** Get the sum of the file sizes of each Datafile in a tablespace
 @return ULINT_UNDEFINED if the size is invalid else the sum of sizes */
-
 ulint
 Tablespace::get_sum_of_sizes() const
 {
@@ -101,7 +98,6 @@ Tablespace::get_sum_of_sizes() const
 
 /** Note that the data file was found.
 @param[in,out] file	Data file object to set */
-
 void
 Tablespace::file_found(Datafile& file)
 {
@@ -117,7 +113,6 @@ Tablespace::file_found(Datafile& file)
 /** Open or Create the data files if they do not exist.
 @param[in]	is_temp	whether this is a temporary tablespace
 @return DB_SUCCESS or error code */
-
 dberr_t
 Tablespace::open_or_create(bool is_temp)
 {
@@ -172,12 +167,12 @@ Tablespace::open_or_create(bool is_temp)
 
 			ulint	flags;
 
-			flags = fsp_flags_set_page_size(0, UNIV_PAGE_SIZE);
+			flags = fsp_flags_set_page_size(0, univ_page_size);
 
 			/* Create the tablespace entry for the multi-file
 			tablespace in the tablespace manager. */
 			space = fil_space_create(
-				it->m_filepath, m_space_id, flags, is_temp
+				m_name, m_space_id, flags, is_temp
 				? FIL_TYPE_TEMPORARY : FIL_TYPE_TABLESPACE);
 		}
 
@@ -194,9 +189,8 @@ Tablespace::open_or_create(bool is_temp)
 	return(err);
 }
 
-/**
+/** Find a filename in the list of Datafiles for a tablespace
 @return true if the filename exists in the data files */
-
 bool
 Tablespace::find(const char* filename)
 {
@@ -214,7 +208,6 @@ Tablespace::find(const char* filename)
 
 
 /** Delete all the data files. */
-
 void
 Tablespace::delete_files()
 {

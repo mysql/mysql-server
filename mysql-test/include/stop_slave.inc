@@ -14,6 +14,7 @@
 # ==== Usage ====
 #
 # [--let $rpl_only_running_threads= 1]
+# [--let $rpl_channel_name= NAME]
 # [--let $slave_timeout= NUMBER]
 # [--let $rpl_debug= 1]
 # --source include/stop_slave.inc
@@ -26,6 +27,9 @@
 #     script checks which slave threads are running, and issues either
 #     STOP SLAVE, STOP SLAVE SQL_THREAD, STOP SLAVE IO_THREAD, or
 #     nothing.
+#
+#   $rpl_channel_name
+#     If this is not '', a FOR CHANNEL  '$rpl_channel_name' is added.
 #
 #   $slave_timeout
 #     See include/wait_for_slave_param.inc
@@ -43,11 +47,16 @@ if (!$rpl_debug)
   --disable_query_log
 }
 
+if ($rpl_channel_name != '')
+{
+  --let $_for_channel_clause= FOR CHANNEL  '$rpl_channel_name'
+}
+
 
 if ($rpl_only_running_threads)
 {
-  --let $_slave_sql_running= query_get_value(SHOW SLAVE STATUS, Slave_SQL_Running, 1)
-  --let $_slave_io_running= query_get_value(SHOW SLAVE STATUS, Slave_IO_Running, 1)
+  --let $_slave_sql_running= query_get_value(SHOW SLAVE STATUS $_for_channel_clause, Slave_SQL_Running, 1)
+  --let $_slave_io_running= query_get_value(SHOW SLAVE STATUS $_for_channel_clause, Slave_IO_Running, 1)
   if ($rpl_debug)
   {
     --echo Stop SQL: $_slave_sql_running; Stop IO: $_slave_io_running
@@ -72,14 +81,14 @@ if ($rpl_only_running_threads)
     # $_slave_running_bits=2: both threads running
     if (!$_slave_running_bits)
     {
-      STOP SLAVE;
+      eval STOP SLAVE $_for_channel_clause;
       --source include/wait_for_slave_to_stop.inc
     }
   }
 }
 if (!$rpl_only_running_threads)
 {
-  STOP SLAVE;
+  eval STOP SLAVE $_for_channel_clause;
   --source include/wait_for_slave_to_stop.inc
 }
 

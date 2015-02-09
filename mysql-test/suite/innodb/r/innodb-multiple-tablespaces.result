@@ -180,13 +180,13 @@ MYSQL_TMP_DIR/alt_dir/test/nnn.ibd
 MYSQL_TMP_DIR/alt_dir/test/www.ibd
 MYSQL_TMP_DIR/alt_dir/test/nolink.ibd
 SELECT * FROM yyy;
-ERROR 42S02: Table 'test.yyy' doesn't exist
+ERROR HY000: Tablespace is missing for table `test`.`yyy`.
 SELECT * FROM nyy;
-ERROR 42S02: Table 'test.nyy' doesn't exist
+ERROR HY000: Tablespace is missing for table `test`.`nyy`.
 SELECT * FROM yny;
-ERROR 42S02: Table 'test.yny' doesn't exist
+ERROR HY000: Tablespace is missing for table `test`.`yny`.
 SELECT * FROM yyn;
-ERROR 42S02: Table 'test.yyn' doesn't exist
+ERROR HY000: Tablespace is missing for table `test`.`yyn`.
 SELECT * FROM nyw;
 c1	c2
 1	nyw
@@ -206,20 +206,20 @@ SELECT * FROM ywn;
 c1	c2
 1	ywn
 SELECT * FROM nnn;
-ERROR 42S02: Table 'test.nnn' doesn't exist
+ERROR HY000: Tablespace is missing for table `test`.`nnn`.
 SELECT * FROM www;
-ERROR 42S02: Table 'test.www' doesn't exist
+ERROR HY000: Tablespace is missing for table `test`.`www`.
 SELECT * FROM nolink;
 c1	c2
 1	no link file
 SHOW CREATE TABLE yyy;
-ERROR 42S02: Table 'test.yyy' doesn't exist
+ERROR HY000: Tablespace is missing for table `test`.`yyy`.
 SHOW CREATE TABLE nyy;
-ERROR 42S02: Table 'test.nyy' doesn't exist
+ERROR HY000: Tablespace is missing for table `test`.`nyy`.
 SHOW CREATE TABLE yny;
-ERROR 42S02: Table 'test.yny' doesn't exist
+ERROR HY000: Tablespace is missing for table `test`.`yny`.
 SHOW CREATE TABLE yyn;
-ERROR 42S02: Table 'test.yyn' doesn't exist
+ERROR HY000: Tablespace is missing for table `test`.`yyn`.
 SHOW CREATE TABLE nyw;
 Table	Create Table
 nyw	CREATE TABLE `nyw` (
@@ -263,9 +263,9 @@ ywn	CREATE TABLE `ywn` (
   PRIMARY KEY (`c1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SHOW CREATE TABLE nnn;
-ERROR 42S02: Table 'test.nnn' doesn't exist
+ERROR HY000: Tablespace is missing for table `test`.`nnn`.
 SHOW CREATE TABLE www;
-ERROR 42S02: Table 'test.www' doesn't exist
+ERROR HY000: Tablespace is missing for table `test`.`www`.
 SHOW CREATE TABLE nolink;
 Table	Create Table
 nolink	CREATE TABLE `nolink` (

@@ -126,7 +126,7 @@ void mi_report_error(int errcode, const char *file_name)
 
   if ((lgt= strlen(file_name)) > 64)
     file_name+= lgt - 64;
-  my_error(errcode, MYF(ME_NOREFRESH), file_name);
+  my_error(errcode, MYF(ME_ERRORLOG), file_name);
   DBUG_VOID_RETURN;
 }
 

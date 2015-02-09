@@ -15,7 +15,8 @@ slave_relay_log_info	CREATE TABLE `slave_relay_log_info` (
   `Sql_delay` int(11) NOT NULL COMMENT 'The number of seconds that the slave must lag behind the master.',
   `Number_of_workers` int(10) unsigned NOT NULL,
   `Id` int(10) unsigned NOT NULL COMMENT 'Internal Id that uniquely identifies this record.',
-  PRIMARY KEY (`Id`)
+  `Channel_name` char(64) NOT NULL COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication',
+  PRIMARY KEY (`Channel_name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 COMMENT='Relay Log Information'
 ALTER TABLE mysql.slave_relay_log_info ENGINE= Innodb;
 SHOW CREATE TABLE mysql.slave_relay_log_info;
@@ -29,7 +30,8 @@ slave_relay_log_info	CREATE TABLE `slave_relay_log_info` (
   `Sql_delay` int(11) NOT NULL COMMENT 'The number of seconds that the slave must lag behind the master.',
   `Number_of_workers` int(10) unsigned NOT NULL,
   `Id` int(10) unsigned NOT NULL COMMENT 'Internal Id that uniquely identifies this record.',
-  PRIMARY KEY (`Id`)
+  `Channel_name` char(64) NOT NULL COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication',
+  PRIMARY KEY (`Channel_name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 COMMENT='Relay Log Information'
 SET @@global.relay_log_info_repository="TABLE";
 SET @@global.master_info_repository="TABLE";
@@ -46,12 +48,13 @@ call mtr.add_suppression(" Error while checking replication metadata.");
 call mtr.add_suppression("Failed to create or recover replication info repository.");
 call mtr.add_suppression("Error in checking.* repository info type of");
 call mtr.add_suppression("Error creating.*: Error checking repositories");
+call mtr.add_suppression("Failed to create or recover replication info repositories.");
 INSERT INTO t_innodb VALUES (1), (2), (3);
 include/sync_slave_sql_with_master.inc
 ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Number_of_workers;
 INSERT INTO t_innodb VALUES (1), (2), (3);
 include/wait_for_slave_sql_error.inc [errno=1805]
-Last_SQL_Error = 'Column count of mysql.slave_relay_log_info is wrong. Expected 8, found 7. The table is probably corrupted'
+Last_SQL_Error = 'Column count of mysql.slave_relay_log_info is wrong. Expected 9, found 8. The table is probably corrupted'
 include/stop_slave_io.inc
 include/rpl_restart_server.inc [server_number=2 parameters: --sync-master-info=1 --master-info-repository=TABLE --relay-log-info-repository=TABLE]
 START SLAVE SQL_THREAD;
@@ -65,14 +68,14 @@ include/sync_slave_sql_with_master.inc
 ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Number_of_workers;
 INSERT INTO t_innodb VALUES (1), (2), (3);
 include/wait_for_slave_sql_error.inc [errno=1805]
-Last_SQL_Error = 'Column count of mysql.slave_relay_log_info is wrong. Expected 8, found 7. The table is probably corrupted'
+Last_SQL_Error = 'Column count of mysql.slave_relay_log_info is wrong. Expected 9, found 8. The table is probably corrupted'
 include/stop_slave_io.inc
 START SLAVE SQL_THREAD;
-ERROR HY000: Column count of mysql.slave_relay_log_info is wrong. Expected 8, found 7. The table is probably corrupted
+ERROR HY000: Column count of mysql.slave_relay_log_info is wrong. Expected 9, found 8. The table is probably corrupted
 RESET SLAVE ALL;
-ERROR HY000: Column count of mysql.slave_relay_log_info is wrong. Expected 8, found 7. The table is probably corrupted
+ERROR HY000: Column count of mysql.slave_relay_log_info is wrong. Expected 9, found 8. The table is probably corrupted
 CHANGE MASTER TO MASTER_HOST= 'MASTER_HOST', MASTER_USER= 'MASTER_USER', MASTER_PORT= MASTER_PORT, MASTER_LOG_FILE= 'MASTER_LOG_FILE', MASTER_LOG_POS= MASTER_LOG_POS;
-ERROR HY000: Column count of mysql.slave_relay_log_info is wrong. Expected 8, found 7. The table is probably corrupted
+ERROR HY000: Column count of mysql.slave_relay_log_info is wrong. Expected 9, found 8. The table is probably corrupted
 ALTER TABLE mysql.slave_relay_log_info ADD COLUMN Number_of_workers INTEGER UNSIGNED NOT NULL AFTER Sql_delay;
 UPDATE mysql.slave_relay_log_info SET Number_of_workers= 0;
 RESET SLAVE ALL;
@@ -90,7 +93,7 @@ include/stop_slave_sql.inc
 include/rpl_restart_server.inc [server_number=2 parameters: --sync-master-info=1 --master-info-repository=TABLE --relay-log-info-repository=TABLE]
 START SLAVE SQL_THREAD;
 ERROR HY000: Slave is not configured or failed to initialize properly. You must at least set --server-id to enable either a master or a slave. Additional error messages can be found in the MySQL error log.
-ALTER TABLE mysql.slave_master_info ADD COLUMN (Enabled_auto_position BOOLEAN NOT NULL COMMENT 'Indicates whether GTIDs will be used to retrieve events from the master.');
+ALTER TABLE mysql.slave_master_info ADD COLUMN Enabled_auto_position BOOLEAN NOT NULL COMMENT 'Indicates whether GTIDs will be used to retrieve events from the master.' AFTER Ssl_crlpath;
 UPDATE mysql.slave_master_info SET Enabled_auto_position= 0;
 include/rpl_restart_server.inc [server_number=2 parameters: --sync-master-info=1 --master-info-repository=TABLE --relay-log-info-repository=TABLE]
 include/start_slave.inc
@@ -100,11 +103,11 @@ include/wait_for_slave_io_error.inc [errno=1593]
 Last_IO_Error = 'Fatal error: Failed to flush master info.'
 include/stop_slave_sql.inc
 START SLAVE SQL_THREAD;
-ERROR HY000: Column count of mysql.slave_master_info is wrong. Expected 23, found 22. The table is probably corrupted
+ERROR HY000: Column count of mysql.slave_master_info is wrong. Expected 24, found 23. The table is probably corrupted
 RESET SLAVE ALL;
-ERROR HY000: Column count of mysql.slave_master_info is wrong. Expected 23, found 22. The table is probably corrupted
+ERROR HY000: Column count of mysql.slave_master_info is wrong. Expected 24, found 23. The table is probably corrupted
 CHANGE MASTER TO MASTER_HOST= 'MASTER_HOST', MASTER_USER= 'MASTER_USER', MASTER_PORT= MASTER_PORT, MASTER_LOG_FILE= 'MASTER_LOG_FILE', MASTER_LOG_POS= MASTER_LOG_POS;
-ERROR HY000: Column count of mysql.slave_master_info is wrong. Expected 23, found 22. The table is probably corrupted
+ERROR HY000: Column count of mysql.slave_master_info is wrong. Expected 24, found 23. The table is probably corrupted
 ALTER TABLE mysql.slave_master_info ADD COLUMN Enabled_auto_position BOOLEAN NOT NULL COMMENT 'Indicates whether GTIDs will be used to retrieve events from the master.' AFTER Ssl_crlpath;
 UPDATE mysql.slave_master_info SET Enabled_auto_position= 0;
 RESET SLAVE ALL;
@@ -138,7 +141,7 @@ slave_master_info	CREATE TABLE `slave_master_info` (
   `Number_of_lines` int(10) unsigned NOT NULL COMMENT 'Number of lines in the file.',
   `Master_log_name` text CHARACTER SET utf8 COLLATE utf8_bin NOT NULL COMMENT 'The name of the master binary log currently being read from the master.',
   `Master_log_pos` bigint(20) unsigned NOT NULL COMMENT 'The master log position of the last read event.',
-  `Host` char(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL COMMENT 'The host name of the master.',
+  `Host` char(64) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL COMMENT 'The host name of the master.',
   `User_name` text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The user name used to connect to the master.',
   `User_password` text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The password used to connect to the master.',
   `Port` int(10) unsigned NOT NULL COMMENT 'The network port used to connect to the master.',
@@ -158,7 +161,8 @@ slave_master_info	CREATE TABLE `slave_master_info` (
   `Ssl_crl` text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The file used for the Certificate Revocation List (CRL)',
   `Ssl_crlpath` text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The path used for Certificate Revocation List (CRL) files',
   `Enabled_auto_position` tinyint(1) NOT NULL COMMENT 'Indicates whether GTIDs will be used to retrieve events from the master.',
-  PRIMARY KEY (`Host`,`Port`)
+  `Channel_name` char(64) NOT NULL COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication',
+  PRIMARY KEY (`Channel_name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 COMMENT='Master Information'
 SHOW CREATE TABLE mysql.slave_relay_log_info;
 Table	Create Table
@@ -171,7 +175,8 @@ slave_relay_log_info	CREATE TABLE `slave_relay_log_info` (
   `Sql_delay` int(11) NOT NULL COMMENT 'The number of seconds that the slave must lag behind the master.',
   `Number_of_workers` int(10) unsigned NOT NULL,
   `Id` int(10) unsigned NOT NULL COMMENT 'Internal Id that uniquely identifies this record.',
-  PRIMARY KEY (`Id`)
+  `Channel_name` char(64) NOT NULL COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication',
+  PRIMARY KEY (`Channel_name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 COMMENT='Relay Log Information'
 # Search for occurrences of slave_master_info in the output from mysqldump
 - Occurrences: 1

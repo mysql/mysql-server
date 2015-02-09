@@ -90,7 +90,7 @@ enum enum_server_command
 
 /*
   Length of random string sent by server on handshake; this is also length of
-  obfuscated password, recieved from client
+  obfuscated password, received from client
 */
 #define SCRAMBLE_LENGTH 20
 #define AUTH_PLUGIN_DATA_PART_1_LENGTH 8
@@ -513,6 +513,9 @@ enum enum_session_state_type
 #define SESSION_TRACK_BEGIN SESSION_TRACK_SYSTEM_VARIABLES
 
 #define SESSION_TRACK_END SESSION_TRACK_STATE_CHANGE
+
+#define IS_SESSION_STATE_TYPE(T) \
+  (((int)(T) >= SESSION_TRACK_BEGIN) && ((T) <= SESSION_TRACK_END))
 
 #define net_new_transaction(net) ((net)->pkt_nr=0)
 

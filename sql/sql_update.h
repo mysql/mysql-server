@@ -32,7 +32,6 @@ bool mysql_update(THD *thd, List<Item> &fields,
                   ha_rows *found_return, ha_rows *updated_return);
 bool mysql_multi_update(THD *thd,
                         List<Item> *fields, List<Item> *values,
-                        ulonglong options,
                         enum enum_duplicates handle_duplicates,
                         SELECT_LEX *select_lex,
                         multi_update **result);

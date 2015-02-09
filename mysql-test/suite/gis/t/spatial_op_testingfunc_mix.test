@@ -7,14 +7,7 @@
 #                                                                             #
 ###############################################################################
 
-
---source include/force_myisam_default.inc
---source include/not_embedded.inc
 --source include/have_geometry.inc
-
-#Confirming the storage engine
---echo #Confirming the storage engine
-SHOW VARIABLES LIKE '%engine%';
 
 ############################################################################################
 # Creating the spatial objects                                                             #

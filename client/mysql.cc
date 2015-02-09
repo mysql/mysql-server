@@ -1276,7 +1276,7 @@ int main(int argc,char *argv[])
     my_end(0);
     exit(1);
   }
-  glob_buffer.realloc(512);
+  glob_buffer.mem_realloc(512);
   completion_hash_init(&ht, 128);
   init_alloc_root(PSI_NOT_INSTRUMENTED, &hash_mem_root, 16384, 0);
   memset(&mysql, 0, sizeof(mysql));
@@ -1439,9 +1439,9 @@ void mysql_end(int sig)
 
   if (sig >= 0)
     put_info(sig ? "Aborted" : "Bye", INFO_RESULT);
-  glob_buffer.free();
-  old_buffer.free();
-  processed_prompt.free();
+  glob_buffer.mem_free();
+  old_buffer.mem_free();
+  processed_prompt.mem_free();
   my_free(server_version);
   my_free(opt_password);
   my_free(opt_mysql_unix_port);
@@ -1858,6 +1858,19 @@ static void usage(int version)
     return;
   puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000"));
   printf("Usage: %s [OPTIONS] [database]\n", my_progname);
+  /*
+    Turn default for zombies off so that the help on how to 
+    turn them off text won't show up.
+    This is safe to do since it's followed by a call to exit().
+  */
+  for (struct my_option *optp= my_long_options; optp->name; optp++)
+  {
+    if (optp->id == OPT_SECURE_AUTH)
+    {
+      optp->def_value= 0;
+      break;
+    }
+  }
   my_print_help(my_long_options);
   print_defaults("my", load_default_groups);
   my_print_variables(my_long_options);
@@ -1934,12 +1947,14 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 #endif
     break;
   case OPT_SECURE_AUTH:
-    CLIENT_WARN_DEPRECATED_NO_REPLACEMENT("--secure-auth");
+    /* --secure-auth is a zombie option. */
     if (!opt_secure_auth)
     {
-      usage(0);
+      fprintf(stderr, "mysql: [ERROR] --skip-secure-auth is not supported.\n");
       exit(1);
     }
+    else
+      CLIENT_WARN_DEPRECATED_NO_REPLACEMENT("--secure-auth");
     break;
   case OPT_SERVER_ARG:
 #ifdef EMBEDDED_LIBRARY
@@ -2301,8 +2316,8 @@ static int read_and_execute(bool interactive)
   }
 
 #if defined(_WIN32)
-  buffer.free();
-  tmpbuf.free();
+  buffer.mem_free();
+  tmpbuf.mem_free();
 #else
   if (interactive)
     /*
@@ -2706,7 +2721,7 @@ static bool add_line(String &buffer, char *line, size_t line_length,
       length++;
     }
     if (buffer.length() + length >= buffer.alloced_length())
-      buffer.realloc(buffer.length()+length+IO_SIZE);
+      buffer.mem_realloc(buffer.length()+length+IO_SIZE);
     if ((!*ml_comment || preserve_comments) && buffer.append(line, length))
       DBUG_RETURN(1);
   }
@@ -5497,7 +5512,7 @@ static void mysql_end_timer(ulong start_time,char *buff)
 
 static const char* construct_prompt()
 {
-  processed_prompt.free();			// Erase the old prompt
+  processed_prompt.mem_free();			// Erase the old prompt
   time_t  lclock = time(NULL);			// Get the date struct
   struct tm *t = localtime(&lclock);
 

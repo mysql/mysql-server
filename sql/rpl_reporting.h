@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -125,10 +125,22 @@ public:
     char timestamp[16];
     /** Error timestamp as time_t variable. Used in performance_schema */
     time_t skr;
+
   };
 
   Error const& last_error() const { return m_last_error; }
   bool is_error() const { return last_error().number != 0; }
+
+
+ /*
+   For MSR, there is a need to introduce error messages per channel.
+   Instead of changing the error messages in share/errmsg-utf8.txt to
+   introduce the clause, FOR CHANNEL "%s", we construct a string like this.
+   There might be problem with a client applications which could print
+   error messages and see no %s.
+   @TODO: fix this.
+ */
+  virtual const char* get_for_channel_str(bool upper_case) const = 0;
 
   virtual ~Slave_reporting_capability()= 0;
 
@@ -148,6 +160,8 @@ protected:
 private:
 
   char const *const m_thread_name;
+
+  char channel_str[100]; // FOR CHANNEL="max_64_size"
 
   // not implemented
   Slave_reporting_capability(const Slave_reporting_capability& rhs);

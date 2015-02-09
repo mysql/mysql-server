@@ -67,7 +67,7 @@ struct PFS_ALIGNED PFS_program : public PFS_instr
   PFS_sp_stat m_sp_stat;
 
   /** Referesh setup object flags. */
-  void referesh_setup_object_flags(PFS_thread* thread);
+  void refresh_setup_object_flags(PFS_thread* thread);
 
   /** Reset data for this record. */
   void reset_data();

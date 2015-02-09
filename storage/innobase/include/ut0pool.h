@@ -127,7 +127,7 @@ struct Pool {
 
 	/** Add the object to the pool.
 	@param ptr object to free */
-	static void free(value_type* ptr)
+	static void mem_free(value_type* ptr)
 	{
 		Element*	elem;
 		byte*		p = reinterpret_cast<byte*>(ptr + 1);
@@ -246,13 +246,12 @@ struct PoolManager {
 
 				if (!add_pool(n_pools)) {
 
-					ib_logf(IB_LOG_LEVEL_ERROR,
-						"Failed to allocate memory for"
-						" a pool of size %lu bytes."
-						" Will wait for  %lu seconds"
-						" for a thread to free a"
-						" resource", (ulong) m_size,
-						(ulong) delay);
+					ib::error() << "Failed to allocate"
+						" memory for a pool of size "
+						<< m_size << " bytes. Will"
+						" wait for " << delay
+						<< " seconds for a thread to"
+						" free a resource";
 
 					/* There is nothing much we can do
 					except crash and burn, however lets
@@ -276,9 +275,9 @@ struct PoolManager {
 		return(ptr);
 	}
 
-	static void free(value_type* ptr)
+	static void mem_free(value_type* ptr)
 	{
-		PoolType::free(ptr);
+		PoolType::mem_free(ptr);
 	}
 
 private:
@@ -308,9 +307,8 @@ private:
 
 				m_pools.push_back(pool);
 
-				ib_logf(IB_LOG_LEVEL_INFO,
-					"Number of pools: %lu",
-					(ulong) m_pools.size());
+				ib::info() << "Number of pools: "
+					<< m_pools.size();
 
 				added = true;
 			}

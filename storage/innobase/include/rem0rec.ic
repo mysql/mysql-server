@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -136,7 +136,6 @@ and the shift needed to obtain each bit-field of the record. */
 
 /***********************************************************//**
 Sets the value of the ith field SQL null bit of an old-style record. */
-
 void
 rec_set_nth_field_null_bit(
 /*=======================*/
@@ -146,7 +145,6 @@ rec_set_nth_field_null_bit(
 /***********************************************************//**
 Sets an old-style record field to SQL null.
 The physical size of the field is not changed. */
-
 void
 rec_set_nth_field_sql_null(
 /*=======================*/
@@ -1608,7 +1606,7 @@ rec_get_converted_size(
 	ut_ad(dtuple);
 	ut_ad(dtuple_check_typed(dtuple));
 
-	ut_ad(dict_index_is_univ(index)
+	ut_ad(dict_index_is_ibuf(index)
 	      || dtuple_get_n_fields(dtuple)
 	      == (((dtuple_get_info_bits(dtuple) & REC_NEW_STATUS_MASK)
 		   == REC_STATUS_NODE_PTR)
@@ -1638,7 +1636,7 @@ rec_get_converted_size(
 	support multiple page sizes.  At that time, we will need
 	to consider the node pointer on these universal btrees. */
 
-	if (dict_index_is_univ(index)) {
+	if (dict_index_is_ibuf(index)) {
 		/* This is for the insert buffer B-tree.
 		All fields in the leaf tuple ascend to the
 		parent node plus the child page pointer. */

@@ -46,8 +46,6 @@
 /* Some general useful functions */
 
 #define MYSQL_LEX 1
-#include "sql_priv.h"
-#include "unireg.h"                    // REQUIRED: for other includes
 #include "sql_partition.h"
 #include "key.h"                            // key_restore
 #include "sql_parse.h"                      // parse_sql
@@ -68,6 +66,7 @@
 #include "opt_range.h"                  // store_key_image_to_rec
 #include "sql_analyse.h"                // append_escaped
 #include "sql_alter.h"                  // Alter_table_ctx
+#include "log.h"
 
 #include <algorithm>
 using std::max;
@@ -1003,7 +1002,7 @@ static bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
   LEX *old_lex= thd->lex;
   LEX lex;
   st_select_lex_unit unit(CTX_NONE);
-  st_select_lex select(NULL, NULL, NULL, NULL, NULL, NULL, 0);
+  st_select_lex select(NULL, NULL, NULL, NULL, NULL, NULL);
   lex.new_static_query(&unit, &select);
 
   DBUG_ENTER("fix_fields_part_func");
@@ -1040,7 +1039,7 @@ static bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
 
     /*
       Restore agg_func and allow_sum_func,
-      fix_fields should not affect mysql_select later, see Bug#46923.
+      fix_fields should not affect the optimizer later, see Bug#46923.
     */
     thd->lex->current_select()->set_agg_func_used(save_agg_func);
     thd->lex->allow_sum_func= saved_allow_sum_func;
@@ -2748,7 +2747,7 @@ bool partition_key_modified(TABLE *table, const MY_BITMAP *fields)
     part_val_int()
     item_expr                 The item expression to evaluate
     out:result                The value of the partition function,
-                                LONGLONG_MIN if any null value in function
+                                LLONG_MIN if any null value in function
   RETURN VALUES
     TRUE      Error in val_int()
     FALSE     ok
@@ -2762,7 +2761,7 @@ static inline int part_val_int(Item *item_expr, longlong *result)
     if (current_thd->is_error())
       return TRUE;
     else
-      *result= LONGLONG_MIN;
+      *result= LLONG_MIN;
   }
   return FALSE;
 }
@@ -4347,7 +4346,7 @@ bool mysql_unpack_partition(THD *thd,
   LEX *old_lex= thd->lex;
   LEX lex;
   st_select_lex_unit unit(CTX_NONE);
-  st_select_lex select(NULL, NULL, NULL, NULL, NULL, NULL, 0);
+  st_select_lex select(NULL, NULL, NULL, NULL, NULL, NULL);
   lex.new_static_query(&unit, &select);
 
   sql_digest_state *parent_digest= thd->m_digest;
@@ -4630,6 +4629,36 @@ error:
 
 
 /**
+  Set part_state for all partitions to given state.
+
+  @param tab_part_info  partition_info holding all partitions.
+  @param part_state     Which state to set for the named partitions.
+*/
+
+void set_all_part_state(partition_info *tab_part_info,
+                        enum partition_state part_state)
+{
+  uint part_count= 0;
+  List_iterator<partition_element> part_it(tab_part_info->partitions);
+
+  do
+  {
+    partition_element *part_elem= part_it++;
+    part_elem->part_state= part_state;
+    if (tab_part_info->is_sub_partitioned())
+    {
+      List_iterator<partition_element> sub_it(part_elem->subpartitions);
+      partition_element *sub_elem;
+      while ((sub_elem= sub_it++))
+      {
+        sub_elem->part_state= part_state;
+      }
+    }
+  } while (++part_count < tab_part_info->num_parts);
+}
+
+
+/**
   Sets which partitions to be used in the command.
 
   @param alter_info     Alter_info pointer holding partition names and flags.
@@ -4695,20 +4724,7 @@ bool set_part_state(Alter_info *alter_info,
       !(alter_info->flags & Alter_info::ALTER_ALL_PARTITION))
   {
     /* Not all given partitions found, revert and return failure */
-    part_it.rewind();
-    part_count= 0;
-    do
-    {
-      partition_element *part_elem= part_it++;
-      if (tab_part_info->is_sub_partitioned())
-      {
-        List_iterator<partition_element> sub_it(part_elem->subpartitions);
-        partition_element *sub_elem;
-        while ((sub_elem= sub_it++))
-	  sub_elem->part_state= PART_NORMAL;
-      }
-      part_elem->part_state= PART_NORMAL;
-    } while (++part_count < tab_part_info->num_parts);
+    set_all_part_state(tab_part_info, PART_NORMAL);
     return true;
   }
   return false;
@@ -5066,7 +5082,7 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
       alt_part_info->part_type= tab_part_info->part_type;
       alt_part_info->subpart_type= tab_part_info->subpart_type;
       if (alt_part_info->set_up_defaults_for_partitioning(table->file,
-                                                    ULL(0),
+                                                    0ULL,
                                                     tab_part_info->num_parts))
       {
         goto err;
@@ -5486,7 +5502,7 @@ state of p1.
       /* We specified partitions explicitly so don't use defaults anymore. */
       tab_part_info->use_default_partitions= FALSE;
       if (alt_part_info->set_up_defaults_for_partitioning(table->file,
-                                                          ULL(0),
+                                                          0ULL,
                                                           0))
       {
         goto err;
@@ -5620,7 +5636,7 @@ the generated partition syntax in a correct manner.
         tab_part_info->use_default_num_subpartitions= FALSE;
       }
       if (tab_part_info->check_partition_info(thd, (handlerton**)NULL,
-                                              table->file, ULL(0), TRUE))
+                                              table->file, 0ULL, TRUE))
       {
         goto err;
       }

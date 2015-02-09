@@ -53,6 +53,14 @@ public:
   }
 
 
+  void forget_buffer(void *buf)
+  {
+    if (bg_result_buf == buf)
+      bg_result_buf= NULL;
+    bg_results.erase_unique(buf);
+  }
+
+
   /* Free intermediate result buffers accumulated during GIS calculation. */
   void free_intermediate_result_buffers()
   {
@@ -424,7 +432,7 @@ public:
   const char *func_name() const { return "st_pointfromgeohash"; }
   String *val_str(String *);
   bool fix_fields(THD *thd, Item **ref);
-  Field::geometry_type get_geometry_type() const 
+  Field::geometry_type get_geometry_type() const
   {
     return Field::GEOM_POINT;
   };
@@ -973,7 +981,7 @@ public:
   {
     /*
       Either operand can be an empty geometry collection, and it's meaningless
-      for a distance between them. 
+      for a distance between them.
     */
     maybe_null= true;
   }

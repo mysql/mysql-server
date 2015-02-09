@@ -7,8 +7,10 @@ SET @saved_value= @@GLOBAL.slave_preserve_commit_order;
 --echo # Verify it can be queried corrected in different ways.
 --echo #
 SELECT @@GLOBAL.slave_preserve_commit_order;
+--disable_warnings
 SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE
   VARIABLE_NAME = 'slave_preserve_commit_order';
+--enable_warnings
 SHOW GLOBAL VARIABLES LIKE 'slave_preserve_commit_order';
 
 --echo #
@@ -16,8 +18,10 @@ SHOW GLOBAL VARIABLES LIKE 'slave_preserve_commit_order';
 --echo #
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SELECT @@SESSION.slave_preserve_commit_order;
+--disable_warnings
 SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE
   VARIABLE_NAME = 'slave_preserve_commit_order';
+--enable_warnings
 SHOW SESSION VARIABLES LIKE 'slave_preserve_commit_order';
 
 --error ER_GLOBAL_VARIABLE
@@ -29,8 +33,10 @@ SELECT @@global.slave_preserve_commit_order;
 --echo #
 SET GLOBAL slave_preserve_commit_order= true;
 SELECT @@global.slave_preserve_commit_order;
+--disable_warnings
 SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE
   VARIABLE_NAME = 'slave_preserve_commit_order';
+--enable_warnings
 
 SET GLOBAL slave_preserve_commit_order= false;
 SELECT @@global.slave_preserve_commit_order;

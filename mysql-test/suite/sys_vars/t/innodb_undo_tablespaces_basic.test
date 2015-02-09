@@ -18,11 +18,8 @@
 
 --source include/have_innodb.inc
 
-####################################################################
-#   Display default value                                          #
-####################################################################
-SELECT @@GLOBAL.innodb_undo_tablespaces;
---echo 0 Expected
+SELECT @@GLOBAL.innodb_undo_tablespaces >= 0;
+let $undo_tablespaces=`SELECT @@GLOBAL.innodb_undo_tablespaces`;
 
 
 ####################################################################
@@ -41,9 +38,13 @@ SELECT COUNT(@@GLOBAL.innodb_undo_tablespaces);
 # Check if the value in GLOBAL table matches value in variable                 #
 ################################################################################
 
-SELECT VARIABLE_VALUE
+--disable_warnings
+--disable_query_log
+eval SELECT VARIABLE_VALUE-$undo_tablespaces DIFFERENCE
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
 WHERE VARIABLE_NAME='innodb_undo_tablespaces';
+--enable_query_log
+--enable_warnings
 --echo 0 Expected
 
 

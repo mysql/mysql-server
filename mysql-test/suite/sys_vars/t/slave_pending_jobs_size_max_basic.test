@@ -11,8 +11,10 @@ eval select @@session.$var;
 
 eval show global variables like '$var';
 eval show session variables like '$var';
+--disable_warnings
 select * from information_schema.global_variables where variable_name='$var';
 select * from information_schema.session_variables where variable_name='$var';
+--enable_warnings
 
 #
 # show that it's writable

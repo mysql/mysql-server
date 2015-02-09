@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -53,7 +53,6 @@ sync_array_get_and_reserve_cell(
 /******************************************************************//**
 Reserves a wait array cell for waiting for an object.
 The event of the cell is reset to nonsignalled state. */
-
 sync_cell_t*
 sync_array_reserve_cell(
 	sync_array_t*	arr,	/*!< in: wait array */
@@ -67,7 +66,6 @@ This function should be called when a thread starts to wait on
 a wait array cell. In the debug version this function checks
 if the wait for a semaphore will result in a deadlock, in which
 case prints info and asserts. */
-
 void
 sync_array_wait_event(
 	sync_array_t*	arr,	/*!< in: wait array */
@@ -76,7 +74,6 @@ sync_array_wait_event(
 /******************************************************************//**
 Frees the cell. NOTE! sync_array_wait_event frees the cell
 automatically! */
-
 void
 sync_array_free_cell(
 	sync_array_t*	arr,	/*!< in: wait array */
@@ -84,7 +81,6 @@ sync_array_free_cell(
 
 /**********************************************************************//**
 Note that one of the wait objects was signalled. */
-
 void
 sync_array_object_signalled();
 
@@ -92,14 +88,12 @@ sync_array_object_signalled();
 If the wakeup algorithm does not work perfectly at semaphore relases,
 this function will do the waking (see the comment in mutex_exit). This
 function should be called about every 1 second in the server. */
-
 void
 sync_arr_wake_threads_if_sema_free();
 
 /**********************************************************************//**
 Prints warnings of long semaphore waits to stderr.
 @return TRUE if fatal semaphore wait threshold was exceeded */
-
 ibool
 sync_array_print_long_waits(
 	os_thread_id_t*	waiter,	/*!< out: longest waiting thread */
@@ -108,28 +102,24 @@ sync_array_print_long_waits(
 /********************************************************************//**
 Validates the integrity of the wait array. Checks
 that the number of reserved cells equals the count variable. */
-
 void
 sync_array_validate(
 	sync_array_t*	arr);	/*!< in: sync wait array */
 
 /**********************************************************************//**
 Prints info of the wait array. */
-
 void
 sync_array_print(
 	FILE*		file);	/*!< in: file where to print */
 
 /**********************************************************************//**
 Create the primary system wait array(s), they are protected by an OS mutex */
-
 void
 sync_array_init(
 	ulint		n_threads);	/*!< in: Number of slots to create */
 
 /**********************************************************************//**
 Close sync array wait sub-system. */
-
 void
 sync_array_close();
 

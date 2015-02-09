@@ -304,6 +304,12 @@ static buf_pool_chunk_map_t*			buf_chunk_map_reg;
 The map pointed by this should not be updated */
 static buf_pool_chunk_map_t*	buf_chunk_map_ref = NULL;
 
+#ifdef UNIV_DEBUG
+/** Protect reference for buf_chunk_map_ref from deleting map,
+because the reference can be caused by debug assertion code. */
+static rw_lock_t	buf_chunk_map_latch;
+#endif /* UNIV_DEBUG */
+
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /** This is used to insert validation operations in execution
 in the debug version */
@@ -350,7 +356,6 @@ buf_pool_register_chunk(
 Gets the smallest oldest_modification lsn for any page in the pool. Returns
 zero if all modified pages have been flushed to disk.
 @return oldest modification in pool, zero if none */
-
 lsn_t
 buf_pool_get_oldest_modification(void)
 /*==================================*/
@@ -403,7 +408,6 @@ buf_pool_get_oldest_modification(void)
 
 /********************************************************************//**
 Get total buffer pool statistics. */
-
 void
 buf_get_total_list_len(
 /*===================*/
@@ -430,7 +434,6 @@ buf_get_total_list_len(
 
 /********************************************************************//**
 Get total list size in bytes from all buffer pools. */
-
 void
 buf_get_total_list_size_in_bytes(
 /*=============================*/
@@ -456,7 +459,6 @@ buf_get_total_list_size_in_bytes(
 
 /********************************************************************//**
 Get total buffer pool statistics. */
-
 void
 buf_get_total_stat(
 /*===============*/
@@ -490,7 +492,6 @@ buf_get_total_stat(
 /********************************************************************//**
 Allocates a buffer block.
 @return own: the allocated block, in state BUF_BLOCK_MEMORY */
-
 buf_block_t*
 buf_block_alloc(
 /*============*/
@@ -633,9 +634,14 @@ buf_page_is_corrupted(
 	checksum_field2 = mach_read_from_4(
 		read_buf + page_size.logical() - FIL_PAGE_END_LSN_OLD_CHKSUM);
 
+#if FIL_PAGE_LSN % 8
+#error "FIL_PAGE_LSN must be 64 bit aligned"
+#endif
+
 	/* declare empty pages non-corrupted */
 	if (checksum_field1 == 0 && checksum_field2 == 0
-	    && mach_read_from_4(read_buf + FIL_PAGE_LSN) == 0) {
+	    && *reinterpret_cast<const ib_uint64_t*>(read_buf +
+						     FIL_PAGE_LSN) == 0) {
 		/* make sure that the page is really empty */
 
 #ifdef UNIV_INNOCHECKSUM
@@ -1045,9 +1051,10 @@ buf_page_print(
 #ifndef UNIV_HOTBACKUP
 		index = dict_index_find_on_id_low(index_id);
 		if (index) {
-			fputs("InnoDB: (", stderr);
-			dict_index_name_print(stderr, NULL, index);
-			fputs(")\n", stderr);
+			ib::info()
+				<< "Index " << index_id
+				<< " is " << index->name
+				<< " in table " << index->table->name;
 		}
 #endif /* !UNIV_HOTBACKUP */
 		break;
@@ -1178,9 +1185,9 @@ buf_block_init(
 	block->page.file_page_was_freed = FALSE;
 #endif /* UNIV_DEBUG_FILE_ACCESSES || UNIV_DEBUG */
 
-	block->check_index_page_at_flush = FALSE;
 	block->index = NULL;
 	block->made_dirty_with_no_latch = false;
+	block->skip_flush_check = false;
 
 #ifdef UNIV_DEBUG
 	block->page.in_page_hash = FALSE;
@@ -1346,7 +1353,6 @@ buf_chunk_contains_zip(
 Finds a block in the buffer pool that points to a
 given compressed page.
 @return buffer block pointing to the compressed page, or NULL */
-
 buf_block_t*
 buf_pool_contains_zip(
 /*==================*/
@@ -1449,7 +1455,6 @@ buf_pool_set_sizes(void)
 /********************************************************************//**
 Initialize a buffer pool instance.
 @return DB_SUCCESS if all goes well. */
-
 ulint
 buf_pool_init_instance(
 /*===================*/
@@ -1665,7 +1670,6 @@ buf_pool_free_instance(
 /********************************************************************//**
 Creates the buffer pool.
 @return DB_SUCCESS if success, DB_ERROR if not enough memory or error */
-
 dberr_t
 buf_pool_init(
 /*==========*/
@@ -1687,6 +1691,11 @@ buf_pool_init(
 		n_instances * sizeof *buf_pool_ptr);
 
 	buf_chunk_map_reg = UT_NEW_NOKEY(buf_pool_chunk_map_t());
+
+#ifdef UNIV_DEBUG
+	rw_lock_create(buf_chunk_map_latch_key, &buf_chunk_map_latch,
+		       SYNC_ANY_LATCH);
+#endif /* UNIV_DEBUG */
 
 	for (i = 0; i < n_instances; i++) {
 		buf_pool_t*	ptr	= &buf_pool_ptr[i];
@@ -1713,7 +1722,6 @@ buf_pool_init(
 /********************************************************************//**
 Frees the buffer pool at shutdown.  This must not be invoked before
 freeing all mutexes. */
-
 void
 buf_pool_free(
 /*==========*/
@@ -1722,6 +1730,10 @@ buf_pool_free(
 	for (ulint i = 0; i < n_instances; i++) {
 		buf_pool_free_instance(buf_pool_from_array(i));
 	}
+
+#ifdef UNIV_DEBUG
+	rw_lock_free(&buf_chunk_map_latch);
+#endif /* UNIV_DEBUG */
 
 	UT_DELETE(buf_chunk_map_reg);
 	buf_chunk_map_reg = buf_chunk_map_ref = NULL;
@@ -1835,8 +1847,6 @@ buf_page_realloc(
 		}
 
 		/* set other flags of buf_block_t */
-		new_block->check_index_page_at_flush
-			= block->check_index_page_at_flush;
 
 		ut_ad(!block->index);
 		new_block->index	= NULL;
@@ -1897,7 +1907,6 @@ buf_resize_status(
 @param[in]	buf_pool	buffer pool instance
 @param[in]	block		pointer to control block
 @retval true	if will be withdrawn */
-
 bool
 buf_block_will_withdrawn(
 	buf_pool_t*		buf_pool,
@@ -1926,7 +1935,6 @@ buf_block_will_withdrawn(
 @param[in]	buf_pool	buffer pool instance
 @param[in]	ptr		pointer to a frame
 @retval true	if will be withdrawn */
-
 bool
 buf_frame_will_withdrawn(
 	buf_pool_t*	buf_pool,
@@ -2163,6 +2171,8 @@ buf_pool_withdraw_blocks(
 
 	/* retry is not needed */
 	++buf_withdraw_clock;
+	os_wmb;
+
 	return(false);
 }
 
@@ -2248,7 +2258,6 @@ buf_pool_resize_hash(
 
 /** Resize the buffer pool based on srv_buf_pool_size from
 srv_buf_pool_old_size. */
-
 void
 buf_pool_resize()
 {
@@ -2635,7 +2644,14 @@ withdraw_retry:
 		}
 	}
 
+#ifdef UNIV_DEBUG
+	rw_lock_x_lock(&buf_chunk_map_latch);
+#endif /* UNIV_DEBUG */
 	UT_DELETE(chunk_map_old);
+#ifdef UNIV_DEBUG
+	rw_lock_x_unlock(&buf_chunk_map_latch);
+#endif /* UNIV_DEBUG */
+
 	buf_pool_resizing = false;
 
 	/* Normalize other components, if the new size is too different */
@@ -2740,7 +2756,6 @@ DECLARE_THREAD(buf_resize_thread)(
 
 /********************************************************************//**
 Clears the adaptive hash index on all pages in the buffer pool. */
-
 void
 buf_pool_clear_hash_index(void)
 /*===========================*/
@@ -3190,7 +3205,6 @@ buf_pool_watch_occurred(
 Moves a page to the start of the buffer pool LRU list. This high-level
 function can be used to prevent an important page from slipping out of
 the buffer pool. */
-
 void
 buf_page_make_young(
 /*================*/
@@ -3465,9 +3479,9 @@ buf_block_init_low(
 /*===============*/
 	buf_block_t*	block)	/*!< in: block to init */
 {
-	block->check_index_page_at_flush = FALSE;
 	block->index		= NULL;
 	block->made_dirty_with_no_latch = false;
+	block->skip_flush_check = false;
 
 	block->n_hash_helps	= 0;
 	block->n_fields		= 1;
@@ -3478,7 +3492,6 @@ buf_block_init_low(
 /********************************************************************//**
 Decompress a block.
 @return TRUE if successful */
-
 ibool
 buf_zip_decompress(
 /*===============*/
@@ -3545,7 +3558,6 @@ buf_zip_decompress(
 /*******************************************************************//**
 Gets the block to whose frame the pointer is pointing to.
 @return pointer to block, never NULL */
-
 buf_block_t*
 buf_block_align(
 /*============*/
@@ -3567,6 +3579,9 @@ buf_block_align(
 
 	ulint	counter = 0;
 retry:
+#ifdef UNIV_DEBUG
+	rw_lock_s_lock(&buf_chunk_map_latch);
+#endif /* UNIV_DEBUG */
 	buf_pool_chunk_map_t*	chunk_map = buf_chunk_map_ref;
 
 	if (ptr < reinterpret_cast<byte*>(srv_buf_pool_chunk_unit)) {
@@ -3577,6 +3592,9 @@ retry:
 	}
 
 	if (it == chunk_map->end()) {
+#ifdef UNIV_DEBUG
+		rw_lock_s_unlock(&buf_chunk_map_latch);
+#endif /* UNIV_DEBUG */
 		/* The block should always be found. */
 		++counter;
 		ut_a(counter < 10);
@@ -3585,6 +3603,10 @@ retry:
 	}
 
 	buf_chunk_t*	chunk = it->second;
+#ifdef UNIV_DEBUG
+	rw_lock_s_unlock(&buf_chunk_map_latch);
+#endif /* UNIV_DEBUG */
+
 	ulint		offs = ptr - chunk->blocks->frame;
 
 	offs >>= UNIV_PAGE_SIZE_SHIFT;
@@ -3694,7 +3716,6 @@ buf_pointer_is_block_field_instance(
 Find out if a pointer belongs to a buf_block_t. It can be a pointer to
 the buf_block_t itself or a member of it
 @return TRUE if ptr belongs to a buf_block_t struct */
-
 ibool
 buf_pointer_is_block_field(
 /*=======================*/
@@ -4416,7 +4437,6 @@ got_block:
 This is the general function used to get optimistic access to a database
 page.
 @return TRUE if success */
-
 ibool
 buf_page_optimistic_get(
 /*====================*/
@@ -4536,7 +4556,6 @@ This is used to get access to a known database page, when no waiting can be
 done. For example, if a search in an adaptive hash index leads us to this
 frame.
 @return TRUE if success */
-
 ibool
 buf_page_get_known_nowait(
 /*======================*/
@@ -4852,8 +4871,6 @@ and the lock released later.
 @param[in]	mode			BUF_READ_IBUF_PAGES_ONLY, ...
 @param[in]	page_id			page id
 @param[in]	unzip			TRUE=request uncompressed page
-@param[in]	tablespace_version	prevents reading from a wrong version
-of the tablespace in case we have done DISCARD + IMPORT
 @return pointer to the block or NULL */
 buf_page_t*
 buf_page_init_for_read(
@@ -4861,8 +4878,7 @@ buf_page_init_for_read(
 	ulint			mode,
 	const page_id_t&	page_id,
 	const page_size_t&	page_size,
-	ibool			unzip,
-	int64_t			tablespace_version)
+	ibool			unzip)
 {
 	buf_block_t*	block;
 	buf_page_t*	bpage	= NULL;
@@ -4912,7 +4928,6 @@ buf_page_init_for_read(
 	if (watch_page && !buf_pool_watch_is_sentinel(buf_pool, watch_page)) {
 		/* The page is already in the buffer pool. */
 		watch_page = NULL;
-err_exit:
 		rw_lock_x_unlock(hash_lock);
 		if (block) {
 			buf_page_mutex_enter(block);
@@ -4922,15 +4937,6 @@ err_exit:
 
 		bpage = NULL;
 		goto func_exit;
-	}
-
-	if (fil_tablespace_deleted_or_being_deleted_in_mem(
-		    page_id.space(), tablespace_version)) {
-		/* The page belongs to a space which has been
-		deleted or is being deleted. */
-		*err = DB_TABLESPACE_DELETED;
-
-		goto err_exit;
 	}
 
 	if (block) {
@@ -5292,49 +5298,49 @@ buf_page_monitor(
 		}
 		break;
 
-        case FIL_PAGE_UNDO_LOG:
+	case FIL_PAGE_UNDO_LOG:
 		counter = MONITOR_RW_COUNTER(io_type, MONITOR_UNDO_LOG_PAGE);
 		break;
 
-        case FIL_PAGE_INODE:
+	case FIL_PAGE_INODE:
 		counter = MONITOR_RW_COUNTER(io_type, MONITOR_INODE_PAGE);
 		break;
 
-        case FIL_PAGE_IBUF_FREE_LIST:
+	case FIL_PAGE_IBUF_FREE_LIST:
 		counter = MONITOR_RW_COUNTER(io_type,
 					     MONITOR_IBUF_FREELIST_PAGE);
 		break;
 
-        case FIL_PAGE_IBUF_BITMAP:
+	case FIL_PAGE_IBUF_BITMAP:
 		counter = MONITOR_RW_COUNTER(io_type,
 					     MONITOR_IBUF_BITMAP_PAGE);
 		break;
 
-        case FIL_PAGE_TYPE_SYS:
+	case FIL_PAGE_TYPE_SYS:
 		counter = MONITOR_RW_COUNTER(io_type, MONITOR_SYSTEM_PAGE);
 		break;
 
-        case FIL_PAGE_TYPE_TRX_SYS:
+	case FIL_PAGE_TYPE_TRX_SYS:
 		counter = MONITOR_RW_COUNTER(io_type, MONITOR_TRX_SYSTEM_PAGE);
 		break;
 
-        case FIL_PAGE_TYPE_FSP_HDR:
+	case FIL_PAGE_TYPE_FSP_HDR:
 		counter = MONITOR_RW_COUNTER(io_type, MONITOR_FSP_HDR_PAGE);
 		break;
 
-        case FIL_PAGE_TYPE_XDES:
+	case FIL_PAGE_TYPE_XDES:
 		counter = MONITOR_RW_COUNTER(io_type, MONITOR_XDES_PAGE);
 		break;
 
-        case FIL_PAGE_TYPE_BLOB:
+	case FIL_PAGE_TYPE_BLOB:
 		counter = MONITOR_RW_COUNTER(io_type, MONITOR_BLOB_PAGE);
 		break;
 
-        case FIL_PAGE_TYPE_ZBLOB:
+	case FIL_PAGE_TYPE_ZBLOB:
 		counter = MONITOR_RW_COUNTER(io_type, MONITOR_ZBLOB_PAGE);
 		break;
 
-        case FIL_PAGE_TYPE_ZBLOB2:
+	case FIL_PAGE_TYPE_ZBLOB2:
 		counter = MONITOR_RW_COUNTER(io_type, MONITOR_ZBLOB2_PAGE);
 		break;
 
@@ -5397,7 +5403,6 @@ buf_mark_space_corrupt(
 Completes an asynchronous read or write request of a file page to or from
 the buffer pool.
 @return true if successful */
-
 bool
 buf_page_io_complete(
 /*=================*/
@@ -5727,7 +5732,6 @@ buf_pool_invalidate_instance(
 Invalidates the file pages in the buffer pool when an archive recovery is
 completed. All the file pages buffered must be in a replaceable state when
 this function is called: not latched and not modified. */
-
 void
 buf_pool_invalidate(void)
 /*=====================*/
@@ -5975,7 +5979,6 @@ assert_s_latched:
 /*********************************************************************//**
 Validates the buffer buf_pool data structure.
 @return TRUE */
-
 ibool
 buf_validate(void)
 /*==============*/
@@ -6080,10 +6083,8 @@ buf_print_instance(
 		} else {
 			ib::info() << "Block count for index " << index_ids[i]
 				<< " in buffer is about " << counts[i]
-				<< ", index "
-				<< ut_get_name(NULL, FALSE, index->name)
-				<< " of table "
-				<< ut_get_name(NULL, TRUE, index->table_name);
+				<< ", index " << index->name
+				<< " of table " << index->table->name;
 		}
 	}
 
@@ -6095,7 +6096,6 @@ buf_print_instance(
 
 /*********************************************************************//**
 Prints info of the buffer buf_pool data structure. */
-
 void
 buf_print(void)
 /*===========*/
@@ -6115,7 +6115,6 @@ buf_print(void)
 /*********************************************************************//**
 Returns the number of latched pages in the buffer pool.
 @return number of latched pages */
-
 ulint
 buf_get_latched_pages_number_instance(
 /*==================================*/
@@ -6206,7 +6205,6 @@ buf_get_latched_pages_number_instance(
 /*********************************************************************//**
 Returns the number of latched pages in all the buffer pools.
 @return number of latched pages */
-
 ulint
 buf_get_latched_pages_number(void)
 /*==============================*/
@@ -6231,7 +6229,6 @@ buf_get_latched_pages_number(void)
 /*********************************************************************//**
 Returns the number of pending buf pool read ios.
 @return number of pending read I/O operations */
-
 ulint
 buf_get_n_pending_read_ios(void)
 /*============================*/
@@ -6249,7 +6246,6 @@ buf_get_n_pending_read_ios(void)
 Returns the ratio in percents of modified pages in the buffer pool /
 database pages in the buffer pool.
 @return modified page percentage ratio */
-
 double
 buf_get_modified_ratio_pct(void)
 /*============================*/
@@ -6329,7 +6325,6 @@ buf_stats_aggregate_pool_info(
 Collect buffer pool stats information for a buffer pool. Also
 record aggregated stats if there are more than one buffer pool
 in the server */
-
 void
 buf_stats_get_pool_info(
 /*====================*/
@@ -6464,7 +6459,6 @@ buf_stats_get_pool_info(
 
 /*********************************************************************//**
 Prints info of the buffer i/o. */
-
 void
 buf_print_io_instance(
 /*==================*/
@@ -6543,7 +6537,6 @@ buf_print_io_instance(
 
 /*********************************************************************//**
 Prints info of the buffer i/o. */
-
 void
 buf_print_io(
 /*=========*/
@@ -6607,7 +6600,6 @@ buf_print_io(
 
 /**********************************************************************//**
 Refreshes the statistics used to print per-second averages. */
-
 void
 buf_refresh_io_stats(
 /*=================*/
@@ -6619,7 +6611,6 @@ buf_refresh_io_stats(
 
 /**********************************************************************//**
 Refreshes the statistics used to print per-second averages. */
-
 void
 buf_refresh_io_stats_all(void)
 /*==========================*/
@@ -6636,7 +6627,6 @@ buf_refresh_io_stats_all(void)
 /**********************************************************************//**
 Check if all pages in all buffer pools are in a replacable state.
 @return FALSE if not */
-
 ibool
 buf_all_freed(void)
 /*===============*/
@@ -6658,7 +6648,6 @@ buf_all_freed(void)
 Checks that there currently are no pending i/o-operations for the buffer
 pool.
 @return number of pending i/o */
-
 ulint
 buf_pool_check_no_pending_io(void)
 /*==============================*/
@@ -6690,7 +6679,6 @@ Code currently not used
 /*********************************************************************//**
 Gets the current length of the free list of buffer blocks.
 @return length of the free list */
-
 ulint
 buf_get_free_list_len(void)
 /*=======================*/

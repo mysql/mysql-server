@@ -1,6 +1,6 @@
 call mtr.add_suppression("InnoDB: Cannot open table test/BUG29839 from");
 DROP TABLE IF EXISTS t1,T1;
-CREATE TABLE t1 (a INT);
+CREATE TABLE t1 (a INT) ENGINE=MYISAM;
 SELECT * FROM T1;
 a
 FLUSH TABLES;

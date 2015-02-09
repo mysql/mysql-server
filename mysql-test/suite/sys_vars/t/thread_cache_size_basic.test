@@ -15,16 +15,20 @@ select @@global.thread_cache_size;
 select @@session.thread_cache_size;
 show global variables like 'thread_cache_size';
 show session variables like 'thread_cache_size';
+--disable_warnings
 select * from information_schema.global_variables where variable_name='thread_cache_size';
 select * from information_schema.session_variables where variable_name='thread_cache_size';
+--enable_warnings
 
 #
 # show that it's writable
 #
 set global thread_cache_size=1;
 select @@global.thread_cache_size;
+--disable_warnings
 select * from information_schema.global_variables where variable_name='thread_cache_size';
 select * from information_schema.session_variables where variable_name='thread_cache_size';
+--enable_warnings
 --error ER_GLOBAL_VARIABLE
 set session thread_cache_size=1;
 #

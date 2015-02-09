@@ -262,7 +262,6 @@ row_log_block_free(
 
 /******************************************************//**
 Logs an operation to a secondary index that is (or was) being created. */
-
 void
 row_log_online_op(
 /*==============*/
@@ -400,7 +399,6 @@ err_exit:
 /******************************************************//**
 Gets the error status of the online index rebuild log.
 @return DB_SUCCESS or error code */
-
 dberr_t
 row_log_table_get_error(
 /*====================*/
@@ -521,7 +519,6 @@ err_exit:
 /******************************************************//**
 Logs a delete operation to a table that is being rebuilt.
 This will be merged in row_log_table_apply_delete(). */
-
 void
 row_log_table_delete(
 /*=================*/
@@ -727,7 +724,7 @@ row_log_table_low_redundant(
 
 	ut_ad(!page_is_comp(page_align(rec)));
 	ut_ad(dict_index_get_n_fields(index) == rec_get_n_fields_old(rec));
-	ut_ad(dict_tf_is_valid(index->table->flags));
+	ut_ad(dict_tf2_is_valid(index->table->flags, index->table->flags2));
 	ut_ad(!dict_table_is_comp(index->table));  /* redundant row format */
 	ut_ad(dict_index_is_clust(new_index));
 
@@ -931,7 +928,6 @@ row_log_table_low(
 /******************************************************//**
 Logs an update to a table that is being rebuilt.
 This will be merged in row_log_table_apply_update(). */
-
 void
 row_log_table_update(
 /*=================*/
@@ -1037,7 +1033,6 @@ Constructs the old PRIMARY KEY and DB_TRX_ID,DB_ROLL_PTR
 of a table that is being rebuilt.
 @return tuple of PRIMARY KEY,DB_TRX_ID,DB_ROLL_PTR in the rebuilt table,
 or NULL if the PRIMARY KEY definition does not change */
-
 const dtuple_t*
 row_log_table_get_pk(
 /*=================*/
@@ -1231,7 +1226,6 @@ func_exit:
 /******************************************************//**
 Logs an insert to a table that is being rebuilt.
 This will be merged in row_log_table_apply_insert(). */
-
 void
 row_log_table_insert(
 /*=================*/
@@ -1246,7 +1240,6 @@ row_log_table_insert(
 
 /******************************************************//**
 Notes that a BLOB is being freed during online ALTER TABLE. */
-
 void
 row_log_table_blob_free(
 /*====================*/
@@ -1293,7 +1286,6 @@ row_log_table_blob_free(
 
 /******************************************************//**
 Notes that a BLOB is being allocated during online ALTER TABLE. */
-
 void
 row_log_table_blob_alloc(
 /*=====================*/
@@ -2449,16 +2441,15 @@ row_log_table_apply_op(
 	return(next_mrec);
 }
 
-/******************************************************//**
-Applies operations to a table was rebuilt.
+/** Applies operations to a table was rebuilt.
+@param[in]	thr	query graph
+@param[in,out]	dup	for reporting duplicate key errors
 @return DB_SUCCESS, or error code on failure */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 row_log_table_apply_ops(
-/*====================*/
-	que_thr_t*	thr,	/*!< in: query graph */
-	row_merge_dup_t*dup)	/*!< in/out: for reporting duplicate key
-				errors */
+	que_thr_t*		thr,
+	row_merge_dup_t*	dup)
 {
 	dberr_t		error;
 	const mrec_t*	mrec		= NULL;
@@ -2532,9 +2523,8 @@ next_block:
 	if (UNIV_UNLIKELY(index->online_log->head.blocks
 			  > index->online_log->tail.blocks)) {
 unexpected_eof:
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Unexpected end of temporary file"
-			" for table %s", index->table_name);
+		ib::error() << "Unexpected end of temporary file for table "
+			<< index->table_name;
 corruption:
 		error = DB_CORRUPTION;
 		goto func_exit;
@@ -2594,9 +2584,8 @@ all_done:
 			srv_sort_buf_size);
 
 		if (!success) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Unable to read temporary file"
-				" for table %s", index->table_name);
+			ib::error() << "Unable to read temporary file"
+				" for table " << index->table_name;
 			goto corruption;
 		}
 
@@ -2797,23 +2786,23 @@ func_exit:
 	return(error);
 }
 
-/******************************************************//**
-Apply the row_log_table log to a table upon completing rebuild.
+/** Apply the row_log_table log to a table upon completing rebuild.
+@param[in]	thr		query graph
+@param[in]	old_table	old table
+@param[in,out]	table		MySQL table (for reporting duplicates)
 @return DB_SUCCESS, or error code on failure */
-
 dberr_t
 row_log_table_apply(
-/*================*/
-	que_thr_t*	thr,	/*!< in: query graph */
-	dict_table_t*	old_table,
-				/*!< in: old table */
-	struct TABLE*	table)	/*!< in/out: MySQL table
-				(for reporting duplicates) */
+	que_thr_t*		thr,
+	dict_table_t*		old_table,
+	struct TABLE*		table)
 {
 	dberr_t		error;
 	dict_index_t*	clust_index;
 
 	thr_get_trx(thr)->error_key_num = 0;
+	DBUG_EXECUTE_IF("innodb_trx_duplicates",
+			thr_get_trx(thr)->duplicates = TRX_DUP_REPLACE;);
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(!rw_lock_own(&dict_operation_lock, RW_LOCK_S));
@@ -2844,6 +2833,8 @@ row_log_table_apply(
 	}
 
 	rw_lock_x_unlock(dict_index_get_lock(clust_index));
+	DBUG_EXECUTE_IF("innodb_trx_duplicates",
+			thr_get_trx(thr)->duplicates = 0;);
 	return(error);
 }
 
@@ -2851,7 +2842,6 @@ row_log_table_apply(
 Allocate the row log for an index and flag the index
 for online creation.
 @retval true if success, false if not */
-
 bool
 row_log_allocate(
 /*=============*/
@@ -2911,7 +2901,6 @@ row_log_allocate(
 
 /******************************************************//**
 Free the row log for an index that was being created online. */
-
 void
 row_log_free(
 /*=========*/
@@ -2932,7 +2921,6 @@ row_log_free(
 Get the latest transaction ID that has invoked row_log_online_op()
 during online creation.
 @return latest transaction ID, or 0 if nothing was logged */
-
 trx_id_t
 row_log_get_max_trx(
 /*================*/
@@ -3324,7 +3312,7 @@ row_log_apply_ops(
 		+ dict_index_get_n_fields(index);
 
 	ut_ad(dict_index_is_online_ddl(index));
-	ut_ad(*index->name == TEMP_INDEX_PREFIX);
+	ut_ad(!index->is_committed());
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
@@ -3363,9 +3351,8 @@ next_block:
 	if (UNIV_UNLIKELY(index->online_log->head.blocks
 			  > index->online_log->tail.blocks)) {
 unexpected_eof:
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Unexpected end of temporary file for index %s",
-			index->name + 1);
+		ib::error() << "Unexpected end of temporary file for index "
+			<< index->name;
 corruption:
 		error = DB_CORRUPTION;
 		goto func_exit;
@@ -3421,9 +3408,8 @@ all_done:
 			srv_sort_buf_size);
 
 		if (!success) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Unable to read temporary file"
-				" for index %s", index->name + 1);
+			ib::error() << "Unable to read temporary file"
+				" for index " << index->name;
 			goto corruption;
 		}
 
@@ -3624,7 +3610,6 @@ func_exit:
 /******************************************************//**
 Apply the row log to the index upon completing index creation.
 @return DB_SUCCESS, or error code on failure */
-
 dberr_t
 row_log_apply(
 /*==========*/
@@ -3668,11 +3653,6 @@ row_log_apply(
 
 	log = index->online_log;
 	index->online_log = NULL;
-	/* We could remove the TEMP_INDEX_PREFIX and update the data
-	dictionary to say that this index is complete, if we had
-	access to the .frm file here.  If the server crashes before
-	all requested indexes have been created, this completed index
-	will be dropped. */
 	rw_lock_x_unlock(dict_index_get_lock(index));
 
 	row_log_free(log);

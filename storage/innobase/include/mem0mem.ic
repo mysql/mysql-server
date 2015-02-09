@@ -40,7 +40,6 @@ Created 6/8/1994 Heikki Tuuri
 Creates a memory heap block where data can be allocated.
 @return own: memory heap block, NULL if did not succeed (only possible
 for MEM_HEAP_BTR_SEARCH type heaps) */
-
 mem_block_t*
 mem_heap_create_block_func(
 /*=======================*/
@@ -56,7 +55,6 @@ mem_heap_create_block_func(
 
 /******************************************************************//**
 Frees a block from a memory heap. */
-
 void
 mem_heap_block_free(
 /*================*/
@@ -66,7 +64,6 @@ mem_heap_block_free(
 #ifndef UNIV_HOTBACKUP
 /******************************************************************//**
 Frees the free_block field from a memory heap. */
-
 void
 mem_heap_free_block_free(
 /*=====================*/
@@ -79,7 +76,6 @@ Adds a new block to a memory heap.
 @param[in]	n	number of bytes needed
 @return created block, NULL if did not succeed (only possible for
 MEM_HEAP_BTR_SEARCH type heaps) */
-
 mem_block_t*
 mem_heap_add_block(
 	mem_heap_t*	heap,

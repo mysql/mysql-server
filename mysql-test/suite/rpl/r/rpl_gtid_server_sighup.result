@@ -28,7 +28,6 @@ include/show_relaylog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000006	#	Previous_gtids	#	#	Gtid_set
 slave-relay-bin.000006	#	Format_desc	#	#	SERVER_VERSION, BINLOG_VERSION
-slave-relay-bin.000006	#	Rotate	#	#	master-bin.000003;pos=POS
 slave-relay-bin.000006	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
 slave-relay-bin.000006	#	Query	#	#	BEGIN
 slave-relay-bin.000006	#	Query	#	#	use `test`; DELETE FROM pid_table

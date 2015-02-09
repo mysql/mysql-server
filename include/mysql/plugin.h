@@ -135,8 +135,14 @@ enum enum_mysql_show_type
   SHOW_LONG,       ///< shown as _unsigned_ long
   SHOW_LONGLONG,   ///< shown as _unsigned_ longlong
   SHOW_CHAR, SHOW_CHAR_PTR,
-  SHOW_ARRAY, SHOW_FUNC, SHOW_DOUBLE,
-  SHOW_always_last
+  SHOW_ARRAY, SHOW_FUNC, SHOW_DOUBLE
+#ifdef MYSQL_SERVER
+  /*
+    This include defines server-only values of the enum.
+    Using them in plugins is not supported.
+  */
+  #include "sql_plugin_enum.h"
+#endif
 };
 
 struct st_mysql_show_var {
@@ -508,8 +514,8 @@ struct handlerton;
 /*
   API for Replication plugin. (MYSQL_REPLICATION_PLUGIN)
 */
- #define MYSQL_REPLICATION_INTERFACE_VERSION 0x0300
- 
+ #define MYSQL_REPLICATION_INTERFACE_VERSION 0x0400
+
  /**
     Replication plugin descriptor
  */
@@ -558,6 +564,8 @@ void **thd_ha_data(const MYSQL_THD thd, const struct handlerton *hton);
 void thd_storage_lock_wait(MYSQL_THD thd, long long value);
 int thd_tx_isolation(const MYSQL_THD thd);
 int thd_tx_is_read_only(const MYSQL_THD thd);
+MYSQL_THD thd_tx_arbitrate(MYSQL_THD requestor, MYSQL_THD holder);
+int thd_tx_priority(const MYSQL_THD thd);
 int thd_tx_is_dd_trx(const MYSQL_THD thd);
 char *thd_security_context(MYSQL_THD thd, char *buffer, size_t length,
                            size_t max_query_len);

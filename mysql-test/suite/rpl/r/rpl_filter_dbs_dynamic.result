@@ -8,6 +8,8 @@ ERROR HY000: This operation cannot be performed with a running slave sql thread;
 CHANGE REPLICATION FILTER replicate_ignore_db=(db2);
 ERROR HY000: This operation cannot be performed with a running slave sql thread; run STOP SLAVE SQL_THREAD first
 include/stop_slave.inc
+CHANGE REPLICATION FILTER replicate_do_db=();
+CHANGE REPLICATION FILTER replicate_ignore_db=();
 CHANGE REPLICATION FILTER replicate_do_db=(db1);
 CHANGE REPLICATION FILTER replicate_ignore_db=(db2);
 include/start_slave.inc

@@ -100,13 +100,23 @@ SELECT @@session.delayed_queue_size;
 # Check if the value in GLOBAL & SESSION Tables matches values in variable   #
 ##############################################################################
 
-SELECT @@global.delayed_queue_size = VARIABLE_VALUE 
+--disable_warnings
+SELECT VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
-WHERE VARIABLE_NAME='delayed_queue_size';
+WHERE VARIABLE_NAME='delayed_queue_size'
+into @tmp;
+--enable_warnings
 
-SELECT @@delayed_queue_size = VARIABLE_VALUE 
+SELECT @@global.delayed_queue_size = @tmp;
+
+--disable_warnings
+SELECT VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
-WHERE VARIABLE_NAME='delayed_queue_size';
+WHERE VARIABLE_NAME='delayed_queue_size'
+into @tmp;
+--enable_warnings
+
+SELECT @@delayed_queue_size = @tmp;
 
 
 --echo '#---------------------FN_DYNVARS_026_07----------------------#'

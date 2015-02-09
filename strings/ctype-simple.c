@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -78,20 +78,29 @@ my_strnxfrm_simple(const CHARSET_INFO *cs,
 {
   const uchar *map= cs->sort_order;
   uchar *d0= dst;
+  const uchar *end;
+  const uchar *remainder;
   size_t frmlen;
   if ((frmlen= MY_MIN(dstlen, nweights)) > srclen)
     frmlen= srclen;
-  if (dst != src)
+  end= src + frmlen;
+
+  // Do the first few bytes.
+  remainder= src + (frmlen % 8);
+  for (; src < remainder;)
+    *dst++= map[*src++];
+
+  // Unroll loop for rest of string.
+  for (; src < end;)
   {
-    const uchar *end;
-    for (end= src + frmlen; src < end;)
-      *dst++= map[*src++];
-  }
-  else
-  {
-    const uchar *end;
-    for (end= dst + frmlen; dst < end; dst++)
-      *dst= map[(uchar) *dst];
+    *dst++= map[*src++];
+    *dst++= map[*src++];
+    *dst++= map[*src++];
+    *dst++= map[*src++];
+    *dst++= map[*src++];
+    *dst++= map[*src++];
+    *dst++= map[*src++];
+    *dst++= map[*src++];
   }
   return my_strxfrm_pad_desc_and_reverse(cs, d0, dst, d0 + dstlen,
                                          (uint)(nweights - frmlen), flags, 0);
@@ -588,16 +597,16 @@ longlong my_strntoll_8bit(const CHARSET_INFO *cs __attribute__((unused)),
 
   if (negative)
   {
-    if (i  > (ulonglong) LONGLONG_MIN)
+    if (i  > (ulonglong) LLONG_MIN)
       overflow = 1;
   }
-  else if (i > (ulonglong) LONGLONG_MAX)
+  else if (i > (ulonglong) LLONG_MAX)
     overflow = 1;
 
   if (overflow)
   {
     err[0]= ERANGE;
-    return negative ? LONGLONG_MIN : LONGLONG_MAX;
+    return negative ? LLONG_MIN : LLONG_MAX;
   }
 
   return (negative ? -((longlong) i) : (longlong) i);
@@ -755,7 +764,7 @@ size_t my_long10_to_str_8bit(const CHARSET_INFO *cs __attribute__((unused)),
   {
     if (val < 0)
     {
-      /* Avoid integer overflow in (-val) for LONGLONG_MIN (BUG#31799). */
+      /* Avoid integer overflow in (-val) for LLONG_MIN (BUG#31799). */
       uval= (unsigned long int)0 - uval;
       *dst++= '-';
       len--;
@@ -795,7 +804,7 @@ size_t my_longlong10_to_str_8bit(const CHARSET_INFO *cs
   {
     if (val < 0)
     {
-      /* Avoid integer overflow in (-val) for LONGLONG_MIN (BUG#31799). */
+      /* Avoid integer overflow in (-val) for LLONG_MIN (BUG#31799). */
       uval = (ulonglong)0 - uval;
       *dst++= '-';
       len--;
@@ -1307,8 +1316,8 @@ int my_mb_ctype_8bit(const CHARSET_INFO *cs, int *ctype,
 }
 
 
-#define CUTOFF  (ULONGLONG_MAX / 10)
-#define CUTLIM  (ULONGLONG_MAX % 10)
+#define CUTOFF  (ULLONG_MAX / 10)
+#define CUTLIM  (ULLONG_MAX % 10)
 #define DIGITS_IN_ULONGLONG 20
 
 static ulonglong d10[DIGITS_IN_ULONGLONG]=
@@ -1383,10 +1392,10 @@ static ulonglong d10[DIGITS_IN_ULONGLONG]=
     0	     ok
     ERANGE   If the the value of the converted number is out of range
     In this case the return value is:
-    - ULONGLONG_MAX if unsigned_flag and the number was too big
+    - ULLONG_MAX if unsigned_flag and the number was too big
     - 0 if unsigned_flag and the number was negative
-    - LONGLONG_MAX if no unsigned_flag and the number is too big
-    - LONGLONG_MIN if no unsigned_flag and the number it too big negative
+    - LLONG_MAX if no unsigned_flag and the number is too big
+    - LLONG_MIN if no unsigned_flag and the number it too big negative
     
     EDOM If the string didn't contain any digits.
     In this case the return value is 0.
@@ -1466,7 +1475,7 @@ my_strntoull10rnd_8bit(const CHARSET_INFO *cs __attribute__((unused)),
       */
       if (ull == CUTOFF)
       {
-        ull= ULONGLONG_MAX;
+        ull= ULLONG_MAX;
         addon= 1;
         str++;
       }
@@ -1543,7 +1552,7 @@ exp:    /* [ E [ <sign> ] <unsigned integer> ] */
   {
     if (addon)
     {
-      if (ull == ULONGLONG_MAX)
+      if (ull == ULLONG_MAX)
         goto ret_too_big;
       ull++;
     }
@@ -1585,20 +1594,20 @@ ret_sign:
   {
     if (negative)
     {
-      if (ull > (ulonglong) LONGLONG_MIN)
+      if (ull > (ulonglong) LLONG_MIN)
       {
         *error= MY_ERRNO_ERANGE;
-        return (ulonglong) LONGLONG_MIN;
+        return (ulonglong) LLONG_MIN;
       }
       *error= 0;
       return (ulonglong) -(longlong) ull;
     }
     else
     {
-      if (ull > (ulonglong) LONGLONG_MAX)
+      if (ull > (ulonglong) LLONG_MAX)
       {
         *error= MY_ERRNO_ERANGE;
-        return (ulonglong) LONGLONG_MAX;
+        return (ulonglong) LLONG_MAX;
       }
       *error= 0;
       return ull;
@@ -1628,8 +1637,8 @@ ret_too_big:
   *endptr= (char*) str;
   *error= MY_ERRNO_ERANGE;
   return unsigned_flag ?
-         ULONGLONG_MAX :
-         negative ? (ulonglong) LONGLONG_MIN : (ulonglong) LONGLONG_MAX;
+         ULLONG_MAX :
+         negative ? (ulonglong) LLONG_MIN : (ulonglong) LLONG_MAX;
 }
 
 

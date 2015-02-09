@@ -61,13 +61,20 @@ static int socket_auth(MYSQL_PLUGIN_VIO *vio, MYSQL_SERVER_AUTH_INFO *info)
   if (cred_len != sizeof(cred))
     return CR_ERROR;
 
-  /* and find the username for this uid */
+  /* and find the socket user name for this uid */
   getpwuid_r(cred.uid, &pwd_buf, buf, sizeof(buf), &pwd);
   if (pwd == NULL)
     return CR_ERROR;
 
-  /* now it's simple as that */
-  return strcmp(pwd->pw_name, info->user_name) ? CR_ERROR : CR_OK;
+  /* fill in the external user name used */
+  strncpy(info->external_user, pwd->pw_name, sizeof(info->external_user) - 1);
+  info->external_user[sizeof(info->external_user) - 1]= 0;
+
+  if (!strcmp(pwd->pw_name, info->user_name) ||
+      !strcmp(pwd->pw_name, info->auth_string))
+    return CR_OK;
+  else
+    return CR_ERROR;
 }
 
 static struct st_mysql_auth socket_auth_handler=
@@ -87,7 +94,7 @@ mysql_declare_plugin(socket_auth)
   PLUGIN_LICENSE_GPL,
   NULL,
   NULL,
-  0x0100,
+  0x0101,
   NULL,
   NULL,
   NULL,

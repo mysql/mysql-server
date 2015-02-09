@@ -11741,7 +11741,7 @@ int ndbcluster_drop_database_impl(THD *thd, const char *path)
         ndb_fk_util_is_mock_name(elmt.name))
       continue;
     DBUG_PRINT("info", ("%s must be dropped", elmt.name));     
-    drop_list.push_back(thd->strdup(elmt.name));
+    drop_list.push_back(thd->mem_strdup(elmt.name));
   }
   // Drop any tables belonging to database
   char full_path[FN_REFLEN + 1];
@@ -11893,7 +11893,7 @@ ndbcluster_find_files(handlerton *hton, THD *thd,
         continue;
     }
     DBUG_PRINT("info", ("Inserting %s into ndb_tables hash", elmt.name));     
-    my_hash_insert(&ndb_tables, (uchar*)thd->strdup(elmt.name));
+    my_hash_insert(&ndb_tables, (uchar*)thd->mem_strdup(elmt.name));
   }
 
   LEX_STRING *file_name;
@@ -11984,7 +11984,7 @@ ndbcluster_find_files(handlerton *hton, THD *thd,
       }
       else
 	// Put in list of tables to remove from disk
-	delete_list.push_back(thd->strdup(file_name->str));
+	delete_list.push_back(thd->mem_strdup(file_name->str));
     }
   }
 
@@ -12021,7 +12021,7 @@ ndbcluster_find_files(handlerton *hton, THD *thd,
         // File is in list of ndb tables and not in ok_tables.
         // It is missing an frm file.
         // This table need to be created
-        create_list.push_back(thd->strdup(file_name_str));
+        create_list.push_back(thd->mem_strdup(file_name_str));
       }
     }
   }
@@ -15491,7 +15491,7 @@ Ndb_util_thread::do_run()
   thd->version=refresh_version;
 #endif
   thd->client_capabilities = 0;
-  thd->security_ctx->skip_grants();
+  thd->security_context()->skip_grants();
   my_net_init(&thd->net, 0);
 
   CHARSET_INFO *charset_connection;
@@ -16047,7 +16047,7 @@ ha_ndbcluster::set_range_data(const partition_info *part_info,
     if (range_val < INT_MIN32 || range_val >= INT_MAX32)
     {
       if ((i != num_parts - 1) ||
-          (range_val != LONGLONG_MAX))
+          (range_val != LLONG_MAX))
       {
         my_error(ER_LIMITED_PART_RANGE, MYF(0), "NDB");
         error= 1;

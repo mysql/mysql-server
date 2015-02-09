@@ -1,0 +1,38 @@
+# Tests for PERFORMANCE_SCHEMA
+
+# This test verifies the correct behaviour in case of invalid
+# usage of DMLs on the table replication_applier_configuration.
+
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+
+--disable_result_log
+SELECT * FROM performance_schema.replication_applier_configuration
+  LIMIT 1;
+
+sELECT * FROM performance_schema.replication_applier_configuration
+  WHERE desired_delay=12;
+--enable_result_log
+
+--error ER_TABLEACCESS_DENIED_ERROR
+INSERT INTO performance_schema.replication_applier_configuration
+  SET desired_delay=2;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+UPDATE performance_schema.replication_applier_configuration
+  SET desired_delay=12 WHERE desired_delay=2;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+DELETE FROM performance_schema.replication_applier_configuration
+  WHERE desired_delay=12;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+DELETE FROM performance_schema.replication_applier_configuration;
+
+-- error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.replication_applier_configuration READ;
+UNLOCK TABLES;
+
+-- error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.replication_applier_configuration WRITE;
+UNLOCK TABLES;

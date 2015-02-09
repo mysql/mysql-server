@@ -23,6 +23,7 @@ InnoDB R-tree related functions.
 Created 2013/03/27 Allen Lai and Jimmy Yang
 *******************************************************/
 
+#include "page0types.h"
 #include "gis0geo.h"
 #include "page0cur.h"
 #include "ut0rnd.h"
@@ -363,6 +364,13 @@ mbr_join_square(
 		b += 2;
 	} while (a != end);
 
+	/* Check for infinity or NaN, so we don't get NaN in calculations */
+	if (my_isinf(square)) {
+		return DBL_MAX;
+	}
+
+	ut_ad(!my_isnan(square));
+
 	return square;
 }
 
@@ -419,6 +427,9 @@ pick_seeds(
 
 	double			max_d = -DBL_MAX;
 	double			d;
+
+	*seed_a = node;
+	*seed_b = node + 1;
 
 	for (cur1 = node; cur1 < lim1; ++cur1) {
 		for (cur2 = cur1 + 1; cur2 < lim2; ++cur2) {
@@ -612,7 +623,7 @@ Return 0 on success, otherwise 1. */
 int
 rtree_key_cmp(
 /*==========*/
-	int		mode,	/*!< in: compare method. */
+	page_cur_mode_t	mode,	/*!< in: compare method. */
 	const uchar*	b,	/*!< in: first key. */
 	int		b_len,	/*!< in: first key len. */
 	const uchar*	a,	/*!< in: second key. */
@@ -724,7 +735,7 @@ rtree_area_increase(
 		are ignored. For example: 3.2884281489988079e+284 - 100 =
 		3.2884281489988079e+284. This results some area difference
 		are not detected */
-		if (loc_ab_area == a_area) { 
+		if (loc_ab_area == a_area) {
 			if (bmin < amin || bmax > amax) {
 				data_round *= ((double)std::max(amax, bmax)
 					       - amax

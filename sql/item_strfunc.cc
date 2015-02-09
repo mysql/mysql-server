@@ -31,8 +31,6 @@
 #include "sha2.h"
 #include "my_global.h"                          // HAVE_*
 
-
-#include "sql_priv.h"
 /*
   It is necessary to include set_var.h instead of item.h because there
   are dependencies on include order for set_var.h and item.h. This
@@ -52,6 +50,7 @@
 #include "my_aes.h"
 #include <zlib.h>
 #include "my_rnd.h"
+#include "strfunc.h"
 C_MODE_START
 #include "../mysys/my_static.h"			// For soundex_map
 C_MODE_END
@@ -306,7 +305,7 @@ String *Item_func_sha2::val_str_ascii(String *str)
     Since we're subverting the usual String methods, we must make sure that
     the destination has space for the bytes we're about to write.
   */
-  str->realloc((uint) digest_length*2 + 1); /* Each byte as two nybbles */
+  str->mem_realloc((uint) digest_length*2 + 1); /* Each byte as two nybbles */
 
   /* Convert the large number to a string-hex representation. */
   array_to_hex((char *) str->ptr(), digest_buf, digest_length);
@@ -562,9 +561,12 @@ bool Item_func_as_geojson::parse_options_argument()
 
   if (options_argument < 0 || options_argument > 7)
   {
-    char options_string[MAX_BIGINT_WIDTH];
-    llstr(options_argument, options_string);
-    
+    char options_string[MAX_BIGINT_WIDTH + 1];
+    if (args[2]->unsigned_flag)
+      ullstr(options_argument, options_string);
+    else
+      llstr(options_argument, options_string);
+
     my_error(ER_WRONG_VALUE_FOR_TYPE, MYF(0), "options", options_string,
              func_name());
     return true;
@@ -600,8 +602,11 @@ bool Item_func_as_geojson::parse_maxdecimaldigits_argument()
   if (max_decimal_digits_argument < 0 ||
       max_decimal_digits_argument > INT_MAX32)
   {
-    char max_decimal_digits_string[MAX_BIGINT_WIDTH];
-    llstr(max_decimal_digits_argument, max_decimal_digits_string);
+    char max_decimal_digits_string[MAX_BIGINT_WIDTH + 1];
+    if (args[1]->unsigned_flag)
+      ullstr(max_decimal_digits_argument, max_decimal_digits_string);
+    else
+      llstr(max_decimal_digits_argument, max_decimal_digits_string);
 
     my_error(ER_WRONG_VALUE_FOR_TYPE, MYF(0), "max decimal digits",
              max_decimal_digits_string, func_name());
@@ -1513,7 +1518,7 @@ String *Item_func_concat::val_str(String *str)
           {
             size_t new_len = max(tmp_value.alloced_length() * 2, concat_len);
 
-            if (tmp_value.realloc(new_len))
+            if (tmp_value.mem_realloc(new_len))
               goto null;
           }
         }
@@ -1621,14 +1626,14 @@ String *Item_func_des_encrypt::val_str(String *str)
 
   tail= 8 - (res_length % 8);                   // 1..8 marking extra length
   res_length+=tail;
-  tmp_arg.realloc(res_length);
+  tmp_arg.mem_realloc(res_length);
   tmp_arg.length(0);
   tmp_arg.append(res->ptr(), res->length());
   code= ER_OUT_OF_RESOURCES;
   if (tmp_arg.append(append_str, tail) || tmp_value.alloc(res_length+1))
     goto error;
   tmp_arg[res_length-1]=tail;                   // save extra length
-  tmp_value.realloc(res_length+1);
+  tmp_value.mem_realloc(res_length+1);
   tmp_value.length(res_length+1);
   tmp_value.set_charset(&my_charset_bin);
   tmp_value[0]=(char) (128 | key_number);
@@ -1679,7 +1684,7 @@ String *Item_func_des_decrypt::val_str(String *str)
   {
     uint key_number=(uint) (*res)[0] & 127;
     // Check if automatic key and that we have privilege to uncompress using it
-    if (!(current_thd->security_ctx->master_access & SUPER_ACL) ||
+    if (!(current_thd->security_context()->check_access(SUPER_ACL)) ||
         key_number > 9)
       goto error;
 
@@ -1863,7 +1868,7 @@ String *Item_func_concat_ws::val_str(String *str)
         {
           size_t new_len = max(tmp_value.alloced_length() * 2, concat_len);
 
-          if (tmp_value.realloc(new_len))
+          if (tmp_value.mem_realloc(new_len))
             goto null;
         }
       }
@@ -1917,7 +1922,7 @@ String *Item_func_reverse::val_str(String *str)
   if (!res->length())
     return make_empty_result();
   if (tmp_value.alloced_length() < res->length() &&
-      tmp_value.realloc(res->length()))
+      tmp_value.mem_realloc(res->length()))
   {
     null_value= 1;
     return 0;
@@ -2098,30 +2103,27 @@ String *Item_func_insert::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
   String *res,*res2;
-  longlong start, length;  /* must be longlong to avoid truncation */
+  longlong start, length, orig_len;  /* must be longlong to avoid truncation */
 
   null_value=0;
   res=args[0]->val_str(str);
-  // TODO: After fixing Bug#11765149, pls remove the following changes
-  // Copy result to avoid destroying constants
-  if (res && (res!= str))
-  {
-    str->set(*res, 0, res->length());
-    res= str;
-  }
-
   res2=args[3]->val_str(&tmp_value);
-  start= args[1]->val_int() - 1;
+  start= args[1]->val_int();
   length= args[2]->val_int();
 
   if (args[0]->null_value || args[1]->null_value || args[2]->null_value ||
       args[3]->null_value)
     goto null; /* purecov: inspected */
 
-  if ((start < 0) || (start > static_cast<longlong>(res->length())))
+  orig_len= static_cast<longlong>(res->length());
+
+  if ((start < 1) || (start > orig_len))
     return res;                                 // Wrong param; skip insert
-  if ((length < 0) || (length > static_cast<longlong>(res->length())))
-    length= res->length();
+
+  --start;    // Internal start from '0'
+
+  if ((length < 0) || (length > orig_len))
+    length= orig_len;
 
   /*
     There is one exception not handled (intentionaly) by the character set
@@ -2142,12 +2144,12 @@ String *Item_func_insert::val_str(String *str)
    length= res->charpos((int) length, (uint32) start);
 
   /* Re-testing with corrected params */
-  if (start > static_cast<longlong>(res->length()))
+  if (start > orig_len)
     return res; /* purecov: inspected */        // Wrong param; skip insert
-  if (length > static_cast<longlong>(res->length()) - start)
-    length= res->length() - start;
+  if (length > orig_len - start)
+    length= orig_len - start;
 
-  if ((ulonglong) (res->length() - length + res2->length()) >
+  if ((ulonglong) (orig_len - length + res2->length()) >
       (ulonglong) current_thd->variables.max_allowed_packet)
   {
     push_warning_printf(current_thd, Sql_condition::SL_WARNING,
@@ -2156,6 +2158,7 @@ String *Item_func_insert::val_str(String *str)
 			func_name(), current_thd->variables.max_allowed_packet);
     goto null;
   }
+  res= copy_if_not_alloced(str, res, orig_len);
   res->replace((uint32) start,(uint32) length,*res2);
   return res;
 null:
@@ -3016,8 +3019,8 @@ bool Item_func_user::itemize(Parse_context *pc, Item **res)
 bool Item_func_user::fix_fields(THD *thd, Item **ref)
 {
   return (Item_func_sysconst::fix_fields(thd, ref) ||
-          init(thd->main_security_ctx.user,
-               thd->main_security_ctx.host_or_ip));
+          init(thd->m_main_security_ctx.user().str,
+               thd->m_main_security_ctx.host_or_ip().str));
 }
 
 
@@ -3041,11 +3044,11 @@ bool Item_func_current_user::fix_fields(THD *thd, Item **ref)
   Security_context *ctx=
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
                          (context->security_ctx
-                          ? context->security_ctx : thd->security_ctx);
+                          ? context->security_ctx : thd->security_context());
 #else
-                         thd->security_ctx;
+                         thd->security_context();
 #endif /*NO_EMBEDDED_ACCESS_CHECKS*/
-  return init(ctx->priv_user, ctx->priv_host);
+  return init(ctx->priv_user().str, ctx->priv_host().str);
 }
 
 
@@ -3226,11 +3229,16 @@ bool Item_func_geohash::fix_fields(THD *thd, Item **ref)
     /*
       First argument expected to be a point and second argument is expected
       to be geohash output length.
+
+      PARAM_ITEM and the binary charset checks are to allow prepared statements
+      and usage of user-defined variables.
     */
     geohash_length_arg_index= 1;
     maybe_null= (args[0]->maybe_null || args[1]->maybe_null);
-    if (args[0]->field_type() != MYSQL_TYPE_GEOMETRY &&
-        args[0]->field_type() != MYSQL_TYPE_NULL)
+    if (!is_item_null(args[0]) &&
+        args[0]->field_type() != MYSQL_TYPE_GEOMETRY &&
+        args[0]->type() != PARAM_ITEM &&
+        args[0]->collation.collation != &my_charset_bin)
     {
       my_error(ER_INCORRECT_TYPE, MYF(0), "point", func_name());
       return true;
@@ -3267,14 +3275,24 @@ bool Item_func_geohash::fix_fields(THD *thd, Item **ref)
     return true;
   }
 
-  // Check if geohash length argument is of valid type.
+
+  /*
+    Check if geohash length argument is of valid type.
+
+    PARAM_ITEM is to allow parameter marker during PREPARE, and INT_ITEM is to
+    allow EXECUTE of prepared statements and usage of user-defined variables.
+  */
+  if (is_item_null(args[geohash_length_arg_index]))
+    return false;
+
   bool is_binary_charset=
     (args[geohash_length_arg_index]->collation.collation == &my_charset_bin);
+  bool is_parameter=
+    (args[geohash_length_arg_index]->type() == PARAM_ITEM ||
+     args[geohash_length_arg_index]->type() == INT_ITEM);
 
   switch (args[geohash_length_arg_index]->field_type())
   {
-  case MYSQL_TYPE_NULL:
-    break;
   case MYSQL_TYPE_TINY:
   case MYSQL_TYPE_SHORT:
   case MYSQL_TYPE_LONG:
@@ -3287,7 +3305,7 @@ bool Item_func_geohash::fix_fields(THD *thd, Item **ref)
   case MYSQL_TYPE_MEDIUM_BLOB:
   case MYSQL_TYPE_LONG_BLOB:
   case MYSQL_TYPE_BLOB:
-    if (is_binary_charset)
+    if (is_binary_charset && !is_parameter)
     {
       my_error(ER_INCORRECT_TYPE, MYF(0), "geohash max length", func_name());
       return true;
@@ -3311,12 +3329,17 @@ bool Item_func_geohash::fix_fields(THD *thd, Item **ref)
 */
 bool Item_func_geohash::check_valid_latlong_type(Item *arg)
 {
-  bool is_binary_charset= (arg->collation.collation == &my_charset_bin);
+  if (is_item_null(arg))
+    return true;
 
+  /*
+    is_field_type_valid will be true if the item is a constant or a field of
+    valid type.
+  */
+  bool is_binary_charset= (arg->collation.collation == &my_charset_bin);
+  bool is_field_type_valid= false;
   switch (arg->field_type())
   {
-  case MYSQL_TYPE_NULL:
-    return true;
   case MYSQL_TYPE_DECIMAL:
   case MYSQL_TYPE_NEWDECIMAL:
   case MYSQL_TYPE_TINY:
@@ -3333,10 +3356,54 @@ bool Item_func_geohash::check_valid_latlong_type(Item *arg)
   case MYSQL_TYPE_MEDIUM_BLOB:
   case MYSQL_TYPE_LONG_BLOB:
   case MYSQL_TYPE_BLOB:
-    return !is_binary_charset;
+    is_field_type_valid= !is_binary_charset;
+    break;
   default:
-    return false;
+    is_field_type_valid= false;
+    break;
   }
+
+  /*
+    Parameters and parameter markers always have
+    field_type() == MYSQL_TYPE_VARCHAR. type() is dependent on if it's a
+    parameter marker or parameter (PREPARE or EXECUTE, respectively).
+  */
+  bool is_parameter= (arg->type() == INT_ITEM || arg->type() == DECIMAL_ITEM ||
+                      arg->type() == REAL_ITEM || arg->type() == STRING_ITEM) &&
+                     (arg->field_type() == MYSQL_TYPE_VARCHAR);
+  bool is_parameter_marker= (arg->type() == PARAM_ITEM &&
+                             arg->field_type() == MYSQL_TYPE_VARCHAR);
+
+  if (is_field_type_valid || is_parameter_marker || is_parameter)
+    return true;
+  return false;
+}
+
+
+/**
+  Check if a Item is NULL. This includes NULL in the form of literal
+  NULL, NULL in a user-defined variable and NULL in prepared statements.
+
+  Note that it will return true for MEDIUM_BLOB for FUNC_ITEM as well, in order
+  to allow NULL in user-defined variables.
+
+  @param item The item to check for NULL.
+
+  @return true if the item is NULL, false otherwise.
+*/
+bool Item_func_geohash::is_item_null(Item *item)
+{
+  if (item->field_type() == MYSQL_TYPE_NULL || item->type() == NULL_ITEM)
+    return true;
+
+  // The following will allow the usage of NULL in user-defined variables.
+  bool is_binary_charset= (item->collation.collation == &my_charset_bin);
+  if (is_binary_charset && item->type() == FUNC_ITEM &&
+      item->field_type() == MYSQL_TYPE_MEDIUM_BLOB)
+  {
+    return true;
+  }
+  return false;
 }
 
 
@@ -3975,7 +4042,7 @@ String *Item_func_char::val_str(String *str)
       }
     }
   }
-  str->realloc(str->length());			// Add end 0 (for Purify)
+  str->mem_realloc(str->length());			// Add end 0 (for Purify)
   return check_well_formed_result(str);
 }
 
@@ -4048,6 +4115,10 @@ String *Item_func_repeat::val_str(String *str)
 
   if (count <= 0 && (count == 0 || !args[1]->unsigned_flag))
     return make_empty_result();
+
+  // Avoid looping, concatenating the empty string.
+  if (res->length() == 0)
+    return res;
 
   /* Assumes that the maximum length of a String is < INT_MAX32. */
   /* Bounds check on count:  If this is triggered, we will error. */
@@ -4687,8 +4758,8 @@ String *Item_func_hex::val_str_ascii(String *str)
         args[0]->result_type() == DECIMAL_RESULT)
     {
       double val= args[0]->val_real();
-      if ((val <= (double) LONGLONG_MIN) || 
-          (val >= (double) (ulonglong) ULONGLONG_MAX))
+      if ((val <= (double) LLONG_MIN) || 
+          (val >= (double) (ulonglong) ULLONG_MAX))
         dec=  ~(longlong) 0;
       else
         dec= (ulonglong) (val + (val > 0 ? 0.5 : -0.5));
@@ -4986,7 +5057,7 @@ String *Item_load_file::val_str(String *str)
 
   if (!(file_name= args[0]->val_str(str))
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-      || !(current_thd->security_ctx->master_access & FILE_ACL)
+      || !(current_thd->security_context()->check_access(FILE_ACL))
 #endif
       )
     goto err;
@@ -5378,7 +5449,7 @@ String *Item_func_compress::val_str(String *str)
 
   // Check new_size overflow: new_size <= res->length()
   if (((new_size+5) <= res->length()) || 
-      buffer.realloc(new_size + 4 + 1))
+      buffer.mem_realloc(new_size + 4 + 1))
   {
     null_value= 1;
     return 0;
@@ -5444,7 +5515,7 @@ String *Item_func_uncompress::val_str(String *str)
                                          max_allowed_packet));
     goto err;
   }
-  if (buffer.realloc((uint32)new_size))
+  if (buffer.mem_realloc((uint32)new_size))
     goto err;
 
   if ((err= uncompress(pointer_cast<Byte*>(const_cast<char*>(buffer.ptr())),
@@ -5621,7 +5692,7 @@ String *Item_func_uuid::val_str(String *str)
   uint16 time_mid=            (uint16) ((tv >> 32) & 0xFFFF);
   uint16 time_hi_and_version= (uint16) ((tv >> 48) | UUID_VERSION);
 
-  str->realloc(UUID_LENGTH+1);
+  str->mem_realloc(UUID_LENGTH+1);
   str->length(UUID_LENGTH);
   str->set_charset(system_charset_info);
   s=(char *) str->ptr();
@@ -5679,7 +5750,7 @@ String *Item_func_gtid_subtract::val_str_ascii(String *str)
       if (status == RETURN_STATUS_OK)
       {
         set1.remove_gtid_set(&set2);
-        if (!str->realloc((length= set1.get_string_length()) + 1))
+        if (!str->mem_realloc((length= set1.get_string_length()) + 1))
         {
           null_value= false;
           set1.to_string((char *)str->ptr());

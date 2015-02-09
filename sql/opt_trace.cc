@@ -887,7 +887,7 @@ void Buffer::prealloc()
       if (new_size > max_size) // Don't pre-allocate more than the limit.
         new_size= max_size;
       if (new_size >= alloced) // Never shrink string.
-        string_buf.realloc(new_size);
+        string_buf.mem_realloc(new_size);
     }
   }
 }

@@ -3,8 +3,10 @@
 #
 
 -- source include/have_innodb.inc
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Table \"mysql\"\.\"innodb_index_stats\" not found");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Fetch of persistent statistics requested for table");
+--disable_query_log
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Table `mysql`\.`innodb_index_stats` not found");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Fetch of persistent statistics requested for table `test`.`t` but the required system tables .* are not present.*");
+--enable_query_log
 let create =
 CREATE TABLE t (
 	a INT,
@@ -520,9 +522,6 @@ ALTER TABLE t RENAME INDEX i TO iiiii;
 DROP TABLE t;
 
 # Test basic RENAME INDEX with a broken persistent stats storage
-
-call mtr.add_suppression("InnoDB: Error: Table .*innodb_index_stats.* not found");
-call mtr.add_suppression("InnoDB: Error: Fetch of persistent statistics requested for table \"test\".\"t\" but the required system tables .* are not present.*");
 
 CREATE TABLE t (a INT, b INT, PRIMARY KEY (a), INDEX i1 (b)) ENGINE=INNODB;
 INSERT INTO t SET a=1;

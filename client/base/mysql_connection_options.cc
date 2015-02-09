@@ -210,12 +210,14 @@ void Mysql_connection_options::protocol_callback(
 void Mysql_connection_options::secure_auth_callback(
   char* not_used __attribute__((unused)))
 {
-  CLIENT_WARN_DEPRECATED_NO_REPLACEMENT("--secure-auth");
+  /* --secure-auth is a zombie option. */
   if (!this->m_secure_auth)
   {
-    this->m_program->print_usage();
+    my_printf_error(0, "--skip-secure-auth is not supported.\n", MYF(0));
     exit(1);
   }
+  else
+    CLIENT_WARN_DEPRECATED_NO_REPLACEMENT("--secure-auth");
 }
 
 

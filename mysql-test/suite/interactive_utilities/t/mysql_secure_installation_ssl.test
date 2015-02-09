@@ -46,7 +46,7 @@ sub initial_commands()
 {
    $texp[$i] = new Expect();
    $texp[$i]->raw_pty(1);
-   $texp[$i]->spawn("$ENV{MYSQL_SECURE_INSTALLATION}  -S $ENV{MASTER_MYSOCK} --password='123' ");
+   $texp[$i]->spawn("$ENV{MYSQL_SECURE_INSTALLATION}  -S $ENV{MASTER_MYSOCK} --password='123' --ssl-ca=$ENV{MYSQL_TEST_DIR}/std_data/ca-sha512.pem --ssl-key=$ENV{MYSQL_TEST_DIR}/std_data/server-key-sha512.pem --ssl-cert=$ENV{MYSQL_TEST_DIR}/std_data/server-cert-sha512.pem");
 }
 
 # Aggregating the commands which are executed post the password is input to 

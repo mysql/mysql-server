@@ -77,7 +77,14 @@ source include/check_slave_no_error.inc;
 # verifying reset slave resets Last_{IO,SQL}_Err{or,no}
 #
 
-stop slave;
+--echo
+--echo Sync slave, else STOP SLAVE may complain about open temporary table.
+--echo
+
+--source include/rpl_connection_master.inc
+--source include/sync_slave_sql_with_master.inc
+--source include/stop_slave.inc
+
 --replace_column 2 ####
 change master to master_user='impossible_user_name';
 start slave;
@@ -96,7 +103,14 @@ change master to master_user='root';
 #
 
 reset slave;
+
+--echo
+--echo Sync slave, else STOP SLAVE may complain about open temporary table.
+--echo
+
 --source include/start_slave.inc
+--source include/rpl_connection_master.inc
+--source include/sync_slave_sql_with_master.inc
 
 --source include/stop_slave.inc
 --let $_slave_master_host= query_get_value(SHOW SLAVE STATUS, Master_Host, 1)

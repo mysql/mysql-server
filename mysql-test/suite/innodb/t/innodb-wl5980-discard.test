@@ -319,7 +319,8 @@ CHECK TABLE t5980;
 --echo # so do not display it.
 --echo #
 --disable_result_log
---error ER_NO_SUCH_TABLE
+
+--error ER_TABLESPACE_MISSING
 ALTER TABLE t5980 IMPORT TABLESPACE;
 --enable_result_log
 --error ER_TABLESPACE_DISCARDED
@@ -434,17 +435,17 @@ ALTER TABLE t5980b DISCARD TABLESPACE;
 SELECT * FROM t5980a;
 --error ER_TABLESPACE_DISCARDED
 SELECT * FROM t5980b;
---error ER_NO_SUCH_TABLE
+--error ER_TABLESPACE_MISSING
 SELECT * FROM t5980c;
---error ER_NO_SUCH_TABLE
+--error ER_TABLESPACE_MISSING
 SELECT * FROM t5980d;
 
 SHOW CREATE TABLE t5980a;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE t5980b;
---error ER_NO_SUCH_TABLE
+--error ER_TABLESPACE_MISSING
 SHOW CREATE TABLE t5980c;
---error ER_NO_SUCH_TABLE
+--error ER_TABLESPACE_MISSING
 SHOW CREATE TABLE t5980d;
 
 SELECT name,n_cols,file_format,row_format FROM information_schema.innodb_sys_tables
@@ -468,9 +469,9 @@ SELECT path FROM information_schema.innodb_sys_datafiles
 TRUNCATE TABLE t5980a;
 --error ER_TABLESPACE_DISCARDED
 TRUNCATE TABLE t5980b;
---error ER_NO_SUCH_TABLE
+--error ER_TABLESPACE_MISSING
 TRUNCATE TABLE t5980c;
---error ER_NO_SUCH_TABLE
+--error ER_TABLESPACE_MISSING
 TRUNCATE TABLE t5980d;
 
 --echo #
@@ -497,17 +498,17 @@ SELECT * FROM t5980b;
 SELECT * FROM t5980aa;
 --error ER_TABLESPACE_DISCARDED
 SELECT * FROM t5980bb;
---error ER_NO_SUCH_TABLE
+--error ER_TABLESPACE_MISSING
 SELECT * FROM t5980c;
---error ER_NO_SUCH_TABLE
+--error ER_TABLESPACE_MISSING
 SELECT * FROM t5980d;
 
 SHOW CREATE TABLE t5980aa;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE t5980bb;
---error ER_NO_SUCH_TABLE
+--error ER_TABLESPACE_MISSING
 SHOW CREATE TABLE t5980c;
---error ER_NO_SUCH_TABLE
+--error ER_TABLESPACE_MISSING
 SHOW CREATE TABLE t5980d;
 
 SELECT name,n_cols,file_format,row_format FROM information_schema.innodb_sys_tables
@@ -548,9 +549,9 @@ SET @@sql_mode = @old_sql_mode;
 --echo # Missing tablespaces cannot be ALTERED.
 --echo #
 
---error ER_NO_SUCH_TABLE
+--error ER_TABLESPACE_MISSING
 ALTER TABLE t5980c ADD PRIMARY KEY(a);
---error ER_NO_SUCH_TABLE
+--error ER_TABLESPACE_MISSING
 ALTER TABLE t5980d ADD PRIMARY KEY(a);
 
 --error ER_TABLESPACE_DISCARDED
@@ -736,21 +737,21 @@ SELECT path FROM information_schema.innodb_sys_datafiles
 eval set global innodb_file_per_table=$innodb_file_per_table_orig;
 
 # These warnings are expected in the log
-call mtr.add_suppression("\\[Warning\\] InnoDB: Cannot calculate statistics for table .* because the \.ibd file is missing");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Operating system error number 2 in a file operation.");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: The error means the system cannot find the path specified.");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: If you are installing InnoDB, remember that you must create directories yourself, InnoDB does not create them.");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Cannot delete tablespace .+ because it is not found in the tablespace memory cache");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Cannot open datafile for read-only:");
-call mtr.add_suppression("InnoDB: Could not find a valid tablespace file for");
-call mtr.add_suppression("InnoDB: Tablespace open failed for");
-call mtr.add_suppression("InnoDB: Tablespace 'test/t5980' exists in the cache with id");
-call mtr.add_suppression("InnoDB: Freeing existing tablespace 'test/t5980' entry from the cache with");
-call mtr.add_suppression("InnoDB: Failed to find tablespace for table ");
-call mtr.add_suppression("InnoDB: Table test/t5980.* does not have an .ibd file in the database directory.");
-call mtr.add_suppression("Trying to import a tablespace, but could not open the tablespace file");
-call mtr.add_suppression("Cannot delete tablespace .+ because it is not found in the tablespace memory cache");
-call mtr.add_suppression("Cannot delete tablespace .+ in DISCARD TABLESPACE. Tablespace not found");
-call mtr.add_suppression("doesn't have a corresponding tablespace, it was discarded.");
-call mtr.add_suppression("tablespace is set as discarded");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Could not find a valid tablespace file for");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Failed to find tablespace for table .* in the cache. Attempting to load the tablespace with space id");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: If you are installing InnoDB, remember that you must create directories yourself, InnoDB does not create them.");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: In file .*, tablespace id and flags are .*, but in the InnoDB data dictionary they are");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Operating system error number 2 in a file operation.");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Table .* does not have an \.ibd file in the database directory.");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: The error means the system cannot find the path specified.");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: The table .* doesn't have a corresponding tablespace, it was discarded.");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Trying to import a tablespace, but could not open the tablespace file");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Tablespace open failed for `test`.`.*`, ignored.");
+call mtr.add_suppression("\\[Warning\\] InnoDB: Cannot calculate statistics for table .* because the \.ibd file is missing");
+call mtr.add_suppression("\\[Warning\\] InnoDB: Cannot delete tablespace .+ in DISCARD TABLESPACE. Tablespace not found");
+call mtr.add_suppression("\\[Warning\\] InnoDB: Ignoring tablespace .* because it could not be opened");
+call mtr.add_suppression("\\[Warning\\] InnoDB: Tablespace for table .* is set as discarded");
 -- enable_query_log
 

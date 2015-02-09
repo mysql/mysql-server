@@ -79,9 +79,11 @@ SET @@global.sql_slave_skip_counter = -.0;
 ###################################################################
 
 SET @@global.sql_slave_skip_counter = 1024;
+--disable_warnings
 SELECT VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
 WHERE VARIABLE_NAME='sql_slave_skip_counter';
+--enable_warnings
 
 --echo '#--------------------FN_DYNVARS_165_03-------------------------#'
 ###################################################################

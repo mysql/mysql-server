@@ -109,7 +109,7 @@ wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	insert	1
 wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	1
 wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	insert	1
 wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	1
-wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	fetch	4
+wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	fetch	3
 wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	1
 wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	fetch	1
 wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	update	1
@@ -127,10 +127,10 @@ wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	fetch	1
 wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	delete	1
 wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	fetch	1
 wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	1
-wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	fetch	3
+wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	fetch	2
 wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	1
 wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	1
-wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	fetch	3
+wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	fetch	2
 wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	1
 wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	1
 wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	1
@@ -145,6 +145,7 @@ Performance_schema_file_classes_lost	0
 Performance_schema_file_handles_lost	0
 Performance_schema_file_instances_lost	0
 Performance_schema_hosts_lost	0
+Performance_schema_index_stat_lost	0
 Performance_schema_locker_lost	0
 Performance_schema_memory_classes_lost	0
 Performance_schema_metadata_lock_lost	0
@@ -162,6 +163,7 @@ Performance_schema_stage_classes_lost	0
 Performance_schema_statement_classes_lost	0
 Performance_schema_table_handles_lost	0
 Performance_schema_table_instances_lost	0
+Performance_schema_table_lock_stat_lost	0
 Performance_schema_thread_classes_lost	0
 Performance_schema_thread_instances_lost	0
 Performance_schema_users_lost	0

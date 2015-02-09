@@ -1030,9 +1030,9 @@ Lgman::create_file_commit(Signal* signal,
      (lg_ptr.p->m_state & Logfile_group::LG_ONLINE))
   {
     jam();
-    Local_undofile_list free(m_file_pool, lg_ptr.p->m_files);
+    Local_undofile_list free_list(m_file_pool, lg_ptr.p->m_files);
     Local_undofile_list meta(m_file_pool, lg_ptr.p->m_meta_files);
-    first= free.isEmpty();
+    first= free_list.isEmpty();
     meta.remove(ptr);
     if(!first)
     {
@@ -1041,10 +1041,10 @@ Lgman::create_file_commit(Signal* signal,
        */
       Ptr<Undofile> curr;
       m_file_pool.getPtr(curr, lg_ptr.p->m_file_pos[HEAD].m_ptr_i);
-      if(free.next(curr))
-        free.insertBefore(ptr, curr);
+      if(free_list.next(curr))
+        free_list.insertBefore(ptr, curr);
       else
-        free.addLast(ptr);
+        free_list.addLast(ptr);
 
       ptr.p->m_state = Undofile::FS_ONLINE | Undofile::FS_EMPTY;
     }
@@ -1053,7 +1053,7 @@ Lgman::create_file_commit(Signal* signal,
       /**
        * First file isn't empty as it can be written to at any time
        */
-      free.addLast(ptr);
+      free_list.addLast(ptr);
       ptr.p->m_state = Undofile::FS_ONLINE;
       lg_ptr.p->m_state |= Logfile_group::LG_FLUSH_THREAD;
       signal->theData[0] = LgmanContinueB::FLUSH_LOG;

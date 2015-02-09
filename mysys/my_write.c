@@ -114,7 +114,7 @@ size_t my_write(File Filedes, const uchar *Buffer, size_t Count, myf MyFlags)
     if (MyFlags & (MY_WME | MY_FAE | MY_FNABP))
     {
       char errbuf[MYSYS_STRERROR_SIZE];
-      my_error(EE_WRITE, MYF(ME_BELL+ME_WAITTANG), my_filename(Filedes),
+      my_error(EE_WRITE, MYF(0), my_filename(Filedes),
                my_errno, my_strerror(errbuf, sizeof(errbuf), my_errno));
     }
     DBUG_RETURN(MY_FILE_ERROR);

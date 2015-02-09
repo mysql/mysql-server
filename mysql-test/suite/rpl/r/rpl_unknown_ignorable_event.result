@@ -1,0 +1,28 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+CREATE TABLE t1 (c1 INT) ENGINE=InnoDB;
+include/sync_slave_sql_with_master.inc
+# Set a debug point on slave to simulate unknown ignorable log events.
+SET @save_debug=@@global.debug;
+SET GLOBAL DEBUG='d,simulate_unknown_ignorable_log_event';
+[connection master]
+# Write a previous_gtids log event to binlog
+# on master if gtid mode is on.
+FLUSH LOGS;
+# Write a write_rows log event to binlog on master.
+INSERT INTO t1 VALUES (1);
+# The slave receiver thread simulates an unknown ignorable
+# log event by rewriting the write_rows log event and
+# previous_gtids log event if gtid mode is on before
+# writing it(them) in relay log.
+include/sync_slave_sql_with_master.inc
+# Verify that the slave applier thread skips these unknown ignorable
+# log event.
+include/assert.inc [Table t1 must not contain 1]
+SET GLOBAL DEBUG= @save_debug;
+[connection master]
+DROP TABLE t1;
+include/rpl_end.inc

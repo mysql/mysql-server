@@ -314,5 +314,125 @@ DROP DATABASE wl7766;
 -- Tracker : SESSION_TRACK_SCHEMA
 -- 
 
+#
+# Bug#19550875: SESSION STATE NOT SENT AS PART OF RESULT SETS WHEN
+#               QUERY CACHE IS ON
+#
+SET @@session.session_track_state_change=ON;
+-- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
+-- session_track_state_change
+-- ON
+
+CREATE DATABASE bug19550875;
+USE bug19550875;
+-- Tracker : SESSION_TRACK_SCHEMA
+-- bug19550875
+
+-- Tracker : SESSION_TRACK_STATE_CHANGE
+-- 1
+
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES (1), (2);
+CREATE PROCEDURE t_cache()
+BEGIN
+SET @A= 20;
+SELECT * FROM t1;
+SELECT * FROM t1;
+PREPARE x FROM 'SELECT 1';
+SELECT * FROM t1;
+SELECT * FROM t1;
+END |
+CALL t_cache();
+a
+1
+2
+-- Tracker : SESSION_TRACK_STATE_CHANGE
+-- 1
+
+a
+1
+2
+a
+1
+2
+-- Tracker : SESSION_TRACK_STATE_CHANGE
+-- 1
+
+a
+1
+2
+CREATE PROCEDURE sel_with_session()
+BEGIN
+SET @var1=20;
+SELECT * FROM t1 ORDER BY 1;
+END |
+CREATE PROCEDURE sel_with_no_session()
+BEGIN
+SELECT * FROM t1 ORDER BY 1;
+END |
+SET GLOBAL query_cache_size=1048576;
+RESET QUERY CACHE;
+SHOW STATUS LIKE 'Qcache_queries_in_cache';
+Variable_name	Value
+Qcache_queries_in_cache	0
+CALL sel_with_session();
+a
+1
+2
+-- Tracker : SESSION_TRACK_STATE_CHANGE
+-- 1
+
+#expect 0 since query is not cached
+SHOW STATUS LIKE 'Qcache_queries_in_cache';
+Variable_name	Value
+Qcache_queries_in_cache	0
+CALL sel_with_no_session();
+a
+1
+2
+#expect 1 query is cached
+SHOW STATUS LIKE 'Qcache_queries_in_cache';
+Variable_name	Value
+Qcache_queries_in_cache	1
+CALL sel_with_no_session();
+a
+1
+2
+RESET QUERY CACHE;
+SHOW STATUS LIKE 'Qcache_queries_in_cache';
+Variable_name	Value
+Qcache_queries_in_cache	0
+CALL sel_with_no_session();
+a
+1
+2
+#expect 1 query is cached
+SHOW STATUS LIKE 'Qcache_queries_in_cache';
+Variable_name	Value
+Qcache_queries_in_cache	1
+CALL sel_with_no_session();
+a
+1
+2
+SHOW STATUS LIKE 'Qcache_queries_in_cache';
+Variable_name	Value
+Qcache_queries_in_cache	1
+CALL sel_with_session();
+a
+1
+2
+-- Tracker : SESSION_TRACK_STATE_CHANGE
+-- 1
+
+#expect 1 as query is not cached
+SHOW STATUS LIKE 'Qcache_queries_in_cache';
+Variable_name	Value
+Qcache_queries_in_cache	1
+SET GLOBAL query_cache_size= default;
+#cleanup
+DROP DATABASE bug19550875;
+-- Tracker : SESSION_TRACK_SCHEMA
+-- 
+
 
 End of tests

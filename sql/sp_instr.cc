@@ -14,7 +14,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "my_global.h"    // NO_EMBEDDED_ACCESS_CHECKS
-#include "sql_priv.h"
 #include "sp_instr.h"
 #include "item.h"         // Item_splocal
 #include "opt_trace.h"    // opt_trace_disable_etc
@@ -28,6 +27,7 @@
 #include "sql_prepare.h"  // reinit_stmt_before_use
 #include "transaction.h"  // trans_commit_stmt
 #include "prealloced_array.h"
+#include "binlog.h"
 
 #include <algorithm>
 #include <functional>
@@ -309,6 +309,25 @@ bool sp_lex_instr::reset_lex_and_exec_core(THD *thd,
   /* Reset LEX-object before re-use. */
 
   reinit_stmt_before_use(thd, m_lex);
+
+  /*
+    In case a session state exists do not cache the SELECT stmt. If we
+    cache SELECT statment when session state information exists, then
+    the result sets of this SELECT are cached which contains changed
+    session information. Next time when same query is executed when there
+    is no change in session state, then result sets are picked from cache
+    which is wrong as the result sets picked from cache have changed
+    state information.
+    In case of embedded server since session state information is not
+    sent there is no need to turn off cache.
+  */
+
+#ifndef EMBEDDED_LIBRARY
+  if ((thd->client_capabilities & CLIENT_SESSION_TRACK) &&
+      thd->session_tracker.enabled_any() &&
+      thd->session_tracker.changed_any())
+    thd->lex->safe_to_cache_query= 0;
+#endif
 
   /* Open tables if needed. */
 
@@ -891,8 +910,8 @@ bool sp_instr_stmt::exec_core(THD *thd, uint *nextp)
   MYSQL_QUERY_EXEC_START(const_cast<char*>(thd->query().str),
                          thd->thread_id(),
                          (char *) (thd->db().str ? thd->db().str : ""),
-                         &thd->security_ctx->priv_user[0],
-                         (char *)thd->security_ctx->host_or_ip,
+                         (char *) thd->security_context()->priv_user().str,
+                         (char *) thd->security_context()->host_or_ip().str,
                          3);
 
   thd->lex->set_sp_current_parsing_ctx(get_parsing_ctx());
@@ -978,7 +997,20 @@ bool sp_instr_set_trigger_field::exec_core(THD *thd, uint *nextp)
 {
   *nextp= get_ip() + 1;
   thd->count_cuted_fields= CHECK_FIELD_ERROR_FOR_NULL;
-  return m_trigger_field->set_value(thd, &m_value_item);
+  Strict_error_handler strict_handler(Strict_error_handler::
+                                      ENABLE_SET_SELECT_STRICT_ERROR_HANDLER);
+  /*
+    Before Triggers are executed after the 'data' is assigned
+    to the Field objects. If triggers wants to SET invalid value
+    to the Field objects (NEW.<variable_name>= <Invalid value>),
+    it should not be allowed.
+  */
+  if (thd->is_strict_mode() && !thd->lex->is_ignore())
+    thd->push_internal_handler(&strict_handler);
+  bool error= m_trigger_field->set_value(thd, &m_value_item);
+  if (thd->is_strict_mode() && !thd->lex->is_ignore())
+    thd->pop_internal_handler();
+  return error;
 }
 
 

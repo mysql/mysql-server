@@ -5,6 +5,11 @@
 # ==== Usage ====
 #
 # See include/show_binlog_events.inc
+#
+# One additional parameter is supported:
+#
+#   $rpl_channel_name
+#     If set, the clause FOR CHANNEL  '$rpl_channel_name' is added.
 
 --let $include_filename= show_relaylog_events.inc
 --source include/begin_include_file.inc

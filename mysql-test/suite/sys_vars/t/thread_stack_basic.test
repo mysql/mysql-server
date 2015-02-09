@@ -9,10 +9,12 @@ select @@session.thread_stack;
 show global variables like 'thread_stack';
 --replace_result 196608 262144
 show session variables like 'thread_stack';
+--disable_warnings
 --replace_result 196608 262144
 select * from information_schema.global_variables where variable_name='thread_stack';
 --replace_result 196608 262144
 select * from information_schema.session_variables where variable_name='thread_stack';
+--enable_warnings
 
 #
 # show that it's read-only

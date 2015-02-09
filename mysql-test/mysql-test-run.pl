@@ -164,7 +164,7 @@ our $opt_vs_config = $ENV{'MTR_VS_CONFIG'};
 
 # If you add a new suite, please check TEST_DIRS in Makefile.am.
 #
-my $DEFAULT_SUITES= "main,sys_vars,binlog,federated,gis,rpl,innodb,innodb_gis,innodb_fts,innodb_zip,perfschema,funcs_1,opt_trace,parts,auth_sec";
+my $DEFAULT_SUITES= "main,sys_vars,binlog,federated,gis,rpl,innodb,innodb_gis,innodb_fts,innodb_zip,innodb_undo,perfschema,funcs_1,opt_trace,parts,auth_sec";
 my $opt_suites;
 
 our $opt_verbose= 0;  # Verbose output, enable with --verbose
@@ -239,6 +239,7 @@ our $opt_ddd;
 our $opt_client_ddd;
 my $opt_boot_ddd;
 our $opt_manual_gdb;
+our $opt_manual_lldb;
 our $opt_manual_dbx;
 our $opt_manual_ddd;
 our $opt_manual_debug;
@@ -1116,6 +1117,7 @@ sub command_line_setup {
              'gdb'                      => \$opt_gdb,
              'client-gdb'               => \$opt_client_gdb,
              'manual-gdb'               => \$opt_manual_gdb,
+             'manual-lldb'              => \$opt_manual_lldb,
 	     'boot-gdb'                 => \$opt_boot_gdb,
              'manual-debug'             => \$opt_manual_debug,
              'ddd'                      => \$opt_ddd,
@@ -1576,8 +1578,9 @@ sub command_line_setup {
       $opt_debugger= undef;
     }
 
-    if ( $opt_gdb || $opt_ddd || $opt_manual_gdb || $opt_manual_ddd ||
-	 $opt_manual_debug || $opt_debugger || $opt_dbx || $opt_manual_dbx)
+    if ( $opt_gdb || $opt_ddd || $opt_manual_gdb || $opt_manual_lldb || 
+         $opt_manual_ddd || $opt_manual_debug || $opt_debugger || $opt_dbx || 
+         $opt_manual_dbx)
     {
       mtr_error("You need to use the client debug options for the",
 		"embedded server. Ex: --client-gdb");
@@ -1603,9 +1606,9 @@ sub command_line_setup {
   # --------------------------------------------------------------------------
   # Check debug related options
   # --------------------------------------------------------------------------
-  if ( $opt_gdb || $opt_client_gdb || $opt_ddd || $opt_client_ddd ||
-       $opt_manual_gdb || $opt_manual_ddd || $opt_manual_debug ||
-       $opt_dbx || $opt_client_dbx || $opt_manual_dbx ||
+  if ( $opt_gdb || $opt_client_gdb || $opt_ddd || $opt_client_ddd || 
+       $opt_manual_gdb || $opt_manual_lldb || $opt_manual_ddd || 
+       $opt_manual_debug || $opt_dbx || $opt_client_dbx || $opt_manual_dbx || 
        $opt_debugger || $opt_client_debugger )
   {
     # Indicate that we are using debugger
@@ -2503,6 +2506,11 @@ sub environment_setup {
   $ENV{'MYSQL_BUG25714'}=  native_path($exe_bug25714);
 
   # ----------------------------------------------------
+  # Get the bin dir
+  # ----------------------------------------------------
+  $ENV{'MYSQL_BIN_PATH'}=  native_path($bindir);
+
+  # ----------------------------------------------------
   # mysql_fix_privilege_tables.sql
   # ----------------------------------------------------
   my $file_mysql_fix_privilege_tables=
@@ -2567,6 +2575,27 @@ sub environment_setup {
 				 "$basedir/extra/perror",
 				 "$path_client_bindir/perror");
   $ENV{'MY_PERROR'}= native_path($exe_perror);
+
+
+  # ----------------------------------------------------
+  # mysql_tzinfo_to_sql
+  # ----------------------------------------------------
+  # mysql_tzinfo_to_sql is not used on Windows, but vs_config_dirs
+  # is needed when building with Xcode on OSX
+  my $exe_mysql_tzinfo_to_sql= 
+    mtr_exe_exists(vs_config_dirs('sql', 'mysql_tzinfo_to_sql'),
+                   "$basedir/bin/mysql_tzinfo_to_sql");
+  $ENV{'MYSQL_TZINFO_TO_SQL'}= native_path($exe_mysql_tzinfo_to_sql);
+
+
+  # ----------------------------------------------------
+  # replace
+  # ----------------------------------------------------
+  my $exe_replace= mtr_exe_exists(vs_config_dirs('extra', 'replace'),
+                                 "$basedir/extra/replace",
+                                 "$path_client_bindir/replace");
+  $ENV{'REPLACE'}= native_path($exe_replace);
+
 
   # Create an environment variable to make it possible
   # to detect that valgrind is being used from test cases
@@ -2903,7 +2932,7 @@ sub check_ndbcluster_support ($) {
       if ($opt_include_ndbcluster)
       {
 	mtr_error("Could not detect ndbcluster support ".
-		  "requested with --include-ndbcluster");
+                  "requested with --[ndb|include-ndbcluster]");
       }
 
       # Silently skip, mysqld was compiled without ndbcluster
@@ -2919,15 +2948,12 @@ sub check_ndbcluster_support ($) {
     }
 
 
-    # Not a MySQL Cluster tree, enable ndbcluster
-    # if --include-ndbcluster was used
-    if ($opt_include_ndbcluster)
+    if (!$opt_include_ndbcluster)
     {
-      # enable ndbcluster
-    }
-    else
-    {
-      mtr_report(" - skipping ndbcluster(disabled by default)");
+      # Add only the test suite for ndbcluster integration check
+      mtr_report(" - enabling ndbcluster(for integration checks)");
+      $ndbcluster_enabled= 1;
+      $DEFAULT_SUITES.=",ndbcluster";
       return;
     }
   }
@@ -2935,7 +2961,7 @@ sub check_ndbcluster_support ($) {
   mtr_report(" - enabling ndbcluster");
   $ndbcluster_enabled= 1;
   # Add MySQL Cluster test suites
-  $DEFAULT_SUITES.=",ndb,ndb_binlog,rpl_ndb,ndb_rpl,ndb_memcache";
+  $DEFAULT_SUITES.=",ndb,ndb_binlog,rpl_ndb,ndb_rpl,ndb_memcache,ndbcluster";
   return;
 }
 
@@ -5423,10 +5449,17 @@ sub mysqld_arguments ($$$) {
 
   my $found_skip_core= 0;
   my $found_no_console= 0;
+  my $found_log_error= 0;
   foreach my $arg ( @$extra_opts )
   {
     # Skip --defaults-file option since it's handled above.
     next if $arg =~ /^--defaults-file/;
+   
+
+    if ($arg eq "--log-error")
+    {
+      $found_log_error= 1;
+    }
 
     # Allow --skip-core-file to be set in <testname>-[master|slave].opt file
     if ($arg eq "--skip-core-file")
@@ -5457,7 +5490,7 @@ sub mysqld_arguments ($$$) {
     }
   }
   $opt_skip_core = $found_skip_core;
-  if (IS_WINDOWS && !$found_no_console)
+  if (IS_WINDOWS && !$found_no_console && !$found_log_error)
   {
     # Trick the server to send output to stderr, with --console
     mtr_add_arg($args, "--console");
@@ -5518,6 +5551,10 @@ sub mysqld_start ($$) {
   if ( $opt_gdb || $opt_manual_gdb )
   {
     gdb_arguments(\$args, \$exe, $mysqld->name());
+  }
+  elsif ( $opt_manual_lldb )
+  {
+    lldb_arguments(\$args, \$exe, $mysqld->name());
   }
   elsif ( $opt_ddd || $opt_manual_ddd )
   {
@@ -6325,6 +6362,24 @@ sub start_mysqltest ($) {
   return $proc;
 }
 
+sub create_debug_statement {
+  my $args= shift;
+  my $input= shift;
+
+  # Put $args into a single string
+  my $str= join(" ", @$$args);
+  my $runline= $input ? "run $str < $input" : "run $str";
+
+  # add quotes to escape ; in plugin_load option
+  my $pos1 = index($runline, "--plugin_load=");
+  if ( $pos1 != -1 ) {
+    my $pos2 = index($runline, " ",$pos1);
+    substr($runline,$pos1+14,0) = "\"";
+    substr($runline,$pos2+1,0) = "\"";
+  }
+
+  return $runline;
+}
 
 #
 # Modify the exe and args so that program is run in gdb in xterm
@@ -6340,9 +6395,7 @@ sub gdb_arguments {
   # Remove the old gdbinit file
   unlink($gdb_init_file);
 
-  # Put $args into a single string
-  my $str= join(" ", @$$args);
-  my $runline= $input ? "run $str < $input" : "run $str";
+  my $runline=create_debug_statement($args,$input);
 
   # write init file for mysqld or client
   mtr_tofile($gdb_init_file,
@@ -6378,6 +6431,32 @@ sub gdb_arguments {
   $$exe= "xterm";
 }
 
+ #
+# Modify the exe and args so that program is run in lldb
+#
+sub lldb_arguments {
+  my $args= shift;
+  my $exe= shift;
+  my $type= shift;
+  my $input= shift;
+
+  my $lldb_init_file= "$opt_vardir/tmp/lldbinit.$type";
+  unlink($lldb_init_file);
+
+  my $runline=create_debug_statement($args,$input);
+
+  # write init file for mysqld or client
+  mtr_tofile($lldb_init_file,
+	     "b main\n" .
+	     $runline);
+
+    print "\nTo start lldb for $type, type in another window:\n";
+    print "cd $glob_mysql_test_dir && lldb -s $lldb_init_file $$exe\n";
+
+    # Indicate the exe should not be started
+    $$exe= undef;
+    return;
+}
 
 #
 # Modify the exe and args so that program is run in ddd
@@ -6393,9 +6472,7 @@ sub ddd_arguments {
   # Remove the old gdbinit file
   unlink($gdb_init_file);
 
-  # Put $args into a single string
-  my $str= join(" ", @$$args);
-  my $runline= $input ? "run $str < $input" : "run $str";
+  my $runline=create_debug_statement($args,$input);
 
   # write init file for mysqld or client
   mtr_tofile($gdb_init_file,
@@ -6860,6 +6937,8 @@ Options for debugging the product
                         test(s)
   manual-dbx            Let user manually start mysqld in dbx, before running
                         test(s)
+  manual-lldb           Let user manually start mysqld in lldb, before running 
+                        test(s)
   strace-client         Create strace output for mysqltest client, 
   strace-server         Create strace output for mysqltest server, 
   max-save-core         Limit the number of core files saved (to avoid filling
@@ -6904,7 +6983,7 @@ Misc options
   start-dirty           Only start the servers (without initialization) for
                         the first specified test case
   user-args             In combination with start* and no test name, drops
-                        arguments to mysqld except those speficied with
+                        arguments to mysqld except those specified with
                         --mysqld (if any)
   wait-all              If --start or --start-dirty option is used, wait for all
                         servers to exit before finishing the process

@@ -124,7 +124,6 @@ rtr_page_split_initialize_nodes(
 /**********************************************************************//**
 Builds a Rtree node pointer out of a physical record and a page number.
 @return	own: node pointer */
-
 dtuple_t*
 rtr_index_build_node_ptr(
 /*=====================*/
@@ -464,7 +463,7 @@ update_mbr:
 			cur2_rec = cursor2->page_cur.rec;
 			offsets2 = rec_get_offsets(cur2_rec, index, NULL,
 						   ULINT_UNDEFINED, &heap);
-			
+
 			cur2_rec_info = rec_get_info_bits(cur2_rec,
 						rec_offs_comp(offsets2));
 			if (cur2_rec_info & REC_INFO_MIN_REC_FLAG) {
@@ -956,6 +955,9 @@ rtr_split_page_move_rec_list(
 		}
 	}
 
+	/* Update the lock table */
+	lock_rtr_move_rec_list(new_block, block, rec_move, moved);
+
 	/* Delete recs in second group from the old page. */
 	for (cur_split_node = node_array;
 	     cur_split_node < end_split_node; ++cur_split_node) {
@@ -971,9 +973,6 @@ rtr_split_page_move_rec_list(
 		}
 	}
 
-	/* Update the lock table */
-	lock_rtr_move_rec_list(new_block, block, rec_move, moved);
-
 	return(true);
 }
 
@@ -985,7 +984,6 @@ function must always succeed, we cannot reverse it: therefore enough
 free disk space (2 pages) must be guaranteed to be available before
 this function is called.
 @return inserted record */
-
 rec_t*
 rtr_page_split_and_insert(
 /*======================*/
@@ -1121,7 +1119,13 @@ func_start:
 					     first_rec_group,
 					     new_block, block, first_rec,
 					     cursor->index, *heap, mtr)) {
-		ulint n = 0;
+		ulint			n		= 0;
+		rec_t*			rec;
+		ulint			moved		= 0;
+		ulint			max_to_move	= 0;
+		rtr_rec_move_t*		rec_move	= NULL;
+		ulint			pos;
+
 		/* For some reason, compressing new_page failed,
 		even though it should contain fewer records than
 		the original page.  Copy the page byte for byte
@@ -1133,6 +1137,36 @@ func_start:
 				   page_zip, page, cursor->index, mtr);
 
 		page_cursor = btr_cur_get_page_cur(cursor);
+
+		/* Move locks on recs. */
+		max_to_move = page_get_n_recs(page);
+		rec_move = static_cast<rtr_rec_move_t*>(mem_heap_alloc(
+				*heap,
+				sizeof (*rec_move) * max_to_move));
+
+		/* Init the rec_move array for moving lock on recs.  */
+		for (cur_split_node = rtr_split_node_array;
+		     cur_split_node < end_split_node - 1; ++cur_split_node) {
+			if (cur_split_node->n_node != first_rec_group) {
+				pos = page_rec_get_n_recs_before(
+					cur_split_node->key);
+				rec = page_rec_get_nth(new_page, pos);
+				ut_a(rec);
+
+				rec_move[moved].new_rec = rec;
+				rec_move[moved].old_rec = cur_split_node->key;
+				rec_move[moved].moved = false;
+				moved++;
+
+				if (moved > max_to_move) {
+					ut_ad(0);
+					break;
+				}
+			}
+		}
+
+		/* Update the lock table */
+		lock_rtr_move_rec_list(new_block, block, rec_move, moved);
 
 		/* Delete recs in first group from the new page. */
 		for (cur_split_node = rtr_split_node_array;
@@ -1283,7 +1317,6 @@ func_start:
 /****************************************************************//**
 Following the right link to find the proper block for insert.
 @return the proper block.*/
-
 dberr_t
 rtr_ins_enlarge_mbr(
 /*================*/
@@ -1364,7 +1397,6 @@ IMPORTANT: The caller will have to update IBUF_BITMAP_FREE
 if new_block is a compressed leaf page in a secondary index.
 This has to be done either within the same mini-transaction,
 or by invoking ibuf_reset_free_bits() before mtr_commit(). */
-
 void
 rtr_page_copy_rec_list_end_no_locks(
 /*================================*/
@@ -1475,12 +1507,12 @@ rtr_page_copy_rec_list_end_no_locks(
 			fprintf(stderr, "page number %ld and %ld\n",
 				(long)new_block->page.id.page_no(),
 				(long)block->page.id.page_no());
-			ib_logf(IB_LOG_LEVEL_FATAL,
-				"rec offset %lu, cur1 offset %lu,"
-				" cur_rec offset %lu",
-				(ulong) page_offset(rec),
-				(ulong) page_offset(page_cur_get_rec(&cur1)),
-				(ulong) page_offset(cur_rec));
+
+			ib::fatal() << "rec offset " << page_offset(rec)
+				<< ", cur1 offset "
+				<<  page_offset(page_cur_get_rec(&cur1))
+				<< ", cur_rec offset "
+				<< page_offset(cur_rec);
 		}
 
 		rec_move[moved].new_rec = ins_rec;
@@ -1501,7 +1533,6 @@ next:
 
 /*************************************************************//**
 Copy recs till a specified rec from a page to new_block of rtree. */
-
 void
 rtr_page_copy_rec_list_start_no_locks(
 /*==================================*/
@@ -1605,12 +1636,12 @@ rtr_page_copy_rec_list_start_no_locks(
 			fprintf(stderr, "page number %ld and %ld\n",
 				(long)new_block->page.id.page_no(),
 				(long)block->page.id.page_no());
-			ib_logf(IB_LOG_LEVEL_FATAL,
-				"rec offset %lu, cur1 offset %lu,"
-				" cur_rec offset %lu",
-				(ulong) page_offset(rec),
-				(ulong) page_offset(page_cur_get_rec(&cur1)),
-				(ulong) page_offset(cur_rec));
+
+			ib::fatal() << "rec offset " << page_offset(rec)
+				<< ", cur1 offset "
+				<<  page_offset(page_cur_get_rec(&cur1))
+				<< ", cur_rec offset "
+				<< page_offset(cur_rec);
 		}
 
 		rec_move[moved].new_rec = ins_rec;
@@ -1747,7 +1778,6 @@ rtr_merge_and_update_mbr(
 
 /*************************************************************//**
 Deletes on the upper level the node pointer to a page. */
-
 void
 rtr_node_ptr_delete(
 /*================*/
@@ -1772,7 +1802,6 @@ rtr_node_ptr_delete(
 /**************************************************************//**
 Check whether a Rtree page is child of a parent page
 @return true if there is child/parent relationship */
-
 bool
 rtr_check_same_block(
 /*================*/
@@ -1807,7 +1836,6 @@ rtr_check_same_block(
 /****************************************************************//**
 Calculate the area increased for a new record
 @return area increased */
-
 double
 rtr_rec_cal_increase(
 /*=================*/

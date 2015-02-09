@@ -50,17 +50,21 @@ SELECT COUNT(@@GLOBAL.version_compile_os);
 # Check if the value in GLOBAL Table matches value in variable  #
 #################################################################
 
+--disable_warnings
 SELECT @@GLOBAL.version_compile_os = VARIABLE_VALUE
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
 WHERE VARIABLE_NAME='version_compile_os';
+--enable_warnings
 --echo 1 Expected
 
 SELECT COUNT(@@GLOBAL.version_compile_os);
 --echo 1 Expected
 
+--disable_warnings
 SELECT COUNT(VARIABLE_VALUE)
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
 WHERE VARIABLE_NAME='version_compile_os';
+--enable_warnings
 --echo 1 Expected
 
 

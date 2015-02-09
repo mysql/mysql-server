@@ -321,7 +321,7 @@ Level	Code	Message
 Note	1050	Table 't1' already exists
 show status like "Opened_tables";
 Variable_name	Value
-Opened_tables	2
+Opened_tables	1
 select * from t1;
 a	b
 1	1

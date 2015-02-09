@@ -66,7 +66,7 @@ Handshake::~Handshake()
     FreeCredentialsHandle(&m_cred);
   if (m_have_sec_context)
     DeleteSecurityContext(&m_sctx);
-  m_output.free();
+  m_output.mem_free();
 
 #ifndef DBUG_OFF
   if (m_ssp_info)
@@ -278,7 +278,7 @@ Security_buffer::Security_buffer(): m_allocated(true)
 }
 
 
-void Security_buffer::free(void)
+void Security_buffer::mem_free(void)
 {
   if (m_allocated && NULL != ptr())
   {

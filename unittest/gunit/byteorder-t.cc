@@ -211,7 +211,7 @@ template<> void get_integral(ulonglong &val, uchar *buf)
 { val= uint8korr(buf); }
 
 template<> void put_integral(uchar *buf, sizeNint<3> val)
-{ int3store(buf, val.value); }
+{ int3store(buf, static_cast<uint>(val.value)); }
 template<> void get_integral(sizeNint<3> &val, uchar *buf)
 { val.value= uint3korr(buf); }
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,7 +14,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <my_global.h>
-#include "sql_priv.h"
 #include <time.h>
 
 #ifndef MYSQL_CLIENT
@@ -290,7 +289,7 @@ static my_decimal *lldiv_t2my_decimal(const lldiv_t *lld, bool neg,
     decimal_neg((decimal_t *) dec);
   if (lld->rem)
   {
-    dec->buf[(dec->intg-1) / 9 + 1]= lld->rem;
+    dec->buf[(dec->intg-1) / 9 + 1]= static_cast<decimal_digit_t>(lld->rem);
     dec->frac= 6;
   }
   return dec;

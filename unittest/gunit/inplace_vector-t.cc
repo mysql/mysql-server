@@ -227,6 +227,56 @@ TEST_F(InplaceVectorTest, NoMemLeaksResizing)
 
 
 /*
+  A vector consists of a list of arrays of objects. Test that all
+  elements of all arrays are destroyed when the vector is
+  destroyed. If run in valgrind, these tests will report memory leaks
+  if some objects aren't destroyed.
+ */
+class InplaceVectorTestP : public ::testing::TestWithParam<size_t>
+{
+protected:
+  InplaceVectorTestP() : array(PSI_NOT_INSTRUMENTED) {}
+  virtual void SetUp()
+  {
+    n_elems= GetParam();
+  }
+  size_t n_elems;
+  Inplace_vector<IntWrap, 5> array;
+};
+ 
+size_t test_values[]= {5, 10, 15, 20};
+ 
+INSTANTIATE_TEST_CASE_P(NoMemLeaks, InplaceVectorTestP,
+::testing::ValuesIn(test_values));
+
+TEST_P(InplaceVectorTestP, DestroyingFullArrays)
+{
+  for (size_t ix= 0; ix < n_elems; ++ix)
+    array.push_back(IntWrap(ix));
+  EXPECT_EQ(n_elems, array.size());
+  EXPECT_EQ(n_elems, array.capacity());
+}
+ 
+ 
+TEST_P(InplaceVectorTestP, DestroyingAlmostFullArrays)
+{
+  for (size_t ix= 0; ix < n_elems - 1; ++ix)
+    array.push_back(IntWrap(ix));
+  EXPECT_EQ(n_elems - 1, array.size());
+  EXPECT_EQ(n_elems, array.capacity());
+}
+ 
+ 
+TEST_P(InplaceVectorTestP, DestroyingAlmostEmptyArrays)
+{
+  for (size_t ix= 0; ix < n_elems - 5 + 1; ++ix)
+    array.push_back(IntWrap(ix));
+  EXPECT_EQ(n_elems - 5 + 1, array.size());
+  EXPECT_EQ(n_elems, array.capacity());
+}
+
+
+/*
   A simple class to verify that Inplace_vector also works for
   classes which have their own operator new/delete.
  */

@@ -51,9 +51,7 @@
   cursor points at the first record).
 */
 
-#include "sql_priv.h"
 #include "sql_handler.h"
-#include "unireg.h"                    // REQUIRED: for other includes
 #include "sql_base.h"                           // close_thread_tables
 #include "lock.h"                               // mysql_unlock_tables
 #include "key.h"                                // key_copy
@@ -61,6 +59,7 @@
 #include "sql_select.h"
 #include "transaction.h"
 #include "sql_parse.h"                          // check_table_access
+#include "log.h"
 
 #define HANDLER_TABLES_HASH_SIZE 120
 
@@ -763,7 +762,7 @@ retry:
         keypart_map= (keypart_map << 1) | 1;
       }
 
-      if (!(key= (uchar*) thd->calloc(ALIGN_SIZE(key_len))))
+      if (!(key= (uchar*) thd->mem_calloc(ALIGN_SIZE(key_len))))
 	goto err;
       if ((error= table->file->ha_index_or_rnd_end()))
         break;

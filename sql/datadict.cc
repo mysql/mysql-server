@@ -14,7 +14,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "datadict.h"
-#include "sql_priv.h"
 #include "sql_class.h"
 #include "sql_table.h"
 

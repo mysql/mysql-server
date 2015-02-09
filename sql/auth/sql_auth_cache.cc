@@ -1052,11 +1052,10 @@ bool acl_getroot(Security_context *sctx, char *user, char *host,
   DBUG_PRINT("enter", ("Host: '%s', Ip: '%s', User: '%s', db: '%s'",
                        (host ? host : "(NULL)"), (ip ? ip : "(NULL)"),
                        user, (db ? db : "(NULL)")));
-  sctx->user= user;
-  sctx->set_host(host);
-  sctx->set_ip(ip);
-
-  sctx->host_or_ip= host ? host : (ip ? ip : "");
+  sctx->set_user_ptr(user, user ? strlen(user) : 0);
+  sctx->set_host_ptr(host, host ? strlen(host) : 0);
+  sctx->set_ip_ptr(ip, ip? strlen(ip) : 0);
+  sctx->set_host_or_ip_ptr();
 
   if (!initialized)
   {
@@ -1069,9 +1068,10 @@ bool acl_getroot(Security_context *sctx, char *user, char *host,
 
   mysql_mutex_lock(&acl_cache->lock);
 
-  sctx->master_access= 0;
-  sctx->db_access= 0;
-  *sctx->priv_user= *sctx->priv_host= 0;
+  sctx->set_master_access(0);
+  sctx->set_db_access(0);
+  sctx->assign_priv_user("", 0);
+  sctx->assign_priv_host("", 0);
 
   /*
      Find acl entry in user database.
@@ -1105,25 +1105,20 @@ bool acl_getroot(Security_context *sctx, char *user, char *host,
         {
           if (!acl_db->db || (db && !wild_compare(db, acl_db->db, 0)))
           {
-            sctx->db_access= acl_db->access;
+            sctx->set_db_access(acl_db->access);
             break;
           }
         }
       }
     }
-    sctx->master_access= acl_user->access;
+    sctx->set_master_access(acl_user->access);
+    sctx->assign_priv_user(user, user ? strlen(user) : 0);
 
-    if (acl_user->user)
-      strmake(sctx->priv_user, user, USERNAME_LENGTH);
-    else
-      *sctx->priv_user= 0;
+    sctx->assign_priv_host(acl_user->host.get_host(),
+                           acl_user->host.get_host() ?
+                           strlen(acl_user->host.get_host()) : 0);
 
-    if (acl_user->host.get_host())
-      strmake(sctx->priv_host, acl_user->host.get_host(), MAX_HOSTNAME - 1);
-    else
-      *sctx->priv_host= 0;
-
-    sctx->password_expired= acl_user->password_expired;
+    sctx->set_password_expired(acl_user->password_expired);
   }
   mysql_mutex_unlock(&acl_cache->lock);
   DBUG_RETURN(res);
@@ -1349,6 +1344,7 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
   size_t password_len;
   sql_mode_t old_sql_mode= thd->variables.sql_mode;
   bool password_expired= false;
+  bool super_users_with_empty_plugin= false;
   DBUG_ENTER("acl_load");
 
   thd->variables.sql_mode&= ~MODE_PAD_CHAR_TO_FULL_LENGTH;
@@ -1502,6 +1498,8 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
 	    */
 	    if(strlen(tmpstr) == 0)
 	    {
+              if ((user.access & SUPER_ACL) && !super_users_with_empty_plugin)
+                super_users_with_empty_plugin= true;
 	      sql_print_warning("User entry '%s'@'%s' has an empty plugin "
 				"value. The user will be ignored and no one can login "
 				"with this user anymore.",
@@ -1545,7 +1543,9 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
           }
           else /* skip the user if plugin value is NULL */
 	  {
-	    sql_print_warning("User entry '%s'@'%s' has an empty plugin "
+            if ((user.access & SUPER_ACL) && !super_users_with_empty_plugin)
+              super_users_with_empty_plugin= true;
+            sql_print_warning("User entry '%s'@'%s' has an empty plugin "
 			      "value. The user will be ignored and no one can login "
 			      "with this user anymore.",
 			      user.user ? user.user : "",
@@ -1651,6 +1651,22 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
   std::sort(acl_users->begin(), acl_users->end(), ACL_compare());
   end_read_record(&read_record_info);
   acl_users->shrink_to_fit();
+
+  if (super_users_with_empty_plugin)
+  {
+    sql_print_warning("Some of the user accounts with SUPER privileges were "
+                      "disabled because of empty mysql.user.plugin value. "
+                      "If you are upgrading from MySQL 5.6 to MySQL 5.7 "
+                      "and your account is disabled you will need to:");
+    sql_print_warning("1. Stop the server and restart it with "
+                      "--skip-grant-tables.");
+    sql_print_warning("2. Run mysql_upgrade.");
+    sql_print_warning("3. Restart the server with the parameters you "
+                      "normally use.");
+    sql_print_warning("For complete instructions on how to upgrade MySQL "
+                      "to a new version please see the 'Upgrading MySQL' "
+                      "section from the MySQL manual");
+  }
 
   /* Legacy password integrity checks ----------------------------------------*/
   { 
@@ -2618,8 +2634,8 @@ update_sctx_cache(Security_context *sctx, ACL_USER *acl_user_ptr, bool expired)
 {
   const char *acl_host= acl_user_ptr->host.get_host();
   const char *acl_user= acl_user_ptr->user;
-  const char *sctx_user= sctx->priv_user;
-  const char *sctx_host= sctx->priv_host;
+  const char *sctx_user= sctx->priv_user().str;
+  const char *sctx_host= sctx->priv_host().str;
 
   if (!acl_host)
     acl_host= "";
@@ -2632,7 +2648,7 @@ update_sctx_cache(Security_context *sctx, ACL_USER *acl_user_ptr, bool expired)
 
   if (!strcmp(acl_user, sctx_user) && !strcmp(acl_host, sctx_host))
   {
-    sctx->password_expired= expired;
+    sctx->set_password_expired(expired);
     return true;
   }
 

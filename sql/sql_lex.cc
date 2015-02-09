@@ -18,8 +18,6 @@
 /* A lexical scanner on a temporary buffer with a yacc interface */
 
 #define MYSQL_LEX 1
-#include "sql_priv.h"
-#include "unireg.h"                    // REQUIRED: for other includes
 #include "sql_class.h"                          // sql_lex.h: SQLCOM_END
 #include "sql_lex.h"
 #include "sql_parse.h"                          // add_to_list
@@ -407,6 +405,14 @@ void Lex_input_stream::add_digest_token(uint token, LEX_YYSTYPE yylval)
   }
 }
 
+void Lex_input_stream::reduce_digest_token(uint token_left, uint token_right)
+{
+  if (m_digest != NULL)
+  {
+    m_digest= digest_reduce_token(m_digest, token_left, token_right);
+  }
+}
+
 /**
   Reset a LEX object so that it is ready for a new query preparation
   and execution.
@@ -465,6 +471,7 @@ void LEX::reset()
   is_lex_started= true;
   used_tables= 0;
   reset_slave_info.all= false;
+  mi.channel= NULL;
 
   wild= NULL;
   exchange= NULL;
@@ -528,11 +535,9 @@ void lex_end(LEX *lex)
 st_select_lex *LEX::new_empty_query_block()
 {
   st_select_lex *select=
-    new (thd->mem_root) st_select_lex(NULL, NULL, NULL, NULL, NULL, NULL, 0);
+    new (thd->mem_root) st_select_lex(NULL, NULL, NULL, NULL, NULL, NULL);
   if (select == NULL)
     return NULL;             /* purecov: inspected */
-  if (describe)
-  select_lex->options|= SELECT_DESCRIBE;
 
   select->parent_lex= this;
 
@@ -2043,15 +2048,13 @@ st_select_lex_unit::st_select_lex_unit(enum_parsing_context parsing_context) :
   slave(NULL),
   explain_marker(CTX_NONE),
   prepared(false),
+  optimized(false),
+  executed(false),
   result_table_list(),
   union_result(NULL),
   table(NULL),
-  result(NULL),
-  found_rows_for_union(0),
-  saved_error(false),
+  m_query_result(NULL),
   uncacheable(0),
-  optimized(false),
-  executed(false),
   cleaned(UC_DIRTY),
   item_list(),
   types(),
@@ -2095,10 +2098,10 @@ st_select_lex_unit::st_select_lex_unit(enum_parsing_context parsing_context) :
 */
 
 st_select_lex::st_select_lex
-               (TABLE_LIST *table_list, List<Item> *item_list,
-                Item *where, Item *having, Item *limit, Item *offset,
-                //SQL_I_LIST<ORDER> *group_by, SQL_I_LIST<ORDER> order_by,
-                ulonglong options)
+               (TABLE_LIST *table_list,
+                List<Item> *item_list_arg,       // unused
+                Item *where, Item *having, Item *limit, Item *offset)
+                //SQL_I_LIST<ORDER> *group_by, SQL_I_LIST<ORDER> order_by)
   :
   next(NULL),
   prev(NULL),
@@ -2106,7 +2109,9 @@ st_select_lex::st_select_lex
   slave(NULL),
   link_next(NULL),
   link_prev(NULL),
-  options(options),
+  m_query_result(NULL),
+  m_base_options(0),
+  m_active_options(0),
   sql_cache(SQL_CACHE_UNSPECIFIED),
   uncacheable(0),
   linkage(UNSPECIFIED_TYPE),
@@ -2114,6 +2119,7 @@ st_select_lex::st_select_lex
   context(),
   resolve_place(RESOLVE_NONE),
   resolve_nest(NULL),
+  semijoin_disallowed(false),
   db(NULL),
   m_where_cond(where),
   m_having_cond(having),
@@ -2126,6 +2132,8 @@ st_select_lex::st_select_lex
   group_list_ptrs(NULL),
   item_list(),
   is_item_list_lookup(false),
+  fields_list(item_list),
+  all_fields(),
   ftfunc_list(&ftfunc_list_alloc),
   ftfunc_list_alloc(),
   join(NULL),
@@ -2318,6 +2326,22 @@ void st_select_lex_unit::invalidate()
   prev= NULL;
   master= NULL;
   slave= NULL;
+}
+
+
+/**
+  Make active options from base options, supplied options and environment:
+
+  @param added_options   Options that are added to the active options
+  @param removed_options Options that are removed from the active options
+*/
+
+void st_select_lex::make_active_options(ulonglong added_options,
+                                        ulonglong removed_options)
+{
+  m_active_options= (m_base_options | added_options |
+                     parent_lex->thd->variables.option_bits) &
+                    ~removed_options;
 }
 
 /**
@@ -2520,6 +2544,27 @@ bool st_select_lex::setup_ref_array(THD *thd)
   // find_order_in_list() may need some extra space, so multiply by two.
   order_group_num*= 2;
 
+  // create_distinct_group() may need some extra space
+  if (is_distinct())
+  {
+    uint bitcount= 0;
+    Item *item;
+    List_iterator<Item> li(item_list);
+    while ((item= li++))
+    {
+      /*
+        Same test as in create_distinct_group, when it pushes new items to the
+        end of ref_pointer_array. An extra test for 'fixed' which, at this
+        stage, will be true only for columns inserted for a '*' wildcard.
+      */
+      if (item->fixed &&
+          item->type() == Item::FIELD_ITEM &&
+          item->field_type() == MYSQL_TYPE_BIT)
+        ++bitcount;
+    }
+    order_group_num+= bitcount;
+  }
+
   /*
     We have to create array in prepared statement memory if it is
     prepared statement
@@ -2540,17 +2585,8 @@ bool st_select_lex::setup_ref_array(THD *thd)
                       select_n_having_items,
                       select_n_where_fields,
                       order_group_num));
-  if (!ref_pointer_array.is_null() && ref_pointer_array.size() >= n_elems)
+  if (!ref_pointer_array.is_null())
   {
-    /*
-      The Query may have been permanently transformed by removal of
-      ORDER BY or GROUP BY. Memory has already been allocated, but by
-      reducing the size of ref_pointer_array a tight bound is
-      maintained by Bounds_checked_array
-    */
-    if (ref_pointer_array.size() > n_elems)
-      ref_pointer_array.resize(n_elems);
-
     /*
       We need to take 'n_sum_items' into account when allocating the array,
       and this may actually increase during the optimization phase due to
@@ -2558,7 +2594,7 @@ bool st_select_lex::setup_ref_array(THD *thd)
       In the usual case we can reuse the array from the prepare phase.
       If we need a bigger array, we must allocate a new one.
      */
-    if (ref_pointer_array.size() == n_elems)
+    if (ref_pointer_array.size() >= n_elems)
       return false;
   }
   /*
@@ -2567,8 +2603,10 @@ bool st_select_lex::setup_ref_array(THD *thd)
   */
   Item **array= static_cast<Item**>(arena->alloc(sizeof(Item*) * n_elems));
   if (array != NULL)
+  {
     ref_pointer_array= Ref_ptr_array(array, n_elems);
-
+    ref_ptrs= ref_ptr_array_slice(0);
+  }
   return array == NULL;
 }
 
@@ -2727,7 +2765,7 @@ static void print_table_array(THD *thd, String *str, TABLE_LIST **table,
 
     // Print join condition
     Item *const cond=
-      (curr->select_lex->join && curr->select_lex->join->optimized) ?
+      (curr->select_lex->join && curr->select_lex->join->is_optimized()) ?
       curr->join_cond_optim() : curr->join_cond();
     if (cond)
     {
@@ -2967,19 +3005,19 @@ void st_select_lex::print(THD *thd, String *str, enum_query_type query_type)
                 is_explainable_query(thd->lex->sql_command)));
 
   /* First add options */
-  if (options & SELECT_STRAIGHT_JOIN)
+  if (active_options() & SELECT_STRAIGHT_JOIN)
     str->append(STRING_WITH_LEN("straight_join "));
-  if (options & SELECT_HIGH_PRIORITY)
+  if (active_options() & SELECT_HIGH_PRIORITY)
     str->append(STRING_WITH_LEN("high_priority "));
-  if (options & SELECT_DISTINCT)
+  if (active_options() & SELECT_DISTINCT)
     str->append(STRING_WITH_LEN("distinct "));
-  if (options & SELECT_SMALL_RESULT)
+  if (active_options() & SELECT_SMALL_RESULT)
     str->append(STRING_WITH_LEN("sql_small_result "));
-  if (options & SELECT_BIG_RESULT)
+  if (active_options() & SELECT_BIG_RESULT)
     str->append(STRING_WITH_LEN("sql_big_result "));
-  if (options & OPTION_BUFFER_RESULT)
+  if (active_options() & OPTION_BUFFER_RESULT)
     str->append(STRING_WITH_LEN("sql_buffer_result "));
-  if (options & OPTION_FOUND_ROWS)
+  if (active_options() & OPTION_FOUND_ROWS)
     str->append(STRING_WITH_LEN("sql_calc_found_rows "));
   switch (sql_cache)
   {
@@ -3040,7 +3078,7 @@ void st_select_lex::print(THD *thd, String *str, enum_query_type query_type)
 
   // Where
   Item *const cur_where=
-    (join && join->optimized) ? join->where_cond : m_where_cond;
+    (join && join->is_optimized()) ? join->where_cond : m_where_cond;
 
   if (cur_where || cond_value != Item::COND_UNDEF)
   {
@@ -3274,7 +3312,7 @@ bool LEX::can_be_merged()
          select_lex->having_cond() == NULL &&
          !select_lex->with_sum_func &&
          select_lex->table_list.elements >= 1 &&
-         !(select_lex->options & SELECT_DISTINCT) &&
+         !select_lex->is_distinct() &&
          select_lex->select_limit == NULL;
 }
 
@@ -3980,7 +4018,7 @@ void st_select_lex::fix_prepare_information(THD *thd)
 
   st_select_lex_unit::prepare, st_select_lex_unit::exec,
   st_select_lex_unit::cleanup, st_select_lex_unit::reinit_exec_mechanism,
-  st_select_lex_unit::change_result
+  st_select_lex_unit::change_query_result
   are in sql_union.cc
 */
 
@@ -4222,7 +4260,7 @@ bool SELECT_LEX::get_optimizable_conditions(THD *thd,
     join->optimized is true => conditions are ready for reading.
     So if we are here, this should hold:
   */
-  DBUG_ASSERT(!(join && join->optimized));
+  DBUG_ASSERT(!(join && join->is_optimized()));
   if (m_where_cond && !thd->stmt_arena->is_conventional())
   {
     *new_where= m_where_cond->copy_andor_structure(thd);
@@ -4246,41 +4284,68 @@ bool SELECT_LEX::get_optimizable_conditions(THD *thd,
 }
 
 /**
-  Check if the select is a simple select (not an union), otherwise report a
-  syntax error
+  Check if an option that can be used only for an outer-most query block is
+  applicable to this query block.
 
-  @param thd             current thread handler
-  @param wrong_option    wrong option name to output withing the error message 
+  @param lex    LEX of current statement
+  @param option option name to output within the error message 
 
-  @retval
-    false       ok
-  @retval
-    true        error	; In this case the error message is sent to the client
+  @returns      false if valid, true if invalid, error is sent to client
 */
 
-bool st_select_lex::check_outermost_option(THD *thd, const char *wrong_option)
+bool st_select_lex::validate_outermost_option(LEX *lex,
+                                              const char *option) const
 {
-  if (this != thd->lex->select_lex)
+  if (this != lex->select_lex)
   {
-    my_error(ER_CANT_USE_OPTION_HERE, MYF(0), wrong_option);
+    my_error(ER_CANT_USE_OPTION_HERE, MYF(0), option);
     return true;
   }
   return false;
 }
 
 
-bool st_select_lex::set_query_block_options(THD *thd, ulonglong options_arg,
-                                            ulong max_statement_time)
+/**
+  Validate base options for a query block.
+
+  @param lex                LEX of current statement
+  @param options_arg        base options for a SELECT statement.
+
+  @returns false if success, true if validation failed
+
+  These options are supported, per DML statement:
+
+  SELECT: SELECT_STRAIGHT_JOIN
+          SELECT_HIGH_PRIORITY
+          SELECT_DISTINCT
+          SELECT_ALL
+          SELECT_SMALL_RESULT
+          SELECT_BIG_RESULT
+          OPTION_BUFFER_RESULT
+          OPTION_FOUND_ROWS
+          SELECT_MAX_STATEMENT_TIME
+          OPTION_TO_QUERY_CACHE
+  DELETE: OPTION_QUICK
+          LOW_PRIORITY
+  INSERT: LOW_PRIORITY
+          HIGH_PRIORITY
+  UPDATE: LOW_PRIORITY
+
+  Note that validation is only performed for SELECT statements.
+*/
+
+bool st_select_lex::validate_base_options(LEX *lex, ulonglong options_arg) const
 {
   DBUG_ASSERT(!(options_arg & ~(SELECT_STRAIGHT_JOIN |
                                 SELECT_HIGH_PRIORITY |
                                 SELECT_DISTINCT |
+                                SELECT_ALL |
                                 SELECT_SMALL_RESULT |
                                 SELECT_BIG_RESULT |
                                 OPTION_BUFFER_RESULT |
                                 OPTION_FOUND_ROWS |
                                 SELECT_MAX_STATEMENT_TIME |
-                                SELECT_ALL)));
+                                OPTION_TO_QUERY_CACHE)));
 
   if (options_arg & SELECT_DISTINCT &&
       options_arg & SELECT_ALL)
@@ -4289,13 +4354,13 @@ bool st_select_lex::set_query_block_options(THD *thd, ulonglong options_arg,
     return true;
   }
   if (options_arg & SELECT_HIGH_PRIORITY &&
-      check_outermost_option(thd, "HIGH_PRIORITY"))
+      validate_outermost_option(lex, "HIGH_PRIORITY"))
     return true;
   if (options_arg & OPTION_BUFFER_RESULT &&
-      check_outermost_option(thd, "SQL_BUFFER_RESULT"))
+      validate_outermost_option(lex, "SQL_BUFFER_RESULT"))
     return true;
   if (options_arg & OPTION_FOUND_ROWS &&
-      check_outermost_option(thd, "SQL_CALC_FOUND_ROWS"))
+      validate_outermost_option(lex, "SQL_CALC_FOUND_ROWS"))
     return true;
 
   if (options_arg & SELECT_MAX_STATEMENT_TIME)
@@ -4305,9 +4370,8 @@ bool st_select_lex::set_query_block_options(THD *thd, ulonglong options_arg,
       only for the TOP LEVEL SELECT statement.
       MAX_STATEMENT_TIME is not appliable to SELECTs of stored routines.
     */
-    if (check_outermost_option(thd, "MAX_STATEMENT_TIME"))
+    if (validate_outermost_option(lex, "MAX_STATEMENT_TIME"))
       return true;
-    LEX * const lex= thd->lex;
     if (lex->sphead ||
         (lex->sql_command == SQLCOM_CREATE_TABLE   ||
          lex->sql_command == SQLCOM_CREATE_VIEW    ||
@@ -4317,10 +4381,8 @@ bool st_select_lex::set_query_block_options(THD *thd, ulonglong options_arg,
       my_error(ER_CANT_USE_OPTION_HERE, MYF(0), "MAX_STATEMENT_TIME");
       return true;
     }
-    lex->max_statement_time= max_statement_time;
   }
 
-  options|= options_arg;
   return false;
 }
 
@@ -4366,9 +4428,7 @@ bool Query_options::merge(const Query_options &a,
 bool Query_options::save_to(Parse_context *pc)
 {
   LEX *lex= pc->thd->lex;
-  if (pc->select->set_query_block_options(lex->thd, query_spec_options,
-                                          max_statement_time))
-    return true;
+  ulonglong options= query_spec_options;
 
   switch (sql_cache) {
   case SELECT_LEX::SQL_CACHE_UNSPECIFIED:
@@ -4379,10 +4439,10 @@ bool Query_options::save_to(Parse_context *pc)
       my_error(ER_CANT_USE_OPTION_HERE, MYF(0), "SQL_NO_CACHE");
       return true;
     }
-    DBUG_ASSERT(lex->select_lex->sql_cache == SELECT_LEX::SQL_CACHE_UNSPECIFIED);
+    DBUG_ASSERT(pc->select->sql_cache == SELECT_LEX::SQL_CACHE_UNSPECIFIED);
     lex->safe_to_cache_query= false;
-    lex->select_lex->options&= ~OPTION_TO_QUERY_CACHE;
-    lex->select_lex->sql_cache= SELECT_LEX::SQL_NO_CACHE;
+    options&= ~OPTION_TO_QUERY_CACHE;
+    pc->select->sql_cache= SELECT_LEX::SQL_NO_CACHE;
     break;
   case SELECT_LEX::SQL_CACHE:
     if (pc->select != lex->select_lex)
@@ -4390,14 +4450,20 @@ bool Query_options::save_to(Parse_context *pc)
       my_error(ER_CANT_USE_OPTION_HERE, MYF(0), "SQL_CACHE");
       return true;
     }
-    DBUG_ASSERT(lex->select_lex->sql_cache == SELECT_LEX::SQL_CACHE_UNSPECIFIED);
+    DBUG_ASSERT(pc->select->sql_cache == SELECT_LEX::SQL_CACHE_UNSPECIFIED);
     lex->safe_to_cache_query= true;
-    lex->select_lex->options|= OPTION_TO_QUERY_CACHE;
-    lex->select_lex->sql_cache= SELECT_LEX::SQL_CACHE;
+    options|= OPTION_TO_QUERY_CACHE;
+    pc->select->sql_cache= SELECT_LEX::SQL_CACHE;
     break;
   default:
     DBUG_ASSERT(!"Unexpected cache option!");
   }
+  if (pc->select->validate_base_options(lex, options))
+    return true;
+  pc->select->set_base_options(options);
+  if (options & SELECT_MAX_STATEMENT_TIME)
+    lex->max_statement_time= max_statement_time;
+
   return false;
 }
 
@@ -4439,6 +4505,8 @@ void st_lex_master_info::initialize()
   relay_log_name= NULL;
   relay_log_pos= 0;
   repl_ignore_server_ids.clear();
+  channel= NULL;
+  for_channel= false;
 }
 
 void st_lex_master_info::set_unspecified()

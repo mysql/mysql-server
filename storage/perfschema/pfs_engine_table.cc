@@ -89,10 +89,10 @@
 /* For replication related perfschema tables. */
 #include "table_replication_connection_configuration.h"
 #include "table_replication_connection_status.h"
-#include "table_replication_execute_configuration.h"
-#include "table_replication_execute_status.h"
-#include "table_replication_execute_status_by_coordinator.h"
-#include "table_replication_execute_status_by_worker.h"
+#include "table_replication_applier_configuration.h"
+#include "table_replication_applier_status.h"
+#include "table_replication_applier_status_by_coordinator.h"
+#include "table_replication_applier_status_by_worker.h"
 
 #include "table_prepared_stmt_instances.h"
 
@@ -199,10 +199,10 @@ static PFS_engine_table_share *all_shares[]=
 
   &table_replication_connection_configuration::m_share,
   &table_replication_connection_status::m_share,
-  &table_replication_execute_configuration::m_share,
-  &table_replication_execute_status::m_share,
-  &table_replication_execute_status_by_coordinator::m_share,
-  &table_replication_execute_status_by_worker::m_share,
+  &table_replication_applier_configuration::m_share,
+  &table_replication_applier_status::m_share,
+  &table_replication_applier_status_by_coordinator::m_share,
+  &table_replication_applier_status_by_worker::m_share,
 
   &table_prepared_stmt_instances::m_share,
 
@@ -1705,11 +1705,37 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       size= host_max * transaction_class_max * sizeof(PFS_transaction_stat);
       total_memory+= size;
       break;
+    case 201:
+      name= "table_lock_waits_summary_by_table.size";
+      size= sizeof(PFS_table_share_lock);
+      break;
+    case 202:
+      name= "table_lock_waits_summary_by_table.count";
+      size= table_share_lock_stat_max;
+      break;
+    case 203:
+      name= "table_lock_waits_summary_by_table.memory";
+      size= table_share_lock_stat_max * sizeof(PFS_table_share_lock);
+      total_memory+= size;
+      break;
+    case 204:
+      name= "table_io_waits_summary_by_index_usage.size";
+      size= sizeof(PFS_table_share_index);
+      break;
+    case 205:
+      name= "table_io_waits_summary_by_index_usage.count";
+      size= table_share_index_stat_max;
+      break;
+    case 206:
+      name= "table_io_waits_summary_by_index_usage.memory";
+      size= table_share_index_stat_max * sizeof(PFS_table_share_index);
+      total_memory+= size;
+      break;
     /*
       This case must be last,
       for aggregation in total_memory.
     */
-    case 201:
+    case 207:
       name= "performance_schema.memory";
       size= total_memory;
       /* This will fail if something is not advertised here */

@@ -1,0 +1,41 @@
+create table t1 (c1 int, c2 geometry not null, spatial index (c2))engine=innodb;
+create procedure insert_t1(IN total int)
+begin
+declare i int default 1;
+while (i <= total) DO
+insert into t1 values (i, Point(i, i));
+set i = i + 1;
+end while;
+end|
+CALL insert_t1(5000);
+select count(*) from t1;
+count(*)
+5000
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+truncate table t1;
+CALL insert_t1(10000);
+select count(*) from t1;
+count(*)
+10000
+drop index c2 on t1;
+create spatial index idx on t1(c2);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` geometry NOT NULL,
+  SPATIAL KEY `idx` (`c2`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+truncate table t1;
+call mtr.add_suppression("InnoDB: page [0-9]+ in the doublewrite buffer is not within space bounds.*");
+START TRANSACTION;
+CALL insert_t1(5000);
+COMMIT;
+# Kill and restart
+drop procedure insert_t1;
+drop table t1;

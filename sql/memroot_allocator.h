@@ -42,6 +42,17 @@
   because of this libstd++ bug:
   http://gcc.gnu.org/bugzilla/show_bug.cgi?id=56437
   "basic_string assumes that allocators are default-constructible"
+
+  @note C++98 says that STL implementors can assume that allocator objects
+  of the same type always compare equal. This will only be the case for
+  two Memroot_allocators that use the same MEM_ROOT. Care should be taken
+  when this is not the case. Especially:
+  - Using list::splice() on two lists with allocators using two different
+    MEM_ROOTs causes undefined behavior. Most implementations seem to give
+    runtime errors in such cases.
+  - swap() on two collections with allocators using two different MEM_ROOTs
+    is not well defined. At least some implementations also swap allocators,
+    but this should not be depended on.
 */
 
 template <class T> class Memroot_allocator

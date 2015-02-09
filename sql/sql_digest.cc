@@ -20,7 +20,6 @@
 #include "my_global.h"
 #include "my_sys.h"
 #include "my_md5.h"
-#include "sql_class.h"
 #include "sql_lex.h"
 #include "sql_signal.h"
 #include "sql_get_diagnostics.h"
@@ -30,6 +29,7 @@
 
 /* Generated code */
 #include "sql_yacc.h"
+#define LEX_TOKEN_WITH_DEFINITION
 #include "lex_token.h"
 
 /* Name pollution from sql/sql_lex.h */
@@ -356,6 +356,52 @@ static inline void peek_last_two_tokens(const sql_digest_storage* digest_storage
   }
 }
 
+/**
+  Function to read last three tokens from token array. If an identifier
+  is found, do not look for token before that.
+*/
+static inline void peek_last_three_tokens(const sql_digest_storage* digest_storage,
+                                          int last_id_index, uint *t1, uint *t2, uint *t3)
+{
+  int byte_count= digest_storage->m_byte_count;
+  int peek_index= byte_count - SIZE_OF_A_TOKEN;
+
+  if (last_id_index <= peek_index)
+  {
+    /* Take last token. */
+    *t1= peek_token(digest_storage, peek_index);
+
+    peek_index-= SIZE_OF_A_TOKEN;
+    if (last_id_index <= peek_index)
+    {
+      /* Take 2nd token from last. */
+      *t2= peek_token(digest_storage, peek_index);
+
+      peek_index-= SIZE_OF_A_TOKEN;
+      if (last_id_index <= peek_index)
+      {
+        /* Take 3rd token from last. */
+        *t3= peek_token(digest_storage, peek_index);
+      }
+      else
+      {
+        *t3= TOK_UNUSED;
+      }
+    }
+    else
+    {
+      *t2= TOK_UNUSED;
+      *t3= TOK_UNUSED;
+    }
+  }
+  else
+  {
+    *t1= TOK_UNUSED;
+    *t2= TOK_UNUSED;
+    *t3= TOK_UNUSED;
+  }
+}
+
 sql_digest_state* digest_add_token(sql_digest_state *state,
                                    uint token,
                                    LEX_YYSTYPE yylval)
@@ -380,16 +426,66 @@ sql_digest_state* digest_add_token(sql_digest_state *state,
 
   switch (token)
   {
-    case BIN_NUM:
+    case NUM:
+    case LONG_NUM:
+    case ULONGLONG_NUM:
     case DECIMAL_NUM:
     case FLOAT_NUM:
+    case BIN_NUM:
     case HEX_NUM:
+    {
+      bool found_unary;
+      do
+      {
+        found_unary= false;
+        peek_last_two_tokens(digest_storage, state->m_last_id_index,
+                             &last_token, &last_token2);
+
+        if ((last_token == '-') || (last_token == '+'))
+        {
+          /*
+            We need to differentiate:
+            - a <unary minus> operator
+            - a <unary plus> operator
+            from
+            - a <binary minus> operator
+            - a <binary plus> operator
+            to only reduce "a = -1" to "a = ?", and not change "b - 1" to "b ?"
+
+            Binary operators are found inside an expression,
+            while unary operators are found at the beginning of an expression, or after operators.
+
+            To achieve this, every token that is followed by an <expr> expression
+            in the SQL grammar is flagged.
+            See sql/sql_yacc.yy
+            See sql/gen_lex_token.cc
+
+            For example,
+            "(-1)" is parsed as "(", "-", NUM, ")", and lex_token_array["("].m_start_expr is true,
+            so reduction of the "-" NUM is done, the result is "(?)".
+            "(a-1)" is parsed as "(", ID, "-", NUM, ")", and lex_token_array[ID].m_start_expr is false,
+            so the operator is binary, no reduction is done, and the result is "(a-?)".
+          */
+          if (lex_token_array[last_token2].m_start_expr)
+          {
+            /*
+              REDUCE:
+              TOK_GENERIC_VALUE := (UNARY_PLUS | UNARY_MINUS) (NUM | LOG_NUM | ... | FLOAT_NUM)
+
+              REDUCE:
+              TOK_GENERIC_VALUE := (UNARY_PLUS | UNARY_MINUS) TOK_GENERIC_VALUE
+            */
+            token= TOK_GENERIC_VALUE;
+            digest_storage->m_byte_count-= SIZE_OF_A_TOKEN;
+            found_unary= true;
+          }
+        }
+      } while (found_unary);
+    }
+    /* fall through, for case NULL_SYM below */
     case LEX_HOSTNAME:
-    case LONG_NUM:
-    case NUM:
     case TEXT_STRING:
     case NCHAR_STRING:
-    case ULONGLONG_NUM:
     case PARAM_MARKER:
     {
       /*
@@ -397,26 +493,22 @@ sql_digest_state* digest_add_token(sql_digest_state *state,
         TOK_GENERIC_VALUE := BIN_NUM | DECIMAL_NUM | ... | ULONGLONG_NUM
       */
       token= TOK_GENERIC_VALUE;
-    }
-    /* fall through */
-    case NULL_SYM:
-    {
+
       peek_last_two_tokens(digest_storage, state->m_last_id_index,
                            &last_token, &last_token2);
 
       if ((last_token2 == TOK_GENERIC_VALUE ||
-           last_token2 == TOK_GENERIC_VALUE_LIST ||
-           last_token2 == NULL_SYM) &&
+           last_token2 == TOK_GENERIC_VALUE_LIST) &&
           (last_token == ','))
       {
         /*
           REDUCE:
           TOK_GENERIC_VALUE_LIST :=
-            (TOK_GENERIC_VALUE|NULL_SYM) ',' (TOK_GENERIC_VALUE|NULL_SYM)
+            TOK_GENERIC_VALUE ',' TOK_GENERIC_VALUE
 
           REDUCE:
           TOK_GENERIC_VALUE_LIST :=
-            TOK_GENERIC_VALUE_LIST ',' (TOK_GENERIC_VALUE|NULL_SYM)
+            TOK_GENERIC_VALUE_LIST ',' TOK_GENERIC_VALUE
         */
         digest_storage->m_byte_count-= 2*SIZE_OF_A_TOKEN;
         token= TOK_GENERIC_VALUE_LIST;
@@ -522,6 +614,95 @@ sql_digest_state* digest_add_token(sql_digest_state *state,
       store_token(digest_storage, token);
       break;
     }
+  }
+
+  return state;
+}
+
+sql_digest_state* digest_reduce_token(sql_digest_state *state,
+                                      uint token_left, uint token_right)
+{
+  sql_digest_storage *digest_storage= NULL;
+
+  digest_storage= &state->m_digest_storage;
+
+  /*
+    Stop collecting further tokens if digest storage is full.
+  */
+  if (digest_storage->m_full)
+    return NULL;
+
+  uint last_token;
+  uint last_token2;
+  uint last_token3;
+  uint token_to_push= TOK_UNUSED;
+
+  peek_last_two_tokens(digest_storage, state->m_last_id_index,
+                       &last_token, &last_token2);
+
+  /*
+    There is only one caller of digest_reduce_token(),
+    see sql/sql_yacc.yy, rule literal := NULL_SYM.
+    REDUCE:
+      token_left := token_right
+    Used for:
+      TOK_GENERIC_VALUE := NULL_SYM
+  */
+
+  if (last_token == token_right)
+  {
+    /*
+      Current stream is like:
+        TOKEN_X TOKEN_RIGHT .
+      REDUCE to
+        TOKEN_X TOKEN_LEFT .
+    */
+    digest_storage->m_byte_count-= SIZE_OF_A_TOKEN;
+    store_token(digest_storage, token_left);
+  }
+  else
+  {
+    /*
+      Current stream is like:
+        TOKEN_X TOKEN_RIGHT TOKEN_Y .
+      Pop TOKEN_Y
+        TOKEN_X TOKEN_RIGHT . TOKEN_Y
+      REDUCE to
+        TOKEN_X TOKEN_LEFT . TOKEN_Y
+    */
+    DBUG_ASSERT(last_token2 == token_right);
+    digest_storage->m_byte_count-= 2 * SIZE_OF_A_TOKEN;
+    store_token(digest_storage, token_left);
+    token_to_push= last_token;
+  }
+
+  peek_last_three_tokens(digest_storage, state->m_last_id_index,
+                         &last_token, &last_token2, &last_token3);
+
+  if ((last_token3 == TOK_GENERIC_VALUE ||
+       last_token3 == TOK_GENERIC_VALUE_LIST) &&
+      (last_token2 == ',') &&
+      (last_token == TOK_GENERIC_VALUE))
+  {
+    /*
+      REDUCE:
+      TOK_GENERIC_VALUE_LIST :=
+        TOK_GENERIC_VALUE ',' TOK_GENERIC_VALUE
+
+      REDUCE:
+      TOK_GENERIC_VALUE_LIST :=
+        TOK_GENERIC_VALUE_LIST ',' TOK_GENERIC_VALUE
+    */
+    digest_storage->m_byte_count-= 3*SIZE_OF_A_TOKEN;
+    store_token(digest_storage, TOK_GENERIC_VALUE_LIST);
+  }
+
+  if (token_to_push != TOK_UNUSED)
+  {
+    /*
+      Push TOKEN_Y
+    */
+    store_token(digest_storage, token_to_push);
   }
 
   return state;

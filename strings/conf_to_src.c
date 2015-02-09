@@ -157,9 +157,9 @@ my_charset_loader_init(MY_CHARSET_LOADER *loader)
 {
   loader->error[0]= '\0';
   loader->once_alloc= malloc;
-  loader->malloc= malloc;
-  loader->realloc= realloc;
-  loader->free= free;
+  loader->mem_malloc= malloc;
+  loader->mem_realloc= realloc;
+  loader->mem_free= free;
   loader->reporter= default_reporter;
   loader->add_collation= add_collation;
 }

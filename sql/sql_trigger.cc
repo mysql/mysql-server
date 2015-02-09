@@ -26,6 +26,8 @@
 #include "sql_parse.h"                // check_table_access()
 #include "trigger_loader.h"           // Trigger_loader
 #include "table_trigger_dispatcher.h" // Table_trigger_dispatcher
+#include "binlog.h"
+
 #include "mysql/psi/mysql_sp.h"
 
 ///////////////////////////////////////////////////////////////////////////
@@ -110,7 +112,7 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
     applies to them too.
   */
   if (!trust_function_creators && mysql_bin_log.is_open() &&
-      !(thd->security_ctx->master_access & SUPER_ACL))
+      !(thd->security_context()->check_access(SUPER_ACL)))
   {
     my_error(ER_BINLOG_CREATE_ROUTINE_NEED_SUPER, MYF(0));
     DBUG_RETURN(TRUE);
@@ -133,7 +135,8 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
     */
     thd->lex->sql_command= backup.sql_command;
 
-    if (opt_readonly && !(thd->security_ctx->master_access & SUPER_ACL) &&
+    if (opt_readonly &&
+        !(thd->security_context()->check_access(SUPER_ACL)) &&
         !thd->slave_thread)
     {
       my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--read-only");

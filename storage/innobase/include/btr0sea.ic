@@ -29,7 +29,6 @@ Created 2/17/1996 Heikki Tuuri
 
 /*********************************************************************//**
 Updates the search info. */
-
 void
 btr_search_info_update_slow(
 /*========================*/

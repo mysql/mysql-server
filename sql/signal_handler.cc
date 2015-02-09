@@ -20,6 +20,7 @@
 #include "my_stacktrace.h"
 #include "connection_handler_manager.h"  // Connection_handler_manager
 #include "mysqld_thd_manager.h"          // Global_THD_manager
+#include "sql_class.h"
 
 #ifdef _WIN32
 #include <crtdbg.h>
@@ -95,9 +96,9 @@ extern "C" void handle_fatal_signal(int sig)
     "or misconfigured. This error can also be caused by malfunctioning hardware.\n");
 
   my_safe_printf_stderr("%s",
-    "We will try our best to scrape up some info that will hopefully help\n"
-    "diagnose the problem, but since we have already crashed, \n"
-    "something is definitely wrong and this may fail.\n\n");
+    "Attempting to collect some information that could help diagnose the problem.\n"
+    "As this is a crash and something is definitely wrong, the information\n"
+    "collection process might fail.\n\n");
 
   my_safe_printf_stderr("key_buffer_size=%lu\n",
                         (ulong) dflt_key_cache->key_cache_mem_size);
