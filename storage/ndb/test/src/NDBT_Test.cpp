@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -913,7 +913,10 @@ int NDBT_TestSuite::executeAll(Ndb_cluster_connection& con,
 			       const char* _testname){
 
   if(tests.size() == 0)
+  {
+    g_err << "Size of test == 0" << endl;
     return NDBT_FAILED;
+  }
 
   char buf[64]; // For timestamp string
   ndbout << name << " started [" << getDate(buf, sizeof(buf)) << "]" << endl;
@@ -984,14 +987,20 @@ NDBT_TestSuite::executeOne(Ndb_cluster_connection& con,
 			   const char* _tabname, const char* _testname){
 
   if (tests.size() == 0 && explicitTests.size() == 0)
+  {
+    g_err << "Test size == 0 and explicit test size == 0" << endl;
     return NDBT_FAILED;
+  }
 
   char buf[64]; // For timestamp string
   ndbout << name << " started [" << getDate(buf, sizeof(buf)) << "]" << endl;
 
   const NdbDictionary::Table* ptab = NDBT_Tables::getTable(_tabname);
   if (ptab == NULL)
+  {
+    g_err << "ptab == NULL" << endl;
     return NDBT_FAILED;
+  }
 
   ndbout << "|- " << ptab->getName() << endl;
 
