@@ -21,7 +21,29 @@
 
 #include <sstream>
 
+#define NUMBER_OF_GCS_RETRIES_ON_ERROR 3
+#define GCS_SLEEP_TIME_ON_ERROR 1
+
 using std::ostringstream;
+
+#define GCS_COROSYNC_RETRIES(method, result)                  \
+  result= CS_OK;                                              \
+  uint number_of_retries= NUMBER_OF_GCS_RETRIES_ON_ERROR;     \
+                                                              \
+  while(number_of_retries > 0)                                \
+  {                                                           \
+    result= method;                                           \
+                                                              \
+    if(result == CS_ERR_TRY_AGAIN)                            \
+    {                                                         \
+      sleep(GCS_SLEEP_TIME_ON_ERROR);                         \
+      number_of_retries--;                                    \
+    }                                                         \
+    else                                                      \
+    {                                                         \
+      number_of_retries= 0;                                   \
+    }                                                         \
+  }
 
 /**
   @class gcs_corosync_utils

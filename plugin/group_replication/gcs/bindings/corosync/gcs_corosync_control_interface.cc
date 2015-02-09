@@ -78,17 +78,15 @@ bool
 Gcs_corosync_control::join()
 {
   cpg_name name;
-  bool rc=false;
 
   name.length= group_identifier->get_group_id().length();
   strncpy(name.value, group_identifier->get_group_id().c_str(),
           CPG_MAX_NAME_LENGTH);
 
-  cs_error_t coro_result= proxy->cpg_join(corosync_handle, &name);
+  int res= 0;
+  GCS_COROSYNC_RETRIES(proxy->cpg_join(corosync_handle, &name), res);
 
-  rc= ( coro_result != CS_OK );
-
-  return rc;
+  return res != CS_OK;
 }
 
 bool

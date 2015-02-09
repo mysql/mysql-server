@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -148,6 +148,33 @@ TEST_F(CorosyncControlTest, JoinTest)
 
   ASSERT_FALSE(corosync_control_if->belongs_to_group());
   ASSERT_FALSE(result);
+}
+
+TEST_F(CorosyncControlTest, JoinTestWithRetryAndSucess)
+{
+  //Setting Expectations and Return Values
+  EXPECT_CALL(control_proxy, cpg_join(_,_))
+             .Times(2)
+             .WillOnce(Return(CS_ERR_TRY_AGAIN))
+             .WillOnce(Return(CS_OK));
+
+  bool result= corosync_control_if->join();
+
+  ASSERT_FALSE(corosync_control_if->belongs_to_group());
+  ASSERT_FALSE(result);
+}
+
+TEST_F(CorosyncControlTest, JoinTestWithRetryAndFail)
+{
+  //Setting Expectations and Return Values
+  EXPECT_CALL(control_proxy, cpg_join(_,_))
+             .Times(3)
+             .WillRepeatedly(Return (CS_ERR_TRY_AGAIN));
+
+  bool result= corosync_control_if->join();
+
+  ASSERT_FALSE(corosync_control_if->belongs_to_group());
+  ASSERT_TRUE(result);
 }
 
 TEST_F(CorosyncControlTest, LeaveTest)
