@@ -1,5 +1,5 @@
-/* Copyright (c) 2003-2007 MySQL AB
-
+/*
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -616,8 +616,11 @@ NdbBackup::abort(unsigned int _backup_id)
 {
   struct ndb_mgm_reply reply;
   int result = ndb_mgm_abort_backup(handle, _backup_id, &reply);
-  if (result != 0) 
+  if (result != 0)
+  {
+    g_err << "Failed to abort backup" << endl;
     return NDBT_FAILED;
+  }
   return NDBT_OK;
 
 }

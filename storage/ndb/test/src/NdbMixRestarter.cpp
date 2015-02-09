@@ -189,17 +189,26 @@ NdbMixRestarter::runUntilStopped(NDBT_Context* ctx,
                                  Uint32 freq)
 {
   if (init(ctx, step))
+  {
+    ndbout << "Line: " << __LINE__ << " init failed" << endl;
     return NDBT_FAILED;
+  }
 
   while (!ctx->isTestStopped())
   {
     if (dostep(ctx, step))
+    {
+      ndbout << "Line: " << __LINE__ << " dostep failed" << endl;
       return NDBT_FAILED;
+    }
     NdbSleep_SecSleep(freq);
   }
   
   if (!finish(ctx, step))
+  {
+    ndbout << "Line: " << __LINE__ << " finish failed" << endl;
     return NDBT_FAILED;
+  }
   
   return NDBT_OK;
 }
@@ -210,13 +219,17 @@ NdbMixRestarter::runPeriod(NDBT_Context* ctx,
                            Uint32 period, Uint32 freq)
 {
   if (init(ctx, step))
+  {
+    ndbout << "Line: " << __LINE__ << " init failed" << endl;
     return NDBT_FAILED;
+  }
 
   Uint32 stop = (Uint32)time(0) + period;
   while (!ctx->isTestStopped() && ((Uint32)time(0) < stop))
   {
     if (dostep(ctx, step))
     {
+      ndbout << "Line: " << __LINE__ << " dostep failed" << endl;
       return NDBT_FAILED;
     }
     NdbSleep_SecSleep(freq);
@@ -224,6 +237,7 @@ NdbMixRestarter::runPeriod(NDBT_Context* ctx,
   
   if (finish(ctx, step))
   {
+    ndbout << "Line: " << __LINE__ << " finish failed" << endl;
     return NDBT_FAILED;
   }
 
@@ -249,7 +263,10 @@ loop:
   switch(action){
   case RTM_RestartCluster:
     if (restart_cluster(ctx, step))
+    {
+      ndbout << "Line: " << __LINE__ << " restart_cluster failed" << endl;
       return NDBT_FAILED;
+    }
     ndbout << " -- cluster restarted" << endl;
     for (Uint32 i = 0; i<m_nodes.size(); i++)
       m_nodes[i].node_status = NDB_MGM_NODE_STATUS_STARTED;
@@ -276,11 +293,17 @@ loop:
     
     ndbout << " -- restartOneDbNode" << endl;
     if (restartOneDbNode(node->node_id, initial, true, true))
+    {
+      ndbout << "Line: " << __LINE__ << " restart node failed" << endl;
       return NDBT_FAILED;
+    }
       
     ndbout << " -- waitNodesNoStart" << endl;
     if (waitNodesNoStart(&node->node_id, 1))
+    {
+      ndbout << "Line: " << __LINE__ << " wait node nostart failed" << endl;
       return NDBT_FAILED;
+    }
     
     node->node_status = NDB_MGM_NODE_STATUS_NOT_STARTED;
     
@@ -295,11 +318,17 @@ loop:
 start:
     ndbout << "Starting " << node->node_id << endl;
     if (startNodes(&node->node_id, 1))
+    {
+      ndbout << "Line: " << __LINE__ << " start node failed" << endl;
       return NDBT_FAILED;
+    }
 
     ndbout << " -- waitNodesStarted" << endl;
     if (waitNodesStarted(&node->node_id, 1))
+    {
+      ndbout << "Line: " << __LINE__ << " wait node start failed" << endl;
       return NDBT_FAILED;
+    }
     
     ndbout << "Started " << node->node_id << endl;
     node->node_status = NDB_MGM_NODE_STATUS_STARTED;      
@@ -326,9 +355,15 @@ NdbMixRestarter::finish(NDBT_Context* ctx, NDBT_Step* step)
   {
     ndbout << "Starting stopped nodes " << endl;
     if (startNodes(not_started.getBase(), not_started.size()))
+    {
+      ndbout << "Line: " << __LINE__ << " start node failed" << endl;
       return NDBT_FAILED;
+    }
     if (waitClusterStarted())
+    {
+      ndbout << "Line: " << __LINE__ << " wait cluster failed" << endl;
       return NDBT_FAILED;
+    }
   }
   return NDBT_OK;
 }

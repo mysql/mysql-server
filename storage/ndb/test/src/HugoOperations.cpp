@@ -1,5 +1,5 @@
-/* Copyright (c) 2003-2007 MySQL AB
-
+/*
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -45,11 +45,12 @@ int HugoOperations::startTransaction(Ndb* pNdb,
 int HugoOperations::setTransaction(NdbTransaction* new_trans, bool not_null_ok){
   
   if (pTrans != NULL && !not_null_ok){
-    ndbout << "HugoOperations::startTransaction, pTrans != NULL" << endl;
+    ndbout << "HugoOperations::setTransaction, pTrans != NULL" << endl;
     return NDBT_FAILED;
   }
   pTrans = new_trans;
   if (pTrans == NULL) {
+    ndbout << "HugoOperations::setTransaction, pTrans == NULL" << endl;
     return NDBT_FAILED;
   }
   return NDBT_OK;
@@ -137,7 +138,10 @@ rand_lock_mode:
     
     // Define primary keys
     if (equalForRow(pOp, r+recordNo) != 0)
+    {
+      g_err << __LINE__ << " equal for row failed" << endl;
       return NDBT_FAILED;
+    }
 
     Uint32 partId;
     /* Do we need to set the partitionId for this operation? */
@@ -229,7 +233,10 @@ rand_lock_mode:
 
     // Define primary keys
     if (equalForRow(pOp, rowid) != 0)
+    {
+      g_err << __LINE__ << " equal for row failed" << endl;
       return NDBT_FAILED;
+    }
 
     Uint32 partId;
     /* Do we need to set the partitionId for this operation? */
@@ -394,6 +401,7 @@ int HugoOperations::pkUpdateRecord(Ndb* pNdb,
     
     if(setValues(pOp, r+recordNo, updatesValue) != NDBT_OK)
     {
+      g_err << __LINE__ << " setValues failed" << endl;
       return NDBT_FAILED;
     }
 
@@ -412,10 +420,16 @@ HugoOperations::setValues(NdbOperation* pOp, int rowId, int updateId)
 {
   // Define primary keys
   if (equalForRow(pOp, rowId) != 0)
+  {
+    g_err << __LINE__ << " equal for row failed" << endl;
     return NDBT_FAILED;
+  }
 
   if (setNonPkValues(pOp, rowId, updateId) != 0)
+  {
+    g_err << __LINE__ << " setNonPkValues failed" << endl;
     return NDBT_FAILED;
+  }
 
   return NDBT_OK;
 }
@@ -462,6 +476,7 @@ int HugoOperations::pkInsertRecord(Ndb* pNdb,
     if(setValues(pOp, r+recordNo, updatesValue) != NDBT_OK)
     {
       m_error.code = pTrans->getNdbError().code;
+      g_err << __LINE__ << " setValues failed" << endl;
       return NDBT_FAILED;
     }
 
@@ -495,7 +510,10 @@ int HugoOperations::pkWriteRecord(Ndb* pNdb,
     
     // Define primary keys
     if (equalForRow(pOp, r+recordNo) != 0)
+    {
+      g_err << __LINE__ << " equal for row failed" << endl;
       return NDBT_FAILED;
+    }
     
     Uint32 partId;
     if(getPartIdForRow(pOp, r+recordNo, partId))
@@ -538,7 +556,10 @@ int HugoOperations::pkWritePartialRecord(Ndb* pNdb,
     
     // Define primary keys
     if (equalForRow(pOp, r+recordNo) != 0)
+    {
+      g_err << __LINE__ << " equal for row failed" << endl;
       return NDBT_FAILED;
+    }
 
     Uint32 partId;
     if(getPartIdForRow(pOp, r+recordNo, partId))
@@ -570,7 +591,10 @@ int HugoOperations::pkDeleteRecord(Ndb* pNdb,
     
     // Define primary keys
     if (equalForRow(pOp, r+recordNo) != 0)
+    {
+      g_err << __LINE__ << " equal for row failed" << endl;
       return NDBT_FAILED;
+    }
 
     Uint32 partId;
     if(getPartIdForRow(pOp, r+recordNo, partId))
@@ -590,6 +614,7 @@ int HugoOperations::pkRefreshRecord(Ndb* pNdb,
 
   if (pTab == 0)
   {
+    g_err << __LINE__ << " pTab == 0" << endl;
     return NDBT_FAILED;
   }
 
@@ -601,6 +626,7 @@ int HugoOperations::pkRefreshRecord(Ndb* pNdb,
     bzero(buffer, sizeof(buffer));
     if (calc.equalForRow((Uint8*)buffer, record, r + recordNo))
     {
+      g_err << __LINE__ << " equal for row failed" << endl;
       return NDBT_FAILED;
     }
 
@@ -637,7 +663,10 @@ int HugoOperations::execute_Commit(Ndb* pNdb,
       setNdbError(err2);
     }
     if (err.code == 0)
+    {
+      g_err << __LINE__ << " execute_Commit failed with errcode = 0" << endl;
       return NDBT_FAILED;
+    }
     return err.code;
   }
 
@@ -694,7 +723,10 @@ int HugoOperations::execute_NoCommit(Ndb* pNdb, AbortOption eao){
       pOp = pTrans->getNextCompletedOperation(pOp);
     }
     if (err.code == 0)
+    {
+      g_err << __LINE__ << " equal for row failed" << endl;
       return NDBT_FAILED;
+    }
     return err.code;
   }
 
@@ -882,7 +914,7 @@ int HugoOperations::equalForAttr(NdbOperation* pOp,
 				   int rowId){
   const NdbDictionary::Column* attr = tab.getColumn(attrId);  
   if (attr->getPrimaryKey() == false){
-    g_info << "Can't call equalForAttr on non PK attribute" << endl;
+    g_err << "Can't call equalForAttr on non PK attribute" << endl;
     return NDBT_FAILED;
   }
   
@@ -981,7 +1013,10 @@ void HugoOperations::deallocRows(){
 int HugoOperations::saveCopyOfRecord(int numRecords ){
 
   if (numRecords > (int)rows.size())
+  {
+    g_err << __LINE__ << " number of rows wrong" << endl;
     return NDBT_FAILED;
+  }
 
   for (int i = 0; i < numRecords; i++){
     savedRecords.push_back(rows[i]->c_str());    
@@ -1002,9 +1037,15 @@ int HugoOperations::getRecordGci(int recordNum){
 
 int HugoOperations::compareRecordToCopy(int numRecords ){
   if (numRecords > (int)rows.size())
+  {
+    g_err << __LINE__ << " number of rows wrong" << endl;
     return NDBT_FAILED;
+  }
   if ((unsigned)numRecords > savedRecords.size())
+  {
+    g_err << __LINE__ << " number of rows wrong" << endl;
     return NDBT_FAILED;
+  }
 
   int result = NDBT_OK;
   for (int i = 0; i < numRecords; i++){
@@ -1014,6 +1055,7 @@ int HugoOperations::compareRecordToCopy(int numRecords ){
     if (savedRecords[i] == str){
       ;
     } else {
+      g_err << __LINE__ << " row " << i << " wrong" << endl;
       result = NDBT_FAILED;
     }    
   }
@@ -1054,7 +1096,10 @@ int HugoOperations::indexReadRecords(Ndb*, const char * idxName, int recordNo,
     
     // Define primary keys
     if (equalForRow(pOp, r+recordNo) != 0)
+    {
+      g_err << __LINE__ << " equal for row failed" << endl;
       return NDBT_FAILED;
+    }
     
     // Define attributes to read  
     for(a = 0; a<tab.getNoOfColumns(); a++){
@@ -1095,7 +1140,10 @@ HugoOperations::indexUpdateRecord(Ndb*,
     
     // Define primary keys
     if (equalForRow(pOp, r+recordNo) != 0)
+    {
+      g_err << __LINE__ << " equal for row failed" << endl;
       return NDBT_FAILED;
+    }
     
     // Define attributes to update
     for(a = 0; a<tab.getNoOfColumns(); a++){
