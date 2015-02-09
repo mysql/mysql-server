@@ -1,5 +1,5 @@
-/* Copyright (c) 2003-2005, 2007 MySQL AB
-
+/*
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -461,6 +461,7 @@ HugoAsynchTransactions::callback(int result,
     if (beginNewTask(tInfo) < 0)
     {
       finished= true;
+      g_err << "Error begin new task" << endl;
       testResult= NDBT_FAILED;
     }
   }

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -54,7 +54,7 @@ HugoTransactions::scanReadRecords(Ndb* pNdb,
 
     if (retryAttempt >= m_retryMax){
       g_err << __LINE__ << " ERROR: has retried this operation " 
-            << retryAttempt << " times, failing!" << endl;
+            << retryAttempt << " times, failing!, line: " << __LINE__ << endl;
       return NDBT_FAILED;
     }
 
@@ -130,6 +130,7 @@ HugoTransactions::scanReadRecords(Ndb* pNdb,
       rows++;
       if (calc.verifyRowValues(&row) != 0){
 	closeTransaction(pNdb);
+        g_err << "Line: " << __LINE__ << " verify row failed" << endl;
 	return NDBT_FAILED;
       }
 
@@ -196,6 +197,7 @@ HugoTransactions::scanReadRecords(Ndb* pNdb,
     
     return NDBT_OK;
   }
+  abort(); /* Should never happen */
   return NDBT_FAILED;
 }
 
@@ -305,6 +307,7 @@ HugoTransactions::scanReadRecords(Ndb* pNdb,
       rows++;
       if (calc.verifyRowValues(&row) != 0){
 	closeTransaction(pNdb);
+        g_err << "Line: " << __LINE__ << " verify row failed" << endl;
 	return NDBT_FAILED;
       }
 
@@ -386,6 +389,7 @@ HugoTransactions::scanReadRecords(Ndb* pNdb,
     
     return NDBT_OK;
   }
+  abort(); /* Should never happen */
   return NDBT_FAILED;
 }
 
@@ -405,8 +409,8 @@ HugoTransactions::scanUpdateRecords(Ndb* pNdb,
   while (true){
 restart:
     if (retryAttempt++ >= m_retryMax){
-      g_info << "ERROR: has retried this operation " << retryAttempt 
-	     << " times, failing!" << endl;
+      g_err << "ERROR: has retried this operation " << retryAttempt 
+	     << " times, failing!, line: " << __LINE__ << endl;
       return NDBT_FAILED;
     }
 
@@ -549,6 +553,7 @@ restart:
     g_info << rows << " rows have been updated" << endl;
     return NDBT_OK;
   }
+  abort(); /* Should never happen */
   return NDBT_FAILED;
 }
 
@@ -940,7 +945,8 @@ HugoTransactions::pkReadRecords(Ndb* pNdb,
   int                  check;
 
   if (batch == 0) {
-    g_info << "ERROR: Argument batch == 0 in pkReadRecords(). Not allowed." << endl;
+    g_err << "ERROR: Argument batch == 0 in pkReadRecords(). Not allowed.";
+    g_err << "Line: " << __LINE__ << endl;
     return NDBT_FAILED;
   }
 
@@ -949,8 +955,8 @@ HugoTransactions::pkReadRecords(Ndb* pNdb,
       batch = records - r;
 
     if (retryAttempt >= m_retryMax){
-      g_info << "ERROR: has retried this operation " << retryAttempt 
-	     << " times, failing!" << endl;
+      g_err << "ERROR: has retried this operation " << retryAttempt 
+	     << " times, failing!, line: " << __LINE__ << endl;
       return NDBT_FAILED;
     }
     
@@ -1052,6 +1058,7 @@ HugoTransactions::pkReadRecords(Ndb* pNdb,
             rows_found++;
             if (calc.verifyRowValues(rows[0]) != 0){
               closeTransaction(pNdb);
+              g_err << "Line: " << __LINE__ << " verify row failed" << endl;
               return NDBT_FAILED;
             }
           }
@@ -1059,6 +1066,7 @@ HugoTransactions::pkReadRecords(Ndb* pNdb,
 	if(check != 1 || rows_found > batch)
 	{
 	  closeTransaction(pNdb);
+          g_err << "Line: " << __LINE__ << " check rows failed" << endl;
 	  return NDBT_FAILED;
 	}
 	else if(rows_found < batch)
@@ -1077,6 +1085,7 @@ HugoTransactions::pkReadRecords(Ndb* pNdb,
 	for (int b=0; (b<batch) && (r+b<records); b++){ 
 	  if (calc.verifyRowValues(rows[b]) != 0){
 	    closeTransaction(pNdb);
+            g_err << "Line: " << __LINE__ << " verify row failed" << endl;
 	    return NDBT_FAILED;
 	  }
 	  reads++;
@@ -1127,8 +1136,8 @@ HugoTransactions::pkUpdateRecords(Ndb* pNdb,
     }
     
     if (retryAttempt >= m_retryMax){
-      g_info << "ERROR: has retried this operation " << retryAttempt 
-	     << " times, failing!" << endl;
+      g_err << "ERROR: has retried this operation " << retryAttempt 
+	     << " times, failing!, line: " << __LINE__ << endl;
       return NDBT_FAILED;
     }
     
@@ -1197,7 +1206,7 @@ HugoTransactions::pkUpdateRecords(Ndb* pNdb,
           do {
             
             if (calc.verifyRowValues(rows[0]) != 0){
-              g_info << "Row validation failure" << endl;
+              g_err << "Row validation failure, line: " << __LINE__ << endl;
               closeTransaction(pNdb);
               return NDBT_FAILED;
             }
@@ -1227,7 +1236,7 @@ HugoTransactions::pkUpdateRecords(Ndb* pNdb,
 
         if(check != 1)
         {
-          g_info << "Check failed" << endl;
+          g_err << "Check failed, line: " << __LINE__ << endl;
           closeTransaction(pNdb);
           return NDBT_FAILED;
         } 
@@ -1235,8 +1244,9 @@ HugoTransactions::pkUpdateRecords(Ndb* pNdb,
 
       if (rows_found != batch)
       {
-        g_info << "Incorrect num of rows found.  Expected "
+        g_err << "Incorrect num of rows found.  Expected "
                << batch << ". Found " << rows_found << endl;
+        g_err << "Line: " << __LINE__ << endl;
         closeTransaction(pNdb);
         return NDBT_FAILED;
       }
@@ -1248,6 +1258,7 @@ HugoTransactions::pkUpdateRecords(Ndb* pNdb,
 	if (calc.verifyRowValues(rows[b]) != 0)
 	{
 	  closeTransaction(pNdb);
+          g_err << "Line: " << __LINE__ << " verify row failed" << endl;
 	  return NDBT_FAILED;
 	}
 	
@@ -1314,8 +1325,8 @@ HugoTransactions::pkInterpretedUpdateRecords(Ndb* pNdb,
   while (r < records){
     
     if (retryAttempt >= m_retryMax){
-      g_info << "ERROR: has retried this operation " << retryAttempt 
-	     << " times, failing!" << endl;
+      g_err << "ERROR: has retried this operation " << retryAttempt 
+	     << " times, failing!, line: " << __LINE__ << endl;
       return NDBT_FAILED;
     }
     
@@ -1354,6 +1365,7 @@ HugoTransactions::pkInterpretedUpdateRecords(Ndb* pNdb,
    if (equalForRow(pOp, r) != 0)
    {
      closeTransaction(pNdb);
+     g_err << "Line: " << __LINE__ << " equal for row failed" << endl;
      return NDBT_FAILED;
    }
    
@@ -1410,6 +1422,7 @@ HugoTransactions::pkInterpretedUpdateRecords(Ndb* pNdb,
     if (equalForRow(pUpdOp, r) != 0)
     {
       closeTransaction(pNdb);
+       g_err << "Line: " << __LINE__ << " equal for row failed" << endl;
       return NDBT_FAILED;
     }
 
@@ -1505,8 +1518,8 @@ HugoTransactions::pkDelRecords(Ndb* pNdb,
     }
 
     if (retryAttempt >= m_retryMax){
-      g_info << "ERROR: has retried this operation " << retryAttempt 
-	     << " times, failing!" << endl;
+      g_err << "ERROR: has retried this operation " << retryAttempt 
+	     << " times, failing!, line: " << __LINE__ << endl;
       return NDBT_FAILED;
     }
 
@@ -1623,8 +1636,8 @@ HugoTransactions::pkRefreshRecords(Ndb* pNdb,
 
     if (retryAttempt >= m_retryMax)
     {
-      g_info << "ERROR: has retried this operation " << retryAttempt
-	     << " times, failing!" << endl;
+      g_err << "ERROR: has retried this operation " << retryAttempt
+	     << " times, failing!, line: " << __LINE__ << endl;
       return NDBT_FAILED;
     }
 
@@ -1689,12 +1702,14 @@ HugoTransactions::pkReadUnlockRecords(Ndb* pNdb,
   int                  check;
   
   if (batch == 0) {
-    g_info << "ERROR: Argument batch == 0 in pkReadRecords(). Not allowed." << endl;
+    g_err << "ERROR: Argument batch == 0 in pkReadRecords(). Not allowed.";
+    g_err << " line: " << __LINE__ << endl;
     return NDBT_FAILED;
   }
 
   if (idx != NULL) {
-    g_info << "ERROR: Cannot call pkReadUnlockRecords for index" << endl;
+    g_err << "ERROR: Cannot call pkReadUnlockRecords for index";
+    g_err << " line: " << __LINE__ << endl;
     return NDBT_FAILED;
   }
   
@@ -1703,8 +1718,8 @@ HugoTransactions::pkReadUnlockRecords(Ndb* pNdb,
       batch = records - r;
     
     if (retryAttempt >= m_retryMax){
-      g_info << "ERROR: has retried this operation " << retryAttempt 
-	     << " times, failing!" << endl;
+      g_err << "ERROR: has retried this operation " << retryAttempt 
+	     << " times, failing!, line: " << __LINE__ << endl;
       return NDBT_FAILED;
     }
     
@@ -1770,6 +1785,7 @@ HugoTransactions::pkReadUnlockRecords(Ndb* pNdb,
       for (int b=0; (b<batch) && (r+b<records); b++){ 
         if (calc.verifyRowValues(rows[b]) != 0){
           closeTransaction(pNdb);
+          g_err << "Line: " << __LINE__ << " verify row failed" << endl;
           return NDBT_FAILED;
         }
         reads++;
@@ -1780,6 +1796,7 @@ HugoTransactions::pkReadUnlockRecords(Ndb* pNdb,
                          lockHandles) != NDBT_OK)
       {
         closeTransaction(pNdb);
+        g_err << "Line: " << __LINE__ << " unlock row failed" << endl;
         return NDBT_FAILED;
       }
       
@@ -1846,8 +1863,8 @@ HugoTransactions::lockRecords(Ndb* pNdb,
     g_info << "|- Locking " << lockBatch << " records..." << endl;
 
     if (retryAttempt >= m_retryMax){
-      g_info << "ERROR: has retried this operation " << retryAttempt 
-	     << " times, failing!" << endl;
+      g_err << "ERROR: has retried this operation " << retryAttempt 
+	     << " times, failing!, line: " << __LINE__ << endl;
       return NDBT_FAILED;
     }
 
@@ -1900,6 +1917,7 @@ HugoTransactions::lockRecords(Ndb* pNdb,
       for (int b=0; (b<lockBatch) && (r+b<records); b++){ 
 	if (calc.verifyRowValues(rows[b]) != 0){
 	  closeTransaction(pNdb);
+          g_err << "Line: " << __LINE__ << " verify row failed" << endl;
 	  return NDBT_FAILED;
 	}
       }
@@ -1931,6 +1949,7 @@ HugoTransactions::lockRecords(Ndb* pNdb,
       for (int b=0; (b<lockBatch) && (r<records); b++){ 
 	if (calc.verifyRowValues(rows[b]) != 0){
 	  closeTransaction(pNdb);
+          g_err << "Line: " << __LINE__ << " verify row failed" << endl;
 	  return NDBT_FAILED;
 	}
 	r++; // Read next record
@@ -1963,8 +1982,8 @@ HugoTransactions::indexReadRecords(Ndb* pNdb,
   const bool ordered = (pIndex->getType()==NdbDictionary::Index::OrderedIndex);
 
   if (batch == 0) {
-    g_info << "ERROR: Argument batch == 0 in indexReadRecords(). "
-	   << "Not allowed." << endl;
+    g_err << "ERROR: Argument batch == 0 in indexReadRecords(). "
+	   << "Not allowed, line: " << __LINE__ << endl;
     return NDBT_FAILED;
   }
   
@@ -1976,8 +1995,8 @@ HugoTransactions::indexReadRecords(Ndb* pNdb,
   
   while (r < records){
     if (retryAttempt >= m_retryMax){
-      g_info << "ERROR: has retried this operation " << retryAttempt 
-	     << " times, failing!" << endl;
+      g_err << "ERROR: has retried this operation " << retryAttempt 
+	     << " times, failing!, line: " << __LINE__ << endl;
       return NDBT_FAILED;
     }
 
@@ -2028,6 +2047,7 @@ HugoTransactions::indexReadRecords(Ndb* pNdb,
       if (equalForRow(pOp, r+b) != 0)
       {
         closeTransaction(pNdb);
+        g_err << "Line: " << __LINE__ << " equal for row failed" << endl;
         return NDBT_FAILED;
       }
       
@@ -2079,6 +2099,7 @@ HugoTransactions::indexReadRecords(Ndb* pNdb,
       if(ordered && sOp->nextResult(true) == 0){
 	ndbout << "Error when comparing records "
 	       << " - index op next_result to many" << endl;
+        ndbout << "Line: " << __LINE__ << endl;
 	closeTransaction(pNdb);
 	return NDBT_FAILED;
       }
@@ -2117,8 +2138,8 @@ HugoTransactions::indexUpdateRecords(Ndb* pNdb,
   
   while (r < records){
     if (retryAttempt >= m_retryMax){
-      g_info << "ERROR: has retried this operation " << retryAttempt 
-	     << " times, failing!" << endl;
+      g_err << "ERROR: has retried this operation " << retryAttempt 
+	     << " times, failing!, line: " << __LINE__ << endl;
       return NDBT_FAILED;
     }
     
@@ -2171,6 +2192,7 @@ HugoTransactions::indexUpdateRecords(Ndb* pNdb,
       if (equalForRow(pOp, r+b) != 0)
       {
         closeTransaction(pNdb);
+        g_err << "Line: " << __LINE__ << " equal for row failed" << endl;
         return NDBT_FAILED;
       }
       
@@ -2211,6 +2233,7 @@ HugoTransactions::indexUpdateRecords(Ndb* pNdb,
     for(b = 0; b<batch && (b+r)<records; b++){
       if (calc.verifyRowValues(rows[b]) != 0){
 	closeTransaction(pNdb);
+        g_err << "Line: " << __LINE__ << " verify row failed" << endl;
 	return NDBT_FAILED;
       }
       
@@ -2243,6 +2266,7 @@ HugoTransactions::indexUpdateRecords(Ndb* pNdb,
         if (equalForRow(pUpdOp, r+b) != 0)
         {
           closeTransaction(pNdb);
+          g_err << "Line: " << __LINE__ << " equal for row failed" << endl;
           return NDBT_FAILED;
         }
       }
