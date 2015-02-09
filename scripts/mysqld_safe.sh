@@ -28,6 +28,7 @@ syslog_tag=
 user='@MYSQLD_USER@'
 pid_file=
 err_log=
+err_log_base=
 
 syslog_tag_mysqld=mysqld
 syslog_tag_mysqld_safe=mysqld_safe
@@ -208,7 +209,7 @@ parse_arguments() {
       --user=*) user="$val"; SET_USER=1 ;;
       --log-basename=*|--hostname=*|--loose-log-basename=*)
         pid_file="$val.pid";
-	err_log="$val.err";
+	err_log_base="$val";
 	;;
 
       # these might have been set in a [mysqld_safe] section of my.cnf
@@ -577,7 +578,16 @@ then
       * ) err_log="$DATADIR/$err_log" ;;
     esac
   else
-    err_log=$DATADIR/`@HOSTNAME@`.err
+    if [ -n "$err_log_base" ]
+    then
+      err_log=$err_log_base.err
+      case "$err_log" in
+        /* ) ;;
+        * ) err_log="$DATADIR/$err_log" ;;
+      esac
+    else
+      err_log=$DATADIR/`@HOSTNAME@`.err
+    fi
   fi
 
   append_arg_to_args "--log-error=$err_log"
