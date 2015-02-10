@@ -6972,13 +6972,13 @@ void Dbdih::execDBINFO_SCANREQ(Signal *signal)
     if (isMaster() == false)
     {
       /* Only report from master node's view on restarts */
-      return;
+      break;
     }
     if (getNodeState().startLevel != NodeState::SL_STARTED)
     {
       jam();
       /* Ignore when we are starting up or shutting down */
-      return;
+      break;
     }
 
     NodeRecordPtr nodePtr;
@@ -7014,7 +7014,7 @@ void Dbdih::execDBINFO_SCANREQ(Signal *signal)
     {
       /* No nodes had any node restart data to report */
       jam();
-      return;
+      break;
     }
     break;
   }
