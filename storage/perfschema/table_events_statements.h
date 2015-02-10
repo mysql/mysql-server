@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -175,14 +175,15 @@ protected:
   {}
 
   void make_row_part_1(PFS_events_statements *statement,
-                       PSI_digest_storage *digest);
+                       sql_digest_storage *digest);
 
-  void make_row_part_2(PSI_digest_storage *digest);
+  void make_row_part_2(const sql_digest_storage *digest);
 
   /** Current row. */
   row_events_statements m_row;
   /** True if the current row exists. */
   bool m_row_exists;
+  unsigned char m_token_array[MAX_DIGEST_STORAGE_SIZE];
 };
 
 /** Table PERFORMANCE_SCHEMA.EVENTS_STATEMENTS_CURRENT. */

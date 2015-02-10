@@ -64,6 +64,7 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #include "set_var.h"
 #include "opt_explain_traditional.h"
 #include "opt_explain_json.h"
+#include "lex_token.h"
 
 /* this is to get the bison compilation windows warnings out */
 #ifdef _MSC_VER
@@ -13397,6 +13398,14 @@ literal:
         | temporal_literal { $$= $1; }
         | NULL_SYM
           {
+            Lex_input_stream *lip= YYLIP;
+            /*
+              For the digest computation, in this context only,
+              NULL is considered a literal, hence reduced to '?'
+              REDUCE:
+                TOK_GENERIC_VALUE := NULL_SYM
+            */
+            lip->reduce_digest_token(TOK_GENERIC_VALUE, NULL_SYM);
             $$ = new (YYTHD->mem_root) Item_null();
             if ($$ == NULL)
               MYSQL_YYABORT;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -94,6 +94,7 @@ ulong events_stages_history_per_thread;
 /** Number of EVENTS_STATEMENTS_HISTORY records per thread. */
 ulong events_statements_history_per_thread;
 uint statement_stack_max;
+uint pfs_max_digest_length= 0;
 /** Number of locker lost. @sa LOCKER_STACK_SIZE. */
 ulong locker_lost= 0;
 /** Number of statement lost. @sa STATEMENT_STACK_SIZE. */
@@ -176,6 +177,8 @@ static PFS_events_waits *thread_waits_history_array= NULL;
 static PFS_events_stages *thread_stages_history_array= NULL;
 static PFS_events_statements *thread_statements_history_array= NULL;
 static PFS_events_statements *thread_statements_stack_array= NULL;
+static unsigned char *current_stmts_digest_token_array= NULL;
+static unsigned char *history_stmts_digest_token_array= NULL;
 static char *thread_session_connect_attrs_array= NULL;
 
 /** Hash table for instrumented files. */
@@ -190,6 +193,9 @@ static bool filename_hash_inited= false;
 */
 int init_instruments(const PFS_global_param *param)
 {
+  PFS_events_statements *pfs_stmt;
+  unsigned char *pfs_tokens;
+
   uint thread_waits_history_sizing;
   uint thread_stages_history_sizing;
   uint thread_statements_history_sizing;
@@ -215,6 +221,9 @@ int init_instruments(const PFS_global_param *param)
   file_handle_max= param->m_file_handle_sizing;
   file_handle_full= false;
   file_handle_lost= 0;
+
+  pfs_max_digest_length= param->m_max_digest_length;
+
   table_max= param->m_table_sizing;
   table_full= false;
   table_lost= 0;
@@ -254,6 +263,9 @@ int init_instruments(const PFS_global_param *param)
     * session_connect_attrs_size_per_thread;
   session_connect_attrs_lost= 0;
 
+  size_t current_digest_tokens_sizing= param->m_thread_sizing * pfs_max_digest_length * statement_stack_max;
+  size_t history_digest_tokens_sizing= param->m_thread_sizing * pfs_max_digest_length * events_statements_history_per_thread;
+
   mutex_array= NULL;
   rwlock_array= NULL;
   cond_array= NULL;
@@ -266,6 +278,8 @@ int init_instruments(const PFS_global_param *param)
   thread_stages_history_array= NULL;
   thread_statements_history_array= NULL;
   thread_statements_stack_array= NULL;
+  current_stmts_digest_token_array= NULL;
+  history_stmts_digest_token_array= NULL;
   thread_instr_class_waits_array= NULL;
   thread_instr_class_stages_array= NULL;
   thread_instr_class_statements_array= NULL;
@@ -407,6 +421,22 @@ int init_instruments(const PFS_global_param *param)
       return 1;
   }
 
+  if (current_digest_tokens_sizing > 0)
+  {
+    current_stmts_digest_token_array=
+      (unsigned char *)pfs_malloc(current_digest_tokens_sizing, MYF(MY_ZEROFILL));
+    if (unlikely(current_stmts_digest_token_array == NULL))
+      return 1;
+  }
+
+  if (history_digest_tokens_sizing > 0)
+  {
+    history_stmts_digest_token_array=
+      (unsigned char *)pfs_malloc(history_digest_tokens_sizing, MYF(MY_ZEROFILL));
+    if (unlikely(history_stmts_digest_token_array == NULL))
+      return 1;
+  }
+
   for (index= 0; index < thread_max; index++)
   {
     thread_array[index].m_waits_history=
@@ -425,6 +455,22 @@ int init_instruments(const PFS_global_param *param)
       &thread_instr_class_statements_array[index * statement_class_max];
     thread_array[index].m_session_connect_attrs=
       &thread_session_connect_attrs_array[index * session_connect_attrs_size_per_thread];
+  }
+
+  for (index= 0; index < thread_statements_stack_sizing; index++)
+  {
+    pfs_stmt= & thread_statements_stack_array[index];
+
+    pfs_tokens= & current_stmts_digest_token_array[index * pfs_max_digest_length];
+    pfs_stmt->m_digest_storage.reset(pfs_tokens, pfs_max_digest_length);
+  }
+
+  for (index= 0; index < thread_statements_history_sizing; index++)
+  {
+    pfs_stmt= & thread_statements_history_array[index];
+
+    pfs_tokens= & history_stmts_digest_token_array[index * pfs_max_digest_length];
+    pfs_stmt->m_digest_storage.reset(pfs_tokens, pfs_max_digest_length);
   }
 
   if (stage_class_max > 0)
@@ -497,6 +543,10 @@ void cleanup_instruments(void)
   global_instr_class_statements_array= NULL;
   pfs_free(thread_session_connect_attrs_array);
   thread_session_connect_attrs_array=NULL;
+  pfs_free(current_stmts_digest_token_array);
+  current_stmts_digest_token_array= NULL;
+  pfs_free(history_stmts_digest_token_array);
+  history_stmts_digest_token_array= NULL;
 }
 
 C_MODE_START

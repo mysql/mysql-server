@@ -1,7 +1,7 @@
 #include "mysql/psi/psi.h"
 C_MODE_START
 struct TABLE_SHARE;
-struct OPAQUE_LEX_YYSTYPE;
+struct sql_digest_storage;
 struct PSI_mutex;
 typedef struct PSI_mutex PSI_mutex;
 struct PSI_rwlock;

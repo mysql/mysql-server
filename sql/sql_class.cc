@@ -898,6 +898,7 @@ THD::THD(bool enable_plugins)
    first_successful_insert_id_in_cur_stmt(0),
    stmt_depends_on_first_successful_insert_id_in_prev_stmt(FALSE),
    m_examined_row_count(0),
+   m_digest(NULL),
    m_statement_psi(NULL),
    m_idle_psi(NULL),
    m_server_idle(false),
@@ -1044,6 +1045,13 @@ THD::THD(bool enable_plugins)
 #ifndef DBUG_OFF
   gis_debug= 0;
 #endif
+
+  m_token_array= NULL;
+  if (max_digest_length > 0)
+  {
+    m_token_array= (unsigned char*) my_malloc(max_digest_length,
+                                              MYF(MY_WME));
+  }
 }
 
 
@@ -1626,6 +1634,11 @@ THD::~THD()
 #endif
 
   free_root(&main_mem_root, MYF(0));
+
+  if (m_token_array != NULL)
+  {
+    my_free(m_token_array);
+  }
   DBUG_VOID_RETURN;
 }
 

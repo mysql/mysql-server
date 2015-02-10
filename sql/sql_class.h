@@ -38,6 +38,8 @@
 #include "opt_trace_context.h"    /* Opt_trace_context */
 #include "rpl_gtid.h"
 
+#include "sql_digest_stream.h"            // sql_digest_state
+
 #include <mysql/psi/mysql_stage.h>
 #include <mysql/psi/mysql_statement.h>
 #include <mysql/psi/mysql_idle.h>
@@ -2833,6 +2835,13 @@ public:
 #if defined(ENABLED_PROFILING)
   PROFILING  profiling;
 #endif
+
+  /** Current statement digest. */
+  sql_digest_state *m_digest;
+  /** Current statement digest token array. */
+  unsigned char *m_token_array;
+  /** Top level statement digest. */
+  sql_digest_state m_digest_state;
 
   /** Current statement instrumentation. */
   PSI_statement_locker *m_statement_psi;

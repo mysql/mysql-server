@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -17,12 +17,19 @@
   Minimal code to be able to link a unit test.
 */
 
+#include "my_global.h"
+#include "m_ctype.h"
+#include "sql_class.h"
+#include "sql_show.h"
+
+struct sql_digest_storage;
+
 volatile bool ready_to_exit= false;
 
 uint lower_case_table_names= 0;
 CHARSET_INFO *files_charset_info= NULL;
 
-extern "C" void compute_md5_hash(char *, const char *, int)
+void compute_digest_md5(const sql_digest_storage *, unsigned char *)
 {
 }
 

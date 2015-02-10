@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -384,6 +384,21 @@ void Lex_input_stream::body_utf8_append_literal(THD *thd,
   m_cpp_utf8_processed_ptr= end_ptr;
 }
 
+void Lex_input_stream::add_digest_token(uint token, LEX_YYSTYPE yylval)
+{
+  if (m_digest != NULL)
+  {
+    m_digest= digest_add_token(m_digest, token, yylval);
+  }
+}
+
+void Lex_input_stream::reduce_digest_token(uint token_left, uint token_right)
+{
+  if (m_digest != NULL)
+  {
+    m_digest= digest_reduce_token(m_digest, token_left, token_right);
+  }
+}
 
 /*
   This is called before every query that is to be parsed.
@@ -924,7 +939,7 @@ int MYSQLlex(YYSTYPE *yylval, THD *thd)
     lip->lookahead_token= -1;
     *yylval= *(lip->lookahead_yylval);
     lip->lookahead_yylval= NULL;
-    lip->m_digest_psi= MYSQL_ADD_TOKEN(lip->m_digest_psi, token, yylval);
+    lip->add_digest_token(token, yylval);
     return token;
   }
 
@@ -942,12 +957,10 @@ int MYSQLlex(YYSTYPE *yylval, THD *thd)
     token= lex_one_token(yylval, thd);
     switch(token) {
     case CUBE_SYM:
-      lip->m_digest_psi= MYSQL_ADD_TOKEN(lip->m_digest_psi, WITH_CUBE_SYM,
-                                         yylval);
+      lip->add_digest_token(WITH_CUBE_SYM, yylval);
       return WITH_CUBE_SYM;
     case ROLLUP_SYM:
-      lip->m_digest_psi= MYSQL_ADD_TOKEN(lip->m_digest_psi, WITH_ROLLUP_SYM,
-                                         yylval);
+      lip->add_digest_token(WITH_ROLLUP_SYM, yylval);
       return WITH_ROLLUP_SYM;
     default:
       /*
@@ -956,7 +969,7 @@ int MYSQLlex(YYSTYPE *yylval, THD *thd)
       lip->lookahead_yylval= lip->yylval;
       lip->yylval= NULL;
       lip->lookahead_token= token;
-      lip->m_digest_psi= MYSQL_ADD_TOKEN(lip->m_digest_psi, WITH, yylval);
+      lip->add_digest_token(WITH, yylval);
       return WITH;
     }
     break;
@@ -964,7 +977,7 @@ int MYSQLlex(YYSTYPE *yylval, THD *thd)
     break;
   }
 
-  lip->m_digest_psi= MYSQL_ADD_TOKEN(lip->m_digest_psi, token, yylval);
+  lip->add_digest_token(token, yylval);
   return token;
 }
 
