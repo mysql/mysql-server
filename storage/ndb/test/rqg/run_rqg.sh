@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -21,6 +21,10 @@ base="`dirname $0`"
 source "$base"/parseargs.sh
 
 ecp="set optimizer_switch = 'engine_condition_pushdown=on';"
+# Remove ONLY_FULL_GROUP_BY from sql_mode since the
+# syntax have been written with non aggregated columns in
+# the select list
+disable_only_full_group_by="set sql_mode=(select replace(@@sql_mode,'ONLY_FULL_GROUP_BY',''));"
 
 check_query(){
     file=$1
@@ -35,6 +39,7 @@ check_query(){
 --disable_query_log
 --eval set ndb_join_pushdown='\$NDB_JOIN_PUSHDOWN';
 $ecp
+$disable_only_full_group_by
 --echo kalle
 --sorted_result
 --error 0,233,1242,4006
@@ -184,6 +189,7 @@ do
 	echo "--disable_query_log"
 	echo "--eval set ndb_join_pushdown='\$NDB_JOIN_PUSHDOWN';"
 	echo "$ecp"
+	echo "$disable_only_full_group_by"
 	${gensql} --seed=$us --queries=$queries --dsn="$dsn:database=${innodb_db}" --grammar=$grammar | grep -v "#" |
         $awk_exe '{ print "--sorted_result"; print "--error 0,233,1242,4006"; print; }'
 	echo "--exit"
