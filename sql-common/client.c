@@ -4427,8 +4427,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
       */
       saved_error= socket_errno;
 
-      DBUG_PRINT("info", ("No success, close socket, try next address."));
-      closesocket(sock);
+      DBUG_PRINT("info", ("No success, try next address."));
     }
     DBUG_PRINT("info",
                ("End of connect attempts, sock: %d  status: %d  error: %d",
