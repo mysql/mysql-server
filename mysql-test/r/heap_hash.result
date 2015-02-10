@@ -172,7 +172,7 @@ alter table t1 add column new_col char(1) not null, add key using HASH (btn,new_
 update t1 set new_col=left(btn,1);
 explain select * from t1 where btn="a";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	btn	NULL	NULL	NULL	14	7.14	Using where
+1	SIMPLE	t1	NULL	ALL	btn	NULL	NULL	NULL	14	10.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`btn` AS `btn`,`test`.`t1`.`new_col` AS `new_col` from `test`.`t1` where (`test`.`t1`.`btn` = 'a')
 explain select * from t1 where btn="a" and new_col="a";
@@ -417,10 +417,10 @@ t3	1	a	1	a	NULL	NULL	NULL	NULL		HASH
 t3	1	a	2	b	NULL	13	NULL	NULL		HASH		
 explain select * from t1 ignore key(btree_idx), t3 where t1.name='matt' and t3.a = concat('',t1.name) and t3.b=t1.name;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	ALL	a	NULL	NULL	NULL	91	1.10	Using where
-1	SIMPLE	t1	NULL	ref	heap_idx	heap_idx	22	const	7	100.00	Using where
+1	SIMPLE	t1	NULL	ref	heap_idx	heap_idx	22	const	7	100.00	NULL
+1	SIMPLE	t3	NULL	ALL	a	NULL	NULL	NULL	91	1.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`name` AS `name`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b` from `test`.`t1` IGNORE INDEX (`btree_idx`) join `test`.`t3` where ((`test`.`t3`.`b` = 'matt') and (`test`.`t1`.`name` = 'matt') and (`test`.`t3`.`a` = concat('',`test`.`t1`.`name`)))
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`name` AS `name`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b` from `test`.`t1` IGNORE INDEX (`btree_idx`) join `test`.`t3` where ((`test`.`t1`.`name` = 'matt') and (`test`.`t3`.`b` = 'matt') and (`test`.`t3`.`a` = concat('',`test`.`t1`.`name`)))
 drop table t1, t2, t3;
 create temporary table t1 ( a int, index (a) ) engine=memory;
 insert into t1 values (1),(2),(3),(4),(5);

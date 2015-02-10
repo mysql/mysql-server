@@ -2,6 +2,8 @@
 --source include/not_embedded.inc
 
 -- source include/have_innodb.inc
+-- source include/have_innodb_zip.inc
+
 # compressed table in tests are with sizes KEY_BLOCK_SIZE 1,2,4,8,16
 # Table creatation fails if KEY_BLOCK_SIZE > innodb-page-size,so
 # allow test to run only when innodb-page-size=16

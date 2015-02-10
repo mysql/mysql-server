@@ -1,0 +1,21 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+CREATE DATABASE IF NOT EXISTS db1;
+CREATE DATABASE IF NOT EXISTS db2;
+use db1;
+CREATE TABLE a(id INT);
+CREATE VIEW v AS SELECT * FROM a;
+CREATE TABLE table_father(id INT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(20)) ENGINE=INNODB;
+include/sync_slave_sql_with_master.inc
+use db2;
+CREATE TABLE table_child(id INT PRIMARY KEY, info VARCHAR(20), father_id INT) ENGINE=INNODB;
+ALTER TABLE table_child ADD CONSTRAINT aaa FOREIGN KEY (father_id) REFERENCES db1.table_father(id);
+DROP DATABASE db1;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
+DROP DATABASE db2;
+include/sync_slave_sql_with_master.inc
+DROP DATABASE db1;
+include/rpl_end.inc

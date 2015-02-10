@@ -908,6 +908,7 @@ def	performance_schema	session_connect_attrs	ORDINAL_POSITION	4	NULL	YES	int	NUL
 def	performance_schema	setup_actors	HOST	1	%	NO	char	60	180	NULL	NULL	NULL	utf8	utf8_bin	char(60)			select,insert,update,references	
 def	performance_schema	setup_actors	USER	2	%	NO	char	16	48	NULL	NULL	NULL	utf8	utf8_bin	char(16)			select,insert,update,references	
 def	performance_schema	setup_actors	ROLE	3	%	NO	char	16	48	NULL	NULL	NULL	utf8	utf8_bin	char(16)			select,insert,update,references	
+def	performance_schema	setup_actors	ENABLED	4	YES	NO	enum	3	9	NULL	NULL	NULL	utf8	utf8_general_ci	enum('YES','NO')			select,insert,update,references	
 def	performance_schema	setup_consumers	NAME	1	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references	
 def	performance_schema	setup_consumers	ENABLED	2	NULL	NO	enum	3	9	NULL	NULL	NULL	utf8	utf8_general_ci	enum('YES','NO')			select,insert,update,references	
 def	performance_schema	setup_instruments	NAME	1	NULL	NO	varchar	128	384	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(128)			select,insert,update,references	

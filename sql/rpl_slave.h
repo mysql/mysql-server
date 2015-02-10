@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -276,7 +276,8 @@ bool change_master_cmd(THD *thd);
 bool reset_slave_cmd(THD *thd);
 bool show_slave_status_cmd(THD *thd);
 bool flush_relay_logs_cmd(THD *thd);
-bool is_any_slave_channel_running(int thread_mask);
+bool is_any_slave_channel_running(int thread_mask,
+                                  Master_info* already_locked_mi=NULL);
 
 bool flush_relay_logs(Master_info *mi);
 int reset_slave(THD *thd, Master_info* mi);
@@ -333,7 +334,7 @@ int start_slave_thread(
 #ifdef HAVE_PSI_INTERFACE
                        PSI_thread_key thread_key,
 #endif
-                       pthread_handler h_func,
+                       my_start_routine h_func,
                        mysql_mutex_t *start_lock,
                        mysql_mutex_t *cond_lock,
                        mysql_cond_t *start_cond,
@@ -366,8 +367,8 @@ void set_slave_thread_default_charset(THD *thd, Relay_log_info const *rli);
 int apply_event_and_update_pos(Log_event* ev, THD* thd, Relay_log_info* rli);
 int rotate_relay_log(Master_info* mi);
 
-pthread_handler_t handle_slave_io(void *arg);
-pthread_handler_t handle_slave_sql(void *arg);
+extern "C" void *handle_slave_io(void *arg);
+extern "C" void *handle_slave_sql(void *arg);
 bool net_request_file(NET* net, const char* fname);
 
 extern bool volatile abort_loop;

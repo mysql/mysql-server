@@ -113,7 +113,7 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t0`.`key1` AS `key1`,`test`.`t0`.`key2` AS `key2`,`test`.`t0`.`key3` AS `key3`,`test`.`t0`.`key4` AS `key4`,`test`.`t0`.`key5` AS `key5`,`test`.`t0`.`key6` AS `key6`,`test`.`t0`.`key7` AS `key7`,`test`.`t0`.`key8` AS `key8` from `test`.`t0` where ((`test`.`t0`.`key2` = 45) or (`test`.`t0`.`key1` <=> NULL))
 explain select * from t0 where key2 = 45 or key1 is not null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t0	NULL	ALL	i1,i2	NULL	NULL	NULL	#	99.50	Using where
+1	SIMPLE	t0	NULL	ALL	i1,i2	NULL	NULL	NULL	#	90.01	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t0`.`key1` AS `key1`,`test`.`t0`.`key2` AS `key2`,`test`.`t0`.`key3` AS `key3`,`test`.`t0`.`key4` AS `key4`,`test`.`t0`.`key5` AS `key5`,`test`.`t0`.`key6` AS `key6`,`test`.`t0`.`key7` AS `key7`,`test`.`t0`.`key8` AS `key8` from `test`.`t0` where ((`test`.`t0`.`key2` = 45) or (`test`.`t0`.`key1` is not null))
 explain select * from t0 where key2 = 45 or key1 is null;
@@ -335,17 +335,17 @@ Note	1003	/* select#1 */ select `test`.`t4`.`key1a` AS `key1a`,`test`.`t4`.`key1
 #   and the following will not
 explain select * from t4 where key2 = 1 and (key2_1 = 1 or key3 = 5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t4	NULL	ref	i2_1,i2_2	i2_1	4	const	10	1.00	Using where
+1	SIMPLE	t4	NULL	ref	i2_1,i2_2	i2_1	4	const	10	19.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t4`.`key1a` AS `key1a`,`test`.`t4`.`key1b` AS `key1b`,`test`.`t4`.`key2` AS `key2`,`test`.`t4`.`key2_1` AS `key2_1`,`test`.`t4`.`key2_2` AS `key2_2`,`test`.`t4`.`key3` AS `key3` from `test`.`t4` where ((`test`.`t4`.`key2` = 1) and ((`test`.`t4`.`key2_1` = 1) or (`test`.`t4`.`key3` = 5)))
 explain select * from t4 where key2 = 1 and (key2_1 = 1 or key2_2 = 5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t4	NULL	ref	i2_1,i2_2	i2_1	4	const	10	1.00	Using where
+1	SIMPLE	t4	NULL	ref	i2_1,i2_2	i2_1	4	const	10	19.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t4`.`key1a` AS `key1a`,`test`.`t4`.`key1b` AS `key1b`,`test`.`t4`.`key2` AS `key2`,`test`.`t4`.`key2_1` AS `key2_1`,`test`.`t4`.`key2_2` AS `key2_2`,`test`.`t4`.`key3` AS `key3` from `test`.`t4` where ((`test`.`t4`.`key2` = 1) and ((`test`.`t4`.`key2_1` = 1) or (`test`.`t4`.`key2_2` = 5)))
 explain select * from t4 where key2_1 = 1 or key2_2 = 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	#	1.00	Using where
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	#	19.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t4`.`key1a` AS `key1a`,`test`.`t4`.`key1b` AS `key1b`,`test`.`t4`.`key2` AS `key2`,`test`.`t4`.`key2_1` AS `key2_1`,`test`.`t4`.`key2_2` AS `key2_2`,`test`.`t4`.`key3` AS `key3` from `test`.`t4` where ((`test`.`t4`.`key2_1` = 1) or (`test`.`t4`.`key2_2` = 5))
 # 11. Multitable selects
@@ -987,7 +987,7 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`st_a` AS `st_a`,`test`.`t1`.`swt1a` AS `swt1a`,`test`.`t1`.`swt2a` AS `swt2a`,`test`.`t1`.`st_b` AS `st_b`,`test`.`t1`.`swt1b` AS `swt1b`,`test`.`t1`.`swt2b` AS `swt2b`,`test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`key3` AS `key3`,`test`.`t1`.`key4` AS `key4`,`test`.`t1`.`filler1` AS `filler1`,`test`.`t1`.`filler2` AS `filler2`,`test`.`t1`.`filler3` AS `filler3`,`test`.`t1`.`filler4` AS `filler4`,`test`.`t1`.`filler5` AS `filler5`,`test`.`t1`.`filler6` AS `filler6` from `test`.`t1` where ((`test`.`t1`.`swt2a` = 1) and (`test`.`t1`.`swt1a` = 1) and (`test`.`t1`.`st_a` = 1))
 explain select * from t1 where st_b=1 and swt1b=1 and swt2b=1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	stb_swt1a_2b,stb_swt1b,st_b	stb_swt1a_2b	8	const,const	3999	0.50	Using where
+1	SIMPLE	t1	NULL	ref	stb_swt1a_2b,stb_swt1b,st_b	stb_swt1a_2b	8	const,const	3999	10.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`st_a` AS `st_a`,`test`.`t1`.`swt1a` AS `swt1a`,`test`.`t1`.`swt2a` AS `swt2a`,`test`.`t1`.`st_b` AS `st_b`,`test`.`t1`.`swt1b` AS `swt1b`,`test`.`t1`.`swt2b` AS `swt2b`,`test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`key3` AS `key3`,`test`.`t1`.`key4` AS `key4`,`test`.`t1`.`filler1` AS `filler1`,`test`.`t1`.`filler2` AS `filler2`,`test`.`t1`.`filler3` AS `filler3`,`test`.`t1`.`filler4` AS `filler4`,`test`.`t1`.`filler5` AS `filler5`,`test`.`t1`.`filler6` AS `filler6` from `test`.`t1` where ((`test`.`t1`.`swt2b` = 1) and (`test`.`t1`.`swt1b` = 1) and (`test`.`t1`.`st_b` = 1))
 explain select * from t1 where st_a=1 and swt1a=1 and swt2a=1 and st_b=1 and swt1b=1 and swt2b=1;
@@ -1739,7 +1739,7 @@ pk1	pk2
 # The expected number of rows can vary depending on page size
 explain select * from t1 where badkey=1 and key1=10;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	key1	key1	4	const	ROWS	0.50	Using where
+1	SIMPLE	t1	NULL	ref	key1	key1	4	const	ROWS	10.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`pk1` AS `pk1`,`test`.`t1`.`pk2` AS `pk2`,`test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`pktail1ok` AS `pktail1ok`,`test`.`t1`.`pktail2ok` AS `pktail2ok`,`test`.`t1`.`pktail3bad` AS `pktail3bad`,`test`.`t1`.`pktail4bad` AS `pktail4bad`,`test`.`t1`.`pktail5bad` AS `pktail5bad`,`test`.`t1`.`pk2copy` AS `pk2copy`,`test`.`t1`.`badkey` AS `badkey`,`test`.`t1`.`filler1` AS `filler1`,`test`.`t1`.`filler2` AS `filler2` from `test`.`t1` where ((`test`.`t1`.`key1` = 10) and (`test`.`t1`.`badkey` = 1))
 # The expected number of rows can vary depending on page size

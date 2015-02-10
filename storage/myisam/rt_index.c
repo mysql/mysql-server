@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
    
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -138,11 +138,9 @@ static int rtree_find_req(MI_INFO *info, MI_KEYDEF *keyinfo, uint search_flag,
   res = 1;
 
 ok:
-  my_afree((uchar*)page_buf);
   return res;
 
 err1:
-  my_afree((uchar*)page_buf);
   info->lastpos = HA_OFFSET_ERROR;
   return -1;
 }
@@ -353,11 +351,9 @@ static int rtree_get_req(MI_INFO *info, MI_KEYDEF *keyinfo, uint key_length,
   res = 1;
 
 ok:
-  my_afree((uchar*)page_buf);
   return res;
 
 err1:
-  my_afree((uchar*)page_buf);
   info->lastpos = HA_OFFSET_ERROR;
   return -1;
 }
@@ -582,11 +578,9 @@ static int rtree_insert_req(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key,
   }
 
 ok:
-  my_afree((uchar*)page_buf);
   DBUG_RETURN(res);
 
 err1:
-  my_afree((uchar*)page_buf);
   DBUG_RETURN(-1); /* purecov: inspected */
 }
 
@@ -864,11 +858,9 @@ static int rtree_delete_req(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key,
   res = 1;
 
 ok:
-  my_afree((uchar*)page_buf);
   DBUG_RETURN(res);
 
 err1:
-  my_afree((uchar*)page_buf);
   DBUG_RETURN(-1); /* purecov: inspected */
 }
 
@@ -941,7 +933,6 @@ int rtree_delete(MI_INFO *info, uint keynr, uchar *key, uint key_length)
           if ((res= rtree_insert_level(info, keynr, k, key_length,
                                        ReinsertList.pages[i].level)) == -1)
           {
-            my_afree((uchar*)page_buf);
             goto err1;
           }
           if (res)
@@ -957,7 +948,6 @@ int rtree_delete(MI_INFO *info, uint keynr, uchar *key, uint key_length)
             }
           }
         }
-        my_afree((uchar*)page_buf);
         if (_mi_dispose(info, keyinfo, ReinsertList.pages[i].offs,
             DFLT_INIT_HITS))
           goto err1;
@@ -1090,10 +1080,8 @@ ha_rows rtree_estimate(MI_INFO *info, uint keynr, uchar *key,
       res = HA_POS_ERROR;
   }
 
-  my_afree((uchar*)page_buf);
   return res;
 
 err1:
-  my_afree((uchar*)page_buf);
   return HA_POS_ERROR;
 }

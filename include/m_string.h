@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,6 +26,8 @@
 #define bmove please_use_memmove_rather_than_bmove
 #define strmov please_use_my_stpcpy_or_my_stpmov_rather_than_strmov
 #define strnmov please_use_my_stpncpy_or_my_stpnmov_rather_than_strnmov
+
+#include "mysql/service_my_snprintf.h"
 
 #if defined(__cplusplus)
 extern "C" {
@@ -228,7 +230,7 @@ extern char *longlong10_to_str(longlong val,char *dst,int radix);
   (it's part of the plugin API as a MYSQL_LEX_STRING)
 */
 
-#include <mysql/plugin.h>
+#include <mysql/mysql_lex_string.h>
 typedef struct st_mysql_lex_string LEX_STRING;
 
 #define STRING_WITH_LEN(X) (X), ((size_t) (sizeof(X) - 1))

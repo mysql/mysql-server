@@ -8,7 +8,7 @@
 #endif
 
 #include <my_global.h>	/* This includes dbug.h */
-#include <my_pthread.h>
+#include <my_thread.h>
 
 int main (argc, argv)
 int argc;

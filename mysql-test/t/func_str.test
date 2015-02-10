@@ -1775,3 +1775,9 @@ select length(repeat("1",1024*1024*1024)) as a;
 --connection default
 --disable_connect_log
 SET @@global.max_allowed_packet:= DEFAULT;
+
+--echo #
+--echo # Bug#20316028 RPAD + UTF16 ON X86 BUILD RUNNING ON WIN64 STACK
+--echo #              EXPLOITABLE
+
+do rpad(_utf16"33",1073741826,_latin1"44");

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; version 2 of the License.
@@ -26,6 +26,7 @@
 #include "sql_authentication.h"
 #include "prealloced_array.h"
 #include "tztime.h"
+#include "crypt_genhash_impl.h"         /* CRYPT_MAX_PASSWORD_SIZE */
 
 /**
   Auxiliary function for constructing a  user list string.
@@ -543,6 +544,8 @@ static int handle_grant_struct(enum enum_acl_lists struct_no, bool drop,
                      struct_no, user_from->user.str, user_from->host.str));
 
   mysql_mutex_assert_owner(&acl_cache->lock);
+  /* will be locked if PROXY_USERS_ACL */
+  Write_lock proxy_users_wlk(&proxy_users_rwlock, DEFER);
 
   /* Get the number of elements in the in-memory structure. */
   switch (struct_no) {
@@ -565,6 +568,7 @@ static int handle_grant_struct(enum enum_acl_lists struct_no, bool drop,
     grant_name_hash= &func_priv_hash;
     break;
   case PROXY_USERS_ACL:
+    proxy_users_wlk.lock();
     elements= acl_proxy_users->size();
     break;
   default:
@@ -702,6 +706,8 @@ static int handle_grant_struct(enum enum_acl_lists struct_no, bool drop,
       break;
     }
   }
+
+  proxy_users_wlk.unlock();
 
   if (drop || user_to)
   {

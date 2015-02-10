@@ -1,7 +1,7 @@
 #ifndef ITEM_STRFUNC_INCLUDED
 #define ITEM_STRFUNC_INCLUDED
 
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,7 +18,10 @@
 
 
 /* This file defines all string functions */
-#include "crypt_genhash_impl.h"
+#include "crypt_genhash_impl.h"       // CRYPT_MAX_PASSWORD_SIZE
+#include "item_func.h"                // Item_func
+#include "spatial.h"                  // Geometry
+
 #include <rapidjson/writer.h>
 #include <rapidjson/stringbuffer.h>
 
@@ -1316,6 +1319,7 @@ public:
   virtual bool itemize(Parse_context *pc, Item **res);
 
   const char *func_name() const { return "weight_string"; }
+  bool eq(const Item *item, bool binary_cmp) const;
   String *val_str(String *);
   void fix_length_and_dec();
 };

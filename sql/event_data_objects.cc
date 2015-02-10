@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,8 +13,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#define MYSQL_LEX 1
-#include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
+#include "event_data_objects.h"
+
 #include "sql_parse.h"                          // parse_sql
 #include "strfunc.h"                           // find_string_in_array
 #include "sql_db.h"                        // get_default_db_collation
@@ -25,8 +25,8 @@
 #include "auth_common.h"                   // EVENT_ACL, SUPER_ACL
 #include "sp.h"         // load_charset, load_collation
 #include "events.h"
-#include "event_data_objects.h"
 #include "event_db_repository.h"
+#include "event_parse_data.h"
 #include "sp_head.h"
 #include "sql_show.h"                // append_definer, append_identifier
 #include "log.h"
@@ -668,7 +668,7 @@ Event_timed::load_from_row(THD *thd, TABLE *table)
 static
 my_time_t
 add_interval(MYSQL_TIME *ltime, const Time_zone *time_zone,
-             interval_type scale, INTERVAL interval)
+             interval_type scale, Interval interval)
 {
   if (date_add_interval(ltime, scale, interval))
     return 0;
@@ -769,7 +769,7 @@ bool get_next_time(const Time_zone *time_zone, my_time_t *next,
     time_zone->gmt_sec_to_TIME(&local_now, time_now);
   }
 
-  INTERVAL interval;
+  Interval interval;
   memset(&interval, 0, sizeof(interval));
   my_time_t next_time= 0;
 

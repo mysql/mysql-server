@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,14 +23,12 @@
 **	 - type set is out of optimization yet
 */
 
-#define MYSQL_LEX 1
-
-#include "procedure.h"
 #include "sql_analyse.h"
-#include "sql_class.h"
-#include <m_ctype.h>
-#include "sql_yacc.h"
 
+#include "procedure.h"       // Item_proc
+#include "sql_yacc.h"        // DECIMAL_NUM
+
+#include <algorithm>
 using std::min;
 using std::max;
 

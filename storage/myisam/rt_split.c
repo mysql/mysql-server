@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
    
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -330,6 +330,5 @@ int rtree_split_page(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *page, uchar *key,
   DBUG_PRINT("rtree", ("split new block: %lu", (ulong) *new_page_offs));
 
 split_err:
-  my_afree((uchar*) coord_buf);
   DBUG_RETURN(err_code);
 }

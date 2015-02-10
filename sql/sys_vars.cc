@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,55 +30,39 @@
   (for example in storage/myisam/ha_myisam.cc) !
 */
 
-#include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
-#include "sql_class.h"                          // set_var.h: THD
-#include "rpl_gtid.h"
 #include "sys_vars.h"
-#include "mysql_com.h"
 
-#include "events.h"
-#include "rpl_slave.h"
-#include "rpl_mi.h"
-#include "rpl_rli.h"
-#include "rpl_slave.h"
-#include "rpl_msr.h"           /* Multisource replication */
-#include "rpl_info_factory.h"
-#include "transaction.h"
-#include "opt_trace.h"
-#include "mysqld.h"
-#include "lock.h"
-#include "sql_time.h"                       // known_date_time_formats
-#include "auth_common.h" // SUPER_ACL,
-                         // mysql_user_table_is_in_short_password_format
-                         // disconnect_on_expired_password
-#include "derror.h"  // read_texts
-#include "sql_base.h"                           // close_cached_tables
-#include "debug_sync.h"                         // DEBUG_SYNC
-#include "hostname.h"                           // host_cache_size
-#include "sql_show.h"                           // opt_ignore_db_dirs
-#include "table_cache.h"                        // Table_cache_manager
-#include "connection_handler_impl.h"            // Per_thread_connection_handler
-#include "connection_handler_manager.h"         // Connection_handler_manager
-#include "socket_connection.h"                  // MY_BIND_ALL_ADDRESSES
-#include "sp_head.h" // SP_PSI_STATEMENT_INFO_COUNT 
-#include "my_aes.h" // my_aes_opmode_names
+#include "my_aes.h"                      // my_aes_opmode_names
+#include "myisam.h"                      // myisam_flush
+#include "auth_common.h"                 // validate_user_plugins
+#include "binlog.h"                      // mysql_bin_log
+#include "connection_handler_impl.h"     // Per_thread_connection_handler
+#include "connection_handler_manager.h"  // Connection_handler_manager
+#include "debug_sync.h"                  // DEBUG_SYNC
+#include "derror.h"                      // read_texts
+#include "events.h"                      // Events
+#include "hostname.h"                    // host_cache_resize
+#include "item_timefunc.h"               // ISO_FORMAT
+#include "log_event.h"                   // MAX_MAX_ALLOWED_PACKET
+#include "rpl_info_factory.h"            // Rpl_info_factory
+#include "rpl_info_handler.h"            // INFO_REPOSITORY_FILE
+#include "rpl_mi.h"                      // Master_info
+#include "rpl_msr.h"                     // msr_map
+#include "rpl_slave.h"                   // SLAVE_THD_TYPE
+#include "socket_connection.h"           // MY_BIND_ALL_ADDRESSES
+#include "sp_head.h"                     // SP_PSI_STATEMENT_INFO_COUNT
+#include "sql_parse.h"                   // killall_non_super_threads
+#include "sql_show.h"                    // opt_ignore_db_dirs
+#include "sql_tmp_table.h"               // internal_tmp_disk_storage_engine
+#include "sql_time.h"                    // global_date_format
+#include "table_cache.h"                 // Table_cache_manager
+#include "transaction.h"                 // trans_commit_stmt
 
-#include "log_event.h"
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #include "../storage/perfschema/pfs_server.h"
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
-#include "sql_tmp_table.h"  // internal_tmp_disk_storage_engine
 
 TYPELIB bool_typelib={ array_elements(bool_values)-1, "", bool_values, 0 };
-
-/*
-  This forward declaration is needed because including sql_base.h
-  causes further includes.  [TODO] Eliminate this forward declaration
-  and include a file with the prototype instead.
-*/
-extern void close_thread_tables(THD *thd);
-
-extern void killall_non_super_threads(THD *thd);
 
 static bool update_buffer_size(THD *thd, KEY_CACHE *key_cache,
                                ptrdiff_t offset, ulonglong new_value)
@@ -794,7 +778,6 @@ static bool check_top_level_stmt_and_super(sys_var *self, THD *thd, set_var *var
 }
 #endif
 
-#if defined(HAVE_GTID_NEXT_LIST) || defined(HAVE_REPLICATION)
 static bool check_outside_transaction(sys_var *self, THD *thd, set_var *var)
 {
   if (thd->in_active_multi_stmt_transaction())
@@ -804,6 +787,7 @@ static bool check_outside_transaction(sys_var *self, THD *thd, set_var *var)
   }
   return false;
 }
+#if defined(HAVE_GTID_NEXT_LIST) || defined(HAVE_REPLICATION)
 static bool check_outside_sp(sys_var *self, THD *thd, set_var *var)
 {
   if (thd->lex->sphead)
@@ -930,6 +914,25 @@ static Sys_var_enum Sys_binlog_row_image(
        binlog_row_image_names, DEFAULT(BINLOG_ROW_IMAGE_FULL),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(NULL),
        ON_UPDATE(NULL));
+
+static bool on_session_track_gtids_update(sys_var *self, THD *thd,
+                                          enum_var_type type)
+{
+  thd->session_tracker.get_tracker(SESSION_GTIDS_TRACKER)->update(thd);
+  return false;
+}
+
+static const char *session_track_gtids_names[]=
+  { "OFF", "OWN_GTID", "ALL_GTIDS", NullS };
+static Sys_var_enum Sys_session_track_gtids(
+       "session_track_gtids",
+       "Controls the amount of global transaction ids to be "
+       "included in the response packet sent by the server."
+       "(Default: OFF).",
+       SESSION_VAR(session_track_gtids), CMD_LINE(REQUIRED_ARG),
+       session_track_gtids_names, DEFAULT(OFF),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_outside_transaction),
+       ON_UPDATE(on_session_track_gtids_update));
 
 static bool binlog_direct_check(sys_var *self, THD *thd, set_var *var)
 {
@@ -1207,12 +1210,21 @@ static bool check_charset_db(sys_var *self, THD *thd, set_var *var)
     var->save_result.ptr= thd->db_charset;
   return false;
 }
+static bool update_deprecated(sys_var *self, THD *thd, enum_var_type type)
+{
+  push_warning_printf(thd, Sql_condition::SL_WARNING,
+                      ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,
+                      ER_THD(thd, ER_WARN_DEPRECATED_SYSVAR_UPDATE),
+                      self->name.str);
+  return false;
+}
 static Sys_var_struct Sys_character_set_database(
        "character_set_database",
        " The character set used by the default database",
        SESSION_VAR(collation_database), NO_CMD_LINE,
        offsetof(CHARSET_INFO, csname), DEFAULT(&default_charset_info),
-       NO_MUTEX_GUARD, IN_BINLOG, ON_CHECK(check_charset_db));
+       NO_MUTEX_GUARD, IN_BINLOG, ON_CHECK(check_charset_db),
+       ON_UPDATE(update_deprecated));
 
 static bool check_cs_client(sys_var *self, THD *thd, set_var *var)
 {
@@ -1322,7 +1334,8 @@ static Sys_var_struct Sys_collation_database(
        "character set",
        SESSION_VAR(collation_database), NO_CMD_LINE,
        offsetof(CHARSET_INFO, name), DEFAULT(&default_charset_info),
-       NO_MUTEX_GUARD, IN_BINLOG, ON_CHECK(check_collation_db));
+       NO_MUTEX_GUARD, IN_BINLOG, ON_CHECK(check_collation_db),
+       ON_UPDATE(update_deprecated));
 
 static Sys_var_struct Sys_collation_server(
        "collation_server", "The server default collation",
@@ -3078,7 +3091,7 @@ bool Sys_var_enum_binlog_checksum::global_update(THD *thd, set_var *var)
       mysql_bin_log.checksum_alg_reset= (uint8) var->save_result.ulonglong_value;
     mysql_bin_log.rotate(true, &check_purge);
     if (alg_changed)
-      mysql_bin_log.checksum_alg_reset= BINLOG_CHECKSUM_ALG_UNDEF; // done
+      mysql_bin_log.checksum_alg_reset= binary_log::BINLOG_CHECKSUM_ALG_UNDEF; // done
   }
   else
   {
@@ -3086,7 +3099,8 @@ bool Sys_var_enum_binlog_checksum::global_update(THD *thd, set_var *var)
       static_cast<ulong>(var->save_result.ulonglong_value);
   }
   DBUG_ASSERT((ulong) binlog_checksum_options == var->save_result.ulonglong_value);
-  DBUG_ASSERT(mysql_bin_log.checksum_alg_reset == BINLOG_CHECKSUM_ALG_UNDEF);
+  DBUG_ASSERT(mysql_bin_log.checksum_alg_reset ==
+              binary_log::BINLOG_CHECKSUM_ALG_UNDEF);
   mysql_mutex_unlock(mysql_bin_log.get_log_lock());
   
   if (check_purge)
@@ -3100,7 +3114,7 @@ static Sys_var_enum_binlog_checksum Binlog_checksum_enum(
        "log events in the binary log. Possible values are NONE and CRC32; "
        "default is CRC32.",
        GLOBAL_VAR(binlog_checksum_options), CMD_LINE(REQUIRED_ARG),
-       binlog_checksum_type_names, DEFAULT(BINLOG_CHECKSUM_ALG_CRC32),
+       binlog_checksum_type_names, DEFAULT(binary_log::BINLOG_CHECKSUM_ALG_CRC32),
        NO_MUTEX_GUARD, NOT_IN_BINLOG);
 
 static Sys_var_mybool Sys_master_verify_checksum(
@@ -3386,7 +3400,8 @@ static Sys_var_enum Sys_updatable_views_with_limit(
 static Sys_var_mybool Sys_sync_frm(
        "sync_frm", "Sync .frm files to disk on creation",
        GLOBAL_VAR(opt_sync_frm), CMD_LINE(OPT_ARG),
-       DEFAULT(TRUE));
+       DEFAULT(TRUE), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+       ON_CHECK(0), ON_UPDATE(0), DEPRECATED(""));
 
 static char *system_time_zone_ptr;
 static Sys_var_charptr Sys_system_time_zone(
@@ -3591,7 +3606,7 @@ static Sys_var_enum Sys_internal_tmp_disk_storage_engine(
        "internal_tmp_disk_storage_engine",
        "The default storage engine for on-disk internal tmp table",
        GLOBAL_VAR(internal_tmp_disk_storage_engine), CMD_LINE(OPT_ARG),
-       internal_tmp_disk_storage_engine_names, DEFAULT(TMP_TABLE_MYISAM));
+       internal_tmp_disk_storage_engine_names, DEFAULT(TMP_TABLE_INNODB));
 
 static Sys_var_plugin Sys_default_tmp_storage_engine(
        "default_tmp_storage_engine", "The default storage engine for new explict temporary tables",
@@ -4661,13 +4676,11 @@ static bool check_locale(sys_var *self, THD *thd, set_var *var)
 
   var->save_result.ptr= locale;
 
-  if (!locale->errmsgs->errmsgs)
+  if (!locale->errmsgs->is_loaded())
   {
     mysql_mutex_lock(&LOCK_error_messages);
-    if (!locale->errmsgs->errmsgs &&
-        read_texts(ERRMSG_FILE, locale->errmsgs->language,
-                   locale->errmsgs->errmsgs,
-                   ER_ERROR_LAST - ER_ERROR_FIRST + 1))
+    if (!locale->errmsgs->is_loaded() &&
+        locale->errmsgs->read_texts())
     {
       push_warning_printf(thd, Sql_condition::SL_WARNING, ER_UNKNOWN_ERROR,
                           "Can't process error message file for locale '%s'",
@@ -4780,7 +4793,7 @@ static Sys_var_ulong Sys_sp_cache_size(
        "The soft upper limit for number of cached stored routines for "
        "one connection.",
        GLOBAL_VAR(stored_program_cache_size), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(256, 512 * 1024), DEFAULT(256), BLOCK_SIZE(1));
+       VALID_RANGE(16, 512 * 1024), DEFAULT(256), BLOCK_SIZE(1));
 
 static bool check_pseudo_slave_mode(sys_var *self, THD *thd, set_var *var)
 {
@@ -4909,14 +4922,19 @@ static bool check_gtid_next(sys_var *self, THD *thd, set_var *var)
 #endif
   }
   // check that we don't own a GTID
-  else if(thd->owned_gtid.sidno != 0)
+  else if (thd->owned_gtid.sidno != 0 &&
+           thd->owned_gtid.sidno != THD::OWNED_SIDNO_ANONYMOUS)
   {
     char buf[Gtid::MAX_TEXT_LENGTH + 1];
 #ifndef DBUG_OFF
     DBUG_ASSERT(thd->owned_gtid.sidno > 0);
     global_sid_lock->wrlock();
-    DBUG_ASSERT(gtid_state->get_owned_gtids()->
-                thread_owns_anything(thd->thread_id()));
+    if (thd->owned_gtid.sidno == THD::OWNED_SIDNO_ANONYMOUS)
+      DBUG_ASSERT(!gtid_state->get_owned_gtids()->
+                  thread_owns_anything(thd->thread_id()));
+    else
+      DBUG_ASSERT(gtid_state->get_owned_gtids()->
+                  thread_owns_anything(thd->thread_id()));
 #else
     global_sid_lock->rdlock();
 #endif
@@ -4931,10 +4949,13 @@ static bool check_gtid_next(sys_var *self, THD *thd, set_var *var)
 
 static bool update_gtid_next(sys_var *self, THD *thd, enum_var_type type)
 {
+  DBUG_ENTER("update_gtid_next");
   DBUG_ASSERT(type == OPT_SESSION);
-  if (thd->variables.gtid_next.type == GTID_GROUP)
-    return gtid_acquire_ownership_single(thd) != 0 ? true : false;
-  return false;
+  if (thd->variables.gtid_next.type == GTID_GROUP ||
+      thd->variables.gtid_next.type == ANONYMOUS_GROUP)
+    if (gtid_acquire_ownership_single(thd) != 0)
+      DBUG_RETURN(true);
+  DBUG_RETURN(false);
 }
 
 #ifdef HAVE_GTID_NEXT_LIST
@@ -5264,3 +5285,27 @@ static Sys_var_mybool Sys_offline_mode(
        GLOBAL_VAR(offline_mode), CMD_LINE(OPT_ARG), DEFAULT(FALSE),
        &PLock_offline_mode, NOT_IN_BINLOG,
        ON_CHECK(0), ON_UPDATE(handle_offline_mode));
+
+static Sys_var_mybool Sys_avoid_temporal_upgrade(
+       "avoid_temporal_upgrade",
+       "When this option is enabled, the pre-5.6.4 temporal types are "
+       "not upgraded to the new format for ALTER TABLE requests ADD/CHANGE/MODIFY"
+       " COLUMN, ADD INDEX or FORCE operation. "
+       "This variable is deprecated and will be removed in a future release.",
+        GLOBAL_VAR(avoid_temporal_upgrade),
+        CMD_LINE(OPT_ARG, OPT_AVOID_TEMPORAL_UPGRADE),
+        DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+        ON_CHECK(0), ON_UPDATE(0),
+        DEPRECATED(""));
+
+static Sys_var_mybool Sys_show_old_temporals(
+       "show_old_temporals",
+       "When this option is enabled, the pre-5.6.4 temporal types will "
+       "be marked in the 'SHOW CREATE TABLE' and 'INFORMATION_SCHEMA.COLUMNS' "
+       "table as a comment in COLUMN_TYPE field. "
+       "This variable is deprecated and will be removed in a future release.",
+        SESSION_VAR(show_old_temporals),
+        CMD_LINE(OPT_ARG, OPT_SHOW_OLD_TEMPORALS),
+        DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+        ON_CHECK(0), ON_UPDATE(0),
+        DEPRECATED(""));

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -35,6 +35,11 @@
 #include "rpl_slave.h"
 #include "table_trigger_dispatcher.h"  // Table_trigger_dispatcher
 #include "sql_show.h"
+#include "item_timefunc.h"  // Item_func_now_local
+
+#include "pfs_file_provider.h"
+#include "mysql/psi/mysql_file.h"
+
 #include <algorithm>
 
 using std::min;
@@ -792,8 +797,9 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
     e(thd, load_data_query, end-load_data_query,
       static_cast<uint>(fname_start - load_data_query - 1),
       static_cast<uint>(fname_end - load_data_query),
-      (duplicates == DUP_REPLACE) ? LOAD_DUP_REPLACE :
-      (thd->lex->is_ignore() ? LOAD_DUP_IGNORE : LOAD_DUP_ERROR),
+      (duplicates == DUP_REPLACE) ? binary_log::LOAD_DUP_REPLACE :
+      (thd->lex->is_ignore() ? binary_log::LOAD_DUP_IGNORE :
+                               binary_log::LOAD_DUP_ERROR),
       transactional_table, FALSE, FALSE, errcode);
   return mysql_bin_log.write_event(&e);
 }

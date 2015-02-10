@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -26,6 +26,7 @@ Created 5/30/1994 Heikki Tuuri
 #include "mach0data.h"
 #include "ut0byte.h"
 #include "dict0dict.h"
+#include "dict0boot.h"
 #include "btr0types.h"
 
 /* Compact flag ORed to the extra size returned by rec_get_offsets() */
@@ -504,6 +505,28 @@ rec_get_n_fields(
 		ut_error;
 		return(ULINT_UNDEFINED);
 	}
+}
+
+/** Confirms the n_fields of the entry is sane with comparing the other
+record in the same page specified
+@param[in]	index	index
+@param[in]	rec	record of the same page
+@param[in]	entry	index entry
+@return	true if n_fields is sane */
+UNIV_INLINE
+bool
+rec_n_fields_is_sane(
+	dict_index_t*	index,
+	const rec_t*	rec,
+	const dtuple_t*	entry)
+{
+	return(rec_get_n_fields(rec, index)
+	       == dtuple_get_n_fields(entry)
+	       /* a record for older SYS_INDEXES table
+	       (missing merge_threshold column) is acceptable. */
+	       || (index->table->id == DICT_INDEXES_ID
+		   && rec_get_n_fields(rec, index)
+		      == dtuple_get_n_fields(entry) - 1));
 }
 
 /******************************************************//**
@@ -1607,11 +1630,18 @@ rec_get_converted_size(
 	ut_ad(dtuple_check_typed(dtuple));
 
 	ut_ad(dict_index_is_ibuf(index)
+
 	      || dtuple_get_n_fields(dtuple)
-	      == (((dtuple_get_info_bits(dtuple) & REC_NEW_STATUS_MASK)
-		   == REC_STATUS_NODE_PTR)
-		  ? dict_index_get_n_unique_in_tree(index) + 1
-		  : dict_index_get_n_fields(index)));
+		 == (((dtuple_get_info_bits(dtuple) & REC_NEW_STATUS_MASK)
+		      == REC_STATUS_NODE_PTR)
+		     ? dict_index_get_n_unique_in_tree_nonleaf(index) + 1
+		     : dict_index_get_n_fields(index))
+
+	      /* a record for older SYS_INDEXES table
+	      (missing merge_threshold column) is acceptable. */
+	      || (index->table->id == DICT_INDEXES_ID
+		  && dtuple_get_n_fields(dtuple)
+		     == dict_index_get_n_fields(index) - 1));
 
 	if (dict_table_is_comp(index->table)) {
 		return(rec_get_converted_size_comp(index,

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,7 +14,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <my_global.h>
-#include "my_pthread.h"
+#include "my_thread.h"
 
 #if defined(SAFE_MUTEX)
 /* This makes a wrapper for mutex handling to make it easier to debug mutex */
@@ -68,7 +68,7 @@ int safe_mutex_lock(my_mutex_t *mp, my_bool try_lock,
       native_mutex_unlock(&mp->global);
       return EBUSY;
     }
-    else if (pthread_equal(pthread_self(),mp->thread))
+    else if (my_thread_equal(my_thread_self(),mp->thread))
     {
       fprintf(stderr,
               "safe_mutex: Trying to lock mutex at %s, line %d, when the"
@@ -112,7 +112,7 @@ int safe_mutex_lock(my_mutex_t *mp, my_bool try_lock,
     fflush(stderr);
     abort();
   }
-  mp->thread= pthread_self();
+  mp->thread= my_thread_self();
   if (mp->count++)
   {
     fprintf(stderr,"safe_mutex: Error in thread libray: Got mutex at %s, \
@@ -138,7 +138,7 @@ int safe_mutex_unlock(my_mutex_t *mp, const char *file, uint line)
     fflush(stderr);
     abort();
   }
-  if (!pthread_equal(pthread_self(),mp->thread))
+  if (!my_thread_equal(my_thread_self(),mp->thread))
   {
     fprintf(stderr,"safe_mutex: Trying to unlock mutex at %s, line %d  that was locked by another thread at: %s, line: %d\n",
 	    file,line,mp->file,mp->line);

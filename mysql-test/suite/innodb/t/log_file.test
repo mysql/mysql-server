@@ -103,6 +103,7 @@ let SEARCH_PATTERN=\[ERROR\] Aborting;
 --echo # 3. Without ibdata1 & ibdata2
 --remove_file $bugdir/ibdata1
 --remove_file $bugdir/ibdata2
+--list_files $bugdir
 --error 1
 --exec $MYSQLD $args
 let SEARCH_PATTERN=undo tablespace.*undo001.*exists\. Creating system tablespace with existing undo tablespaces is not supported\. Please delete all undo tablespaces before creating new system tablespace\.;
@@ -116,10 +117,13 @@ let SEARCH_PATTERN=\[ERROR\] Aborting;
 --echo # 4. Without ibdata*, ib_logfile* and with undo00*
 --remove_files_wildcard $bugdir ibdata*
 --remove_files_wildcard $bugdir ib_logfile*
---remove_files_wildcard $bugdir undo00*
+--list_files $bugdir
 --error 1
 --exec $MYSQLD $args
-let SEARCH_PATTERN=Could not create undo tablespace.*undo001;
+let SEARCH_PATTERN=undo tablespace.*undo001.*exists\. Creating system tablespace with existing undo tablespaces is not supported\. Please delete all undo tablespaces before creating new system tablespace\.;
+--source include/search_pattern_in_file.inc
+let SEARCH_PATTERN=\[ERROR\] Aborting;
+--source include/search_pattern_in_file.inc
 
 # clean up & Restore
 --source ../include/log_file_cleanup.inc
@@ -129,6 +133,7 @@ let SEARCH_PATTERN=Could not create undo tablespace.*undo001;
 --remove_files_wildcard $bugdir ibdata*
 --remove_files_wildcard $bugdir ib_logfile*
 --remove_file $bugdir/undo002
+--list_files $bugdir
 --error 1
 --exec $MYSQLD $args
 let SEARCH_PATTERN=undo tablespace.*undo001.*exists\. Creating system tablespace with existing undo tablespaces is not supported\. Please delete all undo tablespaces before creating new system tablespace\.;
@@ -145,6 +150,7 @@ let SEARCH_PATTERN=\[ERROR\] Aborting;
 --remove_files_wildcard $bugdir ib_logfile*
 --remove_file $bugdir/undo001
 --remove_file $bugdir/undo002
+--list_files $bugdir
 --error 1
 --exec $MYSQLD $args
 let SEARCH_PATTERN=undo tablespace.*undo003.*exists\. Creating system tablespace with existing undo tablespaces is not supported\. Please delete all undo tablespaces before creating new system tablespace\.;
@@ -157,6 +163,7 @@ let SEARCH_PATTERN=\[ERROR\] Aborting;
 
 --echo # 7. With ibdata files & Without undo002
 --remove_file $bugdir/undo002
+--list_files $bugdir
 --error 1
 --exec $MYSQLD $args
 let SEARCH_PATTERN=Expected to open 3 undo tablespaces but was able;
@@ -171,6 +178,7 @@ let SEARCH_PATTERN=\[ERROR\] Aborting;
 --echo # 8. With ibdata files & Without undo001, undo002
 --remove_file $bugdir/undo001
 --remove_file $bugdir/undo002
+--list_files $bugdir
 --error 1
 --exec $MYSQLD $args
 let SEARCH_PATTERN=Expected to open 3 undo tablespaces but was able;
@@ -187,6 +195,7 @@ let SEARCH_PATTERN=\[ERROR\] Aborting;
 --remove_files_wildcard $bugdir ibdata*
 --remove_files_wildcard $bugdir undo00*
 --remove_file $bugdir/ib_logfile1
+--list_files $bugdir
 --error 1
 --exec $MYSQLD $args
 let SEARCH_PATTERN=redo log file.*ib_logfile0.*exists\. Creating system tablespace with existing redo log files is not recommended\. Please delete all redo log files before creating new system tablespace\.;
@@ -209,6 +218,7 @@ let SEARCH_PATTERN=\[ERROR\] Aborting;
 
 --echo # 11. With ibdata*, without ib_logfile1
 --remove_file $bugdir/ib_logfile1
+--list_files $bugdir
 --error 1
 --exec $MYSQLD $args
 let SEARCH_PATTERN=Only one log file found;
@@ -221,6 +231,7 @@ let SEARCH_PATTERN=\[ERROR\] Aborting;
 
 --echo # 12. With ibdata*, without ib_logfile2
 --remove_file $bugdir/ib_logfile2
+--list_files $bugdir
 --error 1
 --exec $MYSQLD $args
 let SEARCH_PATTERN=Resizing redo log from \d+\*\d+ to \d+\*\d+ pages, LSN=\d+;

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2006, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2006, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -157,9 +157,9 @@ storage
 @return DATA_BINARY, DATA_VARCHAR, ... */
 ulint
 get_innobase_type_from_mysql_type(
-	ulint*		unsigned_flag,
-	const void*	field,
-	bool		optimize_point_storage);
+	ulint*			unsigned_flag,
+	const void*		field,
+	bool			optimize_point_storage);
 
 /******************************************************************//**
 Get the variable length bounds of the given character set. */
@@ -331,14 +331,6 @@ ulint
 innobase_get_lower_case_table_names(void);
 /*=====================================*/
 
-/*****************************************************************//**
-Frees a possible InnoDB trx object associated with the current THD.
-@return 0 or error number */
-int
-innobase_close_thd(
-/*===============*/
-	THD*	thd);		/*!< in: MySQL thread handle for
-				which to close the connection */
 /******************************************************************//**
 compare two character string case insensitively according to their charset. */
 int

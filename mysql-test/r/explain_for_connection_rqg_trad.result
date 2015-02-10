@@ -38,7 +38,7 @@ SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
 @@ -2,3 +2,3 @@
  1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	75.00	Using where; Using temporary; Using filesort
--1	PRIMARY	table2	NULL	ALL	col_varchar_key	NULL	NULL	NULL	20	5.00	Using where; Using join buffer (Block Nested Loop)
+-1	PRIMARY	table2	NULL	ALL	col_varchar_key	NULL	NULL	NULL	20	10.00	Using where; Using join buffer (Block Nested Loop)
 +1	PRIMARY	table2	NULL	ALL	col_varchar_key	NULL	NULL	NULL	20	100.00	Using where; Using join buffer (Block Nested Loop)
  4	SUBQUERY	subquery2_t1	NULL	ALL	NULL	NULL	NULL	NULL	20	100.00	Using where
 QUERY: SELECT    alias1.col_int_key AS field1 , alias2.col_datetime_key AS field2 , alias1.col_varchar_nokey AS field3 , alias1.col_int_nokey AS field4 , alias1.col_int_key AS field5 FROM ( b AS alias1 , view_d AS alias2 ) WHERE  alias1.col_varchar_nokey >= ANY (SELECT  SQL_SMALL_RESULT sq1_alias1.col_varchar_key AS sq1_field1 FROM ( c AS sq1_alias1 INNER JOIN c AS sq1_alias2 ON (sq1_alias2.col_int_key = sq1_alias1.pk  ) )   )  GROUP BY field1, field2, field3, field4, field5  ORDER BY alias1.col_date_key ASC , field1, field2, field3, field4, field5 
@@ -57,7 +57,7 @@ STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
 @@ -2,3 +2,3 @@
- 1	PRIMARY	alias1	NULL	ALL	col_int_key	NULL	NULL	NULL	20	5.00	Using where; Using temporary; Using filesort
+ 1	PRIMARY	alias1	NULL	ALL	col_int_key	NULL	NULL	NULL	20	10.00	Using where; Using temporary; Using filesort
 -1	PRIMARY	alias3	NULL	ALL	col_int_key	NULL	NULL	NULL	20	33.33	Range checked for each record (index map: 0x2)
 +1	PRIMARY	alias3	NULL	range	col_int_key	col_int_key	5	NULL	8	33.33	Range checked for each record (index map: 0x2); Using index
  1	PRIMARY	alias2	NULL	index	NULL	col_date_key	4	NULL	100	100.00	Using index; Using join buffer (Block Nested Loop)
@@ -134,9 +134,9 @@ STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
 @@ -2,3 +2,3 @@
- 1	PRIMARY	alias2	NULL	ALL	NULL	NULL	NULL	NULL	20	100.00	Using temporary; Using filesort
--1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	133	0.04	Using where; Using join buffer (Block Nested Loop)
-+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	133	0.75	Using where; Using join buffer (Block Nested Loop)
+ 1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	5	const	11	100.00	Using temporary; Using filesort
+-1	PRIMARY	alias2	NULL	ALL	NULL	NULL	NULL	NULL	20	10.00	Using where; Using join buffer (Block Nested Loop)
++1	PRIMARY	alias2	NULL	ALL	NULL	NULL	NULL	NULL	20	100.00	Using where; Using join buffer (Block Nested Loop)
  3	SUBQUERY	sq2_alias1	NULL	ALL	NULL	NULL	NULL	NULL	20	100.00	NULL
 @@ -6,2 +6,2 @@
  2	DERIVED	sq1_alias2	NULL	ALL	NULL	NULL	NULL	NULL	20	100.00	NULL

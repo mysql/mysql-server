@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -34,7 +34,7 @@
 #include <openssl/applink.c>
 #endif
 #endif
-#include "mysql/service_my_plugin_log.h"
+#include "mysql/plugin.h"
 
 #define MAX_CIPHER_LENGTH 1024
 

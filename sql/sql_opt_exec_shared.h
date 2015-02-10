@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,9 +19,12 @@
 #define SQL_OPT_EXEC_SHARED_INCLUDED
 
 #include "my_base.h"
-#include "sql_alloc.h"
-#include "item.h"
+#include "item.h"        // Item
+#include "sql_alloc.h"   // Sql_alloc
+#include "sql_class.h"   // Temp_table_param
 
+class JOIN;
+class Item_func_match;
 class store_key;
 class QUICK_SELECT_I;
 

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2015, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -88,7 +88,7 @@ used throughout InnoDB but do not include too much themselves.  They
 support cross-platform development and expose comonly used SQL names. */
 
 # include <my_global.h>
-# include <my_pthread.h>
+# include <my_thread.h>
 
 # ifndef UNIV_INNOCHECKSUM
 #  include <m_string.h>
@@ -339,7 +339,7 @@ limit both with this same constant. */
 /** Minimum Page Size Shift (power of 2) */
 #define UNIV_PAGE_SIZE_SHIFT_MIN	12
 /** Maximum Page Size Shift (power of 2) */
-#define UNIV_PAGE_SIZE_SHIFT_MAX	14
+#define UNIV_PAGE_SIZE_SHIFT_MAX	16
 /** Default Page Size Shift (power of 2) */
 #define UNIV_PAGE_SIZE_SHIFT_DEF	14
 /** Original 16k InnoDB Page Size Shift, in case the default changes */
@@ -505,7 +505,7 @@ number indicate that a field contains a reference to an externally
 stored part of the field in the tablespace. The length field then
 contains the sum of the following flag and the locally stored len. */
 
-#define UNIV_EXTERN_STORAGE_FIELD (UNIV_SQL_NULL - UNIV_PAGE_SIZE_MAX)
+#define UNIV_EXTERN_STORAGE_FIELD (UNIV_SQL_NULL - UNIV_PAGE_SIZE_DEF)
 
 #if defined(__GNUC__)
 /* Tell the compiler that variable/function is unused. */

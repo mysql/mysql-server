@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1043,7 +1043,7 @@ struct thr_data
   SectionSegmentPool::Cache m_sectionPoolCache;
 
   Uint32 m_cpu;
-  pthread_t m_thr_id;
+  my_thread_t m_thr_id;
   NdbThread* m_thread;
 };
 
@@ -2201,7 +2201,7 @@ senddelay(Uint32 thr_no, const SignalHeader* s, Uint32 delay)
 {
   struct thr_repository* rep = g_thr_repository;
   struct thr_data* selfptr = &rep->m_thread[thr_no].m_thr_data;
-  assert(pthread_equal(selfptr->m_thr_id, pthread_self()));
+  assert(my_thread_equal(selfptr->m_thr_id, my_thread_self()));
   unsigned siglen = (sizeof(*s) >> 2) + s->theLength + s->m_noOfSections;
 
   Uint32 max;
@@ -4033,7 +4033,7 @@ init_thread(thr_data *selfptr)
   selfptr->m_spintime = conf.do_get_spintime(selfptr->m_instance_list,
                                              selfptr->m_instance_count);
 
-  selfptr->m_thr_id = pthread_self();
+  selfptr->m_thr_id = my_thread_self();
 
   for (Uint32 i = 0; i < selfptr->m_instance_count; i++) 
   {
@@ -4638,7 +4638,7 @@ sendlocal(Uint32 self, const SignalHeader *s, const Uint32 *data,
   Uint32 dst = block2ThreadId(block, instance);
   struct thr_repository* rep = g_thr_repository;
   struct thr_data *selfptr = &rep->m_thread[self].m_thr_data;
-  assert(pthread_equal(selfptr->m_thr_id, pthread_self()));
+  assert(my_thread_equal(selfptr->m_thr_id, my_thread_self()));
   struct thr_data *dstptr = &rep->m_thread[dst].m_thr_data;
 
   selfptr->m_stat.m_priob_count++;
@@ -4669,7 +4669,7 @@ sendprioa(Uint32 self, const SignalHeader *s, const uint32 *data,
   struct thr_repository* rep = g_thr_repository;
   struct thr_data *selfptr = &rep->m_thread[self].m_thr_data;
   assert(s->theVerId_signalNumber == GSN_START_ORD ||
-         pthread_equal(selfptr->m_thr_id, pthread_self()));
+         my_thread_equal(selfptr->m_thr_id, my_thread_self()));
   struct thr_data *dstptr = &rep->m_thread[dst].m_thr_data;
 
   selfptr->m_stat.m_prioa_count++;
@@ -5533,7 +5533,7 @@ void mt_execSTOP_FOR_CRASH()
   /* ToDo: is this correct? */
   globalEmulatorData.theWatchDog->unregisterWatchedThread(selfptr->m_thr_no);
 
-  pthread_exit(NULL);
+  my_thread_exit(NULL);
 }
 
 void
@@ -5886,7 +5886,7 @@ mt_assert_own_thread(SimulatedBlock* block)
   Uint32 thr_no = block->getThreadId();
   struct thr_data *thrptr = &g_thr_repository->m_thread[thr_no].m_thr_data;
 
-  if (unlikely(pthread_equal(thrptr->m_thr_id, pthread_self()) == 0))
+  if (unlikely(my_thread_equal(thrptr->m_thr_id, my_thread_self()) == 0))
   {
     fprintf(stderr, "mt_assert_own_thread() - assertion-failure\n");
     fflush(stderr);

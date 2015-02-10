@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -108,21 +108,20 @@
            subject and may omit some details.
 */
 
-#include "key.h"        // is_key_used, key_copy, key_cmp, key_restore
-#include "sql_parse.h"                          // check_stack_overrun
-#include "sql_partition.h"    // get_part_id_func, PARTITION_ITERATOR,
-                              // struct partition_info, NOT_A_PARTITION_ID
-#include "sql_base.h"         // free_io_cache
-#include "records.h"          // init_read_record, end_read_record
-#include <m_ctype.h>
-#include "sql_select.h"
-#include "opt_trace.h"
-#include "filesort.h"         // filesort_free_buffers
-#include "sql_optimizer.h"    // is_indexed_agg_distinct,field_time_cmp_date
-#include "opt_costmodel.h"
-#include "opt_statistics.h"   // guess_rec_per_key
-#include "uniques.h"
-#include "log.h"
+#include "opt_range.h"
+
+#include "item_sum.h"            // Item_sum
+#include "key.h"                 // is_key_used
+#include "log.h"                 // sql_print_error
+#include "opt_statistics.h"      // guess_rec_per_key
+#include "opt_trace.h"           // Opt_trace_array
+#include "partition_info.h"      // partition_info
+#include "sql_base.h"            // free_io_cache
+#include "sql_class.h"           // THD
+#include "sql_opt_exec_shared.h" // QEP_shared_owner
+#include "sql_optimizer.h"       // JOIN
+#include "sql_parse.h"           // check_stack_overrun
+#include "uniques.h"             // Unique
 
 using std::min;
 using std::max;
@@ -1815,7 +1814,9 @@ QUICK_ROR_INTERSECT_SELECT::~QUICK_ROR_INTERSECT_SELECT()
 
 QUICK_ROR_UNION_SELECT::QUICK_ROR_UNION_SELECT(THD *thd_param,
                                                TABLE *table)
-  : queue(Quick_ror_union_less(this)), thd(thd_param), scans_inited(FALSE)
+  : queue(Quick_ror_union_less(this),
+          Malloc_allocator<PSI_memory_key>(PSI_INSTRUMENT_ME)),
+    thd(thd_param), scans_inited(FALSE)
 {
   index= MAX_KEY;
   head= table;

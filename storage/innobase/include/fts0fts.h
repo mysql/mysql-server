@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -41,6 +41,7 @@ Created 2011/09/02 Sunny Bains
 #include "ut0wqueue.h"
 #include "que0types.h"
 #include "ft_global.h"
+#include "mysql/plugin_ftparser.h"
 
 /** "NULL" value of a document id. */
 #define FTS_NULL_DOC_ID			0
@@ -91,6 +92,9 @@ those defined in mysql file ft_global.h */
 #define FTS_OPT_RANKING	64
 
 #define FTS_INDEX_TABLE_IND_NAME	"FTS_INDEX_TABLE_IND"
+
+/** The number of FTS index partitions for a fulltext idnex */
+#define FTS_NUM_AUX_INDEX		6
 
 /** Threshold where our optimize thread automatically kicks in */
 #define FTS_OPTIMIZE_THRESHOLD		10000000

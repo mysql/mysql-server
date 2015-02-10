@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,6 +21,8 @@
 #include <sstream>
 #include <string>
 
+#include "my_global.h"
+#include "item_cmpfunc.h"
 #include "fake_table.h"
 #include "test_utils.h"
 
@@ -583,17 +585,15 @@ TEST_F(ItemFilterTest, InPredicate)
   create_initem_check_filter(COND_FILTER_EQUALITY, in_lst1,
                              used_tables, &ignore_flds);
 
-  // Calculate filtering effect of "col IN (1, ..., 6)"
+  // Calculate filtering effect of "col IN (1, ..., 4)"
   List<Item> in_lst2;
   in_lst2.push_back(new Item_field(m_field[0]));
   in_lst2.push_back(new Item_int(1));
   in_lst2.push_back(new Item_int(2));
   in_lst2.push_back(new Item_int(3));
   in_lst2.push_back(new Item_int(4));
-  in_lst2.push_back(new Item_int(5));
-  in_lst2.push_back(new Item_int(6));
 
-  const float filter= 6 * COND_FILTER_EQUALITY;
+  const float filter= 4 * COND_FILTER_EQUALITY;
   Item_func_in *in_it=
     create_initem_check_filter(filter, in_lst2,
                                used_tables, &ignore_flds);

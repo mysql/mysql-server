@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,7 +16,7 @@
 #ifdef SAFE_MUTEX
 
 #include "my_global.h"
-#include "my_pthread.h"
+#include "my_thread.h"
 
 int safe_cond_wait(native_cond_t *cond, my_mutex_t *mp,
                    const char *file, uint line)
@@ -29,7 +29,7 @@ int safe_cond_wait(native_cond_t *cond, my_mutex_t *mp,
     fflush(stderr);
     abort();
   }
-  if (!pthread_equal(pthread_self(),mp->thread))
+  if (!my_thread_equal(my_thread_self(),mp->thread))
   {
     fprintf(stderr,"safe_mutex: Trying to cond_wait on a mutex at %s, line %d  that was locked by another thread at: %s, line: %d\n",
 	    file,line,mp->file,mp->line);
@@ -53,7 +53,7 @@ int safe_cond_wait(native_cond_t *cond, my_mutex_t *mp,
     fflush(stderr);
     abort();
   }
-  mp->thread=pthread_self();
+  mp->thread= my_thread_self();
   if (mp->count++)
   {
     fprintf(stderr,
@@ -75,7 +75,7 @@ int safe_cond_timedwait(native_cond_t *cond, my_mutex_t *mp,
 {
   int error;
   native_mutex_lock(&mp->global);
-  if (mp->count != 1 || !pthread_equal(pthread_self(),mp->thread))
+  if (mp->count != 1 || !my_thread_equal(my_thread_self(),mp->thread))
   {
     fprintf(stderr,"safe_mutex: Trying to cond_wait at %s, line %d on a not hold mutex\n",file,line);
     fflush(stderr);
@@ -91,7 +91,7 @@ int safe_cond_timedwait(native_cond_t *cond, my_mutex_t *mp,
   }
 #endif
   native_mutex_lock(&mp->global);
-  mp->thread=pthread_self();
+  mp->thread= my_thread_self();
   if (mp->count++)
   {
     fprintf(stderr,

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -3308,8 +3308,6 @@ i_s_fts_index_cache_fill_one_index(
 	for (rbt_node = rbt_first(index_cache->words);
 	     rbt_node;
 	     rbt_node = rbt_next(index_cache->words, rbt_node)) {
-		doc_id_t	doc_id = 0;
-
 		fts_tokenizer_word_t* word;
 
 		word = rbt_value(fts_tokenizer_word_t, rbt_node);
@@ -3335,6 +3333,7 @@ i_s_fts_index_cache_fill_one_index(
 			fts_node_t*	node;
 			byte*		ptr;
 			ulint		decoded = 0;
+			doc_id_t	doc_id = 0;
 
 			node = static_cast<fts_node_t*> (ib_vector_get(
 				word->nodes, i));
@@ -3758,7 +3757,6 @@ i_s_fts_index_table_fill_one_index(
 {
 	ib_vector_t*		words;
 	mem_heap_t*		heap;
-	fts_string_t		word;
 	CHARSET_INFO*		index_charset;
 	fts_string_t		conv_str;
 	dberr_t			error;
@@ -3772,10 +3770,6 @@ i_s_fts_index_table_fill_one_index(
 	words = ib_vector_create(ib_heap_allocator_create(heap),
 				 sizeof(fts_word_t), 256);
 
-	word.f_str = NULL;
-	word.f_len = 0;
-	word.f_n_char = 0;
-
 	index_charset = fts_index_get_charset(index);
 	conv_str.f_len = system_charset_info->mbmaxlen
 		* FTS_MAX_WORD_LEN_IN_CHAR;
@@ -3784,9 +3778,13 @@ i_s_fts_index_table_fill_one_index(
 
 	/* Iterate through each auxiliary table as described in
 	fts_index_selector */
-	for (ulint selected = 0; fts_index_selector[selected].value;
-	     selected++) {
-		bool	has_more = false;
+	for (ulint selected = 0; selected < FTS_NUM_AUX_INDEX; selected++) {
+		fts_string_t	word;
+		bool		has_more = false;
+
+		word.f_str = NULL;
+		word.f_len = 0;
+		word.f_n_char = 0;
 
 		do {
 			/* Fetch from index */
@@ -6911,6 +6909,15 @@ static ST_FIELD_INFO	innodb_sysindex_fields_info[] =
 	 STRUCT_FLD(old_name,		""),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
+#define SYS_INDEX_MERGE_THRESHOLD 7
+	{STRUCT_FLD(field_name,		"MERGE_THRESHOLD"),
+	 STRUCT_FLD(field_length,	MY_INT32_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
 	END_OF_ST_FIELD_INFO
 };
 
@@ -6952,6 +6959,8 @@ i_s_dict_fill_sys_indexes(
 	}
 
 	OK(fields[SYS_INDEX_SPACE]->store(index->space));
+
+	OK(fields[SYS_INDEX_MERGE_THRESHOLD]->store(index->merge_threshold));
 
 	OK(schema_table_store_record(thd, table_to_fill));
 

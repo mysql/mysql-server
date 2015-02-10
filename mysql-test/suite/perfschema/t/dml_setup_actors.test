@@ -10,6 +10,16 @@ drop table if exists test.setup_actors;
 # Save the setup
 create table test.setup_actors as
   select * from performance_schema.setup_actors;
+
+# Inserting Duplicate values in the table should
+# throw error
+--error ER_DUP_KEY
+insert into performance_schema.setup_actors
+  values ('%','%','%','YES');
+--error ER_DUP_KEY
+insert into performance_schema.setup_actors
+  values ('%','%','%','NO');
+
 truncate table performance_schema.setup_actors;
 
 select * from performance_schema.setup_actors;
@@ -29,6 +39,11 @@ insert into performance_schema.setup_actors
 insert into performance_schema.setup_actors
   set user='%', host='%';
 
+# Insert with wrong value for ENABLED column
+--error 1265
+insert into performance_schema.setup_actors
+  values ('localhost', 'user1', '%', 'NO%');
+
 select * from performance_schema.setup_actors
   order by USER, HOST;
 
@@ -43,6 +58,28 @@ update performance_schema.setup_actors
 --error ER_WRONG_PERFSCHEMA_USAGE
 update performance_schema.setup_actors
   set role='ILLEGAL';
+
+# update on ENABLED column is allowed
+update performance_schema.setup_actors
+  set ENABLED='YES';
+
+# update on ENABLED column with wrong values
+#throws error
+--error 1265
+update performance_schema.setup_actors
+  set ENABLED='';
+
+--error 1265
+update performance_schema.setup_actors
+  set ENABLED='YESS';
+
+--error 1265
+update performance_schema.setup_actors
+  set ENABLED='NO%';
+
+--error ER_BAD_NULL_ERROR
+update performance_schema.setup_actors
+  set ENABLED=NULL;
 
 select * from performance_schema.setup_actors
   order by USER, HOST;

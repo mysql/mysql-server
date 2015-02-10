@@ -17,7 +17,7 @@ while ($i)
 dec $i;
 }
 
-let $restart_parameters = restart: --innodb-log-files-in-group=2 --innodb-log-file-size=1M;
+let $restart_parameters = restart: --innodb-log-files-in-group=2 --innodb-log-file-size=4M;
 --source include/kill_and_restart_mysqld.inc
 
 --disable_query_log

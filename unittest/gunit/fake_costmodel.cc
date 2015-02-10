@@ -19,6 +19,10 @@
 
 #include "fake_costmodel.h"
 
+Cost_model_server::~Cost_model_server()
+{
+}
+
 const double Server_cost_constants::KEY_COMPARE_COST= 0.1;
 const double Server_cost_constants::MEMORY_TEMPTABLE_CREATE_COST= 2.0;
 const double Server_cost_constants::MEMORY_TEMPTABLE_ROW_COST= 0.2;

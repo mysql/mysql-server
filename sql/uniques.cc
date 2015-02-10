@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -36,6 +36,7 @@
 #include "uniques.h"                            // Unique
 #include "sql_base.h"                           // TEMP_PREFIX
 #include "priority_queue.h"
+#include "malloc_allocator.h"
 
 #include <algorithm>
 
@@ -456,8 +457,10 @@ static bool merge_walk(uchar *merge_buffer, size_t merge_buffer_size,
 
   Merge_chunk_compare_context compare_context = { compare, compare_arg };
   Priority_queue<Merge_chunk*,
-                 std::vector<Merge_chunk*>,
-                 Merge_chunk_less> queue((Merge_chunk_less(compare_context)));
+                 std::vector<Merge_chunk*, Malloc_allocator<Merge_chunk*> >,
+                 Merge_chunk_less>
+    queue((Merge_chunk_less(compare_context)),
+          (Malloc_allocator<Merge_chunk*>(key_memory_Unique_merge_buffer)));
   if (queue.reserve(end - begin))
     return 1;
 

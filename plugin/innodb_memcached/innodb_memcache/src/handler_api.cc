@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -30,7 +30,7 @@ Created 3/14/2011 Jimmy Yang
 #include <mysql_version.h>
 #include <mysql/plugin.h>
 #include <my_dir.h>
-#include "my_pthread.h"
+#include "my_thread.h"
 #include "my_sys.h"
 #include "m_string.h"
 #include "sql_plugin.h"

@@ -80,58 +80,8 @@ CHANGE MASTER TO MASTER_HOST = "127.0.0.1", MASTER_USER = "root" FOR CHANNEL "A1
 --error ER_SLAVE_CHANNEL_NAME_INVALID_OR_TOO_LONG
 CHANGE MASTER TO MASTER_HOST = "127.0.0.1", MASTER_USER = "root" FOR CHANNEL "         ";
 
-
 --echo #
---echo #  3b) Test that error messages are delivered if a new channel is
---echo #       created with same host and port.
---echo #
---replace_result $SERVER_MYPORT_3 MASTER_PORT
---error ER_SLAVE_MULTIPLE_CHANNELS_HOST_PORT
---eval CHANGE MASTER TO MASTER_HOST = "127.0.0.1", MASTER_USER = "rpl", MASTER_PORT = $SERVER_MYPORT_3 FOR CHANNEL "channel_with_already_existing_host_port";
-
---echo #
---echo #   3c)Create a new channel without host,port initially.
---echo #       Later provide already existing {host, port} to the channel.
---echo #       An error shall occur.
-CHANGE MASTER TO MASTER_LOG_POS = 4 FOR CHANNEL "channel_with_wrong_info";
-
-
---replace_result $SERVER_MYPORT_3 MASTER_PORT
---error ER_SLAVE_MULTIPLE_CHANNELS_HOST_PORT
---eval CHANGE MASTER TO MASTER_HOST = "127.0.0.1", MASTER_USER = "rpl", MASTER_PORT = $SERVER_MYPORT_3 FOR CHANNEL "channel_with_wrong_info";
-
---echo #
---echo #    3d) create new replication channel "channel_with_different_port"
---echo #
---eval CHANGE MASTER TO MASTER_HOST = "127.0.0.1", MASTER_USER = "root", MASTER_PORT = 13500 FOR CHANNEL "channel_with_different_port";
-
---echo #
---echo #  Do change master with server3's port only but don't use any host.
---echo #  MSR slave should recognize that there is already a channel with same
---echo #  host and port and a failure shall occur.
---echo #
---replace_result $SERVER_MYPORT_3 MASTER_PORT
---error ER_SLAVE_MULTIPLE_CHANNELS_HOST_PORT
---eval CHANGE MASTER TO MASTER_USER = "root", MASTER_PORT = $SERVER_MYPORT_3 FOR CHANNEL "channel_with_different_port";
-
---echo #
---echo #    3e) create new replication channel "channel_with_different_host"
---echo #       but with same port as server_3
---echo #
---replace_result $SERVER_MYPORT_3 MASTER_PORT
---eval CHANGE MASTER TO MASTER_HOST = "172.3.4.5", MASTER_USER = "root", MASTER_PORT = $SERVER_MYPORT_3 FOR CHANNEL "channel_with_different_host";
-
---echo #
---echo # Do change master with server3's host only but don't use any port.
---echo # MSR slave should recognize that there is already a channel with same
---echo # host and port and a failure  shall occur.
---echo #
---replace_result $SERVER_MYPORT_3 MASTER_PORT
---error ER_SLAVE_MULTIPLE_CHANNELS_HOST_PORT
---eval CHANGE MASTER TO MASTER_USER = "root", MASTER_HOST="127.0.0.1" FOR CHANNEL "channel_with_different_host";
-
---echo #
---echo #  3.f) Check that maximum channels permitted error is issued.
+--echo #  3.b) Check that maximum channels permitted error is issued.
 --echo #
 --let @old_debug = @@global.debug
 SET GLOBAL DEBUG = "+d, max_replication_channels_exceeded";
@@ -141,16 +91,10 @@ CHANGE MASTER TO MASTER_LOG_POS = 4 FOR CHANNEL "257th_channel";
 SET GLOBAL DEBUG=@old_debug;
 
 --echo # Assert that channels are not created for failed CHANGE MASTER command.
---echo # and number of channels configured must be 4
+--echo # and number of channels configured must be 2
 --let $assert_text= there shall be only four rows representing 4 channels.
---let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_applier_configuration] = 4;
+--let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_applier_configuration] = 2;
 --source include/assert.inc
-
-#
-# Delete channels "channel_with_different_host" and "channel_with_different_port"
-#
-RESET SLAVE ALL FOR CHANNEL "channel_with_different_host";
-RESET SLAVE ALL FOR CHANNEL "channel_with_different_port";
 
 # End MSR setup.
 --let $rpl_skip_sync= 1

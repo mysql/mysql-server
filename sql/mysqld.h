@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,23 +17,19 @@
 #define MYSQLD_INCLUDED
 
 #include "my_global.h" /* MYSQL_PLUGIN_IMPORT, FN_REFLEN, FN_EXTLEN */
-#include "sql_bitmap.h"                         /* Bitmap */
+#include "my_bitmap.h"                     /* MY_BITMAP */
 #include "my_decimal.h"                         /* my_decimal */
 #include "mysql_com.h"                     /* SERVER_VERSION_LENGTH */
 #include "my_atomic.h"                     /* my_atomic_add64 */
-#include "pfs_file_provider.h"
-#include "mysql/psi/mysql_file.h"          /* MYSQL_FILE */
-#include "sql_list.h"                      /* I_List */
 #include "sql_cmd.h"                       /* SQLCOM_END */
 
 class THD;
 struct handlerton;
 class Time_zone;
-
+template <uint default_width> class Bitmap;
 
 typedef struct st_mysql_const_lex_string LEX_CSTRING;
 typedef struct st_mysql_show_var SHOW_VAR;
-typedef struct st_mysql_socket MYSQL_SOCKET;
 
 /*
   This forward declaration is used from C files where the real
@@ -76,7 +72,6 @@ typedef Bitmap<((MAX_INDEXES+7)/8*8)> key_map; /* Used for finding keys */
 
 #define SPECIAL_NO_NEW_FUNC	2		/* Skip new functions */
 #define SPECIAL_SKIP_SHOW_DB    4               /* Don't allow 'show db' */
-#define SPECIAL_ENGLISH        32		/* English error messages */
 #define SPECIAL_NO_RESOLVE     64		/* Don't use gethostname */
 #define SPECIAL_NO_HOST_CACHE	512		/* Don't cache hosts */
 #define SPECIAL_SHORT_LOG_FORMAT 1024
@@ -275,9 +270,9 @@ extern time_t server_start_time, flush_status_time;
 extern char *opt_mysql_tmpdir, mysql_charsets_dir[];
 extern size_t mysql_unpacked_real_data_home_len;
 extern MYSQL_PLUGIN_IMPORT MY_TMPDIR mysql_tmpdir_list;
+extern const char *show_comp_option_name[];
 extern const char *first_keyword, *binary_keyword;
 extern MYSQL_PLUGIN_IMPORT const char  *my_localhost;
-extern MYSQL_PLUGIN_IMPORT const char **errmesg;			/* Error messages */
 extern const char *myisam_recover_options_str;
 extern const char *in_left_expr_name, *in_additional_cond, *in_having_cond;
 extern SHOW_VAR status_vars[];
@@ -302,8 +297,9 @@ extern struct my_option my_long_early_options[];
 extern bool mysqld_server_started;
 extern "C" MYSQL_PLUGIN_IMPORT int orig_argc;
 extern "C" MYSQL_PLUGIN_IMPORT char **orig_argv;
-extern pthread_attr_t connection_attrib;
+extern my_thread_attr_t connection_attrib;
 extern my_bool old_mode;
+extern my_bool avoid_temporal_upgrade;
 extern LEX_STRING opt_init_connect, opt_init_slave;
 extern char err_shared_dir[];
 extern my_decimal decimal_zero;
@@ -330,13 +326,13 @@ extern LEX_CSTRING sql_statement_names[(uint) SQLCOM_END + 1];
 extern thread_local_key_t THR_MALLOC;
 extern bool THR_MALLOC_initialized;
 
-static inline MEM_ROOT ** my_pthread_get_THR_MALLOC()
+static inline MEM_ROOT ** my_thread_get_THR_MALLOC()
 {
   DBUG_ASSERT(THR_MALLOC_initialized);
   return (MEM_ROOT**) my_get_thread_local(THR_MALLOC);
 }
 
-static inline int my_pthread_set_THR_MALLOC(MEM_ROOT ** hdl)
+static inline int my_thread_set_THR_MALLOC(MEM_ROOT ** hdl)
 {
   DBUG_ASSERT(THR_MALLOC_initialized);
   return my_set_thread_local(THR_MALLOC, hdl);
@@ -349,13 +345,13 @@ static inline int my_pthread_set_THR_MALLOC(MEM_ROOT ** hdl)
 extern MYSQL_PLUGIN_IMPORT thread_local_key_t THR_THD;
 extern bool THR_THD_initialized;
 
-static inline THD * my_pthread_get_THR_THD()
+static inline THD * my_thread_get_THR_THD()
 {
   DBUG_ASSERT(THR_THD_initialized);
   return (THD*)my_get_thread_local(THR_THD);
 }
 
-static inline int my_pthread_set_THR_THD(THD *thd)
+static inline int my_thread_set_THR_THD(THD *thd)
 {
   DBUG_ASSERT(THR_THD_initialized);
   return my_set_thread_local(THR_THD, thd);
@@ -404,7 +400,8 @@ extern PSI_mutex_key
   key_structure_guard_mutex, key_TABLE_SHARE_LOCK_ha_data,
   key_LOCK_error_messages,
   key_LOCK_log_throttle_qni, key_LOCK_query_plan, key_LOCK_thd_query,
-  key_LOCK_cost_const;
+  key_LOCK_cost_const,
+  key_rwlock_proxy_users;
 extern PSI_mutex_key key_RELAYLOG_LOCK_commit;
 extern PSI_mutex_key key_RELAYLOG_LOCK_commit_queue;
 extern PSI_mutex_key key_RELAYLOG_LOCK_done;
@@ -572,7 +569,6 @@ extern PSI_memory_key key_memory_DDL_LOG_MEMORY_ENTRY;
 extern PSI_memory_key key_memory_ST_SCHEMA_TABLE;
 extern PSI_memory_key key_memory_ignored_db;
 extern PSI_memory_key key_memory_SLAVE_INFO;
-extern PSI_memory_key key_memory_log_event;
 extern PSI_memory_key key_memory_log_event_old;
 extern PSI_memory_key key_memory_HASH_ROW_ENTRY;
 extern PSI_memory_key key_memory_table_def_memory;
@@ -755,7 +751,7 @@ void init_com_statement_info();
 #endif /* HAVE_PSI_STATEMENT_INTERFACE */
 
 #ifndef _WIN32
-extern pthread_t signal_thread;
+extern my_thread_t signal_thread;
 #endif
 
 #ifdef HAVE_OPENSSL
@@ -880,7 +876,9 @@ enum options_mysqld
   OPT_TABLE_DEFINITION_CACHE,
   OPT_MDL_CACHE_SIZE,
   OPT_MDL_HASH_INSTANCES,
-  OPT_SKIP_INNODB
+  OPT_SKIP_INNODB,
+  OPT_AVOID_TEMPORAL_UPGRADE,
+  OPT_SHOW_OLD_TEMPORALS
 };
 
 
@@ -934,14 +932,11 @@ extern "C" THD *_current_thd_noinline();
 #else
 static inline THD *_current_thd(void)
 {
-  return my_pthread_get_THR_THD();
+  return my_thread_get_THR_THD();
 }
 #endif
 #define current_thd _current_thd()
 
-#define ER_DEFAULT(X) my_default_lc_messages->errmsgs->errmsgs[(X) - ER_ERROR_FIRST]
-#define ER_THD(thd,X) ((thd)->variables.lc_messages->errmsgs->errmsgs[(X) - \
-                       ER_ERROR_FIRST])
 #define ER(X)         ER_THD(current_thd,X)
 
 #endif /* MYSQLD_INCLUDED */

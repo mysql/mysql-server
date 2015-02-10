@@ -521,7 +521,7 @@ ON table3.col_int_nokey = table1.col_int_key
 WHERE table3.col_int_key != SOME ( SELECT c1 FROM t2 );
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	table1	NULL	ALL	col_int_key	NULL	NULL	NULL	19	100.00	NULL
-1	PRIMARY	table3	NULL	ALL	col_varchar_key	NULL	NULL	NULL	19	5.26	Using where; Using join buffer (Block Nested Loop)
+1	PRIMARY	table3	NULL	ALL	col_varchar_key	NULL	NULL	NULL	19	10.00	Using where; Using join buffer (Block Nested Loop)
 1	PRIMARY	table2	NULL	ref	col_varchar_key	col_varchar_key	4	test.table3.col_varchar_key	2	100.00	Using index
 2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:

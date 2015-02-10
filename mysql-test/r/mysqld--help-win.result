@@ -28,6 +28,12 @@ The following options may be given as the first argument:
  --automatic-sp-privileges 
  Creating and dropping stored procedures alters ACLs
  (Defaults to on; use --skip-automatic-sp-privileges to disable.)
+ --avoid-temporal-upgrade 
+ When this option is enabled, the pre-5.6.4 temporal types
+ are not upgraded to the new format for ALTER TABLE
+ requests ADD/CHANGE/MODIFY COLUMN, ADD INDEX or FORCE
+ operation. This variable is deprecated and will be
+ removed in a future release.
  --back-log=#        The number of outstanding connection requests MySQL can
  have. This comes into play when the main MySQL thread
  gets very many connection requests in a very short time
@@ -904,6 +910,10 @@ The following options may be given as the first argument:
  --server-id=#       Uniquely identifies the server instance in the community
  of replication partners
  --server-id-bits=#  Set number of significant bits in server-id
+ --session-track-gtids=name 
+ Controls the amount of global transaction ids to be
+ included in the response packet sent by the
+ server.(Default: OFF).
  --session-track-schema 
  Track changes to the 'default schema'.
  (Defaults to on; use --skip-session-track-schema to disable.)
@@ -914,6 +924,12 @@ The following options may be given as the first argument:
  --shared-memory     Enable the shared memory
  --shared-memory-base-name=name 
  Base name of shared memory
+ --show-old-temporals 
+ When this option is enabled, the pre-5.6.4 temporal types
+ will be marked in the 'SHOW CREATE TABLE' and
+ 'INFORMATION_SCHEMA.COLUMNS' table as a comment in
+ COLUMN_TYPE field. This variable is deprecated and will
+ be removed in a future release.
  --show-slave-auth-info 
  Show user and password in SHOW SLAVE HOSTS on this
  master.
@@ -1109,6 +1125,7 @@ auto-increment-increment 1
 auto-increment-offset 1
 autocommit TRUE
 automatic-sp-privileges TRUE
+avoid-temporal-upgrade FALSE
 back-log 80
 big-tables FALSE
 bind-address *
@@ -1179,7 +1196,7 @@ init-connect
 init-file (No default value)
 init-slave 
 interactive-timeout 28800
-internal-tmp-disk-storage-engine MYISAM
+internal-tmp-disk-storage-engine INNODB
 join-buffer-size 262144
 keep-files-on-create FALSE
 key-buffer-size 8388608
@@ -1362,11 +1379,13 @@ secure-auth TRUE
 secure-file-priv (No default value)
 server-id 0
 server-id-bits 32
+session-track-gtids OFF
 session-track-schema TRUE
 session-track-state-change FALSE
 session-track-system-variables time_zone,autocommit,character_set_client,character_set_results,character_set_connection
 shared-memory FALSE
 shared-memory-base-name MYSQL
+show-old-temporals FALSE
 show-slave-auth-info FALSE
 skip-grant-tables TRUE
 skip-name-resolve FALSE

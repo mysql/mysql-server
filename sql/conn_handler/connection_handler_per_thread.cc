@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -238,7 +238,7 @@ static THD* init_new_thd(Channel_info *channel_info)
   - End thread  / Handle next connection using thread from thread cache
 */
 
-pthread_handler_t handle_connection(void *arg)
+extern "C" void *handle_connection(void *arg)
 {
   Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
   Connection_handler_manager *handler_manager=
@@ -253,7 +253,7 @@ pthread_handler_t handle_connection(void *arg)
     handler_manager->inc_aborted_connects();
     Connection_handler_manager::dec_connection_count();
     delete channel_info;
-    pthread_exit(0);
+    my_thread_exit(0);
     return NULL;
   }
 
@@ -329,7 +329,7 @@ pthread_handler_t handle_connection(void *arg)
   }
 
   my_thread_end();
-  pthread_exit(0);
+  my_thread_exit(0);
   return NULL;
 }
 
@@ -381,7 +381,7 @@ bool Per_thread_connection_handler::check_idle_thread_and_enqueue_connection(
 bool Per_thread_connection_handler::add_connection(Channel_info* channel_info)
 {
   int error= 0;
-  pthread_t id;
+  my_thread_handle id;
 
   DBUG_ENTER("Per_thread_connection_handler::add_connection");
 

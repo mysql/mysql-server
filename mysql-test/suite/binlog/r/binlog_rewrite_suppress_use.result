@@ -9,12 +9,11 @@ DELETE FROM t1 WHERE i=2;
 [The use <db_name> is not suppressed in the general use of mysqlbinlog]
 Matching lines are:
 use `db1`/*!*/;
-
-Occurrences of the use `db1` in the input file : 1
+Occurrences of 'use `db1`' in the input file: 1
 [The use <db_name> is suppressed on using rewrite-db option of mysqlbinlog]
 Matching lines are:
 None
-Occurrences of the use `db1` in the input file : 0
+Occurrences of 'use `db1`' in the input file: 0
 CREATE DATABASE db2;
 DROP DATABASE db1;
 RESET MASTER;

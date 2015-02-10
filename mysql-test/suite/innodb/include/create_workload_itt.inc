@@ -1,10 +1,10 @@
 #
-# WL#7682: Create Workload that will be used to fire queries involving
+# WL#6737: Create Workload that will be used to fire queries involving
 #	   intrinsic tables.
 #
 drop table if exists t1, t2;
-eval create $wl7682_temp table t1 (a int, b varchar(20));
-eval create $wl7682_temp table t2 (a int, b varchar(20));
+eval create $wl6737_temp table t1 (a int, b varchar(20));
+eval create $wl6737_temp table t2 (a int, b varchar(20));
 insert into t1 values(1, 'a'), (2, 'b'), (3, 'c'), (3, 'c'), (4, 'c');
 insert into t2 values(2, 'd'), (3, 'e'), (4, 'f'), (4, 'f'), (5, 'e');
 #
@@ -20,46 +20,44 @@ create function func1(x int) returns int deterministic
 delimiter ;|
 #
 drop table if exists t3;
-eval create $wl7682_temp table t3 like t1;
-if (!`select @@innodb_create_intrinsic`) {
-	insert into t3 select 5 + 10000 * rand(), '5' from t3;
-	insert into t3 select 5 + 10000 * rand(), '5' from t3;
-	insert into t3 select 5 + 10000 * rand(), '5' from t3;
-	insert into t3 select 5 + 10000 * rand(), '5' from t3;
-	insert into t3 select 5 + 10000 * rand(), '5' from t3;
-	insert into t3 select 5 + 10000 * rand(), '5' from t3;
-	insert into t3 select 5 + 10000 * rand(), '5' from t3;
-	insert into t3 select 5 + 10000 * rand(), '5' from t3;
-}
+eval create $wl6737_temp table t3 like t1;
+insert into t3 select 5 + 10000 * rand(), '5' from t3;
+insert into t3 select 5 + 10000 * rand(), '5' from t3;
+insert into t3 select 5 + 10000 * rand(), '5' from t3;
+insert into t3 select 5 + 10000 * rand(), '5' from t3;
+insert into t3 select 5 + 10000 * rand(), '5' from t3;
+insert into t3 select 5 + 10000 * rand(), '5' from t3;
+insert into t3 select 5 + 10000 * rand(), '5' from t3;
+insert into t3 select 5 + 10000 * rand(), '5' from t3;
 #
 drop table if exists t4;
-eval create $wl7682_temp table t4 (a int, b int, c int, d char, e blob);
+eval create $wl6737_temp table t4 (a int, b int, c int, d char, e blob);
 insert into t4 values (1, 2, 3, '4', '5');
 #
 drop table if exists t5;
-eval create $wl7682_temp table t5 (a int, b int primary key);
+eval create $wl6737_temp table t5 (a int, b int primary key);
 insert into t5 values (1,7), (1,8);
 #
 drop table if exists t6;
-eval create $wl7682_temp table t6 (a int, b int, c int, d char);
+eval create $wl6737_temp table t6 (a int, b int, c int, d char);
 insert into t6 values(1, 2, 3, '4');
 create index t6_indx1 on t6(a);
 #
 drop table if exists t7;
-eval create $wl7682_temp table t7 (a int, b varchar(20));
+eval create $wl6737_temp table t7 (a int, b varchar(20));
 insert into t7 values(1, 'a'), (2, 'b'), (3, 'c'), (3, 'c'), (4, 'c');
 create index indx7 on t7(b);
 #
 drop table if exists t8;
-eval create $wl7682_temp table t8 (
-	pk integer auto_increment, col_int_key integer,
+eval create $wl6737_temp table t8 (
+	pk integer $wl6737_auto_inc, col_int_key integer,
 	col_varchar_key varchar(1), primary key (pk),
 	key (col_int_key), key (col_varchar_key, col_int_key)) engine = innodb;
-insert into t8 (col_int_key, col_varchar_key) values (2, 'v'), (150, 'v');
+insert into t8 values (1, 2, 'v'), (2, 150, 'v');
 #
 drop table if exists t9, t10;
-eval create $wl7682_temp table t9 (
-  pk int(11) not null auto_increment,
+eval create $wl6737_temp table t9 (
+  pk int(11) not null $wl6737_auto_inc,
   col_int_nokey int(11) default null,
   col_int_key int(11) default null,
   col_date_key date default null,
@@ -69,8 +67,8 @@ eval create $wl7682_temp table t9 (
   key col_date_key (col_date_key),
   key col_varchar_key (col_int_key)
 ) engine=innodb;
-eval create $wl7682_temp table t10 (
-  pk int(11) not null auto_increment,
+eval create $wl6737_temp table t10 (
+  pk int(11) not null $wl6737_auto_inc,
   col_int_nokey int(11) default null,
   col_int_key int(11) default null,
   col_date_key date default null,
@@ -204,7 +202,7 @@ insert into t10 values
 	(99, 4, 8, '2002-04-12', '2002-04-12'),
 	(100, NULL, 3, '2000-02-09', '2000-02-09');
 #
-eval create $wl7682_temp table t11 (
+eval create $wl6737_temp table t11 (
   col_date_key date default null,
   col_varchar_10_utf8 varchar(10) CHARACTER SET utf8 default null,
   col_varchar_10_latin1 varchar(10) default null,
@@ -236,7 +234,7 @@ insert ignore into t11 values
 	('2003', 'g', 'ELTFL', 'got', '20:07:16.048352', 'ryvuwdllyhymuwyypoiuyeqbnaanbursgddnqhyvxnnpadsjiqdkajofferjfslatroorycttbiuhlubvmoikwwnalqyewgthdmfvsedatazrflwenzeiwdxtheqppbmqfydsawvanehgvfvbsqxzkqzhtjkybvikmpexipoddmoulsnzfchusfgkdazecevrpuakfioamyyqyribcnydfxmmzsxcpkydyczmeajaebsaskneaqwxjbpjptiwgiizoxfygnbjojpifpzldsdhrukdbwpzribxgafunywmmcfpjugozduylotsugqocbadhcnxjqlugncbebwsbobhxgghyyphxfqqnpliazusgjswynfotwdonpbkllfdbuoqceirksegypasuuxnrjumrkaryhkgkbdfgoqbdmrdrmpvwitqzswgossxltimkbtrxitnmigcxgfaqmrnvspyaftisgdbkzlevczyrlossygtnatwcobbtsxqhjrdykmthpyzmdgyirxwlidiknxwsufkyexucekyhivscjdcouswuiyltrpmrngriwvrxgovfyewdsvlwirfzkwexxzoccufvuvhsjfvuwjsrrzguntudxxhblzbescayrbbrijnvucxxmbyltlojlgcweddzrfxsmwnxxewigapgrowtmrlqsknuaegzfvdwfdnnbfyubwckwfdrwmrymagyswwvvyeqhaaskgxogthhrzsdlsyqoeuvhwxquwbnivpowtybzehvbsoppuefqngkqohtdeylosjyvtxuziotnfpbqxkpxvzcjbgxokjzitakfevxduhtudsslluhzgcwgrcrtpnczgxchnmmgnubjzvvuklklfhiupbsjzhcqyadhskxtjzabzesulhgpykga', 'she', 'have', 'PYJKD', 9, '2008-06-10', 'yvuwdllyhymuwyypoiuyeqbnaanbursgddnqhyvxnnpadsjiqdkajofferjfslatroorycttbiuhlubvmoikwwnalqyewgthdmfvsedatazrflwenzeiwdxtheqppbmqfydsawvanehgvfvbsqxzkqzhtjkybvikmpexipoddmoulsnzfchusfgkdazecevrpuakfioamyyqyribcnydfxmmzsxcpkydyczmeajaebsaskneaqwxjbpjptiwgiizoxfygnbjojpifpzldsdhrukdbwpzribxgafunywmmcfpjugozduylotsugqocbadhcnxjqlugncbebwsbobhxgghyyphxfqqnpliazusgjswynfotwdonpbkllfdbuoqceirksegypasuuxnrjumrkaryhkgkbdfgoqbdmrdrmpvwitqzswgossxltimkbtrxitnmigcxgfaqmrnv', NULL, NULL, '2008-01-09');
 --enable_warnings
 #
-eval create $wl7682_temp table t12 (t text, c char(10), b blob, d varbinary(10)) engine=innodb;
+eval create $wl6737_temp table t12 (t text, c char(10), b blob, d varbinary(10)) engine=innodb;
 insert into t12 values (NULL, NULL, NULL,NULL);
 insert into t12 values ("", "", "", "");
 insert into t12 values ("hello", "hello", "hello", "hello");
@@ -247,7 +245,7 @@ insert into t12 values (1,1,1,1);
 insert into t12 values (NULL,NULL,NULL,NULL);
 #
 #
-eval create $wl7682_temp table t13 (
+eval create $wl6737_temp table t13 (
   pk int(11) not null auto_increment,
   col_int_nokey int(11) default null,
   col_int_key int(11) default null,
@@ -284,7 +282,7 @@ insert into t13 values
 	(20, 6, 5, '2004-10-10', '20:58:33', 'r', 'r');
 #
 #
-eval create $wl7682_temp table t14 (
+eval create $wl6737_temp table t14 (
   pk int(11) not null auto_increment,
   col_int_nokey int(11) default null,
   col_int_key int(11) default null,

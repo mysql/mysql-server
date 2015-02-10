@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,28 +25,13 @@
     Move month and days to language files
 */
 
-/*
-  It is necessary to include set_var.h instead of item.h because there
-  are dependencies on include order for set_var.h and item.h. This
-  will be resolved later.
-*/
-#include "sql_class.h"                          // set_var.h: THD
-#include "set_var.h"
-#include "sql_locale.h"          // MY_LOCALE my_locale_en_US
-#include "strfunc.h"             // check_word
-#include "sql_time.h"            // make_truncated_value_warning,
-                                 // make_time, get_date_from_daynr,
-                                 // calc_weekday, calc_week,
-                                 // convert_month_to_period,
-                                 // convert_period_to_month,
-                                 // TIME_to_timestamp, make_date,
-                                 // calc_time_diff,
-                                 // calc_time_from_sec,
-                                 // known_date_time_format,
-                                 // get_date_time_format_str
-#include "tztime.h"              // struct Time_zone
-#include "sql_class.h"           // THD
-#include <m_ctype.h>
+#include "item_timefunc.h"
+
+#include "sql_class.h"       // THD
+#include "sql_time.h"        // make_truncated_value_warning
+#include "strfunc.h"         // check_word
+#include "tztime.h"          // Time_zone
+
 #include <time.h>
 
 using std::min;
@@ -136,9 +121,9 @@ static bool sec_to_time(lldiv_t seconds, MYSQL_TIME *ltime)
   Note: We should init at least first element of "positions" array
         (first member) or hpux11 compiler will die horribly.
 */
-static DATE_TIME_FORMAT time_ampm_format= {{0}, '\0', 0,
+static Date_time_format time_ampm_format= {{0}, '\0', 0,
                                            {(char *)"%I:%i:%S %p", 11}};
-static DATE_TIME_FORMAT time_24hrs_format= {{0}, '\0', 0,
+static Date_time_format time_24hrs_format= {{0}, '\0', 0,
                                             {(char *)"%H:%i:%S", 8}};
 
 /**
@@ -174,7 +159,7 @@ static DATE_TIME_FORMAT time_24hrs_format= {{0}, '\0', 0,
     1	error
 */
 
-static bool extract_date_time(DATE_TIME_FORMAT *format,
+static bool extract_date_time(Date_time_format *format,
                               const char *val, size_t length, MYSQL_TIME *l_time,
                               timestamp_type cached_timestamp_type,
                               const char **sub_pattern_end,
@@ -517,7 +502,7 @@ err:
   Create a formated date/time value in a string.
 */
 
-bool make_date_time(DATE_TIME_FORMAT *format, MYSQL_TIME *l_time,
+bool make_date_time(Date_time_format *format, MYSQL_TIME *l_time,
 		    timestamp_type type, String *str)
 {
   char intbuff[15];
@@ -1608,7 +1593,7 @@ longlong Item_func_time_to_sec::val_int()
 */
 
 bool get_interval_value(Item *args, interval_type int_type,
-                        String *str_value, INTERVAL *interval)
+                        String *str_value, Interval *interval)
 {
   ulonglong array[5];
   longlong value= 0;
@@ -2214,7 +2199,7 @@ String *Item_func_date_format::val_str(String *str)
   if (str->alloc(size))
     goto null_date;
 
-  DATE_TIME_FORMAT date_time_format;
+  Date_time_format date_time_format;
   date_time_format.format.str=    (char*) format->ptr();
   date_time_format.format.length= format->length(); 
 
@@ -2398,7 +2383,7 @@ void Item_date_add_interval::fix_length_and_dec()
 bool Item_date_add_interval::get_date_internal(MYSQL_TIME *ltime,
                                                my_time_flags_t fuzzy_date)
 {
-  INTERVAL interval;
+  Interval interval;
 
   if (args[0]->get_date(ltime, TIME_NO_ZERO_DATE) ||
       get_interval_value(args[1], int_type, &value, &interval))
@@ -2426,7 +2411,7 @@ bool Item_date_add_interval::get_date_internal(MYSQL_TIME *ltime,
 
 bool Item_date_add_interval::get_time_internal(MYSQL_TIME *ltime)
 {
-  INTERVAL interval;
+  Interval interval;
 
   if ((null_value= args[0]->get_time(ltime) ||
                    get_interval_value(args[1], int_type, &value, &interval)))
@@ -3188,7 +3173,7 @@ String *Item_func_get_format::val_str_ascii(String *str)
 {
   DBUG_ASSERT(fixed == 1);
   const char *format_name;
-  KNOWN_DATE_TIME_FORMAT *format;
+  Known_date_time_format *format;
   String *val= args[0]->val_str_ascii(str);
   size_t val_len;
 
@@ -3346,7 +3331,7 @@ void Item_func_str_to_date::fix_length_and_dec()
 bool Item_func_str_to_date::val_datetime(MYSQL_TIME *ltime,
                                          my_time_flags_t fuzzy_date)
 {
-  DATE_TIME_FORMAT date_time_format;
+  Date_time_format date_time_format;
   char val_buff[64], format_buff[64];
   String val_string(val_buff, sizeof(val_buff), &my_charset_bin), *val;
   String format_str(format_buff, sizeof(format_buff), &my_charset_bin), *format;

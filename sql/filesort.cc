@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -36,11 +36,37 @@
 #include "opt_costmodel.h"
 #include "priority_queue.h"
 #include "log.h"
+#include "item_sum.h"                   // Item_sum
+
+#include "pfs_file_provider.h"
+#include "mysql/psi/mysql_file.h"
 
 #include <algorithm>
 #include <utility>
 using std::max;
 using std::min;
+
+namespace {
+
+struct Mem_compare
+{
+  Mem_compare() : m_compare_length(0) {}
+
+  Mem_compare(const Mem_compare &that)
+    : m_compare_length(that.m_compare_length)
+  {
+  }
+
+  bool operator()(const uchar *s1, const uchar *s2) const
+  {
+    // memcmp(s1, s2, 0) is guaranteed to return zero.
+    return memcmp(s1, s2, m_compare_length) < 0;
+  }
+
+  size_t m_compare_length;
+};
+}
+
 
 	/* functions defined in this file */
 
@@ -48,7 +74,8 @@ static ha_rows find_all_keys(Sort_param *param, QEP_TAB *qep_tab,
                              Filesort_info *fs_info,
                              IO_CACHE *buffer_file,
                              IO_CACHE *chunk_file,
-                             Bounded_queue<uchar *, uchar *, Sort_param> *pq,
+                             Bounded_queue<uchar *, uchar *, Sort_param,
+                                           Mem_compare> *pq,
                              ha_rows *found_rows);
 static int write_keys(Sort_param *param, Filesort_info *fs_info,
                       uint count, IO_CACHE *buffer_file, IO_CACHE *tempfile);
@@ -216,7 +243,9 @@ ha_rows filesort(THD *thd, QEP_TAB *qep_tab, Filesort *filesort,
   IO_CACHE *outfile;   // Contains the final, sorted result.
   Sort_param param;
   bool multi_byte_charset;
-  Bounded_queue<uchar *, uchar *, Sort_param> pq;
+  Bounded_queue<uchar *, uchar *, Sort_param, Mem_compare>
+    pq((Malloc_allocator<uchar*>
+        (key_memory_Filesort_info_record_pointers)));
   Opt_trace_context * const trace= &thd->opt_trace;
   TABLE *const table= qep_tab->table();
   ha_rows max_rows= filesort->limit;
@@ -301,8 +330,6 @@ ha_rows filesort(THD *thd, QEP_TAB *qep_tab, Filesort *filesort,
     table_sort.init_record_pointers();
 
     if (pq.init(param.max_rows,
-                true,                           // max_at_top
-                NULL,                           // compare_function
                 &param, table_sort.get_sort_keys()))
     {
       /*
@@ -377,7 +404,7 @@ ha_rows filesort(THD *thd, QEP_TAB *qep_tab, Filesort *filesort,
                             &table_sort,
                             &chunk_file,
                             &tempfile,
-                            pq.is_initialized() ? &pq : NULL,
+                            param.using_pq ? &pq : NULL,
                             found_rows);
     if (num_rows == HA_POS_ERROR)
       goto err;
@@ -743,7 +770,8 @@ static ha_rows find_all_keys(Sort_param *param, QEP_TAB *qep_tab,
                              Filesort_info *fs_info,
                              IO_CACHE *chunk_file,
                              IO_CACHE *tempfile,
-                             Bounded_queue<uchar *, uchar *, Sort_param> *pq,
+                             Bounded_queue<uchar *, uchar *, Sort_param,
+                                           Mem_compare> *pq,
                              ha_rows *found_rows)
 {
   int error,flag;
@@ -1865,8 +1893,10 @@ int merge_buffers(Sort_param *param, IO_CACHE *from_file,
     Merge_chunk_less(cmp, first_cmp_arg) :
     Merge_chunk_less(sort_length);
   Priority_queue<Merge_chunk*,
-                 std::vector<Merge_chunk*>,
-                 Merge_chunk_less> queue(mcl);
+                 std::vector<Merge_chunk*, Malloc_allocator<Merge_chunk*> >,
+                 Merge_chunk_less>
+    queue(mcl,
+          Malloc_allocator<Merge_chunk*>(key_memory_Filesort_info_merge));
 
   if (queue.reserve(chunk_array.size()))
     DBUG_RETURN(1);

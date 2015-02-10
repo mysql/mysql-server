@@ -2902,7 +2902,7 @@ a
 #
 EXPLAIN EXTENDED SELECT * FROM t1 WHERE a IN (990000,0);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	14	14.29	Using where
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	14	20.00	Using where
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` in ('99:00:00.000000','00:00:00.000000'))
@@ -7864,7 +7864,7 @@ a
 #
 EXPLAIN EXTENDED SELECT * FROM t1 WHERE a IN (0.000001,0);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	11	18.18	Using where
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	11	20.00	Using where
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` in ('0000-00-00 00:00:00.000001','0000-00-00 00:00:00.000000'))
