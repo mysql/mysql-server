@@ -143,7 +143,7 @@ connection srv_master;
 show variables like 'server_id';
 show variables like 'log_bin';
 show variables like 'log_slave_updates';
---source include/show_binlog_events2.inc
+--source include/show_binlog_events.inc
 let $BINLOG_FILENAME=master-bin;
 --source suite/ndb_rpl/t/ndb_rpl_get_binlog_events.inc
 
@@ -156,7 +156,7 @@ connection srv_master1;
 show variables like 'server_id';
 show variables like 'log_bin';
 show variables like 'log_slave_updates';
---source include/show_binlog_events2.inc
+--source include/show_binlog_events.inc
 
 connection srv_master2;
 --echo 
@@ -166,7 +166,7 @@ connection srv_master2;
 show variables like 'server_id';
 show variables like 'log_bin';
 show variables like 'log_slave_updates';
---source include/show_binlog_events2.inc
+--source include/show_binlog_events.inc
 let $BINLOG_FILENAME=master-bin;
 --source suite/ndb_rpl/t/ndb_rpl_get_binlog_events.inc
 
@@ -178,7 +178,7 @@ connection srv_slave;
 show variables like 'server_id';
 show variables like 'log_bin';
 show variables like 'log_slave_updates';
---source include/show_binlog_events2.inc
+--source include/show_binlog_events.inc
 
 connection srv_slave1;
 --echo 
@@ -188,7 +188,7 @@ connection srv_slave1;
 show variables like 'server_id';
 show variables like 'log_bin';
 show variables like 'log_slave_updates';
---source include/show_binlog_events2.inc
+--source include/show_binlog_events.inc
 let $BINLOG_FILENAME=slave-master-bin;
 --source suite/ndb_rpl/t/ndb_rpl_get_binlog_events.inc
 
@@ -200,7 +200,7 @@ connection srv_slave2;
 show variables like 'server_id';
 show variables like 'log_bin';
 show variables like 'log_slave_updates';
---source include/show_binlog_events2.inc
+--source include/show_binlog_events.inc
 let $BINLOG_FILENAME=slave-master-bin;
 --source suite/ndb_rpl/t/ndb_rpl_get_binlog_events.inc
 

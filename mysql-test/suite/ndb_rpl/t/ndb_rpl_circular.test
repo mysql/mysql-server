@@ -52,7 +52,7 @@ SELECT * FROM t1 ORDER BY a;
 show variables like 'server_id';
 show variables like 'log_bin';
 show variables like 'log_slave_updates';
---source include/show_binlog_events2.inc
+--source include/show_binlog_events.inc
 
 source include/check_slave_is_running.inc;
 # connect to master and ensure data it there.
@@ -65,7 +65,7 @@ source include/check_slave_is_running.inc;
 show variables like 'server_id';
 show variables like 'log_bin';
 show variables like 'log_slave_updates';
---source include/show_binlog_events2.inc
+--source include/show_binlog_events.inc
 
 # stop replication on "master" as not to replicate
 # shutdown circularly, eg drop table
