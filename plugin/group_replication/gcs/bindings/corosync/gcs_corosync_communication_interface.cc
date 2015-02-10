@@ -33,10 +33,12 @@ Gcs_corosync_communication::Gcs_corosync_communication
                                Gcs_corosync_view_change_control_interface *vce)
       : corosync_handle(handle), stats(stats), proxy(proxy), view_notif(vce)
 {
+  pthread_mutex_init(&send_message_mutex, NULL);
 }
 
 Gcs_corosync_communication::~Gcs_corosync_communication()
 {
+  pthread_mutex_destroy(&send_message_mutex);
 }
 
 map<int, Gcs_communication_event_listener*>*
@@ -50,12 +52,16 @@ Gcs_corosync_communication::send_message(Gcs_message *message_to_send)
 {
   view_notif->wait_for_view_change_end();
 
+  pthread_mutex_lock(&send_message_mutex);
+
   long message_length= this->send_binding_message(message_to_send);
 
   if(message_length != -1)
   {
     this->stats->update_message_sent(message_length);
   }
+
+  pthread_mutex_unlock(&send_message_mutex);
 
   return (message_length == -1);
 }

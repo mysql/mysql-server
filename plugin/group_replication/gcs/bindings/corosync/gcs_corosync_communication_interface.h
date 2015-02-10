@@ -209,6 +209,9 @@ private:
 
   //Reference to the view change control object
   Gcs_corosync_view_change_control_interface* view_notif;
+
+  //Send Message mutex
+  pthread_mutex_t send_message_mutex;
 };
 
 #endif	/* GCS_COROSYNC_COMMUNICATION_INTERFACE_INCLUDED */
