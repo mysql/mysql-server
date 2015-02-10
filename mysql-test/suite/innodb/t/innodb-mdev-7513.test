@@ -1,8 +1,11 @@
 -- source include/have_innodb.inc
 -- source include/not_embedded.inc
 
+# MDEV-7513: ib_warn_row_too_big dereferences null thd
+
 call mtr.add_suppression("Row size too large (> 8126)*");
 
+--disable_warnings
 CREATE TABLE t1 ( text1 TEXT,
 text2 TEXT,
 text3 TEXT,
@@ -203,12 +206,15 @@ text197 TEXT
 ) ENGINE = InnoDB;
 
 INSERT INTO t1 VALUES ('abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef', 'abcdef');
+--enable_warnings
 
 DELETE FROM t1 WHERE text1 = 'abcdef';
 
 --source include/restart_mysqld.inc
 
+--disable_warnings
 SELECT * from t1;
+--enable_warnings
 
 DROP TABLE t1;
 
