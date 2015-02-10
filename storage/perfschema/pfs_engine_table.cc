@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -1415,12 +1415,64 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       name= "host_cache.size";
       size= sizeof(Host_entry);
       break;
+    case 154:
+      name= "(history_long_statements_digest_token_array).row_count";
+      size= events_statements_history_long_size;
+      break;
+    case 155:
+      name= "(history_long_statements_digest_token_array).row_size";
+      size= pfs_max_digest_length;
+      break;
+    case 156:
+      name= "(history_long_statements_digest_token_array).memory";
+      size= events_statements_history_long_size * pfs_max_digest_length;
+      total_memory+= size;
+      break;
+    case 157:
+      name= "(history_statements_digest_token_array).row_count";
+      size= thread_max * events_statements_history_per_thread;
+      break;
+    case 158:
+      name= "(history_statements_digest_token_array).row_size";
+      size= pfs_max_digest_length;
+      break;
+    case 159:
+      name= "(history_statements_digest_token_array).memory";
+      size= thread_max * events_statements_history_per_thread * pfs_max_digest_length;
+      total_memory+= size;
+      break;
+    case 160:
+      name= "(current_statements_digest_token_array).row_count";
+      size= thread_max * statement_stack_max;
+      break;
+    case 161:
+      name= "(current_statements_digest_token_array).row_size";
+      size= pfs_max_digest_length;
+      break;
+    case 162:
+      name= "(current_statements_digest_token_array).memory";
+      size= thread_max * statement_stack_max * pfs_max_digest_length;
+      total_memory+= size;
+      break;
+    case 163:
+      name= "(statements_digest_token_array).row_count";
+      size= digest_max;
+      break;
+    case 164:
+      name= "(statements_digest_token_array).row_size";
+      size= pfs_max_digest_length;
+      break;
+    case 165:
+      name= "(statements_digest_token_array).memory";
+      size= digest_max * pfs_max_digest_length;
+      total_memory+= size;
+      break;
 
     /*
       This case must be last,
       for aggregation in total_memory.
     */
-    case 154:
+    case 166:
       name= "performance_schema.memory";
       size= total_memory;
       /* This will fail if something is not advertised here */

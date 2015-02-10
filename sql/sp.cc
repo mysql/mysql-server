@@ -754,6 +754,7 @@ static sp_head *sp_compile(THD *thd, String *defstr, sql_mode_t sql_mode,
   sp_rcontext *sp_runtime_ctx_saved= thd->sp_runtime_ctx;
   Silence_deprecated_warning warning_handler;
   Parser_state parser_state;
+  sql_digest_state *parent_digest= thd->m_digest;
   PSI_statement_locker *parent_locker= thd->m_statement_psi;
 
   thd->variables.sql_mode= sql_mode;
@@ -770,6 +771,7 @@ static sp_head *sp_compile(THD *thd, String *defstr, sql_mode_t sql_mode,
   thd->push_internal_handler(&warning_handler);
   thd->sp_runtime_ctx= NULL;
 
+  thd->m_digest= NULL;
   thd->m_statement_psi= NULL;
   if (parse_sql(thd, & parser_state, creation_ctx) || thd->lex == NULL)
   {
@@ -781,6 +783,7 @@ static sp_head *sp_compile(THD *thd, String *defstr, sql_mode_t sql_mode,
   {
     sp= thd->lex->sphead;
   }
+  thd->m_digest= parent_digest;
   thd->m_statement_psi= parent_locker;
 
   thd->pop_internal_handler();

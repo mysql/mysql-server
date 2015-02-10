@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -57,6 +57,8 @@ slave_ignored_err_throttle(window_size,
 #include <base64.h>
 #include <my_bitmap.h>
 #include "rpl_utility.h"
+
+#include "sql_digest.h"
 
 using std::min;
 using std::max;
@@ -4816,12 +4818,17 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
       Parser_state parser_state;
       if (!parser_state.init(thd, thd->query(), thd->query_length()))
       {
+        DBUG_ASSERT(thd->m_digest == NULL);
+        thd->m_digest= & thd->m_digest_state;
+        DBUG_ASSERT(thd->m_statement_psi == NULL);
         thd->m_statement_psi= MYSQL_START_STATEMENT(&thd->m_statement_state,
                                                     stmt_info_rpl.m_key,
                                                     thd->db, thd->db_length,
                                                     thd->charset());
         THD_STAGE_INFO(thd, stage_init);
         MYSQL_SET_STATEMENT_TEXT(thd->m_statement_psi, thd->query(), thd->query_length());
+        if (thd->m_digest != NULL)
+          thd->m_digest->reset(thd->m_token_array, max_digest_length);
 
         mysql_parse(thd, thd->query(), thd->query_length(), &parser_state);
         /* Finalize server status flags after executing a statement. */
@@ -5033,6 +5040,7 @@ end:
   /* Mark the statement completed. */
   MYSQL_END_STATEMENT(thd->m_statement_psi, thd->get_stmt_da());
   thd->m_statement_psi= NULL;
+  thd->m_digest= NULL;
 
   /*
     As a disk space optimization, future masters will not log an event for

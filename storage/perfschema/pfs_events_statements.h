@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -88,8 +88,12 @@ struct PFS_events_statements : public PFS_events
   ulonglong m_no_index_used;
   /** Optimizer metric, number of 'no good index used'. */
   ulonglong m_no_good_index_used;
-  /** Statement digest. */
-  PSI_digest_storage m_digest_storage;
+  /**
+    Statement digest.
+    This underlying token array storage pointer is immutable,
+    and always point to pre allocated memory.
+  */
+  sql_digest_storage m_digest_storage;
 };
 
 void insert_events_statements_history(PFS_thread *thread, PFS_events_statements *statement);

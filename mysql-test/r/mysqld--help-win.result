@@ -414,6 +414,8 @@ The following options may be given as the first argument:
  INSERT DELAYED statements. If set to zero INSERT DELAYED
  will be not used.This variable is deprecated along with
  INSERT DELAYED.
+ --max-digest-length=# 
+ Maximum length considered for digest text.
  --max-error-count=# Max number of errors/warnings to store for a statement
  --max-heap-table-size=# 
  Don't allow creation of heap tables bigger than this
@@ -1149,6 +1151,7 @@ max-binlog-stmt-cache-size 18446744073709547520
 max-connect-errors 100
 max-connections 151
 max-delayed-threads 20
+max-digest-length 1024
 max-error-count 64
 max-heap-table-size 16777216
 max-join-size 18446744073709551615
