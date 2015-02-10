@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -346,6 +346,9 @@ Configuration::setupConfiguration(){
   _schedulerSpinTimer = 0;
   iter.get(CFG_DB_SCHED_SPIN_TIME, &_schedulerSpinTimer);
 
+  _maxSendDelay = 0;
+  iter.get(CFG_DB_MAX_SEND_DELAY, &_maxSendDelay);
+
   _realtimeScheduler = 0;
   iter.get(CFG_DB_REALTIME_SCHEDULER, &_realtimeScheduler);
 
@@ -577,6 +580,12 @@ bool
 Configuration::realtimeScheduler() const
 {
   return (bool)_realtimeScheduler;
+}
+
+Uint32
+Configuration::maxSendDelay() const
+{
+  return _maxSendDelay;
 }
 
 void 

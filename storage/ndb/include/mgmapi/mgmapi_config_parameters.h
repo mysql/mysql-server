@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -219,6 +219,7 @@
 /* <= 641 used */
 #define CFG_MIXOLOGY_LEVEL            642
 #define CFG_DB_PARALLEL_COPY_THREADS  643
+#define CFG_DB_MAX_SEND_DELAY         644
 
 #define CFG_NODE_ARBIT_RANK           200
 #define CFG_NODE_ARBIT_DELAY          201
