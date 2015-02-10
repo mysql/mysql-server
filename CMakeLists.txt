@@ -350,6 +350,11 @@ MYSQL_CHECK_READLINE()
 
 CHECK_JEMALLOC()
 
+IF(CMAKE_CROSSCOMPILING)
+  SET(IMPORT_EXECUTABLES "IMPORTFILE-NOTFOUND" CACHE FILEPATH "Path to import_executables.cmake from a native build")
+  INCLUDE(${IMPORT_EXECUTABLES})
+ENDIF()
+
 #
 # Setup maintainer mode options by the end. Platform checks are
 # not run with the warning options as to not perturb fragile checks
