@@ -330,7 +330,7 @@ my_thread_handle shutdown_thr_handle;
 uint host_cache_size;
 ulong log_error_verbosity= 3; // have a non-zero value during early start-up
 
-#if MYSQL_VERSION_ID >= 50800
+#if MYSQL_VERSION_ID >= 50801
 #error "show_compatibility_56 is to be removed in MySQL 5.8"
 #else
 /* Default value TRUE for the EMBEDDED_LIBRARY */
