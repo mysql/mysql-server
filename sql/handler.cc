@@ -5485,7 +5485,7 @@ int ha_binlog_end(THD* thd)
 static my_bool global_schema_func_list(THD *thd, plugin_ref plugin, void *arg)
 {
   hton_list_st *hton_list= (hton_list_st *)arg;
-  handlerton *hton= plugin_data(plugin, handlerton *);
+  handlerton *hton= plugin_data<handlerton*>(plugin);
   if (hton->state == SHOW_OPTION_YES && hton->global_schema_func)
   {
     uint sz= hton_list->sz;
