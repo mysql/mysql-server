@@ -1,0 +1,5 @@
+*.c     diff=cpp
+*.h     diff=cpp
+*.cc    diff=cpp
+*.ic    diff=cpp
+*.cpp   diff=cpp
