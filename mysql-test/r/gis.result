@@ -1607,4 +1607,7 @@ create table t1 (pt point);
 insert into t1 values(Geomfromtext('POLYGON((1 1, 2 2, 2 1, 1 1))'));
 ERROR 22007: Incorrect POINT value: 'POLYGON' for column 'pt' at row 1
 drop table t1;
+SELECT st_astext(ST_Buffer(ST_PolygonFromText('POLYGON((3 5, 2 4, 2 5, 3 5))'), -100));
+st_astext(ST_Buffer(ST_PolygonFromText('POLYGON((3 5, 2 4, 2 5, 3 5))'), -100))
+GEOMETRYCOLLECTION EMPTY
 End of 5.5 tests
