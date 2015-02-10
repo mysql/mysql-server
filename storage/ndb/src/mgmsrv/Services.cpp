@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1304,7 +1304,7 @@ MgmApiSession::start(Parser<MgmApiSession>::Context &,
 
   args.get("node", &node);
   
-  int result = m_mgmsrv.start(node);
+  int result = m_mgmsrv.sendSTART_ORD(node);
 
   m_output->println("start reply");
   if(result != 0)
@@ -1321,7 +1321,7 @@ MgmApiSession::startAll(Parser<MgmApiSession>::Context &,
   int started = 0;
 
   while(m_mgmsrv.getNextNodeId(&node, NDB_MGM_NODE_TYPE_NDB))
-    if(m_mgmsrv.start(node) == 0)
+    if(m_mgmsrv.sendSTART_ORD(node) == 0)
       started++;
 
   m_output->println("start reply");
