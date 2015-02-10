@@ -78,10 +78,10 @@ show create database discover_db;
 show create database discover_db_2;
 reset master;
 insert into discover_db.t1 values (1,1);
---source include/show_binlog_events2.inc
+--source include/show_binlog_events.inc
 reset master;
 insert into discover_db_2.t1 values (1,1);
---source include/show_binlog_events2.inc
+--source include/show_binlog_events.inc
 
 #
 # Cleanup
