@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1013,7 +1013,7 @@ MgmtSrvr::report_unknown_signal(SimpleSignal *signal)
  ****************************************************************************/
 
 int 
-MgmtSrvr::start(int nodeId)
+MgmtSrvr::sendSTART_ORD(int nodeId)
 {
   INIT_SIGNAL_SENDER(ss,nodeId);
   
@@ -1866,7 +1866,8 @@ int MgmtSrvr::restartNodes(const Vector<NodeId> &node_ids,
                            int * stopCount, bool nostart,
                            bool initialStart, bool abort,
                            bool force,
-                           int *stopSelf)
+                           int *stopSelf,
+                           unsigned int num_secs_to_wait_for_node)
 {
   if (is_cluster_single_user())
   {
@@ -1951,7 +1952,19 @@ int MgmtSrvr::restartNodes(const Vector<NodeId> &node_ids,
   */
   for (unsigned i = 0; i < node_ids.size(); i++)
   {
-    (void) start(node_ids[i]);
+    unsigned int loop_count = 0;
+    do
+    {
+      int result = sendSTART_ORD(node_ids[i]);
+      if (result == SEND_OR_RECEIVE_FAILED ||
+          result == NO_CONTACT_WITH_PROCESS)
+      {
+        if (loop_count >= num_secs_to_wait_for_node)
+          break;
+        loop_count++;
+        NdbSleep_MilliSleep(1000);
+      }
+    } while (1);
   }
   return 0;
 }
@@ -1961,7 +1974,8 @@ int MgmtSrvr::restartNodes(const Vector<NodeId> &node_ids,
  */
 
 int MgmtSrvr::restartDB(bool nostart, bool initialStart,
-                        bool abort, int * stopCount)
+                        bool abort, int * stopCount,
+                        unsigned int num_secs_to_wait_for_node)
 {
   NodeBitmask nodes;
 
@@ -2024,7 +2038,18 @@ int MgmtSrvr::restartDB(bool nostart, bool initialStart,
     if (!nodes.get(nodeId))
       continue;
     int result;
-    result = start(nodeId);
+    unsigned int loop_count = 0;
+    do
+    {
+      result = sendSTART_ORD(nodeId);
+      if (result != SEND_OR_RECEIVE_FAILED &&
+          result != NO_CONTACT_WITH_PROCESS)
+        break;
+      if (loop_count >= num_secs_to_wait_for_node)
+        break;
+      NdbSleep_MilliSleep(1000);
+      loop_count++;
+    } while (1);
     g_eventLogger->debug("Started node %d with result %d", nodeId, result);
     /**
      * Errors from this call are deliberately ignored.
