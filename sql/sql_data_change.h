@@ -1,6 +1,6 @@
 #ifndef SQL_DATA_CHANGE_INCLUDED
 #define SQL_DATA_CHANGE_INCLUDED
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,10 +23,13 @@
   sql_{insert, update}.{h,cc} 
 */
 
-#include "sql_list.h"
-#include "my_base.h"
-#include "my_bitmap.h"
-#include "table.h"
+#include "my_base.h"        // ha_rows
+#include "my_bitmap.h"      // MY_BITMAP
+#include "sql_alloc.h"      // Sql_alloc
+
+struct TABLE;
+class Item;
+template <class T> class List;
 
 enum enum_duplicates { DUP_ERROR, DUP_REPLACE, DUP_UPDATE };
 

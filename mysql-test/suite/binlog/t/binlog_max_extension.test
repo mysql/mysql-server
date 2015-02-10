@@ -41,7 +41,7 @@ RESET MASTER;
 
 # 1. Stop master server
 -- exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
--- shutdown_server 10
+-- shutdown_server 
 -- source include/wait_until_disconnected.inc
 
 # 2. Prepare log and index file
@@ -70,7 +70,7 @@ FLUSH LOGS;
 
 # 1. Stop the server
 -- exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
--- shutdown_server 10
+-- shutdown_server 
 -- source include/wait_until_disconnected.inc
 
 # 2. Undo changes to index and log files

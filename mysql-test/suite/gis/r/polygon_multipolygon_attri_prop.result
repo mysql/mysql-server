@@ -3,7 +3,7 @@ SHOW VARIABLES LIKE '%engine%';
 Variable_name	Value
 default_storage_engine	MyISAM
 default_tmp_storage_engine	MyISAM
-internal_tmp_disk_storage_engine	MYISAM
+internal_tmp_disk_storage_engine	INNODB
 #Creating the spatial Geometry object
 USE test;
 DROP TABLE IF EXISTS gis_polygon, gis_multi_polygon;
@@ -1869,19 +1869,19 @@ ERROR 22023: Invalid GIS data provided to function st_centroid.
 #Checking the Centroid of some random Polygon and MultiPolygon.
 Select AsText(Centroid(PolygonFromText('POLYGON((1 1, 10 1, 1 0, 10 0, 1 -1, 10 -1, 7 2, 7 -2, 4 2, 4 -2, 1 1))')));
 AsText(Centroid(PolygonFromText('POLYGON((1 1, 10 1, 1 0, 10 0, 1 -1, 10 -1, 7 2, 7 -2, 4 2, 4 -2, 1 1))')))
-NULL
+POINT(1 1)
 Select AsText(Centroid(PolyFromText('POLYGON((1 1, 10 1, 1 0, 10 0, 1 -1, 10 -1, 1 1), (10 -1, 7 2, 7 -2, 4 2, 4 -2, 1 1,10 -1))')));
 AsText(Centroid(PolyFromText('POLYGON((1 1, 10 1, 1 0, 10 0, 1 -1, 10 -1, 1 1), (10 -1, 7 2, 7 -2, 4 2, 4 -2, 1 1,10 -1))')))
-NULL
+POINT(1 1)
 Select AsText(Centroid(PolyFromWKB(AsWKB(Polygon(LineString(Point(1, 1), Point(10, 1), Point(1, 0), Point(10, 0), Point(4, 2), Point(4, -2), Point(1, 1)))))));
 AsText(Centroid(PolyFromWKB(AsWKB(Polygon(LineString(Point(1, 1), Point(10, 1), Point(1, 0), Point(10, 0), Point(4, 2), Point(4, -2), Point(1, 1)))))))
-NULL
+POINT(1 1)
 select AsText(Centroid(PolygonFromText('POLYGON((10 10,20 10,20 20,10 20))')));
 AsText(Centroid(PolygonFromText('POLYGON((10 10,20 10,20 20,10 20))')))
 POINT(15 15)
 select AsText(Centroid(MPolyFromText('MULTIPOLYGON(((10 10,20 10,20 20,10 20),(14 14,14 16,16 16,16 14)),((0 0,0 2,2 2,2 0,0 0)))')));
 AsText(Centroid(MPolyFromText('MULTIPOLYGON(((10 10,20 10,20 20,10 20),(14 14,14 16,16 16,16 14)),((0 0,0 2,2 2,2 0,0 0)))')))
-POINT(14.44 14.44)
+POINT(14.440000000000001 14.440000000000001)
 Select AsText(Centroid(MultiPolygonFromText('MULTIPOLYGON(((1 1, 10 1, 1 0, 10 0, 1 1)),((7 -2, 4 2, 4 -2, 1 1, 7 -2)))')));
 AsText(Centroid(MultiPolygonFromText('MULTIPOLYGON(((1 1, 10 1, 1 0, 10 0, 1 1)),((7 -2, 4 2, 4 -2, 1 1, 7 -2)))')))
 POINT(8 1.3333333333333333)
@@ -1890,7 +1890,7 @@ AsText(Centroid(MPolyFromText('MULTIPOLYGON(((1 1, 10 1, 1 0, 10 0, 1 1)),((7 -2
 POINT(8 1.3333333333333333)
 Select AsText(Centroid(MPolyFromWKB(AsWKB(MultiPolygon(Polygon(LineString(Point(1, 1), Point(10, 1), Point(1, 0), Point(10, 0), Point(4, 2), Point(4, -2), Point(1, 1))))))));
 AsText(Centroid(MPolyFromWKB(AsWKB(MultiPolygon(Polygon(LineString(Point(1, 1), Point(10, 1), Point(1, 0), Point(10, 0), Point(4, 2), Point(4, -2), Point(1, 1))))))))
-NULL
+POINT(1 1)
 #WKB data, little-endian format
 Select AsText(Centroid(PolyFromWKB(0x010300000001000000050000000000000000000000000000000000000000000000000000000000000000001440000000000000144000000000000014400000000000001440000000000000000000000000000000000000000000000000)));
 AsText(Centroid(PolyFromWKB(0x010300000001000000050000000000000000000000000000000000000000000000000000000000000000001440000000000000144000000000000014400000000000001440000000000000000000000000000000000000000000000000)))
@@ -1916,7 +1916,7 @@ AsText(Centroid(PolygonFromText('POLYGON((1 1, 2 -1, 3 1, 5 2, 3 3, 2 5, 1 3, -1
 POINT(2 2)
 Select AsText(Centroid(PolyFromText('POLYGON((1 1, 2 -1, 3 1, 5 2, 3 3, 2 5, 1 3, -1 2, 1 1), (1 1, 2 -1, 3 1, 1 1))')));
 AsText(Centroid(PolyFromText('POLYGON((1 1, 2 -1, 3 1, 5 2, 3 3, 2 5, 1 3, -1 2, 1 1), (1 1, 2 -1, 3 1, 1 1))')))
-POINT(2 2.3333333333333335)
+POINT(2 2.333333333333333)
 Select AsText(Centroid(PolyFromWKB(AsWKB(Polygon(LineString(Point(1, 1), Point(2, -1), Point(3, 1), Point(5, 2), Point(3, 3), Point(2, 5), Point(1, 3), Point(-1, 2), Point(1, 1)))))));
 AsText(Centroid(PolyFromWKB(AsWKB(Polygon(LineString(Point(1, 1), Point(2, -1), Point(3, 1), Point(5, 2), Point(3, 3), Point(2, 5), Point(1, 3), Point(-1, 2), Point(1, 1)))))))
 POINT(2 2)
@@ -1943,28 +1943,28 @@ Select AsText(Centroid(MPolyFromWKB(AsWKB(MultiPolygon(Polygon(LineString(Point(
 ERROR 22023: Invalid GIS data provided to function st_centroid.
 Select AsText(Centroid(PolygonFromText('POLYGON((0.9999 7654.24251, 634736.736354 1.0987, 9087.9097 00000,0.9999 7654.24251))')));
 AsText(Centroid(PolygonFromText('POLYGON((0.9999 7654.24251, 634736.736354 1.0987, 9087.9097 00000,0.9999 7654.24251))')))
-POINT(214608.54865133337 2551.7804033333337)
+POINT(214608.54865133335 2551.780403333333)
 Select AsText(Centroid(PolyFromText('POLYGON((0.9999 7654.24251, 634736.736354 1.0987, 9087.9097 00000,0.9999 7654.24251), (0.9999 7654.24251, 634736.736354 1.0987, 9087.9097 00000,0.9999 7654.24251))')));
 AsText(Centroid(PolyFromText('POLYGON((0.9999 7654.24251, 634736.736354 1.0987, 9087.9097 00000,0.9999 7654.24251), (0.9999 7654.24251, 634736.736354 1.0987, 9087.9097 00000,0.9999 7654.24251))')))
-POINT(-94663.11111111111 -14336)
+POINT(0.9999 7654.24251)
 Select AsText(Centroid(PolyFromWKB(AsWKB(Polygon(LineString(Point('0.9999', '7654.24251'), Point('634736.736354', '1.0987'), Point('9087.9097', '00000'), Point('0.9999', '7654.24251')))))));
 AsText(Centroid(PolyFromWKB(AsWKB(Polygon(LineString(Point('0.9999', '7654.24251'), Point('634736.736354', '1.0987'), Point('9087.9097', '00000'), Point('0.9999', '7654.24251')))))))
-POINT(214608.54865133337 2551.7804033333337)
+POINT(214608.54865133335 2551.780403333333)
 Select AsText(Centroid(MultiPolygonFromText('MULTIPOLYGON(((0.9999 7654.24251, 634736.736354 1.0987, 9087.9097 00000,0.9999 7654.24251),(0.9999 7654.24251, 634736.736354 1.0987, 9087.9097 00000,0.9999 7654.24251)),((0.9999 7654.24251, 634736.736354 1.0987, 9087.9097 00000,0.9999 7654.24251)))')));
 AsText(Centroid(MultiPolygonFromText('MULTIPOLYGON(((0.9999 7654.24251, 634736.736354 1.0987, 9087.9097 00000,0.9999 7654.24251),(0.9999 7654.24251, 634736.736354 1.0987, 9087.9097 00000,0.9999 7654.24251)),((0.9999 7654.24251, 634736.736354 1.0987, 9087.
-POINT(214608.54865133337 2551.7804033333337)
+POINT(214608.54865133335 2551.780403333333)
 Select AsText(Centroid(MPolyFromText('MULTIPOLYGON(((0.9999 7654.24251, 634736.736354 1.0987, 9087.9097 00000,0.9999 7654.24251),(0.9999 7654.24251, 634736.736354 1.0987, 9087.9097 00000,0.9999 7654.24251)),((0.9999 7654.24251, 634736.736354 1.0987, 9087.9097 00000,0.9999 7654.24251)))')));
 AsText(Centroid(MPolyFromText('MULTIPOLYGON(((0.9999 7654.24251, 634736.736354 1.0987, 9087.9097 00000,0.9999 7654.24251),(0.9999 7654.24251, 634736.736354 1.0987, 9087.9097 00000,0.9999 7654.24251)),((0.9999 7654.24251, 634736.736354 1.0987, 9087.9097 00
-POINT(214608.54865133337 2551.7804033333337)
+POINT(214608.54865133335 2551.780403333333)
 Select AsText(Centroid(MPolyFromWKB(AsWKB(MultiPolygon(Polygon(LineString(Point('0.9999', '7654.24251'), Point('634736.736354', '1.0987'), Point('9087.9097', '00000'), Point('0.9999', '7654.24251'))))))));
 AsText(Centroid(MPolyFromWKB(AsWKB(MultiPolygon(Polygon(LineString(Point('0.9999', '7654.24251'), Point('634736.736354', '1.0987'), Point('9087.9097', '00000'), Point('0.9999', '7654.24251'))))))))
-POINT(214608.54865133337 2551.7804033333337)
+POINT(214608.54865133335 2551.780403333333)
 Select AsText(Centroid(PolyFromWKB(AsWKB(Polygon(LineString(Point('.1', '0'), Point('1', '1'), Point('2', '2'),Point('.1', '0')))))));
 AsText(Centroid(PolyFromWKB(AsWKB(Polygon(LineString(Point('.1', '0'), Point('1', '1'), Point('2', '2'),Point('.1', '0')))))))
-POINT(1.0333333333333334 1)
+POINT(1.0333333333333332 1)
 Select AsText(Centroid(MPolyFromWKB(AsWKB(MultiPolygon(Polygon(LineString(Point('.1', '0'), Point('1', '1'), Point('2', '2'),Point('.1', '0'))))))));
 AsText(Centroid(MPolyFromWKB(AsWKB(MultiPolygon(Polygon(LineString(Point('.1', '0'), Point('1', '1'), Point('2', '2'),Point('.1', '0'))))))))
-POINT(1.0333333333333334 1)
+POINT(1.0333333333333332 1)
 Select AsText(Centroid(PolygonFromText('POLYGON((. ., 1 ~, ^ -000011111,. .))')));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 Select AsText(Centroid(PolyFromText('POLYGON((. ., 1 ~, ^ -000011111,. .), (. ., 1 ~, ^ -000011111,. .))')));
@@ -1993,7 +1993,7 @@ Select AsText(Centroid(PolyFromText('POLYGON((1 0, 2 0, 3 0, 4 0, 5 0,1 0), (2 0
 ERROR 22023: Invalid GIS data provided to function st_centroid.
 Select AsText(Centroid(PolygonFromText('POLYGON((1234.7777665 -35242.89876, -0276354.77777 -1111.0000, 22222.989898 0000000.2322322 ,1234.7777665 -35242.89876))')));
 AsText(Centroid(PolygonFromText('POLYGON((1234.7777665 -35242.89876, -0276354.77777 -1111.0000, 22222.989898 0000000.2322322 ,1234.7777665 -35242.89876))')))
-POINT(-84299.0033685 -12117.8888426)
+POINT(-84299.00336850001 -12117.88884259999)
 Select AsText(Centroid(PolygonFromText('POLYGON((. ., 1 ~, ^ -000011111,. .))'))) = AsText(Centroid(MPolyFromWKB(AsWKB(MultiPolygon(Polygon(LineString(Point('.', '.'), Point('1', '~'), Point('^','-000011111'),Point('.', '.'))))))));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 Select AsText(Centroid(PolyFromWKB(AsWKB(Polygon(LineString(Point('.', '.'), Point('1', '~'), Point('-0000', '-.999999999'),Point(0, 0))))))) = AsText(Centroid(PolygonFromText('POLYGON((0.1 0, 1 1, 2 2,0.1 0))')));
@@ -2080,9 +2080,9 @@ NULL
 NumInteriorRings(PolyFromText('POLYGON((-2 -2, -2 2, 2 -2, 2 2, -2 -2), (0 0), (5 5, 6 5, 6 6, 5 6, 5 5))'))
 2
 AsText(Centroid(PolygonFromText('POLYGON((1 1, 10 1, 1 0, 10 0, 1 -1, 10 -1, 7 2, 7 -2, 4 2, 4 -2, 1 1))')))
-NULL
+POINT(1 1)
 AsText(Centroid(MPolyFromWKB(AsWKB(MultiPolygon(Polygon(LineString(Point('.1', '0'), Point('1', '1'), Point('2', '2'),Point('.1', '0'))))))))
-POINT(1.0333333333333334 1)
+POINT(1.0333333333333332 1)
 SET sql_mode = default;
 #Dropping the created procedures.
 drop procedure poly_attri;

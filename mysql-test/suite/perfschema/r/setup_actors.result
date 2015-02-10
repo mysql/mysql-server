@@ -1,22 +1,22 @@
 select * from performance_schema.setup_actors;
-HOST	USER	ROLE
-%	%	%
+HOST	USER	ROLE	ENABLED
+%	%	%	YES
 truncate table performance_schema.setup_actors;
 insert into performance_schema.setup_actors
-values ('hosta', 'user1', '%');
+values ('hosta', 'user1', '%', 'YES');
 insert into performance_schema.setup_actors
-values ('%', 'user2', '%');
+values ('%', 'user2', '%', 'YES');
 insert into performance_schema.setup_actors
-values ('localhost', 'user3', '%');
+values ('localhost', 'user3', '%', 'YES');
 insert into performance_schema.setup_actors
-values ('hostb', '%', '%');
+values ('hostb', '%', '%', 'YES');
 select * from performance_schema.setup_actors
 order by USER, HOST, ROLE;
-HOST	USER	ROLE
-hostb	%	%
-hosta	user1	%
-%	user2	%
-localhost	user3	%
+HOST	USER	ROLE	ENABLED
+hostb	%	%	YES
+hosta	user1	%	YES
+%	user2	%	YES
+localhost	user3	%	YES
 grant ALL on *.* to user1@localhost;
 grant ALL on *.* to user2@localhost;
 grant ALL on *.* to user3@localhost;
@@ -31,7 +31,7 @@ NAME	TYPE	INSTRUMENTED	PROCESSLIST_USER	PROCESSLIST_HOST
 thread/sql/one_connection	FOREGROUND	NO	user1	localhost
 # Switch to connection default
 insert into performance_schema.setup_actors
-values ('%', 'user1', '%');
+values ('%', 'user1', '%', 'YES');
 # Switch to connection con1
 select NAME, TYPE, INSTRUMENTED, PROCESSLIST_USER, PROCESSLIST_HOST
 from performance_schema.threads
@@ -84,16 +84,16 @@ thread/sql/one_connection	FOREGROUND	NO	user4	localhost
 # Disconnect con4
 # Switch to connection default
 insert into performance_schema.setup_actors
-values ('localhost', '%', '%');
+values ('localhost', '%', '%', 'YES');
 select * from performance_schema.setup_actors
 order by USER, HOST, ROLE;
-HOST	USER	ROLE
-hostb	%	%
-localhost	%	%
-%	user1	%
-hosta	user1	%
-%	user2	%
-localhost	user3	%
+HOST	USER	ROLE	ENABLED
+hostb	%	%	YES
+localhost	%	%	YES
+%	user1	%	YES
+hosta	user1	%	YES
+%	user2	%	YES
+localhost	user3	%	YES
 # Switch to (con4b, localhost, user4, , )
 select NAME, TYPE, INSTRUMENTED, PROCESSLIST_USER, PROCESSLIST_HOST
 from performance_schema.threads
@@ -103,7 +103,7 @@ thread/sql/one_connection	FOREGROUND	YES	user4	localhost
 # Disconnect con4b
 # Switch to connection default
 insert into performance_schema.setup_actors
-values ('%', 'user5', '%');
+values ('%', 'user5', '%', 'YES');
 create sql security definer view test.v1 as select NAME, TYPE, INSTRUMENTED, PROCESSLIST_USER, PROCESSLIST_HOST
 from performance_schema.threads
 where PROCESSLIST_ID = connection_id();
@@ -129,7 +129,7 @@ drop user user5@localhost;
 flush privileges;
 truncate table performance_schema.setup_actors;
 insert into performance_schema.setup_actors
-values ('%', '%', '%');
+values ('%', '%', '%', 'YES');
 select * from performance_schema.setup_actors;
-HOST	USER	ROLE
-%	%	%
+HOST	USER	ROLE	ENABLED
+%	%	%	YES

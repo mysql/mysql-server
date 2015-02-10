@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,12 +16,14 @@
 #ifndef PARSE_TREE_ITEMS_INCLUDED
 #define PARSE_TREE_ITEMS_INCLUDED
 
-#include "my_config.h"
-#include "parse_tree_helpers.h"
-#include "sql_class.h"
-#include "sql_parse.h"
-#include "sp_head.h"
-#include "sp.h"
+#include "my_global.h"
+#include "item_create.h"        // Create_func
+#include "item_sum.h"           // Item_sum_count
+#include "item_timefunc.h"      // Item_func_now_local
+#include "parse_tree_helpers.h" // Parse_tree_item
+#include "sp.h"                 // sp_check_name
+#include "sp_head.h"            // sp_head
+#include "sql_parse.h"          // negate_expression
 
 class PTI_table_wild : public Parse_tree_item
 {
@@ -36,18 +38,7 @@ public:
   : super(pos), schema(schema_arg), table(table_arg)
   {}
 
-  virtual bool itemize(Parse_context *pc, Item **item)
-  {
-    if (super::itemize(pc, item))
-      return true;
-
-    schema= pc->thd->client_capabilities & CLIENT_NO_SCHEMA ?  NullS : schema;
-    *item= new (pc->mem_root) Item_field(POS(), schema, table, "*");
-    if (*item == NULL || (*item)->itemize(pc, item))
-      return true;
-    pc->select->with_wild++;
-    return false;
-  }
+  virtual bool itemize(Parse_context *pc, Item **item);
 };
 
 class PTI_expr_or : public Parse_tree_item
@@ -117,15 +108,7 @@ public:
     right(right_arg)
   {}
 
-  virtual bool itemize(Parse_context *pc, Item **res)
-  {
-    if (super::itemize(pc, res) ||
-        left->itemize(pc, &left) || right->itemize(pc, &right))
-      return true;
-
-    *res= (*boolfunc2creator)(0)->create(left, right);
-    return false;
-  }
+  virtual bool itemize(Parse_context *pc, Item **res);
 };
 
 

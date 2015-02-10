@@ -510,8 +510,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	18	100.00	Using where
 EXPLAIN FORMAT=TRADITIONAL FOR QUERY 'UPDATE v1 SET f1=5 WHERE f1=5'
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	18	5.56	Using where
-1	SIMPLE	tt	NULL	ALL	NULL	NULL	NULL	NULL	18	5.56	Using where
+1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	18	10.00	Using where
+1	SIMPLE	tt	NULL	ALL	NULL	NULL	NULL	NULL	18	10.00	Using where
 EXPLAIN FORMAT=TRADITIONAL FOR QUERY 'DELETE FROM t1 WHERE f1=4'
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	18	100.00	Using where

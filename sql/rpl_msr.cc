@@ -108,27 +108,6 @@ bool Multisource_info::delete_mi(const char* channel_name)
 }
 
 
-const char*
-Multisource_info::get_channel_with_host_port(char *host, uint port)
-{
-  DBUG_ENTER("Multisource_info::get_channel_with_host_port");
-  Master_info *mi;
-
-  if (!host || !port)
-    DBUG_RETURN(0);
-
-  for (mi_map::iterator it= channel_to_mi.begin();
-       it != channel_to_mi.end(); it++)
-  {
-    mi= it->second;
-
-    if (mi && !strcmp(host, mi->host) && port == mi->port)
-      DBUG_RETURN((const char*)mi->get_channel());
-  }
-  DBUG_RETURN(0);
-}
-
-
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 
 bool Multisource_info::add_mi_to_rpl_pfs_mi(Master_info *mi)

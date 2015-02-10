@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,6 +25,10 @@
 #include "debug_sync.h"
 #include "rpl_binlog_sender.h"
 #include "mysqld_thd_manager.h"                 // Global_THD_manager
+
+#include "pfs_file_provider.h"
+#include "mysql/psi/mysql_file.h"
+
 
 int max_binlog_dump_events = 0; // unlimited
 my_bool opt_sporadic_binlog_dump_fail = 0;

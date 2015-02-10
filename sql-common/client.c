@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -68,7 +68,7 @@ my_bool	net_flush(NET *net);
 #include <violite.h>
 
 #if !defined(_WIN32)
-#include <my_pthread.h>				/* because of signal()	*/
+#include <my_thread.h>				/* because of signal()	*/
 #endif /* !defined(_WIN32) */
 
 #include <sys/stat.h>
@@ -867,6 +867,44 @@ void read_ok_ex(MYSQL *mysql, ulong length)
           db[data->length]= '\0';
 	  mysql->db= db;
 
+          break;
+        case SESSION_TRACK_GTIDS:
+          if (!my_multi_malloc(key_memory_MYSQL_state_change_info,
+                               MYF(0),
+                               &element, sizeof(LIST),
+                               &data, sizeof(LEX_STRING),
+                               NullS))
+          {
+            set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
+            return;
+          }
+
+          /* Move past the total length of the changed entity. */
+          (void) net_field_length(&pos);
+
+          /* read (and ignore for now) the GTIDS encoding specification code */
+          (void) net_field_length(&pos);
+
+          /*
+             For now we ignore the encoding specification, since only one
+             is supported. In the future the decoding of what comes next
+             depends on the specification code.
+          */
+
+          /* read the length of the encoded string. */
+          len= (size_t) net_field_length(&pos);
+	  if(!(data->str= (char *)my_malloc(PSI_NOT_INSTRUMENTED, len, MYF(MY_WME))))
+          {
+            set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
+            return;
+          }
+
+          memcpy(data->str, (char *) pos, len);
+          data->length= len;
+          pos += len;
+
+          element->data= data;
+	  ADD_INFO(info, element, SESSION_TRACK_GTIDS);
           break;
         case SESSION_TRACK_STATE_CHANGE:
           if (!my_multi_malloc(key_memory_MYSQL_state_change_info,
@@ -3218,7 +3256,6 @@ static int send_change_user_packet(MCPVIO_EXT *mpvio,
                       (uchar*)buff, (ulong)(end-buff), 1);
 
 error:
-  my_afree(buff);
   return res;
 }
 
@@ -3570,11 +3607,9 @@ static int send_client_reply_packet(MCPVIO_EXT *mpvio,
     goto error;
   }
   MYSQL_TRACE(PACKET_SENT, mysql, (end-buff));
-  my_afree(buff);
   return 0;
-  
+
 error:
-  my_afree(buff);
   return 1;
 }
 

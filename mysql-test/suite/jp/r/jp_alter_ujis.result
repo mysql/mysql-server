@@ -6,6 +6,8 @@ DROP TABLE IF EXISTS `龖龖龖`;
 DROP TABLE IF EXISTS `龗龗龗`;
 SET NAMES ujis;
 SET character_set_database = ujis;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
 CREATE TABLE `ｱｱｱ`(`ｷｷｷ` char(5)) DEFAULT CHARSET = ujis engine=INNODB;
 CREATE TABLE `ｲｲｲ`(`ｹｹｹ` char(5)) DEFAULT CHARSET = ujis engine=INNODB;
 CREATE TABLE `あああ`(`ききき` char(5)) DEFAULT CHARSET = ujis engine=INNODB;

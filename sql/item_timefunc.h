@@ -1,7 +1,7 @@
 #ifndef ITEM_TIMEFUNC_INCLUDED
 #define ITEM_TIMEFUNC_INCLUDED
 
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,12 +19,16 @@
 
 /* Function items used by mysql */
 
+#include "item_strfunc.h"  // Item_str_func
+
 #include <algorithm>
 
 class MY_LOCALE;
+struct Interval;
+struct Date_time_format;
 
 bool get_interval_value(Item *args,interval_type int_type,
-			       String *str_value, INTERVAL *interval);
+			       String *str_value, Interval *interval);
 
 class Item_func_period_add :public Item_int_func
 {
@@ -1706,7 +1710,7 @@ public:
 
 /* Function prototypes */
 
-bool make_date_time(DATE_TIME_FORMAT *format, MYSQL_TIME *l_time,
+bool make_date_time(Date_time_format *format, MYSQL_TIME *l_time,
                     timestamp_type type, String *str);
 
 #endif /* ITEM_TIMEFUNC_INCLUDED */

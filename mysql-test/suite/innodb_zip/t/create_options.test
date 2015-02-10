@@ -59,6 +59,7 @@
 # See innodb_16k and innodb_8k for those tests.
 
 -- source include/have_innodb.inc
+-- source include/have_innodb_zip.inc
 SET default_storage_engine=InnoDB;
 
 --disable_query_log

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -60,11 +60,14 @@
 #include "sql_partition.h"
 #include "sql_show.h"                        // append_identifier
 #include "sql_admin.h"                       // SQL_ADMIN_MSG_TEXT_SIZE
-
+#include "myisam.h"                          // TT_FOR_UPGRADE
 #include "debug_sync.h"
 #ifndef DBUG_OFF
 #include "sql_test.h"                        // print_where
 #endif
+
+#include "pfs_file_provider.h"
+#include "mysql/psi/mysql_file.h"
 
 using std::min;
 using std::max;
@@ -271,7 +274,8 @@ const uint32 ha_partition::NO_CURRENT_PART_ID= NOT_A_PARTITION_ID;
 
 ha_partition::ha_partition(handlerton *hton, TABLE_SHARE *share)
   :handler(hton, share),
-   m_queue(Key_rec_less(m_curr_key_info))
+   m_queue(Key_rec_less(m_curr_key_info),
+           Malloc_allocator<uchar*>(key_memory_partition_engine_array))
 {
   DBUG_ENTER("ha_partition::ha_partition(table)");
   init_handler_variables();
@@ -292,7 +296,8 @@ ha_partition::ha_partition(handlerton *hton, TABLE_SHARE *share)
 
 ha_partition::ha_partition(handlerton *hton, partition_info *part_info)
   :handler(hton, NULL),
-   m_queue(Key_rec_less(m_curr_key_info))
+   m_queue(Key_rec_less(m_curr_key_info),
+           Malloc_allocator<uchar*>(key_memory_partition_engine_array))
 {
   DBUG_ENTER("ha_partition::ha_partition(part_info)");
   DBUG_ASSERT(part_info);
@@ -320,7 +325,8 @@ ha_partition::ha_partition(handlerton *hton, TABLE_SHARE *share,
                            ha_partition *clone_arg,
                            MEM_ROOT *clone_mem_root_arg)
   :handler(hton, share),
-   m_queue(Key_rec_less(m_curr_key_info))
+   m_queue(Key_rec_less(m_curr_key_info),
+           Malloc_allocator<uchar*>(key_memory_partition_engine_array))
 {
   DBUG_ENTER("ha_partition::ha_partition(clone)");
   init_handler_variables();
@@ -1309,7 +1315,7 @@ static bool print_admin_msg(THD* thd, uint len,
   /*
      TODO: switch from protocol to push_warning here. The main reason we didn't
      it yet is parallel repair. Due to following trace:
-     mi_check_print_msg/push_warning/sql_alloc/my_pthread_getspecific_ptr.
+     mi_check_print_msg/push_warning/sql_alloc/my_thread_getspecific_ptr.
 
      Also we likely need to lock mutex here (in both cases with protocol and
      push_warning).
@@ -2717,13 +2723,13 @@ bool ha_partition::create_handlers(MEM_ROOT *mem_root)
   memset(m_file, 0, alloc_len);
   for (i= 0; i < m_tot_parts; i++)
   {
-    handlerton *hton= plugin_data(m_engine_array[i], handlerton*);
+    handlerton *hton= plugin_data<handlerton*>(m_engine_array[i]);
     if (!(m_file[i]= get_new_handler(table_share, mem_root, hton)))
       DBUG_RETURN(TRUE);
     DBUG_PRINT("info", ("engine_type: %u", hton->db_type));
   }
   /* For the moment we only support partition over the same table engine */
-  hton0= plugin_data(m_engine_array[0], handlerton*);
+  hton0= plugin_data<handlerton*>(m_engine_array[0]);
   if (hton0 == myisam_hton)
   {
     DBUG_PRINT("info", ("MyISAM"));
@@ -2939,8 +2945,6 @@ bool ha_partition::setup_engine_array(MEM_ROOT *mem_root)
     }
   }
 
-  my_afree((gptr) engine_array);
-
   if (create_handlers(mem_root))
   {
     clear_handler_file();
@@ -2950,7 +2954,6 @@ bool ha_partition::setup_engine_array(MEM_ROOT *mem_root)
   DBUG_RETURN(false);
 
 err:
-  my_afree((gptr) engine_array);
   DBUG_RETURN(true);
 }
 
@@ -6022,7 +6025,9 @@ int ha_partition::handle_unordered_scan_next_partition(uchar * buf)
 int ha_partition::handle_ordered_index_scan(uchar *buf)
 {
   uint i;
-  std::vector<uchar*> parts;
+  std::vector<uchar*,
+              Malloc_allocator<uchar*> >
+    parts((Malloc_allocator<uchar*>(key_memory_partition_engine_array)));
   bool found= FALSE;
   uchar *part_rec_buf_ptr= m_ordered_rec_buffer;
   int saved_error= HA_ERR_END_OF_FILE;
@@ -7850,7 +7855,10 @@ bool ha_partition::can_switch_engines()
   do
   {
     if (!(*file)->can_switch_engines())
+    {
+      DBUG_ASSERT(0);          // A ha_partition table should never have FKs!!!
       DBUG_RETURN(FALSE);
+    }
   } while (*(++file));
   DBUG_RETURN(TRUE);
 }

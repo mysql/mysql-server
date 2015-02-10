@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2015, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 Copyright (c) 2012, Facebook Inc.
 
@@ -287,21 +287,18 @@ btr_cur_latch_leaves(
 		left_page_no = btr_page_get_prev(page, mtr);
 
 		if (left_page_no != FIL_NULL) {
+
 			if (spatial) {
 				cursor->rtr_info->tree_savepoints[
 					RTR_MAX_LEVELS] = mtr_set_savepoint(mtr);
 			}
+
 			latch_leaves.savepoints[0] = mtr_set_savepoint(mtr);
 			get_block = btr_block_get(
 				page_id_t(page_id.space(), left_page_no),
 				page_size, RW_X_LATCH, cursor->index, mtr);
 			latch_leaves.blocks[0] = get_block;
-#ifdef UNIV_BTR_DEBUG
-			ut_a(page_is_comp(get_block->frame)
-			     == page_is_comp(page));
-			ut_a(btr_page_get_next(get_block->frame, mtr)
-			     == page_get_page_no(page));
-#endif /* UNIV_BTR_DEBUG */
+
 			if (spatial) {
 				cursor->rtr_info->tree_blocks[RTR_MAX_LEVELS]
 					= get_block;
@@ -317,7 +314,16 @@ btr_cur_latch_leaves(
 		get_block = btr_block_get(
 			page_id, page_size, RW_X_LATCH, cursor->index, mtr);
 		latch_leaves.blocks[1] = get_block;
+
 #ifdef UNIV_BTR_DEBUG
+		/* Sanity check only after both the blocks are latched. */
+		if (latch_leaves.blocks[0] != NULL) {
+			ut_a(page_is_comp(latch_leaves.blocks[0]->frame)
+				== page_is_comp(page));
+			ut_a(btr_page_get_next(
+				latch_leaves.blocks[0]->frame, mtr)
+				== page_get_page_no(page));
+		}
 		ut_a(page_is_comp(get_block->frame) == page_is_comp(page));
 #endif /* UNIV_BTR_DEBUG */
 
@@ -624,7 +630,7 @@ btr_cur_will_modify_tree(
 		failure. It is safe because we already have SX latch of the
 		index tree */
 		if (page_get_data_size(page)
-			< margin + BTR_CUR_PAGE_COMPRESS_LIMIT
+			< margin + BTR_CUR_PAGE_COMPRESS_LIMIT(index)
 		    || (mach_read_from_4(page + FIL_PAGE_NEXT)
 				== FIL_NULL
 			&& mach_read_from_4(page + FIL_PAGE_PREV)
@@ -2533,8 +2539,10 @@ btr_cur_open_at_index_side_with_no_latch_func(
 }
 
 /**********************************************************************//**
-Positions a cursor at a randomly chosen position within a B-tree. */
-void
+Positions a cursor at a randomly chosen position within a B-tree.
+@return true if the index is available and we have put the cursor, false
+if the index is unavailable */
+bool
 btr_cur_open_at_rnd_pos_func(
 /*=========================*/
 	dict_index_t*	index,		/*!< in: index */
@@ -2600,6 +2608,19 @@ btr_cur_open_at_rnd_pos_func(
 			upper_rw_latch = RW_NO_LATCH;
 		}
 	}
+
+	DBUG_EXECUTE_IF("test_index_is_unavailable",
+			return(false););
+
+	if (index->page == FIL_NULL) {
+		/* Since we don't hold index lock until just now, the index
+		could be modified by others, for example, if this is a
+		statistics updater for referenced table, it could be marked
+		as unavailable by 'DROP TABLE' in the mean time, since
+		we don't hold lock for statistics updater */
+		return(false);
+	}
+
 	root_leaf_rw_latch = btr_cur_latch_for_root_leaf(latch_mode);
 
 	page_cursor = btr_cur_get_page_cur(cursor);
@@ -2791,6 +2812,8 @@ btr_cur_open_at_rnd_pos_func(
 	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
 	}
+
+	return(true);
 }
 
 /*==================== B-TREE INSERT =========================*/
@@ -4023,6 +4046,13 @@ any_extern:
 		rec = page_cur_get_rec(page_cursor);
 	}
 
+	/* We limit max record size to 16k even for 64k page size. */
+	if (new_rec_size >= REC_MAX_DATA_SIZE) {
+		err = DB_OVERFLOW;
+
+		goto func_exit;
+	}
+
 	if (UNIV_UNLIKELY(new_rec_size
 			  >= (page_get_free_space_of_empty(page_is_comp(page))
 			      / 2))) {
@@ -4035,7 +4065,7 @@ any_extern:
 
 	if (UNIV_UNLIKELY(page_get_data_size(page)
 			  - old_rec_size + new_rec_size
-			  < BTR_CUR_PAGE_COMPRESS_LIMIT)) {
+			  < BTR_CUR_PAGE_COMPRESS_LIMIT(index))) {
 		/* We may need to update the IBUF_BITMAP_FREE
 		bits after a reorganize that was done in
 		btr_cur_update_alloc_zip(). */
@@ -5734,8 +5764,10 @@ The estimates are stored in the array index->stat_n_diff_key_vals[] (indexed
 index->stat_n_sample_sizes[].
 If innodb_stats_method is nulls_ignored, we also record the number of
 non-null values for each prefix and stored the estimates in
-array index->stat_n_non_null_key_vals. */
-void
+array index->stat_n_non_null_key_vals.
+@return true if the index is available and we get the estimated numbers,
+false if the index is unavailable. */
+bool
 btr_estimate_number_of_different_key_vals(
 /*======================================*/
 	dict_index_t*	index)	/*!< in: index */
@@ -5811,7 +5843,17 @@ btr_estimate_number_of_different_key_vals(
 	for (i = 0; i < n_sample_pages; i++) {
 		mtr_start(&mtr);
 
-		btr_cur_open_at_rnd_pos(index, BTR_SEARCH_LEAF, &cursor, &mtr);
+		bool	available;
+
+		available = btr_cur_open_at_rnd_pos(index, BTR_SEARCH_LEAF,
+						    &cursor, &mtr);
+
+		if (!available) {
+			mtr_commit(&mtr);
+			mem_heap_free(heap);
+
+			return(false);
+		}
 
 		/* Count the number of different key values for each prefix of
 		the key on this index page. If the prefix does not determine
@@ -5950,6 +5992,8 @@ btr_estimate_number_of_different_key_vals(
 	}
 
 	mem_heap_free(heap);
+
+	return(true);
 }
 
 /*================== EXTERNAL STORAGE OF BIG FIELDS ===================*/

@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
 #define MYSQLD_THD_MANAGER_INCLUDED
 
 #include "my_global.h"   // ulonglong
-#include "my_pthread.h"  // mysql_mutex_t
+#include "my_thread.h"   // mysql_mutex_t
 #include "my_atomic.h"   // my_atomic_add32
 #include "prealloced_array.h"
 

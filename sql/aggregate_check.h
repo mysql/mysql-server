@@ -1,7 +1,7 @@
 #ifndef AGGREGATE_CHECK_INCLUDED
 #define AGGREGATE_CHECK_INCLUDED
 
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -431,8 +431,9 @@ the dependency NULL-friendly.
 
 #include "my_global.h"
 #include "mem_root_array.h"
-#include "item.h"
 #include "opt_trace.h"
+#include "item_cmpfunc.h"
+#include "item_sum.h"
 struct st_mem_root;
 class st_select_lex;
 struct TABLE_LIST;

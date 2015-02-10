@@ -11,6 +11,7 @@ select count(*) from test.t1;
 count(*)
 2
 include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 drop table test.t1;
 include/sync_slave_sql_with_master.inc
 include/rpl_end.inc

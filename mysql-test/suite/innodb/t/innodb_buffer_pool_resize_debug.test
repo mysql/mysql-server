@@ -4,6 +4,7 @@
 #
 
 --source include/have_innodb.inc
+--source include/have_innodb_max_16k.inc
 --source include/have_debug.inc
 
 --disable_query_log

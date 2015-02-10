@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -1800,6 +1800,7 @@ dict_load_index_low(
 	ulint		n_fields;
 	ulint		type;
 	ulint		space;
+	ulint		merge_threshold;
 
 	if (allocate) {
 		/* If allocate=TRUE, no dict_index_t will
@@ -1811,7 +1812,23 @@ dict_load_index_low(
 		return(dict_load_index_del);
 	}
 
-	if (rec_get_n_fields_old(rec) != DICT_NUM_FIELDS__SYS_INDEXES) {
+	if (rec_get_n_fields_old(rec) == DICT_NUM_FIELDS__SYS_INDEXES) {
+		/* MERGE_THRESHOLD exists */
+		field = rec_get_nth_field_old(
+			rec, DICT_FLD__SYS_INDEXES__MERGE_THRESHOLD, &len);
+		if (len != 4) {
+			return("incorrect MERGE_THRESHOLD length"
+			       " in SYS_INDEXES");
+		}
+
+		merge_threshold = mach_read_from_4(field);
+
+	} else if (rec_get_n_fields_old(rec)
+		   == DICT_NUM_FIELDS__SYS_INDEXES - 1) {
+		/* MERGE_THRESHOLD doesn't exist */
+
+		merge_threshold = DICT_INDEX_MERGE_THRESHOLD_DEFAULT;
+	} else {
 		return("wrong number of columns in SYS_INDEXES record");
 	}
 
@@ -1902,6 +1919,7 @@ err_len:
 	(*index)->id = id;
 	(*index)->page = mach_read_from_4(field);
 	ut_ad((*index)->page);
+	(*index)->merge_threshold = merge_threshold;
 
 	return(NULL);
 }
@@ -1980,8 +1998,12 @@ dict_load_indexes(
 		rec = btr_pcur_get_rec(&pcur);
 
 		if ((ignore_err & DICT_ERR_IGNORE_RECOVER_LOCK)
-		    && rec_get_n_fields_old(rec)
-		    == DICT_NUM_FIELDS__SYS_INDEXES) {
+		    && (rec_get_n_fields_old(rec)
+			== DICT_NUM_FIELDS__SYS_INDEXES
+			/* a record for older SYS_INDEXES table
+			(missing merge_threshold column) is acceptable. */
+			|| rec_get_n_fields_old(rec)
+			   == DICT_NUM_FIELDS__SYS_INDEXES - 1)) {
 			const byte*	field;
 			ulint		len;
 			field = rec_get_nth_field_old(

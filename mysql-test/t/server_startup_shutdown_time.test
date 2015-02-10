@@ -5,7 +5,7 @@
 --source include/not_valgrind.inc
 # stop server 
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 10
+--shutdown_server 
 --source include/wait_until_disconnected.inc
 
 # Use new error log file so as to read only test log and not old log of suite
@@ -16,7 +16,7 @@
 --source include/wait_until_connected_again.inc
 # stop server
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 10
+--shutdown_server 
 --source include/wait_until_disconnected.inc
 # restart server
 --exec echo "restart:" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
@@ -120,8 +120,8 @@ perl;
       print "\n--- Pass : Shutdown time is less than baseline shutdown time ---\n";
    } 
    $secdiff = delta_time ($shutdown_complete_time,$ready_connection_time);
-   if ($secdiff > $baseline_shutdowntime) { 
-      print "\n--- Fail : Startup time $secdiff is more than baseline time ---\n";
+   if ($secdiff > $baseline_startuptime) { 
+      print "\n--- Fail : Startup time $secdiff is more than baseline startup time ---\n";
    }else {
       print "\n--- Pass : Startup time is less than baseline startup time ---\n";
    } 

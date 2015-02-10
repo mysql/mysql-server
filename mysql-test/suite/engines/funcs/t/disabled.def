@@ -11,4 +11,5 @@ rpl_insert_select : Result Difference due To Change In .inc File
 rpl_loaddata2 : Result Difference due To Change In .inc File
 rpl_stm_mystery22 : Result Difference due To Change In .inc File
 rpl_row_stop_middle : Result Difference due To Change In .inc File
+rpl_row_until: BUG#20365935
 

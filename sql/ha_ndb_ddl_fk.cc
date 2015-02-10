@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1559,39 +1559,6 @@ ha_ndbcluster::can_switch_engines()
 {
   DBUG_ENTER("ha_ndbcluster::can_switch_engines");
 
-  if (m_table == 0)
-  {
-    DBUG_RETURN(0);
-  }
-
-  THD* thd= table->in_use;
-  if (thd == 0)
-  {
-    thd= current_thd;
-  }
-
-  if (thd == 0)
-  {
-    DBUG_RETURN(0);
-  }
-
-  // first shot
-
-  LEX *lex= thd->lex;
-  DBUG_ASSERT(lex != 0);
-  if (lex->sql_command != SQLCOM_ALTER_TABLE)
-    DBUG_RETURN(1);
-
-  Alter_info &alter_info= lex->alter_info;
-  uint alter_flags= alter_info.flags;
-
-  if (!(alter_flags & Alter_info::ALTER_OPTIONS))
-    DBUG_RETURN(1);
-
-  HA_CREATE_INFO &create_info= lex->create_info;
-  if (create_info.db_type->db_type == DB_TYPE_NDBCLUSTER)
-    DBUG_RETURN(1);
-
   if (is_child_or_parent_of_fk())
     DBUG_RETURN(0);
 
@@ -1666,7 +1633,7 @@ fk_split_name(char dst[], const char * src, bool index)
 
 struct Ndb_mem_root_guard {
   Ndb_mem_root_guard(MEM_ROOT *new_root) {
-    root_ptr= my_pthread_get_THR_MALLOC();
+    root_ptr= my_thread_get_THR_MALLOC();
     DBUG_ASSERT(root_ptr != 0);
     old_root= *root_ptr;
     *root_ptr= new_root;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,7 +15,7 @@
 
 /* Synchronization - readers / writer thread locks */
 
-#include "my_pthread.h"
+#include "my_thread.h"
 
 int rw_pr_init(rw_pr_lock_t *rwlock)
 {
@@ -84,7 +84,7 @@ int rw_pr_wrlock(rw_pr_lock_t *rwlock)
   */
   rwlock->active_writer= TRUE;
 #ifdef SAFE_MUTEX
-  rwlock->writer_thread= pthread_self();
+  rwlock->writer_thread= my_thread_self();
 #endif
   return 0;
 }

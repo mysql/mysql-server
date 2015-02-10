@@ -189,7 +189,7 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
       TIMESTAMP column to a table with one.
       So we call set_time(), like in SBR. Presently it changes nothing.
     */
-    ev_thd->set_time(&ev->when);
+    ev_thd->set_time(&ev->common_header->when);
     /*
       There are a few flags that are replicated with each row event.
       Make sure to set/clear them before executing the main body of
@@ -527,7 +527,7 @@ replace_record(THD *thd, TABLE *table,
 
   int error;
   int keynum;
-  auto_afree_ptr<char> key(NULL);
+  char *key= NULL;
 
 #ifndef DBUG_OFF
   DBUG_DUMP("record[0]", table->record[0], table->s->reclength);
@@ -596,19 +596,19 @@ replace_record(THD *thd, TABLE *table,
         DBUG_RETURN(my_errno);
       }
 
-      if (key.get() == NULL)
+      if (key == NULL)
       {
-        key.assign(static_cast<char*>(my_alloca(table->s->max_unique_length)));
-        if (key.get() == NULL)
+        key= static_cast<char*>(my_alloca(table->s->max_unique_length));
+        if (key == NULL)
           DBUG_RETURN(ENOMEM);
       }
 
       if ((uint)keynum < MAX_KEY)
       {
-        key_copy((uchar*)key.get(), table->record[0], table->key_info + keynum,
+        key_copy((uchar*)key, table->record[0], table->key_info + keynum,
                  0);
         error= table->file->ha_index_read_idx_map(table->record[1], keynum,
-                                                  (const uchar*)key.get(),
+                                                  (const uchar*)key,
                                                   HA_WHOLE_KEY,
                                                   HA_READ_KEY_EXACT);
       }
@@ -985,7 +985,7 @@ Write_rows_log_event_old::do_prepare_row(THD *thd_arg,
   error= unpack_row_old(const_cast<Relay_log_info*>(rli),
                         table, m_width, table->record[0],
                         row_start, &m_cols, row_end, &m_master_reclength,
-                        table->write_set, PRE_GA_WRITE_ROWS_EVENT);
+                        table->write_set, binary_log::PRE_GA_WRITE_ROWS_EVENT);
   bitmap_copy(table->read_set, table->write_set);
   return error;
 }
@@ -1074,7 +1074,7 @@ Delete_rows_log_event_old::do_prepare_row(THD *thd_arg,
   error= unpack_row_old(const_cast<Relay_log_info*>(rli),
                         table, m_width, table->record[0],
                         row_start, &m_cols, row_end, &m_master_reclength,
-                        table->read_set, PRE_GA_DELETE_ROWS_EVENT);
+                        table->read_set, binary_log::PRE_GA_DELETE_ROWS_EVENT);
   /*
     If we will access rows using the random access method, m_key will
     be set to NULL, so we do not need to make a key copy in that case.
@@ -1173,13 +1173,13 @@ int Update_rows_log_event_old::do_prepare_row(THD *thd_arg,
   error= unpack_row_old(const_cast<Relay_log_info*>(rli),
                         table, m_width, table->record[0],
                         row_start, &m_cols, row_end, &m_master_reclength,
-                        table->read_set, PRE_GA_UPDATE_ROWS_EVENT);
+                        table->read_set, binary_log::PRE_GA_UPDATE_ROWS_EVENT);
   row_start = *row_end;
   /* m_after_image is the after image for the update */
   error= unpack_row_old(const_cast<Relay_log_info*>(rli),
                         table, m_width, m_after_image,
                         row_start, &m_cols, row_end, &m_master_reclength,
-                        table->write_set, PRE_GA_UPDATE_ROWS_EVENT);
+                        table->write_set, binary_log::PRE_GA_UPDATE_ROWS_EVENT);
 
   DBUG_DUMP("record[0]", table->record[0], table->s->reclength);
   DBUG_DUMP("m_after_image", m_after_image, table->s->reclength);
@@ -1244,18 +1244,32 @@ int Update_rows_log_event_old::do_exec_row(TABLE *table)
 **************************************************************************/
 
 #ifndef MYSQL_CLIENT
+/**
+  The event header and footer is constructed before constructing an object of
+  a specific event type. The header and footer are constructed in the base
+  class, Binary_log_event. They are accessed using the const methods header()
+  and footer() defined in Binary_log_event.
+
+  This constructor calls the header() and footer() methods to initialize
+  Log_event::common_header and Log_event::common_footer respectively.
+
+  We don't know the exact type of the event when we call
+  this constructor, so passing ENUM_END_EVENT as the type here.
+*/
 Old_rows_log_event::Old_rows_log_event(THD *thd_arg, TABLE *tbl_arg, ulong tid,
                                        MY_BITMAP const *cols,
                                        bool using_trans)
-  : Log_event(thd_arg, 0,
+  : Binary_log_event(binary_log::ENUM_END_EVENT),
+    Log_event(thd_arg, 0,
               using_trans ? Log_event::EVENT_TRANSACTIONAL_CACHE :
                             Log_event::EVENT_STMT_CACHE,
-              Log_event::EVENT_NORMAL_LOGGING),
+              Log_event::EVENT_NORMAL_LOGGING, header(),
+              footer()),
     m_row_count(0),
     m_table(tbl_arg),
     m_table_id(tid),
     m_width(tbl_arg ? tbl_arg->s->fields : 1),
-    m_rows_buf(0), m_rows_cur(0), m_rows_end(0), m_flags(0) 
+    m_rows_buf(0), m_rows_cur(0), m_rows_end(0), m_flags(0)
 #ifdef HAVE_REPLICATION
     , m_curr_row(NULL), m_curr_row_end(NULL), m_key(NULL)
 #endif
@@ -1298,12 +1312,12 @@ Old_rows_log_event::Old_rows_log_event(THD *thd_arg, TABLE *tbl_arg, ulong tid,
 }
 #endif
 
-
-Old_rows_log_event::Old_rows_log_event(const char *buf, uint event_len,
-                                       Log_event_type event_type,
-                                       const Format_description_log_event
-                                       *description_event)
-  : Log_event(buf, description_event),
+Old_rows_log_event::
+Old_rows_log_event(const char *buf, uint event_len, Log_event_type event_type,
+                   const Format_description_event *description_event)
+ : Binary_log_event(&buf, description_event->binlog_version,
+                     description_event->server_version),
+   Log_event(header(), footer()),
     m_row_count(0),
 #ifndef MYSQL_CLIENT
     m_table(NULL),
@@ -1324,7 +1338,7 @@ Old_rows_log_event::Old_rows_log_event(const char *buf, uint event_len,
 
   const char *post_start= buf + common_header_len;
   DBUG_DUMP("post_header", (uchar*) post_start, post_header_len);
-  post_start+= RW_MAPID_OFFSET;
+  post_start+= ROWS_MAPID_OFFSET;
   if (post_header_len == 6)
   {
     /* Master is of an intermediate source tree before 5.1.4. Id is 4 bytes */
@@ -1334,7 +1348,7 @@ Old_rows_log_event::Old_rows_log_event(const char *buf, uint event_len,
   else
   {
     m_table_id= (ulong) uint6korr(post_start);
-    post_start+= RW_FLAGS_OFFSET;
+    post_start+= ROWS_FLAGS_OFFSET;
   }
 
   m_flags= uint2korr(post_start);
@@ -1406,7 +1420,7 @@ size_t Old_rows_log_event::get_data_size()
   DBUG_EXECUTE_IF("old_row_based_repl_4_byte_map_id_master",
                   return 6 + no_bytes_in_map(&m_cols) + (end - buf) +
                   (m_rows_cur - m_rows_buf););
-  int data_size= ROWS_HEADER_LEN;
+  int data_size= Binary_log_event::ROWS_HEADER_LEN;
   data_size+= no_bytes_in_map(&m_cols);
   data_size+= (uint) (end - buf);
 
@@ -1612,7 +1626,7 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
       TIMESTAMP column to a table with one.
       So we call set_time(), like in SBR. Presently it changes nothing.
     */
-    thd->set_time(&when);
+    thd->set_time(&(common_header->when));
     /*
       There are a few flags that are replicated with each row event.
       Make sure to set/clear them before executing the main body of
@@ -1867,7 +1881,7 @@ Old_rows_log_event::do_update_pos(Relay_log_info *rli)
       Step the group log position if we are not in a transaction,
       otherwise increase the event log position.
      */
-    rli->stmt_done(log_pos);
+    rli->stmt_done(common_header->log_pos);
     /*
       Clear any errors in thd->net.last_err*. It is not known if this is
       needed or not. It is believed that any errors that may exist in
@@ -2007,7 +2021,7 @@ Old_rows_log_event::write_row(const Relay_log_info *const rli,
   TABLE *table= m_table;  // pointer to event's table
   int error;
   int keynum;
-  auto_afree_ptr<char> key(NULL);
+  char *key= NULL;
 
   /* fill table->record[0] with default values */
 
@@ -2096,10 +2110,10 @@ Old_rows_log_event::write_row(const Relay_log_info *const rli,
         DBUG_RETURN(my_errno);
       }
 
-      if (key.get() == NULL)
+      if (key == NULL)
       {
-        key.assign(static_cast<char*>(my_alloca(table->s->max_unique_length)));
-        if (key.get() == NULL)
+        key= static_cast<char*>(my_alloca(table->s->max_unique_length));
+        if (key == NULL)
         {
           DBUG_PRINT("info",("Can't allocate key buffer"));
           DBUG_RETURN(ENOMEM);
@@ -2108,10 +2122,10 @@ Old_rows_log_event::write_row(const Relay_log_info *const rli,
 
       if ((uint)keynum < MAX_KEY)
       {
-        key_copy((uchar*)key.get(), table->record[0], table->key_info + keynum,
+        key_copy((uchar*)key, table->record[0], table->key_info + keynum,
                  0);
         error= table->file->ha_index_read_idx_map(table->record[1], keynum,
-                                                  (const uchar*)key.get(),
+                                                  (const uchar*)key,
                                                   HA_WHOLE_KEY,
                                                   HA_READ_KEY_EXACT);
       }
@@ -2522,7 +2536,7 @@ Write_rows_log_event_old::Write_rows_log_event_old(THD *thd_arg,
                                                    ulong tid_arg,
                                                    MY_BITMAP const *cols,
                                                    bool is_transactional)
-  : Old_rows_log_event(thd_arg, tbl_arg, tid_arg, cols, is_transactional)
+  :  Old_rows_log_event(thd_arg, tbl_arg, tid_arg, cols, is_transactional)
 {
 
   // This constructor should not be reached.
@@ -2536,12 +2550,11 @@ Write_rows_log_event_old::Write_rows_log_event_old(THD *thd_arg,
   Constructor used by slave to read the event from the binary log.
  */
 #ifdef HAVE_REPLICATION
-Write_rows_log_event_old::Write_rows_log_event_old(const char *buf,
-                                                   uint event_len,
-                                                   const Format_description_log_event
-                                                   *description_event)
-: Old_rows_log_event(buf, event_len, PRE_GA_WRITE_ROWS_EVENT,
-                     description_event)
+Write_rows_log_event_old::
+Write_rows_log_event_old(const char *buf, uint event_len,
+                         const Format_description_event *description_event)
+ : Old_rows_log_event(buf, event_len, binary_log::PRE_GA_WRITE_ROWS_EVENT,
+   description_event)
 {
 }
 #endif
@@ -2669,11 +2682,10 @@ Delete_rows_log_event_old::Delete_rows_log_event_old(THD *thd_arg,
   Constructor used by slave to read the event from the binary log.
  */
 #ifdef HAVE_REPLICATION
-Delete_rows_log_event_old::Delete_rows_log_event_old(const char *buf,
-                                                     uint event_len,
-                                                     const Format_description_log_event
-                                                     *description_event)
-  : Old_rows_log_event(buf, event_len, PRE_GA_DELETE_ROWS_EVENT,
+Delete_rows_log_event_old::
+Delete_rows_log_event_old(const char *buf, uint event_len,
+                          const Format_description_event *description_event)
+  : Old_rows_log_event(buf, event_len, binary_log::PRE_GA_DELETE_ROWS_EVENT,
                        description_event),
     m_after_image(NULL), m_memory(NULL)
 {
@@ -2774,12 +2786,11 @@ Update_rows_log_event_old::Update_rows_log_event_old(THD *thd_arg,
   Constructor used by slave to read the event from the binary log.
  */
 #ifdef HAVE_REPLICATION
-Update_rows_log_event_old::Update_rows_log_event_old(const char *buf,
-                                                     uint event_len,
-                                                     const
-                                                     Format_description_log_event
-                                                     *description_event)
-  : Old_rows_log_event(buf, event_len, PRE_GA_UPDATE_ROWS_EVENT,
+Update_rows_log_event_old::
+Update_rows_log_event_old(const char *buf, uint event_len,
+                          const Format_description_event
+                          *description_event)
+  : Old_rows_log_event(buf, event_len, binary_log::PRE_GA_UPDATE_ROWS_EVENT,
                        description_event),
     m_after_image(NULL), m_memory(NULL)
 {

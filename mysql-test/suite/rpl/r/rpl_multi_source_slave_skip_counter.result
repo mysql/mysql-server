@@ -9,6 +9,7 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection server_2]
+call mtr.add_suppression("Slave: Could not start slave for channel");
 #  when sql_slave_skip_counter is set, check proper error messages are
 #  are generated. We test for START SLAVE and START SLAVE FOR CHANNEL
 #  commands.
@@ -24,12 +25,34 @@ SET GLOBAL sql_slave_skip_counter= 5;
 START SLAVE;
 ERROR HY000: When sql_slave_skip_counter > 0, it is not allowed to start SQL threads for multiple channels. To use sql_slave_skip_counter, stop SQL threads of all channels and execute START SLAVE FOR CHANNEL statement.
 include/assert.inc [check that no channel SQL threads are running.]
+STOP SLAVE IO_THREAD;
+include/rpl_for_each_connection.inc [include/wait_for_slave_io_to_stop.inc]
+#
+# START SLAVE IO_THREAD should not fail.
+#
+START SLAVE IO_THREAD;
+include/rpl_for_each_connection.inc [include/wait_for_slave_io_to_start.inc]
+include/assert.inc [All two IO threads are running after START SLAVE IO_THREAD]
+include/rpl_for_each_connection.inc [include/stop_slave_io.inc]
 #
 #  Test that START SLAVE FOR CHANNEL fails when any slave sql is running
 #  and sql_slave_skip_counter > 0
 include/start_slave.inc
 START SLAVE FOR CHANNEL "channel_3";
 ERROR HY000: When sql_slave_skip_counter > 0, it is not allowed to start SQL threads for multiple channels. To use sql_slave_skip_counter, stop SQL threads of all channels and execute START SLAVE FOR CHANNEL statement.
+include/stop_slave_io.inc
+include/assert.inc [No IO threads should be running at this point]
+#
+# START SLAVE with only one SQL_THREAD running should not start IO_THREADS.
+#
+START SLAVE;
+ERROR HY000: When sql_slave_skip_counter > 0, it is not allowed to start SQL threads for multiple channels. To use sql_slave_skip_counter, stop SQL threads of all channels and execute START SLAVE FOR CHANNEL statement.
+include/assert.inc [No IO threads should be running after START SLAVE with only one SQL_THREAD running]
+#
+# START SLAVE IO_THREAD FOR CHANNEL should not fail.
+#
+include/start_slave_io.inc
+include/assert.inc [Just one IO thread is running after START SLAVE IO_THREAD FOR CHANNEL]
 include/stop_slave.inc
 SET GLOBAL sql_slave_skip_counter= 0;
 include/rpl_end.inc

@@ -167,17 +167,6 @@ public:
   bool delete_mi(const char* channel_name);
 
   /**
-     Return a channel name from the map having the same host and port.
-
-    @param[in]         host          host of the channel.
-    @param[in]         port          port of the channel.
-
-    @return                          channel in the map with ' host' and port.
-                                     If no such channel, exists, return 0
- */
-  const char* get_channel_with_host_port(char* host, uint port);
-
-  /**
     Get the default channel for this multisourced_slave;
   */
   inline const char* get_default_channel()

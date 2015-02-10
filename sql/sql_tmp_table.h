@@ -1,7 +1,7 @@
 #ifndef SQL_TMP_TABLE_INCLUDED
 #define SQL_TMP_TABLE_INCLUDED
 
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,23 +24,30 @@
   Temporary table handling functions.
 */
 
-#include "sql_list.h"
-#include "sql_class.h"
-#include "my_base.h"
-#include "field.h"
-#include "item.h"
+#include "my_global.h"
+#include "my_base.h"        // ha_rows
+#include "item.h"           // Item
+
+class Create_field;
+class Field;
+class Opt_trace_context;
+class SJ_TMP_TABLE;
+class Temp_table_param;
+class THD;
+struct TABLE;
+template<typename Element_type, bool has_trivial_destructor>
+  class Mem_root_array;
+template <class T> class List;
+typedef struct st_columndef MI_COLUMNDEF;
+typedef struct st_key KEY;
+typedef struct st_order ORDER;
+typedef Mem_root_array<Item*, true> Func_ptr_array;
+
 
 /*
    For global system variable internal_tmp_disk_storage_engine
  */
 enum enum_internal_tmp_disk_storage_engine { TMP_TABLE_MYISAM, TMP_TABLE_INNODB };
-
-class SJ_TMP_TABLE;
-struct TABLE;
-class THD;
-class Temp_table_param;
-typedef struct st_order ORDER;
-typedef struct st_columndef MI_COLUMNDEF;
 
 TABLE *
 create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,

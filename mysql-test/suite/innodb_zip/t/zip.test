@@ -1,4 +1,5 @@
 -- source include/have_innodb.inc
+-- source include/have_innodb_zip.inc
 
 let $per_table=`select @@innodb_file_per_table`;
 let $format=`select @@innodb_file_format`;
@@ -90,7 +91,7 @@ disconnect b;
 
 analyze table t1;
 analyze table t2;
---replace_result 16384 {valid} 12288 {valid}
+--replace_result 16384 {valid} 12288 {valid} 8192 {valid} 4096 {valid}
 --eval $query_i_s
 drop table t1,t2;
 
@@ -207,6 +208,7 @@ show warnings;
 create table t5 (id int primary key) engine = innodb
 key_block_size = 4 row_format = default;
 
+--replace_result 16384 {valid} 8192 {valid} 4096 {valid}
 --eval $query_i_s
 drop table t1, t5;
 
@@ -226,6 +228,7 @@ create table t2 (id int primary key) engine = innodb
 key_block_size = 9 row_format = dynamic;
 show warnings;
 
+--replace_result 16384 {valid} 8192 {valid} 4096 {valid}
 --eval $query_i_s
 
 #test valid values with innodb_file_per_table unset

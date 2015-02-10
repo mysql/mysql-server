@@ -71,7 +71,7 @@ SELECT COUNT(*) FROM tab2;
 
 --echo # Stop the server
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 30
+--shutdown_server 
 --source include/wait_until_disconnected.inc
 
 --echo # Rewrite the tab2.ibd file into new checksum=CRC32
@@ -102,7 +102,7 @@ SELECT COUNT(*) FROM tab2 where col_7=1000;
 
 --echo # Stop the server
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 30
+--shutdown_server 
 --source include/wait_until_disconnected.inc
 
 --echo # Rewrite the tab2.ibd file into new checksum=None

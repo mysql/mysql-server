@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,7 +16,7 @@
 #include <my_global.h>
 
 #include <my_sys.h>
-#include <my_pthread.h>
+#include <my_thread.h>
 #include "mysql.h"
 #include <my_getopt.h>
 
@@ -70,7 +70,7 @@ end:
   thread_count--;
   pthread_cond_signal(&COND_thread_count); /* Tell main we are ready */
   pthread_mutex_unlock(&LOCK_thread_count);
-  pthread_exit(0);
+  my_thread_exit(0);
   return 0;
 }
 
@@ -201,6 +201,7 @@ int main(int argc, char **argv)
 	    error,errno);
     exit(1);
   }
+#ifndef _WIN32
   if ((error=pthread_attr_setdetachstate(&thr_attr,PTHREAD_CREATE_DETACHED)))
   {
     fprintf(stderr,
@@ -208,6 +209,7 @@ int main(int argc, char **argv)
 	    error,errno);
     exit(1);
   }
+#endif
 
   printf("Init ok. Creating %d threads\n",number_of_threads);
   for (i=1 ; i <= number_of_threads ; i++)
@@ -216,9 +218,9 @@ int main(int argc, char **argv)
 
     if (verbose) { putchar('+'); fflush(stdout); }
     pthread_mutex_lock(&LOCK_thread_count);
-    if ((error=pthread_create(&tid,&thr_attr,test_thread,(void*) param)))
+    if ((error= my_thread_create(&tid,&thr_attr,test_thread,(void*) param)))
     {
-      fprintf(stderr,"\nGot error: %d from pthread_create (errno: %d) when creating thread: %i\n",
+      fprintf(stderr,"\nGot error: %d from my_thread_create (errno: %d) when creating thread: %i\n",
 	      error,errno,i);
       pthread_mutex_unlock(&LOCK_thread_count);
       exit(1);

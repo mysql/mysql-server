@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2015, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -2461,7 +2461,13 @@ page_validate(
 			int	ret = cmp_rec_rec(
 				rec, old_rec, offsets, old_offsets, index);
 
-			if (ret <= 0) {
+			/* For spatial index, on nonleaf leavel, we
+			allow recs to be equal. */
+			bool rtr_equal_nodeptrs =
+				(ret == 0 && dict_index_is_spatial(index)
+				&& !page_is_leaf(page));
+
+			if (ret <= 0 && !rtr_equal_nodeptrs) {
 
 				ib::error() << "Records in wrong order on"
 					" space " << page_get_space_id(page)
@@ -2726,7 +2732,7 @@ page_delete_rec(
 
 	if (!rec_offs_any_extern(offsets)
 	    && ((page_get_data_size(page) - rec_offs_size(offsets)
-		< BTR_CUR_PAGE_COMPRESS_LIMIT)
+		< BTR_CUR_PAGE_COMPRESS_LIMIT(index))
 		|| (mach_read_from_4(page + FIL_PAGE_NEXT) == FIL_NULL
 		    && mach_read_from_4(page + FIL_PAGE_PREV) == FIL_NULL)
 		|| (page_get_n_recs(page) < 2))) {

@@ -1,7 +1,7 @@
 #ifndef TABLE_INCLUDED
 #define TABLE_INCLUDED
 
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,25 +17,21 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
-#include "sql_plist.h"
-#include "sql_alloc.h"
-#include "mdl.h"
-#include "datadict.h"
 
 #ifndef MYSQL_CLIENT
 
-#include "hash.h"                               /* HASH */
-#include "handler.h"                /* row_type, ha_choice, handler */
-#include "mysql_com.h"              /* enum_field_types */
-#include "thr_lock.h"                  /* thr_lock_type */
-#include "filesort_utils.h"
-#include "parse_file.h"
-#include "sql_sort.h"
-#include "table_id.h"
-#include "opt_costmodel.h"
+#include "hash.h"          // HASH
+#include "datadict.h"      // frm_type_enum
+#include "handler.h"       // row_type
+#include "mdl.h"           // MDL_wait_for_subgraph
+#include "opt_costmodel.h" // Cost_model_table
+#include "sql_bitmap.h"    // Bitmap
+#include "sql_sort.h"      // Filesort_info
+#include "table_id.h"      // Table_id
 
 /* Structs that defines the TABLE */
-
+typedef struct st_key KEY;
+class File_parser;
 class Item;				/* Needed by ORDER */
 class Item_subselect;
 class Item_field;
@@ -629,7 +625,7 @@ struct TABLE_SHARE
   inline handlerton *db_type() const	/* table_type for handler */
   { 
     // DBUG_ASSERT(db_plugin);
-    return db_plugin ? plugin_data(db_plugin, handlerton*) : NULL;
+    return db_plugin ? plugin_data<handlerton*>(db_plugin) : NULL;
   }
   enum row_type row_type;		/* How rows are stored */
   enum tmp_table_type tmp_table;
@@ -941,6 +937,30 @@ public:
 };
 
 
+/**
+  Flags for TABLE::status (maximum 8 bits). Do NOT add new ones.
+  @todo: GARBAGE and NOT_FOUND could be unified. UPDATED and DELETED could be
+  changed to "bool current_row_has_already_been_modified" in the
+  multi_update/delete objects (one such bool per to-be-modified table).
+  @todo aim at removing the status. There should be more local ways.
+*/
+#define STATUS_GARBAGE          1
+/**
+   Means we were searching for a row and didn't find it. This is used by
+   storage engines (@see handler::index_read_map()) and the Server layer.
+*/
+#define STATUS_NOT_FOUND        2
+/// Reserved for use by multi-table update. Means the row has been updated.
+#define STATUS_UPDATED          16
+/**
+   Means that table->null_row is set. This is an artificial NULL-filled row
+   (one example: in outer join, if no match has been found in inner table).
+*/
+#define STATUS_NULL_ROW         32
+/// Reserved for use by multi-table delete. Means the row has been deleted.
+#define STATUS_DELETED          64
+
+
 /* Information for one open table */
 enum index_hint_type
 {
@@ -985,6 +1005,8 @@ public:
 
   THD	*in_use;                        /* Which thread uses this */
   Field **field;			/* Pointer to fields */
+  /// Count of hidden fields, if internal temporary table; 0 otherwise.
+  uint hidden_field_count;
 
   uchar *record[2];			/* Pointer to records */
   uchar *write_row_record;		/* Used as optimisation in
@@ -1030,9 +1052,6 @@ public:
   Field *next_number_field;		/* Set if next_number is activated */
   Field *found_next_number_field;	/* Set on open */
   Field *hash_field;                    /* Field used by unique constraint */
-  /* Mask and bitmap are used along with hash_field */
-  uchar *hash_field_mask;
-  MY_BITMAP hash_field_bitmap;
   Field *fts_doc_id_field;              /* Set if FTS_DOC_ID field is present */
 
   /* Table's triggers, 0 if there are no of them */
@@ -1196,7 +1215,19 @@ private:
 public:
   uint max_keys; /* Size of allocated key_info array. */
 
-  REGINFO reginfo;			/* field connections */
+  struct /* field connections */
+  {
+    class JOIN_TAB *join_tab;
+    class QEP_TAB *qep_tab;
+    enum thr_lock_type lock_type;		/* How table is used */
+    bool not_exists_optimize;
+    /*
+      TRUE <=> range optimizer found that there is no rows satisfying
+      table conditions.
+    */
+    bool impossible_range;
+  } reginfo;
+
   /**
      @todo This member should not be declared in-line. That makes it
      impossible for any function that does memory allocation to take a const
@@ -1224,8 +1255,8 @@ private:
 public:
 
   void init(THD *thd, TABLE_LIST *tl);
-  bool fill_item_list(List<Item> *item_list, uint limit= MAX_FIELDS) const;
-  void reset_item_list(List<Item> *item_list, uint limit) const;
+  bool fill_item_list(List<Item> *item_list) const;
+  void reset_item_list(List<Item> *item_list) const;
   void clear_column_bitmaps(void);
   void prepare_for_position(void);
   void mark_columns_used_by_index_no_reset(uint index, MY_BITMAP *map);
@@ -1261,6 +1292,12 @@ public:
   /** Should this instance of the table be reopened? */
   inline bool needs_reopen()
   { return !db_stat || m_needs_reopen; }
+  /// @returns first non-hidden column
+  Field **visible_field_ptr() const
+  { return field + hidden_field_count; }
+  /// @returns count of visible fields
+  uint visible_field_count() const
+  { return s->fields - hidden_field_count; }
   bool alloc_keys(uint key_count);
   bool add_tmp_key(Field_map *key_parts, char *key_name);
   void use_index(int key_to_save);

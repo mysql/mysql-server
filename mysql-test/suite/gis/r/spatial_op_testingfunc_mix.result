@@ -163,7 +163,7 @@ AsText(ST_Difference(GeomFromText(@star),GeomFromText(@star_elem_vertical)))
 MULTIPOLYGON(((15 25,25 0,22 10,30 15,20 15,15 25)),((15 25,10 15,0 15,7 10,5 0,15 25)))
 SELECT AsText(ST_Union(ST_Difference(GeomFromText(@star),GeomFromText(@star_elem_vertical)),GeomFromtext(@star)));
 AsText(ST_Union(ST_Difference(GeomFromText(@star),GeomFromText(@star_elem_vertical)),GeomFromtext(@star)))
-MULTIPOLYGON(((7 10,5 0,15 5,25 0,22 10,30 15,20 15,15 25,10 15,0 15,7 10)))
+POLYGON((7 10,5 0,15 5,25 0,22 10,30 15,20 15,15 25,10 15,0 15,7 10))
 SELECT ST_Equals(GeomFromText(@star),ST_Union(ST_Difference(GeomFromText(@star),GeomFromText(@star_elem_vertical)),GeomFromtext(@star)));
 ST_Equals(GeomFromText(@star),ST_Union(ST_Difference(GeomFromText(@star),GeomFromText(@star_elem_vertical)),GeomFromtext(@star)))
 1
@@ -181,7 +181,7 @@ AsText(ST_Symdifference(GeomFromText(@star),GeomFromText(@star_elem_vertical)))
 MULTIPOLYGON(((15 25,25 0,22 10,30 15,20 15,15 25)),((15 25,10 15,0 15,7 10,5 0,15 25)))
 SELECT AsText(ST_Union(ST_Symdifference(GeomFromText(@star),GeomFromText(@star_elem_vertical)),GeomFromtext(@star)));
 AsText(ST_Union(ST_Symdifference(GeomFromText(@star),GeomFromText(@star_elem_vertical)),GeomFromtext(@star)))
-MULTIPOLYGON(((7 10,5 0,15 5,25 0,22 10,30 15,20 15,15 25,10 15,0 15,7 10)))
+POLYGON((7 10,5 0,15 5,25 0,22 10,30 15,20 15,15 25,10 15,0 15,7 10))
 SELECT ST_Equals(GeomFromText(@star),ST_Union(ST_Symdifference(GeomFromText(@star),GeomFromText(@star_elem_vertical)),GeomFromtext(@star)));
 ST_Equals(GeomFromText(@star),ST_Union(ST_Symdifference(GeomFromText(@star),GeomFromText(@star_elem_vertical)),GeomFromtext(@star)))
 1
@@ -196,10 +196,10 @@ ST_Intersects(g,ST_Union(ST_Symdifference(GeomFromText(@star),GeomFromText(@star
 1
 SELECT AsText(ST_Intersection(GeomFromText(@star),GeomFromText(@star_elem_vertical)));
 AsText(ST_Intersection(GeomFromText(@star),GeomFromText(@star_elem_vertical)))
-MULTIPOLYGON(((15 25,5 0,15 5,25 0,15 25)))
+POLYGON((15 25,5 0,15 5,25 0,15 25))
 SELECT AsText(ST_Union(ST_Intersection(GeomFromText(@star),GeomFromText(@star_elem_vertical)),GeomFromtext(@star)));
 AsText(ST_Union(ST_Intersection(GeomFromText(@star),GeomFromText(@star_elem_vertical)),GeomFromtext(@star)))
-MULTIPOLYGON(((15 25,10 15,0 15,7 10,5 0,15 5,25 0,22 10,30 15,20 15,15 25)))
+POLYGON((25 0,22 10,30 15,20 15,15 25,10 15,0 15,7 10,5 0,15 5,25 0))
 SELECT ST_Equals(GeomFromText(@star),ST_Union(ST_Intersection(GeomFromText(@star),GeomFromText(@star_elem_vertical)),GeomFromtext(@star)));
 ST_Equals(GeomFromText(@star),ST_Union(ST_Intersection(GeomFromText(@star),GeomFromText(@star_elem_vertical)),GeomFromtext(@star)))
 1
@@ -223,10 +223,10 @@ AsText(GeomFromText(@star_elem_horizontal))
 POLYGON((25 0,0 15,30 15,22 10,25 0))
 SELECT AsText(ST_Union(GeomFromText(@star_elem_horizontal),GeomFromText(@star_elem_vertical)));
 AsText(ST_Union(GeomFromText(@star_elem_horizontal),GeomFromText(@star_elem_vertical)))
-MULTIPOLYGON(((8.870967741935484 9.67741935483871,5 0,15 5,25 0,22 10,30 15,19 15,15 25,11 15,0 15,8.870967741935484 9.67741935483871)))
+POLYGON((8.870967741935484 9.67741935483871,5 0,15 5,25 0,22 10,30 15,19 15,15 25,11 15,0 15,8.870967741935484 9.67741935483871))
 SELECT AsText(ST_Symdifference(ST_Union(GeomFromText(@star_elem_horizontal),GeomFromText(@star_elem_vertical)),GeomFromtext(@star_2)));
 AsText(ST_Symdifference(ST_Union(GeomFromText(@star_elem_horizontal),GeomFromText(@star_elem_vertical)),GeomFromtext(@star_2)))
-MULTIPOLYGON(((23.695652173913043 4.3478260869565215,20 2.5,25 0,23.695652173913043 4.3478260869565215)),((10 15,0 15,8.870967741935484 9.67741935483871,5 0,15 5,15.90909090909091 4.545454545454546,17 10,10 15)),((11 15,19 15,15 25,11 15)),((15.909090909090908 4.545454545454546,15 0,20 2.5,15.909090909090908 4.545454545454546)),((20 15,30 15,25 25,20 15)),((30 15,22 10,23.695652173913043 4.3478260869565215,25 5,35 0,32 10,40 15,30 15)))
+MULTIPOLYGON(((11 15,19 15,15 25,11 15)),((10 15,0 15,8.870967741935484 9.67741935483871,5 0,15 5,15.90909090909091 4.545454545454546,17 10,10 15)),((23.695652173913043 4.3478260869565215,20 2.5,25 0,23.695652173913043 4.3478260869565215)),((15.909090909090908 4.545454545454546,15 0,20 2.5,15.909090909090908 4.545454545454546)),((20 15,30 15,25 25,20 15)),((30 15,22 10,23.695652173913043 4.3478260869565215,25 5,35 0,32 10,40 15,30 15)))
 SELECT ST_Within(ST_Symdifference(ST_Union(GeomFromText(@star_elem_horizontal),GeomFromText(@star_elem_vertical)),GeomFromtext(@star_2)),GeomFromText(@star_1));
 ST_Within(ST_Symdifference(ST_Union(GeomFromText(@star_elem_horizontal),GeomFromText(@star_elem_vertical)),GeomFromtext(@star_2)),GeomFromText(@star_1))
 0
@@ -247,10 +247,10 @@ ST_Touches(ST_Symdifference(ST_Union(GeomFromText(@star_elem_horizontal),GeomFro
 1
 SELECT AsText(ST_Union(GeomFromText(@star_elem_horizontal),GeomFromText(@star_elem_vertical)));
 AsText(ST_Union(GeomFromText(@star_elem_horizontal),GeomFromText(@star_elem_vertical)))
-MULTIPOLYGON(((8.870967741935484 9.67741935483871,5 0,15 5,25 0,22 10,30 15,19 15,15 25,11 15,0 15,8.870967741935484 9.67741935483871)))
+POLYGON((8.870967741935484 9.67741935483871,5 0,15 5,25 0,22 10,30 15,19 15,15 25,11 15,0 15,8.870967741935484 9.67741935483871))
 SELECT AsText(ST_Difference(ST_Union(GeomFromText(@star_elem_horizontal),GeomFromText(@star_elem_vertical)),GeomFromtext(@star_2)));
 AsText(ST_Difference(ST_Union(GeomFromText(@star_elem_horizontal),GeomFromText(@star_elem_vertical)),GeomFromtext(@star_2)))
-MULTIPOLYGON(((23.695652173913043 4.3478260869565215,20 2.5,25 0,23.695652173913043 4.3478260869565215)),((10 15,0 15,8.870967741935484 9.67741935483871,5 0,15 5,15.90909090909091 4.545454545454546,17 10,10 15)),((11 15,19 15,15 25,11 15)))
+MULTIPOLYGON(((11 15,19 15,15 25,11 15)),((10 15,0 15,8.870967741935484 9.67741935483871,5 0,15 5,15.90909090909091 4.545454545454546,17 10,10 15)),((23.695652173913043 4.3478260869565215,20 2.5,25 0,23.695652173913043 4.3478260869565215)))
 SELECT ST_Within(ST_Difference(ST_Union(GeomFromText(@star_elem_horizontal),GeomFromText(@star_elem_vertical)),GeomFromtext(@star_2)),GeomFromText(@star_1));
 ST_Within(ST_Difference(ST_Union(GeomFromText(@star_elem_horizontal),GeomFromText(@star_elem_vertical)),GeomFromtext(@star_2)),GeomFromText(@star_1))
 0
@@ -376,7 +376,7 @@ ST_Intersects(ST_Intersection(ST_Intersection(GeomFromText(@star_elem_horizontal
 1
 SELECT ST_Crosses(ST_Intersection(ST_Intersection(GeomFromText(@star_elem_horizontal),GeomFromText(@star_elem_vertical)),GeomFromtext(@star_2)),ST_Intersection(GeomFromText(@star_1),GeomFromText(@star_2)));
 ST_Crosses(ST_Intersection(ST_Intersection(GeomFromText(@star_elem_horizontal),GeomFromText(@star_elem_vertical)),GeomFromtext(@star_2)),ST_Intersection(GeomFromText(@star_1),GeomFromText(@star_2)))
-1
+0
 SELECT ST_Touches(ST_Intersection(ST_Intersection(GeomFromText(@star_elem_horizontal),GeomFromText(@star_elem_vertical)),GeomFromtext(@star_2)),ST_Intersection(GeomFromText(@star_1),GeomFromText(@star_2)));
 ST_Touches(ST_Intersection(ST_Intersection(GeomFromText(@star_elem_horizontal),GeomFromText(@star_elem_vertical)),GeomFromtext(@star_2)),ST_Intersection(GeomFromText(@star_1),GeomFromText(@star_2)))
 0
@@ -385,13 +385,13 @@ ST_Within(ST_Intersection(ST_Intersection(GeomFromText(@star_elem_horizontal),Ge
 0
 SELECT ST_Overlaps(ST_Intersection(ST_Intersection(GeomFromText(@star_elem_horizontal),GeomFromText(@star_elem_vertical)),GeomFromtext(@star_2)),ST_Intersection(GeomFromText(@star_1),GeomFromText(@star_2)));
 ST_Overlaps(ST_Intersection(ST_Intersection(GeomFromText(@star_elem_horizontal),GeomFromText(@star_elem_vertical)),GeomFromtext(@star_2)),ST_Intersection(GeomFromText(@star_1),GeomFromText(@star_2)))
-1
+0
 #-------------------------------------------------------------------------------------------
 # Spatial Operators with ST_Union()
 #-------------------------------------------------------------------------------------------
 SELECT AsText(ST_Union(ST_Union(ST_Union(GeomFromText(@star_elem_horizontal),GeomFromText(@star_elem_vertical)),GeomFromtext(@star_2)),ST_Union(GeomFromText(@star_1),GeomFromText(@star_2))));
 AsText(ST_Union(ST_Union(ST_Union(GeomFromText(@star_elem_horizontal),GeomFromText(@star_elem_vertical)),GeomFromtext(@star_2)),ST_Union(GeomFromText(@star_1),GeomFromText(@star_2))))
-MULTIPOLYGON(((20 15,15 25,10 15,0 15,7 10,5 0,15 5,15.909090909090908 4.545454545454546,15 0,20 2.5,25 0,23.695652173913043 4.3478260869565215,25 5,35 0,32 10,40 15,30 15,25 25,20 15)))
+POLYGON((20 15,15 25,10 15,0 15,7 10,5 0,15 5,15.909090909090908 4.545454545454546,15 0,20 2.5,25 0,23.695652173913043 4.3478260869565215,25 5,35 0,32 10,40 15,30 15,25 25,20 15))
 SELECT AsText(ST_Difference(ST_Union(ST_Union(GeomFromText(@star_elem_horizontal),GeomFromText(@star_elem_vertical)),GeomFromtext(@star_2)),ST_Union(GeomFromText(@star_1),GeomFromText(@star_2))));
 AsText(ST_Difference(ST_Union(ST_Union(GeomFromText(@star_elem_horizontal),GeomFromText(@star_elem_vertical)),GeomFromtext(@star_2)),ST_Union(GeomFromText(@star_1),GeomFromText(@star_2))))
 GEOMETRYCOLLECTION()
@@ -400,7 +400,7 @@ AsText(ST_Symdifference(ST_Union(ST_Union(GeomFromText(@star_elem_horizontal),Ge
 MULTIPOLYGON(((20 15,15 25,19 15,20 15)),((15 25,10 15,11 15,15 25)),((5 0,8.870967741935484 9.67741935483871,0 15,7 10,5 0)))
 SELECT AsText(ST_Intersection(ST_Union(ST_Union(GeomFromText(@star_elem_horizontal),GeomFromText(@star_elem_vertical)),GeomFromtext(@star_2)),ST_Union(GeomFromText(@star_1),GeomFromText(@star_2))));
 AsText(ST_Intersection(ST_Union(ST_Union(GeomFromText(@star_elem_horizontal),GeomFromText(@star_elem_vertical)),GeomFromtext(@star_2)),ST_Union(GeomFromText(@star_1),GeomFromText(@star_2))))
-MULTIPOLYGON(((20 15,19 15,15 25,11 15,10 15,0 15,8.870967741935484 9.67741935483871,5 0,15 5,15.909090909090908 4.545454545454546,15 0,20 2.5,25 0,23.695652173913043 4.3478260869565215,25 5,35 0,32 10,40 15,30 15,25 25,20 15)))
+POLYGON((20 15,19 15,15 25,11 15,10 15,0 15,8.870967741935484 9.67741935483871,5 0,15 5,15.909090909090908 4.545454545454546,15 0,20 2.5,25 0,23.695652173913043 4.3478260869565215,25 5,35 0,32 10,40 15,30 15,25 25,20 15))
 #-------------------------------------------------------------------------------------------
 # Spatial Operators with ST_Difference()
 #-------------------------------------------------------------------------------------------
@@ -436,16 +436,16 @@ GEOMETRYCOLLECTION(MULTIPOLYGON(((20 2.5,25 0,20.454549072237263 2.7272707821120
 #-------------------------------------------------------------------------------------------
 SELECT AsText(ST_Union(ST_Intersection(ST_Intersection(GeomFromText(@star_elem_horizontal),GeomFromText(@star_elem_vertical)),GeomFromtext(@star_2)),ST_Intersection(GeomFromText(@star_1),GeomFromText(@star_2))));
 AsText(ST_Union(ST_Intersection(ST_Intersection(GeomFromText(@star_elem_horizontal),GeomFromText(@star_elem_vertical)),GeomFromtext(@star_2)),ST_Intersection(GeomFromText(@star_1),GeomFromText(@star_2))))
-GEOMETRYCOLLECTION(MULTIPOLYGON(((16.07142842253352 5.357142112667587,20.454545840442037 2.7272724957347765,23.333333621564787 4.1666668107823925,19 15,11 15,10.777777727235392 14.44444448054615,17 10,16.07142842253352 5.357142112667587))),POINT(20.454545161264008 2.727272580632004),MULTIPOLYGON(((10 15,17 10,15.909090909090908 4.545454545454546,20 2.5,23.695652173913043 4.3478260869565215,22 10,30 15,20 15,10 15))))
+GEOMETRYCOLLECTION(MULTIPOLYGON(((10.777777727235392 14.44444448054615,17 10,16.07142842253352 5.357142112667587,20.454545840442037 2.7272724957347765,23.333333621564787 4.1666668107823925,19 15,11 15,10.777777727235392 14.44444448054615))),POINT(20.454545161264008 2.727272580632004),POLYGON((10 15,17 10,15.909090909090908 4.545454545454546,20 2.5,23.695652173913043 4.3478260869565215,22 10,30 15,20 15,10 15)))
 SELECT AsText(ST_Difference(ST_Intersection(ST_Intersection(GeomFromText(@star_elem_horizontal),GeomFromText(@star_elem_vertical)),GeomFromtext(@star_2)),ST_Intersection(GeomFromText(@star_1),GeomFromText(@star_2))));
 AsText(ST_Difference(ST_Intersection(ST_Intersection(GeomFromText(@star_elem_horizontal),GeomFromText(@star_elem_vertical)),GeomFromtext(@star_2)),ST_Intersection(GeomFromText(@star_1),GeomFromText(@star_2))))
 GEOMETRYCOLLECTION()
 SELECT AsText(ST_Symdifference(ST_Intersection(ST_Intersection(GeomFromText(@star_elem_horizontal),GeomFromText(@star_elem_vertical)),GeomFromtext(@star_2)),ST_Intersection(GeomFromText(@star_1),GeomFromText(@star_2))));
 AsText(ST_Symdifference(ST_Intersection(ST_Intersection(GeomFromText(@star_elem_horizontal),GeomFromText(@star_elem_vertical)),GeomFromtext(@star_2)),ST_Intersection(GeomFromText(@star_1),GeomFromText(@star_2))))
-GEOMETRYCOLLECTION(MULTIPOLYGON(((17 10,10.777777816124265 14.444444702768267,10.777777727235392 14.44444448054615,17 10))),MULTIPOLYGON(((19 15,23.333333621564787 4.1666668107823925,20.454545840442037 2.7272724957347765,16.07142842253352 5.357142112667587,17 10,15.909090909090908 4.545454545454546,20 2.5,23.695652173913043 4.3478260869565215,22 10,30 15,20 15,19 15)),((11 15,10 15,10.777778088888764 14.444444222222312,11 15))))
+GEOMETRYCOLLECTION(MULTIPOLYGON(((10.777777816124265 14.444444702768267,10.777777727235392 14.44444448054615,17 10,10.777777816124265 14.444444702768267))),MULTIPOLYGON(((19 15,23.333333621564787 4.1666668107823925,20.454545840442037 2.7272724957347765,16.07142842253352 5.357142112667587,17 10,15.909090909090908 4.545454545454546,20 2.5,23.695652173913043 4.3478260869565215,22 10,30 15,20 15,19 15)),((11 15,10 15,10.777778088888764 14.444444222222312,11 15))))
 SELECT AsText(ST_Intersection(ST_Intersection(ST_Intersection(GeomFromText(@star_elem_horizontal),GeomFromText(@star_elem_vertical)),GeomFromtext(@star_2)),ST_Intersection(GeomFromText(@star_1),GeomFromText(@star_2))));
 AsText(ST_Intersection(ST_Intersection(ST_Intersection(GeomFromText(@star_elem_horizontal),GeomFromText(@star_elem_vertical)),GeomFromtext(@star_2)),ST_Intersection(GeomFromText(@star_1),GeomFromText(@star_2))))
-GEOMETRYCOLLECTION(MULTIPOLYGON(((17 10,16.07142842253352 5.357142112667587,20.454545840442037 2.7272724957347765,23.333333621564787 4.1666668107823925,19 15,11 15,10.777777816124265 14.444444702768267,17 10))),POINT(10.777778088888764 14.44444422222231),POINT(20.454545161264008 2.727272580632004))
+GEOMETRYCOLLECTION(MULTIPOLYGON(((11 15,10.777777816124265 14.444444702768267,17 10,16.07142842253352 5.357142112667587,20.454545840442037 2.7272724957347765,23.333333621564787 4.1666668107823925,19 15,11 15))),POINT(10.777778088888764 14.44444422222231),POINT(20.454545161264008 2.727272580632004))
 #=======================================================================================
 # Testing with combinations of 3 functions
 #=======================================================================================
@@ -454,10 +454,10 @@ AsText(ST_Difference(GeomFromText(@star),GeomFromText(@star_elem_vertical)))
 MULTIPOLYGON(((15 25,25 0,22 10,30 15,20 15,15 25)),((15 25,10 15,0 15,7 10,5 0,15 25)))
 SELECT AsText(ST_Union(GeomFromText(@star),GeomFromText(@star_elem_vertical)));
 AsText(ST_Union(GeomFromText(@star),GeomFromText(@star_elem_vertical)))
-MULTIPOLYGON(((15 25,10 15,0 15,7 10,5 0,15 5,25 0,22 10,30 15,20 15,15 25)))
+POLYGON((15 25,10 15,0 15,7 10,5 0,15 5,25 0,22 10,30 15,20 15,15 25))
 SELECT AsText(ST_Intersection(GeomFromText(@star),GeomFromText(@star_elem_vertical)));
 AsText(ST_Intersection(GeomFromText(@star),GeomFromText(@star_elem_vertical)))
-MULTIPOLYGON(((15 25,5 0,15 5,25 0,15 25)))
+POLYGON((15 25,5 0,15 5,25 0,15 25))
 SELECT AsText(ST_Symdifference(GeomFromText(@star),GeomFromText(@star_elem_vertical)));
 AsText(ST_Symdifference(GeomFromText(@star),GeomFromText(@star_elem_vertical)))
 MULTIPOLYGON(((15 25,25 0,22 10,30 15,20 15,15 25)),((15 25,10 15,0 15,7 10,5 0,15 25)))
@@ -790,13 +790,13 @@ ST_Within(ST_Intersection(GeomFromText(@star),GeomFromText(@star_elem_vertical))
 #---------------------------------------------------------------------------------------------
 SELECT AsText(ST_Union(ST_Union(GeomFromText(@star),GeomFromText(@star_elem_vertical)),ST_Difference(GeomFromText(@star),GeomFromText(@star_elem_vertical))));
 AsText(ST_Union(ST_Union(GeomFromText(@star),GeomFromText(@star_elem_vertical)),ST_Difference(GeomFromText(@star),GeomFromText(@star_elem_vertical))))
-MULTIPOLYGON(((20 15,15 25,10 15,0 15,7 10,5 0,15 5,25 0,22 10,30 15,20 15)))
+POLYGON((20 15,15 25,10 15,0 15,7 10,5 0,15 5,25 0,22 10,30 15,20 15))
 SELECT AsText(ST_Difference(ST_Union(GeomFromText(@star),GeomFromText(@star_elem_vertical)),ST_Difference(GeomFromText(@star),GeomFromText(@star_elem_vertical))));
 AsText(ST_Difference(ST_Union(GeomFromText(@star),GeomFromText(@star_elem_vertical)),ST_Difference(GeomFromText(@star),GeomFromText(@star_elem_vertical))))
-MULTIPOLYGON(((25 0,15 25,5 0,15 5,25 0)))
+POLYGON((25 0,15 25,5 0,15 5,25 0))
 SELECT AsText(ST_Symdifference(ST_Union(GeomFromText(@star),GeomFromText(@star_elem_vertical)),ST_Difference(GeomFromText(@star),GeomFromText(@star_elem_vertical))));
 AsText(ST_Symdifference(ST_Union(GeomFromText(@star),GeomFromText(@star_elem_vertical)),ST_Difference(GeomFromText(@star),GeomFromText(@star_elem_vertical))))
-MULTIPOLYGON(((25 0,15 25,5 0,15 5,25 0)))
+POLYGON((25 0,15 25,5 0,15 5,25 0))
 SELECT AsText(ST_Intersection(ST_Union(GeomFromText(@star),GeomFromText(@star_elem_vertical)),ST_Difference(GeomFromText(@star),GeomFromText(@star_elem_vertical))));
 AsText(ST_Intersection(ST_Union(GeomFromText(@star),GeomFromText(@star_elem_vertical)),ST_Difference(GeomFromText(@star),GeomFromText(@star_elem_vertical))))
 MULTIPOLYGON(((20 15,15 25,25 0,22 10,30 15,20 15)),((5 0,15 25,10 15,0 15,7 10,5 0)))
@@ -805,13 +805,13 @@ MULTIPOLYGON(((20 15,15 25,25 0,22 10,30 15,20 15)),((5 0,15 25,10 15,0 15,7 10,
 #---------------------------------------------------------------------------------------------
 SELECT AsText(ST_Union(ST_Union(GeomFromText(@star),GeomFromText(@star_elem_vertical)),ST_Symdifference(GeomFromText(@star),GeomFromText(@star_elem_vertical))));
 AsText(ST_Union(ST_Union(GeomFromText(@star),GeomFromText(@star_elem_vertical)),ST_Symdifference(GeomFromText(@star),GeomFromText(@star_elem_vertical))))
-MULTIPOLYGON(((20 15,15 25,10 15,0 15,7 10,5 0,15 5,25 0,22 10,30 15,20 15)))
+POLYGON((20 15,15 25,10 15,0 15,7 10,5 0,15 5,25 0,22 10,30 15,20 15))
 SELECT AsText(ST_Difference(ST_Union(GeomFromText(@star),GeomFromText(@star_elem_vertical)),ST_Symdifference(GeomFromText(@star),GeomFromText(@star_elem_vertical))));
 AsText(ST_Difference(ST_Union(GeomFromText(@star),GeomFromText(@star_elem_vertical)),ST_Symdifference(GeomFromText(@star),GeomFromText(@star_elem_vertical))))
-MULTIPOLYGON(((25 0,15 25,5 0,15 5,25 0)))
+POLYGON((25 0,15 25,5 0,15 5,25 0))
 SELECT AsText(ST_Symdifference(ST_Union(GeomFromText(@star),GeomFromText(@star_elem_vertical)),ST_Symdifference(GeomFromText(@star),GeomFromText(@star_elem_vertical))));
 AsText(ST_Symdifference(ST_Union(GeomFromText(@star),GeomFromText(@star_elem_vertical)),ST_Symdifference(GeomFromText(@star),GeomFromText(@star_elem_vertical))))
-MULTIPOLYGON(((25 0,15 25,5 0,15 5,25 0)))
+POLYGON((25 0,15 25,5 0,15 5,25 0))
 SELECT AsText(ST_Intersection(ST_Union(GeomFromText(@star),GeomFromText(@star_elem_vertical)),ST_Symdifference(GeomFromText(@star),GeomFromText(@star_elem_vertical))));
 AsText(ST_Intersection(ST_Union(GeomFromText(@star),GeomFromText(@star_elem_vertical)),ST_Symdifference(GeomFromText(@star),GeomFromText(@star_elem_vertical))))
 MULTIPOLYGON(((20 15,15 25,25 0,22 10,30 15,20 15)),((5 0,15 25,10 15,0 15,7 10,5 0)))
@@ -820,7 +820,7 @@ MULTIPOLYGON(((20 15,15 25,25 0,22 10,30 15,20 15)),((5 0,15 25,10 15,0 15,7 10,
 #---------------------------------------------------------------------------------------------
 SELECT AsText(ST_Union(ST_Union(GeomFromText(@star),GeomFromText(@star_elem_vertical)),ST_Intersection(GeomFromText(@star),GeomFromText(@star_elem_vertical))));
 AsText(ST_Union(ST_Union(GeomFromText(@star),GeomFromText(@star_elem_vertical)),ST_Intersection(GeomFromText(@star),GeomFromText(@star_elem_vertical))))
-MULTIPOLYGON(((25 0,22 10,30 15,20 15,15 25,10 15,0 15,7 10,5 0,15 5,25 0)))
+POLYGON((25 0,22 10,30 15,20 15,15 25,10 15,0 15,7 10,5 0,15 5,25 0))
 SELECT AsText(ST_Difference(ST_Union(GeomFromText(@star),GeomFromText(@star_elem_vertical)),ST_Intersection(GeomFromText(@star),GeomFromText(@star_elem_vertical))));
 AsText(ST_Difference(ST_Union(GeomFromText(@star),GeomFromText(@star_elem_vertical)),ST_Intersection(GeomFromText(@star),GeomFromText(@star_elem_vertical))))
 MULTIPOLYGON(((25 0,22 10,30 15,20 15,15 25,25 0)),((5 0,15 25,10 15,0 15,7 10,5 0)))
@@ -829,19 +829,19 @@ AsText(ST_Symdifference(ST_Union(GeomFromText(@star),GeomFromText(@star_elem_ver
 MULTIPOLYGON(((25 0,22 10,30 15,20 15,15 25,25 0)),((5 0,15 25,10 15,0 15,7 10,5 0)))
 SELECT AsText(ST_Intersection(ST_Union(GeomFromText(@star),GeomFromText(@star_elem_vertical)),ST_Intersection(GeomFromText(@star),GeomFromText(@star_elem_vertical))));
 AsText(ST_Intersection(ST_Union(GeomFromText(@star),GeomFromText(@star_elem_vertical)),ST_Intersection(GeomFromText(@star),GeomFromText(@star_elem_vertical))))
-MULTIPOLYGON(((25 0,15 25,5 0,15 5,25 0)))
+POLYGON((25 0,15 25,5 0,15 5,25 0))
 #---------------------------------------------------------------------------------------------
 # Spatial Operators with combination of ST_Difference() and ST_Union
 #---------------------------------------------------------------------------------------------
 SELECT AsText(ST_Union(ST_Difference(GeomFromText(@star),GeomFromText(@star_elem_vertical)),ST_Union(GeomFromText(@star),GeomFromText(@star_elem_vertical))));
 AsText(ST_Union(ST_Difference(GeomFromText(@star),GeomFromText(@star_elem_vertical)),ST_Union(GeomFromText(@star),GeomFromText(@star_elem_vertical))))
-MULTIPOLYGON(((20 15,15 25,10 15,0 15,7 10,5 0,15 5,25 0,22 10,30 15,20 15)))
+POLYGON((20 15,15 25,10 15,0 15,7 10,5 0,15 5,25 0,22 10,30 15,20 15))
 SELECT AsText(ST_Difference(ST_Difference(GeomFromText(@star),GeomFromText(@star_elem_vertical)),ST_Union(GeomFromText(@star),GeomFromText(@star_elem_vertical))));
 AsText(ST_Difference(ST_Difference(GeomFromText(@star),GeomFromText(@star_elem_vertical)),ST_Union(GeomFromText(@star),GeomFromText(@star_elem_vertical))))
 GEOMETRYCOLLECTION()
 SELECT AsText(ST_Symdifference(ST_Difference(GeomFromText(@star),GeomFromText(@star_elem_vertical)),ST_Union(GeomFromText(@star),GeomFromText(@star_elem_vertical))));
 AsText(ST_Symdifference(ST_Difference(GeomFromText(@star),GeomFromText(@star_elem_vertical)),ST_Union(GeomFromText(@star),GeomFromText(@star_elem_vertical))))
-MULTIPOLYGON(((25 0,15 25,5 0,15 5,25 0)))
+POLYGON((25 0,15 25,5 0,15 5,25 0))
 SELECT AsText(ST_Intersection(ST_Difference(GeomFromText(@star),GeomFromText(@star_elem_vertical)),ST_Union(GeomFromText(@star),GeomFromText(@star_elem_vertical))));
 AsText(ST_Intersection(ST_Difference(GeomFromText(@star),GeomFromText(@star_elem_vertical)),ST_Union(GeomFromText(@star),GeomFromText(@star_elem_vertical))))
 MULTIPOLYGON(((20 15,15 25,25 0,22 10,30 15,20 15)),((5 0,15 25,10 15,0 15,7 10,5 0)))
@@ -865,28 +865,28 @@ MULTIPOLYGON(((20 15,15 25,25 0,22 10,30 15,20 15)),((5 0,15 25,10 15,0 15,7 10,
 #---------------------------------------------------------------------------------------------
 SELECT AsText(ST_Union(ST_Difference(GeomFromText(@star),GeomFromText(@star_elem_vertical)),ST_Intersection(GeomFromText(@star),GeomFromText(@star_elem_vertical))));
 AsText(ST_Union(ST_Difference(GeomFromText(@star),GeomFromText(@star_elem_vertical)),ST_Intersection(GeomFromText(@star),GeomFromText(@star_elem_vertical))))
-MULTIPOLYGON(((25 0,22 10,30 15,20 15,15 25,10 15,0 15,7 10,5 0,15 5,25 0)))
+POLYGON((25 0,22 10,30 15,20 15,15 25,10 15,0 15,7 10,5 0,15 5,25 0))
 SELECT AsText(ST_Difference(ST_Difference(GeomFromText(@star),GeomFromText(@star_elem_vertical)),ST_Intersection(GeomFromText(@star),GeomFromText(@star_elem_vertical))));
 AsText(ST_Difference(ST_Difference(GeomFromText(@star),GeomFromText(@star_elem_vertical)),ST_Intersection(GeomFromText(@star),GeomFromText(@star_elem_vertical))))
-MULTIPOLYGON(((25 0,22 10,30 15,20 15,15 25,25 0)),((5 0,15 25,10 15,0 15,7 10,5 0)))
+MULTIPOLYGON(((5 0,15 25,10 15,0 15,7 10,5 0)),((25 0,22 10,30 15,20 15,15 25,25 0)))
 SELECT AsText(ST_Symdifference(ST_Difference(GeomFromText(@star),GeomFromText(@star_elem_vertical)),ST_Intersection(GeomFromText(@star),GeomFromText(@star_elem_vertical))));
 AsText(ST_Symdifference(ST_Difference(GeomFromText(@star),GeomFromText(@star_elem_vertical)),ST_Intersection(GeomFromText(@star),GeomFromText(@star_elem_vertical))))
-MULTIPOLYGON(((25 0,22 10,30 15,20 15,15 25,25 0)),((5 0,15 25,10 15,0 15,7 10,5 0)),((25 0,15 25,5 0,15 5,25 0)))
+MULTIPOLYGON(((5 0,15 25,10 15,0 15,7 10,5 0)),((25 0,22 10,30 15,20 15,15 25,25 0)),((25 0,15 25,5 0,15 5,25 0)))
 SELECT AsText(ST_Intersection(ST_Difference(GeomFromText(@star),GeomFromText(@star_elem_vertical)),ST_Intersection(GeomFromText(@star),GeomFromText(@star_elem_vertical))));
 AsText(ST_Intersection(ST_Difference(GeomFromText(@star),GeomFromText(@star_elem_vertical)),ST_Intersection(GeomFromText(@star),GeomFromText(@star_elem_vertical))))
-MULTIPOINT(25 0,15 25,5 0,15 25)
+MULTIPOINT(5 0,25 0,15 25,15 25)
 #---------------------------------------------------------------------------------------------
 # Spatial Operators with combination of ST_Symdifference() and ST_Union
 #---------------------------------------------------------------------------------------------
 SELECT AsText(ST_Union(ST_Symdifference(GeomFromText(@star),GeomFromText(@star_elem_vertical)),ST_Union(GeomFromText(@star),GeomFromText(@star_elem_vertical))));
 AsText(ST_Union(ST_Symdifference(GeomFromText(@star),GeomFromText(@star_elem_vertical)),ST_Union(GeomFromText(@star),GeomFromText(@star_elem_vertical))))
-MULTIPOLYGON(((20 15,15 25,10 15,0 15,7 10,5 0,15 5,25 0,22 10,30 15,20 15)))
+POLYGON((20 15,15 25,10 15,0 15,7 10,5 0,15 5,25 0,22 10,30 15,20 15))
 SELECT AsText(ST_Difference(ST_Symdifference(GeomFromText(@star),GeomFromText(@star_elem_vertical)),ST_Union(GeomFromText(@star),GeomFromText(@star_elem_vertical))));
 AsText(ST_Difference(ST_Symdifference(GeomFromText(@star),GeomFromText(@star_elem_vertical)),ST_Union(GeomFromText(@star),GeomFromText(@star_elem_vertical))))
 GEOMETRYCOLLECTION()
 SELECT AsText(ST_Symdifference(ST_Symdifference(GeomFromText(@star),GeomFromText(@star_elem_vertical)),ST_Union(GeomFromText(@star),GeomFromText(@star_elem_vertical))));
 AsText(ST_Symdifference(ST_Symdifference(GeomFromText(@star),GeomFromText(@star_elem_vertical)),ST_Union(GeomFromText(@star),GeomFromText(@star_elem_vertical))))
-MULTIPOLYGON(((25 0,15 25,5 0,15 5,25 0)))
+POLYGON((25 0,15 25,5 0,15 5,25 0))
 SELECT AsText(ST_Intersection(ST_Symdifference(GeomFromText(@star),GeomFromText(@star_elem_vertical)),ST_Union(GeomFromText(@star),GeomFromText(@star_elem_vertical))));
 AsText(ST_Intersection(ST_Symdifference(GeomFromText(@star),GeomFromText(@star_elem_vertical)),ST_Union(GeomFromText(@star),GeomFromText(@star_elem_vertical))))
 MULTIPOLYGON(((20 15,15 25,25 0,22 10,30 15,20 15)),((5 0,15 25,10 15,0 15,7 10,5 0)))
@@ -910,22 +910,22 @@ MULTIPOLYGON(((20 15,15 25,25 0,22 10,30 15,20 15)),((5 0,15 25,10 15,0 15,7 10,
 #---------------------------------------------------------------------------------------------
 SELECT AsText(ST_Union(ST_Symdifference(GeomFromText(@star),GeomFromText(@star_elem_vertical)),ST_Intersection(GeomFromText(@star),GeomFromText(@star_elem_vertical))));
 AsText(ST_Union(ST_Symdifference(GeomFromText(@star),GeomFromText(@star_elem_vertical)),ST_Intersection(GeomFromText(@star),GeomFromText(@star_elem_vertical))))
-MULTIPOLYGON(((25 0,22 10,30 15,20 15,15 25,10 15,0 15,7 10,5 0,15 5,25 0)))
+POLYGON((25 0,22 10,30 15,20 15,15 25,10 15,0 15,7 10,5 0,15 5,25 0))
 SELECT AsText(ST_Difference(ST_Symdifference(GeomFromText(@star),GeomFromText(@star_elem_vertical)),ST_Intersection(GeomFromText(@star),GeomFromText(@star_elem_vertical))));
 AsText(ST_Difference(ST_Symdifference(GeomFromText(@star),GeomFromText(@star_elem_vertical)),ST_Intersection(GeomFromText(@star),GeomFromText(@star_elem_vertical))))
-MULTIPOLYGON(((25 0,22 10,30 15,20 15,15 25,25 0)),((5 0,15 25,10 15,0 15,7 10,5 0)))
+MULTIPOLYGON(((5 0,15 25,10 15,0 15,7 10,5 0)),((25 0,22 10,30 15,20 15,15 25,25 0)))
 SELECT AsText(ST_Symdifference(ST_Symdifference(GeomFromText(@star),GeomFromText(@star_elem_vertical)),ST_Intersection(GeomFromText(@star),GeomFromText(@star_elem_vertical))));
 AsText(ST_Symdifference(ST_Symdifference(GeomFromText(@star),GeomFromText(@star_elem_vertical)),ST_Intersection(GeomFromText(@star),GeomFromText(@star_elem_vertical))))
-MULTIPOLYGON(((25 0,22 10,30 15,20 15,15 25,25 0)),((5 0,15 25,10 15,0 15,7 10,5 0)),((25 0,15 25,5 0,15 5,25 0)))
+MULTIPOLYGON(((5 0,15 25,10 15,0 15,7 10,5 0)),((25 0,22 10,30 15,20 15,15 25,25 0)),((25 0,15 25,5 0,15 5,25 0)))
 SELECT AsText(ST_Intersection(ST_Symdifference(GeomFromText(@star),GeomFromText(@star_elem_vertical)),ST_Intersection(GeomFromText(@star),GeomFromText(@star_elem_vertical))));
 AsText(ST_Intersection(ST_Symdifference(GeomFromText(@star),GeomFromText(@star_elem_vertical)),ST_Intersection(GeomFromText(@star),GeomFromText(@star_elem_vertical))))
-MULTIPOINT(25 0,15 25,5 0,15 25)
+MULTIPOINT(5 0,25 0,15 25,15 25)
 #---------------------------------------------------------------------------------------------
 # Spatial Operators with combination of ST_Intersection() and ST_Union
 #---------------------------------------------------------------------------------------------
 SELECT AsText(ST_Union(ST_Intersection(GeomFromText(@star),GeomFromText(@star_elem_vertical)),ST_Union(GeomFromText(@star),GeomFromText(@star_elem_vertical))));
 AsText(ST_Union(ST_Intersection(GeomFromText(@star),GeomFromText(@star_elem_vertical)),ST_Union(GeomFromText(@star),GeomFromText(@star_elem_vertical))))
-MULTIPOLYGON(((25 0,22 10,30 15,20 15,15 25,10 15,0 15,7 10,5 0,15 5,25 0)))
+POLYGON((25 0,22 10,30 15,20 15,15 25,10 15,0 15,7 10,5 0,15 5,25 0))
 SELECT AsText(ST_Difference(ST_Intersection(GeomFromText(@star),GeomFromText(@star_elem_vertical)),ST_Union(GeomFromText(@star),GeomFromText(@star_elem_vertical))));
 AsText(ST_Difference(ST_Intersection(GeomFromText(@star),GeomFromText(@star_elem_vertical)),ST_Union(GeomFromText(@star),GeomFromText(@star_elem_vertical))))
 GEOMETRYCOLLECTION()
@@ -934,19 +934,19 @@ AsText(ST_Symdifference(ST_Intersection(GeomFromText(@star),GeomFromText(@star_e
 MULTIPOLYGON(((25 0,22 10,30 15,20 15,15 25,25 0)),((5 0,15 25,10 15,0 15,7 10,5 0)))
 SELECT AsText(ST_Intersection(ST_Intersection(GeomFromText(@star),GeomFromText(@star_elem_vertical)),ST_Union(GeomFromText(@star),GeomFromText(@star_elem_vertical))));
 AsText(ST_Intersection(ST_Intersection(GeomFromText(@star),GeomFromText(@star_elem_vertical)),ST_Union(GeomFromText(@star),GeomFromText(@star_elem_vertical))))
-MULTIPOLYGON(((25 0,15 25,5 0,15 5,25 0)))
+POLYGON((25 0,15 25,5 0,15 5,25 0))
 #---------------------------------------------------------------------------------------------
 # Spatial Operators with combination of ST_Intersection() and ST_Difference
 #---------------------------------------------------------------------------------------------
 SELECT AsText(ST_Union(ST_Intersection(GeomFromText(@star),GeomFromText(@star_elem_vertical)),ST_Difference(GeomFromText(@star),GeomFromText(@star_elem_vertical))));
 AsText(ST_Union(ST_Intersection(GeomFromText(@star),GeomFromText(@star_elem_vertical)),ST_Difference(GeomFromText(@star),GeomFromText(@star_elem_vertical))))
-MULTIPOLYGON(((25 0,22 10,30 15,20 15,15 25,10 15,0 15,7 10,5 0,15 5,25 0)))
+POLYGON((25 0,22 10,30 15,20 15,15 25,10 15,0 15,7 10,5 0,15 5,25 0))
 SELECT AsText(ST_Difference(ST_Intersection(GeomFromText(@star),GeomFromText(@star_elem_vertical)),ST_Difference(GeomFromText(@star),GeomFromText(@star_elem_vertical))));
 AsText(ST_Difference(ST_Intersection(GeomFromText(@star),GeomFromText(@star_elem_vertical)),ST_Difference(GeomFromText(@star),GeomFromText(@star_elem_vertical))))
-MULTIPOLYGON(((25 0,15 25,5 0,15 5,25 0)))
+POLYGON((25 0,15 25,5 0,15 5,25 0))
 SELECT AsText(ST_Symdifference(ST_Intersection(GeomFromText(@star),GeomFromText(@star_elem_vertical)),ST_Difference(GeomFromText(@star),GeomFromText(@star_elem_vertical))));
 AsText(ST_Symdifference(ST_Intersection(GeomFromText(@star),GeomFromText(@star_elem_vertical)),ST_Difference(GeomFromText(@star),GeomFromText(@star_elem_vertical))))
-MULTIPOLYGON(((25 0,15 25,5 0,15 5,25 0)),((25 0,22 10,30 15,20 15,15 25,25 0)),((5 0,15 25,10 15,0 15,7 10,5 0)))
+MULTIPOLYGON(((25 0,15 25,5 0,15 5,25 0)),((5 0,15 25,10 15,0 15,7 10,5 0)),((25 0,22 10,30 15,20 15,15 25,25 0)))
 SELECT AsText(ST_Intersection(ST_Intersection(GeomFromText(@star),GeomFromText(@star_elem_vertical)),ST_Difference(GeomFromText(@star),GeomFromText(@star_elem_vertical))));
 AsText(ST_Intersection(ST_Intersection(GeomFromText(@star),GeomFromText(@star_elem_vertical)),ST_Difference(GeomFromText(@star),GeomFromText(@star_elem_vertical))))
 MULTIPOINT(5 0,25 0,15 25,15 25)
@@ -955,13 +955,13 @@ MULTIPOINT(5 0,25 0,15 25,15 25)
 #---------------------------------------------------------------------------------------------
 SELECT AsText(ST_Union(ST_Intersection(GeomFromText(@star),GeomFromText(@star_elem_vertical)),ST_Symdifference(GeomFromText(@star),GeomFromText(@star_elem_vertical))));
 AsText(ST_Union(ST_Intersection(GeomFromText(@star),GeomFromText(@star_elem_vertical)),ST_Symdifference(GeomFromText(@star),GeomFromText(@star_elem_vertical))))
-MULTIPOLYGON(((25 0,22 10,30 15,20 15,15 25,10 15,0 15,7 10,5 0,15 5,25 0)))
+POLYGON((25 0,22 10,30 15,20 15,15 25,10 15,0 15,7 10,5 0,15 5,25 0))
 SELECT AsText(ST_Difference(ST_Intersection(GeomFromText(@star),GeomFromText(@star_elem_vertical)),ST_Symdifference(GeomFromText(@star),GeomFromText(@star_elem_vertical))));
 AsText(ST_Difference(ST_Intersection(GeomFromText(@star),GeomFromText(@star_elem_vertical)),ST_Symdifference(GeomFromText(@star),GeomFromText(@star_elem_vertical))))
-MULTIPOLYGON(((25 0,15 25,5 0,15 5,25 0)))
+POLYGON((25 0,15 25,5 0,15 5,25 0))
 SELECT AsText(ST_Symdifference(ST_Intersection(GeomFromText(@star),GeomFromText(@star_elem_vertical)),ST_Symdifference(GeomFromText(@star),GeomFromText(@star_elem_vertical))));
 AsText(ST_Symdifference(ST_Intersection(GeomFromText(@star),GeomFromText(@star_elem_vertical)),ST_Symdifference(GeomFromText(@star),GeomFromText(@star_elem_vertical))))
-MULTIPOLYGON(((25 0,15 25,5 0,15 5,25 0)),((25 0,22 10,30 15,20 15,15 25,25 0)),((5 0,15 25,10 15,0 15,7 10,5 0)))
+MULTIPOLYGON(((25 0,15 25,5 0,15 5,25 0)),((5 0,15 25,10 15,0 15,7 10,5 0)),((25 0,22 10,30 15,20 15,15 25,25 0)))
 SELECT AsText(ST_Intersection(ST_Intersection(GeomFromText(@star),GeomFromText(@star_elem_vertical)),ST_Symdifference(GeomFromText(@star),GeomFromText(@star_elem_vertical))));
 AsText(ST_Intersection(ST_Intersection(GeomFromText(@star),GeomFromText(@star_elem_vertical)),ST_Symdifference(GeomFromText(@star),GeomFromText(@star_elem_vertical))))
 MULTIPOINT(5 0,25 0,15 25,15 25)
@@ -988,7 +988,7 @@ GEOMETRYCOLLECTION()
 #---------------------------------------------------------------------------------------------
 SELECT AsText(ST_Union(ST_Intersection(GeomFromText('POINT(1 1)'),GeomFromText('MULTIPOINT(2 2, 3 3)')),ST_Difference(GeomFromText('POINT(0 0)'), GeomFromText('POINT(1 1)'))));
 AsText(ST_Union(ST_Intersection(GeomFromText('POINT(1 1)'),GeomFromText('MULTIPOINT(2 2, 3 3)')),ST_Difference(GeomFromText('POINT(0 0)'), GeomFromText('POINT(1 1)'))))
-GEOMETRYCOLLECTION(POINT(0 0))
+POINT(0 0)
 SELECT AsText(ST_Intersection(ST_Intersection(GeomFromText('POINT(1 1)'),GeomFromText('MULTIPOINT(2 2, 3 3)')),ST_Difference(GeomFromText('POINT(0 0)'), GeomFromText('POINT(1 1)'))));
 AsText(ST_Intersection(ST_Intersection(GeomFromText('POINT(1 1)'),GeomFromText('MULTIPOINT(2 2, 3 3)')),ST_Difference(GeomFromText('POINT(0 0)'), GeomFromText('POINT(1 1)'))))
 GEOMETRYCOLLECTION()
@@ -997,22 +997,22 @@ AsText(ST_Difference(ST_Intersection(GeomFromText('POINT(1 1)'),GeomFromText('MU
 GEOMETRYCOLLECTION()
 SELECT AsText(ST_SymDifference(ST_Intersection(GeomFromText('POINT(1 1)'),GeomFromText('MULTIPOINT(2 2, 3 3)')),ST_Difference(GeomFromText('POINT(0 0)'), GeomFromText('POINT(1 1)'))));
 AsText(ST_SymDifference(ST_Intersection(GeomFromText('POINT(1 1)'),GeomFromText('MULTIPOINT(2 2, 3 3)')),ST_Difference(GeomFromText('POINT(0 0)'), GeomFromText('POINT(1 1)'))))
-GEOMETRYCOLLECTION(POINT(0 0))
+POINT(0 0)
 #---------------------------------------------------------------------------------------------
 # Non-empty collection and empty collection
 #---------------------------------------------------------------------------------------------
 SELECT AsText(ST_Union(GeomFromText('MULTIPOINT(2 2, 3 3)'),ST_Intersection(GeomFromText('POINT(0 0)'), GeomFromText('POINT(1 1)'))));
 AsText(ST_Union(GeomFromText('MULTIPOINT(2 2, 3 3)'),ST_Intersection(GeomFromText('POINT(0 0)'), GeomFromText('POINT(1 1)'))))
-GEOMETRYCOLLECTION(MULTIPOINT(2 2,3 3))
+MULTIPOINT(2 2,3 3)
 SELECT AsText(ST_Intersection(GeomFromText('MULTIPOINT(2 2, 3 3)'),ST_Intersection(GeomFromText('POINT(0 0)'), GeomFromText('POINT(1 1)'))));
 AsText(ST_Intersection(GeomFromText('MULTIPOINT(2 2, 3 3)'),ST_Intersection(GeomFromText('POINT(0 0)'), GeomFromText('POINT(1 1)'))))
 GEOMETRYCOLLECTION()
 SELECT AsText(ST_SymDifference(GeomFromText('MULTIPOINT(2 2, 3 3)'),ST_Intersection(GeomFromText('POINT(0 0)'), GeomFromText('POINT(1 1)'))));
 AsText(ST_SymDifference(GeomFromText('MULTIPOINT(2 2, 3 3)'),ST_Intersection(GeomFromText('POINT(0 0)'), GeomFromText('POINT(1 1)'))))
-GEOMETRYCOLLECTION(MULTIPOINT(2 2,3 3))
+MULTIPOINT(2 2,3 3)
 SELECT AsText(ST_Difference(GeomFromText('MULTIPOINT(2 2, 3 3)'),ST_Intersection(GeomFromText('POINT(0 0)'), GeomFromText('POINT(1 1)'))));
 AsText(ST_Difference(GeomFromText('MULTIPOINT(2 2, 3 3)'),ST_Intersection(GeomFromText('POINT(0 0)'), GeomFromText('POINT(1 1)'))))
-GEOMETRYCOLLECTION(MULTIPOINT(2 2,3 3))
+MULTIPOINT(2 2,3 3)
 #---------------------------------------------------------------------------------------------
 # Empty intermediate or final result
 #---------------------------------------------------------------------------------------------

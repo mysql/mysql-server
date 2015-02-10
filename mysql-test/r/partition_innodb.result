@@ -73,7 +73,7 @@ DROP TABLE t1;
 #
 SET @old_innodb_thread_concurrency := @@innodb_thread_concurrency;
 SET @old_innodb_thread_sleep_delay := @@innodb_thread_sleep_delay;
-SET GLOBAL innodb_thread_concurrency = 1;
+SET GLOBAL innodb_thread_concurrency = 2;
 CREATE TABLE t1
 (user_num BIGINT,
 hours SMALLINT,
@@ -261,10 +261,10 @@ KEY parent_id (parent_id)
 ) ENGINE=InnoDB;
 ALTER TABLE t1 PARTITION BY HASH (id) PARTITIONS 1;
 ALTER TABLE t1 ADD CONSTRAINT test_ibfk_1 FOREIGN KEY (parent_id) REFERENCES t2 (id);
-ERROR HY000: Foreign key clause is not yet supported in conjunction with partitioning
+ERROR HY000: Foreign keys are not yet supported in conjunction with partitioning
 ALTER TABLE t1 PARTITION BY HASH (id) PARTITIONS 2;
 ALTER TABLE t1 ADD CONSTRAINT test_ibfk_1 FOREIGN KEY (parent_id) REFERENCES t2 (id);
-ERROR HY000: Foreign key clause is not yet supported in conjunction with partitioning
+ERROR HY000: Foreign keys are not yet supported in conjunction with partitioning
 DROP TABLE t1, t2;
 create table t1 (a varchar(5), b int signed, c varchar(10), d datetime)
 partition by range columns(b,c)
@@ -402,7 +402,9 @@ FOREIGN KEY (c1) REFERENCES t1 (c1)
 ON DELETE CASCADE)
 ENGINE=INNODB;
 ALTER TABLE t1 PARTITION BY HASH(c1) PARTITIONS 5;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
+ERROR HY000: Foreign keys are not yet supported in conjunction with partitioning
+ALTER TABLE t2 PARTITION BY HASH(c1) PARTITIONS 5;
+ERROR HY000: Foreign keys are not yet supported in conjunction with partitioning
 ALTER TABLE t1 ENGINE=MyISAM;
 ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
 DROP TABLE t2;

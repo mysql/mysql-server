@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -17,8 +17,9 @@
 #include <m_string.h>
 #include <m_ctype.h>
 #include <myisampack.h>
-/* Windows version of localtime_r() is declared in my_ptrhead.h */
-#include <my_pthread.h>
+/* Windows version of localtime_r() is declared in my_global.h */
+#include <my_global.h>
+#include "binary_log_types.h"
 
 ulonglong log_10_int[20]=
 {
@@ -64,8 +65,8 @@ uint calc_days_in_year(uint year)
    @param tm[OUT]    The value to set.
    @param time_type  Timestasmp type
 */
-inline void set_zero_time(MYSQL_TIME *tm,
-                          enum enum_mysql_timestamp_type time_type)
+void set_zero_time(MYSQL_TIME *tm,
+                   enum enum_mysql_timestamp_type time_type)
 {
   memset(tm, 0, sizeof(*tm));
   tm->time_type= time_type;
@@ -76,7 +77,7 @@ inline void set_zero_time(MYSQL_TIME *tm,
   Set hour, minute and second of a MYSQL_TIME variable to maximum time value.
   Unlike set_max_time(), does not touch the other structure members.
 */
-inline void set_max_hhmmss(MYSQL_TIME *tm)
+void set_max_hhmmss(MYSQL_TIME *tm)
 {
   tm->hour= TIME_MAX_HOUR;
   tm->minute= TIME_MAX_MINUTE;
@@ -152,7 +153,7 @@ my_bool check_date(const MYSQL_TIME *ltime, my_bool not_zero_date,
   @retval  TRUE   if the value is fatally bad.
   @retval  FALSE  if the value is Ok.
 */
-inline my_bool check_time_mmssff_range(const MYSQL_TIME *ltime)
+my_bool check_time_mmssff_range(const MYSQL_TIME *ltime)
 {
   return ltime->minute >= 60 || ltime->second >= 60 ||
          ltime->second_part > 999999;
@@ -171,7 +172,7 @@ inline my_bool check_time_mmssff_range(const MYSQL_TIME *ltime)
   @retval        FALSE if value is Ok.
   @retval        TRUE if value is out of range. 
 */
-inline my_bool check_time_range_quick(const MYSQL_TIME *ltime)
+my_bool check_time_range_quick(const MYSQL_TIME *ltime)
 {
   longlong hour= (longlong) ltime->hour + 24LL * ltime->day;
   /* The input value should not be fatally bad */
@@ -1623,19 +1624,6 @@ void TIME_from_longlong_time_packed(MYSQL_TIME *ltime, longlong tmp)
   ltime->time_type= MYSQL_TIMESTAMP_TIME;
 }
 
-
-/**
-  Calculate binary size of packed numeric time representation.
-  
-  @param   dec   Precision.
-*/
-uint my_time_binary_length(uint dec)
-{
-  DBUG_ASSERT(dec <= DATETIME_MAX_DECIMALS);
-  return 3 + (dec + 1) / 2;
-}
-
-
 /*
   On disk we convert from signed representation to unsigned
   representation using TIMEF_OFS, so all values become binary comparable.
@@ -1859,17 +1847,6 @@ void TIME_from_longlong_date_packed(MYSQL_TIME *ltime, longlong tmp)
 }
 
 
-/**
-  Calculate binary size of packed datetime representation.
-  @param dec  Precision.
-*/
-uint my_datetime_binary_length(uint dec)
-{
-  DBUG_ASSERT(dec <= DATETIME_MAX_DECIMALS);
-  return 5 + (dec + 1) / 2;
-}
-
-
 /*
   On disk we store as unsigned number with DATETIMEF_INT_OFS offset,
   for HA_KETYPE_BINARY compatibilty purposes.
@@ -1948,18 +1925,6 @@ void my_datetime_packed_to_binary(longlong nr, uchar *ptr, uint dec)
 
 
 /*** TIMESTAMP low-level memory and disk representation routines ***/
-
-/**
-  Calculate on-disk size of a timestamp value.
-
-  @param  dec  Precision.
-*/
-uint my_timestamp_binary_length(uint dec)
-{
-  DBUG_ASSERT(dec <= DATETIME_MAX_DECIMALS);
-  return 4 + (dec + 1) / 2;
-}
-
 
 /**
   Convert binary timestamp representation to in-memory representation.

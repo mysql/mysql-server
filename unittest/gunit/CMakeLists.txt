@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -186,6 +186,8 @@ ADD_SUBDIRECTORY(innodb)
 
 INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/include
+  ${CMAKE_SOURCE_DIR}/libbinlogevents/include
+  ${ZLIB_INCLUDE_DIR}
   ${CMAKE_SOURCE_DIR}/regex
   ${CMAKE_SOURCE_DIR}/sql
   ${CMAKE_SOURCE_DIR}/sql/auth
@@ -208,12 +210,23 @@ IF(HAVE_NO_COMPARE_DISTINCT_POINTER_TYPES)
 ENDIF()
 
 MY_CHECK_CXX_COMPILER_FLAG("-fno-builtin-memcmp" HAVE_NO_BUILTIN_MEMCMP)
+MY_CHECK_CXX_COMPILER_FLAG("-Wempty-body" HAVE_EMPTY_BODY)
 
 # main-wrapper libraries (with tap-compatible option).
 ADD_LIBRARY(gunit_small STATIC
-  gunit_test_main.cc skip_trailing.cc strnxfrm.cc tap_event_listener.cc thread_utils.cc fake_costmodel.cc)
+  fake_costmodel.cc
+  gunit_test_main.cc
+  skip_trailing.cc
+  strnxfrm.cc
+  tap_event_listener.cc
+  thread_utils.cc
+)
 ADD_LIBRARY(gunit_large STATIC
-  gunit_test_main_server.cc test_utils.cc tap_event_listener.cc thread_utils.cc)
+  gunit_test_main_server.cc
+  tap_event_listener.cc
+  test_utils.cc
+  thread_utils.cc
+)
 ADD_DEPENDENCIES(gunit_small GenError)
 ADD_DEPENDENCIES(gunit_large GenError)
 TARGET_LINK_LIBRARIES(gunit_small
@@ -224,6 +237,8 @@ MESSAGE(STATUS "GTEST_LIBRARIES:${GTEST_LIBRARIES}")
 
 # Add some defines.
 ADD_DEFINITIONS(-DMYSQL_SERVER -DEXTRA_CODE_FOR_UNIT_TESTING)
+
+INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
 
 # Add tests (link them with gunit/gmock libraries) 
 SET(TESTS
@@ -248,6 +263,7 @@ SET(TESTS
   my_murmur3
   my_qsort_vs_stdsort
   my_regex
+  my_thread
   mysys_base64
   mysys_lf
   mysys_my_atomic
@@ -328,6 +344,17 @@ IF (MERGE_UNITTESTS)
   SET_SOURCE_FILES_PROPERTIES(MERGE_SMALL_TESTS MERGE_LARGE_TESTS
     PROPERTIES GENERATED 1)
 
+  ## BOOST_HEAP_ASSERT generates if () ; else ;
+  IF(HAVE_EMPTY_BODY)
+    ADD_COMPILE_FLAGS(
+      ${MERGE_SMALL_TESTS}
+      COMPILE_FLAGS "-Wno-empty-body"
+    )
+  ENDIF()
+  ADD_COMPILE_FLAGS(
+    ${MERGE_SMALL_TESTS}
+    COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
+  )
   INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR})
 
   FILE(WRITE ${MERGE_LARGE_TESTS} "// Merging large unit tests\n")
@@ -345,9 +372,9 @@ IF (MERGE_UNITTESTS)
     LIST(APPEND SRC_FILES ../../sql/nt_servc.cc)
   ENDIF()
   LIST(APPEND SRC_FILES ../../storage/example/ha_example.cc)
-  SET_SOURCE_FILES_PROPERTIES(
+  ADD_COMPILE_FLAGS(
     ../../storage/example/ha_example.cc
-    PROPERTIES COMPILE_FLAGS "-DDISABLE_DTRACE"
+    COMPILE_FLAGS "-DDISABLE_DTRACE"
   )
   ADD_EXECUTABLE(merge_large_tests-t ${SRC_FILES})
 
@@ -379,11 +406,23 @@ ELSE()
   
   # See comments about __builtin_memcmp in the source file.
   IF(HAVE_NO_BUILTIN_MEMCMP)
-    SET_SOURCE_FILES_PROPERTIES(
+    ADD_COMPILE_FLAGS(
       filesort_compare-t.cc
-      PROPERTIES COMPILE_FLAGS "-fno-builtin-memcmp"
+      COMPILE_FLAGS "-fno-builtin-memcmp"
   )
   ENDIF()
+
+  ## BOOST_HEAP_ASSERT generates if () ; else ;
+  IF(HAVE_EMPTY_BODY)
+    ADD_COMPILE_FLAGS(
+      bounded_queue-t.cc
+      COMPILE_FLAGS "-Wno-empty-body"
+  )
+  ENDIF()
+  ADD_COMPILE_FLAGS(
+    bounded_queue-t.cc
+    COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
+  )
 
   FOREACH(test ${SERVER_TESTS})
     SET(SRC_FILES ${test}-t.cc)
@@ -392,9 +431,9 @@ ELSE()
     ENDIF()
     IF(test MATCHES "table_cache")
       LIST(APPEND SRC_FILES ../../storage/example/ha_example.cc)
-      SET_SOURCE_FILES_PROPERTIES(
+      ADD_COMPILE_FLAGS(
         ../../storage/example/ha_example.cc
-        PROPERTIES COMPILE_FLAGS "-DDISABLE_DTRACE"
+        COMPILE_FLAGS "-DDISABLE_DTRACE"
       )
     ENDIF()
     ADD_EXECUTABLE(${test}-t ${SRC_FILES})

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -1393,7 +1393,7 @@ public:
 
 	/**
 	@return true if the transaction can't be rolled back asynchronously */
-	bool is_rolback_disabled() const
+	bool is_rollback_disabled() const
 	{
 		return((m_trx->in_innodb & TRX_FORCE_ROLLBACK_DISABLE) > 0);
 	}
@@ -1403,6 +1403,10 @@ public:
 		rollback */
 	static bool is_aborted(const trx_t* trx)
 	{
+		if (trx->state == TRX_STATE_NOT_STARTED) {
+			return(false);
+		}
+
 		ut_ad(srv_read_only_mode || trx->in_depth > 0);
 		ut_ad(srv_read_only_mode || trx->in_innodb > 0);
 

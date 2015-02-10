@@ -38,7 +38,6 @@ connect (master2,localhost,root,,);
 --connection master
 --let $MYSQLD_DATADIR= `select @@datadir`
 --let $events_file=$MYSQLTEST_VARDIR/tmp/events.sql
---let GREP_PRINT_NOT_VERBOSE=1
 
 RESET MASTER; # make sure we start from 0000001 binlog
 
@@ -63,9 +62,10 @@ COMMIT;
 
 # two timestamp pair of (0,[12]) must be found.
 --exec $MYSQL_BINLOG --force-if-open $MYSQLD_DATADIR/master-bin.000002 > $events_file
---let GREP_FILE=$events_file
---let GREP_PATTERN=last_committed=0	sequence_number=[12]
---source extra/rpl_tests/grep_pattern.inc
+--let $grep_file= $events_file
+--let $grep_pattern= last_committed=0\tsequence_number=[12]
+--let $grep_output= print_count
+--source include/grep_pattern.inc
 
 # Create a chain of binlogs containing two consequent SEQ_UNINIT last_committed
 # transactions separated by a Rotate event.

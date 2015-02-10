@@ -1,6 +1,6 @@
 #ifndef _EVENT_H_
 #define _EVENT_H_
-/* Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,6 +25,23 @@
   A public interface of Events_Scheduler module.
 */
 
+#include "my_global.h"
+#include "mysql/mysql_lex_string.h"             // LEX_STRING
+#include "my_time.h"                            /* interval_type */
+
+#include "my_thread.h"
+
+class Event_db_repository;
+class Event_parse_data;
+class Event_queue;
+class Event_scheduler;
+class Item;
+class String;
+struct TABLE_LIST;
+class THD;
+typedef struct charset_info_st CHARSET_INFO;
+typedef struct st_mysql_lex_string LEX_STRING;
+
 #ifdef HAVE_PSI_INTERFACE
 extern PSI_mutex_key key_event_scheduler_LOCK_scheduler_state;
 extern PSI_cond_key key_event_scheduler_COND_state;
@@ -37,17 +54,6 @@ extern PSI_memory_key key_memory_event_basic_root;
 extern PSI_stage_info stage_waiting_on_empty_queue;
 extern PSI_stage_info stage_waiting_for_next_activation;
 extern PSI_stage_info stage_waiting_for_scheduler_to_stop;
-
-#include "sql_string.h"                         /* LEX_STRING */
-#include "my_time.h"                            /* interval_type */
-
-class Event_db_repository;
-class Event_parse_data;
-class Event_queue;
-class Event_scheduler;
-struct TABLE_LIST;
-class THD;
-typedef struct charset_info_st CHARSET_INFO;
 
 int
 sortcmp_lex_string(LEX_STRING s, LEX_STRING t, CHARSET_INFO *cs);

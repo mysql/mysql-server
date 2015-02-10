@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,17 +13,13 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/*
-  It is necessary to include set_var.h instead of item.h because there
-  are dependencies on include order for set_var.h and item.h. This
-  will be resolved later.
-*/
-#include "sql_class.h"                          // set_var.h: THD
-#include "sql_parse.h"                          // check_stack_overrun 
-#include "set_var.h"
-#include "my_xml.h"
-#include "sp_pcontext.h"
-#include "sql_class.h"                          // THD
+#include "item_xmlfunc.h"
+
+#include "my_xml.h"             // my_xml_node_type
+#include "item_cmpfunc.h"       // Item_bool_func
+#include "sp_pcontext.h"        // sp_variable
+#include "sql_class.h"          // THD
+#include "sql_parse.h"          // check_stack_overrun
 
 /*
   TODO: future development directions:

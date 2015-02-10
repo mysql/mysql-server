@@ -60,7 +60,7 @@ RIGHT OUTER JOIN t5 ON t2.c2 <= t5.c1
 WHERE t1.i1 = 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t5	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	NULL
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1000	0.50	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1000	10.00	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	10	33.33	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	100	100.00	Using join buffer (Block Nested Loop)
 1	SIMPLE	t4	NULL	ALL	k1	NULL	NULL	NULL	0	0.00	Range checked for each record (index map: 0x2)

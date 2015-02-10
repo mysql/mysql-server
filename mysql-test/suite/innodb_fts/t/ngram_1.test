@@ -1,0 +1,41 @@
+# Test fulltext with ngram parser
+
+--source include/no_valgrind_without_big.inc
+--source include/have_innodb.inc
+
+# Because we have inserted row size > 2k, we require page size > 4k.
+if (`SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE LOWER(variable_name) = 'innodb_page_size' AND variable_value = 4096`)
+{
+  --skip Test requires InnoDB with Page size > 4k
+}
+
+LET $per_table = `select @@innodb_file_per_table`;
+LET $format = `select @@innodb_file_format`;
+
+-- echo # Test Case : With default row type
+LET $table_row_format =  ROW_FORMAT=DEFAULT ;
+--source suite/innodb_fts/include/ngram.inc
+
+-- echo # Test Case : with compact row type
+LET $table_row_format =  ROW_FORMAT=COMPACT ;
+--source suite/innodb_fts/include/ngram.inc
+
+
+-- echo # Test Case : With redundant row type
+LET $table_row_format =  ROW_FORMAT=REDUNDANT ;
+--source suite/innodb_fts/include/ngram.inc
+
+
+-- echo # Test Case : With Dynamic row type
+LET $table_row_format =  ROW_FORMAT=DYNAMIC ;
+SET GLOBAL innodb_file_format='Barracuda';
+--source suite/innodb_fts/include/ngram.inc
+
+
+-- echo # Test Case : With compressed row type
+LET $table_row_format =  ROW_FORMAT=COMPRESSED ;
+SET GLOBAL innodb_file_format='Barracuda';
+--source suite/innodb_fts/include/ngram.inc
+
+EVAL SET GLOBAL innodb_file_format = $format;
+EVAL SET GLOBAL innodb_file_per_table = $per_table;

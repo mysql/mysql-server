@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,7 +14,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
-#include "my_pthread.h"   /* my_thread_init, my_thread_end */
+#include "my_thread.h"   /* my_thread_init, my_thread_end */
 #include "my_sys.h"       /* my_message_local */
 #include "my_timer.h"     /* my_timer_t */
 #include "my_global.h"
@@ -29,7 +29,7 @@
 static int kq_fd= -1;
 
 /* Timer thread object. */
-static pthread_t timer_notify_thread;
+static my_thread_handle timer_notify_thread;
 
 /**
   Timer expiration notification thread.
@@ -154,7 +154,7 @@ my_timer_deinitialize(void)
                      " (errno= %d).", errno);
 
   close(kq_fd);
-  pthread_join(timer_notify_thread, NULL);
+  my_thread_join(&timer_notify_thread, NULL);
 }
 
 
