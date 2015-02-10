@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -38,7 +38,13 @@ HP_INFO *heap_open_from_share(HP_SHARE *share, int mode)
     DBUG_RETURN(0);
   }
   share->open_count++; 
-  thr_lock_data_init(&share->lock,&info->lock,NULL);
+  /*
+    Don't initialize THR_LOCK_DATA for internal temporary tables as it
+    is not used for them anyway (and THR_LOCK is not initialized for them
+    too).
+  */
+  if (share->open_list.data != NULL)
+    thr_lock_data_init(&share->lock, &info->lock, NULL);
   info->s= share;
   info->lastkey= (uchar*) (info + 1);
   info->recbuf= (uchar*) (info->lastkey + share->max_key_length);
