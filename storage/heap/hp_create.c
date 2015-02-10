@@ -195,17 +195,14 @@ int heap_create(const char *name, HP_CREATE_INFO *create_info,
       my_free(share);
       goto err;
     }
-    /*
-      Do not initialize THR_LOCK object for internal temporary tables.
-      It is not needed for such tables. Calling thr_lock_init() can
-      cause scalability issues since it acquires global lock.
-    */
-    if (!create_info->internal_table)
-       thr_lock_init(&share->lock);
-    mysql_mutex_init(hp_key_mutex_HP_SHARE_intern_lock,
-                     &share->intern_lock, MY_MUTEX_INIT_FAST);
     if (!create_info->internal_table)
     {
+      /*
+        Do not initialize THR_LOCK object for internal temporary tables.
+        It is not needed for such tables. Calling thr_lock_init() can
+        cause scalability issues since it acquires global lock.
+      */
+      thr_lock_init(&share->lock);
       share->open_list.data= (void*) share;
       heap_share_list= list_add(heap_share_list,&share->open_list);
     }
@@ -311,7 +308,6 @@ void hp_free(HP_SHARE *share)
   hp_clear(share);			/* Remove blocks from memory */
   if (not_internal_table)
     thr_lock_delete(&share->lock);
-  mysql_mutex_destroy(&share->intern_lock);
   my_free(share->name);
   my_free(share);
   return;
