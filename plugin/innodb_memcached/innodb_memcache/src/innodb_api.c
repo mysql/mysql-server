@@ -1524,7 +1524,7 @@ innodb_api_arithmetic(
 		} else {
 			/* cursor_data->mysql_tbl can't be created.
 			So safe to return here */
-			return(DB_RECORD_NOT_FOUND);
+			return(ENGINE_KEY_ENOENT);
 		}
 	}
 
