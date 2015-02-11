@@ -1580,8 +1580,15 @@ evaluate_join_record(JOIN *join, QEP_TAB *const qep_tab)
     else if (qep_tab->do_loosescan() &&
              QEP_AT(qep_tab, match_tab).found_match)
     { 
-      /* Loosescan algorithm requires 'sorted' retrieval of keys. */
-      DBUG_ASSERT(qep_tab->use_order());
+      /*
+         Loosescan algorithm requires an access method that gives 'sorted'
+         retrieval of keys, or an access method that provides only one
+         row (which is inherently sorted).
+         EQ_REF and LooseScan may happen if dependencies in subquery (e.g.,
+         outer join) prevents table pull-out.
+       */  
+      DBUG_ASSERT(qep_tab->use_order() || qep_tab->type() == JT_EQ_REF);
+
       /* 
          Previous row combination for duplicate-generating range,
          generated a match.  Compare keys of this row and previous row
