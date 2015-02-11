@@ -2250,7 +2250,7 @@ runBug54986(NDBT_Context* ctx, NDBT_Step* step)
     ndb_mgm_destroy_logevent_handle(&handle);
   }
 
-  for (int i = 0; i<500; i++)
+  for (int i = 0; i<5; i++)
   {
     int val1 = DumpStateOrd::DihMaxTimeBetweenLCP;
     int val2 = 7099; // Force start
