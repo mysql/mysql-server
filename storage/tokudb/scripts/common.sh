@@ -131,11 +131,20 @@ function parse_mysqlbuild() {
         tokudb_version=${BASH_REMATCH[6]}
         target_system=${BASH_REMATCH[7]}
         target_arch=${BASH_REMATCH[8]}
+
         # verify targets
         if [ $target_system != $system ] ; then exitcode=1; fi
         if [ $target_arch != $arch ] ; then exitcode=1; fi
 
+        # split the version string into major.minor.patch
+        if [[ $mysql_version =~ ^([0-9]+)\.([0-9]+)\.([0-9]+.*) ]] ; then
+            mysql_version_major=${BASH_REMATCH[1]}
+            mysql_version_minor=${BASH_REMATCH[2]}
+            mysql_version_patch=${BASH_REMATCH[3]}
+        fi
+
         local temp_tokudb_version=$tokudb_version
+
         # decode enterprise
         if [[ $temp_tokudb_version =~ (.*)-e$ ]] ; then
             build_type=enterprise
@@ -143,6 +152,7 @@ function parse_mysqlbuild() {
         else
             build_type=community
         fi
+
         # decode debug
         if [[ $temp_tokudb_version =~ (.*)-debug$ ]] ; then
             build_debug=1
@@ -151,8 +161,9 @@ function parse_mysqlbuild() {
         else
             build_debug=0
         fi
+
         # set tag or HEAD
-        if [[ $temp_tokudb_version =~ ^([0-9]+)\\.([0-9]+)\\.([0-9]+) ]] ; then
+        if [[ $temp_tokudb_version =~ ^([0-9]+)\.([0-9]+)\.([0-9]+) ]] ; then
             git_tag=tokudb-$temp_tokudb_version
         else
             git_tag=HEAD
@@ -160,6 +171,8 @@ function parse_mysqlbuild() {
             if [ -z $mysql_tree ] ; then mysql_tree=$mysql_distro-$mysql_version; fi
             if [ -z $jemalloc_tree ] ; then jemalloc_tree=$jemalloc_version; fi
         fi
+
+        # set repository
         mysql_repo=$mysql_distro
         if [[ $mysql_version =~ ^([0-9]+\.[0-9]+) ]] ; then mysql_repo=$mysql_distro-${BASH_REMATCH[1]}; else exitcode=1; fi
     else
@@ -174,6 +187,15 @@ function parse_mysql() {
     if [[ $mysql =~ ^(mysql|mariadb)-(.*)$ ]] ; then
         mysql_distro=${BASH_REMATCH[1]}
         mysql_version=${BASH_REMATCH[2]}
+
+        # split the version string into major.minor.patch
+        if [[ $mysql_version =~ ^([0-9]+)\.([0-9]+)\.([0-9]+.*) ]] ; then
+            mysql_version_major=${BASH_REMATCH[1]}
+            mysql_version_minor=${BASH_REMATCH[2]}
+            mysql_version_patch=${BASH_REMATCH[3]}
+        fi
+
+        # set repository
         mysql_repo=$mysql_distro
         if [[ $mysql_version =~ ^([0-9]+\.[0-9]+) ]] ; then mysql_repo=$mysql_distro-${BASH_REMATCH[1]}; else exitcode=1; fi
         exitcode=0

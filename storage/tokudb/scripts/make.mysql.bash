@@ -103,10 +103,22 @@ fi
 cd $mysql_distro-$mysql_version
 if [ $? != 0 ] ; then exit 1; fi
 
+# extract mysql version patch number only
+if [[ $mysql_version_patch =~ ^([0-9]+) ]] ; then p=${BASH_REMATCH[1]}; else p=$mysql_version_patch; fi
+
 # install the backup source
-if [ ! -d toku_backup ] ; then
+tokudb_backup=
+if [ $mysql_version_major -eq 5 -a $mysql_version_minor -eq 5 -a $p -le 40 ] ; then
+    tokudb_backup=patch
     github_download Tokutek/backup-$build_type $(git_tree $git_tag $backup_tree) backup-$build_type
     cp -r backup-$build_type/backup toku_backup
+elif [ $build_type = enterprise ] ; then
+    tokudb_backup=plugin
+    github_download Tokutek/tokudb-backup-plugin $(git_tree $git_tag $backup_tree) tokudb-backup-plugin
+    mv tokudb-backup-plugin plugin
+    github_download Tokutek/backup-enterprise $(git_tree $git_tag $backup_tree) backup-enterprise
+    mv backup-enterprise/backup plugin/tokudb-backup-plugin
+    rm -rf backup-enterprise
 fi
 
 if [ ! -d tokudb-engine ] ; then
@@ -153,6 +165,7 @@ function generate_cmake_cmd () {
 
     echo -n CC=$cc CXX=$cxx cmake \
         -D BUILD_CONFIG=mysql_release \
+        -D MYSQL_MAINTAINER_MODE=OFF \
         -D CMAKE_BUILD_TYPE=$cmake_build_type \
         -D CMAKE_TOKUDB_REVISION=$ft_revision \
         -D TOKUDB_VERSION=tokudb-${tokudb_version} \

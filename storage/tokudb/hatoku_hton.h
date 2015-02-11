@@ -491,6 +491,15 @@ static MYSQL_THDVAR_BOOL(rpl_lookup_rows, PLUGIN_VAR_THDLOCAL, "lookup a row on 
 static MYSQL_THDVAR_ULONGLONG(rpl_lookup_rows_delay, PLUGIN_VAR_THDLOCAL, "time in milliseconds to add to lookups on replication slave",
                               NULL, NULL, 0 /*default*/, 0 /*min*/, ~0ULL /*max*/, 1 /*blocksize*/);
 
+static MYSQL_THDVAR_BOOL(rpl_check_readonly, PLUGIN_VAR_THDLOCAL, "check if the slave is read only",
+                         NULL /*check*/, NULL /*update*/, true /*default*/);
+
+static MYSQL_THDVAR_STR(optimize_index_name, PLUGIN_VAR_THDLOCAL + PLUGIN_VAR_MEMALLOC, "optimize index name (default all indexes)", NULL /*check*/, NULL /*update*/, NULL /*default*/);
+
+static MYSQL_THDVAR_DOUBLE(optimize_index_fraction, 0, "optimize index fraction (default 1.0 all)", NULL /*check*/, NULL /*update*/, 1.0 /*def*/, 0 /*min*/, 1.0 /*max*/, 1);
+
+static MYSQL_THDVAR_ULONGLONG(optimize_throttle, 0, "optimize throttle (default no throttle)", NULL /*check*/, NULL /*update*/, 0 /*def*/, 0 /*min*/, ~0ULL /*max*/, 1);
+
 extern HASH tokudb_open_tables;
 extern pthread_mutex_t tokudb_mutex;
 extern uint32_t tokudb_write_status_frequency;

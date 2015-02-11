@@ -172,6 +172,31 @@ static inline uint32_t get_len_of_offsets(KEY_AND_COL_INFO* kc_info, TABLE_SHARE
 }
 
 
+static int get_thread_query_string(my_thread_id id, String &qs) {
+  mysql_mutex_lock(&LOCK_thread_count);
+  I_List_iterator<THD> it(threads);
+  THD* tmp;
+  while ((tmp= it++))
+  {
+    /* ID */
+    if (tmp->thread_id == id)
+    {
+      /* Lock THD mutex that protects its data when looking at it. */
+      mysql_mutex_lock(&tmp->LOCK_thd_data);
+
+      /* INFO */
+      if (tmp->query())
+      {
+        qs = String(tmp->query(), tmp->query_length(), system_charset_info);
+      }
+      mysql_mutex_unlock(&tmp->LOCK_thd_data);
+      break;
+    }
+  }
+  mysql_mutex_unlock(&LOCK_thread_count);
+  return 0;
+}
+
 static int allocate_key_and_col_info ( TABLE_SHARE* table_share, KEY_AND_COL_INFO* kc_info) {
     int error;
     //
@@ -3557,8 +3582,12 @@ static void maybe_do_unique_checks_delay(THD *thd) {
     }
 }
 
+static bool need_read_only(THD *thd) {
+    return opt_readonly || !THDVAR(thd, rpl_check_readonly);
+}        
+
 static bool do_unique_checks(THD *thd, bool do_rpl_event) {
-    if (do_rpl_event && thd->slave_thread && opt_readonly && !THDVAR(thd, rpl_unique_checks))
+    if (do_rpl_event && thd->slave_thread && need_read_only(thd) && !THDVAR(thd, rpl_unique_checks))
         return false;
     else
         return !thd_test_options(thd, OPTION_RELAXED_UNIQUE_CHECKS);
@@ -5378,9 +5407,12 @@ int ha_tokudb::get_next(uchar* buf, int direction, DBT* key_to_compare, bool do_
     }
 
     if (!error) {
-        tokudb_trx_data* trx = (tokudb_trx_data *) thd_get_ha_data(ha_thd(), tokudb_hton);
+        THD *thd = ha_thd();
+        tokudb_trx_data* trx = (tokudb_trx_data *) thd_get_ha_data(thd, tokudb_hton);
         trx->stmt_progress.queried++;
-        track_progress(ha_thd());
+        track_progress(thd);
+        if (thd_killed(thd))
+            error = ER_ABORTING_CONNECTION;
     }
 cleanup:
     return error;
@@ -7253,7 +7285,7 @@ double ha_tokudb::index_only_read_time(uint keynr, double records) {
 //      HA_POS_ERROR - Something is wrong with the index tree
 //
 ha_rows ha_tokudb::records_in_range(uint keynr, key_range* start_key, key_range* end_key) {
-    TOKUDB_HANDLER_DBUG_ENTER("");
+    TOKUDB_HANDLER_DBUG_ENTER("%d %p %p", keynr, start_key, end_key);
     DBT *pleft_key, *pright_key;
     DBT left_key, right_key;
     ha_rows ret_val = HA_TOKUDB_RANGE_COUNT;
@@ -7309,6 +7341,9 @@ ha_rows ha_tokudb::records_in_range(uint keynr, key_range* start_key, key_range*
     ret_val = (ha_rows) (rows <= 1 ? 1 : rows);
 
 cleanup:
+    if (tokudb_debug & TOKUDB_DEBUG_RETURN) {
+        TOKUDB_HANDLER_TRACE("%" PRIu64 " %" PRIu64, (uint64_t) ret_val, rows);
+    }
     DBUG_RETURN(ret_val);
 }
 

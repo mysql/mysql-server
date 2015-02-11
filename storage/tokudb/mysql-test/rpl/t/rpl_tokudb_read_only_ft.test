@@ -1,0 +1,53 @@
+# test replicated write rows log events on a table with a primary key.
+# the slave is read only with tokudb unique checks disabled.
+
+source include/have_tokudb.inc;
+let $engine=tokudb;
+source include/have_binlog_format_row.inc;
+source include/master-slave.inc;
+
+# initialize
+connection master;
+disable_warnings;
+drop table if exists t;
+enable_warnings;
+
+connection slave;
+# show variables like 'read_only';
+# show variables like 'tokudb_rpl_unique_checks%';
+
+# insert some rows
+connection master;
+# select @@binlog_format;
+# select @@autocommit;
+eval create table t (a bigint not null, primary key(a)) engine=$engine;
+# show create table t;
+select unix_timestamp() into @tstart;
+insert into t values (1);
+insert into t values (2),(3);
+insert into t values (4);
+
+sync_slave_with_master;
+# source include/sync_slave_sql_with_master.inc;
+
+connection master;
+select unix_timestamp()-@tstart <= 10; 
+
+connection slave;
+# insert into t values (5); # test read-only
+# show create table t;
+
+# diff tables
+connection master;
+--let $diff_tables= master:test.t, slave:test.t
+source include/diff_tables.inc;
+
+# cleanup
+connection master;
+drop table if exists t;
+
+sync_slave_with_master;
+# source include/sync_slave_sql_with_master.inc;
+
+source include/rpl_end.inc;
+

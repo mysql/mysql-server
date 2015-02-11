@@ -1403,8 +1403,6 @@ static MYSQL_SYSVAR_STR(data_dir, tokudb_data_dir, PLUGIN_VAR_READONLY, "TokuDB 
 
 static MYSQL_SYSVAR_STR(version, tokudb_version, PLUGIN_VAR_READONLY, "TokuDB Version", NULL, NULL, NULL);
 
-static MYSQL_SYSVAR_UINT(init_flags, tokudb_init_flags, PLUGIN_VAR_READONLY, "Sets TokuDB DB_ENV->open flags", NULL, NULL, tokudb_init_flags, 0, ~0U, 0);
-
 static MYSQL_SYSVAR_UINT(write_status_frequency, tokudb_write_status_frequency, 0, "TokuDB frequency that show processlist updates status of writes", NULL, NULL, 1000, 0, ~0U, 0);
 static MYSQL_SYSVAR_UINT(read_status_frequency, tokudb_read_status_frequency, 0, "TokuDB frequency that show processlist updates status of reads", NULL, NULL, 10000, 0, ~0U, 0);
 static MYSQL_SYSVAR_INT(fs_reserve_percent, tokudb_fs_reserve_percent, PLUGIN_VAR_READONLY, "TokuDB file system space reserve (percent free required)", NULL, NULL, 5, 0, 100, 0);
@@ -1441,7 +1439,6 @@ static struct st_mysql_sys_var *tokudb_system_variables[] = {
     MYSQL_SYSVAR(create_index_online),
     MYSQL_SYSVAR(disable_prefetching),
     MYSQL_SYSVAR(version),
-    MYSQL_SYSVAR(init_flags),
     MYSQL_SYSVAR(checkpointing_period),
     MYSQL_SYSVAR(prelock_empty),
     MYSQL_SYSVAR(checkpoint_lock),
@@ -1482,6 +1479,10 @@ static struct st_mysql_sys_var *tokudb_system_variables[] = {
     MYSQL_SYSVAR(rpl_unique_checks_delay),
     MYSQL_SYSVAR(rpl_lookup_rows),
     MYSQL_SYSVAR(rpl_lookup_rows_delay),
+    MYSQL_SYSVAR(rpl_check_readonly),
+    MYSQL_SYSVAR(optimize_index_name),
+    MYSQL_SYSVAR(optimize_index_fraction),
+    MYSQL_SYSVAR(optimize_throttle),
     NULL
 };
 
@@ -1974,6 +1975,33 @@ static int tokudb_fractal_tree_block_map_done(void *p) {
     return 0;
 }
 
+#if TOKU_INCLUDE_LOCK_TIMEOUT_QUERY_STRING
+struct tokudb_search_txn_extra {
+    bool match_found;
+    uint64_t match_txn_id;
+    uint64_t match_client_id;
+};
+
+static int tokudb_search_txn_callback(uint64_t txn_id, uint64_t client_id, iterate_row_locks_callback iterate_locks, void *locks_extra, void *extra) {
+    struct tokudb_search_txn_extra *e = reinterpret_cast<struct tokudb_search_txn_extra *>(extra);
+    if (e->match_txn_id == txn_id) {
+        e->match_found = true;
+        e->match_client_id = client_id;
+        return 1;
+    }
+    return 0;
+}
+
+static bool tokudb_txn_id_to_client_id(THD *thd, uint64_t blocking_txnid, uint64_t *blocking_client_id) {
+    struct tokudb_search_txn_extra e = { false, blocking_txnid, 0};
+    (void) db_env->iterate_live_transactions(db_env, tokudb_search_txn_callback, &e);
+    if (e.match_found) {
+        *blocking_client_id = e.match_client_id;
+    }
+    return e.match_found;
+}
+#endif
+
 static void tokudb_pretty_key(const DB *db, const DBT *key, const char *default_key, String *out) {
     if (key->data == NULL) {
         out->append(default_key);
@@ -2023,8 +2051,9 @@ static void tokudb_lock_timeout_callback(DB *db, uint64_t requesting_txnid, cons
         // generate a JSON document with the lock timeout info
         String log_str;
         log_str.append("{");
+        uint64_t mysql_thread_id = thd->thread_id;
         log_str.append("\"mysql_thread_id\":");
-        log_str.append_ulonglong(thd->thread_id);
+        log_str.append_ulonglong(mysql_thread_id);
         log_str.append(", \"dbname\":");
         log_str.append("\""); log_str.append(tokudb_get_index_name(db)); log_str.append("\"");
         log_str.append(", \"requesting_txnid\":");
@@ -2064,7 +2093,18 @@ static void tokudb_lock_timeout_callback(DB *db, uint64_t requesting_txnid, cons
         }
         // dump to stderr
         if (lock_timeout_debug & 2) {
-            sql_print_error("%s: %s", tokudb_hton_name, log_str.c_ptr());
+            sql_print_error("%s: lock timeout %s", tokudb_hton_name, log_str.c_ptr());
+            LEX_STRING *qs = thd_query_string(thd);
+            sql_print_error("%s: requesting_thread_id:%" PRIu64 " q:%.*s", tokudb_hton_name, mysql_thread_id, (int) qs->length, qs->str);
+#if TOKU_INCLUDE_LOCK_TIMEOUT_QUERY_STRING
+            uint64_t blocking_thread_id = 0;
+            if (tokudb_txn_id_to_client_id(thd, blocking_txnid, &blocking_thread_id)) {
+                String blocking_qs;
+                if (get_thread_query_string(blocking_thread_id, blocking_qs) == 0) {
+                    sql_print_error("%s: blocking_thread_id:%" PRIu64 " q:%.*s", tokudb_hton_name, blocking_thread_id, blocking_qs.length(), blocking_qs.c_ptr());
+                }
+            }
+#endif
         }
     }
 }

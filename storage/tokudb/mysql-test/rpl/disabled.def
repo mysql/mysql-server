@@ -10,3 +10,6 @@ rpl_tokudb_write_pk: unreliable, uses timestamp differences
 rpl_tokudb_write_pk_uc1: unreliable, uses timestamp differences
 rpl_tokudb_write_unique: unreliable, uses timestamp differences
 rpl_tokudb_write_unique_uc1: unreliable, uses timestamp differences
+rpl_tokudb_read_only_ff: unreliable, uses timestamp differences
+rpl_tokudb_read_only_tf: unreliable, uses timestamp differences
+rpl_tokudb_read_only_tt: unreliable, uses timestamp differences
