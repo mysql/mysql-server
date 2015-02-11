@@ -2699,9 +2699,13 @@ void Relay_log_info::relay_log_number_to_name(uint number,
                                               char name[FN_REFLEN+1])
 {
   char *str= NULL;
+  char relay_bin_channel[FN_REFLEN+1];
+  const char *relay_log_basename_channel=
+    add_channel_to_relay_log_name(relay_bin_channel, FN_REFLEN+1,
+                                  relay_log_basename);
 
-  /* str points to closing null relay log basename */
-  str= strmake(name, relay_log_basename, FN_REFLEN+1);
+  /* str points to closing null of relay log basename channel */
+  str= strmake(name, relay_log_basename_channel, FN_REFLEN+1);
   *str++= '.';
   sprintf(str, "%06u", number);
 }
