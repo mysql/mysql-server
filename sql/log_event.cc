@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3422,26 +3422,23 @@ bool Query_log_event::write(IO_CACHE* file)
       }
     }
 
-    if (user.length > 0)
-    {
-      *start++= Q_INVOKER;
+    *start++= Q_INVOKER;
 
-      /*
-        Store user length and user. The max length of use is 16, so 1 byte is
-        enough to store the user's length.
-       */
-      *start++= (uchar)user.length;
-      memcpy(start, user.str, user.length);
-      start+= user.length;
+    /*
+      Store user length and user. The max length of use is 16, so 1 byte is
+      enough to store the user's length.
+     */
+    *start++= (uchar)user.length;
+    memcpy(start, user.str, user.length);
+    start+= user.length;
 
-      /*
-        Store host length and host. The max length of host is 60, so 1 byte is
-        enough to store the host's length.
-       */
-      *start++= (uchar)host.length;
-      memcpy(start, host.str, host.length);
-      start+= host.length;
-    }
+    /*
+      Store host length and host. The max length of host is 60, so 1 byte is
+      enough to store the host's length.
+     */
+    *start++= (uchar)host.length;
+    memcpy(start, host.str, host.length);
+    start+= host.length;
   }
 
   if (thd && thd->get_binlog_accessed_db_names() != NULL)
@@ -4093,12 +4090,16 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
       user.length= *pos++;
       CHECK_SPACE(pos, end, user.length);
       user.str= (char *)pos;
+      if (user.length == 0)
+        user.str= (char *)"";
       pos+= user.length;
 
       CHECK_SPACE(pos, end, 1);
       host.length= *pos++;
       CHECK_SPACE(pos, end, host.length);
       host.str= (char *)pos;
+      if (host.length == 0)
+        host.str= (char *)"";
       pos+= host.length;
       break;
     }
