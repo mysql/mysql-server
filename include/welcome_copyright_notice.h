@@ -1,5 +1,5 @@
-/* Copyright (c) 2011, 2014, Oracle and/or its affiliates.
-   Copyright (c) 2011, 2012, Monty Program Ab
+/* Copyright (c) 2011, 2015, Oracle and/or its affiliates.
+   Copyright (c) 2011, 2015, MariaDB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
 #ifndef _welcome_copyright_notice_h_
 #define _welcome_copyright_notice_h_
 
-#define COPYRIGHT_NOTICE_CURRENT_YEAR "2014"
+#define COPYRIGHT_NOTICE_CURRENT_YEAR "2015"
 
 /*
   This define specifies copyright notice which is displayed by every MySQL

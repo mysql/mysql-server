@@ -1,5 +1,5 @@
 /* Copyright (c) 2000, 2014, Oracle and/or its affiliates.
-   Copyright (c) 2009, 2014, Monty Program Ab.
+   Copyright (c) 2009, 2015, MariaDB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3659,8 +3659,12 @@ bool udf_handler::get_arguments()
 	{
 	  f_args.args[i]=    (char*) res->ptr();
 	  f_args.lengths[i]= res->length();
-	  break;
 	}
+	else
+	{
+	  f_args.lengths[i]= 0;
+	}
+	break;
       }
     case INT_RESULT:
       *((longlong*) to) = args[i]->val_int();

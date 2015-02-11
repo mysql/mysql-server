@@ -4910,7 +4910,7 @@ Opened_views	3
 show status like 'Opened_table%';
 Variable_name	Value
 Opened_table_definitions	2
-Opened_tables	3
+Opened_tables	2
 #
 # MDEV-486 LP BUG#1010116 Incorrect query results in
 # view and derived tables

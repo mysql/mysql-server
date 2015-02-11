@@ -1,4 +1,4 @@
-# Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -23,11 +23,14 @@
 # If further variables are used in this file, add them to this list.
 
 SET(VERSION "@VERSION@")
+SET(MAJOR_VERSION "@MAJOR_VERSION@")
+SET(MINOR_VERSION "@MINOR_VERSION@")
+SET(PATCH_VERSION "@PATCH_VERSION@")
 SET(CMAKE_SOURCE_DIR "@CMAKE_SOURCE_DIR@")
 SET(CMAKE_BINARY_DIR "@CMAKE_BINARY_DIR@")
 SET(CMAKE_GENERATOR "@CMAKE_GENERATOR@")
 SET(CMAKE_SIZEOF_VOID_P "@CMAKE_SIZEOF_VOID_P@")
-SET(BZR_EXECUTABLE "@BZR_EXECUTABLE@")
+SET(GIT_EXECUTABLE "@GIT_EXECUTABLE@")
 SET(CMAKE_CROSSCOMPILING "@CMAKE_CROSSCOMPILING@")
 SET(CMAKE_HOST_SYSTEM "@CMAKE_HOST_SYSTEM@")
 SET(CMAKE_HOST_SYSTEM_PROCESSOR "@CMAKE_HOST_SYSTEM_PROCESSOR@")
@@ -36,27 +39,51 @@ SET(CMAKE_SYSTEM_PROCESSOR "@CMAKE_SYSTEM_PROCESSOR@")
  
  
 # Create an "INFO_SRC" file with information about the source (only).
-# We use "bzr version-info", if possible, and the "VERSION" contents.
+# We use "git log", if possible, and the "VERSION" contents.
 #
-# Outside development (BZR tree), the "INFO_SRC" file will not be modified
+# Outside development (git tree), the "INFO_SRC" file will not be modified
 # provided it exists (from "make dist" or a source tarball creation).
 
 MACRO(CREATE_INFO_SRC target_dir)
   SET(INFO_SRC "${target_dir}/INFO_SRC")
 
-  IF(EXISTS ${CMAKE_SOURCE_DIR}/.bzr)
-    # Sources are in a BZR repository: Always update.
+  SET(PERLSCRIPT
+    "use warnings; use POSIX qw(strftime); "
+    "print strftime \"%F %T %z\", localtime;")
+  EXECUTE_PROCESS(
+    COMMAND perl -e "${PERLSCRIPT}"
+    RESULT_VARIABLE result
+    OUTPUT_VARIABLE bdate
+    ERROR_VARIABLE error
+  )
+  IF(error)
+    MESSAGE(STATUS "Could not determine build-date: <${error}>")
+  ENDIF()
+
+  IF(GIT_EXECUTABLE AND EXISTS ${CMAKE_SOURCE_DIR}/.git)
+    # Sources are in a GIT repository: Always update.
     EXECUTE_PROCESS(
-      COMMAND ${BZR_EXECUTABLE} version-info ${CMAKE_SOURCE_DIR}
-      OUTPUT_VARIABLE VERSION_INFO
-      RESULT_VARIABLE RESULT
+      COMMAND ${GIT_EXECUTABLE} rev-parse --abbrev-ref HEAD
+      WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+      OUTPUT_VARIABLE bname
     )
+
+    EXECUTE_PROCESS(
+      COMMAND ${GIT_EXECUTABLE} log -1
+      --pretty="commit: %H%ndate: %ci%nbuild-date: ${bdate} %nshort: %h%nbranch: ${bname}"
+      WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+      OUTPUT_VARIABLE VERSION_INFO
+    )
+
+    ## Output from git is quoted with "", remove them.
+    STRING(REPLACE "\"" "" VERSION_INFO "${VERSION_INFO}")
     FILE(WRITE ${INFO_SRC} "${VERSION_INFO}\n")
     # to debug, add: FILE(APPEND ${INFO_SRC} "\nResult ${RESULT}\n")
     # For better readability ...
-    FILE(APPEND ${INFO_SRC} "\nMySQL source ${VERSION}\n")
+    FILE(APPEND ${INFO_SRC}
+      "MySQL source ${MAJOR_VERSION}.${MINOR_VERSION}.${PATCH_VERSION}\n")
   ELSEIF(EXISTS ${INFO_SRC})
-    # Outside a BZR tree, there is no need to change an existing "INFO_SRC",
+    # Outside a git tree, there is no need to change an existing "INFO_SRC",
     # it cannot be improved.
   ELSEIF(EXISTS ${CMAKE_SOURCE_DIR}/Docs/INFO_SRC)
     # If we are building from a source distribution, it also contains "INFO_SRC".

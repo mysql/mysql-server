@@ -50,8 +50,8 @@ Usage: $0 [OPTIONS]
                        Read this file after the global files are read.
   --defaults-file=name Only read default options from the given file name.
   --force              Causes mysql_install_db to run even if DNS does not
-                       work.  In that case, grant table entries that normally
-                       use hostnames will use IP addresses.
+                       work.  In that case, grant table entries that
+                       normally use hostnames will use IP addresses.
   --help               Display this help and exit.                     
   --ldata=path         The path to the MariaDB data directory. Same as
                        --datadir.

@@ -36,7 +36,7 @@ if ($dir_bin eq '/usr/') {
   # Slackware
   $dir_docs = glob "$dir_bin/doc/mariadb-[0-9]*" unless -d $dir_docs;
 } else {
-  # tar.gz package, Windows, or developer work (in BZR)
+  # tar.gz package, Windows, or developer work (in git)
   $dir_docs = $dir_bin;
   if(-d "$dir_docs/docs") {
     $dir_docs = "$dir_docs/docs"; # package
@@ -49,7 +49,7 @@ $found_revision = "No line 'revision-id: .....'";
 open(I_SRC,"<","$dir_docs/INFO_SRC") or print "Cannot open 'INFO_SRC' in '$dir_docs' (starting from bindir '$dir_bin')\n";
 while(defined ($line = <I_SRC>)) {
   if ($line =~ m|^MySQL source \d\.\d\.\d+|) {$found_version = "Found MySQL version number";}
-  if ($line =~ m|^revision-id: .*@.*-2\d{13}-\w+$|) {$found_revision = "Found BZR revision id";}
+  if ($line =~ m|^commit: \w{40}$|) {$found_revision = "Found GIT revision id";}
 }
 close I_SRC;
 print "INFO_SRC: $found_version / $found_revision\n";

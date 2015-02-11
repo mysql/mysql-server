@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2013, Oracle and/or its affiliates.
+/* Copyright (c) 2004, 2014, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -1679,9 +1679,9 @@ int ha_federated::close(void)
   DBUG_ENTER("ha_federated::close");
 
   free_result();
-  
+
   delete_dynamic(&results);
-  
+
   /* Disconnect from mysql */
   mysql_close(mysql);
   mysql= NULL;

@@ -131,9 +131,10 @@ struct func_args {
     int    argc;
     char** argv;
     int    return_code;
+    const char* file_ready;
     tcp_ready* signal_;
 
-    func_args(int c = 0, char** v = 0) : argc(c), argv(v) {}
+    func_args(int c = 0, char** v = 0) : argc(c), argv(v), file_ready(0) {}
 
     void SetSignal(tcp_ready* p) { signal_ = p; }
 };
@@ -146,6 +147,7 @@ void join_thread(THREAD_TYPE);
 // yaSSL
 const char* const    yasslIP      = "127.0.0.1";
 const unsigned short yasslPort    =  11111;
+const unsigned short proxyPort    =  12345;
 
 
 // client
@@ -172,13 +174,13 @@ const char* const svrKey3  = "../../../certs/server-key.pem";
 
 // server dsa
 const char* const dsaCert = "../certs/dsa-cert.pem";
-const char* const dsaKey  = "../certs/dsa512.der";
+const char* const dsaKey  = "../certs/dsa1024.der";
 
 const char* const dsaCert2 = "../../certs/dsa-cert.pem";
-const char* const dsaKey2  = "../../certs/dsa512.der";
+const char* const dsaKey2  = "../../certs/dsa1024.der";
 
 const char* const dsaCert3 = "../../../certs/dsa-cert.pem";
-const char* const dsaKey3  = "../../../certs/dsa512.der";
+const char* const dsaKey3  = "../../../certs/dsa1024.der";
 
 
 // CA 
@@ -222,6 +224,13 @@ inline void store_ca(SSL_CTX* ctx)
         if (SSL_CTX_load_verify_locations(ctx, certSuite, 0) != SSL_SUCCESS)
             if (SSL_CTX_load_verify_locations(ctx, certDebug,0) != SSL_SUCCESS)
                 err_sys("failed to use certificate: certs/client-cert.pem");
+
+    // DSA cert 
+    if (SSL_CTX_load_verify_locations(ctx, dsaCert, 0) != SSL_SUCCESS)
+        if (SSL_CTX_load_verify_locations(ctx, dsaCert2, 0) != SSL_SUCCESS)
+            if (SSL_CTX_load_verify_locations(ctx, dsaCert3, 0) != SSL_SUCCESS)
+                err_sys("failed to use certificate: certs/dsa-cert.pem");
+
 }
 
 
@@ -298,7 +307,7 @@ inline void set_dsaServerCerts(SSL_CTX* ctx)
             != SSL_SUCCESS) 
                 if (SSL_CTX_use_PrivateKey_file(ctx, dsaKey3,SSL_FILETYPE_ASN1)
                     != SSL_SUCCESS) 
-                    err_sys("failed to use key file: certs/dsa512.der");
+                    err_sys("failed to use key file: certs/dsa1024.der");
 }
 
 
@@ -307,6 +316,12 @@ inline void set_args(int& argc, char**& argv, func_args& args)
     argc = args.argc;
     argv = args.argv;
     args.return_code = -1; // error state
+}
+
+
+inline void set_file_ready(const char* name, func_args& args)
+{
+    args.file_ready = name;
 }
 
 
@@ -349,7 +364,11 @@ inline void tcp_socket(SOCKET_T& sockfd, SOCKADDR_IN_T& addr)
         */   // end external testing later
 #else
     addr.sin_family = AF_INET_V;
+#ifdef YASSL_PROXY_PORT
+    addr.sin_port = htons(proxyPort);
+#else
     addr.sin_port = htons(yasslPort);
+#endif
     addr.sin_addr.s_addr = inet_addr(yasslIP);
 #endif
 
@@ -401,6 +420,16 @@ inline void tcp_listen(SOCKET_T& sockfd)
 }
 
 
+inline void create_ready_file(func_args& args)
+{
+    FILE* f = fopen(args.file_ready, "w+");
+
+    if (f) {
+        fputs("ready", f);
+        fclose(f);
+    }
+}
+
 
 inline void tcp_accept(SOCKET_T& sockfd, SOCKET_T& clientfd, func_args& args)
 {
@@ -417,6 +446,9 @@ inline void tcp_accept(SOCKET_T& sockfd, SOCKET_T& clientfd, func_args& args)
     pthread_cond_signal(&ready.cond_);
     pthread_mutex_unlock(&ready.mutex_);
 #endif
+
+    if (args.file_ready)
+        create_ready_file(args);
 
     clientfd = accept(sockfd, (sockaddr*)&client, (ACCEPT_THIRD_T)&client_len);
 
