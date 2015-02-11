@@ -302,6 +302,8 @@ Event_worker_thread::run(THD *thd, Event_queue_element_for_exec *event)
   bool res;
 
   DBUG_ASSERT(thd->m_digest == NULL);
+  DBUG_ASSERT(thd->m_statement_psi == NULL);
+
 
   thd->thread_stack= &my_stack;                // remember where our stack is
   res= post_init_event_thread(thd);
@@ -331,6 +333,7 @@ Event_worker_thread::run(THD *thd, Event_queue_element_for_exec *event)
                           job_data.definer.str,
                           job_data.dbname.str, job_data.name.str);
 end:
+  DBUG_ASSERT(thd->m_statement_psi == NULL);
   DBUG_ASSERT(thd->m_digest == NULL);
 
   DBUG_PRINT("info", ("Done with Event %s.%s", event->dbname.str,

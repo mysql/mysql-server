@@ -642,9 +642,8 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
     if (thd->locked_tables_mode <= LTM_LOCK_TABLES)
       thd->user_var_events_alloc= thd->mem_root;
 
-    sql_digest_state digest_state;
     sql_digest_state *parent_digest= thd->m_digest;
-    thd->m_digest= & digest_state;
+    thd->m_digest= NULL;
 
     err_status= i->execute(thd, &ip);
 
