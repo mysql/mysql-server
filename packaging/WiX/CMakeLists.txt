@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -30,42 +30,6 @@ IF(NOT WIX_DIR)
 ENDIF()
 
 ADD_SUBDIRECTORY(ca)
-
-# mysql_server_extra.wxs.in needs DATADIR_MYSQL_FILES and DATADIR_PERFORMANCE_SCHEMA_FILES, i.e
-# Wix-compatible file lists for ${builddir}\sql\data\{mysql,performance_schema}
-
-FOREACH(dir mysql performance_schema)
- FILE(GLOB files ${CMAKE_BINARY_DIR}/sql/data/${dir}/*)
- SET(filelist)
- FOREACH(f ${files})
-   IF(NOT f MATCHES ".rule")
-   FILE(TO_NATIVE_PATH "${f}" file_native_path)
-   GET_FILENAME_COMPONENT(file_name "${f}" NAME)
-   SET(filelist 
-"${filelist}
-<File Id='${file_name}' Source='${file_native_path}'/>")
-   ENDIF()
- ENDFOREACH()
- STRING(TOUPPER ${dir} DIR_UPPER)
- SET(DATADIR_${DIR_UPPER}_FILES "${filelist}")
-ENDFOREACH()
-
-FILE(GLOB files ${CMAKE_BINARY_DIR}/sql/data/*)
-SET(filelist)
-FOREACH(f ${files})
-  IF(IS_DIRECTORY "${f}")
-  ELSE()
-    IF(NOT (f MATCHES ".rule" OR f MATCHES "bootstrap.sql"))
-      FILE(TO_NATIVE_PATH "${f}" file_native_path)
-      GET_FILENAME_COMPONENT(file_name "${f}" NAME)
-      SET(filelist 
-"${filelist}
-<File Id='${file_name}' Source='${file_native_path}'/>")
-    ENDIF()
-  ENDIF()
-ENDFOREACH()
-SET(DATADIR_FILES "${filelist}")
-
 
 FIND_PROGRAM(HEAT_EXECUTABLE heat ${WIX_DIR})
 FIND_PROGRAM(CANDLE_EXECUTABLE candle ${WIX_DIR})
