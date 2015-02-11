@@ -1981,18 +1981,11 @@ let $message= Testcase 3.3.1.49A ;
 #    --> The WHERE qualifications of all nested VIEWs have to be fulfilled.
 #        The CHECK OPTIONS of underlying VIEWs have no effect.
 # 2. Top VIEW   WITH LOCAL CHECK OPTION
-#    --> Only the WHERE qualification of this VIEW has to be fulfilled.
-#        The CHECK OPTIONS of underlying VIEWs have no effect.
+#    --> The WHERE qualification of this VIEW has to be fulfilled.
+#        The CHECK OPTIONS of underlying VIEWs have effect.
 # 3. Top VIEW   without any CHECK OPTION
-#    --> The WHERE qualifications of all nested VIEWs need not to be fulfilled.
-#        The CHECK OPTIONS of underlying VIEWs have no effect.
-#
-# v3        | v2        | v1        | Qualifications to be checked
-# ------------------------------------------------------------------------
-# CASCADED  | <any>     | <any>     | qual_v3 + qual_v2 + qual_v3
-# <default> | <any>     | <any>     | qual_v3 + qual_v2 + qual_v3
-# LOCAL     | <any>     | <any>     | qual_v3
-# <without> | <any>     | <any>     |
+#    --> The WHERE qualification of this VIEW need not be fulfilled.
+#        The CHECK OPTIONS of underlying VIEWs have effect.
 #
 # Note: The CHECK OPTION does not influence the retrieval of rows
 #       (SELECT/DELETE/UPDATE). All WHERE qualifications will be applied
@@ -2051,8 +2044,11 @@ while ($num1)
       eval SET @v3_part= @part$num3;
       let $aux= `SELECT CONCAT('CREATE VIEW v3 (my_col1,my_col2) AS SELECT *
       FROM v2 WHERE col1 MOD 2 = 0 ', @v3_part)` ;
+      --enable_query_log
       eval $aux ;
+      --disable_query_log
       --vertical_results
+      # Present CHECK OPTION clauses from v3 to v1:
       SELECT CONCAT(IF(@v3_part = '','        <nothing>         ',
                                      @v3_part), ' - ',
                     IF(@v2_part = '','        <nothing>         ',
@@ -2262,38 +2258,36 @@ while ($num1)
 SELECT * FROM t1_results ORDER BY v3_to_v1_options, statement, v3_to_v1_violation, errno;
 
 let $message=
-Plausibility checks for INSERTs and UPDATEs ( 4. and 5. above).
-All following SELECTs must give ROW NOT FOUND ;
+Plausibility checks for INSERTs and UPDATEs ( 4. and 5. above). ;
 --source include/show_msg80.inc
 
 # Plausibility checks for INSERTs and UPDATEs ( 4. and 5. above):
 # 1. There must be NO denied INSERT/UPDATE, when no WHERE qualification
-#    is violated. Expect ROW NOT FUND
-SELECT * FROM t1_results
+#    is violated. Expect ROW NOT FOUND
+SELECT COUNT(*) FROM t1_results
 WHERE v3_to_v1_violation = '  _  _  ' AND errno <> 0
 ORDER BY v3_to_v1_options;
-# 2. There must be NO denied INSERT/UPDATE, when the toplevel VIEW v3 is
-#    defined without any CHECK OPTION. Expect ROW NOT FUND
-SELECT * FROM t1_results
+# 2. There must be denied INSERT/UPDATE, if any CHECK OPTION is violated.
+SELECT COUNT(*) FROM t1_results
 WHERE v3_to_v1_options LIKE '  %' AND errno <> 0
 ORDER BY v3_to_v1_options;
 # 3. There must be NO successful INSERT/UPDATE, when the toplevel VIEW v3 is
 #    defined with any CHECK OPTION and the WHERE qualification of this VIEW is
-#    violated. Expect ROW NOT FUND
-SELECT * FROM t1_results
+#    violated. Expect ROW NOT FOUND
+SELECT COUNT(*) FROM t1_results
 WHERE v3_to_v1_options LIKE 'WITH %'
   AND v3_to_v1_violation LIKE 'v3_%' AND errno = 0
 ORDER BY v3_to_v1_options;
 # 4. There must be NO successful INSERT/UPDATE, when the toplevel VIEW v3 is
-#    defined with any CHECK OPTION and the CHECK OPTION does not contain LOCAL
-#    and the WHERE qualification of any VIEW is violated. Expect ROW NOT FUND
-SELECT * FROM t1_results
+#    defined with any CHECK OPTION and the CHECK OPTION of any VIEW is
+#    violated. Expect ROW NOT FOUND
+SELECT COUNT(*) FROM t1_results
 WHERE v3_to_v1_options LIKE 'WITH %' AND v3_to_v1_options NOT LIKE 'WITH LOCAL %'
   AND v3_to_v1_violation NOT LIKE '  _  _  ' AND errno = 0
 ORDER BY v3_to_v1_options;
 # 5. There must be NO failing INSERT/UPDATE getting a
 #    sql_errno <> 1369 (ER_VIEW_CHECK_FAILED).
-SELECT * FROM t1_results
+SELECT COUNT(*) FROM t1_results
 WHERE errno <> 0 AND errno <> 1369
 ORDER BY v3_to_v1_options;
 let $message= End of plausibility checks;
