@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2213,6 +2213,7 @@ runBug54986(NDBT_Context* ctx, NDBT_Step* step)
   NdbDictionary::Dictionary* pDict = pNdb->getDictionary();
   const NdbDictionary::Table * pTab = ctx->getTab();
   NdbDictionary::Table copy = *pTab;
+  int result = NDBT_OK;
 
   BaseString name;
   name.assfmt("%s_COPY", copy.getName());
@@ -2249,39 +2250,40 @@ runBug54986(NDBT_Context* ctx, NDBT_Step* step)
     ndb_mgm_destroy_logevent_handle(&handle);
   }
 
-  for (int i = 0; i<5; i++)
+  for (int i = 0; i<500; i++)
   {
     int val1 = DumpStateOrd::DihMaxTimeBetweenLCP;
     int val2 = 7099; // Force start
 
-    restarter.dumpStateAllNodes(&val1, 1);
+    CHK1(restarter.dumpStateAllNodes(&val1, 1) == 0);
     int val[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
-    restarter.dumpStateAllNodes(val, 2);
+    CHK1(restarter.dumpStateAllNodes(val, 2) == 0);
 
-    restarter.insertErrorInAllNodes(932); // prevent arbit shutdown
+    CHK1(restarter.insertErrorInAllNodes(932) ==0); // prevent arbit shutdown
 
     HugoTransactions hugoTrans(*pTab);
-    hugoTrans.loadTable(pNdb, 20);
+    CHK1(hugoTrans.loadTable(pNdb, 20) == 0);
 
-    restarter.dumpStateAllNodes(&val2, 1);
+    CHK1(restarter.dumpStateAllNodes(&val2, 1) == 0);
 
     NdbSleep_SecSleep(15);
-    hugoTrans.clearTable(pNdb);
+    CHK1(hugoTrans.clearTable(pNdb) == 0);
 
-    hugoTransCopy.pkReadRecords(pNdb, rows);
+    CHK1(hugoTransCopy.pkReadRecords(pNdb, rows) == 0);
 
     HugoOperations hugoOps(*pTab);
-    hugoOps.startTransaction(pNdb);
-    hugoOps.pkInsertRecord(pNdb, 1);
-    hugoOps.execute_NoCommit(pNdb);
+    CHK1(hugoOps.startTransaction(pNdb) == 0);
+    CHK1(hugoOps.pkInsertRecord(pNdb, 1) == 0);
+    CHK1(hugoOps.execute_NoCommit(pNdb) == 0);
 
-    restarter.insertErrorInAllNodes(5056);
-    restarter.dumpStateAllNodes(&val2, 1);
-    restarter.waitClusterNoStart();
+    CHK1(restarter.insertErrorInAllNodes(5056) == 0);
+    CHK1(restarter.dumpStateAllNodes(&val2, 1) == 0);
+    CHK1(restarter.waitClusterNoStart() == 0);
     int vall = 11009;
-    restarter.dumpStateAllNodes(&vall, 1);
-    restarter.startAll();
-    restarter.waitClusterStarted();
+    CHK1(restarter.dumpStateAllNodes(&vall, 1) == 0);
+    CHK1(restarter.startAll() == 0);
+    CHK1(restarter.waitClusterStarted() == 0);
+    CHK1(hugoOps.closeTransaction(pNdb) == 0);
   }
 
   pDict->dropTable(copy.getName());
@@ -2291,7 +2293,7 @@ runBug54986(NDBT_Context* ctx, NDBT_Step* step)
   restarter.waitClusterNoStart();
   restarter.startAll();
   restarter.waitClusterStarted();
-  return NDBT_OK;
+  return result;
 }
 
 int
