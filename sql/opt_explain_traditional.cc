@@ -61,7 +61,7 @@ static const char *mod_type_name[]=
   "NONE", "INSERT", "UPDATE", "DELETE", "REPLACE"
 };
 
-bool Explain_format_traditional::send_headers(select_result *result)
+bool Explain_format_traditional::send_headers(Query_result *result)
 {
   return ((nil= new Item_null) == NULL ||
           Explain_format::send_headers(result) ||
