@@ -4186,7 +4186,7 @@ static ST_FIELD_INFO	i_s_innodb_temp_table_info_fields_info[] =
 
 #define IDX_TEMP_TABLE_PTT		4
 	{STRUCT_FLD(field_name,		"PER_TABLE_TABLESPACE"),
-	 STRUCT_FLD(field_length,	64),
+	 STRUCT_FLD(field_length,	NAME_CHAR_LEN),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
 	 STRUCT_FLD(value,		0),
 	 STRUCT_FLD(field_flags,	MY_I_S_MAYBE_NULL),
@@ -4195,7 +4195,7 @@ static ST_FIELD_INFO	i_s_innodb_temp_table_info_fields_info[] =
 
 #define IDX_TEMP_TABLE_IS_COMPRESSED	5
 	{STRUCT_FLD(field_name,		"IS_COMPRESSED"),
-	 STRUCT_FLD(field_length,	64),
+	 STRUCT_FLD(field_length,	NAME_CHAR_LEN),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
 	 STRUCT_FLD(value,		0),
 	 STRUCT_FLD(field_flags,	MY_I_S_MAYBE_NULL),
@@ -4206,11 +4206,11 @@ static ST_FIELD_INFO	i_s_innodb_temp_table_info_fields_info[] =
 
 struct temp_table_info_t{
 	table_id_t	m_table_id;
-	char		m_table_name[MAX_TABLE_UTF8_LEN];
+	char		m_table_name[NAME_LEN + 1];
 	unsigned	m_n_cols;
 	unsigned	m_space_id;
-	char		m_per_table_tablespace[64];
-	char		m_is_compressed[64];
+	char		m_per_table_tablespace[NAME_LEN + 1];
+	char		m_is_compressed[NAME_LEN + 1];
 };
 
 typedef std::vector<temp_table_info_t, ut_allocator<temp_table_info_t> >
