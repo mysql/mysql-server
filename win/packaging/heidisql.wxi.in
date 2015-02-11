@@ -23,9 +23,10 @@
       uninstallation. We use RemoveFile to force delete in any case.
     -->
     <RemoveFile Id="Remove_HeidiSQL_exe" Name="heidisql.exe" On="uninstall" />
+    <!-- remove readme.txt too, it's not included in HeidiSQL-9.1-Portable.zip -->
+    <RemoveFile Id="Remove_readme_txt" Name="readme.txt" On="uninstall" />
 
     <File Id="heidisql.license.txt" Name="license.txt" Source="${HEIDISQL_DOWNLOAD_DIR}\license.txt" />
-    <File Id="heidisql.readme.txt" Name="readme.txt" Source="${HEIDISQL_DOWNLOAD_DIR}\readme.txt" />
     </Component>
     <Component Id="component.HeidiSQL_MenuShortcut" Guid="*" Win64="no">
       <RegistryValue  Root="HKCU" Key="Software\@CPACK_WIX_PACKAGE_NAME@\Uninstall" Name="shortcuts.heidisql" Value="1" Type="string" KeyPath="yes"  />
@@ -34,6 +35,26 @@
     <Component Id="component.HeidiSQL_libmysql.dll" Guid="*" Win64="no">
       <File Id="heidisql.libmysql.dll" Name="libmysql.dll" Source="${HEIDISQL_DOWNLOAD_DIR}\libmysql.dll" />
     </Component>
+
+    <Component Id="component.HeidiSQL_libeay32.dll" Guid="*" Win64="no">
+      <File Id="heidisql.libeay32.dll" Name="libeay32.dll" Source="${HEIDISQL_DOWNLOAD_DIR}\libeay32.dll" />
+    </Component>
+    <Component Id="component.HeidiSQL_libpq.dll" Guid="*" Win64="no">
+      <File Id="heidisql.libpq.dll" Name="libpq.dll" Source="${HEIDISQL_DOWNLOAD_DIR}\libpq.dll" />
+    </Component>
+    <Component Id="component.HeidiSQL_ssleay32.dll" Guid="*" Win64="no">
+      <File Id="heidisql.ssleay32.dll" Name="ssleay32.dll" Source="${HEIDISQL_DOWNLOAD_DIR}\ssleay32.dll" />
+    </Component>
+    <Component Id="component.HeidiSQL_libintl.dll" Guid="*" Win64="no">
+      <File Id="heidisql.libintl.dll" Name="libintl.dll" Source="${HEIDISQL_DOWNLOAD_DIR}\libintl.dll" />
+    </Component>
+
+    <Directory Id="D.HeidiSQL.plugins" Name="plugins">
+      <Component Id="component.HeidiSQL_dialog.dll" Guid="*" Win64="no">
+        <File Id="heidisql.dialog.dll" Name="dialog.dll" Source="${HEIDISQL_DOWNLOAD_DIR}\plugins\dialog.dll" />
+      </Component>
+    </Directory>
+
     <Component Id="component.HeidiSQL_CleanupSettings" Guid="*" Win64="no">
      <Condition>HEIDISQLINSTALLED</Condition>
      <RegistryValue  Root="HKCU" Key="Software\@CPACK_WIX_PACKAGE_NAME@\UninstallCleanupHeidiSQLSettings" Name="cleanup.heidisql" Value="1" Type="string" KeyPath="yes"  />
@@ -46,6 +67,11 @@
   <ComponentRef Id="component.HeidiSQL"/>
   <ComponentRef Id="component.HeidiSQL_MenuShortcut"/>
   <ComponentRef Id="component.HeidiSQL_libmysql.dll"/>
+  <ComponentRef Id="component.HeidiSQL_libeay32.dll" />
+  <ComponentRef Id="component.HeidiSQL_libpq.dll" />
+  <ComponentRef Id="component.HeidiSQL_ssleay32.dll" />
+  <ComponentRef Id="component.HeidiSQL_libintl.dll" />
+  <ComponentRef Id="component.HeidiSQL_dialog.dll" />
   <ComponentRef Id="component.HeidiSQL_CleanupSettings"/>
 </ComponentGroup>
 </Include>
