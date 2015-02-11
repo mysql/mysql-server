@@ -65,7 +65,7 @@ class sys_var;
 class Item_func_match;
 class File_parser;
 class Key_part_spec;
-class select_result_interceptor;
+class Query_result_interceptor;
 class Item_func;
 class Sql_cmd;
 struct sql_digest_state;
@@ -498,9 +498,9 @@ public:
 
 struct LEX;
 class THD;
-class select_result;
+class Query_result;
 class JOIN;
-class select_union;
+class Query_result_union;
 
 /**
   This class represents a query expression (one query block or
@@ -537,10 +537,10 @@ private:
   bool executed; ///< Query expression has been executed
 
   TABLE_LIST result_table_list;
-  select_union *union_result;
+  Query_result_union *union_result;
   TABLE *table; /* temporary table using for appending UNION results */
 
-  select_result *m_query_result;
+  Query_result *m_query_result;
 
 public:
   /**
@@ -627,10 +627,10 @@ public:
 
   st_select_lex_unit* next_unit() const { return next; }
 
-  select_result *query_result() const { return m_query_result; }
-  void set_query_result(select_result *res) { m_query_result= res; }
+  Query_result *query_result() const { return m_query_result; }
+  void set_query_result(Query_result *res) { m_query_result= res; }
   /* UNION methods */
-  bool prepare(THD *thd, select_result *result, ulonglong added_options,
+  bool prepare(THD *thd, Query_result *result, ulonglong added_options,
                ulonglong removed_options);
   bool optimize(THD *thd);
   bool execute(THD *thd);
@@ -651,8 +651,8 @@ public:
   bool is_prepared() const { return prepared; }
   bool is_optimized() const { return optimized; }
   bool is_executed() const { return executed; }
-  bool change_query_result(select_result_interceptor *result,
-                           select_result_interceptor *old_result);
+  bool change_query_result(Query_result_interceptor *result,
+                           Query_result_interceptor *old_result);
   void set_limit(st_select_lex *values);
   void set_thd(THD *thd_arg) { thd= thd_arg; }
 
@@ -728,10 +728,10 @@ public:
   Item  *having_cond() const { return m_having_cond; }
   void   set_having_cond(Item *cond) { m_having_cond= cond; }
 
-  void set_query_result(select_result *result) { m_query_result= result; }
-  select_result *query_result() const { return m_query_result; }
-  bool change_query_result(select_result_interceptor *new_result,
-                           select_result_interceptor *old_result);
+  void set_query_result(Query_result *result) { m_query_result= result; }
+  Query_result *query_result() const { return m_query_result; }
+  bool change_query_result(Query_result_interceptor *new_result,
+                           Query_result_interceptor *old_result);
 
   /// Set base options for a query block (and active options too)
   void set_base_options(ulonglong options_arg)
@@ -792,7 +792,7 @@ private:
   st_select_lex **link_prev;
 
   /// Result of this query block
-  select_result *m_query_result;
+  Query_result *m_query_result;
 
   /**
     Options assigned from parsing and throughout resolving,
@@ -2917,7 +2917,7 @@ public:
   char* x509_subject,*x509_issuer,*ssl_cipher;
   String *wild;
   sql_exchange *exchange;
-  select_result *result;
+  Query_result *result;
   Item *default_value, *on_update_value;
   LEX_STRING comment, ident;
   LEX_USER *grant_user;

@@ -8648,7 +8648,7 @@ void register_binlog_handler(THD *thd, bool trx)
       We only update the saved position if the old one was undefined,
       the reason is that there are some cases (e.g., for CREATE-SELECT)
       where the position is saved twice (e.g., both in
-      select_create::prepare() and THD::binlog_write_table_map()) , but
+      Query_result_create::prepare() and THD::binlog_write_table_map()), but
       we should use the first. This means that calls to this function
       can be used to start the statement before the first table map
       event, to include some extra events.

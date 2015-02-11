@@ -1547,8 +1547,8 @@ int Sql_cmd_update::mysql_multi_update_prepare(THD *thd)
     - bad columns are reported by PREPARE
     - cached_table is set for fields before query transformations (semijoin,
     view merging...) are done and make resolution more difficult.
-    2) This validation is done by multi_update::prepare() but it is not called
-    by PREPARE.
+    2) This validation is done by Query_result_update::prepare() but it is
+    not called by PREPARE.
     3) So we do it below.
   */
   if (thd->stmt_arena->is_stmt_prepare())
@@ -1603,7 +1603,7 @@ int Sql_cmd_update::mysql_multi_update_prepare(THD *thd)
   }
   /*
     Set exclude_from_table_unique_test value back to FALSE. It is needed for
-    further check in multi_update::prepare whether to use record cache.
+    further check in Query_result_update::prepare whether to use record cache.
   */
   select->exclude_from_table_unique_test= false;
   /*
@@ -1633,15 +1633,15 @@ bool mysql_multi_update(THD *thd,
                         List<Item> *values,
                         enum enum_duplicates handle_duplicates,
                         SELECT_LEX *select_lex,
-                        multi_update **result)
+                        Query_result_update **result)
 {
   bool res;
   DBUG_ENTER("mysql_multi_update");
 
-  if (!(*result= new multi_update(select_lex->get_table_list(),
-                                  select_lex->leaf_tables,
-                                  fields, values,
-                                  handle_duplicates)))
+  if (!(*result= new Query_result_update(select_lex->get_table_list(),
+                                         select_lex->leaf_tables,
+                                         fields, values,
+                                         handle_duplicates)))
     DBUG_RETURN(true); /* purecov: inspected */
 
   DBUG_ASSERT(select_lex->having_cond() == NULL &&
@@ -1666,10 +1666,11 @@ bool mysql_multi_update(THD *thd,
 }
 
 
-multi_update::multi_update(TABLE_LIST *table_list,
-			   TABLE_LIST *leaves_list,
-			   List<Item> *field_list, List<Item> *value_list,
-			   enum enum_duplicates handle_duplicates_arg)
+Query_result_update::Query_result_update(TABLE_LIST *table_list,
+                                         TABLE_LIST *leaves_list,
+                                         List<Item> *field_list,
+                                         List<Item> *value_list,
+                                    enum enum_duplicates handle_duplicates_arg)
   :all_tables(table_list), leaves(leaves_list), update_tables(0),
    tmp_tables(0), updated(0), found(0), fields(field_list),
    values(value_list), table_count(0), copy_field(0),
@@ -1682,8 +1683,8 @@ multi_update::multi_update(TABLE_LIST *table_list,
   Connect fields with tables and create list of tables that are updated
 */
 
-int multi_update::prepare(List<Item> &not_used_values,
-			  SELECT_LEX_UNIT *lex_unit)
+int Query_result_update::prepare(List<Item> &not_used_values,
+                                 SELECT_LEX_UNIT *lex_unit)
 {
   TABLE_LIST *table_ref;
   SQL_I_List<TABLE_LIST> update;
@@ -1693,7 +1694,7 @@ int multi_update::prepare(List<Item> &not_used_values,
   List_iterator_fast<Item> value_it(*values);
   uint i, max_fields;
   uint leaf_table_count= 0;
-  DBUG_ENTER("multi_update::prepare");
+  DBUG_ENTER("Query_result_update::prepare");
 
   thd->count_cuted_fields= CHECK_FIELD_WARN;
   thd->cuted_fields=0L;
@@ -1901,7 +1902,8 @@ int multi_update::prepare(List<Item> &not_used_values,
     This code is a bit dependent of how make_join_readinfo() works.
 
     The field table->tmp_set is used for keeping track of which fields are
-    read during evaluation of the SET expression. See multi_update::prepare.
+    read during evaluation of the SET expression.
+    See Query_result_update::prepare.
 
   RETURN
     0		Not safe to update
@@ -1950,8 +1952,7 @@ static bool safe_update_on_fly(THD *thd, JOIN_TAB *join_tab,
       that are updated (and main_table if the above doesn't hold).
 */
 
-bool
-multi_update::initialize_tables(JOIN *join)
+bool Query_result_update::initialize_tables(JOIN *join)
 {
   TABLE_LIST *table_ref;
   DBUG_ENTER("initialize_tables");
@@ -2152,7 +2153,7 @@ loop_end:
     /*
       Pass a table triggers pointer (Table_trigger_dispatcher *) from
       the original table to the new temporary table. This pointer will be used
-      inside the method multi_update::send_data() to determine temporary
+      inside the method Query_result_update::send_data() to determine temporary
       nullability flag for the temporary table's fields. It will be done before
       calling fill_record() to assign values to the temporary table's fields.
     */
@@ -2166,7 +2167,7 @@ loop_end:
 }
 
 
-multi_update::~multi_update()
+Query_result_update::~Query_result_update()
 {
   TABLE_LIST *table;
   for (table= update_tables ; table; table= table->next_local)
@@ -2200,10 +2201,10 @@ multi_update::~multi_update()
 }
 
 
-bool multi_update::send_data(List<Item> &not_used_values)
+bool Query_result_update::send_data(List<Item> &not_used_values)
 {
   TABLE_LIST *cur_table;
-  DBUG_ENTER("multi_update::send_data");
+  DBUG_ENTER("Query_result_update::send_data");
 
   for (cur_table= update_tables; cur_table; cur_table= cur_table->next_local)
   {
@@ -2287,7 +2288,7 @@ bool multi_update::send_data(List<Item> &not_used_values)
             updated--;
           }
           /* non-transactional or transactional table got modified   */
-          /* either multi_update class' flag is raised in its branch */
+          /* either Query_result_update class' flag is raised in its branch */
           if (table->file->has_transactions())
             transactional_tables= TRUE;
           else
@@ -2369,7 +2370,7 @@ bool multi_update::send_data(List<Item> &not_used_values)
 }
 
 
-void multi_update::send_error(uint errcode,const char *err)
+void Query_result_update::send_error(uint errcode,const char *err)
 {
   /* First send error what ever it is ... */
   my_error(errcode, MYF(0), err);
@@ -2385,7 +2386,8 @@ static void invalidate_update_tables(THD *thd, TABLE_LIST *update_tables)
   }
 }
 
-void multi_update::abort_result_set()
+
+void Query_result_update::abort_result_set()
 {
   /* the error was handled or nothing deleted and no side effects return */
   if (error_handled ||
@@ -2442,7 +2444,7 @@ void multi_update::abort_result_set()
 }
 
 
-int multi_update::do_updates()
+int Query_result_update::do_updates()
 {
   TABLE_LIST *cur_table;
   int local_error= 0;
@@ -2451,7 +2453,7 @@ int multi_update::do_updates()
   List_iterator_fast<TABLE> check_opt_it(unupdated_check_opt_tables);
   myf error_flags= MYF(0);                      /**< Flag for fatal errors */
 
-  DBUG_ENTER("multi_update::do_updates");
+  DBUG_ENTER("Query_result_update::do_updates");
 
   do_update= 0;					// Don't retry this function
   if (!found)
@@ -2652,12 +2654,12 @@ err:
 
 /* out: 1 if error, 0 if success */
 
-bool multi_update::send_eof()
+bool Query_result_update::send_eof()
 {
   char buff[STRING_BUFFER_USUAL_SIZE];
   ulonglong id;
   THD::killed_state killed_status= THD::NOT_KILLED;
-  DBUG_ENTER("multi_update::send_eof");
+  DBUG_ENTER("Query_result_update::send_eof");
   THD_STAGE_INFO(thd, stage_updating_reference_tables);
 
   /* 
@@ -2886,7 +2888,7 @@ bool Sql_cmd_update::execute_multi_table_update(THD *thd)
     else if (thd->is_strict_mode())
       thd->push_internal_handler(&strict_handler);
 
-    multi_update *result_obj;
+    Query_result_update *result_obj;
     MYSQL_MULTI_UPDATE_START(const_cast<char*>(thd->query().str));
     res= mysql_multi_update(thd,
                             &select_lex->item_list,

@@ -401,7 +401,7 @@ struct Query_cache_tls
   Query_cache_tls() :first_query_block(NULL) {}
 };
 
-class select_result;
+class Query_result;
 class Time_zone;
 
 #define THD_SENTRY_MAGIC 0xfeedd1ff
@@ -3038,7 +3038,7 @@ public:
 
   void add_changed_table(TABLE *table);
   void add_changed_table(const char *key, long key_length);
-  int send_explain_fields(select_result *result);
+  int send_explain_fields(Query_result *result);
 
   /**
     Clear the current error, if any.
@@ -4279,12 +4279,12 @@ public:
 };
 
 /*
-  This is used to get result from a select
+  This is used to get result from a query
 */
 
 class JOIN;
 
-class select_result :public Sql_alloc {
+class Query_result :public Sql_alloc {
 protected:
   THD *thd;
   SELECT_LEX_UNIT *unit;
@@ -4294,22 +4294,24 @@ public:
     Valid only for materialized derived tables/views.
   */
   ha_rows estimated_rowcount;
-  select_result();
-  virtual ~select_result() {};
+  Query_result()
+    :thd(current_thd), unit(NULL), estimated_rowcount(0)
+  { }
+  virtual ~Query_result() {};
   /**
-    Change wrapped select_result.
+    Change wrapped Query_result.
 
     Replace the wrapped query result object with new_result and call
     prepare() and prepare2() on new_result.
 
-    This base class implementation doesn't wrap other select_results.
+    This base class implementation doesn't wrap other Query_results.
 
     @param new_result The new query result object to wrap around
 
     @retval false Success
     @retval true  Error
   */
-  virtual bool change_query_result(select_result *new_result)
+  virtual bool change_query_result(Query_result *new_result)
   {
     return false;
   }
@@ -4332,7 +4334,8 @@ public:
   virtual bool send_result_set_metadata(List<Item> &list, uint flags)=0;
   virtual bool send_data(List<Item> &items)=0;
   virtual bool initialize_tables (JOIN *join=0) { return 0; }
-  virtual void send_error(uint errcode,const char *err);
+  virtual void send_error(uint errcode,const char *err)
+  { my_message(errcode, err, MYF(0)); }
   virtual bool send_eof()=0;
   /**
     Check if this query returns a result set and therefore is allowed in
@@ -4341,13 +4344,20 @@ public:
     @retval FALSE     success
     @retval TRUE      error, an error message is set
   */
-  virtual bool check_simple_select() const;
+  virtual bool check_simple_select() const
+  {
+    my_error(ER_SP_BAD_CURSOR_QUERY, MYF(0));
+    return TRUE;
+  }
   virtual void abort_result_set() {}
   /*
     Cleanup instance of this class for next execution of a prepared
     statement/stored procedure.
   */
-  virtual void cleanup();
+  virtual void cleanup()
+  {
+    /* do nothing */
+  }
   void set_thd(THD *thd_arg) { thd= thd_arg; }
 
   /**
@@ -4366,21 +4376,21 @@ public:
 
 
 /*
-  Base class for select_result descendands which intercept and
+  Base class for Query_result descendands which intercept and
   transform result set rows. As the rows are not sent to the client,
   sending of result set metadata should be suppressed as well.
 */
 
-class select_result_interceptor: public select_result
+class Query_result_interceptor: public Query_result
 {
 public:
-  select_result_interceptor() {}  /* Remove gcc warning */
+  Query_result_interceptor() {}  /* Remove gcc warning */
   uint field_count(List<Item> &fields) const { return 0; }
   bool send_result_set_metadata(List<Item> &fields, uint flag) { return FALSE; }
 };
 
 
-class select_send :public select_result {
+class Query_result_send :public Query_result {
   /**
     True if we have sent result set metadata to the client.
     In this case the client always expects us to end the result
@@ -4388,17 +4398,25 @@ class select_send :public select_result {
   */
   bool is_result_set_started;
 public:
-  select_send() :is_result_set_started(FALSE) {}
+  Query_result_send() :is_result_set_started(false) {}
   bool send_result_set_metadata(List<Item> &list, uint flags);
   bool send_data(List<Item> &items);
   bool send_eof();
   virtual bool check_simple_select() const { return FALSE; }
   void abort_result_set();
-  virtual void cleanup();
+  /**
+    Cleanup an instance of this class for re-use
+    at next execution of a prepared statement/
+    stored procedure statement.
+  */
+  virtual void cleanup()
+  {
+    is_result_set_started= false;
+  }
 };
 
 
-class select_to_file :public select_result_interceptor {
+class Query_result_to_file :public Query_result_interceptor {
 protected:
   sql_exchange *exchange;
   File file;
@@ -4407,9 +4425,9 @@ protected:
   char path[FN_REFLEN];
 
 public:
-  select_to_file(sql_exchange *ex) :exchange(ex), file(-1),row_count(0L)
+  Query_result_to_file(sql_exchange *ex) :exchange(ex), file(-1),row_count(0L)
   { path[0]=0; }
-  ~select_to_file();
+  ~Query_result_to_file();
   void send_error(uint errcode,const char *err);
   bool send_eof();
   void cleanup();
@@ -4425,7 +4443,7 @@ public:
 #define NUMERIC_CHARS ".0123456789e+-"
 
 
-class select_export :public select_to_file {
+class Query_result_export :public Query_result_to_file {
   size_t field_term_length;
   int field_sep_char,escape_char,line_sep_char;
   int field_term_char; // first char of FIELDS TERMINATED BY or MAX_INT
@@ -4450,16 +4468,19 @@ class select_export :public select_to_file {
   bool fixed_row_size;
   const CHARSET_INFO *write_cs; // output charset
 public:
-  select_export(sql_exchange *ex) :select_to_file(ex) {}
-  ~select_export();
+  Query_result_export(sql_exchange *ex) : Query_result_to_file(ex) {}
+  ~Query_result_export()
+  {
+    thd->set_sent_row_count(row_count);
+  }
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   bool send_data(List<Item> &items);
 };
 
 
-class select_dump :public select_to_file {
+class Query_result_dump :public Query_result_to_file {
 public:
-  select_dump(sql_exchange *ex) :select_to_file(ex) {}
+  Query_result_dump(sql_exchange *ex) : Query_result_to_file(ex) {}
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   bool send_data(List<Item> &items);
 };
@@ -4581,12 +4602,13 @@ public:
 };
 
 /* Base subselect interface class */
-class select_subselect :public select_result_interceptor
+class Query_result_subquery :public Query_result_interceptor
 {
 protected:
   Item_subselect *item;
 public:
-  select_subselect(Item_subselect *item);
+  Query_result_subquery(Item_subselect *item_arg)
+    : item(item_arg) { }
   bool send_data(List<Item> &items)=0;
   bool send_eof() { return 0; };
 };
@@ -4862,17 +4884,20 @@ public:
 };
 
 
-class select_dumpvar :public select_result_interceptor {
+class Query_dumpvar :public Query_result_interceptor {
   ha_rows row_count;
 public:
   List<PT_select_var> var_list;
-  select_dumpvar()  { var_list.empty(); row_count= 0;}
-  ~select_dumpvar() {}
+  Query_dumpvar()  { var_list.empty(); row_count= 0;}
+  ~Query_dumpvar() {}
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   bool send_data(List<Item> &items);
   bool send_eof();
   virtual bool check_simple_select() const;
-  void cleanup();
+  void cleanup()
+  {
+    row_count= 0;
+  }
 };
 
 /* Bits in sql_command_flags */
