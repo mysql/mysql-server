@@ -330,6 +330,14 @@ SET(INNOBASE_SOURCES	btr/btr0btr.c btr/btr0cur.c btr/btr0pcur.c btr/btr0sea.c
 			ut/ut0byte.c ut/ut0dbg.c ut/ut0list.c ut/ut0mem.c ut/ut0rbt.c ut/ut0rnd.c
 			ut/ut0ut.c ut/ut0vec.c ut/ut0wqueue.c ut/ut0bh.c)
 
+# These files have unused result errors, so we skip Werror
+CHECK_C_COMPILER_FLAG("-Werror" HAVE_WERROR)
+IF(HAVE_WERROR)
+  INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
+  ADD_COMPILE_FLAGS(page/page0zip.c COMPILE_FLAGS "-Wno-error")
+  ADD_COMPILE_FLAGS(ut/ut0ut.c      COMPILE_FLAGS "-Wno-error")
+ENDIF()
+
 IF(WITH_INNODB)
   # Legacy option
   SET(WITH_INNOBASE_STORAGE_ENGINE TRUE)
