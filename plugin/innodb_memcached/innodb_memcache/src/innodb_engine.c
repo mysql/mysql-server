@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -1499,6 +1499,31 @@ convert_to_char(
 	return(strlen(buf));
 }
 
+
+/*******************************************************************//**
+Free value assocaited with key */
+static
+void
+innodb_free_item(
+/*=====================*/
+	void* item)	/*!< in: Item to be freed */
+{
+
+	mci_item_t*	result = (mci_item_t*) item;
+	if (result->extra_col_value) {
+		for (int i = 0; i < result->n_extra_col; i++) {
+			if(result->extra_col_value[i].allocated)
+				free(result->extra_col_value[i].value_str);
+			}
+			free(result->extra_col_value);
+			result->extra_col_value=NULL;
+		}
+	if (result->col_value[MCI_COL_VALUE].allocated) {
+		free(result->col_value[MCI_COL_VALUE].value_str);
+		result->col_value[MCI_COL_VALUE].allocated =
+			false;
+	}
+}
 /*******************************************************************//**
 Support memcached "GET" command, fetch the value according to key
 @return ENGINE_SUCCESS if successfully, otherwise error code */
@@ -1631,31 +1656,17 @@ search_done:
 	we will check whether the item is expired */
 	if (result->col_value[MCI_COL_EXP].is_valid
 	    && result->col_value[MCI_COL_EXP].value_int) {
-		uint64_t		time;
+		uint64_t time;
 		time = mci_get_time();
-
 		if (time > result->col_value[MCI_COL_EXP].value_int) {
-			/* Free allocated memory. */
-			if (result->extra_col_value) {
-				for (int i = 0; i < result->n_extra_col; i++) {
-					free(result->extra_col_value[i].value_str);
-				}
-
-				free(result->extra_col_value);
-			}
-			if (result->col_value[MCI_COL_VALUE].allocated) {
-				free(result->col_value[MCI_COL_VALUE].value_str);
-				result->col_value[MCI_COL_VALUE].allocated =
-					false;
-			}
-
+			innodb_free_item(result);
 			err_ret = ENGINE_KEY_ENOENT;
 			goto func_exit;
 		}
 	}
 
 	if (result->extra_col_value) {
-		int     	i;
+		int		i;
 		char*		c_value;
 		char*		value_end;
 		unsigned int	total_len = 0;
