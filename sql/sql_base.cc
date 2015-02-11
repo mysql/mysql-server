@@ -2028,6 +2028,9 @@ unique_table(THD *thd, TABLE_LIST *table, TABLE_LIST *table_list,
              bool check_alias)
 {
   TABLE_LIST *dup;
+
+  table= table->find_table_for_update();
+
   if (table->table && table->table->file->ht->db_type == DB_TYPE_MRG_MYISAM)
   {
     TABLE_LIST *child;

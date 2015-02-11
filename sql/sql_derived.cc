@@ -507,6 +507,9 @@ bool mysql_derived_merge_for_insert(THD *thd, LEX *lex, TABLE_LIST *derived)
     DBUG_RETURN(FALSE);
   if (derived->is_materialized_derived())
     DBUG_RETURN(mysql_derived_prepare(thd, lex, derived));
+  if ((thd->lex->sql_command == SQLCOM_UPDATE_MULTI ||
+       thd->lex->sql_command == SQLCOM_DELETE_MULTI))
+    DBUG_RETURN(FALSE);
   if (!derived->is_multitable())
   {
     if (!derived->single_table_updatable())

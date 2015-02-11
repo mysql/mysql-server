@@ -1984,6 +1984,24 @@ struct TABLE_LIST
   TABLE_LIST *find_underlying_table(TABLE *table);
   TABLE_LIST *first_leaf_for_name_resolution();
   TABLE_LIST *last_leaf_for_name_resolution();
+  /**
+     @brief
+       Find the bottom in the chain of embedded table VIEWs.
+
+     @detail
+       This is used for single-table UPDATE/DELETE when they are modifying a
+       single-table VIEW.
+  */
+  TABLE_LIST *find_table_for_update()
+  {
+    TABLE_LIST *tbl= this;
+    while(!tbl->is_multitable() && tbl->single_table_updatable() &&
+        tbl->merge_underlying_list)
+    {
+      tbl= tbl->merge_underlying_list;
+    }
+    return tbl;
+  }
   TABLE *get_real_join_table();
   bool is_leaf_for_name_resolution();
   inline TABLE_LIST *top_table()

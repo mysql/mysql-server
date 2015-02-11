@@ -5345,6 +5345,28 @@ create view v1 as select 1;
 
 drop view v1;
 
+--echo #
+--echo # MDEV-7260: Crash in get_best_combination when executing multi-table
+--echo # UPDATE with nested views
+--echo #
+
+CREATE TABLE `t1` (`id` bigint(20));
+
+INSERT INTO `t1` VALUES (1),(2);
+
+CREATE TABLE `t2` (`id` bigint(20));
+
+CREATE TABLE `t3` (`id` bigint(20), `flag` tinyint(4));
+
+create view v1 as select id from t1;
+
+create view v2 as select t2.* from (t2 left join v1 using (id));
+
+update t3 left join v2 using (id) set flag=flag+1;
+
+drop view v2, v1;
+drop table t1, t2, t3;
+
 --echo # -----------------------------------------------------------------
 --echo # -- End of 5.5 tests.
 --echo # -----------------------------------------------------------------
