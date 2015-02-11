@@ -252,7 +252,7 @@ log_buffer_extend(
 {
 	ulint	move_start;
 	ulint	move_end;
-	byte	tmp_buf[OS_FILE_LOG_BLOCK_SIZE];
+	byte*	tmp_buf = alloca(OS_FILE_LOG_BLOCK_SIZE);
 
 	mutex_enter(&(log_sys->mutex));
 
