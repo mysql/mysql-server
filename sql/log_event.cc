@@ -3744,26 +3744,23 @@ bool Query_log_event::write(IO_CACHE* file)
       }
     }
 
-    if (invoker_user.length > 0)
-    {
-      *start++= Q_INVOKER;
+    *start++= Q_INVOKER;
 
-      /*
-        Store user length and user. The max length of use is 16, so 1 byte is
-        enough to store the user's length.
-       */
-      *start++= (uchar)invoker_user.length;
-      memcpy(start, invoker_user.str, invoker_user.length);
-      start+= invoker_user.length;
+    /*
+      Store user length and user. The max length of use is 16, so 1 byte is
+      enough to store the user's length.
+     */
+    *start++= (uchar)invoker_user.length;
+    memcpy(start, invoker_user.str, invoker_user.length);
+    start+= invoker_user.length;
 
-      /*
-        Store host length and host. The max length of host is 60, so 1 byte is
-        enough to store the host's length.
-       */
-      *start++= (uchar)invoker_host.length;
-      memcpy(start, invoker_host.str, invoker_host.length);
-      start+= invoker_host.length;
-    }
+    /*
+      Store host length and host. The max length of host is 60, so 1 byte is
+      enough to store the host's length.
+     */
+    *start++= (uchar)invoker_host.length;
+    memcpy(start, invoker_host.str, invoker_host.length);
+    start+= invoker_host.length;
   }
 
   if (thd && thd->get_binlog_accessed_db_names() != NULL)
