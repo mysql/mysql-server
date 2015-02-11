@@ -4889,8 +4889,6 @@ static void end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
     stat= & event_name_array[index];
   }
 
-  // PORTME: stat->mark_used();
-
   if (flags & STATE_FLAG_TIMED)
   {
     /* Aggregate to EVENTS_STATEMENTS_SUMMARY_..._BY_EVENT_NAME (timed) */
@@ -4921,8 +4919,6 @@ static void end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
 
   if (digest_stat != NULL)
   {
-    // PORTME: digest_stat->mark_used();
-
     if (flags & STATE_FLAG_TIMED)
     {
       digest_stat->aggregate_value(wait_time);
