@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -662,8 +662,16 @@ runTransactions3(NDBT_Context* ctx, NDBT_Step* step){
     if(ctx->isTestStopped())
       break;
 
+    if (utilTrans.verifyIndex(pNdb, idxName, parallel) != 0){
+      g_err << "Inconsistent index" << endl;
+      return NDBT_FAILED;
+    }
     if(utilTrans.clearTable(pNdb, rows, parallel) != 0){
       g_err << "Clear table failed" << endl;
+      return NDBT_FAILED;
+    }
+    if (utilTrans.verifyIndex(pNdb, idxName, parallel) != 0){
+      g_err << "Inconsistent index" << endl;
       return NDBT_FAILED;
     }
 
@@ -3411,7 +3419,6 @@ TESTCASE("NFNR3",
   INITIALIZER(createPkIndex);
   STEP(runRestarts);
   STEP(runTransactions3);
-  STEP(runVerifyIndex);
   FINALIZER(runVerifyIndex);
   FINALIZER(createPkIndex_Drop);
   FINALIZER(createRandomIndex_Drop);
@@ -3427,7 +3434,6 @@ TESTCASE("NFNR3_O",
   INITIALIZER(createPkIndex);
   STEP(runRestarts);
   STEP(runTransactions3);
-  STEP(runVerifyIndex);
   FINALIZER(runVerifyIndex);
   FINALIZER(createPkIndex_Drop);
   FINALIZER(createRandomIndex_Drop);
