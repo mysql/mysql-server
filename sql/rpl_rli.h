@@ -973,6 +973,14 @@ public:
     event_relay_log_number= number;
   }
 
+  /**
+    Given the extension number of the relay log, gets the full
+    relay log path. Currently used in Slave_worker::retry_transaction()
+
+    @param [in]   number      extension number of relay log
+    @param[in, out] name      The full path of the relay log (per-channel)
+                              to be read by the slave worker.
+  */
   void relay_log_number_to_name(uint number, char name[FN_REFLEN+1]);
   uint relay_log_name_to_number(const char *name);
 
