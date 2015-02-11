@@ -4159,7 +4159,7 @@ static ST_FIELD_INFO	i_s_innodb_temp_table_info_fields_info[] =
 
 #define IDX_TEMP_TABLE_NAME		1
 	{STRUCT_FLD(field_name,		"NAME"),
-	 STRUCT_FLD(field_length,	MAX_TABLE_UTF8_LEN),
+	 STRUCT_FLD(field_length,	NAME_CHAR_LEN),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
 	 STRUCT_FLD(value,		0),
 	 STRUCT_FLD(field_flags,	MY_I_S_MAYBE_NULL),

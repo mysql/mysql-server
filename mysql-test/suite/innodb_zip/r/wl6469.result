@@ -1,5 +1,15 @@
 set global innodb_file_per_table = 0;
 create temporary table t1 (i int) engine = innodb;
+show create table information_schema.innodb_temp_table_info;
+Table	Create Table
+INNODB_TEMP_TABLE_INFO	CREATE TEMPORARY TABLE `INNODB_TEMP_TABLE_INFO` (
+  `TABLE_ID` bigint(21) unsigned NOT NULL DEFAULT '0',
+  `NAME` varchar(64) DEFAULT NULL,
+  `N_COLS` int(11) unsigned NOT NULL DEFAULT '0',
+  `SPACE` int(11) unsigned NOT NULL DEFAULT '0',
+  `PER_TABLE_TABLESPACE` varchar(64) DEFAULT NULL,
+  `IS_COMPRESSED` varchar(64) DEFAULT NULL
+) ENGINE=MEMORY DEFAULT CHARSET=utf8
 select count(*) from information_schema.innodb_temp_table_info;
 count(*)
 1

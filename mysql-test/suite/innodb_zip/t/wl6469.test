@@ -32,6 +32,7 @@ set global innodb_file_per_table = 0;
 # 1. Create/Drop of temp-table. (with and w/o explicit pk)		#
 #
 create temporary table t1 (i int) engine = innodb;
+show create table information_schema.innodb_temp_table_info;
 select count(*) from information_schema.innodb_temp_table_info;
 insert into t1 values (1), (2), (3), (4);
 select * from t1;
