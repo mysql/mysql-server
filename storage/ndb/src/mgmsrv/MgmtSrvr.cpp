@@ -1964,6 +1964,10 @@ int MgmtSrvr::restartNodes(const Vector<NodeId> &node_ids,
         loop_count++;
         NdbSleep_MilliSleep(1000);
       }
+      else
+      {
+        break;
+      }
     } while (1);
   }
   return 0;
