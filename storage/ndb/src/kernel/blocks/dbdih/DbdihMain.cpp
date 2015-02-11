@@ -4372,8 +4372,8 @@ void Dbdih::execUPDATE_TOREQ(Signal* signal)
 
   Uint32 errCode;
   Uint32 extra;
-  g_eventLogger->info("Received UPDATE_TOREQ for startnode: %u, copynode:%u",
-                      req.startingNodeId, req.copyNodeId);
+  g_eventLogger->debug("Received UPDATE_TOREQ for startnode: %u, copynode:%u",
+                       req.startingNodeId, req.copyNodeId);
   if (ndb_pnr(getNodeInfo(refToNode(req.senderRef)).m_version))
   {
     jam();
@@ -4959,8 +4959,8 @@ void Dbdih::execUPDATE_FRAG_STATEREQ(Signal* signal)
  */
 
 /* Debug Node Recovery Status module */
-//#define DBG_NRS(a)
-#define DBG_NRS(a) ndbout << a << endl
+#define DBG_NRS(a)
+//#define DBG_NRS(a) ndbout << a << endl
 
 void Dbdih::initNodeRecoveryStatus()
 {
@@ -5625,8 +5625,12 @@ void Dbdih::setNodeRecoveryStatus(Uint32 nodeId,
       ndbrequire(false);
   }
 
-  g_eventLogger->info("Node Recovery Status: node= %u, OLD Status= %s"
-                      " NEW Status = %s",
+  infoEvent("NR Status: node=%u,OLD=%s,NEW=%s",
+            nodeId,
+            get_status_str(nodePtr.p->nodeRecoveryStatus),
+            get_status_str(new_status));
+
+  g_eventLogger->info("NR Status: node=%u,OLD=%s,NEW=%s",
                       nodeId,
                       get_status_str(nodePtr.p->nodeRecoveryStatus),
                       get_status_str(new_status));
@@ -6511,24 +6515,24 @@ Dbdih::get_status_str(NodeRecord::NodeRecoveryStatus status)
     status_str="Included in heartbeat protocol";
     break;
   case NodeRecord::NDBCNTR_START_WAIT:
-    status_str="Wait for NDBCNTR master to permit us to start";
+    status_str="Wait for NDBCNTR master permit";
     break;
   case NodeRecord::NDBCNTR_STARTED:
-    status_str="NDBCNTR master permitted us to start";
+    status_str="NDBCNTR master permitted us";
     break;
   case NodeRecord::NODE_GETTING_PERMIT:
   case NodeRecord::START_PERMITTED:
-    status_str="All nodes permitted us to start";
+    status_str="All nodes permitted us";
     break;
   case NodeRecord::WAIT_LCP_TO_COPY_DICT:
-    status_str="Wait for LCP completion to start copying meta data";
+    status_str="Wait for LCP complete to copy meta data";
     break;
   case NodeRecord::COPY_DICT_TO_STARTING_NODE:
-    status_str="Copying meta data to starting node";
+    status_str="Copy meta data to start node";
     break;
   case NodeRecord::NODE_GETTING_INCLUDED:
   case NodeRecord::INCLUDE_NODE_IN_LCP_AND_GCP:
-    status_str="Include node in LCP and GCP protocols";
+    status_str="Include node in LCP/GCP protocols";
     break;
   case NodeRecord::LOCAL_RECOVERY_STARTED:
     status_str="Restore fragments ongoing";
@@ -6544,24 +6548,24 @@ Dbdih::get_status_str(NodeRecord::NodeRecoveryStatus status)
     break;
   case NodeRecord::NODE_GETTING_SYNCHED:
   case NodeRecord::COPY_FRAGMENTS_STARTED:
-    status_str="Synchronizing starting node with live nodes";
+    status_str="Synchronize start node with live nodes";
     break;
   case NodeRecord::NODE_IN_LCP_WAIT_STATE:
   case NodeRecord::WAIT_LCP_FOR_RESTART:
-    status_str="Wait for LCP to ensure durability";
+    status_str="Wait LCP to ensure durability";
     break;
   case NodeRecord::WAIT_SUMA_HANDOVER:
-    status_str="Wait for handover of subscriptions";
+    status_str="Wait handover of subscriptions";
     break;
   case NodeRecord::NODE_ACTIVE:
   case NodeRecord::RESTART_COMPLETED:
     status_str="Restart completed";
     break;
   case NodeRecord::NODE_FAILED:
-    status_str="Node failed, failure handling in progress";
+    status_str="Node failed, fail handling ongoing";
     break;
   case NodeRecord::NODE_FAILURE_COMPLETED:
-    status_str="Node failure handling completed";
+    status_str="Node failure handling complete";
     break;
   case NodeRecord::NODE_NOT_RESTARTED_YET:
     status_str="Initial state";
@@ -7271,19 +7275,20 @@ done:
 
     if (req->requestInfo == StartFragReq::SFR_RESTORE_LCP)
     {
-      ndbout_c("node: %d tab: %d frag: %d no lcp to restore",
-               takeOverPtr.p->toStartingNode,
-               takeOverPtr.p->toCurrentTabref,
-               takeOverPtr.p->toCurrentFragid);
+      g_eventLogger->debug("node: %d tab: %d frag: %d no lcp to restore",
+                           takeOverPtr.p->toStartingNode,
+                           takeOverPtr.p->toCurrentTabref,
+                           takeOverPtr.p->toCurrentFragid);
     }
     else
     {
-      ndbout_c("node: %d tab: %d frag: %d copying data from %u (gci: %u)",
-               takeOverPtr.p->toStartingNode,
-               takeOverPtr.p->toCurrentTabref,
-               takeOverPtr.p->toCurrentFragid,
-               req->lqhLogNode[0],
-               takeOverPtr.p->startGci);
+      g_eventLogger->debug("node: %d tab: %d frag: %d copying data from %u"
+                           " (gci: %u)",
+                           takeOverPtr.p->toStartingNode,
+                           takeOverPtr.p->toCurrentTabref,
+                           takeOverPtr.p->toCurrentFragid,
+                           req->lqhLogNode[0],
+                           takeOverPtr.p->startGci);
     }
 
     BlockReference ref = numberToRef(DBLQH, takeOverPtr.p->toStartingNode);
@@ -7308,7 +7313,7 @@ done:
     Uint32 startGci = replicaPtr.p->maxGciCompleted[maxLcpIndex] + 1;
     if (startGci > gci)
       startGci = gci;
-    ndbout_c("Requesting start of fragment: "
+    g_eventLogger->debug("Requesting start of fragment: "
              "node: %d tab: %d frag: %d restore lcp: %u(idx: %u)"
              " maxGciStarted: %u maxGciCompleted: %u (restorable:"
              " %u(%u) newestRestorableGCI: %u)",
@@ -7364,8 +7369,8 @@ Dbdih::nr_run_redo(Signal* signal, TakeOverRecordPtr takeOverPtr)
   {
     jam();
     SYSFILE->keepGCI = takeOverPtr.p->startGci;
-    ndbout_c("GSN_START_RECREQ keepGci: %u (%u)",
-             takeOverPtr.p->startGci, save_keepGCI);
+    g_eventLogger->info("GSN_START_RECREQ keepGci: %u (%u)",
+                        takeOverPtr.p->startGci, save_keepGCI);
   }
 
   g_eventLogger->info("All start fragments sent, requesting LDM to restore"
@@ -7392,7 +7397,7 @@ Dbdih::nr_start_logging(Signal* signal, TakeOverRecordPtr takeOverPtr)
     if (tabPtr.i >= ctabFileSize)
     {
       jam();
-      g_eventLogger->info("Copy thread %u complete",
+      g_eventLogger->debug("Copy thread %u complete",
                           takeOverPtr.p->m_copy_thread_id);
       if (!thread_takeover_completed(signal, takeOverPtr))
       {
@@ -7625,7 +7630,7 @@ Dbdih::start_next_takeover_thread(Signal *signal)
        * set active to RNIL and wait for the next thread to be completed
        * with another step.
        */
-      g_eventLogger->info("No threads queued up");
+      g_eventLogger->debug("No threads queued up");
       c_activeThreadTakeOverPtr.i = RNIL;
       return;
     }
@@ -7633,7 +7638,7 @@ Dbdih::start_next_takeover_thread(Signal *signal)
     jam();
   }
   c_activeThreadTakeOverPtr = takeOverPtr;
-  g_eventLogger->info("New active takeover thread: %u, state: %u",
+  g_eventLogger->debug("New active takeover thread: %u, state: %u",
                       takeOverPtr.i,
                       takeOverPtr.p->toSlaveStatus);
   if (takeOverPtr.p->toSlaveStatus ==
@@ -7915,7 +7920,7 @@ void Dbdih::toCopyFragLab(Signal* signal, Uint32 takeOverPtrI)
   /**
    * Inform starting node that TakeOver is about to start
    */
-  g_eventLogger->info("PREPARE_COPY_FRAGREQ: tab: %u, frag: %u, thread: %u",
+  g_eventLogger->debug("PREPARE_COPY_FRAGREQ: tab: %u, frag: %u, thread: %u",
     takeOverPtr.p->toCurrentTabref,
     takeOverPtr.p->toCurrentFragid,
     takeOverPtr.i);
@@ -7995,8 +8000,8 @@ Dbdih::execPREPARE_COPY_FRAG_CONF(Signal* signal)
      * started as soon as possible.
      */
     jam();
-    g_eventLogger->info("QUEUED_UPDATE_BEFORE_STORED, inst: %u",
-                        takeOverPtr.i);
+    g_eventLogger->debug("QUEUED_UPDATE_BEFORE_STORED, inst: %u",
+                         takeOverPtr.i);
     takeOverPtr.p->toSlaveStatus =
       TakeOverRecord::TO_QUEUED_UPDATE_BEFORE_STORED;
     c_queued_for_start_takeover_list.addLast(takeOverPtr);
@@ -8012,7 +8017,7 @@ Dbdih::execPREPARE_COPY_FRAG_CONF(Signal* signal)
    * updating the fragment state.
    */
   takeOverPtr.p->toSlaveStatus = TakeOverRecord::TO_UPDATE_BEFORE_STORED;
-  g_eventLogger->info("PREPARE_COPY_FRAG_CONF: thread: %u", takeOverPtr.i);
+  g_eventLogger->debug("PREPARE_COPY_FRAG_CONF: thread: %u", takeOverPtr.i);
   sendUpdateTo(signal, takeOverPtr);
 }
 
@@ -8023,7 +8028,7 @@ Dbdih::sendUpdateTo(Signal* signal, TakeOverRecordPtr takeOverPtr)
    * We must refer to the main takeover thread towards the master node,
    * but we take the data from the thread which is currently active.
    */
-  g_eventLogger->info("UPDATE_TOREQ: tab:%u, frag:%u, thread:%u, state:%u",
+  g_eventLogger->debug("UPDATE_TOREQ: tab:%u, frag:%u, thread:%u, state:%u",
     takeOverPtr.p->toCurrentTabref,
     takeOverPtr.p->toCurrentFragid,
     takeOverPtr.i,
@@ -8103,9 +8108,9 @@ Dbdih::execUPDATE_TOCONF(Signal* signal)
 
   c_takeOverPool.getPtr(takeOverPtr, c_activeThreadTakeOverPtr.i);
  
-  g_eventLogger->info("UPDATE_TOCONF: thread: %u, state:%u",
-                      takeOverPtr.i,
-                      takeOverPtr.p->toSlaveStatus);
+  g_eventLogger->debug("UPDATE_TOCONF: thread: %u, state:%u",
+                       takeOverPtr.i,
+                       takeOverPtr.p->toSlaveStatus);
   switch(takeOverPtr.p->toSlaveStatus){
   case TakeOverRecord::TO_UPDATE_BEFORE_STORED:
     jam();
@@ -8189,7 +8194,7 @@ Dbdih::toStartCopyFrag(Signal* signal, TakeOverRecordPtr takeOverPtr)
   copyFragReq->nodeList[len+1] = CopyFragReq::CFR_TRANSACTIONAL;
   sendSignal(ref, GSN_COPY_FRAGREQ, signal,
              CopyFragReq::SignalLength + len, JBB);
-  g_eventLogger->info("COPY_FRAGREQ: thread: %u, tab: %u, frag: %u",
+  g_eventLogger->debug("COPY_FRAGREQ: thread: %u, tab: %u, frag: %u",
     takeOverPtr.i,
     takeOverPtr.p->toCurrentTabref,
     takeOverPtr.p->toCurrentFragid);
@@ -8204,10 +8209,10 @@ void Dbdih::sendUpdateFragStateReq(Signal* signal,
 {
   sendLoopMacro(UPDATE_FRAG_STATEREQ, nullRoutine, RNIL);
   
-  g_eventLogger->info("Update frag state for inst:%u,tab:%u,frag:%u",
-                      takeOverPtr.i,
-                      takeOverPtr.p->toCurrentTabref,
-                      takeOverPtr.p->toCurrentFragid);
+  g_eventLogger->debug("Update frag state for inst:%u,tab:%u,frag:%u",
+                       takeOverPtr.i,
+                       takeOverPtr.p->toCurrentTabref,
+                       takeOverPtr.p->toCurrentFragid);
   UpdateFragStateReq * const req = (UpdateFragStateReq *)&signal->theData[0];
   req->senderData = takeOverPtr.i;
   req->senderRef = reference();
@@ -8240,11 +8245,11 @@ void Dbdih::execUPDATE_FRAG_STATECONF(Signal* signal)
 
   c_takeOverPool.getPtr(takeOverPtr, conf->senderData);
 
-  g_eventLogger->info("Updated frag state for inst:%u,tab:%u,frag:%u,state:%u",
-                      takeOverPtr.i,
-                      takeOverPtr.p->toCurrentTabref,
-                      takeOverPtr.p->toCurrentFragid,
-                      takeOverPtr.p->toSlaveStatus);
+  g_eventLogger->debug("Updated frag state for inst:%u,tab:%u,frag:%u,state:%u",
+                       takeOverPtr.i,
+                       takeOverPtr.p->toCurrentTabref,
+                       takeOverPtr.p->toCurrentFragid,
+                       takeOverPtr.p->toSlaveStatus);
   receiveLoopMacro(UPDATE_FRAG_STATEREQ, conf->sendingNodeId);
   
   switch(takeOverPtr.p->toSlaveStatus){
@@ -8263,7 +8268,7 @@ void Dbdih::execUPDATE_FRAG_STATECONF(Signal* signal)
     //CRASH_INSERTION(
     start_next_takeover_thread(signal);
     c_active_copy_threads_list.addFirst(takeOverPtr);
-    g_eventLogger->info("UPDATE_FRAG_STATE completed: thread: %u",
+    g_eventLogger->debug("UPDATE_FRAG_STATE completed: thread: %u",
       takeOverPtr.i);
     takeOverPtr.p->toSlaveStatus = TakeOverRecord::TO_START_LOGGING;
     takeOverPtr.p->toCurrentFragid++;
@@ -8327,7 +8332,7 @@ void Dbdih::execCOPY_FRAGCONF(Signal* signal)
   ndbrequire(conf->sendingNodeId == takeOverPtr.p->toCopyNode);
   ndbrequire(takeOverPtr.p->toSlaveStatus == TakeOverRecord::TO_COPY_FRAG);
 
-  g_eventLogger->info("COPY_FRAGCONF: thread: %u, tab: %u, frag: %u",
+  g_eventLogger->debug("COPY_FRAGCONF: thread: %u, tab: %u, frag: %u",
     takeOverPtr.i,
     takeOverPtr.p->toCurrentTabref,
     takeOverPtr.p->toCurrentFragid);
@@ -8363,7 +8368,7 @@ void Dbdih::execCOPY_FRAGCONF(Signal* signal)
   
   sendSignal(lqhRef, GSN_COPY_ACTIVEREQ, signal,
              CopyActiveReq::SignalLength, JBB);
-  g_eventLogger->info("COPY_ACTIVEREQ: thread: %u, tab: %u, frag: %u",
+  g_eventLogger->debug("COPY_ACTIVEREQ: thread: %u, tab: %u, frag: %u",
     takeOverPtr.i,
     takeOverPtr.p->toCurrentTabref,
     takeOverPtr.p->toCurrentFragid);
@@ -8394,7 +8399,7 @@ void Dbdih::execCOPY_ACTIVECONF(Signal* signal)
   ndbrequire(conf->fragId == takeOverPtr.p->toCurrentFragid);
   ndbrequire(checkNodeAlive(conf->startingNodeId));
 
-  g_eventLogger->info("COPY_ACTIVECONF: thread: %u, tab: %u, frag: %u",
+  g_eventLogger->debug("COPY_ACTIVECONF: thread: %u, tab: %u, frag: %u",
     takeOverPtr.i,
     takeOverPtr.p->toCurrentTabref,
     takeOverPtr.p->toCurrentFragid);
@@ -8413,7 +8418,7 @@ void Dbdih::execCOPY_ACTIVECONF(Signal* signal)
        * put ourselves in the c_queued_for_commit_take_over_list and be
        * started as soon as possible.
        */
-      g_eventLogger->info("QUEUED_UPDATE_BEFORE_COMMIT, inst: %u",
+      g_eventLogger->debug("QUEUED_UPDATE_BEFORE_COMMIT, inst: %u",
                           takeOverPtr.i);
       jam();
       takeOverPtr.p->toSlaveStatus =
@@ -8421,7 +8426,7 @@ void Dbdih::execCOPY_ACTIVECONF(Signal* signal)
       c_queued_for_commit_takeover_list.addLast(takeOverPtr);
       return;
     }
-    g_eventLogger->info("Copy frag active: tab:%u,frag:%u,inst:%u",
+    g_eventLogger->debug("Copy frag active: tab:%u,frag:%u,inst:%u",
       takeOverPtr.p->toCurrentTabref,
       takeOverPtr.p->toCurrentFragid,
       takeOverPtr.i);
@@ -8439,8 +8444,8 @@ void Dbdih::execCOPY_ACTIVECONF(Signal* signal)
     if (c_activeThreadTakeOverPtr.i != RNIL)
     {
       jam();
-      g_eventLogger->info("QUEUED_SL_UPDATE_FRAG_STATE, inst: %u",
-                          takeOverPtr.i);
+      g_eventLogger->debug("QUEUED_SL_UPDATE_FRAG_STATE, inst: %u",
+                           takeOverPtr.i);
       takeOverPtr.p->toSlaveStatus =
         TakeOverRecord::TO_QUEUED_SL_UPDATE_FRAG_STATE;
       c_queued_for_commit_takeover_list.addLast(takeOverPtr);
@@ -8448,11 +8453,11 @@ void Dbdih::execCOPY_ACTIVECONF(Signal* signal)
     }
     c_activeThreadTakeOverPtr = takeOverPtr; /* Mark master busy */
     takeOverPtr.p->toSlaveStatus = TakeOverRecord::TO_SL_UPDATE_FRAG_STATE;
-    g_eventLogger->info("Update frag state:inst:%u,tab:%u,frag:%u,state:%u",
-                        takeOverPtr.i,
-                        takeOverPtr.p->toCurrentTabref,
-                        takeOverPtr.p->toCurrentFragid,
-                        takeOverPtr.p->toSlaveStatus);
+    g_eventLogger->debug("Update frag state:inst:%u,tab:%u,frag:%u,state:%u",
+                         takeOverPtr.i,
+                         takeOverPtr.p->toCurrentTabref,
+                         takeOverPtr.p->toCurrentFragid,
+                         takeOverPtr.p->toSlaveStatus);
     sendUpdateFragStateReq(signal,
                            takeOverPtr.p->startGci,
                            UpdateFragStateReq::START_LOGGING,
@@ -8512,7 +8517,7 @@ void Dbdih::toCopyCompletedLab(Signal * signal, TakeOverRecordPtr takeOverPtr)
    * One take over thread has completed its work. We will have to wait for
    * all of the threads to complete here before we can proceed.
    */
-  g_eventLogger->info("Thread %u copy completed", takeOverPtr.i);
+  g_eventLogger->debug("Thread %u copy completed", takeOverPtr.i);
   if (!thread_takeover_copy_completed(signal, takeOverPtr))
   {
     jam();
@@ -10565,9 +10570,12 @@ void Dbdih::removeNodeFromTable(Signal* signal,
             replicaPtr.p->lcpStatus[lcpNo] = ZINVALID;       
             replicaPtr.p->lcpId[lcpNo] = 0;
             replicaPtr.p->nextLcp = lcpNo;
-            ndbout_c("REMOVING lcp: %u from table: %u frag: %u node: %u",
-                     SYSFILE->latestLCP_ID,
-                     tabPtr.i, fragNo, nodeId);
+            g_eventLogger->debug("REMOVING lcp: %u from table: %u frag:"
+                                 " %u node: %u",
+                                 SYSFILE->latestLCP_ID,
+                                 tabPtr.i,
+                                 fragNo,
+                                 nodeId);
           }
         }
       }
@@ -19444,10 +19452,11 @@ void Dbdih::tableCloseLab(Signal* signal, FileRecordPtr filePtr)
         }
       }
       /* No queued table write found - error */
-      ndbout_c("DIH : Error in queued table writes : inUse %u queued %u total %u",
-               c_lcpTabDefWritesControl.inUse,
-               c_lcpTabDefWritesControl.queuedRequests,
-               c_lcpTabDefWritesControl.totalResources);
+      g_eventLogger->warning("DIH : Error in queued table writes : inUse %u"
+                             " queued %u total %u",
+                             c_lcpTabDefWritesControl.inUse,
+                             c_lcpTabDefWritesControl.queuedRequests,
+                             c_lcpTabDefWritesControl.totalResources);
       ndbrequire(false);
     }
     jam();
@@ -21307,8 +21316,8 @@ void Dbdih::makeNodeGroups(Uint32 nodeArray[])
     {
       jam();
       mngNodeptr.p->nodeGroup = ZNIL;
-      ndbout_c("setting nodeGroup = ZNIL for node %u",
-               mngNodeptr.i);
+      g_eventLogger->info("setting nodeGroup = ZNIL for node %u",
+                          mngNodeptr.i);
     }
     else if (mngNodeptr.p->nodeGroup != RNIL)
     {

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -113,7 +113,6 @@ private:
     Uint32 m_outstanding_reads;  // 
     Uint32 m_outstanding_operations;
     Uint64 m_rows_restored;
-    Uint64 m_bytes_restored;
     Uint64 m_restore_start_time;
     
     Uint32 m_current_page_index; // Where in page list are we
@@ -162,7 +161,6 @@ private:
   ArrayPool<File> m_file_pool;
 
   Uint64 m_rows_restored;
-  Uint64 m_bytes_restored;
   Uint64 m_millis_spent;
   Uint32 m_frags_restored;
   
