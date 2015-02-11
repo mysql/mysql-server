@@ -19,6 +19,7 @@
 #if defined(ENABLED_DEBUG_SYNC)
 #include "debug_sync.h"
 #include "sql_class.h"
+#include "current_thd.h"
 #endif
 
 #define TIME_THOUSAND 1000

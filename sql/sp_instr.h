@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1608,7 +1608,7 @@ public:
 
   virtual bool execute(THD *thd, uint *nextp)
   {
-    my_message(m_errcode, ER(m_errcode), MYF(0));
+    my_error(m_errcode, MYF(0));
     *nextp= get_ip() + 1;
     return true;
   }

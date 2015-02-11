@@ -16,6 +16,7 @@
 #include "binlog.h"
 
 #include "my_stacktrace.h"                  // my_safe_print_system_time
+#include "current_thd.h"
 #include "debug_sync.h"                     // DEBUG_SYNC
 #include "log_event.h"                      // Rows_log_event
 #include "mysqld_thd_manager.h"             // Global_THD_manager

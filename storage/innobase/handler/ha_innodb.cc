@@ -38,6 +38,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /* Include necessary SQL headers */
 #include "ha_prototypes.h"
+#include <current_thd.h>
 #include <debug_sync.h>
 #include <gstream.h>
 #include <log.h>

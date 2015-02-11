@@ -28,6 +28,7 @@
 
 #include "my_bit.h"              // my_count_bits
 #include "abstract_query_plan.h" // Join_plan
+#include "current_thd.h"
 #include "debug_sync.h"          // DEBUG_SYNC
 #include "item_sum.h"            // Item_sum
 #include "lock.h"                // mysql_unlock_some_tables

@@ -22,6 +22,7 @@
 #include "debug_sync.h"
 #include "sql_executor.h"                       // QEP_TAB
 #include "item_cmpfunc.h"           // Item_func_like
+#include "current_thd.h"
 
 struct st_find_field
 {

@@ -219,23 +219,7 @@ class PFS_variable_cache
 public:
   typedef Prealloced_array<Var_type, SHOW_VAR_PREALLOC, false> Variable_array;
 
-  PFS_variable_cache(bool external_init)
-    : m_safe_thd(NULL),
-      m_unsafe_thd(NULL),
-      m_current_thd(current_thd),
-      m_pfs_thread(NULL),
-      m_pfs_client(NULL),
-      m_thd_finder(),
-      m_cache(PSI_INSTRUMENT_ME),
-      m_initialized(false),
-      m_external_init(external_init),
-      m_materialized(false),
-      m_show_var_array(PSI_INSTRUMENT_ME),
-      m_version(0),
-      m_query_scope(OPT_DEFAULT),
-      m_use_mem_root(false),
-      m_aggregate(false)
-  { }
+  PFS_variable_cache(bool external_init);
 
   virtual ~PFS_variable_cache()= 0;
   

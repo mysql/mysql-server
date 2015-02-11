@@ -667,34 +667,6 @@ const int COUNT_GLOBAL_STATUS_VARS= ((offsetof(STATUS_VAR, LAST_STATUS_VAR) -
                                       offsetof(STATUS_VAR, FIRST_STATUS_VAR)) /
                                       sizeof(ulonglong)) + 1;
 
-/**
-  Get collation by name, send error to client on failure.
-  @param name     Collation name
-  @param name_cs  Character set of the name string
-  @return
-  @retval         NULL on error
-  @retval         Pointter to CHARSET_INFO with the given name on success
-*/
-inline CHARSET_INFO *
-mysqld_collation_get_by_name(const char *name,
-                             CHARSET_INFO *name_cs= system_charset_info)
-{
-  CHARSET_INFO *cs;
-  MY_CHARSET_LOADER loader;
-  my_charset_loader_init_mysys(&loader);
-  if (!(cs= my_collation_get_by_name(&loader, name, MYF(0))))
-  {
-    ErrConvString err(name, name_cs);
-    my_error(ER_UNKNOWN_COLLATION, MYF(0), err.ptr());
-    if (loader.error[0])
-      push_warning_printf(current_thd,
-                          Sql_condition::SL_WARNING,
-                          ER_UNKNOWN_COLLATION, "%s", loader.error);
-  }
-  return cs;
-}
-
-
 #ifdef MYSQL_SERVER
 
 /* The following macro is to make init of Query_arena simpler */
@@ -3205,7 +3177,7 @@ public:
         JOIN::optimize(), statement cannot possibly run as its caller expected
         => "OK" would be misleading the caller.
       */
-      my_message(err, ER(err), MYF(ME_FATALERROR));
+      my_error(err, MYF(ME_FATALERROR));
     }
   }
   void set_status_var_init();
@@ -3756,7 +3728,7 @@ public:
   {
     if (m_db.str == NULL)
     {
-      my_message(ER_NO_DB_ERROR, ER(ER_NO_DB_ERROR), MYF(0));
+      my_error(ER_NO_DB_ERROR, MYF(0));
       return TRUE;
     }
     *p_db= strmake(m_db.str, m_db.length);
@@ -3881,12 +3853,16 @@ public:
     Read(by owner or other thread)-write(other thread) are disallowed.
     Read(other thread)-write(by owner) conflicts are avoided by LOCK_thd_query.
     Read(by owner)-write(by owner) won't happen as THD=thread.
+
+    We want to keep current_thd out of header files, so the debug assert,
+    is moved to the .cc file. In optimized mode, we want this getter to
+    be fast, so we inline it.
   */
+  void debug_assert_query_locked() const;
   const LEX_CSTRING &query() const
   {
 #ifndef DBUG_OFF
-    if (current_thd != this)
-      mysql_mutex_assert_owner(&LOCK_thd_query);
+    debug_assert_query_locked();
 #endif
     return m_query_string;
   }
@@ -4277,10 +4253,10 @@ public:
     Valid only for materialized derived tables/views.
   */
   ha_rows estimated_rowcount;
-  Query_result()
-    :thd(current_thd), unit(NULL), estimated_rowcount(0)
-  { }
+
+  Query_result();
   virtual ~Query_result() {};
+
   /**
     Change wrapped Query_result.
 

@@ -14,6 +14,8 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "sql_audit.h"
+
+#include "current_thd.h"
 #include "log.h"
 #include "sql_plugin.h"                         // my_plugin_foreach
 

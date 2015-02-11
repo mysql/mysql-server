@@ -32,6 +32,7 @@
 #include "table.h"                              // TABLE
 #include "thr_lock.h"                           // TL_READ
 #include "transaction.h"
+#include "current_thd.h"
 
 Cost_constant_cache *cost_constant_cache= NULL;
 

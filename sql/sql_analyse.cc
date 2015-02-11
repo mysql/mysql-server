@@ -27,6 +27,7 @@
 
 #include "procedure.h"       // Item_proc
 #include "sql_yacc.h"        // DECIMAL_NUM
+#include "current_thd.h"
 
 #include <algorithm>
 using std::min;

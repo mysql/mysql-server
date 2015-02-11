@@ -20,6 +20,7 @@
                                              // mysql_exchange_partition
 #include "sql_base.h"                        // open_temporary_tables
 #include "log.h"
+#include "current_thd.h"
 
 
 Alter_info::Alter_info(const Alter_info &rhs, MEM_ROOT *mem_root)

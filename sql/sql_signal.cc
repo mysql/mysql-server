@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,6 +18,7 @@
 #include "sp_rcontext.h"
 #include "sql_signal.h"
 #include "sql_error.h"
+#include "current_thd.h"
 
 /*
   The parser accepts any error code (desired)

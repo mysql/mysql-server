@@ -33,7 +33,6 @@
 
 #include "mem_root_array.h"
 #include "sql_executor.h"
-#include "opt_explain_format.h" // for Extra_tag
 #include "sql_opt_exec_shared.h"
 #include "item_cmpfunc.h"             // Item_cond_and
 

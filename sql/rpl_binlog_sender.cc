@@ -23,6 +23,7 @@
 #include "rpl_master.h"              // opt_sporadic_binlog_dump_fail
 #include "rpl_reporting.h"           // MAX_SLAVE_ERRMSG
 #include "sql_class.h"               // THD
+#include "current_thd.h"
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"

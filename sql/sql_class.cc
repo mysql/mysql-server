@@ -27,6 +27,7 @@
 
 #include "mysys_err.h"                       // EE_DELETE
 #include "connection_handler_manager.h"      // Connection_handler_manager
+#include "current_thd.h"
 #include "debug_sync.h"                      // DEBUG_SYNC
 #include "lock.h"                            // mysql_lock_abort_for_thread
 #include "mysqld_thd_manager.h"              // Global_THD_manager
@@ -1610,12 +1611,6 @@ void thd_get_xid(const MYSQL_THD thd, MYSQL_XID *xid)
   *xid = *(MYSQL_XID *) thd->get_transaction()->xid_state()->get_xid();
 }
 
-#if defined(_WIN32)
-extern "C"   THD *_current_thd_noinline(void)
-{
-  return my_thread_get_THR_THD();
-}
-#endif
 /*
   Init common variables that has to be reset on start and on cleanup_connection
 */
@@ -2724,6 +2719,11 @@ bool sql_exchange::escaped_given(void)
 {
   return field.escaped != &default_escaped;
 }
+
+
+Query_result::Query_result()
+  : thd(current_thd), unit(NULL), estimated_rowcount(0)
+{ }
 
 
 bool Query_result_send::send_result_set_metadata(List<Item> &list, uint flags)
@@ -4340,6 +4340,13 @@ void THD::set_command(enum enum_server_command command)
 #ifdef HAVE_PSI_THREAD_INTERFACE
   PSI_STATEMENT_CALL(set_thread_command)(m_command);
 #endif
+}
+
+
+void THD::debug_assert_query_locked() const
+{
+  if (current_thd != this)
+    mysql_mutex_assert_owner(&LOCK_thd_query);
 }
 
 

@@ -842,19 +842,9 @@ public:
   { return 0; }
   virtual bool write_data_body(IO_CACHE* file __attribute__((unused)))
   { return 0; }
-  inline time_t get_time()
-  {
-    /* Not previously initialized */
-    if (!common_header->when.tv_sec && !common_header->when.tv_usec)
-    {
-      THD *tmp_thd= thd ? thd : current_thd;
-      if (tmp_thd)
-        common_header->when= tmp_thd->start_time;
-      else
-        my_micro_time_to_timeval(my_micro_time(), &(common_header->when));
-    }
-    return (time_t) common_header->when.tv_sec;
-  }
+
+  time_t get_time();
+
 #endif
   Log_event_type get_type_code()
   {

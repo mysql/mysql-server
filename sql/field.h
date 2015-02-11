@@ -2540,10 +2540,7 @@ protected:
     check_date(), number_to_datetime(), str_to_datetime().
     Similar to the above when we don't have a THD value.
   */
-  my_time_flags_t date_flags()
-  {
-    return date_flags(table ? table->in_use : current_thd);
-  }
+  my_time_flags_t date_flags();
 
   /**
     Set a single warning using make_truncated_value_warning().

@@ -47,6 +47,7 @@
 
 #include "sql_partition.h"
 
+#include "current_thd.h"
 #include "hash.h"                       // HASH
 #include "debug_sync.h"                 // DEBUG_SYNC
 #include "item.h"                       // enum_monotoncity_info

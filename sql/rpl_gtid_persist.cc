@@ -17,6 +17,7 @@
 
 #include "rpl_gtid_persist.h"
 
+#include "current_thd.h"
 #include "debug_sync.h"       // debug_sync_set_action
 #include "log.h"              // sql_print_error
 #include "replication.h"      // THD_ENTER_COND

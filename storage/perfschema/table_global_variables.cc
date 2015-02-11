@@ -25,6 +25,7 @@
 #include "pfs_column_types.h"
 #include "pfs_column_values.h"
 #include "pfs_global.h"
+#include "current_thd.h"
 
 THR_LOCK table_global_variables::m_table_lock;
 

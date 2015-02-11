@@ -343,6 +343,7 @@ TODO list:
 #include "../storage/myisammrg/myrg_def.h"
 #include "probes_mysql.h"
 #include "transaction.h"
+#include "current_thd.h"
 
 #ifdef EMBEDDED_LIBRARY
 #include "emb_qcache.h"

@@ -332,6 +332,7 @@
 
 #include "sql_parse.h"
 #include "log.h"
+#include "current_thd.h"
 
 #include <set>
 #include <string>

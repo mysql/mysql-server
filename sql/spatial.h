@@ -19,7 +19,7 @@
 #include "my_global.h"
 #include "mysql/mysql_lex_string.h"     // LEX_STRING
 #include "gcalc_tools.h"
-#include "mysqld.h"
+#include "mysqld.h"                     // key_memory_Geometry_objects_data
 #include "sql_string.h"                 // String
 
 #include <vector>

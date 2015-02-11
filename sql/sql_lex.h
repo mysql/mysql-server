@@ -2874,12 +2874,17 @@ private:
 
 public:
   inline SELECT_LEX *current_select() { return m_current_select; }
+
+  /*
+    We want to keep current_thd out of header files, so the debug assert 
+    is moved to the .cc file.
+  */
+  void assert_ok_set_current_select();
   inline void set_current_select(SELECT_LEX *select)
   {
-    // (2) Only owning thread could change m_current_select
-    // (1) bypass for bootstrap and "new THD"
-    DBUG_ASSERT(!current_thd || !thd || //(1)
-                thd == current_thd);    //(2)
+#ifndef DBUG_OFF
+    assert_ok_set_current_select();
+#endif
     m_current_select= select;
   }
   /// @return true if this is an EXPLAIN statement

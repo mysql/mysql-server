@@ -24,6 +24,8 @@
 */
 
 #include "sql_select.h"
+
+#include "current_thd.h"
 #include "sql_table.h"                          // primary_key_name
 #include "sql_derived.h"
 #include "probes_mysql.h"

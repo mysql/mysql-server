@@ -25,6 +25,8 @@
 */
 
 #include "unireg.h"
+
+#include "current_thd.h"
 #include "table.h"
 #include "sql_class.h"                        // THD, Internal_error_handler
 #include "partition_info.h"                   // partition_info

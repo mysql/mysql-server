@@ -15,6 +15,7 @@
 
 #include "event_data_objects.h"
 
+#include "current_thd.h"
 #include "sql_parse.h"                          // parse_sql
 #include "strfunc.h"                           // find_string_in_array
 #include "sql_db.h"                        // get_default_db_collation

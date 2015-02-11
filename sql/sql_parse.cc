@@ -17,6 +17,7 @@
 
 #include "auth_common.h"      // acl_authenticate
 #include "binlog.h"           // purge_master_logs
+#include "current_thd.h"
 #include "debug_sync.h"       // DEBUG_SYNC
 #include "events.h"           // Events
 #include "item_timefunc.h"    // Item_func_unix_timestamp

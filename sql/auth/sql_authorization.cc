@@ -29,6 +29,7 @@
 #include "sql_auth_cache.h"
 #include "sql_authentication.h"
 #include "sql_authorization.h"
+#include "current_thd.h"
 
 const char *command_array[]=
 {

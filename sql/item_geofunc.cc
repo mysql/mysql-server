@@ -22,6 +22,7 @@
 */
 #include "item_geofunc.h"
 
+#include "current_thd.h"
 #include "gstream.h"      // Gis_read_stream
 #include "sql_class.h"    // THD
 #include "gis_bg_traits.h"

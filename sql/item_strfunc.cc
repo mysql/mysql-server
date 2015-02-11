@@ -33,6 +33,7 @@
 #include "item_strfunc.h"
 
 #include "base64.h"                  // base64_encode_max_arg_length
+#include "current_thd.h"
 #include "my_aes.h"                  // MY_AES_IV_SIZE
 #include "my_md5.h"                  // MD5_HASH_SIZE
 #include "my_rnd.h"                  // my_rand_buffer
@@ -5787,3 +5788,32 @@ String *Item_func_gtid_subtract::val_str_ascii(String *str)
   null_value= true;
   DBUG_RETURN(NULL);
 }
+
+
+/**
+  Get collation by name, send error to client on failure.
+  @param name     Collation name
+  @param name_cs  Character set of the name string
+  @return
+  @retval         NULL on error
+  @retval         Pointter to CHARSET_INFO with the given name on success
+*/
+CHARSET_INFO *
+mysqld_collation_get_by_name(const char *name, CHARSET_INFO *name_cs)
+{
+  CHARSET_INFO *cs;
+  MY_CHARSET_LOADER loader;
+  my_charset_loader_init_mysys(&loader);
+  if (!(cs= my_collation_get_by_name(&loader, name, MYF(0))))
+  {
+    ErrConvString err(name, name_cs);
+    my_error(ER_UNKNOWN_COLLATION, MYF(0), err.ptr());
+    if (loader.error[0])
+      push_warning_printf(current_thd,
+                          Sql_condition::SL_WARNING,
+                          ER_UNKNOWN_COLLATION, "%s", loader.error);
+  }
+  return cs;
+}
+
+

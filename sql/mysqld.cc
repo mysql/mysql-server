@@ -101,6 +101,7 @@
 #include "replication.h" // thd_enter_cond
 
 #include "my_default.h"
+#include "current_thd.h"
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #include "../storage/perfschema/pfs_server.h"
@@ -620,8 +621,7 @@ SHOW_COMP_OPTION have_statement_timeout= SHOW_OPTION_DISABLED;
 
 thread_local_key_t THR_MALLOC;
 bool THR_MALLOC_initialized= false;
-thread_local_key_t THR_THD;
-bool THR_THD_initialized= false;
+
 mysql_mutex_t
   LOCK_status, LOCK_error_log, LOCK_uuid_generator,
   LOCK_crypt,

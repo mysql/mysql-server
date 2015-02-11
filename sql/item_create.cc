@@ -23,6 +23,7 @@
 
 #include "item_create.h"
 
+#include "current_thd.h"
 #include "item_cmpfunc.h"        // Item_func_any_value
 #include "item_func.h"           // Item_func_udf_str
 #include "item_geofunc.h"        // Item_func_area

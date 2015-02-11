@@ -85,6 +85,7 @@ When one supplies long data for a placeholder:
 
 #include "sql_prepare.h"
 #include "auth_common.h"        // insert_precheck
+#include "current_thd.h"
 #include "log.h"                // query_logger
 #include "opt_trace.h"          // Opt_trace_array
 #include "probes_mysql.h"       // MYSQL_QUERY_EXEC_START

@@ -17,6 +17,7 @@
 
 #include "auth_common.h" // CREATE_VIEW_ACL
 #include "binlog.h"      // mysql_bin_log
+#include "current_thd.h"
 #include "datadict.h"    // dd_frm_type
 #include "opt_trace.h"   // Opt_trace_object
 #include "parse_file.h"  // File_option

@@ -19,6 +19,7 @@
 #include "mysqld.h"            // current_thd
 #include "sql_class.h"         // THD
 #include "sql_error.h"         // Diagnostics_area
+#include "current_thd.h"
 
 Slave_reporting_capability::Slave_reporting_capability(char const *thread_name)
   : m_thread_name(thread_name)

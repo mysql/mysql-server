@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,7 +20,6 @@
 #include "my_time.h"
 #include "mysql_time.h"                         /* timestamp_type */
 #include "sql_error.h"                          /* Sql_condition */
-#include "mysqld.h"                             /* current_thd */
 
 struct Date_time_format
 {
@@ -93,12 +92,7 @@ void make_truncated_value_warning(THD *thd,
                                   ErrConvString val,
                                   timestamp_type time_type,
                                   const char *field_name);
-inline void make_truncated_value_warning(ErrConvString val,
-                                         timestamp_type time_type)
-{
-  make_truncated_value_warning(current_thd, Sql_condition::SL_WARNING,
-                               val, time_type, NullS);
-}
+
 extern Date_time_format *date_time_format_copy(THD *thd,
 					       Date_time_format *format);
 const char *get_date_time_format_str(Known_date_time_format *format,

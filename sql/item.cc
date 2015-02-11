@@ -19,6 +19,7 @@
 #include "mysql.h"           // IS_NUM
 #include "aggregate_check.h" // Distinct_check
 #include "auth_common.h"     // get_column_grant
+#include "current_thd.h"
 #include "item_cmpfunc.h"    // COND_EQUAL
 #include "item_create.h"     // create_temporal_literal
 #include "item_func.h"       // item_func_sleep_init
@@ -3723,10 +3724,11 @@ void Item_param::set_time(MYSQL_TIME *tm, timestamp_type time_type,
 
   if (check_datetime_range(&value.time))
   {
-    make_truncated_value_warning(ErrConvString(&value.time,
+    make_truncated_value_warning(current_thd, Sql_condition::SL_WARNING,
+                                 ErrConvString(&value.time,
                                                MY_MIN(decimals,
                                                       DATETIME_MAX_DECIMALS)),
-                                 time_type);
+                                 time_type, NullS);
     set_zero_time(&value.time, MYSQL_TIMESTAMP_ERROR);
   }
 

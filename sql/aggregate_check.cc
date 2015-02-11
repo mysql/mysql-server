@@ -20,10 +20,12 @@
    sql_mode contains 'only_full_group_by'.
 */
 
-#include "sql_select.h"
+#include "aggregate_check.h"
+
+#include "current_thd.h"
 #include "opt_trace.h"
 #include "sql_base.h"
-#include "aggregate_check.h"
+#include "sql_select.h"
 
 
 /**

@@ -25,7 +25,7 @@ Created 1/8/1996 Heikki Tuuri
 ***********************************************************************/
 
 #include "ha_prototypes.h"
-#include <mysqld.h>
+#include "current_thd.h"
 #include <strfunc.h>
 
 #include "dict0dict.h"

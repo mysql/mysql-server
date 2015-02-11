@@ -15,6 +15,7 @@
 
 #include "rpl_record.h"
 
+#include "current_thd.h"
 #include "my_bitmap.h"        // MY_BITMAP
 #include "derror.h"           // ER_THD
 #include "field.h"            // Field

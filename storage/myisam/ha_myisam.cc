@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,6 +29,7 @@
 #include "sql_table.h"                          // tablename_to_filename
 #include "sql_class.h"                          // THD
 #include "log.h"
+#include "current_thd.h"
 
 #include <algorithm>
 

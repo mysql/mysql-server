@@ -20,6 +20,7 @@
 #include "binary_log_funcs.h"  // my_timestamp_binary_length
 
 #ifndef MYSQL_CLIENT
+#include "current_thd.h"
 #include "debug_sync.h"        // debug_sync_set_action
 #include "my_dir.h"            // my_dir
 #include "log.h"               // Log_throttle
@@ -753,6 +754,24 @@ static void print_set_option(IO_CACHE* file, uint32 bits_changed,
 /**************************************************************************
 	Log_event methods (= the parent class of all events)
 **************************************************************************/
+
+#ifdef MYSQL_SERVER
+
+time_t Log_event::get_time()
+{
+  /* Not previously initialized */
+  if (!common_header->when.tv_sec && !common_header->when.tv_usec)
+  {
+    THD *tmp_thd= thd ? thd : current_thd;
+    if (tmp_thd)
+      common_header->when= tmp_thd->start_time;
+    else
+      my_micro_time_to_timeval(my_micro_time(), &(common_header->when));
+  }
+  return (time_t) common_header->when.tv_sec;
+}
+
+#endif
 
 /**
   @return

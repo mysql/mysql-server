@@ -47,6 +47,7 @@ SELECT_LEX), by calling explain_unit() for each of them.
 
 #include <my_base.h>
 #include "opt_explain_format.h"
+#include "sql_class.h"                          // select_send
 
 class JOIN;
 class Query_result;

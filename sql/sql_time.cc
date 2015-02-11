@@ -21,6 +21,7 @@
 #include "sql_class.h"  // THD, MODE_STRICT_ALL_TABLES, MODE_STRICT_TRANS_TABLES
 #include <m_ctype.h>
 #include "item_timefunc.h"   // INTERNAL_FORMAT
+#include "current_thd.h"
 
 
 	/* Some functions to calculate dates */
@@ -391,7 +392,8 @@ str_to_datetime_with_warn(String *str, MYSQL_TIME *l_time,
     flags|= TIME_INVALID_DATES;
   bool ret_val= str_to_datetime(str, l_time, flags, &status);
   if (ret_val || status.warnings)
-    make_truncated_value_warning(ErrConvString(str), l_time->time_type);
+    make_truncated_value_warning(current_thd, Sql_condition::SL_WARNING,
+                                 ErrConvString(str), l_time->time_type, NullS);
   return ret_val;
 }
 
@@ -459,7 +461,9 @@ bool my_decimal_to_datetime_with_warn(const my_decimal *decimal,
     rc= lldiv_t_to_datetime(lld, ltime, flags, &warnings);
 
   if (warnings)
-    make_truncated_value_warning(ErrConvString(decimal), ltime->time_type);
+    make_truncated_value_warning(current_thd, Sql_condition::SL_WARNING,
+                                 ErrConvString(decimal), ltime->time_type,
+                                 NullS);
   return rc;
 }
 
@@ -487,7 +491,8 @@ bool my_double_to_datetime_with_warn(double nr, MYSQL_TIME *ltime,
     rc= lldiv_t_to_datetime(lld, ltime, flags, &warnings);
 
   if (warnings)
-    make_truncated_value_warning(ErrConvString(nr), ltime->time_type);  
+    make_truncated_value_warning(current_thd, Sql_condition::SL_WARNING,
+                                 ErrConvString(nr), ltime->time_type, NullS);
   return rc;
 }
 
@@ -504,7 +509,9 @@ bool my_longlong_to_datetime_with_warn(longlong nr, MYSQL_TIME *ltime,
   int warnings= 0;
   bool rc= number_to_datetime(nr, ltime, flags, &warnings) == -1LL;
   if (warnings)
-    make_truncated_value_warning(ErrConvString(nr),  MYSQL_TIMESTAMP_NONE);
+    make_truncated_value_warning(current_thd, Sql_condition::SL_WARNING,
+                                 ErrConvString(nr),  MYSQL_TIMESTAMP_NONE,
+                                 NullS);
   return rc;
 }
 
@@ -554,7 +561,9 @@ bool my_decimal_to_time_with_warn(const my_decimal *decimal, MYSQL_TIME *ltime)
     rc= lldiv_t_to_time(lld, ltime, &warnings);
 
   if (warnings)
-    make_truncated_value_warning(ErrConvString(decimal), MYSQL_TIMESTAMP_TIME);
+    make_truncated_value_warning(current_thd, Sql_condition::SL_WARNING,
+                                 ErrConvString(decimal), MYSQL_TIMESTAMP_TIME,
+                                 NullS);
   return rc;
 }
 
@@ -581,7 +590,9 @@ bool my_double_to_time_with_warn(double nr, MYSQL_TIME *ltime)
     rc= lldiv_t_to_time(lld, ltime, &warnings);
 
   if (warnings)
-    make_truncated_value_warning(ErrConvString(nr), MYSQL_TIMESTAMP_TIME);
+    make_truncated_value_warning(current_thd, Sql_condition::SL_WARNING,
+                                 ErrConvString(nr), MYSQL_TIMESTAMP_TIME,
+                                 NullS);
   return rc;
 }
 
@@ -598,7 +609,9 @@ bool my_longlong_to_time_with_warn(longlong nr, MYSQL_TIME *ltime)
   int warnings= 0;
   bool rc= number_to_time(nr, ltime, &warnings);
   if (warnings)
-    make_truncated_value_warning(ErrConvString(nr), MYSQL_TIMESTAMP_TIME);
+    make_truncated_value_warning(current_thd, Sql_condition::SL_WARNING,
+                                 ErrConvString(nr), MYSQL_TIMESTAMP_TIME,
+                                 NullS);
   return rc;
 }
 
@@ -756,7 +769,9 @@ str_to_time_with_warn(String *str, MYSQL_TIME *l_time)
   MYSQL_TIME_STATUS status;
   bool ret_val= str_to_time(str, l_time, 0, &status);
   if (ret_val || status.warnings)
-    make_truncated_value_warning(ErrConvString(str), MYSQL_TIMESTAMP_TIME);
+    make_truncated_value_warning(current_thd, Sql_condition::SL_WARNING,
+                                 ErrConvString(str), MYSQL_TIMESTAMP_TIME,
+                                 NullS);
   return ret_val;
 }
 

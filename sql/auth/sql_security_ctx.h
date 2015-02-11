@@ -1,7 +1,7 @@
 #ifndef SQL_SECURITY_CTX_INCLUDED
 #define SQL_SECURITY_CTX_INCLUDED
 
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,7 +21,7 @@
 #include "mysql_com.h"
 #include "sql_const.h"
 #include "auth/auth_acls.h"
-#include "mysqld.h"
+#include "mysqld.h"                             // system_charset_info
 
 #include <algorithm>
 

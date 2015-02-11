@@ -27,7 +27,8 @@
    Only such indexes are involved in range analysis.
 */
 
-#include "sql_select.h"        // Item_null_array
+#include "sql_select.h"                         // Item_null_array
+#include "opt_explain_format.h"                 // Explain_sort_clause
 
 class Cost_model_server;
 

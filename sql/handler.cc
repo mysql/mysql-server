@@ -24,6 +24,7 @@
 #include "my_bit.h"                   // my_count_bits
 #include "myisam.h"                   // TT_FOR_UPGRADE
 #include "binlog.h"                   // mysql_bin_log
+#include "current_thd.h"
 #include "debug_sync.h"               // DEBUG_SYNC
 #include "discover.h"                 // writefrm
 #include "log.h"                      // sql_print_error

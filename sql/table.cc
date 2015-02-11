@@ -20,6 +20,7 @@
 #include "myisam.h"                      // MI_MAX_KEY_LENGTH
 #include "auth_common.h"                 // acl_getroot
 #include "binlog.h"                      // mysql_bin_log
+#include "current_thd.h"
 #include "debug_sync.h"                  // DEBUG_SYNC
 #include "item_cmpfunc.h"                // and_conds
 #include "key.h"                         // find_ref_key

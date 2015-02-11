@@ -15,6 +15,7 @@
 
 #include "rpl_handler.h"
 
+#include "current_thd.h"
 #include "debug_sync.h"        // DEBUG_SYNC
 #include "log.h"               // sql_print_error
 #include "replication.h"       // Trans_param

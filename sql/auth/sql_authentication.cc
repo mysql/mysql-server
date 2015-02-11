@@ -29,6 +29,8 @@
 #include <mysql/plugin_validate_password.h> /* validate_password plugin */
 #include <mysql/service_my_plugin_log.h>
 #include "sys_vars.h"
+#include "current_thd.h"
+
 #include <fstream>                      /* std::fstream */
 #include <string>                       /* std::string */
 #include <algorithm>                    /* for_each */

@@ -24,6 +24,32 @@
 #include "pfs.h"
 #include "pfs_global.h"
 #include "pfs_visitor.h"
+#include "current_thd.h"
+
+template <class Var_type>
+PFS_variable_cache<Var_type>::PFS_variable_cache(bool external_init)
+  : m_safe_thd(NULL),
+    m_unsafe_thd(NULL),
+    m_current_thd(current_thd),
+    m_pfs_thread(NULL),
+    m_pfs_client(NULL),
+    m_thd_finder(),
+    m_cache(PSI_INSTRUMENT_ME),
+    m_initialized(false),
+    m_external_init(external_init),
+    m_materialized(false),
+    m_show_var_array(PSI_INSTRUMENT_ME),
+    m_version(0),
+    m_query_scope(OPT_DEFAULT),
+    m_use_mem_root(false),
+  m_aggregate(false)
+{ }
+
+
+// Explicit template instantiation
+template
+PFS_variable_cache<System_variable>::PFS_variable_cache(bool external_init);
+
 
 /**
   CLASS PFS_system_variable_cache

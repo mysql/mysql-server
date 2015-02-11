@@ -32,6 +32,7 @@
 #include "mysql.h"                             // MYSQL
 #include "sql_common.h"                        // end_server
 #include "auth_common.h"                       // any_db
+#include "current_thd.h"
 #include "debug_sync.h"                        // DEBUG_SYNC
 #include "dynamic_ids.h"                       // Server_ids
 #include "log.h"                               // sql_print_error

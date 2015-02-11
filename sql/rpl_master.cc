@@ -28,6 +28,7 @@
 #include "rpl_filter.h"                         // binlog_filter
 #include "rpl_handler.h"                        // RUN_HOOK
 #include "sql_class.h"                          // THD
+#include "current_thd.h"
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"

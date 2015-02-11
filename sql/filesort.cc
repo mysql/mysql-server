@@ -22,6 +22,8 @@
 */
 
 #include "filesort.h"
+
+#include "current_thd.h"
 #include <m_ctype.h>
 #include "sql_sort.h"
 #include "probes_mysql.h"

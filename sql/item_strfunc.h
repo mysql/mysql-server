@@ -27,6 +27,10 @@
 
 class MY_LOCALE;
 
+CHARSET_INFO *
+mysqld_collation_get_by_name(const char *name,
+                             CHARSET_INFO *name_cs= system_charset_info);
+
 class Item_str_func :public Item_func
 {
   typedef Item_func super;

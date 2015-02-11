@@ -332,25 +332,6 @@ static inline int my_thread_set_THR_MALLOC(MEM_ROOT ** hdl)
   return my_set_thread_local(THR_MALLOC, hdl);
 }
 
-/*
-  THR_THD is a key which will be used to set/get THD* for a thread,
-  using my_set_thread_local()/my_get_thread_local().
-*/
-extern MYSQL_PLUGIN_IMPORT thread_local_key_t THR_THD;
-extern bool THR_THD_initialized;
-
-static inline THD * my_thread_get_THR_THD()
-{
-  DBUG_ASSERT(THR_THD_initialized);
-  return (THD*)my_get_thread_local(THR_THD);
-}
-
-static inline int my_thread_set_THR_THD(THD *thd)
-{
-  DBUG_ASSERT(THR_THD_initialized);
-  return my_set_thread_local(THR_THD, thd);
-}
-
 extern bool load_perfschema_engine;
 
 #ifdef HAVE_PSI_INTERFACE
@@ -932,16 +913,6 @@ extern "C" void unireg_clear(int exit_code);
 #define unireg_abort(exit_code) do { unireg_clear(exit_code); DBUG_RETURN(exit_code); } while(0)
 #endif
 
-#if defined(MYSQL_DYNAMIC_PLUGIN) && defined(_WIN32)
-extern "C" THD *_current_thd_noinline();
-#define _current_thd() _current_thd_noinline()
-#else
-static inline THD *_current_thd(void)
-{
-  return my_thread_get_THR_THD();
-}
-#endif
-#define current_thd _current_thd()
 
 #define ER(X)         ER_THD(current_thd,X)
 

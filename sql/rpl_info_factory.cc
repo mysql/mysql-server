@@ -15,6 +15,7 @@
 
 #include "rpl_info_factory.h"
 
+#include "current_thd.h"
 #include "log.h"                    // sql_print_error
 #include "mysqld.h"                 // key_master_info_run_lock
 #include "rpl_info_dummy.h"         // Rpl_info_dummy

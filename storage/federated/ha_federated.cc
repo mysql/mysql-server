@@ -383,6 +383,7 @@
 #include "m_string.h"
 #include "key.h"                                // key_copy
 #include "myisam.h"                             // TT_USEFRM
+#include "current_thd.h"
 
 #include <mysql/plugin.h>
 

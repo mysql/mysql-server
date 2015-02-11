@@ -24,6 +24,7 @@
 #include "sql_class.h"                          // THD
 #include "my_sys.h"                             // MY_*, NullS, NULL
 #include "log.h"
+#include "current_thd.h"
 
 
 enum err_msgs_index

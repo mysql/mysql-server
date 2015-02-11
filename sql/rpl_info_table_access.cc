@@ -15,6 +15,7 @@
 
 #include "rpl_info_table_access.h"
 
+#include "current_thd.h"
 #include "rpl_info_values.h" // Rpl_info_values
 #include "sql_base.h"       // MYSQL_OPEN_IGNORE_FLUSH
 #include "sql_class.h"      // THD

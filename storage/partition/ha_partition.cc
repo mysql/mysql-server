@@ -64,6 +64,7 @@
 #include "myisam.h"                          // TT_FOR_UPGRADE
 #include "sql_plugin.h"                      // plugin_unlock_list
 #include "log.h"                             // sql_print_error
+#include "current_thd.h"
 
 #include "debug_sync.h"
 #ifndef DBUG_OFF

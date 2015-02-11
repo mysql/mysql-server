@@ -21,6 +21,7 @@
 #include "my_global.h"
 #include "my_thread.h"
 #include "hostname.h" /* For Host_entry */
+#include "current_thd.h"
 #include "pfs_engine_table.h"
 #include "pfs_buffer_container.h"
 

@@ -15,6 +15,8 @@
 
 #include "opt_trace.h"
 #include "opt_explain_json.h"
+#include "current_thd.h"
+#include "sql_class.h"
 
 /**
   Property names, former parts of traditional "extra" column

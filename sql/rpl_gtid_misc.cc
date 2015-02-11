@@ -22,6 +22,7 @@
 #ifndef MYSQL_CLIENT
 #include "rpl_msr.h"
 #include "sql_class.h"        // THD
+#include "current_thd.h"
 #include "binlog.h"
 #endif // ifndef MYSQL_CLIENT
 

@@ -18,6 +18,7 @@
 
 #include "sql_show.h"
 
+#include "current_thd.h"
 #include "mutex_lock.h"                     // Mutex_lock
 #include "my_dir.h"                         // MY_DIR
 #include "prealloced_array.h"               // Prealloced_array

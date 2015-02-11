@@ -15,6 +15,7 @@
 
 #include "rpl_rli_pdb.h"
 
+#include "current_thd.h"
 #include "rpl_slave_commit_order_manager.h" // Commit_order_manager
 
 #include "pfs_file_provider.h"

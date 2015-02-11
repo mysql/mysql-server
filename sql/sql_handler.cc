@@ -54,6 +54,7 @@
 #include "sql_handler.h"
 
 #include "auth_common.h"                        // check_table_access
+#include "current_thd.h"
 #include "sql_base.h"                           // close_thread_tables
 #include "lock.h"                               // mysql_unlock_tables
 #include "key.h"                                // key_copy

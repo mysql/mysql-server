@@ -20,6 +20,7 @@
 #include "sp_head.h"
 #include "sp_instr.h"
 #include "auth/auth_common.h"
+#include "current_thd.h"
 
 
 /**

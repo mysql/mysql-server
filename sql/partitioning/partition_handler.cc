@@ -24,6 +24,7 @@
 #include "key.h"                             // key_rec_cmp
 #include "sql_class.h"                       // THD
 #include "myisam.h"                          // MI_MAX_MSG_BUF
+#include "current_thd.h"
 
 // In sql_class.cc:
 extern "C" int thd_binlog_format(const MYSQL_THD thd);

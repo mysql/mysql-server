@@ -25,6 +25,7 @@
 
 #include "field.h"
 
+#include "current_thd.h"
 #include "filesort.h"                    // change_double_for_sort
 #include "item_timefunc.h"               // Item_func_now_local
 #include "log_event.h"                   // class Table_map_log_event
@@ -4854,6 +4855,11 @@ void Field_double::sql_type(String &res) const
 /****************************************************************************
 ** Common code for all temporal data types: DATE, DATETIME, TIMESTAMP, TIME
 *****************************************************************************/
+
+my_time_flags_t Field_temporal::date_flags()
+{
+  return date_flags(table ? table->in_use : current_thd);
+}
 
 uint Field_temporal::is_equal(Create_field *new_field)
 {

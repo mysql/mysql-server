@@ -16,6 +16,8 @@
 /** @file "EXPLAIN <command>" implementation */ 
 
 #include "opt_explain.h"
+
+#include "current_thd.h"
 #include "sql_select.h"
 #include "sql_optimizer.h" // JOIN
 #include "sql_partition.h" // for make_used_partitions_str()

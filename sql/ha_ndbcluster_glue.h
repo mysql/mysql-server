@@ -24,6 +24,7 @@
 #define MYSQL_SERVER
 #endif
 
+#include "current_thd.h"
 #include "sql_table.h"      // build_table_filename,
                             // tablename_to_filename,
                             // filename_to_tablename

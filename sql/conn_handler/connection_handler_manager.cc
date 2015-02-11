@@ -26,6 +26,7 @@
 #include "plugin_connection_handler.h" // Plugin_connection_handler
 #include "sql_callback.h"              // MYSQL_CALLBACK
 #include "sql_class.h"                 // THD
+#include "current_thd.h"
 
 
 // Initialize static members

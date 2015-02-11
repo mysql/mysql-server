@@ -18,6 +18,7 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
+#include "current_thd.h"
 #include "parsertest.h"
 #include "test_utils.h"
 #include "select_lex_visitor.h"

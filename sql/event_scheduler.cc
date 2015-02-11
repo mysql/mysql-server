@@ -15,6 +15,7 @@
 
 #include "event_scheduler.h"
 
+#include "current_thd.h"
 #include "events.h"
 #include "event_data_objects.h"
 #include "event_queue.h"

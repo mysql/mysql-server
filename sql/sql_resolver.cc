@@ -32,6 +32,7 @@
 #include "auth_common.h"
 #include "opt_explain_format.h"
 #include "sql_test.h"            // print_where
+#include "current_thd.h"
 #include "aggregate_check.h"
 
 static void propagate_nullability(List<TABLE_LIST> *tables, bool nullable);

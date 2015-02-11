@@ -71,6 +71,7 @@ SET(SQL_SHARED_SOURCES
   auth/sql_security_ctx.cc
   bootstrap.cc
   conn_handler/connection_handler_manager.cc 
+  current_thd.cc
   datadict.cc
   debug_sync.cc
   derror.cc
@@ -113,6 +114,7 @@ SET(SQL_SHARED_SOURCES
   opt_costconstants.cc
   opt_costmodel.cc
   opt_explain.cc
+  opt_explain_format.cc
   opt_explain_traditional.cc
   opt_explain_json.cc
   opt_range.cc

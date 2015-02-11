@@ -20,6 +20,8 @@
 
 
 #include "sql_union.h"
+
+#include "current_thd.h"
 #include "sql_select.h"
 #include "sql_cursor.h"
 #include "sql_base.h"                           // fill_record

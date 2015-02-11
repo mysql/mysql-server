@@ -27,6 +27,7 @@
 
 #include "item_timefunc.h"
 
+#include "current_thd.h"
 #include "sql_class.h"       // THD
 #include "sql_time.h"        // make_truncated_value_warning
 #include "strfunc.h"         // check_word
@@ -55,8 +56,9 @@ adjust_time_range_with_warn(MYSQL_TIME *ltime, uint8 decimals)
   if (check_time_range_quick(ltime))
   {
     int warning= 0;
-    make_truncated_value_warning(ErrConvString(ltime, decimals),
-                                 MYSQL_TIMESTAMP_TIME);
+    make_truncated_value_warning(current_thd, Sql_condition::SL_WARNING,
+                                 ErrConvString(ltime, decimals),
+                                 MYSQL_TIMESTAMP_TIME, NullS);
     adjust_time_range(ltime, &warning);
   }
 }
@@ -478,8 +480,9 @@ static bool extract_date_time(Date_time_format *format,
       if (!my_isspace(&my_charset_latin1,*val))
       {
         // TS-TODO: extract_date_time is not UCS2 safe
-        make_truncated_value_warning(ErrConvString(val_begin, length),
-                                     cached_timestamp_type);
+        make_truncated_value_warning(current_thd, Sql_condition::SL_WARNING,
+                                     ErrConvString(val_begin, length),
+                                     cached_timestamp_type, NullS);
 	break;
       }
     } while (++val != val_end);
@@ -2023,12 +2026,15 @@ bool Item_func_sec_to_time::get_time(MYSQL_TIME *ltime)
   if (my_decimal2lldiv_t(0, val, &seconds))
   {
     set_max_time(ltime, val->sign());
-    make_truncated_value_warning(ErrConvString(val), MYSQL_TIMESTAMP_TIME);
+    make_truncated_value_warning(current_thd, Sql_condition::SL_WARNING,
+                                 ErrConvString(val), MYSQL_TIMESTAMP_TIME,
+                                 NullS);
     return false;
   }
   if (sec_to_time(seconds, ltime))
-    make_truncated_value_warning(ErrConvString(val),
-                                 MYSQL_TIMESTAMP_TIME);
+    make_truncated_value_warning(current_thd, Sql_condition::SL_WARNING,
+                                 ErrConvString(val),
+                                 MYSQL_TIMESTAMP_TIME, NullS);
   return false;
 }
 
@@ -2997,7 +3003,9 @@ bool Item_func_maketime::get_time(MYSQL_TIME *ltime)
                   second.rem / (ulong) log_10_int[9 - dec]);
   }
   DBUG_ASSERT(strlen(buf) < sizeof(buf));
-  make_truncated_value_warning(ErrConvString(buf, len), MYSQL_TIMESTAMP_TIME);
+  make_truncated_value_warning(current_thd, Sql_condition::SL_WARNING,
+                               ErrConvString(buf, len), MYSQL_TIMESTAMP_TIME,
+                               NullS);
   return false;
 }
 
@@ -3394,7 +3402,9 @@ bool Item_func_last_day::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzy_date)
     */
     ltime->time_type= MYSQL_TIMESTAMP_DATE;
     ErrConvString str(ltime, 0);
-    make_truncated_value_warning(ErrConvString(str), MYSQL_TIMESTAMP_ERROR);
+    make_truncated_value_warning(current_thd, Sql_condition::SL_WARNING,
+                                 ErrConvString(str), MYSQL_TIMESTAMP_ERROR,
+                                 NullS);
     return (null_value= true);
   }
 

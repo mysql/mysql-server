@@ -22,6 +22,7 @@
 #include "sql_delete.h"
 
 #include "binlog.h"                   // mysql_bin_log
+#include "current_thd.h"
 #include "debug_sync.h"               // DEBUG_SYNC
 #include "opt_explain.h"              // Modification_plan
 #include "opt_trace.h"                // Opt_trace_object

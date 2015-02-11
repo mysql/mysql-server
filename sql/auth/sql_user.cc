@@ -28,6 +28,7 @@
 #include "prealloced_array.h"
 #include "tztime.h"
 #include "crypt_genhash_impl.h"         /* CRYPT_MAX_PASSWORD_SIZE */
+#include "current_thd.h"
 
 /**
   Auxiliary function for constructing a  user list string.

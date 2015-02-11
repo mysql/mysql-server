@@ -16,6 +16,7 @@
 
 #include "event_db_repository.h"
 
+#include "current_thd.h"
 #include "sql_base.h"                           // close_thread_tables
 #include "key.h"                                // key_copy
 #include "sql_db.h"                        // get_default_db_collation

@@ -20,6 +20,7 @@
 #include "sql_insert.h"
 
 #include "auth_common.h"              // check_grant_all_columns
+#include "current_thd.h"
 #include "debug_sync.h"               // DEBUG_SYNC
 #include "item.h"                     // Item
 #include "lock.h"                     // mysql_unlock_tables

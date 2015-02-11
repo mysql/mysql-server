@@ -21,6 +21,7 @@
 #include <mysql/plugin_validate_password.h>
 #include <mysql/plugin_group_replication.h>
 #include "auth_common.h"       // check_table_access
+#include "current_thd.h"
 #include "debug_sync.h"        // DEBUG_SYNC
 #include "handler.h"           // ha_initalize_handlerton
 #include "item.h"              // Item

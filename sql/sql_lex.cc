@@ -19,6 +19,7 @@
 
 #include "sql_lex.h"
 
+#include "current_thd.h"
 #include "sp_head.h"                   // sp_head
 #include "sql_class.h"                 // THD
 #include "sql_parse.h"                 // add_to_list
@@ -406,6 +407,14 @@ void Lex_input_stream::reduce_digest_token(uint token_left, uint token_right)
   }
 }
 
+
+void LEX::assert_ok_set_current_select()
+{
+  // (2) Only owning thread could change m_current_select
+  // (1) bypass for bootstrap and "new THD"
+  DBUG_ASSERT(!current_thd || !thd || //(1)
+              thd == current_thd);    //(2)
+}
 
 LEX::~LEX()
 {
