@@ -5059,6 +5059,15 @@ fil_io(
 	    && space->id != 0
 	    && fil_type_is_data(space->purpose)) {
 
+		if (ignore_nonexistent_pages != 0) {
+			/* If we can tolerate the non-existent pages, we
+			should return with DB_ERROR and let caller decide
+			what to do. */
+			fil_node_complete_io(node, fil_system, type);
+			mutex_exit(&fil_system->mutex);
+			return(DB_ERROR);
+		}
+
 		fil_report_invalid_page_access(
 			cur_page_no, page_id.space(),
 			space->name, byte_offset, len, type);
