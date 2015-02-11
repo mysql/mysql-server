@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -46,7 +46,6 @@ Restore::Restore(Block_context& ctx, Uint32 instanceNumber) :
   m_file_list(m_file_pool),
   m_file_hash(m_file_pool),
   m_rows_restored(0),
-  m_bytes_restored(0),
   m_millis_spent(0),
   m_frags_restored(0)
 {
@@ -238,24 +237,22 @@ Restore::execDUMP_STATE_ORD(Signal* signal){
   if (signal->theData[0] == DumpStateOrd::RestoreRates)
   {
     jam();
-    Uint64 rate = m_bytes_restored * 1000 /
+    Uint64 rate = m_rows_restored * 1000 /
       (m_millis_spent == 0? 1: m_millis_spent);
     
     g_eventLogger->info("LDM instance %u: Restored LCP : %u fragments,"
                         " %llu rows, " 
-                        "%llu bytes, %llu millis, %llu bytes/s",
+                        "%llu millis, %llu rows/s",
                         instance(),
                         m_frags_restored, 
                         m_rows_restored,
-                        m_bytes_restored,
                         m_millis_spent,
                         rate);
     infoEvent("LDM instance %u: Restored LCP : %u fragments, %llu rows, " 
-              "%llu bytes, %llu millis, %llu bytes/s",
+              "%llu millis, %llu rows/s",
               instance(),
               m_frags_restored, 
               m_rows_restored,
-              m_bytes_restored,
               m_millis_spent,
               rate);
   }
@@ -319,7 +316,6 @@ Restore::init_file(const RestoreLcpReq* req, FilePtr file_ptr)
   file_ptr.p->m_outstanding_reads = 0;
   file_ptr.p->m_outstanding_operations = 0;
   file_ptr.p->m_rows_restored = 0;
-  file_ptr.p->m_bytes_restored = 0;
   file_ptr.p->m_restore_start_time = NdbTick_CurrentMillisecond();;
   LocalDataBuffer<15> pages(m_databuffer_pool, file_ptr.p->m_pages);
   LocalDataBuffer<15> columns(m_databuffer_pool, file_ptr.p->m_columns);
@@ -391,20 +387,18 @@ Restore::release_file(FilePtr file_ptr)
                    file_ptr.p->m_restore_start_time;
     if (millis == 0)
       millis = 1;
-    Uint64 bps = file_ptr.p->m_bytes_restored * 1000 / millis;
+    Uint64 rows_per_sec = file_ptr.p->m_rows_restored * 1000 / millis;
 
     g_eventLogger->info("LDM instance %u: Restored T%dF%u LCP %llu rows, "
-                        "%llu bytes, %llu millis, %llu bytes/s)", 
+                        "%llu millis, %llu rows/s)", 
                         instance(),
                         file_ptr.p->m_table_id,
                         file_ptr.p->m_fragment_id,
                         file_ptr.p->m_rows_restored,
-                        file_ptr.p->m_bytes_restored,
                         millis,
-                        bps);
+                        rows_per_sec);
 
     m_rows_restored+= file_ptr.p->m_rows_restored;
-    m_bytes_restored+= file_ptr.p->m_bytes_restored;
     m_millis_spent+= millis;
     m_frags_restored++;
   }
