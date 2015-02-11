@@ -4239,7 +4239,7 @@ i_s_innodb_temp_table_info_fill(
 
 	fields = table->field;
 
-	OK(fields[IDX_TEMP_TABLE_ID]->store((double) info->m_table_id));
+	OK(fields[IDX_TEMP_TABLE_ID]->store((longlong) info->m_table_id));
 
 	OK(field_store_string(fields[IDX_TEMP_TABLE_NAME], info->m_table_name));
 
