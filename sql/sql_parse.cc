@@ -3997,6 +3997,12 @@ end_with_restore_list:
     if (sp_process_definer(thd))
       goto error;
 
+    /*
+      Record the CURRENT_USER in binlog. The CURRENT_USER is used on slave to
+      grant default privileges when sp_automatic_privileges variable is set.
+    */
+    thd->binlog_invoker();
+
     if (! (res= sp_create_routine(thd, lex->sphead)))
     {
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -4005,7 +4011,6 @@ end_with_restore_list:
       Security_context security_context;
       bool restore_backup_context= false;
       Security_context *backup= NULL;
-      LEX_USER *definer= thd->lex->definer;
       /*
         We're going to issue an implicit GRANT statement so we close all
         open tables. We have to keep metadata locks as this ensures that
@@ -4024,21 +4029,41 @@ end_with_restore_list:
       DBUG_ASSERT(thd->get_transaction()->is_empty(Transaction_ctx::STMT));
       close_thread_tables(thd);
       /*
-        Check if the definer exists on slave, 
+        Check if invoker exists on slave, then use invoker privilege to
+        insert routine privileges to mysql.procs_priv. If invoker is not
+        available then consider using definer.
+
+        Check if the definer exists on slave,
         then use definer privilege to insert routine privileges to mysql.procs_priv.
 
-        For current user of SQL thread has GLOBAL_ACL privilege, 
-        which doesn't any check routine privileges, 
+        For current user of SQL thread has GLOBAL_ACL privilege,
+        which doesn't any check routine privileges,
         so no routine privilege record  will insert into mysql.procs_priv.
       */
-      if (thd->slave_thread && is_acl_user(definer->host.str, definer->user.str))
+
+      if (thd->slave_thread)
       {
-        security_context.change_security_context(thd,
-                                                 thd->lex->definer->user,
-                                                 thd->lex->definer->host,
-                                                 &thd->lex->sphead->m_db,
-                                                 &backup);
-        restore_backup_context= true;
+        LEX_CSTRING current_user;
+        LEX_CSTRING current_host;
+        if (thd->has_invoker())
+        {
+          current_host= thd->get_invoker_host();
+          current_user= thd->get_invoker_user();
+        }
+        else
+        {
+          current_host= lex->definer->host;
+          current_user= lex->definer->user;
+        }
+        if (is_acl_user(current_host.str, current_user.str))
+        {
+          security_context.change_security_context(thd,
+                                                   current_user,
+                                                   current_host,
+                                                   &thd->lex->sphead->m_db,
+                                                   &backup);
+          restore_backup_context= true;
+        }
       }
 
       if (sp_automatic_privileges && !opt_noacl &&

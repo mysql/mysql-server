@@ -4049,7 +4049,7 @@ public:
   }
   LEX_CSTRING get_invoker_user() const { return m_invoker_user; }
   LEX_CSTRING get_invoker_host() const { return m_invoker_host; }
-  bool has_invoker() { return m_invoker_user.length > 0; }
+  bool has_invoker() { return m_invoker_user.str != NULL; }
 
   void mark_transaction_to_rollback(bool all);
 
