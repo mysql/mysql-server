@@ -640,7 +640,7 @@ bool Explain::prepare_columns()
   Explain class main function
 
   This function:
-    a) allocates a select_send object (if no one pre-allocated available),
+    a) allocates a Query_result_send object (if no one pre-allocated available),
     b) calculates and sends whole EXPLAIN data.
 
   @return false if success, true if error
@@ -1936,7 +1936,7 @@ bool explain_single_table_modification(THD *ethd,
                                        SELECT_LEX *select)
 {
   DBUG_ENTER("explain_single_table_modification");
-  select_send result;
+  Query_result_send result;
   const THD *const query_thd= select->master_unit()->thd;
   const bool other= (query_thd != ethd);
   bool ret;
@@ -1945,12 +1945,12 @@ bool explain_single_table_modification(THD *ethd,
     Prepare the self-allocated result object
 
     For queries with top-level JOIN the caller provides pre-allocated
-    select_send object. Then that JOIN object prepares the select_send
-    object calling result->prepare() in SELECT_LEX::prepare(),
+    Query_result_send object. Then that JOIN object prepares the
+    Query_result_send object calling result->prepare() in SELECT_LEX::prepare(),
     result->initalize_tables() in JOIN::optimize() and result->prepare2()
     in JOIN::exec().
     However without the presence of the top-level JOIN we have to
-    prepare/initialize select_send object manually.
+    prepare/initialize Query_result_send object manually.
   */
   List<Item> dummy;
   if (result.prepare(dummy, ethd->lex->unit) ||
@@ -2119,15 +2119,15 @@ explain_query_specification(THD *ethd, SELECT_LEX *select_lex,
   Send to the client a QEP data set for any DML statement that has a QEP
   represented completely by JOIN object(s).
 
-  This function uses a specific select_result object for sending explain
+  This function uses a specific Query_result object for sending explain
   output to the client.
 
-  When explaining own query, the existing select_result object (found
+  When explaining own query, the existing Query_result object (found
   in outermost SELECT_LEX_UNIT or SELECT_LEX) is used. However, if the
-  select_result is unsuitable for explanation (need_explain_interceptor()
-  returns true), wrap the select_result inside an explain_send object.
+  Query_result is unsuitable for explanation (need_explain_interceptor()
+  returns true), wrap the Query_result inside an Query_result_explain object.
 
-  When explaining other query, create a select_send object and prepare it
+  When explaining other query, create a Query_result_send object and prepare it
   as if it was a regular SELECT query.
 
   @note see explain_single_table_modification() for single-table
@@ -2135,7 +2135,7 @@ explain_query_specification(THD *ethd, SELECT_LEX *select_lex,
 
   @note Unlike handle_query(), explain_query() calls abort_result_set()
         itself in the case of failure (OOM etc.) since it may use
-        an internally created select_result object that has to be deleted
+        an internally created Query_result object that has to be deleted
         before exiting the function.
 
   @param ethd    THD of the explaining session
@@ -2151,17 +2151,17 @@ bool explain_query(THD *ethd, SELECT_LEX_UNIT *unit)
   const THD *const query_thd= unit->thd; // THD of query to be explained
   const bool other= (ethd != query_thd);
 
-  select_result *explain_result= NULL;
+  Query_result *explain_result= NULL;
 
   if (!other)
     explain_result= unit->query_result() ?
                     unit->query_result() : unit->first_select()->query_result();
 
-  explain_send explain_wrapper(unit, explain_result);
+  Query_result_explain explain_wrapper(unit, explain_result);
 
   if (other)  
   {
-    if (!((explain_result= new select_send)))
+    if (!((explain_result= new Query_result_send)))
       return true; /* purecov: inspected */
     List<Item> dummy;
     if (explain_result->prepare(dummy, ethd->lex->unit) ||
