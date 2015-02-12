@@ -76,7 +76,7 @@ CREATE TABLE mysql.t1(a INT) ENGINE=innodb;
 EOF
 
 --echo # try --bootstrap --initialize
---error 3
+--error 1
 --exec $MYSQLD $extra_args --bootstrap --initialize --datadir=$DDIR < $BOOTSTRAP_SQL >$MYSQLD_LOG 2>&1
 
 --echo # delete bootstrap file
@@ -98,7 +98,7 @@ CREATE TABLE mysql.t1(a INT) ENGINE=innodb;
 EOF
 
 --echo # try --bootstrap --initialize-initialize-insecure
---error 3
+--error 1
 --exec $MYSQLD $extra_args --bootstrap --initialize-insecure --datadir=$DDIR < $BOOTSTRAP_SQL >$MYSQLD_LOG 2>&1
 
 --echo # delete bootstrap file
