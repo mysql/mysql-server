@@ -1150,7 +1150,6 @@ public:
   void set_part_info(partition_info *part_info, bool early)
   {
     Partition_helper::set_part_info_low(part_info, early);
-    DBUG_ASSERT(early || !m_file_tot_parts || m_file_tot_parts == m_tot_parts);
   }
   uint alter_flags(uint flags __attribute__((unused))) const
   {

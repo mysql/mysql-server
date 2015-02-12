@@ -1842,6 +1842,7 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
   char frm_name[FN_REFLEN+1];
   char *part_syntax_buf;
   uint syntax_len;
+  partition_info *old_part_info= lpt->table->part_info;
   DBUG_ENTER("mysql_write_frm");
 
   /*
@@ -1863,7 +1864,7 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
       DBUG_RETURN(TRUE);
     }
     {
-      partition_info *part_info= lpt->table->part_info;
+      partition_info *part_info= lpt->part_info;
       if (part_info)
       {
         if (!(part_syntax_buf= generate_partition_syntax(part_info,
@@ -1877,6 +1878,9 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
         }
         part_info->part_info_string= part_syntax_buf;
         part_info->part_info_len= syntax_len;
+        Partition_handler *part_handler;
+        part_handler= lpt->table->file->get_partition_handler();
+        part_handler->set_part_info(part_info, false);
       }
     }
     /* Write shadow frm file */
@@ -1918,6 +1922,11 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
   if (flags & WFRM_INSTALL_SHADOW)
   {
     partition_info *part_info= lpt->part_info;
+    Partition_handler *part_handler= lpt->table->file->get_partition_handler();
+    if (part_handler && part_info)
+    {
+      part_handler->set_part_info(part_info, false);
+    }
     /*
       Build frm file name
     */
@@ -1988,6 +1997,11 @@ err:
   }
 
 end:
+  if (old_part_info)
+  {
+    Partition_handler *part_handler= lpt->table->file->get_partition_handler();
+    part_handler->set_part_info(old_part_info, false);
+  }
   DBUG_RETURN(error);
 }
 
@@ -8516,11 +8530,11 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   /* We have to do full alter table. */
 
   bool partition_changed= false;
-  bool fast_alter_partition= false;
+  partition_info *new_part_info= NULL;
   {
     if (prep_alter_part_table(thd, table, alter_info, create_info,
                               &alter_ctx, &partition_changed,
-                              &fast_alter_partition))
+                              &new_part_info))
     {
       DBUG_RETURN(true);
     }
@@ -8550,7 +8564,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
 
   set_table_default_charset(thd, create_info, const_cast<char*>(alter_ctx.db));
 
-  if (fast_alter_partition)
+  if (new_part_info)
   {
     /*
       ALGORITHM and LOCK clauses are generally not allowed by the
@@ -8593,7 +8607,8 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     DBUG_RETURN(fast_alter_partition_table(thd, table, alter_info,
                                            create_info, table_list,
                                            const_cast<char*>(alter_ctx.db),
-                                           table_name));
+                                           table_name,
+                                           new_part_info));
   }
 
   /*
