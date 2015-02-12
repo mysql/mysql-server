@@ -52,4 +52,5 @@ IF(BOOST_OK)
 
   MYSQL_ADD_PLUGIN(oqgraph ha_oqgraph.cc graphcore.cc STORAGE_ENGINE
                    MODULE_ONLY)
+  SET(OQGRAPH_DEB_FILES "usr/lib/mysql/plugin/ha_oqgraph.so\n" PARENT_SCOPE)
 ENDIF(BOOST_OK)

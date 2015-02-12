@@ -657,9 +657,10 @@ multi_delete::initialize_tables(JOIN *join)
   delete_while_scanning= 1;
   for (walk= delete_tables; walk; walk= walk->next_local)
   {
-    tables_to_delete_from|= walk->table->map;
+    TABLE_LIST *tbl= walk->correspondent_table->find_table_for_update();
+    tables_to_delete_from|= tbl->table->map;
     if (delete_while_scanning &&
-        unique_table(thd, walk, join->tables_list, false))
+        unique_table(thd, tbl, join->tables_list, false))
     {
       /*
         If the table we are going to delete from appears

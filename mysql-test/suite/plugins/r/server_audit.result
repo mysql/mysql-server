@@ -85,6 +85,66 @@ create table sa_t1(id int);
 insert into sa_t1 values (1), (2);
 drop table sa_t1;
 drop database sa_db;
+create database sa_db;
+use sa_db;
+CREATE USER u1 IDENTIFIED BY 'pwd-123';
+GRANT ALL ON sa_db TO u2 IDENTIFIED BY "pwd-321";
+SET PASSWORD FOR u1 = PASSWORD('pwd 098');
+CREATE USER u3 IDENTIFIED BY '';
+drop user u1, u2, u3;
+set global server_audit_events='query_ddl';
+create table t1(id int);
+insert into t1 values (1), (2);
+select * from t1;
+id
+1
+2
+select 2;
+2
+2
+(select 2);
+2
+2
+/*! select 2*/;
+2
+2
+/*comment*/ select 2;
+2
+2
+drop table t1;
+set global server_audit_events='query_ddl,query_dml';
+create table t1(id int);
+insert into t1 values (1), (2);
+select * from t1;
+id
+1
+2
+select 2;
+2
+2
+drop table t1;
+set global server_audit_events='query_dml';
+create table t1(id int);
+insert into t1 values (1), (2);
+select * from t1;
+id
+1
+2
+select 2;
+2
+2
+(select 2);
+2
+2
+/*! select 2*/;
+2
+2
+/*comment*/ select 2;
+2
+2
+drop table t1;
+set global server_audit_events='';
+drop database sa_db;
 set global server_audit_file_path='.';
 show status like 'server_audit_current_log';
 Variable_name	Value
@@ -176,19 +236,65 @@ TIME,HOSTNAME,root,localhost,ID,ID,WRITE,mysql,proc,
 TIME,HOSTNAME,root,localhost,ID,ID,WRITE,mysql,event,
 TIME,HOSTNAME,root,localhost,ID,ID,QUERY,sa_db,'drop database sa_db',0
 TIME,HOSTNAME,root,localhost,ID,0,DISCONNECT,sa_db,,0
-TIME,HOSTNAME,root,localhost,ID,ID,QUERY,test,'set global server_audit_file_path=\'.\'',0
-TIME,HOSTNAME,root,localhost,ID,ID,QUERY,test,'set global server_audit_file_path=\'.\'',0
-TIME,HOSTNAME,root,localhost,ID,ID,QUERY,test,'show status like \'server_audit_current_log\'',0
-TIME,HOSTNAME,root,localhost,ID,ID,QUERY,test,'set global server_audit_file_path=\'\'',0
-TIME,HOSTNAME,root,localhost,ID,ID,QUERY,test,'set global server_audit_file_path=\'\'',0
-TIME,HOSTNAME,root,localhost,ID,ID,QUERY,test,'show status like \'server_audit_current_log\'',0
-TIME,HOSTNAME,root,localhost,ID,ID,QUERY,test,'set global server_audit_file_path=\'  \'',0
-TIME,HOSTNAME,root,localhost,ID,ID,QUERY,test,'set global server_audit_file_path=\'  \'',0
-TIME,HOSTNAME,root,localhost,ID,ID,QUERY,test,'show status like \'server_audit_current_log\'',0
-TIME,HOSTNAME,root,localhost,ID,ID,QUERY,test,'set global server_audit_file_path=\'nonexisting_dir/\'',0
-TIME,HOSTNAME,root,localhost,ID,ID,QUERY,test,'set global server_audit_file_path=\'nonexisting_dir/\'',0
-TIME,HOSTNAME,root,localhost,ID,ID,QUERY,test,'SHOW WARNINGS',0
-TIME,HOSTNAME,root,localhost,ID,ID,QUERY,test,'show status like \'server_audit_current_log\'',0
-TIME,HOSTNAME,root,localhost,ID,ID,QUERY,test,'show variables like \'server_audit%\'',0
+TIME,HOSTNAME,root,localhost,ID,ID,QUERY,test,'create database sa_db',0
+TIME,HOSTNAME,root,localhost,ID,ID,QUERY,sa_db,'use sa_db',0
+TIME,HOSTNAME,root,localhost,ID,ID,WRITE,mysql,user,
+TIME,HOSTNAME,root,localhost,ID,ID,WRITE,mysql,db,
+TIME,HOSTNAME,root,localhost,ID,ID,WRITE,mysql,tables_priv,
+TIME,HOSTNAME,root,localhost,ID,ID,WRITE,mysql,columns_priv,
+TIME,HOSTNAME,root,localhost,ID,ID,WRITE,mysql,procs_priv,
+TIME,HOSTNAME,root,localhost,ID,ID,WRITE,mysql,proxies_priv,
+TIME,HOSTNAME,root,localhost,ID,ID,QUERY,sa_db,'CREATE USER u1 IDENTIFIED BY *****',0
+TIME,HOSTNAME,root,localhost,ID,ID,WRITE,mysql,user,
+TIME,HOSTNAME,root,localhost,ID,ID,WRITE,mysql,tables_priv,
+TIME,HOSTNAME,root,localhost,ID,ID,QUERY,sa_db,'GRANT ALL ON sa_db TO u2 IDENTIFIED BY *****',0
+TIME,HOSTNAME,root,localhost,ID,ID,WRITE,mysql,user,
+TIME,HOSTNAME,root,localhost,ID,ID,QUERY,sa_db,'SET PASSWORD FOR u1 = PASSWORD(*****)',0
+TIME,HOSTNAME,root,localhost,ID,ID,WRITE,mysql,user,
+TIME,HOSTNAME,root,localhost,ID,ID,WRITE,mysql,db,
+TIME,HOSTNAME,root,localhost,ID,ID,WRITE,mysql,tables_priv,
+TIME,HOSTNAME,root,localhost,ID,ID,WRITE,mysql,columns_priv,
+TIME,HOSTNAME,root,localhost,ID,ID,WRITE,mysql,procs_priv,
+TIME,HOSTNAME,root,localhost,ID,ID,WRITE,mysql,proxies_priv,
+TIME,HOSTNAME,root,localhost,ID,ID,QUERY,sa_db,'CREATE USER u3 IDENTIFIED BY *****',0
+TIME,HOSTNAME,root,localhost,ID,ID,WRITE,mysql,user,
+TIME,HOSTNAME,root,localhost,ID,ID,WRITE,mysql,db,
+TIME,HOSTNAME,root,localhost,ID,ID,WRITE,mysql,tables_priv,
+TIME,HOSTNAME,root,localhost,ID,ID,WRITE,mysql,columns_priv,
+TIME,HOSTNAME,root,localhost,ID,ID,WRITE,mysql,procs_priv,
+TIME,HOSTNAME,root,localhost,ID,ID,WRITE,mysql,proxies_priv,
+TIME,HOSTNAME,root,localhost,ID,ID,QUERY,sa_db,'drop user u1, u2, u3',0
+TIME,HOSTNAME,root,localhost,ID,ID,QUERY,sa_db,'create table t1(id int)',0
+TIME,HOSTNAME,root,localhost,ID,ID,QUERY,sa_db,'drop table t1',0
+TIME,HOSTNAME,root,localhost,ID,ID,QUERY,sa_db,'create table t1(id int)',0
+TIME,HOSTNAME,root,localhost,ID,ID,QUERY,sa_db,'insert into t1 values (1), (2)',0
+TIME,HOSTNAME,root,localhost,ID,ID,QUERY,sa_db,'select * from t1',0
+TIME,HOSTNAME,root,localhost,ID,ID,QUERY,sa_db,'select 2',0
+TIME,HOSTNAME,root,localhost,ID,ID,QUERY,sa_db,'drop table t1',0
+TIME,HOSTNAME,root,localhost,ID,ID,QUERY,sa_db,'insert into t1 values (1), (2)',0
+TIME,HOSTNAME,root,localhost,ID,ID,QUERY,sa_db,'select * from t1',0
+TIME,HOSTNAME,root,localhost,ID,ID,QUERY,sa_db,'select 2',0
+TIME,HOSTNAME,root,localhost,ID,ID,QUERY,sa_db,'(select 2)',0
+TIME,HOSTNAME,root,localhost,ID,ID,QUERY,sa_db,'/*! select 2*/',0
+TIME,HOSTNAME,root,localhost,ID,ID,QUERY,sa_db,'/*comment*/ select 2',0
+TIME,HOSTNAME,root,localhost,ID,ID,QUERY,sa_db,'set global server_audit_events=\'\'',0
+TIME,HOSTNAME,root,localhost,ID,ID,READ,mysql,proc,
+TIME,HOSTNAME,root,localhost,ID,ID,WRITE,mysql,proc,
+TIME,HOSTNAME,root,localhost,ID,ID,WRITE,mysql,event,
+TIME,HOSTNAME,root,localhost,ID,ID,QUERY,sa_db,'drop database sa_db',0
+TIME,HOSTNAME,root,localhost,ID,ID,QUERY,sa_db,'set global server_audit_file_path=\'.\'',0
+TIME,HOSTNAME,root,localhost,ID,ID,QUERY,sa_db,'set global server_audit_file_path=\'.\'',0
+TIME,HOSTNAME,root,localhost,ID,ID,QUERY,sa_db,'show status like \'server_audit_current_log\'',0
+TIME,HOSTNAME,root,localhost,ID,ID,QUERY,sa_db,'set global server_audit_file_path=\'\'',0
+TIME,HOSTNAME,root,localhost,ID,ID,QUERY,sa_db,'set global server_audit_file_path=\'\'',0
+TIME,HOSTNAME,root,localhost,ID,ID,QUERY,sa_db,'show status like \'server_audit_current_log\'',0
+TIME,HOSTNAME,root,localhost,ID,ID,QUERY,sa_db,'set global server_audit_file_path=\'  \'',0
+TIME,HOSTNAME,root,localhost,ID,ID,QUERY,sa_db,'set global server_audit_file_path=\'  \'',0
+TIME,HOSTNAME,root,localhost,ID,ID,QUERY,sa_db,'show status like \'server_audit_current_log\'',0
+TIME,HOSTNAME,root,localhost,ID,ID,QUERY,sa_db,'set global server_audit_file_path=\'nonexisting_dir/\'',0
+TIME,HOSTNAME,root,localhost,ID,ID,QUERY,sa_db,'set global server_audit_file_path=\'nonexisting_dir/\'',0
+TIME,HOSTNAME,root,localhost,ID,ID,QUERY,sa_db,'SHOW WARNINGS',0
+TIME,HOSTNAME,root,localhost,ID,ID,QUERY,sa_db,'show status like \'server_audit_current_log\'',0
+TIME,HOSTNAME,root,localhost,ID,ID,QUERY,sa_db,'show variables like \'server_audit%\'',0
 TIME,HOSTNAME,root,localhost,ID,ID,WRITE,mysql,plugin,
-TIME,HOSTNAME,root,localhost,ID,ID,QUERY,test,'uninstall plugin server_audit',0
+TIME,HOSTNAME,root,localhost,ID,ID,QUERY,sa_db,'uninstall plugin server_audit',0

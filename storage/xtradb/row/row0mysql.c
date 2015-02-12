@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -3227,6 +3227,9 @@ row_drop_table_for_mysql(
 	ulint		namelen;
 	ibool		locked_dictionary	= FALSE;
 	pars_info_t*    info			= NULL;
+	DBUG_ENTER("row_drop_table_for_mysql");
+
+	DBUG_PRINT("row_drop_table_for_mysql", ("table: %s", name));
 
 	ut_a(name != NULL);
 
@@ -3237,7 +3240,7 @@ row_drop_table_for_mysql(
 		      "InnoDB: Shut down mysqld and edit my.cnf so that newraw"
 		      " is replaced with raw.\n", stderr);
 
-		return(DB_ERROR);
+		DBUG_RETURN(DB_ERROR);
 	}
 
 	trx->op_info = "dropping table";
@@ -3644,7 +3647,7 @@ funct_exit:
 
 	srv_wake_master_thread();
 
-	return((int) err);
+	DBUG_RETURN((int) err);
 }
 
 /*********************************************************************//**

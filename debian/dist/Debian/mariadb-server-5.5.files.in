@@ -1,5 +1,4 @@
 usr/lib/mysql/plugin/ha_innodb.so
-usr/lib/mysql/plugin/ha_oqgraph.so
 usr/lib/mysql/plugin/sphinx.so
 usr/lib/mysql/plugin/auth_socket.so
 usr/lib/mysql/plugin/auth_pam.so
@@ -73,3 +72,4 @@ usr/share/mysql/mysql_system_tables.sql
 usr/share/mysql/mysql_performance_tables.sql
 usr/share/mysql/mysql_test_data_timezone.sql
 @TOKUDB_DEB_FILES@
+@OQGRAPH_DEB_FILES@

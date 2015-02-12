@@ -1286,6 +1286,13 @@ String *Item_func_buffer::val_str(String *str_value)
 
   if (dist > 0.0)
     mbr.buffer(dist);
+  else
+  {
+    /* This happens when dist is too far negative. */
+    if (mbr.xmax + dist < mbr.xmin || mbr.ymax + dist < mbr.ymin)
+      goto return_empty_result;
+  }
+
   collector.set_extent(mbr.xmin, mbr.xmax, mbr.ymin, mbr.ymax);
   /*
     If the distance given is 0, the Buffer function is in fact NOOP,
@@ -1313,6 +1320,7 @@ String *Item_func_buffer::val_str(String *str_value)
     goto mem_error;
 
 
+return_empty_result:
   str_value->set_charset(&my_charset_bin);
   if (str_value->reserve(SRID_SIZE, 512))
     goto mem_error;

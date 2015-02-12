@@ -64,10 +64,10 @@ component, i.e. we show M.N.P as M.N */
 	(INNODB_VERSION_MAJOR << 8 | INNODB_VERSION_MINOR)
 
 #ifndef PERCONA_INNODB_VERSION
-#define PERCONA_INNODB_VERSION 36.1
+#define PERCONA_INNODB_VERSION 37.0
 #endif
 
-#define INNODB_VERSION_STR	"5.5.40-MariaDB-" IB_TO_STR(PERCONA_INNODB_VERSION)
+#define INNODB_VERSION_STR	"5.5.41-MariaDB-" IB_TO_STR(PERCONA_INNODB_VERSION)
 
 #define REFMAN "http://dev.mysql.com/doc/refman/"	\
 	IB_TO_STR(MYSQL_MAJOR_VERSION) "."		\
@@ -120,6 +120,10 @@ if we are compiling on Windows. */
 
 # ifdef HAVE_SCHED_H
 #  include <sched.h>
+# endif
+
+# ifdef HAVE_MALLOC_H
+#  include <malloc.h>
 # endif
 
 /* We only try to do explicit inlining of functions with gcc and

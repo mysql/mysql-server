@@ -1017,3 +1017,15 @@ dict_table_init_referenced_rbt(
 	ut_a(table->referenced_rbt != NULL);
 	return(table->referenced_rbt);
 }
+
+/********************************************************************//**
+Check if it is a temporary table.
+@return        true if temporary table flag is set. */
+UNIV_INLINE
+ibool
+dict_table_is_temporary(
+/*====================*/
+	const dict_table_t*     table)  /*!< in: table to check */
+{
+	return(table->flags & (DICT_TF2_TEMPORARY << DICT_TF2_SHIFT));
+}

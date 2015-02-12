@@ -1817,7 +1817,7 @@ log_online_purge_changed_page_bitmaps(
 		return TRUE;
 	}
 
-	if (srv_track_changed_pages && lsn >= log_bmp_sys->end_lsn) {
+	if (srv_track_changed_pages && lsn > log_bmp_sys->end_lsn) {
 		/* If we have to delete the current output file, close it
 		first. */
 		os_file_close(log_bmp_sys->out.file);
