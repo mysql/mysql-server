@@ -899,15 +899,9 @@ private:
   */
   bool truncated_value;
 public:
-  Blob_mem_storage() :truncated_value(false)
-  {
-    init_alloc_root(key_memory_blob_mem_storage,
-                    &storage, MAX_FIELD_VARCHARLENGTH, 0);
-  }
-  ~ Blob_mem_storage()
-  {
-    free_root(&storage, MYF(0));
-  }
+  Blob_mem_storage();
+  ~Blob_mem_storage();
+
   void reset()
   {
     free_root(&storage, MYF(MY_MARK_BLOCKS_FREE));

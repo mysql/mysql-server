@@ -58,6 +58,7 @@
 #include "sql_base.h"                           // close_thread_tables
 #include "lock.h"                               // mysql_unlock_tables
 #include "key.h"                                // key_copy
+#include "psi_memory_key.h"
 #include "sql_base.h"                           // insert_fields
 #include "sql_select.h"
 #include "sql_resolver.h"                       // Column_privilege_tracker

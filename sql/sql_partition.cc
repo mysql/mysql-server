@@ -59,6 +59,7 @@
 #include "sql_alter.h"                  // Alter_table_ctx
 #include "partition_info.h"             // partition_info
 #include "partitioning/partition_handler.h" // Partition_handler
+#include "psi_memory_key.h"
 #include "sql_base.h"                   // wait_while_table_is_used
 #include "sql_cache.h"                  // query_cache
 #include "sql_class.h"                  // THD

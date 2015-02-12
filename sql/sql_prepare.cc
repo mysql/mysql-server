@@ -89,6 +89,7 @@ When one supplies long data for a placeholder:
 #include "log.h"                // query_logger
 #include "opt_trace.h"          // Opt_trace_array
 #include "probes_mysql.h"       // MYSQL_QUERY_EXEC_START
+#include "psi_memory_key.h"
 #include "set_var.h"            // set_var_base
 #include "sp.h"                 // Sroutine_hash_entry
 #include "sp_cache.h"           // sp_cache_enforce_limit

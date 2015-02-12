@@ -40,6 +40,7 @@
 #include "log_event.h"                         // Rotate_log_event
 #include "mysqld.h"                            // ER
 #include "mysqld_thd_manager.h"                // Global_THD_manager
+#include "psi_memory_key.h"
 #include "rpl_constants.h"                     // BINLOG_FLAGS_INFO_SIZE
 #include "rpl_handler.h"                       // RUN_HOOK
 #include "rpl_info_factory.h"                  // Rpl_info_factory

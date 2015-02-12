@@ -34,6 +34,7 @@
 #include "mysqld_thd_manager.h"             // Global_THD_manager
 #include "opt_trace.h"                      // fill_optimizer_trace_info
 #include "protocol.h"                       // Protocol
+#include "psi_memory_key.h"
 #include "sp.h"                             // MYSQL_PROC_FIELD_DB
 #include "sp_head.h"                        // sp_head
 #include "sql_base.h"                       // close_thread_tables

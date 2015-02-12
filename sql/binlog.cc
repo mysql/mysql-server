@@ -20,6 +20,7 @@
 #include "debug_sync.h"                     // DEBUG_SYNC
 #include "log_event.h"                      // Rows_log_event
 #include "mysqld_thd_manager.h"             // Global_THD_manager
+#include "psi_memory_key.h"
 #include "rpl_handler.h"                    // RUN_HOOK
 #include "rpl_mi.h"                         // Master_info
 #include "rpl_rli.h"                        // Relay_log_info

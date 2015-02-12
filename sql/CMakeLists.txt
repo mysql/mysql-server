@@ -133,6 +133,7 @@ SET(SQL_SHARED_SOURCES
   partitioning/partition_handler.cc
   procedure.cc 
   protocol.cc
+  psi_memory_key.cc
   records.cc
   rpl_group_replication.cc
   rpl_handler.cc
@@ -367,25 +368,6 @@ SET (SLAVE_SOURCE rpl_slave.cc rpl_reporting.cc rpl_mi.cc rpl_rli.cc
                   rpl_trx_boundary_parser.cc rpl_channel_service_interface.cc)
 ADD_LIBRARY(slave ${SLAVE_SOURCE})
 ADD_DEPENDENCIES(slave GenError)
-
-######################### GUnit Lib #################################
-
-SET(SQL_GUNIT_LIB_SOURCE 
-  filesort_utils.cc 
-  mdl.cc 
-  sql_list.cc 
-  ../sql-common/sql_string.cc
-  thr_malloc.cc
-  )
-
-IF(WIN32)
-  LIST(APPEND SQL_GUNIT_LIB_SOURCE named_pipe.cc)
-ENDIF()
-
-ADD_LIBRARY(sqlgunitlib ${SQL_GUNIT_LIB_SOURCE})
-ADD_DEPENDENCIES(sqlgunitlib GenError)
-
-######################### GUnit Lib #################################
 
 
 IF(WIN32)

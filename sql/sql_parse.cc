@@ -26,6 +26,7 @@
 #include "opt_explain.h"      // mysql_explain_other
 #include "opt_trace.h"        // Opt_trace_start
 #include "partition_info.h"   // partition_info
+#include "psi_memory_key.h"
 #include "probes_mysql.h"     // MYSQL_COMMAND_START
 #include "rpl_filter.h"       // rpl_filter
 #include "rpl_group_replication.h" // group_replication_start

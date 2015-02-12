@@ -30,6 +30,7 @@
 #include "key.h"                      // is_key_used
 #include "opt_explain.h"              // Modification_plan
 #include "opt_trace.h"                // Opt_trace_object
+#include "psi_memory_key.h"
 #include "records.h"                  // READ_RECORD
 #include "sql_base.h"                 // setup_fields_with_no_wrap
 #include "sql_optimizer.h"            // build_equal_items

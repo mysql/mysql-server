@@ -27,10 +27,11 @@
 #include "unireg.h"
 
 #include "current_thd.h"
-#include "table.h"
-#include "sql_class.h"                        // THD, Internal_error_handler
 #include "partition_info.h"                   // partition_info
+#include "psi_memory_key.h"
+#include "sql_class.h"                        // THD, Internal_error_handler
 #include "sql_table.h"                        // validate_comment_length   
+#include "table.h"
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"

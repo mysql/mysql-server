@@ -30,6 +30,7 @@
 #include <mysql/service_my_plugin_log.h>
 #include "sys_vars.h"
 #include "current_thd.h"
+#include "psi_memory_key.h"
 
 #include <fstream>                      /* std::fstream */
 #include <string>                       /* std::string */

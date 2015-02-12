@@ -24,6 +24,7 @@
 #include "debug_sync.h"                         // DEBUG_SYNC
 #include "log.h"                                // sql_print_information
 #include "mysqld_thd_manager.h"                 // Global_THD_manager
+#include "psi_memory_key.h"
 #include "rpl_binlog_sender.h"                  // Binlog_sender
 #include "rpl_filter.h"                         // binlog_filter
 #include "rpl_handler.h"                        // RUN_HOOK

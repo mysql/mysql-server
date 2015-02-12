@@ -19,6 +19,7 @@
 #include "my_murmur3.h"    // murmur3_32
 #include "my_stacktrace.h" // my_safe_itoa
 #include "field.h"         // Field
+#include "psi_memory_key.h"
 #include "sql_class.h"     // THD
 #include "sql_list.h"      // List
 #include "table.h"         // TABLE

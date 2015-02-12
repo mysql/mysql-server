@@ -31,6 +31,7 @@
 #include "log_event.h"                // Write_rows_log_event
 #include "probes_mysql.h"             // MYSQL_HANDLER_WRLOCK_START
 #include "opt_costconstantcache.h"    // reload_optimizer_cost_constants
+#include "psi_memory_key.h"
 #include "rpl_handler.h"              // RUN_HOOK
 #include "sql_base.h"                 // free_io_cache
 #include "sql_parse.h"                // check_stack_overrun
@@ -3414,6 +3415,12 @@ void handler::ha_release_auto_increment()
     */
     table->in_use->auto_inc_intervals_forced.empty();
   }
+}
+
+
+const char *table_case_name(HA_CREATE_INFO *info, const char *name)
+{
+  return ((lower_case_table_names == 2 && info->alias) ? info->alias : name);
 }
 
 

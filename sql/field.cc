@@ -7728,6 +7728,12 @@ void Field_varstring::hash(ulong *nr, ulong *nr2)
 ** packlength slot and may be from 1-4.
 ****************************************************************************/
 
+Field_blob::Field_blob(uint32 packlength_arg)
+  :Field_longstr((uchar*) 0, 0, (uchar*) "", 0, NONE, "temp",
+                 system_charset_info),
+   packlength(packlength_arg)
+{}
+
 Field_blob::Field_blob(uchar *ptr_arg, uchar *null_ptr_arg, uchar null_bit_arg,
 		       enum utype unireg_check_arg, const char *field_name_arg,
                        TABLE_SHARE *share, uint blob_pack_length,

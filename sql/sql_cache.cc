@@ -344,6 +344,7 @@ TODO list:
 #include "probes_mysql.h"
 #include "transaction.h"
 #include "current_thd.h"
+#include "psi_memory_key.h"
 
 #ifdef EMBEDDED_LIBRARY
 #include "emb_qcache.h"

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,6 +30,7 @@
 #include <m_ctype.h>
 #include "log.h"                                // sql_print_warning,
                                                 // sql_print_information
+#include "psi_memory_key.h"
 #include "violite.h"                            // vio_getnameinfo,
                                                 // vio_get_normalized_ip_string
 

@@ -28,6 +28,7 @@
 #include "current_thd.h"
 #include "hostname.h"                   // Host_errors
 #include "log.h"                        // sql_print_information
+#include "psi_memory_key.h"
 #include "mysqld.h"                     // LOCK_user_conn
 #include "sql_audit.h"                  // MYSQL_AUDIT_NOTIFY_CONNECTION_CONNECT
 #include "sql_class.h"                  // THD

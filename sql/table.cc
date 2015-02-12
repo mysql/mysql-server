@@ -28,6 +28,7 @@
 #include "opt_trace.h"                   // opt_trace_disable_if_no_security_...
 #include "parse_file.h"                  // sql_parse_prepare
 #include "partition_info.h"              // partition_info
+#include "psi_memory_key.h"
 #include "sql_base.h"                    // OPEN_VIEW_ONLY
 #include "sql_class.h"                   // THD
 #include "sql_derived.h"                 // mysql_handle_single_derived
@@ -4248,6 +4249,18 @@ bool TABLE_SHARE::wait_for_old_version(THD *thd, struct timespec *abstime,
     DBUG_ASSERT(0);
     return TRUE;
   }
+}
+
+Blob_mem_storage::Blob_mem_storage()
+  : truncated_value(false)
+{
+  init_alloc_root(key_memory_blob_mem_storage,
+                  &storage, MAX_FIELD_VARCHARLENGTH, 0);
+}
+
+Blob_mem_storage::~Blob_mem_storage()
+{
+  free_root(&storage, MYF(0));
 }
 
 

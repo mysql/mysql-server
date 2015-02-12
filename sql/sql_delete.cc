@@ -26,6 +26,7 @@
 #include "debug_sync.h"               // DEBUG_SYNC
 #include "opt_explain.h"              // Modification_plan
 #include "opt_trace.h"                // Opt_trace_object
+#include "psi_memory_key.h"
 #include "records.h"                  // READ_RECORD
 #include "sql_base.h"                 // open_normal_and_derived_tables
 #include "sql_optimizer.h"            // optimize_cond

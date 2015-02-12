@@ -18,6 +18,7 @@
 #include "rpl_gtid.h"
 
 #include "mysqld_error.h"     // ER_*
+#include "psi_memory_key.h"
 #include "sql_class.h"        // THD
 
 

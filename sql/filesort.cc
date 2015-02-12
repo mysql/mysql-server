@@ -39,6 +39,7 @@
 #include "priority_queue.h"
 #include "log.h"
 #include "item_sum.h"                   // Item_sum
+#include "psi_memory_key.h"
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"

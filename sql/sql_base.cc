@@ -18,6 +18,7 @@
 #include "sql_base.h"
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "current_thd.h"
+#include "psi_memory_key.h"
 #include "debug_sync.h"
 #include "lock.h"        // mysql_lock_remove,
                          // mysql_unlock_tables,
@@ -3631,6 +3632,17 @@ TABLE *find_table_for_mdl_upgrade(THD *thd, const char *db,
 /***********************************************************************
   class Locked_tables_list implementation. Declared in sql_class.h
 ************************************************************************/
+
+Locked_tables_list::Locked_tables_list()
+  :m_locked_tables(NULL),
+   m_locked_tables_last(&m_locked_tables),
+   m_reopen_array(NULL),
+   m_locked_tables_count(0)
+{
+  init_sql_alloc(key_memory_locked_table_list,
+                 &m_locked_tables_root, MEM_ROOT_BLOCK_SIZE, 0);
+}
+
 
 /**
   Enter LTM_LOCK_TABLES mode.

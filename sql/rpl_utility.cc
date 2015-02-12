@@ -23,6 +23,7 @@
 #include "field.h"                       // Field
 #include "log.h"                         // sql_print_error
 #include "log_event.h"                   // Log_event
+#include "psi_memory_key.h"
 #include "rpl_rli.h"                     // Relay_log_info
 #include "sql_class.h"                   // THD
 #include "sql_tmp_table.h"               // create_virtual_tmp_table
@@ -810,7 +811,9 @@ err:
 
 #endif /* MYSQL_CLIENT */
 
+extern "C" {
 PSI_memory_key key_memory_table_def_memory;
+}
 
 table_def::table_def(unsigned char *types, ulong size,
                      uchar *field_metadata, int metadata_size,

@@ -26,6 +26,7 @@
 #include "opt_range.h"            // QUICK_SELECT_I
 #include "opt_trace.h"            // Opt_trace_object
 #include "opt_trace_context.h"    // Opt_trace_context
+#include "psi_memory_key.h"
 #include "sql_base.h"             // free_io_cache
 #include "sql_class.h"            // THD
 #include "sql_executor.h"         // SJ_TMP_TABLE

@@ -18,6 +18,7 @@
 #include "auth_common.h"                // SUPER_ACL
 #include "current_thd.h"
 #include "item.h"                       // Item
+#include "psi_memory_key.h"
 #include "rpl_mi.h"                     // Master_info
 #include "rpl_msr.h"                    // msr_map
 #include "rpl_rli.h"                    // Relay_log_info

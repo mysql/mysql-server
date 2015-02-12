@@ -19,7 +19,6 @@
 #include "my_global.h"
 #include "my_sys.h"                        // free_root
 #include "mysql/psi/mysql_thread.h"        // mysql_rwlock_t
-#include "mysqld.h"                        // key_memory_delegate
 #include "sql_list.h"                      // List
 #include "sql_plugin_ref.h"                // plugin_ref
 
@@ -130,23 +129,12 @@ public:
     return inited;
   }
 
-  Delegate(
+  explicit Delegate(
 #ifdef HAVE_PSI_INTERFACE
            PSI_rwlock_key key
 #endif
-           )
-  {
-    inited= FALSE;
-#ifdef HAVE_PSI_INTERFACE
-    if (mysql_rwlock_init(key, &lock))
-      return;
-#else
-    if (mysql_rwlock_init(0, &lock))
-      return;
-#endif
-    init_sql_alloc(key_memory_delegate, &memroot, 1024, 0);
-    inited= TRUE;
-  }
+                    );
+
   ~Delegate()
   {
     inited= FALSE;

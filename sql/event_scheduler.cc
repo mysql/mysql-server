@@ -23,6 +23,7 @@
 #include "auth_common.h"             // SUPER_ACL
 #include "log.h"
 #include "mysqld_thd_manager.h"      // Global_THD_manager
+#include "psi_memory_key.h"
 #include "sql_error.h"               // Sql_condition
 #include "sql_class.h"               // THD
 

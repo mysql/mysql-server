@@ -30,6 +30,7 @@
 #include "log.h"               // sql_print_error
 #include "mutex_lock.h"        // Mutex_lock
 #include "my_default.h"        // free_defaults
+#include "psi_memory_key.h"
 #include "records.h"           // READ_RECORD
 #include "sql_audit.h"         // mysql_audit_acquire_plugins
 #include "sql_base.h"          // close_mysql_tables

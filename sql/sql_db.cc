@@ -21,6 +21,7 @@
 #include "sql_db.h"
 
 #include "current_thd.h"
+#include "psi_memory_key.h"
 #include "sql_cache.h"                   // query_cache_*
 #include "lock.h"                        // lock_schema_name
 #include "sql_table.h"                   // build_table_filename,

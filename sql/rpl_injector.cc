@@ -17,6 +17,7 @@
 
 #include "binlog.h"                             // mysql_bin_log
 #include "log_event.h"                          // Incident_log_event
+#include "psi_memory_key.h"
 #include "sql_base.h"                           // close_thread_tables
 #include "sql_class.h"                          // THD
 #include "transaction.h"                        // trans_begin

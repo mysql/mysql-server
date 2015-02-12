@@ -965,15 +965,8 @@ private:
   */
   size_t m_locked_tables_count;
 public:
-  Locked_tables_list()
-    :m_locked_tables(NULL),
-    m_locked_tables_last(&m_locked_tables),
-    m_reopen_array(NULL),
-    m_locked_tables_count(0)
-  {
-    init_sql_alloc(key_memory_locked_table_list,
-                   &m_locked_tables_root, MEM_ROOT_BLOCK_SIZE, 0);
-  }
+  Locked_tables_list();
+
   void unlock_locked_tables(THD *thd);
   ~Locked_tables_list()
   {
@@ -3411,37 +3404,7 @@ public:
       @retval false Success
       @retval true  Out-of-memory error
   */
-  bool set_db(const LEX_CSTRING &new_db)
-  {
-    bool result;
-    /*
-      Acquiring mutex LOCK_thd_data as we either free the memory allocated
-      for the database and reallocating the memory for the new db or memcpy
-      the new_db to the db.
-    */
-    mysql_mutex_lock(&LOCK_thd_data);
-    /* Do not reallocate memory if current chunk is big enough. */
-    if (m_db.str && new_db.str && m_db.length >= new_db.length)
-      memcpy(const_cast<char*>(m_db.str), new_db.str, new_db.length+1);
-    else
-    {
-      my_free(const_cast<char*>(m_db.str));
-      m_db= NULL_CSTR;
-      if (new_db.str)
-        m_db.str= my_strndup(key_memory_THD_db,
-                             new_db.str, new_db.length,
-                             MYF(MY_WME | ME_FATALERROR));
-    }
-    m_db.length= m_db.str ? new_db.length : 0;
-    mysql_mutex_unlock(&LOCK_thd_data);
-    result= new_db.str && !m_db.str;
-#ifdef HAVE_PSI_THREAD_INTERFACE
-    if (result)
-      PSI_THREAD_CALL(set_thread_db)(new_db.str,
-                                     static_cast<int>(new_db.length));
-#endif
-    return result;
-  }
+  bool set_db(const LEX_CSTRING &new_db);
 
   /**
     Set the current database; use shallow copy of C-string.
@@ -4542,24 +4505,9 @@ public:
     @retval  Address of the allocated and initialized user_var_entry instance.
     @retval  NULL on allocation error.
   */
-  static user_var_entry *create(THD *thd, const Name_string &name, const CHARSET_INFO *cs)
-  {
-    if (check_column_name(name.ptr()))
-    {
-      my_error(ER_ILLEGAL_USER_VAR, MYF(0), name.ptr());
-      return NULL;
-    }
-
-    user_var_entry *entry;
-    size_t size= ALIGN_SIZE(sizeof(user_var_entry)) +
-                 (name.length() + 1) + extra_size;
-    if (!(entry= (user_var_entry*) my_malloc(key_memory_user_var_entry,
-                                             size, MYF(MY_WME |
-                                                       ME_FATALERROR))))
-      return NULL;
-    entry->init(thd, name, cs);
-    return entry;
-  }
+  static user_var_entry *create(THD *thd,
+                                const Name_string &name,
+                                const CHARSET_INFO *cs);
 
   /**
     Free all memory used by a user_var_entry instance

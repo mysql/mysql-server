@@ -19,6 +19,8 @@
 /* 2006-12 Erik Wetterberg : LOAD XML added */
 
 #include "sql_load.h"
+
+#include "psi_memory_key.h"
 #include "sql_cache.h"                          // query_cache_*
 #include "sql_base.h"          // fill_record_n_invoke_before_triggers
 #include <my_dir.h>

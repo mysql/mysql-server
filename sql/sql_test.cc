@@ -23,6 +23,7 @@
 #include "sql_select.h"
 #include "opt_trace.h"
 #include "keycaches.h"
+#include "psi_memory_key.h"
 #include "sql_optimizer.h"  // JOIN
 #include "opt_explain.h"    // join_type_str
 #include <hash.h>

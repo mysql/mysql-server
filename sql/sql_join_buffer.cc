@@ -25,6 +25,7 @@
 
 #include "sql_select.h"
 #include "key.h"
+#include "psi_memory_key.h"
 #include "sql_optimizer.h"  // JOIN
 #include "sql_join_buffer.h"
 #include "sql_tmp_table.h"  // instantiate_tmp_table()

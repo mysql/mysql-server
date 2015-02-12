@@ -31,6 +31,7 @@
 #include "item_strfunc.h"        // Item_func_geohash
 #include <mysql/service_thd_wait.h>
 #include "parse_tree_helpers.h"  // PT_item_list
+#include "psi_memory_key.h"
 #include "rpl_mi.h"              // Master_info
 #include "rpl_msr.h"             // msr_map
 #include "rpl_rli.h"             // Relay_log_info

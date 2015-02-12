@@ -29,7 +29,9 @@ using std::min;
 using std::max;
 
 #ifdef MYSQL_SERVER
+extern "C" {
 PSI_memory_key key_memory_String_value;
+}
 #endif
 
 /*****************************************************************************

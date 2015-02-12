@@ -117,6 +117,7 @@
 #include "opt_statistics.h"      // guess_rec_per_key
 #include "opt_trace.h"           // Opt_trace_array
 #include "partition_info.h"      // partition_info
+#include "psi_memory_key.h"
 #include "sql_partition.h"       // HA_USE_AUTO_PARTITION
 #include "sql_base.h"            // free_io_cache
 #include "sql_class.h"           // THD

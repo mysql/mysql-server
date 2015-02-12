@@ -45,6 +45,7 @@
 #include "hostname.h"                    // host_cache_resize
 #include "item_timefunc.h"               // ISO_FORMAT
 #include "log_event.h"                   // MAX_MAX_ALLOWED_PACKET
+#include "psi_memory_key.h"
 #include "rpl_info_factory.h"            // Rpl_info_factory
 #include "rpl_info_handler.h"            // INFO_REPOSITORY_FILE
 #include "rpl_mi.h"                      // Master_info
@@ -3163,6 +3164,27 @@ static Sys_var_mybool Sys_slave_preserve_commit_order(
        ON_CHECK(check_slave_stopped),
        ON_UPDATE(NULL));
 #endif
+
+bool Sys_var_charptr::global_update(THD *thd, set_var *var)
+{
+  char *new_val, *ptr= var->save_result.string_value.str;
+  size_t len=var->save_result.string_value.length;
+  if (ptr)
+  {
+    new_val= (char*) my_memdup(key_memory_Sys_var_charptr_value,
+                               ptr, len+1, MYF(MY_WME));
+    if (!new_val) return true;
+    new_val[len]= 0;
+  }
+  else
+    new_val= 0;
+  if (flags & ALLOCATED)
+    my_free(global_var(char*));
+  flags |= ALLOCATED;
+  global_var(char*)= new_val;
+  return false;
+}
+
 
 bool Sys_var_enum_binlog_checksum::global_update(THD *thd, set_var *var)
 {

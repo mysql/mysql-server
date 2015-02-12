@@ -18,6 +18,7 @@
 
 #include "current_thd.h"
 #include "mysys_err.h"
+#include "psi_memory_key.h"
 #include "sql_class.h"
 
 Transaction_ctx::Transaction_ctx()
