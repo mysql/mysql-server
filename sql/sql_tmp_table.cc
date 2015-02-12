@@ -1794,12 +1794,9 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
     keyinfo->actual_flags= keyinfo->flags= HA_NOSAME;
     keyinfo->key_length=0;
     {
-      key_part_info->null_bit=0;
-      key_part_info->field=  field;
-      key_part_info->offset= field->offset(table->record[0]);
-      key_part_info->length= (uint16) field->key_length();
-      key_part_info->type=   (uint8) field->key_type();
-      key_part_info->key_type = FIELDFLAG_BINARY;
+      key_part_info->init_from_field(field);
+      DBUG_ASSERT(key_part_info->key_type == FIELDFLAG_BINARY);
+
       key_field= field->new_key_field(thd->mem_root, table, group_buff);
       if (!key_field)
         goto err;
