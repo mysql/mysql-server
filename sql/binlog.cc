@@ -9674,10 +9674,11 @@ bool THD::is_ddl_gtid_compatible(bool handle_error, bool handle_nonerror)
   DBUG_PRINT("info",
              ("SQLCOM_CREATE:%d CREATE-TMP:%d SELECT:%d SQLCOM_DROP:%d DROP-TMP:%d trx:%d",
               lex->sql_command == SQLCOM_CREATE_TABLE,
-              lex->create_info.options & HA_LEX_CREATE_TMP_TABLE,
+              (lex->sql_command == SQLCOM_CREATE_TABLE &&
+               (lex->create_info.options & HA_LEX_CREATE_TMP_TABLE)),
               lex->select_lex->item_list.elements,
               lex->sql_command == SQLCOM_DROP_TABLE,
-              lex->drop_temporary,
+              (lex->sql_command == SQLCOM_DROP_TABLE && lex->drop_temporary),
               in_multi_stmt_transaction_mode()));
 
   if (lex->sql_command == SQLCOM_CREATE_TABLE &&
