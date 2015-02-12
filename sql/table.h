@@ -607,6 +607,11 @@ struct TABLE_SHARE
   key_map keys_for_keyread;
   ha_rows min_rows, max_rows;		/* create information */
   ulong   avg_row_length;		/* create information */
+  /**
+    TABLE_SHARE version, if changed the TABLE_SHARE must be reopened.
+    NOTE: The TABLE_SHARE will not be reopened during LOCK TABLES in
+    close_thread_tables!!!
+  */
   ulong   version;
   ulong   mysql_version;		/* 0 if .frm is created before 5.0 */
   ulong   reclength;			/* Recordlength */
@@ -1204,6 +1209,11 @@ public:
   my_bool insert_or_update;             /* Can be used by the handler */
   my_bool alias_name_used;		/* true if table_name is alias */
   my_bool get_fields_in_item_tree;      /* Signal to fix_field */
+  /**
+    This table must be reopened and is not to be reused.
+    NOTE: The TABLE will not be reopened during LOCK TABLES in
+    close_thread_tables!!!
+  */
   my_bool m_needs_reopen;
 private:
   bool created; /* For tmp tables. TRUE <=> tmp table has been instantiated.*/
