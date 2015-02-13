@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -173,6 +173,8 @@ TEST_F(ClusterMemberInfoManagerTest, GetLocalInfoByUUIDTest)
   ASSERT_TRUE(retrieved_local_info != NULL);
   ASSERT_EQ(*retrieved_local_info->get_uuid(),
             uuid_to_get);
+
+  delete retrieved_local_info;
 }
 
 TEST_F(ClusterMemberInfoManagerTest, UpdateStatusOfLocalObjectTest)
@@ -204,14 +206,16 @@ TEST_F(ClusterMemberInfoManagerTest, GetLocalInfoByUUIDAfterEncodingTest)
 
   ASSERT_EQ(local_node->get_port(),
             retrieved_local_info->get_port());
-  ASSERT_EQ(local_node->get_hostname(),
-            retrieved_local_info->get_hostname());
-  ASSERT_EQ(local_node->get_uuid(),
-            retrieved_local_info->get_uuid());
-  ASSERT_EQ(local_node->get_gcs_member_id()->get_member_id(),
-            retrieved_local_info->get_gcs_member_id()->get_member_id());
+  ASSERT_EQ(*local_node->get_hostname(),
+            *retrieved_local_info->get_hostname());
+  ASSERT_EQ(*local_node->get_uuid(),
+            *retrieved_local_info->get_uuid());
+  ASSERT_EQ(*local_node->get_gcs_member_id()->get_member_id(),
+            *retrieved_local_info->get_gcs_member_id()->get_member_id());
   ASSERT_EQ(local_node->get_recovery_status(),
             retrieved_local_info->get_recovery_status());
+
+  delete retrieved_local_info;
 }
 
 TEST_F(ClusterMemberInfoManagerTest, UpdateStatusOfLocalObjectAfterExchangeTest)
@@ -236,6 +240,8 @@ TEST_F(ClusterMemberInfoManagerTest, UpdateStatusOfLocalObjectAfterExchangeTest)
 
   ASSERT_EQ(Cluster_member_info::MEMBER_ONLINE,
             retrieved_local_info->get_recovery_status());
+
+  delete retrieved_local_info;
 }
 
 }

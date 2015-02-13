@@ -320,6 +320,10 @@ Recovery_module::update_recovery_process(bool did_nodes_left)
         }
         //else do nothing
       }
+      else
+      {
+        delete donor;
+      }
       mysql_mutex_unlock(&donor_selection_lock);
     } //member not on left
   } // recovery_running
@@ -428,10 +432,10 @@ cleanup:
   */
   if (error)
   {
-    gcs_control_interface->leave();
     log_message(MY_ERROR_LEVEL,
-                "Fatal error when recovering. "
-                "The server has left the group.");
+                "Fatal error during the Recovery process of Group Replication."
+                "The server will leave the group.");
+    gcs_control_interface->leave();
   }
 
   clean_recovery_thread_context();
@@ -675,6 +679,9 @@ int Recovery_module::initialize_donor_connection(bool purge_logs){
                 hostname,
                 port);
   }
+
+  delete selected_donor;
+
   DBUG_RETURN(error);
 }
 

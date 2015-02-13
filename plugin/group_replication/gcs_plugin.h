@@ -59,7 +59,7 @@ extern Cluster_member_info_manager_interface *cluster_member_mgr;
 
 //Auxiliary Functionality
 extern Gcs_plugin_events_handler* events_handler;
-extern Gcs_plugin_leave_notifier* leave_notifier;
+extern Gcs_plugin_view_modification_notifier* view_change_notifier;
 extern Cluster_member_info* local_member_info;
 
 /*

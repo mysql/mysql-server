@@ -177,7 +177,8 @@ public:
     Retrieves a registered Cluster member by its uuid
 
     @param[in] uuid uuid to retrieve
-    @return reference to a Cluster_member_info. NULL if not managed
+    @return reference to a copy of Cluster_member_info. NULL if not managed.
+            The return value must deallocated by the caller.
    */
   virtual Cluster_member_info* get_cluster_member_info(std::string uuid)= 0;
 
@@ -195,7 +196,8 @@ public:
     Retrieves a registered Cluster member by its backbone GCS identifier
 
     @param[in] idx the GCS identifier
-    @return reference to a Cluster_member_info. NULL if not managed
+    @return reference to a copy of Cluster_member_info. NULL if not managed.
+            The return value must deallocated by the caller.
    */
   virtual Cluster_member_info*
              get_cluster_member_info_by_member_id(Gcs_member_identifier idx)= 0;

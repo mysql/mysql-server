@@ -102,7 +102,7 @@ SET @debug_save= @@GLOBAL.DEBUG;
 set session sql_log_bin=0;
 call mtr.add_suppression("There was an error when connecting to the donor*");
 call mtr.add_suppression("Maximum number of retries when*");
-call mtr.add_suppression("Fatal error when recovering. The server has left the group.");
+call mtr.add_suppression("Fatal error during the Recovery process of Group Replication.The server will leave the group.");
 set session sql_log_bin=1;
 
 --eval SET GLOBAL group_replication_recovery_user= $gcs_rec_user

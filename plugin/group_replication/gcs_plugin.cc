@@ -22,6 +22,8 @@
 #include "gcs_plugin.h"
 #include "gcs_plugin_log.h"
 
+#define VIEW_MODIFICATION_TIMEOUT 10
+
 using std::string;
 
 static MYSQL_PLUGIN plugin_info_ptr;
@@ -71,7 +73,7 @@ Wait_ticket<my_thread_id> *certification_latch;
 char *gcs_group_pointer= NULL;
 Gcs_interface *gcs_module= NULL;
 Gcs_plugin_events_handler* events_handler= NULL;
-Gcs_plugin_leave_notifier* leave_notifier= NULL;
+Gcs_plugin_view_modification_notifier* view_change_notifier= NULL;
 
 int gcs_communication_event_handle= 0;
 int gcs_control_event_handler= 0;
@@ -229,7 +231,17 @@ int gcs_rpl_start()
     applier_module->terminate_applier_thread();
     goto err;
   }
-  gcs_running= true;
+
+  if(!(view_change_notifier
+                       ->wait_for_view_modification(VIEW_MODIFICATION_TIMEOUT)))
+  {
+    gcs_running= true;
+  }
+  else
+  {
+    error= 1;
+    goto err;
+  }
 
 err:
   if (error && certification_latch != NULL)
@@ -292,7 +304,7 @@ int gcs_rpl_stop()
   Gcs_communication_interface *comm_if=
                                 gcs_module->get_communication_session(group_id);
 
-  leave_notifier->start_view_modification();
+  view_change_notifier->start_view_modification();
 
   if(ctrl_if->belongs_to_group())
   {
@@ -302,7 +314,8 @@ int gcs_rpl_stop()
     }
 
     log_message(MY_INFORMATION_LEVEL, "going to wait for view modification");
-    if(leave_notifier->wait_for_view_modification(10))
+    if(view_change_notifier
+                        ->wait_for_view_modification(VIEW_MODIFICATION_TIMEOUT))
     {
       log_message(MY_WARNING_LEVEL,
                   "On shutdown there was a timeout receiving a view change."
@@ -321,7 +334,7 @@ int gcs_rpl_stop()
   gcs_communication_event_handle= 0;
 
   delete events_handler;
-  delete leave_notifier;
+  delete view_change_notifier;
 
   if(terminate_recovery_module())
   {
@@ -576,12 +589,14 @@ int configure_and_start_gcs()
   gcs_ctrl
         ->set_exchangeable_data(cluster_member_mgr->get_exchangeable_format());
 
-  leave_notifier= new Gcs_plugin_leave_notifier();
+  view_change_notifier= new Gcs_plugin_view_modification_notifier();
   events_handler= new Gcs_plugin_events_handler(applier_module,
                                                 recovery_module,
                                                 cluster_member_mgr,
                                                 local_member_info,
-                                                leave_notifier);
+                                                view_change_notifier);
+
+  view_change_notifier->start_view_modification();
 
   gcs_control_event_handler= gcs_ctrl->add_event_listener(events_handler);
   gcs_control_exchanged_data_handle

@@ -44,16 +44,16 @@ struct Gcs_member_info_pointer_comparator
 };
 
 /*
-  @class Gcs_plugin_leave_notifier
+  @class Gcs_plugin_view_modification_notifier
 
   This class is used with the purpose of issuing a view changing event
-  and wait for its completion. In this case, it is a leave event.
+  and wait for its completion.
  */
-class Gcs_plugin_leave_notifier
+class Gcs_plugin_view_modification_notifier
 {
 public:
-  Gcs_plugin_leave_notifier();
-  virtual ~Gcs_plugin_leave_notifier();
+  Gcs_plugin_view_modification_notifier();
+  virtual ~Gcs_plugin_view_modification_notifier();
 
   /**
     Signals that a view modification is about to start
@@ -103,7 +103,7 @@ public:
                             Recovery_module* recovery_module,
                             Cluster_member_info_manager_interface* cluster_mgr,
                             Cluster_member_info* local_node_info,
-                            Gcs_plugin_leave_notifier* leave_notifier);
+                            Gcs_plugin_view_modification_notifier* vc_notifier);
   virtual ~Gcs_plugin_events_handler();
 
   /*
@@ -159,7 +159,7 @@ private:
   set<Cluster_member_info*,
       Gcs_member_info_pointer_comparator>* temporary_states;
 
-  Gcs_plugin_leave_notifier* leave_notifier;
+  Gcs_plugin_view_modification_notifier* view_change_notifier;
 };
 
 #endif /* GCS_EVENT_HANDLERS_INCLUDE */

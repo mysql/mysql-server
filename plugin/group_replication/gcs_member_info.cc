@@ -219,9 +219,15 @@ Cluster_member_info_manager::get_cluster_member_info(string uuid)
     member= (*it).second;
   }
 
+  Cluster_member_info* member_copy= NULL;
+  if(member != NULL)
+  {
+    member_copy= new Cluster_member_info(*member);
+  }
+
   mysql_mutex_unlock(&update_lock);
 
-  return member;
+  return member_copy;
 }
 
 Cluster_member_info*

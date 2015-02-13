@@ -57,6 +57,7 @@ Gcs_corosync_control(cpg_handle_t handle,
                      Gcs_corosync_view_change_control_interface* vce)
       :corosync_handle(handle),
        proxy(corosync_proxy),
+       joined(false),
        current_view(NULL),
        local_member_information(NULL),
        exchange_data(NULL),

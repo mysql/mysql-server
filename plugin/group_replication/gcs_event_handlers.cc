@@ -24,13 +24,13 @@ Gcs_plugin_events_handler(Applier_module_interface* applier_module,
                           Recovery_module* recovery_module,
                           Cluster_member_info_manager_interface* cluster_mgr,
                           Cluster_member_info* local_node_info,
-                          Gcs_plugin_leave_notifier* leave_notifier)
+                          Gcs_plugin_view_modification_notifier* vc_notifier)
 {
   this->applier_module= applier_module;
   this->recovery_module= recovery_module;
   this->cluster_info_mgr= cluster_mgr;
   this->local_node_info= local_node_info;
-  this->leave_notifier= leave_notifier;
+  this->view_change_notifier= vc_notifier;
 
   this->temporary_states= new set<Cluster_member_info*,
                                   Gcs_member_info_pointer_comparator>();
@@ -226,6 +226,8 @@ void Gcs_plugin_events_handler::handle_joining_nodes(Gcs_view *new_view,
   */
   if (is_joining)
   {
+    view_change_notifier->end_view_modification();
+
     if (new_view->get_members()->size() == 1)
     {
       /*
@@ -332,8 +334,10 @@ Gcs_plugin_events_handler::handle_leaving_nodes(Gcs_view* new_view,
 
   if(is_leaving)
   {
-    leave_notifier->end_view_modification();
+    view_change_notifier->end_view_modification();
   }
+
+  delete for_local_status;
 }
 
 bool Gcs_plugin_events_handler::is_member_on_vector
@@ -411,37 +415,37 @@ Gcs_plugin_events_handler::update_node_status
   }
 }
 
-Gcs_plugin_leave_notifier::Gcs_plugin_leave_notifier()
+Gcs_plugin_view_modification_notifier::Gcs_plugin_view_modification_notifier()
 {
   view_changing= false;
 
 #ifdef HAVE_PSI_INTERFACE
-  PSI_cond_info leave_notifier_conds[]=
+  PSI_cond_info view_change_notifier_conds[]=
   {
-    { &wait_for_view_key_cond, "COND_leave_notifier", 0}
+    { &wait_for_view_key_cond, "COND_view_change_notifier", 0}
   };
 
-  PSI_mutex_info leave_notifier_mutexes[]=
+  PSI_mutex_info view_change_notifier_mutexes[]=
   {
-    { &wait_for_view_key_mutex, "LOCK_leave_notifier", 0}
+    { &wait_for_view_key_mutex, "LOCK_view_change_notifier", 0}
   };
 
-  register_gcs_psi_keys(leave_notifier_mutexes, 1,
-                        leave_notifier_conds, 1);
+  register_gcs_psi_keys(view_change_notifier_mutexes, 1,
+                        view_change_notifier_conds, 1);
 #endif /* HAVE_PSI_INTERFACE */
 
   mysql_cond_init(wait_for_view_key_cond, &wait_for_view_cond);
   mysql_mutex_init(wait_for_view_key_mutex, &wait_for_view_mutex,
                    MY_MUTEX_INIT_FAST);
 }
-Gcs_plugin_leave_notifier::~Gcs_plugin_leave_notifier()
+Gcs_plugin_view_modification_notifier::~Gcs_plugin_view_modification_notifier()
 {
   mysql_mutex_destroy(&wait_for_view_mutex);
   mysql_cond_destroy(&wait_for_view_cond);
 }
 
 void
-Gcs_plugin_leave_notifier::start_view_modification()
+Gcs_plugin_view_modification_notifier::start_view_modification()
 {
   mysql_mutex_lock(&wait_for_view_mutex);
   view_changing= true;
@@ -449,7 +453,7 @@ Gcs_plugin_leave_notifier::start_view_modification()
 }
 
 void
-Gcs_plugin_leave_notifier::end_view_modification()
+Gcs_plugin_view_modification_notifier::end_view_modification()
 {
   mysql_mutex_lock(&wait_for_view_mutex);
   view_changing= false;
@@ -458,7 +462,7 @@ Gcs_plugin_leave_notifier::end_view_modification()
 }
 
 bool
-Gcs_plugin_leave_notifier::wait_for_view_modification(long timeout)
+Gcs_plugin_view_modification_notifier::wait_for_view_modification(long timeout)
 {
   struct timespec ts;
   int result= 0;
