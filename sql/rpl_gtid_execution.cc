@@ -135,7 +135,7 @@ bool set_gtid_next(THD *thd, const Gtid_specification &spec)
         lock_count= 0;
 
         // Check if thread was killed.
-        if (thd->killed || abort_loop)
+        if (thd->killed || connection_events_loop_aborted())
         {
           goto err;
         }
@@ -236,7 +236,7 @@ int gtid_acquire_ownership_multiple(THD *thd)
 
     // at this point, we don't hold any locks. re-acquire the global
     // read lock that was held when this function was invoked
-    if (thd->killed || abort_loop)
+    if (thd->killed || connection_events_loop_aborted())
       DBUG_RETURN(1);
 #ifdef HAVE_REPLICATION
     // If this thread is a slave SQL thread or slave SQL worker

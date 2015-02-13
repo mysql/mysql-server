@@ -313,7 +313,7 @@ bool server_id_supplied = false;
 bool opt_endinfo, using_udf_functions;
 my_bool locked_in_memory;
 bool opt_using_transactions;
-bool volatile abort_loop;
+int32 volatile connection_events_loop_aborted_flag;
 ulong log_warnings;
 bool  opt_log_syslog_enable;
 char *opt_log_syslog_tag= NULL;
@@ -2242,10 +2242,12 @@ extern "C" void *signal_hand(void *arg __attribute__((unused)))
       // Switch to the file log message processing.
       query_logger.set_handlers((log_output_options != LOG_NONE) ?
                                 LOG_FILE : LOG_NONE);
-      DBUG_PRINT("info", ("Got signal: %d  abort_loop: %d", sig, abort_loop));
-      if (!abort_loop)
+      DBUG_PRINT("info", ("Got signal: %d  connection_events_loop_aborted: %d",
+                 sig, connection_events_loop_aborted()));
+      if (!connection_events_loop_aborted())
       {
-        abort_loop= true;       // Mark abort for threads.
+        // Mark abort for threads.
+        set_connection_events_loop_aborted(true);
 #ifdef HAVE_PSI_THREAD_INTERFACE
         // Delete the instrumentation for the signal thread.
         PSI_THREAD_CALL(delete_current_thread)();
@@ -2276,7 +2278,7 @@ extern "C" void *signal_hand(void *arg __attribute__((unused)))
       }
       break;
     case SIGHUP:
-      if (!abort_loop)
+      if (!connection_events_loop_aborted())
       {
         int not_used;
         mysql_print_status();   // Print some debug info
@@ -4340,7 +4342,7 @@ extern "C" void *handle_shutdown(void *arg)
   if (WaitForSingleObject(hEventShutdown,INFINITE)==WAIT_OBJECT_0)
   {
     sql_print_information(ER_DEFAULT(ER_NORMAL_SHUTDOWN), my_progname);
-    abort_loop= true;
+    set_connection_events_loop_aborted(true);
     close_connections();
     my_thread_end();
     my_thread_exit(0);
@@ -4890,7 +4892,7 @@ int mysqld_main(int argc, char **argv)
   if (mysql_rm_tmp_tables() || acl_init(opt_noacl) ||
       my_tz_init((THD *)0, default_tz_name, opt_bootstrap))
   {
-    abort_loop= true;
+    set_connection_events_loop_aborted(true);
 
 #ifndef _WIN32
     (void) pthread_kill(signal_thread_id.thread, SIGTERM);
@@ -6949,7 +6951,7 @@ static int mysql_init_variables(void)
   slave_open_temp_tables= 0;
   opt_endinfo= using_udf_functions= 0;
   opt_using_transactions= 0;
-  abort_loop= false;
+  set_connection_events_loop_aborted(false);
   aborted_threads= 0;
   delayed_insert_threads= delayed_insert_writes= delayed_rows_in_use= 0;
   delayed_insert_errors= 0;

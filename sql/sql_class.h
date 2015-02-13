@@ -3167,7 +3167,7 @@ public:
     int err= killed_errno();
     if (err && !get_stmt_da()->is_set())
     {
-      if ((err == KILL_CONNECTION) && !abort_loop)
+      if ((err == KILL_CONNECTION) && !connection_events_loop_aborted())
         err = KILL_QUERY;
       /*
         KILL is fatal because:

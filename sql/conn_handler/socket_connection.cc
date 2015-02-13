@@ -858,11 +858,11 @@ Channel_info* Mysqld_socket_listener::listen_for_connection_event()
       increment the server global status variable.
     */
     connection_errors_select++;
-    if (!select_errors++ && !abort_loop)
+    if (!select_errors++ && !connection_events_loop_aborted())
       sql_print_error("mysqld: Got error %d from select",socket_errno);
   }
 
-  if (retval < 0 || abort_loop)
+  if (retval < 0 || connection_events_loop_aborted())
     return NULL;
 
 

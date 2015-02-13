@@ -1900,7 +1900,8 @@ static bool io_slave_killed(THD* thd, Master_info* mi)
 
   DBUG_ASSERT(mi->info_thd == thd);
   DBUG_ASSERT(mi->slave_running); // tracking buffer overrun
-  DBUG_RETURN(mi->abort_slave || abort_loop || thd->killed);
+  DBUG_RETURN(mi->abort_slave || connection_events_loop_aborted() ||
+              thd->killed);
 }
 
 /**
@@ -1931,7 +1932,7 @@ bool sql_slave_killed(THD* thd, Relay_log_info* rli)
 
   DBUG_ASSERT(rli->info_thd == thd);
   DBUG_ASSERT(rli->slave_running == 1);
-  if (abort_loop || thd->killed || rli->abort_slave)
+  if (connection_events_loop_aborted() || thd->killed || rli->abort_slave)
   {
     is_parallel_warn= (rli->is_parallel_exec() && 
                        (rli->is_mts_in_group() || thd->killed));
@@ -7009,7 +7010,7 @@ llstr(rli->get_group_master_log_pos(), llbuff));
 
   (void) RUN_HOOK(binlog_relay_io, applier_stop,
                   (thd, rli->mi,
-                   (abort_loop || thd->killed || rli->abort_slave)));
+                   (connection_events_loop_aborted() || thd->killed || rli->abort_slave)));
 
   slave_stop_workers(rli, &mts_inited); // stopping worker pool
   delete rli->current_mts_submode;

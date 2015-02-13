@@ -1894,7 +1894,8 @@ void error_log_print(enum loglevel level, const char *format, va_list args)
 
     if (log_syslog_enabled
 #ifdef _WIN32
-    && !abort_loop // Don't write to the eventlog during shutdown.
+        // Don't write to the eventlog during shutdown.
+	 && !connection_events_loop_aborted()
 #endif
       )
     {

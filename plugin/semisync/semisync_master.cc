@@ -557,9 +557,10 @@ void ReplSemiSyncMaster::remove_slave()
     */
     if ((rpl_semi_sync_master_clients ==
          rpl_semi_sync_master_wait_for_slave_count - 1) &&
-        (!rpl_semi_sync_master_wait_no_slave || abort_loop))
+        (!rpl_semi_sync_master_wait_no_slave ||
+         connection_events_loop_aborted()))
     {
-      if (abort_loop)
+      if (connection_events_loop_aborted())
       {
         if (commit_file_name_inited_ && reply_file_name_inited_)
         {
@@ -786,7 +787,7 @@ int ReplSemiSyncMaster::commitTrx(const char* trx_wait_binlog_name,
        * when replication has progressed far enough, we will release
        * these waiting threads.
        */
-      if (abort_loop && (rpl_semi_sync_master_clients ==
+      if (connection_events_loop_aborted() && (rpl_semi_sync_master_clients ==
                          rpl_semi_sync_master_wait_for_slave_count - 1) && is_on())
       {
         sql_print_warning("SEMISYNC: Forced shutdown. Some updates might "

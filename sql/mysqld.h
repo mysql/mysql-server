@@ -123,7 +123,7 @@ extern bool opt_disable_networking, opt_skip_show_db;
 extern bool opt_skip_name_resolve;
 extern bool opt_ignore_builtin_innodb;
 extern my_bool opt_character_set_client_handshake;
-extern MYSQL_PLUGIN_IMPORT bool volatile abort_loop;
+extern MYSQL_PLUGIN_IMPORT int32 volatile connection_events_loop_aborted_flag;
 extern my_bool opt_bootstrap, opt_initialize;
 extern my_bool opt_safe_user_create;
 extern my_bool opt_safe_show_db, opt_local_infile, opt_myisam_use_mmap;
@@ -915,5 +915,18 @@ extern "C" void unireg_clear(int exit_code);
 
 
 #define ER(X)         ER_THD(current_thd,X)
+
+/* Accessor function for _connection_events_loop_aborted flag */
+inline __attribute__((warn_unused_result))
+bool connection_events_loop_aborted()
+{
+  return my_atomic_load32(&connection_events_loop_aborted_flag);
+}
+
+/* only here because of unireg_init(). */
+static inline void set_connection_events_loop_aborted(bool value)
+{
+  my_atomic_store32(&connection_events_loop_aborted_flag, value);
+}
 
 #endif /* MYSQLD_INCLUDED */
