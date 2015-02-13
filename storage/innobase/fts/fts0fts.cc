@@ -6266,7 +6266,7 @@ fts_fake_hex_to_dec(
 {
 	ib_id_t		dec_id = 0;
 	char		tmp_id[FTS_AUX_MIN_TABLE_ID_LENGTH];
-	int		ret;
+	int		ret __attribute__((unused));
 
 	ret = sprintf(tmp_id, UINT64PFx, id);
 	ut_ad(ret == 16);

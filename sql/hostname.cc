@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -413,7 +413,7 @@ int ip_to_hostname(struct sockaddr_storage *ip_storage,
 {
   const struct sockaddr *ip= (const sockaddr *) ip_storage;
   int err_code;
-  bool err_status;
+  bool err_status __attribute__((unused));
   Host_errors errors;
 
   DBUG_ENTER("ip_to_hostname");

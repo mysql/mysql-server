@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -346,9 +346,7 @@ void purge_user(PFS_thread *thread, PFS_user *user)
                     user->m_key.m_hash_key, user->m_key.m_key_length));
   if (entry && (entry != MY_ERRPTR))
   {
-    PFS_user *pfs;
-    pfs= *entry;
-    DBUG_ASSERT(pfs == user);
+    DBUG_ASSERT(*entry == user);
     if (user->get_refcount() == 0)
     {
       lf_hash_delete(&user_hash, pins,

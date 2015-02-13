@@ -1233,7 +1233,7 @@ terminate_slave_thread(THD *thd,
 
   while (*slave_running)                        // Should always be true
   {
-    int error;
+    int error __attribute__((unused));
     DBUG_PRINT("loop", ("killing slave thread"));
 
     mysql_mutex_lock(&thd->LOCK_thd_data);
