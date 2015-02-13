@@ -2733,7 +2733,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
   {
     if (!rli->curr_group_seen_gtid && !rli->curr_group_seen_begin)
     {
-      ulong gaq_idx;
+      ulong gaq_idx __attribute__((unused));
       rli->mts_groups_assigned++;
 
       rli->curr_group_isolated= FALSE;

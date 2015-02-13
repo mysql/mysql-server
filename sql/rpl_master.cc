@@ -862,7 +862,7 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
   String* packet = &thd->packet;
   time_t last_event_sent_ts= time(0);
   bool time_for_hb_event= false;
-  int error;
+  int error= 0;
   const char *errmsg = "Unknown error";
   char error_text[MAX_SLAVE_ERRMSG]; // to be send to slave via my_message()
   NET* net = &thd->net;
