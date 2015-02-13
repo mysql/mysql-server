@@ -94,6 +94,7 @@
         Key="Software\Microsoft\Windows\CurrentVersion\Uninstall\[OLDERVERSIONBEINGUPGRADED]"
         Name="DisplayVersion"
         Type="raw" />
+    </Property>
     <Property Id="INSTALLDIR2">
        <RegistrySearch Id="FindInstallLocation2"
           Root="HKLM"
