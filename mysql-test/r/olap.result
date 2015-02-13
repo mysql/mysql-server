@@ -744,3 +744,12 @@ f1
 11:11:11
 DROP TABLE t1;
 End of 5.5 tests
+# Bug#20034943 Assertion failed: argument_count() > 0
+CREATE TABLE t1(a INTEGER) engine=innodb;
+SELECT NOW() FROM t1 GROUP BY (select 1) WITH ROLLUP;
+NOW()
+DROP TABLE t1;
+CREATE TABLE t1(a INTEGER) engine=innodb;
+SELECT RELEASE_ALL_LOCKS() FROM t1 GROUP BY a WITH ROLLUP;
+RELEASE_ALL_LOCKS()
+DROP TABLE t1;

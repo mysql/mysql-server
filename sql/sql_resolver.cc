@@ -3364,12 +3364,10 @@ bool SELECT_LEX::setup_group(THD *thd)
 
 bool SELECT_LEX::change_group_ref(THD *thd, Item_func *expr, bool *changed)
 {
-  Item **arg,**arg_end;
   bool arg_changed= false;
-  for (arg= expr->arguments(),
-       arg_end= expr->arguments()+expr->arg_count;
-       arg != arg_end; arg++)
+  for (uint i= 0; i < expr->arg_count; i++)
   {
+    Item **arg= expr->arguments() + i;
     Item *const item= *arg;
     if (item->type() == Item::FIELD_ITEM || item->type() == Item::REF_ITEM)
     {
