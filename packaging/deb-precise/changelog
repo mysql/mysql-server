@@ -1,3 +1,10 @@
+mysql-community (5.8.0-m17-1ubuntu12.04) precise; urgency=low
+
+  * new upstream release
+  * updated d/extra/my.cnf to remove option sql_mode
+
+ -- Akhil Mohan <akhil.mohan@oracle.com>  Fri, 13 Feb 2015 16:22:33 +0530
+
 mysql-community (5.7.6-m16-1ubuntu12.04) precise; urgency=low
 
   * new upstream release
