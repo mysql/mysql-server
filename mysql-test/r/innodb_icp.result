@@ -458,7 +458,7 @@ WHERE (pk BETWEEN 4 AND 5 OR pk < 2) AND c1 < 240
 ORDER BY c1
 LIMIT 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	PRIMARY,k1	k1	5	NULL	3	37.50	Using where; Using index
+1	SIMPLE	t1	NULL	range	PRIMARY,k1	k1	5	NULL	4	37.50	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c1` AS `c1` from `test`.`t1` where (((`test`.`t1`.`pk` between 4 and 5) or (`test`.`t1`.`pk` < 2)) and (`test`.`t1`.`c1` < 240)) order by `test`.`t1`.`c1` limit 1
 DROP TABLE t1;
@@ -1035,7 +1035,7 @@ FROM t2 USE INDEX(col_int_key) STRAIGHT_JOIN t1 ON t2.col_int_key
 WHERE t2.pk < 7 AND t2.col_int_key <> 7
 GROUP BY field1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	range	col_int_key	col_int_key	5	NULL	5	33.33	Using where; Using index
+1	SIMPLE	t2	NULL	index	col_int_key	col_int_key	5	NULL	6	33.33	Using where; Using index
 1	SIMPLE	t1	NULL	index	NULL	col_int_key	5	NULL	4	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`col_int_key` AS `field1` from `test`.`t2` USE INDEX (`col_int_key`) straight_join `test`.`t1` where ((`test`.`t2`.`pk` < 7) and (`test`.`t2`.`col_int_key` <> 7) and `test`.`t2`.`col_int_key`) group by `field1`

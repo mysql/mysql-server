@@ -9,8 +9,6 @@
 --source include/no_valgrind_without_big.inc
 # Adding big test option for this test.
 --source include/big_test.inc
-# Disabled for non-16k pages until bug #20427694 is fixed.
---source include/have_innodb_16k.inc
 
 -- source include/have_innodb.inc
 let $engine_type= InnoDB;
