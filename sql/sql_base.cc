@@ -8531,9 +8531,8 @@ store_top_level_join_columns(THD *thd, TABLE_LIST *table_ref,
     table_ref_1->natural_join= table_ref_2->natural_join= NULL;
 
     /* Add a TRUE condition to outer joins that have no common columns. */
-    if (table_ref_2->outer_join &&
-        !table_ref_1->join_cond() && !table_ref_2->join_cond())
-      table_ref_2->set_join_cond(new Item_int((longlong) 1,1)); // Always true.
+    if (table_ref_2->outer_join && !table_ref_2->join_cond())
+      table_ref_2->set_join_cond(new Item_int((longlong) 1,1));
 
     /* Change this table reference to become a leaf for name resolution. */
     if (left_neighbor)
