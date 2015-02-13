@@ -625,3 +625,20 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 UPDATE t2, v1 AS t SET t2.b = t.a+5 ;
 DROP VIEW v1;
 DROP TABLE t1, t2;
+# Bug#20454533: Assertion failed: sargables == 0 || *keyfields ...
+CREATE TABLE t1(
+a int,
+c int,
+e int,
+f int,
+g blob,
+h int,
+i int,
+j blob,
+unique key (g(221),c),
+unique key (c,a,j(148)),
+key (i)
+) engine=innodb;
+UPDATE (SELECT 1 AS a FROM t1 NATURAL JOIN t1 AS t2) AS x, t1
+SET t1.e= x.a;
+DROP TABLE t1;
