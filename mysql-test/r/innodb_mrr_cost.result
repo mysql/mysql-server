@@ -392,7 +392,7 @@ insert into t1 select A.a + 10 *(B.a + 10*C.a), A.a + 10 *(B.a + 10*C.a) from t0
 This mustn't show "Using MRR":
 explain select * from t1 where a < 20  order by a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	a	a	5	NULL	19	100.00	Using where
+1	SIMPLE	t1	NULL	range	a	a	5	NULL	20	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`a` < 20) order by `test`.`t1`.`a`
 drop table t0, t1;
@@ -411,7 +411,7 @@ EXPLAIN select count(length(a) + length(filler))
 from t2 force index (k1)
 where a>='a-1000-a' and a <'a-1001-a';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	range	k1	k1	9	NULL	ROWS	100.00	Using where
+1	SIMPLE	t2	NULL	range	k1	k1	9	NULL	100	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select count((length(`test`.`t2`.`a`) + length(`test`.`t2`.`filler`))) AS `count(length(a) + length(filler))` from `test`.`t2` FORCE INDEX (`k1`) where ((`test`.`t2`.`a` >= 'a-1000-a') and (`test`.`t2`.`a` < 'a-1001-a'))
 select count(length(a) + length(filler))
