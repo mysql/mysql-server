@@ -455,3 +455,13 @@ DROP TABLE t1;
 --source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 
 --echo End of 5.5 tests
+
+--echo # Bug#20034943 Assertion failed: argument_count() > 0
+
+CREATE TABLE t1(a INTEGER) engine=innodb;
+SELECT NOW() FROM t1 GROUP BY (select 1) WITH ROLLUP;
+DROP TABLE t1;
+
+CREATE TABLE t1(a INTEGER) engine=innodb;
+SELECT RELEASE_ALL_LOCKS() FROM t1 GROUP BY a WITH ROLLUP;
+DROP TABLE t1;
