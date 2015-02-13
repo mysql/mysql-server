@@ -5419,7 +5419,7 @@ funct_exit:
 		/* If the first fts_rename fails, the trx would
 		be rolled back and committed, we can't use it any more,
 		so we have to start a new background trx here. */
-		ut_a(trx_state_eq(trx, TRX_STATE_NOT_STARTED));
+		ut_a(trx_state_eq(trx_bg, TRX_STATE_NOT_STARTED));
 		trx_bg->op_info = "Revert the failing rename "
 				  "for fts aux tables";
 		trx_bg->dict_operation_lock_mode = RW_X_LATCH;
