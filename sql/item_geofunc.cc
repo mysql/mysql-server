@@ -3686,56 +3686,137 @@ longlong Item_func_isempty::val_int()
 
 longlong Item_func_issimple::val_int()
 {
-  String *swkb= args[0]->val_str(&tmp);
-  Geometry_buffer buffer;
-  Gcalc_operation_transporter trn(&func, &collector);
-  Geometry *g;
-  int result= 1;
-
   DBUG_ENTER("Item_func_issimple::val_int");
   DBUG_ASSERT(fixed == 1);
 
-  if ((null_value= (!swkb || args[0]->null_value)))
-    DBUG_RETURN(0);
-  if (!(g= Geometry::construct(&buffer, swkb)))
+  tmp.length(0);
+  String *arg_wkb= args[0]->val_str(&tmp);
+  if (args[0]->null_value)
   {
+    DBUG_RETURN(error_int());
+  }
+  if (arg_wkb == NULL)
+  {
+    // Invalid geometry.
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
     DBUG_RETURN(error_int());
   }
 
-  if (g->get_class_info()->m_type_id == Geometry::wkb_point)
-    DBUG_RETURN(1);
-
-  if (g->store_shapes(&trn))
-    goto mem_error;
-
-#ifndef DBUG_OFF
-  func.debug_print_function_buffer();
-#endif
-
-  collector.prepare_operation();
-  scan_it.init(&collector);
-
-  while (scan_it.more_points())
+  Geometry_buffer buffer;
+  Geometry *arg= Geometry::construct(&buffer, arg_wkb);
+  if (arg == NULL)
   {
-    if (scan_it.step())
-      goto mem_error;
+    // Invalid geometry.
+    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+    DBUG_RETURN(error_int());
+  }
 
-    if (scan_it.get_event() == scev_intersection)
+  DBUG_RETURN(issimple(arg));
+}
+
+
+/**
+  Evaluate if a geometry object is simple according to the OGC definition.
+
+  @param g The geometry to evaluate.
+  @return True if the geometry is simple, false otherwise.
+*/
+bool Item_func_issimple::issimple(Geometry *g)
+{
+  bool res= false;
+
+  try
+  {
+    switch (g->get_type())
     {
-      result= 0;
+    case Geometry::wkb_point:
+      {
+        Gis_point arg(g->get_data_ptr(), g->get_data_size(),
+                      g->get_flags(), g->get_srid());
+        res= boost::geometry::is_simple(arg);
+      }
+      break;
+    case Geometry::wkb_linestring:
+      {
+        Gis_line_string arg(g->get_data_ptr(), g->get_data_size(),
+                            g->get_flags(), g->get_srid());
+        res= boost::geometry::is_simple(arg);
+      }
+    break;
+    case Geometry::wkb_polygon:
+      {
+        const void *arg_wkb= g->normalize_ring_order();
+        if (arg_wkb == NULL)
+        {
+          // Invalid polygon.
+          my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+          return error_bool();
+        }
+        Gis_polygon arg(arg_wkb, g->get_data_size(),
+                        g->get_flags(), g->get_srid());
+        res= boost::geometry::is_simple(arg);
+      }
+      break;
+    case Geometry::wkb_multipoint:
+      {
+        Gis_multi_point arg(g->get_data_ptr(), g->get_data_size(),
+                            g->get_flags(), g->get_srid());
+        res= boost::geometry::is_simple(arg);
+      }
+      break;
+    case Geometry::wkb_multilinestring:
+      {
+        Gis_multi_line_string arg(g->get_data_ptr(), g->get_data_size(),
+                                  g->get_flags(), g->get_srid());
+        res= boost::geometry::is_simple(arg);
+      }
+      break;
+    case Geometry::wkb_multipolygon:
+      {
+        const void *arg_wkb= g->normalize_ring_order();
+        if (arg_wkb == NULL)
+        {
+          // Invalid multipolygon.
+          my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+          return error_bool();
+        }
+        Gis_multi_polygon arg(arg_wkb, g->get_data_size(),
+                              g->get_flags(), g->get_srid());
+        res= boost::geometry::is_simple(arg);
+      }
+      break;
+    case Geometry::wkb_geometrycollection:
+      {
+        BG_geometry_collection collection;
+        collection.fill(g);
+
+        res= true;
+        for (BG_geometry_collection::Geometry_list::iterator i=
+               collection.get_geometries().begin();
+             i != collection.get_geometries().end();
+             ++i)
+        {
+          res= issimple(*i);
+          if (current_thd->is_error())
+          {
+            res= error_bool();
+            break;
+          }
+          if (!res)
+          {
+            break;
+          }
+        }
+      }
+      break;
+    default:
+      DBUG_ASSERT(0);
       break;
     }
   }
+  CATCH_ALL(func_name(), res= error_bool())
 
-  collector.reset();
-  func.reset();
-  scan_it.reset();
-  DBUG_RETURN(result);
-mem_error:
-  null_value= 1;
-  DBUG_RETURN(0);
-  return 0;
+  return res;
 }
 
 

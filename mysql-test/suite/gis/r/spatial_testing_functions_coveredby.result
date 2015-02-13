@@ -156,11 +156,12 @@ count(ST_ASTEXT(g) != 'NULL')
 SELECT count(ST_ASTEXT(g2) != 'NULL') FROM gis_geometrycollection_2;
 count(ST_ASTEXT(g2) != 'NULL')
 64
-#=======================================================================================
+#####################################################################################
 # MBRCOVEREDBY(g1,g2)
-#=======================================================================================
-#-------------------------------------------------------------------------------------------
+#####################################################################################
+#====================================================================================
 # point,point
+#====================================================================================
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_center),ST_GEOMFROMTEXT(@star_center));
 MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_center),ST_GEOMFROMTEXT(@star_center))
 1
@@ -176,8 +177,9 @@ MBRCOVEREDBY(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('POINT(0 0)'))
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('POINT(10 0)'));
 MBRCOVEREDBY(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('POINT(10 0)'))
 0
-#-------------------------------------------------------------------------------------------
+#====================================================================================
 # point,multipoint
+#====================================================================================
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_bottom_left),ST_GEOMFROMTEXT(@star_bottom_points));
 MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_bottom_left),ST_GEOMFROMTEXT(@star_bottom_points))
 1
@@ -202,8 +204,9 @@ MBRCOVEREDBY(ST_GEOMFROMTEXT('POINT(10 0)'),ST_GEOMFROMTEXT('MULTIPOINT(0 0,5 0,
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT('POINT(20 0)'),ST_GEOMFROMTEXT('MULTIPOINT(0 0,5 0,10 0)'));
 MBRCOVEREDBY(ST_GEOMFROMTEXT('POINT(20 0)'),ST_GEOMFROMTEXT('MULTIPOINT(0 0,5 0,10 0)'))
 0
-#-------------------------------------------------------------------------------------------
+#====================================================================================
 # point,linestring
+#====================================================================================
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_top_to_center));
 MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_top_to_center))
 1
@@ -225,8 +228,9 @@ MBRCOVEREDBY(ST_GEOMFROMTEXT('POINT(20 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 0
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT('POINT(20 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 0)'));
 MBRCOVEREDBY(ST_GEOMFROMTEXT('POINT(20 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 0)'))
 0
-#-------------------------------------------------------------------------------------------
+#====================================================================================
 # point,multilinestring
+#====================================================================================
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_lines_near_vertical));
 MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_lines_near_vertical))
 1
@@ -248,8 +252,9 @@ MBRCOVEREDBY(ST_GEOMFROMTEXT('POINT(5 0)'),ST_GEOMFROMTEXT('MULTILINESTRING((0 0
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT('POINT(20 0)'),ST_GEOMFROMTEXT('MULTILINESTRING((0 0,5 0),(5 0,10 0))'));
 MBRCOVEREDBY(ST_GEOMFROMTEXT('POINT(20 0)'),ST_GEOMFROMTEXT('MULTILINESTRING((0 0,5 0),(5 0,10 0))'))
 0
-#-------------------------------------------------------------------------------------------
+#====================================================================================
 # point,polygon
+#====================================================================================
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star));
 MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star))
 1
@@ -277,8 +282,9 @@ MBRCOVEREDBY(ST_GEOMFROMTEXT('POINT(5 5)'),ST_GEOMFROMTEXT('POLYGON((0 0,10 0,10
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT('POINT(20 20)'),ST_GEOMFROMTEXT('POLYGON((0 0,10 0,10 10,0 10,0 0))'));
 MBRCOVEREDBY(ST_GEOMFROMTEXT('POINT(20 20)'),ST_GEOMFROMTEXT('POLYGON((0 0,10 0,10 10,0 10,0 0))'))
 0
-#-------------------------------------------------------------------------------------------
+#====================================================================================
 # point,multipolygon
+#====================================================================================
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_of_elems));
 MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_of_elems))
 1
@@ -300,8 +306,9 @@ MBRCOVEREDBY(ST_GEOMFROMTEXT('POINT(5 5)'),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,1
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT('POINT(20 20)'),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)))'));
 MBRCOVEREDBY(ST_GEOMFROMTEXT('POINT(20 20)'),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)))'))
 0
-#-------------------------------------------------------------------------------------------
+#====================================================================================
 # point,geometrycollection
+#====================================================================================
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_collection_elems));
 MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_collection_elems))
 1
@@ -329,8 +336,9 @@ MBRCOVEREDBY(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(G
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT('POINT(20 20)'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,10 0,10 10,0 10,0 0))))'));
 MBRCOVEREDBY(ST_GEOMFROMTEXT('POINT(20 20)'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,10 0,10 10,0 10,0 0))))'))
 0
-#-------------------------------------------------------------------------------------------
+#====================================================================================
 # multipoint,point
+#====================================================================================
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_top));
 MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_top))
 0
@@ -340,8 +348,9 @@ MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_bottom_points),ST_GEOMFROMTEXT(@star_center))
 SELECT MBRCOVEREDBY(g,ST_GEOMFROMTEXT(@star_bottom_left)) FROM gis_geometrycollection WHERE fid=108;
 MBRCOVEREDBY(g,ST_GEOMFROMTEXT(@star_bottom_left))
 0
-#-------------------------------------------------------------------------------------------
+#====================================================================================
 # multipoint,multipoint
+#====================================================================================
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_bottom_points));
 MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_bottom_points))
 0
@@ -354,8 +363,9 @@ MBRCOVEREDBY(g,ST_GEOMFROMTEXT(@star_all_points))
 SELECT MBRCOVEREDBY(g,ST_GEOMFROMTEXT(@star_all_points)) FROM gis_geometrycollection WHERE fid=308;
 MBRCOVEREDBY(g,ST_GEOMFROMTEXT(@star_all_points))
 0
-#-------------------------------------------------------------------------------------------
+#====================================================================================
 # multipoint,linestring
+#====================================================================================
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_top_to_center));
 MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_top_to_center))
 0
@@ -368,8 +378,9 @@ MBRCOVEREDBY(g,ST_GEOMFROMTEXT(@star_top_to_center))
 SELECT MBRCOVEREDBY(g,ST_GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=309;
 MBRCOVEREDBY(g,ST_GEOMFROMTEXT(@star_top_to_center))
 0
-#-------------------------------------------------------------------------------------------
+#====================================================================================
 # multipoint,multilinestring
+#====================================================================================
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_lines_near_vertical));
 MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_lines_near_vertical))
 0
@@ -379,8 +390,9 @@ MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_lines_near_
 SELECT MBRCOVEREDBY(g,ST_GEOMFROMTEXT(@star_lines_near_horizontal)) FROM gis_geometrycollection WHERE fid=109;
 MBRCOVEREDBY(g,ST_GEOMFROMTEXT(@star_lines_near_horizontal))
 1
-#-------------------------------------------------------------------------------------------
+#====================================================================================
 # multipoint,polygon
+#====================================================================================
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_elem_vertical));
 MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_elem_vertical))
 1
@@ -396,8 +408,9 @@ MBRCOVEREDBY(g,ST_GEOMFROMTEXT(@star_elem_horizontal))
 SELECT MBRCOVEREDBY(g,ST_GEOMFROMTEXT(@star_elem_horizontal)) FROM gis_geometrycollection WHERE fid=309;
 MBRCOVEREDBY(g,ST_GEOMFROMTEXT(@star_elem_horizontal))
 0
-#-------------------------------------------------------------------------------------------
+#====================================================================================
 # multipoint,multipolygon
+#====================================================================================
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT('MULTIPOINT(0 0,0 30,30 25)'),ST_GEOMFROMTEXT(@star_of_elems));
 MBRCOVEREDBY(ST_GEOMFROMTEXT('MULTIPOINT(0 0,0 30,30 25)'),ST_GEOMFROMTEXT(@star_of_elems))
 0
@@ -413,8 +426,9 @@ MBRCOVEREDBY(g,ST_GEOMFROMTEXT(@star_of_elems))
 SELECT MBRCOVEREDBY(g,ST_GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollection WHERE fid=309;
 MBRCOVEREDBY(g,ST_GEOMFROMTEXT(@star_of_elems))
 0
-#-------------------------------------------------------------------------------------------
+#====================================================================================
 # multipoint,geometrycollection
+#====================================================================================
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT('MULTIPOINT(0 0,0 30,30 25)'),ST_GEOMFROMTEXT(@star_collection_elems));
 MBRCOVEREDBY(ST_GEOMFROMTEXT('MULTIPOINT(0 0,0 30,30 25)'),ST_GEOMFROMTEXT(@star_collection_elems))
 0
@@ -433,8 +447,9 @@ MBRCOVEREDBY(g,ST_GEOMFROMTEXT(@star_collection_elems))
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_collection_multilinestr));
 MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_collection_multilinestr))
 1
-#-------------------------------------------------------------------------------------------
+#====================================================================================
 # linestring,point
+#====================================================================================
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_top_to_center),ST_GEOMFROMTEXT(@star_center));
 MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_top_to_center),ST_GEOMFROMTEXT(@star_center))
 0
@@ -444,8 +459,9 @@ MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_top_to_center),ST_GEOMFROMTEXT(@star_bottom_l
 SELECT MBRCOVEREDBY(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=110 and fid2=105;
 MBRCOVEREDBY(g,g2)
 0
-#-------------------------------------------------------------------------------------------
+#====================================================================================
 # linestring,multipoint
+#====================================================================================
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_line_vertical),ST_GEOMFROMTEXT('MULTIPOINT(15 10,15 25)'));
 MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_line_vertical),ST_GEOMFROMTEXT('MULTIPOINT(15 10,15 25)'))
 0
@@ -461,8 +477,9 @@ MBRCOVEREDBY(g,ST_GEOMFROMTEXT('MULTIPOINT(15 10,15 25)'))
 SELECT MBRCOVEREDBY(g,ST_GEOMFROMTEXT('MULTIPOINT(15 10,15 25)')) FROM gis_geometrycollection WHERE fid=411;
 MBRCOVEREDBY(g,ST_GEOMFROMTEXT('MULTIPOINT(15 10,15 25)'))
 0
-#-------------------------------------------------------------------------------------------
+#====================================================================================
 # linestring,linestring
+#====================================================================================
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_line_vertical),ST_GEOMFROMTEXT(@star_top_to_center));
 MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_line_vertical),ST_GEOMFROMTEXT(@star_top_to_center))
 0
@@ -478,8 +495,9 @@ MBRCOVEREDBY(g,ST_GEOMFROMTEXT(@star_top_to_center))
 SELECT MBRCOVEREDBY(g,ST_GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=411;
 MBRCOVEREDBY(g,ST_GEOMFROMTEXT(@star_top_to_center))
 0
-#-------------------------------------------------------------------------------------------
+#====================================================================================
 # linestring,multilinestring
+#====================================================================================
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_lines_near_horizontal));
 MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_lines_near_horizontal))
 1
@@ -489,8 +507,9 @@ MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_lines_
 SELECT MBRCOVEREDBY(g,ST_GEOMFROMTEXT(@star_lines_near_horizontal)) FROM gis_geometrycollection WHERE fid=110;
 MBRCOVEREDBY(g,ST_GEOMFROMTEXT(@star_lines_near_horizontal))
 1
-#-------------------------------------------------------------------------------------------
+#====================================================================================
 # linestring,polygon
+#====================================================================================
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('POLYGON((11 15,19 15,19 10))'));
 MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('POLYGON((11 15,19 15,19 10))'))
 0
@@ -506,8 +525,9 @@ MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_elem_h
 SELECT MBRCOVEREDBY(g,ST_GEOMFROMTEXT('POLYGON((11 15,19 15,11 15))')) FROM gis_geometrycollection WHERE fid=110;
 MBRCOVEREDBY(g,ST_GEOMFROMTEXT('POLYGON((11 15,19 15,11 15))'))
 0
-#-------------------------------------------------------------------------------------------
+#====================================================================================
 # linestring,multipolygon
+#====================================================================================
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))'));
 MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))'))
 1
@@ -523,8 +543,9 @@ MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_of_ele
 SELECT MBRCOVEREDBY(g,ST_GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))')) FROM gis_geometrycollection WHERE fid=110;
 MBRCOVEREDBY(g,ST_GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))'))
 1
-#-------------------------------------------------------------------------------------------
+#====================================================================================
 # linestring,geometrycollection
+#====================================================================================
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_collection_elems));
 MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_collection_elems))
 1
@@ -540,8 +561,9 @@ MBRCOVEREDBY(g,ST_GEOMFROMTEXT(@star_collection_elems))
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_collection_multilinestr));
 MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_collection_multilinestr))
 1
-#-------------------------------------------------------------------------------------------
+#====================================================================================
 # multilinestring,point
+#====================================================================================
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_top));
 MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_top))
 0
@@ -557,8 +579,9 @@ MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_ce
 SELECT MBRCOVEREDBY(g,ST_GEOMFROMTEXT(@star_top)) FROM gis_geometrycollection WHERE fid=114;
 MBRCOVEREDBY(g,ST_GEOMFROMTEXT(@star_top))
 0
-#-------------------------------------------------------------------------------------------
+#====================================================================================
 # multilinestring,multipoint
+#====================================================================================
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_bottom_points));
 MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_bottom_points))
 0
@@ -571,8 +594,9 @@ MBRCOVEREDBY(g,ST_GEOMFROMTEXT(@star_bottom_points))
 SELECT MBRCOVEREDBY(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=114 and fid2=108;
 MBRCOVEREDBY(g,g2)
 0
-#-------------------------------------------------------------------------------------------
+#====================================================================================
 # multilinestring,linestring
+#====================================================================================
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_line_vertical));
 MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_line_vertical))
 0
@@ -588,8 +612,9 @@ MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_li
 SELECT MBRCOVEREDBY(g,ST_GEOMFROMTEXT(@star_line_vertical)) FROM gis_geometrycollection WHERE fid=114;
 MBRCOVEREDBY(g,ST_GEOMFROMTEXT(@star_line_vertical))
 0
-#-------------------------------------------------------------------------------------------
+#====================================================================================
 # multilinestring,multilinestring
+#====================================================================================
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT('MULTILINESTRING((0 5,15 25,0 15))'));
 MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT('MULTILINESTRING((0 5,15 25,0 15))'))
 1
@@ -602,8 +627,9 @@ MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_li
 SELECT MBRCOVEREDBY(g,ST_GEOMFROMTEXT('MULTILINESTRING((0 5,15 25,0 15))')) FROM gis_geometrycollection WHERE fid=114;
 MBRCOVEREDBY(g,ST_GEOMFROMTEXT('MULTILINESTRING((0 5,15 25,0 15))'))
 1
-#-------------------------------------------------------------------------------------------
+#====================================================================================
 # multilinestring,polygon
+#====================================================================================
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_elem_vertical));
 MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_elem_vertical))
 0
@@ -619,8 +645,9 @@ MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_el
 SELECT MBRCOVEREDBY(g,ST_GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=114;
 MBRCOVEREDBY(g,ST_GEOMFROMTEXT(@star_elem_vertical))
 0
-#-------------------------------------------------------------------------------------------
+#====================================================================================
 # multilinestring,multipolygon
+#====================================================================================
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT('MULTILINESTRING((0 25,25 0,25 30))'),ST_GEOMFROMTEXT(@star_elem_vertical));
 MBRCOVEREDBY(ST_GEOMFROMTEXT('MULTILINESTRING((0 25,25 0,25 30))'),ST_GEOMFROMTEXT(@star_elem_vertical))
 0
@@ -630,8 +657,9 @@ MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_of
 SELECT MBRCOVEREDBY(g,ST_GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollection WHERE fid=114;
 MBRCOVEREDBY(g,ST_GEOMFROMTEXT(@star_of_elems))
 1
-#-------------------------------------------------------------------------------------------
+#====================================================================================
 # multilinestring,geometrycollection
+#====================================================================================
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT('MULTILINESTRING((0 25,25 0,25 30))'),ST_GEOMFROMTEXT(@star_collection_elems));
 MBRCOVEREDBY(ST_GEOMFROMTEXT('MULTILINESTRING((0 25,25 0,25 30))'),ST_GEOMFROMTEXT(@star_collection_elems))
 0
@@ -644,8 +672,9 @@ MBRCOVEREDBY(g,ST_GEOMFROMTEXT(@star_collection_elems))
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_collection_multilinestr));
 MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_collection_multilinestr))
 1
-#-------------------------------------------------------------------------------------------
+#====================================================================================
 # polygon,point
+#====================================================================================
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_bottom_left));
 MBRCOVEREDBY(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_bottom_left))
 0
@@ -664,8 +693,9 @@ MBRCOVEREDBY(g,ST_GEOMFROMTEXT(@star_center))
 SELECT MBRCOVEREDBY(g,ST_GEOMFROMTEXT(@star_center)) FROM gis_geometrycollection WHERE fid=400;
 MBRCOVEREDBY(g,ST_GEOMFROMTEXT(@star_center))
 0
-#-------------------------------------------------------------------------------------------
+#====================================================================================
 # polygon,multipoint
+#====================================================================================
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_all_points));
 MBRCOVEREDBY(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_all_points))
 0
@@ -681,8 +711,9 @@ MBRCOVEREDBY(g,ST_GEOMFROMTEXT(@star_all_points))
 SELECT MBRCOVEREDBY(g,ST_GEOMFROMTEXT(@star_all_points)) FROM gis_geometrycollection WHERE fid=400;
 MBRCOVEREDBY(g,ST_GEOMFROMTEXT(@star_all_points))
 0
-#-------------------------------------------------------------------------------------------
+#====================================================================================
 # polygon,linestring
+#====================================================================================
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_line_vertical));
 MBRCOVEREDBY(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_line_vertical))
 0
@@ -701,8 +732,9 @@ MBRCOVEREDBY(g,ST_GEOMFROMTEXT(@star_line_vertical))
 SELECT MBRCOVEREDBY(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=100 and fid2=111;
 MBRCOVEREDBY(g,g2)
 0
-#-------------------------------------------------------------------------------------------
+#====================================================================================
 # polygon,multilinestring
+#====================================================================================
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_lines_near_vertical));
 MBRCOVEREDBY(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_lines_near_vertical))
 0
@@ -718,8 +750,9 @@ MBRCOVEREDBY(g,ST_GEOMFROMTEXT(@star_lines_near_vertical))
 SELECT MBRCOVEREDBY(g,ST_GEOMFROMTEXT(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=400;
 MBRCOVEREDBY(g,ST_GEOMFROMTEXT(@star_lines_near_vertical))
 0
-#-------------------------------------------------------------------------------------------
+#====================================================================================
 # polygon,polygon
+#====================================================================================
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical));
 MBRCOVEREDBY(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical))
 0
@@ -735,8 +768,9 @@ MBRCOVEREDBY(g,ST_GEOMFROMTEXT('POLYGON((25 15,25 20,30 15,25 15))'))
 SELECT MBRCOVEREDBY(g,ST_GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=400;
 MBRCOVEREDBY(g,ST_GEOMFROMTEXT(@star_elem_vertical))
 0
-#-------------------------------------------------------------------------------------------
+#====================================================================================
 # polygon,multipolygon
+#====================================================================================
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_of_elems));
 MBRCOVEREDBY(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_of_elems))
 1
@@ -752,8 +786,9 @@ MBRCOVEREDBY(g,ST_GEOMFROMTEXT(@star_of_elems))
 SELECT MBRCOVEREDBY(g,ST_GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollection WHERE fid=400;
 MBRCOVEREDBY(g,ST_GEOMFROMTEXT(@star_of_elems))
 0
-#-------------------------------------------------------------------------------------------
+#====================================================================================
 # polygon,geometrycollection
+#====================================================================================
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_collection_elems));
 MBRCOVEREDBY(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_collection_elems))
 1
@@ -769,8 +804,9 @@ MBRCOVEREDBY(g,ST_GEOMFROMTEXT(@star_collection_elems))
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_collection_multilinestr));
 MBRCOVEREDBY(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_collection_multilinestr))
 1
-#-------------------------------------------------------------------------------------------
+#====================================================================================
 # multipolygon,point
+#====================================================================================
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_top));
 MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_top))
 0
@@ -783,8 +819,9 @@ MBRCOVEREDBY(g,ST_GEOMFROMTEXT(@star_top))
 SELECT MBRCOVEREDBY(g,ST_GEOMFROMTEXT(@star_top)) FROM gis_geometrycollection WHERE fid=403;
 MBRCOVEREDBY(g,ST_GEOMFROMTEXT(@star_top))
 0
-#-------------------------------------------------------------------------------------------
+#====================================================================================
 # multipolygon,multipoint
+#====================================================================================
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_bottom_points));
 MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_bottom_points))
 0
@@ -797,8 +834,9 @@ MBRCOVEREDBY(g,ST_GEOMFROMTEXT(@star_bottom_points))
 SELECT MBRCOVEREDBY(g,ST_GEOMFROMTEXT(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=403;
 MBRCOVEREDBY(g,ST_GEOMFROMTEXT(@star_bottom_points))
 0
-#-------------------------------------------------------------------------------------------
+#====================================================================================
 # multipolygon,linestring
+#====================================================================================
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_top_to_center));
 MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_top_to_center))
 0
@@ -811,8 +849,9 @@ MBRCOVEREDBY(g,ST_GEOMFROMTEXT(@star_top_to_center))
 SELECT MBRCOVEREDBY(g,ST_GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=403;
 MBRCOVEREDBY(g,ST_GEOMFROMTEXT(@star_top_to_center))
 0
-#-------------------------------------------------------------------------------------------
+#====================================================================================
 # multipolygon,multilinestring
+#====================================================================================
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_lines_near_vertical));
 MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_lines_near_vertical))
 0
@@ -825,8 +864,9 @@ MBRCOVEREDBY(g,ST_GEOMFROMTEXT(@star_lines_near_vertical))
 SELECT MBRCOVEREDBY(g,ST_GEOMFROMTEXT(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=403;
 MBRCOVEREDBY(g,ST_GEOMFROMTEXT(@star_lines_near_vertical))
 0
-#-------------------------------------------------------------------------------------------
+#====================================================================================
 # multipolygon,polygon
+#====================================================================================
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_elem_vertical));
 MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_elem_vertical))
 0
@@ -845,8 +885,9 @@ MBRCOVEREDBY(g,ST_GEOMFROMTEXT(@star_elem_vertical))
 SELECT MBRCOVEREDBY(g,ST_GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=403;
 MBRCOVEREDBY(g,ST_GEOMFROMTEXT(@star_elem_vertical))
 0
-#-------------------------------------------------------------------------------------------
+#====================================================================================
 # multipolygon,multipolygon
+#====================================================================================
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('MULTIPOLYGON(((25 0,25 5,30 0,25 0)),((25 15,25 20,30 15,25 15)))'));
 MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('MULTIPOLYGON(((25 0,25 5,30 0,25 0)),((25 15,25 20,30 15,25 15)))'))
 0
@@ -865,8 +906,9 @@ MBRCOVEREDBY(g,ST_GEOMFROMTEXT(@star_of_elems))
 SELECT MBRCOVEREDBY(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=103;
 MBRCOVEREDBY(g,g2)
 1
-#-------------------------------------------------------------------------------------------
+#====================================================================================
 # multipolygon,geometrycollection
+#====================================================================================
 SELECT MBRCOVEREDBY(g,ST_GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=103;
 MBRCOVEREDBY(g,ST_GEOMFROMTEXT(@star_collection_elems))
 1
@@ -882,8 +924,9 @@ MBRCOVEREDBY(g,g2)
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_collection_elems));
 MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_collection_elems))
 1
-#-------------------------------------------------------------------------------------------
+#====================================================================================
 # geometrycollection,point
+#====================================================================================
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_top));
 MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_top))
 0
@@ -896,8 +939,9 @@ MBRCOVEREDBY(g,ST_GEOMFROMTEXT(@star_top))
 SELECT MBRCOVEREDBY(g,ST_GEOMFROMTEXT(@star_top)) FROM gis_geometrycollection WHERE fid=415;
 MBRCOVEREDBY(g,ST_GEOMFROMTEXT(@star_top))
 0
-#-------------------------------------------------------------------------------------------
+#====================================================================================
 # geometrycollection,multipoint
+#====================================================================================
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_bottom_points));
 MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_bottom_points))
 0
@@ -910,8 +954,9 @@ MBRCOVEREDBY(g,ST_GEOMFROMTEXT(@star_bottom_points))
 SELECT MBRCOVEREDBY(g,ST_GEOMFROMTEXT(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=415;
 MBRCOVEREDBY(g,ST_GEOMFROMTEXT(@star_bottom_points))
 0
-#-------------------------------------------------------------------------------------------
+#====================================================================================
 # geometrycollection,linestring
+#====================================================================================
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_top_to_center));
 MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_top_to_center))
 0
@@ -924,8 +969,9 @@ MBRCOVEREDBY(g,ST_GEOMFROMTEXT(@star_top_to_center))
 SELECT MBRCOVEREDBY(g,ST_GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=415;
 MBRCOVEREDBY(g,ST_GEOMFROMTEXT(@star_top_to_center))
 0
-#-------------------------------------------------------------------------------------------
+#====================================================================================
 # geometrycollection,multilinestring
+#====================================================================================
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_lines_near_vertical));
 MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_lines_near_vertical))
 0
@@ -938,8 +984,9 @@ MBRCOVEREDBY(g,ST_GEOMFROMTEXT(@star_lines_near_vertical))
 SELECT MBRCOVEREDBY(g,ST_GEOMFROMTEXT(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=415;
 MBRCOVEREDBY(g,ST_GEOMFROMTEXT(@star_lines_near_vertical))
 0
-#-------------------------------------------------------------------------------------------
+#====================================================================================
 # geometrycollection,polygon
+#====================================================================================
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_elem_vertical));
 MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_elem_vertical))
 0
@@ -958,8 +1005,9 @@ MBRCOVEREDBY(g,ST_GEOMFROMTEXT(@star_elem_vertical))
 SELECT MBRCOVEREDBY(g,ST_GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=415;
 MBRCOVEREDBY(g,ST_GEOMFROMTEXT(@star_elem_vertical))
 0
-#-------------------------------------------------------------------------------------------
+#====================================================================================
 # geometrycollection,multipolygon
+#====================================================================================
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('MULTIPOLYGON(((25 0,25 5,30 0,25 0)),((25 15,25 20,30 15,25 15)))'));
 MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('MULTIPOLYGON(((25 0,25 5,30 0,25 0)),((25 15,25 20,30 15,25 15)))'))
 0
@@ -978,8 +1026,9 @@ MBRCOVEREDBY(g,ST_GEOMFROMTEXT(@star_collection_elems))
 SELECT MBRCOVEREDBY(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=115 and fid2=103;
 MBRCOVEREDBY(g,g2)
 1
-#-------------------------------------------------------------------------------------------
+#====================================================================================
 # geometrycollection,geometrycollection
+#====================================================================================
 SELECT MBRCOVEREDBY(g,ST_GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=115;
 MBRCOVEREDBY(g,ST_GEOMFROMTEXT(@star_collection_elems))
 1
@@ -995,9 +1044,9 @@ MBRCOVEREDBY(g,g2)
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_collection_elems));
 MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_collection_elems))
 1
-#=======================================================================================
+#####################################################################################
 # Testing MBRCOVEREDBY() with 2 geometries of same SRID
-#=======================================================================================
+#####################################################################################
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_top,0),ST_GEOMFROMTEXT(@star_center,0));
 MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_top,0),ST_GEOMFROMTEXT(@star_center,0))
 0
@@ -1025,11 +1074,9 @@ MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_top,-1024),ST_GEOMFROMTEXT(@star_center,-1024
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_top,4294967295000),ST_GEOMFROMTEXT(@star_center,4294967295000));
 MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_top,4294967295000),ST_GEOMFROMTEXT(@star_center,4294967295000))
 0
-#=======================================================================================
+#####################################################################################
 # Invalid function calls
-#=======================================================================================
-#-------------------------------------------------------------------------------------------
-# MBRCOVEREDBY(g1,g2)
+#####################################################################################
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_center,4326));
 ERROR HY000: Binary geometry function mbrcoveredby given two geometries of different srids: 0 and 4326, which should have been identical.
 SELECT MBRCOVEREDBY(ST_GEOMFROMTEXT(@star_top,1048576),ST_GEOMFROMTEXT(@star_center,4326));

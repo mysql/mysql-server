@@ -2471,7 +2471,7 @@ Gis_wkb_vector(const void *ptr, size_t nbytes, const Flags_t &flags,
 
 template <typename T>
 Gis_wkb_vector<T>::
-Gis_wkb_vector(const Gis_wkb_vector<T> &v) :Geometry(v)
+Gis_wkb_vector(const Gis_wkb_vector<T> &v) :Geometry(v), m_geo_vect(NULL)
 {
   DBUG_ASSERT((v.get_ptr() != NULL && v.get_nbytes() > 0) ||
               (v.get_ptr() == NULL && !v.get_ownmem() &&

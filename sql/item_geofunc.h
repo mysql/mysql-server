@@ -741,6 +741,8 @@ protected:
 
   template<typename Coord_type, typename Coordsys>
   Geometry *combine_sub_results(Geometry *g1, Geometry *g2, String *result);
+  Geometry *simplify_multilinestring(Gis_multi_line_string *mls,
+                                     String *result);
 
   template<typename Coord_type, typename Coordsys>
   Geometry *geometry_collection_set_operation(Geometry *g1, Geometry *g2,
@@ -880,6 +882,7 @@ class Item_func_issimple: public Item_bool_func
 public:
   Item_func_issimple(const POS &pos, Item *a): Item_bool_func(pos, a) {}
   longlong val_int();
+  bool issimple(Geometry *g);
   optimize_type select_optimize() const { return OPTIMIZE_NONE; }
   const char *func_name() const { return "st_issimple"; }
   void fix_length_and_dec() { maybe_null= 1; }
