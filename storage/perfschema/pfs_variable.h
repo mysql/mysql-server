@@ -166,7 +166,7 @@ public:
                       m_type(SHOW_UNDEF), m_scope(SHOW_SCOPE_UNDEF),
                       m_charset(NULL), m_initialized(false) {}
 
-  Status_variable(const SHOW_VAR *show_var, STATUS_VAR *status_array, enum_var_type query_scope);
+  Status_variable(const SHOW_VAR *show_var, System_status_var *status_array, enum_var_type query_scope);
 
   ~Status_variable() {}
 
@@ -182,7 +182,7 @@ public:
   const CHARSET_INFO *m_charset;
 private:
   bool m_initialized;
-  void init(const SHOW_VAR *show_var, STATUS_VAR *status_array, enum_var_type query_scope);
+  void init(const SHOW_VAR *show_var, System_status_var *status_array, enum_var_type query_scope);
 };
 
 
@@ -195,16 +195,7 @@ public:
   Find_THD_variable() : m_unsafe_thd(NULL) {}
   Find_THD_variable(THD *unsafe_thd) : m_unsafe_thd(unsafe_thd) {}
 
-  virtual bool operator()(THD *thd)
-  {
-    //TODO: filter bg threads?
-    if (thd != m_unsafe_thd)
-      return false;
-    
-    /* Hold this lock to keep THD during materialization. */
-    mysql_mutex_lock(&thd->LOCK_thd_data);
-    return true;
-  }
+  virtual bool operator()(THD *thd);
   void set_unsafe_thd(THD *unsafe_thd) { m_unsafe_thd= unsafe_thd; }
 private:
   THD *m_unsafe_thd;
@@ -611,7 +602,7 @@ private:
   int do_materialize_client(PFS_client *pfs_client);
 
   /* Callback to sum user, host or account status variables. */
-  void (*m_sum_client_status)(PFS_client *pfs_client, STATUS_VAR *status_totals);
+  void (*m_sum_client_status)(PFS_client *pfs_client, System_status_var *status_totals);
 
   /* Build SHOW_VAR array from external source. */
   bool init_show_var_array(enum_var_type scope);
@@ -639,13 +630,13 @@ private:
 
   /* Build the list of status variables from SHOW_VAR array. */
   void manifest(THD *thd, const SHOW_VAR *show_var_array,
-                STATUS_VAR *status_var_array, const char *prefix, bool nested_array);
+                System_status_var *status_var_array, const char *prefix, bool nested_array);
 };
 
 /* Callback functions to sum status variables for a given user, host or account. */
-void sum_user_status(PFS_client *pfs_user, STATUS_VAR *status_totals);
-void sum_host_status(PFS_client *pfs_host, STATUS_VAR *status_totals);
-void sum_account_status(PFS_client *pfs_account, STATUS_VAR *status_totals);
+void sum_user_status(PFS_client *pfs_user, System_status_var *status_totals);
+void sum_host_status(PFS_client *pfs_host, System_status_var *status_totals);
+void sum_account_status(PFS_client *pfs_account, System_status_var *status_totals);
 
 
 /** @} */

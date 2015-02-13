@@ -28,6 +28,8 @@
 #include "pfs_account.h"
 #include "pfs_visitor.h"
 #include "current_thd.h"
+#include "field.h"
+#include "sql_class.h"
 
 THR_LOCK table_status_by_user::m_table_lock;
 

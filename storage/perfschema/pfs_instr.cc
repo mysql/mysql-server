@@ -32,6 +32,7 @@
 #include "pfs_instr_class.h"
 #include "pfs_buffer_container.h"
 #include "pfs_builtin_memory.h"
+#include "sql_class.h"
 
 ulong nested_statement_lost= 0;
 

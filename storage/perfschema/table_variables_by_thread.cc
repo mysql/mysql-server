@@ -26,6 +26,8 @@
 #include "pfs_column_values.h"
 #include "pfs_global.h"
 #include "current_thd.h"
+#include "field.h"
+#include "sql_class.h"
 
 THR_LOCK table_variables_by_thread::m_table_lock;
 

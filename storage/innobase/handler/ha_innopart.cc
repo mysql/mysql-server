@@ -2307,7 +2307,7 @@ ha_innopart::rnd_next_in_part(
 		}
 		m_start_of_scan = 0;
 	} else {
-		ha_statistic_increment(&SSV::ha_read_rnd_next_count);
+		ha_statistic_increment(&System_status_var::ha_read_rnd_next_count);
 		error = ha_innobase::general_fetch(buf, ROW_SEL_NEXT, 0);
 	}
 
@@ -2332,7 +2332,7 @@ ha_innopart::rnd_pos(
 	DBUG_ENTER("ha_innopart::rnd_pos");
 	ut_ad(PARTITION_BYTES_IN_POS == 2);
 
-	ha_statistic_increment(&SSV::ha_read_rnd_count);
+	ha_statistic_increment(&System_status_var::ha_read_rnd_count);
 
 	ut_a(m_prebuilt->trx == thd_to_trx(ha_thd()));
 

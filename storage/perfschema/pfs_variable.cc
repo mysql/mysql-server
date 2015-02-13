@@ -25,6 +25,19 @@
 #include "pfs_global.h"
 #include "pfs_visitor.h"
 #include "current_thd.h"
+#include "sql_class.h"
+
+bool Find_THD_variable::operator()(THD *thd)
+{
+  //TODO: filter bg threads?
+  if (thd != m_unsafe_thd)
+    return false;
+
+  /* Hold this lock to keep THD during materialization. */
+  mysql_mutex_lock(&thd->LOCK_thd_data);
+  return true;
+}
+
 
 template <class Var_type>
 PFS_variable_cache<Var_type>::PFS_variable_cache(bool external_init)
@@ -785,7 +798,7 @@ bool PFS_status_variable_cache::do_initialize_session(void)
 */
 int PFS_status_variable_cache::do_materialize_global(void)
 {
-  STATUS_VAR status_totals;
+  System_status_var status_totals;
 
   m_materialized= false;
 
@@ -921,7 +934,7 @@ int PFS_status_variable_cache::do_materialize_session(PFS_thread *pfs_thread)
 int PFS_status_variable_cache::do_materialize_client(PFS_client *pfs_client)
 {
   DBUG_ASSERT(pfs_client != NULL);
-  STATUS_VAR status_totals;
+  System_status_var status_totals;
 
   m_pfs_client= pfs_client;
   m_materialized= false;
@@ -955,10 +968,10 @@ int PFS_status_variable_cache::do_materialize_client(PFS_client *pfs_client)
 
 /*
   Build the status variable cache from the expanded and sorted SHOW_VAR array.
-  Resolve status values using the STATUS_VAR struct provided.
+  Resolve status values using the System_status_var struct provided.
 */
 void PFS_status_variable_cache::manifest(THD *thd, const SHOW_VAR *show_var_array,
-                                    STATUS_VAR *status_vars, const char *prefix,
+                                    System_status_var *status_vars, const char *prefix,
                                     bool nested_array)
 {
   for (const SHOW_VAR *show_var_iter= show_var_array;
@@ -1025,7 +1038,7 @@ void PFS_status_variable_cache::manifest(THD *thd, const SHOW_VAR *show_var_arra
 /**
   CLASS Status_variable
 */
-Status_variable::Status_variable(const SHOW_VAR *show_var, STATUS_VAR *status_vars, enum_var_type query_scope)
+Status_variable::Status_variable(const SHOW_VAR *show_var, System_status_var *status_vars, enum_var_type query_scope)
   : m_name_length(0), m_value_length(0), m_type(SHOW_UNDEF),
     m_scope(SHOW_SCOPE_UNDEF), m_charset(NULL), m_initialized(false)
 {
@@ -1037,7 +1050,7 @@ Status_variable::Status_variable(const SHOW_VAR *show_var, STATUS_VAR *status_va
   show_var->value is an offset into status_vars.
   NOTE: Assumes LOCK_status is held.
 */
-void Status_variable::init(const SHOW_VAR *show_var, STATUS_VAR *status_vars, enum_var_type query_scope)
+void Status_variable::init(const SHOW_VAR *show_var, System_status_var *status_vars, enum_var_type query_scope)
 {
   if (show_var == NULL || show_var->name == NULL)
     return;
@@ -1065,7 +1078,7 @@ void Status_variable::init(const SHOW_VAR *show_var, STATUS_VAR *status_vars, en
 /*
   Get status totals for this user from active THDs and related accounts.
 */
-void sum_user_status(PFS_client *pfs_user, STATUS_VAR *status_totals)
+void sum_user_status(PFS_client *pfs_user, System_status_var *status_totals)
 {
   PFS_connection_status_visitor visitor(status_totals);
   PFS_connection_iterator::visit_user((PFS_user *)pfs_user,
@@ -1078,7 +1091,7 @@ void sum_user_status(PFS_client *pfs_user, STATUS_VAR *status_totals)
 /*
   Get status totals for this host from active THDs and related accounts.
 */
-void sum_host_status(PFS_client *pfs_host, STATUS_VAR *status_totals)
+void sum_host_status(PFS_client *pfs_host, System_status_var *status_totals)
 {
   PFS_connection_status_visitor visitor(status_totals);
   PFS_connection_iterator::visit_host((PFS_host *)pfs_host,
@@ -1092,7 +1105,7 @@ void sum_host_status(PFS_client *pfs_host, STATUS_VAR *status_totals)
   Get status totals for this account from active THDs and from totals aggregated
   from disconnectd threads.
 */
-void sum_account_status(PFS_client *pfs_account, STATUS_VAR *status_totals)
+void sum_account_status(PFS_client *pfs_account, System_status_var *status_totals)
 {
   PFS_connection_status_visitor visitor(status_totals);
   PFS_connection_iterator::visit_account((PFS_account *)pfs_account,

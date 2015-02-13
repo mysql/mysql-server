@@ -1443,9 +1443,6 @@ typedef struct st_handler_buffer
   uchar *end_of_used_area;     /* End of area that was used by handler */
 } HANDLER_BUFFER;
 
-typedef struct system_status_var SSV;
-
-
 typedef void *range_seq_t;
 
 typedef struct st_range_seq_if
@@ -3332,7 +3329,7 @@ public:
 
 protected:
   /* Service methods for use by storage engines. */
-  void ha_statistic_increment(ulonglong SSV::*offset) const;
+  void ha_statistic_increment(ulonglong System_status_var::*offset) const;
   THD *ha_thd(void) const;
 
   /**

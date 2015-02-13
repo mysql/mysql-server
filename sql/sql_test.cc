@@ -456,7 +456,7 @@ reads:          %10s\n\n",
 void mysql_print_status()
 {
   char current_dir[FN_REFLEN];
-  STATUS_VAR tmp;
+  System_status_var tmp;
 
   calc_sum_of_all_status(&tmp);
   printf("\nStatus information:\n\n");

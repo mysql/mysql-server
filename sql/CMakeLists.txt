@@ -214,6 +214,7 @@ SET(SQL_SHARED_SOURCES
   strfunc.cc
   sys_vars.cc
   sys_vars_resource_mgr.cc
+  system_variables.cc
   table.cc
   table_cache.cc
   table_trigger_dispatcher.cc

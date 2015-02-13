@@ -321,8 +321,8 @@ static int test_plugin_options(MEM_ROOT *, st_plugin_int *,
                                int *, char **);
 static bool register_builtin(st_mysql_plugin *, st_plugin_int *,
                              st_plugin_int **);
-static void unlock_variables(THD *thd, struct system_variables *vars);
-static void cleanup_variables(THD *thd, struct system_variables *vars);
+static void unlock_variables(THD *thd, struct System_variables *vars);
+static void cleanup_variables(THD *thd, struct System_variables *vars);
 static void plugin_vars_free_values(sys_var *vars);
 static bool plugin_var_memalloc_session_update(THD *thd,
                                                st_mysql_sys_var *var,
@@ -330,7 +330,7 @@ static bool plugin_var_memalloc_session_update(THD *thd,
 static bool plugin_var_memalloc_global_update(THD *thd,
                                               st_mysql_sys_var *var,
                                               char **dest, const char *value);
-static void plugin_var_memalloc_free(struct system_variables *vars);
+static void plugin_var_memalloc_free(struct System_variables *vars);
 static void restore_pluginvar_names(sys_var *first);
 static void plugin_opt_set_limits(struct my_option *,
                                   const st_mysql_sys_var *);
@@ -3002,7 +3002,7 @@ void plugin_thdvar_init(THD *thd, bool enable_plugins)
 /*
   Unlocks all system variables which hold a reference
 */
-static void unlock_variables(THD *thd, struct system_variables *vars)
+static void unlock_variables(THD *thd, struct System_variables *vars)
 {
   intern_plugin_unlock(NULL, vars->table_plugin);
   intern_plugin_unlock(NULL, vars->temp_table_plugin);
@@ -3017,7 +3017,7 @@ static void unlock_variables(THD *thd, struct system_variables *vars)
   Unlike plugin_vars_free_values() it frees all variables of all plugins,
   it's used on shutdown.
 */
-static void cleanup_variables(THD *thd, struct system_variables *vars)
+static void cleanup_variables(THD *thd, struct System_variables *vars)
 {
   if (thd)
   {
@@ -3161,7 +3161,7 @@ static bool plugin_var_memalloc_session_update(THD *thd,
 
 {
   LIST *old_element= NULL;
-  struct system_variables *vars= &thd->variables;
+  struct System_variables *vars= &thd->variables;
   DBUG_ENTER("plugin_var_memalloc_session_update");
 
   if (value)
@@ -3203,7 +3203,7 @@ static bool plugin_var_memalloc_session_update(THD *thd,
   @see plugin_var_memalloc_session_update
 */
 
-static void plugin_var_memalloc_free(struct system_variables *vars)
+static void plugin_var_memalloc_free(struct System_variables *vars)
 {
   LIST *next, *root;
   DBUG_ENTER("plugin_var_memalloc_free");

@@ -21,14 +21,16 @@
   Status variables statistics (declarations).
 */
 
+#include "system_variables.h" // COUNT_GLOBAL_STATUS_VARS
+
 struct PFS_status_stats
 {
   PFS_status_stats();
 
   void reset();
   void aggregate(const PFS_status_stats *from);
-  void aggregate_from(const STATUS_VAR *from);
-  void aggregate_to(STATUS_VAR *to);
+  void aggregate_from(const System_status_var *from);
+  void aggregate_to(System_status_var *to);
 
   bool m_has_stats;
   ulonglong m_stats[COUNT_GLOBAL_STATUS_VARS];

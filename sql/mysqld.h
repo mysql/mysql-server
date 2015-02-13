@@ -267,8 +267,8 @@ extern MYSQL_PLUGIN_IMPORT const char  *my_localhost;
 extern const char *myisam_recover_options_str;
 extern const char *in_left_expr_name, *in_additional_cond, *in_having_cond;
 extern SHOW_VAR status_vars[];
-extern struct system_variables max_system_variables;
-extern struct system_status_var global_status_var;
+extern struct System_variables max_system_variables;
+extern struct System_status_var global_status_var;
 extern struct rand_struct sql_rand;
 extern const char *opt_date_time_formats[];
 extern handlerton *myisam_hton;
@@ -758,7 +758,7 @@ extern MYSQL_PLUGIN_IMPORT char  *mysql_data_home;
 extern "C" MYSQL_PLUGIN_IMPORT char server_version[SERVER_VERSION_LENGTH];
 extern MYSQL_PLUGIN_IMPORT char mysql_real_data_home[];
 extern char mysql_unpacked_real_data_home[];
-extern MYSQL_PLUGIN_IMPORT struct system_variables global_system_variables;
+extern MYSQL_PLUGIN_IMPORT struct System_variables global_system_variables;
 extern char default_logfile_name[FN_REFLEN];
 
 #define mysql_tmpdir (my_tmpdir(&mysql_tmpdir_list))

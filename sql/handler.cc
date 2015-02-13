@@ -2333,7 +2333,7 @@ err:
 }
 
 
-void handler::ha_statistic_increment(ulonglong SSV::*offset) const
+void handler::ha_statistic_increment(ulonglong System_status_var::*offset) const
 {
   (table->in_use->status_var.*offset)++;
 }
@@ -2883,7 +2883,7 @@ int handler::read_first_row(uchar * buf, uint primary_key)
   int error;
   DBUG_ENTER("handler::read_first_row");
 
-  ha_statistic_increment(&SSV::ha_read_first_count);
+  ha_statistic_increment(&System_status_var::ha_read_first_count);
 
   /*
     If there is very few deleted rows in the table, find the first row by
@@ -2931,7 +2931,7 @@ int handler::read_first_row(uchar * buf, uint primary_key)
   @verbatim 1,5,15,25,35,... @endverbatim
 */
 inline ulonglong
-compute_next_insert_id(ulonglong nr,struct system_variables *variables)
+compute_next_insert_id(ulonglong nr,struct System_variables *variables)
 {
   const ulonglong save_nr= nr;
 
@@ -2981,7 +2981,7 @@ void handler::adjust_next_insert_id_after_explicit_value(ulonglong nr)
     The number X if it exists, "nr" otherwise.
 */
 inline ulonglong
-prev_insert_id(ulonglong nr, struct system_variables *variables)
+prev_insert_id(ulonglong nr, struct System_variables *variables)
 {
   if (unlikely(nr < variables->auto_increment_offset))
   {
@@ -3088,7 +3088,7 @@ int handler::update_auto_increment()
   ulonglong nr, nb_reserved_values;
   bool append= FALSE;
   THD *thd= table->in_use;
-  struct system_variables *variables= &thd->variables;
+  struct System_variables *variables= &thd->variables;
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
   DBUG_ENTER("handler::update_auto_increment");
@@ -7354,7 +7354,7 @@ int handler::ha_external_lock(THD *thd, int lock_type)
                                table_share->table_name.str);
   }
 
-  ha_statistic_increment(&SSV::ha_external_lock_count);
+  ha_statistic_increment(&System_status_var::ha_external_lock_count);
 
   MYSQL_TABLE_LOCK_WAIT(PSI_TABLE_EXTERNAL_LOCK, lock_type,
     { error= external_lock(thd, lock_type); })

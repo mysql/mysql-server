@@ -2689,7 +2689,7 @@ inline void make_upper(char *buf)
 
 const char* get_one_variable(THD *thd, const SHOW_VAR *variable,
                              enum_var_type value_type, SHOW_TYPE show_type,
-                             system_status_var *status_var,
+                             System_status_var *status_var,
                              const CHARSET_INFO **charset, char *buff,
                              size_t *length)
 {
@@ -2833,7 +2833,7 @@ const char* get_one_variable(THD *thd, const SHOW_VAR *variable,
 static bool show_status_array(THD *thd, const char *wild,
                               SHOW_VAR *variables,
                               enum enum_var_type value_type,
-                              struct system_status_var *status_var,
+                              struct System_status_var *status_var,
                               const char *prefix, TABLE_LIST *tl,
                               bool ucase_names,
                               Item *cond)
@@ -2921,18 +2921,18 @@ end:
 class Add_status : public Do_THD_Impl
 {
 public:
-  Add_status(STATUS_VAR* value) : m_stat_var(value) {}
+  Add_status(System_status_var* value) : m_stat_var(value) {}
   virtual void operator()(THD *thd)
   {
-    STATUS_VAR* stat = &(thd->status_var);
+    System_status_var* stat = &(thd->status_var);
     add_to_status(m_stat_var, stat, true);
   }
 private:
   /* Status of all threads are summed into this. */
-  STATUS_VAR* m_stat_var;
+  System_status_var* m_stat_var;
 };
 
-void calc_sum_of_all_status(STATUS_VAR *to)
+void calc_sum_of_all_status(System_status_var *to)
 {
   DBUG_ENTER("calc_sum_of_all_status");
   /* Get global values as base. */
@@ -7005,7 +7005,7 @@ int fill_status(THD *thd, TABLE_LIST *tables, Item *cond)
   const char *wild= lex->wild ? lex->wild->ptr() : NullS;
   int res= 0;
 
-  STATUS_VAR *tmp1, tmp;
+  System_status_var *tmp1, tmp;
   enum enum_schema_tables schema_table_idx=
     get_schema_table_idx(tables->schema_table);
   enum enum_var_type option_type;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -41,12 +41,16 @@ TODO:
  -Brian
 */
 
+#include "ha_tina.h"
 #include "my_global.h"
-#include "sql_class.h"                          // SSV
 #include <mysql/plugin.h>
 #include <mysql/psi/mysql_file.h>
-#include "ha_tina.h"
 #include "probes_mysql.h"
+#include "hash.h"
+#include "table.h"
+#include "field.h"
+#include "system_variables.h"
+#include "sql_class.h"
 
 #include <algorithm>
 
@@ -1005,7 +1009,7 @@ int ha_tina::write_row(uchar * buf)
   if (share->crashed)
       DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
 
-  ha_statistic_increment(&SSV::ha_write_count);
+  ha_statistic_increment(&System_status_var::ha_write_count);
 
   size= encode_quote(buf);
 
@@ -1067,7 +1071,7 @@ int ha_tina::update_row(const uchar * old_data, uchar * new_data)
   int rc= -1;
   DBUG_ENTER("ha_tina::update_row");
 
-  ha_statistic_increment(&SSV::ha_update_count);
+  ha_statistic_increment(&System_status_var::ha_update_count);
 
   size= encode_quote(new_data);
 
@@ -1111,7 +1115,7 @@ err:
 int ha_tina::delete_row(const uchar * buf)
 {
   DBUG_ENTER("ha_tina::delete_row");
-  ha_statistic_increment(&SSV::ha_delete_count);
+  ha_statistic_increment(&System_status_var::ha_delete_count);
 
   if (chain_append())
     DBUG_RETURN(-1);
@@ -1233,7 +1237,7 @@ int ha_tina::rnd_next(uchar *buf)
     goto end;
   }
 
-  ha_statistic_increment(&SSV::ha_read_rnd_next_count);
+  ha_statistic_increment(&System_status_var::ha_read_rnd_next_count);
 
   current_position= next_position;
 
@@ -1282,7 +1286,7 @@ int ha_tina::rnd_pos(uchar * buf, uchar *pos)
   DBUG_ENTER("ha_tina::rnd_pos");
   MYSQL_READ_ROW_START(table_share->db.str, table_share->table_name.str,
                        FALSE);
-  ha_statistic_increment(&SSV::ha_read_rnd_count);
+  ha_statistic_increment(&System_status_var::ha_read_rnd_count);
   current_position= my_get_ptr(pos,ref_length);
   rc= find_current_row(buf);
   MYSQL_READ_ROW_DONE(rc);

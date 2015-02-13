@@ -2263,7 +2263,7 @@ static Sys_var_uint Sys_pseudo_thread_id(
 
 static bool fix_max_join_size(sys_var *self, THD *thd, enum_var_type type)
 {
-  SV *sv= type == OPT_GLOBAL ? &global_system_variables : &thd->variables;
+  System_variables *sv= type == OPT_GLOBAL ? &global_system_variables : &thd->variables;
   if (sv->max_join_size == HA_POS_ERROR)
     sv->option_bits|= OPTION_BIG_SELECTS;
   else

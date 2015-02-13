@@ -27,6 +27,8 @@
 #include "pfs_global.h"
 #include "pfs_account.h"
 #include "current_thd.h"
+#include "field.h"
+#include "sql_class.h"
 
 THR_LOCK table_status_by_account::m_table_lock;
 

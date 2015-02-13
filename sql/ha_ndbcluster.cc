@@ -5082,7 +5082,7 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
   }
   DBUG_ASSERT(trans);
 
-  ha_statistic_increment(&SSV::ha_write_count);
+  ha_statistic_increment(&System_status_var::ha_write_count);
 
   /*
      Setup OperationOptions
@@ -5798,7 +5798,7 @@ int ha_ndbcluster::ndb_update_row(const uchar *old_data, uchar *new_data,
       DBUG_RETURN(peek_res);
   }
 
-  ha_statistic_increment(&SSV::ha_update_count);
+  ha_statistic_increment(&System_status_var::ha_update_count);
 
   bool skip_partition_for_unique_index= FALSE;
   if (m_use_partition_pruning)
@@ -6170,7 +6170,7 @@ int ha_ndbcluster::ndb_delete_row(const uchar *record,
   if (unlikely(error))
     DBUG_RETURN(error);
 
-  ha_statistic_increment(&SSV::ha_delete_count);
+  ha_statistic_increment(&System_status_var::ha_delete_count);
   m_rows_changed++;
 
   bool skip_partition_for_unique_index= FALSE;
@@ -6674,7 +6674,7 @@ int ha_ndbcluster::index_read(uchar *buf,
 int ha_ndbcluster::index_next(uchar *buf)
 {
   DBUG_ENTER("ha_ndbcluster::index_next");
-  ha_statistic_increment(&SSV::ha_read_next_count);
+  ha_statistic_increment(&System_status_var::ha_read_next_count);
   const int error= next_result(buf);
   table->status=error ? STATUS_NOT_FOUND: 0;
   DBUG_RETURN(error);
@@ -6684,7 +6684,7 @@ int ha_ndbcluster::index_next(uchar *buf)
 int ha_ndbcluster::index_prev(uchar *buf)
 {
   DBUG_ENTER("ha_ndbcluster::index_prev");
-  ha_statistic_increment(&SSV::ha_read_prev_count);
+  ha_statistic_increment(&System_status_var::ha_read_prev_count);
   const int error= next_result(buf);
   table->status=error ? STATUS_NOT_FOUND: 0;
   DBUG_RETURN(error);
@@ -6694,7 +6694,7 @@ int ha_ndbcluster::index_prev(uchar *buf)
 int ha_ndbcluster::index_first(uchar *buf)
 {
   DBUG_ENTER("ha_ndbcluster::index_first");
-  ha_statistic_increment(&SSV::ha_read_first_count);
+  ha_statistic_increment(&System_status_var::ha_read_first_count);
   // Start the ordered index scan and fetch the first row
 
   // Only HA_READ_ORDER indexes get called by index_first
@@ -6707,7 +6707,7 @@ int ha_ndbcluster::index_first(uchar *buf)
 int ha_ndbcluster::index_last(uchar *buf)
 {
   DBUG_ENTER("ha_ndbcluster::index_last");
-  ha_statistic_increment(&SSV::ha_read_last_count);
+  ha_statistic_increment(&System_status_var::ha_read_last_count);
   const int error= ordered_index_scan(0, 0, m_sorted, TRUE, buf, NULL);
   table->status=error ? STATUS_NOT_FOUND: 0;
   DBUG_RETURN(error);
@@ -6900,7 +6900,7 @@ int ha_ndbcluster::rnd_end()
 int ha_ndbcluster::rnd_next(uchar *buf)
 {
   DBUG_ENTER("rnd_next");
-  ha_statistic_increment(&SSV::ha_read_rnd_next_count);
+  ha_statistic_increment(&System_status_var::ha_read_rnd_next_count);
 
   int error;
   if (m_active_cursor || m_active_query)
@@ -6922,7 +6922,7 @@ int ha_ndbcluster::rnd_next(uchar *buf)
 int ha_ndbcluster::rnd_pos(uchar *buf, uchar *pos)
 {
   DBUG_ENTER("rnd_pos");
-  ha_statistic_increment(&SSV::ha_read_rnd_count);
+  ha_statistic_increment(&System_status_var::ha_read_rnd_count);
   // The primary key for the record is stored in pos
   // Perform a pk_read using primary key "index"
   {
@@ -14478,7 +14478,7 @@ int ha_ndbcluster::multi_range_read_init(RANGE_SEQ_IF *seq_funcs,
   mrr_need_range_assoc = !MY_TEST(mode & HA_MRR_NO_ASSOCIATION);
   if (mrr_need_range_assoc)
   {
-    ha_statistic_increment(&SSV::ha_multi_range_read_init_count);
+    ha_statistic_increment(&System_status_var::ha_multi_range_read_init_count);
   }
 
   /*

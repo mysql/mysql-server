@@ -28,6 +28,7 @@
 #include "partition_info.h"   // partition_info
 #include "probes_mysql.h"     // MYSQL_COMMAND_START
 #include "rpl_filter.h"       // rpl_filter
+#include "rpl_group_replication.h" // group_replication_start
 #include "rpl_master.h"       // register_slave
 #include "rpl_rli.h"          // mysql_show_relaylog_events
 #include "rpl_slave.h"        // change_master_cmd
@@ -49,6 +50,7 @@
 #include "sql_insert.h"       // Query_result_create
 #include "sql_load.h"         // mysql_load
 #include "sql_prepare.h"      // mysql_stmt_execute
+#include "sql_query_rewrite.h" // invoke_pre_parse_rewrite_plugins
 #include "sql_reload.h"       // reload_acl_and_cache
 #include "sql_rename.h"       // mysql_rename_tables
 #include "sql_select.h"       // handle_query
@@ -56,58 +58,13 @@
 #include "sql_table.h"        // mysql_create_table
 #include "sql_tablespace.h"   // mysql_alter_tablespace
 #include "sql_test.h"         // mysql_print_status
-#include "sql_select.h"       // handle_query
-#include "sql_load.h"         // mysql_load
-#include "sql_servers.h"      // create_servers, alter_servers,
-                              // drop_servers, servers_reload
-#include "sql_handler.h"      // mysql_ha_open, mysql_ha_close,
-                              // mysql_ha_read
-#include "sql_binlog.h"       // mysql_client_binlog_statement
-#include "sql_do.h"           // mysql_do
-#include "sql_help.h"         // mysqld_help
-#include "rpl_constants.h"    // Incident, INCIDENT_LOST_EVENTS
-#include "log_event.h"
-#include "rpl_slave.h"
-#include "rpl_master.h"
-#include "rpl_msr.h"        /* Multisource replication */
-#include "rpl_filter.h"
-#include <m_ctype.h>
-#include <myisam.h>
-#include <my_dir.h>
-#include <dur_prop.h>
-#include "rpl_handler.h"
-
-#include "sp_head.h"
-#include "sp.h"
-#include "sp_cache.h"
-#include "events.h"
-#include "sql_trigger.h"      // mysql_create_or_drop_trigger
-#include "transaction.h"
-#include "xa.h"
-#include "sql_audit.h"
-#include "sql_prepare.h"
-#include "debug_sync.h"
-#include "probes_mysql.h"
-#include "set_var.h"
-#include "opt_trace.h"
-#include "mysql/psi/mysql_statement.h"
-#include "opt_explain.h"
-#include "sql_rewrite.h"
-#include "sql_analyse.h"
-#include "table_cache.h" // table_cache_manager
-#include "sql_timer.h"   // thd_timer_set, thd_timer_reset
-#include "sp_rcontext.h"
-#include "parse_location.h"
-#include "sql_digest.h"
 #include "sql_timer.h"        // thd_timer_set
 #include "sql_trigger.h"      // add_table_for_trigger
-#include "sql_update.h"       // mysql_update
 #include "sql_view.h"         // mysql_create_view
+#include "system_variables.h" // System_status_var
 #include "table_cache.h"      // table_cache_manager
-#include "transaction.h"      // trans_commit_implicit
-#include "sql_query_rewrite.h"
+#include "transaction.h"      // trans_rollback_implicit
 
-#include "rpl_group_replication.h"
 #include <algorithm>
 using std::max;
 
@@ -1556,7 +1513,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 #endif
   case COM_STATISTICS:
   {
-    STATUS_VAR current_global_status_var;
+    System_status_var current_global_status_var;
     ulong uptime;
     size_t length __attribute__((unused));
     ulonglong queries_per_second1000;
@@ -2397,7 +2354,7 @@ mysql_execute_command(THD *thd)
 
   case SQLCOM_SHOW_STATUS:
   {
-    system_status_var old_status_var= thd->status_var;
+    System_status_var old_status_var= thd->status_var;
     thd->initial_status_var= &old_status_var;
 
     if (!(res= select_precheck(thd, lex, all_tables, first_table)))

@@ -49,8 +49,8 @@
 #define DEFAULT(X) X
 #define BLOCK_SIZE(X) X
 #define GLOBAL_VAR(X) sys_var::GLOBAL, (((char*)&(X))-(char*)&global_system_variables), sizeof(X)
-#define SESSION_VAR(X) sys_var::SESSION, offsetof(SV, X), sizeof(((SV *)0)->X)
-#define SESSION_ONLY(X) sys_var::ONLY_SESSION, offsetof(SV, X), sizeof(((SV *)0)->X)
+#define SESSION_VAR(X) sys_var::SESSION, offsetof(System_variables, X), sizeof(((System_variables *)0)->X)
+#define SESSION_ONLY(X) sys_var::ONLY_SESSION, offsetof(System_variables, X), sizeof(((System_variables *)0)->X)
 #define NO_CMD_LINE CMD_LINE(NO_ARG, -1)
 /*
   the define below means that there's no *second* mutex guard,
