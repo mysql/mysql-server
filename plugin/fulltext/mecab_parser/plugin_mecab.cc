@@ -262,9 +262,13 @@ mecab_parser_parse(
 	int		ret = 0;
 	const char*	csname = NULL;
 
-	/* Mecab supports utf8mb4 with utf8 dictionary. */
+	/* Mecab supports utf8mb4(utf8), eucjpms(ujis) and cp932(sjis). */
 	if (strcmp(param->cs->csname, MY_UTF8MB4) == 0) {
 		csname = "utf8";
+	} else if (strcmp(param->cs->csname, "eucjpms") == 0) {
+		csname = "ujis";
+	} else if (strcmp(param->cs->csname, "cp932") == 0) {
+		csname = "sjis";
 	} else {
 		csname = param->cs->csname;
 	}
