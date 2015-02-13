@@ -40,4 +40,5 @@ eval LOAD DATA INFILE '$index_file'
             CONCAT('.', CHAR(92)),
             '');
 
+--let $include_filename= rpl_read_binlog_index_into_table.inc
 --source include/end_include_file.inc

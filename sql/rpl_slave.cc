@@ -5529,6 +5529,20 @@ Stopping slave I/O thread due to out-of-memory error from master");
       mysql_mutex_unlock(&mi->data_lock);
 
       /*
+        Pause the IO thread execution and wait for
+        'continue_after_queue_event' signal to continue IO thread
+        execution.
+      */
+      DBUG_EXECUTE_IF("pause_after_queue_event",
+                      {
+                        const char act[]=
+                          "now SIGNAL reached_after_queue_event "
+                          "WAIT_FOR continue_after_queue_event";
+                        DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                                                           STRING_WITH_LEN(act)));
+                      };);
+
+      /*
         See if the relay logs take too much space.
         We don't lock mi->rli->log_space_lock here; this dirty read saves time
         and does not introduce any problem:

@@ -1271,6 +1271,7 @@ THD::THD(bool enable_plugins)
   m_sent_row_count= 0L;
   limit_found_rows= 0;
   is_operating_gtid_table_implicitly= false;
+  is_operating_substatement_implicitly= false;
   m_row_count_func= -1;
   statement_id_counter= 0UL;
   // Must be reset to handle error with THD's created for init of mysqld
