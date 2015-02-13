@@ -6475,12 +6475,24 @@ void TABLE_LIST::reinit_before_use(THD *thd)
  /*
    Reset table_name and table_name_length,if it is a anonymous derived table
    or schema table. They are not valid as TABLEs were closed in the end of
-   previous prepare or execute call.
+   previous prepare or execute call. For derived table of view, restore view's
+   name and database wiped out by derived table processing.
+
  */
   if (is_derived())
   {
-    table_name= NULL;
-    table_name_length= 0;
+    if (is_view())
+    {
+      db= view_db.str;
+      db_length= view_db.length;
+      table_name= view_name.str;
+      table_name_length= view_name.length;
+    }
+    else
+    {
+      table_name= NULL;
+      table_name_length= 0;
+    }
   }
   else if (schema_table_name)
   {
