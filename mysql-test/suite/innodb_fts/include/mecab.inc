@@ -131,6 +131,38 @@ SELECT * FROM page WHERE MATCH(page_title) AGAINST("ﾚﾓﾅ");
 
 DROP TABLE page;
 
+# Test utf8mb4
+if ($mecab_charset == 'utf8')
+{
+  SET NAMES utf8mb4;
+
+  CREATE TABLE page (
+    page_id int(8) unsigned NOT NULL AUTO_INCREMENT,
+    page_title varchar(255) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+    PRIMARY KEY (page_id),
+    FULLTEXT KEY page_title (page_title) WITH PARSER mecab
+  ) ENGINE=InnoDB;
+
+  # insert some emoji chars with 4 bytes.
+  INSERT INTO page VALUES
+    (1,'😃ﾚﾓﾅ'),
+    (2,'鉄道😄'),
+    (3,'鉄道😊100電車');
+
+  SET GLOBAL innodb_ft_aux_table="test/page";
+  SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHE;
+  SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_TABLE;
+
+  SHOW CREATE TABLE page;
+
+  SELECT * FROM page WHERE MATCH(page_title) AGAINST("ﾚﾓﾅ" IN BOOLEAN MODE);
+  SELECT * FROM page WHERE MATCH(page_title) AGAINST('鉄道');
+  SELECT * FROM page WHERE MATCH(page_title) AGAINST('鉄道😄');
+  SELECT * FROM page WHERE MATCH(page_title) AGAINST('鉄道' WITH QUERY EXPANSION);
+
+  DROP TABLE page;
+}
+
 SET GLOBAL innodb_ft_aux_table=default;
 
 UNINSTALL PLUGIN mecab;
