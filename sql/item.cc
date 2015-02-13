@@ -9814,21 +9814,24 @@ void Item_type_holder::get_full_info(Item *item)
     if (item->type() == Item::SUM_FUNC_ITEM &&
         (((Item_sum*)item)->sum_func() == Item_sum::MAX_FUNC ||
          ((Item_sum*)item)->sum_func() == Item_sum::MIN_FUNC))
-      item = ((Item_sum*)item)->get_arg(0);
+      item = (down_cast<Item_sum*>(item))->get_arg(0);
     /*
       We can have enum/set type after merging only if we have one enum|set
       field (or MIN|MAX(enum|set field)) and number of NULL fields
     */
-    DBUG_ASSERT((enum_set_typelib &&
-                 get_real_type(item) == MYSQL_TYPE_NULL) ||
-                (!enum_set_typelib &&
-                 item->type() == Item::FIELD_ITEM &&
-                 (get_real_type(item) == MYSQL_TYPE_ENUM ||
-                  get_real_type(item) == MYSQL_TYPE_SET) &&
-                 ((Field_enum*)((Item_field *) item)->field)->typelib));
-    if (!enum_set_typelib)
+    if (enum_set_typelib)
     {
-      enum_set_typelib= ((Field_enum*)((Item_field *) item)->field)->typelib;
+      DBUG_ASSERT(get_real_type(item) == MYSQL_TYPE_NULL);
+    }
+    else
+    {
+      Item *real_item= item->real_item();
+      Item_field *item_field= down_cast<Item_field*>(real_item);
+      Field_enum *field_enum= down_cast<Field_enum*>(item_field->field);
+      DBUG_ASSERT((get_real_type(item) == MYSQL_TYPE_ENUM ||
+                   get_real_type(item) == MYSQL_TYPE_SET) &&
+                  field_enum->typelib);
+      enum_set_typelib= field_enum->typelib;
     }
   }
 }
