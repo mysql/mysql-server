@@ -3156,27 +3156,9 @@ int init_common_variables()
     return 1;
 
   /* create the data directory if requested */
-  if (unlikely(opt_initialize))
-  {
-    MY_STAT dummy_stat;
-    int flags=
-#ifdef _WIN32
-      0
-#else
-      S_IRWXU | S_IRGRP | S_IXGRP
-#endif
-      ;
-
-    if (my_stat(mysql_real_data_home, &dummy_stat, MYF(0)))
-    {
-      sql_print_error("--initialize specified but the data directory exists. Aborting.");
-      return 1;        /* purecov: inspected */
-    }
-
-    sql_print_information("Creating the data directory %s", mysql_real_data_home);
-    if (my_mkdir(mysql_real_data_home, flags, MYF(MY_WME)))
-      return 1;        /* purecov: inspected */
-  }
+  if (unlikely(opt_initialize) &&
+      initialize_create_data_directory(mysql_real_data_home))
+      return 1;
 
 
   /*
