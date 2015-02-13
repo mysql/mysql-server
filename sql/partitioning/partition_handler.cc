@@ -358,14 +358,17 @@ Partition_helper::~Partition_helper()
 
   @param  part_info  Partition info to use.
   @param  early      True if called when part_info only created and parsed,
-                     but not setup, checked or fixed. Not used!
+                     but not setup, checked or fixed.
   */
 void Partition_helper::set_part_info_low(partition_info *part_info,
-                                         bool /* early */)
+                                         bool early)
 {
+  if (m_part_info == NULL || !early)
+  {
+    m_tot_parts= part_info->get_tot_partitions();
+  }
   m_part_info= part_info;
   m_is_sub_partitioned= m_part_info->is_sub_partitioned();
-  m_tot_parts= m_part_info->get_tot_partitions();
 }
 
 /**

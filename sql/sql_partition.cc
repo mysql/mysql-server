@@ -5927,7 +5927,7 @@ static bool mysql_change_partitions(ALTER_PARTITION_PARAM_TYPE *lpt)
 
   /* TODO: test if bulk_insert would increase the performance */
 
-  part_handler->set_part_info(lpt->part_info, false);
+  part_handler->set_part_info(lpt->part_info, true);
   error= part_handler->change_partitions(lpt->create_info, path,
                                          &lpt->copied,
                                          &lpt->deleted);
