@@ -124,7 +124,7 @@ struct get_turn_info_linear_areal
                     calculate_spike_operation(tp.operations[0].operation,
                                               inters, is_p_last);
                     
-                    AssignPolicy::apply(tp, pi, qi, inters.i_info(), inters.d_info());
+                    AssignPolicy::apply(tp, pi, qi, inters);
 
                     *out++ = tp;
                 }
@@ -137,7 +137,7 @@ struct get_turn_info_linear_areal
 
                 replace_operations_i(tp.operations[0].operation, tp.operations[1].operation);
 
-                AssignPolicy::apply(tp, pi, qi, inters.i_info(), inters.d_info());
+                AssignPolicy::apply(tp, pi, qi, inters);
                 *out++ = tp;
             }
             break;
@@ -222,7 +222,7 @@ struct get_turn_info_linear_areal
                                                     inters, is_p_last);
 
 // TODO: move this into the append_xxx and call for each turn?
-                    AssignPolicy::apply(tp, pi, qi, inters.i_info(), inters.d_info());
+                    AssignPolicy::apply(tp, pi, qi, inters);
 
                     if ( ! handle_spikes
                       || ignore_spike
@@ -258,7 +258,7 @@ struct get_turn_info_linear_areal
                         transformer(tp);
                     
 // TODO: move this into the append_xxx and call for each turn?
-                        AssignPolicy::apply(tp, pi, qi, inters.i_info(), inters.d_info());
+                        AssignPolicy::apply(tp, pi, qi, inters);
                         
                         // conditionally handle spikes
                         if ( ! handle_spikes
@@ -275,7 +275,7 @@ struct get_turn_info_linear_areal
                                 TurnInfo,
                                 AssignPolicy
                             >::apply(pi, qi,
-                                     tp, out, inters.i_info(), inters.d_info());
+                                     tp, out, inters);
                     }
                 }
             }
@@ -321,7 +321,7 @@ struct get_turn_info_linear_areal
                         transformer(tp);
 
 // TODO: move this into the append_xxx and call for each turn?
-                        AssignPolicy::apply(tp, pi, qi, inters.i_info(), inters.d_info());
+                        AssignPolicy::apply(tp, pi, qi, inters);
                         
                         // conditionally handle spikes
                         if ( ! handle_spikes
@@ -353,7 +353,7 @@ struct get_turn_info_linear_areal
                                 TurnInfo,
                                 AssignPolicy
                             >::apply(pi, pj, pk, qi, qj, qk,
-                                tp, out, inters.i_info(), inters.d_info(),
+                                tp, out, inters,
                                 inters.sides(), transformer,
                                 !is_p_last, true); // qk is always valid
                     }
@@ -379,7 +379,7 @@ struct get_turn_info_linear_areal
                     }
                     // tp.operations[1].position = position_middle;
 
-                    AssignPolicy::apply(tp, pi, qi, inters.i_info(), inters.d_info());
+                    AssignPolicy::apply(tp, pi, qi, inters);
                     *out++ = tp;
                 }
             }
@@ -567,7 +567,7 @@ struct get_turn_info_linear_areal
                     BOOST_ASSERT(inters.i_info().count > 1);
                     base_turn_handler::assign_point(tp, method_touch_interior, inters.i_info(), 1);
 
-                    AssignPolicy::apply(tp, inters.pi(), inters.qi(), inters.i_info(), inters.d_info());
+                    AssignPolicy::apply(tp, inters.pi(), inters.qi(), inters);
                 }
 
                 tp.operations[0].operation = operation_blocked;
@@ -793,7 +793,7 @@ struct get_turn_info_linear_areal
             // here is_p_first_ip == true
             tp.operations[0].is_collinear = false;
 
-            AssignPolicy::apply(tp, pi, qi, inters.i_info(), inters.d_info());
+            AssignPolicy::apply(tp, pi, qi, inters);
             *out++ = tp;
 
             was_first_point_handled = true;
@@ -846,7 +846,7 @@ struct get_turn_info_linear_areal
             int ip_index = ip_count > 1 ? 1 : 0;
             base_turn_handler::assign_point(tp, tp.method, inters.i_info(), ip_index);
 
-            AssignPolicy::apply(tp, pi, qi, inters.i_info(), inters.d_info());
+            AssignPolicy::apply(tp, pi, qi, inters);
             *out++ = tp;
 
             // don't ignore the first IP if the segment is opposite

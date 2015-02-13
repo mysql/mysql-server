@@ -3307,6 +3307,8 @@ bool Gis_geometry_collection::append_geometry(const Geometry *geo,
     collection_len= GEOM_HEADER_SIZE + 4;
     extra= GEOM_HEADER_SIZE;
     write_geometry_header(ptr, geo->get_srid(), wkb_geometrycollection, 0);
+    set_srid(geo->get_srid());
+    has_geom_header_space(true);
   }
 
   // Skip GEOMETRY header.
@@ -3358,6 +3360,8 @@ bool Gis_geometry_collection::append_geometry(srid_t srid, wkbType gtype,
     collection_len= GEOM_HEADER_SIZE + 4;
     extra= GEOM_HEADER_SIZE;
     write_geometry_header(ptr, srid, wkb_geometrycollection, 0);
+    set_srid(srid);
+    has_geom_header_space(true);
   }
   else if (srid != get_srid())
     return true;

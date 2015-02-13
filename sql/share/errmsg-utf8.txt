@@ -7442,6 +7442,8 @@ ER_TABLESPACE_IS_NOT_EMPTY
 ER_WRONG_FILE_NAME
   eng "Incorrect File Name '%s'."
 
+ER_BOOST_GEOMETRY_INCONSISTENT_TURNS_EXCEPTION
+  eng "Inconsistent intersection points."
 #
 #  End of 5.7 error messages.
 #
