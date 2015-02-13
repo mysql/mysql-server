@@ -65,14 +65,14 @@ Handler_read_rnd	0
 Handler_read_rnd_next	0
 EXPLAIN SELECT f1 FROM t3 WHERE f1 > 30 AND f1 < 33;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	range	PRIMARY,f2_idx	PRIMARY	4	NULL	1	100.00	Using where; Using index
+1	SIMPLE	t3	NULL	range	PRIMARY,f2_idx	f2_idx	4	NULL	2	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t3`.`f1` AS `f1` from `test`.`t3` where ((`test`.`t3`.`f1` > 30) and (`test`.`t3`.`f1` < 33))
 # Turn off range access for PRIMARY key
 # Should use range access by f2_idx key
 EXPLAIN SELECT /*+ NO_RANGE_OPTIMIZATION(t3 PRIMARY) */ f1 FROM t3 WHERE f1 > 30 AND f1 < 33;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	range	PRIMARY,f2_idx	f2_idx	4	NULL	1	100.00	Using where; Using index
+1	SIMPLE	t3	NULL	range	PRIMARY,f2_idx	f2_idx	4	NULL	2	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select /*+ NO_RANGE_OPTIMIZATION(`t3`@`select#1` `PRIMARY`) */ `test`.`t3`.`f1` AS `f1` from `test`.`t3` where ((`test`.`t3`.`f1` > 30) and (`test`.`t3`.`f1` < 33))
 # Turn off range access for PRIMARY & f2_idx keys
@@ -315,7 +315,7 @@ SET f3 = 'mnbv' WHERE f1 > 30 AND f1 < 33 AND (t3.f1, t3.f2, t3.f3) IN
 (SELECT t2.f1, t2.f2, t2.f3 FROM t1,t2 WHERE t1.f1=t2.f1 AND
 t2.f2 BETWEEN t1.f1 AND t1.f2 AND t2.f2 + 1 >= t1.f1 + 1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t3	NULL	range	PRIMARY,f2_idx	PRIMARY	4	const	1	100.00	Using where
+1	UPDATE	t3	NULL	range	PRIMARY,f2_idx	PRIMARY	4	const	2	100.00	Using where
 2	DEPENDENT SUBQUERY	t2	NULL	ref	f1	f1	8	func,func	2	10.00	Using index condition; Using where
 2	DEPENDENT SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	11.11	Using where; Using join buffer (Block Nested Loop)
 # Turn off range access for PRIMARY key.
@@ -325,7 +325,7 @@ SET f3 = 'mnbv' WHERE f1 > 30 AND f1 < 33 AND (t3.f1, t3.f2, t3.f3) IN
 (SELECT /*+ BKA(t2) NO_BNL(t1) */ t2.f1, t2.f2, t2.f3 FROM t1,t2 WHERE t1.f1=t2.f1 AND
 t2.f2 BETWEEN t1.f1 AND t1.f2 AND t2.f2 + 1 >= t1.f1 + 1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t3	NULL	range	f2_idx	f2_idx	4	const	1	100.00	Using where
+1	UPDATE	t3	NULL	range	f2_idx	f2_idx	4	const	2	100.00	Using where
 2	DEPENDENT SUBQUERY	t2	NULL	ref	f1	f1	8	func,func	2	10.00	Using index condition; Using where
 2	DEPENDENT SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	11.11	Using where
 EXPLAIN DELETE FROM t3
@@ -333,7 +333,7 @@ WHERE f1 > 30 AND f1 < 33 AND (t3.f1, t3.f2, t3.f3) IN
 (SELECT /*+ QB_NAME(qb1) */ t2.f1, t2.f2, t2.f3 FROM t1,t2 WHERE t1.f1=t2.f1 AND
 t2.f2 BETWEEN t1.f1 AND t1.f2 AND t2.f2 + 1 >= t1.f1 + 1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	t3	NULL	range	PRIMARY,f2_idx	PRIMARY	4	const	1	100.00	Using where
+1	DELETE	t3	NULL	range	PRIMARY,f2_idx	PRIMARY	4	const	2	100.00	Using where
 2	DEPENDENT SUBQUERY	t2	NULL	ref	f1	f1	8	func,func	2	10.00	Using index condition; Using where
 2	DEPENDENT SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	11.11	Using where; Using join buffer (Block Nested Loop)
 # Turn off range access. Range access should not be used.

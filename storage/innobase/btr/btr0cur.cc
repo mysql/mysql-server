@@ -5417,7 +5417,7 @@ so far and assume that all pages that we did not scan up to slot2->page
 contain the same number of records, then we multiply that average to
 the number of pages between slot1->page and slot2->page (which is
 n_rows_on_prev_level). In this case we set is_n_rows_exact to FALSE.
-@return number of rows (exact or estimated) */
+@return number of rows, not including the borders (exact or estimated) */
 static
 int64_t
 btr_estimate_n_rows_in_range_on_level(
@@ -5428,7 +5428,7 @@ btr_estimate_n_rows_in_range_on_level(
 	int64_t		n_rows_on_prev_level,	/*!< in: number of rows
 						on the previous level for the
 						same descend paths; used to
-						determine the numbe of pages
+						determine the number of pages
 						on this level */
 	ibool*		is_n_rows_exact)	/*!< out: TRUE if the returned
 						value is exact i.e. not an
@@ -5442,28 +5442,30 @@ btr_estimate_n_rows_in_range_on_level(
 	n_pages_read = 0;
 
 	/* Assume by default that we will scan all pages between
-	slot1->page_no and slot2->page_no */
+	slot1->page_no and slot2->page_no. */
 	*is_n_rows_exact = TRUE;
 
-	/* add records from slot1->page_no which are to the right of
-	the record which serves as a left border of the range, if any */
-	if (slot1->nth_rec < slot1->n_recs) {
+	/* Add records from slot1->page_no which are to the right of
+	the record which serves as a left border of the range, if any
+	(we don't include the record itself in this count). */
+	if (slot1->nth_rec <= slot1->n_recs) {
 		n_rows += slot1->n_recs - slot1->nth_rec;
 	}
 
-	/* add records from slot2->page_no which are to the left of
-	the record which servers as a right border of the range, if any */
+	/* Add records from slot2->page_no which are to the left of
+	the record which servers as a right border of the range, if any
+	(we don't include the record itself in this count). */
 	if (slot2->nth_rec > 1) {
 		n_rows += slot2->nth_rec - 1;
 	}
 
-	/* count the records in the pages between slot1->page_no and
-	slot2->page_no (non inclusive), if any */
+	/* Count the records in the pages between slot1->page_no and
+	slot2->page_no (non inclusive), if any. */
 
 	/* Do not read more than this number of pages in order not to hurt
 	performance with this code which is just an estimation. If we read
 	this many pages before reaching slot2->page_no then we estimate the
-	average from the pages scanned so far */
+	average from the pages scanned so far. */
 #	define N_PAGES_READ_LIMIT	10
 
 	page_id_t		page_id(
@@ -5588,9 +5590,20 @@ btr_estimate_n_rows_in_range(
 
 	table_n_rows = dict_table_get_n_rows(index->table);
 
+	/* Below we dive to the two records specified by tuple1 and tuple2 and
+	we remember the entire dive paths from the tree root. The place where
+	the tuple1 path ends on the leaf level we call "left border" of our
+	interval and the place where the tuple2 path ends on the leaf level -
+	"right border". We take care to either include or exclude the interval
+	boundaries depending on whether <, <=, > or >= was specified. For
+	example if "5 < x AND x <= 10" then we should not include the left
+	boundary, but should include the right one. */
+
 	mtr_start(&mtr);
 
 	cursor.path_arr = path1;
+
+	bool	should_count_the_left_border;
 
 	if (dtuple_get_n_fields(tuple1) > 0) {
 
@@ -5598,10 +5611,29 @@ btr_estimate_n_rows_in_range(
 					    BTR_SEARCH_LEAF | BTR_ESTIMATE,
 					    &cursor, 0,
 					    __FILE__, __LINE__, &mtr);
+
+		ut_ad(!page_rec_is_infimum(btr_cur_get_rec(&cursor)));
+
+		/* We should count the border if there are any records to
+		match the criteria, i.e. if the maximum record on the tree is
+		5 and x > 3 is specified then the cursor will be positioned at
+		5 and we should count the border, but if x > 7 is specified,
+		then the cursor will be positioned at 'sup' on the rightmost
+		leaf page in the tree and we should not count the border. */
+		should_count_the_left_border
+			= !page_rec_is_supremum(btr_cur_get_rec(&cursor));
 	} else {
 		btr_cur_open_at_index_side(true, index,
 					   BTR_SEARCH_LEAF | BTR_ESTIMATE,
 					   &cursor, 0, &mtr);
+
+		ut_ad(page_rec_is_infimum(btr_cur_get_rec(&cursor)));
+
+		/* The range specified is wihout a left border, just
+		'x < 123' or 'x <= 123' and btr_cur_open_at_index_side()
+		positioned the cursor on the infimum record on the leftmost
+		page, which must not be counted. */
+		should_count_the_left_border = false;
 	}
 
 	mtr_commit(&mtr);
@@ -5610,30 +5642,74 @@ btr_estimate_n_rows_in_range(
 
 	cursor.path_arr = path2;
 
+	bool	should_count_the_right_border;
+
 	if (dtuple_get_n_fields(tuple2) > 0) {
 
 		btr_cur_search_to_nth_level(index, 0, tuple2, mode2,
 					    BTR_SEARCH_LEAF | BTR_ESTIMATE,
 					    &cursor, 0,
 					    __FILE__, __LINE__, &mtr);
+
+		const rec_t*	rec = btr_cur_get_rec(&cursor);
+
+		ut_ad(!(mode2 == PAGE_CUR_L && page_rec_is_supremum(rec)));
+
+		should_count_the_right_border
+			= (mode2 == PAGE_CUR_LE /* if the range is '<=' */
+			   /* and the record was found */
+			   && cursor.low_match >= dtuple_get_n_fields(tuple2))
+			|| (mode2 == PAGE_CUR_L /* or if the range is '<' */
+			    /* and there are any records to match the criteria,
+			    i.e. if the minimum record on the tree is 5 and
+			    x < 7 is specified then the cursor will be
+			    positioned at 5 and we should count the border, but
+			    if x < 2 is specified, then the cursor will be
+			    positioned at 'inf' and we should not count the
+			    border */
+			    && !page_rec_is_infimum(rec));
+		/* Notice that for "WHERE col <= 'foo'" MySQL passes to
+		ha_innobase::records_in_range():
+		min_key=NULL (left-unbounded) which is expected
+		max_key='foo' flag=HA_READ_AFTER_KEY (PAGE_CUR_G), which is
+		unexpected - one would expect
+		flag=HA_READ_KEY_OR_PREV (PAGE_CUR_LE). In this case the
+		cursor will be positioned on the first record to the right of
+		the requested one (can also be positioned on the 'sup') and
+		we should not count the right border. */
 	} else {
 		btr_cur_open_at_index_side(false, index,
 					   BTR_SEARCH_LEAF | BTR_ESTIMATE,
 					   &cursor, 0, &mtr);
+
+		ut_ad(page_rec_is_supremum(btr_cur_get_rec(&cursor)));
+
+		/* The range specified is wihout a right border, just
+		'x > 123' or 'x >= 123' and btr_cur_open_at_index_side()
+		positioned the cursor on the supremum record on the rightmost
+		page, which must not be counted. */
+		should_count_the_right_border = false;
 	}
 
 	mtr_commit(&mtr);
 
 	/* We have the path information for the range in path1 and path2 */
 
-	n_rows = 1;
+	n_rows = 0;
 	is_n_rows_exact = TRUE;
-	diverged = FALSE;	    /* This becomes true when the path is not
-				    the same any more */
-	diverged_lot = FALSE;	    /* This becomes true when the paths are
-				    not the same or adjacent any more */
-	divergence_level = 1000000; /* This is the level where paths diverged
-				    a lot */
+
+	/* This becomes true when the two paths do not pass through the
+	same pages anymore. */
+	diverged = FALSE;
+
+	/* This becomes true when the paths are not the same or adjacent
+	any more. This means that they pass through the same or
+	neighboring-on-the-same-level pages only. */
+	diverged_lot = FALSE;
+
+	/* This is the level where paths diverged a lot. */
+	divergence_level = 1000000;
+
 	for (i = 0; ; i++) {
 		ut_ad(i < BTR_PATH_ARRAY_N_SLOTS);
 
@@ -5642,6 +5718,70 @@ btr_estimate_n_rows_in_range(
 
 		if (slot1->nth_rec == ULINT_UNDEFINED
 		    || slot2->nth_rec == ULINT_UNDEFINED) {
+
+			/* Here none of the borders were counted. For example,
+			if on the leaf level we descended to:
+			(inf, a, b, c, d, e, f, sup)
+			         ^        ^
+			       path1    path2
+			then n_rows will be 2 (c and d). */
+
+			if (is_n_rows_exact) {
+				/* Only fiddle to adjust this off-by-one
+				if the number is exact, otherwise we do
+				much grosser adjustments below. */
+
+				btr_path_t*	last1 = &path1[i - 1];
+				btr_path_t*	last2 = &path2[i - 1];
+
+				/* If both paths end up on the same record on
+				the leaf level. */
+				if (last1->page_no == last2->page_no
+				    && last1->nth_rec == last2->nth_rec) {
+
+					/* n_rows can be > 0 here if the paths
+					were first different and then converged
+					to the same record on the leaf level.
+					For example:
+					SELECT ... LIKE 'wait/synch/rwlock%'
+					mode1=PAGE_CUR_GE,
+					tuple1="wait/synch/rwlock"
+					path1[0]={nth_rec=58, n_recs=58,
+						  page_no=3, page_level=1}
+					path1[1]={nth_rec=56, n_recs=55,
+						  page_no=119, page_level=0}
+
+					mode2=PAGE_CUR_G
+					tuple2="wait/synch/rwlock"
+					path2[0]={nth_rec=57, n_recs=57,
+						  page_no=3, page_level=1}
+					path2[1]={nth_rec=56, n_recs=55,
+						  page_no=119, page_level=0} */
+
+					/* If the range is such that we should
+					count both borders, then avoid
+					counting that record twice - once as a
+					left border and once as a right
+					border. */
+					if (should_count_the_left_border
+					    && should_count_the_right_border) {
+
+						n_rows = 1;
+					} else {
+						/* Some of the borders should
+						not be counted, e.g. [3,3). */
+						n_rows = 0;
+					}
+				} else {
+					if (should_count_the_left_border) {
+						n_rows++;
+					}
+
+					if (should_count_the_right_border) {
+						n_rows++;
+					}
+				}
+			}
 
 			if (i > divergence_level + 1 && !is_n_rows_exact) {
 				/* In trees whose height is > 1 our algorithm
@@ -5674,12 +5814,23 @@ btr_estimate_n_rows_in_range(
 
 		if (!diverged && slot1->nth_rec != slot2->nth_rec) {
 
+			/* Ensure that both slots point to the same page. */
+			ut_ad(slot1->page_no == slot2->page_no);
+			ut_ad(slot1->page_level == slot2->page_level);
+
 			diverged = TRUE;
 
 			if (slot1->nth_rec < slot2->nth_rec) {
-				n_rows = slot2->nth_rec - slot1->nth_rec;
+				/* We do not count the borders (nor the left
+				nor the right one), thus "- 1". */
+				n_rows = slot2->nth_rec - slot1->nth_rec - 1;
 
-				if (n_rows > 1) {
+				if (n_rows > 0) {
+					/* There is at least one row between
+					the two borders pointed to by slot1
+					and slot2, so on the level below the
+					slots will point to non-adjacent
+					pages. */
 					diverged_lot = TRUE;
 					divergence_level = i;
 				}
@@ -5691,8 +5842,10 @@ btr_estimate_n_rows_in_range(
 				and we select where x > 20 and x < 30;
 				in this case slot1->nth_rec will point
 				to the supr record and slot2->nth_rec
-				will point to 6 */
+				will point to 6. */
 				n_rows = 0;
+				should_count_the_left_border = false;
+				should_count_the_right_border = false;
 			}
 
 		} else if (diverged && !diverged_lot) {

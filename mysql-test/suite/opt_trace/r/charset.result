@@ -522,8 +522,8 @@ select * from t1 where c < 'ÁÂÃÄÅ'	{
                         "rowid_ordered": true,
                         "using_mrr": false,
                         "index_only": true,
-                        "rows": 3,
-                        "cost": 1.612,
+                        "rows": 2,
+                        "cost": 2.41,
                         "chosen": false,
                         "cause": "cost"
                       }
@@ -733,29 +733,17 @@ select `col
                         "rowid_ordered": false,
                         "using_mrr": false,
                         "index_only": true,
-                        "rows": 1,
-                        "cost": 1.21,
-                        "chosen": true
+                        "rows": 2,
+                        "cost": 1.4113,
+                        "chosen": false,
+                        "cause": "cost"
                       }
                     ] /* range_scan_alternatives */,
                     "analyzing_roworder_intersect": {
                       "usable": false,
                       "cause": "too_few_roworder_scans"
                     } /* analyzing_roworder_intersect */
-                  } /* analyzing_range_alternatives */,
-                  "chosen_range_access_summary": {
-                    "range_access_plan": {
-                      "type": "range_scan",
-                      "index": "index\n1\ta",
-                      "rows": 1,
-                      "ranges": [
-                        "NULL < col\n1\ta < 6"
-                      ] /* ranges */
-                    } /* range_access_plan */,
-                    "rows_for_plan": 1,
-                    "cost_for_plan": 1.21,
-                    "chosen": true
-                  } /* chosen_range_access_summary */
+                  } /* analyzing_range_alternatives */
                 } /* range_analysis */
               }
             ] /* rows_estimation */
@@ -769,20 +757,17 @@ select `col
                 "best_access_path": {
                   "considered_access_paths": [
                     {
-                      "rows_to_scan": 1,
-                      "access_type": "range",
-                      "range_details": {
-                        "used_index": "index\n1\ta"
-                      } /* range_details */,
-                      "resulting_rows": 1,
-                      "cost": 1.41,
+                      "rows_to_scan": 2,
+                      "access_type": "scan",
+                      "resulting_rows": 2,
+                      "cost": 1.4,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
                 "condition_filtering_pct": 100,
-                "rows_for_plan": 1,
-                "cost_for_plan": 1.41,
+                "rows_for_plan": 2,
+                "cost_for_plan": 1.4,
                 "chosen": true
               }
             ] /* considered_execution_plans */
