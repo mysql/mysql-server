@@ -357,6 +357,8 @@ public:
 class Item_func_replace :public Item_str_func
 {
   String tmp_value,tmp_value2;
+  /// Holds result in case we need to allocate our own result buffer.
+  String tmp_value_res;
 public:
   Item_func_replace(const POS &pos, Item *org,Item *find,Item *replace)
     :Item_str_func(pos, org,find,replace)
@@ -370,6 +372,8 @@ public:
 class Item_func_insert :public Item_str_func
 {
   String tmp_value;
+  /// Holds result in case we need to allocate our own result buffer.
+  String tmp_value_res;
 public:
   Item_func_insert(const POS &pos,
                    Item *org, Item *start, Item *length, Item *new_str)
@@ -654,6 +658,8 @@ class Item_func_encode :public Item_str_func
 private:
   /** Whether the PRNG has already been seeded. */
   bool seeded;
+  /// Holds result in case we need to allocate our own result buffer.
+  String tmp_value_res;
 protected:
   SQL_CRYPT sql_crypt;
 public:
