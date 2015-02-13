@@ -260,9 +260,17 @@ mecab_parser_parse(
 	uchar*		end = *start + param->length;
 	FT_WORD		word = {NULL, 0, 0};
 	int		ret = 0;
+	const char*	csname = NULL;
+
+	/* Mecab supports utf8mb4 with utf8 dictionary. */
+	if (strcmp(param->cs->csname, MY_UTF8MB4) == 0) {
+		csname = "utf8";
+	} else {
+		csname = param->cs->csname;
+	}
 
 	/* Check charset */
-	if (strcmp(mecab_charset, param->cs->csname) != 0) {
+	if (strcmp(mecab_charset, csname) != 0) {
 		char	error_msg[128];
 
 		my_snprintf(error_msg, 127, "Fulltext index charset '%s'"
