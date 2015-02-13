@@ -2354,6 +2354,16 @@ void reinit_stmt_before_use(THD *thd, LEX *lex)
       /* see unique_table() */
       sl->exclude_from_table_unique_test= FALSE;
 
+      /*
+        These must be reset before every new preparation.
+        @note done here and not in st_select_lex::prepare() since for
+              multi-table UPDATE and DELETE, derived tables are merged into
+              the outer query block before ::prepare() is called.
+      */
+      sl->cond_count= 0;
+      sl->between_count= 0;
+      sl->max_equal_elems= 0;
+
       if (sl->where_cond())
       {
         DBUG_ASSERT(sl->where_cond()->real_item()); // no dangling 'ref'

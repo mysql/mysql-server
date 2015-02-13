@@ -114,11 +114,6 @@ bool SELECT_LEX::prepare(THD *thd)
   Opt_trace_object trace_prepare(trace, "join_preparation");
   trace_prepare.add_select_number(select_number);
   Opt_trace_array trace_steps(trace, "steps");
-
-  // These must be reset before every condition preparation
-  cond_count= 0;
-  between_count= 0;
-  max_equal_elems= 0;
  
   // Initially, "all_fields" is the select list
   all_fields= fields_list;
