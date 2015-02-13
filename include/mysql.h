@@ -854,6 +854,12 @@ my_socket STDCALL mysql_get_socket(const MYSQL *mysql);
 unsigned int STDCALL mysql_get_timeout_value(const MYSQL *mysql);
 unsigned int STDCALL mysql_get_timeout_value_ms(const MYSQL *mysql);
 
+/********************************************************************
+  mysql_net_ functions - low-level API to MySQL protocol
+*********************************************************************/
+unsigned long STDCALL mysql_net_read_packet(MYSQL *mysql);
+unsigned long STDCALL mysql_net_field_length(unsigned char **packet);
+
 /* status return codes */
 #define MYSQL_NO_DATA        100
 #define MYSQL_DATA_TRUNCATED 101

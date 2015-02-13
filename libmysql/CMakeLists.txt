@@ -238,6 +238,9 @@ dynamic_column_get
 dynamic_column_prepare_decimal
 #
 mariadb_deinitialize_ssl
+# low-level API to MySQL protocol
+mysql_net_read_packet
+mysql_net_field_length
 )
 
 SET(CLIENT_API_FUNCTIONS
