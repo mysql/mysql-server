@@ -3755,3 +3755,24 @@ SELECT ST_GEOMFROMGEOJSON('{"type":"Point", "coordinates":[10, 20]}', -922337203
 SELECT ST_GEOMFROMGEOJSON('{"type":"Point", "coordinates":[10, 20]}', 1, 18446744073709551616);
 --error ER_INCORRECT_TYPE
 SELECT ST_GEOMFROMGEOJSON('{"type":"Point", "coordinates":[10, 20]}', 18446744073709551616);
+
+#########################
+#     Bug#20416705      #
+#########################
+CREATE TABLE geojson(
+  gid INT NOT NULL AUTO_INCREMENT,
+  geojson_value TEXT,
+  PRIMARY KEY (`gid`)
+);
+
+INSERT INTO geojson (geojson_value) VALUES
+(ST_AsGeoJSON(ST_GeomFromText('POINT(10 11)', 4326), 100, 2)),
+(ST_AsGeoJSON(ST_GeomFromText('POINT(-1.324 66.231)', 5423), 100, 2)),
+(ST_AsGeoJSON(ST_GeomFromText('POINT(98.344 -123.001)', 1), 100, 2)),
+(ST_AsGeoJSON(ST_GeomFromText('POINT(0.0 0.0)', 200004), 100, 2));
+
+SELECT ST_AsText(ST_GeomFromGeoJSON(geojson_value)) FROM geojson;
+
+SELECT ST_SRID(ST_GeomFromGeoJSON(geojson_value)) FROM geojson;
+
+DROP TABLE geojson;
