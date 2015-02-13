@@ -278,8 +278,6 @@ GEOMETRYCOLLECTION_TYPE= "GeometryCollection";
 */
 String *Item_func_geomfromgeojson::val_str(String *buf)
 {
-  DBUG_ASSERT(m_srid_found_in_document == -1);
-
   String arg_val;
   String *json_string= args[0]->val_str_ascii(&arg_val);
   if ((null_value= args[0]->null_value))
@@ -398,6 +396,8 @@ String *Item_func_geomfromgeojson::val_str(String *buf)
   String collection_buffer;
   bool rollback= false;
   Geometry *result_geometry= NULL;
+
+  m_srid_found_in_document = -1;
   if (parse_object(&m_document, &rollback, &collection_buffer, false,
                    &result_geometry))
   {

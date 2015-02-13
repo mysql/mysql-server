@@ -4080,3 +4080,26 @@ SELECT ST_GEOMFROMGEOJSON('{"type":"Point", "coordinates":[10, 20]}', 1, 1844674
 ERROR HY000: Incorrect type for argument SRID in function st_geomfromgeojson.
 SELECT ST_GEOMFROMGEOJSON('{"type":"Point", "coordinates":[10, 20]}', 18446744073709551616);
 ERROR HY000: Incorrect type for argument options in function st_geomfromgeojson.
+CREATE TABLE geojson(
+gid INT NOT NULL AUTO_INCREMENT,
+geojson_value TEXT,
+PRIMARY KEY (`gid`)
+);
+INSERT INTO geojson (geojson_value) VALUES
+(ST_AsGeoJSON(ST_GeomFromText('POINT(10 11)', 4326), 100, 2)),
+(ST_AsGeoJSON(ST_GeomFromText('POINT(-1.324 66.231)', 5423), 100, 2)),
+(ST_AsGeoJSON(ST_GeomFromText('POINT(98.344 -123.001)', 1), 100, 2)),
+(ST_AsGeoJSON(ST_GeomFromText('POINT(0.0 0.0)', 200004), 100, 2));
+SELECT ST_AsText(ST_GeomFromGeoJSON(geojson_value)) FROM geojson;
+ST_AsText(ST_GeomFromGeoJSON(geojson_value))
+POINT(10 11)
+POINT(-1.324 66.231)
+POINT(98.344 -123.001)
+POINT(0 0)
+SELECT ST_SRID(ST_GeomFromGeoJSON(geojson_value)) FROM geojson;
+ST_SRID(ST_GeomFromGeoJSON(geojson_value))
+4326
+5423
+1
+200004
+DROP TABLE geojson;
