@@ -6473,17 +6473,12 @@ void TABLE_LIST::reinit_before_use(THD *thd)
   */
   table= 0;
 
- /*
-   Reset table_name and table_name_length,if it is a anonymous derived table
-   or schema table. They are not valid as TABLEs were closed in the end of
-   previous prepare or execute call.
- */
-  if (is_derived())
-  {
-    table_name= NULL;
-    table_name_length= 0;
-  }
-  else if (schema_table_name)
+  /*
+    Reset table_name and table_name_length for schema table.
+    They are not valid as TABLEs were closed in the end of previous prepare
+    or execute call.
+  */
+  if (schema_table_name)
   {
     table_name= schema_table_name;
     table_name_length= strlen(schema_table_name);
