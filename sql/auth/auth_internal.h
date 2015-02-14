@@ -56,7 +56,7 @@ ACL_USER * find_acl_user(const char *host,
 ACL_PROXY_USER * acl_find_proxy_user(const char *user,
                                      const char *host,
                                      const char *ip,
-                                     const char *authenticated_as,
+                                     char *authenticated_as,
                                      bool *proxy_used);
 bool set_user_salt(ACL_USER *acl_user);
 void acl_insert_proxy_user(ACL_PROXY_USER *new_value);

@@ -1,0 +1,68 @@
+############ mysql-test\t\check_proxy_users_func.test###########################
+#                                                                              #
+#Variable Name: check_proxy_users                                              #
+#Scope: SESSION                                                                #
+#Access Type: Dynamic                                                          #
+#Data Type: BOOLEAN                                                            #
+#Default Value: OFF                                                            #
+#Values:      ON, OFF                                                          #
+#                                                                              #
+#                                                                              #
+#Creation Date: 2015-01-20                                                     #
+#Author:  Todd Farmer                                                          #
+#                                                                              #
+#Description: Test Cases of Dynamic System Variable "check_proxy_users"        #
+#             that checks behavior of this variable in the following ways      #
+#             * Functionality based on different values                        #
+#                                                                              #
+#Reference: http://dev.mysql.com/doc/refman/5.7/en/server-system-variables.html#
+# option_mysqld_check_proxy_users                                              #
+#                                                                              #
+################################################################################
+
+--echo ** Setup **
+--echo
+#
+# Setup
+#
+
+--source include/not_embedded.inc
+
+SET @default_check_proxy_users = @@check_proxy_users;
+
+--echo '#----- 1.2.4 superuser set variable -------------------------#'
+###################################
+# Setting Read only value ON      #
+###################################
+
+SET Global check_proxy_users=OFF;
+
+--echo '#----- 1.2.4 others user set variable -----------------------#'
+##########################################
+# Creating user without Super privilege  #
+##########################################
+
+--echo ** Creating new user with out super privilege**
+CREATE USER sameea;
+--echo ** Connecting connn using username 'sameea' **
+CONNECT (connn,localhost,sameea,,);
+
+--Error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET GLOBAL check_proxy_users=ON;
+--Error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET @@global.check_proxy_users=ON;
+#
+# Cleanup
+#
+--echo ** Connection default **
+connection default;
+
+--echo ** Disconnecting connn **
+DISCONNECT connn;
+
+DROP USER sameea;
+
+SET global check_proxy_users = @default_check_proxy_users;
+
+--disable_info
+--enable_warnings

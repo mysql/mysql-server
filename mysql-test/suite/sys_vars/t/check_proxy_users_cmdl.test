@@ -1,0 +1,81 @@
+#                                                                             #
+# Variable Name: check_proxy_users                                            #
+# Scope: GLOBAL                                                               #
+# Access Type: Dynamic                                                        #
+# Creation Date: 2015-02-06                                                   #
+# Author:  Horst Hunger                                                       #
+# Description: Test of check_proxy_users on commandline                       #
+#                                                                             #
+###############################################################################
+
+--source include/not_windows.inc
+--source include/not_embedded.inc
+
+SELECT @@global.check_proxy_users;
+
+
+--echo '#----- 1.1.1 Valid values on cmd line -----------------------#'
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server 10
+--source include/wait_until_disconnected.inc
+--enable_reconnect
+--exec echo "restart:--check-proxy-users=1" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+SELECT @@global.check_proxy_users;
+
+--echo '#----- 1.1.2 Valid values on cmd line -----------------------#'
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server 10
+--source include/wait_until_disconnected.inc
+--enable_reconnect
+--exec echo "restart:--check-proxy-users=TRUE" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+SELECT @@global.check_proxy_users;
+
+--echo '#----- 1.1.3 Invalid values on cmd line -----------------------#'
+CALL mtr.add_suppression("option 'check_proxy_users': boolean value '-1' wasn't recognized. Set to OFF.");
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server 10
+--source include/wait_until_disconnected.inc
+--enable_reconnect
+--exec echo "restart:--check-proxy-users=-1" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+SELECT @@global.check_proxy_users;
+
+CALL mtr.add_suppression("option 'check_proxy_users': boolean value '43698' wasn't recognized. Set to OFF.");
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server 10
+--source include/wait_until_disconnected.inc
+--enable_reconnect
+--exec echo "restart:--check-proxy-users=43698" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+SELECT @@global.check_proxy_users;
+
+CALL mtr.add_suppression("option 'check_proxy_users': boolean value 'TEST' wasn't recognized. Set to OFF.");
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server 10
+--source include/wait_until_disconnected.inc
+--enable_reconnect
+--exec echo "restart:--check-proxy-users=TEST" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+SELECT @@global.check_proxy_users;
+
+--echo '#----- 1.1.4 Invalid values on cmd line -----------------------#'
+CALL mtr.add_suppression("option 'check_proxy_users': boolean value ''test'' wasn't recognized. Set to OFF.");
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server 10
+--source include/wait_until_disconnected.inc
+--enable_reconnect
+--exec echo "restart:--check-proxy-users='test'" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+SELECT @@global.check_proxy_users;
+
+--echo '#----- 1.1.5 empty values on cmd line -----------------------#'
+CALL mtr.add_suppression("option 'check_proxy_users': boolean value '' wasn't recognized. Set to OFF.");
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server 10
+--source include/wait_until_disconnected.inc
+--enable_reconnect
+--exec echo "restart:--check-proxy-users=" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+SELECT @@global.check_proxy_users;
