@@ -253,3 +253,7 @@ f1	f2
 # Test End
 # ---------------------------------------------------------------
 drop table t1;
+#
+# BUG#20511314 - INNODB: FAILING ASSERTION: FOUND IN BUF0BUF.CC LINE 3856
+#
+SET GLOBAL innodb_fil_make_page_dirty_debug=38098908;

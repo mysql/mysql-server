@@ -15706,15 +15706,20 @@ innodb_make_page_dirty(
 	const void*			save)	/*!< in: immediate result
 						from check function */
 {
-	mtr_t	mtr;
-	ulong	space_id = *static_cast<const ulong*>(save);
+	mtr_t		mtr;
+	ulong		space_id = *static_cast<const ulong*>(save);
+	fil_space_t*	space = fil_space_acquire_silent(space_id);
 
-	mtr_start(&mtr);
-	mtr.set_named_space(space_id);
+	if (space == NULL) {
+		return;
+	}
+
+	mtr.start();
+	mtr.set_named_space(space);
 
 	buf_block_t*	block = buf_page_get(
 		page_id_t(space_id, srv_saved_page_number_debug),
-		univ_page_size, RW_X_LATCH, &mtr);
+		page_size_t(space->flags), RW_X_LATCH, &mtr);
 
 	if (block != NULL) {
 		byte*	page = block->frame;
@@ -15726,7 +15731,8 @@ innodb_make_page_dirty(
 				 fil_page_get_type(page),
 				 MLOG_2BYTES, &mtr);
 	}
-	mtr_commit(&mtr);
+	mtr.commit();
+	fil_space_release(space);
 }
 #endif // UNIV_DEBUG
 /*************************************************************//**
