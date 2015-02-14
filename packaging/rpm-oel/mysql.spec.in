@@ -360,6 +360,7 @@ Obsoletes:      MySQL-shared-compat < %{version}-%{release}
 %if 0%{?rhel} > 5
 Obsoletes:      mysql-libs < %{version}-%{release}
 %endif
+Obsoletes:      mariadb-libs
 
 %description    libs-compat
 This package contains the shared compat libraries for MySQL %{compatver} client
