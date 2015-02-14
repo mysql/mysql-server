@@ -13552,8 +13552,28 @@ int Gtid_log_event::do_apply_event(Relay_log_info const *rli)
   DBUG_ENTER("Gtid_log_event::do_apply_event");
   DBUG_ASSERT(rli->info_thd == thd);
 
-  // Gtid_log_events should be filtered out at earlier stages if gtid_mode == 0
-  DBUG_ASSERT(gtid_mode > 0);
+  if (get_type_code() == ANONYMOUS_GTID_LOG_EVENT)
+  {
+    if (gtid_mode == GTID_MODE_ON)
+    {
+      my_error(ER_CANT_SET_GTID_NEXT_TO_ANONYMOUS_WHEN_GTID_MODE_IS_ON, MYF(0));
+      DBUG_RETURN(1);
+    }
+    thd->variables.gtid_next.set_anonymous();
+    /*
+      We do not need to write the anonymous gtid log event into binary log,
+      since we should not add new fields to include logical timestamps used
+      for applying transactions in parallel in the GA version.
+    */
+    DBUG_RETURN(0);
+  }
+
+  /* Applying Gtid_log_event should report an error when GTID_MODE is OFF */
+  if (gtid_mode == GTID_MODE_OFF)
+  {
+    my_error(ER_CANT_SET_GTID_NEXT_TO_GTID_WHEN_GTID_MODE_IS_OFF, MYF(0));
+    DBUG_RETURN(1);
+  }
 
   rpl_sidno sidno= get_sidno(true);
   if (sidno < 0)
