@@ -234,7 +234,21 @@ void mysql_audit_general(THD *thd, uint event_subtype,
 #define MYSQL_AUDIT_NOTIFY_CONNECTION_DISCONNECT(thd, errcode)\
   mysql_audit_notify(\
   (thd), MYSQL_AUDIT_CONNECTION_CLASS, MYSQL_AUDIT_CONNECTION_DISCONNECT,\
-  (errcode), (thd)->thread_id(), "", 0, "", 0, "", 0, "", 0, "", 0, "", 0, "", 0)
+  (errcode), (thd)->thread_id(),\
+  (thd)->security_context()->user().str,\
+  (thd)->security_context()->user().length,\
+  (thd)->security_context()->priv_user().str,\
+  (thd)->security_context()->priv_user().length,\
+  (thd)->security_context()->external_user().str,\
+  (thd)->security_context()->external_user().length,\
+  (thd)->security_context()->proxy_user().str,\
+  (thd)->security_context()->proxy_user().length,\
+  (thd)->security_context()->host().str,\
+  (thd)->security_context()->host().length,\
+  (thd)->security_context()->ip().str,\
+  (thd)->security_context()->ip().length,\
+  (thd)->db().str, (thd)->db().length)
+
 
 #define MYSQL_AUDIT_NOTIFY_CONNECTION_CHANGE_USER(thd) mysql_audit_notify(\
   (thd), MYSQL_AUDIT_CONNECTION_CLASS, MYSQL_AUDIT_CONNECTION_CHANGE_USER,\
