@@ -378,6 +378,15 @@ Recovery_module::recovery_thread_handle()
     goto cleanup;
   }
 
+  if(cluster_info->get_number_of_members() == 1)
+  {
+    log_message(MY_INFORMATION_LEVEL,
+                "Only one server alive."
+                "Declaring this server as online within the replication group");
+
+    goto single_node_online;
+  }
+
   THD_STAGE_INFO(recovery_thd, stage_connecting_to_master);
 
   if (!recovery_aborted)
@@ -406,6 +415,8 @@ Recovery_module::recovery_thread_handle()
     as that would lead to the certification and execution of transactions on
     the wrong context.
   */
+
+single_node_online:
   if (!recovery_aborted)
     applier_module->awake_applier_module();
 

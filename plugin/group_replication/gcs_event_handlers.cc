@@ -228,56 +228,41 @@ void Gcs_plugin_events_handler::handle_joining_nodes(Gcs_view *new_view,
   {
     view_change_notifier->end_view_modification();
 
-    if (new_view->get_members()->size() == 1)
-    {
-      /*
-       Adding initial view id event.
-       */
-      applier_module->add_view_change_packet(new_view->get_view_id()
-                                                   ->get_representation());
+    log_message(MY_INFORMATION_LEVEL,
+                "Starting group replication recovery with view_id %s",
+                new_view->get_view_id()->get_representation());
+    /*
+     During the view change, a suspension packet is sent to the applier module
+     so all posterior transactions inbound are not applied, but queued, until
+     the node finishes recovery.
+    */
+    applier_module->add_suspension_packet();
 
-      log_message(MY_INFORMATION_LEVEL,
-                  "Only one server alive."
-                  "Declaring the server %s as online within the replication group",
-                  local_node_info->get_uuid()->c_str());
-      cluster_info_mgr->update_member_status
-              (*local_node_info->get_uuid(),
-               Cluster_member_info::MEMBER_ONLINE);
-    }
-    else //start recovery
-    {
-      log_message(MY_INFORMATION_LEVEL,
-                  "Starting group replication recovery with view_id %s",
-                  new_view->get_view_id()->get_representation());
-      /*
-       During the view change, a suspension packet is sent to the applier module
-       so all posterior transactions inbound are not applied, but queued, until
-       the node finishes recovery.
-      */
-      applier_module->add_suspension_packet();
+    /*
+     Marking the view in the joiner since the incoming event from the donor
+     is discarded in the Recovery process.
+     */
+    applier_module->add_view_change_packet(new_view->get_view_id()
+                                                 ->get_representation());
 
-      /*
-       Marking the view in the joiner since the incoming event from the donor
-       is discarded in the Recovery process.
-       */
-      applier_module->add_view_change_packet(new_view->get_view_id()
-                                                   ->get_representation());
+    /*
+     Launch the recovery thread so we can receive missing data and the
+     certification information needed to apply the transactions queued after
+     this view change.
 
-      /*
-       Launch the recovery thread so we can receive missing data and the
-       certification information needed to apply the transactions queued after
-       this view change.
+     Recovery receives a view id, as a means to identify logically on joiners
+     and donors alike where this view change happened in the data. With that
+     info we can then ask for the donor to give the node all the data until
+     this point in the data, and the certification information for all the data
+     that comes next.
 
-       Recovery receives a view id, as a means to identify logically on joiners
-       and donors alike where this view change happened in the data. With that
-       info we can then ask for the donor to give the node all the data until
-       this point in the data, and the certification information for all the data
-       that comes next.
-      */
-      recovery_module->start_recovery(new_view->get_group_id()->get_group_id(),
-                                      new_view->get_view_id()
-                                                        ->get_representation());
-    }
+     When alone, the server will go through Recovery to wait for the consumption
+     of his applier relay log that may contain transactions from previous
+     executions.
+    */
+    recovery_module->start_recovery(new_view->get_group_id()->get_group_id(),
+                                    new_view->get_view_id()
+                                                      ->get_representation());
   }
   else
   {
