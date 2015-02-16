@@ -16298,10 +16298,10 @@ enum_alter_inplace_result
     DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
   }
 
-  DBUG_PRINT("info", ("Passed alter flags 0x%lx", alter_flags));
-  DBUG_PRINT("info", ("Supported 0x%lx", supported));
-  DBUG_PRINT("info", ("Not supported 0x%lx", not_supported));
-  DBUG_PRINT("info", ("alter_flags & not_supported 0x%lx",
+  DBUG_PRINT("info", ("Passed alter flags 0x%llx", alter_flags));
+  DBUG_PRINT("info", ("Supported 0x%llx", supported));
+  DBUG_PRINT("info", ("Not supported 0x%llx", not_supported));
+  DBUG_PRINT("info", ("alter_flags & not_supported 0x%llx",
                         alter_flags & not_supported));
 
   bool auto_increment_value_changed= false;
@@ -16337,7 +16337,7 @@ enum_alter_inplace_result
 
   if (alter_flags & not_supported)
   {
-    DBUG_PRINT("info", ("Detected unsupported change: 0x%lx",
+    DBUG_PRINT("info", ("Detected unsupported change: 0x%llx",
                         alter_flags & not_supported));
     DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
   }
@@ -16668,7 +16668,7 @@ ha_ndbcluster::prepare_inplace_alter_table(TABLE *altered_table,
   NdbDictionary::Table * const new_tab = alter_data->new_table;
   ha_alter_info->handler_ctx= alter_data;
 
-  DBUG_PRINT("info", ("altered_table: '%s, alter_flags: 0x%lx",
+  DBUG_PRINT("info", ("altered_table: '%s, alter_flags: 0x%llx",
                       altered_table->s->table_name.str,
                       alter_flags));
 
