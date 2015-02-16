@@ -24,6 +24,8 @@ Id	User	Host	db	Command	Time	State	Info
 # mutex.
 SET @@global.rewriter_enabled = OFF;
 CALL query_rewrite.flush_rewrite_rules();
+# We don't care if we time out here, as long as we manage to restart the
+# server.
 SET debug_sync = 'now WAIT_FOR parked';
 SHOW PROCESSLIST;
 Id	User	Host	db	Command	Time	State	Info
