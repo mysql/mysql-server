@@ -1454,6 +1454,7 @@ static struct st_mysql_sys_var *tokudb_system_variables[] = {
     MYSQL_SYSVAR(disable_slow_upsert),
 #endif
     MYSQL_SYSVAR(analyze_time),
+    MYSQL_SYSVAR(analyze_delete_fraction),
     MYSQL_SYSVAR(fsync_log_period),
 #if TOKU_INCLUDE_HANDLERTON_HANDLE_FATAL_SIGNAL
     MYSQL_SYSVAR(gdb_path),
