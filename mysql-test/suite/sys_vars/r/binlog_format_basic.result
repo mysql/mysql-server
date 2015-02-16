@@ -1,6 +1,6 @@
 SELECT @@GLOBAL.binlog_format;
 @@GLOBAL.binlog_format
-STATEMENT
+ROW
 '#---------------------BS_STVARS_002_01----------------------#'
 SET @start_value= @@global.binlog_format;
 SELECT COUNT(@@GLOBAL.binlog_format);
