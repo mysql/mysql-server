@@ -598,7 +598,9 @@ DROP TABLE ten, t1, t2, t3, t4, t5;
 
 # Test needs to run with big_tables ON
 set @big_tables_save= @@big_tables;
+set @optimizer_switch_save=@@optimizer_switch;
 set big_tables=ON;
+set optimizer_switch='derived_merge=off';
 SELECT @@big_tables;
 
 CREATE TABLE t1 (
@@ -638,3 +640,4 @@ DROP TABLE t1, t2;
 
 # Restore the configuration for big_tables
 set big_tables=@big_tables_save;
+set optimizer_switch=@optimizer_switch_save;

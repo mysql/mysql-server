@@ -198,6 +198,12 @@ public:
   // Set for RENAME INDEX
   static const uint ALTER_RENAME_INDEX          = 1L << 27;
 
+  // Set for adding/altering stored generated columns
+  static const uint ALTER_STORED_GCOLUMN        = 1L << 28;
+
+  // Set for adding/altering virtual generated columns
+  static const uint ALTER_VIRTUAL_GCOLUMN       = 1L << 29;
+
   enum enum_enable_or_disable { LEAVE_AS_IS, ENABLE, DISABLE };
 
   /**

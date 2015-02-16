@@ -50,12 +50,12 @@ test.t1	check	status	OK
 select count(*) from t1;
 count(*)
 73728
-set @g1 = GeomFromText('Polygon((0 0,0 100,100 100,100 0,0 0))');
-select count(*) from t1 where Within(t1.c2, @g1);
+set @g1 = ST_GeomFromText('Polygon((0 0,0 100,100 100,100 0,0 0))');
+select count(*) from t1 where MBRWithin(t1.c2, @g1);
 count(*)
 73728
-set @g1 = GeomFromText('Polygon((10 10,10 800,800 800,800 10,10 10))');
-select count(*) from t1 where Within(t1.c2, @g1);
+set @g1 = ST_GeomFromText('Polygon((10 10,10 800,800 800,800 10,10 10))');
+select count(*) from t1 where MBRWithin(t1.c2, @g1);
 count(*)
 0
 drop index c2 on t1;
@@ -67,17 +67,17 @@ t1	CREATE TABLE `t1` (
   `c2` geometry NOT NULL,
   SPATIAL KEY `idx2` (`c2`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
-set @g1 = GeomFromText('Polygon((0 0,0 100,100 100,100 0,0 0))');
-select count(*) from t1 where Within(t1.c2, @g1);
+set @g1 = ST_GeomFromText('Polygon((0 0,0 100,100 100,100 0,0 0))');
+select count(*) from t1 where MBRWithin(t1.c2, @g1);
 count(*)
 73728
 # restart: --innodb-read-only
-set @g1 = GeomFromText('Polygon((0 0,0 100,100 100,100 0,0 0))');
-select count(*) from t1 where Within(t1.c2, @g1);
+set @g1 = ST_GeomFromText('Polygon((0 0,0 100,100 100,100 0,0 0))');
+select count(*) from t1 where MBRWithin(t1.c2, @g1);
 count(*)
 73728
-set @g1 = GeomFromText('Polygon((2 2,2 800,800 800,800 2,2 2))');
-select count(*) from t1 where Within(t1.c2, @g1);
+set @g1 = ST_GeomFromText('Polygon((2 2,2 800,800 800,800 2,2 2))');
+select count(*) from t1 where MBRWithin(t1.c2, @g1);
 count(*)
 57344
 # restart

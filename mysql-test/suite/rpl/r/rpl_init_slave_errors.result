@@ -9,7 +9,9 @@ SET GLOBAL debug= "d,simulate_io_slave_error_on_init,simulate_sql_slave_error_on
 start slave;
 include/wait_for_slave_sql_error.inc [errno=1593]
 Last_SQL_Error = 'Fatal error: Failed during slave thread initialization'
+SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("Failed during slave.* thread initialization");
+SET SESSION sql_log_bin= 1;
 include/assert.inc [SHOW SLAVE STATUS should return No IO thread running status]
 SET GLOBAL debug= "";
 reset slave;

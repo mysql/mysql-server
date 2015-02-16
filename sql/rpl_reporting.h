@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,7 +16,10 @@
 #ifndef RPL_REPORTING_H
 #define RPL_REPORTING_H
 
-#include "my_sys.h"                             /* loglevel */
+#include "my_global.h"
+#include "my_sys.h"                   // my_time
+#include "mysql/psi/mysql_thread.h"   // mysql_mutex_t
+
 
 /**
    Maximum size of an error message from a slave thread.

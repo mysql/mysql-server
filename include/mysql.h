@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -483,12 +483,15 @@ unsigned long	STDCALL mysql_hex_string(char *to,const char *from,
 unsigned long STDCALL mysql_real_escape_string(MYSQL *mysql,
 					       char *to,const char *from,
 					       unsigned long length);
-void		STDCALL mysql_debug(const char *debug);
-void 		STDCALL myodbc_remove_escape(MYSQL *mysql,char *name);
-unsigned int	STDCALL mysql_thread_safe(void);
-my_bool		STDCALL mysql_embedded(void);
-my_bool         STDCALL mysql_read_query_result(MYSQL *mysql);
-int             STDCALL mysql_reset_connection(MYSQL *mysql);
+unsigned long STDCALL mysql_real_escape_string_quote(MYSQL *mysql,
+                 char *to, const char *from,
+                 unsigned long length, char quote);
+void          STDCALL mysql_debug(const char *debug);
+void          STDCALL myodbc_remove_escape(MYSQL *mysql,char *name);
+unsigned int  STDCALL mysql_thread_safe(void);
+my_bool       STDCALL mysql_embedded(void);
+my_bool       STDCALL mysql_read_query_result(MYSQL *mysql);
+int           STDCALL mysql_reset_connection(MYSQL *mysql);
 
 /*
   The following definitions are added for the enhanced 

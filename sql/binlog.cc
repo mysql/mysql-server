@@ -13,27 +13,21 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-
-#include "my_global.h"
-#include "log.h"
 #include "binlog.h"
-#include "log_event.h"
-#include "rpl_filter.h"
-#include "rpl_rli.h"
-#include "sql_plugin.h"
-#include "rpl_handler.h"
-#include "rpl_info_factory.h"
-#include "rpl_utility.h"
-#include "debug_sync.h"
-#include "sql_show.h"
-#include "sql_parse.h"
-#include "rpl_mi.h"
-#include "dur_prop.h"
-#include <list>
-#include <string>
-#include <m_ctype.h>				// For is_number
-#include <my_stacktrace.h>
-#include "mysqld_thd_manager.h"                 // Global_THD_manager
+
+#include "my_stacktrace.h"                  // my_safe_print_system_time
+#include "debug_sync.h"                     // DEBUG_SYNC
+#include "log_event.h"                      // Rows_log_event
+#include "mysqld_thd_manager.h"             // Global_THD_manager
+#include "rpl_handler.h"                    // RUN_HOOK
+#include "rpl_mi.h"                         // Master_info
+#include "rpl_rli.h"                        // Relay_log_info
+#include "rpl_rli_pdb.h"                    // Slave_worker
+#include "rpl_slave_commit_order_manager.h" // Commit_order_manager
+#include "rpl_trx_boundary_parser.h"        // Transaction_boundary_parser
+#include "sql_class.h"                      // THD
+#include "sql_parse.h"                      // sqlcom_can_generate_row_events
+#include "sql_show.h"                       // append_identifier
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
@@ -41,9 +35,8 @@
 #include <pfs_transaction_provider.h>
 #include <mysql/psi/mysql_transaction.h>
 
-#ifdef HAVE_REPLICATION
-#include "rpl_slave_commit_order_manager.h"
-#endif
+#include <list>
+#include <string>
 
 using std::max;
 using std::min;
@@ -134,9 +127,12 @@ private:
   Helper class to perform a thread excursion.
 
   This class is used to temporarily switch to another session (THD
-  structure). It will set up the PSI structures and other "globals"
-  correctly (e.g., thread-specific variables) so that the POSIX thread
-  looks exactly like the session attached to.
+  structure). It will set up thread specific "globals" correctly
+  so that the POSIX thread looks exactly like the session attached to.
+  However, PSI_thread info is not touched as it is required to show
+  the actual physial view in PFS instrumentation i.e., it should
+  depict as the real thread doing the work instead of thread it switched
+  to.
 
   On destruction, the original session (which is supplied to the
   constructor) will be re-attached automatically. For example, with
@@ -159,16 +155,10 @@ class Thread_excursion
 public:
   Thread_excursion(THD *thd)
     : m_original_thd(thd)
-#ifdef HAVE_PSI_THREAD_INTERFACE
-    , m_saved_psi(PSI_THREAD_CALL(get_thread)())
-#endif /* HAVE_PSI_THREAD_INTERFACE */
   {
   }
 
   ~Thread_excursion() {
-#ifdef HAVE_PSI_THREAD_INTERFACE
-    PSI_THREAD_CALL(set_thread)(m_saved_psi);
-#endif /* HAVE_PSI_THREAD_INTERFACE */
 #ifndef EMBEDDED_LIBRARY
     if (unlikely(setup_thread_globals(m_original_thd)))
       DBUG_ASSERT(0);                           // Out of memory?!
@@ -222,7 +212,7 @@ public:
                             "session thread during the group commit phase. "
                             "Data consistency between master and slave can "
                             "be guaranteed after server restarts.\n");
-      _exit(EXIT_FAILURE);
+      _exit(MYSQLD_FAILURE_EXIT);
     }
   }
 
@@ -233,16 +223,10 @@ private:
    */
   int attach_to(THD *thd)
   {
-#ifdef HAVE_PSI_THREAD_INTERFACE
-    PSI_THREAD_CALL(set_thread)(thd_get_psi(thd));
-#endif /* HAVE_PSI_THREAD_INTERFACE */
 #ifndef EMBEDDED_LIBRARY
     if (DBUG_EVALUATE_IF("simulate_session_attach_error", 1, 0)
         || unlikely(setup_thread_globals(thd)))
     {
-#ifdef HAVE_PSI_THREAD_INTERFACE
-      PSI_THREAD_CALL(set_thread)(m_saved_psi);
-#endif /* HAVE_PSI_THREAD_INTERFACE */
       /*
         Indirectly uses pthread_setspecific, which can only return
         ENOMEM or EINVAL. Since store_globals are using correct keys,
@@ -274,7 +258,6 @@ exit0:
   }
 
   THD *m_original_thd;
-  PSI_thread *m_saved_psi;
 };
 
 
@@ -757,8 +740,12 @@ public:
           thd->owned_gtid.sidno == THD::OWNED_SIDNO_ANONYMOUS)
       {
         thd->clear_owned_gtids();
+        global_sid_lock->rdlock();
+        gtid_state->release_anonymous_ownership();
+        global_sid_lock->unlock();
       }
     }
+    DEBUG_SYNC(thd, "after_flush_stm_cache_before_flush_trx_cache");
     if (int error= trx_cache.flush(thd, &trx_bytes, wrote_xid))
       return error;
     *bytes_written= stmt_bytes + trx_bytes;
@@ -1126,7 +1113,10 @@ bool MYSQL_BIN_LOG::write_gtid(THD *thd, binlog_cache_data *cache_data,
   /* Generate GTID */
   if (thd->variables.gtid_next.type == AUTOMATIC_GROUP)
   {
-    if (gtid_state->generate_automatic_gtid(thd) != RETURN_STATUS_OK)
+    if (gtid_state->generate_automatic_gtid(thd,
+            thd->get_transaction()->get_rpl_transaction_ctx()->get_sidno(),
+            thd->get_transaction()->get_rpl_transaction_ctx()->get_gno())
+            != RETURN_STATUS_OK)
       DBUG_RETURN(true);
   }
   else
@@ -1256,7 +1246,7 @@ int MYSQL_BIN_LOG::gtid_end_transaction(THD *thd)
   }
   else if (thd->owned_gtid.sidno == THD::OWNED_SIDNO_ANONYMOUS)
   {
-    thd->clear_owned_gtids();
+    gtid_state->update_on_commit(thd);
   }
   DBUG_RETURN(0);
 }
@@ -1680,6 +1670,15 @@ time_t Stage_manager::wait_count_or_timeout(ulong count, time_t usec, StageID st
     to_wait -= delta;
   }
   return to_wait;
+}
+
+void Stage_manager::signal_done(THD *queue)
+{
+  mysql_mutex_lock(&m_lock_done);
+  for (THD *thd= queue ; thd ; thd = thd->next_to_commit)
+    thd->get_transaction()->m_flags.pending= false;
+  mysql_mutex_unlock(&m_lock_done);
+  mysql_cond_broadcast(&m_cond_done);
 }
 
 #ifndef DBUG_OFF
@@ -3053,7 +3052,7 @@ err:
              "file system is read only while opening the binlog. Aborting the "
              "server");
     thd->protocol->end_statement();
-    _exit(EXIT_FAILURE);
+    _exit(MYSQLD_FAILURE_EXIT);
   }
   else
     sql_print_error("Could not open %s for logging (error %d). "
@@ -3189,7 +3188,6 @@ read_gtids_and_update_trx_parser_from_relaylog(
 
   DBUG_ASSERT(retrieved_gtids != NULL);
   DBUG_ASSERT(trx_parser != NULL);
-  DBUG_ASSERT(gtid_mode >= GTID_MODE_UPGRADE_STEP_2);
 #ifndef DBUG_OFF
   unsigned long event_counter= 0;
 #endif
@@ -3242,7 +3240,7 @@ read_gtids_and_update_trx_parser_from_relaylog(
       /*
         The transaction boundary parser found an error while parsing a
         sequence of events from the relaylog. As we don't know if the
-        parsing has stated from a reliable point (it might started in
+        parsing has started from a reliable point (it might started in
         a relay log file that begins with the rest of a transaction
         that started in a previous relay log file), it is better to do
         nothing in this case. The boundary parser will fix itself once
@@ -3287,6 +3285,31 @@ read_gtids_and_update_trx_parser_from_relaylog(
         but in this case, we can ignore this error and reset the parser.
       */
       trx_parser->reset();
+      /*
+        We also have to discard the GTID of the partial transaction that was
+        not finished if there is one. This is needed supposing that an
+        incomplete transaction was replicated with a GTID.
+
+        GTID(1), QUERY(BEGIN), QUERY(INSERT), ANONYMOUS_GTID, QUERY(DROP ...)
+
+        In the example above, without cleaning the gtid_partial_trx,
+        the GTID(1) would be added to the Retrieved_Gtid_Set after the
+        QUERY(DROP ...) event.
+
+        GTID(1), QUERY(BEGIN), QUERY(INSERT), GTID(2), QUERY(DROP ...)
+
+        In the example above the GTID(1) will also be discarded as the
+        GTID(1) transaction is not complete.
+      */
+      if (!gtid_partial_trx->is_empty())
+      {
+        DBUG_PRINT("info", ("Discarding Gtid(%d, %lld) as the transaction "
+                            "wasn't complete and we found an error in the"
+                            "transaction boundary parser.",
+                            gtid_partial_trx->sidno,
+                            gtid_partial_trx->gno));
+        gtid_partial_trx->clear();
+      }
     }
 
     switch (ev->get_type_code())
@@ -3322,7 +3345,10 @@ read_gtids_and_update_trx_parser_from_relaylog(
       /* If we didn't find any PREVIOUS_GTIDS in this file */
       if (!seen_prev_gtids)
       {
-        my_error(ER_BINLOG_LOGICAL_CORRUPTION, MYF(0));
+        my_error(ER_BINLOG_LOGICAL_CORRUPTION, MYF(0), filename,
+                 "The first global transaction identifier was read, but "
+                 "no other information regarding identifiers existing "
+                 "on the previous log files was found.");
         error= true;
         break;
       }
@@ -3368,8 +3394,9 @@ read_gtids_and_update_trx_parser_from_relaylog(
       {
         if (!gtid_partial_trx->is_empty())
         {
-          DBUG_PRINT("info", ("Adding Gtid from relaylog file '%s' to "
-                              "Retrieved_Gtid_Set: Gtid(%d, %lld).",
+          DBUG_PRINT("info", ("Adding Gtid to Retrieved_Gtid_Set as the "
+                              "transaction was completed at "
+                              "relaylog file '%s': Gtid(%d, %lld).",
                               filename, gtid_partial_trx->sidno,
                               gtid_partial_trx->gno));
           retrieved_gtids->_add_gtid(gtid_partial_trx->sidno,
@@ -3401,7 +3428,8 @@ read_gtids_and_update_trx_parser_from_relaylog(
 
 #ifndef DBUG_OFF
   sql_print_information("%lu events read in relaylog file '%s' for updating "
-                        "IO thread Retrieved_Gtid_Set.",
+                        "Retrieved_Gtid_Set and/or IO thread transaction "
+                        "parser state.",
                         event_counter, filename);
 #endif
 
@@ -3557,10 +3585,10 @@ read_gtids_from_binlog(const char *filename, Gtid_set *all_gtids,
       }
       /*
         When all_gtids and first_gtid are all NULL, or when this is a relaylog,
-        we just check if the binary log contains at least one Gtid_log_event,
-        so that we can distinguish the return values GOT_GTID and
-        GOT_PREVIOUS_GTIDS. We don't need to read anything else from the
-        binary log.
+        we just check if the binary/relay log contains at least one
+        Gtid_log_event, so that we can distinguish the return values GOT_GTID
+        and GOT_PREVIOUS_GTIDS. We don't need to read anything else from the
+        binary/relay log.
         If all_gtids is requested (i.e., NOT NULL), we should
         continue to read all gtids.
         If just first_gtid was requested, we will be done after storing this
@@ -3601,6 +3629,21 @@ read_gtids_from_binlog(const char *filename, Gtid_set *all_gtids,
       break;
     }
     case binary_log::ANONYMOUS_GTID_LOG_EVENT:
+    {
+      /*
+        When this is a relaylog, we just check if it contains
+        at least one Anonymous_gtid_log_event after initialization
+        (FDs, Rotates and PREVIOUS_GTIDS), so that we can distinguish the
+        return values GOT_GTID and GOT_PREVIOUS_GTIDS.
+        We don't need to read anything else from the relay log.
+      */
+      if (is_relay_log)
+      {
+        ret= GOT_GTIDS;
+        done= true;
+        break;
+      }
+    }
     default:
       // if we found any other event type without finding a
       // previous_gtids_log_event, then the rest of this binlog
@@ -3852,17 +3895,18 @@ bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *all_gtids, Gtid_set *lost_gtids,
     // Iterate over all files in reverse order until we find one that
     // contains a Previous_gtids_log_event.
     rit= filename_list.rbegin();
-    bool got_gtids= false;
+    bool can_stop_reading= false;
     reached_first_file= (rit == filename_list.rend());
     DBUG_PRINT("info", ("filename='%s' reached_first_file=%d",
                         rit->c_str(), reached_first_file));
-    while (!got_gtids && !reached_first_file)
+    while (!can_stop_reading && !reached_first_file)
     {
       const char *filename= rit->c_str();
       rit++;
       reached_first_file= (rit == filename_list.rend());
-      DBUG_PRINT("info", ("filename='%s' got_gtids=%d reached_first_file=%d",
-                          filename, got_gtids, reached_first_file));
+      DBUG_PRINT("info", ("filename='%s' can_stop_reading=%d "
+                          "reached_first_file=%d, ",
+                          filename, can_stop_reading, reached_first_file));
       switch (read_gtids_from_binlog(filename, all_gtids,
                                      reached_first_file ? lost_gtids : NULL,
                                      NULL/* first_gtid */,
@@ -3875,7 +3919,7 @@ bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *all_gtids, Gtid_set *lost_gtids,
         }
         case GOT_GTIDS:
         {
-          got_gtids= true;
+          can_stop_reading= true;
           break;
         }
         case GOT_PREVIOUS_GTIDS:
@@ -3887,21 +3931,26 @@ bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *all_gtids, Gtid_set *lost_gtids,
             have spanned in distinct relaylog files.
           */
           if (!is_relay_log)
-            got_gtids= true;
+            can_stop_reading= true;
           break;
         }
         case NO_GTIDS:
         {
           /*
-            If the binlog_gtid_simple_recovery is enabled, and the
-            last binary log does not contain any GTID event, do not
-            read any more binary logs, GLOBAL.GTID_EXECUTED and
-            GLOBAL.GTID_PURGED should be empty in the case. Otherwise,
-            initialize GTID_EXECUTED as usual.
+            Mysql server iterates backwards through binary logs, looking for
+            the last binary log that contains a Previous_gtids_log_event for
+            gathering the set of gtid_executed on server start. This may take
+            very long time if it has many binary logs and almost all of them
+            are out of filesystem cache. So if the binlog_gtid_simple_recovery
+            is enabled, and the last binary log does not contain any GTID
+            event, do not read any more binary logs, GLOBAL.GTID_EXECUTED and
+            GLOBAL.GTID_PURGED should be empty in the case.
           */
-          if (binlog_gtid_simple_recovery && !is_relay_log)
+          if (binlog_gtid_simple_recovery && is_server_starting &&
+              !is_relay_log)
           {
-            DBUG_ASSERT(all_gtids->is_empty() && lost_gtids->is_empty());
+            DBUG_ASSERT(all_gtids->is_empty());
+            DBUG_ASSERT(lost_gtids->is_empty());
             goto end;
           }
           /*FALLTHROUGH*/
@@ -3921,7 +3970,7 @@ bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *all_gtids, Gtid_set *lost_gtids,
       events from the master in the case of GTID auto positioning be
       disabled.
     */
-    if (is_relay_log && gtid_mode >= GTID_MODE_UPGRADE_STEP_2)
+    if (is_relay_log)
     {
       /*
         Suppose the following relaylog:
@@ -3968,7 +4017,8 @@ bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *all_gtids, Gtid_set *lost_gtids,
       gtid_partial_trx->clear();
 
       DBUG_PRINT("info", ("Iterating forwards through relay logs, "
-                          "looking for the end of partial transactions."));
+                          "updating the Retrieved_Gtid_Set and updating "
+                          "IO thread trx parser before start."));
       for (it= find(filename_list.begin(), filename_list.end(), *rit);
            it != filename_list.end(); it++)
       {
@@ -4008,16 +4058,20 @@ bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *all_gtids, Gtid_set *lost_gtids,
         case GOT_PREVIOUS_GTIDS:
         {
           /*
-            If the binlog_gtid_simple_recovery is enabled, and the
-            first binary log does not contain any GTID event, do not
-            read any more binary logs: GLOBAL.GTID_PURGED should be
-            empty in this case.
+            Mysql server iterates forwards through binary logs, looking for
+            the first binary log that contains both Previous_gtids_log_event
+            and gtid_log_event for gathering the set of gtid_purged on server
+            start. It also iterates forwards through binary logs, looking for
+            the first binary log that contains both Previous_gtids_log_event
+            and gtid_log_event for gathering the set of gtid_purged when
+            purging binary logs. This may take very long time if it has many
+            binary logs and almost all of them are out of filesystem cache.
+            So if the binlog_gtid_simple_recovery is enabled, we just
+            initialize GLOBAL.GTID_PURGED from the first binary log, do not
+            read any more binary logs.
           */
           if (binlog_gtid_simple_recovery && !is_relay_log)
-          {
-            DBUG_ASSERT(lost_gtids->is_empty());
             goto end;
-          }
           /*FALLTHROUGH*/
         }
         case TRUNCATED:
@@ -4232,6 +4286,8 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
       }
       logged_gtids_binlog.remove_gtid_set(gtids_only_in_table);
     }
+    DBUG_PRINT("info",("Generating PREVIOUS_GTIDS for %s file.",
+                       is_relay_log ? "relaylog" : "binlog"));
     Previous_gtids_log_event prev_gtids_ev(previous_logged_gtids);
     if (is_relay_log)
       prev_gtids_ev.set_relay_log_event();
@@ -4242,6 +4298,48 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
     if (prev_gtids_ev.write(&log_file))
       goto err;
     bytes_written+= prev_gtids_ev.common_header->data_written;
+  }
+  else // !(current_thd)
+  {
+    /*
+      If the slave was configured before server restart, the server will
+      generate a new relay log file without having current_thd, but this
+      new relay log file must have a PREVIOUS_GTIDS event as we now
+      generate the PREVIOUS_GTIDS event always.
+
+      This is only needed for relay log files because the server will add
+      the PREVIOUS_GTIDS of binary logs (when current_thd==NULL) after
+      server's GTID initialization.
+
+      During server's startup at mysqld_main(), from the binary/relay log
+      initialization point of view, it will:
+      1) Call init_server_components() that will generate a new binary log
+         file but won't write the PREVIOUS_GTIDS event yet;
+      2) Initialize server's GTIDs;
+      3) Write the binary log PREVIOUS_GTIDS;
+      4) Call init_slave() in where the new relay log file will be created
+         after initializing relay log's Retrieved_Gtid_Set;
+    */
+    if (is_relay_log)
+    {
+      if (need_sid_lock)
+        global_sid_lock->wrlock();
+      else
+        global_sid_lock->assert_some_wrlock();
+
+      DBUG_PRINT("info",("Generating PREVIOUS_GTIDS for relaylog file."));
+      Previous_gtids_log_event prev_gtids_ev(previous_gtid_set_relaylog);
+      prev_gtids_ev.set_relay_log_event();
+
+      if (need_sid_lock)
+        global_sid_lock->unlock();
+
+      prev_gtids_ev.common_footer->checksum_alg=
+                                   (s.common_footer)->checksum_alg;
+      if (prev_gtids_ev.write(&log_file))
+        goto err;
+      bytes_written+= prev_gtids_ev.common_header->data_written;
+    }
   }
   if (extra_description_event &&
       extra_description_event->binlog_version>=4)
@@ -4349,7 +4447,7 @@ err:
              "file system is read only while opening the binlog. Aborting the "
              "server");
     thd->protocol->end_statement();
-    _exit(EXIT_FAILURE);
+    _exit(MYSQLD_FAILURE_EXIT);
   }
   else
     sql_print_error("Could not use %s for logging (error %d). "
@@ -4875,7 +4973,7 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd, bool delete_only)
 
 #ifdef HAVE_REPLICATION
   /*
-    For relay logs we clear the gtid state assosiated per channel(i.e rli)
+    For relay logs we clear the gtid state associated per channel(i.e rli)
     in the purge_relay_logs()
   */
   if (!is_relay_log)
@@ -5321,7 +5419,7 @@ int MYSQL_BIN_LOG::purge_logs(const char *to_log,
   }
 
   // Update gtid_state->lost_gtids
-  if (gtid_mode > 0 && !is_relay_log)
+  if (!is_relay_log)
   {
     global_sid_lock->wrlock();
     error= init_gtid_sets(NULL,
@@ -5814,6 +5912,37 @@ bool MYSQL_BIN_LOG::is_active(const char *log_file_name_arg)
 }
 
 
+void MYSQL_BIN_LOG::inc_prep_xids(THD *thd)
+{
+  DBUG_ENTER("MYSQL_BIN_LOG::inc_prep_xids");
+#ifndef DBUG_OFF
+  int result= my_atomic_add32(&m_prep_xids, 1);
+#else
+  (void) my_atomic_add32(&m_prep_xids, 1);
+#endif
+  DBUG_PRINT("debug", ("m_prep_xids: %d", result + 1));
+  thd->get_transaction()->m_flags.xid_written= true;
+  DBUG_VOID_RETURN;
+}
+
+
+void MYSQL_BIN_LOG::dec_prep_xids(THD *thd)
+{
+  DBUG_ENTER("MYSQL_BIN_LOG::dec_prep_xids");
+  int32 result= my_atomic_add32(&m_prep_xids, -1);
+  DBUG_PRINT("debug", ("m_prep_xids: %d", result - 1));
+  thd->get_transaction()->m_flags.xid_written= false;
+  /* If the old value was 1, it is zero now. */
+  if (result == 1)
+  {
+    mysql_mutex_lock(&LOCK_xids);
+    mysql_cond_signal(&m_prep_xids_cond);
+    mysql_mutex_unlock(&LOCK_xids);
+  }
+  DBUG_VOID_RETURN;
+}
+
+
 /*
   Wrappers around new_file_impl to avoid using argument
   to control locking. The argument 1) less readable 2) breaks
@@ -5937,7 +6066,7 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log, Format_description_log_even
   flush_io_cache(&log_file);
   DEBUG_SYNC(current_thd, "after_rotate_event_appended");
 
-  if (!is_relay_log && gtid_mode > GTID_MODE_UPGRADE_STEP_1)
+  if (!is_relay_log)
   {
     /* Save set of GTIDs of the last binlog into table on binlog rotation */
     if ((error= gtid_state->save_gtids_of_last_binlog_into_table(true)))
@@ -6025,7 +6154,7 @@ end:
                "file system is read only while rotating the binlog. Aborting "
                "the server");
       thd->protocol->end_statement();
-      _exit(EXIT_FAILURE);
+      _exit(MYSQLD_FAILURE_EXIT);
     }
     else
       sql_print_error("Could not open %s for logging (error %d). "
@@ -6072,33 +6201,40 @@ bool MYSQL_BIN_LOG::after_append_to_relay_log(Master_info *mi)
   DBUG_ASSERT(is_relay_log);
   DBUG_ASSERT(current_thd->system_thread == SYSTEM_THREAD_SLAVE_IO);
 
-  /* We allow the relay log rotation by relay log size if GTIDs are disabled */
-  bool can_rotate= gtid_mode < GTID_MODE_UPGRADE_STEP_2 ||
-  /* or if GTIDs are enabled and the trx parser in not inside a transaction. */
-                   (gtid_mode >= GTID_MODE_UPGRADE_STEP_2 &&
-                    mi->transaction_parser.is_not_inside_transaction());
+  /*
+    We allow the relay log rotation by relay log size
+    only if the trx parser is not inside a transaction.
+  */
+  bool can_rotate= mi->transaction_parser.is_not_inside_transaction();
+
+#ifndef DBUG_OFF
+  if ((uint) my_b_append_tell(&log_file) >
+      DBUG_EVALUATE_IF("rotate_slave_debug_group", 500, max_size) &&
+      !can_rotate)
+  {
+    DBUG_PRINT("info",("Postponing the rotation by size waiting for "
+                       "the end of the current transaction."));
+  }
+#endif
 
   // Flush and sync
   bool error= false;
   if (flush_and_sync(0) == 0 && can_rotate)
   {
-    if (gtid_mode >= GTID_MODE_UPGRADE_STEP_2)
+    /*
+      If the last event of the transaction has been flushed, we can add
+      the GTID (if it is not empty) to the logged set, or else it will
+      not be available in the Previous GTIDs of the next relay log file
+      if we are going to rotate the relay log.
+    */
+    Gtid *last_gtid_queued= mi->get_last_gtid_queued();
+    if (!last_gtid_queued->is_empty())
     {
-      /*
-        If the last event of the transaction has been flushed, we can add
-        the GTID (if it is not empty) to the logged set, or else it will
-        not be available in the Previous GTIDs of the next relay log file
-        if we are going to rotate the relay log.
-      */
-      Gtid *last_gtid_queued= mi->get_last_gtid_queued();
-      if (!last_gtid_queued->is_empty())
-      {
-        global_sid_lock->rdlock();
-        mi->rli->add_logged_gtid(last_gtid_queued->sidno,
-                                 last_gtid_queued->gno);
-        global_sid_lock->unlock();
-        mi->clear_last_gtid_queued();
-      }
+      global_sid_lock->rdlock();
+      mi->rli->add_logged_gtid(last_gtid_queued->sidno,
+                               last_gtid_queued->gno);
+      global_sid_lock->unlock();
+      mi->clear_last_gtid_queued();
     }
 
     /*
@@ -6266,6 +6402,25 @@ MYSQL_BIN_LOG::flush_and_set_pending_rows_event(THD *thd,
   }
 
   cache_data->set_pending(event);
+
+  DBUG_RETURN(error);
+}
+
+int
+MYSQL_BIN_LOG::write_event_into_log_file(Log_event* event){
+
+  DBUG_ENTER("MYSQL_BIN_LOG::write_event_into_log_file(Log_event *)");
+
+  mysql_mutex_lock(&LOCK_log);
+
+  int error= event->write(&log_file);
+
+  if (!error && !(error= flush_and_sync()))
+  {
+    update_binlog_end_pos();
+  }
+
+  mysql_mutex_unlock(&LOCK_log);
 
   DBUG_RETURN(error);
 }
@@ -6625,8 +6780,13 @@ bool MYSQL_BIN_LOG::do_write_cache(IO_CACHE *cache, Binlog_event_writer *writer)
   uchar *buf= cache->read_pos;
   uint32 buf_len= my_b_bytes_in_cache(cache);
   uint32 event_len= 0;
+  uchar header[LOG_EVENT_HEADER_LEN];
+  uint32 header_len= 0;
 
-  // Each iteration of this loop processes one event from the IO_CACHE.
+  /*
+    Each iteration of this loop processes all or a part of
+    1) an event header or 2) an event body from the IO_CACHE.
+  */
   while (true)
   {
     /**
@@ -6656,74 +6816,38 @@ bool MYSQL_BIN_LOG::do_write_cache(IO_CACHE *cache, Binlog_event_writer *writer)
           and truncate the binlog.  /Sven
         */
         DBUG_ASSERT(my_b_tell(cache) == expected_total_len);
-
+        /* Arrive the end of the cache */
         DBUG_RETURN(false);
       }
     }
 
-    // We are so close to end of buf that the event header is split
-    // over two bufs: copy and paste the two parts of the event
-    // header into a buf and process that separately.
-    if (buf_len < LOG_EVENT_HEADER_LEN)
+    /* Write event header into binlog */
+    if (event_len == 0)
     {
-      // Length of first and second half of the header.
-      uint32 first_half_len= buf_len;
-      uint32 second_half_len= LOG_EVENT_HEADER_LEN - first_half_len;
+      /* data in the buf may be smaller than header size.*/
+      uint32 header_incr =
+        std::min<uint32>(LOG_EVENT_HEADER_LEN - header_len, buf_len);
 
-      // Copy first half of header into this buffer.
-      uchar header[LOG_EVENT_HEADER_LEN];
-      memcpy(header, buf, first_half_len);
-      buf_len= 0;
+      memcpy(header + header_len, buf, header_incr);
+      header_len += header_incr;
+      buf += header_incr;
+      buf_len -= header_incr;
 
-      // Read next page from disk.
-      if (read_cache_page(cache, &buf, &buf_len) ||
-          buf_len < second_half_len)
+      if (header_len == LOG_EVENT_HEADER_LEN)
       {
-        /**
-          @todo: this can happen in case of disk corruption in the
-          IO_CACHE.  We may have written a half transaction (even half
-          event) to the binlog.  We should rollback the transaction
-          and truncate the binlog.  /Sven
-        */
-        DBUG_ASSERT(0);
+        // Flush event header.
+        uchar *header_p= header;
+        if (writer->write_event_part(&header_p, &header_len, &event_len))
+          DBUG_RETURN(true);
+        DBUG_ASSERT(header_len == 0);
       }
-
-      // Copy second half of header and step buffer positions.
-      memcpy(header + first_half_len, buf, second_half_len);
-      buf += second_half_len;
-      buf_len -= second_half_len;
-
-      // Flush event header.
-      uchar *header_p= header;
-      uint32 header_len= LOG_EVENT_HEADER_LEN;
-      if (writer->write_event_part(&header_p, &header_len, &event_len))
-        DBUG_RETURN(true);
-      DBUG_ASSERT(header_len == 0);
     }
-
-    /// Event spans multiple pages: flush the page and go to next.
-    while (event_len > buf_len)
+    else
     {
-      // Flush this part of event.
+      /* Write all or part of the event body to binlog */
       if (writer->write_event_part(&buf, &buf_len, &event_len))
         DBUG_RETURN(true);
-
-      // Read next page from disk.
-      if (read_cache_page(cache, &buf, &buf_len) || buf_len == 0)
-      {
-        /**
-          @todo: this can happen in case of disk corruption in the
-          IO_CACHE.  We may have written a half transaction (even half
-          event) to the binlog.  We should rollback the transaction
-          and truncate the binlog.  /Sven
-        */
-        DBUG_ASSERT(0);
-      }
     }
-
-    // Write last part of the event to disk.
-    if (writer->write_event_part(&buf, &buf_len, &event_len))
-      DBUG_RETURN(true);
   }
 }
 
@@ -6944,6 +7068,7 @@ int MYSQL_BIN_LOG::wait_for_update_relay_log(THD* thd, const struct timespec *ti
   else
     ret= mysql_cond_timedwait(&update_cond, &LOCK_log,
                               const_cast<struct timespec *>(timeout));
+  mysql_mutex_unlock(&LOCK_log);
   thd->EXIT_COND(&old_stage);
 
   DBUG_RETURN(ret);
@@ -7345,11 +7470,37 @@ int MYSQL_BIN_LOG::prepare(THD *thd, bool all)
 TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all)
 {
   DBUG_ENTER("MYSQL_BIN_LOG::commit");
+  DBUG_PRINT("info", ("query='%s'",
+                      thd == current_thd ? thd->query().str : NULL));
+  TC_LOG::enum_result ret= write_binlog_and_commit_engine(thd, all);
 
+  // In some cases, flush_binlog_and_commit_engine may never call
+  // update_gtids_impl.  So we do it here.
+  if (thd->pending_gtid_state_update)
+  {
+    DBUG_PRINT("info", ("write_binlog_and_commit_engine did not call gtid_state->update_on_[commit|rollback]."));
+    switch (ret)
+    {
+    case RESULT_SUCCESS:
+      gtid_state->update_on_commit(thd);
+      break;
+    case RESULT_ABORTED:
+    case RESULT_INCONSISTENT:
+      gtid_state->update_on_rollback(thd);
+      break;
+    }
+  }
+
+  DBUG_RETURN(ret);
+}
+
+TC_LOG::enum_result MYSQL_BIN_LOG::write_binlog_and_commit_engine(THD *thd,
+                                                                  bool all)
+{
+  DBUG_ENTER("MYSQL_BIN_LOG::write_binlog_and_commit_engine");
   binlog_cache_mngr *cache_mngr= thd_get_cache_mngr(thd);
   Transaction_ctx *trn_ctx= thd->get_transaction();
   my_xid xid= trn_ctx->xid_state()->get_xid()->get_my_xid();
-  int error= RESULT_SUCCESS;
   bool stuff_logged= false;
 
   DBUG_PRINT("enter", ("thd: 0x%llx, all: %s, xid: %llu, cache_mngr: 0x%llx",
@@ -7429,7 +7580,7 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all)
      - We are in a transaction and a full transaction is committed.
     Otherwise, we accumulate the changes.
   */
-  if (!error && !cache_mngr->trx_cache.is_binlog_empty() &&
+  if (!cache_mngr->trx_cache.is_binlog_empty() &&
       ending_trans(thd, all))
   {
     const bool real_trans=
@@ -7469,11 +7620,6 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all)
   if (!all)
     cache_mngr->trx_cache.set_prev_position(MY_OFF_T_UNDEF);
 
-  DBUG_PRINT("debug", ("error: %d", error));
-
-  if (error)
-    DBUG_RETURN(RESULT_ABORTED);
-
   /*
     Now all the events are written to the caches, so we will commit
     the transaction in the engines. This is done using the group
@@ -7492,9 +7638,22 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all)
                   thd_get_cache_mngr(thd)->get_binlog_cache_log(true),
                   thd_get_cache_mngr(thd)->get_binlog_cache_log(false),
                   max<my_off_t>(max_binlog_cache_size,
-                                max_binlog_stmt_cache_size),
-                  NULL)))
+                                max_binlog_stmt_cache_size))))
+    {
+      ha_rollback_low(thd, all);
+      my_error(ER_RUN_HOOK_ERROR, MYF(0), "before_commit");
       DBUG_RETURN(RESULT_ABORTED);
+    }
+    /*
+      Check whether the transaction should commit or abort given the
+      plugin feedback.
+    */
+    if (thd->get_transaction()->get_rpl_transaction_ctx()->is_transaction_rollback())
+    {
+      ha_rollback_low(thd, all);
+      my_error(ER_TRANSACTION_ROLLBACK_DURING_COMMIT, MYF(0));
+      DBUG_RETURN(RESULT_ABORTED);
+    }
 
     if (ordered_commit(thd, all))
       DBUG_RETURN(RESULT_INCONSISTENT);
@@ -7505,7 +7664,7 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all)
       DBUG_RETURN(RESULT_INCONSISTENT);
   }
 
-  DBUG_RETURN(error ? RESULT_INCONSISTENT : RESULT_SUCCESS);
+  DBUG_RETURN(RESULT_SUCCESS);
 }
 
 
@@ -7566,6 +7725,7 @@ MYSQL_BIN_LOG::process_flush_stage_queue(my_off_t *total_bytes_var,
                                          bool *rotate_var,
                                          THD **out_queue_var)
 {
+  DBUG_ENTER("MYSQL_BIN_LOG::process_flush_stage_queue");
   #ifndef DBUG_OFF
   // number of flushes per group.
   int no_flushes= 0;
@@ -7610,7 +7770,7 @@ MYSQL_BIN_LOG::process_flush_stage_queue(my_off_t *total_bytes_var,
   DBUG_PRINT("info",("no_flushes:= %d", no_flushes));
   no_flushes= 0;
 #endif
-  return flush_error;
+  DBUG_RETURN(flush_error);
 }
 
 /**
@@ -7644,6 +7804,8 @@ void MYSQL_BIN_LOG::update_max_committed(THD *thd)
   session in @c first. If there were an error in the flushing part of
   the ordered commit, the error code is passed in and all the threads
   are marked accordingly (but not committed).
+
+  It will also add the GTIDs of the transactions to gtid_executed.
 
   @see MYSQL_BIN_LOG::ordered_commit
 
@@ -7694,6 +7856,13 @@ MYSQL_BIN_LOG::process_commit_stage_queue(THD *thd, THD *first)
                            head->commit_error,
                            YESNO(head->get_transaction()->m_flags.pending)));
     }
+
+    /* Handle the GTID of the thread */
+    if (head->commit_error == THD::CE_NONE)
+      gtid_state->update_on_commit(head);
+    else
+      gtid_state->update_on_rollback(head);
+
     /*
       Decrement the prepared XID counter after storage engine commit.
       We also need decrement the prepared XID when encountering a
@@ -7864,6 +8033,8 @@ MYSQL_BIN_LOG::sync_binlog_file(bool force)
 int
 MYSQL_BIN_LOG::finish_commit(THD *thd)
 {
+  DBUG_ENTER("MYSQL_BIN_LOG::finish_commit");
+  DEBUG_SYNC(thd, "reached_finish_commit");
   if (thd->get_transaction()->sequence_number != SEQ_UNINIT)
     update_max_committed(thd);
   if (thd->get_transaction()->m_flags.commit_low)
@@ -7898,19 +8069,37 @@ MYSQL_BIN_LOG::finish_commit(THD *thd)
     dec_prep_xids(thd);
 
   /*
-    Gtid is added to gtid_state.executed_gtids and removed from owned_gtids
-    on update_on_commit().
+    If the ordered commit didn't updated the GTIDs for this thd yet
+    at process_commit_stage_queue (i.e. --binlog-order-commits=0)
+    the thd still has the ownership of a GTID and we must handle it.
   */
-  if (thd->commit_error == THD::CE_NONE)
-    gtid_state->update_on_commit(thd);
-  else
-    gtid_state->update_on_rollback(thd);
+  if (!thd->owned_gtid.is_empty())
+  {
+    /*
+      Gtid is added to gtid_state.executed_gtids and removed from owned_gtids
+      on update_on_commit().
+    */
+    if (thd->commit_error == THD::CE_NONE)
+    {
+      gtid_state->update_on_commit(thd);
+    }
+    else
+      gtid_state->update_on_rollback(thd);
+  }
+
+  DBUG_EXECUTE_IF("leaving_finish_commit",
+                  {
+                    const char act[]=
+                      "now SIGNAL signal_leaving_finish_commit";
+                    DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                                                       STRING_WITH_LEN(act)));
+                  };);
 
   DBUG_ASSERT(thd->commit_error || !thd->get_transaction()->m_flags.run_hooks);
   DBUG_ASSERT(!thd_get_cache_mngr(thd)->dbug_any_finalized());
   DBUG_PRINT("return", ("Thread ID: %u, commit_error: %d",
                         thd->thread_id(), thd->commit_error));
-  return thd->commit_error;
+  DBUG_RETURN(thd->commit_error);
 }
 
 /**
@@ -8169,6 +8358,21 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
     if (flush_error == 0)
       flush_error= call_after_sync_hook(commit_queue);
 
+    /*
+      process_commit_stage_queue will call update_on_commit or
+      update_on_rollback for the GTID owned by each thd in the queue.
+
+      This will be done this way to guarantee that GTIDs are added to
+      gtid_executed in order, to avoid creating unnecessary temporary
+      gaps and keep gtid_executed as a single interval at all times.
+
+      If we allow each thread to call update_on_commit only when they
+      are at finish_commit, the GTID order cannot be guaranteed and
+      temporary gaps may appear in gtid_executed. When this happen,
+      the server would have to add and remove intervals from the
+      Gtid_set, and adding and removing intervals requires a mutex,
+      which would reduce performance.
+    */
     process_commit_stage_queue(thd, commit_queue);
     mysql_mutex_unlock(&LOCK_commit);
     /*
@@ -8945,7 +9149,7 @@ int THD::decide_logging_format(TABLE_LIST *tables)
     */
     for (TABLE_LIST *table= tables; table; table= table->next_global)
     {
-      if (table->placeholder())
+      if (table->is_placeholder())
         continue;
 
       handler::Table_flags const flags= table->table->file->ha_table_flags();
@@ -9187,6 +9391,20 @@ int THD::decide_logging_format(TABLE_LIST *tables)
         if (lex->is_stmt_unsafe() || lex->is_stmt_row_injection()
             || (flags_write_all_set & HA_BINLOG_STMT_CAPABLE) == 0)
         {
+#ifndef DBUG_OFF
+          int flags= lex->get_stmt_unsafe_flags();
+          DBUG_PRINT("info", ("setting row format for unsafe statement"));
+          for (int i= 0; i < Query_tables_list::BINLOG_STMT_UNSAFE_COUNT; i++)
+          {
+            if (flags & (1 << i))
+              DBUG_PRINT("info", ("unsafe reason: %s",
+                                  ER(Query_tables_list::binlog_stmt_unsafe_errcode[i])));
+          }
+          DBUG_PRINT("info", ("is_row_injection=%d",
+                              lex->is_stmt_row_injection()));
+          DBUG_PRINT("info", ("stmt_capable=%llu",
+                              (flags_write_all_set & HA_BINLOG_STMT_CAPABLE)));
+#endif
           /* log in row format! */
           set_current_stmt_binlog_format_row_if_mixed();
         }
@@ -9217,7 +9435,7 @@ int THD::decide_logging_format(TABLE_LIST *tables)
       clear_binlog_local_stmt_filter();
     }
 
-    if (!error && enforce_gtid_consistency &&
+    if (!error &&
         !is_dml_gtid_compatible(write_to_some_transactional_table,
                                 write_to_some_non_transactional_table,
                                 write_all_non_transactional_are_tmp_tables))
@@ -9239,7 +9457,7 @@ int THD::decide_logging_format(TABLE_LIST *tables)
       */
       for (TABLE_LIST *table= tables; table; table= table->next_global)
       {
-        if (table->placeholder())
+        if (table->is_placeholder())
           continue;
 
         DBUG_ASSERT(table->table);
@@ -9275,7 +9493,7 @@ int THD::decide_logging_format(TABLE_LIST *tables)
       */
       for (TABLE_LIST *table= tables; table; table= table->next_global)
       {
-        if (table->placeholder())
+        if (table->is_placeholder())
           continue;
         if (table->table->file->ht->db_type == DB_TYPE_BLACKHOLE_DB &&
             table->lock_type >= TL_WRITE_ALLOW_WRITE)
@@ -9313,11 +9531,137 @@ int THD::decide_logging_format(TABLE_LIST *tables)
                         binlog_filter->db_ok(m_db.str)));
 #endif
 
+  DEBUG_SYNC(current_thd, "end_decide_logging_format");
+
   DBUG_RETURN(0);
 }
 
 
-bool THD::is_ddl_gtid_compatible() const
+/**
+  Given that a possible violation of gtid consistency has happened,
+  checks if gtid-inconsistencies are forbidden by the current value of
+  ENFORCE_GTID_CONSISTENCY and GTID_MODE. If forbidden, generates
+  error or warning accordingly.
+
+  @param thd The thread that has issued the GTID-violating statement.
+
+  @param error_code The error code to use, if error or warning is to
+  be generated.
+
+  @param handle_error If the GTID-violation is going to generate an
+  error, generate an error if handle_error is true. Skip the error if
+  handle_error is false.
+
+  @param handle_nonerror If the GTID-violation is not going to
+  generate an error (i.e. either it generates a warning or is silent),
+  increase the counter of GTID-violating transactions if
+  handle_nonerror is true.  Also, if the GTID-violation is going to
+  generate a warning, generate the warning if handle_nonerror is true.
+  Skip increasing counter and skip generating a warning if
+  handle_nonerror is false.
+
+  The reason we have the handle_error and handle_nonerror paramters is
+  that GTID-violation errors for DDL must be generated before the
+  implicit commit, whereas warnings and counter increments must happen
+  after the implicit commit; so there are two calls to this function.
+
+  @retval false Error was generated.
+  @retval true No error was generated (possibly a warning was generated).
+*/
+static bool handle_gtid_consistency_violation(THD *thd, int error_code,
+                                              bool handle_error,
+                                              bool handle_nonerror)
+{
+  DBUG_ENTER("handle_gtid_consistency_violation");
+
+  enum_group_type gtid_next_type= thd->variables.gtid_next.type;
+  global_sid_lock->rdlock();
+  enum_gtid_consistency_mode gtid_consistency_mode=
+    get_gtid_consistency_mode();
+  enum_gtid_mode gtid_mode= get_gtid_mode(GTID_MODE_LOCK_SID);
+
+  DBUG_PRINT("info", ("handle_error=%d handle_nonerror=%d "
+                      "gtid_next.type=%d gtid_mode=%s "
+                      "gtid_consistency_mode=%d error=%d query=%s",
+                      handle_error,
+                      handle_nonerror,
+                      gtid_next_type,
+                      get_gtid_mode_string(gtid_mode),
+                      gtid_consistency_mode,
+                      error_code,
+                      thd->query().str));
+
+  /*
+    GTID violations should generate error if:
+    - GTID_MODE=ON or ON_PERMISSIVE and GTID_NEXT='AUTOMATIC' (since the
+      transaction is expected to commit using a GTID), or
+    - GTID_NEXT='UUID:NUMBER' (since the transaction is expected to
+      commit usinga GTID), or
+    - ENFORCE_GTID_CONSISTENCY=ON.
+  */
+  if ((gtid_next_type == AUTOMATIC_GROUP &&
+       gtid_mode >= GTID_MODE_ON_PERMISSIVE) ||
+      gtid_next_type == GTID_GROUP ||
+      gtid_consistency_mode == GTID_CONSISTENCY_MODE_ON)
+  {
+    global_sid_lock->unlock();
+    if (handle_error)
+      my_error(error_code, MYF(0));
+    DBUG_RETURN(false);
+  }
+  else
+  {
+    /*
+      If we are not generating an error, we must increase the counter
+      of GTID-violating transactions.  This will prevent a concurrent
+      client from executing a SET GTID_MODE or SET
+      ENFORCE_GTID_CONSISTENCY statement that would be incompatible
+      with this transaction.
+
+      If the transaction had already been accounted as a gtid violating
+      transaction, then don't increment the counters, just issue the
+      warning below. This prevents calling
+      begin_automatic_gtid_violating_transaction or
+      begin_anonymous_gtid_violating_transaction multiple times for the
+      same transaction, which would make the counter go out of sync.
+    */
+    if (handle_nonerror && !thd->has_gtid_consistency_violation)
+    {
+      if (gtid_next_type == AUTOMATIC_GROUP)
+        gtid_state->begin_automatic_gtid_violating_transaction();
+      else
+      {
+        DBUG_ASSERT(gtid_next_type == ANONYMOUS_GROUP);
+        gtid_state->begin_anonymous_gtid_violating_transaction();
+      }
+
+      /*
+        If a transaction generates multiple GTID violation conditions,
+        it must still only update the counters once.  Hence we use
+        this per-thread flag to keep track of whether the thread has a
+        consistency or not.  This function must only be called if the
+        transaction does not already have a GTID violation.
+      */
+      thd->has_gtid_consistency_violation= true;
+    }
+
+    global_sid_lock->unlock();
+
+    // Generate warning if ENFORCE_GTID_CONSISTENCY = WARN.
+    if (handle_nonerror && gtid_consistency_mode == GTID_CONSISTENCY_MODE_WARN)
+    {
+      // Need to print to log so that replication admin knows when users
+      // have adjusted their workloads.
+      sql_print_warning("%s", ER(error_code));
+      // Need to print to client so that users can adjust their workload.
+      push_warning(thd, Sql_condition::SL_WARNING, error_code, ER(error_code));
+    }
+    DBUG_RETURN(true);
+  }
+}
+
+
+bool THD::is_ddl_gtid_compatible(bool handle_error, bool handle_nonerror)
 {
   DBUG_ENTER("THD::is_ddl_gtid_compatible");
 
@@ -9325,6 +9669,15 @@ bool THD::is_ddl_gtid_compatible() const
   // doable by SUPER), then no problem, we can execute any statement.
   if ((variables.option_bits & OPTION_BIN_LOG) == 0)
     DBUG_RETURN(true);
+
+  DBUG_PRINT("info",
+             ("SQLCOM_CREATE:%d CREATE-TMP:%d SELECT:%d SQLCOM_DROP:%d DROP-TMP:%d trx:%d",
+              lex->sql_command == SQLCOM_CREATE_TABLE,
+              lex->create_info.options & HA_LEX_CREATE_TMP_TABLE,
+              lex->select_lex->item_list.elements,
+              lex->sql_command == SQLCOM_DROP_TABLE,
+              lex->drop_temporary,
+              in_multi_stmt_transaction_mode()));
 
   if (lex->sql_command == SQLCOM_CREATE_TABLE &&
       !(lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) &&
@@ -9337,12 +9690,13 @@ bool THD::is_ddl_gtid_compatible() const
       and then written to the slave's binary log as two separate
       transactions with the same GTID.
     */
-    my_error(ER_GTID_UNSAFE_CREATE_SELECT, MYF(0));
-    DBUG_RETURN(false);
+    bool ret= handle_gtid_consistency_violation(
+      this, ER_GTID_UNSAFE_CREATE_SELECT, handle_error, handle_nonerror);
+    DBUG_RETURN(ret);
   }
-  if ((lex->sql_command == SQLCOM_CREATE_TABLE &&
-       (lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) != 0) ||
-      (lex->sql_command == SQLCOM_DROP_TABLE && lex->drop_temporary))
+  else if ((lex->sql_command == SQLCOM_CREATE_TABLE &&
+            (lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) != 0) ||
+           (lex->sql_command == SQLCOM_DROP_TABLE && lex->drop_temporary))
   {
     /*
       [CREATE|DROP] TEMPORARY TABLE is unsafe to execute
@@ -9352,9 +9706,10 @@ bool THD::is_ddl_gtid_compatible() const
     */
     if (in_multi_stmt_transaction_mode())
     {
-      my_error(ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION,
-               MYF(0));
-      DBUG_RETURN(false);
+      bool ret= handle_gtid_consistency_violation(
+        this, ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION,
+        handle_error, handle_nonerror);
+      DBUG_RETURN(ret);
     }
   }
   DBUG_RETURN(true);
@@ -9362,9 +9717,9 @@ bool THD::is_ddl_gtid_compatible() const
 
 
 bool
-THD::is_dml_gtid_compatible(bool transactional_table,
-                            bool non_transactional_table,
-                            bool non_transactional_tmp_tables) const
+THD::is_dml_gtid_compatible(bool some_transactional_table,
+                            bool some_non_transactional_table,
+                            bool non_transactional_tables_are_tmp)
 {
   DBUG_ENTER("THD::is_dml_gtid_compatible(bool, bool, bool)");
 
@@ -9390,13 +9745,24 @@ THD::is_dml_gtid_compatible(bool transactional_table,
     old tests that were not written with the restrictions of GTIDs in
     mind.
   */
-  if (non_transactional_table &&
-      (transactional_table || trans_has_updated_trans_table(this)) &&
-      !(non_transactional_tmp_tables && is_current_stmt_binlog_format_row()) &&
+  DBUG_PRINT("info", ("some_non_transactional_table=%d "
+                      "some_transactional_table=%d "
+                      "trans_has_updated_trans_table=%d "
+                      "non_transactional_tables_are_tmp=%d "
+                      "is_current_stmt_binlog_format_row=%d",
+                      some_non_transactional_table,
+                      some_transactional_table,
+                      trans_has_updated_trans_table(this),
+                      non_transactional_tables_are_tmp,
+                      is_current_stmt_binlog_format_row()));
+  if (some_non_transactional_table &&
+      (some_transactional_table || trans_has_updated_trans_table(this)) &&
+      !(non_transactional_tables_are_tmp &&
+        is_current_stmt_binlog_format_row()) &&
       !DBUG_EVALUATE_IF("allow_gtid_unsafe_non_transactional_updates", 1, 0))
   {
-    my_error(ER_GTID_UNSAFE_NON_TRANSACTIONAL_TABLE, MYF(0));
-    DBUG_RETURN(false);
+    DBUG_RETURN(handle_gtid_consistency_violation(
+      this, ER_GTID_UNSAFE_NON_TRANSACTIONAL_TABLE, true, true));
   }
 
   DBUG_RETURN(true);

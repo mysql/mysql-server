@@ -1,0 +1,11 @@
+ALTER TABLE performance_schema.replication_group_members
+ADD COLUMN foo INTEGER;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+TRUNCATE TABLE performance_schema.replication_group_members;
+ERROR HY000: Invalid performance_schema usage.
+ALTER TABLE performance_schema.replication_group_members
+ADD INDEX test_index(Member_Id);
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+CREATE UNIQUE INDEX test_index
+ON performance_schema.replication_group_members(Member_Id);
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'

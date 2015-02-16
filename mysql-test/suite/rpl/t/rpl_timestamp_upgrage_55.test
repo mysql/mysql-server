@@ -20,6 +20,7 @@
 #  Bug#17532932 TIMESTAMP AND DATETIMES SELF-INCOMPATIBLE
 #               DURING REPLICATION
 
+--source include/not_group_replication_plugin.inc
 --source include/have_binlog_format_row.inc
 --source include/have_innodb.inc
 --source include/master-slave.inc

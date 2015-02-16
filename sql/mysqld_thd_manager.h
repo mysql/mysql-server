@@ -17,7 +17,7 @@
 #define MYSQLD_THD_MANAGER_INCLUDED
 
 #include "my_global.h"   // ulonglong
-#include "my_thread.h"   // mysql_mutex_t
+#include "my_thread.h"   // my_thread_id
 #include "my_atomic.h"   // my_atomic_add32
 #include "prealloced_array.h"
 

@@ -292,6 +292,7 @@ call mtr.add_suppression("InnoDB: Trying to import a tablespace, but could not o
 call mtr.add_suppression("InnoDB: Operating system error number 2 in a file operation.");
 call mtr.add_suppression("InnoDB: The error means the system cannot find the path specified.");
 call mtr.add_suppression("InnoDB: Unable to import tablespace .* because it already exists.  Please DISCARD the tablespace before IMPORT.");
+call mtr.add_suppression("InnoDB: Missing \.ibd file for table .test...t1. .. Partition");
 --enable_query_log
 
 --remove_files_wildcard $MYSQLTEST_VARDIR/tmp t1*.ibd

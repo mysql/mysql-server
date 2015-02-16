@@ -1,5 +1,7 @@
 use test;
 grant usage on *.* to user1@localhost;
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 flush privileges;
 drop table if exists t1;
 drop database if exists db1_secret;
@@ -32,8 +34,12 @@ select db();
 db()
 test
 grant execute on procedure db1_secret.stamp to user1@'%';
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 grant execute on function db1_secret.db to user1@'%';
 grant execute on procedure db1_secret.stamp to ''@'%';
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 grant execute on function db1_secret.db to ''@'%';
 call db1_secret.stamp(2);
 select db1_secret.db();
@@ -104,6 +110,8 @@ insert into t2 values (0);
 grant usage on db2.* to user1@localhost;
 grant select on db2.* to user1@localhost;
 grant usage on db2.* to user2@localhost;
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 grant select,insert,update,delete,create routine on db2.* to user2@localhost;
 grant create routine on db2.* to user1@localhost;
 flush privileges;
@@ -157,8 +165,14 @@ delete from mysql.procs_priv where user='' and host='%';
 delete from mysql.db where user='user2';
 flush privileges;
 grant usage on *.* to usera@localhost;
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 grant usage on *.* to userb@localhost;
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 grant usage on *.* to userc@localhost;
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 create database sptest;
 create table t1 ( u varchar(64), i int );
 create procedure sptest.p1(i int) insert into test.t1 values (user(), i);
@@ -224,6 +238,8 @@ create database mysqltest//
 use mysqltest//
 create table t1 (s1 int)//
 grant select on t1 to user1@localhost//
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 create function bug_9503 () returns int sql security invoker begin declare v int;
 select min(s1) into v from t1; return v; end//
 use mysqltest;
@@ -267,6 +283,8 @@ begin
 select 1 from dual;
 end//
 grant usage on *.* to mysqltest_1@localhost;
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 call mysqltest_1.p1();
 ERROR 42000: execute command denied to user 'mysqltest_1'@'localhost' for routine 'mysqltest_1.p1'
 call mysqltest_1.p1();
@@ -428,10 +446,12 @@ ERROR HY000: The user specified as a definer ('mysqltest_1'@'localhost') does no
 DROP USER mysqltest_2@localhost;
 DROP DATABASE mysqltest;
 GRANT USAGE ON *.* TO user19857@localhost IDENTIFIED BY 'meow';
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 GRANT SELECT, INSERT, UPDATE, DELETE, CREATE ROUTINE, ALTER ROUTINE ON test.* TO
 user19857@localhost;
-SELECT Host,User,Password FROM mysql.user WHERE User='user19857';
-Host	User	Password
+SELECT Host,User,authentication_string FROM mysql.user WHERE User='user19857';
+Host	User	authentication_string
 localhost	user19857	*82DC221D557298F6CE9961037DB1C90604792F5C
 
 ---> connection: mysqltest_2_con
@@ -454,8 +474,8 @@ END	latin1	latin1_swedish_ci	latin1_swedish_ci
 DROP PROCEDURE IF EXISTS test.sp19857;
 
 ---> connection: root
-SELECT Host,User,Password FROM mysql.user WHERE User='user19857';
-Host	User	Password
+SELECT Host,User,authentication_string FROM mysql.user WHERE User='user19857';
+Host	User	authentication_string
 localhost	user19857	*82DC221D557298F6CE9961037DB1C90604792F5C
 DROP USER user19857@localhost;
 use test;

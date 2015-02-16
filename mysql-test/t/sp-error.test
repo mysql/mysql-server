@@ -2159,13 +2159,13 @@ delimiter |;
 --error ER_SP_CANT_SET_AUTOCOMMIT
 create function f1() returns int
 begin
- set password = password('foo');
+ set password = 'foo';
   return 1;
 end|
 
 --error ER_SP_CANT_SET_AUTOCOMMIT
 create trigger t1
-  before insert on t2 for each row set password = password('foo');|
+  before insert on t2 for each row set password = 'foo';|
 
 delimiter ;|
 

@@ -1,8 +1,9 @@
 # Tests of grants and users
 
+--source include/not_group_replication_plugin.inc
 source include/not_gtid_enabled.inc;
-source include/master-slave.inc;
 source include/not_embedded.inc;
+source include/master-slave.inc;
 
 --echo **** On Master ****
 connection master;

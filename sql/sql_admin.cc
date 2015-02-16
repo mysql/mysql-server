@@ -383,7 +383,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
         open_error= open_temporary_tables(thd, table);
 
         if (!open_error)
-          open_error= open_and_lock_tables(thd, table, TRUE, 0);
+          open_error= open_and_lock_tables(thd, table, 0);
 
         thd->pop_diagnostics_area();
         if (tmp_da.is_error())
@@ -407,9 +407,19 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
         open_error= open_temporary_tables(thd, table);
 
         if (!open_error)
-          open_error= open_and_lock_tables(thd, table, TRUE, 0);
+          open_error= open_and_lock_tables(thd, table, 0);
       }
 
+      /*
+        Views are always treated as materialized views, including creation
+        of temporary table descriptor.
+      */
+      if (!open_error && table->is_view())
+      {
+        open_error= table->resolve_derived(thd, false);
+        if (!open_error)
+          open_error= table->setup_materialized_derived(thd);
+      }
       table->next_global= save_next_global;
       table->next_local= save_next_local;
       thd->open_options&= ~extra_open_options;
@@ -431,7 +441,6 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
         result_code= HA_ADMIN_FAILED;
         goto send_result;
       }
-#ifdef WITH_PARTITION_STORAGE_ENGINE
       if (table->table)
       {
         /*
@@ -472,7 +481,6 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
           }
         }
       }
-#endif
     }
     DBUG_PRINT("admin", ("table: 0x%lx", (long) table->table));
 
@@ -516,7 +524,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
         push_warning(thd, Sql_condition::SL_WARNING,
                      ER_CHECK_NO_SUCH_TABLE, ER(ER_CHECK_NO_SUCH_TABLE));
       /* if it was a view will check md5 sum */
-      if (table->view &&
+      if (table->is_view() &&
           view_checksum(thd, table) == HA_ADMIN_WRONG_CHECKSUM)
         push_warning(thd, Sql_condition::SL_WARNING,
                      ER_VIEW_CHECKSUM, ER(ER_VIEW_CHECKSUM));
@@ -529,7 +537,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       goto send_result;
     }
 
-    if (table->view)
+    if (table->is_view())
     {
       DBUG_PRINT("admin", ("calling view_operator_func"));
       result_code= (*view_operator_func)(thd, table);
@@ -960,6 +968,19 @@ send_result_message:
         */
         table->table= 0;                        // For query cache
         query_cache.invalidate(thd, table, FALSE);
+      }
+      else
+      {
+        /*
+          Reset which partitions that should be processed
+          if ALTER TABLE t ANALYZE/CHECK/.. PARTITION ..
+          CACHE INDEX/LOAD INDEX for specified partitions
+        */
+        if (table->table->part_info &&
+            lex->alter_info.flags & Alter_info::ALTER_ADMIN_PARTITION)
+        {
+          set_all_part_state(table->table->part_info, PART_NORMAL);
+        }
       }
     }
     /* Error path, a admin command failed. */

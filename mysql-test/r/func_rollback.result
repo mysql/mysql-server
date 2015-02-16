@@ -198,6 +198,8 @@ SELECT * FROM t1_not_null ORDER BY f1,f2;
 f1	f2
 DROP FUNCTION f1_insert_select;
 SET SESSION sql_mode = 'traditional';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE FUNCTION f1_insert_select(my_f1 INTEGER) RETURNS INTEGER
 BEGIN
 INSERT INTO t1_not_null SELECT * FROM t1_select WHERE f1 = my_f1;
@@ -274,6 +276,8 @@ SELECT * FROM t1_not_null ORDER BY f1,f2;
 f1	f2
 DROP FUNCTION f1_insert_with_two_rows;
 SET SESSION sql_mode = 'traditional';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE FUNCTION f1_insert_with_two_rows() RETURNS INTEGER
 BEGIN
 INSERT INTO t1_not_null(f1,f2) VALUES (10,10),(10,NULL);

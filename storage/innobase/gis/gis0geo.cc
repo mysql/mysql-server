@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -365,11 +365,9 @@ mbr_join_square(
 	} while (a != end);
 
 	/* Check for infinity or NaN, so we don't get NaN in calculations */
-	if (my_isinf(square)) {
+	if (my_isinf(square) || my_isnan(square)) {
 		return DBL_MAX;
 	}
-
-	ut_ad(!my_isnan(square));
 
 	return square;
 }

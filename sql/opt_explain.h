@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -179,8 +179,6 @@ bool explain_single_table_modification(THD *ethd,
                                        const Modification_plan *plan,
                                        SELECT_LEX *select);
 bool explain_query(THD *thd, SELECT_LEX_UNIT *unit);
-bool explain_query_expression(THD *thd, SELECT_LEX_UNIT *unit,
-                              select_result *result);
 bool explain_query_specification(THD *ethd, SELECT_LEX *select_lex,
                                  enum_parsing_context ctx);
 void mysql_explain_other(THD *thd);

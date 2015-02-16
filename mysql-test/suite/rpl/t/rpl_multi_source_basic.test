@@ -19,6 +19,9 @@
 # Note: Out of convention, server 2 is always made a slave for multisource testing.
 #
 
+#Skip on group replication runs
+--source include/not_group_replication_plugin.inc
+
 --echo #
 --echo # set up masters server_1 and server_3 with server_2 being a slave.
 --echo #.

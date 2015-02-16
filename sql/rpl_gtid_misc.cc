@@ -17,12 +17,76 @@
 
 #include "rpl_gtid.h"
 
-#include <ctype.h>
+#include "mysqld_error.h"     // ER_*
 
-#include "mysqld_error.h"
 #ifndef MYSQL_CLIENT
-#include "sql_class.h"
+#include "rpl_msr.h"
+#include "sql_class.h"        // THD
+#include "binlog.h"
 #endif // ifndef MYSQL_CLIENT
+
+
+// Todo: move other global gtid variable declarations here.
+Checkable_rwlock *gtid_mode_lock= NULL;
+
+ulong _gtid_mode;
+const char *gtid_mode_names[]=
+{"OFF", "OFF_PERMISSIVE", "ON_PERMISSIVE", "ON", NullS};
+TYPELIB gtid_mode_typelib=
+{ array_elements(gtid_mode_names) - 1, "", gtid_mode_names, NULL };
+
+
+#ifndef MYSQL_CLIENT
+enum_gtid_mode get_gtid_mode(enum_gtid_mode_lock have_lock)
+{
+  switch (have_lock)
+  {
+  case GTID_MODE_LOCK_NONE:
+    global_sid_lock->rdlock();
+    break;
+  case GTID_MODE_LOCK_SID:
+    global_sid_lock->assert_some_lock();
+    break;
+  case GTID_MODE_LOCK_MSR_MAP:
+    mysql_mutex_assert_owner(&LOCK_msr_map);
+    break;
+  case GTID_MODE_LOCK_GTID_MODE:
+    gtid_mode_lock->assert_some_lock();
+
+/*
+  This lock is currently not used explicitly by any of the places
+  that calls get_gtid_mode.  Still it would be valid for a caller to
+  use it to protect reads of GTID_MODE, so we keep the code here in
+  case it is needed in the future.
+
+  case GTID_MODE_LOCK_LOG:
+    mysql_mutex_assert_owner(mysql_bin_log.get_log_lock());
+    break;
+*/
+  }
+  enum_gtid_mode ret= (enum_gtid_mode)_gtid_mode;
+  if (have_lock == GTID_MODE_LOCK_NONE)
+    global_sid_lock->unlock();
+  return ret;
+}
+#endif
+
+
+ulong _gtid_consistency_mode;
+const char *gtid_consistency_mode_names[]=
+{"OFF", "ON", "WARN", NullS};
+TYPELIB gtid_consistency_mode_typelib=
+{ array_elements(gtid_consistency_mode_names) - 1, "", gtid_consistency_mode_names, NULL };
+
+
+#ifndef MYSQL_CLIENT
+enum_gtid_consistency_mode get_gtid_consistency_mode()
+{
+  global_sid_lock->assert_some_lock();
+  return (enum_gtid_consistency_mode)_gtid_consistency_mode;
+}
+#endif
+
 
 enum_return_status Gtid::parse(Sid_map *sid_map, const char *text)
 {
@@ -197,3 +261,28 @@ void check_return_status(enum_return_status status, const char *action,
   }
 }
 #endif // ! DBUG_OFF
+
+
+#ifndef MYSQL_CLIENT
+rpl_sidno get_sidno_from_global_sid_map(rpl_sid sid)
+{
+  DBUG_ENTER("get_sidno_from_global_sid_map(rpl_sid)");
+
+  global_sid_lock->rdlock();
+  rpl_sidno sidno= global_sid_map->add_sid(sid);
+  global_sid_lock->unlock();
+
+  DBUG_RETURN(sidno);
+}
+
+rpl_gno get_last_executed_gno(rpl_sidno sidno)
+{
+  DBUG_ENTER("get_last_executed_gno(rpl_sidno)");
+
+  global_sid_lock->rdlock();
+  rpl_gno gno= gtid_state->get_last_executed_gno(sidno);
+  global_sid_lock->unlock();
+
+  DBUG_RETURN(gno);
+}
+#endif // ifndef MYSQL_CLIENT

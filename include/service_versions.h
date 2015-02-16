@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,3 +26,7 @@
 #define VERSION_my_plugin_log 0x0100
 #define VERSION_mysql_string  0x0100
 #define VERSION_mysql_malloc  0x0100
+#define VERSION_mysql_password_policy 0x0100
+#define VERSION_parser  0x0100
+#define VERSION_rpl_transaction_ctx_service 0x0100
+#define VERSION_transaction_write_set_service 0x0100

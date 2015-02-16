@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -98,7 +98,7 @@ int decrypt_login_cnf_file(istream &fin, ostream &sout)
                                (unsigned char *) plain,
                                (const unsigned char *) rkey,
                                LOGIN_KEY_LEN, my_aes_128_ecb, NULL);
-    if (aes_length > MAX_CIPHER_LEN)
+    if ((aes_length > MAX_CIPHER_LEN) || (aes_length <= 0))
       return ERR_ENCRYPTION;
     plain[aes_length]= 0;
     sout << plain;

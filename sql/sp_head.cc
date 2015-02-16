@@ -523,6 +523,8 @@ Field *sp_head::create_result_field(size_t field_max_length,
                  m_return_field_def.interval,
                  field_name ? field_name : (const char *) m_name.str);
 
+  field->gcol_info= m_return_field_def.gcol_info;
+  field->stored_in_db= m_return_field_def.stored_in_db;
   if (field)
     field->init(table);
 
@@ -1995,7 +1997,7 @@ bool sp_head::merge_table_list(THD *thd,
   }
 
   for (; table ; table= table->next_global)
-    if (!table->derived && !table->schema_table)
+    if (!table->is_derived() && !table->schema_table)
     {
       /*
         Structure of key for the multi-set is "db\0table\0alias\0".

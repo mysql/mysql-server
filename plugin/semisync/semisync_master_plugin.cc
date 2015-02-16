@@ -1,5 +1,5 @@
 /* Copyright (C) 2007 Google Inc.
-   Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -71,6 +71,11 @@ int repl_semi_report_binlog_sync(Binlog_storage_param *param,
 {
   if (rpl_semi_sync_master_wait_point == WAIT_AFTER_SYNC)
     return repl_semisync.commitTrx(log_file, log_pos);
+  return 0;
+}
+
+int repl_semi_report_before_dml(Trans_param *param, int& out)
+{
   return 0;
 }
 
@@ -401,6 +406,7 @@ static void fix_rpl_semi_sync_master_wait_no_slave(MYSQL_THD thd,
 Trans_observer trans_observer = {
   sizeof(Trans_observer),		// len
 
+  repl_semi_report_before_dml,      //before_dml
   repl_semi_report_before_commit,   // before_commit
   repl_semi_report_before_rollback, // before_rollback
   repl_semi_report_commit,	// after_commit
@@ -453,47 +459,47 @@ DEF_SHOW_FUNC(avg_trx_wait_time, SHOW_LONG)
 static SHOW_VAR semi_sync_master_status_vars[]= {
   {"Rpl_semi_sync_master_status",
    (char*) &SHOW_FNAME(status),
-   SHOW_FUNC},
+   SHOW_FUNC, SHOW_SCOPE_GLOBAL},
   {"Rpl_semi_sync_master_clients",
    (char*) &SHOW_FNAME(clients),
-   SHOW_FUNC},
+   SHOW_FUNC, SHOW_SCOPE_GLOBAL},
   {"Rpl_semi_sync_master_yes_tx",
    (char*) &rpl_semi_sync_master_yes_transactions,
-   SHOW_LONG},
+   SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"Rpl_semi_sync_master_no_tx",
    (char*) &rpl_semi_sync_master_no_transactions,
-   SHOW_LONG},
+   SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"Rpl_semi_sync_master_wait_sessions",
    (char*) &SHOW_FNAME(wait_sessions),
-   SHOW_FUNC},
+   SHOW_FUNC, SHOW_SCOPE_GLOBAL},
   {"Rpl_semi_sync_master_no_times",
    (char*) &rpl_semi_sync_master_off_times,
-   SHOW_LONG},
+   SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"Rpl_semi_sync_master_timefunc_failures",
    (char*) &rpl_semi_sync_master_timefunc_fails,
-   SHOW_LONG},
+   SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"Rpl_semi_sync_master_wait_pos_backtraverse",
    (char*) &rpl_semi_sync_master_wait_pos_backtraverse,
-   SHOW_LONG},
+   SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"Rpl_semi_sync_master_tx_wait_time",
    (char*) &SHOW_FNAME(trx_wait_time),
-   SHOW_FUNC},
+   SHOW_FUNC, SHOW_SCOPE_GLOBAL},
   {"Rpl_semi_sync_master_tx_waits",
    (char*) &SHOW_FNAME(trx_wait_num),
-   SHOW_FUNC},
+   SHOW_FUNC, SHOW_SCOPE_GLOBAL},
   {"Rpl_semi_sync_master_tx_avg_wait_time",
    (char*) &SHOW_FNAME(avg_trx_wait_time),
-   SHOW_FUNC},
+   SHOW_FUNC, SHOW_SCOPE_GLOBAL},
   {"Rpl_semi_sync_master_net_wait_time",
    (char*) &SHOW_FNAME(net_wait_time),
-   SHOW_FUNC},
+   SHOW_FUNC, SHOW_SCOPE_GLOBAL},
   {"Rpl_semi_sync_master_net_waits",
    (char*) &SHOW_FNAME(net_wait_num),
-   SHOW_FUNC},
+   SHOW_FUNC, SHOW_SCOPE_GLOBAL},
   {"Rpl_semi_sync_master_net_avg_wait_time",
    (char*) &SHOW_FNAME(avg_net_wait_time),
-   SHOW_FUNC},
-  {NULL, NULL, SHOW_LONG},
+   SHOW_FUNC, SHOW_SCOPE_GLOBAL},
+  {NULL, NULL, SHOW_LONG, SHOW_SCOPE_GLOBAL},
 };
 
 #ifdef HAVE_PSI_INTERFACE

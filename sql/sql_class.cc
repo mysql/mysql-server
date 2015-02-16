@@ -31,6 +31,7 @@
 #include "lock.h"                            // mysql_lock_abort_for_thread
 #include "mysqld_thd_manager.h"              // Global_THD_manager
 #include "parse_tree_nodes.h"                // PT_select_var
+#include "rpl_filter.h"                      // binlog_filter
 #include "rpl_rli.h"                         // Relay_log_info
 #include "rpl_rli_pdb.h"                     // Slave_worker
 #include "sp_cache.h"                        // sp_cache_clear
@@ -400,6 +401,61 @@ bool foreign_key_prefix(Key *a, Key *b)
 #endif
 }
 
+/**
+  @brief  validate
+    Check if the foreign key options are compatible with columns
+    on which the FK is created.
+
+  @param table_fields         List of columns 
+
+  @return
+    false   Key valid
+  @return
+    true   Key invalid
+ */
+bool Foreign_key::validate(List<Create_field> &table_fields)
+{
+  Create_field  *sql_field;
+  Key_part_spec *column;
+  List_iterator<Key_part_spec> cols(columns);
+  List_iterator<Create_field> it(table_fields);
+  DBUG_ENTER("Foreign_key::validate");
+  while ((column= cols++))
+  {
+    it.rewind();
+    while ((sql_field= it++) &&
+           my_strcasecmp(system_charset_info,
+                         column->field_name.str,
+                         sql_field->field_name)) {}
+    if (!sql_field)
+    {
+      my_error(ER_KEY_COLUMN_DOES_NOT_EXITS, MYF(0), column->field_name.str);
+      DBUG_RETURN(TRUE);
+    }
+    if (type == KEYTYPE_FOREIGN && sql_field->gcol_info)
+    {
+      if (delete_opt == FK_OPTION_SET_NULL)
+      {
+        my_error(ER_WRONG_FK_OPTION_FOR_GENERATED_COLUMN, MYF(0), 
+                 "ON DELETE SET NULL");
+        DBUG_RETURN(TRUE);
+      }
+      if (update_opt == FK_OPTION_SET_NULL)
+      {
+        my_error(ER_WRONG_FK_OPTION_FOR_GENERATED_COLUMN, MYF(0), 
+                 "ON UPDATE SET NULL");
+        DBUG_RETURN(TRUE);
+      }
+      if (update_opt == FK_OPTION_CASCADE)
+      {
+        my_error(ER_WRONG_FK_OPTION_FOR_GENERATED_COLUMN, MYF(0), 
+                 "ON UPDATE CASCADE");
+        DBUG_RETURN(TRUE);
+      }
+    }
+  }
+  DBUG_RETURN(FALSE);
+}
 
 /****************************************************************************
 ** Thread specific functions
@@ -820,23 +876,29 @@ void THD::enter_stage(const PSI_stage_info *new_stage,
 }
 
 extern "C"
-void thd_enter_cond(MYSQL_THD thd, mysql_cond_t *cond, mysql_mutex_t *mutex,
-                    const PSI_stage_info *stage, PSI_stage_info *old_stage)
+void thd_enter_cond(void *opaque_thd, mysql_cond_t *cond, mysql_mutex_t *mutex,
+                    const PSI_stage_info *stage, PSI_stage_info *old_stage,
+                    const char *src_function, const char *src_file,
+                    int src_line)
 {
+  THD *thd= static_cast<THD*>(opaque_thd);
   if (!thd)
     thd= current_thd;
 
-  return thd->ENTER_COND(cond, mutex, stage, old_stage);
+  return thd->enter_cond(cond, mutex, stage, old_stage,
+                         src_function, src_file, src_line);
 }
 
 extern "C"
-void thd_exit_cond(MYSQL_THD thd, const PSI_stage_info *stage)
+void thd_exit_cond(void *opaque_thd, const PSI_stage_info *stage,
+                   const char *src_function, const char *src_file,
+                   int src_line)
 {
+  THD *thd= static_cast<THD*>(opaque_thd);
   if (!thd)
     thd= current_thd;
 
-  thd->EXIT_COND(stage);
-  return;
+  thd->exit_cond(stage, src_function, src_file, src_line);
 }
 
 extern "C"
@@ -1029,6 +1091,22 @@ char *thd_security_context(THD *thd, char *buffer, size_t length,
 
 
 /**
+  Returns the partition_info working copy.
+  Used to see if a table should be created with partitioning.
+
+  @param thd thread context
+
+  @return Pointer to the working copy of partition_info or NULL.
+*/
+
+extern "C"
+partition_info *thd_get_work_part_info(THD *thd)
+{
+  return thd->work_part_info;
+}
+
+
+/**
   Implementation of Drop_table_error_handler::handle_condition().
   The reason in having this implementation is to silence technical low-level
   warnings during DROP TABLE operation. Currently we don't want to expose
@@ -1087,6 +1165,7 @@ void Open_tables_state::reset_open_tables_state()
 THD::THD(bool enable_plugins)
   :Query_arena(&main_mem_root, STMT_CONVENTIONAL_EXECUTION),
    mark_used_columns(MARK_COLUMNS_READ),
+   want_privilege(0),
    lex(&main_lex),
    m_query_string(NULL_CSTR),
    m_db(NULL_CSTR),
@@ -1095,6 +1174,8 @@ THD::THD(bool enable_plugins)
    mysql(NULL),
 #endif
    query_plan(this),
+   current_mutex(NULL),
+   current_cond(NULL),
    in_sub_stmt(0),
    fill_status_recursion_level(0),
    binlog_row_event_extra_data(NULL),
@@ -1126,6 +1207,7 @@ THD::THD(bool enable_plugins)
    derived_tables_processing(FALSE),
    sp_runtime_ctx(NULL),
    m_parser_state(NULL),
+   work_part_info(NULL),
 #ifndef EMBEDDED_LIBRARY
    // No need to instrument, highly unlikely to have that many plugins.
    audit_class_plugins(PSI_NOT_INSTRUMENTED),
@@ -1140,8 +1222,12 @@ THD::THD(bool enable_plugins)
 #endif
    skip_gtid_rollback(false),
    is_commit_in_middle_of_statement(false),
+   has_gtid_consistency_violation(false),
+   pending_gtid_state_update(false),
    main_da(false),
    m_parser_da(false),
+   m_query_rewrite_plugin_da(false),
+   m_query_rewrite_plugin_da_ptr(&m_query_rewrite_plugin_da),
    m_stmt_da(&main_da)
 {
   mdl_context.init(this);
@@ -1178,7 +1264,6 @@ THD::THD(bool enable_plugins)
   slave_thread = 0;
   memset(&variables, 0, sizeof(variables));
   m_thread_id= Global_THD_manager::reserved_thread_id;
-  one_shot_set= 0;
   file_id = 0;
   query_id= 0;
   query_name_consts= 0;
@@ -1205,7 +1290,10 @@ THD::THD(bool enable_plugins)
   active_vio = 0;
   mysql_mutex_init(key_LOCK_thd_data, &LOCK_thd_data, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_thd_query, &LOCK_thd_query, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_LOCK_thd_sysvar, &LOCK_thd_sysvar, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_query_plan, &LOCK_query_plan, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_LOCK_current_cond, &LOCK_current_cond,
+                   MY_MUTEX_INIT_FAST);
 
   /* Variables with default values */
   proc_info="login";
@@ -1236,7 +1324,7 @@ THD::THD(bool enable_plugins)
   protocol_text.init(this);
   protocol_binary.init(this);
 
-  tablespace_op=FALSE;
+  tablespace_op= false;
   substitute_null_with_insert_id = FALSE;
 
   /*
@@ -1260,6 +1348,14 @@ THD::THD(bool enable_plugins)
 #ifndef DBUG_OFF
   gis_debug= 0;
 #endif
+
+  m_token_array= NULL;
+  if (max_digest_length > 0)
+  {
+    m_token_array= (unsigned char*) my_malloc(PSI_INSTRUMENT_ME,
+                                              max_digest_length,
+                                              MYF(MY_WME));
+  }
 }
 
 
@@ -1648,7 +1744,7 @@ void THD::set_new_thread_id()
 void THD::cleanup_connection(void)
 {
   mysql_mutex_lock(&LOCK_status);
-  add_to_status(&global_status_var, &status_var);
+  add_to_status(&global_status_var, &status_var, true);
   mysql_mutex_unlock(&LOCK_status);
 
   cleanup();
@@ -1780,7 +1876,7 @@ void THD::release_resources()
   Global_THD_manager::get_instance()->release_thread_id(m_thread_id);
 
   mysql_mutex_lock(&LOCK_status);
-  add_to_status(&global_status_var, &status_var);
+  add_to_status(&global_status_var, &status_var, true);
   mysql_mutex_unlock(&LOCK_status);
 
   /* Ensure that no one is using THD */
@@ -1861,6 +1957,8 @@ THD::~THD()
   mysql_mutex_destroy(&LOCK_query_plan);
   mysql_mutex_destroy(&LOCK_thd_data);
   mysql_mutex_destroy(&LOCK_thd_query);
+  mysql_mutex_destroy(&LOCK_thd_sysvar);
+  mysql_mutex_destroy(&LOCK_current_cond);
 #ifndef DBUG_OFF
   dbug_sentry= THD_SENTRY_GONE;
 #endif
@@ -1881,6 +1979,11 @@ THD::~THD()
 #endif
 
   free_root(&main_mem_root, MYF(0));
+
+  if (m_token_array != NULL)
+  {
+    my_free(m_token_array);
+  }
   DBUG_VOID_RETURN;
 }
 
@@ -1892,6 +1995,7 @@ THD::~THD()
    add_to_status()
    to_var       add to this array
    from_var     from this array
+   add_com_vars if true, then add COM variables
 
   NOTES
     This function assumes that all variables are longlong/ulonglong.
@@ -1899,21 +2003,24 @@ THD::~THD()
     the other variables after the while loop
 */
 
-void add_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var)
+void add_to_status(STATUS_VAR *to_var, const STATUS_VAR *from_var, bool add_com_vars)
 {
   int        c;
   ulonglong *end= (ulonglong*) ((uchar*) to_var +
-                                offsetof(STATUS_VAR, last_system_status_var) +
+                                offsetof(STATUS_VAR, LAST_STATUS_VAR) +
                                 sizeof(ulonglong));
   ulonglong *to= (ulonglong*) to_var, *from= (ulonglong*) from_var;
 
   while (to != end)
     *(to++)+= *(from++);
 
-  to_var->com_other+= from_var->com_other;
+  if (add_com_vars)
+  {
+    to_var->com_other+= from_var->com_other;
 
-  for (c= 0; c< SQLCOM_END; c++)
-    to_var->com_stat[(uint) c] += from_var->com_stat[(uint) c];
+    for (c= 0; c< SQLCOM_END; c++)
+      to_var->com_stat[(uint) c] += from_var->com_stat[(uint) c];
+  }
 }
 
 /*
@@ -1933,9 +2040,8 @@ void add_diff_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var,
                         STATUS_VAR *dec_var)
 {
   int        c;
-  ulonglong *end= (ulonglong*) ((uchar*) to_var + offsetof(STATUS_VAR,
-                                                           last_system_status_var) +
-                                sizeof(ulonglong));
+  ulonglong *end= (ulonglong*) ((uchar*) to_var + offsetof(STATUS_VAR, LAST_STATUS_VAR) +
+                                                  sizeof(ulonglong));
   ulonglong *to= (ulonglong*) to_var,
             *from= (ulonglong*) from_var,
             *dec= (ulonglong*) dec_var;
@@ -2032,7 +2138,7 @@ void THD::awake(THD::killed_state state_to_set)
   /* Broadcast a condition to kick the target if it is waiting on it. */
   if (mysys_var)
   {
-    mysql_mutex_lock(&mysys_var->mutex);
+    mysql_mutex_lock(&LOCK_current_cond);
     if (!system_thread)		// Don't abort locks
       mysys_var->abort=1;
     /*
@@ -2059,7 +2165,7 @@ void THD::awake(THD::killed_state state_to_set)
       However, there is still a small chance of failure on platforms with
       instruction or memory write reordering.
     */
-    if (mysys_var->current_cond && mysys_var->current_mutex)
+    if (current_cond && current_mutex)
     {
       DBUG_EXECUTE_IF("before_dump_thread_acquires_current_mutex",
                       {
@@ -2068,11 +2174,11 @@ void THD::awake(THD::killed_state state_to_set)
                       DBUG_ASSERT(!debug_sync_set_action(current_thd,
                                                          STRING_WITH_LEN(act)));
                       };);
-      mysql_mutex_lock(mysys_var->current_mutex);
-      mysql_cond_broadcast(mysys_var->current_cond);
-      mysql_mutex_unlock(mysys_var->current_mutex);
+      mysql_mutex_lock(current_mutex);
+      mysql_cond_broadcast(current_cond);
+      mysql_mutex_unlock(current_mutex);
     }
-    mysql_mutex_unlock(&mysys_var->mutex);
+    mysql_mutex_unlock(&LOCK_current_cond);
   }
   DBUG_VOID_RETURN;
 }
@@ -2232,8 +2338,13 @@ void THD::cleanup_after_query()
     binlog_accessed_db_names= NULL;
     m_trans_fixed_log_file= NULL;
 
-    if (gtid_mode > 0)
-      gtid_post_statement_checks(this);
+    /*
+      Strictly speaking this is only needed when GTID_MODE!=OFF.
+      However, we can only read gtid_mode while holding
+      global_sid_lock.  And gtid_post_statement_checks is very cheap,
+      so no point in calling it conditionally.
+    */
+    gtid_post_statement_checks(this);
 #ifndef EMBEDDED_LIBRARY
     /*
       Clean possible unused INSERT_ID events by current statement.
@@ -4339,11 +4450,9 @@ void THD::get_definer(LEX_USER *definer)
   {
     definer->user= m_invoker_user;
     definer->host= m_invoker_host;
-    definer->password.str= NULL;
-    definer->password.length= 0;
     definer->plugin.str= (char *) "";
     definer->plugin.length= 0;
-    definer->auth.str=  (char *) "";
+    definer->auth.str=  NULL;
     definer->auth.length= 0;
   }
   else
@@ -4522,3 +4631,32 @@ void THD::Query_plan::set_query_plan(enum_sql_command sql_cmd,
   is_ps= ps;
   mysql_mutex_unlock(&thd->LOCK_query_plan);
 }
+
+
+/**
+  Push an error message into MySQL diagnostic area with line
+  and position information.
+
+  This function provides semantic action implementers with a way
+  to push the famous "You have a syntax error near..." error
+  message into the diagnostic area, which is normally produced only if
+  a parse error is discovered internally by the Bison generated
+  parser.
+
+  @note Parse-time only function!
+
+  @param thd            YYTHD
+  @param location       YYSTYPE object: error position
+  @param s              error message: NULL default means ER(ER_SYNTAX_ERROR)
+*/
+
+void THD::parse_error_at(const YYLTYPE &location, const char *s)
+{
+  uint lineno= location.raw.start ?
+    m_parser_state->m_lip.get_lineno(location.raw.start) : 1;
+  const char *pos= location.raw.start ? location.raw.start : "";
+  ErrConvString err(pos, variables.character_set_client);
+  my_printf_error(ER_PARSE_ERROR,  ER(ER_PARSE_ERROR), MYF(0),
+                  s ? s : ER(ER_SYNTAX_ERROR), err.ptr(), lineno);
+}
+

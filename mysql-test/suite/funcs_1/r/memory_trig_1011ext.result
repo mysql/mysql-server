@@ -357,6 +357,8 @@ drop table t1_sp;
 Testcase y.y.y.5: Rollback of nested trigger references
 -------------------------------------------------------
 set @@sql_mode='traditional';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 use test;
 drop table if exists t1;
 drop table if exists t2;

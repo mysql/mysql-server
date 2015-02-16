@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@
 #include "pfs.h"
 #include "pfs_global.h"
 #include "pfs_instr_class.h"
+#include "pfs_builtin_memory.h"
 #include "pfs_instr.h"
 #include "pfs_events_waits.h"
 #include "pfs_events_stages.h"
@@ -57,12 +58,32 @@ void pre_initialize_performance_schema()
 {
   pfs_initialized= false;
 
+  init_all_builtin_memory_class();
+
   PFS_table_stat::g_reset_template.reset();
   global_idle_stat.reset();
   global_table_io_stat.reset();
   global_table_lock_stat.reset();
 
   if (my_create_thread_local_key(&THR_PFS, destroy_pfs_thread))
+    return;
+  if (my_create_thread_local_key(&THR_PFS_VG, NULL))  // global_variables
+    return;
+  if (my_create_thread_local_key(&THR_PFS_SV, NULL))  // session_variables
+    return;
+  if (my_create_thread_local_key(&THR_PFS_VBT, NULL)) // variables_by_thread
+    return;
+  if (my_create_thread_local_key(&THR_PFS_SG, NULL))  // global_status
+    return;
+  if (my_create_thread_local_key(&THR_PFS_SS, NULL))  // session_status
+    return;
+  if (my_create_thread_local_key(&THR_PFS_SBT, NULL)) // status_by_thread
+    return;
+  if (my_create_thread_local_key(&THR_PFS_SBU, NULL)) // status_by_user
+    return;
+  if (my_create_thread_local_key(&THR_PFS_SBH, NULL)) // status_by_host
+    return;
+  if (my_create_thread_local_key(&THR_PFS_SBA, NULL)) // status_by_account
     return;
 
   THR_PFS_initialized= true;
@@ -73,7 +94,7 @@ initialize_performance_schema(PFS_global_param *param)
 {
   pfs_automated_sizing(param);
 
-  if (! param->m_enabled)
+  if (!param->m_enabled || !THR_PFS_initialized)
   {
     /*
       The performance schema is disabled in the startup command line.
@@ -107,22 +128,22 @@ initialize_performance_schema(PFS_global_param *param)
         param->m_events_statements_history_long_sizing) ||
       init_events_transactions_history_long(
         param->m_events_transactions_history_long_sizing) ||
-      init_file_hash() ||
-      init_table_share_hash() ||
+      init_file_hash(param) ||
+      init_table_share_hash(param) ||
       init_setup_actor(param) ||
-      init_setup_actor_hash() ||
+      init_setup_actor_hash(param) ||
       init_setup_object(param) ||
-      init_setup_object_hash() ||
+      init_setup_object_hash(param) ||
       init_host(param) ||
-      init_host_hash() ||
+      init_host_hash(param) ||
       init_user(param) ||
-      init_user_hash() ||
+      init_user_hash(param) ||
       init_account(param) ||
-      init_account_hash() ||
+      init_account_hash(param) ||
       init_digest(param) ||
-      init_digest_hash() ||
+      init_digest_hash(param) ||
       init_program(param) ||
-      init_program_hash() ||
+      init_program_hash(param) ||
       init_prepared_stmt(param))
   {
     /*
@@ -229,6 +250,7 @@ static void cleanup_performance_schema(void)
     will return PSI_NOT_INSTRUMENTED
   */
   cleanup_program();
+  cleanup_prepared_stmt();
   cleanup_sync_class();
   cleanup_thread_class();
   cleanup_table_share();
@@ -278,7 +300,27 @@ void shutdown_performance_schema(void)
   if (THR_PFS_initialized)
   {
     my_set_thread_local(THR_PFS, NULL);
+    my_set_thread_local(THR_PFS_VG, NULL);  // global_variables
+    my_set_thread_local(THR_PFS_SV, NULL);  // session_variables
+    my_set_thread_local(THR_PFS_VBT, NULL); // variables_by_thread
+    my_set_thread_local(THR_PFS_SG, NULL);  // global_status
+    my_set_thread_local(THR_PFS_SS, NULL);  // session_status
+    my_set_thread_local(THR_PFS_SBT, NULL); // status_by_thread
+    my_set_thread_local(THR_PFS_SBU, NULL); // status_by_user
+    my_set_thread_local(THR_PFS_SBH, NULL); // status_by_host
+    my_set_thread_local(THR_PFS_SBA, NULL); // status_by_account
+    
     my_delete_thread_local_key(THR_PFS);
+    my_delete_thread_local_key(THR_PFS_VG);
+    my_delete_thread_local_key(THR_PFS_SV);
+    my_delete_thread_local_key(THR_PFS_VBT);
+    my_delete_thread_local_key(THR_PFS_SG);
+    my_delete_thread_local_key(THR_PFS_SS);
+    my_delete_thread_local_key(THR_PFS_SBT);
+    my_delete_thread_local_key(THR_PFS_SBU);
+    my_delete_thread_local_key(THR_PFS_SBH);
+    my_delete_thread_local_key(THR_PFS_SBA);
+
     THR_PFS_initialized= false;
   }
 }

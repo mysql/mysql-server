@@ -22,6 +22,8 @@
 #include "mysql_com.h"                     /* SERVER_VERSION_LENGTH */
 #include "my_atomic.h"                     /* my_atomic_add64 */
 #include "sql_cmd.h"                       /* SQLCOM_END */
+#include "my_thread_local.h"               /* my_get_thread_local */
+#include "my_thread.h"                     /* my_thread_attr_t */
 
 class THD;
 struct handlerton;
@@ -92,6 +94,7 @@ int init_common_variables();
 void my_init_signals();
 bool gtid_server_init();
 void gtid_server_cleanup();
+const char *fixup_enforce_gtid_consistency_command_line(char *value_arg);
 
 extern "C" MYSQL_PLUGIN_IMPORT CHARSET_INFO *system_charset_info;
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *files_charset_info ;
@@ -121,7 +124,7 @@ extern bool opt_skip_name_resolve;
 extern bool opt_ignore_builtin_innodb;
 extern my_bool opt_character_set_client_handshake;
 extern MYSQL_PLUGIN_IMPORT bool volatile abort_loop;
-extern my_bool opt_bootstrap;
+extern my_bool opt_bootstrap, opt_initialize;
 extern my_bool opt_safe_user_create;
 extern my_bool opt_safe_show_db, opt_local_infile, opt_myisam_use_mmap;
 extern my_bool opt_slave_compressed_protocol, use_temp_pool;
@@ -170,6 +173,7 @@ extern ulong tc_log_page_waits;
 extern my_bool relay_log_purge, opt_innodb_safe_binlog, opt_innodb;
 extern my_bool relay_log_recovery;
 extern my_bool offline_mode;
+extern my_bool opt_log_backward_compatible_user_definitions;
 extern uint test_flags,select_errors,ha_open_options;
 extern uint protocol_version, mysqld_port, dropping_tables;
 extern ulong delay_key_write_options;
@@ -209,6 +213,7 @@ extern ulong slow_launch_time;
 extern ulong table_cache_size, table_def_size;
 extern ulong table_cache_size_per_instance, table_cache_instances;
 extern MYSQL_PLUGIN_IMPORT ulong max_connections;
+extern ulong max_digest_length;
 extern ulong max_connect_errors, connect_timeout;
 extern my_bool opt_slave_allow_batching;
 extern my_bool allow_slave_start;
@@ -235,10 +240,10 @@ extern ulong binlog_checksum_options;
 extern const char *binlog_checksum_type_names[];
 extern my_bool opt_master_verify_checksum;
 extern my_bool opt_slave_sql_verify_checksum;
-extern my_bool enforce_gtid_consistency;
 extern uint gtid_executed_compression_period;
 extern my_bool binlog_gtid_simple_recovery;
 extern ulong binlog_error_action;
+extern ulong locked_account_connection_count;
 enum enum_binlog_error_action
 {
   /// Ignore the error and let server continue without binlogging
@@ -247,20 +252,6 @@ enum enum_binlog_error_action
   ABORT_SERVER= 1
 };
 extern const char *binlog_error_action_list[];
-enum enum_gtid_mode
-{
-  /// Support only anonymous groups, not GTIDs.
-  GTID_MODE_OFF= 0,
-  /// Support both GTIDs and anonymous groups; generate anonymous groups.
-  GTID_MODE_UPGRADE_STEP_1= 1,
-  /// Support both GTIDs and anonymous groups; generate GTIDs.
-  GTID_MODE_UPGRADE_STEP_2= 2,
-  /// Support only GTIDs, not anonymous groups.
-  GTID_MODE_ON= 3
-};
-extern ulong gtid_mode;
-extern const char *gtid_mode_names[];
-extern TYPELIB gtid_mode_typelib;
 
 extern ulong stored_program_cache_size;
 extern ulong back_log;
@@ -280,7 +271,6 @@ extern struct system_variables max_system_variables;
 extern struct system_status_var global_status_var;
 extern struct rand_struct sql_rand;
 extern const char *opt_date_time_formats[];
-extern handlerton *partition_hton;
 extern handlerton *myisam_hton;
 extern handlerton *heap_hton;
 extern handlerton *innodb_hton;
@@ -317,6 +307,10 @@ extern char *opt_log_syslog_facility;
 /** The size of the host_cache. */
 extern uint host_cache_size;
 extern ulong log_error_verbosity;
+
+/** System variable show_compatibility_56. */
+extern my_bool show_compatibility_56;
+
 extern LEX_CSTRING sql_statement_names[(uint) SQLCOM_END + 1];
 
 /*
@@ -388,7 +382,7 @@ extern PSI_mutex_key
   key_LOCK_server_started, key_LOCK_status,
   key_LOCK_sql_slave_skip_counter,
   key_LOCK_slave_net_timeout,
-  key_LOCK_table_share, key_LOCK_thd_data,
+  key_LOCK_table_share, key_LOCK_thd_data, key_LOCK_thd_sysvar,
   key_LOCK_user_conn, key_LOCK_uuid_generator, key_LOG_LOCK_log,
   key_master_info_data_lock, key_master_info_run_lock,
   key_master_info_sleep_lock, key_master_info_thd_lock,
@@ -400,7 +394,7 @@ extern PSI_mutex_key
   key_structure_guard_mutex, key_TABLE_SHARE_LOCK_ha_data,
   key_LOCK_error_messages,
   key_LOCK_log_throttle_qni, key_LOCK_query_plan, key_LOCK_thd_query,
-  key_LOCK_cost_const,
+  key_LOCK_cost_const, key_LOCK_current_cond,
   key_rwlock_proxy_users;
 extern PSI_mutex_key key_RELAYLOG_LOCK_commit;
 extern PSI_mutex_key key_RELAYLOG_LOCK_commit_queue;
@@ -430,7 +424,7 @@ extern PSI_mutex_key key_mutex_slave_worker_hash;
 extern PSI_rwlock_key key_rwlock_LOCK_grant, key_rwlock_LOCK_logger,
   key_rwlock_LOCK_sys_init_connect, key_rwlock_LOCK_sys_init_slave,
   key_rwlock_LOCK_system_variables_hash, key_rwlock_query_cache_query_lock,
-  key_rwlock_global_sid_lock;
+  key_rwlock_global_sid_lock, key_rwlock_gtid_mode_lock;
 
 extern PSI_cond_key key_PAGE_cond, key_COND_active, key_COND_pool;
 extern PSI_cond_key key_BINLOG_update_cond,
@@ -459,7 +453,7 @@ extern PSI_cond_key key_commit_order_manager_cond;
 extern PSI_thread_key key_thread_bootstrap,
   key_thread_handle_manager, key_thread_main,
   key_thread_one_connection, key_thread_signal_hand,
-  key_thread_compress_gtid_table;
+  key_thread_compress_gtid_table, key_thread_parser_service;
 
 #ifdef HAVE_MY_TIMER
 extern PSI_thread_key key_thread_timer_notifier;
@@ -470,7 +464,7 @@ extern PSI_file_key key_file_binlog, key_file_binlog_index, key_file_casetest,
   key_file_dbopt, key_file_des_key_file, key_file_ERRMSG, key_select_to_file,
   key_file_fileparser, key_file_frm, key_file_global_ddl_log, key_file_load,
   key_file_loadfile, key_file_log_event_data, key_file_log_event_info,
-  key_file_master_info, key_file_misc, key_file_partition,
+  key_file_master_info, key_file_misc, key_file_partition_ddl_log,
   key_file_pid, key_file_relay_log_info, key_file_send_file, key_file_tclog,
   key_file_trg, key_file_trn, key_file_init;
 extern PSI_file_key key_file_general_log, key_file_slow_log;
@@ -538,11 +532,6 @@ extern PSI_memory_key key_memory_Filesort_buffer_sort_keys;
 extern PSI_memory_key key_memory_handler_errmsgs;
 extern PSI_memory_key key_memory_handlerton;
 extern PSI_memory_key key_memory_XID;
-extern PSI_memory_key key_memory_partition_file;
-extern PSI_memory_key key_memory_partition_engine_array;
-extern PSI_memory_key key_memory_ha_partition_PART_NAME_DEF;
-extern PSI_memory_key key_memory_ha_partition_part_ids;
-extern PSI_memory_key key_memory_ha_partition_ordered_rec_buffer;
 extern PSI_memory_key key_memory_KEY_CACHE;
 extern PSI_memory_key key_memory_MYSQL_LOCK;
 extern PSI_memory_key key_memory_MYSQL_LOG_name;
@@ -609,6 +598,7 @@ extern PSI_memory_key key_memory_Quick_ranges;
 extern PSI_memory_key key_memory_File_query_log_name;
 extern PSI_memory_key key_memory_Table_trigger_dispatcher;
 extern PSI_memory_key key_memory_show_slave_status_io_gtid_set;
+extern PSI_memory_key key_memory_write_set_extraction;
 #ifdef HAVE_MY_TIMER
 extern PSI_memory_key key_memory_thd_timer;
 #endif
@@ -754,6 +744,16 @@ void init_com_statement_info();
 extern my_thread_t signal_thread;
 #endif
 
+#ifndef EMBEDDED_LIBRARY
+typedef enum ssl_artifacts_status
+{
+  SSL_ARTIFACTS_NOT_FOUND= 0,
+  SSL_ARTIFACTS_VIA_OPTIONS,
+  SSL_ARTIFACTS_AUTO_DETECTED
+} ssl_artifacts_status;
+
+#endif /* EMBEDDED_LIBRARY */
+
 #ifdef HAVE_OPENSSL
 extern struct st_VioSSLFd * ssl_acceptor_fd;
 #endif /* HAVE_OPENSSL */
@@ -878,7 +878,8 @@ enum options_mysqld
   OPT_MDL_HASH_INSTANCES,
   OPT_SKIP_INNODB,
   OPT_AVOID_TEMPORAL_UPGRADE,
-  OPT_SHOW_OLD_TEMPORALS
+  OPT_SHOW_OLD_TEMPORALS,
+  OPT_ENFORCE_GTID_CONSISTENCY
 };
 
 
@@ -902,7 +903,12 @@ enum enum_query_type
   /// Print in charset of Item::print() argument (typically thd->charset()).
   QT_TO_ARGUMENT_CHARSET= (1 << 5),
   /// Print identifiers in compact format, omitting schema names.
-  QT_COMPACT_FORMAT= (1 << 6)
+  QT_COMPACT_FORMAT= (1 << 6),
+  /**
+    Change all Item_basic_constant to ? (used by query rewrite to compute
+    digest.)
+  */
+  QT_NORMALIZED_FORMAT= (1 << 7)
 };
 
 /* query_id */

@@ -1,0 +1,34 @@
+#
+# Verifies that the original query ends up in the statements history in
+# performance_schema.
+#
+# Query rewrite plugin was installed.
+INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
+VALUES ( 'SELECT "original"', 'SELECT "rewritten"' );
+SELECT enabled INTO @original_setting
+FROM performance_schema.setup_consumers
+WHERE NAME = 'events_statements_history';
+UPDATE performance_schema.setup_consumers
+SET enabled = 'NO'
+WHERE NAME = 'events_statements_history';
+CALL query_rewrite.flush_rewrite_rules();
+UPDATE performance_schema.setup_consumers
+SET enabled = 'YES'
+WHERE NAME = 'events_statements_history';
+SELECT 'original';
+rewritten
+rewritten
+Warnings:
+Note	1105	Query 'SELECT 'original'' rewritten to 'SELECT "rewritten"' by plugin: Rewriter.
+SELECT sql_text
+FROM performance_schema.events_statements_history
+WHERE sql_text LIKE 'SELECT %';
+sql_text
+SELECT enabled INTO @original_setting
+FROM performance_schema.setup_consumers
+WHERE NAME = 'events_statements_history'
+SELECT 'original'
+UPDATE performance_schema.setup_consumers
+SET enabled = @original_setting
+WHERE NAME = 'events_statements_history';
+# Query rewrite plugin was uninstalled.

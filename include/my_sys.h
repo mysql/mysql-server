@@ -17,8 +17,13 @@
 #define _my_sys_h
 
 #include "my_global.h"                  /* C_MODE_START, C_MODE_END */
-#include "my_thread.h"
 #include "m_ctype.h"                    /* for CHARSET_INFO */
+
+#include "my_thread.h"                  /* Needed for psi.h */
+#include "mysql/psi/psi.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysql/psi/mysql_memory.h"
+#include "mysql/psi/mysql_thread.h"
 
 #ifdef HAVE_ALLOCA_H
 #include <alloca.h>
@@ -146,10 +151,6 @@ C_MODE_START
 	/* defines when allocating data */
 extern void *my_multi_malloc(PSI_memory_key key, myf flags, ...);
 
-#include <mysql/psi/psi.h>
-#include <mysql/service_mysql_alloc.h>
-#include <mysql/psi/mysql_memory.h>
-
 /*
   Switch to my_malloc() if the memory block to be allocated is bigger than
   max_alloca_sz.
@@ -219,8 +220,25 @@ extern void (*local_message_hook)(enum loglevel ll,
 extern uint my_file_limit;
 extern ulong my_thread_stack_size;
 
-extern void (*proc_info_hook)(void *, const PSI_stage_info *, PSI_stage_info *,
-                              const char *, const char *, const unsigned int);
+/*
+  Hooks for reporting execution stage information. The server implementation
+  of these will also set THD::current_cond/current_mutex.
+  By having hooks, we avoid direct dependencies on server code.
+*/
+extern void (*enter_cond_hook)(void *opaque_thd,
+                               mysql_cond_t *cond,
+                               mysql_mutex_t *mutex,
+                               const PSI_stage_info *stage,
+                               PSI_stage_info *old_stage,
+                               const char *src_function,
+                               const char *src_file,
+                               int src_line);
+
+extern void (*exit_cond_hook)(void *opaque_thd,
+                              const PSI_stage_info *stage,
+                              const char *src_function,
+                              const char *src_file,
+                              int src_line);
 
 /* charsets */
 #define MY_ALL_CHARSETS_SIZE 2048
@@ -880,9 +898,8 @@ extern size_t escape_string_for_mysql(const CHARSET_INFO *charset_info,
 extern CHARSET_INFO *fs_character_set(void);
 #endif
 extern size_t escape_quotes_for_mysql(CHARSET_INFO *charset_info,
-                                      char *to, size_t to_length,
-                                      const char *from, size_t length);
-
+                                  char *to, size_t to_length,
+                                  const char *from, size_t length, char quote);
 #ifdef _WIN32
 extern my_bool have_tcpip;		/* Is set if tcpip is used */
 
@@ -903,8 +920,6 @@ void my_win_console_putc(const CHARSET_INFO *cs, int c);
 void my_win_console_vfprintf(const CHARSET_INFO *cs, const char *fmt, va_list args);
 int my_win_translate_command_line_args(const CHARSET_INFO *cs, int *ac, char ***av);
 #endif /* _WIN32 */
-
-#include <mysql/psi/psi.h>
 
 #ifdef HAVE_PSI_INTERFACE
 extern MYSQL_PLUGIN_IMPORT struct PSI_bootstrap *PSI_hook;

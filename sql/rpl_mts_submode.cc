@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,9 +14,14 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "rpl_mts_submode.h"
-#include "rpl_rli_pdb.h"
-#include "rpl_slave.h"
-#include "rpl_slave_commit_order_manager.h"
+
+#include "hash.h"                           // HASH
+#include "log_event.h"                      // Query_log_event
+#include "rpl_rli.h"                        // Relay_log_info
+#include "rpl_rli_pdb.h"                    // db_worker_hash_entry
+#include "rpl_slave_commit_order_manager.h" // Commit_order_manager
+#include "sql_class.h"                      // THD
+
 
 /**
  Does necessary arrangement before scheduling next event.
@@ -137,6 +142,7 @@ Mts_submode_database::wait_for_workers_to_finish(Relay_log_info *rli,
                     entry, entry->usage, w_entry->id));
       } while (entry->usage != 0 && !thd->killed);
       entry->worker= w_entry; // restoring last association, needed only for assert
+      mysql_mutex_unlock(&rli->slave_worker_hash_lock);
       thd->EXIT_COND(&old_stage);
       ret++;
     }
@@ -481,6 +487,7 @@ wait_for_last_committed_trx(Relay_log_info* rli,
     while ((!rli->info_thd->killed && !is_error) &&
            !clock_leq(last_committed_arg, estimate_lwm_timestamp()));
     my_atomic_store64(&min_waited_timestamp, SEQ_UNINIT);  // reset waiting flag
+    mysql_mutex_unlock(&rli->mts_gaq_LOCK);
     thd->EXIT_COND(&old_stage);
     set_timespec_nsec(&ts[1], 0);
     my_atomic_add64(&rli->mts_total_wait_overlap, diff_timespec(&ts[1], &ts[0]));
@@ -554,16 +561,22 @@ Mts_submode_logical_clock::schedule_next_event(Relay_log_info* rli,
       /*
         Either master is old, or the current group of events is malformed.
         In either case execution is allowed in effectively sequential mode, and warned.
+
+        View_change_log_event is expected not to have sequence_number,
+        thence the exception.
       */
-      sql_print_warning("Either event (relay log name:position) (%s:%llu) "
-                        "is from an old master therefore is not tagged "
-                        "with logical timestamps, or the current group of "
-                        "events miss a proper group header event. Execution is "
-                        "proceeded, but it is recommended to make sure "
-                        "replication is resumed from a valid start group "
-                        "position.",
-                        rli->get_event_relay_log_name(),
-                        rli->get_event_relay_log_pos());
+      if (ev->get_type_code() != binary_log::VIEW_CHANGE_EVENT)
+      {
+        sql_print_warning("Either event (relay log name:position) (%s:%llu) "
+                          "is from an old master therefore is not tagged "
+                          "with logical timestamps, or the current group of "
+                          "events miss a proper group header event. Execution is "
+                          "proceeded, but it is recommended to make sure "
+                          "replication is resumed from a valid start group "
+                          "position.",
+                          rli->get_event_relay_log_name(),
+                          rli->get_event_relay_log_pos());
+      }
     }
     first_event= false;
   }

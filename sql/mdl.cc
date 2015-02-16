@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -93,6 +93,7 @@ static void init_mdl_psi_keys(void)
 PSI_stage_info MDL_key::m_namespace_to_wait_state_name[NAMESPACE_END]=
 {
   {0, "Waiting for global read lock", 0},
+  {0, "Waiting for tablespace metadata lock", 0},
   {0, "Waiting for schema metadata lock", 0},
   {0, "Waiting for table metadata lock", 0},
   {0, "Waiting for stored function metadata lock", 0},
@@ -453,8 +454,8 @@ public:
   /**
     Helper struct which defines how different types of locks are handled
     for a specific MDL_lock. In practice we use only two strategies: "scoped"
-    lock strategy for locks in GLOBAL, COMMIT and SCHEMA namespaces and
-    "object" lock strategy for all other namespaces.
+    lock strategy for locks in GLOBAL, COMMIT, TABLESPACE and SCHEMA namespaces
+    and "object" lock strategy for all other namespaces.
   */
   struct MDL_lock_strategy
   {
@@ -1598,6 +1599,7 @@ inline void MDL_lock::reinit(const MDL_key *mdl_key)
   switch (mdl_key->mdl_namespace())
   {
     case MDL_key::GLOBAL:
+    case MDL_key::TABLESPACE:
     case MDL_key::SCHEMA:
     case MDL_key::COMMIT:
       m_strategy= &m_scoped_lock_strategy;
@@ -1634,6 +1636,7 @@ MDL_lock::get_unobtrusive_lock_increment(const MDL_request *request)
   switch (request->key.mdl_namespace())
   {
     case MDL_key::GLOBAL:
+    case MDL_key::TABLESPACE:
     case MDL_key::SCHEMA:
     case MDL_key::COMMIT:
       return m_scoped_lock_strategy.m_unobtrusive_lock_increment[request->type];
@@ -1851,6 +1854,7 @@ MDL_wait::timed_wait(MDL_context_owner *owner, struct timespec *abs_timeout,
   }
   result= m_wait_status;
 
+  mysql_mutex_unlock(&m_LOCK_wait_status);
   owner->EXIT_COND(& old_stage);
 
   return result;
@@ -2098,7 +2102,7 @@ void MDL_lock::reschedule_waiters()
 
 /**
   Strategy instances to be used with scoped metadata locks (i.e. locks
-  from GLOBAL, COMMIT and SCHEMA namespaces).
+  from GLOBAL, COMMIT, TABLESPACE and SCHEMA namespaces).
   The only locking modes which are supported at the moment are SHARED and
   INTENTION EXCLUSIVE and EXCLUSIVE.
 */

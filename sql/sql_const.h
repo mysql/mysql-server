@@ -293,7 +293,8 @@
 #define OPTIMIZER_SWITCH_SUBQ_MAT_COST_BASED       (1ULL << 14)
 #define OPTIMIZER_SWITCH_USE_INDEX_EXTENSIONS      (1ULL << 15)
 #define OPTIMIZER_SWITCH_COND_FANOUT_FILTER        (1ULL << 16)
-#define OPTIMIZER_SWITCH_LAST                      (1ULL << 17)
+#define OPTIMIZER_SWITCH_DERIVED_MERGE             (1ULL << 17)
+#define OPTIMIZER_SWITCH_LAST                      (1ULL << 18)
 
 #define OPTIMIZER_SWITCH_DEFAULT (OPTIMIZER_SWITCH_INDEX_MERGE | \
                                   OPTIMIZER_SWITCH_INDEX_MERGE_UNION | \
@@ -310,8 +311,32 @@
                                   OPTIMIZER_SWITCH_FIRSTMATCH | \
                                   OPTIMIZER_SWITCH_SUBQ_MAT_COST_BASED | \
                                   OPTIMIZER_SWITCH_USE_INDEX_EXTENSIONS | \
-                                  OPTIMIZER_SWITCH_COND_FANOUT_FILTER)
+                                  OPTIMIZER_SWITCH_COND_FANOUT_FILTER | \
+                                  OPTIMIZER_SWITCH_DERIVED_MERGE)
 
 enum SHOW_COMP_OPTION { SHOW_OPTION_YES, SHOW_OPTION_NO, SHOW_OPTION_DISABLED};
+
+enum enum_mark_columns
+{ MARK_COLUMNS_NONE, MARK_COLUMNS_READ, MARK_COLUMNS_WRITE, MARK_COLUMNS_TEMP};
+
+/*
+  Exit code used by mysqld_exit, exit and _exit function
+  to indicate successful termination of mysqld.
+*/
+#define MYSQLD_SUCCESS_EXIT 0
+/*
+  Exit code used by mysqld_exit, exit and _exit function to
+  signify unsuccessful termination of mysqld. The exit
+  code signifies the server should NOT BE RESTARTED AUTOMATICALLY
+  by init systems like systemd. 
+*/
+#define MYSQLD_ABORT_EXIT 1
+/*
+  Exit code used by mysqld_exit, exit and _exit function to
+  signify unsuccessful termination of mysqld. The exit code
+  signifies the server should be RESTARTED AUTOMATICALLY by
+  init systems like systemd.
+*/
+#define MYSQLD_FAILURE_EXIT 2
 
 #endif /* SQL_CONST_INCLUDED */

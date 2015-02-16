@@ -46,11 +46,13 @@ let $test_debug= 0;
 # - default:  16k
 let $minimal_page_size=  4096;
 let $default_page_size= 16384;
+--disable_warnings
 let $maximal_page_size= 65536;
 let $legal_page_size_list= $minimal_page_size,8192,16384,32768,$maximal_page_size;
 let $start_page_size=
 `SELECT variable_value FROM INFORMATION_SCHEMA.GLOBAL_STATUS
 WHERE LOWER(variable_name) = 'innodb_page_size'`;
+--enable_warnings
 if(`SELECT $start_page_size NOT IN ($legal_page_size_list)`)
 {
    --echo # ERROR: The current innodb page size ($start_page_size) is not in
@@ -126,7 +128,7 @@ if ( $default_page_size != $other_page_size )
    let SEARCH_PATTERN= InnoDB: innodb-page-size has been changed from the default value $default_page_size to $other_page_size;
    --source include/search_pattern_in_file.inc
 }
-let SEARCH_PATTERN=Data file 'ibdata1' uses page size $start_page_size, but the innodb_page_size start-up parameter is $other_page_size;
+let SEARCH_PATTERN=Data file '.*ibdata1' uses page size $start_page_size, but the innodb_page_size start-up parameter is $other_page_size;
 --source include/search_pattern_in_file.inc
 # The server restart aborts
 let SEARCH_PATTERN= \[ERROR\] Aborting;
@@ -141,7 +143,7 @@ if ( $default_page_size != $other_page_size )
    --source include/search_pattern_in_file.inc
 }
 
-let SEARCH_PATTERN=Data file 'ibdata1' uses page size $start_page_size, but the innodb_page_size start-up parameter is $other_page_size;
+let SEARCH_PATTERN=Data file '.*ibdata1' uses page size $start_page_size, but the innodb_page_size start-up parameter is $other_page_size;
 --source include/search_pattern_in_file.inc
 
 # The server restart aborts

@@ -155,6 +155,8 @@ SELECT sp_vars_div_zero();
 sp_vars_div_zero()
 NULL
 SET @@sql_mode = 'traditional';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 
 ---------------------------------------------------------------
 Calling in TRADITIONAL mode the routines, created in ANSI mode.
@@ -755,6 +757,8 @@ DROP PROCEDURE IF EXISTS p4;
 DROP PROCEDURE IF EXISTS p5;
 DROP PROCEDURE IF EXISTS p6;
 SET @@sql_mode = 'traditional';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE PROCEDURE p1()
 BEGIN
 DECLARE v TINYINT DEFAULT 1e200;
@@ -847,6 +851,8 @@ f1(-2500)
 Warnings:
 Warning	1264	Out of range value for column 'arg' at row 1
 SET @@sql_mode = 'traditional';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT f1(-2500);
 ERROR 22003: Out of range value for column 'arg' at row 1
 DROP FUNCTION f1;
@@ -874,6 +880,8 @@ f1(8388699)
 Warnings:
 Warning	1264	Out of range value for column 'arg' at row 1
 SET @@sql_mode = 'traditional';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT f1(8388699);
 ERROR 22003: Out of range value for column 'arg' at row 1
 DROP FUNCTION f1;

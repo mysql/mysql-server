@@ -584,6 +584,8 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
     result_table_list.table_name= result_table_list.alias= (char*) "union";
     result_table_list.table= table= union_result->table;
 
+    result_table_list.set_privileges(SELECT_ACL);
+
     if (!item_list.elements)
     {
       Prepared_stmt_arena_holder ps_arena_holder(thd);

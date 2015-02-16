@@ -893,8 +893,21 @@ dict_index_get_nth_field_pos(
 
 	n_fields = dict_index_get_n_fields(index);
 
+	/* Are we looking for a MBR (Minimum Bound Box) field of
+	a spatial index */
+	bool	is_mbr_fld = (n == 0 && dict_index_is_spatial(index2));
+
 	for (pos = 0; pos < n_fields; pos++) {
 		field = dict_index_get_nth_field(index, pos);
+
+		/* The first field of a spatial index is a transformed
+		MBR (Minimum Bound Box) field made out of original column,
+		so its field->col still points to original cluster index
+		col, but the actual content is different. So we cannot
+		consider them equal if neither of them is MBR field */
+		if (pos == 0 && dict_index_is_spatial(index) && !is_mbr_fld) {
+			continue;
+		}
 
 		if (field->col == field2->col
 		    && (field->prefix_len == 0
@@ -1566,9 +1579,8 @@ dict_table_rename_in_cache(
 		bool		exists;
 		char*		filepath;
 
-		ut_ad(!is_system_tablespace(table->space));
-		ut_ad(!dict_table_is_temporary(table));
 		ut_ad(dict_table_is_file_per_table(table));
+		ut_ad(!dict_table_is_temporary(table));
 
 		/* Make sure the data_dir_path is set. */
 		dict_get_and_save_data_dir_path(table, true);
@@ -3375,6 +3387,23 @@ dict_index_build_internal_fts(
 }
 /*====================== FOREIGN KEY PROCESSING ========================*/
 
+/** Check whether the dict_table_t is a partition.
+A partitioned table on the SQL level is composed of InnoDB tables,
+where each InnoDB table is a [sub]partition including its secondary indexes
+which belongs to the partition.
+@param[in]	table	Table to check.
+@return true if the dict_table_t is a partition else false. */
+UNIV_INLINE
+bool
+dict_table_is_partition(
+	const dict_table_t*	table)
+{
+	/* Check both P and p on all platforms in case it was moved to/from
+	WIN. */
+	return(strstr(table->name.m_name, "#p#")
+	       || strstr(table->name.m_name, "#P#"));
+}
+
 /*********************************************************************//**
 Checks if a table is referenced by foreign keys.
 @return TRUE if table is referenced by a foreign key */
@@ -4669,6 +4698,23 @@ col_loop1:
 		return(DB_CANNOT_ADD_CONSTRAINT);
 	}
 
+	/* Don't allow foreign keys on partitioned tables yet. */
+	ptr1 = dict_scan_to(ptr, "PARTITION");
+	if (ptr1) {
+		ptr1 = dict_accept(cs, ptr1, "PARTITION", &success);
+		if (success && my_isspace(cs, *ptr1)) {
+			ptr2 = dict_accept(cs, ptr1, "BY", &success);
+			if (success) {
+				my_error(ER_FOREIGN_KEY_ON_PARTITIONED,MYF(0));
+				return(DB_CANNOT_ADD_CONSTRAINT);
+			}
+		}
+	}
+	if (dict_table_is_partition(table)) {
+		my_error(ER_FOREIGN_KEY_ON_PARTITIONED,MYF(0));
+		return(DB_CANNOT_ADD_CONSTRAINT);
+	}
+
 	/* Let us create a constraint struct */
 
 	foreign = dict_mem_foreign_create();
@@ -4741,6 +4787,14 @@ col_loop1:
 			start_of_latest_foreign, ptr);
 		mutex_exit(&dict_foreign_err_mutex);
 
+		return(DB_CANNOT_ADD_CONSTRAINT);
+	}
+
+	/* Don't allow foreign keys on partitioned tables yet. */
+	if (referenced_table && dict_table_is_partition(referenced_table)) {
+		/* How could one make a referenced table to be a partition? */
+		ut_ad(0);
+		my_error(ER_FOREIGN_KEY_ON_PARTITIONED,MYF(0));
 		return(DB_CANNOT_ADD_CONSTRAINT);
 	}
 
@@ -5586,16 +5640,16 @@ dict_print_info_on_foreign_keys(
 	mutex_exit(&dict_sys->mutex);
 }
 
-/**********************************************************************//**
-Find a table in dict_sys->table_LRU list with specified space id
+/** Given a space_id of a file-per-table tablespace, search the
+dict_sys->table_LRU list and return the dict_table_t* pointer for it.
+@param	space_id	Tablespace ID
 @return table if found, NULL if not */
 static
 dict_table_t*
-dict_find_table_by_space(
-/*=====================*/
-	ulint	space_id)		/*!< in: space ID */
+dict_find_single_table_by_space(
+	ulint	space_id)
 {
-	dict_table_t*   table;
+	dict_table_t*	table;
 	ulint		num_item;
 	ulint		count = 0;
 
@@ -5611,11 +5665,14 @@ dict_find_table_by_space(
 
 	/* This function intentionally does not acquire mutex as it is used
 	by error handling code in deep call stack as last means to avoid
-	killing the server, so it worth to risk some consequencies for
+	killing the server, so it worth to risk some consequences for
 	the action. */
 	while (table && count < num_item) {
 		if (table->space == space_id) {
-			return(table);
+			if (dict_table_is_file_per_table(table)) {
+				return(table);
+			}
+			return(NULL);
 		}
 
 		table = UT_LIST_GET_NEXT(table_LRU, table);
@@ -5636,7 +5693,7 @@ dict_set_corrupted_by_space(
 {
 	dict_table_t*   table;
 
-	table = dict_find_table_by_space(space_id);
+	table = dict_find_single_table_by_space(space_id);
 
 	if (!table) {
 		return(FALSE);
@@ -6760,10 +6817,12 @@ Other bits are the same.
 dict_table_t::flags |     0     |    1    |     1      |    1
 fil_space_t::flags  |     0     |    0    |     1      |    1
 @param[in]	table_flags	dict_table_t::flags
+@param[in]	is_temp		whether the tablespace is temporary
 @return tablespace flags (fil_space_t::flags) */
 ulint
 dict_tf_to_fsp_flags(
-	ulint	table_flags)
+	ulint	table_flags,
+	bool	is_temp)
 {
 	DBUG_EXECUTE_IF("dict_tf_to_fsp_flags_failure",
 			return(ULINT_UNDEFINED););
@@ -6772,10 +6831,21 @@ dict_tf_to_fsp_flags(
 				 DICT_TF_HAS_ATOMIC_BLOBS(table_flags);
 	page_size_t	page_size = dict_tf_get_page_size(table_flags);
 	bool		has_data_dir = DICT_TF_HAS_DATA_DIR(table_flags);
+	bool		is_shared = DICT_TF_HAS_SHARED_SPACE(table_flags);
+
+	ut_ad(!page_size.is_compressed() || has_atomic_blobs);
+
+	/* General tablespaces that are not compressed do not get the
+	flags for dynamic row format (POST_ANTELOPE & ATOMIC_BLOBS) */
+	if (is_shared && !page_size.is_compressed()) {
+		has_atomic_blobs = false;
+	}
 
 	ulint		fsp_flags = fsp_flags_init(page_size,
 						   has_atomic_blobs,
-						   has_data_dir);
+						   has_data_dir,
+						   is_shared,
+						   is_temp);
 
 	return(fsp_flags);
 }
@@ -6801,5 +6871,45 @@ dict_tf_to_row_format_string(
 
 	ut_error;
 	return(0);
+}
+
+/** Look for any dictionary objects that are found in the given tablespace.
+@param[in]	space	Tablespace ID to search for.
+@return true if tablespace is empty. */
+bool
+dict_tablespace_is_empty(
+	ulint	space_id)
+{
+	btr_pcur_t	pcur;
+	const rec_t*	rec;
+	mtr_t		mtr;
+	bool		found = false;
+
+	rw_lock_x_lock(&dict_operation_lock);
+	mutex_enter(&dict_sys->mutex);
+	mtr_start(&mtr);
+
+	for (rec = dict_startscan_system(&pcur, &mtr, SYS_TABLES);
+	     rec != NULL;
+	     rec = dict_getnext_system(&pcur, &mtr)) {
+		const byte*	field;
+		ulint		len;
+		ulint		space_id_for_table;
+
+		field = rec_get_nth_field_old(
+			rec, DICT_FLD__SYS_TABLES__SPACE, &len);
+		ut_ad(len == 4);
+		space_id_for_table = mach_read_from_4(field);
+
+		if (space_id_for_table == space_id) {
+			found = true;
+		}
+	}
+
+	mtr_commit(&mtr);
+	mutex_exit(&dict_sys->mutex);
+	rw_lock_x_unlock(&dict_operation_lock);
+
+	return(!found);
 }
 #endif /* !UNIV_HOTBACKUP */

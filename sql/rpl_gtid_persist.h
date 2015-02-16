@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -18,11 +18,11 @@
 #ifndef RPL_GTID_PERSIST_H_
 #define RPL_GTID_PERSIST_H_
 
-#include <string>
-#include "rpl_table_access.h"
-using std::string;
+#include "my_global.h"
+#include "rpl_table_access.h"        // System_table_access
+#include "sql_class.h"               // Open_tables_backup
 
-class Open_tables_backup;
+#include <string>
 
 
 class Gtid_table_access_context : public System_table_access
@@ -278,7 +278,7 @@ private:
     @param  table Reference to a table object.
     @retval Return the encoded gtid text.
   */
-  string encode_gtid_text(TABLE *table);
+  std::string encode_gtid_text(TABLE *table);
   /**
     Get gtid interval from the the current row of the table.
 
@@ -287,7 +287,7 @@ private:
     @param  gno_star[out] The first GNO of the gtid interval.
     @param  gno_end[out]  The last GNO of the gtid interval.
   */
-  void get_gtid_interval(TABLE *table, string &sid,
+  void get_gtid_interval(TABLE *table, std::string &sid,
                          rpl_gno &gno_start, rpl_gno &gno_end);
   /**
     Insert the gtid set into table.

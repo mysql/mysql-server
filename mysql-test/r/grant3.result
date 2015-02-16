@@ -19,6 +19,8 @@ delete from mysql.tables_priv where user like 'mysqltest\_%';
 delete from mysql.columns_priv where user like 'mysqltest\_%';
 flush privileges;
 grant select on test.* to CUser@localhost;
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 grant select on test.* to CUser@LOCALHOST;
 flush privileges;
 SELECT user, host FROM mysql.user where user = 'CUser' order by 1,2;
@@ -46,6 +48,8 @@ DROP USER CUser@LOCALHOST;
 ERROR HY000: Operation DROP USER failed for 'CUser'@'localhost'
 create table t1 (a int);
 grant select on test.t1 to CUser@localhost;
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 grant select on test.t1 to CUser@LOCALHOST;
 flush privileges;
 SELECT user, host FROM mysql.user where user = 'CUser' order by 1,2;
@@ -72,6 +76,8 @@ DROP USER CUser@localhost;
 DROP USER CUser@LOCALHOST;
 ERROR HY000: Operation DROP USER failed for 'CUser'@'localhost'
 grant select(a) on test.t1 to CUser@localhost;
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 grant select(a) on test.t1 to CUser@LOCALHOST;
 flush privileges;
 SELECT user, host FROM mysql.user where user = 'CUser' order by 1,2;
@@ -99,6 +105,8 @@ DROP USER CUser@LOCALHOST;
 ERROR HY000: Operation DROP USER failed for 'CUser'@'localhost'
 drop table t1;
 grant select on test.* to CUser2@localhost;
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 grant select on test.* to CUser2@LOCALHOST;
 flush privileges;
 SELECT user, host FROM mysql.user where user = 'CUser2' order by 1,2;

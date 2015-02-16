@@ -10782,24 +10782,33 @@ QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
 explain select * from v1 where id="b"	{
   "steps": [
     {
-      "view": {
-        "database": "test",
-        "view": "v1",
-        "in_select#": 1,
-        "select#": 2,
-        "merged": true
-      } /* view */
-    },
-    {
       "join_preparation": {
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select `t1`.`id` AS `id`,`t1`.`data` AS `data` from (`t1`) where ((`t1`.`id` = 'b') and (`t1`.`id` < 'c'))"
+            "join_preparation": {
+              "select#": 2,
+              "steps": [
+                {
+                  "expanded_query": "/* select#2 */ select `t1`.`id` AS `id`,`t1`.`data` AS `data` from `t1` where (`t1`.`id` < 'c')"
+                }
+              ] /* steps */
+            } /* join_preparation */
+          },
+          {
+            "view": {
+              "table": "`v1`",
+              "select#": 2,
+              "merged": true
+            } /* view */
+          },
+          {
+            "expanded_query": "/* select#1 */ select `t1`.`id` AS `id`,`t1`.`data` AS `data` from (`t1`) where (`t1`.`id` = 'b')"
           },
           {
             "transformations_to_nested_joins": {
               "transformations": [
+                "JOIN_condition_to_WHERE",
                 "parenthesis_removal"
               ] /* transformations */,
               "expanded_query": "/* select#1 */ select `t1`.`id` AS `id`,`t1`.`data` AS `data` from `t1` where ((`t1`.`id` = 'b') and (`t1`.`id` < 'c'))"
@@ -10970,28 +10979,26 @@ QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
 explain select * from v1 where id="b"	{
   "steps": [
     {
-      "view": {
-        "database": "test",
-        "view": "v1",
-        "in_select#": 1,
-        "select#": 2,
-        "materialized": true
-      } /* view */
-    },
-    {
-      "join_preparation": {
-        "select#": 2,
-        "steps": [
-          {
-            "expanded_query": "/* select#2 */ select `t1`.`id` AS `id`,`t1`.`data` AS `data` from `t1` where (`t1`.`id` < 'c') limit 2"
-          }
-        ] /* steps */
-      } /* join_preparation */
-    },
-    {
       "join_preparation": {
         "select#": 1,
         "steps": [
+          {
+            "join_preparation": {
+              "select#": 2,
+              "steps": [
+                {
+                  "expanded_query": "/* select#2 */ select `t1`.`id` AS `id`,`t1`.`data` AS `data` from `t1` where (`t1`.`id` < 'c') limit 2"
+                }
+              ] /* steps */
+            } /* join_preparation */
+          },
+          {
+            "view": {
+              "table": "`v1`",
+              "select#": 2,
+              "materialized": true
+            } /* view */
+          },
           {
             "expanded_query": "/* select#1 */ select `v1`.`id` AS `id`,`v1`.`data` AS `data` from `v1` where (`v1`.`id` = 'b')"
           }

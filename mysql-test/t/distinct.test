@@ -90,6 +90,8 @@ insert into t3 select * from t4;
 insert into t4 select * from t3;
 insert into t3 select * from t4;
 
+ANALYZE TABLE t1,t2,t3;
+
 explain select distinct t1.a from t1,t3 where t1.a=t3.a;
 
 # This query uses the "not used in distinct" optimization (search for
@@ -745,6 +747,9 @@ CREATE TABLE t1 (
 );
 INSERT INTO t1 VALUES (1,2), (3,3);
 
+SET @save_optimizer_switch= @@optimizer_switch;
+SET @@SESSION.optimizer_switch="derived_merge=off";
+
 let $query=
 SELECT DISTINCT subselect.b
 FROM t1 LEFT JOIN 
@@ -755,6 +760,8 @@ FROM t1 LEFT JOIN
 --echo
 eval EXPLAIN $query;
 eval $query;
+
+SET @@SESSION.optimizer_switch= @save_optimizer_switch;
 
 DROP TABLE t1;
 

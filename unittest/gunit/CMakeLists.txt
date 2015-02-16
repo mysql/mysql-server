@@ -255,6 +255,7 @@ SET(TESTS
   filesort_buffer
   filesort_compare
   inplace_vector
+  key
   like_range
   mdl
   my_bitmap
@@ -288,6 +289,7 @@ SET(TESTS
   strtoll
   thread_utils
   my_timer
+  timespec
   )
  
 IF (UNIX)
@@ -325,6 +327,7 @@ SET(SERVER_TESTS
   opt_range
   opt_ref
   opt_trace
+  select_lex_visitor
   segfault
   sql_table
   strings_utf8
@@ -333,6 +336,7 @@ SET(SERVER_TESTS
   thd_manager
   unique
   security_context
+  initialize_password
 )
 
 ## Merging tests into fewer executables saves *a lot* of

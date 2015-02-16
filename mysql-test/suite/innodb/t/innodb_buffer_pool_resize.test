@@ -17,6 +17,11 @@ set @old_innodb_buffer_pool_size = @@innodb_buffer_pool_size;
 set @old_innodb_file_format = @@innodb_file_format;
 set @old_innodb_file_per_table = @@innodb_file_per_table;
 set @old_innodb_adaptive_hash_index = @@innodb_adaptive_hash_index;
+if (`select (version() like '%debug%') > 0`)
+{
+    set @old_innodb_disable_resize = @@innodb_disable_resize_buffer_pool_debug;
+    set global innodb_disable_resize_buffer_pool_debug = OFF;
+}
 --enable_query_log
 
 set global innodb_file_format=`Barracuda`;
@@ -68,5 +73,9 @@ set global innodb_file_format = @old_innodb_file_format;
 set global innodb_file_per_table = @old_innodb_file_per_table;
 set global innodb_adaptive_hash_index = @old_innodb_adaptive_hash_index;
 set global innodb_buffer_pool_size = @old_innodb_buffer_pool_size;
+if (`select (version() like '%debug%') > 0`)
+{
+    set global innodb_disable_resize_buffer_pool_debug = @old_innodb_disable_resize;
+}
 --enable_query_log
 --source include/wait_condition.inc

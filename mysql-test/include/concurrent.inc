@@ -49,7 +49,7 @@ let $keep_locks= `SELECT NOT @@global.innodb_locks_unsafe_for_binlog`;
 #
 # Set up privileges and remove user level locks, if exist.
 #
-GRANT USAGE ON test.* TO mysqltest@localhost;
+CREATE USER mysqltest@localhost;
 
 #
 # Preparatory cleanup.

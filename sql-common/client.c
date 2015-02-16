@@ -736,223 +736,246 @@ void read_ok_ex(MYSQL *mysql, ulong length)
   if (mysql->server_capabilities & CLIENT_SESSION_TRACK)
   {
     free_state_change_info(mysql->extension);
-    if (mysql->server_status & SERVER_SESSION_STATE_CHANGED)
+
+    if (pos < mysql->net.read_pos + length)
     {
-      total_len= (size_t) net_field_length(&pos);
-      while (total_len > 0)
+      /* get the info field */
+      size_t length_msg_member= (size_t)net_field_length(&pos);
+      mysql->info= (length_msg_member ? (char *)pos : NULL);
+      pos += (length_msg_member);
+
+      /* read session state changes info */
+      if (mysql->server_status & SERVER_SESSION_STATE_CHANGED)
       {
         saved_pos= pos;
-        type= (enum enum_session_state_type) net_field_length(&pos);
+        total_len= (size_t)net_field_length(&pos);
+        /* ensure that mysql->info is zero-terminated */
+        if (mysql->info)
+          *saved_pos= 0;
 
-        switch (type)
+        while (total_len > 0)
         {
-        case SESSION_TRACK_SYSTEM_VARIABLES:
-          /* Move past the total length of the changed entity. */
-          (void) net_field_length(&pos);
+          saved_pos= pos;
+          type= (enum enum_session_state_type) net_field_length(&pos);
 
-          /* Name of the system variable. */
-          len= (size_t) net_field_length(&pos);
-
-          if (!my_multi_malloc(key_memory_MYSQL_state_change_info,
-                               MYF(0),
-                               &element, sizeof(LIST),
-                               &data, sizeof(LEX_STRING),
-                               NullS))
+          switch (type)
           {
-            set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
-            return;
-          }
+          case SESSION_TRACK_SYSTEM_VARIABLES:
+            /* Move past the total length of the changed entity. */
+            (void) net_field_length(&pos);
 
-	  if(!(data->str= (char *)my_malloc(PSI_NOT_INSTRUMENTED, len, MYF(MY_WME))))
-          {
-            set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
-            return;
-          }
-          memcpy(data->str, (char *) pos, len);
-          data->length= len;
-          pos += len;
+            /* Name of the system variable. */
+            len= (size_t) net_field_length(&pos);
 
-          element->data= data;
-	  ADD_INFO(info, element, SESSION_TRACK_SYSTEM_VARIABLES);
-
-          /*
-            Check if the changed variable was charset. In that case we need to
-            update mysql->charset.
-          */
-          if (!strncmp(data->str, "character_set_client", data->length))
-            is_charset= 1;
-          else
-            is_charset= 0;
-
-          if (!my_multi_malloc(key_memory_MYSQL_state_change_info,
-                               MYF(0),
-                               &element, sizeof(LIST),
-                               &data, sizeof(LEX_STRING),
-                               NullS))
-          {
-            set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
-            return;
-          }
-
-          /* Value of the system variable. */
-          len= (size_t) net_field_length(&pos);
-	  if(!(data->str= (char *)my_malloc(PSI_NOT_INSTRUMENTED, len, MYF(MY_WME))))
-          {
-            set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
-            return;
-          }
-          memcpy(data->str, (char *) pos, len);
-          data->length= len;
-          pos += len;
-
-          element->data= data;
-	  ADD_INFO(info, element, SESSION_TRACK_SYSTEM_VARIABLES);
-
-          if (is_charset == 1)
-          {
-            saved_cs= mysql->charset;
-
-            memcpy(charset_name, data->str, data->length);
-            charset_name[data->length]= 0;
-
-            if (!(mysql->charset= get_charset_by_csname(charset_name,
-                                                        MY_CS_PRIMARY,
-                                                        MYF(MY_WME))))
+            if (!my_multi_malloc(key_memory_MYSQL_state_change_info,
+              MYF(0),
+              &element, sizeof(LIST),
+              &data, sizeof(LEX_STRING),
+              NullS))
             {
-              /* Ideally, the control should never reach her. */
-              DBUG_ASSERT(0);
-              mysql->charset= saved_cs;
+              set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
+              return;
+            }
+
+            if(!(data->str= (char *)my_malloc(PSI_NOT_INSTRUMENTED, len, MYF(MY_WME))))
+            {
+              set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
+              return;
+            }
+            memcpy(data->str, (char *) pos, len);
+            data->length= len;
+            pos += len;
+
+            element->data= data;
+            ADD_INFO(info, element, SESSION_TRACK_SYSTEM_VARIABLES);
+
+            /*
+              Check if the changed variable was charset. In that case we need to
+              update mysql->charset.
+              */
+            if (!strncmp(data->str, "character_set_client", data->length))
+              is_charset= 1;
+            else
+              is_charset= 0;
+
+            if (!my_multi_malloc(key_memory_MYSQL_state_change_info,
+              MYF(0),
+              &element, sizeof(LIST),
+              &data, sizeof(LEX_STRING),
+              NullS))
+            {
+              set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
+              return;
+            }
+
+            /* Value of the system variable. */
+            len= (size_t) net_field_length(&pos);
+            if(!(data->str= (char *)my_malloc(PSI_NOT_INSTRUMENTED, len, MYF(MY_WME))))
+            {
+              set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
+              return;
+            }
+            memcpy(data->str, (char *) pos, len);
+            data->length= len;
+            pos += len;
+
+            element->data= data;
+            ADD_INFO(info, element, SESSION_TRACK_SYSTEM_VARIABLES);
+
+            if (is_charset == 1)
+            {
+              saved_cs= mysql->charset;
+
+              memcpy(charset_name, data->str, data->length);
+              charset_name[data->length]= 0;
+
+              if (!(mysql->charset= get_charset_by_csname(charset_name,
+                MY_CS_PRIMARY,
+                MYF(MY_WME))))
+              {
+                /* Ideally, the control should never reach her. */
+                DBUG_ASSERT(0);
+                mysql->charset= saved_cs;
+              }
+            }
+            break;
+          case SESSION_TRACK_SCHEMA:
+
+            if (!my_multi_malloc(key_memory_MYSQL_state_change_info,
+              MYF(0),
+              &element, sizeof(LIST),
+              &data, sizeof(LEX_STRING),
+              NullS))
+            {
+              set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
+              return;
+            }
+
+            /* Move past the total length of the changed entity. */
+            (void) net_field_length(&pos);
+
+            len= (size_t) net_field_length(&pos);
+            if(!(data->str= (char *)my_malloc(PSI_NOT_INSTRUMENTED, len, MYF(MY_WME))))
+            {
+              set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
+              return;
+            }
+            memcpy(data->str, (char *) pos, len);
+            data->length= len;
+            pos += len;
+
+            element->data= data;
+            ADD_INFO(info, element, SESSION_TRACK_SCHEMA);
+
+            if (!(db= (char *) my_malloc(key_memory_MYSQL_state_change_info,
+              data->length + 1, MYF(MY_WME))))
+            {
+              set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
+              return;
+            }
+
+            if (mysql->db)
+              my_free(mysql->db);
+
+            memcpy(db, data->str, data->length);
+            db[data->length]= '\0';
+            mysql->db= db;
+
+            break;
+          case SESSION_TRACK_GTIDS:
+            if (!my_multi_malloc(key_memory_MYSQL_state_change_info,
+              MYF(0),
+              &element, sizeof(LIST),
+              &data, sizeof(LEX_STRING),
+              NullS))
+            {
+              set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
+              return;
+            }
+
+            /* Move past the total length of the changed entity. */
+            (void) net_field_length(&pos);
+
+            /* read (and ignore for now) the GTIDS encoding specification code */
+            (void) net_field_length(&pos);
+
+            /*
+               For now we ignore the encoding specification, since only one
+               is supported. In the future the decoding of what comes next
+               depends on the specification code.
+               */
+
+            /* read the length of the encoded string. */
+            len= (size_t) net_field_length(&pos);
+            if(!(data->str= (char *)my_malloc(PSI_NOT_INSTRUMENTED, len, MYF(MY_WME))))
+            {
+              set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
+              return;
+            }
+
+            memcpy(data->str, (char *) pos, len);
+            data->length= len;
+            pos += len;
+
+            element->data= data;
+            ADD_INFO(info, element, SESSION_TRACK_GTIDS);
+            break;
+          case SESSION_TRACK_STATE_CHANGE:
+            if (!my_multi_malloc(key_memory_MYSQL_state_change_info,
+              MYF(0),
+              &element, sizeof(LIST),
+              &data, sizeof(LEX_STRING),
+              NullS))
+            {
+              set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
+              return;
+            }
+
+            /* Get the length of the boolean tracker */
+            len= (size_t) net_field_length(&pos);
+            /* length for boolean tracker is always 1 */
+            DBUG_ASSERT(len == 1);
+            if(!(data->str= (char *)my_malloc(PSI_NOT_INSTRUMENTED, len, MYF(MY_WME))))
+            {
+              set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
+              return;
+            }
+            memcpy(data->str, (char *) pos, len);
+            data->length= len;
+            pos += len;
+
+            element->data= data;
+            ADD_INFO(info, element, SESSION_TRACK_STATE_CHANGE);
+
+            break;
+          default:
+            DBUG_ASSERT(type <= SESSION_TRACK_END);
+            /*
+              Unknown/unsupported type received, get the total length and move
+              past it.
+              */
+            len= (size_t) net_field_length(&pos);
+            pos += len;
+            break;
+          }
+          total_len -= (pos - saved_pos);
+        }
+        if (info)
+        {
+          for (type= SESSION_TRACK_BEGIN; type < SESSION_TRACK_END; type++)
+          {
+            if (info->info_list[type].head_node)
+            {
+              info->info_list[type].current_node=
+                info->info_list[type].head_node=
+                  list_reverse(info->info_list[type].head_node);
             }
           }
-          break;
-        case SESSION_TRACK_SCHEMA:
-
-          if (!my_multi_malloc(key_memory_MYSQL_state_change_info,
-                               MYF(0),
-                               &element, sizeof(LIST),
-                               &data, sizeof(LEX_STRING),
-                               NullS))
-          {
-            set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
-            return;
-          }
-
-          /* Move past the total length of the changed entity. */
-          (void) net_field_length(&pos);
-
-          len= (size_t) net_field_length(&pos);
-	  if(!(data->str= (char *)my_malloc(PSI_NOT_INSTRUMENTED, len, MYF(MY_WME))))
-          {
-            set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
-            return;
-          }
-          memcpy(data->str, (char *) pos, len);
-          data->length= len;
-          pos += len;
-
-          element->data= data;
-	  ADD_INFO(info, element, SESSION_TRACK_SCHEMA);
-
-	  if (!(db= (char *) my_malloc(key_memory_MYSQL_state_change_info,
-		                       data->length + 1, MYF(MY_WME))))
-	  {
-	    set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
-	    return;
-	  }
-
-	  if (mysql->db)
-	    my_free(mysql->db);
-
-	  memcpy(db, data->str, data->length);
-          db[data->length]= '\0';
-	  mysql->db= db;
-
-          break;
-        case SESSION_TRACK_GTIDS:
-          if (!my_multi_malloc(key_memory_MYSQL_state_change_info,
-                               MYF(0),
-                               &element, sizeof(LIST),
-                               &data, sizeof(LEX_STRING),
-                               NullS))
-          {
-            set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
-            return;
-          }
-
-          /* Move past the total length of the changed entity. */
-          (void) net_field_length(&pos);
-
-          /* read (and ignore for now) the GTIDS encoding specification code */
-          (void) net_field_length(&pos);
-
-          /*
-             For now we ignore the encoding specification, since only one
-             is supported. In the future the decoding of what comes next
-             depends on the specification code.
-          */
-
-          /* read the length of the encoded string. */
-          len= (size_t) net_field_length(&pos);
-	  if(!(data->str= (char *)my_malloc(PSI_NOT_INSTRUMENTED, len, MYF(MY_WME))))
-          {
-            set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
-            return;
-          }
-
-          memcpy(data->str, (char *) pos, len);
-          data->length= len;
-          pos += len;
-
-          element->data= data;
-	  ADD_INFO(info, element, SESSION_TRACK_GTIDS);
-          break;
-        case SESSION_TRACK_STATE_CHANGE:
-          if (!my_multi_malloc(key_memory_MYSQL_state_change_info,
-                               MYF(0),
-                               &element, sizeof(LIST),
-                               &data, sizeof(LEX_STRING),
-                               NullS))
-          {
-            set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
-            return;
-          }
-
-          /* Get the length of the boolean tracker */
-          len= (size_t) net_field_length(&pos);
-          /* length for boolean tracker is always 1 */
-          DBUG_ASSERT(len == 1);
-          if(!(data->str= (char *)my_malloc(PSI_NOT_INSTRUMENTED, len, MYF(MY_WME))))
-          {
-            set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
-            return;
-          }
-          memcpy(data->str, (char *) pos, len);
-          data->length= len;
-          pos += len;
-
-          element->data= data;
-          ADD_INFO(info, element, SESSION_TRACK_STATE_CHANGE);
-
-          break;
-        default:
-          DBUG_ASSERT(type <= SESSION_TRACK_END);
-          /*
-            Unknown/unsupported type received, get the total length and move
-            past it.
-          */
-          len= (size_t) net_field_length(&pos);
-          pos += len;
-          break;
         }
-        total_len -= (pos - saved_pos);
       }
     }
-    for (type= SESSION_TRACK_BEGIN; type<SESSION_TRACK_END; type++)
-      if(info && info->info_list[type].head_node)
-	info->info_list[type].current_node= info->info_list[type].head_node=
-	  list_reverse(info->info_list[type].head_node);
   }
-  if (pos < mysql->net.read_pos + length && net_field_length(&pos))
+  else if (pos < mysql->net.read_pos + length && net_field_length(&pos))
     mysql->info=(char*) pos;
   else
     mysql->info=NULL;

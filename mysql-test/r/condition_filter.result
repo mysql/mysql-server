@@ -1,0 +1,78 @@
+#
+# Bug 20219846: EXPLAIN FOR LIMIT QUERY SHOWS FILESORT BUT EXECUTION
+#               IS DONE WITH INDEX ONLY
+#
+CREATE TABLE t0 (
+i0 INTEGER NOT NULL
+);
+INSERT INTO t0 VALUES (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+CREATE TABLE t1 (
+pk INTEGER PRIMARY KEY,
+i1 INTEGER NOT NULL,
+i2 INTEGER NOT NULL,
+INDEX k1 (i1)
+) ENGINE=InnoDB;
+INSERT INTO t1
+SELECT a0.i0 + 10*a1.i0 + 100*a2.i0,
+(a0.i0 + 10*a1.i0 + 100*a2.i0) % 50,
+a0.i0 + 10*a1.i0 + 100*a2.i0
+FROM t0 AS a0, t0 AS a1, t0 AS a2;
+CREATE TABLE t2 (
+pk INTEGER PRIMARY KEY,
+i1 INTEGER NOT NULL,
+i2 INTEGER NOT NULL,
+INDEX k1 (i1)
+) ENGINE=InnoDB;
+INSERT INTO t2
+SELECT a0.i0 + 10*a1.i0 + 100*a2.i0,
+(a0.i0 + 10*a1.i0 + 100*a2.i0) % 500,
+a0.i0 + 10*a1.i0 + 100*a2.i0
+FROM t0 AS a0, t0 AS a1, t0 AS a2;
+ANALYZE TABLE t1,t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+# Explain should show "Using filesort"
+EXPLAIN SELECT *
+FROM t1 JOIN t2 ON t1.i1=t2.i1
+WHERE t2.i2 > 3
+ORDER BY t1.i1 LIMIT 20;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	k1	NULL	NULL	NULL	1000	100.00	Using filesort
+1	SIMPLE	t2	NULL	ref	k1	k1	4	test.t1.i1	2	33.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`i1` AS `i1`,`test`.`t1`.`i2` AS `i2`,`test`.`t2`.`pk` AS `pk`,`test`.`t2`.`i1` AS `i1`,`test`.`t2`.`i2` AS `i2` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`i1` = `test`.`t1`.`i1`) and (`test`.`t2`.`i2` > 3)) order by `test`.`t1`.`i1` limit 20
+FLUSH STATUS;
+SELECT *
+FROM t1 JOIN t2 ON t1.i1=t2.i1
+WHERE t2.i2 > 3
+ORDER BY t1.i1 LIMIT 20;
+pk	i1	i2	pk	i1	i2
+0	0	0	500	0	500
+50	0	50	500	0	500
+100	0	100	500	0	500
+150	0	150	500	0	500
+200	0	200	500	0	500
+250	0	250	500	0	500
+300	0	300	500	0	500
+350	0	350	500	0	500
+400	0	400	500	0	500
+450	0	450	500	0	500
+500	0	500	500	0	500
+550	0	550	500	0	500
+600	0	600	500	0	500
+650	0	650	500	0	500
+700	0	700	500	0	500
+750	0	750	500	0	500
+800	0	800	500	0	500
+850	0	850	500	0	500
+900	0	900	500	0	500
+950	0	950	500	0	500
+# Status from execution should show that filesort was used
+SHOW STATUS LIKE 'Sort%';
+Variable_name	Value
+Sort_merge_passes	0
+Sort_range	0
+Sort_rows	1000
+Sort_scan	1
+DROP TABLE t0, t1, t2;

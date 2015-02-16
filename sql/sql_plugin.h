@@ -18,7 +18,6 @@
 
 #include <my_global.h>
 #include <vector>
-
 #include <mysql/plugin.h>
 
 #include "mysql/mysql_lex_string.h"         // LEX_STRING

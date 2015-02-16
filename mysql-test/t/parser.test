@@ -373,6 +373,24 @@ create table VAR_SAMP(a int);
 --error ER_PARSE_ERROR
 create table VAR_SAMP (a int);
 
+--echo #
+--echo # Test "UNIQUE KEY" and "UNIQUE" "KEY" grammar ambiguity
+--echo #
+
+CREATE TABLE t1 (i INT KEY);
+SHOW CREATE TABLE t1;
+
+CREATE TABLE t2 (i INT UNIQUE);
+SHOW CREATE TABLE t2;
+
+CREATE TABLE t3 (i INT UNIQUE KEY);
+--echo # Should output "UNIQUE KEY `i` (`i`)" only:
+SHOW CREATE TABLE t3;
+
+DROP TABLE t1, t2, t3;
+
+--echo #
+
 #
 # Bug#25930 (CREATE TABLE x SELECT ... parses columns wrong when ran with
 #            ANSI_QUOTES mode)
@@ -1244,6 +1262,36 @@ SELECT  !('' XOR LENGTH());
 
 --error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
 SELECT  !((UNHEX() IS NULL));
+
+--echo #
+--echo # Bug #20086997: PARSER CONFUSES WITH 7BIT-CHARACTER STRING DETECTION
+--echo #
+
+CREATE DATABASE mysqltest1 CHARACTER SET LATIN2;
+USE mysqltest1;
+CREATE TABLE t1 (a VARCHAR(255) CHARACTER SET LATIN2);
+SET CHARACTER SET cp1250_latin2;
+INSERT INTO t1 VALUES ('£¥ª¯');
+INSERT INTO t1 VALUES ('£¥ª¯' '');
+SELECT HEX(a) FROM t1;
+DROP DATABASE mysqltest1;
+USE test;
+
+--echo #
+--echo # WL #7201, WL #7202 and WL#8062 coverage tests
+--echo #
+
+CREATE TABLE t1 (i INT);
+
+INSERT INTO t1 () SELECT * FROM t1;
+INSERT INTO t1 SELECT HIGH_PRIORITY * FROM t1;
+--error ER_WRONG_USAGE
+INSERT INTO t1 SELECT DISTINCT ALL * FROM t1;
+--error ER_WRONG_TABLE_NAME
+REPLACE INTO `` SELECT * FROM ``;
+DELETE QUICK FROM t1 WHERE i = 0;
+
+DROP TABLE t1;
 
 --echo #
 

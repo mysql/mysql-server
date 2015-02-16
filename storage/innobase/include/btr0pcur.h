@@ -86,6 +86,14 @@ void
 btr_pcur_init(
 /*==========*/
 	btr_pcur_t*	pcur);	/*!< in: persistent cursor */
+
+/** Free old_rec_buf.
+@param[in]	pcur	Persistent cursor holding old_rec to be freed. */
+UNIV_INLINE
+void
+btr_pcur_free(
+	btr_pcur_t*	pcur);
+
 /**************************************************************//**
 Initializes and opens a persistent cursor to an index tree. It should be
 closed with btr_pcur_close. */

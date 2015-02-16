@@ -8,6 +8,8 @@ SET GLOBAL log_output =       'FILE,TABLE';
 SET GLOBAL slow_query_log=    'ON';
 SET SESSION long_query_time=  0;
 GRANT ALL on *.* TO test_user1 IDENTIFIED BY 'azundris1';
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 CREATE USER test_user2 IDENTIFIED BY 'azundris2';
 CHANGE MASTER TO MASTER_PASSWORD='azundris3';
 CHANGE MASTER TO MASTER_CONNECT_RETRY = 1, MASTER_HEARTBEAT_PERIOD = 1.01,
@@ -25,7 +27,7 @@ MASTER_SSL_CERT = '', MASTER_SSL_KEY = '',
 MASTER_SSL_CIPHER = '', MASTER_SSL_VERIFY_SERVER_CERT = 0,
 IGNORE_SERVER_IDS = ( );
 CREATE USER 'test_user4'@'localhost';
-SET PASSWORD FOR 'test_user4'@'localhost' = PASSWORD('azundris4');
+SET PASSWORD FOR 'test_user4'@'localhost' = 'azundris4';
 SET SESSION long_query_time=  @old_long_query_time;
 SET GLOBAL slow_query_log='OFF';
 DROP USER 'test_user4'@'localhost';
@@ -40,19 +42,27 @@ sql_text
 SELECT sql_text FROM mysql.slow_log WHERE sql_text LIKE CONCAT('%azun','dris%');
 sql_text
 ------ from file ------
-SELECT sql_text FROM test_log WHERE sql_text like '%PASSWORD %';
+SELECT sql_text FROM test_log WHERE sql_text like '%AS %';
 sql_text
-GRANT ALL PRIVILEGES ON *.* TO 'test_user1'@'%' IDENTIFIED BY PASSWORD '*8D15E74BC850D11573A52BE84B504DD0BA40C1E3';
-CREATE USER 'test_user2'@'%' IDENTIFIED BY PASSWORD '*A142844DBF024D282D88FE19CB4D3FA13B1E96E0';
+GRANT ALL PRIVILEGES ON *.* TO 'test_user1'@'%' IDENTIFIED WITH 'mysql_native_password' AS '*8D15E74BC850D11573A52BE84B504DD0BA40C1E3';
+CREATE USER 'test_user2'@'%' IDENTIFIED WITH 'mysql_native_password' AS '*A142844DBF024D282D88FE19CB4D3FA13B1E96E0' PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK;
+SELECT sql_text FROM test_log WHERE sql_text like 'CHANGE MASTER TO MASTER_PASSWORD %';
+sql_text
 CHANGE MASTER TO MASTER_PASSWORD = <secret>;
+SELECT sql_text FROM test_log WHERE sql_text like '%SET PASSWORD %';
+sql_text
 SET PASSWORD FOR `test_user4`@`localhost`=<secret>;
 ------ from table ------
-SELECT sql_text FROM mysql.slow_log WHERE sql_text like '%PASSWORD %';
+SELECT sql_text FROM mysql.slow_log WHERE sql_text like '%AS %';
 sql_text
-GRANT ALL PRIVILEGES ON *.* TO 'test_user1'@'%' IDENTIFIED BY PASSWORD '*8D15E74BC850D11573A52BE84B504DD0BA40C1E3'
-CREATE USER 'test_user2'@'%' IDENTIFIED BY PASSWORD '*A142844DBF024D282D88FE19CB4D3FA13B1E96E0'
-CHANGE MASTER TO MASTER_PASSWORD = <secret>
-SET PASSWORD FOR `test_user4`@`localhost`=<secret>
+GRANT ALL PRIVILEGES ON *.* TO 'test_user1'@'%' IDENTIFIED WITH 'mysql_native_password' AS '*8D15E74BC850D11573A52BE84B504DD0BA40C1E3'
+CREATE USER 'test_user2'@'%' IDENTIFIED WITH 'mysql_native_password' AS '*A142844DBF024D282D88FE19CB4D3FA13B1E96E0' PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
+SELECT sql_text FROM test_log WHERE sql_text like 'CHANGE MASTER TO MASTER_PASSWORD %';
+sql_text
+CHANGE MASTER TO MASTER_PASSWORD = <secret>;
+SELECT sql_text FROM test_log WHERE sql_text like '%SET PASSWORD %';
+sql_text
+SET PASSWORD FOR `test_user4`@`localhost`=<secret>;
 ------ done ------
 DROP TABLE test_log;
 End of 5.6 tests!

@@ -48,19 +48,19 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b = 9223372036854775808;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p1_p1sp2,p2_p2sp2,p3_p3sp2,p4_p4sp2,p5_p5sp2	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where
+1	SIMPLE	t1	p1_p1sp2,p2_p2sp2,p3_p3sp2,p4_p4sp2,p5_p5sp2	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` = 9223372036854775808)
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b = 18446744073709551612;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p1_p1sp1,p2_p2sp1,p3_p3sp1,p4_p4sp1,p5_p5sp1	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where
+1	SIMPLE	t1	p1_p1sp1,p2_p2sp1,p3_p3sp1,p4_p4sp1,p5_p5sp1	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` = 18446744073709551612)
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b = 18446744073709551615;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p1_p1sp1,p2_p2sp1,p3_p3sp1,p4_p4sp1,p5_p5sp1	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where
+1	SIMPLE	t1	p1_p1sp1,p2_p2sp1,p3_p3sp1,p4_p4sp1,p5_p5sp1	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` = 18446744073709551615)
@@ -265,9 +265,6 @@ select * from t1;
 f1	f2
 -1	#######
 drop table t1;
-CREATE TABLE t1 (s1 int) ENGINE=BLACKHOLE PARTITION BY HASH (s1);
-INSERT INTO t1 VALUES (0);
-DROP TABLE t1;
 create table t1 (c1 int DEFAULT NULL,
 c2 varchar (30) DEFAULT NULL,
 c3 date DEFAULT NULL)

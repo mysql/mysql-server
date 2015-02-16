@@ -25,6 +25,8 @@ User	Host
 select @@global.max_connect_errors into @saved_max_connect_errors;
 set global max_connect_errors = 3;
 grant select on test.* to 'root'@'santa.claus.ipv6.example.com';
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 create user 'quota'@'santa.claus.ipv6.example.com';
 grant select on test.* to 'quota'@'santa.claus.ipv6.example.com';
 select "Con1 is alive";

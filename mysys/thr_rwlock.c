@@ -15,7 +15,7 @@
 
 /* Synchronization - readers / writer thread locks */
 
-#include "my_thread.h"
+#include "thr_rwlock.h"
 
 int rw_pr_init(rw_pr_lock_t *rwlock)
 {

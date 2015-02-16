@@ -258,10 +258,6 @@ select VIEW_DEFINITION from information_schema.VIEWS
 where TABLE_SCHEMA="test" and TABLE_NAME="v1";
 VIEW_DEFINITION
 select `test`.`t1`.`a` AS `a` from `test`.`t1`
-select locate("\"view\": \"v1\"", TRACE) != 0
-from information_schema.OPTIMIZER_TRACE;
-locate("\"view\": \"v1\"", TRACE) != 0
-1
 drop table t1;
 drop view v1;
 
@@ -1187,18 +1183,25 @@ TRACE
   "steps": [
     {
       "join_preparation": {
-        "select#": 2,
-        "steps": [
-          {
-            "expanded_query": "/* select#2 */ select sum(`t1`.`a`) AS `x` from `t1` group by `t1`.`b`"
-          }
-        ] /* steps */
-      } /* join_preparation */
-    },
-    {
-      "join_preparation": {
         "select#": 1,
         "steps": [
+          {
+            "join_preparation": {
+              "select#": 2,
+              "steps": [
+                {
+                  "expanded_query": "/* select#2 */ select sum(`t1`.`a`) AS `x` from `t1` group by `t1`.`b`"
+                }
+              ] /* steps */
+            } /* join_preparation */
+          },
+          {
+            "derived": {
+              "table": " `teeone`",
+              "select#": 2,
+              "materialized": true
+            } /* derived */
+          },
           {
             "expanded_query": "/* select#1 */ select max(`teeone`.`x`) AS `max(x)` from (/* select#2 */ select sum(`t1`.`a`) AS `x` from `t1` group by `t1`.`b`) `teeone`"
           }
@@ -3433,18 +3436,25 @@ select 497, tmp.ID, NULL from (select 497 as ID, MAX(t3.DATA) as DATA      from 
   "steps": [
     {
       "join_preparation": {
-        "select#": 2,
-        "steps": [
-          {
-            "expanded_query": "/* select#2 */ select 497 AS `ID`,max(`t3`.`DATA`) AS `DATA` from `t1` join `t2` join `t3` where ((`t1`.`OBJECTID` = `t3`.`ID`) and (`t1`.`OBJECTID` = `t2`.`ID`)) group by `t2`.`PARID` order by `DATA` desc"
-          }
-        ] /* steps */
-      } /* join_preparation */
-    },
-    {
-      "join_preparation": {
         "select#": 1,
         "steps": [
+          {
+            "join_preparation": {
+              "select#": 2,
+              "steps": [
+                {
+                  "expanded_query": "/* select#2 */ select 497 AS `ID`,max(`t3`.`DATA`) AS `DATA` from `t1` join `t2` join `t3` where ((`t1`.`OBJECTID` = `t3`.`ID`) and (`t1`.`OBJECTID` = `t2`.`ID`)) group by `t2`.`PARID` order by `DATA` desc"
+                }
+              ] /* steps */
+            } /* join_preparation */
+          },
+          {
+            "derived": {
+              "table": " `tmp`",
+              "select#": 2,
+              "materialized": true
+            } /* derived */
+          },
           {
             "expanded_query": "/* select#1 */ select 497 AS `497`,`tmp`.`ID` AS `ID`,NULL AS `NULL` from (/* select#2 */ select 497 AS `ID`,max(`t3`.`DATA`) AS `DATA` from `t1` join `t2` join `t3` where ((`t1`.`OBJECTID` = `t3`.`ID`) and (`t1`.`OBJECTID` = `t2`.`ID`)) group by `t2`.`PARID` order by `DATA` desc) `tmp`"
           }

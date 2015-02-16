@@ -48,6 +48,8 @@
 #include "rpl_info_handler.h"            // INFO_REPOSITORY_FILE
 #include "rpl_mi.h"                      // Master_info
 #include "rpl_msr.h"                     // msr_map
+#include "rpl_mts_submode.h"             // MTS_PARALLEL_TYPE_DB_NAME
+#include "rpl_rli.h"                     // Relay_log_info
 #include "rpl_slave.h"                   // SLAVE_THD_TYPE
 #include "socket_connection.h"           // MY_BIND_ALL_ADDRESSES
 #include "sp_head.h"                     // SP_PSI_STATEMENT_INFO_COUNT
@@ -276,7 +278,7 @@ static Sys_var_long Sys_pfs_events_waits_history_long_size(
          " Use 0 to disable, -1 for automated sizing.",
        READ_ONLY GLOBAL_VAR(pfs_param.m_events_waits_history_long_sizing),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(-1, 1024*1024),
-       DEFAULT(-1),
+       DEFAULT(PFS_AUTOSIZE_VALUE),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
 static Sys_var_long Sys_pfs_events_waits_history_size(
@@ -285,7 +287,7 @@ static Sys_var_long Sys_pfs_events_waits_history_size(
          " Use 0 to disable, -1 for automated sizing.",
        READ_ONLY GLOBAL_VAR(pfs_param.m_events_waits_history_sizing),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(-1, 1024),
-       DEFAULT(-1),
+       DEFAULT(PFS_AUTOSIZE_VALUE),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
 static Sys_var_ulong Sys_pfs_max_cond_classes(
@@ -299,28 +301,28 @@ static Sys_var_ulong Sys_pfs_max_cond_classes(
 static Sys_var_long Sys_pfs_max_cond_instances(
        "performance_schema_max_cond_instances",
        "Maximum number of instrumented condition objects."
-         " Use 0 to disable, -1 for automated sizing.",
+         " Use 0 to disable, -1 for automated scaling.",
        READ_ONLY GLOBAL_VAR(pfs_param.m_cond_sizing),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(-1, 1024*1024),
-       DEFAULT(-1),
+       DEFAULT(PFS_AUTOSCALE_VALUE),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
 static Sys_var_long Sys_pfs_max_program_instances(
        "performance_schema_max_program_instances",
        "Maximum number of instrumented programs."
-         " Use 0 to disable, -1 for automated sizing.",
+         " Use 0 to disable, -1 for automated scaling.",
        READ_ONLY GLOBAL_VAR(pfs_param.m_program_sizing),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(-1, 1024*1024),
-       DEFAULT(5000),
+       DEFAULT(PFS_AUTOSCALE_VALUE),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
 static Sys_var_long Sys_pfs_max_prepared_stmt_instances(
        "performance_schema_max_prepared_statements_instances",
        "Maximum number of instrumented prepared statements."
-         " Use 0 to disable, -1 for automated sizing.",
+         " Use 0 to disable, -1 for automated scaling.",
        READ_ONLY GLOBAL_VAR(pfs_param.m_prepared_stmt_sizing),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(-1, 1024*1024),
-       DEFAULT(-1),
+       DEFAULT(PFS_AUTOSCALE_VALUE),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
 static Sys_var_ulong Sys_pfs_max_file_classes(
@@ -342,19 +344,19 @@ static Sys_var_ulong Sys_pfs_max_file_handles(
 static Sys_var_long Sys_pfs_max_file_instances(
        "performance_schema_max_file_instances",
        "Maximum number of instrumented files."
-         " Use 0 to disable, -1 for automated sizing.",
+         " Use 0 to disable, -1 for automated scaling.",
        READ_ONLY GLOBAL_VAR(pfs_param.m_file_sizing),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(-1, 1024*1024),
-       DEFAULT(-1),
+       DEFAULT(PFS_AUTOSCALE_VALUE),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
 static Sys_var_long Sys_pfs_max_sockets(
        "performance_schema_max_socket_instances",
        "Maximum number of opened instrumented sockets."
-         " Use 0 to disable, -1 for automated sizing.",
+         " Use 0 to disable, -1 for automated scaling.",
        READ_ONLY GLOBAL_VAR(pfs_param.m_socket_sizing),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(-1, 1024*1024),
-       DEFAULT(-1),
+       DEFAULT(PFS_AUTOSCALE_VALUE),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
 static Sys_var_ulong Sys_pfs_max_socket_classes(
@@ -376,10 +378,10 @@ static Sys_var_ulong Sys_pfs_max_mutex_classes(
 static Sys_var_long Sys_pfs_max_mutex_instances(
        "performance_schema_max_mutex_instances",
        "Maximum number of instrumented MUTEX objects."
-         " Use 0 to disable, -1 for automated sizing.",
+         " Use 0 to disable, -1 for automated scaling.",
        READ_ONLY GLOBAL_VAR(pfs_param.m_mutex_sizing),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(-1, 100*1024*1024),
-       DEFAULT(-1),
+       DEFAULT(PFS_AUTOSCALE_VALUE),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
 static Sys_var_ulong Sys_pfs_max_rwlock_classes(
@@ -393,46 +395,46 @@ static Sys_var_ulong Sys_pfs_max_rwlock_classes(
 static Sys_var_long Sys_pfs_max_rwlock_instances(
        "performance_schema_max_rwlock_instances",
        "Maximum number of instrumented RWLOCK objects."
-         " Use 0 to disable, -1 for automated sizing.",
+         " Use 0 to disable, -1 for automated scaling.",
        READ_ONLY GLOBAL_VAR(pfs_param.m_rwlock_sizing),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(-1, 100*1024*1024),
-       DEFAULT(-1),
+       DEFAULT(PFS_AUTOSCALE_VALUE),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
 static Sys_var_long Sys_pfs_max_table_handles(
        "performance_schema_max_table_handles",
        "Maximum number of opened instrumented tables."
-         " Use 0 to disable, -1 for automated sizing.",
+         " Use 0 to disable, -1 for automated scaling.",
        READ_ONLY GLOBAL_VAR(pfs_param.m_table_sizing),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(-1, 1024*1024),
-       DEFAULT(-1),
+       DEFAULT(PFS_AUTOSCALE_VALUE),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
 static Sys_var_long Sys_pfs_max_table_instances(
        "performance_schema_max_table_instances",
        "Maximum number of instrumented tables."
-         " Use 0 to disable, -1 for automated sizing.",
+         " Use 0 to disable, -1 for automated scaling.",
        READ_ONLY GLOBAL_VAR(pfs_param.m_table_share_sizing),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(-1, 1024*1024),
-       DEFAULT(-1),
+       DEFAULT(PFS_AUTOSCALE_VALUE),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
 static Sys_var_long Sys_pfs_max_table_lock_stat(
        "performance_schema_max_table_lock_stat",
        "Maximum number of lock statistics for instrumented tables."
-         " Use 0 to disable, -1 for automated sizing.",
+         " Use 0 to disable, -1 for automated scaling.",
        READ_ONLY GLOBAL_VAR(pfs_param.m_table_lock_stat_sizing),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(-1, 1024*1024),
-       DEFAULT(-1),
+       DEFAULT(PFS_AUTOSCALE_VALUE),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
 static Sys_var_long Sys_pfs_max_index_stat(
        "performance_schema_max_index_stat",
        "Maximum number of index statistics for instrumented tables."
-         " Use 0 to disable, -1 for automated sizing.",
+         " Use 0 to disable, -1 for automated scaling.",
        READ_ONLY GLOBAL_VAR(pfs_param.m_index_stat_sizing),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(-1, 1024*1024),
-       DEFAULT(-1),
+       DEFAULT(PFS_AUTOSCALE_VALUE),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
 static Sys_var_ulong Sys_pfs_max_thread_classes(
@@ -446,53 +448,55 @@ static Sys_var_ulong Sys_pfs_max_thread_classes(
 static Sys_var_long Sys_pfs_max_thread_instances(
        "performance_schema_max_thread_instances",
        "Maximum number of instrumented threads."
-         " Use 0 to disable, -1 for automated sizing.",
+         " Use 0 to disable, -1 for automated scaling.",
        READ_ONLY GLOBAL_VAR(pfs_param.m_thread_sizing),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(-1, 1024*1024),
-       DEFAULT(-1),
+       DEFAULT(PFS_AUTOSCALE_VALUE),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
-static Sys_var_ulong Sys_pfs_setup_actors_size(
+static Sys_var_long Sys_pfs_setup_actors_size(
        "performance_schema_setup_actors_size",
-       "Maximum number of rows in SETUP_ACTORS.",
+       "Maximum number of rows in SETUP_ACTORS."
+         " Use 0 to disable, -1 for automated scaling.",
        READ_ONLY GLOBAL_VAR(pfs_param.m_setup_actor_sizing),
-       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 1024),
-       DEFAULT(PFS_MAX_SETUP_ACTOR),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(-1, 1024*1024),
+       DEFAULT(PFS_AUTOSCALE_VALUE),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
-static Sys_var_ulong Sys_pfs_setup_objects_size(
+static Sys_var_long Sys_pfs_setup_objects_size(
        "performance_schema_setup_objects_size",
-       "Maximum number of rows in SETUP_OBJECTS.",
+       "Maximum number of rows in SETUP_OBJECTS."
+         " Use 0 to disable, -1 for automated scaling.",
        READ_ONLY GLOBAL_VAR(pfs_param.m_setup_object_sizing),
-       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 1024*1024),
-       DEFAULT(PFS_MAX_SETUP_OBJECT),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(-1, 1024*1024),
+       DEFAULT(PFS_AUTOSCALE_VALUE),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
 static Sys_var_long Sys_pfs_accounts_size(
        "performance_schema_accounts_size",
        "Maximum number of instrumented user@host accounts."
-         " Use 0 to disable, -1 for automated sizing.",
+         " Use 0 to disable, -1 for automated scaling.",
        READ_ONLY GLOBAL_VAR(pfs_param.m_account_sizing),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(-1, 1024*1024),
-       DEFAULT(-1),
+       DEFAULT(PFS_AUTOSCALE_VALUE),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
 static Sys_var_long Sys_pfs_hosts_size(
        "performance_schema_hosts_size",
        "Maximum number of instrumented hosts."
-         " Use 0 to disable, -1 for automated sizing.",
+         " Use 0 to disable, -1 for automated scaling.",
        READ_ONLY GLOBAL_VAR(pfs_param.m_host_sizing),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(-1, 1024*1024),
-       DEFAULT(-1),
+       DEFAULT(PFS_AUTOSCALE_VALUE),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
 static Sys_var_long Sys_pfs_users_size(
        "performance_schema_users_size",
        "Maximum number of instrumented users."
-         " Use 0 to disable, -1 for automated sizing.",
+         " Use 0 to disable, -1 for automated scaling.",
        READ_ONLY GLOBAL_VAR(pfs_param.m_user_sizing),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(-1, 1024*1024),
-       DEFAULT(-1),
+       DEFAULT(PFS_AUTOSCALE_VALUE),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
 static Sys_var_ulong Sys_pfs_max_stage_classes(
@@ -509,7 +513,7 @@ static Sys_var_long Sys_pfs_events_stages_history_long_size(
          " Use 0 to disable, -1 for automated sizing.",
        READ_ONLY GLOBAL_VAR(pfs_param.m_events_stages_history_long_sizing),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(-1, 1024*1024),
-       DEFAULT(-1),
+       DEFAULT(PFS_AUTOSIZE_VALUE),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
 static Sys_var_long Sys_pfs_events_stages_history_size(
@@ -518,7 +522,7 @@ static Sys_var_long Sys_pfs_events_stages_history_size(
          " Use 0 to disable, -1 for automated sizing.",
        READ_ONLY GLOBAL_VAR(pfs_param.m_events_stages_history_sizing),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(-1, 1024),
-       DEFAULT(-1),
+       DEFAULT(PFS_AUTOSIZE_VALUE),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
 /**
@@ -547,7 +551,7 @@ static Sys_var_long Sys_pfs_events_statements_history_long_size(
          " Use 0 to disable, -1 for automated sizing.",
        READ_ONLY GLOBAL_VAR(pfs_param.m_events_statements_history_long_sizing),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(-1, 1024*1024),
-       DEFAULT(-1),
+       DEFAULT(PFS_AUTOSIZE_VALUE),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
 static Sys_var_long Sys_pfs_events_statements_history_size(
@@ -556,7 +560,7 @@ static Sys_var_long Sys_pfs_events_statements_history_size(
          " Use 0 to disable, -1 for automated sizing.",
        READ_ONLY GLOBAL_VAR(pfs_param.m_events_statements_history_sizing),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(-1, 1024),
-       DEFAULT(-1),
+       DEFAULT(PFS_AUTOSIZE_VALUE),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
 static Sys_var_ulong Sys_pfs_statement_stack_size(
@@ -581,7 +585,7 @@ static Sys_var_long Sys_pfs_digest_size(
          " Use 0 to disable, -1 for automated sizing.",
        READ_ONLY GLOBAL_VAR(pfs_param.m_digest_sizing),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(-1, 1024 * 1024),
-       DEFAULT(-1),
+       DEFAULT(PFS_AUTOSIZE_VALUE),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
 static Sys_var_long Sys_pfs_events_transactions_history_long_size(
@@ -590,7 +594,7 @@ static Sys_var_long Sys_pfs_events_transactions_history_long_size(
          " Use 0 to disable, -1 for automated sizing.",
        READ_ONLY GLOBAL_VAR(pfs_param.m_events_transactions_history_long_sizing),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(-1, 1024*1024),
-       DEFAULT(-1),
+       DEFAULT(PFS_AUTOSIZE_VALUE),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
 static Sys_var_long Sys_pfs_events_transactions_history_size(
@@ -599,7 +603,7 @@ static Sys_var_long Sys_pfs_events_transactions_history_size(
          " Use 0 to disable, -1 for automated sizing.",
        READ_ONLY GLOBAL_VAR(pfs_param.m_events_transactions_history_sizing),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(-1, 1024),
-       DEFAULT(-1),
+       DEFAULT(PFS_AUTOSIZE_VALUE),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
 static Sys_var_long Sys_pfs_connect_attrs_size(
@@ -608,16 +612,24 @@ static Sys_var_long Sys_pfs_connect_attrs_size(
          " Use 0 to disable, -1 for automated sizing.",
        READ_ONLY GLOBAL_VAR(pfs_param.m_session_connect_attrs_sizing),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(-1, 1024 * 1024),
-       DEFAULT(-1),
+       DEFAULT(PFS_AUTOSIZE_VALUE),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
 static Sys_var_long Sys_pfs_max_metadata_locks(
        "performance_schema_max_metadata_locks",
        "Maximum number of metadata locks."
-         " Use 0 to disable, -1 for automated sizing.",
+         " Use 0 to disable, -1 for automated scaling.",
        READ_ONLY GLOBAL_VAR(pfs_param.m_metadata_lock_sizing),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(-1, 100*1024*1024),
-       DEFAULT(-1),
+       DEFAULT(PFS_AUTOSCALE_VALUE),
+       BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
+
+static Sys_var_long Sys_pfs_max_sql_text_length(
+       "performance_schema_max_sql_text_length",
+       "Maximum length of displayed sql text.",
+       READ_ONLY GLOBAL_VAR(pfs_param.m_max_sql_text_length),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 1024 * 1024),
+       DEFAULT(1024),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
 #endif /* EMBEDDED_LIBRARY */
@@ -760,25 +772,7 @@ static bool check_has_super(sys_var *self, THD *thd, set_var *var)
   return false;
 }
 
-#if defined(HAVE_GTID_NEXT_LIST) || defined(NON_DISABLED_GTID) || defined(HAVE_REPLICATION)
-static bool check_top_level_stmt(sys_var *self, THD *thd, set_var *var)
-{
-  if (thd->in_sub_stmt)
-  {
-    my_error(ER_VARIABLE_NOT_SETTABLE_IN_SF_OR_TRIGGER, MYF(0), var->var->name.str);
-    return true;
-  }
-  return false;
-}
-
-static bool check_top_level_stmt_and_super(sys_var *self, THD *thd, set_var *var)
-{
-  return (check_has_super(self, thd, var) ||
-          check_top_level_stmt(self, thd, var));
-}
-#endif
-
-static bool check_outside_transaction(sys_var *self, THD *thd, set_var *var)
+static bool check_outside_trx(sys_var *self, THD *thd, set_var *var)
 {
   if (thd->in_active_multi_stmt_transaction())
   {
@@ -787,9 +781,25 @@ static bool check_outside_transaction(sys_var *self, THD *thd, set_var *var)
   }
   return false;
 }
-#if defined(HAVE_GTID_NEXT_LIST) || defined(HAVE_REPLICATION)
-static bool check_outside_sp(sys_var *self, THD *thd, set_var *var)
+
+static bool check_super_outside_trx_outside_sf(sys_var *self, THD *thd, set_var *var)
 {
+  if (thd->in_sub_stmt)
+  {
+    my_error(ER_VARIABLE_NOT_SETTABLE_IN_SF_OR_TRIGGER, MYF(0), var->var->name.str);
+    return true;
+  }
+  if (check_outside_trx(self, thd, var))
+    return true;
+  if (self->scope() != sys_var::GLOBAL)
+    return check_has_super(self, thd, var);
+  return false;
+}
+
+static bool check_super_outside_trx_outside_sf_outside_sp(sys_var *self, THD *thd, set_var *var)
+{
+  if (check_super_outside_trx_outside_sf(self, thd, var))
+    return true;
   if (thd->lex->sphead)
   {
     my_error(ER_VARIABLE_NOT_SETTABLE_IN_SP, MYF(0), var->var->name.str);
@@ -797,7 +807,6 @@ static bool check_outside_sp(sys_var *self, THD *thd, set_var *var)
   }
   return false;
 }
-#endif
 
 static bool binlog_format_check(sys_var *self, THD *thd, set_var *var)
 {
@@ -931,7 +940,7 @@ static Sys_var_enum Sys_session_track_gtids(
        "(Default: OFF).",
        SESSION_VAR(session_track_gtids), CMD_LINE(REQUIRED_ARG),
        session_track_gtids_names, DEFAULT(OFF),
-       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_outside_transaction),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_outside_trx),
        ON_UPDATE(on_session_track_gtids_update));
 
 static bool binlog_direct_check(sys_var *self, THD *thd, set_var *var)
@@ -1018,7 +1027,7 @@ static bool repository_check(sys_var *self, THD *thd, set_var *var, SLAVE_THD_TY
   mysql_mutex_lock(&LOCK_msr_map);
 
   /* Repository conversion not possible, when multiple channels exist */
-  if (msr_map.get_num_instances() > 1)
+  if (msr_map.get_num_instances(true) > 1)
   {
       msg= "Repository conversion is possible when only default channel exists";
       my_error(ER_CHANGE_RPL_INFO_REPOSITORY_FAILURE, MYF(0), msg);
@@ -1701,6 +1710,55 @@ static Sys_var_mybool Sys_log_bin(
        "log_bin", "Whether the binary log is enabled",
        READ_ONLY GLOBAL_VAR(opt_bin_log), NO_CMD_LINE, DEFAULT(FALSE));
 
+static bool transaction_write_set_check(sys_var *self, THD *thd, set_var *var)
+{
+  if (var->type == OPT_GLOBAL &&
+      global_system_variables.binlog_format != BINLOG_FORMAT_ROW)
+  {
+    my_error(ER_PREVENTS_VARIABLE_WITHOUT_RBR, MYF(0), var->var->name.str);
+    return true;
+  }
+
+  if (var->type == OPT_SESSION &&
+      thd->variables.binlog_format != BINLOG_FORMAT_ROW)
+  {
+    my_error(ER_PREVENTS_VARIABLE_WITHOUT_RBR, MYF(0), var->var->name.str);
+    return true;
+  }
+  /*
+    if in a stored function/trigger, it's too late to change
+  */
+  if (thd->in_sub_stmt)
+  {
+    my_error(ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION, MYF(0),
+             var->var->name.str);
+    return true;
+  }
+  /*
+    Make the session variable 'transaction_write_set_extraction' read-only inside a transaction.
+  */
+  if (thd->in_active_multi_stmt_transaction())
+  {
+    my_error(ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION, MYF(0),
+             var->var->name.str);
+    return true;
+  }
+  return false;
+}
+
+static const char *transaction_write_set_hashing_algorithms[]=
+       {"OFF", "MURMUR32", 0};
+
+static Sys_var_enum Sys_extract_write_set(
+       "transaction_write_set_extraction",
+       "This option is used to let the server know when to"
+       "extract the write set which will be used for various purposes. ",
+       SESSION_VAR(transaction_write_set_extraction), CMD_LINE(OPT_ARG),
+       transaction_write_set_hashing_algorithms,
+       DEFAULT(HASH_ALGORITHM_OFF), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+       ON_CHECK(transaction_write_set_check),
+       ON_UPDATE(NULL));
+
 static Sys_var_ulong Sys_rpl_stop_slave_timeout(
        "rpl_stop_slave_timeout",
        "Timeout in seconds to wait for slave to stop before returning a "
@@ -2118,6 +2176,21 @@ static Sys_var_ulong Sys_max_connect_errors(
        VALID_RANGE(1, ULONG_MAX), DEFAULT(100),
        BLOCK_SIZE(1));
 
+static Sys_var_long Sys_max_digest_length(
+       "max_digest_length",
+       "Maximum length considered for digest text.",
+       READ_ONLY GLOBAL_VAR(max_digest_length),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 1024 * 1024),
+       DEFAULT(1024),
+       BLOCK_SIZE(1),
+       NO_MUTEX_GUARD,
+       NOT_IN_BINLOG,
+       ON_CHECK(0),
+       ON_UPDATE(0),
+       NULL,
+       /* max_digest_length is used as a sizing hint by the performance schema. */
+       sys_var::PARSE_EARLY);
+
 static bool check_max_delayed_threads(sys_var *self, THD *thd, set_var *var)
 {
   return var->type != OPT_GLOBAL &&
@@ -2383,6 +2456,13 @@ static Sys_var_mybool Sys_old_mode(
        "old", "Use compatible behavior",
        READ_ONLY GLOBAL_VAR(old_mode), CMD_LINE(OPT_ARG), DEFAULT(FALSE));
 
+#ifndef EMBEDDED_LIBRARY
+static Sys_var_mybool Sys_show_compatibility_56(
+       "show_compatibility_56",
+       "SHOW commands / INFORMATION_SCHEMA tables compatible with MySQL 5.6",
+       GLOBAL_VAR(show_compatibility_56), CMD_LINE(OPT_ARG), DEFAULT(TRUE));
+#endif /* EMBEDDED_LIBRARY */
+
 static Sys_var_mybool Sys_old_alter_table(
        "old_alter_table", "Use old, non-optimized alter table",
        SESSION_VAR(old_alter_table), CMD_LINE(OPT_ARG), DEFAULT(FALSE));
@@ -2445,7 +2525,8 @@ static const char *optimizer_switch_names[]=
   "block_nested_loop", "batched_key_access",
   "materialization", "semijoin", "loosescan", "firstmatch",
   "subquery_materialization_cost_based",
-  "use_index_extensions", "condition_fanout_filter", "default", NullS
+  "use_index_extensions", "condition_fanout_filter", "derived_merge",
+  "default", NullS
 };
 static Sys_var_flagset Sys_optimizer_switch(
        "optimizer_switch",
@@ -2455,8 +2536,9 @@ static Sys_var_flagset Sys_optimizer_switch(
        "index_condition_pushdown, mrr, mrr_cost_based"
        ", materialization, semijoin, loosescan, firstmatch,"
        " subquery_materialization_cost_based"
-       ", block_nested_loop, batched_key_access, use_index_extensions, "
-       "condition_fanout_filter} and val is one of {on, off, default}",
+       ", block_nested_loop, batched_key_access, use_index_extensions,"
+       " condition_fanout_filter, derived_merge} and val is one of "
+       "{on, off, default}",
        SESSION_VAR(optimizer_switch), CMD_LINE(REQUIRED_ARG),
        optimizer_switch_names, DEFAULT(OPTIMIZER_SWITCH_DEFAULT),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(NULL), ON_UPDATE(NULL));
@@ -2802,7 +2884,7 @@ static Sys_var_ulong Sys_trans_alloc_block_size(
        "transaction_alloc_block_size",
        "Allocation block size for transactions to be stored in binary log",
        SESSION_VAR(trans_alloc_block_size), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(1024, ULONG_MAX), DEFAULT(QUERY_ALLOC_BLOCK_SIZE),
+       VALID_RANGE(1024, 128 * 1024 * 1024), DEFAULT(QUERY_ALLOC_BLOCK_SIZE),
        BLOCK_SIZE(1024), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(fix_trans_mem_root));
 
@@ -2810,7 +2892,7 @@ static Sys_var_ulong Sys_trans_prealloc_size(
        "transaction_prealloc_size",
        "Persistent buffer for transactions to be stored in binary log",
        SESSION_VAR(trans_prealloc_size), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(1024, ULONG_MAX), DEFAULT(TRANS_ALLOC_PREALLOC_SIZE),
+       VALID_RANGE(1024, 128 * 1024 * 1024), DEFAULT(TRANS_ALLOC_PREALLOC_SIZE),
        BLOCK_SIZE(1024), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(fix_trans_mem_root));
 
@@ -2924,7 +3006,7 @@ static Sys_var_charptr Sys_secure_file_priv(
        "Limit LOAD DATA, SELECT ... OUTFILE, and LOAD_FILE() to files "
        "within specified directory",
        READ_ONLY GLOBAL_VAR(opt_secure_file_priv),
-       CMD_LINE(REQUIRED_ARG), IN_FS_CHARSET, DEFAULT(0));
+       CMD_LINE(REQUIRED_ARG), IN_FS_CHARSET, DEFAULT(DEFAULT_SECURE_FILE_PRIV_DIR));
 
 static bool fix_server_id(sys_var *self, THD *thd, enum_var_type type)
 {
@@ -3249,6 +3331,24 @@ export sql_mode_t expand_sql_mode(sql_mode_t sql_mode)
   if (sql_mode & MODE_TRADITIONAL)
     sql_mode|= (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES |
                 MODE_NO_AUTO_CREATE_USER | MODE_NO_ENGINE_SUBSTITUTION);
+
+  if (sql_mode & MODE_NO_AUTO_CREATE_USER)
+  {
+    THD *thd= current_thd;
+    if (thd)
+    {
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
+                          ER_WARN_DEPRECATED_SQLMODE,
+                          ER(ER_WARN_DEPRECATED_SQLMODE),
+                          "NO_AUTO_CREATE_USER");
+    }
+    else
+    {
+      sql_print_warning("'NO_AUTO_CREATE_USER' mode is deprecated. "
+                        "It will be made read-only in a future release.");
+    }
+  }
+
   return sql_mode;
 }
 static bool check_sql_mode(sys_var *self, THD *thd, set_var *var)
@@ -4489,74 +4589,30 @@ static Sys_var_uint Sys_slave_net_timeout(
 
 static bool check_slave_skip_counter(sys_var *self, THD *thd, set_var *var)
 {
-  bool result= false;
-
-  /* slave_skip_counter becomes per channel in multisource replication*/
-  mysql_mutex_lock(&LOCK_msr_map);
-
-  if (is_any_slave_channel_running(SLAVE_SQL))
-  {
-    my_message(ER_SLAVE_SQL_THREAD_MUST_STOP,
-               ER(ER_SLAVE_SQL_THREAD_MUST_STOP), MYF(0));
-    result= true;
-  }
-  if (gtid_mode == 3)
+  /*
+    @todo: move this check into the set function and hold the lock on
+    gtid_mode_lock until the operation has completed, so that we are
+    sure a concurrent connection does not change gtid_mode between
+    check and fix.
+  */
+  if (get_gtid_mode(GTID_MODE_LOCK_NONE) == GTID_MODE_ON)
   {
     my_message(ER_SQL_SLAVE_SKIP_COUNTER_NOT_SETTABLE_IN_GTID_MODE,
                ER(ER_SQL_SLAVE_SKIP_COUNTER_NOT_SETTABLE_IN_GTID_MODE),
                MYF(0));
-    result= true;
+    return true;
   }
 
-  mysql_mutex_unlock(&LOCK_msr_map);
-  return result;
+  return false;
 }
-static bool fix_slave_skip_counter(sys_var *self, THD *thd, enum_var_type type)
-{
-  Master_info *mi;
 
-  /* set for all replication channels in multisource replication */
-
-  /*
-   To understand the below two unlock statments, please see comments in
-    fix_slave_net_timeout function above
-   */
-  mysql_mutex_unlock(&LOCK_sql_slave_skip_counter);
-  mysql_mutex_unlock(&LOCK_global_system_variables);
-  mysql_mutex_lock(&LOCK_msr_map);
-
-  for (mi_map::iterator it = msr_map.begin(); it!=msr_map.end(); it++)
-  {
-    mi= it->second;
-    if (mi != NULL)
-    {
-      mysql_mutex_lock(&mi->rli->run_lock);
-      /*
-       The following test should normally never be true as we test this
-       in the check function;  To be safe against multiple
-       SQL_SLAVE_SKIP_COUNTER request, we do the check anyway
-      */
-      if (!mi->rli->slave_running)
-      {
-        mysql_mutex_lock(&mi->rli->data_lock);
-        mi->rli->slave_skip_counter= sql_slave_skip_counter;
-        mysql_mutex_unlock(&mi->rli->data_lock);
-      }
-      mysql_mutex_unlock(&mi->rli->run_lock);
-    }
-  }
-  mysql_mutex_unlock(&LOCK_msr_map);
-  mysql_mutex_lock(&LOCK_global_system_variables);
-  mysql_mutex_lock(&LOCK_sql_slave_skip_counter);
-  return 0;
-}
 static PolyLock_mutex PLock_sql_slave_skip_counter(&LOCK_sql_slave_skip_counter);
 static Sys_var_uint Sys_slave_skip_counter(
        "sql_slave_skip_counter", "sql_slave_skip_counter",
        GLOBAL_VAR(sql_slave_skip_counter), NO_CMD_LINE,
        VALID_RANGE(0, UINT_MAX), DEFAULT(0), BLOCK_SIZE(1),
        &PLock_sql_slave_skip_counter, NOT_IN_BINLOG,
-       ON_CHECK(check_slave_skip_counter), ON_UPDATE(fix_slave_skip_counter));
+       ON_CHECK(check_slave_skip_counter));
 
 static Sys_var_charptr Sys_slave_skip_errors(
        "slave_skip_errors", "Tells the slave thread to continue "
@@ -4733,46 +4789,32 @@ static Sys_var_charptr Sys_ignore_db_dirs(
        NO_CMD_LINE,
        IN_FS_CHARSET, DEFAULT(0));
 
-/*
-  This code is not being used but we will keep it as it may be
-  useful if we decide to keeep enforce_gtid_consistency.
-*/
-#ifdef NON_DISABLED_GTID
-static bool check_enforce_gtid_consistency(
-  sys_var *self, THD *thd, set_var *var)
+const Sys_var_multi_enum::ALIAS enforce_gtid_consistency_aliases[]=
 {
-  DBUG_ENTER("check_enforce_gtid_consistency");
-
-  my_error(ER_NOT_SUPPORTED_YET, MYF(0),
-           "ENFORCE_GTID_CONSISTENCY");
-  DBUG_RETURN(true);
-
-  if (check_top_level_stmt_and_super(self, thd, var) ||
-      check_outside_transaction(self, thd, var))
-    DBUG_RETURN(true);
-  if (gtid_mode >= 2 && var->value->val_int() == 0)
-  {
-    my_error(ER_GTID_MODE_2_OR_3_REQUIRES_ENFORCE_GTID_CONSISTENCY_ON, MYF(0));
-    DBUG_RETURN(true);
-  }
-  DBUG_RETURN(false);
-}
-#endif
-
-static Sys_var_mybool Sys_enforce_gtid_consistency(
+  { "OFF", 0 },
+  { "ON", 1 },
+  { "WARN", 2 },
+  { "FALSE", 0 },
+  { "TRUE", 1 },
+  { NULL, 0 }
+};
+static Sys_var_enforce_gtid_consistency Sys_enforce_gtid_consistency(
        "enforce_gtid_consistency",
        "Prevents execution of statements that would be impossible to log "
        "in a transactionally safe manner. Currently, the disallowed "
        "statements include CREATE TEMPORARY TABLE inside transactions, "
        "all updates to non-transactional tables, and CREATE TABLE ... SELECT.",
-       READ_ONLY GLOBAL_VAR(enforce_gtid_consistency),
-       CMD_LINE(OPT_ARG), DEFAULT(FALSE),
-       NO_MUTEX_GUARD, NOT_IN_BINLOG
-#ifdef NON_DISABLED_GTID
-       , ON_CHECK(check_enforce_gtid_consistency));
-#else
-       );
-#endif
+       GLOBAL_VAR(_gtid_consistency_mode),
+       CMD_LINE(OPT_ARG, OPT_ENFORCE_GTID_CONSISTENCY),
+       enforce_gtid_consistency_aliases, 3,
+       DEFAULT(3/*position of "FALSE" in enforce_gtid_consistency_aliases*/),
+       DEFAULT(GTID_CONSISTENCY_MODE_ON),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG,
+       ON_CHECK(check_super_outside_trx_outside_sf_outside_sp));
+const char *fixup_enforce_gtid_consistency_command_line(char *value_arg)
+{
+  return Sys_enforce_gtid_consistency.fixup_command_line(value_arg);
+}
 
 static Sys_var_mybool Sys_binlog_gtid_simple_recovery(
        "binlog_gtid_simple_recovery",
@@ -4854,119 +4896,21 @@ static Sys_var_mybool Sys_pseudo_slave_mode(
 
 
 #ifdef HAVE_REPLICATION
-static bool check_gtid_next(sys_var *self, THD *thd, set_var *var)
-{
-  DBUG_ENTER("check_gtid_next");
-
-  // Note: we also check in sql_yacc.yy:set_system_variable that the
-  // SET GTID_NEXT statement does not invoke a stored function.
-
-  DBUG_PRINT("info", ("thd->in_sub_stmt=%d", thd->in_sub_stmt));
-
-  // GTID_NEXT must be set by SUPER in a top-level statement
-  if (check_top_level_stmt_and_super(self, thd, var))
-    DBUG_RETURN(true);
-
-  // check compatibility with GTID_NEXT
-  const Gtid_set *gtid_next_list= thd->get_gtid_next_list_const();
-
-  // Inside a transaction, GTID_NEXT is read-only if GTID_NEXT_LIST is
-  // NULL.
-  if (thd->in_active_multi_stmt_transaction() && gtid_next_list == NULL)
-  {
-    my_error(ER_CANT_CHANGE_GTID_NEXT_IN_TRANSACTION_WHEN_GTID_NEXT_LIST_IS_NULL, MYF(0));
-    DBUG_RETURN(true);
-  }
-
-  // Read specification
-  Gtid_specification spec;
-  global_sid_lock->rdlock();
-  if (spec.parse(global_sid_map, var->save_result.string_value.str) !=
-      RETURN_STATUS_OK)
-  {
-    // fail on out of memory
-    global_sid_lock->unlock();
-    DBUG_RETURN(true);
-  }
-  global_sid_lock->unlock();
-
-  // check compatibility with GTID_MODE
-  if (gtid_mode == 0 && spec.type == GTID_GROUP)
-    my_error(ER_CANT_SET_GTID_NEXT_TO_GTID_WHEN_GTID_MODE_IS_OFF, MYF(0));
-  if (gtid_mode == 3 && spec.type == ANONYMOUS_GROUP)
-    my_error(ER_CANT_SET_GTID_NEXT_TO_ANONYMOUS_WHEN_GTID_MODE_IS_ON, MYF(0));
-
-  if (gtid_next_list != NULL)
-  {
-#ifdef HAVE_GTID_NEXT_LIST
-    // If GTID_NEXT==SID:GNO, then SID:GNO must be listed in GTID_NEXT_LIST
-    if (spec.type == GTID_GROUP && !gtid_next_list->contains_gtid(spec.gtid))
-    {
-      char buf[Gtid_specification::MAX_TEXT_LENGTH + 1];
-      global_sid_lock->rdlock();
-      spec.gtid.to_string(global_sid_map, buf);
-      global_sid_lock->unlock();
-      my_error(ER_GTID_NEXT_IS_NOT_IN_GTID_NEXT_LIST, MYF(0), buf);
-      DBUG_RETURN(true);
-    }
-
-    // GTID_NEXT cannot be "AUTOMATIC" when GTID_NEXT_LIST != NULL.
-    if (spec.type == AUTOMATIC_GROUP)
-    {
-      my_error(ER_GTID_NEXT_CANT_BE_AUTOMATIC_IF_GTID_NEXT_LIST_IS_NON_NULL,
-               MYF(0));
-      DBUG_RETURN(true);
-    }
-#else
-    DBUG_ASSERT(0);
-#endif
-  }
-  // check that we don't own a GTID
-  else if (thd->owned_gtid.sidno != 0 &&
-           thd->owned_gtid.sidno != THD::OWNED_SIDNO_ANONYMOUS)
-  {
-    char buf[Gtid::MAX_TEXT_LENGTH + 1];
-#ifndef DBUG_OFF
-    DBUG_ASSERT(thd->owned_gtid.sidno > 0);
-    global_sid_lock->wrlock();
-    if (thd->owned_gtid.sidno == THD::OWNED_SIDNO_ANONYMOUS)
-      DBUG_ASSERT(!gtid_state->get_owned_gtids()->
-                  thread_owns_anything(thd->thread_id()));
-    else
-      DBUG_ASSERT(gtid_state->get_owned_gtids()->
-                  thread_owns_anything(thd->thread_id()));
-#else
-    global_sid_lock->rdlock();
-#endif
-    thd->owned_gtid.to_string(global_sid_map, buf);
-    global_sid_lock->unlock();
-    my_error(ER_CANT_SET_GTID_NEXT_WHEN_OWNING_GTID, MYF(0), buf);
-    DBUG_RETURN(true);
-  }
-
-  DBUG_RETURN(false);
-}
-
-static bool update_gtid_next(sys_var *self, THD *thd, enum_var_type type)
-{
-  DBUG_ENTER("update_gtid_next");
-  DBUG_ASSERT(type == OPT_SESSION);
-  if (thd->variables.gtid_next.type == GTID_GROUP ||
-      thd->variables.gtid_next.type == ANONYMOUS_GROUP)
-    if (gtid_acquire_ownership_single(thd) != 0)
-      DBUG_RETURN(true);
-  DBUG_RETURN(false);
-}
-
 #ifdef HAVE_GTID_NEXT_LIST
 static bool check_gtid_next_list(sys_var *self, THD *thd, set_var *var)
 {
   DBUG_ENTER("check_gtid_next_list");
   my_error(ER_NOT_SUPPORTED_YET, MYF(0), "GTID_NEXT_LIST");
-  if (check_top_level_stmt_and_super(self, thd, var) ||
-      check_outside_transaction(self, thd, var))
+  if (check_super_outside_trx_outside_sf_outside_sp(self, thd, var))
     DBUG_RETURN(true);
-  if (gtid_mode == 0 && var->save_result.string_value.str != NULL)
+  /*
+    @todo: move this check into the set function and hold the lock on
+    gtid_mode_lock until the operation has completed, so that we are
+    sure a concurrent connection does not change gtid_mode between
+    check and fix - if we ever implement this variable.
+  */
+  if (get_gtid_mode(GTID_MODE_LOCK_NONE) == GTID_MODE_OFF &&
+      var->save_result.string_value.str != NULL)
     my_error(ER_CANT_SET_GTID_NEXT_LIST_TO_NON_NULL_WHEN_GTID_MODE_IS_OFF,
              MYF(0));
   DBUG_RETURN(false);
@@ -4991,15 +4935,15 @@ static Sys_var_gtid_set Sys_gtid_next_list(
        ON_UPDATE(update_gtid_next_list)
 );
 export sys_var *Sys_gtid_next_list_ptr= &Sys_gtid_next_list;
-#endif
+#endif //HAVE_GTID_NEXT_LIST
 
-static Sys_var_gtid_specification Sys_gtid_next(
+static Sys_var_gtid_next Sys_gtid_next(
        "gtid_next",
-       "Specified the Global Transaction Identifier for the following "
-       "re-executed statement.",
+       "Specifies the Global Transaction Identifier for the following "
+       "transaction.",
        SESSION_ONLY(gtid_next), NO_CMD_LINE,
        DEFAULT("AUTOMATIC"), NO_MUTEX_GUARD,
-       NOT_IN_BINLOG, ON_CHECK(check_gtid_next), ON_UPDATE(update_gtid_next));
+       NOT_IN_BINLOG, ON_CHECK(check_super_outside_trx_outside_sf));
 export sys_var *Sys_gtid_next_ptr= &Sys_gtid_next;
 
 static Sys_var_gtid_executed Sys_gtid_executed(
@@ -5012,16 +4956,9 @@ static bool check_gtid_purged(sys_var *self, THD *thd, set_var *var)
 {
   DBUG_ENTER("check_gtid_purged");
 
-  if (!var->value || check_top_level_stmt(self, thd, var) ||
-      check_outside_transaction(self, thd, var) ||
-      check_outside_sp(self, thd, var))
+  if (!var->value ||
+      check_super_outside_trx_outside_sf_outside_sp(self, thd, var))
     DBUG_RETURN(true);
-
-  if (0 == gtid_mode)
-  {
-    my_error(ER_CANT_SET_GTID_PURGED_WHEN_GTID_MODE_IS_OFF, MYF(0));
-    DBUG_RETURN(true);
-  }
 
   if (var->value->result_type() != STRING_RESULT ||
       !var->save_result.string_value.str)
@@ -5089,90 +5026,26 @@ static Sys_var_gtid_owned Sys_gtid_owned(
        "The global variable lists all GTIDs owned by all threads. "
        "The session variable lists all GTIDs owned by the current thread.");
 
-/*
-  This code is not being used but we will keep it as it may be
-  useful when we improve the code around Sys_gtid_mode.
-*/
-#ifdef NON_DISABLED_GTID
-static bool check_gtid_mode(sys_var *self, THD *thd, set_var *var)
-{
-  DBUG_ENTER("check_gtid_mode");
-
-  my_error(ER_NOT_SUPPORTED_YET, MYF(0), "GTID_MODE");
-  DBUG_RETURN(true);
-
-  if (check_top_level_stmt_and_super(self, thd, var) ||
-      check_outside_transaction(self, thd, var))
-    DBUG_RETURN(true);
-  uint new_gtid_mode= var->value->val_int();
-  if (abs((long)(new_gtid_mode - gtid_mode)) > 1)
-  {
-    my_error(ER_GTID_MODE_CAN_ONLY_CHANGE_ONE_STEP_AT_A_TIME, MYF(0));
-    DBUG_RETURN(true);
-  }
-  if (new_gtid_mode >= 1)
-  {
-    if (!opt_bin_log || !opt_log_slave_updates)
-    {
-      my_error(ER_GTID_MODE_REQUIRES_BINLOG, MYF(0));
-      DBUG_RETURN(false);
-    }
-  }
-  if (new_gtid_mode >= 2)
-  {
-    /*
-    if (new_gtid_mode == 3 &&
-        (there are un-processed anonymous transactions in relay log ||
-         there is a client executing an anonymous transaction))
-    {
-      my_error(ER_CANT_SET_GTID_MODE_3_WITH_UNPROCESSED_ANONYMOUS_GROUPS,
-               MYF(0));
-      DBUG_RETURN(true);
-    }
-    */
-    if (!enforce_gtid_consistency)
-    {
-      //my_error(ER_GTID_MODE_2_OR_3_REQUIRES_ENFORCE_GTID_CONSISTENCY), MYF(0));
-      DBUG_RETURN(true);
-    }
-  }
-  else
-  {
-    /*
-    if (new_gtid_mode == 0 &&
-        (there are un-processed GTIDs in relay log ||
-         there is a client executing a GTID transaction))
-    {
-      my_error(ER_CANT_SET_GTID_MODE_0_WITH_UNPROCESSED_GTID_GROUPS, MYF(0));
-      DBUG_RETURN(true);
-    }
-    */
-  }
-  DBUG_RETURN(false);
-}
-#endif
-
-static Sys_var_enum Sys_gtid_mode(
+static Sys_var_gtid_mode Sys_gtid_mode(
        "gtid_mode",
-       /*
-       "Whether Global Transaction Identifiers (GTIDs) are enabled: OFF, "
-       "UPGRADE_STEP_1, UPGRADE_STEP_2, or ON. OFF means GTIDs are not "
-       "supported at all, ON means GTIDs are supported by all servers in "
-       "the replication topology. To safely switch from OFF to ON, first "
-       "set all servers to UPGRADE_STEP_1, then set all servers to "
-       "UPGRADE_STEP_2, then wait for all anonymous transactions to "
-       "be re-executed on all servers, and finally set all servers to ON.",
-       */
-       "Whether Global Transaction Identifiers (GTIDs) are enabled. Can be "
-       "ON or OFF.",
-       READ_ONLY GLOBAL_VAR(gtid_mode), CMD_LINE(REQUIRED_ARG),
-       gtid_mode_names, DEFAULT(GTID_MODE_OFF),
-       NO_MUTEX_GUARD, NOT_IN_BINLOG
-#ifdef NON_DISABLED_GTID
-       , ON_CHECK(check_gtid_mode));
-#else
-       );
-#endif
+       "Controls whether Global Transaction Identifiers (GTIDs) are "
+       "enabled. Can be OFF, OFF_PERMISSIVE, ON_PERMISSIVE, or ON. OFF "
+       "means that no transaction has a GTID. OFF_PERMISSIVE means that "
+       "new transactions (committed in a client session using "
+       "GTID_NEXT='AUTOMATIC') are not assigned any GTID, and "
+       "replicated transactions are allowed to have or not have a "
+       "GTID. ON_PERMISSIVE means that new transactions are assigned a "
+       "GTID, and replicated transactions are allowed to have or not "
+       "have a GTID. ON means that all transactions have a GTID. "
+       "ON is required on a master before any slave can use "
+       "MASTER_AUTO_POSITION=1. To safely switch from OFF to ON, first "
+       "set all servers to OFF_PERMISSIVE, then set all servers to "
+       "ON_PERMISSIVE, then wait for all transactions without a GTID to "
+       "be replicated and executed on all servers, and finally set all "
+       "servers to GTID_MODE = ON.",
+       GLOBAL_VAR(_gtid_mode), CMD_LINE(REQUIRED_ARG), gtid_mode_names,
+       DEFAULT(GTID_MODE_OFF), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+       ON_CHECK(check_super_outside_trx_outside_sf_outside_sp));
 
 #endif // HAVE_REPLICATION
 
@@ -5285,6 +5158,13 @@ static Sys_var_mybool Sys_offline_mode(
        GLOBAL_VAR(offline_mode), CMD_LINE(OPT_ARG), DEFAULT(FALSE),
        &PLock_offline_mode, NOT_IN_BINLOG,
        ON_CHECK(0), ON_UPDATE(handle_offline_mode));
+
+static Sys_var_mybool Sys_log_backward_compatible_user_definitions(
+       "log_backward_compatible_user_definitions",
+       "Controls logging of CREATE/ALTER/GRANT user statements "
+       "in replication binlogs, general query logs and audit logs.",
+       GLOBAL_VAR(opt_log_backward_compatible_user_definitions),
+       CMD_LINE(OPT_ARG), DEFAULT(FALSE));
 
 static Sys_var_mybool Sys_avoid_temporal_upgrade(
        "avoid_temporal_upgrade",

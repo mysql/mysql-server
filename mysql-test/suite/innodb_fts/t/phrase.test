@@ -1,0 +1,39 @@
+-- source include/have_innodb.inc
+
+#
+# BUG#20465273 - FULLTEXT SEARCH BEHAVIOUR WITH MYISAM VS. INNODB (WRONG RESULT WITH INNODB)
+#
+
+CREATE TABLE articles (
+	id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+	title VARCHAR(200),
+	body TEXT,
+	FULLTEXT (title,body)
+) ENGINE=InnoDB;
+
+INSERT INTO articles (title,body) VALUES
+	(NULL, 'mysql good database'),
+	(NULL, ' mysql good database'),
+	('', 'mysql good database'),
+	('', ' mysql good database'),
+	(' ', 'mysql good database'),
+	('mysql', 'good database'),
+	('mysql ', 'good database'),
+	('mysql', ' good database'),
+	('mysql good database', ''),
+	('mysql good database', NULL);
+
+
+SET GLOBAL innodb_ft_aux_table="test/articles";
+SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHE;
+SET GLOBAL innodb_ft_aux_table=default;
+
+SELECT * FROM articles;
+
+SELECT * FROM articles WHERE MATCH(title, body)
+	AGAINST('"mysql good database"' IN BOOLEAN MODE);
+
+SELECT * FROM articles WHERE MATCH(title, body)
+	AGAINST('("mysql good database")' IN BOOLEAN MODE);
+
+DROP TABLE articles;
