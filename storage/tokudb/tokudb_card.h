@@ -218,15 +218,32 @@ namespace tokudb {
         return error;
     }
 
+    struct analyze_card_cursor_callback_extra {
+        int (*analyze_progress)(void *extra, uint64_t rows);
+        void *analyze_extra;
+        uint64_t *rows;
+        uint64_t *deleted_rows;
+    };
+
+    bool analyze_card_cursor_callback(void *extra, uint64_t deleted_rows) {
+        analyze_card_cursor_callback_extra *a_extra = static_cast<analyze_card_cursor_callback_extra *>(extra);
+        *a_extra->deleted_rows += deleted_rows;
+        int r = a_extra->analyze_progress(a_extra->analyze_extra, *a_extra->rows);
+        sql_print_information("tokudb analyze_card_cursor_callback %u %" PRIu64 " %" PRIu64, r, *a_extra->deleted_rows, deleted_rows);
+        return r != 0;
+    }
+
     // Compute records per key for all key parts of the ith key of the table.
     // For each key part, put records per key part in *rec_per_key_part[key_part_index].
     // Returns 0 if success, otherwise an error number.
     // TODO statistical dives into the FT
     int analyze_card(DB *db, DB_TXN *txn, bool is_unique, uint64_t num_key_parts, uint64_t *rec_per_key_part,
                      int (*key_compare)(DB *, const DBT *, const DBT *, uint),
-                     int (*analyze_progress)(void *extra, uint64_t rows), void *progress_extra) {
+                     int (*analyze_progress)(void *extra, uint64_t rows), void *progress_extra,
+                     uint64_t *return_rows, uint64_t *return_deleted_rows) {
         int error = 0;
         uint64_t rows = 0;
+        uint64_t deleted_rows = 0;
         uint64_t unique_rows[num_key_parts];
         if (is_unique && num_key_parts == 1) {
             // dont compute for unique keys with a single part.  we already know the answer.
@@ -235,6 +252,8 @@ namespace tokudb {
             DBC *cursor = NULL;
             error = db->cursor(db, txn, &cursor, 0);
             if (error == 0) {
+                analyze_card_cursor_callback_extra e = { analyze_progress, progress_extra, &rows, &deleted_rows };
+                cursor->c_set_check_interrupt_callback(cursor, analyze_card_cursor_callback, &e);
                 for (uint64_t i = 0; i < num_key_parts; i++)
                     unique_rows[i] = 1;
                 // stop looking when the entire dictionary was analyzed, or a cap on execution time was reached, or the analyze was killed.
@@ -243,8 +262,8 @@ namespace tokudb {
                 while (1) {
                     error = cursor->c_get(cursor, &key, 0, DB_NEXT);
                     if (error != 0) {
-                        if (error == DB_NOTFOUND)
-                        error = 0; // eof is not an error
+                        if (error == DB_NOTFOUND || error == TOKUDB_INTERRUPTED)
+                            error = 0; // not an error
                         break;
                     }
                     rows++;
@@ -287,10 +306,12 @@ namespace tokudb {
             }
         }
         // return cardinality
-        if (error == 0 || error == ETIME) {
-            for (uint64_t i = 0; i < num_key_parts; i++)
-                rec_per_key_part[i]  = rows / unique_rows[i];
-        }
+        if (return_rows)
+            *return_rows = rows;
+        if (return_deleted_rows)
+            *return_deleted_rows = deleted_rows;
+        for (uint64_t i = 0; i < num_key_parts; i++)
+            rec_per_key_part[i]  = rows / unique_rows[i];
         return error;
     }
 }
