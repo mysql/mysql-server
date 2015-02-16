@@ -2040,15 +2040,25 @@ redo:
           if (!alloced)
           {
             alloced=1;
-            res=copy_if_not_alloced(str,res,res->length()+to_length);
+            if (res->uses_buffer_owned_by(str))
+            {
+              if (tmp_value_res.alloc(res->length() + to_length) ||
+                  tmp_value_res.copy(*res))
+                goto null;
+              res= &tmp_value_res;
+            }
+            else
+              res= copy_if_not_alloced(str, res, res->length() + to_length);
           }
           res->replace((uint) offset,from_length,*res3);
 	  offset+=(int) to_length;
           goto redo;
         }
 skip:
-        if ((l=my_ismbchar(res->charset(), ptr,strend))) ptr+=l;
-        else ++ptr;
+        if ((l= my_ismbchar(res->charset(), ptr,strend)))
+          ptr+= l;
+        else
+          ++ptr;
     }
   }
   else
@@ -2066,7 +2076,15 @@ skip:
       if (!alloced)
       {
         alloced=1;
-        res=copy_if_not_alloced(str,res,res->length()+to_length);
+        if (res->uses_buffer_owned_by(str))
+        {
+          if (tmp_value_res.alloc(res->length() + to_length) ||
+              tmp_value_res.copy(*res))
+            goto null;
+          res= &tmp_value_res;
+        }
+        else
+          res= copy_if_not_alloced(str, res, res->length() + to_length);
       }
       res->replace((uint) offset,from_length,*res3);
       offset+=(int) to_length;
@@ -2155,7 +2173,16 @@ String *Item_func_insert::val_str(String *str)
 			func_name(), current_thd->variables.max_allowed_packet);
     goto null;
   }
-  res= copy_if_not_alloced(str, res, orig_len);
+  if (res->uses_buffer_owned_by(str))
+  {
+    if (tmp_value_res.alloc(orig_len) ||
+        tmp_value_res.copy(*res))
+      goto null;
+    res= &tmp_value_res;
+  }
+  else
+    res= copy_if_not_alloced(str, res, orig_len);
+
   res->replace((uint32) start,(uint32) length,*res2);
   return res;
 null:
@@ -2190,7 +2217,15 @@ String *Item_str_conv::val_str(String *str)
   if (multiply == 1)
   {
     size_t len;
-    res= copy_if_not_alloced(str,res,res->length());
+    if (res->uses_buffer_owned_by(str))
+    {
+       if (tmp_value.copy(*res))
+         return error_str();
+       res= &tmp_value;
+    }
+    else
+      res= copy_if_not_alloced(str, res, res->length());
+
     len= converter(collation.collation, (char*) res->ptr(), res->length(),
                                         (char*) res->ptr(), res->length());
     DBUG_ASSERT(len <= res->length());
@@ -2896,7 +2931,15 @@ String *Item_func_encode::val_str(String *str)
   }
 
   null_value= 0;
-  res= copy_if_not_alloced(str, res, res->length());
+  if (res->uses_buffer_owned_by(str))
+  {
+    if (tmp_value_res.copy(*res))
+      return error_str();
+    res= &tmp_value_res;
+  }
+  else
+    res= copy_if_not_alloced(str, res, res->length());
+
   crypto_transform(res);
   sql_crypt.reinit();
 
