@@ -1901,6 +1901,15 @@ bool JOIN::setup_semijoin_materialized_table(JOIN_TAB *tab, uint tableno,
   sj_tmp_tables.push_back(table);
   sjm_exec_list.push_back(sjm_exec);
 
+  /*
+    Hash_field is not applicable for MATERIALIZE_LOOKUP. If hash_field is
+    created for temporary table, semijoin_types_allow_materialization must
+    assure that MATERIALIZE_LOOKUP can't be chosen.
+  */
+  DBUG_ASSERT((inner_pos->sj_strategy == SJ_OPT_MATERIALIZE_LOOKUP &&
+              !table->hash_field) ||
+              inner_pos->sj_strategy == SJ_OPT_MATERIALIZE_SCAN);
+
   TABLE_LIST *tl;
   if (!(tl= (TABLE_LIST *) alloc_root(thd->mem_root, sizeof(TABLE_LIST))))
     DBUG_RETURN(true);            /* purecov: inspected */

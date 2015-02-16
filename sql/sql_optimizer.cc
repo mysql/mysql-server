@@ -41,6 +41,7 @@
 #include "sql_planner.h"         // calculate_condition_filter
 #include "sql_resolver.h"        // subquery_allows_materialization
 #include "sql_test.h"            // print_where
+#include "sql_tmp_table.h"       // get_max_key_and_part_length
 
 #include <algorithm>
 using std::max;
@@ -5446,20 +5447,45 @@ void semijoin_types_allow_materialization(TABLE_LIST *sj_nest)
   List_iterator<Item> it1(sj_nest->nested_join->sj_outer_exprs);
   List_iterator<Item> it2(sj_nest->nested_join->sj_inner_exprs);
 
-  sj_nest->nested_join->sjm.scan_allowed= false;
-  sj_nest->nested_join->sjm.lookup_allowed= false;
+  sj_nest->nested_join->sjm.scan_allowed= true; 
+  sj_nest->nested_join->sjm.lookup_allowed= true;
 
   bool blobs_involved= false;
   Item *outer, *inner;
+  uint total_lookup_index_length= 0;
+  uint max_key_length;
+  uint max_key_part_length;
+  /*
+    Maximum lengths for keys and key parts that are supported by
+    the temporary table storage engine(s).
+  */
+  get_max_key_and_part_length(&max_key_length,
+                              &max_key_part_length);
   while (outer= it1++, inner= it2++)
   {
     DBUG_ASSERT(outer->real_item() && inner->real_item());
     if (!types_allow_materialization(outer, inner))
+    {
+      sj_nest->nested_join->sjm.scan_allowed= false; 
+      sj_nest->nested_join->sjm.lookup_allowed= false;
       DBUG_VOID_RETURN;
+    }
     blobs_involved|= inner->is_blob_field();
+
+    // Calculate the index length of materialized table
+    const uint lookup_index_length=((inner->type() == Item::FIELD_ITEM) ?
+                            ((Item_field *)inner)->field->pack_length() :
+                            inner->max_length) +
+                            (inner->maybe_null ? HA_KEY_NULL_LENGTH : 0);
+    if (lookup_index_length > max_key_part_length)
+      sj_nest->nested_join->sjm.lookup_allowed= false;
+    total_lookup_index_length+= lookup_index_length ; 
   }
-  sj_nest->nested_join->sjm.scan_allowed=   true;
-  sj_nest->nested_join->sjm.lookup_allowed= !blobs_involved;
+  if (total_lookup_index_length > max_key_length)
+    sj_nest->nested_join->sjm.lookup_allowed= false;
+
+  if (blobs_involved)
+    sj_nest->nested_join->sjm.lookup_allowed= false;
 
   if (sj_nest->embedding)
   {
