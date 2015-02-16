@@ -1906,8 +1906,11 @@ struct TABLE_LIST
   {
     DBUG_ASSERT(is_view_or_derived() && uses_materialization());
     DBUG_ASSERT(db != view_db.str && table_name != view_name.str);
-    db= view_db.str;
-    db_length= view_db.length;
+    if (is_view())
+    {
+      db= view_db.str;
+      db_length= view_db.length;
+    }
     table_name= view_name.str;
     table_name_length= view_name.length;
   }
