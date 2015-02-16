@@ -1439,7 +1439,7 @@ slave-checkpoint-period 300
 slave-compressed-protocol FALSE
 slave-exec-mode STRICT
 slave-max-allowed-packet 1073741824
-slave-net-timeout 3600
+slave-net-timeout 60
 slave-parallel-type DATABASE
 slave-parallel-workers 0
 slave-pending-jobs-size-max 16777216
