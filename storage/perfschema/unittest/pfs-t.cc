@@ -111,6 +111,7 @@ void test_bootstrap()
   param.m_events_statements_history_long_sizing= 0;
   param.m_digest_sizing= 0;
   param.m_session_connect_attrs_sizing= 0;
+  param.m_max_digest_length= 0;
 
   boot= initialize_performance_schema(& param);
   ok(boot != NULL, "boot");
@@ -169,6 +170,7 @@ PSI * load_perfschema()
   param.m_events_statements_history_long_sizing= 0;
   param.m_digest_sizing= 0;
   param.m_session_connect_attrs_sizing= 0;
+  param.m_max_digest_length= 0;
 
   /* test_bootstrap() covered this, assuming it just works */
   boot= initialize_performance_schema(& param);
@@ -1513,6 +1515,7 @@ void test_event_name_index()
   param.m_events_statements_history_long_sizing= 0;
   param.m_digest_sizing= 0;
   param.m_session_connect_attrs_sizing= 0;
+  param.m_max_digest_length= 0;
 
   param.m_mutex_sizing= 0;
   param.m_rwlock_sizing= 0;
