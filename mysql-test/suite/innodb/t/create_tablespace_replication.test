@@ -1,0 +1,58 @@
+######## suite/innodb/t/innodb_wl6205.test                       #####
+#                                                                    #
+# Testcase for worklog WL#6205:                                      #
+# InnoDB: Implement CREATE TABLESPACE for general use                #
+# Test scenario :                                                    #
+#  Test checks CREATE/DROP TABLESPACE  with masters/slave            #
+#                                                                    #
+######################################################################
+
+--source include/not_embedded.inc
+-- source include/have_innodb.inc
+-- source include/master-slave.inc
+
+--echo # connection master
+-- connection master
+USE test;
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+CREATE TABLESPACE s_1 ADD DATAFILE 's_1.ibd' ENGINE InnoDB;
+CREATE TABLESPACE s_2 ADD DATAFILE 's_2.ibd' ENGINE InnoDB;
+CREATE TABLE t1 (a int) ENGINE=innodb TABLESPACE=s_1;
+CREATE TABLE t2 (a int) ENGINE=innodb TABLESPACE=s_1;
+--echo # Check tablespace on master
+--source suite/innodb/include/show_i_s_tables.inc
+
+INSERT INTO t1 VALUES ( 11);
+INSERT INTO t2 VALUES ( 22);
+SELECT * FROM t1;
+SELECT * FROM t2;
+
+--source include/sync_slave_sql_with_master.inc
+--echo # connection slave
+--connection slave
+--echo # Check tablespace on slave
+--source suite/innodb/include/show_i_s_tables.inc
+USE test;
+SHOW TABLES;
+SHOW CREATE TABLE t1;
+SHOW CREATE TABLE t2;
+
+--echo # connection master
+-- connection master
+USE test;
+DROP TABLE t1,t2;
+DROP TABLESPACE s_1;
+--source include/sync_slave_sql_with_master.inc
+
+--echo # connection slave
+--connection slave
+--source suite/innodb/include/show_i_s_tables.inc
+
+--echo # connection master
+-- connection master
+USE test;
+DROP TABLESPACE s_2;
+
+--source include/rpl_end.inc

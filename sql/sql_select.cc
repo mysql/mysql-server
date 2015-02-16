@@ -627,7 +627,7 @@ static bool setup_semijoin_dups_elimination(JOIN *join, uint no_jbuf_after)
             last_tab->qep_tab= tab_in_range;
             last_tab->rowid_offset= jt_rowid_offset;
             jt_rowid_offset += tab_in_range->table()->file->ref_length;
-            if (tab_in_range->table()->maybe_null)
+            if (tab_in_range->table()->is_nullable())
             {
               last_tab->null_byte= jt_null_bits / 8;
               last_tab->null_bit= jt_null_bits++;
@@ -883,10 +883,15 @@ bool JOIN::prepare_result()
   DBUG_ENTER("JOIN::prepare_result");
 
   error= 0;
-  /* Create result tables for materialized views. */
-  if (!zero_result_cause &&
-      select_lex->handle_derived(thd->lex, &mysql_derived_create))
-    goto err;
+  // Create result tables for materialized views/derived tables
+  if (select_lex->materialized_derived_table_count && !zero_result_cause)
+  {
+    for (TABLE_LIST *tl= select_lex->leaf_tables; tl; tl= tl->next_leaf)
+    {
+      if (tl->is_view_or_derived() && tl->create_derived(thd))
+        goto err;
+    }
+  }
 
   if (select_lex->query_result()->prepare2())
     goto err;
@@ -895,11 +900,11 @@ bool JOIN::prepare_result()
       get_schema_tables_result(this, PROCESSED_BY_JOIN_EXEC))
     goto err;
 
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 
 err:
   error= 1;
-  DBUG_RETURN(TRUE);
+  DBUG_RETURN(true);
 }
 
 
@@ -1047,7 +1052,7 @@ void calc_used_field_length(THD *thd,
   }
   if (null_fields || uneven_bit_fields)
     rec_length+= (table->s->null_fields + 7) / 8;
-  if (table->maybe_null)
+  if (table->is_nullable())
     rec_length+= sizeof(my_bool);
   if (blobs)
   {
@@ -1845,11 +1850,11 @@ void QEP_TAB::push_index_cond(const JOIN_TAB *join_tab,
   @return False if OK, True if error
 */
 
-bool JOIN::setup_materialized_table(JOIN_TAB *tab, uint tableno,
-                                    const POSITION *inner_pos,
-                                    POSITION *sjm_pos)
+bool JOIN::setup_semijoin_materialized_table(JOIN_TAB *tab, uint tableno,
+                                             const POSITION *inner_pos,
+                                             POSITION *sjm_pos)
 {
-  DBUG_ENTER("JOIN::setup_materialized_table");
+  DBUG_ENTER("JOIN::setup_semijoin_materialized_table");
   const TABLE_LIST *const emb_sj_nest= inner_pos->table->emb_sj_nest;
   Semijoin_mat_optimize *const sjm_opt= &emb_sj_nest->nested_join->sjm;
   Semijoin_mat_exec *const sjm_exec= tab->sj_mat_exec();
@@ -2102,7 +2107,7 @@ make_join_readinfo(JOIN *join, uint no_jbuf_after)
     qep_tab->read_record.unlock_row= rr_unlock_row;
 
     Opt_trace_object trace_refine_table(trace);
-    trace_refine_table.add_utf8_table(table);
+    trace_refine_table.add_utf8_table(qep_tab->table_ref);
 
     if (qep_tab->do_loosescan())
     {
@@ -3892,6 +3897,7 @@ test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER *order, TABLE *table,
   bool group= join && join->grouped && order == join->group_list;
   double refkey_rows_estimate= static_cast<double>(table->quick_condition_rows);
   const bool has_limit= (select_limit != HA_POS_ERROR);
+  const join_type cur_access_method= tab ? tab->type() : JT_ALL;
 
   /*
     If not used with LIMIT, only use keys if the whole query can be
@@ -3932,7 +3938,7 @@ test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER *order, TABLE *table,
     Calculate the selectivity of the ref_key for REF_ACCESS. For
     RANGE_ACCESS we use table->quick_condition_rows.
   */
-  if (ref_key >= 0 && tab->type() == JT_REF)
+  if (ref_key >= 0 && cur_access_method == JT_REF)
   {
     if (table->quick_keys.is_set(ref_key))
       refkey_rows_estimate= static_cast<double>(table->quick_rows[ref_key]);
@@ -4051,8 +4057,16 @@ test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER *order, TABLE *table,
         const Cost_estimate table_scan_time= table->file->table_scan_cost();
         const double index_scan_time= select_limit / rec_per_key *
           min<double>(rec_per_key, table_scan_time.total_cost());
-        if ((ref_key < 0 && is_covering) || 
-            (ref_key < 0 && (group || table->force_index)) ||
+
+        /*
+          Switch to index that gives order if its scan time is smaller than
+          read_time of current chosen access method. In addition, if the
+          current chosen access method is index scan or table scan, always
+          switch to the index that gives order when it is covering or when
+          force index or group by is present.
+        */
+        if (((cur_access_method == JT_ALL || cur_access_method == JT_INDEX_SCAN)
+             && (is_covering || group || table->force_index)) ||
             index_scan_time < read_time)
         {
           ha_rows quick_records= table_records;

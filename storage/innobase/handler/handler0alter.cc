@@ -50,6 +50,11 @@ Smart ALTER TABLE
 #include "row0sel.h"
 #include "ha_innodb.h"
 #include "ut0new.h"
+#include "ut0stage.h"
+
+/* For supporting Native InnoDB Partitioning. */
+#include "partition_info.h"
+#include "ha_innopart.h"
 
 /** Operations for creating secondary indexes (no rebuild needed) */
 static const Alter_inplace_info::HA_ALTER_FLAGS INNOBASE_ONLINE_CREATE
@@ -104,8 +109,8 @@ struct ha_innobase_inplace_ctx : public inplace_alter_handler_ctx
 {
 	/** Dummy query graph */
 	que_thr_t*	thr;
-	/** reference to the prebuilt struct of the creating instance */
-	row_prebuilt_t*&prebuilt;
+	/** The prebuilt struct of the creating instance */
+	row_prebuilt_t*	prebuilt;
 	/** InnoDB indexes being created */
 	dict_index_t**	add_index;
 	/** MySQL key numbers for the InnoDB indexes that are being created */
@@ -154,8 +159,10 @@ struct ha_innobase_inplace_ctx : public inplace_alter_handler_ctx
 	const char*	tmp_name;
 	/** whether the order of the clustered index is unchanged */
 	bool		skip_pk_sort;
+	/** ALTER TABLE stage progress recorder */
+	ut_stage_alter_t* m_stage;
 
-	ha_innobase_inplace_ctx(row_prebuilt_t*& prebuilt_arg,
+	ha_innobase_inplace_ctx(row_prebuilt_t* prebuilt_arg,
 				dict_index_t** drop_arg,
 				ulint num_to_drop_arg,
 				dict_index_t** rename_arg,
@@ -188,7 +195,8 @@ struct ha_innobase_inplace_ctx : public inplace_alter_handler_ctx
 			 autoinc_col_min_value_arg, autoinc_col_max_value_arg),
 		max_autoinc (0),
 		tmp_name (0),
-		skip_pk_sort(false)
+		skip_pk_sort(false),
+		m_stage(NULL)
 	{
 #ifdef UNIV_DEBUG
 		for (ulint i = 0; i < num_to_add_index; i++) {
@@ -204,6 +212,7 @@ struct ha_innobase_inplace_ctx : public inplace_alter_handler_ctx
 
 	~ha_innobase_inplace_ctx()
 	{
+		UT_DELETE(m_stage);
 		mem_heap_free(heap);
 	}
 
@@ -343,9 +352,10 @@ innobase_need_rebuild(
 	    == Alter_inplace_info::CHANGE_CREATE_OPTION
 	    && !(ha_alter_info->create_info->used_fields
 		 & (HA_CREATE_USED_ROW_FORMAT
-		    | HA_CREATE_USED_KEY_BLOCK_SIZE))) {
+		    | HA_CREATE_USED_KEY_BLOCK_SIZE
+		    | HA_CREATE_USED_TABLESPACE))) {
 		/* Any other CHANGE_CREATE_OPTION than changing
-		ROW_FORMAT or KEY_BLOCK_SIZE can be done
+		ROW_FORMAT, KEY_BLOCK_SIZE or TABLESPACE can be done
 		without rebuilding the table. */
 		return(false);
 	}
@@ -417,6 +427,12 @@ ha_innobase::check_if_supported_inplace_alter(
 	    && m_prebuilt->trx->check_foreigns) {
 		ha_alter_info->unsupported_reason = innobase_get_err_msg(
 			ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_FK_CHECK);
+		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+	}
+
+	if (altered_table->file->ht != ht) {
+		/* Non-native partitioning table engine. No longer supported,
+		due to implementation of native InnoDB partitioning. */
 		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
 	}
 
@@ -1505,11 +1521,8 @@ name_ok:
 				= key_part1.field;
 			ibool			is_unsigned;
 
-			/* We don't care about if there is a POINT field here,
-			so we just assume optimize_point_storage=true, which
-			wouldn't affect the result */
 			switch (get_innobase_type_from_mysql_type(
-				&is_unsigned, field, true)) {
+					&is_unsigned, field)) {
 			default:
 				break;
 			case DATA_INT:
@@ -1560,55 +1573,16 @@ name_ok:
 	return(0);
 }
 
-/** Get the exact POINT type of the specified column
-@param[in]	table			table object
-@param[in]	col_nr			guessed column number
-@param[in]	col_name		column name
-@param[in]	optimize_point_storage	true if we want to optimize new POINT field, otherwise false
-@return DATA_VAR_POINT or DATA_POINT for the given column */
-unsigned
-innobase_get_exact_point_type(
-	const dict_table_t*	table,
-	ulint			col_nr,
-	const char*		col_name,
-	bool			optimize_point_storage)
-{
-	unsigned	col_type;
-	ulint		col = dict_table_has_column(table, col_name, col_nr);
-
-	if (col < table->n_def) {
-		col_type = table->cols[col].mtype;
-	} else if (optimize_point_storage) {
-		col_type = DATA_POINT;
-	} else {
-		col_type = DATA_VAR_POINT;
-	}
-
-	/** col_type could be DATA_BLOB, since it could be a field
-	upgraded from 5.6, where we store POINT as BLOB.
-	Also it could be DATA_GEOMETRY, which is updated from DATA_BLOB
-	mentioned above. */
-	ut_ad(DATA_POINT_MTYPE(col_type) || col_type == DATA_GEOMETRY
-	      || col_type == DATA_BLOB);
-
-	return(col_type);
-}
-
 /** Create index field definition for key part
 @param[in]	altered_table		MySQL table that is being altered,
 or NULL if a new clustered index is not being created
-@param[in]	user_table		old Innodb table which is being altered
 @param[in]	key_part		MySQL key definition
-@param[in]	optimize_point_storage	true if we want to store POINT as
-DATA_POINT, otherwise as DATA_VAR_POINT
 @param[out]	index_field		index field */
-static __attribute__((nonnull(3,5)))
+static
 void
 innobase_create_index_field_def(
 	const TABLE*		altered_table,
-	const dict_table_t*	user_table,
 	const KEY_PART_INFO*	key_part,
-	bool			optimize_point_storage,
 	index_field_t*		index_field)
 {
 	const Field*	field;
@@ -1628,14 +1602,7 @@ innobase_create_index_field_def(
 	index_field->col_no = key_part->fieldnr;
 
 	col_type = get_innobase_type_from_mysql_type(
-			&is_unsigned, field, true);
-
-	if (DATA_POINT_MTYPE(col_type)) {
-		col_type = innobase_get_exact_point_type(
-			user_table, key_part->fieldnr,
-			key_part->field->field_name,
-			optimize_point_storage);
-	}
+		&is_unsigned, field);
 
 	if (DATA_LARGE_MTYPE(col_type)
 	    || (key_part->length < field->pack_length()
@@ -1654,7 +1621,6 @@ innobase_create_index_field_def(
 
 /** Create index definition for key
 @param[in]	altered_table		MySQL table that is being altered
-@param[in]	user_table		old Innodb table which is being altered
 @param[in]	keys			key definitions
 @param[in]	key_number		MySQL key number
 @param[in]	new_clustered		true if generating a new clustered
@@ -1666,7 +1632,6 @@ static __attribute__((nonnull))
 void
 innobase_create_index_def(
 	const TABLE*		altered_table,
-	const dict_table_t*	user_table,
 	const KEY*		keys,
 	ulint			key_number,
 	bool			new_clustered,
@@ -1677,15 +1642,9 @@ innobase_create_index_def(
 	const KEY*	key = &keys[key_number];
 	ulint		i;
 	ulint		n_fields = key->user_defined_key_parts;
-	bool		optimize_point_storage;
 
 	DBUG_ENTER("innobase_create_index_def");
 	DBUG_ASSERT(!key_clustered || new_clustered);
-
-	optimize_point_storage = thd_optimize_point_storage(
-					altered_table
-					? altered_table->in_use
-					: current_thd);
 
 	index->fields = static_cast<index_field_t*>(
 		mem_heap_alloc(heap, n_fields * sizeof *index->fields));
@@ -1756,8 +1715,8 @@ innobase_create_index_def(
 	if (!(key->flags & HA_SPATIAL)) {
 		for (i = 0; i < n_fields; i++) {
 			innobase_create_index_field_def(
-				altered_table, user_table, &key->key_part[i],
-				optimize_point_storage, &index->fields[i]);
+				altered_table, &key->key_part[i],
+				&index->fields[i]);
 		}
 	}
 
@@ -2003,7 +1962,6 @@ innobase_create_key_defs(
 {
 	index_def_t*		indexdef;
 	index_def_t*		indexdefs;
-	dict_table_t*		table;
 	bool			new_primary;
 	const uint*const	add
 		= ha_alter_info->index_add_buffer;
@@ -2013,9 +1971,6 @@ innobase_create_key_defs(
 	DBUG_ENTER("innobase_create_key_defs");
 	DBUG_ASSERT(!add_fts_doc_id || add_fts_doc_idx);
 	DBUG_ASSERT(ha_alter_info->index_add_count == n_add);
-
-	table = (static_cast<ha_innobase_inplace_ctx*>
-		(ha_alter_info->handler_ctx))->new_table;
 
 	/* If there is a primary key, it is always the first index
 	defined for the innodb_table. */
@@ -2087,7 +2042,7 @@ innobase_create_key_defs(
 
 		/* Create the PRIMARY key index definition */
 		innobase_create_index_def(
-			altered_table, table, key_info, primary_key_number,
+			altered_table, key_info, primary_key_number,
 			true, true, indexdef++, heap);
 
 created_clustered:
@@ -2099,7 +2054,7 @@ created_clustered:
 			}
 			/* Copy the index definitions. */
 			innobase_create_index_def(
-				altered_table, table, key_info, i, true,
+				altered_table, key_info, i, true,
 				false, indexdef, heap);
 
 			if (indexdef->ind_type & DICT_FTS) {
@@ -2143,7 +2098,7 @@ created_clustered:
 
 		for (ulint i = 0; i < n_add; i++) {
 			innobase_create_index_def(
-				altered_table, table, key_info, add[i],
+				altered_table, key_info, add[i],
 				false, false, indexdef, heap);
 
 			if (indexdef->ind_type & DICT_FTS) {
@@ -3097,7 +3052,6 @@ prepare_inplace_alter_table_dict(
 				ctx->new_table->id);
 		ulint		n_cols;
 		dtuple_t*	add_cols;
-		bool		optimize_point_storage;
 		ulint		space_id = 0;
 
 		if (innobase_check_foreigns(
@@ -3128,6 +3082,18 @@ prepare_inplace_alter_table_dict(
 			goto new_clustered_failed;
 		}
 
+		/* Use the old tablespace unless the tablespace
+		is changing. */
+		if (DICT_TF_HAS_SHARED_SPACE(user_table->flags)
+		    && (0 == strcmp(ha_alter_info->create_info->tablespace,
+				    user_table->tablespace))) {
+			space_id = user_table->space;
+		} else if (target_is_shared_space(ha_alter_info->create_info)) {
+			space_id = fil_space_get_id_by_name(
+				ha_alter_info->create_info->tablespace);
+			ut_a(space_id != ULINT_UNDEFINED);
+		}
+
 		/* The initial space id 0 may be overridden later if this
 		table is going to be a file_per_table tablespace. */
 		ctx->new_table = dict_mem_table_create(
@@ -3142,9 +3108,6 @@ prepare_inplace_alter_table_dict(
 				user_table->data_dir_path);
 		}
 
-		optimize_point_storage = thd_optimize_point_storage(
-					ctx->prebuilt->trx->mysql_thd);
-
 		for (uint i = 0; i < altered_table->s->fields; i++) {
 			const Field*	field = altered_table->field[i];
 			ulint		is_unsigned;
@@ -3152,23 +3115,9 @@ prepare_inplace_alter_table_dict(
 				= (ulint) field->type();
 			ulint		col_type
 				= get_innobase_type_from_mysql_type(
-					&is_unsigned, field, true);
+					&is_unsigned, field);
 			ulint		charset_no;
 			ulint		col_len;
-
-			if (DATA_POINT_MTYPE(col_type)) {
-				col_type = innobase_get_exact_point_type(
-						user_table, i,
-						field->field_name,
-						optimize_point_storage);
-
-				/* We could possible get DATA_BLOB here,
-				it means the POINT is from 5.6. Just convert
-				it to DATA_GEOMETRY */
-				if (col_type == DATA_BLOB) {
-					col_type = DATA_GEOMETRY;
-				}
-			}
 
 			/* we assume in dtype_form_prtype() that this
 			fits in two bytes */
@@ -3930,7 +3879,7 @@ ha_innobase::prepare_inplace_alter_table(
 	dict_foreign_t**add_fk = NULL;	/*!< Foreign key constraints to drop */
 	ulint		n_add_fk;	/*!< Number of foreign keys to drop */
 	dict_table_t*	indexed_table;	/*!< Table where indexes are created */
-	mem_heap_t*     heap;
+	mem_heap_t*	heap;
 	const char**	col_names;
 	int		error;
 	ulint		max_col_len;
@@ -3987,18 +3936,45 @@ ha_innobase::prepare_inplace_alter_table(
 	/* ALTER TABLE will not implicitly move a table from a single-table
 	tablespace to the system tablespace when innodb_file_per_table=OFF.
 	But it will implicitly move a table from the system tablespace to a
-	single-table tablespace if innodb_file_per_table = ON. */
+	single-table tablespace if innodb_file_per_table = ON.
+	Tables found in a general tablespace will stay there unless ALTER
+	TABLE contains another TABLESPACE=name.  If that is found it will
+	explicitly move a table to the named tablespace.
+	So if you specify TABLESPACE=`innodb_system` a table can be moved
+	into the system tablespace from either a general or file-per-table
+	tablespace. But from then on, it is labeled as using a shared space
+	(the create options have tablespace=='innodb_system' and the
+	SHARED_SPACE flag is set in the table flags) so it can no longer be
+	implicitly moved to a file-per-table tablespace. */
 	bool	in_system_space = is_system_tablespace(indexed_table->space);
-	bool	is_file_per_table = !in_system_space;
+	bool	is_file_per_table = !in_system_space
+			&& !DICT_TF_HAS_SHARED_SPACE(indexed_table->flags);
+#ifdef UNIV_DEBUG
+	bool	in_general_space = !in_system_space
+			&& DICT_TF_HAS_SHARED_SPACE(indexed_table->flags);
+
+	/* The table being altered can only be in a system tablespace,
+	or its own file-per-table tablespace, or a general tablespace. */
+	ut_ad(1 == in_system_space + is_file_per_table + in_general_space);
+#endif /* UNIV_DEBUG */
+
+	/* Determine the target tablespace type */
+	bool	needs_shared_space = target_is_shared_space(
+		ha_alter_info->create_info);
 	bool	needs_file_per_table =
 		/* Already file_per_table and staying that way */
-		is_file_per_table
+		(!needs_shared_space && is_file_per_table)
+		/* Explicitly set to file_per_table */
+		|| target_is_file_per_table(ha_alter_info->create_info)
 		/* Moving from the system tablespace to file-per-table */
-		|| (in_system_space && srv_file_per_table);
+		|| (!needs_shared_space
+		    && in_system_space
+		    && srv_file_per_table);
 
 	create_table_info_t	info(m_user_thd,
 				     altered_table,
 				     ha_alter_info->create_info,
+				     NULL,
 				     NULL,
 				     NULL,
 				     NULL,
@@ -4618,6 +4594,15 @@ ok_exit:
 	DBUG_ASSERT(ctx->trx);
 	DBUG_ASSERT(ctx->prebuilt == m_prebuilt);
 
+	dict_index_t*	pk = dict_table_get_first_index(m_prebuilt->table);
+	ut_ad(pk != NULL);
+
+	/* For partitioned tables this could be already allocated from a
+	previous partition invocation. For normal tables this is NULL. */
+	UT_DELETE(ctx->m_stage);
+
+	ctx->m_stage = UT_NEW_NOKEY(ut_stage_alter_t(pk));
+
 	if (m_prebuilt->table->ibd_file_missing
 	    || dict_table_is_discarded(m_prebuilt->table)) {
 		goto all_done;
@@ -4634,14 +4619,17 @@ ok_exit:
 		ctx->online,
 		ctx->add_index, ctx->add_key_numbers, ctx->num_to_add_index,
 		altered_table, ctx->add_cols, ctx->col_map,
-		ctx->add_autoinc, ctx->sequence, ctx->skip_pk_sort);
+		ctx->add_autoinc, ctx->sequence, ctx->skip_pk_sort,
+		ctx->m_stage);
+
 #ifndef DBUG_OFF
 oom:
 #endif /* !DBUG_OFF */
 	if (error == DB_SUCCESS && ctx->online && ctx->need_rebuild()) {
 		DEBUG_SYNC_C("row_log_table_apply1_before");
 		error = row_log_table_apply(
-			ctx->thr, m_prebuilt->table, altered_table);
+			ctx->thr, m_prebuilt->table, altered_table,
+			ctx->m_stage);
 	}
 
 	DEBUG_SYNC_C("inplace_after_index_build");
@@ -5718,8 +5706,12 @@ commit_try_rebuild(
 
 	if (ctx->online) {
 		DEBUG_SYNC_C("row_log_table_apply2_before");
+
 		error = row_log_table_apply(
-			ctx->thr, user_table, altered_table);
+			ctx->thr, user_table, altered_table,
+			static_cast<ha_innobase_inplace_ctx*>(
+				ha_alter_info->handler_ctx)->m_stage);
+
 		ulint	err_key = thr_get_trx(ctx->thr)->error_key_num;
 
 		switch (error) {
@@ -6284,13 +6276,18 @@ ha_innobase::commit_inplace_alter_table(
 
 	DEBUG_SYNC_C("innodb_commit_inplace_alter_table_wait");
 
+	if (ctx0 != NULL && ctx0->m_stage != NULL) {
+		ctx0->m_stage->begin_phase_end();
+	}
+
 	if (!commit) {
 		/* A rollback is being requested. So far we may at
 		most have created some indexes. If any indexes were to
 		be dropped, they would actually be dropped in this
 		method if commit=true. */
-		DBUG_RETURN(rollback_inplace_alter_table(
-				    ha_alter_info, table, m_prebuilt));
+		const bool	ret = rollback_inplace_alter_table(
+			ha_alter_info, table, m_prebuilt);
+		DBUG_RETURN(ret);
 	}
 
 	if (!(ha_alter_info->handler_flags & ~INNOBASE_INPLACE_IGNORE)) {
@@ -6668,9 +6665,10 @@ foreign_fail:
 	log_append_on_checkpoint(NULL);
 
 	/* Invalidate the index translation table. In partitioned
-	tables, there is one TABLE_SHARE (and also only one TABLE)
-	covering all partitions. */
-	m_share->idx_trans_tbl.index_count = 0;
+	tables, there is no share. */
+	if (m_share) {
+		m_share->idx_trans_tbl.index_count = 0;
+	}
 
 	if (trx == ctx0->trx) {
 		ctx0->trx = NULL;
@@ -6792,6 +6790,10 @@ foreign_fail:
 			DBUG_EXECUTE_IF("ib_ddl_crash_before_commit",
 					DBUG_SUICIDE(););
 
+			ut_ad(m_prebuilt != ctx->prebuilt
+			      || ctx == ctx0);
+			bool update_own_prebuilt =
+				(m_prebuilt == ctx->prebuilt);
 			trx_t* const	user_trx = m_prebuilt->trx;
 
 			row_prebuilt_free(ctx->prebuilt, TRUE);
@@ -6808,6 +6810,9 @@ foreign_fail:
 			/* Rebuild the prebuilt object. */
 			ctx->prebuilt = row_create_prebuilt(
 				ctx->new_table, altered_table->s->reclength);
+			if (update_own_prebuilt) {
+				m_prebuilt = ctx->prebuilt;
+			}
 			trx_start_if_not_started(user_trx, true);
 			user_trx->will_lock++;
 			m_prebuilt->trx = user_trx;
@@ -6860,6 +6865,7 @@ foreign_fail:
 	the MDL downgrade. */
 
 #ifndef DBUG_OFF
+	m_prebuilt = ctx0->prebuilt;
 	dict_index_t* clust_index = dict_table_get_first_index(
 		m_prebuilt->table);
 	DBUG_ASSERT(!clust_index->online_log);
@@ -6877,6 +6883,305 @@ foreign_fail:
 	MONITOR_ATOMIC_DEC(MONITOR_PENDING_ALTER_TABLE);
 	DBUG_RETURN(false);
 }
+
+
+/** Helper class for in-place alter, see handler.h */
+class ha_innopart_inplace_ctx : public inplace_alter_handler_ctx
+{
+/* Only used locally in this file, so have everything public for
+conveniance. */
+public:
+	/** Total number of partitions. */
+	uint				m_tot_parts;
+	/** Array of inplace contexts for all partitions. */
+	inplace_alter_handler_ctx**	ctx_array;
+	/** Array of prebuilt for all partitions. */
+	row_prebuilt_t**		prebuilt_array;
+
+	ha_innopart_inplace_ctx(THD *thd, uint tot_parts)
+		: inplace_alter_handler_ctx(),
+		m_tot_parts(tot_parts),
+		ctx_array(),
+		prebuilt_array()
+	{}
+
+	~ha_innopart_inplace_ctx()
+	{
+		if (ctx_array) {
+			for (uint i = 0; i < m_tot_parts; i++) {
+				delete ctx_array[i];
+			}
+			ut_free(ctx_array);
+		}
+		if (prebuilt_array) {
+			/* First entry is the original prebuilt! */
+			for (uint i = 1; i < m_tot_parts; i++) {
+				/* Don't close the tables. */
+				prebuilt_array[i]->table = NULL;
+				row_prebuilt_free(prebuilt_array[i], false);
+			}
+			ut_free(prebuilt_array);
+		}
+	}
+};
+
+/** Check if supported inplace alter table.
+@param[in]	altered_table	Altered MySQL table.
+@param[in]	ha_alter_info	Information about inplace operations to do.
+@return	Lock level, not supported or error */
+enum_alter_inplace_result
+ha_innopart::check_if_supported_inplace_alter(
+	TABLE*			altered_table,
+	Alter_inplace_info*	ha_alter_info)
+{
+	DBUG_ENTER("ha_innopart::check_if_supported_inplace_alter");
+	DBUG_ASSERT(ha_alter_info->handler_ctx == NULL);
+
+	/* Not supporting these for partitioned tables yet! */
+
+	/* FK not yet supported. */
+	if (ha_alter_info->handler_flags
+		& (Alter_inplace_info::ADD_FOREIGN_KEY
+			| Alter_inplace_info::DROP_FOREIGN_KEY)) {
+
+		ha_alter_info->unsupported_reason = innobase_get_err_msg(
+			ER_FOREIGN_KEY_ON_PARTITIONED);
+		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+	}
+	/* FTS not yet supported either. */
+	if ((ha_alter_info->handler_flags
+		    & Alter_inplace_info::ADD_INDEX)) {
+
+		for (uint i = 0; i < ha_alter_info->index_add_count; i++) {
+			const KEY* key =
+				&ha_alter_info->key_info_buffer[
+					ha_alter_info->index_add_buffer[i]];
+			if (key->flags & HA_FULLTEXT) {
+				DBUG_ASSERT(!(key->flags & HA_KEYFLAG_MASK
+					      & ~(HA_FULLTEXT
+						  | HA_PACK_KEY
+						  | HA_GENERATED_KEY
+						  | HA_BINARY_PACK_KEY)));
+				ha_alter_info->unsupported_reason =
+					innobase_get_err_msg(
+					ER_FULLTEXT_NOT_SUPPORTED_WITH_PARTITIONING);
+				DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+			}
+		}
+	}
+	/* We cannot allow INPLACE to change order of KEY partitioning fields! */
+	if ((ha_alter_info->handler_flags
+	     & Alter_inplace_info::ALTER_COLUMN_ORDER)
+	    && !m_part_info->same_key_column_order(
+				&ha_alter_info->alter_info->create_list)) {
+
+		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+	}
+
+	/* Check for PK and UNIQUE should already be done when creating the
+	new table metadata.
+	(fix_partition_info/check_primary_key+check_unique_key) */
+
+	set_partition(0);
+	DBUG_RETURN(ha_innobase::check_if_supported_inplace_alter(altered_table,
+							ha_alter_info));
+}
+
+/** Prepare inplace alter table.
+Allows InnoDB to update internal structures with concurrent
+writes blocked (provided that check_if_supported_inplace_alter()
+did not return HA_ALTER_INPLACE_NO_LOCK).
+This will be invoked before inplace_alter_table().
+@param[in]	altered_table	TABLE object for new version of table.
+@param[in]	ha_alter_info	Structure describing changes to be done
+by ALTER TABLE and holding data used during in-place alter.
+@retval true Failure.
+@retval false Success. */
+bool
+ha_innopart::prepare_inplace_alter_table(
+	TABLE*			altered_table,
+	Alter_inplace_info*	ha_alter_info)
+{
+	THD* thd;
+	ha_innopart_inplace_ctx* ctx_parts;
+	bool res = true;
+	DBUG_ENTER("ha_innopart::prepare_inplace_alter_table");
+	DBUG_ASSERT(ha_alter_info->handler_ctx == NULL);
+
+	thd = ha_thd();
+
+	/* Clean up all ins/upd nodes. */
+	clear_ins_upd_nodes();
+	/* Based on Sql_alloc class, return NULL for new on failure. */
+	ctx_parts = new ha_innopart_inplace_ctx(thd, m_tot_parts);
+	if (!ctx_parts) {
+		DBUG_RETURN(HA_ALTER_ERROR);
+	}
+
+	uint ctx_array_size = sizeof(inplace_alter_handler_ctx*)
+				* (m_tot_parts + 1);
+	ctx_parts->ctx_array =
+		static_cast<inplace_alter_handler_ctx**>(
+					ut_malloc(ctx_array_size,
+					mem_key_partitioning));
+	if (!ctx_parts->ctx_array) {
+		DBUG_RETURN(HA_ALTER_ERROR);
+	}
+
+	/* Set all to NULL, including the terminating one. */
+	memset(ctx_parts->ctx_array, 0, ctx_array_size);
+
+	ctx_parts->prebuilt_array = static_cast<row_prebuilt_t**>(
+					ut_malloc(sizeof(row_prebuilt_t*)
+							* m_tot_parts,
+					mem_key_partitioning));
+	if (!ctx_parts->prebuilt_array) {
+		DBUG_RETURN(HA_ALTER_ERROR);
+	}
+	/* For the first partition use the current prebuilt. */
+	ctx_parts->prebuilt_array[0] = m_prebuilt;
+	/* Create new prebuilt for the rest of the partitions.
+	It is needed for the current implementation of
+	ha_innobase::commit_inplace_alter_table(). */
+	for (uint i = 1; i < m_tot_parts; i++) {
+		row_prebuilt_t* tmp_prebuilt;
+		tmp_prebuilt = row_create_prebuilt(
+					m_part_share->get_table_part(i),
+					table_share->reclength);
+		/* Use same trx as original prebuilt. */
+		tmp_prebuilt->trx = m_prebuilt->trx;
+		ctx_parts->prebuilt_array[i] = tmp_prebuilt;
+	}
+
+	for (uint i = 0; i < m_tot_parts; i++) {
+		m_prebuilt = ctx_parts->prebuilt_array[i];
+		ha_alter_info->handler_ctx = ctx_parts->ctx_array[i];
+		set_partition(i);
+		res = ha_innobase::prepare_inplace_alter_table(altered_table,
+							ha_alter_info);
+		update_partition(i);
+		ctx_parts->ctx_array[i] = ha_alter_info->handler_ctx;
+		if (res) {
+			break;
+		}
+	}
+	m_prebuilt = ctx_parts->prebuilt_array[0];
+	ha_alter_info->handler_ctx = ctx_parts;
+	ha_alter_info->group_commit_ctx = ctx_parts->ctx_array;
+	DBUG_RETURN(res);
+}
+
+/** Inplace alter table.
+Alter the table structure in-place with operations
+specified using Alter_inplace_info.
+The level of concurrency allowed during this operation depends
+on the return value from check_if_supported_inplace_alter().
+@param[in]	altered_table	TABLE object for new version of table.
+@param[in]	ha_alter_info	Structure describing changes to be done
+by ALTER TABLE and holding data used during in-place alter.
+@retval true Failure.
+@retval false Success. */
+bool
+ha_innopart::inplace_alter_table(
+	TABLE*			altered_table,
+	Alter_inplace_info*	ha_alter_info)
+{
+	bool res = true;
+	ha_innopart_inplace_ctx* ctx_parts;
+
+	ctx_parts = static_cast<ha_innopart_inplace_ctx*>(
+					ha_alter_info->handler_ctx);
+	for (uint i = 0; i < m_tot_parts; i++) {
+		m_prebuilt = ctx_parts->prebuilt_array[i];
+		ha_alter_info->handler_ctx = ctx_parts->ctx_array[i];
+		set_partition(i);
+		res = ha_innobase::inplace_alter_table(altered_table,
+						ha_alter_info);
+		ut_ad(ctx_parts->ctx_array[i] == ha_alter_info->handler_ctx);
+		ctx_parts->ctx_array[i] = ha_alter_info->handler_ctx;
+		if (res) {
+			break;
+		}
+	}
+	m_prebuilt = ctx_parts->prebuilt_array[0];
+	ha_alter_info->handler_ctx = ctx_parts;
+	return(res);
+}
+
+/** Commit or rollback inplace alter table.
+Commit or rollback the changes made during
+prepare_inplace_alter_table() and inplace_alter_table() inside
+the storage engine. Note that the allowed level of concurrency
+during this operation will be the same as for
+inplace_alter_table() and thus might be higher than during
+prepare_inplace_alter_table(). (E.g concurrent writes were
+blocked during prepare, but might not be during commit).
+@param[in]	altered_table	TABLE object for new version of table.
+@param[in]	ha_alter_info	Structure describing changes to be done
+by ALTER TABLE and holding data used during in-place alter.
+@param[in]	commit		true => Commit, false => Rollback.
+@retval true Failure.
+@retval false Success. */
+bool
+ha_innopart::commit_inplace_alter_table(
+	TABLE*			altered_table,
+	Alter_inplace_info*	ha_alter_info,
+	bool			commit)
+{
+	bool res = false;
+	ha_innopart_inplace_ctx* ctx_parts;
+
+	ctx_parts = static_cast<ha_innopart_inplace_ctx*>(
+					ha_alter_info->handler_ctx);
+	ut_ad(ctx_parts);
+	ut_ad(ctx_parts->prebuilt_array);
+	ut_ad(ctx_parts->prebuilt_array[0] == m_prebuilt);
+	if (commit) {
+		/* Commit is done through first partition (group commit). */
+		ut_ad(ha_alter_info->group_commit_ctx == ctx_parts->ctx_array);
+		ha_alter_info->handler_ctx = ctx_parts->ctx_array[0];
+		set_partition(0);
+		res = ha_innobase::commit_inplace_alter_table(altered_table,
+							ha_alter_info,
+							commit);
+		ut_ad(res || !ha_alter_info->group_commit_ctx);
+		goto end;
+	}
+	/* Rollback is done for each partition. */
+	for (uint i = 0; i < m_tot_parts; i++) {
+		m_prebuilt = ctx_parts->prebuilt_array[i];
+		ha_alter_info->handler_ctx = ctx_parts->ctx_array[i];
+		set_partition(i);
+		if (ha_innobase::commit_inplace_alter_table(altered_table,
+						ha_alter_info, commit)) {
+			res = true;
+		}
+		ut_ad(ctx_parts->ctx_array[i] == ha_alter_info->handler_ctx);
+		ctx_parts->ctx_array[i] = ha_alter_info->handler_ctx;
+	}
+end:
+	/* Move the ownership of the new tables back to
+	the m_part_share. */
+	ha_innobase_inplace_ctx*	ctx;
+	for (uint i = 0; i < m_tot_parts; i++) {
+		/* TODO: Fix to only use one prebuilt (i.e. make inplace
+		alter partition aware instead of using multiple prebuilt
+		copies... */
+		ctx = static_cast<ha_innobase_inplace_ctx*>(
+					ctx_parts->ctx_array[i]);
+		if (ctx) {
+			m_part_share->set_table_part(i, ctx->prebuilt->table);
+			ctx->prebuilt->table = NULL;
+			ctx_parts->prebuilt_array[i] = ctx->prebuilt;
+		}
+	}
+	/* The above juggling of prebuilt must be reset here. */
+	m_prebuilt = ctx_parts->prebuilt_array[0];
+	m_prebuilt->table = m_part_share->get_table_part(0);
+	ha_alter_info->handler_ctx = ctx_parts;
+	return(res);
+}
+
 
 /**
 @param thd the session

@@ -86,6 +86,7 @@
 --source include/no_valgrind_without_big.inc
 --source include/big_test.inc
 --source include/have_gtid.inc
+--source include/not_group_replication_plugin.inc
 
 # This test case has path issues when executing the 
 # external command mysqldump.exe on windows. Since

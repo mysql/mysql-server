@@ -146,36 +146,12 @@ static inline void my_thread_yield()
 #endif
 }
 
-/*
-  Ideally we should make mysql_thread.h, my_thread.h and the following 3
-  header files self contained and include them where they are needed and
-  not "everywhere".
-*/
-#include "thr_mutex.h"
-#include "thr_cond.h"
-#include "thr_rwlock.h"
-
 int my_thread_create(my_thread_handle *thread, const my_thread_attr_t *attr,
                      my_start_routine func, void *arg);
 int my_thread_join(my_thread_handle *thread, void **value_ptr);
 int my_thread_cancel(my_thread_handle *thread);
 void my_thread_exit(void *value_ptr);
 
-
-/* Define mutex types, see my_thr_init.c */
-#define MY_MUTEX_INIT_SLOW   NULL
-#ifdef PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP
-extern native_mutexattr_t my_fast_mutexattr;
-#define MY_MUTEX_INIT_FAST &my_fast_mutexattr
-#else
-#define MY_MUTEX_INIT_FAST   NULL
-#endif
-#ifdef PTHREAD_ERRORCHECK_MUTEX_INITIALIZER_NP
-extern native_mutexattr_t my_errorcheck_mutexattr;
-#define MY_MUTEX_INIT_ERRCHK &my_errorcheck_mutexattr
-#else
-#define MY_MUTEX_INIT_ERRCHK   NULL
-#endif
 
 typedef uint32 my_thread_id;
 
@@ -186,14 +162,5 @@ extern my_bool my_thread_init();
 extern void my_thread_end();
 
 C_MODE_END
-
-#ifdef MYSQL_SERVER
-#ifndef MYSQL_DYNAMIC_PLUGIN
-#include <pfs_thread_provider.h>
-#endif /* MYSQL_DYNAMIC_PLUGIN */
-#endif /* MYSQL_SERVER */
-
-#include <mysql/psi/mysql_thread.h>
-#include "my_thread_local.h"
 
 #endif /* MY_THREAD_INCLUDED */

@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,17 +16,14 @@
 #ifndef DEFINED_RPL_BINLOG_SENDER
 #define DEFINED_RPL_BINLOG_SENDER
 
-#include "my_global.h"
 #ifdef HAVE_REPLICATION
-#include "rpl_gtid.h"
-#include "my_sys.h"
-#include "sql_class.h"
-#include "sql_error.h"
-#include "binlog.h"
-#include "log_event.h"
-#include <algorithm>
+#include "my_global.h"
+#include "binlog.h"           // LOG_INFO
+#include "binlog_event.h"     // enum_binlog_checksum_alg, Log_event_type
+#include "mysqld_error.h"     // ER_*
+#include "sql_error.h"        // Diagnostics_area
 
-#include "binary_log.h"
+
 /**
   The major logic of dump thread is implemented in this class. It sends
   required binlog events to clients according to their requests.
@@ -35,17 +32,7 @@ class Binlog_sender
 {
 public:
   Binlog_sender(THD *thd, const char *start_file, my_off_t start_pos,
-                Gtid_set *exclude_gtids, uint32 flag)
-    : m_thd(thd), m_packet(thd->packet), m_start_file(start_file),
-    m_start_pos(start_pos), m_exclude_gtid(exclude_gtids),
-    m_using_gtid_protocol(exclude_gtids != NULL),
-    m_check_previous_gtid_event(exclude_gtids != NULL),
-    m_gtid_clear_fd_created_flag(exclude_gtids == NULL),
-    m_diag_area(false),
-    m_errmsg(NULL), m_errno(0), m_last_file(NULL), m_last_pos(0),
-    m_half_buffer_size_req_counter(0), m_new_shrink_size(PACKET_MIN_SIZE),
-    m_flag(flag), m_observe_transmission(false), m_transmit_started(false)
-  {}
+                Gtid_set *exclude_gtids, uint32 flag);
 
   ~Binlog_sender() {}
 
@@ -74,8 +61,8 @@ private:
   /* The binlog file it is reading */
   LOG_INFO m_linfo;
 
-  enum_binlog_checksum_alg m_event_checksum_alg;
-  enum_binlog_checksum_alg m_slave_checksum_alg;
+  binary_log::enum_binlog_checksum_alg m_event_checksum_alg;
+  binary_log::enum_binlog_checksum_alg m_slave_checksum_alg;
   ulonglong m_heartbeat_period;
   /*
     For mysqlbinlog(server_id is 0), it will stop immediately without waiting
@@ -84,6 +71,7 @@ private:
   bool m_wait_new_events;
 
   Diagnostics_area m_diag_area;
+  char m_errmsg_buf[MYSQL_ERRMSG_SIZE];
   const char *m_errmsg;
   int m_errno;
   /*
@@ -286,8 +274,27 @@ private:
 
      @return It returns 0 if succeeds, otherwise 1 is returned.
   */
-  inline int read_event(IO_CACHE *log_cache, enum_binlog_checksum_alg checksum_alg,
+  inline int read_event(IO_CACHE *log_cache,
+                        binary_log::enum_binlog_checksum_alg checksum_alg,
                         uchar **event_ptr, uint32 *event_len);
+  /**
+    Check if it is allowed to send this event type.
+
+    The following are disallowed:
+    - GTID_MODE=ON and type==ANONYMOUS_GTID_LOG_EVENT
+    - AUTO_POSITION=1 and type==ANONYMOUS_GTID_LOG_EVENT
+    - GTID_MODE=OFF and type==GTID_LOG_EVENT
+
+    @param type The event type.
+    @param log_file The binary log file (used in error messages).
+    @param log_pos The binary log position (used in error messages).
+
+    @retval true The event is not allowed. In this case, this function
+    calls set_fatal_error().
+    @retval false The event is allowed.
+  */
+  bool check_event_type(binary_log::Log_event_type type,
+                        const char *log_file, my_off_t log_pos);
   /**
     It checks if the event is in m_exclude_gtid.
 
@@ -359,7 +366,10 @@ private:
   bool has_error() { return m_errno != 0; }
   void set_error(int errorno, const char *errmsg)
   {
-    m_errmsg= errmsg;
+    // Need to set the final '\0' since strncpy does not do that.
+    strncpy(m_errmsg_buf, errmsg, sizeof(m_errmsg_buf) - 1);
+    m_errmsg_buf[sizeof(m_errmsg_buf) - 1]= '\0';
+    m_errmsg= m_errmsg_buf;
     m_errno= errorno;
   }
 

@@ -36,6 +36,8 @@ include/assert.inc [Value returned by IS and PS table for Heartbeat_Interval sho
 # are shown correctly by SELECTs from PS table.
 
 grant replication slave on *.* to replssl@localhost require ssl;
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
 change master to

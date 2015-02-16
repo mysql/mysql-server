@@ -4,8 +4,9 @@
 # Purpose: To test that event effects are replicated.            #
 ##################################################################
 
---source include/master-slave.inc
+--source include/not_group_replication_plugin.inc
 --source include/have_myisam.inc
+--source include/master-slave.inc
 
 SET @old_event_scheduler = @@global.event_scheduler;
 set global event_scheduler=1;

@@ -9,7 +9,7 @@ let PAGE_SIZE=`select @@innodb_page_size`;
 call mtr.add_suppression("InnoDB: innodb_force_recovery is on.");
 call mtr.add_suppression("InnoDB: Tablespace open failed for.*bug16720368");
 call mtr.add_suppression("InnoDB: Failed to find tablespace.*bug16720368");
-call mtr.add_suppression("InnoDB:.*inconsistent data.*test/bug16720368");
+call mtr.add_suppression("InnoDB: Header page contains inconsistent data in .*bug16720368.ibd");
 call mtr.add_suppression("InnoDB: Could not find.*test/bug16720368");
 call mtr.add_suppression("Found 1 prepared XA transactions");
 call mtr.add_suppression("InnoDB: .*test.*bug16720368.*missing");

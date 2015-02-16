@@ -10,6 +10,7 @@
 # version of this test will be need.
 # Skipping this test if default engine = ndb
 #####################################
+--source include/not_group_replication_plugin.inc
 # Bug#18128323: On SLOW Solaris/WINT machines and debug
 # builds test is failing due to timeout (if InnoDB engine).
 # Hence, we will be using MyISAM engine as default until

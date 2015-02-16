@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -27,8 +27,10 @@ Refactored 2013-7-26 by Kevin Lewis
 #include "ha_prototypes.h"
 
 #include "fsp0sysspace.h"
+#include "dict0load.h"
 #include "mem0mem.h"
 #include "os0file.h"
+#include "row0mysql.h"
 #include "srv0start.h"
 #include "ut0new.h"
 
@@ -41,6 +43,14 @@ SysTablespace srv_tmp_space;
 /** If the last data file is auto-extended, we add this many pages to it
 at a time. We have to make this public because it is a config variable. */
 ulong sys_tablespace_auto_extend_increment;
+
+#ifdef UNIV_DEBUG
+/** Control if extra debug checks need to be done for temporary tablespace.
+Default = true that is disable such checks.
+This variable is not exposed to end-user but still kept as variable for
+developer to enable it during debug. */
+bool srv_skip_temp_table_checks_debug = true;
+#endif /* UNIV_DEBUG */
 
 /** Convert a numeric string that optionally ends in G or M or K,
     to a number containing megabytes.
@@ -861,6 +871,47 @@ SysTablespace::open_or_create(
 			break;
 		}
 	}
+
+	return(err);
+}
+
+/** Replace any records for this space_id in the Data Dictionary with
+this name, flags & filepath..
+@return DB_SUCCESS or error code */
+dberr_t
+SysTablespace::replace_in_dictionary()
+{
+	dberr_t			err	= DB_SUCCESS;
+	files_t::iterator	begin = m_files.begin();
+	files_t::iterator	end = m_files.end();
+
+	if (srv_read_only_mode) {
+		return(DB_SUCCESS);
+	}
+
+	rw_lock_x_lock(&dict_operation_lock);
+	mutex_enter(&dict_sys->mutex);
+
+	/* Add space and file info to the Data Dictionary. */
+	for (files_t::iterator it = begin; it != end; ++it) {
+		if (it == begin) {
+			/* First data file. */
+			err = dict_replace_tablespace_and_filepath(
+				space_id(), name(), it->m_filepath, flags());
+			if (err != DB_SUCCESS) {
+				break;
+			}
+		} else {
+			/* Add extra datafiles to the Data Dictionary */
+			err = dict_add_filepath(space_id(), it->m_filepath);
+			if (err != DB_SUCCESS) {
+				break;
+			}
+		}
+	}
+
+	mutex_exit(&dict_sys->mutex);
+	rw_lock_x_unlock(&dict_operation_lock);
 
 	return(err);
 }

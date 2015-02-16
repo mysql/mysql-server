@@ -33,7 +33,9 @@ connection default;
 flush status;
 
 show status like 'Table_lock%';
+--disable_warnings
 select * from information_schema.session_status where variable_name like 'Table_lock%';
+--enable_warnings
 
 set sql_log_bin=0;
 set @old_general_log = @@global.general_log;
@@ -153,7 +155,9 @@ while ($wait_more)
 
 # Prerequisite.
 SHOW STATUS LIKE 'max_used_connections';
+--disable_warnings
 SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS WHERE VARIABLE_NAME LIKE 'max_used_connections';
+--enable_warnings
 
 # Save original setting.
 SET @save_thread_cache_size=@@thread_cache_size;
@@ -167,7 +171,9 @@ disconnect con2;
 
 # Check that max_used_connections still reflects maximum value.
 SHOW STATUS LIKE 'max_used_connections';
+--disable_warnings
 SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS WHERE VARIABLE_NAME LIKE 'max_used_connections';
+--enable_warnings
 
 # Check that after flush max_used_connections equals to current number
 # of connections.  First wait for previous disconnect to finish.
@@ -191,18 +197,24 @@ while ($wait_more)
 --enable_result_log
 # Check that we don't count disconnected thread any longer.
 SHOW STATUS LIKE 'max_used_connections';
+--disable_warnings
 SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS WHERE VARIABLE_NAME LIKE 'max_used_connections';
+--enable_warnings
 
 # Check that max_used_connections is updated when cached thread is
 # reused...
 connect (con2,localhost,root,,);
 SHOW STATUS LIKE 'max_used_connections';
+--disable_warnings
 SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS WHERE VARIABLE_NAME LIKE 'max_used_connections';
+--enable_warnings
 
 # ...and when new thread is created.
 connect (con3,localhost,root,,);
 SHOW STATUS LIKE 'max_used_connections';
+--disable_warnings
 SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS WHERE VARIABLE_NAME LIKE 'max_used_connections';
+--enable_warnings
 
 # Restore original setting.
 connection default;

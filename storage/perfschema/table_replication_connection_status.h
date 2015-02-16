@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -57,9 +57,12 @@ enum enum_rpl_connect_status_service_state {
   length field denoted by <field_name>_length.
 */
 struct st_row_connect_status {
+  char group_name[UUID_LENGTH];
+  bool group_name_is_null;
   char channel_name[CHANNEL_NAME_LENGTH];
   uint channel_name_length;
   char source_uuid[UUID_LENGTH];
+  bool source_uuid_is_null;
   ulonglong thread_id;
   bool thread_id_is_null;
   enum_rpl_connect_status_service_state service_state;

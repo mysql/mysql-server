@@ -1,0 +1,54 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection slave]
+include/stop_slave.inc
+CHANGE MASTER TO MASTER_AUTO_POSITION=0;
+SET GLOBAL GTID_MODE = ON_PERMISSIVE;
+call mtr.add_suppression("An unexpected event sequence was detected by the IO thread");
+call mtr.add_suppression("GTID_LOG_EVENT .* is not expected in an event stream");
+include/start_slave_io.inc
+include/gtid_step_reset_on_retrieved.inc
+# Adding debug point 'stop_io_after_reading_unknown_event' to @@GLOBAL.debug
+# Adding debug point 'simulate_unknown_ignorable_log_event_with_xid' to @@GLOBAL.debug
+[connection master]
+# This should be MASTER_UUID:1
+CREATE TABLE t1 (c1 INT) ENGINE= InnoDB;
+include/sync_slave_io_with_master.inc
+[connection master]
+# This should be MASTER_UUID:2,
+# but it will not be fully retrieved nor applied on slave
+INSERT INTO t1 VALUES (1);
+[connection slave]
+include/wait_for_slave_io_to_stop.inc
+# Removing debug point 'simulate_unknown_ignorable_log_event_with_xid' from @@GLOBAL.debug
+# Removing debug point 'stop_io_after_reading_unknown_event' from @@GLOBAL.debug
+[connection master]
+include/rpl_restart_server.inc [server_number=1 gtids=off]
+# This should be ANONYMOUS
+INSERT INTO t1 VALUES (2);
+[connection master]
+include/rpl_restart_server.inc [server_number=1 gtids=on]
+SET GLOBAL GTID_MODE = ON_PERMISSIVE;
+# This should be MASTER_UUID:3
+INSERT INTO t1 VALUES (3);
+[connection slave]
+include/start_slave_io.inc
+[connection master]
+include/sync_slave_io_with_master.inc
+include/gtid_step_assert_on_retrieved.inc [count=2, only_count=1]
+Asserting based on SHOW SLAVE STATUS(Retrieved_Gtid_Set)
+include/stop_slave_io.inc
+SET GLOBAL GTID_MODE = ON;
+RESET SLAVE;
+RESET MASTER;
+CHANGE MASTER TO MASTER_AUTO_POSITION= 1;
+[connection master]
+SET GLOBAL GTID_MODE = ON;
+DROP TABLE t1;
+RESET MASTER;
+[connection slave]
+include/start_slave.inc
+include/rpl_end.inc

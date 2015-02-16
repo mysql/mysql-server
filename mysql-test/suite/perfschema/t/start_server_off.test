@@ -6,7 +6,7 @@
 --source ../include/start_server_common.inc
 
 # Expecting all off / zero
-show status like "performance_schema%";
+show global status like "performance_schema%";
 
 # Expect all consumers disabled
 

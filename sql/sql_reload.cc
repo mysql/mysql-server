@@ -476,8 +476,7 @@ bool flush_tables_with_read_lock(THD *thd, TABLE_LIST *all_tables)
     acquire SNW locks to ensure that they can be locked for
     read without further waiting.
   */
-  if (open_and_lock_tables(thd, all_tables, FALSE,
-                           MYSQL_OPEN_SKIP_SCOPED_MDL_LOCK,
+  if (open_and_lock_tables(thd, all_tables, MYSQL_OPEN_SKIP_SCOPED_MDL_LOCK,
                            &lock_tables_prelocking_strategy) ||
       thd->locked_tables_list.init_locked_tables(thd))
   {
@@ -541,8 +540,7 @@ bool flush_tables_for_export(THD *thd, TABLE_LIST *all_tables)
     for the same table possible, which creates race between
     creation/deletion of metadata file.
   */
-  if (open_and_lock_tables(thd, all_tables, false,
-                           MYSQL_OPEN_SKIP_SCOPED_MDL_LOCK,
+  if (open_and_lock_tables(thd, all_tables, MYSQL_OPEN_SKIP_SCOPED_MDL_LOCK,
                            &lock_tables_prelocking_strategy))
   {
     return true;

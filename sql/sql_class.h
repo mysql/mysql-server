@@ -26,6 +26,7 @@
 #include "mysql_com_server.h"             // NET_SERVER
 #include "auth/sql_security_ctx.h"        // Security_context
 #include "derror.h"                       // ER_THD
+#include "discrete_interval.h"            // Discrete_interval
 #include "handler.h"                      // KEY_CREATE_INFO
 #include "opt_trace_context.h"            // Opt_trace_context
 #include "protocol.h"                     // Protocol_text
@@ -55,6 +56,7 @@ struct st_thd_timer;
 typedef struct st_log_info LOG_INFO;
 typedef struct st_columndef MI_COLUMNDEF;
 typedef struct st_mysql_lex_string LEX_STRING;
+typedef struct user_conn USER_CONN;
 
 /**
   The meat of thd_proc_info(THD*, char*), a macro that packs the last
@@ -85,6 +87,8 @@ enum enum_delay_key_write { DELAY_KEY_WRITE_NONE, DELAY_KEY_WRITE_ON,
 enum enum_rbr_exec_mode { RBR_EXEC_MODE_STRICT,
                           RBR_EXEC_MODE_IDEMPOTENT,
                           RBR_EXEC_MODE_LAST_BIT };
+enum enum_transaction_write_set_hashing_algorithm { HASH_ALGORITHM_OFF= 0,
+                                                    HASH_ALGORITHM_MURMUR32= 1 };
 enum enum_slave_type_conversions { SLAVE_TYPE_CONVERSIONS_ALL_LOSSY,
                                    SLAVE_TYPE_CONVERSIONS_ALL_NON_LOSSY,
                                    SLAVE_TYPE_CONVERSIONS_ALL_UNSIGNED,
@@ -113,9 +117,6 @@ enum enum_binlog_format {
   BINLOG_FORMAT_ROW=   2, ///< row-based
   BINLOG_FORMAT_UNSPEC=3  ///< thd_binlog_format() returns it when binlog is closed
 };
-
-enum enum_mark_columns
-{ MARK_COLUMNS_NONE, MARK_COLUMNS_READ, MARK_COLUMNS_WRITE};
 
 /* Bits for different SQL modes modes (including ANSI mode) */
 #define MODE_REAL_AS_FLOAT              1
@@ -315,6 +316,8 @@ public:
   */
   virtual Key *clone(MEM_ROOT *mem_root) const
   { return new (mem_root) Foreign_key(*this, mem_root); }
+  /* Used to validate foreign key options */
+  bool validate(List<Create_field> &table_fields);
 };
 
 typedef struct st_mysql_lock
@@ -374,14 +377,6 @@ typedef struct rpl_event_coordinates
   my_off_t  pos;       // event's position in the binlog file
 } LOG_POS_COORD;
 
-
-class LEX_COLUMN : public Sql_alloc
-{
-public:
-  String column;
-  uint rights;
-  LEX_COLUMN (const String& x,const  uint& y ): column (x),rights (y) {}
-};
 
 class MY_LOCALE;
 
@@ -493,6 +488,7 @@ typedef struct system_variables
   my_bool binlog_direct_non_trans_update;
   ulong binlog_row_image; 
   my_bool sql_log_bin;
+  ulong transaction_write_set_extraction;
   ulong completion_type;
   ulong query_cache_type;
   ulong tx_isolation;
@@ -579,6 +575,7 @@ typedef struct system_variables
 
 typedef struct system_status_var
 {
+  /* IMPORTANT! See first_system_status_var definition below. */
   ulonglong created_tmp_disk_tables;
   ulonglong created_tmp_tables;
   ulonglong ha_commit_count;
@@ -619,7 +616,7 @@ typedef struct system_status_var
   ulonglong filesort_range_count;
   ulonglong filesort_rows;
   ulonglong filesort_scan_count;
-  /* Prepared statements and binary protocol */
+  /* Prepared statements and binary protocol. */
   ulonglong com_stmt_prepare;
   ulonglong com_stmt_reprepare;
   ulonglong com_stmt_execute;
@@ -635,19 +632,16 @@ typedef struct system_status_var
   ulonglong max_statement_time_set;
   ulonglong max_statement_time_set_failed;
 
-  /*
-    Number of statements sent from the client
-  */
+  /* Number of statements sent from the client. */
   ulonglong questions;
 
   ulong com_other;
   ulong com_stat[(uint) SQLCOM_END];
 
   /*
-    IMPORTANT!
-    SEE last_system_status_var DEFINITION BELOW.
-    Below 'last_system_status_var' are all variables that cannot be handled
-    automatically by add_to_status()/add_diff_to_status().
+    IMPORTANT! See last_system_status_var definition below. Variables after
+    'last_system_status_var' cannot be handled automatically by add_to_status()
+    and add_diff_to_status().
   */
   double last_query_cost;
   ulonglong last_query_partial_plans;
@@ -655,12 +649,23 @@ typedef struct system_status_var
 } STATUS_VAR;
 
 /*
-  This is used for 'SHOW STATUS'. It must be updated to the last ulong
-  variable in system_status_var which is makes sens to add to the global
-  counter
+  This must reference the LAST ulonglong variable in system_status_var that is
+  used as a global counter. It marks the end of a contiguous block of counters
+  that can be iteratively totaled. See add_to_status().
 */
+#define LAST_STATUS_VAR questions
 
-#define last_system_status_var questions
+/*
+  This must reference the FIRST ulonglong variable in system_status_var that is
+  used as a global counter. It marks the start of a contiguous block of counters
+  that can be iteratively totaled.
+*/
+#define FIRST_STATUS_VAR created_tmp_disk_tables
+
+/* Number of contiguous global status variables. */
+const int COUNT_GLOBAL_STATUS_VARS= ((offsetof(STATUS_VAR, LAST_STATUS_VAR) -
+                                      offsetof(STATUS_VAR, FIRST_STATUS_VAR)) /
+                                      sizeof(ulonglong)) + 1;
 
 /**
   Get collation by name, send error to client on failure.
@@ -768,7 +773,6 @@ public:
   virtual void cleanup_stmt();
 };
 
-
 class Prepared_statement;
 
 /**
@@ -776,6 +780,7 @@ class Prepared_statement;
 
   Prepared statements in Prepared_statement_map have unique id
   (guaranteed by id assignment in Prepared_statement::Prepared_statement).
+
   Non-empty statement names are unique too: attempt to insert a new statement
   with duplicate name causes older statement to be deleted.
 
@@ -1407,14 +1412,26 @@ public:
     MARK_COLUMNS_NONE:  Means mark_used_colums is not set and no indicator to
                         handler of fields used is set
     MARK_COLUMNS_READ:  Means a bit in read set is set to inform handler
-                        that the field is to be read. If field list contains
-                        duplicates, then thd->dup_field is set to point
-                        to the last found duplicate.
+                        that the field is to be read. Update covering_keys
+                        and merge_keys too.
     MARK_COLUMNS_WRITE: Means a bit is set in write set to inform handler
                         that it needs to update this field in write_row
-                        and update_row.
+                        and update_row. If field list contains duplicates,
+                        then thd->dup_field is set to point to the last
+                        found duplicate.
+    MARK_COLUMNS_TEMP:  Mark bit in read set, but ignore key sets.
+                        Used by filesort().
   */
   enum enum_mark_columns mark_used_columns;
+  /**
+    Used by Item::check_column_privileges() to tell which privileges
+    to check for.
+    Set to ~0ULL before starting to resolve a statement.
+    Set to desired privilege mask before calling a resolver function that will
+    call Item::check_column_privileges().
+    After use, restore previous value as current value.
+  */
+  ulong want_privilege;
 
   LEX *lex;                                     // parse tree descriptor
 
@@ -1423,6 +1440,7 @@ private:
     The query associated with this statement.
   */
   LEX_CSTRING m_query_string;
+  String m_normalized_query;
 
   /**
     Currently selected catalog.
@@ -1533,6 +1551,12 @@ public:
   mysql_mutex_t LOCK_thd_query;
 
   /**
+    Protects THD::variables while being updated. This should be taken inside
+    of LOCK_thd_data and outside of LOCK_global_system_variables.
+  */
+  mysql_mutex_t LOCK_thd_sysvar;
+
+  /**
     Protects query plan (SELECT/UPDATE/DELETE's) from being freed/changed
     while another thread explains it. Following structures are protected by
     this mutex:
@@ -1552,7 +1576,7 @@ public:
     All explain code assumes that this mutex is already taken.
   */
   mysql_mutex_t LOCK_query_plan;
-
+    
   /** All prepared statements of this connection. */
   Prepared_statement_map stmt_map;
   /*
@@ -1704,6 +1728,25 @@ public:
   uint dbug_sentry; // watch out for memory corruption
 #endif
   struct st_my_thread_var *mysys_var;
+  /**
+    Mutex protecting access to current_mutex and current_cond.
+  */
+  mysql_mutex_t LOCK_current_cond;
+  /**
+    The mutex used with current_cond.
+    @see current_cond
+  */
+  mysql_mutex_t * volatile current_mutex;
+  /**
+    Pointer to the condition variable the thread owning this THD
+    is currently waiting for. If the thread is not waiting, the
+    value is NULL. Set by THD::enter_cond().
+
+    If this thread is killed (shutdown or KILL stmt), another
+    thread will broadcast on this condition variable so that the
+    thread can be unstuck.
+  */
+  mysql_cond_t * volatile current_cond;
 
 private:
   /**
@@ -2291,6 +2334,8 @@ public:
   PSI_stage_progress *m_stage_progress_psi;
   /** Current statement digest. */
   sql_digest_state *m_digest;
+  /** Current statement digest token array. */
+  unsigned char *m_token_array;
   /** Top level statement digest. */
   sql_digest_state m_digest_state;
 
@@ -2509,7 +2554,7 @@ public:
   char	     scramble[SCRAMBLE_LENGTH+1];
 
   /// @todo: slave_thread is completely redundant, we should use 'system_thread' instead /sven
-  bool       slave_thread, one_shot_set;
+  bool       slave_thread;
   bool	     no_errors;
   uchar      password;
   /**
@@ -2564,7 +2609,7 @@ public:
   bool 	     got_warning;       /* Set on call to push_warning() */
   /* set during loop of derived table processing */
   bool       derived_tables_processing;
-  my_bool    tablespace_op;	/* This is TRUE in DISCARD/IMPORT TABLESPACE */
+  bool       tablespace_op;     /* This is true in DISCARD/IMPORT TABLESPACE */
 
   /** Current SP-runtime context. */
   sp_rcontext *sp_runtime_ctx;
@@ -2626,9 +2671,7 @@ public:
 
   Locked_tables_list locked_tables_list;
 
-#ifdef WITH_PARTITION_STORAGE_ENGINE
   partition_info *work_part_info;
-#endif
 
 #ifndef EMBEDDED_LIBRARY
   /**
@@ -2731,46 +2774,40 @@ public:
 
   // Begin implementation of MDL_context_owner interface.
 
-  inline void
-  enter_cond(mysql_cond_t *cond, mysql_mutex_t* mutex,
-             const PSI_stage_info *stage, PSI_stage_info *old_stage,
-             const char *src_function, const char *src_file,
-             int src_line)
+  void enter_cond(mysql_cond_t *cond, mysql_mutex_t* mutex,
+                  const PSI_stage_info *stage, PSI_stage_info *old_stage,
+                  const char *src_function, const char *src_file,
+                  int src_line)
   {
     DBUG_ENTER("THD::enter_cond");
     mysql_mutex_assert_owner(mutex);
-    DBUG_PRINT("debug", ("thd: 0x%llx, mysys_var: 0x%llx, current_mutex: 0x%llx -> 0x%llx",
-                         (ulonglong) this,
-                         (ulonglong) mysys_var,
-                         (ulonglong) mysys_var->current_mutex,
-                         (ulonglong) mutex));
-    mysys_var->current_mutex = mutex;
-    mysys_var->current_cond = cond;
+    /*
+      Sic: We don't lock LOCK_current_cond here.
+      If we did, we could end up in deadlock with THD::awake()
+      which locks current_mutex while LOCK_current_cond is locked.
+    */
+    current_mutex= mutex;
+    current_cond= cond;
     enter_stage(stage, old_stage, src_function, src_file, src_line);
     DBUG_VOID_RETURN;
   }
-  inline void exit_cond(const PSI_stage_info *stage,
-                        const char *src_function, const char *src_file,
-                        int src_line)
+
+  void exit_cond(const PSI_stage_info *stage,
+                 const char *src_function, const char *src_file,
+                 int src_line)
   {
     DBUG_ENTER("THD::exit_cond");
     /*
-      Putting the mutex unlock in thd->exit_cond() ensures that
-      mysys_var->current_mutex is always unlocked _before_ mysys_var->mutex is
+      current_mutex must be unlocked _before_ LOCK_current_cond is
       locked (if that would not be the case, you'll get a deadlock if someone
       does a THD::awake() on you).
     */
-    DBUG_PRINT("debug", ("thd: 0x%llx, mysys_var: 0x%llx, current_mutex: 0x%llx -> 0x%llx",
-                         (ulonglong) this,
-                         (ulonglong) mysys_var,
-                         (ulonglong) mysys_var->current_mutex,
-                         0ULL));
-    mysql_mutex_unlock(mysys_var->current_mutex);
-    mysql_mutex_lock(&mysys_var->mutex);
-    mysys_var->current_mutex = 0;
-    mysys_var->current_cond = 0;
+    mysql_mutex_assert_not_owner(current_mutex);
+    mysql_mutex_lock(&LOCK_current_cond);
+    current_mutex= NULL;
+    current_cond= NULL;
+    mysql_mutex_unlock(&LOCK_current_cond);
     enter_stage(stage, NULL, src_function, src_file, src_line);
-    mysql_mutex_unlock(&mysys_var->mutex);
     DBUG_VOID_RETURN;
   }
 
@@ -3066,6 +3103,21 @@ public:
   */
   Diagnostics_area *get_parser_da()
   { return &m_parser_da; }
+
+
+  /**
+    Returns thread-local Diagnostics Area to be used by query rewrite plugins.
+    Query rewrite plugins use their own diagnostics area. The reason is that
+    they are invoked right before and right after parsing, and we don't want
+    conditions raised by plugins in either statement nor parser DA until we
+    know which type of statement we have parsed.
+
+    @note The diagnostics area is instantiated the first time it is asked for.
+  */
+  Diagnostics_area *get_query_rewrite_plugin_da()
+  {
+    return m_query_rewrite_plugin_da_ptr;
+  }  
 
   /**
     Push the given Diagnostics Area on top of the stack, making
@@ -3441,15 +3493,15 @@ public:
 
     The general rules for multi-transaction statements are:
 
-    - If GTID_NEXT=AUTOMATIC and GTID_MODE=ON, one GTID should be
-      generated for each transaction within the statement. Therefore,
-      ownership must be released after each commit so that a new GTID
-      can be generated by the next transaction. Typically
-      mysql_bin_log.commit() is called to achieve this. (Note that
-      some of these statements are currently disallowed when
-      GTID_MODE=ON.)
+    - If GTID_NEXT=AUTOMATIC and GTID_MODE=ON or ON_PERMISSIVE, one
+      GTID should be generated for each transaction within the
+      statement. Therefore, ownership must be released after each
+      commit so that a new GTID can be generated by the next
+      transaction. Typically mysql_bin_log.commit() is called to
+      achieve this. (Note that some of these statements are currently
+      disallowed when GTID_MODE=ON.)
 
-    - If GTID_NEXT=AUTOMATIC and GTID_MODE=OFF, one
+    - If GTID_NEXT=AUTOMATIC and GTID_MODE=OFF or OFF_PERMISSIVE, one
       Anonymous_gtid_log_event should be generated for each
       transaction within the statement. Similar to the case above, we
       call mysql_bin_log.commit() and release ownership between
@@ -3595,6 +3647,29 @@ public:
     flag.
   */
   bool is_commit_in_middle_of_statement;
+  /*
+    True while the transaction is executing, if one of
+    is_ddl_gtid_consistent or is_dml_gtid_consistent returned false.
+  */
+  bool has_gtid_consistency_violation;
+  /*
+    Hack used to communicate between MYSQL_BIN_LOG::commit and
+    Gtid_state::update_on_[commit|rollback].
+
+    Normally, MYSQL_BIN_LOG::commit will invoke some function that
+    eventually calls Gtid_state::update_on_commit.  However, in some
+    corner cases it may not happen, for instance if there is nothing
+    commit or in some error cases.  In those cases,
+    MYSQL_BIN_LOG::commit has to call
+    Gtid_state::update_on_[commit|rollback] instead.
+
+    The control flow inside MYSQL_BIN_LOG::commit is very complex, so
+    the easiest way to check if Gtid_state::update_on_commit was
+    called is to set a flag when it gets called and check the flag in
+    MYSQL_BIN_LOG::commit.
+  */
+  bool pending_gtid_state_update;
+
 
   const LEX_CSTRING &db() const
   { return m_db; }
@@ -3817,6 +3892,25 @@ public:
   }
 
   /**
+    The current query in normalized form. The format is intended to be
+    identical to the digest text of performance_schema, but not limited in
+    size. In this case the parse tree is traversed as opposed to a (limited)
+    token buffer. The string is allocated by this Statement and will be
+    available until the next call to this function or this object is deleted.
+
+    @note We have no protection against out-of-memory errors as this function
+    relies on the Item::print() interface which does not propagate errors.
+
+    @return The current query in normalized form.
+  */
+  const String normalized_query()
+  {
+    m_normalized_query.mem_free();
+    lex->unit->print(&m_normalized_query, QT_NORMALIZED_FORMAT);
+    return m_normalized_query;
+  }
+
+  /**
     Assign a new value to thd->m_query_string.
     Protected with the LOCK_thd_query mutex.
   */
@@ -3888,45 +3982,61 @@ public:
     GTID. Currently, the following cases may lead to errors
     (e.g. duplicated GTIDs) and as such are forbidden:
 
-     1. Statements that could possibly do DML in a non-transactional
-        table;
+     1. DML statements that mix non-transactional updates with
+        transactional updates.
 
-     2. CREATE...SELECT statement;
+     2. Transactions that use non-transactional tables after
+        having used transactional tables.
 
-     3. CREATE TEMPORARY TABLE or DROP TEMPORARY TABLE within a transaction
+     3. CREATE...SELECT statement;
 
-    The first condition has to be checked in decide_logging_format,
-    because that's where we know if the table is transactional or not.
-    The second and third conditions have to be checked in
+     4. CREATE TEMPORARY TABLE or DROP TEMPORARY TABLE within a
+        transaction
+
+    The first two conditions have to be checked in
+    decide_logging_format, because that's where we know if the table
+    is transactional or not.  These are implemented in
+    is_dml_gtid_compatible().
+
+    The third and fourth conditions have to be checked in
     mysql_execute_command because (1) that prevents implicit commit
     from being executed if the statement fails; (2) DROP TEMPORARY
-    TABLE does not invoke decide_logging_format.
+    TABLE does not invoke decide_logging_format.  These are
+    implemented in is_ddl_gtid_compatible().
 
-    Later, we can relax the first condition as follows:
-     - do not wrap non-transactional updates inside BEGIN ... COMMIT
-       when writing them to the binary log.
-     - allow non-transactional updates that are made outside of
-       transactional context
+    In the cases where GTID violations generate errors,
+    is_ddl_gtid_compatible() needs to be called before the implicit
+    pre-commit, so that there is no implicit commit if the statement
+    fails.
 
-    Moreover, we can drop the second condition if we fix BUG#11756034.
+    In the cases where GTID violations do not generate errors,
+    is_ddl_gtid_compatible() needs to be called after the implicit
+    pre-commit, because in these cases the function will increase the
+    global counter automatic_gtid_violating_transaction_count or
+    anonymous_gtid_violating_transaction_count.  If there is an
+    ongoing transaction, the implicit commit will commit the
+    transaction, which will call update_gtids_impl, which should
+    decrease the counters depending on whether the *old* was violating
+    GTID-consistency or not.  Thus, we should increase the counters
+    only after the old transaction is committed.
 
-    @param transactional_table true if the statement updates some
+    @param some_transactional_table true if the statement updates some
     transactional table; false otherwise.
 
-    @param non_transactional_table true if the statement updates some
-    non-transactional table; false otherwise.
+    @param some_non_transactional_table true if the statement updates
+    some non-transactional table; false otherwise.
 
-    @param non_transactional_tmp_tables true if row binlog format is
-    used and all non-transactional tables are temporary.
+    @param non_transactional_tables_are_tmp true if all updated
+    non-transactional tables are temporary.
 
     @retval true if the statement is compatible;
     @retval false if the statement is not compatible.
   */
   bool
-  is_dml_gtid_compatible(bool transactional_table,
-                         bool non_transactional_table,
-                         bool non_transactional_tmp_tables) const;
-  bool is_ddl_gtid_compatible() const;
+  is_dml_gtid_compatible(bool some_transactional_table,
+                         bool some_non_transactional_table,
+                         bool non_transactional_tables_are_tmp);
+  bool is_ddl_gtid_compatible(bool handle_error, bool handle_nonerror);
   void binlog_invoker() { m_binlog_invoker= TRUE; }
   bool need_binlog_invoker() { return m_binlog_invoker; }
   void get_definer(LEX_USER *definer);
@@ -3974,6 +4084,9 @@ private:
   MEM_ROOT main_mem_root;
   Diagnostics_area main_da;
   Diagnostics_area m_parser_da;              /**< cf. get_parser_da() */
+  Diagnostics_area m_query_rewrite_plugin_da;
+  Diagnostics_area *m_query_rewrite_plugin_da_ptr;
+
   Diagnostics_area *m_stmt_da;
 
   /**
@@ -4017,8 +4130,9 @@ public:
 
   Session_tracker session_tracker;
   Session_sysvar_resource_manager session_sysvar_res_mgr;
-};
 
+  void parse_error_at(const YYLTYPE &location, const char *s= NULL);
+};
 
 /**
   A simple holder for the Prepared Statement Query_arena instance in THD.
@@ -4333,7 +4447,6 @@ public:
   bool send_data(List<Item> &items);
 };
 
-
 typedef Mem_root_array<Item*, true> Func_ptr_array;
 
 /**
@@ -4501,6 +4614,7 @@ public:
     table.str= internal_table_name;
     table.length=1;
   }
+  // True if we can tell from syntax that this is an unnamed derived table.
   bool is_derived_table() const { return MY_TEST(sel); }
   inline void change_db(const char *db_name)
   {
@@ -4857,21 +4971,17 @@ public:
 */
 #define CF_SKIP_QUESTIONS       (1U << 1)
 
-void add_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var);
-
 void add_diff_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var,
                         STATUS_VAR *dec_var);
+
+
+void add_to_status(STATUS_VAR *to_var, const STATUS_VAR *from_var, bool add_com_vars);
 
 /* Inline functions */
 
 inline bool add_item_to_list(THD *thd, Item *item)
 {
   return thd->lex->select_lex->add_item_to_list(thd, item);
-}
-
-inline bool add_value_to_list(THD *thd, Item *value)
-{
-  return thd->lex->value_list.push_back(value);
 }
 
 inline void add_order_to_list(THD *thd, ORDER *order)

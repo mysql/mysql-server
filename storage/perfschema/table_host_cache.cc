@@ -22,6 +22,8 @@
 #include "my_thread.h"
 #include "table_host_cache.h"
 #include "hostname.h"
+#include "field.h"
+#include "sql_class.h"
 
 THR_LOCK table_host_cache::m_table_lock;
 

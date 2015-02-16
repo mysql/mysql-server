@@ -1,0 +1,31 @@
+CREATE TABLE wl5889 (a INT) ENGINE=INNODB;
+ALTER TABLE wl5889 ADD COLUMN b INT;
+SELECT
+event_name,
+work_completed > 0,
+work_estimated > 0,
+work_completed <= work_estimated
+FROM performance_schema.events_stages_history
+WHERE event_name LIKE 'stage/innodb/alter table%'
+ORDER BY 1;
+event_name	stage/innodb/alter table (end)
+work_completed > 0	1
+work_estimated > 0	1
+work_completed <= work_estimated	1
+event_name	stage/innodb/alter table (flush)
+work_completed > 0	1
+work_estimated > 0	1
+work_completed <= work_estimated	1
+event_name	stage/innodb/alter table (log apply table)
+work_completed > 0	1
+work_estimated > 0	1
+work_completed <= work_estimated	1
+event_name	stage/innodb/alter table (log apply table)
+work_completed > 0	1
+work_estimated > 0	1
+work_completed <= work_estimated	1
+event_name	stage/innodb/alter table (read PK and internal sort)
+work_completed > 0	1
+work_estimated > 0	1
+work_completed <= work_estimated	1
+DROP TABLE wl5889;

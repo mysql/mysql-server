@@ -18,13 +18,17 @@ let $innodb_strict_mode_orig = `SELECT @@session.innodb_strict_mode`;
 SET GLOBAL innodb_file_format = `Barracuda`;
 SET GLOBAL innodb_file_per_table = ON;
 
+--disable_warnings
 --echo # Test 1) Show the page size from Information Schema
 SELECT variable_value FROM information_schema.global_status
        WHERE LOWER(variable_name) = 'innodb_page_size';
+--enable_warnings
 
+--disable_warnings
 --echo # Test 2) The number of buffer pool pages is dependent upon the page size.
 SELECT variable_value FROM information_schema.global_status
        WHERE LOWER(variable_name) = 'innodb_buffer_pool_pages_total';
+--enable_warnings
 
 --echo # Test 3) Query some information_shema tables that are dependent upon
 --echo #         the page size.

@@ -28,7 +28,7 @@ while ($points)
 
 let $linestr = $linestr 9999 9999);
 
---eval insert into t1 values (1, linefromtext(concat('linestring', '$linestr')));
+--eval insert into t1 values (1, ST_linefromtext(concat('linestring', '$linestr')));
 
 alter table t1 row_format=dynamic, key_block_size=0, algorithm=inplace;
 

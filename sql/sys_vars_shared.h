@@ -26,7 +26,6 @@
 */
 
 #include "my_global.h"
-#include "my_thread.h"
 
 class THD;
 class sys_var;

@@ -37,6 +37,7 @@ select COUNT_STAR from performance_schema.table_lock_waits_summary_by_table
        where OBJECT_SCHEMA='db1' and OBJECT_NAME='t1';
 
 # Expect TABLE_LOCK_STAT lost
+--disable_warnings
 select variable_value > 0 from information_schema.global_status
   where variable_name like 'PERFORMANCE_SCHEMA_TABLE_LOCK_STAT_LOST';
 
@@ -45,6 +46,7 @@ FLUSH STATUS;
 
 select variable_value from information_schema.global_status
   where variable_name like 'PERFORMANCE_SCHEMA_TABLE_LOCK_STAT_LOST';
+--enable_warnings
 
 ###########
 # Cleanup.

@@ -12,6 +12,7 @@
 # This test verifies that the problem has been fixed. It waits
 # during this window while forcing a rotation in the binlog.
 #
+--source include/not_group_replication_plugin.inc
 --source include/have_debug.inc
 --source include/master-slave.inc
 

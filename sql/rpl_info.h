@@ -18,8 +18,9 @@
 
 #include "my_global.h"
 #include "mysql_com.h"            // NAME_LEN
-#include "rpl_info_handler.h"
-#include "rpl_reporting.h"
+#include "rpl_info_handler.h"     // Rpl_info_handler
+#include "rpl_reporting.h"        // Slave_reporting_capability
+
 
 #define  CHANNEL_NAME_LENGTH NAME_LEN
 

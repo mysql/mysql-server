@@ -1,0 +1,50 @@
+--source suite/query_rewrite_plugins/include/have_plugin_rewriter.inc
+
+--echo #
+--echo # This test will check with different types for parameters.
+--echo #
+
+CREATE TABLE t1 ( c1 INT, c2 DECIMAL(2,1), c3 FLOAT, c4 CHAR(4) );
+# 0x63617474 == catt and 'aaaa' = 41414141
+INSERT INTO t1 VALUES ( 2, 2.1, -32032.6809e+10, 0x63617474 ),
+                      ( 3, 3.5, -56.58, 'abcd' ),
+                      ( x'ffff', 2.2, 59e-5, 'aaaa' );
+
+--source suite/query_rewrite_plugins/include/install_rewriter.inc
+
+--echo # Insert some rewrite rules in the plugin
+INSERT INTO query_rewrite.rewrite_rules( pattern, replacement )
+VALUES ( 'SELECT * FROM test.t1 WHERE c1 = ?',
+         'SELECT c1 FROM test.t1 WHERE c1 = ?' ),
+       ( 'SELECT * FROM test.t1 WHERE c2 = ?',
+         'SELECT c2 FROM test.t1 WHERE c2 = ?' ),
+       ( 'SELECT * FROM test.t1 WHERE c3 = ?',
+         'SELECT c3 FROM test.t1 WHERE c3 = ?' ),
+       ( 'SELECT * FROM test.t1 WHERE c4 <> ? AND c1 = ?',
+         'SELECT c4 FROM test.t1 WHERE c4 <> ? AND c1 = ?' ),
+       ( 'SELECT * FROM test.t1 WHERE c4 = ?',
+         'SELECT c4 FROM test.t1 WHERE c4 = ?' );
+
+CALL query_rewrite.flush_rewrite_rules();
+
+SELECT * FROM test.t1 WHERE c1 = x'02';
+
+SELECT * FROM test.t1 WHERE c1 = 65535;
+
+SELECT * FROM test.t1 WHERE c2 = 2.1;
+
+SELECT * FROM test.t1 WHERE c3 < 1e-1;
+
+SELECT * FROM test.t1 WHERE c4 = 'catt';
+
+SELECT * FROM test.t1 WHERE c4 = 0x41414141;
+
+--echo # Really long parameter to force resize
+SELECT * FROM test.t1 WHERE c4 = 'cattnfwefhewfewfewhufewfwefw';
+
+SELECT * FROM test.t1
+WHERE c4 <> 'defreeghhgiregrhghurehgiurheiugirehiugreihgiurhrrrrrrrrrreewvew'
+AND c1 = 2;
+
+DROP TABLE t1;
+--source suite/query_rewrite_plugins/include/uninstall_rewriter.inc

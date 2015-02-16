@@ -3,10 +3,14 @@ Grants for root@localhost
 GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION
 GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
 grant ALL on *.* to 'pfs_user_1'@localhost with GRANT OPTION;
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 grant ALL on performance_schema.* to 'pfs_user_2'@localhost
 with GRANT OPTION;
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
 grant CREATE on performance_schema.* to 'pfs_user_2'@localhost;
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 grant DROP on performance_schema.* to 'pfs_user_2'@localhost;
 grant REFERENCES on performance_schema.* to 'pfs_user_2'@localhost;
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
@@ -39,6 +43,8 @@ grant ALL on performance_schema.setup_instruments to 'pfs_user_3'@localhost
 with GRANT OPTION;
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
 grant CREATE on performance_schema.setup_instruments to 'pfs_user_3'@localhost;
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 grant DROP on performance_schema.setup_instruments to 'pfs_user_3'@localhost;
 grant REFERENCES on performance_schema.setup_instruments to 'pfs_user_3'@localhost;
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'

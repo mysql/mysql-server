@@ -34,11 +34,15 @@ ERROR 28000: Access denied for user 'boot0123456789'@'localhost' (using password
 #     length of user name  = 10 character
 #     length of default db = 9 character
 GRANT ALL PRIVILEGES ON *.* TO 'root012345'@'localhost';
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 DROP USER 'root012345'@'localhost';
 # 2.6 Connect should pass, host = localhost
 #     length of user name  = 14 character
 #     length of default db = 9 character
 GRANT ALL PRIVILEGES ON *.* to 'root0123456789'@'localhost';
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 DROP USER 'root0123456789'@'localhost';
 # 2.7 Connect should pass, host = my_localhost
 #     length of user name  = 4 character

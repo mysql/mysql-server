@@ -22,7 +22,6 @@ Level	Code	Message
 Warning	1478	InnoDB: DATA DIRECTORY requires innodb_file_per_table.
 Warning	1478	InnoDB: INDEX DIRECTORY is not supported
 Error	1031	Table storage engine for 't1' doesn't have this option
-Error	6	Error on delete of 'MYSQLD_DATADIR/test/t1.par' (Errcode: 2 - No such file or directory)
 #
 # InnoDB is different from MyISAM in that it uses a text file
 # with an '.isl' extension instead of a symbolic link so that
@@ -55,7 +54,6 @@ Warning	1618	<INDEX DIRECTORY> option ignored
 t1#P#p0.isl
 t1#P#p1.isl
 t1.frm
-t1.par
 ---- MYSQLTEST_VARDIR/mysql-test-data-dir/test
 t1#P#p0.ibd
 t1#P#p1.ibd
@@ -70,8 +68,8 @@ t1	CREATE TABLE `t1` (
   `c1` int(11) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY HASH (c1)
-(PARTITION p0 DATA DIRECTORY = 'MYSQLTEST_VARDIR/mysql-test-data-dir' ENGINE = InnoDB,
- PARTITION p1 DATA DIRECTORY = 'MYSQLTEST_VARDIR/mysql-test-data-dir' ENGINE = InnoDB) */
+(PARTITION p0 DATA DIRECTORY = 'MYSQLTEST_VARDIR/mysql-test-data-dir/' ENGINE = InnoDB,
+ PARTITION p1 DATA DIRECTORY = 'MYSQLTEST_VARDIR/mysql-test-data-dir/' ENGINE = InnoDB) */
 #
 # Verify that the DATA/INDEX DIRECTORY is stored and used if we
 # ALTER TABLE to MyISAM.
@@ -83,8 +81,8 @@ t1	CREATE TABLE `t1` (
   `c1` int(11) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY HASH (c1)
-(PARTITION p0 DATA DIRECTORY = 'MYSQLTEST_VARDIR/mysql-test-data-dir' ENGINE = MyISAM,
- PARTITION p1 DATA DIRECTORY = 'MYSQLTEST_VARDIR/mysql-test-data-dir' ENGINE = MyISAM) */
+(PARTITION p0 DATA DIRECTORY = 'MYSQLTEST_VARDIR/mysql-test-data-dir/' ENGINE = MyISAM,
+ PARTITION p1 DATA DIRECTORY = 'MYSQLTEST_VARDIR/mysql-test-data-dir/' ENGINE = MyISAM) */
 # Verifying .frm, .par and MyISAM files (.MYD, MYI)
 ---- MYSQLD_DATADIR/test
 t1#P#p0.MYD
@@ -110,14 +108,13 @@ t1	CREATE TABLE `t1` (
   `c1` int(11) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY HASH (c1)
-(PARTITION p0 DATA DIRECTORY = 'MYSQLTEST_VARDIR/mysql-test-data-dir' ENGINE = InnoDB,
- PARTITION p1 DATA DIRECTORY = 'MYSQLTEST_VARDIR/mysql-test-data-dir' ENGINE = InnoDB) */
+(PARTITION p0 DATA DIRECTORY = 'MYSQLTEST_VARDIR/mysql-test-data-dir/' ENGINE = InnoDB,
+ PARTITION p1 DATA DIRECTORY = 'MYSQLTEST_VARDIR/mysql-test-data-dir/' ENGINE = InnoDB) */
 # Verifying .frm, .par, .isl and InnoDB .ibd files
 ---- MYSQLD_DATADIR/test
 t1#P#p0.isl
 t1#P#p1.isl
 t1.frm
-t1.par
 ---- MYSQLTEST_VARDIR/mysql-test-data-dir
 test
 ---- MYSQLTEST_VARDIR/mysql-test-idx-dir

@@ -16,6 +16,10 @@
 #ifndef _my_plugin_h
 #define _my_plugin_h
 
+#ifndef MYSQL_ABI_CHECK
+#include <stddef.h>
+#endif
+
 /*
   On Windows, exports from DLL need to be declared.
   Also, plugin needs to be declared as extern "C" because MSVC 
@@ -50,7 +54,9 @@ class Item;
 
 typedef void * MYSQL_PLUGIN;
 
+#ifndef MYSQL_ABI_CHECK
 #include <mysql/services.h>
+#endif
 
 #define MYSQL_XIDDATASIZE 128
 /**
@@ -73,7 +79,7 @@ typedef struct st_mysql_xid MYSQL_XID;
   Plugin API. Common for all plugin types.
 */
 
-#define MYSQL_PLUGIN_INTERFACE_VERSION 0x0105
+#define MYSQL_PLUGIN_INTERFACE_VERSION 0x0106
 
 /*
   The allowable types of plugins
@@ -87,7 +93,10 @@ typedef struct st_mysql_xid MYSQL_XID;
 #define MYSQL_REPLICATION_PLUGIN     6	/* The replication plugin type */
 #define MYSQL_AUTHENTICATION_PLUGIN  7  /* The authentication plugin type */
 #define MYSQL_VALIDATE_PASSWORD_PLUGIN  8   /* validate password plugin type */
-#define MYSQL_MAX_PLUGIN_TYPE_NUM    9  /* The number of plugin types   */
+#define MYSQL_REWRITE_PRE_PARSE_PLUGIN  9   /* Pre-parse query rewrite. */
+#define MYSQL_REWRITE_POST_PARSE_PLUGIN 10  /* Post-parse query rewrite. */
+#define MYSQL_GROUP_REPLICATION_PLUGIN  11  /* The Group Replication plugin */
+#define MYSQL_MAX_PLUGIN_TYPE_NUM    12  /* The number of plugin types   */
 
 /* We use the following strings to define licenses for plugins */
 #define PLUGIN_LICENSE_PROPRIETARY 0
@@ -126,7 +135,7 @@ __MYSQL_DECLARE_PLUGIN(NAME, \
 #define mysql_declare_plugin_end ,{0,0,0,0,0,0,0,0,0,0,0,0,0}}
 
 /**
-  declarations for SHOW STATUS support in plugins
+  Declarations for SHOW STATUS support in plugins
 */
 enum enum_mysql_show_type
 {
@@ -145,12 +154,34 @@ enum enum_mysql_show_type
 #endif
 };
 
-struct st_mysql_show_var {
+/**
+  Status variable scope.
+  Only GLOBAL status variable scope is available in plugins.
+*/
+enum enum_mysql_show_scope
+{
+  SHOW_SCOPE_UNDEF,
+  SHOW_SCOPE_GLOBAL
+#ifdef MYSQL_SERVER
+  /* Server-only values. Not supported in plugins. */
+  ,
+  SHOW_SCOPE_SESSION,
+  SHOW_SCOPE_ALL
+#endif
+};
+
+/**
+  SHOW STATUS Server status variable
+*/
+struct st_mysql_show_var
+{
   const char *name;
   char *value;
   enum enum_mysql_show_type type;
+  enum enum_mysql_show_scope scope;
 };
 
+#define SHOW_VAR_MAX_NAME_LEN 64
 #define SHOW_VAR_FUNC_BUFF_SIZE 1024
 typedef int (*mysql_show_var_func)(MYSQL_THD, struct st_mysql_show_var*, char *);
 
@@ -455,6 +486,13 @@ struct st_mysql_plugin
 #define MYSQL_FTPARSER_INTERFACE_VERSION 0x0101
 
 /*************************************************************************
+  API for Query Rewrite plugin. (MYSQL_QUERY_REWRITE_PLUGIN)
+*/
+
+#define MYSQL_REWRITE_PRE_PARSE_INTERFACE_VERSION 0x0010
+#define MYSQL_REWRITE_POST_PARSE_INTERFACE_VERSION 0x0010
+
+/*************************************************************************
   API for Storage Engine plugin. (MYSQL_DAEMON_PLUGIN)
 */
 
@@ -698,5 +736,4 @@ void thd_set_ha_data(MYSQL_THD thd, const struct handlerton *hton,
 }
 #endif
 
-#endif
-
+#endif /* _my_plugin_h */

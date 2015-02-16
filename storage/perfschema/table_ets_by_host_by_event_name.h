@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -69,9 +69,6 @@ struct pos_ets_by_host_by_event_name
     m_index_1= 0;
     m_index_2= 1;
   }
-
-  inline bool has_more_host(void)
-  { return (m_index_1 < host_max); }
 
   inline void next_host(void)
   {

@@ -1,0 +1,455 @@
+DROP VIEW  IF EXISTS v1,v2;
+DROP TABLE IF EXISTS t1,t2,t3;
+DROP PROCEDURE IF EXISTS p1;
+DROP FUNCTION IF EXISTS f1;
+DROP TRIGGER IF EXISTS trg1;
+DROP TRIGGER IF EXISTS trg2;
+set sql_warnings = 0;
+SET @@session.default_storage_engine = 'MyISAM';
+SET optimizer_switch='derived_merge=off';
+create table t1 (a int,
+b int generated always as (-a) virtual,
+c int generated always as (-a) stored,
+index (c));
+insert into t1 (a) values (2), (1), (1), (3), (NULL);
+create table t2 like t1;
+insert into t2 (a) values (1);
+create table t3 (a int primary key, 
+b int generated always as (-a) virtual,
+c int generated always as (-a) stored unique);
+insert into t3 (a) values (2),(1),(3);
+analyze table t1,t2,t3;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
+# select_type=SIMPLE, type=system
+select * from t2;
+a	b	c
+1	-1	-1
+explain select * from t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select '1' AS `a`,'-1' AS `b`,'-1' AS `c` from dual
+select * from t2 where c=-1;
+a	b	c
+1	-1	-1
+explain select * from t2 where c=-1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	system	c	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select '1' AS `a`,'-1' AS `b`,'-1' AS `c` from dual where 1
+# select_type=SIMPLE, type=ALL
+select * from t1 where b=-1;
+a	b	c
+1	-1	-1
+1	-1	-1
+explain select * from t1 where b=-1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where (`test`.`t1`.`b` = <cache>(-(1)))
+# select_type=SIMPLE, type=const
+select * from t3 where a=1;
+a	b	c
+1	-1	-1
+explain select * from t3 where a=1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t3	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select '1' AS `a`,'-1' AS `b`,'-1' AS `c` from `test`.`t3` where 1
+# select_type=SIMPLE, type=range
+select * from t3 where c>=-1;
+a	b	c
+1	-1	-1
+explain select * from t3 where c>=-1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t3	NULL	range	c	c	5	NULL	2	100.00	Using index condition
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c` from `test`.`t3` where (`test`.`t3`.`c` >= <cache>(-(1)))
+# select_type=SIMPLE, type=ref
+select * from t1,t3 where t1.c=t3.c and t3.c=-1;
+a	b	c	a	b	c
+1	-1	-1	1	-1	-1
+1	-1	-1	1	-1	-1
+explain select * from t1,t3 where t1.c=t3.c and t3.c=-1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t3	NULL	const	c	c	5	const	1	100.00	NULL
+1	SIMPLE	t1	NULL	ref	c	c	5	const	2	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,'1' AS `a`,'-1' AS `b`,'-1' AS `c` from `test`.`t1` join `test`.`t3` where (`test`.`t1`.`c` = -(1))
+# select_type=PRIMARY, type=index,ALL
+select * from t1 where b in (select c from t3);
+a	b	c
+2	-2	-2
+1	-1	-1
+1	-1	-1
+3	-3	-3
+explain select * from t1 where b in (select c from t3);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t3	NULL	index	c	c	5	NULL	3	100.00	Using index
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t3` join `test`.`t1` where (`test`.`t1`.`b` = `test`.`t3`.`c`)
+# select_type=PRIMARY, type=range,ref
+select * from t1 where c in (select c from t3 where c between -2 and -1);
+a	b	c
+2	-2	-2
+1	-1	-1
+1	-1	-1
+explain select * from t1 where c in (select c from t3 where c between -2 and -1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t3	NULL	range	c	c	5	NULL	1	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	ref	c	c	5	test.t3.c	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t3` join `test`.`t1` where ((`test`.`t1`.`c` = `test`.`t3`.`c`) and (`test`.`t3`.`c` between <cache>(-(2)) and <cache>(-(1))))
+# select_type=UNION, type=system
+# select_type=UNION RESULT, type=<union1,2>
+select * from t1 union select * from t2;
+a	b	c
+2	-2	-2
+1	-1	-1
+3	-3	-3
+NULL	NULL	NULL
+explain select * from t1 union select * from t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+2	UNION	t2	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` union /* select#2 */ select '1' AS `a`,'-1' AS `b`,'-1' AS `c` from dual
+# select_type=DERIVED, type=system
+select * from (select a,b,c from t1) as t11;
+a	b	c
+2	-2	-2
+1	-1	-1
+1	-1	-1
+3	-3	-3
+NULL	NULL	NULL
+explain select * from (select a,b,c from t1) as t11;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `t11`.`a` AS `a`,`t11`.`b` AS `b`,`t11`.`c` AS `c` from (/* select#2 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1`) `t11`
+###
+### Using aggregate functions with/without DISTINCT
+###
+# SELECT COUNT(*) FROM tbl_name
+select count(*) from t1;
+count(*)
+5
+explain select count(*) from t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1`
+# SELECT COUNT(DISTINCT <non-gcol>) FROM tbl_name
+select count(distinct a) from t1;
+count(distinct a)
+3
+explain select count(distinct a) from t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select count(distinct `test`.`t1`.`a`) AS `count(distinct a)` from `test`.`t1`
+# SELECT COUNT(DISTINCT <non-stored gcol>) FROM tbl_name
+select count(distinct b) from t1;
+count(distinct b)
+3
+explain select count(distinct b) from t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select count(distinct `test`.`t1`.`b`) AS `count(distinct b)` from `test`.`t1`
+# SELECT COUNT(DISTINCT <stored gcol>) FROM tbl_name
+select count(distinct c) from t1;
+count(distinct c)
+3
+explain select count(distinct c) from t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	c	c	5	NULL	6	100.00	Using index for group-by (scanning)
+Warnings:
+Note	1003	/* select#1 */ select count(distinct `test`.`t1`.`c`) AS `count(distinct c)` from `test`.`t1`
+###
+### filesort & range-based utils
+###
+# SELECT * FROM tbl_name WHERE <gcol expr>
+select * from t3 where c >= -2;
+a	b	c
+2	-2	-2
+1	-1	-1
+explain select * from t3 where c >= -2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t3	NULL	range	c	c	5	NULL	2	100.00	Using index condition
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c` from `test`.`t3` where (`test`.`t3`.`c` >= <cache>(-(2)))
+# SELECT * FROM tbl_name WHERE <non-gcol expr>
+select * from t3 where a between 1 and 2;
+a	b	c
+1	-1	-1
+2	-2	-2
+explain select * from t3 where a between 1 and 2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t3	NULL	range	PRIMARY	PRIMARY	4	NULL	1	100.00	Using index condition
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c` from `test`.`t3` where (`test`.`t3`.`a` between 1 and 2)
+# SELECT * FROM tbl_name WHERE <non-indexed gcol expr>
+select * from t3 where b between -2 and -1;
+a	b	c
+2	-2	-2
+1	-1	-1
+explain select * from t3 where b between -2 and -1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c` from `test`.`t3` where (`test`.`t3`.`b` between <cache>(-(2)) and <cache>(-(1)))
+# SELECT * FROM tbl_name WHERE <indexed gcol expr>
+select * from t3 where c between -2 and -1;
+a	b	c
+2	-2	-2
+1	-1	-1
+explain select * from t3 where c between -2 and -1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t3	NULL	range	c	c	5	NULL	1	100.00	Using index condition
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c` from `test`.`t3` where (`test`.`t3`.`c` between <cache>(-(2)) and <cache>(-(1)))
+# bug#20022189: WL411:DEBUG ASSERT AT FIELD_LONG::VAL_INT IN SQL/FIELD.CC
+CREATE TABLE t4 (
+`pk` int(11) NOT NULL ,
+`col_int_nokey` int(11) GENERATED ALWAYS AS (pk + col_int_key) STORED,
+`col_int_key` int(11) DEFAULT NULL,
+`col_date_nokey` date DEFAULT NULL,
+`col_datetime_key` datetime DEFAULT NULL,
+PRIMARY KEY (`pk`),
+KEY `col_int_key` (`col_int_key`),
+KEY `col_datetime_key` (`col_datetime_key`)
+);
+INSERT INTO t4 VALUES
+(1,default,4,'2008-12-05','1900-01-01 00:00:00');
+SELECT
+SQL_BIG_RESULT 
+GRANDPARENT1 . `col_int_nokey` AS g1
+FROM t4 AS GRANDPARENT1 LEFT JOIN t4 AS GRANDPARENT2 ON ( GRANDPARENT2 .
+`col_datetime_key` <= GRANDPARENT1 . `col_date_nokey` )
+GROUP BY GRANDPARENT1 . `pk`;
+g1
+5
+DROP TABLE t4;
+# SELECT * FROM tbl_name WHERE <non-gcol expr> ORDER BY <indexed gcol>
+select * from t3 where a between 1 and 2 order by c;
+a	b	c
+2	-2	-2
+1	-1	-1
+explain select * from t3 where a between 1 and 2 order by c;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t3	NULL	range	PRIMARY	PRIMARY	4	NULL	1	100.00	Using index condition; Using filesort
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c` from `test`.`t3` where (`test`.`t3`.`a` between 1 and 2) order by `test`.`t3`.`c`
+# SELECT * FROM tbl_name WHERE <non-indexed gcol expr> ORDER BY <non-gcol>
+select * from t3 where b between -2 and -1 order by a;
+a	b	c
+1	-1	-1
+2	-2	-2
+explain select * from t3 where b between -2 and -1 order by a;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Using filesort
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c` from `test`.`t3` where (`test`.`t3`.`b` between <cache>(-(2)) and <cache>(-(1))) order by `test`.`t3`.`a`
+# SELECT * FROM tbl_name WHERE <indexed gcol expr> ORDER BY <non-gcol>
+select * from t3 where c between -2 and -1 order by a;
+a	b	c
+1	-1	-1
+2	-2	-2
+explain select * from t3 where c between -2 and -1 order by a;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t3	NULL	range	c	c	5	NULL	1	100.00	Using index condition; Using filesort
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c` from `test`.`t3` where (`test`.`t3`.`c` between <cache>(-(2)) and <cache>(-(1))) order by `test`.`t3`.`a`
+# SELECT * FROM tbl_name WHERE <non-indexed gcol expr> ORDER BY <non-indexed gcol>
+select * from t3 where b between -2 and -1 order by b;
+a	b	c
+2	-2	-2
+1	-1	-1
+explain select * from t3 where b between -2 and -1 order by b;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Using filesort
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c` from `test`.`t3` where (`test`.`t3`.`b` between <cache>(-(2)) and <cache>(-(1))) order by `test`.`t3`.`b`
+# SELECT * FROM tbl_name WHERE <indexed gcol expr> ORDER BY <non-indexed gcol>
+select * from t3 where c between -2 and -1 order by b;
+a	b	c
+2	-2	-2
+1	-1	-1
+explain select * from t3 where c between -2 and -1 order by b;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t3	NULL	range	c	c	5	NULL	1	100.00	Using index condition; Using filesort
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c` from `test`.`t3` where (`test`.`t3`.`c` between <cache>(-(2)) and <cache>(-(1))) order by `test`.`t3`.`b`
+# SELECT * FROM tbl_name WHERE <non-indexed gcol expr> ORDER BY <indexed gcol>
+select * from t3 where b between -2 and -1 order by c;
+a	b	c
+2	-2	-2
+1	-1	-1
+explain select * from t3 where b between -2 and -1 order by c;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Using filesort
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c` from `test`.`t3` where (`test`.`t3`.`b` between <cache>(-(2)) and <cache>(-(1))) order by `test`.`t3`.`c`
+# SELECT * FROM tbl_name WHERE <indexed gcol expr> ORDER BY <indexed gcol>
+select * from t3 where c between -2 and -1 order by c;
+a	b	c
+2	-2	-2
+1	-1	-1
+explain select * from t3 where c between -2 and -1 order by c;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t3	NULL	range	c	c	5	NULL	1	100.00	Using index condition
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c` from `test`.`t3` where (`test`.`t3`.`c` between <cache>(-(2)) and <cache>(-(1))) order by `test`.`t3`.`c`
+# SELECT sum(<non-indexed gcol>) FROM tbl_name GROUP BY <non-indexed gcol>
+select sum(b) from t1 group by b;
+sum(b)
+NULL
+-3
+-2
+-2
+explain select sum(b) from t1 group by b;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using temporary; Using filesort
+Warnings:
+Note	1003	/* select#1 */ select sum(`test`.`t1`.`b`) AS `sum(b)` from `test`.`t1` group by `test`.`t1`.`b`
+# SELECT sum(<indexed gcol>) FROM tbl_name GROUP BY <indexed gcol>
+select sum(c) from t1 group by c;
+sum(c)
+NULL
+-3
+-2
+-2
+explain select sum(c) from t1 group by c;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	c	c	5	NULL	5	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select sum(`test`.`t1`.`c`) AS `sum(c)` from `test`.`t1` group by `test`.`t1`.`c`
+# SELECT sum(<non-indexed gcol>) FROM tbl_name GROUP BY <indexed gcol>
+select sum(b) from t1 group by c;
+sum(b)
+NULL
+-3
+-2
+-2
+explain select sum(b) from t1 group by c;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	c	NULL	NULL	NULL	5	100.00	Using temporary; Using filesort
+Warnings:
+Note	1003	/* select#1 */ select sum(`test`.`t1`.`b`) AS `sum(b)` from `test`.`t1` group by `test`.`t1`.`c`
+# SELECT sum(<indexed gcol>) FROM tbl_name GROUP BY <non-indexed gcol>
+select sum(c) from t1 group by b;
+sum(c)
+NULL
+-3
+-2
+-2
+explain select sum(c) from t1 group by b;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using temporary; Using filesort
+Warnings:
+Note	1003	/* select#1 */ select sum(`test`.`t1`.`c`) AS `sum(c)` from `test`.`t1` group by `test`.`t1`.`b`
+#
+# Bug#20241655: WL411:FAILING ASSERTION ASSERTION 
+# 
+CREATE TABLE BB (
+col_time_key time NOT NULL,
+col_time_nokey time GENERATED ALWAYS AS (ADDTIME(col_datetime_key, col_time_key)) VIRTUAL,
+col_datetime_key datetime NOT NULL);
+INSERT INTO BB VALUES('23:28:02', default, '2005-03-15 22:48:25');
+CREATE TABLE CC (
+col_time_key time NOT NULL,
+col_time_nokey time GENERATED ALWAYS AS (ADDTIME(col_datetime_key, col_time_key)) VIRTUAL,
+col_datetime_key datetime NOT NULL
+);
+INSERT INTO CC VALUES('16:22:51', default, '1900-01-01 00:00:00');
+SELECT 1 AS g1 FROM BB AS gp1 LEFT JOIN BB AS gp2 USING ( col_time_nokey);
+g1
+1
+DROP TABLE BB, CC;
+#
+# Bug#20328786: WL411:VALGRIND WARNINGS OF CONDITIONAL
+#               JUMP WHILE SELECTING FROM VIEW
+# 
+CREATE TABLE A (
+pk INTEGER AUTO_INCREMENT,
+col_int_nokey INTEGER,
+col_int_key INTEGER GENERATED ALWAYS AS (2 + 2 + col_int_nokey) STORED,
+PRIMARY KEY (pk)
+);
+CREATE TABLE C (
+pk INTEGER AUTO_INCREMENT,
+col_int_nokey INTEGER,
+col_int_key INTEGER GENERATED ALWAYS AS (2 + 2 + col_int_nokey) STORED,
+col_varchar_nokey VARCHAR(1),
+col_varchar_key VARCHAR(2) GENERATED ALWAYS AS
+(CONCAT(col_varchar_nokey, col_varchar_nokey)) STORED,
+PRIMARY KEY (pk),
+KEY (col_int_key),
+KEY (col_varchar_key, col_int_key)
+);
+INSERT INTO C (
+col_int_nokey,
+col_varchar_nokey
+) VALUES (4, 'v'),(62, 'v'),(7, 'c'),(1, NULL),(0, 'x'),(7, 'i'),(7, 'e'),(1, 'p'),(7, 's'),(1, 'j'),(5, 'z'),(2, 'c'),(0, 'a'),(1, 'q'),(8, 'y'),(1, NULL),(1, 'r'),(9, 'v'),(1, NULL),(5, 'r');
+CREATE OR REPLACE ALGORITHM=MERGE VIEW V1 AS SELECT alias1.
+col_varchar_key AS field1 , alias1.pk AS field2, alias2.
+col_int_nokey AS field3 FROM  C AS alias1  LEFT  JOIN A AS alias2 ON
+alias1.pk =  alias2.col_int_key  WHERE  alias1.pk > 8 AND alias1
+.pk < ( 9 + 2 ) AND  alias1.col_int_key <> 1 OR alias1.col_int_key
+> 0 AND alias1.col_int_key <= ( 3 + 2 )  ORDER BY field1, field2, field3
+LIMIT 100 OFFSET 6;
+Warnings:
+Warning	1354	View merge algorithm can't be used here for now (assumed undefined algorithm)
+SELECT * FROM V1;
+field1	field2	field3
+qq	14	NULL
+rr	17	NULL
+ss	9	NULL
+xx	5	NULL
+DROP VIEW V1;
+DROP TABLE A,C;
+#
+# Bug#20406510: WL411:VALGRIND WARNINGS WITH
+#    COUNT DISTINCT QUERY ON VIRTUAL GC VARCHAR COLUMN
+# 
+CREATE TABLE A (
+pk INTEGER AUTO_INCREMENT,
+col_time_key TIME NOT NULL,
+col_datetime_key DATETIME NOT NULL,
+PRIMARY KEY (pk),
+KEY (col_time_key),
+KEY (col_datetime_key)
+);
+CREATE TABLE C (
+pk INTEGER AUTO_INCREMENT,
+col_int_key INTEGER NOT NULL,
+col_varchar_key VARCHAR(1) NOT NULL,
+col_varchar_nokey VARCHAR(2) GENERATED ALWAYS AS
+(CONCAT(col_varchar_key, col_varchar_key)),
+PRIMARY KEY (pk),
+KEY (col_int_key),
+KEY (col_varchar_key, col_int_key)
+);
+INSERT INTO C (col_int_key,col_varchar_key) VALUES (0, 'j'),(8, 'v'),(1, 'c'),(8, 'm'),(9, 'd');
+SELECT MIN(  alias2 . col_int_key ) AS field1,
+COUNT( DISTINCT alias2 . col_varchar_nokey ) AS field2
+FROM ( A AS alias1 , C AS alias2 )
+ORDER BY alias1.col_time_key, alias1.col_datetime_key, alias1.pk ASC;
+field1	field2
+NULL	0
+DROP TABLE A,C;
+SET optimizer_switch='derived_merge=default';
+DROP VIEW  IF EXISTS v1,v2;
+DROP TABLE IF EXISTS t1,t2,t3;
+DROP PROCEDURE IF EXISTS p1;
+DROP FUNCTION IF EXISTS f1;
+DROP TRIGGER IF EXISTS trg1;
+DROP TRIGGER IF EXISTS trg2;
+set sql_warnings = 0;

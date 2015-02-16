@@ -1049,6 +1049,7 @@ update_hidden:
       keyinfo->rec_per_key= 0;
       keyinfo->algorithm= HA_KEY_ALG_UNDEF;
       keyinfo->set_rec_per_key_array(NULL, NULL);
+      keyinfo->set_in_memory_estimate(IN_MEMORY_ESTIMATE_UNKNOWN);
       keyinfo->name= (char*) "<group_key>";
       ORDER *cur_group= group;
       for (; cur_group ; cur_group= cur_group->next, key_part_info++)
@@ -1099,6 +1100,7 @@ update_hidden:
       keyinfo->name= (char*) "<auto_key>";
       keyinfo->algorithm= HA_KEY_ALG_UNDEF;
       keyinfo->set_rec_per_key_array(NULL, NULL);
+      keyinfo->set_in_memory_estimate(IN_MEMORY_ESTIMATE_UNKNOWN);
       /* Create a distinct key over the columns we are going to return */
       for (i=param->hidden_field_count, reg_field=table->field + i ;
            i < field_count;
@@ -1138,7 +1140,7 @@ update_hidden:
     field->flags &= NOT_NULL_FLAG;
     // Register hash_field as a hidden field.
     register_hidden_field(table, default_field,
-                          from_field, blob_field, field);
+                          from_field, share->blob_field, field);
     // Repoint arrays
     table->field--;
     default_field--;
@@ -1417,6 +1419,7 @@ update_hidden:
     hash_key->actual_key_parts= hash_key->usable_key_parts= 1;
     hash_key->user_defined_key_parts= 1;
     hash_key->set_rec_per_key_array(NULL, NULL);
+    keyinfo->set_in_memory_estimate(IN_MEMORY_ESTIMATE_UNKNOWN);
     hash_key->algorithm= HA_KEY_ALG_UNDEF;
     if (distinct)
       hash_key->name= (char*) "<hash_distinct_key>";
@@ -1809,6 +1812,7 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
     table->key_info->usable_key_parts= 1;
     table->key_info->actual_key_parts= table->key_info->user_defined_key_parts;
     table->key_info->set_rec_per_key_array(NULL, NULL);
+    table->key_info->set_in_memory_estimate(IN_MEMORY_ESTIMATE_UNKNOWN);
     table->key_info->algorithm= HA_KEY_ALG_UNDEF;
     table->key_info->name= (char*) "weedout_key";
   }
@@ -2197,11 +2201,11 @@ bool create_innodb_tmp_table(TABLE *table, KEY *keyinfo)
   }
 }
 
-void trace_tmp_table(Opt_trace_context *trace, const TABLE *table)
+static void trace_tmp_table(Opt_trace_context *trace, const TABLE *table)
 {
   Opt_trace_object trace_tmp(trace, "tmp_table_info");
   if (strlen(table->alias) != 0)
-    trace_tmp.add_utf8_table(table);
+    trace_tmp.add_utf8_table(table->pos_in_table_list);
   else
     trace_tmp.add_alnum("table", "intermediate_tmp_table");
 

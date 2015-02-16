@@ -50,6 +50,8 @@ SET GLOBAL sql_mode = @sql_mode_global;
 '#--------------------FN_DYNVARS_153_03-------------------------#'
 TRADITIONAL  mode
 SET SESSION sql_mode = TRADITIONAL;
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @@SESSION.sql_mode;
 @@SESSION.sql_mode
 STRICT_TRANS_TABLES,STRICT_ALL_TABLES,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
@@ -76,6 +78,8 @@ SELECT @@SESSION.sql_mode;
 
 '' Expected
 SET SESSION sql_mode = 'TRADITIONAL';
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 ** Connecting con_int2 using root **
 ** Connection con_int2 **
 SELECT @@SESSION.sql_mode;

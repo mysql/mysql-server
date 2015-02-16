@@ -1,4 +1,4 @@
--- Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+-- Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License as published by
@@ -63,7 +63,8 @@ BEGIN
   SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
     WHERE variable_name NOT IN ('timestamp', 'server_uuid',
                                 'innodb_file_format_max',
-                                'gtid_executed', 'gtid_purged')
+                                'gtid_executed', 'gtid_purged',
+                                'group_replication_group_name')
     ORDER BY VARIABLE_NAME;
 
   -- Dump all databases, there should be none
@@ -96,7 +97,7 @@ BEGIN
   -- Dump all created procedures, there should be none
   SELECT * FROM INFORMATION_SCHEMA.ROUTINES;
 
-  SHOW STATUS LIKE 'slave_open_temp_tables';
+  SHOW GLOBAL STATUS LIKE 'slave_open_temp_tables';
 
   -- Checksum system tables to make sure they have been properly
   -- restored after test

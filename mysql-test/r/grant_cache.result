@@ -49,9 +49,15 @@ show status like "Qcache_hits%";
 Variable_name	Value
 Qcache_hits	0
 grant SELECT on mysqltest.* to mysqltest_1@localhost;
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 grant SELECT on mysqltest.t1 to mysqltest_2@localhost;
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 grant SELECT on test.t1 to mysqltest_2@localhost;
 grant SELECT(a) on mysqltest.t1 to mysqltest_3@localhost;
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 ----- establish connection user1 (user=mysqltest_1) -----
 show grants for current_user();
 Grants for mysqltest_1@localhost

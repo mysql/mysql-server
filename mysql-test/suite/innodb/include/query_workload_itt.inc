@@ -2,6 +2,9 @@
 # WL#6737: Integrating InnoDB temporary tables with MySQL Optimizer.
 #
 
+SET @optimizer_switch_saved= @@optimizer_switch;
+SET @@optimizer_switch="derived_merge=off";
+
 # use sql_buffer_result
 explain format = json select sql_buffer_result * from t1;
 select sql_buffer_result * from t1;
@@ -127,7 +130,7 @@ if (`select locate('loosescan', @@optimizer_switch) > 0`)
 }
 explain format = json select * from t1 where t1.a in (select a from t2) ;
 select * from t1 where t1.a in (select a from t2) ;
-set optimizer_switch=default;
+set optimizer_switch='default,derived_merge=off';
 
 #
 # muti-update
@@ -157,8 +160,10 @@ select b, count(a), sum(a), avg(a), std(a), min(a),
 
 #
 # choose innodb to create tmp table
+--disable_warnings
 --replace_result INNODB TMP_TABLE_ENGINE MYISAM TMP_TABLE_ENGINE
 select sql_big_result * from information_schema.global_variables where variable_name like 'internal_tmp_disk_storage_engine';
+--enable_warnings
 
 #
 # union distinct and all
@@ -208,3 +213,6 @@ from t13 as outr2 left join
 	or outr.col_varchar_key is null;
 
 --source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
+
+SET @@optimizer_switch=@optimizer_switch_saved;
+

@@ -1,0 +1,59 @@
+--echo #
+--echo # Test of the case when two rewrite rule pattern have the same digest.
+--echo #
+
+SET sql_mode = 'PIPES_AS_CONCAT';
+
+--source suite/query_rewrite_plugins/include/have_plugin_rewriter.inc
+
+CREATE TABLE t1 ( a VARCHAR(10) );
+
+--source suite/query_rewrite_plugins/include/install_rewriter_with_optional_columns.inc
+
+--echo # This will supposedly fill up the token buffer.
+--echo # We have to keep entries in the error log unique, we can't clear it.
+SET @pattern1 =
+  'SELECT * FROM test.t1 WHERE a = "digest_collision.test" ' ||
+   repeat ( 'UNION SELECT * FROM test.t1 WHERE a = "digest_collision.test"',
+            120 );
+
+SET @pattern2 = concat ( @pattern1, 'UNION SELECT 1' );
+
+SET @nonmatching_query = concat ( @pattern1, 'UNION SELECT 2' );
+
+INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement  )
+VALUES ( @pattern1, 'SELECT "Rewrite rule #1"' ),
+       ( @pattern2, 'SELECT "Rewrite rule #2"' );
+
+CALL query_rewrite.flush_rewrite_rules();
+
+SELECT group_concat(replacement) =
+  'SELECT "Rewrite rule #1",SELECT "Rewrite rule #2"'
+AS digests_indeed_collide
+FROM query_rewrite.rewrite_rules
+GROUP BY pattern_digest;
+
+SELECT char_length(pattern) FROM query_rewrite.rewrite_rules;
+
+PREPARE pattern1_stmt FROM @pattern1;
+EXECUTE pattern1_stmt;
+
+PREPARE pattern2_stmt FROM @pattern2;
+EXECUTE pattern2_stmt;
+
+SET @@global.rewriter_verbose = 2;
+
+PREPARE nonmatching_stmt FROM @nonmatching_query;
+EXECUTE nonmatching_stmt;
+
+SET @@global.rewriter_verbose = DEFAULT;
+
+--source suite/query_rewrite_plugins/include/load_error_log.inc
+
+SELECT search_error_log( '[Note]', '%Plugin Rewriter reported: ''Statement "SELECT * FROM test.t1 ' ||
+                           'WHERE a = "digest_collision.test"%' );
+
+DROP TABLE t1;
+--source suite/query_rewrite_plugins/include/uninstall_rewriter.inc
+--source suite/query_rewrite_plugins/include/drop_error_log.inc
+SET sql_mode = DEFAULT;

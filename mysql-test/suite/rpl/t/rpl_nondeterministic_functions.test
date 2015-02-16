@@ -14,7 +14,7 @@
 # ==== Related bugs ====
 #
 # BUG#47995
-
+--source include/not_group_replication_plugin.inc
 --source include/master-slave.inc
 
 CALL mtr.add_suppression('Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT');

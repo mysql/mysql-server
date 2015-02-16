@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,8 +16,13 @@
 #ifndef RPL_INFO_TABLE_H
 #define RPL_INFO_TABLE_H
 
-#include "rpl_info_handler.h"
-#include "rpl_info_table_access.h"
+#include "my_global.h"
+#include "mysql/mysql_lex_string.h"  // LEX_STRING
+#include "rpl_info_handler.h"        // Rpl_info_handler
+
+class Rpl_info_table_access;
+typedef struct st_mysql_lex_string LEX_STRING;
+
 
 /**
   Methods to find information in a table:

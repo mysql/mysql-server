@@ -38,7 +38,7 @@ let $mysqld=$MYSQLD_CMD --core-file --console > $SEARCH_FILE 2>&1;
 --error 1
 --exec $mysqld
 
-let SEARCH_PATTERN= InnoDB: Attempted to open a previously opened tablespace;
+let SEARCH_PATTERN= InnoDB: Ignoring data file '.*t2.ibd' with space ID [1-9]*. Another data file called .*t1.ibd exists with the same space ID;
 --source include/search_pattern_in_file.inc
 
 --remove_file $MYSQLD_DATADIR/test/t1.ibd
@@ -52,7 +52,7 @@ let SEARCH_PATTERN= InnoDB: Attempted to open a previously opened tablespace;
 --error 1
 --exec $mysqld
 
-let SEARCH_PATTERN= InnoDB: Ignoring data file '.*t1.ibd' with space ID \d+, which used to be space ID;
+let SEARCH_PATTERN= InnoDB: Ignoring data file '.*t1.ibd' with space ID;
 --source include/search_pattern_in_file.inc
 
 let SEARCH_PATTERN= InnoDB: Tablespace \d+ was not found at.*t3.ibd;
@@ -70,7 +70,7 @@ let SEARCH_PATTERN= InnoDB: Tablespace \d+ was not found at.*t3.ibd;
 --error 1
 --exec $mysqld
 
-let SEARCH_PATTERN= InnoDB: Ignoring data file '.*t[23].ibd' with space ID \d+, which used to be space ID;
+let SEARCH_PATTERN= InnoDB: Ignoring data file '.*t[23].ibd' with space ID;
 --source include/search_pattern_in_file.inc
 
 let SEARCH_PATTERN= InnoDB: Tablespace \d+ was not found at .*t1.ibd.
@@ -106,7 +106,7 @@ let SEARCH_PATTERN= InnoDB: Tablespace \d+ was not found at .*t[12].ibd.
 # Create a short file.
 --exec echo "" > $MYSQLD_DATADIR/test/t2.ibd
 
---error 3
+--error 2 
 --exec $mysqld
 
 # TODO: Look for the file name in error message.
@@ -187,10 +187,10 @@ EOF
 
 --copy_file $MYSQLD_DATADIR/test/u6.ibd $MYSQLD_DATADIR/test/u4.ibd
 
---error 3
+--error 2 
 --exec $mysqld --innodb-force-recovery=1
 
-let SEARCH_PATTERN= \[ERROR\] InnoDB: Header page consists of zero bytes in tablespace.*u1.ibd;
+let SEARCH_PATTERN= \[ERROR\] InnoDB: Header page consists of zero bytes in datafile: .*u1.ibd;
 --source include/search_pattern_in_file.inc
 
 let SEARCH_PATTERN= \[ERROR\] InnoDB: Datafile .*u1.*\. Cannot determine the space ID from the first 64 pages;
@@ -217,7 +217,7 @@ let SEARCH_PATTERN= \[ERROR] InnoDB: File .unknown.: 'read' returned OS error;
 --error 1
 --exec $mysqld --innodb-force-recovery=1
 
-let SEARCH_PATTERN= \[ERROR\] InnoDB: Header page consists of zero bytes in tablespace.*u1.ibd;
+let SEARCH_PATTERN= \[ERROR\] InnoDB: Header page consists of zero bytes in datafile: .*u1.ibd;
 --source include/search_pattern_in_file.inc
 
 let SEARCH_PATTERN= InnoDB: At \d+: unable to open file .*u[1-5].ibd for tablespace;
@@ -226,17 +226,14 @@ let SEARCH_PATTERN= InnoDB: At \d+: unable to open file .*u[1-5].ibd for tablesp
 let SEARCH_PATTERN= \[ERROR\] InnoDB: Cannot replay rename '.*u5.ibd' to '.*u6.ibd' for space ID \d+ because the target file exists;
 --source include/search_pattern_in_file.inc
 
-let SEARCH_PATTERN= InnoDB: innodb_force_recovery was set to 1\. Continuing crash recovery even though we cannot access the files for tablespace;
---source include/search_pattern_in_file.inc
-
 --remove_file $MYSQLD_DATADIR/test/u6.ibd
 
---error 2
+--error 1 
 --exec $mysqld --innodb-force-recovery=1 --innodb-nonexistent-option
 let SEARCH_PATTERN= \[ERROR\] unknown option '--innodb-nonexistent-option';
 --source include/search_pattern_in_file.inc
 
-let SEARCH_PATTERN= \[ERROR\] InnoDB: Header page consists of zero bytes in tablespace.*u1.ibd;
+let SEARCH_PATTERN= \[ERROR\] InnoDB: Header page consists of zero bytes in datafile: .*u1.ibd;
 --source include/search_pattern_in_file.inc
 
 let SEARCH_PATTERN= InnoDB: At \d+: unable to open file .*u[1-5].ibd for tablespace;

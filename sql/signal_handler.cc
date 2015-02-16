@@ -58,7 +58,7 @@ extern "C" void handle_fatal_signal(int sig)
   if (segfaulted)
   {
     my_safe_printf_stderr("Fatal " SIGNAL_FMT " while backtracing\n", sig);
-    _exit(1); /* Quit without running destructors */
+    _exit(MYSQLD_FAILURE_EXIT); /* Quit without running destructors */
   }
 
   segfaulted = 1;
@@ -225,6 +225,6 @@ extern "C" void handle_fatal_signal(int sig)
      Quit, without running destructors (etc.)
      On Windows, do not terminate, but pass control to exception filter.
   */
-  _exit(1);  // Using _exit(), since exit() is not async signal safe
+  _exit(MYSQLD_FAILURE_EXIT);  // Using _exit(), since exit() is not async signal safe
 #endif
 }

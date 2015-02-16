@@ -75,8 +75,6 @@ ERROR 42000: Variable 'sql_log_bin' can't be set to the value of '1'
 SELECT count(VARIABLE_VALUE) FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='sql_log_bin';
 count(VARIABLE_VALUE)
 1
-Warnings:
-Warning	1287	'@@global.sql_log_bin' is deprecated and will be removed in a future release. Please use the constant 1 (since @@global.sql_log_bin is always equal to 1) instead
 '#----------------------FN_DYNVARS_156_07------------------------#'
 SELECT IF(@@session.sql_log_bin, "ON", "OFF") = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.SESSION_VARIABLES 

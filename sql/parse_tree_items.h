@@ -472,10 +472,13 @@ class PTI_text_literal : public Item_string
   typedef Item_string super;
 
 protected:
+  bool is_7bit;
   LEX_STRING literal;
 
-  PTI_text_literal(const POS &pos, const LEX_STRING &literal_arg)
-  : super(pos), literal(literal_arg)
+  PTI_text_literal(const POS &pos,
+                   bool is_7bit_arg,
+                   const LEX_STRING &literal_arg)
+  : super(pos), is_7bit(is_7bit_arg), literal(literal_arg)
   {}
 };
 
@@ -485,8 +488,10 @@ class PTI_text_literal_text_string : public PTI_text_literal
   typedef PTI_text_literal super;
 
 public:
-  PTI_text_literal_text_string(const POS &pos, const LEX_STRING &literal)
-  : super(pos, literal)
+  PTI_text_literal_text_string(const POS &pos,
+                               bool is_7bit_arg,
+                               const LEX_STRING &literal)
+  : super(pos, is_7bit_arg, literal)
   {}
 
   virtual bool itemize(Parse_context *pc, Item **res)
@@ -498,8 +503,7 @@ public:
     LEX_STRING tmp;
     const CHARSET_INFO *cs_con= thd->variables.collation_connection;
     const CHARSET_INFO *cs_cli= thd->variables.character_set_client;
-    uint repertoire= thd->m_parser_state->m_lip.text_string_is_7bit() &&
-                     my_charset_is_ascii_based(cs_cli) ?
+    uint repertoire= is_7bit && my_charset_is_ascii_based(cs_cli) ?
                      MY_REPERTOIRE_ASCII : MY_REPERTOIRE_UNICODE30;
     if (thd->charset_is_collation_connection ||
         (repertoire == MY_REPERTOIRE_ASCII &&
@@ -522,8 +526,10 @@ class PTI_text_literal_nchar_string : public PTI_text_literal
   typedef PTI_text_literal super;
 
 public:
-  PTI_text_literal_nchar_string(const POS &pos, const LEX_STRING &literal)
-  : super(pos, literal)
+  PTI_text_literal_nchar_string(const POS &pos,
+                                bool is_7bit_arg,
+                                const LEX_STRING &literal)
+  : super(pos, is_7bit_arg, literal)
   {}
 
   virtual bool itemize(Parse_context *pc, Item **res)
@@ -531,8 +537,7 @@ public:
     if (super::itemize(pc, res))
       return true;
 
-    uint repertoire= pc->thd->m_parser_state->m_lip.text_string_is_7bit() ?
-                     MY_REPERTOIRE_ASCII : MY_REPERTOIRE_UNICODE30;
+    uint repertoire= is_7bit ? MY_REPERTOIRE_ASCII : MY_REPERTOIRE_UNICODE30;
     DBUG_ASSERT(my_charset_is_ascii_based(national_charset_info));
     init(literal.str, literal.length, national_charset_info,
          DERIVATION_COERCIBLE, repertoire);
@@ -549,9 +554,10 @@ class PTI_text_literal_underscore_charset : public PTI_text_literal
 
 public:
   PTI_text_literal_underscore_charset(const POS &pos,
+                                      bool is_7bit_arg,
                                       const CHARSET_INFO *cs_arg,
                                       const LEX_STRING &literal)
-  : super(pos, literal), cs(cs_arg)
+  : super(pos, is_7bit_arg, literal), cs(cs_arg)
   {}
 
   virtual bool itemize(Parse_context *pc, Item **res)
@@ -575,9 +581,9 @@ class PTI_text_literal_concat : public PTI_text_literal
   PTI_text_literal *head;
 
 public:
-  PTI_text_literal_concat(const POS &pos,
+  PTI_text_literal_concat(const POS &pos, bool is_7bit_arg,
                           PTI_text_literal *head_arg, const LEX_STRING &tail)
-  : super(pos, tail), head(head_arg)
+  : super(pos, is_7bit_arg, tail), head(head_arg)
   {}
 
   virtual bool itemize(Parse_context *pc, Item **res)

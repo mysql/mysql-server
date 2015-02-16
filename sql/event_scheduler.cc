@@ -22,6 +22,8 @@
 #include "auth_common.h"             // SUPER_ACL
 #include "log.h"
 #include "mysqld_thd_manager.h"      // Global_THD_manager
+#include "sql_error.h"               // Sql_condition
+#include "sql_class.h"               // THD
 
 /**
   @addtogroup Event_Scheduler
@@ -828,9 +830,10 @@ Event_scheduler::cond_wait(THD *thd, struct timespec *abstime, const PSI_stage_i
   if (thd)
   {
     /*
-      This will free the lock so we need to relock. Not the best thing to
-      do but we need to obey cond_wait()
+      Need to unlock before exit_cond, so we need to relock.
+      Not the best thing to do but we need to obey cond_wait()
     */
+    UNLOCK_DATA();
     thd->exit_cond(NULL, src_func, src_file, src_line);
     LOCK_DATA();
   }

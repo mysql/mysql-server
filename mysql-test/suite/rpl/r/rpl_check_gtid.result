@@ -1,10 +1,12 @@
 include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
 call mtr.add_suppression("Recovery from master pos .*");
 call mtr.add_suppression("Error in Log_event::read_log_event()");
 call mtr.add_suppression("Failed to read information on Previous GTIDs.");
 call mtr.add_suppression("Error reading GTIDs from binary log");
-include/rpl_set_gtid_mode.inc
 CREATE TABLE t1(id INTEGER) ENGINE= Innodb;
 ==== Part 1 ====
 include/rpl_reset.inc
@@ -198,7 +200,7 @@ include/sync_slave_sql_with_master.inc
 extra/rpl_tests/rpl_check_gtid.inc
 extra/rpl_tests/rpl_check_gtid.inc
 include/stop_slave.inc
-include/rpl_restart_server.inc [server_number=2 gtids=on]
+include/rpl_restart_server.inc [server_number=2]
 include/start_slave.inc
 FLUSH LOGS;
 FLUSH LOGS;
@@ -211,7 +213,7 @@ include/sync_slave_sql_with_master.inc
 extra/rpl_tests/rpl_check_gtid.inc
 extra/rpl_tests/rpl_check_gtid.inc
 include/stop_slave.inc
-include/rpl_restart_server.inc [server_number=2 gtids=on]
+include/rpl_restart_server.inc [server_number=2]
 include/start_slave.inc
 FLUSH LOGS;
 FLUSH LOGS;
@@ -224,7 +226,7 @@ include/sync_slave_sql_with_master.inc
 extra/rpl_tests/rpl_check_gtid.inc
 extra/rpl_tests/rpl_check_gtid.inc
 include/stop_slave.inc
-include/rpl_restart_server.inc [server_number=2 gtids=on]
+include/rpl_restart_server.inc [server_number=2]
 include/start_slave.inc
 FLUSH LOGS;
 FLUSH LOGS;
@@ -237,7 +239,7 @@ include/sync_slave_sql_with_master.inc
 extra/rpl_tests/rpl_check_gtid.inc
 extra/rpl_tests/rpl_check_gtid.inc
 include/stop_slave.inc
-include/rpl_restart_server.inc [server_number=2 gtids=on]
+include/rpl_restart_server.inc [server_number=2]
 include/start_slave.inc
 FLUSH LOGS;
 FLUSH LOGS;
@@ -253,7 +255,7 @@ include/sync_slave_sql_with_master.inc
 extra/rpl_tests/rpl_check_gtid.inc
 extra/rpl_tests/rpl_check_gtid.inc
 include/stop_slave.inc
-include/rpl_restart_server.inc [server_number=1 gtids=on]
+include/rpl_restart_server.inc [server_number=1]
 include/start_slave.inc
 FLUSH LOGS;
 FLUSH LOGS;
@@ -267,7 +269,7 @@ include/sync_slave_sql_with_master.inc
 extra/rpl_tests/rpl_check_gtid.inc
 extra/rpl_tests/rpl_check_gtid.inc
 include/stop_slave.inc
-include/rpl_restart_server.inc [server_number=1 gtids=on]
+include/rpl_restart_server.inc [server_number=1]
 include/start_slave.inc
 FLUSH LOGS;
 FLUSH LOGS;
@@ -281,7 +283,7 @@ include/sync_slave_sql_with_master.inc
 extra/rpl_tests/rpl_check_gtid.inc
 extra/rpl_tests/rpl_check_gtid.inc
 include/stop_slave.inc
-include/rpl_restart_server.inc [server_number=1 gtids=on]
+include/rpl_restart_server.inc [server_number=1]
 include/start_slave.inc
 FLUSH LOGS;
 FLUSH LOGS;
@@ -295,7 +297,7 @@ include/sync_slave_sql_with_master.inc
 extra/rpl_tests/rpl_check_gtid.inc
 extra/rpl_tests/rpl_check_gtid.inc
 include/stop_slave.inc
-include/rpl_restart_server.inc [server_number=1 gtids=on]
+include/rpl_restart_server.inc [server_number=1]
 include/start_slave.inc
 FLUSH LOGS;
 FLUSH LOGS;
@@ -524,8 +526,8 @@ include/sync_slave_sql_with_master.inc
 extra/rpl_tests/rpl_check_gtid.inc
 extra/rpl_tests/rpl_check_gtid.inc
 include/stop_slave.inc
-include/rpl_restart_server.inc [server_number=2 gtids=on parameters: --relay-log-recovery=1 --debug=d,skip_writing_previous_gtids_log_event]
-include/rpl_restart_server.inc [server_number=2 gtids=on parameters: --relay-log-recovery=1]
+include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-recovery=1 --debug=d,skip_writing_previous_gtids_log_event]
+include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-recovery=1]
 include/start_slave.inc
 FLUSH LOGS;
 FLUSH LOGS;
@@ -538,8 +540,8 @@ include/sync_slave_sql_with_master.inc
 extra/rpl_tests/rpl_check_gtid.inc
 extra/rpl_tests/rpl_check_gtid.inc
 include/stop_slave.inc
-include/rpl_restart_server.inc [server_number=2 gtids=on parameters: --relay-log-recovery=1 --debug=d,skip_writing_previous_gtids_log_event]
-include/rpl_restart_server.inc [server_number=2 gtids=on parameters: --relay-log-recovery=1]
+include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-recovery=1 --debug=d,skip_writing_previous_gtids_log_event]
+include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-recovery=1]
 include/start_slave.inc
 FLUSH LOGS;
 FLUSH LOGS;
@@ -552,8 +554,8 @@ include/sync_slave_sql_with_master.inc
 extra/rpl_tests/rpl_check_gtid.inc
 extra/rpl_tests/rpl_check_gtid.inc
 include/stop_slave.inc
-include/rpl_restart_server.inc [server_number=2 gtids=on parameters: --relay-log-recovery=1 --debug=d,skip_writing_previous_gtids_log_event]
-include/rpl_restart_server.inc [server_number=2 gtids=on parameters: --relay-log-recovery=1]
+include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-recovery=1 --debug=d,skip_writing_previous_gtids_log_event]
+include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-recovery=1]
 include/start_slave.inc
 FLUSH LOGS;
 FLUSH LOGS;
@@ -566,8 +568,8 @@ include/sync_slave_sql_with_master.inc
 extra/rpl_tests/rpl_check_gtid.inc
 extra/rpl_tests/rpl_check_gtid.inc
 include/stop_slave.inc
-include/rpl_restart_server.inc [server_number=2 gtids=on parameters: --relay-log-recovery=1 --debug=d,skip_writing_previous_gtids_log_event]
-include/rpl_restart_server.inc [server_number=2 gtids=on parameters: --relay-log-recovery=1]
+include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-recovery=1 --debug=d,skip_writing_previous_gtids_log_event]
+include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-recovery=1]
 include/start_slave.inc
 FLUSH LOGS;
 FLUSH LOGS;
@@ -582,8 +584,8 @@ include/sync_slave_sql_with_master.inc
 extra/rpl_tests/rpl_check_gtid.inc
 extra/rpl_tests/rpl_check_gtid.inc
 include/stop_slave.inc
-include/rpl_restart_server.inc [server_number=2 gtids=on parameters: --relay-log-recovery=1 --debug=d,write_partial_previous_gtids_log_event]
-include/rpl_restart_server.inc [server_number=2 gtids=on parameters: --relay-log-recovery=1]
+include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-recovery=1 --debug=d,write_partial_previous_gtids_log_event]
+include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-recovery=1]
 include/start_slave.inc
 FLUSH LOGS;
 FLUSH LOGS;
@@ -596,8 +598,8 @@ include/sync_slave_sql_with_master.inc
 extra/rpl_tests/rpl_check_gtid.inc
 extra/rpl_tests/rpl_check_gtid.inc
 include/stop_slave.inc
-include/rpl_restart_server.inc [server_number=2 gtids=on parameters: --relay-log-recovery=1 --debug=d,write_partial_previous_gtids_log_event]
-include/rpl_restart_server.inc [server_number=2 gtids=on parameters: --relay-log-recovery=1]
+include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-recovery=1 --debug=d,write_partial_previous_gtids_log_event]
+include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-recovery=1]
 include/start_slave.inc
 FLUSH LOGS;
 FLUSH LOGS;
@@ -610,8 +612,8 @@ include/sync_slave_sql_with_master.inc
 extra/rpl_tests/rpl_check_gtid.inc
 extra/rpl_tests/rpl_check_gtid.inc
 include/stop_slave.inc
-include/rpl_restart_server.inc [server_number=2 gtids=on parameters: --relay-log-recovery=1 --debug=d,write_partial_previous_gtids_log_event]
-include/rpl_restart_server.inc [server_number=2 gtids=on parameters: --relay-log-recovery=1]
+include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-recovery=1 --debug=d,write_partial_previous_gtids_log_event]
+include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-recovery=1]
 include/start_slave.inc
 FLUSH LOGS;
 FLUSH LOGS;
@@ -624,8 +626,8 @@ include/sync_slave_sql_with_master.inc
 extra/rpl_tests/rpl_check_gtid.inc
 extra/rpl_tests/rpl_check_gtid.inc
 include/stop_slave.inc
-include/rpl_restart_server.inc [server_number=2 gtids=on parameters: --relay-log-recovery=1 --debug=d,write_partial_previous_gtids_log_event]
-include/rpl_restart_server.inc [server_number=2 gtids=on parameters: --relay-log-recovery=1]
+include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-recovery=1 --debug=d,write_partial_previous_gtids_log_event]
+include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-recovery=1]
 include/start_slave.inc
 FLUSH LOGS;
 FLUSH LOGS;
@@ -635,10 +637,10 @@ DROP TABLE t1;
 include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
 call mtr.add_suppression("Can not create thread to compress gtid_executed table .*");
-include/rpl_restart_server.inc [server_number=2 gtids=on parameters: --debug=d,simulate_create_compress_thread_failure]
+include/rpl_restart_server.inc [server_number=2 parameters: --debug=d,simulate_create_compress_thread_failure]
 include/assert.inc [compression thread is destroied;]
 call mtr.add_suppression("Plugin 'InnoDB' will be forced to shutdown");
 call mtr.add_suppression("Plugin 'InnoDB' has ref_count=.* after shutdown");
-include/rpl_restart_server.inc [server_number=2 gtids=on]
+include/rpl_restart_server.inc [server_number=2]
 include/start_slave.inc
 include/rpl_end.inc

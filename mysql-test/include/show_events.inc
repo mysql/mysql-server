@@ -101,6 +101,12 @@ let $script=
   s{DOLLARmysqltest_vardir}{MYSQLTEST_VARDIR}g;
 ||
 --let $pre_script= my DOLLARmysqltest_vardir = DOLLARENV{'MYSQLTEST_VARDIR'};
+
+if (!$keep_view_change_events)
+{
+  --let $script= $script DOLLAR_ = '' if (m{\t(?:View_change)\t});
+}
+
 if (!$keep_gtid_events)
 {
   --let $script= $script DOLLAR_ = '' if (m{\t(?:Gtid|Previous_gtids|Anonymous_Gtid)\t});
@@ -118,6 +124,12 @@ if ($mask_binlog_commit_events)
 {
   --let $script= $script s{ \/\* XID \*\/}{};
   --let $script= $script s{Xid}{Query};
+}
+# To mask ANONYMOUS_GTID events as GTID events
+if ($mask_anonymous_gtid_events)
+{
+  --let $script= $script s{Anonymous_Gtid}{Gtid};
+  --let $script= $script s{ANONYMOUS}{Gtid_set};
 }
 --delimiter ;
 

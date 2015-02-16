@@ -710,7 +710,9 @@ DROP TABLE ten, t1, t2, t3, t4, t5;
 # Bug 18172819 CRASH ON DSMRR_IMPL::CHOOSE_MRR_IMPL IN SQL/HANDLER.CC 
 #
 set @big_tables_save= @@big_tables;
+set @optimizer_switch_save=@@optimizer_switch;
 set big_tables=ON;
+set optimizer_switch='derived_merge=off';
 SELECT @@big_tables;
 @@big_tables
 1
@@ -746,5 +748,6 @@ ORDER BY d1.i1;
 i1	c1
 DROP TABLE t1, t2;
 set big_tables=@big_tables_save;
+set optimizer_switch=@optimizer_switch_save;
 set @@read_rnd_buffer_size= @read_rnd_buffer_size_save;
 set optimizer_switch=default;

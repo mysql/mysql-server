@@ -137,9 +137,9 @@ EXPLAIN UPDATE t1 SET a = a + 1;
 --error ER_TABLEACCESS_DENIED_ERROR
         UPDATE t1 SET a = a + 1;
 
---error ER_TABLEACCESS_DENIED_ERROR
+--error ER_COLUMNACCESS_DENIED_ERROR
 EXPLAIN UPDATE t1, t2 SET t1.a = t1.a + 1 WHERE t1.a = t2.a;
---error ER_TABLEACCESS_DENIED_ERROR
+--error ER_COLUMNACCESS_DENIED_ERROR
         UPDATE t1, t2 SET t1.a = t1.a + 1 WHERE t1.a = t2.a;
 
 connection default;

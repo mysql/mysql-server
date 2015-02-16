@@ -13,13 +13,16 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
+#ifdef HAVE_REPLICATION
 #include "rpl_binlog_sender.h"
 
-#ifdef HAVE_REPLICATION
-#include "rpl_handler.h"
-#include "debug_sync.h"
-#include "my_thread.h"
-#include "rpl_master.h"
+#include "debug_sync.h"              // debug_sync_set_action
+#include "log_event.h"               // MAX_MAX_ALLOWED_PACKET
+#include "rpl_constants.h"           // BINLOG_DUMP_NON_BLOCK
+#include "rpl_handler.h"             // RUN_HOOK
+#include "rpl_master.h"              // opt_sporadic_binlog_dump_fail
+#include "rpl_reporting.h"           // MAX_SLAVE_ERRMSG
+#include "sql_class.h"               // THD
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
@@ -34,6 +37,20 @@ const uint32 Binlog_sender::PACKET_MAX_SIZE= UINT_MAX32;
 const ushort Binlog_sender::PACKET_SHRINK_COUNTER_THRESHOLD= 100;
 const float Binlog_sender::PACKET_GROW_FACTOR= 2.0;
 const float Binlog_sender::PACKET_SHRINK_FACTOR= 0.5;
+
+Binlog_sender::Binlog_sender(THD *thd, const char *start_file,
+                             my_off_t start_pos,
+                             Gtid_set *exclude_gtids, uint32 flag)
+  : m_thd(thd), m_packet(thd->packet), m_start_file(start_file),
+    m_start_pos(start_pos), m_exclude_gtid(exclude_gtids),
+    m_using_gtid_protocol(exclude_gtids != NULL),
+    m_check_previous_gtid_event(exclude_gtids != NULL),
+    m_gtid_clear_fd_created_flag(exclude_gtids == NULL),
+    m_diag_area(false),
+    m_errmsg(NULL), m_errno(0), m_last_file(NULL), m_last_pos(0),
+    m_half_buffer_size_req_counter(0), m_new_shrink_size(PACKET_MIN_SIZE),
+    m_flag(flag), m_observe_transmission(false), m_transmit_started(false)
+  {}
 
 void Binlog_sender::init()
 {
@@ -65,10 +82,18 @@ void Binlog_sender::init()
     DBUG_VOID_RETURN;
   }
 
-  if (m_using_gtid_protocol && gtid_mode != GTID_MODE_ON)
+  if (m_using_gtid_protocol)
   {
-    set_fatal_error("Request to dump GTID when @@GLOBAL_.GTID_MODE <> ON.");
-    DBUG_VOID_RETURN;
+    enum_gtid_mode gtid_mode= get_gtid_mode(GTID_MODE_LOCK_NONE);
+    if (gtid_mode != GTID_MODE_ON)
+    {
+      char buf[MYSQL_ERRMSG_SIZE];
+      sprintf(buf, "The replication sender thread cannot start in "
+              "AUTO_POSITION mode: this server has GTID_MODE = %.192s "
+              "instead of ON.", get_gtid_mode_string(gtid_mode));
+      set_fatal_error(buf);
+      DBUG_VOID_RETURN;
+    }
   }
 
   if (check_start_file())
@@ -349,10 +374,13 @@ int Binlog_sender::send_events(IO_CACHE *log_cache, my_off_t end_pos)
                             &event_ptr, &event_len)))
       DBUG_RETURN(1);
 
+    Log_event_type event_type= (Log_event_type)event_ptr[EVENT_TYPE_OFFSET];
+    if (unlikely(check_event_type(event_type, log_file, log_pos)))
+      DBUG_RETURN(1);
+
     DBUG_EXECUTE_IF("dump_thread_wait_before_send_xid",
                     {
-                      if ((Log_event_type) event_ptr[LOG_EVENT_OFFSET] ==
-                           binary_log::XID_EVENT)
+                      if (event_type == binary_log::XID_EVENT)
                       {
                         net_flush(&thd->net);
                         const char act[]=
@@ -377,8 +405,7 @@ int Binlog_sender::send_events(IO_CACHE *log_cache, my_off_t end_pos)
     {
       exclude_group_end_pos= log_pos;
       DBUG_PRINT("info", ("Event of type %s is skipped",
-                          Log_event::get_type_str(
-                            (Log_event_type)event_ptr[LOG_EVENT_OFFSET])));
+                          Log_event::get_type_str(event_type)));
     }
     else
     {
@@ -425,6 +452,71 @@ int Binlog_sender::send_events(IO_CACHE *log_cache, my_off_t end_pos)
 }
 
 
+bool Binlog_sender::check_event_type(Log_event_type type,
+                                     const char *log_file, my_off_t log_pos)
+{
+  if (type == binary_log::ANONYMOUS_GTID_LOG_EVENT)
+  {
+    /*
+      Normally, there will not be any anonymous events when
+      auto_position is enabled, since both the master and the slave
+      refuse to connect if the master is not using GTID_MODE=ON.
+      However, if the master changes GTID_MODE after the connection
+      was initialized, or if the slave requests to replicate
+      transactions that appear before the last anonymous event, then
+      this can happen. Then we generate this error to prevent sending
+      anonymous transactions to the slave.
+    */
+    if (m_using_gtid_protocol)
+    {
+      DBUG_EXECUTE_IF("skip_sender_anon_autoposition_error",
+                      {
+                        return false;
+                      };);
+      char buf[MYSQL_ERRMSG_SIZE];
+      sprintf(buf, ER(ER_CANT_REPLICATE_ANONYMOUS_WITH_AUTO_POSITION),
+              log_file, log_pos);
+      set_fatal_error(buf);
+      return true;
+    }
+    /*
+      Normally, there will not be any anonymous events when master has
+      GTID_MODE=ON, since anonymous events are not generated when
+      GTID_MODE=ON.  However, this can happen if the master changes
+      GTID_MODE to ON when the slave has not yet replicated all
+      anonymous transactions.
+    */
+    else if (get_gtid_mode(GTID_MODE_LOCK_NONE) == GTID_MODE_ON)
+    {
+      char buf[MYSQL_ERRMSG_SIZE];
+      sprintf(buf, ER(ER_CANT_REPLICATE_ANONYMOUS_WITH_GTID_MODE_ON),
+              log_file, log_pos);
+      set_fatal_error(buf);
+      return true;
+    }
+  }
+  else if (type == binary_log::GTID_LOG_EVENT)
+  {
+    /*
+      Normally, there will not be any GTID events when master has
+      GTID_MODE=OFF, since GTID events are not generated when
+      GTID_MODE=OFF.  However, this can happen if the master changes
+      GTID_MODE to OFF when the slave has not yet replicated all GTID
+      transactions.
+    */
+    if (get_gtid_mode(GTID_MODE_LOCK_NONE) == GTID_MODE_OFF)
+    {
+      char buf[MYSQL_ERRMSG_SIZE];
+      sprintf(buf, ER(ER_CANT_REPLICATE_GTID_WITH_GTID_MODE_OFF),
+              log_file, log_pos);
+      set_fatal_error(buf);
+      return true;
+    }
+  }
+  return false;
+}
+
+
 inline bool Binlog_sender::skip_event(const uchar *event_ptr, uint32 event_len,
                                       bool in_exclude_group)
 {
@@ -446,6 +538,8 @@ inline bool Binlog_sender::skip_event(const uchar *event_ptr, uint32 event_len,
       DBUG_RETURN(m_exclude_gtid->contains_gtid(gtid));
     }
   case binary_log::ROTATE_EVENT:
+    DBUG_RETURN(false);
+  case binary_log::VIEW_CHANGE_EVENT:
     DBUG_RETURN(false);
   }
   DBUG_RETURN(in_exclude_group);
@@ -471,7 +565,7 @@ int Binlog_sender::wait_new_events(my_off_t log_pos)
       ret= wait_without_heartbeat();
   }
 
-  /* it releases the lock set in ENTER_COND */
+  mysql_bin_log.unlock_binlog_end_pos();
   m_thd->EXIT_COND(&old_stage);
   return ret;
 }

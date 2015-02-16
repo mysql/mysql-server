@@ -41,18 +41,18 @@ CREATE TABLE t3 (a INT KEY, b TEXT) ROW_FORMAT=COMPRESSED ENGINE=innodb;
 CREATE TABLE t4 (a INT KEY, b TEXT) ROW_FORMAT=DYNAMIC ENGINE=innodb;
 SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES
 WHERE name LIKE 'test%' ORDER BY table_id;
-TABLE_ID	NAME	FLAG	N_COLS	SPACE	FILE_FORMAT	ROW_FORMAT	ZIP_PAGE_SIZE
-{id}	test/t1	0	5	{id}	Antelope	Redundant	0
-{id}	test/t2	1	5	{id}	Antelope	Compact	0
-{id}	test/t3	37	5	{id}	Barracuda	Compressed	2048
-{id}	test/t4	33	5	{id}	Barracuda	Dynamic	0
+TABLE_ID	NAME	FLAG	N_COLS	SPACE	FILE_FORMAT	ROW_FORMAT	ZIP_PAGE_SIZE	SPACE_TYPE
+{id}	test/t1	0	5	{id}	Antelope	Redundant	0	Single
+{id}	test/t2	1	5	{id}	Antelope	Compact	0	Single
+{id}	test/t3	37	5	{id}	Barracuda	Compressed	2048	Single
+{id}	test/t4	33	5	{id}	Barracuda	Dynamic	0	Single
 SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES
 WHERE name LIKE 'test%' ORDER BY space;
-SPACE	NAME	FLAG	FILE_FORMAT	ROW_FORMAT	PAGE_SIZE	ZIP_PAGE_SIZE
-{id}	test/t1	192	Antelope	Compact or Redundant	4096	0
-{id}	test/t2	192	Antelope	Compact or Redundant	4096	0
-{id}	test/t3	229	Barracuda	Compressed	4096	2048
-{id}	test/t4	225	Barracuda	Dynamic	4096	0
+SPACE	NAME	FLAG	FILE_FORMAT	ROW_FORMAT	PAGE_SIZE	ZIP_PAGE_SIZE	SPACE_TYPE
+{id}	test/t1	192	Antelope	Compact or Redundant	4096	0	Single
+{id}	test/t2	192	Antelope	Compact or Redundant	4096	0	Single
+{id}	test/t3	229	Barracuda	Compressed	4096	2048	Single
+{id}	test/t4	225	Barracuda	Dynamic	4096	0	Single
 SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_DATAFILES
 WHERE path LIKE '%test%' ORDER BY space;
 SPACE	PATH

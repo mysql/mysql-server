@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1190,7 +1190,10 @@ float calculate_condition_filter(const JOIN_TAB *const tab,
     2d) 'tab' is in a select_lex with a semijoin nest. Rationale: the
         cost of some of the duplicate elimination strategies depends
         on the size of the output, or
-    2e) Statement is EXPLAIN
+    2e) The query has either an order by or group by clause and a limit clause.
+        Rationale: some of the limit optimizations take the filtering effect
+        on the last table into account.
+    2f) Statement is EXPLAIN
 
     Note: Even in the case of a single table query, the filtering
     effect may effect the QEP because the cost of sorting fewer rows
@@ -1207,7 +1210,9 @@ float calculate_condition_filter(const JOIN_TAB *const tab,
         remaining_tables != 0 ||                                           // 2b
         tab->join()->select_lex-> master_unit()->outer_select() != NULL || // 2c
         !tab->join()->select_lex->sj_nests.is_empty() ||                   // 2d
-        thd->lex->describe)))                                              // 2e
+        ((tab->join()->order || tab->join()->group_list) &&
+         tab->join()->unit->select_limit_cnt != HA_POS_ERROR) ||           // 2e
+        thd->lex->describe)))                                              // 2f
     return COND_FILTER_ALLPASS;
 
   // No filtering is calculated if we expect less than one row to be fetched
@@ -1977,7 +1982,7 @@ void Optimize_table_order::optimize_straight_join(table_map join_tables)
     if (unlikely(trace->is_started()))
     {
       trace_plan_prefix(join, idx, excluded_tables);
-      trace_table.add_utf8_table(s->table());
+      trace_table.add_utf8_table(s->table_ref);
     }
     /*
       Dependency computation (JOIN::make_join_plan()) and proper ordering
@@ -2551,7 +2556,7 @@ bool Optimize_table_order::best_extension_by_limited_search(
       if (unlikely(trace->is_started()))
       {
         trace_plan_prefix(join, idx, excluded_tables);
-        trace_one_table.add_utf8_table(s->table());
+        trace_one_table.add_utf8_table(s->table_ref);
       }
       POSITION *const position= join->positions + idx;
 
@@ -2901,7 +2906,7 @@ table_map Optimize_table_order::eq_ref_extension_by_limited_search(
       if (unlikely(trace->is_started()))
       {
         trace_plan_prefix(join, idx, excluded_tables);
-        trace_one_table.add_utf8_table(s->table());
+        trace_one_table.add_utf8_table(s->table_ref);
       }
       POSITION *const position= join->positions + idx;
 
@@ -3548,7 +3553,7 @@ bool Optimize_table_order::semijoin_firstmatch_loosescan_access_paths(
     if (is_ls_driving_tab || positions[i].use_join_buffer)
     {
       Opt_trace_object trace_one_table(trace);
-      trace_one_table.add_utf8_table(tab->table());
+      trace_one_table.add_utf8_table(tab->table_ref);
 
       /*
         Find the best access method with specified join buffering strategy.
@@ -3687,7 +3692,7 @@ void Optimize_table_order::semijoin_mat_scan_access_paths(
   {
     Opt_trace_object trace_one_table(trace);
     JOIN_TAB *const tab= positions[i].table;
-    trace_one_table.add_utf8_table(tab->table());
+    trace_one_table.add_utf8_table(tab->table_ref);
     POSITION regular_pos;
     POSITION *const dst_pos= final ? positions + i : &regular_pos;
     best_access_path(tab, remaining_tables, i, false,

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -42,6 +42,7 @@ PSI_memory_key	mem_key_row_merge_sort;
 PSI_memory_key	mem_key_std;
 PSI_memory_key	mem_key_sync_debug_latches;
 PSI_memory_key	mem_key_trx_sys_t_rw_trx_ids;
+PSI_memory_key	mem_key_partitioning;
 
 #ifdef UNIV_PFS_MEMORY
 
@@ -68,6 +69,7 @@ static PSI_memory_info	pfs_info[] = {
 	{&mem_key_std, "std", 0},
 	{&mem_key_sync_debug_latches, "sync_debug_latches", 0},
 	{&mem_key_trx_sys_t_rw_trx_ids, "trx_sys_t::rw_trx_ids", 0},
+	{&mem_key_partitioning, "partitioning", 0},
 };
 
 /** Map used for default performance schema keys, based on file name of the
@@ -124,6 +126,7 @@ ut_new_boot()
 		"gis0sea",
 		"ha0ha",
 		"ha_innodb",
+		"handler0alter",
 		"hash0hash",
 		"i_s",
 		"ibuf0ibuf",

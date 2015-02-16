@@ -15,16 +15,17 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
    02110-1301 USA */
 
-#include "log.h"
-#include "key.h"
-#include "sql_parse.h"
-#include "replication.h"
 #include "rpl_gtid_persist.h"
-#include "debug_sync.h"
-#include "sql_class.h"
-#include "my_global.h"
+
+#include "debug_sync.h"       // debug_sync_set_action
+#include "log.h"              // sql_print_error
+#include "replication.h"      // THD_ENTER_COND
+#include "sql_base.h"         // MYSQL_OPEN_IGNORE_GLOBAL_READ_LOCK
+#include "sql_parse.h"        // mysql_reset_thd_for_next_command
 
 using std::list;
+using std::string;
+
 
 my_thread_handle compress_thread_id;
 static bool terminate_compress_thread= false;
@@ -665,6 +666,14 @@ int Gtid_table_persistor::fetch_gtids(Gtid_set *gtid_set)
   while(!(err= table->file->ha_rnd_next(table->record[0])))
   {
     /* Store the gtid into the gtid_set */
+
+    /**
+      @todo:
+      - take only global_sid_lock->rdlock(), and take
+        gtid_state->sid_lock for each iteration.
+      - Add wrapper around Gtid_set::add_gno_interval and call that
+        instead.
+    */
     global_sid_lock->wrlock();
     if (gtid_set->add_gtid_text(encode_gtid_text(table).c_str()) !=
         RETURN_STATUS_OK)
@@ -750,6 +759,7 @@ extern "C" void *compress_gtid_table(void *p_thd)
     while(!(should_compress || terminate_compress_thread))
       mysql_cond_wait(&COND_compress_gtid_table, &LOCK_compress_gtid_table);
     should_compress= false;
+    mysql_mutex_unlock(&LOCK_compress_gtid_table);
     THD_EXIT_COND(thd, NULL);
 
     if (terminate_compress_thread)

@@ -1,0 +1,135 @@
+--echo #
+--echo # Tests of touching the rules table from different transactions.
+--echo #
+
+--source suite/query_rewrite_plugins/include/have_plugin_rewriter.inc
+--source suite/query_rewrite_plugins/include/install_rewriter.inc
+
+SET autocommit = 0;
+SELECT @@autocommit;
+
+--connect (conn1, localhost, root, , test)
+
+START TRANSACTION;
+
+INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
+VALUES ( 'SELECT "Rewrite me conn 1"', 'SELECT "Rewritten conn 1 rule 1"' );
+
+COMMIT;
+
+--connect (conn2, localhost, root, , test)
+
+START TRANSACTION;
+
+INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
+VALUES ( 'SELECT "Rewrite me conn 2"', 'SELECT "Rewritten conn 2 rule 1"' );
+
+COMMIT;
+
+CALL query_rewrite.flush_rewrite_rules();
+SELECT "Rewrite me conn 1";
+SELECT "Rewrite me conn 2";
+
+--connection conn1
+CALL query_rewrite.flush_rewrite_rules();
+SELECT "Rewrite me conn 1";
+SELECT "Rewrite me conn 2";
+
+--disconnect conn1
+--disconnect conn2
+--connection default
+
+SELECT "Rewrite me conn 1";
+SELECT "Rewrite me conn 2";
+
+--echo # This would cause failed assertion unless the mdl locks are released.
+--error ER_SP_DOES_NOT_EXIST
+SELECT xxx(pattern) FROM query_rewrite.rewrite_rules;
+
+--source suite/query_rewrite_plugins/include/uninstall_rewriter.inc
+
+
+--echo #
+--echo # Now make sure that everything works as long we do as we're supposed
+--echo # to, even with autocommit = 0.
+--echo #
+SET autocommit = 0;
+SELECT @@autocommit;
+--source suite/query_rewrite_plugins/include/install_rewriter.inc
+START TRANSACTION;
+
+INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
+VALUES ( 'SELECT "Rewrite me"', 'SELECT "Rewritten w/rule 1"' );
+
+CALL query_rewrite.flush_rewrite_rules();
+SELECT 'Rewrite me';
+SHOW STATUS LIKE 'Rewriter_%';
+
+--source suite/query_rewrite_plugins/include/uninstall_rewriter.inc
+
+
+--echo #
+--echo # Now check that we don't fail even if @@autocommit is 0. In this case
+--echo # InnoDB times out waiting for a lock, the plugin can't load the rules,
+--echo # and we expect a message in the error log.
+--echo #
+SET autocommit = 0;
+SELECT @@autocommit;
+--source suite/query_rewrite_plugins/include/install_rewriter.inc
+
+CALL mtr.add_suppression("Got error from storage engine while refreshing rewrite rules.");
+
+--echo # This would cause failed assertion unless the mdl locks are released.
+--error ER_SP_DOES_NOT_EXIST
+SELECT xxx(pattern) FROM query_rewrite.rewrite_rules;
+
+START TRANSACTION;
+
+INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
+VALUES ( 'SELECT "Rewrite me"', 'SELECT "Rewritten w/rule 1"' );
+
+SET @@global.innodb_lock_wait_timeout = 1;
+SELECT load_rewrite_rules();
+SET @@global.innodb_lock_wait_timeout = DEFAULT;
+
+SELECT 'Rewrite me';
+SHOW STATUS LIKE 'Rewriter_%';
+COMMIT;
+SELECT 'Rewrite me';
+SHOW STATUS LIKE 'Rewriter_%';
+SELECT load_rewrite_rules();
+SELECT 'Rewrite me';
+SHOW STATUS LIKE 'Rewriter_%';
+
+--source suite/query_rewrite_plugins/include/uninstall_rewriter.inc
+
+
+--echo #
+--echo # Now let's make sure that everything works fine if we run with
+--echo # autocommit.
+--echo #
+SET autocommit = 1;
+SELECT @@autocommit;
+--source suite/query_rewrite_plugins/include/install_rewriter.inc
+
+--echo # This would cause failed assertion unless the mdl locks are released.
+--error ER_SP_DOES_NOT_EXIST
+SELECT xxx(pattern) FROM query_rewrite.rewrite_rules;
+
+START TRANSACTION;
+
+INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
+VALUES ( 'SELECT "Rewrite me"', 'SELECT "Rewritten w/rule 1"' );
+
+SET @@global.innodb_lock_wait_timeout = 1;
+SELECT load_rewrite_rules();
+SET @@global.innodb_lock_wait_timeout = DEFAULT;
+SELECT 'Rewrite me';
+COMMIT;
+SELECT 'Rewrite me';
+SELECT load_rewrite_rules();
+SELECT 'Rewrite me';
+
+SET autocommit = DEFAULT;
+
+--source suite/query_rewrite_plugins/include/uninstall_rewriter.inc

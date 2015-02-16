@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
 #include <cstdlib>
 #include <cstring>
 #include "my_sys.h"
+#include "sql_const.h"
 
 #include "parse_location.h"
 
@@ -89,6 +90,10 @@ struct Parse_context {
 };
 
 
+// defined in sql_parse.cc:
+bool check_stack_overrun(THD *thd, long margin, uchar *dummy);
+
+
 /**
   Base class for parse tree nodes
 */
@@ -135,7 +140,27 @@ public:
     @retval     false   success
     @retval     true    syntax/OOM/etc error
   */
-  virtual bool contextualize(Parse_context *pc);
+  virtual bool contextualize(Parse_context *pc)
+  {
+#ifndef DBUG_OFF
+    if (transitional)
+    {
+      DBUG_ASSERT(contextualized);
+      return false;
+    }
+#endif//DBUG_OFF
+
+    uchar dummy;
+    if (check_stack_overrun(pc->thd, STACK_MIN_SIZE, &dummy))
+      return true;
+
+#ifndef DBUG_OFF
+    DBUG_ASSERT(!contextualized);
+    contextualized= true;
+#endif//DBUG_OFF
+
+    return false;
+  }
 
   /**
    Intermediate version of the contextualize() function
@@ -174,14 +199,9 @@ public:
     return false;
   }
 
-  /**
-    my_syntax_error() function replacement for deferred reporting of syntax
-    errors
-
-    @param      pc      current parse context
-    @param      pos     location of the error in lexical scanner buffers
-  */
-  void error(Parse_context *pc, const POS &position) const;
+  void error(Parse_context *pc,
+             const POS &position,
+             const char * msg= NULL) const;
 };
 
 #endif /* PARSE_TREE_NODE_INCLUDED */

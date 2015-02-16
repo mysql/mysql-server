@@ -856,6 +856,8 @@ btr_cur_search_to_nth_level(
 	ut_ad(btr_op == BTR_NO_OP || !dict_index_is_clust(index));
 	/* Operations on the temporary table(indexes) cannot be buffered. */
 	ut_ad(btr_op == BTR_NO_OP || !dict_table_is_temporary(index->table));
+	/* Operation on the spatial index cannot be buffered. */
+	ut_ad(btr_op == BTR_NO_OP || !dict_index_is_spatial(index));
 
 	estimate = latch_mode & BTR_ESTIMATE;
 

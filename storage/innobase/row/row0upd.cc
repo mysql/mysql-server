@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -1680,8 +1680,10 @@ row_upd_sec_index_entry(
 
 		/* We can only buffer delete-mark operations if there
 		are no foreign key constraints referring to the index.
-		Change buffering is disabled for temporary tables. */
-		mode = (referenced || dict_table_is_temporary(index->table))
+		Change buffering is disabled for temporary tables and
+		spatial index. */
+		mode = (referenced || dict_table_is_temporary(index->table)
+			|| dict_index_is_spatial(index))
 			? BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED
 			: BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED
 			| BTR_DELETE_MARK;
@@ -1693,12 +1695,17 @@ row_upd_sec_index_entry(
 
 		/* We can only buffer delete-mark operations if there
 		are no foreign key constraints referring to the index.
-		Change buffering is disabled for temporary tables. */
-		mode = (referenced || dict_table_is_temporary(index->table))
+		Change buffering is disabled for temporary tables and
+		spatial index. */
+		mode = (referenced || dict_table_is_temporary(index->table)
+			|| dict_index_is_spatial(index))
 			? BTR_MODIFY_LEAF
 			: BTR_MODIFY_LEAF | BTR_DELETE_MARK;
+	}
 
-		ut_ad(!dict_index_is_spatial(index) || mode & BTR_DELETE_MARK);
+	if (dict_index_is_spatial(index)) {
+		ut_ad(mode & BTR_MODIFY_LEAF);
+		mode |= BTR_RTREE_DELETE_MARK;
 	}
 
 	/* Set the query thread, so that ibuf_insert_low() will be

@@ -21,7 +21,9 @@ connect (comp_con,localhost,root,,,,,COMPRESS);
 
 # Check compression turned on
 SHOW STATUS LIKE 'Compression';
+--disable_warnings
 select * from information_schema.session_status where variable_name= 'COMPRESSION';
+--enable_warnings
 
 # Source select test case
 -- source include/common-tests.inc

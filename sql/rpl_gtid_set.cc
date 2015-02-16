@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -17,17 +17,13 @@
 
 #include "rpl_gtid.h"
 
-#include <ctype.h>
-#include <algorithm>
-#include "my_dbug.h"
-#include "mysqld_error.h"
-#include <algorithm>
-#include <my_stacktrace.h>
+#include "my_stacktrace.h"       // my_safe_printf_stderr
+#include "mysqld_error.h"        // ER_*
+#include "sql_const.h"
 
 #ifndef MYSQL_CLIENT
-#include "log.h"
+#include "log.h"                 // sql_print_warning
 #endif
-
 
 PSI_memory_key key_memory_Gtid_set_to_string;
 PSI_memory_key key_memory_Gtid_set_Interval_chunk;
@@ -59,26 +55,46 @@ const Gtid_set::String_format Gtid_set::commented_string_format=
 };
 
 
-Gtid_set::Gtid_set(Sid_map *_sid_map, Checkable_rwlock *_sid_lock)
+Gtid_set::Gtid_set(Sid_map *_sid_map, Checkable_rwlock *_sid_lock
+#ifdef HAVE_PSI_INTERFACE
+                   ,PSI_mutex_key free_intervals_mutex_key
+#endif
+                  )
   : sid_lock(_sid_lock), sid_map(_sid_map),
     m_intervals(key_memory_Gtid_set_Interval_chunk)
 {
-  init();
+  init(
+#ifdef HAVE_PSI_INTERFACE
+       free_intervals_mutex_key
+#endif
+      );
 }
 
 
 Gtid_set::Gtid_set(Sid_map *_sid_map, const char *text,
-                   enum_return_status *status, Checkable_rwlock *_sid_lock)
+                   enum_return_status *status, Checkable_rwlock *_sid_lock
+#ifdef HAVE_PSI_INTERFACE
+                   ,PSI_mutex_key free_intervals_mutex_key
+#endif
+                  )
   : sid_lock(_sid_lock), sid_map(_sid_map),
     m_intervals(key_memory_Gtid_set_Interval_chunk)
 {
   DBUG_ASSERT(_sid_map != NULL);
-  init();
+  init(
+#ifdef HAVE_PSI_INTERFACE
+       free_intervals_mutex_key
+#endif
+      );
   *status= add_gtid_text(text);
 }
 
 
-void Gtid_set::init()
+void Gtid_set::init(
+#ifdef HAVE_PSI_INTERFACE
+                    PSI_mutex_key free_intervals_mutex_key
+#endif
+                   )
 {
   DBUG_ENTER("Gtid_set::init");
   cached_string_length= -1;
@@ -86,7 +102,7 @@ void Gtid_set::init()
   chunks= NULL;
   free_intervals= NULL;
   if (sid_lock)
-    mysql_mutex_init(0, &free_intervals_mutex, NULL);
+    mysql_mutex_init(free_intervals_mutex_key, &free_intervals_mutex, NULL);
 #ifndef DBUG_OFF
   n_chunks= 0;
 #endif
@@ -234,7 +250,7 @@ void Gtid_set::create_new_chunk(int size)
     my_safe_print_system_time();
     my_safe_printf_stderr("%s", "[Fatal] Out of memory while allocating "
                           "a new chunk of intervals for storing GTIDs.\n");
-    _exit(EXIT_FAILURE);
+    _exit(MYSQLD_FAILURE_EXIT);
   }
   // store the chunk in the list of chunks
   new_chunk->next= chunks;
@@ -692,6 +708,9 @@ Gtid_set::remove_gno_intervals(rpl_sidno sidno,
 
 enum_return_status Gtid_set::add_gtid_set(const Gtid_set *other)
 {
+  /*
+    @todo refactor this and remove_gtid_set to avoid duplicated code
+  */
   DBUG_ENTER("Gtid_set::add_gtid_set(const Gtid_set *)");
   if (sid_lock != NULL)
     sid_lock->assert_some_wrlock();
@@ -706,6 +725,9 @@ enum_return_status Gtid_set::add_gtid_set(const Gtid_set *other)
   else
   {
     Sid_map *other_sid_map= other->sid_map;
+    Checkable_rwlock *other_sid_lock= other->sid_lock;
+    if (other_sid_lock != NULL)
+      other_sid_lock->assert_some_wrlock();
     for (rpl_sidno other_sidno= 1; other_sidno <= max_other_sidno;
          other_sidno++)
     {
@@ -741,15 +763,10 @@ void Gtid_set::remove_gtid_set(const Gtid_set *other)
   }
   else
   {
-    /*
-      This code is not being used but we will keep it as it may be
-      useful to optimize gtids by avoiding sharing mappings from
-      sid to sidno. For instance, the IO Thread and the SQL Thread
-      may have different mappings in the future.
-    */
-    DBUG_ASSERT(0); /*NOTREACHED*/
-#ifdef NON_DISABLED_GTID
     Sid_map *other_sid_map= other->sid_map;
+    Checkable_rwlock *other_sid_lock= other->sid_lock;
+    if (other_sid_lock != NULL)
+      other_sid_lock->assert_some_wrlock();
     for (rpl_sidno other_sidno= 1; other_sidno <= max_other_sidno;
          other_sidno++)
     {
@@ -762,7 +779,6 @@ void Gtid_set::remove_gtid_set(const Gtid_set *other)
           remove_gno_intervals(this_sidno, other_ivit, &lock);
       }
     }
-#endif
   }
   DBUG_VOID_RETURN;
 }
@@ -787,6 +803,29 @@ bool Gtid_set::contains_gtid(rpl_sidno sidno, rpl_gno gno) const
     ivit.next();
   }
   DBUG_RETURN(false);
+}
+
+rpl_gno Gtid_set::get_last_gno(rpl_sidno sidno) const
+{
+  DBUG_ENTER("Gtid_set::get_last_gno");
+  rpl_gno gno= 0;
+
+  if (sid_lock != NULL)
+    sid_lock->assert_some_lock();
+
+  if (sidno > get_max_sidno())
+    DBUG_RETURN(gno);
+
+  Const_interval_iterator ivit(this, sidno);
+  const Gtid_set::Interval *iv= ivit.get();
+  while(iv != NULL)
+  {
+    gno= iv->end-1;
+    ivit.next();
+    iv= ivit.get();
+  }
+
+  DBUG_RETURN(gno);
 }
 
 int Gtid_set::to_string(char **buf_arg, const Gtid_set::String_format *sf_arg) const
@@ -974,10 +1013,6 @@ int Gtid_set::get_string_length(const Gtid_set::String_format *sf) const
   return cached_string_length;
 }
 
-/*
-  Functions sidno_equals() and equals() are only used by unitests
-*/
-#ifdef NON_DISABLED_UNITTEST_GTID
 bool Gtid_set::sidno_equals(rpl_sidno sidno, const Gtid_set *other,
                             rpl_sidno other_sidno) const
 {
@@ -1069,7 +1104,6 @@ bool Gtid_set::equals(const Gtid_set *other) const
   DBUG_ASSERT(0); // not reached
   DBUG_RETURN(true);
 }
-#endif
 
 
 bool Gtid_set::is_interval_subset(Const_interval_iterator *sub,

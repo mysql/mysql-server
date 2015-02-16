@@ -13,10 +13,11 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <m_string.h>
-#include "log_event.h"
 #include "rpl_trx_boundary_parser.h"
-#include "log.h"                                /* sql_print_warning */
+
+#include "log.h"           // sql_print_warning
+#include "log_event.h"     // Log_event
+
 
 #ifndef DBUG_OFF
 /* Event parser state names */
@@ -43,6 +44,10 @@ static const char *event_parser_state_names[]= {
 void Transaction_boundary_parser::reset()
 {
   DBUG_ENTER("Transaction_boundary_parser::reset");
+  DBUG_PRINT("info", ("transaction boundary parser is changing state "
+                      "from '%s' to '%s'",
+                      event_parser_state_names[current_parser_state],
+                      event_parser_state_names[EVENT_PARSER_NONE]));
   current_parser_state= EVENT_PARSER_NONE;
   DBUG_VOID_RETURN;
 }
@@ -210,6 +215,8 @@ Transaction_boundary_parser::get_event_boundary_type(
     case binary_log::NEW_LOAD_EVENT:
     case binary_log::EXEC_LOAD_EVENT:
     case binary_log::INCIDENT_EVENT:
+    case binary_log::VIEW_CHANGE_EVENT:
+    case binary_log::TRANSACTION_CONTEXT_EVENT:
       boundary_type= EVENT_BOUNDARY_TYPE_IGNORE;
       break;
 
@@ -271,10 +278,13 @@ bool Transaction_boundary_parser::update_state(
     case EVENT_PARSER_DML:
       if (throw_warnings)
         sql_print_warning(
-          "GTID_LOG_EVENT is not expected in an event stream %s.",
-          current_parser_state == EVENT_PARSER_GTID ? "after a GTID_LOG_EVENT" :
-          current_parser_state == EVENT_PARSER_DDL ? "in the middle of a DDL" :
-          "in the middle of a DML"); /* EVENT_PARSER_DML */
+          "GTID_LOG_EVENT or ANONYMOUS_GTID_LOG_EVENT "
+          "is not expected in an event stream %s.",
+          current_parser_state == EVENT_PARSER_GTID ?
+            "after a GTID_LOG_EVENT or an ANONYMOUS_GTID_LOG_EVENT" :
+            current_parser_state == EVENT_PARSER_DDL ?
+              "in the middle of a DDL" :
+              "in the middle of a DML"); /* EVENT_PARSER_DML */
       error= true;
       break;
     case EVENT_PARSER_ERROR: /* we probably threw a warning before */
