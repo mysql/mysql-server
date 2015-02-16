@@ -4074,7 +4074,7 @@ public:
   }
   LEX_STRING get_invoker_user() { return invoker_user; }
   LEX_STRING get_invoker_host() { return invoker_host; }
-  bool has_invoker() { return invoker_user.length > 0; }
+  bool has_invoker() { return invoker_user.str != NULL; }
 
   void mark_transaction_to_rollback(bool all);
 

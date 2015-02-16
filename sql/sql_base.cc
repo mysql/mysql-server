@@ -4504,10 +4504,16 @@ open_and_process_table(THD *thd, LEX *lex, TABLE_LIST *tables,
       obtain proper metadata locks and do other necessary steps like
       stored routine processing.
     */
-    tables->db= tables->view_db.str;
-    tables->db_length= tables->view_db.length;
-    tables->table_name= tables->view_name.str;
-    tables->table_name_length= tables->view_name.length;
+    if (tables->db != tables->view_db.str)
+    {
+      tables->db= tables->view_db.str;
+      tables->db_length= tables->view_db.length;
+    }
+    if (tables->table_name != tables->view_name.str)
+    {
+      tables->table_name= tables->view_name.str;
+      tables->table_name_length= tables->view_name.length;
+    }
   }
   /*
     If this TABLE_LIST object is a placeholder for an information_schema

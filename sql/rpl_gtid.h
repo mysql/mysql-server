@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -2424,6 +2424,9 @@ struct Gtid_specification
   { type= GTID_GROUP; gtid.sidno= sidno; gtid.gno= gno; }
   /// Set the type to GTID_GROUP and SID, GNO to the given Gtid.
   void set(const Gtid &gtid_param) { set(gtid_param.sidno, gtid_param.gno); }
+  /// Set the type to ANONYMOUS_GROUP and SID, GNO to 0, 0.
+  void set_anonymous()
+  { type= ANONYMOUS_GROUP; gtid.sidno= 0; gtid.gno= 0; }
   /// Set the type to AUTOMATIC_GROUP.
   void set_automatic()
   {
