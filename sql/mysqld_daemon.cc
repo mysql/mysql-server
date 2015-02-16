@@ -99,6 +99,7 @@ int mysqld::runtime::mysqld_daemonize()
     if (! (dup2(stdinfd, STDIN_FILENO) != STDIN_FILENO)
         && (setsid() > -1))
     {
+      close(stdinfd);
       pid_t grand_child_pid= fork();
       switch (grand_child_pid)
       {
