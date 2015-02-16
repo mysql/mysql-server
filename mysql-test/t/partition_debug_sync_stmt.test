@@ -1,6 +1,6 @@
 --source include/have_innodb.inc
 --source include/have_partition.inc
---source include/have_binlog_format_statement.inc
+--source include/force_binlog_format_statement.inc
 --source include/have_debug_sync.inc
 --source include/have_debug.inc
 
@@ -97,3 +97,5 @@ SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 't1';
 disconnect con1;
 DROP TABLE t1, t2;
 SET DEBUG_SYNC='RESET';
+
+--source include/restore_default_binlog_format.inc
