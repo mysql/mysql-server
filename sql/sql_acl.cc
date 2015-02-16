@@ -2686,8 +2686,14 @@ update_user_table(THD *thd, TABLE *table,
   */
   if (!password_expired)
   {
-    table->field[(int) password_field]->store(new_password, new_password_len,
-                                              system_charset_info);
+    if (table->s->fields >= password_field)
+      table->field[(int) password_field]->store(new_password, new_password_len,
+                                                system_charset_info);
+    else
+    {
+      my_error(ER_BAD_FIELD_ERROR, MYF(0), "authentication string", "mysql.user");
+      DBUG_RETURN(1);
+    }
     if (new_password_len == SCRAMBLED_PASSWORD_CHAR_LENGTH_323 &&
         password_field == MYSQL_USER_FIELD_PASSWORD)
     {
@@ -2891,17 +2897,24 @@ static int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
       /* Use the authentication_string field */
       combo->auth.str= password;
       combo->auth.length= password_len;
-      if (password_len > 0)
+      if (table->s->fields >= MYSQL_USER_FIELD_AUTHENTICATION_STRING)
+      {
+        if (password_len > 0)
+          table->
+            field[MYSQL_USER_FIELD_AUTHENTICATION_STRING]->
+              store(password, password_len, &my_charset_utf8_bin);
+        /* Assert that the proper plugin is set */
         table->
-          field[MYSQL_USER_FIELD_AUTHENTICATION_STRING]->
-            store(password, password_len, &my_charset_utf8_bin);
-      /* Assert that the proper plugin is set */
-      table->
-        field[MYSQL_USER_FIELD_PLUGIN]->
-          store(sha256_password_plugin_name.str,
-                sha256_password_plugin_name.length,
-                system_charset_info);
-
+          field[MYSQL_USER_FIELD_PLUGIN]->
+            store(sha256_password_plugin_name.str,
+                  sha256_password_plugin_name.length,
+                  system_charset_info);
+      }
+      else
+      {
+        my_error(ER_BAD_FIELD_ERROR, MYF(0), "plugin", "mysql.user");
+        goto end;
+      }
     }
     else
 #endif
@@ -2909,8 +2922,9 @@ static int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
       /* Use the legacy Password field */
       table->field[MYSQL_USER_FIELD_PASSWORD]->store(password, password_len,
                                                      system_charset_info);
-      table->field[MYSQL_USER_FIELD_AUTHENTICATION_STRING]->store("\0", 0,
-                                                     &my_charset_utf8_bin);
+      if (table->s->fields >= MYSQL_USER_FIELD_AUTHENTICATION_STRING)
+        table->field[MYSQL_USER_FIELD_AUTHENTICATION_STRING]->store("\0", 0,
+                                                       &my_charset_utf8_bin);
     }
   }
   else // if (table->file->ha_index_read_idx_map [..]
@@ -3063,7 +3077,6 @@ static int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
       else
         combo->auth.length= 0;
     }
-    
     /* 2. Digest password if needed (plugin must have been resolved */
     if (combo->uses_identified_by_clause)
     {
