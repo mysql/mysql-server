@@ -1,3 +1,9 @@
+mysql-community (5.6.24-1debian7) wheezy; urgency=low
+
+  * new upstream release
+
+ -- Akhil Mohan <akhil.mohan@oracle.com>  Mon, 16 Feb 2014 15:45:09 +0530
+
 mysql-community (5.6.23-1debian7) wheezy; urgency=low
 
   * new upstream release
