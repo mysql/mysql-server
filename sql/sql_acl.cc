@@ -2686,9 +2686,9 @@ update_user_table(THD *thd, TABLE *table,
   */
   if (!password_expired)
   {
-    if (table->s->fields >= password_field)
-      table->field[(int) password_field]->store(new_password, new_password_len,
-                                                system_charset_info);
+    if (table->s->fields >= (uint) password_field)
+      table->field[(uint) password_field]->store(new_password, new_password_len,
+                                                 system_charset_info);
     else
     {
       my_error(ER_BAD_FIELD_ERROR, MYF(0), "authentication string", "mysql.user");
