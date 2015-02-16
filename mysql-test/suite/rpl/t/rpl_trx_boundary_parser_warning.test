@@ -14,6 +14,7 @@
 
 # This test should run only on debug build
 --source include/have_debug.inc
+--source include/no_valgrind_without_big.inc
 # This test uses debug sync to stop the IO thread in the middle of a transaction
 --source include/have_debug_sync.inc
 
