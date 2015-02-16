@@ -554,6 +554,44 @@ explain select * from t1 where (a,b) in (select a,b from t2);
 
 drop table t0, t1, t2;
 
+--echo #
+--echo # Bug#19695490: CRASH IN CREATE_REF_FOR_KEY ON SELECT + JOIN + UTF8 COLUMN
+--echo #                + DATETIME INDEX.
+--echo #
+
+CREATE TABLE t1 (
+  field1 varchar(255) CHARACTER SET utf8,
+  field2 varchar(255) CHARACTER SET utf8
+);
+
+INSERT INTO t1 VALUES
+  ('time','time'),
+  ('lpjdzvkp','lpjdzvkp'),
+  ('dzvkpai', 'dzvkpai');
+
+CREATE TABLE t2 ( col_varchar varchar(10));
+
+CREATE TABLE t3 (
+  pk int(11) NOT NULL,
+  col_varchar_255_utf8_key varchar(255) CHARACTER SET utf8,
+  col_varchar_10_utf8_key varchar(10) CHARACTER SET utf8,
+  PRIMARY KEY (pk)
+);
+
+INSERT INTO t3 VALUES (22,'come','h'),
+ (23,'time','aaa'),
+ (24,'lpjdzvkp','ababa'),
+ (25,'d','GGDD');
+
+SELECT * FROM t1 WHERE (field1, field2) IN (
+  SELECT table1.col_varchar_255_utf8_key AS field1,
+         table1.col_varchar_255_utf8_key AS field2
+  FROM t3 AS table1 LEFT JOIN t2 AS table2
+       ON table1.col_varchar_10_utf8_key <=
+          table2.col_varchar
+  WHERE table1.pk >= 6);
+
+DROP TABLE t1,t2,t3;
 
 #
 # Primitive SJ-Materialization tests for DECIMAL and DATE
