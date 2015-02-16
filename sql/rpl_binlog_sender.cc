@@ -60,6 +60,7 @@ void Binlog_sender::init()
 
   thd->push_diagnostics_area(&m_diag_area);
   init_heartbeat_period();
+  m_last_event_sent_ts= time(0);
 
   mysql_mutex_lock(&thd->LOCK_thd_data);
   thd->current_linfo= &m_linfo;
@@ -404,7 +405,28 @@ int Binlog_sender::send_events(IO_CACHE *log_cache, my_off_t end_pos)
     if (m_exclude_gtid && (in_exclude_group= skip_event(event_ptr, event_len,
                                                         in_exclude_group)))
     {
-      exclude_group_end_pos= log_pos;
+      /*
+        If we have not send any event from past 'heartbeat_period' time
+        period, then it is time to send a packet before skipping this group.
+       */
+      DBUG_EXECUTE_IF("inject_2sec_sleep_when_skipping_an_event",
+                      {
+                      my_sleep(2000000);
+                      });
+      time_t now= time(0);
+      DBUG_ASSERT(now >= m_last_event_sent_ts);
+      bool time_for_hb_event= ((ulonglong)(now - m_last_event_sent_ts)
+                          >= (ulonglong)(m_heartbeat_period/1000000000UL));
+      if (time_for_hb_event)
+      {
+        if (unlikely(send_heartbeat_event(log_pos)))
+          DBUG_RETURN(1);
+        exclude_group_end_pos= 0;
+      }
+      else
+      {
+        exclude_group_end_pos= log_pos;
+      }
       DBUG_PRINT("info", ("Event of type %s is skipped",
                           Log_event::get_type_str(event_type)));
     }
@@ -1109,6 +1131,7 @@ inline int Binlog_sender::send_packet()
 
   /* Shrink the packet if needed. */
   int ret= shrink_packet() ? 1 : 0;
+  m_last_event_sent_ts= time(0);
   DBUG_RETURN(ret);
 }
 
