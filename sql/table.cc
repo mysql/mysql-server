@@ -6479,7 +6479,7 @@ void TABLE_LIST::reinit_before_use(THD *thd)
    name and database wiped out by derived table processing.
 
  */
-  if (is_derived())
+  if (is_view_or_derived())
   {
     if (is_view())
     {
