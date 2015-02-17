@@ -24,6 +24,10 @@
 # On a different connection, check the GTID columns of the tables
 # between each statement.
 #
+# Transactions to be checked are executed on connection
+# 'default'. Auxiliary statements to read or truncate the tables are
+# executed on connection 'server_1'.
+#
 # Also execute a ROLLBACK transaction.
 #
 # Execute the transaction in these two cases:
@@ -47,46 +51,31 @@
 # - The current behavior was specified and the test was introduced in
 #   this worklog.
 
+--source include/have_debug_sync.inc
 --source include/not_gtid_enabled.inc
-# Restrict the test runs to only debug builds, since we set DEBUG point
-# in the test.
---source include/have_debug.inc
 --let $rpl_topology= none
 --let $rpl_server_count= 1
 --source include/rpl_init.inc
 
 --echo ==== Configure ====
 
+--connection default
+
 SET GLOBAL ENFORCE_GTID_CONSISTENCY = ON;
 
---delimiter |
-# replace NULL by 'NULL', @@GLOBAL.SERVER_UUID by 'SERVER_UUID', and aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa by A
-CREATE FUNCTION fix_gtid(str VARCHAR(100)) RETURNS VARCHAR (100)
-  RETURN REPLACE(REPLACE(IFNULL(str, 'NULL'),
-                         @@GLOBAL.SERVER_UUID, 'SERVER_UUID'),
-                 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'A')|
-# select the GTID from P_S.events_transactions_[history|current]
-CREATE FUNCTION show_gtid() RETURNS VARCHAR(100) BEGIN
-  SET @history_gtid= 'none';
-  SET @current_gtid= 'none';
-  SELECT fix_gtid(GTID) FROM performance_schema.events_transactions_history
-    INTO @history_gtid;
-  SELECT fix_gtid(GTID) FROM performance_schema.events_transactions_current
-    INTO @current_gtid;
-  RETURN CONCAT("- history=", @history_gtid, " current=", @current_gtid);
-END|
---delimiter ;
+--let $thread_id= `SELECT THREAD_ID FROM performance_schema.threads WHERE PROCESSLIST_ID = CONNECTION_ID()`
+--let $server_uuid= `SELECT @@GLOBAL.SERVER_UUID`
 
 CREATE TABLE t1 (a INT);
-
---echo ==== Test ====
 
 # These are parameters to include/execute_at_sync_point.inc,
 # which will remain the same each time the script is invoked.
 --let $statement_connection= default
 --let $auxiliary_connection= server_1
---let $other_statement= SELECT show_gtid()
+--let $auxiliary_file= suite/perfschema/include/show_transaction_gtid.inc
 --let $quiet= 1
+
+--echo ==== Test ====
 
 --let $n= 1
 while ($n <= 4) {
@@ -146,9 +135,9 @@ while ($n <= 4) {
   # the first DML statement.
 
   --echo * AUTOCOMMIT = OFF
+  SET @@SESSION.AUTOCOMMIT = 0;
   --source ../include/reset_transaction_gtid.inc
 
-  SET @@SESSION.AUTOCOMMIT = 0;
   --source ../include/show_transaction_gtid.inc
   eval SET SESSION GTID_NEXT = '$gtid';
   --source ../include/show_transaction_gtid.inc
@@ -164,9 +153,9 @@ while ($n <= 4) {
   # middle of the statement.
 
   --echo * AUTOCOMMIT = ON
+  SET @@SESSION.AUTOCOMMIT = 1;
   --source ../include/reset_transaction_gtid.inc
 
-  SET @@SESSION.AUTOCOMMIT = 1;
   --source ../include/show_transaction_gtid.inc
   eval SET SESSION GTID_NEXT = '$gtid';
   --source ../include/show_transaction_gtid.inc
@@ -177,6 +166,7 @@ while ($n <= 4) {
 
   # Disabled because DDL is not inserted into the tables
   if (0) {
+  # An implicitly committing statement (DDL), no BEGIN.
   --echo * implicit commit (DDL)
   --source ../include/reset_transaction_gtid.inc
 
@@ -196,8 +186,6 @@ while ($n <= 4) {
 
 DROP TABLE t1;
 # DROP TABLE t_1, t_2, t_3, t_4;
-DROP FUNCTION fix_gtid;
-DROP FUNCTION show_gtid;
 
 --let $rpl_gtid_mode= OFF
 --source include/rpl_set_gtid_mode.inc
