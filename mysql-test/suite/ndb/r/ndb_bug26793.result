@@ -4,5 +4,7 @@ CREATE TABLE `test` (
 `t` VARCHAR( 10 ) NOT NULL
 ) ENGINE = ndbcluster;
 GRANT USAGE ON *.* TO user1@localhost IDENTIFIED BY 'pass';
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 DROP TABLE `test`.`test`;
 drop user user1@localhost;
