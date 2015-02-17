@@ -64,7 +64,7 @@ typedef struct user_conn USER_CONN;
   three calling-info parameters.
 */
 extern "C"
-const char *set_thd_proc_info(void *thd_arg, const char *info,
+const char *set_thd_proc_info(MYSQL_THD thd_arg, const char *info,
                               const char *calling_func,
                               const char *calling_file,
                               const unsigned int calling_line);

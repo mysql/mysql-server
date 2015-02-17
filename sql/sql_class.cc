@@ -806,7 +806,7 @@ int thd_tablespace_op(const THD *thd)
 
 
 extern "C"
-const char *set_thd_proc_info(void *thd_arg, const char *info,
+const char *set_thd_proc_info(MYSQL_THD thd_arg, const char *info,
                               const char *calling_function,
                               const char *calling_file,
                               const unsigned int calling_line)
