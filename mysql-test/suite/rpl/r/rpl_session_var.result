@@ -22,6 +22,8 @@ a	b
 MySQL	1
 set @@session.sql_mode=ignore_space;
 insert into t1 values(password          ('MySQL'), 3);
+Warnings:
+Warning	1681	'PASSWORD' is deprecated and will be removed in a future release.
 set @@session.sql_mode=ansi_quotes;
 create table "t2" ("a" int);
 drop table t1, t2;

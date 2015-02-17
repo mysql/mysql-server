@@ -6,6 +6,8 @@ Checking the user access with SSL through user created with mysql_native_passwor
 
 CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED WITH 'mysql_native_password';
 set @@session.old_passwords=0;
+Warnings:
+Warning	1681	'old_passwords' is deprecated and will be removed in a future release.
 set password for 'Tanjotuser1'@'localhost' = 'abc';
 **** connecting client using the ssl credentials
 @@Global.old_passwords
@@ -59,6 +61,8 @@ Checking the user access with SSL through user created with sha256_password plug
 Creating a user with the sha256_password
 CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED WITH 'sha256_password';
 set @@session.old_passwords=2;
+Warnings:
+Warning	1681	'old_passwords' is deprecated and will be removed in a future release.
 set password for 'Tanjotuser1'@'localhost' = 'abc';
 **** connecting client using the ssl credentials
 @@Global.old_passwords
@@ -119,6 +123,8 @@ Checking the user access with SSL through user created with mysql_native_passwor
 Creating a user with the mysql_native_password
 CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED WITH 'mysql_native_password';
 set @@session.old_passwords=0;
+Warnings:
+Warning	1681	'old_passwords' is deprecated and will be removed in a future release.
 set password for 'Tanjotuser1'@'localhost' = 'abc';
 **** connecting client using the ssl credentials
 @@Global.old_passwords
@@ -172,6 +178,8 @@ Checking the user access with SSL through user created with sha256_password plug
 Creating a user with the sha256_plugin
 CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED WITH 'sha256_password';
 set @@session.old_passwords=2;
+Warnings:
+Warning	1681	'old_passwords' is deprecated and will be removed in a future release.
 set password for 'Tanjotuser1'@'localhost' = 'abc';
 GRANT ALL on *.* to 'Tanjotuser1'@'localhost';
 **** connecting client using the ssl credentials
@@ -218,3 +226,5 @@ GRANT ALL on *.* to 'Tanjotuser1'@'localhost';
 2 for SESSION Expected
 DROP USER 'Tanjotuser1'@'localhost';
 set @@session.old_passwords=default;
+Warnings:
+Warning	1681	'old_passwords' is deprecated and will be removed in a future release.
