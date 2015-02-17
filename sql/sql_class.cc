@@ -1411,7 +1411,7 @@ Internal_error_handler *THD::pop_internal_handler()
 
 void THD::raise_error(uint sql_errno)
 {
-  const char* msg= ER(sql_errno);
+  const char* msg= ER_THD(this, sql_errno);
   (void) raise_condition(sql_errno,
                          NULL,
                          Sql_condition::SL_ERROR,
@@ -1424,7 +1424,7 @@ void THD::raise_error_printf(uint sql_errno, ...)
   char ebuff[MYSQL_ERRMSG_SIZE];
   DBUG_ENTER("THD::raise_error_printf");
   DBUG_PRINT("my", ("nr: %d  errno: %d", sql_errno, errno));
-  const char* format= ER(sql_errno);
+  const char* format= ER_THD(this, sql_errno);
   va_start(args, sql_errno);
   my_vsnprintf(ebuff, sizeof(ebuff), format, args);
   va_end(args);
@@ -1437,7 +1437,7 @@ void THD::raise_error_printf(uint sql_errno, ...)
 
 void THD::raise_warning(uint sql_errno)
 {
-  const char* msg= ER(sql_errno);
+  const char* msg= ER_THD(this, sql_errno);
   (void) raise_condition(sql_errno,
                          NULL,
                          Sql_condition::SL_WARNING,
@@ -1450,7 +1450,7 @@ void THD::raise_warning_printf(uint sql_errno, ...)
   char    ebuff[MYSQL_ERRMSG_SIZE];
   DBUG_ENTER("THD::raise_warning_printf");
   DBUG_PRINT("enter", ("warning: %u", sql_errno));
-  const char* format= ER(sql_errno);
+  const char* format= ER_THD(this, sql_errno);
   va_start(args, sql_errno);
   my_vsnprintf(ebuff, sizeof(ebuff), format, args);
   va_end(args);
@@ -1467,7 +1467,7 @@ void THD::raise_note(uint sql_errno)
   DBUG_PRINT("enter", ("code: %d", sql_errno));
   if (!(variables.option_bits & OPTION_SQL_NOTES))
     DBUG_VOID_RETURN;
-  const char* msg= ER(sql_errno);
+  const char* msg= ER_THD(this, sql_errno);
   (void) raise_condition(sql_errno,
                          NULL,
                          Sql_condition::SL_NOTE,
@@ -1483,7 +1483,7 @@ void THD::raise_note_printf(uint sql_errno, ...)
   DBUG_PRINT("enter",("code: %u", sql_errno));
   if (!(variables.option_bits & OPTION_SQL_NOTES))
     DBUG_VOID_RETURN;
-  const char* format= ER(sql_errno);
+  const char* format= ER_THD(this, sql_errno);
   va_start(args, sql_errno);
   my_vsnprintf(ebuff, sizeof(ebuff), format, args);
   va_end(args);
@@ -1528,7 +1528,7 @@ Sql_condition* THD::raise_condition(uint sql_errno,
   if (sql_errno == 0) /* Safety in release build */
     sql_errno= ER_UNKNOWN_ERROR;
   if (msg == NULL)
-    msg= ER(sql_errno);
+    msg= ER_THD(this, sql_errno);
   if (sqlstate == NULL)
    sqlstate= mysql_errno_to_sqlstate(sql_errno);
 
@@ -2923,7 +2923,7 @@ int Query_result_export::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
     */
     push_warning(thd, Sql_condition::SL_WARNING,
                  WARN_NON_ASCII_SEPARATOR_NOT_IMPLEMENTED,
-                 ER(WARN_NON_ASCII_SEPARATOR_NOT_IMPLEMENTED));
+                 ER_THD(thd, WARN_NON_ASCII_SEPARATOR_NOT_IMPLEMENTED));
   }
   field_term_length=exchange->field.field_term->length();
   field_term_char= field_term_length ?
@@ -2954,7 +2954,7 @@ int Query_result_export::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
        field_term_length && strchr(NUMERIC_CHARS, field_term_char)))
   {
     push_warning(thd, Sql_condition::SL_WARNING,
-                 ER_AMBIGUOUS_FIELD_TERM, ER(ER_AMBIGUOUS_FIELD_TERM));
+                 ER_AMBIGUOUS_FIELD_TERM, ER_THD(thd, ER_AMBIGUOUS_FIELD_TERM));
     is_ambiguous_field_term= TRUE;
   }
   else
@@ -3038,7 +3038,7 @@ bool Query_result_export::send_data(List<Item> &items)
                              res->charset(), 6);
         push_warning_printf(thd, Sql_condition::SL_WARNING,
                             ER_TRUNCATED_WRONG_VALUE_FOR_FIELD,
-                            ER(ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
+                            ER_THD(thd, ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
                             "string", printable_buff,
                             item->item_name.ptr(), static_cast<long>(row_count));
       }
@@ -3048,7 +3048,8 @@ bool Query_result_export::send_data(List<Item> &items)
           result is longer than UINT_MAX32 and doesn't fit into String
         */
         push_warning_printf(thd, Sql_condition::SL_WARNING,
-                            WARN_DATA_TRUNCATED, ER(WARN_DATA_TRUNCATED),
+                            WARN_DATA_TRUNCATED,
+                            ER_THD(thd, WARN_DATA_TRUNCATED),
                             item->full_name(), static_cast<long>(row_count));
       }
       cvt_str.length(bytes);
@@ -3328,7 +3329,7 @@ bool Query_result_dump::send_data(List<Item> &items)
   }
   if (row_count++ > 1) 
   {
-    my_message(ER_TOO_MANY_ROWS, ER(ER_TOO_MANY_ROWS), MYF(0));
+    my_error(ER_TOO_MANY_ROWS, MYF(0));
     goto err;
   }
   while ((item=li++))
@@ -3363,8 +3364,7 @@ int Query_dumpvar::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
 
   if (var_list.elements != list.elements)
   {
-    my_message(ER_WRONG_NUMBER_OF_COLUMNS_IN_SELECT,
-               ER(ER_WRONG_NUMBER_OF_COLUMNS_IN_SELECT), MYF(0));
+    my_error(ER_WRONG_NUMBER_OF_COLUMNS_IN_SELECT, MYF(0));
     return 1;
   }
 
@@ -3629,7 +3629,7 @@ bool Query_dumpvar::send_data(List<Item> &items)
   }
   if (row_count++) 
   {
-    my_message(ER_TOO_MANY_ROWS, ER(ER_TOO_MANY_ROWS), MYF(0));
+    my_error(ER_TOO_MANY_ROWS, MYF(0));
     DBUG_RETURN(true);
   }
   while ((mv= var_li++) && (item= it++))
@@ -3664,7 +3664,7 @@ bool Query_dumpvar::send_eof()
 {
   if (! row_count)
     push_warning(thd, Sql_condition::SL_WARNING,
-                 ER_SP_FETCH_NO_DATA, ER(ER_SP_FETCH_NO_DATA));
+                 ER_SP_FETCH_NO_DATA, ER_THD(thd, ER_SP_FETCH_NO_DATA));
   /*
     Don't send EOF if we're in error condition (which implies we've already
     sent or are sending an error)
@@ -4541,7 +4541,7 @@ void THD::parse_error_at(const YYLTYPE &location, const char *s)
     m_parser_state->m_lip.get_lineno(location.raw.start) : 1;
   const char *pos= location.raw.start ? location.raw.start : "";
   ErrConvString err(pos, variables.character_set_client);
-  my_printf_error(ER_PARSE_ERROR,  ER(ER_PARSE_ERROR), MYF(0),
-                  s ? s : ER(ER_SYNTAX_ERROR), err.ptr(), lineno);
+  my_printf_error(ER_PARSE_ERROR,  ER_THD(this, ER_PARSE_ERROR), MYF(0),
+                  s ? s : ER_THD(this, ER_SYNTAX_ERROR), err.ptr(), lineno);
 }
 

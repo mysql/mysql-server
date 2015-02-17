@@ -497,7 +497,8 @@ bool Binlog_sender::check_event_type(Log_event_type type,
                         return false;
                       };);
       char buf[MYSQL_ERRMSG_SIZE];
-      sprintf(buf, ER(ER_CANT_REPLICATE_ANONYMOUS_WITH_AUTO_POSITION),
+      sprintf(buf,
+              ER_THD(current_thd, ER_CANT_REPLICATE_ANONYMOUS_WITH_AUTO_POSITION),
               log_file, log_pos);
       set_fatal_error(buf);
       return true;
@@ -512,7 +513,8 @@ bool Binlog_sender::check_event_type(Log_event_type type,
     else if (get_gtid_mode(GTID_MODE_LOCK_NONE) == GTID_MODE_ON)
     {
       char buf[MYSQL_ERRMSG_SIZE];
-      sprintf(buf, ER(ER_CANT_REPLICATE_ANONYMOUS_WITH_GTID_MODE_ON),
+      sprintf(buf,
+              ER_THD(current_thd, ER_CANT_REPLICATE_ANONYMOUS_WITH_GTID_MODE_ON),
               log_file, log_pos);
       set_fatal_error(buf);
       return true;
@@ -530,7 +532,8 @@ bool Binlog_sender::check_event_type(Log_event_type type,
     if (get_gtid_mode(GTID_MODE_LOCK_NONE) == GTID_MODE_OFF)
     {
       char buf[MYSQL_ERRMSG_SIZE];
-      sprintf(buf, ER(ER_CANT_REPLICATE_GTID_WITH_GTID_MODE_OFF),
+      sprintf(buf,
+              ER_THD(current_thd, ER_CANT_REPLICATE_GTID_WITH_GTID_MODE_OFF),
               log_file, log_pos);
       set_fatal_error(buf);
       return true;
@@ -684,7 +687,7 @@ int Binlog_sender::check_start_file()
                                                 gtid_state->get_server_sidno(),
                                                 subset_sidno))
     {
-      errmsg= ER(ER_SLAVE_HAS_MORE_GTIDS_THAN_MASTER);
+      errmsg= ER_THD(current_thd, ER_SLAVE_HAS_MORE_GTIDS_THAN_MASTER);
       global_sid_lock->unlock();
       set_fatal_error(errmsg);
       return 1;
@@ -717,7 +720,7 @@ int Binlog_sender::check_start_file()
     */
     if (!gtid_state->get_lost_gtids()->is_subset(m_exclude_gtid))
     {
-      errmsg= ER(ER_MASTER_HAS_PURGED_REQUIRED_GTIDS);
+      errmsg= ER_THD(current_thd, ER_MASTER_HAS_PURGED_REQUIRED_GTIDS);
       global_sid_lock->unlock();
       set_fatal_error(errmsg);
       return 1;

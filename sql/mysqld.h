@@ -913,9 +913,6 @@ extern "C" void unireg_clear(int exit_code);
 #define unireg_abort(exit_code) do { unireg_clear(exit_code); DBUG_RETURN(exit_code); } while(0)
 #endif
 
-
-#define ER(X)         ER_THD(current_thd,X)
-
 /* Accessor function for _connection_events_loop_aborted flag */
 inline __attribute__((warn_unused_result))
 bool connection_events_loop_aborted()

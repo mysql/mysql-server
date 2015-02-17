@@ -4705,7 +4705,7 @@ bool JOIN::make_join_plan()
       best_read > (double) thd->variables.max_join_size &&
       !thd->lex->is_explain())
   {						/* purecov: inspected */
-    my_message(ER_TOO_BIG_SELECT, ER(ER_TOO_BIG_SELECT), MYF(0));
+    my_error(ER_TOO_BIG_SELECT, MYF(0));
     error= -1;
     DBUG_RETURN(1);
   }
@@ -4927,7 +4927,7 @@ bool JOIN::propagate_dependencies()
     {
       tables= 0;               // Don't use join->table
       primary_tables= 0;
-      my_message(ER_WRONG_OUTER_JOIN, ER(ER_WRONG_OUTER_JOIN), MYF(0));
+      my_error(ER_WRONG_OUTER_JOIN, MYF(0));
       return true;
     }
 
@@ -6483,7 +6483,7 @@ warn_index_not_applicable(THD *thd, const Field *field,
         push_warning_printf(thd,
                             Sql_condition::SL_WARNING,
                             ER_WARN_INDEX_NOT_APPLICABLE,
-                            ER(ER_WARN_INDEX_NOT_APPLICABLE),
+                            ER_THD(thd, ER_WARN_INDEX_NOT_APPLICABLE),
                             "ref",
                             field->table->key_info[j].name,
                             field->field_name);

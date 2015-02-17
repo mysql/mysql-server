@@ -515,8 +515,7 @@ bool sp_cursor::open(THD *thd)
 {
   if (m_server_side_cursor)
   {
-    my_message(ER_SP_CURSOR_ALREADY_OPEN, ER(ER_SP_CURSOR_ALREADY_OPEN),
-               MYF(0));
+    my_error(ER_SP_CURSOR_ALREADY_OPEN, MYF(0));
     return true;
   }
 
@@ -528,7 +527,7 @@ bool sp_cursor::close(THD *thd)
 {
   if (! m_server_side_cursor)
   {
-    my_message(ER_SP_CURSOR_NOT_OPEN, ER(ER_SP_CURSOR_NOT_OPEN), MYF(0));
+    my_error(ER_SP_CURSOR_NOT_OPEN, MYF(0));
     return true;
   }
 
@@ -548,21 +547,20 @@ bool sp_cursor::fetch(THD *thd, List<sp_variable> *vars)
 {
   if (! m_server_side_cursor)
   {
-    my_message(ER_SP_CURSOR_NOT_OPEN, ER(ER_SP_CURSOR_NOT_OPEN), MYF(0));
+    my_error(ER_SP_CURSOR_NOT_OPEN, MYF(0));
     return true;
   }
 
   if (vars->elements != m_result.get_field_count())
   {
-    my_message(ER_SP_WRONG_NO_OF_FETCH_ARGS,
-               ER(ER_SP_WRONG_NO_OF_FETCH_ARGS), MYF(0));
+    my_error(ER_SP_WRONG_NO_OF_FETCH_ARGS, MYF(0));
     return true;
   }
 
   DBUG_EXECUTE_IF("bug23032_emit_warning",
                   push_warning(thd, Sql_condition::SL_WARNING,
                                ER_UNKNOWN_ERROR,
-                               ER(ER_UNKNOWN_ERROR)););
+                               ER_THD(thd, ER_UNKNOWN_ERROR)););
 
   m_result.set_spvar_list(vars);
 
@@ -579,7 +577,7 @@ bool sp_cursor::fetch(THD *thd, List<sp_variable> *vars)
   */
   if (! m_server_side_cursor->is_open())
   {
-    my_message(ER_SP_FETCH_NO_DATA, ER(ER_SP_FETCH_NO_DATA), MYF(0));
+    my_error(ER_SP_FETCH_NO_DATA, MYF(0));
     return true;
   }
 

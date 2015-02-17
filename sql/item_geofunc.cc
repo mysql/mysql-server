@@ -2738,7 +2738,7 @@ String *Item_func_spatial_collection::val_str(String *str)
   {
     push_warning_printf(current_thd, Sql_condition::SL_WARNING,
 			ER_WARN_ALLOWED_PACKET_OVERFLOWED,
-			ER(ER_WARN_ALLOWED_PACKET_OVERFLOWED),
+			ER_THD(current_thd, ER_WARN_ALLOWED_PACKET_OVERFLOWED),
 			func_name(), current_thd->variables.max_allowed_packet);
     goto err;
   }

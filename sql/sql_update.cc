@@ -506,7 +506,7 @@ bool mysql_update(THD *thd,
       }
 
       char buff[MYSQL_ERRMSG_SIZE];
-      my_snprintf(buff, sizeof(buff), ER(ER_UPDATE_INFO), 0, 0,
+      my_snprintf(buff, sizeof(buff), ER_THD(thd, ER_UPDATE_INFO), 0, 0,
                   (ulong) thd->get_stmt_da()->current_statement_cond_count());
       my_ok(thd, 0, 0, buff);
 
@@ -521,8 +521,7 @@ bool mysql_update(THD *thd,
     thd->server_status|=SERVER_QUERY_NO_INDEX_USED;
     if (safe_update && !using_limit)
     {
-      my_message(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE,
-		 ER(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE), MYF(0));
+      my_error(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE, MYF(0));
       goto exit_without_my_ok;
     }
   }
@@ -1064,7 +1063,7 @@ bool mysql_update(THD *thd,
   if (error < 0)
   {
     char buff[MYSQL_ERRMSG_SIZE];
-    my_snprintf(buff, sizeof(buff), ER(ER_UPDATE_INFO), (ulong) found,
+    my_snprintf(buff, sizeof(buff), ER_THD(thd, ER_UPDATE_INFO), (ulong) found,
                 (ulong) updated,
                 (ulong) thd->get_stmt_da()->current_statement_cond_count());
     my_ok(thd, (thd->client_capabilities & CLIENT_FOUND_ROWS) ? found : updated,
@@ -1660,7 +1659,7 @@ bool mysql_multi_update(THD *thd,
   if (unlikely(res))
   {
     /* If we had a another error reported earlier then this will be ignored */
-    (*result)->send_error(ER_UNKNOWN_ERROR, ER(ER_UNKNOWN_ERROR));
+    (*result)->send_error(ER_UNKNOWN_ERROR, ER_THD(thd, ER_UNKNOWN_ERROR));
     (*result)->abort_result_set();
   }
   DBUG_RETURN(res);
@@ -1705,7 +1704,7 @@ int Query_result_update::prepare(List<Item> &not_used_values,
 
   if (!tables_to_update)
   {
-    my_message(ER_NO_TABLES_USED, ER(ER_NO_TABLES_USED), MYF(0));
+    my_error(ER_NO_TABLES_USED, MYF(0));
     DBUG_RETURN(1);
   }
 
@@ -2727,7 +2726,7 @@ bool Query_result_update::send_eof()
 
   id= thd->arg_of_last_insert_id_function ?
     thd->first_successful_insert_id_in_prev_stmt : 0;
-  my_snprintf(buff, sizeof(buff), ER(ER_UPDATE_INFO),
+  my_snprintf(buff, sizeof(buff), ER_THD(thd, ER_UPDATE_INFO),
               (ulong) found, (ulong) updated,
               (ulong) thd->get_stmt_da()->current_statement_cond_count());
   ::my_ok(thd, (thd->client_capabilities & CLIENT_FOUND_ROWS) ? found : updated,

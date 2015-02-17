@@ -775,7 +775,7 @@ private:
     {
       m_view_access_denied_message_ptr= m_view_access_denied_message;
       my_snprintf(m_view_access_denied_message, MYSQL_ERRMSG_SIZE,
-                  ER(ER_TABLEACCESS_DENIED_ERROR), "SHOW VIEW",
+                  ER_THD(current_thd, ER_TABLEACCESS_DENIED_ERROR), "SHOW VIEW",
                   m_sctx->priv_user().str,
                   m_sctx->host_or_ip().str, m_top_view->get_table_name());
     }
@@ -825,7 +825,7 @@ public:
       /* Established behavior: warn if underlying functions are missing. */
       push_warning_printf(thd, Sql_condition::SL_WARNING,
                           ER_VIEW_INVALID,
-                          ER(ER_VIEW_INVALID),
+                          ER_THD(thd, ER_VIEW_INVALID),
                           m_top_view->get_db_name(),
                           m_top_view->get_table_name());
       is_handled= true;
@@ -1001,7 +1001,8 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
   {
     my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
              sctx->priv_user().str, sctx->host_or_ip().str, dbname);
-    query_logger.general_log_print(thd,COM_INIT_DB,ER(ER_DBACCESS_DENIED_ERROR),
+    query_logger.general_log_print(thd,COM_INIT_DB,
+                                   ER_DEFAULT(ER_DBACCESS_DENIED_ERROR),
                                    sctx->priv_user().str,
                                    sctx->host_or_ip().str, dbname);
     DBUG_RETURN(TRUE);
@@ -4069,7 +4070,7 @@ static int fill_schema_table_from_frm(THD *thd, TABLE_LIST *tables,
 
     push_warning_printf(thd, Sql_condition::SL_WARNING,
                         ER_WARN_I_S_SKIPPED_TABLE,
-                        ER(ER_WARN_I_S_SKIPPED_TABLE),
+                        ER_THD(thd, ER_WARN_I_S_SKIPPED_TABLE),
                         table_list.db, table_list.table_name);
     return 0;
   }

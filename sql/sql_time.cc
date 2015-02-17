@@ -1236,18 +1236,18 @@ void make_truncated_value_warning(THD *thd,
   }
   if (field_name)
     cs->cset->snprintf(cs, warn_buff, sizeof(warn_buff),
-                       ER(ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
+                       ER_THD(thd, ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
                        type_str, val.ptr(), field_name,
                        (ulong) thd->get_stmt_da()->current_row_for_condition());
   else
   {
     if (time_type > MYSQL_TIMESTAMP_ERROR)
       cs->cset->snprintf(cs, warn_buff, sizeof(warn_buff),
-                         ER(ER_TRUNCATED_WRONG_VALUE),
+                         ER_THD(thd, ER_TRUNCATED_WRONG_VALUE),
                          type_str, val.ptr());
     else
       cs->cset->snprintf(cs, warn_buff, sizeof(warn_buff),
-                         ER(ER_WRONG_VALUE), type_str, val.ptr());
+                         ER_THD(thd, ER_WRONG_VALUE), type_str, val.ptr());
   }
   push_warning(thd, level, ER_TRUNCATED_WRONG_VALUE, warn_buff);
 }
@@ -1359,7 +1359,7 @@ bool date_add_interval(MYSQL_TIME *ltime, interval_type int_type,
 invalid_date:
   push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                       ER_DATETIME_FUNCTION_OVERFLOW,
-                      ER(ER_DATETIME_FUNCTION_OVERFLOW),
+                      ER_THD(current_thd, ER_DATETIME_FUNCTION_OVERFLOW),
                       "datetime");
 null_date:
   return 1;

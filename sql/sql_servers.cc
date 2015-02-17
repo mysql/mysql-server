@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -806,8 +806,8 @@ bool Sql_cmd_alter_server::execute(THD *thd)
   if (close_cached_connection_tables(thd, m_server_options->m_server_name.str,
                                      m_server_options->m_server_name.length))
   {
-    push_warning_printf(thd, Sql_condition::SL_WARNING,
-                        ER_UNKNOWN_ERROR, "Server connection in use");
+    push_warning(thd, Sql_condition::SL_WARNING,
+                 ER_UNKNOWN_ERROR, "Server connection in use");
   }
 
   if (error == 0 && !thd->killed)
@@ -880,8 +880,8 @@ bool Sql_cmd_drop_server::execute(THD *thd)
   if (close_cached_connection_tables(thd, m_server_name.str,
                                      m_server_name.length))
   {
-    push_warning_printf(thd, Sql_condition::SL_WARNING,
-                        ER_UNKNOWN_ERROR, "Server connection in use");
+    push_warning(thd, Sql_condition::SL_WARNING,
+                 ER_UNKNOWN_ERROR, "Server connection in use");
   }
 
   if (error == 0 && !thd->killed)

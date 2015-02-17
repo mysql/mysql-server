@@ -2846,7 +2846,7 @@ String *Item_xml_str_func::parse_xml(String *raw_xml, String *parsed_xml_buf)
                 my_xml_error_string(&p));
     push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                         ER_WRONG_VALUE,
-                        ER(ER_WRONG_VALUE), "XML", buf);
+                        ER_THD(current_thd, ER_WRONG_VALUE), "XML", buf);
   }
   my_xml_parser_free(&p);
 

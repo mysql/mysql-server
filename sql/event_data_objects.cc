@@ -627,7 +627,7 @@ Event_timed::load_from_row(THD *thd, TABLE *table)
     push_warning_printf(thd,
                         Sql_condition::SL_WARNING,
                         ER_EVENT_INVALID_CREATION_CTX,
-                        ER(ER_EVENT_INVALID_CREATION_CTX),
+                        ER_THD(thd, ER_EVENT_INVALID_CREATION_CTX),
                         (const char *) dbname.str,
                         (const char *) name.str);
   }

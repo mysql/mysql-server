@@ -5655,7 +5655,7 @@ restart:
   {
     reset_statement_timer(thd);
     push_warning(thd, Sql_condition::SL_NOTE, ER_NON_RO_SELECT_DISABLE_TIMER,
-                 ER(ER_NON_RO_SELECT_DISABLE_TIMER));
+                 ER_THD(thd, ER_NON_RO_SELECT_DISABLE_TIMER));
   }
 #endif
 
@@ -8966,7 +8966,7 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
     meaningful message than ER_BAD_TABLE_ERROR.
   */
   if (!table_name || !*table_name)
-    my_message(ER_NO_TABLES_USED, ER(ER_NO_TABLES_USED), MYF(0));
+    my_error(ER_NO_TABLES_USED, MYF(0));
   else
   {
     String tbl_name;
@@ -9057,7 +9057,7 @@ fill_record(THD * thd, List<Item> &fields, List<Item> &values,
       table->auto_increment_field_not_null= TRUE;
     if (value->save_in_field(rfield, false) < 0)
     {
-      my_message(ER_UNKNOWN_ERROR, ER(ER_UNKNOWN_ERROR), MYF(0));
+      my_error(ER_UNKNOWN_ERROR, MYF(0));
       goto err;
     }
     bitmap_set_bit(table->fields_set_during_insert, rfield->field_index);
@@ -9106,7 +9106,7 @@ static bool check_record(THD *thd, List<Item> &fields)
     if (field &&
         field->field->check_constraints(ER_BAD_NULL_ERROR) != TYPE_OK)
     {
-      my_message(ER_UNKNOWN_ERROR, ER(ER_UNKNOWN_ERROR), MYF(0));
+      my_error(ER_UNKNOWN_ERROR, MYF(0));
       return true;
     }
   }

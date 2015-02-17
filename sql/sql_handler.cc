@@ -783,7 +783,7 @@ retry:
       break;
     }
     default:
-      my_message(ER_ILLEGAL_HA, ER(ER_ILLEGAL_HA), MYF(0));
+      my_error(ER_ILLEGAL_HA, MYF(0));
       goto err;
     }
 

@@ -408,7 +408,7 @@ void PFS_engine_table_share::check_one_table(THD *thd)
     close_thread_tables(thd);
   }
   else
-    sql_print_error(ER(ER_WRONG_NATIVE_TABLE_STRUCTURE),
+    sql_print_error(ER_DEFAULT(ER_WRONG_NATIVE_TABLE_STRUCTURE),
                     PERFORMANCE_SCHEMA_str.str, m_name.str);
 
   lex_end(&dummy_lex);

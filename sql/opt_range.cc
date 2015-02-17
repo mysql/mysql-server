@@ -5874,7 +5874,7 @@ if_explain_warn_index_not_applicable(const RANGE_OPT_PARAM *param,
             param->thd,
             Sql_condition::SL_WARNING,
             ER_WARN_INDEX_NOT_APPLICABLE,
-            ER(ER_WARN_INDEX_NOT_APPLICABLE),
+            ER_THD(param->thd, ER_WARN_INDEX_NOT_APPLICABLE),
             "range",
             field->table->key_info[param->real_keynr[key_num]].name,
             field->field_name);

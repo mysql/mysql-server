@@ -1952,7 +1952,7 @@ static bool check_acl_for_explain(const TABLE_LIST *table_list)
   {
     if (tbl->is_view() && tbl->view_no_explain)
     {
-      my_message(ER_VIEW_NO_EXPLAIN, ER(ER_VIEW_NO_EXPLAIN), MYF(0));
+      my_error(ER_VIEW_NO_EXPLAIN, MYF(0));
       return true;
     }
   }
@@ -2391,8 +2391,8 @@ void mysql_explain_other(THD *thd)
                  thd->security_context()->priv_user().str,
                  thd->security_context()->priv_host().str,
                  (thd->password ?
-                  ER(ER_YES) :
-                  ER(ER_NO)));
+                  ER_THD(thd, ER_YES) :
+                  ER_THD(thd, ER_NO)));
         goto err;
       }
       mysql_mutex_unlock(&query_thd->LOCK_thd_data);

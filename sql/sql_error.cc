@@ -427,7 +427,7 @@ void Diagnostics_area::set_eof_status(THD *thd)
 void Diagnostics_area::set_error_status(uint mysql_errno)
 {
   set_error_status(mysql_errno,
-                   ER(mysql_errno),
+                   ER_THD(current_thd, mysql_errno),
                    mysql_errno_to_sqlstate(mysql_errno));
 }
 

@@ -634,7 +634,7 @@ default_local_infile_error(void *ptr, char *error_msg, uint error_msg_len)
     return data->error_num;
   }
   /* This can only happen if we got error on malloc of handle */
-  my_stpcpy(error_msg, ER(CR_OUT_OF_MEMORY));
+  my_stpcpy(error_msg, ER_CLIENT(CR_OUT_OF_MEMORY));
   return CR_OUT_OF_MEMORY;
 }
 
@@ -1187,7 +1187,7 @@ mysql_real_escape_string(MYSQL *mysql, char *to,const char *from,
                ("NO_BACKSLASH_ESCAPES sql mode requires usage of the "
                 "mysql_real_escape_string_quote function"));
     set_mysql_extended_error(mysql, CR_INSECURE_API_ERR, unknown_sqlstate,
-                             ER(CR_INSECURE_API_ERR),
+                             ER_CLIENT(CR_INSECURE_API_ERR),
                              "mysql_real_escape_string",
                              "mysql_real_escape_string_quote");
     return (ulong)-1;
@@ -1373,7 +1373,7 @@ static my_bool my_realloc_str(NET *net, ulong length)
         net->last_errno= CR_NET_PACKET_TOO_LARGE;
 
       my_stpcpy(net->sqlstate, unknown_sqlstate);
-      my_stpcpy(net->last_error, ER(net->last_errno));
+      my_stpcpy(net->last_error, ER_CLIENT(net->last_errno));
     }
     net->write_pos= net->buff+ buf_length;
   }
@@ -1400,14 +1400,14 @@ void set_stmt_error(MYSQL_STMT * stmt, int errcode,
                     const char *sqlstate, const char *err)
 {
   DBUG_ENTER("set_stmt_error");
-  DBUG_PRINT("enter", ("error: %d '%s'", errcode, ER(errcode)));
+  DBUG_PRINT("enter", ("error: %d '%s'", errcode, ER_CLIENT(errcode)));
   DBUG_ASSERT(stmt != 0);
 
   if (err == 0)
-    err= ER(errcode);
+    err= ER_CLIENT(errcode);
 
   stmt->last_errno= errcode;
-  my_stpcpy(stmt->last_error, ER(errcode));
+  my_stpcpy(stmt->last_error, ER_CLIENT(errcode));
   my_stpcpy(stmt->sqlstate, sqlstate);
 
   DBUG_VOID_RETURN;
@@ -2953,7 +2953,7 @@ my_bool STDCALL mysql_stmt_bind_param(MYSQL_STMT *stmt, MYSQL_BIND *my_bind)
     default:
       my_stpcpy(stmt->sqlstate, unknown_sqlstate);
       sprintf(stmt->last_error,
-	      ER(stmt->last_errno= CR_UNSUPPORTED_PARAM_TYPE),
+	      ER_CLIENT(stmt->last_errno= CR_UNSUPPORTED_PARAM_TYPE),
 	      param->buffer_type, count);
       DBUG_RETURN(1);
     }
@@ -3039,7 +3039,7 @@ mysql_stmt_send_long_data(MYSQL_STMT *stmt, uint param_number,
   {
     /* Long data handling should be used only for string/binary types */
     my_stpcpy(stmt->sqlstate, unknown_sqlstate);
-    sprintf(stmt->last_error, ER(stmt->last_errno= CR_INVALID_BUFFER_USE),
+    sprintf(stmt->last_error, ER_CLIENT(stmt->last_errno= CR_INVALID_BUFFER_USE),
 	    param->param_number);
     DBUG_RETURN(1);
   }
@@ -4172,7 +4172,7 @@ my_bool STDCALL mysql_stmt_bind_result(MYSQL_STMT *stmt, MYSQL_BIND *my_bind)
     {
       my_stpcpy(stmt->sqlstate, unknown_sqlstate);
       sprintf(stmt->last_error,
-              ER(stmt->last_errno= CR_UNSUPPORTED_PARAM_TYPE),
+              ER_CLIENT(stmt->last_errno= CR_UNSUPPORTED_PARAM_TYPE),
               field->type, param_count);
       DBUG_RETURN(1);
     }

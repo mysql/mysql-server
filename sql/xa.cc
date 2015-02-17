@@ -187,7 +187,7 @@ int ha_recover(HASH *commit_list)
   }
   if (!info.list)
   {
-    sql_print_error(ER(ER_OUTOFMEMORY),
+    sql_print_error(ER_DEFAULT(ER_OUTOFMEMORY),
                     static_cast<int>(info.len * sizeof(XID)));
     DBUG_RETURN(1);
   }

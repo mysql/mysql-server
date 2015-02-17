@@ -1364,7 +1364,7 @@ int ha_prepare(THD *thd)
       else
       {
         push_warning_printf(thd, Sql_condition::SL_WARNING,
-                            ER_ILLEGAL_HA, ER(ER_ILLEGAL_HA),
+                            ER_ILLEGAL_HA, ER_THD(thd, ER_ILLEGAL_HA),
                             ha_resolve_storage_engine_name(ht));
       }
       ha_info= ha_info->next();
@@ -3465,7 +3465,8 @@ void print_keydup_error(TABLE *table, KEY *key, const char *msg, myf errflag)
 
 void print_keydup_error(TABLE *table, KEY *key, myf errflag)
 {
-  print_keydup_error(table, key, ER(ER_DUP_ENTRY_WITH_KEY_NAME), errflag);
+  print_keydup_error(table, key,
+                     ER_THD(current_thd, ER_DUP_ENTRY_WITH_KEY_NAME), errflag);
 }
 
 

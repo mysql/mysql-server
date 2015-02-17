@@ -342,7 +342,8 @@ my_decimal *Item::val_decimal_from_string(my_decimal *decimal_value)
     ErrConvString err(res);
     push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                         ER_TRUNCATED_WRONG_VALUE,
-                        ER(ER_TRUNCATED_WRONG_VALUE), "DECIMAL",
+                        ER_THD(current_thd, ER_TRUNCATED_WRONG_VALUE),
+                        "DECIMAL",
                         err.ptr());
   }
   return decimal_value;
@@ -1158,11 +1159,13 @@ void Item_name_string::copy(const char *str_arg, size_t length_arg,
     ErrConvString tmp(str_arg, static_cast<uint>(length_arg), cs_arg);
     if (length() == 0)
       push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-                          ER_NAME_BECOMES_EMPTY, ER(ER_NAME_BECOMES_EMPTY),
+                          ER_NAME_BECOMES_EMPTY,
+                          ER_THD(current_thd, ER_NAME_BECOMES_EMPTY),
                           tmp.ptr());
     else
       push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-                          ER_REMOVED_SPACES, ER(ER_REMOVED_SPACES),
+                          ER_REMOVED_SPACES,
+                          ER_THD(current_thd, ER_REMOVED_SPACES),
                           tmp.ptr());
   }
 }
@@ -3450,7 +3453,8 @@ double_from_string_with_check (const CHARSET_INFO *cs,
     ErrConvString err(cptr, org_end - cptr, cs);
     push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                         ER_TRUNCATED_WRONG_VALUE,
-                        ER(ER_TRUNCATED_WRONG_VALUE), "DOUBLE",
+                        ER_THD(current_thd, ER_TRUNCATED_WRONG_VALUE),
+                        "DOUBLE",
                         err.ptr());
   }
   return tmp;
@@ -3485,7 +3489,8 @@ longlong_from_string_with_check (const CHARSET_INFO *cs,
     ErrConvString err(cptr, cs);
     push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                         ER_TRUNCATED_WRONG_VALUE,
-                        ER(ER_TRUNCATED_WRONG_VALUE), "INTEGER",
+                        ER_THD(current_thd, ER_TRUNCATED_WRONG_VALUE),
+                        "INTEGER",
                         err.ptr());
   }
   return tmp;
@@ -4867,7 +4872,7 @@ static void mark_as_dependent(THD *thd, SELECT_LEX *last, SELECT_LEX *current,
     uint sel_nr= (last->select_number < INT_MAX) ? last->select_number :
                   last->master_unit()->first_select()->select_number;
     push_warning_printf(thd, Sql_condition::SL_NOTE,
-		 ER_WARN_FIELD_RESOLVED, ER(ER_WARN_FIELD_RESOLVED),
+		 ER_WARN_FIELD_RESOLVED, ER_THD(thd, ER_WARN_FIELD_RESOLVED),
                  db_name, (db_name[0] ? "." : ""),
                  table_name, (table_name [0] ? "." : ""),
                  resolved_item->field_name,
@@ -5139,8 +5144,8 @@ resolve_ref_in_select_and_group(THD *thd, Item_ident *ref, SELECT_LEX *select)
     {
       ambiguous_fields= TRUE;
       push_warning_printf(thd, Sql_condition::SL_WARNING, ER_NON_UNIQ_ERROR,
-                          ER(ER_NON_UNIQ_ERROR), ref->full_name(),
-                          current_thd->where);
+                          ER_THD(thd, ER_NON_UNIQ_ERROR), ref->full_name(),
+                          thd->where);
 
     }
   }
@@ -6086,7 +6091,8 @@ String *Item::check_well_formed_result(String *str, bool send_error)
     }
     push_warning_printf(thd, Sql_condition::SL_WARNING,
                         ER_INVALID_CHARACTER_STRING,
-                        ER(ER_INVALID_CHARACTER_STRING), cs->csname, hexbuf);
+                        ER_THD(thd, ER_INVALID_CHARACTER_STRING),
+                        cs->csname, hexbuf);
   }
   return str;
 }
@@ -8324,8 +8330,7 @@ Item_default_value::save_in_field(Field *field_arg, bool no_conversions)
     {
       if (field_arg->reset())
       {
-        my_message(ER_CANT_CREATE_GEOMETRY_OBJECT,
-                   ER(ER_CANT_CREATE_GEOMETRY_OBJECT), MYF(0));
+        my_error(ER_CANT_CREATE_GEOMETRY_OBJECT, MYF(0));
         return TYPE_ERR_BAD_VALUE;
       }
 
@@ -8335,7 +8340,7 @@ Item_default_value::save_in_field(Field *field_arg, bool no_conversions)
         push_warning_printf(field_arg->table->in_use,
                             Sql_condition::SL_WARNING,
                             ER_NO_DEFAULT_FOR_VIEW_FIELD,
-                            ER(ER_NO_DEFAULT_FOR_VIEW_FIELD),
+                            ER_THD(field_arg->table->in_use, ER_NO_DEFAULT_FOR_VIEW_FIELD),
                             view->view_db.str,
                             view->view_name.str);
       }
@@ -8344,7 +8349,7 @@ Item_default_value::save_in_field(Field *field_arg, bool no_conversions)
         push_warning_printf(field_arg->table->in_use,
                             Sql_condition::SL_WARNING,
                             ER_NO_DEFAULT_FOR_FIELD,
-                            ER(ER_NO_DEFAULT_FOR_FIELD),
+                            ER_THD(field_arg->table->in_use, ER_NO_DEFAULT_FOR_FIELD),
                             field_arg->field_name);
       }
       return TYPE_ERR_BAD_VALUE;

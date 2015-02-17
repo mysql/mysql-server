@@ -661,7 +661,7 @@ table_def::compatible_with(THD *thd, Relay_log_info *rli,
       show_sql_type(type(col), field_metadata(col), &source_type, field->charset());
       field->sql_type(target_type);
       rli->report(ERROR_LEVEL, ER_SLAVE_CONVERSION_FAILED,
-                  ER(ER_SLAVE_CONVERSION_FAILED),
+                  ER_THD(thd, ER_SLAVE_CONVERSION_FAILED),
                   col, db_name, tbl_name,
                   source_type.c_ptr_safe(), target_type.c_ptr_safe());
       return false;
@@ -802,7 +802,7 @@ TABLE *table_def::create_conversion_table(THD *thd, Relay_log_info *rli, TABLE *
 err:
   if (conv_table == NULL)
     rli->report(ERROR_LEVEL, ER_SLAVE_CANT_CREATE_CONVERSION,
-                ER(ER_SLAVE_CANT_CREATE_CONVERSION),
+                ER_THD(thd, ER_SLAVE_CANT_CREATE_CONVERSION),
                 target_table->s->db.str,
                 target_table->s->table_name.str);
   DBUG_RETURN(conv_table);

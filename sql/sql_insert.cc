@@ -829,12 +829,12 @@ bool Sql_cmd_insert::mysql_insert(THD *thd,TABLE_LIST *table_list)
                      info.stats.touched : info.stats.updated);
     if (thd->lex->is_ignore())
       my_snprintf(buff, sizeof(buff),
-                  ER(ER_INSERT_INFO), (long) info.stats.records,
+                  ER_THD(thd, ER_INSERT_INFO), (long) info.stats.records,
                   (long) (info.stats.records - info.stats.copied),
                   (long) thd->get_stmt_da()->current_statement_cond_count());
     else
       my_snprintf(buff, sizeof(buff),
-                  ER(ER_INSERT_INFO), (long) info.stats.records,
+                  ER_THD(thd, ER_INSERT_INFO), (long) info.stats.records,
                   (long) (info.stats.deleted + updated),
                   (long) thd->get_stmt_da()->current_statement_cond_count());
     my_ok(thd, info.stats.copied + info.stats.deleted + updated, id, buff);
@@ -2335,12 +2335,12 @@ bool Query_result_insert::send_eof()
   char buff[160];
   if (thd->lex->is_ignore())
     my_snprintf(buff, sizeof(buff),
-                ER(ER_INSERT_INFO), (long) info.stats.records,
+                ER_THD(thd, ER_INSERT_INFO), (long) info.stats.records,
                 (long) (info.stats.records - info.stats.copied),
                 (long) thd->get_stmt_da()->current_statement_cond_count());
   else
     my_snprintf(buff, sizeof(buff),
-                ER(ER_INSERT_INFO), (long) info.stats.records,
+                ER_THD(thd, ER_INSERT_INFO), (long) info.stats.records,
                 (long) (info.stats.deleted+info.stats.updated),
                 (long) thd->get_stmt_da()->current_statement_cond_count());
   row_count= info.stats.copied + info.stats.deleted +

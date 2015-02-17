@@ -1081,7 +1081,7 @@ static bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
     else
       push_warning(thd, Sql_condition::SL_WARNING,
                    ER_WRONG_EXPR_IN_PARTITION_FUNC_ERROR,
-                   ER(ER_WRONG_EXPR_IN_PARTITION_FUNC_ERROR));
+                   ER_THD(thd, ER_WRONG_EXPR_IN_PARTITION_FUNC_ERROR));
   }
 
   if ((!is_sub_part) && (error= check_signed_flag(part_info)))
@@ -4561,7 +4561,7 @@ static void fast_end_partition(THD *thd, ulonglong copied,
 
   query_cache.invalidate(thd, table_list, FALSE);
 
-  my_snprintf(tmp_name, sizeof(tmp_name), ER(ER_INSERT_INFO),
+  my_snprintf(tmp_name, sizeof(tmp_name), ER_THD(thd, ER_INSERT_INFO),
               (ulong) (copied + deleted),
               (ulong) deleted,
               (ulong) 0);

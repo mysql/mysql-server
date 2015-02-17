@@ -128,8 +128,7 @@ bool Sql_cmd_delete::mysql_delete(THD *thd, ha_rows limit)
   const_cond= (!conds || conds->const_item());
   if (safe_update && const_cond)
   {
-    my_message(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE,
-               ER(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE), MYF(0));
+    my_error(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE, MYF(0));
     DBUG_RETURN(TRUE);
   }
 
@@ -309,8 +308,7 @@ bool Sql_cmd_delete::mysql_delete(THD *thd, ha_rows limit)
     if (safe_update && !using_limit)
     {
       free_underlaid_joins(thd, select_lex);
-      my_message(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE,
-                 ER(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE), MYF(0));
+      my_error(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE, MYF(0));
       DBUG_RETURN(TRUE);
     }
   }

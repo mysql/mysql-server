@@ -87,7 +87,7 @@ void Sql_cmd_common_signal::assign_defaults(
     cond->m_mysql_errno= sqlcode;
   }
   if (! cond->message_text())
-    cond->set_message_text(ER(sqlcode));
+    cond->set_message_text(ER_THD(current_thd, sqlcode));
 }
 
 void Sql_cmd_common_signal::eval_defaults(THD *thd, Sql_condition *cond)

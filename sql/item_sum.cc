@@ -94,8 +94,7 @@ bool Item_sum::init_sum_func_check(THD *thd)
 {
   if (!thd->lex->allow_sum_func)
   {
-    my_message(ER_INVALID_GROUP_FUNC_USE, ER(ER_INVALID_GROUP_FUNC_USE),
-               MYF(0));
+    my_error(ER_INVALID_GROUP_FUNC_USE, MYF(0));
     return TRUE;
   }
   /* Set a reference to the nesting set function if there is  any */
@@ -214,8 +213,7 @@ bool Item_sum::check_sum_func(THD *thd, Item **ref)
     invalid= aggr_level <= max_sum_func_level;
   if (invalid)  
   {
-    my_message(ER_INVALID_GROUP_FUNC_USE, ER(ER_INVALID_GROUP_FUNC_USE),
-               MYF(0));
+    my_error(ER_INVALID_GROUP_FUNC_USE, MYF(0));
     return TRUE;
   }
 
@@ -3266,7 +3264,8 @@ int dump_leaf_key(void* key_arg, element_count count __attribute__((unused)),
     result->length(old_length + add_length);
     item->warning_for_row= TRUE;
     push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-                        ER_CUT_VALUE_GROUP_CONCAT, ER(ER_CUT_VALUE_GROUP_CONCAT),
+                        ER_CUT_VALUE_GROUP_CONCAT,
+                        ER_THD(current_thd, ER_CUT_VALUE_GROUP_CONCAT),
                         item->row_count);
 
     /**
@@ -3764,7 +3763,8 @@ String* Item_func_group_concat::val_str(String* str)
   {
     warning_for_row= true;
     push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-                        ER_CUT_VALUE_GROUP_CONCAT, ER(ER_CUT_VALUE_GROUP_CONCAT),
+                        ER_CUT_VALUE_GROUP_CONCAT,
+                        ER_THD(current_thd, ER_CUT_VALUE_GROUP_CONCAT),
                         row_count);
   }
 

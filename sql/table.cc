@@ -177,7 +177,7 @@ View_creation_ctx * View_creation_ctx::create(THD *thd,
   {
     push_warning_printf(thd, Sql_condition::SL_NOTE,
                         ER_VIEW_NO_CREATION_CTX,
-                        ER(ER_VIEW_NO_CREATION_CTX),
+                        ER_THD(thd, ER_VIEW_NO_CREATION_CTX),
                         (const char *) view->db,
                         (const char *) view->table_name);
 
@@ -211,7 +211,7 @@ View_creation_ctx * View_creation_ctx::create(THD *thd,
 
     push_warning_printf(thd, Sql_condition::SL_NOTE,
                         ER_VIEW_INVALID_CREATION_CTX,
-                        ER(ER_VIEW_INVALID_CREATION_CTX),
+                        ER_THD(thd, ER_VIEW_INVALID_CREATION_CTX),
                         (const char *) view->db,
                         (const char *) view->table_name);
   }
@@ -3927,7 +3927,7 @@ Table_check_intact::check(TABLE *table, const TABLE_FIELD_DEF *table_def)
     if (MYSQL_VERSION_ID > table->s->mysql_version)
     {
       report_error(ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE_V2,
-                   ER(ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE_V2),
+                   ER_THD(current_thd, ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE_V2),
                    table->s->db.str, table->alias,
                    table_def->count, table->s->fields,
                    static_cast<int>(table->s->mysql_version),
@@ -3937,7 +3937,7 @@ Table_check_intact::check(TABLE *table, const TABLE_FIELD_DEF *table_def)
     else if (MYSQL_VERSION_ID == table->s->mysql_version)
     {
       report_error(ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2,
-                   ER(ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2),
+                   ER_THD(current_thd, ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2),
                    table->s->db.str, table->s->table_name.str,
                    table_def->count, table->s->fields);
       DBUG_RETURN(TRUE);
@@ -5055,7 +5055,7 @@ bool TABLE_LIST::prepare_view_securety_context(THD *thd)
       {
         push_warning_printf(thd, Sql_condition::SL_NOTE,
                             ER_NO_SUCH_USER, 
-                            ER(ER_NO_SUCH_USER),
+                            ER_THD(thd, ER_NO_SUCH_USER),
                             definer.user.str, definer.host.str);
       }
       else
@@ -5075,7 +5075,7 @@ bool TABLE_LIST::prepare_view_securety_context(THD *thd)
             my_error(ER_ACCESS_DENIED_ERROR, MYF(0),
                      thd->security_context()->priv_user().str,
                      thd->security_context()->priv_host().str,
-                     (thd->password ?  ER(ER_YES) : ER(ER_NO)));
+                     (thd->password ?  ER_THD(thd, ER_YES) : ER_THD(thd, ER_NO)));
         }
         DBUG_RETURN(TRUE);
       }

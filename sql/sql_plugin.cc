@@ -23,6 +23,7 @@
 #include "auth_common.h"       // check_table_access
 #include "current_thd.h"
 #include "debug_sync.h"        // DEBUG_SYNC
+#include "derror.h"            // ER_THD
 #include "handler.h"           // ha_initalize_handlerton
 #include "item.h"              // Item
 #include "key.h"               // key_copy
@@ -346,7 +347,7 @@ static void report_error(int where_to, uint error, ...)
   if (where_to & REPORT_TO_USER)
   {
     va_start(args, error);
-    my_printv_error(error, ER(error), MYF(0), args);
+    my_printv_error(error, ER_THD(current_thd, error), MYF(0), args);
     va_end(args);
   }
   if (where_to & REPORT_TO_LOG)
@@ -1635,7 +1636,7 @@ static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv)
   }
   mysql_mutex_unlock(&LOCK_plugin);
   if (error > 0)
-    sql_print_error(ER(ER_GET_ERRNO), my_errno);
+    sql_print_error(ER_THD(new_thd, ER_GET_ERRNO), my_errno);
   end_read_record(&read_record_info);
   table->m_needs_reopen= TRUE;                  // Force close to free memory
 
@@ -1975,7 +1976,8 @@ static bool mysql_install_plugin(THD *thd, const LEX_STRING *name,
   if (tmp->state == PLUGIN_IS_DISABLED)
   {
     push_warning_printf(thd, Sql_condition::SL_WARNING,
-                        ER_CANT_INITIALIZE_UDF, ER(ER_CANT_INITIALIZE_UDF),
+                        ER_CANT_INITIALIZE_UDF,
+                        ER_THD(thd, ER_CANT_INITIALIZE_UDF),
                         name->str, "Plugin is disabled");
   }
   else
@@ -2155,7 +2157,7 @@ static bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name)
   plugin->state= PLUGIN_IS_DELETED;
   if (plugin->ref_count)
     push_warning(thd, Sql_condition::SL_WARNING,
-                 WARN_PLUGIN_BUSY, ER(WARN_PLUGIN_BUSY));
+                 WARN_PLUGIN_BUSY, ER_THD(thd, WARN_PLUGIN_BUSY));
   else
     reap_needed= true;
   reap_plugins();

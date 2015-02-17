@@ -2079,7 +2079,8 @@ check_max_allowed_packet(sys_var *self, THD *thd,  set_var *var)
   if (val < (longlong) global_system_variables.net_buffer_length)
   {
     push_warning_printf(thd, Sql_condition::SL_WARNING,
-                        WARN_OPTION_BELOW_LIMIT, ER(WARN_OPTION_BELOW_LIMIT),
+                        WARN_OPTION_BELOW_LIMIT,
+                        ER_THD(thd, WARN_OPTION_BELOW_LIMIT),
                         "max_allowed_packet", "net_buffer_length");
   }
   return false;
@@ -2392,7 +2393,8 @@ check_net_buffer_length(sys_var *self, THD *thd,  set_var *var)
   if (val > (longlong) global_system_variables.max_allowed_packet)
   {
     push_warning_printf(thd, Sql_condition::SL_WARNING,
-                        WARN_OPTION_BELOW_LIMIT, ER(WARN_OPTION_BELOW_LIMIT),
+                        WARN_OPTION_BELOW_LIMIT,
+                        ER_THD(thd, WARN_OPTION_BELOW_LIMIT),
                         "max_allowed_packet", "net_buffer_length");
   }
   return false;
@@ -2920,8 +2922,8 @@ static bool fix_query_cache_size(sys_var *self, THD *thd, enum_var_type type)
      requested cache size. See also query_cache_size_arg
   */
   if (query_cache_size != new_cache_size)
-    push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-                        ER_WARN_QC_RESIZE, ER(ER_WARN_QC_RESIZE),
+    push_warning_printf(thd, Sql_condition::SL_WARNING,
+                        ER_WARN_QC_RESIZE, ER_THD(thd, ER_WARN_QC_RESIZE),
                         query_cache_size, new_cache_size);
 
   query_cache_size= new_cache_size;
@@ -3531,9 +3533,9 @@ bool Sys_var_enforce_gtid_consistency::global_update(THD *thd, set_var *var)
       }
       else
       {
-        push_warning_printf(thd, Sql_condition::SL_WARNING,
-                            ER_SET_ENFORCE_GTID_CONSISTENCY_WARN_WITH_ONGOING_GTID_VIOLATING_TRANSACTIONS,
-                            "%s", ER(ER_SET_ENFORCE_GTID_CONSISTENCY_WARN_WITH_ONGOING_GTID_VIOLATING_TRANSACTIONS));
+        push_warning(thd, Sql_condition::SL_WARNING,
+                     ER_SET_ENFORCE_GTID_CONSISTENCY_WARN_WITH_ONGOING_GTID_VIOLATING_TRANSACTIONS,
+                     ER_THD(thd, ER_SET_ENFORCE_GTID_CONSISTENCY_WARN_WITH_ONGOING_GTID_VIOLATING_TRANSACTIONS));
       }
     }
   }
@@ -3605,7 +3607,7 @@ void unset_removed_sql_modes(sql_mode_t &sql_mode)
     {
       push_warning_printf(thd, Sql_condition::SL_WARNING,
                           ER_SQL_MODE_NO_EFFECT,
-                          ER(ER_SQL_MODE_NO_EFFECT),
+                          ER_THD(thd, ER_SQL_MODE_NO_EFFECT),
                           "ERROR_FOR_DIVISION_BY_ZERO");
     }
 
@@ -3613,7 +3615,7 @@ void unset_removed_sql_modes(sql_mode_t &sql_mode)
     {
       push_warning_printf(thd, Sql_condition::SL_WARNING,
                           ER_SQL_MODE_NO_EFFECT,
-                          ER(ER_SQL_MODE_NO_EFFECT),
+                          ER_THD(thd, ER_SQL_MODE_NO_EFFECT),
                           "NO_ZERO_DATE");
     }
 
@@ -3621,7 +3623,7 @@ void unset_removed_sql_modes(sql_mode_t &sql_mode)
     {
       push_warning_printf(thd, Sql_condition::SL_WARNING,
                           ER_SQL_MODE_NO_EFFECT,
-                          ER(ER_SQL_MODE_NO_EFFECT),
+                          ER_THD(thd, ER_SQL_MODE_NO_EFFECT),
                           "NO_ZERO_IN_DATE");
     }
   }
@@ -3702,7 +3704,7 @@ export sql_mode_t expand_sql_mode(sql_mode_t sql_mode)
     {
       push_warning_printf(thd, Sql_condition::SL_WARNING,
                           ER_WARN_DEPRECATED_SQLMODE,
-                          ER(ER_WARN_DEPRECATED_SQLMODE),
+                          ER_THD(thd, ER_WARN_DEPRECATED_SQLMODE),
                           "NO_AUTO_CREATE_USER");
     }
     else
@@ -4019,7 +4021,7 @@ uchar *Sys_var_sql_log_bin::global_value_ptr(THD *thd, LEX_STRING *base)
   if (base != NULL)
     push_warning_printf(thd, Sql_condition::SL_WARNING,
                         ER_WARN_DEPRECATED_SYNTAX,
-                        ER(ER_WARN_DEPRECATED_SYNTAX),
+                        ER_THD(thd, ER_WARN_DEPRECATED_SYNTAX),
                         "@@global.sql_log_bin", "the constant 1 "
                         "(since @@global.sql_log_bin is always equal to 1)");
 
@@ -4947,7 +4949,7 @@ static bool fix_slave_net_timeout(sys_var *self, THD *thd, enum_var_type type)
     if (mi != NULL && slave_net_timeout < mi->heartbeat_period)
       push_warning(thd, Sql_condition::SL_WARNING,
                    ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX,
-                   ER(ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX));
+                   ER_THD(thd, ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX));
   }
 
   mysql_mutex_unlock(&LOCK_msr_map);
@@ -4974,9 +4976,7 @@ static bool check_slave_skip_counter(sys_var *self, THD *thd, set_var *var)
   */
   if (get_gtid_mode(GTID_MODE_LOCK_NONE) == GTID_MODE_ON)
   {
-    my_message(ER_SQL_SLAVE_SKIP_COUNTER_NOT_SETTABLE_IN_GTID_MODE,
-               ER(ER_SQL_SLAVE_SKIP_COUNTER_NOT_SETTABLE_IN_GTID_MODE),
-               MYF(0));
+    my_error(ER_SQL_SLAVE_SKIP_COUNTER_NOT_SETTABLE_IN_GTID_MODE, MYF(0));
     return true;
   }
 
@@ -5365,9 +5365,9 @@ bool Sys_var_gtid_purged::global_update(THD *thd, set_var *var)
   }
 
   // Log messages saying that GTID_PURGED and GTID_EXECUTED were changed.
-  sql_print_information(ER(ER_GTID_PURGED_WAS_CHANGED),
+  sql_print_information(ER_DEFAULT(ER_GTID_PURGED_WAS_CHANGED),
                         previous_gtid_lost, current_gtid_lost);
-  sql_print_information(ER(ER_GTID_EXECUTED_WAS_CHANGED),
+  sql_print_information(ER_DEFAULT(ER_GTID_EXECUTED_WAS_CHANGED),
                         previous_gtid_executed, current_gtid_executed);
 
   // Rotate logs to have Previous_gtid_event on last binlog.

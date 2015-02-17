@@ -527,8 +527,8 @@ ha_rows filesort(THD *thd, QEP_TAB *qep_tab, Filesort *filesort,
     const char *cause= kill_errno
                        ? ((kill_errno == THD::KILL_CONNECTION
                          && !connection_events_loop_aborted())
-                         ? ER(THD::KILL_QUERY)
-                         : ER(kill_errno))
+                          ? ER_THD(thd, THD::KILL_QUERY)
+                          : ER_THD(thd, kill_errno))
                        : thd->get_stmt_da()->message_text();
     const char *msg=   ER_THD(thd, ER_FILSORT_ABORT);
 

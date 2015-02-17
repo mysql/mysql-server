@@ -1124,7 +1124,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       my_error(ER_ACCESS_DENIED_CHANGE_USER_ERROR, MYF(0),
                thd->security_context()->user().str,
                thd->security_context()->host_or_ip().str,
-               (thd->password ? ER(ER_YES) : ER(ER_NO)));
+               (thd->password ? ER_THD(thd, ER_YES) : ER_THD(thd, ER_NO)));
       thd->killed= THD::KILL_CONNECTION;
       error=true;
     }
@@ -1314,7 +1314,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     /* Check given table name length. */
     if (arg_length >= packet_length || arg_length > NAME_LEN)
     {
-      my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
+      my_error(ER_UNKNOWN_COM_ERROR, MYF(0));
       break;
     }
     thd->convert_string(&table_name, system_charset_info,
@@ -1598,7 +1598,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       my_eof(thd);
       break;
     default:
-      my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
+      my_error(ER_UNKNOWN_COM_ERROR, MYF(0));
       break;
     }
     break;
@@ -1617,7 +1617,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   case COM_DELAYED_INSERT: // INSERT DELAYED has been removed.
   case COM_END:
   default:
-    my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
+    my_error(ER_UNKNOWN_COM_ERROR, MYF(0));
     break;
   }
 
@@ -1904,7 +1904,7 @@ bool sp_process_definer(THD *thd)
     push_warning_printf(thd,
                         Sql_condition::SL_NOTE,
                         ER_NO_SUCH_USER,
-                        ER(ER_NO_SUCH_USER),
+                        ER_THD(thd, ER_NO_SUCH_USER),
                         lex->definer->user.str,
                         lex->definer->host.str);
   }
@@ -2190,7 +2190,7 @@ mysql_execute_command(THD *thd)
       if (all_tables_not_ok(thd, all_tables))
       {
         /* we warn the slave SQL thread */
-        my_message(ER_SLAVE_IGNORED_TABLE, ER(ER_SLAVE_IGNORED_TABLE), MYF(0));
+        my_error(ER_SLAVE_IGNORED_TABLE, MYF(0));
         DBUG_RETURN(0);
       }
       
@@ -2218,7 +2218,7 @@ mysql_execute_command(THD *thd)
         all_tables_not_ok(thd, all_tables))
     {
       /* we warn the slave SQL thread */
-      my_message(ER_SLAVE_IGNORED_TABLE, ER(ER_SLAVE_IGNORED_TABLE), MYF(0));
+      my_error(ER_SLAVE_IGNORED_TABLE, MYF(0));
       DBUG_RETURN(0);
     }
     /* 
@@ -2764,7 +2764,7 @@ case SQLCOM_PREPARE:
           {
             push_warning_printf(thd, Sql_condition::SL_NOTE,
                                 ER_TABLE_EXISTS_ERROR,
-                                ER(ER_TABLE_EXISTS_ERROR),
+                                ER_THD(thd, ER_TABLE_EXISTS_ERROR),
                                 create_info.alias);
             my_ok(thd);
           }
@@ -2920,24 +2920,19 @@ end_with_restore_list:
     switch (res)
     {
       case 1: //GROUP_REPLICATION_CONFIGURATION_ERROR
-        my_message(ER_GROUP_REPLICATION_CONFIGURATION,
-                   ER(ER_GROUP_REPLICATION_CONFIGURATION), MYF(0));
+        my_error(ER_GROUP_REPLICATION_CONFIGURATION, MYF(0));
         goto error;
       case 2: //GROUP_REPLICATION_ALREADY_RUNNING
-        my_message(ER_GROUP_REPLICATION_RUNNING,
-                   ER(ER_GROUP_REPLICATION_RUNNING), MYF(0));
+        my_error(ER_GROUP_REPLICATION_RUNNING, MYF(0));
         goto error;
       case 3: //GROUP_REPLICATION_REPLICATION_APPLIER_INIT_ERROR
-        my_message(ER_GROUP_REPLICATION_APPLIER_INIT_ERROR,
-                   ER(ER_GROUP_REPLICATION_APPLIER_INIT_ERROR), MYF(0));
+        my_error(ER_GROUP_REPLICATION_APPLIER_INIT_ERROR, MYF(0));
         goto error;
       case 4: //GROUP_REPLICATION_COMMUNICATION_LAYER_JOIN_ERROR
-        my_message(ER_GROUP_REPLICATION_COMMUNICATION_LAYER_SESSION_ERROR,
-                   ER(ER_GROUP_REPLICATION_COMMUNICATION_LAYER_SESSION_ERROR), MYF(0));
+        my_error(ER_GROUP_REPLICATION_COMMUNICATION_LAYER_SESSION_ERROR, MYF(0));
         goto error;
       case 5: //GROUP_REPLICATION_COMMUNICATION_LAYER_SESSION_ERROR
-        my_message(ER_GROUP_REPLICATION_COMMUNICATION_LAYER_JOIN_ERROR,
-                   ER(ER_GROUP_REPLICATION_COMMUNICATION_LAYER_JOIN_ERROR), MYF(0));
+        my_error(ER_GROUP_REPLICATION_COMMUNICATION_LAYER_JOIN_ERROR, MYF(0));
         goto error;
     }
     my_ok(thd);
@@ -2950,14 +2945,12 @@ end_with_restore_list:
     res= group_replication_stop();
     if (res == 1) //GROUP_REPLICATION_CONFIGURATION_ERROR
     {
-      my_message(ER_GROUP_REPLICATION_CONFIGURATION,
-                 ER(ER_GROUP_REPLICATION_CONFIGURATION), MYF(0));
+      my_error(ER_GROUP_REPLICATION_CONFIGURATION, MYF(0));
       goto error;
     }
     if (res == 6) //GROUP_REPLICATION_APPLIER_THREAD_TIMEOUT
     {
-      my_message(ER_GROUP_REPLICATION_STOP_APPLIER_THREAD_TIMEOUT,
-                 ER(ER_GROUP_REPLICATION_STOP_APPLIER_THREAD_TIMEOUT), MYF(0));
+      my_error(ER_GROUP_REPLICATION_STOP_APPLIER_THREAD_TIMEOUT, MYF(0));
       goto error;
     }
     my_ok(thd);
@@ -2988,8 +2981,7 @@ end_with_restore_list:
   if (thd->locked_tables_mode ||
       thd->in_active_multi_stmt_transaction() || thd->global_read_lock.is_acquired())
   {
-    my_message(ER_LOCK_OR_ACTIVE_TRANSACTION,
-               ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
+    my_error(ER_LOCK_OR_ACTIVE_TRANSACTION, MYF(0));
     goto error;
   }
 
@@ -3236,7 +3228,7 @@ end_with_restore_list:
       if (!(thd->client_capabilities & CLIENT_LOCAL_FILES) ||
           !opt_local_infile)
       {
-	my_message(ER_NOT_ALLOWED_COMMAND, ER(ER_NOT_ALLOWED_COMMAND), MYF(0));
+	my_error(ER_NOT_ALLOWED_COMMAND, MYF(0));
 	goto error;
       }
     }
@@ -3381,7 +3373,7 @@ end_with_restore_list:
 #ifdef HAVE_REPLICATION
     if (!db_stmt_db_ok(thd, lex->name.str))
     {
-      my_message(ER_SLAVE_IGNORED_TABLE, ER(ER_SLAVE_IGNORED_TABLE), MYF(0));
+      my_error(ER_SLAVE_IGNORED_TABLE, MYF(0));
       break;
     }
 #endif
@@ -3405,7 +3397,7 @@ end_with_restore_list:
 #ifdef HAVE_REPLICATION
     if (!db_stmt_db_ok(thd, lex->name.str))
     {
-      my_message(ER_SLAVE_IGNORED_TABLE, ER(ER_SLAVE_IGNORED_TABLE), MYF(0));
+      my_error(ER_SLAVE_IGNORED_TABLE, MYF(0));
       break;
     }
 #endif
@@ -3421,7 +3413,7 @@ end_with_restore_list:
     if (!db_stmt_db_ok(thd, lex->name.str))
     {
       res= 1;
-      my_message(ER_SLAVE_IGNORED_TABLE, ER(ER_SLAVE_IGNORED_TABLE), MYF(0));
+      my_error(ER_SLAVE_IGNORED_TABLE, MYF(0));
       break;
     }
 #endif
@@ -3456,7 +3448,7 @@ end_with_restore_list:
 #ifdef HAVE_REPLICATION
     if (!db_stmt_db_ok(thd, lex->name.str))
     {
-      my_message(ER_SLAVE_IGNORED_TABLE, ER(ER_SLAVE_IGNORED_TABLE), MYF(0));
+      my_error(ER_SLAVE_IGNORED_TABLE, MYF(0));
       break;
     }
 #endif
@@ -3637,7 +3629,7 @@ end_with_restore_list:
             hostname_requires_resolving(user->host.str))
           push_warning(thd, Sql_condition::SL_WARNING,
                        ER_WARN_HOSTNAME_WONT_WORK,
-                       ER(ER_WARN_HOSTNAME_WONT_WORK));
+                       ER_THD(thd, ER_WARN_HOSTNAME_WONT_WORK));
         // Are we trying to change a password of another user
         DBUG_ASSERT(user->host.str != 0);
 
@@ -3693,8 +3685,7 @@ end_with_restore_list:
     {
       if (lex->columns.elements || (lex->type && lex->type != TYPE_ENUM_PROXY))
       {
-	my_message(ER_ILLEGAL_GRANT_FOR_TABLE, ER(ER_ILLEGAL_GRANT_FOR_TABLE),
-                   MYF(0));
+	my_error(ER_ILLEGAL_GRANT_FOR_TABLE, MYF(0));
         goto error;
       }
       else
@@ -4032,7 +4023,8 @@ end_with_restore_list:
         if (sp_grant_privileges(thd, lex->sphead->m_db.str, name,
                                 lex->sql_command == SQLCOM_CREATE_PROCEDURE))
           push_warning(thd, Sql_condition::SL_WARNING,
-                       ER_PROC_AUTO_GRANT_FAIL, ER(ER_PROC_AUTO_GRANT_FAIL));
+                       ER_PROC_AUTO_GRANT_FAIL,
+                       ER_THD(thd, ER_PROC_AUTO_GRANT_FAIL));
         thd->clear_error();
       }
 
@@ -4219,7 +4211,8 @@ end_with_restore_list:
           if (lex->drop_if_exists)
           {
             push_warning_printf(thd, Sql_condition::SL_NOTE,
-                                ER_SP_DOES_NOT_EXIST, ER(ER_SP_DOES_NOT_EXIST),
+                                ER_SP_DOES_NOT_EXIST,
+                                ER_THD(thd, ER_SP_DOES_NOT_EXIST),
                                 "FUNCTION (UDF)", lex->spname->m_name.str);
             res= FALSE;
             my_ok(thd);
@@ -4273,7 +4266,7 @@ end_with_restore_list:
       {
         push_warning(thd, Sql_condition::SL_WARNING,
                      ER_PROC_AUTO_REVOKE_FAIL,
-                     ER(ER_PROC_AUTO_REVOKE_FAIL));
+                     ER_THD(thd, ER_PROC_AUTO_REVOKE_FAIL));
         /* If this happens, an error should have been reported. */
         goto error;
       }
@@ -4289,7 +4282,8 @@ end_with_restore_list:
 	{
           res= write_bin_log(thd, true, thd->query().str, thd->query().length);
 	  push_warning_printf(thd, Sql_condition::SL_NOTE,
-			      ER_SP_DOES_NOT_EXIST, ER(ER_SP_DOES_NOT_EXIST),
+			      ER_SP_DOES_NOT_EXIST,
+                              ER_THD(thd, ER_SP_DOES_NOT_EXIST),
                               SP_COM_STRING(lex), lex->spname->m_qname.str);
           if (!res)
             my_ok(thd);
@@ -4491,8 +4485,7 @@ end_with_restore_list:
       if (update_password_only &&
           !strcmp(thd->security_context()->priv_user().str,""))
       {
-        my_message(ER_PASSWORD_ANONYMOUS_USER, ER(ER_PASSWORD_ANONYMOUS_USER),
-                   MYF(0));
+        my_error(ER_PASSWORD_ANONYMOUS_USER, MYF(0));
         goto error;
       }
     }
@@ -4746,7 +4739,8 @@ bool check_stack_overrun(THD *thd, long margin,
     */
     char* ebuff= new (std::nothrow) char[MYSQL_ERRMSG_SIZE];
     if (ebuff) {
-      my_snprintf(ebuff, MYSQL_ERRMSG_SIZE, ER(ER_STACK_OVERRUN_NEED_MORE),
+      my_snprintf(ebuff, MYSQL_ERRMSG_SIZE,
+                  ER_THD(thd, ER_STACK_OVERRUN_NEED_MORE),
                   stack_used, my_thread_stack_size, margin);
       my_message(ER_STACK_OVERRUN_NEED_MORE, ebuff, MYF(ME_FATALERROR));
       delete [] ebuff;
@@ -5440,8 +5434,7 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
   {
     if (table->sel)
     {
-      my_message(ER_DERIVED_MUST_HAVE_ALIAS,
-                 ER(ER_DERIVED_MUST_HAVE_ALIAS), MYF(0));
+      my_error(ER_DERIVED_MUST_HAVE_ALIAS, MYF(0));
       DBUG_RETURN(0);
     }
     if (!(alias_str= (char*) thd->memdup(alias_str,table->table.length+1)))
@@ -6498,7 +6491,8 @@ bool check_host_name(const LEX_CSTRING &str)
 {
   const char *name= str.str;
   const char *end= str.str + str.length;
-  if (check_string_byte_length(str, ER(ER_HOSTNAME), HOSTNAME_LENGTH))
+  if (check_string_byte_length(str, ER_THD(current_thd, ER_HOSTNAME),
+                               HOSTNAME_LENGTH))
     return TRUE;
 
   while (name != end)
