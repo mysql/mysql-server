@@ -500,8 +500,6 @@ down3,left3,right3,up3
 SELECT GROUP_CONCAT(a2.name ORDER BY a2.name) AS mbrequals     FROM t1 a1 JOIN t1 a2 ON MBREquals(      a1.square, a2.square) WHERE a1.name = "center" GROUP BY a1.name;
 mbrequals
 center
-Warnings:
-Warning	1287	'MBREQUAL' is deprecated and will be removed in a future release. Please use MBREQUALS instead
 SELECT GROUP_CONCAT(a2.name ORDER BY a2.name) AS mbrintersect FROM t1 a1 JOIN t1 a2 ON MBRIntersects( a1.square, a2.square) WHERE a1.name = "center" GROUP BY a1.name;
 mbrintersect
 big,center,down,down2,left,left2,right,right2,small,up,up2
@@ -1063,8 +1061,6 @@ down3,left3,right3,up3
 SELECT GROUP_CONCAT(a2.name ORDER BY a2.name) AS mbrequals     FROM t1 a1 JOIN t1 a2 ON MBREquals(      a1.square, a2.square) WHERE a1.name = "center" GROUP BY a1.name;
 mbrequals
 center
-Warnings:
-Warning	1287	'MBREQUAL' is deprecated and will be removed in a future release. Please use MBREQUALS instead
 SELECT GROUP_CONCAT(a2.name ORDER BY a2.name) AS mbrintersect FROM t1 a1 JOIN t1 a2 ON MBRIntersects( a1.square, a2.square) WHERE a1.name = "center" GROUP BY a1.name;
 mbrintersect
 big,center,down,down2,left,left2,right,right2,small,up,up2
