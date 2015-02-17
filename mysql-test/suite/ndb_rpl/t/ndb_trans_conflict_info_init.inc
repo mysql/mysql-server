@@ -1,3 +1,6 @@
+# Ignore information_schema.global_status deprecation warning
+--disable_warnings
+
 --disable_query_log
 --disable_result_log
 SELECT @init_ndb_conflict_fn_epoch_trans:=(VARIABLE_VALUE+0) FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_EPOCH_TRANS";
@@ -8,3 +11,5 @@ SELECT @init_ndb_conflict_trans_detect_iter_count:=(VARIABLE_VALUE+0) FROM INFOR
 SELECT @init_ndb_conflict_trans_conflict_commit_count:=(VARIABLE_VALUE+0) FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_TRANS_CONFLICT_COMMIT_COUNT";
 --enable_query_log
 --enable_result_log
+
+--enable_warnings

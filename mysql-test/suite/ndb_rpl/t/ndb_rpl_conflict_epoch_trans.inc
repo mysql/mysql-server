@@ -12,19 +12,15 @@
 
 --connection slave
 RESET MASTER;
-select @slave_server_id:=(variable_value+0)
-       from information_schema.global_variables
-       where variable_name like 'server_id';
-let $SLAVE_SERVER_ID= query_get_value('select @slave_server_id as v',v,1);
+let $SLAVE_SERVER_ID= `select @@server_id`;
+echo SLAVE_SERVER_ID: $SLAVE_SERVER_ID;
 
 --connection master
 --replace_result $SLAVE_MYPORT SLAVE_PORT
 --eval CHANGE MASTER TO master_host="127.0.0.1",master_port=$SLAVE_MYPORT,master_user="root"
 START SLAVE;
-select @master_server_id:=(variable_value+0)
-       from information_schema.global_variables
-       where variable_name like 'server_id';
-let $MASTER_SERVER_ID= query_get_value('select @master_server_id as v',v,1);
+let $MASTER_SERVER_ID= `select @@server_id`;
+echo MASTER_SERVER_ID: $MASTER_SERVER_ID;
 
 --echo Setup ndb_replication and t1$EX exceptions table
 

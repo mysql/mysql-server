@@ -1,3 +1,6 @@
+# Ignore information_schema.global_status deprecation warning
+--disable_warnings
+
 --disable_query_log
 --disable_result_log
 SELECT @init_ndb_conflict_fn_max:=(VARIABLE_VALUE+0) FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX";
@@ -8,3 +11,5 @@ SELECT @init_ndb_conflict_fn_epoch:=(VARIABLE_VALUE+0) FROM INFORMATION_SCHEMA.G
 DELETE FROM `t1$EX`;
 --enable_query_log
 --enable_result_log
+
+--enable_warnings
