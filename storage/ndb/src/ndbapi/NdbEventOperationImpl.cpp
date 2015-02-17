@@ -2232,14 +2232,16 @@ NdbEventBuffer::complete_empty_bucket_using_exceptional_event(Uint64 gci,
 
   // Add gci_ops for error epoch events to make the search for
   // inconsistent(Uint64& gci) to be effective (backward compatibility)
-  if (type >= NdbDictionary::Event::_TE_INCONSISTENT)
   {
     EventBufData_list dummy_event_list;
     dummy_event_list.append_used_data(dummy_data);
     dummy_event_list.m_is_not_multi_list = true;
     m_complete_data.m_data.append_list(&dummy_event_list, gci);
     assert(m_complete_data.m_data.m_gci_ops_list_tail != NULL);
-    m_complete_data.m_data.m_gci_ops_list_tail->m_error = type;
+    if (type >= NdbDictionary::Event::_TE_INCONSISTENT)
+    {
+      m_complete_data.m_data.m_gci_ops_list_tail->m_error = type;
+    }
   }
 }
 
