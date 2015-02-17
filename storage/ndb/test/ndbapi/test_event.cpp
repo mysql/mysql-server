@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -478,6 +478,175 @@ int runCreateDropEventOperation(NDBT_Context* ctx, NDBT_Step* step)
   }
 
   return NDBT_OK;
+}
+
+
+int
+listenEmptyEpochs(Ndb* ndb, bool useV2)
+{
+  Uint32 numPollEmptyEpochs = 0;
+  Uint32 numEventEmptyEpochs = 0;
+  Uint64 lastEpoch = 0;
+  Uint64 stopEpoch = 0;
+  while (true)
+  {
+    Uint64 highestQueuedEpoch = 0;
+    int res = 0;
+
+    if (useV2)
+    {
+      res = ndb->pollEvents2(1000, &highestQueuedEpoch);
+    }
+    else
+    {
+      res = ndb->pollEvents(1000, &highestQueuedEpoch);
+    }
+
+    if (lastEpoch == 0)
+    {
+      g_err << "Start epoch is "
+            << (highestQueuedEpoch >> 32)
+            << "/"
+            << (highestQueuedEpoch & 0xffffffff)
+            << endl;
+      lastEpoch = highestQueuedEpoch;
+      stopEpoch = ((highestQueuedEpoch >> 32) + 10) << 32;
+      numPollEmptyEpochs = 1;
+    }
+    else
+    {
+      if (highestQueuedEpoch != lastEpoch)
+      {
+        g_err << "- poll empty epoch : "
+              << (highestQueuedEpoch >> 32)
+              << "/"
+              << (highestQueuedEpoch & 0xffffffff)
+              << endl;
+        numPollEmptyEpochs++;
+        lastEpoch = highestQueuedEpoch;
+      }
+    }
+
+    if (res > 0)
+    {
+      g_err << "- ndb pollEvents returned > 0" << endl;
+
+      NdbEventOperation* next;
+      while ((next =
+              (useV2?
+               ndb->nextEvent2():
+               ndb->nextEvent())) != NULL)
+      {
+        g_err << "-   ndb had an event.  Type : "
+              << next->getEventType2()
+              << " Epoch : "
+              << (next->getEpoch() >> 32)
+              << "/"
+              << (next->getEpoch() & 0xffffffff)
+              << endl;
+        if (next->getEventType2() == NdbDictionary::Event::TE_EMPTY)
+        {
+          g_err << "-  event empty epoch" << endl;
+          numEventEmptyEpochs++;
+        }
+      }
+    }
+    else if (res == 0)
+    {
+      g_err << "- ndb pollEvents returned 0" << endl;
+    }
+    else
+    {
+      g_err << "- ndb pollEvents failed : " << res << endl;
+      return NDBT_FAILED;
+    }
+
+    if (highestQueuedEpoch > stopEpoch)
+      break;
+  }
+
+  g_err << "Num poll empty epochs : "
+        << numPollEmptyEpochs
+        << ", Num event empty epochs : "
+        << numEventEmptyEpochs
+        << endl;
+
+  if (useV2)
+  {
+    if (numEventEmptyEpochs < numPollEmptyEpochs)
+    {
+      g_err << "FAILED : Too few event empty epochs"
+            << endl;
+      return NDBT_FAILED;
+    }
+    else if (numEventEmptyEpochs > numPollEmptyEpochs)
+    {
+      g_info << "Some empty epochs missed by poll method\n"
+            << endl;
+    }
+  }
+  else
+  {
+    if (numEventEmptyEpochs > 0)
+    {
+      g_err << "FAILED : Received event empty epochs"
+            << endl;
+      return NDBT_FAILED;
+    }
+  }
+
+  return NDBT_OK;
+}
+
+int
+runListenEmptyEpochs(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /* Compare empty epoch behaviour between original
+   * and new Apis
+   * Original does not expose them as events
+   * New Api does
+   */
+  /* First set up two Ndb objects and two
+   * event operations
+   */
+  Ndb* pNdb = GETNDB(step);
+  const NdbDictionary::Table* pTab = ctx->getTab();
+
+  NdbEventOperation* evOp1 = createEventOperation(pNdb,
+                                                  *pTab);
+  if ( evOp1 == NULL )
+  {
+    g_err << "Event operation creation failed\n";
+    return NDBT_FAILED;
+  }
+
+  int result= listenEmptyEpochs(pNdb, false);
+
+  if (pNdb->dropEventOperation(evOp1))
+  {
+    g_err << "Drop event operation failed\n";
+    return NDBT_FAILED;
+  }
+
+  if (result == NDBT_OK)
+  {
+    NdbEventOperation* evOp2 = createEventOperation(pNdb,
+                                                    *pTab);
+    if ( evOp2 == NULL )
+    {
+      g_err << "Event operation creation2 failed\n";
+      return NDBT_FAILED;
+    }
+    result= listenEmptyEpochs(pNdb, true);
+
+    if (pNdb->dropEventOperation(evOp2))
+    {
+      g_err << "Drop event operation2 failed\n";
+      return NDBT_FAILED;
+    }
+  }
+
+  return result;
 }
 
 int theThreadIdCounter = 0;
@@ -3983,6 +4152,14 @@ TESTCASE("EmptyUpdates",
   STEP(runEventLoad);
   FINALIZER(runDropEvent);
 }
+TESTCASE("Apiv2EmptyEpochs",
+         "Verify the behaviour of the new API w.r.t."
+         "empty epochs")
+{
+  INITIALIZER(runCreateEvent);
+  STEP(runListenEmptyEpochs);
+  FINALIZER(runDropEvent);
+};
 NDBT_TESTSUITE_END(test_event);
 
 int main(int argc, const char** argv){
