@@ -217,6 +217,8 @@ SET @@old_passwords=0;
 -- old_passwords
 -- 0
 
+Warnings:
+Warning	1681	'old_passwords' is deprecated and will be removed in a future release.
 # Expect change info.
 SET @@session.sql_mode= @sql_mode_saved;
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
@@ -235,6 +237,8 @@ SET @@old_passwords=0;
 -- old_passwords
 -- 0
 
+Warnings:
+Warning	1681	'old_passwords' is deprecated and will be removed in a future release.
 # Expect no change info.
 SET @@session.sql_mode= @sql_mode_saved;
 # Switch off the session system variables tracker (using empty string).

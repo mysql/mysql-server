@@ -276,7 +276,10 @@ show create table t1;
 drop table t1;
 
 select password('a'), hex(password('a'));
+--disable_warnings
 create table t1 as select password('a') as c1;
+--enable_warnings
+#The above query returns 2 warnings in ps test.
 show create table t1;
 drop table t1;
 

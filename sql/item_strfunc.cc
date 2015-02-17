@@ -2735,6 +2735,7 @@ static size_t calculate_password(String *str, char *buffer)
   if (thd)
     old_passwords= thd->variables.old_passwords;
 
+  push_deprecated_warn_no_replacement(current_thd, "PASSWORD");
 #if defined(HAVE_OPENSSL)
   if (old_passwords == 2)
   {

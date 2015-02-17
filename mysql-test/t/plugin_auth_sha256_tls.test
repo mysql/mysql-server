@@ -51,7 +51,6 @@ ALTER USER 'u1'@'localhost' PASSWORD EXPIRE;
 connect(con5,127.0.0.1,u1,pass,test,,,SSL);
 --error ER_MUST_CHANGE_PASSWORD
 SELECT USER();
-SET @@OLD_PASSWORDS=2;
 ALTER USER 'u1'@'localhost' IDENTIFIED BY 'pass2'; 
 
 connect(con6,127.0.0.1,u1,pass2,test,,,SSL);

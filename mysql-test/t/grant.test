@@ -2319,8 +2319,6 @@ connect(con1,localhost,wl7131,wl7131,,);
 --echo # Doing something should fail
 --error 1820
 SELECT 1;
---echo # Setting variables should work
-SET old_passwords=0;
 --echo # Setting password should work
 ALTER USER wl7131 IDENTIFIED BY 'new_wl7131';
 --echo # Doing something should pass
