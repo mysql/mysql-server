@@ -4303,7 +4303,7 @@ a file name for --log-bin-index option", opt_binlog_index_name);
     locked_in_memory=0;
 
   /* Initialize the optimizer cost module */
-  init_optimizer_cost_module();
+  init_optimizer_cost_module(true);
   ft_init_stopwords();
 
   init_max_user_conn();
