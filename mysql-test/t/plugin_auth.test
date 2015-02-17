@@ -647,3 +647,20 @@ ALTER USER employee@localhost PASSWORD EXPIRE;
 DROP USER 'empl_external'@'localhost', 'employee'@'localhost';
 
 --source include/mysql_upgrade_cleanup.inc
+
+--echo #
+--echo # Bug #20537246: SERVER CRASH WHILE CONNECTING WITH CLEARTEXT-PLUGIN
+--echo #                USER WITH BLANK PWD
+--echo #
+
+CREATE USER bug20537246@localhost
+    IDENTIFIED WITH 'cleartext_plugin_server' AS '';
+
+--echo ## test connection
+connect(cleartext_con,localhost,bug20537246,,,,,CLEARTEXT);
+select USER(),CURRENT_USER();
+
+connection default;
+disconnect cleartext_con;
+DROP USER bug20537246@localhost;
+
