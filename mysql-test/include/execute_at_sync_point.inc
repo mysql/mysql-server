@@ -10,7 +10,7 @@
 #
 # --let $statement_connection= CONNECTION_NAME
 # --let $statement= STATEMENT
-# --let $other_statement= STATEMENT
+# [--let $auxiliary_statement= STATEMENT | --let $auxiliary_file= FILE]
 # --let $sync_point= SYNC_POINT_NAME
 # [--let $auxiliary_connection= CONNECTION_NAME]
 # [--let $quiet= [0|1|2]]
@@ -30,6 +30,11 @@
 #     The statement that will be executed on the current connection while
 #     $statement is paused on the sync point.
 #
+#   $auxiliary_file
+#     If this is not an empty string, this file will be sourced on the current
+#     connection while $statement is paused on the sync point.
+#     Exactly one of $auxiliary_file and $auxiliary_statement must be specified.
+#
 #   $sync_point
 #     The name of the sync point (not quoted).
 #
@@ -41,11 +46,11 @@
 #   $quiet
 #     By default (or if $quiet==0), the following is echoed to the log:
 #       START $statement;
-#       $other_statement;
-#       result of other statement
+#       auxiliary_statement or auxiliary_file;
+#       result of $auxiliary_statement or source $auxiliary_file
 #       END $statement;
 #     If you set $quiet=1, the START and END lines are still there,
-#     but from the other statement only the result is echoed.
+#     but from the auxiliary_statement only the result is echoed.
 #     If you set $quiet=2, all output is suppressed.
 #
 #   $sync_point_timeout
@@ -59,25 +64,58 @@
 #     By default, the script will wait for $statement to ACK to the
 #     client (reap).  Set $skip_reap to prevent that from happening.
 #     The caller then has the execute reap manually.
+#
+# Side effects:
+#   If $auxiliary_statement is used, then the result of the statement
+#   is stored in the variable $result.
 
 --let $include_silent= 1
 --let $include_filename= execute_at_sync_point.inc
 --source include/begin_include_file.inc
 --let $include_silent= 0
 
+if ($auxiliary_statement != '')
+{
+  if ($auxiliary_file != '')
+  {
+    --die !!!ERROR IN TEST: cannot use both $auxiliary_file and $auxiliary_statement
+  }
+}
+
+if ($auxiliary_statement == '')
+{
+  if ($auxiliary_file == '')
+  {
+    --die !!!ERROR IN TEST: must use one of $auxiliary_file or $auxiliary_statement
+  }
+}
 
 --source include/execute_to_sync_point.inc
 
-# execute other statement
+# execute auxiliary_statement or source auxiliary_file
 if (!$quiet)
 {
-  --echo $other_statement
+  if ($auxiliary_statement)
+  {
+    --echo $auxiliary_statement
+  }
+  if ($auxiliary_file)
+  {
+    --echo $auxiliary_file
+  }
 }
 --connection $_esp_auxiliary_connection
---let $result= `$other_statement`
-if ($quiet != 2)
+if ($auxiliary_statement)
 {
-  --echo $result
+  --let $result= `$auxiliary_statement`
+  if ($quiet != 2)
+  {
+    --echo $result
+  }
+}
+if ($auxiliary_file)
+{
+  --source $auxiliary_file
 }
 
 --source include/execute_from_sync_point.inc
