@@ -1410,6 +1410,8 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
     }
     if(user.auth_string.str)
       user.auth_string.length= strlen(user.auth_string.str);
+    else
+      user.auth_string= EMPTY_STR;
 
     {
       uint next_field;
