@@ -9,6 +9,7 @@ select length(encrypt('foo', 'ff')) <> 0;
 --replace_result $1$aa$4OSUA5cjdx0RUQ08opV27/ aaqPiZY5xR5l.
 
 create table t1 (name varchar(50), pw varchar(64));
+--disable_warnings
 insert into t1 values ('tom', password('my_pass'));
 set @pass='my_pass';
 select name from t1 where name='tom' and pw=password(@pass);
@@ -32,6 +33,7 @@ select password('idkfa');
 select password(' idkfa');
 
 explain extended select password('idkfa ');
+--enable_warnings
 
 #
 # Bug #13619: Crash on FreeBSD with salt like '_.'
@@ -48,7 +50,9 @@ select encrypt('1234','_.');
 
 CREATE TABLE t1(c1 MEDIUMBLOB);
 INSERT INTO t1 VALUES (REPEAT('a', 1024));
+--disable_warnings
 SELECT PASSWORD(c1) FROM t1;
+--enable_warnings
 DROP TABLE t1;
 
 --echo End of 5.0 tests
@@ -62,7 +66,9 @@ DROP TABLE t1;
 --echo #
 SET NAMES utf8;
 CREATE TABLE t1 (a varchar(1));
+--disable_warnings
 SELECT * FROM t1 WHERE a=password('a');
+--enable_warnings
 DROP TABLE t1;
 SET NAMES latin1;
 

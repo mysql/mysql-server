@@ -23,9 +23,9 @@ insert into t1 values(6, 0, rand(), rand(), "");
 delete from t1 where id=6;
 set sql_log_bin=1;
 # Pure password test
+--disable_warnings
 insert into t1 values(3, 0, 0, 0, password('does_this_work?'));
 # "altogether now"
---disable_warnings
 insert into t1 values(4, connection_id(), rand()*1000, rand()*1000, password('does_this_still_work?'));
 --enable_warnings
 select * into outfile 'rpl_misc_functions.outfile' from t1;

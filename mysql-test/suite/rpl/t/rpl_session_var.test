@@ -22,7 +22,7 @@ connection master;
 # if the slave does the next sync_with_master fine, then it means it accepts the
 # two lines of ANSI syntax below, which is what we want to check.
 set @@session.sql_mode=ignore_space;
-insert into t1 values(password          ('MySQL'), 3);
+insert into t1 values(LTRIM          ('  MySQL'), 3);
 set @@session.sql_mode=ansi_quotes;
 create table "t2" ("a" int);
 drop table t1, t2;
