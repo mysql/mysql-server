@@ -794,7 +794,7 @@ static bool tokudb_sync_on_commit(THD *thd, tokudb_trx_data *trx, DB_TXN *txn) {
 }
 
 static int tokudb_commit(handlerton * hton, THD * thd, bool all) {
-    TOKUDB_DBUG_ENTER("");
+    TOKUDB_DBUG_ENTER("%u", all);
     DBUG_PRINT("trans", ("ending transaction %s", all ? "all" : "stmt"));
     tokudb_trx_data *trx = (tokudb_trx_data *) thd_get_ha_data(thd, hton);
     DB_TXN **txn = all ? &trx->all : &trx->stmt;
@@ -810,11 +810,11 @@ static int tokudb_commit(handlerton * hton, THD * thd, bool all) {
         commit_txn_with_progress(this_txn, syncflag, thd);
         // test hook to induce a crash on a debug build
         DBUG_EXECUTE_IF("tokudb_crash_commit_after", DBUG_SUICIDE(););
-        if (this_txn == trx->sp_level) {
-            trx->sp_level = 0;
-        }
-        *txn = 0;
+        *txn = NULL;
         trx->sub_sp_level = NULL;
+        if (this_txn == trx->sp_level || trx->all == NULL) {
+            trx->sp_level = NULL;
+        }
     } 
     else if (tokudb_debug & TOKUDB_DEBUG_TXN) {
         TOKUDB_TRACE("nothing to commit %d", all);
@@ -824,7 +824,7 @@ static int tokudb_commit(handlerton * hton, THD * thd, bool all) {
 }
 
 static int tokudb_rollback(handlerton * hton, THD * thd, bool all) {
-    TOKUDB_DBUG_ENTER("");
+    TOKUDB_DBUG_ENTER("%u", all);
     DBUG_PRINT("trans", ("aborting transaction %s", all ? "all" : "stmt"));
     tokudb_trx_data *trx = (tokudb_trx_data *) thd_get_ha_data(thd, hton);
     DB_TXN **txn = all ? &trx->all : &trx->stmt;
@@ -835,11 +835,11 @@ static int tokudb_rollback(handlerton * hton, THD * thd, bool all) {
         }
         tokudb_cleanup_handlers(trx, this_txn);
         abort_txn_with_progress(this_txn, thd);
-        if (this_txn == trx->sp_level) {
-            trx->sp_level = 0;
-        }
-        *txn = 0;
+        *txn = NULL;
         trx->sub_sp_level = NULL;
+        if (this_txn == trx->sp_level || trx->all == NULL) {
+            trx->sp_level = NULL;
+        }
     } 
     else {
         if (tokudb_debug & TOKUDB_DEBUG_TXN) {
