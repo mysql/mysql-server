@@ -1,0 +1,59 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+#######################
+# Start a 2 server group
+server1
+include/start_group_replication.inc
+CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY , b INT);
+server2
+include/start_group_replication.inc
+
+#####################################################################
+# Restart group replication on server 2 inducing a failure on recovery
+include/stop_group_replication.inc
+set session sql_log_bin=0;
+call mtr.add_suppression("There was an error when connecting to the donor*");
+call mtr.add_suppression("Maximum number of retries when*");
+call mtr.add_suppression("Fatal error during the Recovery process of Group Replication.*");
+call mtr.add_suppression("Transaction cannot be executed while Group Replication is OFFLINE.*");
+call mtr.add_suppression("Run function 'before_commit' in plugin 'group_replication' failed");
+set session sql_log_bin=1;
+SET @configured_rec_user= @@GLOBAL.group_replication_recovery_user;
+SET GLOBAL group_replication_recovery_user= "dummy_user";
+SET GLOBAL group_replication_group_name= "a1e87f30-b156-11e4-ab27-0800200c9a66";
+START GROUP_REPLICATION;
+
+##########################################################
+# Recovery should fail and the server should become OFFLINE
+include/rpl_group_replication_wait_for_member_state.inc
+
+###################################################################
+# When we try to execute a transaction on the server, it should fail
+INSERT INTO test.t1 (b) VALUES (1);
+ERROR HY000: Error on observer while running replication hook 'before_commit'.
+
+##########################################
+# Solve the issue and re-execute the query
+include/stop_group_replication.inc
+SET @@GLOBAL.group_replication_recovery_user= @configured_rec_user;
+include/start_group_replication.inc
+INSERT INTO test.t1 (b) VALUES (1);
+include/rpl_sync.inc
+
+#######################################################################
+# Assert that server1 and server2 have the same data and GTID_EXECUTED.
+server1
+include/assert.inc ['There is a value 1 in table t1 on server1']
+server2
+include/assert.inc ['There is a value 1 in table t1 on server2']
+server1
+server2
+include/assert.inc ['server1 and server2 GTID_EXECUTED must be equal']
+
+#########
+# Cleanup
+DROP TABLE test.t1;
+include/rpl_end.inc

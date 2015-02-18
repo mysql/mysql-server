@@ -444,7 +444,7 @@ cleanup:
   if (error)
   {
     log_message(MY_ERROR_LEVEL,
-                "Fatal error during the Recovery process of Group Replication."
+                "Fatal error during the Recovery process of Group Replication. "
                 "The server will leave the group.");
     gcs_control_interface->leave();
   }

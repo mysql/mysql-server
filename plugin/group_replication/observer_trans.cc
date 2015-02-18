@@ -162,6 +162,27 @@ int gcs_trans_before_commit(Trans_param *param)
   if (!is_real_trans)
     DBUG_RETURN(0);
 
+  Cluster_member_info* for_local_status=
+      cluster_member_mgr->get_cluster_member_info(*local_member_info->get_uuid());
+  Cluster_member_info::Cluster_member_status node_status=
+      for_local_status->get_recovery_status();
+
+  if (node_status == Cluster_member_info::MEMBER_IN_RECOVERY)
+  {
+    log_message(MY_ERROR_LEVEL,
+                "Transaction cannot be executed while Group Replication is recovering."
+                " Try again when the server is ONLINE.");
+    DBUG_RETURN(1);
+  }
+
+  if (node_status == Cluster_member_info::MEMBER_OFFLINE)
+  {
+    log_message(MY_ERROR_LEVEL,
+                "Transaction cannot be executed while Group Replication is OFFLINE."
+                " Check for errors and restart the plugin");
+    DBUG_RETURN(1);
+  }
+
   // Transaction information.
   const bool is_gtid_specified= param->gtid_info.type == GTID_GROUP;
   Gtid gtid= { param->gtid_info.sidno, param->gtid_info.gno };
