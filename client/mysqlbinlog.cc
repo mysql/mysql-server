@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1714,17 +1714,28 @@ static void cleanup()
 {
   my_free(pass);
   my_free(database);
+  my_free(rewrite);
   my_free(host);
   my_free(user);
   my_free(dirname_for_local_load);
-  
+
   for (size_t i= 0; i < buff_ev->size(); i++)
   {
     buff_event_info pop_event_array= buff_ev->at(i);
     delete (pop_event_array.event);
   }
   delete buff_ev;
-  
+
+  /*
+    @todo Move this clean up code as part 'binlog_rewrite_db' class destructor
+    at the time of its implementation.
+  */
+  i_string_pair *tmp;
+  while ((tmp= binlog_rewrite_db.get()))
+  {
+    delete tmp;
+  }
+
   delete glob_description_event;
   if (mysql)
     mysql_close(mysql);
