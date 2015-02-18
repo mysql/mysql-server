@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -96,7 +96,7 @@ uint _mi_ft_segiterator(FT_SEG_ITERATOR *ftsi)
 uint _mi_ft_parse(TREE *parsed, MI_INFO *info, uint keynr, const uchar *record,
                   MYSQL_FTPARSER_PARAM *param, MEM_ROOT *mem_root)
 {
-  FT_SEG_ITERATOR ftsi;
+  FT_SEG_ITERATOR ftsi= { 0, 0, NULL, NULL, NULL };
   struct st_mysql_ftparser *parser;
   DBUG_ENTER("_mi_ft_parse");
 
@@ -169,7 +169,8 @@ static int _mi_ft_erase(MI_INFO *info, uint keynr, uchar *keybuf,
 
 int _mi_ft_cmp(MI_INFO *info, uint keynr, const uchar *rec1, const uchar *rec2)
 {
-  FT_SEG_ITERATOR ftsi1, ftsi2;
+  FT_SEG_ITERATOR ftsi1= { 0, 0, NULL, NULL, NULL };
+  FT_SEG_ITERATOR ftsi2= { 0, 0, NULL, NULL, NULL };
   const CHARSET_INFO *cs= info->s->keyinfo[keynr].seg->charset;
   DBUG_ENTER("_mi_ft_cmp");
   _mi_ft_segiterator_init(info, keynr, rec1, &ftsi1);
