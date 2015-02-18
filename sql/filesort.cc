@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1180,6 +1180,7 @@ uint Sort_param::make_sortkey(uchar *to, const uchar *ref_pos)
         if (sort_field->need_strxnfrm)
         {
           char *from=(char*) res->ptr();
+          size_t tmp_length __attribute__((unused));
           if ((uchar*) from == to)
           {
             DBUG_ASSERT(sort_field->length >= length);
@@ -1187,9 +1188,7 @@ uint Sort_param::make_sortkey(uchar *to, const uchar *ref_pos)
             memcpy(tmp_buffer, from, length);
             from= tmp_buffer;
           }
-#ifndef DBUG_OFF
-          size_t tmp_length=
-#endif
+          tmp_length=
             cs->coll->strnxfrm(cs, to, sort_field->length,
                                item->max_char_length(),
                                (uchar*) from, length,
