@@ -16,7 +16,6 @@
 
 #include "transaction_info.h"
 
-#include "current_thd.h"
 #include "mysys_err.h"
 #include "psi_memory_key.h"
 #include "sql_class.h"

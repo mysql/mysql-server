@@ -17,7 +17,6 @@
 
 #include "hash.h"               // HASH
 #include "sql_class.h"          // THD
-#include "current_thd.h"
 #include "psi_memory_key.h"
 #include "transaction.h"        // trans_begin, trans_rollback
 #include "debug_sync.h"         // DEBUG_SYNC

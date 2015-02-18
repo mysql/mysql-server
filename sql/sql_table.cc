@@ -2811,7 +2811,7 @@ bool quick_rm_table(THD *thd, handlerton *base, const char *db,
     delete file;
   }
   if (!(flags & (FRM_ONLY|NO_HA_TABLE)))
-    error|= ha_delete_table(current_thd, base, path, db, table_name, 0);
+    error|= ha_delete_table(thd, base, path, db, table_name, 0);
   DBUG_RETURN(error);
 }
 

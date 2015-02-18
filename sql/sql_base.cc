@@ -8371,7 +8371,7 @@ store_natural_using_join_columns(THD *thd, TABLE_LIST *natural_using_join,
         if (!(common_field= it++))
         {
           my_error(ER_BAD_FIELD_ERROR, MYF(0), using_field_name_ptr,
-                   current_thd->where);
+                   thd->where);
           DBUG_RETURN(true);
         }
         if (!my_strcasecmp(system_charset_info,

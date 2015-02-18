@@ -820,7 +820,7 @@ static ha_rows find_all_keys(Sort_param *param, QEP_TAB *qep_tab,
       DBUG_RETURN(HA_POS_ERROR);
     }
     file->extra_opt(HA_EXTRA_CACHE,
-		    current_thd->variables.read_buff_size);
+		    thd->variables.read_buff_size);
   }
 
   if (quick_select)

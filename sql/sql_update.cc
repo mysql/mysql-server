@@ -23,7 +23,6 @@
 
 #include "auth_common.h"              // check_table_access
 #include "binlog.h"                   // mysql_bin_log
-#include "current_thd.h"
 #include "debug_sync.h"               // DEBUG_SYNC
 #include "field.h"                    // Field
 #include "item.h"                     // Item

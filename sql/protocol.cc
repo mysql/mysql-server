@@ -22,7 +22,6 @@
 
 #include "protocol.h"
 #include "sql_class.h"                          // THD
-#include "current_thd.h"
 #include <stdarg.h>
 
 using std::min;

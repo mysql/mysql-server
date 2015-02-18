@@ -25,7 +25,6 @@
 #include "m_string.h"                   // my_stpcpy
 #include "probes_mysql.h"               // MYSQL_CONNECTION_START
 #include "auth_common.h"                // SUPER_ACL
-#include "current_thd.h"
 #include "hostname.h"                   // Host_errors
 #include "log.h"                        // sql_print_information
 #include "psi_memory_key.h"

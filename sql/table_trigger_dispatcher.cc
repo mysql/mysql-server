@@ -17,7 +17,6 @@
 #include "table_trigger_dispatcher.h"
 
 #include "auth_common.h"            // check_global_access
-#include "current_thd.h"
 #include "psi_memory_key.h"
 #include "sp_head.h"                // sp_head
 #include "sql_parse.h"              // create_default_definer

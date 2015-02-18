@@ -14,7 +14,6 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "my_global.h"
-#include "current_thd.h"
 #include "mysql.h"
 #include "sp.h"                                // sp_eval_expr
 #include "sql_cursor.h"

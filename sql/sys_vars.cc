@@ -2472,10 +2472,10 @@ static Sys_var_mybool Sys_old_alter_table(
        SESSION_VAR(old_alter_table), CMD_LINE(OPT_ARG), DEFAULT(FALSE));
 
 static bool old_passwords_check(sys_var *self  __attribute__((unused)),
-                                THD *thd  __attribute__((unused)),
+                                THD *thd,
                                 set_var *var)
 {
-  push_deprecated_warn_no_replacement(current_thd, "old_passwords");
+  push_deprecated_warn_no_replacement(thd, "old_passwords");
   /* 1 used to be old passwords */
   return var->save_result.ulonglong_value == 1;
 }

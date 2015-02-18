@@ -32,7 +32,6 @@
 #include "auth_common.h"
 #include "opt_explain_format.h"
 #include "sql_test.h"            // print_where
-#include "current_thd.h"
 #include "aggregate_check.h"
 
 static void propagate_nullability(List<TABLE_LIST> *tables, bool nullable);
@@ -3080,7 +3079,7 @@ find_order_in_list(THD *thd, Ref_ptr_array ref_pointer_array, TABLE_LIST *tables
       push_warning_printf(thd, Sql_condition::SL_WARNING, ER_NON_UNIQ_ERROR,
                           ER_THD(thd, ER_NON_UNIQ_ERROR),
                           ((Item_ident*) order_item)->field_name,
-                          current_thd->where);
+                          thd->where);
     }
   }
 

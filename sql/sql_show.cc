@@ -2704,7 +2704,7 @@ const char* get_one_variable(THD *thd, const SHOW_VAR *variable,
     null_lex_str.length= 0;
     sys_var *var= ((sys_var *) variable->value);
     show_type= var->show_type();
-    value= (char*) var->value_ptr(current_thd, thd, value_type, &null_lex_str);
+    value= (char*) var->value_ptr(thd, thd, value_type, &null_lex_str);
     *charset= var->charset(thd);
   }
   else

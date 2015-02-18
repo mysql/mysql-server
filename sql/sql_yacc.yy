@@ -74,7 +74,6 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #include "item_cmpfunc.h"
 #include "item_geofunc.h"
 #include "sql_plugin.h"                      // plugin_is_ready
-#include "current_thd.h"
 
 /* this is to get the bison compilation windows warnings out */
 #ifdef _MSC_VER

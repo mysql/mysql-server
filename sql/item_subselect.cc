@@ -23,7 +23,6 @@
 
 #include "item_subselect.h"
 
-#include "current_thd.h"
 #include "debug_sync.h"          // DEBUG_SYNC
 #include "item_sum.h"            // Item_sum_max
 #include "opt_trace.h"           // OPT_TRACE_TRANSFORM

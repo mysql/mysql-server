@@ -19,7 +19,6 @@
 #include "trigger_creation_ctx.h"
 #include "sql_db.h" // get_default_db_collation()
 #include "log.h"
-#include "current_thd.h"
 
 Trigger_creation_ctx *
 Trigger_creation_ctx::create(THD *thd,

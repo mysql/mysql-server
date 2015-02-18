@@ -22,7 +22,6 @@
 
 #include "aggregate_check.h"
 
-#include "current_thd.h"
 #include "opt_trace.h"
 #include "sql_base.h"
 #include "sql_select.h"

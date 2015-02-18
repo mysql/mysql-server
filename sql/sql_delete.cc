@@ -22,7 +22,6 @@
 #include "sql_delete.h"
 
 #include "binlog.h"                   // mysql_bin_log
-#include "current_thd.h"
 #include "debug_sync.h"               // DEBUG_SYNC
 #include "opt_explain.h"              // Modification_plan
 #include "opt_trace.h"                // Opt_trace_object
@@ -689,8 +688,6 @@ bool Sql_cmd_delete::mysql_prepare_delete(THD *thd)
   Delete multiple tables from join 
 ***************************************************************************/
 
-#define MEM_STRIP_BUF_SIZE current_thd->variables.sortbuff_size
-
 extern "C" int refpos_order_cmp(const void* arg, const void *a,const void *b)
 {
   handler *file= (handler*)arg;
@@ -919,7 +916,7 @@ bool Query_result_delete::initialize_tables(JOIN *join)
     if (!(*tempfile++= new Unique(refpos_order_cmp,
                                   (void *) table->file,
                                   table->file->ref_length,
-                                  MEM_STRIP_BUF_SIZE)))
+                                  thd->variables.sortbuff_size)))
       DBUG_RETURN(true);                     /* purecov: inspected */
     *(table_ptr++)= table;
   }

@@ -20,7 +20,6 @@
 #include "sql_insert.h"
 
 #include "auth_common.h"              // check_grant_all_columns
-#include "current_thd.h"
 #include "debug_sync.h"               // DEBUG_SYNC
 #include "item.h"                     // Item
 #include "lock.h"                     // mysql_unlock_tables
@@ -3032,7 +3031,7 @@ bool Sql_cmd_insert::execute(THD *thd)
                       "now "
                       "wait_for signal.continue";
                     DBUG_ASSERT(opt_debug_sync_timeout > 0);
-                    DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                    DBUG_ASSERT(!debug_sync_set_action(thd,
                                                        STRING_WITH_LEN(act)));
                   };);
   return res;

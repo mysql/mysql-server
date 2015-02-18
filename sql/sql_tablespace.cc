@@ -20,7 +20,6 @@
 #include "lock.h"                               // lock_tablespace_name
 #include "sql_table.h"                          // write_bin_log
 #include "sql_class.h"                          // THD
-#include "current_thd.h"
 
 
 /**

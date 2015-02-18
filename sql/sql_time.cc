@@ -697,7 +697,7 @@ bool datetime_with_no_zero_in_date_to_timeval(THD *thd,
   }
 
   my_bool in_dst_time_gap;
-  if (!(tm->tv_sec= TIME_to_timestamp(current_thd, ltime, &in_dst_time_gap)))
+  if (!(tm->tv_sec= TIME_to_timestamp(thd, ltime, &in_dst_time_gap)))
   {
     /*
       Date was outside of the supported timestamp range.
@@ -753,7 +753,7 @@ bool datetime_to_timeval(THD *thd, const MYSQL_TIME *ltime,
 {
   return
     check_date(ltime, non_zero_date(ltime), TIME_NO_ZERO_IN_DATE, warnings) ||
-    datetime_with_no_zero_in_date_to_timeval(current_thd, ltime, tm, warnings);
+    datetime_with_no_zero_in_date_to_timeval(thd, ltime, tm, warnings);
 }
 
 
