@@ -4225,8 +4225,10 @@ runBug56044(NDBT_Context* ctx, NDBT_Step* step)
     if (res.insertErrorInNode(next, 7224))
       return NDBT_FAILED;
 
-    res.waitNodesNoStart(&master, 1);
-    res.startNodes(&master, 1);
+    if (res.waitNodesNoStart(&master, 1))
+      return NDBT_FAILED;
+    if (res.startNodes(&master, 1))
+      return NDBT_FAILED;
     if (res.waitClusterStarted() != 0)
       return NDBT_FAILED;
   }

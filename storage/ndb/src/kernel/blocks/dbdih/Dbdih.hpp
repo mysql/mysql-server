@@ -1955,6 +1955,11 @@ private:
   void isolateNodes(Signal* signal,
                     Uint32 delayMillis,
                     const NdbNodeBitmask& victims);
+
+  NodeId c_handled_master_take_over_copy_gci;
+
+  bool handle_master_take_over_copy_gci(Signal *signal,
+                                        NodeId newMasterNodeId);
 };
 
 #if (DIH_CDATA_SIZE < _SYSFILE_SIZE32)
