@@ -5690,7 +5690,8 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
   else if (thd->mark_used_columns != MARK_COLUMNS_NONE)
   {
     TABLE *table= field->table;
-    MY_BITMAP *current_bitmap, *other_bitmap;
+    MY_BITMAP *current_bitmap;
+    MY_BITMAP *other_bitmap __attribute__((unused));
     if (thd->mark_used_columns == MARK_COLUMNS_READ)
     {
       current_bitmap= table->read_set;

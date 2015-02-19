@@ -3144,7 +3144,7 @@ static bool has_same_column_order(List<Create_field> *create_list,
 {
   Field **f_ptr;
   List_iterator_fast<Create_field> new_field_it;
-  Create_field *new_field;
+  Create_field *new_field= NULL;
   new_field_it.init(*create_list);
 
   for (f_ptr= field_array; *f_ptr; f_ptr++)
