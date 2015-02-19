@@ -9784,15 +9784,7 @@ Dbdih::startLcpMasterTakeOver(Signal* signal, Uint32 nodeId)
       {
         jam();
         c_EMPTY_LCP_REQ_Counter.setWaitingFor(specNodePtr.i);
-        if (!(ERROR_INSERTED(7209) && specNodePtr.i == getOwnNodeId()))
-        {
-          sendEMPTY_LCP_REQ(signal, specNodePtr.i, 0);
-        }
-        else
-        {
-          ndbout_c("NOT sending EMPTY_LCP_REQ to %u", specNodePtr.i);
-        }
-        
+        sendEMPTY_LCP_REQ(signal, specNodePtr.i, 0);
         if (c_lcpState.m_LAST_LCP_FRAG_ORD.isWaitingFor(specNodePtr.i))
         {
           jam();
@@ -11012,12 +11004,6 @@ void Dbdih::execMASTER_LCPREQ(Signal* signal)
     jam();
     c_lcpState.setLcpStatus(LCP_STATUS_IDLE, __LINE__);
   }
-
-  if (ERROR_INSERTED(7209))
-  {
-    SET_ERROR_INSERT_VALUE(7210);
-  }
-
   sendMASTER_LCPCONF(signal, __LINE__);
 }//Dbdih::execMASTER_LCPREQ()
 
@@ -18495,7 +18481,7 @@ void Dbdih::execLCP_FRAG_REP(Signal* signal)
       if (ret && ERROR_INSERTED(7209))
       {
         jam();
-        
+        CLEAR_ERROR_INSERT_VALUE;
         signal->theData[0] = 9999;
         sendSignal(numberToRef(CMVMI, cmasterNodeId), 
                    GSN_NDB_TAMPER, signal, 1, JBB);
@@ -18892,24 +18878,8 @@ void Dbdih::checkLcpCompletedLab(Signal* signal)
      * We'r done
      */
 
-    if (ERROR_INSERTED(7209))
-    {
-      signal->theData[0] = DihContinueB::ZCHECK_LCP_COMPLETED;
-      sendSignal(reference(), GSN_CONTINUEB, signal, 1, JBB);
-      return;
-    }
-    
     c_lcpState.setLcpStatus(LCP_TAB_SAVED, __LINE__);
     sendLCP_COMPLETE_REP(signal);
-
-    if (ERROR_INSERTED(7210))
-    {
-      CLEAR_ERROR_INSERT_VALUE;
-      EmptyLcpReq* req = (EmptyLcpReq*)signal->getDataPtr();
-      req->senderRef = reference();
-      sendEMPTY_LCP_REQ(signal, getOwnNodeId(), 0);
-    }
-    
     return;
   }
 
