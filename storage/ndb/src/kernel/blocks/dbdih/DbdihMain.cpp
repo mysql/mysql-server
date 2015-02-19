@@ -17967,7 +17967,6 @@ void Dbdih::writeRestorableGci(Signal* signal, FileRecordPtr filePtr)
   signal->theData[6] = 0; /* MEMORY PAGE = 0 SINCE COMMON STORED VARIABLE  */
   signal->theData[7] = 0;
 
-  g_eventLogger->info("FS_WRITEREQ for COPY_GCIREQ");
   if (ERROR_INSERTED(7224) && filePtr.i == crestartInfoFile[1])
   {
     jam();
