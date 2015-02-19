@@ -1951,6 +1951,10 @@ private:
   Uint32 getMinVersion() const;
 
   bool c_2pass_inr;
+  NodeId c_handled_master_take_over_copy_gci;
+
+  bool handle_master_take_over_copy_gci(Signal *signal,
+                                        NodeId newMasterNodeId);
 };
 
 #if (DIH_CDATA_SIZE < _SYSFILE_SIZE32)

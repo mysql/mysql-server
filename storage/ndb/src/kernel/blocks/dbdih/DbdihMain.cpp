@@ -1,5 +1,5 @@
-/* Copyright (c) 2003-2007 MySQL AB
-
+/*
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -5793,6 +5793,33 @@ void Dbdih::startRemoveFailedNode(Signal* signal, NodeRecordPtr failedNodePtr)
   setLocalNodefailHandling(signal, failedNodePtr.i, NF_REMOVE_NODE_FROM_TABLE);
 }//Dbdih::startRemoveFailedNode()
 
+bool Dbdih::handle_master_take_over_copy_gci(Signal *signal, NodeId new_master_node_id)
+{
+  if (c_copyGCISlave.m_expectedNextWord != 0)
+  {
+    jam();
+    c_copyGCISlave.m_expectedNextWord = 0;
+    c_copyGCISlave.m_copyReason = CopyGCIReq::IDLE;
+  }
+
+  if (c_copyGCISlave.m_copyReason != CopyGCIReq::IDLE)
+  {
+    /**
+     * Before we allow the new master to start up the new GCP protocols
+     * we need to ensure that the activity started by the previous
+     * failed master is completed before we process the master takeover.
+     * By enforcing this in MASTER_GCPREQ and MASTER_LCPREQ we are
+     * certain that the master takeover is ready to start up the new
+     * COPY_GCIREQ protocols.
+     */
+    sendSignalWithDelay(reference(), GSN_MASTER_GCPREQ,
+                        signal, 10, MasterGCPReq::SignalLength);
+    return true;
+  }
+  c_handled_master_take_over_copy_gci = new_master_node_id;
+  return false;
+}
+
 /*--------------------------------------------------*/
 /*       THE MASTER HAS FAILED AND THE NEW MASTER IS*/
 /*       QUERYING THIS NODE ABOUT THE STATE OF THE  */
@@ -5801,6 +5828,7 @@ void Dbdih::startRemoveFailedNode(Signal* signal, NodeRecordPtr failedNodePtr)
 void Dbdih::execMASTER_GCPREQ(Signal* signal) 
 {
   NodeRecordPtr failedNodePtr;
+  NodeRecordPtr newMasterNodePtr;
   MasterGCPReq * const masterGCPReq = (MasterGCPReq *)&signal->theData[0];  
   jamEntry();
   const BlockReference newMasterBlockref = masterGCPReq->masterRef;
@@ -5808,6 +5836,23 @@ void Dbdih::execMASTER_GCPREQ(Signal* signal)
 
   failedNodePtr.i = failedNodeId;
   ptrCheckGuard(failedNodePtr, MAX_NDB_NODES, nodeRecord);
+  newMasterNodePtr.i = refToNode(newMasterBlockref);
+  ptrCheckGuard(newMasterNodePtr, MAX_NDB_NODES, nodeRecord);
+
+  if (newMasterNodePtr.p->nodeStatus != NodeRecord::ALIVE)
+  {
+    /**
+     * We delayed the MASTER_GCPREQ signal and now it arrived after
+     * the new master already died. We ignore this signal.
+     */
+#ifdef VM_TRACE
+    g_eventLogger->info("Dropped MASTER_GCPREQ from node %u",
+                        newMasterNodePtr.i);
+#endif
+    jam();
+    return;
+  }
+
   if (failedNodePtr.p->nodeStatus == NodeRecord::ALIVE) {
     jam();
     /*--------------------------------------------------*/
@@ -5824,6 +5869,14 @@ void Dbdih::execMASTER_GCPREQ(Signal* signal)
     ndbrequire(failedNodePtr.p->nodeStatus == NodeRecord::DYING);
   }//if
 
+  if (handle_master_take_over_copy_gci(signal, newMasterNodePtr.i))
+  {
+    return;
+  }
+#ifdef VM_TRACE
+  g_eventLogger->info("Handle MASTER_GCPREQ from node %u",
+                      newMasterNodePtr.i);
+#endif
   if (ERROR_INSERTED(7181))
   {
     ndbout_c("execGCP_TCFINISHED in MASTER_GCPREQ");
@@ -5933,13 +5986,6 @@ void Dbdih::execMASTER_GCPREQ(Signal* signal)
     signal->theData[3] = cfailurenr;
     execGCP_TCFINISHED(signal);
   }
-
-  if (c_copyGCISlave.m_expectedNextWord != 0)
-  {
-    jam();
-    c_copyGCISlave.m_expectedNextWord = 0;
-    c_copyGCISlave.m_copyReason = CopyGCIReq::IDLE;
-  }
 }//Dbdih::execMASTER_GCPREQ()
 
 void Dbdih::execMASTER_GCPCONF(Signal* signal) 
@@ -5949,7 +5995,11 @@ void Dbdih::execMASTER_GCPCONF(Signal* signal)
   jamEntry();
   senderNodePtr.i = masterGCPConf->senderNodeId;
   ptrCheckGuard(senderNodePtr, MAX_NDB_NODES, nodeRecord);
-  
+ 
+#ifdef VM_TRACE
+  g_eventLogger->info("MASTER_GCPCONF from node %u", senderNodePtr.i);
+#endif
+
   MasterGCPConf::State gcpState = (MasterGCPConf::State)masterGCPConf->gcpState;
   MasterGCPConf::SaveState saveState =
     (MasterGCPConf::SaveState)masterGCPConf->saveState;
@@ -6748,9 +6798,23 @@ Dbdih::checkEmptyLcpComplete(Signal *signal){
 /*--------------------------------------------------*/
 void Dbdih::execMASTER_LCPREQ(Signal* signal) 
 {
+  NodeRecordPtr newMasterNodePtr;
   const MasterLCPReq * const req = (MasterLCPReq *)&signal->theData[0];
   jamEntry();
   const BlockReference newMasterBlockref = req->masterRef;
+
+  newMasterNodePtr.i = refToNode(newMasterBlockref);
+  ptrCheckGuard(newMasterNodePtr, MAX_NDB_NODES, nodeRecord);
+
+  if (newMasterNodePtr.p->nodeStatus != NodeRecord::ALIVE)
+  {
+    /**
+     * We delayed the MASTER_LCPREQ signal and now it arrived after
+     * the new master already died. We ignore this signal.
+     */
+    jam();
+    return;
+  }
 
   CRASH_INSERTION(7205);
 
@@ -6781,12 +6845,31 @@ void Dbdih::execMASTER_LCPREQ(Signal* signal)
 
   if (newMasterBlockref != cmasterdihref)
   {
+    /**
+     * We haven't processed the NODE_FAILREP signal causing the new master
+     * to be selected as the new master by this node.
+     */
     jam();
     ndbout_c("resending GSN_MASTER_LCPREQ");
     sendSignalWithDelay(reference(), GSN_MASTER_LCPREQ, signal,
 			50, signal->getLength());
     return;
   }
+
+  if (c_handled_master_take_over_copy_gci != refToNode(newMasterNodePtr.i))
+  {
+    /**
+     * We need to ensure that MASTER_GCPREQ has ensured that the COPY_GCIREQ
+     * activity started by old master has been completed before we proceed
+     * with handling the take over of the LCP protocol.
+     */
+    jam();
+    sendSignalWithDelay(reference(), GSN_MASTER_LCPREQ, signal,
+                        10, signal->getLength());
+    return;
+  }
+  c_handled_master_take_over_copy_gci = 0;
+
   Uint32 failedNodeId = req->failedNodeId;
 
   /**
@@ -7150,7 +7233,7 @@ void Dbdih::execMASTER_LCPCONF(Signal* signal)
   CRASH_INSERTION(7180);
   
 #ifdef VM_TRACE
-  g_eventLogger->info("MASTER_LCPCONF");
+  g_eventLogger->info("MASTER_LCPCONF from node %u", senderNodeId);
   printMASTER_LCP_CONF(stdout, &signal->theData[0], 0, 0);
 #endif  
 
@@ -17732,15 +17815,17 @@ void Dbdih::writeRestorableGci(Signal* signal, FileRecordPtr filePtr)
   signal->theData[6] = 0; /* MEMORY PAGE = 0 SINCE COMMON STORED VARIABLE  */
   signal->theData[7] = 0;
 
+  g_eventLogger->info("FS_WRITEREQ for COPY_GCIREQ");
   if (ERROR_INSERTED(7224) && filePtr.i == crestartInfoFile[1])
   {
     jam();
     SET_ERROR_INSERT_VALUE(7225);
-    sendSignalWithDelay(NDBFS_REF, GSN_FSWRITEREQ, signal, 500, 8);
+    sendSignalWithDelay(NDBFS_REF, GSN_FSWRITEREQ, signal, 2000, 8);
 
     signal->theData[0] = 9999;
     sendSignal(numberToRef(CMVMI, refToNode(cmasterdihref)),
 	       GSN_NDB_TAMPER, signal, 1, JBB);
+    g_eventLogger->info("FS_WRITEREQ delay 2 second for COPY_GCIREQ");
     return;
   }
   sendSignal(NDBFS_REF, GSN_FSWRITEREQ, signal, 8, JBA);
