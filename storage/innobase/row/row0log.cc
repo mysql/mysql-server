@@ -415,7 +415,7 @@ row_log_table_get_error(
 /******************************************************//**
 Starts logging an operation to a table that is being rebuilt.
 @return pointer to log, or NULL if no logging is necessary */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 byte*
 row_log_table_open(
 /*===============*/
@@ -450,7 +450,7 @@ err_exit:
 
 /******************************************************//**
 Stops logging an operation to a table that is being rebuilt. */
-static __attribute__((nonnull))
+static
 void
 row_log_table_close_func(
 /*=====================*/
@@ -820,7 +820,7 @@ row_log_table_low_redundant(
 
 /******************************************************//**
 Logs an insert or update to a table that is being rebuilt. */
-static __attribute__((nonnull(1,2,3)))
+static
 void
 row_log_table_low(
 /*==============*/
@@ -1322,7 +1322,7 @@ row_log_table_blob_alloc(
 /******************************************************//**
 Converts a log record to a table row.
 @return converted row, or NULL if the conversion fails */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 const dtuple_t*
 row_log_table_apply_convert_mrec(
 /*=============================*/
@@ -1476,7 +1476,7 @@ blob_done:
 /******************************************************//**
 Replays an insert operation on a table that was rebuilt.
 @return DB_SUCCESS or error code */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 row_log_table_apply_insert_low(
 /*===========================*/
@@ -1547,7 +1547,7 @@ row_log_table_apply_insert_low(
 /******************************************************//**
 Replays an insert operation on a table that was rebuilt.
 @return DB_SUCCESS or error code */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 row_log_table_apply_insert(
 /*=======================*/
@@ -1599,7 +1599,7 @@ row_log_table_apply_insert(
 /******************************************************//**
 Deletes a record from a table that is being rebuilt.
 @return DB_SUCCESS or error code */
-static __attribute__((nonnull(1, 2, 4, 5), warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 row_log_table_apply_delete_low(
 /*===========================*/
@@ -1697,7 +1697,7 @@ flag_ok:
 /******************************************************//**
 Replays a delete operation on a table that was rebuilt.
 @return DB_SUCCESS or error code */
-static __attribute__((nonnull(1, 3, 4, 5, 6, 7), warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 row_log_table_apply_delete(
 /*=======================*/
@@ -1821,7 +1821,7 @@ all_done:
 /******************************************************//**
 Replays an update operation on a table that was rebuilt.
 @return DB_SUCCESS or error code */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 row_log_table_apply_update(
 /*=======================*/
@@ -2176,7 +2176,7 @@ func_exit_committed:
 Applies an operation to a table that was rebuilt.
 @return NULL on failure (mrec corruption) or when out of data;
 pointer to next record on success */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 const mrec_t*
 row_log_table_apply_op(
 /*===================*/
@@ -3027,7 +3027,7 @@ row_log_get_max_trx(
 
 /******************************************************//**
 Applies an operation to a secondary index that was being created. */
-static __attribute__((nonnull))
+static
 void
 row_log_apply_op_low(
 /*=================*/
@@ -3264,7 +3264,7 @@ func_exit:
 Applies an operation to a secondary index that was being created.
 @return NULL on failure (mrec corruption) or when out of data;
 pointer to next record on success */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 const mrec_t*
 row_log_apply_op(
 /*=============*/

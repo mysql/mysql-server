@@ -161,8 +161,7 @@ btr_pcur_open_at_index_side(
 	bool		init_pcur,	/*!< in: whether to initialize pcur */
 	ulint		level,		/*!< in: level to search for
 					(0=leaf) */
-	mtr_t*		mtr)		/*!< in/out: mini-transaction */
-	__attribute__((nonnull));
+	mtr_t*		mtr);		/*!< in/out: mini-transaction */
 /**************************************************************//**
 Gets the up_match value for a pcur after a search.
 @return number of matched fields at the cursor or to the right if

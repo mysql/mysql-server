@@ -620,7 +620,7 @@ update_mbr:
 
 /**************************************************************//**
 Update parent page's MBR and Predicate lock information during a split */
-static __attribute__((nonnull))
+static
 void
 rtr_adjust_upper_level(
 /*===================*/

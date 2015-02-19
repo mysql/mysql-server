@@ -61,7 +61,7 @@ introduced where a call to log_free_check() is bypassed. */
 Removes a clustered index record. The pcur in node was positioned on the
 record, now it is detached.
 @return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
-static  __attribute__((nonnull, warn_unused_result))
+static  __attribute__((warn_unused_result))
 dberr_t
 row_undo_ins_remove_clust_rec(
 /*==========================*/
@@ -180,7 +180,7 @@ func_exit:
 /***************************************************************//**
 Removes a secondary index entry if found.
 @return DB_SUCCESS, DB_FAIL, or DB_OUT_OF_FILE_SPACE */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 row_undo_ins_remove_sec_low(
 /*========================*/
@@ -278,7 +278,7 @@ func_exit_no_pcur:
 Removes a secondary index entry from the index if found. Tries first
 optimistic, then pessimistic descent down the tree.
 @return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 row_undo_ins_remove_sec(
 /*====================*/
@@ -377,7 +377,7 @@ close_table:
 /***************************************************************//**
 Removes secondary index records.
 @return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 row_undo_ins_remove_sec_rec(
 /*========================*/

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -162,7 +162,7 @@ page_cur_tuple_insert(
 	bool		use_cache = false)
 				/*!< in: if true, then use record cache to
 				hold the tuple converted record. */
-	__attribute__((nonnull(1,2,3,4,5), warn_unused_result));
+	__attribute__((warn_unused_result));
 #endif /* !UNIV_HOTBACKUP */
 /***********************************************************//**
 Inserts a record next to page cursor. Returns pointer to inserted record if
@@ -199,7 +199,7 @@ page_cur_insert_rec_low(
 	const rec_t*	rec,	/*!< in: pointer to a physical record */
 	ulint*		offsets,/*!< in/out: rec_get_offsets(rec, index) */
 	mtr_t*		mtr)	/*!< in: mini-transaction handle, or NULL */
-	__attribute__((nonnull(1,2,3,4), warn_unused_result));
+	__attribute__((warn_unused_result));
 
 /** Inserts a record next to page cursor on an uncompressed page.
 @param[in]	current_rec	pointer to current record after which
@@ -238,7 +238,7 @@ page_cur_insert_rec_zip(
 	const rec_t*	rec,	/*!< in: pointer to a physical record */
 	ulint*		offsets,/*!< in/out: rec_get_offsets(rec, index) */
 	mtr_t*		mtr)	/*!< in: mini-transaction handle, or NULL */
-	__attribute__((nonnull(1,2,3,4), warn_unused_result));
+	__attribute__((warn_unused_result));
 /*************************************************************//**
 Copies records from page to a newly created page, from a given record onward,
 including that record. Infimum and supremum records are not copied.

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -46,7 +46,7 @@ row_get_trx_id_offset(
 /*==================*/
 	const dict_index_t*	index,	/*!< in: clustered index */
 	const ulint*		offsets)/*!< in: record offsets */
-	__attribute__((nonnull, warn_unused_result));
+	__attribute__((warn_unused_result));
 /*********************************************************************//**
 Reads the trx id field from a clustered index record.
 @return value of the field */
@@ -57,7 +57,7 @@ row_get_rec_trx_id(
 	const rec_t*		rec,	/*!< in: record */
 	const dict_index_t*	index,	/*!< in: clustered index */
 	const ulint*		offsets)/*!< in: rec_get_offsets(rec, index) */
-	__attribute__((nonnull, warn_unused_result));
+	__attribute__((warn_unused_result));
 /*********************************************************************//**
 Reads the roll pointer field from a clustered index record.
 @return value of the field */
@@ -68,7 +68,7 @@ row_get_rec_roll_ptr(
 	const rec_t*		rec,	/*!< in: record */
 	const dict_index_t*	index,	/*!< in: clustered index */
 	const ulint*		offsets)/*!< in: rec_get_offsets(rec, index) */
-	__attribute__((nonnull, warn_unused_result));
+	__attribute__((warn_unused_result));
 
 /* Flags for row build type. */
 #define ROW_BUILD_NORMAL	0	/*!< build row for insert. */
@@ -94,7 +94,7 @@ row_build_index_entry_low(
 	ulint			flag)	/*!< in: ROW_BUILD_NORMAL,
 					ROW_BUILD_FOR_PURGE
                                         or ROW_BUILD_FOR_UNDO */
-	__attribute__((warn_unused_result, nonnull(1,3,4)));
+	__attribute__((warn_unused_result));
 /*****************************************************************//**
 When an insert or purge to a table is performed, this function builds
 the entry to be inserted into or purged from an index on the table.
@@ -113,7 +113,7 @@ row_build_index_entry(
 	mem_heap_t*		heap)	/*!< in: memory heap from which
 					the memory for the index entry
 					is allocated */
-	__attribute__((warn_unused_result, nonnull(1,3,4)));
+	__attribute__((warn_unused_result));
 /*******************************************************************//**
 An inverse function to row_build_index_entry. Builds a row from a
 record in a clustered index.
@@ -158,9 +158,8 @@ row_build(
 	row_ext_t**		ext,	/*!< out, own: cache of
 					externally stored column
 					prefixes, or NULL */
-	mem_heap_t*		heap)	/*!< in: memory heap from which
+	mem_heap_t*		heap);	/*!< in: memory heap from which
 					the memory needed is allocated */
-	__attribute__((nonnull(2,3,9)));
 /*******************************************************************//**
 Converts an index record to a typed data tuple.
 @return index entry built; does not set info_bits, and the data fields
@@ -175,7 +174,7 @@ row_rec_to_index_entry_low(
 					stored columns */
 	mem_heap_t*		heap)	/*!< in: memory heap from which
 					the memory needed is allocated */
-	__attribute__((nonnull, warn_unused_result));
+	__attribute__((warn_unused_result));
 /*******************************************************************//**
 Converts an index record to a typed data tuple. NOTE that externally
 stored (often big) fields are NOT copied to heap.
@@ -190,7 +189,7 @@ row_rec_to_index_entry(
 					stored columns */
 	mem_heap_t*		heap)	/*!< in: memory heap from which
 					the memory needed is allocated */
-	__attribute__((nonnull, warn_unused_result));
+	__attribute__((warn_unused_result));
 /*******************************************************************//**
 Builds from a secondary index record a row reference with which we can
 search the clustered index record.
@@ -212,7 +211,7 @@ row_build_row_ref(
 				as long as the row reference is used! */
 	mem_heap_t*	heap)	/*!< in: memory heap from which the memory
 				needed is allocated */
-	__attribute__((nonnull, warn_unused_result));
+	__attribute__((warn_unused_result));
 /*******************************************************************//**
 Builds from a secondary index record a row reference with which we can
 search the clustered index record. */
@@ -232,8 +231,7 @@ row_build_row_ref_in_tuple(
 	const dict_index_t*	index,	/*!< in: secondary index */
 	ulint*			offsets,/*!< in: rec_get_offsets(rec, index)
 					or NULL */
-	trx_t*			trx)	/*!< in: transaction or NULL */
-	__attribute__((nonnull(1,2,3)));
+	trx_t*			trx);	/*!< in: transaction or NULL */
 /*******************************************************************//**
 Builds from a secondary index record a row reference with which we can
 search the clustered index record. */
@@ -263,7 +261,7 @@ row_search_on_row_ref(
 	const dict_table_t*	table,	/*!< in: table */
 	const dtuple_t*		ref,	/*!< in: row reference */
 	mtr_t*			mtr)	/*!< in/out: mtr */
-	__attribute__((nonnull, warn_unused_result));
+	__attribute__((warn_unused_result));
 /*********************************************************************//**
 Fetches the clustered index record for a secondary index record. The latches
 on the secondary index record are preserved.
@@ -276,7 +274,7 @@ row_get_clust_rec(
 	dict_index_t*	index,	/*!< in: secondary index */
 	dict_index_t**	clust_index,/*!< out: clustered index */
 	mtr_t*		mtr)	/*!< in: mtr */
-	__attribute__((nonnull, warn_unused_result));
+	__attribute__((warn_unused_result));
 
 /** Result of row_search_index_entry */
 enum row_search_result {
@@ -303,7 +301,7 @@ row_search_index_entry(
 	btr_pcur_t*	pcur,	/*!< in/out: persistent cursor, which must
 				be closed by the caller */
 	mtr_t*		mtr)	/*!< in: mtr */
-	__attribute__((nonnull, warn_unused_result));
+	__attribute__((warn_unused_result));
 
 #define ROW_COPY_DATA		1
 #define ROW_COPY_POINTERS	2
@@ -331,7 +329,7 @@ row_raw_format(
 	char*			buf,		/*!< out: output buffer */
 	ulint			buf_size)	/*!< in: output buffer size
 						in bytes */
-	__attribute__((nonnull, warn_unused_result));
+	__attribute__((warn_unused_result));
 
 #ifndef UNIV_NONINL
 #include "row0row.ic"

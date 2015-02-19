@@ -312,8 +312,7 @@ dict_mem_table_add_col(
 	const char*	name,	/*!< in: column name, or NULL */
 	ulint		mtype,	/*!< in: main datatype */
 	ulint		prtype,	/*!< in: precise type */
-	ulint		len)	/*!< in: precision */
-	__attribute__((nonnull(1)));
+	ulint		len);	/*!< in: precision */
 /**********************************************************************//**
 Renames a column of a table in the data dictionary cache. */
 void
@@ -322,8 +321,7 @@ dict_mem_table_col_rename(
 	dict_table_t*	table,	/*!< in/out: table */
 	unsigned	nth_col,/*!< in: column index */
 	const char*	from,	/*!< in: old column name */
-	const char*	to)	/*!< in: new column name */
-	__attribute__((nonnull));
+	const char*	to);	/*!< in: new column name */
 /**********************************************************************//**
 This function populates a dict_col_t memory structure with
 supplied information. */

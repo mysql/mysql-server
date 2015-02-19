@@ -2162,7 +2162,7 @@ Loads definitions for table indexes. Adds them to the data dictionary
 cache.
 @return DB_SUCCESS if ok, DB_CORRUPTION if corruption of dictionary
 table or DB_UNSUPPORTED if table has unknown index type */
-static __attribute__((nonnull))
+static
 dberr_t
 dict_load_indexes(
 /*==============*/
@@ -3246,7 +3246,7 @@ dict_load_foreign_cols(
 Loads a foreign key constraint to the dictionary cache. If the referenced
 table is not yet loaded, it is added in the output parameter (fk_tables).
 @return DB_SUCCESS or error code */
-static __attribute__((nonnull(1), warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 dict_load_foreign(
 /*==============*/

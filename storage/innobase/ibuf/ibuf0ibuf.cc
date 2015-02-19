@@ -2425,7 +2425,7 @@ ibuf_get_merge_page_nos_func(
 /*******************************************************************//**
 Get the matching records for space id.
 @return current rec or NULL */
-static	__attribute__((nonnull, warn_unused_result))
+static	__attribute__((warn_unused_result))
 const rec_t*
 ibuf_get_user_rec(
 /*===============*/
@@ -2447,7 +2447,7 @@ ibuf_get_user_rec(
 Reads page numbers for a space id from an ibuf tree.
 @return a lower limit for the combined volume of records which will be
 merged */
-static	__attribute__((nonnull, warn_unused_result))
+static	__attribute__((warn_unused_result))
 ulint
 ibuf_get_merge_pages(
 /*=================*/
@@ -3832,7 +3832,7 @@ skip_watch:
 During merge, inserts to an index page a secondary index entry extracted
 from the insert buffer.
 @return	newly inserted record */
-static __attribute__((nonnull))
+static
 rec_t*
 ibuf_insert_to_index_page_low(
 /*==========================*/
@@ -4238,7 +4238,7 @@ ibuf_delete(
 /*********************************************************************//**
 Restores insert buffer tree cursor position
 @return TRUE if the position was restored; FALSE if not */
-static __attribute__((nonnull))
+static
 ibool
 ibuf_restore_pos(
 /*=============*/

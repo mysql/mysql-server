@@ -903,7 +903,7 @@ que_node_get_containing_loop_node(
 #ifndef DBUG_OFF
 /** Gets information of an SQL query graph node.
 @return type description */
-static __attribute__((warn_unused_result, nonnull))
+static __attribute__((warn_unused_result))
 const char*
 que_node_type_string(
 /*=================*/

@@ -204,7 +204,7 @@ dict_create_add_foreigns_to_dictionary(
 	const dict_foreign_set&	local_fk_set,
 	const dict_table_t*	table,
 	trx_t*			trx)
-	__attribute__((nonnull, warn_unused_result));
+	__attribute__((warn_unused_result));
 /****************************************************************//**
 Creates the tablespaces and datafiles system tables inside InnoDB
 at server bootstrap or server start if they are not found or are
@@ -262,7 +262,7 @@ dict_create_add_foreign_to_dictionary(
 	const char*		name,	/*!< in: table name */
 	const dict_foreign_t*	foreign,/*!< in: foreign key */
 	trx_t*			trx)	/*!< in/out: dictionary transaction */
-	__attribute__((nonnull, warn_unused_result));
+	__attribute__((warn_unused_result));
 
 /* Table create node structure */
 struct tab_node_t{
