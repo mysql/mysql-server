@@ -75,6 +75,7 @@ void Dbdih::initData()
   c_set_initial_start_flag = FALSE;
   c_sr_wait_to = false;
   c_2pass_inr = false;
+  c_handled_master_take_over_copy_gci = 0;
   
   c_lcpTabDefWritesControl.init(MAX_CONCURRENT_LCP_TAB_DEF_FLUSHES);
 }//Dbdih::initData()
