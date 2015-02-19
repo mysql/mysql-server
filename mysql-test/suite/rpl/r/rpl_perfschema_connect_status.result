@@ -96,6 +96,12 @@ include/assert.inc [Value returned by SSS and PS table for Received_Transaction_
 # after STOP SLAVE.
 
 include/stop_slave.inc
-include/assert.inc [Value returned by SSS and PS table for Received_Transaction_Set should be same.]
+include/assert.inc [Received_Transaction_Set should not have changed after STOP SLAVE]
+
+# Verify that the value for 'Received_Transaction_Set' is cleared
+# after RESET SLAVE.
+
+RESET SLAVE;
+include/assert.inc [Received_Transaction_Set should be empty after RESET SLAVE]
 include/start_slave.inc
 include/rpl_end.inc
