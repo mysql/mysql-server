@@ -9,14 +9,7 @@ include/rpl_connect.inc [creating cluster1]
 include/rpl_connect.inc [creating cluster2]
 include/rpl_connect.inc [creating cluster3]
 [connection cluster1]
-show variables like 'server_id';
-Variable_name	Value
-server_id	1
-select @cluster1_server_id:=(variable_value+0) 
-from information_schema.global_variables 
-where variable_name like 'server_id';
-@cluster1_server_id:=(variable_value+0)
-1
+CLUSTER1_SERVER_ID: 1
 [connection cluster2]
 show variables like 'server_id';
 Variable_name	Value
