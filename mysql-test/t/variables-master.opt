@@ -1,2 +1,1 @@
 --query_cache_type=1
---group_concat_max_len=18446744073709547520

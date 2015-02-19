@@ -1826,9 +1826,3 @@ VARIABLE_NAME	VARIABLE_VALUE
 LOG_SLOW_SLAVE_STATEMENTS	ON
 set global log_slow_admin_statements = default;
 set global log_slow_slave_statements = default;
-#
-# Bug #19670915 GROUP_CONCAT_MAX_LEN=18446744073709547520 NOT ACCEPTED IN MY.CNF
-#
-# To test this bug, I have modified the variables-master.opt by adding
-# variable 'group_concat_max_len' with max value. The server should
-# be able to start with this max value.
