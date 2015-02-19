@@ -3517,7 +3517,12 @@ loop:
 
 int 
 runBug36276(NDBT_Context* ctx, NDBT_Step* step)
-{ 
+{
+  /**
+   * This test case was introduced to test the EMPTY_LCP protocol.
+   * This protocol was removed in 7.4, so now this function simply
+   * tests shooting down the master node at the end phases of an LCP.
+   */
   //int result = NDBT_OK;
   //int loops = ctx->getNumLoops();
   NdbRestarter res;
