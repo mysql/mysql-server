@@ -26,6 +26,7 @@ Created 1/8/1996 Heikki Tuuri
 
 #include "ha_prototypes.h"
 #include "current_thd.h"
+#include "mysqld.h"                             // system_charset_info
 #include <strfunc.h>
 
 #include "dict0dict.h"
