@@ -4817,26 +4817,28 @@ bool Item_wait_for_executed_gtid_set::itemize(Parse_context *pc, Item **res)
 */
 longlong Item_wait_for_executed_gtid_set::val_int()
 {
+  DBUG_ENTER("Item_wait_for_executed_gtid_set::val_int");
   DBUG_ASSERT(fixed == 1);
   THD* thd= current_thd;
-  String *gtid= args[0]->val_str(&value);
+  String *gtid_text= args[0]->val_str(&value);
 
   null_value= 0;
 
-  if (gtid == NULL)
+  if (gtid_text == NULL)
   {
     my_error(ER_MALFORMED_GTID_SET_SPECIFICATION, MYF(0), "NULL");
-    null_value= 1;
-    return 0;
+    DBUG_RETURN(0);
   }
 
-  // Since the function is independent of the slave threads we need to return
-  // with null value being set to 1.
+  // Waiting for a GTID in a slave thread could cause the slave to
+  // hang/deadlock.
   if (thd->slave_thread)
   {
     null_value= 1;
-    return 0;
+    DBUG_RETURN(0);
   }
+
+  Gtid_set wait_for_gtid_set(global_sid_map, NULL);
 
   global_sid_lock->rdlock();
   if (get_gtid_mode(GTID_MODE_LOCK_SID) == GTID_MODE_OFF)
@@ -4844,18 +4846,39 @@ longlong Item_wait_for_executed_gtid_set::val_int()
     global_sid_lock->unlock();
     my_error(ER_GTID_MODE_OFF, MYF(0), "use WAIT_FOR_EXECUTED_GTID_SET");
     null_value= 1;
-    return 0;
+    DBUG_RETURN(0);
   }
+
+  if (wait_for_gtid_set.add_gtid_text(gtid_text->c_ptr_safe()) !=
+      RETURN_STATUS_OK)
+  {
+    global_sid_lock->unlock();
+    // Error has already been generated.
+    DBUG_RETURN(1);
+  }
+
+  // Cannot wait for a GTID that the thread owns since that would
+  // immediately deadlock.
+  if (thd->owned_gtid.sidno > 0 &&
+      wait_for_gtid_set.contains_gtid(thd->owned_gtid))
+  {
+    char buf[Gtid::MAX_TEXT_LENGTH + 1];
+    thd->owned_gtid.to_string(global_sid_map, buf);
+    global_sid_lock->unlock();
+    my_error(ER_CANT_WAIT_FOR_EXECUTED_GTID_SET_WHILE_OWNING_A_GTID, MYF(0),
+             buf);
+    DBUG_RETURN(0);
+  }
+
   gtid_state->begin_gtid_wait(GTID_MODE_LOCK_SID);
-  global_sid_lock->unlock();
 
   longlong timeout= (arg_count== 2) ? args[1]->val_int() : 0;
-  int result= gtid_state->wait_for_gtid_set(thd, gtid, timeout);
-  if (result == -1)
-    null_value= 1;
+
+  bool result= gtid_state->wait_for_gtid_set(thd, &wait_for_gtid_set, timeout);
+  global_sid_lock->unlock();
   gtid_state->end_gtid_wait();
 
-  return result;
+  DBUG_RETURN(result);
 }
 
 bool Item_master_gtid_set_wait::itemize(Parse_context *pc, Item **res)

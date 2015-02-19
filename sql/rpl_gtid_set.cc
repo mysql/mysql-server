@@ -675,16 +675,29 @@ Gtid_set::remove_gno_intervals(rpl_sidno sidno,
                                Const_interval_iterator other_ivit,
                                Free_intervals_lock *lock)
 {
-  DBUG_ENTER("Gtid_set::remove_gno_intervals(rpl_sidno, Interval_iterator, bool *)");
+  DBUG_ENTER("Gtid_set::remove_gno_intervals(rpl_sidno, Interval_iterator, Free_intervals_lock *)");
   DBUG_ASSERT(sidno >= 1 && sidno <= get_max_sidno());
   const Interval *other_iv;
   Interval_iterator ivit(this, sidno);
   while ((other_iv= other_ivit.get()) != NULL)
   {
     remove_gno_interval(&ivit, other_iv->start, other_iv->end, lock);
+    if (ivit.get() == NULL)
+      break;
     other_ivit.next();
   }
   DBUG_VOID_RETURN;
+}
+
+
+void Gtid_set::remove_intervals_for_sidno(Gtid_set *other, rpl_sidno sidno)
+{
+  // Currently only works if this and other use the same Sid_map.
+  DBUG_ASSERT(other->sid_map == sid_map || other->sid_map == NULL ||
+              sid_map == NULL);
+  Const_interval_iterator other_ivit(other, sidno);
+  Free_intervals_lock lock(this);
+  remove_gno_intervals(sidno, other_ivit, &lock);
 }
 
 
