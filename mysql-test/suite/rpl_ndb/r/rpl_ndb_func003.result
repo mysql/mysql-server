@@ -3,7 +3,9 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
+SET SESSION sql_log_bin= 0;
 CALL mtr.add_suppression('Statement may not be safe to log in statement format.');
+SET SESSION sql_log_bin= 1;
 DROP FUNCTION IF EXISTS test.f1;
 DROP TABLE IF EXISTS test.t1;
 CREATE TABLE test.t1 (a INT NOT NULL AUTO_INCREMENT, c CHAR(16),PRIMARY KEY(a))ENGINE=NDB;
