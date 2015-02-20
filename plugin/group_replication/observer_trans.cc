@@ -183,6 +183,8 @@ int gcs_trans_before_commit(Trans_param *param)
     DBUG_RETURN(1);
   }
 
+  delete for_local_status;
+
   // Transaction information.
   const bool is_gtid_specified= param->gtid_info.type == GTID_GROUP;
   Gtid gtid= { param->gtid_info.sidno, param->gtid_info.gno };
