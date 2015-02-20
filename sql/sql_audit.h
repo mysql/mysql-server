@@ -79,6 +79,8 @@ void mysql_audit_general_log(THD *thd, time_t time,
   {
     MYSQL_LEX_STRING sql_command, ip, host, external_user;
     static MYSQL_LEX_STRING empty= { C_STRING_WITH_LEN("") };
+    ha_rows rows= 0;
+    int error_code= 0; 
 
     if (thd)
     {
@@ -102,8 +104,9 @@ void mysql_audit_general_log(THD *thd, time_t time,
       : global_system_variables.character_set_client;
 
     mysql_audit_notify(thd, MYSQL_AUDIT_GENERAL_CLASS, MYSQL_AUDIT_GENERAL_LOG,
-                       0, time, user, userlen, cmd, cmdlen, query, querylen,
-                       clientcs, 0, sql_command, host, external_user, ip);
+                       error_code, time, user, userlen, cmd, cmdlen, query,
+                       querylen, clientcs, rows, sql_command, host,
+                       external_user, ip);
   }
 #endif
 }
