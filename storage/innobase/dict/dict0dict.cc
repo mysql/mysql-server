@@ -1630,15 +1630,18 @@ dict_table_rename_in_cache(
 	} else if (table->space != TRX_SYS_SPACE) {
 		char*	new_path = NULL;
 
-		if (table->dir_path_of_temp_table != NULL) {
+		if (DICT_TF2_FLAG_IS_SET(table, DICT_TF2_TEMPORARY)) {
 			ut_print_timestamp(stderr);
 			fputs("  InnoDB: Error: trying to rename a"
 			      " TEMPORARY TABLE ", stderr);
 			ut_print_name(stderr, NULL, TRUE, old_name);
-			fputs(" (", stderr);
-			ut_print_filename(stderr,
-					  table->dir_path_of_temp_table);
-			fputs(" )\n", stderr);
+			if (table->dir_path_of_temp_table != NULL) {
+				fputs(" (", stderr);
+				ut_print_filename(
+					stderr, table->dir_path_of_temp_table);
+				fputs(" )\n", stderr);
+			}
+
 			return(DB_ERROR);
 
 		} else if (DICT_TF_HAS_DATA_DIR(table->flags)) {
