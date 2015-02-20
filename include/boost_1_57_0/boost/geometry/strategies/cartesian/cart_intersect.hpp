@@ -224,7 +224,7 @@ struct relate_cartesian_segments
                                             geometry::math::abs(robust_dy_b),
                                             a_is_point, b_is_point);
 
-            if ( collinear_use_first.second )
+            if (collinear_use_first.second)
             {
                 // Degenerate cases: segments of single point, lying on other segment, are not disjoint
                 // This situation is collinear too
@@ -265,11 +265,11 @@ private:
         // for degenerated segments the second is always true because this function
         // shouldn't be called if both segments were degenerated
 
-        if ( a_is_point )
+        if (a_is_point)
         {
             return std::make_pair(abs_robust_dx_b >= abs_robust_dy_b, true);
         }
-        else if ( b_is_point )
+        else if (b_is_point)
         {
             return std::make_pair(abs_robust_dx_a >= abs_robust_dy_a, true);
         }
@@ -371,39 +371,52 @@ private:
         RatioType rb_to(ob_2 - oa_1, length_a);
 
         // use absolute measure to detect endpoints intersection
-        // NOTE: some of those conditions shouldn't be met in the same time,
-        // e.g. a1 == b1 && a2 == b1 but they're checked anyway
-        // CONSIDER: below the ratio is modified if it should indicate that
-        // the endpoints intersect (but maybe it doesn't)
-        // should also the opposite case be handled explicitly? That is,
-        // if ratio indicates that the endpoints intersect but they aren't?
-        if ( math::equals(oa_1, ob_1) )
+        // NOTE: it'd be possible to calculate bx_wrt_a using ax_wrt_b values
+        int const a1_wrt_b = position_value(oa_1, ob_1, ob_2);
+        int const a2_wrt_b = position_value(oa_2, ob_1, ob_2);
+        int const b1_wrt_a = position_value(ob_1, oa_1, oa_2);
+        int const b2_wrt_a = position_value(ob_2, oa_1, oa_2);
+        
+        // fix the ratios if necessary
+        // CONSIDER: fixing ratios also in other cases, if they're inconsistent
+        // e.g. if ratio == 1 or 0 (so IP at the endpoint)
+        // but position value indicates that the IP is in the middle of the segment
+        // because one of the segments is very long
+        // In such case the ratios could be moved into the middle direction
+        // by some small value (e.g. EPS+1ULP)
+        if (a1_wrt_b == 1)
         {
             ra_from.assign(0, 1);
             rb_from.assign(0, 1);
         }
-        if ( math::equals(oa_2, ob_1) )
+        else if (a1_wrt_b == 3)
+        {
+            ra_from.assign(1, 1);
+            rb_to.assign(0, 1);
+        } 
+
+        if (a2_wrt_b == 1)
         {
             ra_to.assign(0, 1);
             rb_from.assign(1, 1);
         }
-        if ( math::equals(oa_1, ob_2) )
-        {
-            ra_from.assign(1, 1);
-            rb_to.assign(0, 1);
-        }        
-        if ( math::equals(oa_2, ob_2) )
+        else if (a2_wrt_b == 3)
         {
             ra_to.assign(1, 1);
             rb_to.assign(1, 1);
         }
 
-        if ((ra_from.left() && ra_to.left()) || (ra_from.right() && ra_to.right()))
+        if ((a1_wrt_b < 1 && a2_wrt_b < 1) || (a1_wrt_b > 3 && a2_wrt_b > 3))
+        //if ((ra_from.left() && ra_to.left()) || (ra_from.right() && ra_to.right()))
         {
             return Policy::disjoint();
         }
 
-        return Policy::segments_collinear(a, b, ra_from, ra_to, rb_from, rb_to);
+        bool const opposite = math::sign(length_a) != math::sign(length_b);
+
+        return Policy::segments_collinear(a, b, opposite,
+                                          a1_wrt_b, a2_wrt_b, b1_wrt_a, b2_wrt_a,
+                                          ra_from, ra_to, rb_from, rb_to);
     }
 
     /// Relate segments where one is degenerate
@@ -432,6 +445,24 @@ private:
         }
 
         return Policy::one_degenerate(degenerate_segment, ratio, a_degenerate);
+    }
+
+    template <typename ProjCoord1, typename ProjCoord2>
+    static inline int position_value(ProjCoord1 const& ca1,
+                                     ProjCoord2 const& cb1,
+                                     ProjCoord2 const& cb2)
+    {
+        // S1x  0   1    2     3   4
+        // S2       |---------->
+        return math::equals(ca1, cb1) ? 1
+             : math::equals(ca1, cb2) ? 3
+             : cb1 < cb2 ?
+                ( ca1 < cb1 ? 0
+                : ca1 > cb2 ? 4
+                : 2 )
+              : ( ca1 > cb1 ? 0
+                : ca1 < cb2 ? 4
+                : 2 );
     }
 };
 
