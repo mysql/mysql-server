@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -244,6 +244,9 @@ void lf_hash_destroy(LF_HASH *hash);
 int lf_hash_insert(LF_HASH *hash, LF_PINS *pins, const void *data);
 void *lf_hash_search(LF_HASH *hash, LF_PINS *pins, const void *key, uint keylen);
 int lf_hash_delete(LF_HASH *hash, LF_PINS *pins, const void *key, uint keylen);
+typedef int lf_hash_match_func(const uchar *el);
+void *lf_hash_random_match(LF_HASH *hash, LF_PINS *pins,
+                           lf_hash_match_func *match, uint rand_val);
 /*
   shortcut macros to access underlying pinbox functions from an LF_HASH
   see _lf_pinbox_get_pins() and _lf_pinbox_put_pins()

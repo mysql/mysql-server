@@ -3541,6 +3541,9 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
       else
         logger.general_log_write(thd, COM_STMT_PREPARE,
                                  query(), query_length());
+
+      /* audit plugins can return an error */
+      error |= thd->is_error();
     }
   }
   DBUG_RETURN(error);
