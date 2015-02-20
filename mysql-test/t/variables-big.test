@@ -39,18 +39,23 @@ SET @def_var= @@session.transaction_prealloc_size;
 --disable_warnings
 SET SESSION transaction_prealloc_size=1024*1024*1024*1;
 --replace_column 1 <Id> 3 <Host> 6 <Time> 7 <State>
+--sorted_result
 SHOW PROCESSLIST;
 SET SESSION transaction_prealloc_size=1024*1024*1024*2;
 --replace_column 1 <Id> 3 <Host> 6 <Time> 7 <State>
+--sorted_result
 SHOW PROCESSLIST;
 SET SESSION transaction_prealloc_size=1024*1024*1024*3;
 --replace_column 1 <Id> 3 <Host> 6 <Time> 7 <State>
+--sorted_result
 SHOW PROCESSLIST;
 SET SESSION transaction_prealloc_size=1024*1024*1024*4;
 --replace_column 1 <Id> 3 <Host> 6 <Time> 7 <State>
+--sorted_result
 SHOW PROCESSLIST;
 SET SESSION transaction_prealloc_size=1024*1024*1024*5;
 --replace_column 1 <Id> 3 <Host> 6 <Time> 7 <State>
+--sorted_result
 SHOW PROCESSLIST;
 --enable_warnings
 
