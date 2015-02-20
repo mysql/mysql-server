@@ -89,6 +89,7 @@ void mysql_audit_general_log(THD *thd, const char *cmd, size_t cmdlen)
     const char *user= user_buff;
     size_t userlen= make_user_name(thd, user_buff);
     time_t time= (time_t) thd->start_time.tv_sec;
+    int error_code= 0;
 
     if (thd)
     {
@@ -125,7 +126,7 @@ void mysql_audit_general_log(THD *thd, const char *cmd, size_t cmdlen)
       : global_system_variables.character_set_client;
 
     mysql_audit_notify(thd, MYSQL_AUDIT_GENERAL_CLASS, MYSQL_AUDIT_GENERAL_LOG,
-                       0, time, user, userlen, cmd, cmdlen, query.str,
+                       error_code, time, user, userlen, cmd, cmdlen, query.str,
                        query.length, clientcs,
                        static_cast<ha_rows>(0), /* general_rows */
                        sql_command, host, external_user, ip);
