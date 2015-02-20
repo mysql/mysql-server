@@ -243,10 +243,10 @@ void table_replication_connection_status::make_row(Master_info *mi)
 
       if (group_replication_info->group_name != NULL)
       {
-        memcpy(m_row.group_name, group_replication_info->group_name, UUID_LENGTH+1);
+        memcpy(m_row.group_name, group_replication_info->group_name, UUID_LENGTH);
         m_row.group_name_is_null= false;
 
-        memcpy(m_row.source_uuid, group_replication_info->group_name, UUID_LENGTH+1);
+        memcpy(m_row.source_uuid, group_replication_info->group_name, UUID_LENGTH);
         m_row.source_uuid_is_null= false;
 
         my_free((void*)group_replication_info->group_name);
@@ -265,7 +265,7 @@ void table_replication_connection_status::make_row(Master_info *mi)
     /* Slave channel. */
     if (mi->master_uuid[0] != 0)
     {
-      memcpy(m_row.source_uuid, mi->master_uuid, UUID_LENGTH+1);
+      memcpy(m_row.source_uuid, mi->master_uuid, UUID_LENGTH);
       m_row.source_uuid_is_null= false;
     }
 
