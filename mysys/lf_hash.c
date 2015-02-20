@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -503,3 +503,187 @@ static int initialize_bucket(LF_HASH *hash, LF_SLIST * volatile *node,
   */
   return 0;
 }
+
+/**
+  Search for list element satisfying condition specified by match
+  function and position cursor on it.
+
+  @param head          Head of the list to search in.
+  @param first_hashnr  Hash value to start search from.
+  @param last_hashnr   Hash value to stop search after.
+  @param match         Match function.
+  @param cursor        Cursor to be position.
+  @param pins          LF_PINS for the calling thread to be used during
+                       search for pinning result.
+
+  @retval 0 - not found
+  @retval 1 - found
+*/
+
+static int lfind_match(LF_SLIST * volatile *head,
+                       uint32 first_hashnr, uint32 last_hashnr,
+                       lf_hash_match_func *match,
+                       CURSOR *cursor, LF_PINS *pins)
+{
+  uint32       cur_hashnr;
+  intptr       link;
+
+retry:
+  cursor->prev= (intptr *)head;
+  do { /* PTR() isn't necessary below, head is a dummy node */
+    cursor->curr= (LF_SLIST *)(*cursor->prev);
+    lf_pin(pins, 1, cursor->curr);
+  } while (*cursor->prev != (intptr)cursor->curr && LF_BACKOFF);
+  for (;;)
+  {
+    if (unlikely(!cursor->curr))
+      return 0; /* end of the list */
+    do {
+      /* QQ: XXX or goto retry ? */
+      link= cursor->curr->link;
+      cursor->next= PTR(link);
+      lf_pin(pins, 0, cursor->next);
+    } while (link != cursor->curr->link && LF_BACKOFF);
+    cur_hashnr= cursor->curr->hashnr;
+    if (*cursor->prev != (intptr)cursor->curr)
+    {
+      (void)LF_BACKOFF;
+      goto retry;
+    }
+    if (!DELETED(link))
+    {
+      if (cur_hashnr >= first_hashnr)
+      {
+        if (cur_hashnr > last_hashnr)
+          return 0;
+
+        if (cur_hashnr & 1)
+        {
+          /* Normal node. Check if element matches condition. */
+          if ((*match)((uchar *)(cursor->curr + 1)))
+            return 1;
+        }
+        else
+        {
+          /*
+            Dummy node. Nothing to check here.
+
+            Still thanks to the fact that dummy nodes are never deleted we
+            can save it as a safe place to restart iteration if ever needed.
+          */
+          head= (LF_SLIST * volatile *)&(cursor->curr->link);
+        }
+      }
+
+      cursor->prev= &(cursor->curr->link);
+      lf_pin(pins, 2, cursor->curr);
+    }
+    else
+    {
+      /*
+        we found a deleted node - be nice, help the other thread
+        and remove this deleted node
+      */
+      if (my_atomic_casptr((void **)cursor->prev,
+                           (void **)&cursor->curr, cursor->next))
+        lf_pinbox_free(pins, cursor->curr);
+      else
+      {
+        (void)LF_BACKOFF;
+        goto retry;
+      }
+    }
+    cursor->curr= cursor->next;
+    lf_pin(pins, 1, cursor->curr);
+  }
+}
+
+/**
+  Find random hash element which satisfies condition specified by
+  match function.
+
+  @param hash      Hash to search element in.
+  @param pin       Pins for calling thread to be used during search
+                   and for pinning its result.
+  @param match     Pointer to match function. This function takes
+                   pointer to object stored in hash as parameter
+                   and returns 0 if object doesn't satisfy its
+                   condition (and non-0 value if it does).
+  @param rand_val  Random value to be used for selecting hash
+                   bucket from which search in sort-ordered
+                   list needs to be started.
+
+  @retval A pointer to a random element matching condition.
+  @retval NULL      - if nothing is found
+  @retval MY_ERRPTR - OOM.
+
+  @note This function follows the same pinning protocol as lf_hash_search(),
+        i.e. uses pins[0..2]. On return pins[0..1] are removed and pins[2]
+        is used to pin object found. It is also not removed in case when
+        object is not found/error occurs but its value is undefined in
+        this case.
+        So calling lf_hash_unpin() is mandatory after call to this function
+        in case of both success and failure.
+*/
+
+void *lf_hash_random_match(LF_HASH *hash, LF_PINS *pins,
+                           lf_hash_match_func *match,
+                           uint rand_val)
+{
+  /* Convert random value to valid hash value. */
+  uint hashnr= (rand_val & INT_MAX32);
+  uint bucket;
+  uint32 rev_hashnr;
+  LF_SLIST * volatile *el;
+  CURSOR cursor;
+  int res;
+
+  bucket= hashnr % hash->size;
+  rev_hashnr= my_reverse_bits(hashnr);
+
+  el= lf_dynarray_lvalue(&hash->array, bucket);
+  if (unlikely(!el))
+    return MY_ERRPTR;
+  /*
+    Bucket might be totally empty if it has not been accessed since last
+    time LF_HASH::size has been increased. In this case we initialize it
+    by inserting dummy node for this bucket to the correct position in
+    split-ordered list. This should help future lf_hash_* calls trying to
+    access the same bucket.
+  */
+  if (*el == NULL && unlikely(initialize_bucket(hash, el, bucket, pins)))
+    return MY_ERRPTR;
+
+  /*
+    To avoid bias towards the first matching element in the bucket, we start
+    looking for elements with inversed hash value greater or equal than
+    inversed value of our random hash.
+  */
+  res= lfind_match(el, rev_hashnr | 1, UINT_MAX32, match, &cursor, pins);
+
+  if (! res && hashnr != 0)
+  {
+    /*
+      We have not found matching element - probably we were too close to
+      the tail of our split-ordered list. To avoid bias against elements
+      at the head of the list we restart our search from its head. Unless
+      we were already searching from it.
+
+      To avoid going through elements at which we have already looked
+      twice we stop once we reach element from which we have begun our
+      first search.
+    */
+    el= lf_dynarray_lvalue(&hash->array, 0);
+    if (unlikely(!el))
+      return MY_ERRPTR;
+    res= lfind_match(el, 1, rev_hashnr, match, &cursor, pins);
+  }
+
+  if (res)
+    lf_pin(pins, 2, cursor.curr);
+  lf_unpin(pins, 0);
+  lf_unpin(pins, 1);
+
+  return res ? cursor.curr + 1 : 0;
+}
+

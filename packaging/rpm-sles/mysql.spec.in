@@ -460,6 +460,7 @@ rm -rf %{buildroot}%{_sysconfdir}/init.d/mysql
 rm -rf %{buildroot}%{_bindir}/mysql_embedded
 rm -rf %{buildroot}%{_bindir}/mysql_setpermission
 rm -rf %{buildroot}%{_mandir}/man1/mysql_setpermission.1*
+rm -f %{buildroot}%{_datadir}/mysql/win_install_firewall.sql 
 
 # rcmysql symlink
 install -d %{buildroot}%{_sbindir}
@@ -621,10 +622,13 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_pam.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/thread_pool.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/openssl_udf.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/firewall.so 
+%attr(644, root, root) %{_datadir}/mysql/linux_install_firewall.sql 
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/audit_log.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_pam.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/thread_pool.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/openssl_udf.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/firewall.so 
 %endif
 %attr(644, root, root) %{_datadir}/mysql/fill_help_tables.sql
 %attr(644, root, root) %{_datadir}/mysql/mysql_system_tables.sql
