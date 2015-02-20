@@ -3411,12 +3411,10 @@ row_truncate_table_for_mysql(
 		goto funct_exit;
 	}
 
-	if (table->space && !table->dir_path_of_temp_table) {
+	if (table->space && !DICT_TF2_FLAG_IS_SET(table, DICT_TF2_TEMPORARY)) {
 		/* Discard and create the single-table tablespace. */
 		ulint	space	= table->space;
 		ulint	flags	= fil_space_get_flags(space);
-
-		ut_a(!DICT_TF2_FLAG_IS_SET(table, DICT_TF2_TEMPORARY));
 
 		dict_get_and_save_data_dir_path(table, true);
 
@@ -4217,8 +4215,9 @@ row_drop_table_for_mysql(
 		is_temp = DICT_TF2_FLAG_IS_SET(table, DICT_TF2_TEMPORARY);
 
 		/* If there is a temp path then the temp flag is set.
-		However, during recovery, we might have a temp flag but
-		not know the temp path */
+		However, during recovery or reloading the table object
+		after eviction from data dictionary cache, we might
+		have a temp flag but not know the temp path */
 		ut_a(table->dir_path_of_temp_table == NULL || is_temp);
 		if (dict_table_is_discarded(table)
 		    || table->ibd_file_missing) {
