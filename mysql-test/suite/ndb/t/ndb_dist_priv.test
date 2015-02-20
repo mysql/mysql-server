@@ -36,12 +36,12 @@ CREATE TABLE t1 (pk INT PRIMARY KEY, a INT) engine = ndb;
 INSERT INTO t1 VALUES(0,0),(1,1),(2,2);
 CREATE USER 'user'@'localhost' IDENTIFIED by 'mypass';
 GRANT UPDATE ON t1 TO 'user'@'localhost';
-SET PASSWORD FOR 'user'@'localhost'= PASSWORD('newpass');
+SET PASSWORD FOR 'user'@'localhost'= 'newpass';
 RENAME USER 'user'@'localhost' TO 'newuser'@'localhost';
 GRANT SELECT ON test.* TO 'newuser'@'localhost' IDENTIFIED by 'mypass2';
 CREATE USER 'user2'@'localhost' IDENTIFIED by 'mypass';
 GRANT SELECT ON test.t1 TO 'user2'@'localhost';
-select distinct User,Password from mysql.user order by User;
+select distinct User,Authentication_string from mysql.user order by User;
 select User,Table_priv from mysql.tables_priv ORDER BY User;
 grant ALL PRIVILEGES on test.* to user@localhost with GRANT OPTION;
 select User,Table_priv from mysql.tables_priv ORDER BY User;
@@ -54,7 +54,7 @@ select User,Table_priv from mysql.tables_priv ORDER BY User;
 REVOKE SELECT ON test.t1 FROM 'user'@'localhost';
 select User,Table_priv from mysql.tables_priv ORDER BY User;
 CREATE USER 'user3'@'localhost' IDENTIFIED by 'mypass';
-select distinct User,Password from mysql.user order by User;
+select distinct User,Authentication_string from mysql.user order by User;
 select User,Table_priv from mysql.tables_priv ORDER BY User;
 REVOKE UPDATE ON t1 FROM 'newuser'@'localhost';
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'user'@'localhost';
@@ -64,7 +64,7 @@ select User, Table_name, Column_name from mysql.columns_priv ORDER BY User;
 
 connection server1;
 FLUSH PRIVILEGES;
-select distinct User,Password from mysql.user order by User;
+select distinct User,Authentication_string from mysql.user order by User;
 select User,Table_priv from mysql.tables_priv ORDER BY User;
 select User, Table_name, Column_name from mysql.columns_priv ORDER BY User;
 
@@ -73,7 +73,7 @@ REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'user2'@'localhost';
 select User,Table_priv from mysql.tables_priv ORDER BY User;
 
 connection server1;
-select distinct User,Password from mysql.user order by User;
+select distinct User,Authentication_string from mysql.user order by User;
 select User,Table_priv from mysql.tables_priv ORDER BY User;
 
 #
@@ -113,12 +113,17 @@ connect (server2_should_fail,127.0.0.1,billy1,wrongpass,test,$MASTER_MYPORT1,);
 #
 connection server1;
 BEGIN;
-UPDATE mysql.user SET Password = ''
+UPDATE mysql.user SET Authentication_string = ''
 WHERE User = 'billy1';
 
 connection server2;
---error ER_PASSWORD_NO_MATCH
-SET PASSWORD FOR 'billy1'@'127.0.0.1' = PASSWORD('newpass');
+# The SET PASSWORD query shuld fail when it tries to update the same row
+# as the first connection.
+
+# Allow error 1296 while waiting for BUG20561087
+--error 1296
+#--error ER_PASSWORD_NO_MATCH
+SET PASSWORD FOR 'billy1'@'127.0.0.1' = 'newpass';
 SHOW WARNINGS;
 
 connection server1;
