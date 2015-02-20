@@ -166,6 +166,7 @@ int gcs_trans_before_commit(Trans_param *param)
       cluster_member_mgr->get_cluster_member_info(*local_member_info->get_uuid());
   Cluster_member_info::Cluster_member_status node_status=
       for_local_status->get_recovery_status();
+  delete for_local_status;
 
   if (node_status == Cluster_member_info::MEMBER_IN_RECOVERY)
   {
@@ -182,8 +183,6 @@ int gcs_trans_before_commit(Trans_param *param)
                 " Check for errors and restart the plugin");
     DBUG_RETURN(1);
   }
-
-  delete for_local_status;
 
   // Transaction information.
   const bool is_gtid_specified= param->gtid_info.type == GTID_GROUP;
