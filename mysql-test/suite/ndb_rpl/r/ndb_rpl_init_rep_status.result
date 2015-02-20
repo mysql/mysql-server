@@ -12,13 +12,9 @@ insert into t1 values (1,1);
 Initial state
 select * from mysql.ndb_apply_status;
 server_id	epoch	log_name	start_pos	end_pos
-select variable_value from information_schema.global_status
-where variable_name like '%Ndb_slave_max_replicated_epoch%';
-variable_value
-0
-select @slave_server_id:=(variable_value+0) from information_schema.global_variables
-where variable_name like 'server_id';
-@slave_server_id:=(variable_value+0)
+Ndb_slave_max_replicated_epoch: 0
+select @slave_server_id:= @@server_id;
+@slave_server_id:= @@server_id
 2
 Default, no data, max replicated epoch will be 0.
 reset slave;
@@ -26,10 +22,7 @@ start slave;
 select server_id from mysql.ndb_apply_status order by server_id;
 server_id
 1
-select variable_value from information_schema.global_status
-where variable_name like 'Ndb_slave_max_replicated_epoch';
-variable_value
-0
+Ndb_slave_max_replicated_epoch: 0
 Default, load of own serverid from ndb_apply_status, should be 111
 drop table test.t1;
 stop slave;
@@ -40,22 +33,13 @@ select server_id from mysql.ndb_apply_status order by server_id;
 server_id
 1
 2
-select variable_value from information_schema.global_status
-where variable_name like 'Ndb_slave_max_replicated_epoch';
-variable_value
-111
+Ndb_slave_max_replicated_epoch: 111
 drop table test.t1;
 Check that reset slave resets Ndb_slave_max_replicated_epoch
 stop slave;
-select variable_value from information_schema.global_status
-where variable_name like 'Ndb_slave_max_replicated_epoch';
-variable_value
-111
+Ndb_slave_max_replicated_epoch: 111
 reset slave;
-select variable_value from information_schema.global_status
-where variable_name like 'Ndb_slave_max_replicated_epoch';
-variable_value
-0
+Ndb_slave_max_replicated_epoch: 0
 Multiple-channel, load highest of configured serverids, should be 222
 set @other_local_server_id=@slave_server_id+1;
 set @other_remote_server_id=@slave_server_id+2;
@@ -70,10 +54,7 @@ server_id
 2
 3
 4
-select variable_value from information_schema.global_status
-where variable_name like 'Ndb_slave_max_replicated_epoch';
-variable_value
-222
+Ndb_slave_max_replicated_epoch: 222
 stop slave;
 CHANGE MASTER TO IGNORE_SERVER_IDS= ();
 start slave;
