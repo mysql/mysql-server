@@ -106,8 +106,6 @@ Ndb_sorted_scan_count	#
 SHOW GLOBAL VARIABLES WHERE Variable_name LIKE 'ndb\_%' and 
 Variable_name NOT LIKE 'ndb_dbg\_%';
 Variable_name	Value
-Warning	#	'SHOW GLOBAL VARIABLES WHERE' is deprecated and will be removed in a future release. Please use performance_schema.global_variables instead
-Warnings:
 ndb_autoincrement_prefetch_sz	#
 ndb_batch_size	#
 ndb_blob_read_batch_bytes	#
