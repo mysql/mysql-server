@@ -794,9 +794,9 @@ uint QEP_TAB::get_sj_strategy() const
 
 uint JOIN_TAB::get_sj_strategy() const
 {
-  ASSERT_BEST_REF_IN_JOIN_ORDER(join());
   if (first_sj_inner() == NO_PLAN_IDX)
     return SJ_OPT_NONE;
+  ASSERT_BEST_REF_IN_JOIN_ORDER(join());
   JOIN_TAB *tab= join()->best_ref[first_sj_inner()];
   uint s= tab->position()->sj_strategy;
   DBUG_ASSERT(s != SJ_OPT_NONE);
