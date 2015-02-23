@@ -666,6 +666,10 @@ bool partition_info::set_up_default_partitions(Partition_handler *part_handler,
   }
   else
   {
+#ifndef MCP_BUG20585753
+    /* Only fetch default value when number of partitions is not known */
+    if (num_parts == 0)
+#endif
     default_partitions= part_handler->get_default_num_partitions(info);
   }
 
