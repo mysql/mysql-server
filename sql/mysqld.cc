@@ -2342,7 +2342,9 @@ void my_message_sql(uint error, const char *str, myf MyFlags)
     error= ER_UNKNOWN_ERROR;
   }
 
+#ifndef EMBEDDED_LIBRARY
   mysql_audit_general(thd, MYSQL_AUDIT_GENERAL_ERROR, error, str);
+#endif
 
   if (thd)
   {

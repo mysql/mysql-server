@@ -54,6 +54,7 @@
 #include "sql_query_rewrite.h" // invoke_pre_parse_rewrite_plugins
 #include "sql_reload.h"       // reload_acl_and_cache
 #include "sql_rename.h"       // mysql_rename_tables
+#include "sql_rewrite.h"      // mysql_rewrite_query
 #include "sql_select.h"       // handle_query
 #include "sql_show.h"         // find_schema_table
 #include "sql_table.h"        // mysql_create_table
@@ -1115,7 +1116,9 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     Security_context save_security_ctx(*(thd->security_context()));
 
     auth_rc= acl_authenticate(thd, packet_length);
+#ifndef EMBEDDED_LIBRARY
     MYSQL_AUDIT_NOTIFY_CONNECTION_CHANGE_USER(thd);
+#endif
     if (auth_rc)
     {
       *thd->security_context()= save_security_ctx;
@@ -1220,10 +1223,12 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       thd->protocol->end_statement();
       query_cache.end_of_result(thd);
 
+#ifndef EMBEDDED_LIBRARY
       mysql_audit_general(thd, MYSQL_AUDIT_GENERAL_STATUS,
                           thd->get_stmt_da()->is_error() ?
                           thd->get_stmt_da()->mysql_errno() : 0,
                           command_name[command].str);
+#endif
 
       size_t length= static_cast<size_t>(packet_end - beginning_of_next_stmt);
 
@@ -1635,6 +1640,7 @@ done:
   thd->rpl_thd_ctx.session_gtids_ctx().notify_after_response_packet(thd);
   query_cache.end_of_result(thd);
 
+#ifndef EMBEDDED_LIBRARY
   if (!thd->is_error() && !thd->killed_errno())
     mysql_audit_general(thd, MYSQL_AUDIT_GENERAL_RESULT, 0, 0);
 
@@ -1642,6 +1648,7 @@ done:
                       thd->get_stmt_da()->is_error() ?
                       thd->get_stmt_da()->mysql_errno() : 0,
                       command_name[command].str);
+#endif
 
   log_slow_statement(thd);
 
@@ -5046,10 +5053,12 @@ void mysql_parse(THD *thd, Parser_state *parser_state)
         }
       }
 
+#ifndef EMBEDDED_LIBRARY
       /* Audit_log notification when general log is disabled */
       if (!opt_general_log && !opt_general_log_raw)
         mysql_audit_general_log(thd, command_name[COM_QUERY].str,
                                 command_name[COM_QUERY].length);
+#endif
     }
 
     if (!err)

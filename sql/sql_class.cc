@@ -38,7 +38,7 @@
 #include "rpl_rli_pdb.h"                     // Slave_worker
 #include "sp_cache.h"                        // sp_cache_clear
 #include "sp_rcontext.h"                     // sp_rcontext
-#include "sql_audit.h"                       // mysql_audit_release
+#include "sql_audit.h"                       // mysql_audit_free_thd
 #include "sql_base.h"                        // close_temporary_tables
 #include "sql_callback.h"                    // MYSQL_CALLBACK
 #include "sql_handler.h"                     // mysql_ha_cleanup
@@ -1958,7 +1958,6 @@ void THD::release_resources()
 
   mdl_context.destroy();
   ha_close_connection(this);
-  mysql_audit_release(this);
   plugin_thdvar_cleanup(this, m_enable_plugins);
 
 #ifdef HAVE_MY_TIMER
