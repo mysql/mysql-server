@@ -28,11 +28,13 @@
 #  - Verify that the value in 'Last_Seen_Transaction' field is preserved after
 #    STOP SLAVE.
 #
-#  ==== Related Worklog ====
+#  ==== Related Bugs and Worklogs ====
 #
 #  WL#3656: PERFORMANCE SCHEMA table for SHOW SLAVE STATUS
 #  Bug#18358253: RPL.RPL_PERFSCHEMA_EXECUTE_STATUS_BY_WORKER HAS SPORADIC FAILURES ON PB2
 #
+#  Bug #18360716 ERRORS IN MTS WORKER THREADS REPORTED WRONGLY FOR ANONYMOUS TRANSACTIONS
+#  - The result file was updated after fixing this bug.
 
 --source include/not_group_replication_plugin.inc
 source include/not_gtid_enabled.inc;
