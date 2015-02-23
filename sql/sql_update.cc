@@ -151,7 +151,7 @@ static bool check_fields(THD *thd, List<Item> &items,
     }
     // Save original item for later privilege checking
     if (original_columns && original_columns->push_back(item))
-      return true;
+      return true;                   /* purecov: inspected */
 
     /*
       we make temporary copy of Item_field, to avoid influence of changing
@@ -159,7 +159,7 @@ static bool check_fields(THD *thd, List<Item> &items,
     */
     Item_field *const cloned_field= new Item_field(thd, base_table_field);
     if (!cloned_field)
-      return true;
+      return true;                  /* purecov: inspected */
 
     thd->change_item_tree(it.ref(), cloned_field);
   }
@@ -216,7 +216,7 @@ bool mysql_update_prepare_table(THD *thd, SELECT_LEX *select)
     return true;
 
   if (select->merge_derived(thd, tr))
-    return true;
+    return true;                 /* purecov: inspected */
 
   if (!tr->is_updatable())
   {
@@ -1433,7 +1433,7 @@ int Sql_cmd_update::mysql_multi_update_prepare(THD *thd)
   */
 
   if (select->setup_tables(thd, table_list, false))
-    DBUG_RETURN(true);
+    DBUG_RETURN(true);             /* purecov: inspected */
 
   /*
     A view's CHECK OPTION is incompatible with semi-join.
@@ -1724,7 +1724,7 @@ int multi_update::prepare(List<Item> &not_used_values,
     // Resolving may be needed for subsequent executions
     if (table_ref->check_option && !table_ref->check_option->fixed &&
         table_ref->check_option->fix_fields(thd, NULL))
-      DBUG_RETURN(1);
+      DBUG_RETURN(1);        /* purecov: inspected */
   }
 
   /*
