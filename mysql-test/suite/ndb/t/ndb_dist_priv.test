@@ -117,7 +117,7 @@ UPDATE mysql.user SET Authentication_string = ''
 WHERE User = 'billy1';
 
 connection server2;
-# The SET PASSWORD query shuld fail when it tries to update the same row
+# The SET PASSWORD query should fail when it tries to update the same row
 # as the first connection.
 
 # Allow error 1296 while waiting for BUG20561087
