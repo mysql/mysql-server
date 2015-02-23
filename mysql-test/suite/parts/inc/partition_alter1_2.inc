@@ -8,9 +8,9 @@
 #------------------------------------------------------------------------------#
 # Original Author: mleich                                                      #
 # Original Date: 2006-03-05                                                    #
-# Change Author:                                                               #
-# Change Date:                                                                 #
-# Change:                                                                      #
+# Change Author: debanerj                                                      #
+# Change Date: 2015-02-18                                                      #
+# Change: Added tests for alter table drop + add primary/unique key            #
 ################################################################################
 #
 --echo
@@ -110,17 +110,66 @@ let $unique= , UNIQUE INDEX uidx1 (f_int1,f_int2), UNIQUE INDEX uidx2 (f_int2,f_
 let $alter= ALTER TABLE t1 DROP INDEX uidx1, DROP INDEX uidx2;
 --source suite/parts/inc/partition_alter_13.inc
 
-if (0)
+if ($do_pk_tests)
 {
 --echo
 --echo #========================================================================
---echo #  3.    ALTER TABLE "ALTER" PRIMARY KEY
+--echo #  3.    ALTER TABLE "ALTER"(DROP + ADD) PRIMARY KEY
 --echo #        mleich: I think that an ALTER TABLE statement where a PRIMARY
 --echo #            KEY is dropped and recreated (with different layout) might
 --echo #            be of interest, if the tree containing the table data has
 --echo #            to be reorganized during this operation.
---echo #        To be implemented
 --echo #========================================================================
---echo
+#         Rule: The table must have a PRIMARY KEY or UNIQUE KEY
+#               ---> $unique must not be empty
+#               ---> The KEY to be dropped must contain the columns
+#                    used for partitioning.
+
+# Override column list to add NOT NULL constraint for partition by key()
+# tests. May be it is better to add more columns in partition.pre but would
+# impact a lot more tests.
+
+let $column_list= f_int1 INTEGER NOT NULL,
+f_int2 INTEGER NOT NULL,
+f_char1 CHAR(20),
+f_char2 CHAR(20),
+f_charbig VARCHAR(1000);
+
+let $expect_inplace_error= 0;
+
+--echo #------------------------------------------------------------------------
+--echo #  3.1   Partitioning function uses the PRIMARY/UNIQUE KEY
+--echo #------------------------------------------------------------------------
+#         Rule: PRIMARY/UNIQUE KEY is used in partitioning function
+#         ---> inc/partition_alter_12.inc
+
+   --echo #  3.1.1 DROP and CREATE PRIMARY KEY on different column
+   let $alter= ALTER TABLE t1 DROP PRIMARY KEY, ADD PRIMARY KEY(f_int2, f_int1);
+   let $unique= , PRIMARY KEY(f_int1);
+   --source suite/parts/inc/partition_alter_12.inc
+
+   --echo #  3.1.2 Negative test: Try DROP and CREATE PRIMARY KEY INPLACE
+   --echo # Expect error for INPLACE ALTER
+   let $expect_inplace_error= 1;
+   let $alter= ALTER TABLE t1 DROP PRIMARY KEY, ADD PRIMARY KEY(f_int2, f_int1),
+               ALGORITHM = INPLACE;
+   let $unique= , PRIMARY KEY(f_int1);
+   --source suite/parts/inc/partition_alter_12.inc
+   let $expect_inplace_error= 0;
+
+   --echo #  3.1.3 DROP and CREATE UNIQUE KEY on different column
+   let $alter= ALTER TABLE t1 DROP KEY ukey1, ADD UNIQUE KEY
+               ukey2(f_int2, f_int1);
+   let $unique= , UNIQUE KEY ukey1(f_int1);
+   --source suite/parts/inc/partition_alter_12.inc
+
+   --echo #  3.1.4 Negative test: Try DROP and CREATE UNIQUE KEY INPLACE
+   --echo # Expect error for INPLACE ALTER
+   let $expect_inplace_error= 1;
+   let $alter= ALTER TABLE t1 DROP KEY ukey1, ADD UNIQUE KEY
+               ukey2(f_int2, f_int1), ALGORITHM = INPLACE;
+   let $unique= , UNIQUE KEY ukey1(f_int1);
+   --source suite/parts/inc/partition_alter_12.inc
+   let $expect_inplace_error= 0;
 }
 
