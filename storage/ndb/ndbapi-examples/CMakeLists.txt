@@ -1,4 +1,4 @@
-# Copyright (c) 2014 Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -49,7 +49,7 @@ SET(EXAMPLES
   ndb_mgmapi_logevent2
 )
 FOREACH(EXAMPLE ${EXAMPLES})
-  TARGET_LINK_LIBRARIES(${EXAMPLE} ndbclient_so)
   TARGET_LINK_LIBRARIES(${EXAMPLE} libmysql)
+  TARGET_LINK_LIBRARIES(${EXAMPLE} ndbclient_so)
 ENDFOREACH()
 
