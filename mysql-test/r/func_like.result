@@ -266,3 +266,8 @@ SELECT * FROM t2 WHERE y LIKE 'abc%%' ESCAPE (SELECT 'c' FROM t1) ORDER BY y;
 x	y
 2	ab%cde
 DROP TABLE t1, t2;
+# Bug#20035071: Out of range error in subselect lead to assertion failed
+CREATE TABLE t1(a INTEGER) engine=innodb;
+SELECT 1 FROM t1 HAVING (SELECT 1 FROM t1) LIKE EXP(NOW());
+ERROR 22003: DOUBLE value is out of range in 'exp(now())'
+DROP TABLE t1;
