@@ -954,7 +954,7 @@ static bool fix_join_cond_for_insert(THD *thd, TABLE_LIST *tr)
     Column_privilege_tracker column_privilege(thd, SELECT_ACL);
 
     if (tr->join_cond()->fix_fields(thd, NULL))
-      return true;
+      return true;             /* purecov: inspected */
   }
 
   if (tr->nested_join == NULL)
@@ -966,7 +966,7 @@ static bool fix_join_cond_for_insert(THD *thd, TABLE_LIST *tr)
   while ((ti= li++))
   {
     if (fix_join_cond_for_insert(thd, ti))
-      return true;
+      return true;             /* purecov: inspected */
   }
   return false;
 }
@@ -994,7 +994,7 @@ Sql_cmd_insert_base::mysql_prepare_insert_check_table(THD *thd,
   const bool insert_into_view= table_list->is_view();
 
   if (select->setup_tables(thd, table_list, select_insert))
-    DBUG_RETURN(true);
+    DBUG_RETURN(true);             /* purecov: inspected */
 
   if (insert_into_view)
   {
@@ -1003,7 +1003,7 @@ Sql_cmd_insert_base::mysql_prepare_insert_check_table(THD *thd,
       DBUG_RETURN(true);
 
     if (select->merge_derived(thd, table_list))
-      DBUG_RETURN(true);
+      DBUG_RETURN(true);           /* purecov: inspected */
 
     /*
       On second preparation, we may need to resolve view condition generated
@@ -1011,7 +1011,7 @@ Sql_cmd_insert_base::mysql_prepare_insert_check_table(THD *thd,
     */
     if (!select->first_execution && table_list->is_merged() &&
         fix_join_cond_for_insert(thd, table_list))
-      DBUG_RETURN(true);
+      DBUG_RETURN(true);           /* purecov: inspected */
   }
 
   if (!table_list->is_updatable())

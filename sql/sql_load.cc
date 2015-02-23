@@ -247,7 +247,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     DBUG_RETURN(true);
 
   if (table_list->is_view() && select->resolve_derived(thd, false))
-    DBUG_RETURN(true);
+    DBUG_RETURN(true);                   /* purecov: inspected */
 
   TABLE_LIST *const insert_table_ref=
     table_list->is_updatable() &&        // View must be updatable
@@ -263,7 +263,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   }
   if (select->derived_table_count &&
       select->check_view_privileges(thd, INSERT_ACL, SELECT_ACL))
-    DBUG_RETURN(true);
+    DBUG_RETURN(true);                   /* purecov: inspected */
 
   if (table_list->is_merged())
   {

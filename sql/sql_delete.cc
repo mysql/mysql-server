@@ -600,10 +600,10 @@ bool Sql_cmd_delete::mysql_prepare_delete(THD *thd)
   TABLE_LIST *const table_list= select->get_table_list();
 
   if (select->setup_tables(thd, table_list, false))
-    DBUG_RETURN(true);
+    DBUG_RETURN(true);            /* purecov: inspected */
 
   if (table_list->is_view() && select->resolve_derived(thd, false))
-    DBUG_RETURN(true);
+    DBUG_RETURN(true);            /* purecov: inspected */
 
   if (!table_list->is_updatable())
   {
@@ -646,7 +646,7 @@ bool Sql_cmd_delete::mysql_prepare_delete(THD *thd)
 
     DBUG_ASSERT(!select->group_list.elements);
     if (select->setup_ref_array(thd))
-      DBUG_RETURN(true);
+      DBUG_RETURN(true);                     /* purecov: inspected */
     if (setup_order(thd, select->ref_pointer_array, &tables,
                     fields, all_fields, select->order_list.first))
       DBUG_RETURN(true);
@@ -721,7 +721,7 @@ int Sql_cmd_delete_multi::mysql_multi_delete_prepare(THD *thd,
     lex->query_tables also point on local list of DELETE SELECT_LEX
   */
   if (select->setup_tables(thd, lex->query_tables, false))
-    DBUG_RETURN(true);
+    DBUG_RETURN(true);               /* purecov: inspected */
 
   if (select->derived_table_count)
   {

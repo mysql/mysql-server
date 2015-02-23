@@ -61,7 +61,7 @@ bool TABLE_LIST::resolve_derived(THD *thd, bool apply_semijoin)
   }
 #endif
   if (!(derived_result= new (thd->mem_root) Query_result_union))
-    DBUG_RETURN(true);
+    DBUG_RETURN(true);              /* purecov: inspected */
 
   /*
     Prepare the underlying query expression of the derived table.
@@ -123,7 +123,7 @@ bool TABLE_LIST::setup_materialized_derived(THD *thd)
   if (derived_result->create_result_table(thd, &derived->types, false, 
                                           create_options,
                                           alias, false, false))
-    DBUG_RETURN(true);
+    DBUG_RETURN(true);        /* purecov: inspected */
 
   table= derived_result->table;
   table->pos_in_table_list= this;
@@ -268,7 +268,7 @@ bool TABLE_LIST::create_derived(THD *thd)
                             thd->lex->select_lex->active_options() |
                             TMP_TABLE_ALL_COLUMNS,
                             thd->variables.big_tables, &thd->opt_trace))
-    DBUG_RETURN(true);
+    DBUG_RETURN(true);        /* purecov: inspected */
 
   table->file->extra(HA_EXTRA_WRITE_CACHE);
   table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
@@ -333,7 +333,7 @@ bool TABLE_LIST::materialize_derived(THD *thd)
       there were no derived tables
     */
     if (derived_result->flush())
-      res= true;
+      res= true;                  /* purecov: inspected */
   }
 
   DBUG_RETURN(res);

@@ -8143,7 +8143,7 @@ bool Item_direct_view_ref::fix_fields(THD *thd, Item **reference)
   DBUG_ASSERT(*ref);
   /* (*ref)->check_cols() will be made in Item_direct_ref::fix_fields */
   if (!(*ref)->fixed && ((*ref)->fix_fields(thd, ref)))
-    return true;
+    return true;                     /* purecov: inspected */
 
   return Item_direct_ref::fix_fields(thd, reference);
 }

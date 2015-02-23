@@ -1081,9 +1081,9 @@ mysqld_list_fields(THD *thd, TABLE_LIST *table_list, const char *wild)
   {
     // Setup materialized result table so that we can read the column list
     if (table_list->resolve_derived(thd, false))
-      DBUG_VOID_RETURN;
+      DBUG_VOID_RETURN;                /* purecov: inspected */
     if (table_list->setup_materialized_derived(thd))
-      DBUG_VOID_RETURN;
+      DBUG_VOID_RETURN;                /* purecov: inspected */
   }
   TABLE *table= table_list->table;
 

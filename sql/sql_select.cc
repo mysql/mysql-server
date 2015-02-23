@@ -891,7 +891,7 @@ bool JOIN::prepare_result()
     for (TABLE_LIST *tl= select_lex->leaf_tables; tl; tl= tl->next_leaf)
     {
       if (tl->is_view_or_derived() && tl->create_derived(thd))
-        goto err;
+        goto err;                 /* purecov: inspected */
     }
   }
 

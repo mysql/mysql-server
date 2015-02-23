@@ -1319,7 +1319,7 @@ bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *view_ref,
   Parser_state parser_state;
   if ((result= parser_state.init(thd, view_ref->select_stmt.str,
                                  view_ref->select_stmt.length)))
-    DBUG_RETURN(true);
+    DBUG_RETURN(true);           /* purecov: inspected */
   /* 
     Use view db name as thread default database, in order to ensure
     that the view is parsed and prepared correctly.
@@ -1327,7 +1327,7 @@ bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *view_ref,
   bool dbchanged;
   if ((result= mysql_opt_change_db(thd, view_ref->view_db, &old_db, 1,
                                    &dbchanged)))
-    DBUG_RETURN(true);
+    DBUG_RETURN(true);           /* purecov: inspected */
 
   lex_start(thd);
 
@@ -1385,7 +1385,7 @@ bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *view_ref,
     DBUG_RETURN(true);
   }
   if (result)
-    DBUG_RETURN(true);
+    DBUG_RETURN(true);            /* purecov: inspected */
 
   // sql_calc_found_rows is only relevant for outer-most query expression
   view_lex->select_lex->remove_base_options(OPTION_FOUND_ROWS);
@@ -1896,7 +1896,7 @@ bool check_key_in_view(THD *thd, TABLE_LIST *view, const TABLE_LIST *table_ref)
     for (Field_translator *fld= trans; fld < end_of_trans; fld++)
     {
       if (!fld->item->fixed && fld->item->fix_fields(thd, &fld->item))
-        DBUG_RETURN(true);
+        DBUG_RETURN(true);                      /* purecov: inspected */
     }
     thd->mark_used_columns= save_mark_used_columns;
     thd->want_privilege= want_privilege_saved;

@@ -843,7 +843,7 @@ bool st_select_lex::resolve_derived(THD *thd, bool apply_semijoin)
           !tl->is_mergeable())
       continue;
       if (merge_derived(thd, tl))
-        DBUG_RETURN(true);
+        DBUG_RETURN(true);        /* purecov: inspected */
     }
   }
 
@@ -875,9 +875,9 @@ bool st_select_lex::resolve_derived(THD *thd, bool apply_semijoin)
         continue;
       DBUG_ASSERT(!tl->is_merged());
       if (tl->resolve_derived(thd, apply_semijoin))
-        DBUG_RETURN(true);
+        DBUG_RETURN(true);        /* purecov: inspected */
       if (tl->setup_materialized_derived(thd))
-        DBUG_RETURN(true);
+        DBUG_RETURN(true);        /* purecov: inspected */
       materialized_derived_table_count++;
     }
   }
@@ -1163,7 +1163,7 @@ bool SELECT_LEX::setup_conds(THD *thd)
       if (view->effective_with_check)
       {
         if (view->prepare_check_option(thd))
-          DBUG_RETURN(true);
+          DBUG_RETURN(true);        /* purecov: inspected */
         thd->change_item_tree(&table->check_option, view->check_option);
       }
     }
@@ -2129,7 +2129,7 @@ SELECT_LEX::convert_subquery_to_semijoin(Item_exists_subselect *subq_pred)
 
   if (subq_select->ftfunc_list->elements &&
       add_ftfunc_list(subq_select->ftfunc_list))
-    DBUG_RETURN(true);
+    DBUG_RETURN(true);        /* purecov: inspected */
 
   // This query block has semi-join nests
   has_sj_nests= true;
@@ -2221,7 +2221,7 @@ bool SELECT_LEX::merge_derived(THD *thd, TABLE_LIST *derived_table)
   // Add a nested join object to the derived table object
   if (!(derived_table->nested_join=
        (NESTED_JOIN *) thd->mem_calloc(sizeof(NESTED_JOIN))))
-    DBUG_RETURN(true);
+    DBUG_RETURN(true);        /* purecov: inspected */
   derived_table->nested_join->join_list.empty();//Should be done by constructor!
 
   // Merge tables from underlying query block into this join nest
@@ -2269,10 +2269,10 @@ bool SELECT_LEX::merge_derived(THD *thd, TABLE_LIST *derived_table)
 
   // Merge the WHERE clause into the outer query block
   if (derived_table->merge_where(thd))
-    DBUG_RETURN(true);
+    DBUG_RETURN(true);        /* purecov: inspected */
 
   if (derived_table->create_field_translation(thd))
-    DBUG_RETURN(true);
+    DBUG_RETURN(true);        /* purecov: inspected */
 
   // Exclude the derived table query expression from query graph.
   derived_unit->exclude_level();
@@ -2340,7 +2340,7 @@ bool SELECT_LEX::merge_derived(THD *thd, TABLE_LIST *derived_table)
   // Add any full-text functions from derived table into outer query
   if (derived_select->ftfunc_list->elements &&
       add_ftfunc_list(derived_select->ftfunc_list))
-    DBUG_RETURN(true);
+    DBUG_RETURN(true);        /* purecov: inspected */
 
   DBUG_RETURN(false);
 }
@@ -2656,7 +2656,7 @@ bool SELECT_LEX::add_ftfunc_list(List<Item_func_match> *ftfuncs)
   while ((ifm= li++))
   {
     if (ftfunc_list->push_front(ifm))
-      return true;
+      return true;        /* purecov: inspected */
   }
   return false;
 }

@@ -1247,15 +1247,15 @@ int Sql_cmd_update::mysql_test_update(THD *thd)
     DBUG_RETURN(1);
 
   if (select->setup_tables(thd, table_list, false))
-    DBUG_RETURN(true);
+    DBUG_RETURN(true);                  /* purecov: inspected */
 
   if (table_list->is_view())
   {
     if (table_list->resolve_derived(thd, false))
-      DBUG_RETURN(true);
+      DBUG_RETURN(true);                /* purecov: inspected */
 
     if (select->merge_derived(thd, table_list))
-      DBUG_RETURN(true);
+      DBUG_RETURN(true);                /* purecov: inspected */
   }
 
   if (!table_list->is_updatable())
@@ -1458,15 +1458,15 @@ static bool mysql_test_set_fields(Prepared_statement *stmt,
 
   if (tables &&
       check_table_access(thd, SELECT_ACL, tables, FALSE, UINT_MAX, FALSE))
-    DBUG_RETURN(true);
+    DBUG_RETURN(true);                /* purecov: inspected */
 
   if (open_tables_for_query(thd, tables, MYSQL_OPEN_FORCE_SHARED_MDL))
-    DBUG_RETURN(true);
+    DBUG_RETURN(true);                /* purecov: inspected */
 
   while ((var= it++))
   {
     if (var->light_check(thd))
-      DBUG_RETURN(true);
+      DBUG_RETURN(true);              /* purecov: inspected */
   }
 
   DBUG_RETURN(false);
@@ -1496,16 +1496,16 @@ static bool mysql_test_call_fields(Prepared_statement *stmt,
 
   if (tables &&
       check_table_access(thd, SELECT_ACL, tables, FALSE, UINT_MAX, FALSE))
-    DBUG_RETURN(true);
+    DBUG_RETURN(true);                /* purecov: inspected */
 
   if (open_tables_for_query(thd, tables, MYSQL_OPEN_FORCE_SHARED_MDL))
-    DBUG_RETURN(true);
+    DBUG_RETURN(true);                /* purecov: inspected */
 
   while ((item= it++))
   {
     if ((!item->fixed && item->fix_fields(thd, it.ref())) ||
         item->check_cols(1))
-      DBUG_RETURN(true);
+      DBUG_RETURN(true);              /* purecov: inspected */
   }
 
   DBUG_RETURN(false);
@@ -1755,8 +1755,10 @@ bool Sql_cmd_delete_multi::prepared_statement_test(THD *thd)
   lex->set_current_select(lex->select_lex);
   if (add_item_to_list(thd, new Item_null()))
   {
+    /* purecov: begin inspected */
     my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), 0);
     return true;
+    /* purecov: end */
   }
 
   if (multi_delete_precheck(thd, tables))

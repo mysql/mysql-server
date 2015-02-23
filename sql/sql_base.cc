@@ -8017,7 +8017,7 @@ set_new_item_local_context(THD *thd, Item_ident *item, TABLE_LIST *table_ref)
 {
   Name_resolution_context *context;
   if (!(context= new (thd->mem_root) Name_resolution_context))
-    return true;
+    return true;                /* purecov: inspected */
   context->init();
   context->first_name_resolution_table=
     context->last_name_resolution_table= table_ref;
@@ -8895,7 +8895,7 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
     {
       Item *const item= field_iterator.create_item(thd);
       if (!item)
-        DBUG_RETURN(true);
+        DBUG_RETURN(true);        /* purecov: inspected */
       DBUG_ASSERT(item->fixed);
       /* cache the table for the Item_fields inserted by expanding stars */
       if (item->type() == Item::FIELD_ITEM && tables->cacheable_table)

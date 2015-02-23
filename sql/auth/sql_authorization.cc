@@ -521,7 +521,7 @@ bool check_one_table_access(THD *thd, ulong privilege, TABLE_LIST *all_tables)
     if (view && subquery_table->belong_to_view == view)
     {
       if (check_single_table_access(thd, privilege, subquery_table, false))
-        return true;
+        return true;            /* purecov: inspected */
       subquery_table= subquery_table->next_global;
     }
     if (subquery_table &&
@@ -1097,11 +1097,11 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
       if (table_list->is_view())
       {
         if (table_list->resolve_derived(thd, false))
-          DBUG_RETURN(true);
+          DBUG_RETURN(true);             /* purecov: inspected */
 
         // Prepare a readonly (materialized) view for access to columns
         if (table_list->setup_materialized_derived(thd))
-          DBUG_RETURN(true);
+          DBUG_RETURN(true);             /* purecov: inspected */
       }
       while ((column = column_iter++))
       {
@@ -2176,6 +2176,8 @@ bool check_column_grant_in_table_ref(THD *thd, TABLE_LIST * table_ref,
   Security_context *sctx= MY_TEST(table_ref->security_ctx) ?
                           table_ref->security_ctx : thd->security_context();
 
+  DBUG_ASSERT(want_privilege);
+
   if (table_ref->is_view() || table_ref->field_translation)
   {
     /* View or derived information schema table. */
@@ -2216,14 +2218,8 @@ bool check_column_grant_in_table_ref(THD *thd, TABLE_LIST * table_ref,
     table_name= table->s->table_name.str;
   }
 
-  if (want_privilege)
-    return check_grant_column(thd, grant, db_name, table_name, name,
-                              length, sctx, want_privilege);
-  else
-  {
-    DBUG_ASSERT(grant->want_privilege == 0);
-    return false;
-  }
+  return check_grant_column(thd, grant, db_name, table_name, name,
+                            length, sctx, want_privilege);
 }
 
 

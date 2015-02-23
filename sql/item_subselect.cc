@@ -3292,7 +3292,7 @@ bool subselect_indexsubquery_engine::exec()
       err= tl->materialize_derived(thd);
     err|= tl->cleanup_derived();
     if (err)
-      DBUG_RETURN(true);
+      DBUG_RETURN(true);            /* purecov: inspected */
 
     tab->materialized= true;
   }

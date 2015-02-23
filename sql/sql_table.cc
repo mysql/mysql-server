@@ -5687,8 +5687,10 @@ int mysql_discard_or_import_tablespace(THD *thd,
 
   if (open_and_lock_tables(thd, table_list, 0, &alter_prelocking_strategy))
   {
+    /* purecov: begin inspected */
     thd->tablespace_op= false;
     DBUG_RETURN(-1);
+    /* purecov: end */
   }
 
   if (table_list->table->part_info)
