@@ -29,7 +29,7 @@ ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
 <ID>	root	<HOST_NAME>	test	Query	<TIME>	executing	SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST
 SHOW FULL PROCESSLIST;
 Id	User	Host	db	Command	Time	State	Info
-<ID>	root	<HOST_NAME>	test	Query	<TIME>	starting	SHOW FULL PROCESSLIST
+<ID>	root	<HOST_NAME>	test	Query	<TIME>	STATE	SHOW FULL PROCESSLIST
 SET @default_id = CONNECTION_ID();
 SELECT COUNT(*)  = 1 AS "Expect exact one connection with this id"
 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE ID = @default_id;
@@ -77,7 +77,7 @@ ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
 <ID>	test_user	<HOST_NAME>	information_schema	Sleep	<TIME>		NULL
 SHOW FULL PROCESSLIST;
 Id	User	Host	db	Command	Time	State	Info
-<ID>	root	<HOST_NAME>	information_schema	Query	<TIME>	starting	SHOW FULL PROCESSLIST
+<ID>	root	<HOST_NAME>	information_schema	Query	<TIME>	STATE	SHOW FULL PROCESSLIST
 <ID>	test_user	<HOST_NAME>	information_schema	Sleep	<TIME>		NULL
 SELECT ID,TIME INTO @test_user_con1_id,@time FROM INFORMATION_SCHEMA.PROCESSLIST
 WHERE COMMAND = 'Sleep' AND USER = 'test_user';
@@ -110,7 +110,7 @@ ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
 <ID>	test_user	<HOST_NAME>	information_schema	Query	<TIME>	executing	SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST
 SHOW FULL PROCESSLIST;
 Id	User	Host	db	Command	Time	State	Info
-<ID>	test_user	<HOST_NAME>	information_schema	Query	<TIME>	starting	SHOW FULL PROCESSLIST
+<ID>	test_user	<HOST_NAME>	information_schema	Query	<TIME>	STATE	SHOW FULL PROCESSLIST
 # Ensure that the user test_user sees all connections with his username.
 #----------------------------------------------------------------------------
 
@@ -128,7 +128,7 @@ ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
 <ID>	test_user	<HOST_NAME>	information_schema	Sleep	<TIME>		NULL
 SHOW FULL PROCESSLIST;
 Id	User	Host	db	Command	Time	State	Info
-<ID>	test_user	<HOST_NAME>	information_schema	Query	<TIME>	starting	SHOW FULL PROCESSLIST
+<ID>	test_user	<HOST_NAME>	information_schema	Query	<TIME>	STATE	SHOW FULL PROCESSLIST
 <ID>	test_user	<HOST_NAME>	information_schema	Sleep	<TIME>		NULL
 # ----- switch to connection default (user = root) -----
 
@@ -155,7 +155,7 @@ ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
 <ID>	test_user	<HOST_NAME>	information_schema	Sleep	<TIME>		NULL
 SHOW FULL PROCESSLIST;
 Id	User	Host	db	Command	Time	State	Info
-<ID>	root	<HOST_NAME>	information_schema	Query	<TIME>	starting	SHOW FULL PROCESSLIST
+<ID>	root	<HOST_NAME>	information_schema	Query	<TIME>	STATE	SHOW FULL PROCESSLIST
 <ID>	test_user	<HOST_NAME>	information_schema	Query	<TIME>	User sleep	SELECT sleep(10), 17
 <ID>	test_user	<HOST_NAME>	information_schema	Sleep	<TIME>		NULL
 SELECT STATE, TIME, INFO INTO @state, @time, @info

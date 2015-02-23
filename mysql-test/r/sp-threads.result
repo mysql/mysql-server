@@ -34,8 +34,8 @@ lock tables t2 write;
 call bug9486();
 show processlist;
 Id	User	Host	db	Command	Time	State	Info
+#	root	localhost	test	Query	#	STATE	show processlist
 #	root	localhost	test	Query	#	Waiting for table metadata lock	update t1, t2 set val= 1 where id1=id2
-#	root	localhost	test	Query	#	starting	show processlist
 #	root	localhost	test	Sleep	#		NULL
 #	root	localhost	test	Sleep	#		NULL
 unlock tables;
