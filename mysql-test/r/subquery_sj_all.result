@@ -11925,4 +11925,73 @@ col_date_key
 2008-09-12
 2009-02-23
 DROP TABLE t1,t2,t3;
+#
+# Bug#20554585 ASSERT JOIN()->TABLES == 0... IN JOIN_TAB::GET_SJ_STRATEGY ON SUBQUERY + VAR
+#
+CREATE TABLE t1 (
+pk int NOT NULL,
+PRIMARY KEY (pk)
+);
+CREATE TABLE t2 (
+pk int NOT NULL,
+col_int_key int,
+col_varchar_key varchar(1),
+PRIMARY KEY (pk),
+KEY col_int_key (col_int_key),
+KEY col_varchar_key (col_varchar_key)
+);
+CREATE TABLE t3 (
+pk int NOT NULL,
+col_int_key int,
+col_varchar_key varchar(1),
+col_varchar varchar(1),
+PRIMARY KEY (pk),
+KEY col_int_key (col_int_key),
+KEY col_varchar_key (col_varchar_key)
+);
+INSERT INTO t3 VALUES (1,4,'c','g'),(20,1,'i','p');
+CREATE TABLE t4 (
+col_int int
+);
+CREATE TABLE t5 (
+col_varchar_key varchar(1),
+pk int NOT NULL,
+col_int int,
+PRIMARY KEY (pk),
+KEY col_varchar_key (col_varchar_key)
+);
+SELECT table1.col_varchar_key AS field1
+FROM (t3 AS table1
+INNER JOIN (
+SELECT SUBQUERY1_t1.*
+FROM (t1 AS SUBQUERY1_t1
+RIGHT JOIN (t2 AS SUBQUERY1_t2
+INNER JOIN t3 AS SUBQUERY1_t3
+ON (SUBQUERY1_t3.col_varchar_key = SUBQUERY1_t2.col_varchar_key)
+) ON (SUBQUERY1_t3.col_int_key = SUBQUERY1_t2.pk)
+)
+WHERE SUBQUERY1_t2.col_varchar_key >= ANY (
+SELECT CHILD_SUBQUERY1_t2.col_varchar AS CHILD_SUBQUERY1_field1
+FROM (t2 AS CHILD_SUBQUERY1_t1
+LEFT OUTER JOIN t3 AS CHILD_SUBQUERY1_t2
+ON (CHILD_SUBQUERY1_t2.col_int_key = CHILD_SUBQUERY1_t1.col_int_key)
+)
+WHERE CHILD_SUBQUERY1_t1.pk >= SUBQUERY1_t2.pk
+)
+) AS table2
+ON (table2.pk = table1.pk)
+)
+WHERE (EXISTS ((
+SELECT DISTINCT SUBQUERY2_t2.col_int AS SUBQUERY2_field1
+FROM (t4 AS SUBQUERY2_t1
+LEFT OUTER JOIN t5 AS SUBQUERY2_t2
+ON (SUBQUERY2_t2.pk = SUBQUERY2_t1.col_int)
+)
+WHERE SUBQUERY2_t2.col_varchar_key != @var4
+)))
+AND table1.col_int_key < (35 + 192)
+ORDER BY field1
+;
+field1
+DROP TABLE t1, t2, t3, t4, t5;
 set optimizer_switch=default;
