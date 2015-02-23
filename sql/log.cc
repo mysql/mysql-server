@@ -6094,6 +6094,8 @@ MYSQL_BIN_LOG::trx_group_commit_leader(group_commit_entry *leader)
         last_in_queue->commit_errno= errno;
         check_purge= false;
       }
+      /* In case of binlog rotate, update the correct current binlog offset. */
+      commit_offset= my_b_write_tell(&log_file);
     }
   }
 

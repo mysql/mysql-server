@@ -85,4 +85,35 @@ SHOW MASTER STATUS;
 --replace_regex /\/\* xid=.* \*\//\/* XID *\// /Server ver: .*, Binlog ver: .*/Server ver: #, Binlog ver: #/ /table_id: [0-9]+/table_id: #/
 SHOW BINLOG EVENTS;
 
-DROP TABLE t1,t2;
+
+--echo *** MDEV-7310: last_commit_pos_offset set to wrong value after binlog rotate in group commit ***
+
+SET @old_size= @@GLOBAL.max_binlog_size;
+SET GLOBAL max_binlog_size=4096;
+
+CREATE TABLE t3 (a INT PRIMARY KEY, b VARBINARY(8192)) ENGINE=MyISAM;
+INSERT INTO t3 VALUES (10, '');
+--let $bigdata= `SELECT REPEAT('a', 5000)`
+eval INSERT INTO t3 VALUES (11, '$bigdata');
+
+# The bug was that binlog_snapshot_file pointed to the new file after binlog
+# rotation, but binlog_snapshot_position was the offset in the old file before
+# binlog rotation. So the position was invalid.
+# So here, we check that the values are consistent with SHOW MASTER STATUS,
+# which uses a different code path and did not have the bug.
+
+--let $snap_file= query_get_value(SHOW STATUS LIKE 'binlog_snapshot_file', Value, 1)
+--let $snap_pos= query_get_value(SHOW STATUS LIKE 'binlog_snapshot_position', Value, 1)
+
+--let $master_file= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $master_pos= query_get_value(SHOW MASTER STATUS, Position, 1)
+
+--disable_query_log
+eval SET @errmsg= 'ERROR: ($snap_file, $snap_pos) != ($master_file, $master_pos)';
+eval SELECT IF('$snap_file' = '$master_file' AND $snap_pos = $master_pos, 'OK', @errmsg) AS test_result;
+--enable_query_log
+
+SET GLOBAL max_binlog_size=@old_size;
+
+
+DROP TABLE t1,t2, t3;
