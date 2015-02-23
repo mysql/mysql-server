@@ -1764,6 +1764,8 @@ static int copy_events(Ndb *ndb)
 	NdbSleep_MilliSleep(100); // sleep before retying
       } while(1);
     } // for
+    // No more event data on the event queue.
+    break; 
   } // while(1)
   g_info << "n_updates: " << n_updates << " "
 	 << "n_inserts: " << n_inserts << " "
