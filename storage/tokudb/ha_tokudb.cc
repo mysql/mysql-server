@@ -3926,13 +3926,13 @@ int ha_tokudb::write_row(uchar * record) {
             goto cleanup;
         }
     }
-    
     txn = create_sub_trans ? sub_trans : transaction;
-
+    if (tokudb_debug & TOKUDB_DEBUG_TXN) {
+        TOKUDB_HANDLER_TRACE("txn %p", txn);
+    }
     if (tokudb_debug & TOKUDB_DEBUG_CHECK_KEY) {
         test_row_packing(record,&prim_key,&row);
     }
-
     if (loader) {
         error = loader->put(loader, &prim_key, &row);
         if (error) {
@@ -4206,7 +4206,7 @@ int ha_tokudb::delete_row(const uchar * record) {
     bool has_null;
     THD* thd = ha_thd();
     uint curr_num_DBs;
-    tokudb_trx_data* trx = (tokudb_trx_data *) thd_get_ha_data(thd, tokudb_hton);;
+    tokudb_trx_data* trx = (tokudb_trx_data *) thd_get_ha_data(thd, tokudb_hton);
 
     ha_statistic_increment(&SSV::ha_delete_count);
 
@@ -4231,10 +4231,14 @@ int ha_tokudb::delete_row(const uchar * record) {
         goto cleanup;
     }
 
+    if (tokudb_debug & TOKUDB_DEBUG_TXN) {
+        TOKUDB_HANDLER_TRACE("all %p stmt %p sub_sp_level %p transaction %p", trx->all, trx->stmt, trx->sub_sp_level, transaction);
+    }
+
     error = db_env->del_multiple(
         db_env, 
         share->key_file[primary_key], 
-        transaction, 
+        transaction,
         &prim_key, 
         &row,
         curr_num_DBs, 

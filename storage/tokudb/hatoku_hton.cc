@@ -946,7 +946,7 @@ cleanup:
 #endif
 
 static int tokudb_savepoint(handlerton * hton, THD * thd, void *savepoint) {
-    TOKUDB_DBUG_ENTER("");
+    TOKUDB_DBUG_ENTER("%p", savepoint);
     int error;
     SP_INFO save_info = (SP_INFO)savepoint;
     tokudb_trx_data *trx = (tokudb_trx_data *) thd_get_ha_data(thd, hton);
@@ -967,6 +967,9 @@ static int tokudb_savepoint(handlerton * hton, THD * thd, void *savepoint) {
         trx->sp_level = save_info->txn;
         save_info->in_sub_stmt = false;
     }
+    if (tokudb_debug & TOKUDB_DEBUG_TXN) {
+        TOKUDB_TRACE("begin txn %p", save_info->txn);
+    }
     save_info->trx = trx;
     error = 0;
 cleanup:
@@ -974,7 +977,7 @@ cleanup:
 }
 
 static int tokudb_rollback_to_savepoint(handlerton * hton, THD * thd, void *savepoint) {
-    TOKUDB_DBUG_ENTER("");
+    TOKUDB_DBUG_ENTER("%p", savepoint);
     int error;
     SP_INFO save_info = (SP_INFO)savepoint;
     DB_TXN* parent = NULL;
@@ -982,6 +985,9 @@ static int tokudb_rollback_to_savepoint(handlerton * hton, THD * thd, void *save
 
     tokudb_trx_data *trx = (tokudb_trx_data *) thd_get_ha_data(thd, hton);
     parent = txn_to_rollback->parent;
+    if (tokudb_debug & TOKUDB_DEBUG_TXN) {
+        TOKUDB_TRACE("rollback txn %p", txn_to_rollback);
+    }
     if (!(error = txn_to_rollback->abort(txn_to_rollback))) {
         if (save_info->in_sub_stmt) {
             trx->sub_sp_level = parent;
@@ -995,24 +1001,27 @@ static int tokudb_rollback_to_savepoint(handlerton * hton, THD * thd, void *save
 }
 
 static int tokudb_release_savepoint(handlerton * hton, THD * thd, void *savepoint) {
-    TOKUDB_DBUG_ENTER("");
-    int error;
-
+    TOKUDB_DBUG_ENTER("%p", savepoint);
+    int error = 0;
     SP_INFO save_info = (SP_INFO)savepoint;
     DB_TXN* parent = NULL;
     DB_TXN* txn_to_commit = save_info->txn;
 
     tokudb_trx_data *trx = (tokudb_trx_data *) thd_get_ha_data(thd, hton);
     parent = txn_to_commit->parent;
-    if (!(error = txn_to_commit->commit(txn_to_commit, 0))) {
+    if (tokudb_debug & TOKUDB_DEBUG_TXN) {
+        TOKUDB_TRACE("commit txn %p", txn_to_commit);
+    }
+    DB_TXN *child = txn_to_commit->get_child(txn_to_commit);
+    if (child == NULL && !(error = txn_to_commit->commit(txn_to_commit, 0))) {
         if (save_info->in_sub_stmt) {
             trx->sub_sp_level = parent;
         }
         else {
             trx->sp_level = parent;
         }
-        save_info->txn = NULL;
     }
+    save_info->txn = NULL;
     TOKUDB_DBUG_RETURN(error);
 }
 
