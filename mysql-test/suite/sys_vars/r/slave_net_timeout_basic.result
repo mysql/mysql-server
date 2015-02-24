@@ -7,11 +7,11 @@ SET @@global.slave_net_timeout = 500000;
 SET @@global.slave_net_timeout = DEFAULT;
 SELECT @@global.slave_net_timeout;
 @@global.slave_net_timeout
-3600
+60
 '#--------------------FN_DYNVARS_146_02-------------------------#'
 SET @@global.slave_net_timeout = DEFAULT;
-SELECT @@global.slave_net_timeout = 3600;
-@@global.slave_net_timeout = 3600
+SELECT @@global.slave_net_timeout = 60;
+@@global.slave_net_timeout = 60
 1
 '#--------------------FN_DYNVARS_146_03-------------------------#'
 SET @@global.slave_net_timeout = 0;
