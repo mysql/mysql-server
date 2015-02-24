@@ -264,6 +264,45 @@ REVOKE ALL PRIVILEGES ON *.* FROM B19011337@localhost;
 DROP USER B19011337@localhost;
 
 
+--echo #
+--echo # BUG#18985579: "CHECK TABLE .. FOR UPGRADE" FAILS TO REPORT
+--echo #                OLD DATETIME FORMAT. 
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+--copy_file std_data/55_temporal.frm $MYSQLD_DATADIR/test/t1.frm
+--copy_file std_data/55_temporal.MYD $MYSQLD_DATADIR/test/t1.MYD
+--copy_file std_data/55_temporal.MYI $MYSQLD_DATADIR/test/t1.MYI
+
+--echo #Test case with 'avoid_temporal_upgrade' enabled.
+SET @save_avoid_temporal_upgrade= @@global.avoid_temporal_upgrade;
+SET GLOBAL avoid_temporal_upgrade= ON;
+
+SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
+HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t1;
+
+--echo #mysql_upgrade does not upgrade the old temporal types since
+--echo #'avoid_temporal_upgrade' is enabled..
+--exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
+
+SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
+HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t1;
+
+SET @@global.avoid_temporal_upgrade= @save_avoid_temporal_upgrade;
+
+
+--echo #Test case with 'avoid_temporal_upgrade' disabled.
+SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
+HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t1;
+
+--echo #mysql_upgrade upgrades the old temporal types.
+--exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
+
+SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
+HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t1;
+
+#Cleanup.
+DROP TABLE t1;
+
 --source include/mysql_upgrade_cleanup.inc
 
 --echo
