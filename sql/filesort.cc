@@ -2156,6 +2156,7 @@ sortlength(THD *thd, st_sort_field *sortorder, uint s_length,
       {
         sortorder->need_strxnfrm= 1;
         *multi_byte_charset= 1;
+        // How many bytes do we need (including sort weights) for strnxfrm()?
         sortorder->length= cs->coll->strnxfrmlen(cs, sortorder->length);
       }
       if (sortorder->field->maybe_null())
@@ -2178,6 +2179,7 @@ sortlength(THD *thd, st_sort_field *sortorder, uint s_length,
         set_if_smaller(sortorder->length, thd->variables.max_sort_length);
 	if (use_strnxfrm((cs=sortorder->item->collation.collation)))
 	{ 
+          // How many bytes do we need (including sort weights) for strnxfrm()?
           sortorder->length= cs->coll->strnxfrmlen(cs, sortorder->length);
 	  sortorder->need_strxnfrm= 1;
 	  *multi_byte_charset= 1;

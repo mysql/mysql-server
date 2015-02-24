@@ -3285,8 +3285,22 @@ void Item_func_min_max::fix_length_and_dec()
                                                                  unsigned_flag));
   }
   else if (cmp_type == REAL_RESULT)
+  {
     fix_char_length(float_length(decimals));
+  }
   cached_field_type= agg_field_type(args, arg_count);
+
+  /*
+    See comment above: We should not do this:
+    However: we need to re-calculate max_length for this case,
+    so we temporarily set cached_field_type, calculate lenghts, and set it back.
+   */
+  if (compare_as_dates && cached_field_type == MYSQL_TYPE_VARCHAR)
+  {
+    cached_field_type= datetime_item->field_type();
+    count_datetime_length(args, arg_count);
+    cached_field_type= MYSQL_TYPE_VARCHAR;
+  }
   reject_geometry_args(arg_count, args, this);
 }
 
