@@ -13502,9 +13502,24 @@ start_option_value_list:
           {
             $$= NEW_PTN PT_option_value_no_option_type_password($3, @3);
           }
+        | PASSWORD equal PASSWORD '(' password ')'
+          {
+            push_deprecated_warn(YYTHD, "SET PASSWORD = "
+                                 "PASSWORD('<plaintext_password>')",
+                                 "SET PASSWORD = '<plaintext_password>'");
+            $$= NEW_PTN PT_option_value_no_option_type_password($5, @5);
+          }
         | PASSWORD FOR_SYM user equal password
           {
             $$= NEW_PTN PT_option_value_no_option_type_password_for($3, $5, @5);
+          }
+        | PASSWORD FOR_SYM user equal PASSWORD '(' password ')'
+          {
+            push_deprecated_warn(YYTHD, "SET PASSWORD FOR <user> = "
+                                 "PASSWORD('<plaintext_password>')",
+                                 "SET PASSWORD FOR <user> = "
+                                 "'<plaintext_password>'");
+            $$= NEW_PTN PT_option_value_no_option_type_password_for($3, $7, @7);
           }
         ;
 
