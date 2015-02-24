@@ -15,11 +15,14 @@
 # table to deal with the restriction added to plugin value for users
 # in WL6982.
 Run mysql_upgrade once
+mysql_upgrade: [ERROR] 1072: Key column 'Id' doesn't exist in table
 mysql.columns_priv                                 OK
 mysql.db                                           OK
+mysql.engine_cost                                  OK
 mysql.event                                        OK
 mysql.func                                         OK
 mysql.general_log                                  OK
+mysql.gtid_executed                                OK
 mysql.help_category                                OK
 mysql.help_keyword                                 OK
 mysql.help_relation                                OK
@@ -32,6 +35,7 @@ mysql.plugin                                       OK
 mysql.proc                                         OK
 mysql.procs_priv                                   OK
 mysql.proxies_priv                                 OK
+mysql.server_cost                                  OK
 mysql.servers                                      OK
 mysql.slave_master_info                            OK
 mysql.slave_relay_log_info                         OK
@@ -44,7 +48,6 @@ mysql.time_zone_name                               OK
 mysql.time_zone_transition                         OK
 mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
-mysql_upgrade: [ERROR] 1072: Key column 'Id' doesn't exist in table
 test.emp1                                          OK
 test.emp2                                          OK
 test.emp3                                          OK

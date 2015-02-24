@@ -869,6 +869,7 @@ mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
 # Running mysql_upgrade with --verbose..
 Checking server version.
+Running queries to upgrade MySQL server.
 Checking system database.
 mysql.columns_priv                                 OK
 mysql.db                                           OK
@@ -901,7 +902,6 @@ mysql.time_zone_name                               OK
 mysql.time_zone_transition                         OK
 mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
-Running queries to upgrade MySQL server.
 Checking databases.
 mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
@@ -1049,5 +1049,129 @@ LENGTH(plugin) <> 0
 # cleanup
 REVOKE ALL PRIVILEGES ON *.* FROM B19011337@localhost;
 DROP USER B19011337@localhost;
+#
+# BUG#18985579: "CHECK TABLE .. FOR UPGRADE" FAILS TO REPORT
+#                OLD DATETIME FORMAT. 
+#Test case with 'avoid_temporal_upgrade' enabled.
+SET @save_avoid_temporal_upgrade= @@global.avoid_temporal_upgrade;
+Warnings:
+Warning	1287	'@@avoid_temporal_upgrade' is deprecated and will be removed in a future release.
+SET GLOBAL avoid_temporal_upgrade= ON;
+Warnings:
+Warning	1287	'@@avoid_temporal_upgrade' is deprecated and will be removed in a future release.
+SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
+HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t1;
+f_time	f_datetime	f_timestamp	HEX(WEIGHT_STRING(f_time))	HEX(WEIGHT_STRING(f_datetime))	HEX(WEIGHT_STRING(f_timestamp))
+10:10:10	2010-10-10 10:10:10	2031-11-21 17:11:01	818A92	0000124821911312	7468F975
+00:00:00	2000-01-01 01:01:01	2001-01-21 18:11:01	800000	00001230A2EA8AB5	3A6AFC05
+01:01:10	2020-01-01 01:01:01	1980-11-21 18:06:01	80277E	0000125F33D85AB5	147BF1D9
+NULL	2000-01-01 01:01:01	2015-11-21 17:11:01	NULL	00001230A2EA8AB5	56507B75
+00:00:00	NULL	2011-11-21 17:11:01	800000	NULL	4ECA5BF5
+#mysql_upgrade does not upgrade the old temporal types since
+#'avoid_temporal_upgrade' is enabled..
+mysql.columns_priv                                 OK
+mysql.db                                           OK
+mysql.engine_cost                                  OK
+mysql.event                                        OK
+mysql.func                                         OK
+mysql.general_log                                  OK
+mysql.gtid_executed                                OK
+mysql.help_category                                OK
+mysql.help_keyword                                 OK
+mysql.help_relation                                OK
+mysql.help_topic                                   OK
+mysql.innodb_index_stats                           OK
+mysql.innodb_table_stats                           OK
+mysql.ndb_binlog_index                             OK
+mysql.plugin                                       OK
+mysql.proc                                         OK
+mysql.procs_priv                                   OK
+mysql.proxies_priv                                 OK
+mysql.server_cost                                  OK
+mysql.servers                                      OK
+mysql.slave_master_info                            OK
+mysql.slave_relay_log_info                         OK
+mysql.slave_worker_info                            OK
+mysql.slow_log                                     OK
+mysql.tables_priv                                  OK
+mysql.time_zone                                    OK
+mysql.time_zone_leap_second                        OK
+mysql.time_zone_name                               OK
+mysql.time_zone_transition                         OK
+mysql.time_zone_transition_type                    OK
+mysql.user                                         OK
+mtr.global_suppressions                            OK
+mtr.test_suppressions                              OK
+test.t1                                            OK
+SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
+HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t1;
+f_time	f_datetime	f_timestamp	HEX(WEIGHT_STRING(f_time))	HEX(WEIGHT_STRING(f_datetime))	HEX(WEIGHT_STRING(f_timestamp))
+10:10:10	2010-10-10 10:10:10	2031-11-21 17:11:01	818A92	0000124821911312	7468F975
+00:00:00	2000-01-01 01:01:01	2001-01-21 18:11:01	800000	00001230A2EA8AB5	3A6AFC05
+01:01:10	2020-01-01 01:01:01	1980-11-21 18:06:01	80277E	0000125F33D85AB5	147BF1D9
+NULL	2000-01-01 01:01:01	2015-11-21 17:11:01	NULL	00001230A2EA8AB5	56507B75
+00:00:00	NULL	2011-11-21 17:11:01	800000	NULL	4ECA5BF5
+SET @@global.avoid_temporal_upgrade= @save_avoid_temporal_upgrade;
+Warnings:
+Warning	1287	'@@avoid_temporal_upgrade' is deprecated and will be removed in a future release.
+#Test case with 'avoid_temporal_upgrade' disabled.
+SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
+HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t1;
+f_time	f_datetime	f_timestamp	HEX(WEIGHT_STRING(f_time))	HEX(WEIGHT_STRING(f_datetime))	HEX(WEIGHT_STRING(f_timestamp))
+10:10:10	2010-10-10 10:10:10	2031-11-21 17:11:01	818A92	0000124821911312	7468F975
+00:00:00	2000-01-01 01:01:01	2001-01-21 18:11:01	800000	00001230A2EA8AB5	3A6AFC05
+01:01:10	2020-01-01 01:01:01	1980-11-21 18:06:01	80277E	0000125F33D85AB5	147BF1D9
+NULL	2000-01-01 01:01:01	2015-11-21 17:11:01	NULL	00001230A2EA8AB5	56507B75
+00:00:00	NULL	2011-11-21 17:11:01	800000	NULL	4ECA5BF5
+#mysql_upgrade upgrades the old temporal types.
+mysql.columns_priv                                 OK
+mysql.db                                           OK
+mysql.engine_cost                                  OK
+mysql.event                                        OK
+mysql.func                                         OK
+mysql.general_log                                  OK
+mysql.gtid_executed                                OK
+mysql.help_category                                OK
+mysql.help_keyword                                 OK
+mysql.help_relation                                OK
+mysql.help_topic                                   OK
+mysql.innodb_index_stats                           OK
+mysql.innodb_table_stats                           OK
+mysql.ndb_binlog_index                             OK
+mysql.plugin                                       OK
+mysql.proc                                         OK
+mysql.procs_priv                                   OK
+mysql.proxies_priv                                 OK
+mysql.server_cost                                  OK
+mysql.servers                                      OK
+mysql.slave_master_info                            OK
+mysql.slave_relay_log_info                         OK
+mysql.slave_worker_info                            OK
+mysql.slow_log                                     OK
+mysql.tables_priv                                  OK
+mysql.time_zone                                    OK
+mysql.time_zone_leap_second                        OK
+mysql.time_zone_name                               OK
+mysql.time_zone_transition                         OK
+mysql.time_zone_transition_type                    OK
+mysql.user                                         OK
+mtr.global_suppressions                            OK
+mtr.test_suppressions                              OK
+test.t1
+error    : Table upgrade required. Please do "REPAIR TABLE `t1`" or dump/reload to fix it!
+
+Repairing tables
+test.t1
+Note     : TIME/TIMESTAMP/DATETIME columns of old format have been upgraded to the new format.
+status   : OK
+SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
+HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t1;
+f_time	f_datetime	f_timestamp	HEX(WEIGHT_STRING(f_time))	HEX(WEIGHT_STRING(f_datetime))	HEX(WEIGHT_STRING(f_timestamp))
+10:10:10	2010-10-10 10:10:10	2031-11-21 17:11:01	80A28A	998714A28A	7468F975
+00:00:00	2000-01-01 01:01:01	2001-01-21 18:11:01	800000	9964421041	3A6AFC05
+01:01:10	2020-01-01 01:01:01	1980-11-21 18:06:01	80104A	99A5421041	147BF1D9
+NULL	2000-01-01 01:01:01	2015-11-21 17:11:01	NULL	9964421041	56507B75
+00:00:00	NULL	2011-11-21 17:11:01	800000	NULL	4ECA5BF5
+DROP TABLE t1;
 
 End of tests
