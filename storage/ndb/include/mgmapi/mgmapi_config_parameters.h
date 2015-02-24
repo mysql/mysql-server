@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2010, 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -222,6 +222,8 @@
 #define CFG_MGMD_MGMD_HEARTBEAT_INTERVAL 204
 
 #define CFG_DB_DISK_PAGE_BUFFER_ENTRIES 205
+
+#define CFG_DB_GCP_TIMEOUT           206
 
 #define CFG_MIN_LOGLEVEL          250
 #define CFG_LOGLEVEL_STARTUP      250

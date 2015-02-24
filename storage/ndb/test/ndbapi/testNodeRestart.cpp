@@ -31,6 +31,7 @@
 #include <my_sys.h>
 #include <ndb_rand.h>
 #include <BlockNumbers.h>
+#include <NdbConfig.hpp>
 
 
 int runLoadTable(NDBT_Context* ctx, NDBT_Step* step){
@@ -5028,6 +5029,168 @@ int runSplitLatency25PctFail(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+/*
+  The purpose of this test is to check that a node failure is not
+  misdiagnosed as a GCP stop. In other words, the timeout set to detect
+  GCP stop must not be set so low that they are triggered before a
+  cascading node failure has been detected.
+  The test isolates the master node. This causes the master node to
+  wait for the heartbeat from each of the other nodes to time
+  out. Note that this happens sequentially for each node. Finally, the
+  master is forced to run an arbitration (by using an error
+  insert). The total time needed to detect the node failures is thus:
+
+  (no_of_nodes - 1) * heartbeat_failure_time + arbitration_time
+
+  The test then verifies that the node failed due to detcting that is was 
+  isolated and not due to GCP stop.
+*/
+int runIsolateMaster(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter restarter;
+
+  const int nodeCount = restarter.getNumDbNodes();
+  
+  if (nodeCount < 4)
+  {
+    /*
+      With just two nodes, the isolated master wins the arbitration and
+      the test would behave very differently. This case is not covered.
+     */
+    g_err << "At least four data nodes required to run test." << endl;
+    return NDBT_OK;
+  }
+
+  const int masterId = restarter.getMasterNodeId();
+
+  g_err << "Inserting errors 943 and 7145 in node " << masterId << endl;
+  /* 
+     There is a corresponding CRASH_INSERTION(943), so the node will
+     be restarted if it crashes due to being isolated from other
+     nodes. If it crashes due to GCP stop, however, it will remain
+     down.  In addition, the 943 error insert forces the master to
+     run an arbitration that times out, even if it is isolated.
+  */
+  restarter.insertErrorInNode(masterId, 943);
+
+  /*
+    This error inserts sets the GCP stop and micro GCP timeouts to
+    their minimal value, i.e. only the maximal time needed to detect
+    node failure. That way, the test verifies the latter value is not
+    set to low.
+   */
+  restarter.insertErrorInNode(masterId, 7145);
+
+  /*
+    Block signals between the master node and all other nodes. The
+    master will wait for heartbeats from other nodes to time out,
+    sequentially for each node. Finally, the master should decide that
+    it cannot form a viable cluster and stop itself.
+   */
+  for (int i = 0; i < nodeCount; i++)
+  {
+    if (restarter.getDbNodeId(i) != masterId)
+    {
+      // Block signals from master node.
+      g_err << "Blocking node " << restarter.getDbNodeId(i)
+             << " for signals from node " << masterId << endl;
+      const int dumpStateArgs[] = {9992, masterId};
+      int res = restarter
+        .dumpStateOneNode(restarter.getDbNodeId(i), dumpStateArgs, 2);
+      (void) res; // Prevent compiler warning.
+      assert(res == 0);
+
+      // Block signals to master node.
+      g_err << "Blocking node " << masterId
+             << " for signals from node " << restarter.getDbNodeId(i) << endl;
+      const int dumpStateArgs2[] = {9992, restarter.getDbNodeId(i)};
+      res = restarter.dumpStateOneNode(masterId, dumpStateArgs2, 2);
+      (void) res; // Prevent compiler warning.
+      assert(res == 0);
+    }
+  }
+
+  g_err << "Waiting for node " << masterId << " to restart "
+         << endl;
+
+  g_info << "Subscribing to MGMD events..." << endl;
+  
+  NdbMgmd mgmd;
+  
+  if (!mgmd.connect())
+  {
+    g_err << "Failed to connect to MGMD" << endl;
+    return NDBT_FAILED;
+
+  }
+  
+  if (!mgmd.subscribe_to_events())
+  {
+    g_err << "Failed to subscribe to events" << endl;
+    return NDBT_FAILED;
+  }
+
+  char restartEventMsg[200];
+  // This is the message we expect to see when the master restarts.
+  sprintf(restartEventMsg, "Node %d: Node shutdown completed, restarting.", 
+          masterId);
+
+  const NDB_TICKS start = NdbTick_getCurrentTicks();
+
+  while (true)
+  {
+    char buff[1000];
+
+    if (mgmd.get_next_event_line(buff,
+                                 sizeof(buff),
+                                 5 * 1000) &&
+        strstr(buff, restartEventMsg) != NULL) 
+    {
+      g_err << "Node " << masterId << " restarting." << endl;
+      break;
+    }
+
+    g_info << "Mgmd event: " << buff << endl;
+    if (NdbTick_Elapsed(start, NdbTick_getCurrentTicks()).seconds() > 100)
+    {
+      g_err << "Waited 100 seconds for master to restart." << endl;
+      return NDBT_FAILED;
+    }
+  }
+
+  /*
+    Now unblock outgoing signals from the master. Signals to the master will be 
+    unblocked automatically as it restarts.
+  */
+
+  for (int i = 0; i < nodeCount; i++)
+  {
+    if (restarter.getDbNodeId(i) != masterId)
+    {
+      g_err << "Unblocking node " << restarter.getDbNodeId(i)
+            << " for signals from node " << masterId << endl;
+      const int dumpStateArgs[] = {9993, masterId};
+      int res = restarter
+        .dumpStateOneNode(restarter.getDbNodeId(i),dumpStateArgs, 2);
+      (void) res; // Prevent compiler warning.
+      assert(res == 0);
+    }
+  }
+
+  g_err << "Waiting for node " << masterId << " to come back up again." 
+        << endl;
+  if(restarter.waitClusterStarted()==0)
+  {
+    // All nodes are up.
+    return NDBT_OK;
+  }
+  else
+  {
+    g_err << "Failed to restart master node!" << endl;
+    return NDBT_FAILED;
+  }
+}
+
 int
 runMasterFailSlowLCP(NDBT_Context* ctx, NDBT_Step* step)
 {
@@ -7568,6 +7731,11 @@ TESTCASE("ClusterSplitLatency",
   INITIALIZER(runRestartToDynamicOrder);
   INITIALIZER(analyseDynamicOrder);
   INITIALIZER(runSplitLatency25PctFail);
+}
+TESTCASE("GCPStopFalsePositive",
+         "Test node failures is not misdiagnosed as GCP stop")
+{
+  INITIALIZER(runIsolateMaster);
 }
 TESTCASE("LCPTakeOver", "")
 {
