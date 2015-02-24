@@ -13,7 +13,7 @@ SELECT t.name 'Table Name',
 	     information_schema.innodb_sys_tablespaces s
 	WHERE t.space = s.space
 	AND t.name not like 'SYS_%'
-	AND t.name not like 'mysql/%'
+	AND t.name not like 'mysql\/%'
 	ORDER BY t.name;
 --enable_query_log
 

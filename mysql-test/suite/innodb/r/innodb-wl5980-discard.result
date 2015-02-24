@@ -16,7 +16,7 @@ INSERT INTO t5980 VALUES (1, "Create the tablespace");
 SELECT * FROM t5980;
 a	b
 1	Create the tablespace
-### files in MYSQL_DATA_DIR/test
+### files in MYSQLD_DATADIR/test
 t5980.frm
 t5980.isl
 ### files in MYSQL_TMP_DIR/alt_dir/test
@@ -39,7 +39,7 @@ SELECT * FROM t5980;
 a	b
 1	Create the tablespace
 UNLOCK TABLES;
-### files in MYSQL_DATA_DIR/test
+### files in MYSQLD_DATADIR/test
 t5980.frm
 t5980.isl
 ### files in MYSQL_TMP_DIR/alt_dir/test
@@ -84,7 +84,7 @@ a	b	c
 12	Transactional record inserted	NULL
 2	Duplicate value since primary key has been dropped	third column added
 UNLOCK TABLES;
-### files in MYSQL_DATA_DIR/test
+### files in MYSQLD_DATADIR/test
 t5980.frm
 t5980.isl
 ### files in MYSQL_TMP_DIR/alt_dir/test
@@ -97,7 +97,7 @@ t5980.ibd.bak2
 # DROP the table and make sure all files except the backups are gone.
 #
 DROP TABLE t5980;
-### files in MYSQL_DATA_DIR/test
+### files in MYSQLD_DATADIR/test
 ### files in MYSQL_TMP_DIR/alt_dir/test
 t5980.cfg.bak
 t5980.cfg.bak2
@@ -117,7 +117,7 @@ a	b
 ALTER TABLE t5980 DISCARD TABLESPACE;
 SELECT * FROM t5980;
 ERROR HY000: Tablespace has been discarded for table 't5980'
-### files in MYSQL_DATA_DIR/test
+### files in MYSQLD_DATADIR/test
 t5980.frm
 ### files in MYSQL_TMP_DIR/alt_dir/test
 t5980.cfg.bak
@@ -165,7 +165,7 @@ t5980.ibd.bak2
 ALTER TABLE t5980 IMPORT TABLESPACE;
 Warnings:
 Warning	1814	InnoDB: Tablespace has been discarded for table 't5980'
-### files in MYSQL_DATA_DIR/test
+### files in MYSQLD_DATADIR/test
 t5980.frm
 t5980.isl
 ### files in MYSQL_TMP_DIR/alt_dir/test
@@ -212,36 +212,23 @@ a	b	c
 #
 # Show that the system tables have this table in them correctly.
 #
-SELECT name,n_cols,file_format,row_format
-FROM information_schema.innodb_sys_tables
-WHERE name LIKE 'test%' ORDER BY name;
-name	n_cols	file_format	row_format
-test/t5980	6	Antelope	Compact
-SELECT name,file_format,row_format
-FROM information_schema.innodb_sys_tablespaces
-WHERE name LIKE 'test%' ORDER BY space;
-name	file_format	row_format
-test/t5980	Antelope	Compact or Redundant
-SELECT path FROM information_schema.innodb_sys_datafiles
-WHERE path LIKE '%test%' ORDER BY space;
-path
-MYSQL_TMP_DIR/alt_dir/test/t5980.ibd
+=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+Table Name	Tablespace	Table Flags	Columns	File Format	Row Format	Zip Size	Space Type
+test/t5980	test/t5980	65	6	Antelope	Compact	0	Single
+=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
+innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
+test/t5980	MYSQL_TMP_DIR/alt_dir/test/t5980.ibd	DEFAULT	0	Compact or Redundant	Single
 #
 # Drop the imported table and show that the system tables are updated.
 #
 DROP TABLE t5980;
-SELECT name,n_cols,file_format,row_format
-FROM information_schema.innodb_sys_tables
-WHERE name LIKE 'test%' ORDER BY name;
-name	n_cols	file_format	row_format
-SELECT name,file_format,row_format
-FROM information_schema.innodb_sys_tablespaces
-WHERE name LIKE 'test%' ORDER BY space;
-name	file_format	row_format
-SELECT path FROM information_schema.innodb_sys_datafiles
-WHERE path LIKE '%test%' ORDER BY space;
-path
-### files in MYSQL_DATA_DIR/test
+=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+Table Name	Tablespace	Table Flags	Columns	File Format	Row Format	Zip Size	Space Type
+=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
+innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
+### files in MYSQLD_DATADIR/test
 ### files in MYSQL_TMP_DIR/alt_dir/test
 t5980.cfg.bak
 t5980.cfg.bak2
@@ -255,7 +242,7 @@ INSERT INTO t5980 VALUES (1, "Create the tablespace a third time");
 SELECT * FROM t5980;
 a	b
 1	Create the tablespace a third time
-### files in MYSQL_DATA_DIR/test
+### files in MYSQLD_DATADIR/test
 t5980.frm
 t5980.isl
 ### files in MYSQL_TMP_DIR/alt_dir/test
@@ -271,7 +258,7 @@ t5980.ibd.bak2
 #
 # restart
 SET GLOBAL innodb_file_per_table=ON;
-### files in MYSQL_DATA_DIR/test
+### files in MYSQLD_DATADIR/test
 t5980.frm
 t5980.isl
 ### files in MYSQL_TMP_DIR/alt_dir/test
@@ -297,7 +284,7 @@ SET GLOBAL innodb_file_per_table=ON;
 SELECT * FROM t5980;
 a	b
 1	Create the tablespace a third time
-### files in MYSQL_DATA_DIR/test
+### files in MYSQLD_DATADIR/test
 t5980.frm
 t5980.isl
 ### files in MYSQL_TMP_DIR/alt_dir/test
@@ -309,7 +296,7 @@ t5980.ibd.bak2
 ALTER TABLE t5980 DISCARD TABLESPACE;
 SELECT * FROM t5980;
 ERROR HY000: Tablespace has been discarded for table 't5980'
-### files in MYSQL_DATA_DIR/test
+### files in MYSQLD_DATADIR/test
 t5980.frm
 ### files in MYSQL_TMP_DIR/alt_dir/test
 t5980.cfg.bak
@@ -319,7 +306,7 @@ t5980.ibd.bak2
 #
 # Restore the backup of *.ibd and *.cfg files
 #
-### files in MYSQL_DATA_DIR/test
+### files in MYSQLD_DATADIR/test
 t5980.frm
 ### files in MYSQL_TMP_DIR/alt_dir/test
 t5980.cfg
@@ -342,7 +329,7 @@ t5980	CREATE TABLE `t5980` (
   `b` text,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
-### files in MYSQL_DATA_DIR/test
+### files in MYSQLD_DATADIR/test
 t5980.frm
 t5980.isl
 ### files in MYSQL_TMP_DIR/alt_dir/test
@@ -358,7 +345,7 @@ t5980.ibd.bak2
 ALTER TABLE t5980 DISCARD TABLESPACE;
 SELECT * FROM t5980;
 ERROR HY000: Tablespace has been discarded for table 't5980'
-### files in MYSQL_DATA_DIR/test
+### files in MYSQLD_DATADIR/test
 t5980.frm
 ### files in MYSQL_TMP_DIR/alt_dir/test
 t5980.cfg.bak
@@ -384,7 +371,7 @@ test.t5980	check	error	Corrupt
 # Restart the engine again.
 # The tablespace is still in the discarded state.
 #
-### files in MYSQL_DATA_DIR/test
+### files in MYSQLD_DATADIR/test
 t5980.cfg
 t5980.frm
 t5980.ibd
@@ -422,7 +409,7 @@ test.t5980	check	error	Corrupt
 # remote location is in the data dictionary.
 # Import the tablespace and check it out.
 #
-### files in MYSQL_DATA_DIR/test
+### files in MYSQLD_DATADIR/test
 t5980.frm
 ### files in MYSQL_TMP_DIR/alt_dir/test
 t5980.cfg
@@ -449,20 +436,13 @@ t5980	CREATE TABLE `t5980` (
 #
 # Show that the system tables have this table in them correctly.
 #
-SELECT name,n_cols,file_format,row_format
-FROM information_schema.innodb_sys_tables
-WHERE name LIKE 'test%' ORDER BY name;
-name	n_cols	file_format	row_format
-test/t5980	5	Antelope	Compact
-SELECT name,file_format,row_format
-FROM information_schema.innodb_sys_tablespaces
-WHERE name LIKE 'test%' ORDER BY space;
-name	file_format	row_format
-test/t5980	Antelope	Compact or Redundant
-SELECT path FROM information_schema.innodb_sys_datafiles
-WHERE path LIKE '%test%' ORDER BY space;
-path
-MYSQL_TMP_DIR/alt_dir/test/t5980.ibd
+=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+Table Name	Tablespace	Table Flags	Columns	File Format	Row Format	Zip Size	Space Type
+test/t5980	test/t5980	65	5	Antelope	Compact	0	Single
+=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
+innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
+test/t5980	MYSQL_TMP_DIR/alt_dir/test/t5980.ibd	DEFAULT	0	Compact or Redundant	Single
 DROP TABLE t5980;
 #
 # Create a local and remote tablespaces, discard two and make
@@ -514,28 +494,20 @@ t5980d	CREATE TABLE `t5980d` (
   `a` int(11) DEFAULT NULL,
   `b` text
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
-SELECT name,n_cols,file_format,row_format FROM information_schema.innodb_sys_tables
-WHERE name LIKE 'test%' ORDER BY name;
-name	n_cols	file_format	row_format
-test/t5980a	5	Antelope	Compact
-test/t5980b	5	Antelope	Compact
-test/t5980c	5	Antelope	Compact
-test/t5980d	5	Antelope	Compact
-SELECT name,file_format,row_format FROM information_schema.innodb_sys_tablespaces
-WHERE name LIKE 'test%' ORDER BY space;
-name	file_format	row_format
-test/t5980a	Antelope	Compact or Redundant
-test/t5980b	Antelope	Compact or Redundant
-test/t5980c	Antelope	Compact or Redundant
-test/t5980d	Antelope	Compact or Redundant
-SELECT path FROM information_schema.innodb_sys_datafiles
-WHERE path LIKE '%test%' ORDER BY space;
-path
-MYSQL_DATA_DIR/test/t5980a.ibd
-MYSQL_TMP_DIR/alt_dir/test/t5980b.ibd
-MYSQL_DATA_DIR/test/t5980c.ibd
-MYSQL_TMP_DIR/alt_dir/test/t5980d.ibd
-### files in MYSQL_DATA_DIR/test
+=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+Table Name	Tablespace	Table Flags	Columns	File Format	Row Format	Zip Size	Space Type
+test/t5980a	test/t5980a	1	5	Antelope	Compact	0	Single
+test/t5980b	test/t5980b	65	5	Antelope	Compact	0	Single
+test/t5980c	test/t5980c	1	5	Antelope	Compact	0	Single
+test/t5980d	test/t5980d	65	5	Antelope	Compact	0	Single
+=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
+innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
+test/t5980a	MYSQLD_DATADIR/test/t5980a.ibd	DEFAULT	0	Compact or Redundant	Single
+test/t5980b	MYSQL_TMP_DIR/alt_dir/test/t5980b.ibd	DEFAULT	0	Compact or Redundant	Single
+test/t5980c	MYSQLD_DATADIR/test/t5980c.ibd	DEFAULT	0	Compact or Redundant	Single
+test/t5980d	MYSQL_TMP_DIR/alt_dir/test/t5980d.ibd	DEFAULT	0	Compact or Redundant	Single
+### files in MYSQLD_DATADIR/test
 t5980a.frm
 t5980a.ibd
 t5980b.frm
@@ -555,7 +527,7 @@ FLUSH TABLES t5980a, t5980b FOR EXPORT;
 UNLOCK TABLES;
 ALTER TABLE t5980a DISCARD TABLESPACE;
 ALTER TABLE t5980b DISCARD TABLESPACE;
-### files in MYSQL_DATA_DIR/test
+### files in MYSQLD_DATADIR/test
 t5980a.frm
 t5980b.frm
 t5980c.frm
@@ -585,28 +557,20 @@ SHOW CREATE TABLE t5980c;
 ERROR HY000: Tablespace is missing for table `test`.`t5980c`.
 SHOW CREATE TABLE t5980d;
 ERROR HY000: Tablespace is missing for table `test`.`t5980d`.
-SELECT name,n_cols,file_format,row_format FROM information_schema.innodb_sys_tables
-WHERE name LIKE 'test%' ORDER BY name;
-name	n_cols	file_format	row_format
-test/t5980a	5	Antelope	Compact
-test/t5980b	5	Antelope	Compact
-test/t5980c	5	Antelope	Compact
-test/t5980d	5	Antelope	Compact
-SELECT name,file_format,row_format FROM information_schema.innodb_sys_tablespaces
-WHERE name LIKE 'test%' ORDER BY space;
-name	file_format	row_format
-test/t5980a	Antelope	Compact or Redundant
-test/t5980b	Antelope	Compact or Redundant
-test/t5980c	Antelope	Compact or Redundant
-test/t5980d	Antelope	Compact or Redundant
-SELECT path FROM information_schema.innodb_sys_datafiles
-WHERE path LIKE '%test%' ORDER BY space;
-path
-MYSQL_DATA_DIR/test/t5980a.ibd
-MYSQL_TMP_DIR/alt_dir/test/t5980b.ibd
-MYSQL_DATA_DIR/test/t5980c.ibd
-MYSQL_TMP_DIR/alt_dir/test/t5980d.ibd
-### files in MYSQL_DATA_DIR/test
+=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+Table Name	Tablespace	Table Flags	Columns	File Format	Row Format	Zip Size	Space Type
+test/t5980a	test/t5980a	1	5	Antelope	Compact	0	Single
+test/t5980b	test/t5980b	65	5	Antelope	Compact	0	Single
+test/t5980c	test/t5980c	1	5	Antelope	Compact	0	Single
+test/t5980d	test/t5980d	65	5	Antelope	Compact	0	Single
+=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
+innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
+test/t5980a	MYSQLD_DATADIR/test/t5980a.ibd	DEFAULT	0	Compact or Redundant	Single
+test/t5980b	MYSQL_TMP_DIR/alt_dir/test/t5980b.ibd	DEFAULT	0	Compact or Redundant	Single
+test/t5980c	MYSQLD_DATADIR/test/t5980c.ibd	DEFAULT	0	Compact or Redundant	Single
+test/t5980d	MYSQL_TMP_DIR/alt_dir/test/t5980d.ibd	DEFAULT	0	Compact or Redundant	Single
+### files in MYSQLD_DATADIR/test
 t5980a.frm
 t5980b.frm
 t5980c.frm
@@ -663,27 +627,19 @@ SHOW CREATE TABLE t5980c;
 ERROR HY000: Tablespace is missing for table `test`.`t5980c`.
 SHOW CREATE TABLE t5980d;
 ERROR HY000: Tablespace is missing for table `test`.`t5980d`.
-SELECT name,n_cols,file_format,row_format FROM information_schema.innodb_sys_tables
-WHERE name LIKE 'test%' ORDER BY name;
-name	n_cols	file_format	row_format
-test/t5980aa	5	Antelope	Compact
-test/t5980bb	5	Antelope	Compact
-test/t5980c	5	Antelope	Compact
-test/t5980d	5	Antelope	Compact
-SELECT name,file_format,row_format FROM information_schema.innodb_sys_tablespaces
-WHERE name LIKE 'test%' ORDER BY space;
-name	file_format	row_format
-test/t5980a	Antelope	Compact or Redundant
-test/t5980b	Antelope	Compact or Redundant
-test/t5980c	Antelope	Compact or Redundant
-test/t5980d	Antelope	Compact or Redundant
-SELECT path FROM information_schema.innodb_sys_datafiles
-WHERE path LIKE '%test%' ORDER BY space;
-path
-MYSQL_DATA_DIR/test/t5980a.ibd
-MYSQL_TMP_DIR/alt_dir/test/t5980b.ibd
-MYSQL_DATA_DIR/test/t5980c.ibd
-MYSQL_TMP_DIR/alt_dir/test/t5980d.ibd
+=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+Table Name	Tablespace	Table Flags	Columns	File Format	Row Format	Zip Size	Space Type
+test/t5980aa	test/t5980a	1	5	Antelope	Compact	0	Single
+test/t5980bb	test/t5980b	65	5	Antelope	Compact	0	Single
+test/t5980c	test/t5980c	1	5	Antelope	Compact	0	Single
+test/t5980d	test/t5980d	65	5	Antelope	Compact	0	Single
+=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
+innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
+test/t5980a	MYSQLD_DATADIR/test/t5980a.ibd	DEFAULT	0	Compact or Redundant	Single
+test/t5980b	MYSQL_TMP_DIR/alt_dir/test/t5980b.ibd	DEFAULT	0	Compact or Redundant	Single
+test/t5980c	MYSQLD_DATADIR/test/t5980c.ibd	DEFAULT	0	Compact or Redundant	Single
+test/t5980d	MYSQL_TMP_DIR/alt_dir/test/t5980d.ibd	DEFAULT	0	Compact or Redundant	Single
 #
 # Discarded tablespaces cannot be ALTERED with ALGORITHM=COPY.
 #
@@ -703,7 +659,7 @@ ALTER TABLE t5980bb ADD PRIMARY KEY(a), ALGORITHM=INPLACE;
 Warnings:
 Warning	1814	InnoDB: Tablespace has been discarded for table 't5980bb'
 SET @@sql_mode = @old_sql_mode;
-### files in MYSQL_DATA_DIR/test
+### files in MYSQLD_DATADIR/test
 t5980aa.frm
 t5980bb.frm
 t5980c.frm
@@ -734,28 +690,20 @@ t5980bb	CREATE TABLE `t5980bb` (
   `b` text,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
-SELECT name,n_cols,file_format,row_format FROM information_schema.innodb_sys_tables
-WHERE name LIKE 'test%' ORDER BY name;
-name	n_cols	file_format	row_format
-test/t5980aa	5	Antelope	Compact
-test/t5980bb	5	Antelope	Compact
-test/t5980c	5	Antelope	Compact
-test/t5980d	5	Antelope	Compact
-SELECT name,file_format,row_format FROM information_schema.innodb_sys_tablespaces
-WHERE name LIKE 'test%' ORDER BY space;
-name	file_format	row_format
-test/t5980c	Antelope	Compact or Redundant
-test/t5980d	Antelope	Compact or Redundant
-test/t5980aa	Antelope	Compact or Redundant
-test/t5980bb	Antelope	Compact or Redundant
-SELECT path FROM information_schema.innodb_sys_datafiles
-WHERE path LIKE '%test%' ORDER BY space;
-path
-MYSQL_DATA_DIR/test/t5980c.ibd
-MYSQL_TMP_DIR/alt_dir/test/t5980d.ibd
-MYSQL_DATA_DIR/test/t5980aa.ibd
-MYSQL_TMP_DIR/alt_dir/test/t5980bb.ibd
-### files in MYSQL_DATA_DIR/test
+=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+Table Name	Tablespace	Table Flags	Columns	File Format	Row Format	Zip Size	Space Type
+test/t5980aa	test/t5980aa	1	5	Antelope	Compact	0	Single
+test/t5980bb	test/t5980bb	65	5	Antelope	Compact	0	Single
+test/t5980c	test/t5980c	1	5	Antelope	Compact	0	Single
+test/t5980d	test/t5980d	65	5	Antelope	Compact	0	Single
+=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
+innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
+test/t5980c	MYSQLD_DATADIR/test/t5980c.ibd	DEFAULT	0	Compact or Redundant	Single
+test/t5980d	MYSQL_TMP_DIR/alt_dir/test/t5980d.ibd	DEFAULT	0	Compact or Redundant	Single
+test/t5980aa	MYSQLD_DATADIR/test/t5980aa.ibd	DEFAULT	0	Compact or Redundant	Single
+test/t5980bb	MYSQL_TMP_DIR/alt_dir/test/t5980bb.ibd	DEFAULT	0	Compact or Redundant	Single
+### files in MYSQLD_DATADIR/test
 t5980aa.frm
 t5980bb.frm
 t5980c.frm
@@ -796,28 +744,20 @@ t5980b	CREATE TABLE `t5980b` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
 Warnings:
 Warning	1814	InnoDB: Tablespace has been discarded for table 't5980b'
-SELECT name,n_cols,file_format,row_format FROM information_schema.innodb_sys_tables
-WHERE name LIKE 'test%' ORDER BY name;
-name	n_cols	file_format	row_format
-test/t5980a	5	Antelope	Compact
-test/t5980b	5	Antelope	Compact
-test/t5980c	5	Antelope	Compact
-test/t5980d	5	Antelope	Compact
-SELECT name,file_format,row_format FROM information_schema.innodb_sys_tablespaces
-WHERE name LIKE 'test%' ORDER BY space;
-name	file_format	row_format
-test/t5980c	Antelope	Compact or Redundant
-test/t5980d	Antelope	Compact or Redundant
-test/t5980aa	Antelope	Compact or Redundant
-test/t5980bb	Antelope	Compact or Redundant
-SELECT path FROM information_schema.innodb_sys_datafiles
-WHERE path LIKE '%test%' ORDER BY space;
-path
-MYSQL_DATA_DIR/test/t5980c.ibd
-MYSQL_TMP_DIR/alt_dir/test/t5980d.ibd
-MYSQL_DATA_DIR/test/t5980aa.ibd
-MYSQL_TMP_DIR/alt_dir/test/t5980bb.ibd
-### files in MYSQL_DATA_DIR/test
+=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+Table Name	Tablespace	Table Flags	Columns	File Format	Row Format	Zip Size	Space Type
+test/t5980a	test/t5980aa	1	5	Antelope	Compact	0	Single
+test/t5980b	test/t5980bb	65	5	Antelope	Compact	0	Single
+test/t5980c	test/t5980c	1	5	Antelope	Compact	0	Single
+test/t5980d	test/t5980d	65	5	Antelope	Compact	0	Single
+=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
+innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
+test/t5980c	MYSQLD_DATADIR/test/t5980c.ibd	DEFAULT	0	Compact or Redundant	Single
+test/t5980d	MYSQL_TMP_DIR/alt_dir/test/t5980d.ibd	DEFAULT	0	Compact or Redundant	Single
+test/t5980aa	MYSQLD_DATADIR/test/t5980aa.ibd	DEFAULT	0	Compact or Redundant	Single
+test/t5980bb	MYSQL_TMP_DIR/alt_dir/test/t5980bb.ibd	DEFAULT	0	Compact or Redundant	Single
+### files in MYSQLD_DATADIR/test
 t5980a.frm
 t5980b.frm
 t5980c.frm
@@ -863,7 +803,7 @@ SELECT * FROM t5980a;
 ERROR HY000: Tablespace has been discarded for table 't5980a'
 SELECT * FROM t5980b;
 ERROR HY000: Tablespace has been discarded for table 't5980b'
-### files in MYSQL_DATA_DIR/test
+### files in MYSQLD_DATADIR/test
 t5980a.frm
 t5980b.frm
 t5980c.frm
@@ -913,7 +853,7 @@ SELECT * FROM t5980a;
 ERROR HY000: Tablespace has been discarded for table 't5980a'
 SELECT * FROM t5980b;
 ERROR HY000: Tablespace has been discarded for table 't5980b'
-### files in MYSQL_DATA_DIR/test
+### files in MYSQLD_DATADIR/test
 t5980a.frm
 t5980b.frm
 t5980c.frm
@@ -923,16 +863,12 @@ DROP TABLE t5980a;
 DROP TABLE t5980b;
 DROP TABLE t5980c;
 DROP TABLE t5980d;
-SELECT name,n_cols,file_format,row_format FROM information_schema.innodb_sys_tables
-WHERE name LIKE 'test%' ORDER BY name;
-name	n_cols	file_format	row_format
-SELECT name,file_format,row_format FROM information_schema.innodb_sys_tablespaces
-WHERE name LIKE 'test%' ORDER BY space;
-name	file_format	row_format
-SELECT path FROM information_schema.innodb_sys_datafiles
-WHERE path LIKE '%test%' ORDER BY space;
-path
-### files in MYSQL_DATA_DIR/test
+=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+Table Name	Tablespace	Table Flags	Columns	File Format	Row Format	Zip Size	Space Type
+=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
+innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
+### files in MYSQLD_DATADIR/test
 ### files in MYSQL_TMP_DIR/alt_dir/test
 #
 # Cleanup
