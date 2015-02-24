@@ -710,6 +710,7 @@ ha_innopart::ha_innopart(
 	Partition_helper(this),
 	m_ins_node_parts(),
 	m_upd_node_parts(),
+	m_blob_heap_parts(),
 	m_trx_id_parts(),
 	m_row_read_type_parts(),
 	m_sql_stat_start_parts(),
@@ -1223,6 +1224,11 @@ share_error:
 				ut_malloc(sizeof(*m_upd_node_parts)
 					    * m_tot_parts,
 					  mem_key_partitioning));
+
+	m_blob_heap_parts = static_cast<mem_heap_t**>(
+		ut_malloc(sizeof(mem_heap_t*) * m_tot_parts,
+			  mem_key_partitioning));
+
 	m_trx_id_parts = static_cast<trx_id_t*>(
 				ut_malloc(sizeof(*m_trx_id_parts)
 					    * m_tot_parts,
@@ -1236,6 +1242,7 @@ share_error:
 					  mem_key_partitioning));
 	if (m_ins_node_parts == NULL
 	    || m_upd_node_parts == NULL
+	    || m_blob_heap_parts == NULL
 	    || m_trx_id_parts == NULL
 	    || m_row_read_type_parts == NULL
 	    || m_sql_stat_start_parts == NULL) {
@@ -1244,6 +1251,7 @@ share_error:
 	}
 	memset(m_ins_node_parts, 0, sizeof(*m_ins_node_parts) * m_tot_parts);
 	memset(m_upd_node_parts, 0, sizeof(*m_upd_node_parts) * m_tot_parts);
+	memset(m_blob_heap_parts, 0, sizeof(mem_heap_t*) * m_tot_parts);
 	memset(m_trx_id_parts, 0, sizeof(*m_trx_id_parts) * m_tot_parts);
 	memset(m_row_read_type_parts, 0,
 		sizeof(*m_row_read_type_parts) * m_tot_parts);
@@ -1277,6 +1285,20 @@ ha_innopart::clone(
 	}
 
 	DBUG_RETURN(new_handler);
+}
+
+void ha_innopart::clear_blob_heaps()
+{
+	if (m_blob_heap_parts == NULL) {
+		return;
+	}
+
+	for (uint i = 0; i < m_tot_parts; i++) {
+		if (m_blob_heap_parts[i] != NULL) {
+			mem_heap_free(m_blob_heap_parts[i]);
+			m_blob_heap_parts[i] = NULL;
+		}
+	}
 }
 
 /** Clear used ins_nodes and upd_nodes. */
@@ -1356,6 +1378,7 @@ ha_innopart::close()
 		m_part_share = NULL;
 	}
 	clear_ins_upd_nodes();
+	clear_blob_heaps();
 
 	/* Prevent double close of m_prebuilt->table. The real one was done
 	done in m_part_share->close_table_parts(). */
@@ -1377,6 +1400,10 @@ ha_innopart::close()
 	if (m_upd_node_parts != NULL) {
 		ut_free(m_upd_node_parts);
 		m_upd_node_parts = NULL;
+	}
+	if (m_blob_heap_parts != NULL) {
+		ut_free(m_blob_heap_parts);
+		m_blob_heap_parts = NULL;
 	}
 	if (m_trx_id_parts != NULL) {
 		ut_free(m_trx_id_parts);
@@ -1421,6 +1448,7 @@ ha_innopart::set_partition(
 	}
 	m_prebuilt->ins_node = m_ins_node_parts[part_id];
 	m_prebuilt->upd_node = m_upd_node_parts[part_id];
+	m_prebuilt->blob_heap = m_blob_heap_parts[part_id];
 	m_prebuilt->trx_id = m_trx_id_parts[part_id];
 	m_prebuilt->row_read_type = m_row_read_type_parts[part_id];
 	m_prebuilt->sql_stat_start = get_bit(m_sql_stat_start_parts, part_id);
@@ -1441,6 +1469,8 @@ ha_innopart::update_partition(
 	}
 	m_ins_node_parts[part_id] = m_prebuilt->ins_node;
 	m_upd_node_parts[part_id] = m_prebuilt->upd_node;
+	m_blob_heap_parts[part_id] = m_prebuilt->blob_heap;
+	m_prebuilt->blob_heap = NULL;
 	m_trx_id_parts[part_id] = m_prebuilt->trx_id;
 	m_row_read_type_parts[part_id] = m_prebuilt->row_read_type;
 	update_bit(m_sql_stat_start_parts, part_id,
