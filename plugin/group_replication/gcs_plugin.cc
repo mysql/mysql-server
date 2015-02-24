@@ -1019,7 +1019,7 @@ mysql_declare_plugin(gcs_repl_plugin)
   PLUGIN_LICENSE_GPL,
   gcs_replication_init,   /* Plugin Init */
   gcs_replication_deinit, /* Plugin Deinit */
-  0x0100,                 /* 1.0 Plugin version*/
+  0x0030,                 /* 0.3.0 Plugin version*/
   NULL,                   /* status variables */
   gcs_system_vars,        /* system variables */
   NULL,                   /* config options */
