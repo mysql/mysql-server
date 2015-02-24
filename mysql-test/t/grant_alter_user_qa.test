@@ -924,9 +924,7 @@ CREATE USER user2@localhost IDENTIFIED WITH 'sha256_password' AS 'auth_string1';
 
 SELECT PASSWORD('plaintext_pwd');
 
---error ER_PARSE_ERROR
 SET PASSWORD FOR user1@localhost=PASSWORD('auth_xyz@');
---error ER_PARSE_ERROR
 SET PASSWORD FOR user2@localhost=PASSWORD('gd636@gj');
 
 --echo

@@ -1497,9 +1497,11 @@ PASSWORD('plaintext_pwd')
 Warnings:
 Warning	1681	'PASSWORD' is deprecated and will be removed in a future release.
 SET PASSWORD FOR user1@localhost=PASSWORD('auth_xyz@');
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'PASSWORD('auth_xyz@')' at line 1
+Warnings:
+Warning	1287	'SET PASSWORD FOR <user> = PASSWORD('<plaintext_password>')' is deprecated and will be removed in a future release. Please use SET PASSWORD FOR <user> = '<plaintext_password>' instead
 SET PASSWORD FOR user2@localhost=PASSWORD('gd636@gj');
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'PASSWORD('gd636@gj')' at line 1
+Warnings:
+Warning	1287	'SET PASSWORD FOR <user> = PASSWORD('<plaintext_password>')' is deprecated and will be removed in a future release. Please use SET PASSWORD FOR <user> = '<plaintext_password>' instead
 
 CREATE USER user4@localhost;
 ALTER USER user4@localhost PASSWORD EXPIRE;
