@@ -8219,11 +8219,17 @@ static void delete_pid_file(myf flags)
                               O_RDONLY, flags)))
     return;
 
-  /* Make sure that the pid file was created by the same process. */    
+  if (file == -1)
+  {
+    sql_print_information("Unable to delete pid file: %s", strerror(errno));
+    return;
+  }
+
   uchar buff[MAX_BIGINT_WIDTH + 1];
+  /* Make sure that the pid file was created by the same process. */
   size_t error= mysql_file_read(file, buff, sizeof(buff), flags);
   mysql_file_close(file, flags);
-  buff[sizeof(buff) - 1]= '\0'; 
+  buff[sizeof(buff) - 1]= '\0';
   if (error != MY_FILE_ERROR &&
       atol((char *) buff) == (long) getpid())
   {
