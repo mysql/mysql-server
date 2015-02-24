@@ -105,6 +105,8 @@ When one supplies long data for a placeholder:
 #include "transaction.h"        // trans_rollback_implicit
 #include "mysql/psi/mysql_ps.h" // MYSQL_EXECUTE_PS
 #include "binlog.h"
+#include "sql_audit.h"          // mysql_global_audit_mask
+
 
 #ifdef EMBEDDED_LIBRARY
 /* include MYSQL_BIND headers */
@@ -3187,6 +3189,7 @@ Prepared_statement::set_db(const LEX_CSTRING &db_arg)
   global THD state management to the caller.
 ***************************************************************************/
 
+
 /**
   Parse statement text, validate the statement, and prepare it for execution.
 
@@ -3277,6 +3280,10 @@ bool Prepared_statement::prepare(const char *packet, size_t packet_len)
   thd->m_digest= &digest;
 
   enable_digest_if_any_plugin_needs_it(thd, &parser_state);
+#ifndef EMBEDDED_LIBRARY
+  if (is_any_audit_plugin_active(thd))
+    parser_state.m_input.m_compute_digest= true;
+#endif
 
   error= parse_sql(thd, &parser_state, NULL) ||
     thd->is_error() ||
@@ -3287,10 +3294,6 @@ bool Prepared_statement::prepare(const char *packet, size_t packet_len)
     invoke_post_parse_rewrite_plugins(thd, true);
     error= init_param_array(this);
   }
-
-  thd->m_digest= parent_digest;
-
-  thd->m_statement_psi= parent_locker;
 
   lex->set_trg_event_type_for_tables();
 
@@ -3414,8 +3417,15 @@ bool Prepared_statement::prepare(const char *packet, size_t packet_len)
         query_logger.general_log_write(thd, COM_STMT_PREPARE,
                                        m_query_string.str,
                                        m_query_string.length);
+
+      /* audit plugins can return an error */
+      error |= thd->is_error();
     }
   }
+  thd->m_digest= parent_digest;
+
+  thd->m_statement_psi= parent_locker;
+
   DBUG_RETURN(error);
 }
 
