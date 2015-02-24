@@ -1474,6 +1474,8 @@ private:
   void failedNodeSynchHandling(Signal *, NodeRecordPtr failedNodePtr);
   void checkCopyTab(Signal*, NodeRecordPtr failedNodePtr);
 
+  Uint32 compute_max_failure_time();
+  void setGCPStopTimeouts();
   void initCommonData();
   void initialiseRecordsLab(Signal *, Uint32 stepNo, Uint32, Uint32);
 

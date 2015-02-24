@@ -2117,6 +2117,10 @@ max-time : 600
 cmd: testNodeRestart
 args: -n Bug18044717 T1
 
+max-time : 600
+cmd: testNodeRestart
+args: -n GCPStopFalsePositive T1
+
 max-time: 600
 cmd: atrt-testBackup
 args: -n Bug17882305 T1

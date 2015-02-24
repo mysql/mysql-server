@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -5436,7 +5436,7 @@ Qmgr::handleArbitCheck(Signal* signal)
   ndbrequire(cpresident == getOwnNodeId());
   NdbNodeBitmask ndbMask;
   computeArbitNdbMask(ndbMask);
-  if (g_ndb_arbit_one_half_rule &&
+  if (g_ndb_arbit_one_half_rule && !ERROR_INSERTED(943) &&
       2 * ndbMask.count() < cnoOfNodes) {
     jam();
     arbitRec.code = ArbitCode::LoseNodes;
@@ -5449,6 +5449,13 @@ Qmgr::handleArbitCheck(Signal* signal)
     EXECUTE_DIRECT(DBDIH, GSN_CHECKNODEGROUPSREQ, signal, 
 		   CheckNodeGroups::SignalLength);
     jamEntry();
+    if (ERROR_INSERTED(943))
+    {
+      ndbout << "Requiring arbitration, even if there is no" 
+             << " possible split."<< endl;
+      sd->output = CheckNodeGroups::Partitioning;
+      arbitRec.state = ARBIT_RUN;
+    }
     switch (sd->output) {
     case CheckNodeGroups::Win:
       jam();
@@ -6105,8 +6112,16 @@ Qmgr::stateArbitChoose(Signal* signal)
       sd->node = arbitRec.node;
       sd->ticket = arbitRec.ticket;
       computeArbitNdbMask(sd->mask);
-      sendSignal(blockRef, GSN_ARBIT_CHOOSEREQ, signal,
-                 ArbitSignalData::SignalLength, JBA);
+      if (ERROR_INSERTED(943))
+      {
+        ndbout << "Not sending GSN_ARBIT_CHOOSEREQ, thereby causing" 
+               << " arbitration to time out."<< endl;
+      }
+      else
+      {
+        sendSignal(blockRef, GSN_ARBIT_CHOOSEREQ, signal,
+                   ArbitSignalData::SignalLength, JBA);
+      }
       arbitRec.sendCount = 1;
       arbitRec.setTimestamp();		// send time
       return;
@@ -6201,6 +6216,7 @@ Qmgr::stateArbitCrash(Signal* signal)
 #endif
   CRASH_INSERTION(932);
   CRASH_INSERTION(938);
+  CRASH_INSERTION(943);
   progError(__LINE__, NDBD_EXIT_ARBIT_SHUTDOWN,
             "Arbitrator decided to shutdown this node");
 }
