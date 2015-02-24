@@ -1743,17 +1743,6 @@ void Dbdih::execNDB_STTOR(Signal* signal)
     break;
   case ZNDB_SPH5:
     jam();
-    if (m_gcp_monitor.m_micro_gcp.m_max_lag_ms > 0)
-    {
-      infoEvent("GCP Monitor: Computed max GCP_SAVE lag to %u seconds",
-                m_gcp_monitor.m_gcp_save.m_max_lag_ms / 1000);
-      infoEvent("GCP Monitor: Computed max GCP_COMMIT lag to %u seconds",
-                m_gcp_monitor.m_micro_gcp.m_max_lag_ms / 1000);
-    }
-    else
-    {
-      infoEvent("GCP Monitor: unlimited lags allowed");
-    }
     switch(typestart){
     case NodeState::ST_INITIAL_START:
     case NodeState::ST_SYSTEM_RESTART:
@@ -1857,6 +1846,7 @@ Dbdih::execNODE_START_REP(Signal* signal)
       c_dictLockSlavePtrI_nodeRestart = RNIL;
     }
   }
+  setGCPStopTimeouts();
 }
 
 void
@@ -5147,6 +5137,8 @@ void Dbdih::execNODE_FAILREP(Signal* signal)
     jam();
     setNodeRestartInfoBits(signal);
   }//if
+
+  setGCPStopTimeouts();
 }//Dbdih::execNODE_FAILREP()
 
 void Dbdih::checkCopyTab(Signal* signal, NodeRecordPtr failedNodePtr)
@@ -14789,6 +14781,21 @@ void Dbdih::checkGcpStopLab(Signal* signal)
   const Uint32 lag0 = (m_gcp_monitor.m_gcp_save.m_elapsed_ms  += elapsed_ms);
   const Uint32 lag1 = (m_gcp_monitor.m_micro_gcp.m_elapsed_ms += elapsed_ms);
 
+  if (ERROR_INSERTED(7145))
+  {
+    static bool done = false;
+    /* 
+      Recalculate the timeouts the get the low values that the test
+      needs.  This was initially done at startup, and at that point,
+      the ERROR_INSERT was not set yet.
+    */
+    if (!done)
+    {
+      setGCPStopTimeouts();
+      done = true;
+    }
+  }
+
   if (m_gcp_monitor.m_gcp_save.m_gci == m_gcp_save.m_gci)
   {
     jam();
@@ -15783,53 +15790,171 @@ bool Dbdih::findStartGci(ConstPtr<ReplicaRecord> replicaPtr,
   return false;
 }//Dbdih::findStartGci()
 
-static
-Uint32
-count_db_nodes(ndb_mgm_configuration_iterator * iter)
-{
-  Uint32 cnt = 0;
-  for (ndb_mgm_first(iter); ndb_mgm_valid(iter); ndb_mgm_next(iter))
-  {
-    Uint32 nodeId = 0;
-    Uint32 type = ~Uint32(0);
-    if (ndb_mgm_get_int_parameter(iter, CFG_NODE_ID, &nodeId) == 0 &&
-        ndb_mgm_get_int_parameter(iter,CFG_TYPE_OF_SECTION, &type) == 0 &&
-        type == NodeInfo::DB)
-    {
-      cnt++;
-    }
-  }
-  return cnt;
-}
-
 /**
  * Compute max time it can take to "resolve" cascading node-failures
- *   given hb-interval, arbit timeout and #db-nodes
+ *   given hb-interval, arbit timeout and #db-nodes.
  */
-static
 Uint32
-compute_max_failure_time(const ndb_mgm_configuration_iterator * p,
-                         ndb_mgm_configuration_iterator * cluster)
+Dbdih::compute_max_failure_time()
 {
-  Uint32 dbnodes = count_db_nodes(cluster);
-
-  Uint32 hbDBDB = 1500;
-  Uint32 arbitTimeout = 1000;
-  ndb_mgm_get_int_parameter(p, CFG_DB_HEARTBEAT_INTERVAL, &hbDBDB);
-  ndb_mgm_get_int_parameter(p, CFG_DB_ARBIT_TIMEOUT, &arbitTimeout);
+  jam();
+  Uint32 no_of_live_db_nodes = 0;
   
+  // Count the number of live data nodes.
+  NodeRecordPtr nodePtr = {NULL, cfirstAliveNode};
+  while (nodePtr.i != RNIL)
+  {
+    ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRecord);
+
+    ndbassert(nodePtr.p->nodeStatus == NodeRecord::ALIVE);
+
+    no_of_live_db_nodes++;
+    nodePtr.i = nodePtr.p->nextNode;
+  }
+
+  const ndb_mgm_configuration_iterator* cfgIter = 
+    m_ctx.m_config.getOwnConfigIterator();
+
+  Uint32 hbDBDB = 5000;
+  ndb_mgm_get_int_parameter(cfgIter, CFG_DB_HEARTBEAT_INTERVAL, &hbDBDB);
+
+  Uint32 arbit_timeout = 7500;
+  ndb_mgm_get_int_parameter(cfgIter, CFG_DB_ARBIT_TIMEOUT, &arbit_timeout);
+
   /*
-   * Max time for 1 node failure is
-   */
-  Uint32 max_time_one_failure = arbitTimeout + 4 * hbDBDB;
-  
-  /**
-   * And worst case...this can be cascading failure with all but self
-   */
-  Uint32 max_time_total_failure = (dbnodes - 1) * max_time_one_failure;
+    A node is presumed dead if it is silent for four missed heartbeats, 
+    meaning that the worst case is five heartbeat intervals.
+  */
+  const Uint32 heartbeat_fail_time = hbDBDB * 5;
 
-  return max_time_total_failure;
+  /*
+    The worst case failure scenario works as follows:
+
+    1) All data nodes are running.
+
+    2) One in each node group fail. Detecting this takes:
+    no_of_node_groups * heartbeat_fail_time
+
+    3) Arbitration is started, as the failed nodes could have formed an 
+    independent cluster. Arbitration make take up to arbit_timeout to
+    complete.
+
+    4) Just before arbitration completes, all remaining nodes except
+    for the master fail. The remain node *could* have shut itself down
+    as soon as the first of these failures are detected, but as it
+    waits for outstanding PREP_FAILCONF messages before checking of
+    the cluster is viable, it does not do so until all the failures
+    have been detected. Detecting these failures thus takes:
+    (no_of_nodes - no_of_node_groups - 1) * heartbeat_fail_time
+    
+    Combining these figure we get a total failure time of:
+    (no_of_nodes - 1) * heartbeat_fail_time + arbit_timeout
+
+    (For NoOfReplicas>2 there could be cases of nodes failing sequentially 
+    that would require more than one round of arbitration. These have not 
+    been considered here.)
+  */
+
+  ndbrequire(no_of_live_db_nodes > 0);
+
+  return (no_of_live_db_nodes - 1) * heartbeat_fail_time + arbit_timeout;
 }
+
+/*
+  Calculate timeouts for detecting GCP stops. These must be set such that
+  node failures are not falsely interpreted as GCP stops.
+*/
+void Dbdih::setGCPStopTimeouts()
+{
+  
+  const ndb_mgm_configuration_iterator* cfgIter = 
+    m_ctx.m_config.getOwnConfigIterator();
+
+  const Uint32 max_failure_time = compute_max_failure_time();
+  
+  // Set time-between epochs timeout
+  Uint32 micro_GCP_timeout = 4000;
+  ndb_mgm_get_int_parameter(cfgIter, CFG_DB_MICRO_GCP_TIMEOUT, 
+                            &micro_GCP_timeout);
+
+  /* 
+    Set minimum value for time-between global checkpoint timeout. 
+    By default, this is 2 minutes.
+  */
+  Uint32 gcp_timeout = 120000;
+  ndb_mgm_get_int_parameter(cfgIter, CFG_DB_GCP_TIMEOUT, &gcp_timeout);
+
+  const Uint32 old_micro_GCP_max_lag = m_gcp_monitor.m_micro_gcp.m_max_lag_ms;
+  const Uint32 old_GCP_save_max_lag = m_gcp_monitor.m_gcp_save.m_max_lag_ms;
+    
+  if (micro_GCP_timeout != 0)
+  {
+    jam();
+    if (ERROR_INSERTED(7145))
+    {
+      /*
+        We drop these lower limits in certain tests, to verify that the 
+        calculated value for max_failure_time is sufficient.
+       */
+      ndbout << "Dbdih::setGCPStopTimeouts() setting minimal GCP timout values"
+             << " for test purposes."  << endl;
+      micro_GCP_timeout = 0;
+      gcp_timeout = 0;
+    }
+
+    m_gcp_monitor.m_micro_gcp.m_max_lag_ms = 
+      m_micro_gcp.m_master.m_time_between_gcp + micro_GCP_timeout 
+      + max_failure_time;
+    
+    m_gcp_monitor.m_gcp_save.m_max_lag_ms = 
+      m_gcp_save.m_master.m_time_between_gcp + 
+      // Ensure that GCP-commit times out before GCP-save if both stops. 
+      MAX(gcp_timeout, micro_GCP_timeout) + 
+      max_failure_time;
+  }
+  else
+  {
+    jam();
+    m_gcp_monitor.m_gcp_save.m_max_lag_ms = 0;
+    m_gcp_monitor.m_micro_gcp.m_max_lag_ms = 0;
+  }
+
+  // If timeouts have changed, log it.
+  if (old_micro_GCP_max_lag != m_gcp_monitor.m_micro_gcp.m_max_lag_ms ||
+      old_GCP_save_max_lag != m_gcp_monitor.m_gcp_save.m_max_lag_ms)
+  {
+    if (m_gcp_monitor.m_micro_gcp.m_max_lag_ms > 0)
+    {
+      jam();
+      if (isMaster())
+      {
+        jam();
+        // Log to mgmd.
+        infoEvent("GCP Monitor: Computed max GCP_COMMIT lag to %u seconds",
+                  m_gcp_monitor.m_micro_gcp.m_max_lag_ms / 1000);
+        infoEvent("GCP Monitor: Computed max GCP_SAVE lag to %u seconds",
+                  m_gcp_monitor.m_gcp_save.m_max_lag_ms / 1000);
+      }
+      // Log locallly.
+      g_eventLogger->info("GCP Monitor: Computed max GCP_COMMIT lag to %u"
+                          " seconds",
+                          m_gcp_monitor.m_micro_gcp.m_max_lag_ms / 1000);
+      g_eventLogger->info("GCP Monitor: Computed max GCP_SAVE lag to %u"
+                          " seconds", 
+                          m_gcp_monitor.m_gcp_save.m_max_lag_ms / 1000);    
+    }
+    else
+    {
+      jam();
+      if (isMaster())
+      {
+        jam();
+        infoEvent("GCP Monitor: unlimited lags allowed");
+      }
+      g_eventLogger->info("GCP Monitor: unlimited lags allowed");
+    }
+  }
+} // setGCPStopTimeouts()
 
 void Dbdih::initCommonData()
 {
@@ -15901,9 +16026,6 @@ void Dbdih::initCommonData()
 	      "Only up to four replicas are supported. Check NoOfReplicas.");
   }
 
-  Uint32 max_failure_time = compute_max_failure_time
-    (p, m_ctx.m_config.getClusterConfigIterator());
-  
   bzero(&m_gcp_save, sizeof(m_gcp_save));
   bzero(&m_micro_gcp, sizeof(m_micro_gcp));
   NdbTick_Invalidate(&m_gcp_save.m_master.m_start_time);
@@ -15930,30 +16052,9 @@ void Dbdih::initCommonData()
       m_micro_gcp.m_master.m_time_between_gcp = tmp;
     }
 
-    { // Set time-between global checkpoint timeout
-      Uint32 tmp = 120000;     // No config, hard code 2 minutes
-      tmp += max_failure_time; //
-      m_gcp_monitor.m_gcp_save.m_max_lag_ms = 
-        (m_gcp_save.m_master.m_time_between_gcp + tmp);
-    }
-
-    { // Set time-between epochs timeout
-      Uint32 tmp = 4000;
-      ndb_mgm_get_int_parameter(p, CFG_DB_MICRO_GCP_TIMEOUT, &tmp);
-      if (tmp != 0)
-      {
-        jam();
-        tmp += max_failure_time;
-        m_gcp_monitor.m_micro_gcp.m_max_lag_ms = 
-          (m_micro_gcp.m_master.m_time_between_gcp + tmp);
-      }
-      else
-      {
-        jam();
-        m_gcp_monitor.m_gcp_save.m_max_lag_ms = 0;
-        m_gcp_monitor.m_micro_gcp.m_max_lag_ms = 0;
-      }
-    }
+    // These will be set when nodes reach state 'started'.
+    m_gcp_monitor.m_micro_gcp.m_max_lag_ms = 0;
+    m_gcp_monitor.m_gcp_save.m_max_lag_ms = 0;
   }
 }//Dbdih::initCommonData()
 

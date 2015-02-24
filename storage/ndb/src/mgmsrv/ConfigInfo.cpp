@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1063,6 +1063,22 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "2000",
     "20",
     "32000" },
+  {
+    CFG_DB_GCP_TIMEOUT,
+    "TimeBetweenGlobalCheckpointsTimeout",
+    DB_TOKEN,
+    "Minimum timeout for group commit of transactions to disk",
+    /*
+      Actual timeout may be higher, as there must be sufficient time to 
+      correctly detect node failures, such that these are not reported as GCP 
+      stop.
+    */
+    ConfigInfo::CI_USED,
+    0,
+    ConfigInfo::CI_INT,
+    "120000",
+    "10",
+    STR_VALUE(MAX_INT_RNIL) },
 
   {
     CFG_DB_MICRO_GCP_INTERVAL,
