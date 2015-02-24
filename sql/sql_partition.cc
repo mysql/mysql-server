@@ -6627,10 +6627,10 @@ static void reopen_locked_tables(THD *thd)
 bool handle_alter_part_end(ALTER_PARTITION_PARAM_TYPE *lpt,
                            bool error)
 {
-  partition_info *part_info= lpt->part_info;
+  partition_info *part_info= lpt->part_info->get_clone();
   THD *thd= lpt->thd;
   TABLE *table= lpt->table;
-  DBUG_ENTER("handle_alter_part_error");
+  DBUG_ENTER("handle_alter_part_end");
   DBUG_ASSERT(table->m_needs_reopen);
 
   /* First clone the part_info to save the log entries. */
