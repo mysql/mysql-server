@@ -23,6 +23,7 @@
 
 static const size_t MAX_USER_HOST_SIZE= 512;
 
+bool is_any_audit_plugin_active(THD *thd);
 static inline size_t make_user_name(Security_context *sctx, char *buf)
 {
   LEX_CSTRING sctx_user= sctx->user();
