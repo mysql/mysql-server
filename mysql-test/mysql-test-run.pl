@@ -303,6 +303,7 @@ my $valgrind_reports= 0;
 my $opt_callgrind;
 my %mysqld_logs;
 my $opt_debug_sync_timeout= 600; # Default timeout for WAIT_FOR actions.
+my $daemonize_mysqld= 0;
 
 sub testcase_timeout ($) {
   my ($tinfo)= @_;
@@ -5499,6 +5500,13 @@ sub mysqld_start ($$) {
     strace_server_arguments($args, \$exe, $mysqld->name());
   }
 
+  foreach my $arg (@$extra_opts)
+  {
+    if ($arg eq "--daemonize")
+    {
+      $daemonize_mysqld= 1;
+    }
+  }
 
   if ( $opt_valgrind_mysqld )
   {
@@ -6591,7 +6599,14 @@ sub valgrind_arguments {
   else
   {
     mtr_add_arg($args, "--tool=memcheck"); # From >= 2.1.2 needs this option
-    mtr_add_arg($args, "--leak-check=yes");
+    if($daemonize_mysqld)
+    {
+      mtr_add_arg($args, "--leak-check=no");
+    }
+    else
+    {
+      mtr_add_arg($args, "--leak-check=yes");
+    }
     mtr_add_arg($args, "--num-callers=16");
     mtr_add_arg($args, "--suppressions=%s/valgrind.supp", $glob_mysql_test_dir)
       if -f "$glob_mysql_test_dir/valgrind.supp";
