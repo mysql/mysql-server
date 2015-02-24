@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,6 +24,8 @@
 #include <signaldata/DumpStateOrd.hpp>
 
 #include <mt.hpp>
+#include <EventLogger.hpp>
+extern EventLogger * g_eventLogger;
 
 #define JAM_FILE_ID 430
 
@@ -586,12 +588,13 @@ Trpman::execDUMP_STATE_ORD(Signal* signal)
       {
         if (block)
         {
-          ndbout_c("TRPMAN : Blocking receive from node %u", nodeId);
+          g_eventLogger->info("TRPMAN : Blocking receive from node %u", nodeId);
           globalTransporterRegistry.blockReceive(*recvdata, nodeId);
         }
         else
         {
-          ndbout_c("TRPMAN : Unblocking receive from node %u", nodeId);
+          g_eventLogger->info("TRPMAN : Unblocking receive from node %u", 
+                              nodeId);
 
           globalTransporterRegistry.unblockReceive(*recvdata, nodeId);
         }
@@ -643,7 +646,7 @@ Trpman::execDUMP_STATE_ORD(Signal* signal)
             default:
               break;
             }
-            ndbout_c("TRPMAN : Blocking receive from node %u", node);
+            g_eventLogger->info("TRPMAN : Blocking receive from node %u", node);
             globalTransporterRegistry.blockReceive(*recvdata, node);
           }
         }
@@ -660,7 +663,7 @@ Trpman::execDUMP_STATE_ORD(Signal* signal)
         continue;
       if (globalTransporterRegistry.isBlocked(node))
       {
-        ndbout_c("CMVMI : Unblocking receive from node %u", node);
+        g_eventLogger->info("TRPMAN : Unblocking receive from node %u", node);
         globalTransporterRegistry.unblockReceive(*recvdata, node);
       }
     }
