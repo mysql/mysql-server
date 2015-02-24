@@ -586,6 +586,7 @@ static void print_db_txn_struct (void) {
         "void (*set_client_id)(DB_TXN *, uint64_t client_id)",
         "uint64_t (*get_client_id)(DB_TXN *)",
         "bool (*is_prepared)(DB_TXN *)",
+        "DB_TXN *(*get_child)(DB_TXN *)",
 	NULL};
     sort_and_dump_fields("db_txn", false, extra);
 }
