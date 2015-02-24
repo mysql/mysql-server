@@ -108,6 +108,7 @@ count(*)
 0
 create table mysql.host(c1 int) engine MyISAM;
 insert into mysql.host values(1);
+mysql_upgrade: [Warning] 1642: Table mysql.host is not empty. It is deprecated and will be removed in a future release.
 mysql.columns_priv                                 OK
 mysql.db                                           OK
 mysql.engine_cost                                  OK
@@ -140,7 +141,6 @@ mysql.time_zone_name                               OK
 mysql.time_zone_transition                         OK
 mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
-mysql_upgrade: [Warning] 1642: Table mysql.host is not empty. It is deprecated and will be removed in a future release.
 mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
 drop table mysql.host;
