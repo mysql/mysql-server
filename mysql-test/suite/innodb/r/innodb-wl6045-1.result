@@ -72,7 +72,7 @@ count                             FALSE
 start-page                        0
 end-page                          0
 page                              0
-strict-check                      innodb
+strict-check                      crc32
 no-check                          FALSE
 allow-mismatches                  0
 write                             crc32
