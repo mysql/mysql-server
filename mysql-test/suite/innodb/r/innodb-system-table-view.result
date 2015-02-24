@@ -151,48 +151,19 @@ CREATE TABLE t_redundant (a INT KEY, b TEXT) ROW_FORMAT=REDUNDANT ENGINE=innodb;
 CREATE TABLE t_compact (a INT KEY, b TEXT) ROW_FORMAT=COMPACT ENGINE=innodb;
 CREATE TABLE t_compressed (a INT KEY, b TEXT) ROW_FORMAT=COMPRESSED ENGINE=innodb;
 CREATE TABLE t_dynamic (a INT KEY, b TEXT) ROW_FORMAT=DYNAMIC ENGINE=innodb;
-SELECT name, n_cols, file_format, row_format
-FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES
-WHERE space > 0;
-name	n_cols	file_format	row_format
-mysql/engine_cost	9	Antelope	Compact
-mysql/gtid_executed	6	Antelope	Compact
-mysql/help_category	7	Antelope	Compact
-mysql/help_keyword	5	Antelope	Compact
-mysql/help_relation	5	Antelope	Compact
-mysql/help_topic	9	Antelope	Compact
-mysql/innodb_index_stats	11	Antelope	Compact
-mysql/innodb_table_stats	9	Antelope	Compact
-mysql/plugin	5	Antelope	Compact
-mysql/server_cost	7	Antelope	Compact
-mysql/servers	12	Antelope	Compact
-mysql/slave_master_info	27	Antelope	Compact
-mysql/slave_relay_log_info	12	Antelope	Compact
-mysql/slave_worker_info	16	Antelope	Compact
-mysql/time_zone	5	Antelope	Compact
-mysql/time_zone_leap_second	5	Antelope	Compact
-mysql/time_zone_name	5	Antelope	Compact
-mysql/time_zone_transition	6	Antelope	Compact
-mysql/time_zone_transition_type	8	Antelope	Compact
-test/t_compact	5	Antelope	Compact
-test/t_compressed	5	Barracuda	Compressed
-test/t_dynamic	5	Barracuda	Dynamic
-test/t_redundant	5	Antelope	Redundant
-SELECT name, file_format, row_format
-FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES
-WHERE name LIKE 'test%';
-name	file_format	row_format
-test/t_compact	Antelope	Compact or Redundant
-test/t_compressed	Barracuda	Compressed
-test/t_dynamic	Barracuda	Dynamic
-test/t_redundant	Antelope	Compact or Redundant
-SELECT path FROM INFORMATION_SCHEMA.INNODB_SYS_DATAFILES
-WHERE path LIKE '%test%';
-path
-MYSQLD_DATADIR/test/t_compact.ibd
-MYSQLD_DATADIR/test/t_compressed.ibd
-MYSQLD_DATADIR/test/t_dynamic.ibd
-MYSQLD_DATADIR/test/t_redundant.ibd
+=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+Table Name	Tablespace	Table Flags	Columns	File Format	Row Format	Zip Size	Space Type
+test/t_compact	test/t_compact	1	5	Antelope	Compact	0	Single
+test/t_compressed	test/t_compressed	41	5	Barracuda	Compressed	8192	Single
+test/t_dynamic	test/t_dynamic	33	5	Barracuda	Dynamic	0	Single
+test/t_redundant	test/t_redundant	0	5	Antelope	Redundant	0	Single
+=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
+innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
+test/t_redundant	MYSQLD_DATADIR/test/t_redundant.ibd	DEFAULT	0	Compact or Redundant	Single
+test/t_compact	MYSQLD_DATADIR/test/t_compact.ibd	DEFAULT	0	Compact or Redundant	Single
+test/t_compressed	MYSQLD_DATADIR/test/t_compressed.ibd	DEFAULT	8192	Compressed	Single
+test/t_dynamic	MYSQLD_DATADIR/test/t_dynamic.ibd	DEFAULT	0	Dynamic	Single
 DROP TABLE t_redundant, t_compact, t_compressed, t_dynamic;
 SELECT count(*) FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESTATS;
 count(*)

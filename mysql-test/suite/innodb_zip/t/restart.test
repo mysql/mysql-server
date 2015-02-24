@@ -12,6 +12,8 @@
 --source include/have_partition.inc
 --source include/not_embedded.inc
 SET default_storage_engine=InnoDB;
+LET $MYSQLD_DATADIR = `select @@datadir`;
+LET $INNODB_PAGE_SIZE = `select @@innodb_page_size`;
 
 --disable_query_log
 # This error is expected in the error log for this test.
@@ -181,18 +183,8 @@ SELECT count(*) FROM t9_restart;
 --echo #
 --echo # Show these tables in information_schema.
 --echo #
---replace_regex  /#P#/#p#/  /#SP#/#sp#/
-SELECT name,n_cols,file_format,row_format
-       FROM information_schema.innodb_sys_tables
-       WHERE name like '%restart%' ORDER BY name;
---replace_regex  /#P#/#p#/  /#SP#/#sp#/
-SELECT name,file_format,row_format
-       FROM information_schema.innodb_sys_tablespaces
-       WHERE name LIKE '%restart%' ORDER BY name;
---replace_regex  /#P#/#p#/  /#SP#/#sp#/
---replace_result ./ MYSQL_DATA_DIR/  $MYSQL_DATA_DIR MYSQL_DATA_DIR  $MYSQL_TMP_DIR MYSQL_TMP_DIR
-SELECT path FROM information_schema.innodb_sys_datafiles
-       WHERE path LIKE '%restart%' ORDER BY space;
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
 
 --echo #
 --echo # Shutdown the server and list the tablespace OS files
@@ -250,18 +242,8 @@ SELECT count(*) FROM t9_restart;
 --echo #
 --echo # Show these tables in information_schema.
 --echo #
---replace_regex  /#P#/#p#/  /#SP#/#sp#/
-SELECT name,n_cols,file_format,row_format
-       FROM information_schema.innodb_sys_tables
-       WHERE name like '%restart%' ORDER BY name;
---replace_regex  /#P#/#p#/  /#SP#/#sp#/
-SELECT name,file_format,row_format
-       FROM information_schema.innodb_sys_tablespaces
-       WHERE name LIKE '%restart%' ORDER BY name;
---replace_regex  /#P#/#p#/  /#SP#/#sp#/
---replace_result ./ MYSQL_DATA_DIR/  $MYSQL_DATA_DIR MYSQL_DATA_DIR  $MYSQL_TMP_DIR MYSQL_TMP_DIR
-SELECT path FROM information_schema.innodb_sys_datafiles
-       WHERE path LIKE '%restart%' ORDER BY space;
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
 
 DROP TABLE t1_restart;
 DROP TABLE t2_restart;
@@ -281,10 +263,7 @@ TRUNCATE TABLE t5_restart;
 ALTER TABLE t6_restart TRUNCATE PARTITION p2;
 ALTER TABLE t7_restart TRUNCATE PARTITION p1;
 
---replace_regex  /#P#/#p#/  /#SP#/#sp#/
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR  $MYSQL_DATA_DIR MYSQL_DATA_DIR  ./ MYSQL_DATA_DIR/
-SELECT path FROM information_schema.innodb_sys_datafiles
-       WHERE path LIKE '%restart%' ORDER BY space;
+--source suite/innodb/include/show_i_s_tablespaces.inc
 
 INSERT INTO t5_restart VALUES (1000000000, 'MySQL', 'InnoDB', '2011-11-11', 'Read this after reboot');
 INSERT INTO t5_restart (SELECT 0, c2, c3, c4, c5 FROM t5_restart);
@@ -326,10 +305,7 @@ SHOW CREATE TABLE t7_restart;
 
 SHOW VARIABLES LIKE 'innodb_file_per_table';
 
---replace_regex  /#P#/#p#/  /#SP#/#sp#/
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR  $MYSQL_DATA_DIR MYSQL_DATA_DIR  ./ MYSQL_DATA_DIR/
-SELECT path FROM information_schema.innodb_sys_datafiles
-       WHERE path LIKE '%restart%' ORDER BY space;
+--source suite/innodb/include/show_i_s_tablespaces.inc
 
 SELECT count(*) FROM t5_restart;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
@@ -381,10 +357,7 @@ RENAME TABLE t5_restart TO t55_restart;
 RENAME TABLE t6_restart TO t66_restart;
 RENAME TABLE t7_restart TO t77_restart;
 
---replace_regex  /#P#/#p#/  /#SP#/#sp#/
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR  $MYSQL_DATA_DIR MYSQL_DATA_DIR  ./ MYSQL_DATA_DIR/
-SELECT path FROM information_schema.innodb_sys_datafiles
-       WHERE path LIKE '%restart%' ORDER BY space;
+--source suite/innodb/include/show_i_s_tablespaces.inc
 
 INSERT INTO t55_restart (SELECT 0, c2, c3, c4, c5 FROM t55_restart);
 SELECT count(*) FROM t55_restart;
@@ -414,10 +387,7 @@ SHOW CREATE TABLE t77_restart;
 --source include/restart_mysqld.inc
 SHOW VARIABLES LIKE 'innodb_file_per_table';
 
---replace_regex  /#P#/#p#/  /#SP#/#sp#/
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR  $MYSQL_DATA_DIR MYSQL_DATA_DIR  ./ MYSQL_DATA_DIR/
-SELECT path FROM information_schema.innodb_sys_datafiles
-       WHERE path LIKE '%restart%' ORDER BY space;
+--source suite/innodb/include/show_i_s_tablespaces.inc
 
 INSERT INTO t55_restart (SELECT 0, c2, c3, c4, c5 FROM t55_restart);
 SELECT count(*) FROM t55_restart;
@@ -512,10 +482,7 @@ SHOW CREATE TABLE t77_restart;
 --echo #
 --source include/start_mysqld.inc
 
---replace_regex  /#P#/#p#/  /#SP#/#sp#/
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR  $MYSQL_DATA_DIR MYSQL_DATA_DIR  ./ MYSQL_DATA_DIR/
-SELECT path FROM information_schema.innodb_sys_datafiles
-       WHERE path LIKE '%restart%' ORDER BY space;
+--source suite/innodb/include/show_i_s_tablespaces.inc
 
 INSERT INTO t4_restart (SELECT 0, c2, c3, c4, c5 FROM t4_restart);
 SELECT count(*) FROM t4_restart;
@@ -601,10 +568,7 @@ SHOW CREATE TABLE t77_restart;
 --echo #
 -- source include/start_mysqld.inc
 
---replace_regex  /#P#/#p#/  /#SP#/#sp#/
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR  $MYSQL_DATA_DIR MYSQL_DATA_DIR  ./ MYSQL_DATA_DIR/
-SELECT path FROM information_schema.innodb_sys_datafiles
-       WHERE path LIKE '%restart%' ORDER BY space;
+--source suite/innodb/include/show_i_s_tablespaces.inc
 
 INSERT INTO t4_restart (SELECT 0, c2, c3, c4, c5 FROM t4_restart);
 SELECT count(*) FROM t4_restart;
