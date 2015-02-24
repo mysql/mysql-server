@@ -2389,7 +2389,7 @@ static void network_init(void)
       returned by getaddrinfo();
     */
 
-    struct addrinfo *a;
+    struct addrinfo *a = NULL;
     ip_sock= create_socket(ai, AF_INET, &a);
 
     if (mysql_socket_getfd(ip_sock) == INVALID_SOCKET)

@@ -8289,7 +8289,8 @@ my_strnncoll_utf8mb4(const CHARSET_INFO *cs,
                      const uchar *t, size_t tlen,
                      my_bool t_is_prefix)
 {
-  my_wc_t s_wc,t_wc;
+  my_wc_t s_wc= 0;
+  my_wc_t t_wc= 0;
   const uchar *se= s + slen;
   const uchar *te= t + tlen;
   MY_UNICASE_INFO *uni_plane= cs->caseinfo;
@@ -8357,7 +8358,8 @@ my_strnncollsp_utf8mb4(const CHARSET_INFO *cs,
                        my_bool diff_if_only_endspace_difference)
 {
   int res;
-  my_wc_t s_wc, t_wc;
+  my_wc_t s_wc= 0;
+  my_wc_t t_wc= 0;
   const uchar *se= s + slen, *te= t + tlen;
   MY_UNICASE_INFO *uni_plane= cs->caseinfo;
   LINT_INIT(s_wc);
