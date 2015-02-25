@@ -1,0 +1,932 @@
+source include/not_valgrind.inc;
+source include/have_memcached_plugin.inc;
+source include/not_windows.inc;
+source include/have_innodb.inc;
+
+--disable_query_log
+CALL mtr.add_suppression("daemon-memcached-w-batch-size': unsigned");
+CALL mtr.add_suppression("Could not obtain server's UPN to be used as target service name");
+CALL mtr.add_suppression("InnoDB: Warning: MySQL is trying to drop");
+--enable_query_log
+
+SET @tx_isolation= @@global.tx_isolation;
+SET GLOBAL TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+
+# Create the memcached tables
+--disable_query_log
+source include/memcache_config.inc;
+--enable_query_log
+
+INSERT INTO cache_policies VALUES("cache_policy", "cache_only",
+				  "innodb_only", "innodb_only", "innodb_only");
+
+INSERT INTO config_options VALUES("separator", "|");
+
+# describe table for memcache
+INSERT INTO containers VALUES ("desc_t1", "test", "t1",
+			       "c1", "c2",  "c3", "c4", "c5", "PRIMARY");
+
+USE test;
+
+CREATE TABLE t1        (c1 VARCHAR(32),
+			c2 VARCHAR(1024),
+			c3 INT, c4 BIGINT UNSIGNED, c5 INT, primary key(c1))
+ENGINE = INNODB;
+
+INSERT INTO t1 VALUES ('D', 'Darmstadt', 0, 0, 0);
+INSERT INTO t1 VALUES ('B', 'Berlin', 0, 0, 0);
+INSERT INTO t1 VALUES ('C', 'Cottbus', 0, 0 ,0);
+INSERT INTO t1 VALUES ('H', 'Hamburg', 0, 0, 0);
+
+# Tables must exist before plugin can be started!
+INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+
+# ----------------------------------------------------------------
+# Test the "cache_only" get
+#
+# get - cache_only
+# set - innodb_only
+# delete - innodb_only
+# ----------------------------------------------------------------
+
+# The following select is writing all to  memcache otherwisw memcache is empty.
+--sorted_result
+SELECT c1,c2 FROM t1;
+
+SELECT SLEEP(2);
+
+# Since "get" are cache_only, it is not going to fetch any rows
+perl;
+use DBI;
+use Cache::Memcached;
+print "----- Test get (cache_only) -----\n";
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11247" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+print "Here the memcached results with D,B,H,C:\n";
+$val = $memd->get("D");
+if ($val) { print "$val\n"; }
+$val = $memd->get("B");
+if ($val) { print "$val\n"; }
+$val = $memd->get("H");
+if ($val) { print "$val\n"; }
+$val = $memd->get("C");
+if ($val) { print "$val\n"; }
+$memd->disconnect_all;
+EOF
+
+--sorted_result
+SELECT c1,c2 FROM t1;
+
+perl;
+use DBI;
+use Cache::Memcached;
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11247" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+print "Here the memcached results with B:\n";
+$val = $memd->get("B");
+if ($val) { print "$val\n"; }
+$memd->disconnect_all;
+EOF
+
+--sorted_result
+SELECT c1,c2 FROM t1;
+
+perl;
+use DBI;
+use Cache::Memcached;
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11247" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+print "Here the memcached results with D,H:\n";
+$val = $memd->get("D");
+if ($val) { print "$val\n"; }
+$val = $memd->get("H");
+if ($val) { print "$val\n"; }
+$memd->disconnect_all;
+EOF
+
+# ----------------------------------------------------------------
+# Test the "caching" get, which fetch data from disk if they are
+# not in cache
+#
+# get - caching
+# set - innodb_only
+# delete - innodb_only
+# ----------------------------------------------------------------
+
+# Stop plugin before innodb_memcached configuration
+UNINSTALL PLUGIN daemon_memcached;
+
+use innodb_memcache;
+
+DELETE FROM cache_policies;
+
+INSERT INTO cache_policies VALUES("cache_policy", "caching",
+				  "innodb_only", "innodb_only", "innodb_only");
+
+INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+
+# Since "get" is now "caching", it will fetch data from disk if not in cache
+perl;
+use DBI;
+use Cache::Memcached;
+print "----- Test get (caching) -----\n";
+
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11247" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+print "Here the memcached results with D,B,H,C:\n";
+$val = $memd->get("D");
+if ($val) { print "$val\n"; }
+$val = $memd->get("B");
+if ($val) { print "$val\n"; }
+$val = $memd->get("H");
+if ($val) { print "$val\n"; }
+$val = $memd->get("C");
+if ($val) { print "$val\n"; }
+$memd->disconnect_all;
+EOF
+
+# ----------------------------------------------------------------
+# Now let's make the "insert" operation also cache_only, so the
+# configuration is
+#
+# get - cache_only
+# set - cache_only
+# delete - innodb_only
+# ----------------------------------------------------------------
+# Stop plugin before innodb_memcached configuration
+
+UNINSTALL PLUGIN daemon_memcached;
+
+use innodb_memcache;
+
+DELETE FROM cache_policies;
+
+INSERT INTO cache_policies VALUES("cache_policy", "cache_only",
+				  "cache_only", "innodb_only", "innodb_only");
+
+INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+
+perl;
+use DBI;
+use Cache::Memcached;
+print "----- Test insert (cache_only) -----\n";
+
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11247" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+print "Add E|Essen:\n";
+if ($memd->add("E","Essen")) {
+  print "Ok.\n";
+}
+else {
+  print "Error: fail to add.\n";
+}
+$memd->disconnect_all;
+EOF
+
+--sorted_result
+use test;
+SELECT c1,c2 FROM t1;
+
+perl;
+use DBI;
+use Cache::Memcached;
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11247" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+print "Here the memcached results with E:\n";
+$val = $memd->get("E");
+if ($val) { print "$val\n"; }
+$memd->disconnect_all;
+EOF
+
+perl;
+use DBI;
+use Cache::Memcached;
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11247" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+print "Set P|Paris:\n";
+if ($memd->set("P","Paris", 60)) {
+  print "Ok.\n";
+}
+else {
+  print "Error: fail to set.\n";
+}
+print "Here the memcached results with P:\n";
+$val = $memd->get("P");
+if ($val) { print "$val\n"; }
+$memd->disconnect_all;
+EOF
+
+# ----------------------------------------------------------------
+# Now let's make the "insert" operation also "caching", so
+# get - caching
+# set - caching
+# delete - innodb_only
+# ----------------------------------------------------------------
+# Stop plugin before innodb_memcached configuration
+
+UNINSTALL PLUGIN daemon_memcached;
+
+use innodb_memcache;
+
+DELETE FROM cache_policies;
+
+INSERT INTO cache_policies VALUES("cache_policy", "caching",
+				  "caching", "innodb_only", "innodb_only");
+
+INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+
+SELECT SLEEP(2);
+
+perl;
+use DBI;
+use Cache::Memcached;
+print "----- Test insert (caching) -----\n";
+
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11247" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+print "Add G|Gossen:\n";
+if ($memd->add("G","Gossen")) {
+  print "Ok.\n";
+}
+else {
+  print "Error: fail to add.\n";
+}
+$memd->disconnect_all;
+EOF
+
+--sorted_result
+use test;
+SELECT c1,c2 FROM t1;
+
+perl;
+use DBI;
+use Cache::Memcached;
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11247" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+print "Here the memcached results with G:\n";
+$val = $memd->get("G");
+if ($val) { print "$val\n"; }
+$memd->disconnect_all;
+EOF
+
+# delete will only delete the InnoDB record, cache record still exists
+perl;
+use DBI;
+use Cache::Memcached;
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11247" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+print "Delete G|Gossen:\n";
+if ($memd->delete("G")) {
+  print "Ok.\n";
+}
+else {
+  print "Error: G|Gossen doesn't  exist.\n";
+}
+$memd->disconnect_all;
+EOF
+
+--sorted_result
+SELECT c1,c2 FROM test.t1;
+
+perl;
+use DBI;
+use Cache::Memcached;
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11247" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+print "Here the memcached results with G:\n";
+$val = $memd->get("G");
+if ($val) { print "$val\n"; }
+$memd->disconnect_all;
+EOF
+
+# ----------------------------------------------------------------
+# Configure the "delete" operation to "cache_only", so overall
+# configuration would be:
+# get - caching
+# set - caching
+# delete - cache_only
+# ----------------------------------------------------------------
+# Stop plugin before innodb_memcached configuration
+
+UNINSTALL PLUGIN daemon_memcached;
+
+use innodb_memcache;
+
+DELETE FROM cache_policies;
+
+INSERT INTO cache_policies VALUES("cache_policy", "caching",
+				  "caching", "cache_only", "innodb_only");
+
+INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+
+SELECT SLEEP(2);
+
+perl;
+use DBI;
+use Cache::Memcached;
+print "----- Test delete (cache_only) -----\n";
+
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11247" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+print "Delete G|Gossen:\n";
+if ($memd->delete("G","Gossen")) {
+  print "Ok.\n";
+}
+else {
+  print "Error: fail to delete.\n";
+}
+$memd->disconnect_all;
+EOF
+
+--sorted_result
+use test;
+SELECT c1,c2 FROM t1;
+
+perl;
+use DBI;
+use Cache::Memcached;
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11247" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+print "Here the memcached results with G:\n";
+$val = $memd->get("G");
+if ($val) { print "$val\n"; }
+$memd->disconnect_all;
+EOF
+
+# delete will only delete the cache record, InnoDB record still exists
+perl;
+use DBI;
+use Cache::Memcached;
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11247" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+print "Delete E|Essen:\n";
+if ($memd->delete("E")) {
+  print "Ok.\n";
+}
+else {
+  print "Error: E|Essen doesn't  exist.\n";
+}
+$memd->disconnect_all;
+EOF
+
+--sorted_result
+SELECT c1,c2 FROM test.t1;
+
+perl;
+use DBI;
+use Cache::Memcached;
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11247" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+print "Here the memcached results with E:\n";
+$val = $memd->get("E");
+if ($val) { print "$val\n"; }
+$memd->disconnect_all;
+EOF
+
+# ----------------------------------------------------------------
+# Configure the "delete" operation to "caching", so the overall
+# configuration is:
+#
+# get - caching
+# set - caching
+# delete - caching
+# ----------------------------------------------------------------
+# Stop plugin before innodb_memcached configuration
+
+UNINSTALL PLUGIN daemon_memcached;
+
+use innodb_memcache;
+
+DELETE FROM cache_policies;
+
+INSERT INTO cache_policies VALUES("cache_policy", "caching",
+				  "caching", "caching", "innodb_only");
+
+INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+
+SELECT SLEEP(2);
+
+perl;
+use DBI;
+use Cache::Memcached;
+print "----- Test delete (caching) -----\n";
+
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11247" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+print "add G|Gossen:\n";
+if ($memd->add("G","Gossen")) {
+  print "Ok.\n";
+}
+else {
+  print "Error: fail to add.\n";
+}
+$memd->disconnect_all;
+EOF
+
+--sorted_result
+use test;
+SELECT c1,c2 FROM t1;
+
+perl;
+use DBI;
+use Cache::Memcached;
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11247" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+print "Here the memcached results with G:\n";
+$val = $memd->get("G");
+if ($val) { print "$val\n"; }
+$memd->disconnect_all;
+EOF
+
+# delete will only delete the InnoDB record, cache record still exists
+perl;
+use DBI;
+use Cache::Memcached;
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11247" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+print "Delete G|Gossen:\n";
+if ($memd->delete("G")) {
+  print "Ok.\n";
+}
+else {
+  print "Error: G|Gossen doesn't  exist.\n";
+}
+$memd->disconnect_all;
+EOF
+
+--sorted_result
+SELECT c1,c2 FROM test.t1;
+
+perl;
+use DBI;
+use Cache::Memcached;
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11247" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+print "Here the memcached results with G:\n";
+$val = $memd->get("G");
+if ($val) { print "$val\n"; }
+$memd->disconnect_all;
+EOF
+
+# ----------------------------------------------------------------
+# Configure the "flush" operation to "cache_only", so the overall
+# configuration is:
+#
+# get - cache_only (for testing flush's cache_only)
+# set - caching
+# delete - caching
+# flush - cache_only
+# ----------------------------------------------------------------
+# Stop plugin before innodb_memcached configuration
+
+UNINSTALL PLUGIN daemon_memcached;
+
+use innodb_memcache;
+
+DELETE FROM cache_policies;
+
+INSERT INTO cache_policies VALUES("cache_policy", "cache_only",
+				  "caching", "cache_only", "cache_only");
+
+INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+
+SELECT SLEEP(2);
+
+perl;
+use DBI;
+use Cache::Memcached;
+print "----- Test flush (cache_only) -----\n";
+
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11247" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+print "add G|Gossen:\n";
+if ($memd->add("G","Gossen")) {
+  print "Ok.\n";
+}
+else {
+  print "Error: fail to add.\n";
+}
+$memd->disconnect_all;
+EOF
+
+--sorted_result
+use test;
+SELECT c1,c2 FROM t1;
+
+perl;
+use DBI;
+use Cache::Memcached;
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11247" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+print "Here the memcached results with G:\n";
+$val = $memd->get("G");
+if ($val) { print "$val\n"; }
+$memd->disconnect_all;
+EOF
+
+--sorted_result
+SELECT c1,c2 FROM test.t1;
+
+perl;
+use DBI;
+use Cache::Memcached;
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11247" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+print "Here the memcached results after flush_all:\n";
+$memd->flush_all;
+$val = $memd->get("G");
+if ($val) { print "$val\n"; }
+$memd->disconnect_all;
+EOF
+
+# Row should still in the database (only cache is flushed)
+--sorted_result
+SELECT c1,c2 FROM test.t1;
+
+perl;
+use DBI;
+use Cache::Memcached;
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11247" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+print "Here the memcached results with G:\n";
+$val = $memd->get("G");
+if ($val) { print "$val\n"; }
+$memd->disconnect_all;
+EOF
+
+# ----------------------------------------------------------------
+# Configure the "flush" operation to "caching", so the overall
+# configuration is:
+#
+# get - caching (for testing flush's cache_only)
+# set - caching
+# delete - caching
+# flush - caching
+# ----------------------------------------------------------------
+# Stop plugin before innodb_memcached configuration
+
+UNINSTALL PLUGIN daemon_memcached;
+
+use innodb_memcache;
+
+DELETE FROM cache_policies;
+
+INSERT INTO cache_policies VALUES("cache_policy", "caching",
+				  "caching", "caching", "caching");
+
+INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+
+SELECT SLEEP(2);
+
+perl;
+use DBI;
+use Cache::Memcached;
+print "----- Test flush (cache_only) -----\n";
+
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11247" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+print "add G|Gossen:\n";
+if ($memd->add("G","Gossen")) {
+  print "Ok.\n";
+}
+else {
+  print "Error: fail to add.\n";
+}
+$memd->disconnect_all;
+EOF
+
+--sorted_result
+use test;
+SELECT c1,c2 FROM t1;
+
+perl;
+use DBI;
+use Cache::Memcached;
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11247" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+print "Here the memcached results with G:\n";
+$val = $memd->get("G");
+if ($val) { print "$val\n"; }
+$memd->disconnect_all;
+EOF
+
+--sorted_result
+SELECT c1,c2 FROM test.t1;
+
+perl;
+use DBI;
+use Cache::Memcached;
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11247" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+print "Here the memcached results after flush_all:\n";
+$memd->flush_all;
+$val = $memd->get("G");
+if ($val) { print "$val\n"; }
+$memd->disconnect_all;
+EOF
+
+# Rows should be deleted from the InnoDB table
+--sorted_result
+SELECT c1,c2 FROM test.t1;
+
+perl;
+use DBI;
+use Cache::Memcached;
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11247" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+print "Here the memcached results with G:\n";
+$val = $memd->get("G");
+if ($val) { print "$val\n"; }
+$memd->disconnect_all;
+EOF
+
+# ----------------------------------------------------------------
+# Configure the  operation to "disabled", so the overall
+# configuration is:
+#
+# get - disabled
+# set - disabled
+# delete - disabled
+# flush - disabled
+# ----------------------------------------------------------------
+# Stop plugin before innodb_memcached configuration
+
+UNINSTALL PLUGIN daemon_memcached;
+
+use innodb_memcache;
+
+DELETE FROM cache_policies;
+
+INSERT INTO cache_policies VALUES("cache_policy", "caching",
+				  "disabled", "disabled", "disabled");
+
+INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+
+# Add some rows
+--sorted_result
+use test;
+
+delete from t1;
+
+INSERT INTO t1 VALUES ('D', 'Darmstadt', 0, 0, 0);
+INSERT INTO t1 VALUES ('B', 'Berlin', 0, 0, 0);
+INSERT INTO t1 VALUES ('C', 'Cottbus', 0, 0 ,0);
+INSERT INTO t1 VALUES ('H', 'Hamburg', 0, 0, 0);
+
+SELECT SLEEP(2);
+
+perl;
+use DBI;
+use Cache::Memcached;
+print "----- Test all operations disabled -----\n";
+
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11247" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+print "add G|Gossen:\n";
+if ($memd->add("G","Gossen")) {
+  print "Ok.\n";
+}
+else {
+  print "Error: fail to add.\n";
+}
+$memd->disconnect_all;
+EOF
+
+--sorted_result
+use test;
+SELECT c1,c2 FROM t1;
+
+perl;
+use DBI;
+use Cache::Memcached;
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11247" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+print "Here the memcached results with G:\n";
+$val = $memd->get("G");
+if ($val) { print "$val\n"; }
+$memd->disconnect_all;
+EOF
+
+--sorted_result
+SELECT c1,c2 FROM test.t1;
+
+perl;
+use DBI;
+use Cache::Memcached;
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11247" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+print "Here the memcached results after flush_all:\n";
+$memd->flush_all;
+$val = $memd->get("G");
+if ($val) { print "$val\n"; }
+$memd->disconnect_all;
+EOF
+
+# Rows should be deleted from the InnoDB table
+--sorted_result
+SELECT c1,c2 FROM test.t1;
+
+perl;
+use DBI;
+use Cache::Memcached;
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11247" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+print "Here the memcached results with G:\n";
+$val = $memd->get("G");
+if ($val) { print "$val\n"; }
+$memd->disconnect_all;
+EOF
+
+# ----------------------------------------------------------------
+# Negative test, insert "junk" value to cache_policies
+#
+# ----------------------------------------------------------------
+# Stop plugin before innodb_memcached configuration
+
+UNINSTALL PLUGIN daemon_memcached;
+
+use innodb_memcache;
+
+DELETE FROM cache_policies;
+
+INSERT IGNORE INTO cache_policies VALUES("junk", "junk",
+				  "caching", "cache_only", "disabled");
+
+INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+
+SELECT SLEEP(2);
+
+perl;
+use DBI;
+use Cache::Memcached;
+print "----- Test with wrong policy name -----\n";
+
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11247" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+print "add G|Gossen:\n";
+if ($memd->add("G","Gossen")) {
+  print "Ok.\n";
+}
+else {
+  print "Error: fail to add.\n";
+}
+$memd->disconnect_all;
+EOF
+
+--sorted_result
+use test;
+SELECT c1,c2 FROM t1;
+
+perl;
+use DBI;
+use Cache::Memcached;
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11247" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+print "Here the memcached results with G:\n";
+$val = $memd->get("G");
+if ($val) { print "$val\n"; }
+$memd->disconnect_all;
+EOF
+
+--sorted_result
+SELECT c1,c2 FROM test.t1;
+
+perl;
+use DBI;
+use Cache::Memcached;
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11247" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+print "Here the memcached results after flush_all (flush disabled):\n";
+$memd->flush_all;
+$val = $memd->get("G");
+if ($val) { print "$val\n"; }
+$memd->disconnect_all;
+EOF
+
+# Rows should be deleted from the InnoDB table
+--sorted_result
+SELECT c1,c2 FROM test.t1;
+
+perl;
+use DBI;
+use Cache::Memcached;
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11247" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+print "Here the memcached results with G:\n";
+$val = $memd->get("G");
+if ($val) { print "$val\n"; }
+$memd->disconnect_all;
+EOF
+
+USE test;
+DROP TABLE t1;
+
+UNINSTALL PLUGIN daemon_memcached;
+DROP DATABASE innodb_memcache;
+ 
+SET @@global.tx_isolation= @tx_isolation;
