@@ -33,7 +33,7 @@
 #include <my_dir.h>
 #include <mysql_version.h>
 
-#define MAX_ROWS  1000
+#define MAX_ROWS  2000
 #define HEADER_LENGTH 32                /* Length of header in errmsg.sys */
 #define ERRMSG_VERSION 3                /* Version number of errmsg.sys */
 #define DEFAULT_CHARSET_DIR "../sql/share/charsets"
@@ -181,6 +181,12 @@ int main(int argc, char *argv[])
     if (!(row_count= parse_input_file(TXTFILE, &error_head, &lang_head)))
     {
       fprintf(stderr, "Failed to parse input file %s\n", TXTFILE);
+      DBUG_RETURN(1);
+    }
+    if (row_count > MAX_ROWS)
+    {
+      fprintf(stderr, "Found too many error messages. ");
+      fprintf(stderr, "Increase MAX_ROWS in extra/comp_err.c.\n");
       DBUG_RETURN(1);
     }
 #if MYSQL_VERSION_ID >= 50100 && MYSQL_VERSION_ID < 50500
