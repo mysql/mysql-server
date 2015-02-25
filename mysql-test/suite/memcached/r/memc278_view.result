@@ -1,0 +1,238 @@
+SET @tx_isolation= @@global.tx_isolation;
+SET GLOBAL TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+INSERT INTO cache_policies VALUES("cache_policy", "innodb_only",
+"innodb_only", "innodb_only", "innodb_only");
+INSERT INTO config_options VALUES("separator", "|");
+INSERT INTO config_options VALUES("table_map_delimiter", ".");
+INSERT INTO containers VALUES ("desct1", "test", "t1",
+"c1", "c2,c21", "c3", "c4", "c5", "PRIMARY");
+INSERT INTO containers VALUES ("desct2", "test", "t2",
+"c1", "c2", "c3", "c4", "c5", "PRIMARY");
+INSERT INTO containers VALUES ("desc_v1", "test", "v1",
+"vc1", "vc2,vc21", "vc3", "vc4", "vc5", "PRIMARY");
+INSERT INTO containers VALUES ("desct3", "test", "t3",
+"c1", "c2,c21", "c3", "c4", "c5", "PRIMARY");
+INSERT INTO containers VALUES ("desct4", "test", "t4",
+"c1", "c2,c21,c22", "c3", "c4", "c5", "PRIMARY");
+INSERT INTO containers VALUES ("desct5", "test", "t5",
+"c1", "c2,c21,c22,c23", "c3", "c4", "c5", "PRIMARY");
+USE test;
+DROP TABLE IF EXISTS t1,t2;
+CREATE TABLE t1        (c1 VARCHAR(32),
+c2 VARCHAR(1024),
+c21 VARCHAR(1024),
+c3 INT, c4 BIGINT UNSIGNED, c5 INT, primary key(c1))
+ENGINE = INNODB;
+CREATE TABLE t2        (c1 VARCHAR(32),
+c2 VARCHAR(1024),
+c3 INT, c4 BIGINT UNSIGNED, c5 INT, primary key(c1))
+ENGINE = INNODB;
+CREATE TABLE t3        (c1 VARCHAR(32),
+c2 VARCHAR(1024),
+c21 VARCHAR(1024),
+c3 INT, c4 BIGINT UNSIGNED, c5 INT, primary key(c1))
+ENGINE = INNODB;
+CREATE TABLE t4        (c1 VARCHAR(32),
+c2 VARCHAR(1024),
+c21 VARCHAR(1024),
+c22 VARCHAR(1024),
+c3 INT, c4 BIGINT UNSIGNED, c5 INT, primary key(c1))
+ENGINE = INNODB;
+CREATE TABLE t5        (c1 VARCHAR(32),
+c2 VARCHAR(1024),
+c21 VARCHAR(1024),
+c22 VARCHAR(1024),
+c23 VARCHAR(1024),
+c3 INT, c4 BIGINT UNSIGNED, c5 INT, primary key(c1))
+ENGINE = INNODB;
+INSERT INTO t1 VALUES ('D', 'Darmstadt', 'City', 0, 0, 0);
+INSERT INTO t1 VALUES ('B', 'Berlin', 'Mitte', 0, 0, 0);
+INSERT INTO t1 VALUES ('C', 'Cottbus', 'West', 0, 0 ,0);
+INSERT INTO t1 VALUES ('H', 'Hamburg', 'Norderstedt', 0, 0, 0);
+INSERT INTO t2 VALUES ('D', 'Dortmund', 0, 0, 0);
+INSERT INTO t2 VALUES ('B', 'Bremen', 0, 0, 0);
+INSERT INTO t2 VALUES ('C', 'Celle', 0, 0 ,0);
+INSERT INTO t2 VALUES ('H', 'Hannover', 0, 0, 0);
+INSERT INTO t3 VALUES ('D', 'Detmold', 'City', 0, 0, 0);
+INSERT INTO t3 VALUES ('B', 'Bonn', 'Mitte', 0, 0, 0);
+INSERT INTO t3 VALUES ('A', 'Aachen', 'West', 0, 0 ,0);
+INSERT INTO t3 VALUES ('H', 'Hameln', 'Nord', 0, 0, 0);
+INSERT INTO t4 VALUES ('Z', 'Zossen', 'City', '12345', 0, 0, 0);
+INSERT INTO t4 VALUES ('B', 'Brandenburg', 'Mitte', '23456', 0, 0, 0);
+INSERT INTO t4 VALUES ('M', 'Muenchen', 'West', '34567', 0, 0 ,0);
+INSERT INTO t4 VALUES ('H', 'Husum', 'Nord', '45678', 0, 0, 0);
+INSERT INTO t5 VALUES ('D', 'Duesseldorf', 'City', '98765', 'Hafen', 0, 0, 0);
+INSERT INTO t5 VALUES ('O', 'Oldenburg', 'Mitte', '87654', 'Deich', 0, 0, 0);
+INSERT INTO t5 VALUES ('K', 'Koeln', 'West', '76543', 'Rhein', 0, 0 ,0);
+INSERT INTO t5 VALUES ('S', 'Stuttgart', 'Nord', '65432', 'Fernsehturm', 0, 0, 0);
+CREATE VIEW v1 AS SELECT t1.c1 AS vc1,t1.c2 AS vc2,t3.c21 AS vc21,
+t1.c3 AS vc3,t1.c4 AS vc4,t1.c5 AS vc5 FROM t1,t3 WHERE t1.c1=t3.c1;
+INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+SELECT c1,c2,c21 FROM t1;
+c1	c2	c21
+B	Berlin	Mitte
+C	Cottbus	West
+D	Darmstadt	City
+H	Hamburg	Norderstedt
+SELECT c1,c2 FROM t2;
+c1	c2
+B	Bremen
+C	Celle
+D	Dortmund
+H	Hannover
+SELECT c1,c2,c21 FROM t3;
+c1	c2	c21
+A	Aachen	West
+B	Bonn	Mitte
+D	Detmold	City
+H	Hameln	Nord
+SELECT c1,c2,c21,c22 FROM t4;
+c1	c2	c21	c22
+B	Brandenburg	Mitte	23456
+H	Husum	Nord	45678
+M	Muenchen	West	34567
+Z	Zossen	City	12345
+SELECT c1,c2,c21,c22,c23 FROM t5;
+c1	c2	c21	c22	c23
+D	Duesseldorf	City	98765	Hafen
+K	Koeln	West	76543	Rhein
+O	Oldenburg	Mitte	87654	Deich
+S	Stuttgart	Nord	65432	Fernsehturm
+SELECT SLEEP(2);
+SLEEP(2)
+0
+Here the memcached results with D,B,H,C of default:
+Darmstadt|City
+Berlin|Mitte
+Hamburg|Norderstedt
+Cottbus|West
+Here the memcached results with D,B,H,C of t1:
+Darmstadt|City
+Berlin|Mitte
+Hamburg|Norderstedt
+Cottbus|West
+Here the memcached results with D,B,H,C of t2:
+Dortmund
+Bremen
+Hannover
+Celle
+Here the memcached results with D,B,H,A of t3:
+Detmold|City
+Bonn|Mitte
+Hameln|Nord
+Aachen|West
+Here the memcached results with D,O,K,S of t5:
+Duesseldorf|City|98765|Hafen
+Oldenburg|Mitte|87654|Deich
+Koeln|West|76543|Rhein
+Stuttgart|Nord|65432|Fernsehturm
+Here the memcached results with Z,B,H,M of t4:
+Zossen|City|12345
+Brandenburg|Mitte|23456
+Husum|Nord|45678
+Muenchen|West|34567
+Here the memcached results with D,B,H,C of t2:
+Dortmund
+Bremen
+Hannover
+Celle
+SELECT c1,c2,c21 FROM t1;
+c1	c2	c21
+B	Berlin	Mitte
+C	Cottbus	West
+D	Darmstadt	City
+H	Hamburg	Norderstedt
+SELECT c1,c2 FROM t2;
+c1	c2
+B	Bremen
+C	Celle
+D	Dortmund
+H	Hannover
+SELECT c1,c2,c21 FROM t3;
+c1	c2	c21
+A	Aachen	West
+B	Bonn	Mitte
+D	Detmold	City
+H	Hameln	Nord
+SELECT c1,c2,c21,c22 FROM t4;
+c1	c2	c21	c22
+B	Brandenburg	Mitte	23456
+H	Husum	Nord	45678
+M	Muenchen	West	34567
+Z	Zossen	City	12345
+SELECT c1,c2,c21,c22,c23 FROM t5;
+c1	c2	c21	c22	c23
+D	Duesseldorf	City	98765	Hafen
+K	Koeln	West	76543	Rhein
+O	Oldenburg	Mitte	87654	Deich
+S	Stuttgart	Nord	65432	Fernsehturm
+SELECT vc1,vc2,vc21 FROM v1;
+vc1	vc2	vc21
+B	Berlin	Mitte
+D	Darmstadt	City
+H	Hamburg	Nord
+Here the memcached results with D,B,H,C of view v1:
+Here the memcached results after set to view v1:
+SELECT vc1,vc2,vc21 FROM v1;
+vc1	vc2	vc21
+B	Berlin	Mitte
+D	Darmstadt	City
+H	Hamburg	Nord
+Here the memcached results after set in default:
+Essen|Ost
+Here the memcached results after set in t2:
+Essen
+Here the memcached results after set in t5:
+Essen|Mitte|111111|Mahlzeit
+Here the memcached results after set in t3:
+Essen|Ost
+Here the memcached results after set in t4:
+Essen|Mitte|111111
+Here the memcached results after set in t5:
+Essen|Aussen|111111|Mahlzeit
+SELECT vc1,vc2,vc21 FROM v1;
+vc1	vc2	vc21
+B	Berlin	Mitte
+D	Darmstadt	City
+E	Essen	Ost
+H	Hamburg	Nord
+SELECT c1,c2,c21 FROM t1;
+c1	c2	c21
+B	Berlin	Mitte
+C	Cottbus	West
+D	Darmstadt	City
+E	Essen	Ost
+H	Hamburg	Norderstedt
+SELECT c1,c2 FROM t2;
+c1	c2
+B	Bremen
+C	Celle
+D	Dortmund
+E	Essen
+H	Hannover
+SELECT c1,c2,c21 FROM t3;
+c1	c2	c21
+A	Aachen	West
+B	Bonn	Mitte
+D	Detmold	City
+E	Essen	Ost
+H	Hameln	Nord
+SELECT c1,c2,c21,c22 FROM t4;
+c1	c2	c21	c22
+B	Brandenburg	Mitte	23456
+E	Essen	Mitte	111111
+H	Husum	Nord	45678
+M	Muenchen	West	34567
+Z	Zossen	City	12345
+SELECT c1,c2,c21,c22,c23 FROM t5;
+c1	c2	c21	c22	c23
+D	Duesseldorf	City	98765	Hafen
+E	Essen	Aussen	111111	Mahlzeit
+K	Koeln	West	76543	Rhein
+O	Oldenburg	Mitte	87654	Deich
+S	Stuttgart	Nord	65432	Fernsehturm
+DROP VIEW v1;
+DROP TABLE t1,t2,t3,t4,t5;
+UNINSTALL PLUGIN daemon_memcached;
+DROP DATABASE innodb_memcache;
+SET @@global.tx_isolation= @tx_isolation;
