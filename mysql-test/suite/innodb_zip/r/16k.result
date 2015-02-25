@@ -1,6 +1,4 @@
 SET default_storage_engine=InnoDB;
-SET GLOBAL innodb_file_format = `Barracuda`;
-SET GLOBAL innodb_file_per_table = ON;
 # Test 1) Show the page size from Information Schema
 SELECT variable_value FROM information_schema.global_status
 WHERE LOWER(variable_name) = 'innodb_page_size';
@@ -290,12 +288,8 @@ Warning	1478	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
 Error	1031	Table storage engine for 't5' doesn't have this option
 SET GLOBAL innodb_file_per_table = ON;
 SET GLOBAL innodb_file_format = `Antelope`;
-SHOW VARIABLES LIKE 'innodb_file%';
-Variable_name	Value
-innodb_file_format	Antelope
-innodb_file_format_check	ON
-innodb_file_format_max	Barracuda
-innodb_file_per_table	ON
+Warnings:
+Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
 CREATE TABLE t4 (id int PRIMARY KEY) ENGINE=innodb KEY_BLOCK_SIZE=8;
 ERROR HY000: Table storage engine for 't4' doesn't have this option
 SHOW WARNINGS;
@@ -309,6 +303,8 @@ Level	Code	Message
 Warning	1478	InnoDB: KEY_BLOCK_SIZE requires innodb_file_format > Antelope.
 Error	1031	Table storage engine for 't5' doesn't have this option
 SET GLOBAL innodb_file_format = `Barracuda`;
+Warnings:
+Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
 # Test 7) This series of tests were moved from innodb-index to here
 # because the second alter table t1 assumes a 16k page size.
 # Moving the test allows the rest of innodb-index to be run on all
@@ -519,8 +515,6 @@ t1	CREATE TABLE `t1` (
   KEY `t1st` (`s`(767),`t`(767))
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
 DROP TABLE t1;
-SET GLOBAL innodb_file_format = `Barracuda`;
-SET GLOBAL innodb_file_per_table = ON;
 # Bug #12429576 - Test an assertion failure on purge.
 CREATE TABLE t1_purge (
 A int,
@@ -561,8 +555,6 @@ DELETE FROM t1_purge;
 DELETE FROM t2_purge;
 DELETE FROM t3_purge;
 DELETE FROM t4_purge;
-SET GLOBAL innodb_file_per_table=on;
-SET GLOBAL innodb_file_format='Barracuda';
 SET @r=REPEAT('a',500);
 CREATE TABLE t12637786(a int,
 v1 varchar(500), v2 varchar(500), v3 varchar(500),

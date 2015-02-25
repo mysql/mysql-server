@@ -3,11 +3,6 @@
 
 let $MYSQLD_DATADIR= `select @@datadir`;
 
-let $per_table=`select @@innodb_file_per_table`;
-let $format=`select @@innodb_file_format`;
-set global innodb_file_per_table=on;
-set global innodb_file_format='Barracuda';
-
 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS;
 
 # Bug#13654923 BOGUS DEBUG ASSERTION IN INDEX CREATION FOR ZERO-LENGTH RECORD
@@ -333,10 +328,6 @@ analyze table t1;
 explain select * from t1;
 explain select * from t1 order by a;
 drop table t1;
-
-eval set global innodb_file_per_table=$per_table;
-eval set global innodb_file_format=$format;
-eval set global innodb_file_format_max=$format;
 
 #
 # Test to check whether CREATE INDEX handles implicit foreign key

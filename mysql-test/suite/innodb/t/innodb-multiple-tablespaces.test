@@ -15,9 +15,6 @@ SET default_storage_engine=InnoDB;
 --disable_query_log
 let $MYSQLD_DATADIR= `select @@datadir`;
 let $data_directory = DATA DIRECTORY='$MYSQL_TMP_DIR/alt_dir';
-
-let $innodb_file_per_table=`select @@innodb_file_per_table`;
-let $innodb_file_format=`select @@innodb_file_format`;
 --enable_query_log
 
 --mkdir $MYSQL_TMP_DIR/alt_dir
@@ -64,9 +61,6 @@ call mtr.add_suppression("\\[Warning\\] InnoDB: Ignoring tablespace `test/.*` be
 --echo #      www       WrongFile    WrongFile      WrongFile
 --echo #   nolink       No           Yes, No ISL    No
 --echo #
-
-set global innodb_file_per_table=on;
-set global innodb_file_format='Barracuda';
 
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 eval CREATE TABLE yyy (c1 INT KEY, c2 TEXT) ENGINE=InnoDB  $data_directory;
@@ -349,9 +343,6 @@ DROP TABLE nolink;
 --echo #    yy              Yes                 Yes  (both the same file)
 --echo #
 
-set global innodb_file_per_table=on;
-set global innodb_file_format='Barracuda';
-
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 eval CREATE TABLE ny (c1 INT KEY, c2 TEXT) ENGINE=InnoDB  $data_directory;
 INSERT INTO ny VALUES (1, 'ny');
@@ -492,7 +483,3 @@ DROP TABLE yy;
 --rmdir $MYSQL_TMP_DIR/alt_dir
 --rmdir $MYSQL_TMP_DIR/new_dir/test
 --rmdir $MYSQL_TMP_DIR/new_dir
-
--- disable_query_log
-eval set global innodb_file_format=$innodb_file_format;
-eval set global innodb_file_per_table=$innodb_file_per_table;

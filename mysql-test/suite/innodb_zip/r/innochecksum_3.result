@@ -1,7 +1,6 @@
 # Set the environmental variables
 call mtr.add_suppression("InnoDB: Unable to read tablespace .* page no .* into the buffer pool after 100 attempts");
 SET GLOBAL innodb_file_per_table=on;
-SET GLOBAL innodb_file_format='barracuda';
 [1]: Further Test are for rewrite checksum (innodb|crc32|none) for all ibd file & start the server.
 CREATE TABLE tab1 (pk INTEGER NOT NULL PRIMARY KEY,
 linestring_key GEOMETRY NOT NULL,
@@ -11,7 +10,6 @@ INSERT INTO tab1 (pk, linestring_key, linestring_nokey)
 VALUES (1, ST_GeomFromText('POINT(10 10) '), ST_GeomFromText('POINT(10 10) '));
 CREATE INDEX linestring_index ON tab1(linestring_nokey(5));
 ALTER TABLE tab1 ADD  KEY (linestring_key(5));
-SET GLOBAL innodb_file_format='barracuda';
 # create a compressed table
 CREATE TABLE tab2(col_1 CHAR (255) ,
 col_2 VARCHAR (255), col_3 longtext,
@@ -184,4 +182,3 @@ Filename::tab#.ibd
 DROP TABLE tab1;
 DROP TABLE tab2;
 SET GLOBAL innodb_file_per_table=default;
-SET GLOBAL innodb_file_format=default;

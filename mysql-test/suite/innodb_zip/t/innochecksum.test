@@ -18,7 +18,6 @@ call mtr.add_suppression("InnoDB: Unable to read tablespace .* page no .* into t
 call mtr.add_suppression("InnoDB: Warning: database page corruption or a failed");
 
 SET GLOBAL innodb_file_per_table=on;
-SET GLOBAL innodb_file_format='barracuda';
 
 CREATE TABLE tab1(c1 INT PRIMARY KEY,c2 VARCHAR(20)) ENGINE=InnoDB;
 CREATE INDEX idx1 ON tab1(c2(10));
@@ -213,7 +212,7 @@ DROP TABLE t1;
 --exec $INNOCHECKSUM --no-check --write=crc32 $MYSQLD_DATADIR/test/tab1.ibd
 
 --echo # Restart the DB server with  innodb_checksum_algorithm=crc32
---let restart_options= : --innodb_checksum_algorithm=crc32 --innodb_file_per_table=on --innodb_file_format=barracuda
+--let restart_options= : --innodb_checksum_algorithm=crc32 --innodb_file_per_table=on
 --source include/start_mysqld.inc
 
 SELECT * FROM tab1;
@@ -227,7 +226,7 @@ SELECT c1,c2 FROM tab1 order by c1,c2;
 --exec $INNOCHECKSUM --no-check --write=InnoDB $MYSQLD_DATADIR/test/tab1.ibd
 
 --echo # Restart the DB server with innodb_checksum_algorithm=InnoDB
---let restart_options= : --innodb_checksum_algorithm=innodb --innodb_file_per_table=on --innodb_file_format=barracuda
+--let restart_options= : --innodb_checksum_algorithm=innodb --innodb_file_per_table=on
 --source include/start_mysqld.inc
 
 DELETE FROM tab1 where c1=2;
@@ -259,4 +258,3 @@ let SEARCH_PATTERN=Error while setting value \'crc23\' to \'write\';
 
 DROP TABLE tab1;
 SET GLOBAL innodb_file_per_table=default;
-SET GLOBAL innodb_file_format=default;

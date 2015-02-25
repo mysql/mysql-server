@@ -7,7 +7,6 @@ Warnings:
 Note	1051	Unknown table 'test.tab6'
 #set the other madatory flags before test starts
 SET GLOBAL Innodb_file_per_table=on;
-SET GLOBAL innodb_file_format='barracuda';
 #set the compression level=0  (No compress)
 SET global innodb_compression_level=0;
 #check the compression level and the compressed_pages is default
@@ -17,9 +16,6 @@ SELECT @@innodb_compression_level;
 SELECT @@Innodb_file_per_table;
 @@Innodb_file_per_table
 1
-SELECT @@innodb_file_format;
-@@innodb_file_format
-Barracuda
 #create table with 1K block size
 CREATE TABLE tab5 (col_1 CHAR (255) ,
 col_2 VARCHAR (255), col_3 longtext,
@@ -137,4 +133,3 @@ SELECT @size >= 0;
 DROP TABLE tab5;
 DROP TABLE tab6;
 #reset back the compression_level to default.
-SET GLOBAL innodb_file_format='Antelope';

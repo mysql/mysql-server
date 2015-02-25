@@ -14,18 +14,9 @@ SET DEFAULT_STORAGE_ENGINE=InnoDB;
 LET $MYSQLD_DATADIR = `select @@datadir`;
 LET $INNODB_PAGE_SIZE = `select @@innodb_page_size`;
 
-# These values can change during the test
-LET $innodb_file_format_orig = `select @@innodb_file_format`;
-LET $innodb_file_per_table_orig = `select @@innodb_file_per_table`;
-LET $innodb_strict_mode_orig = `select @@session.innodb_strict_mode`;
-
---echo # Strict-mode has no affect on CREATE TABLESPACE. But it does affect
+--echo # Strict-mode has no effect on CREATE TABLESPACE. But it does affect
 --echo # whether an invalid KEY_BLOCK_SIZE is rejected or adjusted.
-SET SESSION innodb_strict_mode = ON;
 SHOW VARIABLES LIKE 'innodb_strict_mode';
-SET GLOBAL innodb_file_format = 'barracuda';
-SHOW VARIABLES LIKE 'innodb_file_format';
-SET GLOBAL innodb_file_per_table = ON;
 SHOW VARIABLES LIKE 'innodb_file_per_table';
 
 --echo #
@@ -498,10 +489,3 @@ DROP TABLESPACE s_2k;
 DROP TABLESPACE s_4k;
 DROP TABLESPACE s_8k;
 --rmdir $MYSQL_TMP_DIR/test
-
---disable_query_log
-EVAL SET GLOBAL innodb_file_format = $innodb_file_format_orig;
-EVAL SET GLOBAL innodb_file_per_table = $innodb_file_per_table_orig;
-EVAL SET SESSION innodb_strict_mode = $innodb_strict_mode_orig;
---enable_query_log
-

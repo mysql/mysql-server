@@ -1,7 +1,6 @@
 set global innodb_file_per_table = off;
 # files in MYSQL_DATA_DIR
 ibtmp1
-drop table if exists t1;
 select @@global.innodb_file_per_table;
 @@global.innodb_file_per_table
 0
@@ -100,7 +99,6 @@ ERROR HY000: Cannot DISCARD/IMPORT tablespace associated with temporary table
 drop table t1;
 #files in MYSQL_TMP_DIR
 set global innodb_file_per_table = 1;
-set global innodb_file_format = 'Barracuda';
 select @@global.innodb_file_per_table;
 @@global.innodb_file_per_table
 1
@@ -206,7 +204,6 @@ alter table t1 discard tablespace;
 ERROR HY000: Cannot DISCARD/IMPORT tablespace associated with temporary table
 drop table t1;
 set global innodb_file_per_table = off;
-set global innodb_file_format = Antelope;
 create temporary table t1
 (keyc int, c1 char(100), c2 char(100),
 primary key(keyc)) engine = innodb;
@@ -291,7 +288,7 @@ call populate_t1();
 ERROR HY000: The table 't1' is full
 drop procedure populate_t1;
 drop table t1;
-use test;
+set innodb_strict_mode = off;
 set global innodb_file_per_table = 0;
 set global innodb_file_format = 'Antelope';
 create temporary table t (
@@ -343,11 +340,12 @@ show warnings;
 Level	Code	Message
 Warning	NUMBER	InnoDB: ROW_FORMAT=DYNAMIC requires innodb_file_format > Antelope.
 Error	NUMBER	Table storage engine for 't' doesn't have this option
-set innodb_strict_mode = off;
 set global innodb_file_format = 'Barracuda';
+set innodb_strict_mode = off;
 create temporary table t (
 i int)
 engine = innodb row_format = compressed key_block_size = 8;
+set innodb_strict_mode = default;
 #files in MYSQL_TMP_DIR
 #sql<temporary>.ibd
 drop table t;

@@ -19,7 +19,6 @@ LET $data_directory2 = DATA DIRECTORY='$MYSQL_TMP_DIR/alternate_dir/data2';
 LET $index_directory = INDEX DIRECTORY='$MYSQL_TMP_DIR/alternate_dir/data';
 
 # These values can change during the test
-LET $innodb_file_format_orig=`select @@innodb_file_format`;
 LET $innodb_file_per_table_orig=`select @@innodb_file_per_table`;
 LET $innodb_strict_mode_orig=`select @@session.innodb_strict_mode`;
 
@@ -217,7 +216,6 @@ SELECT path FROM information_schema.innodb_sys_datafiles
 DROP TABLE t1;
 
 --echo # Same as above except with ROW_FORMAT=Dyamic.
-SET GLOBAL innodb_file_format = Barracuda;
 SET GLOBAL innodb_file_per_table = ON;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 eval CREATE TABLE t1 (id INT, purchased DATE)
@@ -357,7 +355,6 @@ DROP TABLE t1;
 --rmdir $MYSQL_TMP_DIR/alternate_dir
 
 --disable_query_log
-EVAL SET GLOBAL innodb_file_format=$innodb_file_format_orig;
 EVAL SET GLOBAL innodb_file_per_table=$innodb_file_per_table_orig;
 EVAL SET SESSION innodb_strict_mode=$innodb_strict_mode_orig;
 EVAL SET @@default_storage_engine=$old_default_storage_engine;

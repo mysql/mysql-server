@@ -8,7 +8,6 @@
 
 --disable_query_log
 # These values can change during the test
-let $innodb_file_format_orig = `SELECT @@innodb_file_format`;
 let $innodb_file_per_table_orig = `SELECT @@innodb_file_per_table`;
 
 # Create a 20MB blob that does not compress easily.
@@ -121,6 +120,5 @@ UPDATE t1 SET c2=@longblob;
 DROP TABLE t1;
 
 --disable_query_log
-EVAL SET GLOBAL innodb_file_format = $innodb_file_format_orig;
 EVAL SET GLOBAL innodb_file_per_table = $innodb_file_per_table_orig;
 --enable_query_log

@@ -26,8 +26,6 @@ SELECT @@global.innodb_cmp_per_index_enabled;
 SET GLOBAL innodb_cmp_per_index_enabled=OFF;
 SELECT @@global.innodb_cmp_per_index_enabled;
 
-SET GLOBAL innodb_file_format=Barracuda;
-
 -- vertical_results
 
 # Check that enabling after being disabled resets the stats
@@ -65,5 +63,4 @@ DROP TABLE t;
 
 #
 
-SET GLOBAL innodb_file_format=default;
 SET GLOBAL innodb_cmp_per_index_enabled=default;

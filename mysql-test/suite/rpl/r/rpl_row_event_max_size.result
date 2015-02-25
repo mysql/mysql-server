@@ -48,11 +48,9 @@ LENGTH(data1)	LENGTH(data2)
 DROP TABLE t1;
 include/sync_slave_sql_with_master.inc
 include/rpl_reset.inc
-SET GLOBAL innodb_file_format=Barracuda;
 # Test it will cause ER_MASTER_FATAL_ERROR_READING_BINLOG when the value
 # of the bigger one of max_allowed_packet and binlog_row_event_max_size
 # is lower than the the required size.
-SET GLOBAL innodb_file_format=Barracuda;
 CREATE TABLE t1 (a int not null auto_increment, data1 LONGBLOB,
 data2 LONGBLOB, data3 LONGBLOB, PRIMARY KEY(a)) ROW_FORMAT=DYNAMIC;
 include/sync_slave_sql_with_master.inc
@@ -66,8 +64,6 @@ call mtr.add_suppression("Slave I/O: Got fatal error 1236 from master when readi
 call mtr.add_suppression("Found invalid event in binary log");
 call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 ==== clean up ====
-SET GLOBAL innodb_file_format=INNODB_FILE_FORMAT;
-SET GLOBAL innodb_file_format=INNODB_FILE_FORMAT;
 include/stop_slave.inc
 RESET SLAVE;
 RESET MASTER;

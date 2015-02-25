@@ -22,8 +22,6 @@
 #
 # create test-bed.
 #
-let $per_table = `select @@innodb_file_per_table`;
-let $format = `select @@innodb_file_format`;
 let $change_buffer_value = `select @@global.innodb_change_buffering`;
 set global innodb_file_per_table = 0;
 
@@ -103,7 +101,6 @@ select * from t1 where i = 4;
 drop table t1;
 #
 set global innodb_file_per_table = 1;
-set global innodb_file_format = 'Barracuda';
 create temporary table t1
 	(keyc int, c1 char(100), c2 char(100),
 	 primary key(keyc))
@@ -123,8 +120,7 @@ select count(*) from t1;
 drop table t1;
 #
 drop procedure if exists populate_t1;
-eval set global innodb_file_format = $format;
-eval set global innodb_file_per_table = $per_table;
+set global innodb_file_per_table = default;
 
 
 #-------------------------------------------------------------
@@ -195,8 +191,7 @@ drop table t2;
 #
 # 6. Creating temp-table with large prefix enabled.			#
 #
-use test;
-let $large_prefix = `select @@innodb_large_prefix`;
+set global innodb_large_prefix=off;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 #
 create temporary table t (
@@ -214,7 +209,6 @@ create temporary table t (
 	) row_format = dynamic engine=innodb;
 drop table t;
 #
-set global innodb_file_format = 'barracuda';
 create temporary table t (
 	a int not null,
 	b blob not null,
@@ -226,6 +220,7 @@ SET sql_mode = default;
 set global innodb_large_prefix = 1;
 #
 SET sql_mode='NO_ENGINE_SUBSTITUTION';
+SET innodb_strict_mode=OFF;
 --disable_warnings
 --error ER_INDEX_COLUMN_TOO_LONG
 create temporary table t (
@@ -248,6 +243,7 @@ create temporary table t (
 	) row_format = compressed engine=innodb;
 drop table t;
 #
+SET GLOBAL innodb_large_prefix=default;
 set global innodb_file_per_table = 0;
 #
 --error ER_INDEX_COLUMN_TOO_LONG
@@ -264,7 +260,7 @@ create temporary table t (
 	) row_format = dynamic engine=innodb;
 drop table t;
 --enable_warnings
-eval set global innodb_large_prefix = $large_prefix;
+set global innodb_large_prefix=default;
 #
 
 #-------------------------------------------------------------
@@ -289,8 +285,6 @@ SELECT COUNT(*) FROM information_schema.INNODB_SYS_TABLES WHERE NAME LIKE '%test
 #
 # remove test-bed.
 #
-eval set global innodb_file_format = $format;
-eval set global innodb_file_per_table = $per_table;
+eval set global innodb_file_per_table = default;
 eval set global innodb_change_buffering = $change_buffer_value;
 SET sql_mode=default;
-

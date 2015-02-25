@@ -10,8 +10,6 @@
 # DBUG_SUICIDE() hangs under valgrind
 --source include/not_valgrind.inc
 
-SET GLOBAL innodb_file_format=Barracuda;
-
 CREATE TABLE t1(
 	a INT AUTO_INCREMENT PRIMARY KEY,
 	b CHAR(1),

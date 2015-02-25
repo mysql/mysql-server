@@ -39,11 +39,9 @@ let $MYSQL_DATA_DIR= `select @@datadir`;
 let $data_directory = DATA DIRECTORY='$MYSQL_TMP_DIR/alt_dir';
 
 let $innodb_file_per_table_orig=`select @@innodb_file_per_table`;
-let $innodb_file_format_orig=`select @@innodb_file_format`;
 --enable_query_log
 
 set global innodb_file_per_table=on;
-set global innodb_file_format='Barracuda';
 
 --echo #
 --echo # Create and insert records into a REDUNDANT row formatted table.
@@ -644,7 +642,6 @@ DROP TABLE t77_restart;
 --rmdir $MYSQL_TMP_DIR/new_dir
 
 -- disable_query_log
-eval set global innodb_file_format=$innodb_file_format_orig;
 eval set global innodb_file_per_table=$innodb_file_per_table_orig;
 -- enable_query_log
 

@@ -9,7 +9,6 @@ drop table if exists t1;
 --enable_warnings
 
 --disable_query_log
-let $innodb_file_format_orig = `select @@innodb_file_format`;
 let $innodb_file_per_table_orig = `select @@innodb_file_per_table`;
 --enable_query_log
 
@@ -161,7 +160,6 @@ SELECT count(*) FROM t1
 
 DROP TABLE t1;
 
-set global innodb_file_format="Barracuda";
 set global innodb_file_per_table=1;
 
 # Test fts with externally stored long column
@@ -259,5 +257,4 @@ SELECT count(*) FROM t1
 
 DROP TABLE t1;
 
-eval SET GLOBAL innodb_file_format=$innodb_file_format_orig;
 eval SET GLOBAL innodb_file_per_table=$innodb_file_per_table_orig;

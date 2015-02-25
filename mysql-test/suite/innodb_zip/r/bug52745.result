@@ -1,4 +1,3 @@
-SET GLOBAL innodb_file_format='Barracuda';
 SET GLOBAL innodb_file_per_table=on;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE bug52745 (
@@ -129,5 +128,4 @@ Warning	1264	Out of range value for column 'col78' at row 1
 Warning	1265	Data truncated for column 'col79' at row 1
 Warning	1264	Out of range value for column 'col84' at row 1
 DROP TABLE bug52745;
-SET GLOBAL innodb_file_format=Antelope;
 SET GLOBAL innodb_file_per_table=1;
