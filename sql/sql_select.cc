@@ -43,8 +43,9 @@
 #include "sql_tmp_table.h"       // tmp tables
 #include "debug_sync.h"          // DEBUG_SYNC
 #include "item_sum.h"            // Item_sum
-
+#include "sql_planner.h"         // calculate_condition_filter
 #include <algorithm>
+
 using std::max;
 using std::min;
 
@@ -1377,13 +1378,11 @@ bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
       have a 'normal' value or a NULL value.
     */
     j->set_type(JT_CONST);
-    j->set_rowcount(1);
     j->position()->rows_fetched= 1.0;
   }
   else
   {
     j->set_type(JT_EQ_REF);
-    j->set_rowcount(1);
     j->position()->rows_fetched= 1.0;
   }
 
@@ -1936,8 +1935,8 @@ bool JOIN::setup_semijoin_materialized_table(JOIN_TAB *tab, uint tableno,
   tab->set_position(sjm_pos);
 
   tab->worst_seeks= 1.0;
-  tab->set_rowcount((ha_rows)emb_sj_nest->nested_join->sjm.expected_rowcount);
-  tab->set_records(tab->rowcount());
+  tab->set_records((ha_rows)emb_sj_nest->nested_join->sjm.expected_rowcount);
+
   tab->found_records= tab->records();
   tab->read_time= (ha_rows)emb_sj_nest->nested_join->sjm.scan_cost.total_cost();
 
@@ -2089,6 +2088,7 @@ make_join_readinfo(JOIN *join, uint no_jbuf_after)
   if (setup_semijoin_dups_elimination(join, no_jbuf_after))
     DBUG_RETURN(TRUE); /* purecov: inspected */
 
+
   for (uint i= join->const_tables; i < join->tables; i++)
   {
     QEP_TAB *const qep_tab= &join->qep_tab[i];
@@ -2143,20 +2143,30 @@ make_join_readinfo(JOIN *join, uint no_jbuf_after)
       join->thd->set_status_no_index_used();
       /* Fall through */
     case JT_INDEX_SCAN:
-      // Update number of rows
-      table->pos_in_table_list->fetch_number_of_rows();
+      if (tab->position()->filter_effect != COND_FILTER_STALE_NO_CONST &&
+          !tab->sj_mat_exec())
       {
-        double old= qep_tab->position()->rows_fetched;
         /*
-          "old" is # of rows which will be read by the access method, minus
-          those which will not pass the constant condition. It's useful inside
-          the planner, but obscure to the reader of EXPLAIN. Update it.
+          rows_w_const_cond is # of rows which will be read by the access
+          method, minus those which will not pass the constant condition;
+          that's how calculate_scan_cost() works. Such number is useful inside
+          the planner, but obscure to the reader of EXPLAIN; so we put the
+          real count of read rows into rows_fetched, and move the constant
+          condition's filter to filter_effect.
         */
-        qep_tab->position()->rows_fetched=
+        double rows_w_const_cond= qep_tab->position()->rows_fetched;
+        table->pos_in_table_list->fetch_number_of_rows();
+        tab->position()->rows_fetched=
           static_cast<double>(table->file->stats.records);
-        // Constant condition moves to the filter effect:
-        qep_tab->position()->filter_effect*=
-          static_cast<float>(old/table->file->stats.records);
+        if (tab->position()->filter_effect != COND_FILTER_STALE)
+        {
+          // Constant condition moves to filter_effect:
+          if (tab->position()->rows_fetched == 0) // avoid division by zero
+            tab->position()->filter_effect= 0.0f;
+          else
+            tab->position()->filter_effect*=
+              static_cast<float>(rows_w_const_cond/tab->position()->rows_fetched);
+        }
       }
       if (tab->use_quick == QS_DYNAMIC_RANGE)
       {
@@ -2195,10 +2205,20 @@ make_join_readinfo(JOIN *join, uint no_jbuf_after)
           qep_tab->push_index_cond(tab, qep_tab->quick()->index,
                                    &trace_refine_table);
       }
-      // Update number of rows
-      if (!tab->sj_mat_exec())
-        table->pos_in_table_list->fetch_number_of_rows();
-      tab->set_rowcount(table->file->stats.records);
+      if (tab->position()->filter_effect != COND_FILTER_STALE_NO_CONST)
+      {
+        double rows_w_const_cond= qep_tab->position()->rows_fetched;
+        qep_tab->position()->rows_fetched= rows2double(tab->quick()->records);
+        if (tab->position()->filter_effect != COND_FILTER_STALE)
+        {
+          // Constant condition moves to filter_effect:
+          if (tab->position()->rows_fetched == 0) // avoid division by zero
+            tab->position()->filter_effect= 0.0f;
+          else
+            tab->position()->filter_effect*=
+              static_cast<float>(rows_w_const_cond/tab->position()->rows_fetched);
+        }
+      }
       break;
     case JT_FT:
       if (tab->join()->fts_index_access(tab))
@@ -2211,6 +2231,23 @@ make_join_readinfo(JOIN *join, uint no_jbuf_after)
       DBUG_PRINT("error",("Table type %d found",qep_tab->type())); /* purecov: deadcode */
       DBUG_ASSERT(0);
       break;					/* purecov: deadcode */
+    }
+
+    if (tab->position()->filter_effect <= COND_FILTER_STALE)
+    {
+      /*
+        Give a proper value for EXPLAIN.
+        For performance reasons, we do not recalculate the filter for
+        non-EXPLAIN queries; thus, EXPLAIN CONNECTION may show 100%
+        for a query.
+      */
+      tab->position()->filter_effect=
+        join->thd->lex->describe ?
+        calculate_condition_filter(tab,
+                                   (tab->ref().key != -1) ? tab->position()->key : NULL,
+                                   tab->prefix_tables() & ~tab->table_ref->map(),
+                                   tab->position()->rows_fetched,
+                                   false) : COND_FILTER_ALLPASS;
     }
 
     qep_tab->pick_table_access_method(tab);
