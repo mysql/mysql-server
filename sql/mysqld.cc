@@ -3133,14 +3133,11 @@ int init_common_variables()
                       "--slow-query-log-file option, log tables are used. "
                       "To enable logging to files use the --log-output=file option.");
 
-#define FIX_LOG_VAR(VAR, ALT)                                   \
-  if (!VAR || !*VAR)                                            \
-    VAR= ALT;
+  if (!opt_logname || !*opt_logname)
+    opt_logname= make_default_log_name(logname_path, ".log");
 
-  FIX_LOG_VAR(opt_general_logname,
-              make_query_log_name(logname_path, QUERY_LOG_GENERAL));
-  FIX_LOG_VAR(opt_slow_logname,
-              make_query_log_name(slow_logname_path, QUERY_LOG_SLOW));
+  if (!opt_slow_logname || !*opt_slow_logname)
+    opt_slow_logname= make_default_log_name(slow_logname_path, "-slow.log");
 
 #if defined(ENABLED_DEBUG_SYNC)
   /* Initialize the debug sync facility. See debug_sync.cc. */
