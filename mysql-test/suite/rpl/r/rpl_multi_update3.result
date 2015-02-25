@@ -25,7 +25,10 @@ SELECT * FROM t2 ORDER BY a;
 a	b
 1	0
 2	1
+SET @optimizer_switch_saved= @@optimizer_switch;
+SET @@optimizer_switch="derived_merge=off";
 UPDATE t2, (SELECT a FROM t1 ORDER BY a) AS t SET t2.b = t.a+5 ;
+SET @@optimizer_switch=@optimizer_switch_saved;
 SELECT * FROM t1 ORDER BY a;
 a	b
 1	0
