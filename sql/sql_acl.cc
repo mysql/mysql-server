@@ -1256,12 +1256,12 @@ void acl_free(bool end)
   delete_dynamic(&acl_wild_hosts);
   delete_dynamic(&acl_proxy_users);
   my_hash_free(&acl_check_hosts);
-  plugin_unlock(0, native_password_plugin);
-  plugin_unlock(0, old_password_plugin);
   if (!end)
     acl_cache->clear(1); /* purecov: inspected */
   else
   {
+    plugin_unlock(0, native_password_plugin);
+    plugin_unlock(0, old_password_plugin);
     delete acl_cache;
     acl_cache=0;
   }
@@ -1422,6 +1422,7 @@ my_bool acl_reload(THD *thd)
       sql_print_error("Fatal error: Can't open and lock privilege tables: %s",
                       thd->get_stmt_da()->message());
     }
+    acl_free();
     goto end;
   }
 
@@ -5429,7 +5430,11 @@ static my_bool grant_reload_procs_priv(THD *thd)
   table.open_type= OT_BASE_ONLY;
 
   if (open_and_lock_tables(thd, &table, FALSE, MYSQL_LOCK_IGNORE_TIMEOUT))
+  {
+    my_hash_free(&proc_priv_hash);
+    my_hash_free(&func_priv_hash);
     DBUG_RETURN(TRUE);
+  }
 
   mysql_rwlock_wrlock(&LOCK_grant);
   /* Save a copy of the current hash if we need to undo the grant load */
@@ -5496,7 +5501,10 @@ my_bool grant_reload(THD *thd)
     obtaining LOCK_grant rwlock.
   */
   if (open_and_lock_tables(thd, tables, FALSE, MYSQL_LOCK_IGNORE_TIMEOUT))
+  {
+    my_hash_free(&column_priv_hash);
     goto end;
+  }
 
   mysql_rwlock_wrlock(&LOCK_grant);
   old_column_priv_hash= column_priv_hash;
