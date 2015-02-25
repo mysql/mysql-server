@@ -27,8 +27,14 @@ INSERT INTO t2 VALUES (NULL, 0), (NULL,1);
 SELECT * FROM t1 ORDER BY a;
 SELECT * FROM t2 ORDER BY a;
 
+
+SET @optimizer_switch_saved= @@optimizer_switch;
+SET @@optimizer_switch="derived_merge=off";
 --disable_warnings ONCE
 UPDATE t2, (SELECT a FROM t1 ORDER BY a) AS t SET t2.b = t.a+5 ;
+
+SET @@optimizer_switch=@optimizer_switch_saved;
+
 SELECT * FROM t1 ORDER BY a;
 SELECT * FROM t2 ORDER BY a;
 
