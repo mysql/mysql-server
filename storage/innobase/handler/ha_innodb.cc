@@ -1487,7 +1487,6 @@ Converts an InnoDB error code to a MySQL error code and also tells to MySQL
 about a possible transaction rollback inside InnoDB caused by a lock wait
 timeout or a deadlock.
 @return MySQL error code */
-inline
 int
 convert_error_code_to_mysql(
 /*========================*/
