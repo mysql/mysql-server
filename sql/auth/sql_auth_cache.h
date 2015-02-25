@@ -24,6 +24,7 @@
 #include "hash_filo.h"                  // HASH, hash_filo
 #include "records.h"                    // READ_RECORD
 #include "read_write_lock.h"            // Write_lock, Read_lock, lock_at
+#include "partitioned_rwlock.h"         // Partitioned_rwlock
 
 #include "prealloced_array.h"
 
@@ -273,6 +274,7 @@ extern HASH acl_check_hosts;
 extern mysql_rwlock_t proxy_users_rwlock;
 extern bool allow_all_hosts;
 extern uint grant_version; /* Version of priv tables */
+extern Partitioned_rwlock LOCK_grant;
 
 GRANT_NAME *name_hash_search(HASH *name_hash,
                              const char *host,const char* ip,
