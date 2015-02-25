@@ -48,6 +48,7 @@
 
 call mtr.add_suppression("Slave I/O for channel '': The replication receiver thread cannot start");
 call mtr.add_suppression("Slave I/O for channel '': The slave IO thread stops");
+--let $saved_binlog_error_action=`SELECT @@GLOBAL.binlog_error_action`
 
 --source include/sync_slave_sql_with_master.inc
 --source include/stop_slave.inc
@@ -566,12 +567,15 @@ call mtr.add_suppression("Could not open * for logging");
 SET @debug_saved= @@GLOBAL.DEBUG;
 SET GLOBAL DEBUG= "d,fault_injection_new_file_rotate_event";
 
+SET GLOBAL binlog_error_action= IGNORE_ERROR;
+
 --error ER_ERROR_ON_WRITE
 SET @@GLOBAL.GTID_MODE= OFF_PERMISSIVE;
 
 # Cleanup
 SET @@GLOBAL.GTID_MODE= OFF;
 SET @@GLOBAL.DEBUG= @debug_saved;
+--eval SET GLOBAL binlog_error_action= $saved_binlog_error_action
 
 # Binlog was closed as a result of the error, restart server to recover.
 --let $rpl_server_number= 1
