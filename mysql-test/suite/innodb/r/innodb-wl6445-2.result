@@ -2,19 +2,10 @@ SET GLOBAL innodb_file_per_table = 1;
 SELECT @@innodb_file_per_table;
 @@innodb_file_per_table
 1
-SET GLOBAL innodb_file_format = `Barracuda`;
-SELECT @@innodb_file_format;
-@@innodb_file_format
-Barracuda
-set global innodb_large_prefix=1;
-SELECT @@innodb_large_prefix;
-@@innodb_large_prefix
-1
 DROP DATABASE IF EXISTS testdb_wl6445;
 CREATE DATABASE testdb_wl6445;
 case # 1
 SET GLOBAL innodb_file_per_table = 1;
-SET GLOBAL innodb_file_format = `Barracuda`;
 USE testdb_wl6445;
 CREATE TABLE t1 ( i int PRIMARY KEY , j blob) ENGINE = InnoDB;
 INSERT INTO t1 VALUES (1,repeat('a',200)),(2,repeat('b',200)),(3,repeat('c',200));

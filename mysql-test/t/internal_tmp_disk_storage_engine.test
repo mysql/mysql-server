@@ -6,7 +6,7 @@
 # Contains several strange queries with GROUP BY, so:
 --source include/turn_off_only_full_group_by.inc
 # =======================initialization====================
-drop table if exists t1, t2;
+SET GLOBAL innodb_large_prefix=OFF;
 create table t1(a int, b varchar(20));
 create table t2(a int, b varchar(20));
 insert into t1 values(1, 'a'), (2, 'b'), (3, 'c'), (3, 'c'), (4, 'c');
@@ -1299,9 +1299,9 @@ c9, c10, c11, c12, c13, c14, c15, c16, c17, c18, c19, c20, c21, c22, c23,
 c24, c25, c26, c27, c28, c29, c30, c31, c32, c33, c34, c35;
 DROP TABLE t1;
 #============================end && cleanup======================= 
+SET GLOBAL innodb_large_prefix=default;
 set @@global.internal_tmp_disk_storage_engine= @old_internal_tmp_disk_storage_engine;
 set big_tables= @old_big_tables;
 set optimizer_switch= @old_optimizer_switch;
 --source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 --echo #
-

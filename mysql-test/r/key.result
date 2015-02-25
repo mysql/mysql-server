@@ -187,8 +187,6 @@ NULL	2
 a	1
 a	2
 drop table t1;
-set global innodb_large_prefix=1;
-SET GLOBAL innodb_file_format = `Barracuda`;
 create table t1 (i int, a char(200), b text, unique (a), unique (b(300))) charset utf8 row_format=dynamic engine=innodb;
 insert ignore t1 values (1, repeat('a',210), repeat('b', 310));
 Warnings:
@@ -210,8 +208,6 @@ select i from t1 where b=repeat(_utf8 'b',310);
 i
 1
 drop table t1;
-SET GLOBAL innodb_large_prefix=0;
-SET GLOBAL INNODB_FILE_FORMAT=Antelope;
 CREATE TABLE t1 (id int unsigned auto_increment, name char(50), primary key (id)) engine=myisam;
 insert into t1 (name) values ('a'), ('b'),('c'),('d'),('e'),('f'),('g');
 explain select 1 from t1 where id =2;

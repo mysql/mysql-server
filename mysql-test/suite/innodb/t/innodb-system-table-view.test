@@ -9,9 +9,6 @@
 --disable_query_log
 SET default_storage_engine=InnoDB;
 let $MYSQLD_DATADIR= `select @@datadir`;
-# These values can change during the test
-LET $innodb_file_format_orig=`select @@innodb_file_format`;
-LET $innodb_file_per_table_orig=`select @@innodb_file_per_table`;
 --enable_query_log
 
 # The IDs of mysql.innodb_table_stats and mysql.innodb_index_stats are
@@ -47,9 +44,6 @@ SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN;
 --sorted_result
 SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN_COLS;
 
-SET GLOBAL innodb_file_format=`Barracuda`;
-SET GLOBAL innodb_file_per_table=ON;
-
 --disable_warnings
 DROP TABLE IF EXISTS t_redundant, t_compact, t_compressed, t_dynamic;
 --enable_warnings
@@ -73,10 +67,6 @@ SELECT path FROM INFORMATION_SCHEMA.INNODB_SYS_DATAFILES
        WHERE path LIKE '%test%';
 
 DROP TABLE t_redundant, t_compact, t_compressed, t_dynamic;
---disable_query_log
-EVAL SET GLOBAL innodb_file_format=$innodb_file_format_orig;
-EVAL SET GLOBAL innodb_file_per_table=$innodb_file_per_table_orig;
---enable_query_log
 
 SELECT count(*) FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESTATS;
 
@@ -165,9 +155,3 @@ WHERE name LIKE "%parent";
 DROP TABLE child;
 
 DROP TABLE parent;
-
---disable_query_log
-EVAL SET GLOBAL innodb_file_format=$innodb_file_format_orig;
-EVAL SET GLOBAL innodb_file_per_table=$innodb_file_per_table_orig;
---enable_query_log
-

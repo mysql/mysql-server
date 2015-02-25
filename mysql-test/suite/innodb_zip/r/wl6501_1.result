@@ -34,7 +34,6 @@ primary key (c1),
 index (c3,c4(50),c5(50)),
 index (c2))
 engine=innodb row_format=compact;
-set global innodb_file_format='Barracuda';
 create table t3(c1 int not null,
 c2 int not null,
 c3 char(255) not null,
@@ -241,7 +240,6 @@ primary key (c1),
 index (c3,c4(50),c5(50)),
 index (c2))
 engine=innodb row_format=compact;
-set global innodb_file_format='Barracuda';
 create table t3(c1 int not null,
 c2 int not null,
 c3 char(255) not null,
@@ -448,7 +446,6 @@ primary key (c1),
 index (c3,c4(50),c5(50)),
 index (c2))
 engine=innodb row_format=compact;
-set global innodb_file_format='Barracuda';
 create table t3(c1 int not null,
 c2 int not null,
 c3 char(255) not null,
@@ -631,7 +628,6 @@ primary key (c1),
 index (c3,c4(50),c5(50)),
 index (c2))
 engine=innodb row_format=compact;
-set global innodb_file_format='Barracuda';
 create table t3(c1 int not null,
 c2 int not null,
 c3 char(255) not null,
@@ -814,7 +810,6 @@ primary key (c1),
 index (c3,c4(50),c5(50)),
 index (c2))
 engine=innodb row_format=compact;
-set global innodb_file_format='Barracuda';
 create table t3(c1 int not null,
 c2 int not null,
 c3 char(255) not null,
@@ -997,7 +992,6 @@ primary key (c1),
 index (c3,c4(50),c5(50)),
 index (c2))
 engine=innodb row_format=compact;
-set global innodb_file_format='Barracuda';
 create table t3(c1 int not null,
 c2 int not null,
 c3 char(255) not null,

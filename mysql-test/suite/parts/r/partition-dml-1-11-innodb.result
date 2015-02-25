@@ -1,3 +1,5 @@
+SET GLOBAL innodb_strict_mode=OFF;
+SET innodb_strict_mode=OFF;
 # Additional tests for WL#5217 by QA, testplan 1.1
 INSERT INTO t1 PARTITION (pNeg, subp0) VALUES (-4, '(pNeg-)subp0');
 INSERT INTO t1 PARTITION (pNeg, subp0) VALUES (-3, '(pNeg-)subp0');
@@ -206,3 +208,4 @@ connection default;
 DROP TABLE t1, t2;
 DROP USER test_user_1;
 DROP USER test_user_2;
+SET GLOBAL innodb_strict_mode=default;

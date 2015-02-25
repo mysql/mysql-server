@@ -4,7 +4,6 @@ SET default_storage_engine=InnoDB;
 # Bug#13357607 Compressed file-per-table tablespaces fail to open
 #
 set global innodb_file_per_table=on;
-set global innodb_file_format='Barracuda';
 #
 # Create and insert records into a REDUNDANT row formatted table.
 #

@@ -86,6 +86,7 @@ repeat('a57',62),repeat('a58',62),repeat('a59',62),repeat('a60',62),repeat('a61'
 repeat('a62',62),repeat('a63',62));
 
 # Trying to create a table with record length=16K ( 64 columns * 255 = 16384 )
+SET innodb_strict_mode=OFF;
 CREATE TABLE tab2(col1 CHAR (255), col2 CHAR (255), col3 CHAR(255),col4 CHAR(255), col5 CHAR(255),
 col6   CHAR(255), col7 CHAR(255),  col8 CHAR(255), col9 CHAR(255),col10 CHAR(255), col11  CHAR(255),
 col12 CHAR(255), col13 CHAR(255),col14 CHAR(255),col15 CHAR(255),col16  CHAR(255), col17 CHAR(255),

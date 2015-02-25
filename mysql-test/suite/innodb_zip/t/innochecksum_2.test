@@ -16,8 +16,6 @@ let MYSQLD_BASEDIR= `SELECT @@basedir`;
 let MYSQLD_DATADIR= `SELECT @@datadir`;
 let SEARCH_FILE= $MYSQLTEST_VARDIR/log/my_restart.err;
 
-SET GLOBAL innodb_file_per_table=on;
-SET GLOBAL innodb_file_format='barracuda';
 SET GLOBAL innodb_compression_level=0;
 SELECT @@innodb_compression_level;
 
@@ -104,18 +102,13 @@ DROP TABLE t1;
 --let $size=4
 --source ../include/innodb-wl6045.inc
 
+set innodb_strict_mode=off;
 --echo # Test for for KEY_BLOCK_SIZE=8
 --let $size=8
 --source ../include/innodb-wl6045.inc
 
+set innodb_strict_mode=off;
 --echo # Test for KEY_BLOCK_SIZE=16
 --let $size=16
 --source ../include/innodb-wl6045.inc
 --echo # Test[5] completed
-
---echo # Restart the server
---source include/start_mysqld.inc
-
-SET GLOBAL innodb_file_per_table=default;
-SET GLOBAL innodb_file_format=default;
-

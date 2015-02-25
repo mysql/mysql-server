@@ -368,7 +368,6 @@ END|
 SELECT @@innodb_fill_factor;
 @@innodb_fill_factor
 100
-SET GLOBAL innodb_file_format=Barracuda;
 CREATE TABLE t1(
 class	INT,
 id	INT,
@@ -526,7 +525,6 @@ test.t1	check	status	OK
 SELECT CHAR_LENGTH(b) FROM t1 WHERE a=4975;
 CHAR_LENGTH(b)
 DROP TABLE t1;
-SET GLOBAL innodb_file_format=default;
 DROP PROCEDURE populate_t1;
 CREATE PROCEDURE populate_t1(load_even INT)
 BEGIN
@@ -547,7 +545,6 @@ SELECT @@innodb_fill_factor;
 @@innodb_fill_factor
 100
 SET GLOBAL innodb_file_per_table=1;
-SET GLOBAL innodb_file_format=Barracuda;
 CREATE TABLE t1(
 class	INT,
 id	INT,
@@ -706,7 +703,6 @@ SELECT CHAR_LENGTH(b) FROM t1 WHERE a=4975;
 CHAR_LENGTH(b)
 DROP TABLE t1;
 SET GLOBAL innodb_file_per_table=default;
-SET GLOBAL innodb_file_format=default;
 DROP PROCEDURE populate_t1;
 SET GLOBAL innodb_fill_factor=10;
 CREATE PROCEDURE populate_t1(load_even INT)

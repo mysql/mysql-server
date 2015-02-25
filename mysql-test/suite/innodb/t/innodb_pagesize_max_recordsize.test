@@ -5,10 +5,10 @@
 # No of cols ~ 64 columns * 255 bytes=16320 which is < 16k
 # Check page size 32k at bootstrap and sever start up level
 # Check the error scenarios for
-# - innodb_strict_mode=ON
-# - Compressed tables and innodb_file_format=Barracuda
-# - innodb_strict_mode=OFF(Default)
-# - Check for Key-BLOCK_SIZE and innodb_file_format=Barracuda
+# - innodb_strict_mode=ON(Default)
+# - Compressed tables
+# - innodb_strict_mode=OFF
+# - Check for Key-BLOCK_SIZE
 # case 2 : start the server with page size 64K
 # On boundar <= page size 16K
 # Beyond boudary > page size 16K
@@ -38,9 +38,7 @@ let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/datadir1/data;
 
 # Stop the MTR default datadir, as it was started with default 16k page size
 --echo # Stop DB server which was created by MTR default
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 
---source include/wait_until_disconnected.inc
+--source include/shutdown_mysqld.inc
 
 # Set the bootstrap parameter page size 32k for datadir1
 let NEW_CMD = $MYSQLD --no-defaults --bootstrap --lc_messages_dir=$MYSQL_SHAREDIR --innodb_page_size=32K --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1 --skip-grant-tables</dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1;
@@ -52,8 +50,7 @@ let NEW_CMD = $MYSQLD --no-defaults --bootstrap --lc_messages_dir=$MYSQL_SHAREDI
 --exec echo "restart: --innodb_page_size=32K --datadir=$MYSQLD_DATADIR1 --skip-grant-tables" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
-
-USE test;
+--disable_reconnect
 
 SET innodb_strict_mode=ON;
 
@@ -80,8 +77,6 @@ col54 CHAR(255),col55 CHAR(255),col56 CHAR(255),col57 CHAR(255),col58  CHAR(255)
 col60 CHAR(255),col61 CHAR(255),col62 CHAR(255),col63 CHAR(255),col64  CHAR(255), col65  CHAR(255))
 ENGINE = innodb ;
 
-SET GLOBAL innodb_file_format='Barracuda';
-SELECT @@innodb_file_format;
 SELECT @@innodb_file_per_table;
 
 # Check the ERROR 1118 (42000): Row size too large (> 16383).

@@ -21,7 +21,6 @@ let $innodb_compression_level = `SELECT @@global.innodb_compression_level`;
 
 --echo # set the flags
 SET GLOBAL innodb_file_per_table=on;
-SET GLOBAL innodb_file_format='barracuda';
 SET GLOBAL innodb_cmp_per_index_enabled=ON;
 SET GLOBAL innodb_compression_level=0;
 
@@ -69,7 +68,6 @@ SET GLOBAL innodb_cmp_per_index_enabled=ON;
 
 --echo # set the flags
 SET GLOBAL innodb_file_per_table=on;
-SET GLOBAL innodb_file_format='barracuda';
 SET GLOBAL innodb_compression_level=0;
 
 --echo # fetch the compressed page and check the stats
@@ -132,7 +130,6 @@ SET GLOBAL innodb_cmp_per_index_enabled=ON;
 
 --echo # set the flags
 SET GLOBAL innodb_file_per_table=on;
-SET GLOBAL innodb_file_format='barracuda';
 SET GLOBAL innodb_compression_level=0;
 
 --echo # fetch the compressed page and check the stats
@@ -291,7 +288,6 @@ SET GLOBAL innodb_cmp_per_index_enabled=1;
 
 --echo # set the flags
 SET GLOBAL innodb_file_per_table=on;
-SET GLOBAL innodb_file_format='barracuda';
 SET GLOBAL innodb_compression_level=9;
 
 
@@ -341,7 +337,6 @@ SET GLOBAL innodb_cmp_per_index_enabled=ON;
 
 --echo # set the flags
 SET GLOBAL innodb_file_per_table=on;
-SET GLOBAL innodb_file_format='barracuda';
 SET GLOBAL innodb_compression_level=9;
 
 
@@ -407,7 +402,6 @@ SET GLOBAL innodb_cmp_per_index_enabled=ON;
 
 --echo # set the flags
 SET GLOBAL innodb_file_per_table=on;
-SET GLOBAL innodb_file_format='barracuda';
 SET GLOBAL innodb_compression_level=9;
 
 
@@ -792,7 +786,6 @@ SET GLOBAL innodb_cmp_per_index_enabled=ON;
 --echo # check the flags
 SELECT @@innodb_cmp_per_index_enabled;
 SELECT @@innodb_compression_failure_threshold_pct;
-SELECT @@innodb_file_format;
 SELECT @@innodb_file_per_table;
 SELECT @@innodb_compression_level;
 
@@ -841,7 +834,6 @@ SET GLOBAL innodb_cmp_per_index_enabled=ON;
 --echo # set the flags
 SET GLOBAL innodb_compression_failure_threshold_pct=0;
 SET GLOBAL innodb_file_per_table=on;
-SET GLOBAL innodb_file_format='barracuda';
 
 
 --echo # fetch the compressed page and check the stats
@@ -1044,7 +1036,6 @@ SET GLOBAL innodb_cmp_per_index_enabled=ON;
 
 --echo # set the flags
 SET GLOBAL innodb_file_per_table=on;
-SET GLOBAL innodb_file_format='barracuda';
 SET GLOBAL innodb_cmp_per_index_enabled=ON;
 SET GLOBAL innodb_compression_failure_threshold_pct=10;
 SET GLOBAL innodb_compression_level=Default;
@@ -1053,7 +1044,6 @@ SET GLOBAL innodb_compression_level=Default;
 --echo # check the flags
 SELECT @@innodb_cmp_per_index_enabled;
 SELECT @@innodb_compression_failure_threshold_pct;
-SELECT @@innodb_file_format;
 SELECT @@innodb_file_per_table;
 SELECT @@innodb_compression_level;
 
@@ -1102,7 +1092,6 @@ SET GLOBAL innodb_cmp_per_index_enabled=ON;
 --echo # set the flags
 SET GLOBAL innodb_compression_failure_threshold_pct=10;
 SET GLOBAL innodb_file_per_table=on;
-SET GLOBAL innodb_file_format='barracuda';
 SET GLOBAL innodb_compression_failure_threshold_pct=10;
 
 
@@ -1302,7 +1291,6 @@ SET GLOBAL innodb_cmp_per_index_enabled=0;
 SET GLOBAL innodb_cmp_per_index_enabled=1;
 
 SET GLOBAL innodb_file_per_table=ON;
-SET GLOBAL innodb_file_format='Barracuda';
 SET GLOBAL innodb_compression_level=default;
 SET GLOBAL innodb_compression_failure_threshold_pct=default;
 
@@ -1342,7 +1330,6 @@ DROP DATABASE sb;
 
 --echo # reset the flags
 eval SET GLOBAL innodb_file_per_table=default;
-eval SET GLOBAL innodb_file_format=default;
 eval SET GLOBAL innodb_cmp_per_index_enabled=default;
 --disable_query_log
 eval SET GLOBAL innodb_compression_level=$innodb_compression_level;

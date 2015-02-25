@@ -7,16 +7,7 @@ SET default_storage_engine=InnoDB;
 --disable_query_log
 let $MYSQLD_DATADIR= `select @@datadir`;
 call mtr.add_suppression("Cannot add field .* in table .* because after adding it, the row size is");
-# These values can change during the test
-let $innodb_file_format_orig = `SELECT @@innodb_file_format`;
-let $innodb_file_format_max_orig = `SELECT @@innodb_file_format_max`;
-let $innodb_file_per_table_orig = `SELECT @@innodb_file_per_table`;
-let $innodb_large_prefix_orig = `SELECT @@innodb_large_prefix`;
-let $innodb_strict_mode_orig = `SELECT @@session.innodb_strict_mode`;
 --enable_query_log
-
-SET GLOBAL innodb_file_format = `Barracuda`;
-SET GLOBAL innodb_file_per_table = ON;
 
 --echo # Test 1) Show the page size from Information Schema
 --disable_warnings
@@ -275,7 +266,6 @@ CREATE TABLE t5 (id int PRIMARY KEY) ENGINE=innodb KEY_BLOCK_SIZE=16;
 SHOW WARNINGS;
 SET GLOBAL innodb_file_per_table = ON;
 SET GLOBAL innodb_file_format = `Antelope`;
-SHOW VARIABLES LIKE 'innodb_file%';
 --error ER_ILLEGAL_HA
 CREATE TABLE t4 (id int PRIMARY KEY) ENGINE=innodb KEY_BLOCK_SIZE=8;
 SHOW WARNINGS;
@@ -479,17 +469,3 @@ CREATE TABLE t1(c text, PRIMARY KEY (c(438)))
 ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1 CHARSET=ASCII;
 INSERT INTO t1 VALUES(REPEAT('A',512)),(REPEAT('B',512));
 DROP TABLE t1;
-
-#
-# restore environment to the state it was before this test execution
-#
-
---disable_query_log
-EVAL SET GLOBAL innodb_file_format = $innodb_file_format_orig;
-EVAL SET GLOBAL innodb_file_format_max = $innodb_file_format_max_orig;
-EVAL SET GLOBAL innodb_file_per_table = $innodb_file_per_table_orig;
-EVAL SET GLOBAL innodb_large_prefix = $innodb_large_prefix_orig;
-EVAL SET SESSION innodb_strict_mode = $innodb_strict_mode_orig;
-#-- error 0, ER_UNKNOWN_SYSTEM_VARIABLE
-#EVAL SET GLOBAL innodb_change_buffering_debug = @innodb_change_buffering_debug_orig;
---enable_query_log

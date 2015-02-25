@@ -3,14 +3,7 @@
 # LIKE pattern matching using prefix index doesn't return correct result
 #
 select @@collation_connection;
---disable_query_log
-let $format = `select @@innodb_file_format`;
-set global innodb_file_format=`Barracuda`;
---enable_query_log
 create table t1 ROW_FORMAT=DYNAMIC select repeat('a',50) as c1 ;
---disable_query_log
-eval set global innodb_file_format = $format;
---enable_query_log
 insert into t1 values('abcdef');
 insert into t1 values('_bcdef');
 insert into t1 values('a_cdef');

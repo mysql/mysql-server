@@ -2,17 +2,11 @@
 # CREATE TABLESPACE related tests for 32k page sizes.
 #
 SET DEFAULT_STORAGE_ENGINE=InnoDB;
-# Strict-mode has no affect on CREATE TABLESPACE. But it does affect
+# Strict-mode has no effect on CREATE TABLESPACE. But it does affect
 # whether an invalid KEY_BLOCK_SIZE is rejected or adjusted.
-SET SESSION innodb_strict_mode = ON;
 SHOW VARIABLES LIKE 'innodb_strict_mode';
 Variable_name	Value
 innodb_strict_mode	ON
-SET GLOBAL innodb_file_format = 'barracuda';
-SHOW VARIABLES LIKE 'innodb_file_format';
-Variable_name	Value
-innodb_file_format	Barracuda
-SET GLOBAL innodb_file_per_table = ON;
 SHOW VARIABLES LIKE 'innodb_file_per_table';
 Variable_name	Value
 innodb_file_per_table	ON

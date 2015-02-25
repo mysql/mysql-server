@@ -15,8 +15,6 @@ let $wait_condition =
 
 --disable_query_log
 set @old_innodb_buffer_pool_size = @@innodb_buffer_pool_size;
-set @old_innodb_file_format = @@innodb_file_format;
-set @old_innodb_file_per_table = @@innodb_file_per_table;
 if (`select (version() like '%debug%') > 0`)
 {
     set @old_innodb_disable_resize = @@innodb_disable_resize_buffer_pool_debug;
@@ -25,9 +23,6 @@ if (`select (version() like '%debug%') > 0`)
 --enable_query_log
 
 select @@innodb_buffer_pool_chunk_size;
-
-set global innodb_file_format=`Barracuda`;
-set global innodb_file_per_table=ON;
 
 # fill buffer pool
 create table t1 (id int not null, val int not null default '0', primary key (id)) ENGINE=InnoDB ROW_FORMAT=COMPRESSED;
@@ -61,8 +56,6 @@ select @@innodb_buffer_pool_size;
 
 --disable_query_log
 set global innodb_buffer_pool_size = @old_innodb_buffer_pool_size;
-set global innodb_file_format = @old_innodb_file_format;
-set global innodb_file_per_table = @old_innodb_file_per_table;
 if (`select (version() like '%debug%') > 0`)
 {
     set global innodb_disable_resize_buffer_pool_debug = @old_innodb_disable_resize;

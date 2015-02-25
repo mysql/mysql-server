@@ -121,7 +121,6 @@ i
 4
 drop table t1;
 set global innodb_file_per_table = 1;
-set global innodb_file_format = 'Barracuda';
 create temporary table t1
 (keyc int, c1 char(100), c2 char(100),
 primary key(keyc))
@@ -150,8 +149,7 @@ count(*)
 0
 drop table t1;
 drop procedure if exists populate_t1;
-set global innodb_file_format = Antelope;
-set global innodb_file_per_table = 1;
+set global innodb_file_per_table = default;
 create temporary table t1 (t1_i int, t1_f float) engine = innodb;
 insert into t1 values (1, 1.1), (2, 2.2), (3, 2.2), (4, 4.4);
 explain select * from t1 where t1_i = 1;
@@ -242,7 +240,9 @@ i
 6
 7
 drop table t2;
-use test;
+set global innodb_large_prefix=off;
+Warnings:
+Warning	131	Using innodb_large_prefix is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 create temporary table t (
 a int not null,
@@ -251,8 +251,6 @@ index sk (b(3021))
 ) row_format = dynamic engine=innodb;
 Warnings:
 Warning	1071	Specified key was too long; max key length is 767 bytes
-Warning	1478	InnoDB: ROW_FORMAT=DYNAMIC requires innodb_file_format > Antelope.
-Warning	1478	InnoDB: assuming ROW_FORMAT=COMPACT.
 drop table t;
 set global innodb_file_per_table = 1;
 create temporary table t (
@@ -262,10 +260,7 @@ index sk (b(3021))
 ) row_format = dynamic engine=innodb;
 Warnings:
 Warning	1071	Specified key was too long; max key length is 767 bytes
-Warning	1478	InnoDB: ROW_FORMAT=DYNAMIC requires innodb_file_format > Antelope.
-Warning	1478	InnoDB: assuming ROW_FORMAT=COMPACT.
 drop table t;
-set global innodb_file_format = 'barracuda';
 create temporary table t (
 a int not null,
 b blob not null,
@@ -276,7 +271,10 @@ Warning	1071	Specified key was too long; max key length is 767 bytes
 drop table t;
 SET sql_mode = default;
 set global innodb_large_prefix = 1;
+Warnings:
+Warning	131	Using innodb_large_prefix is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
 SET sql_mode='NO_ENGINE_SUBSTITUTION';
+SET innodb_strict_mode=OFF;
 create temporary table t (
 a int not null,
 b blob not null,
@@ -295,6 +293,7 @@ b blob not null,
 index sk (b(3021))
 ) row_format = compressed engine=innodb;
 drop table t;
+SET GLOBAL innodb_large_prefix=default;
 set global innodb_file_per_table = 0;
 create temporary table t (
 a int not null,
@@ -308,7 +307,9 @@ b blob not null,
 index sk (b(3021))
 ) row_format = dynamic engine=innodb;
 drop table t;
-set global innodb_large_prefix = 0;
+set global innodb_large_prefix=default;
+Warnings:
+Warning	131	Using innodb_large_prefix is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
 DROP TABLE IF EXISTS t1,t2,t3;
 CREATE TABLE t1 ( i INT ) ENGINE = Innodb;
 CREATE TEMPORARY TABLE t2 ( i INT ) ENGINE = Innodb;
@@ -332,7 +333,6 @@ COUNT(*)
 SELECT COUNT(*) FROM information_schema.INNODB_SYS_TABLES WHERE NAME LIKE '%test%t_';
 COUNT(*)
 0
-set global innodb_file_format = Antelope;
-set global innodb_file_per_table = 1;
+set global innodb_file_per_table = default;
 set global innodb_change_buffering = all;
 SET sql_mode=default;
