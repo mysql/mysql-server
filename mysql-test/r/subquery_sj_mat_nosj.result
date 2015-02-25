@@ -8854,7 +8854,7 @@ WHERE alias1.pk = 58 OR alias1.col_varchar_key = 'o'
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 2	SUBQUERY	alias1	NULL	index_merge	PRIMARY,col_int_key,col_varchar_key	col_varchar_key,PRIMARY	4,4	NULL	2	100.00	Using sort_union(col_varchar_key,PRIMARY); Using where
-2	SUBQUERY	alias2	NULL	ALL	col_int_key	NULL	NULL	NULL	12	26.53	Range checked for each record (index map: 0x2)
+2	SUBQUERY	alias2	NULL	ALL	col_int_key	NULL	NULL	NULL	12	19.00	Range checked for each record (index map: 0x2)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`field1` AS `field1` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`field1`,`test`.`t2`.`field1` in ( <materialize> (/* select#2 */ select `test`.`alias1`.`col_varchar_nokey` AS `field1` from `test`.`t1` `alias1` join `test`.`t1` `alias2` where (((`test`.`alias1`.`pk` = 58) or (`test`.`alias1`.`col_varchar_key` = 'o')) and ((`test`.`alias2`.`col_int_key` = `test`.`alias1`.`pk`) or (`test`.`alias2`.`col_int_key` = `test`.`alias1`.`col_int_key`))) ), <primary_index_lookup>(`test`.`t2`.`field1` in <temporary table> on <auto_key> where ((`test`.`t2`.`field1` = `materialized-subquery`.`field1`)))))
 SELECT *

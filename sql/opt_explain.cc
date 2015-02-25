@@ -1481,55 +1481,12 @@ bool Explain_join::explain_rows_and_filtered()
     return false;
 
   POSITION *const pos= tab->position();
-  double examined_rows;
-  double access_method_fanout= pos->rows_fetched;
-  if (tab->type() == JT_RANGE || tab->type() == JT_INDEX_MERGE ||
-      ((tab->type() == JT_REF || tab->type() == JT_REF_OR_NULL) &&
-       tab->quick_optim()))
-  {
-    /*
-      Because filesort can't handle REF it's converted into quick select,
-      but type is kept as is. This is an exception and the only case when
-      REF has quick select.
-    */
-    DBUG_ASSERT(!(tab->type() == JT_REF || tab->type() == JT_REF_OR_NULL) ||
-                tab->filesort);
-    examined_rows= rows2double(tab->quick_optim()->records);
 
-    /*
-      Unlike the "normal" range access method, dynamic range access
-      method does not set
-      tab->position()->rows_fetched=tab->quick()->records. If this is EXPLAIN
-      FOR CONNECTION of a table with dynamic range,
-      tab->position()->rows_fetched reflects that fanout of table/index scan,
-      not the fanout of the current dynamic range scan.
-    */
-    if (tab->dynamic_range())
-      access_method_fanout= examined_rows;
-  }
-  else if (tab->type() == JT_INDEX_SCAN || tab->type() == JT_ALL ||
-           tab->type() == JT_CONST || tab->type() == JT_SYSTEM)
-    // Materialization temp table is empty
-    if (tab->sj_mat_exec() &&
-        (tab->type() == JT_INDEX_SCAN || tab->type() == JT_ALL))
-      examined_rows= 0;
-    else
-      examined_rows= static_cast<double>(tab->rowcount());
-  else
-    examined_rows= pos->rows_fetched;
-
-  fmt->entry()->col_rows.set(static_cast<ulonglong>(examined_rows));
-
-  /* Add "filtered" field */
-  {
-    float filter= 0.0;
-    if (examined_rows)
-    {
-      filter= static_cast<float>(100.0 * (access_method_fanout / examined_rows) *
-                                 tab->position()->filter_effect);
-    }
-    fmt->entry()->col_filtered.set(filter);
-  }
+  fmt->entry()->col_rows.set(static_cast<ulonglong>(pos->rows_fetched));
+  fmt->entry()->col_filtered.
+    set(pos->rows_fetched ?
+        static_cast<float>(100.0 * tab->position()->filter_effect) :
+        0.0f);
   // Print cost-related info
   double prefix_rows= pos->prefix_rowcount;
   fmt->entry()->col_prefix_rows.set(static_cast<ulonglong>(prefix_rows));
