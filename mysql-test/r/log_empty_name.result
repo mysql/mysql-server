@@ -1,6 +1,0 @@
-# --
-# -- Bug#19392264: SERVER CRASH WHEN SPECIFYING EMPTY --GENERAL-LOG-FILE
-# --               OPTION
-# --
-# Before fix, server should crash. After fix server has to start
-# successfully with the options provided in general_log-master.opt file.
