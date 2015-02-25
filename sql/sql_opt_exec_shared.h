@@ -243,7 +243,6 @@ public:
     m_first_inner(NO_PLAN_IDX),
     m_last_inner(NO_PLAN_IDX),
     m_first_upper(NO_PLAN_IDX),
-    m_rowcount(0),
     m_ref(),
     m_index(0),
     m_type(JT_UNKNOWN),
@@ -290,8 +289,6 @@ public:
   void set_first_upper(plan_idx i) { m_first_upper= i; }
   plan_idx last_inner() { return m_last_inner; }
   plan_idx first_upper() { return m_first_upper; }
-  ha_rows rowcount() const { return m_rowcount; }
-  void set_rowcount(ha_rows r) { m_rowcount= r; }
   TABLE_REF &ref() { return m_ref; }
   uint index() const { return m_index; }
   void set_index(uint i) { m_index= i; }
@@ -395,11 +392,6 @@ private:
   plan_idx m_first_upper;   ///< first inner table for embedding outer join
 
   /**
-     Estimated number of rows read from the table per nested-loop iteration.
-  */
-  ha_rows       m_rowcount;
-
-  /**
      Used to do index-based look up based on a key value.
      Used when we read constant tables, in misc optimization (like
      remove_const()), and in execution.
@@ -490,8 +482,6 @@ public:
   void set_first_sj_inner(plan_idx i) { return m_qs->set_first_sj_inner(i); }
   void set_last_sj_inner(plan_idx i) { return m_qs->set_last_sj_inner(i); }
   void set_first_upper(plan_idx i) { return m_qs->set_first_upper(i); }
-  ha_rows rowcount() const { return m_qs->rowcount(); }
-  void set_rowcount(ha_rows r) const { return m_qs->set_rowcount(r); }
   TABLE_REF &ref() const { return m_qs->ref(); }
   uint index() const { return m_qs->index(); }
   void set_index(uint i) { return m_qs->set_index(i); }

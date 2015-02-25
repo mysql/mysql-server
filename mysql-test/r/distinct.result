@@ -244,12 +244,12 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` group by `test`.`t1`.`a` desc order by `test`.`t1`.`a` desc
 explain SELECT distinct t1.a from t1 order by a desc limit 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	PRIMARY	PRIMARY	4	NULL	1	400.00	Using index
+1	SIMPLE	t1	NULL	index	PRIMARY	PRIMARY	4	NULL	1	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select distinct `test`.`t1`.`a` AS `a` from `test`.`t1` order by `test`.`t1`.`a` desc limit 1
 explain SELECT distinct a from t3 order by a desc limit 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	index	a	a	5	NULL	3	100.00	Using index
+1	SIMPLE	t3	NULL	index	a	a	5	NULL	204	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select distinct `test`.`t3`.`a` AS `a` from `test`.`t3` order by `test`.`t3`.`a` desc limit 2
 explain SELECT distinct a,b from t3 order by a+1;
@@ -259,7 +259,7 @@ Warnings:
 Note	1003	/* select#1 */ select distinct `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b` from `test`.`t3` order by (`test`.`t3`.`a` + 1)
 explain SELECT distinct a,b from t3 order by a limit 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	index	NULL	a	5	NULL	2	10200.00	Using temporary
+1	SIMPLE	t3	NULL	index	NULL	a	5	NULL	2	100.00	Using temporary
 Warnings:
 Note	1003	/* select#1 */ select distinct `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b` from `test`.`t3` order by `test`.`t3`.`a` limit 2
 explain SELECT a,b from t3 group by a,b order by a+1;

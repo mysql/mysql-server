@@ -656,7 +656,7 @@ create index it1a on t1(a);
 explain extended
 select a from t1 where a in (select c from t2 where d >= 20);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	0.00	NULL
+1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	NULL
 1	SIMPLE	t1	NULL	ref	it1a	it1a	4	<subquery2>.c	2	100.00	Using index
 2	MATERIALIZED	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	33.33	Using where
 Warnings:
@@ -672,7 +672,7 @@ insert into t2 values (1,10);
 explain extended
 select a from t1 where a in (select c from t2 where d >= 20);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	0.00	NULL
+1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	NULL
 1	SIMPLE	t1	NULL	ref	it1a	it1a	4	<subquery2>.c	2	100.00	Using index
 2	MATERIALIZED	t2	NULL	ALL	NULL	NULL	NULL	NULL	7	33.33	Using where
 Warnings:
