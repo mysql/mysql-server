@@ -20702,9 +20702,8 @@ Dbdih::compute_max_failure_time()
     been considered here.)
   */
 
-  ndbrequire(no_of_live_db_nodes > 0);
-
-  return (no_of_live_db_nodes - 1) * heartbeat_fail_time + arbit_timeout;
+  return (MAX(no_of_live_db_nodes, 1) - 1) * heartbeat_fail_time 
+    + arbit_timeout;
 }
 
 /*
