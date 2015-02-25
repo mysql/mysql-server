@@ -1,3 +1,10 @@
+mysql-community (5.6.25-1debian7) wheezy; urgency=low
+
+  * new upstream release
+  * mysql-community-server now depends on perl, python
+
+ -- Akhil Mohan <akhil.mohan@oracle.com>  Wed, 25 Feb 2014 22:52:19 +0530
+
 mysql-community (5.6.24-1debian7) wheezy; urgency=low
 
   * new upstream release
