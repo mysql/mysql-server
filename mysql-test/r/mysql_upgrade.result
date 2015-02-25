@@ -1049,5 +1049,170 @@ LENGTH(plugin) <> 0
 # cleanup
 REVOKE ALL PRIVILEGES ON *.* FROM B19011337@localhost;
 DROP USER B19011337@localhost;
+#
+# WL #8350 ENSURE 5.7 SUPPORTS SMOOTH LIVE UPGRADE FROM 5.6
+#
+CREATE TABLE backup_user AS SELECT * FROM mysql.user;
+ALTER TABLE mysql.user ADD COLUMN Password
+char(41) character set latin1 collate latin1_bin DEFAULT '' NOT NULL
+AFTER user;
+ALTER TABLE mysql.user MODIFY plugin char(64) DEFAULT 'mysql_native_password';
+ALTER TABLE mysql.user DROP COLUMN password_last_changed;
+ALTER TABLE mysql.user DROP COLUMN password_lifetime;
+ALTER TABLE mysql.user DROP COLUMN account_locked;
+call mtr.add_suppression("The plugin 'mysql_old_password' used to authenticate user 'user_old_pass_wp'@'%' is not loaded. Nobody can currently login using this account.");
+# Because su_old_pass_pn is a super user without plugin name but with pre 4.1
+# hash password we generate instruction on how one can proceed with
+# the upgrade using this account.
+call mtr.add_suppression("Some of the user accounts with SUPER");
+call mtr.add_suppression("1. Stop");
+call mtr.add_suppression("2. Run");
+call mtr.add_suppression("3. Restart");
+call mtr.add_suppression("For complete");
+INSERT INTO mysql.user VALUES
+('%','user_old_pass_wp','0f0ea7602c473904','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','','','','',0,0,0,0,'mysql_old_password','','N');
+INSERT INTO mysql.user VALUES
+('%','user_old_pass_pn','0f0ea7602c473904','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','','','','',0,0,0,0,'','','N'),
+('%','su_old_pass_pn','0f0ea7602c473904','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0,'','','N'),
+('%','user_nat_pass_pn','*46ABF58B20022A84DF7B2E8B1AC8219C8DA71553','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','','','','',0,0,0,0,NULL,'','N'),
+('%','user_nat_pass_wp','*46ABF58B20022A84DF7B2E8B1AC8219C8DA71553','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','','','','',0,0,0,0,'mysql_native_password','','N');
+FLUSH PRIVILEGES;
+#Connect using root account - should succeed
+#Connecting user with pre 4.1 hash and empty plugin- should fail
+connect(localhost,user_old_pass_pn,lala,test,MASTER_PORT,MASTER_SOCKET);
+ERROR 28000: Access denied for user 'user_old_pass_pn'@'localhost' (using password: YES)
+#Connecting user with pre 4.1 hash and mysql_old_password plugin set -
+#should fail - the mysql_old_password was removed in 5.7
+connect(localhost,user_old_pass_wp,lala,test,MASTER_PORT,MASTER_SOCKET);
+ERROR HY000: Plugin 'mysql_old_password' is not loaded
+#Connecting user with 4.1 hash and empty plugin - should succeed
+#Connecting user with 4.1 hash and mysql_native_plugin plugin set -
+#should succeed
+#Trying to do select on mysql.user table - should fail as
+#user_nat_pass_pn is not a super user
+SELECT * FROM mysql.user WHERE user="user_nat_pass_pn";
+ERROR 42000: SELECT command denied to user 'user_nat_pass_pn'@'localhost' for table 'user'
+#Try granting all privileges on mysql db to user_nat_pass_pn using root
+#account - this should succeed as we are accessing mysql.db table which
+#has the same layout in 5.6 and 5.7
+GRANT ALL PRIVILEGES ON mysql.* TO 'user_nat_pass_pn'@'%' WITH GRANT OPTION;
+#Select on mysql.user should be possible - we have select privileges on
+#mysql database
+SELECT * FROM mysql.user WHERE user="user_nat_pass_pn";
+Host	User	Password	Select_priv	Insert_priv	Update_priv	Delete_priv	Create_priv	Drop_priv	Reload_priv	Shutdown_priv	Process_priv	File_priv	Grant_priv	References_priv	Index_priv	Alter_priv	Show_db_priv	Super_priv	Create_tmp_table_priv	Lock_tables_priv	Execute_priv	Repl_slave_priv	Repl_client_priv	Create_view_priv	Show_view_priv	Create_routine_priv	Alter_routine_priv	Create_user_priv	Event_priv	Trigger_priv	Create_tablespace_priv	ssl_type	ssl_cipher	x509_issuer	x509_subject	max_questions	max_updates	max_connections	max_user_connections	plugin	authentication_string	password_expired
+%	user_nat_pass_pn	*46ABF58B20022A84DF7B2E8B1AC8219C8DA71553	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N					0	0	0	0	NULL		N
+#Revoke all privileges from 'user_nat_pass_pn'@'%'
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'user_nat_pass_pn'@'%';
+#Trying to do select on mysql.user table - should fail as
+#user_nat_pass_pn's prvileleges on mysql db were revoked
+SELECT * FROM mysql.user WHERE user="user_nat_pass_pn";
+ERROR 42000: SELECT command denied to user 'user_nat_pass_pn'@'localhost' for table 'user'
+#All alter user commands are now dangerous to use. Alter user command
+#uses mapping from 5.7 while working on 5.6 database. For instance
+#setting password expire will cause 'Y' to get assigned to
+#authentication_string column instead of password_expired column!!
+SELECT authentication_string FROM mysql.user where user='user_nat_pass_pn';
+authentication_string
+
+SELECT password_expired FROM mysql.user where user='user_nat_pass_pn';
+password_expired
+N
+ALTER USER 'user_nat_pass_pn'@'%' PASSWORD EXPIRE;
+SELECT authentication_string FROM mysql.user WHERE user='user_nat_pass_pn';
+authentication_string
+Y
+SELECT password_expired FROM mysql.user WHERE user='user_nat_pass_pn';
+password_expired
+N
+#Fix authentication string
+UPDATE mysql.user SET authentication_string='' WHERE user='user_nat_pass_pn';
+#"Manualy" grant super user privileges to user_nat_pass_pn, note we are
+#now updating mysql_user to get all privileges on *.*
+UPDATE mysql.user SET Select_priv='Y', Insert_priv='Y', Update_priv='Y', Delete_priv='Y', Create_priv='Y', Drop_priv='Y', Reload_priv='Y', Shutdown_priv='Y', Process_priv='Y', File_priv='Y', Grant_priv='Y', References_priv='Y', Index_priv='Y', Alter_priv='Y', Show_db_priv='Y', Super_priv='Y', Create_tmp_table_priv='Y', Lock_tables_priv='Y', Execute_priv='Y', Repl_slave_priv='Y', Repl_client_priv='Y', Create_view_priv='Y', Show_view_priv='Y', Create_routine_priv='Y', Alter_routine_priv='Y', Create_user_priv='Y', Event_priv='Y', Trigger_priv='Y', Create_tablespace_priv='Y' where user="user_nat_pass_pn";
+FLUSH PRIVILEGES;
+#Select on mysql.user should now be possible
+SELECT * FROM mysql.user WHERE user="user_nat_pass_pn";
+Host	User	Password	Select_priv	Insert_priv	Update_priv	Delete_priv	Create_priv	Drop_priv	Reload_priv	Shutdown_priv	Process_priv	File_priv	Grant_priv	References_priv	Index_priv	Alter_priv	Show_db_priv	Super_priv	Create_tmp_table_priv	Lock_tables_priv	Execute_priv	Repl_slave_priv	Repl_client_priv	Create_view_priv	Show_view_priv	Create_routine_priv	Alter_routine_priv	Create_user_priv	Event_priv	Trigger_priv	Create_tablespace_priv	ssl_type	ssl_cipher	x509_issuer	x509_subject	max_questions	max_updates	max_connections	max_user_connections	plugin	authentication_string	password_expired
+%	user_nat_pass_pn	*46ABF58B20022A84DF7B2E8B1AC8219C8DA71553	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y					0	0	0	0	NULL		N
+#Run mysql_upgrade with user_nat_pass_pn - i.e. user with empty plugin
+#column and 4.1 hash password. After mysql_upgrade finishes the
+#mysql.user table should have 5.7 layout thus no need to restore the
+#dropped columns from the begining of the test
+mysql_upgrade: [Warning] Using a password on the command line interface can be insecure.
+mysql_upgrade: [Warning] 1642: Pre-4.1 password hash found. It is deprecated and will be removed in a future release. Please upgrade it to a new format.
+mysql.columns_priv                                 OK
+mysql.db                                           OK
+mysql.engine_cost                                  OK
+mysql.event                                        OK
+mysql.func                                         OK
+mysql.general_log                                  OK
+mysql.gtid_executed                                OK
+mysql.help_category                                OK
+mysql.help_keyword                                 OK
+mysql.help_relation                                OK
+mysql.help_topic                                   OK
+mysql.innodb_index_stats                           OK
+mysql.innodb_table_stats                           OK
+mysql.ndb_binlog_index                             OK
+mysql.plugin                                       OK
+mysql.proc                                         OK
+mysql.procs_priv                                   OK
+mysql.proxies_priv                                 OK
+mysql.server_cost                                  OK
+mysql.servers                                      OK
+mysql.slave_master_info                            OK
+mysql.slave_relay_log_info                         OK
+mysql.slave_worker_info                            OK
+mysql.slow_log                                     OK
+mysql.tables_priv                                  OK
+mysql.time_zone                                    OK
+mysql.time_zone_leap_second                        OK
+mysql.time_zone_name                               OK
+mysql.time_zone_transition                         OK
+mysql.time_zone_transition_type                    OK
+mysql.user                                         OK
+mtr.global_suppressions                            OK
+mtr.test_suppressions                              OK
+test.backup_user                                   OK
+#Restart the server
+# restart
+#After the update all acl commands should be working fine. Trying out
+#some of them
+ALTER USER 'user_nat_pass_pn'@'%' PASSWORD EXPIRE;
+SELECT password_expired FROM mysql.user WHERE user='user_nat_pass_pn';
+password_expired
+Y
+SET PASSWORD FOR user_nat_pass_pn@'%' = 'lala';
+SELECT password_expired FROM mysql.user WHERE user='user_nat_pass_pn';
+password_expired
+N
+ALTER USER 'user_nat_pass_wp'@'%' ACCOUNT LOCK;
+SELECT account_locked FROM mysql.user WHERE user='user_nat_pass_wp';
+account_locked
+Y
+ALTER USER 'user_nat_pass_wp'@'%' ACCOUNT UNLOCK;
+SELECT account_locked FROM mysql.user WHERE user='user_nat_pass_wp';
+account_locked
+N
+#Connecting with user using mysql_old_password plugin should not be
+#possible
+connect(localhost,user_old_pass_wp,lala,test,MASTER_PORT,MASTER_SOCKET);
+ERROR HY000: Plugin 'mysql_old_password' is not loaded
+#Creating super user and assigning all privileges to it. This updates
+#mysql.user table so should now be possible.
+CREATE USER super@localhost IDENTIFIED BY 'lala';
+GRANT ALL PRIVILEGES ON *.* TO super@localhost WITH GRANT OPTION;
+SELECT user FROM mysql.user WHERE user='super';
+user
+super
+DROP USER 'super'@'localhost';
+DROP USER 'user_old_pass_pn'@'%';
+DROP USER 'su_old_pass_pn'@'%';
+DROP USER 'user_old_pass_wp'@'%';
+DROP USER 'user_nat_pass_pn'@'%';
+DROP USER 'user_nat_pass_wp'@'%';
+TRUNCATE TABLE mysql.user;
+INSERT INTO mysql.user SELECT * FROM backup_user;
+DROP TABLE backup_user;
 
 End of tests
