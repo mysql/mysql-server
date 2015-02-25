@@ -1136,7 +1136,7 @@ void mysql_query_cache_invalidate4(THD *thd,
                                    int using_trx)
 {
   char qcache_key_name[2 * (NAME_LEN + 1)];
-  char db_name[NAME_LEN + 1];
+  char db_name[NAME_CHAR_LEN * FILENAME_CHARSET_MBMAXLEN + 1];
   const char *key_ptr;
   size_t tabname_len, dbname_len;
 
@@ -1146,9 +1146,9 @@ void mysql_query_cache_invalidate4(THD *thd,
   db_name[(key_ptr - key)]= '\0';
 
   /*
-    Construct the key("db-name\0table$name\0") in a non-canonical format for
-    the query cache using the key("db@002dname\0table@0024name\0") which is
-    in its canonical form.
+    Construct the key("db@002dname\0table@0024name\0") in a canonical format for
+    the query cache using the key("db-name\0table$name\0") which is
+    in its non-canonical form.
   */
   dbname_len= filename_to_tablename(db_name, qcache_key_name,
                                     sizeof(qcache_key_name));
