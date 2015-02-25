@@ -465,7 +465,7 @@ dict_build_tablespace_for_table(
 			rec_format_t rec_format = table->flags == 0
 						? REC_FORMAT_REDUNDANT
 						: REC_FORMAT_COMPACT;
-			ulint flags;
+			ulint flags = 0;
 			dict_tf_set(&flags, rec_format, 0, 0, 0);
 			table->flags = static_cast<unsigned int>(flags);
 		}
