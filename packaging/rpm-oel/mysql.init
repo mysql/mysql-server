@@ -84,7 +84,7 @@ start(){
 		mkdir -p "$datadir" || exit 1
 	    fi
 	    chown mysql:mysql "$datadir"
-	    chmod 0750 "$datadir"
+	    chmod 0755 "$datadir"
 	    [ -x /sbin/restorecon ] && /sbin/restorecon "$datadir"
 	    # Now create the database
 	    action $"Initializing MySQL database: " /usr/bin/mysql_install_db --datadir="$datadir" --user=mysql
@@ -100,7 +100,7 @@ start(){
 
 	fi
 	chown mysql:mysql "$datadir"
-	chmod 0750 "$datadir"
+	chmod 0755 "$datadir"
 	# Pass all the options determined above, to ensure consistent behavior.
 	# In many cases mysqld_safe would arrive at the same conclusions anyway
 	# but we need to be sure.  (An exception is that we don't force the
