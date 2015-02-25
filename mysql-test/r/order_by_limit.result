@@ -79,7 +79,7 @@ EXPLAIN SELECT * FROM t1 STRAIGHT_JOIN t2 ON t1.i1=t2.i1
 WHERE t1.pk > 7000 and t1.i1 > 2
 ORDER BY t1.i1 LIMIT 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	PRIMARY,k1,k2	k1	4	NULL	6	495.00	Using where
+1	SIMPLE	t1	NULL	index	PRIMARY,k1,k2	k1	4	NULL	6	29.70	Using where
 1	SIMPLE	t2	NULL	ref	k1	k1	4	test.t1.i1	1	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`i1` AS `i1`,`test`.`t1`.`i2` AS `i2`,`test`.`t2`.`pk` AS `pk`,`test`.`t2`.`i1` AS `i1` from `test`.`t1` straight_join `test`.`t2` where ((`test`.`t2`.`i1` = `test`.`t1`.`i1`) and (`test`.`t1`.`pk` > 7000) and (`test`.`t1`.`i1` > 2)) order by `test`.`t1`.`i1` limit 2
@@ -138,7 +138,7 @@ pk	i1	i2	pk	i1
 EXPLAIN SELECT * FROM t1 STRAIGHT_JOIN t2 ON t1.i1=t2.i1
 WHERE t1.pk > 1000 ORDER BY t1.i1 LIMIT 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	PRIMARY,k1,k2	k1	4	NULL	5	1800.00	Using where
+1	SIMPLE	t1	NULL	index	PRIMARY,k1,k2	k1	4	NULL	5	90.00	Using where
 1	SIMPLE	t2	NULL	ref	k1	k1	4	test.t1.i1	1	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`i1` AS `i1`,`test`.`t1`.`i2` AS `i2`,`test`.`t2`.`pk` AS `pk`,`test`.`t2`.`i1` AS `i1` from `test`.`t1` straight_join `test`.`t2` where ((`test`.`t2`.`i1` = `test`.`t1`.`i1`) and (`test`.`t1`.`pk` > 1000)) order by `test`.`t1`.`i1` limit 5
@@ -155,7 +155,7 @@ pk	i1	i2	pk	i1
 EXPLAIN SELECT t1.i1,t1.i2 FROM t1 STRAIGHT_JOIN t2 ON t1.i1=t2.i1 
 WHERE t1.pk > 100 ORDER BY t1.i1 LIMIT 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	PRIMARY,k1,k2	k1	4	NULL	5	1980.00	Using where
+1	SIMPLE	t1	NULL	index	PRIMARY,k1,k2	k1	4	NULL	5	99.00	Using where
 1	SIMPLE	t2	NULL	ref	k1	k1	4	test.t1.i1	1	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`i1` AS `i1`,`test`.`t1`.`i2` AS `i2` from `test`.`t1` straight_join `test`.`t2` where ((`test`.`t2`.`i1` = `test`.`t1`.`i1`) and (`test`.`t1`.`pk` > 100)) order by `test`.`t1`.`i1` limit 5
@@ -192,7 +192,7 @@ test.t2	analyze	status	OK
 EXPLAIN SELECT * FROM t1 STRAIGHT_JOIN t2 ON t1.i1=t2.i1
 WHERE t1.pk > 7000 ORDER BY t1.i1 LIMIT 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	PRIMARY,k1,k2	k1	4	NULL	6	500.00	Using where
+1	SIMPLE	t1	NULL	index	PRIMARY,k1,k2	k1	4	NULL	6	30.00	Using where
 1	SIMPLE	t2	NULL	ref	k1	k1	4	test.t1.i1	2	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`i1` AS `i1`,`test`.`t1`.`i2` AS `i2`,`test`.`t2`.`pk` AS `pk`,`test`.`t2`.`i1` AS `i1` from `test`.`t1` straight_join `test`.`t2` where ((`test`.`t2`.`i1` = `test`.`t1`.`i1`) and (`test`.`t1`.`pk` > 7000)) order by `test`.`t1`.`i1` limit 5
@@ -209,7 +209,7 @@ pk	i1	i2	pk	i1
 EXPLAIN SELECT * FROM t1 FORCE INDEX FOR ORDER BY (k2) STRAIGHT_JOIN t2 ON
 t1.i1=t2.i1 WHERE t1.pk > 7000 ORDER BY t1.i1 LIMIT 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	PRIMARY,k1,k2	k2	8	NULL	6	500.00	Using where; Using index
+1	SIMPLE	t1	NULL	index	PRIMARY,k1,k2	k2	8	NULL	6	30.00	Using where; Using index
 1	SIMPLE	t2	NULL	ref	k1	k1	4	test.t1.i1	2	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`i1` AS `i1`,`test`.`t1`.`i2` AS `i2`,`test`.`t2`.`pk` AS `pk`,`test`.`t2`.`i1` AS `i1` from `test`.`t1` FORCE INDEX FOR ORDER BY (`k2`) straight_join `test`.`t2` where ((`test`.`t2`.`i1` = `test`.`t1`.`i1`) and (`test`.`t1`.`pk` > 7000)) order by `test`.`t1`.`i1` limit 5

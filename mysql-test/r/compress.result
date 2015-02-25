@@ -631,13 +631,13 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`t2nr` AS `t2nr`,`test`.`t1`.`period` AS `period`,`test`.`t1`.`name` AS `name`,`test`.`t1`.`companynr` AS `companynr`,`test`.`t1`.`price` AS `price`,`test`.`t1`.`price2` AS `price2`,`test`.`t3`.`t2nr` AS `t2nr`,`test`.`t3`.`period` AS `period`,`test`.`t3`.`name` AS `name`,`test`.`t3`.`companynr` AS `companynr`,`test`.`t3`.`price` AS `price`,`test`.`t3`.`price2` AS `price2` from `test`.`t3` `t1` join `test`.`t3` where (`test`.`t3`.`period` = `test`.`t1`.`period`) order by `test`.`t3`.`period`
 explain select * from t3 as t1,t3 where t1.period=t3.period order by t3.period limit 10;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	index	period	period	4	NULL	1	4181000.00	NULL
+1	SIMPLE	t3	NULL	index	period	period	4	NULL	1	100.00	NULL
 1	SIMPLE	t1	NULL	ref	period	period	4	test.t3.period	4181	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`t2nr` AS `t2nr`,`test`.`t1`.`period` AS `period`,`test`.`t1`.`name` AS `name`,`test`.`t1`.`companynr` AS `companynr`,`test`.`t1`.`price` AS `price`,`test`.`t1`.`price2` AS `price2`,`test`.`t3`.`t2nr` AS `t2nr`,`test`.`t3`.`period` AS `period`,`test`.`t3`.`name` AS `name`,`test`.`t3`.`companynr` AS `companynr`,`test`.`t3`.`price` AS `price`,`test`.`t3`.`price2` AS `price2` from `test`.`t3` `t1` join `test`.`t3` where (`test`.`t1`.`period` = `test`.`t3`.`period`) order by `test`.`t3`.`period` limit 10
 explain select * from t3 as t1,t3 where t1.period=t3.period order by t1.period limit 10;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	period	period	4	NULL	1	4181000.00	NULL
+1	SIMPLE	t1	NULL	index	period	period	4	NULL	1	100.00	NULL
 1	SIMPLE	t3	NULL	ref	period	period	4	test.t1.period	4181	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`t2nr` AS `t2nr`,`test`.`t1`.`period` AS `period`,`test`.`t1`.`name` AS `name`,`test`.`t1`.`companynr` AS `companynr`,`test`.`t1`.`price` AS `price`,`test`.`t1`.`price2` AS `price2`,`test`.`t3`.`t2nr` AS `t2nr`,`test`.`t3`.`period` AS `period`,`test`.`t3`.`name` AS `name`,`test`.`t3`.`companynr` AS `companynr`,`test`.`t3`.`price` AS `price`,`test`.`t3`.`price2` AS `price2` from `test`.`t3` `t1` join `test`.`t3` where (`test`.`t3`.`period` = `test`.`t1`.`period`) order by `test`.`t1`.`period` limit 10

@@ -2024,6 +2024,9 @@ check_reverse_order:
       }
 
       DBUG_ASSERT(tab->type() != JT_REF_OR_NULL && tab->type() != JT_FT);
+
+      // Changing the key makes filter_effect obsolete
+      tab->position()->filter_effect= COND_FILTER_STALE;
     }
     else if (best_key >= 0)
     {
@@ -2064,6 +2067,7 @@ check_reverse_order:
           tab->ref().key= -1;
           tab->ref().key_parts= 0;
         }
+        tab->position()->filter_effect= COND_FILTER_STALE;
       }
       else if (tab->type() != JT_ALL)
       {
@@ -2080,9 +2084,7 @@ check_reverse_order:
         tab->ref().key_parts=0;		// Don't use ref key.
         if (tab->quick()->is_loose_index_scan())
           join->tmp_table_param.precomputed_group_by= TRUE;
-        /*
-          TODO: update the number of records in tab->position
-        */
+        tab->position()->filter_effect= COND_FILTER_STALE;
       }
     } // best_key >= 0
 
@@ -2095,7 +2097,6 @@ check_reverse_order:
         if (!tmp)
         {
           /* purecov: begin inspected */
-          tab->set_rowcount(0);
           can_skip_sorting= false;      // Reverse sort failed -> filesort
           goto fix_ICP;
           /* purecov: end */
@@ -2104,6 +2105,7 @@ check_reverse_order:
           delete tab->quick();
         tab->set_quick(tmp);
         tab->set_type(calc_join_type(tmp->get_type()));
+        tab->position()->filter_effect= COND_FILTER_STALE;
       }
       else if ((tab->type() == JT_REF || tab->type() == JT_INDEX_SCAN) &&
                tab->ref().key_parts <= used_key_parts)
@@ -2128,6 +2130,7 @@ check_reverse_order:
     }
     else if (tab->quick())
       tab->quick()->need_sorted_output();
+
   } // QEP has been modified
 
 fix_ICP:
@@ -2138,8 +2141,12 @@ fix_ICP:
   */
   if (can_skip_sorting && !no_changes)
   {
-    if (tab->type() == JT_INDEX_SCAN && select_limit < table->file->stats.records)
-      tab->set_rowcount(select_limit);
+    if (tab->type() == JT_INDEX_SCAN &&
+        select_limit < table->file->stats.records)
+    {
+      tab->position()->rows_fetched= select_limit;
+      tab->position()->filter_effect= COND_FILTER_STALE_NO_CONST;
+    }
 
     // Keep current (ordered) tab->quick()
     if (save_quick != tab->quick())
@@ -2333,6 +2340,7 @@ void JOIN::adjust_access_methods()
         if (tab->position()->sj_strategy != SJ_OPT_LOOSE_SCAN)
           tab->set_index(find_shortest_key(tab->table(), &tab->table()->covering_keys));
         tab->set_type(JT_INDEX_SCAN);      // Read with index_first / index_next
+        // From table scan to index scan, thus filter effect needs no recalc.
       }
     }
     else if (tab->type() == JT_REF)
@@ -2351,14 +2359,8 @@ void JOIN::adjust_access_methods()
           add_alnum("new_type", join_type_str[tab->type()]).
           add_alnum("cause", "uses_more_keyparts");
 
-        tab->position()->rows_fetched= rows2double(tab->quick()->records);
         tab->use_quick= QS_RANGE;
-
-        tab->position()->filter_effect=
-          calculate_condition_filter(tab, NULL,
-                                     tab->prefix_tables() & ~tl->map(),
-                                     tab->position()->rows_fetched,
-                                     false);
+        tab->position()->filter_effect= COND_FILTER_STALE;
       }
       else
       {
@@ -2568,7 +2570,6 @@ bool JOIN::get_best_combination()
 
     best_ref[target]= tab;
     tab->set_idx(target);
-    tab->set_rowcount((ha_rows) pos->rows_fetched);
     tab->set_position(pos);
     TABLE *const table= tab->table();
     if (tab->type() != JT_CONST && tab->type() != JT_SYSTEM)
@@ -2588,12 +2589,7 @@ bool JOIN::get_best_combination()
         if (tab->quick())
           tab->set_type(calc_join_type(tab->quick()->get_type()));
         else
-        {
           tab->set_type(JT_ALL);
-          // Update number of rows
-          tab->table_ref->fetch_number_of_rows();
-          tab->set_rowcount(table->file->stats.records);
-        }
       }
       else
         // REF or RANGE, clarify later when prefix tables are set for JOIN_TABs
@@ -8930,6 +8926,9 @@ static bool make_join_select(JOIN *join, Item *cond)
 
           DBUG_ASSERT(tab->const_keys.is_subset(tab->keys()));
 
+          const join_type orig_join_type= tab->type();
+          const QUICK_SELECT_I *const orig_quick= tab->quick();
+
           if (cond &&                                                // 1a
               (tab->keys() != tab->const_keys) &&                      // 1b
               (i > 0 ||                                              // 1c
@@ -9097,19 +9096,10 @@ static bool make_join_select(JOIN *join, Item *cond)
               Access method changed. This is after deciding join order
               and access method for all other tables so the info
               updated below will not have any effect on the execution
-              plan. However, if this is EXPLAIN, rows_fetched and
-              filter_effect need to reflect the new access method.
+              plan.
             */
-	    if (tab->quick())
-            {
+            if (tab->quick())
               tab->set_type(calc_join_type(tab->quick()->get_type()));
-              tab->position()->rows_fetched= (double)tab->quick()->records;
-              tab->position()->filter_effect=
-                calculate_condition_filter(tab, NULL,
-                                           used_tables & ~tab->table_ref->map(),
-                                           tab->position()->rows_fetched,
-                                           false);
-            }
 
           } // end of "if (recheck_reason != DONT_RECHECK)"
 
@@ -9158,6 +9148,11 @@ static bool make_join_select(JOIN *join, Item *cond)
             else
               tab->use_quick= QS_RANGE;
           }
+
+          if (tab->type() != orig_join_type ||
+              tab->quick() != orig_quick)       // Access method changed
+            tab->position()->filter_effect= COND_FILTER_STALE;
+
 	}
       }
 
