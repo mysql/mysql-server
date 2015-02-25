@@ -1,7 +1,7 @@
 # For easier human reading (MTR doesn't care), please keep entries
 # in alphabetical order. This also helps with merge conflict resolution.
 
-group_replication.rpl_gcs_autoincrement_parallel_insert              # Unstable test 2015-01-26 Nuno Carvalho
-group_replication.rpl_gcs_crash_safe_master                          # Unstable test 2015-01-26 Nuno Carvalho
-group_replication.rpl_gcs_invoked_features                           # Unstable test 2015-01-26 Nuno Carvalho
-group_replication.rpl_gcs_parallel_update                            # BUG#20359207  2015-01-26 Nuno Carvalho
+group_replication.group_replication_autoincrement_parallel_insert              # Unstable test 2015-01-26 Nuno Carvalho
+group_replication.group_replication_crash_safe_master                          # Unstable test 2015-01-26 Nuno Carvalho
+group_replication.group_replication_invoked_features                           # Unstable test 2015-01-26 Nuno Carvalho
+group_replication.group_replication_parallel_update                            # BUG#20359207  2015-01-26 Nuno Carvalho

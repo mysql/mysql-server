@@ -34,38 +34,6 @@ IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
   INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/plugin/group_replication/include)
   INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/plugin/group_replication/gcs/interface)
   INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/plugin/group_replication/gcs/bindings/corosync)
-  SET(GCS_SOURCES
-    gcs_ps_information.cc gcs_ps_information.h
-    gcs_plugin.cc gcs_plugin.h
-    gcs_member_info.cc gcs_member_info.h
-    gcs_binding_factory.cc gcs_binding_factory.h
-    gcs_plugin_log.h
-    gcs_plugin_psi.cc gcs_plugin_psi.h
-    gcs_plugin_server_include.h
-    gcs_plugin_utils.h
-    observer_server_actions.cc observer_server_actions.h
-    observer_server_state.cc observer_server_state.h
-    observer_trans.cc observer_trans.h
-    gcs_plugin_messages.cc gcs_plugin_messages.h
-    gcs_certifier.cc gcs_certifier.h
-    gcs_event_handlers.cc gcs_event_handlers.h
-    pipeline_factory.h pipeline_factory.cc
-    pipeline_interfaces.h
-    gcs_replication_threads_api.h gcs_replication_threads_api.cc
-    gcs_applier.h gcs_applier.cc
-    gcs_recovery_message.cc gcs_recovery_message.h
-    gcs_recovery.cc gcs_recovery.h
-    gcs_certifier_stats_interface.h
-    handlers/gcs_pipeline_interface.h
-    handlers/certification_handler.h
-    handlers/certification_handler.cc
-    handlers/event_cataloger.h
-    handlers/event_cataloger.cc
-    handlers/applier_handler.h
-    handlers/applier_handler.cc
-  )
-
-  ADD_LIBRARY(gcs_unit_test_resource STATIC  gcs_member_info.cc)
 
   ADD_LIBRARY(gcs_interface STATIC  gcs/interface/gcs_group_identifier.cc
                                     gcs/interface/gcs_member_identifier.cc
@@ -88,15 +56,11 @@ IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
                                   gcs/bindings/corosync/gcs_corosync_utils.cc
                                   gcs/bindings/corosync/gcs_corosync_utils.h)
 
-  MYSQL_ADD_PLUGIN(group_replication ${GCS_SOURCES}
-                   MODULE_ONLY MODULE_OUTPUT_NAME "group_replication")
-
-
   if (LIBCPG)
     TARGET_LINK_LIBRARIES(gcs_corosync gcs_interface ${LIBCPG} ${LIBPTHREAD} )
-    TARGET_LINK_LIBRARIES(group_replication gcs_interface gcs_corosync)
   endif(LIBCPG)
 
+  ADD_SUBDIRECTORY(src)
 
   if(INSTALL_PLUGINTESTDIR AND INSTALL_MYSQLTESTDIR)
     INSTALL(
