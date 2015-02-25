@@ -3466,7 +3466,7 @@ bool
 validate_gc_assignment(THD * thd, List<Item> *fields,
                        List<Item> *values, TABLE *table)
 {
-  Field **fld;
+  Field **fld= NULL;
   MY_BITMAP *bitmap= table->write_set;
   bool use_table_field= false;
   DBUG_ENTER("validate_gc_assignment");
