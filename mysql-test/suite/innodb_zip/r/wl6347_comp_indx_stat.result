@@ -9,7 +9,6 @@
 #******************************************************************
 # set the flags
 SET GLOBAL innodb_file_per_table=on;
-SET GLOBAL innodb_file_format='barracuda';
 SET GLOBAL innodb_cmp_per_index_enabled=ON;
 SET GLOBAL innodb_compression_level=0;
 #******************************************************************
@@ -326,7 +325,6 @@ The size of the tab5.ibd file: 5242880
 SET GLOBAL innodb_cmp_per_index_enabled=ON;
 # set the flags
 SET GLOBAL innodb_file_per_table=on;
-SET GLOBAL innodb_file_format='barracuda';
 SET GLOBAL innodb_compression_level=0;
 # fetch the compressed page and check the stats
 # The stats figure may be different/same for each restart.
@@ -673,7 +671,6 @@ The size of the tab5.ibd file: 2097152
 SET GLOBAL innodb_cmp_per_index_enabled=ON;
 # set the flags
 SET GLOBAL innodb_file_per_table=on;
-SET GLOBAL innodb_file_format='barracuda';
 SET GLOBAL innodb_compression_level=0;
 # fetch the compressed page and check the stats
 # The stats figure may be different/same for each restart.
@@ -1655,7 +1652,6 @@ SET GLOBAL innodb_cmp_per_index_enabled=0;
 SET GLOBAL innodb_cmp_per_index_enabled=1;
 # set the flags
 SET GLOBAL innodb_file_per_table=on;
-SET GLOBAL innodb_file_format='barracuda';
 SET GLOBAL innodb_compression_level=9;
 #******************************************************************
 # Test 2-1K: innodb_cmp_per_index_enabled=ON and innodb_compression_level=9 with page size 1K
@@ -1973,7 +1969,6 @@ The size of the tab5.ibd file: 65536
 SET GLOBAL innodb_cmp_per_index_enabled=ON;
 # set the flags
 SET GLOBAL innodb_file_per_table=on;
-SET GLOBAL innodb_file_format='barracuda';
 SET GLOBAL innodb_compression_level=9;
 # fetch the compressed page and check the stats
 # The stats figure may be different/same for each restart.
@@ -2322,7 +2317,6 @@ The size of the tab5.ibd file: 65536
 SET GLOBAL innodb_cmp_per_index_enabled=ON;
 # set the flags
 SET GLOBAL innodb_file_per_table=on;
-SET GLOBAL innodb_file_format='barracuda';
 SET GLOBAL innodb_compression_level=9;
 # fetch the compressed page and check the stats
 # The stats figure may be different/same for each restart.
@@ -4806,8 +4800,6 @@ SELECT @@innodb_cmp_per_index_enabled;
 @@innodb_cmp_per_index_enabled	1
 SELECT @@innodb_compression_failure_threshold_pct;
 @@innodb_compression_failure_threshold_pct	0
-SELECT @@innodb_file_format;
-@@innodb_file_format	Barracuda
 SELECT @@innodb_file_per_table;
 @@innodb_file_per_table	1
 SELECT @@innodb_compression_level;
@@ -5127,7 +5119,6 @@ SET GLOBAL innodb_cmp_per_index_enabled=ON;
 # set the flags
 SET GLOBAL innodb_compression_failure_threshold_pct=0;
 SET GLOBAL innodb_file_per_table=on;
-SET GLOBAL innodb_file_format='barracuda';
 # fetch the compressed page and check the stats
 # The stats figure may be different/same for each restart.
 ===============
@@ -6422,7 +6413,6 @@ SET GLOBAL innodb_cmp_per_index_enabled=OFF;
 SET GLOBAL innodb_cmp_per_index_enabled=ON;
 # set the flags
 SET GLOBAL innodb_file_per_table=on;
-SET GLOBAL innodb_file_format='barracuda';
 SET GLOBAL innodb_cmp_per_index_enabled=ON;
 SET GLOBAL innodb_compression_failure_threshold_pct=10;
 SET GLOBAL innodb_compression_level=Default;
@@ -6431,8 +6421,6 @@ SELECT @@innodb_cmp_per_index_enabled;
 @@innodb_cmp_per_index_enabled	1
 SELECT @@innodb_compression_failure_threshold_pct;
 @@innodb_compression_failure_threshold_pct	10
-SELECT @@innodb_file_format;
-@@innodb_file_format	Barracuda
 SELECT @@innodb_file_per_table;
 @@innodb_file_per_table	1
 SELECT @@innodb_compression_level;
@@ -6752,7 +6740,6 @@ SET GLOBAL innodb_cmp_per_index_enabled=ON;
 # set the flags
 SET GLOBAL innodb_compression_failure_threshold_pct=10;
 SET GLOBAL innodb_file_per_table=on;
-SET GLOBAL innodb_file_format='barracuda';
 SET GLOBAL innodb_compression_failure_threshold_pct=10;
 # fetch the compressed page and check the stats
 # The stats figure may be different/same for each restart.
@@ -8044,7 +8031,6 @@ DROP TABLE tab5;
 SET GLOBAL innodb_cmp_per_index_enabled=0;
 SET GLOBAL innodb_cmp_per_index_enabled=1;
 SET GLOBAL innodb_file_per_table=ON;
-SET GLOBAL innodb_file_format='Barracuda';
 SET GLOBAL innodb_compression_level=default;
 SET GLOBAL innodb_compression_failure_threshold_pct=default;
 # create a table page size=1K
@@ -8094,6 +8080,5 @@ DROP TABLE tab5, test.tab5;
 DROP DATABASE sb;
 # reset the flags
 SET GLOBAL innodb_file_per_table=default;
-SET GLOBAL innodb_file_format=default;
 SET GLOBAL innodb_cmp_per_index_enabled=default;
 SET GLOBAL innodb_compression_failure_threshold_pct=default;

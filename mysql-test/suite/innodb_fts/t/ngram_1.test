@@ -11,7 +11,6 @@ if (`SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE LOWER(varia
 }
 
 LET $per_table = `select @@innodb_file_per_table`;
-LET $format = `select @@innodb_file_format`;
 
 -- echo # Test Case : With default row type
 LET $table_row_format =  ROW_FORMAT=DEFAULT ;
@@ -29,14 +28,11 @@ LET $table_row_format =  ROW_FORMAT=REDUNDANT ;
 
 -- echo # Test Case : With Dynamic row type
 LET $table_row_format =  ROW_FORMAT=DYNAMIC ;
-SET GLOBAL innodb_file_format='Barracuda';
 --source suite/innodb_fts/include/ngram.inc
 
 
 -- echo # Test Case : With compressed row type
 LET $table_row_format =  ROW_FORMAT=COMPRESSED ;
-SET GLOBAL innodb_file_format='Barracuda';
 --source suite/innodb_fts/include/ngram.inc
 
-EVAL SET GLOBAL innodb_file_format = $format;
 EVAL SET GLOBAL innodb_file_per_table = $per_table;

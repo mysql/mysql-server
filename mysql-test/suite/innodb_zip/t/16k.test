@@ -8,15 +8,7 @@ SET default_storage_engine=InnoDB;
 let $MYSQLD_DATADIR= `select @@datadir`;
 call mtr.add_suppression("Cannot add field .* in table .* because after adding it, the row size is");
 # These values can change during the test
-let $innodb_file_format_orig = `SELECT @@innodb_file_format`;
-let $innodb_file_format_max_orig = `SELECT @@innodb_file_format_max`;
-let $innodb_file_per_table_orig = `SELECT @@innodb_file_per_table`;
-let $innodb_large_prefix_orig = `SELECT @@innodb_large_prefix`;
-let $innodb_strict_mode_orig = `SELECT @@session.innodb_strict_mode`;
 --enable_query_log
-
-SET GLOBAL innodb_file_format = `Barracuda`;
-SET GLOBAL innodb_file_per_table = ON;
 
 --echo # Test 1) Show the page size from Information Schema
 --disable_warnings
@@ -305,7 +297,6 @@ CREATE TABLE t5 (id int PRIMARY KEY) ENGINE=innodb KEY_BLOCK_SIZE=16;
 SHOW WARNINGS;
 SET GLOBAL innodb_file_per_table = ON;
 SET GLOBAL innodb_file_format = `Antelope`;
-SHOW VARIABLES LIKE 'innodb_file%';
 --error ER_ILLEGAL_HA
 CREATE TABLE t4 (id int PRIMARY KEY) ENGINE=innodb KEY_BLOCK_SIZE=8;
 SHOW WARNINGS;
@@ -514,9 +505,6 @@ CREATE INDEX t1st ON t1 (s(767), t(767));
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
 
-SET GLOBAL innodb_file_format = `Barracuda`;
-SET GLOBAL innodb_file_per_table = ON;
-
 --echo # Bug #12429576 - Test an assertion failure on purge.
 # This test is not in innodb_8k or innodb_4k since the bug is not about
 # page size.  It just tests the condition that caused the assertion.
@@ -576,8 +564,6 @@ DELETE FROM t4_purge;
 # A secondary index tuple is found to be too long to fit into a page.
 # This test is not in innodb_8k or innodb_4k since the bug is not about
 # page size.  It just tests the condition that caused the assertion.
-SET GLOBAL innodb_file_per_table=on;
-SET GLOBAL innodb_file_format='Barracuda';
 SET @r=REPEAT('a',500);
 CREATE TABLE t12637786(a int,
  v1 varchar(500), v2 varchar(500), v3 varchar(500),
@@ -736,15 +722,3 @@ DROP TABLE t1;
 DROP TABLE t1_purge, t2_purge, t3_purge, t4_purge;
 DROP TABLE t12637786;
 DROP TABLE t12963823;
-
-#
-# restore environment to the state it was before this test execution
-#
-
---disable_query_log
-EVAL SET GLOBAL innodb_file_format = $innodb_file_format_orig;
-EVAL SET GLOBAL innodb_file_format_max = $innodb_file_format_max_orig;
-EVAL SET GLOBAL innodb_file_per_table = $innodb_file_per_table_orig;
-EVAL SET GLOBAL innodb_large_prefix = $innodb_large_prefix_orig;
-EVAL SET SESSION innodb_strict_mode = $innodb_strict_mode_orig;
---enable_query_log

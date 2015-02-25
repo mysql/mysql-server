@@ -2,17 +2,11 @@
 # CREATE TABLESPACE related tests for 8k page sizes.
 #
 SET DEFAULT_STORAGE_ENGINE=InnoDB;
-# Strict-mode has no affect on CREATE TABLESPACE. But it does affect
+# Strict-mode has no effect on CREATE TABLESPACE. But it does affect
 # whether an invalid KEY_BLOCK_SIZE is rejected or adjusted.
-SET SESSION innodb_strict_mode = ON;
 SHOW VARIABLES LIKE 'innodb_strict_mode';
 Variable_name	Value
 innodb_strict_mode	ON
-SET GLOBAL innodb_file_format = 'barracuda';
-SHOW VARIABLES LIKE 'innodb_file_format';
-Variable_name	Value
-innodb_file_format	Barracuda
-SET GLOBAL innodb_file_per_table = ON;
 SHOW VARIABLES LIKE 'innodb_file_per_table';
 Variable_name	Value
 innodb_file_per_table	ON
@@ -439,6 +433,8 @@ DROP TABLE t_com_in_8k;
 DROP TABLE t_dyn_in_8k;
 SET SESSION innodb_strict_mode = ON;
 SET GLOBAL innodb_file_format = 'barracuda';
+Warnings:
+Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
 SET GLOBAL innodb_file_per_table = ON;
 #
 # Create compressed tables explicitly as file_per_table tablespaces.

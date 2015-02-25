@@ -2,10 +2,6 @@ SET GLOBAL innodb_file_per_table = 1;
 SELECT @@innodb_file_per_table;
 @@innodb_file_per_table
 1
-SET GLOBAL innodb_file_format = `Barracuda`;
-SELECT @@innodb_file_format;
-@@innodb_file_format
-Barracuda
 SET SESSION innodb_strict_mode=1;
 SELECT @@SESSION.innodb_strict_mode;
 @@SESSION.innodb_strict_mode
@@ -46,10 +42,6 @@ SET GLOBAL innodb_file_per_table = 1;
 SELECT @@innodb_file_per_table;
 @@innodb_file_per_table
 1
-SET GLOBAL innodb_file_format = `Barracuda`;
-SELECT @@innodb_file_format;
-@@innodb_file_format
-Barracuda
 SET SESSION innodb_strict_mode=1;
 SELECT @@SESSION.innodb_strict_mode;
 @@SESSION.innodb_strict_mode
@@ -574,5 +566,3 @@ set global innodb_monitor_disable = default;
 set global innodb_monitor_reset = default;
 set global innodb_monitor_reset_all = default;
 SET GLOBAL INNODB_FILE_PER_TABLE=1;
-SET GLOBAL INNODB_FILE_FORMAT=Antelope;
-SET SESSION innodb_strict_mode=0;

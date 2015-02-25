@@ -624,6 +624,7 @@ select * from t1 order by c1	{
 SET @@max_length_for_sort_data = @save_max_length_for_sort_data;
 SET @@sort_buffer_size= @save_sort_buffer_size;
 DROP TABLE t1;
+SET innodb_strict_mode=off;
 CREATE TABLE t1 (
 c1 CHAR(255) NOT NULL DEFAULT '',
 c2 CHAR(255) NOT NULL DEFAULT '',
@@ -1012,7 +1013,7 @@ SELECT * FROM t1 ORDER BY c1	{
               "rows": 0,
               "examined_rows": 0,
               "number_of_tmp_files": 0,
-              "sort_buffer_size": 272,
+              "sort_buffer_size": 4040,
               "sort_mode": "<sort_key, rowid>"
             }
           }

@@ -42,7 +42,6 @@ call mtr.add_suppression("The table 't1' is full");
 # create test-bed
 #
 let $per_table = `select @@innodb_file_per_table`;
-let $format = `select @@innodb_file_format`;
 
 set global innodb_file_per_table = off;
 let $MYSQL_TMP_DIR = `select @@tmpdir`;
@@ -72,9 +71,6 @@ let notemptablespacefile = $args --innodb_temp_data_file_path="";
 #    insert/delete/update/select
 #    create/drop/alter/truncate/import-discard (though blocked).
 #
---disable_warnings
-drop table if exists t1;
---enable_warnings
 select @@global.innodb_file_per_table;
 create temporary table t1 (i int, f float, c char(100)) engine=innodb;
 #
@@ -97,7 +93,6 @@ drop table t1;
 --echo #files in MYSQL_TMP_DIR
 --list_files $MYSQL_TMP_DIR/ *.ibd
 set global innodb_file_per_table = 1;
-set global innodb_file_format = 'Barracuda';
 select @@global.innodb_file_per_table;
 create temporary table t1
 	(i int, f float, c char(100)) engine = innodb key_block_size = 4;
@@ -115,7 +110,6 @@ alter table t1 discard tablespace;
 # drop table
 drop table t1;
 set global innodb_file_per_table = off;
-eval set global innodb_file_format = $format;
 
 #-----------------------------------------------------------------------------
 #
@@ -233,8 +227,8 @@ drop table t1;
 # 9. tests for different row format types and key block sizes for
 #     compressed tables.
 #
+set innodb_strict_mode = off;
 --disable_warnings
-use test;
 set global innodb_file_per_table = 0;
 set global innodb_file_format = 'Antelope';
 create temporary table t (
@@ -276,16 +270,17 @@ create temporary table t (
 	engine = innodb row_format = dynamic;
 --replace_regex /[0-9]+/NUMBER/
 show warnings;
-set innodb_strict_mode = off;
 #
 set global innodb_file_format = 'Barracuda';
+set innodb_strict_mode = off;
 create temporary table t (
 	i int)
 	engine = innodb row_format = compressed key_block_size = 8;
 --replace_regex /[0-9]+/NUMBER/
-# explicitiy disabling it else it will generate warning of ignoring
+# explicitly disabling it else it will generate warning of ignoring
 # key_block_size when suite is run with innodb-page-size=4k
 #show warnings;
+set innodb_strict_mode = default;
 --echo #files in MYSQL_TMP_DIR
 --replace_regex /#sql[0-9a-f_]*/#sql<temporary>/
 --list_files $MYSQL_TMP_DIR/ *.ibd

@@ -35,10 +35,6 @@ call mtr.add_suppression("\\[ERROR\\] InnoDB: Cannot open datafile for read-only
 #
 # create test-bed
 #
-let $per_table = `select @@innodb_file_per_table`;
-let $format = `select @@innodb_file_format`;
-
-eval set global innodb_file_per_table = on;
 let $MYSQL_TMP_DIR = `select @@tmpdir`;
 let NEW_DATA_DIR = $MYSQL_TMP_DIR/alt-dir;
 let $MYSQL_DATA_DIR = `select @@datadir`;
@@ -48,9 +44,6 @@ let SEARCH_FILE = $MYSQLTEST_VARDIR/log/my_restart.err;
 #
 # 1. Hit crash point while truncate with data-directory option set.
 #
-#
-use test;
-set global innodb_file_per_table = 1;
 #
 --mkdir $NEW_DATA_DIR
 --replace_result $NEW_DATA_DIR NEW_DATA_DIR
@@ -78,11 +71,3 @@ drop table t1;
 #
 --rmdir $NEW_DATA_DIR/test
 --rmdir $NEW_DATA_DIR
-
-#-----------------------------------------------------------------------------
-#
-# remove test-bed
-#
-eval set global innodb_file_format = $format;
-eval set global innodb_file_per_table = $per_table;
-

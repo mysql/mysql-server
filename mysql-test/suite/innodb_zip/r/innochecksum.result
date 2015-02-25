@@ -2,7 +2,6 @@
 call mtr.add_suppression("InnoDB: Unable to read tablespace .* page no .* into the buffer pool after 100 attempts");
 call mtr.add_suppression("InnoDB: Warning: database page corruption or a failed");
 SET GLOBAL innodb_file_per_table=on;
-SET GLOBAL innodb_file_format='barracuda';
 CREATE TABLE tab1(c1 INT PRIMARY KEY,c2 VARCHAR(20)) ENGINE=InnoDB;
 CREATE INDEX idx1 ON tab1(c2(10));
 INSERT INTO tab1 VALUES(1, 'Innochecksum InnoDB1');
@@ -81,4 +80,3 @@ c1	c2
 # restart
 DROP TABLE tab1;
 SET GLOBAL innodb_file_per_table=default;
-SET GLOBAL innodb_file_format=default;

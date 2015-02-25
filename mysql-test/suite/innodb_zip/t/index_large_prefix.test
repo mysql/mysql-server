@@ -8,13 +8,9 @@ SET default_storage_engine=InnoDB;
 call mtr.add_suppression("Cannot add field .* in table .* because after adding it, the row size is");
 --enable_query_log
 
-let $innodb_file_format_orig=`select @@innodb_file_format`;
 let $innodb_file_per_table_orig=`select @@innodb_file_per_table`;
-let $innodb_large_prefix_orig=`select @@innodb_large_prefix`;
 
-set global innodb_file_format="Barracuda";
 set global innodb_file_per_table=1;
-set global innodb_large_prefix=1;
 
 -- echo ### Test 1 ###
 # Create a table of DYNAMIC format, with a primary index of 1000 bytes in
@@ -398,11 +394,13 @@ update worklog5743 set a = (repeat("x", 25000));
 select @@session.tx_isolation;
 --connection con1
 select a = repeat("a", 20000) from worklog5743;
+--disconnect con1
 
 --connection con2
 SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
 select @@session.tx_isolation;
 select a = repeat("x", 25000) from worklog5743;
+--disconnect con2
 
 --connection default
 rollback;
@@ -438,14 +436,4 @@ create index idx2 on worklog5743(a(767));
 drop table worklog5743;
 
 
-eval SET GLOBAL innodb_file_format=$innodb_file_format_orig;
 eval SET GLOBAL innodb_file_per_table=$innodb_file_per_table_orig;
-eval SET GLOBAL innodb_large_prefix=$innodb_large_prefix_orig;
---connection con1
---disconnect con1
---source include/wait_until_disconnected.inc
---connection con2
---disconnect con2
---source include/wait_until_disconnected.inc
---connection default
-

@@ -19,14 +19,9 @@ DROP TABLE IF EXISTS t1;
 --enable_warnings
 
 let $innodb_file_per_table = `SELECT @@innodb_file_per_table`;
-let $innodb_file_format = `SELECT @@innodb_file_format`;
-let $innodb_strict_mode_orig=`select @@session.innodb_strict_mode`;
 
 SET GLOBAL innodb_file_per_table = 1;
 SELECT @@innodb_file_per_table;
-
-SET GLOBAL innodb_file_format = `Barracuda`;
-SELECT @@innodb_file_format;
 
 SET SESSION innodb_strict_mode=1;
 SELECT @@SESSION.innodb_strict_mode;
@@ -80,7 +75,11 @@ ALTER TABLE t1 DISCARD TABLESPACE;
 --copy_file $MYSQLD_TMPDIR/t1.cfg $MYSQLD_DATADIR/test/t1.cfg
 --copy_file $MYSQLD_TMPDIR/t1.ibd $MYSQLD_DATADIR/test/t1.ibd
 ALTER TABLE t1 IMPORT TABLESPACE;
+SET GLOBAL innodb_file_format=Antelope;
+SET innodb_strict_mode=off;
 ALTER TABLE t1 ENGINE InnoDB;
+SET GLOBAL innodb_file_format=default;
+SET innodb_strict_mode=default;
 SELECT COUNT(*) FROM t1;
 SELECT * FROM t1 ORDER BY b,a DESC LIMIT 3;
 SELECT * FROM t1 ORDER BY a DESC LIMIT 3;
@@ -94,9 +93,6 @@ DROP TABLE t1;
 
 SET GLOBAL innodb_file_per_table = 1;
 SELECT @@innodb_file_per_table;
-
-SET GLOBAL innodb_file_format = `Barracuda`;
-SELECT @@innodb_file_format;
 
 # restore session variable
 SET SESSION innodb_strict_mode=1;
@@ -542,6 +538,4 @@ DROP TABLE t1;
 --remove_file $MYSQLTEST_VARDIR/tmp/t1.cfg
 --remove_file $MYSQLTEST_VARDIR/tmp/t1.ibd
 
-eval SET GLOBAL INNODB_FILE_FORMAT=$innodb_file_format;
 eval SET GLOBAL INNODB_FILE_PER_TABLE=$innodb_file_per_table;
-eval SET SESSION innodb_strict_mode=$innodb_strict_mode_orig;

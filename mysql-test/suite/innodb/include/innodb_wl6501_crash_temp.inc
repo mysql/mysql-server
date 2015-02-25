@@ -44,9 +44,9 @@ let SEARCH_FILE = $MYSQLTEST_VARDIR/log/my_restart.err;
 #
 --echo "1. Hit crash point on completing drop of all indexes before creation"
 --echo "   of index is commenced."
-use test;
 eval set global innodb_file_per_table = $wl6501_file_per_table;
 eval set global innodb_file_format = $wl6501_file_format;
+set innodb_strict_mode=off;
 --disable_warnings
 eval create $wl6501_temp table t (
 	i int, f float, c char,
@@ -75,9 +75,9 @@ check table t;
 #
 --echo "2. Hit crash point after data is updated to system-table and"
 --echo "   in-memory dict."
-use test;
 eval set global innodb_file_per_table = $wl6501_file_per_table;
 eval set global innodb_file_format = $wl6501_file_format;
+set innodb_strict_mode=off;
 --disable_warnings
 eval create $wl6501_temp table t (
 	i int, f float, c char,
@@ -106,4 +106,3 @@ check table t;
 #
 eval set global innodb_file_format = $format;
 eval set global innodb_file_per_table = $per_table;
-

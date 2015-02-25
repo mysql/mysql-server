@@ -18,9 +18,7 @@ LET $data_directory_clause = DATA DIRECTORY='$MYSQL_TMP_DIR/alt_dir';
 LET $index_directory_clause = INDEX DIRECTORY='$MYSQL_TMP_DIR/alt_dir';
 
 # These values can change during the test
-LET $innodb_file_format_orig=`select @@innodb_file_format`;
 LET $innodb_file_per_table_orig=`select @@innodb_file_per_table`;
-LET $innodb_strict_mode_orig=`select @@session.innodb_strict_mode`;
 
 --echo #
 --echo # CREATE TABLE ... DATA DIRECTORY
@@ -467,8 +465,6 @@ DROP TABLE emp;
 --rmdir $MYSQL_TMP_DIR/alt_dir
 
 --disable_query_log
-EVAL SET GLOBAL innodb_file_format=$innodb_file_format_orig;
 EVAL SET GLOBAL innodb_file_per_table=$innodb_file_per_table_orig;
-EVAL SET SESSION innodb_strict_mode=$innodb_strict_mode_orig;
 --enable_query_log
 

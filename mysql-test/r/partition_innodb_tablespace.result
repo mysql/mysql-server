@@ -234,7 +234,6 @@ MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p2#sp#s5.ibd
 # Verifying .frm, .isl & .ibd files
 DROP TABLE t1;
 # Same as above except with ROW_FORMAT=Dyamic.
-SET GLOBAL innodb_file_format = Barracuda;
 SET GLOBAL innodb_file_per_table = ON;
 CREATE TABLE t1 (id INT, purchased DATE)
 engine = innodb row_format = dynamic

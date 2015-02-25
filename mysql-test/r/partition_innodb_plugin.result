@@ -36,12 +36,6 @@ call mtr.add_suppression("\\[ERROR\\] InnoDB: Table `test`.`t1` .* Partition.* I
 #
 # Bug#55091: Server crashes on ADD PARTITION after a failed attempt
 #
-SET @old_innodb_file_format = @@global.innodb_file_format;
-SET @old_innodb_file_per_table = @@global.innodb_file_per_table;
-SET @old_innodb_strict_mode = @@global.innodb_strict_mode;
-SET @@global.innodb_file_format = Barracuda,
-@@global.innodb_file_per_table = ON,
-@@global.innodb_strict_mode = ON;
 # Connection con1
 CREATE TABLE t1 (id INT NOT NULL
 PRIMARY KEY,
@@ -97,6 +91,4 @@ t1	CREATE TABLE `t1` (
 PARTITIONS 3 */
 DROP TABLE t1;
 # Connection default
-SET @@global.innodb_strict_mode = @old_innodb_strict_mode;
-SET @@global.innodb_file_format = @old_innodb_file_format;
-SET @@global.innodb_file_per_table = @old_innodb_file_per_table;
+SET GLOBAL innodb_file_per_table = default;

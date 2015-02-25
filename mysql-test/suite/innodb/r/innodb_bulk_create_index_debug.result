@@ -256,7 +256,6 @@ SET i = i + 1;
 END WHILE;
 COMMIT;
 END|
-SET GLOBAL innodb_file_format=Barracuda;
 CREATE TABLE t1(
 class   INT,
 id      INT,
@@ -283,7 +282,6 @@ SELECT * FROM t1 WHERE title = 'a10010';
 class	id	title
 DROP TABLE t1;
 # Test Blob
-SET GLOBAL innodb_file_format=Barracuda;
 CREATE TABLE t1(
 a INT PRIMARY KEY,
 b TEXT,
@@ -311,7 +309,6 @@ CHAR_LENGTH(b)
 40000
 60000
 DROP TABLE t1;
-SET GLOBAL innodb_file_format=Barracuda;
 CREATE TABLE t1(
 class   INT,
 id      INT,
@@ -344,7 +341,6 @@ SELECT * FROM t1 WHERE title = 'a10010';
 class	id	title
 DROP TABLE t1;
 # Test Blob
-SET GLOBAL innodb_file_format=Barracuda;
 CREATE TABLE t1(
 a INT PRIMARY KEY,
 b TEXT,
@@ -373,7 +369,6 @@ CHAR_LENGTH(b)
 40000
 60000
 DROP TABLE t1;
-SET GLOBAL innodb_file_format=default;
 DROP PROCEDURE populate_t1;
 CREATE PROCEDURE populate_t1()
 BEGIN
@@ -386,7 +381,6 @@ END WHILE;
 COMMIT;
 END|
 SET GLOBAL innodb_file_per_table=1;
-SET GLOBAL innodb_file_format=Barracuda;
 CREATE TABLE t1(
 class   INT,
 id      INT,
@@ -414,7 +408,6 @@ class	id	title
 DROP TABLE t1;
 # Test Blob
 SET GLOBAL innodb_file_per_table=1;
-SET GLOBAL innodb_file_format=Barracuda;
 CREATE TABLE t1(
 a INT PRIMARY KEY,
 b TEXT,
@@ -443,7 +436,6 @@ CHAR_LENGTH(b)
 60000
 DROP TABLE t1;
 SET GLOBAL innodb_file_per_table=1;
-SET GLOBAL innodb_file_format=Barracuda;
 CREATE TABLE t1(
 class   INT,
 id      INT,
@@ -477,7 +469,6 @@ class	id	title
 DROP TABLE t1;
 # Test Blob
 SET GLOBAL innodb_file_per_table=1;
-SET GLOBAL innodb_file_format=Barracuda;
 CREATE TABLE t1(
 a INT PRIMARY KEY,
 b TEXT,
@@ -507,5 +498,4 @@ CHAR_LENGTH(b)
 60000
 DROP TABLE t1;
 SET GLOBAL innodb_file_per_table=default;
-SET GLOBAL innodb_file_format=default;
 DROP PROCEDURE populate_t1;

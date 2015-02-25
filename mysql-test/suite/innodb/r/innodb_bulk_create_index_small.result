@@ -78,7 +78,6 @@ CHAR_LENGTH(b)
 DROP TABLE t1;
 SET GLOBAL innodb_file_per_table=default;
 SET GLOBAL innodb_file_per_table=1;
-SET GLOBAL innodb_file_format=Barracuda;
 CREATE TABLE t1(
 class	INT,
 id	INT,
@@ -145,5 +144,4 @@ SELECT CHAR_LENGTH(b) FROM t1 WHERE a=4975;
 CHAR_LENGTH(b)
 DROP TABLE t1;
 SET GLOBAL innodb_file_per_table=default;
-SET GLOBAL innodb_file_format=default;
 DROP PROCEDURE populate_t1;

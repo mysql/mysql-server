@@ -32,10 +32,7 @@ call mtr.add_suppression("InnoDB: Error number 17 means 'File exists'");
 #
 # create test-bed
 #
-let $per_table = `select @@innodb_file_per_table`;
-let $format = `select @@innodb_file_format`;
 
-eval set global innodb_file_per_table = on;
 let $WL6501_TMP_DIR = `select @@tmpdir`;
 let $WL6501_DATA_DIR = `select @@datadir`;
 let SEARCH_FILE = $MYSQLTEST_VARDIR/log/my_restart.err;
@@ -47,9 +44,9 @@ let SEARCH_FILE = $MYSQLTEST_VARDIR/log/my_restart.err;
 #
 --echo "1. Hit crash point on completing drop of all indexes before creation"
 --echo "   of index is commenced."
-use test;
 eval set global innodb_file_per_table = $wl6501_file_per_table;
 eval set global innodb_file_format = $wl6501_file_format;
+set innodb_strict_mode=off;
 --disable_warnings
 eval create $wl6501_temp table t (
 	i int, f float, c char,
@@ -83,9 +80,9 @@ drop table t;
 #
 --echo "2. Hit crash point after data is updated to system-table and"
 --echo "   in-memory dict."
-use test;
 eval set global innodb_file_per_table = $wl6501_file_per_table;
 eval set global innodb_file_format = $wl6501_file_format;
+set innodb_strict_mode=off;
 --disable_warnings
 eval create $wl6501_temp table t (
 	i int, f float, c char,
@@ -120,9 +117,9 @@ drop table t;
 #
 --echo "3. Post truncate recovery, abruptly shutdown the server."
 --echo "   On restart ensure table state is maintained."
-use test;
 eval set global innodb_file_per_table = $wl6501_file_per_table;
 eval set global innodb_file_format = $wl6501_file_format;
+set innodb_strict_mode=off;
 --disable_warnings
 eval create $wl6501_temp table t (
 	i int, f float, c char,
@@ -147,22 +144,9 @@ check table t;
 select * from t;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
 #
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 0
---echo "restarting"
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
+--source include/kill_and_restart_mysqld.inc
 #
 check table t;
 select * from t;
 select * from t where f < 2.5;
 drop table t;
-
-#-----------------------------------------------------------------------------
-#
-# remove test-bed
-#
-eval set global innodb_file_format = $format;
-eval set global innodb_file_per_table = $per_table;
-

@@ -1,6 +1,3 @@
-set global innodb_file_per_table = on;
-use test;
-set global innodb_file_per_table = 1;
 create table t1 (i int, f float)
 engine = innodb data directory = 'NEW_DATA_DIR';
 insert into t1 values (1, 1.1), (2, 2.2), (3, 3.3);
@@ -23,5 +20,3 @@ i	f
 2	2.2
 3	3.3
 drop table t1;
-set global innodb_file_format = Antelope;
-set global innodb_file_per_table = 1;
