@@ -2994,7 +2994,8 @@ static int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
 	}
       }
     }
-    old_plugin.length= 0;
+    else
+      old_plugin.length= 0;
     combo->plugin= old_plugin;
 
     /*
