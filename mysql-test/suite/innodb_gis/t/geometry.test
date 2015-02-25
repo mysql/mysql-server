@@ -14,6 +14,7 @@
 --source include/have_innodb_zip.inc
 
 SET default_storage_engine=InnoDB;
+SET innodb_strict_mode=OFF;
 
 # Turn on the geometry data print.
 SET SESSION debug="+d,row_print_geometry_data";
@@ -468,11 +469,6 @@ SELECT AVG(ST_AsText(g)) FROM gis_geometry;
 --disable_warnings
 --echo #check Datatypes with compression tables
 
-# Save innodb variables.
-let $innodb_file_format_orig=`select @@innodb_file_format`;
-let $innodb_file_format_max_orig=`select @@innodb_file_format_max`;
-SET GLOBAL innodb_file_format=barracuda;
-
 CREATE TABLE tab3(c1 POINT,c2 LINESTRING,c3 POLYGON,C4 MULTIPOINT,c5 MULTILINESTRING ,
 c6 MULTIPOLYGON,c7 GEOMETRYCOLLECTION ,c8 GEOMETRY) ENGINE=InnoDB
 KEY_BLOCK_SIZE=8 ROW_FORMAT=COMPRESSED;
@@ -707,8 +703,3 @@ DROP PROCEDURE IF EXISTS  geominout;
 DROP PROCEDURE IF EXISTS geom_insert;
 DROP TRIGGER IF EXISTS geom_trigger;
 DROP PROCEDURE IF EXISTS geom_cursor;
---disable_query_log
-eval SET GLOBAL innodb_file_format=$innodb_file_format_orig;
-eval SET GLOBAL innodb_file_format_max=$innodb_file_format_max_orig;
---enable_query_log
-

@@ -64,12 +64,10 @@ SET default_storage_engine=InnoDB;
 
 --disable_query_log
 # These values can change during the test
-LET $innodb_file_format_orig=`select @@innodb_file_format`;
 LET $innodb_file_per_table_orig=`select @@innodb_file_per_table`;
 LET $innodb_strict_mode_orig=`select @@session.innodb_strict_mode`;
 --enable_query_log
 
-SET GLOBAL innodb_file_format=`Barracuda`;
 SET GLOBAL innodb_file_per_table=ON;
 
 # The first half of these tests are with strict mode ON.
@@ -532,7 +530,6 @@ SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE
 DROP TABLE IF EXISTS t1;
 
 --disable_query_log
-EVAL SET GLOBAL innodb_file_format=$innodb_file_format_orig;
 EVAL SET GLOBAL innodb_file_per_table=$innodb_file_per_table_orig;
 EVAL SET SESSION innodb_strict_mode=$innodb_strict_mode_orig;
 --enable_query_log

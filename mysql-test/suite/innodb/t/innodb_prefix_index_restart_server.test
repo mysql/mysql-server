@@ -13,15 +13,6 @@
 --source include/not_embedded.inc
 --source include/have_innodb.inc
 --source include/have_innodb_16k.inc
-# Save innodb variables
-let $innodb_file_format_orig=`select @@innodb_file_format`;
-let $innodb_file_per_table_orig=`select @@innodb_file_per_table`;
-let $innodb_large_prefix_orig=`select @@innodb_large_prefix`;
-
-# Set Innodb file format as feature works for Barracuda file format
-set global innodb_file_format="Barracuda";
-set global innodb_file_per_table=1;
-set global innodb_large_prefix=1;
 
 #------------------------------------------------------------------------------
 # Stop the server in between when prefix index are created and see if state is

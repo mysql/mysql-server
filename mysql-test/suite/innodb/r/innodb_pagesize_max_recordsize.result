@@ -2,14 +2,13 @@ MYSQL_TMP_DIR/bootstrap.log
 # Stop DB server which was created by MTR default
 # Run the bootstrap command with page size 32k
 # Start the DB server with page size 32k
-USE test;
 SET innodb_strict_mode=ON;
 SELECT @@innodb_page_size;
 @@innodb_page_size
 32768
 SELECT @@innodb_file_format;
 @@innodb_file_format
-Antelope
+Barracuda
 SELECT @@Innodb_file_per_table;
 @@Innodb_file_per_table
 1
@@ -26,10 +25,6 @@ col54 CHAR(255),col55 CHAR(255),col56 CHAR(255),col57 CHAR(255),col58  CHAR(255)
 col60 CHAR(255),col61 CHAR(255),col62 CHAR(255),col63 CHAR(255),col64  CHAR(255), col65  CHAR(255))
 ENGINE = innodb ;
 ERROR 42000: Row size too large (> 16318). Changing some columns to TEXT or BLOB or using ROW_FORMAT=DYNAMIC or ROW_FORMAT=COMPRESSED may help. In current row format, BLOB prefix of 768 bytes is stored inline.
-SET GLOBAL innodb_file_format='Barracuda';
-SELECT @@innodb_file_format;
-@@innodb_file_format
-Barracuda
 SELECT @@innodb_file_per_table;
 @@innodb_file_per_table
 1
@@ -74,6 +69,8 @@ ENGINE = innodb ROW_FORMAT=FIXED;
 ERROR HY000: Table storage engine for 'tab5' doesn't have this option
 SET innodb_strict_mode=OFF;
 SET GLOBAL innodb_file_format='Antelope';
+Warnings:
+Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
 SELECT @@innodb_file_format;
 @@innodb_file_format
 Antelope
@@ -93,6 +90,8 @@ Warnings:
 Warning	139	Row size too large (> NNNN). Changing some columns to TEXT or BLOB or using ROW_FORMAT=DYNAMIC or ROW_FORMAT=COMPRESSED may help. In current row format, BLOB prefix of 768 bytes is stored inline.
 DROP TABLE tab5;
 SET GLOBAL innodb_file_format='Barracuda';
+Warnings:
+Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
 SELECT @@innodb_file_format;
 @@innodb_file_format
 Barracuda

@@ -36,13 +36,13 @@ let $format = `select @@innodb_file_format`;
 eval set global innodb_file_per_table = on;
 let $WL6501_TMP_DIR = `select @@tmpdir`;
 let $WL6501_DATA_DIR = `select @@datadir`;
+set innodb_strict_mode=off;
 
 #-----------------------------------------------------------------------------
 #
 # 1. Error in assigning undo logs for truncate action.
 #
 --echo "1. Error in assigning undo logs for truncate action."
-use test;
 eval set global innodb_file_per_table = $wl6501_file_per_table;
 eval set global innodb_file_format = $wl6501_file_format;
 --disable_warnings
@@ -70,7 +70,6 @@ drop table t;
 # 2. Error while preparing for truncate.
 #
 --echo "2. Error while preparing for truncate."
-use test;
 eval set global innodb_file_per_table = $wl6501_file_per_table;
 eval set global innodb_file_format = $wl6501_file_format;
 --disable_warnings
@@ -98,7 +97,6 @@ drop table t;
 # 3. Error while dropping/creating indexes
 #
 --echo "3. Error while dropping/creating indexes"
-use test;
 eval set global innodb_file_per_table = $wl6501_file_per_table;
 eval set global innodb_file_format = $wl6501_file_format;
 --disable_warnings
@@ -123,7 +121,6 @@ select * from t;
 drop table t;
 #
 #
-use test;
 eval set global innodb_file_per_table = $wl6501_file_per_table;
 eval set global innodb_file_format = $wl6501_file_format;
 --disable_warnings
@@ -148,7 +145,6 @@ select * from t;
 drop table t;
 #
 #
-use test;
 eval set global innodb_file_per_table = $wl6501_file_per_table;
 eval set global innodb_file_format = $wl6501_file_format;
 --disable_warnings
@@ -177,7 +173,6 @@ drop table t;
 # 4. Error while completing truncate of table involving FTS.
 #
 --echo "4. Error while completing truncate of table involving FTS."
-use test;
 eval set global innodb_file_per_table = $wl6501_file_per_table;
 eval set global innodb_file_format = $wl6501_file_format;
 --disable_warnings
@@ -207,7 +202,6 @@ drop table t;
 # 5. Error while updating sys-tables.
 #
 --echo "5. Error while updating sys-tables."
-use test;
 eval set global innodb_file_per_table = $wl6501_file_per_table;
 eval set global innodb_file_format = $wl6501_file_format;
 --disable_warnings

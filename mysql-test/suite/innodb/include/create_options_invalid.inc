@@ -1,7 +1,6 @@
 # We don't support COMPRESSED table when innodb_page_size is 32k or 64k.
 
 SET GLOBAL innodb_file_per_table=1;
-SET GLOBAL innodb_file_format=Barracuda;
 
 # Test strict mode
 SET SESSION innodb_strict_mode=ON;
@@ -58,4 +57,3 @@ ALTER TABLE t1 KEY_BLOCK_SIZE=4;
 DROP TABLE t1;
 
 SET GLOBAL innodb_file_per_table=default;
-SET GLOBAL innodb_file_format=default;

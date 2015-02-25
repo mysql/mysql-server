@@ -16,8 +16,6 @@
 #
 # create test-bed.
 #
-let $per_table = `select @@innodb_file_per_table`;
-let $format = `select @@innodb_file_format`;
 let $change_buffer_value = `select @@global.innodb_change_buffering`;
 set global innodb_file_per_table = 0;
 
@@ -77,6 +75,4 @@ eval set global innodb_change_buffering = $change_buffer_value;
 #
 # remove test-bed.
 #
-eval set global innodb_file_format = $format;
-eval set global innodb_file_per_table = $per_table;
-
+set global innodb_file_per_table = default;
