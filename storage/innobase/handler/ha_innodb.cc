@@ -12071,6 +12071,13 @@ ha_innobase::estimate_rows_upper_bound()
 
 	m_prebuilt->trx->op_info = "";
 
+        /* Set num_rows less than MERGEBUFF to simulate the case where we do
+        not have enough space to merge the externally sorted file blocks. */
+        DBUG_EXECUTE_IF("set_num_rows_lt_MERGEBUFF",
+                        estimate = 2;
+                        DBUG_SET("-d,set_num_rows_lt_MERGEBUFF");
+                       );
+
 	DBUG_RETURN((ha_rows) estimate);
 }
 

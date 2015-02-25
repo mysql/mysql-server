@@ -1013,7 +1013,7 @@ SELECT * FROM t1 ORDER BY c1	{
               "rows": 0,
               "examined_rows": 0,
               "number_of_tmp_files": 0,
-              "sort_buffer_size": 272,
+              "sort_buffer_size": 4040,
               "sort_mode": "<sort_key, rowid>"
             }
           }
