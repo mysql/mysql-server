@@ -1168,7 +1168,7 @@ bind-address *
 binlog-cache-size 32768
 binlog-checksum CRC32
 binlog-direct-non-transactional-updates FALSE
-binlog-error-action IGNORE_ERROR
+binlog-error-action ABORT_SERVER
 binlog-format STATEMENT
 binlog-group-commit-sync-delay 0
 binlog-group-commit-sync-no-delay-count 0

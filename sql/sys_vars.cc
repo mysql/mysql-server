@@ -1771,7 +1771,7 @@ static Sys_var_enum Sys_binlog_error_action(
        "When statements cannot be written to the binary log due to a fatal "
        "error, the server can either ignore the error and let the master "
        "continue, or abort.", GLOBAL_VAR(binlog_error_action),
-       CMD_LINE(REQUIRED_ARG), binlog_error_action_list, DEFAULT(IGNORE_ERROR));
+       CMD_LINE(REQUIRED_ARG), binlog_error_action_list, DEFAULT(ABORT_SERVER));
 
 static Sys_var_mybool Sys_trust_function_creators(
        "log_bin_trust_function_creators",
