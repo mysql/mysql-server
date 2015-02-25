@@ -1,15 +1,6 @@
 -- source include/have_innodb.inc
 
---disable_warnings
-DROP TABLE IF EXISTS t1;
---enable_warnings
-
 let MYSQLD_DATADIR =`SELECT @@datadir`;
-let $innodb_file_per_table = `SELECT @@innodb_file_per_table`;
-let $innodb_file_format = `SELECT @@innodb_file_format`;
-
-SET GLOBAL innodb_file_per_table = 1;
-SELECT @@innodb_file_per_table;
 
 SET AUTOCOMMIT = 0;
 
@@ -48,5 +39,3 @@ SELECT c1 FROM testdb_wl5522.t1;
 SET AUTOCOMMIT = 1;
 DROP TABLE testdb_wl5522.t1;
 DROP DATABASE testdb_wl5522;
-eval SET GLOBAL INNODB_FILE_FORMAT=$innodb_file_format;
-eval SET GLOBAL INNODB_FILE_PER_TABLE=$innodb_file_per_table;

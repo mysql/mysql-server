@@ -35,11 +35,6 @@ DELIMITER ;|
 # 1. Test restart;
 # 2. Test crash recovery.
 
-if ($row_format == 'DYNAMIC')
-{
-  SET GLOBAL innodb_file_format=Barracuda;
-}
-
 # Test Restart
 if ($row_format != 'COMPRESSED')
 {
@@ -53,7 +48,6 @@ if ($row_format != 'COMPRESSED')
 if ($row_format == 'COMPRESSED')
 {
   SET GLOBAL innodb_file_per_table=1;
-  SET GLOBAL innodb_file_format=Barracuda;
 
   eval CREATE TABLE t1(
         class   INT,
@@ -85,10 +79,6 @@ SELECT * FROM t1 WHERE title = 'a10010';
 DROP TABLE t1;
 
 -- echo # Test Blob
-if ($row_format == 'DYNAMIC')
-{
-  SET GLOBAL innodb_file_format=Barracuda;
-}
 
 if ($row_format != 'COMPRESSED') {
   eval CREATE TABLE t1(
@@ -99,7 +89,6 @@ if ($row_format != 'COMPRESSED') {
 
 if ($row_format == 'COMPRESSED') {
   SET GLOBAL innodb_file_per_table=1;
-  SET GLOBAL innodb_file_format=Barracuda;
 
   eval CREATE TABLE t1(
         a INT PRIMARY KEY,
@@ -126,10 +115,6 @@ SELECT CHAR_LENGTH(b) FROM t1;
 DROP TABLE t1;
 
 # Test Crash Recovery
-if ($row_format == 'DYNAMIC')
-{
-  SET GLOBAL innodb_file_format=Barracuda;
-}
 
 if ($row_format != 'COMPRESSED')
 {
@@ -143,7 +128,6 @@ if ($row_format != 'COMPRESSED')
 if ($row_format == 'COMPRESSED')
 {
   SET GLOBAL innodb_file_per_table=1;
-  SET GLOBAL innodb_file_format=Barracuda;
 
   eval CREATE TABLE t1(
         class   INT,
@@ -185,10 +169,6 @@ SELECT * FROM t1 WHERE title = 'a10010';
 DROP TABLE t1;
 
 -- echo # Test Blob
-if ($row_format == 'DYNAMIC')
-{
-  SET GLOBAL innodb_file_format=Barracuda;
-}
 
 if ($row_format != 'COMPRESSED') {
   eval CREATE TABLE t1(
@@ -199,7 +179,6 @@ if ($row_format != 'COMPRESSED') {
 
 if ($row_format == 'COMPRESSED') {
   SET GLOBAL innodb_file_per_table=1;
-  SET GLOBAL innodb_file_format=Barracuda;
 
   eval CREATE TABLE t1(
         a INT PRIMARY KEY,
@@ -237,12 +216,6 @@ DROP TABLE t1;
 if ($row_format == 'COMPRESSED')
 {
   SET GLOBAL innodb_file_per_table=default;
-  SET GLOBAL innodb_file_format=default;
-}
-
-if ($row_format == 'DYNAMIC')
-{
-  SET GLOBAL innodb_file_format=default;
 }
 
 DROP PROCEDURE populate_t1;

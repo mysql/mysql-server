@@ -5,11 +5,6 @@
 
 let $MYSQLD_DATADIR= `select @@datadir`;
 
-let $per_table=`select @@innodb_file_per_table`;
-let $format=`select @@innodb_file_format`;
-set global innodb_file_per_table=on;
-set global innodb_file_format='Barracuda';
-
 #
 # Test for BUG# 12739098, check whether trx->error_status is reset on error.
 #
@@ -46,10 +41,6 @@ SET DEBUG='+d,ib_row_merge_buf_add_two';
 CREATE UNIQUE INDEX ui ON bug13861218(c1);
 SET DEBUG='-d,ib_row_merge_buf_add_two';
 DROP TABLE bug13861218;
-
-eval set global innodb_file_per_table=$per_table;
-eval set global innodb_file_format=$format;
-eval set global innodb_file_format_max=$format;
 
 --echo #
 --echo # Bug #17657223	EXCESSIVE TEMPORARY FILE USAGE IN ALTER TABLE

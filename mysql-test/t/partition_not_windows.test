@@ -68,6 +68,7 @@ drop table t1;
 #
 # Bug #24633 SQL MODE "NO_DIR_IN_CREATE" does not work with partitioned tables
 #
+set innodb_strict_mode=off;
 disable_query_log;
 eval create table t2 (i int )
 partition by range (i)
@@ -77,7 +78,7 @@ partition by range (i)
  index directory="$MYSQLTEST_VARDIR/tmp/"
 );
 enable_query_log;
-          
+
 set @org_mode=@@sql_mode;
 set @@sql_mode='NO_DIR_IN_CREATE';
 select @@sql_mode;

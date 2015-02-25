@@ -10,10 +10,6 @@ let $partitioning= 1;
 --source suite/innodb/include/innodb_import.inc
 
 let MYSQLD_DATADIR =`SELECT @@datadir`;
-SET @old_innodb_file_per_table = @@innodb_file_per_table;
-SET @old_innodb_file_format = @@innodb_file_format;
-SET GLOBAL innodb_file_per_table = 1;
-SET GLOBAL innodb_file_format = `Barracuda`;
 
 --echo #
 --echo # DISCARD/IMPORT selected partitions only
@@ -297,6 +293,3 @@ call mtr.add_suppression("InnoDB: Missing \.ibd file for table .test...t1. .. Pa
 
 --remove_files_wildcard $MYSQLTEST_VARDIR/tmp t1*.ibd
 --remove_files_wildcard $MYSQLTEST_VARDIR/tmp t1*.cfg
-
-SET GLOBAL innodb_file_per_table = @old_innodb_file_per_table;
-SET GLOBAL innodb_file_format = @old_innodb_file_format;

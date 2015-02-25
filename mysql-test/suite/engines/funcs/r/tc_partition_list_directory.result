@@ -1,4 +1,4 @@
-DROP TABLE IF EXISTS t1;
+SET innodb_strict_mode=OFF;
 CREATE TABLE t1 (id INTEGER NOT NULL, name VARCHAR(30), adate DATE)
 PARTITION BY LIST(YEAR(adate))
 (

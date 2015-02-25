@@ -1,8 +1,5 @@
 -- source include/have_innodb.inc
 
-SET @innodb_large_prefix_orig = @@innodb_large_prefix;
-SET GLOBAL innodb_large_prefix = 1;
-
 --echo #
 --echo # Bug #12699505 MEMORY LEAK IN ROW_CREATE_INDEX_FOR_MYSQL()
 --echo #
@@ -12,7 +9,6 @@ SET GLOBAL innodb_large_prefix = 1;
 
 --error ER_DUP_FIELDNAME
 CREATE TABLE t1(a int not null,key(a,a)) ENGINE=InnoDB DEFAULT CHARSET=latin1;
-# Thanks to --innodb-large-prefix=1 this will not be truncated to b(767)
 -- error ER_INDEX_COLUMN_TOO_LONG
 CREATE TABLE t1(a int,b text,key(b(768))) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 CREATE TABLE t1(a int not null,b text) ENGINE=InnoDB DEFAULT CHARSET=latin1;
@@ -33,5 +29,3 @@ CREATE INDEX t2aa ON t2(a,a);
 CREATE INDEX t2b ON t2(b(768));
 SELECT * FROM t2;
 DROP TABLE t2;
-
-SET GLOBAL innodb_large_prefix = @innodb_large_prefix_orig;

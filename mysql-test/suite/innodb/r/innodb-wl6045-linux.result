@@ -1,5 +1,4 @@
 SET GLOBAL innodb_file_per_table=on;
-SET GLOBAL innodb_file_format='barracuda';
 SHOW variables like '%innodb_checksum_algorithm%';
 Variable_name	Value
 innodb_checksum_algorithm	innodb
@@ -250,4 +249,3 @@ c1	c2
 # Test Scenario: As mysqld is running, & then start the innochecksum which must fail.
 # Test[5] end
 DROP TABLE t1;
-SET GLOBAL innodb_file_format=default;

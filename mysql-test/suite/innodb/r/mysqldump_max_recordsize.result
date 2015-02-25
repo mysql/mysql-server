@@ -31,6 +31,7 @@ repeat('a47',62),repeat('a48',62),repeat('a49',62),repeat('a50',62),repeat('a51'
 repeat('a52',62),repeat('a53',62),repeat('a54',62),repeat('a55',62),repeat('a56',62),
 repeat('a57',62),repeat('a58',62),repeat('a59',62),repeat('a60',62),repeat('a61',62),
 repeat('a62',62),repeat('a63',62));
+SET innodb_strict_mode=OFF;
 CREATE TABLE tab2(col1 CHAR (255), col2 CHAR (255), col3 CHAR(255),col4 CHAR(255), col5 CHAR(255),
 col6   CHAR(255), col7 CHAR(255),  col8 CHAR(255), col9 CHAR(255),col10 CHAR(255), col11  CHAR(255),
 col12 CHAR(255), col13 CHAR(255),col14 CHAR(255),col15 CHAR(255),col16  CHAR(255), col17 CHAR(255),
@@ -70,8 +71,7 @@ col48 CHAR(255),col49 CHAR(255),col50 CHAR(255),col51 CHAR(255),col52  CHAR(255)
 col54 CHAR(255),col55 CHAR(255),col56 CHAR(255),col57 CHAR(255),col58  CHAR(255), col59 CHAR(255),
 col60 CHAR(255),col61 CHAR(255),col62 CHAR(255),col63 CHAR(255)) ENGINE = innodb ROW_FORMAT=COMPRESSED;
 Warnings:
-Warning	1478	InnoDB: ROW_FORMAT=COMPRESSED requires innodb_file_format > Antelope.
-Warning	1478	InnoDB: assuming ROW_FORMAT=COMPACT.
+Warning	1478	InnoDB: Cannot create a COMPRESSED table when innodb_page_size > 16k. Assuming ROW_FORMAT=COMPACT.
 INSERT INTO tab3 VALUES(repeat('a1',127),repeat('a2',127),repeat('a3',127),repeat('a4',127),
 repeat('a5',127),repeat('a6',127),repeat('a7',127),repeat('a8',127),repeat('a9',127),repeat('a10',62),
 repeat('a11',62),repeat('a12',62),repeat('a13',62),repeat('a14',62),repeat('a15',62),repeat('a16',62),

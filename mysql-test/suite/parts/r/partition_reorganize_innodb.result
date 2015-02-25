@@ -1,7 +1,6 @@
 SET default_storage_engine=InnoDB;
 SET SESSION innodb_strict_mode = ON;
 SET GLOBAL innodb_file_per_table=ON;
-SET GLOBAL innodb_file_format=barracuda;
 #
 # CREATE a table with SUBPARTITIONS
 #

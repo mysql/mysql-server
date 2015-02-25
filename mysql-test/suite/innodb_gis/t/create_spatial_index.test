@@ -16,10 +16,6 @@
 --source include/have_geometry.inc
 
 
-SET GLOBAL innodb_file_format='barracuda';
-# Recommends this with compress tables
-SET innodb_strict_mode=ON;
-
 # Check spatial index functionality on compress table with Primary key
 CREATE TABLE tab(c1 int NOT NULL PRIMARY KEY,c2 POINT NOT NULL,
 c3 LINESTRING NOT NULL,c4 POLYGON NOT NULL,c5 GEOMETRY NOT NULL) 
@@ -1130,13 +1126,8 @@ SELECT ST_AsText(c1) FROM tab;
 
 DROP table tab;
 
-# Reset the values
-SET GLOBAL innodb_file_format=Default;
-SET innodb_strict_mode=Default;
-
 # repro case for bug#20451454 - FAILING ASSERTION: LOW_MATCH
 # < DTUPLE_GET_N_FIELDS_CMP(TUPLE)
-use test;
 create table `t1`(`a` geometry not null,`b` linestring not null,
 primary key (`b`(192),`a`(141)),spatial key (`b`)) engine=innodb;
 insert into `t1` values(

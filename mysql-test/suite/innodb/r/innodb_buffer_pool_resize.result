@@ -1,5 +1,3 @@
-set global innodb_file_format=`Barracuda`;
-set global innodb_file_per_table=ON;
 set global innodb_adaptive_hash_index=ON;
 select @@innodb_buffer_pool_size;
 @@innodb_buffer_pool_size

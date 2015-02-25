@@ -24,11 +24,6 @@ DELIMITER ;|
 
 SELECT @@innodb_fill_factor;
 
-if ($row_format == 'DYNAMIC')
-{
-  SET GLOBAL innodb_file_format=Barracuda;
-}
-
 if ($row_format != 'COMPRESSED')
 {
   eval CREATE TABLE t1(
@@ -41,7 +36,6 @@ if ($row_format != 'COMPRESSED')
 if ($row_format == 'COMPRESSED')
 {
   SET GLOBAL innodb_file_per_table=1;
-  SET GLOBAL innodb_file_format=Barracuda;
 
   eval CREATE TABLE t1(
 	class	INT,
@@ -186,12 +180,6 @@ DROP TABLE t1;
 if ($row_format == 'COMPRESSED')
 {
   SET GLOBAL innodb_file_per_table=default;
-  SET GLOBAL innodb_file_format=default;
-}
-
-if ($row_format == 'DYNAMIC')
-{
-  SET GLOBAL innodb_file_format=default;
 }
 
 DROP PROCEDURE populate_t1;

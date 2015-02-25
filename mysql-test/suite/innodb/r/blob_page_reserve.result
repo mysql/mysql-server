@@ -31,8 +31,6 @@ where name = 'test/t1';
 name	clust_index_size
 test/t1	289
 drop table t1;
-set @old_innodb_file_format = @@innodb_file_format;
-set global innodb_file_format=Barracuda;
 set global innodb_compression_level=0;
 create table t2 (f1 int primary key, f2 longblob, f3 longblob) engine=innodb
 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
@@ -96,4 +94,3 @@ name	clust_index_size
 test/t3	97
 drop table t3;
 set global innodb_compression_level=default;
-set global innodb_file_format = @old_innodb_file_format;

@@ -8,11 +8,11 @@
 --source include/have_innodb_zip.inc
 --source include/have_debug.inc
 --source include/big_test.inc
+# Valgrind takes too much time on PB2 even in the --big-test runs.
 --source include/not_valgrind.inc
 
 # Create table with R-tree index.
 SET GLOBAL innodb_file_per_table=1;
-SET GLOBAL innodb_file_format=Barracuda;
 
 #Create table with R-tree index.
 create table t1 (c1 int, c2 geometry not null, spatial index (c2))engine=innodb ROW_FORMAT=COMPRESSED;
@@ -61,5 +61,4 @@ SET DEBUG='-d,page_copy_rec_list_start_compress_fail';
 select count(*) from t1 where MBRWithin(t1.c2, @g1);
 
 # Clean up.
-SET GLOBAL innodb_file_format=Antelope;
 drop table t1;

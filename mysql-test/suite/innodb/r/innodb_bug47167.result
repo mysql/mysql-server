@@ -3,14 +3,20 @@ select @old_innodb_file_format_max;
 @old_innodb_file_format_max
 Antelope
 set global innodb_file_format_max = Barracuda;
+Warnings:
+Warning	131	Using innodb_file_format_max is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 select @@innodb_file_format_max;
 @@innodb_file_format_max
 Barracuda
 set global innodb_file_format_max = DEFAULT;
+Warnings:
+Warning	131	Using innodb_file_format_max is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 select @@innodb_file_format_max;
 @@innodb_file_format_max
 Antelope
 set global innodb_file_format_max = @old_innodb_file_format_max;
+Warnings:
+Warning	131	Using innodb_file_format_max is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 select @@innodb_file_format_max;
 @@innodb_file_format_max
 Antelope

@@ -7,10 +7,10 @@
 --source include/have_innodb.inc
 --source include/have_innodb_zip.inc
 --source include/big_test.inc
+# Valgrind takes too much time on PB2 even in the --big-test runs.
 --source include/not_valgrind.inc
 
 SET GLOBAL innodb_file_per_table=1;
-SET GLOBAL innodb_file_format=Barracuda;
 
 # Create table with R-tree index.
 create table t1 (c1 int, c2 geometry not null, spatial index (c2))engine=innodb ROW_FORMAT=COMPRESSED;

@@ -165,6 +165,11 @@ set by user, however, it will be adjusted to the newer file format if
 a table of such format is created/opened. */
 char*	innobase_file_format_max		= NULL;
 
+/** Default value of innodb_file_format */
+static const char*	innodb_file_format_default	= "Barracuda";
+/** Default value of innodb_file_format_max */
+static const char*	innodb_file_format_max_default	= "Antelope";
+
 static char*	innobase_file_flush_method		= NULL;
 
 /* This variable can be set in the server configure file, specifying
@@ -545,7 +550,7 @@ static MYSQL_THDVAR_BOOL(table_locks, PLUGIN_VAR_OPCMDARG,
 
 static MYSQL_THDVAR_BOOL(strict_mode, PLUGIN_VAR_OPCMDARG,
   "Use strict mode when evaluating create options.",
-  NULL, NULL, FALSE);
+  NULL, NULL, TRUE);
 
 static MYSQL_THDVAR_BOOL(ft_enable_stopword, PLUGIN_VAR_OPCMDARG,
   "Create FTS index with stopword.",
@@ -2928,6 +2933,24 @@ static uint innobase_partition_flags()
 	return(HA_CAN_EXCHANGE_PARTITION | HA_CANNOT_PARTITION_FK);
 }
 
+/** Deprecation message about InnoDB file format related parameters */
+#define DEPRECATED_FORMAT_PARAMETER(x)					\
+	"Using " x " is deprecated and the parameter"			\
+	" may be removed in future releases."				\
+	" See " REFMAN "innodb-file-format.html"
+
+/** Deprecation message about innodb_file_format */
+static const char*	deprecated_file_format
+	= DEPRECATED_FORMAT_PARAMETER("innodb_file_format");
+/** Deprecation message about innodb_large_prefix */
+static const char*	deprecated_large_prefix
+	= DEPRECATED_FORMAT_PARAMETER("innodb_large_prefix");
+/** Deprecation message about innodb_file_format_check */
+static const char*	deprecated_file_format_check
+	= DEPRECATED_FORMAT_PARAMETER("innodb_file_format_check");
+/** Deprecation message about innodb_file_format_max */
+static const char*	deprecated_file_format_max
+	= DEPRECATED_FORMAT_PARAMETER("innodb_file_format_max");
 
 /*********************************************************************//**
 Opens an InnoDB database.
@@ -3137,6 +3160,14 @@ innobase_init(
 		DBUG_RETURN(innobase_init_abort());
 	}
 
+	if (!innobase_large_prefix) {
+		ib::warn() << deprecated_large_prefix;
+	}
+
+	if (innobase_file_format_name != innodb_file_format_default) {
+		ib::warn() << deprecated_file_format;
+	}
+
 	/* Validate the file format by animal name */
 	if (innobase_file_format_name != NULL) {
 
@@ -3167,6 +3198,7 @@ innobase_init(
 
 	/* Check innobase_file_format_check variable */
 	if (!innobase_file_format_check) {
+		ib::warn() << deprecated_file_format_check;
 
 		/* Set the value to disable checking. */
 		srv_max_file_format_at_startup = UNIV_FORMAT_MAX + 1;
@@ -3175,6 +3207,10 @@ innobase_init(
 
 		/* Set the value to the lowest supported format. */
 		srv_max_file_format_at_startup = UNIV_FORMAT_MIN;
+	}
+
+	if (innobase_file_format_max != innodb_file_format_max_default) {
+		ib::warn() << deprecated_file_format_max;
 	}
 
 	/* Did the user specify a format name that we support?
@@ -15301,6 +15337,9 @@ innodb_file_format_name_update(
 	ut_a(var_ptr != NULL);
 	ut_a(save != NULL);
 
+	push_warning(thd, Sql_condition::SL_WARNING,
+		     HA_ERR_WRONG_COMMAND, deprecated_file_format);
+
 	format_name = *static_cast<const char*const*>(save);
 
 	if (format_name) {
@@ -15394,6 +15433,9 @@ innodb_file_format_max_update(
 	ut_a(save != NULL);
 	ut_a(var_ptr != NULL);
 
+	push_warning(thd, Sql_condition::SL_WARNING,
+		     HA_ERR_WRONG_COMMAND, deprecated_file_format_max);
+
 	format_name_in = *static_cast<const char*const*>(save);
 
 	if (!format_name_in) {
@@ -15419,6 +15461,24 @@ innodb_file_format_max_update(
 		ib::info() << "The file format in the system tablespace is now"
 			" set to " << *format_name_out << ".";
 	}
+}
+
+/** Update innodb_large_prefix.
+@param[in,out]	thd	MySQL client connection
+@param[out]	var_ptr	current value
+@param[in]	save	to-be-assigned value */
+static
+void
+innodb_large_prefix_update(
+	THD*		thd,
+	st_mysql_sys_var*,
+	void*		var_ptr,
+	const void*	save)
+{
+	push_warning(thd, Sql_condition::SL_WARNING,
+		     HA_ERR_WRONG_COMMAND, deprecated_large_prefix);
+
+	*static_cast<my_bool*>(var_ptr) = *static_cast<const my_bool*>(save);
 }
 
 /*************************************************************//**
@@ -16974,17 +17034,15 @@ innodb_log_write_ahead_size_update(
 
 /** Update innodb_status_output or innodb_status_output_locks,
 which control InnoDB "status monitor" output to the error log.
-@param[in]	thd	thread handle
-@param[in]	var	system variable
 @param[out]	var_ptr	current value
 @param[in]	save	to-be-assigned value */
 static
 void
 innodb_status_output_update(
-	THD*				thd __attribute__((unused)),
-	struct st_mysql_sys_var*	var __attribute__((unused)),
-	void*				var_ptr __attribute__((unused)),
-	const void*			save __attribute__((unused)))
+	THD*,
+	struct st_mysql_sys_var*,
+	void*				var_ptr,
+	const void*			save)
 {
 	*static_cast<my_bool*>(var_ptr) = *static_cast<const my_bool*>(save);
 	/* The lock timeout monitor thread also takes care of this
@@ -17126,7 +17184,7 @@ static MYSQL_SYSVAR_STR(file_format, innobase_file_format_name,
   PLUGIN_VAR_RQCMDARG,
   "File format to use for new tables in .ibd files.",
   innodb_file_format_name_validate,
-  innodb_file_format_name_update, "Antelope");
+  innodb_file_format_name_update, innodb_file_format_default);
 
 /* "innobase_file_format_check" decides whether we would continue
 booting the server if the file format stamped on the system
@@ -17147,7 +17205,7 @@ static MYSQL_SYSVAR_STR(file_format_max, innobase_file_format_max,
   PLUGIN_VAR_OPCMDARG,
   "The highest file format in the tablespace.",
   innodb_file_format_max_validate,
-  innodb_file_format_max_update, "Antelope");
+  innodb_file_format_max_update, innodb_file_format_max_default);
 
 static MYSQL_SYSVAR_STR(ft_server_stopword_table, innobase_server_stopword_table,
   PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_MEMALLOC,
@@ -17175,7 +17233,7 @@ static MYSQL_SYSVAR_STR(flush_method, innobase_file_flush_method,
 static MYSQL_SYSVAR_BOOL(large_prefix, innobase_large_prefix,
   PLUGIN_VAR_NOCMDARG,
   "Support large index prefix length of REC_VERSION_56_MAX_INDEX_COL_LEN (3072) bytes.",
-  NULL, NULL, FALSE);
+  NULL, innodb_large_prefix_update, TRUE);
 
 static MYSQL_SYSVAR_BOOL(force_load_corrupted, srv_load_corrupted,
   PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,

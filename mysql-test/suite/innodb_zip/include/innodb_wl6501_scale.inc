@@ -9,10 +9,9 @@
 let $per_table = `select @@innodb_file_per_table`;
 let $format = `select @@innodb_file_format`;
 
-eval set global innodb_file_per_table = on;
 let $WL6501_TMP_DIR = `select @@tmpdir`;
 let $WL6501_DATA_DIR = `select @@datadir`;
-let SEARCH_FILE = $MYSQLTEST_VARDIR/log/my_restart.err;
+set innodb_strict_mode=OFF;
 
 #-----------------------------------------------------------------------------
 #
@@ -45,7 +44,6 @@ delimiter ;|
 #
 # create and load the tables.
 #
-use test;
 eval set global innodb_file_per_table = $wl6501_file_per_table;
 eval set global innodb_file_format = $wl6501_file_format;
 --replace_regex /[0-9]+/NUMBER/
@@ -113,4 +111,3 @@ drop procedure populate_small;
 #
 eval set global innodb_file_format = $format;
 eval set global innodb_file_per_table = $per_table;
-

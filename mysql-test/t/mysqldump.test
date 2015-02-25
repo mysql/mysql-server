@@ -40,15 +40,12 @@ drop view if exists v1, v2, v3;
 --enable_warnings
 
 # XML output
-let $format=`select @@innodb_file_format`;
-set global innodb_file_format="Barracuda";
 let $innodb_file_per_table_orig=`select @@innodb_file_per_table`;
 set global innodb_file_per_table=1;
 CREATE TABLE t1(a INT, KEY (a)) ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1 ENGINE=Innodb;
 INSERT INTO t1 VALUES (1), (2);
 --exec $MYSQL_DUMP --skip-create-options --skip-comments -X test t1
 DROP TABLE t1;
-eval set global innodb_file_format=$format;
 eval SET GLOBAL innodb_file_per_table=$innodb_file_per_table_orig;
 
 --echo #

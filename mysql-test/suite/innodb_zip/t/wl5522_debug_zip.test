@@ -21,14 +21,10 @@
 
 let MYSQLD_DATADIR =`SELECT @@datadir`;
 let $innodb_file_per_table = `SELECT @@innodb_file_per_table`;
-let $innodb_file_format = `SELECT @@innodb_file_format`;
 let $innodb_strict_mode_orig=`select @@session.innodb_strict_mode`;
 
 SET GLOBAL innodb_file_per_table = 1;
 SELECT @@innodb_file_per_table;
-
-SET GLOBAL innodb_file_format = `Barracuda`;
-SELECT @@innodb_file_format;
 
 SET SESSION innodb_strict_mode=1;
 SELECT @@SESSION.innodb_strict_mode;
@@ -133,9 +129,6 @@ DROP TABLE test_wl5522.t1;
 
 SET GLOBAL innodb_file_per_table = 1;
 SELECT @@innodb_file_per_table;
-
-SET GLOBAL innodb_file_format = `Barracuda`;
-SELECT @@innodb_file_format;
 
 SET SESSION innodb_strict_mode=1;
 SELECT @@SESSION.innodb_strict_mode;
@@ -739,5 +732,3 @@ call mtr.add_suppression("\\[Warning\\] InnoDB: Tablespace for table .* is set a
 --remove_file $MYSQLTEST_VARDIR/tmp/t1.ibd
 
 eval SET GLOBAL INNODB_FILE_PER_TABLE=$innodb_file_per_table;
-eval SET GLOBAL INNODB_FILE_FORMAT=$innodb_file_format;
-eval SET SESSION innodb_strict_mode=$innodb_strict_mode_orig;
