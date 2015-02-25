@@ -34,7 +34,7 @@ install_db () {
 
     # Restore log, dir, perms and SELinux contexts
 
-    [ -d "$datadir" ] || install -d -m 0750 -o@MYSQLD_USER@ -g@MYSQLD_USER@ "$datadir" || exit 1
+    [ -d "$datadir" ] || install -d -m 0755 -o@MYSQLD_USER@ -g@MYSQLD_USER@ "$datadir" || exit 1
 
     [ -e $log ] || touch $log
     chmod 0640 $log
