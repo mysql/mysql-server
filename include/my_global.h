@@ -68,18 +68,6 @@
 
 #include "my_compiler.h"
 
-
-/*
-  InnoDB depends on some MySQL internals which other plugins should not
-  need.  This is because of InnoDB's foreign key support, "safe" binlog
-  truncation, and other similar legacy features.
-
-  We define accessors for these internals unconditionally, but do not
-  expose them in mysql/plugin.h.  They are declared in ha_innodb.h for
-  InnoDB's use.
-*/
-#define INNODB_COMPATIBILITY_HOOKS
-
 /* Macros to make switching between C and C++ mode easier */
 #ifdef __cplusplus
 #define C_MODE_START    extern "C" {

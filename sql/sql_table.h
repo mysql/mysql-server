@@ -242,9 +242,6 @@ bool validate_comment_length(THD *thd, const char *comment_str,
 template<typename T> class List;
 void promote_first_timestamp_column(List<Create_field> *column_definitions);
 
-/*
-  These prototypes where under INNODB_COMPATIBILITY_HOOKS.
-*/
 size_t explain_filename(THD* thd, const char *from, char *to, size_t to_length,
                         enum_explain_filename_mode explain_mode);
 

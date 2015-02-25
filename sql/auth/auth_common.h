@@ -412,8 +412,6 @@ check_table_access(THD *thd, ulong requirements,TABLE_LIST *tables,
 { return false; }
 #endif /*NO_EMBEDDED_ACCESS_CHECKS*/
 
-/* These was under the INNODB_COMPATIBILITY_HOOKS */
-
 bool check_global_access(THD *thd, ulong want_access);
 
 #ifdef NO_EMBEDDED_ACCESS_CHECKS

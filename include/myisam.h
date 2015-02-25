@@ -362,7 +362,7 @@ typedef struct st_mi_check_param
   uint opt_sort_key,total_files,max_level;
   uint testflag, key_cache_block_size;
   uint16 language;
-  my_bool using_global_keycache, opt_lock_memory, opt_follow_links;
+  my_bool using_global_keycache, opt_follow_links;
   my_bool retry_repair, force_sort;
   char temp_filename[FN_REFLEN],*isam_file_name;
   MY_TMPDIR *tmpdir;

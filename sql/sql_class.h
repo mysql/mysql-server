@@ -72,14 +72,6 @@ const char *set_thd_proc_info(MYSQL_THD thd_arg, const char *info,
 #define thd_proc_info(thd, msg) \
   set_thd_proc_info(thd, msg, __func__, __FILE__, __LINE__)
 
-extern "C"
-void set_thd_stage_info(void *thd,
-                        const PSI_stage_info *new_stage,
-                        PSI_stage_info *old_stage,
-                        const char *calling_func,
-                        const char *calling_file,
-                        const unsigned int calling_line);
-                        
 #define THD_STAGE_INFO(thd, stage) \
   (thd)->enter_stage(& stage, NULL, __func__, __FILE__, __LINE__)
 
@@ -179,8 +171,8 @@ extern LEX_STRING NULL_STR;
 extern LEX_CSTRING EMPTY_CSTR;
 extern LEX_CSTRING NULL_CSTR;
 
-extern "C" LEX_CSTRING thd_query_unsafe(MYSQL_THD thd);
-extern "C" size_t thd_query_safe(MYSQL_THD thd, char *buf, size_t buflen);
+LEX_CSTRING thd_query_unsafe(THD *thd);
+size_t thd_query_safe(THD *thd, char *buf, size_t buflen);
 
 /**
   @class CSET_STRING
@@ -356,9 +348,6 @@ public:
   ~thd_scheduler() { }
 };
 
-/* Needed to get access to scheduler variables */
-void* thd_get_scheduler_data(THD *thd);
-void thd_set_scheduler_data(THD *thd, void *data);
 PSI_thread* thd_get_psi(THD *thd);
 void thd_set_psi(THD *thd, PSI_thread *psi);
 

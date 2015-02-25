@@ -3850,11 +3850,11 @@ static
 const char*
 dict_accept(
 /*========*/
-	CHARSET_INFO*	cs,	/*!< in: the character set of ptr */
-	const char*	ptr,	/*!< in: scan from this */
-	const char*	string,	/*!< in: accept only this string as the next
-				non-whitespace string */
-	ibool*		success)/*!< out: TRUE if accepted */
+	const CHARSET_INFO*	cs,	/*!< in: the character set of ptr */
+	const char*		ptr,	/*!< in: scan from this */
+	const char*		string,	/*!< in: accept only this string as the next
+					non-whitespace string */
+	ibool*			success)/*!< out: TRUE if accepted */
 {
 	const char*	old_ptr = ptr;
 	const char*	old_ptr2;
@@ -3886,19 +3886,19 @@ static
 const char*
 dict_scan_id(
 /*=========*/
-	CHARSET_INFO*	cs,	/*!< in: the character set of ptr */
-	const char*	ptr,	/*!< in: scanned to */
-	mem_heap_t*	heap,	/*!< in: heap where to allocate the id
-				(NULL=id will not be allocated, but it
-				will point to string near ptr) */
-	const char**	id,	/*!< out,own: the id; NULL if no id was
-				scannable */
-	ibool		table_id,/*!< in: TRUE=convert the allocated id
-				as a table name; FALSE=convert to UTF-8 */
-	ibool		accept_also_dot)
-				/*!< in: TRUE if also a dot can appear in a
-				non-quoted id; in a quoted id it can appear
-				always */
+	const CHARSET_INFO*	cs,	/*!< in: the character set of ptr */
+	const char*		ptr,	/*!< in: scanned to */
+	mem_heap_t*		heap,	/*!< in: heap where to allocate the id
+					(NULL=id will not be allocated, but it
+					will point to string near ptr) */
+	const char**		id,	/*!< out,own: the id; NULL if no id was
+					scannable */
+	ibool			table_id,/*!< in: TRUE=convert the allocated id
+					as a table name; FALSE=convert to UTF-8 */
+	ibool			accept_also_dot)
+					/*!< in: TRUE if also a dot can appear in a
+					non-quoted id; in a quoted id it can appear
+					always */
 {
 	char		quote	= '\0';
 	ulint		len	= 0;
@@ -4008,7 +4008,7 @@ static
 const char*
 dict_scan_col(
 /*==========*/
-	CHARSET_INFO*		cs,	/*!< in: the character set of ptr */
+	const CHARSET_INFO*	cs,	/*!< in: the character set of ptr */
 	const char*		ptr,	/*!< in: scanned to */
 	ibool*			success,/*!< out: TRUE if success */
 	dict_table_t*		table,	/*!< in: table in which the column is */
@@ -4119,14 +4119,14 @@ static
 const char*
 dict_scan_table_name(
 /*=================*/
-	CHARSET_INFO*	cs,	/*!< in: the character set of ptr */
-	const char*	ptr,	/*!< in: scanned to */
-	dict_table_t**	table,	/*!< out: table object or NULL */
-	const char*	name,	/*!< in: foreign key table name */
-	ibool*		success,/*!< out: TRUE if ok name found */
-	mem_heap_t*	heap,	/*!< in: heap where to allocate the id */
-	const char**	ref_name)/*!< out,own: the table name;
-				NULL if no name was scannable */
+	const CHARSET_INFO*	cs,	/*!< in: the character set of ptr */
+	const char*		ptr,	/*!< in: scanned to */
+	dict_table_t**		table,	/*!< out: table object or NULL */
+	const char*		name,	/*!< in: foreign key table name */
+	ibool*			success,/*!< out: TRUE if ok name found */
+	mem_heap_t*		heap,	/*!< in: heap where to allocate the id */
+	const char**		ref_name)/*!< out,own: the table name;
+					NULL if no name was scannable */
 {
 	const char*	database_name	= NULL;
 	ulint		database_name_len = 0;
@@ -4194,10 +4194,10 @@ static
 const char*
 dict_skip_word(
 /*===========*/
-	CHARSET_INFO*	cs,	/*!< in: the character set of ptr */
-	const char*	ptr,	/*!< in: scanned to */
-	ibool*		success)/*!< out: TRUE if success, FALSE if just spaces
-				left in string or a syntax error */
+	const CHARSET_INFO*	cs,	/*!< in: the character set of ptr */
+	const char*		ptr,	/*!< in: scanned to */
+	ibool*			success)/*!< out: TRUE if success, FALSE if just spaces
+					left in string or a syntax error */
 {
 	const char*	start;
 
@@ -4428,7 +4428,7 @@ dberr_t
 dict_create_foreign_constraints_low(
 	trx_t*			trx,
 	mem_heap_t*		heap,
-	CHARSET_INFO*		cs,
+	const CHARSET_INFO*	cs,
 	const char*		sql_string,
 	const char*		name,
 	dict_table_t*		handler,
@@ -5035,7 +5035,7 @@ dict_str_starts_with_keyword(
 	const char*	str,		/*!< in: string to scan for keyword */
 	const char*	keyword)	/*!< in: keyword to look for */
 {
-	CHARSET_INFO*	cs = innobase_get_charset(thd);
+	const CHARSET_INFO*	cs = innobase_get_charset(thd);
 	ibool		success;
 
 	dict_accept(cs, str, keyword, &success);
@@ -5113,7 +5113,7 @@ dict_foreign_parse_drop_constraints(
 	size_t			len;
 	const char*		ptr;
 	const char*		id;
-	CHARSET_INFO*		cs;
+	const CHARSET_INFO*	cs;
 
 	ut_a(trx);
 	ut_a(trx->mysql_thd);

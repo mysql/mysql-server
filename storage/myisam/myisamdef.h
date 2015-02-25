@@ -352,7 +352,6 @@ typedef struct st_mi_sort_param
   int (*key_cmp)(struct st_mi_sort_param *, const void *, const void *);
   int (*key_read)(struct st_mi_sort_param *,void *);
   int (*key_write)(struct st_mi_sort_param *, const void *);
-  void (*lock_in_memory)(MI_CHECK *);
   int (*write_keys)(struct st_mi_sort_param *, uchar **,
                     uint , struct st_buffpek *, IO_CACHE *);
   uint (*read_to_buffer)(IO_CACHE *,struct st_buffpek *, uint);

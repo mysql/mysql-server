@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,9 +15,6 @@
 
 /* Test av isam-databas: stor test */
 
-#ifndef USE_MY_FUNC		/* We want to be able to dbug this !! */
-#define USE_MY_FUNC
-#endif
 #ifdef DBUG_OFF
 #undef DBUG_OFF
 #endif
