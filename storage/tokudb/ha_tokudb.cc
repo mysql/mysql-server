@@ -3236,7 +3236,7 @@ void ha_tokudb::start_bulk_insert(ha_rows rows) {
     lock_count = 0;
     
     if ((rows == 0 || rows > 1) && share->try_table_lock) {
-        if (get_prelock_empty(thd) && may_table_be_empty(transaction)) {
+        if (get_prelock_empty(thd) && may_table_be_empty(transaction) && transaction != NULL) {
             if (using_ignore || is_insert_ignore(thd) || thd->lex->duplicates != DUP_ERROR) {
                 acquire_table_lock(transaction, lock_write);
             }
