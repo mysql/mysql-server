@@ -420,7 +420,7 @@ MBD=$RPM_BUILD_DIR/%{src_dir}
 # Ensure that needed directories exists
 install -d -m 0755 %{buildroot}/var/lib/mysql
 install -d -m 0755 %{buildroot}/var/run/mysql
-install -d -m 0660 %{buildroot}/var/log/mysql
+install -d -m 0750 %{buildroot}/var/log/mysql
 
 # Install all binaries
 cd $MBD/release
@@ -632,7 +632,7 @@ fi
 %attr(644, root, root) %config(noreplace,missingok) %{_sysconfdir}/logrotate.d/mysql
 %dir %attr(755, mysql, mysql) /var/lib/mysql
 %dir %attr(755, mysql, mysql) /var/run/mysql
-%dir %attr(660, mysql, mysql) /var/log/mysql
+%dir %attr(750, mysql, mysql) /var/log/mysql
 
 %files common
 %defattr(-, root, root, -)
