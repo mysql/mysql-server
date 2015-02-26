@@ -158,10 +158,6 @@ int gcs_trans_before_commit(Trans_param *param)
         || recovery_module->is_own_event_channel(param->thread_id))
     DBUG_RETURN(0);
 
-  bool is_real_trans= param->flags & TRANS_IS_REAL_TRANS;
-  if (!is_real_trans)
-    DBUG_RETURN(0);
-
   Cluster_member_info* for_local_status=
       cluster_member_mgr->get_cluster_member_info(*local_member_info->get_uuid());
   Cluster_member_info::Cluster_member_status node_status=
