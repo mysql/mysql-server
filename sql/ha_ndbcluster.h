@@ -446,12 +446,6 @@ private:
   int create_pushed_join(const NdbQueryParamValue* keyFieldParams=NULL,
                          uint paramCnt= 0);
 
-  int set_up_partition_info(partition_info *part_info,
-                            NdbDictionary::Table&) const;
-  int set_range_data(const partition_info* part_info,
-                     NdbDictionary::Table&) const;
-  int set_list_data(const partition_info* part_info,
-                    NdbDictionary::Table&) const;
   int ndb_pk_update_row(THD *thd, 
                         const uchar *old_data, uchar *new_data);
   int pk_read(const uchar *key, uint key_len, uchar *buf, uint32 *part_id);
