@@ -131,6 +131,7 @@ a
 test
 select * from t1 where match a against ("te*" in boolean mode)+0;
 a
+test
 drop table t1;
 # 
 # Bug #49734: Crash on EXPLAIN EXTENDED UNION ... ORDER BY 
@@ -186,3 +187,115 @@ b
 2
 DROP TABLE t1,t2;
 End of 5.1 tests
+# Bug #19950568 WRONG RELEVANCE RANKING FOR INNODB FULL TEXT
+#               SEARCHES UNDER CERTAIN CONDITIONS
+#
+CREATE TABLE t1 (
+id int(11) NOT NULL AUTO_INCREMENT,
+first_name VARCHAR(50) NOT NULL,
+last_name VARCHAR(50) NOT NULL,
+PRIMARY KEY (id),
+UNIQUE KEY idx_1 (first_name, last_name),
+FULLTEXT KEY `idx_2` (first_name)
+) ENGINE=InnoDB;
+INSERT INTO t1 (id, first_name, last_name) VALUES
+(1, 'Bart', 'Simpson'),
+(2, 'Homer', 'Simpson'),
+(3, 'Marge', 'Simpson'),
+(4, 'Lisa', 'Simpson'),
+(5, 'Maggie', 'Simpson'),
+(6, 'Ned', 'Flanders'),
+(7, 'Nelson', 'Muntz');
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN SELECT id, first_name, last_name, MATCH(first_name) AGAINST('Homer' IN
+BOOLEAN MODE) AS score FROM t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	7	NULL
+SELECT id, first_name, last_name, MATCH(first_name) AGAINST('Homer' IN
+BOOLEAN MODE) AS score FROM t1;
+id	first_name	last_name	score
+1	Bart	Simpson	0
+2	Homer	Simpson	0.7141907215118408
+3	Marge	Simpson	0
+4	Lisa	Simpson	0
+5	Maggie	Simpson	0
+6	Ned	Flanders	0
+7	Nelson	Muntz	0
+EXPLAIN SELECT id, first_name, last_name, MATCH(first_name) AGAINST('Homer' IN
+BOOLEAN MODE) AS score FROM t1 ORDER BY id;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	7	NULL
+SELECT id, first_name, last_name, MATCH(first_name) AGAINST('Homer' IN
+BOOLEAN MODE) AS score FROM t1 ORDER BY id;
+id	first_name	last_name	score
+1	Bart	Simpson	0
+2	Homer	Simpson	0.7141907215118408
+3	Marge	Simpson	0
+4	Lisa	Simpson	0
+5	Maggie	Simpson	0
+6	Ned	Flanders	0
+7	Nelson	Muntz	0
+DROP TABLE t1;
+CREATE TABLE t1 (
+FTS_DOC_ID  BIGINT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+id int(11) NOT NULL ,
+first_name VARCHAR(50) NOT NULL,
+last_name VARCHAR(50) NOT NULL,
+PRIMARY KEY (ID),
+UNIQUE KEY (FTS_DOC_ID),
+UNIQUE KEY idx_1 (first_name, last_name),
+FULLTEXT KEY `idx_2` (first_name)
+) ENGINE=InnoDB;
+INSERT INTO t1 (id, first_name, last_name) VALUES
+(1, 'Bart', 'Simpson'),
+(2, 'Homer', 'Simpson'),
+(3, 'Marge', 'Simpson'),
+(4, 'Lisa', 'Simpson'),
+(5, 'Maggie', 'Simpson'),
+(6, 'Ned', 'Flanders'),
+(7, 'Nelson', 'Muntz');
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN SELECT id, first_name, last_name, MATCH(first_name) AGAINST('Homer' IN
+BOOLEAN MODE) AS score FROM t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	7	NULL
+SELECT id, first_name, last_name, MATCH(first_name) AGAINST('Homer' IN
+BOOLEAN MODE) AS score FROM t1;
+id	first_name	last_name	score
+1	Bart	Simpson	0
+2	Homer	Simpson	0.7141907215118408
+3	Marge	Simpson	0
+4	Lisa	Simpson	0
+5	Maggie	Simpson	0
+6	Ned	Flanders	0
+7	Nelson	Muntz	0
+EXPLAIN SELECT id, first_name, last_name, MATCH(first_name) AGAINST('Homer' IN
+BOOLEAN MODE) AS score FROM t1 ORDER BY fts_doc_id;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	7	Using filesort
+SELECT id, first_name, last_name, MATCH(first_name) AGAINST('Homer' IN
+BOOLEAN MODE) AS score FROM t1 ORDER BY fts_doc_id;
+id	first_name	last_name	score
+1	Bart	Simpson	0
+2	Homer	Simpson	0.7141907215118408
+3	Marge	Simpson	0
+4	Lisa	Simpson	0
+5	Maggie	Simpson	0
+6	Ned	Flanders	0
+7	Nelson	Muntz	0
+DROP TABLE t1;
+# Adding test case for Bug#20261601
+CREATE TABLE t1(a INT PRIMARY KEY)ENGINE=INNODB;
+INSERT INTO t1 VALUES(1),(2);
+SELECT (SELECT MATCH(`a`)AGAINST('1') FROM t1) FROM t1;
+ERROR HY000: Can't find FULLTEXT index matching the column list
+SELECT 1, a IN (SELECT a FROM t1) FROM t1;
+1	a IN (SELECT a FROM t1)
+1	1
+1	1
+DROP TABLE t1;
+# End of test for Bug#19950568 and Bug#20261601

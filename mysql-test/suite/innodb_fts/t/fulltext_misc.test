@@ -208,6 +208,89 @@ SELECT * FROM t2 UNION SELECT * FROM t2
 
 DROP TABLE t1,t2;
 
-
 --echo End of 5.1 tests
 
+--echo # Bug #19950568 WRONG RELEVANCE RANKING FOR INNODB FULL TEXT
+--echo #               SEARCHES UNDER CERTAIN CONDITIONS
+--echo #
+
+CREATE TABLE t1 (
+  id int(11) NOT NULL AUTO_INCREMENT,
+  first_name VARCHAR(50) NOT NULL,
+  last_name VARCHAR(50) NOT NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY idx_1 (first_name, last_name),
+  FULLTEXT KEY `idx_2` (first_name)
+) ENGINE=InnoDB;
+
+INSERT INTO t1 (id, first_name, last_name) VALUES
+(1, 'Bart', 'Simpson'),
+(2, 'Homer', 'Simpson'),
+(3, 'Marge', 'Simpson'),
+(4, 'Lisa', 'Simpson'),
+(5, 'Maggie', 'Simpson'),
+(6, 'Ned', 'Flanders'),
+(7, 'Nelson', 'Muntz');
+
+ANALYZE TABLE t1;
+
+let $query= SELECT id, first_name, last_name, MATCH(first_name) AGAINST('Homer' IN
+BOOLEAN MODE) AS score FROM t1;
+
+eval EXPLAIN $query;
+eval $query;
+
+let $query=SELECT id, first_name, last_name, MATCH(first_name) AGAINST('Homer' IN
+BOOLEAN MODE) AS score FROM t1 ORDER BY id;
+
+eval EXPLAIN $query;
+eval $query;
+
+DROP TABLE t1;
+
+CREATE TABLE t1 (
+  FTS_DOC_ID  BIGINT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+  id int(11) NOT NULL ,
+  first_name VARCHAR(50) NOT NULL,
+  last_name VARCHAR(50) NOT NULL,
+  PRIMARY KEY (ID),
+  UNIQUE KEY (FTS_DOC_ID),
+  UNIQUE KEY idx_1 (first_name, last_name),
+  FULLTEXT KEY `idx_2` (first_name)
+) ENGINE=InnoDB;
+
+INSERT INTO t1 (id, first_name, last_name) VALUES
+(1, 'Bart', 'Simpson'),
+(2, 'Homer', 'Simpson'),
+(3, 'Marge', 'Simpson'),
+(4, 'Lisa', 'Simpson'),
+(5, 'Maggie', 'Simpson'),
+(6, 'Ned', 'Flanders'),
+(7, 'Nelson', 'Muntz');
+
+ANALYZE TABLE t1;
+
+let $query=SELECT id, first_name, last_name, MATCH(first_name) AGAINST('Homer' IN
+ BOOLEAN MODE) AS score FROM t1;
+
+eval EXPLAIN $query;
+eval $query;
+
+let $query=SELECT id, first_name, last_name, MATCH(first_name) AGAINST('Homer' IN
+BOOLEAN MODE) AS score FROM t1 ORDER BY fts_doc_id;
+
+eval EXPLAIN $query;
+eval $query;
+
+DROP TABLE t1;
+
+--echo # Adding test case for Bug#20261601
+
+CREATE TABLE t1(a INT PRIMARY KEY)ENGINE=INNODB;
+INSERT INTO t1 VALUES(1),(2);
+--error ER_FT_MATCHING_KEY_NOT_FOUND
+SELECT (SELECT MATCH(`a`)AGAINST('1') FROM t1) FROM t1;
+SELECT 1, a IN (SELECT a FROM t1) FROM t1;
+DROP TABLE t1;
+
+--echo # End of test for Bug#19950568 and Bug#20261601
