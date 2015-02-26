@@ -1139,7 +1139,6 @@ Host	User	Password	Select_priv	Insert_priv	Update_priv	Delete_priv	Create_priv	D
 #mysql.user table should have 5.7 layout thus no need to restore the
 #dropped columns from the begining of the test
 mysql_upgrade: [Warning] Using a password on the command line interface can be insecure.
-mysql_upgrade: [Warning] 1642: Pre-4.1 password hash found. It is deprecated and will be removed in a future release. Please upgrade it to a new format.
 mysql.columns_priv                                 OK
 mysql.db                                           OK
 mysql.engine_cost                                  OK
@@ -1171,6 +1170,7 @@ mysql.time_zone_name                               OK
 mysql.time_zone_transition                         OK
 mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
+mysql_upgrade: [Warning] 1642: Pre-4.1 password hash found. It is deprecated and will be removed in a future release. Please upgrade it to a new format.
 mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
 test.backup_user                                   OK
