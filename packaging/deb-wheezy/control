@@ -20,7 +20,7 @@ Description: MySQL Server meta package depending on latest version
 Package: mysql-community-server
 Architecture: any
 Pre-depends: debconf (>= 0.2.17), adduser
-Depends: mysql-common (= ${binary:Version}), perl, python,
+Depends: mysql-common (= ${binary:Version}), perl,
  ${shlibs:Depends}, ${misc:Depends}
 Recommends: mysql-client (= ${binary:Version})
 Conflicts: mysql,
@@ -152,7 +152,7 @@ Description: MySQL Testsuite meta package depending on latest version
 Package: mysql-community-test
 Architecture: any
 Depends: mysql-community-server (= ${binary:Version}),
- mysql-community-client (= ${binary:Version}),
+ mysql-community-client (= ${binary:Version}), python,
  ${shlibs:Depends}, ${misc:Depends}
 Conflicts: mysql,
  mysql-testsuite-5.0, mysql-testsuite-5.1, mysql-testsuite-5.5,
