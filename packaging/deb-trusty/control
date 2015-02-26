@@ -154,7 +154,7 @@ Package: mysql-community-test
 Architecture: any
 Depends: mysql-community-server (= ${binary:Version}),
  mysql-community-client (= ${binary:Version}), python,
- ${shlibs:Depends}, ${misc:Depends}
+ libmysqlclient-dev, ${shlibs:Depends}, ${misc:Depends}
 Conflicts: mysql,
  mysql-testsuite-5.0, mysql-testsuite-5.1, mysql-testsuite-5.5,
  mysql-testsuite-5.6, mysql-commercial-test
