@@ -37,12 +37,13 @@ PSI_memory_key	mem_key_dict_stats_bg_recalc_pool_t;
 PSI_memory_key	mem_key_dict_stats_index_map_t;
 PSI_memory_key	mem_key_dict_stats_n_diff_on_level;
 PSI_memory_key	mem_key_other;
+PSI_memory_key	mem_key_partitioning;
 PSI_memory_key	mem_key_row_log_buf;
 PSI_memory_key	mem_key_row_merge_sort;
 PSI_memory_key	mem_key_std;
 PSI_memory_key	mem_key_sync_debug_latches;
 PSI_memory_key	mem_key_trx_sys_t_rw_trx_ids;
-PSI_memory_key	mem_key_partitioning;
+/* Please obey alphabetical order in the definitions above. */
 
 #ifdef UNIV_PFS_MEMORY
 
@@ -64,12 +65,13 @@ static PSI_memory_info	pfs_info[] = {
 	{&mem_key_dict_stats_index_map_t, "dict_stats_index_map_t", 0},
 	{&mem_key_dict_stats_n_diff_on_level, "dict_stats_n_diff_on_level", 0},
 	{&mem_key_other, "other", 0},
+	{&mem_key_partitioning, "partitioning", 0},
 	{&mem_key_row_log_buf, "row_log_buf", 0},
 	{&mem_key_row_merge_sort, "row_merge_sort", 0},
 	{&mem_key_std, "std", 0},
 	{&mem_key_sync_debug_latches, "sync_debug_latches", 0},
 	{&mem_key_trx_sys_t_rw_trx_ids, "trx_sys_t::rw_trx_ids", 0},
-	{&mem_key_partitioning, "partitioning", 0},
+	/* Please obey alphabetical order in the definitions above. */
 };
 
 /** Map used for default performance schema keys, based on file name of the
