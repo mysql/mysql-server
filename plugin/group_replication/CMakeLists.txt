@@ -35,6 +35,30 @@ IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
   INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/plugin/group_replication/gcs/interface)
   INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/plugin/group_replication/gcs/bindings/corosync)
 
+  SET (GROUP_REPLICATION_SOURCES
+       src/applier.cc
+       src/binding_factory.cc
+       src/certifier.cc
+       src/gcs_event_handlers.cc
+       src/member_info.cc
+       src/observer_server_actions.cc
+       src/observer_server_state.cc
+       src/observer_trans.cc
+       src/pipeline_factory.cc
+       src/plugin.cc
+       src/plugin_messages.cc
+       src/plugin_psi.cc
+       src/ps_information.cc
+       src/recovery.cc
+       src/recovery_message.cc
+       src/replication_threads_api.cc
+       src/handlers/certification_handler.cc
+       src/handlers/event_cataloger.cc
+       src/handlers/applier_handler.cc
+      )
+
+  ADD_LIBRARY(gcs_unit_test_resource STATIC src/member_info.cc)
+
   ADD_LIBRARY(gcs_interface STATIC  gcs/interface/gcs_group_identifier.cc
                                     gcs/interface/gcs_member_identifier.cc
                                     gcs/interface/gcs_message.cc
@@ -56,11 +80,13 @@ IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
                                   gcs/bindings/corosync/gcs_corosync_utils.cc
                                   gcs/bindings/corosync/gcs_corosync_utils.h)
 
+  MYSQL_ADD_PLUGIN(group_replication ${GROUP_REPLICATION_SOURCES}
+                   MODULE_ONLY MODULE_OUTPUT_NAME "group_replication")
+
   if (LIBCPG)
     TARGET_LINK_LIBRARIES(gcs_corosync gcs_interface ${LIBCPG} ${LIBPTHREAD} )
+    TARGET_LINK_LIBRARIES(group_replication gcs_interface gcs_corosync)
   endif(LIBCPG)
-
-  ADD_SUBDIRECTORY(src)
 
   if(INSTALL_PLUGINTESTDIR AND INSTALL_MYSQLTESTDIR)
     INSTALL(
