@@ -87,17 +87,12 @@ start(){
 	    chmod 0755 "$datadir"
 	    [ -x /sbin/restorecon ] && /sbin/restorecon "$datadir"
 	    # Now create the database
-	    action $"Initializing MySQL database: " /usr/bin/mysql_install_db --datadir="$datadir" --user=mysql
+	    action $"Initializing MySQL database: " /usr/sbin/mysqld --initialize --datadir="$datadir" --user=mysql
 	    ret=$?
 	    chown -R mysql:mysql "$datadir"
 	    if [ $ret -ne 0 ] ; then
 		return $ret
 	    fi
-
-	    # Create a file to trigger execution of mysql_secure_installation
-	    # after server has started
-	    touch  "$datadir"/.phase_two_required
-
 	fi
 	chown mysql:mysql "$datadir"
 	chmod 0755 "$datadir"
@@ -139,14 +134,6 @@ start(){
 	else
 	    action $"Starting $prog: " /bin/false
 	fi
-
-	# If server has been started successfully and file created in
-	# mysql_install_db step is present we run mysql_secure_installation
-	if [ $ret = 0 -a -e "$datadir"/.phase_two_required -a -x /usr/bin/mysql_secure_installation ] ; then
-	    /usr/bin/mysql_secure_installation --defaults-file=/etc/my.cnf --use-default
-	    rm -f "$datadir"/.phase_two_required
-	fi
-
     fi
     return $ret
 }
