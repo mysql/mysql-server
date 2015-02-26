@@ -1,5 +1,5 @@
-/* Copyright (c) 2003-2005 MySQL AB
-
+/*
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -35,11 +35,13 @@ int main(int argc, const char** argv){
   int  _percentVal = 1;
   int _lockTime = 1000;
   const char* _tabname = NULL;
+  const char* _dbname = "TEST_DB" ;
   int _help = 0;
   
   struct getargs args[] = {
     { "loops", 'l', arg_integer, &_loops, "number of times to run this program(0=infinite loop)", "loops" },
     { "records", 'r', arg_integer, &_records, "Number of records", "recs" },
+    { "database", 'd', arg_string, &_dbname, "Name of database", "dbname" },
     { "locktime", 't', arg_integer, &_lockTime, "Time in ms to hold lock(default=1000)", "ms" },
     { "percent", 'p', arg_integer, &_percentVal, "Percent of records to lock(default=1%)", "%" },
     { "usage", '?', arg_flag, &_help, "Print help", "" }
@@ -65,7 +67,7 @@ int main(int argc, const char** argv){
   {
     return NDBT_ProgramExit(NDBT_FAILED);
   }
-  Ndb MyNdb(&con, "TEST_DB" );
+  Ndb MyNdb(&con, _dbname );
 
   if(MyNdb.init() != 0){
     NDB_ERR(MyNdb.getNdbError());

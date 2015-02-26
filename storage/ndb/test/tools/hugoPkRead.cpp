@@ -1,5 +1,5 @@
-/* Copyright (c) 2003-2005, 2007 MySQL AB
-
+/*
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -53,6 +53,7 @@ int main(int argc, const char** argv){
   int _abort = 0;
   int _batch = 1;
   const char* _tabname = NULL;
+  const char* _dbname = "TEST_DB";
   int _help = 0;
   int _rand = 0;
 
@@ -63,6 +64,7 @@ int main(int argc, const char** argv){
     { "stats", 's', arg_flag, &_stats, "report latency per batch", "stats" },
     { "batch", 'b', arg_integer, &_batch, "batch value(not 0)", "batch" },
     { "records", 'r', arg_integer, &_records, "Number of records", "records" },
+    { "database", 'd', arg_string, &_dbname, "Name of database", "dbname" },
     { "rand", 0, arg_flag, &_rand, "Read random records within range","rand"},
     { "usage", '?', arg_flag, &_help, "Print help", "" }
   };
@@ -88,7 +90,7 @@ int main(int argc, const char** argv){
     return NDBT_ProgramExit(NDBT_FAILED);
   }
 
-  Ndb MyNdb(&con, "TEST_DB" );
+  Ndb MyNdb(&con, _dbname );
 
   if(MyNdb.init() != 0){
     NDB_ERR(MyNdb.getNdbError());
@@ -109,7 +111,7 @@ int main(int argc, const char** argv){
   NDBT_ThreadSet ths(_threads);
 
   // create Ndb object for each thread
-  if (ths.connect(&con, "TEST_DB") == -1) {
+  if (ths.connect(&con, _dbname) == -1) {
     ndbout << "connect failed: err=" << ths.get_err() << endl;
     return NDBT_ProgramExit(NDBT_FAILED);
   }
