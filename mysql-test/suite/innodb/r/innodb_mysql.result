@@ -1860,7 +1860,7 @@ INSERT INTO t1 VALUES
 (2,1,4,'c_extra',NULL),(3,1,4,'c_extra',NULL);
 EXPLAIN SELECT * FROM t1 FORCE INDEX (PRIMARY) WHERE tid = 1 AND vid = 3 ORDER BY idx DESC;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	NULL	PRIMARY	12	NULL	16	2.00	Using where
+1	SIMPLE	t1	NULL	index	NULL	PRIMARY	12	NULL	16	1.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`vid` AS `vid`,`test`.`t1`.`tid` AS `tid`,`test`.`t1`.`idx` AS `idx`,`test`.`t1`.`name` AS `name`,`test`.`t1`.`type` AS `type` from `test`.`t1` FORCE INDEX (PRIMARY) where ((`test`.`t1`.`vid` = 3) and (`test`.`t1`.`tid` = 1)) order by `test`.`t1`.`idx` desc
 SELECT * FROM t1 FORCE INDEX (PRIMARY) WHERE tid = 1 AND vid = 3 ORDER BY idx DESC;
