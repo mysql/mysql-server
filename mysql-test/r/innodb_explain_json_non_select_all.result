@@ -2179,7 +2179,7 @@ FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t1 WHERE (@a:= a) ORDER BY a LIMIT 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	NULL	PRIMARY	4	NULL	1	400.00	Using where; Using index
+1	SIMPLE	t1	NULL	index	NULL	PRIMARY	4	NULL	1	100.00	Using where; Using index
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (@a:=`test`.`t1`.`a`) order by `test`.`t1`.`a` limit 1
@@ -2205,7 +2205,7 @@ EXPLAIN
         "key_length": "4",
         "rows_examined_per_scan": 1,
         "rows_produced_per_join": 4,
-        "filtered": "400.00",
+        "filtered": "100.00",
         "using_index": true,
         "cost_info": {
           "read_cost": "1.00",
@@ -4007,7 +4007,7 @@ FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	index	NULL	a	15	NULL	5	52.00	Using where
+1	SIMPLE	t2	NULL	index	NULL	a	15	NULL	5	10.00	Using where
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2` where (`test`.`t2`.`b` = 10) order by `test`.`t2`.`a`,`test`.`t2`.`c` limit 5
@@ -4035,7 +4035,7 @@ EXPLAIN
         "key_length": "15",
         "rows_examined_per_scan": 5,
         "rows_produced_per_join": 2,
-        "filtered": "52.00",
+        "filtered": "10.00",
         "cost_info": {
           "read_cost": "5.68",
           "eval_cost": "0.52",
@@ -5126,7 +5126,7 @@ FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t2     WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	index	NULL	a	15	NULL	5	52.00	Using where
+1	SIMPLE	t2	NULL	index	NULL	a	15	NULL	5	10.00	Using where
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2` where (`test`.`t2`.`b` = 10) order by `test`.`t2`.`a`,`test`.`t2`.`c` limit 5
@@ -5154,7 +5154,7 @@ EXPLAIN
         "key_length": "15",
         "rows_examined_per_scan": 5,
         "rows_produced_per_join": 2,
-        "filtered": "52.00",
+        "filtered": "10.00",
         "cost_info": {
           "read_cost": "5.68",
           "eval_cost": "0.52",
