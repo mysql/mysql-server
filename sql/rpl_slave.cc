@@ -7065,7 +7065,10 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
           rli->set_last_retrieved_gtid(gtid);
         global_sid_lock->unlock();
         if (ret != 0)
+        {
+          mysql_mutex_unlock(log_lock);
           goto err;
+        }
       }
     }
     else
