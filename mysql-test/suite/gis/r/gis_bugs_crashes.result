@@ -336,7 +336,7 @@ ST_GEOMFROMTEXT(
                                              '((981 -394,189 -400,649 -325,-977 371,30 859,590 318,329 -894,-51 262,197 952,-846 -139,-920 399)),'
                                              '((-236 -759,834 757,857 747,437 -146,194 913,316 862,976 -491,-745 933,610 687,-149 -164,-803 -565,451 -275)),'
                                              '((572 96,-160 -607,529 930,-544 -132,458 294))))')),
-ST_CENTROID(GEOMFROMTEXT('POINT(-939 -921)')))))),
+ST_CENTROID(ST_GEOMFROMTEXT('POINT(-939 -921)')))))),
 ST_INTERSECTION(
 ST_GEOMFROMTEXT(
 'MULTILINESTRING((541 -927,-414 316,-429 -444,212 260,-125 104,445 563,-713 -975,-976 514),'
@@ -1489,18 +1489,12 @@ ST_ISSIMPLE(ST_LINESTRINGFROMTEXT('LINESTRING(0 0,1 0,2 0,2 0,2 0, 2 1, 1.5 0)')
 ######################################################################################################
 # BUG#17376038 : MULTIPOINT'S PROPERTY OF BEING SIMPLE GEOMETRY, BREACHED
 ######################################################################################################
-SELECT ST_ISSIMPLE(MPOINTFROMWKB(ST_ASWKB(MULTIPOINTFROMTEXT('MULTIPOINT(0 0, 0 0, 1 1, 2 2, 1 1)'))));
-ST_ISSIMPLE(MPOINTFROMWKB(ST_ASWKB(MULTIPOINTFROMTEXT('MULTIPOINT(0 0, 0 0, 1 1, 2 2, 1 1)'))))
+SELECT ST_ISSIMPLE(ST_MPOINTFROMWKB(ST_ASWKB(ST_MULTIPOINTFROMTEXT('MULTIPOINT(0 0, 0 0, 1 1, 2 2, 1 1)'))));
+ST_ISSIMPLE(ST_MPOINTFROMWKB(ST_ASWKB(ST_MULTIPOINTFROMTEXT('MULTIPOINT(0 0, 0 0, 1 1, 2 2, 1 1)'))))
 0
-Warnings:
-Warning	1287	'MPOINTFROMWKB' is deprecated and will be removed in a future release. Please use ST_MPOINTFROMWKB instead
-Warning	1287	'MULTIPOINTFROMTEXT' is deprecated and will be removed in a future release. Please use ST_MULTIPOINTFROMTEXT instead
-SELECT ST_ISSIMPLE(MPOINTFROMWKB(ST_ASWKB(MULTIPOINTFROMTEXT('MULTIPOINT(0 0, 0 0, 1 1, 2 2, 1 1)'))));
-ST_ISSIMPLE(MPOINTFROMWKB(ST_ASWKB(MULTIPOINTFROMTEXT('MULTIPOINT(0 0, 0 0, 1 1, 2 2, 1 1)'))))
+SELECT ST_ISSIMPLE(ST_MPOINTFROMWKB(ST_ASWKB(ST_MULTIPOINTFROMTEXT('MULTIPOINT(0 0, 0 0, 1 1, 2 2, 1 1)'))));
+ST_ISSIMPLE(ST_MPOINTFROMWKB(ST_ASWKB(ST_MULTIPOINTFROMTEXT('MULTIPOINT(0 0, 0 0, 1 1, 2 2, 1 1)'))))
 0
-Warnings:
-Warning	1287	'MPOINTFROMWKB' is deprecated and will be removed in a future release. Please use ST_MPOINTFROMWKB instead
-Warning	1287	'MULTIPOINTFROMTEXT' is deprecated and will be removed in a future release. Please use ST_MULTIPOINTFROMTEXT instead
 ######################################################################################################
 # BUG#20402476 : ASSERTION FAILURE IN ITEM_FUNC_SPATIAL_OPERATION::VAL_STR FUNCTION
 ######################################################################################################

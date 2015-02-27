@@ -9791,13 +9791,7 @@ function_call_conflict:
         ;
 
 geometry_function:
-          CONTAINS_SYM '(' expr ',' expr ')'
-          {
-            push_deprecated_warn(YYTHD, "CONTAINS", "MBRCONTAINS");
-            $$= NEW_PTN Item_func_spatial_mbr_rel(@$, $3, $5,
-                        Item_func::SP_CONTAINS_FUNC);
-          }
-        | GEOMETRYCOLLECTION '(' expr_list ')'
+          GEOMETRYCOLLECTION '(' expr_list ')'
           {
             $$= NEW_PTN Item_func_spatial_collection(@$, $3,
                         Geometry::wkb_geometrycollection,
