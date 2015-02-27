@@ -103,6 +103,18 @@ INDENTIFIED BY PASSWORD 'plug_dest_passwd';
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INDENTIFIED BY PASSWORD 'plug_dest_passwd'' at line 2
 DROP DATABASE test_grant_db;
 ## GRANT PROXY tests
+SELECT @@global.check_proxy_users;
+@@global.check_proxy_users
+0
+SELECT @@global.mysql_native_password_proxy_users;
+@@global.mysql_native_password_proxy_users
+0
+SELECT @@global.sha256_password_proxy_users;
+@@global.sha256_password_proxy_users
+0
+SET @@global.check_proxy_users=ON;
+SET @@global.mysql_native_password_proxy_users=ON;
+SET @@global.sha256_password_proxy_users=ON;
 CREATE USER grant_plug IDENTIFIED WITH 'test_plugin_server' 
 AS 'grant_plug_dest';
 CREATE USER grant_plug_dest IDENTIFIED BY 'grant_plug_dest_passwd';
@@ -205,6 +217,9 @@ SELECT @@LOCAL.proxy_user;
 @@LOCAL.proxy_user
 'plug'@'%'
 # in connection default
+SET @@global.check_proxy_users=0;
+SET @@global.mysql_native_password_proxy_users=0;
+SET @@global.sha256_password_proxy_users=0;
 ## cleanup
 DROP USER plug;
 DROP USER plug_dest;
